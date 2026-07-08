@@ -103,7 +103,6 @@ describe('StaffInvitationDetailsPage', () => {
 				writeText: vi.fn().mockResolvedValue(undefined),
 			},
 		});
-		globalThis.confirm = vi.fn(() => true);
 
 		mocks.useStaffInvitationLinkMutation.mockReturnValue({
 			mutateAsync: vi.fn().mockResolvedValue({

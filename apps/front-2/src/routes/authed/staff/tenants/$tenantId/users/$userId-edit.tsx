@@ -1,10 +1,10 @@
-import { Button, Card, Spinner } from '@heroui/react';
+import { Button, Card, ListBox, Select, Spinner } from '@heroui/react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { AlertCircle, LockKeyhole, SearchX } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
@@ -206,7 +206,7 @@ function StaffTenantUserEditPage() {
 			accountLevel: 'User',
 		},
 	});
-	const { register, handleSubmit, reset, formState } = methods;
+	const { register, handleSubmit, reset, control, formState } = methods;
 	const { errors, isSubmitting } = formState;
 	const tenant = toStaffTenantDetails(tenantQuery.data);
 
@@ -421,19 +421,37 @@ function StaffTenantUserEditPage() {
 						<label htmlFor="tenant-user-account-level" className="text-sm">
 							{t('account-level')}
 						</label>
-						<select
-							id="tenant-user-account-level"
-							className="w-full rounded-medium border border-divider bg-content1 p-2"
-							aria-label={t('account-level')}
-							disabled={isSubmittingForm}
-							{...register('accountLevel')}
-						>
-							{EDIT_ACCOUNT_LEVEL_OPTIONS.map((option) => (
-								<option key={option} value={option}>
-									{option}
-								</option>
-							))}
-						</select>
+						<Controller
+							control={control}
+							name="accountLevel"
+							render={({ field }) => (
+								<Select.Root
+									id="tenant-user-account-level"
+									aria-label={t('account-level')}
+									selectedKey={field.value}
+									onSelectionChange={(key) => {
+										if (key) {
+											field.onChange(key);
+										}
+									}}
+									isDisabled={isSubmittingForm}
+								>
+									<Select.Trigger>
+										<Select.Value />
+										<Select.Indicator />
+									</Select.Trigger>
+									<Select.Popover>
+										<ListBox>
+											{EDIT_ACCOUNT_LEVEL_OPTIONS.map((option) => (
+												<ListBox.Item key={option} id={option}>
+													{option}
+												</ListBox.Item>
+											))}
+										</ListBox>
+									</Select.Popover>
+								</Select.Root>
+							)}
+						/>
 						{errors.accountLevel ? (
 							<p className="text-sm text-danger-600">
 								{errors.accountLevel.message}

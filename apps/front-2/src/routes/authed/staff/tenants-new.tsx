@@ -1,9 +1,9 @@
-import { Button, Card } from '@heroui/react';
+import { Button, Card, ListBox, Select } from '@heroui/react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, createFileRoute } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
-import { useFieldArray, useForm, useWatch } from 'react-hook-form';
+import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -250,18 +250,37 @@ function StaffTenantCreateRoute() {
 									>
 										{t('account-level')}
 									</label>
-									<select
-										id={`initialUsers.${index}.accountLevel`}
-										disabled={isPending}
-										className="w-full rounded-md border border-divider p-2"
-										{...methods.register(`initialUsers.${index}.accountLevel`)}
-									>
-										{USER_ROLE_OPTIONS.map((option) => (
-											<option key={option} value={option}>
-												{option}
-											</option>
-										))}
-									</select>
+									<Controller
+										control={control}
+										name={`initialUsers.${index}.accountLevel`}
+										render={({ field }) => (
+											<Select.Root
+												id={`initialUsers.${index}.accountLevel`}
+												aria-label={t('account-level')}
+												selectedKey={field.value}
+												onSelectionChange={(key) => {
+													if (key) {
+														field.onChange(key);
+													}
+												}}
+												isDisabled={isPending}
+											>
+												<Select.Trigger>
+													<Select.Value />
+													<Select.Indicator />
+												</Select.Trigger>
+												<Select.Popover>
+													<ListBox>
+														{USER_ROLE_OPTIONS.map((option) => (
+															<ListBox.Item key={option} id={option}>
+																{option}
+															</ListBox.Item>
+														))}
+													</ListBox>
+												</Select.Popover>
+											</Select.Root>
+										)}
+									/>
 								</div>
 								<Button
 									type="button"

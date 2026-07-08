@@ -8,6 +8,7 @@ import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
 import QueryDisplay from '~/components/query-display';
+import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
 	useRevokeStaffInvitationMutation,
 	useResendStaffInvitationMutation,
@@ -164,6 +165,7 @@ const InvitationDetailsCard = ({
 	const queryClient = useQueryClient();
 	const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
 	const [inviteLink, setInviteLink] = useState<string>('');
+	const [pendingRevoke, setPendingRevoke] = useState(false);
 
 	const status = normalizeInvitationStatus(invitation.status);
 	const canManage = status === 'pending';
@@ -238,13 +240,6 @@ const InvitationDetailsCard = ({
 	const handleRevoke = async () => {
 		setFeedback(null);
 
-		if (
-			typeof globalThis.confirm === 'function' &&
-			!globalThis.confirm('Revoke invitation?')
-		) {
-			return;
-		}
-
 		try {
 			await revoke.mutateAsync({ invitationId });
 			await Promise.all([
@@ -254,12 +249,15 @@ const InvitationDetailsCard = ({
 				onRefresh(),
 			]);
 			setInviteLink('');
+			setPendingRevoke(false);
 			setFeedback({
 				tone: 'success',
 				message: t('revoke-invitation-success'),
 			});
 		} catch (error) {
 			handleActionError(error, 'Unable to revoke the invitation.');
+		} finally {
+			setPendingRevoke(false);
 		}
 	};
 
@@ -296,13 +294,23 @@ const InvitationDetailsCard = ({
 					<Button
 						type="button"
 						variant="danger-soft"
-						onPress={handleRevoke}
+						onPress={() => setPendingRevoke(true)}
 						isDisabled={!canManage || activeMutationPending}
 					>
 						{t('staff-revoke')}
 					</Button>
 				</div>
 			</div>
+
+			<ConfirmDialog
+				isOpen={pendingRevoke}
+				title="Revoke invitation"
+				description="This will revoke the invitation. The invited user will no longer be able to accept it."
+				confirmLabel="Revoke"
+				isPending={revoke.isPending}
+				onConfirm={handleRevoke}
+				onOpenChange={() => setPendingRevoke(false)}
+			/>
 
 			{feedback ? (
 				<div

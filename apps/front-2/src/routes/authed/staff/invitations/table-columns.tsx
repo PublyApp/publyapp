@@ -50,7 +50,7 @@ export const createInvitationColumns = ({
 				>
 					{row.original.email || '-'}
 				</Link>
-				<div className="text-xs text-muted">
+				<div className="text-xs text-foreground-500">
 					{t('staff-invited-by')}: {row.original.invitedByName}
 				</div>
 			</div>

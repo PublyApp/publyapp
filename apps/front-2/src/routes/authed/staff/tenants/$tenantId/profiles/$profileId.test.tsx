@@ -11,8 +11,6 @@ import {
 import type { JSX } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-const originalConfirm = globalThis.confirm;
-
 const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
 	queryClient: {
@@ -149,7 +147,6 @@ const renderPage = () => {
 describe('staff tenant profile details route', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		globalThis.confirm = vi.fn(() => true);
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
 		mocks.useDeleteStaffTenantProfileMutation.mockReturnValue({
 			isPending: false,
@@ -283,7 +280,6 @@ describe('staff tenant profile details route', () => {
 	});
 
 	afterEach(() => {
-		globalThis.confirm = originalConfirm;
 		cleanup();
 	});
 
@@ -493,9 +489,13 @@ describe('staff tenant profile details route', () => {
 
 		fireEvent.click(screen.getByRole('button', { name: 'Delete profile' }));
 
-		expect(globalThis.confirm).toHaveBeenCalledWith(
-			'Delete this tenant profile?',
+		await waitFor(() =>
+			expect(screen.getByText('Delete tenant profile')).toBeTruthy(),
 		);
+		fireEvent.click(
+			screen.getAllByRole('button', { name: 'Delete' }).slice(-1)[0],
+		);
+
 		await waitFor(() => {
 			expect(mutateAsync).toHaveBeenCalledWith({
 				tenantId: '11111111-1111-1111-1111-111111111111',
@@ -543,6 +543,13 @@ describe('staff tenant profile details route', () => {
 		renderPage();
 
 		fireEvent.click(screen.getByRole('button', { name: 'Delete profile' }));
+
+		await waitFor(() =>
+			expect(screen.getByText('Delete tenant profile')).toBeTruthy(),
+		);
+		fireEvent.click(
+			screen.getAllByRole('button', { name: 'Delete' }).slice(-1)[0],
+		);
 
 		expect(
 			await screen.findByText('Default tenant profile cannot be deleted'),

@@ -1,10 +1,10 @@
-import { Button, Card } from '@heroui/react';
+import { Button, Card, ListBox, Select } from '@heroui/react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { AlertCircle } from 'lucide-react';
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
@@ -63,7 +63,7 @@ function StaffTenantUsersInviteRoute() {
 		resolver: zodResolver(inviteUserSchema),
 		defaultValues: DEFAULT_VALUES,
 	});
-	const { register, handleSubmit, reset, formState } = methods;
+	const { register, handleSubmit, reset, control, formState } = methods;
 	const { errors, isSubmitting } = formState;
 	const { mutateAsync, isPending } = useInviteTenantUserMutation();
 	const [serverErrors, setServerErrors] = useState<string[]>([]);
@@ -210,19 +210,37 @@ function StaffTenantUsersInviteRoute() {
 						<label htmlFor="tenant-invite-account-level" className="text-sm">
 							{t('account-level')}
 						</label>
-						<select
-							id="tenant-invite-account-level"
-							className="w-full rounded-md border border-divider bg-content1 p-2"
-							disabled={isPendingForm}
-							aria-label={t('account-level')}
-							{...register('accountLevel')}
-						>
-							{ACCOUNT_LEVEL_OPTIONS.map((option) => (
-								<option key={option} value={option}>
-									{option}
-								</option>
-							))}
-						</select>
+						<Controller
+							control={control}
+							name="accountLevel"
+							render={({ field }) => (
+								<Select.Root
+									id="tenant-invite-account-level"
+									aria-label={t('account-level')}
+									selectedKey={field.value}
+									onSelectionChange={(key) => {
+										if (key) {
+											field.onChange(key);
+										}
+									}}
+									isDisabled={isPendingForm}
+								>
+									<Select.Trigger>
+										<Select.Value />
+										<Select.Indicator />
+									</Select.Trigger>
+									<Select.Popover>
+										<ListBox>
+											{ACCOUNT_LEVEL_OPTIONS.map((option) => (
+												<ListBox.Item key={option} id={option}>
+													{option}
+												</ListBox.Item>
+											))}
+										</ListBox>
+									</Select.Popover>
+								</Select.Root>
+							)}
+						/>
 						{errors.accountLevel ? (
 							<p className="text-sm text-danger-600">
 								{errors.accountLevel.message}

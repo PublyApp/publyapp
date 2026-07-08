@@ -1,4 +1,5 @@
 import { Card, Chip, Spinner } from '@heroui/react';
+import { Link } from '@tanstack/react-router';
 import { AlertCircle, SearchX } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
@@ -194,12 +195,12 @@ export const TenantDetailsPageShell = ({
 			data-testid={testId}
 		>
 			<div className="flex flex-wrap items-center justify-between gap-3">
-				<a
-					href="/staff/tenants"
+				<Link
+					to="/staff/tenants"
 					className="text-sm font-medium text-foreground underline-offset-4 hover:underline"
 				>
 					Back to tenants
-				</a>
+				</Link>
 			</div>
 
 			<Card className="space-y-6 p-5">

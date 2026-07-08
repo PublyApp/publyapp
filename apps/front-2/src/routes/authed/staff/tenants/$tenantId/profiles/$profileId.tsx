@@ -5,6 +5,7 @@ import { AlertCircle, LockKeyhole, SearchX } from 'lucide-react';
 import { useState } from 'react';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
+import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
 	STAFF_TENANT_PROFILE_DETAILS_QUERY_KEY,
 	STAFF_TENANT_PROFILE_PERMISSION_KEYS_QUERY_KEY,
@@ -146,6 +147,7 @@ function StaffTenantProfileDetailsPage() {
 	const queryClient = useQueryClient();
 	const [actionError, setActionError] = useState('');
 	const [permissionActionError, setPermissionActionError] = useState('');
+	const [pendingDelete, setPendingDelete] = useState(false);
 	const [busyPermissionKey, setBusyPermissionKey] = useState('');
 	const [shouldRedirectToLogout, setShouldRedirectToLogout] = useState(false);
 
@@ -343,13 +345,6 @@ function StaffTenantProfileDetailsPage() {
 			return;
 		}
 
-		if (
-			typeof globalThis.confirm === 'function' &&
-			!globalThis.confirm('Delete this tenant profile?')
-		) {
-			return;
-		}
-
 		try {
 			await deleteProfile.mutateAsync({ tenantId, profileId });
 			await invalidatePermissionQueries();
@@ -368,6 +363,8 @@ function StaffTenantProfileDetailsPage() {
 					fallback: 'Unable to delete this tenant profile.',
 				}),
 			);
+		} finally {
+			setPendingDelete(false);
 		}
 	};
 
@@ -427,9 +424,7 @@ function StaffTenantProfileDetailsPage() {
 								<Button
 									type="button"
 									variant="danger-soft"
-									onPress={() => {
-										void handleDelete();
-									}}
+									onPress={() => setPendingDelete(true)}
 									isDisabled={deleteProfile.isPending}
 								>
 									Delete profile
@@ -446,6 +441,18 @@ function StaffTenantProfileDetailsPage() {
 						</div>
 					</div>
 				</div>
+
+				<ConfirmDialog
+					isOpen={pendingDelete}
+					title="Delete tenant profile"
+					description="This will permanently delete this tenant profile. Users assigned to this profile may be affected and the action cannot be undone."
+					confirmLabel="Delete"
+					isPending={deleteProfile.isPending}
+					onConfirm={() => {
+						void handleDelete();
+					}}
+					onOpenChange={() => setPendingDelete(false)}
+				/>
 
 				<div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)]">
 					<Card className="space-y-4 p-5">

@@ -10,8 +10,6 @@ import type { JSX, ReactNode } from 'react';
 import { createElement } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-const originalConfirm = globalThis.confirm;
-
 const mocks = vi.hoisted(() => ({
 	search: {} as Record<string, unknown>,
 	navigate: vi.fn(),
@@ -107,7 +105,6 @@ describe('staff tenants route', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mocks.search = {};
-		globalThis.confirm = vi.fn(() => true);
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
 		mocks.toStaffTenantRows.mockReturnValue([
 			{
@@ -149,8 +146,6 @@ describe('staff tenants route', () => {
 	});
 
 	afterEach(() => {
-		globalThis.confirm = originalConfirm;
-
 		cleanup();
 	});
 
@@ -281,14 +276,18 @@ describe('staff tenants route', () => {
 	});
 
 	test('requires explicit confirmation before suspending a tenant', async () => {
-		globalThis.confirm = vi.fn(() => false);
 		mocks.suspendTenantMutation.mockResolvedValue({});
 
 		renderPage();
 
 		fireEvent.click(screen.getByRole('button', { name: 'Suspend' }));
 
-		expect(globalThis.confirm).toHaveBeenCalledWith('Suspend this tenant?');
+		await waitFor(() =>
+			expect(screen.getByText('Suspend tenant')).toBeTruthy(),
+		);
+		fireEvent.click(
+			screen.getAllByRole('button', { name: 'Cancel' }).slice(-1)[0],
+		);
 		await waitFor(() =>
 			expect(mocks.suspendTenantMutation).not.toHaveBeenCalled(),
 		);
@@ -303,6 +302,13 @@ describe('staff tenants route', () => {
 		renderPage();
 
 		fireEvent.click(screen.getByRole('button', { name: 'Suspend' }));
+
+		await waitFor(() =>
+			expect(screen.getByText('Suspend tenant')).toBeTruthy(),
+		);
+		fireEvent.click(
+			screen.getAllByRole('button', { name: 'Suspend' }).slice(-1)[0],
+		);
 
 		await waitFor(() =>
 			expect(mocks.suspendTenantMutation).toHaveBeenCalledWith({
@@ -335,6 +341,13 @@ describe('staff tenants route', () => {
 		fireEvent.click(screen.getByRole('button', { name: 'Suspend' }));
 
 		await waitFor(() =>
+			expect(screen.getByText('Suspend tenant')).toBeTruthy(),
+		);
+		fireEvent.click(
+			screen.getAllByRole('button', { name: 'Suspend' }).slice(-1)[0],
+		);
+
+		await waitFor(() =>
 			expect(screen.getByText('Invalid tenant')).toBeTruthy(),
 		);
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
@@ -354,6 +367,13 @@ describe('staff tenants route', () => {
 		renderPage();
 
 		fireEvent.click(screen.getByRole('button', { name: 'Suspend' }));
+
+		await waitFor(() =>
+			expect(screen.getByText('Suspend tenant')).toBeTruthy(),
+		);
+		fireEvent.click(
+			screen.getAllByRole('button', { name: 'Suspend' }).slice(-1)[0],
+		);
 
 		await waitFor(() =>
 			expect(screen.getByTestId('logout-redirect')).toBeTruthy(),

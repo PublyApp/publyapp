@@ -141,7 +141,6 @@ describe('staff tenant invitations route', () => {
 			mutateAsync: vi.fn().mockResolvedValue({}),
 			isPending: false,
 		});
-		globalThis.confirm = vi.fn(() => true);
 		mocks.toStaffTenantDetails.mockReturnValue({
 			id: '11111111-1111-1111-1111-111111111111',
 			name: 'Acme Corporation',
@@ -273,6 +272,13 @@ describe('staff tenant invitations route', () => {
 		fireEvent.click(screen.getByRole('button', { name: 'Revoke' }));
 
 		await waitFor(() =>
+			expect(screen.getByText('Revoke invitation')).toBeTruthy(),
+		);
+		fireEvent.click(
+			screen.getAllByRole('button', { name: 'Revoke' }).slice(-1)[0],
+		);
+
+		await waitFor(() =>
 			expect(revoke).toHaveBeenCalledWith({
 				tenantId: '11111111-1111-1111-1111-111111111111',
 				invitationId: 'invite-1',
@@ -283,7 +289,6 @@ describe('staff tenant invitations route', () => {
 				queryKey: ['staff', 'staff-tenants', 'invitations'],
 			}),
 		);
-		expect(globalThis.confirm).toHaveBeenCalledWith('Revoke invitation?');
 		expect(screen.getByText('Invitation revoked.')).toBeTruthy();
 	});
 
@@ -301,6 +306,13 @@ describe('staff tenant invitations route', () => {
 
 		renderPage();
 		fireEvent.click(screen.getByRole('button', { name: 'Revoke' }));
+
+		await waitFor(() =>
+			expect(screen.getByText('Revoke invitation')).toBeTruthy(),
+		);
+		fireEvent.click(
+			screen.getAllByRole('button', { name: 'Revoke' }).slice(-1)[0],
+		);
 
 		await waitFor(() => expect(revoke).toHaveBeenCalledTimes(1));
 		await waitFor(() => expect(screen.getByText('Forbidden')).toBeTruthy());
@@ -322,6 +334,13 @@ describe('staff tenant invitations route', () => {
 
 		renderPage();
 		fireEvent.click(screen.getByRole('button', { name: 'Revoke' }));
+
+		await waitFor(() =>
+			expect(screen.getByText('Revoke invitation')).toBeTruthy(),
+		);
+		fireEvent.click(
+			screen.getAllByRole('button', { name: 'Revoke' }).slice(-1)[0],
+		);
 
 		await waitFor(() => expect(revoke).toHaveBeenCalledTimes(1));
 		await waitFor(() =>

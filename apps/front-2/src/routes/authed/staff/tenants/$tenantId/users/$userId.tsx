@@ -1,4 +1,4 @@
-import { Card } from '@heroui/react';
+import { Button, Card } from '@heroui/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { AlertCircle, SearchX } from 'lucide-react';
@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
+import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
 	toStaffTenantUserDetails,
 	STAFF_TENANT_USER_DETAILS_QUERY_KEY,
@@ -164,6 +165,7 @@ function StaffTenantUserDetailsPage() {
 	const [membershipActionError, setMembershipActionError] = useState('');
 	const [removeActionError, setRemoveActionError] = useState('');
 	const [shouldLogout, setShouldLogout] = useState(false);
+	const [pendingRemove, setPendingRemove] = useState(false);
 	const suspendTenantUserMutation = useSuspendStaffTenantUserMutation();
 	const reactivateTenantUserMutation = useReactivateStaffTenantUserMutation();
 	const removeTenantUserMutation = useRemoveStaffTenantUserMutation();
@@ -294,13 +296,6 @@ function StaffTenantUserDetailsPage() {
 	const handleRemoveAction = async () => {
 		setRemoveActionError('');
 
-		if (
-			typeof globalThis.confirm === 'function' &&
-			!globalThis.confirm('Remove this tenant user from the tenant?')
-		) {
-			return;
-		}
-
 		try {
 			await removeTenantUserMutation.mutateAsync({ tenantId, userId });
 			await invalidateTenantUserQueries();
@@ -321,6 +316,8 @@ function StaffTenantUserDetailsPage() {
 					fallback: 'Unable to remove this tenant user from the tenant.',
 				}),
 			);
+		} finally {
+			setPendingRemove(false);
 		}
 	};
 
@@ -367,21 +364,22 @@ function StaffTenantUserDetailsPage() {
 					</div>
 					<div className="flex items-center gap-2">
 						{canChangeStatus ? (
-							<button
+							<Button
 								type="button"
-								className="rounded-medium border border-divider bg-content2 px-3 py-2 text-sm text-foreground hover:bg-divider/30 disabled:cursor-not-allowed disabled:opacity-60"
-								onClick={() => {
+								variant="secondary"
+								size="sm"
+								onPress={() => {
 									if (!membershipAction) {
 										return;
 									}
 
 									void handleMembershipAction(membershipAction);
 								}}
-								disabled={membershipActionDisabled}
+								isDisabled={membershipActionDisabled}
 							>
 								{membershipActionLabel}
 								{isStatusActionPending ? '…' : ''}
-							</button>
+							</Button>
 						) : null}
 					</div>
 				</div>
@@ -409,23 +407,34 @@ function StaffTenantUserDetailsPage() {
 							Remove this user from this tenant.
 						</p>
 					</div>
-					<button
+					<Button
 						type="button"
-						className="rounded-medium border border-danger-500/40 bg-danger/10 px-3 py-2 text-sm text-danger-700 transition hover:bg-danger/15 disabled:cursor-not-allowed disabled:opacity-60"
-						onClick={() => {
-							void handleRemoveAction();
-						}}
-						disabled={isAnyActionPending}
+						variant="danger"
+						size="sm"
+						onPress={() => setPendingRemove(true)}
+						isDisabled={isAnyActionPending}
 					>
 						Remove from tenant
 						{isRemoveActionPending ? '…' : ''}
-					</button>
+					</Button>
 				</div>
 
 				{removeActionError ? (
 					<p className="text-sm text-danger-600">{removeActionError}</p>
 				) : null}
 			</Card>
+
+			<ConfirmDialog
+				isOpen={pendingRemove}
+				title="Remove tenant user"
+				description="This will permanently remove this user from the tenant. The user will lose access to this tenant and its projects."
+				confirmLabel="Remove"
+				isPending={removeTenantUserMutation.isPending}
+				onConfirm={() => {
+					void handleRemoveAction();
+				}}
+				onOpenChange={() => setPendingRemove(false)}
+			/>
 
 			<Card className="space-y-4 p-5">
 				<div className="grid gap-4 md:grid-cols-2">

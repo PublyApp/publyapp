@@ -9,6 +9,7 @@ import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
 import { useTableController } from '~/components/table/use-table-controller';
+import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
 	isStaffTenantInvitationRevocable,
 	STAFF_TENANT_INVITATIONS_QUERY_KEY,
@@ -158,6 +159,9 @@ function StaffTenantInvitationsPage() {
 	const { i18n, t } = useTranslation('common');
 	const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
 	const [shouldRedirectToLogout, setShouldRedirectToLogout] = useState(false);
+	const [pendingRevokeRowId, setPendingRevokeRowId] = useState<string | null>(
+		null,
+	);
 
 	const selectedStatuses = parseInvitationStatusFilter(search.status);
 
@@ -204,13 +208,6 @@ function StaffTenantInvitationsPage() {
 		async (row: StaffTenantInvitationRow) => {
 			setFeedback(null);
 
-			if (
-				typeof globalThis.confirm === 'function' &&
-				!globalThis.confirm('Revoke invitation?')
-			) {
-				return;
-			}
-
 			try {
 				await revokeInvitation.mutateAsync({
 					tenantId,
@@ -235,17 +232,23 @@ function StaffTenantInvitationsPage() {
 						fallback: 'Unable to revoke the invitation.',
 					}),
 				});
+			} finally {
+				setPendingRevokeRowId(null);
 			}
 		},
 		[queryClient, revokeInvitation, t, tenantId],
 	);
+
+	const promptRevoke = useCallback((row: StaffTenantInvitationRow) => {
+		setPendingRevokeRowId(row.id);
+	}, []);
 
 	const columns = createColumns({
 		locale: i18n.language,
 		t,
 		isRevokePending: revokeInvitation.isPending,
 		onRevoke: (row) => {
-			void handleRevoke(row);
+			promptRevoke(row);
 		},
 	});
 
@@ -331,6 +334,21 @@ function StaffTenantInvitationsPage() {
 					{feedback.message}
 				</div>
 			) : null}
+
+			<ConfirmDialog
+				isOpen={pendingRevokeRowId !== null}
+				title="Revoke invitation"
+				description="This will revoke the invitation. The invited user will no longer be able to accept it."
+				confirmLabel="Revoke"
+				isPending={revokeInvitation.isPending}
+				onConfirm={() => {
+					const row = rows.find((r) => r.id === pendingRevokeRowId);
+					if (row) {
+						void handleRevoke(row);
+					}
+				}}
+				onOpenChange={() => setPendingRevokeRowId(null)}
+			/>
 
 			<div className="flex flex-wrap items-center gap-2">
 				{KNOWN_INVITATION_STATUSES.map((status) => {

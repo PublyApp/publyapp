@@ -1,12 +1,13 @@
 import { Button } from '@heroui/react';
 import { useQueryClient } from '@tanstack/react-query';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
 import { useTableController } from '~/components/table/use-table-controller';
+import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
 	STAFF_TENANT_DETAILS_QUERY_KEY,
 	STAFF_TENANTS_QUERY_KEY,
@@ -49,9 +50,6 @@ const getStatusClassName = (status: string | null): string => {
 			return 'border-default-200 bg-default-100 text-foreground';
 	}
 };
-
-const confirmAction = (message: string): boolean =>
-	typeof globalThis.confirm === 'function' && globalThis.confirm(message);
 
 const buildTenantColumns = (
 	onSessionExpired: () => void,
@@ -161,12 +159,12 @@ function StaffTenantsPage() {
 		<div className="space-y-4 p-4">
 			<h1 className="text-xl font-semibold">Tenants</h1>
 			<div className="text-right">
-				<a
-					href="/staff/tenants/new"
+				<Link
+					to="/staff/tenants/new"
 					className="text-sm font-medium text-primary underline-offset-4 hover:underline"
 				>
 					{t('new-item', { item: t('tenant') })}
-				</a>
+				</Link>
 			</div>
 			<DataTable
 				testId="staff-tenants-table"
@@ -199,6 +197,40 @@ function StaffTenantsPage() {
 	);
 }
 
+type PendingLifecycleAction = 'suspend' | 'reactivate' | 'delete' | null;
+
+const getConfirmDialogConfig = (action: PendingLifecycleAction) => {
+	switch (action) {
+		case 'suspend':
+			return {
+				title: 'Suspend tenant',
+				description:
+					'Suspending this tenant will temporarily disable access for all associated users and projects. You can reactivate it later.',
+				confirmLabel: 'Suspend',
+			};
+		case 'reactivate':
+			return {
+				title: 'Reactivate tenant',
+				description:
+					'Reactivating this tenant will restore access for all previously suspended users and projects.',
+				confirmLabel: 'Reactivate',
+			};
+		case 'delete':
+			return {
+				title: 'Delete tenant',
+				description:
+					'This tenant is currently suspended. Deleting it is permanent and cannot be undone. All associated data will be removed.',
+				confirmLabel: 'Delete',
+			};
+		default:
+			return {
+				title: '',
+				description: '',
+				confirmLabel: '',
+			};
+	}
+};
+
 const TenantLifecycleActionsCell = ({
 	tenant,
 	onSessionExpired,
@@ -208,6 +240,8 @@ const TenantLifecycleActionsCell = ({
 }) => {
 	const queryClient = useQueryClient();
 	const [errorMessage, setErrorMessage] = useState('');
+	const [pendingAction, setPendingAction] =
+		useState<PendingLifecycleAction>(null);
 	const suspendTenantMutation = useSuspendStaffTenantMutation();
 	const reactivateTenantMutation = useReactivateStaffTenantMutation();
 	const deleteTenantMutation = useDeleteStaffTenantMutation();
@@ -233,19 +267,6 @@ const TenantLifecycleActionsCell = ({
 
 	const performAction = async (action: 'suspend' | 'reactivate' | 'delete') => {
 		setErrorMessage('');
-
-		const actionConfirmed =
-			action === 'suspend'
-				? confirmAction('Suspend this tenant?')
-				: action === 'reactivate'
-					? confirmAction('Reactivate this tenant?')
-					: confirmAction(
-							'Delete this tenant? This tenant is suspended and the action cannot be undone.',
-						);
-
-		if (!actionConfirmed) {
-			return;
-		}
 
 		try {
 			if (action === 'suspend') {
@@ -275,12 +296,18 @@ const TenantLifecycleActionsCell = ({
 								: 'Unable to reactivate tenant.',
 				}),
 			);
+		} finally {
+			setPendingAction(null);
 		}
 	};
 
 	if (!canSuspend && !canReactivate && !canDelete) {
-		return <span className="text-xs text-muted">No lifecycle actions.</span>;
+		return (
+			<span className="text-xs text-foreground-500">No lifecycle actions.</span>
+		);
 	}
+
+	const dialogConfig = getConfirmDialogConfig(pendingAction);
 
 	return (
 		<div className="flex flex-col gap-2">
@@ -290,7 +317,7 @@ const TenantLifecycleActionsCell = ({
 						type="button"
 						variant="secondary"
 						size="sm"
-						onPress={() => void performAction('suspend')}
+						onPress={() => setPendingAction('suspend')}
 						isDisabled={isActionPending}
 					>
 						Suspend
@@ -302,7 +329,7 @@ const TenantLifecycleActionsCell = ({
 						type="button"
 						variant="secondary"
 						size="sm"
-						onPress={() => void performAction('reactivate')}
+						onPress={() => setPendingAction('reactivate')}
 						isDisabled={isActionPending}
 					>
 						Reactivate
@@ -314,7 +341,7 @@ const TenantLifecycleActionsCell = ({
 						type="button"
 						variant="danger"
 						size="sm"
-						onPress={() => void performAction('delete')}
+						onPress={() => setPendingAction('delete')}
 						isDisabled={isActionPending}
 					>
 						Delete
@@ -325,6 +352,20 @@ const TenantLifecycleActionsCell = ({
 			{errorMessage ? (
 				<p className="max-w-56 text-xs text-danger-600">{errorMessage}</p>
 			) : null}
+
+			<ConfirmDialog
+				isOpen={pendingAction !== null}
+				title={dialogConfig.title}
+				description={dialogConfig.description}
+				confirmLabel={dialogConfig.confirmLabel}
+				isPending={isActionPending}
+				onConfirm={() => {
+					if (pendingAction) {
+						void performAction(pendingAction);
+					}
+				}}
+				onOpenChange={() => setPendingAction(null)}
+			/>
 		</div>
 	);
 };

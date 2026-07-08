@@ -48,6 +48,40 @@ vi.mock('@heroui/react', () => ({
 		createElement('div', props, children),
 	Chip: ({ children, ...props }: { children: ReactNode }) =>
 		createElement('div', props, children),
+	Select: {
+		Root: ({
+			children,
+			selectedKey,
+			onSelectionChange,
+			isDisabled,
+			...props
+		}: {
+			children: ReactNode;
+			selectedKey?: string;
+			onSelectionChange?: (key: string) => void;
+			isDisabled?: boolean;
+		}) =>
+			createElement(
+				'select',
+				{
+					value: selectedKey,
+					onChange: (e: React.ChangeEvent<HTMLSelectElement>) => {
+						onSelectionChange?.(e.target.value);
+					},
+					disabled: isDisabled,
+					...props,
+				},
+				children,
+			),
+		Trigger: ({ children: c }: { children?: ReactNode }) => c,
+		Value: () => null,
+		Indicator: () => null,
+		Popover: ({ children: c }: { children?: ReactNode }) => c,
+	},
+	ListBox: Object.assign(({ children: c }: { children?: ReactNode }) => c, {
+		Item: ({ children: c, id }: { children?: ReactNode; id?: string }) =>
+			createElement('option', { value: id }, c),
+	}),
 }));
 
 vi.mock('@tanstack/react-router', () => ({

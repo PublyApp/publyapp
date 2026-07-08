@@ -329,7 +329,7 @@ function StaffProfileUsersPage() {
 					onRetry={() => void usersQuery.refetch()}
 					errorContent={
 						usersFailure?.kind === 'problem' && usersFailure.status === 403 ? (
-							<p className="text-sm text-muted">
+							<p className="text-sm text-foreground-500">
 								You do not have permission to view assigned users.
 							</p>
 						) : undefined

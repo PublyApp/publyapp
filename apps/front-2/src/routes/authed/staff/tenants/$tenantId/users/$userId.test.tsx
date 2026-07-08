@@ -11,8 +11,6 @@ import {
 import type { JSX } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-const originalConfirm = globalThis.confirm;
-
 const mocks = vi.hoisted(() => ({
 	invalidateQueries: vi.fn(),
 	suspendTenantUserMutation: vi.fn(),
@@ -150,7 +148,6 @@ describe('staff tenant user details route', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
-		globalThis.confirm = vi.fn(() => true);
 		mocks.invalidateQueries.mockResolvedValue(undefined);
 		mocks.useSuspendStaffTenantUserMutation.mockReturnValue({
 			mutateAsync: mocks.suspendTenantUserMutation,
@@ -205,7 +202,6 @@ describe('staff tenant user details route', () => {
 	});
 
 	afterEach(() => {
-		globalThis.confirm = originalConfirm;
 		cleanup();
 	});
 
@@ -416,8 +412,7 @@ describe('staff tenant user details route', () => {
 		).toBeTruthy();
 	});
 
-	test('requires explicit confirmation before removing a tenant user', () => {
-		globalThis.confirm = vi.fn(() => false);
+	test('requires explicit confirmation before removing a tenant user', async () => {
 		mocks.removeTenantUserMutation.mockResolvedValue({
 			key: 'tenant-user-removed-success',
 			message: 'Tenant user removed from tenant',
@@ -429,11 +424,14 @@ describe('staff tenant user details route', () => {
 			screen.getByRole('button', { name: /Remove from tenant/i }),
 		);
 
-		expect(globalThis.confirm).toHaveBeenCalledWith(
-			'Remove this tenant user from the tenant?',
+		await waitFor(() =>
+			expect(screen.getByText('Remove tenant user')).toBeTruthy(),
 		);
-		expect(mocks.removeTenantUserMutation).not.toHaveBeenCalled();
-		expect(screen.queryByTestId('logout-redirect')).toBeNull();
+		fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+		await waitFor(() =>
+			expect(mocks.removeTenantUserMutation).not.toHaveBeenCalled(),
+		);
 		expect(mocks.invalidateQueries).not.toHaveBeenCalled();
 		expect(mocks.navigate).not.toHaveBeenCalled();
 	});
@@ -448,6 +446,13 @@ describe('staff tenant user details route', () => {
 
 		fireEvent.click(
 			screen.getByRole('button', { name: /Remove from tenant/i }),
+		);
+
+		await waitFor(() =>
+			expect(screen.getByText('Remove tenant user')).toBeTruthy(),
+		);
+		fireEvent.click(
+			screen.getAllByRole('button', { name: 'Remove' }).slice(-1)[0],
 		);
 
 		await waitFor(() =>
@@ -495,6 +500,13 @@ describe('staff tenant user details route', () => {
 		);
 
 		await waitFor(() =>
+			expect(screen.getByText('Remove tenant user')).toBeTruthy(),
+		);
+		fireEvent.click(
+			screen.getAllByRole('button', { name: 'Remove' }).slice(-1)[0],
+		);
+
+		await waitFor(() =>
 			expect(mocks.removeTenantUserMutation).toHaveBeenCalledTimes(1),
 		);
 		await waitFor(() => expect(screen.getByText(message)).toBeTruthy());
@@ -516,6 +528,13 @@ describe('staff tenant user details route', () => {
 
 		fireEvent.click(
 			screen.getByRole('button', { name: /Remove from tenant/i }),
+		);
+
+		await waitFor(() =>
+			expect(screen.getByText('Remove tenant user')).toBeTruthy(),
+		);
+		fireEvent.click(
+			screen.getAllByRole('button', { name: 'Remove' }).slice(-1)[0],
 		);
 
 		await waitFor(() =>
