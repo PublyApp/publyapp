@@ -153,17 +153,36 @@ describe('staff user details route', () => {
 		cleanup();
 	});
 
+	test('renders "No email address" fallback when email is empty', () => {
+		mocks.toStaffUserDetails.mockReturnValue({
+			id: '11111111-1111-1111-1111-111111111111',
+			email: '',
+			firstName: 'Owner',
+			lastName: 'User',
+			avatarUrl: null,
+			accountLevel: 'Owner',
+			status: 'Active',
+			createdAt: new Date('2026-07-01T09:00:00Z'),
+			updatedAt: new Date('2026-07-02T10:00:00Z'),
+			displayName: 'Owner User',
+		});
+
+		renderPage();
+
+		const matches = screen.getAllByText('No email address');
+		expect(matches).toHaveLength(2);
+	});
+
 	test('renders the read-only basics shell with the assigned profiles section', () => {
 		renderPage();
 
 		expect(screen.getByTestId('staff-user-details-page')).toBeTruthy();
 		expect(screen.getByText('Back to staff users')).toBeTruthy();
-		expect(screen.getByText('Owner User')).toBeTruthy();
+		expect(screen.getAllByText('Owner User')).toHaveLength(2);
 		expect(screen.getAllByText('owner@publyapp.local')).toHaveLength(2);
 		expect(screen.getByText('Owner')).toBeTruthy();
-		expect(screen.getByText('Active')).toBeTruthy();
-		expect(screen.getAllByText('Basics')).toHaveLength(2);
-		expect(screen.getByRole('link', { name: 'Profiles' })).toBeTruthy();
+		expect(screen.getAllByText('Active')).toHaveLength(2);
+		expect(screen.getByText('Account')).toBeTruthy();
 		expect(screen.getByText('Assigned profiles')).toBeTruthy();
 		expect(screen.getByText('2 assigned')).toBeTruthy();
 		expect(screen.getByRole('link', { name: 'Platform admin' })).toBeTruthy();

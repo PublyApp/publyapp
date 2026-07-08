@@ -1,12 +1,14 @@
 import { buttonVariants } from '@heroui/react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
+import { UserPlus } from 'lucide-react';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
 import { useRowSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
+import { PageHeader, StatusPill } from '~/components/ui/product-page';
 import {
 	toStaffUserRows,
 	type StaffUserRow,
@@ -37,11 +39,11 @@ const columns: ColumnDef<StaffUserRow>[] = [
 				<Link
 					to={'/staff/staff-users/$userId' as never}
 					params={{ userId: row.original.id } as never}
-					className="font-medium text-primary underline-offset-4 hover:underline"
+					className="publy-record-link"
 				>
 					{row.original.displayName}
 				</Link>
-				<div className="text-xs text-muted">
+				<div className="publy-record-subtext">
 					{row.original.email || 'No email address'}
 				</div>
 			</div>
@@ -51,13 +53,21 @@ const columns: ColumnDef<StaffUserRow>[] = [
 		id: 'level',
 		header: 'Level',
 		accessorKey: 'level',
-		cell: ({ getValue }) => getValue<string | null>() ?? '—',
+		cell: ({ getValue }) => (
+			<StatusPill tone="primary">
+				{getValue<string | null>() ?? 'Unknown'}
+			</StatusPill>
+		),
 	},
 	{
 		id: 'status',
 		header: 'Status',
 		accessorKey: 'status',
-		cell: ({ getValue }) => getValue<string | null>() ?? '—',
+		cell: ({ getValue }) => (
+			<StatusPill tone="primary">
+				{getValue<string | null>() ?? 'Unknown'}
+			</StatusPill>
+		),
 	},
 	{
 		id: 'actions',
@@ -126,15 +136,19 @@ function StaffUsersPage() {
 
 	return (
 		<div className="space-y-4 p-4">
-			<div className="flex items-center justify-between gap-4">
-				<h1 className="text-xl font-semibold">Staff users</h1>
-				<Link
-					to={'/staff/invitations/new' as never} // Route is not yet migrated for typed route checks; parity contract keeps this external path.
-					className={buttonVariants({ variant: 'primary' })}
-				>
-					{t('invite-users')}
-				</Link>
-			</div>
+			<PageHeader
+				title="Staff users"
+				description="Search, review, and manage staff access across the workspace."
+				actions={
+					<Link
+						to={'/staff/invitations/new' as never} // Route is not yet migrated for typed route checks; parity contract keeps this external path.
+						className={buttonVariants({ variant: 'primary' })}
+					>
+						<UserPlus aria-hidden="true" className="size-4" />
+						{t('invite-users')}
+					</Link>
+				}
+			/>
 			<DataTable
 				testId="staff-users-table"
 				ariaLabel="Staff users"

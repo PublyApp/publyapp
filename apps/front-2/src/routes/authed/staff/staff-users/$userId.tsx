@@ -6,6 +6,12 @@ import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
 import {
+	DetailRow,
+	MetadataCard,
+	PageHeader,
+	StatusPill,
+} from '~/components/ui/product-page';
+import {
 	toAssignedStaffProfiles,
 	toStaffUserDetails,
 	useStaffUserDetailsQuery,
@@ -79,15 +85,6 @@ const getAssignedProfilesErrorDescription = (error: unknown): string => {
 
 	return 'There was a problem loading assigned profiles.';
 };
-
-const DetailItem = ({ label, value }: { label: string; value: string }) => (
-	<div className="rounded-large border border-divider bg-content1 p-4">
-		<p className="text-xs font-medium uppercase tracking-[0.2em] text-foreground-500">
-			{label}
-		</p>
-		<p className="mt-2 text-sm font-medium text-foreground">{value}</p>
-	</div>
-);
 
 const AssignedProfilesSection = ({
 	profilesQuery,
@@ -291,109 +288,51 @@ function StaffUserDetailsPage() {
 	}
 
 	return (
-		<div
-			className="mx-auto w-full max-w-5xl space-y-6 p-4"
-			data-testid="staff-user-details-page"
-		>
-			<div className="space-y-4">
-				<div className="space-y-2">
-					<Link
-						to="/staff/staff-users"
-						className="text-sm text-foreground-500 underline-offset-4 hover:text-foreground hover:underline"
-					>
-						Back to staff users
-					</Link>
-					<div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-						<div className="space-y-2">
-							<p className="text-xs font-medium uppercase tracking-[0.2em] text-foreground-500">
-								Staff user
-							</p>
-							<h1 className="text-3xl font-semibold tracking-tight text-foreground">
-								{details.displayName}
-							</h1>
-							<p className="max-w-2xl text-sm text-foreground-500">
-								{details.email || 'No email address available.'}
-							</p>
-						</div>
-					</div>
-				</div>
-
-				<nav
-					aria-label="Staff user sections"
-					className="flex flex-wrap gap-2 border-b border-divider pb-2"
-				>
-					<a
-						href="#staff-user-basics"
-						className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
-					>
-						Basics
-					</a>
-					<a
-						href="#staff-user-profiles"
-						className="rounded-full border border-divider px-4 py-2 text-sm text-foreground-500 transition hover:border-default-400 hover:text-foreground"
-					>
-						Profiles
-					</a>
-				</nav>
-			</div>
-
-			<div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-				<Card id="staff-user-basics" className="space-y-4 p-5">
-					<div className="space-y-1">
-						<p className="text-lg font-semibold text-foreground">Basics</p>
-						<p className="text-sm text-foreground-500">
-							Read-only staff account details for this user.
-						</p>
-					</div>
-
-					<div className="grid gap-4 md:grid-cols-2">
-						<DetailItem
-							label="Email"
-							value={details.email || 'No email address'}
-						/>
-						<DetailItem
-							label="Account level"
-							value={details.accountLevel ?? '—'}
-						/>
-						<DetailItem label="Status" value={details.status ?? '—'} />
-						<DetailItem label="User ID" value={details.id} />
-					</div>
-				</Card>
-
+		<div className="space-y-4" data-testid="staff-user-details-page">
+			<Link to="/staff/staff-users" className="publy-back-link">
+				Back to staff users
+			</Link>
+			<PageHeader
+				title={details.displayName}
+				description={details.email || 'No email address'}
+				actions={
+					<StatusPill tone="primary">{details.status ?? '—'}</StatusPill>
+				}
+			/>
+			<div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
+				<MetadataCard title="Account">
+					<DetailRow label="Name" value={details.displayName} />
+					<DetailRow
+						label="Email"
+						value={details.email || 'No email address'}
+					/>
+					<DetailRow label="Level" value={details.accountLevel ?? '—'} />
+					<DetailRow label="Status" value={details.status ?? '—'} />
+				</MetadataCard>
 				<div className="space-y-4">
+					<MetadataCard title="Activity">
+						{details.createdAt ? (
+							<DetailRow
+								label="Created"
+								value={formatDateTime(details.createdAt, i18n.language)}
+							/>
+						) : null}
+						{details.updatedAt ? (
+							<DetailRow
+								label="Updated"
+								value={formatDateTime(details.updatedAt, i18n.language)}
+							/>
+						) : null}
+						{!details.createdAt && !details.updatedAt ? (
+							<div className="rounded-large border border-divider bg-content1 p-4 text-sm text-foreground-500">
+								No timestamps are available for this staff user yet.
+							</div>
+						) : null}
+					</MetadataCard>
 					<AssignedProfilesSection
 						profilesQuery={profilesQuery}
 						profiles={profiles}
 					/>
-
-					<Card className="space-y-4 p-5">
-						<div className="space-y-1">
-							<p className="text-lg font-semibold text-foreground">Activity</p>
-							<p className="text-sm text-foreground-500">
-								Lifecycle timestamps from the staff user record.
-							</p>
-						</div>
-
-						<div className="grid gap-4">
-							{details.createdAt ? (
-								<DetailItem
-									label="Created"
-									value={formatDateTime(details.createdAt, i18n.language)}
-								/>
-							) : null}
-							{details.updatedAt ? (
-								<DetailItem
-									label="Updated"
-									value={formatDateTime(details.updatedAt, i18n.language)}
-								/>
-							) : null}
-							{!details.createdAt && !details.updatedAt ? (
-								<div className="rounded-large border border-divider bg-content1 p-4 text-sm text-foreground-500">
-									No timestamps are available for this staff user yet.
-								</div>
-							) : null}
-						</div>
-					</Card>
 				</div>
 			</div>
 		</div>

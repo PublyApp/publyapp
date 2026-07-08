@@ -419,6 +419,33 @@ html {
 		background: var(--publy-surface-muted);
 	}
 
+	.publy-record-link {
+		@apply font-medium;
+		color: var(--publy-foreground);
+		text-decoration: underline;
+		text-decoration-color: var(--publy-border);
+		text-underline-offset: 3px;
+	}
+
+	.publy-record-link:hover {
+		color: var(--publy-primary);
+		text-decoration-color: var(--publy-primary);
+	}
+
+	.publy-record-subtext {
+		@apply text-xs;
+		color: var(--publy-foreground-subtle);
+	}
+
+	.publy-back-link {
+		@apply text-sm transition-colors;
+		color: var(--publy-foreground-subtle);
+	}
+
+	.publy-back-link:hover {
+		color: var(--publy-foreground);
+	}
+
 	/* ---- Data Table ---- */
 
 	.publy-data-table-shell {
