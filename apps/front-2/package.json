@@ -11,7 +11,9 @@
 		"start": "node server.mjs",
 		"typecheck": "tsc --noEmit",
 		"test:request-counter": "node --test deploy/request-counter/control-routes.test.mjs",
-		"test": "vitest run && pnpm test:request-counter"
+		"check:design-system": "node scripts/check-design-system.mjs",
+		"test:design-system-guard": "node --test scripts/check-design-system.test.mjs",
+		"test": "vitest run && pnpm test:request-counter && pnpm test:design-system-guard"
 	},
 	"dependencies": {
 		"@microsoft/kiota-abstractions": "1.0.0-preview.97",
@@ -30,6 +32,7 @@
 		"@org/client-ts": "workspace:*",
 		"@org/shared-ts": "workspace:*",
 		"lodash": "4.18.1",
+		"lucide-react": "0.473.0",
 		"react": "19.1.0",
 		"react-dom": "19.1.0",
 		"react-hook-form": "7.54.2",
