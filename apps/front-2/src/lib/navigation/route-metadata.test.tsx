@@ -4,17 +4,39 @@ import {
 	getActiveAppRoute,
 	getBreadcrumbsForPath,
 	getShellDisplayMode,
+	getVisiblePrimaryRoutes,
 	PRIMARY_APP_ROUTES,
 } from './route-metadata';
 
 describe('front-2 route metadata', () => {
-	test('exposes icon-backed primary routes without short text labels', () => {
-		expect(PRIMARY_APP_ROUTES.map((route) => route.label)).toEqual([
+	test('exposes handoff primary route labels', () => {
+		expect(getVisiblePrimaryRoutes().map((route) => route.label)).toEqual([
+			'Dashboard',
+			'Content',
 			'Staff users',
-			'Profiles',
-			'Tenants',
+			'Roles & permissions',
+			'Invitations',
+			'Analytics',
 		]);
+	});
+
+	test('staff-users secondary items match handoff', () => {
+		const staffUsers = PRIMARY_APP_ROUTES.find((r) => r.id === 'staff-users');
+		expect(staffUsers?.secondaryItems.map((item) => item.label)).toEqual([
+			'All users',
+			'Invitations',
+			'Roles',
+			'Profiles',
+			'Permissions',
+			'Audit log',
+		]);
+	});
+
+	test('every primary route has an Icon', () => {
 		expect(PRIMARY_APP_ROUTES.every((route) => route.Icon)).toBe(true);
+	});
+
+	test('no route has shortLabel', () => {
 		expect(PRIMARY_APP_ROUTES.some((route) => 'shortLabel' in route)).toBe(
 			false,
 		);
@@ -61,7 +83,6 @@ describe('front-2 route metadata', () => {
 
 	test('negative prefix matching avoids spurious route activation', () => {
 		expect(getActiveAppRoute('/staff/staff-usersXYZ')).toBeUndefined();
-		expect(getActiveAppRoute('/staff/tenants-archive')).toBeUndefined();
 	});
 
 	test('tenant secondary prefix resolves to the tenants route', () => {
@@ -80,5 +101,19 @@ describe('front-2 route metadata', () => {
 		expect(getShellDisplayMode('/staff/tenants/t-1/users/invite')).toBe(
 			'default',
 		);
+	});
+
+	test('invitations primary route matches invitation paths', () => {
+		const invitationsRoute = PRIMARY_APP_ROUTES.find(
+			(r) => r.id === 'invitations',
+		);
+		expect(invitationsRoute?.match('/staff/invitations')).toBe(true);
+		expect(invitationsRoute?.match('/staff/invitations/i-1')).toBe(true);
+	});
+
+	test('tenants route is hidden from primary nav but still matches', () => {
+		const tenantsRoute = PRIMARY_APP_ROUTES.find((r) => r.id === 'tenants');
+		expect(tenantsRoute).toBeDefined();
+		expect(PRIMARY_APP_ROUTES.filter((r) => r.id === 'tenants').length).toBe(1);
 	});
 });

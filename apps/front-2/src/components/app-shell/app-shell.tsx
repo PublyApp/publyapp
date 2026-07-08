@@ -1,20 +1,29 @@
-import { Button, buttonVariants } from '@heroui/react';
+import { Avatar, Button, Chip, Input } from '@heroui/react';
 import { Link } from '@tanstack/react-router';
 import {
+	Bell,
+	ChevronDown,
 	ChevronRight,
 	Menu,
-	PanelLeftClose,
-	PanelLeftOpen,
-	ShieldCheck,
+	MessageCircle,
+	Search,
+	Settings,
 	X,
 } from 'lucide-react';
 import { Fragment, useEffect, useState, type ReactNode } from 'react';
 
+import avatarSrc from '../../assets/gray-ui/avatar-profile.jpg';
+import logoSvg from '../../assets/gray-ui/logo.svg';
 import {
-	PRIMARY_APP_ROUTES,
 	getActiveAppRoute,
 	getBreadcrumbsForPath,
 	getShellDisplayMode,
+	getStaffSecondaryItems,
+	getVisiblePrimaryRoutes,
+} from '../../lib/navigation/route-metadata';
+import type {
+	AppRouteMetadata,
+	SecondaryPanelItem,
 } from '../../lib/navigation/route-metadata';
 import { useUiStore } from '../../lib/store/ui-store';
 import { ThemeToggle } from './theme/theme-toggle';
@@ -134,7 +143,6 @@ const AppShellHeader = ({
 		>
 			{navItems.map((item) => {
 				const isActive = activePath === item.path;
-				const variant = isActive ? 'primary' : 'tertiary';
 
 				return (
 					<Link
@@ -142,11 +150,15 @@ const AppShellHeader = ({
 						to={item.path}
 						aria-current={isActive ? 'page' : undefined}
 						onClick={closeOnSelect ? closeMenu : undefined}
-						className={buttonVariants({
-							variant,
-							size: isMobile ? 'sm' : 'md',
-							className: isMobile ? 'w-full justify-start' : '',
-						})}
+						className="inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-medium transition-colors"
+						style={
+							isActive
+								? {
+										background: 'var(--publy-primary)',
+										color: 'var(--publy-primary-foreground)',
+									}
+								: { color: 'var(--publy-foreground-muted)' }
+						}
 					>
 						{item.label}
 					</Link>
@@ -222,6 +234,62 @@ const AppShellNavigation = ({
 	);
 };
 
+const RailLink = ({
+	item,
+	isActive,
+}: {
+	item: AppRouteMetadata;
+	isActive: boolean;
+}) => {
+	const Icon = item.Icon;
+
+	return (
+		<Link
+			to={item.path as never}
+			aria-label={item.label}
+			aria-current={isActive ? 'page' : undefined}
+			className="app-shell-rail-link"
+			data-active={isActive ? 'true' : undefined}
+		>
+			<Icon aria-hidden="true" className="size-[17px]" />
+		</Link>
+	);
+};
+
+const SecondaryPanelNavItem = ({
+	item,
+	pathname,
+}: {
+	item: SecondaryPanelItem;
+	pathname: string;
+}) => {
+	const isActive =
+		pathname === item.path || pathname.startsWith(item.path + '/');
+	const Icon = item.Icon;
+
+	return (
+		<Link
+			to={item.path as never}
+			className="app-shell-secondary-nav-link"
+			data-active={isActive ? 'true' : undefined}
+		>
+			<Icon aria-hidden="true" className="size-4 shrink-0" />
+			<span className="app-shell-secondary-nav-label">{item.label}</span>
+			{item.count !== undefined ? (
+				<span className="app-shell-secondary-nav-count">{item.count}</span>
+			) : null}
+		</Link>
+	);
+};
+
+const hasStaffSecondaryPanel = (pathname: string) =>
+	pathname === '/staff/staff-users' ||
+	pathname.startsWith('/staff/staff-users/') ||
+	pathname === '/staff/invitations' ||
+	pathname.startsWith('/staff/invitations/') ||
+	pathname === '/staff/profiles' ||
+	pathname.startsWith('/staff/profiles/');
+
 const AuthedWorkspaceShell = ({
 	children,
 	pathname,
@@ -236,13 +304,10 @@ const AuthedWorkspaceShell = ({
 	const breadcrumbs = getBreadcrumbsForPath(pathname);
 	const showSecondaryPanel = sidebarOpen && displayMode === 'default';
 
-	const displayBreadcrumbs =
-		breadcrumbs.length >= 2 &&
-		breadcrumbs[0].path &&
-		breadcrumbs[1].path &&
-		breadcrumbs[0].path === breadcrumbs[1].path
-			? breadcrumbs.slice(1)
-			: breadcrumbs;
+	const visibleRoutes = getVisiblePrimaryRoutes();
+	const staffSecondaryItems = getStaffSecondaryItems();
+	const showStaffSecondaryPanel =
+		showSecondaryPanel && hasStaffSecondaryPanel(pathname);
 
 	return (
 		<div
@@ -257,115 +322,158 @@ const AuthedWorkspaceShell = ({
 			>
 				<Link
 					to="/staff/staff-users"
-					className="app-shell-brand"
+					className="app-shell-rail-logo"
 					aria-label="PublyApp workspace"
 				>
-					<ShieldCheck aria-hidden="true" className="size-4" />
+					<img src={logoSvg} alt="PublyApp" className="size-8" />
 				</Link>
 				<div className="app-shell-rail-links">
-					{PRIMARY_APP_ROUTES.map((item) => {
+					{visibleRoutes.map((item) => {
 						const isActive = activeRoute?.id === item.id;
-						const Icon = item.Icon;
 
-						return (
-							<Link
-								key={item.id}
-								to={item.path as never}
-								aria-label={item.label}
-								aria-current={isActive ? 'page' : undefined}
-								className="app-shell-rail-link"
-								data-active={isActive ? 'true' : undefined}
-							>
-								<Icon aria-hidden="true" className="size-4" />
-							</Link>
-						);
+						return <RailLink key={item.id} item={item} isActive={isActive} />;
 					})}
 				</div>
-				<Button
-					isIconOnly
-					size="sm"
-					variant="outline"
-					aria-label={
-						sidebarOpen
-							? 'Collapse navigation panel'
-							: 'Expand navigation panel'
-					}
-					onPress={toggleSidebarOpen}
-					className="app-shell-panel-toggle"
+				<div className="app-shell-rail-spacer" />
+				<button
+					type="button"
+					className="app-shell-rail-link"
+					aria-label="Settings"
 				>
-					{sidebarOpen ? (
-						<PanelLeftClose aria-hidden="true" className="size-4" />
-					) : (
-						<PanelLeftOpen aria-hidden="true" className="size-4" />
-					)}
-				</Button>
+					<Settings aria-hidden="true" className="size-[17px]" />
+				</button>
 			</nav>
-			{showSecondaryPanel && activeRoute ? (
+			{showStaffSecondaryPanel ? (
 				<aside
 					className="app-shell-secondary-panel"
 					data-testid="app-shell-secondary-panel"
 					aria-labelledby="app-shell-secondary-heading"
 				>
-					<div
-						className="app-shell-secondary-heading"
-						id="app-shell-secondary-heading"
-					>
-						{activeRoute.label}
+					<div className="app-shell-secondary-header">
+						<h2
+							className="app-shell-secondary-title"
+							id="app-shell-secondary-heading"
+						>
+							Staff
+						</h2>
+						<Chip.Root
+							size="sm"
+							variant="soft"
+							className="app-shell-workspace-pill"
+						>
+							<Chip.Label>Workspace</Chip.Label>
+						</Chip.Root>
 					</div>
-					{activeRoute.secondaryItems.map((item) => {
-						const Icon = item.Icon;
-
-						return (
-							<Link
+					<div className="app-shell-secondary-search">
+						<div className="app-shell-search-wrapper">
+							<Search aria-hidden="true" className="app-shell-search-icon" />
+							<Input
+								aria-label="Search staff"
+								placeholder="Search"
+								className="app-shell-search-input"
+							/>
+						</div>
+					</div>
+					<nav
+						className="app-shell-secondary-nav"
+						aria-label="Staff navigation"
+					>
+						{staffSecondaryItems.map((item) => (
+							<SecondaryPanelNavItem
 								key={item.path}
-								to={item.path as never}
-								className="app-shell-secondary-link"
-							>
-								<Icon aria-hidden="true" className="size-4" />
-								<span>
-									<span className="app-shell-secondary-link-title">
-										{item.label}
-									</span>
-									<span className="app-shell-secondary-link-description">
-										{item.description}
-									</span>
-								</span>
-							</Link>
-						);
-					})}
+								item={item}
+								pathname={pathname}
+							/>
+						))}
+					</nav>
 				</aside>
 			) : null}
 			<div className="app-shell-body">
 				<header className="app-shell-topbar" data-testid="app-shell-topbar">
-					<nav aria-label="Breadcrumb" className="app-shell-breadcrumbs">
-						{displayBreadcrumbs.map((item, index) => {
-							const isLast = index === displayBreadcrumbs.length - 1;
-							return (
-								<Fragment key={`${item.label}-${index}`}>
-									{index > 0 ? (
-										<ChevronRight
-											aria-hidden="true"
-											className="size-4 shrink-0"
-										/>
-									) : null}
-									{isLast ? (
-										<span
-											aria-current="page"
-											className="font-medium text-foreground"
-										>
-											{item.label}
-										</span>
-									) : item.path ? (
-										<Link to={item.path as never}>{item.label}</Link>
-									) : (
-										<span>{item.label}</span>
-									)}
-								</Fragment>
-							);
-						})}
-					</nav>
-					<div className="app-shell-topbar-actions">
-						<ThemeToggle />
+					<div className="app-shell-topbar-left">
+						<Button
+							isIconOnly
+							size="sm"
+							variant="ghost"
+							aria-label={
+								sidebarOpen
+									? 'Collapse navigation panel'
+									: 'Expand navigation panel'
+							}
+							onPress={toggleSidebarOpen}
+							className="app-shell-sidebar-toggle"
+						>
+							<Menu aria-hidden="true" className="size-5" />
+						</Button>
+						<div className="app-shell-topbar-separator" />
+						<nav aria-label="Breadcrumb" className="app-shell-breadcrumbs">
+							{breadcrumbs.map((item, index) => {
+								const isLast = index === breadcrumbs.length - 1;
+								return (
+									<Fragment key={`${item.label}-${index}`}>
+										{index > 0 ? (
+											<ChevronRight
+												aria-hidden="true"
+												className="app-shell-breadcrumb-chevron"
+											/>
+										) : null}
+										{isLast ? (
+											<span
+												aria-current="page"
+												className="app-shell-breadcrumb-current"
+											>
+												{item.label}
+											</span>
+										) : item.path ? (
+											<Link
+												to={item.path as never}
+												className="app-shell-breadcrumb-link"
+											>
+												{item.label}
+											</Link>
+										) : (
+											<span className="app-shell-breadcrumb-muted">
+												{item.label}
+											</span>
+										)}
+									</Fragment>
+								);
+							})}
+						</nav>
+					</div>
+					<div className="app-shell-topbar-right">
+						<Button
+							isIconOnly
+							variant="outline"
+							aria-label="Search"
+							className="app-shell-topbar-action-btn"
+						>
+							<Search aria-hidden="true" className="size-[17px]" />
+						</Button>
+						<Button
+							isIconOnly
+							variant="outline"
+							aria-label="Notifications"
+							className="app-shell-topbar-action-btn"
+						>
+							<Bell aria-hidden="true" className="size-[17px]" />
+						</Button>
+						<Button
+							isIconOnly
+							variant="outline"
+							aria-label="Messages"
+							className="app-shell-topbar-action-btn"
+						>
+							<MessageCircle aria-hidden="true" className="size-[17px]" />
+						</Button>
+						<div className="app-shell-topbar-separator" />
+						<div className="app-shell-user-chip">
+							<Avatar.Root size="sm" className="size-7">
+								<Avatar.Image src={avatarSrc} />
+							</Avatar.Root>
+							<span className="app-shell-user-name">Capt. Radan</span>
+							<ChevronDown aria-hidden="true" className="size-4" />
+						</div>
 					</div>
 				</header>
 				<main className="app-shell-main">{children}</main>

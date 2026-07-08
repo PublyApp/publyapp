@@ -1,12 +1,18 @@
-import type { LucideIcon } from 'lucide-react';
 import {
+	BarChart3,
 	Building2,
 	ClipboardList,
+	History,
 	KeyRound,
+	LayoutDashboard,
+	Lock,
+	Mail,
+	Newspaper,
 	ShieldCheck,
 	UserRound,
 	UsersRound,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 export type ShellDisplayMode = 'default' | 'full-detail';
 
@@ -20,10 +26,21 @@ export type SecondaryPanelItem = {
 	description: string;
 	path: string;
 	Icon: LucideIcon;
+	count?: number;
 };
 
+export type RouteId =
+	| 'dashboard'
+	| 'content'
+	| 'staff-users'
+	| 'roles-permissions'
+	| 'invitations'
+	| 'analytics'
+	| 'tenants'
+	| 'profiles';
+
 export type AppRouteMetadata = {
-	id: 'staff-users' | 'profiles' | 'tenants';
+	id: RouteId;
 	label: string;
 	path: string;
 	Icon: LucideIcon;
@@ -79,62 +96,130 @@ function isCreateRoute(pathname: string): boolean {
 
 // -- Primary route definitions
 
+const STAFF_SECONDARY_ITEMS: SecondaryPanelItem[] = [
+	{
+		label: 'All users',
+		description: '',
+		path: '/staff/staff-users',
+		Icon: UserRound,
+		count: 42,
+	},
+	{
+		label: 'Invitations',
+		description: '',
+		path: '/staff/invitations',
+		Icon: Mail,
+		count: 6,
+	},
+	{
+		label: 'Roles',
+		description: '',
+		path: '/staff/profiles',
+		Icon: KeyRound,
+		count: 5,
+	},
+	{
+		label: 'Profiles',
+		description: '',
+		path: '/staff/profiles',
+		Icon: ClipboardList,
+		count: 4,
+	},
+	{
+		label: 'Permissions',
+		description: '',
+		path: '/staff/profiles',
+		Icon: ShieldCheck,
+		count: 86,
+	},
+	{
+		label: 'Audit log',
+		description: '',
+		path: '/staff/staff-users',
+		Icon: History,
+	},
+];
+
 export const PRIMARY_APP_ROUTES: AppRouteMetadata[] = [
+	{
+		id: 'dashboard',
+		label: 'Dashboard',
+		path: '/staff/staff-users',
+		Icon: LayoutDashboard,
+		match: matchPath(['/staff/dashboard']),
+		secondaryItems: [],
+	},
+	{
+		id: 'content',
+		label: 'Content',
+		path: '/staff/staff-users',
+		Icon: Newspaper,
+		match: matchPath(['/staff/content']),
+		secondaryItems: [],
+	},
 	{
 		id: 'staff-users',
 		label: 'Staff users',
 		path: '/staff/staff-users',
 		Icon: UsersRound,
-		match: matchPath(['/staff/staff-users', '/staff/invitations']),
-		secondaryItems: [
-			{
-				label: 'All staff users',
-				description: 'Search, sort, select, and inspect staff accounts.',
-				path: '/staff/staff-users',
-				Icon: UserRound,
-			},
-			{
-				label: 'Invitations',
-				description: 'Review pending staff invitations.',
-				path: '/staff/invitations',
-				Icon: KeyRound,
-			},
-		],
+		match: matchPath(['/staff/staff-users']),
+		secondaryItems: STAFF_SECONDARY_ITEMS,
 	},
 	{
-		id: 'profiles',
-		label: 'Profiles',
+		id: 'roles-permissions',
+		label: 'Roles & permissions',
 		path: '/staff/profiles',
-		Icon: ShieldCheck,
-		match: matchPath(['/staff/profiles']),
-		secondaryItems: [
-			{
-				label: 'All profiles',
-				description: 'Manage reusable staff permission profiles.',
-				path: '/staff/profiles',
-				Icon: ClipboardList,
-			},
-		],
+		Icon: Lock,
+		match: matchPath(['/staff/roles-permissions', '/staff/profiles']),
+		secondaryItems: [],
 	},
+	{
+		id: 'invitations',
+		label: 'Invitations',
+		path: '/staff/invitations',
+		Icon: Mail,
+		match: matchPath(['/staff/invitations']),
+		secondaryItems: [],
+	},
+	{
+		id: 'analytics',
+		label: 'Analytics',
+		path: '/staff/staff-users',
+		Icon: BarChart3,
+		match: matchPath(['/staff/analytics']),
+		secondaryItems: [],
+	},
+	// Hidden — kept for backward-compatible route matching (tenants/tenant prefix)
 	{
 		id: 'tenants',
 		label: 'Tenants',
 		path: '/staff/tenants',
 		Icon: Building2,
 		match: matchPath(['/staff/tenants', '/tenant']),
-		secondaryItems: [
-			{
-				label: 'Tenant directory',
-				description:
-					'Inspect tenant lifecycle, users, profiles, and invitations.',
-				path: '/staff/tenants',
-				Icon: Building2,
-			},
-		],
+		secondaryItems: [],
 	},
 ];
 
 // -- Public API
+
+const VISIBLE_PRIMARY_ROUTE_IDS: AppRouteMetadata['id'][] = [
+	'dashboard',
+	'content',
+	'staff-users',
+	'roles-permissions',
+	'invitations',
+	'analytics',
+];
+
+export function getVisiblePrimaryRoutes(): AppRouteMetadata[] {
+	return PRIMARY_APP_ROUTES.filter((r) =>
+		VISIBLE_PRIMARY_ROUTE_IDS.includes(r.id),
+	);
+}
+
+export function getStaffSecondaryItems(): SecondaryPanelItem[] {
+	return STAFF_SECONDARY_ITEMS;
+}
 
 export function getActiveAppRoute(
 	pathname: string,
