@@ -152,6 +152,8 @@ git commit -m "feat(front-2): align staff admin tokens with handoff"
 
 ### Task 2: Admin Shell Pixel Pass
 
+Status: accepted in commit `98c968ee` after captain verification and Claude Sonnet review.
+
 **Files:**
 - Modify: `apps/front-2/src/components/app-shell/app-shell.tsx`
 - Modify: `apps/front-2/src/lib/navigation/route-metadata.tsx`
@@ -159,7 +161,7 @@ git commit -m "feat(front-2): align staff admin tokens with handoff"
 - Test: `apps/front-2/src/lib/navigation/route-metadata.test.tsx`
 - Test: `apps/front-2/e2e/shell.spec.ts`
 
-- [ ] **Step 1: Add shell tests**
+- [x] **Step 1: Add shell tests**
 
 Update shell Playwright assertions to check:
 
@@ -170,13 +172,13 @@ await expect(page.getByTestId('app-shell-topbar')).toBeVisible();
 await expect(page.getByRole('navigation', { name: 'Breadcrumb' })).toContainText('Workspace');
 ```
 
-- [ ] **Step 2: Run shell tests and verify failure**
+- [x] **Step 2: Run shell tests and verify failure**
 
 Run: `pnpm --filter front-2 exec playwright test e2e/shell.spec.ts --reporter=line`
 
 Expected: FAIL on rail/panel measurements or missing topbar affordances.
 
-- [ ] **Step 3: Implement handoff shell**
+- [x] **Step 3: Implement handoff shell**
 
 Change the shell to match artboard 1a:
 
@@ -186,7 +188,7 @@ Change the shell to match artboard 1a:
 - Detail/form routes: rail only, no secondary panel.
 - Mobile: no bottom tab rail; render handoff topbar with hamburger/title/actions and keep content clear of the FAB/footer.
 
-- [ ] **Step 4: Update route metadata**
+- [x] **Step 4: Update route metadata**
 
 Use these primary routes and labels:
 
@@ -202,7 +204,7 @@ All users, Invitations, Roles, Profiles, Permissions, Audit log
 
 Routes without implemented pages may point to the nearest existing route and render disabled/inert styling where navigation is not available.
 
-- [ ] **Step 5: Verify**
+- [x] **Step 5: Verify**
 
 Run:
 
@@ -214,7 +216,7 @@ pnpm --filter front-2 exec playwright test e2e/shell.spec.ts --reporter=line
 
 Expected: all pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/front-2/src/components/app-shell/app-shell.tsx apps/front-2/src/lib/navigation/route-metadata.tsx apps/front-2/src/lib/navigation/route-metadata.test.tsx apps/front-2/src/styles/app.css apps/front-2/e2e/shell.spec.ts
