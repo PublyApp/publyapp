@@ -1,6 +1,7 @@
 import { Button, Card } from '@heroui/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
+import { AlertCircle, HelpCircle } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
@@ -103,7 +104,7 @@ const InvitationDetailsEmpty = () => {
 
 	return (
 		<AppErrorView
-			icon="?"
+			icon={<HelpCircle aria-hidden="true" className="size-7" />}
 			code="404"
 			title={t('invitation-not-found')}
 			description={t('invitation-not-found-description')}
@@ -128,7 +129,7 @@ const InvitationDetailsError = ({ error }: { error: unknown }) => {
 
 	return (
 		<AppErrorView
-			icon="!"
+			icon={<AlertCircle aria-hidden="true" className="size-7" />}
 			code="500"
 			title={t('invitation-details-error-title')}
 			description={t('invitation-details-error-description')}

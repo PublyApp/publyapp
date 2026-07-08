@@ -1,5 +1,6 @@
 import { Card, Spinner } from '@heroui/react';
 import { createFileRoute, Link } from '@tanstack/react-router';
+import { AlertCircle, SearchX } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -193,7 +194,7 @@ const StaffUserDetailsLoading = () => (
 
 const InvalidStaffUserView = ({ error }: { error: unknown }) => (
 	<AppErrorView
-		icon="!"
+		icon={<AlertCircle aria-hidden="true" className="size-7" />}
 		code="400 — Bad Request"
 		title="Invalid staff user link"
 		description={getFailureDescription(
@@ -206,7 +207,7 @@ const InvalidStaffUserView = ({ error }: { error: unknown }) => (
 
 const MissingStaffUserView = ({ error }: { error: unknown }) => (
 	<AppErrorView
-		icon="🔎"
+		icon={<SearchX aria-hidden="true" className="size-7" />}
 		code="404 — Not Found"
 		title="Staff user not found"
 		description={getFailureDescription(
@@ -232,7 +233,7 @@ const StaffUserDetailsError = ({ error }: { error: unknown }) => {
 
 	return (
 		<AppErrorView
-			icon="!"
+			icon={<AlertCircle aria-hidden="true" className="size-7" />}
 			code="500 — Server Error"
 			title="Unable to load this staff user"
 			description="There was a problem loading the staff user details."
@@ -280,7 +281,7 @@ function StaffUserDetailsPage() {
 	if (!details) {
 		return (
 			<AppErrorView
-				icon="🔎"
+				icon={<SearchX aria-hidden="true" className="size-7" />}
 				code="404 — Not Found"
 				title="Staff user not found"
 				description="The staff user payload was empty."

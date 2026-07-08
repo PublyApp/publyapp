@@ -10,6 +10,7 @@ import {
 } from '@tanstack/react-router';
 import { createClientOnlyFn } from '@tanstack/react-start';
 import type { i18n as I18nInstance } from 'i18next';
+import { AlertCircle, LockKeyhole } from 'lucide-react';
 import * as React from 'react';
 import { I18nextProvider } from 'react-i18next';
 import {
@@ -116,7 +117,7 @@ const RootErrorBoundary = ({ error }: { error: unknown }) => {
 		if (isAuthSurface(pathname)) {
 			return (
 				<AppErrorView
-					icon="401"
+					icon={<LockKeyhole aria-hidden="true" className="size-7" />}
 					code="401 — Unauthorized"
 					title="Authentication required"
 					description="You are not signed in. Please log in again."
@@ -140,7 +141,7 @@ const RootErrorBoundary = ({ error }: { error: unknown }) => {
 
 		return (
 			<AppErrorView
-				icon="401"
+				icon={<LockKeyhole aria-hidden="true" className="size-7" />}
 				code="401 — Unauthorized"
 				title="Session expired"
 				description="Your session is no longer valid."
@@ -158,7 +159,7 @@ const RootErrorBoundary = ({ error }: { error: unknown }) => {
 
 	return (
 		<AppErrorView
-			icon="!"
+			icon={<AlertCircle aria-hidden="true" className="size-7" />}
 			code="500 — Server Error"
 			title="Something went wrong"
 			description="The app hit an unexpected error."

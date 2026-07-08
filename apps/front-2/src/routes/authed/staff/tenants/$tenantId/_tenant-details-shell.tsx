@@ -1,4 +1,5 @@
 import { Card, Chip, Spinner } from '@heroui/react';
+import { AlertCircle, SearchX } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { View403 } from '~/components/error-views/View403';
@@ -122,7 +123,7 @@ export const TenantDetailsLoading = () => (
 
 const InvalidTenantView = ({ error }: { error: unknown }) => (
 	<AppErrorView
-		icon="!"
+		icon={<AlertCircle aria-hidden="true" className="size-7" />}
 		code="400 — Bad Request"
 		title="Invalid tenant link"
 		description={getFailureDescription(
@@ -135,7 +136,7 @@ const InvalidTenantView = ({ error }: { error: unknown }) => (
 
 const MissingTenantView = ({ error }: { error: unknown }) => (
 	<AppErrorView
-		icon="🔎"
+		icon={<SearchX aria-hidden="true" className="size-7" />}
 		code="404 — Not Found"
 		title="Tenant not found"
 		description={getFailureDescription(
@@ -161,7 +162,7 @@ export const TenantDetailsError = ({ error }: { error: unknown }) => {
 
 	return (
 		<AppErrorView
-			icon="!"
+			icon={<AlertCircle aria-hidden="true" className="size-7" />}
 			code="500 — Server Error"
 			title="Unable to load this tenant"
 			description="There was a problem loading the tenant details."

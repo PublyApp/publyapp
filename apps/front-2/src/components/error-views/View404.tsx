@@ -1,11 +1,12 @@
 import { Button } from '@heroui/react';
+import { SearchX } from 'lucide-react';
 
 import { AppErrorView } from './AppErrorView';
 
 export const View404 = () => {
 	return (
 		<AppErrorView
-			icon="🔎"
+			icon={<SearchX aria-hidden="true" className="size-7" />}
 			code="404 — Not Found"
 			title="Page not found"
 			description="The page you requested does not exist."

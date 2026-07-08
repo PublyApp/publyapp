@@ -1,6 +1,7 @@
 import { Card } from '@heroui/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
+import { AlertCircle, SearchX } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
@@ -71,7 +72,7 @@ const getFailureDescription = (error: unknown, fallback: string): string => {
 
 const InvalidTenantUserView = ({ error }: { error: unknown }) => (
 	<AppErrorView
-		icon="!"
+		icon={<AlertCircle aria-hidden="true" className="size-7" />}
 		code="400 — Bad Request"
 		title="Invalid tenant user link"
 		description={getFailureDescription(
@@ -84,7 +85,7 @@ const InvalidTenantUserView = ({ error }: { error: unknown }) => (
 
 const MissingTenantUserView = ({ error }: { error: unknown }) => (
 	<AppErrorView
-		icon="🔎"
+		icon={<SearchX aria-hidden="true" className="size-7" />}
 		code="404 — Not Found"
 		title="Tenant user not found"
 		description={getFailureDescription(
@@ -110,7 +111,7 @@ const StaffTenantUserDetailsError = ({ error }: { error: unknown }) => {
 
 	return (
 		<AppErrorView
-			icon="!"
+			icon={<AlertCircle aria-hidden="true" className="size-7" />}
 			code="500 — Server Error"
 			title="Unable to load this tenant user"
 			description="There was a problem loading the tenant user details."
@@ -206,7 +207,7 @@ function StaffTenantUserDetailsPage() {
 	if (!tenant) {
 		return (
 			<AppErrorView
-				icon="🔎"
+				icon={<SearchX aria-hidden="true" className="size-7" />}
 				code="404 — Not Found"
 				title="Tenant not found"
 				description="The tenant payload was incomplete."
@@ -223,7 +224,7 @@ function StaffTenantUserDetailsPage() {
 	if (!user) {
 		return (
 			<AppErrorView
-				icon="🔎"
+				icon={<SearchX aria-hidden="true" className="size-7" />}
 				code="404 — Not Found"
 				title="Tenant user not found"
 				description="The tenant user payload was empty."

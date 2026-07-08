@@ -6,6 +6,7 @@ import {
 	createFileRoute,
 } from '@tanstack/react-router';
 import { useServerFn } from '@tanstack/react-start';
+import { AlertCircle, LockKeyhole } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -242,7 +243,7 @@ const LoginErrorBoundary = ({ error }: { error: unknown }) => {
 	if (routeStatus === 401) {
 		return (
 			<AppErrorView
-				icon="401"
+				icon={<LockKeyhole aria-hidden="true" className="size-7" />}
 				code="401 — Unauthorized"
 				title="Authentication required"
 				description="Your login request could not be authorized. Please verify your credentials and try again."
@@ -271,7 +272,7 @@ const LoginErrorBoundary = ({ error }: { error: unknown }) => {
 
 	return (
 		<AppErrorView
-			icon="!"
+			icon={<AlertCircle aria-hidden="true" className="size-7" />}
 			code="500 — Server Error"
 			title="Something went wrong"
 			description="Sign-in could not be completed."

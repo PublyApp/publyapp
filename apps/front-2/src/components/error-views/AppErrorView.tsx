@@ -2,7 +2,7 @@ import { Card } from '@heroui/react';
 import type { ReactNode } from 'react';
 
 type AppErrorViewProps = {
-	icon: string;
+	icon: ReactNode;
 	title: string;
 	code?: string;
 	description?: string;

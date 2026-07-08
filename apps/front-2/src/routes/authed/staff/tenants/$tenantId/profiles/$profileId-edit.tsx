@@ -2,6 +2,7 @@ import { Button, Card, Spinner } from '@heroui/react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
+import { AlertCircle, LockKeyhole, SearchX } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -85,7 +86,7 @@ const ProfileEditLoading = () => (
 
 const InvalidTenantProfileView = ({ error }: { error: unknown }) => (
 	<AppErrorView
-		icon="!"
+		icon={<AlertCircle aria-hidden="true" className="size-7" />}
 		code="400 — Bad Request"
 		title="Invalid profile link"
 		description={getFailureDescription(
@@ -98,7 +99,7 @@ const InvalidTenantProfileView = ({ error }: { error: unknown }) => (
 
 const MissingTenantProfileView = ({ error }: { error: unknown }) => (
 	<AppErrorView
-		icon="🔎"
+		icon={<SearchX aria-hidden="true" className="size-7" />}
 		code="404 — Not Found"
 		title="Tenant profile not found"
 		description={getFailureDescription(
@@ -117,7 +118,7 @@ const TenantProfileEditError = ({ error }: { error: unknown }) => {
 	if (isProblemStatus(error, 403)) {
 		return (
 			<AppErrorView
-				icon="⛔"
+				icon={<LockKeyhole aria-hidden="true" className="size-7" />}
 				code="403 — Forbidden"
 				title="You don't have access"
 				description="Your account does not have permission to edit this tenant profile."
@@ -132,7 +133,7 @@ const TenantProfileEditError = ({ error }: { error: unknown }) => {
 
 	return (
 		<AppErrorView
-			icon="!"
+			icon={<AlertCircle aria-hidden="true" className="size-7" />}
 			code="500 — Server Error"
 			title="Unable to load this tenant profile"
 			description="There was a problem loading the profile details."
@@ -207,7 +208,7 @@ function StaffTenantProfileEditPage() {
 	if (!tenant) {
 		return (
 			<AppErrorView
-				icon="!"
+				icon={<AlertCircle aria-hidden="true" className="size-7" />}
 				code="500 — Server Error"
 				title="Unable to load this tenant"
 				description="The tenant response was incomplete."
@@ -231,7 +232,7 @@ function StaffTenantProfileEditPage() {
 	if (!profile) {
 		return (
 			<AppErrorView
-				icon="🔎"
+				icon={<SearchX aria-hidden="true" className="size-7" />}
 				code="404 — Not Found"
 				title="Tenant profile not found"
 				description="The profile payload was empty."

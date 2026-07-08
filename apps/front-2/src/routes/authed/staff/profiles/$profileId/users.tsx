@@ -1,6 +1,7 @@
 import { Card, Spinner } from '@heroui/react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
+import { AlertCircle, SearchX } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -106,7 +107,7 @@ const InvalidProfileView = ({ error }: { error: unknown }) => {
 
 	return (
 		<AppErrorView
-			icon="!"
+			icon={<AlertCircle aria-hidden="true" className="size-7" />}
 			code="400 — Bad Request"
 			title="Invalid profile link"
 			description={getFailureDescription(
@@ -123,7 +124,7 @@ const MissingProfileView = ({ error }: { error: unknown }) => {
 
 	return (
 		<AppErrorView
-			icon="🔎"
+			icon={<SearchX aria-hidden="true" className="size-7" />}
 			code="404 — Not Found"
 			title="Staff profile not found"
 			description={getFailureDescription(
@@ -150,7 +151,7 @@ const ProfileDetailsError = ({ error }: { error: unknown }) => {
 
 	return (
 		<AppErrorView
-			icon="!"
+			icon={<AlertCircle aria-hidden="true" className="size-7" />}
 			code="500 — Server Error"
 			title="Unable to load this staff profile"
 			description="There was a problem loading the profile details."
@@ -239,7 +240,7 @@ function StaffProfileUsersPage() {
 	if (!details) {
 		return (
 			<AppErrorView
-				icon="🔎"
+				icon={<SearchX aria-hidden="true" className="size-7" />}
 				code="404 — Not Found"
 				title="Staff profile not found"
 				description="The profile payload was empty."

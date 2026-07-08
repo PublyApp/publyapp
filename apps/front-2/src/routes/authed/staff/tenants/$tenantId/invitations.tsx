@@ -2,6 +2,7 @@ import { Button } from '@heroui/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
+import { AlertCircle } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
@@ -264,7 +265,7 @@ function StaffTenantInvitationsPage() {
 	if (!tenant) {
 		return (
 			<AppErrorView
-				icon="!"
+				icon={<AlertCircle aria-hidden="true" className="size-7" />}
 				code="500 — Server Error"
 				title="Unable to load this tenant"
 				description="The tenant response was incomplete."

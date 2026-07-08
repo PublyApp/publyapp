@@ -2,6 +2,7 @@ import { Button, Card } from '@heroui/react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
+import { AlertCircle } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -144,7 +145,7 @@ function StaffTenantUsersInviteRoute() {
 	if (!tenant) {
 		return (
 			<AppErrorView
-				icon="!"
+				icon={<AlertCircle aria-hidden="true" className="size-7" />}
 				code="500 — Server Error"
 				title="Unable to load this tenant"
 				description="The tenant response was incomplete."

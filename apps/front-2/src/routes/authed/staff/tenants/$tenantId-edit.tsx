@@ -2,6 +2,7 @@ import { Button, Card } from '@heroui/react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
+import { AlertCircle, SearchX } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -133,7 +134,7 @@ function StaffTenantEditRoute() {
 
 		return (
 			<AppErrorView
-				icon="!"
+				icon={<AlertCircle aria-hidden="true" className="size-7" />}
 				code="500 — Server Error"
 				title="Unable to load this tenant"
 				description={getFailureDescription(
@@ -148,7 +149,7 @@ function StaffTenantEditRoute() {
 	if (!tenant) {
 		return (
 			<AppErrorView
-				icon="🔎"
+				icon={<SearchX aria-hidden="true" className="size-7" />}
 				code="404 — Not Found"
 				title="Tenant not found"
 				description="The tenant payload was empty."
