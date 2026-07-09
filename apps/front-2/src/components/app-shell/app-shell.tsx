@@ -1,16 +1,19 @@
-import { Avatar, Button, Chip, Input } from '@heroui/react';
-import { Link } from '@tanstack/react-router';
 import {
-	Bell,
-	ChevronDown,
-	ChevronRight,
-	Menu,
-	MessageCircle,
-	Search,
-	Settings,
-	X,
-} from 'lucide-react';
+	IconBell,
+	IconChevronDown,
+	IconChevronRight,
+	IconMenu2,
+	IconMessage2,
+	IconSearch,
+	IconSettings,
+	IconX,
+} from '@tabler/icons-react';
+import { Link } from '@tanstack/react-router';
 import { Fragment, useEffect, useState, type ReactNode } from 'react';
+import { Avatar, AvatarImage } from '~/components/ui/avatar';
+import { Badge } from '~/components/ui/badge';
+import { Button } from '~/components/ui/button';
+import { Input } from '~/components/ui/input';
 
 import avatarSrc from '../../assets/gray-ui/avatar-profile.jpg';
 import logoSvg from '../../assets/gray-ui/logo.svg';
@@ -182,9 +185,9 @@ const AppShellHeader = ({
 				<div className="flex items-center gap-2">
 					<ThemeToggle />
 					<Button
-						onPress={() => setIsMenuOpen((next) => !next)}
+						onClick={() => setIsMenuOpen((next) => !next)}
 						variant="outline"
-						isIconOnly
+						size="icon"
 						aria-expanded={isMenuOpen}
 						aria-controls="app-shell-mobile-menu"
 						aria-label={navButtonLabel}
@@ -192,9 +195,9 @@ const AppShellHeader = ({
 						data-testid="app-shell-mobile-menu-toggle"
 					>
 						{isMenuOpen ? (
-							<X aria-hidden="true" className="size-4" />
+							<IconX aria-hidden="true" className="size-4" />
 						) : (
-							<Menu aria-hidden="true" className="size-4" />
+							<IconMenu2 aria-hidden="true" className="size-4" />
 						)}
 					</Button>
 				</div>
@@ -340,7 +343,7 @@ const AuthedWorkspaceShell = ({
 					className="app-shell-rail-link"
 					aria-label="Settings"
 				>
-					<Settings aria-hidden="true" className="size-[17px]" />
+					<IconSettings aria-hidden="true" className="size-[17px]" />
 				</button>
 			</nav>
 			{showStaffSecondaryPanel ? (
@@ -356,17 +359,16 @@ const AuthedWorkspaceShell = ({
 						>
 							Staff
 						</h2>
-						<Chip.Root
-							size="sm"
-							variant="soft"
-							className="app-shell-workspace-pill"
-						>
-							<Chip.Label>Workspace</Chip.Label>
-						</Chip.Root>
+						<Badge variant="outline" className="app-shell-workspace-pill">
+							Workspace
+						</Badge>
 					</div>
 					<div className="app-shell-secondary-search">
 						<div className="app-shell-search-wrapper">
-							<Search aria-hidden="true" className="app-shell-search-icon" />
+							<IconSearch
+								aria-hidden="true"
+								className="app-shell-search-icon"
+							/>
 							<Input
 								aria-label="Search staff"
 								placeholder="Search"
@@ -392,18 +394,17 @@ const AuthedWorkspaceShell = ({
 				<header className="app-shell-topbar" data-testid="app-shell-topbar">
 					<div className="app-shell-topbar-left">
 						<Button
-							isIconOnly
-							size="sm"
+							size="icon-sm"
 							variant="ghost"
 							aria-label={
 								sidebarOpen
 									? 'Collapse navigation panel'
 									: 'Expand navigation panel'
 							}
-							onPress={toggleSidebarOpen}
+							onClick={toggleSidebarOpen}
 							className="app-shell-sidebar-toggle"
 						>
-							<Menu aria-hidden="true" className="size-5" />
+							<IconMenu2 aria-hidden="true" className="size-5" />
 						</Button>
 						<div className="app-shell-topbar-separator" />
 						<nav aria-label="Breadcrumb" className="app-shell-breadcrumbs">
@@ -412,7 +413,7 @@ const AuthedWorkspaceShell = ({
 								return (
 									<Fragment key={`${item.label}-${index}`}>
 										{index > 0 ? (
-											<ChevronRight
+											<IconChevronRight
 												aria-hidden="true"
 												className="app-shell-breadcrumb-chevron"
 											/>
@@ -443,36 +444,36 @@ const AuthedWorkspaceShell = ({
 					</div>
 					<div className="app-shell-topbar-right">
 						<Button
-							isIconOnly
 							variant="outline"
+							size="icon"
 							aria-label="Search"
 							className="app-shell-topbar-action-btn"
 						>
-							<Search aria-hidden="true" className="size-[17px]" />
+							<IconSearch aria-hidden="true" className="size-[17px]" />
 						</Button>
 						<Button
-							isIconOnly
 							variant="outline"
+							size="icon"
 							aria-label="Notifications"
 							className="app-shell-topbar-action-btn"
 						>
-							<Bell aria-hidden="true" className="size-[17px]" />
+							<IconBell aria-hidden="true" className="size-[17px]" />
 						</Button>
 						<Button
-							isIconOnly
 							variant="outline"
+							size="icon"
 							aria-label="Messages"
 							className="app-shell-topbar-action-btn"
 						>
-							<MessageCircle aria-hidden="true" className="size-[17px]" />
+							<IconMessage2 aria-hidden="true" className="size-[17px]" />
 						</Button>
 						<div className="app-shell-topbar-separator" />
 						<div className="app-shell-user-chip">
-							<Avatar.Root size="sm" className="size-7">
-								<Avatar.Image src={avatarSrc} />
-							</Avatar.Root>
+							<Avatar size="sm" className="size-7">
+								<AvatarImage src={avatarSrc} />
+							</Avatar>
 							<span className="app-shell-user-name">Capt. Radan</span>
-							<ChevronDown aria-hidden="true" className="size-4" />
+							<IconChevronDown aria-hidden="true" className="size-4" />
 						</div>
 					</div>
 				</header>

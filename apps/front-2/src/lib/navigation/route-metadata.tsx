@@ -1,18 +1,18 @@
 import {
-	BarChart3,
-	Building2,
-	ClipboardList,
-	History,
-	KeyRound,
-	LayoutDashboard,
-	Lock,
-	Mail,
-	Newspaper,
-	ShieldCheck,
-	UserRound,
-	UsersRound,
-} from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+	IconChartBar,
+	IconBuilding,
+	IconClipboardList,
+	IconHistory,
+	IconKey,
+	IconLayoutDashboard,
+	IconLock,
+	IconMail,
+	IconNews,
+	IconShieldCheck,
+	IconUser,
+	IconUsers,
+} from '@tabler/icons-react';
+import type { TablerIcon } from '@tabler/icons-react';
 
 export type ShellDisplayMode = 'default' | 'full-detail';
 
@@ -25,7 +25,7 @@ export type SecondaryPanelItem = {
 	label: string;
 	description: string;
 	path: string;
-	Icon: LucideIcon;
+	Icon: TablerIcon;
 	count?: number;
 };
 
@@ -43,7 +43,7 @@ export type AppRouteMetadata = {
 	id: RouteId;
 	label: string;
 	path: string;
-	Icon: LucideIcon;
+	Icon: TablerIcon;
 	match: (pathname: string) => boolean;
 	secondaryItems: SecondaryPanelItem[];
 };
@@ -101,42 +101,42 @@ const STAFF_SECONDARY_ITEMS: SecondaryPanelItem[] = [
 		label: 'All users',
 		description: '',
 		path: '/staff/staff-users',
-		Icon: UserRound,
+		Icon: IconUser,
 		count: 42,
 	},
 	{
 		label: 'Invitations',
 		description: '',
 		path: '/staff/invitations',
-		Icon: Mail,
+		Icon: IconMail,
 		count: 6,
 	},
 	{
 		label: 'Roles',
 		description: '',
 		path: '/staff/profiles',
-		Icon: KeyRound,
+		Icon: IconKey,
 		count: 5,
 	},
 	{
 		label: 'Profiles',
 		description: '',
 		path: '/staff/profiles',
-		Icon: ClipboardList,
+		Icon: IconClipboardList,
 		count: 4,
 	},
 	{
 		label: 'Permissions',
 		description: '',
 		path: '/staff/profiles',
-		Icon: ShieldCheck,
+		Icon: IconShieldCheck,
 		count: 86,
 	},
 	{
 		label: 'Audit log',
 		description: '',
 		path: '/staff/staff-users',
-		Icon: History,
+		Icon: IconHistory,
 	},
 ];
 
@@ -145,7 +145,7 @@ export const PRIMARY_APP_ROUTES: AppRouteMetadata[] = [
 		id: 'dashboard',
 		label: 'Dashboard',
 		path: '/staff/staff-users',
-		Icon: LayoutDashboard,
+		Icon: IconLayoutDashboard,
 		match: matchPath(['/staff/dashboard']),
 		secondaryItems: [],
 	},
@@ -153,7 +153,7 @@ export const PRIMARY_APP_ROUTES: AppRouteMetadata[] = [
 		id: 'content',
 		label: 'Content',
 		path: '/staff/staff-users',
-		Icon: Newspaper,
+		Icon: IconNews,
 		match: matchPath(['/staff/content']),
 		secondaryItems: [],
 	},
@@ -161,7 +161,7 @@ export const PRIMARY_APP_ROUTES: AppRouteMetadata[] = [
 		id: 'staff-users',
 		label: 'Staff users',
 		path: '/staff/staff-users',
-		Icon: UsersRound,
+		Icon: IconUsers,
 		match: matchPath(['/staff/staff-users']),
 		secondaryItems: STAFF_SECONDARY_ITEMS,
 	},
@@ -169,7 +169,7 @@ export const PRIMARY_APP_ROUTES: AppRouteMetadata[] = [
 		id: 'roles-permissions',
 		label: 'Roles & permissions',
 		path: '/staff/profiles',
-		Icon: Lock,
+		Icon: IconLock,
 		match: matchPath(['/staff/roles-permissions', '/staff/profiles']),
 		secondaryItems: [],
 	},
@@ -177,7 +177,7 @@ export const PRIMARY_APP_ROUTES: AppRouteMetadata[] = [
 		id: 'invitations',
 		label: 'Invitations',
 		path: '/staff/invitations',
-		Icon: Mail,
+		Icon: IconMail,
 		match: matchPath(['/staff/invitations']),
 		secondaryItems: [],
 	},
@@ -185,7 +185,7 @@ export const PRIMARY_APP_ROUTES: AppRouteMetadata[] = [
 		id: 'analytics',
 		label: 'Analytics',
 		path: '/staff/staff-users',
-		Icon: BarChart3,
+		Icon: IconChartBar,
 		match: matchPath(['/staff/analytics']),
 		secondaryItems: [],
 	},
@@ -194,7 +194,7 @@ export const PRIMARY_APP_ROUTES: AppRouteMetadata[] = [
 		id: 'tenants',
 		label: 'Tenants',
 		path: '/staff/tenants',
-		Icon: Building2,
+		Icon: IconBuilding,
 		match: matchPath(['/staff/tenants', '/tenant']),
 		secondaryItems: [],
 	},
