@@ -1,10 +1,10 @@
-import { Card, Spinner } from '@heroui/react';
+import { IconAlertCircle, IconSearchOff } from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { AlertCircle, SearchX } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
+import { Card } from '~/components/ui/card';
 import {
 	DetailRow,
 	MetadataCard,
@@ -123,7 +123,7 @@ const AssignedProfilesSection = ({
 					className="flex items-center gap-3 rounded-large border border-divider bg-content1 p-4 text-sm text-foreground-500"
 					data-testid="staff-user-profiles-loading"
 				>
-					<Spinner size="sm" />
+					<LoadingSpinner />
 					<span>Loading assigned profiles…</span>
 				</div>
 			) : null}
@@ -177,6 +177,14 @@ const AssignedProfilesSection = ({
 	);
 };
 
+const LoadingSpinner = () => (
+	<span
+		role="status"
+		aria-label="Loading"
+		className="size-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"
+	/>
+);
+
 const StaffUserDetailsLoading = () => (
 	<div
 		className="mx-auto flex min-h-[50vh] w-full max-w-5xl items-center justify-center px-4 py-12"
@@ -191,7 +199,7 @@ const StaffUserDetailsLoading = () => (
 
 const InvalidStaffUserView = ({ error }: { error: unknown }) => (
 	<AppErrorView
-		icon={<AlertCircle aria-hidden="true" className="size-7" />}
+		icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 		code="400 — Bad Request"
 		title="Invalid staff user link"
 		description={getFailureDescription(
@@ -204,7 +212,7 @@ const InvalidStaffUserView = ({ error }: { error: unknown }) => (
 
 const MissingStaffUserView = ({ error }: { error: unknown }) => (
 	<AppErrorView
-		icon={<SearchX aria-hidden="true" className="size-7" />}
+		icon={<IconSearchOff aria-hidden="true" className="size-7" />}
 		code="404 — Not Found"
 		title="Staff user not found"
 		description={getFailureDescription(
@@ -230,7 +238,7 @@ const StaffUserDetailsError = ({ error }: { error: unknown }) => {
 
 	return (
 		<AppErrorView
-			icon={<AlertCircle aria-hidden="true" className="size-7" />}
+			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 			code="500 — Server Error"
 			title="Unable to load this staff user"
 			description="There was a problem loading the staff user details."
@@ -278,7 +286,7 @@ function StaffUserDetailsPage() {
 	if (!details) {
 		return (
 			<AppErrorView
-				icon={<SearchX aria-hidden="true" className="size-7" />}
+				icon={<IconSearchOff aria-hidden="true" className="size-7" />}
 				code="404 — Not Found"
 				title="Staff user not found"
 				description="The staff user payload was empty."

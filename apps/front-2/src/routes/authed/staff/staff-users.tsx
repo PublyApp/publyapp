@@ -1,13 +1,13 @@
-import { buttonVariants } from '@heroui/react';
+import { IconUserPlus } from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { UserPlus } from 'lucide-react';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
 import { useRowSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
+import { buttonVariants } from '~/components/ui/button';
 import { PageHeader, StatusPill } from '~/components/ui/product-page';
 import {
 	toStaffUserRows,
@@ -142,9 +142,9 @@ function StaffUsersPage() {
 				actions={
 					<Link
 						to={'/staff/invitations/new' as never} // Route is not yet migrated for typed route checks; parity contract keeps this external path.
-						className={buttonVariants({ variant: 'primary' })}
+						className={buttonVariants({ variant: 'default' })}
 					>
-						<UserPlus aria-hidden="true" className="size-4" />
+						<IconUserPlus aria-hidden="true" className="size-4" />
 						{t('invite-users')}
 					</Link>
 				}
