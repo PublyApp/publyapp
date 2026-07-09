@@ -45,10 +45,10 @@ test('flags raw shell colors, prototype icons, native selects, confirms, and imp
 	);
 });
 
-test('flags HeroUI imports in migration guard', async () => {
+test('flags HeroUI, MUI, and Lucide imports in migration guard', async () => {
 	const root = await makeFixture({
 		'src/components/table/data-table.tsx':
-			"import { Button } from '@heroui/react';\nimport '@heroui/styles';",
+			"import { Button } from '@heroui/react';\nimport '@heroui/styles';\nimport { useRouter } from 'react-router';\nimport { Box } from '@mui/material';",
 	});
 
 	const violations = await scanFront2DesignSystem({
@@ -58,6 +58,10 @@ test('flags HeroUI imports in migration guard', async () => {
 
 	assert.equal(
 		violations.some((violation) => violation.ruleId === 'no-heroui-import'),
+		true,
+	);
+	assert.equal(
+		violations.some((violation) => violation.ruleId === 'no-mui-import'),
 		true,
 	);
 });
@@ -76,6 +80,10 @@ test('flags Lucide imports in migration guard', async () => {
 	assert.equal(
 		violations.some((violation) => violation.ruleId === 'no-lucide-import'),
 		true,
+	);
+	assert.equal(
+		violations.some((violation) => violation.ruleId === 'no-mui-import'),
+		false,
 	);
 });
 
@@ -142,7 +150,100 @@ test('allows ordinary JavaScript negation in shell and table foundation files', 
 	);
 });
 
-test('allows raw token definitions only in app.css', async () => {
+test('flags legacy rounded styles outside allowed pockets', async () => {
+	const root = await makeFixture({
+		'src/routes/authed/staff/sample.tsx':
+			'<div className="rounded-full">x</div>\n<span style="border-radius:999px">x</span>\n',
+		'src/components/app-shell/app-shell.tsx':
+			'<button className="app-shell-topbar-action-btn">x</button>\n',
+		'src/styles/app.css': '.hero-chip { border-radius: 999px; }\n',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	const roundedRuleHits = violations.filter(
+		(violation) => violation.ruleId === 'no-rounded-full-or-999-radius',
+	);
+
+	assert.equal(roundedRuleHits.length > 0, true);
+});
+
+test('flags new rounded styles even in files with legacy debt', async () => {
+	const root = await makeFixture({
+		'src/components/table/data-table.tsx':
+			'<span className="new-handoff-shape rounded-full">Bad</span>',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-rounded-full-or-999-radius',
+		),
+		true,
+	);
+});
+
+test('flags non-confirmation centered overlay wording and DialogPopup usage', async () => {
+	const root = await makeFixture({
+		'src/routes/authed/staff/overlay.tsx':
+			'<div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">Centered</div>',
+		'src/components/ui/forbidden-dialog.tsx':
+			'import { Dialog as DialogPrimitive } from \'@base-ui/react/dialog\';\nconst popup = <DialogPrimitive.Popup className="x" />;',
+		'src/components/ui/confirm-dialog.tsx':
+			'import { Dialog as DialogPrimitive } from \'@base-ui/react/dialog\';\nconst c = <DialogPrimitive.Popup className="y" />;',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) =>
+				violation.ruleId === 'no-non-confirmation-centered-overlay',
+		),
+		true,
+	);
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-dialog-popup-primitives',
+		),
+		true,
+	);
+});
+
+test('allows HeroUI imports and rules that should be exempt', async () => {
+	const root = await makeFixture({
+		'src/components/ui/confirm-dialog.tsx':
+			"import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';",
+		'src/components/ui/dialog.tsx':
+			"import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';\nexport const DialogPopup = DialogPrimitive.Popup;",
+		'src/components/app-shell/app-shell.tsx':
+			'<div className="app-shell-topbar-action-btn" />',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.filter(
+			(violation) => violation.ruleId === 'no-dialog-popup-primitives',
+		).length,
+		0,
+	);
+});
+
+test('allows raw tokens only in app.css', async () => {
 	const root = await makeFixture({
 		'src/styles/app.css': ':root { --publy-primary-main: #2563eb; }',
 		'src/styles/other.css': '.bad { color: #2563eb; }',
@@ -199,7 +300,7 @@ test('primary button chrome is on .button--primary, sizing on .button--primary.b
 	assert.match(css, /\.button--primary\s*\{/);
 	assert.match(
 		css,
-		/border:\s*1\.33px\s+solid\s+rgb[a]?\(255,\s*255,\s*255,\s*0\.12\)/,
+		/border:\s*1\.33px\s+solid\s+rgba\(255,\s*255,\s*255,\s*0\.12\)/,
 	);
 	assert.match(css, /border-radius:\s*999px/);
 	assert.match(css, /box-shadow:\s*var\(--publy-shadow-chrome\)/);
@@ -235,12 +336,12 @@ test('handoff design tokens are present in app.css', async () => {
 	assert.match(css, /--publy-font-sans:\s*Geist, ui-sans-serif/);
 	assert.match(css, /--publy-primary:\s*#fdc700/i);
 	assert.match(css, /--publy-primary-foreground:\s*#733e0a/i);
-	assert.match(css, /--publy-shell-rail-width:\s*48px/);
+	assert.match(css, /--publy-shell-rail-width:\s*49px/);
 	assert.match(css, /--publy-shell-panel-width:\s*272px/);
 	assert.match(css, /--publy-shell-topbar-height:\s*64px/);
 	assert.match(
 		css,
-		/--publy-shadow-chrome:\s*0\s+0\s+0\s+0\.67px\s+rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*0\.2\s*\)\s+inset,?\s*0\s+2px\s+2px\s+rgba\(\s*255\s*,\s*255\s*,\s*255\s*,\s*0\.1\s*\)\s+inset,?\s*0\s+2px\s+2\.67px\s+-0\.67px\s+rgba\(\s*42\s*,\s*42\s*,\s*42\s*,\s*0\.1\s*\),?\s*0\s+0\.67px\s+0\.67px\s+rgba\(\s*42\s*,\s*42\s*,\s*42\s*,\s*0\.08\s*\)/,
+		/--publy-shadow-chrome:\s*0\s+0\s+0\s+0\.67px\s+rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*0\.2\s*\)\s+inset,?\s*0\s+2px\s+2px\s+rgba\(\s*255,\s*255,\s*255,\s*0\.1\s*\)\s+inset,?\s*0\s+2px\s+2\.67px\s+-0\.67px\s+rgba\(\s*42,\s*42,\s*42,\s*0\.1\s*\),?\s*0\s+0\.67px\s+0\.67px\s+rgba\(\s*42,\s*42,\s*42,\s*0\.08\s*\)/,
 	);
 	assert.match(css, /--publy-modal-radius:\s*28px/);
 });
@@ -248,18 +349,18 @@ test('handoff design tokens are present in app.css', async () => {
 test('allows issue references that look like numeric hex values in comments', async () => {
 	const root = await makeFixture({
 		'src/components/app-shell/app-shell.tsx':
-			'// fixes #802\n// see issue #123456\nconst ok = true;',
+			'// fixes #802\\n// see issue #123456\\nconst ok = true;',
 		'src/routes/authed/staff/example.tsx':
 			'{/* Related to #795 */}<div>ok</div>',
 	});
 
-	const violations = await scanFront2DesignSystem({
-		baseDir: root,
-		sourceDir: path.join(root, 'src'),
-	});
-
 	assert.equal(
-		violations.some((violation) => violation.ruleId === 'no-raw-visual-color'),
+		(
+			await scanFront2DesignSystem({
+				baseDir: root,
+				sourceDir: path.join(root, 'src'),
+			})
+		).some((violation) => violation.ruleId === 'no-raw-visual-color'),
 		false,
 	);
 });
@@ -288,7 +389,7 @@ test('flags raw hex color strings and Tailwind arbitrary hex color utilities', a
 test('allows rgb and rgba references in comments', async () => {
 	const root = await makeFixture({
 		'src/components/app-shell/app-shell.tsx':
-			'// removed legacy rgba() overlay\n// rgb() values now come from tokens\nconst ok = true;',
+			'// removed legacy rgba() overlay\\n// rgb() values now come from tokens\\nconst ok = true;',
 		'src/routes/authed/staff/example.tsx':
 			'{/* replaced rgba() with semantic tokens */}<div>ok</div>',
 	});
