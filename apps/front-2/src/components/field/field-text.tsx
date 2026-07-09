@@ -1,28 +1,31 @@
-import {
-	TextField,
-	FieldError,
-	Input,
-	type InputProps,
-	Label,
-} from '@heroui/react';
+import { useId, type ComponentPropsWithoutRef } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
+import { Input } from '~/components/ui/input';
+import { Label } from '~/components/ui/label';
 
 export type FieldTextProps = Omit<
-	InputProps,
-	'children' | 'isInvalid' | 'onChange' | 'onBlur' | 'value'
+	ComponentPropsWithoutRef<'input'>,
+	'name' | 'children' | 'onChange' | 'onBlur' | 'value' | 'id'
 > & {
 	name: string;
 	label: string;
 	helperText?: string;
+	fullWidth?: boolean;
+	isDisabled?: boolean;
 };
 
 export const FieldText = ({
 	name,
 	label,
 	helperText,
+	fullWidth = false,
+	isDisabled,
 	...inputProps
 }: FieldTextProps) => {
 	const { control } = useFormContext();
+	const fieldId = useId();
+	const helperId = `${fieldId}-helper`;
+	const isDisabledValue = isDisabled ?? inputProps.disabled;
 
 	return (
 		<Controller
@@ -31,27 +34,38 @@ export const FieldText = ({
 			render={({ field, fieldState: { error } }) => {
 				const helper = error?.message ?? helperText;
 				const isInvalid = Boolean(error);
+				const inputValue =
+					typeof field.value === 'string'
+						? field.value
+						: typeof field.value === 'number'
+							? String(field.value)
+							: '';
 
 				return (
-					<TextField isInvalid={isInvalid} fullWidth={inputProps.fullWidth}>
-						<Label>{label}</Label>
+					<div className="space-y-2">
+						<Label htmlFor={fieldId}>{label}</Label>
 						<Input
 							{...field}
 							{...inputProps}
-							value={typeof field.value === 'string' ? field.value : ''}
+							id={fieldId}
+							value={inputValue}
 							onChange={(event) => {
 								field.onChange(event.target.value);
 							}}
 							onBlur={field.onBlur}
 							autoComplete={inputProps.autoComplete ?? 'off'}
+							disabled={isDisabledValue}
 							name={name}
+							aria-invalid={isInvalid || undefined}
+							aria-describedby={helper ? helperId : undefined}
+							className={fullWidth ? 'w-full' : undefined}
 						/>
 						{helper ? (
-							<FieldError className="text-sm text-danger-500">
+							<p id={helperId} className="text-sm text-destructive">
 								{helper}
-							</FieldError>
+							</p>
 						) : null}
-					</TextField>
+					</div>
 				);
 			}}
 		/>

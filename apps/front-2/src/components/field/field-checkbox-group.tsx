@@ -1,5 +1,6 @@
-import { Checkbox, CheckboxGroup, FieldError, Label } from '@heroui/react';
+import { useId } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
+import { Checkbox } from '~/components/ui/checkbox';
 
 type CheckboxGroupOption = {
 	value: string;
@@ -32,6 +33,8 @@ export const FieldCheckboxGroup = ({
 	isDisabled = false,
 }: FieldCheckboxGroupProps) => {
 	const { control } = useFormContext();
+	const groupId = useId();
+	const helperId = `${groupId}-helper`;
 
 	return (
 		<Controller
@@ -41,50 +44,59 @@ export const FieldCheckboxGroup = ({
 				const helper = error?.message ?? helperText;
 				const value = toStringArray(field.value);
 
+				const handleToggle = (optionValue: string, checked: boolean) => {
+					const nextValue = checked
+						? [...new Set([...value, optionValue])]
+						: value.filter((item) => item !== optionValue);
+
+					field.onChange(nextValue);
+				};
+
 				return (
-					<CheckboxGroup
-						value={value}
-						onChange={field.onChange}
-						isInvalid={Boolean(error)}
-						isDisabled={isDisabled}
-						className="gap-3"
-					>
-						<Label>{label}</Label>
+					<div className="space-y-2">
+						<p className="text-sm font-medium text-foreground">{label}</p>
 						<div className="space-y-2">
-							{options.map((option) => (
-								<div
-									key={option.value}
-									className="rounded-medium border border-default-200 px-3 py-2"
-								>
-									<Checkbox
-										value={option.value}
-										isDisabled={isDisabled || option.isDisabled}
+							{options.map((option) => {
+								const optionDisabled = isDisabled || option.isDisabled;
+								const optionChecked = value.includes(option.value);
+
+								return (
+									<label
+										key={option.value}
+										className="flex items-start gap-2 rounded-2xl border border-border bg-background/50 px-3 py-2"
 									>
-										<Checkbox.Content>
-											<Checkbox.Control>
-												<Checkbox.Indicator />
-											</Checkbox.Control>
-											<div className="flex flex-col gap-1">
-												<span className="text-sm font-medium">
-													{option.label}
+										<Checkbox
+											checked={optionChecked}
+											name={field.name}
+											disabled={optionDisabled}
+											onCheckedChange={(checked) => {
+												if (optionDisabled) {
+													return;
+												}
+
+												handleToggle(option.value, Boolean(checked));
+											}}
+										/>
+										<div className="space-y-0.5">
+											<span className="text-sm font-medium text-foreground">
+												{option.label}
+											</span>
+											{option.description ? (
+												<span className="block text-xs text-muted-foreground">
+													{option.description}
 												</span>
-												{option.description ? (
-													<span className="text-xs text-foreground-500">
-														{option.description}
-													</span>
-												) : null}
-											</div>
-										</Checkbox.Content>
-									</Checkbox>
-								</div>
-							))}
+											) : null}
+										</div>
+									</label>
+								);
+							})}
 						</div>
 						{helper ? (
-							<FieldError className="text-sm text-danger-500">
+							<p id={helperId} className="text-sm text-destructive">
 								{helper}
-							</FieldError>
+							</p>
 						) : null}
-					</CheckboxGroup>
+					</div>
 				);
 			}}
 		/>

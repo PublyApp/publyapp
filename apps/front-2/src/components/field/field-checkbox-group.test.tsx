@@ -44,6 +44,9 @@ describe('Field.CheckboxGroup', () => {
 					]}
 				/>
 				<button type="submit">Submit</button>
+				<output data-testid="selected-profile-ids">
+					{methods.watch('profileIds').join(',')}
+				</output>
 			</Form>
 		);
 	};
@@ -60,6 +63,26 @@ describe('Field.CheckboxGroup', () => {
 
 		await waitFor(() => {
 			expect(screen.getByText('Pick at least one profile')).toBeTruthy();
+		});
+	});
+
+	test('toggles an option on and off in the RHF array value', async () => {
+		render(<CheckboxGroupWithRHF />);
+
+		const adminOption = screen.getByRole('checkbox', { name: 'Admin' });
+
+		fireEvent.click(adminOption);
+
+		await waitFor(() => {
+			expect(screen.getByTestId('selected-profile-ids').textContent).toBe(
+				'admin',
+			);
+		});
+
+		fireEvent.click(adminOption);
+
+		await waitFor(() => {
+			expect(screen.getByTestId('selected-profile-ids').textContent).toBe('');
 		});
 	});
 });
