@@ -18,7 +18,7 @@ describe('toSortingState', () => {
 });
 
 describe('toTableSortDescriptor', () => {
-	test('maps the primary sort entry to a HeroUI SortDescriptor', () => {
+	test('maps the primary sort entry to a table sort descriptor', () => {
 		expect(toTableSortDescriptor([{ id: 'level', desc: true }])).toEqual({
 			column: 'level',
 			direction: 'descending',
@@ -35,7 +35,7 @@ describe('toTableSortDescriptor', () => {
 });
 
 describe('fromTableSortDescriptor', () => {
-	test('maps a HeroUI SortDescriptor back to our sort state', () => {
+	test('maps a table sort descriptor back to sort state', () => {
 		expect(
 			fromTableSortDescriptor({ column: 'level', direction: 'ascending' }),
 		).toEqual({ id: 'level', order: 'asc' });

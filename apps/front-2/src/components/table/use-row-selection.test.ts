@@ -2,9 +2,9 @@ import { describe, expect, test } from 'vitest';
 
 import {
 	countSelected,
-	fromHeroSelection,
+	fromTableSelection,
 	pruneSelection,
-	toHeroSelection,
+	toTableSelection,
 } from './use-row-selection';
 
 describe('pruneSelection', () => {
@@ -34,14 +34,14 @@ describe('countSelected', () => {
 	});
 });
 
-describe('toHeroSelection / fromHeroSelection', () => {
+describe('toTableSelection / fromTableSelection', () => {
 	test('round-trips a specific set of ids', () => {
 		const selection = { 'row-1': true, 'row-2': true };
-		const heroSelection = toHeroSelection(selection);
-		expect(heroSelection).toEqual(new Set(['row-1', 'row-2']));
+		const tableSelection = toTableSelection(selection);
+		expect(tableSelection).toEqual(new Set(['row-1', 'row-2']));
 
 		expect(
-			fromHeroSelection(heroSelection, ['row-1', 'row-2', 'row-3']),
+			fromTableSelection(tableSelection, ['row-1', 'row-2', 'row-3']),
 		).toEqual({
 			'row-1': true,
 			'row-2': true,
@@ -49,13 +49,21 @@ describe('toHeroSelection / fromHeroSelection', () => {
 	});
 
 	test('"all" selection maps to every visible row id', () => {
-		expect(fromHeroSelection('all', ['row-1', 'row-2'])).toEqual({
+		expect(fromTableSelection('all', ['row-1', 'row-2'])).toEqual({
 			'row-1': true,
 			'row-2': true,
 		});
 	});
 
 	test('an empty Set clears selection', () => {
-		expect(fromHeroSelection(new Set(), ['row-1'])).toEqual({});
+		expect(fromTableSelection(new Set(), ['row-1'])).toEqual({});
+	});
+
+	test('ignores keys not present in visible rows', () => {
+		expect(
+			fromTableSelection(new Set(['row-1', 'row-3']), ['row-1', 'row-2']),
+		).toEqual({
+			'row-1': true,
+		});
 	});
 });

@@ -1,18 +1,22 @@
-import type { SortDescriptor } from '@heroui/react';
 import type { SortingState } from '@tanstack/react-table';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 export type SortState = { id: string; order: SortOrder };
+
+export type TableSortDescriptor = {
+	column?: string;
+	direction?: 'ascending' | 'descending';
+};
 
 /** `@tanstack/react-table` manual sorting state ← our single-column sort. */
 export const toSortingState = (sort: SortState): SortingState => [
 	{ id: sort.id, desc: sort.order === 'desc' },
 ];
 
-/** HeroUI `Table.Content` sortDescriptor ← TanStack `SortingState`. */
+/** TanStack `SortingState` → local table-sort descriptor. */
 export const toTableSortDescriptor = (
 	sorting: SortingState,
-): SortDescriptor | undefined => {
+): TableSortDescriptor | undefined => {
 	const primarySort = sorting.at(0);
 	if (!primarySort) {
 		return undefined;
@@ -24,9 +28,9 @@ export const toTableSortDescriptor = (
 	};
 };
 
-/** Our single-column sort ← HeroUI `Table.Content` onSortChange payload. */
+/** local table-sort descriptor → app `SortState`. */
 export const fromTableSortDescriptor = (
-	descriptor: SortDescriptor | undefined,
+	descriptor: TableSortDescriptor | undefined,
 ): SortState | undefined => {
 	if (!descriptor?.column) {
 		return undefined;
