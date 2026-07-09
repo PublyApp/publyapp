@@ -28,13 +28,17 @@ export const DataTableRowActions = ({
 					size="icon-sm"
 					aria-label={ariaLabel}
 					data-testid={testId}
-					className="size-7 text-muted-foreground"
+					className="publy-row-action-trigger text-muted-foreground"
 				/>
 			}
 		>
 			<IconDots className="size-4" />
 		</DropdownMenuTrigger>
-		<DropdownMenuContent align="end" sideOffset={6}>
+		<DropdownMenuContent
+			align="end"
+			sideOffset={6}
+			className="publy-row-actions-menu"
+		>
 			{children}
 		</DropdownMenuContent>
 	</DropdownMenu>

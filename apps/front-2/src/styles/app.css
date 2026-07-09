@@ -6,6 +6,7 @@
 
 @theme inline {
 	--font-sans: var(--publy-font-sans);
+	--font-mono: var(--publy-font-mono);
 	--color-background: var(--background);
 	--color-foreground: var(--foreground);
 	--color-card: var(--card);
@@ -67,6 +68,9 @@
 	--ring: var(--publy-foreground-subtle);
 	--radius: 0.625rem;
 	--publy-font-sans: Geist, ui-sans-serif, system-ui, sans-serif;
+	--publy-font-mono:
+		'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+		'Liberation Mono', 'Courier New', monospace;
 	--publy-primary: #fdc700;
 	--publy-primary-hover: #f0bd00;
 	--publy-primary-active: #d9aa00;
@@ -892,6 +896,10 @@ html {
 		font-weight: 600;
 	}
 
+	.publy-state-surface[data-tone='danger'] .publy-type-section-title {
+		font-size: 15px;
+	}
+
 	.publy-state-surface .publy-type-helper {
 		max-width: 300px;
 		font-size: 12px;
@@ -910,14 +918,37 @@ html {
 			color var(--publy-motion-fast) var(--publy-motion-ease);
 	}
 
+	.publy-state-icon[data-tone='neutral'] {
+		width: 48px;
+		height: 48px;
+		border-radius: var(--publy-radius-control);
+		background: var(--publy-surface-muted);
+		color: var(--publy-foreground-muted);
+	}
+
 	.publy-state-icon[data-tone='danger'] {
-		background: color-mix(in oklch, var(--publy-danger) 12%, transparent);
-		color: var(--publy-danger);
+		width: 52px;
+		height: 52px;
+		border-radius: 16px;
+		background: var(--publy-chip-suspended-bg);
+		color: var(--publy-chip-suspended-text);
 	}
 
 	.publy-state-icon[data-tone='primary'] {
 		background: var(--publy-primary-soft);
 		color: var(--publy-primary);
+	}
+
+	.publy-state-icon-glyph {
+		width: 20px;
+		height: 20px;
+	}
+
+	.publy-state-technical-id {
+		@apply mt-0.5;
+		font-size: 11px;
+		font-family: var(--publy-font-mono);
+		color: var(--publy-foreground-muted);
 	}
 
 	.publy-pill-tabs {
@@ -973,7 +1004,8 @@ html {
 	}
 
 	.publy-search-wrapper {
-		@apply relative w-full;
+		@apply relative;
+		width: min(100%, 420px);
 		max-width: 420px;
 	}
 
@@ -993,13 +1025,51 @@ html {
 		@apply flex items-center gap-2;
 	}
 
+	.publy-data-table-search-input {
+		width: 100%;
+		height: 40px;
+		border-radius: var(--publy-radius-control);
+		min-height: 40px;
+	}
+
+	.publy-data-table-filter-button {
+		height: 36px;
+		min-height: 36px;
+		border-radius: var(--publy-radius-control);
+	}
+
+	.publy-data-table-view-toggle {
+		display: inline-flex;
+		align-items: center;
+		gap: 2px;
+		border-radius: var(--publy-radius-control);
+	}
+
+	.publy-data-table-view-toggle .publy-data-table-view-toggle-item {
+		border-radius: 10px;
+	}
+
 	/* Card frame: table + footer live inside one ring card */
 	.publy-table-card {
 		@apply flex min-h-0 flex-col;
+		--publy-data-table-row-height: 48px;
+		flex: 1 1 auto;
 		border-radius: var(--publy-radius-control);
 		box-shadow: var(--publy-shadow-ring);
 		background: var(--publy-surface);
 		overflow: hidden;
+	}
+
+	.publy-table-card[data-row-height='52'] {
+		--publy-data-table-row-height: 52px;
+	}
+
+	.publy-table-card[data-row-height='56'] {
+		--publy-data-table-row-height: 56px;
+	}
+
+	.publy-table-card[data-row-height='48'] {
+		--publy-data-table-row-height: 48px;
 	}
 
 	.publy-table-card [data-slot='table-container'] {
@@ -1072,7 +1142,7 @@ html {
 	}
 
 	.publy-data-table [data-slot='table-cell'] {
-		height: 48px;
+		height: var(--publy-data-table-row-height);
 		padding: 6px 14px;
 		font-size: 13px;
 		font-weight: 500;
@@ -1099,7 +1169,7 @@ html {
 		padding: 0;
 		text-align: center;
 		vertical-align: middle;
-		border-right: 1px solid var(--publy-row-border);
+		border-right: 1px solid var(--publy-border);
 		border-bottom: 1px solid var(--publy-row-border);
 	}
 
@@ -1110,13 +1180,14 @@ html {
 	.publy-data-table thead [data-slot='table-selection-cell'] {
 		height: 40px;
 		background: var(--publy-table-header);
-		border-right: 1px solid var(--publy-row-border);
+		border-right: 1px solid var(--publy-border);
 		border-bottom: 1px solid var(--publy-border);
 	}
 
 	/* Footer inside the card */
 	.publy-data-table-footer {
 		@apply flex shrink-0 items-center justify-between gap-3;
+		height: 48px;
 		min-height: 48px;
 		padding: 6px 14px;
 		background: var(--publy-table-header);
@@ -1175,13 +1246,35 @@ html {
 
 	.publy-table-skeleton-row {
 		@apply flex items-center gap-3;
-		height: 48px;
+		height: var(--publy-data-table-row-height);
 		padding: 0 14px;
 		border-bottom: 1px solid var(--publy-row-border);
 	}
 
 	.publy-table-skeleton-row:last-child {
 		border-bottom: 0;
+	}
+
+	.publy-row-actions-menu {
+		width: 196px;
+		min-width: 196px;
+		border-radius: var(--publy-radius-control);
+		background: rgba(255, 255, 255, 0.97);
+		box-shadow: var(--publy-shadow-menu);
+	}
+
+	.publy-row-actions-menu [data-slot='dropdown-menu-item'] {
+		height: 32px;
+		min-height: 32px;
+		border-radius: 9px;
+	}
+
+	.publy-row-action-trigger {
+		width: 28px;
+		height: 28px;
+		min-width: 28px;
+		min-height: 28px;
+		border-radius: 10px;
 	}
 }
 
@@ -1197,6 +1290,45 @@ html {
 .publy-data-table [data-slot='table-selection-cell'] [data-slot='checkbox'] {
 	display: inline-flex;
 	vertical-align: middle;
+}
+
+/* Table foundation recipe overrides live outside Tailwind layers so primitive
+   utility classes cannot shrink handoff-critical geometry. */
+.publy-search-wrapper .publy-data-table-search-input[data-slot='input'] {
+	height: 40px;
+	min-height: 40px;
+	border-radius: var(--publy-radius-control);
+}
+
+.publy-data-table-filter-button[data-slot='button'] {
+	height: 36px;
+	min-height: 36px;
+	border-radius: var(--publy-radius-control);
+}
+
+.publy-row-action-trigger[data-slot='button'] {
+	width: 28px;
+	height: 28px;
+	min-width: 28px;
+	min-height: 28px;
+	border-radius: 10px;
+}
+
+.publy-row-actions-menu[data-slot='dropdown-menu-content'] {
+	width: 196px;
+	min-width: 196px;
+	border-radius: var(--publy-radius-control);
+}
+
+.publy-row-actions-menu [data-slot='dropdown-menu-item'] {
+	height: 32px;
+	min-height: 32px;
+	border-radius: 9px;
+}
+
+.publy-row-actions-menu
+	[data-slot='dropdown-menu-item'][data-variant='destructive'] {
+	color: var(--publy-danger);
 }
 
 /* Gray UI primary "chrome" treatment (design handoff §Design Tokens). */

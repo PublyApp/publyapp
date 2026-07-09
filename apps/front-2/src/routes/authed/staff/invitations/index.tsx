@@ -173,7 +173,7 @@ function StaffInvitationsPage() {
 								<Button
 									type="button"
 									variant="outline"
-									className="max-w-64 rounded-[14px] text-[13px]"
+									className="publy-data-table-filter-button max-w-64 text-[13px]"
 								/>
 							}
 						>

@@ -122,7 +122,67 @@ describe('DataTable state rendering', () => {
 			<DataTable {...baseProps} rows={rows} isPending={true} isError={false} />,
 		);
 		expect(screen.getByTestId('test-table-loading')).toBeTruthy();
+		expect(screen.getByTestId('test-table-search').className).toContain(
+			'publy-data-table-search-input',
+		);
 		expect(screen.getAllByTestId('test-table-loading').length).toBe(1);
+	});
+
+	test('renders empty and no-match states with dedicated test ids', () => {
+		const { unmount } = render(
+			<DataTable
+				{...baseProps}
+				isPending={false}
+				isError={false}
+				rows={[]}
+				hasActiveSearch={false}
+			/>,
+		);
+		expect(screen.getByTestId('test-table-empty')).toBeTruthy();
+		unmount();
+
+		render(
+			<DataTable
+				{...baseProps}
+				isPending={false}
+				isError={false}
+				rows={[]}
+				hasActiveSearch={true}
+			/>,
+		);
+		expect(screen.getByTestId('test-table-no-match')).toBeTruthy();
+	});
+
+	test('supports explicit row height variants', () => {
+		render(
+			<DataTable {...baseProps} rows={rows} isError={false} rowHeight={56} />,
+		);
+		expect(
+			screen.getByTestId('test-table-rows').getAttribute('data-row-height'),
+		).toBe('56');
+	});
+
+	test('supports h52 row height variant', () => {
+		render(
+			<DataTable {...baseProps} rows={rows} isError={false} rowHeight={52} />,
+		);
+		expect(
+			screen.getByTestId('test-table-rows').getAttribute('data-row-height'),
+		).toBe('52');
+	});
+
+	test('maps compact density to the compact row height', () => {
+		render(
+			<DataTable
+				{...baseProps}
+				rows={rows}
+				isError={false}
+				density="compact"
+			/>,
+		);
+		expect(
+			screen.getByTestId('test-table-rows').getAttribute('data-row-height'),
+		).toBe('48');
 	});
 
 	test('renders rows in the table body state', () => {

@@ -12,7 +12,7 @@ import {
 	getCoreRowModel,
 	useReactTable,
 } from '@tanstack/react-table';
-import type { KeyboardEvent, ReactNode } from 'react';
+import { useMemo, type KeyboardEvent, type ReactNode } from 'react';
 import { Button } from '~/components/ui/button';
 import { Checkbox } from '~/components/ui/checkbox';
 import { Input } from '~/components/ui/input';
@@ -56,6 +56,14 @@ const SKELETON_ROW_KEYS = [
 ] as const;
 
 export type TableDensity = 'compact' | 'comfortable';
+export type TableRowHeight = 48 | 52 | 56;
+
+const DENSITY_TO_ROW_HEIGHT: Record<TableDensity, TableRowHeight> = {
+	compact: 48,
+	comfortable: 56,
+};
+
+const TABLE_DEFAULT_ROW_HEIGHT: TableRowHeight = 48;
 
 const SELECTION_LOCKED_TITLE = 'Unavailable while rows are selected';
 
@@ -101,6 +109,7 @@ export type DataTableProps<TData extends { id: string }> = {
 	searchDraft: string;
 	onSearchDraftChange: (value: string) => void;
 	density?: TableDensity;
+	rowHeight?: TableRowHeight;
 	selection?: UseRowSelectionResult;
 	/** Right-aligned toolbar controls (filters, view toggles). */
 	toolbarEnd?: ReactNode;
@@ -134,9 +143,22 @@ export const DataTable = <TData extends { id: string }>({
 	selection,
 	toolbarEnd,
 	searchPlaceholder = 'Search',
+	rowHeight,
+	density,
 }: DataTableProps<TData>) => {
 	const isSelectionMode = selection?.isSelectionMode ?? false;
 	const hasSelection = selection != null;
+	const resolvedRowHeight = useMemo<TableRowHeight>(() => {
+		if (rowHeight != null) {
+			return rowHeight;
+		}
+
+		if (density != null) {
+			return DENSITY_TO_ROW_HEIGHT[density];
+		}
+
+		return TABLE_DEFAULT_ROW_HEIGHT;
+	}, [rowHeight, density]);
 
 	const table = useReactTable({
 		data: rows,
@@ -297,7 +319,7 @@ export const DataTable = <TData extends { id: string }>({
 					<IconSearch aria-hidden="true" className="publy-search-icon" />
 					<Input
 						aria-label="Search"
-						className="h-10 rounded-[14px] bg-background pl-9"
+						className="publy-data-table-search-input bg-background pl-9"
 						value={searchDraft}
 						onChange={(event) => onSearchDraftChange(event.target.value)}
 						disabled={isSelectionMode}
@@ -312,7 +334,12 @@ export const DataTable = <TData extends { id: string }>({
 			</div>
 
 			{bodyState === 'loading' ? (
-				<div className="publy-table-card" data-testid={`${testId}-loading`}>
+				<div
+					className="publy-table-card"
+					data-row-height={resolvedRowHeight}
+					data-slot="table-card"
+					data-testid={`${testId}-loading`}
+				>
 					<div className="publy-table-skeleton-header" />
 					{SKELETON_ROW_KEYS.map((rowKey) => (
 						<div key={rowKey} className="publy-table-skeleton-row">
@@ -361,12 +388,18 @@ export const DataTable = <TData extends { id: string }>({
 			) : null}
 
 			{bodyState === 'rows' ? (
-				<div className="publy-table-card">
+				<div
+					className="publy-table-card"
+					data-row-height={resolvedRowHeight}
+					data-slot="table-card"
+					data-testid={`${testId}-card`}
+				>
 					<Table
 						aria-label={ariaLabel}
 						className="publy-data-table"
 						data-testid={`${testId}-rows`}
 						data-slot="table"
+						data-row-height={resolvedRowHeight}
 					>
 						<TableHeader>
 							<TableRow>
