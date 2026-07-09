@@ -1,3 +1,4 @@
+import { IconAlertCircle } from '@tabler/icons-react';
 import { useId, type ComponentPropsWithoutRef } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { Input } from '~/components/ui/input';
@@ -42,7 +43,7 @@ export const FieldText = ({
 							: '';
 
 				return (
-					<div className="space-y-2">
+					<div className="space-y-1.5">
 						<Label htmlFor={fieldId}>{label}</Label>
 						<Input
 							{...field}
@@ -60,8 +61,21 @@ export const FieldText = ({
 							aria-describedby={helper ? helperId : undefined}
 							className={fullWidth ? 'w-full' : undefined}
 						/>
-						{helper ? (
-							<p id={helperId} className="text-sm text-destructive">
+						{isInvalid && helper ? (
+							<p
+								id={helperId}
+								data-slot="field-error"
+								className="publy-field-error"
+							>
+								<IconAlertCircle aria-hidden="true" />
+								{helper}
+							</p>
+						) : helper ? (
+							<p
+								id={helperId}
+								data-slot="field-helper"
+								className="publy-field-helper"
+							>
 								{helper}
 							</p>
 						) : null}

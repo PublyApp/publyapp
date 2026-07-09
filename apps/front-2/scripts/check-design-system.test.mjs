@@ -299,6 +299,8 @@ test('allows HeroUI imports and rules that should be exempt', async () => {
 			"import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';",
 		'src/components/ui/dialog.tsx':
 			"import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';\nexport const DialogPopup = DialogPrimitive.Popup;",
+		'src/components/ui/drawer.tsx':
+			'import { Dialog as DialogPrimitive } from \'@base-ui/react/dialog\';\nconst drawer = <DialogPrimitive.Popup className="publy-drawer" />;',
 		'src/components/app-shell/app-shell.tsx':
 			'<div className="app-shell-topbar-action-btn" />',
 	});

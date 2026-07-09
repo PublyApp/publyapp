@@ -7,6 +7,9 @@ const BASE_STAFF_PATH = '/staff/staff-users';
 const TENANT_PATH = '/staff/tenants';
 const TABLE_TEST_ID = 'staff-users-table';
 const STAFF_INVITATIONS_PATH = '/staff/invitations';
+// Kiota parses entity ids with getGuidValue(); mocked ids must be real UUIDs
+// or rows are silently dropped.
+const HANDOFF_TENANT_ID = '0197b8f0-2222-7bbb-8bbb-bbbbbbbbbbbb';
 
 const isApiPath = (url: string, path: string): boolean => {
 	const parsed = new URL(url);
@@ -138,7 +141,7 @@ test('asserts staff invitations filter button geometry', async ({ page }) => {
 			body: JSON.stringify({
 				data: [
 					{
-						id: 'invitation-handoff',
+						id: '0197b8f0-1111-7aaa-8aaa-aaaaaaaaaaaa',
 						email: 'member@example.com',
 						profileName: 'Admin',
 						status: 'Pending',
@@ -166,13 +169,21 @@ test('asserts confirm modal geometry uses handoff radius', async ({ page }) => {
 	await page.setViewportSize({ width: 1280, height: 900 });
 
 	await page.route('**/staff/tenants*', async (route) => {
+		if (
+			route.request().method() !== 'GET' ||
+			!isApiPath(route.request().url(), TENANT_PATH)
+		) {
+			await route.fallback();
+			return;
+		}
+
 		await route.fulfill({
 			status: 200,
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({
 				data: [
 					{
-						id: 'tenant-for-handoff-modal',
+						id: HANDOFF_TENANT_ID,
 						name: 'Handoff Tenant',
 						status: 'Active',
 						usersCount: 1,
@@ -186,7 +197,7 @@ test('asserts confirm modal geometry uses handoff radius', async ({ page }) => {
 
 	await page.goto(TENANT_PATH);
 
-	await page.getByTestId('tenant-actions-tenant-for-handoff-modal').click();
+	await page.getByTestId(`tenant-actions-${HANDOFF_TENANT_ID}`).click();
 
 	const rowMenu = page.locator(
 		'[data-slot="dropdown-menu-content"].publy-row-actions-menu',
@@ -199,11 +210,34 @@ test('asserts confirm modal geometry uses handoff radius', async ({ page }) => {
 	).toHaveCSS('color', 'rgb(220, 38, 38)');
 
 	await page.getByRole('menuitem', { name: 'Suspend' }).click();
-	await expect(page.getByRole('alertdialog')).toBeVisible();
-	await expect(page.getByRole('alertdialog')).toHaveCSS(
-		'border-radius',
-		'28px',
+	const confirmDialog = page.getByRole('alertdialog');
+	await expect(confirmDialog).toBeVisible();
+	await expect(confirmDialog).toHaveCSS('border-radius', '28px');
+	await expect(confirmDialog).toHaveCSS('width', '480px');
+	await expect(confirmDialog).toHaveCSS(
+		'background-color',
+		'rgba(255, 255, 255, 0.97)',
 	);
+
+	const modalTitle = confirmDialog.locator(
+		'[data-slot="confirm-dialog-title"]',
+	);
+	await expect(modalTitle).toHaveCSS('font-size', '17px');
+	await expect(modalTitle).toHaveCSS('font-weight', '600');
+
+	const modalFooter = confirmDialog.locator(
+		'[data-slot="confirm-dialog-footer"]',
+	);
+	await expect(modalFooter).toHaveCSS('border-top-width', '1px');
+	await expect(modalFooter).toHaveCSS('border-top-color', 'rgb(241, 241, 243)');
+
+	const confirmButton = modalFooter.getByRole('button', { name: 'Suspend' });
+	await expect(confirmButton).toHaveCSS('color', 'rgb(220, 38, 38)');
+	await expect(confirmButton).toHaveCSS(
+		'background-color',
+		'rgba(220, 38, 38, 0.1)',
+	);
+	await expect(confirmButton).toHaveCSS('font-weight', '600');
 });
 
 test('asserts staff shell rails and panel match handoff registry', async ({

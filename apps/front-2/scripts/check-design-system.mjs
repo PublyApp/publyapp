@@ -226,7 +226,8 @@ const isRoundedRadiusAllowed = (relativePath, line, lineIndex, lines) => {
 
 const isConfirmDialogFile = (relativePath) =>
 	relativePath === 'src/components/ui/confirm-dialog.tsx' ||
-	relativePath === 'src/components/ui/dialog.tsx';
+	relativePath === 'src/components/ui/dialog.tsx' ||
+	relativePath === 'src/components/ui/drawer.tsx';
 
 const isKnownHandoffGuardDebt = ({ ruleId, file, source }) => {
 	for (const debt of KNOWN_HANDOFF_GUARD_DEBT) {

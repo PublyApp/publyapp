@@ -1,7 +1,13 @@
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
-import { IconAlertTriangle } from '@tabler/icons-react';
+import { IconX } from '@tabler/icons-react';
+import type { ReactNode } from 'react';
 import { Button } from '~/components/ui/button';
 
+/**
+ * Centered modals are reserved for confirmation dialogs (handoff 2e):
+ * 480px, radius 28, blurred backdrop, ghost cancel + soft-destructive
+ * confirm. Every other overlay must use the right-side Drawer.
+ */
 export type ConfirmDialogProps = {
 	isOpen: boolean;
 	title: string;
@@ -10,6 +16,8 @@ export type ConfirmDialogProps = {
 	cancelLabel?: string;
 	isPending?: boolean;
 	tone?: 'danger' | 'primary';
+	/** Extra confirmation content (user inset card, type-to-confirm field). */
+	children?: ReactNode;
 	onConfirm: () => void;
 	onOpenChange: (isOpen: boolean) => void;
 };
@@ -22,34 +30,51 @@ export const ConfirmDialog = ({
 	cancelLabel = 'Cancel',
 	isPending = false,
 	tone = 'danger',
+	children,
 	onConfirm,
 	onOpenChange,
 }: ConfirmDialogProps) => (
 	<DialogPrimitive.Root open={isOpen} onOpenChange={onOpenChange}>
 		<DialogPrimitive.Portal>
-			<DialogPrimitive.Backdrop className="fixed inset-0 z-[70] bg-black/32 transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[opacity] data-ending-style:opacity-0 data-starting-style:opacity-0 motion-reduce:transition-none supports-backdrop-filter:backdrop-blur-sm" />
+			<DialogPrimitive.Backdrop className="publy-overlay-backdrop z-[70] transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[opacity] data-ending-style:opacity-0 data-starting-style:opacity-0 motion-reduce:transition-none supports-backdrop-filter:backdrop-blur-sm" />
 			<DialogPrimitive.Popup
 				role="alertdialog"
-				className="fixed top-1/2 left-1/2 z-[71] flex w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-[28px] border border-border/70 bg-background/96 p-0 text-popover-foreground shadow-2xl outline-none transition duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[transform,opacity] data-ending-style:translate-y-[calc(-50%+1rem)] data-ending-style:opacity-0 data-starting-style:translate-y-[calc(-50%+1rem)] data-starting-style:opacity-0 motion-reduce:transition-none supports-backdrop-filter:backdrop-blur-xl"
+				data-slot="confirm-dialog"
+				data-tone={tone}
+				className="fixed top-1/2 left-1/2 z-[71] flex w-[min(480px,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-[var(--publy-modal-radius)] border border-border/70 bg-(--publy-overlay-surface) p-0 text-popover-foreground shadow-[var(--publy-shadow-modal)] outline-none transition duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[transform,opacity] data-ending-style:translate-y-[calc(-50%+1rem)] data-ending-style:opacity-0 data-starting-style:translate-y-[calc(-50%+1rem)] data-starting-style:opacity-0 motion-reduce:transition-none"
 			>
-				<div className="px-6 pt-6 pb-4">
-					<div className="mb-2 flex items-center gap-2">
-						<span
-							className="inline-flex size-6 items-center justify-center text-destructive"
-							data-tone={tone}
-							aria-hidden="true"
+				<div
+					className={
+						children
+							? 'flex items-start justify-between gap-3 px-6 pt-5'
+							: 'flex items-start justify-between gap-3 px-6 pt-5 pb-5'
+					}
+				>
+					<div className="flex min-w-0 flex-col gap-1">
+						<DialogPrimitive.Title
+							data-slot="confirm-dialog-title"
+							className="text-[17px] font-semibold text-foreground"
 						>
-							<IconAlertTriangle className="size-6" />
-						</span>
-						<DialogPrimitive.Title className="text-lg font-semibold text-foreground">
 							{title}
 						</DialogPrimitive.Title>
+						<DialogPrimitive.Description className="text-[13px] text-muted-foreground">
+							{description}
+						</DialogPrimitive.Description>
 					</div>
-					<DialogPrimitive.Description className="mt-2 text-sm leading-6 text-muted-foreground">
-						{description}
-					</DialogPrimitive.Description>
+					<DialogPrimitive.Close
+						aria-label="Close"
+						className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[var(--publy-radius-small-control)] text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/30"
+					>
+						<IconX className="size-[18px]" aria-hidden="true" />
+					</DialogPrimitive.Close>
 				</div>
-				<div className="flex items-center justify-end gap-3 border-t border-border/70 px-6 py-4">
+				{children ? (
+					<div className="flex flex-col gap-3.5 px-6 pt-4 pb-5">{children}</div>
+				) : null}
+				<div
+					data-slot="confirm-dialog-footer"
+					className="flex items-center justify-end gap-2.5 border-t border-[color:var(--publy-row-border)] px-6 py-3.5"
+				>
 					<Button
 						type="button"
 						variant="ghost"
@@ -61,6 +86,7 @@ export const ConfirmDialog = ({
 					<Button
 						type="button"
 						variant={tone === 'danger' ? 'destructive' : 'default'}
+						className="font-semibold"
 						onClick={onConfirm}
 						disabled={isPending}
 					>

@@ -95,6 +95,8 @@
 	--publy-focus-ring: color-mix(in srgb, var(--publy-primary) 25%, transparent);
 	--publy-danger: #dc2626;
 	--publy-danger-soft: rgba(220, 38, 38, 0.08);
+	--publy-destructive-soft: rgba(220, 38, 38, 0.1);
+	--publy-destructive-soft-hover: rgba(220, 38, 38, 0.2);
 	--publy-success: #047857;
 	--publy-warning: #b45309;
 	--publy-chip-active-border: #a7f3d0;
@@ -131,6 +133,13 @@
 	--publy-radius-input: 10px;
 	--publy-radius-frame: 16px;
 	--publy-modal-radius: 28px;
+	--publy-backdrop: rgba(24, 24, 27, 0.32);
+	--publy-overlay-surface: rgba(255, 255, 255, 0.97);
+	--publy-drawer-width: 460px;
+	--publy-drawer-width-filters: 400px;
+	--publy-danger-zone-ring: rgba(254, 205, 211, 0.9);
+	--publy-danger-zone-border: #ffe4e6;
+	--publy-danger-zone-heading: #be123c;
 	--publy-shell-rail-width: 49px;
 	--publy-shell-panel-width: 272px;
 	--publy-shell-topbar-height: 64px;
@@ -139,6 +148,7 @@
 	--publy-shadow-menu:
 		0 12px 32px rgba(24, 24, 27, 0.14), 0 2px 6px rgba(24, 24, 27, 0.06);
 	--publy-shadow-modal: 0 24px 64px rgba(24, 24, 27, 0.28);
+	--publy-shadow-drawer: -16px 0 40px rgba(24, 24, 27, 0.14);
 	--publy-shadow-input: 0 1px 2px rgba(0, 0, 0, 0.03);
 	--publy-shadow-chrome:
 		0 0 0 0.67px rgba(0, 0, 0, 0.2) inset,
@@ -181,6 +191,12 @@ html.dark {
 	--publy-border-strong: #52525b;
 	--publy-shadow-inset: 0 1px 0 color-mix(in srgb, white 6%, transparent) inset;
 	--publy-danger-soft: rgba(220, 38, 38, 0.16);
+	--publy-destructive-soft: rgba(220, 38, 38, 0.2);
+	--publy-destructive-soft-hover: rgba(220, 38, 38, 0.3);
+	--publy-overlay-surface: rgba(24, 24, 27, 0.97);
+	--publy-danger-zone-ring: rgba(159, 18, 57, 0.55);
+	--publy-danger-zone-border: #4c0519;
+	--publy-danger-zone-heading: #fb7185;
 	--publy-chip-active-border: #065f46;
 	--publy-chip-active-bg: #052e22;
 	--publy-chip-active-text: #34d399;
@@ -983,6 +999,219 @@ html {
 		color: var(--publy-foreground);
 	}
 
+	/* ---- Overlays: right-side drawer (handoff slice 8) ---- */
+
+	.publy-overlay-backdrop {
+		position: fixed;
+		inset: 0;
+		background: var(--publy-backdrop);
+	}
+
+	.publy-drawer {
+		@apply fixed inset-y-0 right-0 flex flex-col overflow-hidden;
+		width: min(var(--publy-drawer-width), calc(100vw - 24px));
+		background: var(--publy-surface);
+		border-left: 1px solid var(--publy-border);
+		box-shadow: var(--publy-shadow-drawer);
+	}
+
+	.publy-drawer[data-size='filters'] {
+		width: min(var(--publy-drawer-width-filters), calc(100vw - 24px));
+	}
+
+	.publy-drawer-header {
+		@apply flex shrink-0 items-start justify-between gap-3;
+		padding: 18px 22px;
+		border-bottom: 1px solid var(--publy-row-border);
+	}
+
+	.publy-drawer-title {
+		font-size: 17px;
+		font-weight: 600;
+		color: var(--publy-foreground);
+	}
+
+	.publy-drawer-description {
+		font-size: 13px;
+		color: var(--publy-foreground-subtle);
+	}
+
+	.publy-drawer-body {
+		@apply flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto;
+		padding: 18px 22px;
+	}
+
+	.publy-drawer-footer {
+		@apply flex shrink-0 items-center justify-end gap-2.5;
+		padding: 14px 22px;
+		border-top: 1px solid var(--publy-row-border);
+	}
+
+	/* ---- Form pages: centered column + sticky action bar (handoff 2d/3c/6a) ---- */
+
+	.publy-form-page {
+		@apply mx-auto flex w-full flex-col gap-4;
+		max-width: 860px;
+	}
+
+	.publy-form-page[data-width='760'] {
+		max-width: 760px;
+	}
+
+	/* Placed as the last child of .app-shell-main (padding 20px 28px 32px):
+	   negative margins bleed the bar to the column edges and cancel the
+	   scroller's bottom padding so the pinned bar sits flush. */
+	.publy-form-action-bar {
+		@apply sticky bottom-0 z-10 flex shrink-0 items-center justify-between gap-4;
+		border-top: 1px solid var(--publy-border);
+		background: var(--publy-overlay-surface);
+		backdrop-filter: blur(8px);
+		padding: 12px 32px;
+		margin: 0 -28px -32px;
+	}
+
+	.publy-form-action-bar-status {
+		@apply flex items-center gap-2 text-xs;
+		color: var(--publy-foreground-subtle);
+	}
+
+	.publy-form-action-bar-status::before {
+		content: '';
+		width: 7px;
+		height: 7px;
+		border-radius: var(--publy-radius-circular);
+		background: var(--publy-primary);
+	}
+
+	/* ---- Field helper / error lines (handoff 2d) ---- */
+
+	.publy-field-helper {
+		@apply text-xs;
+		color: var(--publy-foreground-subtle);
+	}
+
+	.publy-field-error {
+		@apply flex items-center gap-1 text-xs;
+		color: var(--publy-danger);
+	}
+
+	.publy-field-error svg {
+		@apply size-3.5 shrink-0;
+	}
+
+	/* ---- Switch rows (handoff 2d/5i) ---- */
+
+	.publy-field-switch-row {
+		@apply flex items-center justify-between gap-4;
+		padding: 14px 0;
+	}
+
+	.publy-field-switch-row + .publy-field-switch-row {
+		border-top: 1px solid var(--publy-surface-muted);
+	}
+
+	.publy-field-switch-title {
+		font-size: 13px;
+		font-weight: 500;
+		color: var(--publy-foreground);
+	}
+
+	.publy-field-switch-description {
+		@apply text-xs;
+		color: var(--publy-foreground-subtle);
+	}
+
+	/* ---- Detail body grid + danger zone (handoff 2c/3b) ---- */
+
+	.publy-detail-grid {
+		@apply grid items-start gap-5;
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	@media (min-width: 1024px) {
+		.publy-detail-grid {
+			grid-template-columns: minmax(0, 1fr) 372px;
+		}
+	}
+
+	.publy-detail-grid > * {
+		@apply flex min-w-0 flex-col gap-5;
+	}
+
+	.publy-danger-zone {
+		border-radius: var(--publy-radius-card);
+		background: var(--publy-surface);
+		box-shadow: 0 0 0 1px var(--publy-danger-zone-ring);
+	}
+
+	.publy-danger-zone-title {
+		@apply text-sm font-semibold;
+		padding: 14px 18px;
+		border-bottom: 1px solid var(--publy-danger-zone-border);
+		color: var(--publy-danger-zone-heading);
+	}
+
+	.publy-danger-zone-row {
+		@apply flex items-center justify-between gap-3;
+		padding: 13px 18px;
+	}
+
+	.publy-danger-zone-row:not(:last-child) {
+		border-bottom: 1px solid var(--publy-danger-zone-border);
+	}
+
+	.publy-danger-zone-row-title {
+		font-size: 13px;
+		font-weight: 500;
+		color: var(--publy-foreground);
+	}
+
+	.publy-danger-zone-row-description {
+		@apply text-xs;
+		color: var(--publy-foreground-subtle);
+	}
+
+	.publy-danger-zone-row .publy-danger-action,
+	.publy-danger-action {
+		@apply inline-flex shrink-0 cursor-pointer items-center text-xs font-medium;
+		height: 30px;
+		padding: 0 12px;
+		border-radius: 12px;
+		border: 1px solid transparent;
+		background: var(--publy-danger-soft);
+		color: var(--publy-danger);
+	}
+
+	.publy-danger-action:hover {
+		background: color-mix(in srgb, var(--publy-danger) 16%, transparent);
+	}
+
+	/* ---- Underline section tabs (handoff 2c/3b) ---- */
+
+	.publy-section-tabs {
+		@apply flex items-center gap-4;
+		border-bottom: 1px solid var(--publy-border);
+	}
+
+	.publy-section-tab {
+		@apply inline-flex items-center border-b-2 border-transparent transition-colors;
+		font-size: 13px;
+		font-weight: 500;
+		margin-bottom: -1px;
+		padding: 0 4px 8px;
+		color: var(--publy-foreground-subtle);
+	}
+
+	.publy-section-tab:hover {
+		color: var(--publy-foreground);
+	}
+
+	.publy-section-tab[data-active='true'],
+	.publy-section-tab[aria-current='page'] {
+		border-bottom-color: var(--publy-primary);
+		color: var(--publy-foreground);
+	}
+
 	/* ---- Data Table ---- */
 
 	/* Page wrapper for list routes: caps the page at the viewport so the
@@ -1268,14 +1497,6 @@ html {
 		min-height: 32px;
 		border-radius: 9px;
 	}
-
-	.publy-row-action-trigger {
-		width: 28px;
-		height: 28px;
-		min-width: 28px;
-		min-height: 28px;
-		border-radius: 10px;
-	}
 }
 
 /* Un-layered overrides: these must beat Tailwind utility-layer classes. */
@@ -1306,7 +1527,9 @@ html {
 	border-radius: var(--publy-radius-control);
 }
 
-.publy-row-action-trigger[data-slot='button'] {
+/* No [data-slot='button'] qualifier here: the Base UI dropdown trigger
+   render-prop overwrites data-slot to 'dropdown-menu-trigger'. */
+.publy-row-action-trigger {
 	width: 28px;
 	height: 28px;
 	min-width: 28px;

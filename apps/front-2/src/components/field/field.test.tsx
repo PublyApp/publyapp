@@ -129,6 +129,139 @@ describe('Field Text components wire error text to aria-describedby', () => {
 	});
 });
 
+describe('Field error and helper line contracts (handoff 2d)', () => {
+	afterEach(() => {
+		cleanup();
+	});
+
+	const HelperAndErrorForm = () => {
+		const methods = useForm({
+			resolver: zodResolver(
+				z.object({
+					email: z.string().email(),
+					name: z.string(),
+				}),
+			),
+			defaultValues: { email: '', name: '' },
+		});
+
+		return (
+			<Form methods={methods} onSubmit={methods.handleSubmit(() => undefined)}>
+				<Field.Text name="email" label="Email" required />
+				<Field.Text name="name" label="Name" helperText="Shown on invoices" />
+				<button type="submit">Submit</button>
+			</Form>
+		);
+	};
+
+	test('invalid field renders an iconed error line, valid helper stays muted', async () => {
+		render(<HelperAndErrorForm />);
+
+		const helper = screen.getByText('Shown on invoices');
+		expect(helper.getAttribute('data-slot')).toBe('field-helper');
+		expect(helper.querySelector('svg')).toBeNull();
+
+		fireEvent.change(screen.getByRole('textbox', { name: 'Email' }), {
+			target: { value: 'not-an-email' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
+
+		const errorLine = await waitFor(() => {
+			const line = document.querySelector('[data-slot="field-error"]');
+			if (!line) {
+				throw new Error('field error line not rendered');
+			}
+			return line;
+		});
+		expect(errorLine.textContent).toMatch(/Invalid email|e-mail non valide/);
+		expect(errorLine.querySelector('svg')).not.toBeNull();
+	});
+});
+
+describe('Field.Switch (handoff switch rows)', () => {
+	afterEach(() => {
+		cleanup();
+	});
+
+	const SwitchForm = ({
+		onSubmitValues,
+	}: {
+		onSubmitValues: (values: { requireSso: boolean }) => void;
+	}) => {
+		const methods = useForm({
+			defaultValues: { requireSso: false },
+		});
+
+		return (
+			<Form
+				methods={methods}
+				onSubmit={methods.handleSubmit((values) => {
+					onSubmitValues(values);
+				})}
+			>
+				<Field.Switch
+					name="requireSso"
+					label="Require SSO"
+					description="Members must sign in with your identity provider."
+				/>
+				<button type="submit">Submit</button>
+			</Form>
+		);
+	};
+
+	test('renders a switch row and writes the toggled value into the form', async () => {
+		const submitted: Array<{ requireSso: boolean }> = [];
+		render(<SwitchForm onSubmitValues={(values) => submitted.push(values)} />);
+
+		const row = document.querySelector('[data-slot="field-switch-row"]');
+		expect(row).not.toBeNull();
+		expect(
+			screen.getByText('Members must sign in with your identity provider.'),
+		).toBeTruthy();
+
+		fireEvent.click(screen.getByRole('switch', { name: 'Require SSO' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
+
+		await waitFor(() => {
+			expect(submitted).toHaveLength(1);
+		});
+		expect(submitted[0]?.requireSso).toBe(true);
+	});
+});
+
+describe('Field.Select (handoff select trigger)', () => {
+	afterEach(() => {
+		cleanup();
+	});
+
+	const SelectForm = () => {
+		const methods = useForm({ defaultValues: { role: '' } });
+
+		return (
+			<Form methods={methods} onSubmit={methods.handleSubmit(() => undefined)}>
+				<Field.Select
+					name="role"
+					label="Role"
+					placeholder="Choose a role"
+					options={[
+						{ value: 'admin', label: 'Admin' },
+						{ value: 'editor', label: 'Editor' },
+					]}
+				/>
+			</Form>
+		);
+	};
+
+	test('renders a labelled select trigger with placeholder', () => {
+		render(<SelectForm />);
+
+		const trigger = document.querySelector('[data-slot="select-trigger"]');
+		expect(trigger).not.toBeNull();
+		expect(screen.getByText('Role')).toBeTruthy();
+		expect(screen.getByText('Choose a role')).toBeTruthy();
+	});
+});
+
 describe('InterZod localization via zodResolver-compatible schema setup', () => {
 	test('validates email with localized English message', async () => {
 		await configureInterZodLocale('en');

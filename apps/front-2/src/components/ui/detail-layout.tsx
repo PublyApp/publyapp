@@ -1,0 +1,71 @@
+import type * as React from 'react';
+import { cn } from '~/lib/utils';
+
+/**
+ * Detail-page foundations from the handoff (artboards 2c/3b): the
+ * `1fr / 372px` body grid and the rose-ringed danger-zone card with
+ * soft-destructive row actions. Values live in app.css (`.publy-detail-*`,
+ * `.publy-danger-*`).
+ */
+
+function DetailGrid({ className, ...props }: React.ComponentProps<'div'>) {
+	return (
+		<div
+			data-slot="detail-grid"
+			className={cn('publy-detail-grid', className)}
+			{...props}
+		/>
+	);
+}
+
+function DetailMain({ className, ...props }: React.ComponentProps<'div'>) {
+	return <div data-slot="detail-main" className={className} {...props} />;
+}
+
+function DetailAside({ className, ...props }: React.ComponentProps<'aside'>) {
+	return <aside data-slot="detail-aside" className={className} {...props} />;
+}
+
+function DangerZoneCard({
+	title,
+	className,
+	children,
+	...props
+}: React.ComponentProps<'section'> & { title: string }) {
+	return (
+		<section
+			data-slot="danger-zone"
+			className={cn('publy-danger-zone', className)}
+			{...props}
+		>
+			<h2 className="publy-danger-zone-title">{title}</h2>
+			{children}
+		</section>
+	);
+}
+
+function DangerZoneRow({
+	title,
+	description,
+	action,
+}: {
+	title: string;
+	description?: string;
+	action: React.ReactNode;
+}) {
+	return (
+		<div data-slot="danger-zone-row" className="publy-danger-zone-row">
+			<div className="flex min-w-0 flex-col gap-px">
+				<span className="publy-danger-zone-row-title">{title}</span>
+				{description ? (
+					<span className="publy-danger-zone-row-description">
+						{description}
+					</span>
+				) : null}
+			</div>
+			<div className="shrink-0">{action}</div>
+		</div>
+	);
+}
+
+export { DangerZoneCard, DangerZoneRow, DetailAside, DetailGrid, DetailMain };
