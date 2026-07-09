@@ -1,14 +1,14 @@
-import { Button } from '@heroui/react';
+import { IconAlertCircle } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { AlertCircle } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
 import { useTableController } from '~/components/table/use-table-controller';
+import { Button } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
 	isStaffTenantInvitationRevocable,
@@ -131,9 +131,9 @@ const createColumns = ({
 				<Button
 					type="button"
 					size="sm"
-					variant="danger-soft"
-					isDisabled={isRevokePending}
-					onPress={() => onRevoke(row.original)}
+					variant="destructive"
+					disabled={isRevokePending}
+					onClick={() => onRevoke(row.original)}
 				>
 					{t('staff-revoke')}
 				</Button>
@@ -268,7 +268,7 @@ function StaffTenantInvitationsPage() {
 	if (!tenant) {
 		return (
 			<AppErrorView
-				icon={<AlertCircle aria-hidden="true" className="size-7" />}
+				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 				code="500 — Server Error"
 				title="Unable to load this tenant"
 				description="The tenant response was incomplete."
@@ -361,8 +361,8 @@ function StaffTenantInvitationsPage() {
 							key={status}
 							size="sm"
 							type="button"
-							variant={isSelected ? 'primary' : 'secondary'}
-							onPress={() => toggleStatus(status)}
+							variant={isSelected ? 'default' : 'secondary'}
+							onClick={() => toggleStatus(status)}
 						>
 							{formatInvitationStatusLabel(status)}
 						</Button>
@@ -372,7 +372,7 @@ function StaffTenantInvitationsPage() {
 					size="sm"
 					type="button"
 					variant="ghost"
-					onPress={() => setStatuses([])}
+					onClick={() => setStatuses([])}
 				>
 					Clear
 				</Button>

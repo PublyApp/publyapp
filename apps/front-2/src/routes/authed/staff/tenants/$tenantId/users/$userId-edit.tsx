@@ -1,14 +1,22 @@
-import { Button, Card, ListBox, Select, Spinner } from '@heroui/react';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { IconAlertCircle, IconLock, IconSearchOff } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { AlertCircle, LockKeyhole, SearchX } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
+import { Button } from '~/components/ui/button';
+import { Card } from '~/components/ui/card';
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from '~/components/ui/select';
 import {
 	STAFF_TENANT_USER_DETAILS_QUERY_KEY,
 	STAFF_TENANT_USERS_QUERY_KEY,
@@ -103,7 +111,11 @@ const TenantUserEditLoading = () => (
 		data-testid="staff-tenant-user-edit-loading"
 	>
 		<div className="flex items-center gap-3 text-sm text-foreground-500">
-			<Spinner size="sm" />
+			<span
+				role="status"
+				aria-label="Loading"
+				className="size-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"
+			/>
 			<span>Loading tenant user…</span>
 		</div>
 	</div>
@@ -111,7 +123,7 @@ const TenantUserEditLoading = () => (
 
 const InvalidTenantUserView = ({ error }: { error: unknown }) => (
 	<AppErrorView
-		icon={<AlertCircle aria-hidden="true" className="size-7" />}
+		icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 		code="400 — Bad Request"
 		title="Invalid tenant user edit link"
 		description={getFailureDescription(
@@ -124,7 +136,7 @@ const InvalidTenantUserView = ({ error }: { error: unknown }) => (
 
 const MissingTenantUserView = ({ error }: { error: unknown }) => (
 	<AppErrorView
-		icon={<SearchX aria-hidden="true" className="size-7" />}
+		icon={<IconSearchOff aria-hidden="true" className="size-7" />}
 		code="404 — Not Found"
 		title="Tenant user not found"
 		description={getFailureDescription(
@@ -143,7 +155,7 @@ const TenantUserEditError = ({ error }: { error: unknown }) => {
 	if (isProblemStatus(error, 403)) {
 		return (
 			<AppErrorView
-				icon={<LockKeyhole aria-hidden="true" className="size-7" />}
+				icon={<IconLock aria-hidden="true" className="size-7" />}
 				code="403 — Forbidden"
 				title="You don't have access"
 				description="Your account does not have permission to edit this tenant user."
@@ -158,7 +170,7 @@ const TenantUserEditError = ({ error }: { error: unknown }) => {
 
 	return (
 		<AppErrorView
-			icon={<AlertCircle aria-hidden="true" className="size-7" />}
+			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 			code="500 — Server Error"
 			title="Unable to load this tenant user"
 			description="There was a problem loading the tenant user details."
@@ -242,7 +254,7 @@ function StaffTenantUserEditPage() {
 	if (!tenant) {
 		return (
 			<AppErrorView
-				icon={<AlertCircle aria-hidden="true" className="size-7" />}
+				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 				code="500 — Server Error"
 				title="Unable to load this tenant"
 				description="The tenant response was incomplete."
@@ -266,7 +278,7 @@ function StaffTenantUserEditPage() {
 	if (!user) {
 		return (
 			<AppErrorView
-				icon={<SearchX aria-hidden="true" className="size-7" />}
+				icon={<IconSearchOff aria-hidden="true" className="size-7" />}
 				code="404 — Not Found"
 				title="Tenant user not found"
 				description="The tenant user payload was empty."
@@ -425,31 +437,28 @@ function StaffTenantUserEditPage() {
 							control={control}
 							name="accountLevel"
 							render={({ field }) => (
-								<Select.Root
+								<Select
 									id="tenant-user-account-level"
 									aria-label={t('account-level')}
-									selectedKey={field.value}
-									onSelectionChange={(key) => {
-										if (key) {
-											field.onChange(key);
+									value={field.value}
+									onValueChange={(nextValue) => {
+										if (typeof nextValue === 'string') {
+											field.onChange(nextValue);
 										}
 									}}
-									isDisabled={isSubmittingForm}
+									disabled={isSubmittingForm}
 								>
-									<Select.Trigger>
-										<Select.Value />
-										<Select.Indicator />
-									</Select.Trigger>
-									<Select.Popover>
-										<ListBox>
-											{EDIT_ACCOUNT_LEVEL_OPTIONS.map((option) => (
-												<ListBox.Item key={option} id={option}>
-													{option}
-												</ListBox.Item>
-											))}
-										</ListBox>
-									</Select.Popover>
-								</Select.Root>
+									<SelectTrigger>
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										{EDIT_ACCOUNT_LEVEL_OPTIONS.map((option) => (
+											<SelectItem key={option} value={option}>
+												{option}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
 							)}
 						/>
 						{errors.accountLevel ? (
@@ -464,7 +473,7 @@ function StaffTenantUserEditPage() {
 					) : null}
 
 					<div className="flex justify-end">
-						<Button type="submit" variant="primary" isDisabled={saveDisabled}>
+						<Button type="submit" variant="default" disabled={saveDisabled}>
 							{t('save-changes')}
 						</Button>
 					</div>

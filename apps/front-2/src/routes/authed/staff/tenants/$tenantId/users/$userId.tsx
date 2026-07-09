@@ -1,12 +1,13 @@
-import { Button, Card } from '@heroui/react';
+import { IconAlertCircle, IconSearchOff } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { AlertCircle, SearchX } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
+import { Button } from '~/components/ui/button';
+import { Card } from '~/components/ui/card';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
 	toStaffTenantUserDetails,
@@ -73,7 +74,7 @@ const getFailureDescription = (error: unknown, fallback: string): string => {
 
 const InvalidTenantUserView = ({ error }: { error: unknown }) => (
 	<AppErrorView
-		icon={<AlertCircle aria-hidden="true" className="size-7" />}
+		icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 		code="400 — Bad Request"
 		title="Invalid tenant user link"
 		description={getFailureDescription(
@@ -86,7 +87,7 @@ const InvalidTenantUserView = ({ error }: { error: unknown }) => (
 
 const MissingTenantUserView = ({ error }: { error: unknown }) => (
 	<AppErrorView
-		icon={<SearchX aria-hidden="true" className="size-7" />}
+		icon={<IconSearchOff aria-hidden="true" className="size-7" />}
 		code="404 — Not Found"
 		title="Tenant user not found"
 		description={getFailureDescription(
@@ -112,7 +113,7 @@ const StaffTenantUserDetailsError = ({ error }: { error: unknown }) => {
 
 	return (
 		<AppErrorView
-			icon={<AlertCircle aria-hidden="true" className="size-7" />}
+			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 			code="500 — Server Error"
 			title="Unable to load this tenant user"
 			description="There was a problem loading the tenant user details."
@@ -209,7 +210,7 @@ function StaffTenantUserDetailsPage() {
 	if (!tenant) {
 		return (
 			<AppErrorView
-				icon={<SearchX aria-hidden="true" className="size-7" />}
+				icon={<IconSearchOff aria-hidden="true" className="size-7" />}
 				code="404 — Not Found"
 				title="Tenant not found"
 				description="The tenant payload was incomplete."
@@ -226,7 +227,7 @@ function StaffTenantUserDetailsPage() {
 	if (!user) {
 		return (
 			<AppErrorView
-				icon={<SearchX aria-hidden="true" className="size-7" />}
+				icon={<IconSearchOff aria-hidden="true" className="size-7" />}
 				code="404 — Not Found"
 				title="Tenant user not found"
 				description="The tenant user payload was empty."
@@ -368,14 +369,14 @@ function StaffTenantUserDetailsPage() {
 								type="button"
 								variant="secondary"
 								size="sm"
-								onPress={() => {
+								onClick={() => {
 									if (!membershipAction) {
 										return;
 									}
 
 									void handleMembershipAction(membershipAction);
 								}}
-								isDisabled={membershipActionDisabled}
+								disabled={membershipActionDisabled}
 							>
 								{membershipActionLabel}
 								{isStatusActionPending ? '…' : ''}
@@ -409,10 +410,10 @@ function StaffTenantUserDetailsPage() {
 					</div>
 					<Button
 						type="button"
-						variant="danger"
+						variant="destructive"
 						size="sm"
-						onPress={() => setPendingRemove(true)}
-						isDisabled={isAnyActionPending}
+						onClick={() => setPendingRemove(true)}
+						disabled={isAnyActionPending}
 					>
 						Remove from tenant
 						{isRemoveActionPending ? '…' : ''}

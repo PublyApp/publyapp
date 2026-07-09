@@ -1,11 +1,11 @@
-import { buttonVariants } from '@heroui/react';
+import { IconAlertCircle } from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { AlertCircle } from 'lucide-react';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
 import { useTableController } from '~/components/table/use-table-controller';
+import { buttonVariants } from '~/components/ui/button';
 import {
 	type StaffTenantUserRow,
 	toStaffTenantUserRows,
@@ -139,7 +139,7 @@ function StaffTenantUsersPage() {
 	if (!tenant) {
 		return (
 			<AppErrorView
-				icon={<AlertCircle aria-hidden="true" className="size-7" />}
+				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 				code="500 — Server Error"
 				title="Unable to load this tenant"
 				description="The tenant response was incomplete."
@@ -168,7 +168,7 @@ function StaffTenantUsersPage() {
 					<Link
 						to="/staff/tenants/$tenantId/users/invite"
 						params={{ tenantId }}
-						className={buttonVariants({ size: 'sm', variant: 'primary' })}
+						className={buttonVariants({ size: 'sm', variant: 'default' })}
 					>
 						Invite user
 					</Link>

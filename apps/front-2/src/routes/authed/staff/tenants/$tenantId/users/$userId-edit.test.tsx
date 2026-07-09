@@ -8,6 +8,7 @@ import {
 	screen,
 	waitFor,
 } from '@testing-library/react';
+import * as React from 'react';
 import { createElement, type JSX, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -23,68 +24,74 @@ const mocks = vi.hoisted(() => ({
 	shouldLogoutForFailure: vi.fn<(error: unknown) => boolean>(() => false),
 }));
 
-vi.mock('@heroui/react', () => ({
-	Button: ({
+vi.mock('~/components/ui/select', () => {
+	const SelectContent = ({ children }: { children?: ReactNode }) =>
+		createElement('div', null, children);
+
+	const SelectItem = ({
 		children,
-		type,
-		onPress,
-		isDisabled,
-		...props
+		value,
 	}: {
 		children: ReactNode;
-		type?: 'button' | 'submit' | 'reset';
-		onPress?: () => void;
-		isDisabled?: boolean;
-	}) =>
-		createElement(
-			'button',
-			{
-				type: type ?? 'button',
-				onClick: onPress,
-				disabled: isDisabled,
-				...props,
-			},
+		value?: string;
+	}) => createElement('option', { value }, children);
+
+	const SelectTrigger = ({ children }: { children?: ReactNode }) =>
+		createElement('div', null, children);
+
+	const SelectValue = () => null;
+
+	const flattenSelectChildren = (children: ReactNode): ReactNode[] =>
+		React.Children.toArray(children).flatMap((child) => {
+			if (!React.isValidElement(child)) {
+				return [child];
+			}
+
+			if (child.type === SelectTrigger || child.type === SelectContent) {
+				const { children: nestedChildren } = child.props as {
+					children?: ReactNode;
+				};
+				return nestedChildren ? flattenSelectChildren(nestedChildren) : [];
+			}
+
+			if (child.type === SelectValue) {
+				return [];
+			}
+
+			return [child];
+		});
+
+	return {
+		Select: ({
 			children,
-		),
-	Card: ({ children, ...props }: { children: ReactNode }) =>
-		createElement('div', props, children),
-	Chip: ({ children, ...props }: { children: ReactNode }) =>
-		createElement('div', props, children),
-	Select: {
-		Root: ({
-			children,
-			selectedKey,
-			onSelectionChange,
-			isDisabled,
+			value,
+			onValueChange,
+			disabled,
 			...props
 		}: {
 			children: ReactNode;
-			selectedKey?: string;
-			onSelectionChange?: (key: string) => void;
-			isDisabled?: boolean;
+			value?: string;
+			onValueChange?: (value: string) => void;
+			disabled?: boolean;
 		}) =>
 			createElement(
 				'select',
 				{
-					value: selectedKey,
+					value,
 					onChange: (e: React.ChangeEvent<HTMLSelectElement>) => {
-						onSelectionChange?.(e.target.value);
+						onValueChange?.(e.target.value);
 					},
-					disabled: isDisabled,
+					disabled,
 					...props,
 				},
-				children,
+				flattenSelectChildren(children),
 			),
-		Trigger: ({ children: c }: { children?: ReactNode }) => c,
-		Value: () => null,
-		Indicator: () => null,
-		Popover: ({ children: c }: { children?: ReactNode }) => c,
-	},
-	ListBox: Object.assign(({ children: c }: { children?: ReactNode }) => c, {
-		Item: ({ children: c, id }: { children?: ReactNode; id?: string }) =>
-			createElement('option', { value: id }, c),
-	}),
-}));
+		SelectContent,
+		SelectItem,
+		SelectTrigger,
+		SelectValue,
+	};
+});
 
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => ({

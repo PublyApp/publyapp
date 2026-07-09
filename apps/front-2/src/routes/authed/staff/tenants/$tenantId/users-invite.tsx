@@ -1,14 +1,22 @@
-import { Button, Card, ListBox, Select } from '@heroui/react';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { IconAlertCircle } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { AlertCircle } from 'lucide-react';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
+import { Button } from '~/components/ui/button';
+import { Card } from '~/components/ui/card';
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from '~/components/ui/select';
 import { STAFF_TENANT_INVITATIONS_QUERY_KEY } from '~/lib/query/staff-tenant-invitations';
 import {
 	STAFF_TENANT_USERS_QUERY_KEY,
@@ -145,7 +153,7 @@ function StaffTenantUsersInviteRoute() {
 	if (!tenant) {
 		return (
 			<AppErrorView
-				icon={<AlertCircle aria-hidden="true" className="size-7" />}
+				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 				code="500 — Server Error"
 				title="Unable to load this tenant"
 				description="The tenant response was incomplete."
@@ -214,31 +222,28 @@ function StaffTenantUsersInviteRoute() {
 							control={control}
 							name="accountLevel"
 							render={({ field }) => (
-								<Select.Root
+								<Select
 									id="tenant-invite-account-level"
 									aria-label={t('account-level')}
-									selectedKey={field.value}
-									onSelectionChange={(key) => {
-										if (key) {
-											field.onChange(key);
+									value={field.value}
+									onValueChange={(value) => {
+										if (typeof value === 'string') {
+											field.onChange(value);
 										}
 									}}
-									isDisabled={isPendingForm}
+									disabled={isPendingForm}
 								>
-									<Select.Trigger>
-										<Select.Value />
-										<Select.Indicator />
-									</Select.Trigger>
-									<Select.Popover>
-										<ListBox>
-											{ACCOUNT_LEVEL_OPTIONS.map((option) => (
-												<ListBox.Item key={option} id={option}>
-													{option}
-												</ListBox.Item>
-											))}
-										</ListBox>
-									</Select.Popover>
-								</Select.Root>
+									<SelectTrigger>
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										{ACCOUNT_LEVEL_OPTIONS.map((option) => (
+											<SelectItem key={option} value={option}>
+												{option}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
 							)}
 						/>
 						{errors.accountLevel ? (
@@ -261,7 +266,7 @@ function StaffTenantUsersInviteRoute() {
 						</div>
 					) : null}
 
-					<Button type="submit" isDisabled={submitDisabled} variant="primary">
+					<Button type="submit" disabled={submitDisabled} variant="default">
 						Invite user
 					</Button>
 				</form>
