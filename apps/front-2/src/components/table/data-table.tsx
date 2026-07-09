@@ -1,10 +1,10 @@
 import {
+	IconArrowDown,
+	IconArrowUp,
 	IconArrowsSort,
 	IconChevronLeft,
 	IconChevronRight,
 	IconSearch,
-	IconSortAscending,
-	IconSortDescending,
 } from '@tabler/icons-react';
 import {
 	type ColumnDef,
@@ -45,16 +45,36 @@ import type { UseRowSelectionResult } from './use-row-selection';
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
 
-const SORTING_ICON_CLASS = 'size-4 shrink-0 text-muted-foreground';
+const SKELETON_ROW_KEYS = [
+	'sk-1',
+	'sk-2',
+	'sk-3',
+	'sk-4',
+	'sk-5',
+	'sk-6',
+	'sk-7',
+] as const;
 
 export type TableDensity = 'compact' | 'comfortable';
 
-const DENSITY_CELL_CLASS: Record<TableDensity, string> = {
-	compact: 'py-1.5',
-	comfortable: 'py-3',
+const SELECTION_LOCKED_TITLE = 'Unavailable while rows are selected';
+
+/** Optional per-column display hints read from TanStack's ColumnDef meta. */
+type ColumnDisplayMeta = {
+	/** 14px leading icon rendered before the header label. */
+	headerIcon?: ReactNode;
+	/** Extra class applied to both the header and body cells (e.g. width). */
+	cellClassName?: string;
 };
 
-const SELECTION_LOCKED_TITLE = 'Unavailable while rows are selected';
+declare module '@tanstack/react-table' {
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	interface ColumnMeta<TData, TValue> extends ColumnDisplayMeta {}
+}
+
+const columnDisplayMeta = (
+	column: ColumnDef<never> | { meta?: unknown },
+): ColumnDisplayMeta => (column.meta ?? {}) as ColumnDisplayMeta;
 
 export type DataTableProps<TData extends { id: string }> = {
 	testId: string;
@@ -82,6 +102,9 @@ export type DataTableProps<TData extends { id: string }> = {
 	onSearchDraftChange: (value: string) => void;
 	density?: TableDensity;
 	selection?: UseRowSelectionResult;
+	/** Right-aligned toolbar controls (filters, view toggles). */
+	toolbarEnd?: ReactNode;
+	searchPlaceholder?: string;
 };
 
 export const DataTable = <TData extends { id: string }>({
@@ -108,11 +131,11 @@ export const DataTable = <TData extends { id: string }>({
 	onPreviousPage,
 	searchDraft,
 	onSearchDraftChange,
-	density = 'compact',
 	selection,
+	toolbarEnd,
+	searchPlaceholder = 'Search',
 }: DataTableProps<TData>) => {
 	const isSelectionMode = selection?.isSelectionMode ?? false;
-	const cellPaddingClass = DENSITY_CELL_CLASS[density];
 	const hasSelection = selection != null;
 
 	const table = useReactTable({
@@ -254,13 +277,13 @@ export const DataTable = <TData extends { id: string }>({
 
 	const renderSortIcon = (columnId: string): ReactNode => {
 		if (tableSort?.id !== columnId) {
-			return <IconArrowsSort className={SORTING_ICON_CLASS} />;
+			return <IconArrowsSort data-slot="table-sort-icon" />;
 		}
 
 		return tableSort.desc ? (
-			<IconSortDescending className={SORTING_ICON_CLASS} />
+			<IconArrowDown data-slot="table-sort-icon" />
 		) : (
-			<IconSortAscending className={SORTING_ICON_CLASS} />
+			<IconArrowUp data-slot="table-sort-icon" />
 		);
 	};
 
@@ -274,21 +297,32 @@ export const DataTable = <TData extends { id: string }>({
 					<IconSearch aria-hidden="true" className="publy-search-icon" />
 					<Input
 						aria-label="Search"
+						className="h-10 rounded-[14px] bg-background pl-9"
 						value={searchDraft}
 						onChange={(event) => onSearchDraftChange(event.target.value)}
 						disabled={isSelectionMode}
 						title={isSelectionMode ? SELECTION_LOCKED_TITLE : undefined}
-						placeholder="Search"
+						placeholder={searchPlaceholder}
 						data-testid={`${testId}-search`}
 					/>
 				</div>
+				{toolbarEnd ? (
+					<div className="publy-data-table-toolbar-end">{toolbarEnd}</div>
+				) : null}
 			</div>
 
 			{bodyState === 'loading' ? (
-				<div className="space-y-2" data-testid={`${testId}-loading`}>
-					<Skeleton className="h-10 w-full rounded-md" />
-					<Skeleton className="h-10 w-full rounded-md" />
-					<Skeleton className="h-10 w-full rounded-md" />
+				<div className="publy-table-card" data-testid={`${testId}-loading`}>
+					<div className="publy-table-skeleton-header" />
+					{SKELETON_ROW_KEYS.map((rowKey) => (
+						<div key={rowKey} className="publy-table-skeleton-row">
+							<Skeleton className="size-[26px] shrink-0 rounded-full" />
+							<Skeleton className="h-3 w-40 rounded-full" />
+							<Skeleton className="h-3 w-56 rounded-full" />
+							<Skeleton className="ml-auto h-5 w-16 rounded-full" />
+							<Skeleton className="h-5 w-16 rounded-full" />
+						</div>
+					))}
 				</div>
 			) : null}
 
@@ -299,7 +333,7 @@ export const DataTable = <TData extends { id: string }>({
 					actions={
 						<>
 							{errorActions}
-							<Button variant="secondary" onClick={onRetry} type="button">
+							<Button variant="outline" onClick={onRetry} type="button">
 								Retry
 							</Button>
 						</>
@@ -327,198 +361,235 @@ export const DataTable = <TData extends { id: string }>({
 			) : null}
 
 			{bodyState === 'rows' ? (
-				<Table
-					aria-label={ariaLabel}
-					className="publy-data-table"
-					data-testid={`${testId}-rows`}
-					data-slot="table"
-				>
-					<TableHeader>
-						<TableRow>
-							{hasSelection ? (
-								<TableHead
-									className={`${cellPaddingClass} publy-type-table-header`}
-									data-slot="table-column"
-								>
-									<Checkbox
-										checked={allRowsSelected}
-										indeterminate={hasPartialSelection}
-										onCheckedChange={() => {
-											handleToggleSelectAll();
-										}}
-										aria-label="Select all rows"
-									/>
-								</TableHead>
-							) : null}
-							{table.getHeaderGroups().flatMap((headerGroup) =>
-								headerGroup.headers.map((header) => {
-									const canSort = header.column.getCanSort();
-									const sortIcon = canSort ? renderSortIcon(header.id) : null;
-									const sortState = canSort
-										? tableSort?.id === header.id
-											? tableSort.desc
-												? 'descending'
-												: 'ascending'
-											: 'none'
-										: undefined;
-									return (
-										<TableHead
-											key={header.id}
-											data-slot={
-												canSort
-													? 'table-sortable-column-header'
-													: 'table-column'
-											}
-											onClick={() => {
-												if (canSort) {
-													handleSort(header.id);
-												}
+				<div className="publy-table-card">
+					<Table
+						aria-label={ariaLabel}
+						className="publy-data-table"
+						data-testid={`${testId}-rows`}
+						data-slot="table"
+					>
+						<TableHeader>
+							<TableRow>
+								{hasSelection ? (
+									<TableHead
+										data-slot="table-selection-cell"
+										aria-label="Row selection"
+									>
+										<Checkbox
+											checked={allRowsSelected}
+											indeterminate={hasPartialSelection}
+											onCheckedChange={() => {
+												handleToggleSelectAll();
 											}}
-											onKeyDown={(event) => {
-												if (canSort) {
-													handleSortKeyDown(event, header.id);
-												}
-											}}
-											tabIndex={canSort ? 0 : undefined}
-											aria-sort={sortState}
-											className={`${cellPaddingClass} publy-type-table-header ${
-												canSort ? 'cursor-pointer' : ''
-											}`}
-										>
-											<div className="inline-flex items-center gap-1.5">
-												{flexRender(
-													header.column.columnDef.header,
-													header.getContext(),
-												)}
-												{sortIcon}
-											</div>
-										</TableHead>
-									);
-								}),
-							)}
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{rowModels.map((row, rowIndex) => {
-							const visibleCells = row.getVisibleCells();
-							return (
-								<TableRow
-									key={row.id}
-									data-row-index={rowIndex}
-									data-slot="table-row"
-								>
-									{hasSelection ? (
-										<TableCell
-											data-cell-index={0}
-											data-slot="table-cell"
-											className={`${cellPaddingClass} publy-type-table-cell`}
-										>
-											<Checkbox
-												checked={Boolean(selectedRowIds[row.id])}
-												onCheckedChange={() => {
-													handleToggleRowSelection(row.id);
-												}}
-												aria-label={`Select row ${row.id}`}
-											/>
-										</TableCell>
-									) : null}
-									{visibleCells.map((cell, cellIndex) => {
-										const renderedCellIndex = hasSelection
-											? cellIndex + 1
-											: cellIndex;
-										return (
-											<TableCell
-												key={cell.id}
-												data-cell-index={renderedCellIndex}
-												data-slot="table-cell"
-												className={`${cellPaddingClass} publy-type-table-cell`}
-												tabIndex={0}
-												onKeyDown={(event) => {
-													handleCellNavigation(
-														event,
-														rowIndex,
-														renderedCellIndex,
-													);
-												}}
-											>
-												{flexRender(
-													cell.column.columnDef.cell,
-													cell.getContext(),
-												)}
-											</TableCell>
+											aria-label="Select all rows"
+										/>
+									</TableHead>
+								) : null}
+								{table.getHeaderGroups().flatMap((headerGroup) =>
+									headerGroup.headers.map((header) => {
+										const canSort = header.column.getCanSort();
+										const displayMeta = columnDisplayMeta(
+											header.column.columnDef,
 										);
-									})}
-								</TableRow>
-							);
-						})}
-					</TableBody>
-				</Table>
+										const sortIcon = canSort ? renderSortIcon(header.id) : null;
+										const sortState = canSort
+											? tableSort?.id === header.id
+												? tableSort.desc
+													? 'descending'
+													: 'ascending'
+												: 'none'
+											: undefined;
+										return (
+											<TableHead
+												key={header.id}
+												data-slot={
+													canSort
+														? 'table-sortable-column-header'
+														: 'table-column'
+												}
+												onClick={() => {
+													if (canSort) {
+														handleSort(header.id);
+													}
+												}}
+												onKeyDown={(event) => {
+													if (canSort) {
+														handleSortKeyDown(event, header.id);
+													}
+												}}
+												tabIndex={canSort ? 0 : undefined}
+												aria-sort={sortState}
+												className={`${canSort ? 'cursor-pointer' : ''} ${
+													displayMeta.cellClassName ?? ''
+												}`}
+											>
+												<div className="inline-flex items-center gap-1.5">
+													{displayMeta.headerIcon ? (
+														<span
+															aria-hidden="true"
+															data-slot="table-header-icon"
+															className="inline-flex items-center [&_svg]:size-3.5"
+														>
+															{displayMeta.headerIcon}
+														</span>
+													) : null}
+													{flexRender(
+														header.column.columnDef.header,
+														header.getContext(),
+													)}
+													{sortIcon}
+												</div>
+											</TableHead>
+										);
+									}),
+								)}
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{rowModels.map((row, rowIndex) => {
+								const visibleCells = row.getVisibleCells();
+								const isRowSelected = Boolean(selectedRowIds[row.id]);
+								return (
+									<TableRow
+										key={row.id}
+										data-row-index={rowIndex}
+										data-slot="table-row"
+										data-state={isRowSelected ? 'selected' : undefined}
+									>
+										{hasSelection ? (
+											<TableCell
+												data-cell-index={0}
+												data-slot="table-selection-cell"
+											>
+												<Checkbox
+													checked={isRowSelected}
+													onCheckedChange={() => {
+														handleToggleRowSelection(row.id);
+													}}
+													aria-label={`Select row ${row.id}`}
+												/>
+											</TableCell>
+										) : null}
+										{visibleCells.map((cell, cellIndex) => {
+											const renderedCellIndex = hasSelection
+												? cellIndex + 1
+												: cellIndex;
+											const displayMeta = columnDisplayMeta(
+												cell.column.columnDef,
+											);
+											return (
+												<TableCell
+													key={cell.id}
+													data-cell-index={renderedCellIndex}
+													data-slot="table-cell"
+													className={displayMeta.cellClassName}
+													tabIndex={0}
+													onKeyDown={(event) => {
+														handleCellNavigation(
+															event,
+															rowIndex,
+															renderedCellIndex,
+														);
+													}}
+												>
+													{flexRender(
+														cell.column.columnDef.cell,
+														cell.getContext(),
+													)}
+												</TableCell>
+											);
+										})}
+									</TableRow>
+								);
+							})}
+						</TableBody>
+					</Table>
+
+					<div
+						className="publy-data-table-footer"
+						data-testid={`${testId}-footer`}
+					>
+						<div className="flex items-center gap-2">
+							<span data-slot="page-label" data-testid={`${testId}-page-label`}>
+								Page {pageIndex + 1}
+							</span>
+							{isPaginationPending ? (
+								<span
+									aria-hidden="true"
+									className="size-3.5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"
+								/>
+							) : null}
+						</div>
+
+						<div className="flex items-center gap-4">
+							<div className="flex items-center gap-2">
+								<span data-slot="rows-per-page-label">Rows per page</span>
+								<span
+									className="publy-page-size-select"
+									data-testid={`${testId}-page-size`}
+								>
+									<Select
+										aria-label="Rows per page"
+										value={String(size)}
+										onValueChange={(nextValue) => {
+											if (typeof nextValue === 'string') {
+												onSizeChange(Number(nextValue));
+											}
+										}}
+										disabled={paginationDisabled}
+									>
+										<SelectTrigger
+											className="h-7 gap-1 rounded-[10px] bg-background px-2 text-xs shadow-none"
+											data-testid={`${testId}-page-size-trigger`}
+										>
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											{PAGE_SIZE_OPTIONS.map((option) => (
+												<SelectItem key={String(option)} value={String(option)}>
+													{option}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								</span>
+							</div>
+
+							<div className="flex items-center gap-1">
+								<span
+									title={isSelectionMode ? SELECTION_LOCKED_TITLE : undefined}
+								>
+									<button
+										className="publy-pager-button"
+										type="button"
+										aria-label="Previous page"
+										disabled={paginationDisabled || !hasPreviousPage}
+										onClick={onPreviousPage}
+										data-testid={`${testId}-prev-page`}
+									>
+										<IconChevronLeft className="size-4" />
+									</button>
+								</span>
+								<span className="publy-pager-current">{pageIndex + 1}</span>
+								<span
+									title={isSelectionMode ? SELECTION_LOCKED_TITLE : undefined}
+								>
+									<button
+										className="publy-pager-button"
+										type="button"
+										aria-label="Next page"
+										disabled={paginationDisabled || !hasNextPage}
+										onClick={onNextPage}
+										data-testid={`${testId}-next-page`}
+									>
+										<IconChevronRight className="size-4" />
+									</button>
+								</span>
+							</div>
+						</div>
+					</div>
+				</div>
 			) : null}
-
-			<div className="publy-data-table-footer" data-testid={`${testId}-footer`}>
-				<div className="flex items-center gap-2">
-					<span className="text-sm text-muted-foreground">Rows per page</span>
-					<span data-testid={`${testId}-page-size`}>
-						<Select
-							aria-label="Rows per page"
-							value={String(size)}
-							onValueChange={(nextValue) => {
-								if (typeof nextValue === 'string') {
-									onSizeChange(Number(nextValue));
-								}
-							}}
-							disabled={paginationDisabled}
-						>
-							<SelectTrigger data-testid={`${testId}-page-size-trigger`}>
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								{PAGE_SIZE_OPTIONS.map((option) => (
-									<SelectItem key={String(option)} value={String(option)}>
-										{option} rows
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-					</span>
-				</div>
-
-				<div className="flex items-center gap-2">
-					<span data-slot="page-label" data-testid={`${testId}-page-label`}>
-						Page {pageIndex + 1}
-					</span>
-					{isPaginationPending ? (
-						<span
-							aria-hidden="true"
-							className="size-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"
-						/>
-					) : null}
-					<span title={isSelectionMode ? SELECTION_LOCKED_TITLE : undefined}>
-						<Button
-							variant="secondary"
-							type="button"
-							disabled={paginationDisabled || !hasPreviousPage}
-							onClick={onPreviousPage}
-							data-testid={`${testId}-prev-page`}
-						>
-							<IconChevronLeft className="size-4" />
-							Previous
-						</Button>
-					</span>
-					<span title={isSelectionMode ? SELECTION_LOCKED_TITLE : undefined}>
-						<Button
-							variant="secondary"
-							type="button"
-							disabled={paginationDisabled || !hasNextPage}
-							onClick={onNextPage}
-							data-testid={`${testId}-next-page`}
-						>
-							Next
-							<IconChevronRight className="size-4" />
-						</Button>
-					</span>
-				</div>
-			</div>
 		</div>
 	);
 };

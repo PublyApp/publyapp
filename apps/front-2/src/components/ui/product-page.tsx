@@ -45,7 +45,7 @@ export const StatusPill = ({
 	tone = 'neutral',
 }: {
 	children: ReactNode;
-	tone?: 'danger' | 'neutral' | 'primary' | 'success' | 'warning';
+	tone?: 'danger' | 'info' | 'neutral' | 'primary' | 'success' | 'warning';
 }) => (
 	<span className="publy-status-pill" data-tone={tone}>
 		{children}

@@ -1,14 +1,24 @@
-import { IconUserPlus } from '@tabler/icons-react';
+import {
+	IconCircleDot,
+	IconEye,
+	IconIdBadge2,
+	IconUser,
+	IconUserPlus,
+} from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
+import { DataTableRowActions } from '~/components/table/row-actions';
 import { useRowSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
 import { buttonVariants } from '~/components/ui/button';
+import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
+import { InitialsAvatar } from '~/components/ui/initials-avatar';
 import { PageHeader, StatusPill } from '~/components/ui/product-page';
+import { statusPillTone } from '~/components/ui/status-tone';
 import {
 	toStaffUserRows,
 	type StaffUserRow,
@@ -34,17 +44,21 @@ const columns: ColumnDef<StaffUserRow>[] = [
 		id: 'name',
 		header: 'Name',
 		enableSorting: false,
+		meta: { headerIcon: <IconUser /> },
 		cell: ({ row }) => (
-			<div className="space-y-1">
-				<Link
-					to={'/staff/staff-users/$userId' as never}
-					params={{ userId: row.original.id } as never}
-					className="publy-record-link"
-				>
-					{row.original.displayName}
-				</Link>
-				<div className="publy-record-subtext">
-					{row.original.email || 'No email address'}
+			<div className="flex items-center gap-2.5">
+				<InitialsAvatar name={row.original.displayName} />
+				<div className="min-w-0">
+					<Link
+						to={'/staff/staff-users/$userId' as never}
+						params={{ userId: row.original.id } as never}
+						className="publy-record-link"
+					>
+						{row.original.displayName}
+					</Link>
+					<div className="publy-record-subtext">
+						{row.original.email || 'No email address'}
+					</div>
 				</div>
 			</div>
 		),
@@ -53,8 +67,9 @@ const columns: ColumnDef<StaffUserRow>[] = [
 		id: 'level',
 		header: 'Level',
 		accessorKey: 'level',
+		meta: { headerIcon: <IconIdBadge2 />, cellClassName: 'w-28' },
 		cell: ({ getValue }) => (
-			<StatusPill tone="primary">
+			<StatusPill tone="neutral">
 				{getValue<string | null>() ?? 'Unknown'}
 			</StatusPill>
 		),
@@ -63,25 +78,39 @@ const columns: ColumnDef<StaffUserRow>[] = [
 		id: 'status',
 		header: 'Status',
 		accessorKey: 'status',
-		cell: ({ getValue }) => (
-			<StatusPill tone="primary">
-				{getValue<string | null>() ?? 'Unknown'}
-			</StatusPill>
-		),
+		meta: { headerIcon: <IconCircleDot />, cellClassName: 'w-32' },
+		cell: ({ getValue }) => {
+			const status = getValue<string | null>();
+			return (
+				<StatusPill tone={statusPillTone(status)}>
+					{status ?? 'Unknown'}
+				</StatusPill>
+			);
+		},
 	},
 	{
 		id: 'actions',
-		header: 'Actions',
+		header: '',
 		enableSorting: false,
+		meta: { cellClassName: 'w-10' },
 		cell: ({ row }) => (
 			<div className="flex justify-end">
-				<Link
-					to={'/staff/staff-users/$userId' as never}
-					params={{ userId: row.original.id } as never}
-					className={buttonVariants({ variant: 'secondary', size: 'sm' })}
+				<DataTableRowActions
+					ariaLabel={`Actions for ${row.original.displayName}`}
+					testId={`staff-user-actions-${row.original.id}`}
 				>
-					View
-				</Link>
+					<DropdownMenuItem
+						render={
+							<Link
+								to={'/staff/staff-users/$userId' as never}
+								params={{ userId: row.original.id } as never}
+							/>
+						}
+					>
+						<IconEye />
+						View profile
+					</DropdownMenuItem>
+				</DataTableRowActions>
 			</div>
 		),
 	},
@@ -173,6 +202,7 @@ function StaffUsersPage() {
 				searchDraft={controller.search.draft}
 				onSearchDraftChange={controller.search.onDraftChange}
 				selection={selection}
+				searchPlaceholder="Search by name, email, or role…"
 			/>
 		</div>
 	);
