@@ -1,253 +1,560 @@
 import {
-	IconChartBar,
+	IconBrandGoogleAnalytics,
 	IconBuilding,
+	IconCalendarCog,
 	IconClipboardList,
+	IconChartBar,
+	IconFileAnalytics,
+	IconLayout2,
 	IconLayoutDashboard,
 	IconLock,
 	IconMail,
-	IconNews,
+	IconMenu2,
+	IconPuzzle,
+	IconShieldCheck,
+	IconShieldLock,
+	IconSettings,
 	IconUser,
 	IconUsers,
+	IconWallet,
 } from '@tabler/icons-react';
 import type { TablerIcon } from '@tabler/icons-react';
 
 export type ShellDisplayMode = 'default' | 'full-detail';
+export type ShellScope = 'staff' | 'tenant';
 
 export type BreadcrumbItem = {
 	label: string;
 	path?: string;
 };
 
+export type SecondaryPanelItemTone = 'warning' | 'neutral';
+
 export type SecondaryPanelItem = {
+	id: string;
 	label: string;
 	description: string;
 	path: string;
 	Icon: TablerIcon;
 	count?: number;
+	countTone?: SecondaryPanelItemTone;
 };
 
 export type RouteId =
 	| 'dashboard'
-	| 'content'
-	| 'staff-users'
-	| 'roles-permissions'
-	| 'invitations'
-	| 'analytics'
 	| 'tenants'
-	| 'profiles';
+	| 'staff'
+	| 'audit-logs'
+	| 'posts'
+	| 'members'
+	| 'settings'
+	| 'account';
 
 export type AppRouteMetadata = {
 	id: RouteId;
 	label: string;
+	scope: ShellScope;
 	path: string;
+	breadcrumbLabel: string;
 	Icon: TablerIcon;
-	match: (pathname: string) => boolean;
+	matchPrefixes: string[];
 	secondaryItems: SecondaryPanelItem[];
+	isBottomRailItem?: boolean;
 };
 
-// -- Private prefix helpers
-// Keep in sync with the prefix arrays passed to matchPath() below.
+// -- Secondary panel rows
 
-type PrefixEntry = {
-	id: AppRouteMetadata['id'];
-	prefixes: string[];
-};
-
-const ROUTE_PREFIX_ENTRIES: PrefixEntry[] = [
-	{ id: 'staff-users', prefixes: ['/staff/staff-users', '/staff/invitations'] },
-	{ id: 'profiles', prefixes: ['/staff/profiles'] },
-	{ id: 'tenants', prefixes: ['/staff/tenants', '/tenant'] },
-];
-
-function getMatchedPrefix(
-	pathname: string,
-): { id: AppRouteMetadata['id']; prefix: string } | undefined {
-	for (const entry of ROUTE_PREFIX_ENTRIES) {
-		for (const prefix of entry.prefixes) {
-			if (pathname === prefix || pathname.startsWith(prefix + '/')) {
-				return { id: entry.id, prefix };
-			}
-		}
-	}
-	return undefined;
-}
-
-function matchPath(prefixes: string[]): (pathname: string) => boolean {
-	return (pathname: string) =>
-		prefixes.some(
-			(prefix) => pathname === prefix || pathname.startsWith(prefix + '/'),
-		);
-}
-
-// -- Create route detection (patterns, not just exact strings)
-
-function isCreateRoute(pathname: string): boolean {
-	return (
-		pathname === '/staff/tenants/new' ||
-		pathname === '/staff/profiles/new' ||
-		pathname === '/staff/invitations/new' ||
-		/^\/staff\/tenants\/[^/]+\/profiles\/new$/.test(pathname) ||
-		/^\/staff\/tenants\/[^/]+\/users\/invite$/.test(pathname)
-	);
-}
-
-// -- Primary route definitions
-
-const STAFF_SECONDARY_ITEMS: SecondaryPanelItem[] = [
+const STAFF_MODULE_ITEMS: SecondaryPanelItem[] = [
 	{
+		id: 'staff-all-users',
 		label: 'All users',
 		description: '',
 		path: '/staff/staff-users',
-		Icon: IconUser,
-		count: 42,
+		Icon: IconUsers,
 	},
 	{
+		id: 'staff-invitations',
 		label: 'Invitations',
 		description: '',
 		path: '/staff/invitations',
 		Icon: IconMail,
 		count: 6,
+		countTone: 'warning',
 	},
 	{
+		id: 'staff-profiles',
 		label: 'Profiles',
 		description: '',
 		path: '/staff/profiles',
 		Icon: IconClipboardList,
-		count: 4,
 	},
 ];
 
-export const PRIMARY_APP_ROUTES: AppRouteMetadata[] = [
+const TENANTS_MODULE_ITEMS: SecondaryPanelItem[] = [
+	{
+		id: 'tenants-all',
+		label: 'All tenants',
+		description: '',
+		path: '/staff/tenants',
+		Icon: IconBuilding,
+	},
+	{
+		id: 'tenants-active',
+		label: 'Active',
+		description: '',
+		path: '/staff/tenants?status=active',
+		Icon: IconShieldCheck,
+	},
+	{
+		id: 'tenants-suspended',
+		label: 'Suspended',
+		description: '',
+		path: '/staff/tenants?status=suspended',
+		Icon: IconShieldLock,
+	},
+];
+
+const AUDIT_MODULE_ITEMS: SecondaryPanelItem[] = [
+	{
+		id: 'audit-all',
+		label: 'All events',
+		description: '',
+		path: '/staff/audit-logs',
+		Icon: IconFileAnalytics,
+	},
+	{
+		id: 'audit-sign-ins',
+		label: 'Sign-ins & sessions',
+		description: '',
+		path: '/staff/audit-logs/sign-ins',
+		Icon: IconBrandGoogleAnalytics,
+	},
+	{
+		id: 'audit-users',
+		label: 'User management',
+		description: '',
+		path: '/staff/audit-logs/users',
+		Icon: IconUsers,
+	},
+	{
+		id: 'audit-tenants',
+		label: 'Tenant lifecycle',
+		description: '',
+		path: '/staff/audit-logs/tenants',
+		Icon: IconMenu2,
+	},
+	{
+		id: 'audit-destructive',
+		label: 'Destructive actions',
+		description: '',
+		path: '/staff/audit-logs/destructive',
+		Icon: IconLock,
+	},
+];
+
+const POSTS_PANEL_ITEMS: SecondaryPanelItem[] = [
+	{
+		id: 'posts-calendar',
+		label: 'Calendar',
+		description: '',
+		path: '/tenant/posts/calendar',
+		Icon: IconCalendarCog,
+	},
+	{
+		id: 'posts-queue',
+		label: 'Queue',
+		description: '',
+		path: '/tenant/posts/queue',
+		Icon: IconMenu2,
+	},
+	{
+		id: 'posts-drafts',
+		label: 'Drafts',
+		description: '',
+		path: '/tenant/posts/drafts',
+		Icon: IconClipboardList,
+		count: 3,
+		countTone: 'warning',
+	},
+	{
+		id: 'posts-history',
+		label: 'History',
+		description: '',
+		path: '/tenant/posts/history',
+		Icon: IconLayout2,
+	},
+];
+
+const MEMBERS_PANEL_ITEMS: SecondaryPanelItem[] = [
+	{
+		id: 'members-all',
+		label: 'Members',
+		description: '',
+		path: '/tenant/members',
+		Icon: IconUsers,
+	},
+	{
+		id: 'members-invitations',
+		label: 'Invitations',
+		description: '',
+		path: '/tenant/members/invitations',
+		Icon: IconMail,
+		count: 2,
+		countTone: 'warning',
+	},
+	{
+		id: 'members-roles',
+		label: 'Roles',
+		description: '',
+		path: '/tenant/members/roles',
+		Icon: IconClipboardList,
+	},
+];
+
+const SETTINGS_PANEL_ITEMS: SecondaryPanelItem[] = [
+	{
+		id: 'settings-general',
+		label: 'General',
+		description: '',
+		path: '/tenant/settings/general',
+		Icon: IconLayout2,
+	},
+	{
+		id: 'settings-workspaces',
+		label: 'Workspaces',
+		description: '',
+		path: '/tenant/settings/workspaces',
+		Icon: IconBuilding,
+	},
+	{
+		id: 'settings-integrations',
+		label: 'Integrations',
+		description: '',
+		path: '/tenant/settings/integrations',
+		Icon: IconPuzzle,
+	},
+	{
+		id: 'settings-billing',
+		label: 'Billing',
+		description: '',
+		path: '/tenant/settings/billing',
+		Icon: IconWallet,
+	},
+	{
+		id: 'settings-security',
+		label: 'Security',
+		description: '',
+		path: '/tenant/settings/security',
+		Icon: IconLock,
+	},
+];
+
+const ACCOUNT_PANEL_ITEMS: SecondaryPanelItem[] = [
+	{
+		id: 'account-profile',
+		label: 'Profile',
+		description: '',
+		path: '/tenant/account/profile',
+		Icon: IconUser,
+	},
+	{
+		id: 'account-security',
+		label: 'Security',
+		description: '',
+		path: '/tenant/account/security',
+		Icon: IconShieldLock,
+	},
+	{
+		id: 'account-notifications',
+		label: 'Notifications',
+		description: '',
+		path: '/tenant/account/notifications',
+		Icon: IconChartBar,
+	},
+];
+
+const itemPathname = (item: SecondaryPanelItem): string =>
+	item.path.split('?')[0] ?? item.path;
+
+const itemPathnames = (items: SecondaryPanelItem[]): string[] =>
+	items.map(itemPathname);
+
+const STAFF_ROUTES: AppRouteMetadata[] = [
 	{
 		id: 'dashboard',
 		label: 'Dashboard',
-		path: '/staff/staff-users',
+		scope: 'staff',
+		path: '/staff/dashboard',
+		breadcrumbLabel: 'Dashboard',
 		Icon: IconLayoutDashboard,
-		match: matchPath(['/staff/dashboard']),
+		matchPrefixes: ['/staff/dashboard'],
 		secondaryItems: [],
 	},
-	{
-		id: 'content',
-		label: 'Content',
-		path: '/staff/staff-users',
-		Icon: IconNews,
-		match: matchPath(['/staff/content']),
-		secondaryItems: [],
-	},
-	{
-		id: 'staff-users',
-		label: 'Staff users',
-		path: '/staff/staff-users',
-		Icon: IconUsers,
-		match: matchPath(['/staff/staff-users']),
-		secondaryItems: STAFF_SECONDARY_ITEMS,
-	},
-	{
-		id: 'roles-permissions',
-		label: 'Roles & permissions',
-		path: '/staff/profiles',
-		Icon: IconLock,
-		match: matchPath(['/staff/roles-permissions', '/staff/profiles']),
-		secondaryItems: [],
-	},
-	{
-		id: 'invitations',
-		label: 'Invitations',
-		path: '/staff/invitations',
-		Icon: IconMail,
-		match: matchPath(['/staff/invitations']),
-		secondaryItems: [],
-	},
-	{
-		id: 'analytics',
-		label: 'Analytics',
-		path: '/staff/staff-users',
-		Icon: IconChartBar,
-		match: matchPath(['/staff/analytics']),
-		secondaryItems: [],
-	},
-	// Hidden — kept for backward-compatible route matching (tenants/tenant prefix)
 	{
 		id: 'tenants',
 		label: 'Tenants',
+		scope: 'staff',
 		path: '/staff/tenants',
+		breadcrumbLabel: 'Tenants',
 		Icon: IconBuilding,
-		match: matchPath(['/staff/tenants', '/tenant']),
-		secondaryItems: [],
+		matchPrefixes: ['/staff/tenants'],
+		secondaryItems: TENANTS_MODULE_ITEMS,
+	},
+	{
+		id: 'staff',
+		label: 'Staff',
+		scope: 'staff',
+		path: '/staff/staff-users',
+		breadcrumbLabel: 'Users',
+		Icon: IconUsers,
+		matchPrefixes: [
+			'/staff/staff-users',
+			'/staff/invitations',
+			'/staff/profiles',
+		],
+		secondaryItems: STAFF_MODULE_ITEMS,
+	},
+	{
+		id: 'audit-logs',
+		label: 'Audit logs',
+		scope: 'staff',
+		path: '/staff/audit-logs',
+		breadcrumbLabel: 'Audit logs',
+		Icon: IconChartBar,
+		matchPrefixes: ['/staff/audit', ...itemPathnames(AUDIT_MODULE_ITEMS)],
+		secondaryItems: AUDIT_MODULE_ITEMS,
 	},
 ];
 
-// -- Public API
-
-const VISIBLE_PRIMARY_ROUTE_IDS: AppRouteMetadata['id'][] = [
-	'dashboard',
-	'content',
-	'staff-users',
-	'roles-permissions',
-	'invitations',
-	'analytics',
+const TENANT_ROUTES: AppRouteMetadata[] = [
+	{
+		id: 'posts',
+		label: 'Posts',
+		scope: 'tenant',
+		path: '/tenant/posts',
+		breadcrumbLabel: 'Posts',
+		Icon: IconCalendarCog,
+		matchPrefixes: ['/tenant/posts', ...itemPathnames(POSTS_PANEL_ITEMS)],
+		secondaryItems: POSTS_PANEL_ITEMS,
+	},
+	{
+		id: 'members',
+		label: 'Members',
+		scope: 'tenant',
+		path: '/tenant/members',
+		breadcrumbLabel: 'Members',
+		Icon: IconUsers,
+		matchPrefixes: itemPathnames(MEMBERS_PANEL_ITEMS),
+		secondaryItems: MEMBERS_PANEL_ITEMS,
+	},
+	{
+		id: 'settings',
+		label: 'Settings',
+		scope: 'tenant',
+		path: '/tenant/settings',
+		breadcrumbLabel: 'Settings',
+		Icon: IconSettings,
+		matchPrefixes: ['/tenant/settings', ...itemPathnames(SETTINGS_PANEL_ITEMS)],
+		secondaryItems: SETTINGS_PANEL_ITEMS,
+	},
+	{
+		id: 'account',
+		label: 'Account',
+		scope: 'tenant',
+		path: '/tenant/account',
+		breadcrumbLabel: 'Account',
+		Icon: IconUser,
+		matchPrefixes: ['/tenant/account', ...itemPathnames(ACCOUNT_PANEL_ITEMS)],
+		secondaryItems: ACCOUNT_PANEL_ITEMS,
+		isBottomRailItem: true,
+	},
 ];
 
-export function getVisiblePrimaryRoutes(): AppRouteMetadata[] {
-	return PRIMARY_APP_ROUTES.filter((r) =>
-		VISIBLE_PRIMARY_ROUTE_IDS.includes(r.id),
-	);
+const TENANT_BOTTOM_RAIL_ITEM = TENANT_ROUTES.find(
+	(route) => route.isBottomRailItem,
+);
+
+const STAFF_BREADCRUMB_DETAIL_LABELS: Record<string, string> = {
+	'/staff/staff-users': 'User detail',
+	'/staff/invitations': 'Invitation detail',
+	'/staff/profiles': 'Profile detail',
+	'/staff/tenants': 'Tenant detail',
+};
+
+const createPathRules: Array<string | RegExp> = [
+	'/staff/tenants/new',
+	'/staff/profiles/new',
+	'/staff/invitations/new',
+];
+
+const isPathPrefix = (pathname: string, prefix: string): boolean =>
+	pathname === prefix || pathname.startsWith(`${prefix}/`);
+
+const matchPath = (pathname: string, prefixes: string[]): boolean =>
+	prefixes.some((prefix) => isPathPrefix(pathname, prefix));
+
+function getMatchedPrefix(
+	pathname: string,
+	route: AppRouteMetadata,
+): string | undefined {
+	return route.matchPrefixes
+		.filter((prefix) => isPathPrefix(pathname, prefix))
+		.sort((a, b) => b.length - a.length)[0];
 }
 
-export function getStaffSecondaryItems(): SecondaryPanelItem[] {
-	return STAFF_SECONDARY_ITEMS;
+const isCreatePath = (pathname: string): boolean =>
+	createPathRules.some((rule) =>
+		typeof rule === 'string' ? pathname === rule : rule.test(pathname),
+	);
+
+export function getShellScope(pathname: string): ShellScope | undefined {
+	if (isPathPrefix(pathname, '/staff')) {
+		return 'staff';
+	}
+
+	if (isPathPrefix(pathname, '/tenant')) {
+		return 'tenant';
+	}
+
+	return undefined;
+}
+
+export function getRailItems(scope: ShellScope): AppRouteMetadata[] {
+	return scope === 'staff'
+		? STAFF_ROUTES
+		: TENANT_ROUTES.filter((route) => !route.isBottomRailItem);
+}
+
+export function getRailItemsForPath(pathname: string): AppRouteMetadata[] {
+	const scope = getShellScope(pathname);
+	return scope ? getRailItems(scope) : [];
+}
+
+export function getBottomRailItemForPath(
+	pathname: string,
+): AppRouteMetadata | undefined {
+	return getShellScope(pathname) === 'tenant'
+		? TENANT_BOTTOM_RAIL_ITEM
+		: undefined;
+}
+
+function getAllRoutesForScope(scope: ShellScope): AppRouteMetadata[] {
+	return scope === 'staff' ? STAFF_ROUTES : [...TENANT_ROUTES];
 }
 
 export function getActiveAppRoute(
 	pathname: string,
 ): AppRouteMetadata | undefined {
-	return PRIMARY_APP_ROUTES.find((route) => route.match(pathname));
+	const scope = getShellScope(pathname);
+	if (!scope) {
+		return undefined;
+	}
+
+	if (scope === 'tenant' && pathname === '/tenant') {
+		return TENANT_ROUTES.find((route) => route.id === 'posts');
+	}
+
+	const allRoutes = getAllRoutesForScope(scope);
+	const [exactMatch, fallback] = allRoutes
+		.filter((route) => matchPath(pathname, route.matchPrefixes))
+		.sort((a, b) => b.path.length - a.path.length);
+
+	return exactMatch ?? fallback;
+}
+
+export function getActiveRailItem(
+	pathname: string,
+): AppRouteMetadata | undefined {
+	return getActiveAppRoute(pathname);
+}
+
+export function getSecondaryPanelItems(pathname: string): SecondaryPanelItem[] {
+	return getActiveRailItem(pathname)?.secondaryItems ?? [];
 }
 
 function isDetailPath(pathname: string): boolean {
-	if (isCreateRoute(pathname)) {
+	if (isCreatePath(pathname)) {
 		return false;
 	}
 
-	const matched = getMatchedPrefix(pathname);
-	if (!matched) {
+	const activeRoute = getActiveRailItem(pathname);
+	if (!activeRoute) {
 		return false;
 	}
 
-	return pathname.length > matched.prefix.length;
+	const matchedPrefix = getMatchedPrefix(pathname, activeRoute);
+	return matchedPrefix !== undefined && matchedPrefix !== pathname;
 }
 
 export function getShellDisplayMode(pathname: string): ShellDisplayMode {
 	return isDetailPath(pathname) ? 'full-detail' : 'default';
 }
 
-const PREFIX_DETAIL_LABELS: Record<string, string> = {
-	'/staff/staff-users': 'User detail',
-	'/staff/invitations': 'Invitation detail',
-	'/staff/profiles': 'Profile detail',
-	'/staff/tenants': 'Tenant detail',
-	'/tenant': 'Tenant detail',
-};
+export function shouldShowSecondaryPanel(
+	pathname: string,
+	options?: { sidebarOpen?: boolean; viewportWidth?: number },
+): boolean {
+	const activeItems = getSecondaryPanelItems(pathname);
+	const sidebarOpen = options?.sidebarOpen ?? true;
+	const viewportWidth = options?.viewportWidth ?? Number.POSITIVE_INFINITY;
+
+	return (
+		sidebarOpen &&
+		viewportWidth >= 1024 &&
+		getShellDisplayMode(pathname) === 'default' &&
+		activeItems.length >= 2
+	);
+}
 
 export function getBreadcrumbsForPath(pathname: string): BreadcrumbItem[] {
-	const route = getActiveAppRoute(pathname);
-
-	if (!route) {
-		return [{ label: 'Workspace', path: '/staff/staff-users' }];
+	const scope = getShellScope(pathname);
+	if (!scope) {
+		return [{ label: 'Staff', path: '/staff/staff-users' }];
 	}
 
-	const breadcrumbs: BreadcrumbItem[] = [
-		{ label: 'Workspace', path: route.path },
-		{ label: route.label, path: route.path },
-	];
+	const activeRoute = getActiveRailItem(pathname);
+	const rootLabel = scope === 'staff' ? 'Staff' : 'Lattice Cloud';
+	const rootPath = scope === 'staff' ? '/staff' : '/tenant';
+
+	const breadcrumbs: BreadcrumbItem[] = [{ label: rootLabel, path: rootPath }];
+
+	if (!activeRoute) {
+		return breadcrumbs;
+	}
+
+	const matchedPrefix = getMatchedPrefix(pathname, activeRoute);
+	const matchedItem = activeRoute.secondaryItems.find(
+		(item) => itemPathname(item) === matchedPrefix,
+	);
+
+	if (scope === 'tenant') {
+		breadcrumbs.push({
+			label: activeRoute.breadcrumbLabel,
+			path: activeRoute.path,
+		});
+		if (matchedItem && itemPathname(matchedItem) !== activeRoute.path) {
+			breadcrumbs.push({
+				label: matchedItem.label,
+				path: itemPathname(matchedItem),
+			});
+		}
+	} else {
+		const label =
+			matchedPrefix === activeRoute.path
+				? activeRoute.breadcrumbLabel
+				: (matchedItem?.label ?? activeRoute.breadcrumbLabel);
+		breadcrumbs.push({
+			label,
+			path: matchedPrefix ?? activeRoute.path,
+		});
+	}
 
 	if (isDetailPath(pathname)) {
-		const matched = getMatchedPrefix(pathname);
-		if (matched) {
-			const detailLabel = PREFIX_DETAIL_LABELS[matched.prefix];
-			if (detailLabel) {
-				breadcrumbs.push({ label: detailLabel });
-			}
+		const detailLabel =
+			STAFF_BREADCRUMB_DETAIL_LABELS[matchedPrefix ?? activeRoute.path] ??
+			`${breadcrumbs[breadcrumbs.length - 1]?.label ?? activeRoute.breadcrumbLabel} detail`;
+		if (detailLabel) {
+			breadcrumbs.push({ label: detailLabel });
 		}
 	}
 

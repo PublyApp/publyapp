@@ -6,7 +6,6 @@ import {
 	IconMenu2,
 	IconMessage2,
 	IconSearch,
-	IconSettings,
 	IconX,
 } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
@@ -19,11 +18,12 @@ import { Input } from '~/components/ui/input';
 import avatarSrc from '../../assets/gray-ui/avatar-profile.jpg';
 import logoSvg from '../../assets/gray-ui/logo.svg';
 import {
-	getActiveAppRoute,
+	getActiveRailItem,
 	getBreadcrumbsForPath,
-	getShellDisplayMode,
-	getStaffSecondaryItems,
-	getVisiblePrimaryRoutes,
+	getBottomRailItemForPath,
+	getRailItemsForPath,
+	getSecondaryPanelItems,
+	shouldShowSecondaryPanel,
 } from '../../lib/navigation/route-metadata';
 import type {
 	AppRouteMetadata,
@@ -241,9 +241,11 @@ const AppShellNavigation = ({
 const RailLink = ({
 	item,
 	isActive,
+	isBottom,
 }: {
 	item: AppRouteMetadata;
 	isActive: boolean;
+	isBottom?: boolean;
 }) => {
 	const Icon = item.Icon;
 
@@ -252,10 +254,22 @@ const RailLink = ({
 			to={item.path as never}
 			aria-label={item.label}
 			aria-current={isActive ? 'page' : undefined}
-			className="app-shell-rail-link"
+			data-rail-item={item.id}
 			data-active={isActive ? 'true' : undefined}
+			data-bottom={isBottom ? 'true' : undefined}
+			className="app-shell-rail-link"
 		>
-			<Icon aria-hidden="true" className="size-[17px]" />
+			{isBottom ? (
+				<span className="app-shell-rail-account-avatar" aria-hidden="true">
+					<img
+						src={avatarSrc}
+						alt=""
+						className="app-shell-rail-account-image"
+					/>
+				</span>
+			) : (
+				<Icon aria-hidden="true" className="size-[17px]" />
+			)}
 		</Link>
 	);
 };
@@ -280,19 +294,16 @@ const SecondaryPanelNavItem = ({
 			<Icon aria-hidden="true" className="size-4 shrink-0" />
 			<span className="app-shell-secondary-nav-label">{item.label}</span>
 			{item.count !== undefined ? (
-				<span className="app-shell-secondary-nav-count">{item.count}</span>
+				<span
+					className="app-shell-secondary-nav-count"
+					data-tone={item.countTone ?? 'neutral'}
+				>
+					{item.count}
+				</span>
 			) : null}
 		</Link>
 	);
 };
-
-const hasStaffSecondaryPanel = (pathname: string) =>
-	pathname === '/staff/staff-users' ||
-	pathname.startsWith('/staff/staff-users/') ||
-	pathname === '/staff/invitations' ||
-	pathname.startsWith('/staff/invitations/') ||
-	pathname === '/staff/profiles' ||
-	pathname.startsWith('/staff/profiles/');
 
 const AuthedWorkspaceShell = ({
 	children,
@@ -303,15 +314,18 @@ const AuthedWorkspaceShell = ({
 }) => {
 	const sidebarOpen = useUiStore((state) => state.sidebarOpen);
 	const toggleSidebarOpen = useUiStore((state) => state.toggleSidebarOpen);
-	const activeRoute = getActiveAppRoute(pathname);
-	const displayMode = getShellDisplayMode(pathname);
+	const activeRoute = getActiveRailItem(pathname);
+	const railItems = getRailItemsForPath(pathname);
+	const bottomRailItem = getBottomRailItemForPath(pathname);
+	const secondaryItems = getSecondaryPanelItems(pathname);
 	const breadcrumbs = getBreadcrumbsForPath(pathname);
-	const showSecondaryPanel = sidebarOpen && displayMode === 'default';
-
-	const visibleRoutes = getVisiblePrimaryRoutes();
-	const staffSecondaryItems = getStaffSecondaryItems();
-	const showStaffSecondaryPanel =
-		showSecondaryPanel && hasStaffSecondaryPanel(pathname);
+	const showSecondaryPanel = shouldShowSecondaryPanel(pathname, {
+		sidebarOpen,
+		viewportWidth:
+			typeof window === 'undefined'
+				? Number.POSITIVE_INFINITY
+				: window.innerWidth,
+	});
 
 	return (
 		<div
@@ -332,22 +346,22 @@ const AuthedWorkspaceShell = ({
 					<img src={logoSvg} alt="PublyApp" className="size-8" />
 				</Link>
 				<div className="app-shell-rail-links">
-					{visibleRoutes.map((item) => {
+					{railItems.map((item) => {
 						const isActive = activeRoute?.id === item.id;
 
 						return <RailLink key={item.id} item={item} isActive={isActive} />;
 					})}
 				</div>
 				<div className="app-shell-rail-spacer" />
-				<button
-					type="button"
-					className="app-shell-rail-link"
-					aria-label="Settings"
-				>
-					<IconSettings aria-hidden="true" className="size-[17px]" />
-				</button>
+				{bottomRailItem ? (
+					<RailLink
+						item={bottomRailItem}
+						isActive={activeRoute?.id === bottomRailItem.id}
+						isBottom
+					/>
+				) : null}
 			</nav>
-			{showStaffSecondaryPanel ? (
+			{showSecondaryPanel ? (
 				<aside
 					className="app-shell-secondary-panel"
 					data-testid="app-shell-secondary-panel"
@@ -358,11 +372,21 @@ const AuthedWorkspaceShell = ({
 							className="app-shell-secondary-title"
 							id="app-shell-secondary-heading"
 						>
-							Staff
+							{activeRoute?.label}
 						</h2>
-						<Badge variant="outline" className="app-shell-workspace-pill">
-							Workspace
-						</Badge>
+						{activeRoute?.scope === 'tenant' ? (
+							<Badge variant="outline" className="app-shell-tenant-pill">
+								<span
+									aria-hidden="true"
+									className="app-shell-tenant-pill-brand"
+								/>
+								Lattice Cloud
+							</Badge>
+						) : (
+							<Badge variant="outline" className="app-shell-workspace-pill">
+								Workspace
+							</Badge>
+						)}
 					</div>
 					<div className="app-shell-secondary-search">
 						<div className="app-shell-search-wrapper">
@@ -371,7 +395,9 @@ const AuthedWorkspaceShell = ({
 								className="app-shell-search-icon"
 							/>
 							<Input
-								aria-label="Search staff"
+								aria-label={
+									activeRoute ? `Search ${activeRoute.label}` : 'Search'
+								}
 								placeholder="Search"
 								className="app-shell-search-input"
 							/>
@@ -379,11 +405,11 @@ const AuthedWorkspaceShell = ({
 					</div>
 					<nav
 						className="app-shell-secondary-nav"
-						aria-label="Staff navigation"
+						aria-label={`${activeRoute?.label ?? 'Primary'} navigation`}
 					>
-						{staffSecondaryItems.map((item) => (
+						{secondaryItems.map((item) => (
 							<SecondaryPanelNavItem
-								key={item.path}
+								key={item.id}
 								item={item}
 								pathname={pathname}
 							/>

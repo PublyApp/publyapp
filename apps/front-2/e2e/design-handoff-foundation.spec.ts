@@ -79,3 +79,23 @@ test('asserts confirm modal geometry uses handoff radius', async ({ page }) => {
 		'28px',
 	);
 });
+
+test('asserts staff shell rails and panel match handoff registry', async ({
+	page,
+}) => {
+	await loginAsStaffAdmin(page);
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await page.goto('/staff/staff-users');
+
+	const rail = page.getByTestId('app-shell-rail');
+	await expect(rail.getByRole('link', { name: 'Dashboard' })).toBeVisible();
+	await expect(rail.getByRole('link', { name: 'Tenants' })).toBeVisible();
+	await expect(rail.getByRole('link', { name: 'Staff' })).toBeVisible();
+	await expect(rail.getByRole('link', { name: 'Audit logs' })).toBeVisible();
+
+	const panel = page.getByTestId('app-shell-secondary-panel');
+	await expect(panel).toBeVisible();
+	await expect(panel.getByRole('link', { name: 'All users' })).toBeVisible();
+	await expect(panel.getByRole('link', { name: 'Invitations' })).toBeVisible();
+	await expect(panel.getByRole('link', { name: 'Profiles' })).toBeVisible();
+});

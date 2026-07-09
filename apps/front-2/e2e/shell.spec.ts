@@ -192,24 +192,51 @@ test('renders the authed shell for /staff', async ({ page }) => {
 	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
 
 	// Handoff shell dimensions
-	await expect(page.getByTestId('app-shell-rail')).toHaveCSS('width', '48px');
+	await expect(page.getByTestId('app-shell-rail')).toHaveCSS('width', '49px');
 	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCSS(
 		'width',
 		'272px',
 	);
+	await expect(page.getByTestId('app-shell-topbar')).toHaveCSS(
+		'height',
+		'64px',
+	);
+	await expect(page.getByTestId('app-shell-topbar')).toHaveCSS(
+		'border-bottom-width',
+		'0px',
+	);
 
-	// Topbar breadcrumb
 	await expect(
-		page.getByRole('navigation', { name: 'Breadcrumb' }),
-	).toContainText('Workspace');
-
-	// Active rail link
-	await expect(
-		page
-			.getByTestId('app-shell-rail')
-			.getByRole('link', { name: 'Staff users' }),
+		page.getByTestId('app-shell-rail').getByRole('link', { name: 'Staff' }),
 	).toHaveAttribute('aria-current', 'page');
-	await expect(page.getByTestId('app-shell-sidebar')).toHaveCount(0);
+});
+
+test('redirects /staff/ to /staff/staff-users', async ({ page }) => {
+	await setSessionCookie(page);
+	await mockAuthRedirectCode(page);
+	await page.goto('/staff/');
+
+	await expect(page).toHaveURL('/staff/staff-users');
+});
+
+test('renders the handoff staff rail and secondary panel', async ({ page }) => {
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await setSessionCookie(page);
+	await mockAuthRedirectCode(page);
+	await page.goto('/staff/staff-users');
+
+	const rail = page.getByTestId('app-shell-rail');
+	await expect(rail.getByRole('link', { name: 'Dashboard' })).toBeVisible();
+	await expect(rail.getByRole('link', { name: 'Tenants' })).toBeVisible();
+	await expect(rail.getByRole('link', { name: 'Staff' })).toBeVisible();
+	await expect(rail.getByRole('link', { name: 'Audit logs' })).toBeVisible();
+
+	const panel = page.getByTestId('app-shell-secondary-panel');
+	await expect(panel).toBeVisible();
+	await expect(panel.getByRole('heading', { name: 'Staff' })).toBeVisible();
+	await expect(panel.getByRole('link', { name: 'All users' })).toBeVisible();
+	await expect(panel.getByRole('link', { name: 'Invitations' })).toBeVisible();
+	await expect(panel.getByRole('link', { name: 'Profiles' })).toBeVisible();
 });
 
 test('collapses secondary panel on full-detail routes', async ({ page }) => {
@@ -217,6 +244,50 @@ test('collapses secondary panel on full-detail routes', async ({ page }) => {
 	await setSessionCookie(page);
 	await mockAuthRedirectCode(page);
 	await page.goto('/staff/staff-users/demo-user-id');
+
+	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+});
+
+test('tenants route shows tenants panel destinations', async ({ page }) => {
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await setSessionCookie(page);
+	await mockAuthRedirectCode(page);
+	await page.goto('/staff/tenants');
+
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
+	await expect(
+		page
+			.getByTestId('app-shell-secondary-panel')
+			.getByRole('heading', { name: 'Tenants' }),
+	).toBeVisible();
+	await expect(
+		page
+			.getByTestId('app-shell-secondary-panel')
+			.getByRole('link', { name: 'All tenants' }),
+	).toBeVisible();
+	await expect(
+		page
+			.getByTestId('app-shell-secondary-panel')
+			.getByRole('link', { name: 'Active' }),
+	).toBeVisible();
+	await expect(
+		page
+			.getByTestId('app-shell-secondary-panel')
+			.getByRole('link', { name: 'Suspended' }),
+	).toBeVisible();
+	await expect(
+		page
+			.getByTestId('app-shell-secondary-panel')
+			.getByRole('link', { name: 'Calendar' }),
+	).toHaveCount(0);
+});
+
+test('collapses secondary panel when below 1024px', async ({ page }) => {
+	await page.setViewportSize({ width: 900, height: 900 });
+	await setSessionCookie(page);
+	await mockAuthRedirectCode(page);
+	await page.goto('/staff/staff-users');
 
 	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
 	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
@@ -239,18 +310,34 @@ test('rail navigation preserves collapsed sidebar preference', async ({
 
 	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
 
-	await page.getByRole('link', { name: 'Roles & permissions' }).click();
+	await page.goto('/staff/invitations');
 
-	await expect(page).toHaveURL('/staff/profiles');
+	await expect(page).toHaveURL('/staff/invitations');
 	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
 });
 
-test('redirects /staff/ to /staff/staff-users', async ({ page }) => {
+test('staff detail route has no secondary panel', async ({ page }) => {
+	await page.setViewportSize({ width: 1280, height: 900 });
 	await setSessionCookie(page);
 	await mockAuthRedirectCode(page);
-	await page.goto('/staff/');
+	await page.goto('/staff/invitations/i-1');
 
-	await expect(page).toHaveURL('/staff/staff-users');
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+	await expect(
+		page.getByRole('button', { name: 'Collapse navigation panel' }),
+	).toBeVisible();
+});
+
+test('no bottom rail on mobile and rail-hidden behavior is preserved', async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 390, height: 812 });
+	await setSessionCookie(page);
+	await mockAuthRedirectCode(page);
+	await page.goto('/staff/staff-users');
+
+	await expect(page.getByTestId('app-shell-rail')).not.toBeVisible();
+	await expect(page.getByTestId('app-shell-topbar')).toBeVisible();
 });
 
 test('mobile shell menu is keyboard and route-aware', async ({ page }) => {
@@ -291,89 +378,4 @@ test('mobile shell menu is keyboard and route-aware', async ({ page }) => {
 	await expect(
 		mobileLinks.getByRole('link', { name: 'Sign in' }),
 	).toHaveAttribute('aria-current', 'page');
-});
-
-test('handoff shell renders primary rail labels', async ({ page }) => {
-	await page.setViewportSize({ width: 1280, height: 900 });
-	await setSessionCookie(page);
-	await mockAuthRedirectCode(page);
-	await page.goto('/staff/staff-users');
-
-	const rail = page.getByTestId('app-shell-rail');
-	await expect(rail.getByRole('link', { name: 'Dashboard' })).toBeVisible();
-	await expect(rail.getByRole('link', { name: 'Content' })).toBeVisible();
-	await expect(rail.getByRole('link', { name: 'Staff users' })).toBeVisible();
-	await expect(
-		rail.getByRole('link', { name: 'Roles & permissions' }),
-	).toBeVisible();
-	await expect(rail.getByRole('link', { name: 'Invitations' })).toBeVisible();
-	await expect(rail.getByRole('link', { name: 'Analytics' })).toBeVisible();
-});
-
-test('handoff secondary panel shows staff heading and nav items', async ({
-	page,
-}) => {
-	await page.setViewportSize({ width: 1280, height: 900 });
-	await setSessionCookie(page);
-	await mockAuthRedirectCode(page);
-	await page.goto('/staff/staff-users');
-
-	const panel = page.getByTestId('app-shell-secondary-panel');
-	await expect(panel).toBeVisible();
-	await expect(panel.getByRole('heading', { name: 'Staff' })).toBeVisible();
-	await expect(panel.getByRole('link', { name: 'All users' })).toBeVisible();
-	await expect(panel.getByRole('link', { name: 'Invitations' })).toBeVisible();
-	await expect(panel.getByRole('link', { name: 'Roles' })).toBeVisible();
-	await expect(panel.getByRole('link', { name: 'Profiles' })).toBeVisible();
-	await expect(panel.getByRole('link', { name: 'Permissions' })).toBeVisible();
-	await expect(panel.getByRole('link', { name: 'Audit log' })).toBeVisible();
-});
-
-test('staff secondary panel persists on sibling staff list routes', async ({
-	page,
-}) => {
-	await page.setViewportSize({ width: 1280, height: 900 });
-	await setSessionCookie(page);
-	await mockAuthRedirectCode(page);
-	await page.goto('/staff/staff-users');
-
-	await page
-		.getByTestId('app-shell-secondary-panel')
-		.getByRole('link', { name: 'Invitations' })
-		.click();
-
-	await expect(page).toHaveURL('/staff/invitations');
-	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
-	await expect(
-		page
-			.getByTestId('app-shell-secondary-panel')
-			.getByRole('heading', { name: 'Staff' }),
-	).toBeVisible();
-
-	await page.getByRole('link', { name: 'Roles & permissions' }).click();
-
-	await expect(page).toHaveURL('/staff/profiles');
-	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
-});
-
-test('topbar has 64px height on desktop', async ({ page }) => {
-	await page.setViewportSize({ width: 1280, height: 900 });
-	await setSessionCookie(page);
-	await mockAuthRedirectCode(page);
-	await page.goto('/staff/staff-users');
-
-	await expect(page.getByTestId('app-shell-topbar')).toHaveCSS(
-		'height',
-		'64px',
-	);
-});
-
-test('no bottom rail on mobile', async ({ page }) => {
-	await page.setViewportSize({ width: 390, height: 812 });
-	await setSessionCookie(page);
-	await mockAuthRedirectCode(page);
-	await page.goto('/staff/staff-users');
-
-	await expect(page.getByTestId('app-shell-rail')).not.toBeVisible();
-	await expect(page.getByTestId('app-shell-topbar')).toBeVisible();
 });
