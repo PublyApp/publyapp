@@ -2,6 +2,7 @@ import {
 	IconCircleDot,
 	IconEye,
 	IconIdBadge2,
+	IconMail,
 	IconUser,
 	IconUserPlus,
 } from '@tabler/icons-react';
@@ -48,19 +49,26 @@ const columns: ColumnDef<StaffUserRow>[] = [
 		cell: ({ row }) => (
 			<div className="flex items-center gap-2.5">
 				<InitialsAvatar name={row.original.displayName} />
-				<div className="min-w-0">
-					<Link
-						to={'/staff/staff-users/$userId' as never}
-						params={{ userId: row.original.id } as never}
-						className="publy-record-link"
-					>
-						{row.original.displayName}
-					</Link>
-					<div className="publy-record-subtext">
-						{row.original.email || 'No email address'}
-					</div>
-				</div>
+				<Link
+					to={'/staff/staff-users/$userId' as never}
+					params={{ userId: row.original.id } as never}
+					className="publy-record-link truncate"
+				>
+					{row.original.displayName}
+				</Link>
 			</div>
+		),
+	},
+	{
+		id: 'email',
+		header: 'Email',
+		accessorKey: 'email',
+		enableSorting: false,
+		meta: { headerIcon: <IconMail /> },
+		cell: ({ getValue }) => (
+			<span className="font-normal">
+				{getValue<string>() || 'No email address'}
+			</span>
 		),
 	},
 	{
