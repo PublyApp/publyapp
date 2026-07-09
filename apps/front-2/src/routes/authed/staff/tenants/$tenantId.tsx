@@ -1,5 +1,5 @@
+import { IconAlertCircle } from '@tabler/icons-react';
 import { createFileRoute } from '@tanstack/react-router';
-import { AlertCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -47,7 +47,7 @@ function StaffTenantDetailsPage() {
 	if (!tenant) {
 		return (
 			<AppErrorView
-				icon={<AlertCircle aria-hidden="true" className="size-7" />}
+				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 				code="500 — Server Error"
 				title="Unable to load this tenant"
 				description="The tenant response was incomplete."

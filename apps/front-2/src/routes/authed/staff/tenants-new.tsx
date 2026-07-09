@@ -1,4 +1,3 @@
-import { Button, Card, ListBox, Select } from '@heroui/react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, createFileRoute } from '@tanstack/react-router';
@@ -8,6 +7,15 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { Field, Form } from '~/components/field';
+import { Button } from '~/components/ui/button';
+import { Card } from '~/components/ui/card';
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from '~/components/ui/select';
 import {
 	STAFF_TENANTS_QUERY_KEY,
 	useCreateStaffTenantMutation,
@@ -254,39 +262,36 @@ function StaffTenantCreateRoute() {
 										control={control}
 										name={`initialUsers.${index}.accountLevel`}
 										render={({ field }) => (
-											<Select.Root
+											<Select
 												id={`initialUsers.${index}.accountLevel`}
 												aria-label={t('account-level')}
-												selectedKey={field.value}
-												onSelectionChange={(key) => {
-													if (key) {
-														field.onChange(key);
+												value={field.value}
+												onValueChange={(nextValue) => {
+													if (typeof nextValue === 'string') {
+														field.onChange(nextValue);
 													}
 												}}
-												isDisabled={isPending}
+												disabled={isPending}
 											>
-												<Select.Trigger>
-													<Select.Value />
-													<Select.Indicator />
-												</Select.Trigger>
-												<Select.Popover>
-													<ListBox>
-														{USER_ROLE_OPTIONS.map((option) => (
-															<ListBox.Item key={option} id={option}>
-																{option}
-															</ListBox.Item>
-														))}
-													</ListBox>
-												</Select.Popover>
-											</Select.Root>
+												<SelectTrigger>
+													<SelectValue />
+												</SelectTrigger>
+												<SelectContent>
+													{USER_ROLE_OPTIONS.map((option) => (
+														<SelectItem key={option} value={option}>
+															{option}
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
 										)}
 									/>
 								</div>
 								<Button
 									type="button"
 									variant="outline"
-									isDisabled={isPending || fields.length <= 1}
-									onPress={() => {
+									disabled={isPending || fields.length <= 1}
+									onClick={() => {
 										remove(index);
 									}}
 								>
@@ -298,8 +303,8 @@ function StaffTenantCreateRoute() {
 						<Button
 							type="button"
 							variant="outline"
-							isDisabled={isPending || !canAddRow}
-							onPress={addUserRow}
+							disabled={isPending || !canAddRow}
+							onClick={addUserRow}
 						>
 							{t('add-user')}
 						</Button>
@@ -310,7 +315,7 @@ function StaffTenantCreateRoute() {
 					) : null}
 
 					<div className="flex justify-end">
-						<Button type="submit" variant="primary" isDisabled={isPending}>
+						<Button type="submit" disabled={isPending}>
 							{t('create-tenant')}
 						</Button>
 					</div>

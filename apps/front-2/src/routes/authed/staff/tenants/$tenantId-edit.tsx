@@ -1,14 +1,15 @@
-import { Button, Card } from '@heroui/react';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { IconAlertCircle, IconSearchOff } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { AlertCircle, SearchX } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
+import { Button } from '~/components/ui/button';
+import { Card } from '~/components/ui/card';
 import {
 	STAFF_TENANT_DETAILS_QUERY_KEY,
 	STAFF_TENANTS_QUERY_KEY,
@@ -134,7 +135,7 @@ function StaffTenantEditRoute() {
 
 		return (
 			<AppErrorView
-				icon={<AlertCircle aria-hidden="true" className="size-7" />}
+				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 				code="500 — Server Error"
 				title="Unable to load this tenant"
 				description={getFailureDescription(
@@ -149,7 +150,7 @@ function StaffTenantEditRoute() {
 	if (!tenant) {
 		return (
 			<AppErrorView
-				icon={<SearchX aria-hidden="true" className="size-7" />}
+				icon={<IconSearchOff aria-hidden="true" className="size-7" />}
 				code="404 — Not Found"
 				title="Tenant not found"
 				description="The tenant payload was empty."
@@ -280,7 +281,7 @@ function StaffTenantEditRoute() {
 						<p className="text-sm text-danger-600">{serverError}</p>
 					) : null}
 					<div className="flex justify-end">
-						<Button type="submit" variant="primary" isDisabled={isPending}>
+						<Button type="submit" disabled={isPending}>
 							{t('save-changes')}
 						</Button>
 					</div>

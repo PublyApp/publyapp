@@ -1,9 +1,10 @@
-import { Card, Chip, Spinner } from '@heroui/react';
+import { IconAlertCircle, IconSearchOff } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
-import { AlertCircle, SearchX } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { View403 } from '~/components/error-views/View403';
+import { Badge } from '~/components/ui/badge';
+import { Card } from '~/components/ui/card';
 import type { StaffTenantDetails } from '~/lib/query/staff-tenants';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
@@ -52,18 +53,26 @@ const getFailureDescription = (error: unknown, fallback: string): string => {
 	return fallback;
 };
 
-const getStatusColor = (status: string | null) => {
+const getStatusClassName = (status: string | null) => {
 	switch (status) {
 		case 'Active':
-			return 'success';
+			return 'border-success-200 bg-success-50 text-success-800';
 		case 'Pending':
-			return 'warning';
+			return 'border-warning-200 bg-warning-50 text-warning-800';
 		case 'Suspended':
-			return 'danger';
+			return 'border-danger-200 bg-danger-50 text-danger-800';
 		default:
-			return 'default';
+			return 'border-default-200 bg-default-100 text-foreground';
 	}
 };
+
+const LoadingSpinner = () => (
+	<span
+		role="status"
+		aria-label="Loading"
+		className="size-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"
+	/>
+);
 
 export const DetailItem = ({
 	label,
@@ -116,7 +125,7 @@ export const TenantDetailsLoading = () => (
 		data-testid="staff-tenant-details-loading"
 	>
 		<div className="flex items-center gap-3 text-sm text-foreground-500">
-			<Spinner size="sm" />
+			<LoadingSpinner />
 			<span>Loading tenant…</span>
 		</div>
 	</div>
@@ -124,7 +133,7 @@ export const TenantDetailsLoading = () => (
 
 const InvalidTenantView = ({ error }: { error: unknown }) => (
 	<AppErrorView
-		icon={<AlertCircle aria-hidden="true" className="size-7" />}
+		icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 		code="400 — Bad Request"
 		title="Invalid tenant link"
 		description={getFailureDescription(
@@ -137,7 +146,7 @@ const InvalidTenantView = ({ error }: { error: unknown }) => (
 
 const MissingTenantView = ({ error }: { error: unknown }) => (
 	<AppErrorView
-		icon={<SearchX aria-hidden="true" className="size-7" />}
+		icon={<IconSearchOff aria-hidden="true" className="size-7" />}
 		code="404 — Not Found"
 		title="Tenant not found"
 		description={getFailureDescription(
@@ -163,7 +172,7 @@ export const TenantDetailsError = ({ error }: { error: unknown }) => {
 
 	return (
 		<AppErrorView
-			icon={<AlertCircle aria-hidden="true" className="size-7" />}
+			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 			code="500 — Server Error"
 			title="Unable to load this tenant"
 			description="There was a problem loading the tenant details."
@@ -210,9 +219,12 @@ export const TenantDetailsPageShell = ({
 							<h1 className="text-3xl font-semibold text-foreground">
 								{tenant.name}
 							</h1>
-							<Chip color={getStatusColor(tenant.status)} variant="soft">
+							<Badge
+								variant="outline"
+								className={getStatusClassName(tenant.status)}
+							>
 								{tenant.status ?? 'Unknown'}
-							</Chip>
+							</Badge>
 						</div>
 						<p className="text-sm text-foreground-500">{summary}</p>
 					</div>

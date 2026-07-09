@@ -18,65 +18,66 @@ const mocks = vi.hoisted(() => ({
 	shouldLogoutForFailure: vi.fn((_: unknown) => false),
 }));
 
-vi.mock('@heroui/react', () => ({
+vi.mock('~/components/ui/button', () => ({
 	Button: ({
 		children,
 		type,
-		onPress,
-		isDisabled,
+		onClick,
+		disabled,
 		...props
 	}: {
 		children: ReactNode;
 		type?: 'button' | 'submit' | 'reset';
-		onPress?: () => void;
-		isDisabled?: boolean;
+		onClick?: () => void;
+		disabled?: boolean;
 	}) =>
 		createElement(
 			'button',
 			{
 				type: type ?? 'button',
-				onClick: onPress,
-				disabled: isDisabled,
+				onClick,
+				disabled,
 				...props,
 			},
 			children,
 		),
+}));
+
+vi.mock('~/components/ui/card', () => ({
 	Card: ({ children, ...props }: { children: ReactNode }) =>
 		createElement('div', props, children),
-	Select: {
-		Root: ({
-			children,
-			selectedKey,
-			onSelectionChange,
-			isDisabled,
-			...props
-		}: {
-			children: ReactNode;
-			selectedKey?: string;
-			onSelectionChange?: (key: string) => void;
-			isDisabled?: boolean;
-		}) =>
-			createElement(
-				'select',
-				{
-					value: selectedKey,
-					onChange: (e: React.ChangeEvent<HTMLSelectElement>) => {
-						onSelectionChange?.(e.target.value);
-					},
-					disabled: isDisabled,
-					...props,
+}));
+
+vi.mock('~/components/ui/select', () => ({
+	Select: ({
+		children,
+		value,
+		onValueChange,
+		disabled,
+		...props
+	}: {
+		children: ReactNode;
+		value: string;
+		onValueChange?: (nextValue: string) => void;
+		disabled?: boolean;
+	}) =>
+		createElement(
+			'select',
+			{
+				value,
+				onChange: (event: React.ChangeEvent<HTMLSelectElement>) => {
+					onValueChange?.(event.target.value);
 				},
-				children,
-			),
-		Trigger: ({ children: c }: { children?: ReactNode }) => c,
-		Value: () => null,
-		Indicator: () => null,
-		Popover: ({ children: c }: { children?: ReactNode }) => c,
-	},
-	ListBox: Object.assign(({ children: c }: { children?: ReactNode }) => c, {
-		Item: ({ children: c, id }: { children?: ReactNode; id?: string }) =>
-			createElement('option', { value: id }, c),
-	}),
+				disabled,
+				...props,
+			},
+			children,
+		),
+	SelectTrigger: ({ children: _children }: { children?: ReactNode }) => null,
+	SelectValue: () => null,
+	SelectContent: ({ children }: { children?: ReactNode }) => children,
+	SelectItem: ({ children, value }: { children?: ReactNode; value: string }) =>
+		createElement('option', { value }, children),
 }));
 
 vi.mock('@tanstack/react-query', () => ({

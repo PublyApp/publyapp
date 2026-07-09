@@ -22,32 +22,33 @@ const mocks = vi.hoisted(() => ({
 	shouldLogoutForFailure: vi.fn<(error: unknown) => boolean>(() => false),
 }));
 
-vi.mock('@heroui/react', () => ({
+vi.mock('~/components/ui/button', () => ({
 	Button: ({
 		children,
 		type,
-		isDisabled,
-		onPress,
+		onClick,
+		disabled,
 		...props
 	}: {
 		children: ReactNode;
 		type?: 'button' | 'submit' | 'reset';
-		isDisabled?: boolean;
-		onPress?: () => void;
+		onClick?: () => void;
+		disabled?: boolean;
 	}) =>
 		createElement(
 			'button',
 			{
 				type: type ?? 'button',
-				onClick: onPress,
-				disabled: isDisabled,
+				onClick,
+				disabled,
 				...props,
 			},
 			children,
 		),
+}));
+
+vi.mock('~/components/ui/card', () => ({
 	Card: ({ children, ...props }: { children: ReactNode }) =>
-		createElement('div', props, children),
-	Chip: ({ children, ...props }: { children: ReactNode }) =>
 		createElement('div', props, children),
 }));
 
