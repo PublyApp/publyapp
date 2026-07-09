@@ -1,3 +1,4 @@
+import { IconAlertCircle, IconCheck } from '@tabler/icons-react';
 import { useId } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { Checkbox } from '~/components/ui/checkbox';
@@ -54,8 +55,8 @@ export const FieldCheckboxGroup = ({
 
 				return (
 					<div className="space-y-2">
-						<p className="text-sm font-medium text-foreground">{label}</p>
-						<div className="space-y-2">
+						<p className="text-[13px] font-medium text-foreground">{label}</p>
+						<div className="flex flex-wrap gap-2">
 							{options.map((option) => {
 								const optionDisabled = isDisabled || option.isDisabled;
 								const optionChecked = value.includes(option.value);
@@ -63,9 +64,13 @@ export const FieldCheckboxGroup = ({
 								return (
 									<label
 										key={option.value}
-										className="flex items-start gap-2 rounded-2xl border border-border bg-background/50 px-3 py-2"
+										className="publy-choice-chip"
+										data-selected={optionChecked ? 'true' : undefined}
+										data-disabled={optionDisabled ? 'true' : undefined}
+										title={option.description}
 									>
 										<Checkbox
+											className="sr-only"
 											checked={optionChecked}
 											name={field.name}
 											disabled={optionDisabled}
@@ -77,22 +82,26 @@ export const FieldCheckboxGroup = ({
 												handleToggle(option.value, Boolean(checked));
 											}}
 										/>
-										<div className="space-y-0.5">
-											<span className="text-sm font-medium text-foreground">
-												{option.label}
-											</span>
-											{option.description ? (
-												<span className="block text-xs text-muted-foreground">
-													{option.description}
-												</span>
-											) : null}
-										</div>
+										{optionChecked ? (
+											<IconCheck aria-hidden="true" className="size-3.5" />
+										) : null}
+										<span>{option.label}</span>
 									</label>
 								);
 							})}
 						</div>
 						{helper ? (
-							<p id={helperId} className="text-sm text-destructive">
+							<p
+								id={helperId}
+								className={
+									error
+										? 'flex items-center gap-1 text-xs text-destructive'
+										: 'text-xs text-muted-foreground'
+								}
+							>
+								{error ? (
+									<IconAlertCircle aria-hidden="true" className="size-3.5" />
+								) : null}
 								{helper}
 							</p>
 						) : null}

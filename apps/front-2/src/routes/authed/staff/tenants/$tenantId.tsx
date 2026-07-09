@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
+import { buttonVariants } from '~/components/ui/button';
 import {
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
@@ -63,20 +64,20 @@ function StaffTenantDetailsPage() {
 			summary="Read-only basics for this tenant in the front-2 migration shell."
 			testId="staff-tenant-details-page"
 		>
-			<div className="space-y-2">
-				<h2 className="text-lg font-semibold text-foreground">Basics</h2>
-				<p className="text-sm text-muted-foreground">
-					Core tenant metadata carried forward from the current staff details
-					shell.
-				</p>
-				<div>
-					<a
-						href={`/staff/tenants/${tenant.id}/edit`}
-						className="inline-flex text-sm font-medium text-foreground underline-offset-4 hover:underline"
-					>
-						Edit tenant
-					</a>
+			<div className="flex flex-wrap items-start justify-between gap-3">
+				<div className="space-y-1">
+					<h2 className="text-sm font-semibold text-foreground">Basics</h2>
+					<p className="text-xs text-muted-foreground">
+						Core tenant metadata carried forward from the current staff details
+						shell.
+					</p>
 				</div>
+				<a
+					href={`/staff/tenants/${tenant.id}/edit`}
+					className={buttonVariants({ variant: 'outline', size: 'sm' })}
+				>
+					Edit tenant
+				</a>
 			</div>
 
 			<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

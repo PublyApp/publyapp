@@ -281,19 +281,14 @@ function NewStaffInvitationsRoute() {
 			className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-4"
 			data-testid="staff-invitations-create-page"
 		>
-			<div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-				<div className="space-y-1">
-					<p className="text-sm text-muted-foreground">
-						{t('staff-invitations')}
-					</p>
-					<h1 className="text-2xl font-semibold">{t('invite-users')}</h1>
-				</div>
-				<Link
-					to={STAFF_INVITATIONS_INDEX_PATH}
-					className="text-sm font-medium text-primary underline-offset-4 hover:underline"
-				>
+			<div className="space-y-1">
+				<Link to={STAFF_INVITATIONS_INDEX_PATH} className="publy-back-link">
 					{t('staff-invitations')}
 				</Link>
+				<h1 className="publy-type-page-title">{t('invite-users')}</h1>
+				<p className="publy-type-helper">
+					Send email invitations and assign staff profiles.
+				</p>
 			</div>
 
 			<Card className="space-y-4 p-4">

@@ -267,19 +267,16 @@ const InvitationDetailsCard = ({
 		<div className="space-y-4" data-testid="staff-invitation-details-page">
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<div className="space-y-1">
-					<a
-						href={STAFF_INVITATIONS_LIST_PATH}
-						className="text-sm font-medium text-primary underline-offset-4 hover:underline"
-					>
+					<a href={STAFF_INVITATIONS_LIST_PATH} className="publy-back-link">
 						{t('staff-invitations')}
 					</a>
-					<h1 className="text-2xl font-semibold">{invitation.email || '—'}</h1>
+					<h1 className="publy-type-page-title">{invitation.email || '—'}</h1>
 				</div>
 
 				<div className="flex flex-wrap items-center gap-2">
 					<Button
 						type="button"
-						variant="secondary"
+						variant="outline"
 						onClick={handleCopyLink}
 						disabled={!canManage || activeMutationPending}
 					>
@@ -287,7 +284,7 @@ const InvitationDetailsCard = ({
 					</Button>
 					<Button
 						type="button"
-						variant="secondary"
+						variant="outline"
 						onClick={handleResend}
 						disabled={!canManage || activeMutationPending}
 					>
