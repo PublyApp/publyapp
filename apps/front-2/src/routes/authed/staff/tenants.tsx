@@ -1,3 +1,11 @@
+import {
+	IconBuilding,
+	IconCircleDot,
+	IconPlayerPause,
+	IconPlus,
+	IconRefresh,
+	IconTrash,
+} from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -5,9 +13,16 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
+import { DataTableRowActions } from '~/components/table/row-actions';
 import { useTableController } from '~/components/table/use-table-controller';
-import { Button } from '~/components/ui/button';
+import { buttonVariants } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
+import {
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+} from '~/components/ui/dropdown-menu';
+import { PageHeader, StatusPill } from '~/components/ui/product-page';
+import { statusPillTone } from '~/components/ui/status-tone';
 import {
 	STAFF_TENANT_DETAILS_QUERY_KEY,
 	STAFF_TENANTS_QUERY_KEY,
@@ -38,19 +53,6 @@ const DEFAULT_SIZE = 100;
 const TENANT_STATUS_ACTIVE = 'Active';
 const TENANT_STATUS_SUSPENDED = 'Suspended';
 
-const getStatusClassName = (status: string | null): string => {
-	switch (status) {
-		case TENANT_STATUS_ACTIVE:
-			return 'border-success/20 bg-success/10 text-success';
-		case 'Pending':
-			return 'border-warning/20 bg-warning/10 text-warning';
-		case TENANT_STATUS_SUSPENDED:
-			return 'border-destructive/20 bg-destructive/10 text-destructive';
-		default:
-			return 'border-border bg-muted text-foreground';
-	}
-};
-
 const buildTenantColumns = (
 	onSessionExpired: () => void,
 ): ColumnDef<StaffTenantRow>[] => [
@@ -58,34 +60,29 @@ const buildTenantColumns = (
 		id: 'name',
 		header: 'Name',
 		accessorKey: 'name',
+		meta: { headerIcon: <IconBuilding /> },
 		cell: ({ row }) => (
-			<div className="space-y-1">
-				<a
-					href={`/staff/tenants/${row.original.id}`}
-					className="font-medium text-foreground underline-offset-4 hover:underline"
-				>
-					{row.original.name}
-				</a>
-			</div>
+			<Link
+				to={'/staff/tenants/$tenantId' as never}
+				params={{ tenantId: row.original.id } as never}
+				className="publy-record-link"
+			>
+				{row.original.name}
+			</Link>
 		),
 	},
 	{
 		id: 'status',
 		header: 'Status',
 		accessorKey: 'status',
+		meta: { headerIcon: <IconCircleDot />, cellClassName: 'w-32' },
 		cell: ({ row }) => {
 			const status = row.original.status;
 			if (!status) {
 				return '—';
 			}
 
-			return (
-				<span
-					className={`inline-flex rounded-full border px-2 py-1 text-xs font-medium ${getStatusClassName(status)}`}
-				>
-					{status}
-				</span>
-			);
+			return <StatusPill tone={statusPillTone(status)}>{status}</StatusPill>;
 		},
 	},
 	{
@@ -93,6 +90,7 @@ const buildTenantColumns = (
 		header: 'Users',
 		accessorKey: 'usersCount',
 		enableSorting: false,
+		meta: { cellClassName: 'w-24' },
 		cell: ({ getValue }) => String(getValue<number>()),
 	},
 	{
@@ -100,12 +98,14 @@ const buildTenantColumns = (
 		header: 'Max users',
 		accessorKey: 'maxUsers',
 		enableSorting: false,
+		meta: { cellClassName: 'w-28' },
 		cell: ({ getValue }) => String(getValue<number>()),
 	},
 	{
 		id: 'actions',
-		header: 'Actions',
+		header: '',
 		enableSorting: false,
+		meta: { cellClassName: 'w-10' },
 		cell: ({ row }) => (
 			<TenantLifecycleActionsCell
 				tenant={row.original}
@@ -156,16 +156,20 @@ function StaffTenantsPage() {
 	});
 
 	return (
-		<div className="space-y-4 p-4">
-			<h1 className="text-xl font-semibold">Tenants</h1>
-			<div className="text-right">
-				<Link
-					to="/staff/tenants/new"
-					className="text-sm font-medium text-primary underline-offset-4 hover:underline"
-				>
-					{t('new-item', { item: t('tenant') })}
-				</Link>
-			</div>
+		<div className="space-y-4">
+			<PageHeader
+				title="Tenants"
+				description="Manage tenant organizations, seats, and lifecycle."
+				actions={
+					<Link
+						to="/staff/tenants/new"
+						className={buttonVariants({ variant: 'default' })}
+					>
+						<IconPlus aria-hidden="true" className="size-4" />
+						{t('new-item', { item: t('tenant') })}
+					</Link>
+				}
+			/>
 			<DataTable
 				testId="staff-tenants-table"
 				ariaLabel="Staff tenants"
@@ -303,8 +307,8 @@ const TenantLifecycleActionsCell = ({
 
 	if (!canSuspend && !canReactivate && !canDelete) {
 		return (
-			<span className="text-xs text-muted-foreground">
-				No lifecycle actions.
+			<span aria-label="No lifecycle actions" className="text-muted-foreground">
+				—
 			</span>
 		);
 	}
@@ -312,47 +316,50 @@ const TenantLifecycleActionsCell = ({
 	const dialogConfig = getConfirmDialogConfig(pendingAction);
 
 	return (
-		<div className="flex flex-col gap-2">
-			<div className="flex flex-wrap items-center gap-2">
-				{canSuspend ? (
-					<Button
-						type="button"
-						variant="secondary"
-						size="sm"
-						onClick={() => setPendingAction('suspend')}
-						disabled={isActionPending}
-					>
-						Suspend
-						{suspendTenantMutation.isPending ? '…' : ''}
-					</Button>
-				) : null}
+		<div className="flex flex-col items-end gap-1">
+			<DataTableRowActions
+				ariaLabel={`Actions for ${tenant.name}`}
+				testId={`tenant-actions-${tenant.id}`}
+			>
 				{canReactivate ? (
-					<Button
-						type="button"
-						variant="secondary"
-						size="sm"
+					<DropdownMenuItem
+						disabled={isActionPending}
 						onClick={() => setPendingAction('reactivate')}
-						disabled={isActionPending}
 					>
+						<IconRefresh />
 						Reactivate
-						{reactivateTenantMutation.isPending ? '…' : ''}
-					</Button>
+					</DropdownMenuItem>
 				) : null}
-				{canDelete ? (
-					<Button
-						type="button"
-						variant="destructive"
-						size="sm"
-						onClick={() => setPendingAction('delete')}
-						disabled={isActionPending}
-					>
-						Delete
-						{deleteTenantMutation.isPending ? '…' : ''}
-					</Button>
+				{canSuspend || canDelete ? (
+					<>
+						{canReactivate ? <DropdownMenuSeparator /> : null}
+						{canSuspend ? (
+							<DropdownMenuItem
+								variant="destructive"
+								disabled={isActionPending}
+								onClick={() => setPendingAction('suspend')}
+							>
+								<IconPlayerPause />
+								Suspend
+							</DropdownMenuItem>
+						) : null}
+						{canDelete ? (
+							<DropdownMenuItem
+								variant="destructive"
+								disabled={isActionPending}
+								onClick={() => setPendingAction('delete')}
+							>
+								<IconTrash />
+								Delete
+							</DropdownMenuItem>
+						) : null}
+					</>
 				) : null}
-			</div>
+			</DataTableRowActions>
 			{errorMessage ? (
-				<p className="max-w-56 text-xs text-destructive">{errorMessage}</p>
+				<p className="max-w-56 text-right text-xs text-destructive">
+					{errorMessage}
+				</p>
 			) : null}
 
 			<ConfirmDialog

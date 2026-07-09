@@ -1,5 +1,15 @@
+import {
+	IconCalendar,
+	IconCircleDot,
+	IconClock,
+	IconId,
+	IconMail,
+	IconMailCheck,
+} from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
+import { StatusPill } from '~/components/ui/product-page';
+import { statusPillTone } from '~/components/ui/status-tone';
 
 import {
 	formatInvitationStatusLabel,
@@ -41,16 +51,17 @@ export const createInvitationColumns = ({
 		id: 'email',
 		header: t('email'),
 		accessorKey: 'email',
+		meta: { headerIcon: <IconMail /> },
 		cell: ({ row }) => (
 			<div>
 				<Link
 					to="/staff/invitations/$invitationId"
 					params={{ invitationId: row.original.id }}
-					className="font-medium text-primary underline-offset-4 hover:underline"
+					className="publy-record-link"
 				>
 					{row.original.email || '-'}
 				</Link>
-				<div className="text-xs text-muted-foreground">
+				<div className="publy-record-subtext">
 					{t('staff-invited-by')}: {row.original.invitedByName}
 				</div>
 			</div>
@@ -62,33 +73,38 @@ export const createInvitationColumns = ({
 		accessorKey: 'profileName',
 		// Staff invitations only supports created_at, expires_at, email, and accepted_at.
 		enableSorting: false,
+		meta: { headerIcon: <IconId /> },
 	},
 	{
 		id: 'status',
 		header: t('status'),
 		enableSorting: false,
+		meta: { headerIcon: <IconCircleDot />, cellClassName: 'w-32' },
 		cell: ({ row }) => (
-			<span className="inline-flex rounded-full bg-muted px-2 py-1 text-xs font-medium text-foreground">
+			<StatusPill tone={statusPillTone(row.original.status)}>
 				{formatInvitationStatusLabel(row.original.status)}
-			</span>
+			</StatusPill>
 		),
 	},
 	{
 		id: 'expires_at',
 		header: t('expiry-date'),
 		accessorFn: (row) => row.expiresAt,
+		meta: { headerIcon: <IconClock /> },
 		cell: ({ row }) => formatDateTime(row.original.expiresAt, locale),
 	},
 	{
 		id: 'accepted_at',
 		header: t('accepted-at'),
 		accessorFn: (row) => row.acceptedAt,
+		meta: { headerIcon: <IconMailCheck /> },
 		cell: ({ row }) => formatDateTime(row.original.acceptedAt, locale),
 	},
 	{
 		id: 'created_at',
 		header: t('created-at'),
 		accessorFn: (row) => row.createdAt,
+		meta: { headerIcon: <IconCalendar /> },
 		cell: ({ row }) => formatDateTime(row.original.createdAt, locale),
 	},
 ];

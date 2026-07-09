@@ -1,16 +1,17 @@
-import { IconAlertCircle, IconSearchOff } from '@tabler/icons-react';
+import { IconAlertCircle, IconId, IconSearchOff } from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
 import { Card } from '~/components/ui/card';
+import { InitialsAvatar } from '~/components/ui/initials-avatar';
 import {
 	DetailRow,
 	MetadataCard,
-	PageHeader,
 	StatusPill,
 } from '~/components/ui/product-page';
+import { statusPillTone } from '~/components/ui/status-tone';
 import {
 	toAssignedStaffProfiles,
 	toStaffUserDetails,
@@ -96,83 +97,81 @@ const AssignedProfilesSection = ({
 	return (
 		<Card
 			id="staff-user-profiles"
-			className="space-y-4 p-5"
+			className="gap-0 py-0"
 			data-testid="staff-user-profiles-section"
 		>
-			<div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-				<div className="space-y-1">
-					<p className="text-lg font-semibold text-foreground">
-						Assigned profiles
-					</p>
-					<p className="text-sm text-muted-foreground">
-						Read-only assigned profiles for this staff user.
-					</p>
-				</div>
-				<div className="rounded-large border border-divider bg-content1 p-4">
-					<p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-						Assigned
-					</p>
-					<p className="mt-2 text-2xl font-semibold text-foreground">
-						{profiles.length} assigned
-					</p>
-				</div>
+			<div className="publy-card-header">
+				<p className="text-sm font-semibold text-foreground">
+					Assigned profiles
+				</p>
+				<span className="text-xs text-muted-foreground">
+					{profiles.length} assigned
+				</span>
 			</div>
 
-			{profilesQuery.isPending ? (
-				<div
-					className="flex items-center gap-3 rounded-large border border-divider bg-content1 p-4 text-sm text-muted-foreground"
-					data-testid="staff-user-profiles-loading"
-				>
-					<LoadingSpinner />
-					<span>Loading assigned profiles…</span>
-				</div>
-			) : null}
+			<div className="px-4 py-3">
+				{profilesQuery.isPending ? (
+					<div
+						className="flex items-center gap-3 py-3 text-[13px] text-muted-foreground"
+						data-testid="staff-user-profiles-loading"
+					>
+						<LoadingSpinner />
+						<span>Loading assigned profiles…</span>
+					</div>
+				) : null}
 
-			{profilesQuery.isError ? (
-				<div
-					className="rounded-large border border-divider bg-content1 p-4"
-					data-testid="staff-user-profiles-error"
-				>
-					<p className="text-sm font-medium text-foreground">
-						Unable to load assigned profiles
-					</p>
-					<p className="mt-2 text-sm text-muted-foreground">
-						{getAssignedProfilesErrorDescription(profilesQuery.error)}
-					</p>
-				</div>
-			) : null}
+				{profilesQuery.isError ? (
+					<div className="py-3" data-testid="staff-user-profiles-error">
+						<p className="text-[13px] font-medium text-foreground">
+							Unable to load assigned profiles
+						</p>
+						<p className="mt-1 text-xs text-muted-foreground">
+							{getAssignedProfilesErrorDescription(profilesQuery.error)}
+						</p>
+					</div>
+				) : null}
 
-			{!profilesQuery.isPending &&
-			!profilesQuery.isError &&
-			profiles.length === 0 ? (
-				<div className="rounded-large border border-dashed border-divider bg-content1 p-4 text-sm text-muted-foreground">
-					This staff user does not have any assigned profiles.
-				</div>
-			) : null}
+				{!profilesQuery.isPending &&
+				!profilesQuery.isError &&
+				profiles.length === 0 ? (
+					<div className="py-3 text-[13px] text-muted-foreground">
+						This staff user does not have any assigned profiles.
+					</div>
+				) : null}
 
-			{!profilesQuery.isPending &&
-			!profilesQuery.isError &&
-			profiles.length > 0 ? (
-				<div className="space-y-3">
-					{profiles.map((profile) => (
-						<div
-							key={profile.id}
-							className="rounded-large border border-divider bg-content1 p-4"
-						>
-							<Link
-								to="/staff/profiles/$profileId"
-								params={{ profileId: profile.id }}
-								className="font-medium text-foreground underline-offset-4 hover:underline"
+				{!profilesQuery.isPending &&
+				!profilesQuery.isError &&
+				profiles.length > 0 ? (
+					<div className="publy-metadata-rows divide-y">
+						{profiles.map((profile, index) => (
+							<div
+								key={profile.id}
+								className="flex items-center gap-3 py-3 first:pt-1 last:pb-1"
 							>
-								{profile.name}
-							</Link>
-							<p className="mt-2 text-sm text-muted-foreground">
-								{profile.description ?? 'No description provided.'}
-							</p>
-						</div>
-					))}
-				</div>
-			) : null}
+								<span
+									aria-hidden="true"
+									className="publy-icon-tile"
+									data-tone={index % 2 === 0 ? 'info' : 'success'}
+								>
+									<IconId className="size-4" />
+								</span>
+								<div className="min-w-0">
+									<Link
+										to="/staff/profiles/$profileId"
+										params={{ profileId: profile.id }}
+										className="publy-record-link text-[13px]"
+									>
+										{profile.name}
+									</Link>
+									<p className="publy-record-subtext">
+										{profile.description ?? 'No description provided.'}
+									</p>
+								</div>
+							</div>
+						))}
+					</div>
+				) : null}
+			</div>
 		</Card>
 	);
 };
@@ -296,52 +295,75 @@ function StaffUserDetailsPage() {
 	}
 
 	return (
-		<div className="space-y-4" data-testid="staff-user-details-page">
+		<div className="space-y-5" data-testid="staff-user-details-page">
 			<Link to="/staff/staff-users" className="publy-back-link">
 				Back to staff users
 			</Link>
-			<PageHeader
-				title={details.displayName}
-				description={details.email || 'No email address'}
-				actions={
-					<StatusPill tone="primary">{details.status ?? '—'}</StatusPill>
-				}
-			/>
-			<div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
+			<header className="flex flex-wrap items-start justify-between gap-4">
+				<div className="flex items-start gap-4">
+					<InitialsAvatar name={details.displayName} size="lg" />
+					<div className="min-w-0 space-y-1">
+						<div className="flex flex-wrap items-center gap-2">
+							<h1 className="text-[22px] font-semibold leading-7 tracking-[-0.01em] text-foreground">
+								{details.displayName}
+							</h1>
+							{details.accountLevel ? (
+								<StatusPill tone="neutral">{details.accountLevel}</StatusPill>
+							) : null}
+							{details.status ? (
+								<StatusPill tone={statusPillTone(details.status)}>
+									{details.status}
+								</StatusPill>
+							) : null}
+						</div>
+						<p className="text-[13px] text-muted-foreground">
+							<span>{details.email || 'No email address'}</span>
+							{details.createdAt ? (
+								<span>
+									{' · Joined '}
+									{formatDateTime(details.createdAt, i18n.language)}
+								</span>
+							) : null}
+						</p>
+					</div>
+				</div>
+			</header>
+			<div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_372px]">
+				<AssignedProfilesSection
+					profilesQuery={profilesQuery}
+					profiles={profiles}
+				/>
 				<MetadataCard title="Account">
 					<DetailRow label="Name" value={details.displayName} />
 					<DetailRow
 						label="Email"
 						value={details.email || 'No email address'}
 					/>
-					<DetailRow label="Level" value={details.accountLevel ?? '—'} />
-					<DetailRow label="Status" value={details.status ?? '—'} />
-				</MetadataCard>
-				<div className="space-y-4">
-					<MetadataCard title="Activity">
-						{details.createdAt ? (
-							<DetailRow
-								label="Created"
-								value={formatDateTime(details.createdAt, i18n.language)}
-							/>
-						) : null}
-						{details.updatedAt ? (
-							<DetailRow
-								label="Updated"
-								value={formatDateTime(details.updatedAt, i18n.language)}
-							/>
-						) : null}
-						{!details.createdAt && !details.updatedAt ? (
-							<div className="rounded-large border border-divider bg-content1 p-4 text-sm text-muted-foreground">
-								No timestamps are available for this staff user yet.
-							</div>
-						) : null}
-					</MetadataCard>
-					<AssignedProfilesSection
-						profilesQuery={profilesQuery}
-						profiles={profiles}
+					<DetailRow
+						label="Status"
+						value={
+							details.status ? (
+								<StatusPill tone={statusPillTone(details.status)}>
+									{details.status}
+								</StatusPill>
+							) : (
+								'—'
+							)
+						}
 					/>
-				</div>
+					{details.createdAt ? (
+						<DetailRow
+							label="Created"
+							value={formatDateTime(details.createdAt, i18n.language)}
+						/>
+					) : null}
+					{details.updatedAt ? (
+						<DetailRow
+							label="Updated"
+							value={formatDateTime(details.updatedAt, i18n.language)}
+						/>
+					) : null}
+				</MetadataCard>
 			</div>
 		</div>
 	);

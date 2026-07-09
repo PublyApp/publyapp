@@ -204,7 +204,7 @@ function StaffProfileDetailsPage() {
 
 	return (
 		<div
-			className="mx-auto w-full max-w-5xl space-y-6 p-4"
+			className="mx-auto w-full max-w-5xl space-y-6"
 			data-testid="staff-profile-details-page"
 		>
 			<div className="space-y-4">

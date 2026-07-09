@@ -2,6 +2,7 @@ import {
 	IconBell,
 	IconChevronDown,
 	IconChevronRight,
+	IconLayoutSidebar,
 	IconMenu2,
 	IconMessage2,
 	IconSearch,
@@ -404,7 +405,7 @@ const AuthedWorkspaceShell = ({
 							onClick={toggleSidebarOpen}
 							className="app-shell-sidebar-toggle"
 						>
-							<IconMenu2 aria-hidden="true" className="size-5" />
+							<IconLayoutSidebar aria-hidden="true" className="size-[18px]" />
 						</Button>
 						<div className="app-shell-topbar-separator" />
 						<nav aria-label="Breadcrumb" className="app-shell-breadcrumbs">

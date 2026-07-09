@@ -91,7 +91,7 @@ const isProblemStatus = (
 };
 
 const InvitationDetailsLoading = () => (
-	<div className="space-y-4 p-4" data-testid="staff-invitation-details-loading">
+	<div className="space-y-4" data-testid="staff-invitation-details-loading">
 		<div className="h-8 w-48 animate-pulse rounded bg-muted" />
 		<div className="grid gap-4 md:grid-cols-2">
 			<div className="h-32 animate-pulse rounded bg-muted" />
@@ -439,7 +439,7 @@ export function StaffInvitationDetailsPage({
 	}
 
 	return (
-		<div className="space-y-4 p-4">
+		<div className="space-y-4">
 			<QueryDisplay
 				query={detailQuery}
 				LoadingSlot={InvitationDetailsLoading}

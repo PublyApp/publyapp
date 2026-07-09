@@ -233,15 +233,19 @@ describe('staff tenants route', () => {
 		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
 	});
 
-	test('renders a suspend action for active tenants', () => {
+	test('renders a suspend action for active tenants', async () => {
 		renderPage();
 
-		expect(screen.getByRole('button', { name: 'Suspend' })).toBeTruthy();
-		expect(screen.queryByRole('button', { name: 'Reactivate' })).toBeNull();
-		expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull();
+		fireEvent.click(screen.getByRole('button', { name: /^Actions for/ }));
+
+		expect(
+			await screen.findByRole('menuitem', { name: 'Suspend' }),
+		).toBeTruthy();
+		expect(screen.queryByRole('menuitem', { name: 'Reactivate' })).toBeNull();
+		expect(screen.queryByRole('menuitem', { name: 'Delete' })).toBeNull();
 	});
 
-	test('renders reactivate and delete actions for suspended tenants', () => {
+	test('renders reactivate and delete actions for suspended tenants', async () => {
 		mocks.toStaffTenantRows.mockReturnValue([
 			{
 				id: 'tenant-1',
@@ -270,9 +274,13 @@ describe('staff tenants route', () => {
 
 		renderPage();
 
-		expect(screen.getByRole('button', { name: 'Reactivate' })).toBeTruthy();
-		expect(screen.getByRole('button', { name: 'Delete' })).toBeTruthy();
-		expect(screen.queryByRole('button', { name: 'Suspend' })).toBeNull();
+		fireEvent.click(screen.getByRole('button', { name: /^Actions for/ }));
+
+		expect(
+			await screen.findByRole('menuitem', { name: 'Reactivate' }),
+		).toBeTruthy();
+		expect(screen.getByRole('menuitem', { name: 'Delete' })).toBeTruthy();
+		expect(screen.queryByRole('menuitem', { name: 'Suspend' })).toBeNull();
 	});
 
 	test('requires explicit confirmation before suspending a tenant', async () => {
@@ -280,7 +288,8 @@ describe('staff tenants route', () => {
 
 		renderPage();
 
-		fireEvent.click(screen.getByRole('button', { name: 'Suspend' }));
+		fireEvent.click(screen.getByRole('button', { name: /^Actions for/ }));
+		fireEvent.click(await screen.findByRole('menuitem', { name: 'Suspend' }));
 
 		await waitFor(() =>
 			expect(
@@ -303,7 +312,8 @@ describe('staff tenants route', () => {
 
 		renderPage();
 
-		fireEvent.click(screen.getByRole('button', { name: 'Suspend' }));
+		fireEvent.click(screen.getByRole('button', { name: /^Actions for/ }));
+		fireEvent.click(await screen.findByRole('menuitem', { name: 'Suspend' }));
 
 		await waitFor(() =>
 			expect(
@@ -342,7 +352,8 @@ describe('staff tenants route', () => {
 
 		renderPage();
 
-		fireEvent.click(screen.getByRole('button', { name: 'Suspend' }));
+		fireEvent.click(screen.getByRole('button', { name: /^Actions for/ }));
+		fireEvent.click(await screen.findByRole('menuitem', { name: 'Suspend' }));
 
 		await waitFor(() =>
 			expect(
@@ -372,7 +383,8 @@ describe('staff tenants route', () => {
 
 		renderPage();
 
-		fireEvent.click(screen.getByRole('button', { name: 'Suspend' }));
+		fireEvent.click(screen.getByRole('button', { name: /^Actions for/ }));
+		fireEvent.click(await screen.findByRole('menuitem', { name: 'Suspend' }));
 
 		await waitFor(() =>
 			expect(

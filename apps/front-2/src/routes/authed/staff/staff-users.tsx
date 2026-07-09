@@ -164,7 +164,7 @@ function StaffUsersPage() {
 	const hasNextPage = query.data?.nextCursor != null;
 
 	return (
-		<div className="space-y-4 p-4">
+		<div className="space-y-4">
 			<PageHeader
 				title="Staff users"
 				description="Search, review, and manage staff access across the workspace."

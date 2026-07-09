@@ -1,3 +1,10 @@
+import {
+	IconEye,
+	IconId,
+	IconPlus,
+	IconTextCaption,
+	IconUsers,
+} from '@tabler/icons-react';
 import { createFileRoute } from '@tanstack/react-router';
 import { Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -5,9 +12,12 @@ import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
+import { DataTableRowActions } from '~/components/table/row-actions';
 import { useRowSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
 import { buttonVariants } from '~/components/ui/button';
+import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
+import { PageHeader } from '~/components/ui/product-page';
 import {
 	type StaffProfileRow,
 	toStaffProfileRows,
@@ -31,19 +41,15 @@ const columns: ColumnDef<StaffProfileRow>[] = [
 		id: 'name',
 		header: 'Name',
 		accessorKey: 'name',
+		meta: { headerIcon: <IconId /> },
 		cell: ({ row }) => (
-			<div className="space-y-1">
-				<Link
-					to={'/staff/profiles/$profileId' as never}
-					params={{ profileId: row.original.id } as never}
-					className="font-medium text-primary underline-offset-4 hover:underline"
-				>
-					{row.original.name || '—'}
-				</Link>
-				<p className="text-xs text-muted-foreground">
-					{row.original.description ?? 'No description provided.'}
-				</p>
-			</div>
+			<Link
+				to={'/staff/profiles/$profileId' as never}
+				params={{ profileId: row.original.id } as never}
+				className="publy-record-link"
+			>
+				{row.original.name || '—'}
+			</Link>
 		),
 	},
 	{
@@ -51,27 +57,39 @@ const columns: ColumnDef<StaffProfileRow>[] = [
 		header: 'Description',
 		accessorKey: 'description',
 		enableSorting: false,
+		meta: { headerIcon: <IconTextCaption /> },
 		cell: ({ getValue }) => getValue<string | null>() ?? '—',
 	},
 	{
 		id: 'user_account_count',
 		header: 'User accounts',
 		accessorKey: 'userAccountCount',
+		meta: { headerIcon: <IconUsers />, cellClassName: 'w-36' },
 		cell: ({ getValue }) => String(getValue<number>()),
 	},
 	{
 		id: 'actions',
-		header: 'Actions',
+		header: '',
 		enableSorting: false,
+		meta: { cellClassName: 'w-10' },
 		cell: ({ row }) => (
 			<div className="flex justify-end">
-				<Link
-					to={'/staff/profiles/$profileId' as never}
-					params={{ profileId: row.original.id } as never}
-					className={buttonVariants({ variant: 'secondary', size: 'sm' })}
+				<DataTableRowActions
+					ariaLabel={`Actions for ${row.original.name || 'profile'}`}
+					testId={`staff-profile-actions-${row.original.id}`}
 				>
-					View
-				</Link>
+					<DropdownMenuItem
+						render={
+							<Link
+								to={'/staff/profiles/$profileId' as never}
+								params={{ profileId: row.original.id } as never}
+							/>
+						}
+					>
+						<IconEye />
+						View profile
+					</DropdownMenuItem>
+				</DataTableRowActions>
 			</div>
 		),
 	},
@@ -123,16 +141,20 @@ function StaffProfilesPage() {
 	}
 
 	return (
-		<div className="space-y-4 p-4">
-			<div className="flex items-center justify-between gap-4">
-				<h1 className="text-xl font-semibold">Staff profiles</h1>
-				<Link
-					to={'/staff/profiles/new' as never}
-					className={buttonVariants({ variant: 'default' })}
-				>
-					{t('new-item', { item: t('profile').toLowerCase() })}
-				</Link>
-			</div>
+		<div className="space-y-4">
+			<PageHeader
+				title="Staff profiles"
+				description="Group permissions into profiles you can assign to staff users."
+				actions={
+					<Link
+						to={'/staff/profiles/new' as never}
+						className={buttonVariants({ variant: 'default' })}
+					>
+						<IconPlus aria-hidden="true" className="size-4" />
+						{t('new-item', { item: t('profile').toLowerCase() })}
+					</Link>
+				}
+			/>
 			<DataTable
 				testId="staff-profiles-table"
 				ariaLabel="Staff profiles"

@@ -1,3 +1,8 @@
+import {
+	IconAdjustmentsHorizontal,
+	IconChevronDown,
+	IconUserPlus,
+} from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -6,6 +11,15 @@ import { DataTable } from '~/components/table/data-table';
 import { useRowSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
 import { Button, buttonVariants } from '~/components/ui/button';
+import {
+	DropdownMenu,
+	DropdownMenuCheckboxItem,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from '~/components/ui/dropdown-menu';
+import { PageHeader } from '~/components/ui/product-page';
 import { useStaffInvitationsQuery } from '~/lib/query/staff-invitations';
 import { shouldLogoutForFailure } from '~/routes/authed/layout';
 
@@ -130,44 +144,64 @@ function StaffInvitationsPage() {
 		setStatuses([...selectedStatuses, status]);
 	};
 
-	return (
-		<div className="space-y-4 p-4" data-testid="staff-invitations-list-page">
-			<div className="flex items-center justify-between gap-4">
-				<h1 className="text-xl font-semibold">{t('staff-invitations')}</h1>
-				<Link
-					to="/staff/invitations/new"
-					className={buttonVariants({ variant: 'default' })}
-				>
-					{t('invite-users')}
-				</Link>
-			</div>
+	const statusFilterLabel =
+		selectedStatuses.length === 0
+			? 'All statuses'
+			: selectedStatuses.map(formatInvitationStatusLabel).join(', ');
 
-			<div className="flex flex-wrap items-center gap-2">
-				{KNOWN_INVITATION_STATUSES.map((status) => {
-					const isSelected = selectedStatuses.includes(status);
-					return (
-						<Button
-							key={status}
-							size="sm"
-							type="button"
-							variant={isSelected ? 'default' : 'secondary'}
-							onClick={() => toggleStatus(status)}
-						>
-							{formatInvitationStatusLabel(status)}
-						</Button>
-					);
-				})}
-				<Button
-					size="sm"
-					type="button"
-					variant="ghost"
-					onClick={() => setStatuses([])}
-				>
-					{t('clear')}
-				</Button>
-			</div>
+	return (
+		<div className="space-y-4" data-testid="staff-invitations-list-page">
+			<PageHeader
+				title={t('staff-invitations')}
+				description="Track pending, accepted, and expired staff invitations."
+				actions={
+					<Link
+						to="/staff/invitations/new"
+						className={buttonVariants({ variant: 'default' })}
+					>
+						<IconUserPlus aria-hidden="true" className="size-4" />
+						{t('invite-users')}
+					</Link>
+				}
+			/>
 
 			<DataTable
+				toolbarEnd={
+					<DropdownMenu>
+						<DropdownMenuTrigger
+							render={
+								<Button
+									type="button"
+									variant="outline"
+									className="max-w-64 rounded-[14px] text-[13px]"
+								/>
+							}
+						>
+							<IconAdjustmentsHorizontal
+								aria-hidden="true"
+								className="size-4"
+							/>
+							<span className="truncate">{statusFilterLabel}</span>
+							<IconChevronDown aria-hidden="true" className="size-3.5" />
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end" sideOffset={6}>
+							{KNOWN_INVITATION_STATUSES.map((status) => (
+								<DropdownMenuCheckboxItem
+									key={status}
+									checked={selectedStatuses.includes(status)}
+									closeOnClick={false}
+									onCheckedChange={() => toggleStatus(status)}
+								>
+									{formatInvitationStatusLabel(status)}
+								</DropdownMenuCheckboxItem>
+							))}
+							<DropdownMenuSeparator />
+							<DropdownMenuItem onClick={() => setStatuses([])}>
+								{t('clear')}
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
+				}
 				testId="staff-invitations-table"
 				ariaLabel="Staff invitations"
 				columns={columns}

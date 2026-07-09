@@ -439,7 +439,8 @@ html {
 }
 
 .app-shell-breadcrumbs {
-	@apply flex min-w-0 items-center gap-2 text-sm;
+	@apply flex min-w-0 items-center gap-2;
+	font-size: 13px;
 	color: var(--publy-foreground-muted);
 }
 
@@ -499,7 +500,14 @@ html {
 /* ---- Main content ---- */
 
 .app-shell-main {
-	@apply min-w-0 flex-1 overflow-x-hidden p-4 sm:p-5 lg:p-6;
+	@apply min-w-0 flex-1 overflow-x-hidden;
+	padding: 20px 28px 32px;
+}
+
+@media (max-width: 767px) {
+	.app-shell-main {
+		padding: 16px;
+	}
 }
 
 .app-shell-topbar-actions {
@@ -574,10 +582,9 @@ html {
 	}
 
 	.publy-metric-tile {
-		@apply flex items-center gap-3 rounded-lg border p-4;
+		@apply flex items-center gap-3 p-4;
 		background: var(--publy-surface);
-		border-color: var(--publy-border);
-		border-radius: var(--publy-radius-lg);
+		border-radius: var(--publy-radius-control);
 		box-shadow: var(--publy-shadow-ring);
 	}
 
@@ -682,12 +689,40 @@ html {
 		font-size: 12px;
 	}
 
+	.publy-card-header {
+		@apply flex items-center justify-between gap-3;
+		padding: 14px 18px;
+		border-bottom: 1px solid var(--publy-row-border);
+	}
+
+	.publy-icon-tile {
+		@apply flex shrink-0 items-center justify-center;
+		width: 28px;
+		height: 28px;
+		border-radius: 9px;
+		background: var(--publy-surface-muted);
+		color: var(--publy-foreground-muted);
+	}
+
+	.publy-icon-tile[data-tone='info'] {
+		background: var(--publy-chip-invited-bg);
+		color: var(--publy-chip-invited-text);
+	}
+
+	.publy-icon-tile[data-tone='success'] {
+		background: var(--publy-chip-active-bg);
+		color: var(--publy-chip-active-text);
+	}
+
 	.publy-metadata-card {
-		@apply space-y-3 rounded-lg border p-4;
+		@apply space-y-3 p-4;
 		background: var(--publy-surface);
-		border-color: var(--publy-border);
-		border-radius: var(--publy-radius-lg);
+		border-radius: var(--publy-radius-control);
 		box-shadow: var(--publy-shadow-ring);
+	}
+
+	.publy-metadata-rows > * + * {
+		border-top-color: var(--publy-row-border);
 	}
 
 	.publy-metadata-rows {
@@ -695,21 +730,49 @@ html {
 	}
 
 	.publy-detail-row {
-		@apply grid gap-4 py-2 first:pt-0 last:pb-0;
-		grid-template-columns: auto 1fr;
+		@apply flex items-center justify-between gap-4;
+		padding: 9px 0;
+	}
+
+	.publy-detail-row:first-child {
+		padding-top: 0;
+	}
+
+	.publy-detail-row:last-child {
+		padding-bottom: 0;
+	}
+
+	.publy-detail-row .publy-type-metadata-value {
+		@apply text-right;
+		font-size: 13px;
+		font-weight: 500;
 	}
 
 	.publy-state-surface {
-		@apply flex flex-col items-center justify-center gap-2 rounded-lg border p-4 text-center;
-		min-height: 10rem;
+		@apply flex flex-col items-center justify-center gap-3 text-center;
+		min-height: 15rem;
+		padding: 48px 24px;
 		background: var(--publy-surface);
-		border-color: var(--publy-border);
-		border-radius: var(--publy-radius-lg);
+		border-radius: var(--publy-radius-control);
 		box-shadow: var(--publy-shadow-ring);
 	}
 
+	.publy-state-surface .publy-type-section-title {
+		font-size: 14px;
+		font-weight: 600;
+	}
+
+	.publy-state-surface .publy-type-helper {
+		max-width: 300px;
+		font-size: 12px;
+		color: var(--publy-foreground-muted);
+	}
+
 	.publy-state-icon {
-		@apply flex size-10 items-center justify-center rounded-full;
+		@apply flex items-center justify-center;
+		width: 48px;
+		height: 48px;
+		border-radius: var(--publy-radius-control);
 		background: var(--publy-surface-muted);
 		color: var(--publy-foreground-muted);
 		transition:
@@ -964,6 +1027,12 @@ html {
 }
 
 /* Un-layered overrides: these must beat Tailwind utility-layer classes. */
+
+/* Gray UI primary "chrome" treatment (design handoff §Design Tokens). */
+.btn-primary-chrome {
+	border: 1.33px solid rgba(255, 255, 255, 0.12);
+	box-shadow: var(--publy-shadow-chrome);
+}
 
 .publy-page-size-select [data-slot='select-trigger'] {
 	height: 28px;

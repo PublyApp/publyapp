@@ -219,7 +219,7 @@ function NewStaffProfileRoute() {
 
 	return (
 		<div
-			className="mx-auto w-full max-w-4xl space-y-4 p-4"
+			className="mx-auto w-full max-w-4xl space-y-4"
 			data-testid="staff-profile-create-page"
 		>
 			<div className="space-y-2">
