@@ -1047,13 +1047,6 @@ html {
 		border-bottom: 1px solid var(--publy-border);
 	}
 
-	/* The checkbox primitive is display:flex (block-level); inline-flex lets
-	   the cell's text-align:center actually center it. */
-	.publy-data-table [data-slot='table-selection-cell'] [data-slot='checkbox'] {
-		display: inline-flex;
-		vertical-align: middle;
-	}
-
 	/* Footer inside the card */
 	.publy-data-table-footer {
 		@apply flex shrink-0 items-center justify-between gap-3;
@@ -1126,6 +1119,18 @@ html {
 }
 
 /* Un-layered overrides: these must beat Tailwind utility-layer classes. */
+
+/* The checkbox primitive is display:flex (block-level, utility layer) and
+   the header cell carries a text-left utility; both must lose here so the
+   selection column centers its checkbox. */
+.publy-data-table [data-slot='table-selection-cell'] {
+	text-align: center;
+}
+
+.publy-data-table [data-slot='table-selection-cell'] [data-slot='checkbox'] {
+	display: inline-flex;
+	vertical-align: middle;
+}
 
 /* Gray UI primary "chrome" treatment (design handoff §Design Tokens). */
 .btn-primary-chrome {
