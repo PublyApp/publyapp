@@ -1,10 +1,11 @@
-import { Button, Card } from '@heroui/react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
 import { Form, Field } from '~/components/field';
+import { Button } from '~/components/ui/button';
+import { Card } from '~/components/ui/card';
 
 type FieldValidationValues = {
 	email: string;
@@ -47,7 +48,7 @@ const FieldValidationRoute = () => {
 					/>
 					<Button
 						type="submit"
-						variant="primary"
+						variant="default"
 						className="w-full"
 						data-testid="field-validation-submit"
 					>

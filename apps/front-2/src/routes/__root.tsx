@@ -1,4 +1,4 @@
-import { Button } from '@heroui/react';
+import { IconAlertCircle, IconLock } from '@tabler/icons-react';
 import type { QueryClient } from '@tanstack/react-query';
 import {
 	createRootRouteWithContext,
@@ -10,9 +10,9 @@ import {
 } from '@tanstack/react-router';
 import { createClientOnlyFn } from '@tanstack/react-start';
 import type { i18n as I18nInstance } from 'i18next';
-import { AlertCircle, LockKeyhole } from 'lucide-react';
 import * as React from 'react';
 import { I18nextProvider } from 'react-i18next';
+import { Button } from '~/components/ui/button';
 import {
 	createI18nFromResources,
 	dirForLocale,
@@ -117,14 +117,14 @@ const RootErrorBoundary = ({ error }: { error: unknown }) => {
 		if (isAuthSurface(pathname)) {
 			return (
 				<AppErrorView
-					icon={<LockKeyhole aria-hidden="true" className="size-7" />}
+					icon={<IconLock aria-hidden="true" className="size-7" />}
 					code="401 — Unauthorized"
 					title="Authentication required"
 					description="You are not signed in. Please log in again."
 					actions={
 						<Button
-							variant="primary"
-							onPress={() => {
+							variant="default"
+							onClick={() => {
 								window.location.assign('/login');
 							}}
 						>
@@ -141,7 +141,7 @@ const RootErrorBoundary = ({ error }: { error: unknown }) => {
 
 		return (
 			<AppErrorView
-				icon={<LockKeyhole aria-hidden="true" className="size-7" />}
+				icon={<IconLock aria-hidden="true" className="size-7" />}
 				code="401 — Unauthorized"
 				title="Session expired"
 				description="Your session is no longer valid."
@@ -159,7 +159,7 @@ const RootErrorBoundary = ({ error }: { error: unknown }) => {
 
 	return (
 		<AppErrorView
-			icon={<AlertCircle aria-hidden="true" className="size-7" />}
+			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 			code="500 — Server Error"
 			title="Something went wrong"
 			description="The app hit an unexpected error."

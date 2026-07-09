@@ -1,6 +1,6 @@
-import { Button } from '@heroui/react';
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
+import { Button } from '~/components/ui/button';
 
 export const IndexRoute = () => {
 	const { t } = useTranslation('common');
@@ -17,7 +17,7 @@ export const IndexRoute = () => {
 			>
 				{t('hello')}
 			</p>
-			<Button variant="primary">HeroUI shell is active</Button>
+			<Button variant="default">Gray UI shell is active</Button>
 		</div>
 	);
 };

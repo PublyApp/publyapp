@@ -1,18 +1,19 @@
-import { Button, Input, Spinner } from '@heroui/react';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { IconAlertCircle, IconLock } from '@tabler/icons-react';
 import {
 	useLocation,
 	useNavigate,
 	createFileRoute,
 } from '@tanstack/react-router';
 import { useServerFn } from '@tanstack/react-start';
-import { AlertCircle, LockKeyhole } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { View403 } from '~/components/error-views/View403';
 import { View404 } from '~/components/error-views/View404';
+import { Button } from '~/components/ui/button';
+import { Input } from '~/components/ui/input';
 import { completeLoginRedirect, login } from '~/lib/server/session-actions';
 
 import {
@@ -193,7 +194,7 @@ const LoginRoute = () => {
 					>
 						<div className="space-y-1">
 							<label
-								className="text-sm font-medium text-foreground-700"
+								className="text-sm font-medium text-foreground"
 								htmlFor="login-email"
 							>
 								Email
@@ -206,14 +207,14 @@ const LoginRoute = () => {
 								type="email"
 							/>
 							{errors.email?.message ? (
-								<p className="text-sm text-danger-500">
+								<p className="text-sm text-destructive">
 									{errors.email?.message}
 								</p>
 							) : null}
 						</div>
 						<div className="space-y-1">
 							<label
-								className="text-sm font-medium text-foreground-700"
+								className="text-sm font-medium text-foreground"
 								htmlFor="login-password"
 							>
 								Password
@@ -226,21 +227,26 @@ const LoginRoute = () => {
 								placeholder="••••••••"
 							/>
 							{errors.password?.message ? (
-								<p className="text-sm text-danger-500">
+								<p className="text-sm text-destructive">
 									{errors.password?.message}
 								</p>
 							) : null}
 						</div>
 						{errorMessage ? (
-							<div className="text-sm text-danger-500">{errorMessage}</div>
+							<div className="text-sm text-destructive">{errorMessage}</div>
 						) : null}
 						<Button
 							type="submit"
-							variant="primary"
-							isDisabled={!isMounted || isSubmitting}
+							variant="default"
+							disabled={!isMounted || isSubmitting}
 							className="w-full"
 						>
-							{isSubmitting ? <Spinner size="sm" /> : null}
+							{isSubmitting ? (
+								<span
+									aria-hidden="true"
+									className="inline-block size-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"
+								/>
+							) : null}
 							Sign in
 						</Button>
 					</fieldset>
@@ -256,15 +262,15 @@ const LoginErrorBoundary = ({ error }: { error: unknown }) => {
 	if (routeStatus === 401) {
 		return (
 			<AppErrorView
-				icon={<LockKeyhole aria-hidden="true" className="size-7" />}
+				icon={<IconLock aria-hidden="true" className="size-7" />}
 				code="401 — Unauthorized"
 				title="Authentication required"
 				description="Your login request could not be authorized. Please verify your credentials and try again."
 				testId="auth-401-view"
 				actions={
 					<Button
-						variant="primary"
-						onPress={() => {
+						variant="default"
+						onClick={() => {
 							window.location.assign('/login');
 						}}
 					>
@@ -285,7 +291,7 @@ const LoginErrorBoundary = ({ error }: { error: unknown }) => {
 
 	return (
 		<AppErrorView
-			icon={<AlertCircle aria-hidden="true" className="size-7" />}
+			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 			code="500 — Server Error"
 			title="Something went wrong"
 			description="Sign-in could not be completed."
