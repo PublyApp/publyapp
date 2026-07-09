@@ -360,7 +360,7 @@ html {
 .app-shell-search-input {
 	height: 32px;
 	width: 100%;
-	border-radius: 16px;
+	border-radius: 10px;
 	background: #ffffff;
 	border: 1px solid var(--publy-border);
 	box-shadow: var(--publy-shadow-input);
