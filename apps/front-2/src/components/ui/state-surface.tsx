@@ -1,9 +1,13 @@
-import { AlertCircle, Inbox, SearchX } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import {
+	IconAlertCircle,
+	IconInbox,
+	IconSearchOff,
+	type TablerIcon,
+} from '@tabler/icons-react';
 import type { ReactNode } from 'react';
 
 type StateSurfaceProps = {
-	icon?: LucideIcon;
+	icon?: TablerIcon;
 	title: string;
 	description?: string;
 	actions?: ReactNode;
@@ -11,7 +15,7 @@ type StateSurfaceProps = {
 };
 
 export const StateSurface = ({
-	icon: Icon = Inbox,
+	icon: Icon = IconInbox,
 	title,
 	description,
 	actions,
@@ -32,9 +36,9 @@ export const StateSurface = ({
 );
 
 export const ErrorStateSurface = (props: Omit<StateSurfaceProps, 'icon'>) => (
-	<StateSurface {...props} icon={AlertCircle} />
+	<StateSurface {...props} icon={IconAlertCircle} />
 );
 
 export const NoMatchStateSurface = (props: Omit<StateSurfaceProps, 'icon'>) => (
-	<StateSurface {...props} icon={SearchX} />
+	<StateSurface {...props} icon={IconSearchOff} />
 );

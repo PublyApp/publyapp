@@ -55,7 +55,10 @@ const FieldValidationRoute = () => {
 						Submit
 					</Button>
 				</Form>
-				<p className="text-sm text-foreground-600" data-testid="submit-status">
+				<p
+					className="text-sm text-muted-foreground"
+					data-testid="submit-status"
+				>
 					{status}
 				</p>
 			</Card>

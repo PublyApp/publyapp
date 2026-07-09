@@ -13,6 +13,7 @@
 	--color-popover: var(--popover);
 	--color-popover-foreground: var(--popover-foreground);
 	--color-primary: var(--primary);
+	--color-primary-active: var(--publy-primary-active);
 	--color-primary-foreground: var(--primary-foreground);
 	--color-secondary: var(--secondary);
 	--color-secondary-foreground: var(--secondary-foreground);
@@ -21,6 +22,8 @@
 	--color-accent: var(--accent);
 	--color-accent-foreground: var(--accent-foreground);
 	--color-destructive: var(--destructive);
+	--color-success: var(--publy-success);
+	--color-warning: var(--publy-warning);
 	--color-content1: var(--publy-surface);
 	--color-content2: var(--publy-surface-raised);
 	--color-content3: var(--publy-surface-muted);

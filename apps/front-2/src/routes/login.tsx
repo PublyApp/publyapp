@@ -179,7 +179,7 @@ const LoginRoute = () => {
 	return (
 		<div className="mx-auto w-full max-w-md space-y-4 px-4">
 			{isSessionExpired ? (
-				<p className="rounded border border-warning bg-warning-100 px-3 py-2 text-sm text-warning-900">
+				<p className="rounded border border-warning bg-warning/10 px-3 py-2 text-sm text-warning">
 					Your session expired. Please sign in again.
 				</p>
 			) : null}

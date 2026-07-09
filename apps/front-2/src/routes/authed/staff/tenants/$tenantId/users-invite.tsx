@@ -184,12 +184,12 @@ function StaffTenantUsersInviteRoute() {
 					<Link
 						to="/staff/tenants/$tenantId/users"
 						params={{ tenantId }}
-						className="text-sm text-foreground-500 underline underline-offset-2"
+						className="text-sm text-muted-foreground underline underline-offset-2"
 					>
 						{t('back-to-users')}
 					</Link>
 				</div>
-				<p className="text-sm text-foreground-500">
+				<p className="text-sm text-muted-foreground">
 					Send one tenant invitation.
 				</p>
 			</div>
@@ -210,7 +210,7 @@ function StaffTenantUsersInviteRoute() {
 							{...register('email')}
 						/>
 						{errors.email ? (
-							<p className="text-sm text-danger-600">{errors.email.message}</p>
+							<p className="text-sm text-destructive">{errors.email.message}</p>
 						) : null}
 					</div>
 
@@ -247,7 +247,7 @@ function StaffTenantUsersInviteRoute() {
 							)}
 						/>
 						{errors.accountLevel ? (
-							<p className="text-sm text-danger-600">
+							<p className="text-sm text-destructive">
 								{errors.accountLevel.message}
 							</p>
 						) : null}
@@ -255,7 +255,7 @@ function StaffTenantUsersInviteRoute() {
 
 					{serverErrors.length > 0 ? (
 						<div
-							className="rounded-md border border-danger-200 bg-danger-50 p-3 text-sm text-danger-700"
+							className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive"
 							role="alert"
 						>
 							<ul className="list-disc space-y-1 pl-4">

@@ -66,8 +66,8 @@ type CreateColumnsArgs = {
 
 const getFeedbackClassName = (tone: ActionFeedback['tone']): string =>
 	tone === 'success'
-		? 'border-success-200 bg-success-50 text-success-800'
-		: 'border-danger-200 bg-danger-50 text-danger-800';
+		? 'border-success/20 bg-success/10 text-success'
+		: 'border-destructive/20 bg-destructive/10 text-destructive';
 
 const createColumns = ({
 	locale,
@@ -85,7 +85,7 @@ const createColumns = ({
 		header: 'Status',
 		enableSorting: false,
 		cell: ({ row }) => (
-			<span className="inline-flex rounded-full bg-default-100 px-2 py-1 text-xs font-medium text-foreground">
+			<span className="inline-flex rounded-full bg-muted px-2 py-1 text-xs font-medium text-foreground">
 				{formatInvitationStatusLabel(
 					normalizeInvitationStatus(row.original.status),
 				)}
@@ -138,7 +138,7 @@ const createColumns = ({
 					{t('staff-revoke')}
 				</Button>
 			) : (
-				<span className="text-foreground-300">—</span>
+				<span className="text-muted-foreground">—</span>
 			),
 	},
 ];
@@ -320,7 +320,7 @@ function StaffTenantInvitationsPage() {
 		>
 			<div className="space-y-2">
 				<h2 className="text-lg font-semibold text-foreground">Invitations</h2>
-				<p className="text-sm text-foreground-500">
+				<p className="text-sm text-muted-foreground">
 					Tenant invitations with search, status filters, sorting, cursor
 					pagination, and pending-row revoke.
 				</p>

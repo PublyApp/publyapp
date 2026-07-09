@@ -58,13 +58,13 @@ function StaffTenantProfilesPage() {
 					>
 						{row.original.name || '—'}
 					</Link>
-					<p className="text-xs text-foreground-500">
+					<p className="text-xs text-muted-foreground">
 						{row.original.description ?? 'No description provided.'}
 					</p>
 					<Link
 						to={'/staff/tenants/$tenantId/profiles/$profileId/edit' as never}
 						params={{ tenantId, profileId: row.original.id } as never}
-						className="inline-flex text-xs font-medium text-foreground-500 underline-offset-4 hover:text-foreground hover:underline"
+						className="inline-flex text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
 					>
 						Edit profile
 					</Link>
@@ -169,7 +169,7 @@ function StaffTenantProfilesPage() {
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 				<div className="space-y-2">
 					<h2 className="text-lg font-semibold text-foreground">Profiles</h2>
-					<p className="text-sm text-foreground-500">
+					<p className="text-sm text-muted-foreground">
 						Create tenant profiles here, then manage permissions in the
 						follow-up stack.
 					</p>

@@ -40,7 +40,7 @@ const columns: ColumnDef<StaffProfileRow>[] = [
 				>
 					{row.original.name || '—'}
 				</Link>
-				<p className="text-xs text-foreground-500">
+				<p className="text-xs text-muted-foreground">
 					{row.original.description ?? 'No description provided.'}
 				</p>
 			</div>

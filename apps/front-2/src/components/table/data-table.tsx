@@ -457,7 +457,7 @@ export const DataTable = <TData extends { id: string }>({
 
 			<div className="publy-data-table-footer" data-testid={`${testId}-footer`}>
 				<div className="flex items-center gap-2">
-					<span className="text-sm text-foreground-500">Rows per page</span>
+					<span className="text-sm text-muted-foreground">Rows per page</span>
 					<span data-testid={`${testId}-page-size`}>
 						<Select
 							aria-label="Rows per page"

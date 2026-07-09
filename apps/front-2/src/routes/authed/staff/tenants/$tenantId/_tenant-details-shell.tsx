@@ -56,13 +56,13 @@ const getFailureDescription = (error: unknown, fallback: string): string => {
 const getStatusClassName = (status: string | null) => {
 	switch (status) {
 		case 'Active':
-			return 'border-success-200 bg-success-50 text-success-800';
+			return 'border-success/20 bg-success/10 text-success';
 		case 'Pending':
-			return 'border-warning-200 bg-warning-50 text-warning-800';
+			return 'border-warning/20 bg-warning/10 text-warning';
 		case 'Suspended':
-			return 'border-danger-200 bg-danger-50 text-danger-800';
+			return 'border-destructive/20 bg-destructive/10 text-destructive';
 		default:
-			return 'border-default-200 bg-default-100 text-foreground';
+			return 'border-border bg-muted text-foreground';
 	}
 };
 
@@ -82,7 +82,7 @@ export const DetailItem = ({
 	value: string;
 }) => (
 	<div className="rounded-large border border-divider bg-content1 p-4">
-		<p className="text-xs font-medium uppercase tracking-[0.2em] text-foreground-500">
+		<p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
 			{label}
 		</p>
 		<p className="mt-2 text-sm font-medium text-foreground">{value}</p>
@@ -112,7 +112,7 @@ const SectionNavLink = ({
 	return (
 		<a
 			href={href}
-			className="inline-flex rounded-full border border-divider px-3 py-1.5 text-sm font-medium text-foreground-600 transition hover:border-primary hover:text-primary"
+			className="inline-flex rounded-full border border-divider px-3 py-1.5 text-sm font-medium text-muted-foreground transition hover:border-primary hover:text-primary"
 		>
 			{label}
 		</a>
@@ -124,7 +124,7 @@ export const TenantDetailsLoading = () => (
 		className="mx-auto flex min-h-[50vh] w-full max-w-5xl items-center justify-center px-4 py-12"
 		data-testid="staff-tenant-details-loading"
 	>
-		<div className="flex items-center gap-3 text-sm text-foreground-500">
+		<div className="flex items-center gap-3 text-sm text-muted-foreground">
 			<LoadingSpinner />
 			<span>Loading tenant…</span>
 		</div>
@@ -226,11 +226,11 @@ export const TenantDetailsPageShell = ({
 								{tenant.status ?? 'Unknown'}
 							</Badge>
 						</div>
-						<p className="text-sm text-foreground-500">{summary}</p>
+						<p className="text-sm text-muted-foreground">{summary}</p>
 					</div>
 
 					<div className="rounded-large border border-divider bg-content1 p-4">
-						<p className="text-xs font-medium uppercase tracking-[0.2em] text-foreground-500">
+						<p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
 							Users
 						</p>
 						<p className="mt-2 text-2xl font-semibold text-foreground">

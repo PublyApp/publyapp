@@ -110,7 +110,7 @@ const TenantUserEditLoading = () => (
 		className="mx-auto flex min-h-[50vh] w-full max-w-3xl items-center justify-center px-4 py-12"
 		data-testid="staff-tenant-user-edit-loading"
 	>
-		<div className="flex items-center gap-3 text-sm text-foreground-500">
+		<div className="flex items-center gap-3 text-sm text-muted-foreground">
 			<span
 				role="status"
 				aria-label="Loading"
@@ -365,7 +365,7 @@ function StaffTenantUserEditPage() {
 						{t('edit-tenant-user')}
 					</h2>
 				</div>
-				<p className="text-sm text-foreground-500">
+				<p className="text-sm text-muted-foreground">
 					Update this tenant user's identity fields.
 				</p>
 			</div>
@@ -385,7 +385,7 @@ function StaffTenantUserEditPage() {
 							{...register('firstName')}
 						/>
 						{errors.firstName ? (
-							<p className="text-sm text-danger-600">
+							<p className="text-sm text-destructive">
 								{errors.firstName.message}
 							</p>
 						) : null}
@@ -404,7 +404,7 @@ function StaffTenantUserEditPage() {
 							{...register('lastName')}
 						/>
 						{errors.lastName ? (
-							<p className="text-sm text-danger-600">
+							<p className="text-sm text-destructive">
 								{errors.lastName.message}
 							</p>
 						) : null}
@@ -423,7 +423,7 @@ function StaffTenantUserEditPage() {
 							{...register('avatarUrl')}
 						/>
 						{errors.avatarUrl ? (
-							<p className="text-sm text-danger-600">
+							<p className="text-sm text-destructive">
 								{errors.avatarUrl.message}
 							</p>
 						) : null}
@@ -462,14 +462,14 @@ function StaffTenantUserEditPage() {
 							)}
 						/>
 						{errors.accountLevel ? (
-							<p className="text-sm text-danger-600">
+							<p className="text-sm text-destructive">
 								{errors.accountLevel.message}
 							</p>
 						) : null}
 					</div>
 
 					{serverError ? (
-						<p className="text-sm text-danger-600">{serverError}</p>
+						<p className="text-sm text-destructive">{serverError}</p>
 					) : null}
 
 					<div className="flex justify-end">

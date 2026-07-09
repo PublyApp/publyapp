@@ -49,7 +49,7 @@ const columns: ColumnDef<ReturnType<typeof toStaffProfileUserRows>[number]>[] =
 							row.original.email ||
 							'—'}
 					</p>
-					<p className="text-xs text-foreground-500">
+					<p className="text-xs text-muted-foreground">
 						{row.original.email || 'No email address'}
 					</p>
 				</div>
@@ -95,7 +95,7 @@ const ProfileDetailsLoading = () => (
 		className="mx-auto flex min-h-[50vh] w-full max-w-5xl items-center justify-center px-4 py-12"
 		data-testid="staff-profile-users-loading"
 	>
-		<div className="flex items-center gap-3 text-sm text-foreground-500">
+		<div className="flex items-center gap-3 text-sm text-muted-foreground">
 			<LoadingSpinner />
 			<span>Loading staff profile…</span>
 		</div>
@@ -273,24 +273,24 @@ function StaffProfileUsersPage() {
 				<div className="space-y-2">
 					<Link
 						to="/staff/profiles"
-						className="text-sm text-foreground-500 underline-offset-4 hover:text-foreground hover:underline"
+						className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
 					>
 						Back to staff profiles
 					</Link>
 					<div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
 						<div className="space-y-2">
-							<p className="text-xs font-medium uppercase tracking-[0.2em] text-foreground-500">
+							<p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
 								Staff profile
 							</p>
 							<h1 className="text-3xl font-semibold tracking-tight text-foreground">
 								{details.name}
 							</h1>
-							<p className="max-w-2xl text-sm text-foreground-500">
+							<p className="max-w-2xl text-sm text-muted-foreground">
 								Assigned users for this staff profile.
 							</p>
 						</div>
 						<div className="rounded-large border border-divider bg-content1 p-4">
-							<p className="text-xs font-medium uppercase tracking-[0.2em] text-foreground-500">
+							<p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
 								Assigned users
 							</p>
 							<p className="mt-2 text-2xl font-semibold text-foreground">
@@ -307,7 +307,7 @@ function StaffProfileUsersPage() {
 					<Link
 						to="/staff/profiles/$profileId"
 						params={{ profileId }}
-						className="rounded-full border border-divider px-4 py-2 text-sm text-foreground-500 transition hover:border-default-400 hover:text-foreground"
+						className="rounded-full border border-divider px-4 py-2 text-sm text-muted-foreground transition hover:border-muted-foreground hover:text-foreground"
 					>
 						Basics
 					</Link>
@@ -322,7 +322,7 @@ function StaffProfileUsersPage() {
 					<p className="text-lg font-semibold text-foreground">
 						Assigned users
 					</p>
-					<p className="text-sm text-foreground-500">
+					<p className="text-sm text-muted-foreground">
 						Read-only migration for the current profile users tab.
 					</p>
 				</div>
@@ -337,7 +337,7 @@ function StaffProfileUsersPage() {
 					onRetry={() => void usersQuery.refetch()}
 					errorContent={
 						usersFailure?.kind === 'problem' && usersFailure.status === 403 ? (
-							<p className="text-sm text-foreground-500">
+							<p className="text-sm text-muted-foreground">
 								You do not have permission to view assigned users.
 							</p>
 						) : undefined

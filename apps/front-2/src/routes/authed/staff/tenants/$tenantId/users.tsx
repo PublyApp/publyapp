@@ -173,7 +173,7 @@ function StaffTenantUsersPage() {
 						Invite user
 					</Link>
 				</div>
-				<p className="text-sm text-foreground-500">
+				<p className="text-sm text-muted-foreground">
 					Read-only tenant users with search, sorting, and cursor pagination.
 				</p>
 			</div>

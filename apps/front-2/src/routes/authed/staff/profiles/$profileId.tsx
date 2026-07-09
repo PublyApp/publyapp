@@ -51,7 +51,7 @@ const ProfileDetailsLoading = () => (
 		className="mx-auto flex min-h-[50vh] w-full max-w-5xl items-center justify-center px-4 py-12"
 		data-testid="staff-profile-details-loading"
 	>
-		<div className="flex items-center gap-3 text-sm text-foreground-500">
+		<div className="flex items-center gap-3 text-sm text-muted-foreground">
 			<LoadingSpinner />
 			<span>Loading staff profile…</span>
 		</div>
@@ -132,7 +132,7 @@ const DetailStat = ({
 	value: string | number;
 }) => (
 	<div className="rounded-large border border-divider bg-content1 p-4">
-		<p className="text-xs font-medium uppercase tracking-[0.2em] text-foreground-500">
+		<p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
 			{label}
 		</p>
 		<p className="mt-2 text-2xl font-semibold text-foreground">{value}</p>
@@ -211,19 +211,19 @@ function StaffProfileDetailsPage() {
 				<div className="space-y-2">
 					<Link
 						to="/staff/profiles"
-						className="text-sm text-foreground-500 underline-offset-4 hover:text-foreground hover:underline"
+						className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
 					>
 						Back to staff profiles
 					</Link>
 					<div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
 						<div className="space-y-2">
-							<p className="text-xs font-medium uppercase tracking-[0.2em] text-foreground-500">
+							<p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
 								Staff profile
 							</p>
 							<h1 className="text-3xl font-semibold tracking-tight text-foreground">
 								{details.name}
 							</h1>
-							<p className="max-w-2xl text-sm text-foreground-500">
+							<p className="max-w-2xl text-sm text-muted-foreground">
 								{details.description ?? 'No description provided.'}
 							</p>
 						</div>
@@ -246,7 +246,7 @@ function StaffProfileDetailsPage() {
 					<Link
 						to="/staff/profiles/$profileId/users"
 						params={{ profileId }}
-						className="rounded-full border border-divider px-4 py-2 text-sm text-foreground-500 transition hover:border-default-400 hover:text-foreground"
+						className="rounded-full border border-divider px-4 py-2 text-sm text-muted-foreground transition hover:border-muted-foreground hover:text-foreground"
 					>
 						Users
 					</Link>
@@ -259,14 +259,14 @@ function StaffProfileDetailsPage() {
 						<p className="text-lg font-semibold text-foreground">
 							Profile details
 						</p>
-						<p className="text-sm text-foreground-500">
+						<p className="text-sm text-muted-foreground">
 							Core information for this staff profile.
 						</p>
 					</div>
 
 					<div className="grid gap-4 md:grid-cols-2">
 						<div className="rounded-large border border-divider bg-content1 p-4 md:col-span-2">
-							<p className="text-xs font-medium uppercase tracking-[0.2em] text-foreground-500">
+							<p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
 								Name
 							</p>
 							<p className="mt-2 text-base font-medium text-foreground">
@@ -274,10 +274,10 @@ function StaffProfileDetailsPage() {
 							</p>
 						</div>
 						<div className="rounded-large border border-divider bg-content1 p-4 md:col-span-2">
-							<p className="text-xs font-medium uppercase tracking-[0.2em] text-foreground-500">
+							<p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
 								Description
 							</p>
-							<p className="mt-2 text-sm text-foreground-600">
+							<p className="mt-2 text-sm text-muted-foreground">
 								{details.description ?? 'No description provided.'}
 							</p>
 						</div>
@@ -297,13 +297,13 @@ function StaffProfileDetailsPage() {
 						<p className="text-lg font-semibold text-foreground">
 							Assigned permissions
 						</p>
-						<p className="text-sm text-foreground-500">
+						<p className="text-sm text-muted-foreground">
 							Grouped by module when catalog data is available.
 						</p>
 					</div>
 
 					{permissionGroups.length === 0 ? (
-						<div className="rounded-large border border-dashed border-divider px-4 py-6 text-sm text-foreground-500">
+						<div className="rounded-large border border-dashed border-divider px-4 py-6 text-sm text-muted-foreground">
 							No permissions are assigned to this profile.
 						</div>
 					) : (
@@ -317,7 +317,7 @@ function StaffProfileDetailsPage() {
 										<h2 className="text-base font-semibold text-foreground">
 											{group.label}
 										</h2>
-										<span className="rounded-full bg-default-100 px-2.5 py-1 text-xs text-foreground-500">
+										<span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
 											{group.permissions.length}
 										</span>
 									</div>
@@ -325,16 +325,16 @@ function StaffProfileDetailsPage() {
 										{group.permissions.map((permission) => (
 											<li
 												key={permission.key}
-												className="rounded-medium border border-divider bg-default-50 px-3 py-2"
+												className="rounded-medium border border-divider bg-muted/50 px-3 py-2"
 											>
 												<p className="text-sm font-medium text-foreground">
 													{permission.label}
 												</p>
-												<p className="mt-1 font-mono text-xs text-foreground-500">
+												<p className="mt-1 font-mono text-xs text-muted-foreground">
 													{permission.key}
 												</p>
 												{permission.description ? (
-													<p className="mt-1 text-xs text-foreground-500">
+													<p className="mt-1 text-xs text-muted-foreground">
 														{permission.description}
 													</p>
 												) : null}

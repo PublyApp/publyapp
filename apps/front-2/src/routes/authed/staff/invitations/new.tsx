@@ -283,7 +283,7 @@ function NewStaffInvitationsRoute() {
 		>
 			<div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
 				<div className="space-y-1">
-					<p className="text-sm text-foreground-500">
+					<p className="text-sm text-muted-foreground">
 						{t('staff-invitations')}
 					</p>
 					<h1 className="text-2xl font-semibold">{t('invite-users')}</h1>
@@ -299,7 +299,7 @@ function NewStaffInvitationsRoute() {
 			<Card className="space-y-4 p-4">
 				<div className="space-y-1">
 					<label
-						className="text-sm font-medium text-foreground-700"
+						className="text-sm font-medium text-foreground"
 						htmlFor="profile-search"
 					>
 						{t('profiles')}
@@ -314,26 +314,26 @@ function NewStaffInvitationsRoute() {
 						autoComplete="off"
 						data-testid="staff-invitations-profile-search"
 					/>
-					<p className="text-xs text-foreground-500">
+					<p className="text-xs text-muted-foreground">
 						{t('select-at-least-one-profile')}
 					</p>
 				</div>
 
 				{profilesQuery.isFetching ? (
-					<div className="flex items-center gap-2 text-sm text-foreground-500">
+					<div className="flex items-center gap-2 text-sm text-muted-foreground">
 						<LoadingSpinner />
 						<span>{t('profiles')}</span>
 					</div>
 				) : null}
 
 				{successMessage ? (
-					<div className="rounded-medium border border-success-300 bg-success-50 px-3 py-2 text-sm text-success-700">
+					<div className="rounded-medium border border-success/20 bg-success/10 px-3 py-2 text-sm text-success">
 						{successMessage}
 					</div>
 				) : null}
 
 				{serverErrors.length > 0 ? (
-					<div className="rounded-medium border border-danger-300 bg-danger-50 px-3 py-2 text-sm text-danger-700">
+					<div className="rounded-medium border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
 						<ul className="list-disc space-y-1 pl-5">
 							{serverErrors.map((error) => (
 								<li key={error}>{error}</li>
@@ -351,7 +351,7 @@ function NewStaffInvitationsRoute() {
 										<h2 className="text-lg font-semibold">
 											{t('invitation')} #{index + 1}
 										</h2>
-										<p className="text-sm text-foreground-500">
+										<p className="text-sm text-muted-foreground">
 											{t('enter-email-and-select-profiles')}
 										</p>
 									</div>
@@ -378,14 +378,14 @@ function NewStaffInvitationsRoute() {
 								/>
 
 								{profileLoadError ? (
-									<p className="text-sm text-danger-500">{profileLoadError}</p>
+									<p className="text-sm text-destructive">{profileLoadError}</p>
 								) : profilesQuery.isPending ? (
-									<div className="flex items-center gap-2 text-sm text-foreground-500">
+									<div className="flex items-center gap-2 text-sm text-muted-foreground">
 										<LoadingSpinner />
 										<span>{t('profiles')}</span>
 									</div>
 								) : profileOptions.length === 0 ? (
-									<p className="text-sm text-foreground-500">
+									<p className="text-sm text-muted-foreground">
 										{t('no-results-found')}
 									</p>
 								) : (

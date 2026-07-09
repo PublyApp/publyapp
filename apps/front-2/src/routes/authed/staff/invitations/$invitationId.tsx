@@ -63,11 +63,11 @@ const formatDateTime = (
 const getFeedbackClassName = (tone: ActionFeedbackTone): string => {
 	switch (tone) {
 		case 'success':
-			return 'border-success-200 bg-success-50 text-success-800';
+			return 'border-success/20 bg-success/10 text-success';
 		case 'info':
-			return 'border-primary-200 bg-primary-50 text-primary-800';
+			return 'border-primary/30 bg-primary/10 text-primary-active';
 		case 'error':
-			return 'border-danger-200 bg-danger-50 text-danger-800';
+			return 'border-destructive/20 bg-destructive/10 text-destructive';
 	}
 };
 
@@ -92,12 +92,12 @@ const isProblemStatus = (
 
 const InvitationDetailsLoading = () => (
 	<div className="space-y-4 p-4" data-testid="staff-invitation-details-loading">
-		<div className="h-8 w-48 animate-pulse rounded bg-default-200" />
+		<div className="h-8 w-48 animate-pulse rounded bg-muted" />
 		<div className="grid gap-4 md:grid-cols-2">
-			<div className="h-32 animate-pulse rounded bg-default-100" />
-			<div className="h-32 animate-pulse rounded bg-default-100" />
-			<div className="h-32 animate-pulse rounded bg-default-100" />
-			<div className="h-32 animate-pulse rounded bg-default-100" />
+			<div className="h-32 animate-pulse rounded bg-muted" />
+			<div className="h-32 animate-pulse rounded bg-muted" />
+			<div className="h-32 animate-pulse rounded bg-muted" />
+			<div className="h-32 animate-pulse rounded bg-muted" />
 		</div>
 	</div>
 );
@@ -149,7 +149,7 @@ const DetailField = ({
 	value: string | ReactNode;
 }) => (
 	<div className="space-y-1 rounded-large border border-divider bg-content1 p-4">
-		<p className="text-xs font-medium uppercase tracking-wide text-foreground-500">
+		<p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
 			{label}
 		</p>
 		<div className="text-sm text-foreground">{value}</div>
@@ -324,7 +324,7 @@ const InvitationDetailsCard = ({
 			) : null}
 
 			{!canManage ? (
-				<div className="rounded-large border border-default-200 bg-default-50 px-4 py-3 text-sm text-foreground-600">
+				<div className="rounded-large border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
 					{t('only-pending-invitations-can-be-managed')}
 				</div>
 			) : null}
@@ -360,7 +360,7 @@ const InvitationDetailsCard = ({
 									<Badge
 										variant="outline"
 										key={`${String(profile.id ?? '')}:${profile.name ?? ''}`}
-										className="h-auto rounded-full border-none bg-default-100 px-2 py-0.5 text-xs font-medium text-foreground"
+										className="h-auto rounded-full border-none bg-muted px-2 py-0.5 text-xs font-medium text-foreground"
 									>
 										{profile.name?.trim() || '—'}
 									</Badge>
@@ -398,10 +398,10 @@ const InvitationDetailsCard = ({
 			</div>
 
 			<Card className="p-4">
-				<p className="text-xs font-medium uppercase tracking-wide text-foreground-500">
+				<p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
 					{t('invitation-id')}
 				</p>
-				<p className="mt-1 break-all font-mono text-sm text-foreground-600">
+				<p className="mt-1 break-all font-mono text-sm text-muted-foreground">
 					{invitation.id ? String(invitation.id) : invitationId}
 				</p>
 			</Card>

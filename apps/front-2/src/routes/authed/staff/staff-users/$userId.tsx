@@ -104,12 +104,12 @@ const AssignedProfilesSection = ({
 					<p className="text-lg font-semibold text-foreground">
 						Assigned profiles
 					</p>
-					<p className="text-sm text-foreground-500">
+					<p className="text-sm text-muted-foreground">
 						Read-only assigned profiles for this staff user.
 					</p>
 				</div>
 				<div className="rounded-large border border-divider bg-content1 p-4">
-					<p className="text-xs font-medium uppercase tracking-[0.2em] text-foreground-500">
+					<p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
 						Assigned
 					</p>
 					<p className="mt-2 text-2xl font-semibold text-foreground">
@@ -120,7 +120,7 @@ const AssignedProfilesSection = ({
 
 			{profilesQuery.isPending ? (
 				<div
-					className="flex items-center gap-3 rounded-large border border-divider bg-content1 p-4 text-sm text-foreground-500"
+					className="flex items-center gap-3 rounded-large border border-divider bg-content1 p-4 text-sm text-muted-foreground"
 					data-testid="staff-user-profiles-loading"
 				>
 					<LoadingSpinner />
@@ -136,7 +136,7 @@ const AssignedProfilesSection = ({
 					<p className="text-sm font-medium text-foreground">
 						Unable to load assigned profiles
 					</p>
-					<p className="mt-2 text-sm text-foreground-500">
+					<p className="mt-2 text-sm text-muted-foreground">
 						{getAssignedProfilesErrorDescription(profilesQuery.error)}
 					</p>
 				</div>
@@ -145,7 +145,7 @@ const AssignedProfilesSection = ({
 			{!profilesQuery.isPending &&
 			!profilesQuery.isError &&
 			profiles.length === 0 ? (
-				<div className="rounded-large border border-dashed border-divider bg-content1 p-4 text-sm text-foreground-500">
+				<div className="rounded-large border border-dashed border-divider bg-content1 p-4 text-sm text-muted-foreground">
 					This staff user does not have any assigned profiles.
 				</div>
 			) : null}
@@ -166,7 +166,7 @@ const AssignedProfilesSection = ({
 							>
 								{profile.name}
 							</Link>
-							<p className="mt-2 text-sm text-foreground-500">
+							<p className="mt-2 text-sm text-muted-foreground">
 								{profile.description ?? 'No description provided.'}
 							</p>
 						</div>
@@ -190,7 +190,7 @@ const StaffUserDetailsLoading = () => (
 		className="mx-auto flex min-h-[50vh] w-full max-w-5xl items-center justify-center px-4 py-12"
 		data-testid="staff-user-details-loading"
 	>
-		<div className="flex items-center gap-3 text-sm text-foreground-500">
+		<div className="flex items-center gap-3 text-sm text-muted-foreground">
 			<div className="h-2 w-2 rounded-full bg-primary" />
 			<span>Loading staff user…</span>
 		</div>
@@ -332,7 +332,7 @@ function StaffUserDetailsPage() {
 							/>
 						) : null}
 						{!details.createdAt && !details.updatedAt ? (
-							<div className="rounded-large border border-divider bg-content1 p-4 text-sm text-foreground-500">
+							<div className="rounded-large border border-divider bg-content1 p-4 text-sm text-muted-foreground">
 								No timestamps are available for this staff user yet.
 							</div>
 						) : null}

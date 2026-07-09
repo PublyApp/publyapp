@@ -1,3 +1,4 @@
+import { IconAlertCircle } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import {
 	redirect,
@@ -6,7 +7,6 @@ import {
 	Outlet,
 	useNavigate,
 } from '@tanstack/react-router';
-import { AlertCircle } from 'lucide-react';
 import { useEffect } from 'react';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -212,7 +212,7 @@ export const Route = createFileRoute('/_authed-layout')({
 
 		return (
 			<AppErrorView
-				icon={<AlertCircle aria-hidden="true" className="size-7" />}
+				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 				code="500 — Server Error"
 				title="Something went wrong"
 				description="There was a problem loading this page."
@@ -292,7 +292,7 @@ function AuthedRouteLayout() {
 
 		return (
 			<AppErrorView
-				icon={<AlertCircle aria-hidden="true" className="size-7" />}
+				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 				code="500 — Server Error"
 				title="Something went wrong"
 				description="There was a problem loading this page."

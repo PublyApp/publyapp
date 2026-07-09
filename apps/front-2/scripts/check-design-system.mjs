@@ -17,6 +17,21 @@ const rules = [
 		patterns: [/from ['"]@heroui\/react['"]/, /import ['"]@heroui\/styles['"]/],
 	},
 	{
+		id: 'no-lucide-import',
+		message: 'Use Tabler icons from the Gray UI stack instead of Lucide.',
+		appliesTo: (relativePath) => relativePath.startsWith('src/'),
+		patterns: [/from ['"]lucide-react['"]/, /import ['"]lucide-react['"]/],
+	},
+	{
+		id: 'no-heroui-color-scale',
+		message:
+			'Use Gray UI semantic tokens instead of legacy HeroUI numbered color scales.',
+		appliesTo: (relativePath) => relativePath.startsWith('src/'),
+		patterns: [
+			/\b(?:bg|text|border|ring|from|to|via)-(?:danger|success|warning|foreground|default|primary|content\d?)-\d{2,3}\b/,
+		],
+	},
+	{
 		id: 'no-raw-visual-color',
 		message:
 			'Use front-2 semantic tokens instead of raw hex/rgb/slate/white-alpha styling.',
@@ -50,7 +65,7 @@ const rules = [
 	{
 		id: 'no-prototype-icons',
 		message:
-			'Use lucide-react icon components, not emoji/punctuation/numeric icon strings.',
+			'Use Tabler icon components, not emoji/punctuation/numeric icon strings.',
 		appliesTo: (relativePath) => relativePath.startsWith('src/'),
 		patterns: [/icon=["'](?:!|\?|401|⛔|🔎)["']/],
 	},

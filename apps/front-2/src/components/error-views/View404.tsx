@@ -1,4 +1,4 @@
-import { SearchX } from 'lucide-react';
+import { IconSearchOff } from '@tabler/icons-react';
 import { Button } from '~/components/ui/button';
 
 import { AppErrorView } from './AppErrorView';
@@ -6,7 +6,7 @@ import { AppErrorView } from './AppErrorView';
 export const View404 = () => {
 	return (
 		<AppErrorView
-			icon={<SearchX aria-hidden="true" className="size-7" />}
+			icon={<IconSearchOff aria-hidden="true" className="size-7" />}
 			code="404 — Not Found"
 			title="Page not found"
 			description="The page you requested does not exist."

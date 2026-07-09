@@ -65,7 +65,7 @@ function StaffTenantDetailsPage() {
 		>
 			<div className="space-y-2">
 				<h2 className="text-lg font-semibold text-foreground">Basics</h2>
-				<p className="text-sm text-foreground-500">
+				<p className="text-sm text-muted-foreground">
 					Core tenant metadata carried forward from the current staff details
 					shell.
 				</p>

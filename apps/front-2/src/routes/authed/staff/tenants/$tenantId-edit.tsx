@@ -230,7 +230,7 @@ function StaffTenantEditRoute() {
 						{t('edit-item', { item: t('tenant') })}
 					</h2>
 				</div>
-				<p className="text-sm text-foreground-500">
+				<p className="text-sm text-muted-foreground">
 					Update tenant basics and metadata supported by the staff tenant update
 					API.
 				</p>
@@ -278,7 +278,7 @@ function StaffTenantEditRoute() {
 					</div>
 
 					{serverError ? (
-						<p className="text-sm text-danger-600">{serverError}</p>
+						<p className="text-sm text-destructive">{serverError}</p>
 					) : null}
 					<div className="flex justify-end">
 						<Button type="submit" disabled={isPending}>

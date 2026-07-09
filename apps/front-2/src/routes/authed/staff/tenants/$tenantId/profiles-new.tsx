@@ -156,7 +156,7 @@ function StaffTenantProfileCreatePage() {
 					<h2 className="text-2xl font-semibold text-foreground">
 						{t('new-item', { item: t('profile') })}
 					</h2>
-					<p className="text-sm text-foreground-500">
+					<p className="text-sm text-muted-foreground">
 						Add a profile name and optional description for this tenant.
 					</p>
 				</div>
@@ -176,7 +176,7 @@ function StaffTenantProfileCreatePage() {
 							disabled={createProfile.isPending}
 						/>
 						{serverError ? (
-							<p className="text-sm text-danger-600">{serverError}</p>
+							<p className="text-sm text-destructive">{serverError}</p>
 						) : null}
 						<div className="flex justify-end">
 							<Button type="submit" disabled={createProfile.isPending}>

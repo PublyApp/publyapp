@@ -50,7 +50,7 @@ export const createInvitationColumns = ({
 				>
 					{row.original.email || '-'}
 				</Link>
-				<div className="text-xs text-foreground-500">
+				<div className="text-xs text-muted-foreground">
 					{t('staff-invited-by')}: {row.original.invitedByName}
 				</div>
 			</div>
@@ -68,7 +68,7 @@ export const createInvitationColumns = ({
 		header: t('status'),
 		enableSorting: false,
 		cell: ({ row }) => (
-			<span className="inline-flex rounded-full bg-default-100 px-2 py-1 text-xs font-medium text-foreground">
+			<span className="inline-flex rounded-full bg-muted px-2 py-1 text-xs font-medium text-foreground">
 				{formatInvitationStatusLabel(row.original.status)}
 			</span>
 		),

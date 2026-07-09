@@ -215,7 +215,7 @@ function StaffTenantCreateRoute() {
 				<h1 className="text-xl font-semibold">
 					{t('new-item', { item: t('tenant') })}
 				</h1>
-				<p className="text-sm text-foreground-500">
+				<p className="text-sm text-muted-foreground">
 					{t('add-an-initial-tenant-user-set')}
 				</p>
 			</div>
@@ -311,7 +311,7 @@ function StaffTenantCreateRoute() {
 					</div>
 
 					{serverError ? (
-						<p className="text-sm text-danger-600">{serverError}</p>
+						<p className="text-sm text-destructive">{serverError}</p>
 					) : null}
 
 					<div className="flex justify-end">

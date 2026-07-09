@@ -78,7 +78,7 @@ const ProfileEditLoading = () => (
 		className="mx-auto flex min-h-[50vh] w-full max-w-5xl items-center justify-center px-4 py-12"
 		data-testid="staff-tenant-profile-edit-loading"
 	>
-		<div className="flex items-center gap-3 text-sm text-foreground-500">
+		<div className="flex items-center gap-3 text-sm text-muted-foreground">
 			<LoadingSpinner />
 			<span>Loading tenant profile…</span>
 		</div>
@@ -300,7 +300,7 @@ function StaffTenantProfileEditPage() {
 					<h2 className="text-2xl font-semibold text-foreground">
 						Edit {profile.name}
 					</h2>
-					<p className="text-sm text-foreground-500">
+					<p className="text-sm text-muted-foreground">
 						Update the profile name and optional description for this tenant.
 					</p>
 				</div>
@@ -320,7 +320,7 @@ function StaffTenantProfileEditPage() {
 							disabled={updateProfile.isPending}
 						/>
 						{serverError ? (
-							<p className="text-sm text-danger-600">{serverError}</p>
+							<p className="text-sm text-destructive">{serverError}</p>
 						) : null}
 						<div className="flex justify-end">
 							<Button type="submit" disabled={updateProfile.isPending}>

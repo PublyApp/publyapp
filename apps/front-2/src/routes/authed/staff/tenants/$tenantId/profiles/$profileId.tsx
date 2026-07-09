@@ -72,7 +72,7 @@ const ProfileDetailsLoading = () => (
 		className="mx-auto flex min-h-[50vh] w-full max-w-5xl items-center justify-center px-4 py-12"
 		data-testid="staff-tenant-profile-details-loading"
 	>
-		<div className="flex items-center gap-3 text-sm text-foreground-500">
+		<div className="flex items-center gap-3 text-sm text-muted-foreground">
 			<LoadingSpinner />
 			<span>Loading tenant profile…</span>
 		</div>
@@ -405,7 +405,7 @@ function StaffTenantProfileDetailsPage() {
 									<Badge variant="secondary">Default</Badge>
 								) : null}
 							</div>
-							<p className="max-w-3xl text-sm text-foreground-500">
+							<p className="max-w-3xl text-sm text-muted-foreground">
 								{profile.description ?? 'No description provided.'}
 							</p>
 						</div>
@@ -420,12 +420,12 @@ function StaffTenantProfileDetailsPage() {
 									'/staff/tenants/$tenantId/profiles/$profileId/edit' as never
 								}
 								params={{ tenantId, profileId } as never}
-								className="inline-flex items-center justify-center rounded-medium border border-divider px-4 py-2 text-sm font-medium text-foreground transition hover:border-default-400 hover:bg-default-100"
+								className="inline-flex items-center justify-center rounded-medium border border-divider px-4 py-2 text-sm font-medium text-foreground transition hover:border-muted-foreground hover:bg-muted"
 							>
 								Edit profile
 							</Link>
 							{profile.isDefault ? (
-								<div className="rounded-large border border-default-200 bg-default-50 px-4 py-3 text-sm text-foreground-600">
+								<div className="rounded-large border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
 									Default profiles cannot be deleted.
 								</div>
 							) : (
@@ -440,7 +440,7 @@ function StaffTenantProfileDetailsPage() {
 							)}
 							{actionError ? (
 								<div
-									className="rounded-large border border-danger-200 bg-danger-50 px-4 py-3 text-sm text-danger-700"
+									className="rounded-large border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive"
 									role="status"
 								>
 									{actionError}
@@ -468,7 +468,7 @@ function StaffTenantProfileDetailsPage() {
 							<p className="text-lg font-semibold text-foreground">
 								Profile details
 							</p>
-							<p className="text-sm text-foreground-500">
+							<p className="text-sm text-muted-foreground">
 								Core information for this tenant profile.
 							</p>
 						</div>
@@ -499,14 +499,14 @@ function StaffTenantProfileDetailsPage() {
 							<p className="text-lg font-semibold text-foreground">
 								Permission keys
 							</p>
-							<p className="text-sm text-foreground-500">
+							<p className="text-sm text-muted-foreground">
 								Manage assigned and available permission keys for this profile.
 							</p>
 						</div>
 
 						<div className="space-y-4">
 							{permissionCatalogQuery.isPending ? (
-								<div className="rounded-large border border-dashed border-divider px-4 py-6 text-sm text-foreground-500">
+								<div className="rounded-large border border-dashed border-divider px-4 py-6 text-sm text-muted-foreground">
 									<div className="flex items-center gap-2">
 										<LoadingSpinner />
 										<span>Loading available permissions…</span>
@@ -515,7 +515,7 @@ function StaffTenantProfileDetailsPage() {
 							) : null}
 
 							{permissionCatalogQuery.isError ? (
-								<div className="rounded-large border border-dashed border-danger bg-danger-50 px-4 py-4 text-sm text-danger-700">
+								<div className="rounded-large border border-dashed border-destructive bg-destructive/10 px-4 py-4 text-sm text-destructive">
 									<p>
 										{getFailureMessage(
 											toApiFailure(permissionCatalogQuery.error),
@@ -541,13 +541,13 @@ function StaffTenantProfileDetailsPage() {
 							<section className="space-y-3">
 								<div className="flex items-center justify-between">
 									<p className="font-medium text-foreground">Assigned</p>
-									<span className="rounded-full bg-default-100 px-2 py-1 text-xs text-foreground-500">
+									<span className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">
 										{assignedPermissionEntries.length}
 									</span>
 								</div>
 
 								{assignedPermissionEntries.length === 0 ? (
-									<div className="rounded-large border border-dashed border-divider px-4 py-3 text-sm text-foreground-500">
+									<div className="rounded-large border border-dashed border-divider px-4 py-3 text-sm text-muted-foreground">
 										No permissions are assigned to this profile.
 									</div>
 								) : (
@@ -563,7 +563,7 @@ function StaffTenantProfileDetailsPage() {
 															{permission.label}
 														</p>
 														{permission.description ? (
-															<p className="mt-1 max-w-xl text-xs text-foreground-500">
+															<p className="mt-1 max-w-xl text-xs text-muted-foreground">
 																{permission.description}
 															</p>
 														) : null}
@@ -593,13 +593,13 @@ function StaffTenantProfileDetailsPage() {
 								<section className="space-y-3">
 									<div className="flex items-center justify-between">
 										<p className="font-medium text-foreground">Available</p>
-										<span className="rounded-full bg-default-100 px-2 py-1 text-xs text-foreground-500">
+										<span className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">
 											{availablePermissionEntries.length}
 										</span>
 									</div>
 
 									{availablePermissionEntries.length === 0 ? (
-										<div className="rounded-large border border-dashed border-divider px-4 py-3 text-sm text-foreground-500">
+										<div className="rounded-large border border-dashed border-divider px-4 py-3 text-sm text-muted-foreground">
 											{assignedPermissionEntries.length === 0
 												? 'No permission keys are available.'
 												: 'No additional permission keys are available to assign.'}
@@ -617,7 +617,7 @@ function StaffTenantProfileDetailsPage() {
 																{permission.label}
 															</p>
 															{permission.description ? (
-																<p className="mt-1 max-w-xl text-xs text-foreground-500">
+																<p className="mt-1 max-w-xl text-xs text-muted-foreground">
 																	{permission.description}
 																</p>
 															) : null}
@@ -645,7 +645,7 @@ function StaffTenantProfileDetailsPage() {
 							)}
 
 							{permissionActionError ? (
-								<p className="text-sm text-danger-600">
+								<p className="text-sm text-destructive">
 									{permissionActionError}
 								</p>
 							) : null}

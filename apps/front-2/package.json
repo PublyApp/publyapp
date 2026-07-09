@@ -17,8 +17,6 @@
 	},
 	"dependencies": {
 		"@base-ui/react": "1.3.0",
-		"@heroui/react": "3.2.1",
-		"@heroui/styles": "3.2.1",
 		"@hookform/resolvers": "4.1.3",
 		"@microsoft/kiota-abstractions": "1.0.0-preview.97",
 		"@microsoft/kiota-http-fetchlibrary": "1.0.0-preview.97",
@@ -35,7 +33,6 @@
 		"clsx": "2.1.1",
 		"i18next": "24.2.3",
 		"lodash": "4.18.1",
-		"lucide-react": "0.473.0",
 		"react": "19.1.0",
 		"react-dom": "19.1.0",
 		"react-hook-form": "7.54.2",

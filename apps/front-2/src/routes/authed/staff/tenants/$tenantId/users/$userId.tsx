@@ -127,7 +127,7 @@ const TenantUserDetailsLoading = () => (
 		className="mx-auto flex min-h-[50vh] w-full max-w-5xl items-center justify-center px-4 py-12"
 		data-testid="staff-tenant-user-details-loading"
 	>
-		<div className="flex items-center gap-3 text-sm text-foreground-500">
+		<div className="flex items-center gap-3 text-sm text-muted-foreground">
 			<div className="h-2 w-2 rounded-full bg-primary" />
 			<span>Loading tenant user…</span>
 		</div>
@@ -333,7 +333,7 @@ function StaffTenantUserDetailsPage() {
 				<Link
 					to="/staff/tenants/$tenantId/users"
 					params={{ tenantId }}
-					className="text-sm text-foreground-500 underline-offset-4 hover:text-foreground hover:underline"
+					className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
 				>
 					Back to users
 				</Link>
@@ -349,7 +349,7 @@ function StaffTenantUserDetailsPage() {
 					<h1 className="text-2xl font-semibold tracking-tight text-foreground">
 						{user.displayName}
 					</h1>
-					<p className="max-w-3xl text-sm text-foreground-500">
+					<p className="max-w-3xl text-sm text-muted-foreground">
 						{user.email || 'No email address available.'}
 					</p>
 				</div>
@@ -358,7 +358,7 @@ function StaffTenantUserDetailsPage() {
 			<Card className="space-y-4 p-4">
 				<div className="flex flex-wrap items-center justify-between gap-3">
 					<div className="space-y-1">
-						<p className="text-xs font-medium uppercase tracking-[0.2em] text-foreground-500">
+						<p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
 							Tenant membership status
 						</p>
 						<p className="text-sm text-foreground">{user.status ?? '—'}</p>
@@ -386,7 +386,7 @@ function StaffTenantUserDetailsPage() {
 				</div>
 
 				{!canChangeStatus ? (
-					<p className="rounded-large border border-dashed border-divider bg-content1 p-2 text-xs text-foreground-500">
+					<p className="rounded-large border border-dashed border-divider bg-content1 p-2 text-xs text-muted-foreground">
 						{isGloballySuspended
 							? 'Membership lifecycle actions are disabled for globally suspended users.'
 							: 'Membership lifecycle actions are unavailable for this status.'}
@@ -394,14 +394,14 @@ function StaffTenantUserDetailsPage() {
 				) : null}
 
 				{membershipActionError ? (
-					<p className="text-sm text-danger-600">{membershipActionError}</p>
+					<p className="text-sm text-destructive">{membershipActionError}</p>
 				) : null}
 			</Card>
 
 			<Card className="space-y-4 p-4">
 				<div className="flex flex-wrap items-center justify-between gap-3">
 					<div className="space-y-1">
-						<p className="text-xs font-medium uppercase tracking-[0.2em] text-foreground-500">
+						<p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
 							Tenant user removal
 						</p>
 						<p className="text-sm text-foreground">
@@ -421,7 +421,7 @@ function StaffTenantUserDetailsPage() {
 				</div>
 
 				{removeActionError ? (
-					<p className="text-sm text-danger-600">{removeActionError}</p>
+					<p className="text-sm text-destructive">{removeActionError}</p>
 				) : null}
 			</Card>
 
@@ -451,7 +451,7 @@ function StaffTenantUserDetailsPage() {
 			<Card className="space-y-4 p-5">
 				<div className="space-y-1">
 					<p className="text-lg font-semibold text-foreground">Activity</p>
-					<p className="text-sm text-foreground-500">
+					<p className="text-sm text-muted-foreground">
 						Read-only activity timestamps for this tenant user.
 					</p>
 				</div>
@@ -469,7 +469,7 @@ function StaffTenantUserDetailsPage() {
 						/>
 					) : null}
 					{!user.createdAt && !user.updatedAt ? (
-						<div className="rounded-large border border-dashed border-divider bg-content1 p-4 text-sm text-foreground-500">
+						<div className="rounded-large border border-dashed border-divider bg-content1 p-4 text-sm text-muted-foreground">
 							No timestamps are available for this tenant user yet.
 						</div>
 					) : null}

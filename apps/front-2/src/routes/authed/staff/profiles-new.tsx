@@ -236,13 +236,13 @@ function NewStaffProfileRoute() {
 
 			<Card className="space-y-4 p-4">
 				{permissionsQuery.isPending ? (
-					<div className="flex items-center gap-3 py-8 text-sm text-foreground-500">
+					<div className="flex items-center gap-3 py-8 text-sm text-muted-foreground">
 						<LoadingSpinner />
 						<span>Loading permissions...</span>
 					</div>
 				) : permissionsQuery.isError ? (
 					<div className="space-y-3">
-						<p className="text-sm text-danger-600">
+						<p className="text-sm text-destructive">
 							{getFailureMessage(toApiFailure(permissionsQuery.error), {
 								fallback: t('unable-to-load-staff-permissions'),
 							})}
@@ -276,7 +276,7 @@ function NewStaffProfileRoute() {
 							isDisabled={createProfile.isPending}
 						/>
 						{serverError ? (
-							<p className="text-sm text-danger-600">{serverError}</p>
+							<p className="text-sm text-destructive">{serverError}</p>
 						) : null}
 						<div className="flex justify-end">
 							<Button

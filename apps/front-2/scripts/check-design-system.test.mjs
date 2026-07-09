@@ -62,6 +62,42 @@ test('flags HeroUI imports in migration guard', async () => {
 	);
 });
 
+test('flags Lucide imports in migration guard', async () => {
+	const root = await makeFixture({
+		'src/components/ui/state-surface.tsx':
+			"import { AlertCircle } from 'lucide-react';",
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some((violation) => violation.ruleId === 'no-lucide-import'),
+		true,
+	);
+});
+
+test('flags legacy numbered HeroUI color scale utilities', async () => {
+	const root = await makeFixture({
+		'src/routes/authed/staff/example.tsx':
+			'<div className="text-foreground-500 bg-default-100 border-danger-200 text-success-800" />',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-heroui-color-scale',
+		),
+		true,
+	);
+});
+
 test('allows Gray UI token aliases', async () => {
 	const root = await makeFixture({
 		'src/components/table/data-table.tsx':
@@ -111,7 +147,7 @@ test('allows raw token definitions only in app.css', async () => {
 		'src/styles/app.css': ':root { --publy-primary-main: #2563eb; }',
 		'src/styles/other.css': '.bad { color: #2563eb; }',
 		'src/components/table/data-table.tsx':
-			'<div className="border-divider text-foreground-500" />',
+			'<div className="border-divider text-muted-foreground" />',
 	});
 
 	const violations = await scanFront2DesignSystem({

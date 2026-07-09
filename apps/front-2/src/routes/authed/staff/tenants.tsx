@@ -41,13 +41,13 @@ const TENANT_STATUS_SUSPENDED = 'Suspended';
 const getStatusClassName = (status: string | null): string => {
 	switch (status) {
 		case TENANT_STATUS_ACTIVE:
-			return 'border-success-200 bg-success-50 text-success-800';
+			return 'border-success/20 bg-success/10 text-success';
 		case 'Pending':
-			return 'border-warning-200 bg-warning-50 text-warning-800';
+			return 'border-warning/20 bg-warning/10 text-warning';
 		case TENANT_STATUS_SUSPENDED:
-			return 'border-danger-200 bg-danger-50 text-danger-800';
+			return 'border-destructive/20 bg-destructive/10 text-destructive';
 		default:
-			return 'border-default-200 bg-default-100 text-foreground';
+			return 'border-border bg-muted text-foreground';
 	}
 };
 
@@ -303,7 +303,9 @@ const TenantLifecycleActionsCell = ({
 
 	if (!canSuspend && !canReactivate && !canDelete) {
 		return (
-			<span className="text-xs text-foreground-500">No lifecycle actions.</span>
+			<span className="text-xs text-muted-foreground">
+				No lifecycle actions.
+			</span>
 		);
 	}
 
@@ -350,7 +352,7 @@ const TenantLifecycleActionsCell = ({
 				) : null}
 			</div>
 			{errorMessage ? (
-				<p className="max-w-56 text-xs text-danger-600">{errorMessage}</p>
+				<p className="max-w-56 text-xs text-destructive">{errorMessage}</p>
 			) : null}
 
 			<ConfirmDialog
