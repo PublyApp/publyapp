@@ -22,35 +22,6 @@ const mocks = vi.hoisted(() => ({
 	shouldLogoutForFailure: vi.fn((_: unknown) => false),
 }));
 
-vi.mock('@heroui/react', () => ({
-	Button: ({
-		children,
-		type,
-		onPress,
-		isDisabled,
-		...props
-	}: {
-		children: ReactNode;
-		type?: 'button' | 'submit' | 'reset';
-		onPress?: () => void;
-		isDisabled?: boolean;
-	}) =>
-		createElement(
-			'button',
-			{
-				type: type ?? 'button',
-				onClick: onPress,
-				disabled: isDisabled,
-				...props,
-			},
-			children,
-		),
-	Card: ({ children, ...props }: { children: ReactNode }) =>
-		createElement('div', props, children),
-	Chip: ({ children, ...props }: { children: ReactNode }) =>
-		createElement('span', props, children),
-}));
-
 vi.mock('@tanstack/react-query', () => ({
 	useQueryClient: () => ({
 		invalidateQueries: mocks.invalidateQueries,

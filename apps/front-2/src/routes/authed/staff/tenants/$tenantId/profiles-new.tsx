@@ -1,8 +1,7 @@
-import { Button, Card } from '@heroui/react';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { IconAlertCircle } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { AlertCircle } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -10,6 +9,8 @@ import { z } from 'zod';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { Field, Form } from '~/components/field';
+import { Button } from '~/components/ui/button';
+import { Card } from '~/components/ui/card';
 import {
 	STAFF_TENANT_PROFILES_QUERY_KEY,
 	useCreateStaffTenantProfileMutation,
@@ -87,7 +88,7 @@ function StaffTenantProfileCreatePage() {
 	if (!tenant) {
 		return (
 			<AppErrorView
-				icon={<AlertCircle aria-hidden="true" className="size-7" />}
+				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 				code="500 — Server Error"
 				title="Unable to load this tenant"
 				description="The tenant response was incomplete."
@@ -178,11 +179,7 @@ function StaffTenantProfileCreatePage() {
 							<p className="text-sm text-danger-600">{serverError}</p>
 						) : null}
 						<div className="flex justify-end">
-							<Button
-								type="submit"
-								variant="primary"
-								isDisabled={createProfile.isPending}
-							>
+							<Button type="submit" disabled={createProfile.isPending}>
 								{t('create-profile')}
 							</Button>
 						</div>

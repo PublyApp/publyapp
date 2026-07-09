@@ -1,8 +1,7 @@
-import { Button, Card, Spinner } from '@heroui/react';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { IconAlertCircle, IconLock, IconSearchOff } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { AlertCircle, LockKeyhole, SearchX } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -10,6 +9,8 @@ import { z } from 'zod';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { Field, Form } from '~/components/field';
+import { Button } from '~/components/ui/button';
+import { Card } from '~/components/ui/card';
 import {
 	STAFF_TENANT_PROFILES_QUERY_KEY,
 	toStaffTenantProfileDetails,
@@ -78,15 +79,23 @@ const ProfileEditLoading = () => (
 		data-testid="staff-tenant-profile-edit-loading"
 	>
 		<div className="flex items-center gap-3 text-sm text-foreground-500">
-			<Spinner size="sm" />
+			<LoadingSpinner />
 			<span>Loading tenant profile…</span>
 		</div>
 	</div>
 );
 
+const LoadingSpinner = () => (
+	<span
+		role="status"
+		aria-label="Loading"
+		className="size-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"
+	/>
+);
+
 const InvalidTenantProfileView = ({ error }: { error: unknown }) => (
 	<AppErrorView
-		icon={<AlertCircle aria-hidden="true" className="size-7" />}
+		icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 		code="400 — Bad Request"
 		title="Invalid profile link"
 		description={getFailureDescription(
@@ -99,7 +108,7 @@ const InvalidTenantProfileView = ({ error }: { error: unknown }) => (
 
 const MissingTenantProfileView = ({ error }: { error: unknown }) => (
 	<AppErrorView
-		icon={<SearchX aria-hidden="true" className="size-7" />}
+		icon={<IconSearchOff aria-hidden="true" className="size-7" />}
 		code="404 — Not Found"
 		title="Tenant profile not found"
 		description={getFailureDescription(
@@ -118,7 +127,7 @@ const TenantProfileEditError = ({ error }: { error: unknown }) => {
 	if (isProblemStatus(error, 403)) {
 		return (
 			<AppErrorView
-				icon={<LockKeyhole aria-hidden="true" className="size-7" />}
+				icon={<IconLock aria-hidden="true" className="size-7" />}
 				code="403 — Forbidden"
 				title="You don't have access"
 				description="Your account does not have permission to edit this tenant profile."
@@ -133,7 +142,7 @@ const TenantProfileEditError = ({ error }: { error: unknown }) => {
 
 	return (
 		<AppErrorView
-			icon={<AlertCircle aria-hidden="true" className="size-7" />}
+			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 			code="500 — Server Error"
 			title="Unable to load this tenant profile"
 			description="There was a problem loading the profile details."
@@ -208,7 +217,7 @@ function StaffTenantProfileEditPage() {
 	if (!tenant) {
 		return (
 			<AppErrorView
-				icon={<AlertCircle aria-hidden="true" className="size-7" />}
+				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 				code="500 — Server Error"
 				title="Unable to load this tenant"
 				description="The tenant response was incomplete."
@@ -232,7 +241,7 @@ function StaffTenantProfileEditPage() {
 	if (!profile) {
 		return (
 			<AppErrorView
-				icon={<SearchX aria-hidden="true" className="size-7" />}
+				icon={<IconSearchOff aria-hidden="true" className="size-7" />}
 				code="404 — Not Found"
 				title="Tenant profile not found"
 				description="The profile payload was empty."
@@ -314,11 +323,7 @@ function StaffTenantProfileEditPage() {
 							<p className="text-sm text-danger-600">{serverError}</p>
 						) : null}
 						<div className="flex justify-end">
-							<Button
-								type="submit"
-								variant="primary"
-								isDisabled={updateProfile.isPending}
-							>
+							<Button type="submit" disabled={updateProfile.isPending}>
 								Save changes
 							</Button>
 						</div>

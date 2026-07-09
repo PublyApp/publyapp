@@ -1,11 +1,11 @@
-import { Chip } from '@heroui/react';
+import { IconAlertCircle } from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { AlertCircle } from 'lucide-react';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
 import { useTableController } from '~/components/table/use-table-controller';
+import { Badge } from '~/components/ui/badge';
 import {
 	type StaffTenantProfileRow,
 	toStaffTenantProfileRows,
@@ -84,13 +84,7 @@ function StaffTenantProfilesPage() {
 			accessorKey: 'isDefault',
 			enableSorting: false,
 			cell: ({ getValue }) =>
-				getValue<boolean>() ? (
-					<Chip color="accent" size="sm" variant="soft">
-						Default
-					</Chip>
-				) : (
-					'—'
-				),
+				getValue<boolean>() ? <Badge variant="secondary">Default</Badge> : '—',
 		},
 		{
 			id: 'user_account_count',
@@ -150,7 +144,7 @@ function StaffTenantProfilesPage() {
 	if (!tenant) {
 		return (
 			<AppErrorView
-				icon={<AlertCircle aria-hidden="true" className="size-7" />}
+				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 				code="500 — Server Error"
 				title="Unable to load this tenant"
 				description="The tenant response was incomplete."

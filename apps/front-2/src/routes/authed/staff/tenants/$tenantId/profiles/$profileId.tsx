@@ -1,10 +1,12 @@
-import { Button, Card, Chip, Spinner } from '@heroui/react';
+import { IconAlertCircle, IconLock, IconSearchOff } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { AlertCircle, LockKeyhole, SearchX } from 'lucide-react';
 import { useState } from 'react';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
+import { Badge } from '~/components/ui/badge';
+import { Button } from '~/components/ui/button';
+import { Card } from '~/components/ui/card';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
 	STAFF_TENANT_PROFILE_DETAILS_QUERY_KEY,
@@ -71,15 +73,23 @@ const ProfileDetailsLoading = () => (
 		data-testid="staff-tenant-profile-details-loading"
 	>
 		<div className="flex items-center gap-3 text-sm text-foreground-500">
-			<Spinner size="sm" />
+			<LoadingSpinner />
 			<span>Loading tenant profile…</span>
 		</div>
 	</div>
 );
 
+const LoadingSpinner = () => (
+	<span
+		role="status"
+		aria-label="Loading"
+		className="size-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"
+	/>
+);
+
 const InvalidTenantProfileView = ({ error }: { error: unknown }) => (
 	<AppErrorView
-		icon={<AlertCircle aria-hidden="true" className="size-7" />}
+		icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 		code="400 — Bad Request"
 		title="Invalid profile link"
 		description={getFailureDescription(
@@ -92,7 +102,7 @@ const InvalidTenantProfileView = ({ error }: { error: unknown }) => (
 
 const MissingTenantProfileView = ({ error }: { error: unknown }) => (
 	<AppErrorView
-		icon={<SearchX aria-hidden="true" className="size-7" />}
+		icon={<IconSearchOff aria-hidden="true" className="size-7" />}
 		code="404 — Not Found"
 		title="Tenant profile not found"
 		description={getFailureDescription(
@@ -111,7 +121,7 @@ const TenantProfileDetailsError = ({ error }: { error: unknown }) => {
 	if (isProblemStatus(error, 403)) {
 		return (
 			<AppErrorView
-				icon={<LockKeyhole aria-hidden="true" className="size-7" />}
+				icon={<IconLock aria-hidden="true" className="size-7" />}
 				code="403 — Forbidden"
 				title="You don't have access"
 				description="Your account does not have permission to view this tenant profile."
@@ -126,7 +136,7 @@ const TenantProfileDetailsError = ({ error }: { error: unknown }) => {
 
 	return (
 		<AppErrorView
-			icon={<AlertCircle aria-hidden="true" className="size-7" />}
+			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 			code="500 — Server Error"
 			title="Unable to load this tenant profile"
 			description="There was a problem loading the profile details."
@@ -243,7 +253,7 @@ function StaffTenantProfileDetailsPage() {
 	if (!tenant) {
 		return (
 			<AppErrorView
-				icon={<AlertCircle aria-hidden="true" className="size-7" />}
+				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 				code="500 — Server Error"
 				title="Unable to load this tenant"
 				description="The tenant response was incomplete."
@@ -277,7 +287,7 @@ function StaffTenantProfileDetailsPage() {
 	if (!profile) {
 		return (
 			<AppErrorView
-				icon={<SearchX aria-hidden="true" className="size-7" />}
+				icon={<IconSearchOff aria-hidden="true" className="size-7" />}
 				code="404 — Not Found"
 				title="Tenant profile not found"
 				description="The profile payload was empty."
@@ -392,9 +402,7 @@ function StaffTenantProfileDetailsPage() {
 									{profile.name}
 								</h2>
 								{profile.isDefault ? (
-									<Chip color="accent" size="sm" variant="soft">
-										Default
-									</Chip>
+									<Badge variant="secondary">Default</Badge>
 								) : null}
 							</div>
 							<p className="max-w-3xl text-sm text-foreground-500">
@@ -423,9 +431,9 @@ function StaffTenantProfileDetailsPage() {
 							) : (
 								<Button
 									type="button"
-									variant="danger-soft"
-									onPress={() => setPendingDelete(true)}
-									isDisabled={deleteProfile.isPending}
+									variant="destructive"
+									onClick={() => setPendingDelete(true)}
+									disabled={deleteProfile.isPending}
 								>
 									Delete profile
 								</Button>
@@ -500,7 +508,7 @@ function StaffTenantProfileDetailsPage() {
 							{permissionCatalogQuery.isPending ? (
 								<div className="rounded-large border border-dashed border-divider px-4 py-6 text-sm text-foreground-500">
 									<div className="flex items-center gap-2">
-										<Spinner size="sm" />
+										<LoadingSpinner />
 										<span>Loading available permissions…</span>
 									</div>
 								</div>
@@ -520,7 +528,7 @@ function StaffTenantProfileDetailsPage() {
 										type="button"
 										variant="outline"
 										size="sm"
-										onPress={() => {
+										onClick={() => {
 											void permissionCatalogQuery.refetch();
 										}}
 										className="mt-3"
@@ -564,11 +572,11 @@ function StaffTenantProfileDetailsPage() {
 														type="button"
 														size="sm"
 														variant="outline"
-														isDisabled={
+														disabled={
 															isPermissionBusy &&
 															busyPermissionKey !== permission.key
 														}
-														onPress={() => {
+														onClick={() => {
 															void handleUnassignPermission(permission.key);
 														}}
 													>
@@ -618,11 +626,11 @@ function StaffTenantProfileDetailsPage() {
 															type="button"
 															size="sm"
 															variant="outline"
-															isDisabled={
+															disabled={
 																isPermissionBusy &&
 																busyPermissionKey !== permission.key
 															}
-															onPress={() => {
+															onClick={() => {
 																void handleAssignPermission(permission.key);
 															}}
 														>
