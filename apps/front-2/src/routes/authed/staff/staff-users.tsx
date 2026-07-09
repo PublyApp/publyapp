@@ -98,7 +98,9 @@ const columns: ColumnDef<StaffUserRow>[] = [
 	},
 	{
 		id: 'actions',
-		header: '',
+		// Visually chromeless per the handoff, but the columnheader needs an
+		// accessible name (axe empty-table-header, parity contract).
+		header: () => <span className="sr-only">Actions</span>,
 		enableSorting: false,
 		meta: { cellClassName: 'w-10' },
 		cell: ({ row }) => (

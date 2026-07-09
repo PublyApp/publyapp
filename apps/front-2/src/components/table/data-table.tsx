@@ -493,6 +493,10 @@ export const DataTable = <TData extends { id: string }>({
 											<TableCell
 												data-cell-index={0}
 												data-slot="table-selection-cell"
+												tabIndex={0}
+												onKeyDown={(event) => {
+													handleCellNavigation(event, rowIndex, 0);
+												}}
 											>
 												<Checkbox
 													checked={isRowSelected}
@@ -562,7 +566,6 @@ export const DataTable = <TData extends { id: string }>({
 									data-testid={`${testId}-page-size`}
 								>
 									<Select
-										aria-label="Rows per page"
 										value={String(size)}
 										onValueChange={(nextValue) => {
 											if (typeof nextValue === 'string') {
@@ -572,6 +575,7 @@ export const DataTable = <TData extends { id: string }>({
 										disabled={paginationDisabled}
 									>
 										<SelectTrigger
+											aria-label="Rows per page"
 											className="h-7 gap-1 rounded-[10px] bg-background px-2 text-xs shadow-none"
 											data-testid={`${testId}-page-size-trigger`}
 										>

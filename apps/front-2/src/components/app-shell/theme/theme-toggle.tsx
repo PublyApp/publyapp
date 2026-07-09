@@ -5,7 +5,7 @@ import { useUiStore } from '../../../lib/store/ui-store';
 
 export const THEME_TOGGLE_TEST_ID = 'theme-toggle';
 
-export const ThemeToggle = () => {
+export const ThemeToggle = ({ className }: { className?: string }) => {
 	const { colorScheme, toggleColorScheme } = useUiStore((state) => ({
 		colorScheme: state.colorScheme,
 		toggleColorScheme: state.toggleColorScheme,
@@ -20,6 +20,7 @@ export const ThemeToggle = () => {
 			data-testid={THEME_TOGGLE_TEST_ID}
 			variant="outline"
 			size="icon"
+			className={className}
 			aria-label={label}
 			aria-pressed={ariaPressed}
 			onClick={toggleColorScheme}

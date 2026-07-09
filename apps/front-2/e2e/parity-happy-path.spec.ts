@@ -193,7 +193,13 @@ const assertColumnShape = (page: Page) =>
 				name: /^Actions$/,
 			}),
 		).toBeVisible(),
-		expect(page.getByRole('columnheader', { name: /^Email$/ })).toHaveCount(0),
+		// Owner-approved two-column split (2026-07-09): Email is its own column
+		// like the gray-ui template's /customers, superseding email-in-name-cell.
+		expect(
+			page.getByRole('columnheader', {
+				name: /^Email$/,
+			}),
+		).toBeVisible(),
 	]);
 
 function escapeRegExp(value: string): string {

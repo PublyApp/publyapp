@@ -111,14 +111,16 @@
 	--publy-chip-pending-border: #fde68a;
 	--publy-chip-pending-bg: #fffbeb;
 	--publy-chip-pending-text: #b45309;
-	--publy-avatar-1: #14b8a6;
-	--publy-avatar-2: #8b5cf6;
-	--publy-avatar-3: #ec4899;
-	--publy-avatar-4: #f43f5e;
-	--publy-avatar-5: #f97316;
-	--publy-avatar-6: #0ea5e9;
-	--publy-avatar-7: #06b6d4;
-	--publy-avatar-8: #d946ef;
+	/* WCAG >=4.5:1 with white initials (canvas ships brighter shades;
+	   accessibility invariant wins — see deviation register). */
+	--publy-avatar-1: #0f766e;
+	--publy-avatar-2: #6d28d9;
+	--publy-avatar-3: #be185d;
+	--publy-avatar-4: #be123c;
+	--publy-avatar-5: #c2410c;
+	--publy-avatar-6: #0369a1;
+	--publy-avatar-7: #0e7490;
+	--publy-avatar-8: #a21caf;
 	--publy-radius-sm: 0.375rem;
 	--publy-radius-md: 0.5rem;
 	--publy-radius-lg: 0.625rem;
@@ -1421,6 +1423,16 @@ html {
 		padding: 6px 14px;
 		background: var(--publy-table-header);
 		border-top: 1px solid var(--publy-border);
+	}
+
+	/* Mobile list archetype (handoff 7b): the footer stacks instead of
+	   overflowing the 390px card. */
+	@media (max-width: 639px) {
+		.publy-data-table-footer {
+			@apply h-auto flex-col items-stretch gap-2;
+			min-height: 0;
+			padding: 10px 14px;
+		}
 	}
 
 	.publy-data-table-footer [data-slot='page-label'] {

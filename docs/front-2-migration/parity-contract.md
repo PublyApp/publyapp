@@ -58,7 +58,9 @@ Results:
   `staff-admin@example.com`.
 - Source verified current staff-users table shape: email is rendered as
   secondary text inside the first name/user cell, not as a standalone email
-  column.
+  column. **Superseded 2026-07-09 (owner-approved):** front-2 splits Name and
+  Email into separate columns, matching the gray-ui template's `/customers`;
+  the parity e2e asserts the Email columnheader is visible.
 - Source verified invite affordance divergence: staff-users "Invite users" links
   to `/staff/invitations/new`; it does not open an on-page dialog. The new
   invitation route uses RHF + Zod/InterZod.

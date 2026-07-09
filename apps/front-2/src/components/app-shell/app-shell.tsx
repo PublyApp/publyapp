@@ -494,6 +494,7 @@ const AuthedWorkspaceShell = ({
 						>
 							<IconMessage2 aria-hidden="true" className="size-[17px]" />
 						</Button>
+						<ThemeToggle className="app-shell-topbar-action-btn" />
 						<div className="app-shell-topbar-separator" />
 						<div className="app-shell-user-chip">
 							<Avatar size="sm" className="size-7">
