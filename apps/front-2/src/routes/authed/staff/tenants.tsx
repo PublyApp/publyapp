@@ -1,4 +1,3 @@
-import { Button } from '@heroui/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -7,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
 import { useTableController } from '~/components/table/use-table-controller';
+import { Button } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
 	STAFF_TENANT_DETAILS_QUERY_KEY,
@@ -317,8 +317,8 @@ const TenantLifecycleActionsCell = ({
 						type="button"
 						variant="secondary"
 						size="sm"
-						onPress={() => setPendingAction('suspend')}
-						isDisabled={isActionPending}
+						onClick={() => setPendingAction('suspend')}
+						disabled={isActionPending}
 					>
 						Suspend
 						{suspendTenantMutation.isPending ? '…' : ''}
@@ -329,8 +329,8 @@ const TenantLifecycleActionsCell = ({
 						type="button"
 						variant="secondary"
 						size="sm"
-						onPress={() => setPendingAction('reactivate')}
-						isDisabled={isActionPending}
+						onClick={() => setPendingAction('reactivate')}
+						disabled={isActionPending}
 					>
 						Reactivate
 						{reactivateTenantMutation.isPending ? '…' : ''}
@@ -339,10 +339,10 @@ const TenantLifecycleActionsCell = ({
 				{canDelete ? (
 					<Button
 						type="button"
-						variant="danger"
+						variant="destructive"
 						size="sm"
-						onPress={() => setPendingAction('delete')}
-						isDisabled={isActionPending}
+						onClick={() => setPendingAction('delete')}
+						disabled={isActionPending}
 					>
 						Delete
 						{deleteTenantMutation.isPending ? '…' : ''}
