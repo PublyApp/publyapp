@@ -150,7 +150,7 @@ function StaffInvitationsPage() {
 			: selectedStatuses.map(formatInvitationStatusLabel).join(', ');
 
 	return (
-		<div className="space-y-4" data-testid="staff-invitations-list-page">
+		<div className="publy-page-fill" data-testid="staff-invitations-list-page">
 			<PageHeader
 				title={t('staff-invitations')}
 				description="Track pending, accepted, and expired staff invitations."

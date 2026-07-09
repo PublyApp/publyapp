@@ -141,7 +141,7 @@ function StaffProfilesPage() {
 	}
 
 	return (
-		<div className="space-y-4">
+		<div className="publy-page-fill">
 			<PageHeader
 				title="Staff profiles"
 				description="Group permissions into profiles you can assign to staff users."

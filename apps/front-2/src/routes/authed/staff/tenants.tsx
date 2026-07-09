@@ -156,7 +156,7 @@ function StaffTenantsPage() {
 	});
 
 	return (
-		<div className="space-y-4">
+		<div className="publy-page-fill">
 			<PageHeader
 				title="Tenants"
 				description="Manage tenant organizations, seats, and lifecycle."

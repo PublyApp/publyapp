@@ -416,18 +416,19 @@ html {
 
 /* ---- Body ---- */
 
+/* The body column owns the viewport height; only .app-shell-main scrolls,
+   so the rail/secondary panel never move with page content. */
 .app-shell-body {
-	@apply flex min-h-screen min-w-0 flex-col;
+	@apply flex h-dvh min-w-0 flex-col overflow-hidden;
 }
 
 /* ---- Topbar ---- */
 
 .app-shell-topbar {
-	@apply sticky top-0 z-20 flex shrink-0 items-center justify-between border-b;
+	@apply z-20 flex shrink-0 items-center justify-between;
 	height: var(--publy-shell-topbar-height);
 	padding: 14px 16px;
 	background: var(--publy-background);
-	border-color: var(--publy-border);
 }
 
 .app-shell-topbar-left {
@@ -475,6 +476,7 @@ html {
 	min-height: 36px !important;
 	width: 36px !important;
 	min-width: 36px !important;
+	border-radius: 999px !important;
 	border-color: var(--publy-border) !important;
 	color: var(--publy-foreground-muted) !important;
 }
@@ -500,7 +502,7 @@ html {
 /* ---- Main content ---- */
 
 .app-shell-main {
-	@apply min-w-0 flex-1 overflow-x-hidden;
+	@apply min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto;
 	padding: 20px 28px 32px;
 }
 
@@ -885,12 +887,22 @@ html {
 
 	/* ---- Data Table ---- */
 
+	/* Page wrapper for list routes: caps the page at the viewport so the
+	   table body scrolls inside its card (like the Gray UI template). */
+	.publy-page-fill {
+		@apply flex h-full min-h-0 flex-col gap-4;
+	}
+
 	.publy-data-table-shell {
-		@apply space-y-3;
+		@apply flex min-h-0 flex-col gap-3;
+	}
+
+	.publy-page-fill .publy-data-table-shell {
+		flex: 1 1 auto;
 	}
 
 	.publy-data-table-toolbar {
-		@apply flex flex-wrap items-center justify-between gap-2;
+		@apply flex shrink-0 flex-wrap items-center justify-between gap-2;
 	}
 
 	.publy-search-wrapper {
@@ -916,10 +928,25 @@ html {
 
 	/* Card frame: table + footer live inside one ring card */
 	.publy-table-card {
+		@apply flex min-h-0 flex-col;
 		border-radius: var(--publy-radius-control);
 		box-shadow: var(--publy-shadow-ring);
 		background: var(--publy-surface);
 		overflow: hidden;
+	}
+
+	.publy-table-card [data-slot='table-container'] {
+		flex: 1 1 auto;
+		min-height: 0;
+		overflow: auto;
+	}
+
+	.publy-data-table thead [data-slot='table-column'],
+	.publy-data-table thead [data-slot='table-sortable-column-header'],
+	.publy-data-table thead [data-slot='table-selection-cell'] {
+		position: sticky;
+		top: 0;
+		z-index: 5;
 	}
 
 	.publy-data-table {
@@ -987,6 +1014,13 @@ html {
 		font-variant-numeric: tabular-nums;
 	}
 
+	/* Vertical column separators, matching the Gray UI template grid */
+	.publy-data-table [data-slot='table-column']:not(:last-child),
+	.publy-data-table [data-slot='table-sortable-column-header']:not(:last-child),
+	.publy-data-table [data-slot='table-cell']:not(:last-child) {
+		border-right: 1px solid var(--publy-row-border);
+	}
+
 	.publy-data-table tbody tr:last-child [data-slot='table-cell'] {
 		border-bottom: 0;
 	}
@@ -1009,17 +1043,20 @@ html {
 	.publy-data-table thead [data-slot='table-selection-cell'] {
 		height: 40px;
 		background: var(--publy-table-header);
-		border-right: 1px solid var(--publy-border);
+		border-right: 1px solid var(--publy-row-border);
 		border-bottom: 1px solid var(--publy-border);
 	}
 
+	/* The checkbox primitive is display:flex (block-level); inline-flex lets
+	   the cell's text-align:center actually center it. */
 	.publy-data-table [data-slot='table-selection-cell'] [data-slot='checkbox'] {
+		display: inline-flex;
 		vertical-align: middle;
 	}
 
 	/* Footer inside the card */
 	.publy-data-table-footer {
-		@apply flex items-center justify-between gap-3;
+		@apply flex shrink-0 items-center justify-between gap-3;
 		min-height: 48px;
 		padding: 6px 14px;
 		background: var(--publy-table-header);

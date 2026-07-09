@@ -25,10 +25,7 @@ describe('front-2 route metadata', () => {
 		expect(staffUsers?.secondaryItems.map((item) => item.label)).toEqual([
 			'All users',
 			'Invitations',
-			'Roles',
 			'Profiles',
-			'Permissions',
-			'Audit log',
 		]);
 	});
 

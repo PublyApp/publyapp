@@ -2,13 +2,10 @@ import {
 	IconChartBar,
 	IconBuilding,
 	IconClipboardList,
-	IconHistory,
-	IconKey,
 	IconLayoutDashboard,
 	IconLock,
 	IconMail,
 	IconNews,
-	IconShieldCheck,
 	IconUser,
 	IconUsers,
 } from '@tabler/icons-react';
@@ -112,31 +109,11 @@ const STAFF_SECONDARY_ITEMS: SecondaryPanelItem[] = [
 		count: 6,
 	},
 	{
-		label: 'Roles',
-		description: '',
-		path: '/staff/profiles',
-		Icon: IconKey,
-		count: 5,
-	},
-	{
 		label: 'Profiles',
 		description: '',
 		path: '/staff/profiles',
 		Icon: IconClipboardList,
 		count: 4,
-	},
-	{
-		label: 'Permissions',
-		description: '',
-		path: '/staff/profiles',
-		Icon: IconShieldCheck,
-		count: 86,
-	},
-	{
-		label: 'Audit log',
-		description: '',
-		path: '/staff/staff-users',
-		Icon: IconHistory,
 	},
 ];
 
