@@ -458,28 +458,29 @@ export const DataTable = <TData extends { id: string }>({
 			<div className="publy-data-table-footer" data-testid={`${testId}-footer`}>
 				<div className="flex items-center gap-2">
 					<span className="text-sm text-foreground-500">Rows per page</span>
-					<Select
-						aria-label="Rows per page"
-						value={String(size)}
-						onValueChange={(nextValue) => {
-							if (typeof nextValue === 'string') {
-								onSizeChange(Number(nextValue));
-							}
-						}}
-						disabled={paginationDisabled}
-						data-testid={`${testId}-page-size`}
-					>
-						<SelectTrigger data-testid={`${testId}-page-size-trigger`}>
-							<SelectValue />
-						</SelectTrigger>
-						<SelectContent>
-							{PAGE_SIZE_OPTIONS.map((option) => (
-								<SelectItem key={String(option)} value={String(option)}>
-									{option} rows
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
+					<span data-testid={`${testId}-page-size`}>
+						<Select
+							aria-label="Rows per page"
+							value={String(size)}
+							onValueChange={(nextValue) => {
+								if (typeof nextValue === 'string') {
+									onSizeChange(Number(nextValue));
+								}
+							}}
+							disabled={paginationDisabled}
+						>
+							<SelectTrigger data-testid={`${testId}-page-size-trigger`}>
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								{PAGE_SIZE_OPTIONS.map((option) => (
+									<SelectItem key={String(option)} value={String(option)}>
+										{option} rows
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</span>
 				</div>
 
 				<div className="flex items-center gap-2">

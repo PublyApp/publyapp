@@ -10,6 +10,6 @@ describe('front-2 index route', () => {
 		expect(html).toContain(
 			'Explore navigation, theme, and auth surface foundations from here.',
 		);
-		expect(html).toContain('HeroUI shell is active');
+		expect(html).toContain('Gray UI shell is active');
 	});
 });
