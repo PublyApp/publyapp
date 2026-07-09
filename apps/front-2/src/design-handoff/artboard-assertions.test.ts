@@ -109,4 +109,64 @@ describe('focused handoff assertions are structured for regression checks', () =
 			'JSON-backed assertions mirrored from spec.json.',
 		);
 	});
+
+	test('captures focused contract checkpoints for primitives', () => {
+		const contractScope = ['2a', '2d', '2e', '2f', '3c', '5d', '6a', '6b'];
+		for (const artboardId of contractScope) {
+			const focus = ARTBOARD_ASSERTION_COVERAGE[artboardId]?.focus;
+			expect(focus?.length).toBeGreaterThan(0);
+		}
+
+		const focusItems = contractScope.flatMap(
+			(artboardId) => ARTBOARD_ASSERTION_COVERAGE[artboardId]?.focus ?? [],
+		);
+		expect(
+			focusItems.some(
+				(item) =>
+					item.component === 'field.input' &&
+					item.property === 'border-radius' &&
+					item.expected === '10px',
+			),
+		).toBe(true);
+		expect(
+			focusItems.some(
+				(item) =>
+					item.component === 'table.statusChip' &&
+					item.property === 'border-radius' &&
+					item.expected === '8px',
+			),
+		).toBe(true);
+		expect(
+			focusItems.some(
+				(item) =>
+					item.component === 'card.button' &&
+					item.property === 'border-radius' &&
+					item.expected === '14px',
+			),
+		).toBe(true);
+		expect(
+			focusItems.some(
+				(item) =>
+					item.component === 'modal' &&
+					item.property === 'border-radius' &&
+					item.expected === '28px',
+			),
+		).toBe(true);
+		expect(
+			focusItems.some(
+				(item) =>
+					item.component === 'error.iconTile' &&
+					item.property === 'border-radius' &&
+					item.expected === '16px',
+			),
+		).toBe(true);
+		expect(
+			focusItems.some(
+				(item) =>
+					item.component === 'topbar.iconButton' &&
+					item.property === 'border-radius' &&
+					item.expected === '999px',
+			),
+		).toBe(true);
+	});
 });

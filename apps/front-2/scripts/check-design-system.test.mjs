@@ -171,6 +171,79 @@ test('flags legacy rounded styles outside allowed pockets', async () => {
 	assert.equal(roundedRuleHits.length > 0, true);
 });
 
+test('flags new circular-style regressions in refreshed primitives', async () => {
+	const root = await makeFixture({
+		'src/components/ui/switch.tsx': '<Switch className="rounded-full" />',
+		'src/components/ui/tabs.tsx':
+			'<TabsList className="inline-flex rounded-full" />',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	const roundedRuleHits = violations.filter(
+		(violation) => violation.ruleId === 'no-rounded-full-or-999-radius',
+	);
+
+	assert.equal(
+		roundedRuleHits.some(
+			(violation) =>
+				violation.file === 'src/components/ui/switch.tsx' &&
+				violation.source.includes('rounded-full'),
+		),
+		true,
+	);
+	assert.equal(
+		roundedRuleHits.some(
+			(violation) =>
+				violation.file === 'src/components/ui/tabs.tsx' &&
+				violation.source.includes('rounded-full'),
+		),
+		true,
+	);
+});
+
+test('keeps circular rounded exceptions for topbar/avatar while flagging primitives', async () => {
+	const root = await makeFixture({
+		'src/components/ui/avatar.tsx': '<span className="rounded-full"></span>',
+		'src/components/app-shell/app-shell.tsx':
+			'<button className="app-shell-topbar-action-btn">x</button>',
+		'src/styles/app.css':
+			'.app-shell-topbar-action-btn { border-radius: 999px !important; }',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	const roundedRuleHits = violations.filter(
+		(violation) => violation.ruleId === 'no-rounded-full-or-999-radius',
+	);
+
+	assert.equal(
+		roundedRuleHits.some(
+			(violation) => violation.file === 'src/components/ui/avatar.tsx',
+		),
+		false,
+	);
+	assert.equal(
+		roundedRuleHits.some(
+			(violation) =>
+				violation.file === 'src/components/app-shell/app-shell.tsx',
+		),
+		false,
+	);
+	assert.equal(
+		roundedRuleHits.some(
+			(violation) => violation.file === 'src/styles/app.css',
+		),
+		false,
+	);
+});
+
 test('flags new rounded styles even in files with legacy debt', async () => {
 	const root = await makeFixture({
 		'src/components/table/data-table.tsx':
@@ -302,7 +375,7 @@ test('primary button chrome is on .button--primary, sizing on .button--primary.b
 		css,
 		/border:\s*1\.33px\s+solid\s+rgba\(255,\s*255,\s*255,\s*0\.12\)/,
 	);
-	assert.match(css, /border-radius:\s*999px/);
+	assert.match(css, /border-radius:\s*var\(--publy-radius-button\)/);
 	assert.match(css, /box-shadow:\s*var\(--publy-shadow-chrome\)/);
 
 	// generic .button--primary must not override sizing

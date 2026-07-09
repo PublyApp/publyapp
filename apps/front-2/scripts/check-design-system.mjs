@@ -73,30 +73,6 @@ const KNOWN_HANDOFF_GUARD_DEBT = [
 	},
 	{
 		ruleId: ROUNDED_RULE_ID,
-		file: 'src/components/ui/switch.tsx',
-		sourceIncludes: 'items-center rounded-full border-2',
-		reason: 'Legacy switch primitive; Task 2 primitive pass owns this.',
-	},
-	{
-		ruleId: ROUNDED_RULE_ID,
-		file: 'src/components/ui/switch.tsx',
-		sourceIncludes: 'pointer-events-none block rounded-full',
-		reason: 'Legacy switch thumb; Task 2 primitive pass owns this.',
-	},
-	{
-		ruleId: ROUNDED_RULE_ID,
-		file: 'src/components/ui/tabs.tsx',
-		sourceIncludes: 'items-center justify-center rounded-full p-1',
-		reason: 'Legacy tabs primitive; Task 2 primitive pass owns this.',
-	},
-	{
-		ruleId: ROUNDED_RULE_ID,
-		file: 'src/components/ui/tabs.tsx',
-		sourceIncludes: 'gap-2 rounded-full border',
-		reason: 'Legacy tabs primitive; Task 2 primitive pass owns this.',
-	},
-	{
-		ruleId: ROUNDED_RULE_ID,
 		file: 'src/routes/authed/staff/invitations/$invitationId.tsx',
 		sourceIncludes: 'h-auto rounded-full border-none',
 		reason: 'Legacy staff invitation chip; module pass owns this.',
@@ -244,17 +220,7 @@ const isRoundedRadiusAllowed = (relativePath, line, lineIndex, lines) => {
 	return (
 		line.includes('.app-shell-topbar-action-btn') ||
 		hasNearbySelector(lines, lineIndex, '.app-shell-topbar-action-btn') ||
-		hasNearbySelector(lines, lineIndex, '.publy-avatar-initials') ||
-		line.includes('.button--primary') ||
-		hasNearbySelector(lines, lineIndex, '.button--primary') ||
-		line.includes('.app-shell-workspace-pill') ||
-		hasNearbySelector(lines, lineIndex, '.app-shell-workspace-pill') ||
-		line.includes('.publy-status-pill') ||
-		hasNearbySelector(lines, lineIndex, '.publy-status-pill') ||
-		line.includes('.publy-choice-chip') ||
-		hasNearbySelector(lines, lineIndex, '.publy-choice-chip') ||
-		line.includes('.publy-pill-tabs') ||
-		hasNearbySelector(lines, lineIndex, '.publy-pill-tabs')
+		hasNearbySelector(lines, lineIndex, '.publy-avatar-initials')
 	);
 };
 

@@ -220,7 +220,7 @@ const JSON_BACKED_FOCUS: Record<
 			kind: 'radius',
 			component: 'field.input',
 			property: 'border-radius',
-			expected: '8px',
+			expected: '10px',
 		},
 		{
 			kind: 'token',
@@ -248,6 +248,12 @@ const JSON_BACKED_FOCUS: Record<
 			property: 'border-radius',
 			expected: '28px',
 		},
+		{
+			kind: 'radius',
+			component: 'table.statusChip',
+			property: 'border-radius',
+			expected: '8px',
+		},
 	],
 	'2f': [
 		{
@@ -255,6 +261,12 @@ const JSON_BACKED_FOCUS: Record<
 			component: 'empty.iconTile',
 			property: 'border-radius',
 			expected: '14px',
+		},
+		{
+			kind: 'radius',
+			component: 'error.iconTile',
+			property: 'border-radius',
+			expected: '16px',
 		},
 		{
 			kind: 'token',
@@ -348,7 +360,7 @@ const JSON_BACKED_FOCUS: Record<
 			kind: 'radius',
 			component: 'field.input',
 			property: 'border-radius',
-			expected: '8px',
+			expected: '10px',
 		},
 	],
 	'3d': [
@@ -479,6 +491,12 @@ const JSON_BACKED_FOCUS: Record<
 			expected: '14px',
 		},
 		{
+			kind: 'radius',
+			component: 'card.button',
+			property: 'border-radius',
+			expected: '14px',
+		},
+		{
 			kind: 'token',
 			component: 'card.button.connected',
 			property: 'background',
@@ -516,7 +534,7 @@ const JSON_BACKED_FOCUS: Record<
 			kind: 'radius',
 			component: 'field.input',
 			property: 'border-radius',
-			expected: '8px',
+			expected: '10px',
 		},
 	],
 	'6b': [
@@ -524,7 +542,7 @@ const JSON_BACKED_FOCUS: Record<
 			kind: 'radius',
 			component: 'passwordField',
 			property: 'border-radius',
-			expected: '8px',
+			expected: '10px',
 		},
 		{
 			kind: 'token',
