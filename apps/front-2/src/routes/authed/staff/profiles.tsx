@@ -1,4 +1,3 @@
-import { buttonVariants } from '@heroui/react';
 import { createFileRoute } from '@tanstack/react-router';
 import { Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -8,6 +7,7 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
 import { useRowSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
+import { buttonVariants } from '~/components/ui/button';
 import {
 	type StaffProfileRow,
 	toStaffProfileRows,
@@ -128,7 +128,7 @@ function StaffProfilesPage() {
 				<h1 className="text-xl font-semibold">Staff profiles</h1>
 				<Link
 					to={'/staff/profiles/new' as never}
-					className={buttonVariants({ variant: 'primary' })}
+					className={buttonVariants({ variant: 'default' })}
 				>
 					{t('new-item', { item: t('profile').toLowerCase() })}
 				</Link>

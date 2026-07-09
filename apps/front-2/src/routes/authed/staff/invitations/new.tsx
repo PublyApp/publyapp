@@ -1,4 +1,3 @@
-import { Button, Card, Input, Spinner } from '@heroui/react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { i18n as I18nInstance } from 'i18next';
@@ -15,6 +14,9 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { Field, Form } from '~/components/field';
+import { Button } from '~/components/ui/button';
+import { Card } from '~/components/ui/card';
+import { Input } from '~/components/ui/input';
 import { FALLBACK_LANGUAGE, isSupportedLanguage } from '~/lib/i18n.shared';
 import {
 	useBulkCreateStaffInvitationsMutation,
@@ -58,6 +60,14 @@ const DEFAULT_VALUES: InvitationFormValues = {
 };
 
 export const STAFF_INVITATIONS_INDEX_PATH = '/staff/invitations';
+
+const LoadingSpinner = () => (
+	<span
+		role="status"
+		aria-label="Loading"
+		className="size-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"
+	/>
+);
 
 const getInterZodForI18n = (instance: I18nInstance) => {
 	const locale = isSupportedLanguage(instance.language)
@@ -311,7 +321,7 @@ function NewStaffInvitationsRoute() {
 
 				{profilesQuery.isFetching ? (
 					<div className="flex items-center gap-2 text-sm text-foreground-500">
-						<Spinner size="sm" />
+						<LoadingSpinner />
 						<span>{t('profiles')}</span>
 					</div>
 				) : null}
@@ -348,11 +358,11 @@ function NewStaffInvitationsRoute() {
 									{fields.length > 1 ? (
 										<Button
 											type="button"
-											variant="danger-soft"
-											onPress={() => {
+											variant="destructive"
+											onClick={() => {
 												remove(index);
 											}}
-											isDisabled={isPending}
+											disabled={isPending}
 										>
 											{t('remove-invitation')}
 										</Button>
@@ -371,7 +381,7 @@ function NewStaffInvitationsRoute() {
 									<p className="text-sm text-danger-500">{profileLoadError}</p>
 								) : profilesQuery.isPending ? (
 									<div className="flex items-center gap-2 text-sm text-foreground-500">
-										<Spinner size="sm" />
+										<LoadingSpinner />
 										<span>{t('profiles')}</span>
 									</div>
 								) : profileOptions.length === 0 ? (
@@ -394,24 +404,24 @@ function NewStaffInvitationsRoute() {
 							<Button
 								type="button"
 								variant="outline"
-								onPress={() => {
+								onClick={() => {
 									append({
 										email: '',
 										profileIds: [],
 									});
 								}}
-								isDisabled={isPending}
+								disabled={isPending}
 								data-testid="staff-invitations-add"
 							>
 								{t('add-invitation')}
 							</Button>
 							<Button
 								type="submit"
-								variant="primary"
-								isDisabled={isPending || profilesQuery.isPending}
+								variant="default"
+								disabled={isPending || profilesQuery.isPending}
 								data-testid="staff-invitations-submit"
 							>
-								{isPending ? <Spinner size="sm" /> : null}
+								{isPending ? <LoadingSpinner /> : null}
 								{t('send-invitations')}
 							</Button>
 						</div>

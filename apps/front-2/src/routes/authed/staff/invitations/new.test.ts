@@ -24,56 +24,6 @@ const mocks = vi.hoisted(() => ({
 	shouldLogoutForFailure: vi.fn(() => false),
 }));
 
-vi.mock('@heroui/react', () => ({
-	Button: ({
-		children,
-		type,
-		onPress,
-		isDisabled,
-		...props
-	}: {
-		children: ReactNode;
-		type?: 'button' | 'submit' | 'reset';
-		onPress?: () => void;
-		isDisabled?: boolean;
-	}) =>
-		createElement(
-			'button',
-			{
-				type: type ?? 'button',
-				onClick: onPress,
-				disabled: isDisabled,
-				...props,
-			},
-			children,
-		),
-	Card: ({ children, ...props }: { children: ReactNode }) =>
-		createElement('div', props, children),
-	Input: ({
-		id,
-		value,
-		onChange,
-		placeholder,
-		disabled,
-		...props
-	}: {
-		id?: string;
-		value?: string;
-		onChange?: (event: ChangeEvent<HTMLInputElement>) => void;
-		placeholder?: string;
-		disabled?: boolean;
-	}) =>
-		createElement('input', {
-			id,
-			value,
-			onChange,
-			placeholder,
-			disabled,
-			...props,
-		}),
-	Spinner: () => createElement('span', undefined, 'Loading'),
-}));
-
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => ({
 		...options,

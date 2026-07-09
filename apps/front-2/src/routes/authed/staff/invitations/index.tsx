@@ -1,4 +1,3 @@
-import { buttonVariants, Button } from '@heroui/react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -6,6 +5,7 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
 import { useRowSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
+import { Button, buttonVariants } from '~/components/ui/button';
 import { useStaffInvitationsQuery } from '~/lib/query/staff-invitations';
 import { shouldLogoutForFailure } from '~/routes/authed/layout';
 
@@ -136,7 +136,7 @@ function StaffInvitationsPage() {
 				<h1 className="text-xl font-semibold">{t('staff-invitations')}</h1>
 				<Link
 					to="/staff/invitations/new"
-					className={buttonVariants({ variant: 'primary' })}
+					className={buttonVariants({ variant: 'default' })}
 				>
 					{t('invite-users')}
 				</Link>
@@ -150,8 +150,8 @@ function StaffInvitationsPage() {
 							key={status}
 							size="sm"
 							type="button"
-							variant={isSelected ? 'primary' : 'secondary'}
-							onPress={() => toggleStatus(status)}
+							variant={isSelected ? 'default' : 'secondary'}
+							onClick={() => toggleStatus(status)}
 						>
 							{formatInvitationStatusLabel(status)}
 						</Button>
@@ -161,7 +161,7 @@ function StaffInvitationsPage() {
 					size="sm"
 					type="button"
 					variant="ghost"
-					onPress={() => setStatuses([])}
+					onClick={() => setStatuses([])}
 				>
 					{t('clear')}
 				</Button>

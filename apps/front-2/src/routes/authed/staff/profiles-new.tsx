@@ -1,4 +1,3 @@
-import { Button, Card, Spinner } from '@heroui/react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
@@ -9,6 +8,8 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { Field, Form } from '~/components/field';
+import { Button } from '~/components/ui/button';
+import { Card } from '~/components/ui/card';
 import { FALLBACK_LANGUAGE, isSupportedLanguage } from '~/lib/i18n.shared';
 import {
 	STAFF_PROFILES_QUERY_KEY,
@@ -144,6 +145,14 @@ export const Route = createFileRoute('/_authed-layout/staff/profiles/new')({
 	component: NewStaffProfileRoute,
 });
 
+const LoadingSpinner = () => (
+	<span
+		role="status"
+		aria-label="Loading"
+		className="size-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"
+	/>
+);
+
 function NewStaffProfileRoute() {
 	const navigate = Route.useNavigate();
 	const queryClient = useQueryClient();
@@ -228,7 +237,7 @@ function NewStaffProfileRoute() {
 			<Card className="space-y-4 p-4">
 				{permissionsQuery.isPending ? (
 					<div className="flex items-center gap-3 py-8 text-sm text-foreground-500">
-						<Spinner size="sm" />
+						<LoadingSpinner />
 						<span>Loading permissions...</span>
 					</div>
 				) : permissionsQuery.isError ? (
@@ -241,7 +250,7 @@ function NewStaffProfileRoute() {
 						<Button
 							type="button"
 							variant="secondary"
-							onPress={() => void permissionsQuery.refetch()}
+							onClick={() => void permissionsQuery.refetch()}
 						>
 							Retry
 						</Button>
@@ -272,10 +281,8 @@ function NewStaffProfileRoute() {
 						<div className="flex justify-end">
 							<Button
 								type="submit"
-								variant="primary"
-								isDisabled={
-									createProfile.isPending || permissionsQuery.isPending
-								}
+								variant="default"
+								disabled={createProfile.isPending || permissionsQuery.isPending}
 							>
 								{t('create-profile')}
 							</Button>

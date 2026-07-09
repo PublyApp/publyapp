@@ -1,13 +1,15 @@
-import { Button, Card } from '@heroui/react';
+import { IconAlertCircle, IconHelpCircle } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import { AlertCircle, HelpCircle } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
 import QueryDisplay from '~/components/query-display';
+import { Badge } from '~/components/ui/badge';
+import { Button } from '~/components/ui/button';
+import { Card } from '~/components/ui/card';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
 	useRevokeStaffInvitationMutation,
@@ -105,7 +107,7 @@ const InvitationDetailsEmpty = () => {
 
 	return (
 		<AppErrorView
-			icon={<HelpCircle aria-hidden="true" className="size-7" />}
+			icon={<IconHelpCircle aria-hidden="true" className="size-7" />}
 			code="404"
 			title={t('invitation-not-found')}
 			description={t('invitation-not-found-description')}
@@ -130,7 +132,7 @@ const InvitationDetailsError = ({ error }: { error: unknown }) => {
 
 	return (
 		<AppErrorView
-			icon={<AlertCircle aria-hidden="true" className="size-7" />}
+			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 			code="500"
 			title={t('invitation-details-error-title')}
 			description={t('invitation-details-error-description')}
@@ -278,24 +280,24 @@ const InvitationDetailsCard = ({
 					<Button
 						type="button"
 						variant="secondary"
-						onPress={handleCopyLink}
-						isDisabled={!canManage || activeMutationPending}
+						onClick={handleCopyLink}
+						disabled={!canManage || activeMutationPending}
 					>
 						{t('copy-link')}
 					</Button>
 					<Button
 						type="button"
 						variant="secondary"
-						onPress={handleResend}
-						isDisabled={!canManage || activeMutationPending}
+						onClick={handleResend}
+						disabled={!canManage || activeMutationPending}
 					>
 						{t('resend')}
 					</Button>
 					<Button
 						type="button"
-						variant="danger-soft"
-						onPress={() => setPendingRevoke(true)}
-						isDisabled={!canManage || activeMutationPending}
+						variant="destructive"
+						onClick={() => setPendingRevoke(true)}
+						disabled={!canManage || activeMutationPending}
 					>
 						{t('staff-revoke')}
 					</Button>
@@ -355,12 +357,13 @@ const InvitationDetailsCard = ({
 						invitation.profiles && invitation.profiles.length > 0 ? (
 							<div className="flex flex-wrap gap-2">
 								{invitation.profiles.map((profile) => (
-									<span
+									<Badge
+										variant="outline"
 										key={`${String(profile.id ?? '')}:${profile.name ?? ''}`}
-										className="inline-flex rounded-full bg-default-100 px-2 py-1 text-xs font-medium text-foreground"
+										className="h-auto rounded-full border-none bg-default-100 px-2 py-0.5 text-xs font-medium text-foreground"
 									>
 										{profile.name?.trim() || '—'}
-									</span>
+									</Badge>
 								))}
 							</div>
 						) : (

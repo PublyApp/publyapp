@@ -1,10 +1,10 @@
-import { Card, Spinner } from '@heroui/react';
+import { IconAlertCircle, IconSearchOff } from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { AlertCircle, SearchX } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
+import { Card } from '~/components/ui/card';
 import {
 	type StaffPermissionCatalog,
 	toAssignedStaffPermissionGroups,
@@ -52,10 +52,18 @@ const ProfileDetailsLoading = () => (
 		data-testid="staff-profile-details-loading"
 	>
 		<div className="flex items-center gap-3 text-sm text-foreground-500">
-			<Spinner size="sm" />
+			<LoadingSpinner />
 			<span>Loading staff profile…</span>
 		</div>
 	</div>
+);
+
+const LoadingSpinner = () => (
+	<span
+		role="status"
+		aria-label="Loading"
+		className="size-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"
+	/>
 );
 
 const InvalidProfileView = ({ error }: { error: unknown }) => {
@@ -63,7 +71,7 @@ const InvalidProfileView = ({ error }: { error: unknown }) => {
 
 	return (
 		<AppErrorView
-			icon={<AlertCircle aria-hidden="true" className="size-7" />}
+			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 			code="400 — Bad Request"
 			title="Invalid profile link"
 			description={getFailureDescription(
@@ -80,7 +88,7 @@ const MissingProfileView = ({ error }: { error: unknown }) => {
 
 	return (
 		<AppErrorView
-			icon={<SearchX aria-hidden="true" className="size-7" />}
+			icon={<IconSearchOff aria-hidden="true" className="size-7" />}
 			code="404 — Not Found"
 			title="Staff profile not found"
 			description={getFailureDescription(
@@ -107,7 +115,7 @@ const ProfileDetailsError = ({ error }: { error: unknown }) => {
 
 	return (
 		<AppErrorView
-			icon={<AlertCircle aria-hidden="true" className="size-7" />}
+			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 			code="500 — Server Error"
 			title="Unable to load this staff profile"
 			description="There was a problem loading the profile details."
@@ -177,7 +185,7 @@ function StaffProfileDetailsPage() {
 	if (!details) {
 		return (
 			<AppErrorView
-				icon={<SearchX aria-hidden="true" className="size-7" />}
+				icon={<IconSearchOff aria-hidden="true" className="size-7" />}
 				code="404 — Not Found"
 				title="Staff profile not found"
 				description="The profile payload was empty."

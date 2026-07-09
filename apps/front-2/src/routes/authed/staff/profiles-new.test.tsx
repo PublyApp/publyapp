@@ -25,62 +25,6 @@ const mocks = vi.hoisted(() => ({
 	shouldLogoutForFailure: vi.fn((_: unknown) => false),
 }));
 
-vi.mock('@heroui/react', () => ({
-	Button: ({
-		children,
-		type,
-		onPress,
-		isDisabled,
-		...props
-	}: {
-		children: ReactNode;
-		type?: 'button' | 'submit' | 'reset';
-		onPress?: () => void;
-		isDisabled?: boolean;
-	}) =>
-		createElement(
-			'button',
-			{
-				type: type ?? 'button',
-				onClick: onPress,
-				disabled: isDisabled,
-				...props,
-			},
-			children,
-		),
-	Card: ({ children, ...props }: { children: ReactNode }) =>
-		createElement('div', props, children),
-	Input: ({
-		id,
-		value,
-		onChange,
-		placeholder,
-		disabled,
-		...props
-	}: {
-		id?: string;
-		value?: string;
-		onChange?: (event: ChangeEvent<HTMLInputElement>) => void;
-		placeholder?: string;
-		disabled?: boolean;
-	}) =>
-		createElement('input', {
-			id,
-			value,
-			onChange,
-			placeholder,
-			disabled,
-			...props,
-		}),
-	Spinner: () => createElement('span', undefined, 'Loading'),
-	TextField: ({ children, ...props }: { children: ReactNode }) =>
-		createElement('div', props, children),
-	FieldError: ({ children, ...props }: { children: ReactNode }) =>
-		createElement('div', props, children),
-	Label: ({ children, ...props }: { children: ReactNode }) =>
-		createElement('label', props, children),
-}));
-
 vi.mock('@tanstack/react-query', () => ({
 	useQueryClient: () => ({
 		invalidateQueries: mocks.invalidateQueries,
