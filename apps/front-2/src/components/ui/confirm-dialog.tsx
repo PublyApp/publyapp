@@ -1,5 +1,6 @@
-import { AlertDialog, Button } from '@heroui/react';
-import { AlertTriangle } from 'lucide-react';
+import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
+import { IconAlertTriangle } from '@tabler/icons-react';
+import { Button } from '~/components/ui/button';
 
 export type ConfirmDialogProps = {
 	isOpen: boolean;
@@ -24,49 +25,49 @@ export const ConfirmDialog = ({
 	onConfirm,
 	onOpenChange,
 }: ConfirmDialogProps) => (
-	<AlertDialog.Root isOpen={isOpen} onOpenChange={onOpenChange}>
-		<AlertDialog.Trigger
-			className="sr-only"
-			aria-hidden="true"
-			aria-label="Open confirmation dialog"
-			tabIndex={-1}
-		>
-			<span />
-		</AlertDialog.Trigger>
-		<AlertDialog.Backdrop variant="blur">
-			<AlertDialog.Container placement="center">
-				<AlertDialog.Dialog role="alertdialog" className="bg-content1">
-					<AlertDialog.Header>
+	<DialogPrimitive.Root open={isOpen} onOpenChange={onOpenChange}>
+		<DialogPrimitive.Portal>
+			<DialogPrimitive.Backdrop className="fixed inset-0 z-[70] bg-black/32 transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[opacity] data-ending-style:opacity-0 data-starting-style:opacity-0 motion-reduce:transition-none supports-backdrop-filter:backdrop-blur-sm" />
+			<DialogPrimitive.Popup
+				role="alertdialog"
+				className="fixed top-1/2 left-1/2 z-[71] flex w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-[28px] border border-border/70 bg-background/96 p-0 text-popover-foreground shadow-2xl outline-none transition duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[transform,opacity] data-ending-style:translate-y-[calc(-50%+1rem)] data-ending-style:opacity-0 data-starting-style:translate-y-[calc(-50%+1rem)] data-starting-style:opacity-0 motion-reduce:transition-none supports-backdrop-filter:backdrop-blur-xl"
+			>
+				<div className="px-6 pt-6 pb-4">
+					<div className="mb-2 flex items-center gap-2">
 						<span
-							className="publy-state-icon"
+							className="inline-flex size-6 items-center justify-center text-destructive"
 							data-tone={tone}
 							aria-hidden="true"
 						>
-							<AlertTriangle className="size-6" />
+							<IconAlertTriangle className="size-6" />
 						</span>
-						<AlertDialog.Heading>{title}</AlertDialog.Heading>
-					</AlertDialog.Header>
-					<AlertDialog.Body>
-						<p className="publy-type-helper">{description}</p>
-					</AlertDialog.Body>
-					<AlertDialog.Footer>
-						<Button
-							variant="ghost"
-							isDisabled={isPending}
-							onPress={() => onOpenChange(false)}
-						>
-							{cancelLabel}
-						</Button>
-						<Button
-							variant={tone === 'danger' ? 'danger' : 'primary'}
-							isDisabled={isPending}
-							onPress={onConfirm}
-						>
-							{confirmLabel}
-						</Button>
-					</AlertDialog.Footer>
-				</AlertDialog.Dialog>
-			</AlertDialog.Container>
-		</AlertDialog.Backdrop>
-	</AlertDialog.Root>
+						<DialogPrimitive.Title className="text-lg font-semibold text-foreground">
+							{title}
+						</DialogPrimitive.Title>
+					</div>
+					<DialogPrimitive.Description className="mt-2 text-sm leading-6 text-muted-foreground">
+						{description}
+					</DialogPrimitive.Description>
+				</div>
+				<div className="flex items-center justify-end gap-3 border-t border-border/70 px-6 py-4">
+					<Button
+						type="button"
+						variant="ghost"
+						onClick={() => onOpenChange(false)}
+						disabled={isPending}
+					>
+						{cancelLabel}
+					</Button>
+					<Button
+						type="button"
+						variant={tone === 'danger' ? 'destructive' : 'default'}
+						onClick={onConfirm}
+						disabled={isPending}
+					>
+						{confirmLabel}
+					</Button>
+				</div>
+			</DialogPrimitive.Popup>
+		</DialogPrimitive.Portal>
+	</DialogPrimitive.Root>
 );
