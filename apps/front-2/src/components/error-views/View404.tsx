@@ -1,5 +1,5 @@
-import { Button } from '@heroui/react';
 import { SearchX } from 'lucide-react';
+import { Button } from '~/components/ui/button';
 
 import { AppErrorView } from './AppErrorView';
 
@@ -13,8 +13,7 @@ export const View404 = () => {
 			testId="view-404"
 			actions={
 				<Button
-					variant="primary"
-					onPress={() => {
+					onClick={() => {
 						window.location.assign('/');
 					}}
 				>
