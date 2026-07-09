@@ -41,8 +41,47 @@ test('flags raw shell colors, prototype icons, native selects, confirms, and imp
 			'no-native-product-select',
 			'no-prototype-icons',
 			'no-raw-visual-color',
-			'no-shadcn-token-alias',
 		],
+	);
+});
+
+test('flags HeroUI imports in migration guard', async () => {
+	const root = await makeFixture({
+		'src/components/table/data-table.tsx':
+			"import { Button } from '@heroui/react';\nimport '@heroui/styles';",
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some((violation) => violation.ruleId === 'no-heroui-import'),
+		true,
+	);
+});
+
+test('allows Gray UI token aliases', async () => {
+	const root = await makeFixture({
+		'src/components/table/data-table.tsx':
+			'<div className="text-muted-foreground border-border bg-background text-primary-foreground" />',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.filter((violation) => violation.ruleId === 'no-heroui-import')
+			.length,
+		0,
+	);
+	assert.equal(
+		violations.filter((violation) => violation.ruleId === 'no-raw-visual-color')
+			.length,
+		0,
 	);
 });
 

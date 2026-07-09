@@ -11,9 +11,15 @@ const TOKEN_LAYER_FILES = new Set(['src/styles/app.css']);
 
 const rules = [
 	{
+		id: 'no-heroui-import',
+		message: 'Use local Gray UI primitives instead of HeroUI.',
+		appliesTo: (relativePath) => relativePath.startsWith('src/'),
+		patterns: [/from ['"]@heroui\/react['"]/, /import ['"]@heroui\/styles['"]/],
+	},
+	{
 		id: 'no-raw-visual-color',
 		message:
-			'Use front-2/HeroUI semantic tokens instead of raw hex/rgb/slate/white-alpha styling.',
+			'Use front-2 semantic tokens instead of raw hex/rgb/slate/white-alpha styling.',
 		appliesTo: (relativePath) =>
 			relativePath.startsWith('src/components/app-shell/') ||
 			relativePath.startsWith('src/components/table/') ||
@@ -33,10 +39,13 @@ const rules = [
 		],
 	},
 	{
-		id: 'no-shadcn-token-alias',
-		message: 'Use HeroUI/front-2 token names, not shadcn-style aliases.',
-		appliesTo: (relativePath) => relativePath.startsWith('src/'),
-		patterns: [/\btext-muted\b/, /\bborder-border\b/],
+		id: 'no-native-product-select',
+		message:
+			'Prefer local Select primitives on product surfaces during migration.',
+		appliesTo: (relativePath) =>
+			relativePath.startsWith('src/components/table/') ||
+			relativePath.startsWith('src/routes/authed/'),
+		patterns: [/<select\b/],
 	},
 	{
 		id: 'no-prototype-icons',
@@ -46,17 +55,8 @@ const rules = [
 		patterns: [/icon=["'](?:!|\?|401|⛔|🔎)["']/],
 	},
 	{
-		id: 'no-native-product-select',
-		message: 'Use HeroUI Select in product surfaces.',
-		appliesTo: (relativePath) =>
-			relativePath.startsWith('src/components/table/') ||
-			relativePath.startsWith('src/routes/authed/'),
-		patterns: [/<select\b/],
-	},
-	{
 		id: 'no-native-confirm',
-		message:
-			'Use the HeroUI ConfirmDialog primitive instead of globalThis.confirm.',
+		message: 'Use local confirm dialog in product surfaces.',
 		appliesTo: (relativePath) => relativePath.startsWith('src/routes/authed/'),
 		patterns: [/globalThis\.confirm\b/],
 	},
