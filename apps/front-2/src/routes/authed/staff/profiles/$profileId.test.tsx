@@ -220,4 +220,12 @@ describe('staff profile details route', () => {
 		expect(header.queryByText('Custom')).toBeNull();
 		expect(header.getByText('Profile')).toBeTruthy();
 	});
+
+	test('does not render a fabricated "Type" row in the About card', () => {
+		renderPage();
+
+		const page = within(screen.getByTestId('staff-profile-details-page'));
+		expect(page.queryByText('Type')).toBeNull();
+		expect(page.queryByText('Custom')).toBeNull();
+	});
 });

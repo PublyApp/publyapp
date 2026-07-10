@@ -9,6 +9,7 @@ import {
 	screen,
 	waitFor,
 } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -17,6 +18,15 @@ const mocks = vi.hoisted(() => ({
 	useResendStaffInvitationMutation: vi.fn(),
 	useRevokeStaffInvitationMutation: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
+}));
+
+vi.mock('@tanstack/react-router', () => ({
+	createFileRoute: () => (options: Record<string, unknown>) => options,
+	Link: ({ children, to, ...props }: { children: ReactNode; to: string }) => (
+		<a href={to} {...props}>
+			{children}
+		</a>
+	),
 }));
 
 vi.mock('react-i18next', () => ({
@@ -164,6 +174,32 @@ describe('StaffInvitationDetailsPage', () => {
 			(screen.getByRole('button', { name: 'Revoke' }) as HTMLButtonElement)
 				.disabled,
 		).toBe(false);
+	});
+
+	test('renders a router Link back to the invitations list, not a raw anchor', () => {
+		mocks.useStaffInvitationDetailsQuery.mockReturnValue(
+			buildQueryResult({
+				data: {
+					id: '11111111-1111-1111-1111-111111111111',
+					email: 'pending-staff@example.com',
+					status: 'Pending',
+					invitedByName: 'Owner User',
+					createdAt: new Date('2026-07-01T09:00:00Z'),
+					expiresAt: new Date('2026-07-10T12:00:00Z'),
+					acceptedAt: null,
+					revokedAt: null,
+					profiles: [],
+				},
+			}),
+		);
+
+		renderPage();
+
+		const backLink = screen.getByRole('link', {
+			name: /Staff invitations/,
+		}) as HTMLAnchorElement;
+		expect(backLink.getAttribute('href')).toBe('/staff/invitations');
+		expect(backLink.className).toContain('publy-back-link');
 	});
 
 	test('renders the logout redirect for a 401 query failure', () => {

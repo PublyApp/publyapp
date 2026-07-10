@@ -4,7 +4,7 @@ import {
 	IconHelpCircle,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
@@ -271,10 +271,10 @@ const InvitationDetailsCard = ({
 		<div className="space-y-4" data-testid="staff-invitation-details-page">
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<div className="space-y-1">
-					<a href={STAFF_INVITATIONS_LIST_PATH} className="publy-back-link">
+					<Link to={STAFF_INVITATIONS_LIST_PATH} className="publy-back-link">
 						<IconChevronLeft aria-hidden="true" className="size-3" />
 						{t('staff-invitations')}
-					</a>
+					</Link>
 					<h1 className="publy-type-page-title">{invitation.email || '—'}</h1>
 				</div>
 

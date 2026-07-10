@@ -388,6 +388,13 @@ const rules = [
 		appliesTo: (relativePath) => relativePath.startsWith('src/routes/authed/'),
 		patterns: [
 			/<a\b(?:(?!<a\b)[\s\S])*?href=["']\/(staff|tenant)\b(?:(?!<a\b)[\s\S])*?>/g,
+			// Path constants (`STAFF_INVITATIONS_LIST_PATH`, `ROUTES.x`, …) don't
+			// match the literal-href pattern above, so a raw `<a href={...}>`
+			// referencing one sails through unflagged — that's how the
+			// invitations back-link reload shipped clean. Catch the expression
+			// form too, biased toward over-matching (suppress via
+			// design-system-ignore rather than narrow the regex).
+			/<a\b(?:(?!<a\b)[\s\S])*?href=\{[^}]*(?:path|route)[^}]*\}(?:(?!<a\b)[\s\S])*?>/gi,
 		],
 	},
 	{

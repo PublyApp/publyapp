@@ -538,12 +538,6 @@ function StaffProfileDetailsPage() {
 						</div>
 						<div className="publy-detail-card-body">
 							<div className="publy-detail-row">
-								<span className="publy-type-metadata-label">Type</span>
-								<span className="publy-detail-chip publy-detail-chip--amber">
-									Custom
-								</span>
-							</div>
-							<div className="publy-detail-row">
 								<span className="publy-type-metadata-label">Profile ID</span>
 								<span className="font-mono text-[12px] text-[var(--publy-foreground-secondary)]">
 									{details.id}

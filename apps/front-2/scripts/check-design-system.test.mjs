@@ -531,6 +531,41 @@ test('flags wrapped internal staff and tenant anchors in authed routes', async (
 	);
 });
 
+test('flags a raw anchor whose href is a path-constant expression', async () => {
+	const root = await makeFixture({
+		'src/routes/authed/staff/example.tsx':
+			'<a href={STAFF_INVITATIONS_LIST_PATH} className="publy-back-link">Back</a>',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+	const anchors = violations.filter(
+		(violation) => violation.ruleId === 'no-raw-internal-anchor',
+	);
+
+	assert.equal(anchors.length, 1);
+	assert.match(anchors[0].source, /href=\{STAFF_INVITATIONS_LIST_PATH\}/);
+});
+
+test('does not flag a TanStack Link with a path-constant `to` prop', async () => {
+	const root = await makeFixture({
+		'src/routes/authed/staff/example.tsx':
+			'<Link to={STAFF_INVITATIONS_LIST_PATH} className="publy-back-link">Back</Link>',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+	const anchors = violations.filter(
+		(violation) => violation.ruleId === 'no-raw-internal-anchor',
+	);
+
+	assert.equal(anchors.length, 0);
+});
+
 test('flags a page.route glob whose trailing single star cannot cross a path separator', async () => {
 	const root = await makeFixture({
 		'e2e/tenants.spec.ts':
