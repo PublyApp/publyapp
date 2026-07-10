@@ -155,13 +155,13 @@ export const createInvitationColumns = ({
 		accessorKey: 'profileName',
 		enableSorting: false,
 		cell: ({ row }) => {
-			const profileName = row.original.profileName || '-';
+			const profileName = row.original.profileName;
 			return (
 				<span
 					className="block truncate text-[12px] text-[var(--publy-foreground-secondary)]"
-					title={profileName}
+					title={profileName || undefined}
 				>
-					{profileName}
+					{profileName || '-'}
 				</span>
 			);
 		},
@@ -178,13 +178,13 @@ export const createInvitationColumns = ({
 		enableSorting: false,
 		meta: { width: '150px' },
 		cell: ({ row }) => {
-			const invitedByName = row.original.invitedByName || '-';
+			const invitedByName = row.original.invitedByName;
 			return (
 				<span
 					className="block truncate text-[13px] text-[var(--publy-foreground-secondary)]"
-					title={invitedByName}
+					title={invitedByName || undefined}
 				>
-					{invitedByName}
+					{invitedByName || '-'}
 				</span>
 			);
 		},

@@ -18,7 +18,7 @@ const isApiPath = (url: string, path: string): boolean => {
 };
 
 const mockStaffTenants = async (page: Page) => {
-	await page.route('**/staff/tenants*', async (route) => {
+	await page.route('**/staff/tenants**', async (route) => {
 		const request = route.request();
 		const url = request.url();
 
@@ -103,10 +103,9 @@ test.describe('staff tenants list', () => {
 			'width',
 			'124px',
 		);
-		await expect(page.getByRole('columnheader', { name: 'Users' })).toHaveCSS(
-			'width',
-			'92px',
-		);
+		await expect(
+			page.getByRole('columnheader', { name: 'Users', exact: true }),
+		).toHaveCSS('width', '92px');
 		await expect(
 			page.getByRole('columnheader', { name: 'Max users' }),
 		).toHaveCSS('width', '132px');
@@ -147,7 +146,7 @@ test.describe('staff tenants list', () => {
 			page.getByRole('heading', { name: 'Suspend selected' }),
 		).toBeVisible();
 		await page
-			.getByRole('dialog')
+			.getByRole('alertdialog')
 			.getByRole('button', { name: 'Suspend' })
 			.click();
 

@@ -120,6 +120,10 @@ test.describe('staff users table', () => {
 			.locator('[data-slot="table-cell"]')
 			.first();
 		await expect(lastRowCell).toHaveCSS('border-bottom-width', '1px');
+		await expect(lastRowCell).toHaveCSS(
+			'border-bottom-color',
+			'rgb(241, 241, 243)',
+		);
 	});
 
 	test('cursor pagination advances forward and returns via previous', async ({

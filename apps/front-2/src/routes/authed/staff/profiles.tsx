@@ -24,6 +24,7 @@ import { useRowSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
 import { buttonVariants } from '~/components/ui/button';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
+import { PageHeader } from '~/components/ui/product-page';
 import {
 	type StaffProfileRow,
 	toStaffProfileRows,
@@ -70,7 +71,7 @@ const columns: ColumnDef<StaffProfileRow>[] = [
 		meta: { width: '240px' },
 		cell: ({ row }) => {
 			const IconComponent = PROFILE_ICON_MAP[row.original.icon];
-			const name = row.original.name || '—';
+			const name = row.original.name;
 			return (
 				<Link
 					to={'/staff/profiles/$profileId' as never}
@@ -85,9 +86,9 @@ const columns: ColumnDef<StaffProfileRow>[] = [
 					</span>
 					<span
 						className="min-w-0 truncate text-[13px] font-medium"
-						title={name}
+						title={name || undefined}
 					>
-						{name}
+						{name || '—'}
 					</span>
 				</Link>
 			);
@@ -239,20 +240,15 @@ function StaffProfilesPage() {
 
 	return (
 		<div className="publy-page-fill">
-			<header className="publy-page-header">
-				<div className="min-w-0">
-					<div className="flex items-center gap-2.5">
-						<h1 className="publy-type-page-title">Profiles</h1>
-						{totalCount > 0 ? (
-							<span className="publy-profile-count-badge">{totalCount}</span>
-						) : null}
-					</div>
-					<p className="publy-type-helper mt-1">
-						Profiles bundle permissions and can be assigned to staff and
-						tenants.
-					</p>
-				</div>
-				<div className="publy-action-cluster">
+			<PageHeader
+				title="Profiles"
+				description="Profiles bundle permissions and can be assigned to staff and tenants."
+				count={
+					totalCount > 0 ? (
+						<span className="publy-profile-count-badge">{totalCount}</span>
+					) : null
+				}
+				actions={
 					<Link
 						to={'/staff/profiles/new' as never}
 						className={buttonVariants({ variant: 'default' })}
@@ -260,8 +256,8 @@ function StaffProfilesPage() {
 						<IconPlus aria-hidden="true" className="size-[15px]" />
 						New profile
 					</Link>
-				</div>
-			</header>
+				}
+			/>
 			<DataTable
 				testId="staff-profiles-table"
 				ariaLabel="Staff profiles"

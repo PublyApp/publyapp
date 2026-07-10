@@ -98,7 +98,7 @@ const setupProfilesMocks = async (page: Page) => {
 		await route.fallback();
 	});
 
-	await page.route('**/staff/permissions*', async (route) => {
+	await page.route('**/staff/permissions**', async (route) => {
 		const url = route.request().url();
 		if (route.request().method() !== 'GET') {
 			await route.fallback();
@@ -262,6 +262,10 @@ test('applies the P3 column grid, truncates long text without horizontal scroll,
 		.locator('[data-slot="table-cell"]')
 		.first();
 	await expect(lastRowCell).toHaveCSS('border-bottom-width', '1px');
+	await expect(lastRowCell).toHaveCSS(
+		'border-bottom-color',
+		'rgb(241, 241, 243)',
+	);
 });
 
 test('asserts profile detail identity block and permission matrix per handoff 2h', async ({

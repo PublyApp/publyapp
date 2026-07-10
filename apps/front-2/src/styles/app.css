@@ -1843,8 +1843,10 @@ html[data-theme-changing] * {
 /* Column geometry: colgroup-driven <col> widths only bite with a fixed
    table layout. Columns without an explicit width (the data-table.tsx
    `width` meta) absorb the remaining space, the fluid-column stand-in
-   for `1fr`. */
-.publy-data-table {
+   for `1fr`. Opt-in via `data-fixed-columns` (set only when at least one
+   column declares a width meta) so tables with no width metas keep their
+   previous auto-layout rendering. */
+.publy-data-table[data-fixed-columns] {
 	table-layout: fixed;
 }
 

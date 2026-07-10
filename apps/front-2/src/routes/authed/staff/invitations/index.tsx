@@ -15,6 +15,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu';
+import { PageHeader } from '~/components/ui/product-page';
 import { useStaffInvitationsQuery } from '~/lib/query/staff-invitations';
 import { shouldLogoutForFailure } from '~/routes/authed/layout';
 
@@ -152,21 +153,17 @@ function StaffInvitationsPage() {
 
 	return (
 		<div className="publy-page-fill" data-testid="staff-invitations-list-page">
-			<header className="publy-page-header">
-				<div className="min-w-0">
-					<div className="flex items-center gap-2.5">
-						<h1 className="publy-type-page-title">{t('staff-invitations')}</h1>
-						{filteredRows.length > 0 ? (
-							<span className="publy-profile-count-badge">
-								{filteredRows.length}
-							</span>
-						) : null}
-					</div>
-					<p className="publy-type-helper mt-1">
-						Invite staff users to the platform.
-					</p>
-				</div>
-				<div className="publy-action-cluster">
+			<PageHeader
+				title={t('staff-invitations')}
+				description="Invite staff users to the platform."
+				count={
+					filteredRows.length > 0 ? (
+						<span className="publy-profile-count-badge">
+							{filteredRows.length}
+						</span>
+					) : null
+				}
+				actions={
 					<Link
 						to="/staff/invitations/new"
 						className={buttonVariants({ variant: 'default' })}
@@ -174,8 +171,8 @@ function StaffInvitationsPage() {
 						<IconPlus aria-hidden="true" className="size-[15px]" />
 						{t('invite-user')}
 					</Link>
-				</div>
-			</header>
+				}
+			/>
 
 			<DataTable
 				toolbarEnd={

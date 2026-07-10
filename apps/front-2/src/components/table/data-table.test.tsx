@@ -262,6 +262,51 @@ describe('DataTable state rendering', () => {
 		expect((cols[2] as HTMLElement).style.width).toBe('');
 	});
 
+	test('renders data-fixed-columns only when at least one column declares a width meta', () => {
+		const widthlessColumns: ColumnDef<TestRow>[] = [
+			{
+				id: 'name',
+				accessorKey: 'name',
+				header: 'Name',
+				cell: ({ getValue }) => String(getValue()),
+			},
+		];
+		const widthColumns: ColumnDef<TestRow>[] = [
+			{
+				id: 'name',
+				accessorKey: 'name',
+				header: 'Name',
+				meta: { width: '200px' },
+				cell: ({ getValue }) => String(getValue()),
+			},
+		];
+
+		const { unmount } = render(
+			<DataTable
+				{...baseProps}
+				columns={widthlessColumns}
+				rows={rows}
+				isError={false}
+			/>,
+		);
+		expect(
+			screen.getByTestId('test-table-rows').hasAttribute('data-fixed-columns'),
+		).toBe(false);
+		unmount();
+
+		render(
+			<DataTable
+				{...baseProps}
+				columns={widthColumns}
+				rows={rows}
+				isError={false}
+			/>,
+		);
+		expect(
+			screen.getByTestId('test-table-rows').hasAttribute('data-fixed-columns'),
+		).toBe(true);
+	});
+
 	test('locks controls when row selection mode is active', () => {
 		render(
 			<DataTable

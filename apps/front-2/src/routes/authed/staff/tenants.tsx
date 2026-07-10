@@ -31,7 +31,7 @@ import {
 	DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu';
 import { InitialsAvatar } from '~/components/ui/initials-avatar';
-import { StatusPill } from '~/components/ui/product-page';
+import { PageHeader, StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import {
 	STAFF_TENANT_DETAILS_QUERY_KEY,
@@ -189,19 +189,15 @@ function StaffTenantsPage() {
 
 	return (
 		<div className="publy-page-fill">
-			<header className="publy-page-header">
-				<div className="min-w-0">
-					<div className="flex items-center gap-2.5">
-						<h1 className="publy-type-page-title">Tenants</h1>
-						{rows.length > 0 ? (
-							<span className="publy-profile-count-badge">{rows.length}</span>
-						) : null}
-					</div>
-					<p className="publy-type-helper mt-1">
-						Manage tenant organizations, seats, and lifecycle.
-					</p>
-				</div>
-				<div className="publy-action-cluster">
+			<PageHeader
+				title="Tenants"
+				description="Manage tenant organizations, seats, and lifecycle."
+				count={
+					rows.length > 0 ? (
+						<span className="publy-profile-count-badge">{rows.length}</span>
+					) : null
+				}
+				actions={
 					<Link
 						to="/staff/tenants/new"
 						className={buttonVariants({ variant: 'default' })}
@@ -209,8 +205,8 @@ function StaffTenantsPage() {
 						<IconPlus aria-hidden="true" className="size-4" />
 						{t('new-item', { item: t('tenant') })}
 					</Link>
-				</div>
-			</header>
+				}
+			/>
 			{bulkFeedback ? (
 				<div
 					className="flex items-center gap-1.5 text-xs"
@@ -411,10 +407,20 @@ const TenantBulkActionsToolbar = ({
 				.filter((tenant) => tenant.status === TENANT_STATUS_ACTIVE)
 				.map((tenant) => tenant.id);
 		}
-		if (action === 'reactivate' || action === 'delete') {
+		if (action === 'reactivate') {
 			return selectedTenants
 				.filter((tenant) => tenant.status === TENANT_STATUS_SUSPENDED)
 				.map((tenant) => tenant.id);
+		}
+		if (action === 'delete') {
+			const allSelectedAreSuspended =
+				selectedTenants.length > 0 &&
+				selectedTenants.every(
+					(tenant) => tenant.status === TENANT_STATUS_SUSPENDED,
+				);
+			return allSelectedAreSuspended
+				? selectedTenants.map((tenant) => tenant.id)
+				: [];
 		}
 		return [];
 	};

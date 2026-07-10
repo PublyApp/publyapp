@@ -187,6 +187,10 @@ export const DataTable = <TData extends { id: string }>({
 		getRowId: (row) => row.id,
 	});
 
+	const hasFixedColumns = table
+		.getAllLeafColumns()
+		.some((column) => columnDisplayMeta(column.columnDef).width != null);
+
 	const tableSort = table.getState().sorting.at(0);
 	const rowModels = table.getRowModel().rows;
 	const visibleRowIds = rowModels.map((row) => row.id);
@@ -418,6 +422,7 @@ export const DataTable = <TData extends { id: string }>({
 						data-testid={`${testId}-rows`}
 						data-slot="table"
 						data-row-height={resolvedRowHeight}
+						data-fixed-columns={hasFixedColumns ? '' : undefined}
 					>
 						<colgroup>
 							{hasSelection ? <col style={{ width: '40px' }} /> : null}

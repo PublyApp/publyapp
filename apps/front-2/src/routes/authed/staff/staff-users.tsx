@@ -18,7 +18,7 @@ import { useTableController } from '~/components/table/use-table-controller';
 import { buttonVariants } from '~/components/ui/button';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
 import { InitialsAvatar } from '~/components/ui/initials-avatar';
-import { StatusPill } from '~/components/ui/product-page';
+import { PageHeader, StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import {
 	toStaffUserRows,
@@ -179,19 +179,15 @@ function StaffUsersPage() {
 
 	return (
 		<div className="publy-page-fill">
-			<header className="publy-page-header">
-				<div className="min-w-0">
-					<div className="flex items-center gap-2.5">
-						<h1 className="publy-type-page-title">Staff users</h1>
-						{rows.length > 0 ? (
-							<span className="publy-profile-count-badge">{rows.length}</span>
-						) : null}
-					</div>
-					<p className="publy-type-helper mt-1">
-						Search, review, and manage staff access across the workspace.
-					</p>
-				</div>
-				<div className="publy-action-cluster">
+			<PageHeader
+				title="Staff users"
+				description="Search, review, and manage staff access across the workspace."
+				count={
+					rows.length > 0 ? (
+						<span className="publy-profile-count-badge">{rows.length}</span>
+					) : null
+				}
+				actions={
 					<Link
 						to={'/staff/invitations/new' as never} // Route is not yet migrated for typed route checks; parity contract keeps this external path.
 						className={buttonVariants({ variant: 'default' })}
@@ -199,8 +195,8 @@ function StaffUsersPage() {
 						<IconUserPlus aria-hidden="true" className="size-4" />
 						{t('invite-users')}
 					</Link>
-				</div>
-			</header>
+				}
+			/>
 			<DataTable
 				testId="staff-users-table"
 				ariaLabel="Staff users"

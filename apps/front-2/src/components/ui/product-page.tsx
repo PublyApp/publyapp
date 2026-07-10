@@ -4,14 +4,24 @@ export const PageHeader = ({
 	title,
 	description,
 	actions,
+	count,
 }: {
 	title: string;
 	description?: string;
 	actions?: ReactNode;
+	/** Count badge rendered beside the title inside a shared flex wrapper. */
+	count?: ReactNode;
 }) => (
 	<header className="publy-page-header">
 		<div className="min-w-0">
-			<h1 className="publy-type-page-title">{title}</h1>
+			{count !== undefined ? (
+				<div className="flex items-center gap-2.5">
+					<h1 className="publy-type-page-title">{title}</h1>
+					{count}
+				</div>
+			) : (
+				<h1 className="publy-type-page-title">{title}</h1>
+			)}
 			{description ? (
 				<p className="publy-type-helper mt-1">{description}</p>
 			) : null}

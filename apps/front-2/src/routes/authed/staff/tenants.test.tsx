@@ -636,5 +636,100 @@ describe('staff tenants route', () => {
 				expect(screen.getByTestId('logout-redirect')).toBeTruthy(),
 			);
 		});
+
+		const mixedStatusTenants = [
+			{
+				id: 'tenant-1',
+				name: 'Acme Corporation',
+				status: 'Active',
+				usersCount: 12,
+				maxUsers: 50,
+			},
+			{
+				id: 'tenant-2',
+				name: 'Globex Corporation',
+				status: 'Suspended',
+				usersCount: 3,
+				maxUsers: 10,
+			},
+		];
+
+		const allSuspendedTenants = mixedStatusTenants.map((tenant) => ({
+			...tenant,
+			status: 'Suspended',
+		}));
+
+		test('a mixed active/suspended bulk delete click shows inline feedback and fires no mutation', async () => {
+			mocks.toStaffTenantRows.mockReturnValue(mixedStatusTenants);
+			mocks.useStaffTenantsQuery.mockReturnValue(
+				buildQueryResult({
+					data: { data: mixedStatusTenants, nextCursor: null },
+				}),
+			);
+
+			renderPage();
+
+			fireEvent.click(
+				screen.getByRole('checkbox', { name: 'Select row tenant-1' }),
+			);
+			fireEvent.click(
+				screen.getByRole('checkbox', { name: 'Select row tenant-2' }),
+			);
+			fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+			fireEvent.click(
+				await screen.findByRole('menuitem', { name: 'Delete selected' }),
+			);
+
+			expect(
+				screen.getByText(
+					'Only suspended tenants can be deleted. Clear active tenants from the selection first.',
+				),
+			).toBeTruthy();
+			expect(
+				screen.queryByRole('heading', { name: 'Delete selected' }),
+			).toBeNull();
+			expect(mocks.bulkDeleteTenantsMutation).not.toHaveBeenCalled();
+		});
+
+		test('bulk-deletes every selected tenant when the whole selection is suspended', async () => {
+			mocks.toStaffTenantRows.mockReturnValue(allSuspendedTenants);
+			mocks.useStaffTenantsQuery.mockReturnValue(
+				buildQueryResult({
+					data: { data: allSuspendedTenants, nextCursor: null },
+				}),
+			);
+			mocks.bulkDeleteTenantsMutation.mockResolvedValue({
+				succeededCount: 2,
+				failedCount: 0,
+			});
+
+			renderPage();
+
+			fireEvent.click(
+				screen.getByRole('checkbox', { name: 'Select row tenant-1' }),
+			);
+			fireEvent.click(
+				screen.getByRole('checkbox', { name: 'Select row tenant-2' }),
+			);
+			fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+			fireEvent.click(
+				await screen.findByRole('menuitem', { name: 'Delete selected' }),
+			);
+
+			await waitFor(() =>
+				expect(
+					screen.getByRole('heading', { name: 'Delete selected' }),
+				).toBeTruthy(),
+			);
+			fireEvent.click(
+				screen.getAllByRole('button', { name: 'Delete' }).slice(-1)[0],
+			);
+
+			await waitFor(() =>
+				expect(mocks.bulkDeleteTenantsMutation).toHaveBeenCalledWith({
+					tenantIds: ['tenant-1', 'tenant-2'],
+				}),
+			);
+		});
 	});
 });
