@@ -54,7 +54,21 @@ const collectFiles = async (dir, extensions) => {
 // in this codebase currently uses. A `createContext()` call site that is
 // found but doesn't match that message is reported separately as
 // "unfingerprinted" rather than silently passing — see `unfingerprinted` in
-// the return value and the CLI output below.
+// the return value and the CLI output below. An unfingerprinted context, and
+// a source tree with zero detected contexts at all, are both treated as hard
+// failures: this guard exists to fail when it can't verify isolation, not to
+// pass by default.
+//
+// Matches `createContext(...)` and `createContext<T>(...)`, including
+// generic type arguments (`createContext<Foo<Bar> | null>(...)`) and
+// formatter-mangled spacing (`createContext < Foo > (...)`). The negative
+// lookahead requires the next character not be an identifier character, so
+// lookalikes like `useCreateContext(` or `createContextValue(` never match.
+// Biased toward over-matching: a false positive here only produces a loud
+// "unfingerprinted" report, while a false negative silently defeats the
+// entire guard — which is the bug this script exists to fix.
+const CREATE_CONTEXT_PATTERN = /createContext(?![\w$])\s*(<[^(]*>)?\s*\(/;
+
 const MUST_BE_USED_WITHIN_PATTERN = /[^'"`]*must be used within[^'"`]*/;
 
 export const findContextFingerprints = async ({
@@ -65,7 +79,7 @@ export const findContextFingerprints = async ({
 
 	for (const filePath of files) {
 		const source = await readFile(filePath, 'utf8');
-		if (!source.includes('createContext(')) {
+		if (!CREATE_CONTEXT_PATTERN.test(source)) {
 			continue;
 		}
 
@@ -92,6 +106,16 @@ export const checkContextChunkIsolation = async ({
 	}
 
 	const fingerprints = await findContextFingerprints({ sourceDir });
+
+	if (fingerprints.length === 0) {
+		throw new Error(
+			`checkContextChunkIsolation: found zero createContext() call(s) under ${sourceDir}. ` +
+				'This guard requires at least one context to protect — zero found means ' +
+				'either the detection pattern broke or every context was removed from the ' +
+				'source tree, and both need a human to look rather than a silent pass.',
+		);
+	}
+
 	const assetFiles = (await collectFiles(distAssetsDir)).filter((file) =>
 		file.endsWith('.js'),
 	);
@@ -128,9 +152,25 @@ if (
 	process.argv[1] &&
 	pathToFileURL(process.argv[1]).href === import.meta.url
 ) {
-	const { violations, unfingerprinted } = await checkContextChunkIsolation();
+	// Env overrides exist only so tests can spawn this file as a real
+	// subprocess against fixture directories and assert on its exit code —
+	// the actual regression this packet fixes (a guard that reports failures
+	// but exits 0 anyway) can only be caught by observing the process exit
+	// code, not by inspecting the exported function's return value.
+	const sourceDir =
+		process.env.CONTEXT_CHUNK_ISOLATION_SOURCE_DIR ?? defaultSourceDir;
+	const distAssetsDir =
+		process.env.CONTEXT_CHUNK_ISOLATION_DIST_DIR ?? defaultDistAssetsDir;
+
+	const { violations, unfingerprinted } = await checkContextChunkIsolation({
+		sourceDir,
+		distAssetsDir,
+	});
+
+	let hasFailure = false;
 
 	if (unfingerprinted.length > 0) {
+		hasFailure = true;
 		console.error(
 			'context-chunk-isolation guard: found createContext() call(s) with ' +
 				'no "must be used within" message, so this script cannot ' +
@@ -145,6 +185,7 @@ if (
 	}
 
 	if (violations.length > 0) {
+		hasFailure = true;
 		console.error('context-chunk-isolation guard failed:');
 		for (const violation of violations) {
 			console.error(
@@ -152,6 +193,9 @@ if (
 					`${violation.chunkCount} client chunk(s), expected exactly 1`,
 			);
 		}
+	}
+
+	if (hasFailure) {
 		process.exit(1);
 	}
 }
