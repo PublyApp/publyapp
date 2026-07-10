@@ -1129,13 +1129,14 @@ html {
 	/* ---- Detail body grid + danger zone (handoff 2c/3b) ---- */
 
 	.publy-detail-grid {
-		@apply grid items-start gap-5;
+		@apply mx-auto grid w-full items-start gap-5;
+		max-width: 1440px;
 		grid-template-columns: minmax(0, 1fr);
 	}
 
 	@media (min-width: 1024px) {
 		.publy-detail-grid {
-			grid-template-columns: minmax(0, 1fr) 372px;
+			grid-template-columns: minmax(0, 1fr) 420px;
 		}
 	}
 
@@ -1619,24 +1620,6 @@ html {
 	font-size: 11px;
 	font-weight: 500;
 	color: var(--publy-foreground-secondary);
-}
-
-.publy-profile-detail-kebab {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	width: 36px;
-	height: 36px;
-	border-radius: var(--publy-radius-button);
-	border: 1px solid var(--publy-border);
-	background: var(--publy-surface);
-	color: var(--publy-foreground);
-	cursor: pointer;
-	transition: background-color var(--publy-motion-fast) var(--publy-motion-ease);
-}
-
-.publy-profile-detail-kebab:hover {
-	background: var(--publy-surface-hover);
 }
 
 .publy-detail-card {

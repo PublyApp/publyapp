@@ -166,7 +166,7 @@ const JSON_BACKED_FOCUS: Record<
 			kind: 'layout',
 			component: 'bodyGrid',
 			property: 'grid-template-columns',
-			expected: '1fr 372px',
+			expected: '1fr 420px',
 		},
 	],
 	'2b': [
@@ -306,7 +306,7 @@ const JSON_BACKED_FOCUS: Record<
 			kind: 'layout',
 			component: 'bodyGrid',
 			property: 'grid-template-columns',
-			expected: '1fr 372px',
+			expected: '1fr 420px',
 		},
 	],
 	'3a': [
@@ -340,7 +340,7 @@ const JSON_BACKED_FOCUS: Record<
 			kind: 'layout',
 			component: 'bodyGrid',
 			property: 'grid-template-columns',
-			expected: '1fr 372px',
+			expected: '1fr 420px',
 		},
 		{
 			kind: 'token',

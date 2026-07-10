@@ -345,7 +345,7 @@ const ConfirmHeaderInfo = ({
 	email: string;
 	avatarSeed: string;
 }) => (
-	<div className="rounded-[14px] border border-[var(--publy-row-border)] bg-[var(--publy-surface-raised)] p-3">
+	<div className="rounded-[var(--publy-radius-card)] border border-[var(--publy-row-border)] bg-[var(--publy-surface-raised)] p-3">
 		<div className="flex items-center gap-2.5">
 			<InitialsAvatar name={avatarSeed} size="sm" />
 			<div className="min-w-0">
@@ -373,7 +373,7 @@ const DeleteConfirmField = ({
 			value={value}
 			placeholder="Type delete to confirm"
 			onChange={(event) => onChange(event.target.value)}
-			className="h-9 rounded-[8px]"
+			className="h-9"
 		/>
 	</div>
 );
@@ -583,24 +583,6 @@ function StaffUserDetailsPage() {
 					<IconChevronLeft className="size-3" />
 					Back to staff users
 				</Link>
-				<div className="space-y-1">
-					<nav
-						aria-label="Breadcrumb"
-						className="text-[13px] text-muted-foreground"
-					>
-						<span>Staff</span>
-						<span className="mx-1 text-[var(--publy-foreground-subtle)]">
-							›
-						</span>
-						<Link to="/staff/staff-users" className="hover:text-foreground">
-							Users
-						</Link>
-						<span className="mx-1 text-[var(--publy-foreground-subtle)]">
-							›
-						</span>
-						<span className="text-foreground">{user.displayName}</span>
-					</nav>
-				</div>
 			</div>
 			<div className="space-y-1">
 				<div className="flex flex-wrap items-center justify-between gap-3">
@@ -644,8 +626,8 @@ function StaffUserDetailsPage() {
 						</Link>
 						<Button
 							type="button"
-							variant="outline"
-							className="h-9 rounded-[12px] border-destructive/30 bg-[var(--publy-danger-soft)] text-destructive hover:bg-[color-mix(in_srgb,var(--publy-danger)_16%,transparent)]"
+							variant="destructive"
+							size="sm"
 							onClick={() => {
 								if (canSuspend || canReactivate) {
 									setSuspendDialogOpen(true);

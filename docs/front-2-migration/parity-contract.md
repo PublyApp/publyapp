@@ -229,3 +229,12 @@ is set after the settings interaction), the locale switch, and the invite flow.
   OSI-permissive, neither blocks closed-source SaaS use, so Phase 1 token/design work is
   **not** blocked. Carry-forward is attribution/NOTICE hygiene only. See the Phase 0
   findings "License gate → Resolution (2026-06-20)".
+- Detail-page body grid width: SPEC 2c/2h describe a `1fr / 372px` body grid
+  with no max-width (the JSON-backed assertion coverage for this same grid is
+  keyed under artboard IDs `2a`, `2h`, and `3b` in `artboard-assertions.ts`),
+  which stretches edge-to-edge on large monitors. **Superseded 2026-07-10
+  (owner-approved):** the detail content column is capped at
+  `max-width: 1440px` (centered) and the aside widens `372px → 420px`. This is
+  a deliberate deviation from the canvas, not a parity gap —
+  `artboard-assertions.ts` ('2a', '2h', '3b') and `detail-layout.tsx`/its test
+  were updated to assert `1fr 420px` accordingly.

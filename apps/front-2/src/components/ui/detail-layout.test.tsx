@@ -15,7 +15,7 @@ import {
 afterEach(cleanup);
 
 describe('DetailGrid', () => {
-	test('renders the 1fr/372px handoff body grid with main and aside columns', () => {
+	test('renders the 1fr/420px handoff body grid with main and aside columns', () => {
 		render(
 			<DetailGrid>
 				<DetailMain>

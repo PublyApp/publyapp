@@ -4,7 +4,6 @@ import {
 	IconCalendar,
 	IconChartBar,
 	IconCheck,
-	IconChevronRight,
 	IconDots,
 	IconNews,
 	IconPencil,
@@ -398,25 +397,6 @@ function StaffProfileDetailsPage() {
 
 	return (
 		<div className="publy-page-fill" data-testid="staff-profile-details-page">
-			{/* Breadcrumb */}
-			<div className="flex items-center gap-2.5 text-[13px] py-1">
-				<Link
-					to="/staff/profiles"
-					className="no-underline hover:underline text-[var(--publy-foreground-muted)]"
-				>
-					Staff
-				</Link>
-				<IconChevronRight className="size-3 text-[var(--publy-disabled)]" />
-				<Link
-					to="/staff/profiles"
-					className="no-underline hover:underline text-[var(--publy-foreground-muted)]"
-				>
-					Profiles
-				</Link>
-				<IconChevronRight className="size-3 text-[var(--publy-disabled)]" />
-				<span className="font-medium">{details.name}</span>
-			</div>
-
 			{/* Identity Header */}
 			<div className="flex items-start justify-between gap-4 mb-8">
 				<div className="flex items-center gap-4">
@@ -454,20 +434,16 @@ function StaffProfileDetailsPage() {
 				</div>
 				<div className="flex items-center gap-2.5">
 					<Button variant="outline" size="sm" className="gap-1.5">
-						<IconUsersPlus className="size-[15px]" />
+						<IconUsersPlus className="size-4" />
 						Assign to users
 					</Button>
 					<Button variant="outline" size="sm" className="gap-1.5">
-						<IconPencil className="size-[15px]" />
+						<IconPencil className="size-4" />
 						Edit
 					</Button>
-					<button
-						type="button"
-						className="publy-profile-detail-kebab"
-						aria-label="More actions"
-					>
+					<Button variant="outline" size="icon-sm" aria-label="More actions">
 						<IconDots className="size-4" />
-					</button>
+					</Button>
 				</div>
 			</div>
 
