@@ -15,6 +15,7 @@ export type ConfirmDialogProps = {
 	confirmLabel: string;
 	cancelLabel?: string;
 	isPending?: boolean;
+	isConfirmDisabled?: boolean;
 	tone?: 'danger' | 'primary';
 	/** Extra confirmation content (user inset card, type-to-confirm field). */
 	children?: ReactNode;
@@ -29,6 +30,7 @@ export const ConfirmDialog = ({
 	confirmLabel,
 	cancelLabel = 'Cancel',
 	isPending = false,
+	isConfirmDisabled = false,
 	tone = 'danger',
 	children,
 	onConfirm,
@@ -88,7 +90,7 @@ export const ConfirmDialog = ({
 						variant={tone === 'danger' ? 'destructive' : 'default'}
 						className="font-semibold"
 						onClick={onConfirm}
-						disabled={isPending}
+						disabled={isPending || isConfirmDisabled}
 					>
 						{confirmLabel}
 					</Button>

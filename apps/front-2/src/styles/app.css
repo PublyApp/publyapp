@@ -797,6 +797,12 @@ html {
 		font-size: 18px;
 	}
 
+	.publy-avatar-initials[data-size='sm'] {
+		width: 32px;
+		height: 32px;
+		font-size: 11px;
+	}
+
 	.publy-avatar-initials[data-size='md'] {
 		width: 36px;
 		height: 36px;
@@ -1186,32 +1192,6 @@ html {
 
 	.publy-danger-action:hover {
 		background: color-mix(in srgb, var(--publy-danger) 16%, transparent);
-	}
-
-	/* ---- Underline section tabs (handoff 2c/3b) ---- */
-
-	.publy-section-tabs {
-		@apply flex items-center gap-4;
-		border-bottom: 1px solid var(--publy-border);
-	}
-
-	.publy-section-tab {
-		@apply inline-flex items-center border-b-2 border-transparent transition-colors;
-		font-size: 13px;
-		font-weight: 500;
-		margin-bottom: -1px;
-		padding: 0 4px 8px;
-		color: var(--publy-foreground-subtle);
-	}
-
-	.publy-section-tab:hover {
-		color: var(--publy-foreground);
-	}
-
-	.publy-section-tab[data-active='true'],
-	.publy-section-tab[aria-current='page'] {
-		border-bottom-color: var(--publy-primary);
-		color: var(--publy-foreground);
 	}
 
 	/* ---- Data Table ---- */
