@@ -197,7 +197,28 @@ test('asserts profile detail identity block and permission matrix per handoff 2h
 	await expect(detailTile).toHaveCSS('border-radius', '14px');
 
 	const permMatrix = page.locator('.publy-perm-matrix');
-	await expect(permMatrix).toHaveCSS('grid-template-columns', '1fr 1fr');
+	expect(
+		await permMatrix.evaluate((element) => {
+			const tracks = getComputedStyle(element)
+				.gridTemplateColumns.trim()
+				.split(/\s+/);
+			const [firstTrack, secondTrack] = tracks;
+			const pixelTrackPattern = /^\d+(?:\.\d+)?px$/;
+
+			if (firstTrack === undefined || secondTrack === undefined) {
+				return false;
+			}
+
+			return (
+				tracks.length === 2 &&
+				pixelTrackPattern.test(firstTrack) &&
+				pixelTrackPattern.test(secondTrack) &&
+				Math.abs(
+					Number.parseFloat(firstTrack) - Number.parseFloat(secondTrack),
+				) <= 0.5
+			);
+		}),
+	).toBe(true);
 
 	const permKey = permMatrix.locator('.publy-perm-key').first();
 	await expect(permKey).toBeVisible();
