@@ -224,7 +224,9 @@ export const Route = createFileRoute('/_authed-layout')({
 });
 
 function AuthedRouteLayout() {
-	const pathname = useLocation().pathname ?? '';
+	const location = useLocation();
+	const pathname = location.pathname ?? '';
+	const search = location.search as Record<string, unknown>;
 	const navigate = useNavigate();
 	const isStaffSurface = pathname.startsWith(STAFF_PATH);
 	const isTenantSurface = pathname.startsWith(TENANT_PATH);
@@ -301,11 +303,15 @@ function AuthedRouteLayout() {
 	}
 
 	if (query.isLoading || isSurfaceMismatch) {
-		return <AuthedLayout pathname={pathname}>Loading…</AuthedLayout>;
+		return (
+			<AuthedLayout pathname={pathname} search={search}>
+				Loading…
+			</AuthedLayout>
+		);
 	}
 
 	return (
-		<AuthedLayout pathname={pathname}>
+		<AuthedLayout pathname={pathname} search={search}>
 			<Outlet />
 		</AuthedLayout>
 	);

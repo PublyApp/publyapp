@@ -7,6 +7,7 @@ import {
 	getRailItems,
 	getRailItemsForPath,
 	getSecondaryPanelItems,
+	isSecondaryPanelItemActive,
 	shouldShowSecondaryPanel,
 } from './route-metadata';
 
@@ -201,6 +202,51 @@ describe('front-2 route metadata', () => {
 			shouldShowSecondaryPanel('/tenant/posts', {
 				sidebarOpen: true,
 				viewportWidth: 767,
+			}),
+		).toBe(false);
+	});
+
+	test('tenants panel items distinguish All tenants from the status filters', () => {
+		const [allTenants, active, suspended] =
+			getSecondaryPanelItems('/staff/tenants');
+		if (!allTenants || !active || !suspended) {
+			throw new Error('expected all three tenants panel items to exist');
+		}
+
+		expect(isSecondaryPanelItemActive(allTenants, '/staff/tenants', {})).toBe(
+			true,
+		);
+		expect(isSecondaryPanelItemActive(active, '/staff/tenants', {})).toBe(
+			false,
+		);
+		expect(isSecondaryPanelItemActive(suspended, '/staff/tenants', {})).toBe(
+			false,
+		);
+
+		expect(
+			isSecondaryPanelItemActive(active, '/staff/tenants', {
+				status: 'active',
+			}),
+		).toBe(true);
+		expect(
+			isSecondaryPanelItemActive(allTenants, '/staff/tenants', {
+				status: 'active',
+			}),
+		).toBe(false);
+		expect(
+			isSecondaryPanelItemActive(suspended, '/staff/tenants', {
+				status: 'active',
+			}),
+		).toBe(false);
+
+		expect(
+			isSecondaryPanelItemActive(suspended, '/staff/tenants', {
+				status: 'suspended',
+			}),
+		).toBe(true);
+		expect(
+			isSecondaryPanelItemActive(allTenants, '/staff/tenants', {
+				status: 'suspended',
 			}),
 		).toBe(false);
 	});

@@ -46,14 +46,6 @@ import {
 	useStaffTenantsQuery,
 	useSuspendStaffTenantMutation,
 } from '~/lib/query/staff-tenants';
-import {
-	parseTableSearchParams,
-	serializeTableSearchParams,
-} from '~/lib/url-state/table-search-params';
-import type {
-	TableSearchParamInput,
-	TableSearchParams,
-} from '~/lib/url-state/table-search-params';
 import { shouldLogoutForFailure } from '~/routes/authed/layout';
 
 import {
@@ -61,6 +53,13 @@ import {
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { BULK_ACTION_MAX_COUNT } from '@org/shared-ts/lib/constants';
+
+import {
+	parseTenantListSearchParams,
+	serializeTenantListSearchParams,
+	type TenantListSearchParamInput,
+	type TenantListSearchParams,
+} from './tenants-list-helpers';
 
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
@@ -139,7 +138,7 @@ const buildTenantColumns = (
 
 export const Route = createFileRoute('/_authed-layout/staff/tenants')({
 	validateSearch: (search) =>
-		parseTableSearchParams(search as TableSearchParamInput),
+		parseTenantListSearchParams(search as TenantListSearchParamInput),
 	component: StaffTenantsPage,
 });
 
@@ -149,12 +148,15 @@ function StaffTenantsPage() {
 		null,
 	);
 	const navigate = Route.useNavigate();
-	const search = Route.useSearch();
+	const search = Route.useSearch() as TenantListSearchParams;
 	const { t } = useTranslation('common');
 
-	const onSearchChange = (next: TableSearchParams): void => {
+	const onSearchChange = (next: TenantListSearchParams): void => {
 		void navigate({
-			search: serializeTableSearchParams(next) as unknown as TableSearchParams,
+			search: serializeTenantListSearchParams({
+				...next,
+				status: search.status,
+			}) as unknown as TenantListSearchParams,
 			replace: true,
 		});
 	};
@@ -164,8 +166,12 @@ function StaffTenantsPage() {
 		onSearchChange,
 		defaultSort: DEFAULT_SORT,
 		defaultSize: DEFAULT_SIZE,
+		cursorResetKey: search.status ?? '',
 	});
-	const query = useStaffTenantsQuery(controller.apiVariables);
+	const query = useStaffTenantsQuery({
+		...controller.apiVariables,
+		status: search.status,
+	});
 	const rows = toStaffTenantRows(query.data?.data);
 	const selection = useRowSelection(rows.map((row) => row.id));
 

@@ -225,6 +225,36 @@ describe('staff tenants route', () => {
 		});
 	});
 
+	test('passes the active status filter from the URL through to the tenants query', () => {
+		mocks.search = { status: 'active' };
+
+		renderPage();
+
+		expect(mocks.useStaffTenantsQuery).toHaveBeenCalledWith({
+			q: undefined,
+			sortId: 'created_at',
+			sortOrder: 'desc',
+			cursor: undefined,
+			size: 100,
+			status: 'active',
+		});
+	});
+
+	test('passes the suspended status filter from the URL through to the tenants query', () => {
+		mocks.search = { status: 'suspended' };
+
+		renderPage();
+
+		expect(mocks.useStaffTenantsQuery).toHaveBeenCalledWith({
+			q: undefined,
+			sortId: 'created_at',
+			sortOrder: 'desc',
+			cursor: undefined,
+			size: 100,
+			status: 'suspended',
+		});
+	});
+
 	test('renders the no-match state when search is active and no rows match', () => {
 		mocks.search = { q: 'acme' };
 		mocks.toStaffTenantRows.mockReturnValue([]);

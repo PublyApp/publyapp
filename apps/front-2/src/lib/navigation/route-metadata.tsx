@@ -29,6 +29,10 @@ export type BreadcrumbItem = {
 
 export type SecondaryPanelItemTone = 'warning' | 'neutral';
 
+export type SecondaryPanelItemSearch = {
+	status?: 'active' | 'suspended';
+};
+
 export type SecondaryPanelItem = {
 	id: string;
 	label: string;
@@ -37,6 +41,8 @@ export type SecondaryPanelItem = {
 	Icon: TablerIcon;
 	count?: number;
 	countTone?: SecondaryPanelItemTone;
+	/** Search params the link must set (and that isActive must match), e.g. a status filter. */
+	search?: SecondaryPanelItemSearch;
 };
 
 export type RouteId =
@@ -101,14 +107,16 @@ const TENANTS_MODULE_ITEMS: SecondaryPanelItem[] = [
 		id: 'tenants-active',
 		label: 'Active',
 		description: '',
-		path: '/staff/tenants?status=active',
+		path: '/staff/tenants',
+		search: { status: 'active' },
 		Icon: IconShieldCheck,
 	},
 	{
 		id: 'tenants-suspended',
 		label: 'Suspended',
 		description: '',
-		path: '/staff/tenants?status=suspended',
+		path: '/staff/tenants',
+		search: { status: 'suspended' },
 		Icon: IconShieldLock,
 	},
 ];
@@ -469,6 +477,24 @@ export function getActiveRailItem(
 
 export function getSecondaryPanelItems(pathname: string): SecondaryPanelItem[] {
 	return getActiveRailItem(pathname)?.secondaryItems ?? [];
+}
+
+/**
+ * A panel item is active when its pathname matches AND its declared search
+ * (e.g. a status filter) matches the current search — so "All tenants" (no
+ * search) and "Active" (status=active) never both light up for the same URL.
+ */
+export function isSecondaryPanelItemActive(
+	item: SecondaryPanelItem,
+	pathname: string,
+	search: Record<string, unknown>,
+): boolean {
+	const matchesPath = isPathPrefix(pathname, item.path);
+	const itemStatus = item.search?.status;
+	const currentStatus =
+		typeof search.status === 'string' ? search.status : undefined;
+
+	return matchesPath && itemStatus === currentStatus;
 }
 
 function isDetailPath(pathname: string): boolean {

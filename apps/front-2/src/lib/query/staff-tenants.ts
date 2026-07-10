@@ -256,7 +256,7 @@ export const buildUpdateStaffTenantBody = (
 	return body;
 };
 
-const staffTenantsQueryOptions = buildStaffQueryOptions<
+export const staffTenantsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	FindTenantsAsStaffResponse,
 	StaffTenantsQueryVariables

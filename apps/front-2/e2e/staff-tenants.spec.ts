@@ -66,6 +66,101 @@ const mockStaffTenants = async (page: Page) => {
 	});
 };
 
+const mockStaffTenantsByStatus = async (page: Page) => {
+	await page.route('**/staff/tenants**', async (route) => {
+		const request = route.request();
+		const url = request.url();
+
+		if (request.method() === 'GET' && isApiPath(url, STAFF_TENANTS_PATH)) {
+			const status = new URL(url).searchParams.get('status');
+			const activeRow = {
+				id: ACTIVE_TENANT_ID,
+				name: 'Acme Corporation',
+				status: 'Active',
+				usersCount: 12,
+				maxUsers: 50,
+			};
+			const suspendedRow = {
+				id: SUSPENDED_TENANT_ID,
+				name: 'Globex Suspended Co',
+				status: 'Suspended',
+				usersCount: 3,
+				maxUsers: 10,
+			};
+
+			let rows = [activeRow, suspendedRow];
+			if (status === 'active') {
+				rows = [activeRow];
+			} else if (status === 'suspended') {
+				rows = [suspendedRow];
+			}
+
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ data: rows, nextCursor: null }),
+			});
+			return;
+		}
+
+		await route.fallback();
+	});
+};
+
+test.describe('staff tenants status panel filters', () => {
+	test('clicking Active/Suspended in the panel filters the table, updates the URL, and highlights the matching item', async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 1280, height: 900 });
+		await loginAsStaffAdmin(page);
+		await mockStaffTenantsByStatus(page);
+
+		await page.goto('/staff/tenants');
+		await expect(page.getByTestId(`${TABLE}-rows`)).toBeVisible();
+		await expect(page.getByText('Acme Corporation')).toBeVisible();
+		await expect(page.getByText('Globex Suspended Co')).toBeVisible();
+
+		const panel = page.getByTestId('app-shell-secondary-panel');
+		const activeRequest = page.waitForRequest(
+			(request) =>
+				request.method() === 'GET' &&
+				isApiPath(request.url(), STAFF_TENANTS_PATH) &&
+				new URL(request.url()).searchParams.get('status') === 'active',
+		);
+
+		await panel.getByRole('link', { name: 'Active' }).click();
+		await activeRequest;
+
+		await expect(page).toHaveURL(/[?&]status=active(?:&|$)/);
+		await expect(page.getByText('Globex Suspended Co')).toHaveCount(0);
+		await expect(page.getByText('Acme Corporation')).toBeVisible();
+		await expect(panel.getByRole('link', { name: 'Active' })).toHaveAttribute(
+			'data-active',
+			'true',
+		);
+		await expect(
+			panel.getByRole('link', { name: 'All tenants' }),
+		).not.toHaveAttribute('data-active', 'true');
+
+		const suspendedRequest = page.waitForRequest(
+			(request) =>
+				request.method() === 'GET' &&
+				isApiPath(request.url(), STAFF_TENANTS_PATH) &&
+				new URL(request.url()).searchParams.get('status') === 'suspended',
+		);
+
+		await panel.getByRole('link', { name: 'Suspended' }).click();
+		await suspendedRequest;
+
+		await expect(page).toHaveURL(/[?&]status=suspended(?:&|$)/);
+		await expect(page.getByText('Acme Corporation')).toHaveCount(0);
+		await expect(page.getByText('Globex Suspended Co')).toBeVisible();
+		await expect(
+			panel.getByRole('link', { name: 'Suspended' }),
+		).toHaveAttribute('data-active', 'true');
+	});
+});
+
 test.describe('staff tenants list', () => {
 	test('renders a selection checkbox and hashed avatar per row, matching the staff-users archetype', async ({
 		page,

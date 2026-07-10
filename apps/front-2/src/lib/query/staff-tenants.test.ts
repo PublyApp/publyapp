@@ -7,6 +7,7 @@ import {
 	reactivateStaffTenantMutationOptions,
 	deleteStaffTenantMutationOptions,
 	createStaffTenantMutationOptions,
+	staffTenantsQueryOptions,
 	STAFF_TENANTS_QUERY_KEY,
 	STAFF_TENANT_DETAILS_QUERY_KEY,
 	updateStaffTenantMutationOptions,
@@ -384,6 +385,31 @@ describe('buildFindStaffTenantsQueryParameters', () => {
 
 	test('builds a tenant details query key with a stable prefix', () => {
 		expect(STAFF_TENANT_DETAILS_QUERY_KEY).toEqual(['staff-tenants', 'detail']);
+	});
+});
+
+describe('staffTenantsQueryOptions.queryKey', () => {
+	test('changes when the status filter changes, so switching filters never serves stale cached rows', () => {
+		const noFilter = staffTenantsQueryOptions.queryKey({});
+		const active = staffTenantsQueryOptions.queryKey({ status: 'active' });
+		const suspended = staffTenantsQueryOptions.queryKey({
+			status: 'suspended',
+		});
+
+		expect(active).not.toEqual(suspended);
+		expect(active).not.toEqual(noFilter);
+		expect(suspended).not.toEqual(noFilter);
+		expect(active).toEqual([
+			'staff',
+			...STAFF_TENANTS_QUERY_KEY,
+			{ status: 'active' },
+		]);
+		expect(suspended).toEqual([
+			'staff',
+			...STAFF_TENANTS_QUERY_KEY,
+			{ status: 'suspended' },
+		]);
+		expect(noFilter).toEqual(['staff', ...STAFF_TENANTS_QUERY_KEY]);
 	});
 });
 

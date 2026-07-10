@@ -24,6 +24,7 @@ import {
 	getBottomRailItemForPath,
 	getRailItemsForPath,
 	getSecondaryPanelItems,
+	isSecondaryPanelItemActive,
 	shouldShowSecondaryPanel,
 } from '../../lib/navigation/route-metadata';
 import type {
@@ -40,10 +41,14 @@ type NavItem = {
 	path: string;
 };
 
+/** Only the keys secondary-panel items can filter on (e.g. tenants' status). */
+type AppShellSearch = Record<string, unknown>;
+
 type AppShellProps = {
 	children: ReactNode;
 	mode?: AppShellMode;
 	pathname?: string;
+	search?: AppShellSearch;
 };
 
 const NAV_ITEMS: Record<Exclude<AppShellMode, 'authed'>, NavItem[]> = {
@@ -221,10 +226,12 @@ const AppShellNavigation = ({
 	children,
 	mode,
 	pathname,
+	search,
 }: {
 	children: ReactNode;
 	mode: AppShellMode;
 	pathname: string;
+	search: AppShellSearch;
 }) => {
 	if (mode !== 'authed') {
 		return (
@@ -235,7 +242,9 @@ const AppShellNavigation = ({
 	}
 
 	return (
-		<AuthedWorkspaceShell pathname={pathname}>{children}</AuthedWorkspaceShell>
+		<AuthedWorkspaceShell pathname={pathname} search={search}>
+			{children}
+		</AuthedWorkspaceShell>
 	);
 };
 
@@ -278,17 +287,19 @@ const RailLink = ({
 const SecondaryPanelNavItem = ({
 	item,
 	pathname,
+	search,
 }: {
 	item: SecondaryPanelItem;
 	pathname: string;
+	search: AppShellSearch;
 }) => {
-	const isActive =
-		pathname === item.path || pathname.startsWith(item.path + '/');
+	const isActive = isSecondaryPanelItemActive(item, pathname, search);
 	const Icon = item.Icon;
 
 	return (
 		<Link
-			to={item.path as never}
+			to={item.path}
+			search={item.search}
 			className="app-shell-secondary-nav-link"
 			data-active={isActive ? 'true' : undefined}
 		>
@@ -309,9 +320,11 @@ const SecondaryPanelNavItem = ({
 const AuthedWorkspaceShell = ({
 	children,
 	pathname,
+	search,
 }: {
 	children: ReactNode;
 	pathname: string;
+	search: AppShellSearch;
 }) => {
 	const sidebarOpen = useUiStore((state) => state.sidebarOpen);
 	const toggleSidebarOpen = useUiStore((state) => state.toggleSidebarOpen);
@@ -417,6 +430,7 @@ const AuthedWorkspaceShell = ({
 								key={item.id}
 								item={item}
 								pathname={pathname}
+								search={search}
 							/>
 						))}
 					</nav>
@@ -535,6 +549,7 @@ export const AppShell = ({
 	children,
 	mode = 'marketing',
 	pathname = '/',
+	search = {},
 }: AppShellProps) => {
 	const hydrateFromStorage = useUiStore((state) => state.hydrateFromStorage);
 
@@ -544,7 +559,7 @@ export const AppShell = ({
 
 	if (mode === 'authed') {
 		return (
-			<AppShellNavigation mode={mode} pathname={pathname}>
+			<AppShellNavigation mode={mode} pathname={pathname} search={search}>
 				{children}
 			</AppShellNavigation>
 		);
@@ -558,7 +573,7 @@ export const AppShell = ({
 		>
 			<AppShellHeader mode={mode} pathname={pathname} />
 			<div className="h-6" />
-			<AppShellNavigation mode={mode} pathname={pathname}>
+			<AppShellNavigation mode={mode} pathname={pathname} search={search}>
 				{children}
 			</AppShellNavigation>
 		</div>
