@@ -238,3 +238,26 @@ is set after the settings interaction), the locale switch, and the invite flow.
   a deliberate deviation from the canvas, not a parity gap —
   `artboard-assertions.ts` ('2a', '2h', '3b') and `detail-layout.tsx`/its test
   were updated to assert `1fr 420px` accordingly.
+- Card surface treatment: SPEC `:60`/`:67`/`:75` describe cards as ring-only
+  (`box-shadow: 0 0 0 1px rgba(24,24,27,0.06)`), matching the canvas's most
+  common card ring. **Superseded 2026-07-10 (owner-approved):** the
+  `gray-ui-csm` template wins over the canvas here — `components/ui/card.tsx`
+  now composes the ring with a `shadow-md`-equivalent elevation
+  (`--publy-shadow-elevated`), matching the template's
+  `shadow-md ring-1 ring-foreground/5 dark:ring-foreground/10`. This also
+  surfaced a real bug: `--publy-shadow-ring`/`--publy-shadow-card` had no
+  `html.dark` override, so on the new `#18181b` dark base the ring
+  composited to `#18181b` exactly — every dark-mode card outline was
+  invisible. Light ring retuned to `rgba(9,9,11,0.05)` (was
+  `rgba(24,24,27,0.06)`, near-identical, now traces to the template's
+  `--foreground` token); dark ring added at `rgba(250,250,250,0.10)`
+  (composites to `#2f2f31` on `#18181b` — visible).
+  `artboard-assertions.ts` ('5f', `settings.card` box-shadow) updated to the
+  retuned light ring value. Only `components/ui/card.tsx` (the base Card
+  primitive) adopts the new elevated token; other ring consumers
+  (`.publy-metric-tile`, `.publy-metadata-card`, `.publy-state-surface`,
+  `.publy-table-card`, and the ad-hoc `shadow-[var(--publy-shadow-ring)]`
+  panels in the staff-user/tenant detail routes) keep the bare ring — they
+  read as flat page chrome, not raised cards, and `.publy-table-card` is
+  explicitly commented as a "ring card" by design. They still pick up the
+  dark-mode visibility fix and the light retune via the shared token.
