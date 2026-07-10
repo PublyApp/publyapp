@@ -41,3 +41,38 @@ Fielded adapter for `/home/radan/ai-orchestration-playbook/PLAYBOOK.md`.
 - Non-additive merge conflict outside `additive_merge_files`.
 - Need to merge a PR without explicit Radan authorization.
 - Scope change, secret exposure risk, auth/security invariant uncertainty, or e2e harness failure with unclear cause.
+
+## Verification lessons — front-2 owner-feedback batch (2026-07-10)
+
+**A green check is a claim, not evidence. Probe the claim.** Three defects in this batch passed every
+gate the executor could run:
+
+1. **A test that mocks the seam it exists to prove.** `$userId/index.test.tsx` did
+   `vi.mock('~/routes/.../$userId')` — the exact module whose duplicate instantiation was the bug.
+   362 vitest tests, clean typecheck, clean oxlint, and a page that threw at runtime. Under vitest
+   there is a single module graph, so *no* unit test can observe a duplicate-module defect. Only a
+   **build-output check** can.
+2. **A guard that cannot fail.** The chunk-isolation guard written to catch (1) matched
+   `createContext(` while the code says `createContext<T>(`. It found zero contexts and exited 0
+   unconditionally; its six fixtures passed because they used the non-generic form. Caught only by
+   planting a duplicate chunk in the real `dist/client/assets` and watching the guard let it through.
+3. **A mock that never intercepts.** A `page.route()` glob ending in a single `*` cannot cross `/`,
+   so the request escapes to the real API *and the spec still passes*.
+
+**Rules that follow:**
+- When you add a guard, **prove it fails**: plant the defect it targets and watch it fire. A guard
+  without a demonstrated failure is decoration. Require the failing transcript in the packet report,
+  not a passing fixture suite.
+- A defect that recurs after being documented must become a **control**, not a louder paragraph
+  (`no-single-star-route-glob`, `no-icon-font-classes`, `check:context-chunk-isolation`).
+- Ask what a passing test would look like if the feature were broken. If the answer is "the same",
+  the test is worthless.
+- **Executors cannot run Playwright** (the captain owns the single Docker stack). They therefore write
+  e2e blind, and did so wrongly three times this batch: `getByRole('dialog')` vs the real
+  `role="alertdialog"`; a `columnheader` name matching two headers under strict mode; a detail route
+  navigated with a non-GUID id (`400 malformed-id` → error view, no page content). **Hand executors
+  the seeded fixtures, the real `data-testid`s, and the exact role names**, or let the stack owner
+  write the spec. Do not send a blind author back to write blind again — the captain fixes these.
+- **The brief is a defect source.** Three times the captain's own brief was wrong (declaring live code
+  dead; a wrong `data-testid`; a self-contradictory ordering instruction). Always require the executor
+  to report "anything in this brief that turned out to be wrong" — it caught all three.
