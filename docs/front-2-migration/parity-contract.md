@@ -261,3 +261,18 @@ is set after the settings interaction), the locale switch, and the invite flow.
   read as flat page chrome, not raised cards, and `.publy-table-card` is
   explicitly commented as a "ring card" by design. They still pick up the
   dark-mode visibility fix and the light retune via the shared token.
+- Table column geometry: SPEC's list grids assume columns that do not exist in
+  the current data model. **Adapted 2026-07-10 (captain-approved deviation):**
+  `2g` profiles (`40/240/1fr/104/140/120/40`) and `2i` invitations
+  (`40/300/116/1fr/150/120/128/40`) map 1:1 to implemented columns and use the
+  literal SPEC pixel values. `2b` staff-users and `3a` tenants do not: SPEC 2b
+  assumes Role/Profiles/2FA/Last-active and SPEC 3a assumes Plan/Owner/Created,
+  none of which the API returns (see BACKLOG "Deferred contract work"). For
+  those two, columns with a direct SPEC counterpart keep their literal widths
+  (staff-users Name 200, Level 104, Status 122; tenants Status 124, Users 92,
+  Created 132) and the longest free-text field absorbs the remainder as the
+  fluid column (staff-users Email; tenants Name). Revisit both grids when the
+  missing columns land — the SPEC values are not wrong, they are unreachable.
+  Enforcement is `<colgroup>` + `table-layout: fixed` on `.publy-data-table`;
+  a column with no `width` meta is the fluid one. e2e asserts computed pixel
+  widths and that `table.scrollWidth <= card.clientWidth` (owner item 15a).
