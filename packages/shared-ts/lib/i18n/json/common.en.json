@@ -157,6 +157,8 @@
 	"add-an-initial-tenant-user-set": "Add an initial tenant user set",
 	"create-tenant": "Create tenant",
 	"back-to-staff-tenants": "Back to staff tenants",
+	"back-to-staff-users": "Back to staff users",
+	"back-to-profiles": "Back to profiles",
 	"back-to-user": "Back to user",
 	"max-users-reached": "Maximum users number reached",
 	"initial-users-must-be-a-valid-json-string": "Initial users must be a valid JSON string",

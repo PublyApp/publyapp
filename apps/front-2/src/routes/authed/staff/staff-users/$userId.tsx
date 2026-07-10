@@ -186,7 +186,7 @@ export const Route = createFileRoute(
 
 function StaffUserDetailsPage() {
 	const { userId } = Route.useParams();
-	const { i18n } = useTranslation('common');
+	const { t, i18n } = useTranslation('common');
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
 	const [detailActionError, setDetailActionError] = useState('');
@@ -420,12 +420,9 @@ function StaffUserDetailsPage() {
 			data-testid="staff-user-details-page"
 		>
 			<div className="space-y-3">
-				<Link
-					to="/staff/staff-users"
-					className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-				>
-					<IconChevronLeft className="size-3" />
-					Back to staff users
+				<Link to="/staff/staff-users" className="publy-back-link">
+					<IconChevronLeft aria-hidden="true" className="size-3" />
+					{t('back-to-staff-users')}
 				</Link>
 			</div>
 			<div className="space-y-1" data-testid="staff-user-details-heading">

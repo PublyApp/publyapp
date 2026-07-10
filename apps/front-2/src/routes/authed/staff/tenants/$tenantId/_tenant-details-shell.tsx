@@ -1,6 +1,11 @@
-import { IconAlertCircle, IconSearchOff } from '@tabler/icons-react';
+import {
+	IconAlertCircle,
+	IconChevronLeft,
+	IconSearchOff,
+} from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { View403 } from '~/components/error-views/View403';
 import { Button, buttonVariants } from '~/components/ui/button';
@@ -232,6 +237,8 @@ export const TenantDetailsPageShell = ({
 	testId: string;
 	children: ReactNode;
 }) => {
+	const { t } = useTranslation('common');
+
 	return (
 		<div
 			className="publy-detail-page flex w-full flex-col gap-5"
@@ -239,7 +246,8 @@ export const TenantDetailsPageShell = ({
 		>
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<Link to="/staff/tenants" className="publy-back-link">
-					Back to tenants
+					<IconChevronLeft aria-hidden="true" className="size-3" />
+					{t('back-to-staff-tenants')}
 				</Link>
 			</div>
 

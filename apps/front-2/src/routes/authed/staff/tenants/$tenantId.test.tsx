@@ -122,7 +122,7 @@ describe('staff tenant details route', () => {
 		renderPage();
 
 		expect(screen.getByTestId('staff-tenant-details-page')).toBeTruthy();
-		expect(screen.getByText('Back to tenants')).toBeTruthy();
+		expect(screen.getByText('back-to-staff-tenants')).toBeTruthy();
 		expect(screen.getByText('Acme Corporation')).toBeTruthy();
 		expect(screen.getByText('ACME')).toBeTruthy();
 		expect(screen.getAllByText('Active').length).toBeGreaterThan(0);

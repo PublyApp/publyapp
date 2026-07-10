@@ -179,6 +179,8 @@
 	"add-an-initial-tenant-user-set": "Ajouter un ensemble initial d'utilisateurs de tenant",
 	"create-tenant": "Créer un tenant",
 	"back-to-staff-tenants": "Retour à la liste des tenants staff",
+	"back-to-staff-users": "Retour aux membres du staff",
+	"back-to-profiles": "Retour aux profils",
 	"back-to-user": "Retour à l'utilisateur",
 	"max-users-reached": "Nombre maximum d'utilisateurs atteint",
 	"initial-users-must-be-a-valid-json-string": "Les utilisateurs initiaux doivent être une chaîne JSON valide",

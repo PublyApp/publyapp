@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import type { JSX } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -173,5 +173,51 @@ describe('staff profile details route', () => {
 		expect(screen.getByTestId('staff-profile-details-page')).toBeTruthy();
 		const body = document.body.textContent ?? '';
 		expect(body).not.toMatch(/0 member/);
+	});
+
+	test('renders a back link to the staff profiles list', () => {
+		renderPage();
+
+		const backLink = screen.getByRole('link', {
+			name: /back-to-profiles/,
+		}) as HTMLAnchorElement;
+		expect(backLink.getAttribute('href')).toBe('/staff/profiles');
+		expect(backLink.className).toContain('publy-back-link');
+	});
+
+	test('truncates the description with the full text in a title tooltip', () => {
+		renderPage();
+
+		const description = screen.getByText('Full access');
+		expect(description.className).toContain('truncate');
+		expect(description.getAttribute('title')).toBe('Full access');
+	});
+
+	test('does not set a title tooltip when the description is empty', () => {
+		mocks.useStaffProfileDetailsQuery.mockReturnValue(
+			buildQueryResult({
+				data: {
+					profile: {
+						id: '11111111-1111-1111-1111-111111111111',
+						name: 'Empty profile',
+						description: null,
+						userAccountCount: 0,
+					},
+				},
+			}),
+		);
+
+		renderPage();
+
+		const description = screen.getByText('No description');
+		expect(description.getAttribute('title')).toBeNull();
+	});
+
+	test('does not render a fabricated "Custom" chip in the identity header', () => {
+		renderPage();
+
+		const header = within(screen.getByTestId('staff-profile-identity-header'));
+		expect(header.queryByText('Custom')).toBeNull();
+		expect(header.getByText('Profile')).toBeTruthy();
 	});
 });

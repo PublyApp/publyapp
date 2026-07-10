@@ -1029,7 +1029,7 @@ html {
 	}
 
 	.publy-back-link {
-		@apply text-sm transition-colors;
+		@apply inline-flex items-center gap-1 text-sm transition-colors;
 		color: var(--publy-foreground-subtle);
 	}
 
@@ -1766,6 +1766,7 @@ html {
 }
 
 .publy-perm-key {
+	min-width: 0;
 	font-size: 12px;
 	font-weight: 500;
 	font-family: 'Geist Mono', monospace;

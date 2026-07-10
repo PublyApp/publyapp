@@ -4,6 +4,7 @@ import {
 	IconCalendar,
 	IconChartBar,
 	IconCheck,
+	IconChevronLeft,
 	IconDots,
 	IconNews,
 	IconPencil,
@@ -353,7 +354,7 @@ export const Route = createFileRoute(
 
 function StaffProfileDetailsPage() {
 	const { profileId } = Route.useParams();
-	const { i18n } = useTranslation('common');
+	const { t, i18n } = useTranslation('common');
 
 	const detailQuery = useStaffProfileDetailsQuery({ profileId });
 	const permissionKeysQuery = useStaffProfilePermissionKeysQuery({ profileId });
@@ -434,9 +435,19 @@ function StaffProfileDetailsPage() {
 			className="publy-detail-page publy-page-fill"
 			data-testid="staff-profile-details-page"
 		>
+			<div className="mb-4">
+				<Link to="/staff/profiles" className="publy-back-link">
+					<IconChevronLeft aria-hidden="true" className="size-3" />
+					{t('back-to-profiles')}
+				</Link>
+			</div>
+
 			{/* Identity Header */}
-			<div className="flex items-start justify-between gap-4 mb-8">
-				<div className="flex items-center gap-4">
+			<div
+				className="flex items-start justify-between gap-4 mb-8"
+				data-testid="staff-profile-identity-header"
+			>
+				<div className="flex min-w-0 items-center gap-4">
 					<div
 						className="publy-profile-detail-tile"
 						data-tone={details.iconTone}
@@ -448,25 +459,34 @@ function StaffProfileDetailsPage() {
 							) : null;
 						})()}
 					</div>
-					<div className="flex flex-col gap-[5px]">
-						<div className="flex items-center gap-2.5">
-							<h1 className="publy-type-detail-title">{details.name}</h1>
-							<span className="publy-detail-chip publy-detail-chip--outline">
+					<div className="flex min-w-0 flex-col gap-[5px]">
+						<div className="flex min-w-0 items-center gap-2.5">
+							<h1
+								className="publy-type-detail-title min-w-0 truncate"
+								title={details.name || undefined}
+							>
+								{details.name}
+							</h1>
+							<span className="publy-detail-chip publy-detail-chip--outline shrink-0">
 								Profile
 							</span>
-							<span className="publy-detail-chip publy-detail-chip--amber">
-								Custom
+						</div>
+						<div className="flex min-w-0 items-center gap-1 text-[13px] text-[var(--publy-foreground-muted)]">
+							<span
+								className="min-w-0 truncate"
+								title={details.description || undefined}
+							>
+								{details.description ?? 'No description'}
+							</span>
+							<span className="shrink-0 whitespace-nowrap">
+								{' · '}
+								{details.userAccountCount === null
+									? '—'
+									: `${details.userAccountCount} member${details.userAccountCount !== 1 ? 's' : ''}`}
+								{' · '}
+								{assignedKeys.length} permissions
 							</span>
 						</div>
-						<p className="text-[13px] text-[var(--publy-foreground-muted)]">
-							{details.description ?? 'No description'}
-							{' · '}
-							{details.userAccountCount === null
-								? '—'
-								: `${details.userAccountCount} member${details.userAccountCount !== 1 ? 's' : ''}`}
-							{' · '}
-							{assignedKeys.length} permissions
-						</p>
 					</div>
 				</div>
 				<div className="flex items-center gap-2.5">

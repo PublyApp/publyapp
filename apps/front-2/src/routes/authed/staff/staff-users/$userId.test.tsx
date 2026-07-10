@@ -214,7 +214,7 @@ describe('staff user details route shell', () => {
 		expect(page.getAllByText('Active')).toHaveLength(1);
 
 		expect(
-			screen.getByRole('link', { name: 'Back to staff users' }),
+			screen.getByRole('link', { name: 'back-to-staff-users' }),
 		).toBeTruthy();
 		expect(screen.getByRole('heading', { name: 'Owner User' })).toBeTruthy();
 		expect(screen.getByText('owner@publyapp.local')).toBeTruthy();
