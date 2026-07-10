@@ -11,7 +11,8 @@ import {
 import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import type { AssignedStaffProfile } from '~/lib/query/staff-users';
-import { useStaffUserOverviewContext } from '~/routes/authed/staff/staff-users/$userId';
+
+import { useStaffUserOverviewContext } from './-overview-context';
 
 const DATE_TIME_FORMAT_OPTIONS = {
 	dateStyle: 'medium',

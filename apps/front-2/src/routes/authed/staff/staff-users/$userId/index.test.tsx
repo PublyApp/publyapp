@@ -1,3 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 /**
  * @vitest-environment jsdom
  */
@@ -6,7 +10,6 @@ import type { JSX } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-	useStaffUserOverviewContext: vi.fn(),
 	onOpenSuspendDialog: vi.fn(),
 	onOpenDeleteDialog: vi.fn(),
 }));
@@ -37,10 +40,8 @@ vi.mock('@tanstack/react-router', () => ({
 	},
 }));
 
-vi.mock('~/routes/authed/staff/staff-users/$userId', () => ({
-	useStaffUserOverviewContext: mocks.useStaffUserOverviewContext,
-}));
-
+import { StaffUserOverviewContext } from './-overview-context';
+import type { StaffUserOverviewContextValue } from './-overview-context';
 import { Route } from './index';
 
 const baseUser = {
@@ -56,7 +57,9 @@ const baseUser = {
 	displayName: 'Owner User',
 };
 
-const buildContextValue = (overrides: Record<string, unknown> = {}) => ({
+const buildContextValue = (
+	overrides: Partial<StaffUserOverviewContextValue> = {},
+): StaffUserOverviewContextValue => ({
 	user: baseUser,
 	locale: 'en',
 	profiles: [
@@ -75,20 +78,25 @@ const buildContextValue = (overrides: Record<string, unknown> = {}) => ({
 	...overrides,
 });
 
-const renderTab = () => {
+const renderTab = (
+	contextValue: StaffUserOverviewContextValue = buildContextValue(),
+) => {
 	const Component = (
 		Route as unknown as {
 			component: () => JSX.Element;
 		}
 	).component;
 
-	return render(<Component />);
+	return render(
+		<StaffUserOverviewContext.Provider value={contextValue}>
+			<Component />
+		</StaffUserOverviewContext.Provider>,
+	);
 };
 
 describe('staff user overview tab', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		mocks.useStaffUserOverviewContext.mockReturnValue(buildContextValue());
 	});
 
 	afterEach(() => {
@@ -113,11 +121,7 @@ describe('staff user overview tab', () => {
 	});
 
 	test('renders the assigned profiles empty state when none are assigned', () => {
-		mocks.useStaffUserOverviewContext.mockReturnValue(
-			buildContextValue({ profiles: [] }),
-		);
-
-		renderTab();
+		renderTab(buildContextValue({ profiles: [] }));
 
 		expect(screen.getByText('0 assigned')).toBeTruthy();
 		expect(
@@ -126,11 +130,7 @@ describe('staff user overview tab', () => {
 	});
 
 	test('renders a local assigned profiles error instead of the list', () => {
-		mocks.useStaffUserOverviewContext.mockReturnValue(
-			buildContextValue({ profilesHasError: true }),
-		);
-
-		renderTab();
+		renderTab(buildContextValue({ profilesHasError: true }));
 
 		expect(screen.getByTestId('staff-user-profiles-error')).toBeTruthy();
 		expect(screen.queryByText('Assigned profiles & roles')).toBeNull();
@@ -145,15 +145,13 @@ describe('staff user overview tab', () => {
 	});
 
 	test('reads Reactivate and is enabled when reactivation is allowed', () => {
-		mocks.useStaffUserOverviewContext.mockReturnValue(
+		renderTab(
 			buildContextValue({
 				canSuspend: false,
 				canReactivate: true,
 				suspendLabel: 'Reactivate',
 			}),
 		);
-
-		renderTab();
 
 		const reactivateButton = screen.getByText(
 			'Reactivate',
@@ -165,11 +163,7 @@ describe('staff user overview tab', () => {
 	});
 
 	test('disables the suspend/reactivate action when neither is allowed', () => {
-		mocks.useStaffUserOverviewContext.mockReturnValue(
-			buildContextValue({ canSuspend: false, canReactivate: false }),
-		);
-
-		renderTab();
+		renderTab(buildContextValue({ canSuspend: false, canReactivate: false }));
 
 		expect((screen.getByText('Suspend') as HTMLButtonElement).disabled).toBe(
 			true,
@@ -185,14 +179,24 @@ describe('staff user overview tab', () => {
 	});
 
 	test('disables delete while a delete mutation is pending', () => {
-		mocks.useStaffUserOverviewContext.mockReturnValue(
-			buildContextValue({ isDeletePending: true }),
-		);
-
-		renderTab();
+		renderTab(buildContextValue({ isDeletePending: true }));
 
 		expect((screen.getByText('Delete') as HTMLButtonElement).disabled).toBe(
 			true,
+		);
+	});
+
+	test('does not import the overview context from the parent route module', () => {
+		// Regression guard: importing the context hook from the '$userId' route
+		// module (instead of this leaf '-overview-context' module) causes the
+		// route module to be duplicated into two build chunks with two distinct
+		// React context instances, and the real hook throws at runtime.
+		const currentFilePath = fileURLToPath(import.meta.url);
+		const filePath = join(dirname(currentFilePath), 'index.tsx');
+		const source = readFileSync(filePath, 'utf8');
+
+		expect(source).not.toContain(
+			"from '~/routes/authed/staff/staff-users/$userId'",
 		);
 	});
 });

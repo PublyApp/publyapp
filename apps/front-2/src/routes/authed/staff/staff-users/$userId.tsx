@@ -14,7 +14,7 @@ import {
 	useNavigate,
 	useRouterState,
 } from '@tanstack/react-router';
-import { createContext, useContext, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -39,10 +39,6 @@ import {
 	useStaffUserProfilesQuery,
 	useSuspendStaffUserMutation,
 } from '~/lib/query/staff-users';
-import type {
-	AssignedStaffProfile,
-	StaffUserDetails,
-} from '~/lib/query/staff-users';
 import { shouldLogoutForFailure } from '~/routes/authed/layout';
 
 import {
@@ -50,6 +46,11 @@ import {
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+
+import {
+	StaffUserOverviewContext,
+	type StaffUserOverviewContextValue,
+} from './$userId/-overview-context';
 
 const MALFORMED_ID_TRANSLATION_KEY = 'malformed-id';
 const STAFF_STATUS_ACTIVE = 'active';
@@ -165,36 +166,6 @@ const DeleteConfirmField = ({
 		/>
 	</div>
 );
-
-export type StaffUserOverviewContextValue = {
-	user: StaffUserDetails;
-	locale: string;
-	profiles: AssignedStaffProfile[];
-	profilesHasError: boolean;
-	maxProfilesPerUser: number;
-	canSuspend: boolean;
-	canReactivate: boolean;
-	suspendLabel: 'Suspend' | 'Reactivate';
-	suspendDescription: string;
-	isDeletePending: boolean;
-	onOpenSuspendDialog: () => void;
-	onOpenDeleteDialog: () => void;
-};
-
-const StaffUserOverviewContext =
-	createContext<StaffUserOverviewContextValue | null>(null);
-
-export const useStaffUserOverviewContext =
-	(): StaffUserOverviewContextValue => {
-		const context = useContext(StaffUserOverviewContext);
-		if (!context) {
-			throw new Error(
-				'useStaffUserOverviewContext must be used within the staff user detail route',
-			);
-		}
-
-		return context;
-	};
 
 const TAB_ROUTE_SUFFIXES = ['permissions', 'activity', 'settings'] as const;
 type TabSection = 'overview' | (typeof TAB_ROUTE_SUFFIXES)[number];
