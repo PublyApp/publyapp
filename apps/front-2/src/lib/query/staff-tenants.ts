@@ -344,6 +344,7 @@ export const useStaffTenantDetailsQuery = (
 		queryKey: staffTenantDetailsQueryOptions.queryKey(variables),
 		queryFn: () => staffTenantDetailsQueryOptions.fetcher(variables),
 		enabled: options?.enabled ?? true,
+		staleTime: 30_000,
 	});
 
 export const useCreateStaffTenantMutation = () =>

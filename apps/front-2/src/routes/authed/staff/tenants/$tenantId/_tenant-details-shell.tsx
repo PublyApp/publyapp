@@ -99,12 +99,12 @@ const SectionNavLink = ({
 	}
 
 	return (
-		<a
-			href={href}
+		<Link
+			to={href}
 			className="inline-flex items-center border-b-2 border-transparent px-1 pb-2 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground"
 		>
 			{label}
-		</a>
+		</Link>
 	);
 };
 
