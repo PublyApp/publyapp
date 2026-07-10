@@ -1,19 +1,20 @@
 import {
 	IconAlertCircle,
-	IconCirclePlus,
-	IconDots,
+	IconChevronLeft,
 	IconId,
 	IconLock,
 	IconMail,
-	IconShieldCheck,
+	IconPencil,
+	IconTrash,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
+import { DataTableRowActions } from '~/components/table/row-actions';
 import { Button } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
@@ -23,10 +24,12 @@ import {
 	DetailGrid,
 	DetailMain,
 } from '~/components/ui/detail-layout';
+import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
 import { InitialsAvatar } from '~/components/ui/initials-avatar';
 import { Input } from '~/components/ui/input';
 import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import {
 	toAssignedStaffProfiles,
 	toStaffUserDetails,
@@ -192,78 +195,93 @@ const ContactDetailsCard = ({
 	</section>
 );
 
+const profileHueIndex = (profileId: string): number => {
+	let hash = 0;
+	for (const char of profileId) {
+		hash = (hash * 31 + (char.codePointAt(0) ?? 0)) % 997;
+	}
+
+	return hash % 2;
+};
+
 const AssignedProfilesCard = ({
 	profiles,
-	totalPermissions,
+	maxProfiles,
 }: {
 	profiles: AssignedStaffProfile[];
-	totalPermissions: number;
-}) => (
-	<section className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] shadow-[var(--publy-shadow-ring)]">
-		<div className="publy-card-header">
-			<p className="publy-type-section-title">Assigned profiles & roles</p>
-			<span className="text-xs text-muted-foreground">
-				{profiles.length} assigned
-			</span>
-		</div>
-		<div className="px-4 pb-4 pt-3 space-y-4">
-			{profiles.length === 0 ? (
-				<div className="rounded-large border border-dashed border-border bg-muted/30 px-4 py-4 text-sm text-muted-foreground">
-					No profiles are currently assigned.
-				</div>
-			) : (
-				<div className="space-y-2">
-					{profiles.map((profile, index) => (
+	maxProfiles: number;
+}) => {
+	const assignedCount = profiles.length;
+	const meterPercent =
+		maxProfiles > 0 ? Math.min((assignedCount / maxProfiles) * 100, 100) : 0;
+
+	return (
+		<section className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] shadow-[var(--publy-shadow-ring)]">
+			<div className="publy-card-header">
+				<p className="publy-type-section-title">
+					Assigned profiles &amp; roles
+				</p>
+				<span className="text-xs text-muted-foreground">
+					{assignedCount} assigned
+				</span>
+			</div>
+			<div className="px-4 pb-4 pt-3 space-y-4">
+				{profiles.length === 0 ? (
+					<div className="rounded-large border border-dashed border-border bg-muted/30 px-4 py-4 text-sm text-muted-foreground">
+						No profiles are currently assigned.
+					</div>
+				) : (
+					<div className="space-y-2">
+						{profiles.map((profile) => (
+							<div
+								key={profile.id}
+								className="flex items-center justify-between gap-3 rounded-[10px] px-1 py-1"
+							>
+								<div className="flex min-w-0 items-center gap-2.5">
+									<span
+										aria-hidden="true"
+										className="publy-icon-tile inline-flex h-7 w-7 items-center justify-center rounded-[9px]"
+										data-tone={
+											profileHueIndex(profile.id) === 0 ? 'success' : 'info'
+										}
+									>
+										<IconId className="size-4" />
+									</span>
+									<div className="min-w-0">
+										<Link
+											to="/staff/profiles/$profileId"
+											params={{ profileId: profile.id }}
+											className="text-sm font-medium text-foreground hover:underline"
+										>
+											{profile.name}
+										</Link>
+										<p className="text-xs text-muted-foreground">
+											{profile.description ?? 'No description'}
+										</p>
+									</div>
+								</div>
+							</div>
+						))}
+					</div>
+				)}
+				<div className="rounded-[9px] border border-border bg-background p-2">
+					<div className="flex items-center justify-between text-xs text-muted-foreground">
+						<span>Profile summary</span>
+						<span>
+							{assignedCount} of {maxProfiles}
+						</span>
+					</div>
+					<div className="mt-2 h-1 rounded-[4px] bg-[var(--publy-row-border)]">
 						<div
-							key={profile.id}
-							className="flex items-center justify-between gap-3 rounded-[10px] px-1 py-1"
-						>
-							<div className="flex min-w-0 items-center gap-2.5">
-								<span
-									aria-hidden="true"
-									className="publy-icon-tile inline-flex h-7 w-7 items-center justify-center rounded-[9px]"
-									data-tone={index % 2 === 0 ? 'success' : 'info'}
-								>
-									<IconId className="size-4" />
-								</span>
-								<div className="min-w-0">
-									<p className="text-sm font-medium text-foreground">
-										{profile.name}
-									</p>
-									<p className="text-xs text-muted-foreground">
-										{profile.description ?? 'No description'}
-									</p>
-								</div>
-							</div>
-							<div className="shrink-0 text-right text-xs text-muted-foreground">
-								<span>{Math.min(3, totalPermissions)} permissions</span>
-								<div className="mt-1 text-[11px]">
-									<BadgeLikeTone tone={index % 2 === 0 ? 'primary' : 'success'}>
-										Role
-									</BadgeLikeTone>
-								</div>
-							</div>
-						</div>
-					))}
-				</div>
-			)}
-			<div className="rounded-[9px] border border-border bg-background p-2">
-				<div className="flex items-center justify-between text-xs text-muted-foreground">
-					<span>Permission summary</span>
-					<span>
-						{totalPermissions} of {totalPermissions || 0}
-					</span>
-				</div>
-				<div className="mt-2 h-1 rounded-[4px] bg-[var(--publy-row-border)]">
-					<div
-						className="h-full rounded-[4px] bg-[var(--publy-primary)]"
-						style={{ width: `${Math.min(totalPermissions, 100)}%` }}
-					/>
+							className="h-full rounded-[4px] bg-[var(--publy-primary)]"
+							style={{ width: `${meterPercent}%` }}
+						/>
+					</div>
 				</div>
 			</div>
-		</div>
-	</section>
-);
+		</section>
+	);
+};
 
 const RecentSecurityCard = () => (
 	<section className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] shadow-[var(--publy-shadow-ring)]">
@@ -273,65 +291,19 @@ const RecentSecurityCard = () => (
 		<div className="px-4 pb-4 pt-3 space-y-3 text-sm text-foreground">
 			<div className="flex items-center justify-between gap-3">
 				<div className="flex items-center gap-2">
-					<span className="size-1.5 rounded-[3px] bg-emerald-500" />
-					<span>Password changed</span>
+					<span className="size-1.5 rounded-[3px] bg-[var(--publy-foreground-subtle)]" />
+					<span>Security events</span>
 				</div>
-				<span className="text-xs text-muted-foreground">2h ago</span>
-			</div>
-			<div className="flex items-center justify-between gap-3">
-				<div className="flex items-center gap-2">
-					<span className="size-1.5 rounded-[3px] bg-amber-500" />
-					<span>New session from new device</span>
-				</div>
-				<span className="text-xs text-muted-foreground">1d ago</span>
-			</div>
-			<div className="flex items-center justify-between gap-3">
-				<div className="flex items-center gap-2">
-					<span className="size-1.5 rounded-[3px] bg-muted" />
-					<span>No critical events</span>
-				</div>
+				<span className="text-xs text-muted-foreground">
+					—{' '}
+					<span className="italic text-[var(--publy-foreground-subtle)]">
+						TODO(contract): security event feed
+					</span>
+				</span>
 			</div>
 		</div>
 	</section>
 );
-
-const getBadgeTone = (tone: 'primary' | 'success' | 'warning' | 'danger') =>
-	({
-		primary: {
-			bg: 'bg-[var(--publy-primary-soft)]',
-			text: 'text-[var(--publy-primary-foreground)]',
-		},
-		success: {
-			bg: 'bg-[var(--publy-chip-active-bg)]',
-			text: 'text-[var(--publy-chip-active-text)]',
-		},
-		warning: {
-			bg: 'bg-[var(--publy-chip-pending-bg)]',
-			text: 'text-[var(--publy-chip-pending-text)]',
-		},
-		danger: {
-			bg: 'bg-destructive/10',
-			text: 'text-destructive',
-		},
-	})[tone];
-
-const BadgeLikeTone = ({
-	tone,
-	children,
-}: {
-	tone: 'primary' | 'success' | 'warning' | 'danger';
-	children: React.ReactNode;
-}) => {
-	const toneClass = getBadgeTone(tone);
-
-	return (
-		<span
-			className={`${toneClass.bg} ${toneClass.text} inline-flex h-[20px] rounded-[8px] px-2 text-[11px] font-medium`}
-		>
-			{children}
-		</span>
-	);
-};
 
 const AccountCard = ({ displayId }: { displayId: string }) => (
 	<section className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] shadow-[var(--publy-shadow-ring)]">
@@ -344,13 +316,23 @@ const AccountCard = ({ displayId }: { displayId: string }) => (
 				<DetailMetaItem
 					label="2FA"
 					value={
-						<div className="flex items-center gap-2">
-							<IconShieldCheck className="size-4 text-emerald-600" />
-							<BadgeLikeTone tone="success">Enabled</BadgeLikeTone>
-						</div>
+						<span className="italic text-[var(--publy-foreground-subtle)]">
+							Not available{' '}
+							<span className="not-italic">TODO(contract): 2FA status</span>
+						</span>
 					}
 				/>
-				<DetailMetaItem label="Sessions" value="2 active sessions" />
+				<DetailMetaItem
+					label="Sessions"
+					value={
+						<span className="italic text-[var(--publy-foreground-subtle)]">
+							Not available{' '}
+							<span className="not-italic">
+								TODO(contract): active sessions
+							</span>
+						</span>
+					}
+				/>
 			</div>
 		</div>
 	</section>
@@ -367,7 +349,7 @@ const ConfirmHeaderInfo = ({
 }) => (
 	<div className="rounded-[14px] border border-[var(--publy-row-border)] bg-[var(--publy-surface-raised)] p-3">
 		<div className="flex items-center gap-2.5">
-			<InitialsAvatar name={avatarSeed} size="lg" />
+			<InitialsAvatar name={avatarSeed} size="sm" />
 			<div className="min-w-0">
 				<p className="text-sm font-medium text-foreground">{name}</p>
 				<p className="truncate text-xs text-muted-foreground">{email}</p>
@@ -385,8 +367,8 @@ const DeleteConfirmField = ({
 }) => (
 	<div className="space-y-1.5">
 		<p className="text-xs text-muted-foreground">
-			To delete this account, type <span className="font-mono">delete</span>
-			in the field below.
+			To delete this account, type <span className="font-mono">delete</span> in
+			the field below.
 		</p>
 		<Input
 			aria-label="Confirm delete"
@@ -408,13 +390,11 @@ function StaffUserDetailsPage() {
 	const { userId } = Route.useParams();
 	const { i18n } = useTranslation('common');
 	const queryClient = useQueryClient();
+	const navigate = useNavigate();
 	const [detailActionError, setDetailActionError] = useState('');
 	const [deleteConfirmText, setDeleteConfirmText] = useState('');
 	const [isSuspendDialogOpen, setSuspendDialogOpen] = useState(false);
 	const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
-	const [activeTab, setActiveTab] = useState<
-		'overview' | 'permissions' | 'activity' | 'settings'
-	>('overview');
 	const [shouldLogout, setShouldLogout] = useState(false);
 	const suspendUser = useSuspendStaffUserMutation();
 	const reactivateUser = useReactivateStaffUserMutation();
@@ -518,6 +498,12 @@ function StaffUserDetailsPage() {
 	const pendingAction = suspendUser.isPending || reactivateUser.isPending;
 
 	const handleLifecycleAction = async () => {
+		if (!canSuspend && !canReactivate) {
+			setSuspendDialogOpen(false);
+
+			return;
+		}
+
 		try {
 			setDetailActionError('');
 			if (canSuspend) {
@@ -554,7 +540,7 @@ function StaffUserDetailsPage() {
 			await queryClient.invalidateQueries({
 				queryKey: ['staff', 'staff-users'],
 			});
-			window.history.replaceState({}, '', '/staff/staff-users');
+			await navigate({ to: '/staff/staff-users' });
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
 				setShouldLogout(true);
@@ -572,13 +558,6 @@ function StaffUserDetailsPage() {
 		}
 	};
 
-	const tabs = [
-		{ id: 'overview', label: 'Overview' },
-		{ id: 'permissions', label: 'Permissions' },
-		{ id: 'activity', label: 'Activity' },
-		{ id: 'settings', label: 'Settings' },
-	] as const;
-
 	const isDeleteConfirmReady =
 		deleteConfirmText.trim().toLowerCase() === 'delete';
 	const maxProfilesPerUser =
@@ -588,6 +567,33 @@ function StaffUserDetailsPage() {
 
 	return (
 		<div className="space-y-5" data-testid="staff-user-details-page">
+			<div className="space-y-3">
+				<Link
+					to="/staff/staff-users"
+					className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+				>
+					<IconChevronLeft className="size-3" />
+					Back to staff users
+				</Link>
+				<div className="space-y-1">
+					<nav
+						aria-label="Breadcrumb"
+						className="text-[13px] text-muted-foreground"
+					>
+						<span>Staff</span>
+						<span className="mx-1 text-[var(--publy-foreground-subtle)]">
+							›
+						</span>
+						<Link to="/staff/staff-users" className="hover:text-foreground">
+							Users
+						</Link>
+						<span className="mx-1 text-[var(--publy-foreground-subtle)]">
+							›
+						</span>
+						<span className="text-foreground">{user.displayName}</span>
+					</nav>
+				</div>
+			</div>
 			<div className="space-y-1">
 				<div className="flex flex-wrap items-center justify-between gap-3">
 					<div className="flex items-start gap-3">
@@ -621,15 +627,8 @@ function StaffUserDetailsPage() {
 							Reset invite
 						</Button>
 						{/* TODO(2d): edit form screen (future packet); route not yet registered */}
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							render={
-								<Link to={`/staff/staff-users/${userId}/edit` as never} />
-							}
-						>
-							<IconCirclePlus className="size-4" />
+						<Button type="button" variant="outline" size="sm" disabled>
+							<IconPencil className="size-4" />
 							Edit
 						</Button>
 						<Button
@@ -665,115 +664,125 @@ function StaffUserDetailsPage() {
 								avatarSeed={user.displayName}
 							/>
 						</ConfirmDialog>
-						<Button
-							type="button"
-							variant="outline"
-							className="h-9 w-9 rounded-[999px]"
-							aria-label="User actions"
-							onClick={() => {
-								setDeleteDialogOpen(true);
-							}}
+						<DataTableRowActions
+							ariaLabel="User actions"
+							testId="staff-user-actions-menu"
 						>
-							<IconDots className="size-4" />
-						</Button>
+							<DropdownMenuItem
+								variant="destructive"
+								onClick={() => {
+									setDeleteDialogOpen(true);
+								}}
+							>
+								<IconTrash className="size-4" />
+								Delete
+							</DropdownMenuItem>
+						</DataTableRowActions>
 					</div>
 				</div>
 
-				<div className="publy-section-tabs" role="tablist">
-					{tabs.map((tab) => (
-						<button
-							type="button"
-							role="tab"
-							aria-selected={activeTab === tab.id}
-							className="publy-section-tab"
-							data-active={activeTab === tab.id ? 'true' : undefined}
-							onClick={() => setActiveTab(tab.id)}
-						>
-							{tab.label}
-						</button>
-					))}
-				</div>
+				<Tabs defaultValue="overview">
+					<div className="publy-section-tabs">
+						<TabsList variant="line">
+							<TabsTrigger value="overview">Overview</TabsTrigger>
+							<TabsTrigger value="permissions">Permissions</TabsTrigger>
+							<TabsTrigger value="activity">Activity</TabsTrigger>
+							<TabsTrigger value="settings">Settings</TabsTrigger>
+						</TabsList>
+					</div>
 
-				<div className="mt-5">
-					{activeTab === 'overview' ? (
-						<DetailGrid>
-							<DetailMain>
-								<ContactDetailsCard details={user} locale={i18n.language} />
-								{profilesHasError ? (
-									<div
-										data-testid="staff-user-profiles-error"
-										className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] p-4 shadow-[var(--publy-shadow-ring)] text-sm text-muted-foreground"
-									>
-										Unable to load assigned profiles.
-									</div>
-								) : (
-									<AssignedProfilesCard
-										profiles={profiles}
-										totalPermissions={Math.max(0, maxProfilesPerUser)}
-									/>
-								)}
-							</DetailMain>
-							<DetailAside>
-								<AccountCard displayId={user.id} />
-								<RecentSecurityCard />
-								<DangerZoneCard title="Danger zone">
-									<DangerZoneRow
-										title="Suspend or reactivate"
-										description={
-											canSuspend || canReactivate
-												? canSuspend
-													? `Suspend account ${user.displayName}.`
-													: `Reactivate account ${user.displayName}.`
-												: 'Status actions are currently unavailable.'
-										}
-										action={
-											<Button
-												type="button"
-												className="publy-danger-action"
-												variant="secondary"
-												onClick={() => {
-													setSuspendDialogOpen(true);
-												}}
-												disabled={!canSuspend && !canReactivate}
-											>
-												{getSuspendLabel(user.status)}
-											</Button>
-										}
-									/>
-									<DangerZoneRow
-										title="Delete user"
-										description="This permanently removes the staff user and cannot be undone."
-										action={
-											<Button
-												type="button"
-												variant="destructive"
-												className="publy-danger-action"
-												onClick={() => {
-													setDeleteDialogOpen(true);
-												}}
-												disabled={deleteUser.isPending}
-											>
-												Delete
-											</Button>
-										}
-									/>
-								</DangerZoneCard>
-							</DetailAside>
-						</DetailGrid>
-					) : (
-						<div className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] p-4 shadow-[var(--publy-shadow-ring)]">
-							<p className="text-sm text-muted-foreground">
-								This tab is intentionally kept minimal in this handoff scope.
-							</p>
-						</div>
-					)}
+					<div className="mt-5">
+						<TabsContent value="overview">
+							<DetailGrid>
+								<DetailMain>
+									<ContactDetailsCard details={user} locale={i18n.language} />
+									{profilesHasError ? (
+										<div
+											data-testid="staff-user-profiles-error"
+											className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] p-4 shadow-[var(--publy-shadow-ring)] text-sm text-muted-foreground"
+										>
+											Unable to load assigned profiles.
+										</div>
+									) : (
+										<AssignedProfilesCard
+											profiles={profiles}
+											maxProfiles={Math.max(0, maxProfilesPerUser)}
+										/>
+									)}
+								</DetailMain>
+								<DetailAside>
+									<AccountCard displayId={user.id} />
+									<RecentSecurityCard />
+									<DangerZoneCard title="Danger zone">
+										<DangerZoneRow
+											title="Suspend or reactivate"
+											description={
+												getSuspendDescription(user.status).description
+											}
+											action={
+												<Button
+													type="button"
+													className="publy-danger-action"
+													variant="secondary"
+													onClick={() => {
+														setSuspendDialogOpen(true);
+													}}
+													disabled={!canSuspend && !canReactivate}
+												>
+													{getSuspendLabel(user.status)}
+												</Button>
+											}
+										/>
+										<DangerZoneRow
+											title="Delete user"
+											description="This permanently removes the staff user and cannot be undone."
+											action={
+												<Button
+													type="button"
+													variant="destructive"
+													className="publy-danger-action"
+													onClick={() => {
+														setDeleteDialogOpen(true);
+													}}
+													disabled={deleteUser.isPending}
+												>
+													Delete
+												</Button>
+											}
+										/>
+									</DangerZoneCard>
+								</DetailAside>
+							</DetailGrid>
+						</TabsContent>
+						<TabsContent value="permissions">
+							<div className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] p-4 shadow-[var(--publy-shadow-ring)]">
+								<p className="text-sm text-muted-foreground">
+									This tab is intentionally kept minimal in this handoff scope.
+								</p>
+							</div>
+						</TabsContent>
+						<TabsContent value="activity">
+							<div className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] p-4 shadow-[var(--publy-shadow-ring)]">
+								<p className="text-sm text-muted-foreground">
+									This tab is intentionally kept minimal in this handoff scope.
+								</p>
+							</div>
+						</TabsContent>
+						<TabsContent value="settings">
+							<div className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] p-4 shadow-[var(--publy-shadow-ring)]">
+								<p className="text-sm text-muted-foreground">
+									This tab is intentionally kept minimal in this handoff scope.
+								</p>
+							</div>
+						</TabsContent>
 
-					{detailActionError ? (
-						<div className="mt-2 text-sm text-destructive" role="status">
-							{detailActionError}
-						</div>
-					) : null}
-				</div>
+						{detailActionError ? (
+							<div className="mt-2 text-sm text-destructive" role="alert">
+								{detailActionError}
+							</div>
+						) : null}
+					</div>
+				</Tabs>
 			</div>
 
 			<ConfirmDialog
@@ -782,7 +791,8 @@ function StaffUserDetailsPage() {
 				description="Deleting this staff user is permanent and can’t be undone. Reassign ownership and project responsibilities first."
 				confirmLabel="Delete"
 				tone="danger"
-				isPending={deleteUser.isPending || !isDeleteConfirmReady}
+				isPending={deleteUser.isPending}
+				isConfirmDisabled={!isDeleteConfirmReady}
 				onConfirm={() => {
 					if (isDeleteConfirmReady) {
 						void handleDeleteAction();

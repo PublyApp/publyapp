@@ -26,7 +26,7 @@ export const InitialsAvatar = ({
 	size,
 }: {
 	name: string;
-	size?: 'md' | 'lg';
+	size?: 'sm' | 'md' | 'lg';
 }) => (
 	<span
 		aria-hidden="true"

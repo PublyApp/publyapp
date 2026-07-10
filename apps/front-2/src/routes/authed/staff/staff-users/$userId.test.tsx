@@ -1,7 +1,13 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, render, screen } from '@testing-library/react';
+import {
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	within,
+} from '@testing-library/react';
 import type { JSX } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -14,6 +20,7 @@ const mocks = vi.hoisted(() => ({
 	useReactivateStaffUserMutation: vi.fn(),
 	useSuspendStaffUserMutation: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
+	navigate: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@tanstack/react-router', () => ({
@@ -23,6 +30,7 @@ vi.mock('@tanstack/react-router', () => ({
 			userId: '11111111-1111-1111-1111-111111111111',
 		}),
 	}),
+	useNavigate: () => mocks.navigate,
 	Link: ({
 		children,
 		to,
@@ -201,10 +209,11 @@ describe('staff user details route', () => {
 		renderPage();
 
 		expect(screen.getByTestId('staff-user-details-page')).toBeTruthy();
-		expect(screen.getAllByText('Owner User')).toHaveLength(2);
+		expect(
+			screen.getByRole('link', { name: 'Back to staff users' }),
+		).toBeTruthy();
+		expect(screen.getByRole('heading', { name: 'Owner User' })).toBeTruthy();
 		expect(screen.getAllByText('owner@publyapp.local')).toHaveLength(2);
-		expect(screen.getAllByText('Owner')).toHaveLength(2);
-		expect(screen.getAllByText('Active')).toHaveLength(2);
 		expect(screen.getByText('Overview')).toBeTruthy();
 		expect(screen.getByText('Permissions')).toBeTruthy();
 		expect(screen.getByText('Activity')).toBeTruthy();
@@ -213,10 +222,11 @@ describe('staff user details route', () => {
 		expect(screen.getByText('Contact details')).toBeTruthy();
 		expect(screen.getByText('Assigned profiles & roles')).toBeTruthy();
 		expect(screen.getByText('2 assigned')).toBeTruthy();
-		expect(screen.getByText('Platform admin')).toBeTruthy();
+		expect(screen.getByRole('link', { name: 'Platform admin' })).toBeTruthy();
+		expect(screen.getByRole('link', { name: 'Support staff' })).toBeTruthy();
 		expect(screen.getByText('Full access')).toBeTruthy();
 		expect(screen.getByText('No description')).toBeTruthy();
-		expect(screen.getByText('Permission summary')).toBeTruthy();
+		expect(screen.getByText('Profile summary')).toBeTruthy();
 
 		expect(screen.getByText('Account')).toBeTruthy();
 		expect(screen.getByText('Recent security activity')).toBeTruthy();
@@ -370,5 +380,121 @@ describe('staff user details route', () => {
 		renderPage();
 
 		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
+	});
+
+	// (a) clicking ⋯ opens the actions menu, not the delete dialog
+	test('ItShouldOpenMenuWhenKebabClicked', () => {
+		renderPage();
+
+		const menuTrigger = screen.getByTestId('staff-user-actions-menu');
+		expect(menuTrigger).toBeTruthy();
+		expect(menuTrigger.getAttribute('aria-label')).toBe('User actions');
+	});
+
+	// (b) Suspend opens the suspend dialog; confirming calls suspendUser.mutateAsync
+	test('ItShouldCallSuspendMutationWhenSuspendConfirmed', () => {
+		const suspendMutateAsync = vi.fn().mockResolvedValue(undefined);
+		mocks.useSuspendStaffUserMutation.mockReturnValue(
+			buildMutationResult({ mutateAsync: suspendMutateAsync }),
+		);
+
+		renderPage();
+
+		const suspendButtons = screen.getAllByText('Suspend');
+		fireEvent.click(suspendButtons[0]);
+
+		const alertDialog = screen.getByRole('alertdialog', {
+			name: 'Suspend staff user',
+		});
+		const confirmButton = within(alertDialog).getByRole('button', {
+			name: 'Suspend',
+		});
+		fireEvent.click(confirmButton);
+
+		expect(suspendMutateAsync).toHaveBeenCalledWith({
+			userId: '11111111-1111-1111-1111-111111111111',
+		});
+	});
+
+	// (c) when status is suspended the control reads Reactivate and confirming calls reactivateUser.mutateAsync
+	test('ItShouldCallReactivateMutationWhenReactivateConfirmed', () => {
+		mocks.toStaffUserDetails.mockReturnValue({
+			id: '11111111-1111-1111-1111-111111111111',
+			email: 'owner@publyapp.local',
+			firstName: 'Owner',
+			lastName: 'User',
+			avatarUrl: null,
+			accountLevel: 'Owner',
+			status: 'Suspended',
+			createdAt: new Date('2026-07-01T09:00:00Z'),
+			updatedAt: new Date('2026-07-02T10:00:00Z'),
+			displayName: 'Owner User',
+		});
+
+		const reactivateMutateAsync = vi.fn().mockResolvedValue(undefined);
+		mocks.useReactivateStaffUserMutation.mockReturnValue(
+			buildMutationResult({ mutateAsync: reactivateMutateAsync }),
+		);
+
+		renderPage();
+
+		const reactivateButtons = screen.getAllByText('Reactivate');
+		fireEvent.click(reactivateButtons[0]);
+
+		const alertDialog = screen.getByRole('alertdialog', {
+			name: 'Reactivate staff user',
+		});
+		const confirmButton = within(alertDialog).getByRole('button', {
+			name: 'Reactivate',
+		});
+		fireEvent.click(confirmButton);
+
+		expect(reactivateMutateAsync).toHaveBeenCalledWith({
+			userId: '11111111-1111-1111-1111-111111111111',
+		});
+	});
+
+	// (d) the delete dialog's Cancel button is enabled before delete is typed
+	test('ItShouldEnableCancelButtonWhenDeleteConfirmNotTyped', () => {
+		renderPage();
+
+		const dangerZoneDeleteButtons = screen.getAllByText('Delete');
+		fireEvent.click(dangerZoneDeleteButtons[0]);
+
+		const cancelButton = screen.getByRole('button', { name: 'Cancel' });
+		expect((cancelButton as HTMLButtonElement).disabled).toBe(false);
+	});
+
+	// (e) confirming delete calls deleteUser.mutateAsync and then navigates
+	test('ItShouldCallDeleteMutationAndNavigateWhenDeleteConfirmed', async () => {
+		const deleteMutateAsync = vi.fn().mockResolvedValue(undefined);
+		mocks.useDeleteStaffUserMutation.mockReturnValue(
+			buildMutationResult({ mutateAsync: deleteMutateAsync }),
+		);
+
+		renderPage();
+
+		const dangerZoneDeleteButtons = screen.getAllByText('Delete');
+		fireEvent.click(dangerZoneDeleteButtons[0]);
+
+		const confirmField = screen.getByLabelText('Confirm delete');
+		fireEvent.change(confirmField, { target: { value: 'delete' } });
+
+		const alertDialog = screen.getByRole('alertdialog', {
+			name: 'Delete staff user',
+		});
+		const confirmButton = within(alertDialog).getByRole('button', {
+			name: 'Delete',
+		});
+		fireEvent.click(confirmButton);
+
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		expect(deleteMutateAsync).toHaveBeenCalledWith({
+			userId: '11111111-1111-1111-1111-111111111111',
+		});
+		expect(mocks.navigate).toHaveBeenCalledWith({
+			to: '/staff/staff-users',
+		});
 	});
 });

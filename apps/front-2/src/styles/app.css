@@ -797,6 +797,12 @@ html {
 		font-size: 18px;
 	}
 
+	.publy-avatar-initials[data-size='sm'] {
+		width: 32px;
+		height: 32px;
+		font-size: 11px;
+	}
+
 	.publy-avatar-initials[data-size='md'] {
 		width: 36px;
 		height: 36px;
