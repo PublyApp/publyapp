@@ -198,7 +198,10 @@ export const TenantDetailsPageShell = ({
 	children: ReactNode;
 }) => {
 	return (
-		<div className="flex w-full flex-col gap-5" data-testid={testId}>
+		<div
+			className="publy-detail-page flex w-full flex-col gap-5"
+			data-testid={testId}
+		>
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<Link to="/staff/tenants" className="publy-back-link">
 					Back to tenants

@@ -4,9 +4,10 @@ import { cn } from '~/lib/utils';
 /**
  * Detail-page foundations from the handoff (artboards 2c/3b): the
  * `1fr / 420px` body grid (owner-approved 2026-07-10 deviation from the
- * spec's `1fr / 372px`, capped at 1440px) and the rose-ringed danger-zone
- * card with soft-destructive row actions. Values live in app.css
- * (`.publy-detail-*`, `.publy-danger-*`).
+ * spec's `1fr / 372px`) and the rose-ringed danger-zone card with
+ * soft-destructive row actions. The 1440px page measure lives one level up,
+ * on `.publy-detail-page` (owner decision R2-4), not on the grid itself.
+ * Values live in app.css (`.publy-detail-*`, `.publy-danger-*`).
  */
 
 function DetailGrid({ className, ...props }: React.ComponentProps<'div'>) {

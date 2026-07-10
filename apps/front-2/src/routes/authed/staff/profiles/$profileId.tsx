@@ -396,7 +396,10 @@ function StaffProfileDetailsPage() {
 	}
 
 	return (
-		<div className="publy-page-fill" data-testid="staff-profile-details-page">
+		<div
+			className="publy-detail-page publy-page-fill"
+			data-testid="staff-profile-details-page"
+		>
 			{/* Identity Header */}
 			<div className="flex items-start justify-between gap-4 mb-8">
 				<div className="flex items-center gap-4">

@@ -1308,11 +1308,21 @@ html {
 		color: var(--publy-foreground-subtle);
 	}
 
+	/* ---- Detail page measure (owner decision R2-4, 2026-07-10) ---- */
+
+	/* Caps the whole detail page — heading, action cluster, tab strip and
+	   body grid — at one shared measure so they share a centre line. The
+	   body grid used to carry this cap alone, which left the heading/tabs
+	   rendering at full width above it. */
+	.publy-detail-page {
+		@apply mx-auto w-full;
+		max-width: 1440px;
+	}
+
 	/* ---- Detail body grid + danger zone (handoff 2c/3b) ---- */
 
 	.publy-detail-grid {
-		@apply mx-auto grid w-full items-start gap-5;
-		max-width: 1440px;
+		@apply grid w-full items-start gap-5;
 		grid-template-columns: minmax(0, 1fr);
 	}
 

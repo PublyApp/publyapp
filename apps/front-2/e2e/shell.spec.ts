@@ -397,6 +397,44 @@ test('detail grid sizes to the space left by the rail and panel, not the raw vie
 	expect(asideColumnWidth).toBeCloseTo(420, 0);
 });
 
+test('detail heading stays flush with the body grid at wide viewports', async ({
+	page,
+}) => {
+	// Owner decision R2-4: the heading/action cluster/tab strip used to
+	// render at full width while only .publy-detail-grid was capped at
+	// 1440px, so on a wide monitor the heading overhung the grid on both
+	// sides. Both must now share the same measure and left offset.
+	await loginAsStaffAdmin(page);
+	await page
+		.getByRole('row', { name: /staff-user@example\.com/ })
+		.getByRole('link')
+		.click();
+
+	const heading = page.getByTestId('staff-user-details-heading');
+	const grid = page
+		.getByTestId('staff-user-details-page')
+		.locator('.publy-detail-grid')
+		.first();
+
+	for (const width of [1440, 2560]) {
+		await page.setViewportSize({ width, height: 900 });
+		await expect(heading).toBeVisible();
+		await expect(grid).toBeVisible();
+
+		const headingBox = await heading.evaluate((element) => {
+			const rect = element.getBoundingClientRect();
+			return { width: rect.width, left: rect.left };
+		});
+		const gridBox = await grid.evaluate((element) => {
+			const rect = element.getBoundingClientRect();
+			return { width: rect.width, left: rect.left };
+		});
+
+		expect(headingBox.width).toBeCloseTo(gridBox.width, 0);
+		expect(headingBox.left).toBeCloseTo(gridBox.left, 0);
+	}
+});
+
 test('no bottom rail on mobile and rail-hidden behavior is preserved', async ({
 	page,
 }) => {

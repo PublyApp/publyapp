@@ -398,7 +398,10 @@ function StaffUserDetailsPage() {
 	};
 
 	return (
-		<div className="space-y-5" data-testid="staff-user-details-page">
+		<div
+			className="publy-detail-page space-y-5"
+			data-testid="staff-user-details-page"
+		>
 			<div className="space-y-3">
 				<Link
 					to="/staff/staff-users"
@@ -408,7 +411,7 @@ function StaffUserDetailsPage() {
 					Back to staff users
 				</Link>
 			</div>
-			<div className="space-y-1">
+			<div className="space-y-1" data-testid="staff-user-details-heading">
 				<div className="flex flex-wrap items-center justify-between gap-3">
 					<div className="flex items-start gap-3">
 						<div className="h-14 w-14">
