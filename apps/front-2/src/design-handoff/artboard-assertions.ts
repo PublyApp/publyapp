@@ -257,26 +257,26 @@ const JSON_BACKED_FOCUS: Record<
 	],
 	'2f': [
 		{
-			// Owner decision 2026-07-10 (P5, items 4+14): the flat 14px tile was
-			// replaced by a layered glyph cluster (wash + rings + tile). The tile
-			// radius is now unified at 16px (--publy-radius-frame) across tones —
-			// see parity-contract.md "Empty/no-match/error state composition".
-			kind: 'radius',
-			component: 'empty.iconTile',
-			property: 'border-radius',
-			expected: '16px',
+			// Owner decision 2026-07-10 round 2 (R2-2): the layered glyph cluster
+			// (wash + rings + tile) is retired for a bare, un-boxed icon — no
+			// background, no border-radius, no shadow, on either surface. See
+			// parity-contract.md "Empty/no-match/error state composition, round 2".
+			kind: 'layout',
+			component: 'empty.icon',
+			property: 'width',
+			expected: '40px',
 		},
 		{
-			kind: 'radius',
-			component: 'error.iconTile',
-			property: 'border-radius',
-			expected: '16px',
+			kind: 'layout',
+			component: 'error.icon',
+			property: 'width',
+			expected: '64px',
 		},
 		{
 			kind: 'token',
-			component: 'empty.iconTile',
-			property: 'background',
-			expected: '#f4f4f5',
+			component: 'empty.icon',
+			property: 'color',
+			expected: '#71717a',
 		},
 		{
 			kind: 'layout',

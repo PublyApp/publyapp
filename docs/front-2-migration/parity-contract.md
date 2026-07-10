@@ -317,3 +317,47 @@ is set after the settings interaction), the locale switch, and the invite flow.
   loosened. `View404`/`View403` also stopped doing a full-document
   `window.location.assign('/')` on "Return home" (a TanStack `Link` now) and
   had every string routed through `t()`.
+- Empty/no-match/error state composition, round 2: the layered glyph-cluster
+  composition adopted above (2026-07-10, "owner-approved, P5 items 4+14"),
+  and the P5 `AppErrorView` change that wrapped the whole view in `<Card>`,
+  are both **superseded 2026-07-10 (owner-approved, round 2 — decision
+  R2-2)**. The owner rejected the boxed card container a second time and
+  asked for something flat. `AppErrorView` no longer renders a `<Card>` —
+  `<main>` carries `data-testid` directly and contains the content at page
+  background, with a hairline `border-t` (no box, no fill) separating the
+  actions row and the diagnostic-id row instead of a bordered footer panel.
+  `.publy-state-surface` (the `DataTable` empty/error/no-match states) drops
+  its `background`/`border-radius`/`box-shadow: var(--publy-shadow-ring)` —
+  it now sits directly on the page background with no card treatment at all.
+  The layered glyph cluster (wash + two rings + a shadowed, background-filled
+  tile) is retired for a bare, un-boxed icon: `.publy-state-icon-cluster`
+  shrinks from a fixed `96px` layered composition to a plain sizing wrapper
+  (`40px` in list states via `.publy-state-surface`, `64px` in the
+  `AppErrorView` hero via a `.publy-error-hero .publy-state-icon-cluster`
+  override), and `.publy-state-icon` is now `color`-only per tone (neutral
+  `--publy-foreground-muted`, danger `--publy-danger`, primary
+  `--publy-primary`) with no background, shadow, or radius. The ghost numeral
+  behind the error-view icon stays (a large tonal display numeral reads as
+  "designed" without a container) and grows slightly (`96px → 112px`,
+  `opacity 0.06/0.09 → 0.05/0.08`) now that nothing else fills the page.
+  Deleted, not orphaned: `--publy-shadow-elevated` (light + dark; its last
+  consumer, `.publy-state-icon`'s box-shadow, is gone), `--publy-state-wash-
+  {neutral,danger,primary}` / `--publy-state-ring-{neutral,danger,primary}`
+  (light + dark, the wash/ring layers are gone), and `--publy-radius-frame`
+  (the tile radius is gone). `design-handoff-foundation.spec.ts` (the
+  no-match glyph-cluster test) and `artboard-assertions.ts`/
+  `artboard-assertions.test.ts` (`2f`, `empty.iconTile`/`error.iconTile` →
+  `empty.icon`/`error.icon`) were rewritten to the new flat geometry, not
+  loosened — the no-match e2e test now also asserts `background-color:
+  rgba(0,0,0,0)` and `box-shadow: none` on both the state surface and the
+  icon, to pin the "no box" claim as a computed value rather than a
+  structural absence. `state-surface.test.tsx` gained a test asserting the
+  wash/ring elements are gone from the DOM. Text colors were re-verified
+  against `--publy-background` rather than `--publy-card`: the two tokens
+  are identical in both themes (`#ffffff` / `#18181b`), so the existing
+  `text-foreground`/`text-muted-foreground` contrast ratios (title ~16:1,
+  description/code `~4.82:1` light, `~6.91:1` dark) carry over unchanged —
+  removing the card did not change any background a reader sees text
+  against. `AppErrorView`'s `embedded` prop, `View404`/`View403`, every
+  `data-testid`, and `StateSurface`/`ErrorStateSurface`/`NoMatchStateSurface`'s
+  public props are unchanged by this pass.

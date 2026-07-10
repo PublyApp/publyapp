@@ -262,7 +262,7 @@ test('asserts staff shell rails and panel match handoff registry', async ({
 	await expect(panel.getByRole('link', { name: 'Profiles' })).toBeVisible();
 });
 
-test('asserts the no-match glyph cluster uses the layered composition (primary tone, 56px r16 tile inside a 96px halo)', async ({
+test('asserts the no-match state renders a bare, un-boxed icon with no card, ring, or shadow (flat, owner-approved 2026-07-10 round 2)', async ({
 	page,
 }) => {
 	await loginAsStaffAdmin(page);
@@ -284,20 +284,21 @@ test('asserts the no-match glyph cluster uses the layered composition (primary t
 
 	const noMatch = page.getByTestId('staff-users-table-no-match');
 	await expect(noMatch).toBeVisible();
+	await expect(noMatch).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+	await expect(noMatch).toHaveCSS('box-shadow', 'none');
+	await expect(noMatch).toHaveCSS('border-radius', '0px');
 
 	const cluster = noMatch.locator('.publy-state-icon-cluster');
-	await expect(cluster).toHaveCSS('width', '96px');
-	await expect(cluster).toHaveCSS('height', '96px');
+	await expect(cluster).toHaveCSS('width', '40px');
+	await expect(cluster).toHaveCSS('height', '40px');
 	await expect(cluster).toHaveAttribute('data-tone', 'primary');
 	await expect(cluster).toHaveAttribute('aria-hidden', 'true');
-
-	await expect(cluster.locator('.publy-state-icon-wash')).toBeVisible();
-	await expect(cluster.locator('.publy-state-icon-ring--outer')).toBeVisible();
-	await expect(cluster.locator('.publy-state-icon-ring--inner')).toBeVisible();
+	await expect(cluster.locator('.publy-state-icon-wash')).toHaveCount(0);
+	await expect(cluster.locator('.publy-state-icon-ring')).toHaveCount(0);
 
 	const icon = cluster.locator('.publy-state-icon[data-tone="primary"]');
-	await expect(icon).toHaveCSS('width', '56px');
-	await expect(icon).toHaveCSS('height', '56px');
-	await expect(icon).toHaveCSS('border-radius', '16px');
-	await expect(icon).toHaveCSS('background-color', 'rgb(255, 251, 235)');
+	await expect(icon).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+	await expect(icon).toHaveCSS('box-shadow', 'none');
+	await expect(icon).toHaveCSS('border-radius', '0px');
+	await expect(icon).toHaveCSS('color', 'rgb(253, 199, 0)');
 });

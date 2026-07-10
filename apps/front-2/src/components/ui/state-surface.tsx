@@ -31,9 +31,6 @@ export const StateSurface = ({
 			data-tone={tone}
 			aria-hidden="true"
 		>
-			<span className="publy-state-icon-wash" />
-			<span className="publy-state-icon-ring publy-state-icon-ring--outer" />
-			<span className="publy-state-icon-ring publy-state-icon-ring--inner" />
 			<div className="publy-state-icon" data-tone={tone}>
 				<Icon aria-hidden="true" className="publy-state-icon-glyph" />
 			</div>

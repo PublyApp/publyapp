@@ -133,7 +133,6 @@
 	--publy-radius-circular: 999px;
 	--publy-radius-control: 14px;
 	--publy-radius-input: 10px;
-	--publy-radius-frame: 16px;
 	--publy-modal-radius: 28px;
 	--publy-backdrop: rgba(24, 24, 27, 0.32);
 	--publy-overlay-surface: rgba(255, 255, 255, 0.97);
@@ -147,10 +146,6 @@
 	--publy-shell-topbar-height: 64px;
 	--publy-shadow-card: 0 0 0 1px rgba(9, 9, 11, 0.06);
 	--publy-shadow-ring: 0 0 0 1px rgba(9, 9, 11, 0.06);
-	/* last consumer is .publy-state-icon; delete this token when that goes flat (R2-2) */
-	--publy-shadow-elevated:
-		0 0 0 1px rgba(9, 9, 11, 0.05), 0 4px 6px -1px rgb(0 0 0 / 0.1),
-		0 2px 4px -2px rgb(0 0 0 / 0.1);
 	--publy-shadow-menu:
 		0 12px 32px rgba(24, 24, 27, 0.14), 0 2px 6px rgba(24, 24, 27, 0.06);
 	--publy-shadow-modal: 0 24px 64px rgba(24, 24, 27, 0.28);
@@ -168,36 +163,6 @@
 	--publy-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
 	--publy-motion-fast: 120ms;
 	--publy-motion-panel: 180ms;
-	--publy-state-wash-neutral: color-mix(
-		in srgb,
-		var(--publy-foreground-muted) 20%,
-		transparent
-	);
-	--publy-state-wash-danger: color-mix(
-		in srgb,
-		var(--publy-danger) 18%,
-		transparent
-	);
-	--publy-state-wash-primary: color-mix(
-		in srgb,
-		var(--publy-primary) 26%,
-		transparent
-	);
-	--publy-state-ring-neutral: color-mix(
-		in srgb,
-		var(--publy-foreground-muted) 16%,
-		transparent
-	);
-	--publy-state-ring-danger: color-mix(
-		in srgb,
-		var(--publy-danger) 24%,
-		transparent
-	);
-	--publy-state-ring-primary: color-mix(
-		in srgb,
-		var(--publy-primary) 32%,
-		transparent
-	);
 	--accent: var(--publy-primary);
 	--accent-foreground: var(--publy-primary-foreground);
 }
@@ -227,9 +192,6 @@ html.dark {
 	--publy-border-strong: rgba(255, 255, 255, 0.15);
 	--publy-shadow-card: 0 0 0 1px rgba(250, 250, 250, 0.06);
 	--publy-shadow-ring: 0 0 0 1px rgba(250, 250, 250, 0.06);
-	--publy-shadow-elevated:
-		0 0 0 1px rgba(250, 250, 250, 0.1), 0 4px 6px -1px rgb(0 0 0 / 0.4),
-		0 2px 4px -2px rgb(0 0 0 / 0.3);
 	--publy-shadow-inset: 0 1px 0 color-mix(in srgb, white 6%, transparent) inset;
 	--publy-danger-soft: rgba(220, 38, 38, 0.16);
 	--publy-destructive-soft: rgba(220, 38, 38, 0.2);
@@ -250,36 +212,6 @@ html.dark {
 	--publy-chip-pending-border: #92400e;
 	--publy-chip-pending-bg: #451a03;
 	--publy-chip-pending-text: #fbbf24;
-	--publy-state-wash-neutral: color-mix(
-		in srgb,
-		var(--publy-foreground-muted) 20%,
-		transparent
-	);
-	--publy-state-wash-danger: color-mix(
-		in srgb,
-		var(--publy-danger) 18%,
-		transparent
-	);
-	--publy-state-wash-primary: color-mix(
-		in srgb,
-		var(--publy-primary) 26%,
-		transparent
-	);
-	--publy-state-ring-neutral: color-mix(
-		in srgb,
-		var(--publy-foreground-muted) 16%,
-		transparent
-	);
-	--publy-state-ring-danger: color-mix(
-		in srgb,
-		var(--publy-danger) 24%,
-		transparent
-	);
-	--publy-state-ring-primary: color-mix(
-		in srgb,
-		var(--publy-primary) 32%,
-		transparent
-	);
 }
 
 @layer base {
@@ -994,13 +926,15 @@ html {
 		font-weight: 500;
 	}
 
+	/* Flat "nothing to show you" family — error views (AppErrorView) and list
+	   states (StateSurface) share this composition: a bare, un-boxed glyph,
+	   type scale, and generous spacing carry the design instead of a card
+	   surface. No background, ring, or shadow on any of these rules
+	   (owner decision R2-2, 2026-07-10). */
 	.publy-state-surface {
 		@apply flex flex-col items-center justify-center gap-4 text-center;
 		min-height: 15rem;
 		padding: 48px 24px;
-		background: var(--publy-surface);
-		border-radius: var(--publy-radius-control);
-		box-shadow: var(--publy-shadow-ring);
 	}
 
 	.publy-state-surface .publy-type-section-title {
@@ -1018,92 +952,29 @@ html {
 		color: var(--publy-foreground-muted);
 	}
 
-	/* Layered glyph cluster: a soft wash + two concentric rings behind the
-	   glyph tile, replacing the old flat bordered square. Circles use an
-	   explicit 50% radius (a fixed square box) rather than the fully-rounded
-	   pattern reserved for avatars and topbar controls. */
 	.publy-state-icon-cluster {
-		position: relative;
 		display: flex;
-		width: 96px;
-		height: 96px;
+		width: 40px;
+		height: 40px;
 		flex-shrink: 0;
 		align-items: center;
 		justify-content: center;
 		animation: publy-state-rise 360ms var(--publy-motion-ease) both;
 	}
 
-	.publy-state-icon-wash {
-		position: absolute;
-		inset: 0;
-		border-radius: 50%;
-		background: radial-gradient(
-			circle at 50% 42%,
-			var(--publy-state-wash-neutral),
-			transparent 72%
-		);
-	}
-
-	.publy-state-icon-cluster[data-tone='danger'] .publy-state-icon-wash {
-		background: radial-gradient(
-			circle at 50% 42%,
-			var(--publy-state-wash-danger),
-			transparent 72%
-		);
-	}
-
-	.publy-state-icon-cluster[data-tone='primary'] .publy-state-icon-wash {
-		background: radial-gradient(
-			circle at 50% 42%,
-			var(--publy-state-wash-primary),
-			transparent 72%
-		);
-	}
-
-	.publy-state-icon-ring {
-		position: absolute;
-		border-radius: 50%;
-		border: 1px solid var(--publy-state-ring-neutral);
-	}
-
-	.publy-state-icon-ring--outer {
-		inset: 0;
-	}
-
-	.publy-state-icon-ring--inner {
-		inset: 16px;
-	}
-
-	.publy-state-icon-cluster[data-tone='danger'] .publy-state-icon-ring {
-		border-color: var(--publy-state-ring-danger);
-	}
-
-	.publy-state-icon-cluster[data-tone='primary'] .publy-state-icon-ring {
-		border-color: var(--publy-state-ring-primary);
-	}
-
 	.publy-state-icon {
 		@apply flex items-center justify-center;
-		position: relative;
-		z-index: 1;
-		width: 56px;
-		height: 56px;
-		border-radius: var(--publy-radius-frame);
-		background: var(--publy-surface-muted);
+		width: 100%;
+		height: 100%;
 		color: var(--publy-foreground-muted);
-		box-shadow: var(--publy-shadow-elevated);
-		transition:
-			background-color var(--publy-motion-fast) var(--publy-motion-ease),
-			color var(--publy-motion-fast) var(--publy-motion-ease);
+		transition: color var(--publy-motion-fast) var(--publy-motion-ease);
 	}
 
 	.publy-state-icon[data-tone='danger'] {
-		background: var(--publy-chip-suspended-bg);
-		color: var(--publy-chip-suspended-text);
+		color: var(--publy-danger);
 	}
 
 	.publy-state-icon[data-tone='primary'] {
-		background: var(--publy-primary-soft);
 		color: var(--publy-primary);
 	}
 
@@ -1112,16 +983,23 @@ html {
 		height: 22px;
 	}
 
-	/* Ghost numeral behind the error-view cluster: a large, low-alpha status
-	   code clipped to the hero row. Purely decorative — the `code` caption
-	   text carries the accessible label. */
+	/* Ghost numeral behind the error-view glyph: a large, low-alpha status
+	   code sitting directly on the page background. Purely decorative — the
+	   `code` caption text carries the accessible label. */
 	.publy-error-hero {
 		position: relative;
 		display: flex;
-		min-height: 132px;
+		min-height: 120px;
 		align-items: center;
 		justify-content: center;
 		overflow: hidden;
+	}
+
+	.publy-error-hero .publy-state-icon-cluster {
+		position: relative;
+		z-index: 1;
+		width: 64px;
+		height: 64px;
 	}
 
 	.publy-error-ghost-numeral {
@@ -1134,17 +1012,17 @@ html {
 		overflow: hidden;
 		white-space: nowrap;
 		font-family: var(--publy-font-mono);
-		font-size: 96px;
+		font-size: 112px;
 		font-weight: 700;
 		line-height: 1;
 		letter-spacing: -0.03em;
 		color: var(--publy-foreground);
-		opacity: 0.06;
+		opacity: 0.05;
 		user-select: none;
 	}
 
 	html.dark .publy-error-ghost-numeral {
-		opacity: 0.09;
+		opacity: 0.08;
 	}
 
 	.publy-state-technical-id {

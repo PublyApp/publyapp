@@ -89,4 +89,17 @@ describe('state-surface', () => {
 			.querySelector('.publy-state-icon-cluster');
 		expect(cluster?.getAttribute('aria-hidden')).toBe('true');
 	});
+
+	test('renders the icon bare, with no wash or ring layers (flat, owner-approved 2026-07-10 round 2)', () => {
+		render(
+			<StateSurface
+				title="No records yet"
+				description="Add one to continue."
+				testId="surface"
+			/>,
+		);
+		const root = screen.getByTestId('surface');
+		expect(root.querySelector('.publy-state-icon-wash')).toBeNull();
+		expect(root.querySelector('.publy-state-icon-ring')).toBeNull();
+	});
 });
