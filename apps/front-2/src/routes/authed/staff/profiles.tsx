@@ -41,9 +41,9 @@ import type {
 import { shouldLogoutForFailure } from '~/routes/authed/layout';
 
 // Default server ordering by creation date provides stable, deterministic pagination.
-// No visible column header claims this sort key (all columns have `enableSorting: false`),
-// so there is no misrepresentation.  TODO(contract): switch to `updated_at` once the API
-// exposes that sort key.
+// No column advertises this sort key: `Profile` is the only sortable column and it sorts
+// by `name`, so nothing in the UI misrepresents the default ordering.
+// TODO(contract): switch to `updated_at` once the API exposes that sort key.
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
 
