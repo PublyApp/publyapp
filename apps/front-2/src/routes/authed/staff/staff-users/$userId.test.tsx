@@ -508,6 +508,10 @@ describe('staff user details route', () => {
 				userId: '11111111-1111-1111-1111-111111111111',
 			});
 		});
+		await vi.waitFor(() => {
+			expect(mocks.queryClient.removeQueries).toHaveBeenCalled();
+			expect(mocks.queryClient.invalidateQueries).toHaveBeenCalled();
+		});
 
 		expect(mocks.queryClient.removeQueries).toHaveBeenCalledWith({
 			queryKey: ['staff', 'staff-users', 'detail'],
@@ -518,12 +522,12 @@ describe('staff user details route', () => {
 		expect(mocks.navigate).toHaveBeenCalledWith({
 			to: '/staff/staff-users',
 		});
-		expect(
+		expect(mocks.navigate.mock.invocationCallOrder[0]).toBeLessThan(
 			mocks.queryClient.removeQueries.mock.invocationCallOrder[0],
-		).toBeLessThan(mocks.navigate.mock.invocationCallOrder[0]);
-		expect(
+		);
+		expect(mocks.navigate.mock.invocationCallOrder[0]).toBeLessThan(
 			mocks.queryClient.invalidateQueries.mock.invocationCallOrder[0],
-		).toBeLessThan(mocks.navigate.mock.invocationCallOrder[0]);
+		);
 
 		expect(screen.queryByTestId('staff-user-details-not-found')).toBeNull();
 	});

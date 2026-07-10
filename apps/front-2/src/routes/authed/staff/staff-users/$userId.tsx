@@ -534,12 +534,6 @@ function StaffUserDetailsPage() {
 		try {
 			setDetailActionError('');
 			await deleteUser.mutateAsync({ userId });
-			queryClient.removeQueries({
-				queryKey: ['staff', ...STAFF_USER_DETAILS_QUERY_KEY],
-			});
-			void queryClient.invalidateQueries({
-				queryKey: ['staff', ...STAFF_USERS_QUERY_KEY],
-			});
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
 				setShouldLogout(true);
@@ -551,6 +545,7 @@ function StaffUserDetailsPage() {
 					fallback: 'Unable to delete this staff user.',
 				}),
 			);
+			return;
 		} finally {
 			setDeleteDialogOpen(false);
 			setDeleteConfirmText('');
@@ -561,6 +556,13 @@ function StaffUserDetailsPage() {
 		} catch {
 			// navigation rejection after successful delete — don't reuse failure message
 		}
+
+		queryClient.removeQueries({
+			queryKey: ['staff', ...STAFF_USER_DETAILS_QUERY_KEY],
+		});
+		void queryClient.invalidateQueries({
+			queryKey: ['staff', ...STAFF_USERS_QUERY_KEY],
+		});
 	};
 
 	const isDeleteConfirmReady =
