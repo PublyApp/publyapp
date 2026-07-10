@@ -8,7 +8,7 @@ import {
 } from '~/components/ui/dropdown-menu';
 
 /**
- * Trailing ⋯ row menu for data tables: 28px ghost trigger opening a 196px
+ * Trailing ⋯ row menu for data tables: 32px ghost trigger opening a 196px
  * Gray UI menu. Compose items with DropdownMenuItem/DropdownMenuSeparator.
  */
 export const DataTableRowActions = ({

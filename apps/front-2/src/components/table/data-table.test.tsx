@@ -352,4 +352,46 @@ describe('DataTable state rendering', () => {
 		).toBe(true);
 		expect(screen.getByRole('columnheader', { name: 'Name' })).toBeTruthy();
 	});
+
+	test('renders meta.align:center as a data-align attribute on the header and body cells', () => {
+		const alignedColumns: ColumnDef<TestRow>[] = [
+			{
+				id: 'name',
+				accessorKey: 'name',
+				header: 'Name',
+				cell: ({ getValue }) => String(getValue()),
+			},
+			{
+				id: 'actions',
+				header: () => <span>Actions</span>,
+				meta: { width: '40px', align: 'center' },
+				cell: () => <button type="button">…</button>,
+			},
+		];
+
+		render(
+			<DataTable
+				{...baseProps}
+				columns={alignedColumns}
+				rows={rows}
+				isError={false}
+			/>,
+		);
+
+		expect(
+			screen
+				.getByRole('columnheader', { name: 'Actions' })
+				.getAttribute('data-align'),
+		).toBe('center');
+		expect(
+			screen
+				.getByRole('columnheader', { name: 'Name' })
+				.getAttribute('data-align'),
+		).toBeNull();
+
+		const actionCells = screen
+			.getByTestId('test-table-rows')
+			.querySelectorAll('[data-slot="table-cell"][data-align="center"]');
+		expect(actionCells).toHaveLength(rows.length);
+	});
 });

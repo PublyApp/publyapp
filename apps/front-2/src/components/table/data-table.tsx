@@ -81,6 +81,12 @@ type ColumnDisplayMeta = {
 	 * `1fr`.
 	 */
 	width?: string;
+	/**
+	 * Centres cell content against the full column box instead of the
+	 * padded content box (e.g. a 40px actions column with a 32px trigger,
+	 * where the default 14px inline padding leaves no room to centre).
+	 */
+	align?: 'center';
 };
 
 declare module '@tanstack/react-table' {
@@ -477,6 +483,7 @@ export const DataTable = <TData extends { id: string }>({
 														? 'table-sortable-column-header'
 														: 'table-column'
 												}
+												data-align={displayMeta.align}
 												onClick={() => {
 													if (canSort) {
 														handleSort(header.id);
@@ -556,6 +563,7 @@ export const DataTable = <TData extends { id: string }>({
 													key={cell.id}
 													data-cell-index={renderedCellIndex}
 													data-slot="table-cell"
+													data-align={displayMeta.align}
 													className={displayMeta.cellClassName}
 													tabIndex={0}
 													onKeyDown={(event) => {

@@ -80,21 +80,19 @@ const InvitationRowActions = ({
 	}, [revokeMutation, row.id, onSuccess]);
 
 	return (
-		<div className="flex justify-center">
-			<DataTableRowActions
-				ariaLabel={`Actions for ${row.email || 'invitation'}`}
-				testId={`staff-invitation-actions-${row.id}`}
-			>
-				<DropdownMenuItem onClick={handleResend}>
-					<IconRefresh className="size-[15px]" />
-					{t('send-reminder')}
-				</DropdownMenuItem>
-				<DropdownMenuItem onClick={handleRevoke}>
-					<IconX className="size-[15px]" />
-					{t('revoke-invitation')}
-				</DropdownMenuItem>
-			</DataTableRowActions>
-		</div>
+		<DataTableRowActions
+			ariaLabel={`Actions for ${row.email || 'invitation'}`}
+			testId={`staff-invitation-actions-${row.id}`}
+		>
+			<DropdownMenuItem onClick={handleResend}>
+				<IconRefresh className="size-[15px]" />
+				{t('send-reminder')}
+			</DropdownMenuItem>
+			<DropdownMenuItem onClick={handleRevoke}>
+				<IconX className="size-[15px]" />
+				{t('revoke-invitation')}
+			</DropdownMenuItem>
+		</DataTableRowActions>
 	);
 };
 
@@ -225,7 +223,7 @@ export const createInvitationColumns = ({
 		id: 'actions',
 		header: () => <span className="sr-only">{t('actions')}</span>,
 		enableSorting: false,
-		meta: { width: '40px' },
+		meta: { width: '40px', align: 'center' },
 		cell: ({ row }) => (
 			<InvitationRowActions row={row.original} onSuccess={onActionSuccess} />
 		),

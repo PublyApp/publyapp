@@ -47,17 +47,19 @@ const columns: ColumnDef<StaffUserRow>[] = [
 		enableSorting: false,
 		meta: { headerIcon: <IconUser />, width: '200px' },
 		cell: ({ row }) => (
-			<div className="flex items-center gap-2.5">
+			<Link
+				to="/staff/staff-users/$userId"
+				params={{ userId: row.original.id }}
+				className="flex min-w-0 items-center gap-2.5 no-underline"
+			>
 				<InitialsAvatar name={row.original.displayName} />
-				<Link
-					to={'/staff/staff-users/$userId' as never}
-					params={{ userId: row.original.id } as never}
+				<span
 					className="publy-record-link min-w-0 truncate"
 					title={row.original.displayName}
 				>
 					{row.original.displayName}
-				</Link>
-			</div>
+				</span>
+			</Link>
 		),
 	},
 	{
@@ -106,26 +108,24 @@ const columns: ColumnDef<StaffUserRow>[] = [
 		// accessible name (axe empty-table-header, parity contract).
 		header: () => <span className="sr-only">Actions</span>,
 		enableSorting: false,
-		meta: { width: '40px' },
+		meta: { width: '40px', align: 'center' },
 		cell: ({ row }) => (
-			<div className="flex justify-end">
-				<DataTableRowActions
-					ariaLabel={`Actions for ${row.original.displayName}`}
-					testId={`staff-user-actions-${row.original.id}`}
+			<DataTableRowActions
+				ariaLabel={`Actions for ${row.original.displayName}`}
+				testId={`staff-user-actions-${row.original.id}`}
+			>
+				<DropdownMenuItem
+					render={
+						<Link
+							to="/staff/staff-users/$userId"
+							params={{ userId: row.original.id }}
+						/>
+					}
 				>
-					<DropdownMenuItem
-						render={
-							<Link
-								to={'/staff/staff-users/$userId' as never}
-								params={{ userId: row.original.id } as never}
-							/>
-						}
-					>
-						<IconEye />
-						View profile
-					</DropdownMenuItem>
-				</DataTableRowActions>
-			</div>
+					<IconEye />
+					View profile
+				</DropdownMenuItem>
+			</DataTableRowActions>
 		),
 	},
 ];

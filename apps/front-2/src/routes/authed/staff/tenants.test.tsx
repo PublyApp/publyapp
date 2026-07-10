@@ -497,6 +497,25 @@ describe('staff tenants route', () => {
 			expect(container.querySelector('.publy-avatar-initials')).toBeTruthy();
 		});
 
+		test('wraps the avatar and name inside a single link so hovering either activates it', () => {
+			const { container } = renderPage();
+
+			const nameLink = screen.getByRole('link', { name: /Acme Corporation/ });
+			expect(nameLink.querySelector('.publy-avatar-initials')).toBeTruthy();
+			expect(container.querySelector('.publy-avatar-initials')).toBe(
+				nameLink.querySelector('.publy-avatar-initials'),
+			);
+		});
+
+		test('centres the row-actions trigger via a data-align cell instead of a justify-end wrapper', () => {
+			renderPage();
+
+			const trigger = screen.getByRole('button', { name: /^Actions for/ });
+			const cell = trigger.closest('[data-slot="table-cell"]');
+			expect(cell?.getAttribute('data-align')).toBe('center');
+			expect(trigger.closest('.flex.items-end')).toBeNull();
+		});
+
 		test('selecting a row reveals the bulk actions toolbar with a selected count', () => {
 			renderPage();
 

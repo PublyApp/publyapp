@@ -41,4 +41,15 @@ describe('createInvitationColumns', () => {
 			actions: '40px',
 		});
 	});
+
+	test('centres the actions column via meta.align instead of a per-route wrapper', () => {
+		const columns = createInvitationColumns({
+			t,
+			locale: 'en',
+			onActionSuccess: () => undefined,
+		});
+		const actionsColumn = columns.find((column) => column.id === 'actions');
+
+		expect(actionsColumn?.meta?.align).toBe('center');
+	});
 });

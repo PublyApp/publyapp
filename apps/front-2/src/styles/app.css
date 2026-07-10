@@ -1435,6 +1435,18 @@ html {
 		font-variant-numeric: tabular-nums;
 	}
 
+	/* meta.align:'center' (e.g. the 40px actions column): centre against the
+	   full column box, not the 14px-padded content box — a trigger close to
+	   the column width can't be centred by justify-* once padding eats the
+	   space it needs. Mirrors the selection-cell's own padding:0 + centring. */
+	.publy-data-table [data-slot='table-cell'][data-align='center'],
+	.publy-data-table [data-slot='table-column'][data-align='center'],
+	.publy-data-table
+		[data-slot='table-sortable-column-header'][data-align='center'] {
+		padding-inline: 0;
+		text-align: center;
+	}
+
 	/* Vertical column separators, matching the Gray UI template grid */
 	.publy-data-table [data-slot='table-column']:not(:last-child),
 	.publy-data-table [data-slot='table-sortable-column-header']:not(:last-child),

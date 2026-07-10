@@ -168,26 +168,24 @@ const columns: ColumnDef<StaffProfileRow>[] = [
 		id: 'actions',
 		header: () => <span className="sr-only">Actions</span>,
 		enableSorting: false,
-		meta: { width: '40px' },
+		meta: { width: '40px', align: 'center' },
 		cell: ({ row }) => (
-			<div className="flex justify-center">
-				<DataTableRowActions
-					ariaLabel={`Actions for ${row.original.name || 'profile'}`}
-					testId={`staff-profile-actions-${row.original.id}`}
+			<DataTableRowActions
+				ariaLabel={`Actions for ${row.original.name || 'profile'}`}
+				testId={`staff-profile-actions-${row.original.id}`}
+			>
+				<DropdownMenuItem
+					render={
+						<Link
+							to={'/staff/profiles/$profileId' as never}
+							params={{ profileId: row.original.id } as never}
+						/>
+					}
 				>
-					<DropdownMenuItem
-						render={
-							<Link
-								to={'/staff/profiles/$profileId' as never}
-								params={{ profileId: row.original.id } as never}
-							/>
-						}
-					>
-						<IconEye className="size-[15px]" />
-						View profile
-					</DropdownMenuItem>
-				</DataTableRowActions>
-			</div>
+					<IconEye className="size-[15px]" />
+					View profile
+				</DropdownMenuItem>
+			</DataTableRowActions>
 		),
 	},
 ];

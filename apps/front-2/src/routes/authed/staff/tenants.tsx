@@ -76,8 +76,8 @@ const buildTenantColumns = (
 		meta: { headerIcon: <IconBuilding /> },
 		cell: ({ row }) => (
 			<Link
-				to={'/staff/tenants/$tenantId' as never}
-				params={{ tenantId: row.original.id } as never}
+				to="/staff/tenants/$tenantId"
+				params={{ tenantId: row.original.id }}
 				className="flex min-w-0 items-center gap-2.5 no-underline"
 			>
 				<InitialsAvatar name={row.original.name} />
@@ -126,7 +126,7 @@ const buildTenantColumns = (
 		// accessible name (axe empty-table-header, parity contract).
 		header: () => <span className="sr-only">Actions</span>,
 		enableSorting: false,
-		meta: { width: '40px' },
+		meta: { width: '40px', align: 'center' },
 		cell: ({ row }) => (
 			<TenantLifecycleActionsCell
 				tenant={row.original}
@@ -679,7 +679,7 @@ const TenantLifecycleActionsCell = ({
 	const dialogConfig = getConfirmDialogConfig(pendingAction);
 
 	return (
-		<div className="flex flex-col items-end gap-1">
+		<div className="flex flex-col items-center gap-1">
 			<DataTableRowActions
 				ariaLabel={`Actions for ${tenant.name}`}
 				testId={`tenant-actions-${tenant.id}`}
