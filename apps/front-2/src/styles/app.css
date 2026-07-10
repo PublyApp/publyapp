@@ -1911,3 +1911,13 @@ html[data-theme-changing] * {
 .publy-data-table tbody tr:last-child [data-slot='table-selection-cell'] {
 	border-bottom: 1px solid var(--publy-row-border);
 }
+
+/* R3-1: the state/error icon glyph must fill its scaled cluster box
+   (40px inline / 48px page) regardless of any `size-*` utility a call site
+   still puts on the icon element. Tailwind's `size-*` lives in the utilities
+   layer and beats a layered `.publy-state-icon svg` rule, so this override is
+   deliberately un-layered — un-layered CSS wins over every Tailwind v4 layer. */
+.publy-state-icon svg {
+	width: 100%;
+	height: 100%;
+}
