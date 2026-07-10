@@ -1,0 +1,509 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import { IconAlertCircle, IconChevronLeft } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { createFileRoute, Link } from '@tanstack/react-router';
+import { useEffect, useMemo, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
+import { z } from 'zod';
+import { AppErrorView } from '~/components/error-views/AppErrorView';
+import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
+import { View403 } from '~/components/error-views/View403';
+import { Field, Form, FormActionBar, FormPageLayout } from '~/components/field';
+import { Button } from '~/components/ui/button';
+import {
+	toStaffProfileRows,
+	useStaffProfilesQuery,
+} from '~/lib/query/staff-profiles';
+import {
+	STAFF_USER_DETAILS_QUERY_KEY,
+	STAFF_USER_PROFILES_QUERY_KEY,
+	STAFF_USERS_QUERY_KEY,
+	toAssignedStaffProfiles,
+	toStaffUserDetails,
+	useStaffUserDetailsQuery,
+	useStaffUserProfilesQuery,
+	useUpdateStaffUserMutation,
+	useUpdateStaffUserProfilesMutation,
+} from '~/lib/query/staff-users';
+import { shouldLogoutForFailure } from '~/routes/authed/layout';
+
+import {
+	getFailureMessage,
+	toApiFailure,
+} from '@org/shared-ts/lib/api-failure/to-api-failure';
+
+const ACCOUNT_LEVEL_OPTIONS = ['Admin', 'User'] as const;
+const STATUS_OPTIONS = ['Active', 'Suspended'] as const;
+
+const staffUserEditSchema = z.object({
+	firstName: z.string().trim().max(128).optional(),
+	lastName: z.string().trim().max(128).optional(),
+	avatarUrl: z
+		.string()
+		.trim()
+		.max(1024)
+		.refine((value) => {
+			if (!value) {
+				return true;
+			}
+
+			try {
+				new URL(value);
+				return true;
+			} catch {
+				return false;
+			}
+		}, 'Invalid URL'),
+	email: z.string().trim().email().or(z.literal('')),
+	accountLevel: z.enum(ACCOUNT_LEVEL_OPTIONS),
+	status: z.enum(STATUS_OPTIONS),
+	profileIds: z.array(z.string()),
+	requireTwoFactor: z.boolean(),
+	forcePasswordReset: z.boolean(),
+});
+
+type StaffUserEditValues = z.infer<typeof staffUserEditSchema>;
+
+const normalizeAccountLevel = (
+	value: string | null,
+): StaffUserEditValues['accountLevel'] =>
+	value === 'Admin' ? 'Admin' : 'User';
+
+const normalizeStatus = (value: string | null): StaffUserEditValues['status'] =>
+	value === 'Suspended' ? 'Suspended' : 'Active';
+
+const isProblemStatus = (
+	error: unknown,
+	status: number,
+	translationKey?: string,
+): boolean => {
+	const failure = toApiFailure(error);
+
+	if (failure.kind !== 'problem' || failure.status !== status) {
+		return false;
+	}
+
+	return (
+		translationKey === undefined || failure.translationKey === translationKey
+	);
+};
+
+const getFailureDescription = (error: unknown, fallback: string): string => {
+	const failure = toApiFailure(error);
+
+	if (failure.kind === 'problem' && failure.detail) {
+		return failure.detail;
+	}
+
+	return fallback;
+};
+
+const StaffUserEditLoading = () => (
+	<div
+		className="mx-auto flex min-h-[50vh] w-full max-w-3xl items-center justify-center px-4 py-12"
+		data-testid="staff-user-edit-loading"
+	>
+		<div className="flex items-center gap-3 text-sm text-muted-foreground">
+			<span
+				role="status"
+				aria-label="Loading"
+				className="size-4 animate-spin rounded-[var(--publy-radius-sm)] border-2 border-muted-foreground/30 border-t-foreground"
+			/>
+			<span>Loading staff user…</span>
+		</div>
+	</div>
+);
+
+const StaffUserEditError = ({ error }: { error: unknown }) => {
+	if (isProblemStatus(error, 400, 'malformed-id')) {
+		return (
+			<AppErrorView
+				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
+				code="400 — Bad Request"
+				title="Invalid staff user edit link"
+				description={getFailureDescription(
+					error,
+					'This staff user edit link is malformed or incomplete.',
+				)}
+				testId="staff-user-edit-invalid"
+			/>
+		);
+	}
+
+	if (isProblemStatus(error, 403)) {
+		return <View403 />;
+	}
+
+	if (isProblemStatus(error, 404)) {
+		return (
+			<AppErrorView
+				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
+				code="404 — Not Found"
+				title="Staff user not found"
+				description={getFailureDescription(
+					error,
+					'The requested staff user does not exist or is no longer available.',
+				)}
+				testId="staff-user-edit-not-found"
+			/>
+		);
+	}
+
+	return (
+		<AppErrorView
+			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
+			code="500 — Server Error"
+			title="Unable to load this staff user"
+			description="There was a problem loading the staff user details."
+			testId="staff-user-edit-error"
+		/>
+	);
+};
+
+export const Route = createFileRoute(
+	'/_authed-layout/staff/staff-users/$userId/edit',
+)({
+	component: StaffUserEditPage,
+});
+
+function StaffUserEditPage() {
+	const { userId } = Route.useParams();
+	const navigate = Route.useNavigate();
+	const queryClient = useQueryClient();
+	const { t } = useTranslation('common');
+	const [shouldLogout, setShouldLogout] = useState(false);
+	const [serverError, setServerError] = useState('');
+
+	const detailsQuery = useStaffUserDetailsQuery(
+		{ userId },
+		{ enabled: userId.length > 0 },
+	);
+	const assignedProfilesQuery = useStaffUserProfilesQuery(
+		{ userId },
+		{ enabled: userId.length > 0 },
+	);
+	const profilesQuery = useStaffProfilesQuery({
+		limit: 100,
+		sortId: 'name',
+		sortOrder: 'asc',
+	});
+	const updateStaffUser = useUpdateStaffUserMutation();
+	const updateStaffUserProfiles = useUpdateStaffUserProfilesMutation();
+	const user = useMemo(
+		() => toStaffUserDetails(detailsQuery.data),
+		[detailsQuery.data],
+	);
+	const assignedProfiles = useMemo(
+		() => toAssignedStaffProfiles(assignedProfilesQuery.data),
+		[assignedProfilesQuery.data],
+	);
+	const profileOptions = useMemo(
+		() => toStaffProfileRows(profilesQuery.data?.data),
+		[profilesQuery.data],
+	);
+	const methods = useForm<StaffUserEditValues>({
+		resolver: zodResolver(staffUserEditSchema),
+		defaultValues: {
+			firstName: '',
+			lastName: '',
+			avatarUrl: '',
+			email: '',
+			accountLevel: 'User',
+			status: 'Active',
+			profileIds: [],
+			requireTwoFactor: false,
+			forcePasswordReset: false,
+		},
+	});
+	const { formState, reset } = methods;
+	const { errors, isSubmitting } = formState;
+
+	useEffect(() => {
+		if (!user) {
+			return;
+		}
+
+		reset({
+			firstName: user.firstName ?? '',
+			lastName: user.lastName ?? '',
+			avatarUrl: user.avatarUrl ?? '',
+			email: user.email,
+			accountLevel: normalizeAccountLevel(user.accountLevel),
+			status: normalizeStatus(user.status),
+			profileIds: assignedProfiles.map((profile) => profile.id),
+			requireTwoFactor: false,
+			forcePasswordReset: false,
+		});
+	}, [assignedProfiles, reset, user]);
+
+	if (
+		(detailsQuery.isError && shouldLogoutForFailure(detailsQuery.error)) ||
+		(assignedProfilesQuery.isError &&
+			shouldLogoutForFailure(assignedProfilesQuery.error)) ||
+		(profilesQuery.isError && shouldLogoutForFailure(profilesQuery.error))
+	) {
+		return <LogoutRedirect />;
+	}
+
+	if (shouldLogout) {
+		return <LogoutRedirect />;
+	}
+
+	if (
+		detailsQuery.isPending ||
+		assignedProfilesQuery.isPending ||
+		profilesQuery.isPending
+	) {
+		return <StaffUserEditLoading />;
+	}
+
+	if (detailsQuery.isError) {
+		return <StaffUserEditError error={detailsQuery.error} />;
+	}
+
+	if (assignedProfilesQuery.isError) {
+		return <StaffUserEditError error={assignedProfilesQuery.error} />;
+	}
+
+	if (profilesQuery.isError) {
+		return <StaffUserEditError error={profilesQuery.error} />;
+	}
+
+	if (!user) {
+		return (
+			<AppErrorView
+				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
+				code="404 — Not Found"
+				title="Staff user not found"
+				description="The staff user payload was empty."
+				testId="staff-user-edit-not-found"
+			/>
+		);
+	}
+
+	const onSubmit = methods.handleSubmit(async (values) => {
+		const updateInput = {
+			userId,
+			...(formState.dirtyFields.firstName
+				? { firstName: values.firstName?.trim() || null }
+				: {}),
+			...(formState.dirtyFields.lastName
+				? { lastName: values.lastName?.trim() || null }
+				: {}),
+			...(formState.dirtyFields.avatarUrl
+				? { avatarUrl: values.avatarUrl.trim() || null }
+				: {}),
+			...(formState.dirtyFields.accountLevel
+				? { accountLevel: values.accountLevel }
+				: {}),
+		};
+		const hasIdentityChanges = Object.keys(updateInput).length > 1;
+		const hasProfileChanges = Boolean(formState.dirtyFields.profileIds);
+
+		try {
+			setServerError('');
+			if (hasIdentityChanges) {
+				await updateStaffUser.mutateAsync(updateInput);
+			}
+
+			if (hasProfileChanges) {
+				await updateStaffUserProfiles.mutateAsync({
+					userId,
+					profileIds: values.profileIds,
+				});
+			}
+
+			await Promise.all([
+				queryClient.invalidateQueries({
+					queryKey: ['staff', ...STAFF_USERS_QUERY_KEY],
+				}),
+				queryClient.invalidateQueries({
+					queryKey: ['staff', ...STAFF_USER_DETAILS_QUERY_KEY],
+				}),
+				queryClient.invalidateQueries({
+					queryKey: ['staff', ...STAFF_USER_PROFILES_QUERY_KEY],
+				}),
+			]);
+			void navigate({
+				to: '/staff/staff-users/$userId',
+				params: { userId },
+			});
+		} catch (error) {
+			if (shouldLogoutForFailure(error)) {
+				setShouldLogout(true);
+				return;
+			}
+
+			setServerError(
+				getFailureMessage(toApiFailure(error), {
+					fallback: t('unknown-error'),
+				}),
+			);
+		}
+	});
+
+	const isSubmittingForm =
+		isSubmitting ||
+		updateStaffUser.isPending ||
+		updateStaffUserProfiles.isPending;
+	const attentionCount = Object.keys(errors).length;
+	const status = formState.isDirty
+		? `Unsaved changes · ${attentionCount} field${attentionCount === 1 ? '' : 's'} need attention`
+		: undefined;
+
+	return (
+		<FormPageLayout data-testid="staff-user-edit-page">
+			<div className="space-y-2">
+				<Link
+					to="/staff/staff-users/$userId"
+					params={{ userId }}
+					className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+				>
+					<IconChevronLeft aria-hidden="true" className="size-3" />
+					{t('back-to-user')}
+				</Link>
+				<div>
+					<h1 className="text-xl font-semibold tracking-[-0.01em]">
+						Edit staff user
+					</h1>
+					<p className="mt-1 text-sm text-muted-foreground">
+						Update this staff user’s identity, access, and security settings.
+					</p>
+				</div>
+			</div>
+
+			<Form methods={methods} onSubmit={onSubmit}>
+				<section className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] shadow-[var(--publy-shadow-ring)]">
+					<div className="publy-card-header">
+						<p className="publy-type-section-title">Identity</p>
+					</div>
+					<div className="grid gap-4 p-5 md:grid-cols-2">
+						<Field.Text
+							name="firstName"
+							label="First name"
+							placeholder="First name"
+							isDisabled={isSubmittingForm}
+						/>
+						<Field.Text
+							name="lastName"
+							label="Last name"
+							placeholder="Last name"
+							isDisabled={isSubmittingForm}
+						/>
+						{/* TODO(contract): email updates use the separate email endpoint. */}
+						<Field.Email
+							name="email"
+							label={t('email-address')}
+							helperText="Email changes are managed separately."
+							isDisabled
+						/>
+						<Field.Text
+							name="avatarUrl"
+							label="Avatar URL"
+							placeholder="https://example.com/avatar.png"
+							isDisabled={isSubmittingForm}
+						/>
+					</div>
+				</section>
+
+				<section className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] shadow-[var(--publy-shadow-ring)]">
+					<div className="publy-card-header">
+						<p className="publy-type-section-title">Access</p>
+					</div>
+					<div className="space-y-4 p-5">
+						<div className="grid gap-4 md:grid-cols-2">
+							<Field.Select
+								name="accountLevel"
+								label={t('role')}
+								options={ACCOUNT_LEVEL_OPTIONS.map((value) => ({
+									value,
+									label: t(value === 'Admin' ? 'admin' : 'user'),
+								}))}
+								isDisabled={isSubmittingForm}
+							/>
+							{/* TODO(contract): status changes use suspend/reactivate endpoints. */}
+							<Field.Select
+								name="status"
+								label={t('status')}
+								helperText="Status changes are managed from the user details screen."
+								options={STATUS_OPTIONS.map((value) => ({
+									value,
+									label: t(
+										value === 'Active' ? 'status-active' : 'status-suspended',
+									),
+								}))}
+								isDisabled
+							/>
+						</div>
+						{profileOptions.length > 0 ? (
+							<Field.CheckboxGroup
+								name="profileIds"
+								label={t('profiles')}
+								options={profileOptions.map((profile) => ({
+									value: profile.id,
+									label: profile.name,
+									description: profile.description ?? undefined,
+								}))}
+								isDisabled={isSubmittingForm}
+							/>
+						) : (
+							<p className="text-sm text-muted-foreground">
+								No profiles are available.
+							</p>
+						)}
+					</div>
+				</section>
+
+				<section className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] shadow-[var(--publy-shadow-ring)]">
+					<div className="publy-card-header">
+						<p className="publy-type-section-title">Security</p>
+					</div>
+					<div className="px-5">
+						{/* TODO(contract): security preference endpoints are not available. */}
+						<Field.Switch
+							name="requireTwoFactor"
+							label="Require two-factor authentication"
+							description="Require this user to use two-factor authentication."
+							isDisabled
+						/>
+						<Field.Switch
+							name="forcePasswordReset"
+							label="Force password reset"
+							description="Ask this user to choose a new password at next sign-in."
+							isDisabled
+						/>
+					</div>
+				</section>
+
+				{serverError ? (
+					<p className="text-sm text-destructive" role="alert">
+						{serverError}
+					</p>
+				) : null}
+
+				<FormActionBar status={status}>
+					<Button
+						type="button"
+						variant="ghost"
+						onClick={() => {
+							void navigate({
+								to: '/staff/staff-users/$userId',
+								params: { userId },
+							});
+						}}
+						disabled={isSubmittingForm}
+					>
+						{t('cancel')}
+					</Button>
+					<Button
+						type="submit"
+						disabled={isSubmittingForm || !formState.isDirty}
+					>
+						{t('save-changes')}
+					</Button>
+				</FormActionBar>
+			</Form>
+		</FormPageLayout>
+	);
+}

@@ -8,6 +8,10 @@ export const routes = rootRoute('__root.tsx', [
 		route('/staff', 'authed/staff.tsx'),
 		route('/staff/staff-users', 'authed/staff/staff-users.tsx'),
 		route('/staff/staff-users/$userId', 'authed/staff/staff-users/$userId.tsx'),
+		route(
+			'/staff/staff-users/$userId/edit',
+			'authed/staff/staff-users/$userId-edit.tsx',
+		),
 		route('/staff/tenants', 'authed/staff/tenants.tsx'),
 		route('/staff/tenants/new', 'authed/staff/tenants-new.tsx'),
 		route('/staff/tenants/$tenantId', 'authed/staff/tenants/$tenantId.tsx'),

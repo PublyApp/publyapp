@@ -634,11 +634,14 @@ function StaffUserDetailsPage() {
 							<IconMail className="size-4" />
 							Reset invite
 						</Button>
-						{/* TODO(2d): edit form screen (future packet); route not yet registered */}
-						<Button type="button" variant="outline" size="sm" disabled>
+						<Link
+							to="/staff/staff-users/$userId/edit"
+							params={{ userId }}
+							className="inline-flex h-8 shrink-0 items-center justify-center gap-1 rounded-[var(--publy-radius-button)] border border-border bg-background px-3 text-sm font-medium whitespace-nowrap transition-all hover:bg-muted hover:text-foreground"
+						>
 							<IconPencil className="size-4" />
 							Edit
-						</Button>
+						</Link>
 						<Button
 							type="button"
 							variant="outline"
