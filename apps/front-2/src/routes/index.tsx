@@ -8,11 +8,11 @@ export const IndexRoute = () => {
 	return (
 		<div className="space-y-4">
 			<h1 className="text-2xl font-semibold">Welcome to the front-2 shell</h1>
-			<p className="text-sm text-slate-700 dark:text-slate-300">
+			<p className="text-sm text-[var(--publy-foreground-secondary)]">
 				Explore navigation, theme, and auth surface foundations from here.
 			</p>
 			<p
-				className="text-sm text-slate-700 dark:text-slate-300"
+				className="text-sm text-[var(--publy-foreground-secondary)]"
 				data-testid="i18n-greeting"
 			>
 				{t('hello')}

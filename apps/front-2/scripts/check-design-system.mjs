@@ -283,11 +283,13 @@ const rules = [
 		id: 'no-raw-visual-color',
 		message:
 			'Use front-2 semantic tokens instead of raw hex/rgb/slate/white-alpha styling.',
+		// Covers all of src/. The earlier per-directory list silently exempted
+		// src/lib/, where a raw-hex palette landed unscanned.
+		// src/design-handoff/ is exempt: its literals are *expected* values that
+		// computed-style assertions compare against, not styling.
 		appliesTo: (relativePath) =>
-			relativePath.startsWith('src/components/app-shell/') ||
-			relativePath.startsWith('src/components/table/') ||
-			relativePath.startsWith('src/routes/authed/') ||
-			relativePath.startsWith('src/styles/'),
+			relativePath.startsWith('src/') &&
+			!relativePath.startsWith('src/design-handoff/'),
 		allow: (relativePath) => TOKEN_LAYER_FILES.has(relativePath),
 		patterns: [
 			/["'][#][0-9a-fA-F]{3,8}["']/, // quoted raw color tokens
@@ -316,6 +318,15 @@ const rules = [
 			'Use Tabler icon components, not emoji/punctuation/numeric icon strings.',
 		appliesTo: (relativePath) => relativePath.startsWith('src/'),
 		patterns: [/icon=["'](?:!|\?|401|⛔|🔎)["']/],
+	},
+	{
+		id: 'no-icon-font-classes',
+		// Only @tabler/icons-react (components) is installed; no webfont ships.
+		// `ti ti-*` matches no rule, so the element mounts and renders nothing.
+		message:
+			'Tabler ships here as React components, not a webfont. `ti ti-*` classes render blank; import the icon component instead.',
+		appliesTo: (relativePath) => relativePath.startsWith('src/'),
+		patterns: [/["'`]\s*ti\s+ti-/, /className=\{?["'`]ti\s/],
 	},
 	{
 		id: 'no-native-confirm',
