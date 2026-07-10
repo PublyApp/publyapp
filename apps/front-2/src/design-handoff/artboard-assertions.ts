@@ -261,6 +261,11 @@ const JSON_BACKED_FOCUS: Record<
 			// (wash + rings + tile) is retired for a bare, un-boxed icon — no
 			// background, no border-radius, no shadow, on either surface. See
 			// parity-contract.md "Empty/no-match/error state composition, round 2".
+			// Owner decision 2026-07-10 round 3 (R3-1): the bare glyph is
+			// valorized — grown and tone-colored, still with no backing. Inline
+			// (empty.icon) stays 40px; page (error.icon) grows from 64px (the old
+			// backing-cluster size) to 48px (the glyph itself, no cluster
+			// padding). See parity-contract.md round 3 annotation.
 			kind: 'layout',
 			component: 'empty.icon',
 			property: 'width',
@@ -270,7 +275,7 @@ const JSON_BACKED_FOCUS: Record<
 			kind: 'layout',
 			component: 'error.icon',
 			property: 'width',
-			expected: '64px',
+			expected: '48px',
 		},
 		{
 			kind: 'token',

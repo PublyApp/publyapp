@@ -7,6 +7,7 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
 import { DataTable } from '~/components/table/data-table';
 import { useTableController } from '~/components/table/use-table-controller';
+import { Button, buttonVariants } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
 import {
 	toStaffProfileUserRows,
@@ -144,7 +145,13 @@ const MissingProfileView = ({ error }: { error: unknown }) => {
 	);
 };
 
-const ProfileDetailsError = ({ error }: { error: unknown }) => {
+const ProfileDetailsError = ({
+	error,
+	onRetry,
+}: {
+	error: unknown;
+	onRetry: () => void;
+}) => {
 	if (isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)) {
 		return <InvalidProfileView error={error} />;
 	}
@@ -164,6 +171,19 @@ const ProfileDetailsError = ({ error }: { error: unknown }) => {
 			title="Unable to load this staff profile"
 			description="There was a problem loading the profile details."
 			testId="staff-profile-users-error"
+			actions={
+				<>
+					<Button variant="default" onClick={onRetry} type="button">
+						Try again
+					</Button>
+					<Link
+						to="/staff/profiles"
+						className={buttonVariants({ variant: 'outline' })}
+					>
+						Back to staff profiles
+					</Link>
+				</>
+			}
 		/>
 	);
 };
@@ -242,7 +262,12 @@ function StaffProfileUsersPage() {
 	}
 
 	if (detailQuery.isError) {
-		return <ProfileDetailsError error={detailQuery.error} />;
+		return (
+			<ProfileDetailsError
+				error={detailQuery.error}
+				onRetry={() => void detailQuery.refetch()}
+			/>
+		);
 	}
 
 	if (!details) {

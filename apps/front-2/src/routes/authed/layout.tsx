@@ -4,14 +4,18 @@ import {
 	redirect,
 	createFileRoute,
 	useLocation,
+	Link,
 	Outlet,
 	useNavigate,
+	useRouter,
 } from '@tanstack/react-router';
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
 import { View404 } from '~/components/error-views/View404';
+import { Button, buttonVariants } from '~/components/ui/button';
 import {
 	createClient,
 	getSessionTokensFromBrowser,
@@ -174,6 +178,53 @@ const parseRedirectCode = async (
 	}
 };
 
+const AuthedLayoutErrorBoundary = ({
+	error,
+	reset,
+}: {
+	error: unknown;
+	reset: () => void;
+}) => {
+	const router = useRouter();
+	const { t } = useTranslation('common');
+	const routeStatus = getFailureStatus(error);
+	if (routeStatus === 401) {
+		return <LogoutRedirect />;
+	}
+
+	if (routeStatus === 403) {
+		return <View403 />;
+	}
+
+	if (routeStatus === 404) {
+		return <View404 />;
+	}
+
+	const retry = () => {
+		reset();
+		void router.invalidate();
+	};
+
+	return (
+		<AppErrorView
+			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
+			code="500 — Server Error"
+			title="Something went wrong"
+			description="There was a problem loading this page."
+			actions={
+				<>
+					<Button variant="default" onClick={retry} type="button">
+						{t('retry')}
+					</Button>
+					<Link to="/" className={buttonVariants({ variant: 'outline' })}>
+						{t('go-to-home')}
+					</Link>
+				</>
+			}
+		/>
+	);
+};
+
 export const Route = createFileRoute('/_authed-layout')({
 	ssr: false,
 	beforeLoad: async ({ location }) => {
@@ -196,29 +247,7 @@ export const Route = createFileRoute('/_authed-layout')({
 			});
 		}
 	},
-	errorComponent: ({ error }: { error: unknown }) => {
-		const routeStatus = getFailureStatus(error);
-		if (routeStatus === 401) {
-			return <LogoutRedirect />;
-		}
-
-		if (routeStatus === 403) {
-			return <View403 />;
-		}
-
-		if (routeStatus === 404) {
-			return <View404 />;
-		}
-
-		return (
-			<AppErrorView
-				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-				code="500 — Server Error"
-				title="Something went wrong"
-				description="There was a problem loading this page."
-			/>
-		);
-	},
+	errorComponent: AuthedLayoutErrorBoundary,
 	notFoundComponent: () => <View404 />,
 	component: AuthedRouteLayout,
 });
@@ -228,13 +257,20 @@ function AuthedRouteLayout() {
 	const pathname = location.pathname ?? '';
 	const search = location.search as Record<string, unknown>;
 	const navigate = useNavigate();
+	const { t } = useTranslation('common');
 	const isStaffSurface = pathname.startsWith(STAFF_PATH);
 	const isTenantSurface = pathname.startsWith(TENANT_PATH);
-	const surfaceScope = isStaffSurface
-		? 'staff'
-		: isTenantSurface
-			? 'tenant'
-			: 'other';
+	const surfaceScope = ((): 'staff' | 'tenant' | 'other' => {
+		if (isStaffSurface) {
+			return 'staff';
+		}
+
+		if (isTenantSurface) {
+			return 'tenant';
+		}
+
+		return 'other';
+	})();
 	const query = useQuery({
 		queryKey: ['front-2', 'auth', 'surface-redirect-code', surfaceScope],
 		queryFn: async () => {
@@ -298,6 +334,20 @@ function AuthedRouteLayout() {
 				code="500 — Server Error"
 				title="Something went wrong"
 				description="There was a problem loading this page."
+				actions={
+					<>
+						<Button
+							variant="default"
+							onClick={() => void query.refetch()}
+							type="button"
+						>
+							{t('retry')}
+						</Button>
+						<Link to="/" className={buttonVariants({ variant: 'outline' })}>
+							{t('go-to-home')}
+						</Link>
+					</>
+				}
 			/>
 		);
 	}

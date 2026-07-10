@@ -5,6 +5,7 @@ import {
 	type TablerIcon,
 } from '@tabler/icons-react';
 import type { ReactNode } from 'react';
+import { StateView } from '~/components/ui/state-view';
 
 type StateSurfaceProps = {
 	icon?: TablerIcon;
@@ -25,27 +26,20 @@ export const StateSurface = ({
 	technicalIdentifier,
 	testId,
 }: StateSurfaceProps) => (
-	<div className="publy-state-surface" data-tone={tone} data-testid={testId}>
-		<div
-			className="publy-state-icon-cluster"
-			data-tone={tone}
-			aria-hidden="true"
-		>
-			<div className="publy-state-icon" data-tone={tone}>
-				<Icon aria-hidden="true" className="publy-state-icon-glyph" />
-			</div>
-		</div>
-		<div>
-			<div className="publy-type-section-title">{title}</div>
-			{technicalIdentifier ? (
+	<StateView
+		icon={<Icon aria-hidden="true" />}
+		tone={tone}
+		scale="inline"
+		title={title}
+		belowTitle={
+			technicalIdentifier ? (
 				<p className="publy-state-technical-id">{technicalIdentifier}</p>
-			) : null}
-			{description ? (
-				<p className="publy-type-helper mt-1">{description}</p>
-			) : null}
-		</div>
-		{actions ? <div className="publy-action-cluster">{actions}</div> : null}
-	</div>
+			) : null
+		}
+		description={description}
+		actions={actions}
+		testId={testId}
+	/>
 );
 
 export const ErrorStateSurface = (

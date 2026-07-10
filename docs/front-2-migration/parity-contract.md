@@ -361,3 +361,58 @@ is set after the settings interaction), the locale switch, and the invite flow.
   against. `AppErrorView`'s `embedded` prop, `View404`/`View403`, every
   `data-testid`, and `StateSurface`/`ErrorStateSurface`/`NoMatchStateSurface`'s
   public props are unchanged by this pass.
+- Empty/no-match/error state composition, round 3 (2026-07-10, owner-approved
+  — decisions R3-1 through R3-4b): the flat direction from round 2 is
+  approved ("fits better my taste") and not reopened; four concrete issues
+  were fixed. **R3-1 (valorize the icon):** the glyph grows from a bare
+  `22px` to `40px` at inline scale (`StateSurface`) and `48px` at page scale
+  (`AppErrorView`) — still no disc/ring/box, presence comes from size, tone
+  colour, and the stroke weight that scales up with it.
+  `.publy-state-icon-cluster` takes a `data-scale="inline"|"page"` attribute
+  driving its box size, and `.publy-state-icon svg { width/height: 100% }`
+  sizes the glyph off that box regardless of any `size-*` utility class a
+  call site puts on its own icon element — so none of the ~30 `AppErrorView`
+  call sites needed touching. Tone colours are unchanged
+  (`--publy-foreground-muted` / `--publy-danger` / `--publy-primary`, all
+  declared in `:root`). **R3-2 (remove the ghost numeral):** the round-2
+  ghost numeral read as a smudge and duplicated the eyebrow `code` line, so
+  `.publy-error-ghost-numeral`, `.publy-error-hero` (base + the
+  `.publy-error-hero .publy-state-icon-cluster` 64px override), and
+  `html.dark .publy-error-ghost-numeral` are deleted from `app.css`, and the
+  `ghostNumeral` const/JSX are gone from `AppErrorView.tsx`. **R3-3 (remove
+  the separator):** the `border-t border-border pt-6`/`pt-3` hairlines above
+  the actions row and the diagnostic-id row are gone; both sit below the
+  description with plain vertical spacing. **R3-4a (500 gets actions):**
+  `__root.tsx`'s `RootErrorBoundary`, `authed/layout.tsx`'s
+  `AuthedLayoutErrorBoundary` (extracted from an inline `errorComponent` so
+  it could legally call `useRouter()`/`useTranslation()`) and its
+  `AuthedRouteLayout` query-error branch, and `login.tsx`'s
+  `LoginErrorBoundary` now render a primary "Try again" (`t('retry')`) that
+  calls `reset()` + `router.invalidate()` on route boundaries or
+  `query.refetch()` on query-driven 500s, plus a secondary "Go to home"
+  `Link`. Every other 500 renderer found in the tenant/profile/staff-user
+  detail and edit routes (17 files) was extended the same way, wired to
+  whichever query actually produced the error — `TenantDetailsError` in
+  `_tenant-details-shell.tsx` gained an optional `onRetry` and a shared
+  `TenantRetryActions` (Try again + Back to tenants) reused by its 10
+  callers; the 400/404 tenant views there gained a "Back to tenants" link
+  they previously lacked entirely. No 500 renderer was left without a retry
+  path. **R3-4b (unify empty/error primitives):** `AppErrorView` and
+  `StateSurface` now both render a new `~/components/ui/state-view.tsx`
+  (`StateView`) — icon-cluster, optional eyebrow, title, optional
+  description, and actions, with a `scale: 'page' | 'inline'` prop driving
+  typography (page: `<h1>` + `text-3xl`; inline: `.publy-type-section-title`)
+  and the icon-cluster's size. `AppErrorView`'s `errorDetails`/`diagnosticId`
+  and `StateSurface`'s `technicalIdentifier` — none of which are structural
+  to the shared shape — pass through as generic `beforeActions`/
+  `afterActions`/`belowTitle` slots so both components' full public prop
+  surfaces compile untouched. Every `data-testid` (`view-404`, `view-403`,
+  `${testId}-empty/-no-match/-error/-loading`,
+  `staff-tenant-details-invalid/-not-found/-error`) is unchanged, and
+  `AppErrorView` still renders correctly `embedded` inside
+  `tenants/$tenantId/_tenant-details-shell.tsx`.
+  `design-handoff-foundation.spec.ts` (`2f`, `error.icon` width `64px →
+  48px`) and `artboard-assertions.ts`/`artboard-assertions.test.ts` were
+  updated to the new sizes, not loosened; `state-surface.test.tsx` gained
+  tests for the `data-scale` attribute, the shared `AppErrorView`/
+  `StateSurface` primitive, and the absence of the ghost numeral/separator.

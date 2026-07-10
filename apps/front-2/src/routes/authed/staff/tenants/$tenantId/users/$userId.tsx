@@ -35,6 +35,7 @@ import {
 	TenantDetailsError,
 	TenantDetailsLoading,
 	TenantDetailsPageShell,
+	TenantRetryActions,
 } from '../_tenant-details-shell';
 
 const MALFORMED_ID_TRANSLATION_KEY = 'malformed-id';
@@ -98,7 +99,13 @@ const MissingTenantUserView = ({ error }: { error: unknown }) => (
 	/>
 );
 
-const StaffTenantUserDetailsError = ({ error }: { error: unknown }) => {
+const StaffTenantUserDetailsError = ({
+	error,
+	onRetry,
+}: {
+	error: unknown;
+	onRetry: () => void;
+}) => {
 	if (isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)) {
 		return <InvalidTenantUserView error={error} />;
 	}
@@ -118,6 +125,7 @@ const StaffTenantUserDetailsError = ({ error }: { error: unknown }) => {
 			title="Unable to load this tenant user"
 			description="There was a problem loading the tenant user details."
 			testId="staff-tenant-user-details-error"
+			actions={<TenantRetryActions onRetry={onRetry} />}
 		/>
 	);
 };
@@ -195,7 +203,12 @@ function StaffTenantUserDetailsPage() {
 			return <LogoutRedirect />;
 		}
 
-		return <TenantDetailsError error={tenantQuery.error} />;
+		return (
+			<TenantDetailsError
+				error={tenantQuery.error}
+				onRetry={() => void tenantQuery.refetch()}
+			/>
+		);
 	}
 
 	if (detailsQuery.isError && shouldLogoutForFailure(detailsQuery.error)) {
@@ -220,7 +233,12 @@ function StaffTenantUserDetailsPage() {
 	}
 
 	if (detailsQuery.isError) {
-		return <StaffTenantUserDetailsError error={detailsQuery.error} />;
+		return (
+			<StaffTenantUserDetailsError
+				error={detailsQuery.error}
+				onRetry={() => void detailsQuery.refetch()}
+			/>
+		);
 	}
 
 	const user = toStaffTenantUserDetails(detailsQuery.data);

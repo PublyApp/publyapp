@@ -272,6 +272,23 @@ function StaffUserDetailsPage() {
 				title="Unable to load this staff user"
 				description="There was a problem loading the staff user details."
 				testId="staff-user-details-error"
+				actions={
+					<>
+						<Button
+							variant="default"
+							onClick={() => void detailQuery.refetch()}
+							type="button"
+						>
+							Try again
+						</Button>
+						<Link
+							to="/staff/staff-users"
+							className={buttonVariants({ variant: 'outline' })}
+						>
+							Back to staff users
+						</Link>
+					</>
+				}
 			/>
 		);
 	}

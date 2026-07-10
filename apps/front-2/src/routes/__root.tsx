@@ -3,6 +3,7 @@ import type { QueryClient } from '@tanstack/react-query';
 import {
 	createRootRouteWithContext,
 	HeadContent,
+	Link,
 	Outlet,
 	Scripts,
 	useLocation,
@@ -11,8 +12,8 @@ import {
 import { createClientOnlyFn } from '@tanstack/react-start';
 import type { i18n as I18nInstance } from 'i18next';
 import * as React from 'react';
-import { I18nextProvider } from 'react-i18next';
-import { Button } from '~/components/ui/button';
+import { I18nextProvider, useTranslation } from 'react-i18next';
+import { Button, buttonVariants } from '~/components/ui/button';
 import {
 	createI18nFromResources,
 	dirForLocale,
@@ -107,11 +108,23 @@ const RoutedShell = () => {
 	);
 };
 
-const RootErrorBoundary = ({ error }: { error: unknown }) => {
+const RootErrorBoundary = ({
+	error,
+	reset,
+}: {
+	error: unknown;
+	reset: () => void;
+}) => {
 	const pathname = useLocation({
 		select: (location) => location.pathname,
 	});
+	const router = useRouter();
+	const { t } = useTranslation('common');
 	const routeStatus = getRouteFailureStatus(error);
+	const retry = () => {
+		reset();
+		void router.invalidate();
+	};
 
 	if (routeStatus === 401) {
 		if (isAuthSurface(pathname)) {
@@ -163,6 +176,16 @@ const RootErrorBoundary = ({ error }: { error: unknown }) => {
 			code="500 — Server Error"
 			title="Something went wrong"
 			description="The app hit an unexpected error."
+			actions={
+				<>
+					<Button variant="default" onClick={retry} type="button">
+						{t('retry')}
+					</Button>
+					<Link to="/" className={buttonVariants({ variant: 'outline' })}>
+						{t('go-to-home')}
+					</Link>
+				</>
+			}
 		/>
 	);
 };

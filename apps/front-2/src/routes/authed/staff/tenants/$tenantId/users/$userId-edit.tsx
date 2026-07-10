@@ -40,6 +40,7 @@ import {
 	TenantDetailsError,
 	TenantDetailsLoading,
 	TenantDetailsPageShell,
+	TenantRetryActions,
 } from '../_tenant-details-shell';
 
 const EDIT_ACCOUNT_LEVEL_OPTIONS = ['Admin', 'User'] as const;
@@ -147,7 +148,13 @@ const MissingTenantUserView = ({ error }: { error: unknown }) => (
 	/>
 );
 
-const TenantUserEditError = ({ error }: { error: unknown }) => {
+const TenantUserEditError = ({
+	error,
+	onRetry,
+}: {
+	error: unknown;
+	onRetry: () => void;
+}) => {
 	if (isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)) {
 		return <InvalidTenantUserView error={error} />;
 	}
@@ -175,6 +182,7 @@ const TenantUserEditError = ({ error }: { error: unknown }) => {
 			title="Unable to load this tenant user"
 			description="There was a problem loading the tenant user details."
 			testId="staff-tenant-user-edit-error"
+			actions={<TenantRetryActions onRetry={onRetry} />}
 		/>
 	);
 };
@@ -248,7 +256,12 @@ function StaffTenantUserEditPage() {
 			return <LogoutRedirect />;
 		}
 
-		return <TenantDetailsError error={tenantQuery.error} />;
+		return (
+			<TenantDetailsError
+				error={tenantQuery.error}
+				onRetry={() => void tenantQuery.refetch()}
+			/>
+		);
 	}
 
 	if (!tenant) {
@@ -259,6 +272,9 @@ function StaffTenantUserEditPage() {
 				title="Unable to load this tenant"
 				description="The tenant response was incomplete."
 				testId="staff-tenant-details-error"
+				actions={
+					<TenantRetryActions onRetry={() => void tenantQuery.refetch()} />
+				}
 			/>
 		);
 	}
@@ -272,7 +288,12 @@ function StaffTenantUserEditPage() {
 	}
 
 	if (detailsQuery.isError) {
-		return <TenantUserEditError error={detailsQuery.error} />;
+		return (
+			<TenantUserEditError
+				error={detailsQuery.error}
+				onRetry={() => void detailsQuery.refetch()}
+			/>
+		);
 	}
 
 	if (!user) {

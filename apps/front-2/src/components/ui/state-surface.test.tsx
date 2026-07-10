@@ -1,8 +1,10 @@
 /**
  * @vitest-environment jsdom
  */
+import { IconSearchOff } from '@tabler/icons-react';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
+import { AppErrorView } from '~/components/error-views/AppErrorView';
 
 import {
 	ErrorStateSurface,
@@ -101,5 +103,65 @@ describe('state-surface', () => {
 		const root = screen.getByTestId('surface');
 		expect(root.querySelector('.publy-state-icon-wash')).toBeNull();
 		expect(root.querySelector('.publy-state-icon-ring')).toBeNull();
+	});
+
+	test('valorizes the icon at inline scale — no backing, cluster carries data-scale="inline" (owner-approved 2026-07-10 round 3)', () => {
+		render(
+			<StateSurface
+				title="No records yet"
+				description="Add one to continue."
+				testId="surface"
+			/>,
+		);
+		const cluster = screen
+			.getByTestId('surface')
+			.querySelector('.publy-state-icon-cluster');
+		expect(cluster?.getAttribute('data-scale')).toBe('inline');
+	});
+
+	test('the ghost numeral and error-hero clip are gone (owner-approved 2026-07-10 round 3)', () => {
+		render(
+			<StateSurface
+				title="No records yet"
+				description="Add one to continue."
+				testId="surface"
+			/>,
+		);
+		const root = screen.getByTestId('surface');
+		expect(root.querySelector('.publy-error-hero')).toBeNull();
+		expect(root.querySelector('.publy-error-ghost-numeral')).toBeNull();
+	});
+
+	test('AppErrorView renders the same icon-cluster/state-icon primitive as StateSurface, at page scale (owner-approved 2026-07-10 round 3)', () => {
+		render(
+			<AppErrorView
+				icon={<IconSearchOff aria-hidden="true" />}
+				title="Page not found"
+				code="404 — Not Found"
+				testId="app-error-view"
+			/>,
+		);
+		const root = screen.getByTestId('app-error-view');
+		const cluster = root.querySelector('.publy-state-icon-cluster');
+		expect(cluster?.getAttribute('data-scale')).toBe('page');
+		expect(cluster?.getAttribute('data-tone')).toBe('neutral');
+		expect(root.querySelector('.publy-state-icon')).not.toBeNull();
+		expect(root.querySelector('.publy-error-hero')).toBeNull();
+		expect(root.querySelector('.publy-error-ghost-numeral')).toBeNull();
+	});
+
+	test('AppErrorView renders actions without a separator rule above them (owner-approved 2026-07-10 round 3)', () => {
+		render(
+			<AppErrorView
+				icon={<IconSearchOff aria-hidden="true" />}
+				title="Page not found"
+				testId="app-error-view"
+				actions={<button type="button">Go to home</button>}
+			/>,
+		);
+		const actionsWrap = screen.getByRole('button', {
+			name: 'Go to home',
+		}).parentElement;
+		expect(actionsWrap?.className).not.toContain('border-t');
 	});
 });

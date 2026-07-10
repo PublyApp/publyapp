@@ -10,7 +10,7 @@ import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
 import { Field, Form, FormActionBar, FormPageLayout } from '~/components/field';
-import { Button } from '~/components/ui/button';
+import { Button, buttonVariants } from '~/components/ui/button';
 import {
 	toStaffProfileRows,
 	useStaffProfilesQuery,
@@ -113,7 +113,13 @@ const StaffUserEditLoading = () => (
 	</div>
 );
 
-const StaffUserEditError = ({ error }: { error: unknown }) => {
+const StaffUserEditError = ({
+	error,
+	onRetry,
+}: {
+	error: unknown;
+	onRetry: () => void;
+}) => {
 	if (isProblemStatus(error, 400, 'malformed-id')) {
 		return (
 			<AppErrorView
@@ -155,6 +161,19 @@ const StaffUserEditError = ({ error }: { error: unknown }) => {
 			title="Unable to load this staff user"
 			description="There was a problem loading the staff user details."
 			testId="staff-user-edit-error"
+			actions={
+				<>
+					<Button variant="default" onClick={onRetry} type="button">
+						Try again
+					</Button>
+					<Link
+						to="/staff/staff-users"
+						className={buttonVariants({ variant: 'outline' })}
+					>
+						Back to staff users
+					</Link>
+				</>
+			}
 		/>
 	);
 };
@@ -253,15 +272,30 @@ function StaffUserEditPage() {
 	}
 
 	if (detailsQuery.isError) {
-		return <StaffUserEditError error={detailsQuery.error} />;
+		return (
+			<StaffUserEditError
+				error={detailsQuery.error}
+				onRetry={() => void detailsQuery.refetch()}
+			/>
+		);
 	}
 
 	if (assignedProfilesQuery.isError) {
-		return <StaffUserEditError error={assignedProfilesQuery.error} />;
+		return (
+			<StaffUserEditError
+				error={assignedProfilesQuery.error}
+				onRetry={() => void assignedProfilesQuery.refetch()}
+			/>
+		);
 	}
 
 	if (profilesQuery.isError) {
-		return <StaffUserEditError error={profilesQuery.error} />;
+		return (
+			<StaffUserEditError
+				error={profilesQuery.error}
+				onRetry={() => void profilesQuery.refetch()}
+			/>
+		);
 	}
 
 	if (!user) {
@@ -353,11 +387,17 @@ function StaffUserEditPage() {
 		updateStaffUser.isPending ||
 		updateStaffUserProfiles.isPending;
 	const attentionCount = Object.keys(errors).length;
-	const status = formState.isDirty
-		? attentionCount > 0
-			? `Unsaved changes · ${attentionCount} field${attentionCount === 1 ? '' : 's'} need attention`
-			: 'Unsaved changes'
-		: undefined;
+	const status = ((): string | undefined => {
+		if (!formState.isDirty) {
+			return undefined;
+		}
+
+		if (attentionCount > 0) {
+			return `Unsaved changes · ${attentionCount} field${attentionCount === 1 ? '' : 's'} need attention`;
+		}
+
+		return 'Unsaved changes';
+	})();
 
 	return (
 		<FormPageLayout data-testid="staff-user-edit-page">

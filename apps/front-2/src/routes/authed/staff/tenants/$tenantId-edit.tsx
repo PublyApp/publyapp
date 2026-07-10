@@ -27,6 +27,7 @@ import {
 import {
 	TenantDetailsLoading,
 	TenantDetailsPageShell,
+	TenantRetryActions,
 } from './$tenantId/_tenant-details-shell';
 
 const editTenantSchema = z.object({
@@ -143,6 +144,9 @@ function StaffTenantEditRoute() {
 					'Unable to load tenant details.',
 				)}
 				testId="staff-tenant-edit-error"
+				actions={
+					<TenantRetryActions onRetry={() => void detailsQuery.refetch()} />
+				}
 			/>
 		);
 	}

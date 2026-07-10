@@ -292,6 +292,7 @@ test('asserts the no-match state renders a bare, un-boxed icon with no card, rin
 	await expect(cluster).toHaveCSS('width', '40px');
 	await expect(cluster).toHaveCSS('height', '40px');
 	await expect(cluster).toHaveAttribute('data-tone', 'primary');
+	await expect(cluster).toHaveAttribute('data-scale', 'inline');
 	await expect(cluster).toHaveAttribute('aria-hidden', 'true');
 	await expect(cluster.locator('.publy-state-icon-wash')).toHaveCount(0);
 	await expect(cluster.locator('.publy-state-icon-ring')).toHaveCount(0);
@@ -301,4 +302,63 @@ test('asserts the no-match state renders a bare, un-boxed icon with no card, rin
 	await expect(icon).toHaveCSS('box-shadow', 'none');
 	await expect(icon).toHaveCSS('border-radius', '0px');
 	await expect(icon).toHaveCSS('color', 'rgb(253, 199, 0)');
+
+	// Owner decision R3-1 (2026-07-10 round 3): the glyph itself is valorized
+	// to fill the 40px inline cluster — no backing shape, size + tone colour
+	// carry the presence.
+	const glyph = icon.locator('svg');
+	await expect(glyph).toHaveCSS('width', '40px');
+	await expect(glyph).toHaveCSS('height', '40px');
+});
+
+test('the 404 view no longer renders a separator above its actions (owner-approved 2026-07-10 round 3)', async ({
+	page,
+}) => {
+	await page.goto('/route-does-not-exist');
+
+	const view404 = page.getByTestId('view-404');
+	await expect(view404).toBeVisible();
+
+	const cluster = view404.locator('.publy-state-icon-cluster');
+	await expect(cluster).toHaveAttribute('data-scale', 'page');
+	const glyph = view404.locator('.publy-state-icon svg');
+	await expect(glyph).toHaveCSS('width', '48px');
+	await expect(glyph).toHaveCSS('height', '48px');
+
+	const actionsWrap = view404
+		.getByRole('link', { name: /home/i })
+		.locator('..');
+	await expect(actionsWrap).toHaveCSS('border-top-width', '0px');
+});
+
+test('the 500 boundary renders a working Retry and Go to home control (owner-approved 2026-07-10 round 3)', async ({
+	page,
+}) => {
+	await loginAsStaffAdmin(page);
+
+	await page.route('**/auth/redirect-code**', async (route) => {
+		await route.fulfill({
+			status: 500,
+			headers: { 'content-type': 'application/problem+json' },
+			body: JSON.stringify({ title: 'Internal Server Error', status: 500 }),
+		});
+	});
+
+	await page.reload();
+
+	await expect(page.getByText('Something went wrong')).toBeVisible();
+	const retryButton = page.getByRole('button', { name: 'Retry' });
+	const homeLink = page.getByRole('link', { name: 'Go to home' });
+	await expect(retryButton).toBeVisible();
+	await expect(homeLink).toBeVisible();
+
+	const actionsWrap = homeLink.locator('..');
+	await expect(actionsWrap).toHaveCSS('border-top-width', '0px');
+
+	await page.unroute('**/auth/redirect-code**');
+	await retryButton.click();
+
+	await expect(page.getByTestId('staff-users-table')).toBeVisible({
+		timeout: 15_000,
+	});
 });

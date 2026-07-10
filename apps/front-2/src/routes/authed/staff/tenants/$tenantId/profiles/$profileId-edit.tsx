@@ -33,6 +33,7 @@ import {
 	TenantDetailsError,
 	TenantDetailsLoading,
 	TenantDetailsPageShell,
+	TenantRetryActions,
 } from '../_tenant-details-shell';
 
 const editTenantProfileSchema = z.object({
@@ -119,7 +120,13 @@ const MissingTenantProfileView = ({ error }: { error: unknown }) => (
 	/>
 );
 
-const TenantProfileEditError = ({ error }: { error: unknown }) => {
+const TenantProfileEditError = ({
+	error,
+	onRetry,
+}: {
+	error: unknown;
+	onRetry: () => void;
+}) => {
 	if (isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)) {
 		return <InvalidTenantProfileView error={error} />;
 	}
@@ -147,6 +154,7 @@ const TenantProfileEditError = ({ error }: { error: unknown }) => {
 			title="Unable to load this tenant profile"
 			description="There was a problem loading the profile details."
 			testId="staff-tenant-profile-edit-error"
+			actions={<TenantRetryActions onRetry={onRetry} />}
 		/>
 	);
 };
@@ -210,7 +218,12 @@ function StaffTenantProfileEditPage() {
 			return <LogoutRedirect />;
 		}
 
-		return <TenantDetailsError error={tenantQuery.error} />;
+		return (
+			<TenantDetailsError
+				error={tenantQuery.error}
+				onRetry={() => void tenantQuery.refetch()}
+			/>
+		);
 	}
 
 	const tenant = toStaffTenantDetails(tenantQuery.data);
@@ -222,6 +235,9 @@ function StaffTenantProfileEditPage() {
 				title="Unable to load this tenant"
 				description="The tenant response was incomplete."
 				testId="staff-tenant-details-error"
+				actions={
+					<TenantRetryActions onRetry={() => void tenantQuery.refetch()} />
+				}
 			/>
 		);
 	}
@@ -235,7 +251,12 @@ function StaffTenantProfileEditPage() {
 	}
 
 	if (detailQuery.isError) {
-		return <TenantProfileEditError error={detailQuery.error} />;
+		return (
+			<TenantProfileEditError
+				error={detailQuery.error}
+				onRetry={() => void detailQuery.refetch()}
+			/>
+		);
 	}
 
 	if (!profile) {

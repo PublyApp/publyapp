@@ -39,6 +39,7 @@ import {
 	TenantDetailsError,
 	TenantDetailsLoading,
 	TenantDetailsPageShell,
+	TenantRetryActions,
 } from '../_tenant-details-shell';
 
 const isProblemStatus = (
@@ -113,7 +114,13 @@ const MissingTenantProfileView = ({ error }: { error: unknown }) => (
 	/>
 );
 
-const TenantProfileDetailsError = ({ error }: { error: unknown }) => {
+const TenantProfileDetailsError = ({
+	error,
+	onRetry,
+}: {
+	error: unknown;
+	onRetry: () => void;
+}) => {
 	if (isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)) {
 		return <InvalidTenantProfileView error={error} />;
 	}
@@ -141,6 +148,7 @@ const TenantProfileDetailsError = ({ error }: { error: unknown }) => {
 			title="Unable to load this tenant profile"
 			description="There was a problem loading the profile details."
 			testId="staff-tenant-profile-details-error"
+			actions={<TenantRetryActions onRetry={onRetry} />}
 		/>
 	);
 };
@@ -246,7 +254,12 @@ function StaffTenantProfileDetailsPage() {
 			return <LogoutRedirect />;
 		}
 
-		return <TenantDetailsError error={tenantQuery.error} />;
+		return (
+			<TenantDetailsError
+				error={tenantQuery.error}
+				onRetry={() => void tenantQuery.refetch()}
+			/>
+		);
 	}
 
 	const tenant = toStaffTenantDetails(tenantQuery.data);
@@ -258,6 +271,9 @@ function StaffTenantProfileDetailsPage() {
 				title="Unable to load this tenant"
 				description="The tenant response was incomplete."
 				testId="staff-tenant-details-error"
+				actions={
+					<TenantRetryActions onRetry={() => void tenantQuery.refetch()} />
+				}
 			/>
 		);
 	}
@@ -277,11 +293,21 @@ function StaffTenantProfileDetailsPage() {
 	}
 
 	if (detailQuery.isError) {
-		return <TenantProfileDetailsError error={detailQuery.error} />;
+		return (
+			<TenantProfileDetailsError
+				error={detailQuery.error}
+				onRetry={() => void detailQuery.refetch()}
+			/>
+		);
 	}
 
 	if (permissionKeysQuery.isError) {
-		return <TenantProfileDetailsError error={permissionKeysQuery.error} />;
+		return (
+			<TenantProfileDetailsError
+				error={permissionKeysQuery.error}
+				onRetry={() => void permissionKeysQuery.refetch()}
+			/>
+		);
 	}
 
 	if (!profile) {

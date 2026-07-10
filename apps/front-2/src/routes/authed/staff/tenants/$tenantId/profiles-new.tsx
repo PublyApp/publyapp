@@ -30,6 +30,7 @@ import {
 	TenantDetailsError,
 	TenantDetailsLoading,
 	TenantDetailsPageShell,
+	TenantRetryActions,
 } from './_tenant-details-shell';
 
 const createTenantProfileSchema = z.object({
@@ -81,7 +82,12 @@ function StaffTenantProfileCreatePage() {
 			return <LogoutRedirect />;
 		}
 
-		return <TenantDetailsError error={tenantQuery.error} />;
+		return (
+			<TenantDetailsError
+				error={tenantQuery.error}
+				onRetry={() => void tenantQuery.refetch()}
+			/>
+		);
 	}
 
 	const tenant = toStaffTenantDetails(tenantQuery.data);
@@ -93,6 +99,9 @@ function StaffTenantProfileCreatePage() {
 				title="Unable to load this tenant"
 				description="The tenant response was incomplete."
 				testId="staff-tenant-details-error"
+				actions={
+					<TenantRetryActions onRetry={() => void tenantQuery.refetch()} />
+				}
 			/>
 		);
 	}

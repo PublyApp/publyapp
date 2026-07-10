@@ -21,7 +21,7 @@ import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
-import { Button } from '~/components/ui/button';
+import { Button, buttonVariants } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
 import {
 	DetailAside,
@@ -134,7 +134,13 @@ const MissingProfileView = ({ error }: { error: unknown }) => {
 	);
 };
 
-const ProfileDetailsError = ({ error }: { error: unknown }) => {
+const ProfileDetailsError = ({
+	error,
+	onRetry,
+}: {
+	error: unknown;
+	onRetry: () => void;
+}) => {
 	if (isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)) {
 		return <InvalidProfileView error={error} />;
 	}
@@ -154,6 +160,19 @@ const ProfileDetailsError = ({ error }: { error: unknown }) => {
 			title="Unable to load this staff profile"
 			description="There was a problem loading the profile details."
 			testId="staff-profile-details-error"
+			actions={
+				<>
+					<Button variant="default" onClick={onRetry} type="button">
+						Try again
+					</Button>
+					<Link
+						to="/staff/profiles"
+						className={buttonVariants({ variant: 'outline' })}
+					>
+						Back to staff profiles
+					</Link>
+				</>
+			}
 		/>
 	);
 };
@@ -358,15 +377,30 @@ function StaffProfileDetailsPage() {
 	}
 
 	if (detailQuery.isError) {
-		return <ProfileDetailsError error={detailQuery.error} />;
+		return (
+			<ProfileDetailsError
+				error={detailQuery.error}
+				onRetry={() => void detailQuery.refetch()}
+			/>
+		);
 	}
 
 	if (permissionKeysQuery.isError) {
-		return <ProfileDetailsError error={permissionKeysQuery.error} />;
+		return (
+			<ProfileDetailsError
+				error={permissionKeysQuery.error}
+				onRetry={() => void permissionKeysQuery.refetch()}
+			/>
+		);
 	}
 
 	if (permissionCatalogQuery.isError) {
-		return <ProfileDetailsError error={permissionCatalogQuery.error} />;
+		return (
+			<ProfileDetailsError
+				error={permissionCatalogQuery.error}
+				onRetry={() => void permissionCatalogQuery.refetch()}
+			/>
+		);
 	}
 
 	const details = toStaffProfileDetails(detailQuery.data);

@@ -952,14 +952,27 @@ html {
 		color: var(--publy-foreground-muted);
 	}
 
+	/* Icon presence comes from size + tone colour + stroke weight only — no
+	   disc, ring, or box backing (owner decision R3-1, 2026-07-10 round 3).
+	   Page scale (AppErrorView) renders a touch larger than inline scale
+	   (StateSurface in list bodies); that is the only size difference
+	   allowed between the two. */
 	.publy-state-icon-cluster {
 		display: flex;
-		width: 40px;
-		height: 40px;
 		flex-shrink: 0;
 		align-items: center;
 		justify-content: center;
 		animation: publy-state-rise 360ms var(--publy-motion-ease) both;
+	}
+
+	.publy-state-icon-cluster[data-scale='inline'] {
+		width: 40px;
+		height: 40px;
+	}
+
+	.publy-state-icon-cluster[data-scale='page'] {
+		width: 48px;
+		height: 48px;
 	}
 
 	.publy-state-icon {
@@ -978,51 +991,11 @@ html {
 		color: var(--publy-primary);
 	}
 
-	.publy-state-icon-glyph {
-		width: 22px;
-		height: 22px;
-	}
-
-	/* Ghost numeral behind the error-view glyph: a large, low-alpha status
-	   code sitting directly on the page background. Purely decorative — the
-	   `code` caption text carries the accessible label. */
-	.publy-error-hero {
-		position: relative;
-		display: flex;
-		min-height: 120px;
-		align-items: center;
-		justify-content: center;
-		overflow: hidden;
-	}
-
-	.publy-error-hero .publy-state-icon-cluster {
-		position: relative;
-		z-index: 1;
-		width: 64px;
-		height: 64px;
-	}
-
-	.publy-error-ghost-numeral {
-		position: absolute;
-		inset: 0;
-		z-index: 0;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		overflow: hidden;
-		white-space: nowrap;
-		font-family: var(--publy-font-mono);
-		font-size: 112px;
-		font-weight: 700;
-		line-height: 1;
-		letter-spacing: -0.03em;
-		color: var(--publy-foreground);
-		opacity: 0.05;
-		user-select: none;
-	}
-
-	html.dark .publy-error-ghost-numeral {
-		opacity: 0.08;
+	/* Sizes the glyph itself off the cluster box, regardless of any size-*
+	   utility class a call site puts on its own icon element. */
+	.publy-state-icon svg {
+		width: 100%;
+		height: 100%;
 	}
 
 	.publy-state-technical-id {

@@ -157,7 +157,7 @@ describe('focused handoff assertions are structured for regression checks', () =
 				(item) =>
 					item.component === 'error.icon' &&
 					item.property === 'width' &&
-					item.expected === '64px',
+					item.expected === '48px',
 			),
 		).toBe(true);
 		expect(

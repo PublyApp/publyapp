@@ -27,6 +27,7 @@ import {
 	TenantDetailsError,
 	TenantDetailsLoading,
 	TenantDetailsPageShell,
+	TenantRetryActions,
 } from './_tenant-details-shell';
 
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
@@ -132,7 +133,12 @@ function StaffTenantUsersPage() {
 			return <LogoutRedirect />;
 		}
 
-		return <TenantDetailsError error={detailsQuery.error} />;
+		return (
+			<TenantDetailsError
+				error={detailsQuery.error}
+				onRetry={() => void detailsQuery.refetch()}
+			/>
+		);
 	}
 
 	const tenant = toStaffTenantDetails(detailsQuery.data);
@@ -144,6 +150,9 @@ function StaffTenantUsersPage() {
 				title="Unable to load this tenant"
 				description="The tenant response was incomplete."
 				testId="staff-tenant-details-error"
+				actions={
+					<TenantRetryActions onRetry={() => void detailsQuery.refetch()} />
+				}
 			/>
 		);
 	}

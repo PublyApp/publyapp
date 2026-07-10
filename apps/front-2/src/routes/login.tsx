@@ -1,18 +1,21 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { IconAlertCircle, IconLock } from '@tabler/icons-react';
 import {
+	Link,
 	useLocation,
 	useNavigate,
+	useRouter,
 	createFileRoute,
 } from '@tanstack/react-router';
 import { useServerFn } from '@tanstack/react-start';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { View403 } from '~/components/error-views/View403';
 import { View404 } from '~/components/error-views/View404';
-import { Button } from '~/components/ui/button';
+import { Button, buttonVariants } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import { completeLoginRedirect, login } from '~/lib/server/session-actions';
 
@@ -256,7 +259,15 @@ const LoginRoute = () => {
 	);
 };
 
-const LoginErrorBoundary = ({ error }: { error: unknown }) => {
+const LoginErrorBoundary = ({
+	error,
+	reset,
+}: {
+	error: unknown;
+	reset: () => void;
+}) => {
+	const router = useRouter();
+	const { t } = useTranslation('common');
 	const routeStatus = getFailureStatus(error);
 
 	if (routeStatus === 401) {
@@ -289,12 +300,27 @@ const LoginErrorBoundary = ({ error }: { error: unknown }) => {
 		return <View404 />;
 	}
 
+	const retry = () => {
+		reset();
+		void router.invalidate();
+	};
+
 	return (
 		<AppErrorView
 			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 			code="500 — Server Error"
 			title="Something went wrong"
 			description="Sign-in could not be completed."
+			actions={
+				<>
+					<Button variant="default" onClick={retry} type="button">
+						{t('retry')}
+					</Button>
+					<Link to="/" className={buttonVariants({ variant: 'outline' })}>
+						{t('go-to-home')}
+					</Link>
+				</>
+			}
 		/>
 	);
 };

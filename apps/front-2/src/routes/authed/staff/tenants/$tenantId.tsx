@@ -16,6 +16,7 @@ import {
 	TenantDetailsError,
 	TenantDetailsLoading,
 	TenantDetailsPageShell,
+	TenantRetryActions,
 } from './$tenantId/_tenant-details-shell';
 
 export const Route = createFileRoute('/_authed-layout/staff/tenants/$tenantId')(
@@ -41,7 +42,12 @@ function StaffTenantDetailsPage() {
 			return <LogoutRedirect />;
 		}
 
-		return <TenantDetailsError error={query.error} />;
+		return (
+			<TenantDetailsError
+				error={query.error}
+				onRetry={() => void query.refetch()}
+			/>
+		);
 	}
 
 	const tenant = toStaffTenantDetails(query.data);
@@ -53,6 +59,8 @@ function StaffTenantDetailsPage() {
 				title="Unable to load this tenant"
 				description="The tenant response was incomplete."
 				testId="staff-tenant-details-error"
+				embedded
+				actions={<TenantRetryActions onRetry={() => void query.refetch()} />}
 			/>
 		);
 	}

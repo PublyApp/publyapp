@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { View403 } from '~/components/error-views/View403';
+import { Button, buttonVariants } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
 import { InitialsAvatar } from '~/components/ui/initials-avatar';
 import { StatusPill } from '~/components/ui/product-page';
@@ -129,6 +130,23 @@ export const TenantDetailsLoading = () => (
 	</div>
 );
 
+const BackToTenantsLink = () => (
+	<Link to="/staff/tenants" className={buttonVariants({ variant: 'outline' })}>
+		Back to tenants
+	</Link>
+);
+
+/** Retry + Back-to-tenants action pair shared by every tenant-scoped 500
+ * view (owner decision R3-4a, 2026-07-10 round 3). */
+export const TenantRetryActions = ({ onRetry }: { onRetry: () => void }) => (
+	<>
+		<Button variant="default" onClick={onRetry} type="button">
+			Try again
+		</Button>
+		<BackToTenantsLink />
+	</>
+);
+
 const InvalidTenantView = ({ error }: { error: unknown }) => (
 	<AppErrorView
 		icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
@@ -141,6 +159,7 @@ const InvalidTenantView = ({ error }: { error: unknown }) => (
 		testId="staff-tenant-details-invalid"
 		tone="danger"
 		embedded
+		actions={<BackToTenantsLink />}
 	/>
 );
 
@@ -155,10 +174,19 @@ const MissingTenantView = ({ error }: { error: unknown }) => (
 		)}
 		testId="staff-tenant-details-not-found"
 		embedded
+		actions={<BackToTenantsLink />}
 	/>
 );
 
-export const TenantDetailsError = ({ error }: { error: unknown }) => {
+export const TenantDetailsError = ({
+	error,
+	onRetry,
+}: {
+	error: unknown;
+	/** Refetches the tenant query that produced this error. Omit when no
+	 * retry target is available at the call site. */
+	onRetry?: () => void;
+}) => {
 	if (isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)) {
 		return <InvalidTenantView error={error} />;
 	}
@@ -180,6 +208,13 @@ export const TenantDetailsError = ({ error }: { error: unknown }) => {
 			testId="staff-tenant-details-error"
 			tone="danger"
 			embedded
+			actions={
+				onRetry ? (
+					<TenantRetryActions onRetry={onRetry} />
+				) : (
+					<BackToTenantsLink />
+				)
+			}
 		/>
 	);
 };
