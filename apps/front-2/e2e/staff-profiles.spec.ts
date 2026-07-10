@@ -83,17 +83,23 @@ test.describe('staff profiles route', () => {
 
 		await expect(page.getByTestId(TABLE)).toBeVisible();
 		await expect(
-			page.getByRole('columnheader', { name: 'Name' }),
+			page.getByRole('columnheader', { name: 'Profile' }),
 		).toBeVisible();
 		await expect(
 			page.getByRole('columnheader', { name: 'Description' }),
 		).toBeVisible();
 		await expect(
-			page.getByRole('columnheader', { name: 'User accounts' }),
+			page.getByRole('columnheader', { name: 'Members' }),
+		).toBeVisible();
+		await expect(
+			page.getByRole('columnheader', { name: 'Permissions' }),
+		).toBeVisible();
+		await expect(
+			page.getByRole('columnheader', { name: 'Updated' }),
 		).toBeVisible();
 		await expect(
 			page.getByRole('columnheader', { name: 'Actions' }),
-		).toBeVisible();
+		).toBeAttached();
 
 		for (const profile of profiles.slice(0, 3)) {
 			await expect(profileRow(page, profile.name)).toBeVisible();

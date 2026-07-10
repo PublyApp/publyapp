@@ -15,7 +15,7 @@ const PROFILE_USERS_PATH = (profileId: string) =>
 const HANDOFF_PROFILE_ID = '0197b8f0-3333-7ccc-8ccc-cccccccccccc';
 
 const setupProfilesMocks = async (page: Page) => {
-	await page.route('**/staff/profiles*', async (route) => {
+	await page.route('**/staff/profiles**', async (route) => {
 		const url = route.request().url();
 		if (route.request().method() !== 'GET') {
 			await route.fallback();

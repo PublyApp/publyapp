@@ -129,17 +129,26 @@ test.describe('staff invitations list', () => {
 
 		await expect(page.getByTestId(`${TABLE}-rows`)).toBeVisible();
 		await expect(
-			page.getByRole('columnheader', { name: 'Email' }),
+			page.getByRole('columnheader', { name: 'Invitee' }),
 		).toBeVisible();
 		await expect(
-			page.getByRole('columnheader', { name: 'Expiry date' }),
+			page.getByRole('columnheader', { name: 'Role' }),
 		).toBeVisible();
 		await expect(
-			page.getByRole('columnheader', { name: 'Accepted at' }),
+			page.getByRole('columnheader', { name: 'Profiles' }),
 		).toBeVisible();
 		await expect(
-			page.getByRole('columnheader', { name: 'Created at' }),
+			page.getByRole('columnheader', { name: 'Invited by' }),
 		).toBeVisible();
+		await expect(
+			page.getByRole('columnheader', { name: 'Expires' }),
+		).toBeVisible();
+		await expect(
+			page.getByRole('columnheader', { name: 'Status' }),
+		).toBeVisible();
+		await expect(
+			page.getByRole('columnheader', { name: 'Actions' }),
+		).toBeAttached();
 		await expect(page.getByText('pending-staff@example.com')).toBeVisible();
 		await expect(page.getByText('accepted-staff@example.com')).toBeVisible();
 		await expect(
@@ -174,7 +183,7 @@ test.describe('staff invitations list', () => {
 
 		await Promise.all([
 			page.waitForURL(/\/staff\/invitations\/new$/),
-			page.getByRole('link', { name: /invite users/i }).click(),
+			page.getByRole('link', { name: /invite user/i }).click(),
 		]);
 
 		await expect(
