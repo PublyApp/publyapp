@@ -31,6 +31,8 @@ import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import {
+	STAFF_USERS_QUERY_KEY,
+	STAFF_USER_DETAILS_QUERY_KEY,
 	toAssignedStaffProfiles,
 	toStaffUserDetails,
 	useDeleteStaffUserMutation,
@@ -264,20 +266,22 @@ const AssignedProfilesCard = ({
 						))}
 					</div>
 				)}
-				<div className="rounded-[9px] border border-border bg-background p-2">
-					<div className="flex items-center justify-between text-xs text-muted-foreground">
-						<span>Profile summary</span>
-						<span>
-							{assignedCount} of {maxProfiles}
-						</span>
+				{maxProfiles > 0 ? (
+					<div className="rounded-[9px] border border-border bg-background p-2">
+						<div className="flex items-center justify-between text-xs text-muted-foreground">
+							<span>Profile summary</span>
+							<span>
+								{assignedCount} of {maxProfiles}
+							</span>
+						</div>
+						<div className="mt-2 h-1 rounded-[4px] bg-[var(--publy-row-border)]">
+							<div
+								className="h-full rounded-[4px] bg-[var(--publy-primary)]"
+								style={{ width: `${meterPercent}%` }}
+							/>
+						</div>
 					</div>
-					<div className="mt-2 h-1 rounded-[4px] bg-[var(--publy-row-border)]">
-						<div
-							className="h-full rounded-[4px] bg-[var(--publy-primary)]"
-							style={{ width: `${meterPercent}%` }}
-						/>
-					</div>
-				</div>
+				) : null}
 			</div>
 		</section>
 	);
@@ -295,10 +299,7 @@ const RecentSecurityCard = () => (
 					<span>Security events</span>
 				</div>
 				<span className="text-xs text-muted-foreground">
-					—{' '}
-					<span className="italic text-[var(--publy-foreground-subtle)]">
-						TODO(contract): security event feed
-					</span>
+					— {/* TODO(contract): security event feed */}
 				</span>
 			</div>
 		</div>
@@ -317,8 +318,7 @@ const AccountCard = ({ displayId }: { displayId: string }) => (
 					label="2FA"
 					value={
 						<span className="italic text-[var(--publy-foreground-subtle)]">
-							Not available{' '}
-							<span className="not-italic">TODO(contract): 2FA status</span>
+							Not available {/* TODO(contract): 2FA status */}
 						</span>
 					}
 				/>
@@ -326,10 +326,7 @@ const AccountCard = ({ displayId }: { displayId: string }) => (
 					label="Sessions"
 					value={
 						<span className="italic text-[var(--publy-foreground-subtle)]">
-							Not available{' '}
-							<span className="not-italic">
-								TODO(contract): active sessions
-							</span>
+							Not available {/* TODO(contract): active sessions */}
 						</span>
 					}
 				/>
@@ -537,10 +534,14 @@ function StaffUserDetailsPage() {
 		try {
 			setDetailActionError('');
 			await deleteUser.mutateAsync({ userId });
-			await queryClient.invalidateQueries({
-				queryKey: ['staff', 'staff-users'],
-			});
 			await navigate({ to: '/staff/staff-users' });
+			queryClient.removeQueries({
+				queryKey: ['staff', ...STAFF_USER_DETAILS_QUERY_KEY],
+			});
+			void queryClient.invalidateQueries({
+				queryKey: ['staff', ...STAFF_USERS_QUERY_KEY],
+				exact: true,
+			});
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
 				setShouldLogout(true);
@@ -560,8 +561,9 @@ function StaffUserDetailsPage() {
 
 	const isDeleteConfirmReady =
 		deleteConfirmText.trim().toLowerCase() === 'delete';
-	const maxProfilesPerUser =
-		(profilesQuery.data?.maxProfilesPerUser as number | undefined) ?? 0;
+	const maxProfilesPerUser = profilesQuery.data?.maxProfilesPerUser as
+		| number
+		| undefined;
 	const profilesHasError =
 		profilesQuery.isError && !shouldLogoutForFailure(profilesQuery.error);
 
@@ -682,14 +684,12 @@ function StaffUserDetailsPage() {
 				</div>
 
 				<Tabs defaultValue="overview">
-					<div className="publy-section-tabs">
-						<TabsList variant="line">
-							<TabsTrigger value="overview">Overview</TabsTrigger>
-							<TabsTrigger value="permissions">Permissions</TabsTrigger>
-							<TabsTrigger value="activity">Activity</TabsTrigger>
-							<TabsTrigger value="settings">Settings</TabsTrigger>
-						</TabsList>
-					</div>
+					<TabsList variant="line">
+						<TabsTrigger value="overview">Overview</TabsTrigger>
+						<TabsTrigger value="permissions">Permissions</TabsTrigger>
+						<TabsTrigger value="activity">Activity</TabsTrigger>
+						<TabsTrigger value="settings">Settings</TabsTrigger>
+					</TabsList>
 
 					<div className="mt-5">
 						<TabsContent value="overview">
@@ -706,7 +706,7 @@ function StaffUserDetailsPage() {
 									) : (
 										<AssignedProfilesCard
 											profiles={profiles}
-											maxProfiles={Math.max(0, maxProfilesPerUser)}
+											maxProfiles={maxProfilesPerUser ?? 0}
 										/>
 									)}
 								</DetailMain>

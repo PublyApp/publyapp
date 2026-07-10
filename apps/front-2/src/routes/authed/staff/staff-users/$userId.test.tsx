@@ -67,6 +67,7 @@ vi.mock('react-i18next', () => ({
 vi.mock('@tanstack/react-query', () => ({
 	useQueryClient: () => ({
 		invalidateQueries: vi.fn().mockResolvedValue(undefined),
+		removeQueries: vi.fn(),
 	}),
 }));
 
@@ -149,6 +150,7 @@ describe('staff user details route', () => {
 							description: null,
 						},
 					],
+					maxProfilesPerUser: 5,
 				},
 			}),
 		);
@@ -209,6 +211,11 @@ describe('staff user details route', () => {
 		renderPage();
 
 		expect(screen.getByTestId('staff-user-details-page')).toBeTruthy();
+
+		const page = within(screen.getByTestId('staff-user-details-page'));
+		expect(page.getAllByText('Owner')).toHaveLength(2);
+		expect(page.getAllByText('Active')).toHaveLength(2);
+
 		expect(
 			screen.getByRole('link', { name: 'Back to staff users' }),
 		).toBeTruthy();
@@ -382,13 +389,16 @@ describe('staff user details route', () => {
 		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
 	});
 
-	// (a) clicking ⋯ opens the actions menu, not the delete dialog
+	// (a) clicking ⋯ opens the actions menu
 	test('ItShouldOpenMenuWhenKebabClicked', () => {
 		renderPage();
 
 		const menuTrigger = screen.getByTestId('staff-user-actions-menu');
-		expect(menuTrigger).toBeTruthy();
 		expect(menuTrigger.getAttribute('aria-label')).toBe('User actions');
+
+		fireEvent.click(menuTrigger);
+
+		expect(screen.getByRole('menuitem', { name: 'Delete' })).toBeTruthy();
 	});
 
 	// (b) Suspend opens the suspend dialog; confirming calls suspendUser.mutateAsync
@@ -496,5 +506,7 @@ describe('staff user details route', () => {
 		expect(mocks.navigate).toHaveBeenCalledWith({
 			to: '/staff/staff-users',
 		});
+
+		expect(screen.queryByTestId('staff-user-details-not-found')).toBeNull();
 	});
 });
