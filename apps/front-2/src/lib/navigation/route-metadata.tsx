@@ -20,7 +20,6 @@ import {
 } from '@tabler/icons-react';
 import type { TablerIcon } from '@tabler/icons-react';
 
-export type ShellDisplayMode = 'default' | 'full-detail';
 export type ShellScope = 'staff' | 'tenant';
 
 export type BreadcrumbItem = {
@@ -486,10 +485,6 @@ function isDetailPath(pathname: string): boolean {
 	return matchedPrefix !== undefined && matchedPrefix !== pathname;
 }
 
-export function getShellDisplayMode(pathname: string): ShellDisplayMode {
-	return isDetailPath(pathname) ? 'full-detail' : 'default';
-}
-
 export function shouldShowSecondaryPanel(
 	pathname: string,
 	options?: { sidebarOpen?: boolean; viewportWidth?: number },
@@ -498,12 +493,7 @@ export function shouldShowSecondaryPanel(
 	const sidebarOpen = options?.sidebarOpen ?? true;
 	const viewportWidth = options?.viewportWidth ?? Number.POSITIVE_INFINITY;
 
-	return (
-		sidebarOpen &&
-		viewportWidth >= 1024 &&
-		getShellDisplayMode(pathname) === 'default' &&
-		activeItems.length >= 2
-	);
+	return sidebarOpen && viewportWidth >= 1024 && activeItems.length >= 2;
 }
 
 export function getBreadcrumbsForPath(pathname: string): BreadcrumbItem[] {

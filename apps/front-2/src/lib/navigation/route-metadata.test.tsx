@@ -7,7 +7,6 @@ import {
 	getRailItems,
 	getRailItemsForPath,
 	getSecondaryPanelItems,
-	getShellDisplayMode,
 	shouldShowSecondaryPanel,
 } from './route-metadata';
 
@@ -85,14 +84,12 @@ describe('front-2 route metadata', () => {
 	});
 
 	test('tenant and audit panel destinations keep the secondary panel visible', () => {
-		expect(getShellDisplayMode('/tenant/posts/history')).toBe('default');
 		expect(
 			shouldShowSecondaryPanel('/tenant/posts/history', {
 				sidebarOpen: true,
 				viewportWidth: 1280,
 			}),
 		).toBe(true);
-		expect(getShellDisplayMode('/staff/audit-logs/sign-ins')).toBe('default');
 		expect(
 			shouldShowSecondaryPanel('/staff/audit-logs/sign-ins', {
 				sidebarOpen: true,
@@ -128,65 +125,69 @@ describe('front-2 route metadata', () => {
 		).toBe(false);
 	});
 
-	test('secondary panel is hidden on detail routes', () => {
+	test('secondary panel follows sidebarOpen on detail routes, not the route itself', () => {
 		expect(
 			shouldShowSecondaryPanel('/staff/staff-users/u-1', {
 				sidebarOpen: true,
 				viewportWidth: 1280,
 			}),
-		).toBe(false);
+		).toBe(true);
 		expect(
 			shouldShowSecondaryPanel('/staff/invitations/i-1', {
 				sidebarOpen: true,
 				viewportWidth: 1280,
 			}),
-		).toBe(false);
+		).toBe(true);
 		expect(
 			shouldShowSecondaryPanel('/staff/profiles/p-1', {
 				sidebarOpen: true,
 				viewportWidth: 1280,
 			}),
-		).toBe(false);
+		).toBe(true);
 		expect(
 			shouldShowSecondaryPanel('/staff/tenants/t-1', {
 				sidebarOpen: true,
 				viewportWidth: 1280,
 			}),
-		).toBe(false);
+		).toBe(true);
 		expect(
 			shouldShowSecondaryPanel('/staff/tenants/t-1/edit', {
 				sidebarOpen: true,
 				viewportWidth: 1280,
 			}),
-		).toBe(false);
+		).toBe(true);
 		expect(
 			shouldShowSecondaryPanel('/staff/tenants/t-1/users/invite', {
 				sidebarOpen: true,
 				viewportWidth: 1280,
 			}),
-		).toBe(false);
+		).toBe(true);
 	});
 
-	test('detail-route exception list stays in default shell mode', () => {
-		expect(getShellDisplayMode('/staff/tenants/new')).toBe('default');
-		expect(getShellDisplayMode('/staff/profiles/new')).toBe('default');
-		expect(getShellDisplayMode('/staff/invitations/new')).toBe('default');
+	test('detail-route exception list keeps the secondary panel visible', () => {
+		expect(
+			shouldShowSecondaryPanel('/staff/tenants/new', {
+				sidebarOpen: true,
+				viewportWidth: 1280,
+			}),
+		).toBe(true);
+		expect(
+			shouldShowSecondaryPanel('/staff/profiles/new', {
+				sidebarOpen: true,
+				viewportWidth: 1280,
+			}),
+		).toBe(true);
+		expect(
+			shouldShowSecondaryPanel('/staff/invitations/new', {
+				sidebarOpen: true,
+				viewportWidth: 1280,
+			}),
+		).toBe(true);
 	});
 
 	test('active route detection should not prefix-match false positives', () => {
 		expect(getActiveRailItem('/staff/staff-usersXYZ')).toBeUndefined();
 		expect(getActiveRailItem('/tenant/postsXYZ')).toBeUndefined();
-	});
-
-	test('detail routes collapse secondary panel for staff list forms', () => {
-		expect(getShellDisplayMode('/staff/staff-users/u-1')).toBe('full-detail');
-		expect(getShellDisplayMode('/staff/invitations/i-1')).toBe('full-detail');
-		expect(getShellDisplayMode('/staff/profiles/p-1')).toBe('full-detail');
-		expect(getShellDisplayMode('/staff/tenants/t-1')).toBe('full-detail');
-		expect(getShellDisplayMode('/staff/tenants/t-1/edit')).toBe('full-detail');
-		expect(getShellDisplayMode('/staff/tenants/t-1/users/invite')).toBe(
-			'full-detail',
-		);
 	});
 
 	test('secondary panel is hidden on small viewports', () => {

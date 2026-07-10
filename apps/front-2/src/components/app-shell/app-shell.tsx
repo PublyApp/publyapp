@@ -17,6 +17,7 @@ import { Input } from '~/components/ui/input';
 
 import avatarSrc from '../../assets/gray-ui/avatar-profile.jpg';
 import logoSvg from '../../assets/gray-ui/logo.svg';
+import { useMediaQuery } from '../../lib/hooks/use-media-query';
 import {
 	getActiveRailItem,
 	getBreadcrumbsForPath,
@@ -319,12 +320,10 @@ const AuthedWorkspaceShell = ({
 	const bottomRailItem = getBottomRailItemForPath(pathname);
 	const secondaryItems = getSecondaryPanelItems(pathname);
 	const breadcrumbs = getBreadcrumbsForPath(pathname);
+	const isDesktop = useMediaQuery('(min-width: 1024px)');
 	const showSecondaryPanel = shouldShowSecondaryPanel(pathname, {
 		sidebarOpen,
-		viewportWidth:
-			typeof window === 'undefined'
-				? Number.POSITIVE_INFINITY
-				: window.innerWidth,
+		viewportWidth: isDesktop ? 1024 : 0,
 	});
 
 	return (
@@ -424,7 +423,7 @@ const AuthedWorkspaceShell = ({
 							size="icon-sm"
 							variant="ghost"
 							aria-label={
-								sidebarOpen
+								showSecondaryPanel
 									? 'Collapse navigation panel'
 									: 'Expand navigation panel'
 							}
@@ -437,6 +436,32 @@ const AuthedWorkspaceShell = ({
 						<nav aria-label="Breadcrumb" className="app-shell-breadcrumbs">
 							{breadcrumbs.map((item, index) => {
 								const isLast = index === breadcrumbs.length - 1;
+								let content: ReactNode;
+								if (isLast) {
+									content = (
+										<span
+											aria-current="page"
+											className="app-shell-breadcrumb-current"
+										>
+											{item.label}
+										</span>
+									);
+								} else if (item.path) {
+									content = (
+										<Link
+											to={item.path as never}
+											className="app-shell-breadcrumb-link"
+										>
+											{item.label}
+										</Link>
+									);
+								} else {
+									content = (
+										<span className="app-shell-breadcrumb-muted">
+											{item.label}
+										</span>
+									);
+								}
 								return (
 									<Fragment key={`${item.label}-${index}`}>
 										{index > 0 ? (
@@ -445,25 +470,7 @@ const AuthedWorkspaceShell = ({
 												className="app-shell-breadcrumb-chevron"
 											/>
 										) : null}
-										{isLast ? (
-											<span
-												aria-current="page"
-												className="app-shell-breadcrumb-current"
-											>
-												{item.label}
-											</span>
-										) : item.path ? (
-											<Link
-												to={item.path as never}
-												className="app-shell-breadcrumb-link"
-											>
-												{item.label}
-											</Link>
-										) : (
-											<span className="app-shell-breadcrumb-muted">
-												{item.label}
-											</span>
-										)}
+										{content}
 									</Fragment>
 								);
 							})}

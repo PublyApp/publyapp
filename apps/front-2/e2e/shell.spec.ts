@@ -240,14 +240,14 @@ test('renders the handoff staff rail and secondary panel', async ({ page }) => {
 	await expect(panel.getByRole('link', { name: 'Profiles' })).toBeVisible();
 });
 
-test('collapses secondary panel on full-detail routes', async ({ page }) => {
+test('secondary panel stays visible on detail routes', async ({ page }) => {
 	await page.setViewportSize({ width: 1280, height: 900 });
 	await setSessionCookie(page);
 	await mockAuthRedirectCode(page);
 	await page.goto('/staff/staff-users/demo-user-id');
 
 	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
-	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
 });
 
 test('tenants route shows tenants panel destinations', async ({ page }) => {
@@ -317,16 +317,38 @@ test('rail navigation preserves collapsed sidebar preference', async ({
 	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
 });
 
-test('staff detail route has no secondary panel', async ({ page }) => {
+test('staff detail route keeps the secondary panel visible', async ({
+	page,
+}) => {
 	await page.setViewportSize({ width: 1280, height: 900 });
 	await setSessionCookie(page);
 	await mockAuthRedirectCode(page);
 	await page.goto('/staff/invitations/i-1');
 
-	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
 	await expect(
 		page.getByRole('button', { name: 'Collapse navigation panel' }),
 	).toBeVisible();
+});
+
+test('secondary panel follows the persisted preference across list and detail navigation', async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await setSessionCookie(page);
+	await mockAuthRedirectCode(page);
+	await page.goto('/staff/staff-users');
+
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
+
+	await page.goto('/staff/staff-users/demo-user-id');
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
+
+	await page.getByRole('button', { name: 'Collapse navigation panel' }).click();
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+
+	await page.goto('/staff/invitations/i-1');
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
 });
 
 test('no bottom rail on mobile and rail-hidden behavior is preserved', async ({
