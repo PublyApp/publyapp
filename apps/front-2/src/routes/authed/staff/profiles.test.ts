@@ -40,12 +40,18 @@ describe('toStaffProfileRows', () => {
 				name: 'Admin',
 				description: 'Administrators',
 				userAccountCount: 3,
+				icon: expect.any(String) as string,
+				iconBg: expect.any(String) as string,
+				iconFg: expect.any(String) as string,
 			},
 			{
 				id: 'profile-empty',
 				name: '—',
 				description: null,
 				userAccountCount: 0,
+				icon: expect.any(String) as string,
+				iconBg: expect.any(String) as string,
+				iconFg: expect.any(String) as string,
 			},
 		]);
 	});
@@ -67,6 +73,9 @@ describe('toStaffProfileDetails', () => {
 			name: 'Platform admin',
 			description: null,
 			userAccountCount: 0,
+			icon: expect.any(String) as string,
+			iconBg: expect.any(String) as string,
+			iconFg: expect.any(String) as string,
 		});
 	});
 

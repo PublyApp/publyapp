@@ -9,6 +9,7 @@ describe('createInvitationColumns', () => {
 		const columns = createInvitationColumns({
 			t,
 			locale: 'en',
+			onActionSuccess: () => undefined,
 		});
 		const profileColumn = columns.find(
 			(column) => column.id === 'profile_name',

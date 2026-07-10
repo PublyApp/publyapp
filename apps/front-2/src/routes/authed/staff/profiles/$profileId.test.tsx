@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
 	useStaffProfileDetailsQuery: vi.fn(),
 	useStaffProfilePermissionKeysQuery: vi.fn(),
 	useStaffPermissionCatalogQuery: vi.fn(),
+	useStaffProfileUsersQuery: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
 }));
 
@@ -61,12 +62,20 @@ vi.mock('~/lib/query/staff-profiles', () => ({
 				name: profile.name ?? 'Platform admin',
 				description: profile.description ?? null,
 				userAccountCount: profile.userAccountCount ?? 2,
+				icon: 'shield',
+				iconBg: 'var(--publy-chip-invited-bg)',
+				iconFg: 'var(--publy-chip-invited-text)',
 			};
 		},
 	),
 	useStaffProfileDetailsQuery: mocks.useStaffProfileDetailsQuery,
 	useStaffProfilePermissionKeysQuery: mocks.useStaffProfilePermissionKeysQuery,
 	useStaffPermissionCatalogQuery: mocks.useStaffPermissionCatalogQuery,
+}));
+
+vi.mock('~/lib/query/staff-profile-users', () => ({
+	toStaffProfileUserRows: vi.fn(() => []),
+	useStaffProfileUsersQuery: mocks.useStaffProfileUsersQuery,
 }));
 
 vi.mock('~/routes/authed/layout', () => ({
@@ -119,6 +128,7 @@ describe('staff profile details route', () => {
 			}),
 		);
 		mocks.useStaffPermissionCatalogQuery.mockReturnValue(buildQueryResult());
+		mocks.useStaffProfileUsersQuery.mockReturnValue(buildQueryResult());
 	});
 
 	afterEach(() => {

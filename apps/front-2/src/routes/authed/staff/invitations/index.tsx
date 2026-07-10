@@ -1,10 +1,6 @@
-import {
-	IconAdjustmentsHorizontal,
-	IconChevronDown,
-	IconUserPlus,
-} from '@tabler/icons-react';
+import { IconChevronDown, IconCircleDot, IconPlus } from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
@@ -105,9 +101,15 @@ function StaffInvitationsPage() {
 		q: controller.search.committed,
 		status: search.status,
 	});
+
+	const onRefetch = useCallback(() => {
+		void query.refetch();
+	}, [query]);
+
 	const columns = createInvitationColumns({
 		t: (key) => t(key),
 		locale: i18n.language,
+		onActionSuccess: onRefetch,
 	});
 	const rows = toRows(query.data?.data);
 	const filteredRows = filterInvitationRows(rows, controller.search.committed);
@@ -152,16 +154,21 @@ function StaffInvitationsPage() {
 	return (
 		<div className="publy-page-fill" data-testid="staff-invitations-list-page">
 			<PageHeader
-				title={t('staff-invitations')}
-				description="Track pending, accepted, and expired staff invitations."
+				title="Invitations"
+				description="Invite staff users to the platform."
 				actions={
-					<Link
-						to="/staff/invitations/new"
-						className={buttonVariants({ variant: 'default' })}
-					>
-						<IconUserPlus aria-hidden="true" className="size-4" />
-						{t('invite-users')}
-					</Link>
+					<div className="flex items-center gap-2.5">
+						<span className="publy-profile-count-badge">
+							{filteredRows.length}
+						</span>
+						<Link
+							to="/staff/invitations/new"
+							className={buttonVariants({ variant: 'default' })}
+						>
+							<IconPlus aria-hidden="true" className="size-[15px]" />
+							Invite user
+						</Link>
+					</div>
 				}
 			/>
 
@@ -177,12 +184,12 @@ function StaffInvitationsPage() {
 								/>
 							}
 						>
-							<IconAdjustmentsHorizontal
+							<IconCircleDot
 								aria-hidden="true"
-								className="size-4"
+								className="size-[15px] text-[var(--publy-foreground-secondary)]"
 							/>
 							<span className="truncate">{statusFilterLabel}</span>
-							<IconChevronDown aria-hidden="true" className="size-3.5" />
+							<IconChevronDown aria-hidden="true" className="size-3" />
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end" sideOffset={6}>
 							{KNOWN_INVITATION_STATUSES.map((status) => (
@@ -226,6 +233,7 @@ function StaffInvitationsPage() {
 				onPreviousPage={controller.cursor.onPreviousPage}
 				searchDraft={controller.search.draft}
 				onSearchDraftChange={controller.search.onDraftChange}
+				searchPlaceholder="Search invitations…"
 				selection={selection}
 			/>
 		</div>

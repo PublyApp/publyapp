@@ -56,6 +56,11 @@ export type StaffProfileRow = {
 	name: string;
 	description: string | null;
 	userAccountCount: number;
+	/** Derived icon for the profile tile (Tabler icon name without ti- prefix). */
+	icon: string;
+	/** Derived tint color for the profile tile (e.g. '#f0f9ff' / '#0369a1'). */
+	iconBg: string;
+	iconFg: string;
 };
 
 export type StaffProfileDetails = {
@@ -63,6 +68,9 @@ export type StaffProfileDetails = {
 	name: string;
 	description: string | null;
 	userAccountCount: number;
+	icon: string;
+	iconBg: string;
+	iconFg: string;
 };
 
 export type StaffProfileDetailsQueryVariables = {
@@ -105,6 +113,41 @@ const normalizeOptionalString = (value: unknown): string | undefined => {
 	return trimmed.length > 0 ? trimmed : undefined;
 };
 
+const PROFILE_ICONS = [
+	'news',
+	'calendar',
+	'shield',
+	'building-bank',
+	'users',
+	'settings',
+	'chart-bar',
+	'world',
+] as const;
+
+const PROFILE_ICON_TONES: { bg: string; fg: string }[] = [
+	{ bg: '#f0f9ff', fg: '#0369a1' },
+	{ bg: '#ecfdf5', fg: '#047857' },
+	{ bg: '#fef2f2', fg: '#be123c' },
+	{ bg: '#fffbeb', fg: '#b45309' },
+	{ bg: '#f5f3ff', fg: '#7c3aed' },
+	{ bg: '#fdf2f8', fg: '#be185d' },
+	{ bg: '#f0fdf4', fg: '#15803d' },
+	{ bg: '#eff6ff', fg: '#1d4ed8' },
+];
+
+const deriveProfileIcon = (
+	name: string,
+): { icon: string; iconBg: string; iconFg: string } => {
+	const sum = [...name].reduce((a, c) => a + c.charCodeAt(0), 0);
+	const iconIdx = sum % PROFILE_ICONS.length;
+	const toneIdx = sum % PROFILE_ICON_TONES.length;
+	return {
+		icon: PROFILE_ICONS[iconIdx],
+		iconBg: PROFILE_ICON_TONES[toneIdx].bg,
+		iconFg: PROFILE_ICON_TONES[toneIdx].fg,
+	};
+};
+
 const formatModuleLabel = (moduleKey: string): string =>
 	moduleKey
 		.trim()
@@ -138,6 +181,7 @@ export const toStaffProfileRows = (
 			name: item.name?.trim() || '—',
 			description: item.description ?? null,
 			userAccountCount: item.userAccountCount ?? 0,
+			...deriveProfileIcon(item.name?.trim() || 'profile'),
 		});
 	}
 
@@ -159,6 +203,9 @@ export const toStaffProfileDetails = (
 		name: normalizeString(profile?.name ?? undefined) ?? '—',
 		description: profile?.description ?? null,
 		userAccountCount: profile?.userAccountCount ?? 0,
+		...deriveProfileIcon(
+			normalizeString(profile?.name ?? undefined) ?? 'profile',
+		),
 	};
 };
 
