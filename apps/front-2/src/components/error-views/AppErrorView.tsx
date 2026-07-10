@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Card } from '~/components/ui/card';
+import { cn } from '~/lib/utils';
 
 type AppErrorViewProps = {
 	icon: ReactNode;
@@ -10,6 +11,10 @@ type AppErrorViewProps = {
 	errorDetails?: ReactNode;
 	diagnosticId?: string;
 	testId?: string;
+	/** Wash/ring/glyph-tile color. Defaults to 'neutral' (e.g. 404/not-found). */
+	tone?: 'neutral' | 'danger';
+	/** Renders inside an existing page shell instead of a full-viewport main. */
+	embedded?: boolean;
 };
 
 export const AppErrorView = ({
@@ -21,16 +26,38 @@ export const AppErrorView = ({
 	errorDetails,
 	diagnosticId,
 	testId,
+	tone = 'neutral',
+	embedded = false,
 }: AppErrorViewProps) => {
+	const ghostNumeral = code?.match(/^\d+/)?.[0];
+
 	return (
-		<main className="mx-auto flex min-h-screen w-full max-w-4xl items-center justify-center px-4 py-12">
+		<main
+			className={cn(
+				'mx-auto flex w-full max-w-4xl items-center justify-center px-4',
+				embedded ? 'min-h-[50vh] py-8' : 'min-h-screen py-12',
+			)}
+		>
 			<Card className="w-full max-w-lg" data-testid={testId}>
 				<div className="space-y-3 p-6 text-center">
-					<div
-						className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-border bg-muted text-3xl"
-						aria-hidden="true"
-					>
-						{icon}
+					<div className="publy-error-hero">
+						{ghostNumeral ? (
+							<span className="publy-error-ghost-numeral" aria-hidden="true">
+								{ghostNumeral}
+							</span>
+						) : null}
+						<div
+							className="publy-state-icon-cluster"
+							data-tone={tone}
+							aria-hidden="true"
+						>
+							<span className="publy-state-icon-wash" />
+							<span className="publy-state-icon-ring publy-state-icon-ring--outer" />
+							<span className="publy-state-icon-ring publy-state-icon-ring--inner" />
+							<div className="publy-state-icon" data-tone={tone}>
+								{icon}
+							</div>
+						</div>
 					</div>
 					{code ? (
 						<p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">

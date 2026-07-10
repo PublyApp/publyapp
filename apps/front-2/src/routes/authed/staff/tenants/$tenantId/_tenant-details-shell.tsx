@@ -130,6 +130,8 @@ const InvalidTenantView = ({ error }: { error: unknown }) => (
 			'This tenant link is malformed or incomplete.',
 		)}
 		testId="staff-tenant-details-invalid"
+		tone="danger"
+		embedded
 	/>
 );
 
@@ -143,6 +145,7 @@ const MissingTenantView = ({ error }: { error: unknown }) => (
 			'The requested tenant does not exist or is no longer available.',
 		)}
 		testId="staff-tenant-details-not-found"
+		embedded
 	/>
 );
 
@@ -152,7 +155,7 @@ export const TenantDetailsError = ({ error }: { error: unknown }) => {
 	}
 
 	if (isProblemStatus(error, 403)) {
-		return <View403 />;
+		return <View403 embedded />;
 	}
 
 	if (isProblemStatus(error, 404)) {
@@ -166,6 +169,8 @@ export const TenantDetailsError = ({ error }: { error: unknown }) => {
 			title="Unable to load this tenant"
 			description="There was a problem loading the tenant details."
 			testId="staff-tenant-details-error"
+			tone="danger"
+			embedded
 		/>
 	);
 };

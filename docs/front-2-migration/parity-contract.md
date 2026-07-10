@@ -276,3 +276,28 @@ is set after the settings interaction), the locale switch, and the invite flow.
   Enforcement is `<colgroup>` + `table-layout: fixed` on `.publy-data-table`;
   a column with no `width` meta is the fluid one. e2e asserts computed pixel
   widths and that `table.scrollWidth <= card.clientWidth` (owner item 15a).
+- Empty/no-match/error state composition: SPEC 2f describes the shared list
+  states as flat icon tiles — empty `48px r14 #f4f4f5` tile, error
+  `52px r16` rose tile. **Superseded 2026-07-10 (owner-approved, P5 items
+  4+14):** the owner rejected both the error views and the list empty states
+  outright ("bump the creativity"); this was a build-one-strong-direction
+  task with no mockup round. Both surfaces now share one composition: a
+  `.publy-state-icon-cluster` (96px) layering a tone-tinted radial wash
+  (`.publy-state-icon-wash`), two concentric rings (`.publy-state-icon-ring
+  --outer`/`--inner`), and the glyph tile on top — tile size/radius unified
+  at `56px` / `16px` (`--publy-radius-frame`) across tones, differing only by
+  color (neutral gray "empty" / primary gold "no-match, an escape hatch" /
+  danger rose "error"). `NoMatchStateSurface` moved from `tone="neutral"` to
+  `tone="primary"` so empty and no-match no longer read as the same state
+  with a different icon. `AppErrorView` gained a ghosted numeral (parsed from
+  the leading digits of the `code` prop) behind the cluster, clipped to the
+  hero row, plus `tone`/`embedded` props — `embedded` drops the forced
+  `min-h-screen` when the view renders inside an existing route shell (the
+  tenant details shell). New tokens: `--publy-state-wash-{neutral,danger,
+  primary}` / `--publy-state-ring-{neutral,danger,primary}`, declared in both
+  the light and dark blocks as `color-mix()` derivations of already-themed
+  tokens. `design-handoff-foundation.spec.ts` and `artboard-assertions.ts`
+  (`2f`, `empty.iconTile` radius) were rewritten to the new values, not
+  loosened. `View404`/`View403` also stopped doing a full-document
+  `window.location.assign('/')` on "Return home" (a TanStack `Link` now) and
+  had every string routed through `t()`.

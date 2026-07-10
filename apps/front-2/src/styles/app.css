@@ -167,6 +167,36 @@
 	--publy-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
 	--publy-motion-fast: 120ms;
 	--publy-motion-panel: 180ms;
+	--publy-state-wash-neutral: color-mix(
+		in srgb,
+		var(--publy-foreground-muted) 20%,
+		transparent
+	);
+	--publy-state-wash-danger: color-mix(
+		in srgb,
+		var(--publy-danger) 18%,
+		transparent
+	);
+	--publy-state-wash-primary: color-mix(
+		in srgb,
+		var(--publy-primary) 26%,
+		transparent
+	);
+	--publy-state-ring-neutral: color-mix(
+		in srgb,
+		var(--publy-foreground-muted) 16%,
+		transparent
+	);
+	--publy-state-ring-danger: color-mix(
+		in srgb,
+		var(--publy-danger) 24%,
+		transparent
+	);
+	--publy-state-ring-primary: color-mix(
+		in srgb,
+		var(--publy-primary) 32%,
+		transparent
+	);
 	--accent: var(--publy-primary);
 	--accent-foreground: var(--publy-primary-foreground);
 }
@@ -219,6 +249,36 @@ html.dark {
 	--publy-chip-pending-border: #92400e;
 	--publy-chip-pending-bg: #451a03;
 	--publy-chip-pending-text: #fbbf24;
+	--publy-state-wash-neutral: color-mix(
+		in srgb,
+		var(--publy-foreground-muted) 20%,
+		transparent
+	);
+	--publy-state-wash-danger: color-mix(
+		in srgb,
+		var(--publy-danger) 18%,
+		transparent
+	);
+	--publy-state-wash-primary: color-mix(
+		in srgb,
+		var(--publy-primary) 26%,
+		transparent
+	);
+	--publy-state-ring-neutral: color-mix(
+		in srgb,
+		var(--publy-foreground-muted) 16%,
+		transparent
+	);
+	--publy-state-ring-danger: color-mix(
+		in srgb,
+		var(--publy-danger) 24%,
+		transparent
+	);
+	--publy-state-ring-primary: color-mix(
+		in srgb,
+		var(--publy-primary) 32%,
+		transparent
+	);
 }
 
 @layer base {
@@ -241,6 +301,24 @@ html {
 		animation-duration: 1ms !important;
 		animation-iteration-count: 1 !important;
 		scroll-behavior: auto !important;
+	}
+}
+
+@keyframes publy-state-rise {
+	from {
+		opacity: 0;
+		transform: translateY(6px);
+	}
+
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.publy-state-icon-cluster {
+		animation: none;
 	}
 }
 
@@ -912,7 +990,7 @@ html {
 	}
 
 	.publy-state-surface {
-		@apply flex flex-col items-center justify-center gap-3 text-center;
+		@apply flex flex-col items-center justify-center gap-4 text-center;
 		min-height: 15rem;
 		padding: 48px 24px;
 		background: var(--publy-surface);
@@ -935,30 +1013,86 @@ html {
 		color: var(--publy-foreground-muted);
 	}
 
+	/* Layered glyph cluster: a soft wash + two concentric rings behind the
+	   glyph tile, replacing the old flat bordered square. Circles use an
+	   explicit 50% radius (a fixed square box) rather than the fully-rounded
+	   pattern reserved for avatars and topbar controls. */
+	.publy-state-icon-cluster {
+		position: relative;
+		display: flex;
+		width: 96px;
+		height: 96px;
+		flex-shrink: 0;
+		align-items: center;
+		justify-content: center;
+		animation: publy-state-rise 360ms var(--publy-motion-ease) both;
+	}
+
+	.publy-state-icon-wash {
+		position: absolute;
+		inset: 0;
+		border-radius: 50%;
+		background: radial-gradient(
+			circle at 50% 42%,
+			var(--publy-state-wash-neutral),
+			transparent 72%
+		);
+	}
+
+	.publy-state-icon-cluster[data-tone='danger'] .publy-state-icon-wash {
+		background: radial-gradient(
+			circle at 50% 42%,
+			var(--publy-state-wash-danger),
+			transparent 72%
+		);
+	}
+
+	.publy-state-icon-cluster[data-tone='primary'] .publy-state-icon-wash {
+		background: radial-gradient(
+			circle at 50% 42%,
+			var(--publy-state-wash-primary),
+			transparent 72%
+		);
+	}
+
+	.publy-state-icon-ring {
+		position: absolute;
+		border-radius: 50%;
+		border: 1px solid var(--publy-state-ring-neutral);
+	}
+
+	.publy-state-icon-ring--outer {
+		inset: 0;
+	}
+
+	.publy-state-icon-ring--inner {
+		inset: 16px;
+	}
+
+	.publy-state-icon-cluster[data-tone='danger'] .publy-state-icon-ring {
+		border-color: var(--publy-state-ring-danger);
+	}
+
+	.publy-state-icon-cluster[data-tone='primary'] .publy-state-icon-ring {
+		border-color: var(--publy-state-ring-primary);
+	}
+
 	.publy-state-icon {
 		@apply flex items-center justify-center;
-		width: 48px;
-		height: 48px;
-		border-radius: var(--publy-radius-control);
+		position: relative;
+		z-index: 1;
+		width: 56px;
+		height: 56px;
+		border-radius: var(--publy-radius-frame);
 		background: var(--publy-surface-muted);
 		color: var(--publy-foreground-muted);
+		box-shadow: var(--publy-shadow-elevated);
 		transition:
 			background-color var(--publy-motion-fast) var(--publy-motion-ease),
 			color var(--publy-motion-fast) var(--publy-motion-ease);
 	}
 
-	.publy-state-icon[data-tone='neutral'] {
-		width: 48px;
-		height: 48px;
-		border-radius: var(--publy-radius-control);
-		background: var(--publy-surface-muted);
-		color: var(--publy-foreground-muted);
-	}
-
 	.publy-state-icon[data-tone='danger'] {
-		width: 52px;
-		height: 52px;
-		border-radius: 16px;
 		background: var(--publy-chip-suspended-bg);
 		color: var(--publy-chip-suspended-text);
 	}
@@ -969,8 +1103,43 @@ html {
 	}
 
 	.publy-state-icon-glyph {
-		width: 20px;
-		height: 20px;
+		width: 22px;
+		height: 22px;
+	}
+
+	/* Ghost numeral behind the error-view cluster: a large, low-alpha status
+	   code clipped to the hero row. Purely decorative — the `code` caption
+	   text carries the accessible label. */
+	.publy-error-hero {
+		position: relative;
+		display: flex;
+		min-height: 132px;
+		align-items: center;
+		justify-content: center;
+		overflow: hidden;
+	}
+
+	.publy-error-ghost-numeral {
+		position: absolute;
+		inset: 0;
+		z-index: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		overflow: hidden;
+		white-space: nowrap;
+		font-family: var(--publy-font-mono);
+		font-size: 96px;
+		font-weight: 700;
+		line-height: 1;
+		letter-spacing: -0.03em;
+		color: var(--publy-foreground);
+		opacity: 0.06;
+		user-select: none;
+	}
+
+	html.dark .publy-error-ghost-numeral {
+		opacity: 0.09;
 	}
 
 	.publy-state-technical-id {

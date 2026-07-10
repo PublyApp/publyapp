@@ -91,3 +91,23 @@ test('unknown paths render the shared 404 view', async ({ page }) => {
 
 	await expect(page.getByTestId('view-404')).toBeVisible();
 });
+
+test('404 "Return home" navigates client-side instead of reloading the document', async ({
+	page,
+}) => {
+	await page.goto('/route-does-not-exist');
+	await expect(page.getByTestId('view-404')).toBeVisible();
+
+	await page.evaluate(() => {
+		(window as unknown as { __spaAlive?: boolean }).__spaAlive = true;
+	});
+	await page
+		.getByTestId('view-404')
+		.getByRole('link', { name: /home/i })
+		.click();
+
+	const alive = await page.evaluate(
+		() => (window as unknown as { __spaAlive?: boolean }).__spaAlive === true,
+	);
+	expect(alive).toBe(true);
+});

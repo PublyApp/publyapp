@@ -257,10 +257,14 @@ const JSON_BACKED_FOCUS: Record<
 	],
 	'2f': [
 		{
+			// Owner decision 2026-07-10 (P5, items 4+14): the flat 14px tile was
+			// replaced by a layered glyph cluster (wash + rings + tile). The tile
+			// radius is now unified at 16px (--publy-radius-frame) across tones —
+			// see parity-contract.md "Empty/no-match/error state composition".
 			kind: 'radius',
 			component: 'empty.iconTile',
 			property: 'border-radius',
-			expected: '14px',
+			expected: '16px',
 		},
 		{
 			kind: 'radius',

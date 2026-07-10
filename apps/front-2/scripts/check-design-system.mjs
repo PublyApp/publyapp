@@ -19,12 +19,6 @@ const KNOWN_HANDOFF_GUARD_DEBT = [
 	},
 	{
 		ruleId: ROUNDED_RULE_ID,
-		file: 'src/components/error-views/AppErrorView.tsx',
-		sourceIncludes: 'h-16 w-16 items-center justify-center rounded-full',
-		reason: 'Legacy error icon tile; Task 4 state-surface pass owns this.',
-	},
-	{
-		ruleId: ROUNDED_RULE_ID,
 		file: 'src/components/error-views/LogoutRedirect.tsx',
 		sourceIncludes: 'size-8 animate-spin rounded-full',
 		reason: 'Legacy loading spinner; spinner cleanup is outside Task 1.',

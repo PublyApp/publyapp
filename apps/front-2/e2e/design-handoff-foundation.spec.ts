@@ -262,7 +262,7 @@ test('asserts staff shell rails and panel match handoff registry', async ({
 	await expect(panel.getByRole('link', { name: 'Profiles' })).toBeVisible();
 });
 
-test('asserts neutral state icon uses 48px tile with 14px radius and muted background', async ({
+test('asserts the no-match glyph cluster uses the layered composition (primary tone, 56px r16 tile inside a 96px halo)', async ({
 	page,
 }) => {
 	await loginAsStaffAdmin(page);
@@ -285,9 +285,19 @@ test('asserts neutral state icon uses 48px tile with 14px radius and muted backg
 	const noMatch = page.getByTestId('staff-users-table-no-match');
 	await expect(noMatch).toBeVisible();
 
-	const icon = noMatch.locator('.publy-state-icon[data-tone="neutral"]');
-	await expect(icon).toHaveCSS('width', '48px');
-	await expect(icon).toHaveCSS('height', '48px');
-	await expect(icon).toHaveCSS('border-radius', '14px');
-	await expect(icon).toHaveCSS('background-color', 'rgb(244, 244, 245)');
+	const cluster = noMatch.locator('.publy-state-icon-cluster');
+	await expect(cluster).toHaveCSS('width', '96px');
+	await expect(cluster).toHaveCSS('height', '96px');
+	await expect(cluster).toHaveAttribute('data-tone', 'primary');
+	await expect(cluster).toHaveAttribute('aria-hidden', 'true');
+
+	await expect(cluster.locator('.publy-state-icon-wash')).toBeVisible();
+	await expect(cluster.locator('.publy-state-icon-ring--outer')).toBeVisible();
+	await expect(cluster.locator('.publy-state-icon-ring--inner')).toBeVisible();
+
+	const icon = cluster.locator('.publy-state-icon[data-tone="primary"]');
+	await expect(icon).toHaveCSS('width', '56px');
+	await expect(icon).toHaveCSS('height', '56px');
+	await expect(icon).toHaveCSS('border-radius', '16px');
+	await expect(icon).toHaveCSS('background-color', 'rgb(255, 251, 235)');
 });

@@ -73,6 +73,20 @@ describe('state-surface', () => {
 				.getByTestId('nomatch')
 				.querySelector('.publy-state-icon')
 				?.getAttribute('data-tone'),
-		).toBe('neutral');
+		).toBe('primary');
+	});
+
+	test('hides the decorative glyph cluster from assistive tech', () => {
+		render(
+			<StateSurface
+				title="No records yet"
+				description="Add one to continue."
+				testId="surface"
+			/>,
+		);
+		const cluster = screen
+			.getByTestId('surface')
+			.querySelector('.publy-state-icon-cluster');
+		expect(cluster?.getAttribute('aria-hidden')).toBe('true');
 	});
 });

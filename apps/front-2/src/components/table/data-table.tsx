@@ -13,6 +13,7 @@ import {
 	useReactTable,
 } from '@tanstack/react-table';
 import { useMemo, type KeyboardEvent, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
 import { Checkbox } from '~/components/ui/checkbox';
 import { Input } from '~/components/ui/input';
@@ -164,6 +165,7 @@ export const DataTable = <TData extends { id: string }>({
 	rowHeight,
 	density,
 }: DataTableProps<TData>) => {
+	const { t } = useTranslation('common');
 	const isSelectionMode = selection?.isSelectionMode ?? false;
 	const hasSelection = selection != null;
 	const resolvedRowHeight = useMemo<TableRowHeight>(() => {
@@ -218,7 +220,7 @@ export const DataTable = <TData extends { id: string }>({
 	if (typeof errorContent === 'string') {
 		errorDescription = errorContent;
 	} else if (!errorContent) {
-		errorDescription = 'There was a problem loading this list.';
+		errorDescription = t('list-error-default-description');
 	}
 	const errorActions =
 		typeof errorContent !== 'string' && errorContent ? errorContent : undefined;
@@ -226,14 +228,14 @@ export const DataTable = <TData extends { id: string }>({
 	const emptyDescription =
 		typeof emptyContent === 'string'
 			? emptyContent
-			: 'No records yet. Create one to get started.';
+			: t('list-empty-default-description');
 	const emptyActions =
 		typeof emptyContent !== 'string' && emptyContent ? emptyContent : undefined;
 
 	const noMatchDescription =
 		typeof noMatchContent === 'string'
 			? noMatchContent
-			: 'No results match your search.';
+			: t('list-no-match-default-description');
 	const noMatchActions =
 		typeof noMatchContent !== 'string' && noMatchContent
 			? noMatchContent
@@ -377,13 +379,13 @@ export const DataTable = <TData extends { id: string }>({
 
 			{bodyState === 'error' ? (
 				<ErrorStateSurface
-					title="List unavailable"
+					title={t('list-unavailable-title')}
 					description={errorDescription}
 					actions={
 						<>
 							{errorActions}
 							<Button variant="outline" onClick={onRetry} type="button">
-								Retry
+								{t('retry')}
 							</Button>
 						</>
 					}
@@ -393,7 +395,7 @@ export const DataTable = <TData extends { id: string }>({
 
 			{bodyState === 'empty' ? (
 				<StateSurface
-					title="No records yet"
+					title={t('list-empty-title')}
 					description={emptyDescription}
 					actions={emptyActions}
 					testId={`${testId}-empty`}
@@ -402,7 +404,7 @@ export const DataTable = <TData extends { id: string }>({
 
 			{bodyState === 'no-match' ? (
 				<NoMatchStateSurface
-					title="No matches"
+					title={t('list-no-match-title')}
 					description={noMatchDescription}
 					actions={noMatchActions}
 					testId={`${testId}-no-match`}

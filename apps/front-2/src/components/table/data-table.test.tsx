@@ -8,6 +8,27 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { DataTable } from './data-table';
 import type { UseRowSelectionResult } from './use-row-selection';
 
+vi.mock('react-i18next', () => ({
+	useTranslation: () => ({
+		t: (key: string) => {
+			const labels: Record<string, string> = {
+				'list-unavailable-title': 'List unavailable',
+				'list-error-default-description':
+					'There was a problem loading this list.',
+				retry: 'Retry',
+				'list-empty-title': 'Nothing here — yet',
+				'list-empty-default-description':
+					'No records yet. Create one to get started.',
+				'list-no-match-title': 'No matches for that search',
+				'list-no-match-default-description': 'No results match your search.',
+			};
+
+			return labels[key] ?? key;
+		},
+		i18n: { language: 'en' },
+	}),
+}));
+
 afterEach(cleanup);
 
 const noop = () => undefined;
