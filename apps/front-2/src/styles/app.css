@@ -175,7 +175,7 @@ html.dark {
 	--publy-primary-active: #c49700;
 	--publy-primary-soft: #2a2400;
 	--publy-primary-foreground: #1a0d00;
-	--publy-background: #09090b;
+	--publy-background: #18181b;
 	--publy-surface: #18181b;
 	--publy-surface-raised: #1f1f23;
 	--publy-surface-muted: #27272a;
@@ -189,8 +189,8 @@ html.dark {
 	--publy-disabled: #52525b;
 	--publy-table-header: #212124;
 	--publy-row-border: #27272a;
-	--publy-border: #3f3f46;
-	--publy-border-strong: #52525b;
+	--publy-border: rgba(255, 255, 255, 0.1);
+	--publy-border-strong: rgba(255, 255, 255, 0.15);
 	--publy-shadow-inset: 0 1px 0 color-mix(in srgb, white 6%, transparent) inset;
 	--publy-danger-soft: rgba(220, 38, 38, 0.16);
 	--publy-destructive-soft: rgba(220, 38, 38, 0.2);
@@ -225,9 +225,6 @@ html {
 	font-family: var(--publy-font-sans);
 	background: var(--publy-background);
 	color: var(--publy-foreground);
-	transition:
-		background-color var(--publy-motion-panel) var(--publy-motion-ease),
-		color var(--publy-motion-panel) var(--publy-motion-ease);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1840,4 +1837,12 @@ html {
 
 .publy-perm-check svg {
 	color: var(--publy-primary-foreground);
+}
+
+/* Theme switching must not animate: suppress every transition for one frame
+   around the .dark class swap so surfaces don't cross-fade at staggered
+   durations. Hover/interaction transitions resume immediately after. */
+html[data-theme-changing],
+html[data-theme-changing] * {
+	transition: none !important;
 }

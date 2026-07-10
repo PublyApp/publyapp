@@ -15,6 +15,19 @@ export const ThemeToggle = ({ className }: { className?: string }) => {
 	const Icon = isDarkMode ? IconSun : IconMoon;
 	const ariaPressed = isDarkMode;
 
+	const handleClick = () => {
+		const root = document.documentElement;
+		root.setAttribute('data-theme-changing', 'true');
+		toggleColorScheme();
+		// Wait a full paint (double rAF) before re-enabling transitions so the
+		// class swap itself never animates, only interactions afterward do.
+		requestAnimationFrame(() => {
+			requestAnimationFrame(() => {
+				root.removeAttribute('data-theme-changing');
+			});
+		});
+	};
+
 	return (
 		<Button
 			data-testid={THEME_TOGGLE_TEST_ID}
@@ -23,7 +36,7 @@ export const ThemeToggle = ({ className }: { className?: string }) => {
 			className={className}
 			aria-label={label}
 			aria-pressed={ariaPressed}
-			onClick={toggleColorScheme}
+			onClick={handleClick}
 		>
 			<Icon aria-hidden="true" className="size-4" />
 		</Button>
