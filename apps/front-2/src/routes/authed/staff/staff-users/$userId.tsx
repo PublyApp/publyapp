@@ -534,13 +534,11 @@ function StaffUserDetailsPage() {
 		try {
 			setDetailActionError('');
 			await deleteUser.mutateAsync({ userId });
-			await navigate({ to: '/staff/staff-users' });
 			queryClient.removeQueries({
 				queryKey: ['staff', ...STAFF_USER_DETAILS_QUERY_KEY],
 			});
 			void queryClient.invalidateQueries({
 				queryKey: ['staff', ...STAFF_USERS_QUERY_KEY],
-				exact: true,
 			});
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
@@ -557,13 +555,17 @@ function StaffUserDetailsPage() {
 			setDeleteDialogOpen(false);
 			setDeleteConfirmText('');
 		}
+
+		try {
+			await navigate({ to: '/staff/staff-users' });
+		} catch {
+			// navigation rejection after successful delete — don't reuse failure message
+		}
 	};
 
 	const isDeleteConfirmReady =
 		deleteConfirmText.trim().toLowerCase() === 'delete';
-	const maxProfilesPerUser = profilesQuery.data?.maxProfilesPerUser as
-		| number
-		| undefined;
+	const maxProfilesPerUser = profilesQuery.data?.maxProfilesPerUser;
 	const profilesHasError =
 		profilesQuery.isError && !shouldLogoutForFailure(profilesQuery.error);
 

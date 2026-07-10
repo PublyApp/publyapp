@@ -21,6 +21,10 @@ const mocks = vi.hoisted(() => ({
 	useSuspendStaffUserMutation: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
 	navigate: vi.fn().mockResolvedValue(undefined),
+	queryClient: {
+		invalidateQueries: vi.fn().mockResolvedValue(undefined),
+		removeQueries: vi.fn(),
+	},
 }));
 
 vi.mock('@tanstack/react-router', () => ({
@@ -65,10 +69,7 @@ vi.mock('react-i18next', () => ({
 }));
 
 vi.mock('@tanstack/react-query', () => ({
-	useQueryClient: () => ({
-		invalidateQueries: vi.fn().mockResolvedValue(undefined),
-		removeQueries: vi.fn(),
-	}),
+	useQueryClient: () => mocks.queryClient,
 }));
 
 vi.mock('~/components/error-views/LogoutRedirect', () => ({
@@ -80,6 +81,8 @@ vi.mock('~/components/error-views/View403', () => ({
 }));
 
 vi.mock('~/lib/query/staff-users', () => ({
+	STAFF_USERS_QUERY_KEY: ['staff-users'],
+	STAFF_USER_DETAILS_QUERY_KEY: ['staff-users', 'detail'],
 	toAssignedStaffProfiles: mocks.toAssignedStaffProfiles,
 	toStaffUserDetails: mocks.toStaffUserDetails,
 	useStaffUserProfilesQuery: mocks.useStaffUserProfilesQuery,
@@ -127,6 +130,7 @@ const renderPage = () => {
 describe('staff user details route', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mocks.navigate.mockResolvedValue(undefined);
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
 		mocks.useStaffUserDetailsQuery.mockReturnValue(
 			buildQueryResult({
@@ -389,7 +393,7 @@ describe('staff user details route', () => {
 		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
 	});
 
-	// (a) clicking ⋯ opens the actions menu
+	// (a) clicking ⋯ opens the actions menu, not the delete dialog
 	test('ItShouldOpenMenuWhenKebabClicked', () => {
 		renderPage();
 
@@ -399,6 +403,7 @@ describe('staff user details route', () => {
 		fireEvent.click(menuTrigger);
 
 		expect(screen.getByRole('menuitem', { name: 'Delete' })).toBeTruthy();
+		expect(screen.queryByRole('dialog')).toBeNull();
 	});
 
 	// (b) Suspend opens the suspend dialog; confirming calls suspendUser.mutateAsync
@@ -498,14 +503,27 @@ describe('staff user details route', () => {
 		});
 		fireEvent.click(confirmButton);
 
-		await new Promise((resolve) => setTimeout(resolve, 0));
+		await vi.waitFor(() => {
+			expect(deleteMutateAsync).toHaveBeenCalledWith({
+				userId: '11111111-1111-1111-1111-111111111111',
+			});
+		});
 
-		expect(deleteMutateAsync).toHaveBeenCalledWith({
-			userId: '11111111-1111-1111-1111-111111111111',
+		expect(mocks.queryClient.removeQueries).toHaveBeenCalledWith({
+			queryKey: ['staff', 'staff-users', 'detail'],
+		});
+		expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+			queryKey: ['staff', 'staff-users'],
 		});
 		expect(mocks.navigate).toHaveBeenCalledWith({
 			to: '/staff/staff-users',
 		});
+		expect(
+			mocks.queryClient.removeQueries.mock.invocationCallOrder[0],
+		).toBeLessThan(mocks.navigate.mock.invocationCallOrder[0]);
+		expect(
+			mocks.queryClient.invalidateQueries.mock.invocationCallOrder[0],
+		).toBeLessThan(mocks.navigate.mock.invocationCallOrder[0]);
 
 		expect(screen.queryByTestId('staff-user-details-not-found')).toBeNull();
 	});
