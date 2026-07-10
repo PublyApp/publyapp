@@ -40,6 +40,7 @@
 		"editor.formatOnSave": true
 	},
 	"dotnet.server.useOmnisharp": false,
+	"dotnet.preferVisualStudioCodeFileSystemWatcher": true,
 	"dotnet.backgroundAnalysis.analyzerDiagnosticsScope": "openFiles",
 	"dotnet.backgroundAnalysis.compilerDiagnosticsScope": "openFiles",
 	"rest-client.environmentVariables": {
