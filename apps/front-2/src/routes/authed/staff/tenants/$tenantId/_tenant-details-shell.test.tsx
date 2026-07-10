@@ -10,11 +10,45 @@ import type { ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 vi.mock('@tanstack/react-router', () => ({
-	Link: ({ children, to, ...props }: { children: ReactNode; to: string }) => (
-		<a href={to} {...props}>
-			{children}
-		</a>
-	),
+	Link: ({
+		children,
+		to,
+		params,
+		...props
+	}: {
+		children: ReactNode;
+		to: string;
+		params?: Record<string, string>;
+	}) => {
+		// A typed `to` containing a `$` route param segment that ships without
+		// matching `params` is a route the real TanStack router can't resolve
+		// either — this mock must not silently render it as if it were a
+		// working link (that's exactly the untyped-`to` bug this component
+		// was fixed to prevent: see the `to`/`params` split in
+		// _tenant-details-shell.tsx).
+		for (const segment of to.split('/')) {
+			if (!segment.startsWith('$')) {
+				continue;
+			}
+			const paramName = segment.slice(1);
+			if (!params || !(paramName in params)) {
+				throw new Error(
+					`Link "to" ("${to}") has a "$${paramName}" segment with no matching "params" entry.`,
+				);
+			}
+		}
+
+		let href = to;
+		for (const [key, value] of Object.entries(params ?? {})) {
+			href = href.replace(`$${key}`, value);
+		}
+
+		return (
+			<a href={href} {...props}>
+				{children}
+			</a>
+		);
+	},
 }));
 
 import type { StaffTenantDetails } from '~/lib/query/staff-tenants';

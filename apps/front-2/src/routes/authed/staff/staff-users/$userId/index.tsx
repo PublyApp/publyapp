@@ -12,7 +12,7 @@ import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import type { AssignedStaffProfile } from '~/lib/query/staff-users';
 
-import { useStaffUserOverviewContext } from './-overview-context';
+import { useStaffUserOverviewContext } from './_overview-context';
 
 const DATE_TIME_FORMAT_OPTIONS = {
 	dateStyle: 'medium',

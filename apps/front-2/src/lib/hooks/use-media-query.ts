@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 
 function subscribe(query: string, callback: () => void): () => void {
 	const mql = window.matchMedia(query);
@@ -12,9 +12,20 @@ function subscribe(query: string, callback: () => void): () => void {
  * `useSyncExternalStore` reads the real match on mount.
  */
 export function useMediaQuery(query: string): boolean {
-	return useSyncExternalStore(
-		(callback) => subscribe(query, callback),
-		() => window.matchMedia(query).matches,
-		() => true,
+	// `subscribe`/`getSnapshot` must be stable across renders: React tears
+	// down and re-adds the `matchMedia` listener whenever `subscribe`'s
+	// identity changes, so an inline arrow here resubscribes on every
+	// render (route change, sidebar toggle, ...) instead of only when
+	// `query` changes.
+	const subscribeToQuery = useCallback(
+		(callback: () => void) => subscribe(query, callback),
+		[query],
 	);
+	const getSnapshot = useCallback(
+		() => window.matchMedia(query).matches,
+		[query],
+	);
+	const getServerSnapshot = useCallback(() => true, []);
+
+	return useSyncExternalStore(subscribeToQuery, getSnapshot, getServerSnapshot);
 }

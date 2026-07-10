@@ -78,13 +78,21 @@ export const DetailItem = ({
 	</div>
 );
 
+type TenantSectionTo =
+	| '/staff/tenants/$tenantId'
+	| '/staff/tenants/$tenantId/users'
+	| '/staff/tenants/$tenantId/profiles'
+	| '/staff/tenants/$tenantId/invitations';
+
 const SectionNavLink = ({
 	label,
-	href,
+	to,
+	tenantId,
 	isActive = false,
 }: {
 	label: string;
-	href: string;
+	to: TenantSectionTo;
+	tenantId: string;
 	isActive?: boolean;
 }) => {
 	if (isActive) {
@@ -100,7 +108,8 @@ const SectionNavLink = ({
 
 	return (
 		<Link
-			to={href}
+			to={to}
+			params={{ tenantId }}
 			className="inline-flex items-center border-b-2 border-transparent px-1 pb-2 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground"
 		>
 			{label}
@@ -188,10 +197,6 @@ export const TenantDetailsPageShell = ({
 	testId: string;
 	children: ReactNode;
 }) => {
-	const profilesHref = `/staff/tenants/${tenant.id}/profiles`;
-	const usersHref = `/staff/tenants/${tenant.id}/users`;
-	const invitationsHref = `/staff/tenants/${tenant.id}/invitations`;
-
 	return (
 		<div className="flex w-full flex-col gap-5" data-testid={testId}>
 			<div className="flex flex-wrap items-center justify-between gap-3">
@@ -230,22 +235,26 @@ export const TenantDetailsPageShell = ({
 			>
 				<SectionNavLink
 					label="Basics"
-					href={`/staff/tenants/${tenant.id}`}
+					to="/staff/tenants/$tenantId"
+					tenantId={tenant.id}
 					isActive={activeSection === 'basics'}
 				/>
 				<SectionNavLink
 					label="Profiles"
-					href={profilesHref}
+					to="/staff/tenants/$tenantId/profiles"
+					tenantId={tenant.id}
 					isActive={activeSection === 'profiles'}
 				/>
 				<SectionNavLink
 					label="Invitations"
-					href={invitationsHref}
+					to="/staff/tenants/$tenantId/invitations"
+					tenantId={tenant.id}
 					isActive={activeSection === 'invitations'}
 				/>
 				<SectionNavLink
 					label="Users"
-					href={usersHref}
+					to="/staff/tenants/$tenantId/users"
+					tenantId={tenant.id}
 					isActive={activeSection === 'users'}
 				/>
 			</nav>

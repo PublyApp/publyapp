@@ -673,6 +673,10 @@ html {
 .app-shell-main {
 	@apply min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto;
 	padding: 20px 28px 32px;
+	/* Query container for .publy-detail-grid: the rail/panel/no-panel width
+	   is only known here, not at the viewport, so the detail grid's two-
+	   column split must react to this element's content width. */
+	container-type: inline-size;
 }
 
 @media (max-width: 767px) {
@@ -1311,7 +1315,12 @@ html {
 		grid-template-columns: minmax(0, 1fr);
 	}
 
-	@media (min-width: 1024px) {
+	/* 840px = 400px minimum usable main column + 20px gap + 420px aside.
+	   A viewport media query can't express this: the rail (49px) and
+	   secondary panel (272px, togglable) eat into the space available to
+	   .app-shell-main before .publy-detail-grid ever sees it, so the split
+	   must react to the actual container width, not the viewport. */
+	@container (min-width: 840px) {
 		.publy-detail-grid {
 			grid-template-columns: minmax(0, 1fr) 420px;
 		}

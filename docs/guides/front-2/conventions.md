@@ -40,6 +40,10 @@ Follow them by hand until automation exists:
 - Do not introduce camelCase URL search params for list/table state.
 - Do not move app-bound adapters into `@org/shared-ts`.
 
+## Route-Local Private File Naming
+
+Prefix a route-local file that must not become a route with `_` (e.g. `_tenant-details-shell.tsx`, `$userId/_overview-context.tsx`) — this is a human convention only (routing here is driven by the virtual route config in `src/routes.ts`, not file-based discovery), so pick `_` consistently rather than mixing it with `-`.
+
 ## Spike Reference
 
 `apps/front-2-spike` is disposable reference only. Use it to understand harvested patterns and

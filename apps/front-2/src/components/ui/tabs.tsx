@@ -50,10 +50,22 @@ function TabsList({
 	);
 }
 
-function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
+function TabsTrigger({
+	className,
+	nativeButton,
+	render,
+	...props
+}: TabsPrimitive.Tab.Props) {
 	return (
 		<TabsPrimitive.Tab
 			data-slot="tabs-trigger"
+			render={render}
+			// Base UI's `nativeButton` default is `true`, which assumes the
+			// rendered element is a real <button>. When `render` swaps in a
+			// non-button element (e.g. a router `Link`), that assumption is
+			// wrong and Space stops activating the tab. Default to `false`
+			// whenever `render` is set; callers can still opt back in.
+			nativeButton={nativeButton ?? !render}
 			className={cn(
 				"relative inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-2 rounded-[var(--publy-radius-small-control)] border border-transparent! px-3 py-1 text-sm font-medium whitespace-nowrap text-foreground/60 transition-all group-data-vertical/tabs:w-full group-data-vertical/tabs:justify-start group-data-vertical/tabs:rounded-2xl group-data-vertical/tabs:px-3 group-data-vertical/tabs:py-1.5 hover:text-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 aria-disabled:pointer-events-none aria-disabled:opacity-50 dark:text-muted-foreground dark:hover:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
 				'group-data-[variant=line]/tabs-list:bg-transparent group-data-[variant=line]/tabs-list:data-active:bg-transparent dark:group-data-[variant=line]/tabs-list:data-active:border-transparent dark:group-data-[variant=line]/tabs-list:data-active:bg-transparent',

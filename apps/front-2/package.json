@@ -13,6 +13,8 @@
 		"test:request-counter": "node --test deploy/request-counter/control-routes.test.mjs",
 		"check:design-system": "node scripts/check-design-system.mjs",
 		"test:design-system-guard": "node --test scripts/check-design-system.test.mjs",
+		"check:context-chunk-isolation": "node scripts/check-context-chunk-isolation.mjs",
+		"test:context-chunk-isolation-guard": "node --test scripts/check-context-chunk-isolation.test.mjs",
 		"test": "vitest run && pnpm test:request-counter && pnpm test:design-system-guard"
 	},
 	"dependencies": {

@@ -16,6 +16,8 @@ class FakeMediaQueryList {
 	matches: boolean;
 	readonly media: string;
 	private readonly listeners = new Set<() => void>();
+	addEventListenerCallCount = 0;
+	removeEventListenerCallCount = 0;
 
 	constructor(media: string, matches: boolean) {
 		this.media = media;
@@ -23,10 +25,12 @@ class FakeMediaQueryList {
 	}
 
 	addEventListener(_type: 'change', listener: () => void): void {
+		this.addEventListenerCallCount += 1;
 		this.listeners.add(listener);
 	}
 
 	removeEventListener(_type: 'change', listener: () => void): void {
+		this.removeEventListenerCallCount += 1;
 		this.listeners.delete(listener);
 	}
 
@@ -128,5 +132,40 @@ describe('useMediaQuery', () => {
 			root.unmount();
 		});
 		expect(mql.listenerCount()).toBe(0);
+	});
+
+	test('does not resubscribe on every re-render for the same query', () => {
+		// A net listener count of 1 after a render is satisfied just as well
+		// by "subscribe once" as by "unsubscribe then resubscribe every
+		// render" — the two are indistinguishable by listener count alone.
+		// Counting the raw addEventListener/removeEventListener calls across
+		// multiple renders of the *same* mounted component tells them apart:
+		// only the resubscribing version calls addEventListener more than
+		// once.
+		let renderCount = 0;
+		const Probe = (): null => {
+			renderCount += 1;
+			useMediaQuery('(min-width: 1024px)');
+			return null;
+		};
+
+		const container = document.createElement('div');
+		const root = createRoot(container);
+		mountedRoots.push(root);
+
+		act(() => {
+			root.render(createElement(Probe));
+		});
+		act(() => {
+			// Re-renders the same mounted component in place (no unmount).
+			root.render(createElement(Probe));
+		});
+		act(() => {
+			root.render(createElement(Probe));
+		});
+
+		expect(renderCount).toBe(3);
+		expect(mql.addEventListenerCallCount).toBe(1);
+		expect(mql.removeEventListenerCallCount).toBe(0);
 	});
 });

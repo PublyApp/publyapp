@@ -325,6 +325,12 @@ const AuthedWorkspaceShell = ({
 		sidebarOpen,
 		viewportWidth: isDesktop ? 1024 : 0,
 	});
+	// The secondary panel can only ever show at desktop width (see
+	// shouldShowSecondaryPanel's viewportWidth >= 1024 requirement) — below
+	// that, toggling `sidebarOpen` changes nothing visible. Gate the toggle
+	// button on the same condition so it isn't rendered lying about its own
+	// effect between 768px and 1023px.
+	const canToggleSecondaryPanel = isDesktop && secondaryItems.length >= 2;
 
 	return (
 		<div
@@ -419,20 +425,27 @@ const AuthedWorkspaceShell = ({
 			<div className="app-shell-body">
 				<header className="app-shell-topbar" data-testid="app-shell-topbar">
 					<div className="app-shell-topbar-left">
-						<Button
-							size="icon-sm"
-							variant="ghost"
-							aria-label={
-								showSecondaryPanel
-									? 'Collapse navigation panel'
-									: 'Expand navigation panel'
-							}
-							onClick={toggleSidebarOpen}
-							className="app-shell-sidebar-toggle"
-						>
-							<IconLayoutSidebar aria-hidden="true" className="size-[18px]" />
-						</Button>
-						<div className="app-shell-topbar-separator" />
+						{canToggleSecondaryPanel ? (
+							<>
+								<Button
+									size="icon-sm"
+									variant="ghost"
+									aria-label={
+										sidebarOpen
+											? 'Collapse navigation panel'
+											: 'Expand navigation panel'
+									}
+									onClick={toggleSidebarOpen}
+									className="app-shell-sidebar-toggle"
+								>
+									<IconLayoutSidebar
+										aria-hidden="true"
+										className="size-[18px]"
+									/>
+								</Button>
+								<div className="app-shell-topbar-separator" />
+							</>
+						) : null}
 						<nav aria-label="Breadcrumb" className="app-shell-breadcrumbs">
 							{breadcrumbs.map((item, index) => {
 								const isLast = index === breadcrumbs.length - 1;

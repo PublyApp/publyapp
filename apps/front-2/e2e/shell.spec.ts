@@ -351,6 +351,46 @@ test('secondary panel follows the persisted preference across list and detail na
 	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
 });
 
+test('detail grid sizes to the space left by the rail and panel, not the raw viewport', async ({
+	page,
+}) => {
+	await setSessionCookie(page);
+	await mockAuthRedirectCode(page);
+
+	// At 1024px with the 49px rail + 272px secondary panel open, a viewport
+	// media-query split leaves .publy-detail-grid's main column ~207px wide
+	// — the grid must stay single-column here instead.
+	await page.setViewportSize({ width: 1024, height: 900 });
+	await page.goto('/staff/staff-users/demo-user-id');
+
+	const grid = page
+		.getByTestId('staff-user-details-page')
+		.locator('.publy-detail-grid')
+		.first();
+	await expect(grid).toBeVisible();
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
+
+	const tracksAt1024 = await grid.evaluate((element) =>
+		getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/),
+	);
+	expect(tracksAt1024).toHaveLength(1);
+
+	// At 1280px there's enough room for both columns; the main column must
+	// stay usable (>= 400px), not squeezed to a sliver next to a fixed
+	// 420px aside.
+	await page.setViewportSize({ width: 1280, height: 900 });
+	const tracksAt1280 = await grid.evaluate((element) =>
+		getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/),
+	);
+	expect(tracksAt1280).toHaveLength(2);
+
+	const [mainColumnWidth, asideColumnWidth] = tracksAt1280.map((track) =>
+		Number.parseFloat(track),
+	);
+	expect(mainColumnWidth).toBeGreaterThanOrEqual(400);
+	expect(asideColumnWidth).toBeCloseTo(420, 0);
+});
+
 test('no bottom rail on mobile and rail-hidden behavior is preserved', async ({
 	page,
 }) => {

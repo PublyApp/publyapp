@@ -50,7 +50,7 @@ import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import {
 	StaffUserOverviewContext,
 	type StaffUserOverviewContextValue,
-} from './$userId/-overview-context';
+} from './$userId/_overview-context';
 
 const MALFORMED_ID_TRANSLATION_KEY = 'malformed-id';
 const STAFF_STATUS_ACTIVE = 'active';

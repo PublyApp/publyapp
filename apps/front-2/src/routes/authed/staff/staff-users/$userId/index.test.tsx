@@ -40,8 +40,8 @@ vi.mock('@tanstack/react-router', () => ({
 	},
 }));
 
-import { StaffUserOverviewContext } from './-overview-context';
-import type { StaffUserOverviewContextValue } from './-overview-context';
+import { StaffUserOverviewContext } from './_overview-context';
+import type { StaffUserOverviewContextValue } from './_overview-context';
 import { Route } from './index';
 
 const baseUser = {
@@ -188,15 +188,47 @@ describe('staff user overview tab', () => {
 
 	test('does not import the overview context from the parent route module', () => {
 		// Regression guard: importing the context hook from the '$userId' route
-		// module (instead of this leaf '-overview-context' module) causes the
+		// module (instead of this leaf '_overview-context' module) causes the
 		// route module to be duplicated into two build chunks with two distinct
-		// React context instances, and the real hook throws at runtime.
+		// React context instances, and the real hook throws at runtime. This
+		// must catch every specifier shape that resolves to that parent
+		// module — relative or aliased, with or without an explicit
+		// extension — not just the exact string this bug shipped with once
+		// already. See the `crossBoundaryImport` regex tests below for the
+		// specifier shapes this is verified to catch and to leave alone.
 		const currentFilePath = fileURLToPath(import.meta.url);
 		const filePath = join(dirname(currentFilePath), 'index.tsx');
 		const source = readFileSync(filePath, 'utf8');
 
-		expect(source).not.toContain(
-			"from '~/routes/authed/staff/staff-users/$userId'",
-		);
+		expect(source).not.toMatch(crossBoundaryImport);
+	});
+});
+
+// A specifier reaches the parent '$userId' route module — and reintroduces
+// the duplicate-context crash — whenever it resolves to that module,
+// regardless of prefix (relative or the `~/` alias) or explicit extension.
+// Requiring the closing quote immediately after `$userId`/`$userId.tsx` is
+// what excludes legitimate child-path imports like `./$userId/activity` or
+// unrelated siblings like `./_overview-context`.
+const crossBoundaryImport = /from\s+['"][^'"]*\$userId(\.tsx)?['"]/;
+
+describe('crossBoundaryImport regex', () => {
+	test.each([
+		"import { useStaffUserOverviewContext } from '~/routes/authed/staff/staff-users/$userId';",
+		"import { useStaffUserOverviewContext } from '~/routes/authed/staff/staff-users/$userId.tsx';",
+		"import { useStaffUserOverviewContext } from '../$userId';",
+		"import { useStaffUserOverviewContext } from '../$userId.tsx';",
+		"import { useStaffUserOverviewContext } from './../$userId';",
+	])('flags a cross-boundary import: %s', (line) => {
+		expect(line).toMatch(crossBoundaryImport);
+	});
+
+	test.each([
+		"import { StaffUserOverviewContext } from './_overview-context';",
+		"import type { StaffUserOverviewContextValue } from './_overview-context';",
+		"import { ActivityTab } from './$userId/activity';",
+		"import type { AssignedStaffProfile } from '~/lib/query/staff-users';",
+	])('leaves a legitimate import alone: %s', (line) => {
+		expect(line).not.toMatch(crossBoundaryImport);
 	});
 });
