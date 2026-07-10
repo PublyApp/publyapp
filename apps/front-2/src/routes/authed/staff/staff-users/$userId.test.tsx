@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
 	useSuspendStaffUserMutation: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
 	navigate: vi.fn().mockResolvedValue(undefined),
+	pathname: '/staff/staff-users/11111111-1111-1111-1111-111111111111/',
 	queryClient: {
 		invalidateQueries: vi.fn().mockResolvedValue(undefined),
 		removeQueries: vi.fn(),
@@ -36,6 +37,12 @@ vi.mock('@tanstack/react-router', () => ({
 		}),
 	}),
 	useNavigate: () => mocks.navigate,
+	useRouterState: ({
+		select,
+	}: {
+		select: (state: { location: { pathname: string } }) => unknown;
+	}) => select({ location: { pathname: mocks.pathname } }),
+	Outlet: () => <div data-testid="staff-user-details-outlet" />,
 	Link: ({
 		children,
 		to,
@@ -99,6 +106,9 @@ vi.mock('~/routes/authed/layout', () => ({
 
 import { Route } from './$userId';
 
+const USER_ID = '11111111-1111-1111-1111-111111111111';
+const BASE_PATH = `/staff/staff-users/${USER_ID}`;
+
 const buildQueryResult = (overrides: Record<string, unknown> = {}) => ({
 	data: undefined,
 	error: null,
@@ -128,33 +138,23 @@ const renderPage = () => {
 	return render(<Component />);
 };
 
-describe('staff user details route', () => {
+describe('staff user details route shell', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mocks.pathname = `${BASE_PATH}/`;
 		mocks.navigate.mockResolvedValue(undefined);
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
 		mocks.useStaffUserDetailsQuery.mockReturnValue(
 			buildQueryResult({
 				data: {
-					id: '11111111-1111-1111-1111-111111111111',
+					id: USER_ID,
 				},
 			}),
 		);
 		mocks.useStaffUserProfilesQuery.mockReturnValue(
 			buildQueryResult({
 				data: {
-					assignedProfiles: [
-						{
-							id: 'profile-1',
-							name: 'Platform admin',
-							description: 'Full access',
-						},
-						{
-							id: 'profile-2',
-							name: 'Support staff',
-							description: null,
-						},
-					],
+					assignedProfiles: [],
 					maxProfilesPerUser: 5,
 				},
 			}),
@@ -166,7 +166,7 @@ describe('staff user details route', () => {
 		mocks.useReactivateStaffUserMutation.mockReturnValue(buildMutationResult());
 		mocks.useSuspendStaffUserMutation.mockReturnValue(buildMutationResult());
 		mocks.toStaffUserDetails.mockReturnValue({
-			id: '11111111-1111-1111-1111-111111111111',
+			id: USER_ID,
 			email: 'owner@publyapp.local',
 			firstName: 'Owner',
 			lastName: 'User',
@@ -177,18 +177,7 @@ describe('staff user details route', () => {
 			updatedAt: new Date('2026-07-02T10:00:00Z'),
 			displayName: 'Owner User',
 		});
-		mocks.toAssignedStaffProfiles.mockReturnValue([
-			{
-				id: 'profile-1',
-				name: 'Platform admin',
-				description: 'Full access',
-			},
-			{
-				id: 'profile-2',
-				name: 'Support staff',
-				description: null,
-			},
-		]);
+		mocks.toAssignedStaffProfiles.mockReturnValue([]);
 	});
 
 	afterEach(() => {
@@ -197,7 +186,7 @@ describe('staff user details route', () => {
 
 	test('renders "No email address" fallback when email is empty', () => {
 		mocks.toStaffUserDetails.mockReturnValue({
-			id: '11111111-1111-1111-1111-111111111111',
+			id: USER_ID,
 			email: '',
 			firstName: 'Owner',
 			lastName: 'User',
@@ -215,48 +204,94 @@ describe('staff user details route', () => {
 		expect(matches).toHaveLength(1);
 	});
 
-	test('renders the detail page shell with identity, tabs, cards, and danger zone', () => {
+	test('renders the detail page shell with identity, tab strip, and an outlet for the active tab', () => {
 		renderPage();
 
 		expect(screen.getByTestId('staff-user-details-page')).toBeTruthy();
 
 		const page = within(screen.getByTestId('staff-user-details-page'));
-		expect(page.getAllByText('Owner')).toHaveLength(2);
-		expect(page.getAllByText('Active')).toHaveLength(2);
+		expect(page.getAllByText('Owner')).toHaveLength(1);
+		expect(page.getAllByText('Active')).toHaveLength(1);
 
 		expect(
 			screen.getByRole('link', { name: 'Back to staff users' }),
 		).toBeTruthy();
 		expect(screen.getByRole('heading', { name: 'Owner User' })).toBeTruthy();
-		expect(screen.getAllByText('owner@publyapp.local')).toHaveLength(2);
+		expect(screen.getByText('owner@publyapp.local')).toBeTruthy();
 		expect(screen.getByText('Overview')).toBeTruthy();
 		expect(screen.getByText('Permissions')).toBeTruthy();
 		expect(screen.getByText('Activity')).toBeTruthy();
 		expect(screen.getByText('Settings')).toBeTruthy();
 
-		expect(screen.getByText('Contact details')).toBeTruthy();
-		expect(screen.getByText('Assigned profiles & roles')).toBeTruthy();
-		expect(screen.getByText('2 assigned')).toBeTruthy();
-		expect(screen.getByRole('link', { name: 'Platform admin' })).toBeTruthy();
-		expect(screen.getByRole('link', { name: 'Support staff' })).toBeTruthy();
-		expect(screen.getByText('Full access')).toBeTruthy();
-		expect(screen.getByText('No description')).toBeTruthy();
-		expect(screen.getByText('Profile summary')).toBeTruthy();
-
-		expect(screen.getByText('Account')).toBeTruthy();
-		expect(screen.getByText('Recent security activity')).toBeTruthy();
-		expect(screen.getByText('Danger zone')).toBeTruthy();
+		expect(screen.getByTestId('staff-user-details-outlet')).toBeTruthy();
 	});
 
-	test('renders the assigned profiles empty state when none are assigned', () => {
-		mocks.toAssignedStaffProfiles.mockReturnValue([]);
+	test('each tab trigger renders as a real anchor with the deep-linkable href', () => {
+		renderPage();
+
+		expect(
+			(
+				screen.getByRole('tab', { name: 'Overview' }) as HTMLAnchorElement
+			).getAttribute('href'),
+		).toBe(BASE_PATH);
+		expect(
+			(
+				screen.getByRole('tab', { name: 'Permissions' }) as HTMLAnchorElement
+			).getAttribute('href'),
+		).toBe(`${BASE_PATH}/permissions`);
+		expect(
+			(
+				screen.getByRole('tab', { name: 'Activity' }) as HTMLAnchorElement
+			).getAttribute('href'),
+		).toBe(`${BASE_PATH}/activity`);
+		expect(
+			(
+				screen.getByRole('tab', { name: 'Settings' }) as HTMLAnchorElement
+			).getAttribute('href'),
+		).toBe(`${BASE_PATH}/settings`);
+	});
+
+	test('the Overview trigger is active on the bare detail route', () => {
+		mocks.pathname = `${BASE_PATH}/`;
 
 		renderPage();
 
-		expect(screen.getByText('0 assigned')).toBeTruthy();
 		expect(
-			screen.getByText('No profiles are currently assigned.'),
-		).toBeTruthy();
+			screen.getByRole('tab', { name: 'Overview' }).hasAttribute('data-active'),
+		).toBe(true);
+		expect(
+			screen
+				.getByRole('tab', { name: 'Permissions' })
+				.hasAttribute('data-active'),
+		).toBe(false);
+	});
+
+	test('the Permissions trigger is active when mounted at the permissions route, not Overview', () => {
+		mocks.pathname = `${BASE_PATH}/permissions`;
+
+		renderPage();
+
+		expect(
+			screen
+				.getByRole('tab', { name: 'Permissions' })
+				.hasAttribute('data-active'),
+		).toBe(true);
+		expect(
+			screen.getByRole('tab', { name: 'Overview' }).hasAttribute('data-active'),
+		).toBe(false);
+	});
+
+	test('the Settings trigger is active when mounted at the settings route', () => {
+		mocks.pathname = `${BASE_PATH}/settings`;
+
+		renderPage();
+
+		expect(
+			screen.getByRole('tab', { name: 'Settings' }).hasAttribute('data-active'),
+		).toBe(true);
+		expect(
+			screen.getByRole('tab', { name: 'Overview' }).hasAttribute('data-active'),
+		).toBe(false);
 	});
 
 	test('renders a local malformed id view for 400 malformed-id failures', () => {
@@ -316,44 +351,6 @@ describe('staff user details route', () => {
 		expect(screen.getByTestId('staff-user-details-not-found')).toBeTruthy();
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 	});
-
-	test.each([
-		{
-			status: 400,
-			responseStatusCode: 400,
-			title: 'Bad Request',
-			detail: 'Invalid userId',
-			translationKey: 'malformed-id',
-		},
-		{
-			status: 403,
-			responseStatusCode: 403,
-			title: 'Forbidden',
-			detail: 'Forbidden',
-		},
-		{
-			status: 404,
-			responseStatusCode: 404,
-			title: 'Not Found',
-			detail: 'Missing assignments',
-		},
-	])(
-		'renders a local assigned profiles error for %o without logging out',
-		(error) => {
-			mocks.useStaffUserProfilesQuery.mockReturnValue(
-				buildQueryResult({
-					error,
-					isError: true,
-				}),
-			);
-
-			renderPage();
-
-			expect(screen.getByTestId('staff-user-details-page')).toBeTruthy();
-			expect(screen.getByTestId('staff-user-profiles-error')).toBeTruthy();
-			expect(screen.queryByTestId('logout-redirect')).toBeNull();
-		},
-	);
 
 	test('uses logout redirect for 401 failures', () => {
 		const error = {
@@ -431,14 +428,14 @@ describe('staff user details route', () => {
 		fireEvent.click(confirmButton);
 
 		expect(suspendMutateAsync).toHaveBeenCalledWith({
-			userId: '11111111-1111-1111-1111-111111111111',
+			userId: USER_ID,
 		});
 	});
 
 	// (c) when status is suspended the control reads Reactivate and confirming calls reactivateUser.mutateAsync
 	test('ItShouldCallReactivateMutationWhenReactivateConfirmed', () => {
 		mocks.toStaffUserDetails.mockReturnValue({
-			id: '11111111-1111-1111-1111-111111111111',
+			id: USER_ID,
 			email: 'owner@publyapp.local',
 			firstName: 'Owner',
 			lastName: 'User',
@@ -469,19 +466,8 @@ describe('staff user details route', () => {
 		fireEvent.click(confirmButton);
 
 		expect(reactivateMutateAsync).toHaveBeenCalledWith({
-			userId: '11111111-1111-1111-1111-111111111111',
+			userId: USER_ID,
 		});
-	});
-
-	// (d) the delete dialog's Cancel button is enabled before delete is typed
-	test('ItShouldEnableCancelButtonWhenDeleteConfirmNotTyped', () => {
-		renderPage();
-
-		const dangerZoneDeleteButtons = screen.getAllByText('Delete');
-		fireEvent.click(dangerZoneDeleteButtons[0]);
-
-		const cancelButton = screen.getByRole('button', { name: 'Cancel' });
-		expect((cancelButton as HTMLButtonElement).disabled).toBe(false);
 	});
 
 	// (e) confirming delete calls deleteUser.mutateAsync and then navigates
@@ -493,8 +479,9 @@ describe('staff user details route', () => {
 
 		renderPage();
 
-		const dangerZoneDeleteButtons = screen.getAllByText('Delete');
-		fireEvent.click(dangerZoneDeleteButtons[0]);
+		const menuTrigger = screen.getByTestId('staff-user-actions-menu');
+		fireEvent.click(menuTrigger);
+		fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
 
 		const confirmField = screen.getByLabelText('Confirm delete');
 		fireEvent.change(confirmField, { target: { value: 'delete' } });
@@ -509,7 +496,7 @@ describe('staff user details route', () => {
 
 		await vi.waitFor(() => {
 			expect(deleteMutateAsync).toHaveBeenCalledWith({
-				userId: '11111111-1111-1111-1111-111111111111',
+				userId: USER_ID,
 			});
 		});
 		await vi.waitFor(() => {
@@ -541,8 +528,9 @@ describe('staff user details route', () => {
 
 		renderPage();
 
-		const dangerZoneDeleteButtons = screen.getAllByText('Delete');
-		fireEvent.click(dangerZoneDeleteButtons[0]);
+		const menuTrigger = screen.getByTestId('staff-user-actions-menu');
+		fireEvent.click(menuTrigger);
+		fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
 
 		const confirmField = screen.getByLabelText('Confirm delete');
 		fireEvent.change(confirmField, { target: { value: 'delete' } });
@@ -557,7 +545,7 @@ describe('staff user details route', () => {
 
 		await vi.waitFor(() => {
 			expect(mocks.deleteMutateAsync).toHaveBeenCalledWith({
-				userId: '11111111-1111-1111-1111-111111111111',
+				userId: USER_ID,
 			});
 			expect(screen.getByRole('alert').textContent).toContain(
 				'Unable to delete this staff user.',

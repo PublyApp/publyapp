@@ -7,7 +7,19 @@ export const routes = rootRoute('__root.tsx', [
 	layout('authed-layout', 'authed/layout.tsx', [
 		route('/staff', 'authed/staff.tsx'),
 		route('/staff/staff-users', 'authed/staff/staff-users.tsx'),
-		route('/staff/staff-users/$userId', 'authed/staff/staff-users/$userId.tsx'),
+		route(
+			'/staff/staff-users/$userId',
+			'authed/staff/staff-users/$userId.tsx',
+			[
+				index('authed/staff/staff-users/$userId/index.tsx'),
+				route(
+					'/permissions',
+					'authed/staff/staff-users/$userId/permissions.tsx',
+				),
+				route('/activity', 'authed/staff/staff-users/$userId/activity.tsx'),
+				route('/settings', 'authed/staff/staff-users/$userId/settings.tsx'),
+			],
+		),
 		route(
 			'/staff/staff-users/$userId/edit',
 			'authed/staff/staff-users/$userId-edit.tsx',

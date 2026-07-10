@@ -1,15 +1,20 @@
 import {
 	IconAlertCircle,
 	IconChevronLeft,
-	IconId,
 	IconLock,
 	IconMail,
 	IconPencil,
 	IconTrash,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
-import { useState } from 'react';
+import {
+	createFileRoute,
+	Link,
+	Outlet,
+	useNavigate,
+	useRouterState,
+} from '@tanstack/react-router';
+import { createContext, useContext, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -17,19 +22,12 @@ import { View403 } from '~/components/error-views/View403';
 import { DataTableRowActions } from '~/components/table/row-actions';
 import { Button, buttonVariants } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
-import {
-	DangerZoneCard,
-	DangerZoneRow,
-	DetailAside,
-	DetailGrid,
-	DetailMain,
-} from '~/components/ui/detail-layout';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
 import { InitialsAvatar } from '~/components/ui/initials-avatar';
 import { Input } from '~/components/ui/input';
 import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import {
 	STAFF_USERS_QUERY_KEY,
 	STAFF_USER_DETAILS_QUERY_KEY,
@@ -41,7 +39,10 @@ import {
 	useStaffUserProfilesQuery,
 	useSuspendStaffUserMutation,
 } from '~/lib/query/staff-users';
-import type { AssignedStaffProfile } from '~/lib/query/staff-users';
+import type {
+	AssignedStaffProfile,
+	StaffUserDetails,
+} from '~/lib/query/staff-users';
 import { shouldLogoutForFailure } from '~/routes/authed/layout';
 
 import {
@@ -53,22 +54,6 @@ import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 const MALFORMED_ID_TRANSLATION_KEY = 'malformed-id';
 const STAFF_STATUS_ACTIVE = 'active';
 const STAFF_STATUS_SUSPENDED = 'suspended';
-
-const DATE_TIME_FORMAT_OPTIONS = {
-	dateStyle: 'medium',
-	timeStyle: 'short',
-} as const;
-
-const formatDateTime = (
-	value: Date | null | undefined,
-	locale: string,
-): string => {
-	if (!(value instanceof Date) || Number.isNaN(value.valueOf())) {
-		return '—';
-	}
-
-	return value.toLocaleString(locale, DATE_TIME_FORMAT_OPTIONS);
-};
 
 const isProblemStatus = (
 	error: unknown,
@@ -139,203 +124,6 @@ const getSuspendDescription = (
 	};
 };
 
-const DetailMetaItem = ({
-	label,
-	value,
-}: {
-	label: string;
-	value: React.ReactNode;
-}) => (
-	<div className="space-y-1.5">
-		<div className="publy-type-metadata-label">{label}</div>
-		<div className="publy-type-metadata-value">{value}</div>
-	</div>
-);
-
-const ContactDetailsCard = ({
-	details,
-	locale,
-}: {
-	details: {
-		displayName: string;
-		email: string;
-		firstName: string | null;
-		lastName: string | null;
-		accountLevel: string | null;
-		status: string | null;
-		createdAt: Date | null;
-		updatedAt: Date | null;
-	};
-	locale: string;
-}) => (
-	<section className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] shadow-[var(--publy-shadow-ring)]">
-		<div className="publy-card-header">
-			<p className="publy-type-section-title">Contact details</p>
-		</div>
-		<div className="px-4 pb-4 pt-3">
-			<div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-				<DetailMetaItem label="Name" value={details.displayName} />
-				<DetailMetaItem label="Email" value={details.email || '—'} />
-				<DetailMetaItem label="Role" value={details.accountLevel || '—'} />
-				<DetailMetaItem
-					label="Status"
-					value={
-						<StatusPill tone={statusPillTone(details.status)}>
-							{details.status || 'Unknown'}
-						</StatusPill>
-					}
-				/>
-				<DetailMetaItem
-					label="Created"
-					value={formatDateTime(details.createdAt, locale)}
-				/>
-				<DetailMetaItem
-					label="Updated"
-					value={formatDateTime(details.updatedAt, locale)}
-				/>
-			</div>
-		</div>
-	</section>
-);
-
-const profileHueIndex = (profileId: string): number => {
-	let hash = 0;
-	for (const char of profileId) {
-		hash = (hash * 31 + (char.codePointAt(0) ?? 0)) % 997;
-	}
-
-	return hash % 2;
-};
-
-const AssignedProfilesCard = ({
-	profiles,
-	maxProfiles,
-}: {
-	profiles: AssignedStaffProfile[];
-	maxProfiles: number;
-}) => {
-	const assignedCount = profiles.length;
-	const meterPercent =
-		maxProfiles > 0 ? Math.min((assignedCount / maxProfiles) * 100, 100) : 0;
-
-	return (
-		<section className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] shadow-[var(--publy-shadow-ring)]">
-			<div className="publy-card-header">
-				<p className="publy-type-section-title">
-					Assigned profiles &amp; roles
-				</p>
-				<span className="text-xs text-muted-foreground">
-					{assignedCount} assigned
-				</span>
-			</div>
-			<div className="px-4 pb-4 pt-3 space-y-4">
-				{profiles.length === 0 ? (
-					<div className="rounded-large border border-dashed border-border bg-muted/30 px-4 py-4 text-sm text-muted-foreground">
-						No profiles are currently assigned.
-					</div>
-				) : (
-					<div className="space-y-2">
-						{profiles.map((profile) => (
-							<div
-								key={profile.id}
-								className="flex items-center justify-between gap-3 rounded-[10px] px-1 py-1"
-							>
-								<div className="flex min-w-0 items-center gap-2.5">
-									<span
-										aria-hidden="true"
-										className="publy-icon-tile inline-flex h-7 w-7 items-center justify-center rounded-[9px]"
-										data-tone={
-											profileHueIndex(profile.id) === 0 ? 'success' : 'info'
-										}
-									>
-										<IconId className="size-4" />
-									</span>
-									<div className="min-w-0">
-										<Link
-											to="/staff/profiles/$profileId"
-											params={{ profileId: profile.id }}
-											className="text-sm font-medium text-foreground hover:underline"
-										>
-											{profile.name}
-										</Link>
-										<p className="text-xs text-muted-foreground">
-											{profile.description ?? 'No description'}
-										</p>
-									</div>
-								</div>
-							</div>
-						))}
-					</div>
-				)}
-				{maxProfiles > 0 ? (
-					<div className="rounded-[9px] border border-border bg-background p-2">
-						<div className="flex items-center justify-between text-xs text-muted-foreground">
-							<span>Profile summary</span>
-							<span>
-								{assignedCount} of {maxProfiles}
-							</span>
-						</div>
-						<div className="mt-2 h-1 rounded-[4px] bg-[var(--publy-row-border)]">
-							<div
-								className="h-full rounded-[4px] bg-[var(--publy-primary)]"
-								style={{ width: `${meterPercent}%` }}
-							/>
-						</div>
-					</div>
-				) : null}
-			</div>
-		</section>
-	);
-};
-
-const RecentSecurityCard = () => (
-	<section className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] shadow-[var(--publy-shadow-ring)]">
-		<div className="publy-card-header">
-			<p className="publy-type-section-title">Recent security activity</p>
-		</div>
-		<div className="px-4 pb-4 pt-3 space-y-3 text-sm text-foreground">
-			<div className="flex items-center justify-between gap-3">
-				<div className="flex items-center gap-2">
-					<span className="size-1.5 rounded-[3px] bg-[var(--publy-foreground-subtle)]" />
-					<span>Security events</span>
-				</div>
-				<span className="text-xs text-muted-foreground">
-					— {/* TODO(contract): security event feed */}
-				</span>
-			</div>
-		</div>
-	</section>
-);
-
-const AccountCard = ({ displayId }: { displayId: string }) => (
-	<section className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] shadow-[var(--publy-shadow-ring)]">
-		<div className="publy-card-header">
-			<p className="publy-type-section-title">Account</p>
-		</div>
-		<div className="px-4 pb-4 pt-3">
-			<div className="space-y-3 text-sm">
-				<DetailMetaItem label="User ID" value={displayId} />
-				<DetailMetaItem
-					label="2FA"
-					value={
-						<span className="italic text-[var(--publy-foreground-subtle)]">
-							Not available {/* TODO(contract): 2FA status */}
-						</span>
-					}
-				/>
-				<DetailMetaItem
-					label="Sessions"
-					value={
-						<span className="italic text-[var(--publy-foreground-subtle)]">
-							Not available {/* TODO(contract): active sessions */}
-						</span>
-					}
-				/>
-			</div>
-		</div>
-	</section>
-);
-
 const ConfirmHeaderInfo = ({
 	name,
 	email,
@@ -378,6 +166,47 @@ const DeleteConfirmField = ({
 	</div>
 );
 
+export type StaffUserOverviewContextValue = {
+	user: StaffUserDetails;
+	locale: string;
+	profiles: AssignedStaffProfile[];
+	profilesHasError: boolean;
+	maxProfilesPerUser: number;
+	canSuspend: boolean;
+	canReactivate: boolean;
+	suspendLabel: 'Suspend' | 'Reactivate';
+	suspendDescription: string;
+	isDeletePending: boolean;
+	onOpenSuspendDialog: () => void;
+	onOpenDeleteDialog: () => void;
+};
+
+const StaffUserOverviewContext =
+	createContext<StaffUserOverviewContextValue | null>(null);
+
+export const useStaffUserOverviewContext =
+	(): StaffUserOverviewContextValue => {
+		const context = useContext(StaffUserOverviewContext);
+		if (!context) {
+			throw new Error(
+				'useStaffUserOverviewContext must be used within the staff user detail route',
+			);
+		}
+
+		return context;
+	};
+
+const TAB_ROUTE_SUFFIXES = ['permissions', 'activity', 'settings'] as const;
+type TabSection = 'overview' | (typeof TAB_ROUTE_SUFFIXES)[number];
+
+const getActiveSection = (pathname: string): TabSection => {
+	const match = TAB_ROUTE_SUFFIXES.find((suffix) =>
+		pathname.endsWith(`/${suffix}`),
+	);
+
+	return match ?? 'overview';
+};
+
 export const Route = createFileRoute(
 	'/_authed-layout/staff/staff-users/$userId',
 )({
@@ -397,6 +226,11 @@ function StaffUserDetailsPage() {
 	const suspendUser = useSuspendStaffUserMutation();
 	const reactivateUser = useReactivateStaffUserMutation();
 	const deleteUser = useDeleteStaffUserMutation();
+
+	const pathname = useRouterState({
+		select: (state) => state.location.pathname,
+	});
+	const activeSection = getActiveSection(pathname);
 
 	const detailQuery = useStaffUserDetailsQuery(
 		{ userId },
@@ -573,6 +407,25 @@ function StaffUserDetailsPage() {
 	const profilesHasError =
 		profilesQuery.isError && !shouldLogoutForFailure(profilesQuery.error);
 
+	const overviewContextValue: StaffUserOverviewContextValue = {
+		user,
+		locale: i18n.language,
+		profiles,
+		profilesHasError,
+		maxProfilesPerUser: maxProfilesPerUser ?? 0,
+		canSuspend,
+		canReactivate,
+		suspendLabel: getSuspendLabel(user.status),
+		suspendDescription: getSuspendDescription(user.status).description,
+		isDeletePending: deleteUser.isPending,
+		onOpenSuspendDialog: () => {
+			setSuspendDialogOpen(true);
+		},
+		onOpenDeleteDialog: () => {
+			setDeleteDialogOpen(true);
+		},
+	};
+
 	return (
 		<div className="space-y-5" data-testid="staff-user-details-page">
 			<div className="space-y-3">
@@ -674,98 +527,55 @@ function StaffUserDetailsPage() {
 					</div>
 				</div>
 
-				<Tabs defaultValue="overview">
+				<Tabs value={activeSection}>
 					<TabsList variant="line">
-						<TabsTrigger value="overview">Overview</TabsTrigger>
-						<TabsTrigger value="permissions">Permissions</TabsTrigger>
-						<TabsTrigger value="activity">Activity</TabsTrigger>
-						<TabsTrigger value="settings">Settings</TabsTrigger>
+						<TabsTrigger
+							value="overview"
+							render={
+								<Link to="/staff/staff-users/$userId" params={{ userId }} />
+							}
+						>
+							Overview
+						</TabsTrigger>
+						<TabsTrigger
+							value="permissions"
+							render={
+								<Link
+									to="/staff/staff-users/$userId/permissions"
+									params={{ userId }}
+								/>
+							}
+						>
+							Permissions
+						</TabsTrigger>
+						<TabsTrigger
+							value="activity"
+							render={
+								<Link
+									to="/staff/staff-users/$userId/activity"
+									params={{ userId }}
+								/>
+							}
+						>
+							Activity
+						</TabsTrigger>
+						<TabsTrigger
+							value="settings"
+							render={
+								<Link
+									to="/staff/staff-users/$userId/settings"
+									params={{ userId }}
+								/>
+							}
+						>
+							Settings
+						</TabsTrigger>
 					</TabsList>
 
 					<div className="mt-5">
-						<TabsContent value="overview">
-							<DetailGrid>
-								<DetailMain>
-									<ContactDetailsCard details={user} locale={i18n.language} />
-									{profilesHasError ? (
-										<div
-											data-testid="staff-user-profiles-error"
-											className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] p-4 shadow-[var(--publy-shadow-ring)] text-sm text-muted-foreground"
-										>
-											Unable to load assigned profiles.
-										</div>
-									) : (
-										<AssignedProfilesCard
-											profiles={profiles}
-											maxProfiles={maxProfilesPerUser ?? 0}
-										/>
-									)}
-								</DetailMain>
-								<DetailAside>
-									<AccountCard displayId={user.id} />
-									<RecentSecurityCard />
-									<DangerZoneCard title="Danger zone">
-										<DangerZoneRow
-											title="Suspend or reactivate"
-											description={
-												getSuspendDescription(user.status).description
-											}
-											action={
-												<Button
-													type="button"
-													className="publy-danger-action"
-													variant="secondary"
-													onClick={() => {
-														setSuspendDialogOpen(true);
-													}}
-													disabled={!canSuspend && !canReactivate}
-												>
-													{getSuspendLabel(user.status)}
-												</Button>
-											}
-										/>
-										<DangerZoneRow
-											title="Delete user"
-											description="This permanently removes the staff user and cannot be undone."
-											action={
-												<Button
-													type="button"
-													variant="destructive"
-													className="publy-danger-action"
-													onClick={() => {
-														setDeleteDialogOpen(true);
-													}}
-													disabled={deleteUser.isPending}
-												>
-													Delete
-												</Button>
-											}
-										/>
-									</DangerZoneCard>
-								</DetailAside>
-							</DetailGrid>
-						</TabsContent>
-						<TabsContent value="permissions">
-							<div className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] p-4 shadow-[var(--publy-shadow-ring)]">
-								<p className="text-sm text-muted-foreground">
-									This tab is intentionally kept minimal in this handoff scope.
-								</p>
-							</div>
-						</TabsContent>
-						<TabsContent value="activity">
-							<div className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] p-4 shadow-[var(--publy-shadow-ring)]">
-								<p className="text-sm text-muted-foreground">
-									This tab is intentionally kept minimal in this handoff scope.
-								</p>
-							</div>
-						</TabsContent>
-						<TabsContent value="settings">
-							<div className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] p-4 shadow-[var(--publy-shadow-ring)]">
-								<p className="text-sm text-muted-foreground">
-									This tab is intentionally kept minimal in this handoff scope.
-								</p>
-							</div>
-						</TabsContent>
+						<StaffUserOverviewContext.Provider value={overviewContextValue}>
+							<Outlet />
+						</StaffUserOverviewContext.Provider>
 
 						{detailActionError ? (
 							<div className="mt-2 text-sm text-destructive" role="alert">
