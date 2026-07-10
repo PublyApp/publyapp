@@ -261,6 +261,22 @@ is set after the settings interaction), the locale switch, and the invite flow.
   read as flat page chrome, not raised cards, and `.publy-table-card` is
   explicitly commented as a "ring card" by design. They still pick up the
   dark-mode visibility fix and the light retune via the shared token.
+- Card surface treatment, round 2: the elevation adopted above (2026-07-10,
+  "owner-approved") **is itself superseded 2026-07-10 (owner decision R2-1)**.
+  Having seen the `shadow-md + ring` result, the owner judged elevation was
+  not the problem and asked for it removed: `components/ui/card.tsx` drops
+  `--publy-shadow-elevated` and goes back to `shadow-[var(--publy-shadow-ring)]`,
+  restoring SPEC's original ring-only card treatment. Only the alpha changes
+  from SPEC's `0.05`/`0.06` mix to a flat `0.06` in both themes —
+  `--publy-shadow-ring`/`--publy-shadow-card` are now
+  `rgba(9, 9, 11, 0.06)` (light) and `rgba(250, 250, 250, 0.06)` (dark,
+  composites to `#262628` on `#18181b`). The owner explicitly accepted that
+  this dark value is fainter than the `0.10` that fixed the invisible-ring
+  bug in round 1, but still visible. `--publy-shadow-elevated` stays declared
+  — its only remaining consumer is `.publy-state-icon` in `app.css`, which
+  goes flat under a separate packet (R2-2); the token is deleted then, not
+  before. `artboard-assertions.ts` ('5f', `settings.card` box-shadow) updated
+  to `rgba(9,9,11,0.06)`.
 - Table column geometry: SPEC's list grids assume columns that do not exist in
   the current data model. **Adapted 2026-07-10 (captain-approved deviation):**
   `2g` profiles (`40/240/1fr/104/140/120/40`) and `2i` invitations
