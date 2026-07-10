@@ -6,6 +6,11 @@ export const routes = rootRoute('__root.tsx', [
 	route('/field-validation', 'field-validation.tsx'),
 	layout('authed-layout', 'authed/layout.tsx', [
 		route('/staff', 'authed/staff.tsx'),
+		route('/staff/dashboard', 'authed/staff/dashboard.tsx', [
+			index('authed/staff/dashboard/index.tsx'),
+			route('/activity', 'authed/staff/dashboard/activity.tsx'),
+			route('/reports', 'authed/staff/dashboard/reports.tsx'),
+		]),
 		route('/staff/staff-users', 'authed/staff/staff-users.tsx'),
 		route(
 			'/staff/staff-users/$userId',

@@ -1,4 +1,5 @@
 import {
+	IconActivity,
 	IconBrandGoogleAnalytics,
 	IconBuilding,
 	IconCalendarCog,
@@ -11,6 +12,7 @@ import {
 	IconMail,
 	IconMenu2,
 	IconPuzzle,
+	IconReportAnalytics,
 	IconShieldCheck,
 	IconShieldLock,
 	IconSettings,
@@ -68,6 +70,30 @@ export type AppRouteMetadata = {
 };
 
 // -- Secondary panel rows
+
+const DASHBOARD_MODULE_ITEMS: SecondaryPanelItem[] = [
+	{
+		id: 'dashboard-overview',
+		label: 'Overview',
+		description: '',
+		path: '/staff/dashboard',
+		Icon: IconLayoutDashboard,
+	},
+	{
+		id: 'dashboard-activity',
+		label: 'Activity',
+		description: '',
+		path: '/staff/dashboard/activity',
+		Icon: IconActivity,
+	},
+	{
+		id: 'dashboard-reports',
+		label: 'Reports',
+		description: '',
+		path: '/staff/dashboard/reports',
+		Icon: IconReportAnalytics,
+	},
+];
 
 const STAFF_MODULE_ITEMS: SecondaryPanelItem[] = [
 	{
@@ -294,8 +320,11 @@ const STAFF_ROUTES: AppRouteMetadata[] = [
 		path: '/staff/dashboard',
 		breadcrumbLabel: 'Dashboard',
 		Icon: IconLayoutDashboard,
-		matchPrefixes: ['/staff/dashboard'],
-		secondaryItems: [],
+		matchPrefixes: [
+			'/staff/dashboard',
+			...itemPathnames(DASHBOARD_MODULE_ITEMS),
+		],
+		secondaryItems: DASHBOARD_MODULE_ITEMS,
 	},
 	{
 		id: 'tenants',

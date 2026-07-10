@@ -43,8 +43,10 @@ describe('front-2 route metadata', () => {
 		).toEqual(['posts', 'members', 'settings']);
 	});
 
-	test('staff dashboard panel has no secondary destinations', () => {
-		expect(getSecondaryPanelItems('/staff/dashboard')).toEqual([]);
+	test('staff dashboard panel items are exact', () => {
+		expect(
+			getSecondaryPanelItems('/staff/dashboard').map((item) => item.label),
+		).toEqual(['Overview', 'Activity', 'Reports']);
 	});
 
 	test('staff tenants panel items are exact', () => {
@@ -117,13 +119,13 @@ describe('front-2 route metadata', () => {
 		).toEqual(['Profile', 'Security', 'Notifications']);
 	});
 
-	test('secondary panel is hidden on modules with fewer than two destinations', () => {
+	test('secondary panel is shown on the staff dashboard (three destinations)', () => {
 		expect(
 			shouldShowSecondaryPanel('/staff/dashboard', {
 				sidebarOpen: true,
 				viewportWidth: 1280,
 			}),
-		).toBe(false);
+		).toBe(true);
 	});
 
 	test('secondary panel follows sidebarOpen on detail routes, not the route itself', () => {

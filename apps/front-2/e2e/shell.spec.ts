@@ -352,6 +352,31 @@ test('secondary panel follows the persisted preference across list and detail na
 	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
 });
 
+test('staff dashboard has a toggleable secondary panel that stays collapsed across navigation', async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await setSessionCookie(page);
+	await mockAuthRedirectCode(page);
+	await page.goto('/staff/dashboard');
+
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
+	await expect(
+		page.getByRole('button', { name: 'Collapse navigation panel' }),
+	).toBeVisible();
+
+	await page.getByRole('button', { name: 'Collapse navigation panel' }).click();
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+
+	await page.goto('/staff/staff-users');
+	await expect(page).toHaveURL('/staff/staff-users');
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+
+	await page.goto('/staff/dashboard');
+	await expect(page).toHaveURL('/staff/dashboard');
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+});
+
 test('detail grid sizes to the space left by the rail and panel, not the raw viewport', async ({
 	page,
 }) => {

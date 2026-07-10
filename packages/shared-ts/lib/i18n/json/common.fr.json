@@ -808,5 +808,7 @@
 	"apply": "Appliquer",
 	"clear": "Effacer",
 	"clear-all": "Tout effacer",
-	"no-results-found": "Aucun résultat trouvé"
+	"no-results-found": "Aucun résultat trouvé",
+	"reports": "Rapports",
+	"dashboard-section-placeholder": "Cette section du tableau de bord n'est pas encore construite."
 }

@@ -416,3 +416,22 @@ is set after the settings interaction), the locale switch, and the invite flow.
   updated to the new sizes, not loosened; `state-surface.test.tsx` gained
   tests for the `data-scale` attribute, the shared `AppErrorView`/
   `StateSurface` primitive, and the absence of the ghost numeral/separator.
+- Dashboard secondary panel, round 2 (2026-07-10, owner decision R2-3):
+  SPEC `:49` and artboard 2a describe the dashboard module as rail-only, with
+  no secondary panel and therefore no sidebar toggle available there — the
+  first deviation on this axis was round-1 decision 7 (sidebar toggle always
+  in the topbar, open/closed state is user intent and persists across
+  navigation). Round 2 goes further: the owner wants the toggle available on
+  `/staff/dashboard` specifically, which requires the module to actually have
+  panel content (`shouldShowSecondaryPanel`/`canToggleSecondaryPanel` both
+  gate on `secondaryItems.length >= 2`). `/staff/dashboard` previously had no
+  route at all (`routes.ts` declared nothing for it, so it rendered the
+  not-found view); this packet adds the route plus three nested children —
+  Overview (`/staff/dashboard`, index), Activity (`/staff/dashboard/activity`),
+  Reports (`/staff/dashboard/reports`) — and gives the `dashboard` rail item's
+  `secondaryItems` three real `DASHBOARD_MODULE_ITEMS` entries in
+  `route-metadata.tsx` instead of `[]`. Page content is deliberately minimal
+  placeholder text (no fabricated metrics/charts) — the 2a visual build is a
+  separate packet. The `>= 2` panel-visibility threshold itself was not
+  touched; three destinations simply now satisfies it the same way every
+  other module does.

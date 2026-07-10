@@ -808,5 +808,7 @@
 	"apply": "Apply",
 	"clear": "Clear",
 	"clear-all": "Clear all",
-	"no-results-found": "No results found"
+	"no-results-found": "No results found",
+	"reports": "Reports",
+	"dashboard-section-placeholder": "This dashboard section is not built yet."
 }
