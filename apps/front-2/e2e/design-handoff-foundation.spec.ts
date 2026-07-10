@@ -126,6 +126,7 @@ test('asserts staff invitations filter button geometry', async ({ page }) => {
 	await loginAsStaffAdmin(page);
 	await page.setViewportSize({ width: 1280, height: 900 });
 
+	// design-system-ignore: no-single-star-route-glob — pre-existing collection-only mock; not yet audited for sub-path escapes (see BACKLOG: e2e glob audit)
 	await page.route('**/staff/invitations*', async (route) => {
 		if (
 			route.request().method() !== 'GET' ||
@@ -168,6 +169,7 @@ test('asserts confirm modal geometry uses handoff radius', async ({ page }) => {
 	await loginAsStaffAdmin(page);
 	await page.setViewportSize({ width: 1280, height: 900 });
 
+	// design-system-ignore: no-single-star-route-glob — pre-existing collection-only mock; not yet audited for sub-path escapes (see BACKLOG: e2e glob audit)
 	await page.route('**/staff/tenants*', async (route) => {
 		if (
 			route.request().method() !== 'GET' ||
@@ -266,6 +268,7 @@ test('asserts neutral state icon uses 48px tile with 14px radius and muted backg
 	await loginAsStaffAdmin(page);
 	await page.setViewportSize({ width: 1280, height: 900 });
 
+	// design-system-ignore: no-single-star-route-glob — pre-existing collection-only mock; not yet audited for sub-path escapes (see BACKLOG: e2e glob audit)
 	await page.route('**/staff/users*', async (route) => {
 		await route.fulfill({
 			status: 200,

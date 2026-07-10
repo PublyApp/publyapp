@@ -5,6 +5,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const rootDir = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const srcDir = path.join(rootDir, 'src');
+const e2eDir = path.join(rootDir, 'e2e');
 
 const TEXT_EXTENSIONS = new Set(['.ts', '.tsx', '.css']);
 const TOKEN_LAYER_FILES = new Set(['src/styles/app.css']);
@@ -243,8 +244,23 @@ const isKnownHandoffGuardDebt = ({ ruleId, file, source }) => {
 	return false;
 };
 
-const recordViolation = (violations, violation) => {
+// An opt-out comment on the line directly above the offending line. Requires a
+// reason after the rule id so the suppression has to be argued, not just added.
+const SUPPRESSION_PREFIX = 'design-system-ignore:';
+
+const isInlineSuppressed = (lines, line, ruleId) => {
+	const previous = lines[line - 2] ?? '';
+	const marker = `${SUPPRESSION_PREFIX} ${ruleId}`;
+	const at = previous.indexOf(marker);
+	return at !== -1 && previous.slice(at + marker.length).trim().length > 0;
+};
+
+const recordViolation = (violations, violation, lines) => {
 	if (isKnownHandoffGuardDebt(violation)) {
+		return;
+	}
+
+	if (lines && isInlineSuppressed(lines, violation.line, violation.ruleId)) {
 		return;
 	}
 
@@ -380,7 +396,29 @@ const rules = [
 			/<a\b(?:(?!<a\b)[\s\S])*?href=["']\/(staff|tenant)\b(?:(?!<a\b)[\s\S])*?>/g,
 		],
 	},
+	{
+		// A Playwright glob's `*` compiles to `([^/]*)` and cannot cross a path
+		// separator; only `**` becomes `(.*)`. A trailing single `*` therefore
+		// matches the collection path but never its sub-paths, so the handler is
+		// dead code and the request escapes to the real API while the test still
+		// appears to pass. This has silently defeated three specs.
+		id: 'no-single-star-route-glob',
+		mode: 'source',
+		message:
+			"page.route() glob ends in a single '*', which cannot cross '/'. Sub-paths escape the mock and hit the real API. Use '**'.",
+		appliesTo: (relativePath) => relativePath.startsWith('e2e/'),
+		patterns: [/page\.route\(\s*(['"`])(?:(?!\1)[^\\])*[^*]\*\1/g],
+	},
 ];
+
+const pathExists = async (dir) => {
+	try {
+		await readdir(dir);
+		return true;
+	} catch {
+		return false;
+	}
+};
 
 const collectFiles = async (dir) => {
 	const entries = await readdir(dir, { withFileTypes: true });
@@ -403,9 +441,15 @@ const collectFiles = async (dir) => {
 
 export const scanFront2DesignSystem = async ({
 	baseDir = rootDir,
-	sourceDir = srcDir,
+	sourceDir,
+	sourceDirs = sourceDir ? [sourceDir] : [srcDir, e2eDir],
 } = {}) => {
-	const files = await collectFiles(sourceDir);
+	const files = [];
+	for (const dir of sourceDirs) {
+		if (await pathExists(dir)) {
+			files.push(...(await collectFiles(dir)));
+		}
+	}
 	const violations = [];
 
 	for (const absolutePath of files) {
@@ -434,13 +478,17 @@ export const scanFront2DesignSystem = async ({
 					const matches = source.matchAll(globalPattern);
 					for (const match of matches) {
 						const line = source.slice(0, match.index).split('\n').length;
-						recordViolation(violations, {
-							ruleId: rule.id,
-							message: rule.message,
-							file: relativePath,
-							line,
-							source: match[0].trim(),
-						});
+						recordViolation(
+							violations,
+							{
+								ruleId: rule.id,
+								message: rule.message,
+								file: relativePath,
+								line,
+								source: match[0].trim(),
+							},
+							lines,
+						);
 					}
 				}
 			} else {

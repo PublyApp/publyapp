@@ -530,3 +530,47 @@ test('flags wrapped internal staff and tenant anchors in authed routes', async (
 		2,
 	);
 });
+
+test('flags a page.route glob whose trailing single star cannot cross a path separator', async () => {
+	const root = await makeFixture({
+		'e2e/tenants.spec.ts':
+			"await page.route('**/staff/tenants*', handler);\nawait page.route('**/staff/profiles**', handler);",
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDirs: [path.join(root, 'e2e')],
+	});
+
+	const globViolations = violations.filter(
+		(violation) => violation.ruleId === 'no-single-star-route-glob',
+	);
+
+	assert.equal(globViolations.length, 1);
+	assert.equal(globViolations[0].line, 1);
+	assert.match(globViolations[0].source, /staff\/tenants\*/);
+});
+
+test('a design-system-ignore marker suppresses only when it carries a reason', async () => {
+	const bare = await makeFixture({
+		'e2e/bare.spec.ts':
+			"// design-system-ignore: no-single-star-route-glob\nawait page.route('**/staff/tenants*', handler);",
+	});
+	const reasoned = await makeFixture({
+		'e2e/reasoned.spec.ts':
+			"// design-system-ignore: no-single-star-route-glob — collection-only mock\nawait page.route('**/staff/tenants*', handler);",
+	});
+
+	const countFor = async (root) => {
+		const violations = await scanFront2DesignSystem({
+			baseDir: root,
+			sourceDirs: [path.join(root, 'e2e')],
+		});
+		return violations.filter(
+			(violation) => violation.ruleId === 'no-single-star-route-glob',
+		).length;
+	};
+
+	assert.equal(await countFor(bare), 1, 'a bare marker must not suppress');
+	assert.equal(await countFor(reasoned), 0, 'a reasoned marker must suppress');
+});
