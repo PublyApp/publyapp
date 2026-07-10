@@ -15,7 +15,7 @@ import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
 import { DataTableRowActions } from '~/components/table/row-actions';
-import { Button } from '~/components/ui/button';
+import { Button, buttonVariants } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
 	DangerZoneCard,
@@ -637,7 +637,7 @@ function StaffUserDetailsPage() {
 						<Link
 							to="/staff/staff-users/$userId/edit"
 							params={{ userId }}
-							className="inline-flex h-8 shrink-0 items-center justify-center gap-1 rounded-[var(--publy-radius-button)] border border-border bg-background px-3 text-sm font-medium whitespace-nowrap transition-all hover:bg-muted hover:text-foreground"
+							className={buttonVariants({ variant: 'outline', size: 'sm' })}
 						>
 							<IconPencil className="size-4" />
 							Edit

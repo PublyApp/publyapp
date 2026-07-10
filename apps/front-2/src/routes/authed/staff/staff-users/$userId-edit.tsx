@@ -59,8 +59,6 @@ const staffUserEditSchema = z.object({
 	accountLevel: z.enum(ACCOUNT_LEVEL_OPTIONS),
 	status: z.enum(STATUS_OPTIONS),
 	profileIds: z.array(z.string()),
-	requireTwoFactor: z.boolean(),
-	forcePasswordReset: z.boolean(),
 });
 
 type StaffUserEditValues = z.infer<typeof staffUserEditSchema>;
@@ -212,8 +210,6 @@ function StaffUserEditPage() {
 			accountLevel: 'User',
 			status: 'Active',
 			profileIds: [],
-			requireTwoFactor: false,
-			forcePasswordReset: false,
 		},
 	});
 	const { formState, reset } = methods;
@@ -232,8 +228,6 @@ function StaffUserEditPage() {
 			accountLevel: normalizeAccountLevel(user.accountLevel),
 			status: normalizeStatus(user.status),
 			profileIds: assignedProfiles.map((profile) => profile.id),
-			requireTwoFactor: false,
-			forcePasswordReset: false,
 		});
 	}, [assignedProfiles, reset, user]);
 
@@ -305,6 +299,17 @@ function StaffUserEditPage() {
 			setServerError('');
 			if (hasIdentityChanges) {
 				await updateStaffUser.mutateAsync(updateInput);
+				await Promise.all([
+					queryClient.invalidateQueries({
+						queryKey: ['staff', ...STAFF_USERS_QUERY_KEY],
+					}),
+					queryClient.invalidateQueries({
+						queryKey: ['staff', ...STAFF_USER_DETAILS_QUERY_KEY],
+					}),
+					queryClient.invalidateQueries({
+						queryKey: ['staff', ...STAFF_USER_PROFILES_QUERY_KEY],
+					}),
+				]);
 			}
 
 			if (hasProfileChanges) {
@@ -312,19 +317,19 @@ function StaffUserEditPage() {
 					userId,
 					profileIds: values.profileIds,
 				});
+				await Promise.all([
+					queryClient.invalidateQueries({
+						queryKey: ['staff', ...STAFF_USERS_QUERY_KEY],
+					}),
+					queryClient.invalidateQueries({
+						queryKey: ['staff', ...STAFF_USER_DETAILS_QUERY_KEY],
+					}),
+					queryClient.invalidateQueries({
+						queryKey: ['staff', ...STAFF_USER_PROFILES_QUERY_KEY],
+					}),
+				]);
 			}
 
-			await Promise.all([
-				queryClient.invalidateQueries({
-					queryKey: ['staff', ...STAFF_USERS_QUERY_KEY],
-				}),
-				queryClient.invalidateQueries({
-					queryKey: ['staff', ...STAFF_USER_DETAILS_QUERY_KEY],
-				}),
-				queryClient.invalidateQueries({
-					queryKey: ['staff', ...STAFF_USER_PROFILES_QUERY_KEY],
-				}),
-			]);
 			void navigate({
 				to: '/staff/staff-users/$userId',
 				params: { userId },
@@ -349,7 +354,9 @@ function StaffUserEditPage() {
 		updateStaffUserProfiles.isPending;
 	const attentionCount = Object.keys(errors).length;
 	const status = formState.isDirty
-		? `Unsaved changes · ${attentionCount} field${attentionCount === 1 ? '' : 's'} need attention`
+		? attentionCount > 0
+			? `Unsaved changes · ${attentionCount} field${attentionCount === 1 ? '' : 's'} need attention`
+			: 'Unsaved changes'
 		: undefined;
 
 	return (
@@ -461,18 +468,10 @@ function StaffUserEditPage() {
 					</div>
 					<div className="px-5">
 						{/* TODO(contract): security preference endpoints are not available. */}
-						<Field.Switch
-							name="requireTwoFactor"
-							label="Require two-factor authentication"
-							description="Require this user to use two-factor authentication."
-							isDisabled
-						/>
-						<Field.Switch
-							name="forcePasswordReset"
-							label="Force password reset"
-							description="Ask this user to choose a new password at next sign-in."
-							isDisabled
-						/>
+						<p className="py-4 text-sm text-muted-foreground">
+							Not available — security preferences are not yet exposed by the
+							API
+						</p>
 					</div>
 				</section>
 

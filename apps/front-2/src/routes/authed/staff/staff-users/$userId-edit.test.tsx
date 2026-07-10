@@ -343,6 +343,13 @@ describe('staff user edit route', () => {
 		).toBeTruthy();
 		expect(screen.getByDisplayValue('Admin')).toBeTruthy();
 		expect(screen.getByDisplayValue('Active')).toBeTruthy();
+		expect(screen.getByLabelText('Status')).toHaveProperty('disabled', true);
+		expect(
+			screen.getByText(
+				'Not available — security preferences are not yet exposed by the API',
+			),
+		).toBeTruthy();
+		expect(screen.queryAllByRole('switch')).toHaveLength(0);
 		expect(screen.getByDisplayValue('alex@example.com')).toHaveProperty(
 			'disabled',
 			true,
