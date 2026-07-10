@@ -1597,3 +1597,267 @@ html {
 	height: 36px;
 	min-height: 36px;
 }
+
+/* ---- T6B — staff profiles & invitations ---- */
+
+.publy-profile-icon-tile {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	border-radius: 9px;
+	background: var(--publy-icon-tile-bg);
+	color: var(--publy-icon-tile-fg);
+	flex-shrink: 0;
+}
+
+.publy-profile-icon-tile i {
+	font-size: 17px;
+}
+
+.publy-profile-detail-tile {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 56px;
+	height: 56px;
+	border-radius: 14px;
+	background: var(--publy-icon-tile-bg);
+	color: var(--publy-icon-tile-fg);
+	flex-shrink: 0;
+}
+
+.publy-profile-detail-tile i {
+	font-size: 26px;
+}
+
+.publy-profile-count-badge {
+	display: inline-flex;
+	align-items: center;
+	height: 20px;
+	padding: 0 8px;
+	border-radius: 8px;
+	border: 1px solid var(--publy-border);
+	font-size: 11px;
+	font-weight: 500;
+	color: var(--publy-foreground-secondary);
+}
+
+.publy-profile-detail-kebab {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 36px;
+	height: 36px;
+	border-radius: var(--publy-radius-button);
+	border: 1px solid var(--publy-border);
+	background: var(--publy-surface);
+	color: var(--publy-foreground);
+	cursor: pointer;
+	transition: background-color var(--publy-motion-fast) var(--publy-motion-ease);
+}
+
+.publy-profile-detail-kebab:hover {
+	background: var(--publy-surface-hover);
+}
+
+.publy-detail-card {
+	overflow: hidden;
+}
+
+.publy-detail-card-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 14px 18px;
+	border-bottom: 1px solid var(--publy-row-border);
+}
+
+.publy-detail-card-body {
+	display: flex;
+	flex-direction: column;
+	gap: 13px;
+	padding: 16px 18px;
+}
+
+.publy-type-detail-title {
+	margin: 0;
+	font-size: 22px;
+	font-weight: 600;
+	letter-spacing: -0.01em;
+}
+
+/* 2-col permission matrix (read-only, Geist Mono keys) */
+.publy-perm-matrix {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+}
+
+.publy-perm-matrix-col {
+	overflow-y: auto;
+}
+
+.publy-perm-matrix-col:first-child {
+	border-right: 1px solid var(--publy-row-border);
+}
+
+.publy-perm-group-header {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 10px 18px;
+	background: #fcfcfd;
+	border-bottom: 1px solid var(--publy-row-border);
+}
+
+.publy-perm-row {
+	display: flex;
+	align-items: center;
+	gap: 11px;
+	padding: 9px 18px;
+	border-bottom: 1px solid var(--publy-row-border);
+}
+
+.publy-perm-row:last-child {
+	border-bottom: 0;
+}
+
+.publy-perm-check {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 15px;
+	height: 15px;
+	border-radius: 5px;
+	border: 1.5px solid #d4d4d8;
+	background: var(--publy-surface);
+	flex-shrink: 0;
+}
+
+.publy-perm-check--granted {
+	background: var(--publy-primary);
+	border-color: var(--publy-primary);
+}
+
+.publy-perm-check i {
+	font-size: 10px;
+	color: var(--publy-primary-foreground);
+}
+
+.publy-perm-key {
+	font-size: 12px;
+	font-weight: 500;
+	font-family: 'Geist Mono', monospace;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* inline detail chip (h20, r8) — for Profile/Custom/Role tags */
+.publy-detail-chip {
+	display: inline-flex;
+	align-items: center;
+	height: 20px;
+	padding: 0 8px;
+	border-radius: 8px;
+	font-size: 11px;
+	font-weight: 500;
+	white-space: nowrap;
+}
+
+.publy-detail-chip--outline {
+	border: 1px solid var(--publy-border);
+	background: var(--publy-surface);
+	color: var(--publy-foreground);
+}
+
+.publy-detail-chip--amber {
+	border: 1px solid #fde68a;
+	background: #fffbeb;
+	color: #b45309;
+}
+
+.publy-profile-icon-tile[data-tone='0'] {
+	--publy-icon-tile-bg: #f0f9ff;
+	--publy-icon-tile-fg: #0369a1;
+}
+
+.publy-profile-icon-tile[data-tone='1'] {
+	--publy-icon-tile-bg: #ecfdf5;
+	--publy-icon-tile-fg: #047857;
+}
+
+.publy-profile-icon-tile[data-tone='2'] {
+	--publy-icon-tile-bg: #fef2f2;
+	--publy-icon-tile-fg: #be123c;
+}
+
+.publy-profile-icon-tile[data-tone='3'] {
+	--publy-icon-tile-bg: #fffbeb;
+	--publy-icon-tile-fg: #b45309;
+}
+
+.publy-profile-icon-tile[data-tone='4'] {
+	--publy-icon-tile-bg: #f5f3ff;
+	--publy-icon-tile-fg: #7c3aed;
+}
+
+.publy-profile-icon-tile[data-tone='5'] {
+	--publy-icon-tile-bg: #fdf2f8;
+	--publy-icon-tile-fg: #be185d;
+}
+
+.publy-profile-icon-tile[data-tone='6'] {
+	--publy-icon-tile-bg: #f0fdf4;
+	--publy-icon-tile-fg: #15803d;
+}
+
+.publy-profile-icon-tile[data-tone='7'] {
+	--publy-icon-tile-bg: #eff6ff;
+	--publy-icon-tile-fg: #1d4ed8;
+}
+
+.publy-profile-detail-tile[data-tone='0'] {
+	--publy-icon-tile-bg: #f0f9ff;
+	--publy-icon-tile-fg: #0369a1;
+}
+
+.publy-profile-detail-tile[data-tone='1'] {
+	--publy-icon-tile-bg: #ecfdf5;
+	--publy-icon-tile-fg: #047857;
+}
+
+.publy-profile-detail-tile[data-tone='2'] {
+	--publy-icon-tile-bg: #fef2f2;
+	--publy-icon-tile-fg: #be123c;
+}
+
+.publy-profile-detail-tile[data-tone='3'] {
+	--publy-icon-tile-bg: #fffbeb;
+	--publy-icon-tile-fg: #b45309;
+}
+
+.publy-profile-detail-tile[data-tone='4'] {
+	--publy-icon-tile-bg: #f5f3ff;
+	--publy-icon-tile-fg: #7c3aed;
+}
+
+.publy-profile-detail-tile[data-tone='5'] {
+	--publy-icon-tile-bg: #fdf2f8;
+	--publy-icon-tile-fg: #be185d;
+}
+
+.publy-profile-detail-tile[data-tone='6'] {
+	--publy-icon-tile-bg: #f0fdf4;
+	--publy-icon-tile-fg: #15803d;
+}
+
+.publy-profile-detail-tile[data-tone='7'] {
+	--publy-icon-tile-bg: #eff6ff;
+	--publy-icon-tile-fg: #1d4ed8;
+}
+
+.publy-perm-check svg {
+	color: var(--publy-primary-foreground);
+}

@@ -1,15 +1,25 @@
 import {
-	IconCalendar,
 	IconCircleDot,
 	IconClock,
 	IconId,
+	IconIdBadge2,
 	IconMail,
-	IconMailCheck,
+	IconRefresh,
+	IconUser,
+	IconX,
 } from '@tabler/icons-react';
-import { Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
+import { useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import { DataTableRowActions } from '~/components/table/row-actions';
+import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
+import { InitialsAvatar } from '~/components/ui/initials-avatar';
 import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
+import {
+	useResendStaffInvitationMutation,
+	useRevokeStaffInvitationMutation,
+} from '~/lib/query/staff-invitations';
 
 import {
 	formatInvitationStatusLabel,
@@ -30,6 +40,7 @@ export type InvitationRow = {
 type CreateInvitationColumnsArgs = {
 	t: (key: string) => string;
 	locale: string;
+	onActionSuccess: () => void;
 };
 
 const formatDateTime = (value: Date | null, locale: string): string => {
@@ -43,43 +54,144 @@ const formatDateTime = (value: Date | null, locale: string): string => {
 	}).format(value);
 };
 
+const InvitationRowActions = ({
+	row,
+	onSuccess,
+}: {
+	row: InvitationRow;
+	onSuccess: () => void;
+}) => {
+	const { t } = useTranslation('common');
+	const resendMutation = useResendStaffInvitationMutation();
+	const revokeMutation = useRevokeStaffInvitationMutation();
+
+	const handleResend = useCallback(() => {
+		resendMutation.mutate(
+			{ invitationId: row.id },
+			{ onSuccess: () => onSuccess() },
+		);
+	}, [resendMutation, row.id, onSuccess]);
+
+	const handleRevoke = useCallback(() => {
+		revokeMutation.mutate(
+			{ invitationId: row.id },
+			{ onSuccess: () => onSuccess() },
+		);
+	}, [revokeMutation, row.id, onSuccess]);
+
+	return (
+		<div className="flex justify-center">
+			<DataTableRowActions
+				ariaLabel={`Actions for ${row.email || 'invitation'}`}
+				testId={`staff-invitation-actions-${row.id}`}
+			>
+				<DropdownMenuItem onClick={handleResend}>
+					<IconRefresh className="size-[15px]" />
+					{t('send-reminder')}
+				</DropdownMenuItem>
+				<DropdownMenuItem onClick={handleRevoke}>
+					<IconX className="size-[15px]" />
+					{t('revoke-invitation')}
+				</DropdownMenuItem>
+			</DataTableRowActions>
+		</div>
+	);
+};
+
 export const createInvitationColumns = ({
 	t,
 	locale,
+	onActionSuccess,
 }: CreateInvitationColumnsArgs): ColumnDef<InvitationRow>[] => [
 	{
 		id: 'email',
-		header: t('email'),
+		header: () => (
+			<div className="inline-flex items-center gap-1.5">
+				<IconMail className="size-3.5 text-muted-foreground" />
+				<span>{t('invitee')}</span>
+			</div>
+		),
 		accessorKey: 'email',
-		meta: { headerIcon: <IconMail /> },
 		cell: ({ row }) => (
-			<div>
-				<Link
-					to="/staff/invitations/$invitationId"
-					params={{ invitationId: row.original.id }}
-					className="publy-record-link"
-				>
+			<div className="flex items-center gap-2.5 min-w-0">
+				<InitialsAvatar name={row.original.email} />
+				<span className="text-[13px] font-medium truncate">
 					{row.original.email || '-'}
-				</Link>
-				<div className="publy-record-subtext">
-					{t('staff-invited-by')}: {row.original.invitedByName}
-				</div>
+				</span>
 			</div>
 		),
 	},
 	{
-		id: 'profile_name',
-		header: t('profiles'),
-		accessorKey: 'profileName',
-		// Staff invitations only supports created_at, expires_at, email, and accepted_at.
+		id: 'role',
+		header: () => (
+			<div className="inline-flex items-center gap-1.5">
+				<IconIdBadge2 className="size-3.5 text-muted-foreground" />
+				<span>{t('role')}</span>
+			</div>
+		),
 		enableSorting: false,
-		meta: { headerIcon: <IconId /> },
+		cell: () => (
+			<span className="publy-detail-chip publy-detail-chip--outline">
+				{/* TODO(contract): role not in InvitationListItem */}—
+			</span>
+		),
+	},
+	{
+		id: 'profile_name',
+		header: () => (
+			<div className="inline-flex items-center gap-1.5">
+				<IconId className="size-3.5 text-muted-foreground" />
+				<span>{t('profiles')}</span>
+			</div>
+		),
+		accessorKey: 'profileName',
+		enableSorting: false,
+		cell: ({ row }) => (
+			<span className="truncate block text-[12px] text-[var(--publy-foreground-secondary)]">
+				{row.original.profileName || '-'}
+			</span>
+		),
+	},
+	{
+		id: 'invited_by_name',
+		header: () => (
+			<div className="inline-flex items-center gap-1.5">
+				<IconUser className="size-3.5 text-muted-foreground" />
+				<span>{t('invited-by')}</span>
+			</div>
+		),
+		accessorKey: 'invitedByName',
+		enableSorting: false,
+		cell: ({ row }) => (
+			<span className="truncate block text-[13px] text-[var(--publy-foreground-secondary)]">
+				{row.original.invitedByName || '-'}
+			</span>
+		),
+	},
+	{
+		id: 'expires_at',
+		header: () => (
+			<div className="inline-flex items-center gap-1.5">
+				<IconClock className="size-3.5 text-muted-foreground" />
+				<span>{t('expires')}</span>
+			</div>
+		),
+		accessorFn: (row) => row.expiresAt,
+		cell: ({ row }) => (
+			<span className="text-[13px] text-[var(--publy-foreground-secondary)]">
+				{formatDateTime(row.original.expiresAt, locale)}
+			</span>
+		),
 	},
 	{
 		id: 'status',
-		header: t('status'),
+		header: () => (
+			<div className="inline-flex items-center gap-1.5">
+				<IconCircleDot className="size-3.5 text-muted-foreground" />
+				<span>{t('status')}</span>
+			</div>
+		),
 		enableSorting: false,
-		meta: { headerIcon: <IconCircleDot />, cellClassName: 'w-32' },
 		cell: ({ row }) => (
 			<StatusPill tone={statusPillTone(row.original.status)}>
 				{formatInvitationStatusLabel(row.original.status)}
@@ -87,24 +199,11 @@ export const createInvitationColumns = ({
 		),
 	},
 	{
-		id: 'expires_at',
-		header: t('expiry-date'),
-		accessorFn: (row) => row.expiresAt,
-		meta: { headerIcon: <IconClock /> },
-		cell: ({ row }) => formatDateTime(row.original.expiresAt, locale),
-	},
-	{
-		id: 'accepted_at',
-		header: t('accepted-at'),
-		accessorFn: (row) => row.acceptedAt,
-		meta: { headerIcon: <IconMailCheck /> },
-		cell: ({ row }) => formatDateTime(row.original.acceptedAt, locale),
-	},
-	{
-		id: 'created_at',
-		header: t('created-at'),
-		accessorFn: (row) => row.createdAt,
-		meta: { headerIcon: <IconCalendar /> },
-		cell: ({ row }) => formatDateTime(row.original.createdAt, locale),
+		id: 'actions',
+		header: () => <span className="sr-only">{t('actions')}</span>,
+		enableSorting: false,
+		cell: ({ row }) => (
+			<InvitationRowActions row={row.original} onSuccess={onActionSuccess} />
+		),
 	},
 ];

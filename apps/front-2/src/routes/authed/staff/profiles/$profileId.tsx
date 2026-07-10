@@ -1,13 +1,41 @@
-import { IconAlertCircle, IconSearchOff } from '@tabler/icons-react';
+import {
+	IconAlertCircle,
+	IconBuildingBank,
+	IconCalendar,
+	IconChartBar,
+	IconCheck,
+	IconChevronRight,
+	IconDots,
+	IconNews,
+	IconPencil,
+	IconSearchOff,
+	IconSettings,
+	IconShield,
+	IconUsers,
+	IconUsersPlus,
+	IconWorld,
+} from '@tabler/icons-react';
+import type { Icon } from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
+import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
 import {
+	DetailAside,
+	DetailGrid,
+	DetailMain,
+} from '~/components/ui/detail-layout';
+import { InitialsAvatar } from '~/components/ui/initials-avatar';
+import {
+	useStaffProfileUsersQuery,
+	toStaffProfileUserRows,
+} from '~/lib/query/staff-profile-users';
+import {
 	type StaffPermissionCatalog,
-	toAssignedStaffPermissionGroups,
 	toStaffProfileDetails,
 	useStaffPermissionCatalogQuery,
 	useStaffProfileDetailsQuery,
@@ -16,6 +44,17 @@ import {
 import { shouldLogoutForFailure } from '~/routes/authed/layout';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
+
+const PROFILE_ICON_MAP: Record<string, Icon> = {
+	news: IconNews,
+	calendar: IconCalendar,
+	shield: IconShield,
+	'building-bank': IconBuildingBank,
+	users: IconUsers,
+	settings: IconSettings,
+	'chart-bar': IconChartBar,
+	world: IconWorld,
+};
 
 const MALFORMED_ID_TRANSLATION_KEY = 'malformed-id';
 
@@ -48,22 +87,18 @@ const getFailureDescription = (
 
 const ProfileDetailsLoading = () => (
 	<div
-		className="mx-auto flex min-h-[50vh] w-full max-w-5xl items-center justify-center px-4 py-12"
+		className="mx-auto flex min-h-[50vh] w-full items-center justify-center py-12"
 		data-testid="staff-profile-details-loading"
 	>
 		<div className="flex items-center gap-3 text-sm text-muted-foreground">
-			<LoadingSpinner />
+			<span
+				role="status"
+				aria-label="Loading"
+				className="size-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"
+			/>
 			<span>Loading staff profile…</span>
 		</div>
 	</div>
-);
-
-const LoadingSpinner = () => (
-	<span
-		role="status"
-		aria-label="Loading"
-		className="size-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"
-	/>
 );
 
 const InvalidProfileView = ({ error }: { error: unknown }) => {
@@ -124,20 +159,173 @@ const ProfileDetailsError = ({ error }: { error: unknown }) => {
 	);
 };
 
-const DetailStat = ({
-	label,
-	value,
+function PermissionMatrix({
+	assignedKeys,
+	catalog,
 }: {
-	label: string;
-	value: string | number;
-}) => (
-	<div className="rounded-large border border-divider bg-content1 p-4">
-		<p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-			{label}
-		</p>
-		<p className="mt-2 text-2xl font-semibold text-foreground">{value}</p>
-	</div>
-);
+	assignedKeys: string[];
+	catalog: StaffPermissionCatalog | undefined;
+}) {
+	const allPermissions = useMemo(() => {
+		const entries: {
+			key: string;
+			name: string;
+			description: string | null;
+			groupKey: string;
+			groupLabel: string;
+		}[] = [];
+
+		for (const [moduleKey, permissions] of Object.entries(catalog ?? {})) {
+			const groupLabel = moduleKey
+				.trim()
+				.replace(/[_-]+/g, ' ')
+				.replace(/\b\w/g, (c) => c.toUpperCase());
+
+			for (const perm of Object.values(permissions)) {
+				if (typeof perm !== 'object' || perm === null) {
+					continue;
+				}
+				const key = perm.key?.trim();
+				if (!key) {
+					continue;
+				}
+
+				entries.push({
+					key,
+					name: perm.name?.trim() ?? key,
+					description: perm.description ?? null,
+					groupKey: moduleKey,
+					groupLabel,
+				});
+			}
+		}
+
+		for (const key of assignedKeys) {
+			if (!entries.some((e) => e.key === key)) {
+				const dotIdx = key.indexOf('.');
+				const groupKey = dotIdx > 0 ? key.slice(0, dotIdx) : key;
+				const groupLabel = groupKey
+					.replace(/[_-]+/g, ' ')
+					.replace(/\b\w/g, (c) => c.toUpperCase());
+				entries.push({
+					key,
+					name: key,
+					description: null,
+					groupKey,
+					groupLabel,
+				});
+			}
+		}
+
+		return entries;
+	}, [assignedKeys, catalog]);
+
+	const groups = useMemo(() => {
+		const map = new Map<string, typeof allPermissions>();
+		for (const entry of allPermissions) {
+			const group = map.get(entry.groupKey) ?? [];
+			group.push(entry);
+			map.set(entry.groupKey, group);
+		}
+
+		const result = Array.from(map.entries()).map(([key, permissions]) => ({
+			key,
+			label: permissions[0]?.groupLabel ?? key,
+			permissions,
+		}));
+
+		result.sort((a, b) => a.label.localeCompare(b.label));
+		return result;
+	}, [allPermissions]);
+
+	let totalLines = 0;
+	for (const g of groups) {
+		totalLines += g.permissions.length + 1;
+	}
+
+	const midpoint = Math.ceil(totalLines / 2);
+	let accumulated = 0;
+	const leftGroups: typeof groups = [];
+	const rightGroups: typeof groups = [];
+
+	for (const group of groups) {
+		const groupSize = group.permissions.length + 1;
+		if (accumulated < midpoint) {
+			leftGroups.push(group);
+		} else {
+			rightGroups.push(group);
+		}
+		accumulated += groupSize;
+	}
+
+	return (
+		<div className="publy-perm-matrix">
+			<div className="publy-perm-matrix-col">
+				{leftGroups.map((group) => (
+					<PermGroup
+						key={group.key}
+						group={group}
+						assignedKeys={assignedKeys}
+					/>
+				))}
+			</div>
+			<div className="publy-perm-matrix-col">
+				{rightGroups.map((group) => (
+					<PermGroup
+						key={group.key}
+						group={group}
+						assignedKeys={assignedKeys}
+					/>
+				))}
+			</div>
+		</div>
+	);
+}
+
+function PermGroup({
+	group,
+	assignedKeys,
+}: {
+	group: {
+		key: string;
+		label: string;
+		permissions: { key: string; name: string; description: string | null }[];
+	};
+	assignedKeys: string[];
+}) {
+	const assignedSet = useMemo(() => new Set(assignedKeys), [assignedKeys]);
+
+	return (
+		<div>
+			<div className="publy-perm-group-header">
+				<span className="text-[13px] font-semibold">{group.label}</span>
+				<span className="text-[11px] text-[var(--publy-foreground-subtle)]">
+					{group.permissions.length}
+				</span>
+			</div>
+			{group.permissions.map((perm) => {
+				const isAssigned = assignedSet.has(perm.key);
+				return (
+					<div key={perm.key} className="publy-perm-row">
+						<div
+							className={`publy-perm-check ${
+								isAssigned ? 'publy-perm-check--granted' : ''
+							}`}
+						>
+							{isAssigned ? <IconCheck className="size-[10px]" /> : null}
+						</div>
+						<span
+							className="publy-perm-key"
+							title={perm.description ?? undefined}
+						>
+							{perm.key}
+						</span>
+					</div>
+				);
+			})}
+		</div>
+	);
+}
 
 export const Route = createFileRoute(
 	'/_authed-layout/staff/profiles/$profileId',
@@ -154,6 +342,7 @@ function StaffProfileDetailsPage() {
 	const permissionCatalogQuery = useStaffPermissionCatalogQuery({
 		language: i18n.language,
 	});
+	const usersQuery = useStaffProfileUsersQuery({ profileId, size: 5 });
 
 	if (
 		(detailQuery.isError && shouldLogoutForFailure(detailQuery.error)) ||
@@ -195,158 +384,219 @@ function StaffProfileDetailsPage() {
 	}
 
 	const assignedKeys = permissionKeysQuery.data.permissionKeys ?? [];
-	const permissionGroups = toAssignedStaffPermissionGroups(
-		assignedKeys,
-		(permissionCatalogQuery.data?.additionalData ?? undefined) as
-			| StaffPermissionCatalog
-			| undefined,
-	);
+	const catalog = (permissionCatalogQuery.data?.additionalData ?? undefined) as
+		| StaffPermissionCatalog
+		| undefined;
+	const userRows = toStaffProfileUserRows(usersQuery.data?.users);
+	const userCount = details.userAccountCount;
+	let catalogPermCount = 0;
+	if (catalog) {
+		for (const module of Object.values(catalog)) {
+			catalogPermCount += Object.keys(module).length;
+		}
+	}
 
 	return (
-		<div
-			className="mx-auto w-full max-w-5xl space-y-6"
-			data-testid="staff-profile-details-page"
-		>
-			<div className="space-y-4">
-				<div className="space-y-2">
-					<Link
-						to="/staff/profiles"
-						className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+		<div className="publy-page-fill" data-testid="staff-profile-details-page">
+			{/* Breadcrumb */}
+			<div className="flex items-center gap-2.5 text-[13px] py-1">
+				<Link
+					to="/staff/profiles"
+					className="no-underline hover:underline text-[var(--publy-foreground-muted)]"
+				>
+					Staff
+				</Link>
+				<IconChevronRight className="size-3 text-[var(--publy-disabled)]" />
+				<Link
+					to="/staff/profiles"
+					className="no-underline hover:underline text-[var(--publy-foreground-muted)]"
+				>
+					Profiles
+				</Link>
+				<IconChevronRight className="size-3 text-[var(--publy-disabled)]" />
+				<span className="font-medium">{details.name}</span>
+			</div>
+
+			{/* Identity Header */}
+			<div className="flex items-start justify-between gap-4 mb-8">
+				<div className="flex items-center gap-4">
+					<div
+						className="publy-profile-detail-tile"
+						data-tone={details.iconTone}
 					>
-						Back to staff profiles
-					</Link>
-					<div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-						<div className="space-y-2">
-							<p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-								Staff profile
-							</p>
-							<h1 className="text-3xl font-semibold tracking-tight text-foreground">
-								{details.name}
-							</h1>
-							<p className="max-w-2xl text-sm text-muted-foreground">
-								{details.description ?? 'No description provided.'}
-							</p>
+						{(() => {
+							const IconComponent = PROFILE_ICON_MAP[details.icon];
+							return IconComponent ? (
+								<IconComponent className="size-[26px]" />
+							) : null;
+						})()}
+					</div>
+					<div className="flex flex-col gap-[5px]">
+						<div className="flex items-center gap-2.5">
+							<h1 className="publy-type-detail-title">{details.name}</h1>
+							<span className="publy-detail-chip publy-detail-chip--outline">
+								Profile
+							</span>
+							<span className="publy-detail-chip publy-detail-chip--amber">
+								Custom
+							</span>
 						</div>
-						<div className="w-full max-w-xs">
-							<DetailStat
-								label="Assigned users"
-								value={details.userAccountCount}
-							/>
-						</div>
+						<p className="text-[13px] text-[var(--publy-foreground-muted)]">
+							{details.description ?? 'No description'}
+							{' · '}
+							{details.userAccountCount === null
+								? '—'
+								: `${details.userAccountCount} member${details.userAccountCount !== 1 ? 's' : ''}`}
+							{' · '}
+							{assignedKeys.length} permissions
+						</p>
 					</div>
 				</div>
-
-				<nav
-					aria-label="Staff profile sections"
-					className="flex flex-wrap gap-2 border-b border-divider pb-2"
-				>
-					<span className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
-						Basics
-					</span>
-					<Link
-						to="/staff/profiles/$profileId/users"
-						params={{ profileId }}
-						className="rounded-full border border-divider px-4 py-2 text-sm text-muted-foreground transition hover:border-muted-foreground hover:text-foreground"
+				<div className="flex items-center gap-2.5">
+					<Button variant="outline" size="sm" className="gap-1.5">
+						<IconUsersPlus className="size-[15px]" />
+						Assign to users
+					</Button>
+					<Button variant="outline" size="sm" className="gap-1.5">
+						<IconPencil className="size-[15px]" />
+						Edit
+					</Button>
+					<button
+						type="button"
+						className="publy-profile-detail-kebab"
+						aria-label="More actions"
 					>
-						Users
-					</Link>
-				</nav>
+						<IconDots className="size-4" />
+					</button>
+				</div>
 			</div>
 
-			<div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-				<Card className="space-y-4 p-5">
-					<div className="space-y-1">
-						<p className="text-lg font-semibold text-foreground">
-							Profile details
-						</p>
-						<p className="text-sm text-muted-foreground">
-							Core information for this staff profile.
-						</p>
-					</div>
-
-					<div className="grid gap-4 md:grid-cols-2">
-						<div className="rounded-large border border-divider bg-content1 p-4 md:col-span-2">
-							<p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-								Name
-							</p>
-							<p className="mt-2 text-base font-medium text-foreground">
-								{details.name}
-							</p>
+			<DetailGrid>
+				<DetailMain>
+					{/* Permissions in this profile */}
+					<Card className="publy-detail-card">
+						<div className="publy-detail-card-header">
+							<span className="text-[14px] font-semibold">
+								Permissions in this profile
+							</span>
+							<Link
+								to="/staff/profiles"
+								className="text-[12px] no-underline inline-flex items-center gap-[5px] text-[var(--publy-foreground-muted)]"
+							>
+								<IconPencil className="size-[13px]" />
+								Edit permissions
+							</Link>
 						</div>
-						<div className="rounded-large border border-divider bg-content1 p-4 md:col-span-2">
-							<p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-								Description
-							</p>
-							<p className="mt-2 text-sm text-muted-foreground">
-								{details.description ?? 'No description provided.'}
-							</p>
-						</div>
-						<DetailStat
-							label="User accounts"
-							value={details.userAccountCount}
-						/>
-						<DetailStat
-							label="Assigned permission keys"
-							value={assignedKeys.length}
-						/>
-					</div>
-				</Card>
+						{assignedKeys.length === 0 ? (
+							<div className="px-[18px] py-8 text-center text-[13px] text-muted-foreground">
+								No permissions are assigned to this profile.
+							</div>
+						) : (
+							<PermissionMatrix assignedKeys={assignedKeys} catalog={catalog} />
+						)}
+					</Card>
+				</DetailMain>
 
-				<Card className="space-y-4 p-5">
-					<div className="space-y-1">
-						<p className="text-lg font-semibold text-foreground">
-							Assigned permissions
-						</p>
-						<p className="text-sm text-muted-foreground">
-							Grouped by module when catalog data is available.
-						</p>
-					</div>
-
-					{permissionGroups.length === 0 ? (
-						<div className="rounded-large border border-dashed border-divider px-4 py-6 text-sm text-muted-foreground">
-							No permissions are assigned to this profile.
+				<DetailAside className="flex flex-col gap-5">
+					{/* About Card */}
+					<Card className="publy-detail-card">
+						<div className="publy-detail-card-header">
+							<span className="text-[14px] font-semibold">About</span>
 						</div>
-					) : (
-						<div className="space-y-4">
-							{permissionGroups.map((group) => (
-								<section
-									key={group.key}
-									className="space-y-3 rounded-large border border-divider bg-content1 p-4"
-								>
-									<div className="flex items-center justify-between gap-3">
-										<h2 className="text-base font-semibold text-foreground">
-											{group.label}
-										</h2>
-										<span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
-											{group.permissions.length}
+						<div className="publy-detail-card-body">
+							<div className="publy-detail-row">
+								<span className="publy-type-metadata-label">Type</span>
+								<span className="publy-detail-chip publy-detail-chip--amber">
+									Custom
+								</span>
+							</div>
+							<div className="publy-detail-row">
+								<span className="publy-type-metadata-label">Profile ID</span>
+								<span className="font-mono text-[12px] text-[var(--publy-foreground-secondary)]">
+									{details.id}
+								</span>
+							</div>
+							<div className="publy-detail-row">
+								<span className="publy-type-metadata-label">Created</span>
+								<span className="text-[12px] font-medium text-muted-foreground">
+									{/* TODO(contract): created_at not in profile detail response */}
+									—
+								</span>
+							</div>
+							<div className="publy-detail-row">
+								<span className="publy-type-metadata-label">Last updated</span>
+								<span className="text-[12px] font-medium text-muted-foreground">
+									{/* TODO(contract): updated_at not in profile detail response */}
+									—
+								</span>
+							</div>
+							<div className="publy-detail-row">
+								<span className="publy-type-metadata-label">Permissions</span>
+								<span className="text-[12px] font-medium">
+									{assignedKeys.length}
+									{catalogPermCount > 0
+										? ` of ${catalogPermCount} granted`
+										: ''}
+								</span>
+							</div>
+						</div>
+					</Card>
+
+					{/* Members Card */}
+					<Card className="publy-detail-card">
+						<div className="publy-detail-card-header">
+							<span className="text-[14px] font-semibold">
+								Members{' '}
+								<span className="font-normal text-[var(--publy-foreground-subtle)]">
+									· {userCount === null ? '—' : userCount}
+								</span>
+							</span>
+							<Link
+								to="/staff/profiles"
+								className="text-[12px] no-underline text-[var(--publy-foreground-muted)]"
+							>
+								View all
+							</Link>
+						</div>
+						<div className="flex flex-col">
+							{userRows.length === 0 ? (
+								<div className="px-[18px] py-8 text-center text-[13px] text-muted-foreground">
+									No members yet.
+								</div>
+							) : (
+								userRows.slice(0, 5).map((user) => (
+									<div
+										key={user.id}
+										className="flex items-center gap-[11px] px-[18px] py-[11px] border-b border-[var(--publy-row-border)] last:border-b-0"
+									>
+										<InitialsAvatar
+											name={
+												[user.firstName, user.lastName]
+													.filter(Boolean)
+													.join(' ') || user.email
+											}
+										/>
+										<div className="flex flex-col gap-px min-w-0">
+											<span className="text-[13px] font-medium truncate">
+												{[user.firstName, user.lastName]
+													.filter(Boolean)
+													.join(' ') || user.email}
+											</span>
+											<span className="text-[12px] text-[var(--publy-foreground-muted)]">
+												{/* TODO(contract): role not in StaffProfileUserItem */}
+												Member
+											</span>
+										</div>
+										<span className="publy-detail-chip publy-detail-chip--outline ml-auto">
+											{/* TODO(contract): role not in StaffProfileUserItem */}—
 										</span>
 									</div>
-									<ul className="space-y-2">
-										{group.permissions.map((permission) => (
-											<li
-												key={permission.key}
-												className="rounded-medium border border-divider bg-muted/50 px-3 py-2"
-											>
-												<p className="text-sm font-medium text-foreground">
-													{permission.label}
-												</p>
-												<p className="mt-1 font-mono text-xs text-muted-foreground">
-													{permission.key}
-												</p>
-												{permission.description ? (
-													<p className="mt-1 text-xs text-muted-foreground">
-														{permission.description}
-													</p>
-												) : null}
-											</li>
-										))}
-									</ul>
-								</section>
-							))}
+								))
+							)}
 						</div>
-					)}
-				</Card>
-			</div>
+					</Card>
+				</DetailAside>
+			</DetailGrid>
 		</div>
 	);
 }

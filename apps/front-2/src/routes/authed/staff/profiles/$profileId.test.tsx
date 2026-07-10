@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
 	useStaffProfileDetailsQuery: vi.fn(),
 	useStaffProfilePermissionKeysQuery: vi.fn(),
 	useStaffPermissionCatalogQuery: vi.fn(),
+	useStaffProfileUsersQuery: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
 }));
 
@@ -60,13 +61,21 @@ vi.mock('~/lib/query/staff-profiles', () => ({
 				id: profile.id ?? '11111111-1111-1111-1111-111111111111',
 				name: profile.name ?? 'Platform admin',
 				description: profile.description ?? null,
-				userAccountCount: profile.userAccountCount ?? 2,
+				userAccountCount:
+					'userAccountCount' in profile ? profile.userAccountCount : 2,
+				icon: 'shield',
+				iconTone: '0',
 			};
 		},
 	),
 	useStaffProfileDetailsQuery: mocks.useStaffProfileDetailsQuery,
 	useStaffProfilePermissionKeysQuery: mocks.useStaffProfilePermissionKeysQuery,
 	useStaffPermissionCatalogQuery: mocks.useStaffPermissionCatalogQuery,
+}));
+
+vi.mock('~/lib/query/staff-profile-users', () => ({
+	toStaffProfileUserRows: vi.fn(() => []),
+	useStaffProfileUsersQuery: mocks.useStaffProfileUsersQuery,
 }));
 
 vi.mock('~/routes/authed/layout', () => ({
@@ -119,6 +128,7 @@ describe('staff profile details route', () => {
 			}),
 		);
 		mocks.useStaffPermissionCatalogQuery.mockReturnValue(buildQueryResult());
+		mocks.useStaffProfileUsersQuery.mockReturnValue(buildQueryResult());
 	});
 
 	afterEach(() => {
@@ -142,5 +152,26 @@ describe('staff profile details route', () => {
 
 		expect(screen.getByTestId('forbidden-view')).toBeTruthy();
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
+	});
+
+	test('renders em-dash when member count is null instead of 0 members', () => {
+		mocks.useStaffProfileDetailsQuery.mockReturnValue(
+			buildQueryResult({
+				data: {
+					profile: {
+						id: '11111111-1111-1111-1111-111111111111',
+						name: 'Empty profile',
+						description: 'No description',
+						userAccountCount: null,
+					},
+				},
+			}),
+		);
+
+		renderPage();
+
+		expect(screen.getByTestId('staff-profile-details-page')).toBeTruthy();
+		const body = document.body.textContent ?? '';
+		expect(body).not.toMatch(/0 member/);
 	});
 });

@@ -1,15 +1,22 @@
 import {
+	IconBriefcase,
+	IconBuildingBank,
+	IconCalendar,
+	IconChartBar,
 	IconEye,
-	IconId,
+	IconKey,
+	IconNews,
 	IconPlus,
+	IconSettings,
+	IconShield,
 	IconTextCaption,
 	IconUsers,
+	IconWorld,
 } from '@tabler/icons-react';
-import { createFileRoute } from '@tanstack/react-router';
-import { Link } from '@tanstack/react-router';
+import type { Icon } from '@tabler/icons-react';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useEffect, useMemo } from 'react';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
 import { DataTableRowActions } from '~/components/table/row-actions';
@@ -33,49 +40,124 @@ import type {
 } from '~/lib/url-state/table-search-params';
 import { shouldLogoutForFailure } from '~/routes/authed/layout';
 
+// Default server ordering by creation date provides stable, deterministic pagination.
+// No column advertises this sort key: `Profile` is the only sortable column and it sorts
+// by `name`, so nothing in the UI misrepresents the default ordering.
+// TODO(contract): switch to `updated_at` once the API exposes that sort key.
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
+
+const PROFILE_ICON_MAP: Record<string, Icon> = {
+	news: IconNews,
+	calendar: IconCalendar,
+	shield: IconShield,
+	'building-bank': IconBuildingBank,
+	users: IconUsers,
+	settings: IconSettings,
+	'chart-bar': IconChartBar,
+	world: IconWorld,
+};
 
 const columns: ColumnDef<StaffProfileRow>[] = [
 	{
 		id: 'name',
-		header: 'Name',
-		accessorKey: 'name',
-		meta: { headerIcon: <IconId /> },
-		cell: ({ row }) => (
-			<Link
-				to={'/staff/profiles/$profileId' as never}
-				params={{ profileId: row.original.id } as never}
-				className="publy-record-link"
-			>
-				{row.original.name || '—'}
-			</Link>
+		header: () => (
+			<div className="inline-flex items-center gap-1.5">
+				<IconBriefcase className="size-3.5 text-muted-foreground" />
+				<span>Profile</span>
+			</div>
 		),
+		accessorKey: 'name',
+		cell: ({ row }) => {
+			const IconComponent = PROFILE_ICON_MAP[row.original.icon];
+			return (
+				<Link
+					to={'/staff/profiles/$profileId' as never}
+					params={{ profileId: row.original.id } as never}
+					className="flex items-center gap-[11px] min-w-0 no-underline"
+				>
+					<span
+						className="publy-profile-icon-tile"
+						data-tone={row.original.iconTone}
+					>
+						{IconComponent ? <IconComponent className="size-[17px]" /> : null}
+					</span>
+					<span className="text-[13px] font-medium truncate">
+						{row.original.name || '—'}
+					</span>
+				</Link>
+			);
+		},
 	},
 	{
 		id: 'description',
-		header: 'Description',
+		header: () => (
+			<div className="inline-flex items-center gap-1.5">
+				<IconTextCaption className="size-3.5 text-muted-foreground" />
+				<span>Description</span>
+			</div>
+		),
 		accessorKey: 'description',
 		enableSorting: false,
-		meta: { headerIcon: <IconTextCaption /> },
-		cell: ({ getValue }) => getValue<string | null>() ?? '—',
+		cell: ({ getValue }) => {
+			const value = getValue<string | null>();
+			return <span className="truncate block text-[13px]">{value ?? '—'}</span>;
+		},
 	},
 	{
-		id: 'user_account_count',
-		header: 'User accounts',
+		id: 'members',
+		header: () => (
+			<div className="inline-flex items-center gap-1.5">
+				<IconUsers className="size-3.5 text-muted-foreground" />
+				<span>Members</span>
+			</div>
+		),
 		accessorKey: 'userAccountCount',
-		meta: { headerIcon: <IconUsers />, cellClassName: 'w-36' },
-		cell: ({ getValue }) => String(getValue<number>()),
+		enableSorting: false,
+		cell: ({ getValue }) => {
+			const value = getValue<number | null>();
+			return (
+				<span className="text-[13px] font-medium">
+					{value === null ? '—' : value}
+				</span>
+			);
+		},
+	},
+	{
+		id: 'permissions',
+		header: () => (
+			<div className="inline-flex items-center gap-1.5">
+				<IconKey className="size-3.5 text-muted-foreground" />
+				<span>Permissions</span>
+			</div>
+		),
+		enableSorting: false,
+		cell: () => (
+			<span className="text-[13px] text-muted-foreground">
+				{/* TODO(contract): permission count not in profile list response */}—
+			</span>
+		),
+	},
+	{
+		id: 'updated',
+		header: () => (
+			<div className="inline-flex items-center gap-1.5">
+				<span>Updated</span>
+			</div>
+		),
+		enableSorting: false,
+		cell: () => (
+			<span className="text-[13px] text-muted-foreground">
+				{/* TODO(contract): updated_at not in profile list response */}—
+			</span>
+		),
 	},
 	{
 		id: 'actions',
-		// Visually chromeless per the handoff, but the columnheader needs an
-		// accessible name (axe empty-table-header, parity contract).
 		header: () => <span className="sr-only">Actions</span>,
 		enableSorting: false,
-		meta: { cellClassName: 'w-10' },
 		cell: ({ row }) => (
-			<div className="flex justify-end">
+			<div className="flex justify-center">
 				<DataTableRowActions
 					ariaLabel={`Actions for ${row.original.name || 'profile'}`}
 					testId={`staff-profile-actions-${row.original.id}`}
@@ -88,7 +170,7 @@ const columns: ColumnDef<StaffProfileRow>[] = [
 							/>
 						}
 					>
-						<IconEye />
+						<IconEye className="size-[15px]" />
 						View profile
 					</DropdownMenuItem>
 				</DataTableRowActions>
@@ -106,7 +188,6 @@ export const Route = createFileRoute('/_authed-layout/staff/profiles')({
 function StaffProfilesPage() {
 	const navigate = Route.useNavigate();
 	const search = Route.useSearch();
-	const { t } = useTranslation('common');
 
 	const onSearchChange = (next: TableSearchParams): void => {
 		void navigate({
@@ -138,6 +219,8 @@ function StaffProfilesPage() {
 		}
 	}, [selection.isSelectionMode, resetDraftToCommitted]);
 
+	const totalCount = useMemo(() => rows.length, [rows]);
+
 	if (query.isError && shouldLogoutForFailure(query.error)) {
 		return <LogoutRedirect />;
 	}
@@ -145,16 +228,21 @@ function StaffProfilesPage() {
 	return (
 		<div className="publy-page-fill">
 			<PageHeader
-				title="Staff profiles"
-				description="Group permissions into profiles you can assign to staff users."
+				title="Profiles"
+				description="Profiles bundle permissions and can be assigned to staff and tenants."
 				actions={
-					<Link
-						to={'/staff/profiles/new' as never}
-						className={buttonVariants({ variant: 'default' })}
-					>
-						<IconPlus aria-hidden="true" className="size-4" />
-						{t('new-item', { item: t('profile').toLowerCase() })}
-					</Link>
+					<div className="flex items-center gap-2.5">
+						{totalCount > 0 ? (
+							<span className="publy-profile-count-badge">{totalCount}</span>
+						) : null}
+						<Link
+							to={'/staff/profiles/new' as never}
+							className={buttonVariants({ variant: 'default' })}
+						>
+							<IconPlus aria-hidden="true" className="size-[15px]" />
+							New profile
+						</Link>
+					</div>
 				}
 			/>
 			<DataTable
@@ -180,7 +268,9 @@ function StaffProfilesPage() {
 				onPreviousPage={controller.cursor.onPreviousPage}
 				searchDraft={controller.search.draft}
 				onSearchDraftChange={controller.search.onDraftChange}
+				searchPlaceholder="Search profiles…"
 				selection={selection}
+				rowHeight={56}
 			/>
 		</div>
 	);

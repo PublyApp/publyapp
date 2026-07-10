@@ -55,14 +55,18 @@ export type StaffProfileRow = {
 	id: string;
 	name: string;
 	description: string | null;
-	userAccountCount: number;
+	userAccountCount: number | null;
+	icon: string;
+	iconTone: string;
 };
 
 export type StaffProfileDetails = {
 	id: string;
 	name: string;
 	description: string | null;
-	userAccountCount: number;
+	userAccountCount: number | null;
+	icon: string;
+	iconTone: string;
 };
 
 export type StaffProfileDetailsQueryVariables = {
@@ -105,6 +109,35 @@ const normalizeOptionalString = (value: unknown): string | undefined => {
 	return trimmed.length > 0 ? trimmed : undefined;
 };
 
+const PROFILE_ICONS = [
+	'news',
+	'calendar',
+	'shield',
+	'building-bank',
+	'users',
+	'settings',
+	'chart-bar',
+	'world',
+] as const;
+
+const PROFILE_ICON_TONES = ['0', '1', '2', '3', '4', '5', '6', '7'] as const;
+
+const deriveProfileIcon = (
+	name: string,
+): { icon: string; iconTone: string } => {
+	let sum = 0;
+	for (const c of name) {
+		sum += c.charCodeAt(0);
+	}
+
+	const iconIdx = sum % PROFILE_ICONS.length;
+	const toneIdx = sum % PROFILE_ICON_TONES.length;
+	return {
+		icon: PROFILE_ICONS[iconIdx],
+		iconTone: PROFILE_ICON_TONES[toneIdx],
+	};
+};
+
 const formatModuleLabel = (moduleKey: string): string =>
 	moduleKey
 		.trim()
@@ -137,7 +170,8 @@ export const toStaffProfileRows = (
 			id: item.id,
 			name: item.name?.trim() || '—',
 			description: item.description ?? null,
-			userAccountCount: item.userAccountCount ?? 0,
+			userAccountCount: item.userAccountCount ?? null,
+			...deriveProfileIcon(item.name?.trim() || 'profile'),
 		});
 	}
 
@@ -158,7 +192,10 @@ export const toStaffProfileDetails = (
 		id,
 		name: normalizeString(profile?.name ?? undefined) ?? '—',
 		description: profile?.description ?? null,
-		userAccountCount: profile?.userAccountCount ?? 0,
+		userAccountCount: profile?.userAccountCount ?? null,
+		...deriveProfileIcon(
+			normalizeString(profile?.name ?? undefined) ?? 'profile',
+		),
 	};
 };
 
