@@ -82,6 +82,46 @@ test.describe('staff users table', () => {
 		expect(secondOrder).not.toEqual(firstOrder);
 	});
 
+	test('column widths follow the P3 grid and the table never overflows its card', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await expect(page.getByTestId(`${TABLE}-rows`)).toBeVisible();
+
+		// Adapted grid: SPEC 2b's Role/Profiles/2FA/Last-active columns aren't
+		// implemented yet, so Email (the longest free-text field) is the fluid
+		// column instead of the SPEC's unbuilt Profiles column.
+		await expect(page.getByRole('columnheader', { name: 'Name' })).toHaveCSS(
+			'width',
+			'200px',
+		);
+		await expect(page.getByRole('columnheader', { name: 'Level' })).toHaveCSS(
+			'width',
+			'104px',
+		);
+		await expect(page.getByRole('columnheader', { name: 'Status' })).toHaveCSS(
+			'width',
+			'122px',
+		);
+
+		const tableScrollWidth = await page
+			.getByTestId(`${TABLE}-rows`)
+			.evaluate((el) => el.scrollWidth);
+		const cardClientWidth = await page
+			.getByTestId(`${TABLE}-card`)
+			.evaluate((el) => el.clientWidth);
+		expect(tableScrollWidth).toBeLessThanOrEqual(cardClientWidth + 1);
+
+		// Owner decision 15b: the last row keeps its bottom border.
+		const lastRowCell = page
+			.getByTestId(`${TABLE}-rows`)
+			.locator('[data-slot="table-row"]')
+			.last()
+			.locator('[data-slot="table-cell"]')
+			.first();
+		await expect(lastRowCell).toHaveCSS('border-bottom-width', '1px');
+	});
+
 	test('cursor pagination advances forward and returns via previous', async ({
 		page,
 	}) => {

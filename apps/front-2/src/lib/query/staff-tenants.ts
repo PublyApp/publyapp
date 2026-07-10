@@ -13,6 +13,9 @@ import type {
 	CreateTenantAsStaffBody,
 	CreateTenantAsStaffResult,
 	ApiResponse,
+	BulkDeleteTenantsResult,
+	BulkReactivateTenantsResult,
+	BulkSuspendTenantsResult,
 	FindTenantsAsStaffResponse,
 	GetTenantAsStaffResult,
 	TenantReactivatedResult,
@@ -396,3 +399,66 @@ export const useReactivateStaffTenantMutation = () =>
 
 export const useDeleteStaffTenantMutation = () =>
 	useMutation(deleteStaffTenantMutationOptions);
+
+export type BulkStaffTenantActionInput = {
+	tenantIds: string[];
+};
+
+const buildBulkTenantIdsBody = (tenantIds: string[]) => ({
+	tenantIds: createUntypedArray(tenantIds.map((id) => createUntypedString(id))),
+});
+
+export const bulkSuspendStaffTenantsMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	BulkSuspendTenantsResult | undefined,
+	BulkStaffTenantActionInput
+>(
+	{
+		mutationKeyFn: () => [...STAFF_TENANTS_QUERY_KEY, 'bulk-suspend'],
+		mutationFn: (client, variables) =>
+			client.staff.tenants.bulkSuspend.post(
+				buildBulkTenantIdsBody(variables.tenantIds),
+			),
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+export const bulkReactivateStaffTenantsMutationOptions =
+	buildStaffMutationOptions<
+		ApiClient,
+		BulkReactivateTenantsResult | undefined,
+		BulkStaffTenantActionInput
+	>(
+		{
+			mutationKeyFn: () => [...STAFF_TENANTS_QUERY_KEY, 'bulk-reactivate'],
+			mutationFn: (client, variables) =>
+				client.staff.tenants.bulkReactivate.post(
+					buildBulkTenantIdsBody(variables.tenantIds),
+				),
+		},
+		{ clientAccessor: getClientManager() },
+	);
+
+export const bulkDeleteStaffTenantsMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	BulkDeleteTenantsResult | undefined,
+	BulkStaffTenantActionInput
+>(
+	{
+		mutationKeyFn: () => [...STAFF_TENANTS_QUERY_KEY, 'bulk-delete'],
+		mutationFn: (client, variables) =>
+			client.staff.tenants.bulkDelete.post(
+				buildBulkTenantIdsBody(variables.tenantIds),
+			),
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+export const useBulkSuspendStaffTenantsMutation = () =>
+	useMutation(bulkSuspendStaffTenantsMutationOptions);
+
+export const useBulkReactivateStaffTenantsMutation = () =>
+	useMutation(bulkReactivateStaffTenantsMutationOptions);
+
+export const useBulkDeleteStaffTenantsMutation = () =>
+	useMutation(bulkDeleteStaffTenantsMutationOptions);

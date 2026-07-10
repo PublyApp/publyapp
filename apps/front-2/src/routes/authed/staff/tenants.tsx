@@ -1,33 +1,46 @@
 import {
 	IconBuilding,
+	IconChevronDown,
 	IconCircleDot,
 	IconPlayerPause,
 	IconPlus,
 	IconRefresh,
 	IconTrash,
+	IconX,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
 import { DataTableRowActions } from '~/components/table/row-actions';
+import {
+	useRowSelection,
+	type UseRowSelectionResult,
+} from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
-import { buttonVariants } from '~/components/ui/button';
+import { Button, buttonVariants } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
+	DropdownMenu,
+	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuSeparator,
+	DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu';
-import { PageHeader, StatusPill } from '~/components/ui/product-page';
+import { InitialsAvatar } from '~/components/ui/initials-avatar';
+import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import {
 	STAFF_TENANT_DETAILS_QUERY_KEY,
 	STAFF_TENANTS_QUERY_KEY,
 	type StaffTenantRow,
 	toStaffTenantRows,
+	useBulkDeleteStaffTenantsMutation,
+	useBulkReactivateStaffTenantsMutation,
+	useBulkSuspendStaffTenantsMutation,
 	useDeleteStaffTenantMutation,
 	useReactivateStaffTenantMutation,
 	useStaffTenantsQuery,
@@ -47,6 +60,7 @@ import {
 	getFailureMessage,
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
+import { BULK_ACTION_MAX_COUNT } from '@org/shared-ts/lib/constants';
 
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
@@ -65,9 +79,15 @@ const buildTenantColumns = (
 			<Link
 				to={'/staff/tenants/$tenantId' as never}
 				params={{ tenantId: row.original.id } as never}
-				className="publy-record-link"
+				className="flex min-w-0 items-center gap-2.5 no-underline"
 			>
-				{row.original.name}
+				<InitialsAvatar name={row.original.name} />
+				<span
+					className="publy-record-link min-w-0 truncate"
+					title={row.original.name}
+				>
+					{row.original.name}
+				</span>
 			</Link>
 		),
 	},
@@ -75,7 +95,7 @@ const buildTenantColumns = (
 		id: 'status',
 		header: 'Status',
 		accessorKey: 'status',
-		meta: { headerIcon: <IconCircleDot />, cellClassName: 'w-32' },
+		meta: { headerIcon: <IconCircleDot />, width: '124px' },
 		cell: ({ row }) => {
 			const status = row.original.status;
 			if (!status) {
@@ -90,7 +110,7 @@ const buildTenantColumns = (
 		header: 'Users',
 		accessorKey: 'usersCount',
 		enableSorting: false,
-		meta: { cellClassName: 'w-24' },
+		meta: { width: '92px' },
 		cell: ({ getValue }) => String(getValue<number>()),
 	},
 	{
@@ -98,7 +118,7 @@ const buildTenantColumns = (
 		header: 'Max users',
 		accessorKey: 'maxUsers',
 		enableSorting: false,
-		meta: { cellClassName: 'w-28' },
+		meta: { width: '132px' },
 		cell: ({ getValue }) => String(getValue<number>()),
 	},
 	{
@@ -107,7 +127,7 @@ const buildTenantColumns = (
 		// accessible name (axe empty-table-header, parity contract).
 		header: () => <span className="sr-only">Actions</span>,
 		enableSorting: false,
-		meta: { cellClassName: 'w-10' },
+		meta: { width: '40px' },
 		cell: ({ row }) => (
 			<TenantLifecycleActionsCell
 				tenant={row.original}
@@ -125,6 +145,9 @@ export const Route = createFileRoute('/_authed-layout/staff/tenants')({
 
 function StaffTenantsPage() {
 	const [shouldLogout, setShouldLogout] = useState(false);
+	const [bulkFeedback, setBulkFeedback] = useState<TenantBulkFeedback | null>(
+		null,
+	);
 	const navigate = Route.useNavigate();
 	const search = Route.useSearch();
 	const { t } = useTranslation('common');
@@ -144,6 +167,14 @@ function StaffTenantsPage() {
 	});
 	const query = useStaffTenantsQuery(controller.apiVariables);
 	const rows = toStaffTenantRows(query.data?.data);
+	const selection = useRowSelection(rows.map((row) => row.id));
+
+	const { resetDraftToCommitted } = controller.search;
+	useEffect(() => {
+		if (selection.isSelectionMode) {
+			resetDraftToCommitted();
+		}
+	}, [selection.isSelectionMode, resetDraftToCommitted]);
 
 	if (query.isError && shouldLogoutForFailure(query.error)) {
 		return <LogoutRedirect />;
@@ -153,16 +184,24 @@ function StaffTenantsPage() {
 		return <LogoutRedirect />;
 	}
 
-	const columns = buildTenantColumns(() => {
-		setShouldLogout(true);
-	});
+	const onSessionExpired = () => setShouldLogout(true);
+	const columns = buildTenantColumns(onSessionExpired);
 
 	return (
 		<div className="publy-page-fill">
-			<PageHeader
-				title="Tenants"
-				description="Manage tenant organizations, seats, and lifecycle."
-				actions={
+			<header className="publy-page-header">
+				<div className="min-w-0">
+					<div className="flex items-center gap-2.5">
+						<h1 className="publy-type-page-title">Tenants</h1>
+						{rows.length > 0 ? (
+							<span className="publy-profile-count-badge">{rows.length}</span>
+						) : null}
+					</div>
+					<p className="publy-type-helper mt-1">
+						Manage tenant organizations, seats, and lifecycle.
+					</p>
+				</div>
+				<div className="publy-action-cluster">
 					<Link
 						to="/staff/tenants/new"
 						className={buttonVariants({ variant: 'default' })}
@@ -170,8 +209,27 @@ function StaffTenantsPage() {
 						<IconPlus aria-hidden="true" className="size-4" />
 						{t('new-item', { item: t('tenant') })}
 					</Link>
-				}
-			/>
+				</div>
+			</header>
+			{bulkFeedback ? (
+				<div
+					className="flex items-center gap-1.5 text-xs"
+					data-tone={bulkFeedback.tone}
+					role="status"
+				>
+					<span className={bulkFeedbackToneClassName(bulkFeedback.tone)}>
+						{bulkFeedback.message}
+					</span>
+					<button
+						type="button"
+						aria-label={t('close')}
+						onClick={() => setBulkFeedback(null)}
+						className="text-muted-foreground"
+					>
+						<IconX className="size-3.5" />
+					</button>
+				</div>
+			) : null}
 			<DataTable
 				testId="staff-tenants-table"
 				ariaLabel="Staff tenants"
@@ -198,6 +256,17 @@ function StaffTenantsPage() {
 				onPreviousPage={controller.cursor.onPreviousPage}
 				searchDraft={controller.search.draft}
 				onSearchDraftChange={controller.search.onDraftChange}
+				selection={selection}
+				toolbarEnd={
+					selection.isSelectionMode ? (
+						<TenantBulkActionsToolbar
+							rows={rows}
+							selection={selection}
+							onSessionExpired={onSessionExpired}
+							onFeedback={setBulkFeedback}
+						/>
+					) : null
+				}
 			/>
 		</div>
 	);
@@ -235,6 +304,291 @@ const getConfirmDialogConfig = (action: PendingLifecycleAction) => {
 				confirmLabel: '',
 			};
 	}
+};
+
+const getBulkConfirmDialogConfig = (
+	action: PendingLifecycleAction,
+	count: number,
+	t: (key: string, options?: Record<string, unknown>) => string,
+) => {
+	switch (action) {
+		case 'suspend':
+			return {
+				title: t('bulk-suspend'),
+				description: t('bulk-suspend-confirm', { count }),
+				confirmLabel: t('suspend'),
+			};
+		case 'reactivate':
+			return {
+				title: t('bulk-reactivate'),
+				description: t('bulk-reactivate-confirm', { count }),
+				confirmLabel: t('reactivate'),
+			};
+		case 'delete':
+			return {
+				title: t('bulk-delete'),
+				description: t('bulk-delete-confirm', { count }),
+				confirmLabel: t('delete'),
+			};
+		default:
+			return { title: '', description: '', confirmLabel: '' };
+	}
+};
+
+type TenantBulkFeedback = {
+	tone: 'warning' | 'success' | 'error';
+	message: string;
+};
+
+const bulkFeedbackToneClassName = (
+	tone: TenantBulkFeedback['tone'],
+): string => {
+	if (tone === 'error') {
+		return 'text-destructive';
+	}
+	if (tone === 'success') {
+		return 'text-[var(--publy-success)]';
+	}
+	return 'text-muted-foreground';
+};
+
+type TenantBulkActionKey = 'suspend' | 'reactivate' | 'delete';
+
+const TENANT_BULK_FAILURE_KEYS: Record<TenantBulkActionKey, string> = {
+	suspend: 'tenant-bulk-suspend-failure',
+	reactivate: 'tenant-bulk-reactivate-failure',
+	delete: 'tenant-bulk-delete-failure',
+};
+
+const TENANT_BULK_SUCCESS_KEYS: Record<TenantBulkActionKey, string> = {
+	suspend: 'tenant-bulk-suspend-success',
+	reactivate: 'tenant-bulk-reactivate-success',
+	delete: 'tenant-bulk-delete-success',
+};
+
+const TENANT_BULK_PARTIAL_SUCCESS_KEYS: Record<TenantBulkActionKey, string> = {
+	suspend: 'tenant-bulk-suspend-partial-success',
+	reactivate: 'tenant-bulk-reactivate-partial-success',
+	delete: 'tenant-bulk-delete-partial-success',
+};
+
+const TENANT_LIFECYCLE_ACTION_FALLBACKS: Record<TenantBulkActionKey, string> = {
+	suspend: 'Unable to suspend tenant.',
+	reactivate: 'Unable to reactivate tenant.',
+	delete: 'Unable to delete tenant.',
+};
+
+const TenantBulkActionsToolbar = ({
+	rows,
+	selection,
+	onSessionExpired,
+	onFeedback,
+}: {
+	rows: StaffTenantRow[];
+	selection: UseRowSelectionResult;
+	onSessionExpired: () => void;
+	onFeedback: (feedback: TenantBulkFeedback | null) => void;
+}) => {
+	const { t } = useTranslation('common');
+	const queryClient = useQueryClient();
+	const [pendingAction, setPendingAction] =
+		useState<PendingLifecycleAction>(null);
+	const bulkSuspendMutation = useBulkSuspendStaffTenantsMutation();
+	const bulkReactivateMutation = useBulkReactivateStaffTenantsMutation();
+	const bulkDeleteMutation = useBulkDeleteStaffTenantsMutation();
+
+	const selectedTenants = rows.filter((row) => selection.rowSelection[row.id]);
+	const selectedCount = selection.selectedCount;
+	const isOverLimit = selectedCount > BULK_ACTION_MAX_COUNT;
+	const isActionPending =
+		bulkSuspendMutation.isPending ||
+		bulkReactivateMutation.isPending ||
+		bulkDeleteMutation.isPending;
+
+	const eligibleIdsFor = (action: PendingLifecycleAction): string[] => {
+		if (action === 'suspend') {
+			return selectedTenants
+				.filter((tenant) => tenant.status === TENANT_STATUS_ACTIVE)
+				.map((tenant) => tenant.id);
+		}
+		if (action === 'reactivate' || action === 'delete') {
+			return selectedTenants
+				.filter((tenant) => tenant.status === TENANT_STATUS_SUSPENDED)
+				.map((tenant) => tenant.id);
+		}
+		return [];
+	};
+
+	const ineligibleMessageFor = (action: PendingLifecycleAction): string => {
+		if (action === 'suspend') {
+			return t('bulk-suspend-disabled-no-active-tenants');
+		}
+		if (action === 'reactivate') {
+			return t('bulk-reactivate-disabled-no-suspended-tenants');
+		}
+		return t('bulk-delete-disabled-until-all-tenants-suspended');
+	};
+
+	// MenuItems render unconditionally (docs/guides/bulk-action-ux-conventions.md):
+	// the click handler enforces eligibility and surfaces the reason inline
+	// rather than disabling or hiding the item.
+	const handleMenuItemClick = (action: PendingLifecycleAction) => {
+		onFeedback(null);
+		if (eligibleIdsFor(action).length === 0) {
+			onFeedback({ tone: 'warning', message: ineligibleMessageFor(action) });
+			return;
+		}
+		setPendingAction(action);
+	};
+
+	const performBulkAction = async (action: TenantBulkActionKey) => {
+		const eligibleIds = eligibleIdsFor(action);
+		onFeedback(null);
+
+		let result;
+		try {
+			if (action === 'suspend') {
+				result = await bulkSuspendMutation.mutateAsync({
+					tenantIds: eligibleIds,
+				});
+			} else if (action === 'reactivate') {
+				result = await bulkReactivateMutation.mutateAsync({
+					tenantIds: eligibleIds,
+				});
+			} else if (action === 'delete') {
+				result = await bulkDeleteMutation.mutateAsync({
+					tenantIds: eligibleIds,
+				});
+			}
+		} catch (error) {
+			setPendingAction(null);
+			if (shouldLogoutForFailure(error)) {
+				onSessionExpired();
+				return;
+			}
+
+			onFeedback({
+				tone: 'error',
+				message: getFailureMessage(toApiFailure(error), {
+					fallback: t(TENANT_BULK_FAILURE_KEYS[action]),
+				}),
+			});
+			return;
+		}
+
+		setPendingAction(null);
+		selection.clearSelection();
+		await Promise.all([
+			queryClient.invalidateQueries({
+				queryKey: ['staff', ...STAFF_TENANTS_QUERY_KEY],
+			}),
+			queryClient.invalidateQueries({
+				queryKey: ['staff', ...STAFF_TENANT_DETAILS_QUERY_KEY],
+			}),
+		]);
+
+		const succeededCount = result?.succeededCount ?? 0;
+		const failedCount = result?.failedCount ?? 0;
+
+		onFeedback({
+			tone: failedCount > 0 ? 'error' : 'success',
+			message:
+				failedCount > 0
+					? t(TENANT_BULK_PARTIAL_SUCCESS_KEYS[action], {
+							succeeded: succeededCount,
+							failed: failedCount,
+						})
+					: t(TENANT_BULK_SUCCESS_KEYS[action], { count: succeededCount }),
+		});
+	};
+
+	const dialogConfig = getBulkConfirmDialogConfig(
+		pendingAction,
+		eligibleIdsFor(pendingAction).length,
+		t,
+	);
+
+	return (
+		<div className="flex items-center gap-2.5">
+			<span className="text-xs text-muted-foreground">
+				{t('selected-count', { count: selectedCount })}
+			</span>
+			<Button
+				type="button"
+				variant="ghost"
+				size="sm"
+				onClick={() => selection.clearSelection()}
+			>
+				{t('clear-selection')}
+			</Button>
+			<DropdownMenu>
+				<DropdownMenuTrigger
+					render={
+						<Button
+							type="button"
+							variant="outline"
+							disabled={isOverLimit}
+							title={
+								isOverLimit
+									? t('bulk-action-max-count-exceeded', {
+											max: BULK_ACTION_MAX_COUNT,
+											count: selectedCount,
+										})
+									: t('more-actions')
+							}
+							aria-label={t('more-actions')}
+							className="publy-data-table-filter-button text-[13px]"
+						/>
+					}
+				>
+					{t('bulk-actions')}
+					<IconChevronDown aria-hidden="true" className="size-3" />
+				</DropdownMenuTrigger>
+				<DropdownMenuContent align="end" sideOffset={6}>
+					<DropdownMenuItem
+						disabled={isActionPending}
+						onClick={() => handleMenuItemClick('reactivate')}
+					>
+						<IconRefresh />
+						{t('bulk-reactivate')}
+					</DropdownMenuItem>
+					<DropdownMenuSeparator />
+					<DropdownMenuItem
+						variant="destructive"
+						disabled={isActionPending}
+						onClick={() => handleMenuItemClick('suspend')}
+					>
+						<IconPlayerPause />
+						{t('bulk-suspend')}
+					</DropdownMenuItem>
+					<DropdownMenuItem
+						variant="destructive"
+						disabled={isActionPending}
+						onClick={() => handleMenuItemClick('delete')}
+					>
+						<IconTrash />
+						{t('bulk-delete')}
+					</DropdownMenuItem>
+				</DropdownMenuContent>
+			</DropdownMenu>
+
+			<ConfirmDialog
+				isOpen={pendingAction !== null}
+				title={dialogConfig.title}
+				description={dialogConfig.description}
+				confirmLabel={dialogConfig.confirmLabel}
+				isPending={isActionPending}
+				onConfirm={() => {
+					if (pendingAction) {
+						void performBulkAction(pendingAction);
+					}
+				}}
+				onOpenChange={(isOpen) => {
+					if (!isOpen) setPendingAction(null);
+				}}
+			/>
+		</div>
+	);
 };
 
 const TenantLifecycleActionsCell = ({
@@ -294,12 +648,7 @@ const TenantLifecycleActionsCell = ({
 
 			setErrorMessage(
 				getFailureMessage(toApiFailure(error), {
-					fallback:
-						action === 'delete'
-							? 'Unable to delete tenant.'
-							: action === 'suspend'
-								? 'Unable to suspend tenant.'
-								: 'Unable to reactivate tenant.',
+					fallback: TENANT_LIFECYCLE_ACTION_FALLBACKS[action],
 				}),
 			);
 		} finally {

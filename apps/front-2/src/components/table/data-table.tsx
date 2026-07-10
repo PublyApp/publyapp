@@ -73,6 +73,13 @@ type ColumnDisplayMeta = {
 	headerIcon?: ReactNode;
 	/** Extra class applied to both the header and body cells (e.g. width). */
 	cellClassName?: string;
+	/**
+	 * Fixed `<col>` width (e.g. '104px'). Omit for the one column per table
+	 * that should absorb remaining space — table-layout:fixed gives an
+	 * unspecified column the leftover width, the fluid-column equivalent of
+	 * `1fr`.
+	 */
+	width?: string;
 };
 
 declare module '@tanstack/react-table' {
@@ -83,6 +90,17 @@ declare module '@tanstack/react-table' {
 const columnDisplayMeta = (
 	column: ColumnDef<never> | { meta?: unknown },
 ): ColumnDisplayMeta => (column.meta ?? {}) as ColumnDisplayMeta;
+
+const resolveAriaSortState = (
+	tableSort: { id: string; desc: boolean } | undefined,
+	columnId: string,
+): 'ascending' | 'descending' | 'none' => {
+	if (tableSort?.id !== columnId) {
+		return 'none';
+	}
+
+	return tableSort.desc ? 'descending' : 'ascending';
+};
 
 export type DataTableProps<TData extends { id: string }> = {
 	testId: string;
@@ -192,12 +210,12 @@ export const DataTable = <TData extends { id: string }>({
 
 	const paginationDisabled = isSelectionMode || isPaginationPending;
 
-	const errorDescription =
-		typeof errorContent === 'string'
-			? errorContent
-			: errorContent
-				? undefined
-				: 'There was a problem loading this list.';
+	let errorDescription: string | undefined;
+	if (typeof errorContent === 'string') {
+		errorDescription = errorContent;
+	} else if (!errorContent) {
+		errorDescription = 'There was a problem loading this list.';
+	}
 	const errorActions =
 		typeof errorContent !== 'string' && errorContent ? errorContent : undefined;
 
@@ -401,6 +419,22 @@ export const DataTable = <TData extends { id: string }>({
 						data-slot="table"
 						data-row-height={resolvedRowHeight}
 					>
+						<colgroup>
+							{hasSelection ? <col style={{ width: '40px' }} /> : null}
+							{table.getAllLeafColumns().map((column) => {
+								const displayMeta = columnDisplayMeta(column.columnDef);
+								return (
+									<col
+										key={column.id}
+										style={
+											displayMeta.width
+												? { width: displayMeta.width }
+												: undefined
+										}
+									/>
+								);
+							})}
+						</colgroup>
 						<TableHeader>
 							<TableRow>
 								{hasSelection ? (
@@ -426,11 +460,7 @@ export const DataTable = <TData extends { id: string }>({
 										);
 										const sortIcon = canSort ? renderSortIcon(header.id) : null;
 										const sortState = canSort
-											? tableSort?.id === header.id
-												? tableSort.desc
-													? 'descending'
-													: 'ascending'
-												: 'none'
+											? resolveAriaSortState(tableSort, header.id)
 											: undefined;
 										return (
 											<TableHead

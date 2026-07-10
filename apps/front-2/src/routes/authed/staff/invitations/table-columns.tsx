@@ -112,14 +112,21 @@ export const createInvitationColumns = ({
 			</div>
 		),
 		accessorKey: 'email',
-		cell: ({ row }) => (
-			<div className="flex items-center gap-2.5 min-w-0">
-				<InitialsAvatar name={row.original.email} />
-				<span className="text-[13px] font-medium truncate">
-					{row.original.email || '-'}
-				</span>
-			</div>
-		),
+		meta: { width: '300px' },
+		cell: ({ row }) => {
+			const email = row.original.email || '-';
+			return (
+				<div className="flex min-w-0 items-center gap-2.5">
+					<InitialsAvatar name={row.original.email} />
+					<span
+						className="min-w-0 truncate text-[13px] font-medium"
+						title={email}
+					>
+						{email}
+					</span>
+				</div>
+			);
+		},
 	},
 	{
 		id: 'role',
@@ -130,6 +137,7 @@ export const createInvitationColumns = ({
 			</div>
 		),
 		enableSorting: false,
+		meta: { width: '116px' },
 		cell: () => (
 			<span className="publy-detail-chip publy-detail-chip--outline">
 				{/* TODO(contract): role not in InvitationListItem */}—
@@ -146,11 +154,17 @@ export const createInvitationColumns = ({
 		),
 		accessorKey: 'profileName',
 		enableSorting: false,
-		cell: ({ row }) => (
-			<span className="truncate block text-[12px] text-[var(--publy-foreground-secondary)]">
-				{row.original.profileName || '-'}
-			</span>
-		),
+		cell: ({ row }) => {
+			const profileName = row.original.profileName || '-';
+			return (
+				<span
+					className="block truncate text-[12px] text-[var(--publy-foreground-secondary)]"
+					title={profileName}
+				>
+					{profileName}
+				</span>
+			);
+		},
 	},
 	{
 		id: 'invited_by_name',
@@ -162,11 +176,18 @@ export const createInvitationColumns = ({
 		),
 		accessorKey: 'invitedByName',
 		enableSorting: false,
-		cell: ({ row }) => (
-			<span className="truncate block text-[13px] text-[var(--publy-foreground-secondary)]">
-				{row.original.invitedByName || '-'}
-			</span>
-		),
+		meta: { width: '150px' },
+		cell: ({ row }) => {
+			const invitedByName = row.original.invitedByName || '-';
+			return (
+				<span
+					className="block truncate text-[13px] text-[var(--publy-foreground-secondary)]"
+					title={invitedByName}
+				>
+					{invitedByName}
+				</span>
+			);
+		},
 	},
 	{
 		id: 'expires_at',
@@ -177,6 +198,7 @@ export const createInvitationColumns = ({
 			</div>
 		),
 		accessorFn: (row) => row.expiresAt,
+		meta: { width: '120px' },
 		cell: ({ row }) => (
 			<span className="text-[13px] text-[var(--publy-foreground-secondary)]">
 				{formatDateTime(row.original.expiresAt, locale)}
@@ -192,6 +214,7 @@ export const createInvitationColumns = ({
 			</div>
 		),
 		enableSorting: false,
+		meta: { width: '128px' },
 		cell: ({ row }) => (
 			<StatusPill tone={statusPillTone(row.original.status)}>
 				{formatInvitationStatusLabel(row.original.status)}
@@ -202,6 +225,7 @@ export const createInvitationColumns = ({
 		id: 'actions',
 		header: () => <span className="sr-only">{t('actions')}</span>,
 		enableSorting: false,
+		meta: { width: '40px' },
 		cell: ({ row }) => (
 			<InvitationRowActions row={row.original} onSuccess={onActionSuccess} />
 		),

@@ -174,6 +174,96 @@ test('asserts profiles list table grid and row height per handoff 2g', async ({
 	await expect(searchInput).toHaveCSS('height', '40px');
 });
 
+test('applies the P3 column grid, truncates long text without horizontal scroll, and keeps the last row bordered', async ({
+	page,
+}) => {
+	await loginAsStaffAdmin(page);
+	await page.setViewportSize({ width: 1440, height: 900 });
+
+	const longDescription =
+		'This description is deliberately long enough to exceed the description column width and would force horizontal scroll if column geometry were not enforced by a fixed table layout and a colgroup.';
+
+	await page.route('**/staff/profiles**', async (route) => {
+		if (route.request().method() !== 'GET') {
+			await route.fallback();
+			return;
+		}
+
+		const parsed = new URL(route.request().url());
+		if (
+			parsed.origin !== API_BASE_URL ||
+			parsed.pathname !== PROFILES_LIST_PATH
+		) {
+			await route.fallback();
+			return;
+		}
+
+		await route.fulfill({
+			status: 200,
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({
+				data: [
+					{
+						id: HANDOFF_PROFILE_ID,
+						name: 'Publishing',
+						description: longDescription,
+						userAccountCount: 18,
+					},
+				],
+				nextCursor: null,
+			}),
+		});
+	});
+
+	await page.goto('/staff/profiles');
+	const tableRows = page.getByTestId('staff-profiles-table-rows');
+	await expect(tableRows).toBeVisible({ timeout: 10_000 });
+
+	// SPEC 2g grid: 40 / 240 / 1fr / 104 / 140 / 120 / 40 — every implemented
+	// column but Description (the fluid slot) carries a fixed pixel width.
+	await expect(page.getByRole('columnheader', { name: 'Profile' })).toHaveCSS(
+		'width',
+		'240px',
+	);
+	await expect(page.getByRole('columnheader', { name: 'Members' })).toHaveCSS(
+		'width',
+		'104px',
+	);
+	await expect(
+		page.getByRole('columnheader', { name: 'Permissions' }),
+	).toHaveCSS('width', '140px');
+	await expect(page.getByRole('columnheader', { name: 'Updated' })).toHaveCSS(
+		'width',
+		'120px',
+	);
+
+	// The table must not force horizontal scroll: description truncates to
+	// one line inside its fluid column instead of widening the table.
+	const tableScrollWidth = await tableRows.evaluate((el) => el.scrollWidth);
+	const cardClientWidth = await page
+		.getByTestId('staff-profiles-table-card')
+		.evaluate((el) => el.clientWidth);
+	expect(tableScrollWidth).toBeLessThanOrEqual(cardClientWidth + 1);
+
+	const descriptionText = tableRows
+		.locator('[data-slot="table-row"]')
+		.first()
+		.locator('[data-slot="table-cell"]')
+		.nth(1)
+		.locator('span');
+	await expect(descriptionText).toHaveCSS('text-overflow', 'ellipsis');
+	await expect(descriptionText).toHaveAttribute('title', longDescription);
+
+	// Owner decision 15b: the last row keeps its bottom border, opposite to
+	// the gray-ui template default.
+	const lastRowCell = tableRows
+		.locator('[data-slot="table-row"]')
+		.last()
+		.locator('[data-slot="table-cell"]')
+		.first();
+	await expect(lastRowCell).toHaveCSS('border-bottom-width', '1px');
+});
+
 test('asserts profile detail identity block and permission matrix per handoff 2h', async ({
 	page,
 }) => {

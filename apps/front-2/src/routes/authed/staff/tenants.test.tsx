@@ -23,6 +23,12 @@ const mocks = vi.hoisted(() => ({
 	useSuspendStaffTenantMutation: vi.fn(),
 	useReactivateStaffTenantMutation: vi.fn(),
 	useDeleteStaffTenantMutation: vi.fn(),
+	bulkSuspendTenantsMutation: vi.fn(),
+	bulkReactivateTenantsMutation: vi.fn(),
+	bulkDeleteTenantsMutation: vi.fn(),
+	useBulkSuspendStaffTenantsMutation: vi.fn(),
+	useBulkReactivateStaffTenantsMutation: vi.fn(),
+	useBulkDeleteStaffTenantsMutation: vi.fn(),
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -41,6 +47,37 @@ vi.mock('@tanstack/react-router', () => ({
 		createElement('a', { href: to, ...props }, children),
 }));
 
+const TRANSLATIONS: Record<string, string> = {
+	tenant: 'Tenant',
+	'bulk-suspend': 'Suspend selected',
+	'bulk-reactivate': 'Reactivate selected',
+	'bulk-delete': 'Delete selected',
+	suspend: 'Suspend',
+	reactivate: 'Reactivate',
+	delete: 'Delete',
+	'bulk-suspend-confirm': 'Are you sure you want to suspend {{count}} tenants?',
+	'bulk-reactivate-confirm':
+		'Are you sure you want to reactivate {{count}} tenants?',
+	'bulk-delete-confirm':
+		'Are you sure you want to delete {{count}} tenants? This action cannot be undone.',
+	'bulk-suspend-disabled-no-active-tenants':
+		'Select at least one active tenant to suspend.',
+	'bulk-reactivate-disabled-no-suspended-tenants':
+		'Select at least one suspended tenant to reactivate.',
+	'bulk-delete-disabled-until-all-tenants-suspended':
+		'Only suspended tenants can be deleted. Clear active tenants from the selection first.',
+	'tenant-bulk-suspend-success': 'Successfully suspended {{count}} tenant(s).',
+	'tenant-bulk-suspend-partial-success':
+		'Suspended {{succeeded}} tenant(s), {{failed}} failed.',
+	'tenant-bulk-suspend-failure': 'Failed to suspend selected tenants.',
+	'selected-count': '{{count}} selected',
+	'clear-selection': 'Clear selection',
+	'more-actions': 'More actions',
+	'bulk-actions': 'Bulk actions',
+	'bulk-action-max-count-exceeded':
+		'Reduce your selection to at most {{max}} items ({{count}} selected).',
+};
+
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string, options?: Record<string, unknown>) => {
@@ -48,11 +85,15 @@ vi.mock('react-i18next', () => ({
 				return `New ${options.item}`;
 			}
 
-			const labels: Record<string, string> = {
-				tenant: 'Tenant',
-			};
+			let text = TRANSLATIONS[key] ?? key;
+			if (!options) {
+				return text;
+			}
 
-			return labels[key] ?? key;
+			for (const [optionKey, value] of Object.entries(options)) {
+				text = text.replaceAll(`{{${optionKey}}}`, String(value));
+			}
+			return text;
 		},
 		i18n: {
 			language: 'en',
@@ -73,6 +114,10 @@ vi.mock('~/lib/query/staff-tenants', () => ({
 	useSuspendStaffTenantMutation: mocks.useSuspendStaffTenantMutation,
 	useReactivateStaffTenantMutation: mocks.useReactivateStaffTenantMutation,
 	useDeleteStaffTenantMutation: mocks.useDeleteStaffTenantMutation,
+	useBulkSuspendStaffTenantsMutation: mocks.useBulkSuspendStaffTenantsMutation,
+	useBulkReactivateStaffTenantsMutation:
+		mocks.useBulkReactivateStaffTenantsMutation,
+	useBulkDeleteStaffTenantsMutation: mocks.useBulkDeleteStaffTenantsMutation,
 }));
 
 vi.mock('~/routes/authed/layout', () => ({
@@ -141,6 +186,18 @@ describe('staff tenants route', () => {
 		});
 		mocks.useDeleteStaffTenantMutation.mockReturnValue({
 			mutateAsync: mocks.deleteTenantMutation,
+			isPending: false,
+		});
+		mocks.useBulkSuspendStaffTenantsMutation.mockReturnValue({
+			mutateAsync: mocks.bulkSuspendTenantsMutation,
+			isPending: false,
+		});
+		mocks.useBulkReactivateStaffTenantsMutation.mockReturnValue({
+			mutateAsync: mocks.bulkReactivateTenantsMutation,
+			isPending: false,
+		});
+		mocks.useBulkDeleteStaffTenantsMutation.mockReturnValue({
+			mutateAsync: mocks.bulkDeleteTenantsMutation,
 			isPending: false,
 		});
 	});
@@ -398,5 +455,186 @@ describe('staff tenants route', () => {
 		await waitFor(() =>
 			expect(screen.getByTestId('logout-redirect')).toBeTruthy(),
 		);
+	});
+
+	describe('bulk actions', () => {
+		test('renders a selection checkbox and hashed avatar for each tenant row', () => {
+			const { container } = renderPage();
+
+			expect(
+				screen.getByRole('checkbox', { name: 'Select row tenant-1' }),
+			).toBeTruthy();
+			expect(container.querySelector('.publy-avatar-initials')).toBeTruthy();
+		});
+
+		test('selecting a row reveals the bulk actions toolbar with a selected count', () => {
+			renderPage();
+
+			fireEvent.click(
+				screen.getByRole('checkbox', { name: 'Select row tenant-1' }),
+			);
+
+			expect(screen.getByText('1 selected')).toBeTruthy();
+			expect(screen.getByRole('button', { name: 'More actions' })).toBeTruthy();
+		});
+
+		test('an ineligible bulk suspend click shows inline feedback and does not open the confirm dialog', async () => {
+			mocks.toStaffTenantRows.mockReturnValue([
+				{
+					id: 'tenant-1',
+					name: 'Acme Corporation',
+					status: 'Suspended',
+					usersCount: 12,
+					maxUsers: 50,
+				},
+			]);
+			mocks.useStaffTenantsQuery.mockReturnValue(
+				buildQueryResult({
+					data: {
+						data: [
+							{
+								id: 'tenant-1',
+								name: 'Acme Corporation',
+								status: 'Suspended',
+								usersCount: 12,
+								maxUsers: 50,
+							},
+						],
+						nextCursor: null,
+					},
+				}),
+			);
+
+			renderPage();
+
+			fireEvent.click(
+				screen.getByRole('checkbox', { name: 'Select row tenant-1' }),
+			);
+			fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+			fireEvent.click(
+				await screen.findByRole('menuitem', { name: 'Suspend selected' }),
+			);
+
+			expect(
+				screen.getByText('Select at least one active tenant to suspend.'),
+			).toBeTruthy();
+			expect(
+				screen.queryByRole('heading', { name: 'Suspend selected' }),
+			).toBeNull();
+			expect(mocks.bulkSuspendTenantsMutation).not.toHaveBeenCalled();
+		});
+
+		test('bulk-suspends only the eligible selected tenants and reports success', async () => {
+			mocks.bulkSuspendTenantsMutation.mockResolvedValue({
+				succeededCount: 1,
+				failedCount: 0,
+			});
+
+			renderPage();
+
+			fireEvent.click(
+				screen.getByRole('checkbox', { name: 'Select row tenant-1' }),
+			);
+			fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+			fireEvent.click(
+				await screen.findByRole('menuitem', { name: 'Suspend selected' }),
+			);
+
+			await waitFor(() =>
+				expect(
+					screen.getByRole('heading', { name: 'Suspend selected' }),
+				).toBeTruthy(),
+			);
+			expect(
+				screen.getByText('Are you sure you want to suspend 1 tenants?'),
+			).toBeTruthy();
+
+			fireEvent.click(
+				screen.getAllByRole('button', { name: 'Suspend' }).slice(-1)[0],
+			);
+
+			await waitFor(() =>
+				expect(mocks.bulkSuspendTenantsMutation).toHaveBeenCalledWith({
+					tenantIds: ['tenant-1'],
+				}),
+			);
+			await waitFor(() =>
+				expect(
+					screen.getByText('Successfully suspended 1 tenant(s).'),
+				).toBeTruthy(),
+			);
+			expect(mocks.invalidateQueries).toHaveBeenCalledWith({
+				queryKey: ['staff', 'staff-tenants'],
+			});
+			expect(
+				screen
+					.getByRole('checkbox', { name: 'Select row tenant-1' })
+					.getAttribute('aria-checked'),
+			).toBe('false');
+		});
+
+		test('reports a partial-success message when some bulk-suspended tenants fail', async () => {
+			mocks.bulkSuspendTenantsMutation.mockResolvedValue({
+				succeededCount: 1,
+				failedCount: 1,
+			});
+
+			renderPage();
+
+			fireEvent.click(
+				screen.getByRole('checkbox', { name: 'Select row tenant-1' }),
+			);
+			fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+			fireEvent.click(
+				await screen.findByRole('menuitem', { name: 'Suspend selected' }),
+			);
+			await waitFor(() =>
+				expect(
+					screen.getByRole('heading', { name: 'Suspend selected' }),
+				).toBeTruthy(),
+			);
+			fireEvent.click(
+				screen.getAllByRole('button', { name: 'Suspend' }).slice(-1)[0],
+			);
+
+			await waitFor(() =>
+				expect(
+					screen.getByText('Suspended 1 tenant(s), 1 failed.'),
+				).toBeTruthy(),
+			);
+		});
+
+		test('redirects to logout when a bulk action fails with 401', async () => {
+			mocks.shouldLogoutForFailure.mockReturnValue(true);
+			mocks.bulkSuspendTenantsMutation.mockRejectedValue({
+				kind: 'problem',
+				status: 401,
+				responseStatusCode: 401,
+				title: 'Unauthorized',
+				detail: 'Session expired',
+			});
+
+			renderPage();
+
+			fireEvent.click(
+				screen.getByRole('checkbox', { name: 'Select row tenant-1' }),
+			);
+			fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+			fireEvent.click(
+				await screen.findByRole('menuitem', { name: 'Suspend selected' }),
+			);
+			await waitFor(() =>
+				expect(
+					screen.getByRole('heading', { name: 'Suspend selected' }),
+				).toBeTruthy(),
+			);
+			fireEvent.click(
+				screen.getAllByRole('button', { name: 'Suspend' }).slice(-1)[0],
+			);
+
+			await waitFor(() =>
+				expect(screen.getByTestId('logout-redirect')).toBeTruthy(),
+			);
+		});
 	});
 });

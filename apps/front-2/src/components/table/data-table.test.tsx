@@ -225,6 +225,43 @@ describe('DataTable state rendering', () => {
 		});
 	});
 
+	test('renders a colgroup with a fixed width per column and a fluid column for width-less meta', () => {
+		const widthColumns: ColumnDef<TestRow>[] = [
+			{
+				id: 'name',
+				accessorKey: 'name',
+				header: 'Name',
+				meta: { width: '200px' },
+				cell: ({ getValue }) => String(getValue()),
+			},
+			{
+				id: 'bio',
+				accessorKey: 'name',
+				header: 'Bio',
+				cell: ({ getValue }) => String(getValue()),
+			},
+		];
+
+		render(
+			<DataTable
+				{...baseProps}
+				columns={widthColumns}
+				rows={rows}
+				isError={false}
+				selection={createSelection({})}
+			/>,
+		);
+
+		const cols = screen
+			.getByTestId('test-table-rows')
+			.querySelectorAll('colgroup col');
+
+		expect(cols).toHaveLength(3);
+		expect((cols[0] as HTMLElement).style.width).toBe('40px');
+		expect((cols[1] as HTMLElement).style.width).toBe('200px');
+		expect((cols[2] as HTMLElement).style.width).toBe('');
+	});
+
 	test('locks controls when row selection mode is active', () => {
 		render(
 			<DataTable

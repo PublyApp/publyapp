@@ -24,7 +24,6 @@ import { useRowSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
 import { buttonVariants } from '~/components/ui/button';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
-import { PageHeader } from '~/components/ui/product-page';
 import {
 	type StaffProfileRow,
 	toStaffProfileRows,
@@ -68,8 +67,10 @@ const columns: ColumnDef<StaffProfileRow>[] = [
 			</div>
 		),
 		accessorKey: 'name',
+		meta: { width: '240px' },
 		cell: ({ row }) => {
 			const IconComponent = PROFILE_ICON_MAP[row.original.icon];
+			const name = row.original.name || '—';
 			return (
 				<Link
 					to={'/staff/profiles/$profileId' as never}
@@ -82,8 +83,11 @@ const columns: ColumnDef<StaffProfileRow>[] = [
 					>
 						{IconComponent ? <IconComponent className="size-[17px]" /> : null}
 					</span>
-					<span className="text-[13px] font-medium truncate">
-						{row.original.name || '—'}
+					<span
+						className="min-w-0 truncate text-[13px] font-medium"
+						title={name}
+					>
+						{name}
 					</span>
 				</Link>
 			);
@@ -101,7 +105,11 @@ const columns: ColumnDef<StaffProfileRow>[] = [
 		enableSorting: false,
 		cell: ({ getValue }) => {
 			const value = getValue<string | null>();
-			return <span className="truncate block text-[13px]">{value ?? '—'}</span>;
+			return (
+				<span className="block truncate text-[13px]" title={value ?? undefined}>
+					{value ?? '—'}
+				</span>
+			);
 		},
 	},
 	{
@@ -114,6 +122,7 @@ const columns: ColumnDef<StaffProfileRow>[] = [
 		),
 		accessorKey: 'userAccountCount',
 		enableSorting: false,
+		meta: { width: '104px' },
 		cell: ({ getValue }) => {
 			const value = getValue<number | null>();
 			return (
@@ -132,6 +141,7 @@ const columns: ColumnDef<StaffProfileRow>[] = [
 			</div>
 		),
 		enableSorting: false,
+		meta: { width: '140px' },
 		cell: () => (
 			<span className="text-[13px] text-muted-foreground">
 				{/* TODO(contract): permission count not in profile list response */}—
@@ -146,6 +156,7 @@ const columns: ColumnDef<StaffProfileRow>[] = [
 			</div>
 		),
 		enableSorting: false,
+		meta: { width: '120px' },
 		cell: () => (
 			<span className="text-[13px] text-muted-foreground">
 				{/* TODO(contract): updated_at not in profile list response */}—
@@ -156,6 +167,7 @@ const columns: ColumnDef<StaffProfileRow>[] = [
 		id: 'actions',
 		header: () => <span className="sr-only">Actions</span>,
 		enableSorting: false,
+		meta: { width: '40px' },
 		cell: ({ row }) => (
 			<div className="flex justify-center">
 				<DataTableRowActions
@@ -227,24 +239,29 @@ function StaffProfilesPage() {
 
 	return (
 		<div className="publy-page-fill">
-			<PageHeader
-				title="Profiles"
-				description="Profiles bundle permissions and can be assigned to staff and tenants."
-				actions={
+			<header className="publy-page-header">
+				<div className="min-w-0">
 					<div className="flex items-center gap-2.5">
+						<h1 className="publy-type-page-title">Profiles</h1>
 						{totalCount > 0 ? (
 							<span className="publy-profile-count-badge">{totalCount}</span>
 						) : null}
-						<Link
-							to={'/staff/profiles/new' as never}
-							className={buttonVariants({ variant: 'default' })}
-						>
-							<IconPlus aria-hidden="true" className="size-[15px]" />
-							New profile
-						</Link>
 					</div>
-				}
-			/>
+					<p className="publy-type-helper mt-1">
+						Profiles bundle permissions and can be assigned to staff and
+						tenants.
+					</p>
+				</div>
+				<div className="publy-action-cluster">
+					<Link
+						to={'/staff/profiles/new' as never}
+						className={buttonVariants({ variant: 'default' })}
+					>
+						<IconPlus aria-hidden="true" className="size-[15px]" />
+						New profile
+					</Link>
+				</div>
+			</header>
 			<DataTable
 				testId="staff-profiles-table"
 				ariaLabel="Staff profiles"

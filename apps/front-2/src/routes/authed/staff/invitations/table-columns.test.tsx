@@ -20,4 +20,25 @@ describe('createInvitationColumns', () => {
 			enableSorting: false,
 		});
 	});
+
+	test('applies the SPEC 2i column grid, leaving exactly one fluid column', () => {
+		const columns = createInvitationColumns({
+			t,
+			locale: 'en',
+			onActionSuccess: () => undefined,
+		});
+		const widthById = Object.fromEntries(
+			columns.map((column) => [column.id, column.meta?.width]),
+		);
+
+		expect(widthById).toEqual({
+			email: '300px',
+			role: '116px',
+			profile_name: undefined,
+			invited_by_name: '150px',
+			expires_at: '120px',
+			status: '128px',
+			actions: '40px',
+		});
+	});
 });

@@ -18,7 +18,7 @@ import { useTableController } from '~/components/table/use-table-controller';
 import { buttonVariants } from '~/components/ui/button';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
 import { InitialsAvatar } from '~/components/ui/initials-avatar';
-import { PageHeader, StatusPill } from '~/components/ui/product-page';
+import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import {
 	toStaffUserRows,
@@ -45,14 +45,15 @@ const columns: ColumnDef<StaffUserRow>[] = [
 		id: 'name',
 		header: 'Name',
 		enableSorting: false,
-		meta: { headerIcon: <IconUser /> },
+		meta: { headerIcon: <IconUser />, width: '200px' },
 		cell: ({ row }) => (
 			<div className="flex items-center gap-2.5">
 				<InitialsAvatar name={row.original.displayName} />
 				<Link
 					to={'/staff/staff-users/$userId' as never}
 					params={{ userId: row.original.id } as never}
-					className="publy-record-link truncate"
+					className="publy-record-link min-w-0 truncate"
+					title={row.original.displayName}
 				>
 					{row.original.displayName}
 				</Link>
@@ -65,17 +66,20 @@ const columns: ColumnDef<StaffUserRow>[] = [
 		accessorKey: 'email',
 		enableSorting: false,
 		meta: { headerIcon: <IconMail /> },
-		cell: ({ getValue }) => (
-			<span className="font-normal">
-				{getValue<string>() || 'No email address'}
-			</span>
-		),
+		cell: ({ getValue }) => {
+			const email = getValue<string>() || 'No email address';
+			return (
+				<span className="block truncate font-normal" title={email}>
+					{email}
+				</span>
+			);
+		},
 	},
 	{
 		id: 'level',
 		header: 'Level',
 		accessorKey: 'level',
-		meta: { headerIcon: <IconIdBadge2 />, cellClassName: 'w-28' },
+		meta: { headerIcon: <IconIdBadge2 />, width: '104px' },
 		cell: ({ getValue }) => (
 			<StatusPill tone="neutral">
 				{getValue<string | null>() ?? 'Unknown'}
@@ -86,7 +90,7 @@ const columns: ColumnDef<StaffUserRow>[] = [
 		id: 'status',
 		header: 'Status',
 		accessorKey: 'status',
-		meta: { headerIcon: <IconCircleDot />, cellClassName: 'w-32' },
+		meta: { headerIcon: <IconCircleDot />, width: '122px' },
 		cell: ({ getValue }) => {
 			const status = getValue<string | null>();
 			return (
@@ -102,7 +106,7 @@ const columns: ColumnDef<StaffUserRow>[] = [
 		// accessible name (axe empty-table-header, parity contract).
 		header: () => <span className="sr-only">Actions</span>,
 		enableSorting: false,
-		meta: { cellClassName: 'w-10' },
+		meta: { width: '40px' },
 		cell: ({ row }) => (
 			<div className="flex justify-end">
 				<DataTableRowActions
@@ -175,10 +179,19 @@ function StaffUsersPage() {
 
 	return (
 		<div className="publy-page-fill">
-			<PageHeader
-				title="Staff users"
-				description="Search, review, and manage staff access across the workspace."
-				actions={
+			<header className="publy-page-header">
+				<div className="min-w-0">
+					<div className="flex items-center gap-2.5">
+						<h1 className="publy-type-page-title">Staff users</h1>
+						{rows.length > 0 ? (
+							<span className="publy-profile-count-badge">{rows.length}</span>
+						) : null}
+					</div>
+					<p className="publy-type-helper mt-1">
+						Search, review, and manage staff access across the workspace.
+					</p>
+				</div>
+				<div className="publy-action-cluster">
 					<Link
 						to={'/staff/invitations/new' as never} // Route is not yet migrated for typed route checks; parity contract keeps this external path.
 						className={buttonVariants({ variant: 'default' })}
@@ -186,8 +199,8 @@ function StaffUsersPage() {
 						<IconUserPlus aria-hidden="true" className="size-4" />
 						{t('invite-users')}
 					</Link>
-				}
-			/>
+				</div>
+			</header>
 			<DataTable
 				testId="staff-users-table"
 				ariaLabel="Staff users"

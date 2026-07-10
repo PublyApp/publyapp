@@ -1837,3 +1837,23 @@ html[data-theme-changing],
 html[data-theme-changing] * {
 	transition: none !important;
 }
+
+/* ---- P3 ---- */
+
+/* Column geometry: colgroup-driven <col> widths only bite with a fixed
+   table layout. Columns without an explicit width (the data-table.tsx
+   `width` meta) absorb the remaining space, the fluid-column stand-in
+   for `1fr`. */
+.publy-data-table {
+	table-layout: fixed;
+}
+
+/* Owner decision 15b: the last row keeps its bottom border (every row gets
+   one), deliberately opposite to the gray-ui template default. These
+   selectors override app.css's earlier last-child border-strip rules by
+   source order (same specificity, declared later wins) without editing
+   the original rules. */
+.publy-data-table tbody tr:last-child [data-slot='table-cell'],
+.publy-data-table tbody tr:last-child [data-slot='table-selection-cell'] {
+	border-bottom: 1px solid var(--publy-row-border);
+}
