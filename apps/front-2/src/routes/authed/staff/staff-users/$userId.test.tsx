@@ -10,6 +10,9 @@ const mocks = vi.hoisted(() => ({
 	toStaffUserDetails: vi.fn(),
 	useStaffUserProfilesQuery: vi.fn(),
 	useStaffUserDetailsQuery: vi.fn(),
+	useDeleteStaffUserMutation: vi.fn(),
+	useReactivateStaffUserMutation: vi.fn(),
+	useSuspendStaffUserMutation: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
 }));
 
@@ -53,6 +56,12 @@ vi.mock('react-i18next', () => ({
 	}),
 }));
 
+vi.mock('@tanstack/react-query', () => ({
+	useQueryClient: () => ({
+		invalidateQueries: vi.fn().mockResolvedValue(undefined),
+	}),
+}));
+
 vi.mock('~/components/error-views/LogoutRedirect', () => ({
 	LogoutRedirect: () => <div data-testid="logout-redirect">logout</div>,
 }));
@@ -66,6 +75,9 @@ vi.mock('~/lib/query/staff-users', () => ({
 	toStaffUserDetails: mocks.toStaffUserDetails,
 	useStaffUserProfilesQuery: mocks.useStaffUserProfilesQuery,
 	useStaffUserDetailsQuery: mocks.useStaffUserDetailsQuery,
+	useDeleteStaffUserMutation: mocks.useDeleteStaffUserMutation,
+	useReactivateStaffUserMutation: mocks.useReactivateStaffUserMutation,
+	useSuspendStaffUserMutation: mocks.useSuspendStaffUserMutation,
 }));
 
 vi.mock('~/routes/authed/layout', () => ({
@@ -81,6 +93,15 @@ const buildQueryResult = (overrides: Record<string, unknown> = {}) => ({
 	isError: false,
 	isFetching: false,
 	refetch: vi.fn().mockResolvedValue(undefined),
+	...overrides,
+});
+
+const buildMutationResult = (overrides: Record<string, unknown> = {}) => ({
+	mutate: vi.fn(),
+	mutateAsync: vi.fn().mockResolvedValue(undefined),
+	isPending: false,
+	isError: false,
+	isSuccess: false,
 	...overrides,
 });
 
@@ -123,6 +144,9 @@ describe('staff user details route', () => {
 				},
 			}),
 		);
+		mocks.useDeleteStaffUserMutation.mockReturnValue(buildMutationResult());
+		mocks.useReactivateStaffUserMutation.mockReturnValue(buildMutationResult());
+		mocks.useSuspendStaffUserMutation.mockReturnValue(buildMutationResult());
 		mocks.toStaffUserDetails.mockReturnValue({
 			id: '11111111-1111-1111-1111-111111111111',
 			email: 'owner@publyapp.local',
@@ -170,24 +194,33 @@ describe('staff user details route', () => {
 		renderPage();
 
 		const matches = screen.getAllByText('No email address');
-		expect(matches).toHaveLength(2);
+		expect(matches).toHaveLength(1);
 	});
 
-	test('renders the read-only basics shell with the assigned profiles section', () => {
+	test('renders the detail page shell with identity, tabs, cards, and danger zone', () => {
 		renderPage();
 
 		expect(screen.getByTestId('staff-user-details-page')).toBeTruthy();
-		expect(screen.getByText('Back to staff users')).toBeTruthy();
 		expect(screen.getAllByText('Owner User')).toHaveLength(2);
 		expect(screen.getAllByText('owner@publyapp.local')).toHaveLength(2);
-		expect(screen.getByText('Owner')).toBeTruthy();
+		expect(screen.getAllByText('Owner')).toHaveLength(2);
 		expect(screen.getAllByText('Active')).toHaveLength(2);
-		expect(screen.getByText('Account')).toBeTruthy();
-		expect(screen.getByText('Assigned profiles')).toBeTruthy();
+		expect(screen.getByText('Overview')).toBeTruthy();
+		expect(screen.getByText('Permissions')).toBeTruthy();
+		expect(screen.getByText('Activity')).toBeTruthy();
+		expect(screen.getByText('Settings')).toBeTruthy();
+
+		expect(screen.getByText('Contact details')).toBeTruthy();
+		expect(screen.getByText('Assigned profiles & roles')).toBeTruthy();
 		expect(screen.getByText('2 assigned')).toBeTruthy();
-		expect(screen.getByRole('link', { name: 'Platform admin' })).toBeTruthy();
+		expect(screen.getByText('Platform admin')).toBeTruthy();
 		expect(screen.getByText('Full access')).toBeTruthy();
-		expect(screen.getByText('No description provided.')).toBeTruthy();
+		expect(screen.getByText('No description')).toBeTruthy();
+		expect(screen.getByText('Permission summary')).toBeTruthy();
+
+		expect(screen.getByText('Account')).toBeTruthy();
+		expect(screen.getByText('Recent security activity')).toBeTruthy();
+		expect(screen.getByText('Danger zone')).toBeTruthy();
 	});
 
 	test('renders the assigned profiles empty state when none are assigned', () => {
@@ -197,7 +230,7 @@ describe('staff user details route', () => {
 
 		expect(screen.getByText('0 assigned')).toBeTruthy();
 		expect(
-			screen.getByText('This staff user does not have any assigned profiles.'),
+			screen.getByText('No profiles are currently assigned.'),
 		).toBeTruthy();
 	});
 
