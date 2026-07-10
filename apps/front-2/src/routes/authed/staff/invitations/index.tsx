@@ -154,7 +154,7 @@ function StaffInvitationsPage() {
 	return (
 		<div className="publy-page-fill" data-testid="staff-invitations-list-page">
 			<PageHeader
-				title="Invitations"
+				title={t('staff-invitations')}
 				description="Invite staff users to the platform."
 				actions={
 					<div className="flex items-center gap-2.5">
@@ -166,7 +166,7 @@ function StaffInvitationsPage() {
 							className={buttonVariants({ variant: 'default' })}
 						>
 							<IconPlus aria-hidden="true" className="size-[15px]" />
-							Invite user
+							{t('invite-user')}
 						</Link>
 					</div>
 				}
@@ -210,7 +210,7 @@ function StaffInvitationsPage() {
 					</DropdownMenu>
 				}
 				testId="staff-invitations-table"
-				ariaLabel="Staff invitations"
+				ariaLabel={t('staff-invitations')}
 				columns={columns}
 				rows={filteredRows}
 				isPending={query.isPending}
