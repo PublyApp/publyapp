@@ -63,8 +63,7 @@ vi.mock('~/lib/query/staff-profiles', () => ({
 				description: profile.description ?? null,
 				userAccountCount: profile.userAccountCount ?? 2,
 				icon: 'shield',
-				iconBg: 'var(--publy-chip-invited-bg)',
-				iconFg: 'var(--publy-chip-invited-text)',
+				iconTone: '0',
 			};
 		},
 	),

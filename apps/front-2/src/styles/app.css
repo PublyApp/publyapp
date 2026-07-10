@@ -1777,3 +1777,87 @@ html {
 	background: #fffbeb;
 	color: #b45309;
 }
+
+.publy-profile-icon-tile[data-tone='0'] {
+	--publy-icon-tile-bg: #f0f9ff;
+	--publy-icon-tile-fg: #0369a1;
+}
+
+.publy-profile-icon-tile[data-tone='1'] {
+	--publy-icon-tile-bg: #ecfdf5;
+	--publy-icon-tile-fg: #047857;
+}
+
+.publy-profile-icon-tile[data-tone='2'] {
+	--publy-icon-tile-bg: #fef2f2;
+	--publy-icon-tile-fg: #be123c;
+}
+
+.publy-profile-icon-tile[data-tone='3'] {
+	--publy-icon-tile-bg: #fffbeb;
+	--publy-icon-tile-fg: #b45309;
+}
+
+.publy-profile-icon-tile[data-tone='4'] {
+	--publy-icon-tile-bg: #f5f3ff;
+	--publy-icon-tile-fg: #7c3aed;
+}
+
+.publy-profile-icon-tile[data-tone='5'] {
+	--publy-icon-tile-bg: #fdf2f8;
+	--publy-icon-tile-fg: #be185d;
+}
+
+.publy-profile-icon-tile[data-tone='6'] {
+	--publy-icon-tile-bg: #f0fdf4;
+	--publy-icon-tile-fg: #15803d;
+}
+
+.publy-profile-icon-tile[data-tone='7'] {
+	--publy-icon-tile-bg: #eff6ff;
+	--publy-icon-tile-fg: #1d4ed8;
+}
+
+.publy-profile-detail-tile[data-tone='0'] {
+	--publy-icon-tile-bg: #f0f9ff;
+	--publy-icon-tile-fg: #0369a1;
+}
+
+.publy-profile-detail-tile[data-tone='1'] {
+	--publy-icon-tile-bg: #ecfdf5;
+	--publy-icon-tile-fg: #047857;
+}
+
+.publy-profile-detail-tile[data-tone='2'] {
+	--publy-icon-tile-bg: #fef2f2;
+	--publy-icon-tile-fg: #be123c;
+}
+
+.publy-profile-detail-tile[data-tone='3'] {
+	--publy-icon-tile-bg: #fffbeb;
+	--publy-icon-tile-fg: #b45309;
+}
+
+.publy-profile-detail-tile[data-tone='4'] {
+	--publy-icon-tile-bg: #f5f3ff;
+	--publy-icon-tile-fg: #7c3aed;
+}
+
+.publy-profile-detail-tile[data-tone='5'] {
+	--publy-icon-tile-bg: #fdf2f8;
+	--publy-icon-tile-fg: #be185d;
+}
+
+.publy-profile-detail-tile[data-tone='6'] {
+	--publy-icon-tile-bg: #f0fdf4;
+	--publy-icon-tile-fg: #15803d;
+}
+
+.publy-profile-detail-tile[data-tone='7'] {
+	--publy-icon-tile-bg: #eff6ff;
+	--publy-icon-tile-fg: #1d4ed8;
+}
+
+.publy-perm-check svg {
+	color: var(--publy-primary-foreground);
+}

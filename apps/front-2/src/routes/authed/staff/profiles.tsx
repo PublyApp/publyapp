@@ -1,11 +1,19 @@
 import {
 	IconBriefcase,
+	IconBuildingBank,
+	IconCalendar,
+	IconChartBar,
 	IconEye,
 	IconKey,
+	IconNews,
 	IconPlus,
+	IconSettings,
+	IconShield,
 	IconTextCaption,
 	IconUsers,
+	IconWorld,
 } from '@tabler/icons-react';
+import type { Icon } from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useEffect, useMemo } from 'react';
@@ -35,6 +43,17 @@ import { shouldLogoutForFailure } from '~/routes/authed/layout';
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
 
+const PROFILE_ICON_MAP: Record<string, Icon> = {
+	news: IconNews,
+	calendar: IconCalendar,
+	shield: IconShield,
+	'building-bank': IconBuildingBank,
+	users: IconUsers,
+	settings: IconSettings,
+	'chart-bar': IconChartBar,
+	world: IconWorld,
+};
+
 const columns: ColumnDef<StaffProfileRow>[] = [
 	{
 		id: 'name',
@@ -45,28 +64,26 @@ const columns: ColumnDef<StaffProfileRow>[] = [
 			</div>
 		),
 		accessorKey: 'name',
-		cell: ({ row }) => (
-			<Link
-				to={'/staff/profiles/$profileId' as never}
-				params={{ profileId: row.original.id } as never}
-				className="flex items-center gap-[11px] min-w-0 no-underline"
-			>
-				<span
-					className="publy-profile-icon-tile"
-					style={
-						{
-							'--publy-icon-tile-bg': row.original.iconBg,
-							'--publy-icon-tile-fg': row.original.iconFg,
-						} as React.CSSProperties
-					}
+		cell: ({ row }) => {
+			const IconComponent = PROFILE_ICON_MAP[row.original.icon];
+			return (
+				<Link
+					to={'/staff/profiles/$profileId' as never}
+					params={{ profileId: row.original.id } as never}
+					className="flex items-center gap-[11px] min-w-0 no-underline"
 				>
-					<i className={`ti ti-${row.original.icon}`} />
-				</span>
-				<span className="text-[13px] font-medium truncate">
-					{row.original.name || '—'}
-				</span>
-			</Link>
-		),
+					<span
+						className="publy-profile-icon-tile"
+						data-tone={row.original.iconTone}
+					>
+						{IconComponent ? <IconComponent className="size-[17px]" /> : null}
+					</span>
+					<span className="text-[13px] font-medium truncate">
+						{row.original.name || '—'}
+					</span>
+				</Link>
+			);
+		},
 	},
 	{
 		id: 'description',
@@ -113,13 +130,13 @@ const columns: ColumnDef<StaffProfileRow>[] = [
 		),
 	},
 	{
-		id: 'created_at',
+		id: 'updated',
 		header: () => (
 			<div className="inline-flex items-center gap-1.5">
 				<span>Updated</span>
 			</div>
 		),
-		accessorKey: 'createdAt',
+		enableSorting: false,
 		cell: () => (
 			<span className="text-[13px] text-muted-foreground">
 				{/* TODO(contract): updated_at not in profile list response */}—

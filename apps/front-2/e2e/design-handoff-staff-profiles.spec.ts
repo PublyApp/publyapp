@@ -164,6 +164,9 @@ test('asserts profiles list table grid and row height per handoff 2g', async ({
 	await expect(iconTile).toHaveCSS('height', '32px');
 	await expect(iconTile).toHaveCSS('border-radius', '9px');
 
+	const iconTileSvg = iconTile.locator('svg');
+	await expect(iconTileSvg).toBeVisible();
+
 	const pageTitle = page.locator('.publy-type-page-title');
 	await expect(pageTitle).toHaveText('Profiles');
 

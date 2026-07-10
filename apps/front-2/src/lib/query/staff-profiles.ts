@@ -56,11 +56,8 @@ export type StaffProfileRow = {
 	name: string;
 	description: string | null;
 	userAccountCount: number;
-	/** Derived icon for the profile tile (Tabler icon name without ti- prefix). */
 	icon: string;
-	/** Derived tint color for the profile tile (e.g. '#f0f9ff' / '#0369a1'). */
-	iconBg: string;
-	iconFg: string;
+	iconTone: string;
 };
 
 export type StaffProfileDetails = {
@@ -69,8 +66,7 @@ export type StaffProfileDetails = {
 	description: string | null;
 	userAccountCount: number;
 	icon: string;
-	iconBg: string;
-	iconFg: string;
+	iconTone: string;
 };
 
 export type StaffProfileDetailsQueryVariables = {
@@ -124,27 +120,21 @@ const PROFILE_ICONS = [
 	'world',
 ] as const;
 
-const PROFILE_ICON_TONES: { bg: string; fg: string }[] = [
-	{ bg: '#f0f9ff', fg: '#0369a1' },
-	{ bg: '#ecfdf5', fg: '#047857' },
-	{ bg: '#fef2f2', fg: '#be123c' },
-	{ bg: '#fffbeb', fg: '#b45309' },
-	{ bg: '#f5f3ff', fg: '#7c3aed' },
-	{ bg: '#fdf2f8', fg: '#be185d' },
-	{ bg: '#f0fdf4', fg: '#15803d' },
-	{ bg: '#eff6ff', fg: '#1d4ed8' },
-];
+const PROFILE_ICON_TONES = ['0', '1', '2', '3', '4', '5', '6', '7'] as const;
 
 const deriveProfileIcon = (
 	name: string,
-): { icon: string; iconBg: string; iconFg: string } => {
-	const sum = [...name].reduce((a, c) => a + c.charCodeAt(0), 0);
+): { icon: string; iconTone: string } => {
+	let sum = 0;
+	for (const c of name) {
+		sum += c.charCodeAt(0);
+	}
+
 	const iconIdx = sum % PROFILE_ICONS.length;
 	const toneIdx = sum % PROFILE_ICON_TONES.length;
 	return {
 		icon: PROFILE_ICONS[iconIdx],
-		iconBg: PROFILE_ICON_TONES[toneIdx].bg,
-		iconFg: PROFILE_ICON_TONES[toneIdx].fg,
+		iconTone: PROFILE_ICON_TONES[toneIdx],
 	};
 };
 

@@ -1,11 +1,21 @@
 import {
 	IconAlertCircle,
+	IconBuildingBank,
+	IconCalendar,
+	IconChartBar,
+	IconCheck,
 	IconChevronRight,
 	IconDots,
+	IconNews,
 	IconPencil,
 	IconSearchOff,
+	IconSettings,
+	IconShield,
+	IconUsers,
 	IconUsersPlus,
+	IconWorld,
 } from '@tabler/icons-react';
+import type { Icon } from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -34,6 +44,17 @@ import {
 import { shouldLogoutForFailure } from '~/routes/authed/layout';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
+
+const PROFILE_ICON_MAP: Record<string, Icon> = {
+	news: IconNews,
+	calendar: IconCalendar,
+	shield: IconShield,
+	'building-bank': IconBuildingBank,
+	users: IconUsers,
+	settings: IconSettings,
+	'chart-bar': IconChartBar,
+	world: IconWorld,
+};
 
 const MALFORMED_ID_TRANSLATION_KEY = 'malformed-id';
 
@@ -217,9 +238,12 @@ function PermissionMatrix({
 		return result;
 	}, [allPermissions]);
 
-	const midpoint = Math.ceil(
-		groups.reduce((sum, g) => sum + g.permissions.length + 1, 0) / 2,
-	);
+	let totalLines = 0;
+	for (const g of groups) {
+		totalLines += g.permissions.length + 1;
+	}
+
+	const midpoint = Math.ceil(totalLines / 2);
 	let accumulated = 0;
 	const leftGroups: typeof groups = [];
 	const rightGroups: typeof groups = [];
@@ -288,7 +312,7 @@ function PermGroup({
 								isAssigned ? 'publy-perm-check--granted' : ''
 							}`}
 						>
-							{isAssigned ? <i className="ti ti-check" /> : null}
+							{isAssigned ? <IconCheck className="size-[10px]" /> : null}
 						</div>
 						<span
 							className="publy-perm-key"
@@ -364,13 +388,13 @@ function StaffProfileDetailsPage() {
 		| StaffPermissionCatalog
 		| undefined;
 	const userRows = toStaffProfileUserRows(usersQuery.data?.users);
-	const userCount = usersQuery.data?.count ?? userRows.length;
-	const catalogPermCount = catalog
-		? Object.values(catalog).reduce(
-				(sum, module) => sum + Object.keys(module).length,
-				0,
-			)
-		: 0;
+	const userCount = details.userAccountCount;
+	let catalogPermCount = 0;
+	if (catalog) {
+		for (const module of Object.values(catalog)) {
+			catalogPermCount += Object.keys(module).length;
+		}
+	}
 
 	return (
 		<div className="publy-page-fill" data-testid="staff-profile-details-page">
@@ -398,14 +422,14 @@ function StaffProfileDetailsPage() {
 				<div className="flex items-center gap-4">
 					<div
 						className="publy-profile-detail-tile"
-						style={
-							{
-								'--publy-icon-tile-bg': details.iconBg,
-								'--publy-icon-tile-fg': details.iconFg,
-							} as React.CSSProperties
-						}
+						data-tone={details.iconTone}
 					>
-						<i className={`ti ti-${details.icon}`} />
+						{(() => {
+							const IconComponent = PROFILE_ICON_MAP[details.icon];
+							return IconComponent ? (
+								<IconComponent className="size-[26px]" />
+							) : null;
+						})()}
 					</div>
 					<div className="flex flex-col gap-[5px]">
 						<div className="flex items-center gap-2.5">

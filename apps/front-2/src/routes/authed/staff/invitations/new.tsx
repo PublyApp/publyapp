@@ -372,26 +372,42 @@ function NewStaffInvitationsRoute() {
 									disabled={isPending}
 								/>
 
-								{profileLoadError ? (
-									<p className="text-sm text-destructive">{profileLoadError}</p>
-								) : profilesQuery.isPending ? (
-									<div className="flex items-center gap-2 text-sm text-muted-foreground">
-										<LoadingSpinner />
-										<span>{t('profiles')}</span>
-									</div>
-								) : profileOptions.length === 0 ? (
-									<p className="text-sm text-muted-foreground">
-										{t('no-results-found')}
-									</p>
-								) : (
-									<Field.CheckboxGroup
-										name={`invitations.${index}.profileIds`}
-										label={t('select-profiles')}
-										helperText={t('select-at-least-one-profile')}
-										options={profileOptions}
-										isDisabled={isPending || profilesQuery.isPending}
-									/>
-								)}
+								{(() => {
+									if (profileLoadError) {
+										return (
+											<p className="text-sm text-destructive">
+												{profileLoadError}
+											</p>
+										);
+									}
+
+									if (profilesQuery.isPending) {
+										return (
+											<div className="flex items-center gap-2 text-sm text-muted-foreground">
+												<LoadingSpinner />
+												<span>{t('profiles')}</span>
+											</div>
+										);
+									}
+
+									if (profileOptions.length === 0) {
+										return (
+											<p className="text-sm text-muted-foreground">
+												{t('no-results-found')}
+											</p>
+										);
+									}
+
+									return (
+										<Field.CheckboxGroup
+											name={`invitations.${index}.profileIds`}
+											label={t('select-profiles')}
+											helperText={t('select-at-least-one-profile')}
+											options={profileOptions}
+											isDisabled={isPending || profilesQuery.isPending}
+										/>
+									);
+								})()}
 							</Card>
 						))}
 
