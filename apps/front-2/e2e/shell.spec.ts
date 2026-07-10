@@ -5,6 +5,7 @@ import { formatSessionCookie } from '@org/shared-ts/lib/session/parse';
 
 import { THEME_TOGGLE_TEST_ID } from '../src/components/app-shell/theme/theme-toggle';
 import { COLOR_SCHEME_STORAGE_KEY } from '../src/lib/store/ui-store';
+import { loginAsStaffAdmin } from './helpers/login';
 
 type ColorScheme = 'dark' | 'light';
 
@@ -354,14 +355,19 @@ test('secondary panel follows the persisted preference across list and detail na
 test('detail grid sizes to the space left by the rail and panel, not the raw viewport', async ({
 	page,
 }) => {
-	await setSessionCookie(page);
-	await mockAuthRedirectCode(page);
-
 	// At 1024px with the 49px rail + 272px secondary panel open, a viewport
 	// media-query split leaves .publy-detail-grid's main column ~207px wide
 	// — the grid must stay single-column here instead.
 	await page.setViewportSize({ width: 1024, height: 900 });
-	await page.goto('/staff/staff-users/demo-user-id');
+
+	// Reach a real seeded user by clicking through the list. A synthetic id
+	// like 'demo-user-id' is not a GUID, so the API answers 400 malformed-id
+	// and the route renders the error view — which has no detail grid at all.
+	await loginAsStaffAdmin(page);
+	await page
+		.getByRole('row', { name: /staff-user@example\.com/ })
+		.getByRole('link')
+		.click();
 
 	const grid = page
 		.getByTestId('staff-user-details-page')
