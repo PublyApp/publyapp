@@ -48,6 +48,7 @@ import {
 	getFailureMessage,
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 const MALFORMED_ID_TRANSLATION_KEY = 'malformed-id';
 const STAFF_STATUS_ACTIVE = 'active';
@@ -553,8 +554,9 @@ function StaffUserDetailsPage() {
 
 		try {
 			await navigate({ to: '/staff/staff-users' });
-		} catch {
+		} catch (error) {
 			// navigation rejection after successful delete — don't reuse failure message
+			logger.warn('Staff user delete navigation failed', error);
 		}
 
 		queryClient.removeQueries({

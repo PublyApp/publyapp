@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
 	useStaffUserProfilesQuery: vi.fn(),
 	useStaffUserDetailsQuery: vi.fn(),
 	useDeleteStaffUserMutation: vi.fn(),
+	deleteMutateAsync: vi.fn().mockResolvedValue(undefined),
 	useReactivateStaffUserMutation: vi.fn(),
 	useSuspendStaffUserMutation: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
@@ -158,7 +159,10 @@ describe('staff user details route', () => {
 				},
 			}),
 		);
-		mocks.useDeleteStaffUserMutation.mockReturnValue(buildMutationResult());
+		mocks.deleteMutateAsync.mockResolvedValue(undefined);
+		mocks.useDeleteStaffUserMutation.mockReturnValue(
+			buildMutationResult({ mutateAsync: mocks.deleteMutateAsync }),
+		);
 		mocks.useReactivateStaffUserMutation.mockReturnValue(buildMutationResult());
 		mocks.useSuspendStaffUserMutation.mockReturnValue(buildMutationResult());
 		mocks.toStaffUserDetails.mockReturnValue({
@@ -530,5 +534,38 @@ describe('staff user details route', () => {
 		);
 
 		expect(screen.queryByTestId('staff-user-details-not-found')).toBeNull();
+	});
+
+	test('ItShouldNotNavigateOrTouchCacheWhenDeleteFails', async () => {
+		mocks.deleteMutateAsync.mockRejectedValue({ status: 500 });
+
+		renderPage();
+
+		const dangerZoneDeleteButtons = screen.getAllByText('Delete');
+		fireEvent.click(dangerZoneDeleteButtons[0]);
+
+		const confirmField = screen.getByLabelText('Confirm delete');
+		fireEvent.change(confirmField, { target: { value: 'delete' } });
+
+		const alertDialog = screen.getByRole('alertdialog', {
+			name: 'Delete staff user',
+		});
+		const confirmButton = within(alertDialog).getByRole('button', {
+			name: 'Delete',
+		});
+		fireEvent.click(confirmButton);
+
+		await vi.waitFor(() => {
+			expect(mocks.deleteMutateAsync).toHaveBeenCalledWith({
+				userId: '11111111-1111-1111-1111-111111111111',
+			});
+			expect(screen.getByRole('alert').textContent).toContain(
+				'Unable to delete this staff user.',
+			);
+		});
+
+		expect(mocks.navigate).not.toHaveBeenCalled();
+		expect(mocks.queryClient.removeQueries).not.toHaveBeenCalled();
+		expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled();
 	});
 });
