@@ -444,8 +444,9 @@ function StaffProfileDetailsPage() {
 						<p className="text-[13px] text-[var(--publy-foreground-muted)]">
 							{details.description ?? 'No description'}
 							{' · '}
-							{details.userAccountCount} member
-							{details.userAccountCount !== 1 ? 's' : ''}
+							{details.userAccountCount === null
+								? '—'
+								: `${details.userAccountCount} member${details.userAccountCount !== 1 ? 's' : ''}`}
 							{' · '}
 							{assignedKeys.length} permissions
 						</p>
@@ -547,7 +548,7 @@ function StaffProfileDetailsPage() {
 							<span className="text-[14px] font-semibold">
 								Members{' '}
 								<span className="font-normal text-[var(--publy-foreground-subtle)]">
-									· {userCount}
+									· {userCount === null ? '—' : userCount}
 								</span>
 							</span>
 							<Link

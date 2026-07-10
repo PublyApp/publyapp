@@ -40,6 +40,10 @@ import type {
 } from '~/lib/url-state/table-search-params';
 import { shouldLogoutForFailure } from '~/routes/authed/layout';
 
+// Default server ordering by creation date provides stable, deterministic pagination.
+// No visible column header claims this sort key (all columns have `enableSorting: false`),
+// so there is no misrepresentation.  TODO(contract): switch to `updated_at` once the API
+// exposes that sort key.
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
 
@@ -110,9 +114,14 @@ const columns: ColumnDef<StaffProfileRow>[] = [
 		),
 		accessorKey: 'userAccountCount',
 		enableSorting: false,
-		cell: ({ getValue }) => (
-			<span className="text-[13px] font-medium">{getValue<number>()}</span>
-		),
+		cell: ({ getValue }) => {
+			const value = getValue<number | null>();
+			return (
+				<span className="text-[13px] font-medium">
+					{value === null ? '—' : value}
+				</span>
+			);
+		},
 	},
 	{
 		id: 'permissions',

@@ -55,7 +55,7 @@ export type StaffProfileRow = {
 	id: string;
 	name: string;
 	description: string | null;
-	userAccountCount: number;
+	userAccountCount: number | null;
 	icon: string;
 	iconTone: string;
 };
@@ -64,7 +64,7 @@ export type StaffProfileDetails = {
 	id: string;
 	name: string;
 	description: string | null;
-	userAccountCount: number;
+	userAccountCount: number | null;
 	icon: string;
 	iconTone: string;
 };
@@ -170,7 +170,7 @@ export const toStaffProfileRows = (
 			id: item.id,
 			name: item.name?.trim() || '—',
 			description: item.description ?? null,
-			userAccountCount: item.userAccountCount ?? 0,
+			userAccountCount: item.userAccountCount ?? null,
 			...deriveProfileIcon(item.name?.trim() || 'profile'),
 		});
 	}
@@ -192,7 +192,7 @@ export const toStaffProfileDetails = (
 		id,
 		name: normalizeString(profile?.name ?? undefined) ?? '—',
 		description: profile?.description ?? null,
-		userAccountCount: profile?.userAccountCount ?? 0,
+		userAccountCount: profile?.userAccountCount ?? null,
 		...deriveProfileIcon(
 			normalizeString(profile?.name ?? undefined) ?? 'profile',
 		),
