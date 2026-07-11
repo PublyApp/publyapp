@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate, useRouter } from '@tanstack/react-router';
+import { applyLocale, parseLocaleSyncMessage } from '~/lib/locale-switch';
 import type { ColorScheme } from '~/lib/store/ui-store';
 import {
 	useUiStore,
@@ -8,6 +9,7 @@ import {
 
 import {
 	AUTH_SYNC_CHANNEL,
+	LOCALE_SYNC_CHANNEL,
 	THEME_SYNC_CHANNEL,
 	useBroadcastSync,
 } from './broadcast-sync';
@@ -87,6 +89,16 @@ export const TabSyncListener = () => {
 		withThemeTransitionSuppressed(() => {
 			applyRemoteColorScheme(data.colorScheme);
 		});
+	});
+
+	useBroadcastSync<unknown>(LOCALE_SYNC_CHANNEL, (data) => {
+		const locale = parseLocaleSyncMessage(data);
+		if (!locale || locale === document.documentElement.lang) {
+			return;
+		}
+		// The cookie is host-shared and was already written by the sender —
+		// this tab only needs to re-run the root loader, never rewrite it.
+		void applyLocale(router);
 	});
 
 	return null;

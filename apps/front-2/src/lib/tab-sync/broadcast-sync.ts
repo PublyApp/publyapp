@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 
 export const AUTH_SYNC_CHANNEL = 'publyapp:auth-sync';
 export const THEME_SYNC_CHANNEL = 'publyapp:theme-sync';
+export const LOCALE_SYNC_CHANNEL = 'publyapp:locale-sync';
 
 // Stable per-tab id so a tab ignores the messages it broadcasts itself.
 // BroadcastChannel only skips the *same channel instance* that called

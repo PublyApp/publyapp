@@ -10,8 +10,12 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
+	invalidate: vi.fn().mockResolvedValue(undefined),
 	clearSession: vi.fn(),
+	setLocale: vi.fn(),
+	postBroadcast: vi.fn(),
 	queryClientClear: vi.fn(),
+	resolvedLanguage: 'en' as string,
 	currentUser: undefined as
 		| {
 				id: string;
@@ -26,6 +30,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@tanstack/react-router', () => ({
 	useNavigate: () => mocks.navigate,
+	useRouter: () => ({ invalidate: mocks.invalidate }),
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -40,6 +45,16 @@ vi.mock('~/lib/server/session-actions', () => ({
 	clearSession: mocks.clearSession,
 }));
 
+vi.mock('~/server/i18n-locale', () => ({
+	setLocale: mocks.setLocale,
+}));
+
+vi.mock('~/lib/tab-sync/broadcast-sync', () => ({
+	AUTH_SYNC_CHANNEL: 'publyapp:auth-sync',
+	LOCALE_SYNC_CHANNEL: 'publyapp:locale-sync',
+	postBroadcast: mocks.postBroadcast,
+}));
+
 vi.mock('~/lib/query/auth', () => ({
 	useCurrentUserQuery: () => ({ data: mocks.currentUser }),
 	toCurrentUser: (raw: unknown) => raw,
@@ -51,9 +66,11 @@ vi.mock('react-i18next', () => ({
 			const labels: Record<string, string> = {
 				'log-out': 'Log out',
 				'un-named': 'No name',
+				language: 'Language',
 			};
 			return labels[key] ?? key;
 		},
+		i18n: { resolvedLanguage: mocks.resolvedLanguage },
 	}),
 }));
 
@@ -63,6 +80,9 @@ describe('AppShellUserMenu', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mocks.clearSession.mockResolvedValue(undefined);
+		mocks.setLocale.mockResolvedValue({ locale: 'fr' });
+		mocks.invalidate.mockResolvedValue(undefined);
+		mocks.resolvedLanguage = 'en';
 		mocks.currentUser = {
 			id: 'user-1',
 			email: 'jane.doe@example.com',
@@ -112,5 +132,64 @@ describe('AppShellUserMenu', () => {
 			search: undefined,
 			replace: true,
 		});
+	});
+
+	test('opens the language submenu and shows the current locale checked', async () => {
+		render(<AppShellUserMenu />);
+
+		fireEvent.click(screen.getByTestId('app-shell-user-menu-trigger'));
+		const languageTrigger = await screen.findByTestId(
+			'app-shell-user-menu-language',
+		);
+		fireEvent.click(languageTrigger);
+
+		const enOption = await screen.findByTestId(
+			'app-shell-user-menu-language-en',
+		);
+		const frOption = await screen.findByTestId(
+			'app-shell-user-menu-language-fr',
+		);
+		expect(enOption.getAttribute('aria-checked')).toBe('true');
+		expect(frOption.getAttribute('aria-checked')).toBe('false');
+	});
+
+	test('selecting a different locale persists the cookie, broadcasts, then invalidates the router', async () => {
+		render(<AppShellUserMenu />);
+
+		fireEvent.click(screen.getByTestId('app-shell-user-menu-trigger'));
+		const languageTrigger = await screen.findByTestId(
+			'app-shell-user-menu-language',
+		);
+		fireEvent.click(languageTrigger);
+
+		const frOption = await screen.findByTestId(
+			'app-shell-user-menu-language-fr',
+		);
+		fireEvent.click(frOption);
+
+		await waitFor(() => expect(mocks.invalidate).toHaveBeenCalledTimes(1));
+
+		expect(mocks.setLocale).toHaveBeenCalledWith({ data: { locale: 'fr' } });
+		expect(mocks.postBroadcast).toHaveBeenCalledWith('publyapp:locale-sync', {
+			locale: 'fr',
+		});
+	});
+
+	test('selecting the current locale is a no-op', async () => {
+		render(<AppShellUserMenu />);
+
+		fireEvent.click(screen.getByTestId('app-shell-user-menu-trigger'));
+		const languageTrigger = await screen.findByTestId(
+			'app-shell-user-menu-language',
+		);
+		fireEvent.click(languageTrigger);
+
+		const enOption = await screen.findByTestId(
+			'app-shell-user-menu-language-en',
+		);
+		fireEvent.click(enOption);
+
+		expect(mocks.setLocale).not.toHaveBeenCalled();
+		expect(mocks.postBroadcast).not.toHaveBeenCalled();
 	});
 });

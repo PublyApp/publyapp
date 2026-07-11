@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
 	pathname: '/staff/staff-users',
 	authHandler: null as Handler | null,
 	themeHandler: null as Handler | null,
+	localeHandler: null as Handler | null,
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -42,12 +43,16 @@ vi.mock('~/lib/store/ui-store', () => ({
 vi.mock('./broadcast-sync', () => ({
 	AUTH_SYNC_CHANNEL: 'publyapp:auth-sync',
 	THEME_SYNC_CHANNEL: 'publyapp:theme-sync',
+	LOCALE_SYNC_CHANNEL: 'publyapp:locale-sync',
 	useBroadcastSync: (channel: string, handler: Handler) => {
 		if (channel === 'publyapp:auth-sync') {
 			mocks.authHandler = handler;
 		}
 		if (channel === 'publyapp:theme-sync') {
 			mocks.themeHandler = handler;
+		}
+		if (channel === 'publyapp:locale-sync') {
+			mocks.localeHandler = handler;
 		}
 	},
 }));
@@ -64,6 +69,8 @@ describe('TabSyncListener', () => {
 		mocks.pathname = '/staff/staff-users';
 		mocks.authHandler = null;
 		mocks.themeHandler = null;
+		mocks.localeHandler = null;
+		document.documentElement.lang = 'en';
 	});
 
 	afterEach(() => {
@@ -160,5 +167,31 @@ describe('TabSyncListener', () => {
 		mocks.themeHandler?.({ colorScheme: 'not-a-real-scheme' });
 
 		expect(mocks.applyRemoteColorScheme).not.toHaveBeenCalled();
+	});
+
+	test('applies a valid remote locale change by invalidating the router', () => {
+		document.documentElement.lang = 'en';
+		mountListener();
+
+		mocks.localeHandler?.({ locale: 'fr' });
+
+		expect(mocks.invalidate).toHaveBeenCalledTimes(1);
+	});
+
+	test('ignores a remote locale message with an unsupported locale', () => {
+		mountListener();
+
+		mocks.localeHandler?.({ locale: 'de' });
+
+		expect(mocks.invalidate).not.toHaveBeenCalled();
+	});
+
+	test('ignores a remote locale message matching the current locale (no echo)', () => {
+		document.documentElement.lang = 'fr';
+		mountListener();
+
+		mocks.localeHandler?.({ locale: 'fr' });
+
+		expect(mocks.invalidate).not.toHaveBeenCalled();
 	});
 });
