@@ -31,7 +31,12 @@ export const loginAsStaffAdmin = async (page: Page): Promise<void> => {
 	await page
 		.locator('input[name="password"]')
 		.fill(STAFF_ADMIN_CREDENTIALS.password);
-	await page.getByRole('button', { name: 'Sign in' }).click();
+	// Locale-agnostic: the login CTA copy is now i18n'd (t('sign-in') →
+	// "Se connecter" under the fr locale), so match the sole submit button in
+	// the login form rather than its English label.
+	await page
+		.locator('[data-testid="auth-login-form"] button[type="submit"]')
+		.click();
 
 	await page.waitForURL(/\/staff(?:\/staff-users)?(?:[?#].*)?$/, {
 		waitUntil: 'domcontentloaded',
