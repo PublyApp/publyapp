@@ -5,6 +5,7 @@ import {
 	render,
 	screen,
 	waitFor,
+	within,
 } from '@testing-library/react';
 import { createElement, type ReactNode, type FormEventHandler } from 'react';
 import { FormProvider, useFormContext } from 'react-hook-form';
@@ -16,6 +17,7 @@ const mocks = vi.hoisted(() => ({
 	mutateAsync: vi.fn(),
 	useCreateStaffTenantMutation: vi.fn(),
 	shouldLogoutForFailure: vi.fn((_: unknown) => false),
+	parseXlsxFile: vi.fn(),
 }));
 
 const LABELS: Record<string, string> = {
@@ -25,21 +27,47 @@ const LABELS: Record<string, string> = {
 	organization: 'Organization',
 	'organization-name': 'Organization name',
 	seats: 'Seats',
-	members: 'Members',
-	'members-hint': 'At least one admin required',
+	'workspace-slug': 'Workspace slug',
+	'workspace-slug-hint': 'Optional — leave blank to auto-generate',
+	'workspace-slug-invalid':
+		'Use lowercase letters, numbers, and hyphens only (3-40 characters).',
+	owners: 'Owners',
+	'owners-hint': 'Full access · at least one required',
+	'add-owner': 'Add owner',
+	primary: 'Primary',
+	'owner-chip-label': 'Owner',
+	'remove-owner': 'Remove owner',
+	'initial-members-optional': 'Initial members (optional)',
+	'drag-csv-or-excel-file': 'Drag a CSV or Excel file, or browse',
+	'csv-excel-columns-hint': 'Columns: email, role',
+	'download-template': 'Download template',
+	'parsed-file-summary': '{{detected}} members detected · {{valid}} valid',
+	'parsed-file-invalid-rows': '{{count}} rows skipped (invalid email)',
+	'or-add-manually': 'or add manually',
 	email: 'Email',
 	'account-level': 'Account level',
 	admin: 'Admin',
 	user: 'User',
 	'add-member': 'Add member',
 	'remove-member': 'Remove member',
+	remove: 'Remove',
+	setup: 'Setup',
+	'seed-default-profiles': 'Seed default profiles',
+	'require-sso': 'Require SSO',
+	'require-sso-hint': 'Coming soon',
 	preview: 'Preview',
+	status: 'Status',
+	active: 'Active',
 	'untitled-organization': 'New organization',
 	'assigned-after-creation': 'Assigned after creation',
-	'preview-admins-checklist': '{{count}} admins get full access',
-	'preview-members-checklist': '{{count}} members will be invited on creation',
-	'create-tenant-summary':
-		'{{admins}} admins · {{members}} members will be invited on creation',
+	'preview-owners-checklist': '{{count}} owners get full access',
+	'preview-members-checklist-detailed':
+		'{{count}} members invited ({{csv}} CSV · {{manual}} manual)',
+	'preview-default-profile-checklist': 'Default profile seeded',
+	'preview-sso-not-required': 'SSO not required',
+	'create-tenant-summary-owners': '{{count}} owner(s)',
+	'create-tenant-summary-members': '{{count}} member(s)',
+	'create-tenant-summary-suffix': 'will be invited on creation',
 	'tenant-should-have-at-least-one-admin':
 		'A tenant should have at least one admin',
 	'each-user-must-have-a-unique-email':
@@ -87,6 +115,26 @@ vi.mock('~/components/ui/button', () => ({
 vi.mock('~/components/ui/card', () => ({
 	Card: ({ children, ...props }: { children: ReactNode }) =>
 		createElement('div', props, children),
+}));
+
+vi.mock('~/components/ui/switch', () => ({
+	Switch: ({
+		checked,
+		disabled,
+		onCheckedChange: _onCheckedChange,
+		...props
+	}: {
+		checked?: boolean;
+		disabled?: boolean;
+		onCheckedChange?: (checked: boolean) => void;
+	}) =>
+		createElement('input', {
+			type: 'checkbox',
+			checked: Boolean(checked),
+			disabled,
+			readOnly: true,
+			...props,
+		}),
 }));
 
 vi.mock('~/components/ui/select', () => ({
@@ -236,6 +284,32 @@ vi.mock('~/components/field', () => ({
 				}),
 			);
 		},
+		Switch: ({
+			name,
+			label,
+			description,
+			isDisabled,
+		}: {
+			name: string;
+			label: string;
+			description?: string;
+			isDisabled?: boolean;
+		}) => {
+			const { register } = useFormContext();
+
+			return createElement(
+				'label',
+				undefined,
+				createElement('span', undefined, label),
+				description ? createElement('span', undefined, description) : null,
+				createElement('input', {
+					'aria-label': label,
+					type: 'checkbox',
+					disabled: isDisabled,
+					...register(name),
+				}),
+			);
+		},
 	},
 }));
 
@@ -246,6 +320,10 @@ vi.mock('~/lib/query/staff-tenants', () => ({
 
 vi.mock('~/routes/authed/layout', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
+}));
+
+vi.mock('./tenants-new-xlsx', () => ({
+	parseXlsxFile: mocks.parseXlsxFile,
 }));
 
 import { Route } from './tenants-new';
@@ -268,9 +346,6 @@ const fillOrganizationName = (name: string) => {
 
 const getEmailInputs = () =>
 	screen.getAllByRole('textbox', { name: 'Email' }) as HTMLInputElement[];
-
-const getLevelSelects = () =>
-	screen.getAllByRole('combobox', { name: 'Account level' });
 
 const submitForm = () => {
 	fireEvent.submit(
@@ -301,16 +376,69 @@ describe('staff tenant create route', () => {
 		).toBe('/staff/tenants');
 	});
 
-	test('renders the flat Organization and Members sections plus the preview card', () => {
+	test('renders the workspace slug field with the publyapp.com/ prefix', () => {
 		renderPage();
 
-		expect(screen.getByText('Organization')).toBeTruthy();
-		expect(screen.getAllByText('Members').length).toBeGreaterThan(0);
-		expect(screen.getByTestId('staff-tenant-create-preview')).toBeTruthy();
+		expect(screen.getAllByText('publyapp.com/').length).toBeGreaterThan(0);
+		expect(
+			screen.getByRole('textbox', { name: 'Workspace slug' }),
+		).toBeTruthy();
+	});
+
+	test('renders one owner row tagged Primary by default, and the members/setup sections', () => {
+		renderPage();
+
+		expect(screen.getAllByText('Owners').length).toBeGreaterThan(0);
+		expect(screen.getByText('Primary')).toBeTruthy();
+		expect(getEmailInputs()).toHaveLength(1);
+		expect(screen.getByText('Initial members (optional)')).toBeTruthy();
+		expect(screen.getByText('Setup')).toBeTruthy();
+		expect(
+			screen.getByRole('link', { name: 'Download template' }),
+		).toBeTruthy();
+	});
+
+	test('seed default profiles defaults on and require SSO is disabled with a hint', () => {
+		renderPage();
+
+		const seedSwitch = screen.getByRole('checkbox', {
+			name: 'Seed default profiles',
+		}) as HTMLInputElement;
+		expect(seedSwitch.checked).toBe(true);
+
+		const ssoSwitch = screen.getByRole('checkbox', {
+			name: 'Require SSO',
+		}) as HTMLInputElement;
+		expect(ssoSwitch.disabled).toBe(true);
+		expect(ssoSwitch.checked).toBe(false);
+		expect(screen.getByText('Coming soon')).toBeTruthy();
+	});
+
+	test('adds and removes owner rows, tagging only the first as Primary', () => {
+		renderPage();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Add owner' }));
+		expect(getEmailInputs()).toHaveLength(2);
+		expect(screen.getByText('Primary')).toBeTruthy();
+		expect(screen.getAllByText('Owner')).toHaveLength(1);
+
+		fireEvent.click(
+			screen.getAllByRole('button', { name: 'Remove owner' })[1]!,
+		);
 		expect(getEmailInputs()).toHaveLength(1);
 	});
 
-	test('adds and removes member slots', () => {
+	test('the sole remaining owner row cannot be removed', () => {
+		renderPage();
+
+		const removeButtons = screen.getAllByRole('button', {
+			name: 'Remove owner',
+		});
+		expect(removeButtons).toHaveLength(1);
+		expect((removeButtons[0] as HTMLButtonElement).disabled).toBe(true);
+	});
+
+	test('adds and removes manual member rows independently from owners', () => {
 		renderPage();
 
 		expect(getEmailInputs()).toHaveLength(1);
@@ -319,31 +447,52 @@ describe('staff tenant create route', () => {
 		expect(getEmailInputs()).toHaveLength(2);
 
 		fireEvent.click(
-			screen.getAllByRole('button', { name: 'Remove member' })[1]!,
+			screen.getAllByRole('button', { name: 'Remove member' })[0]!,
 		);
 		expect(getEmailInputs()).toHaveLength(1);
 	});
 
-	test('the sole remaining member row cannot be removed', () => {
-		renderPage();
+	test('a manual member set to the Admin role submits with accountLevel Admin', async () => {
+		mocks.mutateAsync.mockResolvedValue({ id: 'tenant-001' });
 
-		const removeButtons = screen.getAllByRole('button', {
-			name: 'Remove member',
-		});
-		expect(removeButtons).toHaveLength(1);
-		expect((removeButtons[0] as HTMLButtonElement).disabled).toBe(true);
-	});
-
-	test('preview counts recompute live as members are added and role changes', () => {
 		renderPage();
 
 		fillOrganizationName('Acme Corporation');
 		fireEvent.change(getEmailInputs()[0]!, {
-			target: { value: 'admin@acme.com' },
+			target: { value: 'owner@acme.com' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Add member' }));
+		fireEvent.change(getEmailInputs()[1]!, {
+			target: { value: 'member@acme.com' },
+		});
+		fireEvent.change(screen.getByRole('combobox', { name: 'Account level' }), {
+			target: { value: 'Admin' },
+		});
+
+		submitForm();
+
+		await waitFor(() =>
+			expect(mocks.mutateAsync).toHaveBeenCalledWith(
+				expect.objectContaining({
+					initialUsers: [
+						{ email: 'owner@acme.com', accountLevel: 'Admin' },
+						{ email: 'member@acme.com', accountLevel: 'Admin' },
+					],
+				}),
+			),
+		);
+	});
+
+	test('preview counts recompute live as owners and members are added', () => {
+		renderPage();
+
+		fillOrganizationName('Acme Corporation');
+		fireEvent.change(getEmailInputs()[0]!, {
+			target: { value: 'owner@acme.com' },
 		});
 
 		expect(screen.getByTestId('preview-seats').textContent).toBe('1 / 5');
-		expect(screen.getByTestId('preview-admins').textContent).toBe('1');
+		expect(screen.getByTestId('preview-owners').textContent).toBe('1');
 		expect(screen.getByTestId('preview-members').textContent).toBe('0');
 
 		fireEvent.click(screen.getByRole('button', { name: 'Add member' }));
@@ -352,44 +501,74 @@ describe('staff tenant create route', () => {
 		});
 
 		expect(screen.getByTestId('preview-seats').textContent).toBe('2 / 5');
-		expect(screen.getByTestId('preview-admins').textContent).toBe('1');
+		expect(screen.getByTestId('preview-owners').textContent).toBe('1');
 		expect(screen.getByTestId('preview-members').textContent).toBe('1');
-
-		fireEvent.change(getLevelSelects()[1]!, { target: { value: 'Admin' } });
-
-		expect(screen.getByTestId('preview-admins').textContent).toBe('2');
-		expect(screen.getByTestId('preview-members').textContent).toBe('0');
 	});
 
-	test('shows a validation error when no admin is present among initial members', async () => {
+	test('preview shows the Active status chip and the honest checklist', () => {
 		renderPage();
 
 		fillOrganizationName('Acme Corporation');
 		fireEvent.change(getEmailInputs()[0]!, {
-			target: { value: 'member@acme.com' },
+			target: { value: 'owner@acme.com' },
 		});
-		fireEvent.change(getLevelSelects()[0]!, { target: { value: 'User' } });
 
-		submitForm();
-
-		await waitFor(() =>
-			expect(
-				screen.getByText('A tenant should have at least one admin'),
-			).toBeTruthy(),
+		const preview = screen.getByTestId('staff-tenant-create-preview');
+		expect(within(preview).getByText('Active')).toBeTruthy();
+		expect(
+			screen.getByTestId('preview-checklist-owners').textContent,
+		).toContain('1 owners get full access');
+		expect(screen.getByTestId('preview-checklist-profile').textContent).toBe(
+			'Default profile seeded',
 		);
-		expect(mocks.mutateAsync).not.toHaveBeenCalled();
+		expect(screen.getByTestId('preview-checklist-sso').textContent).toBe(
+			'SSO not required',
+		);
 	});
 
-	test('shows a validation error for duplicate member emails', async () => {
+	test('unchecking seed default profiles flips the preview checklist row to unchecked', () => {
+		renderPage();
+
+		expect(
+			screen
+				.getByTestId('preview-checklist-profile')
+				.getAttribute('data-checked'),
+		).toBe('true');
+
+		fireEvent.click(
+			screen.getByRole('checkbox', { name: 'Seed default profiles' }),
+		);
+
+		expect(
+			screen
+				.getByTestId('preview-checklist-profile')
+				.getAttribute('data-checked'),
+		).toBe('false');
+	});
+
+	test('the sticky bar summary is plural-aware for owners and members', () => {
 		renderPage();
 
 		fillOrganizationName('Acme Corporation');
 		fireEvent.change(getEmailInputs()[0]!, {
-			target: { value: 'admin@acme.com' },
+			target: { value: 'owner@acme.com' },
+		});
+
+		expect(screen.getByTestId('create-tenant-summary').textContent).toBe(
+			'1 owner(s) · 0 member(s) will be invited on creation',
+		);
+	});
+
+	test('shows a validation error when owner emails are duplicated', async () => {
+		renderPage();
+
+		fillOrganizationName('Acme Corporation');
+		fireEvent.change(getEmailInputs()[0]!, {
+			target: { value: 'owner@acme.com' },
 		});
 		fireEvent.click(screen.getByRole('button', { name: 'Add member' }));
 		fireEvent.change(getEmailInputs()[1]!, {
-			target: { value: 'admin@acme.com' },
+			target: { value: 'owner@acme.com' },
 		});
 
 		submitForm();
@@ -402,12 +581,12 @@ describe('staff tenant create route', () => {
 		expect(mocks.mutateAsync).not.toHaveBeenCalled();
 	});
 
-	test('shows a validation error when initial members exceed seats', async () => {
+	test('shows a validation error when owners and members exceed seats', async () => {
 		renderPage();
 
 		fillOrganizationName('Acme Corporation');
 		fireEvent.change(getEmailInputs()[0]!, {
-			target: { value: 'admin@acme.com' },
+			target: { value: 'owner@acme.com' },
 		});
 		fireEvent.click(screen.getByRole('button', { name: 'Add member' }));
 		fireEvent.change(getEmailInputs()[1]!, {
@@ -425,14 +604,44 @@ describe('staff tenant create route', () => {
 		expect(mocks.mutateAsync).not.toHaveBeenCalled();
 	});
 
-	test('creates a tenant with the exact contract body shape and navigates to the tenant detail', async () => {
+	test('shows a validation error for a malformed workspace slug', async () => {
+		renderPage();
+
+		fillOrganizationName('Acme Corporation');
+		fireEvent.change(getEmailInputs()[0]!, {
+			target: { value: 'owner@acme.com' },
+		});
+		fireEvent.change(screen.getByRole('textbox', { name: 'Workspace slug' }), {
+			target: { value: 'Not Valid!' },
+		});
+
+		submitForm();
+
+		await waitFor(() =>
+			expect(
+				screen.getByText(
+					'Use lowercase letters, numbers, and hyphens only (3-40 characters).',
+				),
+			).toBeTruthy(),
+		);
+		expect(mocks.mutateAsync).not.toHaveBeenCalled();
+	});
+
+	test('creates a tenant with owners and manual members merged into initialUsers, owners first', async () => {
 		mocks.mutateAsync.mockResolvedValue({ id: 'tenant-001' });
 
 		renderPage();
 
 		fillOrganizationName('Acme Corporation');
 		fireEvent.change(getEmailInputs()[0]!, {
-			target: { value: 'admin@acme.com' },
+			target: { value: 'owner@acme.com' },
+		});
+		fireEvent.change(screen.getByRole('textbox', { name: 'Workspace slug' }), {
+			target: { value: 'acme-corp' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Add member' }));
+		fireEvent.change(getEmailInputs()[1]!, {
+			target: { value: 'member@acme.com' },
 		});
 
 		submitForm();
@@ -441,11 +650,11 @@ describe('staff tenant create route', () => {
 			expect(mocks.mutateAsync).toHaveBeenCalledWith({
 				name: 'Acme Corporation',
 				maxUsers: 5,
+				code: 'acme-corp',
+				seedDefaultProfile: true,
 				initialUsers: [
-					{
-						email: 'admin@acme.com',
-						accountLevel: 'Admin',
-					},
+					{ email: 'owner@acme.com', accountLevel: 'Admin' },
+					{ email: 'member@acme.com', accountLevel: 'User' },
 				],
 			}),
 		);
@@ -465,6 +674,23 @@ describe('staff tenant create route', () => {
 		);
 	});
 
+	test('omits the code field from the submit body when the slug is left blank', async () => {
+		mocks.mutateAsync.mockResolvedValue({ id: 'tenant-001' });
+
+		renderPage();
+
+		fillOrganizationName('Acme Corporation');
+		fireEvent.change(getEmailInputs()[0]!, {
+			target: { value: 'owner@acme.com' },
+		});
+
+		submitForm();
+
+		await waitFor(() => expect(mocks.mutateAsync).toHaveBeenCalled());
+		const body = mocks.mutateAsync.mock.calls[0]![0];
+		expect(body.code).toBeUndefined();
+	});
+
 	test('falls back to the tenants list when tenant id is missing in the create result', async () => {
 		mocks.mutateAsync.mockResolvedValue({ name: 'Acme Corporation' });
 
@@ -472,7 +698,7 @@ describe('staff tenant create route', () => {
 
 		fillOrganizationName('Acme Corporation');
 		fireEvent.change(getEmailInputs()[0]!, {
-			target: { value: 'admin@acme.com' },
+			target: { value: 'owner@acme.com' },
 		});
 
 		submitForm();
@@ -495,7 +721,7 @@ describe('staff tenant create route', () => {
 
 		fillOrganizationName('Acme Corporation');
 		fireEvent.change(getEmailInputs()[0]!, {
-			target: { value: 'admin@acme.com' },
+			target: { value: 'owner@acme.com' },
 		});
 
 		submitForm();
@@ -518,7 +744,7 @@ describe('staff tenant create route', () => {
 
 		fillOrganizationName('Acme Corporation');
 		fireEvent.change(getEmailInputs()[0]!, {
-			target: { value: 'admin@acme.com' },
+			target: { value: 'owner@acme.com' },
 		});
 
 		submitForm();
@@ -531,5 +757,75 @@ describe('staff tenant create route', () => {
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 		expect(mocks.navigate).not.toHaveBeenCalled();
 		expect(mocks.invalidateQueries).not.toHaveBeenCalled();
+	});
+
+	test('surfaces a server 422 code-already-taken failure on the workspace slug field', async () => {
+		mocks.mutateAsync.mockRejectedValue({
+			status: 422,
+			responseStatusCode: 422,
+			title: 'Validation failed',
+			detail: 'This workspace code is already taken',
+			errors: { code: ['This workspace code is already taken'] },
+		});
+
+		renderPage();
+
+		fillOrganizationName('Acme Corporation');
+		fireEvent.change(getEmailInputs()[0]!, {
+			target: { value: 'owner@acme.com' },
+		});
+		fireEvent.change(screen.getByRole('textbox', { name: 'Workspace slug' }), {
+			target: { value: 'acme-corp' },
+		});
+
+		submitForm();
+
+		await waitFor(() => expect(mocks.mutateAsync).toHaveBeenCalled());
+		await waitFor(() =>
+			expect(
+				screen.getByText('This workspace code is already taken'),
+			).toBeTruthy(),
+		);
+		expect(mocks.navigate).not.toHaveBeenCalled();
+	});
+
+	test('parses an uploaded CSV file and merges the valid rows into the submitted initialUsers', async () => {
+		mocks.mutateAsync.mockResolvedValue({ id: 'tenant-001' });
+
+		renderPage();
+
+		fillOrganizationName('Acme Corporation');
+		fireEvent.change(getEmailInputs()[0]!, {
+			target: { value: 'owner@acme.com' },
+		});
+
+		const csvContent = 'email,role\ncsv1@acme.com,user\nnot-an-email,user\n';
+		const file = new File([csvContent], 'members.csv', { type: 'text/csv' });
+		Object.defineProperty(file, 'text', {
+			value: () => Promise.resolve(csvContent),
+		});
+
+		const fileInput = screen.getByLabelText(
+			'Drag a CSV or Excel file, or browse',
+		) as HTMLInputElement;
+		fireEvent.change(fileInput, { target: { files: [file] } });
+
+		await waitFor(() => expect(screen.getByText('members.csv')).toBeTruthy());
+		expect(screen.getByText('2 members detected · 1 valid')).toBeTruthy();
+		expect(screen.getByText('1 rows skipped (invalid email)')).toBeTruthy();
+		expect(screen.getByTestId('preview-members').textContent).toBe('1');
+
+		submitForm();
+
+		await waitFor(() =>
+			expect(mocks.mutateAsync).toHaveBeenCalledWith(
+				expect.objectContaining({
+					initialUsers: [
+						{ email: 'owner@acme.com', accountLevel: 'Admin' },
+						{ email: 'csv1@acme.com', accountLevel: 'User' },
+					],
+				}),
+			),
+		);
 	});
 });

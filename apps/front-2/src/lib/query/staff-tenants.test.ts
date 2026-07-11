@@ -133,6 +133,41 @@ describe('buildCreateStaffTenantBody', () => {
 			},
 		]);
 	});
+
+	test('includes a trimmed code and the seedDefaultProfile flag when provided', () => {
+		const body = buildCreateStaffTenantBody({
+			name: 'Acme Tenant',
+			maxUsers: 5,
+			code: '  acme-corp  ',
+			seedDefaultProfile: false,
+			initialUsers: [{ email: 'user@example.com', accountLevel: 'Admin' }],
+		});
+
+		expect(unwrapUntyped(body.code)).toBe('acme-corp');
+		expect(unwrapUntyped(body.seedDefaultProfile)).toBe(false);
+	});
+
+	test('omits code and seedDefaultProfile when not provided', () => {
+		const body = buildCreateStaffTenantBody({
+			name: 'Acme Tenant',
+			maxUsers: 5,
+			initialUsers: [{ email: 'user@example.com', accountLevel: 'Admin' }],
+		});
+
+		expect(body.code).toBeUndefined();
+		expect(body.seedDefaultProfile).toBeUndefined();
+	});
+
+	test('omits a blank code rather than sending an empty string', () => {
+		const body = buildCreateStaffTenantBody({
+			name: 'Acme Tenant',
+			maxUsers: 5,
+			code: '   ',
+			initialUsers: [{ email: 'user@example.com', accountLevel: 'Admin' }],
+		});
+
+		expect(body.code).toBeUndefined();
+	});
 });
 
 describe('buildUpdateStaffTenantBody', () => {

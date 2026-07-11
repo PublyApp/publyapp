@@ -3,12 +3,14 @@ import {
 	IconArrowLeft,
 	IconCircle,
 	IconCircleCheckFilled,
+	IconFileCheck,
+	IconFileSpreadsheet,
 	IconPlus,
 	IconX,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, createFileRoute } from '@tanstack/react-router';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -17,12 +19,14 @@ import { Field, Form, FormActionBar, FormPageLayout } from '~/components/field';
 import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
 import { BrandTile } from '~/components/ui/initials-avatar';
+import { StatusPill } from '~/components/ui/product-page';
 import {
 	Select,
 	SelectContent,
 	SelectItem,
 	SelectTrigger,
 } from '~/components/ui/select';
+import { Switch } from '~/components/ui/switch';
 import {
 	STAFF_TENANTS_QUERY_KEY,
 	useCreateStaffTenantMutation,
@@ -39,27 +43,45 @@ import {
 	DEFAULT_MAX_USER_PER_TENANT,
 } from '@org/shared-ts/lib/constants';
 
+import {
+	buildMemberImportOutcome,
+	buildTenantMemberCsvTemplate,
+	isValidTenantCode,
+	mergeInitialUsers,
+	parseCsv,
+	slugifyTenantNamePlaceholder,
+	type ImportedMember,
+} from './tenants-new-helpers';
+import { parseXlsxFile } from './tenants-new-xlsx';
+
 type NewTenantAccountLevel =
 	(typeof ACCOUNT_LEVEL_ENUM)[keyof typeof ACCOUNT_LEVEL_ENUM];
 
+type OwnerSlotValues = {
+	email: string;
+};
+
+type ManualMemberSlotValues = {
+	email: string;
+	accountLevel: NewTenantAccountLevel;
+};
+
 type TenantCreateFormValues = {
 	name: string;
+	code: string;
 	maxUsers: number;
-	initialUsers: Array<{
-		email: string;
-		accountLevel: NewTenantAccountLevel;
-	}>;
+	owners: OwnerSlotValues[];
+	manualMembers: ManualMemberSlotValues[];
+	seedDefaultProfile: boolean;
 };
 
 const DEFAULT_VALUES: TenantCreateFormValues = {
 	name: '',
+	code: '',
 	maxUsers: DEFAULT_MAX_USER_PER_TENANT,
-	initialUsers: [
-		{
-			email: '',
-			accountLevel: ACCOUNT_LEVEL_ENUM.ADMIN,
-		},
-	],
+	owners: [{ email: '' }],
+	manualMembers: [],
+	seedDefaultProfile: true,
 };
 
 const USER_ROLE_OPTIONS = [
@@ -69,48 +91,61 @@ const USER_ROLE_OPTIONS = [
 
 /**
  * Name length mirrors the backend rule (`MustBeRequiredStringWithLength`,
- * min 5) so the client never accepts a name the server will reject.
+ * min 5) so the client never accepts a name the server will reject. The
+ * `parsedMembersCount` closure lets the max-seats check account for members
+ * detected from an uploaded CSV/Excel file, which live outside RHF state.
  */
-const buildCreateTenantSchema = (t: (key: string) => string) =>
+const buildCreateTenantSchema = (
+	t: (key: string) => string,
+	getParsedMembersCount: () => number,
+) =>
 	z
 		.object({
 			name: z.string().trim().min(5),
+			code: z
+				.string()
+				.trim()
+				.refine((value) => value.length === 0 || isValidTenantCode(value), {
+					message: t('workspace-slug-invalid'),
+				}),
 			maxUsers: z.coerce.number().int().min(1),
-			initialUsers: z
+			owners: z
 				.array(
 					z.object({
 						email: z.string().trim().email(),
-						accountLevel: z.enum(USER_ROLE_OPTIONS),
 					}),
 				)
 				.min(1),
+			manualMembers: z.array(
+				z.object({
+					email: z.string().trim().email(),
+					accountLevel: z.enum(USER_ROLE_OPTIONS),
+				}),
+			),
+			seedDefaultProfile: z.boolean(),
 		})
 		.superRefine((values, context) => {
-			if (values.initialUsers.length > values.maxUsers) {
+			const totalCount =
+				values.owners.length +
+				values.manualMembers.length +
+				getParsedMembersCount();
+			if (totalCount > values.maxUsers) {
 				context.addIssue({
 					code: 'custom',
-					path: ['initialUsers'],
+					path: ['owners'],
 					message: t('max-users-reached'),
 				});
 			}
 
-			const emails = values.initialUsers.map((user) => user.email);
+			const emails = [
+				...values.owners.map((owner) => owner.email.toLowerCase()),
+				...values.manualMembers.map((member) => member.email.toLowerCase()),
+			];
 			if (new Set(emails).size !== emails.length) {
 				context.addIssue({
 					code: 'custom',
-					path: ['initialUsers'],
+					path: ['owners'],
 					message: t('each-user-must-have-a-unique-email'),
-				});
-			}
-
-			const hasAdmin = values.initialUsers.some(
-				(user) => user.accountLevel === ACCOUNT_LEVEL_ENUM.ADMIN,
-			);
-			if (!hasAdmin) {
-				context.addIssue({
-					code: 'custom',
-					path: ['initialUsers'],
-					message: t('tenant-should-have-at-least-one-admin'),
 				});
 			}
 		});
@@ -214,6 +249,86 @@ const ChecklistRow = ({
 	</li>
 );
 
+/** Workspace slug field: a muted `publyapp.com/` prefix + mono slug input
+ * inside a single bordered container, matching the design's path-segment
+ * treatment. Optional — an empty value lets the server generate a code. */
+const SlugField = ({
+	isDisabled,
+	label,
+	hint,
+	t,
+}: {
+	isDisabled?: boolean;
+	label: string;
+	hint: string;
+	t: (key: string) => string;
+}) => {
+	const fieldId = 'tenant-create-code';
+	const helperId = `${fieldId}-helper`;
+
+	return (
+		<Controller
+			name="code"
+			render={({ field, fieldState: { error } }) => (
+				<div className="space-y-1.5">
+					<label
+						htmlFor={fieldId}
+						className="flex items-center gap-2 text-[13px] leading-none font-medium"
+					>
+						{label}
+					</label>
+					<div
+						className={cn(
+							'flex h-9 items-center gap-0 rounded-[var(--publy-radius-input)] border border-border bg-input/35 px-3.5 shadow-[var(--publy-shadow-input)]',
+							error && 'border-destructive',
+						)}
+					>
+						<span className="shrink-0 font-mono text-[13px] text-muted-foreground">
+							publyapp.com/
+						</span>
+						<input
+							id={fieldId}
+							aria-label={label}
+							aria-invalid={Boolean(error) || undefined}
+							aria-describedby={helperId}
+							className="min-w-0 flex-1 bg-transparent font-mono text-[13px] outline-none placeholder:text-muted-foreground"
+							value={field.value}
+							onChange={(event) => {
+								field.onChange(event.target.value);
+							}}
+							onBlur={field.onBlur}
+							disabled={isDisabled}
+							autoComplete="off"
+							placeholder={t('assigned-after-creation')}
+						/>
+					</div>
+					<p
+						id={helperId}
+						data-slot={error ? 'field-error' : 'field-helper'}
+						className={error ? 'publy-field-error' : 'publy-field-helper'}
+					>
+						{error?.message ?? hint}
+					</p>
+				</div>
+			)}
+		/>
+	);
+};
+
+const downloadTemplateCsv = () => {
+	const blob = new Blob([buildTenantMemberCsvTemplate()], {
+		type: 'text/csv;charset=utf-8',
+	});
+	const url = URL.createObjectURL(blob);
+	const link = document.createElement('a');
+	link.href = url;
+	link.download = 'tenant-members-template.csv';
+	document.body.append(link);
+	link.click();
+	link.remove();
+	URL.revokeObjectURL(url);
+};
+
 export const Route = createFileRoute('/_authed-layout/staff/tenants/new')({
 	component: StaffTenantCreateRoute,
 });
@@ -224,10 +339,23 @@ function StaffTenantCreateRoute() {
 	const queryClient = useQueryClient();
 	const [shouldLogout, setShouldLogout] = useState(false);
 	const [serverError, setServerError] = useState('');
+	const [parsedFile, setParsedFile] = useState<{
+		fileName: string;
+		rows: ReturnType<typeof parseCsv>;
+	} | null>(null);
+	const [importError, setImportError] = useState('');
+	const fileInputRef = useRef<HTMLInputElement>(null);
 	const createTenant = useCreateStaffTenantMutation();
 
+	// Always-fresh ref so the memoized resolver's max-seats check can see the
+	// latest CSV/Excel import count without rebuilding on every parse.
+	const parsedMembersCountRef = useRef(0);
+
 	const resolver = useMemo(
-		() => zodResolver(buildCreateTenantSchema(t)),
+		() =>
+			zodResolver(
+				buildCreateTenantSchema(t, () => parsedMembersCountRef.current),
+			),
 		// eslint-disable-next-line react-hooks/exhaustive-deps -- rebuild on language change so messages stay localized
 		[i18n.language],
 	);
@@ -241,28 +369,105 @@ function StaffTenantCreateRoute() {
 		formState: { isSubmitting, errors },
 	} = methods;
 	const name = useWatch({ control, name: 'name' }) ?? '';
+	const code = useWatch({ control, name: 'code' }) ?? '';
 	const maxUsers = useWatch({ control, name: 'maxUsers' }) ?? 0;
-	const initialUsers =
-		useWatch({ control, name: 'initialUsers' }) ?? DEFAULT_VALUES.initialUsers;
-	const { fields, append, remove } = useFieldArray({
-		control,
-		name: 'initialUsers',
-	});
+	const owners = useWatch({ control, name: 'owners' }) ?? DEFAULT_VALUES.owners;
+	const manualMembers =
+		useWatch({ control, name: 'manualMembers' }) ??
+		DEFAULT_VALUES.manualMembers;
+	const seedDefaultProfile =
+		useWatch({ control, name: 'seedDefaultProfile' }) ?? true;
+
+	const {
+		fields: ownerFields,
+		append: appendOwner,
+		remove: removeOwner,
+	} = useFieldArray({ control, name: 'owners' });
+	const {
+		fields: manualMemberFields,
+		append: appendManualMember,
+		remove: removeManualMember,
+	} = useFieldArray({ control, name: 'manualMembers' });
+
+	const filledOwners = owners.filter((owner) => owner.email.trim().length > 0);
+	const filledManualMembers = manualMembers.filter(
+		(member) => member.email.trim().length > 0,
+	);
+
+	const existingEmails = useMemo(
+		() => [
+			...owners.map((owner) => owner.email),
+			...manualMembers.map((member) => member.email),
+		],
+		[owners, manualMembers],
+	);
+
+	const parsedOutcome = useMemo(() => {
+		if (!parsedFile) {
+			return null;
+		}
+
+		return buildMemberImportOutcome({
+			rows: parsedFile.rows,
+			existingEmails,
+		});
+	}, [parsedFile, existingEmails]);
+
+	const parsedValidMembers: ImportedMember[] = parsedOutcome?.valid ?? [];
+	parsedMembersCountRef.current = parsedValidMembers.length;
+
+	const ownersCount = filledOwners.length;
+	const membersCount = filledManualMembers.length + parsedValidMembers.length;
+	const totalFilled = ownersCount + membersCount;
+
+	const slugPreview =
+		code.trim().length > 0 ? code.trim() : slugifyTenantNamePlaceholder(name);
+
+	const ownersRootError = errors.owners as
+		| { message?: string; root?: { message?: string } }
+		| undefined;
+	const ownersError =
+		ownersRootError?.root?.message ?? ownersRootError?.message;
+
+	const canAddOwner = ownerFields.length < Math.max(1, maxUsers);
+	const canAddManualMember =
+		ownerFields.length + manualMemberFields.length < Math.max(1, maxUsers);
+
+	const handleFiles = async (fileList: FileList | null) => {
+		const file = fileList?.[0];
+		if (!file) {
+			return;
+		}
+
+		setImportError('');
+		try {
+			const isSpreadsheet = /\.xlsx?$/i.test(file.name);
+			const rows = isSpreadsheet
+				? await parseXlsxFile(file)
+				: parseCsv(await file.text());
+			setParsedFile({ fileName: file.name, rows });
+		} catch {
+			setImportError(t('import-file-parse-failed'));
+		}
+	};
 
 	const onSubmit = methods.handleSubmit(async (values) => {
 		setServerError('');
 
+		const trimmedCode = values.code.trim();
+		const initialUsers = mergeInitialUsers({
+			owners: values.owners,
+			parsedMembers: parsedValidMembers,
+			manualMembers: values.manualMembers,
+		});
+
 		try {
-			const trimmedInitialUsers = values.initialUsers
-				.map((user) => ({
-					email: user.email.trim(),
-					accountLevel: getUserLevel(user.accountLevel),
-				}))
-				.filter((user) => user.email.length > 0);
 			const result = await createTenant.mutateAsync({
 				name: values.name.trim(),
 				maxUsers: values.maxUsers,
-				initialUsers: trimmedInitialUsers,
+				...(trimmedCode.length > 0 ? { code: trimmedCode } : {}),
+				seedDefaultProfile: values.seedDefaultProfile,
+				initialUsers,
 			});
 
 			const tenantId = result?.id?.toString().trim();
@@ -290,39 +495,27 @@ function StaffTenantCreateRoute() {
 				return;
 			}
 
+			const failure = toApiFailure(error);
+			if (
+				failure.kind === 'validation' &&
+				(failure.fieldErrors.code?.length ?? 0) > 0
+			) {
+				methods.setError('code', {
+					type: 'server',
+					message: getFailureMessage(failure, {
+						fallback: t('tenant-create-failed'),
+					}),
+				});
+				return;
+			}
+
 			setServerError(
-				getFailureMessage(toApiFailure(error), {
+				getFailureMessage(failure, {
 					fallback: t('tenant-create-failed'),
 				}),
 			);
 		}
 	});
-
-	const isPending = isSubmitting || createTenant.isPending;
-	const canAddRow = fields.length < Math.max(1, maxUsers);
-	const addMemberRow = useMemo(() => {
-		return () => {
-			append({
-				email: '',
-				accountLevel: ACCOUNT_LEVEL_ENUM.USER,
-			});
-		};
-	}, [append]);
-
-	const filledMembers = initialUsers.filter(
-		(user) => user.email.trim().length > 0,
-	);
-	const adminsCount = filledMembers.filter(
-		(user) => user.accountLevel === ACCOUNT_LEVEL_ENUM.ADMIN,
-	).length;
-	const membersCount = filledMembers.length - adminsCount;
-	const hasAdmin = adminsCount >= 1;
-
-	const initialUsersError = errors.initialUsers as
-		| { message?: string; root?: { message?: string } }
-		| undefined;
-	const arrayLevelError =
-		initialUsersError?.root?.message ?? initialUsersError?.message;
 
 	if (shouldLogout) {
 		return <LogoutRedirect />;
@@ -353,47 +546,218 @@ function StaffTenantCreateRoute() {
 								label={t('organization-name')}
 								placeholder="Acme Corporation"
 								fullWidth
-								isDisabled={isPending}
+								isDisabled={isSubmitting}
 							/>
-							<div className="max-w-[160px]">
+							<div className="grid grid-cols-[1fr_128px] items-start gap-3">
+								<SlugField
+									label={t('workspace-slug')}
+									hint={t('workspace-slug-hint')}
+									isDisabled={isSubmitting}
+									t={t}
+								/>
 								<Field.Text
 									name="maxUsers"
 									type="number"
 									min={1}
 									label={t('seats')}
-									isDisabled={isPending}
+									isDisabled={isSubmitting}
 								/>
 							</div>
 						</section>
 
 						<section className="flex flex-col gap-4">
 							<div className="flex flex-wrap items-center justify-between gap-2">
-								<p className="publy-type-eyebrow">{t('members')}</p>
-								<p className="publy-type-helper">{t('members-hint')}</p>
+								<p className="publy-type-eyebrow">{t('owners')}</p>
+								<p className="publy-type-helper">{t('owners-hint')}</p>
 							</div>
 
 							<div className="flex flex-col gap-3">
-								{fields.map((field, index) => (
+								{ownerFields.map((field, index) => (
 									<div
 										key={field.id}
 										className="grid grid-cols-[1fr_96px_32px] items-center gap-2"
 									>
 										<Field.Email
-											name={`initialUsers.${index}.email`}
+											name={`owners.${index}.email`}
 											label={t('email')}
 											placeholder="user@example.com"
-											isDisabled={isPending}
+											isDisabled={isSubmitting}
+										/>
+										<span
+											className={cn(
+												'publy-detail-chip justify-center',
+												index === 0
+													? 'publy-detail-chip--amber'
+													: 'publy-detail-chip--outline',
+											)}
+										>
+											{index === 0 ? t('primary') : t('owner-chip-label')}
+										</span>
+										<Button
+											type="button"
+											variant="ghost"
+											size="icon-sm"
+											disabled={isSubmitting || ownerFields.length <= 1}
+											onClick={() => {
+												removeOwner(index);
+											}}
+											aria-label={t('remove-owner')}
+										>
+											<IconX aria-hidden="true" className="size-4" />
+										</Button>
+									</div>
+								))}
+							</div>
+
+							{ownersError ? (
+								<p className="publy-field-error">{ownersError}</p>
+							) : null}
+
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								disabled={isSubmitting || !canAddOwner}
+								onClick={() => {
+									appendOwner({ email: '' });
+								}}
+								className="w-fit border-dashed border-(--publy-border-strong) bg-transparent"
+							>
+								<IconPlus aria-hidden="true" className="size-3.5" />
+								{t('add-owner')}
+							</Button>
+						</section>
+
+						<section className="flex flex-col gap-4">
+							<p className="publy-type-eyebrow">
+								{t('initial-members-optional')}
+							</p>
+
+							<div
+								className="flex flex-col items-center gap-1.5 rounded-[var(--publy-radius-medium-control)] border-[1.5px] border-dashed border-(--publy-border-strong) bg-(--publy-surface-muted) px-4 py-6 text-center"
+								data-testid="tenant-member-dropzone"
+								onDragOver={(event) => {
+									event.preventDefault();
+								}}
+								onDrop={(event) => {
+									event.preventDefault();
+									void handleFiles(event.dataTransfer.files);
+								}}
+							>
+								<IconFileSpreadsheet
+									aria-hidden="true"
+									className="size-6 text-muted-foreground"
+								/>
+								<label
+									htmlFor="tenant-member-file-input"
+									className="cursor-pointer text-[13px] font-medium text-foreground"
+								>
+									{t('drag-csv-or-excel-file')}
+								</label>
+								<p className="publy-type-helper">
+									{t('csv-excel-columns-hint')}
+									{' · '}
+									<a
+										href="#download-template"
+										onClick={(event) => {
+											event.preventDefault();
+											downloadTemplateCsv();
+										}}
+										className="underline"
+									>
+										{t('download-template')}
+									</a>
+								</p>
+								<input
+									ref={fileInputRef}
+									id="tenant-member-file-input"
+									type="file"
+									accept=".csv,.xlsx,.xls"
+									aria-label={t('drag-csv-or-excel-file')}
+									className="sr-only"
+									onChange={(event) => {
+										void handleFiles(event.target.files);
+										event.target.value = '';
+									}}
+								/>
+							</div>
+
+							{importError ? (
+								<p className="publy-field-error">{importError}</p>
+							) : null}
+
+							{parsedFile && parsedOutcome ? (
+								<div
+									className="flex items-center justify-between gap-3 rounded-[var(--publy-radius-medium-control)] border border-(--publy-chip-active-border) bg-(--publy-chip-active-bg) px-3.5 py-2.5"
+									data-testid="tenant-member-parsed-summary"
+								>
+									<div className="flex min-w-0 items-center gap-2">
+										<IconFileCheck
+											aria-hidden="true"
+											className="size-4 shrink-0 text-(--publy-chip-active-text)"
+										/>
+										<div className="min-w-0 text-[13px]">
+											<p className="truncate font-medium text-foreground">
+												{parsedFile.fileName}
+											</p>
+											<p className="publy-type-helper">
+												{t('parsed-file-summary', {
+													detected: parsedOutcome.detectedCount,
+													valid: parsedOutcome.valid.length,
+												})}
+											</p>
+											{parsedOutcome.invalidCount > 0 ? (
+												<p className="publy-type-helper text-(--publy-danger)">
+													{t('parsed-file-invalid-rows', {
+														count: parsedOutcome.invalidCount,
+													})}
+												</p>
+											) : null}
+										</div>
+									</div>
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										onClick={() => {
+											setParsedFile(null);
+										}}
+									>
+										{t('remove')}
+									</Button>
+								</div>
+							) : null}
+
+							<div className="flex items-center gap-3">
+								<span className="h-px flex-1 bg-(--publy-row-border)" />
+								<span className="publy-type-helper shrink-0">
+									{t('or-add-manually')}
+								</span>
+								<span className="h-px flex-1 bg-(--publy-row-border)" />
+							</div>
+
+							<div className="flex flex-col gap-3">
+								{manualMemberFields.map((field, index) => (
+									<div
+										key={field.id}
+										className="grid grid-cols-[1fr_96px_32px] items-center gap-2"
+									>
+										<Field.Email
+											name={`manualMembers.${index}.email`}
+											label={t('email')}
+											placeholder="user@example.com"
+											isDisabled={isSubmitting}
 										/>
 										<Controller
 											control={control}
-											name={`initialUsers.${index}.accountLevel`}
+											name={`manualMembers.${index}.accountLevel`}
 											render={({ field: levelField }) => (
 												<MemberLevelSelect
-													name={`initialUsers.${index}.accountLevel`}
+													name={`manualMembers.${index}.accountLevel`}
 													value={getUserLevel(levelField.value)}
 													onChange={levelField.onChange}
 													onBlur={levelField.onBlur}
-													disabled={isPending}
+													disabled={isSubmitting}
 													ariaLabel={t('account-level')}
 													t={t}
 												/>
@@ -403,9 +767,9 @@ function StaffTenantCreateRoute() {
 											type="button"
 											variant="ghost"
 											size="icon-sm"
-											disabled={isPending || fields.length <= 1}
+											disabled={isSubmitting}
 											onClick={() => {
-												remove(index);
+												removeManualMember(index);
 											}}
 											aria-label={t('remove-member')}
 										>
@@ -415,21 +779,49 @@ function StaffTenantCreateRoute() {
 								))}
 							</div>
 
-							{arrayLevelError ? (
-								<p className="publy-field-error">{arrayLevelError}</p>
-							) : null}
-
 							<Button
 								type="button"
 								variant="outline"
 								size="sm"
-								disabled={isPending || !canAddRow}
-								onClick={addMemberRow}
+								disabled={isSubmitting || !canAddManualMember}
+								onClick={() => {
+									appendManualMember({
+										email: '',
+										accountLevel: ACCOUNT_LEVEL_ENUM.USER,
+									});
+								}}
 								className="w-fit border-dashed border-(--publy-border-strong) bg-transparent"
 							>
 								<IconPlus aria-hidden="true" className="size-3.5" />
 								{t('add-member')}
 							</Button>
+						</section>
+
+						<section className="flex flex-col divide-y divide-(--publy-row-border)">
+							<p className="publy-type-eyebrow pb-3">{t('setup')}</p>
+							<Field.Switch
+								name="seedDefaultProfile"
+								label={t('seed-default-profiles')}
+								isDisabled={isSubmitting}
+							/>
+							<div
+								data-slot="field-switch-row"
+								className="publy-field-switch-row"
+							>
+								<div className="flex min-w-0 flex-col gap-px">
+									<span className="publy-field-switch-title">
+										{t('require-sso')}
+									</span>
+									<span className="publy-field-switch-description">
+										{t('require-sso-hint')}
+									</span>
+								</div>
+								<Switch
+									checked={false}
+									disabled
+									aria-label={t('require-sso')}
+								/>
+							</div>
 						</section>
 					</div>
 
@@ -455,8 +847,15 @@ function StaffTenantCreateRoute() {
 										<span className="publy-tenant-identity-meta-prefix">
 											publyapp.com/
 										</span>
-										<span className="italic">
-											{t('assigned-after-creation')}
+										<span
+											className={cn(
+												'italic',
+												slugPreview.length > 0 && 'not-italic',
+											)}
+										>
+											{slugPreview.length > 0
+												? slugPreview
+												: t('assigned-after-creation')}
 										</span>
 									</p>
 								</div>
@@ -466,21 +865,25 @@ function StaffTenantCreateRoute() {
 
 							<div className="flex flex-col divide-y divide-(--publy-row-border) px-[18px]">
 								<div className="flex items-center justify-between py-2.5 text-[13px]">
+									<span className="text-muted-foreground">{t('status')}</span>
+									<StatusPill tone="success">{t('active')}</StatusPill>
+								</div>
+								<div className="flex items-center justify-between py-2.5 text-[13px]">
 									<span className="text-muted-foreground">{t('seats')}</span>
 									<span
 										className="font-medium text-foreground"
 										data-testid="preview-seats"
 									>
-										{filledMembers.length} / {maxUsers}
+										{totalFilled} / {maxUsers}
 									</span>
 								</div>
 								<div className="flex items-center justify-between py-2.5 text-[13px]">
-									<span className="text-muted-foreground">{t('admins')}</span>
+									<span className="text-muted-foreground">{t('owners')}</span>
 									<span
 										className="font-medium text-foreground"
-										data-testid="preview-admins"
+										data-testid="preview-owners"
 									>
-										{adminsCount}
+										{ownersCount}
 									</span>
 								</div>
 								<div className="flex items-center justify-between py-2.5 text-[13px]">
@@ -498,26 +901,30 @@ function StaffTenantCreateRoute() {
 
 							<ul className="flex flex-col gap-2 px-[18px] py-4">
 								<ChecklistRow
-									checked={hasAdmin}
-									testId="preview-checklist-admins"
+									checked={ownersCount > 0}
+									testId="preview-checklist-owners"
 								>
-									{t('preview-admins-checklist', { count: adminsCount })}
+									{t('preview-owners-checklist', { count: ownersCount })}
 								</ChecklistRow>
 								<ChecklistRow
-									checked={filledMembers.length > 0}
+									checked={membersCount > 0}
 									testId="preview-checklist-members"
 								>
-									{t('preview-members-checklist', { count: membersCount })}
+									{t('preview-members-checklist-detailed', {
+										count: membersCount,
+										csv: parsedValidMembers.length,
+										manual: filledManualMembers.length,
+									})}
 								</ChecklistRow>
-								{!hasAdmin ? (
-									<ChecklistRow
-										checked={false}
-										tone="warning"
-										testId="preview-checklist-warning"
-									>
-										{t('tenant-should-have-at-least-one-admin')}
-									</ChecklistRow>
-								) : null}
+								<ChecklistRow
+									checked={seedDefaultProfile}
+									testId="preview-checklist-profile"
+								>
+									{t('preview-default-profile-checklist')}
+								</ChecklistRow>
+								<ChecklistRow checked={false} testId="preview-checklist-sso">
+									{t('preview-sso-not-required')}
+								</ChecklistRow>
 							</ul>
 						</Card>
 					</aside>
@@ -530,24 +937,24 @@ function StaffTenantCreateRoute() {
 				<FormActionBar
 					status={
 						<span data-testid="create-tenant-summary">
-							{t('create-tenant-summary', {
-								admins: adminsCount,
-								members: membersCount,
-							})}
+							{t('create-tenant-summary-owners', { count: ownersCount })}
+							{' · '}
+							{t('create-tenant-summary-members', { count: membersCount })}{' '}
+							{t('create-tenant-summary-suffix')}
 						</span>
 					}
 				>
 					<Button
 						type="button"
 						variant="ghost"
-						disabled={isPending}
+						disabled={isSubmitting}
 						onClick={() => {
 							void navigate({ to: '/staff/tenants' });
 						}}
 					>
 						{t('cancel')}
 					</Button>
-					<Button type="submit" disabled={isPending}>
+					<Button type="submit" disabled={isSubmitting}>
 						{t('create-tenant')}
 					</Button>
 				</FormActionBar>

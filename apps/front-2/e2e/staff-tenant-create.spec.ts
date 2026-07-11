@@ -54,6 +54,46 @@ const mockCreateStaffTenant = async (page: Page) => {
 	});
 };
 
+test.describe('staff create-tenant workspace slug and owners section', () => {
+	test('renders the workspace slug field with its publyapp.com/ prefix and an owners section tagging the first row Primary', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await mockCreateStaffTenant(page);
+
+		await page.goto('/staff/tenants/new');
+		await expect(page.getByTestId('staff-tenant-create-page')).toBeVisible();
+
+		await expect(
+			page.getByRole('textbox', { name: 'Workspace slug' }),
+		).toBeVisible();
+		await expect(page.getByText('publyapp.com/').first()).toBeVisible();
+
+		await expect(page.getByText('Owners').first()).toBeVisible();
+		await expect(page.getByText('Primary')).toBeVisible();
+		await expect(
+			page.getByRole('button', { name: 'Remove owner' }),
+		).toBeDisabled();
+	});
+
+	test('the Download template link and Require SSO switch (disabled) are present in the members/setup sections', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await mockCreateStaffTenant(page);
+
+		await page.goto('/staff/tenants/new');
+		await expect(page.getByTestId('staff-tenant-create-page')).toBeVisible();
+
+		await expect(
+			page.getByRole('link', { name: 'Download template' }),
+		).toBeVisible();
+		await expect(
+			page.getByRole('switch', { name: 'Require SSO' }),
+		).toBeDisabled();
+	});
+});
+
 test.describe('staff create-tenant shell (rail-only) and two-pane layout', () => {
 	test('the create route is rail-only and lays out the form and preview side by side on desktop', async ({
 		page,
@@ -86,7 +126,7 @@ test.describe('staff create-tenant shell (rail-only) and two-pane layout', () =>
 });
 
 test.describe('staff create-tenant preview counts', () => {
-	test('adding a member slot updates the live preview counts', async ({
+	test('adding a manual member slot updates the live preview counts', async ({
 		page,
 	}) => {
 		await page.setViewportSize({ width: 1280, height: 900 });
@@ -104,12 +144,12 @@ test.describe('staff create-tenant preview counts', () => {
 		await page
 			.getByRole('textbox', { name: /email/i })
 			.first()
-			.fill('admin@acme.com');
+			.fill('owner@acme.com');
 
-		await expect(page.getByTestId('preview-admins')).toHaveText('1');
+		await expect(page.getByTestId('preview-owners')).toHaveText('1');
 		await expect(page.getByTestId('preview-seats')).toHaveText('1 / 5');
 
-		await page.getByRole('button', { name: /add member/i }).click();
+		await page.getByRole('button', { name: 'Add member' }).click();
 		await page
 			.getByRole('textbox', { name: /email/i })
 			.nth(1)
