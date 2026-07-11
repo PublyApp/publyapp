@@ -1,23 +1,62 @@
-import { IconAlertCircle } from '@tabler/icons-react';
-import { createFileRoute } from '@tanstack/react-router';
+import {
+	IconAlertCircle,
+	IconCalendar,
+	IconCircleDot,
+	IconClock,
+	IconUsers,
+} from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { createFileRoute, Link } from '@tanstack/react-router';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
-import { buttonVariants } from '~/components/ui/button';
+import { Button } from '~/components/ui/button';
+import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
+	DangerZoneCard,
+	DangerZoneRow,
+	DetailAside,
+	DetailGrid,
+	DetailMain,
+} from '~/components/ui/detail-layout';
+import { InitialsAvatar } from '~/components/ui/initials-avatar';
+import { StatusPill } from '~/components/ui/product-page';
+import { statusPillTone } from '~/components/ui/status-tone';
+import {
+	toStaffTenantUserRows,
+	useStaffTenantUsersQuery,
+} from '~/lib/query/staff-tenant-users';
+import {
+	STAFF_TENANT_DETAILS_QUERY_KEY,
+	STAFF_TENANTS_QUERY_KEY,
 	toStaffTenantDetails,
+	useDeleteStaffTenantMutation,
+	useReactivateStaffTenantMutation,
 	useStaffTenantDetailsQuery,
+	useSuspendStaffTenantMutation,
+	type StaffTenantDetails,
 } from '~/lib/query/staff-tenants';
 import { shouldLogoutForFailure } from '~/routes/authed/layout';
 
 import {
-	DetailItem,
-	formatDateTime,
+	getFailureMessage,
+	toApiFailure,
+} from '@org/shared-ts/lib/api-failure/to-api-failure';
+
+import {
+	formatShortDate,
+	getRelativeTimeParts,
 	TenantDetailsError,
 	TenantDetailsLoading,
 	TenantDetailsPageShell,
 	TenantRetryActions,
 } from './$tenantId/_tenant-details-shell';
+
+const TENANT_STATUS_ACTIVE = 'Active';
+const TENANT_STATUS_SUSPENDED = 'Suspended';
+
+type PendingLifecycleAction = 'suspend' | 'reactivate' | 'delete' | null;
 
 export const Route = createFileRoute('/_authed-layout/staff/tenants/$tenantId')(
 	{
@@ -25,13 +64,188 @@ export const Route = createFileRoute('/_authed-layout/staff/tenants/$tenantId')(
 	},
 );
 
+const StatCard = ({
+	testId,
+	label,
+	icon,
+	secondary,
+	children,
+}: {
+	testId: string;
+	label: string;
+	icon: ReactNode;
+	secondary: ReactNode;
+	children: ReactNode;
+}) => (
+	<div className="publy-stat-card" data-testid={testId}>
+		<div className="publy-stat-card-header">
+			<span className="publy-stat-card-label">{label}</span>
+			<span className="publy-stat-card-icon" aria-hidden="true">
+				{icon}
+			</span>
+		</div>
+		<div className="publy-stat-card-inner">
+			<p className="publy-stat-card-value">{children}</p>
+			<div className="publy-stat-card-secondary">{secondary}</div>
+		</div>
+	</div>
+);
+
+const OrgField = ({
+	label,
+	value,
+	mono,
+}: {
+	label: string;
+	value: ReactNode;
+	mono?: boolean;
+}) => (
+	<div className="space-y-1.5">
+		<div className="publy-type-metadata-label">{label}</div>
+		<div
+			className={
+				mono
+					? 'publy-type-metadata-value font-mono'
+					: 'publy-type-metadata-value'
+			}
+		>
+			{value}
+		</div>
+	</div>
+);
+
+const OrganizationCard = ({
+	tenant,
+	locale,
+	t,
+}: {
+	tenant: StaffTenantDetails;
+	locale: string;
+	t: (key: string) => string;
+}) => (
+	<section className="rounded-[var(--publy-radius-card)] bg-card shadow-[var(--publy-shadow-ring)]">
+		<div className="publy-card-header">
+			<p className="publy-type-section-title">{t('organization')}</p>
+			<Link
+				to="/staff/tenants/$tenantId/edit"
+				params={{ tenantId: tenant.id }}
+				className="text-xs font-medium text-muted-foreground hover:text-foreground"
+			>
+				{t('edit')}
+			</Link>
+		</div>
+		<div className="grid grid-cols-1 gap-4 px-4 pb-4 pt-3 md:grid-cols-3">
+			<OrgField label={t('name')} value={tenant.name} />
+			<OrgField label={t('code')} value={tenant.code ?? '—'} mono />
+			<OrgField label={t('tenant-id')} value={tenant.id} mono />
+			<OrgField
+				label={t('status')}
+				value={
+					<StatusPill tone={statusPillTone(tenant.status)}>
+						{tenant.status ?? t('unknown')}
+					</StatusPill>
+				}
+			/>
+			<OrgField
+				label={t('created')}
+				value={formatShortDate(tenant.createdAt, locale)}
+			/>
+			<OrgField
+				label={t('updated')}
+				value={formatShortDate(tenant.updatedAt, locale)}
+			/>
+		</div>
+	</section>
+);
+
+const UsersPreviewCard = ({
+	tenant,
+	t,
+}: {
+	tenant: StaffTenantDetails;
+	t: (key: string) => string;
+}) => {
+	const usersQuery = useStaffTenantUsersQuery({
+		tenantId: tenant.id,
+		size: 5,
+		sortId: 'created_at',
+		sortOrder: 'desc',
+	});
+	const rows = toStaffTenantUserRows(usersQuery.data?.data);
+
+	return (
+		<section className="rounded-[var(--publy-radius-card)] bg-card shadow-[var(--publy-shadow-ring)]">
+			<div className="publy-card-header">
+				<p className="publy-type-section-title">
+					{t('users')} · {tenant.usersCount}
+				</p>
+				<Link
+					to="/staff/tenants/$tenantId/users"
+					params={{ tenantId: tenant.id }}
+					className="text-xs font-medium text-muted-foreground hover:text-foreground"
+				>
+					{t('view-all')}
+				</Link>
+			</div>
+			<div data-testid="tenant-users-preview-rows">
+				{usersQuery.isPending ? (
+					<p className="px-4 py-4 text-xs text-muted-foreground">…</p>
+				) : usersQuery.isError ? (
+					<p className="px-4 py-4 text-xs text-muted-foreground">
+						{t('tenant-users-preview-error')}
+					</p>
+				) : rows.length === 0 ? (
+					<p className="px-4 py-4 text-xs text-muted-foreground">
+						{t('no-tenant-members')}
+					</p>
+				) : (
+					<div className="divide-y divide-[color:var(--publy-row-border)]">
+						{rows.map((row) => (
+							<div key={row.id} className="flex items-center gap-3 px-4 py-2.5">
+								<InitialsAvatar name={row.displayName} size="sm" />
+								<div className="min-w-0 flex-1">
+									<p className="truncate text-[13px] font-medium text-foreground">
+										{row.displayName}
+									</p>
+									<p className="truncate text-xs text-muted-foreground">
+										{row.email || '—'}
+									</p>
+								</div>
+								<StatusPill tone="neutral">{row.level ?? '—'}</StatusPill>
+								<StatusPill tone={statusPillTone(row.status)}>
+									{row.status ?? '—'}
+								</StatusPill>
+							</div>
+						))}
+					</div>
+				)}
+			</div>
+		</section>
+	);
+};
+
 function StaffTenantDetailsPage() {
 	const { tenantId } = Route.useParams();
-	const { i18n } = useTranslation('common');
+	const navigate = Route.useNavigate();
+	const { t, i18n } = useTranslation('common');
+	const queryClient = useQueryClient();
+	const [pendingAction, setPendingAction] =
+		useState<PendingLifecycleAction>(null);
+	const [actionError, setActionError] = useState('');
+	const [shouldLogout, setShouldLogout] = useState(false);
+
+	const suspendMutation = useSuspendStaffTenantMutation();
+	const reactivateMutation = useReactivateStaffTenantMutation();
+	const deleteMutation = useDeleteStaffTenantMutation();
+
 	const query = useStaffTenantDetailsQuery(
 		{ tenantId },
 		{ enabled: tenantId.length > 0 },
 	);
+
+	if (shouldLogout) {
+		return <LogoutRedirect />;
+	}
 
 	if (query.isPending) {
 		return <TenantDetailsLoading />;
@@ -65,46 +279,262 @@ function StaffTenantDetailsPage() {
 		);
 	}
 
+	const isActive = tenant.status === TENANT_STATUS_ACTIVE;
+	const canSuspend = isActive;
+	const canReactivate = tenant.status === TENANT_STATUS_SUSPENDED;
+	const canDelete = tenant.status === TENANT_STATUS_SUSPENDED;
+	const isLifecyclePending =
+		suspendMutation.isPending || reactivateMutation.isPending;
+
+	const invalidateTenantQueries = async () => {
+		await Promise.all([
+			queryClient.invalidateQueries({
+				queryKey: ['staff', ...STAFF_TENANTS_QUERY_KEY],
+			}),
+			queryClient.invalidateQueries({
+				queryKey: ['staff', ...STAFF_TENANT_DETAILS_QUERY_KEY],
+			}),
+		]);
+	};
+
+	const handleLifecycleConfirm = async () => {
+		if (pendingAction !== 'suspend' && pendingAction !== 'reactivate') {
+			return;
+		}
+
+		const action = pendingAction;
+		setActionError('');
+
+		try {
+			if (action === 'suspend') {
+				await suspendMutation.mutateAsync({ tenantId: tenant.id });
+			} else {
+				await reactivateMutation.mutateAsync({ tenantId: tenant.id });
+			}
+
+			await invalidateTenantQueries();
+		} catch (error) {
+			if (shouldLogoutForFailure(error)) {
+				setShouldLogout(true);
+				return;
+			}
+
+			setActionError(
+				getFailureMessage(toApiFailure(error), {
+					fallback: t(
+						action === 'suspend'
+							? 'unable-to-suspend-tenant'
+							: 'unable-to-reactivate-tenant',
+					),
+				}),
+			);
+		} finally {
+			setPendingAction(null);
+		}
+	};
+
+	const handleDeleteConfirm = async () => {
+		setActionError('');
+
+		try {
+			await deleteMutation.mutateAsync({ tenantId: tenant.id });
+		} catch (error) {
+			setPendingAction(null);
+			if (shouldLogoutForFailure(error)) {
+				setShouldLogout(true);
+				return;
+			}
+
+			setActionError(
+				getFailureMessage(toApiFailure(error), {
+					fallback: t('unable-to-delete-tenant'),
+				}),
+			);
+			return;
+		}
+
+		setPendingAction(null);
+		queryClient.removeQueries({
+			queryKey: ['staff', ...STAFF_TENANT_DETAILS_QUERY_KEY],
+		});
+		void queryClient.invalidateQueries({
+			queryKey: ['staff', ...STAFF_TENANTS_QUERY_KEY],
+		});
+		await navigate({ to: '/staff/tenants' });
+	};
+
+	const seatsLeft = Math.max(tenant.maxUsers - tenant.usersCount, 0);
+	const meterPercent =
+		tenant.maxUsers > 0
+			? Math.min((tenant.usersCount / tenant.maxUsers) * 100, 100)
+			: 0;
+	const createdRelative = getRelativeTimeParts(tenant.createdAt);
+	const updatedRelative = getRelativeTimeParts(tenant.updatedAt);
+	const lifecycleTitle = isActive
+		? t('suspend-tenant')
+		: t('reactivate-tenant');
+	const lifecycleDescription = isActive
+		? t('suspend-tenant-confirm', { name: tenant.name })
+		: t('reactivate-tenant-confirm', { name: tenant.name });
+	const lifecycleConfirmLabel = isActive ? t('suspend') : t('reactivate');
+
 	return (
 		<TenantDetailsPageShell
 			tenant={tenant}
 			activeSection="basics"
-			summary="Read-only basics for this tenant in the front-2 migration shell."
 			testId="staff-tenant-details-page"
 		>
-			<div className="flex flex-wrap items-start justify-between gap-3">
-				<div className="space-y-1">
-					<h2 className="text-sm font-semibold text-foreground">Basics</h2>
-					<p className="text-xs text-muted-foreground">
-						Core tenant metadata carried forward from the current staff details
-						shell.
-					</p>
-				</div>
-				<a
-					href={`/staff/tenants/${tenant.id}/edit`}
-					className={buttonVariants({ variant: 'outline', size: 'sm' })}
+			<div className="publy-stat-row">
+				<StatCard
+					testId="tenant-stat-members"
+					label={t('members')}
+					icon={<IconUsers aria-hidden="true" className="size-[14px]" />}
+					secondary={
+						<>
+							<div className="publy-stat-meter">
+								<div
+									className="publy-stat-meter-fill"
+									style={{ width: `${meterPercent}%` }}
+								/>
+							</div>
+							<span>{t('seats-left', { count: seatsLeft })}</span>
+						</>
+					}
 				>
-					Edit tenant
-				</a>
+					{tenant.usersCount}
+					<span className="publy-stat-card-value-suffix">
+						{' '}
+						/ {tenant.maxUsers}
+					</span>
+				</StatCard>
+
+				<StatCard
+					testId="tenant-stat-status"
+					label={t('status')}
+					icon={<IconCircleDot aria-hidden="true" className="size-[14px]" />}
+					secondary={
+						<span>
+							{isActive
+								? t('tenant-status-helper-active')
+								: t('tenant-status-helper-suspended')}
+						</span>
+					}
+				>
+					<StatusPill tone={statusPillTone(tenant.status)}>
+						{tenant.status ?? t('unknown')}
+					</StatusPill>
+				</StatCard>
+
+				<StatCard
+					testId="tenant-stat-created"
+					label={t('created')}
+					icon={<IconCalendar aria-hidden="true" className="size-[14px]" />}
+					secondary={
+						createdRelative ? (
+							<span>
+								{t(createdRelative.key, { count: createdRelative.count })}
+							</span>
+						) : null
+					}
+				>
+					{formatShortDate(tenant.createdAt, i18n.language)}
+				</StatCard>
+
+				<StatCard
+					testId="tenant-stat-updated"
+					label={t('updated')}
+					icon={<IconClock aria-hidden="true" className="size-[14px]" />}
+					secondary={
+						updatedRelative ? (
+							<span>
+								{t(updatedRelative.key, { count: updatedRelative.count })}
+							</span>
+						) : null
+					}
+				>
+					{formatShortDate(tenant.updatedAt, i18n.language)}
+				</StatCard>
 			</div>
 
-			<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-				<DetailItem label="Code" value={tenant.code ?? '—'} />
-				<DetailItem label="Status" value={tenant.status ?? '—'} />
-				<DetailItem label="Users count" value={String(tenant.usersCount)} />
-				<DetailItem label="Max users" value={String(tenant.maxUsers)} />
-				<DetailItem
-					label="Created at"
-					value={formatDateTime(tenant.createdAt, i18n.language)}
-				/>
-				<DetailItem
-					label="Updated at"
-					value={formatDateTime(tenant.updatedAt, i18n.language)}
-				/>
-				{tenant.logoUrl ? (
-					<DetailItem label="Logo URL" value={tenant.logoUrl} />
-				) : null}
-			</div>
+			<DetailGrid>
+				<DetailMain>
+					<OrganizationCard tenant={tenant} locale={i18n.language} t={t} />
+					<UsersPreviewCard tenant={tenant} t={t} />
+				</DetailMain>
+				<DetailAside>
+					<DangerZoneCard title={t('danger-zone')}>
+						<DangerZoneRow
+							title={lifecycleTitle}
+							description={lifecycleDescription}
+							action={
+								<Button
+									type="button"
+									variant="secondary"
+									className="publy-danger-action"
+									onClick={() =>
+										setPendingAction(isActive ? 'suspend' : 'reactivate')
+									}
+									disabled={!canSuspend && !canReactivate}
+								>
+									{lifecycleConfirmLabel}
+								</Button>
+							}
+						/>
+						<DangerZoneRow
+							title={t('confirm-delete-tenant-title')}
+							description={t('confirm-delete-tenant-message')}
+							action={
+								<Button
+									type="button"
+									variant="destructive"
+									className="publy-danger-action"
+									onClick={() => setPendingAction('delete')}
+									disabled={!canDelete || deleteMutation.isPending}
+									title={
+										canDelete
+											? undefined
+											: t('delete-tenant-disabled-until-suspended')
+									}
+								>
+									{t('delete')}
+								</Button>
+							}
+						/>
+					</DangerZoneCard>
+					{actionError ? (
+						<p className="text-xs text-destructive" role="alert">
+							{actionError}
+						</p>
+					) : null}
+				</DetailAside>
+			</DetailGrid>
+
+			<ConfirmDialog
+				isOpen={pendingAction === 'suspend' || pendingAction === 'reactivate'}
+				title={lifecycleTitle}
+				description={lifecycleDescription}
+				confirmLabel={lifecycleConfirmLabel}
+				isPending={isLifecyclePending}
+				onConfirm={() => void handleLifecycleConfirm()}
+				onOpenChange={(isOpen) => {
+					if (!isOpen) {
+						setPendingAction(null);
+					}
+				}}
+			/>
+			<ConfirmDialog
+				isOpen={pendingAction === 'delete'}
+				title={t('confirm-delete-tenant-title')}
+				description={t('confirm-delete-tenant-message')}
+				confirmLabel={t('delete')}
+				isPending={deleteMutation.isPending}
+				onConfirm={() => void handleDeleteConfirm()}
+				onOpenChange={(isOpen) => {
+					if (!isOpen) {
+						setPendingAction(null);
+					}
+				}}
+			/>
 		</TenantDetailsPageShell>
 	);
 }

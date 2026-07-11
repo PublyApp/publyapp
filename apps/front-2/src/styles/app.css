@@ -1238,6 +1238,148 @@ html {
 		background: color-mix(in srgb, var(--publy-danger) 16%, transparent);
 	}
 
+	/* ---- Tenant identity brand tile (handoff 2c/3b) ---- */
+
+	.publy-brand-tile {
+		@apply inline-flex shrink-0 items-center justify-center overflow-hidden;
+		width: 56px;
+		height: 56px;
+		border-radius: var(--publy-radius-control);
+		font-size: 18px;
+		font-weight: 600;
+		line-height: 1;
+		color: var(--publy-foreground-inverse);
+		background: var(--publy-avatar-1);
+		object-fit: cover;
+		user-select: none;
+	}
+
+	.publy-brand-tile[data-palette='1'] {
+		background: var(--publy-avatar-1);
+	}
+	.publy-brand-tile[data-palette='2'] {
+		background: var(--publy-avatar-2);
+	}
+	.publy-brand-tile[data-palette='3'] {
+		background: var(--publy-avatar-3);
+	}
+	.publy-brand-tile[data-palette='4'] {
+		background: var(--publy-avatar-4);
+	}
+	.publy-brand-tile[data-palette='5'] {
+		background: var(--publy-avatar-5);
+	}
+	.publy-brand-tile[data-palette='6'] {
+		background: var(--publy-avatar-6);
+	}
+	.publy-brand-tile[data-palette='7'] {
+		background: var(--publy-avatar-7);
+	}
+	.publy-brand-tile[data-palette='8'] {
+		background: var(--publy-avatar-8);
+	}
+
+	/* ---- Tenant identity header (handoff 2c/3b) ---- */
+
+	.publy-tenant-identity-name {
+		@apply text-[22px] font-semibold leading-7;
+		letter-spacing: -0.01em;
+		color: var(--publy-foreground);
+	}
+
+	.publy-tenant-identity-meta {
+		@apply text-[13px];
+		color: var(--publy-foreground-muted);
+	}
+
+	.publy-tenant-identity-meta-prefix {
+		color: var(--publy-foreground-subtle);
+	}
+
+	.publy-tenant-identity-meta-code {
+		font-family: var(--publy-font-mono);
+		color: var(--publy-foreground-muted);
+	}
+
+	/* ---- Tenant Basics stat-card row (handoff 2a/3b) ---- */
+
+	.publy-stat-row {
+		display: grid;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		gap: 14px;
+	}
+
+	@media (max-width: 1023px) {
+		.publy-stat-row {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+	}
+
+	.publy-stat-card {
+		border-radius: var(--publy-radius-control);
+		background: var(--publy-surface-raised);
+		box-shadow: var(--publy-shadow-ring);
+		padding: 6px;
+	}
+
+	.publy-stat-card-header {
+		@apply flex items-center justify-between gap-2;
+		padding: 8px 10px 6px;
+	}
+
+	.publy-stat-card-label {
+		@apply text-[11px] font-medium uppercase;
+		color: var(--publy-foreground-muted);
+	}
+
+	.publy-stat-card-icon {
+		color: var(--publy-foreground-muted);
+	}
+
+	.publy-stat-card-inner {
+		border-radius: 9px;
+		border: 1px solid var(--publy-border);
+		background: var(--publy-surface);
+		padding: 14px 16px;
+	}
+
+	.publy-stat-card-value {
+		@apply flex items-baseline gap-1;
+		font-size: 28px;
+		font-weight: 600;
+		letter-spacing: -0.02em;
+		line-height: 1;
+		color: var(--publy-foreground);
+	}
+
+	.publy-stat-card-value-suffix {
+		font-size: 15px;
+		font-weight: 500;
+		color: var(--publy-foreground-subtle);
+	}
+
+	.publy-stat-card-secondary {
+		@apply flex items-center gap-1.5;
+		height: 20px;
+		margin-top: 8px;
+		font-size: 11px;
+		color: var(--publy-foreground-subtle);
+	}
+
+	.publy-stat-meter {
+		@apply flex-1;
+		height: 4px;
+		border-radius: 2px;
+		background: var(--publy-row-border);
+		overflow: hidden;
+	}
+
+	.publy-stat-meter-fill {
+		height: 100%;
+		border-radius: 2px;
+		background: var(--publy-primary);
+	}
+
 	/* ---- Data Table ---- */
 
 	/* Page wrapper for list routes: caps the page at the viewport so the

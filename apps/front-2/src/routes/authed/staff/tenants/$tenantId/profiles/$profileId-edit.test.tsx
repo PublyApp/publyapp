@@ -77,6 +77,9 @@ vi.mock('react-i18next', () => ({
 
 			return labels[key] ?? key;
 		},
+		i18n: {
+			language: 'en',
+		},
 	}),
 }));
 

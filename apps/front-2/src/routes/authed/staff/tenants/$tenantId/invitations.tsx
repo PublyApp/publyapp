@@ -331,7 +331,6 @@ function StaffTenantInvitationsPage() {
 		<TenantDetailsPageShell
 			tenant={tenant}
 			activeSection="invitations"
-			summary="Read-only tenant invitations carried forward in the front-2 migration shell."
 			testId="staff-tenant-invitations-page"
 		>
 			<div className="space-y-2">

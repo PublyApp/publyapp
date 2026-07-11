@@ -179,7 +179,6 @@ function StaffTenantProfilesPage() {
 		<TenantDetailsPageShell
 			tenant={tenant}
 			activeSection="profiles"
-			summary="Tenant profiles with search, sorting, cursor pagination, and create."
 			testId="staff-tenant-profiles-page"
 		>
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

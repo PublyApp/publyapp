@@ -399,7 +399,6 @@ function StaffTenantProfileDetailsPage() {
 		<TenantDetailsPageShell
 			tenant={tenant}
 			activeSection="profiles"
-			summary="Review tenant profile details, edit the profile, or delete non-default profiles."
 			testId="staff-tenant-profile-details-page"
 		>
 			<div className="space-y-6">

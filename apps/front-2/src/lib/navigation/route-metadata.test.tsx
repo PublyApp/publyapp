@@ -128,60 +128,75 @@ describe('front-2 route metadata', () => {
 		).toBe(true);
 	});
 
-	test('secondary panel follows sidebarOpen on detail routes, not the route itself', () => {
+	test('secondary panel collapses on detail routes regardless of sidebarOpen (rail-only)', () => {
 		expect(
 			shouldShowSecondaryPanel('/staff/staff-users/u-1', {
 				sidebarOpen: true,
 				viewportWidth: 1280,
 			}),
-		).toBe(true);
+		).toBe(false);
 		expect(
 			shouldShowSecondaryPanel('/staff/invitations/i-1', {
 				sidebarOpen: true,
 				viewportWidth: 1280,
 			}),
-		).toBe(true);
+		).toBe(false);
 		expect(
 			shouldShowSecondaryPanel('/staff/profiles/p-1', {
 				sidebarOpen: true,
 				viewportWidth: 1280,
 			}),
-		).toBe(true);
+		).toBe(false);
 		expect(
 			shouldShowSecondaryPanel('/staff/tenants/t-1', {
 				sidebarOpen: true,
 				viewportWidth: 1280,
 			}),
-		).toBe(true);
+		).toBe(false);
 		expect(
 			shouldShowSecondaryPanel('/staff/tenants/t-1/edit', {
 				sidebarOpen: true,
 				viewportWidth: 1280,
 			}),
-		).toBe(true);
+		).toBe(false);
 		expect(
 			shouldShowSecondaryPanel('/staff/tenants/t-1/users/invite', {
 				sidebarOpen: true,
 				viewportWidth: 1280,
 			}),
-		).toBe(true);
+		).toBe(false);
 	});
 
-	test('detail-route exception list keeps the secondary panel visible', () => {
+	test('form (create) routes are also rail-only — the secondary panel collapses', () => {
 		expect(
 			shouldShowSecondaryPanel('/staff/tenants/new', {
 				sidebarOpen: true,
 				viewportWidth: 1280,
 			}),
-		).toBe(true);
+		).toBe(false);
 		expect(
 			shouldShowSecondaryPanel('/staff/profiles/new', {
 				sidebarOpen: true,
 				viewportWidth: 1280,
 			}),
-		).toBe(true);
+		).toBe(false);
 		expect(
 			shouldShowSecondaryPanel('/staff/invitations/new', {
+				sidebarOpen: true,
+				viewportWidth: 1280,
+			}),
+		).toBe(false);
+	});
+
+	test('list routes (non-detail) keep the secondary panel visible when open', () => {
+		expect(
+			shouldShowSecondaryPanel('/staff/staff-users', {
+				sidebarOpen: true,
+				viewportWidth: 1280,
+			}),
+		).toBe(true);
+		expect(
+			shouldShowSecondaryPanel('/staff/tenants', {
 				sidebarOpen: true,
 				viewportWidth: 1280,
 			}),

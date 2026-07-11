@@ -830,5 +830,18 @@
 	"clear-all": "Clear all",
 	"no-results-found": "No results found",
 	"reports": "Reports",
-	"dashboard-section-placeholder": "This dashboard section is not built yet."
+	"dashboard-section-placeholder": "This dashboard section is not built yet.",
+	"organization": "Organization",
+	"tenant-member-count": "{{count}} members",
+	"since-date": "Since {{date}}",
+	"seats-left": "{{count}} seats left",
+	"tenant-status-helper-active": "All members have access",
+	"tenant-status-helper-suspended": "Access is blocked for members",
+	"months-ago": "{{count}} months ago",
+	"years-ago": "{{count}} years ago",
+	"unable-to-suspend-tenant": "Unable to suspend this tenant.",
+	"unable-to-reactivate-tenant": "Unable to reactivate this tenant.",
+	"unable-to-delete-tenant": "Unable to delete this tenant.",
+	"no-tenant-members": "No members yet.",
+	"tenant-users-preview-error": "Unable to load members."
 }

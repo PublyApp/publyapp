@@ -830,5 +830,18 @@
 	"clear-all": "Tout effacer",
 	"no-results-found": "Aucun résultat trouvé",
 	"reports": "Rapports",
-	"dashboard-section-placeholder": "Cette section du tableau de bord n'est pas encore construite."
+	"dashboard-section-placeholder": "Cette section du tableau de bord n'est pas encore construite.",
+	"organization": "Organisation",
+	"tenant-member-count": "{{count}} membres",
+	"since-date": "Depuis {{date}}",
+	"seats-left": "{{count}} sièges restants",
+	"tenant-status-helper-active": "Tous les membres ont accès",
+	"tenant-status-helper-suspended": "L'accès est bloqué pour les membres",
+	"months-ago": "il y a {{count}} mois",
+	"years-ago": "il y a {{count}} ans",
+	"unable-to-suspend-tenant": "Impossible de suspendre ce locataire.",
+	"unable-to-reactivate-tenant": "Impossible de réactiver ce locataire.",
+	"unable-to-delete-tenant": "Impossible de supprimer ce locataire.",
+	"no-tenant-members": "Aucun membre pour le moment.",
+	"tenant-users-preview-error": "Impossible de charger les membres."
 }

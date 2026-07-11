@@ -45,6 +45,7 @@ vi.mock('~/components/ui/button', () => ({
 			},
 			children,
 		),
+	buttonVariants: () => '',
 }));
 
 vi.mock('~/components/ui/card', () => ({

@@ -82,3 +82,33 @@ test.describe('staff tenant details tabs', () => {
 		expect(alive).toBe(true);
 	});
 });
+
+test.describe('staff tenant details shell (rail-only) and Basics danger zone', () => {
+	test('the detail route is rail-only, all four tabs render, and the danger zone is visible', async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 1280, height: 900 });
+		await loginAsStaffAdmin(page);
+		await mockTenantDetails(page);
+
+		await page.goto(`/staff/tenants/${TENANT_ID}`);
+		await expect(page.getByTestId('staff-tenant-details-page')).toBeVisible();
+
+		// Rail-only: no secondary panel on the detail route, regardless of the
+		// sidebarOpen preference (route-metadata.ts isRailOnlyPath).
+		await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+
+		const nav = page.getByRole('navigation', { name: 'Tenant sections' });
+		await expect(nav.getByText('Basics')).toBeVisible();
+		await expect(nav.getByRole('link', { name: 'Profiles' })).toBeVisible();
+		await expect(nav.getByRole('link', { name: 'Invitations' })).toBeVisible();
+		await expect(nav.getByRole('link', { name: 'Users' })).toBeVisible();
+
+		await expect(page.getByText('Danger zone')).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Suspend' })).toBeVisible();
+
+		// Back on the tenants list, the secondary panel returns.
+		await page.goto('/staff/tenants');
+		await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
+	});
+});

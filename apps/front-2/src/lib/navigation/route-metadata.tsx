@@ -540,10 +540,25 @@ function isDetailPath(pathname: string): boolean {
 	return matchedPrefix !== undefined && matchedPrefix !== pathname;
 }
 
+/**
+ * Detail routes (e.g. `/staff/tenants/$tenantId`, nested tabs, `-edit`) and
+ * form routes (e.g. `/staff/tenants/new`) are rail-only: the secondary panel
+ * never shows on them, independent of `sidebarOpen`. This is a global shell
+ * rule, not tenants-specific — it applies wherever `isDetailPath`/
+ * `isCreatePath` matches (staff-users, invitations, profiles, tenants, …).
+ */
+export function isRailOnlyPath(pathname: string): boolean {
+	return isCreatePath(pathname) || isDetailPath(pathname);
+}
+
 export function shouldShowSecondaryPanel(
 	pathname: string,
 	options?: { sidebarOpen?: boolean; viewportWidth?: number },
 ): boolean {
+	if (isRailOnlyPath(pathname)) {
+		return false;
+	}
+
 	const activeItems = getSecondaryPanelItems(pathname);
 	const sidebarOpen = options?.sidebarOpen ?? true;
 	const viewportWidth = options?.viewportWidth ?? Number.POSITIVE_INFINITY;

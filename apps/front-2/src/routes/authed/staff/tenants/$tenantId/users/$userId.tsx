@@ -334,7 +334,6 @@ function StaffTenantUserDetailsPage() {
 		<TenantDetailsPageShell
 			tenant={tenant}
 			activeSection="users"
-			summary="Read-only tenant user details from the staff tenant users stack."
 			testId="staff-tenant-user-details-page"
 		>
 			<div className="space-y-2">

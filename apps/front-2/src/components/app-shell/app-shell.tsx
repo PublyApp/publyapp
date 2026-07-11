@@ -22,6 +22,7 @@ import {
 	getBottomRailItemForPath,
 	getRailItemsForPath,
 	getSecondaryPanelItems,
+	isRailOnlyPath,
 	isSecondaryPanelItemActive,
 	shouldShowSecondaryPanel,
 } from '../../lib/navigation/route-metadata';
@@ -341,8 +342,10 @@ const AuthedWorkspaceShell = ({
 	// shouldShowSecondaryPanel's viewportWidth >= 1024 requirement) — below
 	// that, toggling `sidebarOpen` changes nothing visible. Gate the toggle
 	// button on the same condition so it isn't rendered lying about its own
-	// effect between 768px and 1023px.
-	const canToggleSecondaryPanel = isDesktop && secondaryItems.length >= 2;
+	// effect between 768px and 1023px. Rail-only routes (detail/form) have no
+	// panel to toggle, so the button is hidden there too.
+	const canToggleSecondaryPanel =
+		isDesktop && secondaryItems.length >= 2 && !isRailOnlyPath(pathname);
 
 	return (
 		<div

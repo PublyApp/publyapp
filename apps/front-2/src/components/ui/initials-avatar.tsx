@@ -37,3 +37,42 @@ export const InitialsAvatar = ({
 		{toInitials(name)}
 	</span>
 );
+
+/**
+ * Square r14 brand/logo tile for organization identity (tenant detail
+ * header) — distinct from InitialsAvatar, which is circular and reserved for
+ * people. Falls back to hashed initials when there's no logoUrl.
+ */
+export const BrandTile = ({
+	name,
+	logoUrl,
+	className,
+}: {
+	name: string;
+	logoUrl?: string | null;
+	className?: string;
+}) => {
+	if (logoUrl) {
+		return (
+			<img
+				src={logoUrl}
+				alt=""
+				className={
+					className ? `publy-brand-tile ${className}` : 'publy-brand-tile'
+				}
+			/>
+		);
+	}
+
+	return (
+		<span
+			aria-hidden="true"
+			className={
+				className ? `publy-brand-tile ${className}` : 'publy-brand-tile'
+			}
+			data-palette={paletteIndex(name)}
+		>
+			{toInitials(name)}
+		</span>
+	);
+};

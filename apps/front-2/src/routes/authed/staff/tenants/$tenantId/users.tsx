@@ -171,7 +171,6 @@ function StaffTenantUsersPage() {
 		<TenantDetailsPageShell
 			tenant={tenant}
 			activeSection="users"
-			summary="Read-only tenant users carried forward in the front-2 migration shell."
 			testId="staff-tenant-users-page"
 		>
 			<div className="space-y-2">

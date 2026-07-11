@@ -240,14 +240,16 @@ test('renders the handoff staff rail and secondary panel', async ({ page }) => {
 	await expect(panel.getByRole('link', { name: 'Profiles' })).toBeVisible();
 });
 
-test('secondary panel stays visible on detail routes', async ({ page }) => {
+test('secondary panel collapses on detail routes (rail-only shell)', async ({
+	page,
+}) => {
 	await page.setViewportSize({ width: 1280, height: 900 });
 	await setSessionCookie(page);
 	await mockAuthRedirectCode(page);
 	await page.goto('/staff/staff-users/demo-user-id');
 
 	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
-	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
 });
 
 test('tenants route shows tenants panel destinations', async ({ page }) => {
@@ -317,7 +319,7 @@ test('rail navigation preserves collapsed sidebar preference', async ({
 	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
 });
 
-test('staff detail route keeps the secondary panel visible', async ({
+test('staff detail route is rail-only — no panel, no toggle button', async ({
 	page,
 }) => {
 	await page.setViewportSize({ width: 1280, height: 900 });
@@ -325,13 +327,16 @@ test('staff detail route keeps the secondary panel visible', async ({
 	await mockAuthRedirectCode(page);
 	await page.goto('/staff/invitations/i-1');
 
-	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
 	await expect(
 		page.getByRole('button', { name: 'Collapse navigation panel' }),
-	).toBeVisible();
+	).toHaveCount(0);
+	await expect(
+		page.getByRole('button', { name: 'Expand navigation panel' }),
+	).toHaveCount(0);
 });
 
-test('secondary panel follows the persisted preference across list and detail navigation', async ({
+test('the collapsed-panel preference persists across list navigation but detail routes always collapse', async ({
 	page,
 }) => {
 	await page.setViewportSize({ width: 1280, height: 900 });
@@ -341,12 +346,22 @@ test('secondary panel follows the persisted preference across list and detail na
 
 	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
 
+	// Detail routes are rail-only regardless of the sidebarOpen preference.
 	await page.goto('/staff/staff-users/demo-user-id');
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+
+	// Back on a list route, the panel is visible again (preference untouched).
+	await page.goto('/staff/staff-users');
 	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
 
 	await page.getByRole('button', { name: 'Collapse navigation panel' }).click();
 	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
 
+	// The collapsed preference carries to the next list route too.
+	await page.goto('/staff/invitations');
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+
+	// And detail routes stay rail-only either way.
 	await page.goto('/staff/invitations/i-1');
 	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
 });
@@ -376,13 +391,14 @@ test('staff dashboard has a toggleable secondary panel that stays collapsed acro
 	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
 });
 
-test('detail grid sizes to the space left by the rail and panel, not the raw viewport', async ({
+test('detail grid sizes to the space left by the rail, not the raw viewport', async ({
 	page,
 }) => {
-	// At 1024px with the 49px rail + 272px secondary panel open, a viewport
-	// media-query split leaves .publy-detail-grid's main column ~207px wide
-	// — the grid must stay single-column here instead.
-	await page.setViewportSize({ width: 1024, height: 900 });
+	// Detail routes are rail-only (no secondary panel), so only the 49px rail
+	// eats into the viewport before .publy-detail-grid's container query sees
+	// it. At 800px that still leaves too little room for two columns — the
+	// grid must stay single-column here.
+	await page.setViewportSize({ width: 800, height: 900 });
 
 	// Reach a real seeded user by clicking through the list. A synthetic id
 	// like 'demo-user-id' is not a GUID, so the API answers 400 malformed-id
@@ -398,12 +414,12 @@ test('detail grid sizes to the space left by the rail and panel, not the raw vie
 		.locator('.publy-detail-grid')
 		.first();
 	await expect(grid).toBeVisible();
-	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
 
-	const tracksAt1024 = await grid.evaluate((element) =>
+	const tracksAt800 = await grid.evaluate((element) =>
 		getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/),
 	);
-	expect(tracksAt1024).toHaveLength(1);
+	expect(tracksAt800).toHaveLength(1);
 
 	// At 1280px there's enough room for both columns; the main column must
 	// stay usable (>= 400px), not squeezed to a sliver next to a fixed

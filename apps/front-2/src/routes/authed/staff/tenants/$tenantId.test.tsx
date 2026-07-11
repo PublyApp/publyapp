@@ -1,19 +1,46 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, render, screen } from '@testing-library/react';
-import type { JSX } from 'react';
+import {
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+	within,
+} from '@testing-library/react';
+import type { JSX, ReactNode } from 'react';
+import { createElement } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
+	navigate: vi.fn(),
+	invalidateQueries: vi.fn(),
+	removeQueries: vi.fn(),
 	toStaffTenantDetails: vi.fn(),
 	useStaffTenantDetailsQuery: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
+	suspendTenantMutation: vi.fn(),
+	reactivateTenantMutation: vi.fn(),
+	deleteTenantMutation: vi.fn(),
+	useSuspendStaffTenantMutation: vi.fn(),
+	useReactivateStaffTenantMutation: vi.fn(),
+	useDeleteStaffTenantMutation: vi.fn(),
+	toStaffTenantUserRows: vi.fn(),
+	useStaffTenantUsersQuery: vi.fn(),
+}));
+
+vi.mock('@tanstack/react-query', () => ({
+	useQueryClient: () => ({
+		invalidateQueries: mocks.invalidateQueries,
+		removeQueries: mocks.removeQueries,
+	}),
 }));
 
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => ({
 		...options,
+		useNavigate: () => mocks.navigate,
 		useParams: () => ({
 			tenantId: '11111111-1111-1111-1111-111111111111',
 		}),
@@ -24,7 +51,7 @@ vi.mock('@tanstack/react-router', () => ({
 		params,
 		...props
 	}: {
-		children: React.ReactNode;
+		children: ReactNode;
 		to: string;
 		params?: Record<string, string>;
 	}) => {
@@ -34,17 +61,63 @@ vi.mock('@tanstack/react-router', () => ({
 			href = href.replace(`$${key}`, value);
 		}
 
-		return (
-			<a href={href} {...props}>
-				{children}
-			</a>
-		);
+		return createElement('a', { href, ...props }, children);
 	},
 }));
 
+const TRANSLATIONS: Record<string, string> = {
+	'back-to-staff-tenants': 'Back to staff tenants',
+	edit: 'Edit',
+	unknown: 'Unknown',
+	'tenant-member-count': '{{count}} members',
+	'since-date': 'Since {{date}}',
+	members: 'Members',
+	status: 'Status',
+	created: 'Created',
+	updated: 'Updated',
+	'seats-left': '{{count}} seats left',
+	'tenant-status-helper-active': 'All members have access',
+	'tenant-status-helper-suspended': 'Access is blocked for members',
+	organization: 'Organization',
+	name: 'Name',
+	code: 'Code',
+	'tenant-id': 'Tenant ID',
+	users: 'Users',
+	'view-all': 'View all',
+	'no-tenant-members': 'No members yet.',
+	'tenant-users-preview-error': 'Unable to load members.',
+	'danger-zone': 'Danger zone',
+	'suspend-tenant': 'Suspend Tenant',
+	'reactivate-tenant': 'Reactivate Tenant',
+	'suspend-tenant-confirm': 'Are you sure you want to suspend "{{name}}"?',
+	'reactivate-tenant-confirm':
+		'Are you sure you want to reactivate "{{name}}"?',
+	suspend: 'Suspend',
+	reactivate: 'Reactivate',
+	delete: 'Delete',
+	'confirm-delete-tenant-title': 'Delete tenant',
+	'confirm-delete-tenant-message':
+		'Are you sure you want to delete this tenant?',
+	'delete-tenant-disabled-until-suspended':
+		'Suspend this tenant before deleting it.',
+	'unable-to-suspend-tenant': 'Unable to suspend this tenant.',
+	'unable-to-reactivate-tenant': 'Unable to reactivate this tenant.',
+	'unable-to-delete-tenant': 'Unable to delete this tenant.',
+};
+
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string) => key,
+		t: (key: string, options?: Record<string, unknown>) => {
+			let text = TRANSLATIONS[key] ?? key;
+			if (!options) {
+				return text;
+			}
+
+			for (const [optionKey, value] of Object.entries(options)) {
+				text = text.replaceAll(`{{${optionKey}}}`, String(value));
+			}
+			return text;
+		},
 		i18n: {
 			language: 'en',
 		},
@@ -60,8 +133,18 @@ vi.mock('~/components/error-views/View403', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenants', () => ({
+	STAFF_TENANTS_QUERY_KEY: ['staff-tenants'],
+	STAFF_TENANT_DETAILS_QUERY_KEY: ['staff-tenants', 'detail'],
 	toStaffTenantDetails: mocks.toStaffTenantDetails,
 	useStaffTenantDetailsQuery: mocks.useStaffTenantDetailsQuery,
+	useSuspendStaffTenantMutation: mocks.useSuspendStaffTenantMutation,
+	useReactivateStaffTenantMutation: mocks.useReactivateStaffTenantMutation,
+	useDeleteStaffTenantMutation: mocks.useDeleteStaffTenantMutation,
+}));
+
+vi.mock('~/lib/query/staff-tenant-users', () => ({
+	toStaffTenantUserRows: mocks.toStaffTenantUserRows,
+	useStaffTenantUsersQuery: mocks.useStaffTenantUsersQuery,
 }));
 
 vi.mock('~/routes/authed/layout', () => ({
@@ -80,6 +163,23 @@ const buildQueryResult = (overrides: Record<string, unknown> = {}) => ({
 	...overrides,
 });
 
+const ACTIVE_TENANT = {
+	id: '11111111-1111-1111-1111-111111111111',
+	name: 'Acme Corporation',
+	code: 'ACME',
+	status: 'Active',
+	usersCount: 12,
+	maxUsers: 50,
+	logoUrl: null,
+	createdAt: new Date('2026-07-01T09:00:00Z'),
+	updatedAt: new Date('2026-07-02T10:00:00Z'),
+};
+
+const SUSPENDED_TENANT = {
+	...ACTIVE_TENANT,
+	status: 'Suspended',
+};
+
 const renderPage = () => {
 	const Component = (
 		Route as unknown as {
@@ -96,21 +196,25 @@ describe('staff tenant details route', () => {
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
 		mocks.useStaffTenantDetailsQuery.mockReturnValue(
 			buildQueryResult({
-				data: {
-					tenantId: '11111111-1111-1111-1111-111111111111',
-				},
+				data: { tenantId: ACTIVE_TENANT.id },
 			}),
 		);
-		mocks.toStaffTenantDetails.mockReturnValue({
-			id: '11111111-1111-1111-1111-111111111111',
-			name: 'Acme Corporation',
-			code: 'ACME',
-			status: 'Active',
-			usersCount: 12,
-			maxUsers: 50,
-			logoUrl: 'https://cdn.example.com/acme.png',
-			createdAt: new Date('2026-07-01T09:00:00Z'),
-			updatedAt: new Date('2026-07-02T10:00:00Z'),
+		mocks.toStaffTenantDetails.mockReturnValue(ACTIVE_TENANT);
+		mocks.toStaffTenantUserRows.mockReturnValue([]);
+		mocks.useStaffTenantUsersQuery.mockReturnValue(
+			buildQueryResult({ data: { data: [], nextCursor: null } }),
+		);
+		mocks.useSuspendStaffTenantMutation.mockReturnValue({
+			mutateAsync: mocks.suspendTenantMutation,
+			isPending: false,
+		});
+		mocks.useReactivateStaffTenantMutation.mockReturnValue({
+			mutateAsync: mocks.reactivateTenantMutation,
+			isPending: false,
+		});
+		mocks.useDeleteStaffTenantMutation.mockReturnValue({
+			mutateAsync: mocks.deleteTenantMutation,
+			isPending: false,
 		});
 	});
 
@@ -118,28 +222,85 @@ describe('staff tenant details route', () => {
 		cleanup();
 	});
 
-	test('renders the read-only basics shell and planned section links', () => {
+	test('renders the identity header, stat cards, organization card, and danger zone', () => {
 		renderPage();
 
 		expect(screen.getByTestId('staff-tenant-details-page')).toBeTruthy();
-		expect(screen.getByText('back-to-staff-tenants')).toBeTruthy();
-		expect(screen.getByText('Acme Corporation')).toBeTruthy();
-		expect(screen.getByText('ACME')).toBeTruthy();
+		expect(
+			screen.getByRole('heading', { name: 'Acme Corporation' }),
+		).toBeTruthy();
 		expect(screen.getAllByText('Active').length).toBeGreaterThan(0);
-		expect(screen.getAllByText('12').length).toBeGreaterThan(0);
-		expect(screen.getAllByText('50').length).toBeGreaterThan(0);
-		expect(screen.getByText('https://cdn.example.com/acme.png')).toBeTruthy();
-		expect(screen.getByRole('link', { name: 'Edit tenant' })).toBeTruthy();
+
 		expect(
-			screen.getByRole('link', { name: 'Edit tenant' }).getAttribute('href'),
+			within(screen.getByRole('banner'))
+				.getByRole('link', { name: 'Edit' })
+				.getAttribute('href'),
 		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/edit');
-		expect(screen.getAllByText('Basics')).toHaveLength(2);
-		expect(
-			screen.getByRole('link', { name: 'Profiles' }).getAttribute('href'),
-		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/profiles');
-		expect(
-			screen.getByRole('link', { name: 'Users' }).getAttribute('href'),
-		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/users');
+
+		const membersCard = screen.getByTestId('tenant-stat-members');
+		expect(membersCard.textContent).toContain('12');
+		expect(membersCard.textContent).toContain('50');
+
+		const orgCard = screen.getByText('Organization').closest('section');
+		expect(orgCard).toBeTruthy();
+		expect(orgCard?.textContent).toContain('ACME');
+		expect(orgCard?.textContent).toContain(ACTIVE_TENANT.id);
+
+		expect(screen.getByText('Danger zone')).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'Suspend' })).toBeTruthy();
+		const deleteButton = screen.getByRole('button', {
+			name: 'Delete',
+		}) as HTMLButtonElement;
+		expect(deleteButton.disabled).toBe(true);
+	});
+
+	test('swaps the lifecycle row to Reactivate and enables Delete when the tenant is suspended', () => {
+		mocks.toStaffTenantDetails.mockReturnValue(SUSPENDED_TENANT);
+		renderPage();
+
+		expect(screen.getByRole('button', { name: 'Reactivate' })).toBeTruthy();
+		expect(screen.queryByRole('button', { name: 'Suspend' })).toBeNull();
+
+		const deleteButton = screen.getByRole('button', {
+			name: 'Delete',
+		}) as HTMLButtonElement;
+		expect(deleteButton.disabled).toBe(false);
+	});
+
+	test('confirming Suspend calls the suspend mutation and invalidates tenant queries', async () => {
+		mocks.suspendTenantMutation.mockResolvedValue(undefined);
+		renderPage();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Suspend' }));
+		const dialog = await screen.findByRole('alertdialog');
+		fireEvent.click(within(dialog).getByRole('button', { name: 'Suspend' }));
+
+		await waitFor(() => {
+			expect(mocks.suspendTenantMutation).toHaveBeenCalledWith({
+				tenantId: ACTIVE_TENANT.id,
+			});
+		});
+		expect(mocks.invalidateQueries).toHaveBeenCalled();
+	});
+
+	test('confirming Delete calls the delete mutation and navigates back to the tenants list', async () => {
+		mocks.toStaffTenantDetails.mockReturnValue(SUSPENDED_TENANT);
+		mocks.deleteTenantMutation.mockResolvedValue(undefined);
+		renderPage();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+		const dialog = await screen.findByRole('alertdialog');
+		fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
+
+		await waitFor(() => {
+			expect(mocks.deleteTenantMutation).toHaveBeenCalledWith({
+				tenantId: SUSPENDED_TENANT.id,
+			});
+		});
+		await waitFor(() => {
+			expect(mocks.navigate).toHaveBeenCalledWith({ to: '/staff/tenants' });
+		});
+		expect(mocks.removeQueries).toHaveBeenCalled();
 	});
 
 	test('renders the not-found view for 400 malformed-id failures', () => {

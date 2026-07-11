@@ -222,7 +222,6 @@ function StaffTenantEditRoute() {
 		<TenantDetailsPageShell
 			tenant={tenant}
 			activeSection="basics"
-			summary="Update tenant name, logo URL, and max users."
 			testId="staff-tenant-edit-page"
 		>
 			<div className="space-y-4">
