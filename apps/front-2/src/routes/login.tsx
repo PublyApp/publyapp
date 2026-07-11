@@ -25,6 +25,7 @@ import { View403 } from '~/components/error-views/View403';
 import { View404 } from '~/components/error-views/View404';
 import { Button, buttonVariants } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
+import { redirectAuthenticatedUserAwayFromAuthPage } from '~/lib/auth-route-guard';
 import { completeLoginRedirect, login } from '~/lib/server/session-actions';
 
 import {
@@ -391,6 +392,7 @@ const LoginErrorBoundary = ({
 };
 
 export const Route = createFileRoute('/login')({
+	beforeLoad: redirectAuthenticatedUserAwayFromAuthPage,
 	component: LoginRoute,
 	errorComponent: LoginErrorBoundary,
 });
