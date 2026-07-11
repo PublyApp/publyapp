@@ -8,6 +8,7 @@ import {
 	IconUser,
 	IconX,
 } from '@tabler/icons-react';
+import { Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -114,15 +115,19 @@ export const createInvitationColumns = ({
 		cell: ({ row }) => {
 			const email = row.original.email || '-';
 			return (
-				<div className="flex min-w-0 items-center gap-2.5">
+				<Link
+					to="/staff/invitations/$invitationId"
+					params={{ invitationId: row.original.id }}
+					className="flex min-w-0 items-center gap-2.5 no-underline"
+				>
 					<InitialsAvatar name={row.original.email} />
 					<span
-						className="min-w-0 truncate text-[13px] font-medium"
+						className="publy-record-link min-w-0 truncate text-[13px]"
 						title={email}
 					>
 						{email}
 					</span>
-				</div>
+				</Link>
 			);
 		},
 	},

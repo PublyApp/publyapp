@@ -1,4 +1,29 @@
-import { describe, expect, test } from 'vitest';
+/** @vitest-environment jsdom */
+import { render, screen } from '@testing-library/react';
+import type { ReactNode } from 'react';
+import { createElement } from 'react';
+import { describe, expect, test, vi } from 'vitest';
+
+vi.mock('@tanstack/react-router', () => ({
+	Link: ({
+		children,
+		to,
+		params,
+		...props
+	}: {
+		children: ReactNode;
+		to: string;
+		params?: Record<string, string>;
+	}) => {
+		let href = to;
+		if (params) {
+			for (const [key, value] of Object.entries(params)) {
+				href = href.replace(`$${key}`, value);
+			}
+		}
+		return createElement('a', { href, ...props }, children);
+	},
+}));
 
 import { createInvitationColumns } from './table-columns';
 
@@ -51,5 +76,34 @@ describe('createInvitationColumns', () => {
 		const actionsColumn = columns.find((column) => column.id === 'actions');
 
 		expect(actionsColumn?.meta?.align).toBe('center');
+	});
+
+	test('renders the first column as a link to the invitation detail route, keeping the email text', () => {
+		const columns = createInvitationColumns({
+			t,
+			locale: 'en',
+			onActionSuccess: () => undefined,
+		});
+		const emailColumn = columns.find((column) => column.id === 'email');
+		const row = {
+			original: {
+				id: 'invitation-1',
+				email: 'person@example.com',
+				profileName: 'Ops',
+				invitedByName: 'Jane',
+				status: 'pending',
+				acceptedAt: null,
+				createdAt: null,
+				expiresAt: null,
+			},
+		};
+
+		const cellRenderer = emailColumn?.cell as (props: {
+			row: typeof row;
+		}) => ReactNode;
+		render(cellRenderer({ row }));
+
+		const link = screen.getByRole('link', { name: /person@example\.com/ });
+		expect(link.getAttribute('href')).toBe('/staff/invitations/invitation-1');
 	});
 });
