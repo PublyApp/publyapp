@@ -38,35 +38,37 @@ const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
 const MALFORMED_ID_TRANSLATION_KEY = 'malformed-id';
 
-const columns: ColumnDef<ReturnType<typeof toStaffProfileUserRows>[number]>[] =
-	[
-		{
-			id: 'name',
-			header: 'Name',
-			enableSorting: false,
-			cell: ({ row }) => (
-				<div className="space-y-1">
-					<p className="font-medium text-foreground">
-						{getUserFullName({
-							firstName: row.original.firstName,
-							lastName: row.original.lastName,
-						}) ||
-							row.original.email ||
-							'—'}
-					</p>
-					<p className="text-xs text-muted-foreground">
-						{row.original.email || 'No email address'}
-					</p>
-				</div>
-			),
-		},
-		{
-			id: 'status',
-			header: 'Status',
-			accessorKey: 'status',
-			cell: ({ getValue }) => getValue<string | null>() ?? '—',
-		},
-	];
+export const columns: ColumnDef<
+	ReturnType<typeof toStaffProfileUserRows>[number]
+>[] = [
+	{
+		id: 'name',
+		header: 'Name',
+		enableSorting: false,
+		cell: ({ row }) => (
+			<div className="space-y-1">
+				<p className="font-medium text-foreground">
+					{getUserFullName({
+						firstName: row.original.firstName,
+						lastName: row.original.lastName,
+					}) ||
+						row.original.email ||
+						'—'}
+				</p>
+				<p className="text-xs text-muted-foreground">
+					{row.original.email || 'No email address'}
+				</p>
+			</div>
+		),
+	},
+	{
+		id: 'status',
+		header: 'Status',
+		accessorKey: 'status',
+		meta: { width: '122px' },
+		cell: ({ getValue }) => getValue<string | null>() ?? '—',
+	},
+];
 
 const isProblemStatus = (
 	error: unknown,

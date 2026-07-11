@@ -79,7 +79,7 @@ vi.mock('~/routes/authed/layout', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 
-import { Route } from './profiles';
+import { createTenantProfileColumns, Route } from './profiles';
 
 const buildQueryResult = (overrides: Record<string, unknown> = {}) => ({
 	data: undefined,
@@ -289,5 +289,23 @@ describe('staff tenant profiles route', () => {
 		renderPage();
 
 		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
+	});
+});
+
+describe('createTenantProfileColumns column widths', () => {
+	test('applies a fixed width to every column except the fluid description column', () => {
+		const columns = createTenantProfileColumns(
+			'11111111-1111-1111-1111-111111111111',
+		);
+		const widthById = Object.fromEntries(
+			columns.map((column) => [column.id, column.meta?.width]),
+		);
+
+		expect(widthById).toEqual({
+			name: '240px',
+			description: undefined,
+			is_default: '104px',
+			user_account_count: '104px',
+		});
 	});
 });

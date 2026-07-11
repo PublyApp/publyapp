@@ -79,7 +79,7 @@ vi.mock('~/routes/authed/layout', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 
-import { Route } from './users';
+import { makeTenantUserColumns, Route } from './users';
 
 const buildQueryResult = (overrides: Record<string, unknown> = {}) => ({
 	data: undefined,
@@ -287,5 +287,23 @@ describe('staff tenant users route', () => {
 		renderPage();
 
 		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
+	});
+});
+
+describe('makeTenantUserColumns column widths', () => {
+	test('applies a fixed width to every column except the fluid email column', () => {
+		const columns = makeTenantUserColumns(
+			'11111111-1111-1111-1111-111111111111',
+		);
+		const widthById = Object.fromEntries(
+			columns.map((column) => [column.id, column.meta?.width]),
+		);
+
+		expect(widthById).toEqual({
+			name: '200px',
+			email: undefined,
+			level: '104px',
+			status: '122px',
+		});
 	});
 });

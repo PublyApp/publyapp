@@ -33,6 +33,62 @@ import {
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
 
+export const createTenantProfileColumns = (
+	tenantId: string,
+): ColumnDef<StaffTenantProfileRow>[] => [
+	{
+		id: 'name',
+		header: 'Name',
+		accessorKey: 'name',
+		meta: { width: '240px' },
+		cell: ({ row }) => (
+			<div className="space-y-1">
+				<Link
+					to={'/staff/tenants/$tenantId/profiles/$profileId' as never}
+					params={{ tenantId, profileId: row.original.id } as never}
+					className="font-medium text-primary underline-offset-4 hover:underline"
+				>
+					{row.original.name || '—'}
+				</Link>
+				<p className="text-xs text-muted-foreground">
+					{row.original.description ?? 'No description provided.'}
+				</p>
+				<Link
+					to={'/staff/tenants/$tenantId/profiles/$profileId/edit' as never}
+					params={{ tenantId, profileId: row.original.id } as never}
+					className="inline-flex text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+				>
+					Edit profile
+				</Link>
+			</div>
+		),
+	},
+	{
+		id: 'description',
+		header: 'Description',
+		accessorKey: 'description',
+		enableSorting: false,
+		cell: ({ getValue }) => getValue<string | null>() ?? '—',
+	},
+	{
+		id: 'is_default',
+		header: 'Default',
+		accessorKey: 'isDefault',
+		enableSorting: false,
+		meta: { width: '104px' },
+		cell: ({ getValue }) =>
+			getValue<boolean>() ? <Badge variant="secondary">Default</Badge> : '—',
+	},
+	{
+		id: 'user_account_count',
+		header: 'Assigned users',
+		accessorKey: 'userAccountCount',
+		enableSorting: false,
+		meta: { width: '104px' },
+		cell: ({ getValue }) => String(getValue<number>()),
+	},
+];
+
 export const Route = createFileRoute(
 	'/_authed-layout/staff/tenants/$tenantId/profiles',
 )({
@@ -45,56 +101,7 @@ function StaffTenantProfilesPage() {
 	const { tenantId } = Route.useParams();
 	const navigate = Route.useNavigate();
 	const search = Route.useSearch();
-	const columns: ColumnDef<StaffTenantProfileRow>[] = [
-		{
-			id: 'name',
-			header: 'Name',
-			accessorKey: 'name',
-			cell: ({ row }) => (
-				<div className="space-y-1">
-					<Link
-						to={'/staff/tenants/$tenantId/profiles/$profileId' as never}
-						params={{ tenantId, profileId: row.original.id } as never}
-						className="font-medium text-primary underline-offset-4 hover:underline"
-					>
-						{row.original.name || '—'}
-					</Link>
-					<p className="text-xs text-muted-foreground">
-						{row.original.description ?? 'No description provided.'}
-					</p>
-					<Link
-						to={'/staff/tenants/$tenantId/profiles/$profileId/edit' as never}
-						params={{ tenantId, profileId: row.original.id } as never}
-						className="inline-flex text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-					>
-						Edit profile
-					</Link>
-				</div>
-			),
-		},
-		{
-			id: 'description',
-			header: 'Description',
-			accessorKey: 'description',
-			enableSorting: false,
-			cell: ({ getValue }) => getValue<string | null>() ?? '—',
-		},
-		{
-			id: 'is_default',
-			header: 'Default',
-			accessorKey: 'isDefault',
-			enableSorting: false,
-			cell: ({ getValue }) =>
-				getValue<boolean>() ? <Badge variant="secondary">Default</Badge> : '—',
-		},
-		{
-			id: 'user_account_count',
-			header: 'Assigned users',
-			accessorKey: 'userAccountCount',
-			enableSorting: false,
-			cell: ({ getValue }) => String(getValue<number>()),
-		},
-	];
+	const columns = createTenantProfileColumns(tenantId);
 
 	const onSearchChange = (next: TableSearchParams): void => {
 		void navigate({

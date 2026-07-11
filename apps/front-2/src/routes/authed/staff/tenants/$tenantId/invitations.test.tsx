@@ -106,7 +106,7 @@ vi.mock('~/routes/authed/layout', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 
-import { Route } from './invitations';
+import { createColumns, Route } from './invitations';
 
 const buildQueryResult = (overrides: Record<string, unknown> = {}) => ({
 	data: undefined,
@@ -474,5 +474,30 @@ describe('staff tenant invitations route', () => {
 		renderPage();
 
 		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
+	});
+});
+
+describe('createColumns column widths', () => {
+	test('applies a fixed width to every column except the fluid profile_name column', () => {
+		const columns = createColumns({
+			locale: 'en',
+			t: (key: string) => key,
+			isRevokePending: false,
+			onRevoke: () => undefined,
+		});
+		const widthById = Object.fromEntries(
+			columns.map((column) => [column.id, column.meta?.width]),
+		);
+
+		expect(widthById).toEqual({
+			email: '300px',
+			status: '128px',
+			profile_name: undefined,
+			invited_by: '150px',
+			created_at: '140px',
+			expires_at: '120px',
+			accepted_at: '140px',
+			actions: '40px',
+		});
 	});
 });

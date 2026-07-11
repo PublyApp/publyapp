@@ -33,13 +33,14 @@ import {
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
 
-const makeTenantUserColumns = (
+export const makeTenantUserColumns = (
 	tenantId: string,
 ): ColumnDef<StaffTenantUserRow>[] => [
 	{
 		id: 'name',
 		header: 'Name',
 		enableSorting: false,
+		meta: { width: '200px' },
 		cell: ({ row }) => {
 			const userId = row.original.id;
 
@@ -68,12 +69,14 @@ const makeTenantUserColumns = (
 		id: 'level',
 		header: 'Level',
 		accessorKey: 'level',
+		meta: { width: '104px' },
 		cell: ({ getValue }) => getValue<string | null>() ?? '—',
 	},
 	{
 		id: 'status',
 		header: 'Status',
 		accessorKey: 'status',
+		meta: { width: '122px' },
 		cell: ({ getValue }) => getValue<string | null>() ?? '—',
 	},
 ];

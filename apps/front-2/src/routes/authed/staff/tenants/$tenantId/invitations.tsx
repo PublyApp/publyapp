@@ -70,7 +70,7 @@ const getFeedbackClassName = (tone: ActionFeedback['tone']): string =>
 		? 'border-success/20 bg-success/10 text-success'
 		: 'border-destructive/20 bg-destructive/10 text-destructive';
 
-const createColumns = ({
+export const createColumns = ({
 	locale,
 	t,
 	isRevokePending,
@@ -80,11 +80,13 @@ const createColumns = ({
 		id: 'email',
 		header: 'Email',
 		accessorKey: 'email',
+		meta: { width: '300px' },
 	},
 	{
 		id: 'status',
 		header: 'Status',
 		enableSorting: false,
+		meta: { width: '128px' },
 		cell: ({ row }) => (
 			<span className="inline-flex rounded-full bg-muted px-2 py-1 text-xs font-medium text-foreground">
 				{formatInvitationStatusLabel(
@@ -104,29 +106,34 @@ const createColumns = ({
 		header: 'Invited by',
 		accessorKey: 'invitedByName',
 		enableSorting: false,
+		meta: { width: '150px' },
 	},
 	{
 		id: 'created_at',
 		header: 'Created',
 		accessorFn: (row) => row.createdAt,
+		meta: { width: '140px' },
 		cell: ({ row }) => formatDateTime(row.original.createdAt, locale),
 	},
 	{
 		id: 'expires_at',
 		header: 'Expires',
 		accessorFn: (row) => row.expiresAt,
+		meta: { width: '120px' },
 		cell: ({ row }) => formatDateTime(row.original.expiresAt, locale),
 	},
 	{
 		id: 'accepted_at',
 		header: 'Accepted',
 		accessorFn: (row) => row.acceptedAt,
+		meta: { width: '140px' },
 		cell: ({ row }) => formatDateTime(row.original.acceptedAt, locale),
 	},
 	{
 		id: 'actions',
 		header: 'Actions',
 		enableSorting: false,
+		meta: { width: '40px' },
 		cell: ({ row }) =>
 			isStaffTenantInvitationRevocable(row.original) ? (
 				<Button
