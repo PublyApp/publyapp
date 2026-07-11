@@ -8,8 +8,9 @@ import {
 	screen,
 	waitFor,
 } from '@testing-library/react';
-import type { JSX, ReactNode } from 'react';
+import type { JSX, ReactNode, FormEventHandler } from 'react';
 import { createElement } from 'react';
+import { FormProvider, useFormContext } from 'react-hook-form';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -51,6 +52,50 @@ vi.mock('~/components/ui/button', () => ({
 vi.mock('~/components/ui/card', () => ({
 	Card: ({ children, ...props }: { children: ReactNode }) =>
 		createElement('div', props, children),
+}));
+
+vi.mock('~/components/field', () => ({
+	Form: ({
+		children,
+		methods,
+		onSubmit,
+	}: {
+		children: ReactNode;
+		methods: import('react-hook-form').UseFormReturn;
+		onSubmit?: FormEventHandler<HTMLFormElement>;
+	}) =>
+		createElement(
+			FormProvider as never,
+			{ ...methods } as never,
+			createElement('form', { onSubmit }, children),
+		),
+	Field: {
+		Text: ({
+			name,
+			label,
+			isDisabled,
+			type,
+		}: {
+			name: string;
+			label: string;
+			isDisabled?: boolean;
+			type?: string;
+		}) => {
+			const { register } = useFormContext();
+
+			return createElement(
+				'label',
+				undefined,
+				createElement('span', undefined, label),
+				createElement('input', {
+					'aria-label': label,
+					disabled: isDisabled,
+					type: type ?? 'text',
+					...register(name),
+				}),
+			);
+		},
+	},
 }));
 
 vi.mock('@tanstack/react-query', () => ({

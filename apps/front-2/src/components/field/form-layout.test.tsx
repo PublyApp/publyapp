@@ -36,6 +36,20 @@ describe('FormPageLayout', () => {
 				?.getAttribute('data-width'),
 		).toBe('760');
 	});
+
+	test('supports the wide 960px two-pane create variant', () => {
+		render(
+			<FormPageLayout width={960}>
+				<p>Create form</p>
+			</FormPageLayout>,
+		);
+
+		expect(
+			document
+				.querySelector('[data-slot="form-page"]')
+				?.getAttribute('data-width'),
+		).toBe('960');
+	});
 });
 
 describe('FormActionBar', () => {

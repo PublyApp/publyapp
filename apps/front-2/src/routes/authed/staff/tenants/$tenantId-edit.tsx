@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
+import { Field, Form } from '~/components/field';
 import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
 import {
@@ -111,7 +112,6 @@ function StaffTenantEditRoute() {
 	});
 	const {
 		formState: { dirtyFields, isDirty, isSubmitting },
-		register,
 		handleSubmit,
 		reset,
 	} = methods;
@@ -245,45 +245,28 @@ function StaffTenantEditRoute() {
 			</div>
 
 			<Card className="space-y-4 p-5">
-				<form className="space-y-4" onSubmit={onSubmit} noValidate>
-					<div className="space-y-1">
-						<label htmlFor="tenant-name" className="text-sm">
-							{t('tenant-name')}
-						</label>
-						<input
-							id="tenant-name"
-							type="text"
-							className="w-full rounded-medium border border-divider bg-content1 p-2"
-							disabled={isPending}
-							{...register('name')}
-						/>
-					</div>
+				<Form methods={methods} onSubmit={onSubmit}>
+					<Field.Text
+						name="name"
+						label={t('tenant-name')}
+						fullWidth
+						isDisabled={isPending}
+					/>
 
-					<div className="space-y-1">
-						<label htmlFor="tenant-max-users" className="text-sm">
-							{t('max-users')}
-						</label>
-						<input
-							id="tenant-max-users"
-							type="number"
-							className="w-full rounded-medium border border-divider bg-content1 p-2"
-							disabled={isPending}
-							{...register('maxUsers')}
-						/>
-					</div>
+					<Field.Text
+						name="maxUsers"
+						type="number"
+						label={t('max-users')}
+						fullWidth
+						isDisabled={isPending}
+					/>
 
-					<div className="space-y-1">
-						<label htmlFor="tenant-logo-url" className="text-sm">
-							{t('logo-url')}
-						</label>
-						<input
-							id="tenant-logo-url"
-							type="text"
-							className="w-full rounded-medium border border-divider bg-content1 p-2"
-							disabled={isPending}
-							{...register('logoUrl')}
-						/>
-					</div>
+					<Field.Text
+						name="logoUrl"
+						label={t('logo-url')}
+						fullWidth
+						isDisabled={isPending}
+					/>
 
 					{serverError ? (
 						<p className="text-sm text-destructive">{serverError}</p>
@@ -293,7 +276,7 @@ function StaffTenantEditRoute() {
 							{t('save-changes')}
 						</Button>
 					</div>
-				</form>
+				</Form>
 			</Card>
 		</TenantDetailsPageShell>
 	);

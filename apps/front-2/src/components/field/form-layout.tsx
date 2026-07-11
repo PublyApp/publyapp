@@ -3,16 +3,16 @@ import { cn } from '~/lib/utils';
 
 /**
  * Handoff form-page foundations (2d/3c/6a): a centered scrolling column
- * (860px default, 760px for account pages) and the sticky bottom action
- * bar with an optional status line. Values live in app.css
- * (`.publy-form-page`, `.publy-form-action-bar`).
+ * (860px default, 760px for account pages, 960px for two-pane create forms)
+ * and the sticky bottom action bar with an optional status line. Values live
+ * in app.css (`.publy-form-page`, `.publy-form-action-bar`).
  */
 
 function FormPageLayout({
 	width = 860,
 	className,
 	...props
-}: React.ComponentProps<'div'> & { width?: 760 | 860 }) {
+}: React.ComponentProps<'div'> & { width?: 760 | 860 | 960 }) {
 	return (
 		<div
 			data-slot="form-page"

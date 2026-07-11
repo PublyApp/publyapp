@@ -1094,6 +1094,10 @@ html {
 		max-width: 760px;
 	}
 
+	.publy-form-page[data-width='960'] {
+		max-width: 960px;
+	}
+
 	/* Placed as the last child of .app-shell-main (padding 20px 28px 32px):
 	   negative margins bleed the bar to the column edges and cancel the
 	   scroller's bottom padding so the pinned bar sits flush. */
@@ -1133,6 +1137,16 @@ html {
 
 	.publy-field-error svg {
 		@apply size-3.5 shrink-0;
+	}
+
+	/* ---- Eyebrow section labels (handoff 2b: flat form sections) ---- */
+
+	.publy-type-eyebrow {
+		font-size: 11px;
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--publy-foreground-subtle);
 	}
 
 	/* ---- Switch rows (handoff 2d/5i) ---- */
