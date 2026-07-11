@@ -32,8 +32,6 @@
 	"files.exclude": {
 		"apps/api/.artifacts": true,
 		"**/node_modules": true,
-		".worktrees": true,
-		".dump": true,
 		".codegraph": true,
 		"**/bin": true,
 		"**/obj": true,
