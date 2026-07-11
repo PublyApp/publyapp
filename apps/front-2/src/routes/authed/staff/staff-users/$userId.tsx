@@ -1,6 +1,6 @@
 import {
 	IconAlertCircle,
-	IconChevronLeft,
+	IconArrowLeft,
 	IconLock,
 	IconMail,
 	IconPencil,
@@ -231,26 +231,10 @@ function StaffUserDetailsPage() {
 	}
 
 	if (detailQuery.isError) {
-		if (isProblemStatus(detailQuery.error, 400, MALFORMED_ID_TRANSLATION_KEY)) {
-			return (
-				<AppErrorView
-					icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-					code="400 — Bad Request"
-					title="Invalid staff user link"
-					description={getFailureDescription(
-						detailQuery.error,
-						'This staff user link is malformed or incomplete.',
-					)}
-					testId="staff-user-details-invalid"
-				/>
-			);
-		}
-
-		if (isProblemStatus(detailQuery.error, 403)) {
-			return <View403 />;
-		}
-
-		if (isProblemStatus(detailQuery.error, 404)) {
+		if (
+			isProblemStatus(detailQuery.error, 404) ||
+			isProblemStatus(detailQuery.error, 400, MALFORMED_ID_TRANSLATION_KEY)
+		) {
 			return (
 				<AppErrorView
 					icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
@@ -263,6 +247,10 @@ function StaffUserDetailsPage() {
 					testId="staff-user-details-not-found"
 				/>
 			);
+		}
+
+		if (isProblemStatus(detailQuery.error, 403)) {
+			return <View403 />;
 		}
 
 		return (
@@ -421,7 +409,7 @@ function StaffUserDetailsPage() {
 		>
 			<div className="space-y-3">
 				<Link to="/staff/staff-users" className="publy-back-link">
-					<IconChevronLeft aria-hidden="true" className="size-3" />
+					<IconArrowLeft aria-hidden="true" className="size-3" />
 					{t('back-to-staff-users')}
 				</Link>
 			</div>

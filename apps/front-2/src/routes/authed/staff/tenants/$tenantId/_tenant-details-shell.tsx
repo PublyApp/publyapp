@@ -1,6 +1,6 @@
 import {
 	IconAlertCircle,
-	IconChevronLeft,
+	IconArrowLeft,
 	IconSearchOff,
 } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
@@ -152,22 +152,6 @@ export const TenantRetryActions = ({ onRetry }: { onRetry: () => void }) => (
 	</>
 );
 
-const InvalidTenantView = ({ error }: { error: unknown }) => (
-	<AppErrorView
-		icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-		code="400 — Bad Request"
-		title="Invalid tenant link"
-		description={getFailureDescription(
-			error,
-			'This tenant link is malformed or incomplete.',
-		)}
-		testId="staff-tenant-details-invalid"
-		tone="danger"
-		embedded
-		actions={<BackToTenantsLink />}
-	/>
-);
-
 const MissingTenantView = ({ error }: { error: unknown }) => (
 	<AppErrorView
 		icon={<IconSearchOff aria-hidden="true" className="size-7" />}
@@ -192,16 +176,15 @@ export const TenantDetailsError = ({
 	 * retry target is available at the call site. */
 	onRetry?: () => void;
 }) => {
-	if (isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)) {
-		return <InvalidTenantView error={error} />;
+	if (
+		isProblemStatus(error, 404) ||
+		isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)
+	) {
+		return <MissingTenantView error={error} />;
 	}
 
 	if (isProblemStatus(error, 403)) {
 		return <View403 embedded />;
-	}
-
-	if (isProblemStatus(error, 404)) {
-		return <MissingTenantView error={error} />;
 	}
 
 	return (
@@ -246,7 +229,7 @@ export const TenantDetailsPageShell = ({
 		>
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<Link to="/staff/tenants" className="publy-back-link">
-					<IconChevronLeft aria-hidden="true" className="size-3" />
+					<IconArrowLeft aria-hidden="true" className="size-3" />
 					{t('back-to-staff-tenants')}
 				</Link>
 			</div>

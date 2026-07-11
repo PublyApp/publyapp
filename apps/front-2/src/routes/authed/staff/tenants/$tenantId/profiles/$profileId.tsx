@@ -88,19 +88,6 @@ const LoadingSpinner = () => (
 	/>
 );
 
-const InvalidTenantProfileView = ({ error }: { error: unknown }) => (
-	<AppErrorView
-		icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-		code="400 — Bad Request"
-		title="Invalid profile link"
-		description={getFailureDescription(
-			error,
-			'This tenant profile link is malformed or incomplete.',
-		)}
-		testId="staff-tenant-profile-details-invalid"
-	/>
-);
-
 const MissingTenantProfileView = ({ error }: { error: unknown }) => (
 	<AppErrorView
 		icon={<IconSearchOff aria-hidden="true" className="size-7" />}
@@ -121,8 +108,11 @@ const TenantProfileDetailsError = ({
 	error: unknown;
 	onRetry: () => void;
 }) => {
-	if (isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)) {
-		return <InvalidTenantProfileView error={error} />;
+	if (
+		isProblemStatus(error, 404) ||
+		isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)
+	) {
+		return <MissingTenantProfileView error={error} />;
 	}
 
 	if (isProblemStatus(error, 403)) {
@@ -135,10 +125,6 @@ const TenantProfileDetailsError = ({
 				testId="forbidden-view"
 			/>
 		);
-	}
-
-	if (isProblemStatus(error, 404)) {
-		return <MissingTenantProfileView error={error} />;
 	}
 
 	return (

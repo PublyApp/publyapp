@@ -142,7 +142,7 @@ describe('staff tenant details route', () => {
 		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/users');
 	});
 
-	test('renders a local malformed id view for 400 malformed-id failures', () => {
+	test('renders the not-found view for 400 malformed-id failures', () => {
 		mocks.useStaffTenantDetailsQuery.mockReturnValue(
 			buildQueryResult({
 				error: {
@@ -158,7 +158,7 @@ describe('staff tenant details route', () => {
 
 		renderPage();
 
-		expect(screen.getByTestId('staff-tenant-details-invalid')).toBeTruthy();
+		expect(screen.getByTestId('staff-tenant-details-not-found')).toBeTruthy();
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 	});
 

@@ -324,7 +324,7 @@ describe('staff tenant profile edit route', () => {
 		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
 	});
 
-	test('renders a local malformed id view without logging out', () => {
+	test('renders the not-found view without logging out for a malformed id', () => {
 		mocks.useStaffTenantProfileDetailsQuery.mockReturnValue(
 			buildQueryResult({
 				error: {
@@ -341,7 +341,7 @@ describe('staff tenant profile edit route', () => {
 		renderPage();
 
 		expect(
-			screen.getByTestId('staff-tenant-profile-edit-invalid'),
+			screen.getByTestId('staff-tenant-profile-edit-not-found'),
 		).toBeTruthy();
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 	});

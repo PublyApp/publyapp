@@ -50,26 +50,12 @@ export const StateView = ({
 
 	const titleBlock = (
 		<>
-			<Heading
-				className={
-					isPage
-						? 'mt-3 text-3xl font-semibold leading-tight'
-						: 'publy-type-section-title'
-				}
-			>
+			<Heading className="mt-3 text-3xl font-semibold leading-tight">
 				{title}
 			</Heading>
 			{belowTitle}
 			{description ? (
-				<p
-					className={
-						isPage
-							? 'mt-2 text-sm text-muted-foreground'
-							: 'publy-type-helper mt-1'
-					}
-				>
-					{description}
-				</p>
+				<p className="mt-2 text-sm text-muted-foreground">{description}</p>
 			) : null}
 		</>
 	);
@@ -103,13 +89,7 @@ export const StateView = ({
 			{isPage ? titleBlock : <div>{titleBlock}</div>}
 			{beforeActions}
 			{actions ? (
-				<div
-					className={
-						isPage
-							? 'mt-8 flex w-full flex-wrap justify-center gap-2'
-							: 'publy-action-cluster'
-					}
-				>
+				<div className="mt-8 flex w-full flex-wrap justify-center gap-2">
 					{actions}
 				</div>
 			) : null}

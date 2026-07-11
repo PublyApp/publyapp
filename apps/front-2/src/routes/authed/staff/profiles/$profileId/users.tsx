@@ -111,23 +111,6 @@ const LoadingSpinner = () => (
 	/>
 );
 
-const InvalidProfileView = ({ error }: { error: unknown }) => {
-	const failure = toApiFailure(error);
-
-	return (
-		<AppErrorView
-			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-			code="400 — Bad Request"
-			title="Invalid profile link"
-			description={getFailureDescription(
-				failure,
-				'This staff profile link is malformed or incomplete.',
-			)}
-			testId="staff-profile-users-invalid"
-		/>
-	);
-};
-
 const MissingProfileView = ({ error }: { error: unknown }) => {
 	const failure = toApiFailure(error);
 
@@ -152,16 +135,15 @@ const ProfileDetailsError = ({
 	error: unknown;
 	onRetry: () => void;
 }) => {
-	if (isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)) {
-		return <InvalidProfileView error={error} />;
+	if (
+		isProblemStatus(error, 404) ||
+		isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)
+	) {
+		return <MissingProfileView error={error} />;
 	}
 
 	if (isProblemStatus(error, 403)) {
 		return <View403 />;
-	}
-
-	if (isProblemStatus(error, 404)) {
-		return <MissingProfileView error={error} />;
 	}
 
 	return (

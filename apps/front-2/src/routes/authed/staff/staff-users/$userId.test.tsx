@@ -294,7 +294,7 @@ describe('staff user details route shell', () => {
 		).toBe(false);
 	});
 
-	test('renders a local malformed id view for 400 malformed-id failures', () => {
+	test('renders the not-found view for 400 malformed-id failures', () => {
 		mocks.useStaffUserDetailsQuery.mockReturnValue(
 			buildQueryResult({
 				error: {
@@ -310,7 +310,7 @@ describe('staff user details route shell', () => {
 
 		renderPage();
 
-		expect(screen.getByTestId('staff-user-details-invalid')).toBeTruthy();
+		expect(screen.getByTestId('staff-user-details-not-found')).toBeTruthy();
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 	});
 

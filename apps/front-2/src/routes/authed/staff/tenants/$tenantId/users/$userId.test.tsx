@@ -234,7 +234,7 @@ describe('staff tenant user details route', () => {
 		expect(screen.getByText('Updated')).toBeTruthy();
 	});
 
-	test('renders a local malformed id view without logging out', () => {
+	test('renders the not-found view without logging out for a malformed id', () => {
 		mocks.useStaffTenantUserDetailsQuery.mockReturnValue(
 			buildQueryResult({
 				error: {
@@ -251,7 +251,7 @@ describe('staff tenant user details route', () => {
 		renderPage();
 
 		expect(
-			screen.getByTestId('staff-tenant-user-details-invalid'),
+			screen.getByTestId('staff-tenant-user-details-not-found'),
 		).toBeTruthy();
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 	});

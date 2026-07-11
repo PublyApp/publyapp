@@ -466,7 +466,7 @@ describe('staff tenant user edit route', () => {
 		expect(mocks.navigate).not.toHaveBeenCalled();
 	});
 
-	test('renders local malformed-id, forbidden, not-found, and 500 views for detail query failures', () => {
+	test('renders local not-found, forbidden, and 500 views for detail query failures', () => {
 		mocks.useStaffTenantUserDetailsQuery.mockReturnValue(
 			buildQueryResult({
 				error: {
@@ -481,7 +481,7 @@ describe('staff tenant user edit route', () => {
 		);
 
 		renderPage();
-		expect(screen.getByTestId('staff-tenant-user-edit-invalid')).toBeTruthy();
+		expect(screen.getByTestId('staff-tenant-user-edit-not-found')).toBeTruthy();
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 	});
 

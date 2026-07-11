@@ -122,19 +122,6 @@ const TenantUserEditLoading = () => (
 	</div>
 );
 
-const InvalidTenantUserView = ({ error }: { error: unknown }) => (
-	<AppErrorView
-		icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-		code="400 — Bad Request"
-		title="Invalid tenant user edit link"
-		description={getFailureDescription(
-			error,
-			'This tenant user edit link is malformed or incomplete.',
-		)}
-		testId="staff-tenant-user-edit-invalid"
-	/>
-);
-
 const MissingTenantUserView = ({ error }: { error: unknown }) => (
 	<AppErrorView
 		icon={<IconSearchOff aria-hidden="true" className="size-7" />}
@@ -155,8 +142,11 @@ const TenantUserEditError = ({
 	error: unknown;
 	onRetry: () => void;
 }) => {
-	if (isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)) {
-		return <InvalidTenantUserView error={error} />;
+	if (
+		isProblemStatus(error, 404) ||
+		isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)
+	) {
+		return <MissingTenantUserView error={error} />;
 	}
 
 	if (isProblemStatus(error, 403)) {
@@ -169,10 +159,6 @@ const TenantUserEditError = ({
 				testId="forbidden-view"
 			/>
 		);
-	}
-
-	if (isProblemStatus(error, 404)) {
-		return <MissingTenantUserView error={error} />;
 	}
 
 	return (

@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { IconAlertCircle, IconChevronLeft } from '@tabler/icons-react';
+import { IconAlertCircle, IconArrowLeft } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -120,26 +120,10 @@ const StaffUserEditError = ({
 	error: unknown;
 	onRetry: () => void;
 }) => {
-	if (isProblemStatus(error, 400, 'malformed-id')) {
-		return (
-			<AppErrorView
-				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-				code="400 — Bad Request"
-				title="Invalid staff user edit link"
-				description={getFailureDescription(
-					error,
-					'This staff user edit link is malformed or incomplete.',
-				)}
-				testId="staff-user-edit-invalid"
-			/>
-		);
-	}
-
-	if (isProblemStatus(error, 403)) {
-		return <View403 />;
-	}
-
-	if (isProblemStatus(error, 404)) {
+	if (
+		isProblemStatus(error, 404) ||
+		isProblemStatus(error, 400, 'malformed-id')
+	) {
 		return (
 			<AppErrorView
 				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
@@ -152,6 +136,10 @@ const StaffUserEditError = ({
 				testId="staff-user-edit-not-found"
 			/>
 		);
+	}
+
+	if (isProblemStatus(error, 403)) {
+		return <View403 />;
 	}
 
 	return (
@@ -407,7 +395,7 @@ function StaffUserEditPage() {
 					params={{ userId }}
 					className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
 				>
-					<IconChevronLeft aria-hidden="true" className="size-3" />
+					<IconArrowLeft aria-hidden="true" className="size-3" />
 					{t('back-to-user')}
 				</Link>
 				<div>

@@ -73,19 +73,6 @@ const getFailureDescription = (error: unknown, fallback: string): string => {
 	return fallback;
 };
 
-const InvalidTenantUserView = ({ error }: { error: unknown }) => (
-	<AppErrorView
-		icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-		code="400 — Bad Request"
-		title="Invalid tenant user link"
-		description={getFailureDescription(
-			error,
-			'This tenant user link is malformed or incomplete.',
-		)}
-		testId="staff-tenant-user-details-invalid"
-	/>
-);
-
 const MissingTenantUserView = ({ error }: { error: unknown }) => (
 	<AppErrorView
 		icon={<IconSearchOff aria-hidden="true" className="size-7" />}
@@ -106,16 +93,15 @@ const StaffTenantUserDetailsError = ({
 	error: unknown;
 	onRetry: () => void;
 }) => {
-	if (isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)) {
-		return <InvalidTenantUserView error={error} />;
+	if (
+		isProblemStatus(error, 404) ||
+		isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)
+	) {
+		return <MissingTenantUserView error={error} />;
 	}
 
 	if (isProblemStatus(error, 403)) {
 		return <View403 />;
-	}
-
-	if (isProblemStatus(error, 404)) {
-		return <MissingTenantUserView error={error} />;
 	}
 
 	return (

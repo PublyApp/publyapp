@@ -1,6 +1,6 @@
 import {
 	IconAlertCircle,
-	IconChevronLeft,
+	IconArrowLeft,
 	IconHelpCircle,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -272,7 +272,7 @@ const InvitationDetailsCard = ({
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<div className="space-y-1">
 					<Link to={STAFF_INVITATIONS_LIST_PATH} className="publy-back-link">
-						<IconChevronLeft aria-hidden="true" className="size-3" />
+						<IconArrowLeft aria-hidden="true" className="size-3" />
 						{t('staff-invitations')}
 					</Link>
 					<h1 className="publy-type-page-title">{invitation.email || '—'}</h1>

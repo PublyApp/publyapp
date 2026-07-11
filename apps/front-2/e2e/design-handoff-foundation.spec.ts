@@ -289,8 +289,8 @@ test('asserts the no-match state renders a bare, un-boxed icon with no card, rin
 	await expect(noMatch).toHaveCSS('border-radius', '0px');
 
 	const cluster = noMatch.locator('.publy-state-icon-cluster');
-	await expect(cluster).toHaveCSS('width', '40px');
-	await expect(cluster).toHaveCSS('height', '40px');
+	await expect(cluster).toHaveCSS('width', '48px');
+	await expect(cluster).toHaveCSS('height', '48px');
 	await expect(cluster).toHaveAttribute('data-tone', 'primary');
 	await expect(cluster).toHaveAttribute('data-scale', 'inline');
 	await expect(cluster).toHaveAttribute('aria-hidden', 'true');
@@ -303,12 +303,13 @@ test('asserts the no-match state renders a bare, un-boxed icon with no card, rin
 	await expect(icon).toHaveCSS('border-radius', '0px');
 	await expect(icon).toHaveCSS('color', 'rgb(253, 199, 0)');
 
-	// Owner decision R3-1 (2026-07-10 round 3): the glyph itself is valorized
-	// to fill the 40px inline cluster — no backing shape, size + tone colour
-	// carry the presence.
+	// Owner decision R3-4b (reaffirmed 2026-07-11): the inline empty/no-match
+	// scale now matches the page error scale exactly — the glyph fills the
+	// same 48px cluster on both, no backing shape, size + tone colour carry
+	// the presence.
 	const glyph = icon.locator('svg');
-	await expect(glyph).toHaveCSS('width', '40px');
-	await expect(glyph).toHaveCSS('height', '40px');
+	await expect(glyph).toHaveCSS('width', '48px');
+	await expect(glyph).toHaveCSS('height', '48px');
 });
 
 test('the 404 view no longer renders a separator above its actions (owner-approved 2026-07-10 round 3)', async ({

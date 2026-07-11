@@ -416,6 +416,35 @@ is set after the settings interaction), the locale switch, and the invite flow.
   updated to the new sizes, not loosened; `state-surface.test.tsx` gained
   tests for the `data-scale` attribute, the shared `AppErrorView`/
   `StateSurface` primitive, and the absence of the ghost numeral/separator.
+- Malformed-id → not-found parity, and empty/error scale unification
+  (2026-07-11, owner-approved, packet P14): two follow-ups on top of round 3.
+  **Malformed ids render not-found, not a distinct 400 view:** the backend
+  returns `400` for a malformed id and `404` for a missing entity, but the 9
+  staff detail/edit routes each rendered a separate "Invalid ... link" view
+  (`…-invalid` testId) for the 400 case. The `…-invalid` branches and views
+  are deleted from all 9 routes; their condition is folded into the existing
+  `…-not-found` branch (`isProblemStatus(error, 404) ||
+  isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)`), matching the
+  precedent already in `invitations/$invitationId.tsx`. The `…-invalid`
+  testId no longer exists anywhere in the app; every spec that asserted it
+  was flipped to assert the corresponding `…-not-found` view rather than
+  deleted or loosened. **Empty state now matches error scale exactly
+  (owner-approved 2026-07-11, reaffirming/superseding R3-4b's "inline stays
+  smaller"):** `StateView`'s `scale="inline"` and `scale="page"` branches now
+  render identical title (`text-3xl font-semibold leading-tight`),
+  description (`text-sm text-muted-foreground`), and actions-cluster
+  (`mt-8 flex w-full flex-wrap justify-center gap-2`) classes, and
+  `.publy-state-icon-cluster` collapses to a single 48px size (the
+  `data-scale="inline"|"page"` attribute is still emitted for tests but no
+  longer drives different CSS). The now-dead `.publy-state-surface
+  .publy-type-section-title`/`.publy-type-helper` shrink overrides are
+  deleted from `app.css` since nothing routes inline text through those
+  classes anymore. `design-handoff-foundation.spec.ts`'s no-match geometry
+  test and `artboard-assertions.ts`'s `2f`/`empty.icon` entry (`40px →
+  48px`) were re-pinned to the new value, not loosened. Back-links
+  (`.publy-back-link`) also switched from `IconChevronLeft` to
+  `IconArrowLeft` across the 5 files that render one; `data-table.tsx`'s
+  pagination chevron is unrelated and untouched.
 - Dashboard secondary panel, round 2 (2026-07-10, owner decision R2-3):
   SPEC `:49` and artboard 2a describe the dashboard module as rail-only, with
   no secondary panel and therefore no sidebar toggle available there — the

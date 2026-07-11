@@ -567,7 +567,7 @@ describe('staff tenant profile details route', () => {
 		expect(screen.queryByRole('button', { name: 'Delete profile' })).toBeNull();
 	});
 
-	test('renders a local malformed id view without logging out', () => {
+	test('renders the not-found view without logging out for a malformed id', () => {
 		mocks.useStaffTenantProfileDetailsQuery.mockReturnValue(
 			buildQueryResult({
 				error: {
@@ -584,7 +584,7 @@ describe('staff tenant profile details route', () => {
 		renderPage();
 
 		expect(
-			screen.getByTestId('staff-tenant-profile-details-invalid'),
+			screen.getByTestId('staff-tenant-profile-details-not-found'),
 		).toBeTruthy();
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 	});

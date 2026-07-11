@@ -262,14 +262,17 @@ const JSON_BACKED_FOCUS: Record<
 			// background, no border-radius, no shadow, on either surface. See
 			// parity-contract.md "Empty/no-match/error state composition, round 2".
 			// Owner decision 2026-07-10 round 3 (R3-1): the bare glyph is
-			// valorized — grown and tone-colored, still with no backing. Inline
-			// (empty.icon) stays 40px; page (error.icon) grows from 64px (the old
-			// backing-cluster size) to 48px (the glyph itself, no cluster
-			// padding). See parity-contract.md round 3 annotation.
+			// valorized — grown and tone-colored, still with no backing. Page
+			// (error.icon) grows from 64px (the old backing-cluster size) to
+			// 48px (the glyph itself, no cluster padding). See
+			// parity-contract.md round 3 annotation.
+			// owner-approved 2026-07-11 (empty=error scale): inline (empty.icon)
+			// no longer stays smaller than page — it now matches error.icon at
+			// 48px so an empty table and an error page read as the same family.
 			kind: 'layout',
 			component: 'empty.icon',
 			property: 'width',
-			expected: '40px',
+			expected: '48px',
 		},
 		{
 			kind: 'layout',
