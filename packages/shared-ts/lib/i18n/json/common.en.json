@@ -366,6 +366,8 @@
 	"only-pending-invitations-can-be-resent": "Only pending invitations can be resent.",
 	"only-pending-invitations-can-be-revoked": "Only pending invitations can be revoked.",
 	"invitation-id": "Invitation ID",
+	"invitation-removal": "Invitation removal",
+	"invitation-removal-description": "Revoke this invitation. The invited user will no longer be able to accept it.",
 	"accepted": "Accepted",
 	"accepted-at": "Accepted at",
 	"expired": "Expired",

@@ -1,10 +1,8 @@
 import {
 	IconAlertCircle,
 	IconArrowLeft,
-	IconLock,
 	IconMail,
 	IconPencil,
-	IconTrash,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -19,10 +17,8 @@ import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
-import { DataTableRowActions } from '~/components/table/row-actions';
 import { Button, buttonVariants } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
-import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
 import { InitialsAvatar } from '~/components/ui/initials-avatar';
 import { Input } from '~/components/ui/input';
 import { StatusPill } from '~/components/ui/product-page';
@@ -453,20 +449,6 @@ function StaffUserDetailsPage() {
 							<IconPencil className="size-4" />
 							Edit
 						</Link>
-						<Button
-							type="button"
-							variant="destructive"
-							size="sm"
-							onClick={() => {
-								if (canSuspend || canReactivate) {
-									setSuspendDialogOpen(true);
-								}
-							}}
-							disabled={!canSuspend && !canReactivate}
-						>
-							<IconLock className="size-4" />
-							{getSuspendLabel(user.status)}
-						</Button>
 						<ConfirmDialog
 							isOpen={isSuspendDialogOpen}
 							title={getSuspendDescription(user.status).title}
@@ -486,20 +468,6 @@ function StaffUserDetailsPage() {
 								avatarSeed={user.displayName}
 							/>
 						</ConfirmDialog>
-						<DataTableRowActions
-							ariaLabel="User actions"
-							testId="staff-user-actions-menu"
-						>
-							<DropdownMenuItem
-								variant="destructive"
-								onClick={() => {
-									setDeleteDialogOpen(true);
-								}}
-							>
-								<IconTrash className="size-4" />
-								Delete
-							</DropdownMenuItem>
-						</DataTableRowActions>
 					</div>
 				</div>
 

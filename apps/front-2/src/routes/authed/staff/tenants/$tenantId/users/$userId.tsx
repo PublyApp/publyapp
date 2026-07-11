@@ -1,4 +1,8 @@
-import { IconAlertCircle, IconSearchOff } from '@tabler/icons-react';
+import {
+	IconAlertCircle,
+	IconArrowLeft,
+	IconSearchOff,
+} from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState } from 'react';
@@ -337,8 +341,9 @@ function StaffTenantUserDetailsPage() {
 				<Link
 					to="/staff/tenants/$tenantId/users"
 					params={{ tenantId }}
-					className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+					className="publy-back-link"
 				>
+					<IconArrowLeft aria-hidden="true" className="size-3" />
 					Back to users
 				</Link>
 				<Link

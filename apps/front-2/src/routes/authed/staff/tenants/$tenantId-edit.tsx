@@ -1,5 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { IconAlertCircle, IconSearchOff } from '@tabler/icons-react';
+import {
+	IconAlertCircle,
+	IconArrowLeft,
+	IconSearchOff,
+} from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -226,8 +230,9 @@ function StaffTenantEditRoute() {
 					<Link
 						to={'/staff/tenants/$tenantId' as never}
 						params={{ tenantId } as never}
-						className="text-sm font-medium text-foreground underline-offset-4 hover:underline"
+						className="publy-back-link"
 					>
+						<IconArrowLeft aria-hidden="true" className="size-3" />
 						{t('back-to-tenant')}
 					</Link>
 					<h2 className="text-2xl font-semibold text-foreground">

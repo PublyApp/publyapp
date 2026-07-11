@@ -664,7 +664,7 @@ const PROSE_BACKED_FOCUS: Record<
 			kind: 'token',
 			component: 'settings.card',
 			property: 'box-shadow',
-			expected: '0 0 0 1px rgba(9,9,11,0.06)',
+			expected: '0 0 0 1px rgb(228, 228, 231)',
 		},
 	],
 	'5g': [

@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { IconAlertCircle } from '@tabler/icons-react';
+import { IconAlertCircle, IconArrowLeft } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState } from 'react';
@@ -193,8 +193,9 @@ function StaffTenantUsersInviteRoute() {
 					<Link
 						to="/staff/tenants/$tenantId/users"
 						params={{ tenantId }}
-						className="text-sm text-muted-foreground underline underline-offset-2"
+						className="publy-back-link"
 					>
+						<IconArrowLeft aria-hidden="true" className="size-3" />
 						{t('back-to-users')}
 					</Link>
 				</div>

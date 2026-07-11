@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { IconArrowLeft } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { i18n as I18nInstance } from 'i18next';
@@ -223,10 +224,8 @@ function NewStaffProfileRoute() {
 			data-testid="staff-profile-create-page"
 		>
 			<div className="space-y-2">
-				<Link
-					to="/staff/profiles"
-					className="text-sm underline-offset-4 hover:underline"
-				>
+				<Link to="/staff/profiles" className="publy-back-link">
+					<IconArrowLeft aria-hidden="true" className="size-3" />
 					{t('back-to-staff-profiles')}
 				</Link>
 				<h1 className="text-xl font-semibold">

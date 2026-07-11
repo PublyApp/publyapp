@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { IconArrowLeft } from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { i18n as I18nInstance } from 'i18next';
 import {
@@ -283,6 +284,7 @@ function NewStaffInvitationsRoute() {
 		>
 			<div className="space-y-1">
 				<Link to={STAFF_INVITATIONS_INDEX_PATH} className="publy-back-link">
+					<IconArrowLeft aria-hidden="true" className="size-3" />
 					{t('staff-invitations')}
 				</Link>
 				<h1 className="publy-type-page-title">{t('invite-users')}</h1>

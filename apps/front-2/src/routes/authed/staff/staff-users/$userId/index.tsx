@@ -149,7 +149,10 @@ const AssignedProfilesCard = ({
 										>
 											{profile.name}
 										</Link>
-										<p className="text-xs text-muted-foreground">
+										<p
+											className="truncate text-xs text-muted-foreground"
+											title={profile.description || undefined}
+										>
 											{profile.description ?? 'No description'}
 										</p>
 									</div>

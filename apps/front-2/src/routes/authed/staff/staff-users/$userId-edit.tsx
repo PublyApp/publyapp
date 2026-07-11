@@ -393,7 +393,7 @@ function StaffUserEditPage() {
 				<Link
 					to="/staff/staff-users/$userId"
 					params={{ userId }}
-					className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+					className="publy-back-link"
 				>
 					<IconArrowLeft aria-hidden="true" className="size-3" />
 					{t('back-to-user')}

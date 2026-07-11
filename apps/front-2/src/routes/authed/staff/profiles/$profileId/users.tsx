@@ -1,4 +1,8 @@
-import { IconAlertCircle, IconSearchOff } from '@tabler/icons-react';
+import {
+	IconAlertCircle,
+	IconArrowLeft,
+	IconSearchOff,
+} from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useEffect, useState } from 'react';
@@ -278,10 +282,8 @@ function StaffProfileUsersPage() {
 		>
 			<div className="space-y-4">
 				<div className="space-y-2">
-					<Link
-						to="/staff/profiles"
-						className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-					>
+					<Link to="/staff/profiles" className="publy-back-link">
+						<IconArrowLeft aria-hidden="true" className="size-3" />
 						Back to staff profiles
 					</Link>
 					<div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">

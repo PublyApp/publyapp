@@ -11,6 +11,8 @@ import {
 import type { JSX } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
+import { useStaffUserOverviewContext } from './$userId/_overview-context';
+
 const mocks = vi.hoisted(() => ({
 	toAssignedStaffProfiles: vi.fn(),
 	toStaffUserDetails: vi.fn(),
@@ -42,7 +44,38 @@ vi.mock('@tanstack/react-router', () => ({
 	}: {
 		select: (state: { location: { pathname: string } }) => unknown;
 	}) => select({ location: { pathname: mocks.pathname } }),
-	Outlet: () => <div data-testid="staff-user-details-outlet" />,
+	// Stands in for the real body-level danger zone (owned by `$userId/index.tsx`)
+	// so this file can still exercise the mutation/dialog wiring that lives in
+	// the parent route, now that suspend/delete are only reachable via context.
+	Outlet: () => {
+		const {
+			onOpenSuspendDialog,
+			onOpenDeleteDialog,
+			canSuspend,
+			canReactivate,
+			isDeletePending,
+			suspendLabel,
+		} = useStaffUserOverviewContext();
+
+		return (
+			<div data-testid="staff-user-details-outlet">
+				<button
+					type="button"
+					onClick={onOpenSuspendDialog}
+					disabled={!canSuspend && !canReactivate}
+				>
+					{suspendLabel}
+				</button>
+				<button
+					type="button"
+					onClick={onOpenDeleteDialog}
+					disabled={isDeletePending}
+				>
+					Delete
+				</button>
+			</div>
+		);
+	},
 	Link: ({
 		children,
 		to,
@@ -394,20 +427,10 @@ describe('staff user details route shell', () => {
 		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
 	});
 
-	// (a) clicking ⋯ opens the actions menu, not the delete dialog
-	test('ItShouldOpenMenuWhenKebabClicked', () => {
-		renderPage();
-
-		const menuTrigger = screen.getByTestId('staff-user-actions-menu');
-		expect(menuTrigger.getAttribute('aria-label')).toBe('User actions');
-
-		fireEvent.click(menuTrigger);
-
-		expect(screen.getByRole('menuitem', { name: 'Delete' })).toBeTruthy();
-		expect(screen.queryByRole('dialog')).toBeNull();
-	});
-
 	// (b) Suspend opens the suspend dialog; confirming calls suspendUser.mutateAsync
+	// Suspend is triggered from the Danger-zone card in `$userId/index.tsx`
+	// (rendered here by the Outlet stub via the shared overview context) — the
+	// header no longer carries a Suspend control.
 	test('ItShouldCallSuspendMutationWhenSuspendConfirmed', () => {
 		const suspendMutateAsync = vi.fn().mockResolvedValue(undefined);
 		mocks.useSuspendStaffUserMutation.mockReturnValue(
@@ -471,6 +494,9 @@ describe('staff user details route shell', () => {
 	});
 
 	// (e) confirming delete calls deleteUser.mutateAsync and then navigates
+	// Delete is triggered from the Danger-zone card in `$userId/index.tsx`
+	// (rendered here by the Outlet stub via the shared overview context) — the
+	// header ⋯ menu no longer carries a Delete item.
 	test('ItShouldCallDeleteMutationAndNavigateWhenDeleteConfirmed', async () => {
 		const deleteMutateAsync = vi.fn().mockResolvedValue(undefined);
 		mocks.useDeleteStaffUserMutation.mockReturnValue(
@@ -479,9 +505,7 @@ describe('staff user details route shell', () => {
 
 		renderPage();
 
-		const menuTrigger = screen.getByTestId('staff-user-actions-menu');
-		fireEvent.click(menuTrigger);
-		fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
 
 		const confirmField = screen.getByLabelText('Confirm delete');
 		fireEvent.change(confirmField, { target: { value: 'delete' } });
@@ -528,9 +552,7 @@ describe('staff user details route shell', () => {
 
 		renderPage();
 
-		const menuTrigger = screen.getByTestId('staff-user-actions-menu');
-		fireEvent.click(menuTrigger);
-		fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
 
 		const confirmField = screen.getByLabelText('Confirm delete');
 		fireEvent.change(confirmField, { target: { value: 'delete' } });

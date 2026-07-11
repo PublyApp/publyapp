@@ -46,6 +46,9 @@ vi.mock('react-i18next', () => ({
 				'sent-date': 'Sent date',
 				'staff-invited-by': 'Invited by',
 				'invitation-id': 'Invitation ID',
+				'invitation-removal': 'Invitation removal',
+				'invitation-removal-description':
+					'Revoke this invitation. The invited user will no longer be able to accept it.',
 				'manage-invitation': 'Manage invitation',
 				'invite-link': 'Invite link',
 				'copy-link-success': 'Invite link copied.',

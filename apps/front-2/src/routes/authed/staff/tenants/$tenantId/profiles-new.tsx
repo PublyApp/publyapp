@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { IconAlertCircle } from '@tabler/icons-react';
+import { IconAlertCircle, IconArrowLeft } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState } from 'react';
@@ -158,8 +158,9 @@ function StaffTenantProfileCreatePage() {
 					<Link
 						to={'/staff/tenants/$tenantId/profiles' as never}
 						params={{ tenantId } as never}
-						className="inline-flex text-sm font-medium text-foreground underline-offset-4 hover:underline"
+						className="publy-back-link"
 					>
+						<IconArrowLeft aria-hidden="true" className="size-3" />
 						{t('back-to-profiles')}
 					</Link>
 					<h2 className="text-2xl font-semibold text-foreground">

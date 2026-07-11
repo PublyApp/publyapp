@@ -295,14 +295,6 @@ const InvitationDetailsCard = ({
 					>
 						{t('resend')}
 					</Button>
-					<Button
-						type="button"
-						variant="destructive"
-						onClick={() => setPendingRevoke(true)}
-						disabled={!canManage || activeMutationPending}
-					>
-						{t('staff-revoke')}
-					</Button>
 				</div>
 			</div>
 
@@ -406,6 +398,28 @@ const InvitationDetailsCard = ({
 				<p className="mt-1 break-all font-mono text-sm text-muted-foreground">
 					{invitation.id ? String(invitation.id) : invitationId}
 				</p>
+			</Card>
+
+			<Card className="space-y-4 p-4">
+				<div className="flex flex-wrap items-center justify-between gap-3">
+					<div className="space-y-1">
+						<p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+							{t('invitation-removal')}
+						</p>
+						<p className="text-sm text-foreground">
+							{t('invitation-removal-description')}
+						</p>
+					</div>
+					<Button
+						type="button"
+						variant="destructive"
+						size="sm"
+						onClick={() => setPendingRevoke(true)}
+						disabled={!canManage || activeMutationPending}
+					>
+						{t('staff-revoke')}
+					</Button>
+				</div>
 			</Card>
 		</div>
 	);
