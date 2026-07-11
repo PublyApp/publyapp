@@ -1,0 +1,164 @@
+/** @vitest-environment jsdom */
+import { cleanup, render } from '@testing-library/react';
+import { createElement } from 'react';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+
+type Handler = (data: unknown) => void;
+
+const mocks = vi.hoisted(() => ({
+	navigate: vi.fn(),
+	invalidate: vi.fn(),
+	queryClientClear: vi.fn(),
+	invalidateQueries: vi.fn(),
+	applyRemoteColorScheme: vi.fn(),
+	pathname: '/staff/staff-users',
+	authHandler: null as Handler | null,
+	themeHandler: null as Handler | null,
+}));
+
+vi.mock('@tanstack/react-query', () => ({
+	useQueryClient: () => ({
+		clear: mocks.queryClientClear,
+		invalidateQueries: mocks.invalidateQueries,
+	}),
+}));
+
+vi.mock('@tanstack/react-router', () => ({
+	useLocation: ({
+		select,
+	}: {
+		select: (location: { pathname: string }) => unknown;
+	}) => select({ pathname: mocks.pathname }),
+	useNavigate: () => mocks.navigate,
+	useRouter: () => ({ invalidate: mocks.invalidate }),
+}));
+
+vi.mock('~/lib/store/ui-store', () => ({
+	useUiStore: (selector: (state: Record<string, unknown>) => unknown) =>
+		selector({ applyRemoteColorScheme: mocks.applyRemoteColorScheme }),
+	withThemeTransitionSuppressed: (apply: () => void) => apply(),
+}));
+
+vi.mock('./broadcast-sync', () => ({
+	AUTH_SYNC_CHANNEL: 'publyapp:auth-sync',
+	THEME_SYNC_CHANNEL: 'publyapp:theme-sync',
+	useBroadcastSync: (channel: string, handler: Handler) => {
+		if (channel === 'publyapp:auth-sync') {
+			mocks.authHandler = handler;
+		}
+		if (channel === 'publyapp:theme-sync') {
+			mocks.themeHandler = handler;
+		}
+	},
+}));
+
+import { TabSyncListener } from './tab-sync-listener';
+
+const mountListener = () => {
+	render(createElement(TabSyncListener));
+};
+
+describe('TabSyncListener', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mocks.pathname = '/staff/staff-users';
+		mocks.authHandler = null;
+		mocks.themeHandler = null;
+	});
+
+	afterEach(() => {
+		cleanup();
+	});
+
+	test('logout on an authed surface clears the query cache and navigates to /login', () => {
+		mocks.pathname = '/tenant/settings';
+		mountListener();
+
+		mocks.authHandler?.({ type: 'logout' });
+
+		expect(mocks.queryClientClear).toHaveBeenCalledTimes(1);
+		expect(mocks.navigate).toHaveBeenCalledWith({
+			to: '/login',
+			replace: true,
+		});
+	});
+
+	test('logout on the login page is ignored', () => {
+		mocks.pathname = '/login';
+		mountListener();
+
+		mocks.authHandler?.({ type: 'logout' });
+
+		expect(mocks.queryClientClear).not.toHaveBeenCalled();
+		expect(mocks.navigate).not.toHaveBeenCalled();
+	});
+
+	test('logout on a marketing surface is ignored', () => {
+		mocks.pathname = '/pricing';
+		mountListener();
+
+		mocks.authHandler?.({ type: 'logout' });
+
+		expect(mocks.queryClientClear).not.toHaveBeenCalled();
+		expect(mocks.navigate).not.toHaveBeenCalled();
+	});
+
+	test('login while parked on the login page re-runs the auth-page guard', () => {
+		mocks.pathname = '/login';
+		mountListener();
+
+		mocks.authHandler?.({ type: 'login' });
+
+		expect(mocks.invalidate).toHaveBeenCalledTimes(1);
+		expect(mocks.invalidateQueries).not.toHaveBeenCalled();
+	});
+
+	test('login while already on the authed surface only invalidates queries', () => {
+		mocks.pathname = '/staff/staff-users';
+		mountListener();
+
+		mocks.authHandler?.({ type: 'login' });
+
+		expect(mocks.invalidateQueries).toHaveBeenCalledTimes(1);
+		expect(mocks.invalidate).not.toHaveBeenCalled();
+		expect(mocks.navigate).not.toHaveBeenCalled();
+	});
+
+	test('login on a marketing surface is ignored', () => {
+		mocks.pathname = '/pricing';
+		mountListener();
+
+		mocks.authHandler?.({ type: 'login' });
+
+		expect(mocks.invalidate).not.toHaveBeenCalled();
+		expect(mocks.invalidateQueries).not.toHaveBeenCalled();
+	});
+
+	test('ignores an auth message with an unknown type', () => {
+		mocks.pathname = '/tenant/settings';
+		mountListener();
+
+		mocks.authHandler?.({ type: 'delete-everything' });
+
+		expect(mocks.queryClientClear).not.toHaveBeenCalled();
+		expect(mocks.navigate).not.toHaveBeenCalled();
+		expect(mocks.invalidate).not.toHaveBeenCalled();
+		expect(mocks.invalidateQueries).not.toHaveBeenCalled();
+	});
+
+	test('applies a valid remote theme change', () => {
+		mountListener();
+
+		mocks.themeHandler?.({ colorScheme: 'dark' });
+
+		expect(mocks.applyRemoteColorScheme).toHaveBeenCalledWith('dark');
+	});
+
+	test('ignores a theme message with an invalid colorScheme payload', () => {
+		mountListener();
+
+		mocks.themeHandler?.({ colorScheme: 'not-a-real-scheme' });
+
+		expect(mocks.applyRemoteColorScheme).not.toHaveBeenCalled();
+	});
+});

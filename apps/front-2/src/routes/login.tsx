@@ -27,6 +27,10 @@ import { Button, buttonVariants } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import { redirectAuthenticatedUserAwayFromAuthPage } from '~/lib/auth-route-guard';
 import { completeLoginRedirect, login } from '~/lib/server/session-actions';
+import {
+	AUTH_SYNC_CHANNEL,
+	postBroadcast,
+} from '~/lib/tab-sync/broadcast-sync';
 
 import {
 	getFailureMessage,
@@ -157,6 +161,7 @@ const LoginRoute = () => {
 				: redirect.targetPath;
 			const resolvedTarget = resolveRouteRedirect(finalTarget);
 
+			postBroadcast(AUTH_SYNC_CHANNEL, { type: 'login' });
 			await navigate({
 				to: resolvedTarget,
 				replace: true,

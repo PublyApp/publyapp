@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
 	clear: vi.fn(),
 	queryClientClear: vi.fn(),
+	postBroadcast: vi.fn(),
 }));
 
 vi.mock('@tanstack/react-router', () => ({
@@ -22,6 +23,11 @@ vi.mock('@tanstack/react-start', () => ({
 
 vi.mock('~/lib/server/session-actions', () => ({
 	clearSession: mocks.clear,
+}));
+
+vi.mock('~/lib/tab-sync/broadcast-sync', () => ({
+	AUTH_SYNC_CHANNEL: 'publyapp:auth-sync',
+	postBroadcast: mocks.postBroadcast,
 }));
 
 import { useLogout } from './use-logout';
@@ -52,6 +58,9 @@ describe('useLogout', () => {
 			search: undefined,
 			replace: true,
 		});
+		expect(mocks.postBroadcast).toHaveBeenCalledWith('publyapp:auth-sync', {
+			type: 'logout',
+		});
 	});
 
 	test('passes redirect_cause=invalid_session through when requested (the LogoutRedirect path)', async () => {
@@ -68,6 +77,35 @@ describe('useLogout', () => {
 			search: { rc: 'invalid_session' },
 			replace: true,
 		});
+		expect(mocks.postBroadcast).toHaveBeenCalledWith('publyapp:auth-sync', {
+			type: 'logout',
+		});
+	});
+
+	test('broadcasts logout only after the server-side session clear settles, before navigating', async () => {
+		let resolveClear: () => void = () => {};
+		mocks.clear.mockReturnValue(
+			new Promise<void>((resolve) => {
+				resolveClear = resolve;
+			}),
+		);
+
+		const { result } = renderHook(() => useLogout());
+
+		act(() => {
+			result.current.logout();
+		});
+
+		expect(mocks.postBroadcast).not.toHaveBeenCalled();
+		expect(mocks.navigate).not.toHaveBeenCalled();
+
+		resolveClear();
+		await waitFor(() => expect(mocks.navigate).toHaveBeenCalledTimes(1));
+
+		expect(mocks.postBroadcast).toHaveBeenCalledTimes(1);
+		const broadcastOrder = mocks.postBroadcast.mock.invocationCallOrder[0];
+		const navigateOrder = mocks.navigate.mock.invocationCallOrder[0];
+		expect(broadcastOrder).toBeLessThan(navigateOrder);
 	});
 
 	test('ignores a second logout call while the first is still in flight', async () => {

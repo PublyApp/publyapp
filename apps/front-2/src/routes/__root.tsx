@@ -21,6 +21,7 @@ import {
 	type I18nResources,
 	type SupportedLanguage,
 } from '~/lib/i18n.shared';
+import { TabSyncListener } from '~/lib/tab-sync/tab-sync-listener';
 import { loadI18nForRequest } from '~/server/i18n-locale';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
@@ -243,6 +244,7 @@ function RootComponent() {
 			</head>
 			<body>
 				<I18nextProvider i18n={i18n}>
+					<TabSyncListener />
 					<RoutedShell />
 				</I18nextProvider>
 				<Scripts />

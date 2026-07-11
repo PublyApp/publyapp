@@ -3,6 +3,10 @@ import { useNavigate } from '@tanstack/react-router';
 import { useServerFn } from '@tanstack/react-start';
 import { useCallback, useRef, useState } from 'react';
 import { clearSession } from '~/lib/server/session-actions';
+import {
+	AUTH_SYNC_CHANNEL,
+	postBroadcast,
+} from '~/lib/tab-sync/broadcast-sync';
 
 import { queryParamKey, queryParamValue } from '@org/shared-ts/lib/constants';
 
@@ -44,6 +48,10 @@ export const useLogout = () => {
 
 			queryClient.clear();
 			void clear().finally(() => {
+				// Broadcast only after the clear settles — the shared session
+				// cookie is guaranteed cleared by then, so other tabs never
+				// race the sender to /login while still authenticated.
+				postBroadcast(AUTH_SYNC_CHANNEL, { type: 'logout' });
 				void navigate({
 					to: '/login',
 					search: buildLoginSearch(options?.redirectCause),

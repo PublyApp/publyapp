@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
 	searchStr: '',
 	login: vi.fn(),
 	completeLoginRedirect: vi.fn(),
+	postBroadcast: vi.fn(),
 }));
 
 vi.mock('@tanstack/react-router', () => ({
@@ -35,6 +36,11 @@ vi.mock('@tanstack/react-start', () => ({
 vi.mock('~/lib/server/session-actions', () => ({
 	login: mocks.login,
 	completeLoginRedirect: mocks.completeLoginRedirect,
+}));
+
+vi.mock('~/lib/tab-sync/broadcast-sync', () => ({
+	AUTH_SYNC_CHANNEL: 'publyapp:auth-sync',
+	postBroadcast: mocks.postBroadcast,
 }));
 
 const EN_LABELS: Record<string, string> = {
@@ -161,6 +167,26 @@ describe('login route', () => {
 
 		resolveLogin({ sessionExpiresAt: '2026-01-01T00:00:00.000Z' });
 		await waitFor(() => expect(mocks.navigate).toHaveBeenCalled());
+		expect(mocks.postBroadcast).toHaveBeenCalledWith('publyapp:auth-sync', {
+			type: 'login',
+		});
+	});
+
+	test('does not broadcast a login on failed credentials', async () => {
+		mocks.login.mockRejectedValue({ status: 401 });
+
+		renderLoginRoute();
+		fillCredentials('user@example.com', 'wrong-password');
+		fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+
+		await waitFor(() =>
+			expect(
+				screen.getByText(
+					'Invalid credentials. Please check your email and password.',
+				),
+			).toBeTruthy(),
+		);
+		expect(mocks.postBroadcast).not.toHaveBeenCalled();
 	});
 
 	test('shows the invalid-credentials alert and marks the password field invalid on 401', async () => {

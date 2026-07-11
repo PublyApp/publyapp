@@ -1,7 +1,10 @@
 import { IconMoon, IconSun } from '@tabler/icons-react';
 import { Button } from '~/components/ui/button';
 
-import { useUiStore } from '../../../lib/store/ui-store';
+import {
+	useUiStore,
+	withThemeTransitionSuppressed,
+} from '../../../lib/store/ui-store';
 
 export const THEME_TOGGLE_TEST_ID = 'theme-toggle';
 
@@ -16,16 +19,7 @@ export const ThemeToggle = ({ className }: { className?: string }) => {
 	const ariaPressed = isDarkMode;
 
 	const handleClick = () => {
-		const root = document.documentElement;
-		root.setAttribute('data-theme-changing', 'true');
-		toggleColorScheme();
-		// Wait a full paint (double rAF) before re-enabling transitions so the
-		// class swap itself never animates, only interactions afterward do.
-		requestAnimationFrame(() => {
-			requestAnimationFrame(() => {
-				root.removeAttribute('data-theme-changing');
-			});
-		});
+		withThemeTransitionSuppressed(toggleColorScheme);
 	};
 
 	return (
