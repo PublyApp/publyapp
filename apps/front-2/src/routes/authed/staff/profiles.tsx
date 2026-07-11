@@ -85,7 +85,7 @@ const columns: ColumnDef<StaffProfileRow>[] = [
 						{IconComponent ? <IconComponent className="size-[17px]" /> : null}
 					</span>
 					<span
-						className="min-w-0 truncate text-[13px] font-medium"
+						className="publy-record-link min-w-0 truncate text-[13px]"
 						title={name || undefined}
 					>
 						{name || '—'}

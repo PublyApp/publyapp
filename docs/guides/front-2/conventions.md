@@ -199,6 +199,13 @@ new choice, decide in this spirit and add the rule here.
 - The "Back to X" links inside error/not-found views are a **different** pattern: recovery CTAs
   styled as buttons (`buttonVariants({ variant: 'outline' })`). Leave those as buttons.
 
+### Tables
+- A list table's **first column is the entity link**: the whole cell is a TanStack `<Link>`
+  (`no-underline`) wrapping the icon/avatar + name, and the **name span carries `.publy-record-link`**
+  so it underlines on hover. Every list table's first column must behave identically — never render
+  a bare, non-hovering name.
+- The ⋯ row-actions button is horizontally centered in its cell (`meta.align: 'center'`).
+
 ### Content & data honesty
 - **Never render fabricated or placeholder admin data.** If the contract does not provide a field,
   omit it — no invented values (2FA/session/"Type: Custom"), no `TODO(contract): …` shown as UI
