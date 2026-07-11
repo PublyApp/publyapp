@@ -1,5 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { IconAlertCircle, IconLock } from '@tabler/icons-react';
+import {
+	IconAlertCircle,
+	IconClockExclamation,
+	IconLoader2,
+	IconLock,
+} from '@tabler/icons-react';
 import {
 	Link,
 	useLocation,
@@ -8,10 +13,13 @@ import {
 	createFileRoute,
 } from '@tanstack/react-router';
 import { useServerFn } from '@tanstack/react-start';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
+import { AuthAlert } from '~/components/auth/auth-alert';
+import { AuthFormHeader } from '~/components/auth/auth-form-header';
+import { PasswordField } from '~/components/auth/password-field';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { View403 } from '~/components/error-views/View403';
 import { View404 } from '~/components/error-views/View404';
@@ -30,10 +38,13 @@ type LoginFormValues = {
 	password: string;
 };
 
-const LoginFormSchema = z.object({
-	email: z.string().max(120).email('Enter a valid email address.'),
-	password: z.string().min(1, 'Password is required.'),
-});
+type Translate = (key: string) => string;
+
+const getLoginFormSchema = (t: Translate) =>
+	z.object({
+		email: z.string().max(120).email(t('enter-valid-email-address')),
+		password: z.string().min(1, t('password-is-required')),
+	});
 
 const resolveRouteRedirect = (path: string | null): string => {
 	if (!path) {
@@ -92,8 +103,11 @@ const getFailureStatus = (error: unknown): number | undefined => {
 const LoginRoute = () => {
 	const navigate = useNavigate();
 	const location = useLocation();
+	const { t } = useTranslation('common');
 	const [showForbidden, setShowForbidden] = useState(false);
 	const [errorMessage, setErrorMessage] = useState('');
+	const [invalidCredentialsMessage, setInvalidCredentialsMessage] =
+		useState('');
 	const [isMounted, setIsMounted] = useState(false);
 
 	useEffect(() => {
@@ -105,13 +119,15 @@ const LoginRoute = () => {
 	const search = location.searchStr ?? '';
 	const isSessionExpired = isSessionExpiredFromSearch(search);
 
+	const loginFormSchema = useMemo(() => getLoginFormSchema(t), [t]);
+
 	const {
 		register,
 		handleSubmit,
 		setError,
 		formState: { isSubmitting, errors },
 	} = useForm<LoginFormValues>({
-		resolver: zodResolver(LoginFormSchema),
+		resolver: zodResolver(loginFormSchema),
 		defaultValues: {
 			email: '',
 			password: '',
@@ -121,6 +137,7 @@ const LoginRoute = () => {
 	const onSubmit = async (values: LoginFormValues) => {
 		setShowForbidden(false);
 		setErrorMessage('');
+		setInvalidCredentialsMessage('');
 
 		try {
 			const { sessionExpiresAt } = await loginAction({
@@ -147,12 +164,11 @@ const LoginRoute = () => {
 			const failure = toApiFailure(error);
 
 			if (failure.kind === 'problem' && failure.status === 401) {
-				setError('password', {
-					message: getFailureMessage(failure, {
-						fallback:
-							'Invalid credentials. Please check your email and password.',
+				setInvalidCredentialsMessage(
+					getFailureMessage(failure, {
+						fallback: t('invalid-credentials-description'),
 					}),
-				});
+				);
 				return;
 			}
 
@@ -166,95 +182,144 @@ const LoginRoute = () => {
 					message:
 						failure.fieldErrors.email?.[0] ??
 						getFailureMessage(failure, {
-							fallback: 'Enter a valid email and password.',
+							fallback: t('enter-valid-email-and-password'),
 						}),
 				});
 				return;
 			}
 
 			const message = getFailureMessage(failure, {
-				fallback: 'Sign in failed. Please check your credentials.',
+				fallback: t('sign-in-failed-check-credentials'),
 			});
 			setErrorMessage(message);
 		}
 	};
 
+	if (showForbidden) {
+		return <View403 />;
+	}
+
+	const isDisabled = !isMounted || isSubmitting;
+	const passwordFieldErrorMessage = errors.password?.message;
+	const isPasswordInvalid = Boolean(
+		passwordFieldErrorMessage || invalidCredentialsMessage,
+	);
+
 	return (
-		<div className="mx-auto w-full max-w-md space-y-4 px-4">
+		<div className="space-y-6">
 			{isSessionExpired ? (
-				<p className="rounded border border-warning bg-warning/10 px-3 py-2 text-sm text-warning">
-					Your session expired. Please sign in again.
-				</p>
+				<AuthAlert
+					tone="amber"
+					icon={<IconClockExclamation aria-hidden="true" />}
+					testId="auth-session-expired-alert"
+				>
+					{t('session-expired-notice')}
+				</AuthAlert>
 			) : null}
 
-			{showForbidden ? (
-				<View403 />
-			) : (
-				<form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-					<fieldset
-						disabled={!isMounted}
-						className="space-y-3 border-0 p-0 m-0 min-w-0"
-					>
-						<div className="space-y-1">
-							<label
-								className="text-sm font-medium text-foreground"
-								htmlFor="login-email"
+			<AuthFormHeader
+				title={isSessionExpired ? t('welcome-back') : t('sign-in')}
+				secondary={
+					isSessionExpired ? (
+						t('sign-in-to-pick-up-where-you-left-off')
+					) : (
+						<>
+							{t('no-account-yet')}{' '}
+							<a
+								href="/signup"
+								className="font-medium text-foreground underline underline-offset-2 transition-colors hover:text-(--publy-primary-foreground)"
 							>
-								Email
-							</label>
-							<Input
-								{...register('email')}
-								id="login-email"
-								required
-								placeholder="name@company.com"
-								type="email"
-							/>
-							{errors.email?.message ? (
-								<p className="text-sm text-destructive">
-									{errors.email?.message}
-								</p>
-							) : null}
-						</div>
-						<div className="space-y-1">
-							<label
-								className="text-sm font-medium text-foreground"
-								htmlFor="login-password"
-							>
-								Password
-							</label>
-							<Input
-								{...register('password')}
-								id="login-password"
-								required
-								type="password"
-								placeholder="••••••••"
-							/>
-							{errors.password?.message ? (
-								<p className="text-sm text-destructive">
-									{errors.password?.message}
-								</p>
-							) : null}
-						</div>
-						{errorMessage ? (
-							<div className="text-sm text-destructive">{errorMessage}</div>
-						) : null}
-						<Button
-							type="submit"
-							variant="default"
-							disabled={!isMounted || isSubmitting}
-							className="w-full"
+								{t('create-one')}
+							</a>
+						</>
+					)
+				}
+			/>
+
+			<form
+				onSubmit={handleSubmit(onSubmit)}
+				className="space-y-4"
+				data-testid="auth-login-form"
+			>
+				<fieldset disabled={isDisabled} className="m-0 space-y-4 border-0 p-0">
+					{invalidCredentialsMessage ? (
+						<AuthAlert
+							tone="danger"
+							icon={<IconAlertCircle aria-hidden="true" />}
+							testId="auth-invalid-credentials-alert"
 						>
-							{isSubmitting ? (
-								<span
-									aria-hidden="true"
-									className="inline-block size-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"
-								/>
-							) : null}
-							Sign in
-						</Button>
-					</fieldset>
-				</form>
-			)}
+							{invalidCredentialsMessage}
+						</AuthAlert>
+					) : null}
+
+					<div className="space-y-1.5">
+						<label
+							htmlFor="login-email"
+							className="text-[13px] font-medium text-foreground"
+						>
+							{t('email-address')}
+						</label>
+						<Input
+							{...register('email')}
+							id="login-email"
+							required
+							type="email"
+							placeholder={t('email-placeholder')}
+							aria-invalid={Boolean(errors.email?.message) || undefined}
+							autoComplete="email"
+							className="h-11 text-sm lg:h-10 lg:text-[13px]"
+						/>
+						{errors.email?.message ? (
+							<p className="text-xs text-destructive">{errors.email.message}</p>
+						) : null}
+					</div>
+
+					<PasswordField
+						id="login-password"
+						label={t('password')}
+						register={register('password')}
+						placeholder={t('enter-your-password')}
+						required
+						invalid={isPasswordInvalid}
+						autoComplete="current-password"
+						labelAdornment={
+							<a
+								href="/reset-password"
+								className="text-xs text-muted-foreground underline underline-offset-2 transition-colors hover:text-foreground"
+							>
+								{t('forgot-password')}?
+							</a>
+						}
+					/>
+					{passwordFieldErrorMessage ? (
+						<p className="text-xs text-destructive">
+							{passwordFieldErrorMessage}
+						</p>
+					) : null}
+
+					{errorMessage ? (
+						<AuthAlert
+							tone="danger"
+							icon={<IconAlertCircle aria-hidden="true" />}
+							testId="auth-login-error-alert"
+						>
+							{errorMessage}
+						</AuthAlert>
+					) : null}
+
+					<Button
+						type="submit"
+						variant="default"
+						disabled={isDisabled}
+						className="h-12 w-full text-sm lg:h-11"
+					>
+						{isSubmitting ? (
+							<IconLoader2 aria-hidden="true" className="size-4 animate-spin" />
+						) : null}
+						{isSubmitting ? t('signing-in') : t('sign-in')}
+					</Button>
+				</fieldset>
+			</form>
 		</div>
 	);
 };

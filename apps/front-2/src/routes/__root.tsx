@@ -95,7 +95,7 @@ const RoutedShell = () => {
 
 	if (surface === 'auth') {
 		return (
-			<AuthLayout pathname={pathname}>
+			<AuthLayout>
 				<Outlet />
 			</AuthLayout>
 		);

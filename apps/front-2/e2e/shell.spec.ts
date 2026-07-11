@@ -487,26 +487,9 @@ test('mobile shell menu is keyboard and route-aware', async ({ page }) => {
 	await page.getByTestId('app-shell-mobile-menu-toggle').click();
 	await page.getByRole('link', { name: 'Login' }).click();
 
+	// The auth surface is a standalone split-brand layout, not the app shell
+	// (no rail/topbar/mobile menu) — see docs/guides/front-2/conventions.md.
 	await expect(page).toHaveURL('/login');
-	await expect(page.getByTestId('app-shell-shell')).toHaveAttribute(
-		'data-mode',
-		'auth',
-	);
-	await expect(
-		page.getByTestId('app-shell-mobile-menu-toggle'),
-	).toHaveAttribute('aria-expanded', 'false');
-	await expect(page.getByTestId('app-shell-mobile-links')).toBeHidden();
-
-	await page.getByRole('button', { name: 'Open navigation' }).click();
-	await expect(
-		page.getByRole('button', { name: 'Close navigation' }),
-	).toBeVisible();
-	const mobileLinks = page.getByTestId('app-shell-mobile-links');
-	await expect(mobileLinks).toBeVisible();
-	await expect(
-		mobileLinks.getByRole('link', { name: 'Sign in' }),
-	).toBeVisible();
-	await expect(
-		mobileLinks.getByRole('link', { name: 'Sign in' }),
-	).toHaveAttribute('aria-current', 'page');
+	await expect(page.getByTestId('auth-layout')).toBeVisible();
+	await expect(page.getByTestId('app-shell-shell')).toHaveCount(0);
 });

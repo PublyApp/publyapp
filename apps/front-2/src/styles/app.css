@@ -142,6 +142,28 @@
 	--publy-danger-zone-ring: rgba(254, 205, 211, 0.9);
 	--publy-danger-zone-border: #ffe4e6;
 	--publy-danger-zone-heading: #be123c;
+	/* Auth split-brand surface (A1 login + shared by A2–A6) */
+	--publy-auth-panel-width: 552px;
+	--publy-auth-panel-bg: #18181b;
+	--publy-auth-panel-glow: radial-gradient(
+		130% 90% at 0% 0%,
+		rgba(253, 199, 0, 0.13),
+		transparent 55%
+	);
+	--publy-auth-panel-heading: #fafafa;
+	--publy-auth-panel-body: #a1a1aa;
+	--publy-auth-shot-bg: #1f1f23;
+	--publy-auth-shot-border: rgba(255, 255, 255, 0.08);
+	--publy-auth-shot-stripe: rgba(255, 255, 255, 0.04);
+	--publy-alert-danger-bg: rgba(220, 38, 38, 0.06);
+	--publy-alert-danger-border: rgba(220, 38, 38, 0.2);
+	--publy-alert-danger-text: #b91c1c;
+	--publy-alert-warning-bg: #fffbeb;
+	--publy-alert-warning-border: #fde68a;
+	--publy-alert-warning-text: #b45309;
+	--publy-alert-info-bg: #f0f9ff;
+	--publy-alert-info-border: #bae6fd;
+	--publy-alert-info-text: #0369a1;
 	--publy-shell-rail-width: 49px;
 	--publy-shell-panel-width: 272px;
 	--publy-shell-topbar-height: 64px;
@@ -1585,6 +1607,24 @@ html {
 	border: 1.33px solid rgba(255, 255, 255, 0.12);
 	border-radius: var(--publy-radius-button);
 	box-shadow: var(--publy-shadow-chrome);
+}
+
+/* Auth split-brand dark panel + its product-shot placeholder slot. */
+.publy-auth-brand-panel {
+	background-color: var(--publy-auth-panel-bg);
+	background-image: var(--publy-auth-panel-glow);
+}
+
+.publy-auth-shot {
+	background-color: var(--publy-auth-shot-bg);
+	border: 1px solid var(--publy-auth-shot-border);
+	background-image: repeating-linear-gradient(
+		135deg,
+		var(--publy-auth-shot-stripe) 0,
+		var(--publy-auth-shot-stripe) 1px,
+		transparent 1px,
+		transparent 9px
+	);
 }
 
 .publy-page-size-select [data-slot='select-trigger'] {
