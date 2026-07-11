@@ -843,5 +843,16 @@
 	"unable-to-reactivate-tenant": "Unable to reactivate this tenant.",
 	"unable-to-delete-tenant": "Unable to delete this tenant.",
 	"no-tenant-members": "No members yet.",
-	"tenant-users-preview-error": "Unable to load members."
+	"tenant-users-preview-error": "Unable to load members.",
+	"basics": "Basics",
+	"new-profile": "New profile",
+	"invite-people": "Invite people",
+	"search-profiles": "Search profiles…",
+	"search-tenant-members": "Search members by name or email…",
+	"tenant-profiles-tab-description": "Permission sets available to this tenant's members.",
+	"tenant-invitations-tab-description": "People invited to this workspace who haven't joined yet.",
+	"tenant-users-tab-description": "Everyone with access to this workspace.",
+	"status-globally-suspended": "Globally suspended",
+	"view-details": "View details",
+	"no-description-provided": "No description provided."
 }

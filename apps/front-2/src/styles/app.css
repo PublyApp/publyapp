@@ -1997,6 +1997,48 @@ html {
 	--publy-icon-tile-fg: #1d4ed8;
 }
 
+/* ---- TEN-2 — tenant detail Profiles/Invitations/Users tabs ---- */
+
+/* 40px r10 tile for the tenant-scoped profiles card grid (distinct sizing
+   from the 32px r9 staff-profiles table tile above; shares the same
+   data-tone palette). */
+.publy-profile-icon-tile--lg {
+	width: 40px;
+	height: 40px;
+	border-radius: 10px;
+}
+
+.publy-profile-icon-tile--lg svg {
+	width: 19px;
+	height: 19px;
+}
+
+.publy-profile-card-grid {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 16px;
+}
+
+@media (max-width: 1023px) {
+	.publy-profile-card-grid {
+		grid-template-columns: repeat(2, 1fr);
+	}
+}
+
+@media (max-width: 767px) {
+	.publy-profile-card-grid {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* Flat cursor footer for the profile card grid — it sits directly on the
+   page background instead of being pinned inside a `.publy-table-card`. */
+.publy-data-table-footer--flat {
+	background: transparent;
+	border-top: none;
+	padding: 6px 0;
+}
+
 .publy-profile-detail-tile[data-tone='0'] {
 	--publy-icon-tile-bg: #f0f9ff;
 	--publy-icon-tile-fg: #0369a1;

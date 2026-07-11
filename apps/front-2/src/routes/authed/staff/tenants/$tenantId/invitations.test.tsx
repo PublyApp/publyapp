@@ -63,16 +63,32 @@ vi.mock('@tanstack/react-router', () => ({
 	},
 }));
 
+const TRANSLATIONS: Record<string, string> = {
+	basics: 'Basics',
+	profiles: 'Profiles',
+	invitations: 'Invitations',
+	users: 'Users',
+	'pending-invitations': 'Pending invitations',
+	'tenant-invitations-tab-description':
+		"People invited to this workspace who haven't joined yet.",
+	'invite-people': 'Invite people',
+	invitee: 'Invitee',
+	'invited-by': 'Invited by',
+	expires: 'Expires',
+	status: 'Status',
+	actions: 'Actions',
+	revoke: 'Revoke',
+	'revoke-invitation': 'Revoke invitation',
+	'staff-revoke': 'Revoke',
+	'revoke-invitation-success': 'Invitation revoked.',
+	'all-statuses': 'All statuses',
+	clear: 'Clear',
+	'search-invitations': 'Search invitations',
+};
+
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string) => {
-			const labels: Record<string, string> = {
-				'staff-revoke': 'Revoke',
-				'revoke-invitation-success': 'Invitation revoked.',
-			};
-
-			return labels[key] ?? key;
-		},
+		t: (key: string) => TRANSLATIONS[key] ?? key,
 		i18n: {
 			language: 'en',
 		},
@@ -106,7 +122,7 @@ vi.mock('~/routes/authed/layout', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 
-import { createColumns, Route } from './invitations';
+import { createColumns, isInvitationExpiringSoon, Route } from './invitations';
 
 const buildQueryResult = (overrides: Record<string, unknown> = {}) => ({
 	data: undefined,
@@ -202,6 +218,7 @@ describe('staff tenant invitations route', () => {
 				selector: 'span[aria-current="page"]',
 			}),
 		).toBeTruthy();
+		expect(screen.getByText('Pending invitations')).toBeTruthy();
 		expect(
 			screen.getByRole('link', { name: 'Basics' }).getAttribute('href'),
 		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111');
@@ -211,6 +228,9 @@ describe('staff tenant invitations route', () => {
 		expect(
 			screen.getByRole('link', { name: 'Users' }).getAttribute('href'),
 		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/users');
+		expect(
+			screen.getByRole('link', { name: 'Invite people' }).getAttribute('href'),
+		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/users/invite');
 		expect(screen.getByText('alex@example.com')).toBeTruthy();
 		expect(screen.getByText('Approvers')).toBeTruthy();
 		expect(screen.getByText('Taylor Smith')).toBeTruthy();
@@ -229,7 +249,14 @@ describe('staff tenant invitations route', () => {
 		);
 	});
 
-	test('shows a revoke action only for pending invitations', () => {
+	test('does not render created/accepted columns not in the approved column list', () => {
+		renderPage();
+
+		expect(screen.queryByText('Created')).toBeNull();
+		expect(screen.queryByText('Accepted')).toBeNull();
+	});
+
+	test('shows a revoke action only for pending invitations', async () => {
 		mocks.toStaffTenantInvitationRows.mockReturnValue([
 			{
 				id: 'invite-pending',
@@ -257,7 +284,9 @@ describe('staff tenant invitations route', () => {
 
 		renderPage();
 
-		expect(screen.getAllByRole('button', { name: 'Revoke' })).toHaveLength(1);
+		expect(
+			screen.getAllByRole('button', { name: /^Actions for/ }),
+		).toHaveLength(1);
 		expect(screen.getByText('accepted@example.com')).toBeTruthy();
 	});
 
@@ -269,7 +298,8 @@ describe('staff tenant invitations route', () => {
 		});
 
 		renderPage();
-		fireEvent.click(screen.getByRole('button', { name: 'Revoke' }));
+		fireEvent.click(screen.getByRole('button', { name: /^Actions for/ }));
+		fireEvent.click(await screen.findByRole('menuitem', { name: 'Revoke' }));
 
 		await waitFor(() =>
 			expect(screen.getByText('Revoke invitation')).toBeTruthy(),
@@ -305,7 +335,8 @@ describe('staff tenant invitations route', () => {
 		});
 
 		renderPage();
-		fireEvent.click(screen.getByRole('button', { name: 'Revoke' }));
+		fireEvent.click(screen.getByRole('button', { name: /^Actions for/ }));
+		fireEvent.click(await screen.findByRole('menuitem', { name: 'Revoke' }));
 
 		await waitFor(() =>
 			expect(screen.getByText('Revoke invitation')).toBeTruthy(),
@@ -333,7 +364,8 @@ describe('staff tenant invitations route', () => {
 		});
 
 		renderPage();
-		fireEvent.click(screen.getByRole('button', { name: 'Revoke' }));
+		fireEvent.click(screen.getByRole('button', { name: /^Actions for/ }));
+		fireEvent.click(await screen.findByRole('menuitem', { name: 'Revoke' }));
 
 		await waitFor(() =>
 			expect(screen.getByText('Revoke invitation')).toBeTruthy(),
@@ -490,14 +522,38 @@ describe('createColumns column widths', () => {
 		);
 
 		expect(widthById).toEqual({
-			email: '300px',
-			status: '128px',
-			profile_name: undefined,
+			email: '280px',
+			profile_name: '160px',
 			invited_by: '150px',
-			created_at: '140px',
-			expires_at: '120px',
-			accepted_at: '140px',
+			expires_at: '150px',
+			status: '128px',
 			actions: '40px',
 		});
+	});
+});
+
+describe('isInvitationExpiringSoon', () => {
+	const now = new Date('2026-07-01T00:00:00Z');
+
+	test('is true when expiry is within 48 hours in the future', () => {
+		expect(
+			isInvitationExpiringSoon(new Date('2026-07-02T12:00:00Z'), now),
+		).toBe(true);
+	});
+
+	test('is false when expiry is more than 48 hours away', () => {
+		expect(
+			isInvitationExpiringSoon(new Date('2026-07-10T00:00:00Z'), now),
+		).toBe(false);
+	});
+
+	test('is false when already expired', () => {
+		expect(
+			isInvitationExpiringSoon(new Date('2026-06-30T00:00:00Z'), now),
+		).toBe(false);
+	});
+
+	test('is false for a null expiry', () => {
+		expect(isInvitationExpiringSoon(null, now)).toBe(false);
 	});
 });

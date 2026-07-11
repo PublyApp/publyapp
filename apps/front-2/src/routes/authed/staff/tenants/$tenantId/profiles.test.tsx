@@ -1,18 +1,33 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, render, screen } from '@testing-library/react';
+import {
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from '@testing-library/react';
 import type { JSX } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
+	invalidateQueries: vi.fn(),
 	search: {} as Record<string, unknown>,
 	navigate: vi.fn(),
 	toStaffTenantDetails: vi.fn(),
 	useStaffTenantDetailsQuery: vi.fn(),
 	toStaffTenantProfileRows: vi.fn(),
 	useStaffTenantProfilesQuery: vi.fn(),
+	deleteProfileMutation: vi.fn(),
+	useDeleteStaffTenantProfileMutation: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
+}));
+
+vi.mock('@tanstack/react-query', () => ({
+	useQueryClient: () => ({
+		invalidateQueries: mocks.invalidateQueries,
+	}),
 }));
 
 vi.mock('@tanstack/react-router', () => ({
@@ -48,9 +63,40 @@ vi.mock('@tanstack/react-router', () => ({
 	},
 }));
 
+const TRANSLATIONS: Record<string, string> = {
+	basics: 'Basics',
+	profiles: 'Profiles',
+	invitations: 'Invitations',
+	users: 'Users',
+	'tenant-profiles-tab-description':
+		"Permission sets available to this tenant's members.",
+	'new-profile': 'New profile',
+	'search-profiles': 'Search profiles…',
+	default: 'Default',
+	custom: 'Custom',
+	'view-details': 'View details',
+	edit: 'Edit',
+	delete: 'Delete',
+	'no-description-provided': 'No description provided.',
+	'tenant-member-count': '{{count}} members',
+	'list-unavailable-title': 'List unavailable',
+	'list-error-default-description': 'There was a problem loading this list.',
+	retry: 'Retry',
+	'list-empty-title': 'Nothing here — yet',
+	'list-no-match-title': 'No matches for that search',
+};
+
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string) => key,
+		t: (key: string, options?: Record<string, unknown>) => {
+			let text = TRANSLATIONS[key] ?? key;
+			if (options) {
+				for (const [optionKey, value] of Object.entries(options)) {
+					text = text.replaceAll(`{{${optionKey}}}`, String(value));
+				}
+			}
+			return text;
+		},
 		i18n: {
 			language: 'en',
 		},
@@ -66,8 +112,11 @@ vi.mock('~/components/error-views/View403', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenant-profiles', () => ({
+	STAFF_TENANT_PROFILES_QUERY_KEY: ['staff', 'staff-tenants', 'profiles'],
 	toStaffTenantProfileRows: mocks.toStaffTenantProfileRows,
 	useStaffTenantProfilesQuery: mocks.useStaffTenantProfilesQuery,
+	useDeleteStaffTenantProfileMutation:
+		mocks.useDeleteStaffTenantProfileMutation,
 }));
 
 vi.mock('~/lib/query/staff-tenants', () => ({
@@ -79,7 +128,11 @@ vi.mock('~/routes/authed/layout', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 
-import { createTenantProfileColumns, Route } from './profiles';
+import {
+	deriveTenantProfileCardStyle,
+	Route,
+	tenantProfileTypeChipClassName,
+} from './profiles';
 
 const buildQueryResult = (overrides: Record<string, unknown> = {}) => ({
 	data: undefined,
@@ -106,6 +159,11 @@ describe('staff tenant profiles route', () => {
 		vi.clearAllMocks();
 		mocks.search = {};
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
+		mocks.invalidateQueries.mockResolvedValue(undefined);
+		mocks.useDeleteStaffTenantProfileMutation.mockReturnValue({
+			mutateAsync: mocks.deleteProfileMutation,
+			isPending: false,
+		});
 		mocks.toStaffTenantDetails.mockReturnValue({
 			id: '11111111-1111-1111-1111-111111111111',
 			name: 'Acme Corporation',
@@ -132,6 +190,13 @@ describe('staff tenant profiles route', () => {
 				isDefault: true,
 				userAccountCount: 7,
 			},
+			{
+				id: 'profile-2',
+				name: 'Support',
+				description: 'Respond to member tickets',
+				isDefault: false,
+				userAccountCount: 5,
+			},
 		]);
 		mocks.useStaffTenantProfilesQuery.mockReturnValue(
 			buildQueryResult({
@@ -144,6 +209,13 @@ describe('staff tenant profiles route', () => {
 							isDefault: true,
 							userAccountCount: 7,
 						},
+						{
+							id: 'profile-2',
+							name: 'Support',
+							description: 'Respond to member tickets',
+							isDefault: false,
+							userAccountCount: 5,
+						},
 					],
 					nextCursor: null,
 				},
@@ -155,7 +227,7 @@ describe('staff tenant profiles route', () => {
 		cleanup();
 	});
 
-	test('renders the shared tenant shell with profiles active and the default list query state', () => {
+	test('renders the shared tenant shell with profiles active, a card grid, and the default list query state', () => {
 		renderPage();
 
 		expect(screen.getByTestId('staff-tenant-profiles-page')).toBeTruthy();
@@ -163,18 +235,22 @@ describe('staff tenant profiles route', () => {
 		expect(
 			screen.getByText('Profiles', { selector: 'span[aria-current="page"]' }),
 		).toBeTruthy();
+		expect(screen.getByTestId('staff-tenant-profiles-grid-rows')).toBeTruthy();
 		expect(screen.getAllByText('Approvers').length).toBeGreaterThan(0);
-		expect(screen.getAllByText('Can review approvals').length).toBeGreaterThan(
-			0,
-		);
-		expect(screen.getAllByText('Default').length).toBeGreaterThan(0);
-		expect(screen.getByText('7')).toBeTruthy();
+		expect(screen.getByText('Can review approvals')).toBeTruthy();
+		expect(screen.getByText('Default')).toBeTruthy();
+		expect(screen.getByText('Custom')).toBeTruthy();
+		expect(screen.getByText('7 members')).toBeTruthy();
+		expect(screen.getByText('5 members')).toBeTruthy();
 		expect(
 			screen.getByRole('link', { name: 'Basics' }).getAttribute('href'),
 		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111');
 		expect(
 			screen.getByRole('link', { name: 'Users' }).getAttribute('href'),
 		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/users');
+		expect(
+			screen.getByRole('link', { name: /New profile/ }).getAttribute('href'),
+		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/profiles/new');
 		expect(mocks.useStaffTenantProfilesQuery).toHaveBeenCalledWith(
 			{
 				tenantId: '11111111-1111-1111-1111-111111111111',
@@ -185,6 +261,58 @@ describe('staff tenant profiles route', () => {
 				size: 100,
 			},
 			{ enabled: true },
+		);
+	});
+
+	test('never shows a permissions count on the card (not on the list contract)', () => {
+		renderPage();
+
+		expect(screen.queryByText(/permissions/i)).toBeNull();
+	});
+
+	test('does not render a Delete action for the default profile but does for a custom one', async () => {
+		renderPage();
+
+		const triggers = screen.getAllByRole('button', { name: /^Actions for/ });
+		fireEvent.click(triggers[0]);
+		expect(
+			await screen.findByRole('menuitem', { name: 'View details' }),
+		).toBeTruthy();
+		expect(screen.queryByRole('menuitem', { name: 'Delete' })).toBeNull();
+
+		fireEvent.click(triggers[0]);
+		fireEvent.click(triggers[1]);
+		expect(
+			await screen.findByRole('menuitem', { name: 'Delete' }),
+		).toBeTruthy();
+	});
+
+	test('deletes a custom profile after explicit confirmation and invalidates the profiles query', async () => {
+		mocks.deleteProfileMutation.mockResolvedValue({});
+
+		renderPage();
+
+		const triggers = screen.getAllByRole('button', { name: /^Actions for/ });
+		fireEvent.click(triggers[1]);
+		fireEvent.click(await screen.findByRole('menuitem', { name: 'Delete' }));
+
+		await waitFor(() =>
+			expect(screen.getByRole('heading', { name: 'Delete' })).toBeTruthy(),
+		);
+		fireEvent.click(
+			screen.getAllByRole('button', { name: 'Delete' }).slice(-1)[0],
+		);
+
+		await waitFor(() =>
+			expect(mocks.deleteProfileMutation).toHaveBeenCalledWith({
+				tenantId: '11111111-1111-1111-1111-111111111111',
+				profileId: 'profile-2',
+			}),
+		);
+		await waitFor(() =>
+			expect(mocks.invalidateQueries).toHaveBeenCalledWith({
+				queryKey: ['staff', 'staff-tenants', 'profiles'],
+			}),
 		);
 	});
 
@@ -203,10 +331,7 @@ describe('staff tenant profiles route', () => {
 		renderPage();
 
 		expect(
-			screen.getByTestId('staff-tenant-profiles-table-no-match'),
-		).toBeTruthy();
-		expect(
-			screen.getByText('No tenant profiles match your search.'),
+			screen.getByTestId('staff-tenant-profiles-grid-no-match'),
 		).toBeTruthy();
 	});
 
@@ -249,7 +374,7 @@ describe('staff tenant profiles route', () => {
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 	});
 
-	test('renders the table error state without logging out for ordinary problem failures', () => {
+	test('renders the error state without logging out for ordinary problem failures', () => {
 		mocks.toStaffTenantProfileRows.mockReturnValue([]);
 		mocks.useStaffTenantProfilesQuery.mockReturnValue(
 			buildQueryResult({
@@ -265,9 +390,7 @@ describe('staff tenant profiles route', () => {
 
 		renderPage();
 
-		expect(
-			screen.getByTestId('staff-tenant-profiles-table-error'),
-		).toBeTruthy();
+		expect(screen.getByTestId('staff-tenant-profiles-grid-error')).toBeTruthy();
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 	});
 
@@ -292,20 +415,18 @@ describe('staff tenant profiles route', () => {
 	});
 });
 
-describe('createTenantProfileColumns column widths', () => {
-	test('applies a fixed width to every column except the fluid description column', () => {
-		const columns = createTenantProfileColumns(
-			'11111111-1111-1111-1111-111111111111',
-		);
-		const widthById = Object.fromEntries(
-			columns.map((column) => [column.id, column.meta?.width]),
-		);
+describe('tenantProfileTypeChipClassName', () => {
+	test('maps isDefault to the amber chip and otherwise to the neutral chip', () => {
+		expect(tenantProfileTypeChipClassName(true)).toContain('--amber');
+		expect(tenantProfileTypeChipClassName(false)).toContain('--outline');
+	});
+});
 
-		expect(widthById).toEqual({
-			name: '240px',
-			description: undefined,
-			is_default: '104px',
-			user_account_count: '104px',
-		});
+describe('deriveTenantProfileCardStyle', () => {
+	test('is deterministic for the same name', () => {
+		const first = deriveTenantProfileCardStyle('Approvers');
+		const second = deriveTenantProfileCardStyle('Approvers');
+		expect(first.tone).toBe(second.tone);
+		expect(first.Icon).toBe(second.Icon);
 	});
 });

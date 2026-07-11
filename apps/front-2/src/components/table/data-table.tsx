@@ -109,6 +109,169 @@ const resolveAriaSortState = (
 	return tableSort.desc ? 'descending' : 'ascending';
 };
 
+export type DataTableToolbarProps = {
+	testId: string;
+	searchDraft: string;
+	onSearchDraftChange: (value: string) => void;
+	searchPlaceholder?: string;
+	disabled?: boolean;
+	disabledTitle?: string;
+	toolbarEnd?: ReactNode;
+};
+
+/** Search input + toolbarEnd slot. Extracted so non-table list surfaces (e.g.
+ * a card grid) can share the exact toolbar DataTable renders. */
+export const DataTableToolbar = ({
+	testId,
+	searchDraft,
+	onSearchDraftChange,
+	searchPlaceholder = 'Search',
+	disabled = false,
+	disabledTitle,
+	toolbarEnd,
+}: DataTableToolbarProps) => (
+	<div className="publy-data-table-toolbar" data-testid={`${testId}-toolbar`}>
+		<div className="publy-search-wrapper">
+			<IconSearch aria-hidden="true" className="publy-search-icon" />
+			<Input
+				aria-label="Search"
+				className="publy-data-table-search-input bg-background pl-9"
+				value={searchDraft}
+				onChange={(event) => onSearchDraftChange(event.target.value)}
+				disabled={disabled}
+				title={disabled ? disabledTitle : undefined}
+				placeholder={searchPlaceholder}
+				data-testid={`${testId}-search`}
+			/>
+		</div>
+		{toolbarEnd ? (
+			<div className="publy-data-table-toolbar-end">{toolbarEnd}</div>
+		) : null}
+	</div>
+);
+
+export type DataTableCursorFooterProps = {
+	testId: string;
+	pageIndex: number;
+	size: number;
+	onSizeChange: (nextSize: number) => void;
+	hasPreviousPage: boolean;
+	hasNextPage: boolean;
+	isPaginationPending: boolean;
+	onNextPage: () => void;
+	onPreviousPage: () => void;
+	disabled?: boolean;
+	disabledTitle?: string;
+	/** Renders without the enclosing card's background/border-top, for list
+	 * surfaces (e.g. a card grid) whose footer sits directly on the page. */
+	variant?: 'card' | 'flat';
+};
+
+/** "Rows per page" + Previous/Next cursor pager. Extracted so non-table list
+ * surfaces can share the exact footer DataTable renders. */
+export const DataTableCursorFooter = ({
+	testId,
+	pageIndex,
+	size,
+	onSizeChange,
+	hasPreviousPage,
+	hasNextPage,
+	isPaginationPending,
+	onNextPage,
+	onPreviousPage,
+	disabled = false,
+	disabledTitle,
+	variant = 'card',
+}: DataTableCursorFooterProps) => {
+	const paginationDisabled = disabled || isPaginationPending;
+
+	return (
+		<div
+			className={
+				variant === 'flat'
+					? 'publy-data-table-footer publy-data-table-footer--flat'
+					: 'publy-data-table-footer'
+			}
+			data-testid={`${testId}-footer`}
+		>
+			<div className="flex items-center gap-2">
+				<span data-slot="page-label" data-testid={`${testId}-page-label`}>
+					Page {pageIndex + 1}
+				</span>
+				{isPaginationPending ? (
+					<span
+						aria-hidden="true"
+						className="size-3.5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"
+					/>
+				) : null}
+			</div>
+
+			<div className="flex items-center gap-4">
+				<div className="flex items-center gap-2">
+					<span data-slot="rows-per-page-label">Rows per page</span>
+					<span
+						className="publy-page-size-select"
+						data-testid={`${testId}-page-size`}
+					>
+						<Select
+							value={String(size)}
+							onValueChange={(nextValue) => {
+								if (typeof nextValue === 'string') {
+									onSizeChange(Number(nextValue));
+								}
+							}}
+							disabled={paginationDisabled}
+						>
+							<SelectTrigger
+								aria-label="Rows per page"
+								className="h-7 gap-1 rounded-[10px] bg-background px-2 text-xs shadow-none"
+								data-testid={`${testId}-page-size-trigger`}
+							>
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								{PAGE_SIZE_OPTIONS.map((option) => (
+									<SelectItem key={String(option)} value={String(option)}>
+										{option}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</span>
+				</div>
+
+				<div className="flex items-center gap-1">
+					<span title={disabled ? disabledTitle : undefined}>
+						<button
+							className="publy-pager-button"
+							type="button"
+							aria-label="Previous page"
+							disabled={paginationDisabled || !hasPreviousPage}
+							onClick={onPreviousPage}
+							data-testid={`${testId}-prev-page`}
+						>
+							<IconChevronLeft className="size-4" />
+						</button>
+					</span>
+					<span className="publy-pager-current">{pageIndex + 1}</span>
+					<span title={disabled ? disabledTitle : undefined}>
+						<button
+							className="publy-pager-button"
+							type="button"
+							aria-label="Next page"
+							disabled={paginationDisabled || !hasNextPage}
+							onClick={onNextPage}
+							data-testid={`${testId}-next-page`}
+						>
+							<IconChevronRight className="size-4" />
+						</button>
+					</span>
+				</div>
+			</div>
+		</div>
+	);
+};
+
 export type DataTableProps<TData extends { id: string }> = {
 	testId: string;
 	ariaLabel: string;
@@ -219,8 +382,6 @@ export const DataTable = <TData extends { id: string }>({
 		rowCount: rows.length,
 		hasActiveSearch,
 	});
-
-	const paginationDisabled = isSelectionMode || isPaginationPending;
 
 	let errorDescription: string | undefined;
 	if (typeof errorContent === 'string') {
@@ -341,27 +502,15 @@ export const DataTable = <TData extends { id: string }>({
 
 	return (
 		<div className="publy-data-table-shell" data-testid={testId}>
-			<div
-				className="publy-data-table-toolbar"
-				data-testid={`${testId}-toolbar`}
-			>
-				<div className="publy-search-wrapper">
-					<IconSearch aria-hidden="true" className="publy-search-icon" />
-					<Input
-						aria-label="Search"
-						className="publy-data-table-search-input bg-background pl-9"
-						value={searchDraft}
-						onChange={(event) => onSearchDraftChange(event.target.value)}
-						disabled={isSelectionMode}
-						title={isSelectionMode ? SELECTION_LOCKED_TITLE : undefined}
-						placeholder={searchPlaceholder}
-						data-testid={`${testId}-search`}
-					/>
-				</div>
-				{toolbarEnd ? (
-					<div className="publy-data-table-toolbar-end">{toolbarEnd}</div>
-				) : null}
-			</div>
+			<DataTableToolbar
+				testId={testId}
+				searchDraft={searchDraft}
+				onSearchDraftChange={onSearchDraftChange}
+				searchPlaceholder={searchPlaceholder}
+				disabled={isSelectionMode}
+				disabledTitle={SELECTION_LOCKED_TITLE}
+				toolbarEnd={toolbarEnd}
+			/>
 
 			{bodyState === 'loading' ? (
 				<div
@@ -587,89 +736,19 @@ export const DataTable = <TData extends { id: string }>({
 						</TableBody>
 					</Table>
 
-					<div
-						className="publy-data-table-footer"
-						data-testid={`${testId}-footer`}
-					>
-						<div className="flex items-center gap-2">
-							<span data-slot="page-label" data-testid={`${testId}-page-label`}>
-								Page {pageIndex + 1}
-							</span>
-							{isPaginationPending ? (
-								<span
-									aria-hidden="true"
-									className="size-3.5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"
-								/>
-							) : null}
-						</div>
-
-						<div className="flex items-center gap-4">
-							<div className="flex items-center gap-2">
-								<span data-slot="rows-per-page-label">Rows per page</span>
-								<span
-									className="publy-page-size-select"
-									data-testid={`${testId}-page-size`}
-								>
-									<Select
-										value={String(size)}
-										onValueChange={(nextValue) => {
-											if (typeof nextValue === 'string') {
-												onSizeChange(Number(nextValue));
-											}
-										}}
-										disabled={paginationDisabled}
-									>
-										<SelectTrigger
-											aria-label="Rows per page"
-											className="h-7 gap-1 rounded-[10px] bg-background px-2 text-xs shadow-none"
-											data-testid={`${testId}-page-size-trigger`}
-										>
-											<SelectValue />
-										</SelectTrigger>
-										<SelectContent>
-											{PAGE_SIZE_OPTIONS.map((option) => (
-												<SelectItem key={String(option)} value={String(option)}>
-													{option}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-								</span>
-							</div>
-
-							<div className="flex items-center gap-1">
-								<span
-									title={isSelectionMode ? SELECTION_LOCKED_TITLE : undefined}
-								>
-									<button
-										className="publy-pager-button"
-										type="button"
-										aria-label="Previous page"
-										disabled={paginationDisabled || !hasPreviousPage}
-										onClick={onPreviousPage}
-										data-testid={`${testId}-prev-page`}
-									>
-										<IconChevronLeft className="size-4" />
-									</button>
-								</span>
-								<span className="publy-pager-current">{pageIndex + 1}</span>
-								<span
-									title={isSelectionMode ? SELECTION_LOCKED_TITLE : undefined}
-								>
-									<button
-										className="publy-pager-button"
-										type="button"
-										aria-label="Next page"
-										disabled={paginationDisabled || !hasNextPage}
-										onClick={onNextPage}
-										data-testid={`${testId}-next-page`}
-									>
-										<IconChevronRight className="size-4" />
-									</button>
-								</span>
-							</div>
-						</div>
-					</div>
+					<DataTableCursorFooter
+						testId={testId}
+						pageIndex={pageIndex}
+						size={size}
+						onSizeChange={onSizeChange}
+						hasPreviousPage={hasPreviousPage}
+						hasNextPage={hasNextPage}
+						isPaginationPending={isPaginationPending}
+						onNextPage={onNextPage}
+						onPreviousPage={onPreviousPage}
+						disabled={isSelectionMode}
+						disabledTitle={SELECTION_LOCKED_TITLE}
+					/>
 				</div>
 			) : null}
 		</div>

@@ -1,15 +1,46 @@
-import { IconAlertCircle } from '@tabler/icons-react';
+import {
+	IconAlertCircle,
+	IconChevronDown,
+	IconCircleDot,
+	IconEye,
+	IconPencil,
+	IconPlus,
+	IconRefresh,
+	IconTrash,
+	IconUserX,
+} from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
+import { DataTableRowActions } from '~/components/table/row-actions';
 import { useTableController } from '~/components/table/use-table-controller';
-import { buttonVariants } from '~/components/ui/button';
+import { Button, buttonVariants } from '~/components/ui/button';
+import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
+	DropdownMenu,
+	DropdownMenuCheckboxItem,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from '~/components/ui/dropdown-menu';
+import { InitialsAvatar } from '~/components/ui/initials-avatar';
+import { StatusPill } from '~/components/ui/product-page';
+import { statusPillTone } from '~/components/ui/status-tone';
+import {
+	STAFF_TENANT_USER_DETAILS_QUERY_KEY,
+	STAFF_TENANT_USERS_QUERY_KEY,
 	type StaffTenantUserRow,
 	toStaffTenantUserRows,
+	useReactivateStaffTenantUserMutation,
+	useRemoveStaffTenantUserMutation,
 	useStaffTenantUsersQuery,
+	useSuspendStaffTenantUserMutation,
 } from '~/lib/query/staff-tenant-users';
 import {
 	toStaffTenantDetails,
@@ -24,6 +55,11 @@ import {
 import { shouldLogoutForFailure } from '~/routes/authed/layout';
 
 import {
+	getFailureMessage,
+	toApiFailure,
+} from '@org/shared-ts/lib/api-failure/to-api-failure';
+
+import {
 	TenantDetailsError,
 	TenantDetailsLoading,
 	TenantDetailsPageShell,
@@ -33,51 +69,379 @@ import {
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
 
+export const KNOWN_TENANT_USER_STATUSES = [
+	'active',
+	'suspended',
+	'globally_suspended',
+] as const;
+
+export type KnownTenantUserStatus = (typeof KNOWN_TENANT_USER_STATUSES)[number];
+
+const KNOWN_TENANT_USER_STATUS_SET = new Set<string>(
+	KNOWN_TENANT_USER_STATUSES,
+);
+
+export type TenantUsersListSearchParams = TableSearchParams & {
+	status?: string;
+};
+
+export type TenantUsersListSearchParamInput = TableSearchParamInput & {
+	status?: unknown;
+};
+
+const normalizeString = (value: unknown): string | undefined => {
+	if (typeof value !== 'string') {
+		return undefined;
+	}
+
+	const trimmed = value.trim();
+	return trimmed.length > 0 ? trimmed : undefined;
+};
+
+export const parseTenantUserStatusFilter = (
+	value: unknown,
+): KnownTenantUserStatus[] => {
+	const normalized = normalizeString(value);
+	if (!normalized) {
+		return [];
+	}
+
+	const seen = new Set<KnownTenantUserStatus>();
+	const statuses: KnownTenantUserStatus[] = [];
+
+	for (const part of normalized.split(',')) {
+		const candidate = part.trim().toLowerCase();
+		if (!KNOWN_TENANT_USER_STATUS_SET.has(candidate)) {
+			continue;
+		}
+
+		const status = candidate as KnownTenantUserStatus;
+		if (seen.has(status)) {
+			continue;
+		}
+
+		seen.add(status);
+		statuses.push(status);
+	}
+
+	return statuses;
+};
+
+export const serializeTenantUserStatusFilter = (
+	statuses: KnownTenantUserStatus[],
+): string | undefined => (statuses.length > 0 ? statuses.join(',') : undefined);
+
+export const parseTenantUsersListSearchParams = (
+	search: TenantUsersListSearchParamInput,
+): TenantUsersListSearchParams => {
+	const base = parseTableSearchParams(search);
+	const status = serializeTenantUserStatusFilter(
+		parseTenantUserStatusFilter(search.status),
+	);
+
+	return status ? { ...base, status } : base;
+};
+
+export const serializeTenantUsersListSearchParams = (
+	params: TenantUsersListSearchParams,
+): Record<string, string | undefined> => {
+	const next = serializeTableSearchParams(params);
+	const status = serializeTenantUserStatusFilter(
+		parseTenantUserStatusFilter(params.status),
+	);
+
+	return status ? { ...next, status } : next;
+};
+
+/** Backend row status is PascalCase (`Active`/`Suspended`/`GloballySuspended`);
+ * the `t()` keys are the honest display labels for those three values only. */
+export const formatTenantUserStatusLabel = (
+	status: string | null,
+	t: (key: string) => string,
+): string => {
+	const normalized = status?.trim().toLowerCase() ?? '';
+	if (normalized === 'active') {
+		return t('status-active');
+	}
+	if (normalized === 'suspended') {
+		return t('status-suspended');
+	}
+	if (
+		normalized === 'globallysuspended' ||
+		normalized === 'globally_suspended'
+	) {
+		return t('status-globally-suspended');
+	}
+	return status ?? t('status-unknown');
+};
+
+export const tenantUserLevelChipClassName = (level: string | null): string =>
+	(level ?? '').trim().toLowerCase() === 'admin'
+		? 'publy-detail-chip publy-detail-chip--amber'
+		: 'publy-detail-chip publy-detail-chip--outline';
+
+export const formatTenantUserLevelLabel = (
+	level: string | null,
+	t: (key: string) => string,
+): string => {
+	const normalized = level?.trim().toLowerCase() ?? '';
+	if (normalized === 'admin') {
+		return t('admin');
+	}
+	if (normalized === 'user') {
+		return t('user');
+	}
+	return level ?? '—';
+};
+
+type TenantUserPendingAction = 'suspend' | 'reactivate' | 'remove' | null;
+
+const getNormalizedTenantUserStatus = (
+	value: string | null | undefined,
+): string => value?.trim().toLowerCase() ?? '';
+
+const TenantUserRowActions = ({
+	tenantId,
+	user,
+	onSessionExpired,
+}: {
+	tenantId: string;
+	user: StaffTenantUserRow;
+	onSessionExpired: () => void;
+}) => {
+	const { t } = useTranslation('common');
+	const queryClient = useQueryClient();
+	const [pendingAction, setPendingAction] =
+		useState<TenantUserPendingAction>(null);
+	const [actionError, setActionError] = useState('');
+	const suspendMutation = useSuspendStaffTenantUserMutation();
+	const reactivateMutation = useReactivateStaffTenantUserMutation();
+	const removeMutation = useRemoveStaffTenantUserMutation();
+
+	const normalizedStatus = getNormalizedTenantUserStatus(user.status);
+	const canSuspend = normalizedStatus === 'active';
+	const canReactivate = normalizedStatus === 'suspended';
+	const isActionPending =
+		suspendMutation.isPending ||
+		reactivateMutation.isPending ||
+		removeMutation.isPending;
+
+	const invalidateTenantUserQueries = () =>
+		Promise.all([
+			queryClient.invalidateQueries({
+				queryKey: ['staff', ...STAFF_TENANT_USERS_QUERY_KEY],
+			}),
+			queryClient.invalidateQueries({
+				queryKey: ['staff', ...STAFF_TENANT_USER_DETAILS_QUERY_KEY],
+			}),
+		]);
+
+	const performAction = async (action: 'suspend' | 'reactivate' | 'remove') => {
+		setActionError('');
+
+		try {
+			if (action === 'suspend') {
+				await suspendMutation.mutateAsync({ tenantId, userId: user.id });
+			} else if (action === 'reactivate') {
+				await reactivateMutation.mutateAsync({ tenantId, userId: user.id });
+			} else {
+				await removeMutation.mutateAsync({ tenantId, userId: user.id });
+			}
+
+			await invalidateTenantUserQueries();
+		} catch (error) {
+			if (shouldLogoutForFailure(error)) {
+				onSessionExpired();
+				return;
+			}
+
+			setActionError(
+				getFailureMessage(toApiFailure(error), {
+					fallback: 'Unable to update this tenant user.',
+				}),
+			);
+		} finally {
+			setPendingAction(null);
+		}
+	};
+
+	const dialogConfig = (() => {
+		if (pendingAction === 'suspend') {
+			return {
+				title: t('suspend'),
+				description: t('suspend-tenant-user-description'),
+				confirmLabel: t('suspend'),
+			};
+		}
+		if (pendingAction === 'reactivate') {
+			return {
+				title: t('reactivate'),
+				description: t('reactivate-tenant-user-description'),
+				confirmLabel: t('reactivate'),
+			};
+		}
+		return {
+			title: t('remove-user-from-tenant'),
+			description: t('confirm-remove-user-from-tenant-details'),
+			confirmLabel: t('remove-user-from-tenant'),
+		};
+	})();
+
+	return (
+		<div className="flex flex-col items-center gap-1">
+			<DataTableRowActions
+				ariaLabel={`Actions for ${user.displayName}`}
+				testId={`staff-tenant-user-actions-${user.id}`}
+			>
+				<DropdownMenuItem
+					render={
+						<Link
+							to="/staff/tenants/$tenantId/users/$userId"
+							params={{ tenantId, userId: user.id }}
+						/>
+					}
+				>
+					<IconEye className="size-[15px]" />
+					{t('view-details')}
+				</DropdownMenuItem>
+				<DropdownMenuItem
+					render={
+						<Link
+							to="/staff/tenants/$tenantId/users/$userId/edit"
+							params={{ tenantId, userId: user.id }}
+						/>
+					}
+				>
+					<IconPencil className="size-[15px]" />
+					{t('edit')}
+				</DropdownMenuItem>
+				{canReactivate ? (
+					<DropdownMenuItem
+						disabled={isActionPending}
+						onClick={() => setPendingAction('reactivate')}
+					>
+						<IconRefresh className="size-[15px]" />
+						{t('reactivate')}
+					</DropdownMenuItem>
+				) : null}
+				{canSuspend ? (
+					<DropdownMenuItem
+						variant="destructive"
+						disabled={isActionPending}
+						onClick={() => setPendingAction('suspend')}
+					>
+						<IconUserX className="size-[15px]" />
+						{t('suspend')}
+					</DropdownMenuItem>
+				) : null}
+				<DropdownMenuSeparator />
+				<DropdownMenuItem
+					variant="destructive"
+					disabled={isActionPending}
+					onClick={() => setPendingAction('remove')}
+				>
+					<IconTrash className="size-[15px]" />
+					{t('remove-user-from-tenant')}
+				</DropdownMenuItem>
+			</DataTableRowActions>
+			{actionError ? (
+				<p className="max-w-40 text-right text-xs text-destructive">
+					{actionError}
+				</p>
+			) : null}
+
+			<ConfirmDialog
+				isOpen={pendingAction !== null}
+				title={dialogConfig.title}
+				description={dialogConfig.description}
+				confirmLabel={dialogConfig.confirmLabel}
+				isPending={isActionPending}
+				onConfirm={() => {
+					if (pendingAction) {
+						void performAction(pendingAction);
+					}
+				}}
+				onOpenChange={(isOpen) => {
+					if (!isOpen) setPendingAction(null);
+				}}
+			/>
+		</div>
+	);
+};
+
 export const makeTenantUserColumns = (
 	tenantId: string,
+	t: (key: string) => string,
+	onSessionExpired: () => void,
 ): ColumnDef<StaffTenantUserRow>[] => [
 	{
 		id: 'name',
-		header: 'Name',
+		header: t('members'),
 		enableSorting: false,
-		meta: { width: '200px' },
-		cell: ({ row }) => {
-			const userId = row.original.id;
-
+		cell: ({ row }) => (
+			<Link
+				to="/staff/tenants/$tenantId/users/$userId"
+				params={{ tenantId, userId: row.original.id }}
+				className="flex min-w-0 items-center gap-2.5 no-underline"
+			>
+				<InitialsAvatar name={row.original.displayName} />
+				<span className="min-w-0 space-y-0.5">
+					<span
+						className="publy-record-link block truncate text-[13px] font-medium"
+						title={row.original.displayName}
+					>
+						{row.original.displayName}
+					</span>
+					<span
+						className="block truncate text-xs text-muted-foreground"
+						title={row.original.email || undefined}
+					>
+						{row.original.email || '—'}
+					</span>
+				</span>
+			</Link>
+		),
+	},
+	{
+		id: 'level',
+		header: t('level'),
+		accessorKey: 'level',
+		meta: { width: '150px' },
+		cell: ({ getValue }) => {
+			const level = getValue<string | null>();
 			return (
-				<Link
-					to="/staff/tenants/$tenantId/users/$userId"
-					params={{
-						tenantId,
-						userId,
-					}}
-					className="font-medium text-primary underline-offset-4 hover:underline"
-				>
-					{row.original.displayName}
-				</Link>
+				<span className={tenantUserLevelChipClassName(level)}>
+					{formatTenantUserLevelLabel(level, t)}
+				</span>
 			);
 		},
 	},
 	{
-		id: 'email',
-		header: 'Email',
-		enableSorting: false,
-		accessorKey: 'email',
-		cell: ({ getValue }) => getValue<string>() || '—',
-	},
-	{
-		id: 'level',
-		header: 'Level',
-		accessorKey: 'level',
-		meta: { width: '104px' },
-		cell: ({ getValue }) => getValue<string | null>() ?? '—',
-	},
-	{
 		id: 'status',
-		header: 'Status',
+		header: t('status'),
 		accessorKey: 'status',
-		meta: { width: '122px' },
-		cell: ({ getValue }) => getValue<string | null>() ?? '—',
+		meta: { width: '130px' },
+		cell: ({ getValue }) => {
+			const status = getValue<string | null>();
+			return (
+				<StatusPill tone={statusPillTone(status)}>
+					{formatTenantUserStatusLabel(status, t)}
+				</StatusPill>
+			);
+		},
+	},
+	{
+		id: 'actions',
+		header: () => <span className="sr-only">{t('actions')}</span>,
+		enableSorting: false,
+		meta: { width: '40px', align: 'center' },
+		cell: ({ row }) => (
+			<TenantUserRowActions
+				tenantId={tenantId}
+				user={row.original}
+				onSessionExpired={onSessionExpired}
+			/>
+		),
 	},
 ];
 
@@ -85,18 +449,26 @@ export const Route = createFileRoute(
 	'/_authed-layout/staff/tenants/$tenantId/users',
 )({
 	validateSearch: (search) =>
-		parseTableSearchParams(search as TableSearchParamInput),
+		parseTenantUsersListSearchParams(search as TenantUsersListSearchParamInput),
 	component: StaffTenantUsersPage,
 });
 
 function StaffTenantUsersPage() {
 	const { tenantId } = Route.useParams();
 	const navigate = Route.useNavigate();
-	const search = Route.useSearch();
+	const search = Route.useSearch() as TenantUsersListSearchParams;
+	const { t } = useTranslation('common');
+	const [shouldLogout, setShouldLogout] = useState(false);
 
-	const onSearchChange = (next: TableSearchParams): void => {
+	const selectedStatuses = parseTenantUserStatusFilter(search.status);
+
+	const onSearchChange = (next: TenantUsersListSearchParams): void => {
 		void navigate({
-			search: serializeTableSearchParams(next) as unknown as TableSearchParams,
+			search: serializeTenantUsersListSearchParams({
+				...search,
+				...next,
+				status: search.status,
+			}) as unknown as TenantUsersListSearchParams,
 			replace: true,
 		});
 	};
@@ -106,7 +478,7 @@ function StaffTenantUsersPage() {
 		onSearchChange,
 		defaultSort: DEFAULT_SORT,
 		defaultSize: DEFAULT_SIZE,
-		cursorResetKey: tenantId,
+		cursorResetKey: `${tenantId}:${search.status ?? ''}`,
 	});
 	const detailsQuery = useStaffTenantDetailsQuery(
 		{ tenantId },
@@ -116,6 +488,7 @@ function StaffTenantUsersPage() {
 		{
 			tenantId,
 			q: controller.apiVariables.q,
+			status: search.status,
 			sortId: controller.apiVariables.sortId,
 			sortOrder: controller.apiVariables.sortOrder,
 			cursor: controller.apiVariables.cursor,
@@ -164,8 +537,41 @@ function StaffTenantUsersPage() {
 		return <LogoutRedirect />;
 	}
 
+	if (shouldLogout) {
+		return <LogoutRedirect />;
+	}
+
 	const rows = toStaffTenantUserRows(usersQuery.data?.data);
-	const columns = makeTenantUserColumns(tenantId);
+	const columns = makeTenantUserColumns(tenantId, t, () =>
+		setShouldLogout(true),
+	);
+
+	const setStatuses = (nextStatuses: KnownTenantUserStatus[]): void => {
+		void navigate({
+			search: serializeTenantUsersListSearchParams({
+				...search,
+				status: serializeTenantUserStatusFilter(nextStatuses),
+				cursor: undefined,
+			}) as unknown as TenantUsersListSearchParams,
+			replace: true,
+		});
+	};
+
+	const toggleStatus = (status: KnownTenantUserStatus): void => {
+		if (selectedStatuses.includes(status)) {
+			setStatuses(selectedStatuses.filter((value) => value !== status));
+			return;
+		}
+
+		setStatuses([...selectedStatuses, status]);
+	};
+
+	const statusFilterLabel =
+		selectedStatuses.length === 0
+			? t('all-statuses')
+			: selectedStatuses
+					.map((status) => formatTenantUserStatusLabel(status, t))
+					.join(', ');
 
 	return (
 		<TenantDetailsPageShell
@@ -173,20 +579,28 @@ function StaffTenantUsersPage() {
 			activeSection="users"
 			testId="staff-tenant-users-page"
 		>
-			<div className="space-y-2">
-				<div className="flex items-center justify-between gap-4">
-					<h2 className="text-lg font-semibold text-foreground">Users</h2>
-					<Link
-						to="/staff/tenants/$tenantId/users/invite"
-						params={{ tenantId }}
-						className={buttonVariants({ size: 'sm', variant: 'default' })}
-					>
-						Invite user
-					</Link>
+			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+				<div className="space-y-1">
+					<h2 className="publy-type-page-title">
+						{t('members')}
+						{tenant.usersCount != null ? (
+							<span className="ml-2 publy-profile-count-badge align-middle">
+								{tenant.usersCount}
+							</span>
+						) : null}
+					</h2>
+					<p className="publy-type-helper">
+						{t('tenant-users-tab-description')}
+					</p>
 				</div>
-				<p className="text-sm text-muted-foreground">
-					Read-only tenant users with search, sorting, and cursor pagination.
-				</p>
+				<Link
+					to="/staff/tenants/$tenantId/users/invite"
+					params={{ tenantId }}
+					className={buttonVariants({ size: 'sm', variant: 'default' })}
+				>
+					<IconPlus aria-hidden="true" className="size-[15px]" />
+					{t('invite-people')}
+				</Link>
 			</div>
 
 			<DataTable<StaffTenantUserRow>
@@ -199,7 +613,7 @@ function StaffTenantUsersPage() {
 				onRetry={() => void usersQuery.refetch()}
 				emptyContent="No tenant users found."
 				noMatchContent="No tenant users match your search."
-				hasActiveSearch={Boolean(controller.search.committed)}
+				hasActiveSearch={Boolean(controller.search.committed || search.status)}
 				sort={controller.sort}
 				onSortChange={controller.onSortChange}
 				size={controller.size}
@@ -214,6 +628,43 @@ function StaffTenantUsersPage() {
 				onPreviousPage={controller.cursor.onPreviousPage}
 				searchDraft={controller.search.draft}
 				onSearchDraftChange={controller.search.onDraftChange}
+				searchPlaceholder={t('search-tenant-members')}
+				toolbarEnd={
+					<DropdownMenu>
+						<DropdownMenuTrigger
+							render={
+								<Button
+									type="button"
+									variant="outline"
+									className="publy-data-table-filter-button max-w-64 text-[13px]"
+								/>
+							}
+						>
+							<IconCircleDot
+								aria-hidden="true"
+								className="size-[15px] text-[var(--publy-foreground-secondary)]"
+							/>
+							<span className="truncate">{statusFilterLabel}</span>
+							<IconChevronDown aria-hidden="true" className="size-3" />
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end" sideOffset={6}>
+							{KNOWN_TENANT_USER_STATUSES.map((status) => (
+								<DropdownMenuCheckboxItem
+									key={status}
+									checked={selectedStatuses.includes(status)}
+									closeOnClick={false}
+									onCheckedChange={() => toggleStatus(status)}
+								>
+									{formatTenantUserStatusLabel(status, t)}
+								</DropdownMenuCheckboxItem>
+							))}
+							<DropdownMenuSeparator />
+							<DropdownMenuItem onClick={() => setStatuses([])}>
+								{t('clear')}
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
+				}
 			/>
 		</TenantDetailsPageShell>
 	);

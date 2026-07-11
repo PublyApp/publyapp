@@ -22,7 +22,9 @@ export const statusPillTone = (status: string | null): StatusPillTone => {
 		normalized === 'suspended' ||
 		normalized === 'expired' ||
 		normalized === 'revoked' ||
-		normalized === 'deleted'
+		normalized === 'deleted' ||
+		normalized === 'globallysuspended' ||
+		normalized === 'globally_suspended'
 	) {
 		return 'danger';
 	}

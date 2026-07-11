@@ -355,25 +355,25 @@ export const TenantDetailsPageShell = ({
 				className="flex flex-wrap gap-1 border-b border-border"
 			>
 				<SectionNavLink
-					label="Basics"
+					label={t('basics')}
 					to="/staff/tenants/$tenantId"
 					tenantId={tenant.id}
 					isActive={activeSection === 'basics'}
 				/>
 				<SectionNavLink
-					label="Profiles"
+					label={t('profiles')}
 					to="/staff/tenants/$tenantId/profiles"
 					tenantId={tenant.id}
 					isActive={activeSection === 'profiles'}
 				/>
 				<SectionNavLink
-					label="Invitations"
+					label={t('invitations')}
 					to="/staff/tenants/$tenantId/invitations"
 					tenantId={tenant.id}
 					isActive={activeSection === 'invitations'}
 				/>
 				<SectionNavLink
-					label="Users"
+					label={t('users')}
 					to="/staff/tenants/$tenantId/users"
 					tenantId={tenant.id}
 					isActive={activeSection === 'users'}

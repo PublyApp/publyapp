@@ -843,5 +843,16 @@
 	"unable-to-reactivate-tenant": "Impossible de réactiver ce locataire.",
 	"unable-to-delete-tenant": "Impossible de supprimer ce locataire.",
 	"no-tenant-members": "Aucun membre pour le moment.",
-	"tenant-users-preview-error": "Impossible de charger les membres."
+	"tenant-users-preview-error": "Impossible de charger les membres.",
+	"basics": "Général",
+	"new-profile": "Nouveau profil",
+	"invite-people": "Inviter des personnes",
+	"search-profiles": "Rechercher des profils…",
+	"search-tenant-members": "Rechercher des membres par nom ou e-mail…",
+	"tenant-profiles-tab-description": "Ensembles de permissions disponibles pour les membres de ce client.",
+	"tenant-invitations-tab-description": "Personnes invitées dans cet espace de travail qui n'ont pas encore rejoint.",
+	"tenant-users-tab-description": "Toutes les personnes ayant accès à cet espace de travail.",
+	"status-globally-suspended": "Suspendu globalement",
+	"view-details": "Voir les détails",
+	"no-description-provided": "Aucune description fournie."
 }

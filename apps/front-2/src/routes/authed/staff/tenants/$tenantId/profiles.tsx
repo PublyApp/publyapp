@@ -1,14 +1,47 @@
-import { IconAlertCircle } from '@tabler/icons-react';
+import {
+	IconAdjustments,
+	IconAlertCircle,
+	IconBriefcase,
+	IconEye,
+	IconKey,
+	IconLock,
+	IconPencil,
+	IconPlus,
+	IconSettings,
+	IconShield,
+	IconStar,
+	IconTrash,
+	IconUsers,
+} from '@tabler/icons-react';
+import type { Icon } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import type { ColumnDef } from '@tanstack/react-table';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
-import { DataTable } from '~/components/table/data-table';
-import { useTableController } from '~/components/table/use-table-controller';
-import { Badge } from '~/components/ui/badge';
 import {
+	DataTableCursorFooter,
+	DataTableToolbar,
+} from '~/components/table/data-table';
+import { DataTableRowActions } from '~/components/table/row-actions';
+import { resolveTableBodyState } from '~/components/table/table-body-state';
+import { useTableController } from '~/components/table/use-table-controller';
+import { Button, buttonVariants } from '~/components/ui/button';
+import { Card } from '~/components/ui/card';
+import { ConfirmDialog } from '~/components/ui/confirm-dialog';
+import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
+import { Skeleton } from '~/components/ui/skeleton';
+import {
+	ErrorStateSurface,
+	NoMatchStateSurface,
+	StateSurface,
+} from '~/components/ui/state-surface';
+import {
+	STAFF_TENANT_PROFILES_QUERY_KEY,
 	type StaffTenantProfileRow,
 	toStaffTenantProfileRows,
+	useDeleteStaffTenantProfileMutation,
 	useStaffTenantProfilesQuery,
 } from '~/lib/query/staff-tenant-profiles';
 import {
@@ -24,6 +57,11 @@ import {
 import { shouldLogoutForFailure } from '~/routes/authed/layout';
 
 import {
+	getFailureMessage,
+	toApiFailure,
+} from '@org/shared-ts/lib/api-failure/to-api-failure';
+
+import {
 	TenantDetailsError,
 	TenantDetailsLoading,
 	TenantDetailsPageShell,
@@ -33,61 +71,38 @@ import {
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
 
-export const createTenantProfileColumns = (
-	tenantId: string,
-): ColumnDef<StaffTenantProfileRow>[] => [
-	{
-		id: 'name',
-		header: 'Name',
-		accessorKey: 'name',
-		meta: { width: '240px' },
-		cell: ({ row }) => (
-			<div className="space-y-1">
-				<Link
-					to={'/staff/tenants/$tenantId/profiles/$profileId' as never}
-					params={{ tenantId, profileId: row.original.id } as never}
-					className="font-medium text-primary underline-offset-4 hover:underline"
-				>
-					{row.original.name || '—'}
-				</Link>
-				<p className="text-xs text-muted-foreground">
-					{row.original.description ?? 'No description provided.'}
-				</p>
-				<Link
-					to={'/staff/tenants/$tenantId/profiles/$profileId/edit' as never}
-					params={{ tenantId, profileId: row.original.id } as never}
-					className="inline-flex text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-				>
-					Edit profile
-				</Link>
-			</div>
-		),
-	},
-	{
-		id: 'description',
-		header: 'Description',
-		accessorKey: 'description',
-		enableSorting: false,
-		cell: ({ getValue }) => getValue<string | null>() ?? '—',
-	},
-	{
-		id: 'is_default',
-		header: 'Default',
-		accessorKey: 'isDefault',
-		enableSorting: false,
-		meta: { width: '104px' },
-		cell: ({ getValue }) =>
-			getValue<boolean>() ? <Badge variant="secondary">Default</Badge> : '—',
-	},
-	{
-		id: 'user_account_count',
-		header: 'Assigned users',
-		accessorKey: 'userAccountCount',
-		enableSorting: false,
-		meta: { width: '104px' },
-		cell: ({ getValue }) => String(getValue<number>()),
-	},
+/** Deterministic, decorative icon + tone for a profile card — same hashing
+ * approach as the staff (non-tenant) profiles list; not a contract field. */
+const PROFILE_CARD_ICONS: readonly Icon[] = [
+	IconShield,
+	IconKey,
+	IconLock,
+	IconStar,
+	IconBriefcase,
+	IconAdjustments,
+	IconUsers,
+	IconSettings,
 ];
+const PROFILE_CARD_TONE_COUNT = 8;
+
+export const deriveTenantProfileCardStyle = (
+	name: string,
+): { Icon: Icon; tone: string } => {
+	let sum = 0;
+	for (const char of name) {
+		sum += char.codePointAt(0) ?? 0;
+	}
+
+	return {
+		Icon: PROFILE_CARD_ICONS[sum % PROFILE_CARD_ICONS.length] ?? IconShield,
+		tone: String(sum % PROFILE_CARD_TONE_COUNT),
+	};
+};
+
+export const tenantProfileTypeChipClassName = (isDefault: boolean): string =>
+	isDefault
+		? 'publy-detail-chip publy-detail-chip--amber'
+		: 'publy-detail-chip publy-detail-chip--outline';
 
 export const Route = createFileRoute(
 	'/_authed-layout/staff/tenants/$tenantId/profiles',
@@ -97,11 +112,128 @@ export const Route = createFileRoute(
 	component: StaffTenantProfilesPage,
 });
 
+const ProfileCardGridSkeleton = ({ testId }: { testId: string }) => (
+	<div className="publy-profile-card-grid" data-testid={`${testId}-loading`}>
+		{['sk-1', 'sk-2', 'sk-3', 'sk-4', 'sk-5', 'sk-6'].map((key) => (
+			<Card key={key} className="flex flex-col gap-3 p-4">
+				<Skeleton className="size-10 rounded-[10px]" />
+				<Skeleton className="h-3 w-2/3" />
+				<Skeleton className="h-3 w-full" />
+				<Skeleton className="h-3 w-1/3" />
+			</Card>
+		))}
+	</div>
+);
+
+const ProfileCard = ({
+	tenantId,
+	profile,
+	onDeleteRequest,
+}: {
+	tenantId: string;
+	profile: StaffTenantProfileRow;
+	onDeleteRequest: (profile: StaffTenantProfileRow) => void;
+}) => {
+	const { t } = useTranslation('common');
+	const { Icon: ProfileIcon, tone } = deriveTenantProfileCardStyle(
+		profile.name,
+	);
+
+	return (
+		<Card
+			className="flex flex-col gap-3 p-4"
+			data-testid={`staff-tenant-profile-card-${profile.id}`}
+		>
+			<div className="flex items-start justify-between gap-2">
+				<Link
+					to="/staff/tenants/$tenantId/profiles/$profileId"
+					params={{ tenantId, profileId: profile.id }}
+					className="no-underline"
+				>
+					<span
+						className="publy-profile-icon-tile publy-profile-icon-tile--lg"
+						data-tone={tone}
+					>
+						<ProfileIcon aria-hidden="true" />
+					</span>
+				</Link>
+				<DataTableRowActions
+					ariaLabel={`Actions for ${profile.name || 'profile'}`}
+					testId={`staff-tenant-profile-actions-${profile.id}`}
+				>
+					<DropdownMenuItem
+						render={
+							<Link
+								to="/staff/tenants/$tenantId/profiles/$profileId"
+								params={{ tenantId, profileId: profile.id }}
+							/>
+						}
+					>
+						<IconEye className="size-[15px]" />
+						{t('view-details')}
+					</DropdownMenuItem>
+					<DropdownMenuItem
+						render={
+							<Link
+								to="/staff/tenants/$tenantId/profiles/$profileId/edit"
+								params={{ tenantId, profileId: profile.id }}
+							/>
+						}
+					>
+						<IconPencil className="size-[15px]" />
+						{t('edit')}
+					</DropdownMenuItem>
+					{profile.isDefault ? null : (
+						<DropdownMenuItem
+							variant="destructive"
+							onClick={() => onDeleteRequest(profile)}
+						>
+							<IconTrash className="size-[15px]" />
+							{t('delete')}
+						</DropdownMenuItem>
+					)}
+				</DataTableRowActions>
+			</div>
+
+			<div className="min-w-0 space-y-1">
+				<div className="flex flex-wrap items-center gap-2">
+					<Link
+						to="/staff/tenants/$tenantId/profiles/$profileId"
+						params={{ tenantId, profileId: profile.id }}
+						className="publy-record-link truncate text-[14px] font-semibold text-foreground no-underline"
+						title={profile.name || undefined}
+					>
+						{profile.name || '—'}
+					</Link>
+					<span className={tenantProfileTypeChipClassName(profile.isDefault)}>
+						{profile.isDefault ? t('default') : t('custom')}
+					</span>
+				</div>
+				<p
+					className="truncate text-xs text-muted-foreground"
+					title={profile.description || undefined}
+				>
+					{profile.description || t('no-description-provided')}
+				</p>
+				<p className="text-[11px] text-muted-foreground">
+					{t('tenant-member-count', { count: profile.userAccountCount })}
+				</p>
+			</div>
+		</Card>
+	);
+};
+
 function StaffTenantProfilesPage() {
 	const { tenantId } = Route.useParams();
 	const navigate = Route.useNavigate();
 	const search = Route.useSearch();
-	const columns = createTenantProfileColumns(tenantId);
+	const { t } = useTranslation('common');
+	const queryClient = useQueryClient();
+	const [deleteTarget, setDeleteTarget] =
+		useState<StaffTenantProfileRow | null>(null);
+	const [deleteError, setDeleteError] = useState('');
+	const [shouldRedirectToLogout, setShouldRedirectToLogout] = useState(false);
+	const deleteProfile = useDeleteStaffTenantProfileMutation();
 
 	const onSearchChange = (next: TableSearchParams): void => {
 		void navigate({
@@ -173,7 +305,51 @@ function StaffTenantProfilesPage() {
 		return <LogoutRedirect />;
 	}
 
+	if (shouldRedirectToLogout) {
+		return <LogoutRedirect />;
+	}
+
 	const rows = toStaffTenantProfileRows(profilesQuery.data?.data);
+	const testId = 'staff-tenant-profiles-grid';
+	const hasActiveSearch = Boolean(controller.search.committed);
+	const bodyState = resolveTableBodyState({
+		isPending: profilesQuery.isPending,
+		isError: profilesQuery.isError,
+		rowCount: rows.length,
+		hasActiveSearch,
+	});
+
+	const handleDelete = async () => {
+		if (!deleteTarget) {
+			return;
+		}
+
+		setDeleteError('');
+
+		try {
+			await deleteProfile.mutateAsync({
+				tenantId,
+				profileId: deleteTarget.id,
+			});
+			await queryClient.invalidateQueries({
+				queryKey: STAFF_TENANT_PROFILES_QUERY_KEY,
+			});
+		} catch (error) {
+			if (shouldLogoutForFailure(error)) {
+				setShouldRedirectToLogout(true);
+				return;
+			}
+
+			setDeleteError(
+				getFailureMessage(toApiFailure(error), {
+					fallback: 'Unable to delete this tenant profile.',
+				}),
+			);
+			return;
+		} finally {
+			setDeleteTarget(null);
+		}
+	};
 
 	return (
 		<TenantDetailsPageShell
@@ -182,50 +358,121 @@ function StaffTenantProfilesPage() {
 			testId="staff-tenant-profiles-page"
 		>
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-				<div className="space-y-2">
-					<h2 className="text-lg font-semibold text-foreground">Profiles</h2>
-					<p className="text-sm text-muted-foreground">
-						Create tenant profiles here, then manage permissions in the
-						follow-up stack.
+				<div className="space-y-1">
+					<h2 className="publy-type-page-title">{t('profiles')}</h2>
+					<p className="publy-type-helper">
+						{t('tenant-profiles-tab-description')}
 					</p>
 				</div>
 				<Link
-					to={'/staff/tenants/$tenantId/profiles/new' as never}
-					params={{ tenantId } as never}
-					className="inline-flex items-center justify-center rounded-medium bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+					to="/staff/tenants/$tenantId/profiles/new"
+					params={{ tenantId }}
+					className={buttonVariants({ variant: 'outline', size: 'sm' })}
 				>
-					New profile
+					<IconPlus aria-hidden="true" className="size-[15px]" />
+					{t('new-profile')}
 				</Link>
 			</div>
 
-			<DataTable
-				testId="staff-tenant-profiles-table"
-				ariaLabel="Tenant profiles"
-				columns={columns}
-				rows={rows}
-				isPending={profilesQuery.isPending}
-				isError={profilesQuery.isError}
-				onRetry={() => void profilesQuery.refetch()}
-				emptyContent="No tenant profiles found."
-				noMatchContent="No tenant profiles match your search."
-				hasActiveSearch={Boolean(controller.search.committed)}
-				sort={controller.sort}
-				onSortChange={controller.onSortChange}
-				size={controller.size}
-				onSizeChange={controller.onSizeChange}
-				pageIndex={controller.cursor.pageIndex}
-				hasPreviousPage={controller.cursor.hasPreviousPage}
-				hasNextPage={profilesQuery.data?.nextCursor != null}
-				isPaginationPending={profilesQuery.isFetching}
-				onNextPage={() =>
-					controller.cursor.onNextPage(
-						profilesQuery.data?.nextCursor ?? undefined,
-					)
-				}
-				onPreviousPage={controller.cursor.onPreviousPage}
-				searchDraft={controller.search.draft}
-				onSearchDraftChange={controller.search.onDraftChange}
+			<div className="publy-data-table-shell">
+				<DataTableToolbar
+					testId={testId}
+					searchDraft={controller.search.draft}
+					onSearchDraftChange={controller.search.onDraftChange}
+					searchPlaceholder={t('search-profiles')}
+				/>
+
+				{bodyState === 'loading' ? (
+					<ProfileCardGridSkeleton testId={testId} />
+				) : null}
+
+				{bodyState === 'error' ? (
+					<ErrorStateSurface
+						title={t('list-unavailable-title')}
+						description={t('list-error-default-description')}
+						actions={
+							<Button
+								type="button"
+								variant="outline"
+								onClick={() => void profilesQuery.refetch()}
+							>
+								{t('retry')}
+							</Button>
+						}
+						testId={`${testId}-error`}
+					/>
+				) : null}
+
+				{bodyState === 'empty' ? (
+					<StateSurface
+						title={t('list-empty-title')}
+						description="No tenant profiles found."
+						testId={`${testId}-empty`}
+					/>
+				) : null}
+
+				{bodyState === 'no-match' ? (
+					<NoMatchStateSurface
+						title={t('list-no-match-title')}
+						description="No tenant profiles match your search."
+						testId={`${testId}-no-match`}
+					/>
+				) : null}
+
+				{bodyState === 'rows' ? (
+					<>
+						<div
+							className="publy-profile-card-grid"
+							data-testid={`${testId}-rows`}
+						>
+							{rows.map((profile) => (
+								<ProfileCard
+									key={profile.id}
+									tenantId={tenantId}
+									profile={profile}
+									onDeleteRequest={setDeleteTarget}
+								/>
+							))}
+						</div>
+						<DataTableCursorFooter
+							testId={testId}
+							pageIndex={controller.cursor.pageIndex}
+							size={controller.size}
+							onSizeChange={controller.onSizeChange}
+							hasPreviousPage={controller.cursor.hasPreviousPage}
+							hasNextPage={profilesQuery.data?.nextCursor != null}
+							isPaginationPending={profilesQuery.isFetching}
+							onNextPage={() =>
+								controller.cursor.onNextPage(
+									profilesQuery.data?.nextCursor ?? undefined,
+								)
+							}
+							onPreviousPage={controller.cursor.onPreviousPage}
+							variant="flat"
+						/>
+					</>
+				) : null}
+			</div>
+
+			<ConfirmDialog
+				isOpen={deleteTarget !== null}
+				title={t('delete')}
+				description="This will permanently delete this tenant profile. Users assigned to this profile may be affected and the action cannot be undone."
+				confirmLabel={t('delete')}
+				isPending={deleteProfile.isPending}
+				onConfirm={() => {
+					void handleDelete();
+				}}
+				onOpenChange={(isOpen) => {
+					if (!isOpen) setDeleteTarget(null);
+				}}
 			/>
+
+			{deleteError ? (
+				<p className="text-sm text-destructive" role="status">
+					{deleteError}
+				</p>
+			) : null}
 		</TenantDetailsPageShell>
 	);
 }

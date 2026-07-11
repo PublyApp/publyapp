@@ -70,6 +70,10 @@ vi.mock('react-i18next', () => ({
 				'create-profile': 'Create profile',
 				'back-to-profiles': 'Back to profiles',
 				'profile-save-failed': 'Unable to save the profile.',
+				basics: 'Basics',
+				profiles: 'Profiles',
+				invitations: 'Invitations',
+				users: 'Users',
 			};
 
 			return labels[key] ?? key;

@@ -1,15 +1,36 @@
-import { IconAlertCircle } from '@tabler/icons-react';
+import {
+	IconAlertCircle,
+	IconChevronDown,
+	IconCircleDot,
+	IconClock,
+	IconId,
+	IconMail,
+	IconPlus,
+	IconUser,
+} from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
+import { DataTableRowActions } from '~/components/table/row-actions';
 import { useTableController } from '~/components/table/use-table-controller';
-import { Button } from '~/components/ui/button';
+import { Button, buttonVariants } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
+import {
+	DropdownMenu,
+	DropdownMenuCheckboxItem,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from '~/components/ui/dropdown-menu';
+import { InitialsAvatar } from '~/components/ui/initials-avatar';
+import { StatusPill } from '~/components/ui/product-page';
+import { statusPillTone } from '~/components/ui/status-tone';
 import {
 	isStaffTenantInvitationRevocable,
 	STAFF_TENANT_INVITATIONS_QUERY_KEY,
@@ -52,6 +73,7 @@ import {
 
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
+const EXPIRES_SOON_MS = 48 * 60 * 60 * 1000;
 
 type ActionFeedback = {
 	message: string;
@@ -70,6 +92,20 @@ const getFeedbackClassName = (tone: ActionFeedback['tone']): string =>
 		? 'border-success/20 bg-success/10 text-success'
 		: 'border-destructive/20 bg-destructive/10 text-destructive';
 
+/** Honest "amber emphasis" for a near expiry — computed from the real
+ * `expiresAt` value, never a fabricated "Expiring" status. */
+export const isInvitationExpiringSoon = (
+	expiresAt: Date | null,
+	now: Date,
+): boolean => {
+	if (!(expiresAt instanceof Date) || Number.isNaN(expiresAt.valueOf())) {
+		return false;
+	}
+
+	const diffMs = expiresAt.getTime() - now.getTime();
+	return diffMs > 0 && diffMs < EXPIRES_SOON_MS;
+};
+
 export const createColumns = ({
 	locale,
 	t,
@@ -78,75 +114,131 @@ export const createColumns = ({
 }: CreateColumnsArgs): ColumnDef<StaffTenantInvitationRow>[] => [
 	{
 		id: 'email',
-		header: 'Email',
+		header: () => (
+			<div className="inline-flex items-center gap-1.5">
+				<IconMail className="size-3.5 text-muted-foreground" />
+				<span>{t('invitee')}</span>
+			</div>
+		),
 		accessorKey: 'email',
-		meta: { width: '300px' },
+		meta: { width: '280px' },
+		cell: ({ row }) => {
+			const email = row.original.email || '—';
+			return (
+				<div className="flex min-w-0 items-center gap-2.5">
+					<InitialsAvatar name={row.original.email} />
+					<span className="min-w-0 truncate text-[13px]" title={email}>
+						{email}
+					</span>
+				</div>
+			);
+		},
 	},
 	{
-		id: 'status',
-		header: 'Status',
+		id: 'profile_name',
+		header: () => (
+			<div className="inline-flex items-center gap-1.5">
+				<IconId className="size-3.5 text-muted-foreground" />
+				<span>{t('profiles')}</span>
+			</div>
+		),
+		accessorKey: 'profileName',
 		enableSorting: false,
-		meta: { width: '128px' },
+		meta: { width: '160px' },
 		cell: ({ row }) => (
-			<span className="inline-flex rounded-full bg-muted px-2 py-1 text-xs font-medium text-foreground">
-				{formatInvitationStatusLabel(
-					normalizeInvitationStatus(row.original.status),
-				)}
+			<span className="publy-detail-chip publy-detail-chip--outline">
+				{row.original.profileName}
 			</span>
 		),
 	},
 	{
-		id: 'profile_name',
-		header: 'Profile',
-		accessorKey: 'profileName',
-		enableSorting: false,
-	},
-	{
 		id: 'invited_by',
-		header: 'Invited by',
+		header: () => (
+			<div className="inline-flex items-center gap-1.5">
+				<IconUser className="size-3.5 text-muted-foreground" />
+				<span>{t('invited-by')}</span>
+			</div>
+		),
 		accessorKey: 'invitedByName',
 		enableSorting: false,
 		meta: { width: '150px' },
-	},
-	{
-		id: 'created_at',
-		header: 'Created',
-		accessorFn: (row) => row.createdAt,
-		meta: { width: '140px' },
-		cell: ({ row }) => formatDateTime(row.original.createdAt, locale),
+		cell: ({ getValue }) => (
+			<span className="text-[13px] text-muted-foreground">
+				{getValue<string>()}
+			</span>
+		),
 	},
 	{
 		id: 'expires_at',
-		header: 'Expires',
+		header: () => (
+			<div className="inline-flex items-center gap-1.5">
+				<IconClock className="size-3.5 text-muted-foreground" />
+				<span>{t('expires')}</span>
+			</div>
+		),
 		accessorFn: (row) => row.expiresAt,
-		meta: { width: '120px' },
-		cell: ({ row }) => formatDateTime(row.original.expiresAt, locale),
+		meta: { width: '150px' },
+		cell: ({ row }) => {
+			const expiresAt = row.original.expiresAt;
+			const isExpiringSoon = isInvitationExpiringSoon(expiresAt, new Date());
+			return (
+				<span
+					className={
+						isExpiringSoon
+							? 'text-[13px] font-medium text-[var(--publy-warning)]'
+							: 'text-[13px] text-muted-foreground'
+					}
+				>
+					{formatDateTime(expiresAt, locale)}
+				</span>
+			);
+		},
 	},
 	{
-		id: 'accepted_at',
-		header: 'Accepted',
-		accessorFn: (row) => row.acceptedAt,
-		meta: { width: '140px' },
-		cell: ({ row }) => formatDateTime(row.original.acceptedAt, locale),
+		id: 'status',
+		header: () => (
+			<div className="inline-flex items-center gap-1.5">
+				<IconCircleDot className="size-3.5 text-muted-foreground" />
+				<span>{t('status')}</span>
+			</div>
+		),
+		enableSorting: false,
+		meta: { width: '128px' },
+		cell: ({ row }) => {
+			const status = normalizeInvitationStatus(row.original.status);
+			return (
+				<StatusPill tone={statusPillTone(status)}>
+					{formatInvitationStatusLabel(status)}
+				</StatusPill>
+			);
+		},
 	},
 	{
 		id: 'actions',
-		header: 'Actions',
+		header: () => <span className="sr-only">{t('actions')}</span>,
 		enableSorting: false,
-		meta: { width: '40px' },
+		meta: { width: '40px', align: 'center' },
 		cell: ({ row }) =>
 			isStaffTenantInvitationRevocable(row.original) ? (
-				<Button
-					type="button"
-					size="sm"
-					variant="destructive"
-					disabled={isRevokePending}
-					onClick={() => onRevoke(row.original)}
+				<DataTableRowActions
+					ariaLabel={`Actions for ${row.original.email || 'invitation'}`}
+					testId={`staff-tenant-invitation-actions-${row.original.id}`}
 				>
-					{t('staff-revoke')}
-				</Button>
+					<DropdownMenuItem
+						variant="destructive"
+						disabled={isRevokePending}
+						onClick={() => onRevoke(row.original)}
+					>
+						{t('revoke')}
+					</DropdownMenuItem>
+				</DataTableRowActions>
 			) : (
-				<span className="text-muted-foreground">—</span>
+				<span
+					aria-label="No actions available"
+					className="flex justify-center text-muted-foreground"
+				>
+					—
+				</span>
 			),
 	},
 ];
@@ -327,18 +419,32 @@ function StaffTenantInvitationsPage() {
 		setStatuses([...selectedStatuses, status]);
 	};
 
+	const statusFilterLabel =
+		selectedStatuses.length === 0
+			? t('all-statuses')
+			: selectedStatuses.map(formatInvitationStatusLabel).join(', ');
+
 	return (
 		<TenantDetailsPageShell
 			tenant={tenant}
 			activeSection="invitations"
 			testId="staff-tenant-invitations-page"
 		>
-			<div className="space-y-2">
-				<h2 className="text-lg font-semibold text-foreground">Invitations</h2>
-				<p className="text-sm text-muted-foreground">
-					Tenant invitations with search, status filters, sorting, cursor
-					pagination, and pending-row revoke.
-				</p>
+			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+				<div className="space-y-1">
+					<h2 className="publy-type-page-title">{t('pending-invitations')}</h2>
+					<p className="publy-type-helper">
+						{t('tenant-invitations-tab-description')}
+					</p>
+				</div>
+				<Link
+					to="/staff/tenants/$tenantId/users/invite"
+					params={{ tenantId }}
+					className={buttonVariants({ size: 'sm', variant: 'default' })}
+				>
+					<IconPlus aria-hidden="true" className="size-[15px]" />
+					{t('invite-people')}
+				</Link>
 			</div>
 
 			{feedback ? (
@@ -352,9 +458,9 @@ function StaffTenantInvitationsPage() {
 
 			<ConfirmDialog
 				isOpen={pendingRevokeRowId !== null}
-				title="Revoke invitation"
+				title={t('revoke-invitation')}
 				description="This will revoke the invitation. The invited user will no longer be able to accept it."
-				confirmLabel="Revoke"
+				confirmLabel={t('revoke')}
 				isPending={revokeInvitation.isPending}
 				onConfirm={() => {
 					const row = rows.find((r) => r.id === pendingRevokeRowId);
@@ -366,32 +472,6 @@ function StaffTenantInvitationsPage() {
 					if (!isOpen) setPendingRevokeRowId(null);
 				}}
 			/>
-
-			<div className="flex flex-wrap items-center gap-2">
-				{KNOWN_INVITATION_STATUSES.map((status) => {
-					const isSelected = selectedStatuses.includes(status);
-
-					return (
-						<Button
-							key={status}
-							size="sm"
-							type="button"
-							variant={isSelected ? 'default' : 'secondary'}
-							onClick={() => toggleStatus(status)}
-						>
-							{formatInvitationStatusLabel(status)}
-						</Button>
-					);
-				})}
-				<Button
-					size="sm"
-					type="button"
-					variant="ghost"
-					onClick={() => setStatuses([])}
-				>
-					Clear
-				</Button>
-			</div>
 
 			<DataTable
 				testId="staff-tenant-invitations-table"
@@ -420,6 +500,43 @@ function StaffTenantInvitationsPage() {
 				onPreviousPage={controller.cursor.onPreviousPage}
 				searchDraft={controller.search.draft}
 				onSearchDraftChange={controller.search.onDraftChange}
+				searchPlaceholder={t('search-invitations')}
+				toolbarEnd={
+					<DropdownMenu>
+						<DropdownMenuTrigger
+							render={
+								<Button
+									type="button"
+									variant="outline"
+									className="publy-data-table-filter-button max-w-64 text-[13px]"
+								/>
+							}
+						>
+							<IconCircleDot
+								aria-hidden="true"
+								className="size-[15px] text-[var(--publy-foreground-secondary)]"
+							/>
+							<span className="truncate">{statusFilterLabel}</span>
+							<IconChevronDown aria-hidden="true" className="size-3" />
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end" sideOffset={6}>
+							{KNOWN_INVITATION_STATUSES.map((status) => (
+								<DropdownMenuCheckboxItem
+									key={status}
+									checked={selectedStatuses.includes(status)}
+									closeOnClick={false}
+									onCheckedChange={() => toggleStatus(status)}
+								>
+									{formatInvitationStatusLabel(status)}
+								</DropdownMenuCheckboxItem>
+							))}
+							<DropdownMenuSeparator />
+							<DropdownMenuItem onClick={() => setStatuses([])}>
+								{t('clear')}
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
+				}
 			/>
 		</TenantDetailsPageShell>
 	);

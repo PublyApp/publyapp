@@ -1,18 +1,37 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, render, screen } from '@testing-library/react';
+import {
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from '@testing-library/react';
 import type { JSX } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
 	search: {} as Record<string, unknown>,
 	navigate: vi.fn(),
+	invalidateQueries: vi.fn(),
 	toStaffTenantDetails: vi.fn(),
 	useStaffTenantDetailsQuery: vi.fn(),
 	toStaffTenantUserRows: vi.fn(),
 	useStaffTenantUsersQuery: vi.fn(),
+	suspendMutation: vi.fn(),
+	reactivateMutation: vi.fn(),
+	removeMutation: vi.fn(),
+	useSuspendStaffTenantUserMutation: vi.fn(),
+	useReactivateStaffTenantUserMutation: vi.fn(),
+	useRemoveStaffTenantUserMutation: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
+}));
+
+vi.mock('@tanstack/react-query', () => ({
+	useQueryClient: () => ({
+		invalidateQueries: mocks.invalidateQueries,
+	}),
 }));
 
 vi.mock('@tanstack/react-router', () => ({
@@ -48,9 +67,41 @@ vi.mock('@tanstack/react-router', () => ({
 	},
 }));
 
+const TRANSLATIONS: Record<string, string> = {
+	basics: 'Basics',
+	profiles: 'Profiles',
+	invitations: 'Invitations',
+	users: 'Users',
+	members: 'Members',
+	level: 'Level',
+	status: 'Status',
+	actions: 'Actions',
+	'view-details': 'View details',
+	edit: 'Edit',
+	reactivate: 'Reactivate',
+	suspend: 'Suspend',
+	'remove-user-from-tenant': 'Remove from tenant',
+	'all-statuses': 'All statuses',
+	'status-active': 'Active',
+	'status-suspended': 'Suspended',
+	'status-globally-suspended': 'Globally suspended',
+	admin: 'Admin',
+	user: 'User',
+	'search-tenant-members': 'Search members by name or email…',
+	'invite-people': 'Invite people',
+	'tenant-users-tab-description': 'Everyone with access to this workspace.',
+	clear: 'Clear',
+	'suspend-tenant-user-description':
+		'This user will lose access to this tenant. Are you sure you want to proceed?',
+	'reactivate-tenant-user-description':
+		'Access to this tenant will be restored. Are you sure you want to proceed?',
+	'confirm-remove-user-from-tenant-details':
+		'Are you sure you want to remove this user from this tenant? They will lose access to this tenant.',
+};
+
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string) => key,
+		t: (key: string) => TRANSLATIONS[key] ?? key,
 		i18n: {
 			language: 'en',
 		},
@@ -66,8 +117,14 @@ vi.mock('~/components/error-views/View403', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenant-users', () => ({
+	STAFF_TENANT_USERS_QUERY_KEY: ['staff-tenants', 'users'],
+	STAFF_TENANT_USER_DETAILS_QUERY_KEY: ['staff-tenants', 'users', 'detail'],
 	toStaffTenantUserRows: mocks.toStaffTenantUserRows,
 	useStaffTenantUsersQuery: mocks.useStaffTenantUsersQuery,
+	useSuspendStaffTenantUserMutation: mocks.useSuspendStaffTenantUserMutation,
+	useReactivateStaffTenantUserMutation:
+		mocks.useReactivateStaffTenantUserMutation,
+	useRemoveStaffTenantUserMutation: mocks.useRemoveStaffTenantUserMutation,
 }));
 
 vi.mock('~/lib/query/staff-tenants', () => ({
@@ -79,7 +136,14 @@ vi.mock('~/routes/authed/layout', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 
-import { makeTenantUserColumns, Route } from './users';
+import {
+	formatTenantUserLevelLabel,
+	formatTenantUserStatusLabel,
+	makeTenantUserColumns,
+	parseTenantUserStatusFilter,
+	Route,
+	tenantUserLevelChipClassName,
+} from './users';
 
 const buildQueryResult = (overrides: Record<string, unknown> = {}) => ({
 	data: undefined,
@@ -101,11 +165,26 @@ const renderPage = () => {
 	return render(<Component />);
 };
 
+const identityT = (key: string) => TRANSLATIONS[key] ?? key;
+
 describe('staff tenant users route', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mocks.search = {};
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
+		mocks.invalidateQueries.mockResolvedValue(undefined);
+		mocks.useSuspendStaffTenantUserMutation.mockReturnValue({
+			mutateAsync: mocks.suspendMutation,
+			isPending: false,
+		});
+		mocks.useReactivateStaffTenantUserMutation.mockReturnValue({
+			mutateAsync: mocks.reactivateMutation,
+			isPending: false,
+		});
+		mocks.useRemoveStaffTenantUserMutation.mockReturnValue({
+			mutateAsync: mocks.removeMutation,
+			isPending: false,
+		});
 		mocks.toStaffTenantDetails.mockReturnValue({
 			id: '11111111-1111-1111-1111-111111111111',
 			name: 'Acme Corporation',
@@ -159,17 +238,21 @@ describe('staff tenant users route', () => {
 		cleanup();
 	});
 
-	test('renders the shared tenant shell with users active and the default list query state', () => {
+	test('renders the shared tenant shell with users active, the members title, and the default list query state', () => {
 		renderPage();
 
 		expect(screen.getByTestId('staff-tenant-users-page')).toBeTruthy();
 		expect(screen.getByText('Acme Corporation')).toBeTruthy();
 		expect(
-			screen.getByRole('link', { name: 'Alex Johnson' }).getAttribute('href'),
+			screen.getByRole('link', { name: /Alex Johnson/ }).getAttribute('href'),
 		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/users/user-1');
 		expect(
 			screen.getByText('Users', { selector: 'span[aria-current="page"]' }),
 		).toBeTruthy();
+		const title = screen.getByRole('heading', { name: /Members/ });
+		expect(title).toBeTruthy();
+		// The Users tab MAY show the honest usersCount field from tenant details.
+		expect(title.textContent).toContain('12');
 		expect(screen.getByText('Alex Johnson')).toBeTruthy();
 		expect(screen.getByText('alex@example.com')).toBeTruthy();
 		expect(screen.getByText('Admin')).toBeTruthy();
@@ -177,10 +260,14 @@ describe('staff tenant users route', () => {
 		expect(
 			screen.getByRole('link', { name: 'Profiles' }).getAttribute('href'),
 		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/profiles');
+		expect(
+			screen.getByRole('link', { name: 'Invite people' }).getAttribute('href'),
+		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/users/invite');
 		expect(mocks.useStaffTenantUsersQuery).toHaveBeenCalledWith(
 			{
 				tenantId: '11111111-1111-1111-1111-111111111111',
 				q: undefined,
+				status: undefined,
 				sortId: 'created_at',
 				sortOrder: 'desc',
 				cursor: undefined,
@@ -188,6 +275,13 @@ describe('staff tenant users route', () => {
 			},
 			{ enabled: true },
 		);
+	});
+
+	test('does not render a checkbox column or a Last active column', () => {
+		renderPage();
+
+		expect(screen.queryByLabelText('Select all rows')).toBeNull();
+		expect(screen.queryByText('Last active')).toBeNull();
 	});
 
 	test('renders the no-match state when search is active and no rows match', () => {
@@ -208,6 +302,104 @@ describe('staff tenant users route', () => {
 			screen.getByTestId('staff-tenant-users-table-no-match'),
 		).toBeTruthy();
 		expect(screen.getByText('No tenant users match your search.')).toBeTruthy();
+	});
+
+	test('shows a reactivate action for a suspended user and a suspend action for an active one', async () => {
+		mocks.toStaffTenantUserRows.mockReturnValue([
+			{
+				id: 'user-1',
+				displayName: 'Alex Johnson',
+				email: 'alex@example.com',
+				level: 'Admin',
+				status: 'Active',
+				firstName: 'Alex',
+				lastName: 'Johnson',
+				avatarUrl: null,
+			},
+			{
+				id: 'user-2',
+				displayName: 'Jamie Lee',
+				email: 'jamie@example.com',
+				level: 'User',
+				status: 'Suspended',
+				firstName: 'Jamie',
+				lastName: 'Lee',
+				avatarUrl: null,
+			},
+		]);
+
+		renderPage();
+
+		const triggers = screen.getAllByRole('button', { name: /^Actions for/ });
+		fireEvent.click(triggers[0]);
+		expect(
+			await screen.findByRole('menuitem', { name: 'Suspend' }),
+		).toBeTruthy();
+		expect(screen.queryByRole('menuitem', { name: 'Reactivate' })).toBeNull();
+
+		fireEvent.click(triggers[0]);
+		fireEvent.click(triggers[1]);
+		expect(
+			await screen.findByRole('menuitem', { name: 'Reactivate' }),
+		).toBeTruthy();
+		expect(screen.queryByRole('menuitem', { name: 'Suspend' })).toBeNull();
+	});
+
+	test('suspends a user after explicit confirmation and invalidates tenant user queries', async () => {
+		mocks.suspendMutation.mockResolvedValue({});
+
+		renderPage();
+
+		fireEvent.click(screen.getByRole('button', { name: /^Actions for/ }));
+		fireEvent.click(await screen.findByRole('menuitem', { name: 'Suspend' }));
+
+		await waitFor(() =>
+			expect(screen.getByRole('heading', { name: 'Suspend' })).toBeTruthy(),
+		);
+		fireEvent.click(
+			screen.getAllByRole('button', { name: 'Suspend' }).slice(-1)[0],
+		);
+
+		await waitFor(() =>
+			expect(mocks.suspendMutation).toHaveBeenCalledWith({
+				tenantId: '11111111-1111-1111-1111-111111111111',
+				userId: 'user-1',
+			}),
+		);
+		await waitFor(() =>
+			expect(mocks.invalidateQueries).toHaveBeenCalledWith({
+				queryKey: ['staff', 'staff-tenants', 'users'],
+			}),
+		);
+	});
+
+	test('removes a user from the tenant after explicit confirmation', async () => {
+		mocks.removeMutation.mockResolvedValue({});
+
+		renderPage();
+
+		fireEvent.click(screen.getByRole('button', { name: /^Actions for/ }));
+		fireEvent.click(
+			await screen.findByRole('menuitem', { name: 'Remove from tenant' }),
+		);
+
+		await waitFor(() =>
+			expect(
+				screen.getByRole('heading', { name: 'Remove from tenant' }),
+			).toBeTruthy(),
+		);
+		fireEvent.click(
+			screen
+				.getAllByRole('button', { name: 'Remove from tenant' })
+				.slice(-1)[0],
+		);
+
+		await waitFor(() =>
+			expect(mocks.removeMutation).toHaveBeenCalledWith({
+				tenantId: '11111111-1111-1111-1111-111111111111',
+				userId: 'user-1',
+			}),
+		);
 	});
 
 	test('renders the not-found view without logging out for a malformed id', () => {
@@ -291,19 +483,56 @@ describe('staff tenant users route', () => {
 });
 
 describe('makeTenantUserColumns column widths', () => {
-	test('applies a fixed width to every column except the fluid email column', () => {
+	test('applies a fixed width to every column except the fluid name column', () => {
 		const columns = makeTenantUserColumns(
 			'11111111-1111-1111-1111-111111111111',
+			identityT,
+			() => undefined,
 		);
 		const widthById = Object.fromEntries(
 			columns.map((column) => [column.id, column.meta?.width]),
 		);
 
 		expect(widthById).toEqual({
-			name: '200px',
-			email: undefined,
-			level: '104px',
-			status: '122px',
+			name: undefined,
+			level: '150px',
+			status: '130px',
+			actions: '40px',
 		});
+	});
+});
+
+describe('tenant user level chip mapping', () => {
+	test('maps Admin to the amber chip and User to the neutral chip', () => {
+		expect(tenantUserLevelChipClassName('Admin')).toContain('--amber');
+		expect(tenantUserLevelChipClassName('User')).toContain('--outline');
+		expect(tenantUserLevelChipClassName(null)).toContain('--outline');
+	});
+
+	test('formats level labels through i18n', () => {
+		expect(formatTenantUserLevelLabel('Admin', identityT)).toBe('Admin');
+		expect(formatTenantUserLevelLabel('User', identityT)).toBe('User');
+	});
+});
+
+describe('tenant user status label mapping', () => {
+	test('maps the three real tenant-user statuses honestly', () => {
+		expect(formatTenantUserStatusLabel('Active', identityT)).toBe('Active');
+		expect(formatTenantUserStatusLabel('Suspended', identityT)).toBe(
+			'Suspended',
+		);
+		expect(formatTenantUserStatusLabel('GloballySuspended', identityT)).toBe(
+			'Globally suspended',
+		);
+	});
+});
+
+describe('parseTenantUserStatusFilter', () => {
+	test('parses known comma-separated statuses and drops unknown tokens', () => {
+		expect(parseTenantUserStatusFilter('active,bogus,suspended')).toEqual([
+			'active',
+			'suspended',
+		]);
+		expect(parseTenantUserStatusFilter(undefined)).toEqual([]);
 	});
 });

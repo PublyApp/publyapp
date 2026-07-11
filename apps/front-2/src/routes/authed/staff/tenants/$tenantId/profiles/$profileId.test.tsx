@@ -122,6 +122,22 @@ vi.mock('~/routes/authed/layout', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 
+vi.mock('react-i18next', () => ({
+	useTranslation: () => ({
+		t: (key: string) => {
+			const labels: Record<string, string> = {
+				basics: 'Basics',
+				profiles: 'Profiles',
+				invitations: 'Invitations',
+				users: 'Users',
+			};
+
+			return labels[key] ?? key;
+		},
+		i18n: { language: 'en' },
+	}),
+}));
+
 import { Route } from './$profileId';
 
 const buildQueryResult = (overrides: Record<string, unknown> = {}) => ({

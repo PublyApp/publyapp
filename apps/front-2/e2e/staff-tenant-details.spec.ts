@@ -46,7 +46,69 @@ const mockTenantDetails = async (page: Page) => {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
-				body: JSON.stringify({ data: [], nextCursor: null }),
+				body: JSON.stringify({
+					data: [
+						{
+							id: '0197b8f0-4444-7ccc-8ccc-dddddddddddd',
+							email: 'jamie@example.com',
+							firstName: 'Jamie',
+							lastName: 'Lee',
+							avatarUrl: null,
+							status: 'Active',
+							level: 'Admin',
+						},
+					],
+					nextCursor: null,
+				}),
+			});
+			return;
+		}
+
+		if (
+			request.method() === 'GET' &&
+			isApiPath(url, `/staff/tenants/${TENANT_ID}/profiles`)
+		) {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					data: [
+						{
+							id: '0197b8f0-5555-7ccc-8ccc-eeeeeeeeeeee',
+							name: 'Approvers',
+							description: 'Can review approvals',
+							isDefault: true,
+							userAccountCount: 7,
+						},
+					],
+					nextCursor: null,
+				}),
+			});
+			return;
+		}
+
+		if (
+			request.method() === 'GET' &&
+			isApiPath(url, `/staff/tenants/${TENANT_ID}/invitations`)
+		) {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					data: [
+						{
+							id: '0197b8f0-6666-7ccc-8ccc-ffffffffffff',
+							email: 'sam@example.com',
+							status: 'Pending',
+							profileName: 'Approvers',
+							invitedByName: 'Taylor Smith',
+							createdAt: '2026-07-01T09:00:00Z',
+							expiresAt: '2026-07-07T09:00:00Z',
+							acceptedAt: null,
+						},
+					],
+					nextCursor: null,
+				}),
 			});
 			return;
 		}
@@ -110,5 +172,79 @@ test.describe('staff tenant details shell (rail-only) and Basics danger zone', (
 		// Back on the tenants list, the secondary panel returns.
 		await page.goto('/staff/tenants');
 		await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
+	});
+});
+
+test.describe('staff tenant Profiles/Invitations/Users tab bodies', () => {
+	test('Profiles tab renders the toolbar, the card grid, and the cursor footer', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await mockTenantDetails(page);
+
+		await page.goto(`/staff/tenants/${TENANT_ID}/profiles`);
+
+		await expect(page.getByTestId('staff-tenant-profiles-page')).toBeVisible();
+		await expect(
+			page.getByTestId('staff-tenant-profiles-grid-toolbar'),
+		).toBeVisible();
+		await expect(
+			page.getByTestId('staff-tenant-profiles-grid-search'),
+		).toBeVisible();
+		await expect(
+			page.getByTestId('staff-tenant-profiles-grid-rows'),
+		).toBeVisible();
+		await expect(
+			page.getByTestId('staff-tenant-profiles-grid-footer'),
+		).toBeVisible();
+	});
+
+	test('Invitations tab renders the toolbar, the table, and the cursor footer', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await mockTenantDetails(page);
+
+		await page.goto(`/staff/tenants/${TENANT_ID}/invitations`);
+
+		await expect(
+			page.getByTestId('staff-tenant-invitations-page'),
+		).toBeVisible();
+		await expect(
+			page.getByTestId('staff-tenant-invitations-table-toolbar'),
+		).toBeVisible();
+		await expect(
+			page.getByTestId('staff-tenant-invitations-table-search'),
+		).toBeVisible();
+		await expect(
+			page.getByTestId('staff-tenant-invitations-table-rows'),
+		).toBeVisible();
+		await expect(
+			page.getByTestId('staff-tenant-invitations-table-footer'),
+		).toBeVisible();
+	});
+
+	test('Users tab renders the toolbar, the table, and the cursor footer — no checkbox column', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await mockTenantDetails(page);
+
+		await page.goto(`/staff/tenants/${TENANT_ID}/users`);
+
+		await expect(page.getByTestId('staff-tenant-users-page')).toBeVisible();
+		await expect(
+			page.getByTestId('staff-tenant-users-table-toolbar'),
+		).toBeVisible();
+		await expect(
+			page.getByTestId('staff-tenant-users-table-search'),
+		).toBeVisible();
+		await expect(
+			page.getByTestId('staff-tenant-users-table-rows'),
+		).toBeVisible();
+		await expect(
+			page.getByTestId('staff-tenant-users-table-footer'),
+		).toBeVisible();
+		await expect(page.getByLabel('Select all rows')).toHaveCount(0);
 	});
 });
