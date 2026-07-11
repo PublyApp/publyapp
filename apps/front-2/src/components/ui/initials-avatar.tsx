@@ -26,7 +26,7 @@ export const InitialsAvatar = ({
 	size,
 }: {
 	name: string;
-	size?: 'sm' | 'md' | 'lg';
+	size?: 'xs' | 'sm' | 'md' | 'lg';
 }) => (
 	<span
 		aria-hidden="true"
@@ -37,6 +37,42 @@ export const InitialsAvatar = ({
 		{toInitials(name)}
 	</span>
 );
+
+/**
+ * Overlapping hashed-initials avatars for a stat-card secondary row (e.g.
+ * Owners count) — 20px circles, −6px overlap, thin ring so they read as a
+ * stack rather than a run-on row.
+ */
+export const AvatarStack = ({
+	names,
+	max = 5,
+}: {
+	names: string[];
+	max?: number;
+}) => {
+	const visible = names.slice(0, max);
+
+	if (visible.length === 0) {
+		return null;
+	}
+
+	return (
+		<div className="publy-avatar-stack">
+			{visible.map((name, index) => (
+				<span
+					key={`${name}-${index}`}
+					aria-hidden="true"
+					className="publy-avatar-initials publy-avatar-stack-item"
+					data-palette={paletteIndex(name)}
+					data-size="xs"
+					style={{ zIndex: visible.length - index }}
+				>
+					{toInitials(name)}
+				</span>
+			))}
+		</div>
+	);
+};
 
 /**
  * Square r14 brand/logo tile for organization identity (tenant detail

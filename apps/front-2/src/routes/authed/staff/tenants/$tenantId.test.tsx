@@ -49,16 +49,22 @@ vi.mock('@tanstack/react-router', () => ({
 		children,
 		to,
 		params,
+		search,
 		...props
 	}: {
 		children: ReactNode;
 		to: string;
 		params?: Record<string, string>;
+		search?: Record<string, string>;
 	}) => {
 		let href = to;
 
 		for (const [key, value] of Object.entries(params ?? {})) {
 			href = href.replace(`$${key}`, value);
+		}
+
+		if (search && Object.keys(search).length > 0) {
+			href += `?${new URLSearchParams(search).toString()}`;
 		}
 
 		return createElement('a', { href, ...props }, children);
@@ -86,6 +92,17 @@ const TRANSLATIONS: Record<string, string> = {
 	'view-all': 'View all',
 	'no-tenant-members': 'No members yet.',
 	'tenant-users-preview-error': 'Unable to load members.',
+	owners: 'Owners',
+	'see-all': 'See all',
+	'tenant-owner-count': '{{count}} owners',
+	'pending-invites': 'Pending invites',
+	'expire-soon': 'expire soon',
+	'no-invites-expiring-soon': 'No invites expiring soon',
+	profiles: 'Profiles',
+	'view-profiles': 'View profiles',
+	'owner-chip-label': 'Owner',
+	'tenant-owners-preview-error': 'Unable to load owners.',
+	'no-tenant-owners': 'No owners yet.',
 	'danger-zone': 'Danger zone',
 	'suspend-tenant': 'Suspend Tenant',
 	'reactivate-tenant': 'Reactivate Tenant',
@@ -170,6 +187,10 @@ const ACTIVE_TENANT = {
 	status: 'Active',
 	usersCount: 12,
 	maxUsers: 50,
+	ownersCount: 4,
+	pendingInvitationsCount: 4,
+	expiringSoonInvitationsCount: 2,
+	profilesCount: 6,
 	logoUrl: null,
 	createdAt: new Date('2026-07-01T09:00:00Z'),
 	updatedAt: new Date('2026-07-02T10:00:00Z'),
@@ -252,6 +273,81 @@ describe('staff tenant details route', () => {
 			name: 'Delete',
 		}) as HTMLButtonElement;
 		expect(deleteButton.disabled).toBe(true);
+	});
+
+	test('renders the owners, pending invites, and profiles stat cards from the new detail counts', () => {
+		renderPage();
+
+		const ownersCard = screen.getByTestId('tenant-stat-owners');
+		expect(ownersCard.textContent).toContain('4');
+
+		const invitesCard = screen.getByTestId('tenant-stat-invites');
+		expect(invitesCard.textContent).toContain('4');
+		expect(invitesCard.textContent).toContain('2');
+		expect(invitesCard.textContent).toContain('expire soon');
+
+		const profilesCard = screen.getByTestId('tenant-stat-profiles');
+		expect(profilesCard.textContent).toContain('6');
+		expect(
+			within(profilesCard)
+				.getByRole('link', { name: 'View profiles' })
+				.getAttribute('href'),
+		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/profiles');
+	});
+
+	test('shows a muted line instead of the amber chip when no invites are expiring soon', () => {
+		mocks.toStaffTenantDetails.mockReturnValue({
+			...ACTIVE_TENANT,
+			expiringSoonInvitationsCount: 0,
+		});
+
+		renderPage();
+
+		const invitesCard = screen.getByTestId('tenant-stat-invites');
+		expect(invitesCard.textContent).toContain('No invites expiring soon');
+	});
+
+	test('renders up to 5 owners in the Owners card, with a See all link filtered to admins', () => {
+		mocks.useStaffTenantUsersQuery.mockImplementation(
+			(variables: { level?: string }) =>
+				variables.level === 'admin'
+					? buildQueryResult({
+							data: { data: ['owner-item'], nextCursor: null },
+						})
+					: buildQueryResult({ data: { data: [], nextCursor: null } }),
+		);
+		mocks.toStaffTenantUserRows.mockImplementation((items: unknown[]) =>
+			items?.[0] === 'owner-item'
+				? [
+						{
+							id: 'owner-1',
+							displayName: 'Maya Chen',
+							email: 'maya.chen@example.com',
+							level: 'Admin',
+							status: 'Active',
+						},
+					]
+				: [],
+		);
+
+		renderPage();
+
+		const ownersRows = screen.getByTestId('tenant-owners-rows');
+		expect(within(ownersRows).getByText('Maya Chen')).toBeTruthy();
+		expect(within(ownersRows).getByText('maya.chen@example.com')).toBeTruthy();
+		expect(within(ownersRows).getByText('Owner')).toBeTruthy();
+
+		expect(
+			screen.getByRole('link', { name: 'See all' }).getAttribute('href'),
+		).toBe(
+			'/staff/tenants/11111111-1111-1111-1111-111111111111/users?level=admin',
+		);
+	});
+
+	test('renders the Owners card empty state when there are no owner rows', () => {
+		renderPage();
+
+		expect(screen.getByText('No owners yet.')).toBeTruthy();
 	});
 
 	test('swaps the lifecycle row to Reactivate and enables Delete when the tenant is suspended', () => {

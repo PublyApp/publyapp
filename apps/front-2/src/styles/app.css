@@ -844,6 +844,12 @@ html {
 		font-size: 11px;
 	}
 
+	.publy-avatar-initials[data-size='xs'] {
+		width: 20px;
+		height: 20px;
+		font-size: 8px;
+	}
+
 	.publy-avatar-initials[data-size='md'] {
 		width: 36px;
 		height: 36px;
@@ -1392,6 +1398,27 @@ html {
 		height: 100%;
 		border-radius: 2px;
 		background: var(--publy-primary);
+	}
+
+	.publy-avatar-stack {
+		@apply flex items-center;
+	}
+
+	.publy-avatar-stack-item {
+		box-shadow: 0 0 0 1.5px var(--publy-surface);
+	}
+
+	.publy-avatar-stack-item:not(:first-child) {
+		margin-left: -6px;
+	}
+
+	.publy-stat-card-link {
+		@apply text-[11px] font-medium;
+		color: var(--publy-foreground-muted);
+	}
+
+	.publy-stat-card-link:hover {
+		color: var(--publy-foreground);
 	}
 
 	/* ---- Data Table ---- */

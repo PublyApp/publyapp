@@ -699,6 +699,7 @@
 	"export-selected-users": "Exporter les utilisateurs sélectionnés",
 	"filter-by-status": "Filtrer par statut",
 	"all-statuses": "Tous les statuts",
+	"all-levels": "Tous les niveaux",
 	"active": "Actif",
 	"pending": "En attente",
 	"suspended": "Suspendu",
@@ -866,5 +867,15 @@
 	"tenant-users-tab-description": "Toutes les personnes ayant accès à cet espace de travail.",
 	"status-globally-suspended": "Suspendu globalement",
 	"view-details": "Voir les détails",
-	"no-description-provided": "Aucune description fournie."
+	"no-description-provided": "Aucune description fournie.",
+	"owners": "Propriétaires",
+	"see-all": "Tout voir",
+	"tenant-owner-count": "{{count}} propriétaires",
+	"pending-invites": "Invitations en attente",
+	"expire-soon": "expirent bientôt",
+	"no-invites-expiring-soon": "Aucune invitation n'expire bientôt",
+	"view-profiles": "Voir les profils",
+	"owner-chip-label": "Propriétaire",
+	"tenant-owners-preview-error": "Impossible de charger les propriétaires.",
+	"no-tenant-owners": "Aucun propriétaire pour le moment."
 }

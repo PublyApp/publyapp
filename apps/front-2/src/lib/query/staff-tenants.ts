@@ -67,6 +67,10 @@ export type StaffTenantDetails = {
 	status: string | null;
 	usersCount: number;
 	maxUsers: number;
+	ownersCount: number;
+	pendingInvitationsCount: number;
+	expiringSoonInvitationsCount: number;
+	profilesCount: number;
 	logoUrl: string | null;
 	createdAt: Date | null;
 	updatedAt: Date | null;
@@ -185,6 +189,10 @@ export const toStaffTenantDetails = (
 		status: normalizeNullableString(result?.status),
 		usersCount: result?.usersCount ?? 0,
 		maxUsers: result?.maxUsers ?? 0,
+		ownersCount: result?.ownersCount ?? 0,
+		pendingInvitationsCount: result?.pendingInvitationsCount ?? 0,
+		expiringSoonInvitationsCount: result?.expiringSoonInvitationsCount ?? 0,
+		profilesCount: result?.profilesCount ?? 0,
 		logoUrl: normalizeNullableString(result?.logoUrl),
 		createdAt: normalizeDate(result?.createdAt),
 		updatedAt: normalizeDate(result?.updatedAt),

@@ -82,6 +82,7 @@ const TRANSLATIONS: Record<string, string> = {
 	suspend: 'Suspend',
 	'remove-user-from-tenant': 'Remove from tenant',
 	'all-statuses': 'All statuses',
+	'all-levels': 'All levels',
 	'status-active': 'Active',
 	'status-suspended': 'Suspended',
 	'status-globally-suspended': 'Globally suspended',
@@ -140,6 +141,7 @@ import {
 	formatTenantUserLevelLabel,
 	formatTenantUserStatusLabel,
 	makeTenantUserColumns,
+	parseTenantUserLevelFilter,
 	parseTenantUserStatusFilter,
 	Route,
 	tenantUserLevelChipClassName,
@@ -534,5 +536,28 @@ describe('parseTenantUserStatusFilter', () => {
 			'suspended',
 		]);
 		expect(parseTenantUserStatusFilter(undefined)).toEqual([]);
+	});
+});
+
+describe('parseTenantUserLevelFilter', () => {
+	test('parses known comma-separated levels, drops unknown tokens, and dedupes', () => {
+		expect(parseTenantUserLevelFilter('admin,bogus,user,admin')).toEqual([
+			'admin',
+			'user',
+		]);
+		expect(parseTenantUserLevelFilter(undefined)).toEqual([]);
+	});
+});
+
+describe('level filter wiring on the users list query', () => {
+	test('passes the level search param through to the tenant users query', () => {
+		mocks.search = { level: 'admin' };
+
+		renderPage();
+
+		expect(mocks.useStaffTenantUsersQuery).toHaveBeenCalledWith(
+			expect.objectContaining({ level: 'admin' }),
+			{ enabled: true },
+		);
 	});
 });

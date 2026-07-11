@@ -57,6 +57,24 @@ describe('buildFindStaffTenantUsersQueryParameters', () => {
 			}),
 		).toEqual({});
 	});
+
+	test('trims and forwards the level filter', () => {
+		expect(
+			buildFindStaffTenantUsersQueryParameters({
+				level: ' admin ',
+			}),
+		).toEqual({
+			level: 'admin',
+		});
+	});
+
+	test('omits a blank level filter', () => {
+		expect(
+			buildFindStaffTenantUsersQueryParameters({
+				level: '   ',
+			}),
+		).toEqual({});
+	});
 });
 
 describe('buildCreateStaffTenantUserInvitationBody', () => {

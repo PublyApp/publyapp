@@ -3,6 +3,7 @@ import {
 	IconChevronDown,
 	IconCircleDot,
 	IconEye,
+	IconKey,
 	IconPencil,
 	IconPlus,
 	IconRefresh,
@@ -81,12 +82,20 @@ const KNOWN_TENANT_USER_STATUS_SET = new Set<string>(
 	KNOWN_TENANT_USER_STATUSES,
 );
 
+export const KNOWN_TENANT_USER_LEVELS = ['admin', 'user'] as const;
+
+export type KnownTenantUserLevel = (typeof KNOWN_TENANT_USER_LEVELS)[number];
+
+const KNOWN_TENANT_USER_LEVEL_SET = new Set<string>(KNOWN_TENANT_USER_LEVELS);
+
 export type TenantUsersListSearchParams = TableSearchParams & {
 	status?: string;
+	level?: string;
 };
 
 export type TenantUsersListSearchParamInput = TableSearchParamInput & {
 	status?: unknown;
+	level?: unknown;
 };
 
 const normalizeString = (value: unknown): string | undefined => {
@@ -131,6 +140,39 @@ export const serializeTenantUserStatusFilter = (
 	statuses: KnownTenantUserStatus[],
 ): string | undefined => (statuses.length > 0 ? statuses.join(',') : undefined);
 
+export const parseTenantUserLevelFilter = (
+	value: unknown,
+): KnownTenantUserLevel[] => {
+	const normalized = normalizeString(value);
+	if (!normalized) {
+		return [];
+	}
+
+	const seen = new Set<KnownTenantUserLevel>();
+	const levels: KnownTenantUserLevel[] = [];
+
+	for (const part of normalized.split(',')) {
+		const candidate = part.trim().toLowerCase();
+		if (!KNOWN_TENANT_USER_LEVEL_SET.has(candidate)) {
+			continue;
+		}
+
+		const level = candidate as KnownTenantUserLevel;
+		if (seen.has(level)) {
+			continue;
+		}
+
+		seen.add(level);
+		levels.push(level);
+	}
+
+	return levels;
+};
+
+export const serializeTenantUserLevelFilter = (
+	levels: KnownTenantUserLevel[],
+): string | undefined => (levels.length > 0 ? levels.join(',') : undefined);
+
 export const parseTenantUsersListSearchParams = (
 	search: TenantUsersListSearchParamInput,
 ): TenantUsersListSearchParams => {
@@ -138,8 +180,15 @@ export const parseTenantUsersListSearchParams = (
 	const status = serializeTenantUserStatusFilter(
 		parseTenantUserStatusFilter(search.status),
 	);
+	const level = serializeTenantUserLevelFilter(
+		parseTenantUserLevelFilter(search.level),
+	);
 
-	return status ? { ...base, status } : base;
+	return {
+		...base,
+		...(status ? { status } : {}),
+		...(level ? { level } : {}),
+	};
 };
 
 export const serializeTenantUsersListSearchParams = (
@@ -149,8 +198,15 @@ export const serializeTenantUsersListSearchParams = (
 	const status = serializeTenantUserStatusFilter(
 		parseTenantUserStatusFilter(params.status),
 	);
+	const level = serializeTenantUserLevelFilter(
+		parseTenantUserLevelFilter(params.level),
+	);
 
-	return status ? { ...next, status } : next;
+	return {
+		...next,
+		...(status ? { status } : {}),
+		...(level ? { level } : {}),
+	};
 };
 
 /** Backend row status is PascalCase (`Active`/`Suspended`/`GloballySuspended`);
@@ -461,6 +517,7 @@ function StaffTenantUsersPage() {
 	const [shouldLogout, setShouldLogout] = useState(false);
 
 	const selectedStatuses = parseTenantUserStatusFilter(search.status);
+	const selectedLevels = parseTenantUserLevelFilter(search.level);
 
 	const onSearchChange = (next: TenantUsersListSearchParams): void => {
 		void navigate({
@@ -468,6 +525,7 @@ function StaffTenantUsersPage() {
 				...search,
 				...next,
 				status: search.status,
+				level: search.level,
 			}) as unknown as TenantUsersListSearchParams,
 			replace: true,
 		});
@@ -478,7 +536,7 @@ function StaffTenantUsersPage() {
 		onSearchChange,
 		defaultSort: DEFAULT_SORT,
 		defaultSize: DEFAULT_SIZE,
-		cursorResetKey: `${tenantId}:${search.status ?? ''}`,
+		cursorResetKey: `${tenantId}:${search.status ?? ''}:${search.level ?? ''}`,
 	});
 	const detailsQuery = useStaffTenantDetailsQuery(
 		{ tenantId },
@@ -489,6 +547,7 @@ function StaffTenantUsersPage() {
 			tenantId,
 			q: controller.apiVariables.q,
 			status: search.status,
+			level: search.level,
 			sortId: controller.apiVariables.sortId,
 			sortOrder: controller.apiVariables.sortOrder,
 			cursor: controller.apiVariables.cursor,
@@ -573,6 +632,33 @@ function StaffTenantUsersPage() {
 					.map((status) => formatTenantUserStatusLabel(status, t))
 					.join(', ');
 
+	const setLevels = (nextLevels: KnownTenantUserLevel[]): void => {
+		void navigate({
+			search: serializeTenantUsersListSearchParams({
+				...search,
+				level: serializeTenantUserLevelFilter(nextLevels),
+				cursor: undefined,
+			}) as unknown as TenantUsersListSearchParams,
+			replace: true,
+		});
+	};
+
+	const toggleLevel = (level: KnownTenantUserLevel): void => {
+		if (selectedLevels.includes(level)) {
+			setLevels(selectedLevels.filter((value) => value !== level));
+			return;
+		}
+
+		setLevels([...selectedLevels, level]);
+	};
+
+	const levelFilterLabel =
+		selectedLevels.length === 0
+			? t('all-levels')
+			: selectedLevels
+					.map((level) => formatTenantUserLevelLabel(level, t))
+					.join(', ');
+
 	return (
 		<TenantDetailsPageShell
 			tenant={tenant}
@@ -613,7 +699,9 @@ function StaffTenantUsersPage() {
 				onRetry={() => void usersQuery.refetch()}
 				emptyContent="No tenant users found."
 				noMatchContent="No tenant users match your search."
-				hasActiveSearch={Boolean(controller.search.committed || search.status)}
+				hasActiveSearch={Boolean(
+					controller.search.committed || search.status || search.level,
+				)}
 				sort={controller.sort}
 				onSortChange={controller.onSortChange}
 				size={controller.size}
@@ -630,40 +718,76 @@ function StaffTenantUsersPage() {
 				onSearchDraftChange={controller.search.onDraftChange}
 				searchPlaceholder={t('search-tenant-members')}
 				toolbarEnd={
-					<DropdownMenu>
-						<DropdownMenuTrigger
-							render={
-								<Button
-									type="button"
-									variant="outline"
-									className="publy-data-table-filter-button max-w-64 text-[13px]"
+					<div className="flex items-center gap-2">
+						<DropdownMenu>
+							<DropdownMenuTrigger
+								render={
+									<Button
+										type="button"
+										variant="outline"
+										className="publy-data-table-filter-button max-w-64 text-[13px]"
+									/>
+								}
+							>
+								<IconKey
+									aria-hidden="true"
+									className="size-[15px] text-[var(--publy-foreground-secondary)]"
 								/>
-							}
-						>
-							<IconCircleDot
-								aria-hidden="true"
-								className="size-[15px] text-[var(--publy-foreground-secondary)]"
-							/>
-							<span className="truncate">{statusFilterLabel}</span>
-							<IconChevronDown aria-hidden="true" className="size-3" />
-						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end" sideOffset={6}>
-							{KNOWN_TENANT_USER_STATUSES.map((status) => (
-								<DropdownMenuCheckboxItem
-									key={status}
-									checked={selectedStatuses.includes(status)}
-									closeOnClick={false}
-									onCheckedChange={() => toggleStatus(status)}
-								>
-									{formatTenantUserStatusLabel(status, t)}
-								</DropdownMenuCheckboxItem>
-							))}
-							<DropdownMenuSeparator />
-							<DropdownMenuItem onClick={() => setStatuses([])}>
-								{t('clear')}
-							</DropdownMenuItem>
-						</DropdownMenuContent>
-					</DropdownMenu>
+								<span className="truncate">{levelFilterLabel}</span>
+								<IconChevronDown aria-hidden="true" className="size-3" />
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end" sideOffset={6}>
+								{KNOWN_TENANT_USER_LEVELS.map((level) => (
+									<DropdownMenuCheckboxItem
+										key={level}
+										checked={selectedLevels.includes(level)}
+										closeOnClick={false}
+										onCheckedChange={() => toggleLevel(level)}
+									>
+										{formatTenantUserLevelLabel(level, t)}
+									</DropdownMenuCheckboxItem>
+								))}
+								<DropdownMenuSeparator />
+								<DropdownMenuItem onClick={() => setLevels([])}>
+									{t('clear')}
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+						<DropdownMenu>
+							<DropdownMenuTrigger
+								render={
+									<Button
+										type="button"
+										variant="outline"
+										className="publy-data-table-filter-button max-w-64 text-[13px]"
+									/>
+								}
+							>
+								<IconCircleDot
+									aria-hidden="true"
+									className="size-[15px] text-[var(--publy-foreground-secondary)]"
+								/>
+								<span className="truncate">{statusFilterLabel}</span>
+								<IconChevronDown aria-hidden="true" className="size-3" />
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end" sideOffset={6}>
+								{KNOWN_TENANT_USER_STATUSES.map((status) => (
+									<DropdownMenuCheckboxItem
+										key={status}
+										checked={selectedStatuses.includes(status)}
+										closeOnClick={false}
+										onCheckedChange={() => toggleStatus(status)}
+									>
+										{formatTenantUserStatusLabel(status, t)}
+									</DropdownMenuCheckboxItem>
+								))}
+								<DropdownMenuSeparator />
+								<DropdownMenuItem onClick={() => setStatuses([])}>
+									{t('clear')}
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+					</div>
 				}
 			/>
 		</TenantDetailsPageShell>

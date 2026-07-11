@@ -31,6 +31,10 @@ const mockTenantDetails = async (page: Page) => {
 					status: 'Active',
 					usersCount: 12,
 					maxUsers: 50,
+					ownersCount: 2,
+					pendingInvitationsCount: 4,
+					expiringSoonInvitationsCount: 2,
+					profilesCount: 6,
 					logoUrl: null,
 					createdAt: '2026-07-01T09:00:00Z',
 					updatedAt: '2026-07-02T10:00:00Z',
@@ -172,6 +176,32 @@ test.describe('staff tenant details shell (rail-only) and Basics danger zone', (
 		// Back on the tenants list, the secondary panel returns.
 		await page.goto('/staff/tenants');
 		await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
+	});
+});
+
+test.describe('staff tenant details Basics stat cards and Owners card', () => {
+	test('renders the Members, Owners, Pending invites, and Profiles stat cards, plus an Owners card whose See all link filters the Users tab', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await mockTenantDetails(page);
+
+		await page.goto(`/staff/tenants/${TENANT_ID}`);
+		await expect(page.getByTestId('staff-tenant-details-page')).toBeVisible();
+
+		await expect(page.getByTestId('tenant-stat-members')).toContainText('12');
+		await expect(page.getByTestId('tenant-stat-owners')).toContainText('2');
+		await expect(page.getByTestId('tenant-stat-invites')).toContainText('4');
+		await expect(page.getByTestId('tenant-stat-profiles')).toContainText('6');
+
+		const ownersRows = page.getByTestId('tenant-owners-rows');
+		await expect(ownersRows).toBeVisible();
+		await expect(ownersRows).toContainText('jamie@example.com');
+
+		await page.getByRole('link', { name: 'See all' }).click();
+
+		await expect(page.getByTestId('staff-tenant-users-page')).toBeVisible();
+		await expect(page).toHaveURL(/level=admin/);
 	});
 });
 

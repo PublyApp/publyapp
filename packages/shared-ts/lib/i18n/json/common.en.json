@@ -699,6 +699,7 @@
 	"export-selected-users": "Export selected users",
 	"filter-by-status": "Filter by status",
 	"all-statuses": "All statuses",
+	"all-levels": "All levels",
 	"active": "Active",
 	"pending": "Pending",
 	"suspended": "Suspended",
@@ -866,5 +867,15 @@
 	"tenant-users-tab-description": "Everyone with access to this workspace.",
 	"status-globally-suspended": "Globally suspended",
 	"view-details": "View details",
-	"no-description-provided": "No description provided."
+	"no-description-provided": "No description provided.",
+	"owners": "Owners",
+	"see-all": "See all",
+	"tenant-owner-count": "{{count}} owners",
+	"pending-invites": "Pending invites",
+	"expire-soon": "expire soon",
+	"no-invites-expiring-soon": "No invites expiring soon",
+	"view-profiles": "View profiles",
+	"owner-chip-label": "Owner",
+	"tenant-owners-preview-error": "Unable to load owners.",
+	"no-tenant-owners": "No owners yet."
 }

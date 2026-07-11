@@ -1,8 +1,9 @@
 import {
 	IconAlertCircle,
-	IconCalendar,
-	IconCircleDot,
 	IconClock,
+	IconKey,
+	IconMail,
+	IconShield,
 	IconUsers,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -20,7 +21,7 @@ import {
 	DetailGrid,
 	DetailMain,
 } from '~/components/ui/detail-layout';
-import { InitialsAvatar } from '~/components/ui/initials-avatar';
+import { AvatarStack, InitialsAvatar } from '~/components/ui/initials-avatar';
 import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import {
@@ -46,7 +47,6 @@ import {
 
 import {
 	formatShortDate,
-	getRelativeTimeParts,
 	TenantDetailsError,
 	TenantDetailsLoading,
 	TenantDetailsPageShell,
@@ -224,6 +224,80 @@ const UsersPreviewCard = ({
 	);
 };
 
+const OWNER_LEVEL_FILTER = 'admin';
+
+const OwnersCard = ({
+	tenant,
+	ownersQuery,
+	t,
+}: {
+	tenant: StaffTenantDetails;
+	ownersQuery: ReturnType<typeof useStaffTenantUsersQuery>;
+	t: (key: string) => string;
+}) => {
+	const rows = toStaffTenantUserRows(ownersQuery.data?.data).slice(0, 5);
+
+	let rowsContent: ReactNode;
+	if (ownersQuery.isPending) {
+		rowsContent = <p className="px-4 py-4 text-xs text-muted-foreground">…</p>;
+	} else if (ownersQuery.isError) {
+		rowsContent = (
+			<p className="px-4 py-4 text-xs text-muted-foreground">
+				{t('tenant-owners-preview-error')}
+			</p>
+		);
+	} else if (rows.length === 0) {
+		rowsContent = (
+			<p className="px-4 py-4 text-xs text-muted-foreground">
+				{t('no-tenant-owners')}
+			</p>
+		);
+	} else {
+		rowsContent = (
+			<div className="divide-y divide-[color:var(--publy-row-border)]">
+				{rows.map((row) => (
+					<div
+						key={row.id}
+						className="flex items-center gap-3 px-[18px] py-[11px]"
+					>
+						<InitialsAvatar name={row.displayName} />
+						<div className="min-w-0 flex-1">
+							<p className="truncate text-[13px] font-medium text-foreground">
+								{row.displayName}
+							</p>
+							<p className="truncate text-xs text-muted-foreground">
+								{row.email || '—'}
+							</p>
+						</div>
+						<span className="publy-detail-chip publy-detail-chip--amber shrink-0">
+							{t('owner-chip-label')}
+						</span>
+					</div>
+				))}
+			</div>
+		);
+	}
+
+	return (
+		<section className="rounded-[var(--publy-radius-card)] bg-card shadow-[var(--publy-shadow-ring)]">
+			<div className="publy-card-header">
+				<p className="publy-type-section-title">
+					{t('owners')} · {tenant.ownersCount}
+				</p>
+				<Link
+					to="/staff/tenants/$tenantId/users"
+					params={{ tenantId: tenant.id }}
+					search={{ level: OWNER_LEVEL_FILTER }}
+					className="text-xs font-medium text-muted-foreground hover:text-foreground"
+				>
+					{t('see-all')}
+				</Link>
+			</div>
+			<div data-testid="tenant-owners-rows">{rowsContent}</div>
+		</section>
+	);
+};
+
 function StaffTenantDetailsPage() {
 	const { tenantId } = Route.useParams();
 	const navigate = Route.useNavigate();
@@ -240,6 +314,16 @@ function StaffTenantDetailsPage() {
 
 	const query = useStaffTenantDetailsQuery(
 		{ tenantId },
+		{ enabled: tenantId.length > 0 },
+	);
+	const ownersQuery = useStaffTenantUsersQuery(
+		{
+			tenantId,
+			level: OWNER_LEVEL_FILTER,
+			size: 5,
+			sortId: 'created_at',
+			sortOrder: 'desc',
+		},
 		{ enabled: tenantId.length > 0 },
 	);
 
@@ -368,8 +452,10 @@ function StaffTenantDetailsPage() {
 		tenant.maxUsers > 0
 			? Math.min((tenant.usersCount / tenant.maxUsers) * 100, 100)
 			: 0;
-	const createdRelative = getRelativeTimeParts(tenant.createdAt);
-	const updatedRelative = getRelativeTimeParts(tenant.updatedAt);
+	const ownerNames = toStaffTenantUserRows(ownersQuery.data?.data)
+		.slice(0, 5)
+		.map((row) => row.displayName);
+	const hasExpiringSoonInvitations = tenant.expiringSoonInvitationsCount > 0;
 	const lifecycleTitle = isActive
 		? t('suspend-tenant')
 		: t('reactivate-tenant');
@@ -409,50 +495,50 @@ function StaffTenantDetailsPage() {
 				</StatCard>
 
 				<StatCard
-					testId="tenant-stat-status"
-					label={t('status')}
-					icon={<IconCircleDot aria-hidden="true" className="size-[14px]" />}
-					secondary={
-						<span>
-							{isActive
-								? t('tenant-status-helper-active')
-								: t('tenant-status-helper-suspended')}
-						</span>
-					}
+					testId="tenant-stat-owners"
+					label={t('owners')}
+					icon={<IconKey aria-hidden="true" className="size-[14px]" />}
+					secondary={<AvatarStack names={ownerNames} />}
 				>
-					<StatusPill tone={statusPillTone(tenant.status)}>
-						{tenant.status ?? t('unknown')}
-					</StatusPill>
+					{tenant.ownersCount}
 				</StatCard>
 
 				<StatCard
-					testId="tenant-stat-created"
-					label={t('created')}
-					icon={<IconCalendar aria-hidden="true" className="size-[14px]" />}
+					testId="tenant-stat-invites"
+					label={t('pending-invites')}
+					icon={<IconMail aria-hidden="true" className="size-[14px]" />}
 					secondary={
-						createdRelative ? (
-							<span>
-								{t(createdRelative.key, { count: createdRelative.count })}
-							</span>
-						) : null
+						hasExpiringSoonInvitations ? (
+							<>
+								<StatusPill tone="warning">
+									<IconClock aria-hidden="true" className="size-3" />
+									{tenant.expiringSoonInvitationsCount}
+								</StatusPill>
+								<span>{t('expire-soon')}</span>
+							</>
+						) : (
+							<span>{t('no-invites-expiring-soon')}</span>
+						)
 					}
 				>
-					{formatShortDate(tenant.createdAt, i18n.language)}
+					{tenant.pendingInvitationsCount}
 				</StatCard>
 
 				<StatCard
-					testId="tenant-stat-updated"
-					label={t('updated')}
-					icon={<IconClock aria-hidden="true" className="size-[14px]" />}
+					testId="tenant-stat-profiles"
+					label={t('profiles')}
+					icon={<IconShield aria-hidden="true" className="size-[14px]" />}
 					secondary={
-						updatedRelative ? (
-							<span>
-								{t(updatedRelative.key, { count: updatedRelative.count })}
-							</span>
-						) : null
+						<Link
+							to="/staff/tenants/$tenantId/profiles"
+							params={{ tenantId: tenant.id }}
+							className="publy-stat-card-link"
+						>
+							{t('view-profiles')}
+						</Link>
 					}
 				>
-					{formatShortDate(tenant.updatedAt, i18n.language)}
+					{tenant.profilesCount}
 				</StatCard>
 			</div>
 
@@ -462,6 +548,7 @@ function StaffTenantDetailsPage() {
 					<UsersPreviewCard tenant={tenant} t={t} />
 				</DetailMain>
 				<DetailAside>
+					<OwnersCard tenant={tenant} ownersQuery={ownersQuery} t={t} />
 					<DangerZoneCard title={t('danger-zone')}>
 						<DangerZoneRow
 							title={lifecycleTitle}

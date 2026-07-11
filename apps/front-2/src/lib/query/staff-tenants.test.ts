@@ -469,6 +469,10 @@ describe('toStaffTenantDetails', () => {
 			status: ' Active ',
 			usersCount: 12,
 			maxUsers: 50,
+			ownersCount: 4,
+			pendingInvitationsCount: 3,
+			expiringSoonInvitationsCount: 1,
+			profilesCount: 6,
 			logoUrl: ' https://cdn.example.com/acme.png ',
 			createdAt,
 			updatedAt: new Date('invalid'),
@@ -481,9 +485,27 @@ describe('toStaffTenantDetails', () => {
 			status: 'Active',
 			usersCount: 12,
 			maxUsers: 50,
+			ownersCount: 4,
+			pendingInvitationsCount: 3,
+			expiringSoonInvitationsCount: 1,
+			profilesCount: 6,
 			logoUrl: 'https://cdn.example.com/acme.png',
 			createdAt,
 			updatedAt: null,
+		});
+	});
+
+	test('defaults the new detail counts to zero when the payload omits them', () => {
+		const result = toStaffTenantDetails({
+			tenantId: 'tenant-8',
+			name: 'Acme Corporation',
+		} as GetTenantAsStaffResult);
+
+		expect(result).toMatchObject({
+			ownersCount: 0,
+			pendingInvitationsCount: 0,
+			expiringSoonInvitationsCount: 0,
+			profilesCount: 0,
 		});
 	});
 
