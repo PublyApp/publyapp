@@ -7,6 +7,8 @@ using PublyApp.Api.Modules.Invitations.Entities;
 
 namespace PublyApp.Api.Modules.Invitations.Services;
 
+public sealed record TenantInvitationCounts(int Pending, int ExpiringSoon);
+
 public interface IInvitationQueryService {
 	Task<Invitation?> GetInvitationByTokenAsync(
 		string token,
@@ -27,6 +29,13 @@ public interface IInvitationQueryService {
 	Task<FindTenantInvitationsResult> FindTenantInvitationsAsync(
 		Guid tenantId,
 		FindTenantInvitationsArgs args,
+		CancellationToken cancellationToken = default);
+
+	// Counts for the tenant detail page: pending (effective, excludes derived-expired) and the
+	// subset of those expiring within 48h. A future (TenantId, Status) index would help this at
+	// scale; today's (TenantId, Scope) + (ExpiresAt) indexes already cover the filter columns.
+	Task<TenantInvitationCounts> CountTenantInvitationsAsync(
+		Guid tenantId,
 		CancellationToken cancellationToken = default);
 }
 
@@ -575,6 +584,33 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 				NextCursor = nextCursor,
 			}
 		);
+	}
+
+	public async Task<TenantInvitationCounts> CountTenantInvitationsAsync(
+		Guid tenantId,
+		CancellationToken cancellationToken = default
+	) {
+		var now = DateTime.UtcNow;
+		var expiringSoonThreshold = now.AddHours(48);
+
+		var pendingQuery =
+			from inv in _dbContext.Invitation.AsNoTracking()
+			where inv.TenantId == tenantId
+				&& inv.Scope == InvitationScope.Tenant
+				&& inv.Status == InvitationStatus.Pending
+				&& inv.ExpiresAt > now
+				&& !inv.IsDeleted
+			select inv;
+
+		var pending = await pendingQuery.CountAsync(cancellationToken);
+
+		var expiringSoon = await (
+			from inv in pendingQuery
+			where inv.ExpiresAt <= expiringSoonThreshold
+			select inv
+		).CountAsync(cancellationToken);
+
+		return new TenantInvitationCounts(pending, expiringSoon);
 	}
 
 }

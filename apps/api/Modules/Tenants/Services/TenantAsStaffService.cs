@@ -26,6 +26,21 @@ public record CreateTenantWithInitialUsersResult {
 	public required List<(string Email, string Token, AccountLevel Level)> InvitationTokens { get; init; }
 }
 
+// Discriminated union for CreateTenantWithInitialUsersAsync. Code uniqueness is an expected,
+// user-triggerable failure mode (a client-supplied slug can collide), so it is modeled here
+// rather than as an exception — consistent with the other Result unions in this file.
+public abstract record CreateTenantWithInitialUsersOutcome {
+	public sealed record Success(CreateTenantWithInitialUsersResult Data)
+		: CreateTenantWithInitialUsersOutcome;
+
+	public sealed record CodeAlreadyTaken(string Code) : CreateTenantWithInitialUsersOutcome;
+
+	// Only reachable when Code is omitted and the random-code keyspace (62^10) collides on
+	// every attempt — astronomically unlikely, kept as an explicit case rather than a silent
+	// exception so the handler can report a clear 500 problem instead of a generic crash.
+	public sealed record CodeGenerationFailed : CreateTenantWithInitialUsersOutcome;
+}
+
 // Result types for suspend/reactivate operations
 public abstract record SuspendTenantResult {
 	public sealed record Success(Tenant Tenant) : SuspendTenantResult;
@@ -93,7 +108,9 @@ public record CreateTenantWithInitialUsersArgs(
 	string Name,
 	int MaxUsers,
 	List<(string Email, AccountLevel AccountLevel)> InitialUsers,
-	Guid InvitedByUserId
+	Guid InvitedByUserId,
+	string? Code,
+	bool SeedDefaultProfile
 );
 
 public abstract record FindTenantsAsStaffServiceResult {
@@ -120,7 +137,7 @@ public interface ITenantAsStaffService {
 	Task<int> CountTenantsAsync(CancellationToken cancellationToken = default);
 
 	// NEW: Create tenant with initial users via invitations
-	Task<CreateTenantWithInitialUsersResult> CreateTenantWithInitialUsersAsync(
+	Task<CreateTenantWithInitialUsersOutcome> CreateTenantWithInitialUsersAsync(
 		CreateTenantWithInitialUsersArgs args,
 		CancellationToken cancellationToken = default
 	);
@@ -144,6 +161,12 @@ public interface ITenantAsStaffService {
 
 	// Count tenant-scoped users (excludes deleted and staff-scoped)
 	Task<int> CountTenantUsersAsync(
+		Guid tenantId,
+		CancellationToken cancellationToken = default
+	);
+
+	// Count tenant-scoped owners (Admin-level accounts; owner ≡ accountLevel Admin)
+	Task<int> CountTenantOwnersAsync(
 		Guid tenantId,
 		CancellationToken cancellationToken = default
 	);
@@ -423,86 +446,145 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		);
 	}
 
-	public async Task<CreateTenantWithInitialUsersResult> CreateTenantWithInitialUsersAsync(
+	public async Task<CreateTenantWithInitialUsersOutcome> CreateTenantWithInitialUsersAsync(
 		CreateTenantWithInitialUsersArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+		if (args.Code is not null) {
+			var codeTaken = await _dbContext.Tenant
+				.AsNoTracking()
+				.Where(t => t.Code == args.Code)
+				.AnyAsync(cancellationToken);
+			if (codeTaken) {
+				return new CreateTenantWithInitialUsersOutcome.CodeAlreadyTaken(args.Code);
+			}
+		}
 
-		try {
+		// Random codes are drawn from a 62^10 keyspace, so a collision is practically
+		// impossible; the loop still guards the write path with one retry before giving up.
+		const int maxAttempts = 2;
+		for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+			var code = args.Code ?? CryptoUtils.RandomString(10).ToLowerInvariant();
+
+			await using var transaction =
+				await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+
 			// 1. Create tenant
 			var tenant = new Tenant {
 				Name = args.Name,
-				Code = CryptoUtils.RandomString(10).ToLowerInvariant(),
+				Code = code,
 				Status = TenantStatus.Pending,
 				MaxUsers = args.MaxUsers
 			};
 
-			var savedTenant = await _dbContext.Tenant.AddAsync(tenant, cancellationToken);
-			await _dbContext.SaveChangesAsync(cancellationToken);
-			var tenantId = savedTenant.Entity.GetRequiredId();
+			try {
+				var savedTenant = await _dbContext.Tenant.AddAsync(tenant, cancellationToken);
+				await _dbContext.SaveChangesAsync(cancellationToken);
+				var tenantId = savedTenant.Entity.GetRequiredId();
 
-			// 2. Create "Default profile" for non-admin users
-			var defaultProfile = Profile.CreateTenantProfile(
-				tenantId,
-				name: "Default profile",
-				description: "Default profile with no permissions",
-				isDefault: true
-			);
-			var savedDefaultProfile = await _dbContext.Profile.AddAsync(defaultProfile, cancellationToken);
-			await _dbContext.SaveChangesAsync(cancellationToken);
-			var defaultProfileId = savedDefaultProfile.Entity.GetRequiredId();
-
-			// 3. Create invitations with appropriate profiles
-			// NOTE: No need to validate existing users/memberships for a BRAND NEW tenant!
-			// All validation is done in the validator (duplicates, admin requirement, etc.)
-			var invitationTokens = new List<(string Email, string Token, AccountLevel Level)>();
-			var expiresAt = DateTime.UtcNow.AddDays(7);
-
-			foreach (var (email, accountLevel) in args.InitialUsers) {
-				var token = CryptoUtils.RandomString(AppEnvironment.Instance.INVITATION_TOKEN_LENGTH);
-
-				// Determine profile IDs based on account level
-				List<Guid> profileIds;
-				if (accountLevel == AccountLevel.Admin) {
-					// Admin users don't need profiles (they have all rights)
-					profileIds = new List<Guid>();
-				} else {
-					// Non-admin users need at least 1 profile (app requirement)
-					// Assign the default profile
-					profileIds = new List<Guid> { defaultProfileId };
+				// 2. Create "Default profile" for non-admin users, unless disabled
+				Guid? defaultProfileId = null;
+				if (args.SeedDefaultProfile) {
+					var defaultProfile = Profile.CreateTenantProfile(
+						tenantId,
+						name: "Default profile",
+						description: "Default profile with no permissions",
+						isDefault: true
+					);
+					var savedDefaultProfile = await _dbContext.Profile.AddAsync(
+						defaultProfile, cancellationToken
+					);
+					await _dbContext.SaveChangesAsync(cancellationToken);
+					defaultProfileId = savedDefaultProfile.Entity.GetRequiredId();
 				}
 
-				var invitation = Invitation.CreateTenantInvitationWithProfiles(
-					email,
-					tenantId,
-					profileIds,
-					args.InvitedByUserId,
-					expiresAt,
-					token
+				// 3. Create invitations with appropriate profiles
+				// NOTE: No need to validate existing users/memberships for a BRAND NEW tenant!
+				// All validation is done in the validator (duplicates, admin requirement, etc.)
+				var invitationTokens = new List<(string Email, string Token, AccountLevel Level)>();
+				var expiresAt = DateTime.UtcNow.AddDays(7);
+
+				foreach (var (email, accountLevel) in args.InitialUsers) {
+					var token = CryptoUtils.RandomString(AppEnvironment.Instance.INVITATION_TOKEN_LENGTH);
+
+					// Determine profile IDs based on account level
+					List<Guid> profileIds;
+					if (accountLevel == AccountLevel.Admin) {
+						// Admin users don't need profiles (they have all rights)
+						profileIds = new List<Guid>();
+					} else if (defaultProfileId is { } profileId) {
+						// Non-admin users get the default profile when one was seeded.
+						profileIds = new List<Guid> { profileId };
+					} else {
+						// No default profile was seeded; the user starts with no profiles and
+						// can be assigned one post-hoc (admins already bypass profile checks,
+						// so this only affects non-admin invitees).
+						profileIds = new List<Guid>();
+					}
+
+					var invitation = Invitation.CreateTenantInvitationWithProfiles(
+						email,
+						tenantId,
+						profileIds,
+						args.InvitedByUserId,
+						expiresAt,
+						token
+					);
+
+					// Store the account level in the invitation
+					invitation.AccountLevel = accountLevel;
+
+					invitation.ValidateInvitationType();
+					_dbContext.Invitation.Add(invitation);
+
+					invitationTokens.Add((email, token, accountLevel));
+				}
+
+				await _dbContext.SaveChangesAsync(cancellationToken);
+				await transaction.CommitAsync(cancellationToken);
+
+				return new CreateTenantWithInitialUsersOutcome.Success(
+					new CreateTenantWithInitialUsersResult {
+						Tenant = savedTenant.Entity,
+						InvitationTokens = invitationTokens
+					}
 				);
+			} catch (DbUpdateException ex) when (IsTenantCodeUniqueViolation(ex)) {
+				// The pre-check keeps the common path friendly, but the unique index is the
+				// real guard against concurrent creates racing each other on the same code.
+				await transaction.RollbackAsync(cancellationToken);
+				_dbContext.Entry(tenant).State = EntityState.Detached;
 
-				// Store the account level in the invitation
-				invitation.AccountLevel = accountLevel;
-
-				invitation.ValidateInvitationType();
-				_dbContext.Invitation.Add(invitation);
-
-				invitationTokens.Add((email, token, accountLevel));
+				if (args.Code is not null) {
+					return new CreateTenantWithInitialUsersOutcome.CodeAlreadyTaken(args.Code);
+				}
+				if (attempt == maxAttempts) {
+					return new CreateTenantWithInitialUsersOutcome.CodeGenerationFailed();
+				}
+				// Loop again to draw a fresh random code.
+			} catch {
+				await transaction.RollbackAsync(cancellationToken);
+				throw;
 			}
-
-			await _dbContext.SaveChangesAsync(cancellationToken);
-			await transaction.CommitAsync(cancellationToken);
-
-			return new CreateTenantWithInitialUsersResult {
-				Tenant = savedTenant.Entity,
-				InvitationTokens = invitationTokens
-			};
-
-		} catch {
-			await transaction.RollbackAsync(cancellationToken);
-			throw;
 		}
+
+		throw new InvalidOperationException(
+			"Unreachable: CreateTenantWithInitialUsersAsync loop always returns."
+		);
+	}
+
+	/// <summary>
+	/// Detects unique constraint violations on the tenants.code column.
+	/// PostgreSQL error code 23505 = unique_violation.
+	/// </summary>
+	private static bool IsTenantCodeUniqueViolation(DbUpdateException ex) {
+		if (ex.InnerException is Npgsql.PostgresException pgEx) {
+			return pgEx.SqlState == "23505"
+				&& pgEx.TableName is not null
+				&& pgEx.TableName.Equals("tenants", StringComparison.OrdinalIgnoreCase);
+		}
+
+		return false;
 	}
 
 	public async Task<SuspendTenantResult> SuspendTenantAsync(
@@ -631,6 +713,21 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			from ua in _dbContext.UserAccount
 			where ua.TenantId == tenantId
 				&& ua.Scope == AccountScope.Tenant
+				&& !ua.IsDeleted
+			select ua;
+
+		return await count.CountAsync(cancellationToken);
+	}
+
+	public async Task<int> CountTenantOwnersAsync(
+		Guid tenantId,
+		CancellationToken cancellationToken = default
+	) {
+		var count =
+			from ua in _dbContext.UserAccount
+			where ua.TenantId == tenantId
+				&& ua.Scope == AccountScope.Tenant
+				&& ua.Level == AccountLevel.Admin
 				&& !ua.IsDeleted
 			select ua;
 

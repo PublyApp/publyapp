@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 using FluentValidation;
 
@@ -24,6 +25,8 @@ public class CreateTenantAsStaffBody {
 	public JsonElement Name { get; set; }
 	public JsonElement MaxUsers { get; set; }
 	public JsonElement InitialUsers { get; set; }
+	public JsonElement? Code { get; set; }
+	public JsonElement? SeedDefaultProfile { get; set; }
 
 	public string GetName() {
 		return Name.GetValueAsString();
@@ -33,6 +36,18 @@ public class CreateTenantAsStaffBody {
 		return MaxUsers.GetValueAsInt32OrNull();
 	}
 
+	public string? GetCode() {
+		return Code.GetValueAsStringOrNull();
+	}
+
+	// Defaults to true to preserve current behavior when the field is omitted.
+	public bool GetSeedDefaultProfile() {
+		var kind = SeedDefaultProfile?.ValueKind;
+		if (kind is null or JsonValueKind.Null or JsonValueKind.Undefined) {
+			return true;
+		}
+		return SeedDefaultProfile.GetValueAsBoolean();
+	}
 
 	public List<CreateTenantAsStaffInitialUserItem> GetInitialUsers() {
 		if (InitialUsers.ValueKind != JsonValueKind.Array) {
@@ -56,7 +71,16 @@ public class CreateTenantAsStaffBody {
 /// JsonElement request semantics. Follows the JsonElementRules.* convention in
 /// docs/guides/validator-conventions.md.
 /// </summary>
-public class CreateTenantAsStaffBodyValidator : AbstractValidator<CreateTenantAsStaffBody> {
+public partial class CreateTenantAsStaffBodyValidator : AbstractValidator<CreateTenantAsStaffBody> {
+	// Lowercase letters, digits, and single hyphens between segments — mirrors the canonical
+	// shape of the random codes (Tenant.Code setter also lowercases, but we reject uppercase
+	// input outright rather than silently transforming it into a different string than sent).
+	private const int CodeMinLength = 3;
+	private const int CodeMaxLength = 40;
+
+	[GeneratedRegex("^[a-z0-9]+(?:-[a-z0-9]+)*$")]
+	private static partial Regex CodeFormatRegex();
+
 	public CreateTenantAsStaffBodyValidator() {
 		RuleFor(x => x.Name)
 			.MustBeRequiredStringWithLength("Name", 5, int.MaxValue);
@@ -75,8 +99,52 @@ public class CreateTenantAsStaffBodyValidator : AbstractValidator<CreateTenantAs
 			context.AddFailure("MaxUsers must be a number, null, or undefined");
 		});
 
+		RuleFor(x => x.Code).Custom(ValidateCode);
+
+		RuleFor(x => x.SeedDefaultProfile)
+			.MustBeNullableBoolean("SeedDefaultProfile");
+
 		RuleFor(x => x.InitialUsers)
 			.Custom(ValidateInitialUsers);
+	}
+
+	private static void ValidateCode(
+		JsonElement? element,
+		ValidationContext<CreateTenantAsStaffBody> context
+	) {
+		if (element is null) {
+			return;
+		}
+
+		var kind = element.Value.ValueKind;
+		if (kind is JsonValueKind.Null or JsonValueKind.Undefined) {
+			return;
+		}
+
+		if (kind != JsonValueKind.String) {
+			context.AddFailure("Code must be a string, null, or omitted");
+			return;
+		}
+
+		var code = element.Value.GetString();
+		if (string.IsNullOrWhiteSpace(code)) {
+			context.AddFailure("Code must not be empty when provided");
+			return;
+		}
+
+		if (code.Length is < CodeMinLength or > CodeMaxLength) {
+			context.AddFailure(
+				$"Code must be between {CodeMinLength} and {CodeMaxLength} characters"
+			);
+			return;
+		}
+
+		if (!CodeFormatRegex().IsMatch(code)) {
+			context.AddFailure(
+				"Code must contain only lowercase letters, digits, and hyphens, "
+				+ "and cannot start or end with a hyphen"
+			);
+		}
 	}
 
 	private static void ValidateInitialUsers(
@@ -222,7 +290,9 @@ public sealed class CreateTenantAsStaff {
 	public static async Task<
 	Results<
 	Created<CreateTenantAsStaffResult>,
-	AppBadRequestHttpResult
+	AppBadRequestHttpResult,
+	AppValidationProblemHttpResult,
+	AppInternalServerErrorHttpResult
 	>>
 	Handle(
 		[FromBody] CreateTenantAsStaffBody body,
@@ -243,6 +313,8 @@ public sealed class CreateTenantAsStaff {
 		var tenantName = body.GetName();
 		var maxUsers = body.GetMaxUsers();
 		var initialUsersItems = body.GetInitialUsers();
+		var code = body.GetCode();
+		var seedDefaultProfile = body.GetSeedDefaultProfile();
 
 		var effectiveMaxUsers = maxUsers ?? AppEnvironment.Instance.DEFAULT_MAX_USERS_PER_TENANT;
 
@@ -261,13 +333,40 @@ public sealed class CreateTenantAsStaff {
 				Name: tenantName,
 				MaxUsers: effectiveMaxUsers,
 				InitialUsers: initialUsers,
-				InvitedByUserId: staffAccount.UserId
+				InvitedByUserId: staffAccount.UserId,
+				Code: code,
+				SeedDefaultProfile: seedDefaultProfile
 			);
 
-			var result = await tenantAsStaffService.CreateTenantWithInitialUsersAsync(
+			var outcome = await tenantAsStaffService.CreateTenantWithInitialUsersAsync(
 				args,
 				cancellationToken
 			);
+
+			if (outcome is CreateTenantWithInitialUsersOutcome.CodeAlreadyTaken) {
+				return TypedProblems.ValidationProblem(
+					"This workspace code is already taken",
+					ResponseKeys.CodeAlreadyTaken,
+					new Dictionary<string, string[]> {
+						{ "code", ["This workspace code is already taken"] }
+					}
+				);
+			}
+
+			if (outcome is CreateTenantWithInitialUsersOutcome.CodeGenerationFailed) {
+				return TypedProblems.InternalServerError(
+					"Failed to generate a unique tenant code. Please try again.",
+					ResponseKeys.InternalServerError
+				);
+			}
+
+			if (outcome is not CreateTenantWithInitialUsersOutcome.Success success) {
+				throw new InvalidOperationException(
+					$"Unknown create tenant with initial users outcome: {outcome.GetType().Name}"
+				);
+			}
+
+			var result = success.Data;
 
 			_ = Task.Run(async () => {
 				await SendTenantInvitationEmailsAsync(

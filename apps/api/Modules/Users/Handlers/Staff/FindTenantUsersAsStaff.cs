@@ -35,6 +35,9 @@ public class FindTenantUsersAsStaffQuery
 	[FromQuery(Name = "status")]
 	public string? Status { get; set; }
 
+	[FromQuery(Name = "level")]
+	public string? Level { get; set; }
+
 	public string? GetSearchNormalized() {
 		if (Search is null) {
 			return null;
@@ -70,6 +73,33 @@ public class FindTenantUsersAsStaffQuery
 
 		return statuses.Count > 0 ? statuses : null;
 	}
+
+	public IReadOnlySet<AccountLevel>? GetLevelsOrNull() {
+		if (Level is null) {
+			return null;
+		}
+
+		var trimmed = Level.Trim();
+		if (trimmed.Length == 0) {
+			return null;
+		}
+
+		var parts = trimmed
+			.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+		if (parts.Length == 0) {
+			return null;
+		}
+
+		var levels = new HashSet<AccountLevel>();
+		foreach (var part in parts) {
+			AccountLevel? parsed = UserAccount.ParseLevel(part);
+			if (parsed is { } level) {
+				levels.Add(level);
+			}
+		}
+
+		return levels.Count > 0 ? levels : null;
+	}
 }
 
 public partial class FindTenantUsersAsStaffQueryValidator
@@ -101,6 +131,19 @@ public partial class FindTenantUsersAsStaffQueryValidator
 	private static readonly string AllowedStatusesDisplay =
 		string.Join(", ", AllowedStatuses.Select(ToSnakeCase).Order());
 
+	// AccountLevel members are single-word (Admin, User), so plain ToLowerInvariant is safe here
+	// (unlike the multi-word TenantUserStatus set above, which needs the snake-case helper).
+	private static readonly string[] AllowedLevels = [
+		nameof(AccountLevel.Admin),
+		nameof(AccountLevel.User),
+	];
+
+	private static readonly HashSet<string> AllowedLevelSet =
+		new(AllowedLevels.Select(s => s.ToLowerInvariant()), StringComparer.OrdinalIgnoreCase);
+
+	private static readonly string AllowedLevelsDisplay =
+		string.Join(", ", AllowedLevels.Select(s => s.ToLowerInvariant()).Order());
+
 	public FindTenantUsersAsStaffQueryValidator() {
 		RuleFor(x => x.Search)
 			.MaximumLength(200)
@@ -120,6 +163,19 @@ public partial class FindTenantUsersAsStaffQueryValidator
 				return parts.All(p => p.Length > 0 && AllowedStatusSet.Contains(p));
 			})
 			.WithMessage($"status must be one of: {AllowedStatusesDisplay}");
+		RuleFor(x => x.Level)
+			.Must(raw => {
+				if (string.IsNullOrEmpty(raw)) {
+					return true;
+				}
+
+				var parts = raw.Split(',', StringSplitOptions.TrimEntries);
+				if (parts.Length == 0) {
+					return false;
+				}
+				return parts.All(p => p.Length > 0 && AllowedLevelSet.Contains(p));
+			})
+			.WithMessage($"level must be one of: {AllowedLevelsDisplay}");
 	}
 }
 
@@ -175,7 +231,8 @@ public sealed class FindTenantUsersAsStaff {
 			SortOrder: sortOrder,
 			Filters: new FindTenantUsersAsStaffFilters(
 				Search: query.GetSearchNormalized(),
-				Status: query.GetStatusesOrNull()
+				Status: query.GetStatusesOrNull(),
+				Level: query.GetLevelsOrNull()
 			)
 		);
 

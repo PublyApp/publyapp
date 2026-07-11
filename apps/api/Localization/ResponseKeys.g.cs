@@ -30,6 +30,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey CannotSuspendLastAdmin = new("cannot-suspend-last-admin");
 
 	/// <summary>
+	/// This workspace code is already taken
+	/// </summary>
+	public static readonly TranslationKey CodeAlreadyTaken = new("code-already-taken");
+
+	/// <summary>
 	/// are you sure you want to delete this item?
 	/// </summary>
 	public static readonly TranslationKey ConfirmDeleteDialogText = new("confirm-delete-dialog-text");

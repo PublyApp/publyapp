@@ -23,7 +23,8 @@ public abstract record FindTenantUsersResult {
 
 public record FindTenantUsersAsStaffFilters(
 	string? Search,
-	IReadOnlySet<TenantUserStatus>? Status
+	IReadOnlySet<TenantUserStatus>? Status,
+	IReadOnlySet<AccountLevel>? Level
 );
 
 public record FindTenantUsersAsStaffArgs(
@@ -414,6 +415,11 @@ public class TenantUserQueryService : ITenantUserQueryService {
 					&& ua.User.Status != UserStatus.Suspended
 					&& ua.Status != AccountStatus.Suspended)
 			);
+		}
+
+		// Apply level filter
+		if (args.Filters?.Level is { } levels && levels.Count > 0) {
+			query = query.Where(ua => levels.Contains(ua.Level));
 		}
 
 		if (args.Cursor != Guid.Empty) {

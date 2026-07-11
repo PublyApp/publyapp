@@ -138,6 +138,178 @@ public sealed class CreateTenantAsStaffSpec
 
 	[Fact]
 	public async Task
+	ItShouldAcceptCustomCodeAndPersistItLowercase() {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tenantName =
+			$"Tenant Custom Code {Guid.NewGuid():N}";
+		var customCode = $"custom-code-{Guid.NewGuid():N}"[..30];
+
+		var created = await CreateTenantSuccessfullyAsync(
+			token,
+			new {
+				name = tenantName,
+				maxUsers = 3,
+				code = customCode,
+				initialUsers = new[] {
+					new {
+						email = $"tenant-custom-code-{Guid.NewGuid():N}@example.com",
+						accountLevel = "Admin",
+					},
+				},
+			}
+		);
+
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var tenant = await dbContext.Tenant
+			.Where(t => t.Id == created.Id)
+			.SingleAsync();
+		tenant.Code.Should().Be(customCode.ToLowerInvariant());
+	}
+
+	[Theory]
+	[InlineData("AB")]
+	[InlineData("Has-Upper-Case")]
+	[InlineData("has spaces")]
+	[InlineData("-leading-hyphen")]
+	[InlineData("trailing-hyphen-")]
+	[InlineData("has_underscore")]
+	public async Task
+	ItShouldReturnUnprocessableEntityForInvalidCodeShapes(
+		string invalidCode
+	) {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+
+		using var response = await _http.SendAsync(
+			CreateTenantRequest(
+				token,
+				new {
+					name = $"Tenant Invalid Code {Guid.NewGuid():N}",
+					maxUsers = 3,
+					code = invalidCode,
+					initialUsers = new[] {
+						new {
+							email = $"tenant-invalid-code-{Guid.NewGuid():N}@example.com",
+							accountLevel = "Admin",
+						},
+					},
+				}
+			)
+		);
+
+		await AssertValidationProblemAsync(response, "Code");
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnUnprocessableEntityWhenCodeIsDuplicate() {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+		var duplicateCode = $"dup-code-{Guid.NewGuid():N}"[..25];
+
+		await CreateTenantSuccessfullyAsync(
+			token,
+			new {
+				name = $"Tenant Duplicate Code First {Guid.NewGuid():N}",
+				maxUsers = 3,
+				code = duplicateCode,
+				initialUsers = new[] {
+					new {
+						email = $"tenant-dup-code-first-{Guid.NewGuid():N}@example.com",
+						accountLevel = "Admin",
+					},
+				},
+			}
+		);
+
+		using var response = await _http.SendAsync(
+			CreateTenantRequest(
+				token,
+				new {
+					name = $"Tenant Duplicate Code Second {Guid.NewGuid():N}",
+					maxUsers = 3,
+					code = duplicateCode,
+					initialUsers = new[] {
+						new {
+							email = $"tenant-dup-code-second-{Guid.NewGuid():N}@example.com",
+							accountLevel = "Admin",
+						},
+					},
+				}
+			)
+		);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem = await response.Content
+			.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+			.Be(ResponseKeys.CodeAlreadyTaken.Value);
+		problem.Errors.Keys.Should().Contain("code");
+	}
+
+	[Fact]
+	public async Task
+	ItShouldSkipDefaultProfileWhenSeedDefaultProfileIsFalse() {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tenantName =
+			$"Tenant No Default Profile {Guid.NewGuid():N}";
+		var userEmail =
+			$"tenant-no-profile-user-{Guid.NewGuid():N}@example.com";
+
+		var created = await CreateTenantSuccessfullyAsync(
+			token,
+			new {
+				name = tenantName,
+				maxUsers = 3,
+				seedDefaultProfile = false,
+				initialUsers = new[] {
+					new {
+						email = $"tenant-no-profile-admin-{Guid.NewGuid():N}@example.com",
+						accountLevel = "admin",
+					},
+					new {
+						email = userEmail,
+						accountLevel = "user",
+					},
+				},
+			}
+		);
+
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var profileCount = await dbContext.Profile
+			.Where(p =>
+				p.TenantId == created.Id
+				&& p.Scope == ProfileScope.Tenant
+			)
+			.CountAsync();
+		profileCount.Should().Be(0);
+
+		var userInvitation = await dbContext.Invitation
+			.Where(invitation =>
+				invitation.TenantId == created.Id
+				&& invitation.Email == userEmail
+			)
+			.Include(invitation => invitation.InvitationProfiles)
+			.SingleAsync();
+		userInvitation.InvitationProfiles.Should().BeEmpty();
+	}
+
+	[Fact]
+	public async Task
 	ItShouldUseDefaultMaxUsersWhenMaxUsersIsMissing() {
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();

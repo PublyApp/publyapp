@@ -696,6 +696,153 @@ public sealed class FindTenantUsersAsStaffSpec
 
 	[Fact]
 	public async Task
+	ItShouldFilterTenantUsersByAdminLevel() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tenantId =
+			await TenantTestHelper
+				.GetTenantIdByNameAsync(
+					_http,
+					staffToken,
+					SeedConstants.Tenants.AcmeName
+				);
+
+		var url = GetFindUrl(
+			tenantId,
+			level: "admin"
+		);
+		var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			url
+		).WithSessionToken(staffToken);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<FindResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+		result.Data.Should().NotBeEmpty();
+		result.Data.Should().OnlyContain(user => user.Level == "Admin");
+		result.Data.Select(user => user.Email)
+			.Should()
+			.Contain(SeedConstants.Tenants.AcmeAdminEmail);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldFilterTenantUsersByUserLevel() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tenantId =
+			await TenantTestHelper
+				.GetTenantIdByNameAsync(
+					_http,
+					staffToken,
+					SeedConstants.Tenants.AcmeName
+				);
+
+		var url = GetFindUrl(
+			tenantId,
+			level: "user"
+		);
+		var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			url
+		).WithSessionToken(staffToken);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<FindResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+		result.Data.Should().NotBeEmpty();
+		result.Data.Should().OnlyContain(user => user.Level == "User");
+		result.Data.Select(user => user.Email)
+			.Should()
+			.Contain(SeedConstants.Tenants.AcmeUserEmail);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldFilterTenantUsersByMultipleLevelsWhenCommaSeparated() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tenantId =
+			await TenantTestHelper
+				.GetTenantIdByNameAsync(
+					_http,
+					staffToken,
+					SeedConstants.Tenants.AcmeName
+				);
+
+		var url = GetFindUrl(
+			tenantId,
+			level: "admin,user"
+		);
+		var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			url
+		).WithSessionToken(staffToken);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<FindResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+		result.Data.Select(user => user.Level)
+			.Should()
+			.Contain("Admin");
+		result.Data.Select(user => user.Level)
+			.Should()
+			.Contain("User");
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnUnprocessableEntityWhenLevelIsInvalid() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tenantId =
+			await TenantTestHelper
+				.GetTenantIdByNameAsync(
+					_http,
+					staffToken,
+					SeedConstants.Tenants.AcmeName
+				);
+
+		var url = GetFindUrl(
+			tenantId,
+			level: "owner"
+		);
+		var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			url
+		).WithSessionToken(staffToken);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.UnprocessableEntity);
+	}
+
+	[Fact]
+	public async Task
 	ItShouldSortByStatusWithoutServerError() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
@@ -737,7 +884,8 @@ public sealed class FindTenantUsersAsStaffSpec
 		int? limit = null,
 		string? sortId = null,
 		string? sortOrder = null,
-		string? status = null
+		string? status = null,
+		string? level = null
 	) {
 		return GetFindUrl(
 			tenantId.ToString(),
@@ -745,7 +893,8 @@ public sealed class FindTenantUsersAsStaffSpec
 			limit,
 			sortId,
 			sortOrder,
-			status
+			status,
+			level
 		);
 	}
 
@@ -755,7 +904,8 @@ public sealed class FindTenantUsersAsStaffSpec
 		int? limit = null,
 		string? sortId = null,
 		string? sortOrder = null,
-		string? status = null
+		string? status = null,
+		string? level = null
 	) {
 		var basePath = PathUtils.Join(
 			Routes.Staff.Root,
@@ -780,6 +930,9 @@ public sealed class FindTenantUsersAsStaffSpec
 		}
 		if (status is not null) {
 			queryParams.Add($"status={status}");
+		}
+		if (level is not null) {
+			queryParams.Add($"level={level}");
 		}
 
 		if (queryParams.Count > 0) {

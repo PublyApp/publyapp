@@ -73,6 +73,12 @@ public interface ITenantProfileQueryAsStaffService {
 		FindTenantProfilePermissionKeysArgs args,
 		CancellationToken cancellationToken = default
 	);
+
+	// Count for the tenant detail page: active (non-deleted) tenant-scoped profiles.
+	Task<int> CountTenantProfilesAsync(
+		Guid tenantId,
+		CancellationToken cancellationToken = default
+	);
 }
 
 [Service(ServiceLifetime.Scoped)]
@@ -338,6 +344,20 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 			.ToListAsync(cancellationToken);
 
 		return new FindTenantProfilePermissionKeysResult.Success(permissionKeys);
+	}
+
+	public async Task<int> CountTenantProfilesAsync(
+		Guid tenantId,
+		CancellationToken cancellationToken = default
+	) {
+		var count =
+			from p in _dbContext.Profile
+			where p.Scope == ProfileScope.Tenant
+				&& p.TenantId == tenantId
+				&& !p.IsDeleted
+			select p;
+
+		return await count.CountAsync(cancellationToken);
 	}
 
 }
