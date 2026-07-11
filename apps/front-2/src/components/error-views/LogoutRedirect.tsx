@@ -1,29 +1,12 @@
-import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
-import { useServerFn } from '@tanstack/react-start';
 import { useEffect } from 'react';
-import { clearSession } from '~/lib/server/session-actions';
-
-import { queryParamKey, queryParamValue } from '@org/shared-ts/lib/constants';
+import { useLogout } from '~/lib/hooks/use-logout';
 
 export const LogoutRedirect = () => {
-	const navigate = useNavigate();
-	const queryClient = useQueryClient();
-	const clear = useServerFn(clearSession);
+	const { logout } = useLogout();
 
 	useEffect(() => {
-		queryClient.clear();
-		void clear().finally(() => {
-			void navigate({
-				to: '/login',
-				search: {
-					[queryParamKey.login_page.redirect_cause]:
-						queryParamValue.login_page.redirect_cause.invalid_session,
-				},
-				replace: true,
-			});
-		});
-	}, [queryClient, clear, navigate]);
+		logout({ redirectCause: 'invalid_session' });
+	}, [logout]);
 
 	return (
 		<main className="mx-auto flex min-h-screen w-full max-w-3xl items-center justify-center px-4 py-12">

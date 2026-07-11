@@ -1,6 +1,5 @@
 import {
 	IconBell,
-	IconChevronDown,
 	IconChevronRight,
 	IconLayoutSidebar,
 	IconMenu2,
@@ -10,7 +9,6 @@ import {
 } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
 import { Fragment, useEffect, useState, type ReactNode } from 'react';
-import { Avatar, AvatarImage } from '~/components/ui/avatar';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
@@ -33,6 +31,7 @@ import type {
 } from '../../lib/navigation/route-metadata';
 import { useUiStore } from '../../lib/store/ui-store';
 import { ThemeToggle } from './theme/theme-toggle';
+import { AppShellUserMenu } from './user-menu';
 
 type AppShellMode = 'auth' | 'authed' | 'marketing';
 
@@ -530,13 +529,7 @@ const AuthedWorkspaceShell = ({
 						</Button>
 						<ThemeToggle className="app-shell-topbar-action-btn" />
 						<div className="app-shell-topbar-separator" />
-						<div className="app-shell-user-chip">
-							<Avatar size="sm" className="size-7">
-								<AvatarImage src={avatarSrc} />
-							</Avatar>
-							<span className="app-shell-user-name">Capt. Radan</span>
-							<IconChevronDown aria-hidden="true" className="size-4" />
-						</div>
+						<AppShellUserMenu />
 					</div>
 				</header>
 				<main className="app-shell-main">{children}</main>
