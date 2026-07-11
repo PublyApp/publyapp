@@ -162,7 +162,9 @@ test('asserts staff invitations filter button geometry', async ({ page }) => {
 	const filterButton = page.locator('.publy-data-table-filter-button');
 	await expect(filterButton).toBeVisible();
 	await expect(filterButton).toHaveCSS('height', '36px');
-	await expect(filterButton).toHaveCSS('border-radius', '14px');
+	// default-size (36px) button radius is 12px per the owner-ratified per-size
+	// scale (xs 8 / sm 10 / default 12 / lg 14) — see conventions.md.
+	await expect(filterButton).toHaveCSS('border-radius', '12px');
 });
 
 test('asserts confirm modal geometry uses handoff radius', async ({ page }) => {
