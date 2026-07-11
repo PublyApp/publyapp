@@ -7,6 +7,7 @@ const BASE_STAFF_PATH = '/staff/staff-users';
 const TENANT_PATH = '/staff/tenants';
 const TABLE_TEST_ID = 'staff-users-table';
 const STAFF_INVITATIONS_PATH = '/staff/invitations';
+const STAFF_USERS_API_PATH = '/staff/users';
 // Kiota parses entity ids with getGuidValue(); mocked ids must be real UUIDs
 // or rows are silently dropped.
 const HANDOFF_TENANT_ID = '0197b8f0-2222-7bbb-8bbb-bbbbbbbbbbbb';
@@ -126,8 +127,7 @@ test('asserts staff invitations filter button geometry', async ({ page }) => {
 	await loginAsStaffAdmin(page);
 	await page.setViewportSize({ width: 1280, height: 900 });
 
-	// design-system-ignore: no-single-star-route-glob — pre-existing collection-only mock; not yet audited for sub-path escapes (see BACKLOG: e2e glob audit)
-	await page.route('**/staff/invitations*', async (route) => {
+	await page.route('**/staff/invitations**', async (route) => {
 		if (
 			route.request().method() !== 'GET' ||
 			!isApiPath(route.request().url(), STAFF_INVITATIONS_PATH)
@@ -171,8 +171,7 @@ test('asserts confirm modal geometry uses handoff radius', async ({ page }) => {
 	await loginAsStaffAdmin(page);
 	await page.setViewportSize({ width: 1280, height: 900 });
 
-	// design-system-ignore: no-single-star-route-glob — pre-existing collection-only mock; not yet audited for sub-path escapes (see BACKLOG: e2e glob audit)
-	await page.route('**/staff/tenants*', async (route) => {
+	await page.route('**/staff/tenants**', async (route) => {
 		if (
 			route.request().method() !== 'GET' ||
 			!isApiPath(route.request().url(), TENANT_PATH)
@@ -270,8 +269,15 @@ test('asserts the no-match state renders a bare, un-boxed icon with no card, rin
 	await loginAsStaffAdmin(page);
 	await page.setViewportSize({ width: 1280, height: 900 });
 
-	// design-system-ignore: no-single-star-route-glob — pre-existing collection-only mock; not yet audited for sub-path escapes (see BACKLOG: e2e glob audit)
-	await page.route('**/staff/users*', async (route) => {
+	await page.route('**/staff/users**', async (route) => {
+		if (
+			route.request().method() !== 'GET' ||
+			!isApiPath(route.request().url(), STAFF_USERS_API_PATH)
+		) {
+			await route.fallback();
+			return;
+		}
+
 		await route.fulfill({
 			status: 200,
 			headers: { 'content-type': 'application/json' },

@@ -61,8 +61,7 @@ const mockStaffInvitations = async (
 	page: Page,
 	payload: { data: readonly unknown[]; nextCursor: string | null },
 ) => {
-	// design-system-ignore: no-single-star-route-glob — pre-existing collection-only mock; not yet audited for sub-path escapes (see BACKLOG: e2e glob audit)
-	await page.route('**/staff/invitations*', async (route) => {
+	await page.route('**/staff/invitations**', async (route) => {
 		if (
 			route.request().method() !== 'GET' ||
 			!isApiPath(route.request().url(), STAFF_INVITATIONS_PATH)
@@ -80,8 +79,7 @@ const mockStaffInvitations = async (
 };
 
 const mockStaffProfiles = async (page: Page) => {
-	// design-system-ignore: no-single-star-route-glob — pre-existing collection-only mock; not yet audited for sub-path escapes (see BACKLOG: e2e glob audit)
-	await page.route('**/staff/profiles*', async (route) => {
+	await page.route('**/staff/profiles**', async (route) => {
 		if (
 			route.request().method() !== 'GET' ||
 			!isApiPath(route.request().url(), STAFF_PROFILES_PATH)

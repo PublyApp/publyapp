@@ -107,8 +107,7 @@ const setSessionCookie = async (page: Page) => {
 };
 
 const mockAuthRedirectCode = async (page: Page) => {
-	// design-system-ignore: no-single-star-route-glob — pre-existing collection-only mock; not yet audited for sub-path escapes (see BACKLOG: e2e glob audit)
-	await page.route('**/auth/redirect-code*', async (route) => {
+	await page.route('**/auth/redirect-code**', async (route) => {
 		await route.fulfill({
 			body: JSON.stringify({ redirectCode: 'staff' }),
 			headers: {

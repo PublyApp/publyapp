@@ -22,8 +22,7 @@ const mockAuthRedirectCode = async (
 	status: number,
 	body: Record<string, unknown> = {},
 ) => {
-	// design-system-ignore: no-single-star-route-glob — pre-existing collection-only mock; not yet audited for sub-path escapes (see BACKLOG: e2e glob audit)
-	await page.route('**/auth/redirect-code*', async (route) => {
+	await page.route('**/auth/redirect-code**', async (route) => {
 		await route.fulfill({
 			status,
 			headers: {
