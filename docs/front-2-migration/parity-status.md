@@ -6,14 +6,16 @@ area changes state; `parity-contract.md` stays the per-decision design log.
 
 ## Scope decision (2026-07-11, Radan)
 
-Work now focuses on **two slices only**, design-first (Claude Design canvas → handoff → build):
+**Current focus only — not a permanent scope cut.** Work on these two slices *for now*,
+design-first (Claude Design canvas → handoff → build). Once Radan is satisfied with them, the
+remaining slices below are taken up in turn — nothing here is dropped, just sequenced after.
 
 1. **Auth slice** — login redesign + the missing flows (signup, verify-email, reset-password,
    accept-invitation).
 2. **Staff tenants slice** — tenant detail (all tabs; current build does not match the intended
    design) + a redesigned tenant-creation page.
 
-Everything else below stays inventory, not commitment.
+Everything else below stays inventory and remains on the roadmap — it is deferred, not cancelled.
 
 ## Parity matrix
 
