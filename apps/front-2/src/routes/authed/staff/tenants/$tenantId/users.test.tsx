@@ -566,7 +566,7 @@ describe('staff tenant users route', () => {
 		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
 	});
 
-	test('selecting a row reveals the bulk actions toolbar and hides the level/status filters', () => {
+	test('selecting a row reveals the floating selection bar; the level/status filters stay visible', async () => {
 		renderPage();
 
 		expect(screen.queryByText('Bulk actions')).toBeNull();
@@ -574,9 +574,11 @@ describe('staff tenant users route', () => {
 
 		fireEvent.click(screen.getByLabelText('Select row user-1'));
 
-		expect(screen.getByText('{{count}} selected')).toBeTruthy();
+		expect(await screen.findByText('{{count}} selected')).toBeTruthy();
 		expect(screen.getByText('Bulk actions')).toBeTruthy();
-		expect(screen.queryByText('All levels')).toBeNull();
+		expect(screen.getByTestId('floating-selection-bar')).toBeTruthy();
+		// Toolbar no longer swaps — filters remain visible during selection.
+		expect(screen.getByText('All levels')).toBeTruthy();
 	});
 
 	test('exports the selected users as a csv download', async () => {
@@ -586,7 +588,9 @@ describe('staff tenant users route', () => {
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select row user-1'));
-		fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+		fireEvent.click(
+			await screen.findByRole('button', { name: 'More actions' }),
+		);
 		fireEvent.click(
 			await screen.findByRole('menuitem', { name: 'Export selected users' }),
 		);
@@ -616,7 +620,9 @@ describe('staff tenant users route', () => {
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select row user-1'));
-		fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+		fireEvent.click(
+			await screen.findByRole('button', { name: 'More actions' }),
+		);
 		fireEvent.click(
 			await screen.findByRole('menuitem', {
 				name: 'Remove selected from tenant',

@@ -233,6 +233,26 @@ new choice, decide in this spirit and add the rule here.
   the tenant Users/Invitations tabs. This does **not** apply to card grids (e.g. the tenant Profiles
   tab) — page-scroll is correct there; only `DataTable`-backed views must own their scroll.
 
+### Selection mode & bulk actions
+- Row-selection bulk actions render in a **floating bottom-center action bar**
+  (`components/table/floating-selection-bar.tsx`, `FloatingSelectionBar`), not an in-toolbar swap.
+  This supersedes the earlier "toolbar swaps to bulk actions" pattern — the table's `toolbarEnd`
+  (search/filters) stays visible and unchanged while rows are selected; only the floating bar
+  appears. See `tenants.tsx` and `tenants/$tenantId/users.tsx` for the reference wiring: the bar is
+  rendered unconditionally (its own internal `selectedCount > 0` state drives mount/unmount so the
+  exit animation can play), fed `selectedCount`/`visibleCount`/`allVisibleSelected` derived from the
+  page's row-selection state, and given the page's bulk-action controls (dropdown menu + confirm
+  dialogs) as `children`.
+- The bar is **portalled to `document.body`** — `.app-shell-main` sets `container-type: inline-size`,
+  which establishes a containing block for `position: fixed` descendants, so a non-portalled bar
+  would be trapped inside the scrollable content area instead of pinned to the viewport.
+  Un-portalled `position: fixed` UI anywhere under `.app-shell-main` has this same trap; portal it.
+  Chrome uses dedicated `--publy-selection-bar-*` tokens (bg/fg/border/ring/hover/divider/muted) in
+  `app.css`, inverted per theme (dark pill on light theme, light pill on dark theme) — do not
+  hardcode zinc/black/white values in the component.
+  Existing bulk-action-ux-conventions.md rules (always-render menu items, ineligible click → i18n
+  toast, trigger gates on `BULK_ACTION_MAX_COUNT`) apply unchanged inside the bar.
+
 ### Content & data honesty
 - **Never render fabricated or placeholder admin data.** If the contract does not provide a field,
   omit it — no invented values (2FA/session/"Type: Custom"), no `TODO(contract): …` shown as UI

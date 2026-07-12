@@ -22,6 +22,10 @@ import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
+import {
+	FLOATING_SELECTION_BAR_ACTION_BUTTON_CLASS_NAME,
+	FloatingSelectionBar,
+} from '~/components/table/floating-selection-bar';
 import { DataTableRowActions } from '~/components/table/row-actions';
 import {
 	useRowSelection,
@@ -804,89 +808,98 @@ function StaffTenantUsersPage() {
 				searchPlaceholder={t('search-tenant-members')}
 				selection={selection}
 				toolbarEnd={
-					selection.isSelectionMode ? (
-						<TenantUserBulkActionsToolbar
-							tenantId={tenantId}
-							tenantCode={tenant.code}
-							rows={rows}
-							selection={selection}
-							onSessionExpired={() => setShouldLogout(true)}
-							onFeedback={setBulkFeedback}
-						/>
-					) : (
-						<div className="flex items-center gap-2">
-							<DropdownMenu>
-								<DropdownMenuTrigger
-									render={
-										<Button
-											type="button"
-											variant="outline"
-											className="publy-data-table-filter-button max-w-64 text-[13px]"
-										/>
-									}
-								>
-									<IconKey
-										aria-hidden="true"
-										className="size-[15px] text-[var(--publy-foreground-secondary)]"
+					<div className="flex items-center gap-2">
+						<DropdownMenu>
+							<DropdownMenuTrigger
+								render={
+									<Button
+										type="button"
+										variant="outline"
+										className="publy-data-table-filter-button max-w-64 text-[13px]"
 									/>
-									<span className="truncate">{levelFilterLabel}</span>
-									<IconChevronDown aria-hidden="true" className="size-3" />
-								</DropdownMenuTrigger>
-								<DropdownMenuContent align="end" sideOffset={6}>
-									{KNOWN_TENANT_USER_LEVELS.map((level) => (
-										<DropdownMenuCheckboxItem
-											key={level}
-											checked={selectedLevels.includes(level)}
-											closeOnClick={false}
-											onCheckedChange={() => toggleLevel(level)}
-										>
-											{formatTenantUserLevelLabel(level, t)}
-										</DropdownMenuCheckboxItem>
-									))}
-									<DropdownMenuSeparator />
-									<DropdownMenuItem onClick={() => setLevels([])}>
-										{t('clear')}
-									</DropdownMenuItem>
-								</DropdownMenuContent>
-							</DropdownMenu>
-							<DropdownMenu>
-								<DropdownMenuTrigger
-									render={
-										<Button
-											type="button"
-											variant="outline"
-											className="publy-data-table-filter-button max-w-64 text-[13px]"
-										/>
-									}
-								>
-									<IconCircleDot
-										aria-hidden="true"
-										className="size-[15px] text-[var(--publy-foreground-secondary)]"
+								}
+							>
+								<IconKey
+									aria-hidden="true"
+									className="size-[15px] text-[var(--publy-foreground-secondary)]"
+								/>
+								<span className="truncate">{levelFilterLabel}</span>
+								<IconChevronDown aria-hidden="true" className="size-3" />
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end" sideOffset={6}>
+								{KNOWN_TENANT_USER_LEVELS.map((level) => (
+									<DropdownMenuCheckboxItem
+										key={level}
+										checked={selectedLevels.includes(level)}
+										closeOnClick={false}
+										onCheckedChange={() => toggleLevel(level)}
+									>
+										{formatTenantUserLevelLabel(level, t)}
+									</DropdownMenuCheckboxItem>
+								))}
+								<DropdownMenuSeparator />
+								<DropdownMenuItem onClick={() => setLevels([])}>
+									{t('clear')}
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+						<DropdownMenu>
+							<DropdownMenuTrigger
+								render={
+									<Button
+										type="button"
+										variant="outline"
+										className="publy-data-table-filter-button max-w-64 text-[13px]"
 									/>
-									<span className="truncate">{statusFilterLabel}</span>
-									<IconChevronDown aria-hidden="true" className="size-3" />
-								</DropdownMenuTrigger>
-								<DropdownMenuContent align="end" sideOffset={6}>
-									{KNOWN_TENANT_USER_STATUSES.map((status) => (
-										<DropdownMenuCheckboxItem
-											key={status}
-											checked={selectedStatuses.includes(status)}
-											closeOnClick={false}
-											onCheckedChange={() => toggleStatus(status)}
-										>
-											{formatTenantUserStatusLabel(status, t)}
-										</DropdownMenuCheckboxItem>
-									))}
-									<DropdownMenuSeparator />
-									<DropdownMenuItem onClick={() => setStatuses([])}>
-										{t('clear')}
-									</DropdownMenuItem>
-								</DropdownMenuContent>
-							</DropdownMenu>
-						</div>
-					)
+								}
+							>
+								<IconCircleDot
+									aria-hidden="true"
+									className="size-[15px] text-[var(--publy-foreground-secondary)]"
+								/>
+								<span className="truncate">{statusFilterLabel}</span>
+								<IconChevronDown aria-hidden="true" className="size-3" />
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end" sideOffset={6}>
+								{KNOWN_TENANT_USER_STATUSES.map((status) => (
+									<DropdownMenuCheckboxItem
+										key={status}
+										checked={selectedStatuses.includes(status)}
+										closeOnClick={false}
+										onCheckedChange={() => toggleStatus(status)}
+									>
+										{formatTenantUserStatusLabel(status, t)}
+									</DropdownMenuCheckboxItem>
+								))}
+								<DropdownMenuSeparator />
+								<DropdownMenuItem onClick={() => setStatuses([])}>
+									{t('clear')}
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+					</div>
 				}
 			/>
+			<FloatingSelectionBar
+				selectedCount={selection.selectedCount}
+				visibleCount={rows.length}
+				allVisibleSelected={
+					rows.length > 0 && rows.every((row) => selection.rowSelection[row.id])
+				}
+				onClear={selection.clearSelection}
+				onSelectAllVisible={() =>
+					selection.onSelectionChange(new Set(rows.map((row) => row.id)))
+				}
+			>
+				<TenantUserBulkActions
+					tenantId={tenantId}
+					tenantCode={tenant.code}
+					rows={rows}
+					selection={selection}
+					onSessionExpired={() => setShouldLogout(true)}
+					onFeedback={setBulkFeedback}
+				/>
+			</FloatingSelectionBar>
 
 			<InviteTenantUserDrawer
 				tenantId={tenantId}
@@ -914,7 +927,7 @@ const bulkFeedbackToneClassName = (
 ): string =>
 	tone === 'error' ? 'text-destructive' : 'text-[var(--publy-success)]';
 
-const TenantUserBulkActionsToolbar = ({
+const TenantUserBulkActions = ({
 	tenantId,
 	tenantCode,
 	rows,
@@ -1030,24 +1043,14 @@ const TenantUserBulkActionsToolbar = ({
 	};
 
 	return (
-		<div className="flex items-center gap-2.5">
-			<span className="text-xs text-muted-foreground">
-				{t('selected-count', { count: selectedCount })}
-			</span>
-			<Button
-				type="button"
-				variant="ghost"
-				size="sm"
-				onClick={() => selection.clearSelection()}
-			>
-				{t('clear-selection')}
-			</Button>
+		<>
 			<DropdownMenu>
 				<DropdownMenuTrigger
 					render={
 						<Button
 							type="button"
-							variant="outline"
+							variant="ghost"
+							size="sm"
 							disabled={isOverLimit}
 							title={
 								isOverLimit
@@ -1058,14 +1061,14 @@ const TenantUserBulkActionsToolbar = ({
 									: t('more-actions')
 							}
 							aria-label={t('more-actions')}
-							className="publy-data-table-filter-button text-[13px]"
+							className={FLOATING_SELECTION_BAR_ACTION_BUTTON_CLASS_NAME}
 						/>
 					}
 				>
 					{t('bulk-actions')}
 					<IconChevronDown aria-hidden="true" className="size-3" />
 				</DropdownMenuTrigger>
-				<DropdownMenuContent align="end" sideOffset={6}>
+				<DropdownMenuContent align="end" side="top" sideOffset={6}>
 					<DropdownMenuItem
 						disabled={isActionPending}
 						onClick={() => {
@@ -1102,6 +1105,6 @@ const TenantUserBulkActionsToolbar = ({
 					if (!isOpen) setIsRemoveDialogOpen(false);
 				}}
 			/>
-		</div>
+		</>
 	);
 };

@@ -111,6 +111,15 @@
 	--publy-chip-pending-border: #fde68a;
 	--publy-chip-pending-bg: #fffbeb;
 	--publy-chip-pending-text: #b45309;
+	/* Floating selection bar: inverted pill chrome (dark pill on light theme,
+	   light pill on dark theme — see html.dark for the counterpart values). */
+	--publy-selection-bar-bg: #09090b;
+	--publy-selection-bar-fg: #f4f4f5;
+	--publy-selection-bar-border: rgba(39, 39, 42, 0.9);
+	--publy-selection-bar-ring: rgba(0, 0, 0, 0.2);
+	--publy-selection-bar-hover: rgba(255, 255, 255, 0.1);
+	--publy-selection-bar-divider: rgba(255, 255, 255, 0.1);
+	--publy-selection-bar-muted: #71717a;
 	/* WCAG >=4.5:1 with white initials (canvas ships brighter shades;
 	   accessibility invariant wins — see deviation register). */
 	--publy-avatar-1: #0f766e;
@@ -236,6 +245,13 @@ html.dark {
 	--publy-chip-pending-border: #92400e;
 	--publy-chip-pending-bg: #451a03;
 	--publy-chip-pending-text: #fbbf24;
+	--publy-selection-bar-bg: #f4f4f5;
+	--publy-selection-bar-fg: #18181b;
+	--publy-selection-bar-border: rgba(212, 212, 216, 0.8);
+	--publy-selection-bar-ring: rgba(255, 255, 255, 0.25);
+	--publy-selection-bar-hover: rgba(0, 0, 0, 0.08);
+	--publy-selection-bar-divider: rgba(0, 0, 0, 0.1);
+	--publy-selection-bar-muted: #71717a;
 }
 
 @layer base {
@@ -1485,6 +1501,36 @@ html {
 
 	.publy-data-table-toolbar-end {
 		@apply flex items-center gap-2;
+	}
+
+	/* Floating selection bar: inverted pill chrome, portalled to body so
+	   `.app-shell-main`'s container-type:inline-size (which establishes a
+	   containing block for fixed descendants) can't trap it off-viewport. */
+	.publy-selection-bar {
+		background: var(--publy-selection-bar-bg);
+		color: var(--publy-selection-bar-fg);
+		border-color: var(--publy-selection-bar-border);
+		box-shadow:
+			0 20px 25px -5px rgb(0 0 0 / 0.15),
+			0 8px 10px -6px rgb(0 0 0 / 0.15),
+			0 0 0 1px var(--publy-selection-bar-ring);
+	}
+
+	.publy-selection-bar [data-slot='button'] {
+		color: inherit;
+	}
+
+	.publy-selection-bar [data-slot='button']:hover {
+		background: var(--publy-selection-bar-hover);
+		color: inherit;
+	}
+
+	.publy-selection-bar-divider {
+		border-color: var(--publy-selection-bar-divider);
+	}
+
+	.publy-selection-bar-muted {
+		color: var(--publy-selection-bar-muted);
 	}
 
 	.publy-data-table-search-input {

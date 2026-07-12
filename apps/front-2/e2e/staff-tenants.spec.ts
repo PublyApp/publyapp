@@ -17,6 +17,20 @@ const isApiPath = (url: string, path: string): boolean => {
 	return parsed.origin === API_BASE_URL && parsed.pathname === path;
 };
 
+/** Floating bar is portalled to `document.body` and pinned near the viewport
+ * bottom — assert it isn't trapped inside `.app-shell-main`'s scroll area. */
+const expectFloatingSelectionBarAtViewportBottom = async (page: Page) => {
+	const bar = page.getByTestId('floating-selection-bar');
+	await expect(bar).toBeVisible();
+
+	const viewportHeight = page.viewportSize()?.height ?? 0;
+	const box = await bar.boundingBox();
+	expect(box).not.toBeNull();
+	if (box) {
+		expect(box.y + box.height).toBeGreaterThan(viewportHeight - 80);
+	}
+};
+
 const mockStaffTenants = async (page: Page) => {
 	await page.route('**/staff/tenants**', async (route) => {
 		const request = route.request();
@@ -233,8 +247,10 @@ test.describe('staff tenants list', () => {
 			.getByRole('checkbox', { name: `Select row ${ACTIVE_TENANT_ID}` })
 			.click();
 		await expect(page.getByText('1 selected')).toBeVisible();
+		await expectFloatingSelectionBarAtViewportBottom(page);
 
-		await page.getByRole('button', { name: 'More actions' }).click();
+		const bar = page.getByTestId('floating-selection-bar');
+		await bar.getByRole('button', { name: 'More actions' }).click();
 		await page.getByRole('menuitem', { name: 'Suspend selected' }).click();
 
 		await expect(
@@ -256,6 +272,30 @@ test.describe('staff tenants list', () => {
 		await expect(
 			page.getByRole('checkbox', { name: `Select row ${ACTIVE_TENANT_ID}` }),
 		).toHaveAttribute('aria-checked', 'false');
+		// Success clears the selection — the bar plays its exit animation and unmounts.
+		await expect(bar).toBeHidden();
+	});
+
+	test('the floating selection bar disappears when the selection is cleared', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await mockStaffTenants(page);
+
+		await page.goto('/staff/tenants');
+		await expect(page.getByTestId(`${TABLE}-rows`)).toBeVisible();
+
+		await page
+			.getByRole('checkbox', { name: `Select row ${ACTIVE_TENANT_ID}` })
+			.click();
+		const bar = page.getByTestId('floating-selection-bar');
+		await expectFloatingSelectionBarAtViewportBottom(page);
+
+		await bar.getByRole('button', { name: 'Clear selection' }).click();
+		await expect(bar).toBeHidden();
+		await expect(
+			page.getByRole('checkbox', { name: `Select row ${ACTIVE_TENANT_ID}` }),
+		).toHaveAttribute('aria-checked', 'false');
 	});
 
 	test('an ineligible bulk suspend click on a suspended-only selection shows inline feedback, not the confirm dialog', async ({
@@ -272,7 +312,9 @@ test.describe('staff tenants list', () => {
 				name: `Select row ${SUSPENDED_TENANT_ID}`,
 			})
 			.click();
-		await page.getByRole('button', { name: 'More actions' }).click();
+		const bar = page.getByTestId('floating-selection-bar');
+		await expectFloatingSelectionBarAtViewportBottom(page);
+		await bar.getByRole('button', { name: 'More actions' }).click();
 		await page.getByRole('menuitem', { name: 'Suspend selected' }).click();
 
 		await expect(
@@ -281,5 +323,7 @@ test.describe('staff tenants list', () => {
 		await expect(
 			page.getByRole('heading', { name: 'Suspend selected' }),
 		).toBeHidden();
+		// Ineligible click surfaces inline feedback but does not clear the selection.
+		await expect(bar).toBeVisible();
 	});
 });

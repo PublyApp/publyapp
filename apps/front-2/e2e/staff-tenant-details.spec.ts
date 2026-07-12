@@ -10,6 +10,20 @@ const isApiPath = (url: string, path: string): boolean => {
 	return parsed.origin === API_BASE_URL && parsed.pathname === path;
 };
 
+/** Floating bar is portalled to `document.body` and pinned near the viewport
+ * bottom — assert it isn't trapped inside `.app-shell-main`'s scroll area. */
+const expectFloatingSelectionBarAtViewportBottom = async (page: Page) => {
+	const bar = page.getByTestId('floating-selection-bar');
+	await expect(bar).toBeVisible();
+
+	const viewportHeight = page.viewportSize()?.height ?? 0;
+	const box = await bar.boundingBox();
+	expect(box).not.toBeNull();
+	if (box) {
+		expect(box.y + box.height).toBeGreaterThan(viewportHeight - 80);
+	}
+};
+
 const mockTenantDetails = async (page: Page) => {
 	// A single '*' glob cannot cross a path separator (compiles to [^/]*), so
 	// '**' is required to match both the tenant collection and its sub-paths.
@@ -327,8 +341,16 @@ test.describe('staff tenant users bulk toolbar', () => {
 			.first()
 			.click();
 		await expect(page.getByText('1 selected')).toBeVisible();
+		await expectFloatingSelectionBarAtViewportBottom(page);
 
-		await page.getByRole('button', { name: 'More actions' }).click();
+		// The toolbar's level/status filters stay visible during selection —
+		// no more swapping them out for the bulk-action controls.
+		await expect(
+			page.getByTestId('staff-tenant-users-table-toolbar'),
+		).toBeVisible();
+
+		const bar = page.getByTestId('floating-selection-bar');
+		await bar.getByRole('button', { name: 'More actions' }).click();
 		await page
 			.getByRole('menuitem', { name: 'Remove selected from tenant' })
 			.click();
@@ -342,6 +364,11 @@ test.describe('staff tenant users bulk toolbar', () => {
 		await page.getByRole('button', { name: 'Cancel' }).click();
 		await expect(dialog).not.toBeVisible();
 		expect(bulkRemoveCalled).toBe(false);
+		// Cancelling the dialog does not clear the selection — the bar stays.
+		await expect(bar).toBeVisible();
+
+		await bar.getByRole('button', { name: 'Clear selection' }).click();
+		await expect(bar).toBeHidden();
 	});
 
 	test('Export selected downloads a CSV named after the tenant code and date', async ({
@@ -367,7 +394,11 @@ test.describe('staff tenant users bulk toolbar', () => {
 			.getByLabel(/^Select row /)
 			.first()
 			.click();
-		await page.getByRole('button', { name: 'More actions' }).click();
+		await expectFloatingSelectionBarAtViewportBottom(page);
+		await page
+			.getByTestId('floating-selection-bar')
+			.getByRole('button', { name: 'More actions' })
+			.click();
 
 		const downloadPromise = page.waitForEvent('download');
 		await page.getByRole('menuitem', { name: 'Export selected users' }).click();

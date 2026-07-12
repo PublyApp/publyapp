@@ -516,15 +516,28 @@ describe('staff tenants route', () => {
 			expect(trigger.closest('.flex.items-end')).toBeNull();
 		});
 
-		test('selecting a row reveals the bulk actions toolbar with a selected count', () => {
+		test('selecting a row reveals the floating selection bar with a selected count', async () => {
 			renderPage();
 
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select row tenant-1' }),
 			);
 
-			expect(screen.getByText('1 selected')).toBeTruthy();
-			expect(screen.getByRole('button', { name: 'More actions' })).toBeTruthy();
+			expect(await screen.findByText('1 selected')).toBeTruthy();
+			expect(
+				await screen.findByRole('button', { name: 'More actions' }),
+			).toBeTruthy();
+			expect(screen.getByTestId('floating-selection-bar')).toBeTruthy();
+		});
+
+		test('the toolbar does not swap during selection — no filters to hide on this page', () => {
+			renderPage();
+
+			fireEvent.click(
+				screen.getByRole('checkbox', { name: 'Select row tenant-1' }),
+			);
+
+			expect(screen.getByTestId('staff-tenants-table-toolbar')).toBeTruthy();
 		});
 
 		test('an ineligible bulk suspend click shows inline feedback and does not open the confirm dialog', async () => {
@@ -559,7 +572,9 @@ describe('staff tenants route', () => {
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select row tenant-1' }),
 			);
-			fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+			fireEvent.click(
+				await screen.findByRole('button', { name: 'More actions' }),
+			);
 			fireEvent.click(
 				await screen.findByRole('menuitem', { name: 'Suspend selected' }),
 			);
@@ -584,7 +599,9 @@ describe('staff tenants route', () => {
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select row tenant-1' }),
 			);
-			fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+			fireEvent.click(
+				await screen.findByRole('button', { name: 'More actions' }),
+			);
 			fireEvent.click(
 				await screen.findByRole('menuitem', { name: 'Suspend selected' }),
 			);
@@ -633,7 +650,9 @@ describe('staff tenants route', () => {
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select row tenant-1' }),
 			);
-			fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+			fireEvent.click(
+				await screen.findByRole('button', { name: 'More actions' }),
+			);
 			fireEvent.click(
 				await screen.findByRole('menuitem', { name: 'Suspend selected' }),
 			);
@@ -668,7 +687,9 @@ describe('staff tenants route', () => {
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select row tenant-1' }),
 			);
-			fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+			fireEvent.click(
+				await screen.findByRole('button', { name: 'More actions' }),
+			);
 			fireEvent.click(
 				await screen.findByRole('menuitem', { name: 'Suspend selected' }),
 			);
@@ -724,7 +745,9 @@ describe('staff tenants route', () => {
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select row tenant-2' }),
 			);
-			fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+			fireEvent.click(
+				await screen.findByRole('button', { name: 'More actions' }),
+			);
 			fireEvent.click(
 				await screen.findByRole('menuitem', { name: 'Delete selected' }),
 			);
@@ -760,7 +783,9 @@ describe('staff tenants route', () => {
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select row tenant-2' }),
 			);
-			fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+			fireEvent.click(
+				await screen.findByRole('button', { name: 'More actions' }),
+			);
 			fireEvent.click(
 				await screen.findByRole('menuitem', { name: 'Delete selected' }),
 			);

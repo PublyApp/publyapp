@@ -15,6 +15,10 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
+import {
+	FLOATING_SELECTION_BAR_ACTION_BUTTON_CLASS_NAME,
+	FloatingSelectionBar,
+} from '~/components/table/floating-selection-bar';
 import { DataTableRowActions } from '~/components/table/row-actions';
 import {
 	useRowSelection,
@@ -259,17 +263,25 @@ function StaffTenantsPage() {
 				searchDraft={controller.search.draft}
 				onSearchDraftChange={controller.search.onDraftChange}
 				selection={selection}
-				toolbarEnd={
-					selection.isSelectionMode ? (
-						<TenantBulkActionsToolbar
-							rows={rows}
-							selection={selection}
-							onSessionExpired={onSessionExpired}
-							onFeedback={setBulkFeedback}
-						/>
-					) : null
-				}
 			/>
+			<FloatingSelectionBar
+				selectedCount={selection.selectedCount}
+				visibleCount={rows.length}
+				allVisibleSelected={
+					rows.length > 0 && rows.every((row) => selection.rowSelection[row.id])
+				}
+				onClear={selection.clearSelection}
+				onSelectAllVisible={() =>
+					selection.onSelectionChange(new Set(rows.map((row) => row.id)))
+				}
+			>
+				<TenantBulkActions
+					rows={rows}
+					selection={selection}
+					onSessionExpired={onSessionExpired}
+					onFeedback={setBulkFeedback}
+				/>
+			</FloatingSelectionBar>
 		</div>
 	);
 }
@@ -380,7 +392,7 @@ const TENANT_LIFECYCLE_ACTION_FALLBACKS: Record<TenantBulkActionKey, string> = {
 	delete: 'Unable to delete tenant.',
 };
 
-const TenantBulkActionsToolbar = ({
+const TenantBulkActions = ({
 	rows,
 	selection,
 	onSessionExpired,
@@ -521,24 +533,14 @@ const TenantBulkActionsToolbar = ({
 	);
 
 	return (
-		<div className="flex items-center gap-2.5">
-			<span className="text-xs text-muted-foreground">
-				{t('selected-count', { count: selectedCount })}
-			</span>
-			<Button
-				type="button"
-				variant="ghost"
-				size="sm"
-				onClick={() => selection.clearSelection()}
-			>
-				{t('clear-selection')}
-			</Button>
+		<>
 			<DropdownMenu>
 				<DropdownMenuTrigger
 					render={
 						<Button
 							type="button"
-							variant="outline"
+							variant="ghost"
+							size="sm"
 							disabled={isOverLimit}
 							title={
 								isOverLimit
@@ -549,14 +551,14 @@ const TenantBulkActionsToolbar = ({
 									: t('more-actions')
 							}
 							aria-label={t('more-actions')}
-							className="publy-data-table-filter-button text-[13px]"
+							className={FLOATING_SELECTION_BAR_ACTION_BUTTON_CLASS_NAME}
 						/>
 					}
 				>
 					{t('bulk-actions')}
 					<IconChevronDown aria-hidden="true" className="size-3" />
 				</DropdownMenuTrigger>
-				<DropdownMenuContent align="end" sideOffset={6}>
+				<DropdownMenuContent align="end" side="top" sideOffset={6}>
 					<DropdownMenuItem
 						disabled={isActionPending}
 						onClick={() => handleMenuItemClick('reactivate')}
@@ -599,7 +601,7 @@ const TenantBulkActionsToolbar = ({
 					if (!isOpen) setPendingAction(null);
 				}}
 			/>
-		</div>
+		</>
 	);
 };
 

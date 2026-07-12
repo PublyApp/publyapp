@@ -772,6 +772,7 @@
 	"select-up-to-n-items": "Sélectionnez jusqu'à {{count}} {{items}}.",
 	"cannot-select-more-than-n-items": "Vous ne pouvez pas sélectionner plus de {{count}} {{items}}.",
 	"clear-selection": "Effacer la sélection",
+	"select-all-visible": "Tout sélectionner ({{count}})",
 	"more-actions": "Plus d'actions",
 	"bulk-suspend-result": "{{succeeded}} suspendu(s), {{failed}} échoué(s)",
 	"bulk-suspend-confirm": "Êtes-vous sûr de vouloir suspendre {{count}} locataire(s) ?",
