@@ -69,8 +69,15 @@ const currentUserQueryOptions = buildStaffQueryOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-export const useCurrentUserQuery = () =>
+type CurrentUserQueryOptions = {
+	enabled?: boolean;
+	retry?: boolean;
+};
+
+export const useCurrentUserQuery = (options?: CurrentUserQueryOptions) =>
 	useQuery({
 		queryKey: currentUserQueryOptions.queryKey({}),
 		queryFn: () => currentUserQueryOptions.fetcher({}),
+		enabled: options?.enabled,
+		retry: options?.retry,
 	});

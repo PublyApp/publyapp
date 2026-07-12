@@ -14,6 +14,7 @@ import { Route as signupRouteImport } from './routes/signup'
 import { Route as resetPasswordRouteImport } from './routes/reset-password'
 import { Route as loginRouteImport } from './routes/login'
 import { Route as fieldValidationRouteImport } from './routes/field-validation'
+import { Route as acceptInvitationRouteImport } from './routes/accept-invitation'
 import { Route as authedLayoutRouteImport } from './routes/authed/layout'
 import { Route as indexRouteImport } from './routes/index'
 import { Route as authedTenantRouteImport } from './routes/authed/tenant'
@@ -73,6 +74,11 @@ const loginRoute = loginRouteImport.update({
 const fieldValidationRoute = fieldValidationRouteImport.update({
   id: '/field-validation',
   path: '/field-validation',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const acceptInvitationRoute = acceptInvitationRouteImport.update({
+  id: '/accept-invitation',
+  path: '/accept-invitation',
   getParentRoute: () => rootRouteImport,
 } as any)
 const authedLayoutRoute = authedLayoutRouteImport.update({
@@ -277,6 +283,7 @@ const authedStaffTenantsTenantIdProfilesProfileIdEditRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof indexRoute
+  '/accept-invitation': typeof acceptInvitationRoute
   '/field-validation': typeof fieldValidationRoute
   '/login': typeof loginRoute
   '/reset-password': typeof resetPasswordRoute
@@ -318,6 +325,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof indexRoute
+  '/accept-invitation': typeof acceptInvitationRoute
   '/field-validation': typeof fieldValidationRoute
   '/login': typeof loginRoute
   '/reset-password': typeof resetPasswordRoute
@@ -359,6 +367,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof indexRoute
   '/_authed-layout': typeof authedLayoutRouteWithChildren
+  '/accept-invitation': typeof acceptInvitationRoute
   '/field-validation': typeof fieldValidationRoute
   '/login': typeof loginRoute
   '/reset-password': typeof resetPasswordRoute
@@ -402,6 +411,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/accept-invitation'
     | '/field-validation'
     | '/login'
     | '/reset-password'
@@ -443,6 +453,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/accept-invitation'
     | '/field-validation'
     | '/login'
     | '/reset-password'
@@ -483,6 +494,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_authed-layout'
+    | '/accept-invitation'
     | '/field-validation'
     | '/login'
     | '/reset-password'
@@ -526,6 +538,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   indexRoute: typeof indexRoute
   authedLayoutRoute: typeof authedLayoutRouteWithChildren
+  acceptInvitationRoute: typeof acceptInvitationRoute
   fieldValidationRoute: typeof fieldValidationRoute
   loginRoute: typeof loginRoute
   resetPasswordRoute: typeof resetPasswordRoute
@@ -568,6 +581,13 @@ declare module '@tanstack/react-router' {
       path: '/field-validation'
       fullPath: '/field-validation'
       preLoaderRoute: typeof fieldValidationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/accept-invitation': {
+      id: '/accept-invitation'
+      path: '/accept-invitation'
+      fullPath: '/accept-invitation'
+      preLoaderRoute: typeof acceptInvitationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authed-layout': {
@@ -933,6 +953,7 @@ const authedLayoutRouteWithChildren = authedLayoutRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   indexRoute: indexRoute,
   authedLayoutRoute: authedLayoutRouteWithChildren,
+  acceptInvitationRoute: acceptInvitationRoute,
   fieldValidationRoute: fieldValidationRoute,
   loginRoute: loginRoute,
   resetPasswordRoute: resetPasswordRoute,

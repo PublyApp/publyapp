@@ -5,7 +5,7 @@ import { selectToken } from '@org/shared-ts/lib/session/parse';
 import { getSessionTokensFromBrowser } from './api-client/client-manager';
 import { completeLoginRedirect } from './server/session-actions';
 
-const hasBrowserSessionCookie = (): boolean => {
+export const hasBrowserSessionCookie = (): boolean => {
 	const tokens = getSessionTokensFromBrowser();
 	return Boolean(selectToken(tokens, 'tenant') || tokens.staffToken);
 };

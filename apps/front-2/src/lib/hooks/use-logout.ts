@@ -17,6 +17,14 @@ type LogoutOptions = {
 	 * User-initiated logout omits it.
 	 */
 	redirectCause?: 'invalid_session';
+	/**
+	 * Overrides the post-logout destination (default '/login') — used by the
+	 * accept-invitation "Not you?" and wrong-account flows, which log out and
+	 * stay on (or return to) the invitation link instead of landing on login.
+	 * Mutually exclusive with redirectCause in practice: a caller passing a
+	 * custom target never wants the session-expired banner.
+	 */
+	redirectTo?: string;
 };
 
 const buildLoginSearch = (redirectCause: LogoutOptions['redirectCause']) => {
@@ -52,6 +60,12 @@ export const useLogout = () => {
 				// cookie is guaranteed cleared by then, so other tabs never
 				// race the sender to /login while still authenticated.
 				postBroadcast(AUTH_SYNC_CHANNEL, { type: 'logout' });
+
+				if (options?.redirectTo) {
+					void navigate({ to: options.redirectTo, replace: true });
+					return;
+				}
+
 				void navigate({
 					to: '/login',
 					search: buildLoginSearch(options?.redirectCause),

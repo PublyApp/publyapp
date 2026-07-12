@@ -93,7 +93,7 @@ const isSecureCookieContext = (): boolean => {
 	return referer?.startsWith('https://') ?? false;
 };
 
-const readSessionTokensFromCookie = (): RawCookieSessionTokens => {
+export const readSessionTokensFromCookie = (): RawCookieSessionTokens => {
 	const header = getSessionCookieHeader();
 	if (!header) {
 		return {};
@@ -113,7 +113,7 @@ const readSessionTokensFromCookie = (): RawCookieSessionTokens => {
 	return parseSessionCookie(sessionCookieValue);
 };
 
-const getCookieOptions = (
+export const getCookieOptions = (
 	sessionExpiresAt: string | undefined,
 ): Parameters<typeof setCookie>[2] => {
 	const isSecure = isSecureCookieContext();
@@ -136,7 +136,7 @@ const getCookieOptions = (
 	};
 };
 
-const buildTenantSessionCookie = (sessionToken: string) => {
+export const buildTenantSessionCookie = (sessionToken: string) => {
 	return formatSessionCookie({ tenantToken: sessionToken });
 };
 

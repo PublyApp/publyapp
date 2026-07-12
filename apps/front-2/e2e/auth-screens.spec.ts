@@ -45,3 +45,17 @@ test('/reset-password with a garbage token shows the shared invalid-link view', 
 		page.getByTestId('reset-password-invalid-link-view'),
 	).toBeVisible();
 });
+
+// A details-card render test (real pending invitation, new-user/existing-user
+// branches) would need a seeded invitation token — no e2e helper/seed exposes
+// one cheaply (helpers/ only covers login; the token is a backend-encrypted
+// id tied to a real DB row), so it's intentionally not added here.
+test('/accept-invitation with a garbage token shows the shared invalid-link view', async ({
+	page,
+}) => {
+	await page.goto('/accept-invitation?id=not-a-real-id&token=not-a-real-token');
+
+	await expect(
+		page.getByTestId('accept-invitation-invalid-link-view'),
+	).toBeVisible();
+});
