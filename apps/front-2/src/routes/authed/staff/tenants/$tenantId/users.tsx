@@ -2,23 +2,31 @@ import {
 	IconAlertCircle,
 	IconChevronDown,
 	IconCircleDot,
+	IconDownload,
 	IconEye,
 	IconKey,
 	IconPencil,
 	IconPlus,
 	IconRefresh,
 	IconTrash,
+	IconUserMinus,
+	IconUsers,
 	IconUserX,
+	IconX,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
 import { DataTableRowActions } from '~/components/table/row-actions';
+import {
+	useRowSelection,
+	type UseRowSelectionResult,
+} from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
 import { Button } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
@@ -33,17 +41,22 @@ import {
 import { InitialsAvatar } from '~/components/ui/initials-avatar';
 import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
+import { downloadFile, formatExportDateStamp } from '~/lib/download-file';
 import {
 	STAFF_TENANT_USER_DETAILS_QUERY_KEY,
 	STAFF_TENANT_USERS_QUERY_KEY,
-	type StaffTenantUserRow,
+	toStaffTenantUserBulkActionSummary,
 	toStaffTenantUserRows,
+	useBulkRemoveStaffTenantUsersMutation,
+	useExportStaffTenantUsersMutation,
 	useReactivateStaffTenantUserMutation,
 	useRemoveStaffTenantUserMutation,
 	useStaffTenantUsersQuery,
 	useSuspendStaffTenantUserMutation,
+	type StaffTenantUserRow,
 } from '~/lib/query/staff-tenant-users';
 import {
+	STAFF_TENANT_DETAILS_QUERY_KEY,
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
@@ -59,6 +72,7 @@ import {
 	getFailureMessage,
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
+import { BULK_ACTION_MAX_COUNT } from '@org/shared-ts/lib/constants';
 
 import { InviteTenantUserDrawer } from './_invite-user-drawer';
 import {
@@ -527,6 +541,8 @@ function StaffTenantUsersPage() {
 	const search = Route.useSearch() as TenantUsersListSearchParams;
 	const { t } = useTranslation('common');
 	const [shouldLogout, setShouldLogout] = useState(false);
+	const [bulkFeedback, setBulkFeedback] =
+		useState<TenantUserBulkFeedback | null>(null);
 
 	const selectedStatuses = parseTenantUserStatusFilter(search.status);
 	const selectedLevels = parseTenantUserLevelFilter(search.level);
@@ -583,6 +599,16 @@ function StaffTenantUsersPage() {
 		},
 	);
 
+	const rows = toStaffTenantUserRows(usersQuery.data?.data);
+	const selection = useRowSelection(rows.map((row) => row.id));
+
+	const { resetDraftToCommitted } = controller.search;
+	useEffect(() => {
+		if (selection.isSelectionMode) {
+			resetDraftToCommitted();
+		}
+	}, [selection.isSelectionMode, resetDraftToCommitted]);
+
 	if (detailsQuery.isPending) {
 		return <TenantDetailsLoading />;
 	}
@@ -624,7 +650,6 @@ function StaffTenantUsersPage() {
 		return <LogoutRedirect />;
 	}
 
-	const rows = toStaffTenantUserRows(usersQuery.data?.data);
 	const columns = makeTenantUserColumns(tenantId, t, () =>
 		setShouldLogout(true),
 	);
@@ -714,6 +739,26 @@ function StaffTenantUsersPage() {
 				</Button>
 			</div>
 
+			{bulkFeedback ? (
+				<div
+					className="flex items-center gap-1.5 text-xs"
+					data-tone={bulkFeedback.tone}
+					role="status"
+				>
+					<span className={bulkFeedbackToneClassName(bulkFeedback.tone)}>
+						{bulkFeedback.message}
+					</span>
+					<button
+						type="button"
+						aria-label={t('close')}
+						onClick={() => setBulkFeedback(null)}
+						className="text-muted-foreground"
+					>
+						<IconX className="size-3.5" />
+					</button>
+				</div>
+			) : null}
+
 			<DataTable<StaffTenantUserRow>
 				testId="staff-tenant-users-table"
 				ariaLabel="Tenant users"
@@ -722,8 +767,22 @@ function StaffTenantUsersPage() {
 				isPending={usersQuery.isPending}
 				isError={usersQuery.isError}
 				onRetry={() => void usersQuery.refetch()}
-				emptyContent="No tenant users found."
-				noMatchContent="No tenant users match your search."
+				emptyIcon={IconUsers}
+				emptyTitle={t('tenant-users-empty-title')}
+				emptyContent={t('tenant-users-empty-description')}
+				emptyActions={
+					<Button
+						type="button"
+						size="sm"
+						variant="outline"
+						onClick={() => setInviteDrawerOpen(true)}
+					>
+						<IconPlus aria-hidden="true" className="size-[15px]" />
+						{t('invite-people')}
+					</Button>
+				}
+				noMatchTitle={t('tenant-users-no-match-title')}
+				noMatchContent={t('tenant-users-no-match-description')}
 				hasActiveSearch={Boolean(
 					controller.search.committed || search.status || search.level,
 				)}
@@ -742,77 +801,89 @@ function StaffTenantUsersPage() {
 				searchDraft={controller.search.draft}
 				onSearchDraftChange={controller.search.onDraftChange}
 				searchPlaceholder={t('search-tenant-members')}
+				selection={selection}
 				toolbarEnd={
-					<div className="flex items-center gap-2">
-						<DropdownMenu>
-							<DropdownMenuTrigger
-								render={
-									<Button
-										type="button"
-										variant="outline"
-										className="publy-data-table-filter-button max-w-64 text-[13px]"
+					selection.isSelectionMode ? (
+						<TenantUserBulkActionsToolbar
+							tenantId={tenantId}
+							tenantCode={tenant.code}
+							rows={rows}
+							selection={selection}
+							onSessionExpired={() => setShouldLogout(true)}
+							onFeedback={setBulkFeedback}
+						/>
+					) : (
+						<div className="flex items-center gap-2">
+							<DropdownMenu>
+								<DropdownMenuTrigger
+									render={
+										<Button
+											type="button"
+											variant="outline"
+											className="publy-data-table-filter-button max-w-64 text-[13px]"
+										/>
+									}
+								>
+									<IconKey
+										aria-hidden="true"
+										className="size-[15px] text-[var(--publy-foreground-secondary)]"
 									/>
-								}
-							>
-								<IconKey
-									aria-hidden="true"
-									className="size-[15px] text-[var(--publy-foreground-secondary)]"
-								/>
-								<span className="truncate">{levelFilterLabel}</span>
-								<IconChevronDown aria-hidden="true" className="size-3" />
-							</DropdownMenuTrigger>
-							<DropdownMenuContent align="end" sideOffset={6}>
-								{KNOWN_TENANT_USER_LEVELS.map((level) => (
-									<DropdownMenuCheckboxItem
-										key={level}
-										checked={selectedLevels.includes(level)}
-										closeOnClick={false}
-										onCheckedChange={() => toggleLevel(level)}
-									>
-										{formatTenantUserLevelLabel(level, t)}
-									</DropdownMenuCheckboxItem>
-								))}
-								<DropdownMenuSeparator />
-								<DropdownMenuItem onClick={() => setLevels([])}>
-									{t('clear')}
-								</DropdownMenuItem>
-							</DropdownMenuContent>
-						</DropdownMenu>
-						<DropdownMenu>
-							<DropdownMenuTrigger
-								render={
-									<Button
-										type="button"
-										variant="outline"
-										className="publy-data-table-filter-button max-w-64 text-[13px]"
+									<span className="truncate">{levelFilterLabel}</span>
+									<IconChevronDown aria-hidden="true" className="size-3" />
+								</DropdownMenuTrigger>
+								<DropdownMenuContent align="end" sideOffset={6}>
+									{KNOWN_TENANT_USER_LEVELS.map((level) => (
+										<DropdownMenuCheckboxItem
+											key={level}
+											checked={selectedLevels.includes(level)}
+											closeOnClick={false}
+											onCheckedChange={() => toggleLevel(level)}
+										>
+											{formatTenantUserLevelLabel(level, t)}
+										</DropdownMenuCheckboxItem>
+									))}
+									<DropdownMenuSeparator />
+									<DropdownMenuItem onClick={() => setLevels([])}>
+										{t('clear')}
+									</DropdownMenuItem>
+								</DropdownMenuContent>
+							</DropdownMenu>
+							<DropdownMenu>
+								<DropdownMenuTrigger
+									render={
+										<Button
+											type="button"
+											variant="outline"
+											className="publy-data-table-filter-button max-w-64 text-[13px]"
+										/>
+									}
+								>
+									<IconCircleDot
+										aria-hidden="true"
+										className="size-[15px] text-[var(--publy-foreground-secondary)]"
 									/>
-								}
-							>
-								<IconCircleDot
-									aria-hidden="true"
-									className="size-[15px] text-[var(--publy-foreground-secondary)]"
-								/>
-								<span className="truncate">{statusFilterLabel}</span>
-								<IconChevronDown aria-hidden="true" className="size-3" />
-							</DropdownMenuTrigger>
-							<DropdownMenuContent align="end" sideOffset={6}>
-								{KNOWN_TENANT_USER_STATUSES.map((status) => (
-									<DropdownMenuCheckboxItem
-										key={status}
-										checked={selectedStatuses.includes(status)}
-										closeOnClick={false}
-										onCheckedChange={() => toggleStatus(status)}
-									>
-										{formatTenantUserStatusLabel(status, t)}
-									</DropdownMenuCheckboxItem>
-								))}
-								<DropdownMenuSeparator />
-								<DropdownMenuItem onClick={() => setStatuses([])}>
-									{t('clear')}
-								</DropdownMenuItem>
-							</DropdownMenuContent>
-						</DropdownMenu>
-					</div>
+									<span className="truncate">{statusFilterLabel}</span>
+									<IconChevronDown aria-hidden="true" className="size-3" />
+								</DropdownMenuTrigger>
+								<DropdownMenuContent align="end" sideOffset={6}>
+									{KNOWN_TENANT_USER_STATUSES.map((status) => (
+										<DropdownMenuCheckboxItem
+											key={status}
+											checked={selectedStatuses.includes(status)}
+											closeOnClick={false}
+											onCheckedChange={() => toggleStatus(status)}
+										>
+											{formatTenantUserStatusLabel(status, t)}
+										</DropdownMenuCheckboxItem>
+									))}
+									<DropdownMenuSeparator />
+									<DropdownMenuItem onClick={() => setStatuses([])}>
+										{t('clear')}
+									</DropdownMenuItem>
+								</DropdownMenuContent>
+							</DropdownMenu>
+						</div>
+					)
 				}
 			/>
 
@@ -831,3 +902,205 @@ function StaffTenantUsersPage() {
 		</TenantDetailsPageShell>
 	);
 }
+
+type TenantUserBulkFeedback = {
+	tone: 'success' | 'error';
+	message: string;
+};
+
+const bulkFeedbackToneClassName = (
+	tone: TenantUserBulkFeedback['tone'],
+): string =>
+	tone === 'error' ? 'text-destructive' : 'text-[var(--publy-success)]';
+
+const TenantUserBulkActionsToolbar = ({
+	tenantId,
+	tenantCode,
+	rows,
+	selection,
+	onSessionExpired,
+	onFeedback,
+}: {
+	tenantId: string;
+	tenantCode: string | null;
+	rows: StaffTenantUserRow[];
+	selection: UseRowSelectionResult;
+	onSessionExpired: () => void;
+	onFeedback: (feedback: TenantUserBulkFeedback | null) => void;
+}) => {
+	const { t } = useTranslation('common');
+	const queryClient = useQueryClient();
+	const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false);
+	const bulkRemoveMutation = useBulkRemoveStaffTenantUsersMutation();
+	const exportMutation = useExportStaffTenantUsersMutation();
+
+	const selectedIds = rows
+		.filter((row) => selection.rowSelection[row.id])
+		.map((row) => row.id);
+	const selectedCount = selection.selectedCount;
+	const isOverLimit = selectedCount > BULK_ACTION_MAX_COUNT;
+	const isActionPending =
+		bulkRemoveMutation.isPending || exportMutation.isPending;
+
+	const performExport = async () => {
+		onFeedback(null);
+
+		let data: ArrayBuffer | undefined;
+		try {
+			data = await exportMutation.mutateAsync({ tenantId, ids: selectedIds });
+		} catch (error) {
+			if (shouldLogoutForFailure(error)) {
+				onSessionExpired();
+				return;
+			}
+
+			onFeedback({
+				tone: 'error',
+				message: getFailureMessage(toApiFailure(error), {
+					fallback: t('export-failed'),
+				}),
+			});
+			return;
+		}
+
+		if (!data) {
+			return;
+		}
+
+		downloadFile({
+			data,
+			fileName: `${tenantCode ?? tenantId}-members-${formatExportDateStamp(new Date())}.csv`,
+			mimeType: 'text/csv',
+		});
+	};
+
+	const performBulkRemove = async () => {
+		onFeedback(null);
+
+		let result;
+		try {
+			result = await bulkRemoveMutation.mutateAsync({
+				tenantId,
+				userIds: selectedIds,
+			});
+		} catch (error) {
+			setIsRemoveDialogOpen(false);
+			if (shouldLogoutForFailure(error)) {
+				onSessionExpired();
+				return;
+			}
+
+			onFeedback({
+				tone: 'error',
+				message: getFailureMessage(toApiFailure(error), {
+					fallback: t('tenant-user-bulk-remove-failure'),
+				}),
+			});
+			return;
+		}
+
+		setIsRemoveDialogOpen(false);
+		selection.clearSelection();
+		await Promise.all([
+			queryClient.invalidateQueries({
+				queryKey: ['staff', ...STAFF_TENANT_USERS_QUERY_KEY],
+			}),
+			queryClient.invalidateQueries({
+				queryKey: ['staff', ...STAFF_TENANT_USER_DETAILS_QUERY_KEY],
+			}),
+			queryClient.invalidateQueries({
+				queryKey: ['staff', ...STAFF_TENANT_DETAILS_QUERY_KEY],
+			}),
+		]);
+
+		const summary = toStaffTenantUserBulkActionSummary(result);
+		onFeedback({
+			tone: summary.failedCount > 0 ? 'error' : 'success',
+			message:
+				summary.failedCount > 0
+					? t('tenant-user-bulk-remove-partial-success', {
+							succeeded: summary.succeededCount,
+							failed: summary.failedCount,
+						})
+					: t('tenant-user-bulk-remove-success', {
+							count: summary.succeededCount,
+						}),
+		});
+	};
+
+	return (
+		<div className="flex items-center gap-2.5">
+			<span className="text-xs text-muted-foreground">
+				{t('selected-count', { count: selectedCount })}
+			</span>
+			<Button
+				type="button"
+				variant="ghost"
+				size="sm"
+				onClick={() => selection.clearSelection()}
+			>
+				{t('clear-selection')}
+			</Button>
+			<DropdownMenu>
+				<DropdownMenuTrigger
+					render={
+						<Button
+							type="button"
+							variant="outline"
+							disabled={isOverLimit}
+							title={
+								isOverLimit
+									? t('bulk-action-max-count-exceeded', {
+											max: BULK_ACTION_MAX_COUNT,
+											count: selectedCount,
+										})
+									: t('more-actions')
+							}
+							aria-label={t('more-actions')}
+							className="publy-data-table-filter-button text-[13px]"
+						/>
+					}
+				>
+					{t('bulk-actions')}
+					<IconChevronDown aria-hidden="true" className="size-3" />
+				</DropdownMenuTrigger>
+				<DropdownMenuContent align="end" sideOffset={6}>
+					<DropdownMenuItem
+						disabled={isActionPending}
+						onClick={() => {
+							void performExport();
+						}}
+					>
+						<IconDownload />
+						{t('export-selected-users')}
+					</DropdownMenuItem>
+					<DropdownMenuSeparator />
+					<DropdownMenuItem
+						variant="destructive"
+						disabled={isActionPending}
+						onClick={() => setIsRemoveDialogOpen(true)}
+					>
+						<IconUserMinus />
+						{t('remove-selected-from-tenant')}
+					</DropdownMenuItem>
+				</DropdownMenuContent>
+			</DropdownMenu>
+
+			<ConfirmDialog
+				isOpen={isRemoveDialogOpen}
+				title={t('remove-selected-from-tenant')}
+				description={t('confirm-bulk-remove-tenant-users', {
+					count: selectedCount,
+				})}
+				confirmLabel={t('remove')}
+				isPending={bulkRemoveMutation.isPending}
+				onConfirm={() => {
+					void performBulkRemove();
+				}}
+				onOpenChange={(isOpen) => {
+					if (!isOpen) setIsRemoveDialogOpen(false);
+				}}
+			/>
+		</div>
+	);
+};

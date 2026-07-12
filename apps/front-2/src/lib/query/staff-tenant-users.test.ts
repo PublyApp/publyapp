@@ -1,14 +1,20 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	removeStaffTenantUserMutationOptions,
+	bulkRemoveStaffTenantUsersMutationOptions,
+	buildBulkRemoveStaffTenantUsersBody,
 	buildCreateStaffTenantUserInvitationBody,
+	buildExportStaffTenantUsersQueryParameters,
 	buildFindStaffTenantUsersQueryParameters,
 	buildUpdateStaffTenantUserBody,
+	exportStaffTenantUsersMutationOptions,
+	toStaffTenantUserBulkActionSummary,
 	toStaffTenantUserDetails,
 	toStaffTenantUserRows,
 } from '~/lib/query/staff-tenant-users';
 
 import type {
+	BulkTenantUserActionResult,
 	TenantUserDetailsResult,
 	TenantUserItem,
 } from '@org/client-ts/src/models/index.js';
@@ -283,5 +289,134 @@ describe('removeStaffTenantUserMutationOptions', () => {
 			key: 'tenant-user-removed-success',
 			message: 'Tenant user was removed',
 		});
+	});
+});
+
+describe('buildBulkRemoveStaffTenantUsersBody', () => {
+	test('wraps user ids for the API contract', () => {
+		const body = buildBulkRemoveStaffTenantUsersBody(['user-1', 'user-2']);
+
+		expect(body.userIds).toMatchObject({
+			value: [{ value: 'user-1' }, { value: 'user-2' }],
+		});
+	});
+});
+
+describe('buildExportStaffTenantUsersQueryParameters', () => {
+	test('trims filters and joins selected ids as csv', () => {
+		expect(
+			buildExportStaffTenantUsersQueryParameters({
+				q: ' alex ',
+				status: ' active ',
+				level: ' admin ',
+				ids: ['user-1', 'user-2'],
+			}),
+		).toEqual({
+			q: 'alex',
+			status: 'active',
+			level: 'admin',
+			ids: 'user-1,user-2',
+		});
+	});
+
+	test('omits blank filters and an empty id list', () => {
+		expect(
+			buildExportStaffTenantUsersQueryParameters({
+				q: '   ',
+				status: undefined,
+				level: undefined,
+				ids: [],
+			}),
+		).toEqual({});
+	});
+});
+
+describe('toStaffTenantUserBulkActionSummary', () => {
+	test('normalizes counts and failed items, unescaping the error field', () => {
+		const result: BulkTenantUserActionResult = {
+			succeededCount: 2,
+			failedCount: 1,
+			failedItems: [
+				{
+					userId: 'user-3' as never,
+					errorEscaped: 'Cannot remove the last admin from the tenant',
+				},
+			],
+		};
+
+		expect(toStaffTenantUserBulkActionSummary(result)).toEqual({
+			succeededCount: 2,
+			failedCount: 1,
+			failedItems: [
+				{
+					userId: 'user-3',
+					error: 'Cannot remove the last admin from the tenant',
+				},
+			],
+		});
+	});
+
+	test('defaults to zero counts and an empty list for an empty payload', () => {
+		expect(toStaffTenantUserBulkActionSummary(undefined)).toEqual({
+			succeededCount: 0,
+			failedCount: 0,
+			failedItems: [],
+		});
+	});
+});
+
+describe('bulkRemoveStaffTenantUsersMutationOptions', () => {
+	test('calls the generated bulk-remove mutation with wrapped user ids', async () => {
+		const bulkRemovePost = vi.fn().mockResolvedValue({
+			succeededCount: 1,
+			failedCount: 0,
+			failedItems: [],
+		});
+		const users = { bulkRemove: { post: bulkRemovePost } };
+		const byTenantId = vi.fn((tenantId: string) => ({ users, tenantId }));
+
+		mocks.getOrCreateStaffClient.mockReturnValue({
+			staff: { tenants: { byTenantId } },
+		});
+
+		const result = await bulkRemoveStaffTenantUsersMutationOptions.mutationFn({
+			tenantId: 'tenant-001',
+			userIds: ['user-1', 'user-2'],
+		});
+
+		expect(byTenantId).toHaveBeenCalledWith('tenant-001');
+		expect(bulkRemovePost).toHaveBeenCalledTimes(1);
+		expect(bulkRemovePost.mock.calls[0]?.[0]).toMatchObject({
+			userIds: { value: [{ value: 'user-1' }, { value: 'user-2' }] },
+		});
+		expect(result).toEqual({
+			succeededCount: 1,
+			failedCount: 0,
+			failedItems: [],
+		});
+	});
+});
+
+describe('exportStaffTenantUsersMutationOptions', () => {
+	test('calls the generated export endpoint with the selected ids', async () => {
+		const buffer = new ArrayBuffer(4);
+		const exportGet = vi.fn().mockResolvedValue(buffer);
+		const users = { exportEscaped: { get: exportGet } };
+		const byTenantId = vi.fn((tenantId: string) => ({ users, tenantId }));
+
+		mocks.getOrCreateStaffClient.mockReturnValue({
+			staff: { tenants: { byTenantId } },
+		});
+
+		const result = await exportStaffTenantUsersMutationOptions.mutationFn({
+			tenantId: 'tenant-001',
+			ids: ['user-1'],
+		});
+
+		expect(byTenantId).toHaveBeenCalledWith('tenant-001');
+		expect(exportGet).toHaveBeenCalledWith({
+			queryParameters: { ids: 'user-1' },
+		});
+		expect(result).toBe(buffer);
 	});
 });

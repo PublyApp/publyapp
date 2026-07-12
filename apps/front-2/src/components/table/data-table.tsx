@@ -5,6 +5,7 @@ import {
 	IconChevronLeft,
 	IconChevronRight,
 	IconSearch,
+	type TablerIcon,
 } from '@tabler/icons-react';
 import {
 	type ColumnDef,
@@ -283,6 +284,20 @@ export type DataTableProps<TData extends { id: string }> = {
 	errorContent?: ReactNode;
 	emptyContent?: ReactNode;
 	noMatchContent?: ReactNode;
+	/** Icon overriding the default `IconAlertCircle` for the error state. */
+	errorIcon?: TablerIcon;
+	/** Title overriding the default "list unavailable" copy for the error state. */
+	errorTitle?: string;
+	/** Icon overriding the default `IconInbox` for the empty state. */
+	emptyIcon?: TablerIcon;
+	/** Title overriding the default "nothing here" copy for the empty state. */
+	emptyTitle?: string;
+	/** Extra actions rendered alongside the empty state (e.g. an invite CTA). */
+	emptyActions?: ReactNode;
+	/** Icon overriding the default `IconSearchOff` for the no-match state. */
+	noMatchIcon?: TablerIcon;
+	/** Title overriding the default "no matches" copy for the no-match state. */
+	noMatchTitle?: string;
 	hasActiveSearch: boolean;
 	sort: SortState;
 	onSortChange: (nextSort: SortState | undefined) => void;
@@ -315,6 +330,13 @@ export const DataTable = <TData extends { id: string }>({
 	errorContent,
 	emptyContent,
 	noMatchContent,
+	errorIcon,
+	errorTitle,
+	emptyIcon,
+	emptyTitle,
+	emptyActions: emptyActionsProp,
+	noMatchIcon,
+	noMatchTitle,
 	hasActiveSearch,
 	sort,
 	onSortChange,
@@ -397,7 +419,10 @@ export const DataTable = <TData extends { id: string }>({
 			? emptyContent
 			: t('list-empty-default-description');
 	const emptyActions =
-		typeof emptyContent !== 'string' && emptyContent ? emptyContent : undefined;
+		emptyActionsProp ??
+		(typeof emptyContent !== 'string' && emptyContent
+			? emptyContent
+			: undefined);
 
 	const noMatchDescription =
 		typeof noMatchContent === 'string'
@@ -534,7 +559,8 @@ export const DataTable = <TData extends { id: string }>({
 
 			{bodyState === 'error' ? (
 				<ErrorStateSurface
-					title={t('list-unavailable-title')}
+					icon={errorIcon}
+					title={errorTitle ?? t('list-unavailable-title')}
 					description={errorDescription}
 					actions={
 						<>
@@ -550,7 +576,8 @@ export const DataTable = <TData extends { id: string }>({
 
 			{bodyState === 'empty' ? (
 				<StateSurface
-					title={t('list-empty-title')}
+					icon={emptyIcon}
+					title={emptyTitle ?? t('list-empty-title')}
 					description={emptyDescription}
 					actions={emptyActions}
 					testId={`${testId}-empty`}
@@ -559,7 +586,8 @@ export const DataTable = <TData extends { id: string }>({
 
 			{bodyState === 'no-match' ? (
 				<NoMatchStateSurface
-					title={t('list-no-match-title')}
+					icon={noMatchIcon}
+					title={noMatchTitle ?? t('list-no-match-title')}
 					description={noMatchDescription}
 					actions={noMatchActions}
 					testId={`${testId}-no-match`}

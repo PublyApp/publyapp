@@ -79,6 +79,7 @@ const TRANSLATIONS: Record<string, string> = {
 	delete: 'Delete',
 	'no-description-provided': 'No description provided.',
 	'tenant-member-count': '{{count}} members',
+	'tenant-permission-count': '{{count}} permissions',
 	'list-unavailable-title': 'List unavailable',
 	'list-error-default-description': 'There was a problem loading this list.',
 	retry: 'Retry',
@@ -176,6 +177,7 @@ describe('staff tenant profiles route', () => {
 			status: 'Active',
 			usersCount: 12,
 			maxUsers: 50,
+			profilesCount: 2,
 			logoUrl: null,
 			createdAt: new Date('2026-07-01T09:00:00Z'),
 			updatedAt: new Date('2026-07-02T10:00:00Z'),
@@ -194,6 +196,7 @@ describe('staff tenant profiles route', () => {
 				description: 'Can review approvals',
 				isDefault: true,
 				userAccountCount: 7,
+				permissionsCount: 12,
 			},
 			{
 				id: 'profile-2',
@@ -201,6 +204,7 @@ describe('staff tenant profiles route', () => {
 				description: 'Respond to member tickets',
 				isDefault: false,
 				userAccountCount: 5,
+				permissionsCount: 4,
 			},
 		]);
 		mocks.useStaffTenantProfilesQuery.mockReturnValue(
@@ -245,8 +249,8 @@ describe('staff tenant profiles route', () => {
 		expect(screen.getByText('Can review approvals')).toBeTruthy();
 		expect(screen.getByText('Default')).toBeTruthy();
 		expect(screen.getByText('Custom')).toBeTruthy();
-		expect(screen.getByText('7 members')).toBeTruthy();
-		expect(screen.getByText('5 members')).toBeTruthy();
+		expect(screen.getByText('7 members · 12 permissions')).toBeTruthy();
+		expect(screen.getByText('5 members · 4 permissions')).toBeTruthy();
 		expect(
 			screen.getByRole('link', { name: 'Basics' }).getAttribute('href'),
 		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111');
@@ -287,10 +291,18 @@ describe('staff tenant profiles route', () => {
 		expect(screen.getByTestId('profile-create-drawer-open')).toBeTruthy();
 	});
 
-	test('never shows a permissions count on the card (not on the list contract)', () => {
+	test('shows the honest profiles count next to the tab title', () => {
 		renderPage();
 
-		expect(screen.queryByText(/permissions/i)).toBeNull();
+		const title = screen.getByRole('heading', { name: /Profiles/ });
+		expect(title.textContent).toContain('2');
+	});
+
+	test('shows the permissions count alongside the member count on each card', () => {
+		renderPage();
+
+		expect(screen.getByText(/12 permissions/)).toBeTruthy();
+		expect(screen.getByText(/4 permissions/)).toBeTruthy();
 	});
 
 	test('does not render a Delete action for the default profile but does for a custom one', async () => {

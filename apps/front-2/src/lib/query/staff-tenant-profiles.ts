@@ -57,6 +57,7 @@ export type StaffTenantProfileRow = {
 	description: string | null;
 	isDefault: boolean;
 	userAccountCount: number;
+	permissionsCount: number;
 };
 
 export type StaffTenantProfileDetails = {
@@ -349,6 +350,7 @@ export const toStaffTenantProfileRows = (
 			description: normalizeNullableString(item.description),
 			isDefault: item.isDefault === true,
 			userAccountCount: item.userAccountCount ?? 0,
+			permissionsCount: item.permissionsCount ?? 0,
 		});
 	}
 

@@ -432,7 +432,14 @@ function StaffTenantInvitationsPage() {
 		>
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 				<div className="space-y-1">
-					<h2 className="publy-type-page-title">{t('pending-invitations')}</h2>
+					<h2 className="publy-type-page-title">
+						{t('pending-invitations')}
+						{tenant.pendingInvitationsCount != null ? (
+							<span className="ml-2 publy-profile-count-badge align-middle">
+								{tenant.pendingInvitationsCount}
+							</span>
+						) : null}
+					</h2>
 					<p className="publy-type-helper">
 						{t('tenant-invitations-tab-description')}
 					</p>
@@ -482,8 +489,22 @@ function StaffTenantInvitationsPage() {
 				isPending={invitationsQuery.isPending}
 				isError={invitationsQuery.isError}
 				onRetry={() => void invitationsQuery.refetch()}
-				emptyContent="No tenant invitations found."
-				noMatchContent="No tenant invitations match your search."
+				emptyIcon={IconMail}
+				emptyTitle={t('tenant-invitations-empty-title')}
+				emptyContent={t('tenant-invitations-empty-description')}
+				emptyActions={
+					<Link
+						to="/staff/tenants/$tenantId/users"
+						params={{ tenantId }}
+						search={{ invite: 1 }}
+						className={buttonVariants({ size: 'sm', variant: 'outline' })}
+					>
+						<IconPlus aria-hidden="true" className="size-[15px]" />
+						{t('invite-people')}
+					</Link>
+				}
+				noMatchTitle={t('tenant-invitations-no-match-title')}
+				noMatchContent={t('tenant-invitations-no-match-description')}
 				hasActiveSearch={Boolean(controller.search.committed || search.status)}
 				sort={controller.sort}
 				onSortChange={controller.onSortChange}

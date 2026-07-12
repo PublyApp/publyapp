@@ -1,3 +1,4 @@
+import { IconUsers } from '@tabler/icons-react';
 import type { ColumnDef } from '@tanstack/react-table';
 /**
  * @vitest-environment jsdom
@@ -172,6 +173,54 @@ describe('DataTable state rendering', () => {
 			/>,
 		);
 		expect(screen.getByTestId('test-table-no-match')).toBeTruthy();
+	});
+
+	test('supports a custom empty icon, title, and extra actions alongside the description', () => {
+		render(
+			<DataTable
+				{...baseProps}
+				isPending={false}
+				isError={false}
+				rows={[]}
+				hasActiveSearch={false}
+				emptyIcon={IconUsers}
+				emptyTitle="No members yet"
+				emptyContent="Invite people to give them access."
+				emptyActions={<button type="button">Invite people</button>}
+			/>,
+		);
+
+		expect(screen.getByText('No members yet')).toBeTruthy();
+		expect(screen.getByText('Invite people to give them access.')).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'Invite people' })).toBeTruthy();
+		expect(
+			screen
+				.getByTestId('test-table-empty')
+				.querySelector('svg.tabler-icon-users'),
+		).toBeTruthy();
+	});
+
+	test('supports a custom no-match icon and title', () => {
+		render(
+			<DataTable
+				{...baseProps}
+				isPending={false}
+				isError={false}
+				rows={[]}
+				hasActiveSearch={true}
+				noMatchIcon={IconUsers}
+				noMatchTitle="No members match your search"
+				noMatchContent="Try a different filter."
+			/>,
+		);
+
+		expect(screen.getByText('No members match your search')).toBeTruthy();
+		expect(screen.getByText('Try a different filter.')).toBeTruthy();
+		expect(
+			screen
+				.getByTestId('test-table-no-match')
+				.querySelector('svg.tabler-icon-users'),
+		).toBeTruthy();
 	});
 
 	test('supports explicit row height variants', () => {

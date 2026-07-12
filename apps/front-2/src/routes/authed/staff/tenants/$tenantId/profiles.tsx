@@ -246,6 +246,8 @@ const ProfileCard = ({
 				</p>
 				<p className="text-[11px] text-muted-foreground">
 					{t('tenant-member-count', { count: profile.userAccountCount })}
+					{' · '}
+					{t('tenant-permission-count', { count: profile.permissionsCount })}
 				</p>
 			</div>
 		</Card>
@@ -403,7 +405,14 @@ function StaffTenantProfilesPage() {
 		>
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 				<div className="space-y-1">
-					<h2 className="publy-type-page-title">{t('profiles')}</h2>
+					<h2 className="publy-type-page-title">
+						{t('profiles')}
+						{tenant.profilesCount != null ? (
+							<span className="ml-2 publy-profile-count-badge align-middle">
+								{tenant.profilesCount}
+							</span>
+						) : null}
+					</h2>
 					<p className="publy-type-helper">
 						{t('tenant-profiles-tab-description')}
 					</p>

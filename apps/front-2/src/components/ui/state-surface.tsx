@@ -42,10 +42,16 @@ export const StateSurface = ({
 	/>
 );
 
-export const ErrorStateSurface = (
-	props: Omit<StateSurfaceProps, 'icon' | 'tone'>,
-) => <StateSurface {...props} icon={IconAlertCircle} tone="danger" />;
+export const ErrorStateSurface = ({
+	icon: Icon = IconAlertCircle,
+	...props
+}: Omit<StateSurfaceProps, 'tone'>) => (
+	<StateSurface {...props} icon={Icon} tone="danger" />
+);
 
-export const NoMatchStateSurface = (
-	props: Omit<StateSurfaceProps, 'icon' | 'tone'>,
-) => <StateSurface {...props} icon={IconSearchOff} tone="primary" />;
+export const NoMatchStateSurface = ({
+	icon: Icon = IconSearchOff,
+	...props
+}: Omit<StateSurfaceProps, 'tone'>) => (
+	<StateSurface {...props} icon={Icon} tone="primary" />
+);

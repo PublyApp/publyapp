@@ -91,6 +91,12 @@ const TRANSLATIONS: Record<string, string> = {
 	'all-statuses': 'All statuses',
 	clear: 'Clear',
 	'search-invitations': 'Search invitations',
+	'tenant-invitations-empty-title': 'No pending invitations',
+	'tenant-invitations-empty-description':
+		'Invite people to this workspace and track their invitations here.',
+	'tenant-invitations-no-match-title': 'No invitations match your search',
+	'tenant-invitations-no-match-description':
+		'Try a different name, email, or filter.',
 };
 
 vi.mock('react-i18next', () => ({
@@ -171,6 +177,7 @@ describe('staff tenant invitations route', () => {
 			status: 'Active',
 			usersCount: 12,
 			maxUsers: 50,
+			pendingInvitationsCount: 3,
 			logoUrl: null,
 			createdAt: new Date('2026-07-01T09:00:00Z'),
 			updatedAt: new Date('2026-07-02T10:00:00Z'),
@@ -256,6 +263,43 @@ describe('staff tenant invitations route', () => {
 			},
 			{ enabled: true },
 		);
+	});
+
+	test('shows the honest pending-invitations count next to the tab title', () => {
+		renderPage();
+
+		const title = screen.getByRole('heading', { name: /Pending invitations/ });
+		expect(title.textContent).toContain('3');
+	});
+
+	test('renders the invite CTA in the empty state when there are no invitations', () => {
+		mocks.toStaffTenantInvitationRows.mockReturnValue([]);
+		mocks.useStaffTenantInvitationsQuery.mockReturnValue(
+			buildQueryResult({
+				data: {
+					data: [],
+					nextCursor: null,
+				},
+			}),
+		);
+
+		renderPage();
+
+		expect(
+			screen.getByTestId('staff-tenant-invitations-table-empty'),
+		).toBeTruthy();
+		expect(screen.getByText('No pending invitations')).toBeTruthy();
+		expect(
+			screen
+				.getAllByRole('link', { name: 'Invite people' })
+				.some((link) =>
+					link
+						.getAttribute('href')
+						?.endsWith(
+							'/staff/tenants/11111111-1111-1111-1111-111111111111/users?invite=1',
+						),
+				),
+		).toBe(true);
 	});
 
 	test('does not render created/accepted columns not in the approved column list', () => {
@@ -406,9 +450,7 @@ describe('staff tenant invitations route', () => {
 		expect(
 			screen.getByTestId('staff-tenant-invitations-table-no-match'),
 		).toBeTruthy();
-		expect(
-			screen.getByText('No tenant invitations match your search.'),
-		).toBeTruthy();
+		expect(screen.getByText('No invitations match your search')).toBeTruthy();
 		expect(mocks.useStaffTenantInvitationsQuery).toHaveBeenCalledWith(
 			expect.objectContaining({
 				q: 'alex',

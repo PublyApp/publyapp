@@ -1,4 +1,7 @@
-import { createUntypedString } from '@microsoft/kiota-abstractions';
+import {
+	createUntypedArray,
+	createUntypedString,
+} from '@microsoft/kiota-abstractions';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
@@ -7,6 +10,8 @@ import type { ApiClient } from '@org/client-ts/src/apiClient';
 import type {
 	CreateInvitationForTenantAsStaffBody,
 	ApiResponse,
+	BulkRemoveTenantUsersBody,
+	BulkTenantUserActionResult,
 	FindTenantUsersAsStaffResult,
 	InvitationCreatedForTenant,
 	ReactivateTenantUserResult,
@@ -73,6 +78,30 @@ export type StaffTenantUserUpdateInput = {
 export type StaffTenantUserRemoveInput = {
 	tenantId: string;
 	userId: string;
+};
+
+export type StaffTenantUserBulkRemoveInput = {
+	tenantId: string;
+	userIds: string[];
+};
+
+export type StaffTenantUserBulkActionFailedItem = {
+	userId: string | null;
+	error: string | null;
+};
+
+export type StaffTenantUserBulkActionSummary = {
+	succeededCount: number;
+	failedCount: number;
+	failedItems: StaffTenantUserBulkActionFailedItem[];
+};
+
+export type StaffTenantUserExportInput = {
+	tenantId: string;
+	q?: string;
+	status?: string;
+	level?: string;
+	ids?: string[];
 };
 
 export type StaffTenantUserDetails = {
@@ -226,6 +255,42 @@ export const buildUpdateStaffTenantUserBody = (
 
 	return body;
 };
+
+export const buildBulkRemoveStaffTenantUsersBody = (
+	userIds: string[],
+): BulkRemoveTenantUsersBody => ({
+	userIds: createUntypedArray(
+		userIds.map((userId) => createUntypedString(userId)),
+	) as BulkRemoveTenantUsersBody['userIds'],
+});
+
+export const buildExportStaffTenantUsersQueryParameters = (
+	variables: Omit<StaffTenantUserExportInput, 'tenantId'>,
+): {
+	q?: string;
+	status?: string;
+	level?: string;
+	ids?: string;
+} => ({
+	q: normalizeString(variables.q),
+	status: normalizeString(variables.status),
+	level: normalizeString(variables.level),
+	ids:
+		variables.ids && variables.ids.length > 0
+			? variables.ids.join(',')
+			: undefined,
+});
+
+export const toStaffTenantUserBulkActionSummary = (
+	result: BulkTenantUserActionResult | null | undefined,
+): StaffTenantUserBulkActionSummary => ({
+	succeededCount: result?.succeededCount ?? 0,
+	failedCount: result?.failedCount ?? 0,
+	failedItems: (result?.failedItems ?? []).map((item) => ({
+		userId: normalizeNullableString(item.userId?.toString()),
+		error: normalizeNullableString(item.errorEscaped),
+	})),
+});
 
 export const toStaffTenantUserRows = (
 	items: TenantUserItem[] | null | undefined,
@@ -423,6 +488,48 @@ export const removeStaffTenantUserMutationOptions = buildStaffMutationOptions<
 	},
 	{ clientAccessor: getClientManager() },
 );
+
+export const bulkRemoveStaffTenantUsersMutationOptions =
+	buildStaffMutationOptions<
+		ApiClient,
+		BulkTenantUserActionResult | undefined,
+		StaffTenantUserBulkRemoveInput
+	>(
+		{
+			mutationKeyFn: () => [...STAFF_TENANT_USERS_QUERY_KEY, 'bulk-remove'],
+			mutationFn: (client, variables) =>
+				client.staff.tenants
+					.byTenantId(variables.tenantId)
+					.users.bulkRemove.post(
+						buildBulkRemoveStaffTenantUsersBody(variables.userIds),
+					),
+		},
+		{ clientAccessor: getClientManager() },
+	);
+
+export const exportStaffTenantUsersMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	ArrayBuffer | undefined,
+	StaffTenantUserExportInput
+>(
+	{
+		mutationKeyFn: () => [...STAFF_TENANT_USERS_QUERY_KEY, 'export'],
+		mutationFn: (client, variables) =>
+			client.staff.tenants
+				.byTenantId(variables.tenantId)
+				.users.exportEscaped.get({
+					queryParameters:
+						buildExportStaffTenantUsersQueryParameters(variables),
+				}),
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+export const useBulkRemoveStaffTenantUsersMutation = () =>
+	useMutation(bulkRemoveStaffTenantUsersMutationOptions);
+
+export const useExportStaffTenantUsersMutation = () =>
+	useMutation(exportStaffTenantUsersMutationOptions);
 
 export const useStaffTenantUsersQuery = (
 	variables: StaffTenantUsersQueryVariables,

@@ -22,9 +22,14 @@ const mocks = vi.hoisted(() => ({
 	suspendMutation: vi.fn(),
 	reactivateMutation: vi.fn(),
 	removeMutation: vi.fn(),
+	bulkRemoveMutation: vi.fn(),
+	exportMutation: vi.fn(),
 	useSuspendStaffTenantUserMutation: vi.fn(),
 	useReactivateStaffTenantUserMutation: vi.fn(),
 	useRemoveStaffTenantUserMutation: vi.fn(),
+	useBulkRemoveStaffTenantUsersMutation: vi.fn(),
+	useExportStaffTenantUsersMutation: vi.fn(),
+	downloadFile: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
 }));
 
@@ -98,6 +103,31 @@ const TRANSLATIONS: Record<string, string> = {
 		'Access to this tenant will be restored. Are you sure you want to proceed?',
 	'confirm-remove-user-from-tenant-details':
 		'Are you sure you want to remove this user from this tenant? They will lose access to this tenant.',
+	'tenant-users-empty-title': 'No members yet',
+	'tenant-users-empty-description':
+		'Invite people to give them access to this workspace.',
+	'tenant-users-no-match-title': 'No members match your search',
+	'tenant-users-no-match-description':
+		'Try a different name, email, or filter.',
+	'selected-count': '{{count}} selected',
+	'clear-selection': 'Clear selection',
+	'more-actions': 'More actions',
+	'bulk-actions': 'Bulk actions',
+	'bulk-action-max-count-exceeded':
+		'Reduce your selection to at most {{max}} items ({{count}} selected).',
+	'export-selected-users': 'Export selected users',
+	'export-failed': 'Export failed',
+	'remove-selected-from-tenant': 'Remove selected from tenant',
+	'confirm-bulk-remove-tenant-users':
+		'Are you sure you want to remove {{count}} selected user(s) from this tenant?',
+	remove: 'Remove',
+	'tenant-user-bulk-remove-success':
+		'Successfully removed {{count}} user(s) from this tenant.',
+	'tenant-user-bulk-remove-partial-success':
+		'Removed {{succeeded}} user(s), {{failed}} failed.',
+	'tenant-user-bulk-remove-failure':
+		'Failed to remove selected users from this tenant.',
+	close: 'Close',
 };
 
 vi.mock('react-i18next', () => ({
@@ -126,6 +156,18 @@ vi.mock('~/lib/query/staff-tenant-users', () => ({
 	useReactivateStaffTenantUserMutation:
 		mocks.useReactivateStaffTenantUserMutation,
 	useRemoveStaffTenantUserMutation: mocks.useRemoveStaffTenantUserMutation,
+	useBulkRemoveStaffTenantUsersMutation:
+		mocks.useBulkRemoveStaffTenantUsersMutation,
+	useExportStaffTenantUsersMutation: mocks.useExportStaffTenantUsersMutation,
+	toStaffTenantUserBulkActionSummary: (result: {
+		succeededCount?: number;
+		failedCount?: number;
+		failedItems?: unknown[];
+	}) => ({
+		succeededCount: result?.succeededCount ?? 0,
+		failedCount: result?.failedCount ?? 0,
+		failedItems: result?.failedItems ?? [],
+	}),
 	useInviteTenantUserMutation: vi.fn(() => ({
 		mutateAsync: vi.fn(),
 		isPending: false,
@@ -133,8 +175,14 @@ vi.mock('~/lib/query/staff-tenant-users', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenants', () => ({
+	STAFF_TENANT_DETAILS_QUERY_KEY: ['staff-tenants', 'detail'],
 	toStaffTenantDetails: mocks.toStaffTenantDetails,
 	useStaffTenantDetailsQuery: mocks.useStaffTenantDetailsQuery,
+}));
+
+vi.mock('~/lib/download-file', () => ({
+	downloadFile: mocks.downloadFile,
+	formatExportDateStamp: () => '2026-07-12',
 }));
 
 vi.mock('~/routes/authed/layout', () => ({
@@ -194,6 +242,14 @@ describe('staff tenant users route', () => {
 		});
 		mocks.useRemoveStaffTenantUserMutation.mockReturnValue({
 			mutateAsync: mocks.removeMutation,
+			isPending: false,
+		});
+		mocks.useBulkRemoveStaffTenantUsersMutation.mockReturnValue({
+			mutateAsync: mocks.bulkRemoveMutation,
+			isPending: false,
+		});
+		mocks.useExportStaffTenantUsersMutation.mockReturnValue({
+			mutateAsync: mocks.exportMutation,
 			isPending: false,
 		});
 		mocks.toStaffTenantDetails.mockReturnValue({
@@ -306,10 +362,10 @@ describe('staff tenant users route', () => {
 		expect(screen.getByTestId('invite-drawer-open')).toBeTruthy();
 	});
 
-	test('does not render a checkbox column or a Last active column', () => {
+	test('renders a checkbox selection column but no Last active column', () => {
 		renderPage();
 
-		expect(screen.queryByLabelText('Select all rows')).toBeNull();
+		expect(screen.queryByLabelText('Select all rows')).toBeTruthy();
 		expect(screen.queryByText('Last active')).toBeNull();
 	});
 
@@ -330,7 +386,7 @@ describe('staff tenant users route', () => {
 		expect(
 			screen.getByTestId('staff-tenant-users-table-no-match'),
 		).toBeTruthy();
-		expect(screen.getByText('No tenant users match your search.')).toBeTruthy();
+		expect(screen.getByText('No members match your search')).toBeTruthy();
 	});
 
 	test('shows a reactivate action for a suspended user and a suspend action for an active one', async () => {
@@ -508,6 +564,88 @@ describe('staff tenant users route', () => {
 		renderPage();
 
 		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
+	});
+
+	test('selecting a row reveals the bulk actions toolbar and hides the level/status filters', () => {
+		renderPage();
+
+		expect(screen.queryByText('Bulk actions')).toBeNull();
+		expect(screen.getByText('All levels')).toBeTruthy();
+
+		fireEvent.click(screen.getByLabelText('Select row user-1'));
+
+		expect(screen.getByText('{{count}} selected')).toBeTruthy();
+		expect(screen.getByText('Bulk actions')).toBeTruthy();
+		expect(screen.queryByText('All levels')).toBeNull();
+	});
+
+	test('exports the selected users as a csv download', async () => {
+		const buffer = new ArrayBuffer(4);
+		mocks.exportMutation.mockResolvedValue(buffer);
+
+		renderPage();
+
+		fireEvent.click(screen.getByLabelText('Select row user-1'));
+		fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+		fireEvent.click(
+			await screen.findByRole('menuitem', { name: 'Export selected users' }),
+		);
+
+		await waitFor(() =>
+			expect(mocks.exportMutation).toHaveBeenCalledWith({
+				tenantId: '11111111-1111-1111-1111-111111111111',
+				ids: ['user-1'],
+			}),
+		);
+		await waitFor(() =>
+			expect(mocks.downloadFile).toHaveBeenCalledWith({
+				data: buffer,
+				fileName: 'ACME-members-2026-07-12.csv',
+				mimeType: 'text/csv',
+			}),
+		);
+	});
+
+	test('removes selected users after explicit confirmation and shows a success summary', async () => {
+		mocks.bulkRemoveMutation.mockResolvedValue({
+			succeededCount: 1,
+			failedCount: 0,
+			failedItems: [],
+		});
+
+		renderPage();
+
+		fireEvent.click(screen.getByLabelText('Select row user-1'));
+		fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+		fireEvent.click(
+			await screen.findByRole('menuitem', {
+				name: 'Remove selected from tenant',
+			}),
+		);
+
+		await waitFor(() =>
+			expect(
+				screen.getByRole('heading', { name: 'Remove selected from tenant' }),
+			).toBeTruthy(),
+		);
+		fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+
+		await waitFor(() =>
+			expect(mocks.bulkRemoveMutation).toHaveBeenCalledWith({
+				tenantId: '11111111-1111-1111-1111-111111111111',
+				userIds: ['user-1'],
+			}),
+		);
+		await waitFor(() =>
+			expect(
+				screen.getByText(
+					'Successfully removed {{count}} user(s) from this tenant.',
+				),
+			).toBeTruthy(),
+		);
+		expect(mocks.invalidateQueries).toHaveBeenCalledWith({
+			queryKey: ['staff', 'staff-tenants', 'detail'],
+		});
 	});
 });
 

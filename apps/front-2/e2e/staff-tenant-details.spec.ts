@@ -83,6 +83,7 @@ const mockTenantDetails = async (page: Page) => {
 							description: 'Can review approvals',
 							isDefault: true,
 							userAccountCount: 7,
+							permissionsCount: 3,
 						},
 					],
 					nextCursor: null,
@@ -206,7 +207,7 @@ test.describe('staff tenant details Basics stat cards and Owners card', () => {
 });
 
 test.describe('staff tenant Profiles/Invitations/Users tab bodies', () => {
-	test('Profiles tab renders the toolbar, the card grid, and the cursor footer', async ({
+	test('Profiles tab renders the toolbar, the card grid, the cursor footer, and honest counts', async ({
 		page,
 	}) => {
 		await loginAsStaffAdmin(page);
@@ -227,9 +228,16 @@ test.describe('staff tenant Profiles/Invitations/Users tab bodies', () => {
 		await expect(
 			page.getByTestId('staff-tenant-profiles-grid-footer'),
 		).toBeVisible();
+
+		// Honest tab-title count from the tenant-details query (BE-1/BE-2).
+		await expect(page.getByRole('heading', { name: /Profiles/ })).toContainText(
+			'6',
+		);
+		// Honest per-card "N members · N permissions" (BE-2 permissionsCount).
+		await expect(page.getByText('7 members · 3 permissions')).toBeVisible();
 	});
 
-	test('Invitations tab renders the toolbar, the table, and the cursor footer', async ({
+	test('Invitations tab renders the toolbar, the table, the cursor footer, and an honest count', async ({
 		page,
 	}) => {
 		await loginAsStaffAdmin(page);
@@ -252,9 +260,14 @@ test.describe('staff tenant Profiles/Invitations/Users tab bodies', () => {
 		await expect(
 			page.getByTestId('staff-tenant-invitations-table-footer'),
 		).toBeVisible();
+
+		// Honest tab-title count from the tenant-details query (pendingInvitationsCount).
+		await expect(
+			page.getByRole('heading', { name: /Pending invitations/ }),
+		).toContainText('4');
 	});
 
-	test('Users tab renders the toolbar, the table, and the cursor footer — no checkbox column', async ({
+	test('Users tab renders the toolbar, the table, the cursor footer, and a checkbox selection column', async ({
 		page,
 	}) => {
 		await loginAsStaffAdmin(page);
@@ -275,7 +288,94 @@ test.describe('staff tenant Profiles/Invitations/Users tab bodies', () => {
 		await expect(
 			page.getByTestId('staff-tenant-users-table-footer'),
 		).toBeVisible();
-		await expect(page.getByLabel('Select all rows')).toHaveCount(0);
+		await expect(page.getByLabel('Select all rows')).toBeVisible();
+	});
+});
+
+test.describe('staff tenant users bulk toolbar', () => {
+	// Selecting rows must NOT actually bulk-remove the seeded user — other
+	// specs in this suite depend on the mocked fixture staying intact. This
+	// suite only asserts the confirm dialog opens, then cancels, and that the
+	// export action triggers a real browser download.
+	test('selecting a row reveals Export/Remove selected; Remove opens a confirm dialog that can be cancelled', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await mockTenantDetails(page);
+		let bulkRemoveCalled = false;
+		await page.route(
+			`**/staff/tenants/${TENANT_ID}/users/bulk-remove`,
+			async (route) => {
+				bulkRemoveCalled = true;
+				await route.fulfill({
+					status: 200,
+					contentType: 'application/json',
+					body: JSON.stringify({
+						succeededCount: 1,
+						failedCount: 0,
+						failedItems: [],
+					}),
+				});
+			},
+		);
+
+		await page.goto(`/staff/tenants/${TENANT_ID}/users`);
+		await expect(page.getByTestId('staff-tenant-users-page')).toBeVisible();
+
+		await page
+			.getByLabel(/^Select row /)
+			.first()
+			.click();
+		await expect(page.getByText('1 selected')).toBeVisible();
+
+		await page.getByRole('button', { name: 'More actions' }).click();
+		await page
+			.getByRole('menuitem', { name: 'Remove selected from tenant' })
+			.click();
+
+		const dialog = page.getByRole('heading', {
+			name: 'Remove selected from tenant',
+		});
+		await expect(dialog).toBeVisible();
+
+		// Cancel — do not confirm the removal.
+		await page.getByRole('button', { name: 'Cancel' }).click();
+		await expect(dialog).not.toBeVisible();
+		expect(bulkRemoveCalled).toBe(false);
+	});
+
+	test('Export selected downloads a CSV named after the tenant code and date', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await mockTenantDetails(page);
+		await page.route(
+			`**/staff/tenants/${TENANT_ID}/users/export**`,
+			async (route) => {
+				await route.fulfill({
+					status: 200,
+					contentType: 'text/csv',
+					body: 'Email,FirstName,LastName,Level,Status,CreatedAt\njamie@example.com,Jamie,Lee,Admin,Active,2026-07-01T09:00:00Z\n',
+				});
+			},
+		);
+
+		await page.goto(`/staff/tenants/${TENANT_ID}/users`);
+		await expect(page.getByTestId('staff-tenant-users-page')).toBeVisible();
+
+		await page
+			.getByLabel(/^Select row /)
+			.first()
+			.click();
+		await page.getByRole('button', { name: 'More actions' }).click();
+
+		const downloadPromise = page.waitForEvent('download');
+		await page.getByRole('menuitem', { name: 'Export selected users' }).click();
+		const download = await downloadPromise;
+
+		expect(download.suggestedFilename()).toMatch(
+			/^ACME-members-\d{4}-\d{2}-\d{2}\.csv$/,
+		);
 	});
 });
 

@@ -60,6 +60,24 @@ describe('state-surface', () => {
 		);
 	});
 
+	test('ErrorStateSurface and NoMatchStateSurface accept an icon override while keeping their tone', () => {
+		render(
+			<ErrorStateSurface
+				icon={IconSearchOff}
+				title="Custom error"
+				testId="custom-error-surface"
+			/>,
+		);
+		expect(
+			screen.getByTestId('custom-error-surface').getAttribute('data-tone'),
+		).toBe('danger');
+		expect(
+			screen
+				.getByTestId('custom-error-surface')
+				.querySelector('svg.tabler-icon-search-off'),
+		).toBeTruthy();
+	});
+
 	test('renders no-match with the search-off icon surface tone', () => {
 		render(
 			<NoMatchStateSurface

@@ -329,6 +329,7 @@ describe('toStaffTenantProfileRows', () => {
 				description: ' Can review approvals ',
 				isDefault: true,
 				userAccountCount: 7,
+				permissionsCount: 12,
 			},
 			{
 				id: '' as never,
@@ -336,6 +337,7 @@ describe('toStaffTenantProfileRows', () => {
 				description: 'Missing id',
 				isDefault: false,
 				userAccountCount: 1,
+				permissionsCount: 1,
 			},
 			{
 				id: 'profile-2' as never,
@@ -343,6 +345,7 @@ describe('toStaffTenantProfileRows', () => {
 				description: ' ',
 				isDefault: null,
 				userAccountCount: null,
+				permissionsCount: null,
 			},
 		];
 
@@ -353,6 +356,7 @@ describe('toStaffTenantProfileRows', () => {
 				description: 'Can review approvals',
 				isDefault: true,
 				userAccountCount: 7,
+				permissionsCount: 12,
 			},
 			{
 				id: 'profile-2',
@@ -360,6 +364,7 @@ describe('toStaffTenantProfileRows', () => {
 				description: null,
 				isDefault: false,
 				userAccountCount: 0,
+				permissionsCount: 0,
 			},
 		]);
 	});
