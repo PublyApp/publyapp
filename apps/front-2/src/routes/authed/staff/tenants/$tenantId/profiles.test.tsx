@@ -128,6 +128,11 @@ vi.mock('~/routes/authed/layout', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 
+vi.mock('./profiles/_profile-form-drawer', () => ({
+	ProfileFormDrawer: ({ isOpen }: { isOpen: boolean }) =>
+		isOpen ? <div data-testid="profile-create-drawer-open" /> : null,
+}));
+
 import {
 	deriveTenantProfileCardStyle,
 	Route,
@@ -248,9 +253,7 @@ describe('staff tenant profiles route', () => {
 		expect(
 			screen.getByRole('link', { name: 'Users' }).getAttribute('href'),
 		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/users');
-		expect(
-			screen.getByRole('link', { name: /New profile/ }).getAttribute('href'),
-		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/profiles/new');
+		expect(screen.getByRole('button', { name: /New profile/ })).toBeTruthy();
 		expect(mocks.useStaffTenantProfilesQuery).toHaveBeenCalledWith(
 			{
 				tenantId: '11111111-1111-1111-1111-111111111111',
@@ -262,6 +265,26 @@ describe('staff tenant profiles route', () => {
 			},
 			{ enabled: true },
 		);
+	});
+
+	test('new profile button navigates to open the create drawer via search state', () => {
+		renderPage();
+
+		fireEvent.click(screen.getByRole('button', { name: /New profile/ }));
+
+		expect(mocks.navigate).toHaveBeenCalledWith(
+			expect.objectContaining({
+				search: expect.objectContaining({ new: '1' }),
+				replace: true,
+			}),
+		);
+	});
+
+	test('renders the create drawer open when the new search param is set', () => {
+		mocks.search = { new: '1' };
+		renderPage();
+
+		expect(screen.getByTestId('profile-create-drawer-open')).toBeTruthy();
 	});
 
 	test('never shows a permissions count on the card (not on the list contract)', () => {

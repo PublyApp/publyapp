@@ -185,10 +185,63 @@ test.describe('staff create-tenant submission', () => {
 		);
 
 		await page.getByRole('button', { name: /^(create tenant)$/i }).click();
+
+		const dialog = page.getByRole('alertdialog');
+		await expect(dialog).toBeVisible();
+		await dialog.getByRole('button', { name: /^(create tenant)$/i }).click();
 		await createRequest;
 
 		await expect(page).toHaveURL(
 			new RegExp(`/staff/tenants/${CREATED_TENANT_ID}$`),
 		);
+	});
+});
+
+test.describe('staff create-tenant submit confirmation', () => {
+	test('shows a rich summary confirm dialog before submitting, and Cancel returns to the form untouched', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await mockCreateStaffTenant(page);
+
+		await page.goto('/staff/tenants/new');
+		await expect(page.getByTestId('staff-tenant-create-page')).toBeVisible();
+
+		await page
+			.getByRole('textbox', { name: /organization/i })
+			.fill('Acme Corporation');
+		await page
+			.getByRole('textbox', { name: /email/i })
+			.first()
+			.fill('admin@acme.com');
+
+		let createRequestFired = false;
+		page.on('request', (request) => {
+			if (
+				request.method() === 'POST' &&
+				isApiPath(request.url(), STAFF_TENANTS_PATH)
+			) {
+				createRequestFired = true;
+			}
+		});
+
+		await page.getByRole('button', { name: /^(create tenant)$/i }).click();
+
+		const dialog = page.getByRole('alertdialog');
+		await expect(dialog).toBeVisible();
+		await expect(
+			dialog.getByTestId('confirm-create-tenant-summary'),
+		).toContainText('Acme Corporation');
+		await expect(dialog.getByTestId('confirm-create-tenant-owners')).toHaveText(
+			'1',
+		);
+		expect(createRequestFired).toBe(false);
+
+		await dialog.getByRole('button', { name: 'Cancel' }).click();
+		await expect(dialog).toBeHidden();
+		expect(createRequestFired).toBe(false);
+		await expect(
+			page.getByRole('textbox', { name: /organization/i }),
+		).toHaveValue('Acme Corporation');
 	});
 });

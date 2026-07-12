@@ -43,16 +43,23 @@ vi.mock('@tanstack/react-router', () => ({
 		children,
 		to,
 		params,
+		search,
 		...props
 	}: {
 		children: React.ReactNode;
 		to: string;
 		params?: Record<string, string>;
+		search?: Record<string, string>;
 	}) => {
 		let href = to;
 
 		for (const [key, value] of Object.entries(params ?? {})) {
 			href = href.replace(`$${key}`, value);
+		}
+
+		const query = new URLSearchParams(search ?? {}).toString();
+		if (query.length > 0) {
+			href = `${href}?${query}`;
 		}
 
 		return (
@@ -230,7 +237,9 @@ describe('staff tenant invitations route', () => {
 		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/users');
 		expect(
 			screen.getByRole('link', { name: 'Invite people' }).getAttribute('href'),
-		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/users/invite');
+		).toBe(
+			'/staff/tenants/11111111-1111-1111-1111-111111111111/users?invite=1',
+		);
 		expect(screen.getByText('alex@example.com')).toBeTruthy();
 		expect(screen.getByText('Approvers')).toBeTruthy();
 		expect(screen.getByText('Taylor Smith')).toBeTruthy();

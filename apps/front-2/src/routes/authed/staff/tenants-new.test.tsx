@@ -353,6 +353,13 @@ const submitForm = () => {
 	);
 };
 
+const confirmCreate = async () => {
+	const dialog = await screen.findByRole('alertdialog');
+	fireEvent.click(
+		within(dialog).getByRole('button', { name: 'Create tenant' }),
+	);
+};
+
 describe('staff tenant create route', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -470,6 +477,8 @@ describe('staff tenant create route', () => {
 		});
 
 		submitForm();
+
+		await confirmCreate();
 
 		await waitFor(() =>
 			expect(mocks.mutateAsync).toHaveBeenCalledWith(
@@ -646,6 +655,8 @@ describe('staff tenant create route', () => {
 
 		submitForm();
 
+		await confirmCreate();
+
 		await waitFor(() =>
 			expect(mocks.mutateAsync).toHaveBeenCalledWith({
 				name: 'Acme Corporation',
@@ -686,6 +697,8 @@ describe('staff tenant create route', () => {
 
 		submitForm();
 
+		await confirmCreate();
+
 		await waitFor(() => expect(mocks.mutateAsync).toHaveBeenCalled());
 		const body = mocks.mutateAsync.mock.calls[0]![0];
 		expect(body.code).toBeUndefined();
@@ -702,6 +715,8 @@ describe('staff tenant create route', () => {
 		});
 
 		submitForm();
+
+		await confirmCreate();
 
 		await waitFor(() => expect(mocks.mutateAsync).toHaveBeenCalled());
 		await waitFor(() =>
@@ -726,6 +741,8 @@ describe('staff tenant create route', () => {
 
 		submitForm();
 
+		await confirmCreate();
+
 		await waitFor(() => expect(mocks.mutateAsync).toHaveBeenCalled());
 		await waitFor(() =>
 			expect(screen.getByTestId('logout-redirect')).toBeTruthy(),
@@ -748,6 +765,8 @@ describe('staff tenant create route', () => {
 		});
 
 		submitForm();
+
+		await confirmCreate();
 
 		await waitFor(() => expect(mocks.mutateAsync).toHaveBeenCalled());
 		await waitFor(() =>
@@ -779,6 +798,8 @@ describe('staff tenant create route', () => {
 		});
 
 		submitForm();
+
+		await confirmCreate();
 
 		await waitFor(() => expect(mocks.mutateAsync).toHaveBeenCalled());
 		await waitFor(() =>
@@ -816,6 +837,8 @@ describe('staff tenant create route', () => {
 		expect(screen.getByTestId('preview-members').textContent).toBe('1');
 
 		submitForm();
+
+		await confirmCreate();
 
 		await waitFor(() =>
 			expect(mocks.mutateAsync).toHaveBeenCalledWith(

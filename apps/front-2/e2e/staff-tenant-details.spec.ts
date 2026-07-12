@@ -278,3 +278,136 @@ test.describe('staff tenant Profiles/Invitations/Users tab bodies', () => {
 		await expect(page.getByLabel('Select all rows')).toHaveCount(0);
 	});
 });
+
+test.describe('staff tenant invite-user drawer', () => {
+	// Mocked-route approach chosen over a real invite-then-revoke cycle: this
+	// spec suite already mocks the staff API for every tenant-details test, so
+	// staying consistent keeps the assertions deterministic without adding a
+	// cleanup step that could leave state behind on a failed run.
+	test('opens from the Users tab, validates, and submits via the invitations endpoint', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await mockTenantDetails(page);
+		await page.route(
+			`**/staff/tenants/${TENANT_ID}/users/invitations`,
+			async (route) => {
+				if (route.request().method() !== 'POST') {
+					await route.fallback();
+					return;
+				}
+
+				await route.fulfill({
+					status: 201,
+					contentType: 'application/json',
+					body: JSON.stringify({
+						id: '0197b8f0-7777-7ccc-8ccc-1111aaaaaaaa',
+						email: 'new-user@example.com',
+					}),
+				});
+			},
+		);
+
+		await page.goto(`/staff/tenants/${TENANT_ID}/users`);
+		await expect(page.getByTestId('staff-tenant-users-page')).toBeVisible();
+
+		await page.getByRole('button', { name: 'Invite people' }).click();
+		const drawer = page.getByTestId('invite-tenant-user-drawer');
+		await expect(drawer).toBeVisible();
+
+		await drawer.getByRole('button', { name: 'Invite people' }).click();
+		await expect(page.getByText('Invalid email address.')).toBeVisible();
+
+		await drawer
+			.getByRole('textbox', { name: 'Email' })
+			.fill('new-user@example.com');
+
+		const inviteRequest = page.waitForRequest(
+			(request) =>
+				request.method() === 'POST' &&
+				request.url().includes(`/staff/tenants/${TENANT_ID}/users/invitations`),
+		);
+		await drawer.getByRole('button', { name: 'Invite people' }).click();
+		await inviteRequest;
+
+		await expect(
+			page.getByTestId('staff-tenant-invitations-page'),
+		).toBeVisible();
+	});
+
+	test('the legacy users/invite URL redirects to the users tab with the drawer open', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await mockTenantDetails(page);
+
+		await page.goto(`/staff/tenants/${TENANT_ID}/users/invite`);
+
+		await expect(page).toHaveURL(
+			new RegExp(`/staff/tenants/${TENANT_ID}/users\\?invite=1$`),
+		);
+		await expect(page.getByTestId('invite-tenant-user-drawer')).toBeVisible();
+	});
+});
+
+test.describe('staff tenant profile create/edit drawers', () => {
+	const mockPermissionCatalog = async (page: Page) => {
+		await page.route('**/staff/permissions/scopes/tenant**', async (route) => {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					Users: {
+						read: {
+							key: 'users.read',
+							name: 'Read users',
+							description: 'View tenant users.',
+						},
+					},
+					Posts: {
+						publish: {
+							key: 'posts.publish',
+							name: 'Publish posts',
+							description: 'Publish posts on behalf of the tenant.',
+						},
+					},
+				}),
+			});
+		});
+	};
+
+	test('New profile opens a drawer with a grouped, populated permissions checklist', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await mockTenantDetails(page);
+		await mockPermissionCatalog(page);
+
+		await page.goto(`/staff/tenants/${TENANT_ID}/profiles`);
+		await expect(page.getByTestId('staff-tenant-profiles-page')).toBeVisible();
+
+		await page.getByRole('button', { name: 'New profile' }).click();
+		const drawer = page.getByTestId('profile-form-drawer');
+		await expect(drawer).toBeVisible();
+
+		await expect(drawer.getByText('Users')).toBeVisible();
+		await expect(drawer.getByText('Posts')).toBeVisible();
+		await expect(drawer.getByText('Read users')).toBeVisible();
+		await expect(drawer.getByText('Publish posts')).toBeVisible();
+	});
+
+	test('the legacy profiles/new URL redirects to the profiles tab with the drawer open', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await mockTenantDetails(page);
+		await mockPermissionCatalog(page);
+
+		await page.goto(`/staff/tenants/${TENANT_ID}/profiles/new`);
+
+		await expect(page).toHaveURL(
+			new RegExp(`/staff/tenants/${TENANT_ID}/profiles\\?new=1$`),
+		);
+		await expect(page.getByTestId('profile-form-drawer')).toBeVisible();
+	});
+});

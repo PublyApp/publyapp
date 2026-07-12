@@ -18,6 +18,7 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { Field, Form, FormActionBar, FormPageLayout } from '~/components/field';
 import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
+import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { BrandTile } from '~/components/ui/initials-avatar';
 import { StatusPill } from '~/components/ui/product-page';
 import {
@@ -339,6 +340,8 @@ function StaffTenantCreateRoute() {
 	const queryClient = useQueryClient();
 	const [shouldLogout, setShouldLogout] = useState(false);
 	const [serverError, setServerError] = useState('');
+	const [pendingCreateValues, setPendingCreateValues] =
+		useState<TenantCreateFormValues | null>(null);
 	const [parsedFile, setParsedFile] = useState<{
 		fileName: string;
 		rows: ReturnType<typeof parseCsv>;
@@ -368,6 +371,7 @@ function StaffTenantCreateRoute() {
 		control,
 		formState: { isSubmitting, errors },
 	} = methods;
+	const isFormLocked = isSubmitting || createTenant.isPending;
 	const name = useWatch({ control, name: 'name' }) ?? '';
 	const code = useWatch({ control, name: 'code' }) ?? '';
 	const maxUsers = useWatch({ control, name: 'maxUsers' }) ?? 0;
@@ -451,7 +455,7 @@ function StaffTenantCreateRoute() {
 		}
 	};
 
-	const onSubmit = methods.handleSubmit(async (values) => {
+	const performCreate = async (values: TenantCreateFormValues) => {
 		setServerError('');
 
 		const trimmedCode = values.code.trim();
@@ -474,6 +478,7 @@ function StaffTenantCreateRoute() {
 			await queryClient.invalidateQueries({
 				queryKey: ['staff', ...STAFF_TENANTS_QUERY_KEY],
 			});
+			setPendingCreateValues(null);
 
 			if (tenantId) {
 				void navigate({
@@ -490,6 +495,8 @@ function StaffTenantCreateRoute() {
 				to: '/staff/tenants',
 			});
 		} catch (error) {
+			setPendingCreateValues(null);
+
 			if (shouldLogoutForFailure(error)) {
 				setShouldLogout(true);
 				return;
@@ -515,7 +522,26 @@ function StaffTenantCreateRoute() {
 				}),
 			);
 		}
+	};
+
+	const onSubmit = methods.handleSubmit((values) => {
+		setPendingCreateValues(values);
 	});
+
+	const pendingOwnersCount = pendingCreateValues
+		? pendingCreateValues.owners.filter(
+				(owner) => owner.email.trim().length > 0,
+			).length
+		: 0;
+	const pendingMembersCount = pendingCreateValues
+		? pendingCreateValues.manualMembers.filter(
+				(member) => member.email.trim().length > 0,
+			).length + parsedValidMembers.length
+		: 0;
+	const pendingSlugDisplay =
+		pendingCreateValues && pendingCreateValues.code.trim().length > 0
+			? pendingCreateValues.code.trim()
+			: t('assigned-after-creation');
 
 	if (shouldLogout) {
 		return <LogoutRedirect />;
@@ -546,13 +572,13 @@ function StaffTenantCreateRoute() {
 								label={t('organization-name')}
 								placeholder="Acme Corporation"
 								fullWidth
-								isDisabled={isSubmitting}
+								isDisabled={isFormLocked}
 							/>
 							<div className="grid grid-cols-[1fr_128px] items-start gap-3">
 								<SlugField
 									label={t('workspace-slug')}
 									hint={t('workspace-slug-hint')}
-									isDisabled={isSubmitting}
+									isDisabled={isFormLocked}
 									t={t}
 								/>
 								<Field.Text
@@ -560,7 +586,7 @@ function StaffTenantCreateRoute() {
 									type="number"
 									min={1}
 									label={t('seats')}
-									isDisabled={isSubmitting}
+									isDisabled={isFormLocked}
 								/>
 							</div>
 						</section>
@@ -581,7 +607,7 @@ function StaffTenantCreateRoute() {
 											name={`owners.${index}.email`}
 											label={t('email')}
 											placeholder="user@example.com"
-											isDisabled={isSubmitting}
+											isDisabled={isFormLocked}
 										/>
 										<span
 											className={cn(
@@ -597,7 +623,7 @@ function StaffTenantCreateRoute() {
 											type="button"
 											variant="ghost"
 											size="icon-sm"
-											disabled={isSubmitting || ownerFields.length <= 1}
+											disabled={isFormLocked || ownerFields.length <= 1}
 											onClick={() => {
 												removeOwner(index);
 											}}
@@ -617,7 +643,7 @@ function StaffTenantCreateRoute() {
 								type="button"
 								variant="outline"
 								size="sm"
-								disabled={isSubmitting || !canAddOwner}
+								disabled={isFormLocked || !canAddOwner}
 								onClick={() => {
 									appendOwner({ email: '' });
 								}}
@@ -746,7 +772,7 @@ function StaffTenantCreateRoute() {
 											name={`manualMembers.${index}.email`}
 											label={t('email')}
 											placeholder="user@example.com"
-											isDisabled={isSubmitting}
+											isDisabled={isFormLocked}
 										/>
 										<Controller
 											control={control}
@@ -757,7 +783,7 @@ function StaffTenantCreateRoute() {
 													value={getUserLevel(levelField.value)}
 													onChange={levelField.onChange}
 													onBlur={levelField.onBlur}
-													disabled={isSubmitting}
+													disabled={isFormLocked}
 													ariaLabel={t('account-level')}
 													t={t}
 												/>
@@ -767,7 +793,7 @@ function StaffTenantCreateRoute() {
 											type="button"
 											variant="ghost"
 											size="icon-sm"
-											disabled={isSubmitting}
+											disabled={isFormLocked}
 											onClick={() => {
 												removeManualMember(index);
 											}}
@@ -783,7 +809,7 @@ function StaffTenantCreateRoute() {
 								type="button"
 								variant="outline"
 								size="sm"
-								disabled={isSubmitting || !canAddManualMember}
+								disabled={isFormLocked || !canAddManualMember}
 								onClick={() => {
 									appendManualMember({
 										email: '',
@@ -802,7 +828,7 @@ function StaffTenantCreateRoute() {
 							<Field.Switch
 								name="seedDefaultProfile"
 								label={t('seed-default-profiles')}
-								isDisabled={isSubmitting}
+								isDisabled={isFormLocked}
 							/>
 							<div
 								data-slot="field-switch-row"
@@ -947,18 +973,82 @@ function StaffTenantCreateRoute() {
 					<Button
 						type="button"
 						variant="ghost"
-						disabled={isSubmitting}
+						disabled={isFormLocked}
 						onClick={() => {
 							void navigate({ to: '/staff/tenants' });
 						}}
 					>
 						{t('cancel')}
 					</Button>
-					<Button type="submit" disabled={isSubmitting}>
+					<Button type="submit" disabled={isFormLocked}>
 						{t('create-tenant')}
 					</Button>
 				</FormActionBar>
 			</Form>
+
+			<ConfirmDialog
+				isOpen={pendingCreateValues !== null}
+				title={t('confirm-create-tenant-title')}
+				description={t('confirm-create-tenant-description')}
+				confirmLabel={t('create-tenant')}
+				cancelLabel={t('cancel')}
+				tone="primary"
+				isPending={createTenant.isPending}
+				onConfirm={() => {
+					if (pendingCreateValues) {
+						void performCreate(pendingCreateValues);
+					}
+				}}
+				onOpenChange={(isOpen) => {
+					if (!isOpen) {
+						setPendingCreateValues(null);
+					}
+				}}
+			>
+				<div
+					className="flex flex-col divide-y divide-(--publy-row-border) text-[13px]"
+					data-testid="confirm-create-tenant-summary"
+				>
+					<div className="flex items-center justify-between py-2">
+						<span className="text-muted-foreground">{t('organization')}</span>
+						<span className="max-w-[220px] truncate font-medium text-foreground">
+							{pendingCreateValues?.name}
+						</span>
+					</div>
+					<div className="flex items-center justify-between py-2">
+						<span className="text-muted-foreground">{t('workspace-slug')}</span>
+						<span className="font-mono font-medium text-foreground">
+							{pendingSlugDisplay}
+						</span>
+					</div>
+					<div className="flex items-center justify-between py-2">
+						<span className="text-muted-foreground">{t('seats')}</span>
+						<span className="font-medium text-foreground">
+							{pendingCreateValues?.maxUsers}
+						</span>
+					</div>
+					<div className="flex items-center justify-between py-2">
+						<span className="text-muted-foreground">{t('owners')}</span>
+						<span
+							className="font-medium text-foreground"
+							data-testid="confirm-create-tenant-owners"
+						>
+							{pendingOwnersCount}
+						</span>
+					</div>
+					<div className="flex items-center justify-between py-2">
+						<span className="text-muted-foreground">
+							{t('members-to-invite')}
+						</span>
+						<span
+							className="font-medium text-foreground"
+							data-testid="confirm-create-tenant-members"
+						>
+							{pendingMembersCount}
+						</span>
+					</div>
+				</div>
+			</ConfirmDialog>
 		</FormPageLayout>
 	);
 }

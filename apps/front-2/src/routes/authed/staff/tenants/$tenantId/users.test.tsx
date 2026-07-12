@@ -126,6 +126,10 @@ vi.mock('~/lib/query/staff-tenant-users', () => ({
 	useReactivateStaffTenantUserMutation:
 		mocks.useReactivateStaffTenantUserMutation,
 	useRemoveStaffTenantUserMutation: mocks.useRemoveStaffTenantUserMutation,
+	useInviteTenantUserMutation: vi.fn(() => ({
+		mutateAsync: vi.fn(),
+		isPending: false,
+	})),
 }));
 
 vi.mock('~/lib/query/staff-tenants', () => ({
@@ -135,6 +139,11 @@ vi.mock('~/lib/query/staff-tenants', () => ({
 
 vi.mock('~/routes/authed/layout', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
+}));
+
+vi.mock('./_invite-user-drawer', () => ({
+	InviteTenantUserDrawer: ({ isOpen }: { isOpen: boolean }) =>
+		isOpen ? <div data-testid="invite-drawer-open" /> : null,
 }));
 
 import {
@@ -262,9 +271,7 @@ describe('staff tenant users route', () => {
 		expect(
 			screen.getByRole('link', { name: 'Profiles' }).getAttribute('href'),
 		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/profiles');
-		expect(
-			screen.getByRole('link', { name: 'Invite people' }).getAttribute('href'),
-		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/users/invite');
+		expect(screen.getByRole('button', { name: 'Invite people' })).toBeTruthy();
 		expect(mocks.useStaffTenantUsersQuery).toHaveBeenCalledWith(
 			{
 				tenantId: '11111111-1111-1111-1111-111111111111',
@@ -277,6 +284,26 @@ describe('staff tenant users route', () => {
 			},
 			{ enabled: true },
 		);
+	});
+
+	test('invite people button navigates to open the invite drawer via search state', () => {
+		renderPage();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Invite people' }));
+
+		expect(mocks.navigate).toHaveBeenCalledWith(
+			expect.objectContaining({
+				search: expect.objectContaining({ invite: '1' }),
+				replace: true,
+			}),
+		);
+	});
+
+	test('renders the invite drawer open when the invite search param is set', () => {
+		mocks.search = { invite: '1' };
+		renderPage();
+
+		expect(screen.getByTestId('invite-drawer-open')).toBeTruthy();
 	});
 
 	test('does not render a checkbox column or a Last active column', () => {

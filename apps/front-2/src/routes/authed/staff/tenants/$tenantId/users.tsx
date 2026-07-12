@@ -20,7 +20,7 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
 import { DataTableRowActions } from '~/components/table/row-actions';
 import { useTableController } from '~/components/table/use-table-controller';
-import { Button, buttonVariants } from '~/components/ui/button';
+import { Button } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
 	DropdownMenu,
@@ -60,6 +60,7 @@ import {
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
+import { InviteTenantUserDrawer } from './_invite-user-drawer';
 import {
 	TenantDetailsError,
 	TenantDetailsLoading,
@@ -91,11 +92,13 @@ const KNOWN_TENANT_USER_LEVEL_SET = new Set<string>(KNOWN_TENANT_USER_LEVELS);
 export type TenantUsersListSearchParams = TableSearchParams & {
 	status?: string;
 	level?: string;
+	invite?: string;
 };
 
 export type TenantUsersListSearchParamInput = TableSearchParamInput & {
 	status?: unknown;
 	level?: unknown;
+	invite?: unknown;
 };
 
 const normalizeString = (value: unknown): string | undefined => {
@@ -173,6 +176,9 @@ export const serializeTenantUserLevelFilter = (
 	levels: KnownTenantUserLevel[],
 ): string | undefined => (levels.length > 0 ? levels.join(',') : undefined);
 
+export const parseTenantUserInviteFlag = (value: unknown): string | undefined =>
+	normalizeString(value) === '1' ? '1' : undefined;
+
 export const parseTenantUsersListSearchParams = (
 	search: TenantUsersListSearchParamInput,
 ): TenantUsersListSearchParams => {
@@ -183,11 +189,13 @@ export const parseTenantUsersListSearchParams = (
 	const level = serializeTenantUserLevelFilter(
 		parseTenantUserLevelFilter(search.level),
 	);
+	const invite = parseTenantUserInviteFlag(search.invite);
 
 	return {
 		...base,
 		...(status ? { status } : {}),
 		...(level ? { level } : {}),
+		...(invite ? { invite } : {}),
 	};
 };
 
@@ -201,11 +209,13 @@ export const serializeTenantUsersListSearchParams = (
 	const level = serializeTenantUserLevelFilter(
 		parseTenantUserLevelFilter(params.level),
 	);
+	const invite = parseTenantUserInviteFlag(params.invite);
 
 	return {
 		...next,
 		...(status ? { status } : {}),
 		...(level ? { level } : {}),
+		...(invite ? { invite } : {}),
 	};
 };
 
@@ -518,6 +528,7 @@ function StaffTenantUsersPage() {
 
 	const selectedStatuses = parseTenantUserStatusFilter(search.status);
 	const selectedLevels = parseTenantUserLevelFilter(search.level);
+	const isInviteDrawerOpen = search.invite === '1';
 
 	const onSearchChange = (next: TenantUsersListSearchParams): void => {
 		void navigate({
@@ -526,6 +537,17 @@ function StaffTenantUsersPage() {
 				...next,
 				status: search.status,
 				level: search.level,
+				invite: search.invite,
+			}) as unknown as TenantUsersListSearchParams,
+			replace: true,
+		});
+	};
+
+	const setInviteDrawerOpen = (isOpen: boolean): void => {
+		void navigate({
+			search: serializeTenantUsersListSearchParams({
+				...search,
+				invite: isOpen ? '1' : undefined,
 			}) as unknown as TenantUsersListSearchParams,
 			replace: true,
 		});
@@ -679,14 +701,15 @@ function StaffTenantUsersPage() {
 						{t('tenant-users-tab-description')}
 					</p>
 				</div>
-				<Link
-					to="/staff/tenants/$tenantId/users/invite"
-					params={{ tenantId }}
-					className={buttonVariants({ size: 'sm', variant: 'default' })}
+				<Button
+					type="button"
+					size="sm"
+					variant="default"
+					onClick={() => setInviteDrawerOpen(true)}
 				>
 					<IconPlus aria-hidden="true" className="size-[15px]" />
 					{t('invite-people')}
-				</Link>
+				</Button>
 			</div>
 
 			<DataTable<StaffTenantUserRow>
@@ -789,6 +812,19 @@ function StaffTenantUsersPage() {
 						</DropdownMenu>
 					</div>
 				}
+			/>
+
+			<InviteTenantUserDrawer
+				tenantId={tenantId}
+				isOpen={isInviteDrawerOpen}
+				onOpenChange={setInviteDrawerOpen}
+				onSessionExpired={() => setShouldLogout(true)}
+				onInvited={() => {
+					void navigate({
+						to: '/staff/tenants/$tenantId/invitations',
+						params: { tenantId },
+					});
+				}}
 			/>
 		</TenantDetailsPageShell>
 	);

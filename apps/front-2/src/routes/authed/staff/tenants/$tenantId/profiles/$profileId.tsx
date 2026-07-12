@@ -46,6 +46,7 @@ import {
 	TenantDetailsPageShell,
 	TenantRetryActions,
 } from '../_tenant-details-shell';
+import { ProfileFormDrawer } from './_profile-form-drawer';
 
 const isProblemStatus = (
 	error: unknown,
@@ -144,21 +145,43 @@ const TenantProfileDetailsError = ({
 	);
 };
 
+type ProfileDetailsSearchParams = { edit?: string };
+type ProfileDetailsSearchParamInput = { edit?: unknown };
+
+const parseProfileDetailsSearchParams = (
+	search: ProfileDetailsSearchParamInput,
+): ProfileDetailsSearchParams => {
+	const isEditOpen =
+		typeof search.edit === 'string' && search.edit.trim() === '1';
+
+	return isEditOpen ? { edit: '1' } : {};
+};
+
 export const Route = createFileRoute(
 	'/_authed-layout/staff/tenants/$tenantId/profiles/$profileId',
 )({
+	validateSearch: (search) =>
+		parseProfileDetailsSearchParams(search as ProfileDetailsSearchParamInput),
 	component: StaffTenantProfileDetailsPage,
 });
 
 function StaffTenantProfileDetailsPage() {
 	const { tenantId, profileId } = Route.useParams();
 	const navigate = Route.useNavigate();
+	const search = Route.useSearch();
 	const queryClient = useQueryClient();
 	const [actionError, setActionError] = useState('');
 	const [permissionActionError, setPermissionActionError] = useState('');
 	const [pendingDelete, setPendingDelete] = useState(false);
 	const [busyPermissionKey, setBusyPermissionKey] = useState('');
 	const [shouldRedirectToLogout, setShouldRedirectToLogout] = useState(false);
+	const isEditDrawerOpen = search.edit === '1';
+	const setEditDrawerOpen = (isOpen: boolean): void => {
+		void navigate({
+			search: isOpen ? { edit: '1' } : {},
+			replace: true,
+		});
+	};
 
 	const tenantQuery = useStaffTenantDetailsQuery(
 		{ tenantId },
@@ -432,15 +455,13 @@ function StaffTenantProfileDetailsPage() {
 								label="Assigned users"
 								value={String(profile.userAccountCount)}
 							/>
-							<Link
-								to={
-									'/staff/tenants/$tenantId/profiles/$profileId/edit' as never
-								}
-								params={{ tenantId, profileId } as never}
-								className="inline-flex items-center justify-center rounded-medium border border-divider px-4 py-2 text-sm font-medium text-foreground transition hover:border-muted-foreground hover:bg-muted"
+							<Button
+								type="button"
+								variant="outline"
+								onClick={() => setEditDrawerOpen(true)}
 							>
 								Edit profile
-							</Link>
+							</Button>
 							{profile.isDefault ? (
 								<div className="rounded-large border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
 									Default profiles cannot be deleted.
@@ -670,6 +691,21 @@ function StaffTenantProfileDetailsPage() {
 					</Card>
 				</div>
 			</div>
+
+			<ProfileFormDrawer
+				tenantId={tenantId}
+				mode="edit"
+				isOpen={isEditDrawerOpen}
+				profile={{
+					id: profile.id,
+					name: profile.name,
+					description: profile.description,
+					permissionKeys,
+				}}
+				onOpenChange={setEditDrawerOpen}
+				onSessionExpired={() => setShouldRedirectToLogout(true)}
+				onSaved={() => setEditDrawerOpen(false)}
+			/>
 		</TenantDetailsPageShell>
 	);
 }

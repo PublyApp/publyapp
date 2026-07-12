@@ -14,6 +14,7 @@ import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { Button } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
+import { CopyButton } from '~/components/ui/copy-button';
 import {
 	DangerZoneCard,
 	DangerZoneRow,
@@ -95,21 +96,36 @@ const OrgField = ({
 	label,
 	value,
 	mono,
+	copyValue,
+	copyLabel,
+	copyTestId,
 }: {
 	label: string;
 	value: ReactNode;
 	mono?: boolean;
+	copyValue?: string;
+	copyLabel?: string;
+	copyTestId?: string;
 }) => (
 	<div className="space-y-1.5">
 		<div className="publy-type-metadata-label">{label}</div>
-		<div
-			className={
-				mono
-					? 'publy-type-metadata-value font-mono'
-					: 'publy-type-metadata-value'
-			}
-		>
-			{value}
+		<div className="flex items-center gap-1.5">
+			<div
+				className={
+					mono
+						? 'publy-type-metadata-value font-mono'
+						: 'publy-type-metadata-value'
+				}
+			>
+				{value}
+			</div>
+			{copyValue ? (
+				<CopyButton
+					value={copyValue}
+					label={copyLabel ?? label}
+					testId={copyTestId}
+				/>
+			) : null}
 		</div>
 	</div>
 );
@@ -136,8 +152,22 @@ const OrganizationCard = ({
 		</div>
 		<div className="grid grid-cols-1 gap-4 px-4 pb-4 pt-3 md:grid-cols-3">
 			<OrgField label={t('name')} value={tenant.name} />
-			<OrgField label={t('code')} value={tenant.code ?? '—'} mono />
-			<OrgField label={t('tenant-id')} value={tenant.id} mono />
+			<OrgField
+				label={t('code')}
+				value={tenant.code ?? '—'}
+				mono
+				copyValue={tenant.code ?? undefined}
+				copyLabel={t('copy-slug')}
+				copyTestId="tenant-code-copy"
+			/>
+			<OrgField
+				label={t('tenant-id')}
+				value={tenant.id}
+				mono
+				copyValue={tenant.id}
+				copyLabel={t('copy-tenant-id')}
+				copyTestId="tenant-id-copy"
+			/>
 			<OrgField
 				label={t('status')}
 				value={

@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { View403 } from '~/components/error-views/View403';
 import { Button, buttonVariants } from '~/components/ui/button';
+import { CopyButton } from '~/components/ui/copy-button';
 import { BrandTile } from '~/components/ui/initials-avatar';
 import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
@@ -322,13 +323,20 @@ export const TenantDetailsPageShell = ({
 								{tenant.status ?? t('unknown')}
 							</StatusPill>
 						</div>
-						<p className="publy-tenant-identity-meta">
+						<p className="publy-tenant-identity-meta flex items-center gap-1">
 							<span className="publy-tenant-identity-meta-prefix">
 								publyapp.com/
 							</span>
 							<span className="publy-tenant-identity-meta-code">
 								{tenant.code ?? '—'}
 							</span>
+							{tenant.code ? (
+								<CopyButton
+									value={tenant.code}
+									label={t('copy-slug')}
+									testId="tenant-meta-code-copy"
+								/>
+							) : null}
 							<span>
 								{' '}
 								· {t('tenant-member-count', { count: tenant.usersCount })} ·{' '}

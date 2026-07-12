@@ -96,6 +96,10 @@ vi.mock('~/components/field', () => ({
 			);
 		},
 	},
+	FormPageLayout: ({ children, ...props }: { children: ReactNode }) =>
+		createElement('div', props, children),
+	FormActionBar: ({ children, ...props }: { children: ReactNode }) =>
+		createElement('div', props, children),
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -143,13 +147,16 @@ vi.mock('react-i18next', () => ({
 		t: (key: string) => {
 			const labels: Record<string, string> = {
 				'back-to-tenant': 'Back to tenant',
+				organization: 'Organization',
 				'tenant-name': 'Tenant name',
-				'max-users': 'Max users',
+				seats: 'Seats',
 				'logo-url': 'Logo URL',
 				'save-changes': 'Save changes',
+				cancel: 'Cancel',
 				'tenant-update-failed': 'Unable to save tenant.',
 				tenant: 'Tenant',
 				'edit-item': 'Edit Tenant',
+				'edit-tenant-description': 'Update this tenant’s core details.',
 			};
 
 			return labels[key] ?? key;
@@ -289,7 +296,7 @@ describe('staff tenant edit route', () => {
 
 		renderPage();
 
-		fireEvent.change(screen.getByLabelText('Max users'), {
+		fireEvent.change(screen.getByLabelText('Seats'), {
 			target: { value: '25' },
 		});
 		fireEvent.submit(
@@ -333,7 +340,7 @@ describe('staff tenant edit route', () => {
 
 		renderPage();
 
-		fireEvent.change(screen.getByLabelText('Max users'), {
+		fireEvent.change(screen.getByLabelText('Seats'), {
 			target: { value: '25' },
 		});
 		fireEvent.submit(
@@ -359,7 +366,7 @@ describe('staff tenant edit route', () => {
 
 		renderPage();
 
-		fireEvent.change(screen.getByLabelText('Max users'), {
+		fireEvent.change(screen.getByLabelText('Seats'), {
 			target: { value: '25' },
 		});
 		fireEvent.submit(

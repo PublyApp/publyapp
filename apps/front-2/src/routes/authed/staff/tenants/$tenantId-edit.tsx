@@ -12,9 +12,8 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
-import { Field, Form } from '~/components/field';
+import { Field, Form, FormActionBar, FormPageLayout } from '~/components/field';
 import { Button } from '~/components/ui/button';
-import { Card } from '~/components/ui/card';
 import {
 	STAFF_TENANT_DETAILS_QUERY_KEY,
 	STAFF_TENANTS_QUERY_KEY,
@@ -31,7 +30,6 @@ import {
 
 import {
 	TenantDetailsLoading,
-	TenantDetailsPageShell,
 	TenantRetryActions,
 } from './$tenantId/_tenant-details-shell';
 
@@ -219,65 +217,72 @@ function StaffTenantEditRoute() {
 	});
 
 	return (
-		<TenantDetailsPageShell
-			tenant={tenant}
-			activeSection="basics"
-			testId="staff-tenant-edit-page"
-		>
-			<div className="space-y-4">
-				<div className="flex items-center justify-between gap-2">
-					<Link
-						to={'/staff/tenants/$tenantId' as never}
-						params={{ tenantId } as never}
-						className="publy-back-link"
-					>
-						<IconArrowLeft aria-hidden="true" className="size-3" />
-						{t('back-to-tenant')}
-					</Link>
-					<h2 className="text-2xl font-semibold text-foreground">
-						{t('edit-item', { item: t('tenant') })}
-					</h2>
-				</div>
+		<FormPageLayout width={860} data-testid="staff-tenant-edit-page">
+			<div className="space-y-2">
+				<Link
+					to={'/staff/tenants/$tenantId' as never}
+					params={{ tenantId } as never}
+					className="publy-back-link"
+				>
+					<IconArrowLeft aria-hidden="true" className="size-3" />
+					{t('back-to-tenant')}
+				</Link>
+				<h1 className="text-xl font-semibold tracking-[-0.01em]">
+					{t('edit-item', { item: t('tenant') })}
+				</h1>
 				<p className="text-sm text-muted-foreground">
-					Update tenant basics and metadata supported by the staff tenant update
-					API.
+					{t('edit-tenant-description')}
 				</p>
 			</div>
 
-			<Card className="space-y-4 p-5">
-				<Form methods={methods} onSubmit={onSubmit}>
+			<Form methods={methods} onSubmit={onSubmit}>
+				<section className="flex flex-col gap-4">
+					<p className="publy-type-eyebrow">{t('organization')}</p>
 					<Field.Text
 						name="name"
 						label={t('tenant-name')}
 						fullWidth
 						isDisabled={isPending}
 					/>
-
-					<Field.Text
-						name="maxUsers"
-						type="number"
-						label={t('max-users')}
-						fullWidth
-						isDisabled={isPending}
-					/>
-
-					<Field.Text
-						name="logoUrl"
-						label={t('logo-url')}
-						fullWidth
-						isDisabled={isPending}
-					/>
-
-					{serverError ? (
-						<p className="text-sm text-destructive">{serverError}</p>
-					) : null}
-					<div className="flex justify-end">
-						<Button type="submit" disabled={isPending}>
-							{t('save-changes')}
-						</Button>
+					<div className="grid grid-cols-[1fr_128px] items-start gap-3">
+						<Field.Text
+							name="logoUrl"
+							label={t('logo-url')}
+							isDisabled={isPending}
+						/>
+						<Field.Text
+							name="maxUsers"
+							type="number"
+							min={1}
+							label={t('seats')}
+							isDisabled={isPending}
+						/>
 					</div>
-				</Form>
-			</Card>
-		</TenantDetailsPageShell>
+				</section>
+
+				{serverError ? (
+					<p className="text-sm text-destructive">{serverError}</p>
+				) : null}
+
+				<FormActionBar>
+					<Button
+						type="button"
+						variant="ghost"
+						disabled={isPending}
+						onClick={() => {
+							void navigate({
+								to: '/staff/tenants/$tenantId' as never,
+								params: { tenantId } as never,
+							} as never);
+						}}
+					>
+						{t('cancel')}
+					</Button>
+					<Button type="submit" disabled={isPending}>
+						{t('save-changes')}
+					</Button>
+				</FormActionBar>
+			</Form>
+		</FormPageLayout>
 	);
 }

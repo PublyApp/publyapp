@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
+	search: {} as Record<string, unknown>,
 	queryClient: {
 		invalidateQueries: vi.fn().mockResolvedValue(undefined),
 	},
@@ -38,6 +39,7 @@ vi.mock('@tanstack/react-router', () => ({
 			tenantId: '11111111-1111-1111-1111-111111111111',
 			profileId: '22222222-2222-2222-2222-222222222222',
 		}),
+		useSearch: () => mocks.search,
 	}),
 	Link: ({
 		children,
@@ -122,6 +124,11 @@ vi.mock('~/routes/authed/layout', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 
+vi.mock('./_profile-form-drawer', () => ({
+	ProfileFormDrawer: ({ isOpen }: { isOpen: boolean }) =>
+		isOpen ? <div data-testid="profile-edit-drawer-open" /> : null,
+}));
+
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string) => {
@@ -163,6 +170,7 @@ const renderPage = () => {
 describe('staff tenant profile details route', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mocks.search = {};
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
 		mocks.useDeleteStaffTenantProfileMutation.mockReturnValue({
 			isPending: false,
@@ -346,6 +354,24 @@ describe('staff tenant profile details route', () => {
 			{ enabled: true },
 		);
 		expect(mocks.useStaffTenantPermissionCatalogQuery).toHaveBeenCalledWith({});
+	});
+
+	test('edit profile button navigates to open the edit drawer via search state', () => {
+		renderPage();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Edit profile' }));
+
+		expect(mocks.navigate).toHaveBeenCalledWith({
+			search: { edit: '1' },
+			replace: true,
+		});
+	});
+
+	test('renders the edit drawer open when the edit search param is set', () => {
+		mocks.search = { edit: '1' };
+		renderPage();
+
+		expect(screen.getByTestId('profile-edit-drawer-open')).toBeTruthy();
 	});
 
 	test('assigns a permission key and invalidates permission-backed queries', async () => {

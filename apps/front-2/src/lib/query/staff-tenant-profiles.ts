@@ -1,4 +1,7 @@
-import { createUntypedString } from '@microsoft/kiota-abstractions';
+import {
+	createUntypedArray,
+	createUntypedString,
+} from '@microsoft/kiota-abstractions';
 import { useQuery } from '@tanstack/react-query';
 import { useMutation } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
@@ -33,6 +36,7 @@ export type CreateStaffTenantProfileInput = {
 	tenantId: string;
 	name: string;
 	description?: string;
+	permissionKeys?: string[];
 };
 
 export type UpdateStaffTenantProfileInput = {
@@ -98,6 +102,12 @@ export type StaffTenantPermissionOption = {
 	key: string;
 	label: string;
 	description: string | null;
+};
+
+export type StaffTenantPermissionGroup = {
+	moduleKey: string;
+	moduleLabel: string;
+	options: StaffTenantPermissionOption[];
 };
 
 export const STAFF_TENANT_PROFILES_QUERY_KEY = [
@@ -203,6 +213,63 @@ export const buildStaffTenantPermissionCatalogOptions = (
 	);
 };
 
+/** Groups the flat permission catalog by its module-key prefix (the
+ * top-level dictionary key the backend returns, e.g. `Users`/`Tenants`) so
+ * the create/edit-profile drawers can render a checklist per module. */
+export const buildStaffTenantPermissionCatalogGroups = (
+	catalog: unknown,
+): StaffTenantPermissionGroup[] => {
+	const groups: StaffTenantPermissionGroup[] = [];
+
+	if (!isRecord(catalog)) {
+		return groups;
+	}
+
+	for (const [moduleKey, permissions] of Object.entries(catalog)) {
+		if (!isRecord(permissions)) {
+			continue;
+		}
+
+		const options: StaffTenantPermissionOption[] = [];
+
+		for (const permission of Object.values(permissions)) {
+			if (!isRecord(permission)) {
+				continue;
+			}
+
+			const key = normalizeUnknownString(permission.key);
+			if (!key) {
+				continue;
+			}
+
+			const name = normalizeUnknownString(permission.name);
+			const description = normalizeUnknownString(permission.description);
+
+			options.push({
+				key,
+				label: name ?? key,
+				description: description ?? null,
+			});
+		}
+
+		if (options.length === 0) {
+			continue;
+		}
+
+		options.sort((left, right) => left.label.localeCompare(right.label));
+
+		groups.push({
+			moduleKey,
+			moduleLabel: formatModuleLabel(moduleKey),
+			options,
+		});
+	}
+
+	return groups.sort((left, right) =>
+		left.moduleLabel.localeCompare(right.moduleLabel),
+	);
+};
+
 export const buildFindStaffTenantProfilesQueryParameters = (
 	variables: Omit<StaffTenantProfilesQueryVariables, 'tenantId'>,
 ): {
@@ -233,6 +300,16 @@ export const buildCreateStaffTenantProfileBody = (
 		body.description = createUntypedString(
 			description,
 		) as typeof body.description;
+	}
+
+	const permissionKeys = (input.permissionKeys ?? [])
+		.map((key) => normalizeString(key))
+		.filter((key): key is string => key !== undefined);
+
+	if (permissionKeys.length > 0) {
+		body.permissionKeys = createUntypedArray(
+			permissionKeys.map((key) => createUntypedString(key)),
+		) as typeof body.permissionKeys;
 	}
 
 	return body;

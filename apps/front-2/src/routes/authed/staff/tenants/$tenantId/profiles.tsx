@@ -27,7 +27,7 @@ import {
 import { DataTableRowActions } from '~/components/table/row-actions';
 import { resolveTableBodyState } from '~/components/table/table-body-state';
 import { useTableController } from '~/components/table/use-table-controller';
-import { Button, buttonVariants } from '~/components/ui/button';
+import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
@@ -67,6 +67,30 @@ import {
 	TenantDetailsPageShell,
 	TenantRetryActions,
 } from './_tenant-details-shell';
+import { ProfileFormDrawer } from './profiles/_profile-form-drawer';
+
+type StaffTenantProfilesSearchParams = TableSearchParams & { new?: string };
+type StaffTenantProfilesSearchParamInput = TableSearchParamInput & {
+	new?: unknown;
+};
+
+const parseStaffTenantProfilesSearchParams = (
+	search: StaffTenantProfilesSearchParamInput,
+): StaffTenantProfilesSearchParams => {
+	const base = parseTableSearchParams(search);
+	const isCreateOpen =
+		typeof search.new === 'string' && search.new.trim() === '1';
+
+	return { ...base, ...(isCreateOpen ? { new: '1' } : {}) };
+};
+
+const serializeStaffTenantProfilesSearchParams = (
+	params: StaffTenantProfilesSearchParams,
+): Record<string, string | undefined> => {
+	const next = serializeTableSearchParams(params);
+
+	return { ...next, ...(params.new === '1' ? { new: '1' } : {}) };
+};
 
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
@@ -108,7 +132,9 @@ export const Route = createFileRoute(
 	'/_authed-layout/staff/tenants/$tenantId/profiles',
 )({
 	validateSearch: (search) =>
-		parseTableSearchParams(search as TableSearchParamInput),
+		parseStaffTenantProfilesSearchParams(
+			search as StaffTenantProfilesSearchParamInput,
+		),
 	component: StaffTenantProfilesPage,
 });
 
@@ -235,9 +261,24 @@ function StaffTenantProfilesPage() {
 	const [shouldRedirectToLogout, setShouldRedirectToLogout] = useState(false);
 	const deleteProfile = useDeleteStaffTenantProfileMutation();
 
+	const isCreateDrawerOpen = search.new === '1';
+
 	const onSearchChange = (next: TableSearchParams): void => {
 		void navigate({
-			search: serializeTableSearchParams(next) as unknown as TableSearchParams,
+			search: serializeStaffTenantProfilesSearchParams({
+				...next,
+				new: search.new,
+			}) as unknown as TableSearchParams,
+			replace: true,
+		});
+	};
+
+	const setCreateDrawerOpen = (isOpen: boolean): void => {
+		void navigate({
+			search: serializeStaffTenantProfilesSearchParams({
+				...search,
+				new: isOpen ? '1' : undefined,
+			}) as unknown as TableSearchParams,
 			replace: true,
 		});
 	};
@@ -364,14 +405,15 @@ function StaffTenantProfilesPage() {
 						{t('tenant-profiles-tab-description')}
 					</p>
 				</div>
-				<Link
-					to="/staff/tenants/$tenantId/profiles/new"
-					params={{ tenantId }}
-					className={buttonVariants({ variant: 'outline', size: 'sm' })}
+				<Button
+					type="button"
+					variant="outline"
+					size="sm"
+					onClick={() => setCreateDrawerOpen(true)}
 				>
 					<IconPlus aria-hidden="true" className="size-[15px]" />
 					{t('new-profile')}
-				</Link>
+				</Button>
 			</div>
 
 			<div className="publy-data-table-shell">
@@ -473,6 +515,25 @@ function StaffTenantProfilesPage() {
 					{deleteError}
 				</p>
 			) : null}
+
+			<ProfileFormDrawer
+				tenantId={tenantId}
+				mode="create"
+				isOpen={isCreateDrawerOpen}
+				onOpenChange={setCreateDrawerOpen}
+				onSessionExpired={() => setShouldRedirectToLogout(true)}
+				onSaved={(profileId) => {
+					if (profileId) {
+						void navigate({
+							to: '/staff/tenants/$tenantId/profiles/$profileId',
+							params: { tenantId, profileId },
+						});
+						return;
+					}
+
+					setCreateDrawerOpen(false);
+				}}
+			/>
 		</TenantDetailsPageShell>
 	);
 }
