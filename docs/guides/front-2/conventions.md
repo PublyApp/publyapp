@@ -110,6 +110,18 @@ Returning a raw cookie, session token, or token-bearing object from a server fun
 Read cookies through server-only helpers and return only the minimum non-secret result needed by
 the UI.
 
+### Exported helpers must not leak `@tanstack/react-start/server` outside handler bodies
+
+The TanStack Start compiler strips `createServerFn` handler bodies (and imports only used inside
+them) from the client bundle. It cannot strip top-level `export`s. If a module exports a symbol
+that references `@tanstack/react-start/server` outside a handler body, that import stays in the
+client graph and the build's import-protection plugin fails — but only the production build
+(`vite build`) catches this; vitest and `tsc` do not. Shared server-only helpers (e.g. cookie
+read/write utilities used by more than one `*-actions.ts` module) belong in their own module
+(such as `src/lib/server/session-cookie-utils.ts`) and must only ever be called from inside
+`createServerFn` handler bodies in their consumers. `pnpm --filter front-2 build` is part of
+verification for any change that touches a server-fn module.
+
 ## URL State
 
 URL query parameters use snake_case per `AGENTS.md`. Table/list state uses:

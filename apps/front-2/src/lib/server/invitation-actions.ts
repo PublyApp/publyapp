@@ -16,7 +16,7 @@ import {
 	buildTenantSessionCookie,
 	getCookieOptions,
 	readSessionTokensFromCookie,
-} from './session-actions';
+} from './session-cookie-utils';
 
 type CheckInvitationInput = {
 	id: string;
