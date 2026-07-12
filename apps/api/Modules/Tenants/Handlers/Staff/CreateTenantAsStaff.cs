@@ -28,6 +28,7 @@ public class CreateTenantAsStaffBody {
 	public JsonElement InitialUsers { get; set; }
 	public JsonElement? Code { get; set; }
 	public JsonElement? SeedDefaultProfile { get; set; }
+	public JsonElement? LogoUrl { get; set; }
 	public JsonElement? LegalName { get; set; }
 	public JsonElement? Description { get; set; }
 	public JsonElement? WebsiteUrl { get; set; }
@@ -47,6 +48,10 @@ public class CreateTenantAsStaffBody {
 
 	public string? GetCode() {
 		return Code.GetValueAsStringOrNull();
+	}
+
+	public string? GetLogoUrl() {
+		return LogoUrl.GetValueAsStringOrNull();
 	}
 
 	public string? GetLegalName() {
@@ -144,6 +149,9 @@ public partial class CreateTenantAsStaffBodyValidator : AbstractValidator<Create
 
 		RuleFor(x => x.SeedDefaultProfile)
 			.MustBeNullableBoolean("SeedDefaultProfile");
+
+		RuleFor(x => x.LogoUrl)
+			.MustBeNullableString("LogoUrl");
 
 		RuleFor(x => x.LegalName)
 			.MustBeNullableStringWithMaxLength("LegalName", 256);
@@ -380,6 +388,7 @@ public sealed class CreateTenantAsStaff {
 		var initialUsersItems = body.GetInitialUsers();
 		var code = body.GetCode();
 		var seedDefaultProfile = body.GetSeedDefaultProfile();
+		var logoUrl = body.GetLogoUrl();
 		var legalName = body.GetLegalName();
 		var description = body.GetDescription();
 		var websiteUrl = body.GetWebsiteUrl();
@@ -409,6 +418,7 @@ public sealed class CreateTenantAsStaff {
 				InvitedByUserId: staffAccount.UserId,
 				Code: code,
 				SeedDefaultProfile: seedDefaultProfile,
+				LogoUrl: logoUrl,
 				LegalName: legalName,
 				Description: description,
 				WebsiteUrl: websiteUrl,

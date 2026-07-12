@@ -1035,6 +1035,24 @@ export function createCreateTenantAsStaffBody_legalNameMember1FromDiscriminatorV
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {CreateTenantAsStaffBody_logoUrlMember1 | JsonElement}
+ */
+// @ts-ignore
+export function createCreateTenantAsStaffBody_logoUrlFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCreateTenantAsStaffBody_logoUrl;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {CreateTenantAsStaffBody_logoUrlMember1}
+ */
+// @ts-ignore
+export function createCreateTenantAsStaffBody_logoUrlMember1FromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCreateTenantAsStaffBody_logoUrlMember1;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {CreateTenantAsStaffBody_notesMember1 | JsonElement}
  */
 // @ts-ignore
@@ -1799,6 +1817,10 @@ export interface CreateTenantAsStaffBody extends AdditionalDataHolder, Parsable 
      */
     legalName?: CreateTenantAsStaffBody_legalNameMember1 | JsonElement | null;
     /**
+     * The logoUrl property
+     */
+    logoUrl?: CreateTenantAsStaffBody_logoUrlMember1 | JsonElement | null;
+    /**
      * The maxUsers property
      */
     maxUsers?: UntypedNode | null;
@@ -1841,6 +1863,9 @@ export interface CreateTenantAsStaffBody_descriptionMember1 extends AdditionalDa
 }
 export type CreateTenantAsStaffBody_legalName = CreateTenantAsStaffBody_legalNameMember1 | JsonElement;
 export interface CreateTenantAsStaffBody_legalNameMember1 extends AdditionalDataHolder, Parsable {
+}
+export type CreateTenantAsStaffBody_logoUrl = CreateTenantAsStaffBody_logoUrlMember1 | JsonElement;
+export interface CreateTenantAsStaffBody_logoUrlMember1 extends AdditionalDataHolder, Parsable {
 }
 export type CreateTenantAsStaffBody_notes = CreateTenantAsStaffBody_notesMember1 | JsonElement;
 export interface CreateTenantAsStaffBody_notesMember1 extends AdditionalDataHolder, Parsable {
@@ -2941,6 +2966,7 @@ export function deserializeIntoCreateTenantAsStaffBody(createTenantAsStaffBody: 
         "description": n => { createTenantAsStaffBody.description = n.getObjectValue<CreateTenantAsStaffBody_descriptionMember1>(createCreateTenantAsStaffBody_descriptionMember1FromDiscriminatorValue) ?? n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue); },
         "initialUsers": n => { createTenantAsStaffBody.initialUsers = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "legalName": n => { createTenantAsStaffBody.legalName = n.getObjectValue<CreateTenantAsStaffBody_legalNameMember1>(createCreateTenantAsStaffBody_legalNameMember1FromDiscriminatorValue) ?? n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue); },
+        "logoUrl": n => { createTenantAsStaffBody.logoUrl = n.getObjectValue<CreateTenantAsStaffBody_logoUrlMember1>(createCreateTenantAsStaffBody_logoUrlMember1FromDiscriminatorValue) ?? n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue); },
         "maxUsers": n => { createTenantAsStaffBody.maxUsers = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "name": n => { createTenantAsStaffBody.name = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "notes": n => { createTenantAsStaffBody.notes = n.getObjectValue<CreateTenantAsStaffBody_notesMember1>(createCreateTenantAsStaffBody_notesMember1FromDiscriminatorValue) ?? n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue); },
@@ -3057,6 +3083,28 @@ export function deserializeIntoCreateTenantAsStaffBody_legalName(createTenantAsS
  */
 // @ts-ignore
 export function deserializeIntoCreateTenantAsStaffBody_legalNameMember1(createTenantAsStaffBody_legalNameMember1: Partial<CreateTenantAsStaffBody_legalNameMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param CreateTenantAsStaffBody_logoUrl The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoCreateTenantAsStaffBody_logoUrl(createTenantAsStaffBody_logoUrl: Partial<CreateTenantAsStaffBody_logoUrlMember1 | JsonElement> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        ...deserializeIntoCreateTenantAsStaffBody_logoUrlMember1(createTenantAsStaffBody_logoUrl as CreateTenantAsStaffBody_logoUrlMember1),
+        ...deserializeIntoJsonElement(createTenantAsStaffBody_logoUrl as JsonElement),
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param CreateTenantAsStaffBody_logoUrlMember1 The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoCreateTenantAsStaffBody_logoUrlMember1(createTenantAsStaffBody_logoUrlMember1: Partial<CreateTenantAsStaffBody_logoUrlMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
     }
 }
@@ -5928,6 +5976,7 @@ export function serializeCreateTenantAsStaffBody(writer: SerializationWriter, cr
     writer.writeObjectValue<CreateTenantAsStaffBody_descriptionMember1 | JsonElement>("description", createTenantAsStaffBody.description, serializeCreateTenantAsStaffBody_description);
     writer.writeObjectValue("initialUsers", createTenantAsStaffBody.initialUsers);
     writer.writeObjectValue<CreateTenantAsStaffBody_legalNameMember1 | JsonElement>("legalName", createTenantAsStaffBody.legalName, serializeCreateTenantAsStaffBody_legalName);
+    writer.writeObjectValue<CreateTenantAsStaffBody_logoUrlMember1 | JsonElement>("logoUrl", createTenantAsStaffBody.logoUrl, serializeCreateTenantAsStaffBody_logoUrl);
     writer.writeObjectValue("maxUsers", createTenantAsStaffBody.maxUsers);
     writer.writeObjectValue("name", createTenantAsStaffBody.name);
     writer.writeObjectValue<CreateTenantAsStaffBody_notesMember1 | JsonElement>("notes", createTenantAsStaffBody.notes, serializeCreateTenantAsStaffBody_notes);
@@ -6046,6 +6095,28 @@ export function serializeCreateTenantAsStaffBody_legalName(writer: Serialization
 export function serializeCreateTenantAsStaffBody_legalNameMember1(writer: SerializationWriter, createTenantAsStaffBody_legalNameMember1: Partial<CreateTenantAsStaffBody_legalNameMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!createTenantAsStaffBody_legalNameMember1 || isSerializingDerivedType) { return; }
     writer.writeAdditionalData(createTenantAsStaffBody_legalNameMember1.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param CreateTenantAsStaffBody_logoUrl The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeCreateTenantAsStaffBody_logoUrl(writer: SerializationWriter, createTenantAsStaffBody_logoUrl: Partial<CreateTenantAsStaffBody_logoUrlMember1 | JsonElement> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    serializeCreateTenantAsStaffBody_logoUrlMember1(writer, createTenantAsStaffBody_logoUrl as CreateTenantAsStaffBody_logoUrlMember1);
+    serializeJsonElement(writer, createTenantAsStaffBody_logoUrl as JsonElement);
+}
+/**
+ * Serializes information the current object
+ * @param CreateTenantAsStaffBody_logoUrlMember1 The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeCreateTenantAsStaffBody_logoUrlMember1(writer: SerializationWriter, createTenantAsStaffBody_logoUrlMember1: Partial<CreateTenantAsStaffBody_logoUrlMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!createTenantAsStaffBody_logoUrlMember1 || isSerializingDerivedType) { return; }
+    writer.writeAdditionalData(createTenantAsStaffBody_logoUrlMember1.additionalData);
 }
 /**
  * Serializes information the current object

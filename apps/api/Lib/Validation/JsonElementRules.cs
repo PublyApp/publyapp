@@ -93,11 +93,7 @@ public static class JsonElementRules {
 	/// <summary>
 	/// Validates a nullable JsonElement? string field:
 	/// wrapper-null or JSON null OK, otherwise must be String.
-	///
-	/// RESERVED FOR FUTURE USE: Currently unused in production code.
 	/// For optional non-empty strings, use MustBeNullableNonEmptyString instead.
-	/// This validator is kept for completeness and will be needed when adding
-	/// optional string fields that accept empty/whitespace values.
 	/// </summary>
 	public static IRuleBuilderOptions<T, JsonElement?>
 		MustBeNullableString<T>(

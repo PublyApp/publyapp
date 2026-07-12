@@ -321,6 +321,7 @@ public sealed class CreateTenantAsStaffSpec
 			new {
 				name = tenantName,
 				maxUsers = 3,
+				logoUrl = "https://cdn.example.com/logo.png",
 				legalName = "Acme Legal Name LLC",
 				description = "A short org description",
 				websiteUrl = "https://example.com",
@@ -347,6 +348,7 @@ public sealed class CreateTenantAsStaffSpec
 			.Where(t => t.Id == created.Id)
 			.SingleAsync();
 
+		tenant.LogoUrl.Should().Be("https://cdn.example.com/logo.png");
 		tenant.LegalName.Should().Be("Acme Legal Name LLC");
 		tenant.Description.Should().Be("A short org description");
 		tenant.WebsiteUrl.Should().Be("https://example.com");
@@ -388,6 +390,7 @@ public sealed class CreateTenantAsStaffSpec
 			.Where(t => t.Id == created.Id)
 			.SingleAsync();
 
+		tenant.LogoUrl.Should().BeNull();
 		tenant.LegalName.Should().BeNull();
 		tenant.Description.Should().BeNull();
 		tenant.WebsiteUrl.Should().BeNull();
@@ -397,6 +400,30 @@ public sealed class CreateTenantAsStaffSpec
 		tenant.Timezone.Should().BeNull();
 		tenant.Notes.Should().BeNull();
 		tenant.LastActivityAt.Should().BeNull();
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnUnprocessableEntityWhenLogoUrlIsWrongType() {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+
+		var body = $$"""
+			{
+				"name": "Tenant Create Logo Url Invalid {{Guid.NewGuid():N}}",
+				"maxUsers": 3,
+				"logoUrl": 123,
+				"initialUsers": [
+					{ "email": "admin@example.com", "accountLevel": "Admin" }
+				]
+			}
+			""";
+
+		using var response = await _http.SendAsync(
+			CreateTenantRequest(token, body)
+		);
+
+		await AssertValidationProblemAsync(response, "LogoUrl");
 	}
 
 	[Theory]

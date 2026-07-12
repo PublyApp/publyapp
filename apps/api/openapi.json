@@ -9580,6 +9580,16 @@
               }
             ]
           },
+          "logoUrl": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
+          },
           "legalName": {
             "oneOf": [
               {
