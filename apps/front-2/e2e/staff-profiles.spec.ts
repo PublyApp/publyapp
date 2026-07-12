@@ -153,12 +153,13 @@ test.describe('staff profiles route', () => {
 			await expect(profileRow(page, excludedProfile.name)).toHaveCount(0);
 		}
 
-		const resetResponse = waitForStaffProfilesGetResponse(page);
+		// Clearing the search restores the unfiltered list from the still-fresh
+		// query cache (30s staleTime) — instantly and WITHOUT a network request,
+		// so assert on the restored rows, not on a refetch.
 		await search.fill('');
 		await expect
 			.poll(() => new URL(page.url()).searchParams.get('q'))
 			.toBeNull();
-		await resetResponse;
 
 		for (const profile of initialProfiles.slice(0, 3)) {
 			await expect(profileRow(page, profile.name)).toBeVisible();

@@ -146,9 +146,7 @@ const determineSessionToken = (
 	return staffToken ? { token: staffToken } : { token: tenantToken };
 };
 
-const parseRedirectCode = async (
-	token: string,
-): Promise<string | undefined> => {
+const parseRedirectCode = async (token: string): Promise<string | null> => {
 	const client = createClient({ getSessionToken: () => token });
 	try {
 		const result = await client.auth.redirectCode.get();
@@ -162,7 +160,7 @@ const parseRedirectCode = async (
 			};
 		}
 
-		return result?.redirectCode ?? undefined;
+		return result?.redirectCode ?? null;
 	} catch (error: unknown) {
 		const status = getFailureStatusFromError(error);
 		const asFailure = getProblemFromError(error);
@@ -273,25 +271,36 @@ function AuthedRouteLayout() {
 	})();
 	const query = useQuery({
 		queryKey: ['front-2', 'auth', 'surface-redirect-code', surfaceScope],
-		queryFn: async () => {
+		queryFn: async (): Promise<string | null> => {
 			const tokens = getSessionTokensFromBrowser();
 			const resolved = determineSessionToken(tokens, pathname);
 
 			if (!resolved.token) {
-				return undefined;
+				// A TanStack Query v5 queryFn must never resolve to `undefined`
+				// (it rejects with "Query data cannot be undefined"). `beforeLoad`
+				// already redirects away before this ever mounts without a token,
+				// so this is a defensive no-op path, not the redirect-away signal.
+				return null;
 			}
 
 			return parseRedirectCode(resolved.token);
 		},
 		enabled: surfaceScope !== 'other',
 		retry: false,
+		// Session-stable: which surface a token belongs to only changes on
+		// login/logout, both already invalidated explicitly (see
+		// useCurrentUserQuery). Refetching this on every tab refocus is what
+		// turns a transient/background hiccup into a full-page error swap
+		// (see hasQueryError below) — it must not ride the focus trigger.
+		staleTime: Infinity,
+		refetchOnWindowFocus: false,
 	});
 	const routeFailureStatus =
 		query.isError && query.error ? getFailureStatus(query.error) : undefined;
 	const hasQueryError = query.isError && Boolean(query.error);
 
 	useEffect(() => {
-		if (hasQueryError || query.data === undefined) {
+		if (hasQueryError || query.data == null) {
 			return;
 		}
 
@@ -311,7 +320,7 @@ function AuthedRouteLayout() {
 
 	const isSurfaceMismatch =
 		!hasQueryError &&
-		query.data !== undefined &&
+		query.data != null &&
 		((isStaffSurface && query.data !== REDIRECT_CODE.STAFF) ||
 			(isTenantSurface && query.data === REDIRECT_CODE.STAFF));
 

@@ -1,6 +1,44 @@
-import { describe, expect, test } from 'vitest';
+/**
+ * @vitest-environment jsdom
+ */
+import { renderHook } from '@testing-library/react';
+import { describe, expect, test, vi } from 'vitest';
 
-import { toCurrentUser } from './auth';
+const mocks = vi.hoisted(() => ({
+	capturedOptions: undefined as
+		| {
+				staleTime?: number;
+				refetchOnWindowFocus?: boolean;
+		  }
+		| undefined,
+}));
+
+vi.mock('@tanstack/react-query', () => ({
+	useQuery: (options: typeof mocks.capturedOptions) => {
+		mocks.capturedOptions = options;
+		return { data: undefined };
+	},
+}));
+
+vi.mock('~/lib/api-client/client-manager', () => ({
+	getClientManager: () => ({
+		getOrCreateStaffClient: () => ({
+			auth: { userAuthData: { get: vi.fn() } },
+		}),
+	}),
+}));
+
+// eslint-disable-next-line import/first -- must follow the vi.mock calls above
+import { toCurrentUser, useCurrentUserQuery } from './auth';
+
+describe('useCurrentUserQuery', () => {
+	test('is session-stable: never refetches on tab focus', () => {
+		renderHook(() => useCurrentUserQuery());
+
+		expect(mocks.capturedOptions?.staleTime).toBe(Infinity);
+		expect(mocks.capturedOptions?.refetchOnWindowFocus).toBe(false);
+	});
+});
 
 describe('toCurrentUser', () => {
 	test('normalizes a full auth-data result into a display-ready user', () => {

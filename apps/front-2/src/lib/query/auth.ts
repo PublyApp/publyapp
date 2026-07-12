@@ -74,10 +74,16 @@ type CurrentUserQueryOptions = {
 	retry?: boolean;
 };
 
+// Session-stable: the signed-in user only changes on login/logout, both of
+// which already invalidate this query explicitly (tab-sync-listener's
+// cross-tab 'login'/'logout' handlers, use-logout's same-tab clear()) — a
+// tab-refocus refetch is redundant, not a freshness fix.
 export const useCurrentUserQuery = (options?: CurrentUserQueryOptions) =>
 	useQuery({
 		queryKey: currentUserQueryOptions.queryKey({}),
 		queryFn: () => currentUserQueryOptions.fetcher({}),
 		enabled: options?.enabled,
 		retry: options?.retry,
+		staleTime: Infinity,
+		refetchOnWindowFocus: false,
 	});
