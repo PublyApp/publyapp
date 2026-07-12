@@ -145,16 +145,19 @@ const TenantProfileDetailsError = ({
 	);
 };
 
-type ProfileDetailsSearchParams = { edit?: string };
+type ProfileDetailsSearchParams = { edit?: 1 };
 type ProfileDetailsSearchParamInput = { edit?: unknown };
 
+/** The flag round-trips as the NUMBER 1 — a string '1' would be JSON-quoted
+ * in the URL (`?edit=%221%22`) by the router's search serializer. */
 const parseProfileDetailsSearchParams = (
 	search: ProfileDetailsSearchParamInput,
 ): ProfileDetailsSearchParams => {
 	const isEditOpen =
-		typeof search.edit === 'string' && search.edit.trim() === '1';
+		search.edit === 1 ||
+		(typeof search.edit === 'string' && search.edit.trim() === '1');
 
-	return isEditOpen ? { edit: '1' } : {};
+	return isEditOpen ? { edit: 1 } : {};
 };
 
 export const Route = createFileRoute(
@@ -175,10 +178,10 @@ function StaffTenantProfileDetailsPage() {
 	const [pendingDelete, setPendingDelete] = useState(false);
 	const [busyPermissionKey, setBusyPermissionKey] = useState('');
 	const [shouldRedirectToLogout, setShouldRedirectToLogout] = useState(false);
-	const isEditDrawerOpen = search.edit === '1';
+	const isEditDrawerOpen = search.edit === 1;
 	const setEditDrawerOpen = (isOpen: boolean): void => {
 		void navigate({
-			search: isOpen ? { edit: '1' } : {},
+			search: isOpen ? { edit: 1 } : {},
 			replace: true,
 		});
 	};

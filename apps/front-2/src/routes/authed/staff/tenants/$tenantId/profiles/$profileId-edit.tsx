@@ -15,7 +15,7 @@ export const Route = createFileRoute(
 				tenantId: params.tenantId,
 				profileId: params.profileId,
 			},
-			search: { edit: '1' },
+			search: { edit: 1 },
 		});
 	},
 	component: () => null,

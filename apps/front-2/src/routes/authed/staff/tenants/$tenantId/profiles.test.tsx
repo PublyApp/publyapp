@@ -274,14 +274,14 @@ describe('staff tenant profiles route', () => {
 
 		expect(mocks.navigate).toHaveBeenCalledWith(
 			expect.objectContaining({
-				search: expect.objectContaining({ new: '1' }),
+				search: expect.objectContaining({ new: 1 }),
 				replace: true,
 			}),
 		);
 	});
 
 	test('renders the create drawer open when the new search param is set', () => {
-		mocks.search = { new: '1' };
+		mocks.search = { new: 1 };
 		renderPage();
 
 		expect(screen.getByTestId('profile-create-drawer-open')).toBeTruthy();

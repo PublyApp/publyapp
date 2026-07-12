@@ -293,14 +293,14 @@ describe('staff tenant users route', () => {
 
 		expect(mocks.navigate).toHaveBeenCalledWith(
 			expect.objectContaining({
-				search: expect.objectContaining({ invite: '1' }),
+				search: expect.objectContaining({ invite: 1 }),
 				replace: true,
 			}),
 		);
 	});
 
 	test('renders the invite drawer open when the invite search param is set', () => {
-		mocks.search = { invite: '1' };
+		mocks.search = { invite: 1 };
 		renderPage();
 
 		expect(screen.getByTestId('invite-drawer-open')).toBeTruthy();

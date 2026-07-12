@@ -362,13 +362,13 @@ describe('staff tenant profile details route', () => {
 		fireEvent.click(screen.getByRole('button', { name: 'Edit profile' }));
 
 		expect(mocks.navigate).toHaveBeenCalledWith({
-			search: { edit: '1' },
+			search: { edit: 1 },
 			replace: true,
 		});
 	});
 
 	test('renders the edit drawer open when the edit search param is set', () => {
-		mocks.search = { edit: '1' };
+		mocks.search = { edit: 1 };
 		renderPage();
 
 		expect(screen.getByTestId('profile-edit-drawer-open')).toBeTruthy();

@@ -92,7 +92,7 @@ const KNOWN_TENANT_USER_LEVEL_SET = new Set<string>(KNOWN_TENANT_USER_LEVELS);
 export type TenantUsersListSearchParams = TableSearchParams & {
 	status?: string;
 	level?: string;
-	invite?: string;
+	invite?: 1;
 };
 
 export type TenantUsersListSearchParamInput = TableSearchParamInput & {
@@ -176,8 +176,10 @@ export const serializeTenantUserLevelFilter = (
 	levels: KnownTenantUserLevel[],
 ): string | undefined => (levels.length > 0 ? levels.join(',') : undefined);
 
-export const parseTenantUserInviteFlag = (value: unknown): string | undefined =>
-	normalizeString(value) === '1' ? '1' : undefined;
+/** The flag round-trips as the NUMBER 1 — a string '1' would be JSON-quoted
+ * in the URL (`?invite=%221%22`) by the router's search serializer. */
+export const parseTenantUserInviteFlag = (value: unknown): 1 | undefined =>
+	value === 1 || normalizeString(value) === '1' ? 1 : undefined;
 
 export const parseTenantUsersListSearchParams = (
 	search: TenantUsersListSearchParamInput,
@@ -201,7 +203,7 @@ export const parseTenantUsersListSearchParams = (
 
 export const serializeTenantUsersListSearchParams = (
 	params: TenantUsersListSearchParams,
-): Record<string, string | undefined> => {
+): Record<string, string | 1 | undefined> => {
 	const next = serializeTableSearchParams(params);
 	const status = serializeTenantUserStatusFilter(
 		parseTenantUserStatusFilter(params.status),
@@ -528,7 +530,7 @@ function StaffTenantUsersPage() {
 
 	const selectedStatuses = parseTenantUserStatusFilter(search.status);
 	const selectedLevels = parseTenantUserLevelFilter(search.level);
-	const isInviteDrawerOpen = search.invite === '1';
+	const isInviteDrawerOpen = search.invite === 1;
 
 	const onSearchChange = (next: TenantUsersListSearchParams): void => {
 		void navigate({
@@ -547,7 +549,7 @@ function StaffTenantUsersPage() {
 		void navigate({
 			search: serializeTenantUsersListSearchParams({
 				...search,
-				invite: isOpen ? '1' : undefined,
+				invite: isOpen ? 1 : undefined,
 			}) as unknown as TenantUsersListSearchParams,
 			replace: true,
 		});

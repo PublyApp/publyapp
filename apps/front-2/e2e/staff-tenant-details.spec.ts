@@ -390,8 +390,8 @@ test.describe('staff tenant profile create/edit drawers', () => {
 		const drawer = page.getByTestId('profile-form-drawer');
 		await expect(drawer).toBeVisible();
 
-		await expect(drawer.getByText('Users')).toBeVisible();
-		await expect(drawer.getByText('Posts')).toBeVisible();
+		await expect(drawer.getByText('Users', { exact: true })).toBeVisible();
+		await expect(drawer.getByText('Posts', { exact: true })).toBeVisible();
 		await expect(drawer.getByText('Read users')).toBeVisible();
 		await expect(drawer.getByText('Publish posts')).toBeVisible();
 	});

@@ -11,7 +11,7 @@ export const Route = createFileRoute(
 		throw redirect({
 			to: '/staff/tenants/$tenantId/profiles',
 			params: { tenantId: params.tenantId },
-			search: { new: '1' },
+			search: { new: 1 },
 		});
 	},
 	component: () => null,

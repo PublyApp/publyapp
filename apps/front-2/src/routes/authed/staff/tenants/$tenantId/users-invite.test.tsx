@@ -29,7 +29,7 @@ describe('staff tenant users/invite legacy route', () => {
 		expect(mocks.redirect).toHaveBeenCalledWith({
 			to: '/staff/tenants/$tenantId/users',
 			params: { tenantId: '11111111-1111-1111-1111-111111111111' },
-			search: { invite: '1' },
+			search: { invite: 1 },
 		});
 	});
 });

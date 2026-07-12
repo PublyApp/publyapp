@@ -69,7 +69,7 @@ import {
 } from './_tenant-details-shell';
 import { ProfileFormDrawer } from './profiles/_profile-form-drawer';
 
-type StaffTenantProfilesSearchParams = TableSearchParams & { new?: string };
+type StaffTenantProfilesSearchParams = TableSearchParams & { new?: 1 };
 type StaffTenantProfilesSearchParamInput = TableSearchParamInput & {
 	new?: unknown;
 };
@@ -78,18 +78,21 @@ const parseStaffTenantProfilesSearchParams = (
 	search: StaffTenantProfilesSearchParamInput,
 ): StaffTenantProfilesSearchParams => {
 	const base = parseTableSearchParams(search);
+	/* The flag round-trips as the NUMBER 1 — a string '1' would be JSON-quoted
+	 * in the URL (`?new=%221%22`) by the router's search serializer. */
 	const isCreateOpen =
-		typeof search.new === 'string' && search.new.trim() === '1';
+		search.new === 1 ||
+		(typeof search.new === 'string' && search.new.trim() === '1');
 
-	return { ...base, ...(isCreateOpen ? { new: '1' } : {}) };
+	return { ...base, ...(isCreateOpen ? { new: 1 as const } : {}) };
 };
 
 const serializeStaffTenantProfilesSearchParams = (
 	params: StaffTenantProfilesSearchParams,
-): Record<string, string | undefined> => {
+): Record<string, string | 1 | undefined> => {
 	const next = serializeTableSearchParams(params);
 
-	return { ...next, ...(params.new === '1' ? { new: '1' } : {}) };
+	return { ...next, ...(params.new === 1 ? { new: 1 as const } : {}) };
 };
 
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
@@ -261,7 +264,7 @@ function StaffTenantProfilesPage() {
 	const [shouldRedirectToLogout, setShouldRedirectToLogout] = useState(false);
 	const deleteProfile = useDeleteStaffTenantProfileMutation();
 
-	const isCreateDrawerOpen = search.new === '1';
+	const isCreateDrawerOpen = search.new === 1;
 
 	const onSearchChange = (next: TableSearchParams): void => {
 		void navigate({
@@ -277,7 +280,7 @@ function StaffTenantProfilesPage() {
 		void navigate({
 			search: serializeStaffTenantProfilesSearchParams({
 				...search,
-				new: isOpen ? '1' : undefined,
+				new: isOpen ? 1 : undefined,
 			}) as unknown as TableSearchParams,
 			replace: true,
 		});

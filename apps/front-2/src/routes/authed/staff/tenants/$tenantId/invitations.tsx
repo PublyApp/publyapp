@@ -440,7 +440,7 @@ function StaffTenantInvitationsPage() {
 				<Link
 					to="/staff/tenants/$tenantId/users"
 					params={{ tenantId }}
-					search={{ invite: '1' }}
+					search={{ invite: 1 }}
 					className={buttonVariants({ size: 'sm', variant: 'default' })}
 				>
 					<IconPlus aria-hidden="true" className="size-[15px]" />
