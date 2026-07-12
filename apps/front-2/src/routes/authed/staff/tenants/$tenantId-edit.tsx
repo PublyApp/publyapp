@@ -3,7 +3,6 @@ import {
 	IconAlertCircle,
 	IconArrowLeft,
 	IconSearchOff,
-	IconX,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
@@ -226,7 +225,6 @@ function StaffTenantEditRoute() {
 		control,
 		handleSubmit,
 		reset,
-		setValue,
 	} = methods;
 	const isPending = isSubmitting || updateTenant.isPending;
 	const watchedName = useWatch({ control, name: 'name' }) ?? '';
@@ -480,38 +478,12 @@ function StaffTenantEditRoute() {
 									})}
 								</p>
 							) : null}
-							<div className="flex flex-col gap-1.5">
-								<Field.Text
-									name="logoUrl"
-									label={t('logo-url')}
-									fullWidth
-									isDisabled={isPending}
-								/>
-								<div className="flex items-center gap-2">
-									<BrandTile
-										name={previewName}
-										logoUrl={previewLogoUrl}
-										className="size-8 rounded-[9px] text-xs"
-									/>
-									{watchedLogoUrl.trim().length > 0 ? (
-										<Button
-											type="button"
-											variant="ghost"
-											size="sm"
-											disabled={isPending}
-											onClick={() => {
-												setValue('logoUrl', '', {
-													shouldDirty: true,
-													shouldValidate: true,
-												});
-											}}
-										>
-											<IconX aria-hidden="true" className="size-3.5" />
-											{t('clear-logo')}
-										</Button>
-									) : null}
-								</div>
-							</div>
+							<Field.ImageUpload
+								name="logoUrl"
+								label={t('logo')}
+								previewName={previewName}
+								isDisabled={isPending}
+							/>
 						</section>
 
 						<section className="flex flex-col gap-4">

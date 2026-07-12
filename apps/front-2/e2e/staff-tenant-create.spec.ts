@@ -11,7 +11,13 @@ const isApiPath = (url: string, path: string): boolean => {
 	return parsed.origin === API_BASE_URL && parsed.pathname === path;
 };
 
+const LOGO_FIXTURE_PATH = new URL('./fixtures/logo.png', import.meta.url)
+	.pathname;
+const UPLOADED_LOGO_URL = '/files/uploads/2026/07/logo.png';
+
 const mockCreateStaffTenant = async (page: Page) => {
+	let createdTenantLogoUrl: string | null = null;
+
 	await page.route('**/staff/tenants**', async (route) => {
 		const request = route.request();
 		const url = request.url();
@@ -23,6 +29,27 @@ const mockCreateStaffTenant = async (page: Page) => {
 				body: JSON.stringify({
 					id: CREATED_TENANT_ID,
 					name: 'Acme Corporation',
+				}),
+			});
+			return;
+		}
+
+		if (
+			request.method() === 'PATCH' &&
+			isApiPath(url, `/staff/tenants/${CREATED_TENANT_ID}`)
+		) {
+			const body = request.postDataJSON() as Record<string, unknown>;
+			if (typeof body.logoUrl === 'string') {
+				createdTenantLogoUrl = body.logoUrl;
+			}
+
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					tenantId: CREATED_TENANT_ID,
+					name: 'Acme Corporation',
+					logoUrl: createdTenantLogoUrl,
 				}),
 			});
 			return;
@@ -42,7 +69,7 @@ const mockCreateStaffTenant = async (page: Page) => {
 					status: 'Active',
 					usersCount: 1,
 					maxUsers: 5,
-					logoUrl: null,
+					logoUrl: createdTenantLogoUrl,
 					createdAt: '2026-07-11T09:00:00Z',
 					updatedAt: '2026-07-11T09:00:00Z',
 				}),
@@ -51,6 +78,37 @@ const mockCreateStaffTenant = async (page: Page) => {
 		}
 
 		await route.fallback();
+	});
+};
+
+/** Mocks the staff image-upload endpoint and the served-file path it
+ * returns, so the uploaded logo's `<img>` actually resolves (200) instead
+ * of 404ing against a route the mocked backend never registered. */
+const mockStaffUploads = async (page: Page) => {
+	await page.route('**/staff/uploads', async (route) => {
+		if (route.request().method() !== 'POST') {
+			await route.fallback();
+			return;
+		}
+
+		await route.fulfill({
+			status: 201,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				url: UPLOADED_LOGO_URL,
+				path: 'uploads/2026/07/logo.png',
+				sizeBytes: 68,
+				contentType: 'image/png',
+			}),
+		});
+	});
+
+	await page.route(`**${UPLOADED_LOGO_URL}`, async (route) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'image/png',
+			path: LOGO_FIXTURE_PATH,
+		});
 	});
 };
 
@@ -281,5 +339,80 @@ test.describe('staff create-tenant submit confirmation', () => {
 		await expect(
 			page.getByRole('textbox', { name: /organization/i }),
 		).toHaveValue('Acme Corporation');
+	});
+});
+
+test.describe('staff create-tenant logo upload', () => {
+	test('uploading a logo before submit patches it onto the newly created tenant', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await mockCreateStaffTenant(page);
+		await mockStaffUploads(page);
+
+		await page.goto('/staff/tenants/new');
+		await expect(page.getByTestId('staff-tenant-create-page')).toBeVisible();
+
+		await page
+			.getByRole('textbox', { name: /organization/i })
+			.fill('Acme Corporation');
+		await page.locator('input[name="owners.0.email"]').fill('owner@acme.com');
+
+		const uploadRequest = page.waitForRequest(
+			(request) =>
+				request.method() === 'POST' &&
+				isApiPath(request.url(), '/staff/uploads'),
+		);
+		await page.getByLabel('Logo').setInputFiles(LOGO_FIXTURE_PATH);
+		await uploadRequest;
+
+		await expect(page.getByTestId('logo-upload-url')).toHaveText(
+			UPLOADED_LOGO_URL,
+		);
+
+		const createRequest = page.waitForRequest(
+			(request) =>
+				request.method() === 'POST' &&
+				isApiPath(request.url(), STAFF_TENANTS_PATH),
+		);
+		await page.getByRole('button', { name: /^(create tenant)$/i }).click();
+		const dialog = page.getByRole('alertdialog');
+		await expect(dialog).toBeVisible();
+		await dialog.getByRole('button', { name: /^(create tenant)$/i }).click();
+		await createRequest;
+
+		const patchRequest = page.waitForRequest(
+			(request) =>
+				request.method() === 'PATCH' &&
+				isApiPath(request.url(), `/staff/tenants/${CREATED_TENANT_ID}`),
+		);
+		const request = await patchRequest;
+		expect((request.postDataJSON() as Record<string, unknown>).logoUrl).toBe(
+			UPLOADED_LOGO_URL,
+		);
+
+		await expect(page).toHaveURL(
+			new RegExp(`/staff/tenants/${CREATED_TENANT_ID}$`),
+		);
+	});
+
+	test('an oversized file shows an inline error and does not set the logo', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await mockCreateStaffTenant(page);
+		await mockStaffUploads(page);
+
+		await page.goto('/staff/tenants/new');
+		await expect(page.getByTestId('staff-tenant-create-page')).toBeVisible();
+
+		await page.getByLabel('Logo').setInputFiles({
+			name: 'too-big.png',
+			mimeType: 'image/png',
+			buffer: Buffer.alloc(2_000_001),
+		});
+
+		await expect(page.getByText('Image must be 2 MB or smaller')).toBeVisible();
+		await expect(page.getByTestId('logo-upload-url')).toHaveCount(0);
 	});
 });

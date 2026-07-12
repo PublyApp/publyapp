@@ -4,10 +4,44 @@ import { loginAsStaffAdmin } from './helpers/login';
 
 const API_BASE_URL = 'https://api.front-2.localhost:8443';
 const TENANT_ID = '0197b8f0-3333-7ccc-8ccc-cccccccccccc';
+const LOGO_FIXTURE_PATH = new URL('./fixtures/logo.png', import.meta.url)
+	.pathname;
+const UPLOADED_LOGO_URL = '/files/uploads/2026/07/logo.png';
 
 const isApiPath = (url: string, path: string): boolean => {
 	const parsed = new URL(url);
 	return parsed.origin === API_BASE_URL && parsed.pathname === path;
+};
+
+/** Mocks the staff image-upload endpoint and the served-file path it
+ * returns, so the uploaded logo's `<img>` actually resolves (200) instead
+ * of 404ing against a route the mocked backend never registered. */
+const mockStaffUploads = async (page: Page) => {
+	await page.route('**/staff/uploads', async (route) => {
+		if (route.request().method() !== 'POST') {
+			await route.fallback();
+			return;
+		}
+
+		await route.fulfill({
+			status: 201,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				url: UPLOADED_LOGO_URL,
+				path: 'uploads/2026/07/logo.png',
+				sizeBytes: 68,
+				contentType: 'image/png',
+			}),
+		});
+	});
+
+	await page.route(`**${UPLOADED_LOGO_URL}`, async (route) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'image/png',
+			path: LOGO_FIXTURE_PATH,
+		});
+	});
 };
 
 const buildTenantPayload = (overrides: Record<string, unknown> = {}) => ({
@@ -176,5 +210,99 @@ test.describe('staff tenant edit unsaved-changes navigation guard', () => {
 		await dialog.getByRole('button', { name: 'Leave page' }).click();
 
 		await expect(page).toHaveURL(new RegExp(`/staff/tenants/${TENANT_ID}$`));
+	});
+});
+
+test.describe('staff tenant edit logo upload', () => {
+	test('uploading a logo sets the preview, saves, and persists after reload', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await mockTenantEdit(page);
+		await mockStaffUploads(page);
+
+		await page.goto(`/staff/tenants/${TENANT_ID}/edit`);
+		await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
+
+		const uploadRequest = page.waitForRequest(
+			(request) =>
+				request.method() === 'POST' &&
+				isApiPath(request.url(), '/staff/uploads'),
+		);
+		await page.getByLabel('Logo').setInputFiles(LOGO_FIXTURE_PATH);
+		await uploadRequest;
+
+		await expect(page.getByTestId('logo-upload-url')).toHaveText(
+			UPLOADED_LOGO_URL,
+		);
+
+		const patchRequest = page.waitForRequest(
+			(request) =>
+				request.method() === 'PATCH' &&
+				isApiPath(request.url(), `/staff/tenants/${TENANT_ID}`),
+		);
+		await page.getByRole('button', { name: 'Save changes' }).click();
+		const request = await patchRequest;
+		expect((request.postDataJSON() as Record<string, unknown>).logoUrl).toBe(
+			UPLOADED_LOGO_URL,
+		);
+
+		await expect(page).toHaveURL(new RegExp(`/staff/tenants/${TENANT_ID}$`));
+
+		await page.goto(`/staff/tenants/${TENANT_ID}/edit`);
+		await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
+		await expect(page.getByTestId('logo-upload-url')).toHaveText(
+			UPLOADED_LOGO_URL,
+		);
+
+		const preview = page
+			.getByTestId('staff-tenant-edit-preview')
+			.locator('img');
+		await expect(preview).toBeVisible();
+		expect(
+			await preview.evaluate((img: HTMLImageElement) => img.naturalWidth),
+		).toBeGreaterThan(0);
+	});
+
+	test('an oversized file shows an inline error and does not set the logo', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await mockTenantEdit(page);
+		await mockStaffUploads(page);
+
+		await page.goto(`/staff/tenants/${TENANT_ID}/edit`);
+		await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
+
+		await page.getByLabel('Logo').setInputFiles({
+			name: 'too-big.png',
+			mimeType: 'image/png',
+			buffer: Buffer.alloc(2_000_001),
+		});
+
+		await expect(page.getByText('Image must be 2 MB or smaller')).toBeVisible();
+		await expect(page.getByTestId('logo-upload-url')).toHaveCount(0);
+	});
+
+	test('a disallowed file type shows an inline error and does not set the logo', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await mockTenantEdit(page);
+		await mockStaffUploads(page);
+
+		await page.goto(`/staff/tenants/${TENANT_ID}/edit`);
+		await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
+
+		await page.getByLabel('Logo').setInputFiles({
+			name: 'logo.svg',
+			mimeType: 'image/svg+xml',
+			buffer: Buffer.from('<svg></svg>'),
+		});
+
+		await expect(
+			page.getByText('Image must be PNG, JPEG, WEBP, or GIF'),
+		).toBeVisible();
+		await expect(page.getByTestId('logo-upload-url')).toHaveCount(0);
 	});
 });

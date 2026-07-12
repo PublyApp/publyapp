@@ -15,7 +15,9 @@ const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
 	invalidateQueries: vi.fn(),
 	mutateAsync: vi.fn(),
+	updateTenantMutateAsync: vi.fn(),
 	useCreateStaffTenantMutation: vi.fn(),
+	useUpdateStaffTenantMutation: vi.fn(),
 	shouldLogoutForFailure: vi.fn((_: unknown) => false),
 	parseXlsxFile: vi.fn(),
 }));
@@ -91,6 +93,7 @@ const LABELS: Record<string, string> = {
 		'Visible to staff only — never shown to tenant members.',
 	'not-set': 'Not set',
 	'invalid-email-address': 'Invalid email address',
+	logo: 'Logo',
 };
 
 const translate = (key: string, params?: Record<string, unknown>): string => {
@@ -385,12 +388,37 @@ vi.mock('~/components/field', () => ({
 				),
 			);
 		},
+		ImageUpload: ({
+			name,
+			label,
+			isDisabled,
+		}: {
+			name: string;
+			label: string;
+			previewName?: string;
+			isDisabled?: boolean;
+		}) => {
+			const { register } = useFormContext();
+
+			return createElement(
+				'label',
+				undefined,
+				createElement('span', undefined, label),
+				createElement('input', {
+					'aria-label': label,
+					disabled: isDisabled,
+					type: 'text',
+					...register(name),
+				}),
+			);
+		},
 	},
 }));
 
 vi.mock('~/lib/query/staff-tenants', () => ({
 	STAFF_TENANTS_QUERY_KEY: ['staff-tenants'],
 	useCreateStaffTenantMutation: mocks.useCreateStaffTenantMutation,
+	useUpdateStaffTenantMutation: mocks.useUpdateStaffTenantMutation,
 }));
 
 vi.mock('~/routes/authed/layout', () => ({
@@ -440,6 +468,10 @@ describe('staff tenant create route', () => {
 		vi.clearAllMocks();
 		mocks.useCreateStaffTenantMutation.mockReturnValue({
 			mutateAsync: mocks.mutateAsync,
+			isPending: false,
+		});
+		mocks.useUpdateStaffTenantMutation.mockReturnValue({
+			mutateAsync: mocks.updateTenantMutateAsync,
 			isPending: false,
 		});
 	});
@@ -780,6 +812,79 @@ describe('staff tenant create route', () => {
 				params: {
 					tenantId: 'tenant-001',
 				},
+			}),
+		);
+	});
+
+	test('patches the uploaded logo onto the newly created tenant', async () => {
+		mocks.mutateAsync.mockResolvedValue({ id: 'tenant-001' });
+		mocks.updateTenantMutateAsync.mockResolvedValue({});
+
+		renderPage();
+
+		fillOrganizationName('Acme Corporation');
+		fireEvent.change(getEmailInputs()[0]!, {
+			target: { value: 'owner@acme.com' },
+		});
+		fireEvent.change(screen.getByLabelText('Logo'), {
+			target: { value: 'https://cdn.example.com/logo.png' },
+		});
+
+		submitForm();
+		await confirmCreate();
+
+		await waitFor(() =>
+			expect(mocks.updateTenantMutateAsync).toHaveBeenCalledWith({
+				tenantId: 'tenant-001',
+				logoUrl: 'https://cdn.example.com/logo.png',
+			}),
+		);
+		await waitFor(() =>
+			expect(mocks.navigate).toHaveBeenCalledWith({
+				to: '/staff/tenants/$tenantId',
+				params: { tenantId: 'tenant-001' },
+			}),
+		);
+	});
+
+	test('does not call the logo update mutation when no logo was uploaded', async () => {
+		mocks.mutateAsync.mockResolvedValue({ id: 'tenant-001' });
+
+		renderPage();
+
+		fillOrganizationName('Acme Corporation');
+		fireEvent.change(getEmailInputs()[0]!, {
+			target: { value: 'owner@acme.com' },
+		});
+
+		submitForm();
+		await confirmCreate();
+
+		await waitFor(() => expect(mocks.mutateAsync).toHaveBeenCalled());
+		expect(mocks.updateTenantMutateAsync).not.toHaveBeenCalled();
+	});
+
+	test('still navigates to the new tenant when the logo patch fails after a successful create', async () => {
+		mocks.mutateAsync.mockResolvedValue({ id: 'tenant-001' });
+		mocks.updateTenantMutateAsync.mockRejectedValue(new Error('boom'));
+
+		renderPage();
+
+		fillOrganizationName('Acme Corporation');
+		fireEvent.change(getEmailInputs()[0]!, {
+			target: { value: 'owner@acme.com' },
+		});
+		fireEvent.change(screen.getByLabelText('Logo'), {
+			target: { value: 'https://cdn.example.com/logo.png' },
+		});
+
+		submitForm();
+		await confirmCreate();
+
+		await waitFor(() =>
+			expect(mocks.navigate).toHaveBeenCalledWith({
+				to: '/staff/tenants/$tenantId',
+				params: { tenantId: 'tenant-001' },
 			}),
 		);
 	});

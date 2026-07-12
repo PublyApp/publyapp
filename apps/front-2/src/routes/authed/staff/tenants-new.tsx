@@ -31,6 +31,7 @@ import { Switch } from '~/components/ui/switch';
 import {
 	STAFF_TENANTS_QUERY_KEY,
 	useCreateStaffTenantMutation,
+	useUpdateStaffTenantMutation,
 } from '~/lib/query/staff-tenants';
 import { cn } from '~/lib/utils';
 import { shouldLogoutForFailure } from '~/routes/authed/layout';
@@ -43,6 +44,7 @@ import {
 	ACCOUNT_LEVEL_ENUM,
 	DEFAULT_MAX_USER_PER_TENANT,
 } from '@org/shared-ts/lib/constants';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 import {
 	buildMemberImportOutcome,
@@ -79,6 +81,7 @@ type TenantCreateFormValues = {
 	owners: OwnerSlotValues[];
 	manualMembers: ManualMemberSlotValues[];
 	seedDefaultProfile: boolean;
+	logoUrl: string;
 	legalName: string;
 	description: string;
 	websiteUrl: string;
@@ -96,6 +99,7 @@ const DEFAULT_VALUES: TenantCreateFormValues = {
 	owners: [{ email: '' }],
 	manualMembers: [],
 	seedDefaultProfile: true,
+	logoUrl: '',
 	legalName: '',
 	description: '',
 	websiteUrl: '',
@@ -145,6 +149,7 @@ const buildCreateTenantSchema = (
 				}),
 			),
 			seedDefaultProfile: z.boolean(),
+			logoUrl: z.string().trim().max(2048),
 			legalName: z.string().trim().max(256),
 			description: z.string().trim().max(1024),
 			websiteUrl: z
@@ -396,6 +401,7 @@ function StaffTenantCreateRoute() {
 	const [importError, setImportError] = useState('');
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const createTenant = useCreateStaffTenantMutation();
+	const updateTenant = useUpdateStaffTenantMutation();
 
 	// Always-fresh ref so the memoized resolver's max-seats check can see the
 	// latest CSV/Excel import count without rebuilding on every parse.
@@ -429,6 +435,7 @@ function StaffTenantCreateRoute() {
 	const seedDefaultProfile =
 		useWatch({ control, name: 'seedDefaultProfile' }) ?? true;
 	const websiteUrl = useWatch({ control, name: 'websiteUrl' }) ?? '';
+	const logoUrl = useWatch({ control, name: 'logoUrl' }) ?? '';
 
 	const localeOptions = useMemo(
 		() => [
@@ -557,6 +564,24 @@ function StaffTenantCreateRoute() {
 			});
 
 			const tenantId = result?.id?.toString().trim();
+			const logoUrl = optionalField(values.logoUrl);
+
+			// CreateTenantAsStaffBody has no logoUrl property (only the update
+			// contract supports it), so an uploaded logo rides a follow-up PATCH.
+			// This is a secondary field: the tenant is already created at this
+			// point, so a patch failure is logged and swallowed rather than
+			// blocking the user on an otherwise-successful create.
+			if (tenantId && logoUrl) {
+				try {
+					await updateTenant.mutateAsync({ tenantId, logoUrl });
+				} catch (logoError) {
+					logger.warn(
+						'Tenant created but saving the uploaded logo failed',
+						logoError,
+					);
+				}
+			}
+
 			await queryClient.invalidateQueries({
 				queryKey: ['staff', ...STAFF_TENANTS_QUERY_KEY],
 			});
@@ -671,6 +696,12 @@ function StaffTenantCreateRoute() {
 									isDisabled={isFormLocked}
 								/>
 							</div>
+							<Field.ImageUpload
+								name="logoUrl"
+								label={t('logo')}
+								previewName={name || t('untitled-organization')}
+								isDisabled={isFormLocked}
+							/>
 						</section>
 
 						<section className="flex flex-col gap-4">
@@ -1008,6 +1039,7 @@ function StaffTenantCreateRoute() {
 							<div className="flex items-center gap-3 px-[18px] py-4">
 								<BrandTile
 									name={name || t('untitled-organization')}
+									logoUrl={logoUrl.trim().length > 0 ? logoUrl.trim() : null}
 									className="size-11 rounded-[12px] text-base"
 								/>
 								<div className="min-w-0">

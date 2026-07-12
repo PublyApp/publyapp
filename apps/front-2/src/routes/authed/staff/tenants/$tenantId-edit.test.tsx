@@ -184,6 +184,30 @@ vi.mock('~/components/field', () => ({
 				),
 			);
 		},
+		ImageUpload: ({
+			name,
+			label,
+			isDisabled,
+		}: {
+			name: string;
+			label: string;
+			previewName?: string;
+			isDisabled?: boolean;
+		}) => {
+			const { register } = useFormContext();
+
+			return createElement(
+				'label',
+				undefined,
+				createElement('span', undefined, label),
+				createElement('input', {
+					'aria-label': label,
+					disabled: isDisabled,
+					type: 'text',
+					...register(name),
+				}),
+			);
+		},
 	},
 	FormPageLayout: ({ children, ...props }: { children: ReactNode }) =>
 		createElement('div', props, children),
@@ -245,6 +269,7 @@ vi.mock('react-i18next', () => ({
 				'workspace-slug': 'Workspace slug',
 				'workspace-slug-immutable-hint': "The workspace slug can't be changed",
 				seats: 'Seats',
+				logo: 'Logo',
 				'logo-url': 'Logo URL',
 				'clear-logo': 'Clear logo',
 				identity: 'Identity',
@@ -465,13 +490,47 @@ describe('staff tenant edit route', () => {
 		expect(metadata).toContain('Last active');
 	});
 
-	test('shows a logo preview thumbnail with a clear button that empties the field', () => {
+	test('clears the logo via a tri-state PATCH null when emptied and dirty', async () => {
+		mocks.updateTenantMutation.mockResolvedValue({
+			tenantId: '11111111-1111-1111-1111-111111111111',
+		});
+
 		renderPage();
 
-		fireEvent.click(screen.getByRole('button', { name: 'Clear logo' }));
+		fireEvent.change(screen.getByLabelText('Logo'), {
+			target: { value: '' },
+		});
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Save changes' }).closest('form')!,
+		);
 
-		expect((screen.getByLabelText('Logo URL') as HTMLInputElement).value).toBe(
-			'',
+		await waitFor(() =>
+			expect(mocks.updateTenantMutation).toHaveBeenCalledWith(
+				expect.objectContaining({ logoUrl: null }),
+			),
+		);
+	});
+
+	test('sends the uploaded logo URL when the field changes', async () => {
+		mocks.updateTenantMutation.mockResolvedValue({
+			tenantId: '11111111-1111-1111-1111-111111111111',
+		});
+
+		renderPage();
+
+		fireEvent.change(screen.getByLabelText('Logo'), {
+			target: { value: 'https://cdn.example.com/new-logo.png' },
+		});
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Save changes' }).closest('form')!,
+		);
+
+		await waitFor(() =>
+			expect(mocks.updateTenantMutation).toHaveBeenCalledWith(
+				expect.objectContaining({
+					logoUrl: 'https://cdn.example.com/new-logo.png',
+				}),
+			),
 		);
 	});
 
