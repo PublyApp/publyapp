@@ -39,6 +39,10 @@ Follow them by hand until automation exists:
 - Do not use React Aria or HeroUI protected/internal APIs directly.
 - Do not introduce camelCase URL search params for list/table state.
 - Do not move app-bound adapters into `@org/shared-ts`.
+- Boolean-ish URL search flags (drawer-open markers like `?invite=1`) must round-trip as the
+  NUMBER `1`, never the string `'1'` — the router's search serializer JSON-quotes strings
+  (`?invite=%221%22`), and bare `=1` URLs parse as a number, so string-typed flags break
+  redirects and deep links. Parse leniently (accept `1` and `'1'`), emit the number.
 
 ## Route-Local Private File Naming
 
