@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
 	IconAlertCircle,
+	IconCircleCheck,
 	IconClockExclamation,
 	IconLoader2,
 	IconLock,
@@ -96,6 +97,14 @@ const isSessionExpiredFromSearch = (search: string): boolean => {
 	);
 };
 
+const isPasswordResetSuccessFromSearch = (search: string): boolean => {
+	const params = new URLSearchParams(search);
+	return (
+		params.get(queryParamKey.login_page.redirect_cause) ===
+		queryParamValue.login_page.redirect_cause.password_reset_success
+	);
+};
+
 const getFailureStatus = (error: unknown): number | undefined => {
 	const failure = toApiFailure(error);
 	if (failure.kind === 'problem') {
@@ -123,6 +132,7 @@ const LoginRoute = () => {
 	const completeRedirect = useServerFn(completeLoginRedirect);
 	const search = location.searchStr ?? '';
 	const isSessionExpired = isSessionExpiredFromSearch(search);
+	const isPasswordResetSuccess = isPasswordResetSuccessFromSearch(search);
 
 	const loginFormSchema = useMemo(() => getLoginFormSchema(t), [t]);
 
@@ -220,6 +230,16 @@ const LoginRoute = () => {
 					testId="auth-session-expired-alert"
 				>
 					{t('session-expired-notice')}
+				</AuthAlert>
+			) : null}
+
+			{isPasswordResetSuccess ? (
+				<AuthAlert
+					tone="success"
+					icon={<IconCircleCheck aria-hidden="true" />}
+					testId="auth-password-reset-success-alert"
+				>
+					{t('password-reset-success')}
 				</AuthAlert>
 			) : null}
 

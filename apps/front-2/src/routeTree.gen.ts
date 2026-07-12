@@ -9,6 +9,9 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as verifyEmailRouteImport } from './routes/verify-email'
+import { Route as signupRouteImport } from './routes/signup'
+import { Route as resetPasswordRouteImport } from './routes/reset-password'
 import { Route as loginRouteImport } from './routes/login'
 import { Route as fieldValidationRouteImport } from './routes/field-validation'
 import { Route as authedLayoutRouteImport } from './routes/authed/layout'
@@ -47,6 +50,21 @@ import { Route as authedStaffTenantsTenantIdProfilesProfileIdRouteImport } from 
 import { Route as authedStaffTenantsTenantIdUsersUserIdEditRouteImport } from './routes/authed/staff/tenants/$tenantId/users/$userId-edit'
 import { Route as authedStaffTenantsTenantIdProfilesProfileIdEditRouteImport } from './routes/authed/staff/tenants/$tenantId/profiles/$profileId-edit'
 
+const verifyEmailRoute = verifyEmailRouteImport.update({
+  id: '/verify-email',
+  path: '/verify-email',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const signupRoute = signupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const resetPasswordRoute = resetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const loginRoute = loginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -261,6 +279,9 @@ export interface FileRoutesByFullPath {
   '/': typeof indexRoute
   '/field-validation': typeof fieldValidationRoute
   '/login': typeof loginRoute
+  '/reset-password': typeof resetPasswordRoute
+  '/signup': typeof signupRoute
+  '/verify-email': typeof verifyEmailRoute
   '/staff': typeof authedStaffRoute
   '/tenant': typeof authedTenantRoute
   '/staff/dashboard': typeof authedStaffDashboardRouteWithChildren
@@ -299,6 +320,9 @@ export interface FileRoutesByTo {
   '/': typeof indexRoute
   '/field-validation': typeof fieldValidationRoute
   '/login': typeof loginRoute
+  '/reset-password': typeof resetPasswordRoute
+  '/signup': typeof signupRoute
+  '/verify-email': typeof verifyEmailRoute
   '/staff': typeof authedStaffRoute
   '/tenant': typeof authedTenantRoute
   '/staff/profiles': typeof authedStaffProfilesRoute
@@ -337,6 +361,9 @@ export interface FileRoutesById {
   '/_authed-layout': typeof authedLayoutRouteWithChildren
   '/field-validation': typeof fieldValidationRoute
   '/login': typeof loginRoute
+  '/reset-password': typeof resetPasswordRoute
+  '/signup': typeof signupRoute
+  '/verify-email': typeof verifyEmailRoute
   '/_authed-layout/staff': typeof authedStaffRoute
   '/_authed-layout/tenant': typeof authedTenantRoute
   '/_authed-layout/staff/dashboard': typeof authedStaffDashboardRouteWithChildren
@@ -377,6 +404,9 @@ export interface FileRouteTypes {
     | '/'
     | '/field-validation'
     | '/login'
+    | '/reset-password'
+    | '/signup'
+    | '/verify-email'
     | '/staff'
     | '/tenant'
     | '/staff/dashboard'
@@ -415,6 +445,9 @@ export interface FileRouteTypes {
     | '/'
     | '/field-validation'
     | '/login'
+    | '/reset-password'
+    | '/signup'
+    | '/verify-email'
     | '/staff'
     | '/tenant'
     | '/staff/profiles'
@@ -452,6 +485,9 @@ export interface FileRouteTypes {
     | '/_authed-layout'
     | '/field-validation'
     | '/login'
+    | '/reset-password'
+    | '/signup'
+    | '/verify-email'
     | '/_authed-layout/staff'
     | '/_authed-layout/tenant'
     | '/_authed-layout/staff/dashboard'
@@ -492,10 +528,34 @@ export interface RootRouteChildren {
   authedLayoutRoute: typeof authedLayoutRouteWithChildren
   fieldValidationRoute: typeof fieldValidationRoute
   loginRoute: typeof loginRoute
+  resetPasswordRoute: typeof resetPasswordRoute
+  signupRoute: typeof signupRoute
+  verifyEmailRoute: typeof verifyEmailRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/verify-email': {
+      id: '/verify-email'
+      path: '/verify-email'
+      fullPath: '/verify-email'
+      preLoaderRoute: typeof verifyEmailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof signupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof resetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -875,6 +935,9 @@ const rootRouteChildren: RootRouteChildren = {
   authedLayoutRoute: authedLayoutRouteWithChildren,
   fieldValidationRoute: fieldValidationRoute,
   loginRoute: loginRoute,
+  resetPasswordRoute: resetPasswordRoute,
+  signupRoute: signupRoute,
+  verifyEmailRoute: verifyEmailRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

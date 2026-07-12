@@ -8,7 +8,6 @@ import {
 import * as cookie from 'cookie';
 import { z } from 'zod';
 
-import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { SESSION_TOKEN_COOKIE_KEY } from '@org/shared-ts/lib/constants';
 import { REDIRECT_CODE } from '@org/shared-ts/lib/constants';
 import {
@@ -18,6 +17,7 @@ import {
 } from '@org/shared-ts/lib/session/parse';
 
 import { createClient } from '../api-client/client-manager';
+import { throwServerFailure } from './server-failure';
 
 type LoginInput = {
 	email: string;
@@ -167,61 +167,6 @@ const LoginInputSchema = z.object({
 const LoginRedirectInputSchema = z.object({
 	sessionExpiresAt: z.string().optional(),
 });
-
-const toServerFailurePayload = (
-	error: unknown,
-	fallbackMessage: string,
-): {
-	responseStatusCode: number;
-	status: number;
-	title: string;
-	detail: string;
-	errors?: Record<string, string[]>;
-	translationKey?: string;
-} => {
-	const failure = toApiFailure(error);
-
-	if (failure.kind === 'validation') {
-		return {
-			responseStatusCode: failure.status,
-			status: failure.status,
-			title: failure.title ?? 'Validation failed',
-			detail: failure.detail ?? 'One or more input fields are invalid.',
-			errors: failure.fieldErrors,
-			translationKey: failure.translationKey,
-		};
-	}
-
-	if (failure.kind === 'problem') {
-		return {
-			responseStatusCode: failure.status,
-			status: failure.status,
-			title: failure.title ?? 'Request failed',
-			detail: failure.detail ?? 'Request failed',
-			translationKey: failure.translationKey,
-		};
-	}
-
-	if (failure.kind === 'unknown' && failure.message) {
-		return {
-			responseStatusCode: 500,
-			status: 500,
-			title: 'Request failed',
-			detail: failure.message,
-		};
-	}
-
-	return {
-		responseStatusCode: 500,
-		status: 500,
-		title: 'Request failed',
-		detail: fallbackMessage,
-	};
-};
-
-const throwServerFailure = (error: unknown, fallbackMessage: string): never => {
-	throw toServerFailurePayload(error, fallbackMessage);
-};
 
 export const login = createServerFn({ method: 'POST' })
 	.validator((data): LoginInput => LoginInputSchema.parse(data))

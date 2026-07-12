@@ -164,6 +164,9 @@
 	--publy-alert-info-bg: #f0f9ff;
 	--publy-alert-info-border: #bae6fd;
 	--publy-alert-info-text: #0369a1;
+	--publy-alert-success-bg: rgba(4, 120, 87, 0.06);
+	--publy-alert-success-border: rgba(4, 120, 87, 0.2);
+	--publy-alert-success-text: #047857;
 	--publy-shell-rail-width: 49px;
 	--publy-shell-panel-width: 272px;
 	--publy-shell-topbar-height: 64px;

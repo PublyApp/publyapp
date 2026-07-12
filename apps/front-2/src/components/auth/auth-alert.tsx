@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { cn } from '~/lib/utils';
 
-export type AuthAlertTone = 'danger' | 'amber' | 'blue';
+export type AuthAlertTone = 'danger' | 'amber' | 'blue' | 'success';
 
 type AuthAlertProps = {
 	tone: AuthAlertTone;
@@ -17,6 +17,8 @@ const TONE_CLASSES: Record<AuthAlertTone, string> = {
 	amber:
 		'bg-(--publy-alert-warning-bg) border-(--publy-alert-warning-border) text-(--publy-alert-warning-text)',
 	blue: 'bg-(--publy-alert-info-bg) border-(--publy-alert-info-border) text-(--publy-alert-info-text)',
+	success:
+		'bg-(--publy-alert-success-bg) border-(--publy-alert-success-border) text-(--publy-alert-success-text)',
 };
 
 /** Inline single-line notice (danger/amber/blue) used above or inside auth forms (A1–A6). */

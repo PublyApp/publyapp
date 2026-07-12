@@ -57,6 +57,7 @@ const EN_LABELS: Record<string, string> = {
 	'hide-password': 'Hide password',
 	'signing-in': 'Signing in…',
 	'session-expired-notice': 'Your session expired. Please sign in again.',
+	'password-reset-success': 'Password reset successfully',
 	'sign-in-to-pick-up-where-you-left-off':
 		'Sign in to pick up where you left off.',
 	'invalid-credentials-description':
@@ -142,6 +143,17 @@ describe('login route', () => {
 			screen.getByText('Sign in to pick up where you left off.'),
 		).toBeTruthy();
 		expect(screen.queryByText('No account yet?')).toBeNull();
+	});
+
+	test('shows the password-reset-success banner without swapping the heading', () => {
+		mocks.searchStr = '?rc=password_reset_success';
+
+		renderLoginRoute();
+
+		expect(screen.getByText('Password reset successfully')).toBeTruthy();
+		expect(
+			screen.getByRole('heading', { level: 1, name: 'Sign in' }),
+		).toBeTruthy();
 	});
 
 	test('disables the form and shows the submitting label while awaiting the server function', async () => {
