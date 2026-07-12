@@ -75,6 +75,22 @@ const LABELS: Record<string, string> = {
 	'max-users-reached': 'Maximum users number reached',
 	'tenant-create-failed': 'Tenant create failed.',
 	cancel: 'Cancel',
+	'organization-details': 'Organization details',
+	'organization-details-optional-hint':
+		'Optional — add these details now or edit them later.',
+	'legal-name': 'Legal name',
+	description: 'Description',
+	'website-url': 'Website URL',
+	'website-url-invalid': 'Enter a valid URL starting with http:// or https://',
+	'billing-email': 'Billing email',
+	'support-email': 'Support email',
+	'default-locale': 'Default locale',
+	timezone: 'Timezone',
+	'internal-notes': 'Internal notes',
+	'internal-notes-hint':
+		'Visible to staff only — never shown to tenant members.',
+	'not-set': 'Not set',
+	'invalid-email-address': 'Invalid email address',
 };
 
 const translate = (key: string, params?: Record<string, unknown>): string => {
@@ -310,6 +326,65 @@ vi.mock('~/components/field', () => ({
 				}),
 			);
 		},
+		Textarea: ({
+			name,
+			label,
+			helperText,
+			isDisabled,
+		}: {
+			name: string;
+			label: string;
+			helperText?: string;
+			isDisabled?: boolean;
+		}) => {
+			const { register } = useFormContext();
+
+			return createElement(
+				'label',
+				undefined,
+				createElement('span', undefined, label),
+				helperText ? createElement('span', undefined, helperText) : null,
+				createElement('textarea', {
+					'aria-label': label,
+					disabled: isDisabled,
+					...register(name),
+				}),
+			);
+		},
+		Select: ({
+			name,
+			label,
+			options,
+			isDisabled,
+		}: {
+			name: string;
+			label: string;
+			options: { value: string; label: string }[];
+			isDisabled?: boolean;
+		}) => {
+			const { register } = useFormContext();
+
+			return createElement(
+				'label',
+				undefined,
+				createElement('span', undefined, label),
+				createElement(
+					'select',
+					{
+						'aria-label': label,
+						disabled: isDisabled,
+						...register(name),
+					},
+					options.map((option) =>
+						createElement(
+							'option',
+							{ key: option.value, value: option.value },
+							option.label,
+						),
+					),
+				),
+			);
+		},
 	},
 }));
 
@@ -402,6 +477,30 @@ describe('staff tenant create route', () => {
 		expect(screen.getByText('Setup')).toBeTruthy();
 		expect(
 			screen.getByRole('link', { name: 'Download template' }),
+		).toBeTruthy();
+	});
+
+	test('renders the optional Organization details section between Organization and Owners with the legal name, description, website, contact, regional, and notes fields', () => {
+		renderPage();
+
+		expect(screen.getByText('Organization details')).toBeTruthy();
+		expect(
+			screen.getByText('Optional — add these details now or edit them later.'),
+		).toBeTruthy();
+		expect(screen.getByRole('textbox', { name: 'Legal name' })).toBeTruthy();
+		expect(screen.getByRole('textbox', { name: 'Description' })).toBeTruthy();
+		expect(screen.getByRole('textbox', { name: 'Website URL' })).toBeTruthy();
+		expect(screen.getByRole('textbox', { name: 'Billing email' })).toBeTruthy();
+		expect(screen.getByRole('textbox', { name: 'Support email' })).toBeTruthy();
+		expect(screen.getByLabelText('Default locale')).toBeTruthy();
+		expect(screen.getByLabelText('Timezone')).toBeTruthy();
+		expect(
+			screen.getByRole('textbox', { name: 'Internal notes' }),
+		).toBeTruthy();
+		expect(
+			screen.getByText(
+				'Visible to staff only — never shown to tenant members.',
+			),
 		).toBeTruthy();
 	});
 
@@ -683,6 +782,70 @@ describe('staff tenant create route', () => {
 				},
 			}),
 		);
+	});
+
+	test('includes the trimmed organization details fields in the submit body when filled', async () => {
+		mocks.mutateAsync.mockResolvedValue({ id: 'tenant-001' });
+
+		renderPage();
+
+		fillOrganizationName('Acme Corporation');
+		fireEvent.change(getEmailInputs()[0]!, {
+			target: { value: 'owner@acme.com' },
+		});
+		fireEvent.change(screen.getByRole('textbox', { name: 'Legal name' }), {
+			target: { value: '  Acme Corporation Ltd  ' },
+		});
+		fireEvent.change(screen.getByRole('textbox', { name: 'Website URL' }), {
+			target: { value: '  https://acme.com  ' },
+		});
+		fireEvent.change(screen.getByRole('textbox', { name: 'Billing email' }), {
+			target: { value: '  billing@acme.com  ' },
+		});
+		fireEvent.change(screen.getByLabelText('Default locale'), {
+			target: { value: 'fr' },
+		});
+
+		expect(screen.getByText('acme.com')).toBeTruthy();
+
+		submitForm();
+		await confirmCreate();
+
+		await waitFor(() =>
+			expect(mocks.mutateAsync).toHaveBeenCalledWith(
+				expect.objectContaining({
+					legalName: 'Acme Corporation Ltd',
+					websiteUrl: 'https://acme.com',
+					billingEmail: 'billing@acme.com',
+					defaultLocale: 'fr',
+				}),
+			),
+		);
+	});
+
+	test('omits the organization details fields from the submit body when left blank', async () => {
+		mocks.mutateAsync.mockResolvedValue({ id: 'tenant-001' });
+
+		renderPage();
+
+		fillOrganizationName('Acme Corporation');
+		fireEvent.change(getEmailInputs()[0]!, {
+			target: { value: 'owner@acme.com' },
+		});
+
+		submitForm();
+		await confirmCreate();
+
+		await waitFor(() => expect(mocks.mutateAsync).toHaveBeenCalled());
+		const body = mocks.mutateAsync.mock.calls[0]![0];
+		expect(body.legalName).toBeUndefined();
+		expect(body.description).toBeUndefined();
+		expect(body.websiteUrl).toBeUndefined();
+		expect(body.billingEmail).toBeUndefined();
+		expect(body.supportEmail).toBeUndefined();
+		expect(body.defaultLocale).toBeUndefined();
+		expect(body.timezone).toBeUndefined();
+		expect(body.notes).toBeUndefined();
 	});
 
 	test('omits the code field from the submit body when the slug is left blank', async () => {

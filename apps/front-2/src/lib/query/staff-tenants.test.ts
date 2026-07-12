@@ -168,6 +168,49 @@ describe('buildCreateStaffTenantBody', () => {
 
 		expect(body.code).toBeUndefined();
 	});
+
+	test('trims and wraps the organization profile fields when provided', () => {
+		const body = buildCreateStaffTenantBody({
+			name: 'Acme Tenant',
+			maxUsers: 5,
+			initialUsers: [{ email: 'user@example.com', accountLevel: 'Admin' }],
+			legalName: ' Acme Tenant Ltd ',
+			description: ' A social platform ',
+			websiteUrl: ' https://acme.com ',
+			billingEmail: ' billing@acme.com ',
+			supportEmail: ' support@acme.com ',
+			defaultLocale: ' en ',
+			timezone: ' Europe/Paris ',
+			notes: ' staff-only note ',
+		});
+
+		expect(unwrapUntyped(body.legalName)).toBe('Acme Tenant Ltd');
+		expect(unwrapUntyped(body.description)).toBe('A social platform');
+		expect(unwrapUntyped(body.websiteUrl)).toBe('https://acme.com');
+		expect(unwrapUntyped(body.billingEmail)).toBe('billing@acme.com');
+		expect(unwrapUntyped(body.supportEmail)).toBe('support@acme.com');
+		expect(unwrapUntyped(body.defaultLocale)).toBe('en');
+		expect(unwrapUntyped(body.timezone)).toBe('Europe/Paris');
+		expect(unwrapUntyped(body.notes)).toBe('staff-only note');
+	});
+
+	test('omits the organization profile fields when absent or blank', () => {
+		const body = buildCreateStaffTenantBody({
+			name: 'Acme Tenant',
+			maxUsers: 5,
+			initialUsers: [{ email: 'user@example.com', accountLevel: 'Admin' }],
+			legalName: '   ',
+		});
+
+		expect(body.legalName).toBeUndefined();
+		expect(body.description).toBeUndefined();
+		expect(body.websiteUrl).toBeUndefined();
+		expect(body.billingEmail).toBeUndefined();
+		expect(body.supportEmail).toBeUndefined();
+		expect(body.defaultLocale).toBeUndefined();
+		expect(body.timezone).toBeUndefined();
+		expect(body.notes).toBeUndefined();
+	});
 });
 
 describe('buildUpdateStaffTenantBody', () => {
@@ -191,6 +234,65 @@ describe('buildUpdateStaffTenantBody', () => {
 		});
 
 		expect((body as UpdateTenantAsStaffBody).logoUrl).toBeNull();
+	});
+
+	test('trims and wraps the organization profile fields when set', () => {
+		const body = buildUpdateStaffTenantBody({
+			legalName: ' Acme Tenant Ltd ',
+			description: ' A social platform ',
+			websiteUrl: ' https://acme.com ',
+			billingEmail: ' billing@acme.com ',
+			supportEmail: ' support@acme.com ',
+			defaultLocale: ' en ',
+			timezone: ' Europe/Paris ',
+			notes: ' staff-only note ',
+		});
+
+		expect(unwrapUntyped(body.legalName)).toBe('Acme Tenant Ltd');
+		expect(unwrapUntyped(body.description)).toBe('A social platform');
+		expect(unwrapUntyped(body.websiteUrl)).toBe('https://acme.com');
+		expect(unwrapUntyped(body.billingEmail)).toBe('billing@acme.com');
+		expect(unwrapUntyped(body.supportEmail)).toBe('support@acme.com');
+		expect(unwrapUntyped(body.defaultLocale)).toBe('en');
+		expect(unwrapUntyped(body.timezone)).toBe('Europe/Paris');
+		expect(unwrapUntyped(body.notes)).toBe('staff-only note');
+	});
+
+	test('sends explicit null for each organization profile field cleared to blank', () => {
+		const body = buildUpdateStaffTenantBody({
+			legalName: '   ',
+			description: '   ',
+			websiteUrl: '   ',
+			billingEmail: '   ',
+			supportEmail: '   ',
+			defaultLocale: '   ',
+			timezone: '   ',
+			notes: '   ',
+		});
+
+		expect(body.legalName).toBeNull();
+		expect(body.description).toBeNull();
+		expect(body.websiteUrl).toBeNull();
+		expect(body.billingEmail).toBeNull();
+		expect(body.supportEmail).toBeNull();
+		expect(body.defaultLocale).toBeNull();
+		expect(body.timezone).toBeNull();
+		expect(body.notes).toBeNull();
+	});
+
+	test('omits the organization profile fields when not provided', () => {
+		const body = buildUpdateStaffTenantBody({
+			name: 'Acme Tenant',
+		});
+
+		expect(body.legalName).toBeUndefined();
+		expect(body.description).toBeUndefined();
+		expect(body.websiteUrl).toBeUndefined();
+		expect(body.billingEmail).toBeUndefined();
+		expect(body.supportEmail).toBeUndefined();
+		expect(body.defaultLocale).toBeUndefined();
+		expect(body.timezone).toBeUndefined();
+		expect(body.notes).toBeUndefined();
 	});
 });
 
@@ -496,6 +598,7 @@ describe('toStaffTenantRows', () => {
 describe('toStaffTenantDetails', () => {
 	test('normalizes a detail payload and preserves optional values', () => {
 		const createdAt = new Date('2026-07-01T08:30:00Z');
+		const lastActivityAt = new Date('2026-07-05T12:00:00Z');
 
 		const result = toStaffTenantDetails({
 			tenantId: 'tenant-7',
@@ -509,6 +612,15 @@ describe('toStaffTenantDetails', () => {
 			expiringSoonInvitationsCount: 1,
 			profilesCount: 6,
 			logoUrl: ' https://cdn.example.com/acme.png ',
+			legalName: ' Acme Corporation Ltd ',
+			description: ' A social media platform ',
+			websiteUrl: ' https://acme.com ',
+			billingEmail: ' billing@acme.com ',
+			supportEmail: ' support@acme.com ',
+			defaultLocale: ' en ',
+			timezone: ' Europe/Paris ',
+			notes: ' internal-only note ',
+			lastActivityAt,
 			createdAt,
 			updatedAt: new Date('invalid'),
 		} as GetTenantAsStaffResult);
@@ -525,12 +637,21 @@ describe('toStaffTenantDetails', () => {
 			expiringSoonInvitationsCount: 1,
 			profilesCount: 6,
 			logoUrl: 'https://cdn.example.com/acme.png',
+			legalName: 'Acme Corporation Ltd',
+			description: 'A social media platform',
+			websiteUrl: 'https://acme.com',
+			billingEmail: 'billing@acme.com',
+			supportEmail: 'support@acme.com',
+			defaultLocale: 'en',
+			timezone: 'Europe/Paris',
+			notes: 'internal-only note',
+			lastActivityAt,
 			createdAt,
 			updatedAt: null,
 		});
 	});
 
-	test('defaults the new detail counts to zero when the payload omits them', () => {
+	test('defaults the new detail counts to zero and the organization profile fields to null when the payload omits them', () => {
 		const result = toStaffTenantDetails({
 			tenantId: 'tenant-8',
 			name: 'Acme Corporation',
@@ -541,6 +662,15 @@ describe('toStaffTenantDetails', () => {
 			pendingInvitationsCount: 0,
 			expiringSoonInvitationsCount: 0,
 			profilesCount: 0,
+			legalName: null,
+			description: null,
+			websiteUrl: null,
+			billingEmail: null,
+			supportEmail: null,
+			defaultLocale: null,
+			timezone: null,
+			notes: null,
+			lastActivityAt: null,
 		});
 	});
 

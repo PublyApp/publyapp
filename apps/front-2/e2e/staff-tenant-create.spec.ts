@@ -141,18 +141,14 @@ test.describe('staff create-tenant preview counts', () => {
 		await page
 			.getByRole('textbox', { name: /organization/i })
 			.fill('Acme Corporation');
-		await page
-			.getByRole('textbox', { name: /email/i })
-			.first()
-			.fill('owner@acme.com');
+		await page.locator('input[name="owners.0.email"]').fill('owner@acme.com');
 
 		await expect(page.getByTestId('preview-owners')).toHaveText('1');
 		await expect(page.getByTestId('preview-seats')).toHaveText('1 / 5');
 
 		await page.getByRole('button', { name: 'Add member' }).click();
 		await page
-			.getByRole('textbox', { name: /email/i })
-			.nth(1)
+			.locator('input[name="manualMembers.0.email"]')
 			.fill('member@acme.com');
 
 		await expect(page.getByTestId('preview-members')).toHaveText('1');
@@ -173,10 +169,7 @@ test.describe('staff create-tenant submission', () => {
 		await page
 			.getByRole('textbox', { name: /organization/i })
 			.fill('Acme Corporation');
-		await page
-			.getByRole('textbox', { name: /email/i })
-			.first()
-			.fill('admin@acme.com');
+		await page.locator('input[name="owners.0.email"]').fill('admin@acme.com');
 
 		const createRequest = page.waitForRequest(
 			(request) =>
@@ -197,6 +190,54 @@ test.describe('staff create-tenant submission', () => {
 	});
 });
 
+test.describe('staff create-tenant Organization details optional section', () => {
+	test('renders between Organization and Owners, and submits its trimmed values without changing the rest of the create flow', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await mockCreateStaffTenant(page);
+
+		await page.goto('/staff/tenants/new');
+		await expect(page.getByTestId('staff-tenant-create-page')).toBeVisible();
+
+		await expect(page.getByText('Organization details')).toBeVisible();
+		await expect(
+			page.getByText('Optional — add these details now or edit them later.'),
+		).toBeVisible();
+
+		await page
+			.getByRole('textbox', { name: /organization/i })
+			.fill('Acme Corporation');
+		await page.locator('input[name="owners.0.email"]').fill('owner@acme.com');
+		await page
+			.getByRole('textbox', { name: 'Legal name' })
+			.fill('Acme Corporation Ltd');
+		await page
+			.getByRole('textbox', { name: 'Website URL' })
+			.fill('https://acme.com');
+
+		const createRequest = page.waitForRequest(
+			(request) =>
+				request.method() === 'POST' &&
+				isApiPath(request.url(), STAFF_TENANTS_PATH),
+		);
+
+		await page.getByRole('button', { name: /^(create tenant)$/i }).click();
+		const dialog = page.getByRole('alertdialog');
+		await expect(dialog).toBeVisible();
+		await dialog.getByRole('button', { name: /^(create tenant)$/i }).click();
+		const request = await createRequest;
+
+		const body = request.postDataJSON() as Record<string, unknown>;
+		expect(body.legalName).toBe('Acme Corporation Ltd');
+		expect(body.websiteUrl).toBe('https://acme.com');
+
+		await expect(page).toHaveURL(
+			new RegExp(`/staff/tenants/${CREATED_TENANT_ID}$`),
+		);
+	});
+});
+
 test.describe('staff create-tenant submit confirmation', () => {
 	test('shows a rich summary confirm dialog before submitting, and Cancel returns to the form untouched', async ({
 		page,
@@ -210,10 +251,7 @@ test.describe('staff create-tenant submit confirmation', () => {
 		await page
 			.getByRole('textbox', { name: /organization/i })
 			.fill('Acme Corporation');
-		await page
-			.getByRole('textbox', { name: /email/i })
-			.first()
-			.fill('admin@acme.com');
+		await page.locator('input[name="owners.0.email"]').fill('admin@acme.com');
 
 		let createRequestFired = false;
 		page.on('request', (request) => {

@@ -3,10 +3,12 @@ import { FieldEmail } from './field-email';
 import { FieldSelect } from './field-select';
 import { FieldSwitch } from './field-switch';
 import { FieldText } from './field-text';
+import { FieldTextarea } from './field-textarea';
 
 export const Field = {
 	CheckboxGroup: FieldCheckboxGroup,
 	Text: FieldText,
+	Textarea: FieldTextarea,
 	Email: FieldEmail,
 	Select: FieldSelect,
 	Switch: FieldSwitch,

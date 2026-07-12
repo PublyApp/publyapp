@@ -21,6 +21,13 @@ const mocks = vi.hoisted(() => ({
 	toStaffTenantDetails: vi.fn(),
 	useUpdateStaffTenantMutation: vi.fn(),
 	shouldLogoutForFailure: vi.fn<(error: unknown) => boolean>(() => false),
+	useBlocker: vi.fn(),
+	blockerResolver: {
+		status: 'idle' as 'idle' | 'blocked',
+		proceed: undefined as (() => void) | undefined,
+		reset: undefined as (() => void) | undefined,
+	},
+	capturedShouldBlockFn: undefined as (() => boolean) | undefined,
 }));
 
 vi.mock('~/components/ui/button', () => ({
@@ -95,6 +102,88 @@ vi.mock('~/components/field', () => ({
 				}),
 			);
 		},
+		Email: ({
+			name,
+			label,
+			isDisabled,
+		}: {
+			name: string;
+			label: string;
+			isDisabled?: boolean;
+		}) => {
+			const { register } = useFormContext();
+
+			return createElement(
+				'label',
+				undefined,
+				createElement('span', undefined, label),
+				createElement('input', {
+					'aria-label': label,
+					disabled: isDisabled,
+					type: 'email',
+					...register(name),
+				}),
+			);
+		},
+		Textarea: ({
+			name,
+			label,
+			helperText,
+			isDisabled,
+		}: {
+			name: string;
+			label: string;
+			helperText?: string;
+			isDisabled?: boolean;
+		}) => {
+			const { register } = useFormContext();
+
+			return createElement(
+				'label',
+				undefined,
+				createElement('span', undefined, label),
+				helperText ? createElement('span', undefined, helperText) : null,
+				createElement('textarea', {
+					'aria-label': label,
+					disabled: isDisabled,
+					...register(name),
+				}),
+			);
+		},
+		Select: ({
+			name,
+			label,
+			options,
+			isDisabled,
+		}: {
+			name: string;
+			label: string;
+			options: { value: string; label: string }[];
+			isDisabled?: boolean;
+		}) => {
+			const { register } = useFormContext();
+
+			return createElement(
+				'label',
+				undefined,
+				createElement('span', undefined, label),
+				createElement(
+					'select',
+					{
+						'aria-label': label,
+						disabled: isDisabled,
+						...register(name),
+					},
+					options.map((option) =>
+						createElement(
+							'option',
+							{ key: option.value, value: option.value },
+							option.label,
+						),
+					),
+				),
+			);
+		},
 	},
 	FormPageLayout: ({ children, ...props }: { children: ReactNode }) =>
 		createElement('div', props, children),
@@ -140,6 +229,10 @@ vi.mock('@tanstack/react-router', () => ({
 			children,
 		);
 	},
+	useBlocker: (opts: { shouldBlockFn: () => boolean }) => {
+		mocks.capturedShouldBlockFn = opts.shouldBlockFn;
+		return mocks.blockerResolver;
+	},
 }));
 
 vi.mock('react-i18next', () => ({
@@ -149,10 +242,43 @@ vi.mock('react-i18next', () => ({
 				'back-to-tenant': 'Back to tenant',
 				organization: 'Organization',
 				'organization-name': 'Organization name',
+				'workspace-slug': 'Workspace slug',
+				'workspace-slug-immutable-hint': "The workspace slug can't be changed",
 				seats: 'Seats',
 				'logo-url': 'Logo URL',
+				'clear-logo': 'Clear logo',
+				identity: 'Identity',
+				'legal-name': 'Legal name',
+				description: 'Description',
+				'website-url': 'Website URL',
+				contact: 'Contact',
+				'billing-email': 'Billing email',
+				'support-email': 'Support email',
+				regional: 'Regional',
+				'default-locale': 'Default locale',
+				timezone: 'Timezone',
+				'not-set': 'Not set',
+				'internal-notes': 'Internal notes',
+				'internal-notes-hint':
+					'Visible to staff only — never shown to tenant members.',
+				preview: 'Preview',
+				status: 'Status',
+				unknown: 'Unknown',
+				owners: 'Owners',
+				members: 'Members',
+				created: 'Created',
+				updated: 'Updated',
+				'last-active': 'Last active',
+				'seats-below-current-members-warning':
+					'Fewer seats than the current members',
 				'save-changes': 'Save changes',
 				cancel: 'Cancel',
+				'reset-to-saved': 'Reset',
+				'unsaved-changes': 'Unsaved changes',
+				'unsaved-changes-dialog-title': 'Leave without saving?',
+				'unsaved-changes-dialog-description':
+					'You have unsaved changes that will be lost if you leave this page.',
+				'leave-page': 'Leave page',
 				'tenant-update-failed': 'Unable to save tenant.',
 				tenant: 'Tenant',
 				'edit-item': 'Edit Tenant',
@@ -222,39 +348,46 @@ const renderPage = () => {
 	return render(<RouteComponent />);
 };
 
+const buildTenant = (overrides: Record<string, unknown> = {}) => ({
+	id: '11111111-1111-1111-1111-111111111111',
+	name: 'Acme Corporation',
+	code: 'ACME',
+	status: 'Active',
+	usersCount: 12,
+	maxUsers: 12,
+	ownersCount: 2,
+	logoUrl: 'https://cdn.example.com/acme.png',
+	legalName: 'Acme Corporation Ltd',
+	description: 'A social media platform',
+	websiteUrl: 'https://acme.com',
+	billingEmail: 'billing@acme.com',
+	supportEmail: 'support@acme.com',
+	defaultLocale: 'en',
+	timezone: 'Europe/Paris',
+	notes: 'Handled by the enterprise team.',
+	lastActivityAt: new Date('2026-07-11T09:00:00Z'),
+	createdAt: new Date('2026-07-01T09:00:00Z'),
+	updatedAt: new Date('2026-07-02T10:00:00Z'),
+	...overrides,
+});
+
 describe('staff tenant edit route', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mocks.blockerResolver.status = 'idle';
+		mocks.blockerResolver.proceed = undefined;
+		mocks.blockerResolver.reset = undefined;
+		mocks.capturedShouldBlockFn = undefined;
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
 		mocks.invalidateQueries.mockResolvedValue(undefined);
 		mocks.useUpdateStaffTenantMutation.mockReturnValue({
 			mutateAsync: mocks.updateTenantMutation,
 			isPending: false,
 		});
-		mocks.toStaffTenantDetails.mockImplementation(() => ({
-			id: '11111111-1111-1111-1111-111111111111',
-			name: 'Acme Corporation',
-			code: 'ACME',
-			status: 'Active',
-			usersCount: 12,
-			maxUsers: 12,
-			logoUrl: 'https://cdn.example.com/acme.png',
-			createdAt: new Date('2026-07-01T09:00:00Z'),
-			updatedAt: new Date('2026-07-02T10:00:00Z'),
-		}));
+		mocks.toStaffTenantDetails.mockImplementation(() => buildTenant());
 		mocks.useStaffTenantDetailsQuery.mockReturnValue(
 			buildQueryResult({
-				data: {
-					tenantId: '11111111-1111-1111-1111-111111111111',
-					name: 'Acme Corporation',
-					maxUsers: 12,
-					logoUrl: 'https://cdn.example.com/acme.png',
-					status: 'Active',
-					usersCount: 5,
-					code: 'ACME',
-					createdAt: null,
-					updatedAt: null,
-				},
+				data: buildTenant(),
 			}),
 		);
 	});
@@ -289,6 +422,67 @@ describe('staff tenant edit route', () => {
 		expect(
 			screen.getByRole('link', { name: 'Back to tenant' }).getAttribute('href'),
 		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111');
+	});
+
+	test('renders the Identity, Contact, Regional, and Internal notes sections with the tenant values', () => {
+		renderPage();
+
+		expect(screen.getByText('Identity')).toBeTruthy();
+		expect(screen.getByDisplayValue('Acme Corporation Ltd')).toBeTruthy();
+		expect(screen.getByDisplayValue('A social media platform')).toBeTruthy();
+		expect(screen.getByDisplayValue('https://acme.com')).toBeTruthy();
+
+		expect(screen.getByText('Contact')).toBeTruthy();
+		expect(screen.getByDisplayValue('billing@acme.com')).toBeTruthy();
+		expect(screen.getByDisplayValue('support@acme.com')).toBeTruthy();
+
+		expect(screen.getByText('Regional')).toBeTruthy();
+		expect(
+			(screen.getByLabelText('Default locale') as HTMLSelectElement).value,
+		).toBe('en');
+		expect((screen.getByLabelText('Timezone') as HTMLSelectElement).value).toBe(
+			'Europe/Paris',
+		);
+
+		expect(screen.getByText('Internal notes')).toBeTruthy();
+		expect(
+			screen.getByDisplayValue('Handled by the enterprise team.'),
+		).toBeTruthy();
+		expect(
+			screen.getByText(
+				'Visible to staff only — never shown to tenant members.',
+			),
+		).toBeTruthy();
+	});
+
+	test('shows the copy-slug affordance and the metadata footer with created, updated, and last active', () => {
+		renderPage();
+
+		expect(screen.getByTestId('edit-tenant-slug').textContent).toBe('ACME');
+		const metadata = screen.getByTestId('edit-tenant-metadata').textContent;
+		expect(metadata).toContain('Created');
+		expect(metadata).toContain('Updated');
+		expect(metadata).toContain('Last active');
+	});
+
+	test('shows a logo preview thumbnail with a clear button that empties the field', () => {
+		renderPage();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Clear logo' }));
+
+		expect((screen.getByLabelText('Logo URL') as HTMLInputElement).value).toBe(
+			'',
+		);
+	});
+
+	test('warns when seats are set below the current member count without blocking submission', () => {
+		renderPage();
+
+		fireEvent.change(screen.getByLabelText('Seats'), {
+			target: { value: '5' },
+		});
+
+		expect(screen.getByTestId('edit-tenant-seats-warning')).toBeTruthy();
 	});
 
 	test('submits changed tenant values and navigates to tenant details on success', async () => {
@@ -329,6 +523,146 @@ describe('staff tenant edit route', () => {
 				},
 			}),
 		);
+	});
+
+	test('clears the legal name via a tri-state PATCH null when emptied and dirty', async () => {
+		mocks.updateTenantMutation.mockResolvedValue({
+			tenantId: '11111111-1111-1111-1111-111111111111',
+		});
+
+		renderPage();
+
+		fireEvent.change(screen.getByLabelText('Legal name'), {
+			target: { value: '' },
+		});
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Save changes' }).closest('form')!,
+		);
+
+		await waitFor(() =>
+			expect(mocks.updateTenantMutation).toHaveBeenCalledWith(
+				expect.objectContaining({ legalName: null }),
+			),
+		);
+	});
+
+	test('sends a trimmed value for legal name when changed', async () => {
+		mocks.updateTenantMutation.mockResolvedValue({
+			tenantId: '11111111-1111-1111-1111-111111111111',
+		});
+
+		renderPage();
+
+		fireEvent.change(screen.getByLabelText('Legal name'), {
+			target: { value: '  Acme Holdings  ' },
+		});
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Save changes' }).closest('form')!,
+		);
+
+		await waitFor(() =>
+			expect(mocks.updateTenantMutation).toHaveBeenCalledWith(
+				expect.objectContaining({ legalName: 'Acme Holdings' }),
+			),
+		);
+	});
+
+	test('does not include untouched optional fields in the PATCH payload', async () => {
+		mocks.updateTenantMutation.mockResolvedValue({
+			tenantId: '11111111-1111-1111-1111-111111111111',
+		});
+
+		renderPage();
+
+		fireEvent.change(screen.getByLabelText('Seats'), {
+			target: { value: '25' },
+		});
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Save changes' }).closest('form')!,
+		);
+
+		await waitFor(() => expect(mocks.updateTenantMutation).toHaveBeenCalled());
+		const payload = mocks.updateTenantMutation.mock.calls[0]![0];
+		expect(payload.legalName).toBeUndefined();
+		expect(payload.description).toBeUndefined();
+		expect(payload.websiteUrl).toBeUndefined();
+		expect(payload.billingEmail).toBeUndefined();
+		expect(payload.supportEmail).toBeUndefined();
+		expect(payload.defaultLocale).toBeUndefined();
+		expect(payload.timezone).toBeUndefined();
+		expect(payload.notes).toBeUndefined();
+	});
+
+	test('the reset-to-saved button restores saved values and hides once the form is clean', () => {
+		renderPage();
+
+		expect(screen.queryByRole('button', { name: 'Reset' })).toBeNull();
+
+		fireEvent.change(screen.getByLabelText('Organization name'), {
+			target: { value: 'Acme Corporation Edited' },
+		});
+		expect(screen.getByRole('button', { name: 'Reset' })).toBeTruthy();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
+
+		expect(
+			(screen.getByLabelText('Organization name') as HTMLInputElement).value,
+		).toBe('Acme Corporation');
+		expect(screen.queryByRole('button', { name: 'Reset' })).toBeNull();
+	});
+
+	test('the nav-guard shouldBlockFn blocks while dirty and stops blocking once the save completes', async () => {
+		mocks.updateTenantMutation.mockResolvedValue({
+			tenantId: '11111111-1111-1111-1111-111111111111',
+		});
+
+		renderPage();
+
+		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+
+		fireEvent.change(screen.getByLabelText('Organization name'), {
+			target: { value: 'Acme Corporation Edited' },
+		});
+		expect(mocks.capturedShouldBlockFn?.()).toBe(true);
+
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Save changes' }).closest('form')!,
+		);
+
+		await waitFor(() => expect(mocks.navigate).toHaveBeenCalled());
+		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+	});
+
+	test('shows the unsaved-changes confirm dialog when the router blocks navigation, and Leave page proceeds', () => {
+		const proceed = vi.fn();
+		const reset = vi.fn();
+		mocks.blockerResolver.status = 'blocked';
+		mocks.blockerResolver.proceed = proceed;
+		mocks.blockerResolver.reset = reset;
+
+		renderPage();
+
+		expect(screen.getByText('Leave without saving?')).toBeTruthy();
+		fireEvent.click(screen.getByRole('button', { name: 'Leave page' }));
+		expect(proceed).toHaveBeenCalled();
+		expect(reset).not.toHaveBeenCalled();
+	});
+
+	test('cancelling the unsaved-changes confirm dialog calls reset, not proceed', () => {
+		const proceed = vi.fn();
+		const reset = vi.fn();
+		mocks.blockerResolver.status = 'blocked';
+		mocks.blockerResolver.proceed = proceed;
+		mocks.blockerResolver.reset = reset;
+
+		renderPage();
+
+		const dialog = screen.getByRole('alertdialog');
+		fireEvent.click(
+			dialog.querySelector('[aria-label="Close"]') as HTMLElement,
+		);
+		expect(reset).toHaveBeenCalled();
+		expect(proceed).not.toHaveBeenCalled();
 	});
 
 	test('renders a local failure without logging out for non-401 API failures', async () => {

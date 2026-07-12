@@ -55,6 +55,14 @@ export type StaffTenantUpdateInput = {
 	name?: string;
 	maxUsers?: number;
 	logoUrl?: string | null;
+	legalName?: string | null;
+	description?: string | null;
+	websiteUrl?: string | null;
+	billingEmail?: string | null;
+	supportEmail?: string | null;
+	defaultLocale?: string | null;
+	timezone?: string | null;
+	notes?: string | null;
 };
 
 export type StaffTenantLifeCycleInput = {
@@ -73,6 +81,15 @@ export type StaffTenantDetails = {
 	expiringSoonInvitationsCount: number;
 	profilesCount: number;
 	logoUrl: string | null;
+	legalName: string | null;
+	description: string | null;
+	websiteUrl: string | null;
+	billingEmail: string | null;
+	supportEmail: string | null;
+	defaultLocale: string | null;
+	timezone: string | null;
+	notes: string | null;
+	lastActivityAt: Date | null;
 	createdAt: Date | null;
 	updatedAt: Date | null;
 };
@@ -88,6 +105,14 @@ export type CreateStaffTenantInput = {
 	code?: string;
 	seedDefaultProfile?: boolean;
 	initialUsers: StaffTenantInitialUserInput[];
+	legalName?: string;
+	description?: string;
+	websiteUrl?: string;
+	billingEmail?: string;
+	supportEmail?: string;
+	defaultLocale?: string;
+	timezone?: string;
+	notes?: string;
 };
 
 export const STAFF_TENANTS_QUERY_KEY = ['staff-tenants'] as const;
@@ -197,6 +222,15 @@ export const toStaffTenantDetails = (
 		expiringSoonInvitationsCount: result?.expiringSoonInvitationsCount ?? 0,
 		profilesCount: result?.profilesCount ?? 0,
 		logoUrl: normalizeNullableString(result?.logoUrl),
+		legalName: normalizeNullableString(result?.legalName),
+		description: normalizeNullableString(result?.description),
+		websiteUrl: normalizeNullableString(result?.websiteUrl),
+		billingEmail: normalizeNullableString(result?.billingEmail),
+		supportEmail: normalizeNullableString(result?.supportEmail),
+		defaultLocale: normalizeNullableString(result?.defaultLocale),
+		timezone: normalizeNullableString(result?.timezone),
+		notes: normalizeNullableString(result?.notes),
+		lastActivityAt: normalizeDate(result?.lastActivityAt),
 		createdAt: normalizeDate(result?.createdAt),
 		updatedAt: normalizeDate(result?.updatedAt),
 	};
@@ -250,6 +284,54 @@ export const buildCreateStaffTenantBody = (
 		) as typeof body.seedDefaultProfile;
 	}
 
+	const legalName = normalizeString(input.legalName);
+	if (legalName) {
+		body.legalName = createUntypedString(legalName) as typeof body.legalName;
+	}
+
+	const description = normalizeString(input.description);
+	if (description) {
+		body.description = createUntypedString(
+			description,
+		) as typeof body.description;
+	}
+
+	const websiteUrl = normalizeString(input.websiteUrl);
+	if (websiteUrl) {
+		body.websiteUrl = createUntypedString(websiteUrl) as typeof body.websiteUrl;
+	}
+
+	const billingEmail = normalizeString(input.billingEmail);
+	if (billingEmail) {
+		body.billingEmail = createUntypedString(
+			billingEmail,
+		) as typeof body.billingEmail;
+	}
+
+	const supportEmail = normalizeString(input.supportEmail);
+	if (supportEmail) {
+		body.supportEmail = createUntypedString(
+			supportEmail,
+		) as typeof body.supportEmail;
+	}
+
+	const defaultLocale = normalizeString(input.defaultLocale);
+	if (defaultLocale) {
+		body.defaultLocale = createUntypedString(
+			defaultLocale,
+		) as typeof body.defaultLocale;
+	}
+
+	const timezone = normalizeString(input.timezone);
+	if (timezone) {
+		body.timezone = createUntypedString(timezone) as typeof body.timezone;
+	}
+
+	const notes = normalizeString(input.notes);
+	if (notes) {
+		body.notes = createUntypedString(notes) as typeof body.notes;
+	}
+
 	return body;
 };
 
@@ -259,6 +341,14 @@ export const buildUpdateStaffTenantBody = (
 	const body: UpdateTenantAsStaffBody = {};
 	const name = normalizeString(input.name);
 	const logoUrl = normalizeOptionalUpdateString(input.logoUrl);
+	const legalName = normalizeOptionalUpdateString(input.legalName);
+	const description = normalizeOptionalUpdateString(input.description);
+	const websiteUrl = normalizeOptionalUpdateString(input.websiteUrl);
+	const billingEmail = normalizeOptionalUpdateString(input.billingEmail);
+	const supportEmail = normalizeOptionalUpdateString(input.supportEmail);
+	const defaultLocale = normalizeOptionalUpdateString(input.defaultLocale);
+	const timezone = normalizeOptionalUpdateString(input.timezone);
+	const notes = normalizeOptionalUpdateString(input.notes);
 
 	if (name) {
 		body.name = createUntypedString(name) as typeof body.name;
@@ -273,6 +363,60 @@ export const buildUpdateStaffTenantBody = (
 			logoUrl === null
 				? null
 				: (createUntypedString(logoUrl) as typeof body.logoUrl);
+	}
+
+	if (legalName !== undefined) {
+		body.legalName =
+			legalName === null
+				? null
+				: (createUntypedString(legalName) as typeof body.legalName);
+	}
+
+	if (description !== undefined) {
+		body.description =
+			description === null
+				? null
+				: (createUntypedString(description) as typeof body.description);
+	}
+
+	if (websiteUrl !== undefined) {
+		body.websiteUrl =
+			websiteUrl === null
+				? null
+				: (createUntypedString(websiteUrl) as typeof body.websiteUrl);
+	}
+
+	if (billingEmail !== undefined) {
+		body.billingEmail =
+			billingEmail === null
+				? null
+				: (createUntypedString(billingEmail) as typeof body.billingEmail);
+	}
+
+	if (supportEmail !== undefined) {
+		body.supportEmail =
+			supportEmail === null
+				? null
+				: (createUntypedString(supportEmail) as typeof body.supportEmail);
+	}
+
+	if (defaultLocale !== undefined) {
+		body.defaultLocale =
+			defaultLocale === null
+				? null
+				: (createUntypedString(defaultLocale) as typeof body.defaultLocale);
+	}
+
+	if (timezone !== undefined) {
+		body.timezone =
+			timezone === null
+				? null
+				: (createUntypedString(timezone) as typeof body.timezone);
+	}
+
+	if (notes !== undefined) {
+		body.notes =
+			notes === null ? null : (createUntypedString(notes) as typeof body.notes);
 	}
 
 	return body;

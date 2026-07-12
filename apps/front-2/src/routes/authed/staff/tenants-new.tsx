@@ -54,6 +54,11 @@ import {
 	type ImportedMember,
 } from './tenants-new-helpers';
 import { parseXlsxFile } from './tenants-new-xlsx';
+import {
+	getWebsiteHostname,
+	isAbsoluteHttpUrl,
+	isValidEmailAddress,
+} from './tenants/tenant-organization-profile-fields';
 
 type NewTenantAccountLevel =
 	(typeof ACCOUNT_LEVEL_ENUM)[keyof typeof ACCOUNT_LEVEL_ENUM];
@@ -74,6 +79,14 @@ type TenantCreateFormValues = {
 	owners: OwnerSlotValues[];
 	manualMembers: ManualMemberSlotValues[];
 	seedDefaultProfile: boolean;
+	legalName: string;
+	description: string;
+	websiteUrl: string;
+	billingEmail: string;
+	supportEmail: string;
+	defaultLocale: string;
+	timezone: string;
+	notes: string;
 };
 
 const DEFAULT_VALUES: TenantCreateFormValues = {
@@ -83,6 +96,14 @@ const DEFAULT_VALUES: TenantCreateFormValues = {
 	owners: [{ email: '' }],
 	manualMembers: [],
 	seedDefaultProfile: true,
+	legalName: '',
+	description: '',
+	websiteUrl: '',
+	billingEmail: '',
+	supportEmail: '',
+	defaultLocale: '',
+	timezone: '',
+	notes: '',
 };
 
 const USER_ROLE_OPTIONS = [
@@ -124,6 +145,32 @@ const buildCreateTenantSchema = (
 				}),
 			),
 			seedDefaultProfile: z.boolean(),
+			legalName: z.string().trim().max(256),
+			description: z.string().trim().max(1024),
+			websiteUrl: z
+				.string()
+				.trim()
+				.max(2048)
+				.refine((value) => !value || isAbsoluteHttpUrl(value), {
+					message: t('website-url-invalid'),
+				}),
+			billingEmail: z
+				.string()
+				.trim()
+				.max(320)
+				.refine((value) => !value || isValidEmailAddress(value), {
+					message: t('invalid-email-address'),
+				}),
+			supportEmail: z
+				.string()
+				.trim()
+				.max(320)
+				.refine((value) => !value || isValidEmailAddress(value), {
+					message: t('invalid-email-address'),
+				}),
+			defaultLocale: z.string().trim(),
+			timezone: z.string().trim(),
+			notes: z.string().trim().max(4000),
 		})
 		.superRefine((values, context) => {
 			const totalCount =
@@ -381,6 +428,28 @@ function StaffTenantCreateRoute() {
 		DEFAULT_VALUES.manualMembers;
 	const seedDefaultProfile =
 		useWatch({ control, name: 'seedDefaultProfile' }) ?? true;
+	const websiteUrl = useWatch({ control, name: 'websiteUrl' }) ?? '';
+
+	const localeOptions = useMemo(
+		() => [
+			{ value: '', label: t('not-set') },
+			{ value: 'en', label: 'English' },
+			{ value: 'fr', label: 'Français' },
+		],
+		[t],
+	);
+
+	const timezoneOptions = useMemo(() => {
+		const zones =
+			typeof Intl.supportedValuesOf === 'function'
+				? Intl.supportedValuesOf('timeZone')
+				: [];
+
+		return [
+			{ value: '', label: t('not-set') },
+			...zones.map((zone) => ({ value: zone, label: zone })),
+		];
+	}, [t]);
 
 	const {
 		fields: ownerFields,
@@ -426,6 +495,7 @@ function StaffTenantCreateRoute() {
 
 	const slugPreview =
 		code.trim().length > 0 ? code.trim() : slugifyTenantNamePlaceholder(name);
+	const previewWebsiteHostname = getWebsiteHostname(websiteUrl);
 
 	const ownersRootError = errors.owners as
 		| { message?: string; root?: { message?: string } }
@@ -464,6 +534,10 @@ function StaffTenantCreateRoute() {
 			parsedMembers: parsedValidMembers,
 			manualMembers: values.manualMembers,
 		});
+		const optionalField = (value: string): string | undefined => {
+			const trimmed = value.trim();
+			return trimmed.length > 0 ? trimmed : undefined;
+		};
 
 		try {
 			const result = await createTenant.mutateAsync({
@@ -472,6 +546,14 @@ function StaffTenantCreateRoute() {
 				...(trimmedCode.length > 0 ? { code: trimmedCode } : {}),
 				seedDefaultProfile: values.seedDefaultProfile,
 				initialUsers,
+				legalName: optionalField(values.legalName),
+				description: optionalField(values.description),
+				websiteUrl: optionalField(values.websiteUrl),
+				billingEmail: optionalField(values.billingEmail),
+				supportEmail: optionalField(values.supportEmail),
+				defaultLocale: optionalField(values.defaultLocale),
+				timezone: optionalField(values.timezone),
+				notes: optionalField(values.notes),
 			});
 
 			const tenantId = result?.id?.toString().trim();
@@ -589,6 +671,69 @@ function StaffTenantCreateRoute() {
 									isDisabled={isFormLocked}
 								/>
 							</div>
+						</section>
+
+						<section className="flex flex-col gap-4">
+							<div className="flex flex-wrap items-center justify-between gap-2">
+								<p className="publy-type-eyebrow">
+									{t('organization-details')}
+								</p>
+								<p className="publy-type-helper">
+									{t('organization-details-optional-hint')}
+								</p>
+							</div>
+							<Field.Text
+								name="legalName"
+								label={t('legal-name')}
+								fullWidth
+								isDisabled={isFormLocked}
+							/>
+							<Field.Textarea
+								name="description"
+								label={t('description')}
+								rows={3}
+								isDisabled={isFormLocked}
+							/>
+							<Field.Text
+								name="websiteUrl"
+								label={t('website-url')}
+								placeholder="https://example.com"
+								fullWidth
+								isDisabled={isFormLocked}
+							/>
+							<div className="grid grid-cols-2 gap-3">
+								<Field.Email
+									name="billingEmail"
+									label={t('billing-email')}
+									isDisabled={isFormLocked}
+								/>
+								<Field.Email
+									name="supportEmail"
+									label={t('support-email')}
+									isDisabled={isFormLocked}
+								/>
+							</div>
+							<div className="grid grid-cols-2 gap-3">
+								<Field.Select
+									name="defaultLocale"
+									label={t('default-locale')}
+									options={localeOptions}
+									isDisabled={isFormLocked}
+								/>
+								<Field.Select
+									name="timezone"
+									label={t('timezone')}
+									options={timezoneOptions}
+									isDisabled={isFormLocked}
+								/>
+							</div>
+							<Field.Textarea
+								name="notes"
+								label={t('internal-notes')}
+								helperText={t('internal-notes-hint')}
+								rows={3}
+								isDisabled={isFormLocked}
+							/>
 						</section>
 
 						<section className="flex flex-col gap-4">
@@ -884,6 +1029,11 @@ function StaffTenantCreateRoute() {
 												: t('assigned-after-creation')}
 										</span>
 									</p>
+									{previewWebsiteHostname ? (
+										<p className="truncate text-xs text-muted-foreground">
+											{previewWebsiteHostname}
+										</p>
+									) : null}
 								</div>
 							</div>
 
