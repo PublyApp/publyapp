@@ -86,8 +86,16 @@ const TRANSLATIONS: Record<string, string> = {
 	'tenant-status-helper-suspended': 'Access is blocked for members',
 	organization: 'Organization',
 	name: 'Name',
+	'legal-name': 'Legal name',
 	code: 'Code',
 	'tenant-id': 'Tenant ID',
+	'last-active': 'Last active',
+	website: 'Website',
+	'minutes-ago': '{{count}} minutes ago',
+	'hours-ago': '{{count}} hours ago',
+	'days-ago': '{{count}} days ago',
+	'months-ago': '{{count}} months ago',
+	'years-ago': '{{count}} years ago',
 	users: 'Users',
 	'view-all': 'View all',
 	'no-tenant-members': 'No members yet.',
@@ -192,6 +200,9 @@ const ACTIVE_TENANT = {
 	expiringSoonInvitationsCount: 2,
 	profilesCount: 6,
 	logoUrl: null,
+	legalName: 'Acme Corporation, Inc.',
+	websiteUrl: 'https://www.acme.example/',
+	lastActivityAt: new Date('2020-06-01T09:00:00Z'),
 	createdAt: new Date('2026-07-01T09:00:00Z'),
 	updatedAt: new Date('2026-07-02T10:00:00Z'),
 };
@@ -266,6 +277,13 @@ describe('staff tenant details route', () => {
 		expect(orgCard).toBeTruthy();
 		expect(orgCard?.textContent).toContain('ACME');
 		expect(orgCard?.textContent).toContain(ACTIVE_TENANT.id);
+		expect(orgCard?.textContent).toContain('Acme Corporation, Inc.');
+		expect(orgCard?.textContent).toMatch(/years ago/);
+		expect(
+			within(orgCard as HTMLElement).getByRole('link', {
+				name: 'www.acme.example',
+			}),
+		).toHaveProperty('href', 'https://www.acme.example/');
 
 		expect(screen.getByText('Danger zone')).toBeTruthy();
 		expect(screen.getByRole('button', { name: 'Suspend' })).toBeTruthy();
@@ -273,6 +291,31 @@ describe('staff tenant details route', () => {
 			name: 'Delete',
 		}) as HTMLButtonElement;
 		expect(deleteButton.disabled).toBe(true);
+	});
+
+	test('shows honest em-dash placeholders and omits the Website row when legal name, website, and last active are null', () => {
+		mocks.toStaffTenantDetails.mockReturnValue({
+			...ACTIVE_TENANT,
+			legalName: null,
+			websiteUrl: null,
+			lastActivityAt: null,
+		});
+
+		renderPage();
+
+		const orgCard = screen.getByText('Organization').closest('section');
+		expect(orgCard).toBeTruthy();
+		expect(screen.queryByRole('link', { name: 'www.acme.example' })).toBeNull();
+
+		const legalNameLabel = within(orgCard as HTMLElement).getByText(
+			'Legal name',
+		);
+		expect(legalNameLabel.parentElement?.textContent).toContain('—');
+
+		const lastActiveLabel = within(orgCard as HTMLElement).getByText(
+			'Last active',
+		);
+		expect(lastActiveLabel.parentElement?.textContent).toContain('—');
 	});
 
 	test('renders the owners, pending invites, and profiles stat cards from the new detail counts', () => {

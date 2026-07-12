@@ -48,11 +48,13 @@ import {
 
 import {
 	formatShortDate,
+	getRelativeTimeParts,
 	TenantDetailsError,
 	TenantDetailsLoading,
 	TenantDetailsPageShell,
 	TenantRetryActions,
 } from './$tenantId/_tenant-details-shell';
+import { getWebsiteHostname } from './tenant-organization-profile-fields';
 
 const TENANT_STATUS_ACTIVE = 'Active';
 const TENANT_STATUS_SUSPENDED = 'Suspended';
@@ -130,6 +132,14 @@ const OrgField = ({
 	</div>
 );
 
+const formatLastActive = (
+	value: Date | null,
+	t: (key: string, options?: Record<string, unknown>) => string,
+): string => {
+	const parts = getRelativeTimeParts(value);
+	return parts ? t(parts.key, { count: parts.count }) : '—';
+};
+
 const OrganizationCard = ({
 	tenant,
 	locale,
@@ -137,56 +147,82 @@ const OrganizationCard = ({
 }: {
 	tenant: StaffTenantDetails;
 	locale: string;
-	t: (key: string) => string;
-}) => (
-	<section className="rounded-[var(--publy-radius-card)] bg-card shadow-[var(--publy-shadow-ring)]">
-		<div className="publy-card-header">
-			<p className="publy-type-section-title">{t('organization')}</p>
-			<Link
-				to="/staff/tenants/$tenantId/edit"
-				params={{ tenantId: tenant.id }}
-				className="text-xs font-medium text-muted-foreground hover:text-foreground"
-			>
-				{t('edit')}
-			</Link>
-		</div>
-		<div className="grid grid-cols-1 gap-4 px-4 pb-4 pt-3 md:grid-cols-3">
-			<OrgField label={t('name')} value={tenant.name} />
-			<OrgField
-				label={t('code')}
-				value={tenant.code ?? '—'}
-				mono
-				copyValue={tenant.code ?? undefined}
-				copyLabel={t('copy-slug')}
-				copyTestId="tenant-code-copy"
-			/>
-			<OrgField
-				label={t('tenant-id')}
-				value={tenant.id}
-				mono
-				copyValue={tenant.id}
-				copyLabel={t('copy-tenant-id')}
-				copyTestId="tenant-id-copy"
-			/>
-			<OrgField
-				label={t('status')}
-				value={
-					<StatusPill tone={statusPillTone(tenant.status)}>
-						{tenant.status ?? t('unknown')}
-					</StatusPill>
-				}
-			/>
-			<OrgField
-				label={t('created')}
-				value={formatShortDate(tenant.createdAt, locale)}
-			/>
-			<OrgField
-				label={t('updated')}
-				value={formatShortDate(tenant.updatedAt, locale)}
-			/>
-		</div>
-	</section>
-);
+	t: (key: string, options?: Record<string, unknown>) => string;
+}) => {
+	const websiteHostname = tenant.websiteUrl
+		? getWebsiteHostname(tenant.websiteUrl)
+		: null;
+
+	return (
+		<section className="rounded-[var(--publy-radius-card)] bg-card shadow-[var(--publy-shadow-ring)]">
+			<div className="publy-card-header">
+				<p className="publy-type-section-title">{t('organization')}</p>
+				<Link
+					to="/staff/tenants/$tenantId/edit"
+					params={{ tenantId: tenant.id }}
+					className="text-xs font-medium text-muted-foreground hover:text-foreground"
+				>
+					{t('edit')}
+				</Link>
+			</div>
+			<div className="grid grid-cols-1 gap-4 px-4 pb-4 pt-3 md:grid-cols-3">
+				<OrgField label={t('name')} value={tenant.name} />
+				<OrgField label={t('legal-name')} value={tenant.legalName ?? '—'} />
+				<OrgField
+					label={t('code')}
+					value={tenant.code ?? '—'}
+					mono
+					copyValue={tenant.code ?? undefined}
+					copyLabel={t('copy-slug')}
+					copyTestId="tenant-code-copy"
+				/>
+				<OrgField
+					label={t('tenant-id')}
+					value={tenant.id}
+					mono
+					copyValue={tenant.id}
+					copyLabel={t('copy-tenant-id')}
+					copyTestId="tenant-id-copy"
+				/>
+				<OrgField
+					label={t('status')}
+					value={
+						<StatusPill tone={statusPillTone(tenant.status)}>
+							{tenant.status ?? t('unknown')}
+						</StatusPill>
+					}
+				/>
+				<OrgField
+					label={t('created')}
+					value={formatShortDate(tenant.createdAt, locale)}
+				/>
+				<OrgField
+					label={t('updated')}
+					value={formatShortDate(tenant.updatedAt, locale)}
+				/>
+				<OrgField
+					label={t('last-active')}
+					value={formatLastActive(tenant.lastActivityAt, t)}
+				/>
+				{websiteHostname ? (
+					<OrgField
+						label={t('website')}
+						value={
+							<a
+								href={tenant.websiteUrl ?? undefined}
+								target="_blank"
+								rel="noreferrer"
+								className="publy-record-link no-underline"
+							>
+								{websiteHostname}
+							</a>
+						}
+					/>
+				) : null}
+			</div>
+		</section>
+	);
+};
 
 const UsersPreviewCard = ({
 	tenant,

@@ -21,6 +21,9 @@ const mocks = vi.hoisted(() => ({
 	useStaffTenantProfilesQuery: vi.fn(),
 	deleteProfileMutation: vi.fn(),
 	useDeleteStaffTenantProfileMutation: vi.fn(),
+	bulkDeleteProfileMutation: vi.fn(),
+	useBulkDeleteStaffTenantProfilesMutation: vi.fn(),
+	toStaffTenantProfileBulkActionSummary: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
 }));
 
@@ -72,11 +75,13 @@ const TRANSLATIONS: Record<string, string> = {
 		"Permission sets available to this tenant's members.",
 	'new-profile': 'New profile',
 	'search-profiles': 'Search profiles…',
-	default: 'Default',
+	system: 'System',
 	custom: 'Custom',
+	'all-types': 'All types',
 	'view-details': 'View details',
 	edit: 'Edit',
 	delete: 'Delete',
+	'default-profile-delete-disabled': "Default profiles can't be deleted.",
 	'no-description-provided': 'No description provided.',
 	'tenant-member-count': '{{count}} members',
 	'tenant-permission-count': '{{count}} permissions',
@@ -85,6 +90,29 @@ const TRANSLATIONS: Record<string, string> = {
 	retry: 'Retry',
 	'list-empty-title': 'Nothing here — yet',
 	'list-no-match-title': 'No matches for that search',
+	clear: 'Clear',
+	'cards-view': 'Cards view',
+	'table-view': 'Table view',
+	'view-toggle-aria-label': 'Switch between cards and table view',
+	profile: 'Profile',
+	description: 'Description',
+	members: 'Members',
+	permissions: 'Permissions',
+	actions: 'Actions',
+	'bulk-delete': 'Delete selected',
+	'confirm-bulk-delete-tenant-profiles':
+		'Are you sure you want to delete {{count}} profile(s)?',
+	'tenant-profile-bulk-delete-success':
+		'Successfully deleted {{count}} profile(s).',
+	'tenant-profile-bulk-delete-partial-success':
+		'Deleted {{succeeded}} profile(s), {{failed}} failed.',
+	'tenant-profile-bulk-delete-failure': 'Failed to delete selected profiles.',
+	'bulk-action-max-count-exceeded':
+		'Reduce your selection to at most {{max}} items ({{count}} selected).',
+	'clear-selection': 'Clear selection',
+	'select-all-visible': 'Select all {{count}}',
+	'selected-count': '{{count}} selected',
+	close: 'Close',
 };
 
 vi.mock('react-i18next', () => ({
@@ -118,6 +146,10 @@ vi.mock('~/lib/query/staff-tenant-profiles', () => ({
 	useStaffTenantProfilesQuery: mocks.useStaffTenantProfilesQuery,
 	useDeleteStaffTenantProfileMutation:
 		mocks.useDeleteStaffTenantProfileMutation,
+	useBulkDeleteStaffTenantProfilesMutation:
+		mocks.useBulkDeleteStaffTenantProfilesMutation,
+	toStaffTenantProfileBulkActionSummary:
+		mocks.toStaffTenantProfileBulkActionSummary,
 }));
 
 vi.mock('~/lib/query/staff-tenants', () => ({
@@ -170,6 +202,17 @@ describe('staff tenant profiles route', () => {
 			mutateAsync: mocks.deleteProfileMutation,
 			isPending: false,
 		});
+		mocks.useBulkDeleteStaffTenantProfilesMutation.mockReturnValue({
+			mutateAsync: mocks.bulkDeleteProfileMutation,
+			isPending: false,
+		});
+		mocks.toStaffTenantProfileBulkActionSummary.mockImplementation(
+			(result: { succeededCount?: number; failedCount?: number }) => ({
+				succeededCount: result?.succeededCount ?? 0,
+				failedCount: result?.failedCount ?? 0,
+				failedItems: [],
+			}),
+		);
 		mocks.toStaffTenantDetails.mockReturnValue({
 			id: '11111111-1111-1111-1111-111111111111',
 			name: 'Acme Corporation',
@@ -247,7 +290,7 @@ describe('staff tenant profiles route', () => {
 		expect(screen.getByTestId('staff-tenant-profiles-grid-rows')).toBeTruthy();
 		expect(screen.getAllByText('Approvers').length).toBeGreaterThan(0);
 		expect(screen.getByText('Can review approvals')).toBeTruthy();
-		expect(screen.getByText('Default')).toBeTruthy();
+		expect(screen.getByText('System')).toBeTruthy();
 		expect(screen.getByText('Custom')).toBeTruthy();
 		expect(screen.getByText('7 members · 12 permissions')).toBeTruthy();
 		expect(screen.getByText('5 members · 4 permissions')).toBeTruthy();
@@ -305,7 +348,7 @@ describe('staff tenant profiles route', () => {
 		expect(screen.getByText(/4 permissions/)).toBeTruthy();
 	});
 
-	test('does not render a Delete action for the default profile but does for a custom one', async () => {
+	test('renders the Delete action disabled (not hidden) for the default profile but enabled for a custom one', async () => {
 		renderPage();
 
 		const triggers = screen.getAllByRole('button', { name: /^Actions for/ });
@@ -313,13 +356,22 @@ describe('staff tenant profiles route', () => {
 		expect(
 			await screen.findByRole('menuitem', { name: 'View details' }),
 		).toBeTruthy();
-		expect(screen.queryByRole('menuitem', { name: 'Delete' })).toBeNull();
+
+		const defaultDeleteItem = screen.getByTestId(
+			'staff-tenant-profile-delete-profile-1',
+		);
+		expect(defaultDeleteItem).toBeTruthy();
+		expect(defaultDeleteItem.getAttribute('aria-disabled')).toBe('true');
+		expect(defaultDeleteItem.getAttribute('title')).toBe(
+			"Default profiles can't be deleted.",
+		);
 
 		fireEvent.click(triggers[0]);
 		fireEvent.click(triggers[1]);
-		expect(
-			await screen.findByRole('menuitem', { name: 'Delete' }),
-		).toBeTruthy();
+		const customDeleteItem = await screen.findByTestId(
+			'staff-tenant-profile-delete-profile-2',
+		);
+		expect(customDeleteItem.getAttribute('aria-disabled')).toBeNull();
 	});
 
 	test('deletes a custom profile after explicit confirmation and invalidates the profiles query', async () => {
@@ -348,6 +400,118 @@ describe('staff tenant profiles route', () => {
 			expect(mocks.invalidateQueries).toHaveBeenCalledWith({
 				queryKey: ['staff', 'staff-tenants', 'profiles'],
 			}),
+		);
+	});
+
+	test('the type filter maps System/Custom to the is_default URL param and resets the cursor', async () => {
+		renderPage();
+
+		fireEvent.click(
+			screen.getByTestId('staff-tenant-profiles-grid-type-filter-trigger'),
+		);
+		fireEvent.click(
+			await screen.findByTestId(
+				'staff-tenant-profiles-grid-type-filter-system',
+			),
+		);
+
+		expect(mocks.navigate).toHaveBeenCalledWith(
+			expect.objectContaining({
+				search: expect.objectContaining({ is_default: true }),
+				replace: true,
+			}),
+		);
+		const [[navigatedArgs]] = mocks.navigate.mock.calls;
+		expect(
+			(navigatedArgs as { search: Record<string, unknown> }).search.cursor,
+		).toBeUndefined();
+	});
+
+	test('renders profiles narrowed to System when is_default=true is set on the URL', () => {
+		mocks.search = { is_default: true };
+
+		renderPage();
+
+		expect(mocks.useStaffTenantProfilesQuery).toHaveBeenCalledWith(
+			expect.objectContaining({ isDefault: 'true' }),
+			expect.anything(),
+		);
+	});
+
+	test('the view toggle switches to the table view and stores it on the URL', () => {
+		renderPage();
+
+		expect(
+			screen.getByTestId('staff-tenant-profile-card-profile-1'),
+		).toBeTruthy();
+
+		fireEvent.click(
+			screen.getByTestId('staff-tenant-profiles-grid-view-toggle-table'),
+		);
+
+		expect(mocks.navigate).toHaveBeenCalledWith(
+			expect.objectContaining({
+				search: expect.objectContaining({ view: 'table' }),
+				replace: true,
+			}),
+		);
+	});
+
+	test('renders the profiles table with row selection when view=table is set on the URL', () => {
+		mocks.search = { view: 'table' };
+
+		renderPage();
+
+		expect(screen.getByTestId('staff-tenant-profiles-grid-rows')).toBeTruthy();
+		expect(screen.getAllByText('Approvers').length).toBeGreaterThan(0);
+		expect(
+			screen.getByRole('checkbox', { name: 'Select all rows' }),
+		).toBeTruthy();
+	});
+
+	test('bulk-deletes selected profiles from the card grid via the floating selection bar', async () => {
+		mocks.bulkDeleteProfileMutation.mockResolvedValue({
+			succeededCount: 1,
+			failedCount: 0,
+			failedItems: [],
+		});
+		mocks.toStaffTenantProfileBulkActionSummary.mockReturnValue({
+			succeededCount: 1,
+			failedCount: 0,
+			failedItems: [],
+		});
+
+		renderPage();
+
+		fireEvent.click(
+			screen.getByTestId('staff-tenant-profile-card-select-profile-2'),
+		);
+
+		fireEvent.click(
+			await screen.findByRole('button', { name: 'Delete selected' }),
+		);
+		await waitFor(() =>
+			expect(
+				screen.getByRole('heading', { name: 'Delete selected' }),
+			).toBeTruthy(),
+		);
+		fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[0]);
+
+		await waitFor(() =>
+			expect(mocks.bulkDeleteProfileMutation).toHaveBeenCalledWith({
+				tenantId: '11111111-1111-1111-1111-111111111111',
+				profileIds: ['profile-2'],
+			}),
+		);
+		await waitFor(() =>
+			expect(mocks.invalidateQueries).toHaveBeenCalledWith({
+				queryKey: ['staff', 'staff-tenants', 'profiles'],
+			}),
+		);
+		await waitFor(() =>
+			expect(
+				screen.getByText('Successfully deleted 1 profile(s).'),
+			).toBeTruthy(),
 		);
 	});
 

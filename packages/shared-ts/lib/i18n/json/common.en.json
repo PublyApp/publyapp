@@ -987,5 +987,15 @@
 	"unsaved-changes-dialog-title": "Leave without saving?",
 	"unsaved-changes-dialog-description": "You have unsaved changes that will be lost if you leave this page.",
 	"leave-page": "Leave page",
-	"organization-details-optional-hint": "Optional — add these details now or edit them later."
+	"organization-details-optional-hint": "Optional — add these details now or edit them later.",
+	"system": "System",
+	"all-types": "All types",
+	"cards-view": "Cards view",
+	"table-view": "Table view",
+	"view-toggle-aria-label": "Switch between cards and table view",
+	"default-profile-delete-disabled": "Default profiles can't be deleted.",
+	"confirm-bulk-delete-tenant-profiles": "Are you sure you want to delete {{count}} profile(s)? Default profiles can't be deleted and will be skipped. This action cannot be undone.",
+	"tenant-profile-bulk-delete-success": "Successfully deleted {{count}} profile(s).",
+	"tenant-profile-bulk-delete-partial-success": "Deleted {{succeeded}} profile(s), {{failed}} failed.",
+	"tenant-profile-bulk-delete-failure": "Failed to delete selected profiles."
 }

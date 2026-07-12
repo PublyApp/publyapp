@@ -10,6 +10,8 @@ import type { SortOrder } from '~/lib/url-state/table-search-params';
 import type { ApiClient } from '@org/client-ts/src/apiClient';
 import type {
 	ApiResponse,
+	BulkDeleteTenantProfilesBody,
+	BulkProfileActionResult,
 	CreateTenantProfileAsStaffBody,
 	FindTenantProfilePermissionsAsStaffResult,
 	FindTenantProfilesAsStaffResult,
@@ -30,6 +32,7 @@ export type StaffTenantProfilesQueryVariables = {
 	sortOrder?: SortOrder;
 	cursor?: string;
 	size?: number;
+	isDefault?: 'true' | 'false';
 };
 
 export type CreateStaffTenantProfileInput = {
@@ -49,6 +52,22 @@ export type UpdateStaffTenantProfileInput = {
 export type DeleteStaffTenantProfileInput = {
 	tenantId: string;
 	profileId: string;
+};
+
+export type BulkDeleteStaffTenantProfilesInput = {
+	tenantId: string;
+	profileIds: string[];
+};
+
+export type StaffTenantProfileBulkActionFailedItem = {
+	profileId: string | null;
+	error: string | null;
+};
+
+export type StaffTenantProfileBulkActionSummary = {
+	succeededCount: number;
+	failedCount: number;
+	failedItems: StaffTenantProfileBulkActionFailedItem[];
 };
 
 export type StaffTenantProfileRow = {
@@ -279,6 +298,7 @@ export const buildFindStaffTenantProfilesQueryParameters = (
 	sortOrder?: SortOrder;
 	cursor?: string;
 	limit?: string;
+	isDefault?: string;
 } => ({
 	q: normalizeString(variables.q),
 	sortId: normalizeString(variables.sortId),
@@ -287,6 +307,26 @@ export const buildFindStaffTenantProfilesQueryParameters = (
 	limit: isPositiveSafeInteger(variables.size)
 		? String(variables.size)
 		: undefined,
+	isDefault: variables.isDefault,
+});
+
+export const buildBulkDeleteStaffTenantProfilesBody = (
+	profileIds: string[],
+): BulkDeleteTenantProfilesBody => ({
+	profileIds: createUntypedArray(
+		profileIds.map((profileId) => createUntypedString(profileId)),
+	) as BulkDeleteTenantProfilesBody['profileIds'],
+});
+
+export const toStaffTenantProfileBulkActionSummary = (
+	result: BulkProfileActionResult | null | undefined,
+): StaffTenantProfileBulkActionSummary => ({
+	succeededCount: result?.succeededCount ?? 0,
+	failedCount: result?.failedCount ?? 0,
+	failedItems: (result?.failedItems ?? []).map((item) => ({
+		profileId: normalizeString(item.profileId?.toString()) ?? null,
+		error: normalizeString(item.errorEscaped) ?? null,
+	})),
 });
 
 export const buildCreateStaffTenantProfileBody = (
@@ -468,6 +508,24 @@ export const deleteStaffTenantProfileMutationOptions =
 		{ clientAccessor: getClientManager() },
 	);
 
+export const bulkDeleteStaffTenantProfilesMutationOptions =
+	buildStaffMutationOptions<
+		ApiClient,
+		BulkProfileActionResult | undefined,
+		BulkDeleteStaffTenantProfilesInput
+	>(
+		{
+			mutationKeyFn: () => ['staff-tenants', 'profiles', 'bulk-delete'],
+			mutationFn: (client, variables) =>
+				client.staff.tenants
+					.byTenantId(variables.tenantId)
+					.profiles.bulkDelete.post(
+						buildBulkDeleteStaffTenantProfilesBody(variables.profileIds),
+					),
+		},
+		{ clientAccessor: getClientManager() },
+	);
+
 const staffTenantProfileDetailsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	GetTenantProfileByIdResponse,
@@ -610,6 +668,9 @@ export const useUpdateStaffTenantProfileMutation = () =>
 
 export const useDeleteStaffTenantProfileMutation = () =>
 	useMutation(deleteStaffTenantProfileMutationOptions);
+
+export const useBulkDeleteStaffTenantProfilesMutation = () =>
+	useMutation(bulkDeleteStaffTenantProfilesMutationOptions);
 
 export const useStaffTenantProfileDetailsQuery = (
 	variables: StaffTenantProfileDetailsQueryVariables,

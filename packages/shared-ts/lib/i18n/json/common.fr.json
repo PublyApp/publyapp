@@ -987,5 +987,15 @@
 	"unsaved-changes-dialog-title": "Quitter sans enregistrer ?",
 	"unsaved-changes-dialog-description": "Vous avez des modifications non enregistrées qui seront perdues si vous quittez cette page.",
 	"leave-page": "Quitter la page",
-	"organization-details-optional-hint": "Facultatif — ajoutez ces informations maintenant ou modifiez-les plus tard."
+	"organization-details-optional-hint": "Facultatif — ajoutez ces informations maintenant ou modifiez-les plus tard.",
+	"system": "Système",
+	"all-types": "Tous les types",
+	"cards-view": "Vue en cartes",
+	"table-view": "Vue en tableau",
+	"view-toggle-aria-label": "Basculer entre la vue en cartes et la vue en tableau",
+	"default-profile-delete-disabled": "Les profils système ne peuvent pas être supprimés.",
+	"confirm-bulk-delete-tenant-profiles": "Voulez-vous vraiment supprimer {{count}} profil(s) ? Les profils système ne peuvent pas être supprimés et seront ignorés. Cette action est irréversible.",
+	"tenant-profile-bulk-delete-success": "{{count}} profil(s) supprimé(s) avec succès.",
+	"tenant-profile-bulk-delete-partial-success": "{{succeeded}} profil(s) supprimé(s), {{failed}} échec(s).",
+	"tenant-profile-bulk-delete-failure": "Échec de la suppression des profils sélectionnés."
 }

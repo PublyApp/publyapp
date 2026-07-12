@@ -50,6 +50,9 @@ const mockTenantDetails = async (page: Page) => {
 					expiringSoonInvitationsCount: 2,
 					profilesCount: 6,
 					logoUrl: null,
+					legalName: 'Acme Corporation, Inc.',
+					websiteUrl: 'https://www.acme.example/',
+					lastActivityAt: '2020-06-01T09:00:00Z',
 					createdAt: '2026-07-01T09:00:00Z',
 					updatedAt: '2026-07-02T10:00:00Z',
 				}),
@@ -86,20 +89,37 @@ const mockTenantDetails = async (page: Page) => {
 			request.method() === 'GET' &&
 			isApiPath(url, `/staff/tenants/${TENANT_ID}/profiles`)
 		) {
+			const isDefaultParam = new URL(url).searchParams.get('is_default');
+			const profiles = [
+				{
+					id: '0197b8f0-5555-7ccc-8ccc-eeeeeeeeeeee',
+					name: 'Approvers',
+					description: 'Can review approvals',
+					isDefault: true,
+					userAccountCount: 7,
+					permissionsCount: 3,
+				},
+				{
+					id: '0197b8f0-5555-7ccc-8ccc-fffffffffff1',
+					name: 'Support',
+					description: 'Respond to member tickets',
+					isDefault: false,
+					userAccountCount: 5,
+					permissionsCount: 4,
+				},
+			];
+			const filtered =
+				isDefaultParam === null
+					? profiles
+					: profiles.filter(
+							(profile) => String(profile.isDefault) === isDefaultParam,
+						);
+
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
 				body: JSON.stringify({
-					data: [
-						{
-							id: '0197b8f0-5555-7ccc-8ccc-eeeeeeeeeeee',
-							name: 'Approvers',
-							description: 'Can review approvals',
-							isDefault: true,
-							userAccountCount: 7,
-							permissionsCount: 3,
-						},
-					],
+					data: filtered,
 					nextCursor: null,
 				}),
 			});
@@ -218,6 +238,28 @@ test.describe('staff tenant details Basics stat cards and Owners card', () => {
 		await expect(page.getByTestId('staff-tenant-users-page')).toBeVisible();
 		await expect(page).toHaveURL(/level=admin/);
 	});
+
+	test('the Organization card shows Legal name, Slug, Tenant ID, Status, Created, Updated, and Last active rows', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await mockTenantDetails(page);
+
+		await page.goto(`/staff/tenants/${TENANT_ID}`);
+		await expect(page.getByTestId('staff-tenant-details-page')).toBeVisible();
+
+		const orgCard = page
+			.locator('section')
+			.filter({ has: page.getByText('Organization', { exact: true }) });
+		await expect(orgCard).toContainText('Acme Corporation, Inc.');
+		await expect(orgCard).toContainText('ACME');
+		await expect(orgCard).toContainText(TENANT_ID);
+		await expect(
+			orgCard.getByRole('link', { name: 'www.acme.example' }),
+		).toBeVisible();
+		// lastActivityAt is years in the past — relative-time bucketed.
+		await expect(orgCard).toContainText(/years ago/);
+	});
 });
 
 test.describe('staff tenant Profiles/Invitations/Users tab bodies', () => {
@@ -249,6 +291,66 @@ test.describe('staff tenant Profiles/Invitations/Users tab bodies', () => {
 		);
 		// Honest per-card "N members · N permissions" (BE-2 permissionsCount).
 		await expect(page.getByText('7 members · 3 permissions')).toBeVisible();
+	});
+
+	test('Profiles tab type filter narrows to System-only and Custom-only profiles via the is_default URL param', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await mockTenantDetails(page);
+
+		await page.goto(`/staff/tenants/${TENANT_ID}/profiles`);
+		await expect(page.getByTestId('staff-tenant-profiles-page')).toBeVisible();
+		await expect(page.getByText('Approvers')).toBeVisible();
+		await expect(page.getByText('Support')).toBeVisible();
+
+		await page
+			.getByTestId('staff-tenant-profiles-grid-type-filter-trigger')
+			.click();
+		await page
+			.getByTestId('staff-tenant-profiles-grid-type-filter-system')
+			.click();
+
+		await expect(page).toHaveURL(/is_default=true/);
+		await expect(page.getByText('Approvers')).toBeVisible();
+		await expect(page.getByText('Support')).not.toBeVisible();
+
+		await page
+			.getByTestId('staff-tenant-profiles-grid-type-filter-trigger')
+			.click();
+		await page
+			.getByTestId('staff-tenant-profiles-grid-type-filter-custom')
+			.click();
+
+		await expect(page).toHaveURL(/is_default=false/);
+		await expect(page.getByText('Support')).toBeVisible();
+		await expect(page.getByText('Approvers')).not.toBeVisible();
+	});
+
+	test("the default (System) profile's Delete action is visible but disabled, with a tooltip explaining why", async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await mockTenantDetails(page);
+
+		await page.goto(`/staff/tenants/${TENANT_ID}/profiles`);
+		await expect(page.getByTestId('staff-tenant-profiles-page')).toBeVisible();
+
+		await page
+			.getByTestId(
+				'staff-tenant-profile-actions-0197b8f0-5555-7ccc-8ccc-eeeeeeeeeeee',
+			)
+			.click();
+
+		const deleteItem = page.getByTestId(
+			'staff-tenant-profile-delete-0197b8f0-5555-7ccc-8ccc-eeeeeeeeeeee',
+		);
+		await expect(deleteItem).toBeVisible();
+		await expect(deleteItem).toHaveAttribute('aria-disabled', 'true');
+		await expect(deleteItem).toHaveAttribute(
+			'title',
+			"Default profiles can't be deleted.",
+		);
 	});
 
 	test('Invitations tab renders the toolbar, the table, the cursor footer, and an honest count', async ({
