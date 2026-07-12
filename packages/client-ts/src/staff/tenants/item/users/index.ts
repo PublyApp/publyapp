@@ -4,6 +4,10 @@
 // @ts-ignore
 import { createAppProblemDetailsFromDiscriminatorValue, createFindTenantUsersAsStaffResultFromDiscriminatorValue, createValidationProblemDetailsFromDiscriminatorValue, type AppProblemDetails, type FindTenantUsersAsStaffResult, type ValidationProblemDetails } from '../../../../models/index.js';
 // @ts-ignore
+import { BulkRemoveRequestBuilderRequestsMetadata, type BulkRemoveRequestBuilder } from './bulkRemove/index.js';
+// @ts-ignore
+import { ExportRequestBuilderRequestsMetadata, type ExportRequestBuilder } from './exportEscaped/index.js';
+// @ts-ignore
 import { InvitationsRequestBuilderRequestsMetadata, type InvitationsRequestBuilder } from './invitations/index.js';
 // @ts-ignore
 import { type WithUserItemRequestBuilder, WithUserItemRequestBuilderNavigationMetadata, WithUserItemRequestBuilderRequestsMetadata } from './item/index.js';
@@ -14,6 +18,14 @@ import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type 
  * Builds and executes requests for operations under /staff/tenants/{tenantId}/users
  */
 export interface UsersRequestBuilder extends BaseRequestBuilder<UsersRequestBuilder> {
+    /**
+     * The bulkRemove property
+     */
+    get bulkRemove(): BulkRemoveRequestBuilder;
+    /**
+     * The export property
+     */
+    get exportEscaped(): ExportRequestBuilder;
     /**
      * The invitations property
      */
@@ -73,6 +85,12 @@ export const UsersRequestBuilderNavigationMetadata: Record<Exclude<keyof UsersRe
         requestsMetadata: WithUserItemRequestBuilderRequestsMetadata,
         navigationMetadata: WithUserItemRequestBuilderNavigationMetadata,
         pathParametersMappings: ["userId"],
+    },
+    bulkRemove: {
+        requestsMetadata: BulkRemoveRequestBuilderRequestsMetadata,
+    },
+    exportEscaped: {
+        requestsMetadata: ExportRequestBuilderRequestsMetadata,
     },
     invitations: {
         requestsMetadata: InvitationsRequestBuilderRequestsMetadata,

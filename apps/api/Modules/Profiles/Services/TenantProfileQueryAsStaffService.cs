@@ -14,6 +14,7 @@ public class TenantProfileItem {
 	public string? Description { get; set; }
 	public bool IsDefault { get; set; }
 	public int UserAccountCount { get; set; }
+	public int PermissionsCount { get; set; }
 }
 
 public abstract record FindTenantProfilesResult {
@@ -269,6 +270,20 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 			userAccountCountByProfileId[row.ProfileId] = row.Count;
 		}
 
+		// Batched grouped-count query mirrors the userAccountCounts pattern above:
+		// one query for the page's profile IDs, not a per-row lookup.
+		var permissionCounts = await (
+			from pp in _dbContext.ProfilePermission.AsNoTracking()
+			where profileIds.Contains(pp.ProfileId)
+			group pp by pp.ProfileId into g
+			select new { ProfileId = g.Key, Count = g.Count() }
+		).ToListAsync(cancellationToken);
+
+		var permissionCountByProfileId = new Dictionary<Guid, int>();
+		foreach (var row in permissionCounts) {
+			permissionCountByProfileId[row.ProfileId] = row.Count;
+		}
+
 		var items = profiles.Select(p => {
 			var profileId = p.GetRequiredId();
 			return new TenantProfileItem {
@@ -277,6 +292,7 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 				Description = p.Description,
 				IsDefault = p.IsDefault,
 				UserAccountCount = userAccountCountByProfileId.GetValueOrDefault(profileId, 0),
+				PermissionsCount = permissionCountByProfileId.GetValueOrDefault(profileId, 0),
 			};
 		}).ToList();
 
@@ -304,6 +320,7 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 				Description = p.Description,
 				IsDefault = p.IsDefault,
 				UserAccountCount = p.UserAccountProfiles.Count,
+				PermissionsCount = p.ProfilePermissions.Count,
 			}
 		).FirstOrDefaultAsync(cancellationToken);
 

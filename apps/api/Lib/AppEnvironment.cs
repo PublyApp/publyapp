@@ -55,6 +55,7 @@ public class AppEnvironment {
 	public bool DI_MANIFEST_ENABLED { get; }
 	public int AUDIT_LOG_EXPORT_MAX_ROWS { get; }
 	public int MAX_PROFILES_PER_USER { get; }
+	public int TENANT_USER_EXPORT_MAX_ROWS { get; }
 
 	// ========== Constants (hardcoded, not from environment) ==========
 #pragma warning disable CA1822
@@ -156,7 +157,8 @@ public class AppEnvironment {
 		int invitationTokenLength,
 		bool diManifestEnabled,
 		int auditLogExportMaxRows,
-		int maxProfilesPerUser
+		int maxProfilesPerUser,
+		int tenantUserExportMaxRows
 	) {
 		POSTGRES_CONNECTION_STRING = postgresConnectionString;
 		FRONT_URL = frontUrl;
@@ -178,6 +180,7 @@ public class AppEnvironment {
 		DI_MANIFEST_ENABLED = diManifestEnabled;
 		AUDIT_LOG_EXPORT_MAX_ROWS = auditLogExportMaxRows;
 		MAX_PROFILES_PER_USER = maxProfilesPerUser;
+		TENANT_USER_EXPORT_MAX_ROWS = tenantUserExportMaxRows;
 	}
 
 	/// <summary>
@@ -225,7 +228,8 @@ public class AppEnvironment {
 				invitationTokenLength: GetRequiredInt(nameof(INVITATION_TOKEN_LENGTH)),
 				diManifestEnabled: GetOptionalBool(nameof(DI_MANIFEST_ENABLED), false),
 				auditLogExportMaxRows: GetOptionalInt(nameof(AUDIT_LOG_EXPORT_MAX_ROWS), 10000),
-				maxProfilesPerUser: GetOptionalInt(nameof(MAX_PROFILES_PER_USER), 5)
+				maxProfilesPerUser: GetOptionalInt(nameof(MAX_PROFILES_PER_USER), 5),
+				tenantUserExportMaxRows: GetOptionalInt(nameof(TENANT_USER_EXPORT_MAX_ROWS), 10000)
 			);
 
 			var validator = new AppEnvironmentValidator();
@@ -453,6 +457,10 @@ public class AppEnvironmentValidator : AbstractValidator<AppEnvironment> {
 		RuleFor(x => x.MAX_PROFILES_PER_USER)
 			.InclusiveBetween(1, 50)
 			.WithMessage("MAX_PROFILES_PER_USER must be between 1 and 50");
+
+		RuleFor(x => x.TENANT_USER_EXPORT_MAX_ROWS)
+			.InclusiveBetween(1, 1_000_000)
+			.WithMessage("TENANT_USER_EXPORT_MAX_ROWS must be between 1 and 1000000");
 
 		RuleFor(x => x.SESSION_TOKEN_HEADER_KEY)
 			.Must(BeValidHeaderName)

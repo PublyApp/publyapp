@@ -289,6 +289,12 @@ export interface BulkReactivateTenantsResult extends AdditionalDataHolder, Parsa
      */
     succeededCount?: number | null;
 }
+export interface BulkRemoveTenantUsersBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The userIds property
+     */
+    userIds?: UntypedNode | null;
+}
 export interface BulkRevokeStaffInvitationsBody extends AdditionalDataHolder, Parsable {
     /**
      * The invitationIds property
@@ -387,6 +393,30 @@ export interface BulkSuspendTenantsResult extends AdditionalDataHolder, Parsable
      * The failedItems property
      */
     failedItems?: BulkSuspendFailedItem[] | null;
+    /**
+     * The succeededCount property
+     */
+    succeededCount?: number | null;
+}
+export interface BulkTenantUserActionFailedItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The error property
+     */
+    errorEscaped?: string | null;
+    /**
+     * The userId property
+     */
+    userId?: Guid | null;
+}
+export interface BulkTenantUserActionResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The failedCount property
+     */
+    failedCount?: number | null;
+    /**
+     * The failedItems property
+     */
+    failedItems?: BulkTenantUserActionFailedItem[] | null;
     /**
      * The succeededCount property
      */
@@ -627,6 +657,15 @@ export function createBulkReactivateTenantsResultFromDiscriminatorValue(parseNod
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {BulkRemoveTenantUsersBody}
+ */
+// @ts-ignore
+export function createBulkRemoveTenantUsersBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoBulkRemoveTenantUsersBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {BulkRevokeStaffInvitationsBody}
  */
 // @ts-ignore
@@ -731,6 +770,24 @@ export function createBulkSuspendTenantsAsStaffBodyFromDiscriminatorValue(parseN
 // @ts-ignore
 export function createBulkSuspendTenantsResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoBulkSuspendTenantsResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {BulkTenantUserActionFailedItem}
+ */
+// @ts-ignore
+export function createBulkTenantUserActionFailedItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoBulkTenantUserActionFailedItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {BulkTenantUserActionResult}
+ */
+// @ts-ignore
+export function createBulkTenantUserActionResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoBulkTenantUserActionResult;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -2285,6 +2342,17 @@ export function deserializeIntoBulkReactivateTenantsResult(bulkReactivateTenants
 }
 /**
  * The deserialization information for the current model
+ * @param BulkRemoveTenantUsersBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoBulkRemoveTenantUsersBody(bulkRemoveTenantUsersBody: Partial<BulkRemoveTenantUsersBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "userIds": n => { bulkRemoveTenantUsersBody.userIds = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param BulkRevokeStaffInvitationsBody The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -2423,6 +2491,31 @@ export function deserializeIntoBulkSuspendTenantsResult(bulkSuspendTenantsResult
         "failedCount": n => { bulkSuspendTenantsResult.failedCount = n.getNumberValue(); },
         "failedItems": n => { bulkSuspendTenantsResult.failedItems = n.getCollectionOfObjectValues<BulkSuspendFailedItem>(createBulkSuspendFailedItemFromDiscriminatorValue); },
         "succeededCount": n => { bulkSuspendTenantsResult.succeededCount = n.getNumberValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param BulkTenantUserActionFailedItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoBulkTenantUserActionFailedItem(bulkTenantUserActionFailedItem: Partial<BulkTenantUserActionFailedItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "error": n => { bulkTenantUserActionFailedItem.errorEscaped = n.getStringValue(); },
+        "userId": n => { bulkTenantUserActionFailedItem.userId = n.getGuidValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param BulkTenantUserActionResult The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoBulkTenantUserActionResult(bulkTenantUserActionResult: Partial<BulkTenantUserActionResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "failedCount": n => { bulkTenantUserActionResult.failedCount = n.getNumberValue(); },
+        "failedItems": n => { bulkTenantUserActionResult.failedItems = n.getCollectionOfObjectValues<BulkTenantUserActionFailedItem>(createBulkTenantUserActionFailedItemFromDiscriminatorValue); },
+        "succeededCount": n => { bulkTenantUserActionResult.succeededCount = n.getNumberValue(); },
     }
 }
 /**
@@ -3573,6 +3666,7 @@ export function deserializeIntoTenantProfileItem(tenantProfileItem: Partial<Tena
         "id": n => { tenantProfileItem.id = n.getGuidValue(); },
         "isDefault": n => { tenantProfileItem.isDefault = n.getBooleanValue(); },
         "name": n => { tenantProfileItem.name = n.getStringValue(); },
+        "permissionsCount": n => { tenantProfileItem.permissionsCount = n.getNumberValue(); },
         "userAccountCount": n => { tenantProfileItem.userAccountCount = n.getNumberValue(); },
     }
 }
@@ -4962,6 +5056,18 @@ export function serializeBulkReactivateTenantsResult(writer: SerializationWriter
 }
 /**
  * Serializes information the current object
+ * @param BulkRemoveTenantUsersBody The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeBulkRemoveTenantUsersBody(writer: SerializationWriter, bulkRemoveTenantUsersBody: Partial<BulkRemoveTenantUsersBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!bulkRemoveTenantUsersBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("userIds", bulkRemoveTenantUsersBody.userIds);
+    writer.writeAdditionalData(bulkRemoveTenantUsersBody.additionalData);
+}
+/**
+ * Serializes information the current object
  * @param BulkRevokeStaffInvitationsBody The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
@@ -5111,6 +5217,33 @@ export function serializeBulkSuspendTenantsResult(writer: SerializationWriter, b
     writer.writeCollectionOfObjectValues<BulkSuspendFailedItem>("failedItems", bulkSuspendTenantsResult.failedItems, serializeBulkSuspendFailedItem);
     writer.writeNumberValue("succeededCount", bulkSuspendTenantsResult.succeededCount);
     writer.writeAdditionalData(bulkSuspendTenantsResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param BulkTenantUserActionFailedItem The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeBulkTenantUserActionFailedItem(writer: SerializationWriter, bulkTenantUserActionFailedItem: Partial<BulkTenantUserActionFailedItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!bulkTenantUserActionFailedItem || isSerializingDerivedType) { return; }
+    writer.writeStringValue("error", bulkTenantUserActionFailedItem.errorEscaped);
+    writer.writeGuidValue("userId", bulkTenantUserActionFailedItem.userId);
+    writer.writeAdditionalData(bulkTenantUserActionFailedItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param BulkTenantUserActionResult The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeBulkTenantUserActionResult(writer: SerializationWriter, bulkTenantUserActionResult: Partial<BulkTenantUserActionResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!bulkTenantUserActionResult || isSerializingDerivedType) { return; }
+    writer.writeNumberValue("failedCount", bulkTenantUserActionResult.failedCount);
+    writer.writeCollectionOfObjectValues<BulkTenantUserActionFailedItem>("failedItems", bulkTenantUserActionResult.failedItems, serializeBulkTenantUserActionFailedItem);
+    writer.writeNumberValue("succeededCount", bulkTenantUserActionResult.succeededCount);
+    writer.writeAdditionalData(bulkTenantUserActionResult.additionalData);
 }
 /**
  * Serializes information the current object
@@ -6332,6 +6465,7 @@ export function serializeTenantProfileItem(writer: SerializationWriter, tenantPr
     writer.writeGuidValue("id", tenantProfileItem.id);
     writer.writeBooleanValue("isDefault", tenantProfileItem.isDefault);
     writer.writeStringValue("name", tenantProfileItem.name);
+    writer.writeNumberValue("permissionsCount", tenantProfileItem.permissionsCount);
     writer.writeNumberValue("userAccountCount", tenantProfileItem.userAccountCount);
     writer.writeAdditionalData(tenantProfileItem.additionalData);
 }
@@ -7277,6 +7411,10 @@ export interface TenantProfileItem extends AdditionalDataHolder, Parsable {
      * The name property
      */
     name?: string | null;
+    /**
+     * The permissionsCount property
+     */
+    permissionsCount?: number | null;
     /**
      * The userAccountCount property
      */
