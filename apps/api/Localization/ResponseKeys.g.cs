@@ -130,6 +130,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey InvalidSession = new("invalid-session");
 
 	/// <summary>
+	/// Invalid upload file
+	/// </summary>
+	public static readonly TranslationKey InvalidUploadFile = new("invalid-upload-file");
+
+	/// <summary>
 	/// Accepted invitations cannot be revoked
 	/// </summary>
 	public static readonly TranslationKey InvitationAlreadyAccepted = new("invitation-already-accepted");

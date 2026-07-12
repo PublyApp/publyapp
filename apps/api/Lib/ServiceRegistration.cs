@@ -8,6 +8,7 @@ using Microsoft.OpenApi;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Messaging.Email;
+using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Lib.Extensions;
 
@@ -120,6 +121,7 @@ public static class ServiceRegistration {
 		});
 		builder.Services.AddSingleton<IEmailSender, ResendEmailAdapter>();
 		builder.Services.AddSingleton<IEmailService, EmailService>();
+		builder.Services.AddSingleton<IFileStorage, LocalDiskFileStorage>();
 
 		return builder;
 	}

@@ -90,5 +90,6 @@
 	"staff-user-deleted-success": "Membre du staff supprimé avec succès",
 	"staff-user-not-suspended-cannot-delete": "Seuls les membres du staff suspendus peuvent être supprimés",
 	"email-already-in-use": "Cet email est déjà utilisé",
-	"code-already-taken": "Ce code d'espace de travail est déjà pris"
+	"code-already-taken": "Ce code d'espace de travail est déjà pris",
+	"invalid-upload-file": "Fichier téléchargé invalide"
 }

@@ -57,6 +57,8 @@ public class AppEnvironment {
 	public int MAX_PROFILES_PER_USER { get; }
 	public int TENANT_USER_EXPORT_MAX_ROWS { get; }
 	public int TENANT_ACTIVITY_THROTTLE_MINUTES { get; }
+	public string FILE_STORAGE_ROOT { get; }
+	public int UPLOAD_MAX_BYTES { get; }
 
 	// ========== Constants (hardcoded, not from environment) ==========
 #pragma warning disable CA1822
@@ -160,7 +162,9 @@ public class AppEnvironment {
 		int auditLogExportMaxRows,
 		int maxProfilesPerUser,
 		int tenantUserExportMaxRows,
-		int tenantActivityThrottleMinutes
+		int tenantActivityThrottleMinutes,
+		string fileStorageRoot,
+		int uploadMaxBytes
 	) {
 		POSTGRES_CONNECTION_STRING = postgresConnectionString;
 		FRONT_URL = frontUrl;
@@ -184,6 +188,8 @@ public class AppEnvironment {
 		MAX_PROFILES_PER_USER = maxProfilesPerUser;
 		TENANT_USER_EXPORT_MAX_ROWS = tenantUserExportMaxRows;
 		TENANT_ACTIVITY_THROTTLE_MINUTES = tenantActivityThrottleMinutes;
+		FILE_STORAGE_ROOT = fileStorageRoot;
+		UPLOAD_MAX_BYTES = uploadMaxBytes;
 	}
 
 	/// <summary>
@@ -233,7 +239,14 @@ public class AppEnvironment {
 				auditLogExportMaxRows: GetOptionalInt(nameof(AUDIT_LOG_EXPORT_MAX_ROWS), 10000),
 				maxProfilesPerUser: GetOptionalInt(nameof(MAX_PROFILES_PER_USER), 5),
 				tenantUserExportMaxRows: GetOptionalInt(nameof(TENANT_USER_EXPORT_MAX_ROWS), 10000),
-				tenantActivityThrottleMinutes: GetOptionalInt(nameof(TENANT_ACTIVITY_THROTTLE_MINUTES), 5)
+				tenantActivityThrottleMinutes: GetOptionalInt(nameof(TENANT_ACTIVITY_THROTTLE_MINUTES), 5),
+				// Relative to the process's current working directory — mirrors how
+				// the Serilog file sink resolves ".artifacts/logs" (see LoggerConfigExtensions).
+				// This keeps the default identical across `dotnet watch run` (CWD = apps/api),
+				// `dotnet test` (CWD = test output dir), and the published container (CWD = /app),
+				// with no repo-root lookup needed.
+				fileStorageRoot: GetOptionalString(nameof(FILE_STORAGE_ROOT), ".artifacts/storage"),
+				uploadMaxBytes: GetOptionalInt(nameof(UPLOAD_MAX_BYTES), 2_000_000)
 			);
 
 			var validator = new AppEnvironmentValidator();
@@ -289,6 +302,11 @@ public class AppEnvironment {
 
 		throw new InvalidOperationException(
 			$"Environment variable '{name}' must be a valid boolean (true/false/1/0), got '{trimmed}'");
+	}
+
+	private static string GetOptionalString(string name, string defaultValue) {
+		var value = Environment.GetEnvironmentVariable(name);
+		return string.IsNullOrWhiteSpace(value) ? defaultValue : value.Trim();
 	}
 
 	private static int GetOptionalInt(string name, int defaultValue) {
@@ -469,6 +487,13 @@ public class AppEnvironmentValidator : AbstractValidator<AppEnvironment> {
 		RuleFor(x => x.TENANT_ACTIVITY_THROTTLE_MINUTES)
 			.InclusiveBetween(1, 1_440)
 			.WithMessage("TENANT_ACTIVITY_THROTTLE_MINUTES must be between 1 and 1440");
+
+		RuleFor(x => x.FILE_STORAGE_ROOT)
+			.NotEmpty().WithMessage("FILE_STORAGE_ROOT is not set or is empty");
+
+		RuleFor(x => x.UPLOAD_MAX_BYTES)
+			.InclusiveBetween(1, 100_000_000)
+			.WithMessage("UPLOAD_MAX_BYTES must be between 1 and 100000000");
 
 		RuleFor(x => x.SESSION_TOKEN_HEADER_KEY)
 			.Must(BeValidHeaderName)

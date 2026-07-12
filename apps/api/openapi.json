@@ -8614,6 +8614,82 @@
         }
       }
     },
+    "/staff/uploads": {
+      "post": {
+        "tags": [
+          "Staff Uploads"
+        ],
+        "summary": "Upload an image (multipart 'file' field) and get back a served URL",
+        "operationId": "CreateStaffUpload",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "$ref": "#/components/schemas/IFormFile"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffUploadCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/test": {
       "get": {
         "tags": [
@@ -10183,6 +10259,10 @@
           }
         }
       },
+      "IFormFile": {
+        "type": "string",
+        "format": "binary"
+      },
       "InvitationAccepted": {
         "required": [
           "userId",
@@ -10703,6 +10783,31 @@
             ]
           },
           "status": {
+            "type": "string"
+          }
+        }
+      },
+      "StaffUploadCreated": {
+        "required": [
+          "url",
+          "path",
+          "sizeBytes",
+          "contentType"
+        ],
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "sizeBytes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int64"
+          },
+          "contentType": {
             "type": "string"
           }
         }
@@ -11731,6 +11836,9 @@
     },
     {
       "name": "Staff Audit Logs"
+    },
+    {
+      "name": "Staff Uploads"
     },
     {
       "name": "PublyApp.Api"

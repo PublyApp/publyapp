@@ -1634,6 +1634,15 @@ export function createStaffProfileUserItemFromDiscriminatorValue(parseNode: Pars
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {StaffUploadCreated}
+ */
+// @ts-ignore
+export function createStaffUploadCreatedFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoStaffUploadCreated;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {StaffUserItem}
  */
 // @ts-ignore
@@ -3828,6 +3837,20 @@ export function deserializeIntoStaffProfileUserItem(staffProfileUserItem: Partia
         "id": n => { staffProfileUserItem.id = n.getGuidValue(); },
         "lastName": n => { staffProfileUserItem.lastName = n.getStringValue(); },
         "status": n => { staffProfileUserItem.status = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param StaffUploadCreated The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoStaffUploadCreated(staffUploadCreated: Partial<StaffUploadCreated> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "contentType": n => { staffUploadCreated.contentType = n.getStringValue(); },
+        "path": n => { staffUploadCreated.path = n.getStringValue(); },
+        "sizeBytes": n => { staffUploadCreated.sizeBytes = n.getNumberValue(); },
+        "url": n => { staffUploadCreated.url = n.getStringValue(); },
     }
 }
 /**
@@ -6856,6 +6879,21 @@ export function serializeStaffProfileUserItem(writer: SerializationWriter, staff
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param StaffUploadCreated The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeStaffUploadCreated(writer: SerializationWriter, staffUploadCreated: Partial<StaffUploadCreated> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!staffUploadCreated || isSerializingDerivedType) { return; }
+    writer.writeStringValue("contentType", staffUploadCreated.contentType);
+    writer.writeStringValue("path", staffUploadCreated.path);
+    writer.writeNumberValue("sizeBytes", staffUploadCreated.sizeBytes);
+    writer.writeStringValue("url", staffUploadCreated.url);
+    writer.writeAdditionalData(staffUploadCreated.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param StaffUserItem The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
@@ -7741,6 +7779,24 @@ export interface StaffProfileUserItem extends AdditionalDataHolder, Parsable {
      * The status property
      */
     status?: string | null;
+}
+export interface StaffUploadCreated extends AdditionalDataHolder, Parsable {
+    /**
+     * The contentType property
+     */
+    contentType?: string | null;
+    /**
+     * The path property
+     */
+    path?: string | null;
+    /**
+     * The sizeBytes property
+     */
+    sizeBytes?: number | null;
+    /**
+     * The url property
+     */
+    url?: string | null;
 }
 export interface StaffUserItem extends AdditionalDataHolder, Parsable {
     /**

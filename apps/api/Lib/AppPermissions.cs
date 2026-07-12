@@ -5,6 +5,7 @@ using PublyApp.Api.Modules.Permissions.Permissions;
 using PublyApp.Api.Modules.Profiles.Permissions;
 using PublyApp.Api.Modules.SystemNotices.Permissions;
 using PublyApp.Api.Modules.Tenants.Permissions;
+using PublyApp.Api.Modules.Uploads.Permissions;
 using PublyApp.Api.Modules.Users.Permissions;
 
 namespace PublyApp.Api.Lib;
@@ -26,6 +27,7 @@ public class StaffScopePermissions : IScopePermissions {
 	public PermissionPermissionsForStaff Permissions { get; } = new PermissionPermissionsForStaff();
 	public SystemNoticePermissionsForStaff SystemNotices { get; } = new SystemNoticePermissionsForStaff();
 	public AuditLogPermissionsForStaff AuditLogs { get; } = new AuditLogPermissionsForStaff();
+	public UploadPermissionsForStaff Uploads { get; } = new UploadPermissionsForStaff();
 }
 
 public class TenantScopePermissions : IScopePermissions {

@@ -1,0 +1,148 @@
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
+
+using PublyApp.Api.Infrastructure.Storage;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.AuditLogs.Entities;
+using PublyApp.Api.Modules.AuditLogs.Services;
+
+namespace PublyApp.Api.Modules.Uploads.Handlers.Staff;
+
+public record StaffUploadCreated {
+	public required string Url { get; init; }
+	public required string Path { get; init; }
+	public required long SizeBytes { get; init; }
+	public required string ContentType { get; init; }
+}
+
+public sealed class CreateStaffUpload {
+	// Longest magic-byte prefix needed to sniff any supported image type (WEBP: "RIFF"+size(4)+"WEBP").
+	private const int SniffBufferLength = 12;
+
+	public static async Task<Results<
+		Created<StaffUploadCreated>,
+		AppValidationProblemHttpResult
+	>> Handle(
+		[FromServices] IRequestAuthContext authContext,
+		[FromServices] IFileStorage fileStorage,
+		[FromServices] IAuditLogService auditLogService,
+		IFormFile? file,
+		CancellationToken cancellationToken = default
+	) {
+		var account = authContext.AccountStaff;
+		if (account is null) {
+			throw new InvalidOperationException(
+				"Staff account not found in auth context. "
+				+ "Ensure the endpoint has .WithPermission() middleware."
+			);
+		}
+
+		if (file is null || file.Length == 0) {
+			return ValidationFailure("A file is required");
+		}
+
+		var maxBytes = AppEnvironment.Instance.UPLOAD_MAX_BYTES;
+		if (file.Length > maxBytes) {
+			return ValidationFailure(
+				$"File exceeds the maximum size of {maxBytes} bytes"
+			);
+		}
+
+		await using var buffer = new MemoryStream();
+		await using (var uploadStream = file.OpenReadStream()) {
+			await uploadStream.CopyToAsync(buffer, cancellationToken);
+		}
+		buffer.Position = 0;
+
+		var sniffed = SniffImageType(buffer);
+		if (sniffed is null) {
+			return ValidationFailure(
+				"File must be a PNG, JPEG, WEBP, or GIF image"
+			);
+		}
+		buffer.Position = 0;
+
+		var (contentType, extension) = sniffed.Value;
+		var relativePath = await fileStorage.SaveAsync(
+			buffer, extension, cancellationToken
+		);
+		var url = $"/files/{relativePath}";
+
+		await auditLogService.LogAsync(
+			new CreateAuditLogArgs(
+				UserId: account.UserId,
+				Action: AuditActions.UploadCreated,
+				TargetId: null,
+				Details: new {
+					Path = relativePath,
+					SizeBytes = file.Length,
+					ContentType = contentType
+				}
+			),
+			cancellationToken
+		);
+
+		return TypedResults.Created((string?)null, new StaffUploadCreated {
+			Url = url,
+			Path = relativePath,
+			SizeBytes = file.Length,
+			ContentType = contentType
+		});
+	}
+
+	private static AppValidationProblemHttpResult ValidationFailure(string message) {
+		return TypedProblems.ValidationProblem(
+			message,
+			ResponseKeys.InvalidUploadFile,
+			new Dictionary<string, string[]> {
+				{ "file", [message] }
+			}
+		);
+	}
+
+	// Sniffs the leading bytes of the stream to determine the real image type,
+	// never trusting the client-supplied file name or Content-Type header.
+	// Leaves the stream position unspecified on return; callers must reset it.
+	private static (string ContentType, string Extension)? SniffImageType(Stream stream) {
+		Span<byte> header = stackalloc byte[SniffBufferLength];
+		var read = stream.Read(header);
+
+		if (read >= 8 && IsPng(header)) {
+			return ("image/png", ".png");
+		}
+		if (read >= 3 && IsJpeg(header)) {
+			return ("image/jpeg", ".jpg");
+		}
+		if (read >= 6 && IsGif(header)) {
+			return ("image/gif", ".gif");
+		}
+		if (read >= 12 && IsWebP(header)) {
+			return ("image/webp", ".webp");
+		}
+
+		return null;
+	}
+
+	private static bool IsPng(ReadOnlySpan<byte> header) {
+		ReadOnlySpan<byte> signature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+		return header[..8].SequenceEqual(signature);
+	}
+
+	private static bool IsJpeg(ReadOnlySpan<byte> header) {
+		return header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF;
+	}
+
+	private static bool IsGif(ReadOnlySpan<byte> header) {
+		ReadOnlySpan<byte> gif87A = "GIF87a"u8;
+		ReadOnlySpan<byte> gif89A = "GIF89a"u8;
+		return header[..6].SequenceEqual(gif87A) || header[..6].SequenceEqual(gif89A);
+	}
+
+	private static bool IsWebP(ReadOnlySpan<byte> header) {
+		ReadOnlySpan<byte> riff = "RIFF"u8;
+		ReadOnlySpan<byte> webP = "WEBP"u8;
+		return header[..4].SequenceEqual(riff) && header[8..12].SequenceEqual(webP);
+	}
+}
