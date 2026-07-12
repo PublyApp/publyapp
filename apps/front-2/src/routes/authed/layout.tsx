@@ -1,4 +1,4 @@
-import { IconAlertCircle } from '@tabler/icons-react';
+import { IconAlertCircle, IconLoader2 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import {
 	redirect,
@@ -315,6 +315,12 @@ function AuthedRouteLayout() {
 		((isStaffSurface && query.data !== REDIRECT_CODE.STAFF) ||
 			(isTenantSurface && query.data === REDIRECT_CODE.STAFF));
 
+	// The tenant portal (post-login org picker) is a standalone SimpleLayout
+	// surface, not the workspace shell — see docs/front-2-migration P1. It
+	// manages its own chrome, so it renders bare here, ahead of `<Outlet />`
+	// being wrapped in the full authed app shell.
+	const isTenantPortalRoot = pathname.replace(/\/+$/, '') === TENANT_PATH;
+
 	if (hasQueryError) {
 		if (query.error && shouldLogoutForFailure(query.error)) {
 			return <LogoutRedirect />;
@@ -353,11 +359,26 @@ function AuthedRouteLayout() {
 	}
 
 	if (query.isLoading || isSurfaceMismatch) {
+		if (isTenantPortalRoot) {
+			return (
+				<div className="flex min-h-svh items-center justify-center">
+					<IconLoader2
+						aria-hidden="true"
+						className="size-8 animate-spin text-muted-foreground"
+					/>
+				</div>
+			);
+		}
+
 		return (
 			<AuthedLayout pathname={pathname} search={search}>
 				Loading…
 			</AuthedLayout>
 		);
+	}
+
+	if (isTenantPortalRoot) {
+		return <Outlet />;
 	}
 
 	return (

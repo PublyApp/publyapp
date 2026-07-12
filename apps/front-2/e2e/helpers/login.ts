@@ -5,6 +5,40 @@ const STAFF_ADMIN_CREDENTIALS = {
 	password: process.env.E2E_STAFF_ADMIN_PASSWORD ?? 'ChangeMe123!@3#lol',
 };
 
+// Seeded via apps/api/Data/Seeding/SeedConstants.cs + UserAccountSeeder.cs —
+// every seeded user (staff and tenant) shares SeedConstants.SeedPassword.
+const SEED_PASSWORD = 'ChangeMe123!@3#lol';
+
+/** Single-tenant user: only a member of Acme (SeedConstants.Tenants). */
+export const SINGLE_TENANT_USER_CREDENTIALS = {
+	email: 'user-acme@example.com',
+	password: SEED_PASSWORD,
+};
+
+/** Cross-tenant user: member of both Acme and TechStart (both Active). */
+export const MULTI_TENANT_USER_CREDENTIALS = {
+	email: 'alice@example.com',
+	password: SEED_PASSWORD,
+};
+
+export const loginAsTenantUser = async (
+	page: Page,
+	credentials: { email: string; password: string },
+): Promise<void> => {
+	await page.goto('/login');
+
+	await expect(page.locator('input[name="email"]')).toBeVisible();
+	await page.locator('input[name="email"]').fill(credentials.email);
+	await page.locator('input[name="password"]').fill(credentials.password);
+	await page
+		.locator('[data-testid="auth-login-form"] button[type="submit"]')
+		.click();
+
+	await page.waitForURL(/\/tenant(?:[/?#].*)?$/, {
+		waitUntil: 'domcontentloaded',
+	});
+};
+
 export const getInviteStaffUserButton = (page: Page) =>
 	page.getByRole('link', {
 		name: /^(Invite users|Inviter des utilisateurs)$/,

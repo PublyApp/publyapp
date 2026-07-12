@@ -320,6 +320,7 @@ const getSessionTokensFromBrowser = (): ParsedSessionTokens =>
 class ClientManager implements ClientAccessor<ApiClient> {
 	private tenantClientMap = new Map<string, ApiClient>();
 	private staffClient: ApiClient | undefined;
+	private tenantScopeClient: ApiClient | undefined;
 	private anonymousClient: ApiClient | undefined;
 	private readonly sessionTokenProvider: SessionTokenProvider;
 
@@ -356,6 +357,17 @@ class ClientManager implements ClientAccessor<ApiClient> {
 		return this.staffClient;
 	}
 
+	getOrCreateTenantScopeClient(): ApiClient {
+		if (this.tenantScopeClient) {
+			return this.tenantScopeClient;
+		}
+
+		this.tenantScopeClient = buildClient({
+			getSessionToken: () => this.sessionTokenProvider('tenant'),
+		});
+		return this.tenantScopeClient;
+	}
+
 	getOrCreateAnonymousClient(): ApiClient {
 		if (this.anonymousClient) {
 			return this.anonymousClient;
@@ -370,6 +382,7 @@ class ClientManager implements ClientAccessor<ApiClient> {
 	clearClients(): void {
 		this.tenantClientMap.clear();
 		this.staffClient = undefined;
+		this.tenantScopeClient = undefined;
 		this.anonymousClient = undefined;
 	}
 }
