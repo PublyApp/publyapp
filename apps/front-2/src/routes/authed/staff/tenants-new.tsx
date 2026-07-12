@@ -31,7 +31,6 @@ import { Switch } from '~/components/ui/switch';
 import {
 	STAFF_TENANTS_QUERY_KEY,
 	useCreateStaffTenantMutation,
-	useUpdateStaffTenantMutation,
 } from '~/lib/query/staff-tenants';
 import { cn } from '~/lib/utils';
 import { shouldLogoutForFailure } from '~/routes/authed/layout';
@@ -44,7 +43,6 @@ import {
 	ACCOUNT_LEVEL_ENUM,
 	DEFAULT_MAX_USER_PER_TENANT,
 } from '@org/shared-ts/lib/constants';
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 import {
 	buildMemberImportOutcome,
@@ -401,7 +399,6 @@ function StaffTenantCreateRoute() {
 	const [importError, setImportError] = useState('');
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const createTenant = useCreateStaffTenantMutation();
-	const updateTenant = useUpdateStaffTenantMutation();
 
 	// Always-fresh ref so the memoized resolver's max-seats check can see the
 	// latest CSV/Excel import count without rebuilding on every parse.
@@ -553,6 +550,7 @@ function StaffTenantCreateRoute() {
 				...(trimmedCode.length > 0 ? { code: trimmedCode } : {}),
 				seedDefaultProfile: values.seedDefaultProfile,
 				initialUsers,
+				logoUrl: optionalField(values.logoUrl),
 				legalName: optionalField(values.legalName),
 				description: optionalField(values.description),
 				websiteUrl: optionalField(values.websiteUrl),
@@ -564,23 +562,6 @@ function StaffTenantCreateRoute() {
 			});
 
 			const tenantId = result?.id?.toString().trim();
-			const logoUrl = optionalField(values.logoUrl);
-
-			// CreateTenantAsStaffBody has no logoUrl property (only the update
-			// contract supports it), so an uploaded logo rides a follow-up PATCH.
-			// This is a secondary field: the tenant is already created at this
-			// point, so a patch failure is logged and swallowed rather than
-			// blocking the user on an otherwise-successful create.
-			if (tenantId && logoUrl) {
-				try {
-					await updateTenant.mutateAsync({ tenantId, logoUrl });
-				} catch (logoError) {
-					logger.warn(
-						'Tenant created but saving the uploaded logo failed',
-						logoError,
-					);
-				}
-			}
 
 			await queryClient.invalidateQueries({
 				queryKey: ['staff', ...STAFF_TENANTS_QUERY_KEY],

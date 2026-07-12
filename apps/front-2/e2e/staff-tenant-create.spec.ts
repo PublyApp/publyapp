@@ -23,6 +23,11 @@ const mockCreateStaffTenant = async (page: Page) => {
 		const url = request.url();
 
 		if (request.method() === 'POST' && isApiPath(url, STAFF_TENANTS_PATH)) {
+			const body = request.postDataJSON() as Record<string, unknown>;
+			if (typeof body.logoUrl === 'string') {
+				createdTenantLogoUrl = body.logoUrl;
+			}
+
 			await route.fulfill({
 				status: 201,
 				contentType: 'application/json',
@@ -343,7 +348,7 @@ test.describe('staff create-tenant submit confirmation', () => {
 });
 
 test.describe('staff create-tenant logo upload', () => {
-	test('uploading a logo before submit patches it onto the newly created tenant', async ({
+	test('uploading a logo before submit sends it in the create body', async ({
 		page,
 	}) => {
 		await loginAsStaffAdmin(page);
@@ -379,14 +384,7 @@ test.describe('staff create-tenant logo upload', () => {
 		const dialog = page.getByRole('alertdialog');
 		await expect(dialog).toBeVisible();
 		await dialog.getByRole('button', { name: /^(create tenant)$/i }).click();
-		await createRequest;
-
-		const patchRequest = page.waitForRequest(
-			(request) =>
-				request.method() === 'PATCH' &&
-				isApiPath(request.url(), `/staff/tenants/${CREATED_TENANT_ID}`),
-		);
-		const request = await patchRequest;
+		const request = await createRequest;
 		expect((request.postDataJSON() as Record<string, unknown>).logoUrl).toBe(
 			UPLOADED_LOGO_URL,
 		);

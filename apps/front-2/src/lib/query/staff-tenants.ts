@@ -105,6 +105,7 @@ export type CreateStaffTenantInput = {
 	code?: string;
 	seedDefaultProfile?: boolean;
 	initialUsers: StaffTenantInitialUserInput[];
+	logoUrl?: string;
 	legalName?: string;
 	description?: string;
 	websiteUrl?: string;
@@ -287,6 +288,11 @@ export const buildCreateStaffTenantBody = (
 	const legalName = normalizeString(input.legalName);
 	if (legalName) {
 		body.legalName = createUntypedString(legalName) as typeof body.legalName;
+	}
+
+	const logoUrl = normalizeString(input.logoUrl);
+	if (logoUrl) {
+		body.logoUrl = createUntypedString(logoUrl) as typeof body.logoUrl;
 	}
 
 	const description = normalizeString(input.description);

@@ -816,9 +816,8 @@ describe('staff tenant create route', () => {
 		);
 	});
 
-	test('patches the uploaded logo onto the newly created tenant', async () => {
+	test('sends the uploaded logo in the create body', async () => {
 		mocks.mutateAsync.mockResolvedValue({ id: 'tenant-001' });
-		mocks.updateTenantMutateAsync.mockResolvedValue({});
 
 		renderPage();
 
@@ -834,39 +833,23 @@ describe('staff tenant create route', () => {
 		await confirmCreate();
 
 		await waitFor(() =>
-			expect(mocks.updateTenantMutateAsync).toHaveBeenCalledWith({
-				tenantId: 'tenant-001',
-				logoUrl: 'https://cdn.example.com/logo.png',
-			}),
+			expect(mocks.mutateAsync).toHaveBeenCalledWith(
+				expect.objectContaining({
+					logoUrl: 'https://cdn.example.com/logo.png',
+				}),
+			),
 		);
-		await waitFor(() =>
-			expect(mocks.navigate).toHaveBeenCalledWith({
-				to: '/staff/tenants/$tenantId',
-				params: { tenantId: 'tenant-001' },
-			}),
-		);
-	});
-
-	test('does not call the logo update mutation when no logo was uploaded', async () => {
-		mocks.mutateAsync.mockResolvedValue({ id: 'tenant-001' });
-
-		renderPage();
-
-		fillOrganizationName('Acme Corporation');
-		fireEvent.change(getEmailInputs()[0]!, {
-			target: { value: 'owner@acme.com' },
-		});
-
-		submitForm();
-		await confirmCreate();
-
-		await waitFor(() => expect(mocks.mutateAsync).toHaveBeenCalled());
 		expect(mocks.updateTenantMutateAsync).not.toHaveBeenCalled();
+		await waitFor(() =>
+			expect(mocks.navigate).toHaveBeenCalledWith({
+				to: '/staff/tenants/$tenantId',
+				params: { tenantId: 'tenant-001' },
+			}),
+		);
 	});
 
-	test('still navigates to the new tenant when the logo patch fails after a successful create', async () => {
+	test('omits the logo from the create body when none was uploaded', async () => {
 		mocks.mutateAsync.mockResolvedValue({ id: 'tenant-001' });
-		mocks.updateTenantMutateAsync.mockRejectedValue(new Error('boom'));
 
 		renderPage();
 
@@ -874,19 +857,16 @@ describe('staff tenant create route', () => {
 		fireEvent.change(getEmailInputs()[0]!, {
 			target: { value: 'owner@acme.com' },
 		});
-		fireEvent.change(screen.getByLabelText('Logo'), {
-			target: { value: 'https://cdn.example.com/logo.png' },
-		});
 
 		submitForm();
 		await confirmCreate();
 
 		await waitFor(() =>
-			expect(mocks.navigate).toHaveBeenCalledWith({
-				to: '/staff/tenants/$tenantId',
-				params: { tenantId: 'tenant-001' },
-			}),
+			expect(mocks.mutateAsync).toHaveBeenCalledWith(
+				expect.objectContaining({ logoUrl: undefined }),
+			),
 		);
+		expect(mocks.updateTenantMutateAsync).not.toHaveBeenCalled();
 	});
 
 	test('includes the trimmed organization details fields in the submit body when filled', async () => {
