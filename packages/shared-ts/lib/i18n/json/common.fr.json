@@ -858,7 +858,6 @@
 	"invite-first-user": "Inviter le premier utilisateur",
 	"invite-user": "Inviter un utilisateur",
 	"invite-users": "Inviter des utilisateurs",
-	"invite-user": "Inviter un utilisateur",
 	"invitation-sent-success": "Invitation envoyée avec succès",
 	"invitation-sent-error": "Échec de l'envoi de l'invitation",
 	"invitation-created-success": "Invitation créée avec succès",
@@ -928,7 +927,6 @@
 	"tenant-invitations-no-match-title": "Aucune invitation ne correspond à votre recherche",
 	"tenant-invitations-no-match-description": "Essayez un autre nom, e-mail ou filtre.",
 	"status-globally-suspended": "Suspendu globalement",
-	"view-details": "Voir les détails",
 	"no-description-provided": "Aucune description fournie.",
 	"owners": "Propriétaires",
 	"see-all": "Tout voir",
@@ -963,5 +961,9 @@
 	"back-to-login": "Retour à la connexion",
 	"reset-link-sent-title": "Lien de réinitialisation envoyé",
 	"reset-link-sent-description": "Si <strong>{{email}}</strong> est valide, vous recevrez un email avec un lien pour réinitialiser votre mot de passe.",
-	"last-name-required": "Le nom est obligatoire"
+	"last-name-required": "Le nom est obligatoire",
+	"back-to-tenant": "Retour au tenant",
+	"logo-url": "URL du logo",
+	"workspace-slug-immutable-hint": "Le slug de l'espace de travail ne peut pas être modifié",
+	"unsaved-changes": "Modifications non enregistrées"
 }

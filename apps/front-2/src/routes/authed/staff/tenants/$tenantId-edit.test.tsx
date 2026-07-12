@@ -148,7 +148,7 @@ vi.mock('react-i18next', () => ({
 			const labels: Record<string, string> = {
 				'back-to-tenant': 'Back to tenant',
 				organization: 'Organization',
-				'tenant-name': 'Tenant name',
+				'organization-name': 'Organization name',
 				seats: 'Seats',
 				'logo-url': 'Logo URL',
 				'save-changes': 'Save changes',
@@ -265,7 +265,9 @@ describe('staff tenant edit route', () => {
 
 	test('does not reset unsaved edits when tenant query data is remapped on rerender', () => {
 		const renderResult = renderPage();
-		const nameInput = screen.getByLabelText('Tenant name') as HTMLInputElement;
+		const nameInput = screen.getByLabelText(
+			'Organization name',
+		) as HTMLInputElement;
 
 		fireEvent.change(nameInput, {
 			target: { value: 'Acme Corporation Edited' },
@@ -274,7 +276,7 @@ describe('staff tenant edit route', () => {
 		renderResult.rerender(<RouteComponent />);
 
 		expect(
-			(screen.getByLabelText('Tenant name') as HTMLInputElement).value,
+			(screen.getByLabelText('Organization name') as HTMLInputElement).value,
 		).toBe('Acme Corporation Edited');
 	});
 

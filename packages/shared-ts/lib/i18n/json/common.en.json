@@ -858,7 +858,6 @@
 	"invite-first-user": "Invite first user",
 	"invite-user": "Invite user",
 	"invite-users": "Invite users",
-	"invite-user": "Invite user",
 	"invitation-sent-success": "Invitation sent successfully",
 	"invitation-sent-error": "Failed to send invitation",
 	"invitation-created-success": "Invitation created successfully",
@@ -928,7 +927,6 @@
 	"tenant-invitations-no-match-title": "No invitations match your search",
 	"tenant-invitations-no-match-description": "Try a different name, email, or filter.",
 	"status-globally-suspended": "Globally suspended",
-	"view-details": "View details",
 	"no-description-provided": "No description provided.",
 	"owners": "Owners",
 	"see-all": "See all",
@@ -963,5 +961,9 @@
 	"back-to-login": "Back to login",
 	"reset-link-sent-title": "Reset link sent",
 	"reset-link-sent-description": "<strong>{{email}}</strong> is valid, you'll receive an email with a link to reset your password.",
-	"last-name-required": "Last name is required"
+	"last-name-required": "Last name is required",
+	"back-to-tenant": "Back to tenant",
+	"logo-url": "Logo URL",
+	"workspace-slug-immutable-hint": "The workspace slug can't be changed",
+	"unsaved-changes": "Unsaved changes"
 }
