@@ -328,24 +328,39 @@ const AuthedWorkspaceShell = ({
 }) => {
 	const sidebarOpen = useUiStore((state) => state.sidebarOpen);
 	const toggleSidebarOpen = useUiStore((state) => state.toggleSidebarOpen);
+	const railOnlyPanelOpen = useUiStore((state) => state.railOnlyPanelOpen);
+	const toggleRailOnlyPanelOpen = useUiStore(
+		(state) => state.toggleRailOnlyPanelOpen,
+	);
 	const activeRoute = getActiveRailItem(pathname);
 	const railItems = getRailItemsForPath(pathname);
 	const bottomRailItem = getBottomRailItemForPath(pathname);
 	const secondaryItems = getSecondaryPanelItems(pathname);
 	const breadcrumbs = getBreadcrumbsForPath(pathname);
 	const isDesktop = useMediaQuery('(min-width: 1024px)');
+	const isRailOnly = isRailOnlyPath(pathname);
 	const showSecondaryPanel = shouldShowSecondaryPanel(pathname, {
 		sidebarOpen,
+		railOnlyPanelOpen,
 		viewportWidth: isDesktop ? 1024 : 0,
 	});
 	// The secondary panel can only ever show at desktop width (see
 	// shouldShowSecondaryPanel's viewportWidth >= 1024 requirement) — below
-	// that, toggling `sidebarOpen` changes nothing visible. Gate the toggle
-	// button on the same condition so it isn't rendered lying about its own
-	// effect between 768px and 1023px. Rail-only routes (detail/form) have no
-	// panel to toggle, so the button is hidden there too.
-	const canToggleSecondaryPanel =
-		isDesktop && secondaryItems.length >= 2 && !isRailOnlyPath(pathname);
+	// that, toggling the panel changes nothing visible. Gate the toggle button
+	// on the same condition so it isn't rendered lying about its own effect
+	// between 768px and 1023px. Rail-only routes (detail/form) have a panel
+	// too — it's just closed by default (`railOnlyPanelOpen`, in-memory only)
+	// — so the toggle stays visible there and opens/closes it; that explicit
+	// choice carries over across other rail-only routes for the session but
+	// is not persisted, so a fresh session always starts closed. List routes
+	// keep using the persisted `sidebarOpen`, defaulting to open.
+	const canToggleSecondaryPanel = isDesktop && secondaryItems.length >= 2;
+	const isSecondaryPanelOpenForToggle = isRailOnly
+		? railOnlyPanelOpen
+		: sidebarOpen;
+	const handleToggleSecondaryPanel = isRailOnly
+		? toggleRailOnlyPanelOpen
+		: toggleSidebarOpen;
 
 	return (
 		<div
@@ -447,12 +462,13 @@ const AuthedWorkspaceShell = ({
 									size="icon-sm"
 									variant="ghost"
 									aria-label={
-										sidebarOpen
+										isSecondaryPanelOpenForToggle
 											? 'Collapse navigation panel'
 											: 'Expand navigation panel'
 									}
-									onClick={toggleSidebarOpen}
+									onClick={handleToggleSecondaryPanel}
 									className="app-shell-sidebar-toggle"
+									data-testid="app-shell-sidebar-toggle"
 								>
 									<IconLayoutSidebar
 										aria-hidden="true"

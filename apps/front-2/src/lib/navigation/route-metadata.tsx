@@ -551,19 +551,27 @@ export function isRailOnlyPath(pathname: string): boolean {
 	return isCreatePath(pathname) || isDetailPath(pathname);
 }
 
+/**
+ * Rail-only routes (detail/form) have no persisted `sidebarOpen` default —
+ * they use `railOnlyPanelOpen` instead, which defaults to closed and only
+ * flips via an explicit topbar-toggle click during the session (see
+ * app-shell.tsx). List routes keep using `sidebarOpen`, defaulting to open.
+ */
 export function shouldShowSecondaryPanel(
 	pathname: string,
-	options?: { sidebarOpen?: boolean; viewportWidth?: number },
+	options?: {
+		sidebarOpen?: boolean;
+		railOnlyPanelOpen?: boolean;
+		viewportWidth?: number;
+	},
 ): boolean {
-	if (isRailOnlyPath(pathname)) {
-		return false;
-	}
-
 	const activeItems = getSecondaryPanelItems(pathname);
-	const sidebarOpen = options?.sidebarOpen ?? true;
 	const viewportWidth = options?.viewportWidth ?? Number.POSITIVE_INFINITY;
+	const panelOpen = isRailOnlyPath(pathname)
+		? (options?.railOnlyPanelOpen ?? false)
+		: (options?.sidebarOpen ?? true);
 
-	return sidebarOpen && viewportWidth >= 1024 && activeItems.length >= 2;
+	return panelOpen && viewportWidth >= 1024 && activeItems.length >= 2;
 }
 
 export function getBreadcrumbsForPath(pathname: string): BreadcrumbItem[] {

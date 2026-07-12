@@ -167,6 +167,31 @@ describe('front-2 route metadata', () => {
 		).toBe(false);
 	});
 
+	test('secondary panel opens on rail-only routes when railOnlyPanelOpen is explicitly set', () => {
+		expect(
+			shouldShowSecondaryPanel('/staff/staff-users/u-1', {
+				sidebarOpen: true,
+				railOnlyPanelOpen: true,
+				viewportWidth: 1280,
+			}),
+		).toBe(true);
+		expect(
+			shouldShowSecondaryPanel('/staff/tenants/t-1', {
+				sidebarOpen: false,
+				railOnlyPanelOpen: true,
+				viewportWidth: 1280,
+			}),
+		).toBe(true);
+	});
+
+	test('rail-only routes stay closed at the default (no railOnlyPanelOpen passed)', () => {
+		expect(
+			shouldShowSecondaryPanel('/staff/staff-users/u-1', {
+				viewportWidth: 1280,
+			}),
+		).toBe(false);
+	});
+
 	test('form (create) routes are also rail-only — the secondary panel collapses', () => {
 		expect(
 			shouldShowSecondaryPanel('/staff/tenants/new', {

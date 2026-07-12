@@ -319,7 +319,7 @@ test('rail navigation preserves collapsed sidebar preference', async ({
 	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
 });
 
-test('staff detail route is rail-only — no panel, no toggle button', async ({
+test('staff detail route is rail-only — panel closed by default but the toggle stays visible', async ({
 	page,
 }) => {
 	await page.setViewportSize({ width: 1280, height: 900 });
@@ -328,12 +328,69 @@ test('staff detail route is rail-only — no panel, no toggle button', async ({
 	await page.goto('/staff/invitations/i-1');
 
 	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
-	await expect(
-		page.getByRole('button', { name: 'Collapse navigation panel' }),
-	).toHaveCount(0);
-	await expect(
-		page.getByRole('button', { name: 'Expand navigation panel' }),
-	).toHaveCount(0);
+	await expect(page.getByTestId('app-shell-sidebar-toggle')).toBeVisible();
+	await expect(page.getByTestId('app-shell-sidebar-toggle')).toHaveAttribute(
+		'aria-label',
+		'Expand navigation panel',
+	);
+});
+
+test('the rail-only toggle opens and closes the panel on a tenant detail route', async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await setSessionCookie(page);
+	await mockAuthRedirectCode(page);
+	await page.goto('/staff/tenants/t-1');
+
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+	const toggle = page.getByTestId('app-shell-sidebar-toggle');
+	await expect(toggle).toBeVisible();
+	await expect(toggle).toHaveAttribute('aria-label', 'Expand navigation panel');
+
+	await toggle.click();
+
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
+	await expect(toggle).toHaveAttribute(
+		'aria-label',
+		'Collapse navigation panel',
+	);
+
+	await toggle.click();
+
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+	await expect(toggle).toHaveAttribute('aria-label', 'Expand navigation panel');
+});
+
+test('an explicit rail-only open choice carries over across other rail-only routes but not to list routes', async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await setSessionCookie(page);
+	await mockAuthRedirectCode(page);
+	await page.goto('/staff/tenants/t-1');
+
+	await page.getByTestId('app-shell-sidebar-toggle').click();
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
+
+	// The explicit open choice is in-memory session state: it must survive
+	// CLIENT-SIDE navigation (a hard page.goto would reset the store by design).
+	// Leave via the rail to a list route — panel stays visible there through the
+	// persisted list preference (default open).
+	await page.locator('[data-rail-item="staff"]').click();
+	await expect(page).toHaveURL(/staff-users/);
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
+
+	// Client-side history back onto the rail-only route: the explicit choice
+	// still holds for this session.
+	await page.goBack();
+	await expect(page).toHaveURL(/staff\/tenants\/t-1/);
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
+
+	// A fresh document load starts a new session: rail-only routes default
+	// closed again.
+	await page.reload();
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
 });
 
 test('the collapsed-panel preference persists across list navigation but detail routes always collapse', async ({
