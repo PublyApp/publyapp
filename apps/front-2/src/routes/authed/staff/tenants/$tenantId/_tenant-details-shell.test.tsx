@@ -139,4 +139,44 @@ describe('TenantDetailsPageShell tabs', () => {
 
 		expect(source).not.toMatch(/<a\s+href=/);
 	});
+
+	test('defaults to page scroll: no height-bound class, children render unwrapped', () => {
+		render(
+			<TenantDetailsPageShell
+				tenant={tenant}
+				activeSection="profiles"
+				testId="staff-tenant-profiles-page"
+			>
+				<div data-testid="tab-body-marker">content</div>
+			</TenantDetailsPageShell>,
+		);
+
+		const shell = screen.getByTestId('staff-tenant-profiles-page');
+		expect(shell.getAttribute('data-body-scroll')).toBe('page');
+		expect(shell.className).not.toContain('h-full');
+		expect(
+			screen.getByTestId('tab-body-marker').closest('.publy-detail-tab-body'),
+		).toBeNull();
+	});
+
+	test('bodyScroll="contained" height-bounds the shell and wraps children in the table-owns-scroll body', () => {
+		render(
+			<TenantDetailsPageShell
+				tenant={tenant}
+				activeSection="users"
+				testId="staff-tenant-users-page"
+				bodyScroll="contained"
+			>
+				<div data-testid="tab-body-marker">content</div>
+			</TenantDetailsPageShell>,
+		);
+
+		const shell = screen.getByTestId('staff-tenant-users-page');
+		expect(shell.getAttribute('data-body-scroll')).toBe('contained');
+		expect(shell.className).toContain('h-full');
+		expect(shell.className).toContain('min-h-0');
+		expect(
+			screen.getByTestId('tab-body-marker').closest('.publy-detail-tab-body'),
+		).not.toBeNull();
+	});
 });

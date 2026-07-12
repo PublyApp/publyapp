@@ -80,4 +80,19 @@ describe('FormActionBar', () => {
 			document.querySelector('[data-slot="form-action-bar-status"]'),
 		).toBeNull();
 	});
+
+	test('renders only the opaque .publy-form-action-bar class by default, with no translucent override', () => {
+		render(
+			<FormActionBar>
+				<button type="submit">Save changes</button>
+			</FormActionBar>,
+		);
+
+		const bar = document.querySelector('[data-slot="form-action-bar"]');
+		// `.publy-form-action-bar` (app.css) owns the opaque background; a bare
+		// render must resolve to exactly that class, with no consumer-supplied
+		// translucency utility that could let scrolled-past content show through
+		// the pinned bar.
+		expect(bar?.className).toBe('publy-form-action-bar');
+	});
 });

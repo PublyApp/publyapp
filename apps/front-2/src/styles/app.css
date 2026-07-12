@@ -1109,14 +1109,26 @@ html {
 
 	/* Placed as the last child of .app-shell-main (padding 20px 28px 32px):
 	   negative margins bleed the bar to the column edges and cancel the
-	   scroller's bottom padding so the pinned bar sits flush. */
+	   scroller's bottom padding so the pinned bar sits flush. Fully opaque
+	   (toned like .app-shell-topbar/.publy-table-card, not the translucent
+	   --publy-overlay-surface used by modals/drawers) — as the last flow
+	   child, the tail of the form scrolls *underneath* the pinned bar before
+	   reaching its natural resting position, so any translucency lets that
+	   content show through while it passes. */
 	.publy-form-action-bar {
 		@apply sticky bottom-0 z-10 flex shrink-0 items-center justify-between gap-4;
 		border-top: 1px solid var(--publy-border);
-		background: var(--publy-overlay-surface);
-		backdrop-filter: blur(8px);
+		background: var(--publy-background);
 		padding: 12px 32px;
 		margin: 0 -28px -32px;
+	}
+
+	/* Reserves clearance so the last field of a form scrolls (and keyboard-
+	   focus scrolls) fully above the pinned action bar instead of resting
+	   underneath it. Height mirrors the bar: ~61px content (h-9 button +
+	   12px*2 padding + 1px border) plus a comfort margin. */
+	.app-shell-main:has(.publy-form-action-bar) {
+		scroll-padding-bottom: 72px;
 	}
 
 	.publy-form-action-bar-status {
@@ -1189,6 +1201,14 @@ html {
 	.publy-detail-page {
 		@apply mx-auto w-full;
 		max-width: 1440px;
+	}
+
+	/* Tab body wrapper for TenantDetailsPageShell's bodyScroll="contained"
+	   mode (tables own their scroll, docs/guides/front-2/conventions.md):
+	   a min-h-0 flex column so a DataTable inside can claim the remaining
+	   height and scroll internally instead of the page. */
+	.publy-detail-tab-body {
+		@apply flex min-h-0 flex-1 flex-col gap-4;
 	}
 
 	/* ---- Detail body grid + danger zone (handoff 2c/3b) ---- */
@@ -1436,7 +1456,8 @@ html {
 		@apply flex min-h-0 flex-col gap-3;
 	}
 
-	.publy-page-fill .publy-data-table-shell {
+	.publy-page-fill .publy-data-table-shell,
+	.publy-detail-tab-body .publy-data-table-shell {
 		flex: 1 1 auto;
 	}
 

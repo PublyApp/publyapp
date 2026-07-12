@@ -221,6 +221,17 @@ new choice, decide in this spirit and add the rule here.
   so it underlines on hover. Every list table's first column must behave identically — never render
   a bare, non-hovering name.
 - The ⋯ row-actions button is horizontally centered in its cell (`meta.align: 'center'`).
+- **Table views scroll inside the table, never the page** (owner ruling, 2026-07-12): a page whose
+  main content is a `DataTable` must never let `.app-shell-main` scroll because of table rows. The
+  toolbar and cursor footer stay pinned in view; only the table body scrolls. Reference
+  implementation: `tenants.tsx` — the page root uses `.publy-page-fill` (`flex h-full min-h-0
+  flex-col`), which gives `DataTable`'s internal `.publy-data-table-shell` (`flex: 1 1 auto`) a
+  bounded height so its own `overflow-auto` table wrapper scrolls, not the page. Any new top-level
+  list route must use `.publy-page-fill` the same way. For a `DataTable` living inside a detail-tab
+  shell (not a top-level route), the shell must give the tab body the same bounded-height chain —
+  see `TenantDetailsPageShell`'s `bodyScroll="contained"` prop (`.publy-detail-tab-body`) used by
+  the tenant Users/Invitations tabs. This does **not** apply to card grids (e.g. the tenant Profiles
+  tab) — page-scroll is correct there; only `DataTable`-backed views must own their scroll.
 
 ### Content & data honesty
 - **Never render fabricated or placeholder admin data.** If the contract does not provide a field,

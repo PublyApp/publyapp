@@ -429,6 +429,7 @@ function StaffTenantInvitationsPage() {
 			tenant={tenant}
 			activeSection="invitations"
 			testId="staff-tenant-invitations-page"
+			bodyScroll="contained"
 		>
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 				<div className="space-y-1">

@@ -15,6 +15,7 @@ import { BrandTile } from '~/components/ui/initials-avatar';
 import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import type { StaffTenantDetails } from '~/lib/query/staff-tenants';
+import { cn } from '~/lib/utils';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
@@ -285,6 +286,7 @@ export const TenantDetailsPageShell = ({
 	testId,
 	children,
 	summary,
+	bodyScroll = 'page',
 }: {
 	tenant: StaffTenantDetails;
 	activeSection: 'basics' | 'profiles' | 'users' | 'invitations';
@@ -298,22 +300,36 @@ export const TenantDetailsPageShell = ({
 	 * still pass it until their own packet restyles them.
 	 */
 	summary?: string;
+	/**
+	 * 'page' (default): the shell grows with its content and `.app-shell-main`
+	 * owns scrolling — correct for card grids and free-flowing content
+	 * (Basics, Profiles). 'contained': the shell is height-bound to
+	 * `.app-shell-main` and the tab body becomes a `min-h-0` flex column, so a
+	 * `DataTable` inside it owns its own scroll instead of the page (Users,
+	 * Invitations) — see docs/guides/front-2/conventions.md "tables own their
+	 * scroll".
+	 */
+	bodyScroll?: 'page' | 'contained';
 }) => {
 	const { t, i18n } = useTranslation('common');
 
 	return (
 		<div
-			className="publy-detail-page flex w-full flex-col gap-5"
+			className={cn(
+				'publy-detail-page flex w-full flex-col gap-5',
+				bodyScroll === 'contained' && 'h-full min-h-0',
+			)}
+			data-body-scroll={bodyScroll}
 			data-testid={testId}
 		>
-			<div className="flex flex-wrap items-center justify-between gap-3">
+			<div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
 				<Link to="/staff/tenants" className="publy-back-link">
 					<IconArrowLeft aria-hidden="true" className="size-3" />
 					{t('back-to-staff-tenants')}
 				</Link>
 			</div>
 
-			<header className="flex flex-wrap items-start justify-between gap-4">
+			<header className="flex shrink-0 flex-wrap items-start justify-between gap-4">
 				<div className="flex items-start gap-4">
 					<BrandTile name={tenant.name} logoUrl={tenant.logoUrl} />
 					<div className="min-w-0 space-y-1">
@@ -361,7 +377,7 @@ export const TenantDetailsPageShell = ({
 
 			<nav
 				aria-label="Tenant sections"
-				className="flex flex-wrap gap-1 border-b border-border"
+				className="flex shrink-0 flex-wrap gap-1 border-b border-border"
 			>
 				<SectionNavLink
 					label={t('basics')}
@@ -393,7 +409,11 @@ export const TenantDetailsPageShell = ({
 				<p className="text-sm text-muted-foreground">{summary}</p>
 			) : null}
 
-			{children}
+			{bodyScroll === 'contained' ? (
+				<div className="publy-detail-tab-body">{children}</div>
+			) : (
+				children
+			)}
 		</div>
 	);
 };
