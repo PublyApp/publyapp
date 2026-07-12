@@ -15,6 +15,7 @@ using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Tenants.Entities;
 
 using Xunit;
 
@@ -88,6 +89,105 @@ public sealed class FindTenantProfilesAsStaffSpec : IClassFixture<ApiFixture> {
 		secondProfile.PermissionsCount.Should().Be(0);
 	}
 
+	[Fact]
+	public async Task ItShouldReturnOnlyDefaultProfilesWhenIsDefaultTrue() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		// A dedicated tenant avoids racing the "one active default profile per
+		// tenant" unique constraint against other tests seeding Acme in parallel.
+		var tenantId = await SeedFreshTenantAsync("Profiles IsDefault True");
+		var defaultProfileId = await SeedTenantProfileAsync(
+			tenantId, permissionCount: 0, isDefault: true
+		);
+		var customProfileId = await SeedTenantProfileAsync(
+			tenantId, permissionCount: 0, isDefault: false
+		);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetUrl(tenantId.ToString(), "limit=100&is_default=true")
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content.ReadFromJsonAsync<FindTenantProfilesResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+
+		result.Data.Should().Contain(p => p.Id == defaultProfileId);
+		result.Data.Should().NotContain(p => p.Id == customProfileId);
+		result.Data.Should().OnlyContain(p => p.IsDefault);
+	}
+
+	[Fact]
+	public async Task ItShouldReturnOnlyCustomProfilesWhenIsDefaultFalse() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await SeedFreshTenantAsync("Profiles IsDefault False");
+		var defaultProfileId = await SeedTenantProfileAsync(
+			tenantId, permissionCount: 0, isDefault: true
+		);
+		var customProfileId = await SeedTenantProfileAsync(
+			tenantId, permissionCount: 0, isDefault: false
+		);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetUrl(tenantId.ToString(), "limit=100&is_default=false")
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content.ReadFromJsonAsync<FindTenantProfilesResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+
+		result.Data.Should().Contain(p => p.Id == customProfileId);
+		result.Data.Should().NotContain(p => p.Id == defaultProfileId);
+		result.Data.Should().OnlyContain(p => !p.IsDefault);
+	}
+
+	[Fact]
+	public async Task ItShouldReturnBothProfileTypesWhenIsDefaultIsAbsent() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await SeedFreshTenantAsync("Profiles IsDefault Absent");
+		var defaultProfileId = await SeedTenantProfileAsync(
+			tenantId, permissionCount: 0, isDefault: true
+		);
+		var customProfileId = await SeedTenantProfileAsync(
+			tenantId, permissionCount: 0, isDefault: false
+		);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetUrl(tenantId.ToString(), "limit=100")
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content.ReadFromJsonAsync<FindTenantProfilesResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+
+		result.Data.Should().Contain(p => p.Id == defaultProfileId);
+		result.Data.Should().Contain(p => p.Id == customProfileId);
+	}
+
+	[Fact]
+	public async Task ItShouldReturnUnprocessableEntityForInvalidIsDefaultValue() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetUrl(tenantId.ToString(), "is_default=not-a-bool")
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+	}
+
 	private async Task<Guid> GetTenantIdAsync() {
 		var token = await _authClient.LoginAsStaffAdminAsync();
 		return await TenantTestHelper.GetTenantIdByNameAsync(
@@ -97,13 +197,34 @@ public sealed class FindTenantProfilesAsStaffSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private async Task<Guid> SeedTenantProfileAsync(Guid tenantId, int permissionCount) {
+	private async Task<Guid> SeedFreshTenantAsync(string namePrefix) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var tenant = new Tenant {
+			Name = $"{namePrefix} {Guid.NewGuid():N}",
+			Code = Guid.NewGuid().ToString("N")[..10],
+			Status = TenantStatus.Active,
+			MaxUsers = 10,
+		};
+		await dbContext.Tenant.AddAsync(tenant);
+		await dbContext.SaveChangesAsync();
+
+		return tenant.GetRequiredId();
+	}
+
+	private async Task<Guid> SeedTenantProfileAsync(
+		Guid tenantId,
+		int permissionCount,
+		bool isDefault = false
+	) {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var profile = Profile.CreateTenantProfile(
 			tenantId,
-			"Permission Count Profile " + Guid.NewGuid().ToString("N")[..8]
+			"Permission Count Profile " + Guid.NewGuid().ToString("N")[..8],
+			isDefault: isDefault
 		);
 
 		await dbContext.Profile.AddAsync(profile);

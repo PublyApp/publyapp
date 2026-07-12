@@ -32,7 +32,8 @@ public sealed record FindTenantProfilesArgs(
 	int? Limit,
 	string? SortId,
 	SortOrder? SortOrder,
-	string? Search
+	string? Search,
+	bool? IsDefault
 );
 
 public sealed record GetTenantProfileByIdArgs(
@@ -231,6 +232,10 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 				EF.Functions.ILike(p.Name, pattern)
 				|| (p.Description != null && EF.Functions.ILike(p.Description, pattern))
 			);
+		}
+
+		if (args.IsDefault is { } isDefault) {
+			query = query.Where(p => p.IsDefault == isDefault);
 		}
 
 		if (args.Cursor != Guid.Empty) {

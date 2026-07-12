@@ -296,6 +296,226 @@ public sealed class UpdateTenantAsStaffSpec
 
 	[Fact]
 	public async Task
+	ItShouldSetOrganizationProfileFieldsWhenProvided() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantAsync("Tenant Org Fields Set");
+
+		using var response =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				seededTenant.TenantId,
+				new {
+					legalName = "Acme Legal Name LLC",
+					description = "A short org description",
+					websiteUrl = "https://example.com",
+					billingEmail = "billing@example.com",
+					supportEmail = "support@example.com",
+					defaultLocale = "fr",
+					timezone = "Europe/Paris",
+					notes = "staff-only note",
+				}
+			);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<GetTenantAsStaffResult>();
+		result.Should().NotBeNull();
+		if (result is null) {
+			throw new InvalidOperationException(
+				"PATCH tenant response was empty."
+			);
+		}
+
+		result.LegalName.Should().Be("Acme Legal Name LLC");
+		result.Description.Should().Be("A short org description");
+		result.WebsiteUrl.Should().Be("https://example.com");
+		result.BillingEmail.Should().Be("billing@example.com");
+		result.SupportEmail.Should().Be("support@example.com");
+		result.DefaultLocale.Should().Be("fr");
+		result.Timezone.Should().Be("Europe/Paris");
+		result.Notes.Should().Be("staff-only note");
+	}
+
+	[Fact]
+	public async Task
+	ItShouldClearOrganizationProfileFieldsWhenSetToNull() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantAsync("Tenant Org Fields Clear");
+
+		using var setResponse =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				seededTenant.TenantId,
+				new {
+					legalName = "Acme Legal Name LLC",
+					description = "A short org description",
+					websiteUrl = "https://example.com",
+					billingEmail = "billing@example.com",
+					supportEmail = "support@example.com",
+					defaultLocale = "fr",
+					timezone = "Europe/Paris",
+					notes = "staff-only note",
+				}
+			);
+		setResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var url = GetUrl(seededTenant.TenantId.ToString());
+		var clearRequest = new HttpRequestMessage(
+			HttpMethod.Patch, url
+		).WithSessionToken(staffToken);
+		clearRequest.Content = new StringContent(
+			"""
+			{
+				"legalName": null,
+				"description": null,
+				"websiteUrl": null,
+				"billingEmail": null,
+				"supportEmail": null,
+				"defaultLocale": null,
+				"timezone": null,
+				"notes": null
+			}
+			""",
+			Encoding.UTF8,
+			"application/json"
+		);
+
+		using var clearResponse =
+			await _http.SendAsync(clearRequest);
+
+		clearResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await clearResponse.Content
+			.ReadFromJsonAsync<GetTenantAsStaffResult>();
+		result.Should().NotBeNull();
+		if (result is null) {
+			throw new InvalidOperationException(
+				"PATCH tenant response was empty."
+			);
+		}
+
+		result.LegalName.Should().BeNull();
+		result.Description.Should().BeNull();
+		result.WebsiteUrl.Should().BeNull();
+		result.BillingEmail.Should().BeNull();
+		result.SupportEmail.Should().BeNull();
+		result.DefaultLocale.Should().BeNull();
+		result.Timezone.Should().BeNull();
+		result.Notes.Should().BeNull();
+	}
+
+	[Fact]
+	public async Task
+	ItShouldLeaveOrganizationProfileFieldsUntouchedWhenAbsent() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantAsync("Tenant Org Fields Absent");
+
+		using var setResponse =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				seededTenant.TenantId,
+				new {
+					legalName = "Acme Legal Name LLC",
+					notes = "staff-only note",
+				}
+			);
+		setResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		// Only touch Name; org fields are absent and must be left alone.
+		using var response =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				seededTenant.TenantId,
+				new { name = $"Renamed {Guid.NewGuid():N}" }
+			);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<GetTenantAsStaffResult>();
+		result.Should().NotBeNull();
+		if (result is null) {
+			throw new InvalidOperationException(
+				"PATCH tenant response was empty."
+			);
+		}
+
+		result.LegalName.Should().Be("Acme Legal Name LLC");
+		result.Notes.Should().Be("staff-only note");
+	}
+
+	[Theory]
+	[InlineData("billingEmail", "not-an-email")]
+	[InlineData("supportEmail", "not-an-email")]
+	[InlineData("websiteUrl", "not-a-url")]
+	[InlineData("defaultLocale", "de")]
+	[InlineData("timezone", "Not/A_Real_Zone")]
+	public async Task
+	ItShouldReturnUnprocessableEntityForInvalidOrganizationFieldValues(
+		string field,
+		string invalidValue
+	) {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantAsync("Tenant Org Fields Invalid");
+
+		var body = $$"""{ "{{field}}": "{{invalidValue}}" }""";
+
+		using var response = await _http.SendAsync(
+			CreateRawUpdateRequest(
+				staffToken,
+				seededTenant.TenantId,
+				body
+			)
+		);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.UnprocessableEntity);
+	}
+
+	[Theory]
+	[InlineData("legalName", 257)]
+	[InlineData("description", 1025)]
+	[InlineData("notes", 4001)]
+	public async Task
+	ItShouldReturnUnprocessableEntityWhenOrganizationFieldExceedsMaxLength(
+		string field,
+		int length
+	) {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantAsync("Tenant Org Fields Too Long");
+
+		var value = new string('a', length);
+		var body = $$"""{ "{{field}}": "{{value}}" }""";
+
+		using var response = await _http.SendAsync(
+			CreateRawUpdateRequest(
+				staffToken,
+				seededTenant.TenantId,
+				body
+			)
+		);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.UnprocessableEntity);
+	}
+
+	[Fact]
+	public async Task
 	ItShouldReturnBadRequestWhenMaxUsersBelowCurrentUserCount() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();

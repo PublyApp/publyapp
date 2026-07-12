@@ -67,6 +67,7 @@ export interface ProfilesRequestBuilder extends BaseRequestBuilder<ProfilesReque
  */
 export interface ProfilesRequestBuilderGetQueryParameters {
     cursor?: string;
+    isDefault?: string;
     limit?: string;
     q?: string;
     sortId?: string;
@@ -75,11 +76,12 @@ export interface ProfilesRequestBuilderGetQueryParameters {
 /**
  * Uri template for the request builder.
  */
-export const ProfilesRequestBuilderUriTemplate = "{+baseurl}/staff/tenants/{tenantId}/profiles{?cursor*,limit*,q*,sort_id*,sort_order*}";
+export const ProfilesRequestBuilderUriTemplate = "{+baseurl}/staff/tenants/{tenantId}/profiles{?cursor*,is_default*,limit*,q*,sort_id*,sort_order*}";
 /**
  * Mapper for query parameters from symbol name to serialization name represented as a constant.
  */
 const ProfilesRequestBuilderGetQueryParametersMapper: Record<string, string> = {
+    "isDefault": "is_default",
     "sortId": "sort_id",
     "sortOrder": "sort_order",
 };

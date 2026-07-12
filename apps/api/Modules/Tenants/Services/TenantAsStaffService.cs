@@ -19,6 +19,7 @@ public class TenantAsStaffListItem {
 	public required int UsersCount { get; init; }
 	public required int MaxUsers { get; init; }
 	public required string Status { get; init; }
+	public DateTime? LastActivityAt { get; init; }
 }
 
 public record CreateTenantWithInitialUsersResult {
@@ -88,7 +89,15 @@ public abstract record DeleteTenantResult {
 public record UpdateTenantAsStaffArgs(
 	string? Name,
 	PatchField<string?> LogoUrl,
-	int? MaxUsers
+	int? MaxUsers,
+	PatchField<string?> LegalName,
+	PatchField<string?> Description,
+	PatchField<string?> WebsiteUrl,
+	PatchField<string?> BillingEmail,
+	PatchField<string?> SupportEmail,
+	PatchField<string?> DefaultLocale,
+	PatchField<string?> Timezone,
+	PatchField<string?> Notes
 );
 
 public record FindTenantsAsStaffFilters(
@@ -110,7 +119,15 @@ public record CreateTenantWithInitialUsersArgs(
 	List<(string Email, AccountLevel AccountLevel)> InitialUsers,
 	Guid InvitedByUserId,
 	string? Code,
-	bool SeedDefaultProfile
+	bool SeedDefaultProfile,
+	string? LegalName,
+	string? Description,
+	string? WebsiteUrl,
+	string? BillingEmail,
+	string? SupportEmail,
+	string? DefaultLocale,
+	string? Timezone,
+	string? Notes
 );
 
 public abstract record FindTenantsAsStaffServiceResult {
@@ -435,6 +452,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 				UsersCount = usersCountDict.GetValueOrDefault(tenantId, 0),
 				MaxUsers = t.MaxUsers,
 				Status = Tenant.GetStatusDescription(t.Status),
+				LastActivityAt = t.LastActivityAt,
 			};
 		}).ToList();
 
@@ -474,7 +492,15 @@ public class TenantAsStaffService : ITenantAsStaffService {
 				Name = args.Name,
 				Code = code,
 				Status = TenantStatus.Pending,
-				MaxUsers = args.MaxUsers
+				MaxUsers = args.MaxUsers,
+				LegalName = args.LegalName,
+				Description = args.Description,
+				WebsiteUrl = args.WebsiteUrl,
+				BillingEmail = args.BillingEmail,
+				SupportEmail = args.SupportEmail,
+				DefaultLocale = args.DefaultLocale,
+				Timezone = args.Timezone,
+				Notes = args.Notes
 			};
 
 			try {
@@ -768,6 +794,30 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		}
 		if (args.MaxUsers is not null) {
 			tenant.MaxUsers = args.MaxUsers.Value;
+		}
+		if (args.LegalName.IsPresent) {
+			tenant.LegalName = args.LegalName.Value;
+		}
+		if (args.Description.IsPresent) {
+			tenant.Description = args.Description.Value;
+		}
+		if (args.WebsiteUrl.IsPresent) {
+			tenant.WebsiteUrl = args.WebsiteUrl.Value;
+		}
+		if (args.BillingEmail.IsPresent) {
+			tenant.BillingEmail = args.BillingEmail.Value;
+		}
+		if (args.SupportEmail.IsPresent) {
+			tenant.SupportEmail = args.SupportEmail.Value;
+		}
+		if (args.DefaultLocale.IsPresent) {
+			tenant.DefaultLocale = args.DefaultLocale.Value;
+		}
+		if (args.Timezone.IsPresent) {
+			tenant.Timezone = args.Timezone.Value;
+		}
+		if (args.Notes.IsPresent) {
+			tenant.Notes = args.Notes.Value;
 		}
 		tenant.UpdatedAt = DateTime.UtcNow;
 		await _dbContext.SaveChangesAsync(cancellationToken);

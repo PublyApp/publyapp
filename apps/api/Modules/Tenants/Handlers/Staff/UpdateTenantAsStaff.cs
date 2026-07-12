@@ -14,6 +14,7 @@ using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Tenants.Services;
+using PublyApp.Api.Modules.Tenants.Validation;
 
 namespace PublyApp.Api.Modules.Tenants.Handlers.Staff;
 
@@ -21,6 +22,14 @@ public record UpdateTenantAsStaffBody {
 	public JsonElement Name { get; init; }
 	public JsonElement LogoUrl { get; init; }
 	public JsonElement? MaxUsers { get; init; }
+	public JsonElement LegalName { get; init; }
+	public JsonElement Description { get; init; }
+	public JsonElement WebsiteUrl { get; init; }
+	public JsonElement BillingEmail { get; init; }
+	public JsonElement SupportEmail { get; init; }
+	public JsonElement DefaultLocale { get; init; }
+	public JsonElement Timezone { get; init; }
+	public JsonElement Notes { get; init; }
 
 	public string? GetName() {
 		return Name.ValueKind switch {
@@ -72,6 +81,61 @@ public record UpdateTenantAsStaffBody {
 	public int? GetMaxUsers() {
 		return MaxUsers?.GetValueAsInt32OrNull();
 	}
+
+	public PatchField<string?> GetLegalName() {
+		return GetPatchFieldString(LegalName);
+	}
+
+	public PatchField<string?> GetDescription() {
+		return GetPatchFieldString(Description);
+	}
+
+	public PatchField<string?> GetWebsiteUrl() {
+		return GetPatchFieldString(WebsiteUrl);
+	}
+
+	public PatchField<string?> GetBillingEmail() {
+		return GetPatchFieldString(BillingEmail);
+	}
+
+	public PatchField<string?> GetSupportEmail() {
+		return GetPatchFieldString(SupportEmail);
+	}
+
+	public PatchField<string?> GetDefaultLocale() {
+		return GetPatchFieldString(DefaultLocale);
+	}
+
+	public PatchField<string?> GetTimezone() {
+		return GetPatchFieldString(Timezone);
+	}
+
+	public PatchField<string?> GetNotes() {
+		return GetPatchFieldString(Notes);
+	}
+
+	private static PatchField<string?> GetPatchFieldString(JsonElement element) {
+		return element.ValueKind switch {
+			JsonValueKind.Undefined =>
+				PatchField<string?>.Absent(),
+			JsonValueKind.Null =>
+				PatchField<string?>.Set(null),
+			JsonValueKind.String =>
+				PatchField<string?>.Set(element.GetValueAsString()),
+			JsonValueKind.Object
+				or JsonValueKind.Array
+				or JsonValueKind.Number
+				or JsonValueKind.True
+				or JsonValueKind.False => throw new InvalidOperationException(
+				"Field must be a string, null, or omitted"
+			),
+			_ => throw new ArgumentOutOfRangeException(
+				nameof(element),
+				element.ValueKind,
+				$"Unhandled JsonValueKind: {element.ValueKind}"
+			),
+		};
+	}
 }
 
 public class UpdateTenantAsStaffBodyValidator
@@ -95,6 +159,30 @@ public class UpdateTenantAsStaffBodyValidator
 				context.AddFailure("MaxUsers must be greater than 0");
 			}
 		});
+
+		RuleFor(x => x.LegalName)
+			.MustBePatchFieldStringWithMaxLength("LegalName", 256);
+
+		RuleFor(x => x.Description)
+			.MustBePatchFieldStringWithMaxLength("Description", 1024);
+
+		RuleFor(x => x.WebsiteUrl)
+			.MustBePatchFieldUrl("WebsiteUrl");
+
+		RuleFor(x => x.BillingEmail)
+			.MustBePatchFieldEmailWithMaxLength("BillingEmail", 320);
+
+		RuleFor(x => x.SupportEmail)
+			.MustBePatchFieldEmailWithMaxLength("SupportEmail", 320);
+
+		RuleFor(x => x.DefaultLocale)
+			.MustBePatchFieldLocale();
+
+		RuleFor(x => x.Timezone)
+			.MustBePatchFieldTimezone();
+
+		RuleFor(x => x.Notes)
+			.MustBePatchFieldStringWithMaxLength("Notes", 4000);
 	}
 }
 
@@ -121,11 +209,27 @@ public sealed class UpdateTenantAsStaff {
 		var name = body.GetName();
 		var logoUrl = body.GetLogoUrl();
 		var maxUsers = body.GetMaxUsers();
+		var legalName = body.GetLegalName();
+		var description = body.GetDescription();
+		var websiteUrl = body.GetWebsiteUrl();
+		var billingEmail = body.GetBillingEmail();
+		var supportEmail = body.GetSupportEmail();
+		var defaultLocale = body.GetDefaultLocale();
+		var timezone = body.GetTimezone();
+		var notes = body.GetNotes();
 
 		// Guard against empty PATCH body
 		if (name is null
 			&& !logoUrl.IsPresent
-			&& maxUsers is null) {
+			&& maxUsers is null
+			&& !legalName.IsPresent
+			&& !description.IsPresent
+			&& !websiteUrl.IsPresent
+			&& !billingEmail.IsPresent
+			&& !supportEmail.IsPresent
+			&& !defaultLocale.IsPresent
+			&& !timezone.IsPresent
+			&& !notes.IsPresent) {
 			return TypedProblems.BadRequest(
 				"No fields to update",
 				ResponseKeys.BadRequest
@@ -135,7 +239,15 @@ public sealed class UpdateTenantAsStaff {
 		var args = new UpdateTenantAsStaffArgs(
 			Name: name,
 			LogoUrl: logoUrl,
-			MaxUsers: maxUsers
+			MaxUsers: maxUsers,
+			LegalName: legalName,
+			Description: description,
+			WebsiteUrl: websiteUrl,
+			BillingEmail: billingEmail,
+			SupportEmail: supportEmail,
+			DefaultLocale: defaultLocale,
+			Timezone: timezone,
+			Notes: notes
 		);
 
 		var result = await tenantService.UpdateTenantAsync(
@@ -187,6 +299,22 @@ public sealed class UpdateTenantAsStaff {
 					LogoUrl = args.LogoUrl.IsPresent
 						? args.LogoUrl.Value : null,
 					MaxUsers = args.MaxUsers,
+					LegalName = args.LegalName.IsPresent
+						? args.LegalName.Value : null,
+					Description = args.Description.IsPresent
+						? args.Description.Value : null,
+					WebsiteUrl = args.WebsiteUrl.IsPresent
+						? args.WebsiteUrl.Value : null,
+					BillingEmail = args.BillingEmail.IsPresent
+						? args.BillingEmail.Value : null,
+					SupportEmail = args.SupportEmail.IsPresent
+						? args.SupportEmail.Value : null,
+					DefaultLocale = args.DefaultLocale.IsPresent
+						? args.DefaultLocale.Value : null,
+					Timezone = args.Timezone.IsPresent
+						? args.Timezone.Value : null,
+					Notes = args.Notes.IsPresent
+						? args.Notes.Value : null,
 				}
 			),
 			cancellationToken
@@ -202,6 +330,15 @@ public sealed class UpdateTenantAsStaff {
 				tenant.Status
 			),
 			UsersCount = usersCount,
+			LegalName = tenant.LegalName,
+			Description = tenant.Description,
+			WebsiteUrl = tenant.WebsiteUrl,
+			BillingEmail = tenant.BillingEmail,
+			SupportEmail = tenant.SupportEmail,
+			DefaultLocale = tenant.DefaultLocale,
+			Timezone = tenant.Timezone,
+			Notes = tenant.Notes,
+			LastActivityAt = tenant.LastActivityAt,
 			CreatedAt = tenant.CreatedAt,
 			UpdatedAt = tenant.UpdatedAt,
 		});

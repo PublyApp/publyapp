@@ -15,6 +15,7 @@ using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Tenants.Services;
+using PublyApp.Api.Modules.Tenants.Validation;
 using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Tenants.Handlers.Staff;
@@ -27,6 +28,14 @@ public class CreateTenantAsStaffBody {
 	public JsonElement InitialUsers { get; set; }
 	public JsonElement? Code { get; set; }
 	public JsonElement? SeedDefaultProfile { get; set; }
+	public JsonElement? LegalName { get; set; }
+	public JsonElement? Description { get; set; }
+	public JsonElement? WebsiteUrl { get; set; }
+	public JsonElement? BillingEmail { get; set; }
+	public JsonElement? SupportEmail { get; set; }
+	public JsonElement? DefaultLocale { get; set; }
+	public JsonElement? Timezone { get; set; }
+	public JsonElement? Notes { get; set; }
 
 	public string GetName() {
 		return Name.GetValueAsString();
@@ -38,6 +47,38 @@ public class CreateTenantAsStaffBody {
 
 	public string? GetCode() {
 		return Code.GetValueAsStringOrNull();
+	}
+
+	public string? GetLegalName() {
+		return LegalName.GetValueAsStringOrNull();
+	}
+
+	public string? GetDescription() {
+		return Description.GetValueAsStringOrNull();
+	}
+
+	public string? GetWebsiteUrl() {
+		return WebsiteUrl.GetValueAsStringOrNull();
+	}
+
+	public string? GetBillingEmail() {
+		return BillingEmail.GetValueAsStringOrNull();
+	}
+
+	public string? GetSupportEmail() {
+		return SupportEmail.GetValueAsStringOrNull();
+	}
+
+	public string? GetDefaultLocale() {
+		return DefaultLocale.GetValueAsStringOrNull();
+	}
+
+	public string? GetTimezone() {
+		return Timezone.GetValueAsStringOrNull();
+	}
+
+	public string? GetNotes() {
+		return Notes.GetValueAsStringOrNull();
 	}
 
 	// Defaults to true to preserve current behavior when the field is omitted.
@@ -103,6 +144,30 @@ public partial class CreateTenantAsStaffBodyValidator : AbstractValidator<Create
 
 		RuleFor(x => x.SeedDefaultProfile)
 			.MustBeNullableBoolean("SeedDefaultProfile");
+
+		RuleFor(x => x.LegalName)
+			.MustBeNullableStringWithMaxLength("LegalName", 256);
+
+		RuleFor(x => x.Description)
+			.MustBeNullableStringWithMaxLength("Description", 1024);
+
+		RuleFor(x => x.WebsiteUrl)
+			.MustBeNullableUrl("WebsiteUrl");
+
+		RuleFor(x => x.BillingEmail)
+			.MustBeNullableEmailWithMaxLength("BillingEmail", 320);
+
+		RuleFor(x => x.SupportEmail)
+			.MustBeNullableEmailWithMaxLength("SupportEmail", 320);
+
+		RuleFor(x => x.DefaultLocale)
+			.MustBeNullableLocale();
+
+		RuleFor(x => x.Timezone)
+			.MustBeNullableTimezone();
+
+		RuleFor(x => x.Notes)
+			.MustBeNullableStringWithMaxLength("Notes", 4000);
 
 		RuleFor(x => x.InitialUsers)
 			.Custom(ValidateInitialUsers);
@@ -315,6 +380,14 @@ public sealed class CreateTenantAsStaff {
 		var initialUsersItems = body.GetInitialUsers();
 		var code = body.GetCode();
 		var seedDefaultProfile = body.GetSeedDefaultProfile();
+		var legalName = body.GetLegalName();
+		var description = body.GetDescription();
+		var websiteUrl = body.GetWebsiteUrl();
+		var billingEmail = body.GetBillingEmail();
+		var supportEmail = body.GetSupportEmail();
+		var defaultLocale = body.GetDefaultLocale();
+		var timezone = body.GetTimezone();
+		var notes = body.GetNotes();
 
 		var effectiveMaxUsers = maxUsers ?? AppEnvironment.Instance.DEFAULT_MAX_USERS_PER_TENANT;
 
@@ -335,7 +408,15 @@ public sealed class CreateTenantAsStaff {
 				InitialUsers: initialUsers,
 				InvitedByUserId: staffAccount.UserId,
 				Code: code,
-				SeedDefaultProfile: seedDefaultProfile
+				SeedDefaultProfile: seedDefaultProfile,
+				LegalName: legalName,
+				Description: description,
+				WebsiteUrl: websiteUrl,
+				BillingEmail: billingEmail,
+				SupportEmail: supportEmail,
+				DefaultLocale: defaultLocale,
+				Timezone: timezone,
+				Notes: notes
 			);
 
 			var outcome = await tenantAsStaffService.CreateTenantWithInitialUsersAsync(

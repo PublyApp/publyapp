@@ -161,6 +161,17 @@ public class TenantAuthFilter : IEndpointFilter {
 		// 8. Store account in context for downstream handlers
 		authContext.AccountTenant = tenantAccount;
 
+		// 9. Throttled last-activity tracking. Only tenant-scoped, member-authenticated
+		// requests count (staff inspecting a tenant does not). The staleness check reuses
+		// the tenant row already loaded above, so a fresh tenant costs zero extra queries.
+		var throttle = TimeSpan.FromMinutes(
+			AppEnvironment.Instance.TENANT_ACTIVITY_THROTTLE_MINUTES
+		);
+		if (tenant.LastActivityAt is null
+			|| tenant.LastActivityAt.Value <= DateTime.UtcNow - throttle) {
+			await tenantService.TouchLastActivityAsync(tenantId, httpContext.RequestAborted);
+		}
+
 		return await next(context);
 	}
 }

@@ -4,12 +4,19 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+
+using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
+using PublyApp.Api.Lib.Utils;
 
 using Xunit;
+
+using AppRoutes = PublyApp.Api.Lib.Routes.Routes;
 
 namespace PublyApp.Api.Lib.Filters;
 
@@ -19,12 +26,14 @@ public sealed class TenantAuthFilterSpec
 	// which applies session + tenant header + tenant auth
 	private const string TestEndpoint = "/test";
 
+	private readonly ApiFixture _fixture;
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 
 	public TenantAuthFilterSpec(
 		ApiFixture fixture
 	) {
+		_fixture = fixture;
 		_http = fixture.HttpClient;
 		_authClient = new TestAuthClient(_http);
 	}
@@ -360,5 +369,162 @@ public sealed class TenantAuthFilterSpec
 				// Ignore — tenant may already be active
 			}
 		}
+	}
+
+	[Fact]
+	public async Task
+	ItShouldSetLastActivityAtWhenNullOnTenantScopedRequest() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var acmeId =
+			await TenantTestHelper.GetTenantIdByNameAsync(
+				_http,
+				staffToken,
+				SeedConstants.Tenants.AcmeName
+			);
+
+		await SetLastActivityAtAsync(acmeId, null);
+
+		var acmeAdminToken = await _authClient.LoginAsync(
+			TestConstants.AcmeAdminEmail,
+			TestConstants.SeedPassword
+		);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			TestEndpoint
+		)
+			.WithSessionToken(acmeAdminToken)
+			.WithTenantId(acmeId);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var lastActivityAt =
+			await GetLastActivityAtAsync(acmeId);
+		lastActivityAt.Should().NotBeNull();
+		lastActivityAt!.Value.Should().BeCloseTo(
+			DateTime.UtcNow, TimeSpan.FromSeconds(10)
+		);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldNotRewriteLastActivityAtWithinThrottleWindow() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var acmeId =
+			await TenantTestHelper.GetTenantIdByNameAsync(
+				_http,
+				staffToken,
+				SeedConstants.Tenants.AcmeName
+			);
+
+		await SetLastActivityAtAsync(acmeId, null);
+
+		var acmeAdminToken = await _authClient.LoginAsync(
+			TestConstants.AcmeAdminEmail,
+			TestConstants.SeedPassword
+		);
+
+		using (var firstRequest = new HttpRequestMessage(
+			HttpMethod.Get,
+			TestEndpoint
+		)
+			.WithSessionToken(acmeAdminToken)
+			.WithTenantId(acmeId)) {
+			using var firstResponse =
+				await _http.SendAsync(firstRequest);
+			firstResponse.StatusCode.Should()
+				.Be(HttpStatusCode.OK);
+		}
+
+		var firstValue =
+			await GetLastActivityAtAsync(acmeId);
+		firstValue.Should().NotBeNull();
+
+		using (var secondRequest = new HttpRequestMessage(
+			HttpMethod.Get,
+			TestEndpoint
+		)
+			.WithSessionToken(acmeAdminToken)
+			.WithTenantId(acmeId)) {
+			using var secondResponse =
+				await _http.SendAsync(secondRequest);
+			secondResponse.StatusCode.Should()
+				.Be(HttpStatusCode.OK);
+		}
+
+		var secondValue =
+			await GetLastActivityAtAsync(acmeId);
+		secondValue.Should().Be(firstValue);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldNotSetLastActivityAtForStaffRequests() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var acmeId =
+			await TenantTestHelper.GetTenantIdByNameAsync(
+				_http,
+				staffToken,
+				SeedConstants.Tenants.AcmeName
+			);
+
+		await SetLastActivityAtAsync(acmeId, null);
+
+		var url = PathUtils.Join(
+			AppRoutes.Staff.Root,
+			AppRoutes.Tenants.ForStaff.Root,
+			AppRoutes.Tenants.ForStaff.GetByIdFn(
+				acmeId.ToString()
+			)
+		);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get, url
+		).WithSessionToken(staffToken);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var lastActivityAt =
+			await GetLastActivityAtAsync(acmeId);
+		lastActivityAt.Should().BeNull();
+	}
+
+	private async Task SetLastActivityAtAsync(
+		Guid tenantId,
+		DateTime? value
+	) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		await dbContext.Tenant
+			.Where(t => t.Id == tenantId)
+			.ExecuteUpdateAsync(setters => setters
+				.SetProperty(t => t.LastActivityAt, value));
+	}
+
+	private async Task<DateTime?> GetLastActivityAtAsync(
+		Guid tenantId
+	) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		return await dbContext.Tenant
+			.AsNoTracking()
+			.Where(t => t.Id == tenantId)
+			.Select(t => t.LastActivityAt)
+			.SingleAsync();
 	}
 }

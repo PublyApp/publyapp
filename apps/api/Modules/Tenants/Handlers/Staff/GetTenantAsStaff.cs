@@ -22,6 +22,16 @@ public class GetTenantAsStaffResult {
 	public int PendingInvitationsCount { get; set; }
 	public int ExpiringSoonInvitationsCount { get; set; }
 	public int ProfilesCount { get; set; }
+	public string? LegalName { get; set; }
+	public string? Description { get; set; }
+	public string? WebsiteUrl { get; set; }
+	public string? BillingEmail { get; set; }
+	public string? SupportEmail { get; set; }
+	public string? DefaultLocale { get; set; }
+	public string? Timezone { get; set; }
+	// Staff-internal only — never expose on tenant-scope responses.
+	public string? Notes { get; set; }
+	public DateTime? LastActivityAt { get; set; }
 	public DateTime CreatedAt { get; set; }
 	public DateTime UpdatedAt { get; set; }
 }
@@ -91,6 +101,15 @@ public sealed class GetTenantAsStaff {
 			PendingInvitationsCount = invitationCounts.Pending,
 			ExpiringSoonInvitationsCount = invitationCounts.ExpiringSoon,
 			ProfilesCount = profilesCount,
+			LegalName = tenant.LegalName,
+			Description = tenant.Description,
+			WebsiteUrl = tenant.WebsiteUrl,
+			BillingEmail = tenant.BillingEmail,
+			SupportEmail = tenant.SupportEmail,
+			DefaultLocale = tenant.DefaultLocale,
+			Timezone = tenant.Timezone,
+			Notes = tenant.Notes,
+			LastActivityAt = tenant.LastActivityAt,
 			CreatedAt = tenant.CreatedAt,
 			UpdatedAt = tenant.UpdatedAt,
 		});

@@ -12,6 +12,11 @@ public interface ITenantService {
 		Guid tenantId,
 		CancellationToken cancellationToken = default
 	);
+
+	// Targeted, throttled write for tenant-scoped request activity tracking.
+	// Callers decide staleness (see TenantAuthFilter) so this never runs an extra
+	// read query on the hot path.
+	Task TouchLastActivityAsync(Guid tenantId, CancellationToken cancellationToken = default);
 }
 
 [Service(ServiceLifetime.Scoped)]
@@ -47,5 +52,18 @@ public class TenantService : ITenantService {
 			where tenant.Id == tenantId && !tenant.IsDeleted
 			select tenant
 		).FirstOrDefaultAsync(cancellationToken);
+	}
+
+	public async Task TouchLastActivityAsync(
+		Guid tenantId,
+		CancellationToken cancellationToken = default
+	) {
+		await _dbContext.Tenant
+			.Where(t => t.Id == tenantId)
+			.ExecuteUpdateAsync(
+				setters => setters
+					.SetProperty(t => t.LastActivityAt, DateTime.UtcNow),
+				cancellationToken
+			);
 	}
 }

@@ -291,6 +291,69 @@ public sealed class GetTenantAsStaffSpec
 		result.ProfilesCount.Should().Be(2);
 	}
 
+	[Fact]
+	public async Task
+	ItShouldReturnAllOrganizationProfileFieldsWhenPresent() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var tenant = new Tenant {
+			Name = $"Tenant Get Org Fields {Guid.NewGuid():N}",
+			Code = Guid.NewGuid().ToString("N")[..10],
+			Status = TenantStatus.Active,
+			MaxUsers = 10,
+			LegalName = "Acme Legal Name LLC",
+			Description = "A short description of the org",
+			WebsiteUrl = "https://example.com",
+			BillingEmail = "billing@example.com",
+			SupportEmail = "support@example.com",
+			DefaultLocale = "fr",
+			Timezone = "Europe/Paris",
+			Notes = "internal staff note",
+			LastActivityAt = DateTime.UtcNow,
+		};
+		await dbContext.Tenant.AddAsync(tenant);
+		await dbContext.SaveChangesAsync();
+		var tenantId = tenant.GetRequiredId();
+
+		var url = GetUrl(tenantId.ToString());
+		var request = new HttpRequestMessage(
+			HttpMethod.Get, url
+		).WithSessionToken(staffToken);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<GetTenantAsStaffResult>();
+		result.Should().NotBeNull();
+		if (result is null) {
+			throw new InvalidOperationException(
+				"GET tenant response was empty."
+			);
+		}
+
+		result.LegalName.Should().Be(tenant.LegalName);
+		result.Description.Should().Be(tenant.Description);
+		result.WebsiteUrl.Should().Be(tenant.WebsiteUrl);
+		result.BillingEmail.Should().Be(tenant.BillingEmail);
+		result.SupportEmail.Should().Be(tenant.SupportEmail);
+		result.DefaultLocale.Should().Be(tenant.DefaultLocale);
+		result.Timezone.Should().Be(tenant.Timezone);
+		result.Notes.Should().Be(tenant.Notes);
+		result.LastActivityAt.Should().NotBeNull();
+		result.LastActivityAt!.Value.Should().BeCloseTo(
+			tenant.LastActivityAt!.Value, TimeSpan.FromSeconds(1)
+		);
+	}
+
 	private async Task<Guid> SeedTenantWithCountsFixtureAsync(
 		string namePrefix
 	) {

@@ -56,6 +56,7 @@ public class AppEnvironment {
 	public int AUDIT_LOG_EXPORT_MAX_ROWS { get; }
 	public int MAX_PROFILES_PER_USER { get; }
 	public int TENANT_USER_EXPORT_MAX_ROWS { get; }
+	public int TENANT_ACTIVITY_THROTTLE_MINUTES { get; }
 
 	// ========== Constants (hardcoded, not from environment) ==========
 #pragma warning disable CA1822
@@ -158,7 +159,8 @@ public class AppEnvironment {
 		bool diManifestEnabled,
 		int auditLogExportMaxRows,
 		int maxProfilesPerUser,
-		int tenantUserExportMaxRows
+		int tenantUserExportMaxRows,
+		int tenantActivityThrottleMinutes
 	) {
 		POSTGRES_CONNECTION_STRING = postgresConnectionString;
 		FRONT_URL = frontUrl;
@@ -181,6 +183,7 @@ public class AppEnvironment {
 		AUDIT_LOG_EXPORT_MAX_ROWS = auditLogExportMaxRows;
 		MAX_PROFILES_PER_USER = maxProfilesPerUser;
 		TENANT_USER_EXPORT_MAX_ROWS = tenantUserExportMaxRows;
+		TENANT_ACTIVITY_THROTTLE_MINUTES = tenantActivityThrottleMinutes;
 	}
 
 	/// <summary>
@@ -229,7 +232,8 @@ public class AppEnvironment {
 				diManifestEnabled: GetOptionalBool(nameof(DI_MANIFEST_ENABLED), false),
 				auditLogExportMaxRows: GetOptionalInt(nameof(AUDIT_LOG_EXPORT_MAX_ROWS), 10000),
 				maxProfilesPerUser: GetOptionalInt(nameof(MAX_PROFILES_PER_USER), 5),
-				tenantUserExportMaxRows: GetOptionalInt(nameof(TENANT_USER_EXPORT_MAX_ROWS), 10000)
+				tenantUserExportMaxRows: GetOptionalInt(nameof(TENANT_USER_EXPORT_MAX_ROWS), 10000),
+				tenantActivityThrottleMinutes: GetOptionalInt(nameof(TENANT_ACTIVITY_THROTTLE_MINUTES), 5)
 			);
 
 			var validator = new AppEnvironmentValidator();
@@ -461,6 +465,10 @@ public class AppEnvironmentValidator : AbstractValidator<AppEnvironment> {
 		RuleFor(x => x.TENANT_USER_EXPORT_MAX_ROWS)
 			.InclusiveBetween(1, 1_000_000)
 			.WithMessage("TENANT_USER_EXPORT_MAX_ROWS must be between 1 and 1000000");
+
+		RuleFor(x => x.TENANT_ACTIVITY_THROTTLE_MINUTES)
+			.InclusiveBetween(1, 1_440)
+			.WithMessage("TENANT_ACTIVITY_THROTTLE_MINUTES must be between 1 and 1440");
 
 		RuleFor(x => x.SESSION_TOKEN_HEADER_KEY)
 			.Must(BeValidHeaderName)

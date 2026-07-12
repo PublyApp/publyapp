@@ -6048,6 +6048,13 @@
             }
           },
           {
+            "name": "is_default",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "limit",
             "in": "query",
             "schema": {
@@ -9496,6 +9503,86 @@
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
+          },
+          "legalName": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
+          },
+          "description": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
+          },
+          "websiteUrl": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
+          },
+          "billingEmail": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
+          },
+          "supportEmail": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
+          },
+          "defaultLocale": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
+          },
+          "timezone": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
+          },
+          "notes": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
           }
         }
       },
@@ -9938,6 +10025,61 @@
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": "integer",
             "format": "int32"
+          },
+          "legalName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "websiteUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "billingEmail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "supportEmail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "defaultLocale": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "timezone": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "notes": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastActivityAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           },
           "createdAt": {
             "type": "string",
@@ -10914,6 +11056,13 @@
           },
           "status": {
             "type": "string"
+          },
+          "lastActivityAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         }
       },
@@ -11385,6 +11534,30 @@
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
+          },
+          "legalName": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "description": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "websiteUrl": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "billingEmail": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "supportEmail": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "defaultLocale": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "timezone": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "notes": {
+            "$ref": "#/components/schemas/JsonElement"
           }
         }
       },

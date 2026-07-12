@@ -310,6 +310,163 @@ public sealed class CreateTenantAsStaffSpec
 
 	[Fact]
 	public async Task
+	ItShouldPersistOrganizationProfileFieldsWhenProvided() {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tenantName =
+			$"Tenant Create Org Fields {Guid.NewGuid():N}";
+
+		var created = await CreateTenantSuccessfullyAsync(
+			token,
+			new {
+				name = tenantName,
+				maxUsers = 3,
+				legalName = "Acme Legal Name LLC",
+				description = "A short org description",
+				websiteUrl = "https://example.com",
+				billingEmail = "billing@example.com",
+				supportEmail = "support@example.com",
+				defaultLocale = "fr",
+				timezone = "Europe/Paris",
+				notes = "staff-only note",
+				initialUsers = new[] {
+					new {
+						email = $"tenant-create-org-{Guid.NewGuid():N}@example.com",
+						accountLevel = "Admin",
+					},
+				},
+			}
+		);
+
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var tenant = await dbContext.Tenant
+			.Where(t => t.Id == created.Id)
+			.SingleAsync();
+
+		tenant.LegalName.Should().Be("Acme Legal Name LLC");
+		tenant.Description.Should().Be("A short org description");
+		tenant.WebsiteUrl.Should().Be("https://example.com");
+		tenant.BillingEmail.Should().Be("billing@example.com");
+		tenant.SupportEmail.Should().Be("support@example.com");
+		tenant.DefaultLocale.Should().Be("fr");
+		tenant.Timezone.Should().Be("Europe/Paris");
+		tenant.Notes.Should().Be("staff-only note");
+	}
+
+	[Fact]
+	public async Task
+	ItShouldPersistNullOrganizationProfileFieldsWhenAbsent() {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tenantName =
+			$"Tenant Create Org Fields Absent {Guid.NewGuid():N}";
+
+		var created = await CreateTenantSuccessfullyAsync(
+			token,
+			new {
+				name = tenantName,
+				maxUsers = 3,
+				initialUsers = new[] {
+					new {
+						email = $"tenant-create-org-absent-{Guid.NewGuid():N}@example.com",
+						accountLevel = "Admin",
+					},
+				},
+			}
+		);
+
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var tenant = await dbContext.Tenant
+			.Where(t => t.Id == created.Id)
+			.SingleAsync();
+
+		tenant.LegalName.Should().BeNull();
+		tenant.Description.Should().BeNull();
+		tenant.WebsiteUrl.Should().BeNull();
+		tenant.BillingEmail.Should().BeNull();
+		tenant.SupportEmail.Should().BeNull();
+		tenant.DefaultLocale.Should().BeNull();
+		tenant.Timezone.Should().BeNull();
+		tenant.Notes.Should().BeNull();
+		tenant.LastActivityAt.Should().BeNull();
+	}
+
+	[Theory]
+	[InlineData("billingEmail", "not-an-email")]
+	[InlineData("supportEmail", "not-an-email")]
+	[InlineData("websiteUrl", "not-a-url")]
+	[InlineData("defaultLocale", "de")]
+	[InlineData("timezone", "Not/A_Real_Zone")]
+	public async Task
+	ItShouldReturnUnprocessableEntityForInvalidOrganizationFieldValues(
+		string field,
+		string invalidValue
+	) {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+
+		var body = $$"""
+			{
+				"name": "Tenant Create Org Invalid {{Guid.NewGuid():N}}",
+				"maxUsers": 3,
+				"{{field}}": "{{invalidValue}}",
+				"initialUsers": [
+					{ "email": "admin@example.com", "accountLevel": "Admin" }
+				]
+			}
+			""";
+
+		using var response = await _http.SendAsync(
+			CreateTenantRequest(token, body)
+		);
+
+		await AssertValidationProblemAsync(response, field.Length > 0
+			? char.ToUpperInvariant(field[0]) + field[1..]
+			: field);
+	}
+
+	[Theory]
+	[InlineData("legalName", 257)]
+	[InlineData("description", 1025)]
+	[InlineData("notes", 4001)]
+	public async Task
+	ItShouldReturnUnprocessableEntityWhenOrganizationFieldExceedsMaxLength(
+		string field,
+		int length
+	) {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+		var value = new string('a', length);
+
+		var body = $$"""
+			{
+				"name": "Tenant Create Org Too Long {{Guid.NewGuid():N}}",
+				"maxUsers": 3,
+				"{{field}}": "{{value}}",
+				"initialUsers": [
+					{ "email": "admin@example.com", "accountLevel": "Admin" }
+				]
+			}
+			""";
+
+		using var response = await _http.SendAsync(
+			CreateTenantRequest(token, body)
+		);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.UnprocessableEntity);
+	}
+
+	[Fact]
+	public async Task
 	ItShouldUseDefaultMaxUsersWhenMaxUsersIsMissing() {
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();

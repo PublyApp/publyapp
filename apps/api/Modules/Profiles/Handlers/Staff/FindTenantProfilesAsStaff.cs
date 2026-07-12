@@ -17,6 +17,9 @@ public class FindTenantProfilesAsStaffQuery : CursorPaginatedQuery {
 	[FromQuery(Name = "q")]
 	public string? Search { get; set; }
 
+	[FromQuery(Name = "is_default")]
+	public string? IsDefault { get; set; }
+
 	public string? GetSearchNormalized() {
 		if (Search is null) {
 			return null;
@@ -25,12 +28,20 @@ public class FindTenantProfilesAsStaffQuery : CursorPaginatedQuery {
 		var trimmed = Search.Trim();
 		return trimmed.Length == 0 ? null : trimmed;
 	}
+
+	public bool? GetIsDefault() {
+		return QueryPredicates.ParseNullableBoolean(IsDefault);
+	}
 }
 
 public class FindTenantProfilesAsStaffQueryValidator
 	: CursorPaginatedQueryValidator<FindTenantProfilesAsStaffQuery> {
 	public FindTenantProfilesAsStaffQueryValidator() {
 		RuleFor(x => x.Search).MaximumLength(200);
+
+		RuleFor(x => x.IsDefault)
+			.Must(QueryPredicates.BeValidNullableBoolean)
+			.WithMessage("is_default must be 'true' or 'false'");
 	}
 }
 
@@ -69,7 +80,8 @@ public sealed class FindTenantProfilesAsStaff {
 			Limit: limit,
 			SortId: sortId,
 			SortOrder: sortOrder,
-			Search: findTenantProfilesAsStaffQuery.GetSearchNormalized()
+			Search: findTenantProfilesAsStaffQuery.GetSearchNormalized(),
+			IsDefault: findTenantProfilesAsStaffQuery.GetIsDefault()
 		);
 
 		var serviceResult = await tenantProfileService.FindTenantProfilesAsync(

@@ -338,6 +338,91 @@ public static class JsonElementRules {
 	}
 
 	/// <summary>
+	/// Validates a nullable JsonElement? email field with a bounded length:
+	/// wrapper-null or JSON null OK; otherwise must be a valid email address whose
+	/// length is at most <paramref name="maxLength"/>.
+	/// </summary>
+	public static IRuleBuilderOptions<T, JsonElement?>
+		MustBeNullableEmailWithMaxLength<T>(
+			this IRuleBuilder<T, JsonElement?> ruleBuilder,
+			string fieldName,
+			int maxLength
+	) {
+		return ruleBuilder
+			.Must(e => {
+				if (e is null) {
+					return true;
+				}
+				var kind = e.Value.ValueKind;
+				if (kind is JsonValueKind.Null) {
+					return true;
+				}
+				if (kind != JsonValueKind.String) {
+					return false;
+				}
+				var email = e.Value.GetString();
+				if (string.IsNullOrWhiteSpace(email)) {
+					return false;
+				}
+				return System.Net.Mail.MailAddress
+					.TryCreate(email, out _);
+			})
+			.WithMessage(
+				$"{fieldName} must be a valid email address"
+			)
+			.Must(e => {
+				if (e is null || e.Value.ValueKind != JsonValueKind.String) {
+					return true;
+				}
+				return (e.Value.GetString()?.Length ?? 0) <= maxLength;
+			})
+			.WithMessage(
+				$"{fieldName} must be at most {maxLength} characters long"
+			);
+	}
+
+	/// <summary>
+	/// Validates a non-nullable JsonElement email field for PatchField pattern with a
+	/// bounded length: Undefined OK (omit), null OK (clear), otherwise must be a valid
+	/// email address whose length is at most <paramref name="maxLength"/>.
+	/// </summary>
+	public static IRuleBuilderOptions<T, JsonElement>
+		MustBePatchFieldEmailWithMaxLength<T>(
+			this IRuleBuilder<T, JsonElement> ruleBuilder,
+			string fieldName,
+			int maxLength
+	) {
+		return ruleBuilder
+			.Must(e => {
+				var kind = e.ValueKind;
+				if (kind is JsonValueKind.Undefined or JsonValueKind.Null) {
+					return true;
+				}
+				if (kind is not JsonValueKind.String) {
+					return false;
+				}
+				var email = e.GetString();
+				if (string.IsNullOrWhiteSpace(email)) {
+					return false;
+				}
+				return System.Net.Mail.MailAddress
+					.TryCreate(email, out _);
+			})
+			.WithMessage(
+				$"{fieldName} must be a valid email address, null, or omitted"
+			)
+			.Must(e => {
+				if (e.ValueKind != JsonValueKind.String) {
+					return true;
+				}
+				return (e.GetString()?.Length ?? 0) <= maxLength;
+			})
+			.WithMessage(
+				$"{fieldName} must be at most {maxLength} characters long"
+			);
+	}
+
+	/// <summary>
 	/// Validates a required JsonElement GUID array field:
 	/// required → array → non-empty → bounded size → every item is a GUID string.
 	/// </summary>
