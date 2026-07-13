@@ -183,21 +183,33 @@ test.describe('FIX-3: design-system chrome rulings', () => {
 		await page.getByRole('option', { name: '50', exact: true }).click();
 		await expect(popup).toBeHidden();
 
+		// Selecting 50 re-renders the table with a different row count, which
+		// can move the trigger itself — anchoring is judged relative to the
+		// trigger, so re-measure it before the second open.
+		const secondTriggerBox = await trigger.boundingBox();
+		expect(secondTriggerBox).not.toBeNull();
+
 		await trigger.click();
 		await expect(popup).toBeVisible();
 		const secondPopupBox = await popup.boundingBox();
 		expect(secondPopupBox).not.toBeNull();
 
-		// The popup must open in the same place regardless of which value (10
-		// vs. 50, i.e. first item vs. a later one) is currently selected —
-		// alignItemWithTrigger must not reposition it over the selected item.
-		if (firstPopupBox && secondPopupBox) {
+		// The popup must keep the same offset FROM ITS TRIGGER regardless of
+		// which value (10 vs. 50, i.e. first item vs. a later one) is
+		// currently selected — alignItemWithTrigger must not reposition it
+		// over the selected item.
+		if (triggerBox && firstPopupBox && secondTriggerBox && secondPopupBox) {
 			// A generous but still tight tolerance: if alignItemWithTrigger were
 			// re-centering the popup over the newly-selected item, moving from
-			// the 1st option (10) to the 3rd (50) would shift it by roughly two
-			// item heights (~64px), far outside this window.
-			expect(Math.abs(secondPopupBox.y - firstPopupBox.y)).toBeLessThan(8);
-			expect(Math.abs(secondPopupBox.x - firstPopupBox.x)).toBeLessThan(8);
+			// the 1st option (10) to the 3rd (50) would shift its trigger-
+			// relative offset by roughly two item heights (~64px), far outside
+			// this window.
+			const firstOffsetY = firstPopupBox.y - triggerBox.y;
+			const secondOffsetY = secondPopupBox.y - secondTriggerBox.y;
+			expect(Math.abs(secondOffsetY - firstOffsetY)).toBeLessThan(8);
+			const firstOffsetX = firstPopupBox.x - triggerBox.x;
+			const secondOffsetX = secondPopupBox.x - secondTriggerBox.x;
+			expect(Math.abs(secondOffsetX - firstOffsetX)).toBeLessThan(8);
 		}
 	});
 });
