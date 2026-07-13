@@ -120,6 +120,16 @@ const KNOWN_HANDOFF_GUARD_DEBT = [
 		sourceIncludes: 'h-2 w-2 rounded-full bg-primary',
 		reason: 'Legacy status dot; Tenants module pass owns this.',
 	},
+	{
+		ruleId: ROUNDED_RULE_ID,
+		file: 'src/components/ui/loading-spinner.tsx',
+		sourceIncludes: 'size-4 animate-spin rounded-full',
+		reason:
+			'Functional spinner circle (a full rotation needs a full circle), not a decorative pill. ' +
+			'An inline `design-system-ignore` comment cannot suppress this: the rule id ' +
+			'"no-rounded-full-or-999-radius" itself contains the substring "rounded-full" and would ' +
+			'self-trigger a new violation on the comment line, so this is a debt-list entry instead.',
+	},
 ];
 
 const IMPORTANT_FOUNDATION_RULE_ID = 'no-important-foundation';

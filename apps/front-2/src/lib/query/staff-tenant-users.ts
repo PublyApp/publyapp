@@ -16,7 +16,7 @@ import type {
 	CreateInvitationForTenantAsStaffBody,
 	ApiResponse,
 	BulkRemoveTenantUsersBody,
-	BulkTenantUserActionResult,
+	BulkRemoveTenantUsersResult,
 	FindTenantUsersAsStaffResult,
 	InvitationCreatedForTenant,
 	ReactivateTenantUserResult,
@@ -299,7 +299,7 @@ export const buildExportStaffTenantUsersQueryParameters = (
 });
 
 export const toStaffTenantUserBulkActionSummary = (
-	result: BulkTenantUserActionResult | null | undefined,
+	result: BulkRemoveTenantUsersResult | null | undefined,
 ): StaffTenantUserBulkActionSummary => ({
 	succeededCount: result?.succeededCount ?? 0,
 	failedCount: result?.failedCount ?? 0,
@@ -509,7 +509,7 @@ export const removeStaffTenantUserMutationOptions = buildStaffMutationOptions<
 export const bulkRemoveStaffTenantUsersMutationOptions =
 	buildStaffMutationOptions<
 		ApiClient,
-		BulkTenantUserActionResult | undefined,
+		BulkRemoveTenantUsersResult | undefined,
 		StaffTenantUserBulkRemoveInput
 	>(
 		{

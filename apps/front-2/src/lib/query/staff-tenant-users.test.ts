@@ -16,7 +16,7 @@ import {
 } from '~/lib/query/staff-tenant-users';
 
 import type {
-	BulkTenantUserActionResult,
+	BulkRemoveTenantUsersResult,
 	TenantUserDetailsResult,
 	TenantUserItem,
 } from '@org/client-ts/src/models/index.js';
@@ -364,7 +364,7 @@ describe('buildExportStaffTenantUsersQueryParameters', () => {
 
 describe('toStaffTenantUserBulkActionSummary', () => {
 	test('normalizes counts and failed items, unescaping the error field', () => {
-		const result: BulkTenantUserActionResult = {
+		const result: BulkRemoveTenantUsersResult = {
 			succeededCount: 2,
 			failedCount: 1,
 			failedItems: [
