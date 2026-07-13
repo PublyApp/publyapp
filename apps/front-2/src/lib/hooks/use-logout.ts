@@ -70,7 +70,6 @@ export const useLogout = () => {
 			logoutInFlight = true;
 			setIsLoggingOut(true);
 
-			queryClient.clear();
 			clear()
 				.then(() => {
 					// Broadcast only after the clear settles — the shared session
@@ -78,15 +77,21 @@ export const useLogout = () => {
 					// race the sender to /login while still authenticated.
 					postBroadcast(AUTH_SYNC_CHANNEL, { type: 'logout' });
 
-					if (options?.redirectTo) {
-						void navigate({ to: options.redirectTo, replace: true });
-						return;
-					}
+					const navigation = options?.redirectTo
+						? navigate({ to: options.redirectTo, replace: true })
+						: navigate({
+								to: '/login',
+								search: buildLoginSearch(options?.redirectCause),
+								replace: true,
+							});
 
-					void navigate({
-						to: '/login',
-						search: buildLoginSearch(options?.redirectCause),
-						replace: true,
+					// Clear the query cache only once navigation away from the
+					// authed surface has been initiated — clearing it first makes
+					// TanStack Query refetch still-mounted active queries against
+					// the now-cleared session, firing a duplicate request before
+					// the redirect takes effect (see 80a14aa5).
+					return navigation.then(() => {
+						queryClient.clear();
 					});
 				})
 				.catch((error: unknown) => {

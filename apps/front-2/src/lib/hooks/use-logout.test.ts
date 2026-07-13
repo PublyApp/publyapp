@@ -40,6 +40,7 @@ describe('useLogout', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mocks.clear.mockResolvedValue(undefined);
+		mocks.navigate.mockResolvedValue(undefined);
 	});
 
 	afterEach(() => {
@@ -54,8 +55,10 @@ describe('useLogout', () => {
 		});
 
 		await waitFor(() => expect(mocks.navigate).toHaveBeenCalledTimes(1));
+		await waitFor(() =>
+			expect(mocks.queryClientClear).toHaveBeenCalledTimes(1),
+		);
 
-		expect(mocks.queryClientClear).toHaveBeenCalledTimes(1);
 		expect(mocks.clear).toHaveBeenCalledTimes(1);
 		expect(mocks.navigate).toHaveBeenCalledWith({
 			to: '/login',
@@ -65,6 +68,44 @@ describe('useLogout', () => {
 		expect(mocks.postBroadcast).toHaveBeenCalledWith('publyapp:auth-sync', {
 			type: 'logout',
 		});
+	});
+
+	test('clears the query cache only after navigation to /login has been initiated, not before (regression guard for 80a14aa5)', async () => {
+		// Controllable navigate() promise: lets us assert the cache is still
+		// untouched at the exact moment navigate() has been called but has not
+		// yet settled, which a macrotask-based waitFor poll can't pin down on
+		// its own (both the navigate-call and the cache-clear microtasks would
+		// already have drained by the time the poll callback runs).
+		let resolveNavigate: () => void = () => {};
+		mocks.navigate.mockReturnValue(
+			new Promise<void>((resolve) => {
+				resolveNavigate = resolve;
+			}),
+		);
+
+		const { result } = renderHook(() => useLogout());
+
+		act(() => {
+			result.current.logout();
+		});
+
+		await waitFor(() => expect(mocks.navigate).toHaveBeenCalledTimes(1));
+
+		// At the instant navigate() is invoked (and still unsettled) the cache
+		// clear must not have run yet — otherwise still-mounted active queries
+		// refetch against the now-cleared cache before the redirect takes
+		// effect.
+		expect(mocks.queryClientClear).not.toHaveBeenCalled();
+
+		resolveNavigate();
+		await waitFor(() =>
+			expect(mocks.queryClientClear).toHaveBeenCalledTimes(1),
+		);
+
+		const navigateOrder = mocks.navigate.mock.invocationCallOrder[0];
+		const queryClientClearOrder =
+			mocks.queryClientClear.mock.invocationCallOrder[0];
+		expect(navigateOrder).toBeLessThan(queryClientClearOrder);
 	});
 
 	test('passes redirect_cause=invalid_session through when requested (the LogoutRedirect path)', async () => {
@@ -131,11 +172,13 @@ describe('useLogout', () => {
 			result.current.logout();
 		});
 
-		expect(mocks.queryClientClear).toHaveBeenCalledTimes(1);
 		expect(mocks.clear).toHaveBeenCalledTimes(1);
 
 		resolveClear();
 		await waitFor(() => expect(mocks.navigate).toHaveBeenCalledTimes(1));
+		await waitFor(() =>
+			expect(mocks.queryClientClear).toHaveBeenCalledTimes(1),
+		);
 	});
 
 	test('dedupes concurrent logout calls from two independent hook instances (e.g. the QueryCache backstop and LogoutRedirect reacting to the same 401)', async () => {
@@ -156,11 +199,13 @@ describe('useLogout', () => {
 			second.result.current.logout({ redirectCause: 'invalid_session' });
 		});
 
-		expect(mocks.queryClientClear).toHaveBeenCalledTimes(1);
 		expect(mocks.clear).toHaveBeenCalledTimes(1);
 
 		resolveClear();
 		await waitFor(() => expect(mocks.navigate).toHaveBeenCalledTimes(1));
+		await waitFor(() =>
+			expect(mocks.queryClientClear).toHaveBeenCalledTimes(1),
+		);
 
 		expect(mocks.postBroadcast).toHaveBeenCalledTimes(1);
 		expect(mocks.navigate).toHaveBeenCalledWith({
