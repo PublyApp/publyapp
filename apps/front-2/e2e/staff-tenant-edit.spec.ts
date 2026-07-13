@@ -269,9 +269,13 @@ test.describe('staff tenant edit logo upload', () => {
 			.locator('img');
 		await expect(preview).toBeVisible();
 		await expect(preview).toHaveAttribute('src', absoluteUploadedLogoUrl);
-		expect(
-			await preview.evaluate((img: HTMLImageElement) => img.naturalWidth),
-		).toBeGreaterThan(0);
+		await expect
+			.poll(() =>
+				preview.evaluate(
+					(img: HTMLImageElement) => img.complete && img.naturalWidth > 0,
+				),
+			)
+			.toBe(true);
 	});
 
 	test('an oversized file shows an inline error and does not set the logo', async ({
@@ -387,17 +391,11 @@ test.describe('staff tenant edit logo upload against the real backend', () => {
 		await page.waitForURL(new RegExp(`/staff/tenants/${tenantId}$`));
 
 		// Reload into the edit form and confirm the persisted (root-relative)
-		// url resolves against the real API origin and actually serves — 200
-		// on a cold fetch, or a conditionally-revalidated 304 if the browser
-		// still holds this exact url in its HTTP cache from the upload above.
-		const filesResponsePromise = page.waitForResponse(
-			(response) =>
-				response.request().method() === 'GET' &&
-				response.url() === absoluteUploadedLogoUrl,
-		);
+		// url resolves against the real API origin and actually serves. The
+		// proof is the decoded image itself (naturalWidth below), NOT a
+		// network event: the browser may satisfy this GET straight from its
+		// memory cache after the upload above, emitting no response at all.
 		await page.goto(`/staff/tenants/${tenantId}/edit`);
-		const filesResponse = await filesResponsePromise;
-		expect([200, 304]).toContain(filesResponse.status());
 
 		await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
 		await expect(page.getByTestId('logo-upload-url')).toHaveText(
@@ -408,8 +406,12 @@ test.describe('staff tenant edit logo upload against the real backend', () => {
 			.getByTestId('staff-tenant-edit-preview')
 			.locator('img');
 		await expect(preview).toHaveAttribute('src', absoluteUploadedLogoUrl);
-		expect(
-			await preview.evaluate((img: HTMLImageElement) => img.naturalWidth),
-		).toBeGreaterThan(0);
+		await expect
+			.poll(() =>
+				preview.evaluate(
+					(img: HTMLImageElement) => img.complete && img.naturalWidth > 0,
+				),
+			)
+			.toBe(true);
 	});
 });
