@@ -8,6 +8,7 @@ import {
 
 describe('parseTenantStatusFilter', () => {
 	test('accepts known statuses case-insensitively', () => {
+		expect(parseTenantStatusFilter('Pending')).toBe('pending');
 		expect(parseTenantStatusFilter('active')).toBe('active');
 		expect(parseTenantStatusFilter('Suspended')).toBe('suspended');
 	});

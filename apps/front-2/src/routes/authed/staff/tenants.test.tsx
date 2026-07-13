@@ -77,6 +77,7 @@ const TRANSLATIONS: Record<string, string> = {
 	'bulk-action-max-count-exceeded':
 		'Reduce your selection to at most {{max}} items ({{count}} selected).',
 	'all-statuses': 'All statuses',
+	'status-pending': 'Pending',
 	'status-active': 'Active',
 	'status-suspended': 'Suspended',
 	clear: 'Clear',
@@ -273,6 +274,9 @@ describe('staff tenants route', () => {
 
 		expect(
 			await screen.findByTestId('staff-tenants-table-status-filter-all'),
+		).toBeTruthy();
+		expect(
+			screen.getByTestId('staff-tenants-table-status-filter-pending'),
 		).toBeTruthy();
 		expect(
 			screen.getByTestId('staff-tenants-table-status-filter-active'),

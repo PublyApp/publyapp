@@ -5,7 +5,13 @@ import {
 	type TableSearchParams,
 } from '~/lib/url-state/table-search-params';
 
-export const TENANT_STATUS_FILTERS = ['active', 'suspended'] as const;
+// Lifecycle order (mirrors the backend TenantStatus enum): a tenant is
+// created Pending and activates when its first owner accepts the invitation.
+export const TENANT_STATUS_FILTERS = [
+	'pending',
+	'active',
+	'suspended',
+] as const;
 export type TenantStatusFilter = (typeof TENANT_STATUS_FILTERS)[number];
 
 const TENANT_STATUS_FILTER_SET = new Set<string>(TENANT_STATUS_FILTERS);

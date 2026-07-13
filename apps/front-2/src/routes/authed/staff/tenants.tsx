@@ -77,6 +77,9 @@ const formatTenantStatusFilterLabel = (
 	value: TenantStatusFilter | undefined,
 	t: (key: string) => string,
 ): string => {
+	if (value === 'pending') {
+		return t('status-pending');
+	}
 	if (value === 'active') {
 		return t('status-active');
 	}
