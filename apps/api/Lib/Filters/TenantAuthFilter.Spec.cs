@@ -13,6 +13,7 @@ using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.Tenants.Services;
 
 using Xunit;
 
@@ -496,6 +497,37 @@ public sealed class TenantAuthFilterSpec
 		var lastActivityAt =
 			await GetLastActivityAtAsync(acmeId);
 		lastActivityAt.Should().BeNull();
+	}
+
+	[Fact]
+	public async Task
+	ItShouldNotOverwriteLastActivityAtWhenAlreadyFreshEvenWhenTouchedDirectly() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var acmeId =
+			await TenantTestHelper.GetTenantIdByNameAsync(
+				_http,
+				staffToken,
+				SeedConstants.Tenants.AcmeName
+			);
+
+		// Within the default 5-minute throttle window, but distinguishable from
+		// "now" by far more than any reasonable test-timing slop.
+		var freshValue = DateTime.UtcNow.AddMinutes(-1);
+		await SetLastActivityAtAsync(acmeId, freshValue);
+
+		// Calls the service directly, bypassing TenantAuthFilter's own in-memory
+		// pre-check, to prove the ExecuteUpdateAsync WHERE clause itself is the
+		// guard: concurrent requests racing on a stale in-memory snapshot must
+		// not all issue a write once one of them has already refreshed the row.
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var tenantService =
+			scope.ServiceProvider.GetRequiredService<ITenantService>();
+		await tenantService.TouchLastActivityAsync(acmeId);
+
+		var afterValue = await GetLastActivityAtAsync(acmeId);
+		afterValue.Should().BeCloseTo(freshValue, TimeSpan.FromSeconds(1));
 	}
 
 	private async Task SetLastActivityAtAsync(

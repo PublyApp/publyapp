@@ -23,7 +23,8 @@ public sealed class CreateStaffUpload {
 
 	public static async Task<Results<
 		Created<StaffUploadCreated>,
-		AppValidationProblemHttpResult
+		AppValidationProblemHttpResult,
+		AppPayloadTooLargeHttpResult
 	>> Handle(
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IFileStorage fileStorage,
@@ -40,33 +41,36 @@ public sealed class CreateStaffUpload {
 		}
 
 		if (file is null || file.Length == 0) {
-			return ValidationFailure("A file is required");
+			return ValidationFailure(
+				"A file is required",
+				ResponseKeys.UploadFileRequired
+			);
 		}
 
 		var maxBytes = AppEnvironment.Instance.UPLOAD_MAX_BYTES;
 		if (file.Length > maxBytes) {
-			return ValidationFailure(
-				$"File exceeds the maximum size of {maxBytes} bytes"
+			return TypedProblems.PayloadTooLarge(
+				$"File exceeds the maximum size of {maxBytes} bytes",
+				ResponseKeys.UploadFileTooLarge
 			);
 		}
 
-		await using var buffer = new MemoryStream();
-		await using (var uploadStream = file.OpenReadStream()) {
-			await uploadStream.CopyToAsync(buffer, cancellationToken);
-		}
-		buffer.Position = 0;
-
-		var sniffed = SniffImageType(buffer);
+		// file.OpenReadStream() is already seekable (ASP.NET Core buffers the
+		// multipart section to memory or a temp file before the handler runs), so
+		// sniff directly off it and rewind — no intermediate MemoryStream copy.
+		await using var uploadStream = file.OpenReadStream();
+		var sniffed = SniffImageType(uploadStream);
 		if (sniffed is null) {
 			return ValidationFailure(
-				"File must be a PNG, JPEG, WEBP, or GIF image"
+				"File must be a PNG, JPEG, WEBP, or GIF image",
+				ResponseKeys.UploadFileUnsupportedType
 			);
 		}
-		buffer.Position = 0;
+		uploadStream.Position = 0;
 
 		var (contentType, extension) = sniffed.Value;
 		var relativePath = await fileStorage.SaveAsync(
-			buffer, extension, cancellationToken
+			uploadStream, extension, cancellationToken
 		);
 		var url = $"/files/{relativePath}";
 
@@ -92,10 +96,13 @@ public sealed class CreateStaffUpload {
 		});
 	}
 
-	private static AppValidationProblemHttpResult ValidationFailure(string message) {
+	private static AppValidationProblemHttpResult ValidationFailure(
+		string message,
+		TranslationKey translationKey
+	) {
 		return TypedProblems.ValidationProblem(
 			message,
-			ResponseKeys.InvalidUploadFile,
+			translationKey,
 			new Dictionary<string, string[]> {
 				{ "file", [message] }
 			}

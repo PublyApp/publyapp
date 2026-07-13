@@ -72,6 +72,7 @@ public static class AuditActions {
 	public const string TenantDeleted = "tenant.deleted";
 	public const string TenantUserRemoved = "tenant.user.removed";
 	public const string TenantUserBulkRemoved = "tenant.user.bulk.removed";
+	public const string TenantUserExported = "tenant.user.exported";
 	public const string TenantUserUpdated = "tenant.user.updated";
 	public const string TenantUserSuspended = "tenant.user.suspended";
 	public const string TenantUserReactivated = "tenant.user.reactivated";

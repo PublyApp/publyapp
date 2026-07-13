@@ -120,8 +120,11 @@ public record UpdateTenantAsStaffBody {
 				PatchField<string?>.Absent(),
 			JsonValueKind.Null =>
 				PatchField<string?>.Set(null),
+			// Trims and maps whitespace-only input to null so "cleared" has a single
+			// representation — otherwise {"legalName": "  "} would persist a non-null
+			// value the UI has to separately treat as empty alongside actual null.
 			JsonValueKind.String =>
-				PatchField<string?>.Set(element.GetValueAsString()),
+				PatchField<string?>.Set(NormalizeClearableString(element.GetValueAsString())),
 			JsonValueKind.Object
 				or JsonValueKind.Array
 				or JsonValueKind.Number
@@ -136,6 +139,11 @@ public record UpdateTenantAsStaffBody {
 			),
 		};
 	}
+
+	private static string? NormalizeClearableString(string value) {
+		var trimmed = value.Trim();
+		return trimmed.Length == 0 ? null : trimmed;
+	}
 }
 
 public class UpdateTenantAsStaffBodyValidator
@@ -145,7 +153,7 @@ public class UpdateTenantAsStaffBodyValidator
 			.MustBePatchFieldStringWithLength("Name", 5, int.MaxValue);
 
 		RuleFor(x => x.LogoUrl)
-			.MustBePatchFieldNullableString("LogoUrl");
+			.MustBePatchFieldLogoUrl();
 
 		RuleFor(x => x.MaxUsers).Custom((element, context) => {
 			if (element is null) {

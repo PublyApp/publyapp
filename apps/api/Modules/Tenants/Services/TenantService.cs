@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Modules.Tenants.Entities;
 
@@ -58,8 +59,17 @@ public class TenantService : ITenantService {
 		Guid tenantId,
 		CancellationToken cancellationToken = default
 	) {
+		// Self-guarding: repeats the staleness check from the WHERE clause
+		// (TenantAuthFilter's in-memory check is a cheap short-circuit, not this
+		// guard) so concurrent requests in the same burst don't all issue a
+		// write — losers match zero rows and take no row lock.
+		var cutoff = DateTime.UtcNow
+			- TimeSpan.FromMinutes(AppEnvironment.Instance.TENANT_ACTIVITY_THROTTLE_MINUTES);
+
 		await _dbContext.Tenant
-			.Where(t => t.Id == tenantId)
+			// == null (not "is null") is required: this is an expression tree,
+			// the PUBLY0008 carve-out for that context.
+			.Where(t => t.Id == tenantId && (t.LastActivityAt == null || t.LastActivityAt <= cutoff))
 			.ExecuteUpdateAsync(
 				setters => setters
 					.SetProperty(t => t.LastActivityAt, DateTime.UtcNow),

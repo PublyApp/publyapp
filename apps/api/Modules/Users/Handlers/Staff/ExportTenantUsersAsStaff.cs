@@ -5,8 +5,11 @@ using FluentValidation;
 
 using Microsoft.AspNetCore.Mvc;
 
+using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.AuditLogs.Entities;
+using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Users.Entities;
 using PublyApp.Api.Modules.Users.Services;
 
@@ -185,11 +188,22 @@ public sealed class ExportTenantUsersAsStaff {
 		[FromRoute] string tenantId,
 		[AsParameters] ExportTenantUsersAsStaffQuery query,
 		[FromServices] ITenantUserQueryService tenantUserQueryService,
+		[FromServices] IAuditLogService auditLogService,
+		[FromServices] IRequestAuthContext authContext,
+		[FromServices] ILogger<ExportTenantUsersAsStaff> logger,
 		HttpContext httpContext,
 		CancellationToken cancellationToken = default
 	) {
 		if (!Guid.TryParse(tenantId, out var tenantIdGuid)) {
 			return TypedProblems.BadRequest("Invalid tenant ID", ResponseKeys.MalformedId);
+		}
+
+		var account = authContext.AccountStaff;
+		if (account is null) {
+			throw new InvalidOperationException(
+				"Staff account not found in auth context. "
+				+ "Ensure the endpoint has .WithPermission() middleware."
+			);
 		}
 
 		var exportArgs = new ExportTenantUsersArgs(
@@ -199,17 +213,41 @@ public sealed class ExportTenantUsersAsStaff {
 			Ids: query.GetIdsOrNull()
 		);
 
-		var exceedsLimit = await tenantUserQueryService.ExportExceedsLimitAsync(
+		var rowCount = await tenantUserQueryService.CountForExportAsync(
 			tenantIdGuid,
 			exportArgs,
 			cancellationToken
 		);
 
-		if (exceedsLimit) {
+		if (rowCount > AppEnvironment.Instance.TENANT_USER_EXPORT_MAX_ROWS) {
 			return TypedProblems.BadRequest(
 				"Export exceeds the maximum row limit. Please narrow your filters.",
 				ResponseKeys.BadRequest
 			);
+		}
+
+		// Exporting emails/names/etc. for every matching user is a PII bulk-read;
+		// audit it before streaming starts. A failed audit write must never block
+		// an otherwise-authorized export, so this is a logged, non-fatal try/catch.
+		try {
+			await auditLogService.LogAsync(
+				new CreateAuditLogArgs(
+					UserId: account.UserId,
+					Action: AuditActions.TenantUserExported,
+					TargetId: tenantIdGuid,
+					Details: new {
+						TenantId = tenantIdGuid,
+						exportArgs.Search,
+						Status = exportArgs.Status,
+						Level = exportArgs.Level,
+						Ids = exportArgs.Ids,
+						RowCount = rowCount
+					}
+				),
+				cancellationToken
+			);
+		} catch (Exception ex) {
+			logger.LogWarning(ex, "Failed to write audit log for tenant user export");
 		}
 
 		var timestamp = DateTime.UtcNow

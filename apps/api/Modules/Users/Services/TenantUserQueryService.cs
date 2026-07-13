@@ -79,7 +79,10 @@ public interface ITenantUserQueryService {
 		Guid userId,
 		CancellationToken cancellationToken = default
 	);
-	Task<bool> ExportExceedsLimitAsync(
+	// Bounded at TENANT_USER_EXPORT_MAX_ROWS + 1 (like ExportAsync's Take(limit)),
+	// so callers can both detect "exceeds limit" (result > limit) and log the exact
+	// row count about to be exported without a second, unbounded COUNT(*) query.
+	Task<int> CountForExportAsync(
 		Guid tenantId,
 		ExportTenantUsersArgs args,
 		CancellationToken cancellationToken = default
@@ -93,11 +96,26 @@ public interface ITenantUserQueryService {
 
 [Service(ServiceLifetime.Scoped)]
 public class TenantUserQueryService : ITenantUserQueryService {
+	// Passed as the ILIKE ESCAPE argument so an escaped '%'/'_' in the pattern below
+	// is matched literally instead of as a wildcard.
+	private const string LikeEscapeChar = "\\";
 
 	private readonly AppDbContext _dbContext;
 
 	public TenantUserQueryService(AppDbContext dbContext) {
 		_dbContext = dbContext;
+	}
+
+	// Neutralizes ILIKE wildcard metacharacters in caller-supplied search text so
+	// e.g. a literal "%" or "_" in the query only matches that literal character,
+	// not "any run of characters" / "any single character". Must be paired with
+	// EF.Functions.ILike(col, pattern, LikeEscapeChar) — the escape char is what
+	// makes the backslashes inserted here significant to Postgres.
+	private static string EscapeLikePattern(string value) {
+		return value
+			.Replace("\\", "\\\\", StringComparison.Ordinal)
+			.Replace("%", "\\%", StringComparison.Ordinal)
+			.Replace("_", "\\_", StringComparison.Ordinal);
 	}
 
 	private static int GetTenantUserStatusRank(
@@ -413,14 +431,16 @@ public class TenantUserQueryService : ITenantUserQueryService {
 		IQueryable<UserAccount> query = baseQuery;
 
 		// Apply search filter (by name or email)
-		// Search semantics: substring match (ILIKE %q%) for case-insensitive search
+		// Search semantics: substring match (ILIKE %q%) for case-insensitive search.
+		// The literal is escaped so a caller-supplied '%' or '_' cannot widen the match
+		// beyond an actual substring (see EscapeLikePattern).
 		if (args.Filters?.Search is { } search) {
 			var effectiveQ = search.Trim();
-			var pattern = $"%{effectiveQ}%";
+			var pattern = $"%{EscapeLikePattern(effectiveQ)}%";
 			query = query.Where(ua =>
-				(ua.User.FirstName != null && EF.Functions.ILike(ua.User.FirstName, pattern)) ||
-				(ua.User.LastName != null && EF.Functions.ILike(ua.User.LastName, pattern)) ||
-				EF.Functions.ILike(ua.User.Email, pattern)
+				(ua.User.FirstName != null && EF.Functions.ILike(ua.User.FirstName, pattern, LikeEscapeChar)) ||
+				(ua.User.LastName != null && EF.Functions.ILike(ua.User.LastName, pattern, LikeEscapeChar)) ||
+				EF.Functions.ILike(ua.User.Email, pattern, LikeEscapeChar)
 			);
 		}
 
@@ -526,7 +546,7 @@ public class TenantUserQueryService : ITenantUserQueryService {
 		);
 	}
 
-	public async Task<bool> ExportExceedsLimitAsync(
+	public async Task<int> CountForExportAsync(
 		Guid tenantId,
 		ExportTenantUsersArgs args,
 		CancellationToken cancellationToken = default
@@ -534,8 +554,7 @@ public class TenantUserQueryService : ITenantUserQueryService {
 		var limit = AppEnvironment.Instance.TENANT_USER_EXPORT_MAX_ROWS;
 		var query = ApplyExportFilters(BuildExportBaseQuery(tenantId), args);
 
-		var count = await query.Take(limit + 1).CountAsync(cancellationToken);
-		return count > limit;
+		return await query.Take(limit + 1).CountAsync(cancellationToken);
 	}
 
 	public async IAsyncEnumerable<TenantUserExportItem> ExportAsync(
@@ -584,11 +603,11 @@ public class TenantUserQueryService : ITenantUserQueryService {
 		ExportTenantUsersArgs args
 	) {
 		if (args.Search is { } search) {
-			var pattern = $"%{search}%";
+			var pattern = $"%{EscapeLikePattern(search)}%";
 			query = query.Where(ua =>
-				(ua.User.FirstName != null && EF.Functions.ILike(ua.User.FirstName, pattern)) ||
-				(ua.User.LastName != null && EF.Functions.ILike(ua.User.LastName, pattern)) ||
-				EF.Functions.ILike(ua.User.Email, pattern)
+				(ua.User.FirstName != null && EF.Functions.ILike(ua.User.FirstName, pattern, LikeEscapeChar)) ||
+				(ua.User.LastName != null && EF.Functions.ILike(ua.User.LastName, pattern, LikeEscapeChar)) ||
+				EF.Functions.ILike(ua.User.Email, pattern, LikeEscapeChar)
 			);
 		}
 

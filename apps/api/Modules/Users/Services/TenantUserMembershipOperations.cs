@@ -118,8 +118,11 @@ internal static class TenantUserMembershipOperations {
 
 			foreach (var userId in requestedUserIds) {
 				if (!accountByUserId.TryGetValue(userId, out var row)) {
+					// Stable token, not prose — the handler's wire contract maps this
+					// straight through so the frontend can translate it, rather than
+					// an English string it would have to pattern-match.
 					failedItems.Add(
-						new BulkTenantUserActionFailedItem(userId, "User not found in tenant")
+						new BulkTenantUserActionFailedItem(userId, "not-found")
 					);
 					continue;
 				}
@@ -136,7 +139,7 @@ internal static class TenantUserMembershipOperations {
 						failedItems.Add(
 							new BulkTenantUserActionFailedItem(
 								userId,
-								"Cannot remove the last admin from the tenant"
+								"last-admin"
 							)
 						);
 						continue;

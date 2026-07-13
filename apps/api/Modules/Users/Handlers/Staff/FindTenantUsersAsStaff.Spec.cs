@@ -13,6 +13,7 @@ using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
@@ -95,6 +96,77 @@ public sealed class FindTenantUsersAsStaffSpec
 		result.Data.Count.Should().Be(1);
 		result.NextCursor.Should()
 			.NotBeNullOrEmpty();
+	}
+
+	[Fact]
+	public async Task
+	ItShouldTreatABarePercentSearchAsALiteralCharacterNotAWildcardForEveryRow() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var marker = Guid.NewGuid().ToString("N")[..8];
+		var tenantId = await SeedTenantWithSearchFixtureAsync(marker);
+
+		var url = GetFindUrl(tenantId, search: "%");
+		var request = new HttpRequestMessage(
+			HttpMethod.Get, url
+		).WithSessionToken(staffToken);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<FindResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+
+		// If '%' were interpolated unescaped into the ILIKE pattern, "%%%"
+		// collapses to a bare wildcard matching every row. Escaped, only the
+		// user whose name literally contains '%' may match.
+		result.Data.Should().ContainSingle(u => u.FirstName == $"Has%Percent{marker}");
+		result.Data.Should().NotContain(u => u.FirstName == $"NoPercentAtAll{marker}");
+	}
+
+	private async Task<Guid> SeedTenantWithSearchFixtureAsync(string marker) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var tenant = new Tenant {
+			Name = $"Tenant Find Search Fixture {marker}",
+			Code = Guid.NewGuid().ToString("N")[..10],
+			Status = TenantStatus.Active,
+			MaxUsers = 10,
+		};
+		await dbContext.Tenant.AddAsync(tenant);
+		await dbContext.SaveChangesAsync();
+		var tenantId = tenant.GetRequiredId();
+
+		async Task AddUserAsync(string firstName) {
+			var user = new User {
+				Email = $"tenant-find-search-{Guid.NewGuid():N}@example.com",
+				Password = "unused",
+				FirstName = firstName,
+				LastName = "Search",
+				Status = UserStatus.Active,
+				IsVerified = true,
+			};
+			await dbContext.User.AddAsync(user);
+			await dbContext.SaveChangesAsync();
+
+			await dbContext.UserAccount.AddAsync(
+				UserAccount.CreateTenantAccount(user.GetRequiredId(), tenantId)
+			);
+			await dbContext.SaveChangesAsync();
+		}
+
+		await AddUserAsync($"Has%Percent{marker}");
+		await AddUserAsync($"NoPercentAtAll{marker}");
+
+		return tenantId;
 	}
 
 	[Fact]
@@ -885,7 +957,8 @@ public sealed class FindTenantUsersAsStaffSpec
 		string? sortId = null,
 		string? sortOrder = null,
 		string? status = null,
-		string? level = null
+		string? level = null,
+		string? search = null
 	) {
 		return GetFindUrl(
 			tenantId.ToString(),
@@ -894,7 +967,8 @@ public sealed class FindTenantUsersAsStaffSpec
 			sortId,
 			sortOrder,
 			status,
-			level
+			level,
+			search
 		);
 	}
 
@@ -905,7 +979,8 @@ public sealed class FindTenantUsersAsStaffSpec
 		string? sortId = null,
 		string? sortOrder = null,
 		string? status = null,
-		string? level = null
+		string? level = null,
+		string? search = null
 	) {
 		var basePath = PathUtils.Join(
 			Routes.Staff.Root,
@@ -933,6 +1008,9 @@ public sealed class FindTenantUsersAsStaffSpec
 		}
 		if (level is not null) {
 			queryParams.Add($"level={level}");
+		}
+		if (search is not null) {
+			queryParams.Add($"q={Uri.EscapeDataString(search)}");
 		}
 
 		if (queryParams.Count > 0) {

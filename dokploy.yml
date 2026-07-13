@@ -11,6 +11,13 @@ services:
       - ASPNETCORE_URLS=http://+:5000
       - POSTGRES_CONNECTION_STRING=${POSTGRES_CONNECTION_STRING}
       - FRONT_URL=${FRONT_URL}
+    # Persists staff-uploaded assets (tenant logos) at FILE_STORAGE_ROOT across
+    # redeploys/container replacement — without this, every deploy wipes
+    # .artifacts/storage and every /files/... URL in tenants.logo_url 404s.
+    # The mount must be writable by the container's $APP_UID (see
+    # apps/api/Dockerfile, which chowns .artifacts to $APP_UID at build time).
+    volumes:
+      - publyapp-api-storage:/app/.artifacts/storage
     networks:
       - publyapp-network
     labels:
@@ -51,3 +58,6 @@ services:
 networks:
   publyapp-network:
     driver: bridge
+
+volumes:
+  publyapp-api-storage:

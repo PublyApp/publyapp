@@ -91,5 +91,7 @@
 	"staff-user-not-suspended-cannot-delete": "Seuls les membres du staff suspendus peuvent être supprimés",
 	"email-already-in-use": "Cet email est déjà utilisé",
 	"code-already-taken": "Ce code d'espace de travail est déjà pris",
-	"invalid-upload-file": "Fichier téléchargé invalide"
+	"upload-file-required": "Un fichier est requis",
+	"upload-file-too-large": "Le fichier dépasse la taille maximale autorisée",
+	"upload-file-unsupported-type": "Le fichier doit être une image PNG, JPEG, WEBP ou GIF"
 }

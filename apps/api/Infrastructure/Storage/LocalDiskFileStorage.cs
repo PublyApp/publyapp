@@ -1,27 +1,34 @@
-using PublyApp.Api.Lib;
+using System.Text.RegularExpressions;
 
 namespace PublyApp.Api.Infrastructure.Storage;
 
 /// <summary>
-/// Local-disk implementation of <see cref="IFileStorage"/>, rooted at
-/// <see cref="AppEnvironment.FILE_STORAGE_ROOT"/>. Saved paths are always
-/// server-generated (UUID v7 file names under a year/month folder) so callers
-/// never influence the on-disk layout; <see cref="ResolveFullPath"/> also
-/// rejects any path that would resolve outside the storage root, guarding
-/// the read/exists/delete paths against traversal even if ever called with
-/// unexpected input.
+/// Local-disk implementation of <see cref="IFileStorage"/>, rooted at the
+/// path passed to its constructor (the configured <c>FILE_STORAGE_ROOT</c> in
+/// production; an isolated temp directory in tests). Registered via an
+/// explicit factory in ServiceRegistration since DI cannot resolve the
+/// primitive <c>rootPath</c> constructor parameter on its own. Saved paths
+/// are always server-generated (UUID v7 file names under a year/month
+/// folder) and the extension is validated against a strict allowlist
+/// pattern, so callers never influence the on-disk layout;
+/// <see cref="ResolveFullPath"/> also rejects any path that would resolve
+/// outside the storage root, guarding the read/exists/delete paths against
+/// traversal even if ever called with unexpected input.
 /// </summary>
-public class LocalDiskFileStorage : IFileStorage {
+public sealed partial class LocalDiskFileStorage : IFileStorage {
+	// Lowercase letters/digits only, 1-8 chars after the leading dot — rejects path
+	// separators, traversal segments, and embedded NUL bytes in a caller-supplied extension.
+	[GeneratedRegex(@"^\.[a-z0-9]{1,8}$")]
+	private static partial Regex ExtensionPattern();
+
 	private readonly string _rootPath;
 
-	public LocalDiskFileStorage() : this(AppEnvironment.Instance.FILE_STORAGE_ROOT) {
+	public string RootPath {
+		get {
+			return _rootPath;
+		}
 	}
 
-	/// <summary>
-	/// Explicit-root constructor, used by DI for the configured
-	/// <see cref="AppEnvironment.FILE_STORAGE_ROOT"/> and by tests that need
-	/// an isolated root without mutating the process-wide AppEnvironment singleton.
-	/// </summary>
 	public LocalDiskFileStorage(string rootPath) {
 		_rootPath = Path.GetFullPath(rootPath);
 		Directory.CreateDirectory(_rootPath);
@@ -32,9 +39,9 @@ public class LocalDiskFileStorage : IFileStorage {
 		string extension,
 		CancellationToken cancellationToken = default
 	) {
-		if (string.IsNullOrWhiteSpace(extension) || extension[0] != '.') {
+		if (string.IsNullOrWhiteSpace(extension) || !ExtensionPattern().IsMatch(extension)) {
 			throw new ArgumentException(
-				"Extension must be non-empty and start with '.'",
+				"Extension must match ^\\.[a-z0-9]{1,8}$",
 				nameof(extension)
 			);
 		}
@@ -67,31 +74,6 @@ public class LocalDiskFileStorage : IFileStorage {
 		await content.CopyToAsync(fileStream, cancellationToken);
 
 		return relativePath;
-	}
-
-	public Task<Stream?> OpenReadAsync(
-		string relativePath,
-		CancellationToken cancellationToken = default
-	) {
-		var fullPath = ResolveFullPath(relativePath);
-		if (!File.Exists(fullPath)) {
-			return Task.FromResult<Stream?>(null);
-		}
-
-		Stream stream = new FileStream(
-			fullPath,
-			FileMode.Open,
-			FileAccess.Read,
-			FileShare.Read
-		);
-		return Task.FromResult<Stream?>(stream);
-	}
-
-	public Task<bool> ExistsAsync(
-		string relativePath,
-		CancellationToken cancellationToken = default
-	) {
-		return Task.FromResult(File.Exists(ResolveFullPath(relativePath)));
 	}
 
 	public Task DeleteAsync(

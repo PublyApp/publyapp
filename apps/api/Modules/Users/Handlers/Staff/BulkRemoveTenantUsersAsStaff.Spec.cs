@@ -157,12 +157,10 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 
 		await AssertUserAccountRemovedAsync(tenantId, firstUserId);
 		await AssertUserAccountRemovedAsync(tenantId, secondUserId);
-		await AssertLatestBulkRemoveAuditLogAsync(
+		await AssertBulkRemoveAuditLogsAsync(
 			tenantId,
 			startedAt,
-			expectedRequestedCount: 2,
-			expectedSucceededCount: 2,
-			expectedFailedCount: 0
+			expectedTargetIds: [firstUserId, secondUserId]
 		);
 		_ = adminUserId;
 	}
@@ -220,21 +218,47 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 		result.FailedCount.Should().Be(2);
 		result.FailedItems.Should().ContainSingle(item =>
 			item.UserId == missingUserId
-			&& item.Error == "User not found in tenant"
+			&& item.Error == "not-found"
 		);
 		result.FailedItems.Should().ContainSingle(item =>
 			item.UserId == otherAdminUserId
-			&& item.Error == "User not found in tenant"
+			&& item.Error == "not-found"
 		);
 
 		await AssertUserAccountRemovedAsync(tenantId, deletableUserId);
 		await AssertUserAccountNotRemovedAsync(otherTenantId, otherAdminUserId);
-		await AssertLatestBulkRemoveAuditLogAsync(
+		await AssertBulkRemoveAuditLogsAsync(
 			tenantId,
 			startedAt,
-			expectedRequestedCount: 3,
-			expectedSucceededCount: 1,
-			expectedFailedCount: 2
+			expectedTargetIds: [deletableUserId]
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldNotWriteAnAuditLogWhenNothingSucceeds() {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var (tenantId, _) = await SeedTenantWithAdminAsync();
+		var missingUserId = Guid.NewGuid();
+		var startedAt = DateTime.UtcNow;
+
+		using var response = await BulkRemoveAsync(
+			staffToken,
+			tenantId.ToString(),
+			new { userIds = new[] { missingUserId } }
+		);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content.ReadFromJsonAsync<BulkTenantUserActionResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+		result.SucceededCount.Should().Be(0);
+		result.FailedCount.Should().Be(1);
+
+		await AssertBulkRemoveAuditLogsAsync(
+			tenantId,
+			startedAt,
+			expectedTargetIds: []
 		);
 	}
 
@@ -259,7 +283,7 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 		result.FailedCount.Should().Be(1);
 		result.FailedItems.Should().ContainSingle(item =>
 			item.UserId == adminUserId
-			&& item.Error == "Cannot remove the last admin from the tenant"
+			&& item.Error == "last-admin"
 		);
 
 		await AssertUserAccountRemovedAsync(tenantId, regularUserId);
@@ -411,38 +435,34 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 		).FirstOrDefaultAsync();
 	}
 
-	private async Task AssertLatestBulkRemoveAuditLogAsync(
+	// Per docs/guides/bulk-action-ux-conventions.md §6, bulk remove writes one audit
+	// row per succeeded user (via LogManyAsync), each carrying that user's real
+	// TargetId — never a single aggregate row with TargetId: null.
+	private async Task AssertBulkRemoveAuditLogsAsync(
 		Guid tenantId,
 		DateTime startedAt,
-		int expectedRequestedCount,
-		int expectedSucceededCount,
-		int expectedFailedCount
+		IReadOnlyCollection<Guid> expectedTargetIds
 	) {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-		var auditLog = await (
+		var auditLogs = await (
 			from log in dbContext.AuditLog
 			where log.Action == AuditActions.TenantUserBulkRemoved
 				&& log.CreatedAt >= startedAt
-			orderby log.CreatedAt descending
 			select log
-		).FirstOrDefaultAsync();
+		).ToListAsync();
 
-		auditLog.Should().NotBeNull();
-		if (auditLog is null) {
-			throw new InvalidOperationException("Bulk remove audit log was not written.");
+		auditLogs.Should().HaveCount(expectedTargetIds.Count);
+		auditLogs.Select(log => log.TargetId)
+			.Should().BeEquivalentTo(expectedTargetIds.Select(id => (Guid?)id));
+
+		foreach (var auditLog in auditLogs) {
+			auditLog.Details.Should().NotBeNull();
+			Assert.NotNull(auditLog.Details);
+			using var document = JsonDocument.Parse(auditLog.Details);
+			document.RootElement.GetProperty("TenantId").GetGuid().Should().Be(tenantId);
 		}
-
-		auditLog.Details.Should().NotBeNull();
-		Assert.NotNull(auditLog.Details);
-		using var document = JsonDocument.Parse(auditLog.Details);
-		var details = document.RootElement;
-
-		details.GetProperty("TenantId").GetGuid().Should().Be(tenantId);
-		details.GetProperty("RequestedCount").GetInt32().Should().Be(expectedRequestedCount);
-		details.GetProperty("SucceededCount").GetInt32().Should().Be(expectedSucceededCount);
-		details.GetProperty("FailedCount").GetInt32().Should().Be(expectedFailedCount);
 	}
 
 	private sealed record BulkTenantUserActionResponse {

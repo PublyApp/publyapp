@@ -404,6 +404,43 @@ public sealed class CreateTenantAsStaffSpec
 
 	[Fact]
 	public async Task
+	ItShouldStoreWhitespaceOnlyLegalNameAsNullNotAsAnEmptyishString() {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tenantName =
+			$"Tenant Create Org Fields Whitespace {Guid.NewGuid():N}";
+
+		var created = await CreateTenantSuccessfullyAsync(
+			token,
+			new {
+				name = tenantName,
+				maxUsers = 3,
+				legalName = "  ",
+				initialUsers = new[] {
+					new {
+						email = $"tenant-create-org-whitespace-{Guid.NewGuid():N}@example.com",
+						accountLevel = "Admin",
+					},
+				},
+			}
+		);
+
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var tenant = await dbContext.Tenant
+			.Where(t => t.Id == created.Id)
+			.SingleAsync();
+
+		// A whitespace-only value must collapse to the SAME "cleared" representation
+		// as an omitted field — never a second, undocumented "empty" representation.
+		tenant.LegalName.Should().BeNull();
+	}
+
+	[Fact]
+	public async Task
 	ItShouldReturnUnprocessableEntityWhenLogoUrlIsWrongType() {
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();
@@ -418,6 +455,58 @@ public sealed class CreateTenantAsStaffSpec
 				]
 			}
 			""";
+
+		using var response = await _http.SendAsync(
+			CreateTenantRequest(token, body)
+		);
+
+		await AssertValidationProblemAsync(response, "LogoUrl");
+	}
+
+	[Theory]
+	[InlineData("javascript:alert(document.cookie)")]
+	[InlineData("data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==")]
+	[InlineData("not-a-url-or-served-upload-path")]
+	public async Task
+	ItShouldReturnUnprocessableEntityWhenLogoUrlIsNotAServedUploadPathOrHttpUrl(
+		string logoUrl
+	) {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+
+		var body = new {
+			name = $"Tenant Create Logo Url Unsafe {Guid.NewGuid():N}",
+			maxUsers = 3,
+			logoUrl,
+			initialUsers = new[] {
+				new { email = "admin@example.com", accountLevel = "Admin" }
+			}
+		};
+
+		using var response = await _http.SendAsync(
+			CreateTenantRequest(token, body)
+		);
+
+		await AssertValidationProblemAsync(response, "LogoUrl");
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnUnprocessableEntityWhenLogoUrlExceedsMaxLength() {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+
+		var oversizedLogoUrl =
+			"https://cdn.example.com/" + new string('a', 2048) + ".png";
+
+		var body = new {
+			name = $"Tenant Create Logo Url Too Long {Guid.NewGuid():N}",
+			maxUsers = 3,
+			logoUrl = oversizedLogoUrl,
+			initialUsers = new[] {
+				new { email = "admin@example.com", accountLevel = "Admin" }
+			}
+		};
 
 		using var response = await _http.SendAsync(
 			CreateTenantRequest(token, body)

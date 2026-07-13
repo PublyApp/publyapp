@@ -27,6 +27,19 @@ public static class CustomExceptionHandler {
 				var exceptionType = exceptionHandlerFeature?.Error;
 
 				if (exceptionType is not null) {
+					// Kestrel throws this when a request body exceeds the limit set by
+					// RequestSizeLimitAttribute / FormOptions.MultipartBodyLengthLimit
+					// (see UploadEndpointsForStaff), before the handler's own size check runs.
+					if (
+							exceptionType is Microsoft.AspNetCore.Http.BadHttpRequestException sizeLimitException
+							&& sizeLimitException.StatusCode == StatusCodes.Status413PayloadTooLarge
+						) {
+						statusCode = StatusCodes.Status413PayloadTooLarge;
+						title = "Payload Too Large";
+						detail = "Request body exceeds the maximum allowed size";
+						key = ResponseKeys.UploadFileTooLarge;
+					}
+
 					if (
 							exceptionType is Microsoft.AspNetCore.Http.BadHttpRequestException badRequestException
 							&& badRequestException.Message.Contains("Required parameter")

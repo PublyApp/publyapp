@@ -11,6 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
+using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -20,6 +21,7 @@ using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Tenants.Entities;
+using PublyApp.Api.Modules.Uploads.Handlers.Staff;
 using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
@@ -193,6 +195,102 @@ public sealed class UpdateTenantAsStaffSpec
 
 	[Fact]
 	public async Task
+	ItShouldDeleteThePreviousUploadedLogoBlobWhenLogoUrlIsReplaced() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantAsync("Tenant Logo Blob Replace");
+		var uploaded = await UploadPngLogoAsync(staffToken);
+
+		using var setResponse =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				seededTenant.TenantId,
+				new { logoUrl = uploaded.Url }
+			);
+		setResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+		File.Exists(GetStorageFilePath(uploaded.Path)).Should().BeTrue();
+
+		using var replaceResponse =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				seededTenant.TenantId,
+				new { logoUrl = "https://cdn.example.com/replacement-logo.png" }
+			);
+		replaceResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		File.Exists(GetStorageFilePath(uploaded.Path)).Should().BeFalse(
+			"replacing a served-upload logoUrl must delete the blob it pointed at"
+		);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldDeleteThePreviousUploadedLogoBlobWhenLogoUrlIsCleared() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantAsync("Tenant Logo Blob Clear");
+		var uploaded = await UploadPngLogoAsync(staffToken);
+
+		using var setResponse =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				seededTenant.TenantId,
+				new { logoUrl = uploaded.Url }
+			);
+		setResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		using var clearRequest = new HttpRequestMessage(
+			HttpMethod.Patch, GetUrl(seededTenant.TenantId.ToString())
+		).WithSessionToken(staffToken);
+		clearRequest.Content = new StringContent(
+			"""{"logoUrl": null}""",
+			Encoding.UTF8,
+			"application/json"
+		);
+		using var clearResponse = await _http.SendAsync(clearRequest);
+		clearResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		File.Exists(GetStorageFilePath(uploaded.Path)).Should().BeFalse(
+			"clearing a served-upload logoUrl must delete the blob it pointed at"
+		);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldNotDeleteAnythingWhenThePreviousLogoUrlIsNotAServedUpload() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantAsync("Tenant Logo External No Delete");
+
+		using var setResponse =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				seededTenant.TenantId,
+				new { logoUrl = "https://cdn.example.com/external-logo.png" }
+			);
+		setResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		// No blob is server-owned here, so replacing it a second time must not
+		// throw or attempt to touch the filesystem for an external URL.
+		using var replaceResponse =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				seededTenant.TenantId,
+				new { logoUrl = "https://cdn.example.com/another-external-logo.png" }
+			);
+		replaceResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+	}
+
+	[Fact]
+	public async Task
 	ItShouldUpdateMaxUsersSuccessfully() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
@@ -292,6 +390,38 @@ public sealed class UpdateTenantAsStaffSpec
 			expectedLogoUrl: newLogoUrl,
 			expectedMaxUsers: newMaxUsers
 		);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldStoreWhitespaceOnlyLegalNameAsNullNotAsAnEmptyishString() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantAsync("Tenant Org Fields Whitespace");
+
+		using var response =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				seededTenant.TenantId,
+				new { legalName = "  " }
+			);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<GetTenantAsStaffResult>();
+		result.Should().NotBeNull();
+		if (result is null) {
+			throw new InvalidOperationException(
+				"PATCH tenant response was empty."
+			);
+		}
+
+		// A whitespace-only value must collapse to the SAME "cleared" representation
+		// as an explicit null — never a second, undocumented "empty" representation.
+		result.LegalName.Should().BeNull();
 	}
 
 	[Fact]
@@ -793,6 +923,24 @@ public sealed class UpdateTenantAsStaffSpec
 			},
 			{
 			"""
+			{ "logoUrl": "javascript:alert(document.cookie)" }
+			""",
+			"LogoUrl"
+			},
+			{
+			"""
+			{ "logoUrl": "data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==" }
+			""",
+			"LogoUrl"
+			},
+			{
+			"""
+			{ "logoUrl": "not-a-url-or-served-upload-path" }
+			""",
+			"LogoUrl"
+			},
+			{
+			"""
 			{ "maxUsers": "10" }
 			""",
 			"MaxUsers"
@@ -909,6 +1057,47 @@ public sealed class UpdateTenantAsStaffSpec
 		await dbContext.SaveChangesAsync();
 
 		return seededTenant;
+	}
+
+	private static readonly byte[] PngBytes = [
+		0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+		0x00, 0x00, 0x00, 0x0D, 0x00, 0x00
+	];
+
+	private async Task<StaffUploadCreated> UploadPngLogoAsync(string staffToken) {
+		var uploadUrl = PathUtils.Join(
+			Routes.Staff.Root,
+			Routes.Uploads.ForStaff.Root,
+			Routes.Uploads.ForStaff.Create
+		);
+
+		using var content = new MultipartFormDataContent();
+		var fileContent = new ByteArrayContent(PngBytes);
+		fileContent.Headers.ContentType =
+			new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
+		content.Add(fileContent, "file", "logo.png");
+
+		using var request = new HttpRequestMessage(HttpMethod.Post, uploadUrl) {
+			Content = content
+		}.WithSessionToken(staffToken);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+		var result = await response.Content.ReadFromJsonAsync<StaffUploadCreated>();
+		result.Should().NotBeNull();
+		if (result is null) {
+			throw new InvalidOperationException("Upload response was empty.");
+		}
+		return result;
+	}
+
+	private string GetStorageFilePath(string relativePath) {
+		var fileStorage = _fixture.Factory.Services.GetRequiredService<IFileStorage>();
+		return Path.Combine(
+			fileStorage.RootPath,
+			relativePath.Replace('/', Path.DirectorySeparatorChar)
+		);
 	}
 
 	private async Task<AuditLog?> GetLatestAuditLogAsync(

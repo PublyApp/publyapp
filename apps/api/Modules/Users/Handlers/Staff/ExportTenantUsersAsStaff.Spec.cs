@@ -14,6 +14,7 @@ using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
@@ -259,6 +260,71 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 			line.Should().NotContain(",-1+1");
 			line.Should().NotContain(",@SUM");
 		}
+	}
+
+	[Fact]
+	public async Task ItShouldWriteAnAuditLogBeforeStreamingTheExport() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync();
+		await SeedTenantUserWithIdAsync(tenantId, "export-audit");
+		var startedAt = DateTime.UtcNow;
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetExportUrl(tenantId.ToString())
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var uploaderUserId = await AuditLogTestHelper.GetUserIdByEmailAsync(
+			_fixture.Factory, TestConstants.StaffAdminEmail
+		);
+
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var auditLog = await (
+			from log in dbContext.AuditLog
+			where log.Action == AuditActions.TenantUserExported
+				&& log.UserId == uploaderUserId
+				&& log.TargetId == tenantId
+				&& log.CreatedAt >= startedAt
+			select log
+		).FirstOrDefaultAsync();
+
+		auditLog.Should().NotBeNull("a tenant user export must write an audit log entry");
+		if (auditLog is null) {
+			throw new InvalidOperationException("Export audit log was not written.");
+		}
+
+		auditLog.Details.Should().NotBeNull();
+		Assert.NotNull(auditLog.Details);
+		auditLog.Details.Should().Contain("RowCount");
+	}
+
+	[Fact]
+	public async Task ItShouldTreatABarePercentSearchAsALiteralCharacterNotAWildcardForEveryRow() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var (tenantId, _) = await SeedTenantWithAdminAsync();
+		var marker = Guid.NewGuid().ToString("N")[..8];
+		await SeedTenantUserWithNameAsync(tenantId, $"Has%Percent{marker}", "Search");
+		await SeedTenantUserWithNameAsync(tenantId, $"NoPercentAtAll{marker}", "Search");
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetExportUrl(tenantId.ToString(), search: "%")
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var content = await response.Content.ReadAsStringAsync();
+		// If '%' were interpolated unescaped into the ILIKE pattern, "%%%" collapses to
+		// a bare wildcard that matches every row — an "empty search" that looks narrow
+		// in the logs but dumps the whole tenant. Escaped, it must match only rows that
+		// literally contain a '%' character.
+		content.Should().Contain($"Has%Percent{marker}");
+		content.Should().NotContain($"NoPercentAtAll{marker}");
 	}
 
 	[Fact]

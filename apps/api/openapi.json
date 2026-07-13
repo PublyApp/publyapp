@@ -2564,7 +2564,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BulkTenantUserActionResult"
+                  "$ref": "#/components/schemas/BulkRemoveTenantUsersResult"
                 }
               }
             }
@@ -8686,6 +8686,16 @@
                 }
               }
             }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
           }
         }
       }
@@ -9184,6 +9194,48 @@
           }
         }
       },
+      "BulkRemoveTenantUsersFailedItem": {
+        "required": [
+          "userId",
+          "error"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "BulkRemoveTenantUsersResult": {
+        "required": [
+          "succeededCount",
+          "failedCount",
+          "failedItems"
+        ],
+        "type": "object",
+        "properties": {
+          "succeededCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "failedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "failedItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BulkRemoveTenantUsersFailedItem"
+            }
+          }
+        }
+      },
       "BulkRevokeStaffInvitationsBody": {
         "required": [
           "invitationIds"
@@ -9359,48 +9411,6 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/BulkSuspendFailedItem"
-            }
-          }
-        }
-      },
-      "BulkTenantUserActionFailedItem": {
-        "required": [
-          "userId",
-          "error"
-        ],
-        "type": "object",
-        "properties": {
-          "userId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "error": {
-            "type": "string"
-          }
-        }
-      },
-      "BulkTenantUserActionResult": {
-        "required": [
-          "succeededCount",
-          "failedCount",
-          "failedItems"
-        ],
-        "type": "object",
-        "properties": {
-          "succeededCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": "integer",
-            "format": "int32"
-          },
-          "failedCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": "integer",
-            "format": "int32"
-          },
-          "failedItems": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BulkTenantUserActionFailedItem"
             }
           }
         }

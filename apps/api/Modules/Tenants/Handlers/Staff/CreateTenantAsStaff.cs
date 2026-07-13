@@ -55,35 +55,46 @@ public class CreateTenantAsStaffBody {
 	}
 
 	public string? GetLegalName() {
-		return LegalName.GetValueAsStringOrNull();
+		return NormalizeClearableString(LegalName.GetValueAsStringOrNull());
 	}
 
 	public string? GetDescription() {
-		return Description.GetValueAsStringOrNull();
+		return NormalizeClearableString(Description.GetValueAsStringOrNull());
 	}
 
 	public string? GetWebsiteUrl() {
-		return WebsiteUrl.GetValueAsStringOrNull();
+		return NormalizeClearableString(WebsiteUrl.GetValueAsStringOrNull());
 	}
 
 	public string? GetBillingEmail() {
-		return BillingEmail.GetValueAsStringOrNull();
+		return NormalizeClearableString(BillingEmail.GetValueAsStringOrNull());
 	}
 
 	public string? GetSupportEmail() {
-		return SupportEmail.GetValueAsStringOrNull();
+		return NormalizeClearableString(SupportEmail.GetValueAsStringOrNull());
 	}
 
 	public string? GetDefaultLocale() {
-		return DefaultLocale.GetValueAsStringOrNull();
+		return NormalizeClearableString(DefaultLocale.GetValueAsStringOrNull());
 	}
 
 	public string? GetTimezone() {
-		return Timezone.GetValueAsStringOrNull();
+		return NormalizeClearableString(Timezone.GetValueAsStringOrNull());
 	}
 
 	public string? GetNotes() {
-		return Notes.GetValueAsStringOrNull();
+		return NormalizeClearableString(Notes.GetValueAsStringOrNull());
+	}
+
+	// Trims and maps whitespace-only input to null so "cleared"/"omitted" has a
+	// single representation — otherwise {"legalName": "  "} would persist a
+	// non-null value the UI has to separately treat as empty alongside actual null.
+	private static string? NormalizeClearableString(string? value) {
+		if (value is null) {
+			return null;
+		}
+		var trimmed = value.Trim();
+		return trimmed.Length == 0 ? null : trimmed;
 	}
 
 	// Defaults to true to preserve current behavior when the field is omitted.
@@ -151,7 +162,7 @@ public partial class CreateTenantAsStaffBodyValidator : AbstractValidator<Create
 			.MustBeNullableBoolean("SeedDefaultProfile");
 
 		RuleFor(x => x.LogoUrl)
-			.MustBeNullableString("LogoUrl");
+			.MustBeNullableLogoUrl();
 
 		RuleFor(x => x.LegalName)
 			.MustBeNullableStringWithMaxLength("LegalName", 256);

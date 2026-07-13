@@ -130,11 +130,6 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey InvalidSession = new("invalid-session");
 
 	/// <summary>
-	/// Invalid upload file
-	/// </summary>
-	public static readonly TranslationKey InvalidUploadFile = new("invalid-upload-file");
-
-	/// <summary>
 	/// Accepted invitations cannot be revoked
 	/// </summary>
 	public static readonly TranslationKey InvitationAlreadyAccepted = new("invitation-already-accepted");
@@ -398,6 +393,21 @@ public static partial class ResponseKeys {
 	/// Unprocessable entity
 	/// </summary>
 	public static readonly TranslationKey UnprocessableEntity = new("unprocessable-entity");
+
+	/// <summary>
+	/// A file is required
+	/// </summary>
+	public static readonly TranslationKey UploadFileRequired = new("upload-file-required");
+
+	/// <summary>
+	/// File exceeds the maximum allowed size
+	/// </summary>
+	public static readonly TranslationKey UploadFileTooLarge = new("upload-file-too-large");
+
+	/// <summary>
+	/// File must be a PNG, JPEG, WEBP, or GIF image
+	/// </summary>
+	public static readonly TranslationKey UploadFileUnsupportedType = new("upload-file-unsupported-type");
 
 	/// <summary>
 	/// user accounts

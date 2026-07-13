@@ -1,12 +1,14 @@
 using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Profiles.Entities;
 using PublyApp.Api.Modules.Tenants.Entities;
+using PublyApp.Api.Modules.Tenants.Validation;
 using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Tenants.Services;
@@ -222,9 +224,17 @@ public interface ITenantAsStaffService {
 [Service(ServiceLifetime.Scoped)]
 public class TenantAsStaffService : ITenantAsStaffService {
 	private readonly AppDbContext _dbContext;
+	private readonly IFileStorage _fileStorage;
+	private readonly ILogger<TenantAsStaffService> _logger;
 
-	public TenantAsStaffService(AppDbContext dbContext) {
+	public TenantAsStaffService(
+		AppDbContext dbContext,
+		IFileStorage fileStorage,
+		ILogger<TenantAsStaffService> logger
+	) {
 		_dbContext = dbContext;
+		_fileStorage = fileStorage;
+		_logger = logger;
 	}
 
 	public async Task<Tenant> CreateTenant(Tenant tenant, CancellationToken cancellationToken = default) {
@@ -737,11 +747,16 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		Guid tenantId,
 		CancellationToken cancellationToken = default
 	) {
+		// Excludes soft-deleted users for parity with every list/export query
+		// over the same membership rows (e.g. TenantUserQueryService.BuildExportBaseQuery) —
+		// otherwise a staff-deleted user's still-present account row inflates this count
+		// past what the tenant users list actually shows.
 		var count =
 			from ua in _dbContext.UserAccount
 			where ua.TenantId == tenantId
 				&& ua.Scope == AccountScope.Tenant
 				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted
 			select ua;
 
 		return await count.CountAsync(cancellationToken);
@@ -751,12 +766,17 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		Guid tenantId,
 		CancellationToken cancellationToken = default
 	) {
+		// Excludes soft-deleted users (same parity rationale as CountTenantUsersAsync).
+		// Suspended admins still count as owners here — this counts *assigned*
+		// Admin-level accounts, not the *active* admins tracked by the last-admin
+		// invariant in TenantUserMembershipOperations.BuildActiveTenantAdminAccountsQuery.
 		var count =
 			from ua in _dbContext.UserAccount
 			where ua.TenantId == tenantId
 				&& ua.Scope == AccountScope.Tenant
 				&& ua.Level == AccountLevel.Admin
 				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted
 			select ua;
 
 		return await count.CountAsync(cancellationToken);
@@ -786,6 +806,10 @@ public class TenantAsStaffService : ITenantAsStaffService {
 				return new UpdateTenantResult.MaxUsersBelowCurrentCount();
 			}
 		}
+
+		// Captured before mutation so a replaced/cleared logoUrl can have its old
+		// blob deleted after the update commits (see DeleteReplacedLogoBlobAsync).
+		var previousLogoUrl = tenant.LogoUrl;
 
 		// Mutate tracked entity
 		if (args.Name is not null) {
@@ -824,7 +848,41 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		tenant.UpdatedAt = DateTime.UtcNow;
 		await _dbContext.SaveChangesAsync(cancellationToken);
 
+		if (args.LogoUrl.IsPresent) {
+			await DeleteReplacedLogoBlobAsync(
+				tenantId, previousLogoUrl, tenant.LogoUrl, cancellationToken
+			);
+		}
+
 		return new UpdateTenantResult.Success(tenant);
+	}
+
+	// Best-effort cleanup of the blob a logoUrl replace/clear leaves behind. Runs after
+	// the update has already committed, so a delete failure here must never surface as
+	// a request failure — it only risks a harmless orphaned file, not data loss.
+	private async Task DeleteReplacedLogoBlobAsync(
+		Guid tenantId,
+		string? previousLogoUrl,
+		string? newLogoUrl,
+		CancellationToken cancellationToken
+	) {
+		if (previousLogoUrl is null
+			|| previousLogoUrl == newLogoUrl
+			|| !TenantValidationRules.IsServedUploadLogoUrl(previousLogoUrl)) {
+			return;
+		}
+
+		var relativePath = previousLogoUrl["/files/".Length..];
+		try {
+			await _fileStorage.DeleteAsync(relativePath, cancellationToken);
+		} catch (Exception ex) {
+			_logger.LogWarning(
+				ex,
+				"Failed to delete replaced logo blob {RelativePath} for tenant {TenantId}",
+				relativePath,
+				tenantId
+			);
+		}
 	}
 
 	public async Task<DeleteTenantResult> DeleteTenantAsync(

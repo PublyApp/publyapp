@@ -602,15 +602,19 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 				&& !inv.IsDeleted
 			select inv;
 
-		var pending = await pendingQuery.CountAsync(cancellationToken);
-
-		var expiringSoon = await (
+		// Single round-trip: one conditional-aggregate query (Postgres COUNT(*)
+		// FILTER (WHERE ...)) instead of two sequential CountAsync calls over the
+		// same predicate.
+		var counts = await (
 			from inv in pendingQuery
-			where inv.ExpiresAt <= expiringSoonThreshold
-			select inv
-		).CountAsync(cancellationToken);
+			group inv by 1 into g
+			select new {
+				Pending = g.Count(),
+				ExpiringSoon = g.Count(i => i.ExpiresAt <= expiringSoonThreshold)
+			}
+		).FirstOrDefaultAsync(cancellationToken);
 
-		return new TenantInvitationCounts(pending, expiringSoon);
+		return new TenantInvitationCounts(counts?.Pending ?? 0, counts?.ExpiringSoon ?? 0);
 	}
 
 }

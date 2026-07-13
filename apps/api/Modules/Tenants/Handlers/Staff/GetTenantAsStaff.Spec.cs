@@ -293,6 +293,43 @@ public sealed class GetTenantAsStaffSpec
 
 	[Fact]
 	public async Task
+	ItShouldExcludeUsersWhoseUserRowIsSoftDeletedFromCounts() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tenantId =
+			await SeedTenantWithSoftDeletedUserFixtureAsync(
+				"Tenant Get Counts Soft Deleted User"
+			);
+
+		var url = GetUrl(tenantId.ToString());
+		var request = new HttpRequestMessage(
+			HttpMethod.Get, url
+		).WithSessionToken(staffToken);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<GetTenantAsStaffResult>();
+		result.Should().NotBeNull();
+		if (result is null) {
+			throw new InvalidOperationException(
+				"GET tenant response was empty."
+			);
+		}
+
+		// 1 active admin + 1 active user. A second admin and a second user each
+		// have their UserAccount row intact (IsDeleted = false) but their owning
+		// User row soft-deleted — neither may count toward users or owners.
+		result.UsersCount.Should().Be(2);
+		result.OwnersCount.Should().Be(1);
+	}
+
+	[Fact]
+	public async Task
 	ItShouldReturnAllOrganizationProfileFieldsWhenPresent() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
@@ -455,6 +492,61 @@ public sealed class GetTenantAsStaffSpec
 
 		deletedProfile.IsDeleted = true;
 		await dbContext.SaveChangesAsync();
+
+		return tenantId;
+	}
+
+	private async Task<Guid> SeedTenantWithSoftDeletedUserFixtureAsync(
+		string namePrefix
+	) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var tenant = new Tenant {
+			Name = $"{namePrefix} {Guid.NewGuid():N}",
+			Code = Guid.NewGuid().ToString("N")[..10],
+			Status = TenantStatus.Active,
+			MaxUsers = 10,
+		};
+		await dbContext.Tenant.AddAsync(tenant);
+		await dbContext.SaveChangesAsync();
+		var tenantId = tenant.GetRequiredId();
+
+		async Task AddUserAsync(AccountLevel level, bool isUserDeleted) {
+			var user = new User {
+				Email = $"tenant-get-counts-soft-deleted-user-{Guid.NewGuid():N}@example.com",
+				Password = PasswordUtils.HashPassword(
+					TestConstants.SeedPassword
+				),
+				FirstName = "Counts",
+				LastName = "SoftDeletedUser",
+				Status = UserStatus.Active,
+				IsVerified = true,
+			};
+			await dbContext.User.AddAsync(user);
+			await dbContext.SaveChangesAsync();
+
+			await dbContext.UserAccount.AddAsync(
+				UserAccount.CreateTenantAccount(
+					user.GetRequiredId(), tenantId, level
+				)
+			);
+			await dbContext.SaveChangesAsync();
+
+			// Soft-deletes the USER row (not the UserAccount row) — the scenario
+			// F9 covers: UserAccount.IsDeleted stays false, only User.IsDeleted flips.
+			if (isUserDeleted) {
+				user.IsDeleted = true;
+				await dbContext.SaveChangesAsync();
+			}
+		}
+
+		await AddUserAsync(AccountLevel.Admin, isUserDeleted: false);
+		await AddUserAsync(AccountLevel.Admin, isUserDeleted: true);
+		await AddUserAsync(AccountLevel.User, isUserDeleted: false);
+		await AddUserAsync(AccountLevel.User, isUserDeleted: true);
 
 		return tenantId;
 	}

@@ -142,8 +142,11 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
-	public async Task ItShouldReturn422WhenFileExceedsMaxSize() {
+	public async Task ItShouldReturn413WhenFileExceedsMaxSize() {
 		var token = await _authClient.LoginAsStaffAdminAsync();
+		// Stays under the transport-level RequestSizeLimitAttribute buffer
+		// (UPLOAD_MAX_BYTES + 8192) so this exercises the handler's own size
+		// check, not Kestrel's earlier rejection.
 		var oversized = new byte[AppEnvironment.Instance.UPLOAD_MAX_BYTES + 1];
 		PngBytes.CopyTo(oversized, 0);
 
@@ -151,7 +154,23 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 			BuildUploadRequest(token, oversized, "big.png", "image/png")
 		);
 
-		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+		response.StatusCode.Should().Be(HttpStatusCode.RequestEntityTooLarge);
+	}
+
+	[Fact]
+	public async Task ItShouldReturn413WhenBodyExceedsTheTransportSizeLimit() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		// Beyond the transport-level RequestSizeLimitAttribute buffer
+		// (UPLOAD_MAX_BYTES + 8192) — Kestrel must reject this before the
+		// handler's own size check (or the multipart body) ever runs.
+		var oversized = new byte[AppEnvironment.Instance.UPLOAD_MAX_BYTES + 8192 + 1];
+		PngBytes.CopyTo(oversized, 0);
+
+		using var response = await _http.SendAsync(
+			BuildUploadRequest(token, oversized, "big.png", "image/png")
+		);
+
+		response.StatusCode.Should().Be(HttpStatusCode.RequestEntityTooLarge);
 	}
 
 	[Fact]

@@ -17,6 +17,7 @@ export interface UploadsRequestBuilder extends BaseRequestBuilder<UploadsRequest
      * @returns {Promise<StaffUploadCreated>}
      * @throws {AppProblemDetails} error when the service returns a 401 status code
      * @throws {AppProblemDetails} error when the service returns a 403 status code
+     * @throws {AppProblemDetails} error when the service returns a 413 status code
      * @throws {ValidationProblemDetails} error when the service returns a 422 status code
      * @throws {AppProblemDetails} error when the service returns a 500 status code
      */
@@ -43,6 +44,7 @@ export const UploadsRequestBuilderRequestsMetadata: RequestsMetadata = {
         errorMappings: {
             401: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             403: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
+            413: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             422: createValidationProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             500: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
         },

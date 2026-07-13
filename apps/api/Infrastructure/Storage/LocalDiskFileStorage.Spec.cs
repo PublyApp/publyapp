@@ -1,6 +1,4 @@
 
-using System.Text;
-
 using FluentAssertions;
 
 using Xunit;
@@ -52,48 +50,29 @@ public sealed class LocalDiskFileStorageSpec : IDisposable {
 	}
 
 	[Fact]
-	public async Task ItShouldMakeSavedContentReadableViaExistsAndOpenRead() {
-		var bytes = "roundtrip"u8.ToArray();
-		using var content = new MemoryStream(bytes);
-
-		var relativePath = await _storage.SaveAsync(content, ".png");
-
-		(await _storage.ExistsAsync(relativePath)).Should().BeTrue();
-
-		await using var readStream = await _storage.OpenReadAsync(relativePath);
-		readStream.Should().NotBeNull();
-		using var reader = new StreamReader(readStream!, Encoding.UTF8);
-		var readBack = await reader.ReadToEndAsync();
-		readBack.Should().Be("roundtrip");
-	}
-
-	[Fact]
-	public async Task ItShouldReturnNullForOpenReadWhenPathDoesNotExist() {
-		(await _storage.OpenReadAsync("uploads/2026/01/does-not-exist.png"))
-			.Should().BeNull();
-	}
-
-	[Fact]
-	public async Task ItShouldReturnFalseForExistsWhenPathDoesNotExist() {
-		(await _storage.ExistsAsync("uploads/2026/01/does-not-exist.png"))
-			.Should().BeFalse();
-	}
-
-	[Fact]
 	public async Task ItShouldDeleteASavedFile() {
 		using var content = new MemoryStream("delete-me"u8.ToArray());
 		var relativePath = await _storage.SaveAsync(content, ".png");
+		var fullPath = Path.Combine(_root, relativePath.Replace('/', Path.DirectorySeparatorChar));
+		File.Exists(fullPath).Should().BeTrue();
 
 		await _storage.DeleteAsync(relativePath);
 
-		(await _storage.ExistsAsync(relativePath)).Should().BeFalse();
+		File.Exists(fullPath).Should().BeFalse();
+	}
+
+	[Fact]
+	public async Task ItShouldNoOpWhenDeletingAPathThatDoesNotExist() {
+		var act = async () => await _storage.DeleteAsync("uploads/2026/01/does-not-exist.png");
+
+		await act.Should().NotThrowAsync();
 	}
 
 	[Theory]
 	[InlineData("../../etc/passwd")]
 	[InlineData("uploads/../../../etc/passwd")]
-	public async Task ItShouldRejectTraversalAttemptsForRead(string maliciousRelativePath) {
-		var act = async () => await _storage.OpenReadAsync(maliciousRelativePath);
+	public async Task ItShouldRejectTraversalAttemptsForDelete(string maliciousRelativePath) {
+		var act = async () => await _storage.DeleteAsync(maliciousRelativePath);
 
 		await act.Should().ThrowAsync<InvalidOperationException>();
 	}
@@ -103,6 +82,20 @@ public sealed class LocalDiskFileStorageSpec : IDisposable {
 		using var content = new MemoryStream("bytes"u8.ToArray());
 
 		var act = async () => await _storage.SaveAsync(content, "png");
+
+		await act.Should().ThrowAsync<ArgumentException>();
+	}
+
+	[Theory]
+	[InlineData("./../../x.html")]
+	[InlineData(".png/../evil.html")]
+	[InlineData(".p\0ng")]
+	[InlineData(".PNG")]
+	[InlineData(".this-is-way-too-long-for-an-extension")]
+	public async Task ItShouldRejectAnExtensionContainingPathSeparators(string extension) {
+		using var content = new MemoryStream("bytes"u8.ToArray());
+
+		var act = async () => await _storage.SaveAsync(content, extension);
 
 		await act.Should().ThrowAsync<ArgumentException>();
 	}

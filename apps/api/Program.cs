@@ -1,5 +1,6 @@
 using Microsoft.Extensions.FileProviders;
 
+using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.Filters;
@@ -55,10 +56,11 @@ public class Program {
 		// Security headers (incl. X-Content-Type-Options: nosniff) are applied
 		// to every response by app.UseSecurityHeaders() above, static files
 		// included, since that middleware hooks HttpResponse.OnStarting.
-		var fileStorageRoot = Path.GetFullPath(AppEnvironment.Instance.FILE_STORAGE_ROOT);
-		Directory.CreateDirectory(fileStorageRoot);
+		// The root is owned by the resolved IFileStorage (it already created the
+		// directory in its constructor), not recomputed here.
+		var fileStorage = app.Services.GetRequiredService<IFileStorage>();
 		app.UseStaticFiles(new StaticFileOptions {
-			FileProvider = new PhysicalFileProvider(fileStorageRoot),
+			FileProvider = new PhysicalFileProvider(fileStorage.RootPath),
 			RequestPath = "/files",
 			ServeUnknownFileTypes = false,
 		});
