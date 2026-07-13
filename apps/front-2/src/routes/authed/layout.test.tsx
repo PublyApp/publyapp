@@ -22,12 +22,16 @@ const mocks = vi.hoisted(() => ({
 		refetch: vi.fn(),
 	},
 	tokens: { staffToken: undefined as string | undefined },
+	location: {
+		pathname: '/staff/tenants',
+		search: {} as Record<string, unknown>,
+	},
 }));
 
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => options,
 	redirect: (opts: unknown) => opts,
-	useLocation: () => ({ pathname: '/staff/tenants', search: {} }),
+	useLocation: () => mocks.location,
 	useNavigate: () => vi.fn(),
 	useRouter: () => ({ invalidate: vi.fn() }),
 	Link: ({ children }: { children: ReactNode }) => <a>{children}</a>,
@@ -79,10 +83,15 @@ afterEach(() => {
 	vi.clearAllMocks();
 	mocks.queryOptions = undefined;
 	mocks.tokens = { staffToken: undefined };
+	mocks.location = { pathname: '/staff/tenants', search: {} };
 });
 
-const AuthedRouteLayout = (Route as unknown as { component: ComponentType })
-	.component;
+const routeOptions = Route as unknown as {
+	component: ComponentType;
+	pendingComponent: ComponentType;
+};
+const AuthedRouteLayout = routeOptions.component;
+const AuthedRoutePendingSkeleton = routeOptions.pendingComponent;
 
 describe('AuthedRouteLayout surface-redirect-code query', () => {
 	test('is configured session-stable: never refetches on tab focus', () => {
@@ -120,5 +129,41 @@ describe('AuthedRouteLayout render gating', () => {
 		render(<AuthedRouteLayout />);
 
 		expect(screen.getByTestId('outlet-stub')).toBeTruthy();
+	});
+});
+
+describe('BUG-2: pendingComponent closes the cold-boot blank window', () => {
+	// TanStack Start uses `route.options.pendingComponent` as both the SSR
+	// fallback and the pre-hydration `ClientOnly` fallback for `ssr: false`
+	// routes (see @tanstack/react-router's Match.js). A route with no
+	// pendingComponent renders `null` there — a blank <body> for the whole
+	// network+hydrate round trip on a cold boot (tab discard, hard reload).
+	test('the route is configured with a pendingComponent (never falls back to null)', () => {
+		expect(routeOptions.pendingComponent).toBeDefined();
+		expect(typeof routeOptions.pendingComponent).toBe('function');
+	});
+
+	test('renders static app shell chrome (rail + topbar) for a staff path', () => {
+		mocks.location = { pathname: '/staff/tenants', search: {} };
+		render(<AuthedRoutePendingSkeleton />);
+
+		expect(screen.getByTestId('app-shell-pending-rail')).toBeTruthy();
+		expect(screen.getByTestId('app-shell-pending-topbar')).toBeTruthy();
+		// No AuthedLayout/AppShell stub here on purpose — this must stay a
+		// store-free static skeleton (see the comment on
+		// AuthedRoutePendingSkeleton for why reusing the stateful shell
+		// regressed the secondary-panel persisted preference), and it uses
+		// its own testids distinct from the real shell's (see the comment on
+		// AuthedRoutePendingSkeleton for why sharing them broke existing
+		// strict-mode getByTestId assertions during internal redirects).
+		expect(screen.queryByTestId('authed-layout-stub')).toBeNull();
+		expect(screen.queryByTestId('app-shell-rail')).toBeNull();
+	});
+
+	test('renders the tenant-portal spinner (not the workspace shell) for the tenant root', () => {
+		mocks.location = { pathname: '/tenant', search: {} };
+		render(<AuthedRoutePendingSkeleton />);
+
+		expect(screen.queryByTestId('app-shell-pending-rail')).toBeNull();
 	});
 });

@@ -176,6 +176,104 @@ const parseRedirectCode = async (token: string): Promise<string | null> => {
 	}
 };
 
+const AuthedRouteLoadingShell = ({
+	pathname,
+	search,
+}: {
+	pathname: string;
+	search: Record<string, unknown>;
+}) => {
+	const isTenantPortalRoot = pathname.replace(/\/+$/, '') === TENANT_PATH;
+
+	if (isTenantPortalRoot) {
+		return (
+			<div className="flex min-h-svh items-center justify-center">
+				<IconLoader2
+					aria-hidden="true"
+					className="size-8 animate-spin text-muted-foreground"
+				/>
+			</div>
+		);
+	}
+
+	return (
+		<AuthedLayout pathname={pathname} search={search}>
+			Loading…
+		</AuthedLayout>
+	);
+};
+
+// TanStack Start renders this as the route's SSR fallback AND its
+// pre-hydration ClientOnly fallback (see Match.js: `resolvedNoSsr` routes
+// wrap MatchInner in `<ClientOnly fallback={pendingElement}>`). Without a
+// pendingComponent, that fallback is `null` — a genuinely blank <body> for
+// the entire network+hydrate round trip on a cold boot (tab discard, hard
+// reload).
+//
+// This must stay a STATIC skeleton, not the real (Zustand-backed)
+// AuthedRouteLoadingShell above: that shell's secondary-panel visibility
+// depends on `useUiStore`, whose persisted sidebarOpen/colorScheme are only
+// read from localStorage in a `useEffect` (`hydrateFromStorage`) — deferred
+// on purpose so the store's SSR-safe default doesn't cause a hydration
+// mismatch. `pendingComponent` is unmounted and replaced by a brand-new
+// mount of the real route component the instant hydration completes
+// (ClientOnly swaps `fallback` for `children`, a different element type at
+// that position, forcing React to remount) — a second, independent
+// AppShell/useUiStore mount with its OWN un-hydrated-yet default render.
+// Reusing the stateful shell here raced that second mount's correction
+// against whatever the real route was already settled on, intermittently
+// leaving a stale/duplicate secondary-panel node (caught by
+// shell.spec.ts's collapsed-panel-preference test). A skeleton with no
+// store dependency can't race anything.
+//
+// This also deliberately uses its OWN testids (`app-shell-pending-*`), not
+// the real shell's (`app-shell-shell`/`app-shell-rail`/`app-shell-topbar`):
+// an internal redirect (e.g. `/staff` -> `/staff/staff-users`) re-matches
+// the whole route tree, and TanStack Router keeps the outgoing match's DOM
+// mounted (hidden via `display:none`) while the incoming match's
+// pendingComponent renders — so a real, already-hydrated shell and a fresh
+// pendingComponent render can briefly coexist in the DOM. Sharing testids
+// with the real shell would make that framework transition look like a
+// strict-mode duplicate to every existing `getByTestId('app-shell-rail')`
+// assertion; distinct testids keep the two trees unambiguous.
+const AuthedRoutePendingSkeleton = () => {
+	const location = useLocation();
+	const pathname = location.pathname ?? '';
+	const isTenantPortalRoot = pathname.replace(/\/+$/, '') === TENANT_PATH;
+
+	if (isTenantPortalRoot) {
+		return (
+			<div className="flex min-h-svh items-center justify-center">
+				<IconLoader2
+					aria-hidden="true"
+					className="size-8 animate-spin text-muted-foreground"
+				/>
+			</div>
+		);
+	}
+
+	return (
+		<div
+			className="app-shell-workspace"
+			data-testid="app-shell-pending-skeleton"
+			data-mode="authed"
+		>
+			<nav
+				className="app-shell-rail"
+				aria-label="Primary navigation"
+				data-testid="app-shell-pending-rail"
+			/>
+			<div className="app-shell-body">
+				<header
+					className="app-shell-topbar"
+					data-testid="app-shell-pending-topbar"
+				/>
+				<main className="app-shell-main" />
+			</div>
+		</div>
+	);
+};
+
 const AuthedLayoutErrorBoundary = ({
 	error,
 	reset,
@@ -245,6 +343,7 @@ export const Route = createFileRoute('/_authed-layout')({
 			});
 		}
 	},
+	pendingComponent: AuthedRoutePendingSkeleton,
 	errorComponent: AuthedLayoutErrorBoundary,
 	notFoundComponent: () => <View404 />,
 	component: AuthedRouteLayout,
@@ -368,22 +467,7 @@ function AuthedRouteLayout() {
 	}
 
 	if (query.isLoading || isSurfaceMismatch) {
-		if (isTenantPortalRoot) {
-			return (
-				<div className="flex min-h-svh items-center justify-center">
-					<IconLoader2
-						aria-hidden="true"
-						className="size-8 animate-spin text-muted-foreground"
-					/>
-				</div>
-			);
-		}
-
-		return (
-			<AuthedLayout pathname={pathname} search={search}>
-				Loading…
-			</AuthedLayout>
-		);
+		return <AuthedRouteLoadingShell pathname={pathname} search={search} />;
 	}
 
 	if (isTenantPortalRoot) {
