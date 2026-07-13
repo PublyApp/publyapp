@@ -55,6 +55,15 @@ const buildLoginSearch = (redirectCause: LogoutOptions['redirectCause']) => {
  */
 let logoutInFlight = false;
 
+/**
+ * Test-only escape hatch: resets the shared module-level guard so vitest
+ * runs sharing a worker don't leak an in-flight flag from one test file's
+ * unresolved logout into the next file's first logout attempt.
+ */
+export const __resetLogoutInFlightForTests = () => {
+	logoutInFlight = false;
+};
+
 export const useLogout = () => {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();

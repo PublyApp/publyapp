@@ -74,12 +74,16 @@ vi.mock('react-i18next', () => ({
 	}),
 }));
 
+import { __resetLogoutInFlightForTests } from '~/lib/hooks/use-logout';
+
 import { AppShellUserMenu } from './user-menu';
 
 describe('AppShellUserMenu', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		__resetLogoutInFlightForTests();
 		mocks.clearSession.mockResolvedValue(undefined);
+		mocks.navigate.mockResolvedValue(undefined);
 		mocks.setLocale.mockResolvedValue({ locale: 'fr' });
 		mocks.invalidate.mockResolvedValue(undefined);
 		mocks.resolvedLanguage = 'en';
@@ -124,14 +128,24 @@ describe('AppShellUserMenu', () => {
 		fireEvent.click(logoutItem);
 
 		await waitFor(() => expect(mocks.navigate).toHaveBeenCalledTimes(1));
+		// The cache clear fires only after navigation is initiated (see
+		// 46424dcc) — wait for it separately instead of asserting it
+		// synchronously alongside navigate.
+		await waitFor(() =>
+			expect(mocks.queryClientClear).toHaveBeenCalledTimes(1),
+		);
 
-		expect(mocks.queryClientClear).toHaveBeenCalledTimes(1);
 		expect(mocks.clearSession).toHaveBeenCalledTimes(1);
 		expect(mocks.navigate).toHaveBeenCalledWith({
 			to: '/login',
 			search: undefined,
 			replace: true,
 		});
+
+		const navigateOrder = mocks.navigate.mock.invocationCallOrder[0];
+		const queryClientClearOrder =
+			mocks.queryClientClear.mock.invocationCallOrder[0];
+		expect(navigateOrder).toBeLessThan(queryClientClearOrder);
 	});
 
 	test('opens the language submenu and shows the current locale checked', async () => {

@@ -34,11 +34,12 @@ vi.mock('@org/shared-ts/lib/logger/iso-logger', () => ({
 	logger: { error: vi.fn() },
 }));
 
-import { useLogout } from './use-logout';
+import { __resetLogoutInFlightForTests, useLogout } from './use-logout';
 
 describe('useLogout', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		__resetLogoutInFlightForTests();
 		mocks.clear.mockResolvedValue(undefined);
 		mocks.navigate.mockResolvedValue(undefined);
 	});
