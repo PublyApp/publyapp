@@ -30,6 +30,7 @@ import {
 	DetailMain,
 } from '~/components/ui/detail-layout';
 import { InitialsAvatar } from '~/components/ui/initials-avatar';
+import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import {
 	useStaffProfileUsersQuery,
 	toStaffProfileUserRows,
@@ -91,11 +92,7 @@ const ProfileDetailsLoading = () => (
 		data-testid="staff-profile-details-loading"
 	>
 		<div className="flex items-center gap-3 text-sm text-muted-foreground">
-			<span
-				role="status"
-				aria-label="Loading"
-				className="size-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"
-			/>
+			<LoadingSpinner />
 			<span>Loading staff profile…</span>
 		</div>
 	</div>

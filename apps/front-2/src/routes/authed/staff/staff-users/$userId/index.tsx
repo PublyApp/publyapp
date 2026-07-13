@@ -1,5 +1,6 @@
 import { IconId } from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
+import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
 import {
 	DangerZoneCard,
@@ -10,25 +11,10 @@ import {
 } from '~/components/ui/detail-layout';
 import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
+import { formatDateTime } from '~/lib/format-date-time';
 import type { AssignedStaffProfile } from '~/lib/query/staff-users';
 
 import { useStaffUserOverviewContext } from './_overview-context';
-
-const DATE_TIME_FORMAT_OPTIONS = {
-	dateStyle: 'medium',
-	timeStyle: 'short',
-} as const;
-
-const formatDateTime = (
-	value: Date | null | undefined,
-	locale: string,
-): string => {
-	if (!(value instanceof Date) || Number.isNaN(value.valueOf())) {
-		return '—';
-	}
-
-	return value.toLocaleString(locale, DATE_TIME_FORMAT_OPTIONS);
-};
 
 const DetailMetaItem = ({
 	label,
@@ -58,44 +44,45 @@ const ContactDetailsCard = ({
 		updatedAt: Date | null;
 	};
 	locale: string;
-}) => (
-	<section className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] shadow-[var(--publy-shadow-ring)]">
-		<div className="publy-card-header">
-			<p className="publy-type-section-title">Contact details</p>
-		</div>
-		<div className="px-4 pb-4 pt-3">
-			<div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-				<DetailMetaItem label="Name" value={details.displayName} />
-				<DetailMetaItem label="Email" value={details.email || '—'} />
-				<DetailMetaItem label="Role" value={details.accountLevel || '—'} />
-				<DetailMetaItem
-					label="Status"
-					value={
-						<StatusPill tone={statusPillTone(details.status)}>
-							{details.status || 'Unknown'}
-						</StatusPill>
-					}
-				/>
-				<DetailMetaItem
-					label="Created"
-					value={formatDateTime(details.createdAt, locale)}
-				/>
-				<DetailMetaItem
-					label="Updated"
-					value={formatDateTime(details.updatedAt, locale)}
-				/>
+}) => {
+	const { t } = useTranslation('common');
+
+	return (
+		<section className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] shadow-[var(--publy-shadow-ring)]">
+			<div className="publy-card-header">
+				<p className="publy-type-section-title">{t('contact-details')}</p>
 			</div>
-		</div>
-	</section>
-);
-
-const profileHueIndex = (profileId: string): number => {
-	let hash = 0;
-	for (const char of profileId) {
-		hash = (hash * 31 + (char.codePointAt(0) ?? 0)) % 997;
-	}
-
-	return hash % 2;
+			<div className="px-4 pb-4 pt-3">
+				<div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+					<DetailMetaItem label={t('name')} value={details.displayName} />
+					<DetailMetaItem
+						label={t('email')}
+						value={details.email || t('no-email-address')}
+					/>
+					<DetailMetaItem
+						label={t('role')}
+						value={details.accountLevel || '—'}
+					/>
+					<DetailMetaItem
+						label={t('status')}
+						value={
+							<StatusPill tone={statusPillTone(details.status)}>
+								{details.status || t('unknown')}
+							</StatusPill>
+						}
+					/>
+					<DetailMetaItem
+						label={t('created')}
+						value={formatDateTime(details.createdAt, locale)}
+					/>
+					<DetailMetaItem
+						label={t('updated')}
+						value={formatDateTime(details.updatedAt, locale)}
+					/>
+				</div>
+			</div>
+		</section>
+	);
 };
 
 const AssignedProfilesCard = ({
@@ -105,6 +92,7 @@ const AssignedProfilesCard = ({
 	profiles: AssignedStaffProfile[];
 	maxProfiles: number;
 }) => {
+	const { t } = useTranslation('common');
 	const assignedCount = profiles.length;
 	const meterPercent =
 		maxProfiles > 0 ? Math.min((assignedCount / maxProfiles) * 100, 100) : 0;
@@ -113,16 +101,16 @@ const AssignedProfilesCard = ({
 		<section className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] shadow-[var(--publy-shadow-ring)]">
 			<div className="publy-card-header">
 				<p className="publy-type-section-title">
-					Assigned profiles &amp; roles
+					{t('assigned-profiles-and-roles')}
 				</p>
 				<span className="text-xs text-muted-foreground">
-					{assignedCount} assigned
+					{t('assigned-count', { count: assignedCount })}
 				</span>
 			</div>
 			<div className="px-4 pb-4 pt-3 space-y-4">
 				{profiles.length === 0 ? (
 					<div className="rounded-large border border-dashed border-border bg-muted/30 px-4 py-4 text-sm text-muted-foreground">
-						No profiles are currently assigned.
+						{t('no-profiles-assigned')}
 					</div>
 				) : (
 					<div className="space-y-2">
@@ -135,9 +123,6 @@ const AssignedProfilesCard = ({
 									<span
 										aria-hidden="true"
 										className="publy-icon-tile inline-flex h-7 w-7 items-center justify-center rounded-[9px]"
-										data-tone={
-											profileHueIndex(profile.id) === 0 ? 'success' : 'info'
-										}
 									>
 										<IconId className="size-4" />
 									</span>
@@ -153,7 +138,7 @@ const AssignedProfilesCard = ({
 											className="truncate text-xs text-muted-foreground"
 											title={profile.description || undefined}
 										>
-											{profile.description ?? 'No description'}
+											{profile.description ?? t('no-description-provided')}
 										</p>
 									</div>
 								</div>
@@ -164,9 +149,9 @@ const AssignedProfilesCard = ({
 				{maxProfiles > 0 ? (
 					<div className="rounded-[9px] border border-border bg-background p-2">
 						<div className="flex items-center justify-between text-xs text-muted-foreground">
-							<span>Profile summary</span>
+							<span>{t('profile-summary')}</span>
 							<span>
-								{assignedCount} of {maxProfiles}
+								{t('count-of-max', { count: assignedCount, max: maxProfiles })}
 							</span>
 						</div>
 						<div className="mt-2 h-1 rounded-[4px] bg-[var(--publy-row-border)]">
@@ -182,53 +167,22 @@ const AssignedProfilesCard = ({
 	);
 };
 
-const RecentSecurityCard = () => (
-	<section className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] shadow-[var(--publy-shadow-ring)]">
-		<div className="publy-card-header">
-			<p className="publy-type-section-title">Recent security activity</p>
-		</div>
-		<div className="px-4 pb-4 pt-3 space-y-3 text-sm text-foreground">
-			<div className="flex items-center justify-between gap-3">
-				<div className="flex items-center gap-2">
-					<span className="size-1.5 rounded-[3px] bg-[var(--publy-foreground-subtle)]" />
-					<span>Security events</span>
-				</div>
-				<span className="text-xs text-muted-foreground">
-					— {/* TODO(contract): security event feed */}
-				</span>
-			</div>
-		</div>
-	</section>
-);
+const AccountCard = ({ displayId }: { displayId: string }) => {
+	const { t } = useTranslation('common');
 
-const AccountCard = ({ displayId }: { displayId: string }) => (
-	<section className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] shadow-[var(--publy-shadow-ring)]">
-		<div className="publy-card-header">
-			<p className="publy-type-section-title">Account</p>
-		</div>
-		<div className="px-4 pb-4 pt-3">
-			<div className="space-y-3 text-sm">
-				<DetailMetaItem label="User ID" value={displayId} />
-				<DetailMetaItem
-					label="2FA"
-					value={
-						<span className="italic text-[var(--publy-foreground-subtle)]">
-							Not available {/* TODO(contract): 2FA status */}
-						</span>
-					}
-				/>
-				<DetailMetaItem
-					label="Sessions"
-					value={
-						<span className="italic text-[var(--publy-foreground-subtle)]">
-							Not available {/* TODO(contract): active sessions */}
-						</span>
-					}
-				/>
+	return (
+		<section className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] shadow-[var(--publy-shadow-ring)]">
+			<div className="publy-card-header">
+				<p className="publy-type-section-title">{t('account')}</p>
 			</div>
-		</div>
-	</section>
-);
+			<div className="px-4 pb-4 pt-3">
+				<div className="space-y-3 text-sm">
+					<DetailMetaItem label={t('user-id')} value={displayId} />
+				</div>
+			</div>
+		</section>
+	);
+};
 
 export const Route = createFileRoute(
 	'/_authed-layout/staff/staff-users/$userId/',
@@ -237,6 +191,7 @@ export const Route = createFileRoute(
 });
 
 function StaffUserOverviewTab() {
+	const { t } = useTranslation('common');
 	const {
 		user,
 		locale,
@@ -245,7 +200,7 @@ function StaffUserOverviewTab() {
 		maxProfilesPerUser,
 		canSuspend,
 		canReactivate,
-		suspendLabel,
+		suspendLabelKey,
 		suspendDescription,
 		isDeletePending,
 		onOpenSuspendDialog,
@@ -261,7 +216,7 @@ function StaffUserOverviewTab() {
 						data-testid="staff-user-profiles-error"
 						className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] p-4 shadow-[var(--publy-shadow-ring)] text-sm text-muted-foreground"
 					>
-						Unable to load assigned profiles.
+						{t('unable-to-load-assigned-profiles')}
 					</div>
 				) : (
 					<AssignedProfilesCard
@@ -272,10 +227,9 @@ function StaffUserOverviewTab() {
 			</DetailMain>
 			<DetailAside>
 				<AccountCard displayId={user.id} />
-				<RecentSecurityCard />
-				<DangerZoneCard title="Danger zone">
+				<DangerZoneCard title={t('danger-zone')}>
 					<DangerZoneRow
-						title="Suspend or reactivate"
+						title={t('suspend-or-reactivate')}
 						description={suspendDescription}
 						action={
 							<Button
@@ -285,13 +239,13 @@ function StaffUserOverviewTab() {
 								onClick={onOpenSuspendDialog}
 								disabled={!canSuspend && !canReactivate}
 							>
-								{suspendLabel}
+								{t(suspendLabelKey)}
 							</Button>
 						}
 					/>
 					<DangerZoneRow
-						title="Delete user"
-						description="This permanently removes the staff user and cannot be undone."
+						title={t('confirm-delete-staff-user-title')}
+						description={t('confirm-delete-staff-user-message')}
 						action={
 							<Button
 								type="button"
@@ -300,7 +254,7 @@ function StaffUserOverviewTab() {
 								onClick={onOpenDeleteDialog}
 								disabled={isDeletePending}
 							>
-								Delete
+								{t('delete')}
 							</Button>
 						}
 					/>

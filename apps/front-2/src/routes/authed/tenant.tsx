@@ -1,8 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import QueryDisplay from '~/components/query-display';
 import { SimpleLayout } from '~/layouts/simple-layout';
 import { useTenantsForPickerQuery } from '~/lib/query/tenants-for-picker';
+import { shouldLogoutForFailure } from '~/routes/authed/layout';
 
 import {
 	TenantPortalEmptyState,
@@ -22,15 +25,23 @@ export const Route = createFileRoute('/_authed-layout/tenant')({
  * user picks one from 2+ actives), this stub stands in for that workspace
  * until a real tenant workspace ships.
  */
-const TenantWorkspacePlaceholder = () => (
-	<div data-testid="tenant-workspace-placeholder">
-		<h1>Tenant</h1>
-	</div>
-);
+const TenantWorkspacePlaceholder = () => {
+	const { t } = useTranslation('common');
+
+	return (
+		<div data-testid="tenant-workspace-placeholder">
+			<h1>{t('tenant')}</h1>
+		</div>
+	);
+};
 
 function TenantPortalRoute() {
 	const query = useTenantsForPickerQuery();
 	const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
+
+	if (query.isError && shouldLogoutForFailure(query.error)) {
+		return <LogoutRedirect />;
+	}
 
 	// Mirrors the backend's GetRedirectCode rule: exactly one ACTIVE tenant
 	// auto-resolves regardless of hasSuspendedTenants (a suspended sibling

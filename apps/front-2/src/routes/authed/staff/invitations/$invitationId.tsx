@@ -15,6 +15,8 @@ import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
+import { Input } from '~/components/ui/input';
+import { formatDateTime } from '~/lib/format-date-time';
 import {
 	useRevokeStaffInvitationMutation,
 	useResendStaffInvitationMutation,
@@ -49,20 +51,6 @@ type InvitationDetailsCardProps = {
 
 const NOT_FOUND_TRANSLATION_KEY = 'malformed-id';
 const STAFF_INVITATIONS_LIST_PATH = '/staff/invitations';
-
-const formatDateTime = (
-	value: Date | null | undefined,
-	locale: string,
-): string => {
-	if (!(value instanceof Date) || Number.isNaN(value.valueOf())) {
-		return '—';
-	}
-
-	return new Intl.DateTimeFormat(locale, {
-		dateStyle: 'medium',
-		timeStyle: 'short',
-	}).format(value);
-};
 
 const getFeedbackClassName = (tone: ActionFeedbackTone): string => {
 	switch (tone) {
@@ -204,7 +192,7 @@ const InvitationDetailsCard = ({
 			if (!nextLink) {
 				setFeedback({
 					tone: 'error',
-					message: 'Invite link response was empty.',
+					message: t('invite-link-response-empty'),
 				});
 				return;
 			}
@@ -225,7 +213,7 @@ const InvitationDetailsCard = ({
 				message: t('copy-link-ready'),
 			});
 		} catch (error) {
-			handleActionError(error, 'Unable to copy the invite link.');
+			handleActionError(error, t('unable-to-copy-invite-link'));
 		}
 	};
 
@@ -239,7 +227,7 @@ const InvitationDetailsCard = ({
 				message: t('resend-invitation-success'),
 			});
 		} catch (error) {
-			handleActionError(error, 'Unable to resend the invitation.');
+			handleActionError(error, t('unable-to-resend-invitation'));
 		}
 	};
 
@@ -261,7 +249,7 @@ const InvitationDetailsCard = ({
 				message: t('revoke-invitation-success'),
 			});
 		} catch (error) {
-			handleActionError(error, 'Unable to revoke the invitation.');
+			handleActionError(error, t('unable-to-revoke-invitation'));
 		} finally {
 			setPendingRevoke(false);
 		}
@@ -275,7 +263,9 @@ const InvitationDetailsCard = ({
 						<IconArrowLeft aria-hidden="true" className="size-3" />
 						{t('staff-invitations')}
 					</Link>
-					<h1 className="publy-type-page-title">{invitation.email || '—'}</h1>
+					<h1 className="publy-type-page-title">
+						{invitation.email || t('invitation-details')}
+					</h1>
 				</div>
 
 				<div className="flex flex-wrap items-center gap-2">
@@ -300,9 +290,9 @@ const InvitationDetailsCard = ({
 
 			<ConfirmDialog
 				isOpen={pendingRevoke}
-				title="Revoke invitation"
-				description="This will revoke the invitation. The invited user will no longer be able to accept it."
-				confirmLabel="Revoke"
+				title={t('revoke-invitation')}
+				description={t('invitation-removal-description')}
+				confirmLabel={t('revoke')}
 				isPending={revoke.isPending}
 				onConfirm={handleRevoke}
 				onOpenChange={setPendingRevoke}
@@ -327,11 +317,7 @@ const InvitationDetailsCard = ({
 				<Card className="p-4">
 					<div className="space-y-2">
 						<p className="text-sm font-medium">{t('invite-link')}</p>
-						<input
-							readOnly
-							value={inviteLink}
-							className="w-full rounded-large border border-divider bg-content1 px-3 py-2 text-sm"
-						/>
+						<Input readOnly value={inviteLink} className="w-full" />
 					</div>
 				</Card>
 			) : null}
@@ -341,14 +327,13 @@ const InvitationDetailsCard = ({
 					label={t('status')}
 					value={formatInvitationStatusLabel(status)}
 				/>
-				<DetailField
-					label={t('email')}
-					value={invitation.email?.trim() || '—'}
-				/>
-				<DetailField
-					label={t('profiles')}
-					value={
-						invitation.profiles && invitation.profiles.length > 0 ? (
+				{invitation.email?.trim() ? (
+					<DetailField label={t('email')} value={invitation.email.trim()} />
+				) : null}
+				{invitation.profiles && invitation.profiles.length > 0 ? (
+					<DetailField
+						label={t('profiles')}
+						value={
 							<div className="flex flex-wrap gap-2">
 								{invitation.profiles.map((profile) => (
 									<Badge
@@ -356,19 +341,19 @@ const InvitationDetailsCard = ({
 										key={`${String(profile.id ?? '')}:${profile.name ?? ''}`}
 										className="h-auto rounded-full border-none bg-muted px-2 py-0.5 text-xs font-medium text-foreground"
 									>
-										{profile.name?.trim() || '—'}
+										{profile.name?.trim() || t('unnamed-profile')}
 									</Badge>
 								))}
 							</div>
-						) : (
-							'—'
-						)
-					}
-				/>
-				<DetailField
-					label={t('staff-invited-by')}
-					value={invitation.invitedByName?.trim() || '—'}
-				/>
+						}
+					/>
+				) : null}
+				{invitation.invitedByName?.trim() ? (
+					<DetailField
+						label={t('staff-invited-by')}
+						value={invitation.invitedByName.trim()}
+					/>
+				) : null}
 				<DetailField
 					label={t('sent-date')}
 					value={formatDateTime(invitation.createdAt, locale)}

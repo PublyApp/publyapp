@@ -11,6 +11,7 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { Field, Form } from '~/components/field';
 import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
+import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import { FALLBACK_LANGUAGE, isSupportedLanguage } from '~/lib/i18n.shared';
 import {
 	STAFF_PROFILES_QUERY_KEY,
@@ -146,14 +147,6 @@ export const Route = createFileRoute('/_authed-layout/staff/profiles/new')({
 	component: NewStaffProfileRoute,
 });
 
-const LoadingSpinner = () => (
-	<span
-		role="status"
-		aria-label="Loading"
-		className="size-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"
-	/>
-);
-
 function NewStaffProfileRoute() {
 	const navigate = Route.useNavigate();
 	const queryClient = useQueryClient();
@@ -234,60 +227,72 @@ function NewStaffProfileRoute() {
 			</div>
 
 			<Card className="space-y-4 p-4">
-				{permissionsQuery.isPending ? (
-					<div className="flex items-center gap-3 py-8 text-sm text-muted-foreground">
-						<LoadingSpinner />
-						<span>Loading permissions...</span>
-					</div>
-				) : permissionsQuery.isError ? (
-					<div className="space-y-3">
-						<p className="text-sm text-destructive">
-							{getFailureMessage(toApiFailure(permissionsQuery.error), {
-								fallback: t('unable-to-load-staff-permissions'),
-							})}
-						</p>
-						<Button
-							type="button"
-							variant="secondary"
-							onClick={() => void permissionsQuery.refetch()}
-						>
-							Retry
-						</Button>
-					</div>
-				) : (
-					<Form methods={methods} onSubmit={onSubmit}>
-						<Field.Text
-							name="name"
-							label={t('profile-name')}
-							placeholder="Platform admin"
-							disabled={createProfile.isPending}
-						/>
-						<Field.Text
-							name="description"
-							label={t('description')}
-							placeholder="Describe the responsibilities for this profile"
-							disabled={createProfile.isPending}
-						/>
-						<Field.CheckboxGroup
-							name="permissions"
-							label={t('permissions')}
-							options={permissionOptions}
-							isDisabled={createProfile.isPending}
-						/>
-						{serverError ? (
-							<p className="text-sm text-destructive">{serverError}</p>
-						) : null}
-						<div className="flex justify-end">
-							<Button
-								type="submit"
-								variant="default"
-								disabled={createProfile.isPending || permissionsQuery.isPending}
-							>
-								{t('create-profile')}
-							</Button>
-						</div>
-					</Form>
-				)}
+				{(() => {
+					if (permissionsQuery.isPending) {
+						return (
+							<div className="flex items-center gap-3 py-8 text-sm text-muted-foreground">
+								<LoadingSpinner />
+								<span>{t('loading-permissions')}</span>
+							</div>
+						);
+					}
+
+					if (permissionsQuery.isError) {
+						return (
+							<div className="space-y-3">
+								<p className="text-sm text-destructive">
+									{getFailureMessage(toApiFailure(permissionsQuery.error), {
+										fallback: t('unable-to-load-staff-permissions'),
+									})}
+								</p>
+								<Button
+									type="button"
+									variant="secondary"
+									onClick={() => void permissionsQuery.refetch()}
+								>
+									{t('retry')}
+								</Button>
+							</div>
+						);
+					}
+
+					return (
+						<Form methods={methods} onSubmit={onSubmit}>
+							<Field.Text
+								name="name"
+								label={t('profile-name')}
+								placeholder="Platform admin"
+								disabled={createProfile.isPending}
+							/>
+							<Field.Text
+								name="description"
+								label={t('description')}
+								placeholder="Describe the responsibilities for this profile"
+								disabled={createProfile.isPending}
+							/>
+							<Field.CheckboxGroup
+								name="permissions"
+								label={t('permissions')}
+								options={permissionOptions}
+								isDisabled={createProfile.isPending}
+							/>
+							{serverError ? (
+								<p className="text-sm text-destructive">{serverError}</p>
+							) : null}
+							<div className="flex justify-end">
+								<Button
+									type="submit"
+									variant="default"
+									disabled={
+										createProfile.isPending || permissionsQuery.isPending
+									}
+								>
+									{t('create-profile')}
+								</Button>
+							</div>
+						</Form>
+					);
+				})()}
 			</Card>
 		</div>
 	);

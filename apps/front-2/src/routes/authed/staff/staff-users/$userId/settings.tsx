@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { useTranslation } from 'react-i18next';
 
 export const Route = createFileRoute(
 	'/_authed-layout/staff/staff-users/$userId/settings',
@@ -7,10 +8,15 @@ export const Route = createFileRoute(
 });
 
 function StaffUserSettingsTab() {
+	const { t } = useTranslation('common');
+
 	return (
-		<div className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] p-4 shadow-[var(--publy-shadow-ring)]">
+		<div
+			className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] p-4 shadow-[var(--publy-shadow-ring)]"
+			data-testid="staff-user-settings-panel"
+		>
 			<p className="text-sm text-muted-foreground">
-				This tab is intentionally kept minimal in this handoff scope.
+				{t('section-not-built-yet')}
 			</p>
 		</div>
 	);

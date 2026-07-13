@@ -6,6 +6,7 @@ import {
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
@@ -13,6 +14,7 @@ import { DataTable } from '~/components/table/data-table';
 import { useTableController } from '~/components/table/use-table-controller';
 import { Button, buttonVariants } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
+import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import {
 	toStaffProfileUserRows,
 	useStaffProfileUsersQuery,
@@ -109,14 +111,6 @@ const ProfileDetailsLoading = () => (
 	</div>
 );
 
-const LoadingSpinner = () => (
-	<span
-		role="status"
-		aria-label="Loading"
-		className="size-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"
-	/>
-);
-
 const MissingProfileView = ({ error }: { error: unknown }) => {
 	const failure = toApiFailure(error);
 
@@ -188,6 +182,7 @@ function StaffProfileUsersPage() {
 	const navigate = Route.useNavigate();
 	const { profileId } = Route.useParams();
 	const search = Route.useSearch();
+	const { t } = useTranslation('common');
 	const [pageIndex, setPageIndex] = useState(0);
 	const onSearchChange = (next: TableSearchParams): void => {
 		void navigate({
@@ -334,7 +329,7 @@ function StaffProfileUsersPage() {
 						Assigned users
 					</p>
 					<p className="text-sm text-muted-foreground">
-						Read-only migration for the current profile users tab.
+						{t('staff-profile-users-description')}
 					</p>
 				</div>
 

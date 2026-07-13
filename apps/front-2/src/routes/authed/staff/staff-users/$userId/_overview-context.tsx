@@ -12,7 +12,7 @@ export type StaffUserOverviewContextValue = {
 	maxProfilesPerUser: number;
 	canSuspend: boolean;
 	canReactivate: boolean;
-	suspendLabel: 'Suspend' | 'Reactivate';
+	suspendLabelKey: 'suspend' | 'reactivate';
 	suspendDescription: string;
 	isDeletePending: boolean;
 	onOpenSuspendDialog: () => void;

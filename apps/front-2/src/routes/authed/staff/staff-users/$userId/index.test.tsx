@@ -40,6 +40,65 @@ vi.mock('@tanstack/react-router', () => ({
 	},
 }));
 
+const I18N_LABELS: Record<string, string> = {
+	'contact-details': 'Contact details',
+	name: 'Name',
+	email: 'Email',
+	'no-email-address': 'No email address',
+	role: 'Role',
+	status: 'Status',
+	unknown: 'Unknown',
+	created: 'Created',
+	updated: 'Updated',
+	'assigned-profiles-and-roles': 'Assigned profiles & roles',
+	'no-profiles-assigned': 'No profiles are currently assigned.',
+	'no-description-provided': 'No description provided.',
+	'profile-summary': 'Profile summary',
+	account: 'Account',
+	'user-id': 'User ID',
+	'unable-to-load-assigned-profiles': 'Unable to load assigned profiles.',
+	'danger-zone': 'Danger zone',
+	'suspend-or-reactivate': 'Suspend or reactivate',
+	'confirm-delete-staff-user-title': 'Delete staff member',
+	'confirm-delete-staff-user-message':
+		'Are you sure you want to delete this staff member? This action cannot be easily undone.',
+	delete: 'Delete',
+	suspend: 'Suspend',
+	reactivate: 'Reactivate',
+};
+
+vi.mock('react-i18next', () => ({
+	useTranslation: () => ({
+		t: (key: string, options?: Record<string, unknown>) => {
+			const count = typeof options?.count === 'number' ? options.count : 0;
+			const max = typeof options?.max === 'number' ? options.max : 0;
+
+			if (key === 'assigned-count') {
+				return `${count} assigned`;
+			}
+
+			if (key === 'count-of-max') {
+				return `${count} of ${max}`;
+			}
+
+			return I18N_LABELS[key] ?? key;
+		},
+	}),
+}));
+
+vi.mock('~/lib/format-date-time', () => ({
+	formatDateTime: (value: Date | null | undefined, locale: string): string => {
+		if (!(value instanceof Date) || Number.isNaN(value.valueOf())) {
+			return '—';
+		}
+
+		return value.toLocaleString(locale, {
+			dateStyle: 'medium',
+			timeStyle: 'short',
+		});
+	},
+}));
+
 import { StaffUserOverviewContext } from './_overview-context';
 import type { StaffUserOverviewContextValue } from './_overview-context';
 import { Route } from './index';
@@ -70,7 +129,7 @@ const buildContextValue = (
 	maxProfilesPerUser: 5,
 	canSuspend: true,
 	canReactivate: false,
-	suspendLabel: 'Suspend' as const,
+	suspendLabelKey: 'suspend' as const,
 	suspendDescription: 'Suspending this user revokes access.',
 	isDeletePending: false,
 	onOpenSuspendDialog: mocks.onOpenSuspendDialog,
@@ -112,12 +171,19 @@ describe('staff user overview tab', () => {
 		expect(screen.getByRole('link', { name: 'Platform admin' })).toBeTruthy();
 		expect(screen.getByRole('link', { name: 'Support staff' })).toBeTruthy();
 		expect(screen.getByText('Full access')).toBeTruthy();
-		expect(screen.getByText('No description')).toBeTruthy();
+		expect(screen.getByText('No description provided.')).toBeTruthy();
 		expect(screen.getByText('Profile summary')).toBeTruthy();
 
 		expect(screen.getByText('Account')).toBeTruthy();
-		expect(screen.getByText('Recent security activity')).toBeTruthy();
 		expect(screen.getByText('Danger zone')).toBeTruthy();
+	});
+
+	test('does not render fabricated 2FA/session/security-activity data', () => {
+		renderTab();
+
+		expect(screen.queryByText('2FA')).toBeNull();
+		expect(screen.queryByText('Sessions')).toBeNull();
+		expect(screen.queryByText('Recent security activity')).toBeNull();
 	});
 
 	test('renders the assigned profiles empty state when none are assigned', () => {
@@ -149,7 +215,7 @@ describe('staff user overview tab', () => {
 			buildContextValue({
 				canSuspend: false,
 				canReactivate: true,
-				suspendLabel: 'Reactivate',
+				suspendLabelKey: 'reactivate',
 			}),
 		);
 

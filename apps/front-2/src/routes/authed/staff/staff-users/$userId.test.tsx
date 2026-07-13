@@ -54,8 +54,10 @@ vi.mock('@tanstack/react-router', () => ({
 			canSuspend,
 			canReactivate,
 			isDeletePending,
-			suspendLabel,
+			suspendLabelKey,
 		} = useStaffUserOverviewContext();
+		const suspendLabel =
+			suspendLabelKey === 'reactivate' ? 'Reactivate' : 'Suspend';
 
 		return (
 			<div data-testid="staff-user-details-outlet">
@@ -100,9 +102,49 @@ vi.mock('@tanstack/react-router', () => ({
 	},
 }));
 
+const I18N_LABELS: Record<string, string> = {
+	'back-to-staff-users': 'Back to staff users',
+	'staff-user-not-found-title': 'staff member not found',
+	'staff-user-not-found-description':
+		'The staff member you are looking for does not exist or may have been removed.',
+	'unable-to-load-staff-user': 'Unable to load this staff user',
+	'problem-loading-staff-user-details':
+		'There was a problem loading the staff user details.',
+	'staff-user-payload-empty': 'The staff user payload was empty.',
+	'try-again': 'Try Again',
+	'loading-staff-user': 'Loading staff user…',
+	'no-email-address': 'No email address',
+	edit: 'Edit',
+	overview: 'Overview',
+	permissions: 'Permissions',
+	activity: 'Activity',
+	settings: 'Settings',
+	suspend: 'Suspend',
+	reactivate: 'Reactivate',
+	'suspend-staff-user': 'Suspend staff member',
+	'reactivate-staff-user': 'Reactivate staff member',
+	'suspend-staff-user-confirm':
+		'Are you sure you want to suspend this staff member? They will not be able to access the staff dashboard while suspended.',
+	'reactivate-staff-user-confirm':
+		'Are you sure you want to reactivate this staff member? They will regain access to the staff dashboard.',
+	'confirm-delete-staff-user-title': 'Delete staff member',
+	'confirm-delete-staff-user-message':
+		'Are you sure you want to delete this staff member? This action cannot be easily undone.',
+	delete: 'Delete',
+	'delete-confirm-instructions':
+		'To delete this account, type “delete” in the field below.',
+	'confirm-delete-field-label': 'Confirm delete',
+	'type-delete-to-confirm-placeholder': 'Type delete to confirm',
+	'staff-user-suspended-success': 'This staff user has been suspended.',
+	'staff-user-reactivated-success': 'This staff user has been reactivated.',
+	'unable-to-suspend-staff-user': 'Unable to suspend this staff user.',
+	'unable-to-reactivate-staff-user': 'Unable to reactivate this staff user.',
+	'unable-to-delete-staff-user': 'Unable to delete this staff user.',
+};
+
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string) => key,
+		t: (key: string) => I18N_LABELS[key] ?? key,
 		i18n: {
 			language: 'en',
 		},
@@ -247,7 +289,7 @@ describe('staff user details route shell', () => {
 		expect(page.getAllByText('Active')).toHaveLength(1);
 
 		expect(
-			screen.getByRole('link', { name: 'back-to-staff-users' }),
+			screen.getByRole('link', { name: 'Back to staff users' }),
 		).toBeTruthy();
 		expect(screen.getByRole('heading', { name: 'Owner User' })).toBeTruthy();
 		expect(screen.getByText('owner@publyapp.local')).toBeTruthy();
@@ -443,7 +485,7 @@ describe('staff user details route shell', () => {
 		fireEvent.click(suspendButtons[0]);
 
 		const alertDialog = screen.getByRole('alertdialog', {
-			name: 'Suspend staff user',
+			name: 'Suspend staff member',
 		});
 		const confirmButton = within(alertDialog).getByRole('button', {
 			name: 'Suspend',
@@ -481,7 +523,7 @@ describe('staff user details route shell', () => {
 		fireEvent.click(reactivateButtons[0]);
 
 		const alertDialog = screen.getByRole('alertdialog', {
-			name: 'Reactivate staff user',
+			name: 'Reactivate staff member',
 		});
 		const confirmButton = within(alertDialog).getByRole('button', {
 			name: 'Reactivate',
@@ -511,7 +553,7 @@ describe('staff user details route shell', () => {
 		fireEvent.change(confirmField, { target: { value: 'delete' } });
 
 		const alertDialog = screen.getByRole('alertdialog', {
-			name: 'Delete staff user',
+			name: 'Delete staff member',
 		});
 		const confirmButton = within(alertDialog).getByRole('button', {
 			name: 'Delete',
@@ -558,7 +600,7 @@ describe('staff user details route shell', () => {
 		fireEvent.change(confirmField, { target: { value: 'delete' } });
 
 		const alertDialog = screen.getByRole('alertdialog', {
-			name: 'Delete staff user',
+			name: 'Delete staff member',
 		});
 		const confirmButton = within(alertDialog).getByRole('button', {
 			name: 'Delete',

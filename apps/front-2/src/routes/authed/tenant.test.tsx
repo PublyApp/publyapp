@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
 	},
 	logout: vi.fn(),
 	isLoggingOut: false,
+	shouldLogoutForFailure: vi.fn(() => false),
 }));
 
 vi.mock('@tanstack/react-router', () => ({
@@ -47,6 +48,14 @@ vi.mock('~/lib/hooks/use-logout', () => ({
 	}),
 }));
 
+vi.mock('~/routes/authed/layout', () => ({
+	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
+}));
+
+vi.mock('~/components/error-views/LogoutRedirect', () => ({
+	LogoutRedirect: () => <div data-testid="logout-redirect">logout</div>,
+}));
+
 const EN_LABELS: Record<string, string> = {
 	'select-organization': 'Select Organization',
 	'select-organization-description':
@@ -59,6 +68,7 @@ const EN_LABELS: Record<string, string> = {
 	suspended: 'Suspended',
 	'log-out': 'Log out',
 	'common-loading': 'Loading...',
+	tenant: 'Tenant',
 };
 
 vi.mock('react-i18next', () => ({
@@ -124,6 +134,16 @@ describe('TenantPortalRoute', () => {
 		expect(screen.getByTestId('tenant-portal-error')).toBeTruthy();
 		expect(screen.getByText('Failed to load organizations')).toBeTruthy();
 		expect(screen.queryByRole('button')).toBeNull();
+	});
+
+	test('logs out instead of rendering the error state on a 401', () => {
+		setQuery({ isSuccess: false, isError: true, error: new Error('boom') });
+		mocks.shouldLogoutForFailure.mockReturnValue(true);
+
+		render(<TenantPortalRoute />);
+
+		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
+		expect(screen.queryByTestId('tenant-portal-error')).toBeNull();
 	});
 
 	test('renders the empty state when there are no tenants at all', () => {

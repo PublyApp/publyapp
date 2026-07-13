@@ -183,6 +183,7 @@ const AuthedRouteLoadingShell = ({
 	pathname: string;
 	search: Record<string, unknown>;
 }) => {
+	const { t } = useTranslation('common');
 	const isTenantPortalRoot = pathname.replace(/\/+$/, '') === TENANT_PATH;
 
 	if (isTenantPortalRoot) {
@@ -198,7 +199,7 @@ const AuthedRouteLoadingShell = ({
 
 	return (
 		<AuthedLayout pathname={pathname} search={search}>
-			Loading…
+			{t('loading')}
 		</AuthedLayout>
 	);
 };
@@ -238,6 +239,7 @@ const AuthedRouteLoadingShell = ({
 // assertion; distinct testids keep the two trees unambiguous.
 const AuthedRoutePendingSkeleton = () => {
 	const location = useLocation();
+	const { t } = useTranslation('common');
 	const pathname = location.pathname ?? '';
 	const isTenantPortalRoot = pathname.replace(/\/+$/, '') === TENANT_PATH;
 
@@ -260,7 +262,7 @@ const AuthedRoutePendingSkeleton = () => {
 		>
 			<nav
 				className="app-shell-rail"
-				aria-label="Primary navigation"
+				aria-label={t('primary-navigation')}
 				data-testid="app-shell-pending-rail"
 			/>
 			<div className="app-shell-body">
@@ -305,8 +307,8 @@ const AuthedLayoutErrorBoundary = ({
 		<AppErrorView
 			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 			code="500 — Server Error"
-			title="Something went wrong"
-			description="There was a problem loading this page."
+			title={t('something-went-wrong')}
+			description={t('problem-loading-page')}
 			actions={
 				<>
 					<Button variant="default" onClick={retry} type="button">
@@ -446,8 +448,8 @@ function AuthedRouteLayout() {
 			<AppErrorView
 				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 				code="500 — Server Error"
-				title="Something went wrong"
-				description="There was a problem loading this page."
+				title={t('something-went-wrong')}
+				description={t('problem-loading-page')}
 				actions={
 					<>
 						<Button

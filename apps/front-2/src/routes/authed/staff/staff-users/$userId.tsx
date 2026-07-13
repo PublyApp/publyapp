@@ -1,7 +1,6 @@
 import {
 	IconAlertCircle,
 	IconArrowLeft,
-	IconMail,
 	IconPencil,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -81,43 +80,29 @@ const getFailureDescription = (error: unknown, fallback: string): string => {
 const normalizeStatus = (value: string | null | undefined): string =>
 	value?.trim().toLowerCase() ?? '';
 
-const getSuspendLabel = (status: string | null): 'Suspend' | 'Reactivate' => {
+const getSuspendLabelKey = (
+	status: string | null,
+): 'suspend' | 'reactivate' => {
 	const normalized = normalizeStatus(status);
-	if (normalized === STAFF_STATUS_ACTIVE) {
-		return 'Suspend';
-	}
 
-	if (normalized === STAFF_STATUS_SUSPENDED) {
-		return 'Reactivate';
-	}
-
-	return 'Suspend';
+	return normalized === STAFF_STATUS_SUSPENDED ? 'reactivate' : 'suspend';
 };
 
-const getSuspendDescription = (
+const getSuspendDialogKeys = (
 	status: string | null,
-): { title: string; description: string } => {
+): { titleKey: string; descriptionKey: string } => {
 	const normalized = normalizeStatus(status);
-
-	if (normalized === STAFF_STATUS_ACTIVE) {
-		return {
-			title: 'Suspend staff user',
-			description:
-				'Suspending this user revokes access to staff-level tools. You can reactivate this account at any time.',
-		};
-	}
 
 	if (normalized === STAFF_STATUS_SUSPENDED) {
 		return {
-			title: 'Reactivate staff user',
-			description:
-				'Reactivating this user restores staff-level access and permissions.',
+			titleKey: 'reactivate-staff-user',
+			descriptionKey: 'reactivate-staff-user-confirm',
 		};
 	}
 
 	return {
-		title: 'Suspend staff user',
-		description: 'This action updates this staff user status.',
+		titleKey: 'suspend-staff-user',
+		descriptionKey: 'suspend-staff-user-confirm',
 	};
 };
 
@@ -147,21 +132,24 @@ const DeleteConfirmField = ({
 }: {
 	value: string;
 	onChange: (next: string) => void;
-}) => (
-	<div className="space-y-1.5">
-		<p className="text-xs text-muted-foreground">
-			To delete this account, type <span className="font-mono">delete</span> in
-			the field below.
-		</p>
-		<Input
-			aria-label="Confirm delete"
-			value={value}
-			placeholder="Type delete to confirm"
-			onChange={(event) => onChange(event.target.value)}
-			className="h-9"
-		/>
-	</div>
-);
+}) => {
+	const { t } = useTranslation('common');
+
+	return (
+		<div className="space-y-1.5">
+			<p className="text-xs text-muted-foreground">
+				{t('delete-confirm-instructions')}
+			</p>
+			<Input
+				aria-label={t('confirm-delete-field-label')}
+				value={value}
+				placeholder={t('type-delete-to-confirm-placeholder')}
+				onChange={(event) => onChange(event.target.value)}
+				className="h-9"
+			/>
+		</div>
+	);
+};
 
 const TAB_ROUTE_SUFFIXES = ['permissions', 'activity', 'settings'] as const;
 type TabSection = 'overview' | (typeof TAB_ROUTE_SUFFIXES)[number];
@@ -190,6 +178,7 @@ function StaffUserDetailsPage() {
 	const [isSuspendDialogOpen, setSuspendDialogOpen] = useState(false);
 	const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
 	const [shouldLogout, setShouldLogout] = useState(false);
+	const [detailActionSuccess, setDetailActionSuccess] = useState('');
 	const suspendUser = useSuspendStaffUserMutation();
 	const reactivateUser = useReactivateStaffUserMutation();
 	const deleteUser = useDeleteStaffUserMutation();
@@ -220,7 +209,7 @@ function StaffUserDetailsPage() {
 			<div className="mx-auto flex min-h-[50vh] w-full max-w-5xl items-center justify-center px-4 py-12">
 				<div className="flex items-center gap-3 text-sm text-muted-foreground">
 					<div className="h-2 w-2 rounded-full bg-primary" />
-					<span>Loading staff user…</span>
+					<span>{t('loading-staff-user')}</span>
 				</div>
 			</div>
 		);
@@ -235,10 +224,10 @@ function StaffUserDetailsPage() {
 				<AppErrorView
 					icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 					code="404 — Not Found"
-					title="Staff user not found"
+					title={t('staff-user-not-found-title')}
 					description={getFailureDescription(
 						detailQuery.error,
-						'The requested staff user does not exist or is no longer available.',
+						t('staff-user-not-found-description'),
 					)}
 					testId="staff-user-details-not-found"
 				/>
@@ -253,8 +242,8 @@ function StaffUserDetailsPage() {
 			<AppErrorView
 				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 				code="500 — Server Error"
-				title="Unable to load this staff user"
-				description="There was a problem loading the staff user details."
+				title={t('unable-to-load-staff-user')}
+				description={t('problem-loading-staff-user-details')}
 				testId="staff-user-details-error"
 				actions={
 					<>
@@ -263,13 +252,13 @@ function StaffUserDetailsPage() {
 							onClick={() => void detailQuery.refetch()}
 							type="button"
 						>
-							Try again
+							{t('try-again')}
 						</Button>
 						<Link
 							to="/staff/staff-users"
 							className={buttonVariants({ variant: 'outline' })}
 						>
-							Back to staff users
+							{t('back-to-staff-users')}
 						</Link>
 					</>
 				}
@@ -284,8 +273,8 @@ function StaffUserDetailsPage() {
 			<AppErrorView
 				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 				code="404 — Not Found"
-				title="Staff user not found"
-				description="The staff user payload was empty."
+				title={t('staff-user-not-found-title')}
+				description={t('staff-user-payload-empty')}
 				testId="staff-user-details-empty"
 			/>
 		);
@@ -310,6 +299,7 @@ function StaffUserDetailsPage() {
 
 		try {
 			setDetailActionError('');
+			setDetailActionSuccess('');
 			if (canSuspend) {
 				await suspendUser.mutateAsync({ userId });
 			} else if (canReactivate) {
@@ -319,6 +309,11 @@ function StaffUserDetailsPage() {
 			await queryClient.invalidateQueries({
 				queryKey: ['staff', 'staff-users'],
 			});
+			setDetailActionSuccess(
+				canSuspend
+					? t('staff-user-suspended-success')
+					: t('staff-user-reactivated-success'),
+			);
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
 				setShouldLogout(true);
@@ -328,8 +323,8 @@ function StaffUserDetailsPage() {
 			setDetailActionError(
 				getFailureMessage(toApiFailure(error), {
 					fallback: canSuspend
-						? 'Unable to suspend this staff user.'
-						: 'Unable to reactivate this staff user.',
+						? t('unable-to-suspend-staff-user')
+						: t('unable-to-reactivate-staff-user'),
 				}),
 			);
 		} finally {
@@ -340,6 +335,7 @@ function StaffUserDetailsPage() {
 	const handleDeleteAction = async () => {
 		try {
 			setDetailActionError('');
+			setDetailActionSuccess('');
 			await deleteUser.mutateAsync({ userId });
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
@@ -349,7 +345,7 @@ function StaffUserDetailsPage() {
 
 			setDetailActionError(
 				getFailureMessage(toApiFailure(error), {
-					fallback: 'Unable to delete this staff user.',
+					fallback: t('unable-to-delete-staff-user'),
 				}),
 			);
 			return;
@@ -387,8 +383,8 @@ function StaffUserDetailsPage() {
 		maxProfilesPerUser: maxProfilesPerUser ?? 0,
 		canSuspend,
 		canReactivate,
-		suspendLabel: getSuspendLabel(user.status),
-		suspendDescription: getSuspendDescription(user.status).description,
+		suspendLabelKey: getSuspendLabelKey(user.status),
+		suspendDescription: t(getSuspendDialogKeys(user.status).descriptionKey),
 		isDeletePending: deleteUser.isPending,
 		onOpenSuspendDialog: () => {
 			setSuspendDialogOpen(true);
@@ -430,30 +426,25 @@ function StaffUserDetailsPage() {
 								) : null}
 							</div>
 							<p className="max-w-3xl text-[13px] text-muted-foreground">
-								{user.email || 'No email address'}
+								{user.email || t('no-email-address')}
 							</p>
 						</div>
 					</div>
 
 					<div className="flex flex-wrap items-center gap-2">
-						{/* TODO(contract): wire reset-invite endpoint when available */}
-						<Button type="button" variant="outline" size="sm" disabled>
-							<IconMail className="size-4" />
-							Reset invite
-						</Button>
 						<Link
 							to="/staff/staff-users/$userId/edit"
 							params={{ userId }}
 							className={buttonVariants({ variant: 'outline', size: 'sm' })}
 						>
 							<IconPencil className="size-4" />
-							Edit
+							{t('edit')}
 						</Link>
 						<ConfirmDialog
 							isOpen={isSuspendDialogOpen}
-							title={getSuspendDescription(user.status).title}
-							description={getSuspendDescription(user.status).description}
-							confirmLabel={getSuspendLabel(user.status)}
+							title={t(getSuspendDialogKeys(user.status).titleKey)}
+							description={t(getSuspendDialogKeys(user.status).descriptionKey)}
+							confirmLabel={t(getSuspendLabelKey(user.status))}
 							isPending={pendingAction}
 							onConfirm={() => {
 								void handleLifecycleAction();
@@ -464,7 +455,7 @@ function StaffUserDetailsPage() {
 						>
 							<ConfirmHeaderInfo
 								name={user.displayName}
-								email={user.email || 'No email'}
+								email={user.email || t('no-email-address')}
 								avatarSeed={user.displayName}
 							/>
 						</ConfirmDialog>
@@ -479,7 +470,7 @@ function StaffUserDetailsPage() {
 								<Link to="/staff/staff-users/$userId" params={{ userId }} />
 							}
 						>
-							Overview
+							{t('overview')}
 						</TabsTrigger>
 						<TabsTrigger
 							value="permissions"
@@ -490,7 +481,7 @@ function StaffUserDetailsPage() {
 								/>
 							}
 						>
-							Permissions
+							{t('permissions')}
 						</TabsTrigger>
 						<TabsTrigger
 							value="activity"
@@ -501,7 +492,7 @@ function StaffUserDetailsPage() {
 								/>
 							}
 						>
-							Activity
+							{t('activity')}
 						</TabsTrigger>
 						<TabsTrigger
 							value="settings"
@@ -512,7 +503,7 @@ function StaffUserDetailsPage() {
 								/>
 							}
 						>
-							Settings
+							{t('settings')}
 						</TabsTrigger>
 					</TabsList>
 
@@ -521,6 +512,11 @@ function StaffUserDetailsPage() {
 							<Outlet />
 						</StaffUserOverviewContext.Provider>
 
+						{detailActionSuccess ? (
+							<div className="mt-2 text-sm text-success" role="status">
+								{detailActionSuccess}
+							</div>
+						) : null}
 						{detailActionError ? (
 							<div className="mt-2 text-sm text-destructive" role="alert">
 								{detailActionError}
@@ -532,9 +528,9 @@ function StaffUserDetailsPage() {
 
 			<ConfirmDialog
 				isOpen={isDeleteDialogOpen}
-				title="Delete staff user"
-				description="Deleting this staff user is permanent and can’t be undone. Reassign ownership and project responsibilities first."
-				confirmLabel="Delete"
+				title={t('confirm-delete-staff-user-title')}
+				description={t('confirm-delete-staff-user-message')}
+				confirmLabel={t('delete')}
 				tone="danger"
 				isPending={deleteUser.isPending}
 				isConfirmDisabled={!isDeleteConfirmReady}

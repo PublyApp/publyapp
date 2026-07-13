@@ -97,21 +97,25 @@ const getFailureDescription = (error: unknown, fallback: string): string => {
 	return fallback;
 };
 
-const StaffUserEditLoading = () => (
-	<div
-		className="mx-auto flex min-h-[50vh] w-full max-w-3xl items-center justify-center px-4 py-12"
-		data-testid="staff-user-edit-loading"
-	>
-		<div className="flex items-center gap-3 text-sm text-muted-foreground">
-			<span
-				role="status"
-				aria-label="Loading"
-				className="size-4 animate-spin rounded-[var(--publy-radius-sm)] border-2 border-muted-foreground/30 border-t-foreground"
-			/>
-			<span>Loading staff user…</span>
+const StaffUserEditLoading = () => {
+	const { t } = useTranslation('common');
+
+	return (
+		<div
+			className="mx-auto flex min-h-[50vh] w-full max-w-3xl items-center justify-center px-4 py-12"
+			data-testid="staff-user-edit-loading"
+		>
+			<div className="flex items-center gap-3 text-sm text-muted-foreground">
+				<span
+					role="status"
+					aria-label={t('loading')}
+					className="size-4 animate-spin rounded-[var(--publy-radius-sm)] border-2 border-muted-foreground/30 border-t-foreground"
+				/>
+				<span>{t('loading-staff-user')}</span>
+			</div>
 		</div>
-	</div>
-);
+	);
+};
 
 const StaffUserEditError = ({
 	error,
@@ -120,6 +124,8 @@ const StaffUserEditError = ({
 	error: unknown;
 	onRetry: () => void;
 }) => {
+	const { t } = useTranslation('common');
+
 	if (
 		isProblemStatus(error, 404) ||
 		isProblemStatus(error, 400, 'malformed-id')
@@ -128,10 +134,10 @@ const StaffUserEditError = ({
 			<AppErrorView
 				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 				code="404 — Not Found"
-				title="Staff user not found"
+				title={t('staff-user-not-found-title')}
 				description={getFailureDescription(
 					error,
-					'The requested staff user does not exist or is no longer available.',
+					t('staff-user-not-found-description'),
 				)}
 				testId="staff-user-edit-not-found"
 			/>
@@ -146,19 +152,19 @@ const StaffUserEditError = ({
 		<AppErrorView
 			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 			code="500 — Server Error"
-			title="Unable to load this staff user"
-			description="There was a problem loading the staff user details."
+			title={t('unable-to-load-staff-user')}
+			description={t('problem-loading-staff-user-details')}
 			testId="staff-user-edit-error"
 			actions={
 				<>
 					<Button variant="default" onClick={onRetry} type="button">
-						Try again
+						{t('try-again')}
 					</Button>
 					<Link
 						to="/staff/staff-users"
 						className={buttonVariants({ variant: 'outline' })}
 					>
-						Back to staff users
+						{t('back-to-staff-users')}
 					</Link>
 				</>
 			}
@@ -291,8 +297,8 @@ function StaffUserEditPage() {
 			<AppErrorView
 				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 				code="404 — Not Found"
-				title="Staff user not found"
-				description="The staff user payload was empty."
+				title={t('staff-user-not-found-title')}
+				description={t('staff-user-payload-empty')}
 				testId="staff-user-edit-not-found"
 			/>
 		);
@@ -381,10 +387,10 @@ function StaffUserEditPage() {
 		}
 
 		if (attentionCount > 0) {
-			return `Unsaved changes · ${attentionCount} field${attentionCount === 1 ? '' : 's'} need attention`;
+			return `${t('unsaved-changes')} · ${t('fields-need-attention', { count: attentionCount })}`;
 		}
 
-		return 'Unsaved changes';
+		return t('unsaved-changes');
 	})();
 
 	return (
@@ -400,10 +406,10 @@ function StaffUserEditPage() {
 				</Link>
 				<div>
 					<h1 className="text-xl font-semibold tracking-[-0.01em]">
-						Edit staff user
+						{t('edit-staff-user')}
 					</h1>
 					<p className="mt-1 text-sm text-muted-foreground">
-						Update this staff user’s identity, access, and security settings.
+						{t('edit-staff-user-description')}
 					</p>
 				</div>
 			</div>
@@ -411,31 +417,31 @@ function StaffUserEditPage() {
 			<Form methods={methods} onSubmit={onSubmit}>
 				<section className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] shadow-[var(--publy-shadow-ring)]">
 					<div className="publy-card-header">
-						<p className="publy-type-section-title">Identity</p>
+						<p className="publy-type-section-title">{t('identity')}</p>
 					</div>
 					<div className="grid gap-4 p-5 md:grid-cols-2">
 						<Field.Text
 							name="firstName"
-							label="First name"
-							placeholder="First name"
+							label={t('first-name')}
+							placeholder={t('first-name')}
 							isDisabled={isSubmittingForm}
 						/>
 						<Field.Text
 							name="lastName"
-							label="Last name"
-							placeholder="Last name"
+							label={t('last-name')}
+							placeholder={t('last-name')}
 							isDisabled={isSubmittingForm}
 						/>
 						{/* TODO(contract): email updates use the separate email endpoint. */}
 						<Field.Email
 							name="email"
 							label={t('email-address')}
-							helperText="Email changes are managed separately."
+							helperText={t('email-managed-separately')}
 							isDisabled
 						/>
 						<Field.Text
 							name="avatarUrl"
-							label="Avatar URL"
+							label={t('avatar-url')}
 							placeholder="https://example.com/avatar.png"
 							isDisabled={isSubmittingForm}
 						/>
@@ -444,7 +450,7 @@ function StaffUserEditPage() {
 
 				<section className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] shadow-[var(--publy-shadow-ring)]">
 					<div className="publy-card-header">
-						<p className="publy-type-section-title">Access</p>
+						<p className="publy-type-section-title">{t('access')}</p>
 					</div>
 					<div className="space-y-4 p-5">
 						<div className="grid gap-4 md:grid-cols-2">
@@ -461,7 +467,7 @@ function StaffUserEditPage() {
 							<Field.Select
 								name="status"
 								label={t('status')}
-								helperText="Status changes are managed from the user details screen."
+								helperText={t('status-managed-from-details')}
 								options={STATUS_OPTIONS.map((value) => ({
 									value,
 									label: t(
@@ -484,7 +490,7 @@ function StaffUserEditPage() {
 							/>
 						) : (
 							<p className="text-sm text-muted-foreground">
-								No profiles are available.
+								{t('no-profiles-available')}
 							</p>
 						)}
 					</div>
@@ -492,13 +498,12 @@ function StaffUserEditPage() {
 
 				<section className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] shadow-[var(--publy-shadow-ring)]">
 					<div className="publy-card-header">
-						<p className="publy-type-section-title">Security</p>
+						<p className="publy-type-section-title">{t('security')}</p>
 					</div>
 					<div className="px-5">
 						{/* TODO(contract): security preference endpoints are not available. */}
 						<p className="py-4 text-sm text-muted-foreground">
-							Not available — security preferences are not yet exposed by the
-							API
+							{t('security-preferences-not-available')}
 						</p>
 					</div>
 				</section>

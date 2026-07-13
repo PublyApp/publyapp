@@ -81,6 +81,9 @@ vi.mock('react-i18next', () => ({
 				cancel: 'Cancel',
 				'save-changes': 'Save changes',
 				'unknown-error': 'Unable to save staff user.',
+				'edit-staff-user': 'Edit staff user',
+				'security-preferences-not-available':
+					'Not available — security preferences are not yet exposed by the API',
 			};
 
 			return labels[key] ?? key;

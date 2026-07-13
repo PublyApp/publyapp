@@ -18,6 +18,7 @@ import { Field, Form } from '~/components/field';
 import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
 import { Input } from '~/components/ui/input';
+import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import { FALLBACK_LANGUAGE, isSupportedLanguage } from '~/lib/i18n.shared';
 import {
 	useBulkCreateStaffInvitationsMutation,
@@ -61,14 +62,6 @@ const DEFAULT_VALUES: InvitationFormValues = {
 };
 
 export const STAFF_INVITATIONS_INDEX_PATH = '/staff/invitations';
-
-const LoadingSpinner = () => (
-	<span
-		role="status"
-		aria-label="Loading"
-		className="size-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"
-	/>
-);
 
 const getInterZodForI18n = (instance: I18nInstance) => {
 	const locale = isSupportedLanguage(instance.language)
