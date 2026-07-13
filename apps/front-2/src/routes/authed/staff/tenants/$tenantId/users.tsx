@@ -831,7 +831,6 @@ function StaffTenantUsersPage() {
 								<DropdownMenuCheckboxItem
 									checked={selectedLevels.length === 0}
 									closeOnClick
-									showCheckbox
 									data-testid="staff-tenant-users-level-filter-all"
 									onCheckedChange={() => setLevels([])}
 								>

@@ -82,14 +82,22 @@ test.describe('FIX-3: design-system chrome rulings', () => {
 		const levelFilterTrigger = page.getByRole('button', { name: 'All levels' });
 		await levelFilterTrigger.click();
 
+		// 3 rows: the exclusive "All levels" clear entry + the two level toggles.
 		const checkboxItems = page.locator(
 			'[data-slot="dropdown-menu-checkbox-item"]',
 		);
-		await expect(checkboxItems).toHaveCount(2);
+		await expect(checkboxItems).toHaveCount(3);
 
-		// Every multi-select row carries a visible checkbox box, unchecked by default.
+		// Only the multi-select level toggles carry a visible checkbox box —
+		// the exclusive "All levels" entry must NOT (the box is a multi-select
+		// affordance).
 		const boxes = page.locator('[data-slot="dropdown-menu-checkbox-item-box"]');
 		await expect(boxes).toHaveCount(2);
+		await expect(
+			page
+				.getByTestId('staff-tenant-users-level-filter-all')
+				.locator('[data-slot="dropdown-menu-checkbox-item-box"]'),
+		).toHaveCount(0);
 		await expect(boxes.first()).toHaveCSS('border-radius', '5px');
 		await expect(boxes.first()).not.toHaveCSS(
 			'background-color',
