@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { API_BASE_URL } from './helpers/api';
 import { loginAsStaffAdmin } from './helpers/login';
+import { expectTableFitsCard } from './helpers/table-fits-card';
 
 const TENANT_ID = '0197b8f0-3333-7ccc-8ccc-cccccccccccc';
 // The first seeded user row in mockTenantDetails's /users fixture — the one
@@ -633,9 +634,14 @@ test.describe('staff tenant users bulk toolbar', () => {
 		for await (const chunk of stream) {
 			chunks.push(chunk as Buffer);
 		}
+		// The stream read proves the download pipe delivers the mocked body;
+		// selection-scoping itself is proven above by the `ids` request
+		// assertion and by `ExportTenantUsersAsStaff.Spec.cs`'s
+		// `ItShouldExcludeCrossTenantIdsFromExport` — not by string-matching
+		// this fixed mock body, which never contained an unselected user to
+		// begin with (review-r2-tests.md F10).
 		const csvContent = Buffer.concat(chunks).toString('utf-8');
 		expect(csvContent).toContain('jamie@example.com');
-		expect(csvContent).not.toContain('morgan@example.com');
 	});
 });
 
@@ -771,3 +777,33 @@ test.describe('staff tenant profile create/edit drawers', () => {
 		await expect(page.getByTestId('profile-form-drawer')).toBeVisible();
 	});
 });
+
+for (const width of [768, 390]) {
+	test.describe(`staff tenant detail tables responsive at ${width}px`, () => {
+		test.use({ viewport: { width, height: 800 } });
+
+		test('Users table never overflows its card', async ({ page }) => {
+			await loginAsStaffAdmin(page);
+			await mockTenantDetails(page);
+
+			await page.goto(`/staff/tenants/${TENANT_ID}/users`);
+			await expectTableFitsCard(page, 'staff-tenant-users-table');
+		});
+
+		test('Invitations table never overflows its card', async ({ page }) => {
+			await loginAsStaffAdmin(page);
+			await mockTenantDetails(page);
+
+			await page.goto(`/staff/tenants/${TENANT_ID}/invitations`);
+			await expectTableFitsCard(page, 'staff-tenant-invitations-table');
+		});
+
+		test('Profiles table view never overflows its card', async ({ page }) => {
+			await loginAsStaffAdmin(page);
+			await mockTenantDetails(page);
+
+			await page.goto(`/staff/tenants/${TENANT_ID}/profiles?view=table`);
+			await expectTableFitsCard(page, 'staff-tenant-profiles-grid');
+		});
+	});
+}

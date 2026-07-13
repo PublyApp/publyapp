@@ -87,6 +87,11 @@ test.describe('tab-refocus stability (BUG-1)', () => {
 
 		await dispatchRefocus(page);
 		await page.waitForTimeout(1000);
+		// Best-effort: extend the observation window past the fixed 1s so a
+		// late refetch landing just after it is still caught by the request
+		// listener below (review-r2-tests.md F12). Swallow a timeout here —
+		// background polling that never truly idles must not fail the test.
+		await page.waitForLoadState('networkidle').catch(() => undefined);
 
 		expect(
 			requestsAfterRefocus.some((url) => url.includes('/auth/user-auth-data')),
@@ -137,6 +142,11 @@ test.describe('tab-refocus stability (BUG-1)', () => {
 
 		await dispatchRefocus(page);
 		await page.waitForTimeout(1000);
+		// Best-effort: extend the observation window past the fixed 1s so a
+		// late refetch landing just after it is still caught by the request
+		// listener below (review-r2-tests.md F12). Swallow a timeout here —
+		// background polling that never truly idles must not fail the test.
+		await page.waitForLoadState('networkidle').catch(() => undefined);
 
 		expect(
 			requestsAfterRefocus.some((url) => url.includes('/auth/user-auth-data')),
@@ -177,6 +187,11 @@ test.describe('tab-refocus stability (BUG-1)', () => {
 
 		await dispatchRefocus(page);
 		await page.waitForTimeout(1000);
+		// Best-effort: extend the observation window past the fixed 1s so a
+		// late refetch landing just after it is still caught by the request
+		// listener below (review-r2-tests.md F12). Swallow a timeout here —
+		// background polling that never truly idles must not fail the test.
+		await page.waitForLoadState('networkidle').catch(() => undefined);
 
 		expect(redirectCodeRefetchCount).toBe(0);
 		await expect(page.getByTestId('staff-tenants-table-rows')).toBeVisible();

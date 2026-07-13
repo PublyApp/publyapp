@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 import { loginAsStaffAdmin } from './helpers/login';
+import { expectTableFitsCard } from './helpers/table-fits-card';
 
 const TABLE = 'staff-users-table';
 
@@ -177,6 +178,20 @@ test.describe('staff users table', () => {
 		expect(backToFirstRowText).toEqual(firstRowText);
 	});
 
+	// Neither layer currently bounds page size (review-r2-tests.md F4) — this
+	// pins that a hand-typed, unbounded `size` at least renders a normal table
+	// rather than an error view or a hang, while the front/API clamps land.
+	test('an oversized size param still renders a normal table instead of an error view or a hang', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await page.goto('/staff/staff-users?size=100000');
+
+		await expect(page.getByTestId(`${TABLE}-rows`)).toBeVisible();
+		await expect(page.getByTestId(`${TABLE}-error`)).toHaveCount(0);
+		await expect(page.getByText('staff-admin@example.com')).toBeVisible();
+	});
+
 	test('has zero automatically detectable accessibility violations', async ({
 		page,
 	}) => {
@@ -227,21 +242,12 @@ for (const width of [1280, 768, 390]) {
 			const toolbar = page.getByTestId(`${TABLE}-toolbar`);
 			await expect(toolbar).toBeVisible();
 
-			const rows = page.getByTestId(`${TABLE}-rows`);
-			await expect(rows).toBeVisible();
-
-			// `not.toBe(0)` is satisfied by any rendered table, including a
-			// collapsed or overflowing one — assert the real invariant instead:
-			// the table never forces horizontal scroll past its own card.
-			const scrollWidth = await rows.evaluate((el: Element) => el.scrollWidth);
-			const cardClientWidth = await page
-				.getByTestId(`${TABLE}-card`)
-				.evaluate((el) => el.clientWidth);
-			expect(scrollWidth).toBeGreaterThan(0);
-			expect(scrollWidth).toBeLessThanOrEqual(cardClientWidth + 1);
+			await expectTableFitsCard(page, TABLE);
 		});
 
-		test('footer does not overflow', async ({ page }) => {
+		test('footer stacks below 640px and never overflows its card', async ({
+			page,
+		}) => {
 			await loginAsStaffAdmin(page);
 
 			const footer = page.getByTestId(`${TABLE}-footer`);
@@ -255,6 +261,12 @@ for (const width of [1280, 768, 390]) {
 			} else {
 				expect(flexDirection).toBe('row');
 			}
+
+			const footerScrollWidth = await footer.evaluate((el) => el.scrollWidth);
+			const cardClientWidth = await page
+				.getByTestId(`${TABLE}-card`)
+				.evaluate((el) => el.clientWidth);
+			expect(footerScrollWidth).toBeLessThanOrEqual(cardClientWidth + 1);
 		});
 	});
 }

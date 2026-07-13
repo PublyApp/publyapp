@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { API_BASE_URL } from './helpers/api';
 import { loginAsStaffAdmin } from './helpers/login';
+import { expectTableFitsCard } from './helpers/table-fits-card';
 
 const STAFF_TENANTS_PATH = '/staff/tenants';
 const BULK_SUSPEND_PATH = '/staff/tenants/bulk-suspend';
@@ -383,3 +384,17 @@ test.describe('staff tenants list', () => {
 		await expect(bar).toBeVisible();
 	});
 });
+
+for (const width of [768, 390]) {
+	test.describe(`staff tenants table responsive at ${width}px`, () => {
+		test.use({ viewport: { width, height: 800 } });
+
+		test('table never overflows its card', async ({ page }) => {
+			await loginAsStaffAdmin(page);
+			await mockStaffTenants(page);
+
+			await page.goto('/staff/tenants');
+			await expectTableFitsCard(page, TABLE);
+		});
+	});
+}

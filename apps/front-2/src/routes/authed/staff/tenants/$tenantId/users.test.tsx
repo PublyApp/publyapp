@@ -405,6 +405,45 @@ describe('staff tenant users route', () => {
 		expect(screen.getByText('No members match your search')).toBeTruthy();
 	});
 
+	// The gate is structurally hard to reach through normal navigation (row
+	// selection is pruned to the visible page every fetch, and page size tops
+	// out at BULK_ACTION_MAX_COUNT — see review-r2-tests.md F3/F4), but the
+	// branch is real production code and must render correctly whenever the
+	// selection count does exceed the limit.
+	test('disables the bulk actions trigger and shows the max-count message once selection exceeds BULK_ACTION_MAX_COUNT', async () => {
+		const manyRows = Array.from({ length: 101 }, (_, index) => ({
+			id: `user-${index}`,
+			displayName: `User ${index}`,
+			email: `user-${index}@example.com`,
+			level: 'Member' as const,
+			status: 'Active' as const,
+			firstName: `User`,
+			lastName: `${index}`,
+			avatarUrl: null,
+		}));
+		mocks.toStaffTenantUserRows.mockReturnValue(manyRows);
+		mocks.useStaffTenantUsersQuery.mockReturnValue(
+			buildQueryResult({
+				data: {
+					data: manyRows,
+					nextCursor: null,
+				},
+			}),
+		);
+
+		renderPage();
+
+		fireEvent.click(screen.getByRole('checkbox', { name: 'Select all rows' }));
+
+		const moreActionsButton = await screen.findByRole('button', {
+			name: 'More actions',
+		});
+		expect(moreActionsButton.hasAttribute('disabled')).toBe(true);
+		expect(moreActionsButton.getAttribute('title')).toBe(
+			'Reduce your selection to at most 100 items (101 selected).',
+		);
+	});
+
 	test('shows a reactivate action for a suspended user and a suspend action for an active one', async () => {
 		mocks.toStaffTenantUserRows.mockReturnValue([
 			{

@@ -11,6 +11,32 @@ import type {
 	StaffProfileItem,
 } from '@org/client-ts/src/models/index.js';
 
+const unwrapUntyped = (value: unknown): unknown => {
+	if (
+		typeof value === 'object' &&
+		value !== null &&
+		'getValue' in value &&
+		typeof (value as { getValue?: unknown }).getValue === 'function'
+	) {
+		return unwrapUntyped((value as { value?: unknown }).value);
+	}
+
+	if (Array.isArray(value)) {
+		return value.map((item) => unwrapUntyped(item));
+	}
+
+	if (value && typeof value === 'object') {
+		return Object.fromEntries(
+			Object.entries(value as Record<string, unknown>).map(([key, nested]) => [
+				key,
+				unwrapUntyped(nested),
+			]),
+		);
+	}
+
+	return value;
+};
+
 describe('toStaffProfileRows', () => {
 	test('normalizes API items and skips rows without ids', () => {
 		const items: StaffProfileItem[] = [
@@ -175,10 +201,26 @@ describe('buildCreateStaffProfileBody', () => {
 			emails: [],
 		});
 
-		expect(body.name).toBeDefined();
-		expect(body.description).toBeDefined();
-		expect(body.permissions).toBeDefined();
+		expect(unwrapUntyped(body.name)).toBe('Platform admin');
+		expect(unwrapUntyped(body.description)).toBe('Full staff access');
+		expect(unwrapUntyped(body.permissions)).toEqual([
+			'staff.users.read',
+			'staff.users.write',
+		]);
 		expect(body.emails).toBeUndefined();
+	});
+
+	test('serializes populated emails as an untyped string array', () => {
+		const body = buildCreateStaffProfileBody({
+			name: 'Auditor',
+			permissions: [],
+			emails: ['jamie@example.com', 'morgan@example.com'],
+		});
+
+		expect(unwrapUntyped(body.emails)).toEqual([
+			'jamie@example.com',
+			'morgan@example.com',
+		]);
 	});
 
 	test('omits optional description, permissions, and emails when empty', () => {
@@ -189,7 +231,7 @@ describe('buildCreateStaffProfileBody', () => {
 			emails: [],
 		});
 
-		expect(body.name).toBeDefined();
+		expect(unwrapUntyped(body.name)).toBe('Auditor');
 		expect(body.description).toBeUndefined();
 		expect(body.permissions).toBeUndefined();
 		expect(body.emails).toBeUndefined();

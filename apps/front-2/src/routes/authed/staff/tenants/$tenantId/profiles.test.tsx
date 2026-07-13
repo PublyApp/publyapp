@@ -546,6 +546,44 @@ describe('staff tenant profiles route', () => {
 		);
 	});
 
+	// The gate is structurally hard to reach through normal navigation (row
+	// selection is pruned to the visible page every fetch, and page size tops
+	// out at BULK_ACTION_MAX_COUNT — see review-r2-tests.md F3/F4), but the
+	// branch is real production code and must render correctly whenever the
+	// selection count does exceed the limit.
+	test('disables bulk delete and shows the max-count message once selection exceeds BULK_ACTION_MAX_COUNT', async () => {
+		const manyRows = Array.from({ length: 101 }, (_, index) => ({
+			id: `profile-${index}`,
+			name: `Profile ${index}`,
+			description: null,
+			isDefault: false,
+			userAccountCount: 1,
+			permissionsCount: 1,
+		}));
+		mocks.toStaffTenantProfileRows.mockReturnValue(manyRows);
+		mocks.useStaffTenantProfilesQuery.mockReturnValue(
+			buildQueryResult({
+				data: {
+					data: manyRows,
+					nextCursor: null,
+				},
+			}),
+		);
+		mocks.search = { view: 'table' };
+
+		renderPage();
+
+		fireEvent.click(screen.getByRole('checkbox', { name: 'Select all rows' }));
+
+		const deleteButton = await screen.findByRole('button', {
+			name: 'Delete selected',
+		});
+		expect(deleteButton.hasAttribute('disabled')).toBe(true);
+		expect(deleteButton.getAttribute('title')).toBe(
+			'Reduce your selection to at most 100 items (101 selected).',
+		);
+	});
+
 	test('renders the no-match state when search is active and no rows match', () => {
 		mocks.search = { q: 'approver' };
 		mocks.toStaffTenantProfileRows.mockReturnValue([]);

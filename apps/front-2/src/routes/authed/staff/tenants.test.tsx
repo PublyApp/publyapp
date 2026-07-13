@@ -467,6 +467,42 @@ describe('staff tenants route', () => {
 		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
 	});
 
+	// The gate is structurally hard to reach through normal navigation (row
+	// selection is pruned to the visible page every fetch, and page size tops
+	// out at BULK_ACTION_MAX_COUNT — see review-r2-tests.md F3/F4), but the
+	// branch is real production code and must render correctly whenever the
+	// selection count does exceed the limit.
+	test('disables the bulk actions trigger and shows the max-count message once selection exceeds BULK_ACTION_MAX_COUNT', async () => {
+		const manyRows = Array.from({ length: 101 }, (_, index) => ({
+			id: `tenant-${index}`,
+			name: `Tenant ${index}`,
+			status: 'Active',
+			usersCount: 1,
+			maxUsers: 50,
+		}));
+		mocks.toStaffTenantRows.mockReturnValue(manyRows);
+		mocks.useStaffTenantsQuery.mockReturnValue(
+			buildQueryResult({
+				data: {
+					data: manyRows,
+					nextCursor: null,
+				},
+			}),
+		);
+
+		renderPage();
+
+		fireEvent.click(screen.getByRole('checkbox', { name: 'Select all rows' }));
+
+		const moreActionsButton = await screen.findByRole('button', {
+			name: 'More actions',
+		});
+		expect(moreActionsButton.hasAttribute('disabled')).toBe(true);
+		expect(moreActionsButton.getAttribute('title')).toBe(
+			'Reduce your selection to at most 100 items (101 selected).',
+		);
+	});
+
 	test('renders a suspend action for active tenants', async () => {
 		renderPage();
 

@@ -34,6 +34,32 @@ beforeEach(() => {
 	vi.clearAllMocks();
 });
 
+const unwrapUntyped = (value: unknown): unknown => {
+	if (
+		typeof value === 'object' &&
+		value !== null &&
+		'getValue' in value &&
+		typeof (value as { getValue?: unknown }).getValue === 'function'
+	) {
+		return unwrapUntyped((value as { value?: unknown }).value);
+	}
+
+	if (Array.isArray(value)) {
+		return value.map((item) => unwrapUntyped(item));
+	}
+
+	if (value && typeof value === 'object') {
+		return Object.fromEntries(
+			Object.entries(value as Record<string, unknown>).map(([key, nested]) => [
+				key,
+				unwrapUntyped(nested),
+			]),
+		);
+	}
+
+	return value;
+};
+
 describe('buildFindStaffTenantProfilesQueryParameters', () => {
 	test('trims supported values and stringifies page size', () => {
 		expect(
@@ -135,8 +161,8 @@ describe('buildCreateStaffTenantProfileBody', () => {
 			description: '  Can review approvals  ',
 		});
 
-		expect(body.name).toBeDefined();
-		expect(body.description).toBeDefined();
+		expect(unwrapUntyped(body.name)).toBe('Approvers');
+		expect(unwrapUntyped(body.description)).toBe('Can review approvals');
 		expect(body.permissionKeys).toBeUndefined();
 	});
 
@@ -146,9 +172,31 @@ describe('buildCreateStaffTenantProfileBody', () => {
 			description: '   ',
 		});
 
-		expect(body.name).toBeDefined();
+		expect(unwrapUntyped(body.name)).toBe('Approvers');
 		expect(body.description).toBeUndefined();
 		expect(body.permissionKeys).toBeUndefined();
+	});
+
+	test('serializes populated permission keys as an untyped string array', () => {
+		const body = buildCreateStaffTenantProfileBody({
+			name: 'Approvers',
+			permissionKeys: ['tenant.users.manage', 'tenant.users.read'],
+		});
+
+		expect(unwrapUntyped(body.permissionKeys)).toEqual([
+			'tenant.users.manage',
+			'tenant.users.read',
+		]);
+	});
+
+	// buildUpdateStaffTenantProfileBody trims `name` (below); create does not — pinning the
+	// current asymmetry rather than silently normalizing it away in the test.
+	test('does not trim the name (current asymmetry with the update body builder)', () => {
+		const body = buildCreateStaffTenantProfileBody({
+			name: '  Approvers  ',
+		});
+
+		expect(unwrapUntyped(body.name)).toBe('  Approvers  ');
 	});
 });
 
@@ -159,8 +207,8 @@ describe('buildUpdateStaffTenantProfileBody', () => {
 			description: '  Can review approvals  ',
 		});
 
-		expect(body.name).toBeDefined();
-		expect(body.description).toBeDefined();
+		expect(unwrapUntyped(body.name)).toBe('Approvers');
+		expect(unwrapUntyped(body.description)).toBe('Can review approvals');
 	});
 
 	test('clears description with null when the value is blank', () => {
@@ -169,7 +217,7 @@ describe('buildUpdateStaffTenantProfileBody', () => {
 			description: '   ',
 		});
 
-		expect(body.name).toBeDefined();
+		expect(unwrapUntyped(body.name)).toBe('Approvers');
 		expect(body.description).toBeNull();
 	});
 });

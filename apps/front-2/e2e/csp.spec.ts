@@ -5,6 +5,16 @@ import {
 	type Page,
 } from '@playwright/test';
 
+// The `chromium` project supplies a pre-authenticated staff-admin
+// `storageState` (playwright.config.ts, review-r1-tests.md F29), which the
+// `request` fixture inherits too. With that session cookie attached, a raw
+// GET to `/login` gets redirected server-side to the authed workspace before
+// this spec's un-hydrated login document ever renders, so the CSP/nonce
+// assertions below would silently inspect the workspace instead
+// (review-r2-tests.md F1). Every surface this file inspects is meant to be
+// read anonymously.
+test.use({ storageState: { cookies: [], origins: [] } });
+
 type Surface = {
 	path: string;
 	expectedStatus: number | number[];
@@ -76,6 +86,11 @@ const assertSurface = async (
 	const enforced = headers['content-security-policy'];
 	const reportOnly = headers['content-security-policy-report-only'];
 	const responseStatus = response.status();
+
+	expect(
+		new URL(response.url()).pathname,
+		`${surface.path} was not silently redirected`,
+	).toBe(surface.path);
 
 	if (Array.isArray(surface.expectedStatus)) {
 		expect(
