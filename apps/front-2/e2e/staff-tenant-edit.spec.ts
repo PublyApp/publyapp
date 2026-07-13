@@ -13,9 +13,10 @@ const isApiPath = (url: string, path: string): boolean => {
 	return parsed.origin === API_BASE_URL && parsed.pathname === path;
 };
 
-/** Mocks the staff image-upload endpoint and the served-file path it
- * returns, so the uploaded logo's `<img>` actually resolves (200) instead
- * of 404ing against a route the mocked backend never registered. */
+/** Mocks the staff image-upload endpoint (which returns a root-relative
+ * `/files/...` url per BE-4) and the served-file path the front resolves it
+ * to against the API origin, so the uploaded logo's `<img>` actually
+ * resolves (200) instead of 404ing against the front origin. */
 const mockStaffUploads = async (page: Page) => {
 	await page.route('**/staff/uploads', async (route) => {
 		if (route.request().method() !== 'POST') {
@@ -35,7 +36,7 @@ const mockStaffUploads = async (page: Page) => {
 		});
 	});
 
-	await page.route(`**${UPLOADED_LOGO_URL}`, async (route) => {
+	await page.route(`${API_BASE_URL}${UPLOADED_LOGO_URL}`, async (route) => {
 		await route.fulfill({
 			status: 200,
 			contentType: 'image/png',
@@ -232,9 +233,15 @@ test.describe('staff tenant edit logo upload', () => {
 		await page.getByLabel('Logo').setInputFiles(LOGO_FIXTURE_PATH);
 		await uploadRequest;
 
+		// The uploaded url is root-relative (BE-4); the form resolves it against
+		// the API origin so the <img> doesn't 404 against the front origin.
+		const absoluteUploadedLogoUrl = `${API_BASE_URL}${UPLOADED_LOGO_URL}`;
 		await expect(page.getByTestId('logo-upload-url')).toHaveText(
-			UPLOADED_LOGO_URL,
+			absoluteUploadedLogoUrl,
 		);
+		await expect(
+			page.getByTestId('staff-tenant-edit-preview').locator('img'),
+		).toHaveAttribute('src', absoluteUploadedLogoUrl);
 
 		const patchRequest = page.waitForRequest(
 			(request) =>
@@ -243,6 +250,8 @@ test.describe('staff tenant edit logo upload', () => {
 		);
 		await page.getByRole('button', { name: 'Save changes' }).click();
 		const request = await patchRequest;
+		// The persisted value stays root-relative — the API origin is stripped
+		// back off before saving, so a domain move doesn't strand stale urls.
 		expect((request.postDataJSON() as Record<string, unknown>).logoUrl).toBe(
 			UPLOADED_LOGO_URL,
 		);
@@ -252,13 +261,14 @@ test.describe('staff tenant edit logo upload', () => {
 		await page.goto(`/staff/tenants/${TENANT_ID}/edit`);
 		await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
 		await expect(page.getByTestId('logo-upload-url')).toHaveText(
-			UPLOADED_LOGO_URL,
+			absoluteUploadedLogoUrl,
 		);
 
 		const preview = page
 			.getByTestId('staff-tenant-edit-preview')
 			.locator('img');
 		await expect(preview).toBeVisible();
+		await expect(preview).toHaveAttribute('src', absoluteUploadedLogoUrl);
 		expect(
 			await preview.evaluate((img: HTMLImageElement) => img.naturalWidth),
 		).toBeGreaterThan(0);
@@ -304,5 +314,102 @@ test.describe('staff tenant edit logo upload', () => {
 			page.getByText('Image must be PNG, JPEG, WEBP, or GIF'),
 		).toBeVisible();
 		await expect(page.getByTestId('logo-upload-url')).toHaveCount(0);
+	});
+});
+
+test.describe('staff tenant edit logo upload against the real backend', () => {
+	test('an uploaded logo resolves against the API origin and loads (200) after reload', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+
+		// Create a fresh tenant through the real, unmocked create flow so this
+		// spec owns its own row instead of depending on a seeded tenant id.
+		await page.goto('/staff/tenants/new');
+		await expect(page.getByTestId('staff-tenant-create-page')).toBeVisible();
+
+		const uniqueSuffix = Math.random().toString(36).slice(2, 10);
+		await page
+			.getByRole('textbox', { name: /organization/i })
+			.fill(`Real Upload Tenant ${uniqueSuffix}`);
+		await page
+			.locator('input[name="owners.0.email"]')
+			.fill(`owner-${uniqueSuffix}@acme.com`);
+
+		await page.getByRole('button', { name: /^(create tenant)$/i }).click();
+		const createDialog = page.getByRole('alertdialog');
+		await expect(createDialog).toBeVisible();
+		await createDialog
+			.getByRole('button', { name: /^(create tenant)$/i })
+			.click();
+
+		// A UUID-shaped final segment, not a bare `[^/]+` — the latter also
+		// matches the already-current `/staff/tenants/new` URL (since "new" has
+		// no slash), which would resolve this wait immediately without ever
+		// navigating.
+		await page.waitForURL(/\/staff\/tenants\/[0-9a-f-]{36}$/);
+		const tenantId = new URL(page.url()).pathname.split('/').pop();
+		if (!tenantId) {
+			throw new Error('expected a tenant id in the post-create redirect URL');
+		}
+
+		await page.goto(`/staff/tenants/${tenantId}/edit`);
+		await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
+
+		const uploadResponsePromise = page.waitForResponse(
+			(response) =>
+				response.request().method() === 'POST' &&
+				isApiPath(response.url(), '/staff/uploads') &&
+				response.status() === 201,
+		);
+		await page.getByLabel('Logo').setInputFiles(LOGO_FIXTURE_PATH);
+		const uploadResponse = await uploadResponsePromise;
+		const uploadBody = (await uploadResponse.json()) as { url: string };
+		expect(uploadBody.url.startsWith('/files/')).toBe(true);
+
+		const absoluteUploadedLogoUrl = `${API_BASE_URL}${uploadBody.url}`;
+		await expect(page.getByTestId('logo-upload-url')).toHaveText(
+			absoluteUploadedLogoUrl,
+		);
+		await expect(
+			page.getByTestId('staff-tenant-edit-preview').locator('img'),
+		).toHaveAttribute('src', absoluteUploadedLogoUrl);
+
+		const patchResponsePromise = page.waitForResponse(
+			(response) =>
+				response.request().method() === 'PATCH' &&
+				isApiPath(response.url(), `/staff/tenants/${tenantId}`) &&
+				response.status() === 200,
+		);
+		await page.getByRole('button', { name: 'Save changes' }).click();
+		await patchResponsePromise;
+
+		await page.waitForURL(new RegExp(`/staff/tenants/${tenantId}$`));
+
+		// Reload into the edit form and confirm the persisted (root-relative)
+		// url resolves against the real API origin and actually serves — 200
+		// on a cold fetch, or a conditionally-revalidated 304 if the browser
+		// still holds this exact url in its HTTP cache from the upload above.
+		const filesResponsePromise = page.waitForResponse(
+			(response) =>
+				response.request().method() === 'GET' &&
+				response.url() === absoluteUploadedLogoUrl,
+		);
+		await page.goto(`/staff/tenants/${tenantId}/edit`);
+		const filesResponse = await filesResponsePromise;
+		expect([200, 304]).toContain(filesResponse.status());
+
+		await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
+		await expect(page.getByTestId('logo-upload-url')).toHaveText(
+			absoluteUploadedLogoUrl,
+		);
+
+		const preview = page
+			.getByTestId('staff-tenant-edit-preview')
+			.locator('img');
+		await expect(preview).toHaveAttribute('src', absoluteUploadedLogoUrl);
+		expect(
+			await preview.evaluate((img: HTMLImageElement) => img.naturalWidth),
+		).toBeGreaterThan(0);
 	});
 });

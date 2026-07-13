@@ -7,6 +7,10 @@ import {
 } from '@microsoft/kiota-abstractions';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
+import {
+	resolveApiFileUrl,
+	toRootRelativeApiFileUrl,
+} from '~/lib/api-client/resolve-api-file-url';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/src/apiClient';
@@ -133,6 +137,13 @@ const normalizeNullableString = (
 	value: string | null | undefined,
 ): string | null => normalizeString(value) ?? null;
 
+const normalizeNullableFileUrl = (
+	value: string | null | undefined,
+): string | null => {
+	const normalized = normalizeString(value);
+	return normalized ? resolveApiFileUrl(normalized) : null;
+};
+
 const normalizeOptionalUpdateString = (
 	value: string | null | undefined,
 ): string | null | undefined => {
@@ -222,7 +233,7 @@ export const toStaffTenantDetails = (
 		pendingInvitationsCount: result?.pendingInvitationsCount ?? 0,
 		expiringSoonInvitationsCount: result?.expiringSoonInvitationsCount ?? 0,
 		profilesCount: result?.profilesCount ?? 0,
-		logoUrl: normalizeNullableString(result?.logoUrl),
+		logoUrl: normalizeNullableFileUrl(result?.logoUrl),
 		legalName: normalizeNullableString(result?.legalName),
 		description: normalizeNullableString(result?.description),
 		websiteUrl: normalizeNullableString(result?.websiteUrl),
@@ -292,7 +303,9 @@ export const buildCreateStaffTenantBody = (
 
 	const logoUrl = normalizeString(input.logoUrl);
 	if (logoUrl) {
-		body.logoUrl = createUntypedString(logoUrl) as typeof body.logoUrl;
+		body.logoUrl = createUntypedString(
+			toRootRelativeApiFileUrl(logoUrl),
+		) as typeof body.logoUrl;
 	}
 
 	const description = normalizeString(input.description);
@@ -368,7 +381,9 @@ export const buildUpdateStaffTenantBody = (
 		body.logoUrl =
 			logoUrl === null
 				? null
-				: (createUntypedString(logoUrl) as typeof body.logoUrl);
+				: (createUntypedString(
+						toRootRelativeApiFileUrl(logoUrl),
+					) as typeof body.logoUrl);
 	}
 
 	if (legalName !== undefined) {

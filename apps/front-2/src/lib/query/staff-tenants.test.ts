@@ -25,6 +25,8 @@ import type {
 	UpdateTenantAsStaffBody,
 } from '@org/client-ts/src/models/index.js';
 
+const API_BASE_URL = 'https://api.example.test';
+
 const mocks = vi.hoisted(() => ({
 	getOrCreateStaffClient: vi.fn(),
 }));
@@ -33,6 +35,7 @@ vi.mock('~/lib/api-client/client-manager', () => ({
 	getClientManager: () => ({
 		getOrCreateStaffClient: mocks.getOrCreateStaffClient,
 	}),
+	resolveApiBaseUrl: () => 'https://api.example.test',
 }));
 
 beforeEach(() => {
@@ -211,6 +214,30 @@ describe('buildCreateStaffTenantBody', () => {
 		expect(body.timezone).toBeUndefined();
 		expect(body.notes).toBeUndefined();
 	});
+
+	test('strips the API origin off a same-origin logoUrl before persisting', () => {
+		const body = buildCreateStaffTenantBody({
+			name: 'Acme Tenant',
+			maxUsers: 5,
+			initialUsers: [{ email: 'user@example.com', accountLevel: 'Admin' }],
+			logoUrl: `${API_BASE_URL}/files/uploads/2026/07/logo.png`,
+		});
+
+		expect(unwrapUntyped(body.logoUrl)).toBe('/files/uploads/2026/07/logo.png');
+	});
+
+	test('leaves an externally hosted logoUrl untouched', () => {
+		const body = buildCreateStaffTenantBody({
+			name: 'Acme Tenant',
+			maxUsers: 5,
+			initialUsers: [{ email: 'user@example.com', accountLevel: 'Admin' }],
+			logoUrl: 'https://cdn.example.com/acme-logo.png',
+		});
+
+		expect(unwrapUntyped(body.logoUrl)).toBe(
+			'https://cdn.example.com/acme-logo.png',
+		);
+	});
 });
 
 describe('buildUpdateStaffTenantBody', () => {
@@ -234,6 +261,14 @@ describe('buildUpdateStaffTenantBody', () => {
 		});
 
 		expect((body as UpdateTenantAsStaffBody).logoUrl).toBeNull();
+	});
+
+	test('strips the API origin off a same-origin logoUrl before persisting', () => {
+		const body = buildUpdateStaffTenantBody({
+			logoUrl: `${API_BASE_URL}/files/uploads/2026/07/logo.png`,
+		});
+
+		expect(unwrapUntyped(body.logoUrl)).toBe('/files/uploads/2026/07/logo.png');
 	});
 
 	test('trims and wraps the organization profile fields when set', () => {
@@ -672,6 +707,18 @@ describe('toStaffTenantDetails', () => {
 			notes: null,
 			lastActivityAt: null,
 		});
+	});
+
+	test('resolves a root-relative /files/ logoUrl against the API origin', () => {
+		const result = toStaffTenantDetails({
+			tenantId: 'tenant-9',
+			name: 'Acme Corporation',
+			logoUrl: '/files/uploads/2026/07/logo.png',
+		} as GetTenantAsStaffResult);
+
+		expect(result?.logoUrl).toBe(
+			`${API_BASE_URL}/files/uploads/2026/07/logo.png`,
+		);
 	});
 
 	test('returns null when the payload has no usable tenant id', () => {

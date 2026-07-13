@@ -86,9 +86,10 @@ const mockCreateStaffTenant = async (page: Page) => {
 	});
 };
 
-/** Mocks the staff image-upload endpoint and the served-file path it
- * returns, so the uploaded logo's `<img>` actually resolves (200) instead
- * of 404ing against a route the mocked backend never registered. */
+/** Mocks the staff image-upload endpoint (which returns a root-relative
+ * `/files/...` url per BE-4) and the served-file path the front resolves it
+ * to against the API origin, so the uploaded logo's `<img>` actually
+ * resolves (200) instead of 404ing against the front origin. */
 const mockStaffUploads = async (page: Page) => {
 	await page.route('**/staff/uploads', async (route) => {
 		if (route.request().method() !== 'POST') {
@@ -108,7 +109,7 @@ const mockStaffUploads = async (page: Page) => {
 		});
 	});
 
-	await page.route(`**${UPLOADED_LOGO_URL}`, async (route) => {
+	await page.route(`${API_BASE_URL}${UPLOADED_LOGO_URL}`, async (route) => {
 		await route.fulfill({
 			status: 200,
 			contentType: 'image/png',
@@ -371,9 +372,15 @@ test.describe('staff create-tenant logo upload', () => {
 		await page.getByLabel('Logo').setInputFiles(LOGO_FIXTURE_PATH);
 		await uploadRequest;
 
+		// The uploaded url is root-relative (BE-4); the form resolves it against
+		// the API origin so the <img> doesn't 404 against the front origin.
+		const absoluteUploadedLogoUrl = `${API_BASE_URL}${UPLOADED_LOGO_URL}`;
 		await expect(page.getByTestId('logo-upload-url')).toHaveText(
-			UPLOADED_LOGO_URL,
+			absoluteUploadedLogoUrl,
 		);
+		await expect(
+			page.getByTestId('staff-tenant-create-page').locator('img').first(),
+		).toHaveAttribute('src', absoluteUploadedLogoUrl);
 
 		const createRequest = page.waitForRequest(
 			(request) =>

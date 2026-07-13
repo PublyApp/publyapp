@@ -410,6 +410,7 @@ const resetClientManager = (): void => {
 
 export {
 	getSessionTokensFromBrowser,
+	resolveApiBaseUrl,
 	resolveSessionToken,
 	buildClient as createClient,
 	buildCustomFetch,

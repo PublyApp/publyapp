@@ -14,11 +14,19 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
 	useUploadStaffImageMutation: vi.fn(),
+	API_ORIGIN: 'https://api.test.example',
 }));
 
 vi.mock('~/lib/query/staff-uploads', () => ({
 	useUploadStaffImageMutation: mocks.useUploadStaffImageMutation,
 }));
+
+vi.mock('~/lib/api-client/resolve-api-file-url', () => ({
+	resolveApiFileUrl: (value: string) =>
+		value.startsWith('/files/') ? `${mocks.API_ORIGIN}${value}` : value,
+}));
+
+const API_ORIGIN = mocks.API_ORIGIN;
 
 vi.mock('~/components/ui/button', () => ({
 	Button: ({
@@ -152,12 +160,12 @@ describe('Field.ImageUpload', () => {
 
 		await waitFor(() => {
 			expect(screen.getByTestId('logo-url-value').textContent).toBe(
-				'/files/uploads/2026/07/logo.png',
+				`${API_ORIGIN}/files/uploads/2026/07/logo.png`,
 			);
 		});
 		expect(screen.getByTestId('is-dirty').textContent).toBe('true');
 		expect(screen.getByTestId('logo-upload-url').textContent).toBe(
-			'/files/uploads/2026/07/logo.png',
+			`${API_ORIGIN}/files/uploads/2026/07/logo.png`,
 		);
 	});
 

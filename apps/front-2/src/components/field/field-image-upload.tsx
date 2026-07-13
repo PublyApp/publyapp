@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
 import { BrandTile } from '~/components/ui/initials-avatar';
 import { Label } from '~/components/ui/label';
+import { resolveApiFileUrl } from '~/lib/api-client/resolve-api-file-url';
 import { useUploadStaffImageMutation } from '~/lib/query/staff-uploads';
 
 import {
@@ -76,7 +77,7 @@ export const FieldImageUpload = ({
 							onSuccess: (result) => {
 								const url = result?.url;
 								if (url) {
-									field.onChange(url);
+									field.onChange(resolveApiFileUrl(url));
 								}
 							},
 							onError: (uploadError) => {
