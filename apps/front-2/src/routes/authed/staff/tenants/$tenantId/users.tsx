@@ -816,6 +816,7 @@ function StaffTenantUsersPage() {
 										type="button"
 										variant="outline"
 										className="publy-data-table-filter-button max-w-64 text-[13px]"
+										data-testid="staff-tenant-users-level-filter-trigger"
 									/>
 								}
 							>
@@ -827,12 +828,22 @@ function StaffTenantUsersPage() {
 								<IconChevronDown aria-hidden="true" className="size-3" />
 							</DropdownMenuTrigger>
 							<DropdownMenuContent align="end" sideOffset={6}>
+								<DropdownMenuCheckboxItem
+									checked={selectedLevels.length === 0}
+									closeOnClick
+									showCheckbox
+									data-testid="staff-tenant-users-level-filter-all"
+									onCheckedChange={() => setLevels([])}
+								>
+									{t('all-levels')}
+								</DropdownMenuCheckboxItem>
 								{KNOWN_TENANT_USER_LEVELS.map((level) => (
 									<DropdownMenuCheckboxItem
 										key={level}
 										checked={selectedLevels.includes(level)}
 										closeOnClick={false}
 										showCheckbox
+										data-testid={`staff-tenant-users-level-filter-${level}`}
 										onCheckedChange={() => toggleLevel(level)}
 									>
 										{formatTenantUserLevelLabel(level, t)}

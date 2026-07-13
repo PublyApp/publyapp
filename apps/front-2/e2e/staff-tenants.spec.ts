@@ -175,6 +175,51 @@ test.describe('staff tenants status panel filters', () => {
 	});
 });
 
+test.describe('staff tenants toolbar status filter', () => {
+	test('filtering by status narrows the table, updates the URL with bare snake_case values, and clearing restores all rows', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await mockStaffTenantsByStatus(page);
+
+		await page.goto('/staff/tenants');
+		await expect(page.getByTestId(`${TABLE}-rows`)).toBeVisible();
+		await expect(page.getByText('Acme Corporation')).toBeVisible();
+		await expect(page.getByText('Globex Suspended Co')).toBeVisible();
+
+		const trigger = page.getByTestId(
+			'staff-tenants-table-status-filter-trigger',
+		);
+		await expect(trigger).toHaveText(/All statuses/);
+
+		const activeRequest = page.waitForRequest(
+			(request) =>
+				request.method() === 'GET' &&
+				isApiPath(request.url(), STAFF_TENANTS_PATH) &&
+				new URL(request.url()).searchParams.get('status') === 'active',
+		);
+		await trigger.click();
+		await page.getByTestId('staff-tenants-table-status-filter-active').click();
+		await activeRequest;
+
+		await expect(page).toHaveURL(/[?&]status=active(?:&|$)/);
+		await expect(trigger).toHaveText(/Active/);
+		await expect(page.getByText('Globex Suspended Co')).toHaveCount(0);
+		await expect(page.getByText('Acme Corporation')).toBeVisible();
+
+		// The "All statuses" query key was already fetched on initial load and
+		// is still fresh, so TanStack Query serves it from cache — assert the
+		// URL/UI settle back rather than waiting for a network round-trip.
+		await trigger.click();
+		await page.getByTestId('staff-tenants-table-status-filter-all').click();
+
+		await expect(page).not.toHaveURL(/[?&]status=/);
+		await expect(trigger).toHaveText(/All statuses/);
+		await expect(page.getByText('Acme Corporation')).toBeVisible();
+		await expect(page.getByText('Globex Suspended Co')).toBeVisible();
+	});
+});
+
 test.describe('staff tenants list', () => {
 	test('renders a selection checkbox and hashed avatar per row, matching the staff-users archetype', async ({
 		page,

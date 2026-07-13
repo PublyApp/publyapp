@@ -64,21 +64,39 @@ const mockTenantDetails = async (page: Page) => {
 			request.method() === 'GET' &&
 			isApiPath(url, `/staff/tenants/${TENANT_ID}/users`)
 		) {
+			const levelParam = new URL(url).searchParams.get('level');
+			const users = [
+				{
+					id: '0197b8f0-4444-7ccc-8ccc-dddddddddddd',
+					email: 'jamie@example.com',
+					firstName: 'Jamie',
+					lastName: 'Lee',
+					avatarUrl: null,
+					status: 'Active',
+					level: 'Admin',
+				},
+				{
+					id: '0197b8f0-4444-7ccc-8ccc-eeeeeeeeeeee',
+					email: 'morgan@example.com',
+					firstName: 'Morgan',
+					lastName: 'Reyes',
+					avatarUrl: null,
+					status: 'Active',
+					level: 'User',
+				},
+			];
+			const filtered =
+				levelParam === null
+					? users
+					: users.filter(
+							(user) => user.level.toLowerCase() === levelParam.toLowerCase(),
+						);
+
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
 				body: JSON.stringify({
-					data: [
-						{
-							id: '0197b8f0-4444-7ccc-8ccc-dddddddddddd',
-							email: 'jamie@example.com',
-							firstName: 'Jamie',
-							lastName: 'Lee',
-							avatarUrl: null,
-							status: 'Active',
-							level: 'Admin',
-						},
-					],
+					data: filtered,
 					nextCursor: null,
 				}),
 			});
@@ -456,6 +474,33 @@ test.describe('staff tenant Profiles/Invitations/Users tab bodies', () => {
 			page.getByTestId('staff-tenant-users-table-footer'),
 		).toBeVisible();
 		await expect(page.getByLabel('Select all rows')).toBeVisible();
+	});
+
+	test('Users tab level filter offers an "All levels" entry that clears the filter and closes the menu', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await mockTenantDetails(page);
+
+		await page.goto(`/staff/tenants/${TENANT_ID}/users?level=admin`);
+		await expect(page.getByTestId('staff-tenant-users-page')).toBeVisible();
+		await expect(page).toHaveURL(/[?&]level=admin(?:&|$)/);
+		await expect(page.getByText('Jamie Lee')).toBeVisible();
+		await expect(page.getByText('Morgan Reyes')).not.toBeVisible();
+
+		const trigger = page.getByTestId('staff-tenant-users-level-filter-trigger');
+		await trigger.click();
+		const allLevelsItem = page.getByTestId(
+			'staff-tenant-users-level-filter-all',
+		);
+		await expect(allLevelsItem).toBeVisible();
+		await allLevelsItem.click();
+
+		// Exclusive choice — the menu closes on selection.
+		await expect(allLevelsItem).not.toBeVisible();
+		await expect(page).not.toHaveURL(/[?&]level=/);
+		await expect(page.getByText('Jamie Lee')).toBeVisible();
+		await expect(page.getByText('Morgan Reyes')).toBeVisible();
 	});
 });
 

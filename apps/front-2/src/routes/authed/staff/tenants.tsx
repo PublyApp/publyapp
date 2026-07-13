@@ -29,6 +29,7 @@ import { Button, buttonVariants } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
 	DropdownMenu,
+	DropdownMenuCheckboxItem,
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuSeparator,
@@ -61,14 +62,87 @@ import { BULK_ACTION_MAX_COUNT } from '@org/shared-ts/lib/constants';
 import {
 	parseTenantListSearchParams,
 	serializeTenantListSearchParams,
+	TENANT_STATUS_FILTERS,
 	type TenantListSearchParamInput,
 	type TenantListSearchParams,
+	type TenantStatusFilter,
 } from './tenants-list-helpers';
 
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
 const TENANT_STATUS_ACTIVE = 'Active';
 const TENANT_STATUS_SUSPENDED = 'Suspended';
+
+const formatTenantStatusFilterLabel = (
+	value: TenantStatusFilter | undefined,
+	t: (key: string) => string,
+): string => {
+	if (value === 'active') {
+		return t('status-active');
+	}
+	if (value === 'suspended') {
+		return t('status-suspended');
+	}
+	return t('all-statuses');
+};
+
+const TenantStatusFilterMenu = ({
+	value,
+	onChange,
+}: {
+	value: TenantStatusFilter | undefined;
+	onChange: (next: TenantStatusFilter | undefined) => void;
+}) => {
+	const { t } = useTranslation('common');
+	const label = formatTenantStatusFilterLabel(value, t);
+
+	return (
+		<DropdownMenu>
+			<DropdownMenuTrigger
+				render={
+					<Button
+						type="button"
+						variant="outline"
+						className="publy-data-table-filter-button max-w-64 text-[13px]"
+						data-testid="staff-tenants-table-status-filter-trigger"
+					/>
+				}
+			>
+				<IconCircleDot
+					aria-hidden="true"
+					className="size-[15px] text-[var(--publy-foreground-secondary)]"
+				/>
+				<span className="truncate">{label}</span>
+				<IconChevronDown aria-hidden="true" className="size-3" />
+			</DropdownMenuTrigger>
+			<DropdownMenuContent align="end" sideOffset={6}>
+				<DropdownMenuCheckboxItem
+					checked={value === undefined}
+					closeOnClick
+					data-testid="staff-tenants-table-status-filter-all"
+					onCheckedChange={() => onChange(undefined)}
+				>
+					{t('all-statuses')}
+				</DropdownMenuCheckboxItem>
+				{TENANT_STATUS_FILTERS.map((status) => (
+					<DropdownMenuCheckboxItem
+						key={status}
+						checked={value === status}
+						closeOnClick
+						data-testid={`staff-tenants-table-status-filter-${status}`}
+						onCheckedChange={() => onChange(status)}
+					>
+						{formatTenantStatusFilterLabel(status, t)}
+					</DropdownMenuCheckboxItem>
+				))}
+				<DropdownMenuSeparator />
+				<DropdownMenuItem onClick={() => onChange(undefined)}>
+					{t('clear')}
+				</DropdownMenuItem>
+			</DropdownMenuContent>
+		</DropdownMenu>
+	);
+};
 
 const buildTenantColumns = (
 	onSessionExpired: () => void,
@@ -165,6 +239,17 @@ function StaffTenantsPage() {
 		});
 	};
 
+	const setStatusFilter = (next: TenantStatusFilter | undefined): void => {
+		void navigate({
+			search: serializeTenantListSearchParams({
+				...search,
+				status: next,
+				cursor: undefined,
+			}) as unknown as TenantListSearchParams,
+			replace: true,
+		});
+	};
+
 	const controller = useTableController({
 		search,
 		onSearchChange,
@@ -247,7 +332,7 @@ function StaffTenantsPage() {
 				errorContent="Unable to load tenants right now."
 				emptyContent="No tenants found."
 				noMatchContent="No tenants match your search."
-				hasActiveSearch={Boolean(controller.search.committed)}
+				hasActiveSearch={Boolean(controller.search.committed || search.status)}
 				sort={controller.sort}
 				onSortChange={controller.onSortChange}
 				size={controller.size}
@@ -263,6 +348,12 @@ function StaffTenantsPage() {
 				searchDraft={controller.search.draft}
 				onSearchDraftChange={controller.search.onDraftChange}
 				selection={selection}
+				toolbarEnd={
+					<TenantStatusFilterMenu
+						value={search.status}
+						onChange={setStatusFilter}
+					/>
+				}
 			/>
 			<FloatingSelectionBar
 				selectedCount={selection.selectedCount}

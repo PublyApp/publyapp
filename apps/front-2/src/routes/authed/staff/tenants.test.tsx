@@ -76,6 +76,10 @@ const TRANSLATIONS: Record<string, string> = {
 	'bulk-actions': 'Bulk actions',
 	'bulk-action-max-count-exceeded':
 		'Reduce your selection to at most {{max}} items ({{count}} selected).',
+	'all-statuses': 'All statuses',
+	'status-active': 'Active',
+	'status-suspended': 'Suspended',
+	clear: 'Clear',
 };
 
 vi.mock('react-i18next', () => ({
@@ -253,6 +257,78 @@ describe('staff tenants route', () => {
 			size: 100,
 			status: 'suspended',
 		});
+	});
+
+	test('renders a status filter trigger reflecting the URL and lists All/Active/Suspended', async () => {
+		renderPage();
+
+		expect(
+			screen.getByTestId('staff-tenants-table-status-filter-trigger')
+				.textContent,
+		).toContain('All statuses');
+
+		fireEvent.click(
+			screen.getByTestId('staff-tenants-table-status-filter-trigger'),
+		);
+
+		expect(
+			await screen.findByTestId('staff-tenants-table-status-filter-all'),
+		).toBeTruthy();
+		expect(
+			screen.getByTestId('staff-tenants-table-status-filter-active'),
+		).toBeTruthy();
+		expect(
+			screen.getByTestId('staff-tenants-table-status-filter-suspended'),
+		).toBeTruthy();
+	});
+
+	test('selecting Active in the status filter navigates with status=active and resets the cursor', async () => {
+		renderPage();
+
+		fireEvent.click(
+			screen.getByTestId('staff-tenants-table-status-filter-trigger'),
+		);
+		fireEvent.click(
+			await screen.findByTestId('staff-tenants-table-status-filter-active'),
+		);
+
+		expect(mocks.navigate).toHaveBeenCalledWith(
+			expect.objectContaining({
+				search: expect.objectContaining({ status: 'active' }),
+				replace: true,
+			}),
+		);
+		const [[navigatedArgs]] = mocks.navigate.mock.calls;
+		expect(
+			(navigatedArgs as { search: Record<string, unknown> }).search.cursor,
+		).toBeUndefined();
+	});
+
+	test('the status filter trigger reflects an active URL status and "All statuses" clears it', async () => {
+		mocks.search = { status: 'suspended' };
+		renderPage();
+
+		expect(
+			screen.getByTestId('staff-tenants-table-status-filter-trigger')
+				.textContent,
+		).toContain('Suspended');
+
+		fireEvent.click(
+			screen.getByTestId('staff-tenants-table-status-filter-trigger'),
+		);
+		fireEvent.click(
+			await screen.findByTestId('staff-tenants-table-status-filter-all'),
+		);
+
+		expect(mocks.navigate).toHaveBeenCalledWith(
+			expect.objectContaining({
+				replace: true,
+			}),
+		);
+		const [[navigatedArgs]] = mocks.navigate.mock.calls;
+		expect(
+			(navigatedArgs as { search: Record<string, unknown> }).search.status,
+		).toBeUndefined();
 	});
 
 	test('renders the no-match state when search is active and no rows match', () => {

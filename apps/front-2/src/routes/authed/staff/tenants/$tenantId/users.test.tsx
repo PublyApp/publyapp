@@ -581,6 +581,58 @@ describe('staff tenant users route', () => {
 		expect(screen.getByText('All levels')).toBeTruthy();
 	});
 
+	test('the level filter offers an "All levels" entry that clears the filter and closes the menu', async () => {
+		mocks.search = { level: 'admin' };
+		renderPage();
+
+		fireEvent.click(
+			screen.getByTestId('staff-tenant-users-level-filter-trigger'),
+		);
+
+		expect(
+			await screen.findByTestId('staff-tenant-users-level-filter-all'),
+		).toBeTruthy();
+		fireEvent.click(screen.getByTestId('staff-tenant-users-level-filter-all'));
+
+		expect(mocks.navigate).toHaveBeenCalledWith(
+			expect.objectContaining({ replace: true }),
+		);
+		const [[navigatedArgs]] = mocks.navigate.mock.calls;
+		const navigatedSearch = (
+			navigatedArgs as { search: Record<string, unknown> }
+		).search;
+		expect(navigatedSearch.level).toBeUndefined();
+
+		// The menu closes on selecting the exclusive "All levels" entry.
+		await waitFor(() =>
+			expect(
+				screen.queryByTestId('staff-tenant-users-level-filter-all'),
+			).toBeNull(),
+		);
+	});
+
+	test('toggling an individual level keeps the menu open (multi-select)', async () => {
+		renderPage();
+
+		fireEvent.click(
+			screen.getByTestId('staff-tenant-users-level-filter-trigger'),
+		);
+		fireEvent.click(
+			await screen.findByTestId('staff-tenant-users-level-filter-admin'),
+		);
+
+		expect(mocks.navigate).toHaveBeenCalledWith(
+			expect.objectContaining({
+				search: expect.objectContaining({ level: 'admin' }),
+				replace: true,
+			}),
+		);
+		// closeOnClick={false} on individual levels — the menu stays open.
+		expect(
+			screen.getByTestId('staff-tenant-users-level-filter-admin'),
+		).toBeTruthy();
+	});
+
 	test('exports the selected users as a csv download', async () => {
 		const buffer = new ArrayBuffer(4);
 		mocks.exportMutation.mockResolvedValue(buffer);
