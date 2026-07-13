@@ -65,10 +65,13 @@ test.describe('staff invitations request counter (hermetic project)', () => {
 	test('clean load issues exactly one GET /staff/invitations request', async ({
 		page,
 	}) => {
-		await page.setExtraHTTPHeaders({
-			'X-E2E-Test-Marker': `e2e-${test.info().testId}`,
-		});
-
+		// Deliberately NO X-E2E-Test-Marker header (yet): the sidecar does not
+		// read it, and the API's CORS policy does not allowlist it — a
+		// non-simple custom header on every request turns each API call into a
+		// blocked preflight and kills the login flow outright (captain-verified
+		// against the live stack: allow-headers = Content-Type, Accept,
+		// X-Session-Token, X-PublyApp-TenantId). When the sidecar buckets by
+		// marker, add the header AND extend the API CORS allowlist together.
 		await loginAsStaffAdmin(page);
 		await resetCounter(page);
 
