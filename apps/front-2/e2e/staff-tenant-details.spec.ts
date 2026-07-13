@@ -327,6 +327,57 @@ test.describe('staff tenant Profiles/Invitations/Users tab bodies', () => {
 		await expect(page.getByText('Approvers')).not.toBeVisible();
 	});
 
+	test('Profiles tab card grid: the checkbox sits corner-positioned above/left of the icon tile, selecting a card shows an amber ring, and New profile is a primary button (FIX-4 #4/#8)', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await mockTenantDetails(page);
+
+		await page.goto(`/staff/tenants/${TENANT_ID}/profiles`);
+		await expect(page.getByTestId('staff-tenant-profiles-page')).toBeVisible();
+
+		// #8 — "New profile" is primary (--publy-primary, #fdc700), not outline,
+		// per the owner's cross-app consistency ruling (docs/guides/front-2/conventions.md).
+		const newProfileButton = page.getByRole('button', { name: 'New profile' });
+		await expect(newProfileButton).toBeVisible();
+		await expect(newProfileButton).toHaveCSS(
+			'background-color',
+			'rgb(253, 199, 0)',
+		);
+
+		// #4 — checkbox is corner-positioned relative to the icon tile, not an
+		// in-flow flex item pushing the tile sideways.
+		const approversId = '0197b8f0-5555-7ccc-8ccc-eeeeeeeeeeee';
+		const card = page.getByTestId(`staff-tenant-profile-card-${approversId}`);
+		await expect(card).toBeVisible();
+		const checkbox = page.getByTestId(
+			`staff-tenant-profile-card-select-${approversId}`,
+		);
+		await card.hover();
+		await expect(checkbox).toBeVisible();
+
+		const checkboxBox = await checkbox.boundingBox();
+		const tileBox = await card
+			.locator('.publy-profile-icon-tile--lg')
+			.boundingBox();
+		expect(checkboxBox).not.toBeNull();
+		expect(tileBox).not.toBeNull();
+		if (checkboxBox && tileBox) {
+			const tileCenterX = tileBox.x + tileBox.width / 2;
+			const tileCenterY = tileBox.y + tileBox.height / 2;
+			const checkboxCenterX = checkboxBox.x + checkboxBox.width / 2;
+			const checkboxCenterY = checkboxBox.y + checkboxBox.height / 2;
+			expect(checkboxCenterX).toBeLessThan(tileCenterX);
+			expect(checkboxCenterY).toBeLessThan(tileCenterY);
+		}
+
+		// #4 — selecting the card renders an amber ring on the card surface
+		// itself, not just a checked checkbox.
+		await checkbox.click();
+		await expect(card).toHaveClass(/publy-profile-card--selected/);
+		await expect(card).toHaveCSS('box-shadow', /rgb\(253, 199, 0\)/);
+	});
+
 	test("the default (System) profile's Delete action is visible but disabled, with a tooltip explaining why", async ({
 		page,
 	}) => {

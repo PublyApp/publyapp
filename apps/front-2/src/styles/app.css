@@ -2165,6 +2165,13 @@ body:has(.app-shell-workspace) {
 	height: 19px;
 }
 
+/* Selected card in the tenant Profiles grid: an amber ring replaces the
+   neutral shadow-ring (FIX-4 owner ruling — checkbox alone was not a visible
+   selection affordance on the card surface). */
+.publy-profile-card--selected {
+	box-shadow: 0 0 0 2px var(--publy-primary);
+}
+
 .publy-profile-card-grid {
 	display: grid;
 	grid-template-columns: repeat(3, 1fr);

@@ -188,6 +188,16 @@ new choice, decide in this spirit and add the rule here.
 - Header action clusters are cohesive: one button height and one radius across the cluster; use the
   `Button` system + `buttonVariants`, not ad-hoc heights/radii/`color-mix` inline colors.
 
+### Primary CTA consistency across "Add X" actions
+- **Owner consistency rulings outrank single-screen design details.** When a design-pack PNG draws
+  one screen's primary action differently from the rest of the app, and the owner rules that
+  cross-app consistency wins, apply the owner's ruling — the design pack is a single frozen
+  snapshot; consistency across the shipped app is the higher-priority signal.
+- Concrete case (FIX-4, 2026-07-13): the tenant Profiles tab design PNG draws "New profile" as an
+  outline button, but every other "Add xxx" primary action in the app (Add tenant, Invite user, …)
+  is a primary (`variant="default"`) button. The owner ruled "New profile" must match — it is
+  `variant="default"`, not outline, despite the design pack.
+
 ### Error & empty states
 - Error views (4xx/5xx) and empty/no-match list states are **flat**: no card box, no ring, no
   shadow, no backing disc/tile behind the icon.
@@ -252,6 +262,12 @@ new choice, decide in this spirit and add the rule here.
   hardcode zinc/black/white values in the component.
   Existing bulk-action-ux-conventions.md rules (always-render menu items, ineligible click → i18n
   toast, trigger gates on `BULK_ACTION_MAX_COUNT`) apply unchanged inside the bar.
+- **Card-grid selection chrome** (tenant Profiles tab, FIX-4, 2026-07-13): a selectable card's
+  checkbox is **absolutely positioned in the card's top-left corner**, never an in-flow flex item —
+  an in-flow checkbox pushes the icon tile/text column sideways, which is a layout regression, not
+  a selection affordance. A selected card also gets an **amber ring** on the card surface itself
+  (`.publy-profile-card--selected`, `box-shadow: 0 0 0 2px var(--publy-primary)`) — the checkbox
+  alone is not sufficient visual feedback that a card is selected.
 
 ### Content & data honesty
 - **Never render fabricated or placeholder admin data.** If the contract does not provide a field,
