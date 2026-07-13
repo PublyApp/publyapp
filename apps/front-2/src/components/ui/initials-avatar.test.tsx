@@ -2,9 +2,21 @@
  * @vitest-environment jsdom
  */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 
-import { BrandTile, paletteIndex, toInitials } from './initials-avatar';
+import {
+	AvatarStack,
+	BrandTile,
+	paletteIndex,
+	toInitials,
+} from './initials-avatar';
+
+vi.mock('react-i18next', () => ({
+	useTranslation: () => ({
+		t: (key: string, options?: Record<string, unknown>) =>
+			options ? `${key}:${JSON.stringify(options)}` : key,
+	}),
+}));
 
 afterEach(cleanup);
 
@@ -37,6 +49,27 @@ describe('paletteIndex', () => {
 			expect(index).toBeGreaterThanOrEqual(1);
 			expect(index).toBeLessThanOrEqual(8);
 		}
+	});
+});
+
+describe('AvatarStack', () => {
+	// F8: every visual avatar in the stack is aria-hidden, so the stack's
+	// identities must still reach assistive tech through the container.
+	test('exposes the member names through an aria-label on the stack container', () => {
+		const { container } = render(
+			<AvatarStack names={['Ada Lovelace', 'Grace Hopper']} />,
+		);
+
+		const stack = container.querySelector('.publy-avatar-stack');
+		expect(stack?.getAttribute('role')).toBe('img');
+		expect(stack?.getAttribute('aria-label')).toContain('Ada Lovelace');
+		expect(stack?.getAttribute('aria-label')).toContain('Grace Hopper');
+	});
+
+	test('renders nothing for an empty name list', () => {
+		const { container } = render(<AvatarStack names={[]} />);
+
+		expect(container.querySelector('.publy-avatar-stack')).toBeNull();
 	});
 });
 

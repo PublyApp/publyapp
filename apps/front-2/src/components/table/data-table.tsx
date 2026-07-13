@@ -16,6 +16,7 @@ import {
 } from '@tanstack/react-table';
 import {
 	useMemo,
+	useState,
 	useSyncExternalStore,
 	type KeyboardEvent,
 	type ReactNode,
@@ -198,30 +199,35 @@ export const DataTableToolbar = ({
 	testId,
 	searchDraft,
 	onSearchDraftChange,
-	searchPlaceholder = 'Search',
+	searchPlaceholder,
 	disabled = false,
 	disabledTitle,
 	toolbarEnd,
-}: DataTableToolbarProps) => (
-	<div className="publy-data-table-toolbar" data-testid={`${testId}-toolbar`}>
-		<div className="publy-search-wrapper">
-			<IconSearch aria-hidden="true" className="publy-search-icon" />
-			<Input
-				aria-label="Search"
-				className="publy-data-table-search-input bg-background pl-9"
-				value={searchDraft}
-				onChange={(event) => onSearchDraftChange(event.target.value)}
-				disabled={disabled}
-				title={disabled ? disabledTitle : undefined}
-				placeholder={searchPlaceholder}
-				data-testid={`${testId}-search`}
-			/>
+}: DataTableToolbarProps) => {
+	const { t } = useTranslation('common');
+	const resolvedPlaceholder = searchPlaceholder ?? t('search');
+
+	return (
+		<div className="publy-data-table-toolbar" data-testid={`${testId}-toolbar`}>
+			<div className="publy-search-wrapper">
+				<IconSearch aria-hidden="true" className="publy-search-icon" />
+				<Input
+					aria-label={t('search')}
+					className="publy-data-table-search-input bg-background pl-9"
+					value={searchDraft}
+					onChange={(event) => onSearchDraftChange(event.target.value)}
+					disabled={disabled}
+					title={disabled ? disabledTitle : undefined}
+					placeholder={resolvedPlaceholder}
+					data-testid={`${testId}-search`}
+				/>
+			</div>
+			{toolbarEnd ? (
+				<div className="publy-data-table-toolbar-end">{toolbarEnd}</div>
+			) : null}
 		</div>
-		{toolbarEnd ? (
-			<div className="publy-data-table-toolbar-end">{toolbarEnd}</div>
-		) : null}
-	</div>
-);
+	);
+};
 
 export type DataTableCursorFooterProps = {
 	testId: string;
@@ -270,7 +276,7 @@ export const DataTableCursorFooter = ({
 		>
 			<div className="flex items-center gap-2">
 				<span data-slot="page-label" data-testid={`${testId}-page-label`}>
-					Page {pageIndex + 1}
+					{t('page-n', { page: pageIndex + 1 })}
 				</span>
 				{isPaginationPending ? (
 					<span
@@ -319,7 +325,7 @@ export const DataTableCursorFooter = ({
 						<button
 							className="publy-pager-button"
 							type="button"
-							aria-label="Previous page"
+							aria-label={t('previous-page')}
 							disabled={paginationDisabled || !hasPreviousPage}
 							onClick={onPreviousPage}
 							data-testid={`${testId}-prev-page`}
@@ -332,7 +338,7 @@ export const DataTableCursorFooter = ({
 						<button
 							className="publy-pager-button"
 							type="button"
-							aria-label="Next page"
+							aria-label={t('next-page')}
 							disabled={paginationDisabled || !hasNextPage}
 							onClick={onNextPage}
 							data-testid={`${testId}-next-page`}
@@ -390,6 +396,11 @@ export type DataTableProps<TData extends { id: string }> = {
 	/** Right-aligned toolbar controls (filters, view toggles). */
 	toolbarEnd?: ReactNode;
 	searchPlaceholder?: string;
+	/** Row selection checkbox aria-label source — defaults to `row.id` (a raw
+	 * UUID, announced as-is). Pass the row's display name/email/etc. so a
+	 * screen-reader user hears "Select Acme Corporation", not "Select
+	 * 0195f6a7-3c2e-…". */
+	getRowLabel?: (row: TData) => string;
 };
 
 export const DataTable = <TData extends { id: string }>({
@@ -425,14 +436,16 @@ export const DataTable = <TData extends { id: string }>({
 	onSearchDraftChange,
 	selection,
 	toolbarEnd,
-	searchPlaceholder = 'Search',
+	searchPlaceholder,
 	rowHeight,
 	density,
+	getRowLabel = (row) => row.id,
 }: DataTableProps<TData>) => {
 	const { t } = useTranslation('common');
 	const isSelectionMode = selection?.isSelectionMode ?? false;
 	const hasSelection = selection != null;
 	const viewportWidth = useViewportWidth();
+	const [focusedCell, setFocusedCell] = useState({ row: 0, cell: 0 });
 	const columnVisibility = useMemo<VisibilityState>(() => {
 		const visibility: VisibilityState = {};
 		for (const column of columns) {
@@ -481,6 +494,25 @@ export const DataTable = <TData extends { id: string }>({
 	const hasPartialSelection =
 		selectedVisibleRowIds.length > 0 &&
 		selectedVisibleRowIds.length < visibleRowIds.length;
+
+	// Roving tabindex (shell F3): only one body cell is ever a tab stop, so a
+	// keyboard user reaches the pager in one Tab press instead of rowCount ×
+	// colCount. Arrow-key navigation (handleCellNavigation below) moves focus
+	// programmatically, which fires onFocus and rolls the tab stop with it.
+	// Clamped defensively against the current row/column counts so a stale
+	// position (e.g. after a filter shrinks the row count) never lands on a
+	// cell that no longer exists, which would leave the whole table
+	// unreachable by Tab.
+	const totalCellsPerRow =
+		table.getVisibleLeafColumns().length + (hasSelection ? 1 : 0);
+	const safeFocusedRow =
+		rowModels.length === 0
+			? 0
+			: Math.min(focusedCell.row, rowModels.length - 1);
+	const safeFocusedCellIndex =
+		totalCellsPerRow === 0
+			? 0
+			: Math.min(focusedCell.cell, totalCellsPerRow - 1);
 
 	const bodyState = resolveTableBodyState({
 		isPending,
@@ -687,6 +719,7 @@ export const DataTable = <TData extends { id: string }>({
 				>
 					<Table
 						aria-label={ariaLabel}
+						role="grid"
 						className="publy-data-table"
 						data-testid={`${testId}-rows`}
 						data-slot="table"
@@ -708,7 +741,7 @@ export const DataTable = <TData extends { id: string }>({
 								{hasSelection ? (
 									<TableHead
 										data-slot="table-selection-cell"
-										aria-label="Row selection"
+										aria-label={t('row-selection-column')}
 									>
 										<Checkbox
 											checked={allRowsSelected}
@@ -716,7 +749,7 @@ export const DataTable = <TData extends { id: string }>({
 											onCheckedChange={() => {
 												handleToggleSelectAll();
 											}}
-											aria-label="Select all rows"
+											aria-label={t('select-all-rows')}
 										/>
 									</TableHead>
 								) : null}
@@ -792,7 +825,16 @@ export const DataTable = <TData extends { id: string }>({
 											<TableCell
 												data-cell-index={0}
 												data-slot="table-selection-cell"
-												tabIndex={0}
+												role="gridcell"
+												tabIndex={
+													rowIndex === safeFocusedRow &&
+													safeFocusedCellIndex === 0
+														? 0
+														: -1
+												}
+												onFocus={() => {
+													setFocusedCell({ row: rowIndex, cell: 0 });
+												}}
 												onKeyDown={(event) => {
 													handleCellNavigation(event, rowIndex, 0);
 												}}
@@ -802,7 +844,9 @@ export const DataTable = <TData extends { id: string }>({
 													onCheckedChange={() => {
 														handleToggleRowSelection(row.id);
 													}}
-													aria-label={`Select row ${row.id}`}
+													aria-label={t('select-row-named', {
+														name: getRowLabel(row.original),
+													})}
 												/>
 											</TableCell>
 										) : null}
@@ -820,7 +864,19 @@ export const DataTable = <TData extends { id: string }>({
 													data-slot="table-cell"
 													data-align={displayMeta.align}
 													className={displayMeta.cellClassName}
-													tabIndex={0}
+													role="gridcell"
+													tabIndex={
+														rowIndex === safeFocusedRow &&
+														safeFocusedCellIndex === renderedCellIndex
+															? 0
+															: -1
+													}
+													onFocus={() => {
+														setFocusedCell({
+															row: rowIndex,
+															cell: renderedCellIndex,
+														});
+													}}
 													onKeyDown={(event) => {
 														handleCellNavigation(
 															event,

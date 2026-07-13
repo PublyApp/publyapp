@@ -48,6 +48,19 @@ describe('ConfirmDialog', () => {
 		).not.toBeNull();
 	});
 
+	// F1: consumes the shared z-index tokens instead of hardcoded z-[70]/z-[71].
+	test('the popup and backdrop use the shared z-index tokens, not hardcoded magic numbers', () => {
+		render(<ConfirmDialog {...baseProps} isOpen />);
+
+		const popup = screen.getByRole('alertdialog');
+		expect(popup.className).toContain('z-(--publy-z-drawer-surface)');
+		expect(popup.className).not.toMatch(/z-\[\d+\]/);
+
+		const backdrop = document.querySelector('.publy-overlay-backdrop');
+		expect(backdrop?.className).toContain('z-(--publy-z-overlay)');
+		expect(backdrop?.className).not.toMatch(/z-\[\d+\]/);
+	});
+
 	test('renders the primary tone when requested', () => {
 		render(<ConfirmDialog {...baseProps} isOpen tone="primary" />);
 

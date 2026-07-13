@@ -60,6 +60,26 @@ describe('DropdownMenuCheckboxItem', () => {
 	});
 });
 
+describe('DropdownMenuContent', () => {
+	// F1: consumes the shared --publy-z-menu token instead of a hardcoded
+	// z-50 that loses to a Drawer's z-[71] surface opened around it.
+	test('the popup uses the shared z-index token, not a hardcoded magic number', () => {
+		render(
+			<DropdownMenu defaultOpen modal={false}>
+				<DropdownMenuContent>
+					<DropdownMenuItem>Edit</DropdownMenuItem>
+				</DropdownMenuContent>
+			</DropdownMenu>,
+		);
+
+		const popup = screen
+			.getByText('Edit')
+			.closest('[data-slot="dropdown-menu-content"]');
+		expect(popup?.className).toContain('z-(--publy-z-menu)');
+		expect(popup?.className).not.toMatch(/\bz-50\b/);
+	});
+});
+
 describe('DropdownMenuItem', () => {
 	test('uses a 9px item radius and a muted (not accent) highlighted background', () => {
 		render(

@@ -43,12 +43,12 @@ export const ConfirmDialog = ({
 	return (
 		<DialogPrimitive.Root open={isOpen} onOpenChange={onOpenChange}>
 			<DialogPrimitive.Portal>
-				<DialogPrimitive.Backdrop className="publy-overlay-backdrop z-[70] transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[opacity] data-ending-style:opacity-0 data-starting-style:opacity-0 motion-reduce:transition-none supports-backdrop-filter:backdrop-blur-sm" />
+				<DialogPrimitive.Backdrop className="publy-overlay-backdrop z-(--publy-z-overlay) transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[opacity] data-ending-style:opacity-0 data-starting-style:opacity-0 motion-reduce:transition-none supports-backdrop-filter:backdrop-blur-sm" />
 				<DialogPrimitive.Popup
 					role="alertdialog"
 					data-slot="confirm-dialog"
 					data-tone={tone}
-					className="fixed top-1/2 left-1/2 z-[71] flex w-[min(480px,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-[var(--publy-modal-radius)] border border-border/70 bg-(--publy-overlay-surface) p-0 text-popover-foreground shadow-[var(--publy-shadow-modal)] outline-none transition duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[transform,opacity] data-ending-style:translate-y-[calc(-50%+1rem)] data-ending-style:opacity-0 data-starting-style:translate-y-[calc(-50%+1rem)] data-starting-style:opacity-0 motion-reduce:transition-none"
+					className="fixed top-1/2 left-1/2 z-(--publy-z-drawer-surface) flex w-[min(480px,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-[var(--publy-modal-radius)] border border-border/70 bg-(--publy-overlay-surface) p-0 text-popover-foreground shadow-[var(--publy-shadow-modal)] outline-none transition duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[transform,opacity] data-ending-style:translate-y-[calc(-50%+1rem)] data-ending-style:opacity-0 data-starting-style:translate-y-[calc(-50%+1rem)] data-starting-style:opacity-0 motion-reduce:transition-none"
 				>
 					<div
 						className={

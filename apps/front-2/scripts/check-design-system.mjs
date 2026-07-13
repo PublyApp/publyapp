@@ -19,12 +19,6 @@ const KNOWN_HANDOFF_GUARD_DEBT = [
 	},
 	{
 		ruleId: ROUNDED_RULE_ID,
-		file: 'src/components/error-views/LogoutRedirect.tsx',
-		sourceIncludes: 'size-8 animate-spin rounded-full',
-		reason: 'Legacy loading spinner; spinner cleanup is outside Task 1.',
-	},
-	{
-		ruleId: ROUNDED_RULE_ID,
 		file: 'src/components/query-display.tsx',
 		sourceIncludes: 'animate-spin rounded-full border-2',
 		reason: 'Legacy loading spinner; spinner cleanup is outside Task 1.',
@@ -71,18 +65,6 @@ const KNOWN_HANDOFF_GUARD_DEBT = [
 		file: 'src/routes/authed/staff/invitations/$invitationId.tsx',
 		sourceIncludes: 'h-auto rounded-full border-none',
 		reason: 'Legacy staff invitation chip; module pass owns this.',
-	},
-	{
-		ruleId: ROUNDED_RULE_ID,
-		file: 'src/routes/authed/staff/profiles/$profileId/users.tsx',
-		sourceIncludes: 'rounded-full border border-divider px-4 py-2',
-		reason: 'Legacy profile chip; Staff module pass owns this.',
-	},
-	{
-		ruleId: ROUNDED_RULE_ID,
-		file: 'src/routes/authed/staff/profiles/$profileId/users.tsx',
-		sourceIncludes: 'rounded-full bg-primary px-4 py-2',
-		reason: 'Legacy profile chip; Staff module pass owns this.',
 	},
 	{
 		ruleId: ROUNDED_RULE_ID,
@@ -257,6 +239,29 @@ const KNOWN_IMPORTANT_FOUNDATION_DEBT = [
 		reason:
 			'html[data-theme-changing] — suppresses cross-fade during the .dark class swap; must beat every transition unconditionally, permanent by design.',
 	},
+	// F4: src/components/ui/ joined the scan this round; each pre-existing
+	// `!`-suffix usage there is now recorded here instead of being invisible.
+	{
+		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
+		file: 'src/components/ui/badge.tsx',
+		sourceIncludes: '[&>svg]:size-3!',
+		reason:
+			'Pins every Badge icon to 12px regardless of the icon component’s own default size (Tabler icons default to size-4/16px) — a caller’s icon className would otherwise win and break the compact 20px badge.',
+	},
+	{
+		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
+		file: 'src/components/ui/tabs.tsx',
+		sourceIncludes: 'border-transparent!',
+		reason:
+			'TabsTrigger renders a native <button> by default (nativeButton); pins the border transparent against the user-agent button border independent of Tailwind’s utility generation order.',
+	},
+	{
+		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
+		file: 'src/components/ui/tooltip.tsx',
+		sourceIncludes: 'top-1/2!',
+		reason:
+			'Overrides Base UI’s own inline arrow-positioning style for the inline-end/inline-start/left/right sides; the default `top` set by the primitive otherwise wins over a plain (non-important) utility.',
+	},
 ];
 
 const KNOWN_GUARD_DEBT = [
@@ -346,8 +351,152 @@ const isRoundedRadiusAllowed = (relativePath, line, lineIndex, lines) => {
 	return (
 		line.includes('.app-shell-topbar-action-btn') ||
 		hasNearbySelector(lines, lineIndex, '.app-shell-topbar-action-btn') ||
-		hasNearbySelector(lines, lineIndex, '.publy-avatar-initials')
+		hasNearbySelector(lines, lineIndex, '.publy-avatar-initials') ||
+		// The two other genuinely circular surfaces (F4): the rail's account
+		// avatar/link (a real avatar, same shape rule as .publy-avatar-initials
+		// above) and the form action bar's 7px status dot.
+		hasNearbySelector(lines, lineIndex, "[data-rail-item='account']") ||
+		hasNearbySelector(lines, lineIndex, '.app-shell-rail-account-avatar') ||
+		hasNearbySelector(lines, lineIndex, '.publy-form-action-bar-status::before')
 	);
+};
+
+// F3: a colour literal directly in the value — `#fff`, `rgba(0, 0, 0, .5)`,
+// `hsl(200 10% 10%)` — as opposed to a value that only *references* another
+// (already theme-aware) token, e.g. `0 0 0 1px var(--publy-border)` or
+// `color-mix(in srgb, var(--publy-primary) 25%, transparent)`. Those need no
+// dark counterpart of their own: they inherit theme-awareness from the token
+// they point at.
+const COLOR_LITERAL_PATTERN =
+	/#[0-9a-fA-F]{3,8}\b|\brgba?\(\s*\d|\bhsla?\(\s*\d/;
+
+// Tokens whose colour is deliberately fixed across both themes — documented
+// per-entry so the guard can still see and reason about every exemption
+// instead of being blind to the whole class (F3, mirrors KNOWN_GUARD_DEBT).
+const THEME_INVARIANT_TOKENS = [
+	{
+		prefix: '--publy-avatar-',
+		reason:
+			'WCAG-pinned avatar palette validated against fixed white initials text; must not swap in dark mode.',
+	},
+	{
+		prefix: '--publy-auth-',
+		reason:
+			'Auth split-brand hero panel (handoff A1) is a fixed dark canvas by design, independent of the app theme.',
+	},
+	{
+		exact: '--publy-shadow-chrome',
+		reason:
+			'.btn-primary-chrome bevel is pinned to the handoff spec value (see check-design-system.test.mjs) and reads as a consistent metal highlight regardless of surface tone.',
+	},
+];
+
+const isThemeInvariantToken = (name) =>
+	THEME_INVARIANT_TOKENS.some((entry) =>
+		entry.exact ? entry.exact === name : name.startsWith(entry.prefix),
+	);
+
+// Parses `--publy-x: value;` pairs out of a block of CSS text, tolerating
+// multi-line values (e.g. a wrapped `box-shadow` declaration) since this
+// operates on the whole block instead of scanning line-by-line.
+const extractTokenDeclarations = (blockText) => {
+	const declarations = new Map();
+	const pattern = /(--publy-[\w-]+)\s*:\s*([^;]+);/g;
+	let match;
+	while ((match = pattern.exec(blockText))) {
+		declarations.set(match[1], match[2].trim());
+	}
+	return declarations;
+};
+
+const findDeclarationLine = (lines, start, end, tokenName) => {
+	for (let index = start; index <= end; index += 1) {
+		if (lines[index].trim().startsWith(`${tokenName}:`)) {
+			return index + 1;
+		}
+	}
+	return start + 1;
+};
+
+// F3: two guards over the token *layer* itself, run once over the whole scan
+// instead of per-line — the r1 dead-token deletion left conventions.md
+// prescribing `--publy-shadow-card`, a token that no longer exists, and nothing
+// today would have caught a light-only colour token shipping the same way.
+const checkTokenGuardViolations = (fileContentsByRelativePath) => {
+	const violations = [];
+	const appCssSource = fileContentsByRelativePath.get(APP_CSS_PATH);
+	if (appCssSource === undefined) {
+		return violations;
+	}
+
+	const appCssLines = appCssSource.split('\n');
+	const [rootRange] = getBlockLineRanges(appCssLines, /^:root\s*\{/);
+	const [darkRange] = getBlockLineRanges(appCssLines, /^html\.dark\s*\{/);
+	const rootBlockText = rootRange
+		? appCssLines.slice(rootRange[0], rootRange[1] + 1).join('\n')
+		: '';
+	const darkBlockText = darkRange
+		? appCssLines.slice(darkRange[0], darkRange[1] + 1).join('\n')
+		: '';
+	const rootDeclarations = extractTokenDeclarations(rootBlockText);
+	const darkDeclarations = extractTokenDeclarations(darkBlockText);
+	// token-must-be-declared's "declared" set is deliberately wider than the
+	// :root/html.dark token layer: component rules legitimately declare their
+	// own locally-scoped custom properties (e.g. per-selector
+	// `--publy-icon-tile-bg`/`-fg` pairs, `--publy-data-table-row-height` per
+	// density variant) and consume them within the same file. Only a
+	// reference that resolves to *no* declaration anywhere in app.css — the
+	// `--publy-shadow-card` shape — is a real miss.
+	const declaredNames = new Set(extractTokenDeclarations(appCssSource).keys());
+
+	// token-theme-parity: every colour-valued :root token needs an html.dark
+	// counterpart, unless it's on the theme-invariant allowlist above.
+	for (const [name, value] of rootDeclarations) {
+		if (!COLOR_LITERAL_PATTERN.test(value)) {
+			continue;
+		}
+
+		if (isThemeInvariantToken(name) || darkDeclarations.has(name)) {
+			continue;
+		}
+
+		violations.push({
+			ruleId: 'token-theme-parity',
+			message:
+				'Colour-valued token declared in :root has no html.dark counterpart and is not on the ' +
+				'theme-invariant allowlist — it will render its light value on dark surfaces too.',
+			file: APP_CSS_PATH,
+			line: rootRange
+				? findDeclarationLine(appCssLines, rootRange[0], rootRange[1], name)
+				: 0,
+			source: `${name}: ${value}`,
+		});
+	}
+
+	// token-must-be-declared: every --publy-* reference across the scan
+	// (`var(--x)`, `(--x)`, `[--x]`) must resolve to a declaration in app.css.
+	const referencePattern = /(--publy-[\w-]+)(\s*:)?/g;
+	for (const [relativePath, source] of fileContentsByRelativePath) {
+		referencePattern.lastIndex = 0;
+		let match;
+		while ((match = referencePattern.exec(source))) {
+			const [full, name, colon] = match;
+			if (colon || declaredNames.has(name)) {
+				continue;
+			}
+
+			const line = source.slice(0, match.index).split('\n').length;
+			violations.push({
+				ruleId: 'token-must-be-declared',
+				message: `--publy-* token "${name}" is referenced but never declared in :root or html.dark of ${APP_CSS_PATH}.`,
+				file: relativePath,
+				line,
+				source: full.trim(),
+			});
+		}
+	}
+
+	return violations;
 };
 
 const isConfirmDialogFile = (relativePath) =>
@@ -391,6 +540,29 @@ const recordViolation = (violations, violation, lines) => {
 	violations.push(violation);
 };
 
+// no-raw-visual-color's two property-based colour patterns, and their
+// multi-line-aware counterparts (F4): a value can legitimately wrap across
+// lines before its terminating `;` (e.g. a multi-line `box-shadow`), so the
+// css-declaration statement scan below (which joins such a declaration into
+// one string) substitutes these `[^;]*`-widened variants in place of the
+// `\s*`-only ones. Kept as separate pattern objects, not shared, so ordinary
+// per-line scanning of .ts/.tsx files never sees the wider `[^;]*` gap —
+// that widening is only safe once a value is known to be one CSS
+// declaration bounded by `;`, which per-line text (potentially a JS object
+// literal with comma-separated properties on one line) is not.
+const RAW_COLOR_PROPERTY_HEX_PATTERN =
+	/\b(?:color|background|background-color|border-color|outline-color|fill|stroke)\s*:\s*#[0-9a-fA-F]{3,8}\b/;
+const RAW_COLOR_PROPERTY_HEX_PATTERN_MULTILINE =
+	/\b(?:color|background|background-color|border-color|outline-color|fill|stroke)\s*:[^;]*#[0-9a-fA-F]{3,8}\b/;
+const RAW_COLOR_PROPERTY_RGBA_PATTERN =
+	/\b(?:color|background|background-color|border-color|outline-color|box-shadow|fill|stroke)\s*:\s*rgba?\(/;
+const RAW_COLOR_PROPERTY_RGBA_PATTERN_MULTILINE =
+	/\b(?:color|background|background-color|border-color|outline-color|box-shadow|fill|stroke)\s*:[^;]*rgba?\(/;
+const RAW_COLOR_MULTILINE_PATTERN_OVERRIDES = new Map([
+	[RAW_COLOR_PROPERTY_HEX_PATTERN, RAW_COLOR_PROPERTY_HEX_PATTERN_MULTILINE],
+	[RAW_COLOR_PROPERTY_RGBA_PATTERN, RAW_COLOR_PROPERTY_RGBA_PATTERN_MULTILINE],
+]);
+
 const rules = [
 	{
 		id: 'no-heroui-import',
@@ -424,12 +596,12 @@ const rules = [
 		message:
 			'Use front-2 semantic tokens instead of raw hex/rgb/slate/gray/zinc/neutral/white/black styling.',
 		// Covers all of src/. The earlier per-directory list silently exempted
-		// src/lib/, where a raw-hex palette landed unscanned.
-		// src/design-handoff/ is exempt: its literals are *expected* values that
-		// computed-style assertions compare against, not styling.
-		appliesTo: (relativePath) =>
-			relativePath.startsWith('src/') &&
-			!relativePath.startsWith('src/design-handoff/'),
+		// src/lib/, where a raw-hex palette landed unscanned. The former
+		// src/design-handoff/ exemption is gone (F4): that directory was
+		// deleted in r1's F8 fix, so the exemption was dead — and if the
+		// directory ever comes back, its literals should be scanned like any
+		// other source file's.
+		appliesTo: (relativePath) => relativePath.startsWith('src/'),
 		// Block-aware, not file-aware (F5): app.css is the token layer, but only
 		// its `:root { … }` / `html.dark { … }` declaration blocks are allowed to
 		// contain raw colour literals. Every other rule in the file is scanned
@@ -440,14 +612,14 @@ const rules = [
 		patterns: [
 			/["'`][#][0-9a-fA-F]{3,8}["'`]/, // quoted/templated raw color tokens
 			/\b(?:bg|text|border|ring|from|to|via|fill|stroke|outline|accent|decoration|divide)-\[#(?:[0-9a-fA-F]{3,8})\]/,
-			/\b(?:color|background|background-color|border-color|outline-color|fill|stroke)\s*:\s*#[0-9a-fA-F]{3,8}\b/,
+			RAW_COLOR_PROPERTY_HEX_PATTERN,
 			/\b(?:bg|text|border|ring|from|to|via|fill|stroke|outline|accent|decoration|divide)-(?:slate|zinc|gray|neutral)-\d{2,3}\b/,
 			/\b(?:bg|border|text|ring)-white\/\d+\b/,
 			/\b(?:bg|border|text|ring)-black\/\d+\b/,
 			/\b(?:bg|border|text|ring)-(?:white|black)\b/,
 			/["'`]\s*rgba?\(/,
 			/\b(?:bg|text|border|ring|from|to|via|fill|stroke|outline|accent|decoration|divide)-\[(?:rgba?\([^\]]+\))\]/,
-			/\b(?:color|background|background-color|border-color|outline-color|box-shadow|fill|stroke)\s*:\s*rgba?\(/,
+			RAW_COLOR_PROPERTY_RGBA_PATTERN,
 		],
 	},
 	{
@@ -486,15 +658,22 @@ const rules = [
 		message: 'Fix cascade through tokens/theme/wrappers, not !important.',
 		// app.css added (F9): it holds the app's only literal CSS `!important`
 		// declarations, previously unscanned; each pre-existing one is now a
-		// KNOWN_IMPORTANT_FOUNDATION_DEBT entry with a reason, above. Left at
-		// app-shell/ + table/ for TSX (not widened to all of src/components/):
-		// that's the exact scope the F9 failure scenario (`bg-red-500!` on
-		// data-table.tsx) needs, without also re-litigating src/components/ui/'s
-		// existing, already-reviewed `!`-suffix usages (tabs.tsx, tooltip.tsx,
-		// badge.tsx) outside this packet's ownership — see report Handoffs.
+		// KNOWN_IMPORTANT_FOUNDATION_DEBT entry with a reason, above. Widened
+		// (F4) to src/components/ui/ and src/routes/ — r1 left those unscanned
+		// on the theory that src/components/ui/'s existing `!`-suffix usages
+		// (tabs.tsx, tooltip.tsx, badge.tsx) were "already reviewed", but that
+		// review left no trace the guard could see, so a *new* `bg-red-500!` in
+		// any primitive or route file was legal. Each pre-existing usage is now
+		// a KNOWN_IMPORTANT_FOUNDATION_DEBT entry, same as app.css's.
 		appliesTo: (relativePath) =>
 			relativePath.startsWith('src/components/app-shell/') ||
 			relativePath.startsWith('src/components/table/') ||
+			relativePath.startsWith('src/components/ui/') ||
+			// Test files carry unrelated string fixtures that can end in `!`
+			// (e.g. `'Not Valid!'`) — this rule cares about markup/CSS, not
+			// prose in a spec assertion, so exclude them from the routes/ scan.
+			(relativePath.startsWith('src/routes/') &&
+				!relativePath.includes('.test.')) ||
 			relativePath === APP_CSS_PATH,
 		patterns: [
 			/!important/,
@@ -510,7 +689,17 @@ const rules = [
 		message:
 			'Only avatar surfaces and 36px topbar icon buttons may remain fully rounded.',
 		appliesTo: () => true,
-		patterns: [/\brounded-full\b/, /\bborder-radius:\s*999px\b/],
+		patterns: [
+			/\brounded-full\b/,
+			/\bborder-radius:\s*999px\b/,
+			// F4: the same "fully circular" shape, expressed through Tailwind
+			// arbitrary values, a percentage, or the shared token — none of
+			// which the two patterns above can see.
+			/\brounded-\[(?:999|9999)px\]/,
+			/\brounded-\[50%\]/,
+			/\bborder-radius:\s*50%/,
+			/\bborder-radius:\s*var\(--publy-radius-circular\)/,
+		],
 		ignoreMatch: isRoundedRadiusAllowed,
 	},
 	{
@@ -617,6 +806,10 @@ export const scanFront2DesignSystem = async ({
 	// pass their own narrow `guardDebt` fixture instead.
 	checkStaleDebt = false,
 	guardDebt = KNOWN_GUARD_DEBT,
+	// Same opt-in reasoning as checkStaleDebt (F7): a fixture that doesn't
+	// build a full :root/html.dark token layer shouldn't be misjudged against
+	// the real app.css token set.
+	checkTokenGuards = false,
 } = {}) => {
 	const files = [];
 	for (const dir of sourceDirs) {
@@ -656,6 +849,53 @@ export const scanFront2DesignSystem = async ({
 			}
 
 			if (rule.ignoreFile?.(relativePath)) {
+				continue;
+			}
+
+			if (rule.id === 'no-raw-visual-color' && relativePath.endsWith('.css')) {
+				// Multi-line-aware (F4): a wrapped `box-shadow`/`background` value
+				// (property name on one line, `rgba(...)` literals on the next) is
+				// invisible to the single-line patterns below, since the property
+				// name and the colour literal never share a line. Scan whole
+				// `;`-terminated declarations instead, so the joined text still
+				// contains both. Excluding `{`/`}` from the span (not just `;`)
+				// keeps each match to exactly one declaration — without it, a
+				// match starting right after one declaration's `;` would swallow
+				// the next rule's selector and opening brace too, and report the
+				// violation's line as still inside the *previous* rule.
+				const statementPattern = /[^;{}]*;/g;
+				let statementMatch;
+				while ((statementMatch = statementPattern.exec(source))) {
+					const statementText = statementMatch[0];
+					const lineIndex =
+						source.slice(0, statementMatch.index).split('\n').length - 1;
+					for (const pattern of rule.patterns) {
+						const effectivePattern =
+							RAW_COLOR_MULTILINE_PATTERN_OVERRIDES.get(pattern) ?? pattern;
+						if (!effectivePattern.test(statementText)) {
+							continue;
+						}
+
+						if (
+							rule.ignoreMatch?.(relativePath, statementText, lineIndex, lines)
+						) {
+							continue;
+						}
+
+						recordViolation(
+							violations,
+							{
+								ruleId: rule.id,
+								message: rule.message,
+								file: relativePath,
+								line: lineIndex + 1,
+								source: statementText.trim().replace(/\s+/g, ' '),
+							},
+							lines,
+						);
+					}
+				}
+
 				continue;
 			}
 
@@ -733,6 +973,10 @@ export const scanFront2DesignSystem = async ({
 		}
 	}
 
+	if (checkTokenGuards) {
+		violations.push(...checkTokenGuardViolations(fileContentsByRelativePath));
+	}
+
 	violations.scannedFileCount = files.length;
 	return violations;
 };
@@ -741,7 +985,10 @@ if (
 	process.argv[1] &&
 	pathToFileURL(process.argv[1]).href === import.meta.url
 ) {
-	const violations = await scanFront2DesignSystem({ checkStaleDebt: true });
+	const violations = await scanFront2DesignSystem({
+		checkStaleDebt: true,
+		checkTokenGuards: true,
+	});
 
 	console.error(
 		`front-2 design-system guard: scanned ${violations.scannedFileCount} files, ${violations.length} violations`,

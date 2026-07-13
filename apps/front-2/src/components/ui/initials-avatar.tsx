@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 const PALETTE_SIZE = 8;
 
@@ -54,6 +55,7 @@ export const AvatarStack = ({
 	names: string[];
 	max?: number;
 }) => {
+	const { t } = useTranslation('common');
 	const visible = names.slice(0, max);
 
 	if (visible.length === 0) {
@@ -61,7 +63,11 @@ export const AvatarStack = ({
 	}
 
 	return (
-		<div className="publy-avatar-stack">
+		<div
+			className="publy-avatar-stack"
+			role="img"
+			aria-label={t('avatar-stack-people', { names: names.join(', ') })}
+		>
 			{visible.map((name, index) => (
 				<span
 					key={`${name}-${index}`}

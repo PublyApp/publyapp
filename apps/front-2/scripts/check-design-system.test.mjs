@@ -817,3 +817,411 @@ test('F9: no-important-foundation now scans app.css, where the real !important d
 		true,
 	);
 });
+
+test('F3: token-theme-parity flags a colour token declared in :root with no html.dark counterpart', async () => {
+	const root = await makeFixture({
+		'src/styles/app.css': [
+			':root {',
+			'\t--publy-alert-critical-bg: #fee2e2;',
+			'}',
+			'',
+			'html.dark {',
+			'\t--publy-background: #18181b;',
+			'}',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+		checkTokenGuards: true,
+	});
+
+	const parityHits = violations.filter(
+		(violation) => violation.ruleId === 'token-theme-parity',
+	);
+
+	assert.equal(parityHits.length, 1);
+	assert.match(parityHits[0].source, /--publy-alert-critical-bg/);
+});
+
+test('F3: token-theme-parity does not flag a token whose value only references another (already themed) token', async () => {
+	const root = await makeFixture({
+		'src/styles/app.css': [
+			':root {',
+			'\t--publy-border: #e4e4e7;',
+			'\t--publy-shadow-ring: 0 0 0 1px var(--publy-border);',
+			'\t--publy-focus-ring: color-mix(in srgb, var(--publy-primary) 25%, transparent);',
+			'}',
+			'',
+			'html.dark {',
+			'\t--publy-border: rgba(255, 255, 255, 0.1);',
+			'}',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+		checkTokenGuards: true,
+	});
+
+	assert.equal(
+		violations.some((violation) => violation.ruleId === 'token-theme-parity'),
+		false,
+	);
+});
+
+test('F3: token-theme-parity does not flag the documented theme-invariant allowlist', async () => {
+	const root = await makeFixture({
+		'src/styles/app.css': [
+			':root {',
+			'\t--publy-avatar-1: #0f766e;',
+			'\t--publy-auth-panel-bg: #18181b;',
+			'\t--publy-shadow-chrome: 0 2px 2px rgba(255, 255, 255, 0.1) inset;',
+			'}',
+			'',
+			'html.dark {',
+			'\t--publy-background: #18181b;',
+			'}',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+		checkTokenGuards: true,
+	});
+
+	assert.equal(
+		violations.some((violation) => violation.ruleId === 'token-theme-parity'),
+		false,
+	);
+});
+
+test('F3: token-must-be-declared flags a --publy-* reference with no declaration anywhere in app.css', async () => {
+	const root = await makeFixture({
+		'src/styles/app.css': ':root {\n\t--publy-primary: #fdc700;\n}\n',
+		'src/components/ui/card.tsx':
+			'<div style={{ boxShadow: "var(--publy-shadow-card)" }} />',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+		checkTokenGuards: true,
+	});
+
+	const declaredHits = violations.filter(
+		(violation) => violation.ruleId === 'token-must-be-declared',
+	);
+
+	assert.equal(declaredHits.length, 1);
+	assert.equal(declaredHits[0].file, 'src/components/ui/card.tsx');
+	assert.match(declaredHits[0].source, /--publy-shadow-card/);
+});
+
+test('F3: token-must-be-declared does not flag a reference to a token declared in app.css', async () => {
+	const root = await makeFixture({
+		'src/styles/app.css': ':root {\n\t--publy-primary: #fdc700;\n}\n',
+		'src/components/ui/card.tsx':
+			'<div style={{ color: "var(--publy-primary)" }} />',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+		checkTokenGuards: true,
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'token-must-be-declared',
+		),
+		false,
+	);
+});
+
+test('F3: token guards are opt-in — off by default so an existing fixture without a full token layer is not misjudged', async () => {
+	const root = await makeFixture({
+		'src/styles/app.css': ':root {\n\t--publy-alert-critical-bg: #fee2e2;\n}\n',
+		'src/components/ui/card.tsx': 'var(--publy-undeclared-token)',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) =>
+				violation.ruleId === 'token-theme-parity' ||
+				violation.ruleId === 'token-must-be-declared',
+		),
+		false,
+	);
+});
+
+test('F4: no-important-foundation now scans src/components/ui/ and src/routes/, where r1 left a bg-red-500!-shaped regression invisible', async () => {
+	const root = await makeFixture({
+		'src/components/ui/new-primitive.tsx':
+			'<div className="bg-red-500!">Bad</div>',
+		'src/routes/authed/staff/example.tsx':
+			'<div className="bg-red-500!">Bad</div>',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	const hits = violations.filter(
+		(violation) => violation.ruleId === 'no-important-foundation',
+	);
+
+	assert.equal(hits.length, 2);
+	assert.equal(
+		hits.some(
+			(violation) => violation.file === 'src/components/ui/new-primitive.tsx',
+		),
+		true,
+	);
+	assert.equal(
+		hits.some(
+			(violation) => violation.file === 'src/routes/authed/staff/example.tsx',
+		),
+		true,
+	);
+});
+
+test('F4: no-important-foundation excludes test-file string fixtures under src/routes/ from the widened scan', async () => {
+	const root = await makeFixture({
+		'src/routes/authed/staff/example.test.tsx':
+			"target: { value: 'Not Valid!' },",
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-important-foundation',
+		),
+		false,
+	);
+});
+
+test('F4: the real src/components/ui/ pre-existing `!`-suffix usages (badge, tabs, tooltip) are recorded debt, not silent violations', async () => {
+	const violations = await scanFront2DesignSystem({ checkStaleDebt: true });
+
+	assert.deepEqual(
+		violations.filter(
+			(violation) =>
+				violation.ruleId === 'no-important-foundation' &&
+				violation.file.startsWith('src/components/ui/'),
+		),
+		[],
+	);
+	assert.deepEqual(
+		violations.filter((violation) => violation.ruleId === 'stale-guard-debt'),
+		[],
+	);
+});
+
+test('F4: no-raw-visual-color is multi-line-aware — a wrapped box-shadow with the property name and the colour literal on different lines still fails', async () => {
+	const root = await makeFixture({
+		'src/styles/app.css': [
+			'@layer components {',
+			'\t.publy-new-elevated-rule {',
+			'\t\tbox-shadow:',
+			'\t\t\t0 20px 25px -5px rgb(0 0 0 / 0.15),',
+			'\t\t\t0 8px 10px -6px rgb(0 0 0 / 0.15);',
+			'\t}',
+			'}',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	const colorViolations = violations.filter(
+		(violation) => violation.ruleId === 'no-raw-visual-color',
+	);
+
+	assert.equal(colorViolations.length, 1);
+	assert.match(colorViolations[0].source, /box-shadow/);
+	assert.match(colorViolations[0].source, /rgb\(0 0 0 \/ 0\.15\)/);
+});
+
+test('F4: no-raw-visual-color multi-line scanning still respects the :root/html.dark token-layer exemption', async () => {
+	const root = await makeFixture({
+		'src/styles/app.css': [
+			':root {',
+			'\t--publy-shadow-menu:',
+			'\t\t0 12px 32px rgba(24, 24, 27, 0.14),',
+			'\t\t0 2px 6px rgba(24, 24, 27, 0.06);',
+			'}',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some((violation) => violation.ruleId === 'no-raw-visual-color'),
+		false,
+	);
+});
+
+test('F4: the real .publy-selection-bar rule no longer hardcodes a raw rgb() shadow (moved to a token)', async () => {
+	const css = await readFile(
+		new URL('../src/styles/app.css', import.meta.url),
+		'utf8',
+	);
+
+	const ruleMatch = css.match(/\.publy-selection-bar\s*\{([^}]*)\}/);
+	assert.notEqual(ruleMatch, null, '.publy-selection-bar rule not found');
+	assert.doesNotMatch(ruleMatch[1], /rgb\(/);
+	assert.match(ruleMatch[1], /var\(--publy-shadow-selection-bar\)/);
+});
+
+test('F6: .publy-state-icon svg is declared exactly once (the un-layered copy); the layered duplicate is gone', async () => {
+	const css = await readFile(
+		new URL('../src/styles/app.css', import.meta.url),
+		'utf8',
+	);
+
+	const occurrences = css.match(/\.publy-state-icon svg \{/g) ?? [];
+	assert.equal(occurrences.length, 1);
+});
+
+test('F6: the tbody last-child border-bottom rule no longer has a dead layered `{ border-bottom: 0 }` duplicate, and its comment no longer claims a specificity/order win', async () => {
+	const css = await readFile(
+		new URL('../src/styles/app.css', import.meta.url),
+		'utf8',
+	);
+
+	assert.doesNotMatch(
+		css,
+		/tr:last-child \[data-slot='table-cell'\] \{\s*border-bottom: 0;/,
+	);
+	assert.doesNotMatch(
+		css,
+		/tr:last-child \[data-slot='table-selection-cell'\] \{\s*border-bottom: 0;/,
+	);
+	assert.doesNotMatch(css, /same specificity, declared later wins/);
+});
+
+test('F6: the auth panel, T6B, TEN-2 and P3 component rules moved into @layer components', async () => {
+	const css = await readFile(
+		new URL('../src/styles/app.css', import.meta.url),
+		'utf8',
+	);
+	const lines = css.split('\n');
+
+	// Tracks brace depth and, separately, the depth at which the innermost
+	// still-open `@layer components {` was opened — a selector is "layered"
+	// only if that innermost open layer's depth is still on the stack when
+	// the selector's line is reached (naive substring/regex counting can't
+	// tell a selector's own `{` from an unrelated one earlier in the file).
+	const layerOpenDepths = [];
+	let depth = 0;
+	const layeredAtLine = [];
+	for (const line of lines) {
+		layeredAtLine.push(layerOpenDepths.length > 0);
+		if (/@layer components\s*\{/.test(line)) {
+			layerOpenDepths.push(depth);
+		}
+		for (const char of line) {
+			if (char === '{') {
+				depth += 1;
+			} else if (char === '}') {
+				depth -= 1;
+				if (
+					layerOpenDepths.length > 0 &&
+					depth === layerOpenDepths[layerOpenDepths.length - 1]
+				) {
+					layerOpenDepths.pop();
+				}
+			}
+		}
+	}
+
+	for (const selector of [
+		'.publy-auth-brand-panel',
+		'.publy-profile-icon-tile {',
+		'.publy-profile-card-grid {',
+		"tr:last-child [data-slot='table-cell']",
+	]) {
+		const lineIndex = lines.findIndex((line) => line.includes(selector));
+		assert.ok(lineIndex > -1, `${selector} not found`);
+		assert.equal(
+			layeredAtLine[lineIndex],
+			true,
+			`${selector} expected to be inside @layer components`,
+		);
+	}
+
+	// Contrast case: the table foundation recipe cluster's documented
+	// conflict keeps it un-layered.
+	const chromeLineIndex = lines.findIndex((line) =>
+		line.includes('.btn-primary-chrome {'),
+	);
+	assert.ok(chromeLineIndex > -1);
+	assert.equal(layeredAtLine[chromeLineIndex], false);
+});
+
+test('F1: the --publy-z-* popup stacking scale keeps popups above the drawer/dialog surface, which is above the overlay backdrop', async () => {
+	const css = await readFile(
+		new URL('../src/styles/app.css', import.meta.url),
+		'utf8',
+	);
+
+	const valueOf = (tokenName) => {
+		const match = css.match(new RegExp(`${tokenName}:\\s*([0-9]+)\\s*;`));
+		assert.notEqual(match, null, `${tokenName} not declared in app.css`);
+		return Number(match[1]);
+	};
+
+	const overlay = valueOf('--publy-z-overlay');
+	const drawerSurface = valueOf('--publy-z-drawer-surface');
+	const menu = valueOf('--publy-z-menu');
+	const select = valueOf('--publy-z-select');
+
+	// This is the exact ordering bug r1 F16 shipped on paper: a Select/
+	// DropdownMenu opened from inside a Drawer must paint above the drawer's
+	// own opaque surface, so `menu`/`select` must outrank `drawer-surface`,
+	// which must in turn outrank the dimming `overlay` backdrop underneath it.
+	assert.ok(
+		overlay < drawerSurface,
+		`overlay (${overlay}) must be below drawer-surface (${drawerSurface})`,
+	);
+	assert.ok(
+		drawerSurface < menu,
+		`drawer-surface (${drawerSurface}) must be below menu (${menu})`,
+	);
+	assert.ok(
+		menu <= select,
+		`menu (${menu}) must not outrank select (${select})`,
+	);
+});
+
+test('F3: the real app.css token layer passes both guards with zero violations', async () => {
+	const violations = await scanFront2DesignSystem({ checkTokenGuards: true });
+
+	assert.deepEqual(
+		violations.filter(
+			(violation) =>
+				violation.ruleId === 'token-theme-parity' ||
+				violation.ruleId === 'token-must-be-declared',
+		),
+		[],
+	);
+});

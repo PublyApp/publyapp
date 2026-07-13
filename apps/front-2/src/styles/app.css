@@ -91,7 +91,6 @@
 	--publy-foreground-secondary: #3f3f46;
 	--publy-foreground-muted: #71717a;
 	--publy-foreground-subtle: #a1a1aa;
-	--publy-foreground-inverse: #ffffff;
 	--publy-disabled: #d4d4d8;
 	--publy-border: #e4e4e7;
 	--publy-border-strong: #d4d4d8;
@@ -127,8 +126,8 @@
 	/* WCAG >=4.5:1 with white initials (canvas ships brighter shades;
 	   accessibility invariant wins — see deviation register). Palette and
 	   foreground are both theme-invariant by design: the WCAG contract is
-	   validated against fixed white text, not the (theme-variant)
-	   --publy-foreground-inverse token, so it must not swap in dark mode. */
+	   validated against fixed white text, not a theme-variant foreground
+	   token, so it must not swap in dark mode. */
 	--publy-avatar-foreground: #ffffff;
 	--publy-avatar-1: #0f766e;
 	--publy-avatar-2: #6d28d9;
@@ -152,7 +151,6 @@
 	--publy-backdrop: rgba(24, 24, 27, 0.32);
 	--publy-overlay-surface: rgba(255, 255, 255, 0.97);
 	--publy-drawer-width: 460px;
-	--publy-drawer-width-filters: 400px;
 	--publy-danger-zone-ring: rgba(254, 205, 211, 0.9);
 	--publy-danger-zone-border: #ffe4e6;
 	--publy-danger-zone-heading: #be123c;
@@ -185,13 +183,13 @@
 	--publy-shell-panel-width: 272px;
 	--publy-shell-topbar-height: 64px;
 	/* Popup stacking scale (all portal to document.body, so paint order is
-	   z-index only): overlay backdrop < menu/select popups < drawer/dialog
-	   surface, so a Select/DropdownMenu opened from inside a Drawer paints
+	   z-index only): overlay backdrop < drawer/dialog surface < menu/select
+	   popups, so a Select/DropdownMenu opened from inside a Drawer paints
 	   above it instead of underneath. */
 	--publy-z-overlay: 70;
+	--publy-z-drawer-surface: 80;
 	--publy-z-menu: 100;
 	--publy-z-select: 110;
-	--publy-z-drawer-surface: 120;
 	--publy-shadow-ring: 0 0 0 1px var(--publy-border);
 	--publy-shadow-menu:
 		0 12px 32px rgba(24, 24, 27, 0.14), 0 2px 6px rgba(24, 24, 27, 0.06);
@@ -203,6 +201,8 @@
 		0 2px 2px rgba(255, 255, 255, 0.1) inset,
 		0 2px 2.67px -0.67px rgba(42, 42, 42, 0.1),
 		0 0.67px 0.67px rgba(42, 42, 42, 0.08);
+	--publy-shadow-selection-bar:
+		0 20px 25px -5px rgb(0 0 0 / 0.15), 0 8px 10px -6px rgb(0 0 0 / 0.15);
 	--publy-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
 	--publy-motion-fast: 120ms;
 	--accent: var(--publy-primary);
@@ -226,7 +226,6 @@ html.dark {
 	--publy-foreground-secondary: #d4d4d8;
 	--publy-foreground-muted: #a1a1aa;
 	--publy-foreground-subtle: #71717a;
-	--publy-foreground-inverse: #09090b;
 	--publy-disabled: #52525b;
 	--publy-table-header: #212124;
 	--publy-row-border: #27272a;
@@ -235,7 +234,29 @@ html.dark {
 	--publy-danger-soft: rgba(220, 38, 38, 0.16);
 	--publy-destructive-soft: rgba(220, 38, 38, 0.2);
 	--publy-destructive-soft-hover: rgba(220, 38, 38, 0.3);
-	--publy-overlay-surface: rgba(24, 24, 27, 0.97);
+	/* Raised (not base) surface, so a translucent overlay panel (drawer,
+	   confirm dialog, select/dropdown popup) reads as tonally elevated above
+	   the page instead of matching it 1:1 (--publy-background is also
+	   #18181b in dark, so an overlay-surface pinned to --publy-surface would
+	   be visually indistinguishable from the page it floats over). */
+	--publy-overlay-surface: rgba(31, 31, 35, 0.97);
+	--popover: var(--publy-surface-raised);
+	/* Elevation shadows re-based on black: the light-mode values (rgba tinted
+	   toward --publy-foreground, #18181b) composite to zero visible
+	   separation once the page itself is #18181b (see --publy-backdrop
+	   below for the same problem on the modal/drawer scrim). */
+	--publy-backdrop: rgba(0, 0, 0, 0.6);
+	--publy-shadow-menu:
+		0 12px 32px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.24);
+	--publy-shadow-modal: 0 24px 64px rgba(0, 0, 0, 0.5);
+	--publy-shadow-drawer: -16px 0 40px rgba(0, 0, 0, 0.35);
+	--publy-shadow-input: 0 1px 2px rgba(0, 0, 0, 0.3);
+	/* The selection-bar pill itself inverts per theme (light pill on this
+	   dark theme — see --publy-selection-bar-bg below), so its drop shadow
+	   needs more contrast than the light-mode value to read against a dark
+	   page. */
+	--publy-shadow-selection-bar:
+		0 20px 25px -5px rgb(0 0 0 / 0.45), 0 8px 10px -6px rgb(0 0 0 / 0.35);
 	--publy-danger-zone-ring: rgba(159, 18, 57, 0.55);
 	--publy-danger-zone-border: #4c0519;
 	--publy-danger-zone-heading: #fb7185;
@@ -1091,13 +1112,6 @@ html.dark {
 		color: var(--publy-primary);
 	}
 
-	/* Sizes the glyph itself off the cluster box, regardless of any size-*
-	   utility class a call site puts on its own icon element. */
-	.publy-state-icon svg {
-		width: 100%;
-		height: 100%;
-	}
-
 	.publy-state-technical-id {
 		@apply mt-0.5;
 		font-size: 11px;
@@ -1148,13 +1162,9 @@ html.dark {
 	.publy-drawer {
 		@apply fixed inset-y-0 right-0 flex flex-col overflow-hidden;
 		width: min(var(--publy-drawer-width), calc(100vw - 24px));
-		background: var(--publy-surface);
+		background: var(--publy-overlay-surface);
 		border-left: 1px solid var(--publy-border);
 		box-shadow: var(--publy-shadow-drawer);
-	}
-
-	.publy-drawer[data-size='filters'] {
-		width: min(var(--publy-drawer-width-filters), calc(100vw - 24px));
 	}
 
 	.publy-drawer-header {
@@ -1603,8 +1613,7 @@ html.dark {
 		color: var(--publy-selection-bar-fg);
 		border-color: var(--publy-selection-bar-border);
 		box-shadow:
-			0 20px 25px -5px rgb(0 0 0 / 0.15),
-			0 8px 10px -6px rgb(0 0 0 / 0.15),
+			var(--publy-shadow-selection-bar),
 			0 0 0 1px var(--publy-selection-bar-ring);
 	}
 
@@ -1737,8 +1746,13 @@ html.dark {
 		background: var(--publy-surface-hover);
 	}
 
+	/* F8: distinct from :hover's --publy-surface-hover (a selected row must
+	   stay visually identifiable while merely hovered, and a hovered row
+	   must not read as selected) — same tint the card grid uses for
+	   selection (FIX-4 owner ruling). Declared after :hover so a selected
+	   + hovered row shows the selected tone, not a blend of both. */
 	.publy-data-table tbody [data-slot='table-row'][data-state='selected'] {
-		background: var(--publy-surface-hover);
+		background: var(--publy-primary-soft);
 	}
 
 	.publy-data-table [data-slot='table-cell'] {
@@ -1770,10 +1784,6 @@ html.dark {
 		border-right: 1px solid var(--publy-row-border);
 	}
 
-	.publy-data-table tbody tr:last-child [data-slot='table-cell'] {
-		border-bottom: 0;
-	}
-
 	.publy-data-table [data-slot='table-selection-cell'] {
 		width: 40px;
 		min-width: 40px;
@@ -1783,10 +1793,6 @@ html.dark {
 		vertical-align: middle;
 		border-right: 1px solid var(--publy-border);
 		border-bottom: 1px solid var(--publy-row-border);
-	}
-
-	.publy-data-table tbody tr:last-child [data-slot='table-selection-cell'] {
-		border-bottom: 0;
 	}
 
 	.publy-data-table thead [data-slot='table-selection-cell'] {
@@ -1952,24 +1958,35 @@ html.dark {
 	box-shadow: var(--publy-shadow-chrome);
 }
 
-/* Auth split-brand dark panel + its product-shot placeholder slot. */
-.publy-auth-brand-panel {
-	background-color: var(--publy-auth-panel-bg);
-	background-image: var(--publy-auth-panel-glow);
+/* F6: everything below that has no documented utility-layer conflict lives
+   in @layer components (like the rest of the file's ordinary component
+   styles), so a caller's own className can still win over it through
+   normal Tailwind layer order. Only rules with a verified conflict (see
+   each one's own comment) stay outside a layer, interspersed below. */
+@layer components {
+	/* Auth split-brand dark panel + its product-shot placeholder slot. */
+	.publy-auth-brand-panel {
+		background-color: var(--publy-auth-panel-bg);
+		background-image: var(--publy-auth-panel-glow);
+	}
+
+	.publy-auth-shot {
+		background-color: var(--publy-auth-shot-bg);
+		border: 1px solid var(--publy-auth-shot-border);
+		background-image: repeating-linear-gradient(
+			135deg,
+			var(--publy-auth-shot-stripe) 0,
+			var(--publy-auth-shot-stripe) 1px,
+			transparent 1px,
+			transparent 9px
+		);
+	}
 }
 
-.publy-auth-shot {
-	background-color: var(--publy-auth-shot-bg);
-	border: 1px solid var(--publy-auth-shot-border);
-	background-image: repeating-linear-gradient(
-		135deg,
-		var(--publy-auth-shot-stripe) 0,
-		var(--publy-auth-shot-stripe) 1px,
-		transparent 1px,
-		transparent 9px
-	);
-}
-
+/* Overrides the page-size Select trigger's own default size/padding
+   utilities, same "must beat Tailwind utility-layer classes" shape as the
+   table foundation recipe cluster above — kept un-layered for the same
+   reason. */
 .publy-page-size-select [data-slot='select-trigger'] {
 	height: 28px;
 	min-height: 28px;
@@ -1982,323 +1999,312 @@ html.dark {
 	box-shadow: none;
 }
 
-/* ---- T6B — staff profiles & invitations ---- */
+@layer components {
+	/* ---- T6B — staff profiles & invitations ---- */
 
-.publy-profile-icon-tile {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	width: 32px;
-	height: 32px;
-	border-radius: 9px;
-	background: var(--publy-icon-tile-bg);
-	color: var(--publy-icon-tile-fg);
-	flex-shrink: 0;
-}
-
-.publy-profile-icon-tile i {
-	font-size: 17px;
-}
-
-.publy-profile-detail-tile {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	width: 56px;
-	height: 56px;
-	border-radius: 14px;
-	background: var(--publy-icon-tile-bg);
-	color: var(--publy-icon-tile-fg);
-	flex-shrink: 0;
-}
-
-.publy-profile-detail-tile i {
-	font-size: 26px;
-}
-
-.publy-profile-count-badge {
-	display: inline-flex;
-	align-items: center;
-	height: 20px;
-	padding: 0 8px;
-	border-radius: 8px;
-	border: 1px solid var(--publy-border);
-	font-size: 11px;
-	font-weight: 500;
-	color: var(--publy-foreground-secondary);
-}
-
-.publy-detail-card {
-	overflow: hidden;
-}
-
-.publy-detail-card-header {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	padding: 14px 18px;
-	border-bottom: 1px solid var(--publy-row-border);
-}
-
-.publy-detail-card-body {
-	display: flex;
-	flex-direction: column;
-	gap: 13px;
-	padding: 16px 18px;
-}
-
-.publy-type-detail-title {
-	margin: 0;
-	font-size: 22px;
-	font-weight: 600;
-	letter-spacing: -0.01em;
-}
-
-/* 2-col permission matrix (read-only, Geist Mono keys) */
-.publy-perm-matrix {
-	display: grid;
-	grid-template-columns: 1fr 1fr;
-}
-
-.publy-perm-matrix-col {
-	overflow-y: auto;
-}
-
-.publy-perm-matrix-col:first-child {
-	border-right: 1px solid var(--publy-row-border);
-}
-
-.publy-perm-group-header {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	padding: 10px 18px;
-	background: var(--publy-table-header);
-	border-bottom: 1px solid var(--publy-row-border);
-}
-
-.publy-perm-row {
-	display: flex;
-	align-items: center;
-	gap: 11px;
-	padding: 9px 18px;
-	border-bottom: 1px solid var(--publy-row-border);
-}
-
-.publy-perm-row:last-child {
-	border-bottom: 0;
-}
-
-.publy-perm-check {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	width: 15px;
-	height: 15px;
-	border-radius: 5px;
-	border: 1.5px solid var(--publy-border-strong);
-	background: var(--publy-surface);
-	flex-shrink: 0;
-}
-
-.publy-perm-check--granted {
-	background: var(--publy-primary);
-	border-color: var(--publy-primary);
-}
-
-.publy-perm-check i {
-	font-size: 10px;
-	color: var(--publy-primary-foreground);
-}
-
-.publy-perm-key {
-	min-width: 0;
-	font-size: 12px;
-	font-weight: 500;
-	font-family: 'Geist Mono', monospace;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-
-/* inline detail chip (h20, r8) — for Profile/Custom/Role tags */
-.publy-detail-chip {
-	display: inline-flex;
-	align-items: center;
-	height: 20px;
-	padding: 0 8px;
-	border-radius: 8px;
-	font-size: 11px;
-	font-weight: 500;
-	white-space: nowrap;
-}
-
-.publy-detail-chip--outline {
-	border: 1px solid var(--publy-border);
-	background: var(--publy-surface);
-	color: var(--publy-foreground);
-}
-
-.publy-detail-chip--amber {
-	border: 1px solid var(--publy-chip-pending-border);
-	background: var(--publy-chip-pending-bg);
-	color: var(--publy-chip-pending-text);
-}
-
-/* Icon-tile tone palette (F13): shared by the 32px staff-profiles table
-   tile and the 56px tenant-profile detail tile — both consume the same
-   --publy-icon-tile-bg/-fg pair, so one selector list serves both instead
-   of two byte-identical rule sets drifting apart. */
-.publy-profile-icon-tile[data-tone='0'],
-.publy-profile-detail-tile[data-tone='0'] {
-	--publy-icon-tile-bg: #f0f9ff;
-	--publy-icon-tile-fg: #0369a1;
-}
-
-.publy-profile-icon-tile[data-tone='1'],
-.publy-profile-detail-tile[data-tone='1'] {
-	--publy-icon-tile-bg: #ecfdf5;
-	--publy-icon-tile-fg: #047857;
-}
-
-.publy-profile-icon-tile[data-tone='2'],
-.publy-profile-detail-tile[data-tone='2'] {
-	--publy-icon-tile-bg: #fef2f2;
-	--publy-icon-tile-fg: #be123c;
-}
-
-.publy-profile-icon-tile[data-tone='3'],
-.publy-profile-detail-tile[data-tone='3'] {
-	--publy-icon-tile-bg: #fffbeb;
-	--publy-icon-tile-fg: #b45309;
-}
-
-.publy-profile-icon-tile[data-tone='4'],
-.publy-profile-detail-tile[data-tone='4'] {
-	--publy-icon-tile-bg: #f5f3ff;
-	--publy-icon-tile-fg: #7c3aed;
-}
-
-.publy-profile-icon-tile[data-tone='5'],
-.publy-profile-detail-tile[data-tone='5'] {
-	--publy-icon-tile-bg: #fdf2f8;
-	--publy-icon-tile-fg: #be185d;
-}
-
-.publy-profile-icon-tile[data-tone='6'],
-.publy-profile-detail-tile[data-tone='6'] {
-	--publy-icon-tile-bg: #f0fdf4;
-	--publy-icon-tile-fg: #15803d;
-}
-
-.publy-profile-icon-tile[data-tone='7'],
-.publy-profile-detail-tile[data-tone='7'] {
-	--publy-icon-tile-bg: #eff6ff;
-	--publy-icon-tile-fg: #1d4ed8;
-}
-
-/* Dark counterparts (F4): the tone-bearing text sits directly on
-   --publy-icon-tile-bg, so without an html.dark override every tone stays
-   the light pastel/dark-text pairing on a dark page. */
-html.dark .publy-profile-icon-tile[data-tone='0'],
-html.dark .publy-profile-detail-tile[data-tone='0'] {
-	--publy-icon-tile-bg: #082f49;
-	--publy-icon-tile-fg: #38bdf8;
-}
-
-html.dark .publy-profile-icon-tile[data-tone='1'],
-html.dark .publy-profile-detail-tile[data-tone='1'] {
-	--publy-icon-tile-bg: #052e22;
-	--publy-icon-tile-fg: #34d399;
-}
-
-html.dark .publy-profile-icon-tile[data-tone='2'],
-html.dark .publy-profile-detail-tile[data-tone='2'] {
-	--publy-icon-tile-bg: #4c0519;
-	--publy-icon-tile-fg: #fb7185;
-}
-
-html.dark .publy-profile-icon-tile[data-tone='3'],
-html.dark .publy-profile-detail-tile[data-tone='3'] {
-	--publy-icon-tile-bg: #451a03;
-	--publy-icon-tile-fg: #fbbf24;
-}
-
-html.dark .publy-profile-icon-tile[data-tone='4'],
-html.dark .publy-profile-detail-tile[data-tone='4'] {
-	--publy-icon-tile-bg: #2e1065;
-	--publy-icon-tile-fg: #a78bfa;
-}
-
-html.dark .publy-profile-icon-tile[data-tone='5'],
-html.dark .publy-profile-detail-tile[data-tone='5'] {
-	--publy-icon-tile-bg: #500724;
-	--publy-icon-tile-fg: #f472b6;
-}
-
-html.dark .publy-profile-icon-tile[data-tone='6'],
-html.dark .publy-profile-detail-tile[data-tone='6'] {
-	--publy-icon-tile-bg: #052e16;
-	--publy-icon-tile-fg: #4ade80;
-}
-
-html.dark .publy-profile-icon-tile[data-tone='7'],
-html.dark .publy-profile-detail-tile[data-tone='7'] {
-	--publy-icon-tile-bg: #172554;
-	--publy-icon-tile-fg: #60a5fa;
-}
-
-/* ---- TEN-2 — tenant detail Profiles/Invitations/Users tabs ---- */
-
-/* 40px r10 tile for the tenant-scoped profiles card grid (distinct sizing
-   from the 32px r9 staff-profiles table tile above; shares the same
-   data-tone palette). */
-.publy-profile-icon-tile--lg {
-	width: 40px;
-	height: 40px;
-	border-radius: 10px;
-}
-
-.publy-profile-icon-tile--lg svg {
-	width: 19px;
-	height: 19px;
-}
-
-/* Selected card in the tenant Profiles grid: an amber ring replaces the
-   neutral shadow-ring (FIX-4 owner ruling — checkbox alone was not a visible
-   selection affordance on the card surface). */
-.publy-profile-card--selected {
-	box-shadow: 0 0 0 2px var(--publy-primary);
-}
-
-.publy-profile-card-grid {
-	display: grid;
-	grid-template-columns: repeat(3, 1fr);
-	gap: 16px;
-}
-
-@media (max-width: 1023px) {
-	.publy-profile-card-grid {
-		grid-template-columns: repeat(2, 1fr);
+	.publy-profile-icon-tile {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		border-radius: 9px;
+		background: var(--publy-icon-tile-bg);
+		color: var(--publy-icon-tile-fg);
+		flex-shrink: 0;
 	}
-}
 
-@media (max-width: 767px) {
-	.publy-profile-card-grid {
-		grid-template-columns: 1fr;
+	.publy-profile-detail-tile {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 56px;
+		height: 56px;
+		border-radius: 14px;
+		background: var(--publy-icon-tile-bg);
+		color: var(--publy-icon-tile-fg);
+		flex-shrink: 0;
 	}
-}
 
-/* Flat cursor footer for the profile card grid — it sits directly on the
-   page background instead of being pinned inside a `.publy-table-card`. */
-.publy-data-table-footer--flat {
-	background: transparent;
-	border-top: none;
-	padding: 6px 0;
-}
+	.publy-profile-count-badge {
+		display: inline-flex;
+		align-items: center;
+		height: 20px;
+		padding: 0 8px;
+		border-radius: 8px;
+		border: 1px solid var(--publy-border);
+		font-size: 11px;
+		font-weight: 500;
+		color: var(--publy-foreground-secondary);
+	}
 
-.publy-perm-check svg {
-	color: var(--publy-primary-foreground);
+	.publy-detail-card {
+		overflow: hidden;
+	}
+
+	.publy-detail-card-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 14px 18px;
+		border-bottom: 1px solid var(--publy-row-border);
+	}
+
+	.publy-detail-card-body {
+		display: flex;
+		flex-direction: column;
+		gap: 13px;
+		padding: 16px 18px;
+	}
+
+	.publy-type-detail-title {
+		margin: 0;
+		font-size: 22px;
+		font-weight: 600;
+		letter-spacing: -0.01em;
+	}
+
+	/* 2-col permission matrix (read-only, Geist Mono keys) */
+	.publy-perm-matrix {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+	}
+
+	.publy-perm-matrix-col {
+		overflow-y: auto;
+	}
+
+	.publy-perm-matrix-col:first-child {
+		border-right: 1px solid var(--publy-row-border);
+	}
+
+	.publy-perm-group-header {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 10px 18px;
+		background: var(--publy-table-header);
+		border-bottom: 1px solid var(--publy-row-border);
+	}
+
+	.publy-perm-row {
+		display: flex;
+		align-items: center;
+		gap: 11px;
+		padding: 9px 18px;
+		border-bottom: 1px solid var(--publy-row-border);
+	}
+
+	.publy-perm-row:last-child {
+		border-bottom: 0;
+	}
+
+	.publy-perm-check {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 15px;
+		height: 15px;
+		border-radius: 5px;
+		border: 1.5px solid var(--publy-border-strong);
+		background: var(--publy-surface);
+		flex-shrink: 0;
+	}
+
+	.publy-perm-check--granted {
+		background: var(--publy-primary);
+		border-color: var(--publy-primary);
+	}
+
+	.publy-perm-key {
+		min-width: 0;
+		font-size: 12px;
+		font-weight: 500;
+		font-family: 'Geist Mono', monospace;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	/* inline detail chip (h20, r8) — for Profile/Custom/Role tags */
+	.publy-detail-chip {
+		display: inline-flex;
+		align-items: center;
+		height: 20px;
+		padding: 0 8px;
+		border-radius: 8px;
+		font-size: 11px;
+		font-weight: 500;
+		white-space: nowrap;
+	}
+
+	.publy-detail-chip--outline {
+		border: 1px solid var(--publy-border);
+		background: var(--publy-surface);
+		color: var(--publy-foreground);
+	}
+
+	.publy-detail-chip--amber {
+		border: 1px solid var(--publy-chip-pending-border);
+		background: var(--publy-chip-pending-bg);
+		color: var(--publy-chip-pending-text);
+	}
+
+	/* Icon-tile tone palette (F13): shared by the 32px staff-profiles table
+	tile and the 56px tenant-profile detail tile — both consume the same
+	--publy-icon-tile-bg/-fg pair, so one selector list serves both instead
+	of two byte-identical rule sets drifting apart. */
+	.publy-profile-icon-tile[data-tone='0'],
+	.publy-profile-detail-tile[data-tone='0'] {
+		--publy-icon-tile-bg: #f0f9ff;
+		--publy-icon-tile-fg: #0369a1;
+	}
+
+	.publy-profile-icon-tile[data-tone='1'],
+	.publy-profile-detail-tile[data-tone='1'] {
+		--publy-icon-tile-bg: #ecfdf5;
+		--publy-icon-tile-fg: #047857;
+	}
+
+	.publy-profile-icon-tile[data-tone='2'],
+	.publy-profile-detail-tile[data-tone='2'] {
+		--publy-icon-tile-bg: #fef2f2;
+		--publy-icon-tile-fg: #be123c;
+	}
+
+	.publy-profile-icon-tile[data-tone='3'],
+	.publy-profile-detail-tile[data-tone='3'] {
+		--publy-icon-tile-bg: #fffbeb;
+		--publy-icon-tile-fg: #b45309;
+	}
+
+	.publy-profile-icon-tile[data-tone='4'],
+	.publy-profile-detail-tile[data-tone='4'] {
+		--publy-icon-tile-bg: #f5f3ff;
+		--publy-icon-tile-fg: #7c3aed;
+	}
+
+	.publy-profile-icon-tile[data-tone='5'],
+	.publy-profile-detail-tile[data-tone='5'] {
+		--publy-icon-tile-bg: #fdf2f8;
+		--publy-icon-tile-fg: #be185d;
+	}
+
+	.publy-profile-icon-tile[data-tone='6'],
+	.publy-profile-detail-tile[data-tone='6'] {
+		--publy-icon-tile-bg: #f0fdf4;
+		--publy-icon-tile-fg: #15803d;
+	}
+
+	.publy-profile-icon-tile[data-tone='7'],
+	.publy-profile-detail-tile[data-tone='7'] {
+		--publy-icon-tile-bg: #eff6ff;
+		--publy-icon-tile-fg: #1d4ed8;
+	}
+
+	/* Dark counterparts (F4): the tone-bearing text sits directly on
+	--publy-icon-tile-bg, so without an html.dark override every tone stays
+	the light pastel/dark-text pairing on a dark page. */
+	html.dark .publy-profile-icon-tile[data-tone='0'],
+	html.dark .publy-profile-detail-tile[data-tone='0'] {
+		--publy-icon-tile-bg: #082f49;
+		--publy-icon-tile-fg: #38bdf8;
+	}
+
+	html.dark .publy-profile-icon-tile[data-tone='1'],
+	html.dark .publy-profile-detail-tile[data-tone='1'] {
+		--publy-icon-tile-bg: #052e22;
+		--publy-icon-tile-fg: #34d399;
+	}
+
+	html.dark .publy-profile-icon-tile[data-tone='2'],
+	html.dark .publy-profile-detail-tile[data-tone='2'] {
+		--publy-icon-tile-bg: #4c0519;
+		--publy-icon-tile-fg: #fb7185;
+	}
+
+	html.dark .publy-profile-icon-tile[data-tone='3'],
+	html.dark .publy-profile-detail-tile[data-tone='3'] {
+		--publy-icon-tile-bg: #451a03;
+		--publy-icon-tile-fg: #fbbf24;
+	}
+
+	html.dark .publy-profile-icon-tile[data-tone='4'],
+	html.dark .publy-profile-detail-tile[data-tone='4'] {
+		--publy-icon-tile-bg: #2e1065;
+		--publy-icon-tile-fg: #a78bfa;
+	}
+
+	html.dark .publy-profile-icon-tile[data-tone='5'],
+	html.dark .publy-profile-detail-tile[data-tone='5'] {
+		--publy-icon-tile-bg: #500724;
+		--publy-icon-tile-fg: #f472b6;
+	}
+
+	html.dark .publy-profile-icon-tile[data-tone='6'],
+	html.dark .publy-profile-detail-tile[data-tone='6'] {
+		--publy-icon-tile-bg: #052e16;
+		--publy-icon-tile-fg: #4ade80;
+	}
+
+	html.dark .publy-profile-icon-tile[data-tone='7'],
+	html.dark .publy-profile-detail-tile[data-tone='7'] {
+		--publy-icon-tile-bg: #172554;
+		--publy-icon-tile-fg: #60a5fa;
+	}
+
+	/* ---- TEN-2 — tenant detail Profiles/Invitations/Users tabs ---- */
+
+	/* 40px r10 tile for the tenant-scoped profiles card grid (distinct sizing
+	from the 32px r9 staff-profiles table tile above; shares the same
+	data-tone palette). */
+	.publy-profile-icon-tile--lg {
+		width: 40px;
+		height: 40px;
+		border-radius: 10px;
+	}
+
+	.publy-profile-icon-tile--lg svg {
+		width: 19px;
+		height: 19px;
+	}
+
+	/* Selected card in the tenant Profiles grid: an amber ring replaces the
+	neutral shadow-ring (FIX-4 owner ruling — checkbox alone was not a visible
+	selection affordance on the card surface). */
+	.publy-profile-card--selected {
+		box-shadow: 0 0 0 2px var(--publy-primary);
+	}
+
+	.publy-profile-card-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 16px;
+	}
+
+	@media (max-width: 1023px) {
+		.publy-profile-card-grid {
+			grid-template-columns: repeat(2, 1fr);
+		}
+	}
+
+	@media (max-width: 767px) {
+		.publy-profile-card-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+
+	/* Flat cursor footer for the profile card grid — it sits directly on the
+	page background instead of being pinned inside a `.publy-table-card`. */
+	.publy-data-table-footer--flat {
+		background: transparent;
+		border-top: none;
+		padding: 6px 0;
+	}
+
+	.publy-perm-check svg {
+		color: var(--publy-primary-foreground);
+	}
 }
 
 /* Theme switching must not animate: suppress every transition for one frame
@@ -2311,24 +2317,31 @@ html[data-theme-changing] * {
 
 /* ---- P3 ---- */
 
-/* Column geometry: colgroup-driven <col> widths only bite with a fixed
-   table layout. Columns without an explicit width (the data-table.tsx
-   `width` meta) absorb the remaining space, the fluid-column stand-in
-   for `1fr`. Opt-in via `data-fixed-columns` (set only when at least one
-   column declares a width meta) so tables with no width metas keep their
-   previous auto-layout rendering. */
-.publy-data-table[data-fixed-columns] {
-	table-layout: fixed;
-}
+@layer components {
+	/* Column geometry: colgroup-driven <col> widths only bite with a fixed
+	   table layout. Columns without an explicit width (the data-table.tsx
+	   `width` meta) absorb the remaining space, the fluid-column stand-in
+	   for `1fr`. Opt-in via `data-fixed-columns` (set only when at least one
+	   column declares a width meta) so tables with no width metas keep their
+	   previous auto-layout rendering. */
+	.publy-data-table[data-fixed-columns] {
+		table-layout: fixed;
+	}
 
-/* Owner decision 15b: the last row keeps its bottom border (every row gets
-   one), deliberately opposite to the gray-ui template default. These
-   selectors override app.css's earlier last-child border-strip rules by
-   source order (same specificity, declared later wins) without editing
-   the original rules. */
-.publy-data-table tbody tr:last-child [data-slot='table-cell'],
-.publy-data-table tbody tr:last-child [data-slot='table-selection-cell'] {
-	border-bottom: 1px solid var(--publy-row-border);
+	/* Owner decision 15b: the last row keeps its bottom border (every row
+	   gets one), deliberately opposite to the gray-ui template default. The
+	   two rules this used to also override (`tbody tr:last-child
+	   [data-slot='table-cell'/'table-selection-cell'] { border-bottom: 0 }`)
+	   were dead code — deleted (F6) rather than kept as a stale "explains
+	   the win" pairing, since with them gone this selector's higher
+	   specificity against the base `[data-slot='table-cell']` rule above is
+	   what applies the border, cascade-layer-order independent (F6: this
+	   rule needs no un-layered escape hatch, unlike the table foundation
+	   recipe cluster earlier in the file). */
+	.publy-data-table tbody tr:last-child [data-slot='table-cell'],
+	.publy-data-table tbody tr:last-child [data-slot='table-selection-cell'] {
+		border-bottom: 1px solid var(--publy-row-border);
+	}
 }
 
 /* R3-1: the state/error icon glyph must fill its 48px cluster box (same

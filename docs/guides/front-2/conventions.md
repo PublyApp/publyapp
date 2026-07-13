@@ -165,7 +165,7 @@ new choice, decide in this spirit and add the rule here.
 
 ### Elevation & borders
 - Cards and sections are outlined by a **1px box-shadow ring**, never a drop-shadow/elevation.
-  Use `box-shadow: var(--publy-shadow-ring)` (or `--publy-shadow-card`); do not add `shadow-md`,
+  Use `box-shadow: var(--publy-shadow-ring)`; do not add `shadow-md`,
   `shadow-lg`, or ad-hoc elevation. Flat surfaces, crisp hairlines.
 - The ring is a **solid 1px hairline at `--publy-border`** (full opacity), not a faint low-opacity
   wash. Keep it a box-shadow ring, **not** a real CSS `border` — the ring adds no layout width, so

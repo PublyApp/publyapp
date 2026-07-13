@@ -1,5 +1,6 @@
 import type { UseQueryResult } from '@tanstack/react-query';
 import { type ComponentType, isValidElement, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { checkIfEmptyQueryData } from '@org/shared-ts/lib/query/query-state';
 
@@ -34,7 +35,10 @@ type Props<TData = unknown, TError = Error> = {
 	forceRender?: 'loading' | 'error' | 'empty' | 'data';
 };
 
-const renderLoading = (LoadingSlot?: Props['LoadingSlot']) => {
+const renderLoading = (
+	LoadingSlot: Props['LoadingSlot'],
+	loadingLabel: string,
+) => {
 	if (typeof LoadingSlot === 'function') {
 		const Slot = LoadingSlot;
 		return <Slot />;
@@ -42,13 +46,21 @@ const renderLoading = (LoadingSlot?: Props['LoadingSlot']) => {
 	if (isValidElement(LoadingSlot)) {
 		return LoadingSlot;
 	}
-	return LoadingSlot ?? <LoadingSpinner {...defaultLoadingProps} />;
+	return (
+		LoadingSlot ?? (
+			<LoadingSpinner {...defaultLoadingProps} label={loadingLabel} />
+		)
+	);
 };
 
-const LoadingSpinner = ({ size = 'sm', className }: LoadingSpinnerProps) => (
+const LoadingSpinner = ({
+	size = 'sm',
+	className,
+	label,
+}: LoadingSpinnerProps & { label: string }) => (
 	<span
 		role="status"
-		aria-label="Loading"
+		aria-label={label}
 		className={`${LOADING_SPINNER_SIZE_CLASS[size]} animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground ${
 			className ?? ''
 		}`}
@@ -58,7 +70,8 @@ const LoadingSpinner = ({ size = 'sm', className }: LoadingSpinnerProps) => (
 const renderError = <TData, TError>(
 	error: unknown,
 	query: UseQueryResult<TData, TError>,
-	ErrorSlot?: Props<TData, TError>['ErrorSlot'],
+	ErrorSlot: Props<TData, TError>['ErrorSlot'],
+	errorMessage: string,
 ) => {
 	if (typeof ErrorSlot === 'function') {
 		const Slot = ErrorSlot;
@@ -67,7 +80,7 @@ const renderError = <TData, TError>(
 	if (isValidElement(ErrorSlot)) {
 		return ErrorSlot;
 	}
-	return <span>An error occurred while loading data.</span>;
+	return <span>{errorMessage}</span>;
 };
 
 const renderEmpty = (EmptySlot?: Props['EmptySlot']) => {
@@ -108,15 +121,18 @@ const QueryDisplay = <TData = unknown, TError = Error>({
 	forceRender,
 	children,
 }: Props<TData, TError>) => {
+	const { t } = useTranslation('common');
+
 	if (forceRender) {
 		switch (forceRender) {
 			case 'loading':
-				return renderLoading(LoadingSlot);
+				return renderLoading(LoadingSlot, t('loading'));
 			case 'error':
 				return renderError(
 					query.error ?? new Error('forced error'),
 					query,
 					ErrorSlot,
+					t('query-display-error-default'),
 				);
 			case 'empty':
 				return renderEmpty(EmptySlot);
@@ -133,11 +149,16 @@ const QueryDisplay = <TData = unknown, TError = Error>({
 	}
 
 	if (showLoading) {
-		return renderLoading(LoadingSlot);
+		return renderLoading(LoadingSlot, t('loading'));
 	}
 
 	if (query.isError) {
-		return renderError(query.error, query, ErrorSlot);
+		return renderError(
+			query.error,
+			query,
+			ErrorSlot,
+			t('query-display-error-default'),
+		);
 	}
 
 	if (checkIfEmptyQueryData(query)) {

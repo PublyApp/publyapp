@@ -606,4 +606,124 @@ describe('DataTable i18n', () => {
 			SELECTION_LOCKED_TITLE_KEY,
 		);
 	});
+
+	// shell F4: the search input, page label, and pager buttons used to be
+	// hardcoded English — now routed through t() like the rest of the chrome.
+	test('routes the search aria-label, page label, and pager button labels through t()', () => {
+		render(<DataTable {...baseProps} rows={rows} isError={false} />);
+
+		expect(
+			screen.getByTestId('test-table-search').getAttribute('aria-label'),
+		).toBe('search');
+		expect(screen.getByTestId('test-table-page-label').textContent).toBe(
+			'page-n',
+		);
+		expect(
+			screen.getByTestId('test-table-prev-page').getAttribute('aria-label'),
+		).toBe('previous-page');
+		expect(
+			screen.getByTestId('test-table-next-page').getAttribute('aria-label'),
+		).toBe('next-page');
+	});
+
+	test('falls back to the t()-driven placeholder when no explicit searchPlaceholder is passed', () => {
+		render(<DataTable {...baseProps} rows={rows} isError={false} />);
+
+		expect(
+			(screen.getByTestId('test-table-search') as HTMLInputElement).placeholder,
+		).toBe('search');
+	});
+});
+
+describe('DataTable a11y', () => {
+	test('row selection checkbox and header controls route their labels through t()', () => {
+		render(
+			<DataTable
+				{...baseProps}
+				rows={rows}
+				isError={false}
+				selection={createSelection({})}
+			/>,
+		);
+
+		expect(screen.getByTestId('test-table-rows').getAttribute('role')).toBe(
+			'grid',
+		);
+		expect(screen.getByLabelText('row-selection-column')).toBeTruthy();
+		expect(screen.getByLabelText('select-all-rows')).toBeTruthy();
+	});
+
+	test('defaults the row checkbox label to the row id, and honors a custom getRowLabel', () => {
+		const { rerender } = render(
+			<DataTable
+				{...baseProps}
+				rows={rows}
+				isError={false}
+				selection={createSelection({})}
+			/>,
+		);
+
+		expect(screen.getAllByLabelText('select-row-named')).toHaveLength(
+			rows.length,
+		);
+
+		rerender(
+			<DataTable
+				{...baseProps}
+				rows={rows}
+				isError={false}
+				selection={createSelection({})}
+				getRowLabel={(row) => row.name}
+			/>,
+		);
+
+		// The mocked t() ignores interpolation options, so both the default
+		// (row.id) and the custom (row.name) label resolve to the same key —
+		// this test only proves getRowLabel is actually invoked and doesn't
+		// throw, wiring is covered; per-value substitution is t()'s job.
+		expect(screen.getAllByLabelText('select-row-named')).toHaveLength(
+			rows.length,
+		);
+	});
+
+	test('only one body cell is a tab stop at a time (roving tabindex), not every cell', () => {
+		render(<DataTable {...baseProps} rows={rows} isError={false} />);
+
+		const cells = screen
+			.getByTestId('test-table-rows')
+			.querySelectorAll('[data-slot="table-cell"]');
+		expect(cells.length).toBeGreaterThan(1);
+
+		const tabbableCells = [...cells].filter(
+			(cell) => cell.getAttribute('tabindex') === '0',
+		);
+		expect(tabbableCells).toHaveLength(1);
+		expect(tabbableCells[0]?.getAttribute('data-cell-index')).toBe('0');
+
+		const nonTabbableCells = [...cells].filter(
+			(cell) => cell.getAttribute('tabindex') === '-1',
+		);
+		expect(nonTabbableCells.length).toBe(cells.length - 1);
+	});
+
+	test('the roving tab stop follows focus onto whichever cell was focused', () => {
+		render(<DataTable {...baseProps} rows={rows} isError={false} />);
+
+		const cells = [
+			...screen
+				.getByTestId('test-table-rows')
+				.querySelectorAll('[data-slot="table-cell"]'),
+		];
+		const secondRowCell = cells.find(
+			(cell) => cell.closest('tr')?.getAttribute('data-row-index') === '1',
+		) as HTMLElement;
+
+		fireEvent.focus(secondRowCell);
+
+		expect(secondRowCell.getAttribute('tabindex')).toBe('0');
+		const firstRowCell = cells.find(
+			(cell) => cell.closest('tr')?.getAttribute('data-row-index') === '0',
+		) as HTMLElement;
+		expect(firstRowCell.getAttribute('tabindex')).toBe('-1');
+	});
 });

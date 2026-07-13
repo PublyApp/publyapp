@@ -26,7 +26,7 @@ const renderDrawer = ({
 	onOpenChange = noop,
 }: {
 	isOpen?: boolean;
-	size?: 'default' | 'filters';
+	size?: 'default';
 	onOpenChange?: (isOpen: boolean) => void;
 } = {}) =>
 	render(
@@ -69,12 +69,19 @@ describe('Drawer', () => {
 		expect(screen.getByText('Send invitations to teammates.')).toBeTruthy();
 	});
 
-	test('exposes the filters size on the drawer surface', () => {
-		renderDrawer({ size: 'filters' });
+	// F1: the drawer surface must outrank a Select/DropdownMenu opened from
+	// inside it, so it consumes --publy-z-drawer-surface (< --publy-z-menu),
+	// not the old hardcoded z-[71].
+	test('the drawer surface and backdrop use the shared z-index tokens, not hardcoded magic numbers', () => {
+		renderDrawer();
 
-		expect(screen.getByRole('dialog').getAttribute('data-size')).toBe(
-			'filters',
-		);
+		const drawer = screen.getByRole('dialog');
+		expect(drawer.className).toContain('z-(--publy-z-drawer-surface)');
+		expect(drawer.className).not.toMatch(/z-\[\d+\]/);
+
+		const backdrop = document.querySelector('.publy-overlay-backdrop');
+		expect(backdrop?.className).toContain('z-(--publy-z-overlay)');
+		expect(backdrop?.className).not.toMatch(/z-\[\d+\]/);
 	});
 
 	test('header close button requests dismissal through onOpenChange', () => {
