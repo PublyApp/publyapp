@@ -1,5 +1,14 @@
 import { expect, test } from '@playwright/test';
 
+// The `chromium` project supplies a pre-authenticated staff-admin
+// `storageState` (playwright.config.ts, review-r1-tests.md F29) so most specs
+// can skip a real form login. Every test in this file specifically asserts
+// what an UNAUTHENTICATED visitor sees on an auth screen — with that
+// storageState in place, `/login` (and friends) would redirect an
+// already-authenticated visitor straight to their workspace instead of
+// rendering the auth form, so this file must start from a clean context.
+test.use({ storageState: { cookies: [], origins: [] } });
+
 // Every auth screen must render the standalone split-brand auth surface
 // (data-testid="auth-layout"), never the marketing/authed app shell — a
 // classifier that falls through to 'marketing' for anything but /login would

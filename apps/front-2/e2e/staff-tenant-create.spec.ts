@@ -140,7 +140,7 @@ test.describe('staff create-tenant workspace slug and owners section', () => {
 		).toBeDisabled();
 	});
 
-	test('the Download template link and Require SSO switch (disabled) are present in the members/setup sections', async ({
+	test('the Download template action and Require SSO switch (disabled) are present in the members/setup sections', async ({
 		page,
 	}) => {
 		await loginAsStaffAdmin(page);
@@ -150,7 +150,7 @@ test.describe('staff create-tenant workspace slug and owners section', () => {
 		await expect(page.getByTestId('staff-tenant-create-page')).toBeVisible();
 
 		await expect(
-			page.getByRole('link', { name: 'Download template' }),
+			page.getByRole('button', { name: 'Download template' }),
 		).toBeVisible();
 		await expect(
 			page.getByRole('switch', { name: 'Require SSO' }),

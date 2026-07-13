@@ -44,16 +44,28 @@ test('toggling the theme in one tab flips it in every other tab', async ({
 		.not.toBe(otherTabHtmlClassBefore);
 });
 
-test('logging in on one parked /login tab moves it into the workspace', async ({
-	page,
-}) => {
-	const parkedTab = await page.context().newPage();
-	await parkedTab.goto('/login');
-	await expect(parkedTab.getByTestId('auth-login-form')).toBeVisible();
+test.describe('logging in on a parked tab', () => {
+	// The `chromium` project supplies a pre-authenticated staff-admin
+	// `storageState` (playwright.config.ts, review-r1-tests.md F29) so the
+	// other tests in this file can skip a real form login. This test's whole
+	// premise is a tab that starts logged OUT and only becomes authenticated
+	// via the OTHER tab's login — with that storageState in place, the
+	// parked tab's `/login` visit would already carry a valid session and
+	// redirect straight to the workspace instead of showing the login form,
+	// so it needs its own clean context.
+	test.use({ storageState: { cookies: [], origins: [] } });
 
-	await loginAsStaffAdmin(page);
+	test('logging in on one parked /login tab moves it into the workspace', async ({
+		page,
+	}) => {
+		const parkedTab = await page.context().newPage();
+		await parkedTab.goto('/login');
+		await expect(parkedTab.getByTestId('auth-login-form')).toBeVisible();
 
-	await expect(parkedTab).toHaveURL(/\/staff(?:\/staff-users)?(?:[?#].*)?$/, {
-		timeout: 10_000,
+		await loginAsStaffAdmin(page);
+
+		await expect(parkedTab).toHaveURL(/\/staff(?:\/staff-users)?(?:[?#].*)?$/, {
+			timeout: 10_000,
+		});
 	});
 });

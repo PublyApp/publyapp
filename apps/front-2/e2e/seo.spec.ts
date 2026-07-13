@@ -1,5 +1,15 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
 
+// The `chromium` project supplies a pre-authenticated staff-admin
+// `storageState` (playwright.config.ts, review-r1-tests.md F29), which the
+// `request` fixture inherits too. With that session cookie attached, a raw
+// GET to `/login` gets redirected server-side (an already-authenticated
+// visitor is bounced to their workspace before the SEO markup is injected —
+// see `injectSeoMarkup`'s `isIndexableSeoRoute`, which requires a 2xx
+// status), so the description/OG assertions below would silently see no
+// meta tags. Every route this file inspects is meant to be read anonymously.
+test.use({ storageState: { cookies: [], origins: [] } });
+
 const BASE_URL = 'https://front-2.localhost:8443';
 
 const extractAttribute = (tag: string, attribute: string): string | null => {

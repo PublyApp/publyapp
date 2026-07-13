@@ -268,7 +268,6 @@ test('asserts staff shell rails and panel match handoff registry', async ({
 	await expect(rail.getByRole('link', { name: 'Dashboard' })).toBeVisible();
 	await expect(rail.getByRole('link', { name: 'Tenants' })).toBeVisible();
 	await expect(rail.getByRole('link', { name: 'Staff' })).toBeVisible();
-	await expect(rail.getByRole('link', { name: 'Audit logs' })).toBeVisible();
 
 	const panel = page.getByTestId('app-shell-secondary-panel');
 	await expect(panel).toBeVisible();

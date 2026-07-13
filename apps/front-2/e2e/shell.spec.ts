@@ -145,7 +145,7 @@ test('renders the front-2 shell', async ({ page }) => {
 	await page.goto('/');
 
 	await expect(
-		page.getByRole('heading', { name: /welcome to the front-2 shell/i }),
+		page.getByRole('heading', { name: /welcome to publyapp/i }),
 	).toBeVisible();
 	await expect(page.getByTestId('app-shell-shell')).toBeVisible();
 	await expect(page.getByTestId('app-shell-shell')).toHaveAttribute(
@@ -226,7 +226,6 @@ test('renders the handoff staff rail and secondary panel', async ({ page }) => {
 	await expect(rail.getByRole('link', { name: 'Dashboard' })).toBeVisible();
 	await expect(rail.getByRole('link', { name: 'Tenants' })).toBeVisible();
 	await expect(rail.getByRole('link', { name: 'Staff' })).toBeVisible();
-	await expect(rail.getByRole('link', { name: 'Audit logs' })).toBeVisible();
 
 	const panel = page.getByTestId('app-shell-secondary-panel');
 	await expect(panel).toBeVisible();

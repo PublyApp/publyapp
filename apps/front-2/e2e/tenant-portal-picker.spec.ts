@@ -6,6 +6,14 @@ import {
 	SINGLE_TENANT_USER_CREDENTIALS,
 } from './helpers/login';
 
+// The `chromium` project supplies a pre-authenticated staff-admin
+// `storageState` (playwright.config.ts, review-r1-tests.md F29). Every test
+// here calls `loginAsTenantUser`, which does a real form login starting from
+// `/login` — with the staff-admin storageState in place, that navigation
+// would redirect away before the login form ever renders, so this file must
+// start from a clean, unauthenticated context.
+test.use({ storageState: { cookies: [], origins: [] } });
+
 // Authored per AUTH-4 — NOT run as part of this packet (no docker/playwright
 // available to the executor). See SeedConstants.cs / UserAccountSeeder.cs:
 // user-acme@example.com is single-tenant (Acme only, Active); alice@example.com

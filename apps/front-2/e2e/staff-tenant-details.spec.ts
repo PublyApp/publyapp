@@ -459,8 +459,8 @@ test.describe('staff tenant Profiles/Invitations/Users tab bodies', () => {
 
 		// Honest tab-title count from the tenant-details query (pendingInvitationsCount).
 		await expect(
-			page.getByRole('heading', { name: /Pending invitations/ }),
-		).toContainText('4');
+			page.getByRole('heading', { name: /Invitations/ }),
+		).toContainText('4 pending');
 	});
 
 	test('Users tab renders the toolbar, the table, the cursor footer, and a checkbox selection column', async ({
@@ -676,7 +676,7 @@ test.describe('staff tenant invite-user drawer', () => {
 		await expect(drawer).toBeVisible();
 
 		await drawer.getByRole('button', { name: 'Invite people' }).click();
-		await expect(page.getByText('Invalid email address.')).toBeVisible();
+		await expect(page.getByText('Invalid email address')).toBeVisible();
 
 		await drawer
 			.getByRole('textbox', { name: 'Email' })
