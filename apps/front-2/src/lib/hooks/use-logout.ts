@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useServerFn } from '@tanstack/react-start';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { clearSession } from '~/lib/server/session-actions';
 import {
 	AUTH_SYNC_CHANNEL,
@@ -39,20 +39,35 @@ const buildLoginSearch = (redirectCause: LogoutOptions['redirectCause']) => {
 	};
 };
 
+/**
+ * Module-level, not a per-hook ref: the same 401 can independently reach
+ * `logout()` from more than one mounted `useLogout()` instance at once — e.g.
+ * `router.tsx`'s `QueryCache`/`MutationCache` backstop (via `__root.tsx`'s
+ * `SessionInvalidationListener`) and `authed/layout.tsx`'s `<LogoutRedirect />`
+ * both react to the same authed-surface 401. A `useRef` guard only dedupes
+ * re-entrancy within ONE hook instance, so the second instance would still
+ * run the full clear+broadcast+navigate sequence a second time (observed as
+ * `/auth/redirect-code` firing twice). Sharing this flag across every
+ * instance — the same pattern as `session-invalidation-channel.ts`'s shared
+ * listener set — makes any concurrent second call a true no-op. Reset once
+ * the in-flight attempt settles (success or failure) so a later, unrelated
+ * logout (e.g. after logging back in) is never permanently blocked.
+ */
+let logoutInFlight = false;
+
 export const useLogout = () => {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const clear = useServerFn(clearSession);
 	const [isLoggingOut, setIsLoggingOut] = useState(false);
-	const isInFlightRef = useRef(false);
 
 	const logout = useCallback(
 		(options?: LogoutOptions) => {
-			if (isInFlightRef.current) {
+			if (logoutInFlight) {
 				return;
 			}
 
-			isInFlightRef.current = true;
+			logoutInFlight = true;
 			setIsLoggingOut(true);
 
 			queryClient.clear();
@@ -80,8 +95,10 @@ export const useLogout = () => {
 					// bounce the user back to their workspace, making "Log out"
 					// look like it silently did nothing.
 					logger.error('logout: failed to clear the server session', error);
-					isInFlightRef.current = false;
 					setIsLoggingOut(false);
+				})
+				.finally(() => {
+					logoutInFlight = false;
 				});
 		},
 		[clear, navigate, queryClient],

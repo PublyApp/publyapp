@@ -138,6 +138,60 @@ describe('useLogout', () => {
 		await waitFor(() => expect(mocks.navigate).toHaveBeenCalledTimes(1));
 	});
 
+	test('dedupes concurrent logout calls from two independent hook instances (e.g. the QueryCache backstop and LogoutRedirect reacting to the same 401)', async () => {
+		let resolveClear: () => void = () => {};
+		mocks.clear.mockReturnValue(
+			new Promise<void>((resolve) => {
+				resolveClear = resolve;
+			}),
+		);
+
+		const first = renderHook(() => useLogout());
+		const second = renderHook(() => useLogout());
+
+		act(() => {
+			first.result.current.logout({ redirectCause: 'invalid_session' });
+		});
+		act(() => {
+			second.result.current.logout({ redirectCause: 'invalid_session' });
+		});
+
+		expect(mocks.queryClientClear).toHaveBeenCalledTimes(1);
+		expect(mocks.clear).toHaveBeenCalledTimes(1);
+
+		resolveClear();
+		await waitFor(() => expect(mocks.navigate).toHaveBeenCalledTimes(1));
+
+		expect(mocks.postBroadcast).toHaveBeenCalledTimes(1);
+		expect(mocks.navigate).toHaveBeenCalledWith({
+			to: '/login',
+			search: { rc: 'invalid_session' },
+			replace: true,
+		});
+
+		first.unmount();
+		second.unmount();
+	});
+
+	test('allows a fresh logout after a prior deduped attempt settles (e.g. logging back in and out again)', async () => {
+		const { result } = renderHook(() => useLogout());
+
+		act(() => {
+			result.current.logout();
+		});
+		await waitFor(() => expect(mocks.navigate).toHaveBeenCalledTimes(1));
+
+		vi.clearAllMocks();
+		mocks.clear.mockResolvedValue(undefined);
+
+		act(() => {
+			result.current.logout();
+		});
+		await waitFor(() => expect(mocks.navigate).toHaveBeenCalledTimes(1));
+
+		expect(mocks.clear).toHaveBeenCalledTimes(1);
+	});
+
 	test('does not navigate when the server-side session clear fails, and allows retrying', async () => {
 		mocks.clear.mockRejectedValueOnce(new Error('network error'));
 
