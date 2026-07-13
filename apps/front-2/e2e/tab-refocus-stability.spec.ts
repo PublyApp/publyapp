@@ -67,9 +67,19 @@ test.describe('tab-refocus stability (BUG-1)', () => {
 		await loginAsStaffAdmin(page);
 		await page.goto('/staff/tenants');
 		await expect(page.getByTestId('staff-tenants-table-rows')).toBeVisible();
-		const firstRowLink = page.getByRole('row').nth(1).getByRole('link').first();
-		await firstRowLink.click().catch(() => {});
-		await page.waitForTimeout(300);
+		// Target the seeded Acme tenant (it always has users) instead of the
+		// first row: real create-flow specs running earlier in the suite add
+		// fresh user-less tenants that can occupy row 1, whose users tab then
+		// renders the empty state and never shows the rows container.
+		await page
+			.getByTestId('staff-tenants-table-search')
+			.fill('Acme Corporation');
+		const acmeLink = page
+			.getByRole('link', { name: 'Acme Corporation' })
+			.first();
+		await expect(acmeLink).toBeVisible();
+		await acmeLink.click();
+		await page.waitForURL(/\/staff\/tenants\/[0-9a-f-]{36}$/);
 		const tenantPathname = new URL(page.url()).pathname;
 		await page.goto(`${tenantPathname}/users`);
 		await expect(page.getByTestId('staff-tenant-users-table-rows')).toBeVisible(
