@@ -139,7 +139,7 @@ public partial class FindTenantUsersAsStaffQueryValidator
 	];
 
 	private static readonly HashSet<string> AllowedLevelSet =
-		new(AllowedLevels.Select(s => s.ToLowerInvariant()), StringComparer.OrdinalIgnoreCase);
+		new(AllowedLevels, StringComparer.OrdinalIgnoreCase);
 
 	private static readonly string AllowedLevelsDisplay =
 		string.Join(", ", AllowedLevels.Select(s => s.ToLowerInvariant()).Order());

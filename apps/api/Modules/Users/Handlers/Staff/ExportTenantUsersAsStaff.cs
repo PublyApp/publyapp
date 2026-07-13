@@ -267,33 +267,42 @@ public sealed class ExportTenantUsersAsStaff {
 			cancellationToken
 		);
 
-		await WriteCsvAsync(httpContext.Response.Body, items, cancellationToken);
+		await WriteCsvAsync(httpContext, items, cancellationToken);
 
 		return Results.Empty;
 	}
 
 	private static async Task WriteCsvAsync(
-		Stream stream,
+		HttpContext httpContext,
 		IAsyncEnumerable<TenantUserExportItem> items,
 		CancellationToken cancellationToken
 	) {
-		await using var writer = new StreamWriter(stream, Encoding.UTF8, leaveOpen: true);
+		await using var writer = new StreamWriter(httpContext.Response.Body, Encoding.UTF8, leaveOpen: true);
 
-		await writer.WriteLineAsync("Email,FirstName,LastName,Level,Status,CreatedAt");
+		try {
+			await writer.WriteLineAsync("Email,FirstName,LastName,Level,Status,CreatedAt");
 
-		await foreach (var item in items.WithCancellation(cancellationToken)) {
-			var line = string.Join(",",
-				EscapeCsv(item.Email),
-				EscapeCsv(item.FirstName ?? ""),
-				EscapeCsv(item.LastName ?? ""),
-				EscapeCsv(item.Level),
-				EscapeCsv(item.Status),
-				EscapeCsv(item.CreatedAt.ToString("o"))
-			);
-			await writer.WriteLineAsync(line);
+			await foreach (var item in items.WithCancellation(cancellationToken)) {
+				var line = string.Join(",",
+					EscapeCsv(item.Email),
+					EscapeCsv(item.FirstName ?? ""),
+					EscapeCsv(item.LastName ?? ""),
+					EscapeCsv(item.Level),
+					EscapeCsv(item.Status),
+					EscapeCsv(item.CreatedAt.ToString("o"))
+				);
+				await writer.WriteLineAsync(line);
+			}
+
+			await writer.FlushAsync(cancellationToken);
+		} catch (Exception) when (!cancellationToken.IsCancellationRequested) {
+			// The response may already be partially written and committed, so the
+			// global exception handler cannot turn this into a problem+json body —
+			// abort the connection so the client observes a failed transfer instead
+			// of a truncated CSV that looks like a complete, successful export.
+			httpContext.Abort();
+			throw;
 		}
-
-		await writer.FlushAsync(cancellationToken);
 	}
 
 	private static string EscapeCsv(string value) {

@@ -294,6 +294,55 @@ public sealed class UpdateTenantAsStaffSpec
 
 	[Fact]
 	public async Task
+	ItShouldNotDeleteTheLogoBlobWhenAnotherTenantStillReferencesIt() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tenantA =
+			await SeedTenantAsync("Tenant Logo Shared A");
+		var tenantB =
+			await SeedTenantAsync("Tenant Logo Shared B");
+		var uploaded = await UploadPngLogoAsync(staffToken);
+
+		using var setAResponse =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				tenantA.TenantId,
+				new { logoUrl = uploaded.Url }
+			);
+		setAResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		using var setBResponse =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				tenantB.TenantId,
+				new { logoUrl = uploaded.Url }
+			);
+		setBResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		using var replaceAResponse =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				tenantA.TenantId,
+				new { logoUrl = "https://cdn.example.com/replacement-logo.png" }
+			);
+		replaceAResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		File.Exists(GetStorageFilePath(uploaded.Path)).Should().BeTrue(
+			"the blob must survive while tenant B's logoUrl still points at it"
+		);
+
+		using var fileResponse = await _http.GetAsync(uploaded.Url);
+		fileResponse.StatusCode.Should().Be(
+			HttpStatusCode.OK,
+			"tenant B must still be able to serve the shared logo after tenant A's replace"
+		);
+	}
+
+	[Fact]
+	public async Task
 	ItShouldUpdateMaxUsersSuccessfully() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
@@ -425,6 +474,54 @@ public sealed class UpdateTenantAsStaffSpec
 		// A whitespace-only value must collapse to the SAME "cleared" representation
 		// as an explicit null — never a second, undocumented "empty" representation.
 		result.LegalName.Should().BeNull();
+	}
+
+	[Fact]
+	public async Task
+	ItShouldClearWebsiteUrlAndBillingEmailWhenSetToEmptyString() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantAsync("Tenant Org Fields Empty String Clear");
+
+		using var setResponse =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				seededTenant.TenantId,
+				new {
+					websiteUrl = "https://example.com",
+					billingEmail = "billing@example.com",
+				}
+			);
+		setResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		// Empty string must clear the same way whitespace-only/null clear
+		// legalName — not 422, and not persisted as a literal empty string.
+		using var clearResponse =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				seededTenant.TenantId,
+				new {
+					websiteUrl = "",
+					billingEmail = "",
+				}
+			);
+
+		clearResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await clearResponse.Content
+			.ReadFromJsonAsync<GetTenantAsStaffResult>();
+		result.Should().NotBeNull();
+		if (result is null) {
+			throw new InvalidOperationException(
+				"PATCH tenant response was empty."
+			);
+		}
+
+		result.WebsiteUrl.Should().BeNull();
+		result.BillingEmail.Should().BeNull();
 	}
 
 	[Fact]
@@ -932,7 +1029,10 @@ public sealed class UpdateTenantAsStaffSpec
 
 	public static TheoryData<string, string>
 	InvalidUpdateTenantBodies() {
-		return new TheoryData<string, string> {
+		var oversizedLogoUrl =
+			"https://cdn.example.com/" + new string('a', 2048) + ".png";
+
+		var data = new TheoryData<string, string> {
 			{
 			"""
 			{ "name": 123 }
@@ -1000,6 +1100,13 @@ public sealed class UpdateTenantAsStaffSpec
 			"MaxUsers"
 			},
 		};
+
+		data.Add(
+			$$"""{ "logoUrl": "{{oversizedLogoUrl}}" }""",
+			"LogoUrl"
+		);
+
+		return data;
 	}
 
 	private static HttpRequestMessage

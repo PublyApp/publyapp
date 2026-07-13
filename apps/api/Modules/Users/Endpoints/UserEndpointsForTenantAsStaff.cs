@@ -66,8 +66,8 @@ public static class UserEndpointsForTenantAsStaff {
 			// exists only to document the response shape in OpenAPI.
 			.Produces<byte[]>(StatusCodes.Status200OK, "text/csv")
 			.ProducesAppProblem(StatusCodes.Status400BadRequest)
-			.WithReqQueryValidation<ExportTenantUsersAsStaffQuery>()
-			.WithPermission([AppPermissions.Staff.Users.LIST_FOR_TENANT]);
+			.WithPermission([AppPermissions.Staff.Users.LIST_FOR_TENANT])
+			.WithReqQueryValidation<ExportTenantUsersAsStaffQuery>();
 
 		group.MapPatch(
 			Routes.Users.ForTenantAsStaff.Update,

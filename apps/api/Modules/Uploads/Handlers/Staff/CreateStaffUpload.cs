@@ -29,6 +29,7 @@ public sealed class CreateStaffUpload {
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IFileStorage fileStorage,
 		[FromServices] IAuditLogService auditLogService,
+		[FromServices] ILogger<CreateStaffUpload> logger,
 		IFormFile? file,
 		CancellationToken cancellationToken = default
 	) {
@@ -74,19 +75,23 @@ public sealed class CreateStaffUpload {
 		);
 		var url = $"/files/{relativePath}";
 
-		await auditLogService.LogAsync(
-			new CreateAuditLogArgs(
-				UserId: account.UserId,
-				Action: AuditActions.UploadCreated,
-				TargetId: null,
-				Details: new {
-					Path = relativePath,
-					SizeBytes = file.Length,
-					ContentType = contentType
-				}
-			),
-			cancellationToken
-		);
+		try {
+			await auditLogService.LogAsync(
+				new CreateAuditLogArgs(
+					UserId: account.UserId,
+					Action: AuditActions.UploadCreated,
+					TargetId: null,
+					Details: new {
+						Path = relativePath,
+						SizeBytes = file.Length,
+						ContentType = contentType
+					}
+				),
+				cancellationToken
+			);
+		} catch (Exception ex) {
+			logger.LogError(ex, "Failed to write audit log for upload {Path}", relativePath);
+		}
 
 		return TypedResults.Created((string?)null, new StaffUploadCreated {
 			Url = url,
@@ -113,8 +118,11 @@ public sealed class CreateStaffUpload {
 	// never trusting the client-supplied file name or Content-Type header.
 	// Leaves the stream position unspecified on return; callers must reset it.
 	private static (string ContentType, string Extension)? SniffImageType(Stream stream) {
+		// Stream.Read is contractually allowed to return fewer bytes than requested
+		// even when more are available; ReadAtLeast loops until the buffer is full
+		// or the stream truly ends, so a short read never misclassifies a valid image.
 		Span<byte> header = stackalloc byte[SniffBufferLength];
-		var read = stream.Read(header);
+		var read = stream.ReadAtLeast(header, SniffBufferLength, throwOnEndOfStream: false);
 
 		if (read >= 8 && IsPng(header)) {
 			return ("image/png", ".png");

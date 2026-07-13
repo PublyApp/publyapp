@@ -872,6 +872,15 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			return;
 		}
 
+		var stillReferenced = await _dbContext.Tenant
+			.AnyAsync(
+				t => t.Id != tenantId && !t.IsDeleted && t.LogoUrl == previousLogoUrl,
+				cancellationToken
+			);
+		if (stillReferenced) {
+			return;
+		}
+
 		var relativePath = previousLogoUrl["/files/".Length..];
 		try {
 			await _fileStorage.DeleteAsync(relativePath, cancellationToken);

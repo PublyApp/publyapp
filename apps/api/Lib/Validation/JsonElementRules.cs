@@ -168,8 +168,10 @@ public static class JsonElementRules {
 					return false;
 				}
 				var url = e.Value.GetString();
+				// Whitespace-only is treated as a clear, matching the handler's
+				// NormalizeClearableString mapping to null — not a validation failure.
 				if (string.IsNullOrWhiteSpace(url)) {
-					return false;
+					return true;
 				}
 				if (!Uri.TryCreate(
 					url, UriKind.Absolute, out var result
@@ -206,8 +208,10 @@ public static class JsonElementRules {
 					return false;
 				}
 				var url = e.GetString();
+				// Whitespace-only is treated as a clear, matching the handler's
+				// NormalizeClearableString mapping to null — not a validation failure.
 				if (string.IsNullOrWhiteSpace(url)) {
-					return false;
+					return true;
 				}
 				if (!Uri.TryCreate(
 					url, UriKind.Absolute, out var result
@@ -357,8 +361,10 @@ public static class JsonElementRules {
 					return false;
 				}
 				var email = e.Value.GetString();
+				// Whitespace-only is treated as a clear, matching the handler's
+				// NormalizeClearableString mapping to null — not a validation failure.
 				if (string.IsNullOrWhiteSpace(email)) {
-					return false;
+					return true;
 				}
 				return System.Net.Mail.MailAddress
 					.TryCreate(email, out _);
@@ -398,8 +404,10 @@ public static class JsonElementRules {
 					return false;
 				}
 				var email = e.GetString();
+				// Whitespace-only is treated as a clear, matching the handler's
+				// NormalizeClearableString mapping to null — not a validation failure.
 				if (string.IsNullOrWhiteSpace(email)) {
-					return false;
+					return true;
 				}
 				return System.Net.Mail.MailAddress
 					.TryCreate(email, out _);

@@ -5,6 +5,8 @@ using System.Text.RegularExpressions;
 
 using FluentAssertions;
 
+using Microsoft.AspNetCore.Http.Metadata;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -207,19 +209,34 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
-	public async Task ItShouldReturn413WhenBodyExceedsTheTransportSizeLimit() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		// Beyond the transport-level RequestSizeLimitAttribute buffer
-		// (UPLOAD_MAX_BYTES + 8192) — Kestrel must reject this before the
-		// handler's own size check (or the multipart body) ever runs.
-		var oversized = new byte[AppEnvironment.Instance.UPLOAD_MAX_BYTES + 8192 + 1];
-		PngBytes.CopyTo(oversized, 0);
+	public void ItShouldDeclareTheTransportSizeLimitOnTheCreateEndpoint() {
+		// A request-level assertion here cannot discriminate: TestServer does not
+		// surface IHttpMaxRequestBodySizeFeature (the feature the metadata below
+		// actually configures at runtime), and any body under Kestrel's 30 MB
+		// default reaches the handler's own size check regardless, which returns
+		// the same 413. Reading the endpoint metadata directly is the only way
+		// this test fails when the RequestSizeLimitAttribute is dropped or its
+		// value drifts.
+		using var scope = _fixture.Factory.Services.CreateScope();
+		var dataSource = scope.ServiceProvider.GetRequiredService<EndpointDataSource>();
 
-		using var response = await _http.SendAsync(
-			BuildUploadRequest(token, oversized, "big.png", "image/png")
+		var endpoint = dataSource.Endpoints
+			.OfType<RouteEndpoint>()
+			.Single(ep => ep.Metadata
+				.GetMetadata<EndpointNameMetadata>()?.EndpointName
+				== "CreateStaffUpload");
+
+		var sizeLimit = endpoint.Metadata.GetMetadata<IRequestSizeLimitMetadata>();
+
+		sizeLimit.Should().NotBeNull(
+			"the CreateStaffUpload endpoint must declare a transport-level "
+			+ "RequestSizeLimitAttribute so an unauthenticated or over-quota "
+			+ "caller cannot force a full oversized multipart body to be "
+			+ "spooled to disk before being rejected"
 		);
-
-		response.StatusCode.Should().Be(HttpStatusCode.RequestEntityTooLarge);
+		sizeLimit!.MaxRequestBodySize.Should().Be(
+			AppEnvironment.Instance.UPLOAD_MAX_BYTES + 8192
+		);
 	}
 
 	[Fact]

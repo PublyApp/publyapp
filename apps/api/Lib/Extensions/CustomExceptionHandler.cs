@@ -38,13 +38,11 @@ public static class CustomExceptionHandler {
 						title = "Payload Too Large";
 						detail = "Request body exceeds the maximum allowed size";
 						key = ResponseKeys.UploadFileTooLarge;
-					}
-
-					if (
-							exceptionType is Microsoft.AspNetCore.Http.BadHttpRequestException badRequestException
-							&& badRequestException.Message.Contains("Required parameter")
-							&& badRequestException.Message.Contains("was not provided from body")
-						) {
+					} else if (
+								exceptionType is Microsoft.AspNetCore.Http.BadHttpRequestException badRequestException
+								&& badRequestException.Message.Contains("Required parameter")
+								&& badRequestException.Message.Contains("was not provided from body")
+							) {
 						statusCode = StatusCodes.Status422UnprocessableEntity;
 						title = "Validation Failed";
 						detail = "Request body is required";
@@ -52,12 +50,10 @@ public static class CustomExceptionHandler {
 						errors = new Dictionary<string, string[]> {
 							{ "body", ["Request body is required"] }
 						};
-					}
-
-					if (exceptionType is Microsoft.AspNetCore.Http.BadHttpRequestException validationException
-						&& validationException.Message.Contains("Required parameter")
-						&& validationException.Message.Contains("was not provided from query string")
-					) {
+					} else if (exceptionType is Microsoft.AspNetCore.Http.BadHttpRequestException validationException
+							&& validationException.Message.Contains("Required parameter")
+							&& validationException.Message.Contains("was not provided from query string")
+						) {
 						// Required parameter "string userId" was not provided from query string.
 						var pattern = @"Required parameter ""string (\w+)"" was not provided";
 						var match = Regex.Match(validationException.Message, pattern);
