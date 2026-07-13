@@ -113,6 +113,7 @@ describe('createInvitationColumns', () => {
 
 		expect(widthById).toEqual({
 			email: '300px',
+			role: '116px',
 			profile_name: undefined,
 			invited_by_name: '150px',
 			expires_at: '120px',

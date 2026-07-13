@@ -512,6 +512,108 @@ describe('DataTable state rendering', () => {
 		});
 	});
 
+	describe('DataTable P3 grid contract (ratified desktop track widths)', () => {
+		const originalInnerWidth = window.innerWidth;
+
+		afterEach(() => {
+			Object.defineProperty(window, 'innerWidth', {
+				writable: true,
+				configurable: true,
+				value: originalInnerWidth,
+			});
+		});
+
+		const setViewportWidth = (width: number): void => {
+			Object.defineProperty(window, 'innerWidth', {
+				writable: true,
+				configurable: true,
+				value: width,
+			});
+			fireEvent(window, new Event('resize'));
+		};
+
+		// SPEC 2g grid: 40 / 240 / 1fr / 104 / 140 / 120 / 40 — mirrors the
+		// staff profiles P3 column shape (selection/name/description/members/
+		// permissions/updated/actions), which has regressed the desktop track
+		// widths twice on this branch (f681b0bd, then a dropped-column variant
+		// of the same defect). Pinning the computed <col> widths here catches
+		// that regression class in vitest instead of only in docker e2e.
+		const p3GridColumns: ColumnDef<TestRow>[] = [
+			{
+				id: 'name',
+				accessorKey: 'name',
+				header: 'Profile',
+				meta: { width: '240px', pinWidthAbove: 768 },
+				cell: ({ getValue }) => String(getValue()),
+			},
+			{
+				id: 'description',
+				accessorKey: 'name',
+				header: 'Description',
+				meta: { hideBelow: 768 },
+				cell: ({ getValue }) => String(getValue()),
+			},
+			{
+				id: 'members',
+				accessorKey: 'name',
+				header: 'Members',
+				meta: { width: '104px', hideBelow: 768 },
+				cell: ({ getValue }) => String(getValue()),
+			},
+			{
+				id: 'permissions',
+				accessorKey: 'name',
+				header: 'Permissions',
+				meta: { width: '140px', hideBelow: 768 },
+				cell: ({ getValue }) => String(getValue()),
+			},
+			{
+				id: 'updated',
+				accessorKey: 'name',
+				header: 'Updated',
+				meta: { width: '120px', hideBelow: 768 },
+				cell: ({ getValue }) => String(getValue()),
+			},
+			{
+				id: 'actions',
+				accessorKey: 'name',
+				header: 'Actions',
+				meta: { width: '40px', align: 'center' },
+				cell: ({ getValue }) => String(getValue()),
+			},
+		];
+
+		test('computes the exact 40/240/1fr/104/140/120/40 track widths at desktop viewport', () => {
+			setViewportWidth(1440);
+
+			render(
+				<DataTable
+					{...baseProps}
+					columns={p3GridColumns}
+					rows={rows}
+					isError={false}
+					selection={createSelection({})}
+				/>,
+			);
+
+			const cols = screen
+				.getByTestId('test-table-rows')
+				.querySelectorAll('colgroup col');
+
+			expect(
+				Array.from(cols).map((col) => (col as HTMLElement).style.width),
+			).toEqual([
+				'40px', // selection
+				'240px', // name
+				'', // description (fluid)
+				'104px', // members
+				'140px', // permissions
+				'120px', // updated
+				'40px', // actions
+			]);
+		});
+	});
+
 	test('locks controls when row selection mode is active', () => {
 		render(
 			<DataTable

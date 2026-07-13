@@ -4,6 +4,7 @@ import {
 	IconCalendar,
 	IconChartBar,
 	IconEye,
+	IconKey,
 	IconNews,
 	IconPlus,
 	IconSettings,
@@ -58,7 +59,7 @@ const PROFILE_ICON_MAP: Record<string, Icon> = {
 	world: IconWorld,
 };
 
-const buildColumns = (
+export const buildColumns = (
 	t: (key: string, options?: Record<string, unknown>) => string,
 ): ColumnDef<StaffProfileRow>[] => [
 	{
@@ -137,6 +138,37 @@ const buildColumns = (
 			}
 			return <span className="text-[13px] font-medium">{value}</span>;
 		},
+	},
+	{
+		id: 'permissions',
+		header: () => (
+			<div className="inline-flex items-center gap-1.5">
+				<IconKey className="size-3.5 text-muted-foreground" />
+				<span>{t('permissions')}</span>
+			</div>
+		),
+		enableSorting: false,
+		meta: { width: '140px', hideBelow: 768 },
+		cell: () => (
+			<span className="text-[13px] text-muted-foreground">
+				{/* TODO(contract): permission count not in profile list response */}—
+			</span>
+		),
+	},
+	{
+		id: 'updated',
+		header: () => (
+			<div className="inline-flex items-center gap-1.5">
+				<span>{t('updated')}</span>
+			</div>
+		),
+		enableSorting: false,
+		meta: { width: '120px', hideBelow: 768 },
+		cell: () => (
+			<span className="text-[13px] text-muted-foreground">
+				{/* TODO(contract): updated_at not in profile list response */}—
+			</span>
+		),
 	},
 	{
 		id: 'actions',
