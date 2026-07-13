@@ -1,8 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import { API_BASE_URL } from './helpers/api';
 import { loginAsStaffAdmin } from './helpers/login';
-
-const API_BASE_URL = 'https://api.front-2.localhost:8443';
 
 // Kiota's getGuidValue() silently drops rows with non-UUID ids, which makes
 // a table look empty while the test still passes — mocks must use real UUIDs.

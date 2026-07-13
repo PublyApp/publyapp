@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
 
+import { API_BASE_URL } from './helpers/api';
 import { loginAsStaffAdmin } from './helpers/login';
 
-const API_BASE_URL = 'https://api.front-2.localhost:8443';
 const BASE_STAFF_PATH = '/staff/staff-users';
 const TENANT_PATH = '/staff/tenants';
 const TABLE_TEST_ID = 'staff-users-table';
@@ -80,8 +80,14 @@ test('asserts shell foundation dimensions and table heights', async ({
 	expect(scrollContract.cardBottom).toBeLessThanOrEqual(
 		scrollContract.viewportHeight,
 	);
+	// A child element's rect height is trivially <= its parent's by box-model
+	// alone — that alone doesn't prove the container owns a BOUNDED scroll
+	// area distinct from the toolbar/footer chrome. Require both a real
+	// positive height and a substantial gap (not rounding/border noise) from
+	// the card's full height (review-r1-tests.md F25).
+	expect(scrollContract.containerHeight).toBeGreaterThan(0);
 	expect(scrollContract.containerHeight).toBeLessThan(
-		scrollContract.cardHeight,
+		scrollContract.cardHeight - 20,
 	);
 
 	const searchInput = page.getByTestId(`${TABLE_TEST_ID}-search`);
@@ -89,6 +95,9 @@ test('asserts shell foundation dimensions and table heights', async ({
 	const searchWrapperWidth = await searchInput.evaluate(
 		(el) => el.parentElement?.getBoundingClientRect().width,
 	);
+	// Upper bound alone passes at width 0 (a collapsed/hidden wrapper) — pair
+	// with a real minimum (review-r1-tests.md F25).
+	expect(searchWrapperWidth).toBeGreaterThan(200);
 	expect(searchWrapperWidth).toBeLessThanOrEqual(420);
 
 	const selectionCell = page
@@ -200,7 +209,12 @@ test('asserts confirm modal geometry uses handoff radius', async ({ page }) => {
 
 	await page.goto(TENANT_PATH);
 
-	await page.getByTestId(`tenant-actions-${HANDOFF_TENANT_ID}`).click();
+	// Normalised to the `${tableTestId}-actions-${id}` convention (PKT-D
+	// rename of tenants.tsx's row-action trigger testid, tracked alongside
+	// review-r1-tests.md F27's addressing-consistency fix).
+	await page
+		.getByTestId(`staff-tenants-table-actions-${HANDOFF_TENANT_ID}`)
+		.click();
 
 	const rowMenu = page.locator(
 		'[data-slot="dropdown-menu-content"].publy-row-actions-menu',

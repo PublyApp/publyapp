@@ -1,9 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import { API_BASE_URL } from './helpers/api';
 import { loginAsStaffAdmin } from './helpers/login';
 
-const API_BASE_URL = 'https://api.front-2.localhost:8443';
 const TENANT_ID = '0197b8f0-3333-7ccc-8ccc-cccccccccccc';
+// The first seeded user row in mockTenantDetails's /users fixture — the one
+// `getByLabel(/^Select row /).first()` selects.
+const JAMIE_USER_ID = '0197b8f0-4444-7ccc-8ccc-dddddddddddd';
 
 const isApiPath = (url: string, path: string): boolean => {
 	const parsed = new URL(url);
@@ -15,12 +18,20 @@ const isApiPath = (url: string, path: string): boolean => {
 const expectFloatingSelectionBarAtViewportBottom = async (page: Page) => {
 	const bar = page.getByTestId('floating-selection-bar');
 	await expect(bar).toBeVisible();
+	// toBeVisible() alone doesn't imply in-viewport (a bar trapped inside a
+	// scrolled `.app-shell-main` container can still be "visible" while
+	// off-screen); ratio: 1 requires the whole element be within the
+	// viewport (review-r1-tests.md F25).
+	await expect(bar).toBeInViewport({ ratio: 1 });
 
 	const viewportHeight = page.viewportSize()?.height ?? 0;
 	const box = await bar.boundingBox();
 	expect(box).not.toBeNull();
 	if (box) {
 		expect(box.y + box.height).toBeGreaterThan(viewportHeight - 80);
+		// Opposing bound: catches the bar being pushed entirely below/past the
+		// viewport, which the lower bound alone would not.
+		expect(box.y).toBeLessThan(viewportHeight);
 	}
 };
 
@@ -598,13 +609,33 @@ test.describe('staff tenant users bulk toolbar', () => {
 			.getByRole('button', { name: 'More actions' })
 			.click();
 
+		// The request must carry the selected user's id — otherwise the
+		// export silently drops the selection and returns every tenant
+		// member, a data-exposure-shaped bug the filename alone cannot catch
+		// (review-r1-tests.md F12).
+		const exportRequest = page.waitForRequest(
+			(request) =>
+				request.method() === 'GET' &&
+				request.url().includes(`/staff/tenants/${TENANT_ID}/users/export`) &&
+				new URL(request.url()).searchParams.get('ids') === JAMIE_USER_ID,
+		);
 		const downloadPromise = page.waitForEvent('download');
 		await page.getByRole('menuitem', { name: 'Export selected users' }).click();
+		await exportRequest;
 		const download = await downloadPromise;
 
 		expect(download.suggestedFilename()).toMatch(
 			/^ACME-members-\d{4}-\d{2}-\d{2}\.csv$/,
 		);
+
+		const stream = await download.createReadStream();
+		const chunks: Buffer[] = [];
+		for await (const chunk of stream) {
+			chunks.push(chunk as Buffer);
+		}
+		const csvContent = Buffer.concat(chunks).toString('utf-8');
+		expect(csvContent).toContain('jamie@example.com');
+		expect(csvContent).not.toContain('morgan@example.com');
 	});
 });
 

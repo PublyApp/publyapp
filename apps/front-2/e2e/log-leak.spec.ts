@@ -10,8 +10,9 @@ import {
 	type TestInfo,
 } from '@playwright/test';
 
+import { API_BASE_URL } from './helpers/api';
+
 const COMPOSE_FILE = 'apps/front-2/docker-compose.test.yml';
-const API_BASE_URL = 'https://api.front-2.localhost:8443';
 const STAFF_USERS_PATH = '/staff/users';
 const SESSION_TOKEN_HEADER_KEY = 'X-Session-Token';
 const SMOKE_BROWSER_MESSAGE = '[front-2] log-leak smoke probe';

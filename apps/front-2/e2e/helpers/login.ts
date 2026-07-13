@@ -57,27 +57,42 @@ export const setLocaleCookie = async (page: Page, locale: 'fr') => {
 	]);
 };
 
+/**
+ * Fast-path aware: projects that supply a pre-authenticated `storageState`
+ * (see playwright.config.ts's `setup` project) land straight on
+ * `/staff/staff-users` without ever hitting the login form. Projects with no
+ * (or an expired) session get redirected to `/login` by
+ * `redirectAuthenticatedUserAwayFromAuthPage`'s inverse — the authed layout's
+ * own guard — at which point this falls back to a real form login. Either
+ * way, every existing call site keeps working unchanged (review-r1-tests.md
+ * F29).
+ */
 export const loginAsStaffAdmin = async (page: Page): Promise<void> => {
-	await page.goto('/login');
+	await page.goto('/staff/staff-users');
 
-	await expect(page.locator('input[name="email"]')).toBeVisible();
-	await page.locator('input[name="email"]').fill(STAFF_ADMIN_CREDENTIALS.email);
-	await page
-		.locator('input[name="password"]')
-		.fill(STAFF_ADMIN_CREDENTIALS.password);
-	// Locale-agnostic: the login CTA copy is now i18n'd (t('sign-in') →
-	// "Se connecter" under the fr locale), so match the sole submit button in
-	// the login form rather than its English label.
-	await page
-		.locator('[data-testid="auth-login-form"] button[type="submit"]')
-		.click();
+	if (new URL(page.url()).pathname.startsWith('/login')) {
+		await expect(page.locator('input[name="email"]')).toBeVisible();
+		await page
+			.locator('input[name="email"]')
+			.fill(STAFF_ADMIN_CREDENTIALS.email);
+		await page
+			.locator('input[name="password"]')
+			.fill(STAFF_ADMIN_CREDENTIALS.password);
+		// Locale-agnostic: the login CTA copy is now i18n'd (t('sign-in') →
+		// "Se connecter" under the fr locale), so match the sole submit button
+		// in the login form rather than its English label.
+		await page
+			.locator('[data-testid="auth-login-form"] button[type="submit"]')
+			.click();
 
-	await page.waitForURL(/\/staff(?:\/staff-users)?(?:[?#].*)?$/, {
-		waitUntil: 'domcontentloaded',
-	});
-	if (!new URL(page.url()).pathname.endsWith('/staff-users')) {
-		await page.goto('/staff/staff-users');
+		await page.waitForURL(/\/staff(?:\/staff-users)?(?:[?#].*)?$/, {
+			waitUntil: 'domcontentloaded',
+		});
+		if (!new URL(page.url()).pathname.endsWith('/staff-users')) {
+			await page.goto('/staff/staff-users');
+		}
 	}
+
 	await expect(page.getByTestId('staff-users-table')).toBeVisible({
 		timeout: 15_000,
 	});

@@ -2,6 +2,7 @@ import { expect, type Page, test } from '@playwright/test';
 
 import { COLOR_SCHEME_STORAGE_KEY } from '../src/lib/store/ui-store';
 import { loginAsStaffAdmin } from './helpers/login';
+import { waitForBoundingBoxToSettle } from './helpers/settle';
 
 // #d4d4d8 (light --publy-border-strong) vs the old, too-faint #e4e4e7
 // (--publy-border). #f0bd00 (dark --publy-primary/accent, the amber that was
@@ -172,7 +173,11 @@ test.describe('FIX-3: design-system chrome rulings', () => {
 		await trigger.click();
 		const popup = page.locator('[data-slot="select-content"]');
 		await expect(popup).toBeVisible();
-		const firstPopupBox = await popup.boundingBox();
+		// toBeVisible() is satisfied the instant the popup mounts, while its
+		// entry animation (scale/translate) is still in flight — the tight
+		// (<12px, <8px) tolerances below need a settled geometry read, not a
+		// mid-transition one (review-r1-tests.md F26).
+		const firstPopupBox = await waitForBoundingBoxToSettle(popup);
 		expect(firstPopupBox).not.toBeNull();
 
 		if (triggerBox && firstPopupBox) {
@@ -199,7 +204,7 @@ test.describe('FIX-3: design-system chrome rulings', () => {
 
 		await trigger.click();
 		await expect(popup).toBeVisible();
-		const secondPopupBox = await popup.boundingBox();
+		const secondPopupBox = await waitForBoundingBoxToSettle(popup);
 		expect(secondPopupBox).not.toBeNull();
 
 		// The popup must keep the same offset FROM ITS TRIGGER regardless of

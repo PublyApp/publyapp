@@ -1,8 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import { API_BASE_URL } from './helpers/api';
 import { loginAsStaffAdmin } from './helpers/login';
 
-const API_BASE_URL = 'https://api.front-2.localhost:8443';
 const STAFF_TENANTS_PATH = '/staff/tenants';
 const CREATED_TENANT_ID = '0197b8f0-7777-7ddd-8ddd-111111111111';
 

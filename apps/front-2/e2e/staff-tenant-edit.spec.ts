@@ -1,8 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import { API_BASE_URL } from './helpers/api';
 import { loginAsStaffAdmin } from './helpers/login';
 
-const API_BASE_URL = 'https://api.front-2.localhost:8443';
 const TENANT_ID = '0197b8f0-3333-7ccc-8ccc-cccccccccccc';
 const LOGO_FIXTURE_PATH = new URL('./fixtures/logo.png', import.meta.url)
 	.pathname;
@@ -487,6 +487,14 @@ test.describe('staff tenant edit aside and metadata (handoff 2d/2e)', () => {
 			.poll(() => main.evaluate((element) => element.scrollTop))
 			.toBe(500);
 		const stuckAt500 = await readDims();
+
+		// A card scrolled entirely off-screen (cardTop deeply negative) would
+		// also satisfy "same position at both scroll offsets" — the equality
+		// checks alone don't prove the card is actually STUCK in view, only
+		// that it isn't moving. Assert it's still on-screen too (review-r1-
+		// tests.md F25).
+		expect(stuckAt300.cardTop).toBeGreaterThan(0);
+		expect(stuckAt500.cardTop).toBeGreaterThan(0);
 
 		// The sticky wrapper holds the card in place (top-5) once stuck, and
 		// the metadata line keeps the same gap below the card instead of

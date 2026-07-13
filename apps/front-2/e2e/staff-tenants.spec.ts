@@ -1,8 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import { API_BASE_URL } from './helpers/api';
 import { loginAsStaffAdmin } from './helpers/login';
 
-const API_BASE_URL = 'https://api.front-2.localhost:8443';
 const STAFF_TENANTS_PATH = '/staff/tenants';
 const BULK_SUSPEND_PATH = '/staff/tenants/bulk-suspend';
 const TABLE = 'staff-tenants-table';
@@ -22,12 +22,20 @@ const isApiPath = (url: string, path: string): boolean => {
 const expectFloatingSelectionBarAtViewportBottom = async (page: Page) => {
 	const bar = page.getByTestId('floating-selection-bar');
 	await expect(bar).toBeVisible();
+	// toBeVisible() alone doesn't imply in-viewport (a bar trapped inside a
+	// scrolled `.app-shell-main` container can still be "visible" while
+	// off-screen); ratio: 1 requires the whole element be within the
+	// viewport (review-r1-tests.md F25).
+	await expect(bar).toBeInViewport({ ratio: 1 });
 
 	const viewportHeight = page.viewportSize()?.height ?? 0;
 	const box = await bar.boundingBox();
 	expect(box).not.toBeNull();
 	if (box) {
 		expect(box.y + box.height).toBeGreaterThan(viewportHeight - 80);
+		// Opposing bound: catches the bar being pushed entirely below/past the
+		// viewport, which the lower bound alone would not.
+		expect(box.y).toBeLessThan(viewportHeight);
 	}
 };
 
@@ -270,6 +278,9 @@ test.describe('staff tenants list', () => {
 		const cardClientWidth = await page
 			.getByTestId(`${TABLE}-card`)
 			.evaluate((el) => el.clientWidth);
+		// Upper bound alone passes for a collapsed (0-width) table too — pair
+		// with a real minimum (review-r1-tests.md F25).
+		expect(tableScrollWidth).toBeGreaterThan(0);
 		expect(tableScrollWidth).toBeLessThanOrEqual(cardClientWidth + 1);
 	});
 

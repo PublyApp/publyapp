@@ -29,6 +29,49 @@ const dispatchRefocus = async (page: Page) => {
 };
 
 test.describe('tab-refocus stability (BUG-1)', () => {
+	test("positive control: a genuinely stale query DOES refetch on refocus, proving the synthetic dispatch reaches TanStack Query's focus manager", async ({
+		page,
+	}) => {
+		// Every negative assertion in this file ("no refetch after refocus")
+		// is only meaningful if dispatchRefocus actually reaches TanStack
+		// Query's focus listener — otherwise a wrong event target/shape would
+		// make all three tests pass vacuously forever (see F8). The staff
+		// tenants list query uses the router's default staleTime (30s) and
+		// the react-query default refetchOnWindowFocus: true (neither is
+		// overridden for it, unlike the auth queries), so once it's actually
+		// stale a refocus MUST trigger exactly one refetch — a real, falsifiable
+		// control. page.clock lets us cross that 30s staleTime boundary without
+		// slowing the suite down with a real wait.
+		await page.clock.install();
+		await loginAsStaffAdmin(page);
+
+		const initialTenantsResponse = page.waitForResponse(
+			(response) =>
+				response.url().includes('/staff/tenants') &&
+				response.request().method() === 'GET',
+		);
+		await page.goto('/staff/tenants');
+		await expect(page.getByTestId('staff-tenants-table-rows')).toBeVisible();
+		await initialTenantsResponse;
+
+		// Cross the 30s staleTime boundary (router.tsx DEFAULT_QUERY_STALE_TIME_MS).
+		await page.clock.fastForward('00:00:31');
+
+		const staleRefetch = page.waitForRequest(
+			(request) =>
+				request.url().includes('/staff/tenants') && request.method() === 'GET',
+			{ timeout: 5_000 },
+		);
+		await dispatchRefocus(page);
+		// If the synthetic visibilitychange/focus events never reached the
+		// library's listener, this would time out and fail the test — unlike
+		// every `toBe(false)` assertion elsewhere in this file, which passes
+		// whether or not the dispatch worked.
+		await staleRefetch;
+
+		await expect(page.getByTestId('staff-tenants-table-rows')).toBeVisible();
+	});
+
 	test('staff tenants list: refocus does not stampede auth/list requests or blank the table', async ({
 		page,
 	}) => {
@@ -108,18 +151,24 @@ test.describe('tab-refocus stability (BUG-1)', () => {
 		await expect(page.getByText('500 — Server Error')).toHaveCount(0);
 	});
 
-	test('a transient redirect-code failure no longer blanks a settled route (regression for the retry:false single point of failure)', async ({
+	test('refocus issues no redirect-code refetch, even when a refetch would fail (the surface-redirect-code query is refetchOnWindowFocus: false + staleTime: Infinity + retry: false)', async ({
 		page,
 	}) => {
+		// NOTE: this does not exercise "a transient 500 no longer blanks a
+		// settled route" — the route below is armed AFTER the initial mount
+		// fetch already resolved, and refetchOnWindowFocus: false means
+		// refocus never re-triggers this query at all, so the 500 handler is
+		// never actually invoked (see review-r1-tests.md F9). What this DOES
+		// prove, honestly: the redirect-code query stays silent on refocus,
+		// same invariant as the other two tests in this file, just for a
+		// different query. The "500 recovers via Retry" invariant is instead
+		// covered by design-handoff-foundation.spec.ts's dedicated 500-boundary
+		// test, which arms the failure BEFORE the fetch that consumes it.
 		await loginAsStaffAdmin(page);
 		await page.goto('/staff/tenants');
 		await expect(page.getByTestId('staff-tenants-table-rows')).toBeVisible();
 		await page.waitForTimeout(500);
 
-		// Any call caught here is a post-mount refetch attempt (the initial
-		// mount fetch already resolved before this route is armed) — with
-		// refetchOnWindowFocus: false + staleTime: Infinity, refocus must not
-		// trigger one at all.
 		let redirectCodeRefetchCount = 0;
 		await page.route('**/auth/redirect-code', async (route) => {
 			redirectCodeRefetchCount += 1;

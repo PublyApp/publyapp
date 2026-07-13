@@ -59,54 +59,73 @@ test.describe('cold-boot stability (BUG-2)', () => {
 		await expect(page.getByTestId('staff-tenants-table-rows')).toBeVisible();
 		await page.waitForTimeout(300);
 
-		// Poll aggressively from the moment reload is *issued*, not after it
-		// resolves — `page.reload()` awaits the 'load' event by default, by
-		// which point the whole cold-boot sequence (including the bug) has
-		// already finished, so polling has to start racing it immediately.
-		const start = Date.now();
-		const reloadPromise = page.reload();
-		let sawContentBeforeRail = false;
-		let railSeen = false;
-		while (Date.now() - start < 10_000 && !railSeen) {
-			// eslint-disable-next-line no-await-in-loop -- intentional sequential poll
-			const sample = await page
-				.evaluate((): [number, boolean] => [
-					document.body?.innerText?.length ?? 0,
-					document.querySelector('[data-testid="app-shell-pending-rail"]') !==
-						null ||
-						document.querySelector('[data-testid="app-shell-rail"]') !== null,
-				])
-				.catch(() => null); // navigation can tear down the execution context mid-poll
-			if (sample) {
-				const [bodyTextLen, hasRail] = sample;
-				if (bodyTextLen > 0 && !hasRail) {
-					sawContentBeforeRail = true;
+		// `page.reload()` awaits the 'load' event, by which point the whole
+		// cold-boot sequence has already finished — polling with page.evaluate
+		// AFTER issuing reload() samples the OLD, still-live document until the
+		// new response commits, so the very first sample would see the old
+		// page's fully-rendered rail and immediately (and vacuously) pass.
+		// addInitScript runs inside the NEW document, before any app script,
+		// so the observer below is live from the instant the new document is
+		// created — there is no window where the poll can race a stale page.
+		await page.addInitScript(() => {
+			const state = { sawContentBeforeRail: false, railSeen: false };
+			(
+				window as unknown as { __coldBootObserved: typeof state }
+			).__coldBootObserved = state;
+
+			const hasRail = () =>
+				document.querySelector('[data-testid="app-shell-pending-rail"]') !==
+					null ||
+				document.querySelector('[data-testid="app-shell-rail"]') !== null;
+
+			const sample = () => {
+				if (state.railSeen) {
+					return;
 				}
-				if (hasRail) {
-					railSeen = true;
-					break;
+				if (hasRail()) {
+					state.railSeen = true;
+					return;
 				}
-			}
-			// eslint-disable-next-line no-await-in-loop -- intentional sequential poll
-			await page.waitForTimeout(25);
-		}
-		await reloadPromise;
+				if ((document.body?.innerText?.length ?? 0) > 0) {
+					state.sawContentBeforeRail = true;
+				}
+			};
+
+			sample();
+			new MutationObserver(sample).observe(document.documentElement, {
+				childList: true,
+				subtree: true,
+				characterData: true,
+			});
+		});
+
+		await page.reload();
+		await expect(page.getByTestId('staff-tenants-table-rows')).toBeVisible({
+			timeout: 15_000,
+		});
+
+		const observed = await page.evaluate(
+			() =>
+				(
+					window as unknown as {
+						__coldBootObserved?: {
+							sawContentBeforeRail: boolean;
+							railSeen: boolean;
+						};
+					}
+				).__coldBootObserved,
+		);
 
 		// The shell must never render bare text without its own chrome — if it
 		// does, some other fallback (a stray "Loading…" with no shell) slipped
 		// back in ahead of the fix.
-		expect(sawContentBeforeRail).toBe(false);
-		// The rail must be the FIRST thing that ever appears. No wall-clock
-		// bound here: how fast it appears is the server's response latency
-		// under load (measured 2.1s+ during parallel full-suite runs), not the
-		// invariant. The timing-independent guarantee — the pending shell
-		// ships inside the raw SSR HTML itself — is asserted by the previous
-		// test; this one only guards against a blank or shell-less frame ever
-		// being painted.
-		expect(railSeen).toBe(true);
-
-		await expect(page.getByTestId('staff-tenants-table-rows')).toBeVisible({
-			timeout: 15_000,
-		});
+		expect(observed?.sawContentBeforeRail).toBe(false);
+		// The rail must be the FIRST thing that ever appears in the new
+		// document. No wall-clock bound here: how fast it appears is the
+		// server's response latency under load, not the invariant. The
+		// timing-independent guarantee — the pending shell ships inside the
+		// raw SSR HTML itself — is asserted by the previous test; this one
+		// only guards against a blank or shell-less frame ever being painted.
+		expect(observed?.railSeen).toBe(true);
 	});
 });

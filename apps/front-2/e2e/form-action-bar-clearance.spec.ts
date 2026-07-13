@@ -1,8 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import { API_BASE_URL } from './helpers/api';
 import { loginAsStaffAdmin } from './helpers/login';
 
-const API_BASE_URL = 'https://api.front-2.localhost:8443';
 const TENANT_ID = '0197b8f0-3333-7ccc-8ccc-cccccccccccc';
 
 const isApiPath = (url: string, path: string): boolean => {

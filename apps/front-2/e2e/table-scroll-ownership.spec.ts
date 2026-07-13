@@ -1,8 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import { API_BASE_URL } from './helpers/api';
 import { loginAsStaffAdmin } from './helpers/login';
 
-const API_BASE_URL = 'https://api.front-2.localhost:8443';
 const TENANT_ID = '0197b8f0-3333-7ccc-8ccc-cccccccccccc';
 
 const isApiPath = (url: string, path: string): boolean => {
@@ -101,11 +101,13 @@ test.describe('tenant Users tab: the table owns its scroll, not the page', () =>
 		expect(tableContainerOverflow).toBeGreaterThan(0);
 
 		// The toolbar and cursor footer stay pinned in view while rows scroll.
+		// The default ratio is 0 (one visible pixel passes) — ratio: 1 requires
+		// the whole element to be in the viewport (review-r1-tests.md F25).
 		await expect(
 			page.getByTestId('staff-tenant-users-table-toolbar'),
-		).toBeInViewport();
+		).toBeInViewport({ ratio: 1 });
 		await expect(
 			page.getByTestId('staff-tenant-users-table-footer'),
-		).toBeInViewport();
+		).toBeInViewport({ ratio: 1 });
 	});
 });

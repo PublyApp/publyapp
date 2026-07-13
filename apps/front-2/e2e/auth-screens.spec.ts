@@ -1,5 +1,35 @@
 import { expect, test } from '@playwright/test';
 
+// Every auth screen must render the standalone split-brand auth surface
+// (data-testid="auth-layout"), never the marketing/authed app shell — a
+// classifier that falls through to 'marketing' for anything but /login would
+// wrap these in `.app-shell-header` (with marketing nav + the "front-2 shell"
+// subtitle) instead, which no prior test here asserted against
+// (review-r1-users-auth.md F1). /accept-invitation is the sharpest case: it
+// used to carry its own internal <AuthLayout>, which would pass a bare
+// `auth-layout` visibility check even while ALSO nested inside the marketing
+// shell — so the "no app-shell-header" half of this assertion is required,
+// not optional.
+const AUTH_PATHS = [
+	'/login',
+	'/signup',
+	'/verify-email',
+	'/reset-password',
+	'/accept-invitation',
+];
+
+for (const path of AUTH_PATHS) {
+	test(`${path} renders the standalone auth layout, not the app shell`, async ({
+		page,
+	}) => {
+		await page.goto(path);
+
+		await expect(page.getByTestId('auth-layout')).toBeVisible();
+		await expect(page.locator('.app-shell-header')).toHaveCount(0);
+		await expect(page.getByTestId('app-shell-shell')).toHaveCount(0);
+	});
+}
+
 test('/signup renders the closed state with the info banner and a disabled CTA', async ({
 	page,
 }) => {

@@ -1,9 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import { API_BASE_URL } from './helpers/api';
 import { loginAsStaffAdmin } from './helpers/login';
 
-const API_BASE_URL = 'https://api.front-2.localhost:8443';
-const COUNTER_BASE_URL = 'http://127.0.0.1:8800';
 const STAFF_INVITATIONS_PATH = '/staff/invitations';
 const STAFF_PROFILES_PATH = '/staff/profiles';
 const TABLE = 'staff-invitations-table';
@@ -49,14 +48,6 @@ const isApiPath = (url: string, path: string): boolean => {
 	return parsed.origin === API_BASE_URL && parsed.pathname === path;
 };
 
-const waitForStaffInvitationsGetResponse = (page: Page) =>
-	page.waitForResponse(
-		(response) =>
-			isApiPath(response.url(), STAFF_INVITATIONS_PATH) &&
-			response.request().method() === 'GET' &&
-			response.status() === 200,
-	);
-
 const mockStaffInvitations = async (
 	page: Page,
 	payload: { data: readonly unknown[]; nextCursor: string | null },
@@ -94,28 +85,6 @@ const mockStaffProfiles = async (page: Page) => {
 			body: JSON.stringify(profilesPayload),
 		});
 	});
-};
-
-const resetCounter = async (page: Page) => {
-	const response = await page.request.post(
-		`${COUNTER_BASE_URL}/__counter/reset`,
-	);
-	expect(response.ok()).toBe(true);
-};
-
-const getCounter = async (page: Page, path: string): Promise<number> => {
-	const response = await page.request.get(`${COUNTER_BASE_URL}/__counter`, {
-		params: {
-			path,
-			method: 'GET',
-		},
-	});
-	expect(response.ok()).toBe(true);
-
-	const body = (await response.json()) as {
-		count?: unknown;
-	};
-	return typeof body.count === 'number' ? body.count : -1;
 };
 
 test.describe('staff invitations list', () => {
@@ -191,16 +160,7 @@ test.describe('staff invitations list', () => {
 		).toBeVisible();
 	});
 
-	test('clean load issues exactly one GET /staff/invitations request', async ({
-		page,
-	}) => {
-		await loginAsStaffAdmin(page);
-		await resetCounter(page);
-
-		const response = waitForStaffInvitationsGetResponse(page);
-		await page.goto('/staff/invitations');
-		await response;
-
-		expect(await getCounter(page, STAFF_INVITATIONS_PATH)).toBe(1);
-	});
+	// The request-counter test that used to live here moved to its own file
+	// and dependency-ordered project — see e2e/request-counter.spec.ts and
+	// review-r1-tests.md F11.
 });

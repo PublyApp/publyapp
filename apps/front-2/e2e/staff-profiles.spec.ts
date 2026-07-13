@@ -1,8 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import { API_BASE_URL } from './helpers/api';
 import { loginAsStaffAdmin } from './helpers/login';
 
-const API_BASE_URL = 'https://api.front-2.localhost:8443';
 const STAFF_PROFILES_PATH = '/staff/profiles';
 const TABLE = 'staff-profiles-table';
 
@@ -146,9 +146,24 @@ test.describe('staff profiles route', () => {
 			await expect(profileRow(page, profile.name)).toBeVisible();
 		}
 
+		// Unconditional: if server-side filtering silently no-ops and returns
+		// every profile, filteredProfiles === initialProfiles and the excluded-
+		// row check below would be skipped entirely, letting a broken filter
+		// pass in full (review-r1-tests.md F14). The seed guarantees at least
+		// two distinct profile names, so a real filter on the first profile's
+		// name must exclude at least one other.
+		expect(
+			filteredProfiles.length,
+			'a real filter must narrow the result set',
+		).toBeLessThan(initialProfiles.length);
+
 		const excludedProfile = initialProfiles.find((profile) => {
 			return !filteredProfiles.some((filtered) => filtered.id === profile.id);
 		});
+		expect(
+			excludedProfile,
+			'expected at least one excluded profile',
+		).toBeDefined();
 		if (excludedProfile) {
 			await expect(profileRow(page, excludedProfile.name)).toHaveCount(0);
 		}

@@ -1,8 +1,8 @@
 import { type Page, expect, test } from '@playwright/test';
 
+import { API_BASE_URL } from './helpers/api';
 import { loginAsStaffAdmin } from './helpers/login';
 
-const API_BASE_URL = 'https://api.front-2.localhost:8443';
 const PROFILES_LIST_PATH = '/staff/profiles';
 const PROFILE_DETAIL_PATH = (profileId: string) =>
 	`/staff/profiles/${profileId}`;
@@ -243,6 +243,9 @@ test('applies the P3 column grid, truncates long text without horizontal scroll,
 	const cardClientWidth = await page
 		.getByTestId('staff-profiles-table-card')
 		.evaluate((el) => el.clientWidth);
+	// Upper bound alone passes for a collapsed (0-width) table too — pair
+	// with a real minimum (review-r1-tests.md F25).
+	expect(tableScrollWidth).toBeGreaterThan(0);
 	expect(tableScrollWidth).toBeLessThanOrEqual(cardClientWidth + 1);
 
 	const descriptionText = tableRows

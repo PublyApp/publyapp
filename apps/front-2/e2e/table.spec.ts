@@ -59,21 +59,33 @@ test.describe('staff users table', () => {
 		const levelHeader = page.getByRole('columnheader', { name: 'Level' });
 		await expect(levelHeader).toBeVisible();
 
+		const ascResponse = page.waitForResponse(
+			(response) =>
+				response.url().includes('/staff/users') &&
+				new URL(response.url()).searchParams.get('sort_order') === 'asc',
+		);
 		await levelHeader.click();
 		await expect(page).toHaveURL(/[?&]sort_id=level/);
-		await expect
-			.poll(() => page.getByTestId(`${TABLE}-rows`).locator('td').count())
-			.toBeGreaterThan(0);
+		await ascResponse;
 		const firstOrder = await page
 			.getByTestId(`${TABLE}-rows`)
 			.locator('td')
 			.allTextContents();
 
+		const descResponse = page.waitForResponse(
+			(response) =>
+				response.url().includes('/staff/users') &&
+				new URL(response.url()).searchParams.get('sort_order') === 'desc',
+		);
 		await levelHeader.click();
-		await expect(page).toHaveURL(/[?&]sort_order=/);
-		await expect
-			.poll(() => page.getByTestId(`${TABLE}-rows`).locator('td').count())
-			.toBeGreaterThan(0);
+		// `table-search-params.ts` writes BOTH sort_id and sort_order on the
+		// FIRST click already, so a bare `/sort_order=/` check here is pinned
+		// true regardless of whether the second click actually flips the
+		// direction — assert the flip itself (asc -> desc), and gate the row
+		// snapshot on the matching response instead of merely polling for a
+		// non-empty (possibly still-stale) row count.
+		await expect(page).toHaveURL(/[?&]sort_order=desc/);
+		await descResponse;
 		const secondOrder = await page
 			.getByTestId(`${TABLE}-rows`)
 			.locator('td')
@@ -110,6 +122,7 @@ test.describe('staff users table', () => {
 		const cardClientWidth = await page
 			.getByTestId(`${TABLE}-card`)
 			.evaluate((el) => el.clientWidth);
+		expect(tableScrollWidth).toBeGreaterThan(0);
 		expect(tableScrollWidth).toBeLessThanOrEqual(cardClientWidth + 1);
 
 		// Owner decision 15b: the last row keeps its bottom border.
@@ -189,6 +202,7 @@ test.describe('staff users table', () => {
 		const activeCellBefore = await page.evaluate(
 			() => document.activeElement?.closest('tr')?.rowIndex,
 		);
+		expect(activeCellBefore).not.toBeUndefined();
 
 		await page.keyboard.press('ArrowDown');
 
@@ -196,7 +210,10 @@ test.describe('staff users table', () => {
 			() => document.activeElement?.closest('tr')?.rowIndex,
 		);
 
-		expect(activeCellAfter).not.toEqual(activeCellBefore);
+		// `not.toEqual` is satisfied by focus moving anywhere else, including
+		// out of the grid entirely (activeCellAfter becoming `undefined`) —
+		// assert the actual invariant: focus moves exactly one row down.
+		expect(activeCellAfter).toBe((activeCellBefore ?? 0) + 1);
 	});
 });
 
@@ -213,8 +230,15 @@ for (const width of [1280, 768, 390]) {
 			const rows = page.getByTestId(`${TABLE}-rows`);
 			await expect(rows).toBeVisible();
 
+			// `not.toBe(0)` is satisfied by any rendered table, including a
+			// collapsed or overflowing one — assert the real invariant instead:
+			// the table never forces horizontal scroll past its own card.
 			const scrollWidth = await rows.evaluate((el: Element) => el.scrollWidth);
-			expect(scrollWidth).not.toBe(0);
+			const cardClientWidth = await page
+				.getByTestId(`${TABLE}-card`)
+				.evaluate((el) => el.clientWidth);
+			expect(scrollWidth).toBeGreaterThan(0);
+			expect(scrollWidth).toBeLessThanOrEqual(cardClientWidth + 1);
 		});
 
 		test('footer does not overflow', async ({ page }) => {

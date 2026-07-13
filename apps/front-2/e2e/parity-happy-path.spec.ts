@@ -1,12 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import { API_BASE_URL } from './helpers/api';
 import {
 	getInviteStaffUserButton,
 	loginAsStaffAdmin,
 	setLocaleCookie,
 } from './helpers/login';
 
-const API_BASE_URL = 'https://api.front-2.localhost:8443';
 const AUTHED_STAFF_USERS_PATH = '/staff/users';
 const STAFF_INVITATIONS_NEW_PATH = '/staff/invitations/new';
 const STAFF_INVITATIONS_BULK_PATH = '/staff/invitations/bulk';

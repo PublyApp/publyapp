@@ -17,12 +17,19 @@ const setSessionCookie = async (page: Page) => {
 	);
 };
 
+/** Returns a hit counter alongside the route registration so the test can
+ * prove the mocked handler actually fired, rather than trusting that the
+ * resulting URL could only be reached via this specific route (three
+ * independent paths can all land on the same `/login?rc=invalid_session`
+ * URL — see review-r1-tests.md F15). */
 const mockAuthRedirectCode = async (
 	page: Page,
 	status: number,
 	body: Record<string, unknown> = {},
-) => {
+): Promise<{ hits: () => number }> => {
+	let hits = 0;
 	await page.route('**/auth/redirect-code**', async (route) => {
+		hits += 1;
 		await route.fulfill({
 			status,
 			headers: {
@@ -31,6 +38,8 @@ const mockAuthRedirectCode = async (
 			body: JSON.stringify(body),
 		});
 	});
+
+	return { hits: () => hits };
 };
 
 test('auth surface invalid session stays on login and stays reachable', async ({
@@ -39,11 +48,9 @@ test('auth surface invalid session stays on login and stays reachable', async ({
 	await setSessionCookie(page);
 	await page.goto('/login?rc=invalid_session');
 
-	expect(
-		await page
-			.getByText('Your session expired. Please sign in again.')
-			.isVisible(),
-	).toBe(true);
+	await expect(
+		page.getByText('Your session expired. Please sign in again.'),
+	).toBeVisible();
 	const cookie = await page.evaluate(() => document.cookie);
 	expect(cookie).toContain(TENANT_TOKEN_VALUE);
 	expect(page.url()).toContain('/login');
@@ -53,7 +60,10 @@ test('authed 401 does not stay authed and redirects through logout flow', async 
 	page,
 }) => {
 	await setSessionCookie(page);
-	await mockAuthRedirectCode(page, 401, {
+	const cookieBeforeNavigation = await page.evaluate(() => document.cookie);
+	expect(cookieBeforeNavigation).toContain(TENANT_TOKEN_VALUE);
+
+	const redirectCodeMock = await mockAuthRedirectCode(page, 401, {
 		status: 401,
 		title: 'Unauthorized',
 		detail: 'Token invalid',
@@ -62,6 +72,7 @@ test('authed 401 does not stay authed and redirects through logout flow', async 
 	await page.goto('/tenant');
 
 	await expect(page).toHaveURL(/.*\/login\?rc=invalid_session/);
+	expect(redirectCodeMock.hits()).toBe(1);
 	await expect(
 		page.getByText('Your session expired. Please sign in again.'),
 	).toBeVisible();
