@@ -68,6 +68,7 @@ const columns: ColumnDef<StaffProfileRow>[] = [
 			</div>
 		),
 		accessorKey: 'name',
+		meta: { width: '240px', pinWidthAbove: 768 },
 		cell: ({ row }) => {
 			const IconComponent = PROFILE_ICON_MAP[row.original.icon];
 			const name = row.original.name;

@@ -109,6 +109,17 @@ type ColumnDisplayMeta = {
 	 * wouldn't shrink that sum, `<col>` display is largely inert.
 	 */
 	hideBelow?: number;
+	/**
+	 * Restricts `width` to viewports at or above this px breakpoint; below
+	 * it, the column drops its explicit width and flexes like an unset
+	 * (`1fr`-equivalent) column instead. For an identity column that must
+	 * stay pinned at its ratified desktop grid width (e.g. `200px`) but
+	 * can't afford that same fixed width once the other columns it shares a
+	 * row with have already dropped to their `hideBelow` floor — pinning it
+	 * unconditionally would blow the mobile `rows.scrollWidth <=
+	 * card.clientWidth` budget table-layout:fixed enforces.
+	 */
+	pinWidthAbove?: number;
 };
 
 declare module '@tanstack/react-table' {
@@ -119,6 +130,23 @@ declare module '@tanstack/react-table' {
 const columnDisplayMeta = (
 	column: ColumnDef<never> | { meta?: unknown },
 ): ColumnDisplayMeta => (column.meta ?? {}) as ColumnDisplayMeta;
+
+/** Resolves a column's effective `<col>` width, honoring `pinWidthAbove`. */
+const resolveColumnWidth = (
+	displayMeta: ColumnDisplayMeta,
+	viewportWidth: number,
+): string | undefined => {
+	if (displayMeta.width == null) {
+		return undefined;
+	}
+	if (
+		displayMeta.pinWidthAbove != null &&
+		viewportWidth < displayMeta.pinWidthAbove
+	) {
+		return undefined;
+	}
+	return displayMeta.width;
+};
 
 const subscribeToViewportWidth = (callback: () => void): (() => void) => {
 	window.addEventListener('resize', callback);
@@ -669,15 +697,9 @@ export const DataTable = <TData extends { id: string }>({
 							{hasSelection ? <col style={{ width: '40px' }} /> : null}
 							{table.getVisibleLeafColumns().map((column) => {
 								const displayMeta = columnDisplayMeta(column.columnDef);
+								const width = resolveColumnWidth(displayMeta, viewportWidth);
 								return (
-									<col
-										key={column.id}
-										style={
-											displayMeta.width
-												? { width: displayMeta.width }
-												: undefined
-										}
-									/>
+									<col key={column.id} style={width ? { width } : undefined} />
 								);
 							})}
 						</colgroup>

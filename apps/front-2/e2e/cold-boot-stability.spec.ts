@@ -97,6 +97,27 @@ test.describe('cold-boot stability (BUG-2)', () => {
 				subtree: true,
 				characterData: true,
 			});
+
+			// MutationObserver records are microtask-scheduled: on a fast/cached
+			// reload the parser can insert the whole SSR body (rail included) in
+			// a single synchronous burst that races the observer's own wiring,
+			// so the very first delivered record can be missed entirely — an
+			// attach race in the harness, not evidence the rail was ever
+			// actually absent (see the sibling deterministic SSR-body test
+			// above, which proves the rail ships in the raw HTML unconditionally).
+			// requestAnimationFrame is macrotask/paint-scheduled, independent of
+			// that microtask race, so it always gets another synchronous look at
+			// the live DOM — a race-free backstop for `railSeen` that doesn't
+			// weaken the ordering check: it calls the exact same `sample()`,
+			// which still records `sawContentBeforeRail` first if content really
+			// did paint ahead of the rail.
+			const pollViaAnimationFrame = () => {
+				sample();
+				if (!state.railSeen) {
+					requestAnimationFrame(pollViaAnimationFrame);
+				}
+			};
+			requestAnimationFrame(pollViaAnimationFrame);
 		});
 
 		await page.reload();

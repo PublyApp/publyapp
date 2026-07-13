@@ -45,7 +45,7 @@ const columns: ColumnDef<StaffUserRow>[] = [
 		id: 'name',
 		header: 'Name',
 		enableSorting: false,
-		meta: { headerIcon: <IconUser /> },
+		meta: { headerIcon: <IconUser />, width: '200px', pinWidthAbove: 768 },
 		cell: ({ row }) => (
 			<Link
 				to="/staff/staff-users/$userId"

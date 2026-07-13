@@ -449,6 +449,69 @@ describe('DataTable state rendering', () => {
 		});
 	});
 
+	describe('DataTable pinWidthAbove column width', () => {
+		const originalInnerWidth = window.innerWidth;
+
+		afterEach(() => {
+			Object.defineProperty(window, 'innerWidth', {
+				writable: true,
+				configurable: true,
+				value: originalInnerWidth,
+			});
+		});
+
+		const setViewportWidth = (width: number): void => {
+			Object.defineProperty(window, 'innerWidth', {
+				writable: true,
+				configurable: true,
+				value: width,
+			});
+			fireEvent(window, new Event('resize'));
+		};
+
+		const pinnedColumns: ColumnDef<TestRow>[] = [
+			{
+				id: 'name',
+				accessorKey: 'name',
+				header: 'Name',
+				meta: { width: '200px', pinWidthAbove: 768 },
+				cell: ({ getValue }) => String(getValue()),
+			},
+			{
+				id: 'status',
+				accessorKey: 'name',
+				header: 'Status',
+				meta: { width: '122px' },
+				cell: ({ getValue }) => String(getValue()),
+			},
+		];
+
+		test('keeps a pinWidthAbove column at its fixed width at/above the breakpoint, and lets it flex below it', () => {
+			setViewportWidth(1024);
+
+			render(
+				<DataTable
+					{...baseProps}
+					columns={pinnedColumns}
+					rows={rows}
+					isError={false}
+				/>,
+			);
+
+			const desktopCol = screen
+				.getByTestId('test-table-rows')
+				.querySelectorAll('colgroup col')[0] as HTMLElement;
+			expect(desktopCol.style.width).toBe('200px');
+
+			setViewportWidth(390);
+
+			const mobileCol = screen
+				.getByTestId('test-table-rows')
+				.querySelectorAll('colgroup col')[0] as HTMLElement;
+			expect(mobileCol.style.width).toBe('');
+		});
+	});
+
 	test('locks controls when row selection mode is active', () => {
 		render(
 			<DataTable

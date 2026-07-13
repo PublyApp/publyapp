@@ -21,7 +21,14 @@ const setSessionCookie = async (page: Page) => {
  * prove the mocked handler actually fired, rather than trusting that the
  * resulting URL could only be reached via this specific route (three
  * independent paths can all land on the same `/login?rc=invalid_session`
- * URL — see review-r1-tests.md F15). */
+ * URL — see review-r1-tests.md F15). Only counts GET requests: the API
+ * origin (`api.front-2.localhost`) is cross-origin from the app
+ * (`front-2.localhost`), and the client attaches a non-simple
+ * `X-Session-Token` header, so the browser sends a CORS preflight `OPTIONS`
+ * request ahead of every real `GET` — matching this same path. Forwarding
+ * it via `route.fallback()` (the same method-filter pattern every other
+ * mocked route in this suite uses) keeps that preflight on the real
+ * network instead of double-counting it as a second logical call. */
 const mockAuthRedirectCode = async (
 	page: Page,
 	status: number,
@@ -29,6 +36,11 @@ const mockAuthRedirectCode = async (
 ): Promise<{ hits: () => number }> => {
 	let hits = 0;
 	await page.route('**/auth/redirect-code**', async (route) => {
+		if (route.request().method() !== 'GET') {
+			await route.fallback();
+			return;
+		}
+
 		hits += 1;
 		await route.fulfill({
 			status,
