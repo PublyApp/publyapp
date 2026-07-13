@@ -40,7 +40,7 @@ vi.mock('react-i18next', () => ({
 				'edit-profile': 'Edit profile',
 				'profile-form-drawer-description': 'Configure this profile.',
 				'profile-name': 'Profile name',
-				'profile-name-placeholder': 'Approvers',
+				'tenant-profile-name-placeholder': 'Approvers',
 				'profile-name-required': 'Profile name is required.',
 				'profile-name-too-long': 'Profile name is too long.',
 				description: 'Description',

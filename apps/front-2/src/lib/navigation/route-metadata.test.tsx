@@ -45,6 +45,7 @@ describe('front-2 route metadata', () => {
 			getSecondaryPanelItems('/staff/tenants').map((item) => item.labelKey),
 		).toEqual([
 			'nav-tenants-all',
+			'nav-tenants-pending',
 			'nav-tenants-active',
 			'nav-tenants-suspended',
 		]);
@@ -203,14 +204,17 @@ describe('front-2 route metadata', () => {
 	});
 
 	test('tenants panel items distinguish All tenants from the status filters', () => {
-		const [allTenants, active, suspended] =
+		const [allTenants, pending, active, suspended] =
 			getSecondaryPanelItems('/staff/tenants');
-		if (!allTenants || !active || !suspended) {
-			throw new Error('expected all three tenants panel items to exist');
+		if (!allTenants || !pending || !active || !suspended) {
+			throw new Error('expected all four tenants panel items to exist');
 		}
 
 		expect(isSecondaryPanelItemActive(allTenants, '/staff/tenants', {})).toBe(
 			true,
+		);
+		expect(isSecondaryPanelItemActive(pending, '/staff/tenants', {})).toBe(
+			false,
 		);
 		expect(isSecondaryPanelItemActive(active, '/staff/tenants', {})).toBe(
 			false,
@@ -218,6 +222,17 @@ describe('front-2 route metadata', () => {
 		expect(isSecondaryPanelItemActive(suspended, '/staff/tenants', {})).toBe(
 			false,
 		);
+
+		expect(
+			isSecondaryPanelItemActive(pending, '/staff/tenants', {
+				status: 'pending',
+			}),
+		).toBe(true);
+		expect(
+			isSecondaryPanelItemActive(allTenants, '/staff/tenants', {
+				status: 'pending',
+			}),
+		).toBe(false);
 
 		expect(
 			isSecondaryPanelItemActive(active, '/staff/tenants', {

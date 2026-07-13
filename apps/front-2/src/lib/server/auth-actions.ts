@@ -2,6 +2,9 @@ import { createUntypedString } from '@microsoft/kiota-abstractions';
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
+import InterZod from '@org/shared-ts/lib/zod/InterZod';
+import { getRegisterSchema } from '@org/shared-ts/validations/auth.validations';
+
 import { createClient } from '../api-client/client-manager';
 import { PASSWORD_MIN_LENGTH } from '../auth-password-policy';
 import { throwServerFailure } from './server-failure';
@@ -18,12 +21,28 @@ type RegisterResult = {
 	email: string;
 };
 
-const RegisterInputSchema = z.object({
-	firstName: z.string().trim().min(1).max(100),
-	lastName: z.string().trim().min(1).max(100),
-	email: z.string().min(1).email().max(120),
-	password: z.string().min(PASSWORD_MIN_LENGTH).max(64),
+/**
+ * This validator never renders its messages to the user — a thrown
+ * `ZodError` is caught and replaced with a translated fallback (see
+ * `signup.tsx`'s `onSubmit`), so an identity translator is sufficient here.
+ * It exists purely so `firstName`/`lastName`/`email` stay structurally in
+ * sync with the shared `getRegisterSchema` contract instead of drifting via
+ * a second hand-maintained copy.
+ */
+const identityTranslate = ((key: string) => key) as never;
+const structuralZod = new InterZod({
+	i18n: { getFixedT: () => identityTranslate, t: identityTranslate },
 });
+
+/**
+ * `password` deliberately does NOT reuse `getRegisterSchema`'s rule (min 8 +
+ * special-char) — front-2 enforces a longer, simpler `PASSWORD_MIN_LENGTH`
+ * (12 chars, no special-char requirement) as its own product policy; see
+ * `../auth-password-policy.ts`.
+ */
+export const RegisterInputSchema = getRegisterSchema(structuralZod)
+	.omit({ password: true })
+	.extend({ password: z.string().min(PASSWORD_MIN_LENGTH).max(64) });
 
 export const register = createServerFn({ method: 'POST' })
 	.validator((data): RegisterInput => RegisterInputSchema.parse(data))

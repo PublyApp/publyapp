@@ -38,9 +38,20 @@ const parseSortOrder = (value: unknown): SortOrder | undefined => {
 const isPositiveSafeInteger = (value: number): boolean =>
 	Number.isSafeInteger(value) && value > 0;
 
+/**
+ * Matches the largest entry in `PAGE_SIZE_OPTIONS`
+ * (`~/components/table/data-table.tsx`) — no table's page-size control can
+ * ever request more than this. A hand-typed `size` above this bound falls
+ * back to the caller's default instead of being honored, closing the
+ * unbounded-page DoS surface (review-r2-tests.md F4).
+ */
+const MAX_TABLE_SIZE = 100;
+
 const parseSize = (value: unknown): number | undefined => {
 	if (typeof value === 'number') {
-		return isPositiveSafeInteger(value) ? value : undefined;
+		return isPositiveSafeInteger(value) && value <= MAX_TABLE_SIZE
+			? value
+			: undefined;
 	}
 
 	const normalized = trimStringOrUndefined(value);
@@ -53,7 +64,7 @@ const parseSize = (value: unknown): number | undefined => {
 	}
 
 	const parsed = Number(normalized);
-	if (!isPositiveSafeInteger(parsed)) {
+	if (!isPositiveSafeInteger(parsed) || parsed > MAX_TABLE_SIZE) {
 		return undefined;
 	}
 

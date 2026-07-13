@@ -74,6 +74,12 @@ describe('parseTableSearchParams', () => {
 		);
 		expect(parseTableSearchParams({})).toEqual({});
 	});
+
+	test('falls back to the default for a size above the largest page-size option', () => {
+		expect(parseTableSearchParams({ size: 500 })).toEqual({});
+		expect(parseTableSearchParams({ size: '100000' })).toEqual({});
+		expect(parseTableSearchParams({ size: 100 })).toEqual({ size: 100 });
+	});
 });
 
 describe('serializeTableSearchParams', () => {

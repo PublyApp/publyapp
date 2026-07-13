@@ -2,6 +2,7 @@ import {
 	IconActivity,
 	IconBuilding,
 	IconClipboardList,
+	IconClock,
 	IconLayoutDashboard,
 	IconMail,
 	IconReportAnalytics,
@@ -23,7 +24,7 @@ export type BreadcrumbItem = {
 };
 
 export type SecondaryPanelItemSearch = {
-	status?: 'active' | 'suspended';
+	status?: 'pending' | 'active' | 'suspended';
 };
 
 export type SecondaryPanelItem = {
@@ -100,6 +101,13 @@ const TENANTS_MODULE_ITEMS: SecondaryPanelItem[] = [
 		labelKey: 'nav-tenants-all',
 		path: '/staff/tenants',
 		Icon: IconBuilding,
+	},
+	{
+		id: 'tenants-pending',
+		labelKey: 'nav-tenants-pending',
+		path: '/staff/tenants',
+		search: { status: 'pending' },
+		Icon: IconClock,
 	},
 	{
 		id: 'tenants-active',

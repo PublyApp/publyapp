@@ -305,7 +305,7 @@ export const ProfileFormDrawer = ({
 						<Field.Text
 							name="name"
 							label={t('profile-name')}
-							placeholder={t('profile-name-placeholder')}
+							placeholder={t('tenant-profile-name-placeholder')}
 							isDisabled={isFormLocked}
 							fullWidth
 						/>
