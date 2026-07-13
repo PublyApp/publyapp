@@ -10461,6 +10461,12 @@
       "PasswordRegisterBody": {
         "type": "object",
         "properties": {
+          "firstName": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "lastName": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
           "email": {
             "$ref": "#/components/schemas/JsonElement"
           },

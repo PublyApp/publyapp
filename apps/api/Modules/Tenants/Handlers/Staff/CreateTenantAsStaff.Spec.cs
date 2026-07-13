@@ -128,9 +128,16 @@ public sealed class CreateTenantAsStaffSpec
 		);
 
 		var sentEmails = await WaitForEmailsAsync(fakeEmailSender, 2);
-		sentEmails.Select(email => email.To)
+		// Filter to this test's own recipients rather than asserting on the
+		// whole fixture-scoped buffer: a straggling fire-and-forget email from
+		// a prior test in this class can still land here after Clear().
+		var relevantEmails = sentEmails
+			.Where(email => email.To == adminEmail || email.To == userEmail)
+			.ToList();
+
+		relevantEmails.Select(email => email.To)
 			.Should().BeEquivalentTo([adminEmail, userEmail]);
-		sentEmails.Should().OnlyContain(email =>
+		relevantEmails.Should().OnlyContain(email =>
 			email.Subject.Contains(tenantName, StringComparison.Ordinal)
 			&& email.HtmlBody.Contains("Accept the invitation", StringComparison.Ordinal)
 		);

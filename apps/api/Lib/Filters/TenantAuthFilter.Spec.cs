@@ -21,6 +21,17 @@ using AppRoutes = PublyApp.Api.Lib.Routes.Routes;
 
 namespace PublyApp.Api.Lib.Filters;
 
+// This class, GetTenantAsStaffSpec, GetUserTenantsForPickerSpec, and
+// UpdateTenantAsStaffSpec all suspend/reactivate/rename/edit-notes on the
+// shared seeded Acme tenant (looked up by name) and restore it in a
+// best-effort `finally`. Sharing this DisableParallelization collection stops
+// them from racing each other's mutation window; other classes that only
+// *read* Acme by name (e.g. via TenantTestHelper.GetTenantIdByNameAsync) are
+// unaffected since they run in their own default collections.
+[CollectionDefinition("AcmeTenantMutation", DisableParallelization = true)]
+public class AcmeTenantMutationCollection;
+
+[Collection("AcmeTenantMutation")]
 public sealed class TenantAuthFilterSpec
 	: IClassFixture<ApiFixture> {
 	// The /test endpoint is behind tenantGroup

@@ -3702,6 +3702,8 @@ export function deserializeIntoPasswordLoginResult(passwordLoginResult: Partial<
 export function deserializeIntoPasswordRegisterBody(passwordRegisterBody: Partial<PasswordRegisterBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "email": n => { passwordRegisterBody.email = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "firstName": n => { passwordRegisterBody.firstName = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "lastName": n => { passwordRegisterBody.lastName = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "password": n => { passwordRegisterBody.password = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
@@ -5142,6 +5144,14 @@ export interface PasswordRegisterBody extends AdditionalDataHolder, Parsable {
      * The email property
      */
     email?: UntypedNode | null;
+    /**
+     * The firstName property
+     */
+    firstName?: UntypedNode | null;
+    /**
+     * The lastName property
+     */
+    lastName?: UntypedNode | null;
     /**
      * The password property
      */
@@ -6749,6 +6759,8 @@ export function serializePasswordLoginResult(writer: SerializationWriter, passwo
 export function serializePasswordRegisterBody(writer: SerializationWriter, passwordRegisterBody: Partial<PasswordRegisterBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!passwordRegisterBody || isSerializingDerivedType) { return; }
     writer.writeObjectValue("email", passwordRegisterBody.email);
+    writer.writeObjectValue("firstName", passwordRegisterBody.firstName);
+    writer.writeObjectValue("lastName", passwordRegisterBody.lastName);
     writer.writeObjectValue("password", passwordRegisterBody.password);
     writer.writeAdditionalData(passwordRegisterBody.additionalData);
 }

@@ -133,6 +133,28 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 	}
 
 	[Fact]
+	public async Task ItShouldReturnValidationProblemWhenUserIdsExceedTheMaximumCount() {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync();
+
+		var tooManyUserIds = Enumerable.Range(0, 101).Select(_ => Guid.NewGuid()).ToArray();
+
+		using var response = await BulkRemoveAsync(
+			staffToken,
+			tenantId.ToString(),
+			new { userIds = tooManyUserIds }
+		);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.RequestBodyValidationFailed);
+		problem.Errors.Keys.Should().Contain("UserIds");
+	}
+
+	[Fact]
 	public async Task ItShouldRemoveMultipleTenantUsersInOneBulkRequest() {
 		var staffToken = await _authClient.LoginAsStaffAdminAsync();
 		var (tenantId, adminUserId) = await SeedTenantWithAdminAsync();

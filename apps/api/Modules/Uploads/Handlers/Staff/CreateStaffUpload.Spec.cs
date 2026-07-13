@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
@@ -121,6 +122,49 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 			&& a.Details.Contains(result.Path)
 		);
 		auditLogExists.Should().BeTrue("a successful upload must write an audit log entry");
+
+		fileResponse.Headers.TryGetValues("X-Content-Type-Options", out var nosniffValues)
+			.Should().BeTrue("served uploads must carry X-Content-Type-Options: nosniff");
+		nosniffValues.Should().NotBeNull();
+		Assert.NotNull(nosniffValues);
+		nosniffValues.Should().ContainSingle().Which.Should().Be("nosniff");
+	}
+
+	[Fact]
+	public async Task ItShouldReturn201WithSniffedContentTypeWhenFilenameAndClaimedTypeLie() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+
+		// The client claims this is an HTML file, but the bytes are a PNG.
+		// A handler that echoes the claimed type/extension instead of the
+		// sniffed one would let this be served back as text/html — a stored
+		// XSS vector. It must be classified (and stored) as a PNG regardless.
+		using var response = await _http.SendAsync(
+			BuildUploadRequest(token, PngBytes, "payload.html", "text/html")
+		);
+
+		response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<StaffUploadCreated>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+		result.ContentType.Should().Be("image/png");
+		result.Path.Should().EndWith(".png");
+		result.Path.Should().NotContain("payload");
+
+		using var fileResponse = await _http.GetAsync(result.Url);
+		fileResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+		fileResponse.Content.Headers.ContentType.Should().NotBeNull();
+		fileResponse.Content.Headers.ContentType!.MediaType.Should().Be("image/png");
+	}
+
+	[Fact]
+	public async Task ItShouldReturn404ForPathTraversalInTheServedFileRoute() {
+		using var response = await _http.GetAsync("/files/../appsettings.json");
+		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+
+		using var encodedResponse = await _http.GetAsync("/files/..%2fappsettings.json");
+		encodedResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
 	[Fact]
@@ -139,6 +183,11 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 		using var response = await _http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		Assert.NotNull(problem);
+		problem.Errors.Keys.Should().Contain("file");
 	}
 
 	[Fact]
@@ -185,6 +234,11 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		Assert.NotNull(problem);
+		problem.Errors.Keys.Should().Contain("file");
 	}
 
 	[Fact]
@@ -198,6 +252,11 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		Assert.NotNull(problem);
+		problem.Errors.Keys.Should().Contain("file");
 	}
 
 	[Fact]

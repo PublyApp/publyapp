@@ -28,6 +28,9 @@ using Xunit;
 
 namespace PublyApp.Api.Modules.Tenants.Handlers.Staff;
 
+// See TenantAuthFilterSpec for why this joins the shared
+// "AcmeTenantMutation" DisableParallelization collection.
+[Collection("AcmeTenantMutation")]
 public sealed class UpdateTenantAsStaffSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
@@ -468,6 +471,20 @@ public sealed class UpdateTenantAsStaffSpec
 		result.DefaultLocale.Should().Be("fr");
 		result.Timezone.Should().Be("Europe/Paris");
 		result.Notes.Should().Be("staff-only note");
+
+		// The response body is built from the in-memory tracked entity, which
+		// would look updated even if the service never called SaveChanges (or
+		// wrote to the wrong column). Re-read from a fresh scope to prove it
+		// actually persisted.
+		var persisted = await GetTenantIgnoringFiltersAsync(seededTenant.TenantId);
+		persisted.LegalName.Should().Be("Acme Legal Name LLC");
+		persisted.Description.Should().Be("A short org description");
+		persisted.WebsiteUrl.Should().Be("https://example.com");
+		persisted.BillingEmail.Should().Be("billing@example.com");
+		persisted.SupportEmail.Should().Be("support@example.com");
+		persisted.DefaultLocale.Should().Be("fr");
+		persisted.Timezone.Should().Be("Europe/Paris");
+		persisted.Notes.Should().Be("staff-only note");
 	}
 
 	[Fact]
@@ -539,6 +556,18 @@ public sealed class UpdateTenantAsStaffSpec
 		result.DefaultLocale.Should().BeNull();
 		result.Timezone.Should().BeNull();
 		result.Notes.Should().BeNull();
+
+		// Prove the PatchField<T> clear-to-null semantics actually persisted,
+		// not just that the response echoed the in-memory tracked entity.
+		var persisted = await GetTenantIgnoringFiltersAsync(seededTenant.TenantId);
+		persisted.LegalName.Should().BeNull();
+		persisted.Description.Should().BeNull();
+		persisted.WebsiteUrl.Should().BeNull();
+		persisted.BillingEmail.Should().BeNull();
+		persisted.SupportEmail.Should().BeNull();
+		persisted.DefaultLocale.Should().BeNull();
+		persisted.Timezone.Should().BeNull();
+		persisted.Notes.Should().BeNull();
 	}
 
 	[Fact]
@@ -583,6 +612,13 @@ public sealed class UpdateTenantAsStaffSpec
 
 		result.LegalName.Should().Be("Acme Legal Name LLC");
 		result.Notes.Should().Be("staff-only note");
+
+		// Confirm the leave-untouched fields are genuinely unchanged in the
+		// database, not merely absent from a response the handler could have
+		// built from stale in-memory state either way.
+		var persisted = await GetTenantIgnoringFiltersAsync(seededTenant.TenantId);
+		persisted.LegalName.Should().Be("Acme Legal Name LLC");
+		persisted.Notes.Should().Be("staff-only note");
 	}
 
 	[Theory]
@@ -1117,6 +1153,29 @@ public sealed class UpdateTenantAsStaffSpec
 			select log;
 
 		return await query.FirstOrDefaultAsync();
+	}
+
+	// IgnoreQueryFilters mirrors BulkRemoveTenantUsersAsStaff.Spec.cs's
+	// re-read pattern: fetch from a brand-new scope/DbContext so the result
+	// can only reflect what was actually persisted, never the request-scoped
+	// tracked entity the handler returned in its response body.
+	private async Task<Tenant> GetTenantIgnoringFiltersAsync(Guid tenantId) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var tenant = await dbContext.Tenant
+			.IgnoreQueryFilters()
+			.FirstOrDefaultAsync(t => t.Id == tenantId);
+
+		if (tenant is null) {
+			throw new InvalidOperationException(
+				$"Tenant {tenantId} could not be re-read from a fresh scope."
+			);
+		}
+
+		return tenant;
 	}
 
 	private static void AssertUpdateAuditDetails(

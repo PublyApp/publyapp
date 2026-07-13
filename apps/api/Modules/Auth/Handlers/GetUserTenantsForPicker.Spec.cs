@@ -18,6 +18,9 @@ using Xunit;
 
 namespace PublyApp.Api.Modules.Auth.Handlers;
 
+// See TenantAuthFilterSpec (Lib/Filters) for why this joins the shared
+// "AcmeTenantMutation" DisableParallelization collection.
+[Collection("AcmeTenantMutation")]
 public sealed class GetUserTenantsForPickerSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;

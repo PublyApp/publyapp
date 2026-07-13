@@ -1042,6 +1042,103 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 						);
 		}
 
+		[Fact]
+		public async Task
+		ItShouldMatchEmailSearchCaseInsensitively() {
+			string staffToken =
+				await _authClient.LoginAsStaffAdminAsync();
+			Guid tenantId =
+				await TenantTestHelper
+					.GetTenantIdByNameAsync(
+						_http,
+						staffToken,
+						SeedConstants.Tenants.AcmeName
+					);
+
+			// Invitation emails are always persisted lowercase.
+			string targetEmail =
+				$"acme-search-case-{Guid.NewGuid():N}@example.com";
+			_ = await CreateTenantInvitationAsync(
+				staffToken,
+				tenantId,
+				targetEmail
+			);
+
+			string uppercaseSearchTerm =
+				targetEmail.Split('@')[0].ToUpperInvariant();
+			string url = GetFindUrl(tenantId, q: uppercaseSearchTerm);
+			HttpRequestMessage request = new HttpRequestMessage(
+				HttpMethod.Get, url
+			).WithSessionToken(staffToken);
+
+			using HttpResponseMessage response =
+				await _http.SendAsync(request);
+
+			_ = response.StatusCode.Should()
+				.Be(HttpStatusCode.OK);
+
+			FindResponse? result = await response.Content
+				.ReadFromJsonAsync<FindResponse>();
+			_ = result.Should().NotBeNull();
+			Assert.NotNull(result);
+			_ = result.Data.Should().Contain(
+							i => i.Email.Equals(targetEmail, StringComparison.OrdinalIgnoreCase)
+						);
+		}
+
+		[Fact]
+		public async Task
+		ItShouldTreatPercentSearchTermAsLiteralNotWildcard() {
+			string staffToken =
+				await _authClient.LoginAsStaffAdminAsync();
+			Guid tenantId =
+				await TenantTestHelper
+					.GetTenantIdByNameAsync(
+						_http,
+						staffToken,
+						SeedConstants.Tenants.AcmeName
+					);
+
+			string firstEmail =
+				$"percent-escape-a-{Guid.NewGuid():N}@example.com";
+			string secondEmail =
+				$"percent-escape-b-{Guid.NewGuid():N}@example.com";
+			_ = await CreateTenantInvitationAsync(
+				staffToken,
+				tenantId,
+				firstEmail
+			);
+			_ = await CreateTenantInvitationAsync(
+				staffToken,
+				tenantId,
+				secondEmail
+			);
+
+			// No seeded/created email literally contains "%". If the wildcard were
+			// left unescaped, "%" would match every email in the tenant.
+			string url = GetFindUrl(tenantId, q: "%", limit: 50);
+			HttpRequestMessage request = new HttpRequestMessage(
+				HttpMethod.Get, url
+			).WithSessionToken(staffToken);
+
+			using HttpResponseMessage response =
+				await _http.SendAsync(request);
+
+			_ = response.StatusCode.Should()
+				.Be(HttpStatusCode.OK);
+
+			FindResponse? result = await response.Content
+				.ReadFromJsonAsync<FindResponse>();
+			_ = result.Should().NotBeNull();
+			Assert.NotNull(result);
+			_ = result.Data.Should().NotContain(
+							i => i.Email.Equals(firstEmail, StringComparison.OrdinalIgnoreCase)
+						);
+			_ = result.Data.Should().NotContain(
+				i => i.Email.Equals(secondEmail, StringComparison.OrdinalIgnoreCase)
+			);
+		}
+
 		#endregion
 
 		#region Auth and Permission Tests

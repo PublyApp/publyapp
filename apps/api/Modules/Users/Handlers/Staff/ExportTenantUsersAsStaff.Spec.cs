@@ -160,6 +160,78 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldReturn422WhenIdsExceedTheMaximumCount() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync();
+
+		var ids = string.Join(",", Enumerable.Range(0, 101).Select(_ => Guid.NewGuid()));
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetExportUrl(tenantId.ToString(), ids: ids)
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+	}
+
+	[Fact]
+	public async Task ItShouldReturn422WhenSearchExceedsTwoHundredCharacters() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync();
+
+		var tooLongSearch = new string('a', 201);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetExportUrl(tenantId.ToString(), search: tooLongSearch)
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+	}
+
+	[Fact]
+	public async Task ItShouldReturn422ForInvalidLevel() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetExportUrl(tenantId.ToString(), level: "owner")
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+	}
+
+	[Fact]
+	public async Task ItShouldExcludeCrossTenantIdsFromExport() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var (tenantAId, _) = await SeedTenantWithAdminAsync();
+		var (tenantBId, _) = await SeedTenantWithAdminAsync();
+
+		var (tenantAUserId, tenantAEmail) = await SeedTenantUserWithIdAsync(tenantAId, "idor-tenant-a");
+		var (tenantBUserId, tenantBEmail) = await SeedTenantUserWithIdAsync(tenantBId, "idor-tenant-b");
+
+		// Ask tenant A's export for both tenant A's and tenant B's user ids: the tenant B
+		// id must never leak into tenant A's CSV, no matter what `ids` claims.
+		var ids = $"{tenantAUserId},{tenantBUserId}";
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetExportUrl(tenantAId.ToString(), ids: ids)
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var content = await response.Content.ReadAsStringAsync();
+		content.Should().Contain(tenantAEmail);
+		content.Should().NotContain(tenantBEmail);
+	}
+
+	[Fact]
 	public async Task ItShouldReturnCsvWithExpectedHeadersAndContentType() {
 		var token = await _authClient.LoginAsStaffAdminAsync();
 		var tenantId = await GetTenantIdAsync();

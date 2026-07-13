@@ -7,6 +7,8 @@ import { PASSWORD_MIN_LENGTH } from '../auth-password-policy';
 import { throwServerFailure } from './server-failure';
 
 type RegisterInput = {
+	firstName: string;
+	lastName: string;
 	email: string;
 	password: string;
 };
@@ -17,6 +19,8 @@ type RegisterResult = {
 };
 
 const RegisterInputSchema = z.object({
+	firstName: z.string().trim().min(1).max(100),
+	lastName: z.string().trim().min(1).max(100),
 	email: z.string().min(1).email().max(120),
 	password: z.string().min(PASSWORD_MIN_LENGTH).max(64),
 });
@@ -26,6 +30,8 @@ export const register = createServerFn({ method: 'POST' })
 	.handler(async ({ data }): Promise<RegisterResult> => {
 		const client = createClient({ getSessionToken: () => undefined });
 		const body = {
+			firstName: createUntypedString(data.firstName),
+			lastName: createUntypedString(data.lastName),
 			email: createUntypedString(data.email),
 			password: createUntypedString(data.password),
 		} as Parameters<typeof client.auth.register.post>[0];

@@ -23,6 +23,9 @@ using Xunit;
 
 namespace PublyApp.Api.Modules.Tenants.Handlers.Staff;
 
+// See TenantAuthFilterSpec for why this joins the shared
+// "AcmeTenantMutation" DisableParallelization collection.
+[Collection("AcmeTenantMutation")]
 public sealed class GetTenantAsStaffSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;

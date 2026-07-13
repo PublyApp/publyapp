@@ -169,7 +169,12 @@ describe('signup route', () => {
 
 		await waitFor(() =>
 			expect(mocks.register).toHaveBeenCalledWith({
-				data: { email: 'mara@northwind.co', password: 'aurora-441789' },
+				data: {
+					firstName: 'Mara',
+					lastName: 'Okonkwo',
+					email: 'mara@northwind.co',
+					password: 'aurora-441789',
+				},
 			}),
 		);
 		await waitFor(() =>

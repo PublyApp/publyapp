@@ -86,10 +86,13 @@ const SignUpRoute = () => {
 		setErrorMessage('');
 
 		try {
-			// TODO(fixr2-api): RegisterInput only carries email/password — the
-			// name fields are validated here but not yet sent to the API.
 			const result = await registerAction({
-				data: { email: values.email, password: values.password },
+				data: {
+					firstName: values.firstName,
+					lastName: values.lastName,
+					email: values.email,
+					password: values.password,
+				},
 			});
 
 			try {
