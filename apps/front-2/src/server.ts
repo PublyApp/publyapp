@@ -122,6 +122,21 @@ const isIndexableSeoRoute = (requestPath: string, status: number): boolean => {
 	);
 };
 
+const resolveFallbackTitle = (
+	isLogin: boolean,
+	seoAllowed: boolean,
+): string => {
+	if (isLogin) {
+		return 'front-2 | Login';
+	}
+
+	if (seoAllowed) {
+		return 'front-2 | Foundation';
+	}
+
+	return 'front-2';
+};
+
 const injectSeoMarkup = (
 	html: string,
 	request: Request,
@@ -167,12 +182,7 @@ const injectSeoMarkup = (
 	}
 
 	if (!output.includes('<title')) {
-		const title = isLogin
-			? 'front-2 | Login'
-			: seoAllowed
-				? 'front-2 | Foundation'
-				: 'front-2';
-		metaTags.unshift(renderTitleTag(title));
+		metaTags.unshift(renderTitleTag(resolveFallbackTitle(isLogin, seoAllowed)));
 	}
 
 	return output.replace('</head>', `${metaTags.join('\n')}\n</head>`);
