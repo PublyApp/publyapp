@@ -4,6 +4,8 @@ import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query
 import { triggerSessionInvalidated } from '~/lib/session-invalidation-channel';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
+import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
+
 import { routeTree } from './routeTree.gen';
 
 // A tab refocus triggers TanStack Query's `refetchOnWindowFocus` for every
@@ -16,6 +18,32 @@ const DEFAULT_QUERY_STALE_TIME_MS = 30_000;
 
 export const isAuthedSurfacePath = (pathname: string): boolean =>
 	pathname.startsWith('/staff') || pathname.startsWith('/tenant');
+
+/**
+ * TanStack Query v5 defaults every query to 3 retries with exponential
+ * backoff. Left unset, a 401 (or any deterministic 4xx) costs 3 extra
+ * unauthenticated requests and ~7s of delay before the central backstop
+ * (`handleAuthedQueryError`) even fires, since `QueryCache.onError` only
+ * runs once retries are exhausted (shell r2-F2). A 4xx is never going to
+ * succeed on retry, so it never gets one; anything else (network blip, a
+ * transient 5xx) gets exactly one.
+ */
+export const shouldRetryQuery = (
+	failureCount: number,
+	error: unknown,
+): boolean => {
+	const failure = toApiFailure(error);
+	const status =
+		failure.kind === 'problem' || failure.kind === 'validation'
+			? failure.status
+			: undefined;
+
+	if (status !== undefined && status >= 400 && status < 500) {
+		return false;
+	}
+
+	return failureCount < 1;
+};
 
 /**
  * Central 401→logout backstop (shell-F6): the per-route `shouldLogoutForFailure`
@@ -46,6 +74,7 @@ export function getRouter() {
 		defaultOptions: {
 			queries: {
 				staleTime: DEFAULT_QUERY_STALE_TIME_MS,
+				retry: shouldRetryQuery,
 			},
 		},
 		queryCache: new QueryCache({ onError: handleAuthedQueryError }),

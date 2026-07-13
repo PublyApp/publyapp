@@ -1,4 +1,7 @@
+import { useLocation } from '@tanstack/react-router';
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import { useLogout } from '~/lib/hooks/use-logout';
 import { cn } from '~/lib/utils';
 
@@ -16,10 +19,20 @@ export const LogoutRedirect = ({
 	embedded = true,
 }: LogoutRedirectProps = {}) => {
 	const { logout } = useLogout();
+	const { t } = useTranslation('common');
+	const { pathname, searchStr } = useLocation();
 
 	useEffect(() => {
-		logout({ redirectCause: 'invalid_session' });
-	}, [logout]);
+		// Threads the page this 401 happened on through as `rto` so signing
+		// back in returns the user here instead of dumping them at the
+		// surface root (users-auth r2-F4) — this is the single mount point
+		// every authed route's 401 error boundary renders, so fixing it here
+		// covers every call site at once.
+		logout({
+			redirectCause: 'invalid_session',
+			returnTo: `${pathname}${searchStr}`,
+		});
+	}, [logout, pathname, searchStr]);
 
 	const Wrapper = embedded ? 'div' : 'main';
 
@@ -31,13 +44,9 @@ export const LogoutRedirect = ({
 			)}
 		>
 			<div className="text-center">
-				<span
-					role="status"
-					aria-label="Loading"
-					className="mx-auto block size-8 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"
-				/>
+				<LoadingSpinner className="mx-auto block size-8" />
 				<p className="mt-4 text-sm text-muted-foreground">
-					Your session is no longer valid. Redirecting to login...
+					{t('redirecting-to-login-description')}
 				</p>
 			</div>
 		</Wrapper>

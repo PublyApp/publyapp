@@ -2,7 +2,6 @@ import { IconPhoto } from '@tabler/icons-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import logoSvg from '~/assets/gray-ui/logo.svg';
-import { AuthFooterLegal } from '~/components/auth/auth-footer-legal';
 
 export type AuthBrand = {
 	eyebrow: string;
@@ -84,7 +83,6 @@ export const AuthLayout = ({ children, brand }: AuthLayoutProps) => {
 				<div className="mx-auto flex w-full max-w-[400px] flex-1 flex-col justify-center px-4 py-10 md:max-w-[420px] md:px-6 lg:max-w-[400px] lg:px-10">
 					{children}
 				</div>
-				<AuthFooterLegal className="mx-auto w-full max-w-[400px] pb-7 text-center md:max-w-[420px] lg:max-w-[400px]" />
 			</div>
 		</div>
 	);

@@ -4,6 +4,11 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
 	logout: vi.fn(),
+	location: { pathname: '/staff/tenants/1', searchStr: '?q=alice' },
+}));
+
+vi.mock('@tanstack/react-router', () => ({
+	useLocation: () => mocks.location,
 }));
 
 vi.mock('~/lib/hooks/use-logout', () => ({
@@ -15,18 +20,20 @@ import { LogoutRedirect } from './LogoutRedirect';
 describe('LogoutRedirect', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mocks.location = { pathname: '/staff/tenants/1', searchStr: '?q=alice' };
 	});
 
 	afterEach(() => {
 		cleanup();
 	});
 
-	test('triggers the shared logout sequence with redirect_cause=invalid_session on mount', async () => {
+	test('triggers the shared logout sequence with redirect_cause=invalid_session and the current location as rto on mount', async () => {
 		render(<LogoutRedirect />);
 
 		await waitFor(() =>
 			expect(mocks.logout).toHaveBeenCalledWith({
 				redirectCause: 'invalid_session',
+				returnTo: '/staff/tenants/1?q=alice',
 			}),
 		);
 		expect(mocks.logout).toHaveBeenCalledTimes(1);

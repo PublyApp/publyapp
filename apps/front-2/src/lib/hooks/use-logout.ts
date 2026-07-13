@@ -2,13 +2,13 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useServerFn } from '@tanstack/react-start';
 import { useCallback, useState } from 'react';
+import { buildLoginRedirectSearch } from '~/lib/login-redirect-search';
 import { clearSession } from '~/lib/server/session-actions';
 import {
 	AUTH_SYNC_CHANNEL,
 	postBroadcast,
 } from '~/lib/tab-sync/broadcast-sync';
 
-import { queryParamKey, queryParamValue } from '@org/shared-ts/lib/constants';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 type LogoutOptions = {
@@ -26,17 +26,26 @@ type LogoutOptions = {
 	 * custom target never wants the session-expired banner.
 	 */
 	redirectTo?: string;
+	/**
+	 * The authed path (+ query string) the user was bounced from — carried
+	 * through as `rto` so `/login` can return them to it after signing back
+	 * in (see `login.tsx`'s `isAllowedRedirectPath`). Only meaningful
+	 * alongside `redirectCause`; irrelevant when `redirectTo` overrides the
+	 * destination outright.
+	 */
+	returnTo?: string;
 };
 
-const buildLoginSearch = (redirectCause: LogoutOptions['redirectCause']) => {
-	if (!redirectCause) {
-		return undefined;
-	}
+const buildLoginSearch = (
+	redirectCause: LogoutOptions['redirectCause'],
+	returnTo: LogoutOptions['returnTo'],
+) => {
+	const search = buildLoginRedirectSearch({
+		hadSession: redirectCause === 'invalid_session',
+		returnTo,
+	});
 
-	return {
-		[queryParamKey.login_page.redirect_cause]:
-			queryParamValue.login_page.redirect_cause[redirectCause],
-	};
+	return Object.keys(search).length > 0 ? search : undefined;
 };
 
 /**
@@ -90,7 +99,10 @@ export const useLogout = () => {
 						? navigate({ to: options.redirectTo, replace: true })
 						: navigate({
 								to: '/login',
-								search: buildLoginSearch(options?.redirectCause),
+								search: buildLoginSearch(
+									options?.redirectCause,
+									options?.returnTo,
+								),
 								replace: true,
 							});
 

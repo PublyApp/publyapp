@@ -25,6 +25,7 @@ import {
 	type SupportedLanguage,
 } from '~/lib/i18n.shared';
 import { subscribeToSessionInvalidated } from '~/lib/session-invalidation-channel';
+import { COLOR_SCHEME_STORAGE_KEY, useUiStore } from '~/lib/store/ui-store';
 import { TabSyncListener } from '~/lib/tab-sync/tab-sync-listener';
 import { loadI18nForRequest } from '~/server/i18n-locale';
 
@@ -85,15 +86,75 @@ const getRouteFailureStatus = (error: unknown): number | undefined => {
  */
 const SessionInvalidationListener = () => {
 	const { logout } = useLogout();
+	const location = useLocation();
+	// A ref, not an effect dependency: resubscribing on every navigation would
+	// tear down and recreate the channel subscription for no reason — this
+	// only needs the location at the moment the backstop actually fires.
+	const locationRef = React.useRef(location);
+	locationRef.current = location;
 
 	React.useEffect(() => {
 		return subscribeToSessionInvalidated(() => {
-			logout({ redirectCause: 'invalid_session' });
+			const current = locationRef.current;
+			logout({
+				redirectCause: 'invalid_session',
+				returnTo: `${current.pathname}${current.searchStr}`,
+			});
 		});
 	}, [logout]);
 
 	return null;
 };
+
+/**
+ * `AppShell` (authed/marketing surfaces only) was the only place
+ * `hydrateFromStorage()` was ever called, so the auth surface and the
+ * `/tenant` portal (neither of which mount `AppShell`) never picked up a
+ * saved dark preference (shell r2-F1). Mounted once at the root, like
+ * `TabSyncListener`, so every surface hydrates the persisted colour scheme
+ * into React state — the blocking `<script>` in `<head>` (below) already
+ * applied it to the DOM before first paint; this just syncs the store so
+ * in-app controls (e.g. `ThemeToggle`) reflect it too.
+ */
+export const ThemeHydrationListener = () => {
+	const hydrateFromStorage = useUiStore((state) => state.hydrateFromStorage);
+
+	React.useEffect(() => {
+		hydrateFromStorage();
+	}, [hydrateFromStorage]);
+
+	return null;
+};
+
+/**
+ * Reads the persisted colour scheme and applies it to `documentElement`
+ * before the browser paints — without this, every cold load (any surface,
+ * not just the authed shell) flashes light and only repaints dark once
+ * `ThemeHydrationListener`'s post-paint effect runs (shell r2-F1). Must stay
+ * dependency-free inline JS: it runs before the app bundle (and therefore
+ * `ui-store.ts`) has loaded, so the parsing here is a deliberate, minimal
+ * duplicate of `ui-store.ts`'s `parsePersistedColorState`/
+ * `applyThemeToDocument` — keep the two in sync by hand if that shape changes.
+ */
+export const buildThemeInitScript = (storageKey: string): string => `(() => {
+	try {
+		var raw = window.localStorage.getItem(${JSON.stringify(storageKey)});
+		var scheme = 'light';
+		if (raw) {
+			var parsed = JSON.parse(raw);
+			var state = parsed && typeof parsed === 'object' ? parsed.state : undefined;
+			var value = state && typeof state === 'object' ? state.colorScheme : parsed && typeof parsed === 'object' ? parsed.colorScheme : undefined;
+			if (value === 'dark' || value === 'light') {
+				scheme = value;
+			}
+		}
+		document.documentElement.classList.remove('dark', 'light');
+		if (scheme === 'dark') {
+			document.documentElement.classList.add('dark');
+		}
+		document.documentElement.dataset.theme = scheme;
+	} catch (e) {}
+})();`;
 
 const RoutedShell = () => {
 	const location = useLocation();
@@ -148,15 +209,15 @@ const RootErrorBoundary = ({
 			return (
 				<AppErrorView
 					icon={<IconLock aria-hidden="true" className="size-7" />}
-					code="401 — Unauthorized"
-					title="Authentication required"
-					description="You are not signed in. Please log in again."
+					code={t('error-401-code')}
+					title={t('authentication-required')}
+					description={t('sign-in-required-description')}
 					actions={
 						<Link
 							to="/login"
 							className={buttonVariants({ variant: 'default' })}
 						>
-							Back to login
+							{t('back-to-login')}
 						</Link>
 					}
 				/>
@@ -170,12 +231,12 @@ const RootErrorBoundary = ({
 		return (
 			<AppErrorView
 				icon={<IconLock aria-hidden="true" className="size-7" />}
-				code="401 — Unauthorized"
-				title="Session expired"
-				description="Your session is no longer valid."
+				code={t('error-401-code')}
+				title={t('session-expired')}
+				description={t('session-no-longer-valid-description')}
 				actions={
 					<Link to="/login" className={buttonVariants({ variant: 'default' })}>
-						Back to login
+						{t('back-to-login')}
 					</Link>
 				}
 			/>
@@ -193,9 +254,9 @@ const RootErrorBoundary = ({
 	return (
 		<AppErrorView
 			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-			code="500 — Server Error"
-			title="Something went wrong"
-			description="The app hit an unexpected error."
+			code={t('error-500-code')}
+			title={t('something-went-wrong')}
+			description={t('unexpected-app-error-description')}
 			actions={
 				<>
 					<Button variant="default" onClick={retry} type="button">
@@ -257,6 +318,13 @@ function RootComponent() {
 					nonce={cspNonce || undefined}
 					suppressHydrationWarning
 					dangerouslySetInnerHTML={{
+						__html: buildThemeInitScript(COLOR_SCHEME_STORAGE_KEY),
+					}}
+				/>
+				<script
+					nonce={cspNonce || undefined}
+					suppressHydrationWarning
+					dangerouslySetInnerHTML={{
 						__html: 'window.__front2CspNonceReady=true;',
 					}}
 				/>
@@ -265,6 +333,7 @@ function RootComponent() {
 				<I18nextProvider i18n={i18n}>
 					<TabSyncListener />
 					<SessionInvalidationListener />
+					<ThemeHydrationListener />
 					<RoutedShell />
 				</I18nextProvider>
 				<Scripts />

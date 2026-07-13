@@ -63,8 +63,14 @@ export const TabSyncListener = () => {
 			if (!isAuthedSurface(pathname)) {
 				return;
 			}
-			queryClient.clear();
-			void navigate({ to: '/login', replace: true });
+			// Navigate first, clear after — the exact ordering `useLogout`
+			// documents (see 80a14aa5): clearing first makes TanStack Query
+			// refetch this tab's still-mounted active queries against the
+			// already-cleared cookie (the OTHER tab logged out first), firing a
+			// stampede of 401s before the redirect takes effect (shell r2-F6).
+			void navigate({ to: '/login', replace: true }).then(() => {
+				queryClient.clear();
+			});
 			return;
 		}
 

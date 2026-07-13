@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { cleanup, render } from '@testing-library/react';
+import { cleanup, render, waitFor } from '@testing-library/react';
 import { createElement } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -66,6 +66,7 @@ const mountListener = () => {
 describe('TabSyncListener', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mocks.navigate.mockResolvedValue(undefined);
 		mocks.pathname = '/staff/staff-users';
 		mocks.authHandler = null;
 		mocks.themeHandler = null;
@@ -77,17 +78,26 @@ describe('TabSyncListener', () => {
 		cleanup();
 	});
 
-	test('logout on an authed surface clears the query cache and navigates to /login', () => {
+	test('logout on an authed surface navigates to /login, then clears the query cache — not before (regression guard mirroring useLogout, shell r2-F6)', async () => {
 		mocks.pathname = '/tenant/settings';
 		mountListener();
 
 		mocks.authHandler?.({ type: 'logout' });
 
-		expect(mocks.queryClientClear).toHaveBeenCalledTimes(1);
 		expect(mocks.navigate).toHaveBeenCalledWith({
 			to: '/login',
 			replace: true,
 		});
+		expect(mocks.queryClientClear).not.toHaveBeenCalled();
+
+		await waitFor(() =>
+			expect(mocks.queryClientClear).toHaveBeenCalledTimes(1),
+		);
+
+		const navigateOrder = mocks.navigate.mock.invocationCallOrder[0];
+		const queryClientClearOrder =
+			mocks.queryClientClear.mock.invocationCallOrder[0];
+		expect(navigateOrder).toBeLessThan(queryClientClearOrder);
 	});
 
 	test('logout on the login page is ignored', () => {

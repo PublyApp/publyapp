@@ -400,13 +400,13 @@ const LoginErrorBoundary = ({
 		return (
 			<AppErrorView
 				icon={<IconLock aria-hidden="true" className="size-7" />}
-				code="401 — Unauthorized"
-				title="Authentication required"
-				description="Your login request could not be authorized. Please verify your credentials and try again."
+				code={t('error-401-code')}
+				title={t('authentication-required')}
+				description={t('login-request-unauthorized-description')}
 				testId="auth-401-view"
 				actions={
 					<Link to="/login" className={buttonVariants({ variant: 'default' })}>
-						Back to login
+						{t('back-to-login')}
 					</Link>
 				}
 			/>
@@ -429,9 +429,9 @@ const LoginErrorBoundary = ({
 	return (
 		<AppErrorView
 			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-			code="500 — Server Error"
-			title="Something went wrong"
-			description="Sign-in could not be completed."
+			code={t('error-500-code')}
+			title={t('something-went-wrong')}
+			description={t('sign-in-could-not-be-completed')}
 			actions={
 				<>
 					<Button variant="default" onClick={retry} type="button">

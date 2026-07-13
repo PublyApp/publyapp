@@ -128,6 +128,25 @@ describe('useLogout', () => {
 		});
 	});
 
+	test('carries rto alongside rc when a return path is supplied (LogoutRedirect threading its current location)', async () => {
+		const { result } = renderHook(() => useLogout());
+
+		act(() => {
+			result.current.logout({
+				redirectCause: 'invalid_session',
+				returnTo: '/staff/tenants/1?q=alice',
+			});
+		});
+
+		await waitFor(() => expect(mocks.navigate).toHaveBeenCalledTimes(1));
+
+		expect(mocks.navigate).toHaveBeenCalledWith({
+			to: '/login',
+			search: { rc: 'invalid_session', rto: '/staff/tenants/1?q=alice' },
+			replace: true,
+		});
+	});
+
 	test('broadcasts logout only after the server-side session clear settles, before navigating', async () => {
 		let resolveClear: () => void = () => {};
 		mocks.clear.mockReturnValue(

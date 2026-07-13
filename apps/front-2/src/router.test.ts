@@ -13,6 +13,7 @@ import {
 	getRouter,
 	handleAuthedQueryError,
 	isAuthedSurfacePath,
+	shouldRetryQuery,
 } from './router';
 
 describe('getRouter', () => {
@@ -22,6 +23,14 @@ describe('getRouter', () => {
 			.queries as { staleTime?: number };
 
 		expect(staleTime).toBeGreaterThan(0);
+	});
+
+	test('wires shouldRetryQuery as the default query retry predicate', () => {
+		const router = getRouter();
+		const { retry } = router.options.context.queryClient.getDefaultOptions()
+			.queries as { retry?: unknown };
+
+		expect(retry).toBe(shouldRetryQuery);
 	});
 
 	test('wires the authed-query-error backstop into both the query cache and the mutation cache', () => {
@@ -59,6 +68,25 @@ describe('getRouter', () => {
 		expect(mocks.triggerSessionInvalidated).toHaveBeenCalledTimes(2);
 
 		window.history.pushState({}, '', '/');
+	});
+});
+
+describe('shouldRetryQuery', () => {
+	test('never retries a deterministic 4xx (401/403/404/422)', () => {
+		expect(shouldRetryQuery(0, { responseStatusCode: 401 })).toBe(false);
+		expect(shouldRetryQuery(0, { responseStatusCode: 403 })).toBe(false);
+		expect(shouldRetryQuery(0, { responseStatusCode: 404 })).toBe(false);
+		expect(
+			shouldRetryQuery(0, {
+				responseStatusCode: 422,
+				errors: { email: ['bad'] },
+			}),
+		).toBe(false);
+	});
+
+	test('retries a network/5xx failure exactly once, not the library default of three', () => {
+		expect(shouldRetryQuery(0, new TypeError('Failed to fetch'))).toBe(true);
+		expect(shouldRetryQuery(1, new TypeError('Failed to fetch'))).toBe(false);
 	});
 });
 

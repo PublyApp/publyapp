@@ -1,5 +1,6 @@
 import { getRequestHeader, setCookie } from '@tanstack/react-start/server';
 import * as cookie from 'cookie';
+import { isProductionRuntime } from '~/lib/env';
 
 import { SESSION_TOKEN_COOKIE_KEY } from '@org/shared-ts/lib/constants';
 import {
@@ -45,7 +46,20 @@ const getRequestHeaderSafe = (name: string): string | undefined => {
 	}
 };
 
+/**
+ * Deploy configuration decides this, not the request (shell r2-F14): a proxy
+ * that strips `X-Forwarded-Proto`, or a same-origin fetch sent under a
+ * strict referrer policy, would otherwise reach this handler with no
+ * https signal at all and issue the session cookie without `Secure` on an
+ * HTTPS deployment. Production is always served over HTTPS (Traefik SSL —
+ * see AGENTS.md), so it never needs to guess. The header sniff survives
+ * only as a dev-time fallback for local HTTPS tunnels.
+ */
 const isSecureCookieContext = (): boolean => {
+	if (isProductionRuntime()) {
+		return true;
+	}
+
 	const origin = getRequestHeaderSafe('origin');
 	if (origin?.startsWith('https://')) {
 		return true;
