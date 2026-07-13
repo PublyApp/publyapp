@@ -21,6 +21,35 @@ vi.mock('~/lib/hooks/use-media-query', () => ({
 	useMediaQuery: () => mocks.isDesktop,
 }));
 
+vi.mock('react-i18next', () => ({
+	useTranslation: () => ({ t: (key: string) => key }),
+}));
+
+vi.mock('~/components/ui/drawer', () => ({
+	Drawer: ({ open, children }: { open: boolean; children: ReactNode }) =>
+		open
+			? createElement('div', { 'data-testid': 'drawer-root' }, children)
+			: null,
+	DrawerContent: ({
+		children,
+		...props
+	}: {
+		children: ReactNode;
+		[key: string]: unknown;
+	}) => createElement('div', props, children),
+	DrawerHeader: ({ children }: { children: ReactNode }) =>
+		createElement('div', null, children),
+	DrawerTitle: ({ children }: { children: ReactNode }) =>
+		createElement('h2', null, children),
+	DrawerBody: ({
+		children,
+		...props
+	}: {
+		children: ReactNode;
+		[key: string]: unknown;
+	}) => createElement('div', props, children),
+}));
+
 import { useUiStore } from '~/lib/store/ui-store';
 
 import { AppShell } from './app-shell';
@@ -166,5 +195,75 @@ describe('AppShell secondary-panel toggle', () => {
 		expect(
 			screen.queryByRole('button', { name: 'Expand navigation panel' }),
 		).toBeNull();
+	});
+});
+
+describe('AppShell navigation reality (no dead links, no fabricated data)', () => {
+	beforeEach(() => {
+		mocks.isDesktop = true;
+		window.localStorage.clear();
+		resetUiStore();
+	});
+
+	afterEach(() => {
+		cleanup();
+	});
+
+	test('the rail renders only routes that actually exist — no audit-logs, no tenant rail', () => {
+		const { container } = render(
+			<AppShell mode="authed" pathname={LIST_ROUTE}>
+				content
+			</AppShell>,
+		);
+
+		const railItemIds = Array.from(
+			container.querySelectorAll('[data-rail-item]'),
+		).map((el) => el.getAttribute('data-rail-item'));
+
+		expect(railItemIds).toEqual(['dashboard', 'tenants', 'staff']);
+	});
+
+	test('the tenant scope rail has no items (only /tenant is registered)', () => {
+		const { container } = render(
+			<AppShell mode="authed" pathname="/tenant">
+				content
+			</AppShell>,
+		);
+
+		expect(container.querySelectorAll('[data-rail-item]').length).toBe(0);
+	});
+
+	test('no secondary-nav item ever renders a count badge', () => {
+		const { container } = render(
+			<AppShell mode="authed" pathname={LIST_ROUTE}>
+				content
+			</AppShell>,
+		);
+
+		expect(
+			container.querySelector('.app-shell-secondary-nav-count'),
+		).toBeNull();
+	});
+
+	test('a mobile nav affordance exists and opens the rail + panel items in a drawer', () => {
+		render(
+			<AppShell mode="authed" pathname={LIST_ROUTE}>
+				content
+			</AppShell>,
+		);
+
+		const toggle = screen.getByTestId('app-shell-mobile-nav-toggle');
+		expect(toggle).toBeTruthy();
+		expect(screen.queryByTestId('drawer-root')).toBeNull();
+
+		fireEvent.click(toggle);
+
+		const drawer = screen.getByTestId('drawer-root');
+		expect(drawer).toBeTruthy();
+
+		const drawerRailItemIds = Array.from(
+			drawer.querySelectorAll('[data-rail-item]'),
+		).map((el) => el.getAttribute('data-rail-item'));
+		expect(drawerRailItemIds).toEqual(['dashboard', 'tenants', 'staff']);
 	});
 });

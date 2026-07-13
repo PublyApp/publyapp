@@ -3,7 +3,6 @@ import { describe, expect, test } from 'vitest';
 import {
 	getActiveRailItem,
 	getBreadcrumbsForPath,
-	getBottomRailItemForPath,
 	getRailItems,
 	getRailItemsForPath,
 	getSecondaryPanelItems,
@@ -12,116 +11,72 @@ import {
 } from './route-metadata';
 
 describe('front-2 route metadata', () => {
-	test('staff visible rail labels are scoped and exact', () => {
-		expect(getRailItems('staff').map((route) => route.label)).toEqual([
-			'Dashboard',
-			'Tenants',
-			'Staff',
-			'Audit logs',
+	test('staff visible rail label keys are scoped and exact', () => {
+		expect(getRailItems('staff').map((route) => route.labelKey)).toEqual([
+			'nav-dashboard',
+			'nav-tenants',
+			'nav-staff',
 		]);
 	});
 
-	test('tenant visible rail labels are scoped and exact', () => {
-		expect(getRailItems('tenant').map((route) => route.label)).toEqual([
-			'Posts',
-			'Members',
-			'Settings',
-		]);
-	});
-
-	test('staff has no bottom rail item and tenant has Account', () => {
-		expect(getBottomRailItemForPath('/staff/staff-users')).toBeUndefined();
-		expect(getBottomRailItemForPath('/tenant/posts')?.label).toBe('Account');
+	test('tenant scope has no rail items — only /tenant is registered so far', () => {
+		expect(getRailItems('tenant')).toEqual([]);
 	});
 
 	test('rail items for scope are derived from pathname', () => {
 		expect(
 			getRailItemsForPath('/staff/staff-users').map((route) => route.id),
-		).toEqual(['dashboard', 'tenants', 'staff', 'audit-logs']);
-		expect(
-			getRailItemsForPath('/tenant/posts').map((route) => route.id),
-		).toEqual(['posts', 'members', 'settings']);
+		).toEqual(['dashboard', 'tenants', 'staff']);
+		expect(getRailItemsForPath('/tenant')).toEqual([]);
 	});
 
 	test('staff dashboard panel items are exact', () => {
 		expect(
-			getSecondaryPanelItems('/staff/dashboard').map((item) => item.label),
-		).toEqual(['Overview', 'Activity', 'Reports']);
+			getSecondaryPanelItems('/staff/dashboard').map((item) => item.labelKey),
+		).toEqual([
+			'nav-dashboard-overview',
+			'nav-dashboard-activity',
+			'nav-dashboard-reports',
+		]);
 	});
 
 	test('staff tenants panel items are exact', () => {
 		expect(
-			getSecondaryPanelItems('/staff/tenants').map((item) => item.label),
-		).toEqual(['All tenants', 'Active', 'Suspended']);
+			getSecondaryPanelItems('/staff/tenants').map((item) => item.labelKey),
+		).toEqual([
+			'nav-tenants-all',
+			'nav-tenants-active',
+			'nav-tenants-suspended',
+		]);
 	});
 
 	test('staff users panel items are exact', () => {
 		expect(
-			getSecondaryPanelItems('/staff/staff-users').map((item) => item.label),
-		).toEqual(['All users', 'Invitations', 'Profiles']);
-	});
-
-	test('staff audit-logs panel items are exact', () => {
-		expect(
-			getSecondaryPanelItems('/staff/audit-logs').map((item) => item.label),
+			getSecondaryPanelItems('/staff/staff-users').map((item) => item.labelKey),
 		).toEqual([
-			'All events',
-			'Sign-ins & sessions',
-			'User management',
-			'Tenant lifecycle',
-			'Destructive actions',
+			'nav-staff-all-users',
+			'nav-staff-invitations',
+			'nav-staff-profiles',
 		]);
 	});
 
-	test('tenant posts panel items are exact', () => {
-		expect(
-			getSecondaryPanelItems('/tenant/posts').map((item) => item.label),
-		).toEqual(['Calendar', 'Queue', 'Drafts', 'History']);
-	});
-
-	test('tenant root resolves to the Posts module without requiring child routes', () => {
-		expect(getActiveRailItem('/tenant')?.label).toBe('Posts');
-		expect(getSecondaryPanelItems('/tenant').map((item) => item.label)).toEqual(
-			['Calendar', 'Queue', 'Drafts', 'History'],
-		);
-	});
-
-	test('tenant and audit panel destinations keep the secondary panel visible', () => {
-		expect(
-			shouldShowSecondaryPanel('/tenant/posts/history', {
-				sidebarOpen: true,
-				viewportWidth: 1280,
-			}),
-		).toBe(true);
-		expect(
-			shouldShowSecondaryPanel('/staff/audit-logs/sign-ins', {
-				sidebarOpen: true,
-				viewportWidth: 1280,
-			}),
-		).toBe(true);
-	});
-
-	test('tenant members panel items are exact', () => {
-		expect(
-			getSecondaryPanelItems('/tenant/members').map((item) => item.label),
-		).toEqual(['Members', 'Invitations', 'Roles']);
-	});
-
-	test('tenant settings panel items are exact', () => {
-		expect(
-			getSecondaryPanelItems('/tenant/settings').map((item) => item.label),
-		).toEqual(['General', 'Workspaces', 'Integrations', 'Billing', 'Security']);
-	});
-
-	test('tenant account panel items are exact', () => {
-		expect(
-			getSecondaryPanelItems('/tenant/account').map((item) => item.label),
-		).toEqual(['Profile', 'Security', 'Notifications']);
+	test('tenant root resolves to no active rail item (no tenant routes registered yet)', () => {
+		expect(getActiveRailItem('/tenant')).toBeUndefined();
+		expect(getSecondaryPanelItems('/tenant')).toEqual([]);
 	});
 
 	test('secondary panel is shown on the staff dashboard (three destinations)', () => {
 		expect(
 			shouldShowSecondaryPanel('/staff/dashboard', {
+				sidebarOpen: true,
+				viewportWidth: 1280,
+			}),
+		).toBe(true);
+	});
+
+	test('staff users panel destinations keep the secondary panel visible', () => {
+		expect(
+			shouldShowSecondaryPanel('/staff/staff-users', {
 				sidebarOpen: true,
 				viewportWidth: 1280,
 			}),
@@ -230,7 +185,6 @@ describe('front-2 route metadata', () => {
 
 	test('active route detection should not prefix-match false positives', () => {
 		expect(getActiveRailItem('/staff/staff-usersXYZ')).toBeUndefined();
-		expect(getActiveRailItem('/tenant/postsXYZ')).toBeUndefined();
 	});
 
 	test('secondary panel is hidden on small viewports', () => {
@@ -241,7 +195,7 @@ describe('front-2 route metadata', () => {
 			}),
 		).toBe(false);
 		expect(
-			shouldShowSecondaryPanel('/tenant/posts', {
+			shouldShowSecondaryPanel('/staff/tenants', {
 				sidebarOpen: true,
 				viewportWidth: 767,
 			}),
@@ -293,33 +247,27 @@ describe('front-2 route metadata', () => {
 		).toBe(false);
 	});
 
-	test('breadcrumbs use staff/tenant handoff roots', () => {
+	test('breadcrumbs use staff/tenant handoff roots and translation keys, never fabricated names', () => {
 		expect(getBreadcrumbsForPath('/staff/dashboard')).toEqual([
-			{ label: 'Staff', path: '/staff' },
-			{ label: 'Dashboard', path: '/staff/dashboard' },
+			{ labelKey: 'nav-root-staff', path: '/staff' },
+			{ labelKey: 'nav-dashboard', path: '/staff/dashboard' },
 		]);
 		expect(getBreadcrumbsForPath('/staff/staff-users')).toEqual([
-			{ label: 'Staff', path: '/staff' },
-			{ label: 'Users', path: '/staff/staff-users' },
+			{ labelKey: 'nav-root-staff', path: '/staff' },
+			{ labelKey: 'nav-staff-breadcrumb', path: '/staff/staff-users' },
 		]);
 		expect(getBreadcrumbsForPath('/staff/staff-users/u-1')).toEqual([
-			{ label: 'Staff', path: '/staff' },
-			{ label: 'Users', path: '/staff/staff-users' },
-			{ label: 'User detail' },
+			{ labelKey: 'nav-root-staff', path: '/staff' },
+			{ labelKey: 'nav-staff-breadcrumb', path: '/staff/staff-users' },
+			{ labelKey: 'nav-detail-user' },
 		]);
 		expect(getBreadcrumbsForPath('/staff/invitations/i-1')).toEqual([
-			{ label: 'Staff', path: '/staff' },
-			{ label: 'Invitations', path: '/staff/invitations' },
-			{ label: 'Invitation detail' },
+			{ labelKey: 'nav-root-staff', path: '/staff' },
+			{ labelKey: 'nav-staff-invitations', path: '/staff/invitations' },
+			{ labelKey: 'nav-detail-invitation' },
 		]);
-		expect(getBreadcrumbsForPath('/tenant/posts')).toEqual([
-			{ label: 'Lattice Cloud', path: '/tenant' },
-			{ label: 'Posts', path: '/tenant/posts' },
-		]);
-		expect(getBreadcrumbsForPath('/tenant/posts/history')).toEqual([
-			{ label: 'Lattice Cloud', path: '/tenant' },
-			{ label: 'Posts', path: '/tenant/posts' },
-			{ label: 'History', path: '/tenant/posts/history' },
+		expect(getBreadcrumbsForPath('/tenant')).toEqual([
+			{ labelKey: 'nav-root-workspace', path: '/tenant' },
 		]);
 	});
 });

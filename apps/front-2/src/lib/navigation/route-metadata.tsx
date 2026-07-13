@@ -1,35 +1,26 @@
 import {
 	IconActivity,
-	IconBrandGoogleAnalytics,
 	IconBuilding,
-	IconCalendarCog,
 	IconClipboardList,
-	IconChartBar,
-	IconFileAnalytics,
-	IconLayout2,
 	IconLayoutDashboard,
-	IconLock,
 	IconMail,
-	IconMenu2,
-	IconPuzzle,
 	IconReportAnalytics,
 	IconShieldCheck,
 	IconShieldLock,
-	IconSettings,
-	IconUser,
 	IconUsers,
-	IconWallet,
 } from '@tabler/icons-react';
 import type { TablerIcon } from '@tabler/icons-react';
+import type { FileRouteTypes } from '~/routeTree.gen';
 
 export type ShellScope = 'staff' | 'tenant';
 
-export type BreadcrumbItem = {
-	label: string;
-	path?: string;
-};
+/** Every literal here must be a real, registered route — no dead links. */
+export type AppRoutePath = FileRouteTypes['to'];
 
-export type SecondaryPanelItemTone = 'warning' | 'neutral';
+export type BreadcrumbItem = {
+	labelKey: string;
+	path?: AppRoutePath;
+};
 
 export type SecondaryPanelItemSearch = {
 	status?: 'active' | 'suspended';
@@ -37,59 +28,46 @@ export type SecondaryPanelItemSearch = {
 
 export type SecondaryPanelItem = {
 	id: string;
-	label: string;
-	description: string;
-	path: string;
+	labelKey: string;
+	path: AppRoutePath;
 	Icon: TablerIcon;
-	count?: number;
-	countTone?: SecondaryPanelItemTone;
 	/** Search params the link must set (and that isActive must match), e.g. a status filter. */
 	search?: SecondaryPanelItemSearch;
 };
 
-export type RouteId =
-	| 'dashboard'
-	| 'tenants'
-	| 'staff'
-	| 'audit-logs'
-	| 'posts'
-	| 'members'
-	| 'settings'
-	| 'account';
+export type RouteId = 'dashboard' | 'tenants' | 'staff';
 
 export type AppRouteMetadata = {
 	id: RouteId;
-	label: string;
+	labelKey: string;
 	scope: ShellScope;
-	path: string;
-	breadcrumbLabel: string;
+	path: AppRoutePath;
+	breadcrumbLabelKey: string;
 	Icon: TablerIcon;
 	matchPrefixes: string[];
 	secondaryItems: SecondaryPanelItem[];
-	isBottomRailItem?: boolean;
 };
 
 // -- Secondary panel rows
+// Every path below is registered in src/routes.ts — nothing here may point at
+// a route that doesn't exist yet (add the route first, then the nav entry).
 
 const DASHBOARD_MODULE_ITEMS: SecondaryPanelItem[] = [
 	{
 		id: 'dashboard-overview',
-		label: 'Overview',
-		description: '',
+		labelKey: 'nav-dashboard-overview',
 		path: '/staff/dashboard',
 		Icon: IconLayoutDashboard,
 	},
 	{
 		id: 'dashboard-activity',
-		label: 'Activity',
-		description: '',
+		labelKey: 'nav-dashboard-activity',
 		path: '/staff/dashboard/activity',
 		Icon: IconActivity,
 	},
 	{
 		id: 'dashboard-reports',
-		label: 'Reports',
-		description: '',
+		labelKey: 'nav-dashboard-reports',
 		path: '/staff/dashboard/reports',
 		Icon: IconReportAnalytics,
 	},
@@ -98,24 +76,19 @@ const DASHBOARD_MODULE_ITEMS: SecondaryPanelItem[] = [
 const STAFF_MODULE_ITEMS: SecondaryPanelItem[] = [
 	{
 		id: 'staff-all-users',
-		label: 'All users',
-		description: '',
+		labelKey: 'nav-staff-all-users',
 		path: '/staff/staff-users',
 		Icon: IconUsers,
 	},
 	{
 		id: 'staff-invitations',
-		label: 'Invitations',
-		description: '',
+		labelKey: 'nav-staff-invitations',
 		path: '/staff/invitations',
 		Icon: IconMail,
-		count: 6,
-		countTone: 'warning',
 	},
 	{
 		id: 'staff-profiles',
-		label: 'Profiles',
-		description: '',
+		labelKey: 'nav-staff-profiles',
 		path: '/staff/profiles',
 		Icon: IconClipboardList,
 	},
@@ -124,190 +97,27 @@ const STAFF_MODULE_ITEMS: SecondaryPanelItem[] = [
 const TENANTS_MODULE_ITEMS: SecondaryPanelItem[] = [
 	{
 		id: 'tenants-all',
-		label: 'All tenants',
-		description: '',
+		labelKey: 'nav-tenants-all',
 		path: '/staff/tenants',
 		Icon: IconBuilding,
 	},
 	{
 		id: 'tenants-active',
-		label: 'Active',
-		description: '',
+		labelKey: 'nav-tenants-active',
 		path: '/staff/tenants',
 		search: { status: 'active' },
 		Icon: IconShieldCheck,
 	},
 	{
 		id: 'tenants-suspended',
-		label: 'Suspended',
-		description: '',
+		labelKey: 'nav-tenants-suspended',
 		path: '/staff/tenants',
 		search: { status: 'suspended' },
 		Icon: IconShieldLock,
 	},
 ];
 
-const AUDIT_MODULE_ITEMS: SecondaryPanelItem[] = [
-	{
-		id: 'audit-all',
-		label: 'All events',
-		description: '',
-		path: '/staff/audit-logs',
-		Icon: IconFileAnalytics,
-	},
-	{
-		id: 'audit-sign-ins',
-		label: 'Sign-ins & sessions',
-		description: '',
-		path: '/staff/audit-logs/sign-ins',
-		Icon: IconBrandGoogleAnalytics,
-	},
-	{
-		id: 'audit-users',
-		label: 'User management',
-		description: '',
-		path: '/staff/audit-logs/users',
-		Icon: IconUsers,
-	},
-	{
-		id: 'audit-tenants',
-		label: 'Tenant lifecycle',
-		description: '',
-		path: '/staff/audit-logs/tenants',
-		Icon: IconMenu2,
-	},
-	{
-		id: 'audit-destructive',
-		label: 'Destructive actions',
-		description: '',
-		path: '/staff/audit-logs/destructive',
-		Icon: IconLock,
-	},
-];
-
-const POSTS_PANEL_ITEMS: SecondaryPanelItem[] = [
-	{
-		id: 'posts-calendar',
-		label: 'Calendar',
-		description: '',
-		path: '/tenant/posts/calendar',
-		Icon: IconCalendarCog,
-	},
-	{
-		id: 'posts-queue',
-		label: 'Queue',
-		description: '',
-		path: '/tenant/posts/queue',
-		Icon: IconMenu2,
-	},
-	{
-		id: 'posts-drafts',
-		label: 'Drafts',
-		description: '',
-		path: '/tenant/posts/drafts',
-		Icon: IconClipboardList,
-		count: 3,
-		countTone: 'warning',
-	},
-	{
-		id: 'posts-history',
-		label: 'History',
-		description: '',
-		path: '/tenant/posts/history',
-		Icon: IconLayout2,
-	},
-];
-
-const MEMBERS_PANEL_ITEMS: SecondaryPanelItem[] = [
-	{
-		id: 'members-all',
-		label: 'Members',
-		description: '',
-		path: '/tenant/members',
-		Icon: IconUsers,
-	},
-	{
-		id: 'members-invitations',
-		label: 'Invitations',
-		description: '',
-		path: '/tenant/members/invitations',
-		Icon: IconMail,
-		count: 2,
-		countTone: 'warning',
-	},
-	{
-		id: 'members-roles',
-		label: 'Roles',
-		description: '',
-		path: '/tenant/members/roles',
-		Icon: IconClipboardList,
-	},
-];
-
-const SETTINGS_PANEL_ITEMS: SecondaryPanelItem[] = [
-	{
-		id: 'settings-general',
-		label: 'General',
-		description: '',
-		path: '/tenant/settings/general',
-		Icon: IconLayout2,
-	},
-	{
-		id: 'settings-workspaces',
-		label: 'Workspaces',
-		description: '',
-		path: '/tenant/settings/workspaces',
-		Icon: IconBuilding,
-	},
-	{
-		id: 'settings-integrations',
-		label: 'Integrations',
-		description: '',
-		path: '/tenant/settings/integrations',
-		Icon: IconPuzzle,
-	},
-	{
-		id: 'settings-billing',
-		label: 'Billing',
-		description: '',
-		path: '/tenant/settings/billing',
-		Icon: IconWallet,
-	},
-	{
-		id: 'settings-security',
-		label: 'Security',
-		description: '',
-		path: '/tenant/settings/security',
-		Icon: IconLock,
-	},
-];
-
-const ACCOUNT_PANEL_ITEMS: SecondaryPanelItem[] = [
-	{
-		id: 'account-profile',
-		label: 'Profile',
-		description: '',
-		path: '/tenant/account/profile',
-		Icon: IconUser,
-	},
-	{
-		id: 'account-security',
-		label: 'Security',
-		description: '',
-		path: '/tenant/account/security',
-		Icon: IconShieldLock,
-	},
-	{
-		id: 'account-notifications',
-		label: 'Notifications',
-		description: '',
-		path: '/tenant/account/notifications',
-		Icon: IconChartBar,
-	},
-];
-
-const itemPathname = (item: SecondaryPanelItem): string =>
-	item.path.split('?')[0] ?? item.path;
+const itemPathname = (item: SecondaryPanelItem): string => item.path;
 
 const itemPathnames = (items: SecondaryPanelItem[]): string[] =>
 	items.map(itemPathname);
@@ -315,10 +125,10 @@ const itemPathnames = (items: SecondaryPanelItem[]): string[] =>
 const STAFF_ROUTES: AppRouteMetadata[] = [
 	{
 		id: 'dashboard',
-		label: 'Dashboard',
+		labelKey: 'nav-dashboard',
 		scope: 'staff',
 		path: '/staff/dashboard',
-		breadcrumbLabel: 'Dashboard',
+		breadcrumbLabelKey: 'nav-dashboard',
 		Icon: IconLayoutDashboard,
 		matchPrefixes: [
 			'/staff/dashboard',
@@ -328,20 +138,20 @@ const STAFF_ROUTES: AppRouteMetadata[] = [
 	},
 	{
 		id: 'tenants',
-		label: 'Tenants',
+		labelKey: 'nav-tenants',
 		scope: 'staff',
 		path: '/staff/tenants',
-		breadcrumbLabel: 'Tenants',
+		breadcrumbLabelKey: 'nav-tenants',
 		Icon: IconBuilding,
 		matchPrefixes: ['/staff/tenants'],
 		secondaryItems: TENANTS_MODULE_ITEMS,
 	},
 	{
 		id: 'staff',
-		label: 'Staff',
+		labelKey: 'nav-staff',
 		scope: 'staff',
 		path: '/staff/staff-users',
-		breadcrumbLabel: 'Users',
+		breadcrumbLabelKey: 'nav-staff-breadcrumb',
 		Icon: IconUsers,
 		matchPrefixes: [
 			'/staff/staff-users',
@@ -350,71 +160,18 @@ const STAFF_ROUTES: AppRouteMetadata[] = [
 		],
 		secondaryItems: STAFF_MODULE_ITEMS,
 	},
-	{
-		id: 'audit-logs',
-		label: 'Audit logs',
-		scope: 'staff',
-		path: '/staff/audit-logs',
-		breadcrumbLabel: 'Audit logs',
-		Icon: IconChartBar,
-		matchPrefixes: ['/staff/audit', ...itemPathnames(AUDIT_MODULE_ITEMS)],
-		secondaryItems: AUDIT_MODULE_ITEMS,
-	},
 ];
 
-const TENANT_ROUTES: AppRouteMetadata[] = [
-	{
-		id: 'posts',
-		label: 'Posts',
-		scope: 'tenant',
-		path: '/tenant/posts',
-		breadcrumbLabel: 'Posts',
-		Icon: IconCalendarCog,
-		matchPrefixes: ['/tenant/posts', ...itemPathnames(POSTS_PANEL_ITEMS)],
-		secondaryItems: POSTS_PANEL_ITEMS,
-	},
-	{
-		id: 'members',
-		label: 'Members',
-		scope: 'tenant',
-		path: '/tenant/members',
-		breadcrumbLabel: 'Members',
-		Icon: IconUsers,
-		matchPrefixes: itemPathnames(MEMBERS_PANEL_ITEMS),
-		secondaryItems: MEMBERS_PANEL_ITEMS,
-	},
-	{
-		id: 'settings',
-		label: 'Settings',
-		scope: 'tenant',
-		path: '/tenant/settings',
-		breadcrumbLabel: 'Settings',
-		Icon: IconSettings,
-		matchPrefixes: ['/tenant/settings', ...itemPathnames(SETTINGS_PANEL_ITEMS)],
-		secondaryItems: SETTINGS_PANEL_ITEMS,
-	},
-	{
-		id: 'account',
-		label: 'Account',
-		scope: 'tenant',
-		path: '/tenant/account',
-		breadcrumbLabel: 'Account',
-		Icon: IconUser,
-		matchPrefixes: ['/tenant/account', ...itemPathnames(ACCOUNT_PANEL_ITEMS)],
-		secondaryItems: ACCOUNT_PANEL_ITEMS,
-		isBottomRailItem: true,
-	},
-];
-
-const TENANT_BOTTOM_RAIL_ITEM = TENANT_ROUTES.find(
-	(route) => route.isBottomRailItem,
-);
+// The tenant workspace has exactly one registered route (`/tenant`, the
+// tenant picker) — there is no tenant rail/panel to describe yet. Add entries
+// here only once their routes exist in src/routes.ts.
+const TENANT_ROUTES: AppRouteMetadata[] = [];
 
 const STAFF_BREADCRUMB_DETAIL_LABELS: Record<string, string> = {
-	'/staff/staff-users': 'User detail',
-	'/staff/invitations': 'Invitation detail',
-	'/staff/profiles': 'Profile detail',
-	'/staff/tenants': 'Tenant detail',
+	'/staff/staff-users': 'nav-detail-user',
+	'/staff/invitations': 'nav-detail-invitation',
+	'/staff/profiles': 'nav-detail-profile',
+	'/staff/tenants': 'nav-detail-tenant',
 };
 
 const createPathRules: Array<string | RegExp> = [
@@ -456,26 +213,12 @@ export function getShellScope(pathname: string): ShellScope | undefined {
 }
 
 export function getRailItems(scope: ShellScope): AppRouteMetadata[] {
-	return scope === 'staff'
-		? STAFF_ROUTES
-		: TENANT_ROUTES.filter((route) => !route.isBottomRailItem);
+	return scope === 'staff' ? STAFF_ROUTES : TENANT_ROUTES;
 }
 
 export function getRailItemsForPath(pathname: string): AppRouteMetadata[] {
 	const scope = getShellScope(pathname);
 	return scope ? getRailItems(scope) : [];
-}
-
-export function getBottomRailItemForPath(
-	pathname: string,
-): AppRouteMetadata | undefined {
-	return getShellScope(pathname) === 'tenant'
-		? TENANT_BOTTOM_RAIL_ITEM
-		: undefined;
-}
-
-function getAllRoutesForScope(scope: ShellScope): AppRouteMetadata[] {
-	return scope === 'staff' ? STAFF_ROUTES : [...TENANT_ROUTES];
 }
 
 export function getActiveAppRoute(
@@ -486,16 +229,9 @@ export function getActiveAppRoute(
 		return undefined;
 	}
 
-	if (scope === 'tenant' && pathname === '/tenant') {
-		return TENANT_ROUTES.find((route) => route.id === 'posts');
-	}
-
-	const allRoutes = getAllRoutesForScope(scope);
-	const [exactMatch, fallback] = allRoutes
+	return getRailItems(scope)
 		.filter((route) => matchPath(pathname, route.matchPrefixes))
-		.sort((a, b) => b.path.length - a.path.length);
-
-	return exactMatch ?? fallback;
+		.sort((a, b) => b.path.length - a.path.length)[0];
 }
 
 export function getActiveRailItem(
@@ -577,14 +313,17 @@ export function shouldShowSecondaryPanel(
 export function getBreadcrumbsForPath(pathname: string): BreadcrumbItem[] {
 	const scope = getShellScope(pathname);
 	if (!scope) {
-		return [{ label: 'Staff', path: '/staff/staff-users' }];
+		return [{ labelKey: 'nav-root-staff', path: '/staff/staff-users' }];
 	}
 
 	const activeRoute = getActiveRailItem(pathname);
-	const rootLabel = scope === 'staff' ? 'Staff' : 'Lattice Cloud';
-	const rootPath = scope === 'staff' ? '/staff' : '/tenant';
+	const rootLabelKey =
+		scope === 'staff' ? 'nav-root-staff' : 'nav-root-workspace';
+	const rootPath: AppRoutePath = scope === 'staff' ? '/staff' : '/tenant';
 
-	const breadcrumbs: BreadcrumbItem[] = [{ label: rootLabel, path: rootPath }];
+	const breadcrumbs: BreadcrumbItem[] = [
+		{ labelKey: rootLabelKey, path: rootPath },
+	];
 
 	if (!activeRoute) {
 		return breadcrumbs;
@@ -595,35 +334,20 @@ export function getBreadcrumbsForPath(pathname: string): BreadcrumbItem[] {
 		(item) => itemPathname(item) === matchedPrefix,
 	);
 
-	if (scope === 'tenant') {
-		breadcrumbs.push({
-			label: activeRoute.breadcrumbLabel,
-			path: activeRoute.path,
-		});
-		if (matchedItem && itemPathname(matchedItem) !== activeRoute.path) {
-			breadcrumbs.push({
-				label: matchedItem.label,
-				path: itemPathname(matchedItem),
-			});
-		}
-	} else {
-		const label =
-			matchedPrefix === activeRoute.path
-				? activeRoute.breadcrumbLabel
-				: (matchedItem?.label ?? activeRoute.breadcrumbLabel);
-		breadcrumbs.push({
-			label,
-			path: matchedPrefix ?? activeRoute.path,
-		});
-	}
+	const labelKey =
+		matchedPrefix === activeRoute.path
+			? activeRoute.breadcrumbLabelKey
+			: (matchedItem?.labelKey ?? activeRoute.breadcrumbLabelKey);
+	breadcrumbs.push({
+		labelKey,
+		path: matchedItem ? matchedItem.path : activeRoute.path,
+	});
 
 	if (isDetailPath(pathname)) {
-		const detailLabel =
+		const detailLabelKey =
 			STAFF_BREADCRUMB_DETAIL_LABELS[matchedPrefix ?? activeRoute.path] ??
-			`${breadcrumbs[breadcrumbs.length - 1]?.label ?? activeRoute.breadcrumbLabel} detail`;
-		if (detailLabel) {
-			breadcrumbs.push({ label: detailLabel });
-		}
+			'nav-detail-generic';
+		breadcrumbs.push({ labelKey: detailLabelKey });
 	}
 
 	return breadcrumbs;

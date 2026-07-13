@@ -3,10 +3,13 @@
 These rules apply to `apps/front-2`. Repo-wide API, error, URL, logging, and generated-client
 rules from `AGENTS.md` still apply unless this guide explicitly narrows a frontend styling rule.
 
-## HeroUI and Tailwind
+## Base UI and Tailwind
 
-`apps/front-2` uses HeroUI v3 components plus Tailwind v4 utility classes as its styling
-system.
+`apps/front-2` uses `@base-ui/react` primitives (headless, unstyled) wrapped by a local
+`components/ui/*` layer — styled with Tailwind v4 utility classes, `class-variance-authority`
+(`cva`) for variants, and `tailwind-merge` (via the `cn` helper) for class composition. `shadcn`
+is a dev-time scaffolding/CSS-import dependency only, not a component library consumed at
+runtime.
 
 This intentionally diverges from the MUI + `sx` rules and app-local primitive patterns that
 govern `apps/front`. Those current-app rules are scoped to `apps/front`; they do not apply to
@@ -17,9 +20,9 @@ govern `apps/front`. Those current-app rules are scoped to `apps/front`; they do
 - `publy/no-raw-img-in-product-surfaces`
 
 Do not import MUI or `apps/front` UI primitives into `apps/front-2` to reuse current-app
-components. Rebuild the surface with HeroUI primitives, Tailwind utilities, and front-2-local
-equivalents where needed, keeping shared behavior behind framework-agnostic contracts where
-possible.
+components. Rebuild the surface with the `components/ui/*` primitive layer (Base UI + `cva` +
+Tailwind), and front-2-local equivalents where needed, keeping shared behavior behind
+framework-agnostic contracts where possible.
 
 Portable repo rules still matter in front-2 when their path coverage includes it:
 
@@ -36,7 +39,7 @@ Follow them by hand until automation exists:
 
 - Do not use `createServerFn` for application-data fetching, aggregation, or proxying.
 - Do not return raw cookies, session tokens, or token-bearing objects from server functions.
-- Do not use React Aria or HeroUI protected/internal APIs directly.
+- Do not use React Aria or `@base-ui/react` protected/internal APIs directly.
 - Do not introduce camelCase URL search params for list/table state.
 - Do not move app-bound adapters into `@org/shared-ts`.
 - Boolean-ish URL search flags (drawer-open markers like `?invite=1`) must round-trip as the
@@ -79,8 +82,8 @@ framework-neutral interface.
 
 Pure shared modules may define contracts, pure parsers, redaction helpers, API failure mapping,
 query-key helpers, query-state predicates, and framework-neutral query/key/state factories that
-receive injected accessors. They must not import React, TanStack Query, Kiota, HeroUI, or MUI at
-runtime. Any external framework or client references needed by shared contracts must be
+receive injected accessors. They must not import React, TanStack Query, Kiota, `@base-ui/react`,
+or MUI at runtime. Any external framework or client references needed by shared contracts must be
 `import type` only, with no runtime import side effects.
 
 App-bound pieces stay local to `apps/front-2`, including:
@@ -88,7 +91,7 @@ App-bound pieces stay local to `apps/front-2`, including:
 - `ClientManager` and concrete Kiota client wiring
 - environment and cookie I/O
 - logout, toast, and tenant-resolution handlers
-- HeroUI renderers such as `QueryDisplay`
+- `components/ui/*` renderers such as `QueryDisplay`
 - route/layout integration and server functions
 
 ## Rendering Strategy

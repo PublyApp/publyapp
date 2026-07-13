@@ -1,6 +1,6 @@
 # Front-2 Guide
 
-`apps/front-2` is the durable TanStack Start + HeroUI v3 frontend for the front-2
+`apps/front-2` is the durable TanStack Start + Base UI frontend for the front-2
 migration. It is the new application engineers should build against during Phase 1 and
 later migration work.
 
@@ -13,7 +13,7 @@ AGENTS.md remains authoritative for repo-wide API/error/URL/logging conventions;
 ## Stack
 
 - TanStack Start with TanStack Router
-- HeroUI v3
+- `@base-ui/react` primitives wrapped by a local `components/ui/*` layer (`cva` + `tailwind-merge`)
 - Tailwind v4
 - React 19
 - TanStack Query

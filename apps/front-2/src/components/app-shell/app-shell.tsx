@@ -1,25 +1,27 @@
 import {
-	IconBell,
 	IconChevronRight,
 	IconLayoutSidebar,
 	IconMenu2,
-	IconMessage2,
-	IconSearch,
 	IconX,
 } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
 import { Fragment, useEffect, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
-import { Input } from '~/components/ui/input';
+import {
+	Drawer,
+	DrawerBody,
+	DrawerContent,
+	DrawerHeader,
+	DrawerTitle,
+} from '~/components/ui/drawer';
 
-import avatarSrc from '../../assets/gray-ui/avatar-profile.jpg';
 import logoSvg from '../../assets/gray-ui/logo.svg';
 import { useMediaQuery } from '../../lib/hooks/use-media-query';
 import {
 	getActiveRailItem,
 	getBreadcrumbsForPath,
-	getBottomRailItemForPath,
 	getRailItemsForPath,
 	getSecondaryPanelItems,
 	isRailOnlyPath,
@@ -251,35 +253,26 @@ const AppShellNavigation = ({
 const RailLink = ({
 	item,
 	isActive,
-	isBottom,
+	onNavigate,
 }: {
 	item: AppRouteMetadata;
 	isActive: boolean;
-	isBottom?: boolean;
+	onNavigate?: () => void;
 }) => {
+	const { t } = useTranslation('common');
 	const Icon = item.Icon;
 
 	return (
 		<Link
-			to={item.path as never}
-			aria-label={item.label}
+			to={item.path}
+			aria-label={t(item.labelKey)}
 			aria-current={isActive ? 'page' : undefined}
+			onClick={onNavigate}
 			data-rail-item={item.id}
 			data-active={isActive ? 'true' : undefined}
-			data-bottom={isBottom ? 'true' : undefined}
 			className="app-shell-rail-link"
 		>
-			{isBottom ? (
-				<span className="app-shell-rail-account-avatar" aria-hidden="true">
-					<img
-						src={avatarSrc}
-						alt=""
-						className="app-shell-rail-account-image"
-					/>
-				</span>
-			) : (
-				<Icon aria-hidden="true" className="size-[17px]" />
-			)}
+			<Icon aria-hidden="true" className="size-[17px]" />
 		</Link>
 	);
 };
@@ -288,11 +281,14 @@ const SecondaryPanelNavItem = ({
 	item,
 	pathname,
 	search,
+	onNavigate,
 }: {
 	item: SecondaryPanelItem;
 	pathname: string;
 	search: AppShellSearch;
+	onNavigate?: () => void;
 }) => {
+	const { t } = useTranslation('common');
 	const isActive = isSecondaryPanelItemActive(item, pathname, search);
 	const Icon = item.Icon;
 
@@ -300,19 +296,12 @@ const SecondaryPanelNavItem = ({
 		<Link
 			to={item.path}
 			search={item.search}
+			onClick={onNavigate}
 			className="app-shell-secondary-nav-link"
 			data-active={isActive ? 'true' : undefined}
 		>
 			<Icon aria-hidden="true" className="size-4 shrink-0" />
-			<span className="app-shell-secondary-nav-label">{item.label}</span>
-			{item.count !== undefined ? (
-				<span
-					className="app-shell-secondary-nav-count"
-					data-tone={item.countTone ?? 'neutral'}
-				>
-					{item.count}
-				</span>
-			) : null}
+			<span className="app-shell-secondary-nav-label">{t(item.labelKey)}</span>
 		</Link>
 	);
 };
@@ -326,15 +315,16 @@ const AuthedWorkspaceShell = ({
 	pathname: string;
 	search: AppShellSearch;
 }) => {
+	const { t } = useTranslation('common');
 	const sidebarOpen = useUiStore((state) => state.sidebarOpen);
 	const toggleSidebarOpen = useUiStore((state) => state.toggleSidebarOpen);
 	const railOnlyPanelOpen = useUiStore((state) => state.railOnlyPanelOpen);
 	const toggleRailOnlyPanelOpen = useUiStore(
 		(state) => state.toggleRailOnlyPanelOpen,
 	);
+	const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 	const activeRoute = getActiveRailItem(pathname);
 	const railItems = getRailItemsForPath(pathname);
-	const bottomRailItem = getBottomRailItemForPath(pathname);
 	const secondaryItems = getSecondaryPanelItems(pathname);
 	const breadcrumbs = getBreadcrumbsForPath(pathname);
 	const isDesktop = useMediaQuery('(min-width: 1024px)');
@@ -362,6 +352,12 @@ const AuthedWorkspaceShell = ({
 		? toggleRailOnlyPanelOpen
 		: toggleSidebarOpen;
 
+	useEffect(() => {
+		setIsMobileNavOpen(false);
+	}, [pathname]);
+
+	const closeMobileNav = () => setIsMobileNavOpen(false);
+
 	return (
 		<div
 			className="app-shell-workspace"
@@ -370,13 +366,13 @@ const AuthedWorkspaceShell = ({
 		>
 			<nav
 				className="app-shell-rail"
-				aria-label="Primary navigation"
+				aria-label={t('nav-rail-primary')}
 				data-testid="app-shell-rail"
 			>
 				<Link
 					to="/staff/staff-users"
 					className="app-shell-rail-logo"
-					aria-label="PublyApp workspace"
+					aria-label={t('nav-workspace-home')}
 				>
 					<img src={logoSvg} alt="PublyApp" className="size-8" />
 				</Link>
@@ -388,13 +384,6 @@ const AuthedWorkspaceShell = ({
 					})}
 				</div>
 				<div className="app-shell-rail-spacer" />
-				{bottomRailItem ? (
-					<RailLink
-						item={bottomRailItem}
-						isActive={activeRoute?.id === bottomRailItem.id}
-						isBottom
-					/>
-				) : null}
 			</nav>
 			{showSecondaryPanel ? (
 				<aside
@@ -407,40 +396,15 @@ const AuthedWorkspaceShell = ({
 							className="app-shell-secondary-title"
 							id="app-shell-secondary-heading"
 						>
-							{activeRoute?.label}
+							{activeRoute ? t(activeRoute.labelKey) : null}
 						</h2>
-						{activeRoute?.scope === 'tenant' ? (
-							<Badge variant="outline" className="app-shell-tenant-pill">
-								<span
-									aria-hidden="true"
-									className="app-shell-tenant-pill-brand"
-								/>
-								Lattice Cloud
-							</Badge>
-						) : (
-							<Badge variant="outline" className="app-shell-workspace-pill">
-								Workspace
-							</Badge>
-						)}
-					</div>
-					<div className="app-shell-secondary-search">
-						<div className="app-shell-search-wrapper">
-							<IconSearch
-								aria-hidden="true"
-								className="app-shell-search-icon"
-							/>
-							<Input
-								aria-label={
-									activeRoute ? `Search ${activeRoute.label}` : 'Search'
-								}
-								placeholder="Search"
-								className="app-shell-search-input"
-							/>
-						</div>
+						<Badge variant="outline" className="app-shell-workspace-pill">
+							{t('nav-root-workspace')}
+						</Badge>
 					</div>
 					<nav
 						className="app-shell-secondary-nav"
-						aria-label={`${activeRoute?.label ?? 'Primary'} navigation`}
+						aria-label={t('nav-secondary')}
 					>
 						{secondaryItems.map((item) => (
 							<SecondaryPanelNavItem
@@ -456,6 +420,20 @@ const AuthedWorkspaceShell = ({
 			<div className="app-shell-body">
 				<header className="app-shell-topbar" data-testid="app-shell-topbar">
 					<div className="app-shell-topbar-left">
+						<Button
+							size="icon-sm"
+							variant="ghost"
+							aria-label={
+								isMobileNavOpen ? t('nav-close-menu') : t('nav-open-menu')
+							}
+							aria-expanded={isMobileNavOpen}
+							aria-controls="app-shell-mobile-nav-drawer"
+							onClick={() => setIsMobileNavOpen(true)}
+							className="app-shell-mobile-nav-toggle flex md:hidden"
+							data-testid="app-shell-mobile-nav-toggle"
+						>
+							<IconMenu2 aria-hidden="true" className="size-[18px]" />
+						</Button>
 						{canToggleSecondaryPanel ? (
 							<>
 								<Button
@@ -478,7 +456,10 @@ const AuthedWorkspaceShell = ({
 								<div className="app-shell-topbar-separator" />
 							</>
 						) : null}
-						<nav aria-label="Breadcrumb" className="app-shell-breadcrumbs">
+						<nav
+							aria-label={t('nav-breadcrumb')}
+							className="app-shell-breadcrumbs"
+						>
 							{breadcrumbs.map((item, index) => {
 								const isLast = index === breadcrumbs.length - 1;
 								let content: ReactNode;
@@ -488,27 +469,24 @@ const AuthedWorkspaceShell = ({
 											aria-current="page"
 											className="app-shell-breadcrumb-current"
 										>
-											{item.label}
+											{t(item.labelKey)}
 										</span>
 									);
 								} else if (item.path) {
 									content = (
-										<Link
-											to={item.path as never}
-											className="app-shell-breadcrumb-link"
-										>
-											{item.label}
+										<Link to={item.path} className="app-shell-breadcrumb-link">
+											{t(item.labelKey)}
 										</Link>
 									);
 								} else {
 									content = (
 										<span className="app-shell-breadcrumb-muted">
-											{item.label}
+											{t(item.labelKey)}
 										</span>
 									);
 								}
 								return (
-									<Fragment key={`${item.label}-${index}`}>
+									<Fragment key={`${item.labelKey}-${index}`}>
 										{index > 0 ? (
 											<IconChevronRight
 												aria-hidden="true"
@@ -522,30 +500,6 @@ const AuthedWorkspaceShell = ({
 						</nav>
 					</div>
 					<div className="app-shell-topbar-right">
-						<Button
-							variant="outline"
-							size="icon"
-							aria-label="Search"
-							className="app-shell-topbar-action-btn"
-						>
-							<IconSearch aria-hidden="true" className="size-[17px]" />
-						</Button>
-						<Button
-							variant="outline"
-							size="icon"
-							aria-label="Notifications"
-							className="app-shell-topbar-action-btn"
-						>
-							<IconBell aria-hidden="true" className="size-[17px]" />
-						</Button>
-						<Button
-							variant="outline"
-							size="icon"
-							aria-label="Messages"
-							className="app-shell-topbar-action-btn"
-						>
-							<IconMessage2 aria-hidden="true" className="size-[17px]" />
-						</Button>
 						<ThemeToggle className="app-shell-topbar-action-btn" />
 						<div className="app-shell-topbar-separator" />
 						<AppShellUserMenu />
@@ -553,6 +507,51 @@ const AuthedWorkspaceShell = ({
 				</header>
 				<main className="app-shell-main">{children}</main>
 			</div>
+			<Drawer open={isMobileNavOpen} onOpenChange={setIsMobileNavOpen}>
+				<DrawerContent
+					id="app-shell-mobile-nav-drawer"
+					data-testid="app-shell-mobile-nav-drawer"
+				>
+					<DrawerHeader>
+						<DrawerTitle>{t('nav-mobile-drawer-title')}</DrawerTitle>
+					</DrawerHeader>
+					<DrawerBody className="flex flex-col gap-4">
+						<nav
+							aria-label={t('nav-rail-primary')}
+							className="flex flex-col gap-1"
+						>
+							{railItems.map((item) => {
+								const isActive = activeRoute?.id === item.id;
+
+								return (
+									<RailLink
+										key={item.id}
+										item={item}
+										isActive={isActive}
+										onNavigate={closeMobileNav}
+									/>
+								);
+							})}
+						</nav>
+						{secondaryItems.length > 0 ? (
+							<nav
+								aria-label={t('nav-secondary')}
+								className="flex flex-col gap-1"
+							>
+								{secondaryItems.map((item) => (
+									<SecondaryPanelNavItem
+										key={item.id}
+										item={item}
+										pathname={pathname}
+										search={search}
+										onNavigate={closeMobileNav}
+									/>
+								))}
+							</nav>
+						) : null}
+					</DrawerBody>
+				</DrawerContent>
+			</Drawer>
 		</div>
 	);
 };

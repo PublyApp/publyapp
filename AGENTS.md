@@ -238,7 +238,7 @@ For route parameter conventions (no route constraints, ID validation pattern), s
   - Never use collapsed lowercase wire values like `updatedat`
 
 ## Frontend Coding Standards
-`apps/front-2` (the front-2 migration app) uses HeroUI v3 + Tailwind v4, **not MUI/sx**. The MUI-specific standards in this section are scoped to `apps/front` and do not apply to `apps/front-2`. Source-of-truth for front-2 front-end conventions is [`docs/guides/front-2/index.md`](docs/guides/front-2/index.md) and [`docs/guides/front-2/conventions.md`](docs/guides/front-2/conventions.md).
+`apps/front-2` (the front-2 migration app) uses `@base-ui/react` primitives + Tailwind v4, **not MUI/sx or HeroUI**. The MUI-specific standards in this section are scoped to `apps/front` and do not apply to `apps/front-2`. Source-of-truth for front-2 front-end conventions is [`docs/guides/front-2/index.md`](docs/guides/front-2/index.md) and [`docs/guides/front-2/conventions.md`](docs/guides/front-2/conventions.md).
 
 
 For the complete frontend coding standards (MUI components, sx prop styling, Day.js utilities,
