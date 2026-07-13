@@ -310,6 +310,26 @@ describe('ProfileFormDrawer', () => {
 		expect(mocks.invalidateQueries).toHaveBeenCalledTimes(3);
 	});
 
+	test('blocks submission when the profile name is empty (name.min(1))', async () => {
+		render(
+			<ProfileFormDrawer
+				tenantId="tenant-1"
+				mode="create"
+				isOpen
+				onOpenChange={vi.fn()}
+				onSaved={vi.fn()}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		fireEvent.click(screen.getByLabelText('Read users'));
+		fireEvent.click(screen.getByRole('button', { name: 'Create profile' }));
+
+		await waitFor(() =>
+			expect(mocks.createProfileMutation).not.toHaveBeenCalled(),
+		);
+	});
+
 	test('edit mode PATCHes name/description and diff-applies permission assign/unassign', async () => {
 		mocks.updateProfileMutation.mockResolvedValue(undefined);
 		const onSaved = vi.fn();

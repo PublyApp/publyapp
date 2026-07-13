@@ -55,3 +55,16 @@ export const serializeTenantListSearchParams = (
 
 	return status ? { ...next, status } : next;
 };
+
+/**
+ * `validateSearch` must return the SAME snake_case shape the router already
+ * merges the navigated destination search into — otherwise the camelCase
+ * internal fields (`sortId`/`sortOrder`) leak into the URL alongside their
+ * snake_case twins. Round-tripping through parse+serialize here keeps the
+ * router's search state on the wire contract; call sites that need the
+ * camelCase shape parse `Route.useSearch()` themselves.
+ */
+export const validateTenantListSearchParams = (
+	search: TenantListSearchParamInput,
+): Record<string, string | undefined> =>
+	serializeTenantListSearchParams(parseTenantListSearchParams(search));

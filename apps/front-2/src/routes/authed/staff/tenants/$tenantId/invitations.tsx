@@ -32,14 +32,15 @@ import { InitialsAvatar } from '~/components/ui/initials-avatar';
 import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import {
+	invalidateStaffTenantInvitations,
 	isStaffTenantInvitationRevocable,
-	STAFF_TENANT_INVITATIONS_QUERY_KEY,
 	type StaffTenantInvitationRow,
 	toStaffTenantInvitationRows,
 	useRevokeStaffTenantInvitationMutation,
 	useStaffTenantInvitationsQuery,
 } from '~/lib/query/staff-tenant-invitations';
 import {
+	invalidateStaffTenantDetails,
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
@@ -51,7 +52,6 @@ import {
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 import {
-	filterInvitationRows,
 	formatInvitationStatusLabel,
 	type InvitationListSearchParamInput,
 	type InvitationListSearchParams,
@@ -82,7 +82,7 @@ type ActionFeedback = {
 
 type CreateColumnsArgs = {
 	locale: string;
-	t: (key: string) => string;
+	t: (key: string, options?: Record<string, unknown>) => string;
 	isRevokePending: boolean;
 	onRevoke: (row: StaffTenantInvitationRow) => void;
 };
@@ -221,7 +221,9 @@ export const createColumns = ({
 		cell: ({ row }) =>
 			isStaffTenantInvitationRevocable(row.original) ? (
 				<DataTableRowActions
-					ariaLabel={`Actions for ${row.original.email || 'invitation'}`}
+					ariaLabel={t('actions-for', {
+						name: row.original.email || t('invitation'),
+					})}
 					testId={`staff-tenant-invitation-actions-${row.original.id}`}
 				>
 					<DropdownMenuItem
@@ -247,14 +249,18 @@ export const Route = createFileRoute(
 	'/_authed-layout/staff/tenants/$tenantId/invitations',
 )({
 	validateSearch: (search) =>
-		parseInvitationListSearchParams(search as InvitationListSearchParamInput),
+		serializeInvitationListSearchParams(
+			parseInvitationListSearchParams(search as InvitationListSearchParamInput),
+		),
 	component: StaffTenantInvitationsPage,
 });
 
 function StaffTenantInvitationsPage() {
 	const { tenantId } = Route.useParams();
 	const navigate = Route.useNavigate();
-	const search = Route.useSearch() as InvitationListSearchParams;
+	const search = parseInvitationListSearchParams(
+		Route.useSearch() as InvitationListSearchParamInput,
+	);
 	const queryClient = useQueryClient();
 	const { i18n, t } = useTranslation('common');
 	const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
@@ -271,7 +277,7 @@ function StaffTenantInvitationsPage() {
 				...search,
 				...next,
 				status: search.status,
-			}) as unknown as InvitationListSearchParams,
+			}),
 			replace: true,
 		});
 	};
@@ -299,8 +305,7 @@ function StaffTenantInvitationsPage() {
 			size: controller.apiVariables.size,
 		},
 		{
-			enabled:
-				tenantId.length > 0 && !detailsQuery.isPending && !detailsQuery.isError,
+			enabled: tenantId.length > 0,
 		},
 	);
 
@@ -313,9 +318,10 @@ function StaffTenantInvitationsPage() {
 					tenantId,
 					invitationId: row.id,
 				});
-				await queryClient.invalidateQueries({
-					queryKey: ['staff', ...STAFF_TENANT_INVITATIONS_QUERY_KEY],
-				});
+				await Promise.all([
+					invalidateStaffTenantInvitations(queryClient),
+					invalidateStaffTenantDetails(queryClient),
+				]);
 				setFeedback({
 					tone: 'success',
 					message: t('revoke-invitation-success'),
@@ -374,9 +380,9 @@ function StaffTenantInvitationsPage() {
 		return (
 			<AppErrorView
 				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-				code="500 — Server Error"
-				title="Unable to load this tenant"
-				description="The tenant response was incomplete."
+				code={t('error-500-code')}
+				title={t('tenant-details-error-title')}
+				description={t('tenant-response-incomplete')}
 				testId="staff-tenant-details-error"
 				actions={
 					<TenantRetryActions onRetry={() => void detailsQuery.refetch()} />
@@ -397,7 +403,6 @@ function StaffTenantInvitationsPage() {
 	}
 
 	const rows = toStaffTenantInvitationRows(invitationsQuery.data?.data);
-	const filteredRows = filterInvitationRows(rows, controller.search.committed);
 
 	const setStatuses = (nextStatuses: KnownInvitationStatus[]): void => {
 		void navigate({
@@ -405,7 +410,7 @@ function StaffTenantInvitationsPage() {
 				...search,
 				status: serializeInvitationStatusFilter(nextStatuses),
 				cursor: undefined,
-			}) as unknown as InvitationListSearchParams,
+			}),
 			replace: true,
 		});
 	};
@@ -434,10 +439,12 @@ function StaffTenantInvitationsPage() {
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 				<div className="space-y-1">
 					<h2 className="publy-type-page-title">
-						{t('pending-invitations')}
+						{t('invitations')}
 						{tenant.pendingInvitationsCount != null ? (
 							<span className="ml-2 publy-profile-count-badge align-middle">
-								{tenant.pendingInvitationsCount}
+								{t('invitations-pending-count-chip', {
+									count: tenant.pendingInvitationsCount,
+								})}
 							</span>
 						) : null}
 					</h2>
@@ -468,7 +475,7 @@ function StaffTenantInvitationsPage() {
 			<ConfirmDialog
 				isOpen={pendingRevokeRowId !== null}
 				title={t('revoke-invitation')}
-				description="This will revoke the invitation. The invited user will no longer be able to accept it."
+				description={t('revoke-invitation-confirm-description')}
 				confirmLabel={t('revoke')}
 				isPending={revokeInvitation.isPending}
 				onConfirm={() => {
@@ -484,9 +491,9 @@ function StaffTenantInvitationsPage() {
 
 			<DataTable
 				testId="staff-tenant-invitations-table"
-				ariaLabel="Tenant invitations"
+				ariaLabel={t('tenant-invitations-table-aria-label')}
 				columns={columns}
-				rows={filteredRows}
+				rows={rows}
 				isPending={invitationsQuery.isPending}
 				isError={invitationsQuery.isError}
 				onRetry={() => void invitationsQuery.refetch()}

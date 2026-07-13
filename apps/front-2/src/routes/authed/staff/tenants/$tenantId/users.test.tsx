@@ -31,6 +31,8 @@ const mocks = vi.hoisted(() => ({
 	useExportStaffTenantUsersMutation: vi.fn(),
 	downloadFile: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
+	invalidateStaffTenantUsers: vi.fn().mockResolvedValue(undefined),
+	invalidateStaffTenantDetails: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -127,12 +129,27 @@ const TRANSLATIONS: Record<string, string> = {
 		'Removed {{succeeded}} user(s), {{failed}} failed.',
 	'tenant-user-bulk-remove-failure':
 		'Failed to remove selected users from this tenant.',
+	'actions-for': 'Actions for {{name}}',
+	'tenant-users-table-aria-label': 'Tenant users',
+	'error-500-code': '500 — Server Error',
+	'tenant-details-error-title': 'Unable to load this tenant',
+	'tenant-response-incomplete': 'The tenant response was incomplete.',
 	close: 'Close',
 };
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string) => TRANSLATIONS[key] ?? key,
+		t: (key: string, options?: Record<string, unknown>) => {
+			let text = TRANSLATIONS[key] ?? key;
+			if (!options) {
+				return text;
+			}
+
+			for (const [optionKey, value] of Object.entries(options)) {
+				text = text.replaceAll(`{{${optionKey}}}`, String(value));
+			}
+			return text;
+		},
 		i18n: {
 			language: 'en',
 		},
@@ -148,8 +165,7 @@ vi.mock('~/components/error-views/View403', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenant-users', () => ({
-	STAFF_TENANT_USERS_QUERY_KEY: ['staff-tenants', 'users'],
-	STAFF_TENANT_USER_DETAILS_QUERY_KEY: ['staff-tenants', 'users', 'detail'],
+	invalidateStaffTenantUsers: mocks.invalidateStaffTenantUsers,
 	toStaffTenantUserRows: mocks.toStaffTenantUserRows,
 	useStaffTenantUsersQuery: mocks.useStaffTenantUsersQuery,
 	useSuspendStaffTenantUserMutation: mocks.useSuspendStaffTenantUserMutation,
@@ -175,7 +191,7 @@ vi.mock('~/lib/query/staff-tenant-users', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenants', () => ({
-	STAFF_TENANT_DETAILS_QUERY_KEY: ['staff-tenants', 'detail'],
+	invalidateStaffTenantDetails: mocks.invalidateStaffTenantDetails,
 	toStaffTenantDetails: mocks.toStaffTenantDetails,
 	useStaffTenantDetailsQuery: mocks.useStaffTenantDetailsQuery,
 }));
@@ -430,7 +446,7 @@ describe('staff tenant users route', () => {
 		expect(screen.queryByRole('menuitem', { name: 'Suspend' })).toBeNull();
 	});
 
-	test('suspends a user after explicit confirmation and invalidates tenant user queries', async () => {
+	test('suspends a user after explicit confirmation and invalidates tenant user and tenant details queries', async () => {
 		mocks.suspendMutation.mockResolvedValue({});
 
 		renderPage();
@@ -452,9 +468,10 @@ describe('staff tenant users route', () => {
 			}),
 		);
 		await waitFor(() =>
-			expect(mocks.invalidateQueries).toHaveBeenCalledWith({
-				queryKey: ['staff', 'staff-tenants', 'users'],
-			}),
+			expect(mocks.invalidateStaffTenantUsers).toHaveBeenCalled(),
+		);
+		await waitFor(() =>
+			expect(mocks.invalidateStaffTenantDetails).toHaveBeenCalled(),
 		);
 	});
 
@@ -574,7 +591,7 @@ describe('staff tenant users route', () => {
 
 		fireEvent.click(screen.getByLabelText('Select row user-1'));
 
-		expect(await screen.findByText('{{count}} selected')).toBeTruthy();
+		expect(await screen.findByText('1 selected')).toBeTruthy();
 		expect(screen.getByText('Bulk actions')).toBeTruthy();
 		expect(screen.getByTestId('floating-selection-bar')).toBeTruthy();
 		// Toolbar no longer swaps — filters remain visible during selection.
@@ -607,6 +624,36 @@ describe('staff tenant users route', () => {
 		await waitFor(() =>
 			expect(
 				screen.queryByTestId('staff-tenant-users-level-filter-all'),
+			).toBeNull(),
+		);
+	});
+
+	test('the status filter offers an "All statuses" entry that clears the filter and closes the menu', async () => {
+		mocks.search = { status: 'active' };
+		renderPage();
+
+		fireEvent.click(
+			screen.getByTestId('staff-tenant-users-status-filter-trigger'),
+		);
+
+		expect(
+			await screen.findByTestId('staff-tenant-users-status-filter-all'),
+		).toBeTruthy();
+		fireEvent.click(screen.getByTestId('staff-tenant-users-status-filter-all'));
+
+		expect(mocks.navigate).toHaveBeenCalledWith(
+			expect.objectContaining({ replace: true }),
+		);
+		const [[navigatedArgs]] = mocks.navigate.mock.calls;
+		const navigatedSearch = (
+			navigatedArgs as { search: Record<string, unknown> }
+		).search;
+		expect(navigatedSearch.status).toBeUndefined();
+
+		// The menu closes on selecting the exclusive "All statuses" entry.
+		await waitFor(() =>
+			expect(
+				screen.queryByTestId('staff-tenant-users-status-filter-all'),
 			).toBeNull(),
 		);
 	});
@@ -696,14 +743,11 @@ describe('staff tenant users route', () => {
 		);
 		await waitFor(() =>
 			expect(
-				screen.getByText(
-					'Successfully removed {{count}} user(s) from this tenant.',
-				),
+				screen.getByText('Successfully removed 1 user(s) from this tenant.'),
 			).toBeTruthy(),
 		);
-		expect(mocks.invalidateQueries).toHaveBeenCalledWith({
-			queryKey: ['staff', 'staff-tenants', 'detail'],
-		});
+		expect(mocks.invalidateStaffTenantUsers).toHaveBeenCalled();
+		expect(mocks.invalidateStaffTenantDetails).toHaveBeenCalled();
 	});
 });
 

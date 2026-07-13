@@ -9,8 +9,8 @@ import {
 	IconX,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Link, createFileRoute } from '@tanstack/react-router';
-import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { Link, createFileRoute, useBlocker } from '@tanstack/react-router';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -27,7 +27,9 @@ import {
 	SelectItem,
 	SelectTrigger,
 } from '~/components/ui/select';
+import { statusPillTone } from '~/components/ui/status-tone';
 import { Switch } from '~/components/ui/switch';
+import { downloadFile } from '~/lib/download-file';
 import {
 	STAFF_TENANTS_QUERY_KEY,
 	useCreateStaffTenantMutation,
@@ -53,7 +55,6 @@ import {
 	slugifyTenantNamePlaceholder,
 	type ImportedMember,
 } from './tenants-new-helpers';
-import { parseXlsxFile } from './tenants-new-xlsx';
 import {
 	getWebsiteHostname,
 	isAbsoluteHttpUrl,
@@ -125,7 +126,10 @@ const buildCreateTenantSchema = (
 ) =>
 	z
 		.object({
-			name: z.string().trim().min(5),
+			name: z
+				.string()
+				.trim()
+				.min(5, { message: t('tenant-name-too-short') }),
 			code: z
 				.string()
 				.trim()
@@ -136,13 +140,19 @@ const buildCreateTenantSchema = (
 			owners: z
 				.array(
 					z.object({
-						email: z.string().trim().email(),
+						email: z
+							.string()
+							.trim()
+							.email({ message: t('invalid-email-address') }),
 					}),
 				)
 				.min(1),
 			manualMembers: z.array(
 				z.object({
-					email: z.string().trim().email(),
+					email: z
+						.string()
+						.trim()
+						.email({ message: t('invalid-email-address') }),
 					accountLevel: z.enum(USER_ROLE_OPTIONS),
 				}),
 			),
@@ -366,18 +376,21 @@ const SlugField = ({
 	);
 };
 
+/** Mirrors the field-image-upload guard: an advisory `accept` attribute alone
+ * does not stop a drag-and-drop drop, which bypasses the file input entirely.
+ * CSV-only: `xlsx` (SheetJS) was dropped for known CVEs (round-1 review
+ * shell-F1) — the npm registry copy is frozen at a vulnerable version and the
+ * fixed release is only published on SheetJS's own CDN, which fails this
+ * repo's exact-pin supply-chain check. */
+const IMPORT_FILE_EXTENSION_PATTERN = /\.csv$/i;
+const MAX_IMPORT_FILE_BYTES = 2_000_000;
+
 const downloadTemplateCsv = () => {
-	const blob = new Blob([buildTenantMemberCsvTemplate()], {
-		type: 'text/csv;charset=utf-8',
+	downloadFile({
+		data: buildTenantMemberCsvTemplate(),
+		fileName: 'tenant-members-template.csv',
+		mimeType: 'text/csv;charset=utf-8',
 	});
-	const url = URL.createObjectURL(blob);
-	const link = document.createElement('a');
-	link.href = url;
-	link.download = 'tenant-members-template.csv';
-	document.body.append(link);
-	link.click();
-	link.remove();
-	URL.revokeObjectURL(url);
 };
 
 export const Route = createFileRoute('/_authed-layout/staff/tenants/new')({
@@ -399,6 +412,7 @@ function StaffTenantCreateRoute() {
 	const [importError, setImportError] = useState('');
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const createTenant = useCreateStaffTenantMutation();
+	const hasCreatedRef = useRef(false);
 
 	// Always-fresh ref so the memoized resolver's max-seats check can see the
 	// latest CSV/Excel import count without rebuilding on every parse.
@@ -419,9 +433,14 @@ function StaffTenantCreateRoute() {
 	});
 	const {
 		control,
-		formState: { isSubmitting, errors },
+		formState: { isDirty, isSubmitting, errors },
 	} = methods;
 	const isFormLocked = isSubmitting || createTenant.isPending;
+
+	const blocker = useBlocker({
+		shouldBlockFn: () => isDirty && !hasCreatedRef.current,
+		withResolver: true,
+	});
 	const name = useWatch({ control, name: 'name' }) ?? '';
 	const code = useWatch({ control, name: 'code' }) ?? '';
 	const maxUsers = useWatch({ control, name: 'maxUsers' }) ?? 0;
@@ -491,7 +510,10 @@ function StaffTenantCreateRoute() {
 	}, [parsedFile, existingEmails]);
 
 	const parsedValidMembers: ImportedMember[] = parsedOutcome?.valid ?? [];
-	parsedMembersCountRef.current = parsedValidMembers.length;
+
+	useEffect(() => {
+		parsedMembersCountRef.current = parsedValidMembers.length;
+	}, [parsedValidMembers.length]);
 
 	const ownersCount = filledOwners.length;
 	const membersCount = filledManualMembers.length + parsedValidMembers.length;
@@ -507,9 +529,11 @@ function StaffTenantCreateRoute() {
 	const ownersError =
 		ownersRootError?.root?.message ?? ownersRootError?.message;
 
-	const canAddOwner = ownerFields.length < Math.max(1, maxUsers);
+	const canAddOwner =
+		ownerFields.length + parsedValidMembers.length < Math.max(1, maxUsers);
 	const canAddManualMember =
-		ownerFields.length + manualMemberFields.length < Math.max(1, maxUsers);
+		ownerFields.length + manualMemberFields.length + parsedValidMembers.length <
+		Math.max(1, maxUsers);
 
 	const handleFiles = async (fileList: FileList | null) => {
 		const file = fileList?.[0];
@@ -518,11 +542,19 @@ function StaffTenantCreateRoute() {
 		}
 
 		setImportError('');
+
+		if (!IMPORT_FILE_EXTENSION_PATTERN.test(file.name)) {
+			setImportError(t('import-file-invalid-type'));
+			return;
+		}
+
+		if (file.size > MAX_IMPORT_FILE_BYTES) {
+			setImportError(t('import-file-too-large'));
+			return;
+		}
+
 		try {
-			const isSpreadsheet = /\.xlsx?$/i.test(file.name);
-			const rows = isSpreadsheet
-				? await parseXlsxFile(file)
-				: parseCsv(await file.text());
+			const rows = parseCsv(await file.text());
 			setParsedFile({ fileName: file.name, rows });
 		} catch {
 			setImportError(t('import-file-parse-failed'));
@@ -567,6 +599,7 @@ function StaffTenantCreateRoute() {
 				queryKey: ['staff', ...STAFF_TENANTS_QUERY_KEY],
 			});
 			setPendingCreateValues(null);
+			hasCreatedRef.current = true;
 
 			if (tenantId) {
 				void navigate({
@@ -835,28 +868,27 @@ function StaffTenantCreateRoute() {
 									htmlFor="tenant-member-file-input"
 									className="cursor-pointer text-[13px] font-medium text-foreground"
 								>
-									{t('drag-csv-or-excel-file')}
+									{t('drag-csv-file')}
 								</label>
 								<p className="publy-type-helper">
-									{t('csv-excel-columns-hint')}
+									{t('csv-columns-hint')}
 									{' · '}
-									<a
-										href="#download-template"
-										onClick={(event) => {
-											event.preventDefault();
-											downloadTemplateCsv();
-										}}
-										className="underline"
+									<Button
+										type="button"
+										variant="link"
+										size="xs"
+										className="h-auto p-0 align-baseline"
+										onClick={downloadTemplateCsv}
 									>
 										{t('download-template')}
-									</a>
+									</Button>
 								</p>
 								<input
 									ref={fileInputRef}
 									id="tenant-member-file-input"
 									type="file"
-									accept=".csv,.xlsx,.xls"
-									aria-label={t('drag-csv-or-excel-file')}
+									accept=".csv"
+									aria-label={t('drag-csv-file')}
 									className="sr-only"
 									onChange={(event) => {
 										void handleFiles(event.target.files);
@@ -1058,7 +1090,9 @@ function StaffTenantCreateRoute() {
 								<div className="flex flex-col divide-y divide-(--publy-row-border) px-[18px]">
 									<div className="flex items-center justify-between py-2.5 text-[13px]">
 										<span className="text-muted-foreground">{t('status')}</span>
-										<StatusPill tone="success">{t('active')}</StatusPill>
+										<StatusPill tone={statusPillTone('Pending')}>
+											{t('pending')}
+										</StatusPill>
 									</div>
 									<div className="flex items-center justify-between py-2.5 text-[13px]">
 										<span className="text-muted-foreground">{t('seats')}</span>
@@ -1218,6 +1252,21 @@ function StaffTenantCreateRoute() {
 					</div>
 				</div>
 			</ConfirmDialog>
+
+			<ConfirmDialog
+				isOpen={blocker.status === 'blocked'}
+				title={t('unsaved-changes-dialog-title')}
+				description={t('unsaved-changes-dialog-description')}
+				confirmLabel={t('leave-page')}
+				cancelLabel={t('cancel')}
+				tone="danger"
+				onConfirm={() => blocker.proceed?.()}
+				onOpenChange={(isOpen) => {
+					if (!isOpen) {
+						blocker.reset?.();
+					}
+				}}
+			/>
 		</FormPageLayout>
 	);
 }

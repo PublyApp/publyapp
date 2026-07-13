@@ -22,7 +22,7 @@ import type { Icon } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -30,6 +30,7 @@ import {
 	DataTable,
 	DataTableCursorFooter,
 	DataTableToolbar,
+	SELECTION_LOCKED_TITLE_KEY,
 } from '~/components/table/data-table';
 import {
 	FLOATING_SELECTION_BAR_ACTION_BUTTON_CLASS_NAME,
@@ -61,7 +62,7 @@ import {
 	StateSurface,
 } from '~/components/ui/state-surface';
 import {
-	STAFF_TENANT_PROFILES_QUERY_KEY,
+	invalidateStaffTenantProfiles,
 	toStaffTenantProfileBulkActionSummary,
 	toStaffTenantProfileRows,
 	useBulkDeleteStaffTenantProfilesMutation,
@@ -70,6 +71,7 @@ import {
 	type StaffTenantProfileRow,
 } from '~/lib/query/staff-tenant-profiles';
 import {
+	invalidateStaffTenantDetails,
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
@@ -189,8 +191,6 @@ const serializeStaffTenantProfilesSearchParams = (
 
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
-const SEARCH_LOCKED_WHILE_SELECTING_TITLE =
-	'Unavailable while rows are selected';
 
 /** Deterministic, decorative icon + tone for a profile card — same hashing
  * approach as the staff (non-tenant) profiles list; not a contract field. */
@@ -229,8 +229,10 @@ export const Route = createFileRoute(
 	'/_authed-layout/staff/tenants/$tenantId/profiles',
 )({
 	validateSearch: (search) =>
-		parseStaffTenantProfilesSearchParams(
-			search as StaffTenantProfilesSearchParamInput,
+		serializeStaffTenantProfilesSearchParams(
+			parseStaffTenantProfilesSearchParams(
+				search as StaffTenantProfilesSearchParamInput,
+			),
 		),
 	component: StaffTenantProfilesPage,
 });
@@ -261,7 +263,7 @@ const ProfileRowActions = ({
 
 	return (
 		<DataTableRowActions
-			ariaLabel={`Actions for ${profile.name || 'profile'}`}
+			ariaLabel={t('actions-for', { name: profile.name || t('profile') })}
 			testId={`staff-tenant-profile-actions-${profile.id}`}
 		>
 			<DropdownMenuItem
@@ -555,9 +557,10 @@ const ProfileBulkActions = ({
 
 		setIsDeleteDialogOpen(false);
 		selection.clearSelection();
-		await queryClient.invalidateQueries({
-			queryKey: STAFF_TENANT_PROFILES_QUERY_KEY,
-		});
+		await Promise.all([
+			invalidateStaffTenantProfiles(queryClient),
+			invalidateStaffTenantDetails(queryClient),
+		]);
 
 		const summary = toStaffTenantProfileBulkActionSummary(result);
 		onFeedback({
@@ -749,7 +752,9 @@ const ProfileTypeFilter = ({
 function StaffTenantProfilesPage() {
 	const { tenantId } = Route.useParams();
 	const navigate = Route.useNavigate();
-	const search = Route.useSearch();
+	const search = parseStaffTenantProfilesSearchParams(
+		Route.useSearch() as StaffTenantProfilesSearchParamInput,
+	);
 	const { t } = useTranslation('common');
 	const queryClient = useQueryClient();
 	const [deleteTarget, setDeleteTarget] =
@@ -832,20 +837,12 @@ function StaffTenantProfilesPage() {
 			isDefault: toStaffTenantProfileTypeFilterString(search.is_default),
 		},
 		{
-			enabled:
-				tenantId.length > 0 && !detailsQuery.isPending && !detailsQuery.isError,
+			enabled: tenantId.length > 0,
 		},
 	);
 
 	const rows = toStaffTenantProfileRows(profilesQuery.data?.data);
 	const selection = useRowSelection(rows.map((row) => row.id));
-
-	const { resetDraftToCommitted } = controller.search;
-	useEffect(() => {
-		if (selection.isSelectionMode) {
-			resetDraftToCommitted();
-		}
-	}, [selection.isSelectionMode, resetDraftToCommitted]);
 
 	if (detailsQuery.isPending) {
 		return <TenantDetailsLoading />;
@@ -869,9 +866,9 @@ function StaffTenantProfilesPage() {
 		return (
 			<AppErrorView
 				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-				code="500 — Server Error"
-				title="Unable to load this tenant"
-				description="The tenant response was incomplete."
+				code={t('error-500-code')}
+				title={t('tenant-details-error-title')}
+				description={t('tenant-response-incomplete')}
 				testId="staff-tenant-details-error"
 				actions={
 					<TenantRetryActions onRetry={() => void detailsQuery.refetch()} />
@@ -926,9 +923,10 @@ function StaffTenantProfilesPage() {
 				tenantId,
 				profileId: deleteTarget.id,
 			});
-			await queryClient.invalidateQueries({
-				queryKey: STAFF_TENANT_PROFILES_QUERY_KEY,
-			});
+			await Promise.all([
+				invalidateStaffTenantProfiles(queryClient),
+				invalidateStaffTenantDetails(queryClient),
+			]);
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
 				setShouldRedirectToLogout(true);
@@ -964,7 +962,7 @@ function StaffTenantProfilesPage() {
 			tenant={tenant}
 			activeSection="profiles"
 			testId="staff-tenant-profiles-page"
-			bodyScroll="contained"
+			bodyScroll={view === 'table' ? 'contained' : 'page'}
 		>
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 				<div className="space-y-1">
@@ -1013,15 +1011,15 @@ function StaffTenantProfilesPage() {
 			{view === 'table' ? (
 				<DataTable<StaffTenantProfileRow>
 					testId={testId}
-					ariaLabel="Tenant profiles"
+					ariaLabel={t('tenant-profiles-table-aria-label')}
 					columns={columns}
 					rows={rows}
 					isPending={profilesQuery.isPending}
 					isError={profilesQuery.isError}
 					onRetry={() => void profilesQuery.refetch()}
 					emptyIcon={IconShield}
-					emptyContent="No tenant profiles found."
-					noMatchContent="No tenant profiles match your search."
+					emptyContent={t('tenant-profiles-empty-description')}
+					noMatchContent={t('tenant-profiles-no-match-description')}
 					hasActiveSearch={hasActiveSearch}
 					sort={controller.sort}
 					onSortChange={controller.onSortChange}
@@ -1051,7 +1049,7 @@ function StaffTenantProfilesPage() {
 						onSearchDraftChange={controller.search.onDraftChange}
 						searchPlaceholder={t('search-profiles')}
 						disabled={selection.isSelectionMode}
-						disabledTitle={SEARCH_LOCKED_WHILE_SELECTING_TITLE}
+						disabledTitle={t(SELECTION_LOCKED_TITLE_KEY)}
 						toolbarEnd={toolbarEnd}
 					/>
 
@@ -1079,7 +1077,7 @@ function StaffTenantProfilesPage() {
 					{bodyState === 'empty' ? (
 						<StateSurface
 							title={t('list-empty-title')}
-							description="No tenant profiles found."
+							description={t('tenant-profiles-empty-description')}
 							testId={`${testId}-empty`}
 						/>
 					) : null}
@@ -1087,7 +1085,7 @@ function StaffTenantProfilesPage() {
 					{bodyState === 'no-match' ? (
 						<NoMatchStateSurface
 							title={t('list-no-match-title')}
-							description="No tenant profiles match your search."
+							description={t('tenant-profiles-no-match-description')}
 							testId={`${testId}-no-match`}
 						/>
 					) : null}
@@ -1125,7 +1123,7 @@ function StaffTenantProfilesPage() {
 								}
 								onPreviousPage={controller.cursor.onPreviousPage}
 								disabled={selection.isSelectionMode}
-								disabledTitle={SEARCH_LOCKED_WHILE_SELECTING_TITLE}
+								disabledTitle={t(SELECTION_LOCKED_TITLE_KEY)}
 								variant="flat"
 							/>
 						</>
@@ -1156,7 +1154,7 @@ function StaffTenantProfilesPage() {
 			<ConfirmDialog
 				isOpen={deleteTarget !== null}
 				title={t('delete')}
-				description="This will permanently delete this tenant profile. Users assigned to this profile may be affected and the action cannot be undone."
+				description={t('confirm-delete-tenant-profile-description')}
 				confirmLabel={t('delete')}
 				isPending={deleteProfile.isPending}
 				onConfirm={() => {

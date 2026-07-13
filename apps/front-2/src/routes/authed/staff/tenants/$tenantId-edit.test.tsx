@@ -298,6 +298,7 @@ vi.mock('react-i18next', () => ({
 					'Fewer seats than the current members',
 				'save-changes': 'Save changes',
 				cancel: 'Cancel',
+				close: 'Close',
 				'reset-to-saved': 'Reset',
 				'unsaved-changes': 'Unsaved changes',
 				'unsaved-changes-dialog-title': 'Leave without saving?',
@@ -338,6 +339,11 @@ vi.mock('~/components/error-views/AppErrorView', () => ({
 vi.mock('~/components/error-views/LogoutRedirect', () => ({
 	LogoutRedirect: () =>
 		createElement('div', { 'data-testid': 'logout-redirect' }, 'logout'),
+}));
+
+vi.mock('~/components/error-views/View403', () => ({
+	View403: () =>
+		createElement('div', { 'data-testid': 'forbidden-view' }, 'forbidden'),
 }));
 
 vi.mock('~/lib/query/staff-tenants', () => ({
@@ -419,6 +425,83 @@ describe('staff tenant edit route', () => {
 
 	afterEach(() => {
 		cleanup();
+	});
+
+	test('renders the not-found view without logging out for a malformed id', () => {
+		mocks.useStaffTenantDetailsQuery.mockReturnValue(
+			buildQueryResult({
+				error: {
+					status: 400,
+					responseStatusCode: 400,
+					title: 'Bad Request',
+					detail: 'Invalid tenantId',
+					translationKey: 'malformed-id',
+				},
+				isError: true,
+			}),
+		);
+
+		renderPage();
+
+		expect(screen.getByTestId('staff-tenant-details-not-found')).toBeTruthy();
+		expect(screen.queryByTestId('logout-redirect')).toBeNull();
+	});
+
+	test('renders a local not found view for 404 failures', () => {
+		mocks.useStaffTenantDetailsQuery.mockReturnValue(
+			buildQueryResult({
+				error: {
+					status: 404,
+					responseStatusCode: 404,
+					title: 'Not Found',
+					detail: 'Missing tenant',
+				},
+				isError: true,
+			}),
+		);
+
+		renderPage();
+
+		expect(screen.getByTestId('staff-tenant-details-not-found')).toBeTruthy();
+		expect(screen.queryByTestId('logout-redirect')).toBeNull();
+	});
+
+	test('renders forbidden without logging out for 403 failures', () => {
+		mocks.useStaffTenantDetailsQuery.mockReturnValue(
+			buildQueryResult({
+				error: {
+					status: 403,
+					responseStatusCode: 403,
+					title: 'Forbidden',
+					detail: 'Forbidden',
+				},
+				isError: true,
+			}),
+		);
+
+		renderPage();
+
+		expect(screen.getByTestId('forbidden-view')).toBeTruthy();
+		expect(screen.queryByTestId('logout-redirect')).toBeNull();
+	});
+
+	test('renders the details error view without logging out for ordinary problem failures', () => {
+		mocks.useStaffTenantDetailsQuery.mockReturnValue(
+			buildQueryResult({
+				error: {
+					status: 500,
+					responseStatusCode: 500,
+					title: 'Server Error',
+					detail: 'Unexpected failure',
+				},
+				isError: true,
+			}),
+		);
+
+		renderPage();
+
+		expect(screen.getByTestId('staff-tenant-details-error')).toBeTruthy();
+		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 	});
 
 	test('does not reset unsaved edits when tenant query data is remapped on rerender', () => {

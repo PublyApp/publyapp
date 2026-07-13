@@ -61,6 +61,41 @@ const TENANT_STATUS_SUSPENDED = 'Suspended';
 
 type PendingLifecycleAction = 'suspend' | 'reactivate' | 'delete' | null;
 
+type LifecycleCopyArgs = {
+	isActive: boolean;
+	isSuspended: boolean;
+	t: (key: string, options?: Record<string, unknown>) => string;
+};
+
+const resolveLifecycleTitle = ({
+	isActive,
+	isSuspended,
+	t,
+}: LifecycleCopyArgs): string => {
+	if (isActive) {
+		return t('suspend-tenant');
+	}
+	if (isSuspended) {
+		return t('reactivate-tenant');
+	}
+	return t('lifecycle-unavailable-title');
+};
+
+const resolveLifecycleDescription = ({
+	isActive,
+	isSuspended,
+	tenantName,
+	t,
+}: LifecycleCopyArgs & { tenantName: string }): string => {
+	if (isActive) {
+		return t('suspend-tenant-confirm', { name: tenantName });
+	}
+	if (isSuspended) {
+		return t('reactivate-tenant-confirm', { name: tenantName });
+	}
+	return t('lifecycle-unavailable-until-tenant-activates');
+};
+
 export const Route = createFileRoute('/_authed-layout/staff/tenants/$tenantId')(
 	{
 		component: StaffTenantDetailsPage,
@@ -239,6 +274,50 @@ const UsersPreviewCard = ({
 	});
 	const rows = toStaffTenantUserRows(usersQuery.data?.data);
 
+	const renderBody = () => {
+		if (usersQuery.isPending) {
+			return <p className="px-4 py-4 text-xs text-muted-foreground">…</p>;
+		}
+
+		if (usersQuery.isError) {
+			return (
+				<p className="px-4 py-4 text-xs text-muted-foreground">
+					{t('tenant-users-preview-error')}
+				</p>
+			);
+		}
+
+		if (rows.length === 0) {
+			return (
+				<p className="px-4 py-4 text-xs text-muted-foreground">
+					{t('no-tenant-members')}
+				</p>
+			);
+		}
+
+		return (
+			<div className="divide-y divide-[color:var(--publy-row-border)]">
+				{rows.map((row) => (
+					<div key={row.id} className="flex items-center gap-3 px-4 py-2.5">
+						<InitialsAvatar name={row.displayName} size="sm" />
+						<div className="min-w-0 flex-1">
+							<p className="truncate text-[13px] font-medium text-foreground">
+								{row.displayName}
+							</p>
+							<p className="truncate text-xs text-muted-foreground">
+								{row.email || '—'}
+							</p>
+						</div>
+						<StatusPill tone="neutral">{row.level ?? '—'}</StatusPill>
+						<StatusPill tone={statusPillTone(row.status)}>
+							{row.status ?? '—'}
+						</StatusPill>
+					</div>
+				))}
+			</div>
+		);
+	};
+
 	return (
 		<section className="rounded-[var(--publy-radius-card)] bg-card shadow-[var(--publy-shadow-ring)]">
 			<div className="publy-card-header">
@@ -253,39 +332,7 @@ const UsersPreviewCard = ({
 					{t('view-all')}
 				</Link>
 			</div>
-			<div data-testid="tenant-users-preview-rows">
-				{usersQuery.isPending ? (
-					<p className="px-4 py-4 text-xs text-muted-foreground">…</p>
-				) : usersQuery.isError ? (
-					<p className="px-4 py-4 text-xs text-muted-foreground">
-						{t('tenant-users-preview-error')}
-					</p>
-				) : rows.length === 0 ? (
-					<p className="px-4 py-4 text-xs text-muted-foreground">
-						{t('no-tenant-members')}
-					</p>
-				) : (
-					<div className="divide-y divide-[color:var(--publy-row-border)]">
-						{rows.map((row) => (
-							<div key={row.id} className="flex items-center gap-3 px-4 py-2.5">
-								<InitialsAvatar name={row.displayName} size="sm" />
-								<div className="min-w-0 flex-1">
-									<p className="truncate text-[13px] font-medium text-foreground">
-										{row.displayName}
-									</p>
-									<p className="truncate text-xs text-muted-foreground">
-										{row.email || '—'}
-									</p>
-								</div>
-								<StatusPill tone="neutral">{row.level ?? '—'}</StatusPill>
-								<StatusPill tone={statusPillTone(row.status)}>
-									{row.status ?? '—'}
-								</StatusPill>
-							</div>
-						))}
-					</div>
-				)}
-			</div>
+			<div data-testid="tenant-users-preview-rows">{renderBody()}</div>
 		</section>
 	);
 };
@@ -419,9 +466,9 @@ function StaffTenantDetailsPage() {
 		return (
 			<AppErrorView
 				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-				code="500 — Server Error"
-				title="Unable to load this tenant"
-				description="The tenant response was incomplete."
+				code={t('error-500-code')}
+				title={t('tenant-details-error-title')}
+				description={t('tenant-response-incomplete')}
 				testId="staff-tenant-details-error"
 				embedded
 				actions={<TenantRetryActions onRetry={() => void query.refetch()} />}
@@ -430,9 +477,11 @@ function StaffTenantDetailsPage() {
 	}
 
 	const isActive = tenant.status === TENANT_STATUS_ACTIVE;
+	const isSuspended = tenant.status === TENANT_STATUS_SUSPENDED;
 	const canSuspend = isActive;
-	const canReactivate = tenant.status === TENANT_STATUS_SUSPENDED;
-	const canDelete = tenant.status === TENANT_STATUS_SUSPENDED;
+	const canReactivate = isSuspended;
+	const canDelete = isSuspended;
+	const isLifecycleUnavailable = !canSuspend && !canReactivate;
 	const isLifecyclePending =
 		suspendMutation.isPending || reactivateMutation.isPending;
 
@@ -522,12 +571,13 @@ function StaffTenantDetailsPage() {
 		.slice(0, 5)
 		.map((row) => row.displayName);
 	const hasExpiringSoonInvitations = tenant.expiringSoonInvitationsCount > 0;
-	const lifecycleTitle = isActive
-		? t('suspend-tenant')
-		: t('reactivate-tenant');
-	const lifecycleDescription = isActive
-		? t('suspend-tenant-confirm', { name: tenant.name })
-		: t('reactivate-tenant-confirm', { name: tenant.name });
+	const lifecycleTitle = resolveLifecycleTitle({ isActive, isSuspended, t });
+	const lifecycleDescription = resolveLifecycleDescription({
+		isActive,
+		isSuspended,
+		tenantName: tenant.name,
+		t,
+	});
 	const lifecycleConfirmLabel = isActive ? t('suspend') : t('reactivate');
 
 	return (
@@ -627,7 +677,12 @@ function StaffTenantDetailsPage() {
 									onClick={() =>
 										setPendingAction(isActive ? 'suspend' : 'reactivate')
 									}
-									disabled={!canSuspend && !canReactivate}
+									disabled={isLifecycleUnavailable}
+									title={
+										isLifecycleUnavailable
+											? t('lifecycle-unavailable-until-tenant-activates')
+											: undefined
+									}
 								>
 									{lifecycleConfirmLabel}
 								</Button>

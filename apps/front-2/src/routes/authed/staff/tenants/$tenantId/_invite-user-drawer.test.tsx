@@ -17,6 +17,9 @@ const mocks = vi.hoisted(() => ({
 	inviteMutation: vi.fn(),
 	useInviteTenantUserMutation: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
+	invalidateStaffTenantUsers: vi.fn().mockResolvedValue(undefined),
+	invalidateStaffTenantInvitations: vi.fn().mockResolvedValue(undefined),
+	invalidateStaffTenantDetails: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -155,12 +158,16 @@ vi.mock('~/components/field', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenant-invitations', () => ({
-	STAFF_TENANT_INVITATIONS_QUERY_KEY: ['staff-tenants', 'invitations'],
+	invalidateStaffTenantInvitations: mocks.invalidateStaffTenantInvitations,
 }));
 
 vi.mock('~/lib/query/staff-tenant-users', () => ({
-	STAFF_TENANT_USERS_QUERY_KEY: ['staff-tenants', 'users'],
+	invalidateStaffTenantUsers: mocks.invalidateStaffTenantUsers,
 	useInviteTenantUserMutation: mocks.useInviteTenantUserMutation,
+}));
+
+vi.mock('~/lib/query/staff-tenants', () => ({
+	invalidateStaffTenantDetails: mocks.invalidateStaffTenantDetails,
 }));
 
 vi.mock('~/routes/authed/layout', () => ({
@@ -225,7 +232,28 @@ describe('InviteTenantUserDrawer', () => {
 			}),
 		);
 		await waitFor(() => expect(onInvited).toHaveBeenCalled());
-		expect(mocks.invalidateQueries).toHaveBeenCalledTimes(2);
+		expect(mocks.invalidateStaffTenantUsers).toHaveBeenCalled();
+		expect(mocks.invalidateStaffTenantInvitations).toHaveBeenCalled();
+		expect(mocks.invalidateStaffTenantDetails).toHaveBeenCalled();
+	});
+
+	test('blocks submission when the email is invalid (email schema rule)', async () => {
+		render(
+			<InviteTenantUserDrawer
+				tenantId="tenant-1"
+				isOpen
+				onOpenChange={vi.fn()}
+				onInvited={vi.fn()}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		fireEvent.change(screen.getByLabelText('Email'), {
+			target: { value: 'not-an-email' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Invite people' }));
+
+		await waitFor(() => expect(mocks.inviteMutation).not.toHaveBeenCalled());
 	});
 
 	test('redirects to logout when the invite request should end the session', async () => {

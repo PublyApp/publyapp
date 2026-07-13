@@ -21,6 +21,25 @@ import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 export const MALFORMED_ID_TRANSLATION_KEY = 'malformed-id';
 
+/** Formats the raw backend tenant status (e.g. `"Active"`) for display — the
+ * identity header must not render the unlocalized backend string directly. */
+const formatTenantStatusLabel = (
+	status: string,
+	t: (key: string) => string,
+): string => {
+	const normalized = status.trim().toLowerCase();
+	if (normalized === 'active') {
+		return t('status-active');
+	}
+	if (normalized === 'suspended') {
+		return t('status-suspended');
+	}
+	if (normalized === 'pending') {
+		return t('status-pending');
+	}
+	return status;
+};
+
 const DATE_TIME_FORMAT_OPTIONS = {
 	dateStyle: 'medium',
 	timeStyle: 'short',
@@ -196,49 +215,68 @@ const SectionNavLink = ({
 	);
 };
 
-export const TenantDetailsLoading = () => (
-	<div
-		className="mx-auto flex min-h-[50vh] w-full max-w-5xl items-center justify-center px-4 py-12"
-		data-testid="staff-tenant-details-loading"
-	>
-		<div className="flex items-center gap-3 text-sm text-muted-foreground">
-			<LoadingSpinner />
-			<span>Loading tenant…</span>
-		</div>
-	</div>
-);
+export const TenantDetailsLoading = () => {
+	const { t } = useTranslation('common');
 
-const BackToTenantsLink = () => (
-	<Link to="/staff/tenants" className={buttonVariants({ variant: 'outline' })}>
-		Back to tenants
-	</Link>
-);
+	return (
+		<div
+			className="mx-auto flex min-h-[50vh] w-full max-w-5xl items-center justify-center px-4 py-12"
+			data-testid="staff-tenant-details-loading"
+		>
+			<div className="flex items-center gap-3 text-sm text-muted-foreground">
+				<LoadingSpinner />
+				<span>{t('loading-tenant')}</span>
+			</div>
+		</div>
+	);
+};
+
+const BackToTenantsLink = () => {
+	const { t } = useTranslation('common');
+
+	return (
+		<Link
+			to="/staff/tenants"
+			className={buttonVariants({ variant: 'outline' })}
+		>
+			{t('back-to-tenants')}
+		</Link>
+	);
+};
 
 /** Retry + Back-to-tenants action pair shared by every tenant-scoped 500
  * view (owner decision R3-4a, 2026-07-10 round 3). */
-export const TenantRetryActions = ({ onRetry }: { onRetry: () => void }) => (
-	<>
-		<Button variant="default" onClick={onRetry} type="button">
-			Try again
-		</Button>
-		<BackToTenantsLink />
-	</>
-);
+export const TenantRetryActions = ({ onRetry }: { onRetry: () => void }) => {
+	const { t } = useTranslation('common');
 
-const MissingTenantView = ({ error }: { error: unknown }) => (
-	<AppErrorView
-		icon={<IconSearchOff aria-hidden="true" className="size-7" />}
-		code="404 — Not Found"
-		title="Tenant not found"
-		description={getFailureDescription(
-			error,
-			'The requested tenant does not exist or is no longer available.',
-		)}
-		testId="staff-tenant-details-not-found"
-		embedded
-		actions={<BackToTenantsLink />}
-	/>
-);
+	return (
+		<>
+			<Button variant="default" onClick={onRetry} type="button">
+				{t('try-again')}
+			</Button>
+			<BackToTenantsLink />
+		</>
+	);
+};
+
+const MissingTenantView = ({ error }: { error: unknown }) => {
+	const { t } = useTranslation('common');
+
+	return (
+		<AppErrorView
+			icon={<IconSearchOff aria-hidden="true" className="size-7" />}
+			code={t('error-404-code')}
+			title={t('tenant-not-found-title')}
+			description={getFailureDescription(
+				error,
+				t('tenant-not-found-description'),
+			)}
+			testId="staff-tenant-details-not-found"
+			embedded
+			actions={<BackToTenantsLink />}
+		/>
+	);
+};
 
 export const TenantDetailsError = ({
 	error,
@@ -249,6 +287,8 @@ export const TenantDetailsError = ({
 	 * retry target is available at the call site. */
 	onRetry?: () => void;
 }) => {
+	const { t } = useTranslation('common');
+
 	if (
 		isProblemStatus(error, 404) ||
 		isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)
@@ -263,9 +303,9 @@ export const TenantDetailsError = ({
 	return (
 		<AppErrorView
 			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-			code="500 — Server Error"
-			title="Unable to load this tenant"
-			description="There was a problem loading the tenant details."
+			code={t('error-500-code')}
+			title={t('tenant-details-error-title')}
+			description={t('tenant-details-error-description')}
 			testId="staff-tenant-details-error"
 			tone="danger"
 			embedded
@@ -336,7 +376,9 @@ export const TenantDetailsPageShell = ({
 						<div className="flex flex-wrap items-center gap-2">
 							<h1 className="publy-tenant-identity-name">{tenant.name}</h1>
 							<StatusPill tone={statusPillTone(tenant.status)}>
-								{tenant.status ?? t('unknown')}
+								{tenant.status
+									? formatTenantStatusLabel(tenant.status, t)
+									: t('unknown')}
 							</StatusPill>
 						</div>
 						<p className="publy-tenant-identity-meta flex items-center gap-1">
@@ -376,7 +418,7 @@ export const TenantDetailsPageShell = ({
 			</header>
 
 			<nav
-				aria-label="Tenant sections"
+				aria-label={t('tenant-sections')}
 				className="flex shrink-0 flex-wrap gap-1 border-b border-border"
 			>
 				<SectionNavLink

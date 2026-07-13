@@ -19,7 +19,12 @@ const mocks = vi.hoisted(() => ({
 	useCreateStaffTenantMutation: vi.fn(),
 	useUpdateStaffTenantMutation: vi.fn(),
 	shouldLogoutForFailure: vi.fn((_: unknown) => false),
-	parseXlsxFile: vi.fn(),
+	blockerResolver: {
+		status: 'idle' as 'idle' | 'blocked',
+		proceed: undefined as (() => void) | undefined,
+		reset: undefined as (() => void) | undefined,
+	},
+	capturedShouldBlockFn: undefined as (() => boolean) | undefined,
 }));
 
 const LABELS: Record<string, string> = {
@@ -40,11 +45,15 @@ const LABELS: Record<string, string> = {
 	'owner-chip-label': 'Owner',
 	'remove-owner': 'Remove owner',
 	'initial-members-optional': 'Initial members (optional)',
-	'drag-csv-or-excel-file': 'Drag a CSV or Excel file, or browse',
-	'csv-excel-columns-hint': 'Columns: email, role',
+	'drag-csv-file': 'Drag a CSV file, or browse',
+	'csv-columns-hint': 'Columns: email, role',
 	'download-template': 'Download template',
 	'parsed-file-summary': '{{detected}} members detected · {{valid}} valid',
 	'parsed-file-invalid-rows': '{{count}} rows skipped (invalid email)',
+	'import-file-too-large': 'This file is too large. Choose a file under 2 MB.',
+	'import-file-invalid-type': 'Unsupported file type. Choose a CSV file.',
+	'import-file-parse-failed':
+		"We couldn't read that file. Check the format and try again.",
 	'or-add-manually': 'or add manually',
 	email: 'Email',
 	'account-level': 'Account level',
@@ -60,6 +69,7 @@ const LABELS: Record<string, string> = {
 	preview: 'Preview',
 	status: 'Status',
 	active: 'Active',
+	pending: 'Pending',
 	'untitled-organization': 'New organization',
 	'assigned-after-creation': 'Assigned after creation',
 	'preview-owners-checklist': '{{count}} owners get full access',
@@ -77,6 +87,11 @@ const LABELS: Record<string, string> = {
 	'max-users-reached': 'Maximum users number reached',
 	'tenant-create-failed': 'Tenant create failed.',
 	cancel: 'Cancel',
+	close: 'Close',
+	'unsaved-changes-dialog-title': 'Leave without saving?',
+	'unsaved-changes-dialog-description':
+		'You have unsaved changes that will be lost if you leave this page.',
+	'leave-page': 'Leave page',
 	'organization-details': 'Organization details',
 	'organization-details-optional-hint':
 		'Optional — add these details now or edit them later.',
@@ -93,6 +108,7 @@ const LABELS: Record<string, string> = {
 		'Visible to staff only — never shown to tenant members.',
 	'not-set': 'Not set',
 	'invalid-email-address': 'Invalid email address',
+	'tenant-name-too-short': 'Enter at least 5 characters.',
 	logo: 'Logo',
 };
 
@@ -200,6 +216,10 @@ vi.mock('@tanstack/react-router', () => ({
 	}),
 	Link: ({ children, to, ...props }: { children: ReactNode; to: string }) =>
 		createElement('a', { href: to, ...props }, children),
+	useBlocker: (opts: { shouldBlockFn: () => boolean }) => {
+		mocks.capturedShouldBlockFn = opts.shouldBlockFn;
+		return mocks.blockerResolver;
+	},
 }));
 
 vi.mock('react-i18next', () => ({
@@ -425,10 +445,6 @@ vi.mock('~/routes/authed/layout', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 
-vi.mock('./tenants-new-xlsx', () => ({
-	parseXlsxFile: mocks.parseXlsxFile,
-}));
-
 import { Route } from './tenants-new';
 
 const renderPage = () => {
@@ -466,6 +482,10 @@ const confirmCreate = async () => {
 describe('staff tenant create route', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mocks.blockerResolver.status = 'idle';
+		mocks.blockerResolver.proceed = undefined;
+		mocks.blockerResolver.reset = undefined;
+		mocks.capturedShouldBlockFn = undefined;
 		mocks.useCreateStaffTenantMutation.mockReturnValue({
 			mutateAsync: mocks.mutateAsync,
 			isPending: false,
@@ -508,7 +528,7 @@ describe('staff tenant create route', () => {
 		expect(screen.getByText('Initial members (optional)')).toBeTruthy();
 		expect(screen.getByText('Setup')).toBeTruthy();
 		expect(
-			screen.getByRole('link', { name: 'Download template' }),
+			screen.getByRole('button', { name: 'Download template' }),
 		).toBeTruthy();
 	});
 
@@ -645,7 +665,7 @@ describe('staff tenant create route', () => {
 		expect(screen.getByTestId('preview-members').textContent).toBe('1');
 	});
 
-	test('preview shows the Active status chip and the honest checklist', () => {
+	test('preview shows the Pending status chip (tenants are created Pending) and the honest checklist', () => {
 		renderPage();
 
 		fillOrganizationName('Acme Corporation');
@@ -654,7 +674,8 @@ describe('staff tenant create route', () => {
 		});
 
 		const preview = screen.getByTestId('staff-tenant-create-preview');
-		expect(within(preview).getByText('Active')).toBeTruthy();
+		expect(within(preview).getByText('Pending')).toBeTruthy();
+		expect(within(preview).queryByText('Active')).toBeNull();
 		expect(
 			screen.getByTestId('preview-checklist-owners').textContent,
 		).toContain('1 owners get full access');
@@ -765,6 +786,67 @@ describe('staff tenant create route', () => {
 			).toBeTruthy(),
 		);
 		expect(mocks.mutateAsync).not.toHaveBeenCalled();
+	});
+
+	test('blocks submission when the organization name is under 5 characters (name.min(5))', async () => {
+		renderPage();
+
+		fillOrganizationName('Ac');
+		fireEvent.change(getEmailInputs()[0]!, {
+			target: { value: 'owner@acme.com' },
+		});
+
+		submitForm();
+
+		await waitFor(() => expect(mocks.mutateAsync).not.toHaveBeenCalled());
+	});
+
+	test('blocks submission when the website URL is invalid (websiteUrl schema rule)', async () => {
+		renderPage();
+
+		fillOrganizationName('Acme Corporation');
+		fireEvent.change(getEmailInputs()[0]!, {
+			target: { value: 'owner@acme.com' },
+		});
+		fireEvent.change(screen.getByRole('textbox', { name: 'Website URL' }), {
+			target: { value: 'not-a-url' },
+		});
+
+		submitForm();
+
+		await waitFor(() => expect(mocks.mutateAsync).not.toHaveBeenCalled());
+	});
+
+	test('blocks submission when the billing email is invalid (billingEmail schema rule)', async () => {
+		renderPage();
+
+		fillOrganizationName('Acme Corporation');
+		fireEvent.change(getEmailInputs()[0]!, {
+			target: { value: 'owner@acme.com' },
+		});
+		fireEvent.change(screen.getByRole('textbox', { name: 'Billing email' }), {
+			target: { value: 'not-an-email' },
+		});
+
+		submitForm();
+
+		await waitFor(() => expect(mocks.mutateAsync).not.toHaveBeenCalled());
+	});
+
+	test('blocks submission when the support email is invalid (supportEmail schema rule)', async () => {
+		renderPage();
+
+		fillOrganizationName('Acme Corporation');
+		fireEvent.change(getEmailInputs()[0]!, {
+			target: { value: 'owner@acme.com' },
+		});
+		fireEvent.change(screen.getByRole('textbox', { name: 'Support email' }), {
+			target: { value: 'not-an-email' },
+		});
+
+		submitForm();
+
+		await waitFor(() => expect(mocks.mutateAsync).not.toHaveBeenCalled());
 	});
 
 	test('creates a tenant with owners and manual members merged into initialUsers, owners first', async () => {
@@ -1075,7 +1157,7 @@ describe('staff tenant create route', () => {
 		});
 
 		const fileInput = screen.getByLabelText(
-			'Drag a CSV or Excel file, or browse',
+			'Drag a CSV file, or browse',
 		) as HTMLInputElement;
 		fireEvent.change(fileInput, { target: { files: [file] } });
 
@@ -1098,5 +1180,138 @@ describe('staff tenant create route', () => {
 				}),
 			),
 		);
+	});
+
+	test('rejects an oversized import file via the file input without reading it', () => {
+		renderPage();
+
+		const csvContent = 'email,role\ncsv1@acme.com,user\n';
+		const file = new File([csvContent], 'members.csv', { type: 'text/csv' });
+		Object.defineProperty(file, 'size', { value: 3_000_000 });
+		const textSpy = vi.fn(() => Promise.resolve(csvContent));
+		Object.defineProperty(file, 'text', { value: textSpy });
+
+		const fileInput = screen.getByLabelText(
+			'Drag a CSV file, or browse',
+		) as HTMLInputElement;
+		fireEvent.change(fileInput, { target: { files: [file] } });
+
+		expect(
+			screen.getByText('This file is too large. Choose a file under 2 MB.'),
+		).toBeTruthy();
+		expect(textSpy).not.toHaveBeenCalled();
+		expect(screen.queryByTestId('tenant-member-parsed-summary')).toBeNull();
+	});
+
+	test('rejects an unsupported file type via the file input without reading it', () => {
+		renderPage();
+
+		const file = new File(['%PDF-1.4'], 'members.pdf', {
+			type: 'application/pdf',
+		});
+		const textSpy = vi.fn(() => Promise.resolve('%PDF-1.4'));
+		Object.defineProperty(file, 'text', { value: textSpy });
+
+		const fileInput = screen.getByLabelText(
+			'Drag a CSV file, or browse',
+		) as HTMLInputElement;
+		fireEvent.change(fileInput, { target: { files: [file] } });
+
+		expect(
+			screen.getByText('Unsupported file type. Choose a CSV file.'),
+		).toBeTruthy();
+		expect(textSpy).not.toHaveBeenCalled();
+	});
+
+	test('rejects a .xlsx file — spreadsheet import was dropped for known CVEs (round-1 review shell-F1)', () => {
+		renderPage();
+
+		const file = new File(['not-real-xlsx-bytes'], 'members.xlsx', {
+			type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+		});
+		const textSpy = vi.fn(() => Promise.resolve('not-real-xlsx-bytes'));
+		Object.defineProperty(file, 'text', { value: textSpy });
+
+		const fileInput = screen.getByLabelText(
+			'Drag a CSV file, or browse',
+		) as HTMLInputElement;
+		fireEvent.change(fileInput, { target: { files: [file] } });
+
+		expect(
+			screen.getByText('Unsupported file type. Choose a CSV file.'),
+		).toBeTruthy();
+		expect(textSpy).not.toHaveBeenCalled();
+	});
+
+	test('rejects an oversized file dropped onto the dropzone without reading it', () => {
+		renderPage();
+
+		const csvContent = 'email,role\ncsv1@acme.com,user\n';
+		const file = new File([csvContent], 'members.csv', { type: 'text/csv' });
+		Object.defineProperty(file, 'size', { value: 3_000_000 });
+		const textSpy = vi.fn(() => Promise.resolve(csvContent));
+		Object.defineProperty(file, 'text', { value: textSpy });
+
+		fireEvent.drop(screen.getByTestId('tenant-member-dropzone'), {
+			dataTransfer: { files: [file] },
+		});
+
+		expect(
+			screen.getByText('This file is too large. Choose a file under 2 MB.'),
+		).toBeTruthy();
+		expect(textSpy).not.toHaveBeenCalled();
+	});
+
+	test('the nav-guard shouldBlockFn blocks while the form is dirty and stops blocking once the tenant is created', async () => {
+		mocks.mutateAsync.mockResolvedValue({ id: 'tenant-001' });
+
+		renderPage();
+
+		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+
+		fillOrganizationName('Acme Corporation');
+		expect(mocks.capturedShouldBlockFn?.()).toBe(true);
+
+		fireEvent.change(getEmailInputs()[0]!, {
+			target: { value: 'owner@acme.com' },
+		});
+
+		submitForm();
+		await confirmCreate();
+
+		await waitFor(() => expect(mocks.navigate).toHaveBeenCalled());
+		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+	});
+
+	test('shows the unsaved-changes confirm dialog when the router blocks navigation, and Leave page proceeds', () => {
+		const proceed = vi.fn();
+		const reset = vi.fn();
+		mocks.blockerResolver.status = 'blocked';
+		mocks.blockerResolver.proceed = proceed;
+		mocks.blockerResolver.reset = reset;
+
+		renderPage();
+
+		expect(screen.getByText('Leave without saving?')).toBeTruthy();
+		fireEvent.click(screen.getByRole('button', { name: 'Leave page' }));
+		expect(proceed).toHaveBeenCalled();
+		expect(reset).not.toHaveBeenCalled();
+	});
+
+	test('cancelling the unsaved-changes confirm dialog calls reset, not proceed', () => {
+		const proceed = vi.fn();
+		const reset = vi.fn();
+		mocks.blockerResolver.status = 'blocked';
+		mocks.blockerResolver.proceed = proceed;
+		mocks.blockerResolver.reset = reset;
+
+		renderPage();
+
+		const dialog = screen.getByRole('alertdialog');
+		fireEvent.click(
+			dialog.querySelector('[aria-label="Close"]') as HTMLElement,
+		);
+		expect(reset).toHaveBeenCalled();
+		expect(proceed).not.toHaveBeenCalled();
 	});
 });

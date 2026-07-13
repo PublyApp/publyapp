@@ -11,7 +11,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
@@ -63,6 +63,7 @@ import {
 	parseTenantListSearchParams,
 	serializeTenantListSearchParams,
 	TENANT_STATUS_FILTERS,
+	validateTenantListSearchParams,
 	type TenantListSearchParamInput,
 	type TenantListSearchParams,
 	type TenantStatusFilter,
@@ -87,6 +88,25 @@ const formatTenantStatusFilterLabel = (
 		return t('status-suspended');
 	}
 	return t('all-statuses');
+};
+
+/** Formats the raw backend status (e.g. `"Active"`) for display — the row
+ * path must not render the unlocalized backend string directly. */
+const formatTenantStatusLabel = (
+	status: string,
+	t: (key: string) => string,
+): string => {
+	const normalized = status.trim().toLowerCase();
+	if (normalized === 'active') {
+		return t('status-active');
+	}
+	if (normalized === 'suspended') {
+		return t('status-suspended');
+	}
+	if (normalized === 'pending') {
+		return t('status-pending');
+	}
+	return status;
 };
 
 const TenantStatusFilterMenu = ({
@@ -149,10 +169,11 @@ const TenantStatusFilterMenu = ({
 
 const buildTenantColumns = (
 	onSessionExpired: () => void,
+	t: (key: string) => string,
 ): ColumnDef<StaffTenantRow>[] => [
 	{
 		id: 'name',
-		header: 'Name',
+		header: t('name'),
 		accessorKey: 'name',
 		meta: { headerIcon: <IconBuilding /> },
 		cell: ({ row }) => (
@@ -173,7 +194,7 @@ const buildTenantColumns = (
 	},
 	{
 		id: 'status',
-		header: 'Status',
+		header: t('status'),
 		accessorKey: 'status',
 		meta: { headerIcon: <IconCircleDot />, width: '124px' },
 		cell: ({ row }) => {
@@ -182,12 +203,16 @@ const buildTenantColumns = (
 				return '—';
 			}
 
-			return <StatusPill tone={statusPillTone(status)}>{status}</StatusPill>;
+			return (
+				<StatusPill tone={statusPillTone(status)}>
+					{formatTenantStatusLabel(status, t)}
+				</StatusPill>
+			);
 		},
 	},
 	{
 		id: 'users_count',
-		header: 'Users',
+		header: t('users'),
 		accessorKey: 'usersCount',
 		enableSorting: false,
 		meta: { width: '92px' },
@@ -195,7 +220,7 @@ const buildTenantColumns = (
 	},
 	{
 		id: 'max_users',
-		header: 'Max users',
+		header: t('max-users-column'),
 		accessorKey: 'maxUsers',
 		enableSorting: false,
 		meta: { width: '132px' },
@@ -219,7 +244,7 @@ const buildTenantColumns = (
 
 export const Route = createFileRoute('/_authed-layout/staff/tenants')({
 	validateSearch: (search) =>
-		parseTenantListSearchParams(search as TenantListSearchParamInput),
+		validateTenantListSearchParams(search as TenantListSearchParamInput),
 	component: StaffTenantsPage,
 });
 
@@ -229,7 +254,9 @@ function StaffTenantsPage() {
 		null,
 	);
 	const navigate = Route.useNavigate();
-	const search = Route.useSearch() as TenantListSearchParams;
+	const search = parseTenantListSearchParams(
+		Route.useSearch() as TenantListSearchParamInput,
+	);
 	const { t } = useTranslation('common');
 
 	const onSearchChange = (next: TenantListSearchParams): void => {
@@ -237,7 +264,7 @@ function StaffTenantsPage() {
 			search: serializeTenantListSearchParams({
 				...next,
 				status: search.status,
-			}) as unknown as TenantListSearchParams,
+			}),
 			replace: true,
 		});
 	};
@@ -248,7 +275,7 @@ function StaffTenantsPage() {
 				...search,
 				status: next,
 				cursor: undefined,
-			}) as unknown as TenantListSearchParams,
+			}),
 			replace: true,
 		});
 	};
@@ -267,13 +294,6 @@ function StaffTenantsPage() {
 	const rows = toStaffTenantRows(query.data?.data);
 	const selection = useRowSelection(rows.map((row) => row.id));
 
-	const { resetDraftToCommitted } = controller.search;
-	useEffect(() => {
-		if (selection.isSelectionMode) {
-			resetDraftToCommitted();
-		}
-	}, [selection.isSelectionMode, resetDraftToCommitted]);
-
 	if (query.isError && shouldLogoutForFailure(query.error)) {
 		return <LogoutRedirect />;
 	}
@@ -283,18 +303,13 @@ function StaffTenantsPage() {
 	}
 
 	const onSessionExpired = () => setShouldLogout(true);
-	const columns = buildTenantColumns(onSessionExpired);
+	const columns = buildTenantColumns(onSessionExpired, t);
 
 	return (
 		<div className="publy-page-fill">
 			<PageHeader
-				title="Tenants"
-				description="Manage tenant organizations, seats, and lifecycle."
-				count={
-					rows.length > 0 ? (
-						<span className="publy-profile-count-badge">{rows.length}</span>
-					) : null
-				}
+				title={t('tenants')}
+				description={t('tenants-list-description')}
 				actions={
 					<Link
 						to="/staff/tenants/new"
@@ -326,15 +341,12 @@ function StaffTenantsPage() {
 			) : null}
 			<DataTable
 				testId="staff-tenants-table"
-				ariaLabel="Staff tenants"
+				ariaLabel={t('staff-tenants-table-aria-label')}
 				columns={columns}
 				rows={rows}
 				isPending={query.isPending}
 				isError={query.isError}
 				onRetry={() => void query.refetch()}
-				errorContent="Unable to load tenants right now."
-				emptyContent="No tenants found."
-				noMatchContent="No tenants match your search."
 				hasActiveSearch={Boolean(controller.search.committed || search.status)}
 				sort={controller.sort}
 				onSortChange={controller.onSortChange}
@@ -382,28 +394,29 @@ function StaffTenantsPage() {
 
 type PendingLifecycleAction = 'suspend' | 'reactivate' | 'delete' | null;
 
-const getConfirmDialogConfig = (action: PendingLifecycleAction) => {
+const getConfirmDialogConfig = (
+	action: PendingLifecycleAction,
+	tenantName: string,
+	t: (key: string, options?: Record<string, unknown>) => string,
+) => {
 	switch (action) {
 		case 'suspend':
 			return {
-				title: 'Suspend tenant',
-				description:
-					'Suspending this tenant will temporarily disable access for all associated users and projects. You can reactivate it later.',
-				confirmLabel: 'Suspend',
+				title: t('suspend-tenant'),
+				description: t('suspend-tenant-confirm', { name: tenantName }),
+				confirmLabel: t('suspend'),
 			};
 		case 'reactivate':
 			return {
-				title: 'Reactivate tenant',
-				description:
-					'Reactivating this tenant will restore access for all previously suspended users and projects.',
-				confirmLabel: 'Reactivate',
+				title: t('reactivate-tenant'),
+				description: t('reactivate-tenant-confirm', { name: tenantName }),
+				confirmLabel: t('reactivate'),
 			};
 		case 'delete':
 			return {
-				title: 'Delete tenant',
-				description:
-					'This tenant is currently suspended. Deleting it is permanent and cannot be undone. All associated data will be removed.',
-				confirmLabel: 'Delete',
+				title: t('confirm-delete-tenant-title'),
+				description: t('confirm-delete-tenant-message'),
+				confirmLabel: t('delete'),
 			};
 		default:
 			return {
@@ -480,10 +493,13 @@ const TENANT_BULK_PARTIAL_SUCCESS_KEYS: Record<TenantBulkActionKey, string> = {
 	delete: 'tenant-bulk-delete-partial-success',
 };
 
-const TENANT_LIFECYCLE_ACTION_FALLBACKS: Record<TenantBulkActionKey, string> = {
-	suspend: 'Unable to suspend tenant.',
-	reactivate: 'Unable to reactivate tenant.',
-	delete: 'Unable to delete tenant.',
+const TENANT_LIFECYCLE_ACTION_FALLBACK_KEYS: Record<
+	TenantBulkActionKey,
+	string
+> = {
+	suspend: 'unable-to-suspend-tenant',
+	reactivate: 'unable-to-reactivate-tenant',
+	delete: 'unable-to-delete-tenant',
 };
 
 const TenantBulkActions = ({
@@ -706,6 +722,7 @@ const TenantLifecycleActionsCell = ({
 	tenant: StaffTenantRow;
 	onSessionExpired: () => void;
 }) => {
+	const { t } = useTranslation('common');
 	const queryClient = useQueryClient();
 	const [errorMessage, setErrorMessage] = useState('');
 	const [pendingAction, setPendingAction] =
@@ -756,7 +773,7 @@ const TenantLifecycleActionsCell = ({
 
 			setErrorMessage(
 				getFailureMessage(toApiFailure(error), {
-					fallback: TENANT_LIFECYCLE_ACTION_FALLBACKS[action],
+					fallback: t(TENANT_LIFECYCLE_ACTION_FALLBACK_KEYS[action]),
 				}),
 			);
 		} finally {
@@ -766,19 +783,22 @@ const TenantLifecycleActionsCell = ({
 
 	if (!canSuspend && !canReactivate && !canDelete) {
 		return (
-			<span aria-label="No lifecycle actions" className="text-muted-foreground">
+			<span
+				aria-label={t('no-lifecycle-actions')}
+				className="text-muted-foreground"
+			>
 				—
 			</span>
 		);
 	}
 
-	const dialogConfig = getConfirmDialogConfig(pendingAction);
+	const dialogConfig = getConfirmDialogConfig(pendingAction, tenant.name, t);
 
 	return (
 		<div className="flex flex-col items-center gap-1">
 			<DataTableRowActions
-				ariaLabel={`Actions for ${tenant.name}`}
-				testId={`tenant-actions-${tenant.id}`}
+				ariaLabel={t('actions-for', { name: tenant.name })}
+				testId={`staff-tenants-table-actions-${tenant.id}`}
 			>
 				{canReactivate ? (
 					<DropdownMenuItem
@@ -786,7 +806,7 @@ const TenantLifecycleActionsCell = ({
 						onClick={() => setPendingAction('reactivate')}
 					>
 						<IconRefresh />
-						Reactivate
+						{t('reactivate')}
 					</DropdownMenuItem>
 				) : null}
 				{canSuspend || canDelete ? (
@@ -799,7 +819,7 @@ const TenantLifecycleActionsCell = ({
 								onClick={() => setPendingAction('suspend')}
 							>
 								<IconPlayerPause />
-								Suspend
+								{t('suspend')}
 							</DropdownMenuItem>
 						) : null}
 						{canDelete ? (
@@ -809,7 +829,7 @@ const TenantLifecycleActionsCell = ({
 								onClick={() => setPendingAction('delete')}
 							>
 								<IconTrash />
-								Delete
+								{t('delete')}
 							</DropdownMenuItem>
 						) : null}
 					</>

@@ -22,6 +22,8 @@ const mocks = vi.hoisted(() => ({
 	useStaffTenantInvitationsQuery: vi.fn(),
 	useRevokeStaffTenantInvitationMutation: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
+	invalidateStaffTenantInvitations: vi.fn().mockResolvedValue(undefined),
+	invalidateStaffTenantDetails: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -86,6 +88,14 @@ const TRANSLATIONS: Record<string, string> = {
 	actions: 'Actions',
 	revoke: 'Revoke',
 	'revoke-invitation': 'Revoke invitation',
+	'revoke-invitation-confirm-description':
+		'This will revoke the invitation. The invited user will no longer be able to accept it.',
+	'actions-for': 'Actions for {{name}}',
+	invitation: 'Invitation',
+	'tenant-invitations-table-aria-label': 'Tenant invitations',
+	'error-500-code': '500 — Server Error',
+	'tenant-details-error-title': 'Unable to load this tenant',
+	'tenant-response-incomplete': 'The tenant response was incomplete.',
 	'staff-revoke': 'Revoke',
 	'revoke-invitation-success': 'Invitation revoked.',
 	'all-statuses': 'All statuses',
@@ -97,11 +107,22 @@ const TRANSLATIONS: Record<string, string> = {
 	'tenant-invitations-no-match-title': 'No invitations match your search',
 	'tenant-invitations-no-match-description':
 		'Try a different name, email, or filter.',
+	'invitations-pending-count-chip': '{{count}} pending',
 };
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string) => TRANSLATIONS[key] ?? key,
+		t: (key: string, options?: Record<string, unknown>) => {
+			let text = TRANSLATIONS[key] ?? key;
+			if (!options) {
+				return text;
+			}
+
+			for (const [optionKey, value] of Object.entries(options)) {
+				text = text.replaceAll(`{{${optionKey}}}`, String(value));
+			}
+			return text;
+		},
 		i18n: {
 			language: 'en',
 		},
@@ -117,7 +138,7 @@ vi.mock('~/components/error-views/View403', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenant-invitations', () => ({
-	STAFF_TENANT_INVITATIONS_QUERY_KEY: ['staff-tenants', 'invitations'],
+	invalidateStaffTenantInvitations: mocks.invalidateStaffTenantInvitations,
 	isStaffTenantInvitationRevocable: (row: { status: string | null }) =>
 		row.status?.trim().toLowerCase() === 'pending',
 	toStaffTenantInvitationRows: mocks.toStaffTenantInvitationRows,
@@ -127,6 +148,7 @@ vi.mock('~/lib/query/staff-tenant-invitations', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenants', () => ({
+	invalidateStaffTenantDetails: mocks.invalidateStaffTenantDetails,
 	toStaffTenantDetails: mocks.toStaffTenantDetails,
 	useStaffTenantDetailsQuery: mocks.useStaffTenantDetailsQuery,
 }));
@@ -232,7 +254,7 @@ describe('staff tenant invitations route', () => {
 				selector: 'span[aria-current="page"]',
 			}),
 		).toBeTruthy();
-		expect(screen.getByText('Pending invitations')).toBeTruthy();
+		expect(screen.getByRole('heading', { name: /^Invitations/ })).toBeTruthy();
 		expect(
 			screen.getByRole('link', { name: 'Basics' }).getAttribute('href'),
 		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111');
@@ -265,11 +287,11 @@ describe('staff tenant invitations route', () => {
 		);
 	});
 
-	test('shows the honest pending-invitations count next to the tab title', () => {
+	test('shows the honest pending-invitations count next to the tab title, labelled as pending', () => {
 		renderPage();
 
-		const title = screen.getByRole('heading', { name: /Pending invitations/ });
-		expect(title.textContent).toContain('3');
+		const title = screen.getByRole('heading', { name: /^Invitations/ });
+		expect(title.textContent).toContain('3 pending');
 	});
 
 	test('renders the invite CTA in the empty state when there are no invitations', () => {
@@ -368,9 +390,10 @@ describe('staff tenant invitations route', () => {
 			}),
 		);
 		await waitFor(() =>
-			expect(mocks.invalidateQueries).toHaveBeenCalledWith({
-				queryKey: ['staff', 'staff-tenants', 'invitations'],
-			}),
+			expect(mocks.invalidateStaffTenantInvitations).toHaveBeenCalled(),
+		);
+		await waitFor(() =>
+			expect(mocks.invalidateStaffTenantDetails).toHaveBeenCalled(),
 		);
 		expect(screen.getByText('Invitation revoked.')).toBeTruthy();
 	});

@@ -15,11 +15,12 @@ import {
 	DrawerHeader,
 	DrawerTitle,
 } from '~/components/ui/drawer';
-import { STAFF_TENANT_INVITATIONS_QUERY_KEY } from '~/lib/query/staff-tenant-invitations';
+import { invalidateStaffTenantInvitations } from '~/lib/query/staff-tenant-invitations';
 import {
-	STAFF_TENANT_USERS_QUERY_KEY,
+	invalidateStaffTenantUsers,
 	useInviteTenantUserMutation,
 } from '~/lib/query/staff-tenant-users';
+import { invalidateStaffTenantDetails } from '~/lib/query/staff-tenants';
 import { shouldLogoutForFailure } from '~/routes/authed/layout';
 
 import {
@@ -27,17 +28,20 @@ import {
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
-const inviteUserSchema = z.object({
-	email: z
-		.string({ required_error: 'Email is required.' })
-		.trim()
-		.email('Invalid email address.'),
-	accountLevel: z.enum(['Admin', 'User'], {
-		required_error: 'Account level is required.',
-	}),
-});
+const buildInviteUserSchema = (t: (key: string) => string) =>
+	z.object({
+		email: z
+			.string({ required_error: t('email-required') })
+			.trim()
+			.email(t('invalid-email-address')),
+		accountLevel: z.enum(['Admin', 'User'], {
+			required_error: t('account-level-required'),
+		}),
+	});
 
-type InviteTenantUserFormValues = z.infer<typeof inviteUserSchema>;
+type InviteTenantUserFormValues = z.infer<
+	ReturnType<typeof buildInviteUserSchema>
+>;
 
 const DEFAULT_VALUES: InviteTenantUserFormValues = {
 	email: '',
@@ -62,7 +66,7 @@ export const InviteTenantUserDrawer = ({
 	const { mutateAsync, isPending } = useInviteTenantUserMutation();
 	const [serverErrors, setServerErrors] = useState<string[]>([]);
 	const methods = useForm<InviteTenantUserFormValues>({
-		resolver: zodResolver(inviteUserSchema),
+		resolver: zodResolver(buildInviteUserSchema(t)),
 		defaultValues: DEFAULT_VALUES,
 	});
 	const { reset, formState } = methods;
@@ -76,12 +80,9 @@ export const InviteTenantUserDrawer = ({
 
 	const invalidateTenantData = () =>
 		Promise.all([
-			queryClient.invalidateQueries({
-				queryKey: ['staff', ...STAFF_TENANT_USERS_QUERY_KEY],
-			}),
-			queryClient.invalidateQueries({
-				queryKey: ['staff', ...STAFF_TENANT_INVITATIONS_QUERY_KEY],
-			}),
+			invalidateStaffTenantUsers(queryClient),
+			invalidateStaffTenantInvitations(queryClient),
+			invalidateStaffTenantDetails(queryClient),
 		]);
 
 	const onSubmit = methods.handleSubmit(async (values) => {

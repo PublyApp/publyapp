@@ -43,8 +43,8 @@ import {
 import {
 	formatShortDate,
 	getRelativeTimeParts,
+	TenantDetailsError,
 	TenantDetailsLoading,
-	TenantRetryActions,
 } from './$tenantId/_tenant-details-shell';
 import {
 	getWebsiteHostname,
@@ -113,16 +113,6 @@ const normalizeOptionalUpdateString = (
 	}
 
 	return trimmed.length > 0 ? trimmed : null;
-};
-
-const getFailureDescription = (error: unknown, fallback: string): string => {
-	const failure = toApiFailure(error);
-
-	if (failure.kind === 'problem' && failure.detail) {
-		return failure.detail;
-	}
-
-	return fallback;
 };
 
 /** Read-only twin of the create form's SlugField: same bordered container and
@@ -280,18 +270,9 @@ function StaffTenantEditRoute() {
 		}
 
 		return (
-			<AppErrorView
-				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-				code="500 — Server Error"
-				title="Unable to load this tenant"
-				description={getFailureDescription(
-					detailsQuery.error,
-					'Unable to load tenant details.',
-				)}
-				testId="staff-tenant-edit-error"
-				actions={
-					<TenantRetryActions onRetry={() => void detailsQuery.refetch()} />
-				}
+			<TenantDetailsError
+				error={detailsQuery.error}
+				onRetry={() => void detailsQuery.refetch()}
 			/>
 		);
 	}
@@ -300,9 +281,9 @@ function StaffTenantEditRoute() {
 		return (
 			<AppErrorView
 				icon={<IconSearchOff aria-hidden="true" className="size-7" />}
-				code="404 — Not Found"
-				title="Tenant not found"
-				description="The tenant payload was empty."
+				code={t('error-404-code')}
+				title={t('tenant-not-found-title')}
+				description={t('tenant-payload-empty')}
 				testId="staff-tenant-edit-not-found"
 			/>
 		);
@@ -377,9 +358,9 @@ function StaffTenantEditRoute() {
 			]);
 			hasSavedRef.current = true;
 			void navigate({
-				to: '/staff/tenants/$tenantId' as never,
+				to: '/staff/tenants/$tenantId',
 				params: { tenantId },
-			} as never);
+			});
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
 				setShouldLogout(true);
@@ -419,8 +400,8 @@ function StaffTenantEditRoute() {
 		<FormPageLayout width={960} data-testid="staff-tenant-edit-page">
 			<div className="space-y-2">
 				<Link
-					to={'/staff/tenants/$tenantId' as never}
-					params={{ tenantId } as never}
+					to="/staff/tenants/$tenantId"
+					params={{ tenantId }}
 					className="publy-back-link"
 				>
 					<IconArrowLeft aria-hidden="true" className="size-3" />
@@ -681,9 +662,9 @@ function StaffTenantEditRoute() {
 						disabled={isPending}
 						onClick={() => {
 							void navigate({
-								to: '/staff/tenants/$tenantId' as never,
-								params: { tenantId } as never,
-							} as never);
+								to: '/staff/tenants/$tenantId',
+								params: { tenantId },
+							});
 						}}
 					>
 						{t('cancel')}

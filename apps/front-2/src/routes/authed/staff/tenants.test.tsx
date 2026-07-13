@@ -81,6 +81,29 @@ const TRANSLATIONS: Record<string, string> = {
 	'status-active': 'Active',
 	'status-suspended': 'Suspended',
 	clear: 'Clear',
+	tenants: 'Tenants',
+	'tenants-list-description':
+		'Manage tenant organizations, seats, and lifecycle.',
+	name: 'Name',
+	status: 'Status',
+	users: 'Users',
+	'max-users-column': 'Max users',
+	'staff-tenants-table-aria-label': 'Staff tenants',
+	'actions-for': 'Actions for {{name}}',
+	'no-lifecycle-actions': 'No lifecycle actions',
+	'suspend-tenant': 'Suspend tenant',
+	'suspend-tenant-confirm': 'Are you sure you want to suspend "{{name}}"?',
+	'reactivate-tenant': 'Reactivate tenant',
+	'reactivate-tenant-confirm':
+		'Are you sure you want to reactivate "{{name}}"?',
+	'confirm-delete-tenant-title': 'Delete tenant',
+	'confirm-delete-tenant-message':
+		'Are you sure you want to delete this tenant?',
+	'unable-to-suspend-tenant': 'Unable to suspend this tenant.',
+	'unable-to-reactivate-tenant': 'Unable to reactivate this tenant.',
+	'unable-to-delete-tenant': 'Unable to delete this tenant.',
+	cancel: 'Cancel',
+	'list-no-match-default-description': 'No results match your search.',
 };
 
 vi.mock('react-i18next', () => ({
@@ -141,15 +164,13 @@ const buildQueryResult = (overrides: Record<string, unknown> = {}) => ({
 	...overrides,
 });
 
-const renderPage = () => {
-	const Component = (
-		Route as unknown as {
-			component: () => JSX.Element;
-		}
-	).component;
+const RouteComponent = (
+	Route as unknown as {
+		component: () => JSX.Element;
+	}
+).component;
 
-	return render(<Component />);
-};
+const renderPage = () => render(<RouteComponent />);
 
 describe('staff tenants route', () => {
 	beforeEach(() => {
@@ -286,7 +307,7 @@ describe('staff tenants route', () => {
 		).toBeTruthy();
 	});
 
-	test('selecting Active in the status filter navigates with status=active and resets the cursor', async () => {
+	test('selecting Active in the status filter navigates with status=active', async () => {
 		renderPage();
 
 		fireEvent.click(
@@ -302,10 +323,56 @@ describe('staff tenants route', () => {
 				replace: true,
 			}),
 		);
-		const [[navigatedArgs]] = mocks.navigate.mock.calls;
-		expect(
-			(navigatedArgs as { search: Record<string, unknown> }).search.cursor,
-		).toBeUndefined();
+	});
+
+	test('selecting Pending in the status filter navigates with status=pending', async () => {
+		renderPage();
+
+		fireEvent.click(
+			screen.getByTestId('staff-tenants-table-status-filter-trigger'),
+		);
+		fireEvent.click(
+			await screen.findByTestId('staff-tenants-table-status-filter-pending'),
+		);
+
+		expect(mocks.navigate).toHaveBeenCalledWith(
+			expect.objectContaining({
+				search: expect.objectContaining({ status: 'pending' }),
+				replace: true,
+			}),
+		);
+	});
+
+	test('changing the status filter resets the cursor page index back to 0 (cursorResetKey generation reset)', () => {
+		mocks.useStaffTenantsQuery.mockReturnValue(
+			buildQueryResult({
+				data: {
+					data: [
+						{
+							id: 'tenant-1',
+							name: 'Acme Corporation',
+							status: 'Active',
+							usersCount: 12,
+							maxUsers: 50,
+						},
+					],
+					nextCursor: 'cursor-2',
+				},
+			}),
+		);
+
+		const renderResult = renderPage();
+
+		expect(screen.getByText('Page 1')).toBeTruthy();
+		fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
+		expect(screen.getByText('Page 2')).toBeTruthy();
+
+		// Simulate the URL now reflecting a status filter change — the route
+		// re-renders with new search props, same as a real navigation would.
+		mocks.search = { status: 'active' };
+		renderResult.rerender(<RouteComponent />);
+
+		expect(screen.getByText('Page 1')).toBeTruthy();
 	});
 
 	test('the status filter trigger reflects an active URL status and "All statuses" clears it', async () => {
@@ -350,7 +417,7 @@ describe('staff tenants route', () => {
 		renderPage();
 
 		expect(screen.getByTestId('staff-tenants-table-no-match')).toBeTruthy();
-		expect(screen.getByText('No tenants match your search.')).toBeTruthy();
+		expect(screen.getByText('No results match your search.')).toBeTruthy();
 		expect(mocks.useStaffTenantsQuery).toHaveBeenCalledWith({
 			q: 'acme',
 			sortId: 'created_at',
@@ -448,6 +515,39 @@ describe('staff tenants route', () => {
 		).toBeTruthy();
 		expect(screen.getByRole('menuitem', { name: 'Delete' })).toBeTruthy();
 		expect(screen.queryByRole('menuitem', { name: 'Suspend' })).toBeNull();
+	});
+
+	test('renders "—" with no actions menu for a Pending tenant (no lifecycle action is eligible)', () => {
+		mocks.toStaffTenantRows.mockReturnValue([
+			{
+				id: 'tenant-1',
+				name: 'Acme Corporation',
+				status: 'Pending',
+				usersCount: 0,
+				maxUsers: 50,
+			},
+		]);
+		mocks.useStaffTenantsQuery.mockReturnValue(
+			buildQueryResult({
+				data: {
+					data: [
+						{
+							id: 'tenant-1',
+							name: 'Acme Corporation',
+							status: 'Pending',
+							usersCount: 0,
+							maxUsers: 50,
+						},
+					],
+					nextCursor: null,
+				},
+			}),
+		);
+
+		renderPage();
+
+		expect(screen.getByText('—')).toBeTruthy();
+		expect(screen.queryByRole('button', { name: /^Actions for/ })).toBeNull();
 	});
 
 	test('requires explicit confirmation before suspending a tenant', async () => {

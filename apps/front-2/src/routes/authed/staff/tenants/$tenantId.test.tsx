@@ -125,6 +125,9 @@ const TRANSLATIONS: Record<string, string> = {
 		'Are you sure you want to delete this tenant?',
 	'delete-tenant-disabled-until-suspended':
 		'Suspend this tenant before deleting it.',
+	'lifecycle-unavailable-title': 'Lifecycle actions unavailable',
+	'lifecycle-unavailable-until-tenant-activates':
+		'This tenant is Pending. Suspend and reactivate become available once its first owner accepts their invitation.',
 	'unable-to-suspend-tenant': 'Unable to suspend this tenant.',
 	'unable-to-reactivate-tenant': 'Unable to reactivate this tenant.',
 	'unable-to-delete-tenant': 'Unable to delete this tenant.',
@@ -210,6 +213,11 @@ const ACTIVE_TENANT = {
 const SUSPENDED_TENANT = {
 	...ACTIVE_TENANT,
 	status: 'Suspended',
+};
+
+const PENDING_TENANT = {
+	...ACTIVE_TENANT,
+	status: 'Pending',
 };
 
 const renderPage = () => {
@@ -404,6 +412,28 @@ describe('staff tenant details route', () => {
 			name: 'Delete',
 		}) as HTMLButtonElement;
 		expect(deleteButton.disabled).toBe(false);
+	});
+
+	test('renders the lifecycle row as unavailable (not a broken Reactivate) for a Pending tenant', () => {
+		mocks.toStaffTenantDetails.mockReturnValue(PENDING_TENANT);
+		renderPage();
+
+		expect(screen.getByText('Lifecycle actions unavailable')).toBeTruthy();
+		expect(screen.queryByText('Reactivate Tenant')).toBeNull();
+		expect(screen.queryByText('Suspend Tenant')).toBeNull();
+
+		const lifecycleButton = screen.getByRole('button', {
+			name: 'Reactivate',
+		}) as HTMLButtonElement;
+		expect(lifecycleButton.disabled).toBe(true);
+		expect(lifecycleButton.title).toBe(
+			'This tenant is Pending. Suspend and reactivate become available once its first owner accepts their invitation.',
+		);
+
+		const deleteButton = screen.getByRole('button', {
+			name: 'Delete',
+		}) as HTMLButtonElement;
+		expect(deleteButton.disabled).toBe(true);
 	});
 
 	test('confirming Suspend calls the suspend mutation and invalidates tenant queries', async () => {

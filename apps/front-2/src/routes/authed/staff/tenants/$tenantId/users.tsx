@@ -17,7 +17,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -47,8 +47,7 @@ import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import { downloadFile, formatExportDateStamp } from '~/lib/download-file';
 import {
-	STAFF_TENANT_USER_DETAILS_QUERY_KEY,
-	STAFF_TENANT_USERS_QUERY_KEY,
+	invalidateStaffTenantUsers,
 	toStaffTenantUserBulkActionSummary,
 	toStaffTenantUserRows,
 	useBulkRemoveStaffTenantUsersMutation,
@@ -60,7 +59,7 @@ import {
 	type StaffTenantUserRow,
 } from '~/lib/query/staff-tenant-users';
 import {
-	STAFF_TENANT_DETAILS_QUERY_KEY,
+	invalidateStaffTenantDetails,
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
@@ -314,12 +313,8 @@ const TenantUserRowActions = ({
 
 	const invalidateTenantUserQueries = () =>
 		Promise.all([
-			queryClient.invalidateQueries({
-				queryKey: ['staff', ...STAFF_TENANT_USERS_QUERY_KEY],
-			}),
-			queryClient.invalidateQueries({
-				queryKey: ['staff', ...STAFF_TENANT_USER_DETAILS_QUERY_KEY],
-			}),
+			invalidateStaffTenantUsers(queryClient),
+			invalidateStaffTenantDetails(queryClient),
 		]);
 
 	const performAction = async (action: 'suspend' | 'reactivate' | 'remove') => {
@@ -376,7 +371,7 @@ const TenantUserRowActions = ({
 	return (
 		<div className="flex flex-col items-center gap-1">
 			<DataTableRowActions
-				ariaLabel={`Actions for ${user.displayName}`}
+				ariaLabel={t('actions-for', { name: user.displayName })}
 				testId={`staff-tenant-user-actions-${user.id}`}
 			>
 				<DropdownMenuItem
@@ -535,14 +530,20 @@ export const Route = createFileRoute(
 	'/_authed-layout/staff/tenants/$tenantId/users',
 )({
 	validateSearch: (search) =>
-		parseTenantUsersListSearchParams(search as TenantUsersListSearchParamInput),
+		serializeTenantUsersListSearchParams(
+			parseTenantUsersListSearchParams(
+				search as TenantUsersListSearchParamInput,
+			),
+		),
 	component: StaffTenantUsersPage,
 });
 
 function StaffTenantUsersPage() {
 	const { tenantId } = Route.useParams();
 	const navigate = Route.useNavigate();
-	const search = Route.useSearch() as TenantUsersListSearchParams;
+	const search = parseTenantUsersListSearchParams(
+		Route.useSearch() as TenantUsersListSearchParamInput,
+	);
 	const { t } = useTranslation('common');
 	const [shouldLogout, setShouldLogout] = useState(false);
 	const [bulkFeedback, setBulkFeedback] =
@@ -560,7 +561,7 @@ function StaffTenantUsersPage() {
 				status: search.status,
 				level: search.level,
 				invite: search.invite,
-			}) as unknown as TenantUsersListSearchParams,
+			}),
 			replace: true,
 		});
 	};
@@ -570,7 +571,7 @@ function StaffTenantUsersPage() {
 			search: serializeTenantUsersListSearchParams({
 				...search,
 				invite: isOpen ? 1 : undefined,
-			}) as unknown as TenantUsersListSearchParams,
+			}),
 			replace: true,
 		});
 	};
@@ -598,20 +599,12 @@ function StaffTenantUsersPage() {
 			size: controller.apiVariables.size,
 		},
 		{
-			enabled:
-				tenantId.length > 0 && !detailsQuery.isPending && !detailsQuery.isError,
+			enabled: tenantId.length > 0,
 		},
 	);
 
 	const rows = toStaffTenantUserRows(usersQuery.data?.data);
 	const selection = useRowSelection(rows.map((row) => row.id));
-
-	const { resetDraftToCommitted } = controller.search;
-	useEffect(() => {
-		if (selection.isSelectionMode) {
-			resetDraftToCommitted();
-		}
-	}, [selection.isSelectionMode, resetDraftToCommitted]);
 
 	if (detailsQuery.isPending) {
 		return <TenantDetailsLoading />;
@@ -635,9 +628,9 @@ function StaffTenantUsersPage() {
 		return (
 			<AppErrorView
 				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-				code="500 — Server Error"
-				title="Unable to load this tenant"
-				description="The tenant response was incomplete."
+				code={t('error-500-code')}
+				title={t('tenant-details-error-title')}
+				description={t('tenant-response-incomplete')}
 				testId="staff-tenant-details-error"
 				actions={
 					<TenantRetryActions onRetry={() => void detailsQuery.refetch()} />
@@ -664,7 +657,7 @@ function StaffTenantUsersPage() {
 				...search,
 				status: serializeTenantUserStatusFilter(nextStatuses),
 				cursor: undefined,
-			}) as unknown as TenantUsersListSearchParams,
+			}),
 			replace: true,
 		});
 	};
@@ -691,7 +684,7 @@ function StaffTenantUsersPage() {
 				...search,
 				level: serializeTenantUserLevelFilter(nextLevels),
 				cursor: undefined,
-			}) as unknown as TenantUsersListSearchParams,
+			}),
 			replace: true,
 		});
 	};
@@ -766,7 +759,7 @@ function StaffTenantUsersPage() {
 
 			<DataTable<StaffTenantUserRow>
 				testId="staff-tenant-users-table"
-				ariaLabel="Tenant users"
+				ariaLabel={t('tenant-users-table-aria-label')}
 				columns={columns}
 				rows={rows}
 				isPending={usersQuery.isPending}
@@ -861,6 +854,7 @@ function StaffTenantUsersPage() {
 										type="button"
 										variant="outline"
 										className="publy-data-table-filter-button max-w-64 text-[13px]"
+										data-testid="staff-tenant-users-status-filter-trigger"
 									/>
 								}
 							>
@@ -872,6 +866,14 @@ function StaffTenantUsersPage() {
 								<IconChevronDown aria-hidden="true" className="size-3" />
 							</DropdownMenuTrigger>
 							<DropdownMenuContent align="end" sideOffset={6}>
+								<DropdownMenuCheckboxItem
+									checked={selectedStatuses.length === 0}
+									closeOnClick
+									data-testid="staff-tenant-users-status-filter-all"
+									onCheckedChange={() => setStatuses([])}
+								>
+									{t('all-statuses')}
+								</DropdownMenuCheckboxItem>
 								{KNOWN_TENANT_USER_STATUSES.map((status) => (
 									<DropdownMenuCheckboxItem
 										key={status}
@@ -1028,15 +1030,8 @@ const TenantUserBulkActions = ({
 		setIsRemoveDialogOpen(false);
 		selection.clearSelection();
 		await Promise.all([
-			queryClient.invalidateQueries({
-				queryKey: ['staff', ...STAFF_TENANT_USERS_QUERY_KEY],
-			}),
-			queryClient.invalidateQueries({
-				queryKey: ['staff', ...STAFF_TENANT_USER_DETAILS_QUERY_KEY],
-			}),
-			queryClient.invalidateQueries({
-				queryKey: ['staff', ...STAFF_TENANT_DETAILS_QUERY_KEY],
-			}),
+			invalidateStaffTenantUsers(queryClient),
+			invalidateStaffTenantDetails(queryClient),
 		]);
 
 		const summary = toStaffTenantUserBulkActionSummary(result);

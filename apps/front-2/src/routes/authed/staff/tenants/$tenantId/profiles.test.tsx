@@ -25,6 +25,8 @@ const mocks = vi.hoisted(() => ({
 	useBulkDeleteStaffTenantProfilesMutation: vi.fn(),
 	toStaffTenantProfileBulkActionSummary: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
+	invalidateStaffTenantProfiles: vi.fn().mockResolvedValue(undefined),
+	invalidateStaffTenantDetails: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -113,6 +115,16 @@ const TRANSLATIONS: Record<string, string> = {
 	'select-all-visible': 'Select all {{count}}',
 	'selected-count': '{{count}} selected',
 	close: 'Close',
+	'actions-for': 'Actions for {{name}}',
+	'tenant-profiles-table-aria-label': 'Tenant profiles',
+	'tenant-profiles-empty-description': 'No tenant profiles found.',
+	'tenant-profiles-no-match-description':
+		'No tenant profiles match your search.',
+	'confirm-delete-tenant-profile-description':
+		'This will permanently delete this tenant profile. Users assigned to this profile may be affected and the action cannot be undone.',
+	'error-500-code': '500 — Server Error',
+	'tenant-details-error-title': 'Unable to load this tenant',
+	'tenant-response-incomplete': 'The tenant response was incomplete.',
 };
 
 vi.mock('react-i18next', () => ({
@@ -141,7 +153,7 @@ vi.mock('~/components/error-views/View403', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenant-profiles', () => ({
-	STAFF_TENANT_PROFILES_QUERY_KEY: ['staff', 'staff-tenants', 'profiles'],
+	invalidateStaffTenantProfiles: mocks.invalidateStaffTenantProfiles,
 	toStaffTenantProfileRows: mocks.toStaffTenantProfileRows,
 	useStaffTenantProfilesQuery: mocks.useStaffTenantProfilesQuery,
 	useDeleteStaffTenantProfileMutation:
@@ -153,6 +165,7 @@ vi.mock('~/lib/query/staff-tenant-profiles', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenants', () => ({
+	invalidateStaffTenantDetails: mocks.invalidateStaffTenantDetails,
 	toStaffTenantDetails: mocks.toStaffTenantDetails,
 	useStaffTenantDetailsQuery: mocks.useStaffTenantDetailsQuery,
 }));
@@ -397,9 +410,10 @@ describe('staff tenant profiles route', () => {
 			}),
 		);
 		await waitFor(() =>
-			expect(mocks.invalidateQueries).toHaveBeenCalledWith({
-				queryKey: ['staff', 'staff-tenants', 'profiles'],
-			}),
+			expect(mocks.invalidateStaffTenantProfiles).toHaveBeenCalled(),
+		);
+		await waitFor(() =>
+			expect(mocks.invalidateStaffTenantDetails).toHaveBeenCalled(),
 		);
 	});
 
@@ -469,6 +483,22 @@ describe('staff tenant profiles route', () => {
 		).toBeTruthy();
 	});
 
+	test('the card grid view lets the page scroll (bodyScroll=page); the table view owns its own scroll (bodyScroll=contained)', () => {
+		renderPage();
+
+		expect(
+			screen.getByTestId('staff-tenant-profiles-page').dataset.bodyScroll,
+		).toBe('page');
+		cleanup();
+
+		mocks.search = { view: 'table' };
+		renderPage();
+
+		expect(
+			screen.getByTestId('staff-tenant-profiles-page').dataset.bodyScroll,
+		).toBe('contained');
+	});
+
 	test('bulk-deletes selected profiles from the card grid via the floating selection bar', async () => {
 		mocks.bulkDeleteProfileMutation.mockResolvedValue({
 			succeededCount: 1,
@@ -504,9 +534,10 @@ describe('staff tenant profiles route', () => {
 			}),
 		);
 		await waitFor(() =>
-			expect(mocks.invalidateQueries).toHaveBeenCalledWith({
-				queryKey: ['staff', 'staff-tenants', 'profiles'],
-			}),
+			expect(mocks.invalidateStaffTenantProfiles).toHaveBeenCalled(),
+		);
+		await waitFor(() =>
+			expect(mocks.invalidateStaffTenantDetails).toHaveBeenCalled(),
 		);
 		await waitFor(() =>
 			expect(
