@@ -415,3 +415,85 @@ test.describe('staff tenant edit logo upload against the real backend', () => {
 			.toBe(true);
 	});
 });
+
+test.describe('staff tenant edit aside and metadata (handoff 2d/2e)', () => {
+	test('the created/updated/last-active metadata renders as three stacked lines', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await mockTenantEdit(page);
+
+		await page.goto(`/staff/tenants/${TENANT_ID}/edit`);
+		await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
+
+		const metadataLines = page.getByTestId('edit-tenant-metadata').locator('p');
+		await expect(metadataLines).toHaveCount(3);
+		await expect(metadataLines.nth(0)).toContainText('Created');
+		await expect(metadataLines.nth(1)).toContainText('Updated');
+		await expect(metadataLines.nth(2)).toContainText('Last active');
+
+		const lineTops = await metadataLines.evaluateAll((elements) =>
+			elements.map((element) => element.getBoundingClientRect().top),
+		);
+		expect(lineTops[1]).toBeGreaterThan(lineTops[0]);
+		expect(lineTops[2]).toBeGreaterThan(lineTops[1]);
+	});
+
+	test('the preview card and metadata footer scroll together as one sticky unit', async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 1280, height: 700 });
+		await loginAsStaffAdmin(page);
+		await mockTenantEdit(page);
+
+		await page.goto(`/staff/tenants/${TENANT_ID}/edit`);
+		await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
+
+		const main = page.locator('.app-shell-main');
+		const readDims = async () =>
+			page.evaluate(() => {
+				const card = document.querySelector(
+					'[data-testid="staff-tenant-edit-preview"]',
+				) as HTMLElement;
+				const metadata = document.querySelector(
+					'[data-testid="edit-tenant-metadata"]',
+				) as HTMLElement;
+				return {
+					cardTop: card.getBoundingClientRect().top,
+					gap:
+						metadata.getBoundingClientRect().top -
+						card.getBoundingClientRect().bottom,
+				};
+			});
+
+		// Scroll twice, both past the sticky trigger point (the card is short
+		// enough relative to the form that ~100px of scroll already stuck it).
+		// Comparing two *stuck* positions isolates whether the wrapper holds
+		// card+metadata together while stuck — comparing against the
+		// pre-scroll (unstuck, natural-flow) position would always differ,
+		// since sticky only stops tracking scroll 1:1 once it engages.
+		await main.evaluate((element) => {
+			element.scrollTop = 300;
+		});
+		await expect
+			.poll(() => main.evaluate((element) => element.scrollTop))
+			.toBe(300);
+		const stuckAt300 = await readDims();
+
+		await main.evaluate((element) => {
+			element.scrollTop = 500;
+		});
+		await expect
+			.poll(() => main.evaluate((element) => element.scrollTop))
+			.toBe(500);
+		const stuckAt500 = await readDims();
+
+		// The sticky wrapper holds the card in place (top-5) once stuck, and
+		// the metadata line keeps the same gap below the card instead of
+		// splitting off toward the top of the page.
+		expect(
+			Math.abs(stuckAt500.cardTop - stuckAt300.cardTop),
+		).toBeLessThanOrEqual(1);
+		expect(Math.abs(stuckAt500.gap - stuckAt300.gap)).toBeLessThanOrEqual(1);
+	});
+});

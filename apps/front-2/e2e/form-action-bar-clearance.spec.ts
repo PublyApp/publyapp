@@ -133,3 +133,81 @@ test.describe('form action bar: opaque and clears the last field', () => {
 		await expectFieldFullyAboveActionBar(page, lastField);
 	});
 });
+
+/** Wheeling over a part of the shell with no scroll container of its own
+ * (the rail) used to bubble up to <body>, which stayed independently
+ * scrollable even though `.app-shell-main` also scrolls — the double
+ * scrollbar bug (handoff 2a). Asserts the rail wheel is a no-op for the
+ * document, so `.app-shell-main` stays the single scroller. */
+const expectSingleScroller = async (page: Page) => {
+	const railBox = await page.locator('.app-shell-rail').boundingBox();
+	if (!railBox) {
+		throw new Error('rail did not render');
+	}
+
+	await page.mouse.move(
+		railBox.x + railBox.width / 2,
+		railBox.y + railBox.height / 2,
+	);
+	await page.mouse.wheel(0, 500);
+	await expect
+		.poll(() => page.evaluate(() => document.documentElement.scrollTop))
+		.toBe(0);
+
+	const bodyOverflow = await page.evaluate(
+		() => getComputedStyle(document.body).overflow,
+	);
+	expect(bodyOverflow).toBe('hidden');
+};
+
+/** Asserts the sticky bar's bottom edge is flush with `.app-shell-main`'s own
+ * bottom edge once scrolled to the end — a gap here means scrolled-past form
+ * content is visible beneath the bar (handoff 2b). */
+const expectBarFlushWithScrollerBottom = async (page: Page) => {
+	const main = page.locator('.app-shell-main');
+	await main.evaluate((element) => {
+		element.scrollTop = element.scrollHeight;
+	});
+
+	const dims = await page.evaluate(() => {
+		const mainRect = document
+			.querySelector('.app-shell-main')!
+			.getBoundingClientRect();
+		const barRect = document
+			.querySelector('[data-slot="form-action-bar"]')!
+			.getBoundingClientRect();
+		return { mainBottom: mainRect.bottom, barBottom: barRect.bottom };
+	});
+	// Sub-pixel rendering can put these a fraction of a px apart even when
+	// flush; a 1px tolerance is tight enough to catch the 32px handoff-2b gap.
+	expect(Math.abs(dims.barBottom - dims.mainBottom)).toBeLessThanOrEqual(1);
+};
+
+test.describe('app shell: single scroller, no gap beneath the pinned bar (handoff 2a/2b)', () => {
+	test('create-tenant form: wheeling the rail does not scroll the document, and the bar sits flush at the bottom once scrolled', async ({
+		page,
+	}) => {
+		await page.setViewportSize(SHORT_VIEWPORT);
+		await loginAsStaffAdmin(page);
+
+		await page.goto('/staff/tenants/new');
+		await expect(page.getByTestId('staff-tenant-create-page')).toBeVisible();
+
+		await expectSingleScroller(page);
+		await expectBarFlushWithScrollerBottom(page);
+	});
+
+	test('edit-tenant form: wheeling the rail does not scroll the document, and the bar sits flush at the bottom once scrolled', async ({
+		page,
+	}) => {
+		await page.setViewportSize(SHORT_VIEWPORT);
+		await loginAsStaffAdmin(page);
+		await mockTenantEdit(page);
+
+		await page.goto(`/staff/tenants/${TENANT_ID}/edit`);
+		await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
+
+		await expectSingleScroller(page);
+		await expectBarFlushWithScrollerBottom(page);
+	});
+});

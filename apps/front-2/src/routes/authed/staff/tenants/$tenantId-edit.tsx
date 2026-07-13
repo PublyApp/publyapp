@@ -555,86 +555,96 @@ function StaffTenantEditRoute() {
 					</div>
 
 					<aside className="order-1 lg:order-2">
-						<Card
-							className="gap-0 py-0 lg:sticky lg:top-5"
-							data-testid="staff-tenant-edit-preview"
-						>
-							<div className="publy-card-header">
-								<span className="publy-type-eyebrow">{t('preview')}</span>
-							</div>
+						<div className="lg:sticky lg:top-5">
+							<Card
+								className="gap-0 py-0"
+								data-testid="staff-tenant-edit-preview"
+							>
+								<div className="publy-card-header">
+									<span className="publy-type-eyebrow">{t('preview')}</span>
+								</div>
 
-							<div className="flex items-center gap-3 px-[18px] py-4">
-								<BrandTile
-									name={previewName}
-									logoUrl={previewLogoUrl}
-									className="size-11 rounded-[12px] text-base"
-								/>
-								<div className="min-w-0">
-									<p className="truncate text-[15px] font-semibold text-foreground">
-										{previewName}
-									</p>
-									<p className="publy-tenant-identity-meta">
-										<span className="publy-tenant-identity-meta-prefix">
-											publyapp.com/
-										</span>
-										<span>{tenant.code ?? '—'}</span>
-									</p>
-									{previewWebsiteHostname ? (
-										<p className="truncate text-xs text-muted-foreground">
-											{previewWebsiteHostname}
+								<div className="flex items-center gap-3 px-[18px] py-4">
+									<BrandTile
+										name={previewName}
+										logoUrl={previewLogoUrl}
+										className="size-11 rounded-[12px] text-base"
+									/>
+									<div className="min-w-0">
+										<p className="truncate text-[15px] font-semibold text-foreground">
+											{previewName}
 										</p>
-									) : null}
+										<p className="publy-tenant-identity-meta">
+											<span className="publy-tenant-identity-meta-prefix">
+												publyapp.com/
+											</span>
+											<span>{tenant.code ?? '—'}</span>
+										</p>
+										{previewWebsiteHostname ? (
+											<p className="truncate text-xs text-muted-foreground">
+												{previewWebsiteHostname}
+											</p>
+										) : null}
+									</div>
 								</div>
-							</div>
 
-							<div className="mx-[18px] h-px bg-(--publy-row-border)" />
+								<div className="mx-[18px] h-px bg-(--publy-row-border)" />
 
-							<div className="flex flex-col divide-y divide-(--publy-row-border) px-[18px]">
-								<div className="flex items-center justify-between py-2.5 text-[13px]">
-									<span className="text-muted-foreground">{t('status')}</span>
-									<StatusPill tone={statusPillTone(tenant.status)}>
-										{tenant.status ?? t('unknown')}
-									</StatusPill>
+								<div className="flex flex-col divide-y divide-(--publy-row-border) px-[18px]">
+									<div className="flex items-center justify-between py-2.5 text-[13px]">
+										<span className="text-muted-foreground">{t('status')}</span>
+										<StatusPill tone={statusPillTone(tenant.status)}>
+											{tenant.status ?? t('unknown')}
+										</StatusPill>
+									</div>
+									<div className="flex items-center justify-between py-2.5 text-[13px]">
+										<span className="text-muted-foreground">{t('seats')}</span>
+										<span
+											className="font-medium text-foreground"
+											data-testid="edit-preview-seats"
+										>
+											{tenant.usersCount} / {previewMaxUsers}
+										</span>
+									</div>
+									<div className="flex items-center justify-between py-2.5 text-[13px]">
+										<span className="text-muted-foreground">{t('owners')}</span>
+										<span
+											className="font-medium text-foreground"
+											data-testid="edit-preview-owners"
+										>
+											{tenant.ownersCount}
+										</span>
+									</div>
+									<div className="flex items-center justify-between py-2.5 text-[13px]">
+										<span className="text-muted-foreground">
+											{t('members')}
+										</span>
+										<span
+											className="font-medium text-foreground"
+											data-testid="edit-preview-members"
+										>
+											{tenant.usersCount}
+										</span>
+									</div>
 								</div>
-								<div className="flex items-center justify-between py-2.5 text-[13px]">
-									<span className="text-muted-foreground">{t('seats')}</span>
-									<span
-										className="font-medium text-foreground"
-										data-testid="edit-preview-seats"
-									>
-										{tenant.usersCount} / {previewMaxUsers}
-									</span>
-								</div>
-								<div className="flex items-center justify-between py-2.5 text-[13px]">
-									<span className="text-muted-foreground">{t('owners')}</span>
-									<span
-										className="font-medium text-foreground"
-										data-testid="edit-preview-owners"
-									>
-										{tenant.ownersCount}
-									</span>
-								</div>
-								<div className="flex items-center justify-between py-2.5 text-[13px]">
-									<span className="text-muted-foreground">{t('members')}</span>
-									<span
-										className="font-medium text-foreground"
-										data-testid="edit-preview-members"
-									>
-										{tenant.usersCount}
-									</span>
-								</div>
+							</Card>
+							<div
+								className="mt-3 flex flex-col gap-1 text-[13px] text-muted-foreground"
+								data-testid="edit-tenant-metadata"
+							>
+								<p>
+									{t('created')}:{' '}
+									{formatShortDate(tenant.createdAt, i18n.language)}
+								</p>
+								<p>
+									{t('updated')}:{' '}
+									{formatShortDate(tenant.updatedAt, i18n.language)}
+								</p>
+								<p>
+									{t('last-active')}: {formatLastActive(tenant.lastActivityAt)}
+								</p>
 							</div>
-						</Card>
-						<p
-							className="mt-3 text-[13px] text-muted-foreground"
-							data-testid="edit-tenant-metadata"
-						>
-							{t('created')}: {formatShortDate(tenant.createdAt, i18n.language)}
-							{' · '}
-							{t('updated')}: {formatShortDate(tenant.updatedAt, i18n.language)}
-							{' · '}
-							{t('last-active')}: {formatLastActive(tenant.lastActivityAt)}
-						</p>
+						</div>
 					</aside>
 				</div>
 

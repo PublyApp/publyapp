@@ -335,8 +335,22 @@ html {
 
 /* ---- Authenticated workspace shell (token-driven grid) ---- */
 
+/* Chromium keeps the real <body> independently wheel-scrollable (its
+   scrollable-overflow region includes descendant content even through
+   nested overflow-hidden boxes) unless body's own overflow is non-visible —
+   a nested container's overflow-hidden is not enough. Without this, wheeling
+   over the rail/topbar (which have no scroll container of their own) scrolls
+   <body> instead of .app-shell-main, dragging the whole shell (rail
+   included) off-screen: the double-scrollbar bug (2a) and the action bar's
+   sticky math going wrong (2b), since both assume .app-shell-main is the
+   only scroller. Scoped via :has() so marketing/auth pages, which still rely
+   on natural document scroll, are unaffected. */
+body:has(.app-shell-workspace) {
+	overflow: hidden;
+}
+
 .app-shell-workspace {
-	@apply grid min-h-screen;
+	@apply grid h-dvh overflow-hidden;
 	grid-template-columns: var(--publy-shell-rail-width) minmax(0, 1fr);
 	background: var(--publy-background);
 	color: var(--publy-foreground);
@@ -656,6 +670,18 @@ html {
 	.app-shell-main {
 		padding: 16px;
 	}
+}
+
+/* Zeroes the scroller's own bottom padding for form pages so
+   .publy-form-action-bar's bottom padding is the only source of that space
+   (handoff 2b) — this has to live unlayered, next to the base .app-shell-main
+   rule it overrides, not inside `@layer components` alongside the bar's own
+   styles: Tailwind's cascade layers always lose to unlayered declarations
+   regardless of selector specificity, so a layered `:has()` override (even
+   with a more specific selector) can never beat this rule's plain `padding`
+   shorthand. */
+.app-shell-main:has(.publy-form-action-bar) {
+	padding-bottom: 0;
 }
 
 .app-shell-topbar-actions {
@@ -1123,28 +1149,43 @@ html {
 		max-width: 960px;
 	}
 
-	/* Placed as the last child of .app-shell-main (padding 20px 28px 32px):
-	   negative margins bleed the bar to the column edges and cancel the
-	   scroller's bottom padding so the pinned bar sits flush. Fully opaque
-	   (toned like .app-shell-topbar/.publy-table-card, not the translucent
-	   --publy-overlay-surface used by modals/drawers) — as the last flow
-	   child, the tail of the form scrolls *underneath* the pinned bar before
-	   reaching its natural resting position, so any translucency lets that
-	   content show through while it passes. */
+	/* Placed as the last child of .app-shell-main: the horizontal negative
+	   margin bleeds the bar to the column edges. Vertically, a sticky
+	   element can only be pulled *earlier* than its natural (static) flow
+	   position, never pushed past it — so canceling the scroller's 32px
+	   bottom padding with a negative margin/offset on the bar tracked the
+	   viewport correctly while still scrolling, but at the true end of
+	   scroll (the bar's natural resting spot) it snapped back to flush with
+	   the padding edge, 32px short of the real bottom, showing scrolled-past
+	   content in that gap (handoff 2b) exactly when at rest. Removing the
+	   scroller's own bottom padding for pages with a bar (below) and giving
+	   the bar that space as its own bottom padding instead sidesteps the
+	   clamp entirely: the bar's static position IS the true bottom edge, so
+	   there's nothing to correct for while scrolling or at rest. Fully
+	   opaque (toned like .app-shell-topbar/.publy-table-card, not the
+	   translucent --publy-overlay-surface used by modals/drawers) — as the
+	   last flow child, the tail of the form scrolls *underneath* the pinned
+	   bar before reaching its natural resting position, so any translucency
+	   lets that content show through while it passes. */
 	.publy-form-action-bar {
 		@apply sticky bottom-0 z-10 flex shrink-0 items-center justify-between gap-4;
 		border-top: 1px solid var(--publy-border);
 		background: var(--publy-background);
-		padding: 12px 32px;
-		margin: 0 -28px -32px;
+		padding: 12px 32px 32px;
+		/* 80px of breathing room above the bar (handoff 2c), shared across
+		   every form page instead of each route reproducing its own gap. */
+		margin: 80px -28px 0;
 	}
 
 	/* Reserves clearance so the last field of a form scrolls (and keyboard-
 	   focus scrolls) fully above the pinned action bar instead of resting
-	   underneath it. Height mirrors the bar: ~61px content (h-9 button +
-	   12px*2 padding + 1px border) plus a comfort margin. */
+	   underneath it. Height mirrors the bar: ~93px content (h-9 button +
+	   12px top/32px bottom padding + 1px border) plus a comfort margin. The
+	   scroller's own bottom padding is zeroed out (see `.app-shell-main:has`
+	   near its base rule, above, and the bar's comment above) since the bar
+	   now supplies that space itself. */
 	.app-shell-main:has(.publy-form-action-bar) {
-		scroll-padding-bottom: 72px;
+		scroll-padding-bottom: 104px;
 	}
 
 	.publy-form-action-bar-status {

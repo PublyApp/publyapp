@@ -1009,113 +1009,119 @@ function StaffTenantCreateRoute() {
 					</div>
 
 					<aside className="order-1 lg:order-2">
-						<Card
-							className="gap-0 py-0 lg:sticky lg:top-5"
-							data-testid="staff-tenant-create-preview"
-						>
-							<div className="publy-card-header">
-								<span className="publy-type-eyebrow">{t('preview')}</span>
-							</div>
+						<div className="lg:sticky lg:top-5">
+							<Card
+								className="gap-0 py-0"
+								data-testid="staff-tenant-create-preview"
+							>
+								<div className="publy-card-header">
+									<span className="publy-type-eyebrow">{t('preview')}</span>
+								</div>
 
-							<div className="flex items-center gap-3 px-[18px] py-4">
-								<BrandTile
-									name={name || t('untitled-organization')}
-									logoUrl={logoUrl.trim().length > 0 ? logoUrl.trim() : null}
-									className="size-11 rounded-[12px] text-base"
-								/>
-								<div className="min-w-0">
-									<p className="truncate text-[15px] font-semibold text-foreground">
-										{name.trim().length > 0 ? name : t('untitled-organization')}
-									</p>
-									<p className="publy-tenant-identity-meta">
-										<span className="publy-tenant-identity-meta-prefix">
-											publyapp.com/
+								<div className="flex items-center gap-3 px-[18px] py-4">
+									<BrandTile
+										name={name || t('untitled-organization')}
+										logoUrl={logoUrl.trim().length > 0 ? logoUrl.trim() : null}
+										className="size-11 rounded-[12px] text-base"
+									/>
+									<div className="min-w-0">
+										<p className="truncate text-[15px] font-semibold text-foreground">
+											{name.trim().length > 0
+												? name
+												: t('untitled-organization')}
+										</p>
+										<p className="publy-tenant-identity-meta">
+											<span className="publy-tenant-identity-meta-prefix">
+												publyapp.com/
+											</span>
+											<span
+												className={cn(
+													'italic',
+													slugPreview.length > 0 && 'not-italic',
+												)}
+											>
+												{slugPreview.length > 0
+													? slugPreview
+													: t('assigned-after-creation')}
+											</span>
+										</p>
+										{previewWebsiteHostname ? (
+											<p className="truncate text-xs text-muted-foreground">
+												{previewWebsiteHostname}
+											</p>
+										) : null}
+									</div>
+								</div>
+
+								<div className="mx-[18px] h-px bg-(--publy-row-border)" />
+
+								<div className="flex flex-col divide-y divide-(--publy-row-border) px-[18px]">
+									<div className="flex items-center justify-between py-2.5 text-[13px]">
+										<span className="text-muted-foreground">{t('status')}</span>
+										<StatusPill tone="success">{t('active')}</StatusPill>
+									</div>
+									<div className="flex items-center justify-between py-2.5 text-[13px]">
+										<span className="text-muted-foreground">{t('seats')}</span>
+										<span
+											className="font-medium text-foreground"
+											data-testid="preview-seats"
+										>
+											{totalFilled} / {maxUsers}
+										</span>
+									</div>
+									<div className="flex items-center justify-between py-2.5 text-[13px]">
+										<span className="text-muted-foreground">{t('owners')}</span>
+										<span
+											className="font-medium text-foreground"
+											data-testid="preview-owners"
+										>
+											{ownersCount}
+										</span>
+									</div>
+									<div className="flex items-center justify-between py-2.5 text-[13px]">
+										<span className="text-muted-foreground">
+											{t('members')}
 										</span>
 										<span
-											className={cn(
-												'italic',
-												slugPreview.length > 0 && 'not-italic',
-											)}
+											className="font-medium text-foreground"
+											data-testid="preview-members"
 										>
-											{slugPreview.length > 0
-												? slugPreview
-												: t('assigned-after-creation')}
+											{membersCount}
 										</span>
-									</p>
-									{previewWebsiteHostname ? (
-										<p className="truncate text-xs text-muted-foreground">
-											{previewWebsiteHostname}
-										</p>
-									) : null}
+									</div>
 								</div>
-							</div>
 
-							<div className="mx-[18px] h-px bg-(--publy-row-border)" />
+								<div className="mx-[18px] h-px bg-(--publy-row-border)" />
 
-							<div className="flex flex-col divide-y divide-(--publy-row-border) px-[18px]">
-								<div className="flex items-center justify-between py-2.5 text-[13px]">
-									<span className="text-muted-foreground">{t('status')}</span>
-									<StatusPill tone="success">{t('active')}</StatusPill>
-								</div>
-								<div className="flex items-center justify-between py-2.5 text-[13px]">
-									<span className="text-muted-foreground">{t('seats')}</span>
-									<span
-										className="font-medium text-foreground"
-										data-testid="preview-seats"
+								<ul className="flex flex-col gap-2 px-[18px] py-4">
+									<ChecklistRow
+										checked={ownersCount > 0}
+										testId="preview-checklist-owners"
 									>
-										{totalFilled} / {maxUsers}
-									</span>
-								</div>
-								<div className="flex items-center justify-between py-2.5 text-[13px]">
-									<span className="text-muted-foreground">{t('owners')}</span>
-									<span
-										className="font-medium text-foreground"
-										data-testid="preview-owners"
+										{t('preview-owners-checklist', { count: ownersCount })}
+									</ChecklistRow>
+									<ChecklistRow
+										checked={membersCount > 0}
+										testId="preview-checklist-members"
 									>
-										{ownersCount}
-									</span>
-								</div>
-								<div className="flex items-center justify-between py-2.5 text-[13px]">
-									<span className="text-muted-foreground">{t('members')}</span>
-									<span
-										className="font-medium text-foreground"
-										data-testid="preview-members"
+										{t('preview-members-checklist-detailed', {
+											count: membersCount,
+											csv: parsedValidMembers.length,
+											manual: filledManualMembers.length,
+										})}
+									</ChecklistRow>
+									<ChecklistRow
+										checked={seedDefaultProfile}
+										testId="preview-checklist-profile"
 									>
-										{membersCount}
-									</span>
-								</div>
-							</div>
-
-							<div className="mx-[18px] h-px bg-(--publy-row-border)" />
-
-							<ul className="flex flex-col gap-2 px-[18px] py-4">
-								<ChecklistRow
-									checked={ownersCount > 0}
-									testId="preview-checklist-owners"
-								>
-									{t('preview-owners-checklist', { count: ownersCount })}
-								</ChecklistRow>
-								<ChecklistRow
-									checked={membersCount > 0}
-									testId="preview-checklist-members"
-								>
-									{t('preview-members-checklist-detailed', {
-										count: membersCount,
-										csv: parsedValidMembers.length,
-										manual: filledManualMembers.length,
-									})}
-								</ChecklistRow>
-								<ChecklistRow
-									checked={seedDefaultProfile}
-									testId="preview-checklist-profile"
-								>
-									{t('preview-default-profile-checklist')}
-								</ChecklistRow>
-								<ChecklistRow checked={false} testId="preview-checklist-sso">
-									{t('preview-sso-not-required')}
-								</ChecklistRow>
-							</ul>
-						</Card>
+										{t('preview-default-profile-checklist')}
+									</ChecklistRow>
+									<ChecklistRow checked={false} testId="preview-checklist-sso">
+										{t('preview-sso-not-required')}
+									</ChecklistRow>
+								</ul>
+							</Card>
+						</div>
 					</aside>
 				</div>
 
