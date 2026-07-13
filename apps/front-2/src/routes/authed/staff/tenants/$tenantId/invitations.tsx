@@ -121,7 +121,6 @@ export const createColumns = ({
 			</div>
 		),
 		accessorKey: 'email',
-		meta: { width: '280px' },
 		cell: ({ row }) => {
 			const email = row.original.email || '—';
 			return (
@@ -144,7 +143,7 @@ export const createColumns = ({
 		),
 		accessorKey: 'profileName',
 		enableSorting: false,
-		meta: { width: '160px' },
+		meta: { width: '160px', hideBelow: 768 },
 		cell: ({ row }) => (
 			<span className="publy-detail-chip publy-detail-chip--outline">
 				{row.original.profileName}
@@ -161,7 +160,7 @@ export const createColumns = ({
 		),
 		accessorKey: 'invitedByName',
 		enableSorting: false,
-		meta: { width: '150px' },
+		meta: { width: '150px', hideBelow: 768 },
 		cell: ({ getValue }) => (
 			<span className="text-[13px] text-muted-foreground">
 				{getValue<string>()}
@@ -177,7 +176,7 @@ export const createColumns = ({
 			</div>
 		),
 		accessorFn: (row) => row.expiresAt,
-		meta: { width: '150px' },
+		meta: { width: '150px', hideBelow: 768 },
 		cell: ({ row }) => {
 			const expiresAt = row.original.expiresAt;
 			const isExpiringSoon = isInvitationExpiringSoon(expiresAt, new Date());

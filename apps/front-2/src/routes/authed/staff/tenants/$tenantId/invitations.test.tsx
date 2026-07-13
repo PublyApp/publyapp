@@ -584,7 +584,7 @@ describe('staff tenant invitations route', () => {
 });
 
 describe('createColumns column widths', () => {
-	test('applies a fixed width to every column except the fluid profile_name column', () => {
+	test('applies a fixed width to every column except the fluid email column', () => {
 		const columns = createColumns({
 			locale: 'en',
 			t: (key: string) => key,
@@ -596,12 +596,33 @@ describe('createColumns column widths', () => {
 		);
 
 		expect(widthById).toEqual({
-			email: '280px',
+			email: undefined,
 			profile_name: '160px',
 			invited_by: '150px',
 			expires_at: '150px',
 			status: '128px',
 			actions: '40px',
+		});
+	});
+
+	test('hides secondary metadata columns below the 768px mobile breakpoint, keeping email/status/actions', () => {
+		const columns = createColumns({
+			locale: 'en',
+			t: (key: string) => key,
+			isRevokePending: false,
+			onRevoke: () => undefined,
+		});
+		const hideBelowById = Object.fromEntries(
+			columns.map((column) => [column.id, column.meta?.hideBelow]),
+		);
+
+		expect(hideBelowById).toEqual({
+			email: undefined,
+			profile_name: 768,
+			invited_by: 768,
+			expires_at: 768,
+			status: undefined,
+			actions: undefined,
 		});
 	});
 });

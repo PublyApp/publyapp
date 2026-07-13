@@ -487,7 +487,7 @@ export const makeTenantUserColumns = (
 		id: 'level',
 		header: t('level'),
 		accessorKey: 'level',
-		meta: { width: '150px' },
+		meta: { width: '150px', hideBelow: 768 },
 		cell: ({ getValue }) => {
 			const level = getValue<string | null>();
 			return (

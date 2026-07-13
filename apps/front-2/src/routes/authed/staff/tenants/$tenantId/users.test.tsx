@@ -769,6 +769,24 @@ describe('makeTenantUserColumns column widths', () => {
 			actions: '40px',
 		});
 	});
+
+	test('hides the level column below the 768px mobile breakpoint, keeping name/status/actions', () => {
+		const columns = makeTenantUserColumns(
+			'11111111-1111-1111-1111-111111111111',
+			identityT,
+			() => undefined,
+		);
+		const hideBelowById = Object.fromEntries(
+			columns.map((column) => [column.id, column.meta?.hideBelow]),
+		);
+
+		expect(hideBelowById).toEqual({
+			name: undefined,
+			level: 768,
+			status: undefined,
+			actions: undefined,
+		});
+	});
 });
 
 describe('tenant user level chip mapping', () => {

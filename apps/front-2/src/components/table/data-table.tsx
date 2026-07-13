@@ -9,11 +9,17 @@ import {
 } from '@tabler/icons-react';
 import {
 	type ColumnDef,
+	type VisibilityState,
 	flexRender,
 	getCoreRowModel,
 	useReactTable,
 } from '@tanstack/react-table';
-import { useMemo, type KeyboardEvent, type ReactNode } from 'react';
+import {
+	useMemo,
+	useSyncExternalStore,
+	type KeyboardEvent,
+	type ReactNode,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
 import { Checkbox } from '~/components/ui/checkbox';
@@ -93,6 +99,16 @@ type ColumnDisplayMeta = {
 	 * where the default 14px inline padding leaves no room to centre).
 	 */
 	align?: 'center';
+	/**
+	 * Drops the column entirely (not just visually — via TanStack column
+	 * visibility, so its `<col>` and cells never render) once the viewport
+	 * narrows below this px width, e.g. `768`. table-layout:fixed sizes the
+	 * table from the sum of its *visible* fixed-width columns, so removing a
+	 * column from that sum is what keeps the table from forcing horizontal
+	 * scroll on narrow screens — a CSS-only `display:none` on a `<col>`
+	 * wouldn't shrink that sum, `<col>` display is largely inert.
+	 */
+	hideBelow?: number;
 };
 
 declare module '@tanstack/react-table' {
@@ -103,6 +119,29 @@ declare module '@tanstack/react-table' {
 const columnDisplayMeta = (
 	column: ColumnDef<never> | { meta?: unknown },
 ): ColumnDisplayMeta => (column.meta ?? {}) as ColumnDisplayMeta;
+
+const subscribeToViewportWidth = (callback: () => void): (() => void) => {
+	window.addEventListener('resize', callback);
+	return () => window.removeEventListener('resize', callback);
+};
+
+const getViewportWidthSnapshot = (): number => window.innerWidth;
+
+/**
+ * SSR/first-paint snapshot is `Infinity` so every `hideBelow` column renders
+ * on the server and during hydration (desktop-first, same convention as
+ * `useMediaQuery`'s `true` server snapshot) — `useSyncExternalStore`
+ * reconciles to the real width right after mount.
+ */
+const getViewportWidthServerSnapshot = (): number => Number.POSITIVE_INFINITY;
+
+/** Drives per-column `hideBelow` breakpoints off the live viewport width. */
+const useViewportWidth = (): number =>
+	useSyncExternalStore(
+		subscribeToViewportWidth,
+		getViewportWidthSnapshot,
+		getViewportWidthServerSnapshot,
+	);
 
 const resolveAriaSortState = (
 	tableSort: { id: string; desc: boolean } | undefined,
@@ -365,6 +404,17 @@ export const DataTable = <TData extends { id: string }>({
 	const { t } = useTranslation('common');
 	const isSelectionMode = selection?.isSelectionMode ?? false;
 	const hasSelection = selection != null;
+	const viewportWidth = useViewportWidth();
+	const columnVisibility = useMemo<VisibilityState>(() => {
+		const visibility: VisibilityState = {};
+		for (const column of columns) {
+			const hideBelow = columnDisplayMeta(column).hideBelow;
+			if (hideBelow != null && column.id != null) {
+				visibility[column.id] = viewportWidth >= hideBelow;
+			}
+		}
+		return visibility;
+	}, [columns, viewportWidth]);
 	const resolvedRowHeight = useMemo<TableRowHeight>(() => {
 		if (rowHeight != null) {
 			return rowHeight;
@@ -380,14 +430,14 @@ export const DataTable = <TData extends { id: string }>({
 	const table = useReactTable({
 		data: rows,
 		columns,
-		state: { sorting: toSortingState(sort) },
+		state: { sorting: toSortingState(sort), columnVisibility },
 		manualSorting: true,
 		getCoreRowModel: getCoreRowModel(),
 		getRowId: (row) => row.id,
 	});
 
 	const hasFixedColumns = table
-		.getAllLeafColumns()
+		.getVisibleLeafColumns()
 		.some((column) => columnDisplayMeta(column.columnDef).width != null);
 
 	const tableSort = table.getState().sorting.at(0);
@@ -617,7 +667,7 @@ export const DataTable = <TData extends { id: string }>({
 					>
 						<colgroup>
 							{hasSelection ? <col style={{ width: '40px' }} /> : null}
-							{table.getAllLeafColumns().map((column) => {
+							{table.getVisibleLeafColumns().map((column) => {
 								const displayMeta = columnDisplayMeta(column.columnDef);
 								return (
 									<col

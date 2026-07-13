@@ -68,7 +68,6 @@ const columns: ColumnDef<StaffProfileRow>[] = [
 			</div>
 		),
 		accessorKey: 'name',
-		meta: { width: '240px' },
 		cell: ({ row }) => {
 			const IconComponent = PROFILE_ICON_MAP[row.original.icon];
 			const name = row.original.name;
@@ -104,6 +103,7 @@ const columns: ColumnDef<StaffProfileRow>[] = [
 		),
 		accessorKey: 'description',
 		enableSorting: false,
+		meta: { hideBelow: 768 },
 		cell: ({ getValue }) => {
 			const value = getValue<string | null>();
 			return (
@@ -123,7 +123,7 @@ const columns: ColumnDef<StaffProfileRow>[] = [
 		),
 		accessorKey: 'userAccountCount',
 		enableSorting: false,
-		meta: { width: '104px' },
+		meta: { width: '104px', hideBelow: 768 },
 		cell: ({ getValue }) => {
 			const value = getValue<number | null>();
 			return (
@@ -142,7 +142,7 @@ const columns: ColumnDef<StaffProfileRow>[] = [
 			</div>
 		),
 		enableSorting: false,
-		meta: { width: '140px' },
+		meta: { width: '140px', hideBelow: 768 },
 		cell: () => (
 			<span className="text-[13px] text-muted-foreground">
 				{/* TODO(contract): permission count not in profile list response */}—
@@ -157,7 +157,7 @@ const columns: ColumnDef<StaffProfileRow>[] = [
 			</div>
 		),
 		enableSorting: false,
-		meta: { width: '120px' },
+		meta: { width: '120px', hideBelow: 768 },
 		cell: () => (
 			<span className="text-[13px] text-muted-foreground">
 				{/* TODO(contract): updated_at not in profile list response */}—

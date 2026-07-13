@@ -377,6 +377,78 @@ describe('DataTable state rendering', () => {
 		).toBe(true);
 	});
 
+	describe('DataTable hideBelow column visibility', () => {
+		const originalInnerWidth = window.innerWidth;
+
+		afterEach(() => {
+			Object.defineProperty(window, 'innerWidth', {
+				writable: true,
+				configurable: true,
+				value: originalInnerWidth,
+			});
+		});
+
+		const setViewportWidth = (width: number): void => {
+			Object.defineProperty(window, 'innerWidth', {
+				writable: true,
+				configurable: true,
+				value: width,
+			});
+			fireEvent(window, new Event('resize'));
+		};
+
+		const responsiveColumns: ColumnDef<TestRow>[] = [
+			{
+				id: 'name',
+				accessorKey: 'name',
+				header: 'Name',
+				cell: ({ getValue }) => String(getValue()),
+			},
+			{
+				id: 'bio',
+				accessorKey: 'name',
+				header: 'Bio',
+				meta: { width: '150px', hideBelow: 768 },
+				cell: ({ getValue }) => String(getValue()),
+			},
+		];
+
+		test('removes a hideBelow column (header, cells, and colgroup col) below its breakpoint, and restores it above', () => {
+			setViewportWidth(390);
+
+			render(
+				<DataTable
+					{...baseProps}
+					columns={responsiveColumns}
+					rows={rows}
+					isError={false}
+				/>,
+			);
+
+			expect(screen.queryByRole('columnheader', { name: 'Bio' })).toBeNull();
+			expect(
+				screen.getByTestId('test-table-rows').querySelectorAll('colgroup col'),
+			).toHaveLength(1);
+			expect(
+				screen
+					.getByTestId('test-table-rows')
+					.hasAttribute('data-fixed-columns'),
+			).toBe(false);
+
+			setViewportWidth(1024);
+
+			expect(screen.getByRole('columnheader', { name: 'Bio' })).toBeTruthy();
+			expect(
+				screen.getByTestId('test-table-rows').querySelectorAll('colgroup col'),
+			).toHaveLength(2);
+			expect(
+				screen
+					.getByTestId('test-table-rows')
+					.hasAttribute('data-fixed-columns'),
+			).toBe(true);
+		});
+	});
+
 	test('locks controls when row selection mode is active', () => {
 		render(
 			<DataTable

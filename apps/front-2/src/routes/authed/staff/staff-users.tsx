@@ -45,7 +45,7 @@ const columns: ColumnDef<StaffUserRow>[] = [
 		id: 'name',
 		header: 'Name',
 		enableSorting: false,
-		meta: { headerIcon: <IconUser />, width: '200px' },
+		meta: { headerIcon: <IconUser /> },
 		cell: ({ row }) => (
 			<Link
 				to="/staff/staff-users/$userId"
@@ -67,7 +67,7 @@ const columns: ColumnDef<StaffUserRow>[] = [
 		header: 'Email',
 		accessorKey: 'email',
 		enableSorting: false,
-		meta: { headerIcon: <IconMail /> },
+		meta: { headerIcon: <IconMail />, hideBelow: 768 },
 		cell: ({ getValue }) => {
 			const email = getValue<string>() || 'No email address';
 			return (
@@ -81,7 +81,7 @@ const columns: ColumnDef<StaffUserRow>[] = [
 		id: 'level',
 		header: 'Level',
 		accessorKey: 'level',
-		meta: { headerIcon: <IconIdBadge2 />, width: '104px' },
+		meta: { headerIcon: <IconIdBadge2 />, width: '104px', hideBelow: 768 },
 		cell: ({ getValue }) => (
 			<StatusPill tone="neutral">
 				{getValue<string | null>() ?? 'Unknown'}

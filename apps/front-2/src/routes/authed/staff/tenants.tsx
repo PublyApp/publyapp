@@ -215,7 +215,7 @@ const buildTenantColumns = (
 		header: t('users'),
 		accessorKey: 'usersCount',
 		enableSorting: false,
-		meta: { width: '92px' },
+		meta: { width: '92px', hideBelow: 768 },
 		cell: ({ getValue }) => String(getValue<number>()),
 	},
 	{
@@ -223,7 +223,7 @@ const buildTenantColumns = (
 		header: t('max-users-column'),
 		accessorKey: 'maxUsers',
 		enableSorting: false,
-		meta: { width: '132px' },
+		meta: { width: '132px', hideBelow: 768 },
 		cell: ({ getValue }) => String(getValue<number>()),
 	},
 	{
