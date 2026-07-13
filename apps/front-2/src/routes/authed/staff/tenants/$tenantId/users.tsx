@@ -832,6 +832,7 @@ function StaffTenantUsersPage() {
 										key={level}
 										checked={selectedLevels.includes(level)}
 										closeOnClick={false}
+										showCheckbox
 										onCheckedChange={() => toggleLevel(level)}
 									>
 										{formatTenantUserLevelLabel(level, t)}
@@ -866,6 +867,7 @@ function StaffTenantUsersPage() {
 										key={status}
 										checked={selectedStatuses.includes(status)}
 										closeOnClick={false}
+										showCheckbox
 										onCheckedChange={() => toggleStatus(status)}
 									>
 										{formatTenantUserStatusLabel(status, t)}

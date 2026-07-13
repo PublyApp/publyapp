@@ -199,6 +199,7 @@ function StaffInvitationsPage() {
 									key={status}
 									checked={selectedStatuses.includes(status)}
 									closeOnClick={false}
+									showCheckbox
 									onCheckedChange={() => toggleStatus(status)}
 								>
 									{formatInvitationStatusLabel(status)}

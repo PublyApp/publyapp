@@ -269,3 +269,24 @@ new choice, decide in this spirit and add the rule here.
   narrower or wider than the content beneath it.
 - Theme toggle is **instant** (no flash). Dark mode is authored at implementation time (the design
   canvas defines light only); dark borders follow the `gray-ui-csm` template.
+
+### Menus, selects & controls
+- The `outline` button variant's border must be **legible in both themes** — use
+  `border-(--publy-border-strong)` unconditionally (no separate faint light-mode border with a
+  stronger `dark:` override).
+- Dropdown/context menu items are **9px radius** (spec.json `radii.menuItem`) with a **muted
+  hover/highlight** (`focus:bg-muted` / `data-highlighted:bg-muted`) — never `rounded-2xl` or an
+  accent-colored hover. Accent/primary color is reserved for the checked/selected affordance
+  itself, not for the hover state. This applies to every menu row type: plain items, checkbox
+  items, radio items, and sub-triggers — the plain `DropdownMenuItem` (e.g. the "Clear" row in
+  filter menus) is the reference.
+- Multi-select filter menus (items with `closeOnClick={false}`) render a **visible checkbox at the
+  row end** (`DropdownMenuCheckboxItem`'s `showCheckbox` prop) — checked and unchecked states must
+  both be visible without hovering, styled like the design-system `Checkbox` (5px radius). This is
+  a multi-select-only affordance: exclusive/radio-style filters that happen to use
+  `DropdownMenuCheckboxItem` with `closeOnClick` (e.g. a type filter with an "All" option) must
+  **not** get `showCheckbox` — they keep the checked-only indicator.
+- `Select` popups are **trigger-anchored dropdowns**: the popup always opens directly below the
+  trigger, never repositioned to align the current value over the trigger. `alignItemWithTrigger`
+  defaults to `false` on `components/ui/select.tsx`'s `SelectContent` — do not flip it back to
+  `true` for an individual usage without a documented exception here.
