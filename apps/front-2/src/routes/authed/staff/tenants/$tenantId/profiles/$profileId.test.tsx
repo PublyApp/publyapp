@@ -87,6 +87,12 @@ vi.mock('~/components/error-views/View403', () => ({
 vi.mock('~/lib/query/staff-tenants', () => ({
 	useStaffTenantDetailsQuery: mocks.useStaffTenantDetailsQuery,
 	toStaffTenantDetails: mocks.toStaffTenantDetails,
+	invalidateStaffTenantDetails: (queryClient: {
+		invalidateQueries: (arg: unknown) => unknown;
+	}) =>
+		queryClient.invalidateQueries({
+			queryKey: ['staff', 'staff-tenants'],
+		}),
 }));
 
 vi.mock('~/lib/query/staff-tenant-profiles', () => ({
@@ -103,6 +109,12 @@ vi.mock('~/lib/query/staff-tenant-profiles', () => ({
 		'profiles',
 		'permission-keys',
 	],
+	invalidateStaffTenantProfiles: (queryClient: {
+		invalidateQueries: (arg: unknown) => unknown;
+	}) =>
+		queryClient.invalidateQueries({
+			queryKey: ['staff', 'staff-tenants', 'profiles'],
+		}),
 	buildStaffTenantPermissionCatalogOptions:
 		mocks.buildStaffTenantPermissionCatalogOptions,
 	useStaffTenantProfileDetailsQuery: mocks.useStaffTenantProfileDetailsQuery,
@@ -131,15 +143,74 @@ vi.mock('./_profile-form-drawer', () => ({
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string) => {
+		t: (key: string, options?: Record<string, unknown>) => {
 			const labels: Record<string, string> = {
 				basics: 'Basics',
 				profiles: 'Profiles',
 				invitations: 'Invitations',
 				users: 'Users',
+				assign: 'Assign',
+				assigned: 'Assigned',
+				'assigned-permission-keys': 'Assigned permission keys',
+				'assigned-users': 'Assigned users',
+				available: 'Available',
+				'back-to-profiles': 'Back to profiles',
+				'confirm-delete-tenant-profile-description':
+					'This will permanently delete this tenant profile. Users assigned to this profile may be affected and the action cannot be undone.',
+				default: 'Default',
+				'default-profile': 'Default profile',
+				'default-profile-delete-disabled': "Default profiles can't be deleted.",
+				delete: 'Delete',
+				'delete-profile': 'Delete profile',
+				'delete-tenant-profile-confirm-title': 'Delete tenant profile',
+				description: 'Description',
+				'edit-profile': 'Edit profile',
+				'error-404-code': '404 — Not Found',
+				'error-500-code': '500 — Server Error',
+				loading: 'Loading',
+				'loading-available-permissions': 'Loading available permissions…',
+				'loading-tenant-profile': 'Loading tenant profile…',
+				'manage-permission-keys-description':
+					'Manage assigned and available permission keys for this profile.',
+				name: 'Name',
+				no: 'No',
+				'no-additional-permission-keys-available':
+					'No additional permission keys are available to assign.',
+				'no-description-provided': 'No description provided.',
+				'no-permissions-assigned-to-profile':
+					'No permissions are assigned to this profile.',
+				'no-permissions-available': 'No permission keys are available.',
+				'permission-keys': 'Permission keys',
+				'profile-details': 'Profile details',
+				retry: 'Retry',
+				'tenant-details-error-title': 'Unable to load this tenant',
+				'tenant-permission-catalog-load-failed':
+					'Unable to load the tenant permission catalog.',
+				'tenant-profile-details-description':
+					'Core information for this tenant profile.',
+				'tenant-profile-load-error-description':
+					'There was a problem loading the profile details.',
+				'tenant-profile-not-found-description':
+					'The requested tenant profile does not exist or is no longer available.',
+				'tenant-profile-not-found-title': 'Tenant profile not found',
+				'tenant-profile-payload-empty': 'The profile payload was empty.',
+				'tenant-response-incomplete': 'The tenant response was incomplete.',
+				'unable-to-delete-tenant-profile':
+					'Unable to delete this tenant profile.',
+				'unable-to-load-tenant-profile': 'Unable to load this tenant profile',
+				'unable-to-update-tenant-profile-permission':
+					'Unable to update this tenant profile permission.',
+				unassign: 'Unassign',
+				yes: 'Yes',
 			};
 
-			return labels[key] ?? key;
+			let text = labels[key] ?? key;
+			if (options) {
+				for (const [optionKey, value] of Object.entries(options)) {
+					text = text.replaceAll(`{{${optionKey}}}`, String(value));
+				}
+			}
+			return text;
 		},
 		i18n: { language: 'en' },
 	}),
@@ -400,10 +471,7 @@ describe('staff tenant profile details route', () => {
 				queryKey: ['staff', 'staff-tenants', 'profiles'],
 			});
 			expect(mocks.queryClient.invalidateQueries).toHaveBeenNthCalledWith(2, {
-				queryKey: ['staff', 'staff-tenants', 'profiles', 'detail'],
-			});
-			expect(mocks.queryClient.invalidateQueries).toHaveBeenNthCalledWith(3, {
-				queryKey: ['staff', 'staff-tenants', 'profiles', 'permission-keys'],
+				queryKey: ['staff', 'staff-tenants'],
 			});
 		});
 	});
@@ -434,10 +502,7 @@ describe('staff tenant profile details route', () => {
 				queryKey: ['staff', 'staff-tenants', 'profiles'],
 			});
 			expect(mocks.queryClient.invalidateQueries).toHaveBeenNthCalledWith(2, {
-				queryKey: ['staff', 'staff-tenants', 'profiles', 'detail'],
-			});
-			expect(mocks.queryClient.invalidateQueries).toHaveBeenNthCalledWith(3, {
-				queryKey: ['staff', 'staff-tenants', 'profiles', 'permission-keys'],
+				queryKey: ['staff', 'staff-tenants'],
 			});
 		});
 	});
@@ -549,10 +614,7 @@ describe('staff tenant profile details route', () => {
 				queryKey: ['staff', 'staff-tenants', 'profiles'],
 			});
 			expect(mocks.queryClient.invalidateQueries).toHaveBeenNthCalledWith(2, {
-				queryKey: ['staff', 'staff-tenants', 'profiles', 'detail'],
-			});
-			expect(mocks.queryClient.invalidateQueries).toHaveBeenNthCalledWith(3, {
-				queryKey: ['staff', 'staff-tenants', 'profiles', 'permission-keys'],
+				queryKey: ['staff', 'staff-tenants'],
 			});
 			expect(mocks.navigate).toHaveBeenCalledWith({
 				to: '/staff/tenants/$tenantId/profiles',
@@ -603,9 +665,7 @@ describe('staff tenant profile details route', () => {
 	test('disables the delete path for default profiles', () => {
 		renderPage();
 
-		expect(
-			screen.getByText('Default profiles cannot be deleted.'),
-		).toBeTruthy();
+		expect(screen.getByText("Default profiles can't be deleted.")).toBeTruthy();
 		expect(screen.queryByRole('button', { name: 'Delete profile' })).toBeNull();
 	});
 

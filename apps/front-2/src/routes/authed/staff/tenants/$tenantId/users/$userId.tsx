@@ -15,14 +15,14 @@ import { Card } from '~/components/ui/card';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
 	toStaffTenantUserDetails,
-	STAFF_TENANT_USER_DETAILS_QUERY_KEY,
-	STAFF_TENANT_USERS_QUERY_KEY,
+	invalidateStaffTenantUsers,
 	useRemoveStaffTenantUserMutation,
 	useReactivateStaffTenantUserMutation,
 	useSuspendStaffTenantUserMutation,
 	useStaffTenantUserDetailsQuery,
 } from '~/lib/query/staff-tenant-users';
 import {
+	invalidateStaffTenantDetails,
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
@@ -36,6 +36,8 @@ import {
 import {
 	DetailItem,
 	formatDateTime,
+	formatTenantUserLevelLabel,
+	formatTenantUserStatusLabel,
 	TenantDetailsError,
 	TenantDetailsLoading,
 	TenantDetailsPageShell,
@@ -77,18 +79,22 @@ const getFailureDescription = (error: unknown, fallback: string): string => {
 	return fallback;
 };
 
-const MissingTenantUserView = ({ error }: { error: unknown }) => (
-	<AppErrorView
-		icon={<IconSearchOff aria-hidden="true" className="size-7" />}
-		code="404 — Not Found"
-		title="Tenant user not found"
-		description={getFailureDescription(
-			error,
-			'The requested tenant user does not exist or is no longer available.',
-		)}
-		testId="staff-tenant-user-details-not-found"
-	/>
-);
+const MissingTenantUserView = ({ error }: { error: unknown }) => {
+	const { t } = useTranslation('common');
+
+	return (
+		<AppErrorView
+			icon={<IconSearchOff aria-hidden="true" className="size-7" />}
+			code={t('error-404-code')}
+			title={t('tenant-user-not-found-title')}
+			description={getFailureDescription(
+				error,
+				t('tenant-user-not-found-description'),
+			)}
+			testId="staff-tenant-user-details-not-found"
+		/>
+	);
+};
 
 const StaffTenantUserDetailsError = ({
 	error,
@@ -97,6 +103,8 @@ const StaffTenantUserDetailsError = ({
 	error: unknown;
 	onRetry: () => void;
 }) => {
+	const { t } = useTranslation('common');
+
 	if (
 		isProblemStatus(error, 404) ||
 		isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)
@@ -111,26 +119,30 @@ const StaffTenantUserDetailsError = ({
 	return (
 		<AppErrorView
 			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-			code="500 — Server Error"
-			title="Unable to load this tenant user"
-			description="There was a problem loading the tenant user details."
+			code={t('error-500-code')}
+			title={t('unable-to-load-tenant-user')}
+			description={t('tenant-user-load-error-description')}
 			testId="staff-tenant-user-details-error"
 			actions={<TenantRetryActions onRetry={onRetry} />}
 		/>
 	);
 };
 
-const TenantUserDetailsLoading = () => (
-	<div
-		className="mx-auto flex min-h-[50vh] w-full max-w-5xl items-center justify-center px-4 py-12"
-		data-testid="staff-tenant-user-details-loading"
-	>
-		<div className="flex items-center gap-3 text-sm text-muted-foreground">
-			<div className="h-2 w-2 rounded-full bg-primary" />
-			<span>Loading tenant user…</span>
+const TenantUserDetailsLoading = () => {
+	const { t } = useTranslation('common');
+
+	return (
+		<div
+			className="mx-auto flex min-h-[50vh] w-full max-w-5xl items-center justify-center px-4 py-12"
+			data-testid="staff-tenant-user-details-loading"
+		>
+			<div className="flex items-center gap-3 text-sm text-muted-foreground">
+				<div className="h-2 w-2 rounded-full bg-primary" />
+				<span>{t('loading-tenant-user')}</span>
+			</div>
 		</div>
-	</div>
-);
+	);
+};
 
 const getNormalizedTenantUserStatus = (
 	value: string | null | undefined,
@@ -159,7 +171,7 @@ export const Route = createFileRoute(
 function StaffTenantUserDetailsPage() {
 	const { tenantId, userId } = Route.useParams();
 	const navigate = Route.useNavigate();
-	const { i18n } = useTranslation('common');
+	const { t, i18n } = useTranslation('common');
 	const queryClient = useQueryClient();
 	const [membershipActionError, setMembershipActionError] = useState('');
 	const [removeActionError, setRemoveActionError] = useState('');
@@ -214,9 +226,9 @@ function StaffTenantUserDetailsPage() {
 		return (
 			<AppErrorView
 				icon={<IconSearchOff aria-hidden="true" className="size-7" />}
-				code="404 — Not Found"
-				title="Tenant not found"
-				description="The tenant payload was incomplete."
+				code={t('error-500-code')}
+				title={t('tenant-details-error-title')}
+				description={t('tenant-response-incomplete')}
 				testId="staff-tenant-details-empty"
 			/>
 		);
@@ -236,9 +248,9 @@ function StaffTenantUserDetailsPage() {
 		return (
 			<AppErrorView
 				icon={<IconSearchOff aria-hidden="true" className="size-7" />}
-				code="404 — Not Found"
-				title="Tenant user not found"
-				description="The tenant user payload was empty."
+				code={t('error-404-code')}
+				title={t('tenant-user-not-found-title')}
+				description={t('tenant-user-payload-empty')}
 				testId="staff-tenant-user-details-empty"
 			/>
 		);
@@ -262,18 +274,14 @@ function StaffTenantUserDetailsPage() {
 
 	const membershipAction = getMembershipActionLabel(normalizedStatus);
 	const membershipActionLabel =
-		membershipAction === 'suspend' ? 'Suspend' : 'Reactivate';
+		membershipAction === 'suspend' ? t('suspend') : t('reactivate');
 	const membershipActionDisabled =
 		isStatusActionPending || isGloballySuspended || !membershipAction;
 
 	const invalidateTenantUserQueries = async () => {
 		await Promise.all([
-			queryClient.invalidateQueries({
-				queryKey: ['staff', ...STAFF_TENANT_USERS_QUERY_KEY],
-			}),
-			queryClient.invalidateQueries({
-				queryKey: ['staff', ...STAFF_TENANT_USER_DETAILS_QUERY_KEY],
-			}),
+			invalidateStaffTenantUsers(queryClient),
+			invalidateStaffTenantDetails(queryClient),
 		]);
 	};
 
@@ -296,7 +304,7 @@ function StaffTenantUserDetailsPage() {
 
 			setMembershipActionError(
 				getFailureMessage(toApiFailure(error), {
-					fallback: 'Unable to update tenant user membership status.',
+					fallback: t('unable-to-update-tenant-user-membership'),
 				}),
 			);
 		}
@@ -322,7 +330,7 @@ function StaffTenantUserDetailsPage() {
 
 			setRemoveActionError(
 				getFailureMessage(toApiFailure(error), {
-					fallback: 'Unable to remove this tenant user from the tenant.',
+					fallback: t('unable-to-remove-tenant-user'),
 				}),
 			);
 		} finally {
@@ -343,14 +351,14 @@ function StaffTenantUserDetailsPage() {
 					className="publy-back-link"
 				>
 					<IconArrowLeft aria-hidden="true" className="size-3" />
-					Back to users
+					{t('back-to-users')}
 				</Link>
 				<Link
 					to="/staff/tenants/$tenantId/users/$userId/edit"
 					params={{ tenantId, userId }}
 					className="inline-flex text-sm font-medium text-foreground underline-offset-4 hover:text-foreground hover:underline"
 				>
-					Edit tenant user
+					{t('edit-tenant-user')}
 				</Link>
 
 				<div className="space-y-2">
@@ -358,7 +366,7 @@ function StaffTenantUserDetailsPage() {
 						{user.displayName}
 					</h1>
 					<p className="max-w-3xl text-sm text-muted-foreground">
-						{user.email || 'No email address available.'}
+						{user.email || t('no-email-available')}
 					</p>
 				</div>
 			</div>
@@ -367,9 +375,11 @@ function StaffTenantUserDetailsPage() {
 				<div className="flex flex-wrap items-center justify-between gap-3">
 					<div className="space-y-1">
 						<p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-							Tenant membership status
+							{t('tenant-membership-status')}
 						</p>
-						<p className="text-sm text-foreground">{user.status ?? '—'}</p>
+						<p className="text-sm text-foreground">
+							{formatTenantUserStatusLabel(user.status, t)}
+						</p>
 					</div>
 					<div className="flex items-center gap-2">
 						{canChangeStatus ? (
@@ -396,8 +406,8 @@ function StaffTenantUserDetailsPage() {
 				{!canChangeStatus ? (
 					<p className="rounded-large border border-dashed border-divider bg-content1 p-2 text-xs text-muted-foreground">
 						{isGloballySuspended
-							? 'Membership lifecycle actions are disabled for globally suspended users.'
-							: 'Membership lifecycle actions are unavailable for this status.'}
+							? t('membership-lifecycle-disabled-globally-suspended')
+							: t('membership-lifecycle-unavailable-status')}
 					</p>
 				) : null}
 
@@ -410,10 +420,10 @@ function StaffTenantUserDetailsPage() {
 				<div className="flex flex-wrap items-center justify-between gap-3">
 					<div className="space-y-1">
 						<p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-							Tenant user removal
+							{t('tenant-user-removal')}
 						</p>
 						<p className="text-sm text-foreground">
-							Remove this user from this tenant.
+							{t('remove-user-from-tenant-description')}
 						</p>
 					</div>
 					<Button
@@ -423,7 +433,7 @@ function StaffTenantUserDetailsPage() {
 						onClick={() => setPendingRemove(true)}
 						disabled={isAnyActionPending}
 					>
-						Remove from tenant
+						{t('remove-from-tenant')}
 						{isRemoveActionPending ? '…' : ''}
 					</Button>
 				</div>
@@ -435,9 +445,9 @@ function StaffTenantUserDetailsPage() {
 
 			<ConfirmDialog
 				isOpen={pendingRemove}
-				title="Remove tenant user"
-				description="This will permanently remove this user from the tenant. The user will lose access to this tenant and its projects."
-				confirmLabel="Remove"
+				title={t('remove-tenant-user-confirm-title')}
+				description={t('remove-tenant-user-confirm-description')}
+				confirmLabel={t('remove')}
 				isPending={removeTenantUserMutation.isPending}
 				onConfirm={() => {
 					void handleRemoveAction();
@@ -447,38 +457,46 @@ function StaffTenantUserDetailsPage() {
 
 			<Card className="space-y-4 p-5">
 				<div className="grid gap-4 md:grid-cols-2">
-					<DetailItem label="Email" value={user.email || '—'} />
-					<DetailItem label="Account level" value={user.accountLevel ?? '—'} />
-					<DetailItem label="Status" value={user.status ?? '—'} />
-					<DetailItem label="User ID" value={user.id} />
-					<DetailItem label="Tenant ID" value={user.tenantId ?? '—'} />
-					<DetailItem label="Avatar URL" value={user.avatarUrl ?? '—'} />
+					<DetailItem label={t('email')} value={user.email || '—'} />
+					<DetailItem
+						label={t('account-level')}
+						value={formatTenantUserLevelLabel(user.accountLevel, t)}
+					/>
+					<DetailItem
+						label={t('status')}
+						value={formatTenantUserStatusLabel(user.status, t)}
+					/>
+					<DetailItem label={t('user-id')} value={user.id} />
+					<DetailItem label={t('tenant-id')} value={user.tenantId ?? '—'} />
+					<DetailItem label={t('avatar-url')} value={user.avatarUrl ?? '—'} />
 				</div>
 			</Card>
 
 			<Card className="space-y-4 p-5">
 				<div className="space-y-1">
-					<p className="text-lg font-semibold text-foreground">Activity</p>
+					<p className="text-lg font-semibold text-foreground">
+						{t('activity')}
+					</p>
 					<p className="text-sm text-muted-foreground">
-						Read-only activity timestamps for this tenant user.
+						{t('tenant-user-activity-description')}
 					</p>
 				</div>
 				<div className="grid gap-4">
 					{user.createdAt ? (
 						<DetailItem
-							label="Created"
+							label={t('created')}
 							value={formatDateTime(user.createdAt, i18n.language)}
 						/>
 					) : null}
 					{user.updatedAt ? (
 						<DetailItem
-							label="Updated"
+							label={t('updated')}
 							value={formatDateTime(user.updatedAt, i18n.language)}
 						/>
 					) : null}
 					{!user.createdAt && !user.updatedAt ? (
 						<div className="rounded-large border border-dashed border-divider bg-content1 p-4 text-sm text-muted-foreground">
-							No timestamps are available for this tenant user yet.
+							{t('tenant-user-no-timestamps')}
 						</div>
 					) : null}
 				</div>

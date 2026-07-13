@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm, useFormContext } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -18,9 +18,7 @@ import {
 } from '~/components/ui/drawer';
 import {
 	buildStaffTenantPermissionCatalogGroups,
-	STAFF_TENANT_PROFILE_DETAILS_QUERY_KEY,
-	STAFF_TENANT_PROFILE_PERMISSION_KEYS_QUERY_KEY,
-	STAFF_TENANT_PROFILES_QUERY_KEY,
+	invalidateStaffTenantProfiles,
 	type StaffTenantPermissionGroup,
 	useAssignStaffTenantProfilePermissionMutation,
 	useCreateStaffTenantProfileMutation,
@@ -35,13 +33,22 @@ import {
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
-const profileFormSchema = z.object({
-	name: z.string().trim().min(1).max(100),
-	description: z.string().trim().max(500).optional(),
-	permissionKeys: z.array(z.string()),
-});
+const buildProfileFormSchema = (t: (key: string) => string) =>
+	z.object({
+		name: z
+			.string()
+			.trim()
+			.min(1, { message: t('profile-name-required') })
+			.max(100, { message: t('profile-name-too-long') }),
+		description: z
+			.string()
+			.trim()
+			.max(500, { message: t('profile-description-too-long') })
+			.optional(),
+		permissionKeys: z.array(z.string()),
+	});
 
-type ProfileFormValues = z.infer<typeof profileFormSchema>;
+type ProfileFormValues = z.infer<ReturnType<typeof buildProfileFormSchema>>;
 
 const EMPTY_VALUES: ProfileFormValues = {
 	name: '',
@@ -137,7 +144,7 @@ export const ProfileFormDrawer = ({
 	onSaved: (profileId: string) => void;
 	onSessionExpired: () => void;
 }) => {
-	const { t } = useTranslation('common');
+	const { t, i18n } = useTranslation('common');
 	const queryClient = useQueryClient();
 	const [serverError, setServerError] = useState('');
 
@@ -151,8 +158,14 @@ export const ProfileFormDrawer = ({
 		catalogQuery.data?.additionalData,
 	);
 
+	const resolver = useMemo(
+		() => zodResolver(buildProfileFormSchema(t)),
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- rebuild on language change so messages stay localized
+		[i18n.language],
+	);
+
 	const methods = useForm<ProfileFormValues>({
-		resolver: zodResolver(profileFormSchema),
+		resolver,
 		defaultValues: EMPTY_VALUES,
 	});
 	const { reset } = methods;
@@ -172,23 +185,17 @@ export const ProfileFormDrawer = ({
 					}
 				: EMPTY_VALUES,
 		);
-	}, [isOpen, mode, profile, reset]);
+		// Re-seeds only when the drawer opens or the target profile changes —
+		// `profile` is rebuilt every render by the parent, so depending on its
+		// identity would reset unsaved edits on any background refetch.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [isOpen, mode, profile?.id, reset]);
 
 	const isSaving = createProfile.isPending || updateProfile.isPending;
 	const isFormLocked = isSaving || methods.formState.isSubmitting;
 
 	const invalidateProfileQueries = () =>
-		Promise.all([
-			queryClient.invalidateQueries({
-				queryKey: STAFF_TENANT_PROFILES_QUERY_KEY,
-			}),
-			queryClient.invalidateQueries({
-				queryKey: STAFF_TENANT_PROFILE_DETAILS_QUERY_KEY,
-			}),
-			queryClient.invalidateQueries({
-				queryKey: STAFF_TENANT_PROFILE_PERMISSION_KEYS_QUERY_KEY,
-			}),
-		]);
+		invalidateStaffTenantProfiles(queryClient);
 
 	const onSubmit = methods.handleSubmit(async (values) => {
 		setServerError('');
@@ -228,7 +235,7 @@ export const ProfileFormDrawer = ({
 				(key) => !nextKeys.has(key),
 			);
 
-			await Promise.all([
+			const permissionResults = await Promise.allSettled([
 				...keysToAssign.map((permissionKey) =>
 					assignPermission.mutateAsync({
 						tenantId,
@@ -246,6 +253,20 @@ export const ProfileFormDrawer = ({
 			]);
 
 			await invalidateProfileQueries();
+
+			const failedCount = permissionResults.filter(
+				(result) => result.status === 'rejected',
+			).length;
+			if (failedCount > 0) {
+				setServerError(
+					t('tenant-profile-permission-update-partial-success', {
+						succeeded: permissionResults.length - failedCount,
+						failed: failedCount,
+					}),
+				);
+				return;
+			}
+
 			onSaved(profile.id);
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
@@ -284,14 +305,14 @@ export const ProfileFormDrawer = ({
 						<Field.Text
 							name="name"
 							label={t('profile-name')}
-							placeholder="Approvers"
+							placeholder={t('profile-name-placeholder')}
 							isDisabled={isFormLocked}
 							fullWidth
 						/>
 						<Field.Text
 							name="description"
 							label={t('description')}
-							placeholder="Describe the responsibilities for this profile"
+							placeholder={t('profile-description-placeholder')}
 							isDisabled={isFormLocked}
 							fullWidth
 						/>

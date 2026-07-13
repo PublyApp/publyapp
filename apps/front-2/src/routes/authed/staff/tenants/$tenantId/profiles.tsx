@@ -22,7 +22,7 @@ import type { Icon } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -343,7 +343,9 @@ const ProfileCard = ({
 				<Checkbox
 					checked={isSelected}
 					onCheckedChange={() => onToggleSelect(profile.id)}
-					aria-label={`Select ${profile.name || 'profile'}`}
+					aria-label={t('select-profile-checkbox-label', {
+						name: profile.name || t('profile'),
+					})}
 					data-testid={`staff-tenant-profile-card-select-${profile.id}`}
 				/>
 			</span>
@@ -524,8 +526,9 @@ const ProfileBulkActions = ({
 	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 	const bulkDeleteMutation = useBulkDeleteStaffTenantProfilesMutation();
 
-	const selectedIds = rows
-		.filter((row) => selection.rowSelection[row.id])
+	const selectedRows = rows.filter((row) => selection.rowSelection[row.id]);
+	const eligibleIds = selectedRows
+		.filter((row) => !row.isDefault)
 		.map((row) => row.id);
 	const selectedCount = selection.selectedCount;
 	const isOverLimit = selectedCount > BULK_ACTION_MAX_COUNT;
@@ -537,7 +540,7 @@ const ProfileBulkActions = ({
 		try {
 			result = await bulkDeleteMutation.mutateAsync({
 				tenantId,
-				profileIds: selectedIds,
+				profileIds: eligibleIds,
 			});
 		} catch (error) {
 			setIsDeleteDialogOpen(false);
@@ -593,7 +596,17 @@ const ProfileBulkActions = ({
 						: undefined
 				}
 				className={FLOATING_SELECTION_BAR_ACTION_BUTTON_CLASS_NAME}
-				onClick={() => setIsDeleteDialogOpen(true)}
+				onClick={() => {
+					onFeedback(null);
+					if (eligibleIds.length === 0) {
+						onFeedback({
+							tone: 'error',
+							message: t('bulk-delete-disabled-only-default-profiles'),
+						});
+						return;
+					}
+					setIsDeleteDialogOpen(true);
+				}}
 			>
 				<IconTrash className="size-[15px]" />
 				{t('bulk-delete')}
@@ -603,7 +616,7 @@ const ProfileBulkActions = ({
 				isOpen={isDeleteDialogOpen}
 				title={t('bulk-delete')}
 				description={t('confirm-bulk-delete-tenant-profiles', {
-					count: selectedCount,
+					count: eligibleIds.length,
 				})}
 				confirmLabel={t('delete')}
 				isPending={bulkDeleteMutation.isPending}
@@ -774,9 +787,6 @@ function StaffTenantProfilesPage() {
 			search: serializeStaffTenantProfilesSearchParams({
 				...search,
 				...next,
-				new: search.new,
-				is_default: search.is_default,
-				view: search.view,
 			}) as unknown as TableSearchParams,
 			replace: true,
 		});
@@ -843,6 +853,10 @@ function StaffTenantProfilesPage() {
 
 	const rows = toStaffTenantProfileRows(profilesQuery.data?.data);
 	const selection = useRowSelection(rows.map((row) => row.id));
+	const columns = useMemo(
+		() => makeTenantProfileColumns(tenantId, t, setDeleteTarget),
+		[tenantId, t, setDeleteTarget],
+	);
 
 	if (detailsQuery.isPending) {
 		return <TenantDetailsLoading />;
@@ -935,7 +949,7 @@ function StaffTenantProfilesPage() {
 
 			setDeleteError(
 				getFailureMessage(toApiFailure(error), {
-					fallback: 'Unable to delete this tenant profile.',
+					fallback: t('unable-to-delete-tenant-profile'),
 				}),
 			);
 			return;
@@ -954,8 +968,6 @@ function StaffTenantProfilesPage() {
 			<ProfileViewToggle view={view} onChange={setView} testId={testId} />
 		</div>
 	);
-
-	const columns = makeTenantProfileColumns(tenantId, t, setDeleteTarget);
 
 	return (
 		<TenantDetailsPageShell
@@ -1014,6 +1026,7 @@ function StaffTenantProfilesPage() {
 					ariaLabel={t('tenant-profiles-table-aria-label')}
 					columns={columns}
 					rows={rows}
+					getRowLabel={(row) => row.name}
 					isPending={profilesQuery.isPending}
 					isError={profilesQuery.isError}
 					onRetry={() => void profilesQuery.refetch()}

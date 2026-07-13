@@ -347,8 +347,12 @@ vi.mock('~/components/error-views/View403', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenants', () => ({
-	STAFF_TENANT_DETAILS_QUERY_KEY: ['staff-tenants', 'detail'],
-	STAFF_TENANTS_QUERY_KEY: ['staff-tenants'],
+	invalidateStaffTenants: (queryClient: {
+		invalidateQueries: (arg: unknown) => unknown;
+	}) =>
+		queryClient.invalidateQueries({
+			queryKey: ['staff', 'staff-tenants'],
+		}),
 	toStaffTenantDetails: mocks.toStaffTenantDetails,
 	useStaffTenantDetailsQuery: mocks.useStaffTenantDetailsQuery,
 	useUpdateStaffTenantMutation: mocks.useUpdateStaffTenantMutation,
@@ -648,13 +652,8 @@ describe('staff tenant edit route', () => {
 			}),
 		);
 		await waitFor(() =>
-			expect(mocks.invalidateQueries).toHaveBeenNthCalledWith(1, {
+			expect(mocks.invalidateQueries).toHaveBeenCalledWith({
 				queryKey: ['staff', 'staff-tenants'],
-			}),
-		);
-		await waitFor(() =>
-			expect(mocks.invalidateQueries).toHaveBeenNthCalledWith(2, {
-				queryKey: ['staff', 'staff-tenants', 'detail'],
 			}),
 		);
 		await waitFor(() =>

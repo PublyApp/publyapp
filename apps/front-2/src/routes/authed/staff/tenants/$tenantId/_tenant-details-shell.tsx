@@ -23,7 +23,7 @@ export const MALFORMED_ID_TRANSLATION_KEY = 'malformed-id';
 
 /** Formats the raw backend tenant status (e.g. `"Active"`) for display — the
  * identity header must not render the unlocalized backend string directly. */
-const formatTenantStatusLabel = (
+export const formatTenantStatusLabel = (
 	status: string,
 	t: (key: string) => string,
 ): string => {
@@ -38,6 +38,47 @@ const formatTenantStatusLabel = (
 		return t('status-pending');
 	}
 	return status;
+};
+
+/** Backend row status is PascalCase (`Active`/`Suspended`/`GloballySuspended`);
+ * the `t()` keys are the honest display labels for those three values only. */
+export const formatTenantUserStatusLabel = (
+	status: string | null,
+	t: (key: string) => string,
+): string => {
+	const normalized = status?.trim().toLowerCase() ?? '';
+	if (normalized === 'active') {
+		return t('status-active');
+	}
+	if (normalized === 'suspended') {
+		return t('status-suspended');
+	}
+	if (
+		normalized === 'globallysuspended' ||
+		normalized === 'globally_suspended'
+	) {
+		return t('status-globally-suspended');
+	}
+	return status ?? t('status-unknown');
+};
+
+export const tenantUserLevelChipClassName = (level: string | null): string =>
+	(level ?? '').trim().toLowerCase() === 'admin'
+		? 'publy-detail-chip publy-detail-chip--amber'
+		: 'publy-detail-chip publy-detail-chip--outline';
+
+export const formatTenantUserLevelLabel = (
+	level: string | null,
+	t: (key: string) => string,
+): string => {
+	const normalized = level?.trim().toLowerCase() ?? '';
+	if (normalized === 'admin') {
+		return t('admin');
+	}
+	if (normalized === 'user') {
+		return t('user');
+	}
+	return level ?? '—';
 };
 
 const DATE_TIME_FORMAT_OPTIONS = {
@@ -153,13 +194,17 @@ const getFailureDescription = (error: unknown, fallback: string): string => {
 	return fallback;
 };
 
-const LoadingSpinner = () => (
-	<span
-		role="status"
-		aria-label="Loading"
-		className="size-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"
-	/>
-);
+const LoadingSpinner = () => {
+	const { t } = useTranslation('common');
+
+	return (
+		<span
+			role="status"
+			aria-label={t('loading')}
+			className="size-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"
+		/>
+	);
+};
 
 export const DetailItem = ({
 	label,

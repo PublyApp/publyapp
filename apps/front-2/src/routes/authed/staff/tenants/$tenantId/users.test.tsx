@@ -135,6 +135,11 @@ const TRANSLATIONS: Record<string, string> = {
 	'tenant-details-error-title': 'Unable to load this tenant',
 	'tenant-response-incomplete': 'The tenant response was incomplete.',
 	close: 'Close',
+	'select-row-named': 'Select {{name}}',
+	'select-all-rows': 'Select all rows',
+	'page-n': 'Page {{page}}',
+	'previous-page': 'Previous page',
+	'next-page': 'Next page',
 };
 
 vi.mock('react-i18next', () => ({
@@ -376,6 +381,29 @@ describe('staff tenant users route', () => {
 		renderPage();
 
 		expect(screen.getByTestId('invite-drawer-open')).toBeTruthy();
+	});
+
+	test('a debounced search commit does not close a drawer opened within the debounce window (F1)', async () => {
+		const Component = (Route as unknown as { component: () => JSX.Element })
+			.component;
+		const renderResult = render(<Component />);
+
+		fireEvent.change(screen.getByTestId('staff-tenant-users-table-search'), {
+			target: { value: 'an' },
+		});
+
+		// Simulate opening the invite drawer within the 300ms debounce window:
+		// the route re-renders with the new URL search state, same as a real
+		// navigation would, before the debounced commit fires.
+		mocks.search = { invite: 1 };
+		renderResult.rerender(<Component />);
+
+		await new Promise((resolve) => setTimeout(resolve, 350));
+
+		const lastCall = mocks.navigate.mock.calls.at(-1)?.[0] as {
+			search?: Record<string, unknown>;
+		};
+		expect(lastCall?.search).toMatchObject({ invite: 1, q: 'an' });
 	});
 
 	test('renders a checkbox selection column but no Last active column', () => {
@@ -628,7 +656,7 @@ describe('staff tenant users route', () => {
 		expect(screen.queryByText('Bulk actions')).toBeNull();
 		expect(screen.getByText('All levels')).toBeTruthy();
 
-		fireEvent.click(screen.getByLabelText('Select row user-1'));
+		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
 
 		expect(await screen.findByText('1 selected')).toBeTruthy();
 		expect(screen.getByText('Bulk actions')).toBeTruthy();
@@ -725,7 +753,7 @@ describe('staff tenant users route', () => {
 
 		renderPage();
 
-		fireEvent.click(screen.getByLabelText('Select row user-1'));
+		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
 		fireEvent.click(
 			await screen.findByRole('button', { name: 'More actions' }),
 		);
@@ -757,7 +785,7 @@ describe('staff tenant users route', () => {
 
 		renderPage();
 
-		fireEvent.click(screen.getByLabelText('Select row user-1'));
+		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
 		fireEvent.click(
 			await screen.findByRole('button', { name: 'More actions' }),
 		);

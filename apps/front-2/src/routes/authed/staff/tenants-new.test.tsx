@@ -436,7 +436,12 @@ vi.mock('~/components/field', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenants', () => ({
-	STAFF_TENANTS_QUERY_KEY: ['staff-tenants'],
+	invalidateStaffTenants: (queryClient: {
+		invalidateQueries: (arg: unknown) => unknown;
+	}) =>
+		queryClient.invalidateQueries({
+			queryKey: ['staff', 'staff-tenants'],
+		}),
 	useCreateStaffTenantMutation: mocks.useCreateStaffTenantMutation,
 	useUpdateStaffTenantMutation: mocks.useUpdateStaffTenantMutation,
 }));
@@ -608,6 +613,21 @@ describe('staff tenant create route', () => {
 			screen.getAllByRole('button', { name: 'Remove member' })[0]!,
 		);
 		expect(getEmailInputs()).toHaveLength(1);
+	});
+
+	test('disables Add owner once owners + manual members reach the seat cap (F10)', () => {
+		renderPage();
+
+		fireEvent.change(screen.getByLabelText('Seats'), {
+			target: { value: '3' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Add member' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Add member' }));
+
+		expect(
+			(screen.getByRole('button', { name: 'Add owner' }) as HTMLButtonElement)
+				.disabled,
+		).toBe(true);
 	});
 
 	test('a manual member set to the Admin role submits with accountLevel Admin', async () => {

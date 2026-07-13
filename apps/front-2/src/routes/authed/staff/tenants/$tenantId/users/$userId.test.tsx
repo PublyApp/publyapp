@@ -60,9 +60,64 @@ vi.mock('@tanstack/react-router', () => ({
 	},
 }));
 
+const TRANSLATIONS: Record<string, string> = {
+	'back-to-users': 'Back to users',
+	'edit-tenant-user': 'Edit tenant user',
+	'account-level': 'Account level',
+	'tenant-id': 'Tenant ID',
+	created: 'Created',
+	updated: 'Updated',
+	suspend: 'Suspend',
+	reactivate: 'Reactivate',
+	remove: 'Remove',
+	'remove-from-tenant': 'Remove from tenant',
+	status: 'Status',
+	email: 'Email',
+	'avatar-url': 'Avatar URL',
+	'user-id': 'User ID',
+	activity: 'Activity',
+	'no-email-available': 'No email address available.',
+	'tenant-membership-status': 'Tenant membership status',
+	'tenant-user-removal': 'Tenant user removal',
+	'remove-user-from-tenant-description': 'Remove this user from this tenant.',
+	'remove-tenant-user-confirm-title': 'Remove tenant user',
+	'remove-tenant-user-confirm-description':
+		'This will permanently remove this user from the tenant. The user will lose access to this tenant and its projects.',
+	'membership-lifecycle-disabled-globally-suspended':
+		'Membership lifecycle actions are disabled for globally suspended users.',
+	'membership-lifecycle-unavailable-status':
+		'Membership lifecycle actions are unavailable for this status.',
+	'tenant-user-activity-description':
+		'Read-only activity timestamps for this tenant user.',
+	'tenant-user-no-timestamps':
+		'No timestamps are available for this tenant user yet.',
+	'unable-to-update-tenant-user-membership':
+		'Unable to update tenant user membership status.',
+	'unable-to-remove-tenant-user':
+		'Unable to remove this tenant user from the tenant.',
+	'error-404-code': '404 — Not Found',
+	'error-500-code': '500 — Server Error',
+	'tenant-details-error-title': 'Unable to load this tenant',
+	'tenant-response-incomplete': 'The tenant response was incomplete.',
+	'tenant-user-not-found-title': 'Tenant user not found',
+	'tenant-user-not-found-description':
+		'This tenant user does not exist, or you no longer have access to this tenant-user identity.',
+	'tenant-user-payload-empty': 'The tenant user payload was empty.',
+	'unable-to-load-tenant-user': 'Unable to load this tenant user',
+	'tenant-user-load-error-description':
+		'There was a problem loading the tenant user details.',
+	'loading-tenant-user': 'Loading tenant user…',
+	'status-active': 'Active',
+	'status-suspended': 'Suspended',
+	'status-globally-suspended': 'Globally suspended',
+	'status-unknown': 'Unknown',
+	admin: 'Admin',
+	user: 'User',
+};
+
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string) => key,
+		t: (key: string) => TRANSLATIONS[key] ?? key,
 		i18n: {
 			language: 'en',
 		},
@@ -98,19 +153,29 @@ vi.mock('~/components/error-views/View403', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenant-users', () => ({
-	STAFF_TENANT_USER_DETAILS_QUERY_KEY: ['staff-tenants', 'users', 'detail'],
-	STAFF_TENANT_USERS_QUERY_KEY: ['staff-tenants', 'users'],
 	toStaffTenantUserDetails: mocks.toStaffTenantUserDetails,
 	useStaffTenantUserDetailsQuery: mocks.useStaffTenantUserDetailsQuery,
 	useSuspendStaffTenantUserMutation: mocks.useSuspendStaffTenantUserMutation,
 	useReactivateStaffTenantUserMutation:
 		mocks.useReactivateStaffTenantUserMutation,
 	useRemoveStaffTenantUserMutation: mocks.useRemoveStaffTenantUserMutation,
+	invalidateStaffTenantUsers: (queryClient: {
+		invalidateQueries: (arg: unknown) => unknown;
+	}) =>
+		queryClient.invalidateQueries({
+			queryKey: ['staff', 'staff-tenants', 'users'],
+		}),
 }));
 
 vi.mock('~/lib/query/staff-tenants', () => ({
 	toStaffTenantDetails: mocks.toStaffTenantDetails,
 	useStaffTenantDetailsQuery: mocks.useStaffTenantDetailsQuery,
+	invalidateStaffTenantDetails: (queryClient: {
+		invalidateQueries: (arg: unknown) => unknown;
+	}) =>
+		queryClient.invalidateQueries({
+			queryKey: ['staff', 'staff-tenants'],
+		}),
 }));
 
 vi.mock('~/routes/authed/layout', () => ({
@@ -332,7 +397,7 @@ describe('staff tenant user details route', () => {
 		);
 		await waitFor(() =>
 			expect(mocks.invalidateQueries).toHaveBeenNthCalledWith(2, {
-				queryKey: ['staff', 'staff-tenants', 'users', 'detail'],
+				queryKey: ['staff', 'staff-tenants'],
 			}),
 		);
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
@@ -372,7 +437,7 @@ describe('staff tenant user details route', () => {
 		);
 		await waitFor(() =>
 			expect(mocks.invalidateQueries).toHaveBeenNthCalledWith(2, {
-				queryKey: ['staff', 'staff-tenants', 'users', 'detail'],
+				queryKey: ['staff', 'staff-tenants'],
 			}),
 		);
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
@@ -469,7 +534,7 @@ describe('staff tenant user details route', () => {
 		);
 		await waitFor(() =>
 			expect(mocks.invalidateQueries).toHaveBeenNthCalledWith(2, {
-				queryKey: ['staff', 'staff-tenants', 'users', 'detail'],
+				queryKey: ['staff', 'staff-tenants'],
 			}),
 		);
 		expect(mocks.navigate).toHaveBeenCalledWith({

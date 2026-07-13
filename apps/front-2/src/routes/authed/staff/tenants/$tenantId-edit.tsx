@@ -26,8 +26,7 @@ import { BrandTile } from '~/components/ui/initials-avatar';
 import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import {
-	STAFF_TENANT_DETAILS_QUERY_KEY,
-	STAFF_TENANTS_QUERY_KEY,
+	invalidateStaffTenants,
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 	useUpdateStaffTenantMutation,
@@ -42,6 +41,7 @@ import {
 
 import {
 	formatShortDate,
+	formatTenantStatusLabel,
 	getRelativeTimeParts,
 	TenantDetailsError,
 	TenantDetailsLoading,
@@ -54,15 +54,35 @@ import {
 
 const buildEditTenantSchema = (t: (key: string) => string) =>
 	z.object({
-		name: z.string().trim().min(1).max(128).optional(),
-		maxUsers: z.coerce.number().int().positive(),
-		logoUrl: z.string().trim().max(2048).optional(),
-		legalName: z.string().trim().max(256).optional(),
-		description: z.string().trim().max(1024).optional(),
+		name: z
+			.string()
+			.trim()
+			.min(1, { message: t('tenant-name-required') })
+			.max(128, { message: t('tenant-name-too-long') })
+			.optional(),
+		maxUsers: z.coerce
+			.number({ invalid_type_error: t('seats-required') })
+			.int()
+			.positive({ message: t('seats-must-be-positive') }),
+		logoUrl: z
+			.string()
+			.trim()
+			.max(2048, { message: t('logo-url-too-long') })
+			.optional(),
+		legalName: z
+			.string()
+			.trim()
+			.max(256, { message: t('legal-name-too-long') })
+			.optional(),
+		description: z
+			.string()
+			.trim()
+			.max(1024, { message: t('description-too-long') })
+			.optional(),
 		websiteUrl: z
 			.string()
 			.trim()
-			.max(2048)
+			.max(2048, { message: t('website-url-too-long') })
 			.optional()
 			.refine((value) => !value || isAbsoluteHttpUrl(value), {
 				message: t('website-url-invalid'),
@@ -70,7 +90,7 @@ const buildEditTenantSchema = (t: (key: string) => string) =>
 		billingEmail: z
 			.string()
 			.trim()
-			.max(320)
+			.max(320, { message: t('billing-email-too-long') })
 			.optional()
 			.refine((value) => !value || isValidEmailAddress(value), {
 				message: t('invalid-email-address'),
@@ -78,14 +98,18 @@ const buildEditTenantSchema = (t: (key: string) => string) =>
 		supportEmail: z
 			.string()
 			.trim()
-			.max(320)
+			.max(320, { message: t('support-email-too-long') })
 			.optional()
 			.refine((value) => !value || isValidEmailAddress(value), {
 				message: t('invalid-email-address'),
 			}),
 		defaultLocale: z.string().trim().optional(),
 		timezone: z.string().trim().optional(),
-		notes: z.string().trim().max(4000).optional(),
+		notes: z
+			.string()
+			.trim()
+			.max(4000, { message: t('notes-too-long') })
+			.optional(),
 	});
 
 type EditTenantFormValues = z.infer<ReturnType<typeof buildEditTenantSchema>>;
@@ -348,14 +372,7 @@ function StaffTenantEditRoute() {
 
 		try {
 			await updateTenant.mutateAsync(payload);
-			await Promise.all([
-				queryClient.invalidateQueries({
-					queryKey: ['staff', ...STAFF_TENANTS_QUERY_KEY],
-				}),
-				queryClient.invalidateQueries({
-					queryKey: ['staff', ...STAFF_TENANT_DETAILS_QUERY_KEY],
-				}),
-			]);
+			await invalidateStaffTenants(queryClient);
 			hasSavedRef.current = true;
 			void navigate({
 				to: '/staff/tenants/$tenantId',
@@ -575,7 +592,9 @@ function StaffTenantEditRoute() {
 									<div className="flex items-center justify-between py-2.5 text-[13px]">
 										<span className="text-muted-foreground">{t('status')}</span>
 										<StatusPill tone={statusPillTone(tenant.status)}>
-											{tenant.status ?? t('unknown')}
+											{tenant.status
+												? formatTenantStatusLabel(tenant.status, t)
+												: t('unknown')}
 										</StatusPill>
 									</div>
 									<div className="flex items-center justify-between py-2.5 text-[13px]">

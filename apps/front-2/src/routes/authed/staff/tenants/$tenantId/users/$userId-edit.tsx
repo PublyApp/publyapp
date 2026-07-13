@@ -7,7 +7,7 @@ import {
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -23,13 +23,13 @@ import {
 	SelectValue,
 } from '~/components/ui/select';
 import {
-	STAFF_TENANT_USER_DETAILS_QUERY_KEY,
-	STAFF_TENANT_USERS_QUERY_KEY,
+	invalidateStaffTenantUsers,
 	toStaffTenantUserDetails,
 	useStaffTenantUserDetailsQuery,
 	useUpdateStaffTenantUserMutation,
 } from '~/lib/query/staff-tenant-users';
 import {
+	invalidateStaffTenantDetails,
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
@@ -111,34 +111,42 @@ const normalizeAccountLevel = (
 	return value === 'Admin' ? 'Admin' : 'User';
 };
 
-const TenantUserEditLoading = () => (
-	<div
-		className="mx-auto flex min-h-[50vh] w-full max-w-3xl items-center justify-center px-4 py-12"
-		data-testid="staff-tenant-user-edit-loading"
-	>
-		<div className="flex items-center gap-3 text-sm text-muted-foreground">
-			<span
-				role="status"
-				aria-label="Loading"
-				className="size-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"
-			/>
-			<span>Loading tenant user…</span>
-		</div>
-	</div>
-);
+const TenantUserEditLoading = () => {
+	const { t } = useTranslation('common');
 
-const MissingTenantUserView = ({ error }: { error: unknown }) => (
-	<AppErrorView
-		icon={<IconSearchOff aria-hidden="true" className="size-7" />}
-		code="404 — Not Found"
-		title="Tenant user not found"
-		description={getFailureDescription(
-			error,
-			'The requested tenant user does not exist or is no longer available.',
-		)}
-		testId="staff-tenant-user-edit-not-found"
-	/>
-);
+	return (
+		<div
+			className="mx-auto flex min-h-[50vh] w-full max-w-3xl items-center justify-center px-4 py-12"
+			data-testid="staff-tenant-user-edit-loading"
+		>
+			<div className="flex items-center gap-3 text-sm text-muted-foreground">
+				<span
+					role="status"
+					aria-label={t('loading')}
+					className="size-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"
+				/>
+				<span>{t('loading-tenant-user')}</span>
+			</div>
+		</div>
+	);
+};
+
+const MissingTenantUserView = ({ error }: { error: unknown }) => {
+	const { t } = useTranslation('common');
+
+	return (
+		<AppErrorView
+			icon={<IconSearchOff aria-hidden="true" className="size-7" />}
+			code={t('error-404-code')}
+			title={t('tenant-user-not-found-title')}
+			description={getFailureDescription(
+				error,
+				t('tenant-user-not-found-description'),
+			)}
+			testId="staff-tenant-user-edit-not-found"
+		/>
+	);
+};
 
 const TenantUserEditError = ({
 	error,
@@ -147,6 +155,8 @@ const TenantUserEditError = ({
 	error: unknown;
 	onRetry: () => void;
 }) => {
+	const { t } = useTranslation('common');
+
 	if (
 		isProblemStatus(error, 404) ||
 		isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)
@@ -158,9 +168,9 @@ const TenantUserEditError = ({
 		return (
 			<AppErrorView
 				icon={<IconLock aria-hidden="true" className="size-7" />}
-				code="403 — Forbidden"
-				title="You don't have access"
-				description="Your account does not have permission to edit this tenant user."
+				code={t('error-403-code')}
+				title={t('no-access-title')}
+				description={t('tenant-user-edit-forbidden-description')}
 				testId="forbidden-view"
 			/>
 		);
@@ -169,9 +179,9 @@ const TenantUserEditError = ({
 	return (
 		<AppErrorView
 			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-			code="500 — Server Error"
-			title="Unable to load this tenant user"
-			description="There was a problem loading the tenant user details."
+			code={t('error-500-code')}
+			title={t('unable-to-load-tenant-user')}
+			description={t('tenant-user-load-error-description')}
 			testId="staff-tenant-user-edit-error"
 			actions={<TenantRetryActions onRetry={onRetry} />}
 		/>
@@ -221,18 +231,32 @@ function StaffTenantUserEditPage() {
 	const { errors, isSubmitting } = formState;
 	const tenant = toStaffTenantDetails(tenantQuery.data);
 
+	const userFormValues = useMemo<TenantUserEditValues | null>(
+		() =>
+			user === null
+				? null
+				: {
+						firstName: user.firstName ?? '',
+						lastName: user.lastName ?? '',
+						avatarUrl: user.avatarUrl ?? '',
+						accountLevel: normalizeAccountLevel(user.accountLevel),
+					},
+		[
+			user?.id,
+			user?.firstName,
+			user?.lastName,
+			user?.avatarUrl,
+			user?.accountLevel,
+		],
+	);
+
 	useEffect(() => {
-		if (!user) {
+		if (userFormValues === null) {
 			return;
 		}
 
-		reset({
-			firstName: user.firstName ?? '',
-			lastName: user.lastName ?? '',
-			avatarUrl: user.avatarUrl ?? '',
-			accountLevel: normalizeAccountLevel(user.accountLevel),
-		});
-	}, [reset, user]);
+		reset(userFormValues);
+	}, [reset, userFormValues]);
 
 	if (shouldLogout) {
 		return <LogoutRedirect />;
@@ -259,9 +283,9 @@ function StaffTenantUserEditPage() {
 		return (
 			<AppErrorView
 				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-				code="500 — Server Error"
-				title="Unable to load this tenant"
-				description="The tenant response was incomplete."
+				code={t('error-500-code')}
+				title={t('tenant-details-error-title')}
+				description={t('tenant-response-incomplete')}
 				testId="staff-tenant-details-error"
 				actions={
 					<TenantRetryActions onRetry={() => void tenantQuery.refetch()} />
@@ -291,9 +315,9 @@ function StaffTenantUserEditPage() {
 		return (
 			<AppErrorView
 				icon={<IconSearchOff aria-hidden="true" className="size-7" />}
-				code="404 — Not Found"
-				title="Tenant user not found"
-				description="The tenant user payload was empty."
+				code={t('error-404-code')}
+				title={t('tenant-user-not-found-title')}
+				description={t('tenant-user-payload-empty')}
 				testId="staff-tenant-user-edit-not-found"
 			/>
 		);
@@ -325,12 +349,8 @@ function StaffTenantUserEditPage() {
 			setServerError('');
 			await updateTenantUser.mutateAsync(payload);
 			await Promise.all([
-				queryClient.invalidateQueries({
-					queryKey: ['staff', ...STAFF_TENANT_USERS_QUERY_KEY],
-				}),
-				queryClient.invalidateQueries({
-					queryKey: ['staff', ...STAFF_TENANT_USER_DETAILS_QUERY_KEY],
-				}),
+				invalidateStaffTenantUsers(queryClient),
+				invalidateStaffTenantDetails(queryClient),
 			]);
 			void navigate({
 				to: '/staff/tenants/$tenantId/users/$userId',
@@ -361,14 +381,14 @@ function StaffTenantUserEditPage() {
 		<TenantDetailsPageShell
 			tenant={tenant}
 			activeSection="users"
-			summary="Edit tenant user identity fields."
+			summary={t('edit-tenant-user-summary')}
 			testId="staff-tenant-user-edit-page"
 		>
 			<div className="space-y-2">
 				<div className="flex items-center justify-between gap-2">
 					<Link
-						to={'/staff/tenants/$tenantId/users/$userId' as never}
-						params={{ tenantId, userId } as never}
+						to="/staff/tenants/$tenantId/users/$userId"
+						params={{ tenantId, userId }}
 						className="publy-back-link"
 					>
 						<IconArrowLeft aria-hidden="true" className="size-3" />
@@ -379,7 +399,7 @@ function StaffTenantUserEditPage() {
 					</h2>
 				</div>
 				<p className="text-sm text-muted-foreground">
-					Update this tenant user's identity fields.
+					{t('edit-tenant-user-description')}
 				</p>
 			</div>
 

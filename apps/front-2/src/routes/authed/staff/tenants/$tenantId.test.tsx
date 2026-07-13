@@ -79,6 +79,13 @@ const TRANSLATIONS: Record<string, string> = {
 	'since-date': 'Since {{date}}',
 	members: 'Members',
 	status: 'Status',
+	'status-active': 'Active',
+	'status-suspended': 'Suspended',
+	'status-pending': 'Pending',
+	'status-globally-suspended': 'Globally suspended',
+	'status-unknown': 'Unknown',
+	admin: 'Admin',
+	user: 'User',
 	created: 'Created',
 	updated: 'Updated',
 	'seats-left': '{{count}} seats left',
@@ -161,8 +168,13 @@ vi.mock('~/components/error-views/View403', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenants', () => ({
-	STAFF_TENANTS_QUERY_KEY: ['staff-tenants'],
 	STAFF_TENANT_DETAILS_QUERY_KEY: ['staff-tenants', 'detail'],
+	invalidateStaffTenants: (queryClient: {
+		invalidateQueries: (arg: unknown) => unknown;
+	}) =>
+		queryClient.invalidateQueries({
+			queryKey: ['staff', 'staff-tenants'],
+		}),
 	toStaffTenantDetails: mocks.toStaffTenantDetails,
 	useStaffTenantDetailsQuery: mocks.useStaffTenantDetailsQuery,
 	useSuspendStaffTenantMutation: mocks.useSuspendStaffTenantMutation,

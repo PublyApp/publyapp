@@ -17,7 +17,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -79,10 +79,19 @@ import { BULK_ACTION_MAX_COUNT } from '@org/shared-ts/lib/constants';
 
 import { InviteTenantUserDrawer } from './_invite-user-drawer';
 import {
+	formatTenantUserLevelLabel,
+	formatTenantUserStatusLabel,
 	TenantDetailsError,
 	TenantDetailsLoading,
 	TenantDetailsPageShell,
 	TenantRetryActions,
+	tenantUserLevelChipClassName,
+} from './_tenant-details-shell';
+
+export {
+	formatTenantUserLevelLabel,
+	formatTenantUserStatusLabel,
+	tenantUserLevelChipClassName,
 } from './_tenant-details-shell';
 
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
@@ -238,47 +247,6 @@ export const serializeTenantUsersListSearchParams = (
 	};
 };
 
-/** Backend row status is PascalCase (`Active`/`Suspended`/`GloballySuspended`);
- * the `t()` keys are the honest display labels for those three values only. */
-export const formatTenantUserStatusLabel = (
-	status: string | null,
-	t: (key: string) => string,
-): string => {
-	const normalized = status?.trim().toLowerCase() ?? '';
-	if (normalized === 'active') {
-		return t('status-active');
-	}
-	if (normalized === 'suspended') {
-		return t('status-suspended');
-	}
-	if (
-		normalized === 'globallysuspended' ||
-		normalized === 'globally_suspended'
-	) {
-		return t('status-globally-suspended');
-	}
-	return status ?? t('status-unknown');
-};
-
-export const tenantUserLevelChipClassName = (level: string | null): string =>
-	(level ?? '').trim().toLowerCase() === 'admin'
-		? 'publy-detail-chip publy-detail-chip--amber'
-		: 'publy-detail-chip publy-detail-chip--outline';
-
-export const formatTenantUserLevelLabel = (
-	level: string | null,
-	t: (key: string) => string,
-): string => {
-	const normalized = level?.trim().toLowerCase() ?? '';
-	if (normalized === 'admin') {
-		return t('admin');
-	}
-	if (normalized === 'user') {
-		return t('user');
-	}
-	return level ?? '—';
-};
-
 type TenantUserPendingAction = 'suspend' | 'reactivate' | 'remove' | null;
 
 const getNormalizedTenantUserStatus = (
@@ -338,7 +306,7 @@ const TenantUserRowActions = ({
 
 			setActionError(
 				getFailureMessage(toApiFailure(error), {
-					fallback: 'Unable to update this tenant user.',
+					fallback: t('unable-to-update-tenant-user'),
 				}),
 			);
 		} finally {
@@ -558,9 +526,6 @@ function StaffTenantUsersPage() {
 			search: serializeTenantUsersListSearchParams({
 				...search,
 				...next,
-				status: search.status,
-				level: search.level,
-				invite: search.invite,
 			}),
 			replace: true,
 		});
@@ -605,6 +570,11 @@ function StaffTenantUsersPage() {
 
 	const rows = toStaffTenantUserRows(usersQuery.data?.data);
 	const selection = useRowSelection(rows.map((row) => row.id));
+	const onUserSessionExpired = useCallback(() => setShouldLogout(true), []);
+	const columns = useMemo(
+		() => makeTenantUserColumns(tenantId, t, onUserSessionExpired),
+		[tenantId, t, onUserSessionExpired],
+	);
 
 	if (detailsQuery.isPending) {
 		return <TenantDetailsLoading />;
@@ -646,10 +616,6 @@ function StaffTenantUsersPage() {
 	if (shouldLogout) {
 		return <LogoutRedirect />;
 	}
-
-	const columns = makeTenantUserColumns(tenantId, t, () =>
-		setShouldLogout(true),
-	);
 
 	const setStatuses = (nextStatuses: KnownTenantUserStatus[]): void => {
 		void navigate({
@@ -762,6 +728,7 @@ function StaffTenantUsersPage() {
 				ariaLabel={t('tenant-users-table-aria-label')}
 				columns={columns}
 				rows={rows}
+				getRowLabel={(row) => row.displayName}
 				isPending={usersQuery.isPending}
 				isError={usersQuery.isError}
 				onRetry={() => void usersQuery.refetch()}

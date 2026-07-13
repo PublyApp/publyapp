@@ -30,8 +30,8 @@ import {
 	useStaffTenantUsersQuery,
 } from '~/lib/query/staff-tenant-users';
 import {
+	invalidateStaffTenants,
 	STAFF_TENANT_DETAILS_QUERY_KEY,
-	STAFF_TENANTS_QUERY_KEY,
 	toStaffTenantDetails,
 	useDeleteStaffTenantMutation,
 	useReactivateStaffTenantMutation,
@@ -48,6 +48,9 @@ import {
 
 import {
 	formatShortDate,
+	formatTenantStatusLabel,
+	formatTenantUserLevelLabel,
+	formatTenantUserStatusLabel,
 	getRelativeTimeParts,
 	TenantDetailsError,
 	TenantDetailsLoading,
@@ -223,7 +226,9 @@ const OrganizationCard = ({
 					label={t('status')}
 					value={
 						<StatusPill tone={statusPillTone(tenant.status)}>
-							{tenant.status ?? t('unknown')}
+							{tenant.status
+								? formatTenantStatusLabel(tenant.status, t)
+								: t('unknown')}
 						</StatusPill>
 					}
 				/>
@@ -308,9 +313,11 @@ const UsersPreviewCard = ({
 								{row.email || '—'}
 							</p>
 						</div>
-						<StatusPill tone="neutral">{row.level ?? '—'}</StatusPill>
+						<StatusPill tone="neutral">
+							{formatTenantUserLevelLabel(row.level, t)}
+						</StatusPill>
 						<StatusPill tone={statusPillTone(row.status)}>
-							{row.status ?? '—'}
+							{formatTenantUserStatusLabel(row.status, t)}
 						</StatusPill>
 					</div>
 				))}
@@ -486,14 +493,7 @@ function StaffTenantDetailsPage() {
 		suspendMutation.isPending || reactivateMutation.isPending;
 
 	const invalidateTenantQueries = async () => {
-		await Promise.all([
-			queryClient.invalidateQueries({
-				queryKey: ['staff', ...STAFF_TENANTS_QUERY_KEY],
-			}),
-			queryClient.invalidateQueries({
-				queryKey: ['staff', ...STAFF_TENANT_DETAILS_QUERY_KEY],
-			}),
-		]);
+		await invalidateStaffTenants(queryClient);
 	};
 
 	const handleLifecycleConfirm = async () => {
@@ -556,9 +556,7 @@ function StaffTenantDetailsPage() {
 		queryClient.removeQueries({
 			queryKey: ['staff', ...STAFF_TENANT_DETAILS_QUERY_KEY],
 		});
-		void queryClient.invalidateQueries({
-			queryKey: ['staff', ...STAFF_TENANTS_QUERY_KEY],
-		});
+		void invalidateStaffTenants(queryClient);
 		await navigate({ to: '/staff/tenants' });
 	};
 

@@ -31,7 +31,7 @@ import { statusPillTone } from '~/components/ui/status-tone';
 import { Switch } from '~/components/ui/switch';
 import { downloadFile } from '~/lib/download-file';
 import {
-	STAFF_TENANTS_QUERY_KEY,
+	invalidateStaffTenants,
 	useCreateStaffTenantMutation,
 } from '~/lib/query/staff-tenants';
 import { cn } from '~/lib/utils';
@@ -136,7 +136,10 @@ const buildCreateTenantSchema = (
 				.refine((value) => value.length === 0 || isValidTenantCode(value), {
 					message: t('workspace-slug-invalid'),
 				}),
-			maxUsers: z.coerce.number().int().min(1),
+			maxUsers: z.coerce
+				.number({ invalid_type_error: t('seats-required') })
+				.int()
+				.min(1, { message: t('seats-required') }),
 			owners: z
 				.array(
 					z.object({
@@ -146,7 +149,7 @@ const buildCreateTenantSchema = (
 							.email({ message: t('invalid-email-address') }),
 					}),
 				)
-				.min(1),
+				.min(1, { message: t('at-least-one-owner-required') }),
 			manualMembers: z.array(
 				z.object({
 					email: z
@@ -157,33 +160,45 @@ const buildCreateTenantSchema = (
 				}),
 			),
 			seedDefaultProfile: z.boolean(),
-			logoUrl: z.string().trim().max(2048),
-			legalName: z.string().trim().max(256),
-			description: z.string().trim().max(1024),
+			logoUrl: z
+				.string()
+				.trim()
+				.max(2048, { message: t('logo-url-too-long') }),
+			legalName: z
+				.string()
+				.trim()
+				.max(256, { message: t('legal-name-too-long') }),
+			description: z
+				.string()
+				.trim()
+				.max(1024, { message: t('description-too-long') }),
 			websiteUrl: z
 				.string()
 				.trim()
-				.max(2048)
+				.max(2048, { message: t('website-url-too-long') })
 				.refine((value) => !value || isAbsoluteHttpUrl(value), {
 					message: t('website-url-invalid'),
 				}),
 			billingEmail: z
 				.string()
 				.trim()
-				.max(320)
+				.max(320, { message: t('billing-email-too-long') })
 				.refine((value) => !value || isValidEmailAddress(value), {
 					message: t('invalid-email-address'),
 				}),
 			supportEmail: z
 				.string()
 				.trim()
-				.max(320)
+				.max(320, { message: t('support-email-too-long') })
 				.refine((value) => !value || isValidEmailAddress(value), {
 					message: t('invalid-email-address'),
 				}),
 			defaultLocale: z.string().trim(),
 			timezone: z.string().trim(),
-			notes: z.string().trim().max(4000),
+			notes: z
+				.string()
+				.trim()
+				.max(4000, { message: t('notes-too-long') }),
 		})
 		.superRefine((values, context) => {
 			const totalCount =
@@ -530,7 +545,8 @@ function StaffTenantCreateRoute() {
 		ownersRootError?.root?.message ?? ownersRootError?.message;
 
 	const canAddOwner =
-		ownerFields.length + parsedValidMembers.length < Math.max(1, maxUsers);
+		ownerFields.length + manualMemberFields.length + parsedValidMembers.length <
+		Math.max(1, maxUsers);
 	const canAddManualMember =
 		ownerFields.length + manualMemberFields.length + parsedValidMembers.length <
 		Math.max(1, maxUsers);
@@ -595,9 +611,7 @@ function StaffTenantCreateRoute() {
 
 			const tenantId = result?.id?.toString().trim();
 
-			await queryClient.invalidateQueries({
-				queryKey: ['staff', ...STAFF_TENANTS_QUERY_KEY],
-			});
+			await invalidateStaffTenants(queryClient);
 			setPendingCreateValues(null);
 			hasCreatedRef.current = true;
 
@@ -691,7 +705,7 @@ function StaffTenantCreateRoute() {
 							<Field.Text
 								name="name"
 								label={t('organization-name')}
-								placeholder="Acme Corporation"
+								placeholder={t('organization-name-placeholder')}
 								fullWidth
 								isDisabled={isFormLocked}
 							/>

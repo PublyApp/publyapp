@@ -77,6 +77,11 @@ const TRANSLATIONS: Record<string, string> = {
 	'bulk-action-max-count-exceeded':
 		'Reduce your selection to at most {{max}} items ({{count}} selected).',
 	'all-statuses': 'All statuses',
+	'select-row-named': 'Select {{name}}',
+	'select-all-rows': 'Select all rows',
+	'page-n': 'Page {{page}}',
+	'previous-page': 'Previous page',
+	'next-page': 'Next page',
 	'status-pending': 'Pending',
 	'status-active': 'Active',
 	'status-suspended': 'Suspended',
@@ -137,8 +142,12 @@ vi.mock('~/components/error-views/LogoutRedirect', () => ({
 vi.mock('~/lib/query/staff-tenants', () => ({
 	toStaffTenantRows: mocks.toStaffTenantRows,
 	useStaffTenantsQuery: mocks.useStaffTenantsQuery,
-	STAFF_TENANTS_QUERY_KEY: ['staff-tenants'],
-	STAFF_TENANT_DETAILS_QUERY_KEY: ['staff-tenants', 'detail'],
+	invalidateStaffTenants: (queryClient: {
+		invalidateQueries: (arg: unknown) => unknown;
+	}) =>
+		queryClient.invalidateQueries({
+			queryKey: ['staff', 'staff-tenants'],
+		}),
 	useSuspendStaffTenantMutation: mocks.useSuspendStaffTenantMutation,
 	useReactivateStaffTenantMutation: mocks.useReactivateStaffTenantMutation,
 	useDeleteStaffTenantMutation: mocks.useDeleteStaffTenantMutation,
@@ -323,6 +332,27 @@ describe('staff tenants route', () => {
 				replace: true,
 			}),
 		);
+	});
+
+	test('a debounced search commit does not revert a status filter chosen within the debounce window (F1)', async () => {
+		const renderResult = renderPage();
+
+		fireEvent.change(screen.getByTestId('staff-tenants-table-search'), {
+			target: { value: 'an' },
+		});
+
+		// Simulate choosing "Active" within the 300ms debounce window: the
+		// route re-renders with the new URL search state, same as a real
+		// navigation would, before the debounced commit fires.
+		mocks.search = { status: 'active' };
+		renderResult.rerender(<RouteComponent />);
+
+		await new Promise((resolve) => setTimeout(resolve, 350));
+
+		const lastCall = mocks.navigate.mock.calls.at(-1)?.[0] as {
+			search?: Record<string, unknown>;
+		};
+		expect(lastCall?.search).toMatchObject({ status: 'active', q: 'an' });
 	});
 
 	test('selecting Pending in the status filter navigates with status=pending', async () => {
@@ -633,13 +663,8 @@ describe('staff tenants route', () => {
 			}),
 		);
 		await waitFor(() =>
-			expect(mocks.invalidateQueries).toHaveBeenNthCalledWith(1, {
+			expect(mocks.invalidateQueries).toHaveBeenCalledWith({
 				queryKey: ['staff', 'staff-tenants'],
-			}),
-		);
-		await waitFor(() =>
-			expect(mocks.invalidateQueries).toHaveBeenNthCalledWith(2, {
-				queryKey: ['staff', 'staff-tenants', 'detail'],
 			}),
 		);
 	});
@@ -708,7 +733,7 @@ describe('staff tenants route', () => {
 			const { container } = renderPage();
 
 			expect(
-				screen.getByRole('checkbox', { name: 'Select row tenant-1' }),
+				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 			).toBeTruthy();
 			expect(container.querySelector('.publy-avatar-initials')).toBeTruthy();
 		});
@@ -736,7 +761,7 @@ describe('staff tenants route', () => {
 			renderPage();
 
 			fireEvent.click(
-				screen.getByRole('checkbox', { name: 'Select row tenant-1' }),
+				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 			);
 
 			expect(await screen.findByText('1 selected')).toBeTruthy();
@@ -750,7 +775,7 @@ describe('staff tenants route', () => {
 			renderPage();
 
 			fireEvent.click(
-				screen.getByRole('checkbox', { name: 'Select row tenant-1' }),
+				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 			);
 
 			expect(screen.getByTestId('staff-tenants-table-toolbar')).toBeTruthy();
@@ -786,7 +811,7 @@ describe('staff tenants route', () => {
 			renderPage();
 
 			fireEvent.click(
-				screen.getByRole('checkbox', { name: 'Select row tenant-1' }),
+				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 			);
 			fireEvent.click(
 				await screen.findByRole('button', { name: 'More actions' }),
@@ -813,7 +838,7 @@ describe('staff tenants route', () => {
 			renderPage();
 
 			fireEvent.click(
-				screen.getByRole('checkbox', { name: 'Select row tenant-1' }),
+				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 			);
 			fireEvent.click(
 				await screen.findByRole('button', { name: 'More actions' }),
@@ -850,7 +875,7 @@ describe('staff tenants route', () => {
 			});
 			expect(
 				screen
-					.getByRole('checkbox', { name: 'Select row tenant-1' })
+					.getByRole('checkbox', { name: 'Select Acme Corporation' })
 					.getAttribute('aria-checked'),
 			).toBe('false');
 		});
@@ -864,7 +889,7 @@ describe('staff tenants route', () => {
 			renderPage();
 
 			fireEvent.click(
-				screen.getByRole('checkbox', { name: 'Select row tenant-1' }),
+				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 			);
 			fireEvent.click(
 				await screen.findByRole('button', { name: 'More actions' }),
@@ -901,7 +926,7 @@ describe('staff tenants route', () => {
 			renderPage();
 
 			fireEvent.click(
-				screen.getByRole('checkbox', { name: 'Select row tenant-1' }),
+				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 			);
 			fireEvent.click(
 				await screen.findByRole('button', { name: 'More actions' }),
@@ -956,10 +981,10 @@ describe('staff tenants route', () => {
 			renderPage();
 
 			fireEvent.click(
-				screen.getByRole('checkbox', { name: 'Select row tenant-1' }),
+				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 			);
 			fireEvent.click(
-				screen.getByRole('checkbox', { name: 'Select row tenant-2' }),
+				screen.getByRole('checkbox', { name: 'Select Globex Corporation' }),
 			);
 			fireEvent.click(
 				await screen.findByRole('button', { name: 'More actions' }),
@@ -994,10 +1019,10 @@ describe('staff tenants route', () => {
 			renderPage();
 
 			fireEvent.click(
-				screen.getByRole('checkbox', { name: 'Select row tenant-1' }),
+				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 			);
 			fireEvent.click(
-				screen.getByRole('checkbox', { name: 'Select row tenant-2' }),
+				screen.getByRole('checkbox', { name: 'Select Globex Corporation' }),
 			);
 			fireEvent.click(
 				await screen.findByRole('button', { name: 'More actions' }),

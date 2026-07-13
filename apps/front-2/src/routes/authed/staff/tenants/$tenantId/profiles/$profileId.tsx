@@ -1,23 +1,22 @@
 import {
 	IconAlertCircle,
 	IconArrowLeft,
-	IconLock,
 	IconSearchOff,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
+import { View403 } from '~/components/error-views/View403';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
-	STAFF_TENANT_PROFILE_DETAILS_QUERY_KEY,
-	STAFF_TENANT_PROFILE_PERMISSION_KEYS_QUERY_KEY,
-	STAFF_TENANT_PROFILES_QUERY_KEY,
 	buildStaffTenantPermissionCatalogOptions,
+	invalidateStaffTenantProfiles,
 	useAssignStaffTenantProfilePermissionMutation,
 	toStaffTenantProfileDetails,
 	toStaffTenantProfilePermissionKeys,
@@ -28,6 +27,7 @@ import {
 	useUnassignStaffTenantProfilePermissionMutation,
 } from '~/lib/query/staff-tenant-profiles';
 import {
+	invalidateStaffTenantDetails,
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
@@ -74,38 +74,50 @@ const getFailureDescription = (error: unknown, fallback: string): string => {
 	return fallback;
 };
 
-const ProfileDetailsLoading = () => (
-	<div
-		className="mx-auto flex min-h-[50vh] w-full max-w-5xl items-center justify-center px-4 py-12"
-		data-testid="staff-tenant-profile-details-loading"
-	>
-		<div className="flex items-center gap-3 text-sm text-muted-foreground">
-			<LoadingSpinner />
-			<span>Loading tenant profile…</span>
+const ProfileDetailsLoading = () => {
+	const { t } = useTranslation('common');
+
+	return (
+		<div
+			className="mx-auto flex min-h-[50vh] w-full max-w-5xl items-center justify-center px-4 py-12"
+			data-testid="staff-tenant-profile-details-loading"
+		>
+			<div className="flex items-center gap-3 text-sm text-muted-foreground">
+				<LoadingSpinner />
+				<span>{t('loading-tenant-profile')}</span>
+			</div>
 		</div>
-	</div>
-);
+	);
+};
 
-const LoadingSpinner = () => (
-	<span
-		role="status"
-		aria-label="Loading"
-		className="size-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"
-	/>
-);
+const LoadingSpinner = () => {
+	const { t } = useTranslation('common');
 
-const MissingTenantProfileView = ({ error }: { error: unknown }) => (
-	<AppErrorView
-		icon={<IconSearchOff aria-hidden="true" className="size-7" />}
-		code="404 — Not Found"
-		title="Tenant profile not found"
-		description={getFailureDescription(
-			error,
-			'The requested tenant profile does not exist or is no longer available.',
-		)}
-		testId="staff-tenant-profile-details-not-found"
-	/>
-);
+	return (
+		<span
+			role="status"
+			aria-label={t('loading')}
+			className="size-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"
+		/>
+	);
+};
+
+const MissingTenantProfileView = ({ error }: { error: unknown }) => {
+	const { t } = useTranslation('common');
+
+	return (
+		<AppErrorView
+			icon={<IconSearchOff aria-hidden="true" className="size-7" />}
+			code={t('error-404-code')}
+			title={t('tenant-profile-not-found-title')}
+			description={getFailureDescription(
+				error,
+				t('tenant-profile-not-found-description'),
+			)}
+			testId="staff-tenant-profile-details-not-found"
+		/>
+	);
+};
 
 const TenantProfileDetailsError = ({
 	error,
@@ -114,6 +126,8 @@ const TenantProfileDetailsError = ({
 	error: unknown;
 	onRetry: () => void;
 }) => {
+	const { t } = useTranslation('common');
+
 	if (
 		isProblemStatus(error, 404) ||
 		isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)
@@ -122,23 +136,15 @@ const TenantProfileDetailsError = ({
 	}
 
 	if (isProblemStatus(error, 403)) {
-		return (
-			<AppErrorView
-				icon={<IconLock aria-hidden="true" className="size-7" />}
-				code="403 — Forbidden"
-				title="You don't have access"
-				description="Your account does not have permission to view this tenant profile."
-				testId="forbidden-view"
-			/>
-		);
+		return <View403 />;
 	}
 
 	return (
 		<AppErrorView
 			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-			code="500 — Server Error"
-			title="Unable to load this tenant profile"
-			description="There was a problem loading the profile details."
+			code={t('error-500-code')}
+			title={t('unable-to-load-tenant-profile')}
+			description={t('tenant-profile-load-error-description')}
 			testId="staff-tenant-profile-details-error"
 			actions={<TenantRetryActions onRetry={onRetry} />}
 		/>
@@ -172,6 +178,7 @@ function StaffTenantProfileDetailsPage() {
 	const { tenantId, profileId } = Route.useParams();
 	const navigate = Route.useNavigate();
 	const search = Route.useSearch();
+	const { t } = useTranslation('common');
 	const queryClient = useQueryClient();
 	const [actionError, setActionError] = useState('');
 	const [permissionActionError, setPermissionActionError] = useState('');
@@ -218,6 +225,23 @@ function StaffTenantProfileDetailsPage() {
 	const permissionKeys = toStaffTenantProfilePermissionKeys(
 		permissionKeysQuery.data,
 	);
+	// Stable identity across refetch re-renders — the drawer resets its form
+	// whenever this prop's reference changes, so a new object literal here
+	// would silently discard unsaved edits (see _profile-form-drawer.tsx).
+	const permissionKeysCacheKey = permissionKeys.join(',');
+	const profileFormDrawerProfile = useMemo(
+		() =>
+			profile === null
+				? undefined
+				: {
+						id: profile.id,
+						name: profile.name,
+						description: profile.description,
+						permissionKeys,
+					},
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- permissionKeysCacheKey is the stable key, not the array identity
+		[profile?.id, profile?.name, profile?.description, permissionKeysCacheKey],
+	);
 	const permissionCatalogOptions = buildStaffTenantPermissionCatalogOptions(
 		permissionCatalogQuery.data?.additionalData,
 	);
@@ -247,15 +271,8 @@ function StaffTenantProfileDetailsPage() {
 	const isPermissionBusy = busyPermissionKey.length > 0;
 	const invalidatePermissionQueries = () =>
 		Promise.all([
-			queryClient.invalidateQueries({
-				queryKey: STAFF_TENANT_PROFILES_QUERY_KEY,
-			}),
-			queryClient.invalidateQueries({
-				queryKey: STAFF_TENANT_PROFILE_DETAILS_QUERY_KEY,
-			}),
-			queryClient.invalidateQueries({
-				queryKey: STAFF_TENANT_PROFILE_PERMISSION_KEYS_QUERY_KEY,
-			}),
+			invalidateStaffTenantProfiles(queryClient),
+			invalidateStaffTenantDetails(queryClient),
 		]);
 
 	if (shouldRedirectToLogout) {
@@ -284,9 +301,9 @@ function StaffTenantProfileDetailsPage() {
 		return (
 			<AppErrorView
 				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-				code="500 — Server Error"
-				title="Unable to load this tenant"
-				description="The tenant response was incomplete."
+				code={t('error-500-code')}
+				title={t('tenant-details-error-title')}
+				description={t('tenant-response-incomplete')}
 				testId="staff-tenant-details-error"
 				actions={
 					<TenantRetryActions onRetry={() => void tenantQuery.refetch()} />
@@ -331,9 +348,9 @@ function StaffTenantProfileDetailsPage() {
 		return (
 			<AppErrorView
 				icon={<IconSearchOff aria-hidden="true" className="size-7" />}
-				code="404 — Not Found"
-				title="Tenant profile not found"
-				description="The profile payload was empty."
+				code={t('error-404-code')}
+				title={t('tenant-profile-not-found-title')}
+				description={t('tenant-profile-payload-empty')}
 				testId="staff-tenant-profile-details-not-found"
 			/>
 		);
@@ -358,7 +375,7 @@ function StaffTenantProfileDetailsPage() {
 
 			setPermissionActionError(
 				getFailureMessage(toApiFailure(error), {
-					fallback: 'Unable to update this tenant profile permission.',
+					fallback: t('unable-to-update-tenant-profile-permission'),
 				}),
 			);
 		} finally {
@@ -384,7 +401,7 @@ function StaffTenantProfileDetailsPage() {
 
 			setPermissionActionError(
 				getFailureMessage(toApiFailure(error), {
-					fallback: 'Unable to update this tenant profile permission.',
+					fallback: t('unable-to-update-tenant-profile-permission'),
 				}),
 			);
 		} finally {
@@ -413,7 +430,7 @@ function StaffTenantProfileDetailsPage() {
 
 			setActionError(
 				getFailureMessage(toApiFailure(error), {
-					fallback: 'Unable to delete this tenant profile.',
+					fallback: t('unable-to-delete-tenant-profile'),
 				}),
 			);
 		} finally {
@@ -430,12 +447,12 @@ function StaffTenantProfileDetailsPage() {
 			<div className="space-y-6">
 				<div className="space-y-4">
 					<Link
-						to={'/staff/tenants/$tenantId/profiles' as never}
-						params={{ tenantId } as never}
+						to="/staff/tenants/$tenantId/profiles"
+						params={{ tenantId }}
 						className="publy-back-link"
 					>
 						<IconArrowLeft aria-hidden="true" className="size-3" />
-						Back to profiles
+						{t('back-to-profiles')}
 					</Link>
 
 					<div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -445,17 +462,17 @@ function StaffTenantProfileDetailsPage() {
 									{profile.name}
 								</h2>
 								{profile.isDefault ? (
-									<Badge variant="secondary">Default</Badge>
+									<Badge variant="secondary">{t('default')}</Badge>
 								) : null}
 							</div>
 							<p className="max-w-3xl text-sm text-muted-foreground">
-								{profile.description ?? 'No description provided.'}
+								{profile.description ?? t('no-description-provided')}
 							</p>
 						</div>
 
 						<div className="flex w-full max-w-xs flex-col gap-3">
 							<DetailItem
-								label="Assigned users"
+								label={t('assigned-users')}
 								value={String(profile.userAccountCount)}
 							/>
 							<Button
@@ -463,11 +480,11 @@ function StaffTenantProfileDetailsPage() {
 								variant="outline"
 								onClick={() => setEditDrawerOpen(true)}
 							>
-								Edit profile
+								{t('edit-profile')}
 							</Button>
 							{profile.isDefault ? (
 								<div className="rounded-large border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
-									Default profiles cannot be deleted.
+									{t('default-profile-delete-disabled')}
 								</div>
 							) : (
 								<Button
@@ -476,7 +493,7 @@ function StaffTenantProfileDetailsPage() {
 									onClick={() => setPendingDelete(true)}
 									disabled={deleteProfile.isPending}
 								>
-									Delete profile
+									{t('delete-profile')}
 								</Button>
 							)}
 							{actionError ? (
@@ -493,9 +510,9 @@ function StaffTenantProfileDetailsPage() {
 
 				<ConfirmDialog
 					isOpen={pendingDelete}
-					title="Delete tenant profile"
-					description="This will permanently delete this tenant profile. Users assigned to this profile may be affected and the action cannot be undone."
-					confirmLabel="Delete"
+					title={t('delete-tenant-profile-confirm-title')}
+					description={t('confirm-delete-tenant-profile-description')}
+					confirmLabel={t('delete')}
 					isPending={deleteProfile.isPending}
 					onConfirm={() => {
 						void handleDelete();
@@ -507,29 +524,29 @@ function StaffTenantProfileDetailsPage() {
 					<Card className="space-y-4 p-5">
 						<div className="space-y-1">
 							<p className="text-lg font-semibold text-foreground">
-								Profile details
+								{t('profile-details')}
 							</p>
 							<p className="text-sm text-muted-foreground">
-								Core information for this tenant profile.
+								{t('tenant-profile-details-description')}
 							</p>
 						</div>
 
 						<div className="grid gap-4 md:grid-cols-2">
 							<div className="md:col-span-2">
-								<DetailItem label="Name" value={profile.name} />
+								<DetailItem label={t('name')} value={profile.name} />
 							</div>
 							<div className="md:col-span-2">
 								<DetailItem
-									label="Description"
-									value={profile.description ?? 'No description provided.'}
+									label={t('description')}
+									value={profile.description ?? t('no-description-provided')}
 								/>
 							</div>
 							<DetailItem
-								label="Default profile"
-								value={profile.isDefault ? 'Yes' : 'No'}
+								label={t('default-profile')}
+								value={profile.isDefault ? t('yes') : t('no')}
 							/>
 							<DetailItem
-								label="Assigned permission keys"
+								label={t('assigned-permission-keys')}
 								value={String(permissionKeys.length)}
 							/>
 						</div>
@@ -538,10 +555,10 @@ function StaffTenantProfileDetailsPage() {
 					<Card className="space-y-4 p-5">
 						<div className="space-y-1">
 							<p className="text-lg font-semibold text-foreground">
-								Permission keys
+								{t('permission-keys')}
 							</p>
 							<p className="text-sm text-muted-foreground">
-								Manage assigned and available permission keys for this profile.
+								{t('manage-permission-keys-description')}
 							</p>
 						</div>
 
@@ -550,7 +567,7 @@ function StaffTenantProfileDetailsPage() {
 								<div className="rounded-large border border-dashed border-divider px-4 py-6 text-sm text-muted-foreground">
 									<div className="flex items-center gap-2">
 										<LoadingSpinner />
-										<span>Loading available permissions…</span>
+										<span>{t('loading-available-permissions')}</span>
 									</div>
 								</div>
 							) : null}
@@ -561,7 +578,7 @@ function StaffTenantProfileDetailsPage() {
 										{getFailureMessage(
 											toApiFailure(permissionCatalogQuery.error),
 											{
-												fallback: 'Unable to load tenant permission catalog.',
+												fallback: t('tenant-permission-catalog-load-failed'),
 											},
 										)}
 									</p>
@@ -574,14 +591,14 @@ function StaffTenantProfileDetailsPage() {
 										}}
 										className="mt-3"
 									>
-										Retry
+										{t('retry')}
 									</Button>
 								</div>
 							) : null}
 
 							<section className="space-y-3">
 								<div className="flex items-center justify-between">
-									<p className="font-medium text-foreground">Assigned</p>
+									<p className="font-medium text-foreground">{t('assigned')}</p>
 									<span className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">
 										{assignedPermissionEntries.length}
 									</span>
@@ -589,7 +606,7 @@ function StaffTenantProfileDetailsPage() {
 
 								{assignedPermissionEntries.length === 0 ? (
 									<div className="rounded-large border border-dashed border-divider px-4 py-3 text-sm text-muted-foreground">
-										No permissions are assigned to this profile.
+										{t('no-permissions-assigned-to-profile')}
 									</div>
 								) : (
 									<ul className="space-y-2">
@@ -621,7 +638,7 @@ function StaffTenantProfileDetailsPage() {
 															void handleUnassignPermission(permission.key);
 														}}
 													>
-														Unassign {permission.key}
+														{t('unassign')} {permission.key}
 													</Button>
 												</div>
 											</li>
@@ -633,7 +650,9 @@ function StaffTenantProfileDetailsPage() {
 							{permissionCatalogQuery.isPending ? null : (
 								<section className="space-y-3">
 									<div className="flex items-center justify-between">
-										<p className="font-medium text-foreground">Available</p>
+										<p className="font-medium text-foreground">
+											{t('available')}
+										</p>
 										<span className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">
 											{availablePermissionEntries.length}
 										</span>
@@ -642,8 +661,8 @@ function StaffTenantProfileDetailsPage() {
 									{availablePermissionEntries.length === 0 ? (
 										<div className="rounded-large border border-dashed border-divider px-4 py-3 text-sm text-muted-foreground">
 											{assignedPermissionEntries.length === 0
-												? 'No permission keys are available.'
-												: 'No additional permission keys are available to assign.'}
+												? t('no-permissions-available')
+												: t('no-additional-permission-keys-available')}
 										</div>
 									) : (
 										<ul className="space-y-2">
@@ -675,7 +694,7 @@ function StaffTenantProfileDetailsPage() {
 																void handleAssignPermission(permission.key);
 															}}
 														>
-															Assign {permission.key}
+															{t('assign')} {permission.key}
 														</Button>
 													</div>
 												</li>
@@ -699,12 +718,7 @@ function StaffTenantProfileDetailsPage() {
 				tenantId={tenantId}
 				mode="edit"
 				isOpen={isEditDrawerOpen}
-				profile={{
-					id: profile.id,
-					name: profile.name,
-					description: profile.description,
-					permissionKeys,
-				}}
+				profile={profileFormDrawerProfile}
 				onOpenChange={setEditDrawerOpen}
 				onSessionExpired={() => setShouldRedirectToLogout(true)}
 				onSaved={() => setEditDrawerOpen(false)}

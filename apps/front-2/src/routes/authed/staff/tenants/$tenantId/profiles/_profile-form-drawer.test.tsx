@@ -40,7 +40,13 @@ vi.mock('react-i18next', () => ({
 				'edit-profile': 'Edit profile',
 				'profile-form-drawer-description': 'Configure this profile.',
 				'profile-name': 'Profile name',
+				'profile-name-placeholder': 'Approvers',
+				'profile-name-required': 'Profile name is required.',
+				'profile-name-too-long': 'Profile name is too long.',
 				description: 'Description',
+				'profile-description-placeholder':
+					'Describe the responsibilities for this profile',
+				'profile-description-too-long': 'Description is too long.',
 				'loading-permissions': 'Loading permissions…',
 				'tenant-permission-catalog-load-failed': 'Unable to load permissions.',
 				'no-permissions-available': 'No permission keys are available.',
@@ -48,10 +54,13 @@ vi.mock('react-i18next', () => ({
 				'create-profile': 'Create profile',
 				'save-changes': 'Save changes',
 				'profile-save-failed': 'Unable to save this tenant profile.',
+				'tenant-profile-permission-update-partial-success':
+					'Updated {{succeeded}} permission(s), {{failed}} failed.',
 			};
 
 			return labels[key] ?? key;
 		},
+		i18n: { language: 'en' },
 	}),
 }));
 
@@ -307,7 +316,7 @@ describe('ProfileFormDrawer', () => {
 			),
 		);
 		await waitFor(() => expect(onSaved).toHaveBeenCalledWith('profile-1'));
-		expect(mocks.invalidateQueries).toHaveBeenCalledTimes(3);
+		expect(mocks.invalidateQueries).toHaveBeenCalledTimes(1);
 	});
 
 	test('blocks submission when the profile name is empty (name.min(1))', async () => {
@@ -379,6 +388,88 @@ describe('ProfileFormDrawer', () => {
 			}),
 		);
 		await waitFor(() => expect(onSaved).toHaveBeenCalledWith('profile-1'));
+	});
+
+	test('keeps typed edits when the parent re-renders with a fresh profile object while open (F3)', () => {
+		const { rerender } = render(
+			<ProfileFormDrawer
+				tenantId="tenant-1"
+				mode="edit"
+				isOpen
+				profile={{
+					id: 'profile-1',
+					name: 'Approvers',
+					description: 'Approves things',
+					permissionKeys: ['users.read'],
+				}}
+				onOpenChange={vi.fn()}
+				onSaved={vi.fn()}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		fireEvent.change(screen.getByLabelText('Profile name'), {
+			target: { value: 'Unsaved edit' },
+		});
+		expect(screen.getByLabelText('Profile name')).toHaveProperty(
+			'value',
+			'Unsaved edit',
+		);
+
+		// Simulate a background refetch: same profile identity, new object reference.
+		rerender(
+			<ProfileFormDrawer
+				tenantId="tenant-1"
+				mode="edit"
+				isOpen
+				profile={{
+					id: 'profile-1',
+					name: 'Approvers',
+					description: 'Approves things',
+					permissionKeys: ['users.read'],
+				}}
+				onOpenChange={vi.fn()}
+				onSaved={vi.fn()}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		expect(screen.getByLabelText('Profile name')).toHaveProperty(
+			'value',
+			'Unsaved edit',
+		);
+	});
+
+	test('reports a partial-success count and still invalidates when a permission mutation fails (F11)', async () => {
+		mocks.updateProfileMutation.mockResolvedValue(undefined);
+		mocks.unassignPermissionMutation.mockRejectedValueOnce(new Error('boom'));
+		const onSaved = vi.fn();
+
+		render(
+			<ProfileFormDrawer
+				tenantId="tenant-1"
+				mode="edit"
+				isOpen
+				profile={{
+					id: 'profile-1',
+					name: 'Approvers',
+					description: 'Approves things',
+					permissionKeys: ['users.read'],
+				}}
+				onOpenChange={vi.fn()}
+				onSaved={onSaved}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		fireEvent.click(screen.getByLabelText('Read users'));
+		fireEvent.click(screen.getByLabelText('Publish posts'));
+		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+		await waitFor(() =>
+			expect(mocks.invalidateQueries).toHaveBeenCalledTimes(1),
+		);
+		expect(onSaved).not.toHaveBeenCalled();
 	});
 
 	test('redirects to logout when saving should end the session', async () => {

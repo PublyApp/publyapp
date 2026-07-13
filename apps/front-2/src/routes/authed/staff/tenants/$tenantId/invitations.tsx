@@ -11,7 +11,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -52,7 +52,7 @@ import {
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 import {
-	formatInvitationStatusLabel,
+	type InvitationDisplayStatus,
 	type InvitationListSearchParamInput,
 	type InvitationListSearchParams,
 	type KnownInvitationStatus,
@@ -91,6 +91,17 @@ const getFeedbackClassName = (tone: ActionFeedback['tone']): string =>
 	tone === 'success'
 		? 'border-success/20 bg-success/10 text-success'
 		: 'border-destructive/20 bg-destructive/10 text-destructive';
+
+/** `list-helpers.ts`'s own `formatInvitationStatusLabel` capitalizes the raw
+ * token instead of translating it; its `getInvitationStatusLabelKey` points
+ * at `invitation-status-*` keys that don't exist in the locale bundle. Both
+ * are shared with the staff invitations list (owned by a different slice),
+ * so this route resolves the label locally against the real `pending` /
+ * `accepted` / `expired` / `revoked` / `status-unknown` keys instead. */
+const formatTenantInvitationStatusLabel = (
+	status: InvitationDisplayStatus,
+	t: (key: string) => string,
+): string => (status === 'unknown' ? t('status-unknown') : t(status));
 
 /** Honest "amber emphasis" for a near expiry — computed from the real
  * `expiresAt` value, never a fabricated "Expiring" status. */
@@ -207,7 +218,7 @@ export const createColumns = ({
 			const status = normalizeInvitationStatus(row.original.status);
 			return (
 				<StatusPill tone={statusPillTone(status)}>
-					{formatInvitationStatusLabel(status)}
+					{formatTenantInvitationStatusLabel(status, t)}
 				</StatusPill>
 			);
 		},
@@ -235,7 +246,7 @@ export const createColumns = ({
 				</DataTableRowActions>
 			) : (
 				<span
-					aria-label="No actions available"
+					aria-label={t('no-actions-available')}
 					className="flex justify-center text-muted-foreground"
 				>
 					—
@@ -275,7 +286,6 @@ function StaffTenantInvitationsPage() {
 			search: serializeInvitationListSearchParams({
 				...search,
 				...next,
-				status: search.status,
 			}),
 			replace: true,
 		});
@@ -334,7 +344,7 @@ function StaffTenantInvitationsPage() {
 				setFeedback({
 					tone: 'error',
 					message: getFailureMessage(toApiFailure(error), {
-						fallback: 'Unable to revoke the invitation.',
+						fallback: t('unable-to-revoke-invitation'),
 					}),
 				});
 			} finally {
@@ -348,14 +358,16 @@ function StaffTenantInvitationsPage() {
 		setPendingRevokeRowId(row.id);
 	}, []);
 
-	const columns = createColumns({
-		locale: i18n.language,
-		t,
-		isRevokePending: revokeInvitation.isPending,
-		onRevoke: (row) => {
-			promptRevoke(row);
-		},
-	});
+	const columns = useMemo(
+		() =>
+			createColumns({
+				locale: i18n.language,
+				t,
+				isRevokePending: revokeInvitation.isPending,
+				onRevoke: promptRevoke,
+			}),
+		[i18n.language, t, revokeInvitation.isPending, promptRevoke],
+	);
 
 	if (detailsQuery.isPending) {
 		return <TenantDetailsLoading />;
@@ -426,7 +438,9 @@ function StaffTenantInvitationsPage() {
 	const statusFilterLabel =
 		selectedStatuses.length === 0
 			? t('all-statuses')
-			: selectedStatuses.map(formatInvitationStatusLabel).join(', ');
+			: selectedStatuses
+					.map((status) => formatTenantInvitationStatusLabel(status, t))
+					.join(', ');
 
 	return (
 		<TenantDetailsPageShell
@@ -549,6 +563,13 @@ function StaffTenantInvitationsPage() {
 							<IconChevronDown aria-hidden="true" className="size-3" />
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end" sideOffset={6}>
+							<DropdownMenuCheckboxItem
+								checked={selectedStatuses.length === 0}
+								closeOnClick
+								onCheckedChange={() => setStatuses([])}
+							>
+								{t('all-statuses')}
+							</DropdownMenuCheckboxItem>
 							{KNOWN_INVITATION_STATUSES.map((status) => (
 								<DropdownMenuCheckboxItem
 									key={status}
@@ -557,7 +578,7 @@ function StaffTenantInvitationsPage() {
 									showCheckbox
 									onCheckedChange={() => toggleStatus(status)}
 								>
-									{formatInvitationStatusLabel(status)}
+									{formatTenantInvitationStatusLabel(status, t)}
 								</DropdownMenuCheckboxItem>
 							))}
 							<DropdownMenuSeparator />

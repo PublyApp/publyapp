@@ -99,6 +99,11 @@ const TRANSLATIONS: Record<string, string> = {
 	'staff-revoke': 'Revoke',
 	'revoke-invitation-success': 'Invitation revoked.',
 	'all-statuses': 'All statuses',
+	pending: 'Pending',
+	accepted: 'Accepted',
+	expired: 'Expired',
+	revoked: 'Revoked',
+	'status-unknown': 'Unknown',
 	clear: 'Clear',
 	'search-invitations': 'Search invitations',
 	'tenant-invitations-empty-title': 'No pending invitations',
@@ -454,6 +459,29 @@ describe('staff tenant invitations route', () => {
 		await waitFor(() =>
 			expect(screen.getByTestId('logout-redirect')).toBeTruthy(),
 		);
+	});
+
+	test('a debounced search commit does not revert a status filter chosen within the debounce window (F1)', async () => {
+		const Component = getRouteComponent();
+		const renderResult = render(<Component />);
+
+		fireEvent.change(
+			screen.getByTestId('staff-tenant-invitations-table-search'),
+			{ target: { value: 'an' } },
+		);
+
+		// Simulate choosing a status filter within the 300ms debounce window:
+		// the route re-renders with the new URL search state, same as a real
+		// navigation would, before the debounced commit fires.
+		mocks.search = { status: 'pending' };
+		renderResult.rerender(<Component />);
+
+		await new Promise((resolve) => setTimeout(resolve, 350));
+
+		const lastCall = mocks.navigate.mock.calls.at(-1)?.[0] as {
+			search?: Record<string, unknown>;
+		};
+		expect(lastCall?.search).toMatchObject({ status: 'pending', q: 'an' });
 	});
 
 	test('renders the no-match state when search is active and no rows match', () => {

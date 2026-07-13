@@ -11,7 +11,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
@@ -39,8 +39,7 @@ import { InitialsAvatar } from '~/components/ui/initials-avatar';
 import { PageHeader, StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import {
-	STAFF_TENANT_DETAILS_QUERY_KEY,
-	STAFF_TENANTS_QUERY_KEY,
+	invalidateStaffTenants,
 	type StaffTenantRow,
 	toStaffTenantRows,
 	useBulkDeleteStaffTenantsMutation,
@@ -68,6 +67,7 @@ import {
 	type TenantListSearchParams,
 	type TenantStatusFilter,
 } from './tenants-list-helpers';
+import { formatTenantStatusLabel } from './tenants/$tenantId/_tenant-details-shell';
 
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
@@ -88,25 +88,6 @@ const formatTenantStatusFilterLabel = (
 		return t('status-suspended');
 	}
 	return t('all-statuses');
-};
-
-/** Formats the raw backend status (e.g. `"Active"`) for display — the row
- * path must not render the unlocalized backend string directly. */
-const formatTenantStatusLabel = (
-	status: string,
-	t: (key: string) => string,
-): string => {
-	const normalized = status.trim().toLowerCase();
-	if (normalized === 'active') {
-		return t('status-active');
-	}
-	if (normalized === 'suspended') {
-		return t('status-suspended');
-	}
-	if (normalized === 'pending') {
-		return t('status-pending');
-	}
-	return status;
 };
 
 const TenantStatusFilterMenu = ({
@@ -230,7 +211,7 @@ const buildTenantColumns = (
 		id: 'actions',
 		// Visually chromeless per the handoff, but the columnheader needs an
 		// accessible name (axe empty-table-header, parity contract).
-		header: () => <span className="sr-only">Actions</span>,
+		header: () => <span className="sr-only">{t('actions')}</span>,
 		enableSorting: false,
 		meta: { width: '40px', align: 'center' },
 		cell: ({ row }) => (
@@ -262,8 +243,8 @@ function StaffTenantsPage() {
 	const onSearchChange = (next: TenantListSearchParams): void => {
 		void navigate({
 			search: serializeTenantListSearchParams({
+				...search,
 				...next,
-				status: search.status,
 			}),
 			replace: true,
 		});
@@ -293,6 +274,11 @@ function StaffTenantsPage() {
 	});
 	const rows = toStaffTenantRows(query.data?.data);
 	const selection = useRowSelection(rows.map((row) => row.id));
+	const onSessionExpired = useCallback(() => setShouldLogout(true), []);
+	const columns = useMemo(
+		() => buildTenantColumns(onSessionExpired, t),
+		[onSessionExpired, t],
+	);
 
 	if (query.isError && shouldLogoutForFailure(query.error)) {
 		return <LogoutRedirect />;
@@ -301,9 +287,6 @@ function StaffTenantsPage() {
 	if (shouldLogout) {
 		return <LogoutRedirect />;
 	}
-
-	const onSessionExpired = () => setShouldLogout(true);
-	const columns = buildTenantColumns(onSessionExpired, t);
 
 	return (
 		<div className="publy-page-fill">
@@ -344,6 +327,7 @@ function StaffTenantsPage() {
 				ariaLabel={t('staff-tenants-table-aria-label')}
 				columns={columns}
 				rows={rows}
+				getRowLabel={(row) => row.name}
 				isPending={query.isPending}
 				isError={query.isError}
 				onRetry={() => void query.refetch()}
@@ -612,14 +596,7 @@ const TenantBulkActions = ({
 
 		setPendingAction(null);
 		selection.clearSelection();
-		await Promise.all([
-			queryClient.invalidateQueries({
-				queryKey: ['staff', ...STAFF_TENANTS_QUERY_KEY],
-			}),
-			queryClient.invalidateQueries({
-				queryKey: ['staff', ...STAFF_TENANT_DETAILS_QUERY_KEY],
-			}),
-		]);
+		await invalidateStaffTenants(queryClient);
 
 		const succeededCount = result?.succeededCount ?? 0;
 		const failedCount = result?.failedCount ?? 0;
@@ -740,14 +717,7 @@ const TenantLifecycleActionsCell = ({
 		deleteTenantMutation.isPending;
 
 	const invalidateTenantQueries = async () => {
-		await Promise.all([
-			queryClient.invalidateQueries({
-				queryKey: ['staff', ...STAFF_TENANTS_QUERY_KEY],
-			}),
-			queryClient.invalidateQueries({
-				queryKey: ['staff', ...STAFF_TENANT_DETAILS_QUERY_KEY],
-			}),
-		]);
+		await invalidateStaffTenants(queryClient);
 	};
 
 	const performAction = async (action: 'suspend' | 'reactivate' | 'delete') => {

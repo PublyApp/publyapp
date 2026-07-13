@@ -94,6 +94,11 @@ const TRANSLATIONS: Record<string, string> = {
 	'list-no-match-title': 'No matches for that search',
 	clear: 'Clear',
 	'cards-view': 'Cards view',
+	'select-row-named': 'Select {{name}}',
+	'select-all-rows': 'Select all rows',
+	'page-n': 'Page {{page}}',
+	'previous-page': 'Previous page',
+	'next-page': 'Next page',
 	'table-view': 'Table view',
 	'view-toggle-aria-label': 'Switch between cards and table view',
 	profile: 'Profile',
@@ -109,6 +114,8 @@ const TRANSLATIONS: Record<string, string> = {
 	'tenant-profile-bulk-delete-partial-success':
 		'Deleted {{succeeded}} profile(s), {{failed}} failed.',
 	'tenant-profile-bulk-delete-failure': 'Failed to delete selected profiles.',
+	'bulk-delete-disabled-only-default-profiles':
+		'Default profiles cannot be bulk-deleted.',
 	'bulk-action-max-count-exceeded':
 		'Reduce your selection to at most {{max}} items ({{count}} selected).',
 	'clear-selection': 'Clear selection',
@@ -195,15 +202,13 @@ const buildQueryResult = (overrides: Record<string, unknown> = {}) => ({
 	...overrides,
 });
 
-const renderPage = () => {
-	const Component = (
-		Route as unknown as {
-			component: () => JSX.Element;
-		}
-	).component;
+const RouteComponent = (
+	Route as unknown as {
+		component: () => JSX.Element;
+	}
+).component;
 
-	return render(<Component />);
-};
+const renderPage = () => render(<RouteComponent />);
 
 describe('staff tenant profiles route', () => {
 	beforeEach(() => {
@@ -345,6 +350,27 @@ describe('staff tenant profiles route', () => {
 		renderPage();
 
 		expect(screen.getByTestId('profile-create-drawer-open')).toBeTruthy();
+	});
+
+	test('a debounced search commit does not close a drawer opened within the debounce window (F1)', async () => {
+		const renderResult = renderPage();
+
+		fireEvent.change(screen.getByTestId('staff-tenant-profiles-grid-search'), {
+			target: { value: 'an' },
+		});
+
+		// Simulate opening the create drawer within the 300ms debounce window:
+		// the route re-renders with the new URL search state, same as a real
+		// navigation would, before the debounced commit fires.
+		mocks.search = { new: 1 };
+		renderResult.rerender(<RouteComponent />);
+
+		await new Promise((resolve) => setTimeout(resolve, 350));
+
+		const lastCall = mocks.navigate.mock.calls.at(-1)?.[0] as {
+			search?: Record<string, unknown>;
+		};
+		expect(lastCall?.search).toMatchObject({ new: 1, q: 'an' });
 	});
 
 	test('shows the honest profiles count next to the tab title', () => {
@@ -543,6 +569,67 @@ describe('staff tenant profiles route', () => {
 			expect(
 				screen.getByText('Successfully deleted 1 profile(s).'),
 			).toBeTruthy(),
+		);
+	});
+
+	test('warns and fires no mutation when only the default profile is selected for bulk delete', async () => {
+		renderPage();
+
+		fireEvent.click(
+			screen.getByTestId('staff-tenant-profile-card-select-profile-1'),
+		);
+
+		fireEvent.click(
+			await screen.findByRole('button', { name: 'Delete selected' }),
+		);
+
+		await waitFor(() =>
+			expect(
+				screen.getByText('Default profiles cannot be bulk-deleted.'),
+			).toBeTruthy(),
+		);
+		expect(
+			screen.queryByRole('heading', { name: 'Delete selected' }),
+		).toBeNull();
+		expect(mocks.bulkDeleteProfileMutation).not.toHaveBeenCalled();
+	});
+
+	test('excludes the default profile from a mixed bulk-delete selection', async () => {
+		mocks.bulkDeleteProfileMutation.mockResolvedValue({
+			succeededCount: 1,
+			failedCount: 0,
+			failedItems: [],
+		});
+		mocks.toStaffTenantProfileBulkActionSummary.mockReturnValue({
+			succeededCount: 1,
+			failedCount: 0,
+			failedItems: [],
+		});
+
+		renderPage();
+
+		fireEvent.click(
+			screen.getByTestId('staff-tenant-profile-card-select-profile-1'),
+		);
+		fireEvent.click(
+			screen.getByTestId('staff-tenant-profile-card-select-profile-2'),
+		);
+
+		fireEvent.click(
+			await screen.findByRole('button', { name: 'Delete selected' }),
+		);
+		await waitFor(() =>
+			expect(
+				screen.getByText('Are you sure you want to delete 1 profile(s)?'),
+			).toBeTruthy(),
+		);
+		fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[0]);
+
+		await waitFor(() =>
+			expect(mocks.bulkDeleteProfileMutation).toHaveBeenCalledWith({
+				tenantId: '11111111-1111-1111-1111-111111111111',
+				profileIds: ['profile-2'],
+			}),
 		);
 	});
 
