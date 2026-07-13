@@ -12,12 +12,13 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
 import QueryDisplay from '~/components/query-display';
 import { Badge } from '~/components/ui/badge';
-import { Button } from '~/components/ui/button';
+import { Button, buttonVariants } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { Input } from '~/components/ui/input';
 import { formatDateTime } from '~/lib/format-date-time';
 import {
+	invalidateStaffInvitations,
 	useRevokeStaffInvitationMutation,
 	useResendStaffInvitationMutation,
 	useStaffInvitationDetailsQuery,
@@ -32,7 +33,7 @@ import {
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 import {
-	formatInvitationStatusLabel,
+	getInvitationStatusLabelKey,
 	normalizeInvitationStatus,
 } from './list-helpers';
 
@@ -104,11 +105,25 @@ const InvitationDetailsEmpty = () => {
 			title={t('invitation-not-found')}
 			description={t('invitation-not-found-description')}
 			testId="staff-invitation-details-not-found"
+			actions={
+				<Link
+					to={STAFF_INVITATIONS_LIST_PATH}
+					className={buttonVariants({ variant: 'outline' })}
+				>
+					{t('staff-invitations')}
+				</Link>
+			}
 		/>
 	);
 };
 
-const InvitationDetailsError = ({ error }: { error: unknown }) => {
+const InvitationDetailsError = ({
+	error,
+	query,
+}: {
+	error: unknown;
+	query: { refetch: () => unknown };
+}) => {
 	const { t } = useTranslation('common');
 
 	if (
@@ -129,6 +144,23 @@ const InvitationDetailsError = ({ error }: { error: unknown }) => {
 			title={t('invitation-details-error-title')}
 			description={t('invitation-details-error-description')}
 			testId="staff-invitation-details-error"
+			actions={
+				<>
+					<Button
+						variant="default"
+						onClick={() => void query.refetch()}
+						type="button"
+					>
+						{t('try-again')}
+					</Button>
+					<Link
+						to={STAFF_INVITATIONS_LIST_PATH}
+						className={buttonVariants({ variant: 'outline' })}
+					>
+						{t('staff-invitations')}
+					</Link>
+				</>
+			}
 		/>
 	);
 };
@@ -140,7 +172,7 @@ const DetailField = ({
 	label: string;
 	value: string | ReactNode;
 }) => (
-	<div className="space-y-1 rounded-large border border-divider bg-content1 p-4">
+	<div className="space-y-1 rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] p-4 shadow-[var(--publy-shadow-ring)]">
 		<p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
 			{label}
 		</p>
@@ -236,12 +268,7 @@ const InvitationDetailsCard = ({
 
 		try {
 			await revoke.mutateAsync({ invitationId });
-			await Promise.all([
-				queryClient.invalidateQueries({
-					queryKey: ['staff', 'staff-invitations'],
-				}),
-				onRefresh(),
-			]);
+			await Promise.all([invalidateStaffInvitations(queryClient), onRefresh()]);
 			setInviteLink('');
 			setPendingRevoke(false);
 			setFeedback({
@@ -301,7 +328,7 @@ const InvitationDetailsCard = ({
 			{feedback ? (
 				<div
 					className={`rounded-large border px-4 py-3 text-sm ${getFeedbackClassName(feedback.tone)}`}
-					role="status"
+					role={feedback.tone === 'error' ? 'alert' : 'status'}
 				>
 					{feedback.message}
 				</div>
@@ -325,7 +352,7 @@ const InvitationDetailsCard = ({
 			<div className="grid gap-4 md:grid-cols-2">
 				<DetailField
 					label={t('status')}
-					value={formatInvitationStatusLabel(status)}
+					value={t(getInvitationStatusLabelKey(status))}
 				/>
 				{invitation.email?.trim() ? (
 					<DetailField label={t('email')} value={invitation.email.trim()} />

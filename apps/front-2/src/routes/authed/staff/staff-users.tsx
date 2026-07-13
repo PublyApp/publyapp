@@ -8,7 +8,7 @@ import {
 } from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
@@ -40,10 +40,12 @@ const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
 
 // Name is not backend-sortable (parity contract); Level/Status map 1:1 to sort_id values.
-const columns: ColumnDef<StaffUserRow>[] = [
+const buildColumns = (
+	t: (key: string, options?: Record<string, unknown>) => string,
+): ColumnDef<StaffUserRow>[] => [
 	{
 		id: 'name',
-		header: 'Name',
+		header: t('name'),
 		enableSorting: false,
 		meta: { headerIcon: <IconUser />, width: '200px', pinWidthAbove: 768 },
 		cell: ({ row }) => (
@@ -64,12 +66,12 @@ const columns: ColumnDef<StaffUserRow>[] = [
 	},
 	{
 		id: 'email',
-		header: 'Email',
+		header: t('email'),
 		accessorKey: 'email',
 		enableSorting: false,
 		meta: { headerIcon: <IconMail />, hideBelow: 768 },
 		cell: ({ getValue }) => {
-			const email = getValue<string>() || 'No email address';
+			const email = getValue<string>() || t('no-email-address');
 			return (
 				<span className="block truncate font-normal" title={email}>
 					{email}
@@ -79,25 +81,25 @@ const columns: ColumnDef<StaffUserRow>[] = [
 	},
 	{
 		id: 'level',
-		header: 'Level',
+		header: t('level'),
 		accessorKey: 'level',
 		meta: { headerIcon: <IconIdBadge2 />, width: '104px', hideBelow: 768 },
 		cell: ({ getValue }) => (
 			<StatusPill tone="neutral">
-				{getValue<string | null>() ?? 'Unknown'}
+				{getValue<string | null>() ?? t('unknown')}
 			</StatusPill>
 		),
 	},
 	{
 		id: 'status',
-		header: 'Status',
+		header: t('status'),
 		accessorKey: 'status',
 		meta: { headerIcon: <IconCircleDot />, width: '122px' },
 		cell: ({ getValue }) => {
 			const status = getValue<string | null>();
 			return (
 				<StatusPill tone={statusPillTone(status)}>
-					{status ?? 'Unknown'}
+					{status ?? t('unknown')}
 				</StatusPill>
 			);
 		},
@@ -106,12 +108,12 @@ const columns: ColumnDef<StaffUserRow>[] = [
 		id: 'actions',
 		// Visually chromeless per the handoff, but the columnheader needs an
 		// accessible name (axe empty-table-header, parity contract).
-		header: () => <span className="sr-only">Actions</span>,
+		header: () => <span className="sr-only">{t('actions')}</span>,
 		enableSorting: false,
 		meta: { width: '40px', align: 'center' },
 		cell: ({ row }) => (
 			<DataTableRowActions
-				ariaLabel={`Actions for ${row.original.displayName}`}
+				ariaLabel={t('actions-for', { name: row.original.displayName })}
 				testId={`staff-user-actions-${row.original.id}`}
 			>
 				<DropdownMenuItem
@@ -123,7 +125,7 @@ const columns: ColumnDef<StaffUserRow>[] = [
 					}
 				>
 					<IconEye />
-					View profile
+					{t('view-profile')}
 				</DropdownMenuItem>
 			</DataTableRowActions>
 		),
@@ -163,6 +165,7 @@ function StaffUsersPage() {
 	const query = useStaffUsersQuery(controller.apiVariables);
 	const rows = toStaffUserRows(query.data?.data);
 	const selection = useRowSelection(rows.map((row) => row.id));
+	const columns = useMemo(() => buildColumns(t), [t]);
 
 	const { resetDraftToCommitted } = controller.search;
 	useEffect(() => {
@@ -180,8 +183,8 @@ function StaffUsersPage() {
 	return (
 		<div className="publy-page-fill">
 			<PageHeader
-				title="Staff users"
-				description="Search, review, and manage staff access across the workspace."
+				title={t('staff-users-page-title')}
+				description={t('staff-users-page-description')}
 				count={
 					rows.length > 0 ? (
 						<span className="publy-profile-count-badge">{rows.length}</span>
@@ -199,7 +202,7 @@ function StaffUsersPage() {
 			/>
 			<DataTable
 				testId="staff-users-table"
-				ariaLabel="Staff users"
+				ariaLabel={t('staff-users-page-title')}
 				columns={columns}
 				rows={rows}
 				isPending={query.isPending}
@@ -221,7 +224,7 @@ function StaffUsersPage() {
 				searchDraft={controller.search.draft}
 				onSearchDraftChange={controller.search.onDraftChange}
 				selection={selection}
-				searchPlaceholder="Search by name, email, or role…"
+				searchPlaceholder={t('search-staff-users')}
 			/>
 		</div>
 	);

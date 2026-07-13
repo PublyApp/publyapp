@@ -2,28 +2,36 @@ import {
 	IconCircleDot,
 	IconClock,
 	IconId,
-	IconIdBadge2,
 	IconMail,
 	IconRefresh,
 	IconUser,
 	IconX,
 } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useCallback } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTableRowActions } from '~/components/table/row-actions';
+import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
 import { InitialsAvatar } from '~/components/ui/initials-avatar';
 import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
+import { formatDateTime } from '~/lib/format-date-time';
 import {
+	invalidateStaffInvitations,
 	useResendStaffInvitationMutation,
 	useRevokeStaffInvitationMutation,
 } from '~/lib/query/staff-invitations';
 
 import {
-	formatInvitationStatusLabel,
+	getFailureMessage,
+	toApiFailure,
+} from '@org/shared-ts/lib/api-failure/to-api-failure';
+
+import {
+	getInvitationStatusLabelKey,
 	type InvitationDisplayStatus,
 } from './list-helpers';
 
@@ -39,61 +47,88 @@ export type InvitationRow = {
 };
 
 type CreateInvitationColumnsArgs = {
-	t: (key: string) => string;
+	t: (key: string, options?: Record<string, unknown>) => string;
 	locale: string;
 	onActionSuccess: () => void;
-};
-
-const formatDateTime = (value: Date | null, locale: string): string => {
-	if (!value) {
-		return '-';
-	}
-
-	return new Intl.DateTimeFormat(locale, {
-		dateStyle: 'medium',
-		timeStyle: 'short',
-	}).format(value);
+	onActionError: (message: string) => void;
 };
 
 const InvitationRowActions = ({
 	row,
 	onSuccess,
+	onError,
 }: {
 	row: InvitationRow;
 	onSuccess: () => void;
+	onError: (message: string) => void;
 }) => {
 	const { t } = useTranslation('common');
+	const queryClient = useQueryClient();
+	const [isConfirmOpen, setConfirmOpen] = useState(false);
 	const resendMutation = useResendStaffInvitationMutation();
 	const revokeMutation = useRevokeStaffInvitationMutation();
+	const isActionPending = resendMutation.isPending || revokeMutation.isPending;
 
-	const handleResend = useCallback(() => {
-		resendMutation.mutate(
-			{ invitationId: row.id },
-			{ onSuccess: () => onSuccess() },
-		);
-	}, [resendMutation, row.id, onSuccess]);
+	const handleResend = async () => {
+		try {
+			await resendMutation.mutateAsync({ invitationId: row.id });
+			onSuccess();
+		} catch (error) {
+			onError(
+				getFailureMessage(toApiFailure(error), {
+					fallback: t('unable-to-resend-invitation'),
+				}),
+			);
+		}
+	};
 
-	const handleRevoke = useCallback(() => {
-		revokeMutation.mutate(
-			{ invitationId: row.id },
-			{ onSuccess: () => onSuccess() },
-		);
-	}, [revokeMutation, row.id, onSuccess]);
+	const handleRevoke = async () => {
+		try {
+			await revokeMutation.mutateAsync({ invitationId: row.id });
+			await invalidateStaffInvitations(queryClient);
+			setConfirmOpen(false);
+			onSuccess();
+		} catch (error) {
+			setConfirmOpen(false);
+			onError(
+				getFailureMessage(toApiFailure(error), {
+					fallback: t('unable-to-revoke-invitation'),
+				}),
+			);
+		}
+	};
 
 	return (
-		<DataTableRowActions
-			ariaLabel={`Actions for ${row.email || 'invitation'}`}
-			testId={`staff-invitation-actions-${row.id}`}
-		>
-			<DropdownMenuItem onClick={handleResend}>
-				<IconRefresh className="size-[15px]" />
-				{t('send-reminder')}
-			</DropdownMenuItem>
-			<DropdownMenuItem onClick={handleRevoke}>
-				<IconX className="size-[15px]" />
-				{t('revoke-invitation')}
-			</DropdownMenuItem>
-		</DataTableRowActions>
+		<>
+			<DataTableRowActions
+				ariaLabel={t('actions-for', { name: row.email || t('invitation') })}
+				testId={`staff-invitation-actions-${row.id}`}
+			>
+				<DropdownMenuItem
+					onClick={() => void handleResend()}
+					disabled={isActionPending}
+				>
+					<IconRefresh className="size-[15px]" />
+					{t('send-reminder')}
+				</DropdownMenuItem>
+				<DropdownMenuItem
+					onClick={() => setConfirmOpen(true)}
+					disabled={isActionPending}
+				>
+					<IconX className="size-[15px]" />
+					{t('revoke-invitation')}
+				</DropdownMenuItem>
+			</DataTableRowActions>
+			<ConfirmDialog
+				isOpen={isConfirmOpen}
+				title={t('revoke-invitation')}
+				description={t('invitation-removal-description')}
+				confirmLabel={t('revoke')}
+				isPending={revokeMutation.isPending}
+				onConfirm={() => void handleRevoke()}
+				onOpenChange={setConfirmOpen}
+			/>
+		</>
 	);
 };
 
@@ -101,6 +136,7 @@ export const createInvitationColumns = ({
 	t,
 	locale,
 	onActionSuccess,
+	onActionError,
 }: CreateInvitationColumnsArgs): ColumnDef<InvitationRow>[] => [
 	{
 		id: 'email',
@@ -130,22 +166,6 @@ export const createInvitationColumns = ({
 				</Link>
 			);
 		},
-	},
-	{
-		id: 'role',
-		header: () => (
-			<div className="inline-flex items-center gap-1.5">
-				<IconIdBadge2 className="size-3.5 text-muted-foreground" />
-				<span>{t('role')}</span>
-			</div>
-		),
-		enableSorting: false,
-		meta: { width: '116px' },
-		cell: () => (
-			<span className="publy-detail-chip publy-detail-chip--outline">
-				{/* TODO(contract): role not in InvitationListItem */}—
-			</span>
-		),
 	},
 	{
 		id: 'profile_name',
@@ -220,7 +240,7 @@ export const createInvitationColumns = ({
 		meta: { width: '128px' },
 		cell: ({ row }) => (
 			<StatusPill tone={statusPillTone(row.original.status)}>
-				{formatInvitationStatusLabel(row.original.status)}
+				{t(getInvitationStatusLabelKey(row.original.status))}
 			</StatusPill>
 		),
 	},
@@ -230,7 +250,11 @@ export const createInvitationColumns = ({
 		enableSorting: false,
 		meta: { width: '40px', align: 'center' },
 		cell: ({ row }) => (
-			<InvitationRowActions row={row.original} onSuccess={onActionSuccess} />
+			<InvitationRowActions
+				row={row.original}
+				onSuccess={onActionSuccess}
+				onError={onActionError}
+			/>
 		),
 	},
 ];

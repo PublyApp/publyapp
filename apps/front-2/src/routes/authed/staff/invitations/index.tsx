@@ -1,6 +1,6 @@
 import { IconChevronDown, IconCircleDot, IconPlus } from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
@@ -22,8 +22,7 @@ import { shouldLogoutForFailure } from '~/routes/authed/layout';
 import type { InvitationListItem } from '@org/client-ts/src/models/index.js';
 
 import {
-	filterInvitationRows,
-	formatInvitationStatusLabel,
+	getInvitationStatusLabelKey,
 	type InvitationListSearchParamInput,
 	type InvitationListSearchParams,
 	type KnownInvitationStatus,
@@ -53,8 +52,8 @@ const toRows = (
 		rows.push({
 			id: item.id,
 			email: item.email ?? '',
-			profileName: item.profileName?.trim() || '-',
-			invitedByName: item.invitedByName?.trim() || '-',
+			profileName: item.profileName?.trim() ?? '',
+			invitedByName: item.invitedByName?.trim() ?? '',
 			status: normalizeInvitationStatus(item.status),
 			acceptedAt: item.acceptedAt ?? null,
 			createdAt: item.createdAt ?? null,
@@ -102,18 +101,21 @@ function StaffInvitationsPage() {
 		status: search.status,
 	});
 
+	const [actionError, setActionError] = useState('');
+
 	const onRefetch = useCallback(() => {
+		setActionError('');
 		void query.refetch();
 	}, [query]);
 
 	const columns = createInvitationColumns({
-		t: (key) => t(key),
+		t: (key, options) => t(key, options),
 		locale: i18n.language,
 		onActionSuccess: onRefetch,
+		onActionError: setActionError,
 	});
 	const rows = toRows(query.data?.data);
-	const filteredRows = filterInvitationRows(rows, controller.search.committed);
-	const selection = useRowSelection(filteredRows.map((row) => row.id));
+	const selection = useRowSelection(rows.map((row) => row.id));
 
 	const { resetDraftToCommitted } = controller.search;
 	useEffect(() => {
@@ -148,19 +150,19 @@ function StaffInvitationsPage() {
 
 	const statusFilterLabel =
 		selectedStatuses.length === 0
-			? 'All statuses'
-			: selectedStatuses.map(formatInvitationStatusLabel).join(', ');
+			? t('all-statuses')
+			: selectedStatuses
+					.map((status) => t(getInvitationStatusLabelKey(status)))
+					.join(', ');
 
 	return (
 		<div className="publy-page-fill" data-testid="staff-invitations-list-page">
 			<PageHeader
 				title={t('staff-invitations')}
-				description="Invite staff users to the platform."
+				description={t('invite-staff-users-to-the-platform')}
 				count={
-					filteredRows.length > 0 ? (
-						<span className="publy-profile-count-badge">
-							{filteredRows.length}
-						</span>
+					rows.length > 0 ? (
+						<span className="publy-profile-count-badge">{rows.length}</span>
 					) : null
 				}
 				actions={
@@ -173,6 +175,15 @@ function StaffInvitationsPage() {
 					</Link>
 				}
 			/>
+
+			{actionError ? (
+				<div
+					className="mb-4 rounded-large border border-destructive/30 bg-destructive/8 px-4 py-3 text-sm text-destructive"
+					role="alert"
+				>
+					{actionError}
+				</div>
+			) : null}
 
 			<DataTable
 				toolbarEnd={
@@ -202,7 +213,7 @@ function StaffInvitationsPage() {
 									showCheckbox
 									onCheckedChange={() => toggleStatus(status)}
 								>
-									{formatInvitationStatusLabel(status)}
+									{t(getInvitationStatusLabelKey(status))}
 								</DropdownMenuCheckboxItem>
 							))}
 							<DropdownMenuSeparator />
@@ -215,12 +226,12 @@ function StaffInvitationsPage() {
 				testId="staff-invitations-table"
 				ariaLabel={t('staff-invitations')}
 				columns={columns}
-				rows={filteredRows}
+				rows={rows}
 				isPending={query.isPending}
 				isError={query.isError}
 				onRetry={() => void query.refetch()}
-				emptyContent="No invitations found."
-				noMatchContent="No invitations match your search."
+				emptyContent={t('no-invitations-found')}
+				noMatchContent={t('no-invitations-match-your-search')}
 				hasActiveSearch={Boolean(controller.search.committed)}
 				sort={controller.sort}
 				onSortChange={controller.onSortChange}
@@ -236,7 +247,7 @@ function StaffInvitationsPage() {
 				onPreviousPage={controller.cursor.onPreviousPage}
 				searchDraft={controller.search.draft}
 				onSearchDraftChange={controller.search.onDraftChange}
-				searchPlaceholder="Search invitations…"
+				searchPlaceholder={t('search-invitations')}
 				selection={selection}
 			/>
 		</div>

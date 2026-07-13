@@ -4,7 +4,6 @@ import {
 	IconCalendar,
 	IconChartBar,
 	IconEye,
-	IconKey,
 	IconNews,
 	IconPlus,
 	IconSettings,
@@ -17,6 +16,7 @@ import type { Icon } from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
 import { DataTableRowActions } from '~/components/table/row-actions';
@@ -58,13 +58,15 @@ const PROFILE_ICON_MAP: Record<string, Icon> = {
 	world: IconWorld,
 };
 
-const columns: ColumnDef<StaffProfileRow>[] = [
+const buildColumns = (
+	t: (key: string, options?: Record<string, unknown>) => string,
+): ColumnDef<StaffProfileRow>[] => [
 	{
 		id: 'name',
 		header: () => (
 			<div className="inline-flex items-center gap-1.5">
 				<IconBriefcase className="size-3.5 text-muted-foreground" />
-				<span>Profile</span>
+				<span>{t('profile')}</span>
 			</div>
 		),
 		accessorKey: 'name',
@@ -88,7 +90,7 @@ const columns: ColumnDef<StaffProfileRow>[] = [
 						className="publy-record-link min-w-0 truncate text-[13px]"
 						title={name || undefined}
 					>
-						{name || '—'}
+						{name || t('profile')}
 					</span>
 				</Link>
 			);
@@ -99,7 +101,7 @@ const columns: ColumnDef<StaffProfileRow>[] = [
 		header: () => (
 			<div className="inline-flex items-center gap-1.5">
 				<IconTextCaption className="size-3.5 text-muted-foreground" />
-				<span>Description</span>
+				<span>{t('description')}</span>
 			</div>
 		),
 		accessorKey: 'description',
@@ -107,9 +109,12 @@ const columns: ColumnDef<StaffProfileRow>[] = [
 		meta: { hideBelow: 768 },
 		cell: ({ getValue }) => {
 			const value = getValue<string | null>();
+			if (!value) {
+				return null;
+			}
 			return (
-				<span className="block truncate text-[13px]" title={value ?? undefined}>
-					{value ?? '—'}
+				<span className="block truncate text-[13px]" title={value}>
+					{value}
 				</span>
 			);
 		},
@@ -119,7 +124,7 @@ const columns: ColumnDef<StaffProfileRow>[] = [
 		header: () => (
 			<div className="inline-flex items-center gap-1.5">
 				<IconUsers className="size-3.5 text-muted-foreground" />
-				<span>Members</span>
+				<span>{t('members')}</span>
 			</div>
 		),
 		accessorKey: 'userAccountCount',
@@ -127,52 +132,22 @@ const columns: ColumnDef<StaffProfileRow>[] = [
 		meta: { width: '104px', hideBelow: 768 },
 		cell: ({ getValue }) => {
 			const value = getValue<number | null>();
-			return (
-				<span className="text-[13px] font-medium">
-					{value === null ? '—' : value}
-				</span>
-			);
+			if (value === null) {
+				return null;
+			}
+			return <span className="text-[13px] font-medium">{value}</span>;
 		},
 	},
 	{
-		id: 'permissions',
-		header: () => (
-			<div className="inline-flex items-center gap-1.5">
-				<IconKey className="size-3.5 text-muted-foreground" />
-				<span>Permissions</span>
-			</div>
-		),
-		enableSorting: false,
-		meta: { width: '140px', hideBelow: 768 },
-		cell: () => (
-			<span className="text-[13px] text-muted-foreground">
-				{/* TODO(contract): permission count not in profile list response */}—
-			</span>
-		),
-	},
-	{
-		id: 'updated',
-		header: () => (
-			<div className="inline-flex items-center gap-1.5">
-				<span>Updated</span>
-			</div>
-		),
-		enableSorting: false,
-		meta: { width: '120px', hideBelow: 768 },
-		cell: () => (
-			<span className="text-[13px] text-muted-foreground">
-				{/* TODO(contract): updated_at not in profile list response */}—
-			</span>
-		),
-	},
-	{
 		id: 'actions',
-		header: () => <span className="sr-only">Actions</span>,
+		header: () => <span className="sr-only">{t('actions')}</span>,
 		enableSorting: false,
 		meta: { width: '40px', align: 'center' },
 		cell: ({ row }) => (
 			<DataTableRowActions
-				ariaLabel={`Actions for ${row.original.name || 'profile'}`}
+				ariaLabel={t('actions-for', {
+					name: row.original.name || t('profile'),
+				})}
 				testId={`staff-profile-actions-${row.original.id}`}
 			>
 				<DropdownMenuItem
@@ -184,7 +159,7 @@ const columns: ColumnDef<StaffProfileRow>[] = [
 					}
 				>
 					<IconEye className="size-[15px]" />
-					View profile
+					{t('view-profile')}
 				</DropdownMenuItem>
 			</DataTableRowActions>
 		),
@@ -200,6 +175,7 @@ export const Route = createFileRoute('/_authed-layout/staff/profiles')({
 function StaffProfilesPage() {
 	const navigate = Route.useNavigate();
 	const search = Route.useSearch();
+	const { t } = useTranslation('common');
 
 	const onSearchChange = (next: TableSearchParams): void => {
 		void navigate({
@@ -223,6 +199,7 @@ function StaffProfilesPage() {
 	});
 	const rows = toStaffProfileRows(query.data?.data);
 	const selection = useRowSelection(rows.map((row) => row.id));
+	const columns = useMemo(() => buildColumns(t), [t]);
 
 	const { resetDraftToCommitted } = controller.search;
 	useEffect(() => {
@@ -231,8 +208,6 @@ function StaffProfilesPage() {
 		}
 	}, [selection.isSelectionMode, resetDraftToCommitted]);
 
-	const totalCount = useMemo(() => rows.length, [rows]);
-
 	if (query.isError && shouldLogoutForFailure(query.error)) {
 		return <LogoutRedirect />;
 	}
@@ -240,11 +215,11 @@ function StaffProfilesPage() {
 	return (
 		<div className="publy-page-fill">
 			<PageHeader
-				title="Profiles"
-				description="Profiles bundle permissions and can be assigned to staff and tenants."
+				title={t('profiles')}
+				description={t('staff-profiles-page-description')}
 				count={
-					totalCount > 0 ? (
-						<span className="publy-profile-count-badge">{totalCount}</span>
+					rows.length > 0 ? (
+						<span className="publy-profile-count-badge">{rows.length}</span>
 					) : null
 				}
 				actions={
@@ -253,13 +228,13 @@ function StaffProfilesPage() {
 						className={buttonVariants({ variant: 'default' })}
 					>
 						<IconPlus aria-hidden="true" className="size-[15px]" />
-						New profile
+						{t('new-profile')}
 					</Link>
 				}
 			/>
 			<DataTable
 				testId="staff-profiles-table"
-				ariaLabel="Staff profiles"
+				ariaLabel={t('profiles')}
 				columns={columns}
 				rows={rows}
 				isPending={query.isPending}
@@ -280,7 +255,7 @@ function StaffProfilesPage() {
 				onPreviousPage={controller.cursor.onPreviousPage}
 				searchDraft={controller.search.draft}
 				onSearchDraftChange={controller.search.onDraftChange}
-				searchPlaceholder="Search profiles…"
+				searchPlaceholder={t('search-profiles')}
 				selection={selection}
 				rowHeight={56}
 			/>

@@ -20,6 +20,7 @@ import {
 	createClient,
 	getSessionTokensFromBrowser,
 } from '~/lib/api-client/client-manager';
+import { ServerFailure } from '~/lib/server/server-failure';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import {
@@ -43,66 +44,8 @@ export const shouldLogoutForFailure = (error: unknown): boolean => {
 };
 
 const getFailureStatus = (error: unknown): number | undefined => {
-	const status = getFailureStatusFromError(error);
-	if (status !== undefined) {
-		return status;
-	}
-
 	const failure = toApiFailure(error);
 	return failure.kind === 'problem' ? failure.status : undefined;
-};
-
-const toStatus = (status: unknown): number | undefined => {
-	if (typeof status !== 'number' || Number.isNaN(status)) {
-		return undefined;
-	}
-
-	if (!Number.isInteger(status) || status < 100 || status > 599) {
-		return undefined;
-	}
-
-	return status;
-};
-
-const getFailureStatusFromError = (error: unknown): number | undefined => {
-	if (error instanceof Response) {
-		return toStatus(error.status);
-	}
-
-	if (typeof error !== 'object' || error === null) {
-		return undefined;
-	}
-
-	const record = error as Record<string, unknown>;
-	return (
-		toStatus(record.responseStatusCode) ??
-		toStatus(record.status) ??
-		toStatus((record.response as Record<string, unknown>)?.status) ??
-		undefined
-	);
-};
-
-const getProblemFromError = (
-	error: unknown,
-):
-	| {
-			status: number;
-			translationKey?: string;
-			detail?: string;
-			title?: string;
-	  }
-	| undefined => {
-	const failure = toApiFailure(error);
-	if (failure.kind !== 'problem') {
-		return undefined;
-	}
-
-	return {
-		status: failure.status,
-		translationKey: failure.translationKey,
-		detail: failure.detail,
-		title: failure.title,
-	};
 };
 
 const getSessionExpiredSearch = () => ({
@@ -110,7 +53,7 @@ const getSessionExpiredSearch = () => ({
 		queryParamValue.login_page.redirect_cause.invalid_session,
 });
 
-const determineSessionToken = (
+export const determineSessionToken = (
 	tokens: ParsedSessionTokens,
 	pathname: string,
 ): { token: string | undefined; redirectPath?: string } => {
@@ -152,27 +95,28 @@ const parseRedirectCode = async (token: string): Promise<string | null> => {
 		const result = await client.auth.redirectCode.get();
 
 		if (result?.redirectCode === REDIRECT_CODE.UNAUTHORIZED) {
-			throw {
-				status: 403,
+			throw new ServerFailure({
 				responseStatusCode: 403,
+				status: 403,
 				title: 'Forbidden',
 				detail: 'User has no accessible scope.',
-			};
+			});
 		}
 
 		return result?.redirectCode ?? null;
 	} catch (error: unknown) {
-		const status = getFailureStatusFromError(error);
-		const asFailure = getProblemFromError(error);
-		if (status === undefined) {
+		const failure = toApiFailure(error);
+		if (failure.kind !== 'problem') {
 			throw error;
 		}
 
-		throw {
-			...asFailure,
-			status,
-			responseStatusCode: status,
-		};
+		throw new ServerFailure({
+			responseStatusCode: failure.status,
+			status: failure.status,
+			title: failure.title ?? 'Request failed',
+			detail: failure.detail ?? 'Request failed',
+			translationKey: failure.translationKey,
+		});
 	}
 };
 
@@ -468,8 +412,16 @@ function AuthedRouteLayout() {
 		);
 	}
 
-	if (query.isLoading || isSurfaceMismatch) {
+	if (query.isLoading) {
 		return <AuthedRouteLoadingShell pathname={pathname} search={search} />;
+	}
+
+	if (isSurfaceMismatch) {
+		// A neutral, pathname-agnostic skeleton — the pathname-bound
+		// AuthedRouteLoadingShell would flash the wrong surface's nav rail
+		// for the duration of the navigate({ to: TENANT_PATH | STAFF_PATH })
+		// round trip triggered by the effect above.
+		return <AuthedRoutePendingSkeleton />;
 	}
 
 	if (isTenantPortalRoot) {

@@ -25,13 +25,6 @@ export type InvitationListSearchParamInput = TableSearchParamInput & {
 	status?: unknown;
 };
 
-export type InvitationSearchableRow = {
-	email: string;
-	profileName?: string | null;
-	invitedByName?: string | null;
-	status?: string | null;
-};
-
 const normalizeString = (value: unknown): string | undefined => {
 	if (typeof value !== 'string') {
 		return undefined;
@@ -124,18 +117,16 @@ export const formatInvitationStatusLabel = (
 	return `${status.slice(0, 1).toUpperCase()}${status.slice(1)}`;
 };
 
-export const filterInvitationRows = <TRow extends InvitationSearchableRow>(
-	rows: TRow[],
-	query: string | undefined,
-): TRow[] => {
-	const normalized = query?.trim().toLowerCase() ?? '';
-	if (normalized.length === 0) {
-		return rows;
-	}
-
-	return rows.filter((row) => {
-		return [row.email, row.profileName, row.invitedByName, row.status].some(
-			(value) => value?.toLowerCase().includes(normalized),
-		);
-	});
+const INVITATION_STATUS_LABEL_KEYS: Record<InvitationDisplayStatus, string> = {
+	pending: 'invitation-status-pending',
+	accepted: 'invitation-status-accepted',
+	expired: 'invitation-status-expired',
+	revoked: 'invitation-status-revoked',
+	unknown: 'unknown',
 };
+
+/** Translation key for an invitation status, for callers that render through
+ * `t()` instead of the untranslated `formatInvitationStatusLabel`. */
+export const getInvitationStatusLabelKey = (
+	status: InvitationDisplayStatus,
+): string => INVITATION_STATUS_LABEL_KEYS[status];

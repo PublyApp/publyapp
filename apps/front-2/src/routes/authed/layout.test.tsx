@@ -89,9 +89,47 @@ afterEach(() => {
 const routeOptions = Route as unknown as {
 	component: ComponentType;
 	pendingComponent: ComponentType;
+	beforeLoad: (args: { location: { pathname: string } }) => Promise<void>;
 };
 const AuthedRouteLayout = routeOptions.component;
 const AuthedRoutePendingSkeleton = routeOptions.pendingComponent;
+
+describe('beforeLoad session-token guard', () => {
+	test('redirects a tenant-only session away from a /staff path to /tenant', async () => {
+		mocks.tokens = { tenantToken: 'tenant-tok' } as typeof mocks.tokens;
+
+		await expect(
+			routeOptions.beforeLoad({ location: { pathname: '/staff/profiles' } }),
+		).rejects.toEqual({ to: '/tenant' });
+	});
+
+	test('redirects a staff-only session away from a /tenant path to /staff', async () => {
+		mocks.tokens = { staffToken: 'staff-tok' } as typeof mocks.tokens;
+
+		await expect(
+			routeOptions.beforeLoad({ location: { pathname: '/tenant' } }),
+		).rejects.toEqual({ to: '/staff' });
+	});
+
+	test('redirects a tokenless visitor to /login with the session-expired search', async () => {
+		mocks.tokens = {} as typeof mocks.tokens;
+
+		await expect(
+			routeOptions.beforeLoad({ location: { pathname: '/staff/profiles' } }),
+		).rejects.toMatchObject({
+			to: '/login',
+			search: { rc: 'invalid_session' },
+		});
+	});
+
+	test('does not redirect when the session token matches the surface', async () => {
+		mocks.tokens = { staffToken: 'staff-tok' } as typeof mocks.tokens;
+
+		await expect(
+			routeOptions.beforeLoad({ location: { pathname: '/staff/profiles' } }),
+		).resolves.toBeUndefined();
+	});
+});
 
 describe('AuthedRouteLayout surface-redirect-code query', () => {
 	test('is configured session-stable: never refetches on tab focus', () => {

@@ -82,6 +82,7 @@ vi.mock('react-i18next', () => ({
 				'save-changes': 'Save changes',
 				'unknown-error': 'Unable to save staff user.',
 				'edit-staff-user': 'Edit staff user',
+				'invalid-url': 'Invalid URL',
 				'security-preferences-not-available':
 					'Not available — security preferences are not yet exposed by the API',
 			};
@@ -243,6 +244,9 @@ vi.mock('~/lib/query/staff-users', () => ({
 	STAFF_USERS_QUERY_KEY: ['staff-users'],
 	STAFF_USER_DETAILS_QUERY_KEY: ['staff-users', 'detail'],
 	STAFF_USER_PROFILES_QUERY_KEY: ['staff-users', 'detail', 'profiles'],
+	invalidateStaffUsers: (queryClient: {
+		invalidateQueries: (options: { queryKey: unknown[] }) => Promise<unknown>;
+	}) => queryClient.invalidateQueries({ queryKey: ['staff', 'staff-users'] }),
 	toStaffUserDetails: mocks.toStaffUserDetails,
 	toAssignedStaffProfiles: mocks.toAssignedStaffProfiles,
 	useStaffUserDetailsQuery: mocks.useStaffUserDetailsQuery,

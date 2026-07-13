@@ -261,13 +261,13 @@ function NewStaffProfileRoute() {
 							<Field.Text
 								name="name"
 								label={t('profile-name')}
-								placeholder="Platform admin"
+								placeholder={t('profile-name-placeholder')}
 								disabled={createProfile.isPending}
 							/>
 							<Field.Text
 								name="description"
 								label={t('description')}
-								placeholder="Describe the responsibilities for this profile"
+								placeholder={t('profile-description-placeholder')}
 								disabled={createProfile.isPending}
 							/>
 							<Field.CheckboxGroup

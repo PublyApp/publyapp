@@ -1,8 +1,23 @@
 /** @vitest-environment jsdom */
-import { render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { createElement } from 'react';
-import { describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+
+const mocks = vi.hoisted(() => ({
+	useResendStaffInvitationMutation: vi.fn(),
+	useRevokeStaffInvitationMutation: vi.fn(),
+	invalidateStaffInvitations: vi.fn().mockResolvedValue(undefined),
+	onActionSuccess: vi.fn(),
+	onActionError: vi.fn(),
+}));
 
 vi.mock('@tanstack/react-router', () => ({
 	Link: ({
@@ -25,9 +40,47 @@ vi.mock('@tanstack/react-router', () => ({
 	},
 }));
 
+vi.mock('~/lib/query/staff-invitations', () => ({
+	useResendStaffInvitationMutation: mocks.useResendStaffInvitationMutation,
+	useRevokeStaffInvitationMutation: mocks.useRevokeStaffInvitationMutation,
+	invalidateStaffInvitations: mocks.invalidateStaffInvitations,
+}));
+
 import { createInvitationColumns } from './table-columns';
 
 const t = (key: string): string => key;
+
+const buildRow = (overrides: Record<string, unknown> = {}) => ({
+	id: 'invitation-1',
+	email: 'person@example.com',
+	profileName: 'Ops',
+	invitedByName: 'Jane',
+	status: 'pending',
+	acceptedAt: null,
+	createdAt: null,
+	expiresAt: null,
+	...overrides,
+});
+
+const renderActionsCell = () => {
+	const columns = createInvitationColumns({
+		t,
+		locale: 'en',
+		onActionSuccess: mocks.onActionSuccess,
+		onActionError: mocks.onActionError,
+	});
+	const actionsColumn = columns.find((column) => column.id === 'actions');
+	const cellRenderer = actionsColumn?.cell as (props: {
+		row: { original: ReturnType<typeof buildRow> };
+	}) => ReactNode;
+	const queryClient = new QueryClient();
+
+	return render(
+		<QueryClientProvider client={queryClient}>
+			{cellRenderer({ row: { original: buildRow() } })}
+		</QueryClientProvider>,
+	);
+};
 
 describe('createInvitationColumns', () => {
 	test('marks the Profiles column as non-sortable because the staff invitations API does not support profile_name sorting', () => {
@@ -35,6 +88,7 @@ describe('createInvitationColumns', () => {
 			t,
 			locale: 'en',
 			onActionSuccess: () => undefined,
+			onActionError: () => undefined,
 		});
 		const profileColumn = columns.find(
 			(column) => column.id === 'profile_name',
@@ -51,6 +105,7 @@ describe('createInvitationColumns', () => {
 			t,
 			locale: 'en',
 			onActionSuccess: () => undefined,
+			onActionError: () => undefined,
 		});
 		const widthById = Object.fromEntries(
 			columns.map((column) => [column.id, column.meta?.width]),
@@ -58,7 +113,6 @@ describe('createInvitationColumns', () => {
 
 		expect(widthById).toEqual({
 			email: '300px',
-			role: '116px',
 			profile_name: undefined,
 			invited_by_name: '150px',
 			expires_at: '120px',
@@ -72,6 +126,7 @@ describe('createInvitationColumns', () => {
 			t,
 			locale: 'en',
 			onActionSuccess: () => undefined,
+			onActionError: () => undefined,
 		});
 		const actionsColumn = columns.find((column) => column.id === 'actions');
 
@@ -83,6 +138,7 @@ describe('createInvitationColumns', () => {
 			t,
 			locale: 'en',
 			onActionSuccess: () => undefined,
+			onActionError: () => undefined,
 		});
 		const emailColumn = columns.find((column) => column.id === 'email');
 		const row = {
@@ -105,5 +161,100 @@ describe('createInvitationColumns', () => {
 
 		const link = screen.getByRole('link', { name: /person@example\.com/ });
 		expect(link.getAttribute('href')).toBe('/staff/invitations/invitation-1');
+	});
+});
+
+describe('InvitationRowActions', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mocks.useResendStaffInvitationMutation.mockReturnValue({
+			mutateAsync: vi.fn().mockResolvedValue({}),
+			isPending: false,
+		});
+		mocks.useRevokeStaffInvitationMutation.mockReturnValue({
+			mutateAsync: vi.fn().mockResolvedValue({}),
+			isPending: false,
+		});
+		mocks.invalidateStaffInvitations.mockResolvedValue(undefined);
+	});
+
+	afterEach(() => {
+		cleanup();
+	});
+
+	const openMenu = async () => {
+		fireEvent.click(
+			screen.getByTestId('staff-invitation-actions-invitation-1'),
+		);
+		await waitFor(() =>
+			expect(screen.getByText('revoke-invitation')).toBeTruthy(),
+		);
+	};
+
+	test('revoking asks for confirmation before calling the mutation', async () => {
+		renderActionsCell();
+		await openMenu();
+
+		fireEvent.click(screen.getByText('revoke-invitation'));
+
+		await waitFor(() => expect(screen.getByText('revoke')).toBeTruthy());
+		expect(
+			mocks.useRevokeStaffInvitationMutation().mutateAsync,
+		).not.toHaveBeenCalled();
+	});
+
+	test('confirming revoke calls the mutation, invalidates staff invitations, and reports success', async () => {
+		renderActionsCell();
+		await openMenu();
+		fireEvent.click(screen.getByText('revoke-invitation'));
+		await waitFor(() => expect(screen.getByText('revoke')).toBeTruthy());
+
+		fireEvent.click(screen.getByText('revoke'));
+
+		await waitFor(() => expect(mocks.onActionSuccess).toHaveBeenCalled());
+		expect(
+			mocks.useRevokeStaffInvitationMutation().mutateAsync,
+		).toHaveBeenCalledWith({ invitationId: 'invitation-1' });
+		expect(mocks.invalidateStaffInvitations).toHaveBeenCalled();
+	});
+
+	test('a failed revoke reports the failure instead of silently doing nothing', async () => {
+		mocks.useRevokeStaffInvitationMutation.mockReturnValue({
+			mutateAsync: vi.fn().mockRejectedValue({
+				status: 403,
+				responseStatusCode: 403,
+				title: 'Forbidden',
+				detail: 'Forbidden',
+			}),
+			isPending: false,
+		});
+		renderActionsCell();
+		await openMenu();
+		fireEvent.click(screen.getByText('revoke-invitation'));
+		await waitFor(() => expect(screen.getByText('revoke')).toBeTruthy());
+
+		fireEvent.click(screen.getByText('revoke'));
+
+		await waitFor(() => expect(mocks.onActionError).toHaveBeenCalled());
+		expect(mocks.onActionSuccess).not.toHaveBeenCalled();
+		expect(mocks.invalidateStaffInvitations).not.toHaveBeenCalled();
+	});
+
+	test('both row actions are disabled while a mutation is pending, guarding against double submission', async () => {
+		mocks.useResendStaffInvitationMutation.mockReturnValue({
+			mutateAsync: vi.fn().mockResolvedValue({}),
+			isPending: true,
+		});
+		renderActionsCell();
+		await openMenu();
+
+		expect(
+			(
+				screen.getByText('send-reminder').closest('[role="menuitem"]') as
+					| HTMLElement
+					| null
+					| undefined
+			)?.getAttribute('data-disabled'),
+		).not.toBeNull();
 	});
 });

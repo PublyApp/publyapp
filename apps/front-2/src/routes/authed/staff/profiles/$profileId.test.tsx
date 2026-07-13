@@ -209,7 +209,7 @@ describe('staff profile details route', () => {
 
 		renderPage();
 
-		const description = screen.getByText('No description');
+		const description = screen.getByText('no-description');
 		expect(description.getAttribute('title')).toBeNull();
 	});
 
@@ -218,7 +218,7 @@ describe('staff profile details route', () => {
 
 		const header = within(screen.getByTestId('staff-profile-identity-header'));
 		expect(header.queryByText('Custom')).toBeNull();
-		expect(header.getByText('Profile')).toBeTruthy();
+		expect(header.getByText('profile')).toBeTruthy();
 	});
 
 	test('does not render a fabricated "Type" row in the About card', () => {

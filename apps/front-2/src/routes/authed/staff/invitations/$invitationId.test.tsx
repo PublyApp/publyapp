@@ -63,6 +63,8 @@ vi.mock('react-i18next', () => ({
 				'invitation-details-error-title': 'Unable to load invitation',
 				'invitation-details-error-description':
 					'Try again or return to the invitations list.',
+				'invitation-status-pending': 'Pending',
+				'try-again': 'Try again',
 			};
 
 			return labels[key] ?? key;
@@ -75,6 +77,7 @@ vi.mock('~/lib/query/staff-invitations', () => ({
 	useStaffInvitationLinkMutation: mocks.useStaffInvitationLinkMutation,
 	useResendStaffInvitationMutation: mocks.useResendStaffInvitationMutation,
 	useRevokeStaffInvitationMutation: mocks.useRevokeStaffInvitationMutation,
+	invalidateStaffInvitations: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('~/routes/authed/layout', () => ({

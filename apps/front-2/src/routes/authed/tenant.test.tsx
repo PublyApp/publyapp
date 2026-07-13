@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
 		isSuccess: true,
 		error: undefined as unknown,
 		data: undefined as TenantsForPickerData | undefined,
+		refetch: vi.fn(),
 	},
 	logout: vi.fn(),
 	isLoggingOut: false,
@@ -128,12 +129,22 @@ describe('TenantPortalRoute', () => {
 		expect(screen.getByTestId('tenant-portal-loading')).toBeTruthy();
 	});
 
-	test('renders the error state with no retry action', () => {
+	test('renders the error state with a retry action that refetches', () => {
 		setQuery({ isSuccess: false, isError: true, error: new Error('boom') });
 		render(<TenantPortalRoute />);
 		expect(screen.getByTestId('tenant-portal-error')).toBeTruthy();
 		expect(screen.getByText('Failed to load organizations')).toBeTruthy();
-		expect(screen.queryByRole('button')).toBeNull();
+
+		fireEvent.click(screen.getByRole('button', { name: 'retry' }));
+		expect(mocks.query.refetch).toHaveBeenCalledTimes(1);
+	});
+
+	test('renders a log-out escape from the error state', () => {
+		setQuery({ isSuccess: false, isError: true, error: new Error('boom') });
+		render(<TenantPortalRoute />);
+
+		fireEvent.click(screen.getByTestId('tenant-portal-error-logout-button'));
+		expect(mocks.logout).toHaveBeenCalledTimes(1);
 	});
 
 	test('logs out instead of rendering the error state on a 401', () => {

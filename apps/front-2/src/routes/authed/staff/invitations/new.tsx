@@ -222,7 +222,7 @@ function NewStaffInvitationsRoute() {
 	const isPending = isSubmitting || createInvitations.isPending;
 	const profileLoadError = profilesQuery.isError
 		? getFailureMessage(toApiFailure(profilesQuery.error), {
-				fallback: 'Unable to load profiles.',
+				fallback: t('unable-to-load-profiles'),
 			})
 		: '';
 
@@ -255,7 +255,7 @@ function NewStaffInvitationsRoute() {
 						? messages
 						: [
 								getFailureMessage(failure, {
-									fallback: 'Validation failed.',
+									fallback: t('validation-failed'),
 								}),
 							],
 				);
@@ -264,7 +264,7 @@ function NewStaffInvitationsRoute() {
 
 			setServerErrors([
 				getFailureMessage(failure, {
-					fallback: 'Invitations could not be sent.',
+					fallback: t('invitations-could-not-be-sent'),
 				}),
 			]);
 		}
@@ -282,7 +282,7 @@ function NewStaffInvitationsRoute() {
 				</Link>
 				<h1 className="publy-type-page-title">{t('invite-users')}</h1>
 				<p className="publy-type-helper">
-					Send email invitations and assign staff profiles.
+					{t('send-email-invitations-and-assign-staff-profiles')}
 				</p>
 			</div>
 
@@ -362,7 +362,7 @@ function NewStaffInvitationsRoute() {
 								<Field.Email
 									name={`invitations.${index}.email`}
 									label={t('email-address')}
-									placeholder="name@company.com"
+									placeholder={t('email-placeholder')}
 									required
 									disabled={isPending}
 								/>

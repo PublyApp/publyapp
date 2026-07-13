@@ -59,10 +59,9 @@ const ContactDetailsCard = ({
 						label={t('email')}
 						value={details.email || t('no-email-address')}
 					/>
-					<DetailMetaItem
-						label={t('role')}
-						value={details.accountLevel || '—'}
-					/>
+					{details.accountLevel ? (
+						<DetailMetaItem label={t('role')} value={details.accountLevel} />
+					) : null}
 					<DetailMetaItem
 						label={t('status')}
 						value={

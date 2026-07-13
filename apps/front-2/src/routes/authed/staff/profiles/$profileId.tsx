@@ -86,31 +86,44 @@ const getFailureDescription = (
 	return fallback;
 };
 
-const ProfileDetailsLoading = () => (
-	<div
-		className="mx-auto flex min-h-[50vh] w-full items-center justify-center py-12"
-		data-testid="staff-profile-details-loading"
-	>
-		<div className="flex items-center gap-3 text-sm text-muted-foreground">
-			<LoadingSpinner />
-			<span>Loading staff profile…</span>
+const ProfileDetailsLoading = () => {
+	const { t } = useTranslation('common');
+
+	return (
+		<div
+			className="mx-auto flex min-h-[50vh] w-full items-center justify-center py-12"
+			data-testid="staff-profile-details-loading"
+		>
+			<div className="flex items-center gap-3 text-sm text-muted-foreground">
+				<LoadingSpinner />
+				<span>{t('loading-staff-profile')}</span>
+			</div>
 		</div>
-	</div>
-);
+	);
+};
 
 const MissingProfileView = ({ error }: { error: unknown }) => {
+	const { t } = useTranslation('common');
 	const failure = toApiFailure(error);
 
 	return (
 		<AppErrorView
 			icon={<IconSearchOff aria-hidden="true" className="size-7" />}
 			code="404 — Not Found"
-			title="Staff profile not found"
+			title={t('staff-profile-not-found')}
 			description={getFailureDescription(
 				failure,
-				'The requested staff profile does not exist or is no longer available.',
+				t('staff-profile-not-found-description'),
 			)}
 			testId="staff-profile-details-not-found"
+			actions={
+				<Link
+					to="/staff/profiles"
+					className={buttonVariants({ variant: 'outline' })}
+				>
+					{t('back-to-staff-profiles')}
+				</Link>
+			}
 		/>
 	);
 };
@@ -122,6 +135,8 @@ const ProfileDetailsError = ({
 	error: unknown;
 	onRetry: () => void;
 }) => {
+	const { t } = useTranslation('common');
+
 	if (
 		isProblemStatus(error, 404) ||
 		isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)
@@ -137,19 +152,19 @@ const ProfileDetailsError = ({
 		<AppErrorView
 			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 			code="500 — Server Error"
-			title="Unable to load this staff profile"
-			description="There was a problem loading the profile details."
+			title={t('unable-to-load-staff-profile')}
+			description={t('problem-loading-staff-profile-details')}
 			testId="staff-profile-details-error"
 			actions={
 				<>
 					<Button variant="default" onClick={onRetry} type="button">
-						Try again
+						{t('try-again')}
 					</Button>
 					<Link
 						to="/staff/profiles"
 						className={buttonVariants({ variant: 'outline' })}
 					>
-						Back to staff profiles
+						{t('back-to-staff-profiles')}
 					</Link>
 				</>
 			}
@@ -389,9 +404,17 @@ function StaffProfileDetailsPage() {
 			<AppErrorView
 				icon={<IconSearchOff aria-hidden="true" className="size-7" />}
 				code="404 — Not Found"
-				title="Staff profile not found"
-				description="The profile payload was empty."
+				title={t('staff-profile-not-found')}
+				description={t('staff-profile-payload-empty')}
 				testId="staff-profile-details-empty"
+				actions={
+					<Link
+						to="/staff/profiles"
+						className={buttonVariants({ variant: 'outline' })}
+					>
+						{t('back-to-staff-profiles')}
+					</Link>
+				}
 			/>
 		);
 	}
@@ -447,7 +470,7 @@ function StaffProfileDetailsPage() {
 								{details.name}
 							</h1>
 							<span className="publy-detail-chip publy-detail-chip--outline shrink-0">
-								Profile
+								{t('profile')}
 							</span>
 						</div>
 						<div className="flex min-w-0 items-center gap-1 text-[13px] text-[var(--publy-foreground-muted)]">
@@ -455,15 +478,19 @@ function StaffProfileDetailsPage() {
 								className="min-w-0 truncate"
 								title={details.description || undefined}
 							>
-								{details.description ?? 'No description'}
+								{details.description || t('no-description')}
 							</span>
 							<span className="shrink-0 whitespace-nowrap">
 								{' · '}
 								{details.userAccountCount === null
 									? '—'
-									: `${details.userAccountCount} member${details.userAccountCount !== 1 ? 's' : ''}`}
+									: t('profile-member-count', {
+											count: details.userAccountCount,
+										})}
 								{' · '}
-								{assignedKeys.length} permissions
+								{t('assigned-permissions-count', {
+									count: assignedKeys.length,
+								})}
 							</span>
 						</div>
 					</div>
@@ -471,13 +498,17 @@ function StaffProfileDetailsPage() {
 				<div className="flex items-center gap-2.5">
 					<Button variant="outline" size="sm" className="gap-1.5">
 						<IconUsersPlus className="size-4" />
-						Assign to users
+						{t('assign-to-users')}
 					</Button>
 					<Button variant="outline" size="sm" className="gap-1.5">
 						<IconPencil className="size-4" />
-						Edit
+						{t('edit')}
 					</Button>
-					<Button variant="outline" size="icon-sm" aria-label="More actions">
+					<Button
+						variant="outline"
+						size="icon-sm"
+						aria-label={t('more-actions')}
+					>
 						<IconDots className="size-4" />
 					</Button>
 				</div>
@@ -489,19 +520,19 @@ function StaffProfileDetailsPage() {
 					<Card className="publy-detail-card">
 						<div className="publy-detail-card-header">
 							<span className="text-[14px] font-semibold">
-								Permissions in this profile
+								{t('permissions-in-this-profile')}
 							</span>
 							<Link
 								to="/staff/profiles"
 								className="text-[12px] no-underline inline-flex items-center gap-[5px] text-[var(--publy-foreground-muted)]"
 							>
 								<IconPencil className="size-[13px]" />
-								Edit permissions
+								{t('edit-permissions')}
 							</Link>
 						</div>
 						{assignedKeys.length === 0 ? (
 							<div className="px-[18px] py-8 text-center text-[13px] text-muted-foreground">
-								No permissions are assigned to this profile.
+								{t('no-permissions-assigned-to-profile')}
 							</div>
 						) : (
 							<PermissionMatrix assignedKeys={assignedKeys} catalog={catalog} />
@@ -513,36 +544,28 @@ function StaffProfileDetailsPage() {
 					{/* About Card */}
 					<Card className="publy-detail-card">
 						<div className="publy-detail-card-header">
-							<span className="text-[14px] font-semibold">About</span>
+							<span className="text-[14px] font-semibold">{t('about')}</span>
 						</div>
 						<div className="publy-detail-card-body">
 							<div className="publy-detail-row">
-								<span className="publy-type-metadata-label">Profile ID</span>
+								<span className="publy-type-metadata-label">
+									{t('profile-id')}
+								</span>
 								<span className="font-mono text-[12px] text-[var(--publy-foreground-secondary)]">
 									{details.id}
 								</span>
 							</div>
 							<div className="publy-detail-row">
-								<span className="publy-type-metadata-label">Created</span>
-								<span className="text-[12px] font-medium text-muted-foreground">
-									{/* TODO(contract): created_at not in profile detail response */}
-									—
+								<span className="publy-type-metadata-label">
+									{t('permissions')}
 								</span>
-							</div>
-							<div className="publy-detail-row">
-								<span className="publy-type-metadata-label">Last updated</span>
-								<span className="text-[12px] font-medium text-muted-foreground">
-									{/* TODO(contract): updated_at not in profile detail response */}
-									—
-								</span>
-							</div>
-							<div className="publy-detail-row">
-								<span className="publy-type-metadata-label">Permissions</span>
 								<span className="text-[12px] font-medium">
-									{assignedKeys.length}
 									{catalogPermCount > 0
-										? ` of ${catalogPermCount} granted`
-										: ''}
+										? t('permissions-of-total-granted', {
+												count: assignedKeys.length,
+												total: catalogPermCount,
+											})
+										: assignedKeys.length}
 								</span>
 							</div>
 						</div>
@@ -552,7 +575,7 @@ function StaffProfileDetailsPage() {
 					<Card className="publy-detail-card">
 						<div className="publy-detail-card-header">
 							<span className="text-[14px] font-semibold">
-								Members{' '}
+								{t('members')}{' '}
 								<span className="font-normal text-[var(--publy-foreground-subtle)]">
 									· {userCount === null ? '—' : userCount}
 								</span>
@@ -561,13 +584,13 @@ function StaffProfileDetailsPage() {
 								to="/staff/profiles"
 								className="text-[12px] no-underline text-[var(--publy-foreground-muted)]"
 							>
-								View all
+								{t('view-all')}
 							</Link>
 						</div>
 						<div className="flex flex-col">
 							{userRows.length === 0 ? (
 								<div className="px-[18px] py-8 text-center text-[13px] text-muted-foreground">
-									No members yet.
+									{t('no-members-yet')}
 								</div>
 							) : (
 								userRows.slice(0, 5).map((user) => (
@@ -588,14 +611,7 @@ function StaffProfileDetailsPage() {
 													.filter(Boolean)
 													.join(' ') || user.email}
 											</span>
-											<span className="text-[12px] text-[var(--publy-foreground-muted)]">
-												{/* TODO(contract): role not in StaffProfileUserItem */}
-												Member
-											</span>
 										</div>
-										<span className="publy-detail-chip publy-detail-chip--outline ml-auto">
-											{/* TODO(contract): role not in StaffProfileUserItem */}—
-										</span>
 									</div>
 								))
 							)}

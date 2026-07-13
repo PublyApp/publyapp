@@ -166,6 +166,9 @@ vi.mock('~/components/error-views/View403', () => ({
 vi.mock('~/lib/query/staff-users', () => ({
 	STAFF_USERS_QUERY_KEY: ['staff-users'],
 	STAFF_USER_DETAILS_QUERY_KEY: ['staff-users', 'detail'],
+	invalidateStaffUsers: (queryClient: {
+		invalidateQueries: (options: { queryKey: unknown[] }) => Promise<unknown>;
+	}) => queryClient.invalidateQueries({ queryKey: ['staff', 'staff-users'] }),
 	toAssignedStaffProfiles: mocks.toAssignedStaffProfiles,
 	toStaffUserDetails: mocks.toStaffUserDetails,
 	useStaffUserProfilesQuery: mocks.useStaffUserProfilesQuery,

@@ -16,9 +16,7 @@ import {
 	useStaffProfilesQuery,
 } from '~/lib/query/staff-profiles';
 import {
-	STAFF_USER_DETAILS_QUERY_KEY,
-	STAFF_USER_PROFILES_QUERY_KEY,
-	STAFF_USERS_QUERY_KEY,
+	invalidateStaffUsers,
 	toAssignedStaffProfiles,
 	toStaffUserDetails,
 	useStaffUserDetailsQuery,
@@ -36,32 +34,34 @@ import {
 const ACCOUNT_LEVEL_OPTIONS = ['Admin', 'User'] as const;
 const STATUS_OPTIONS = ['Active', 'Suspended'] as const;
 
-const staffUserEditSchema = z.object({
-	firstName: z.string().trim().max(128).optional(),
-	lastName: z.string().trim().max(128).optional(),
-	avatarUrl: z
-		.string()
-		.trim()
-		.max(1024)
-		.refine((value) => {
-			if (!value) {
-				return true;
-			}
+const ALLOWED_AVATAR_URL_PROTOCOLS = ['http:', 'https:'];
 
-			try {
-				new URL(value);
-				return true;
-			} catch {
-				return false;
-			}
-		}, 'Invalid URL'),
-	email: z.string().trim().email().or(z.literal('')),
-	accountLevel: z.enum(ACCOUNT_LEVEL_OPTIONS),
-	status: z.enum(STATUS_OPTIONS),
-	profileIds: z.array(z.string()),
-});
+const getStaffUserEditSchema = (t: (key: string) => string) =>
+	z.object({
+		firstName: z.string().trim().max(128).optional(),
+		lastName: z.string().trim().max(128).optional(),
+		avatarUrl: z
+			.string()
+			.trim()
+			.max(1024)
+			.refine((value) => {
+				if (!value) {
+					return true;
+				}
 
-type StaffUserEditValues = z.infer<typeof staffUserEditSchema>;
+				try {
+					return ALLOWED_AVATAR_URL_PROTOCOLS.includes(new URL(value).protocol);
+				} catch {
+					return false;
+				}
+			}, t('invalid-url')),
+		email: z.string().trim().email().or(z.literal('')),
+		accountLevel: z.enum(ACCOUNT_LEVEL_OPTIONS),
+		status: z.enum(STATUS_OPTIONS),
+		profileIds: z.array(z.string()),
+	});
+
+type StaffUserEditValues = z.infer<ReturnType<typeof getStaffUserEditSchema>>;
 
 const normalizeAccountLevel = (
 	value: string | null,
@@ -140,6 +140,14 @@ const StaffUserEditError = ({
 					t('staff-user-not-found-description'),
 				)}
 				testId="staff-user-edit-not-found"
+				actions={
+					<Link
+						to="/staff/staff-users"
+						className={buttonVariants({ variant: 'outline' })}
+					>
+						{t('back-to-staff-users')}
+					</Link>
+				}
 			/>
 		);
 	}
@@ -213,6 +221,7 @@ function StaffUserEditPage() {
 		() => toStaffProfileRows(profilesQuery.data?.data),
 		[profilesQuery.data],
 	);
+	const staffUserEditSchema = useMemo(() => getStaffUserEditSchema(t), [t]);
 	const methods = useForm<StaffUserEditValues>({
 		resolver: zodResolver(staffUserEditSchema),
 		defaultValues: {
@@ -300,6 +309,14 @@ function StaffUserEditPage() {
 				title={t('staff-user-not-found-title')}
 				description={t('staff-user-payload-empty')}
 				testId="staff-user-edit-not-found"
+				actions={
+					<Link
+						to="/staff/staff-users"
+						className={buttonVariants({ variant: 'outline' })}
+					>
+						{t('back-to-staff-users')}
+					</Link>
+				}
 			/>
 		);
 	}
@@ -327,17 +344,7 @@ function StaffUserEditPage() {
 			setServerError('');
 			if (hasIdentityChanges) {
 				await updateStaffUser.mutateAsync(updateInput);
-				await Promise.all([
-					queryClient.invalidateQueries({
-						queryKey: ['staff', ...STAFF_USERS_QUERY_KEY],
-					}),
-					queryClient.invalidateQueries({
-						queryKey: ['staff', ...STAFF_USER_DETAILS_QUERY_KEY],
-					}),
-					queryClient.invalidateQueries({
-						queryKey: ['staff', ...STAFF_USER_PROFILES_QUERY_KEY],
-					}),
-				]);
+				await invalidateStaffUsers(queryClient);
 			}
 
 			if (hasProfileChanges) {
@@ -345,17 +352,7 @@ function StaffUserEditPage() {
 					userId,
 					profileIds: values.profileIds,
 				});
-				await Promise.all([
-					queryClient.invalidateQueries({
-						queryKey: ['staff', ...STAFF_USERS_QUERY_KEY],
-					}),
-					queryClient.invalidateQueries({
-						queryKey: ['staff', ...STAFF_USER_DETAILS_QUERY_KEY],
-					}),
-					queryClient.invalidateQueries({
-						queryKey: ['staff', ...STAFF_USER_PROFILES_QUERY_KEY],
-					}),
-				]);
+				await invalidateStaffUsers(queryClient);
 			}
 
 			void navigate({

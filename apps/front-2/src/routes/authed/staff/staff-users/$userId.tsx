@@ -24,8 +24,8 @@ import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import { Tabs, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import {
-	STAFF_USERS_QUERY_KEY,
 	STAFF_USER_DETAILS_QUERY_KEY,
+	invalidateStaffUsers,
 	toAssignedStaffProfiles,
 	toStaffUserDetails,
 	useDeleteStaffUserMutation,
@@ -230,6 +230,14 @@ function StaffUserDetailsPage() {
 						t('staff-user-not-found-description'),
 					)}
 					testId="staff-user-details-not-found"
+					actions={
+						<Link
+							to="/staff/staff-users"
+							className={buttonVariants({ variant: 'outline' })}
+						>
+							{t('back-to-staff-users')}
+						</Link>
+					}
 				/>
 			);
 		}
@@ -276,6 +284,14 @@ function StaffUserDetailsPage() {
 				title={t('staff-user-not-found-title')}
 				description={t('staff-user-payload-empty')}
 				testId="staff-user-details-empty"
+				actions={
+					<Link
+						to="/staff/staff-users"
+						className={buttonVariants({ variant: 'outline' })}
+					>
+						{t('back-to-staff-users')}
+					</Link>
+				}
 			/>
 		);
 	}
@@ -306,9 +322,7 @@ function StaffUserDetailsPage() {
 				await reactivateUser.mutateAsync({ userId });
 			}
 
-			await queryClient.invalidateQueries({
-				queryKey: ['staff', 'staff-users'],
-			});
+			await invalidateStaffUsers(queryClient);
 			setDetailActionSuccess(
 				canSuspend
 					? t('staff-user-suspended-success')
@@ -364,9 +378,7 @@ function StaffUserDetailsPage() {
 		queryClient.removeQueries({
 			queryKey: ['staff', ...STAFF_USER_DETAILS_QUERY_KEY],
 		});
-		void queryClient.invalidateQueries({
-			queryKey: ['staff', ...STAFF_USERS_QUERY_KEY],
-		});
+		void invalidateStaffUsers(queryClient);
 	};
 
 	const isDeleteConfirmReady =
