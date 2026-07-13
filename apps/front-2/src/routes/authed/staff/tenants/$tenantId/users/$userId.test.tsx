@@ -428,7 +428,7 @@ describe('staff tenant user details route', () => {
 		await waitFor(() =>
 			expect(screen.getByText('Remove tenant user')).toBeTruthy(),
 		);
-		fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+		fireEvent.click(screen.getByRole('button', { name: 'cancel' }));
 
 		await waitFor(() =>
 			expect(mocks.removeTenantUserMutation).not.toHaveBeenCalled(),
