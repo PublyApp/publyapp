@@ -8,7 +8,7 @@ const srcDir = path.join(rootDir, 'src');
 const e2eDir = path.join(rootDir, 'e2e');
 
 const TEXT_EXTENSIONS = new Set(['.ts', '.tsx', '.css']);
-const TOKEN_LAYER_FILES = new Set(['src/styles/app.css']);
+const APP_CSS_PATH = 'src/styles/app.css';
 const ROUNDED_RULE_ID = 'no-rounded-full-or-999-radius';
 const KNOWN_HANDOFF_GUARD_DEBT = [
 	{
@@ -74,18 +74,6 @@ const KNOWN_HANDOFF_GUARD_DEBT = [
 	},
 	{
 		ruleId: ROUNDED_RULE_ID,
-		file: 'src/routes/authed/staff/invitations/new.tsx',
-		sourceIncludes: 'size-4 animate-spin rounded-full',
-		reason: 'Legacy route spinner; module pass owns this.',
-	},
-	{
-		ruleId: ROUNDED_RULE_ID,
-		file: 'src/routes/authed/staff/profiles/$profileId/users.tsx',
-		sourceIncludes: 'size-4 animate-spin rounded-full',
-		reason: 'Legacy route spinner; module pass owns this.',
-	},
-	{
-		ruleId: ROUNDED_RULE_ID,
 		file: 'src/routes/authed/staff/profiles/$profileId/users.tsx',
 		sourceIncludes: 'rounded-full border border-divider px-4 py-2',
 		reason: 'Legacy profile chip; Staff module pass owns this.',
@@ -95,42 +83,6 @@ const KNOWN_HANDOFF_GUARD_DEBT = [
 		file: 'src/routes/authed/staff/profiles/$profileId/users.tsx',
 		sourceIncludes: 'rounded-full bg-primary px-4 py-2',
 		reason: 'Legacy profile chip; Staff module pass owns this.',
-	},
-	{
-		ruleId: ROUNDED_RULE_ID,
-		file: 'src/routes/authed/staff/profiles/$profileId.tsx',
-		sourceIncludes: 'size-4 animate-spin rounded-full',
-		reason: 'Legacy route spinner; module pass owns this.',
-	},
-	{
-		ruleId: ROUNDED_RULE_ID,
-		file: 'src/routes/authed/staff/profiles/$profileId.tsx',
-		sourceIncludes: 'rounded-full bg-primary px-4 py-2',
-		reason: 'Legacy profile chip; Staff module pass owns this.',
-	},
-	{
-		ruleId: ROUNDED_RULE_ID,
-		file: 'src/routes/authed/staff/profiles/$profileId.tsx',
-		sourceIncludes: 'rounded-full border border-divider px-4 py-2',
-		reason: 'Legacy profile chip; Staff module pass owns this.',
-	},
-	{
-		ruleId: ROUNDED_RULE_ID,
-		file: 'src/routes/authed/staff/profiles/$profileId.tsx',
-		sourceIncludes: 'rounded-full bg-muted px-2.5 py-1',
-		reason: 'Legacy status chip; Staff module pass owns this.',
-	},
-	{
-		ruleId: ROUNDED_RULE_ID,
-		file: 'src/routes/authed/staff/profiles-new.tsx',
-		sourceIncludes: 'size-4 animate-spin rounded-full',
-		reason: 'Legacy route spinner; module pass owns this.',
-	},
-	{
-		ruleId: ROUNDED_RULE_ID,
-		file: 'src/routes/authed/staff/staff-users/$userId.tsx',
-		sourceIncludes: 'size-4 animate-spin rounded-full',
-		reason: 'Legacy route spinner; module pass owns this.',
 	},
 	{
 		ruleId: ROUNDED_RULE_ID,
@@ -141,18 +93,6 @@ const KNOWN_HANDOFF_GUARD_DEBT = [
 	{
 		ruleId: ROUNDED_RULE_ID,
 		file: 'src/routes/authed/staff/tenants/$tenantId/_tenant-details-shell.tsx',
-		sourceIncludes: 'size-4 animate-spin rounded-full',
-		reason: 'Legacy route spinner; module pass owns this.',
-	},
-	{
-		ruleId: ROUNDED_RULE_ID,
-		file: 'src/routes/authed/staff/tenants/$tenantId/invitations.tsx',
-		sourceIncludes: 'inline-flex rounded-full bg-muted',
-		reason: 'Legacy invitation chip; Tenants module pass owns this.',
-	},
-	{
-		ruleId: ROUNDED_RULE_ID,
-		file: 'src/routes/authed/staff/tenants/$tenantId/profiles/$profileId-edit.tsx',
 		sourceIncludes: 'size-4 animate-spin rounded-full',
 		reason: 'Legacy route spinner; module pass owns this.',
 	},
@@ -180,23 +120,204 @@ const KNOWN_HANDOFF_GUARD_DEBT = [
 		sourceIncludes: 'h-2 w-2 rounded-full bg-primary',
 		reason: 'Legacy status dot; Tenants module pass owns this.',
 	},
+];
+
+const IMPORTANT_FOUNDATION_RULE_ID = 'no-important-foundation';
+// app.css declarations that must stay `!important` because they beat a real,
+// verified conflicting Tailwind utility from a shared primitive (Badge/Button
+// defaults) or are a deliberate, permanent cascade override (reduced-motion,
+// theme-switch transition suppression) — not debt to pay down, but recorded
+// here (per rule) so the guard can still see and reason about every
+// `!important` in the file instead of being blind to the one file that has
+// the most of them.
+const KNOWN_IMPORTANT_FOUNDATION_DEBT = [
 	{
-		ruleId: ROUNDED_RULE_ID,
-		file: 'src/routes/login.tsx',
-		sourceIncludes: 'size-4 animate-spin rounded-full',
-		reason: 'Legacy login spinner; auth shell pass owns this.',
+		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
+		file: 'src/styles/app.css',
+		sourceIncludes: 'height: 22px !important;',
+		reason:
+			'.app-shell-workspace-pill/.app-shell-tenant-pill vs Badge h-5 default — real conflict, see rule comment.',
+	},
+	{
+		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
+		file: 'src/styles/app.css',
+		sourceIncludes: 'font-size: 11px !important;',
+		reason:
+			'.app-shell-workspace-pill/.app-shell-tenant-pill vs Badge text-xs default — real conflict.',
+	},
+	{
+		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
+		file: 'src/styles/app.css',
+		sourceIncludes: 'border-radius: var(--publy-radius-chip) !important;',
+		reason:
+			'.app-shell-workspace-pill/.app-shell-tenant-pill — same computed value as the Badge utility today, but kept explicit and important so a future Badge radius change cannot silently drift the shell chip.',
+	},
+	{
+		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
+		file: 'src/styles/app.css',
+		sourceIncludes: 'padding: 0 8px !important;',
+		reason:
+			'.app-shell-workspace-pill/.app-shell-tenant-pill vs Badge px-2 py-0.5 default — real conflict.',
+	},
+	{
+		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
+		file: 'src/styles/app.css',
+		sourceIncludes: 'background: var(--publy-surface-muted) !important;',
+		reason:
+			'.app-shell-workspace-pill/.app-shell-tenant-pill — Badge outline has no base bg utility, kept important for symmetry with the rest of the rule.',
+	},
+	{
+		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
+		file: 'src/styles/app.css',
+		sourceIncludes: 'color: var(--publy-foreground-muted) !important;',
+		reason:
+			'.app-shell-workspace-pill/.app-shell-tenant-pill/.app-shell-topbar-action-btn vs Badge text-foreground / Button outline defaults — real conflict.',
+	},
+	{
+		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
+		file: 'src/styles/app.css',
+		sourceIncludes: 'height: 36px !important;',
+		reason:
+			'.app-shell-topbar-action-btn — matches the Button size="icon" utility value; kept important for symmetry with the radius/border-color overrides in the same rule.',
+	},
+	{
+		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
+		file: 'src/styles/app.css',
+		sourceIncludes: 'min-height: 36px !important;',
+		reason: '.app-shell-topbar-action-btn — see height: 36px entry above.',
+	},
+	{
+		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
+		file: 'src/styles/app.css',
+		sourceIncludes: 'width: 36px !important;',
+		reason: '.app-shell-topbar-action-btn — see height: 36px entry above.',
+	},
+	{
+		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
+		file: 'src/styles/app.css',
+		sourceIncludes: 'min-width: 36px !important;',
+		reason: '.app-shell-topbar-action-btn — see height: 36px entry above.',
+	},
+	{
+		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
+		file: 'src/styles/app.css',
+		sourceIncludes: 'border-radius: 999px !important;',
+		reason:
+			".app-shell-topbar-action-btn — deliberately circular vs the Button size utility 12px radius; this is the guard's own documented rounded-full exception for this selector.",
+	},
+	{
+		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
+		file: 'src/styles/app.css',
+		sourceIncludes: 'border-color: var(--publy-border) !important;',
+		reason:
+			'.app-shell-topbar-action-btn vs Button outline border-(--publy-border-strong) default — real conflict.',
+	},
+	{
+		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
+		file: 'src/styles/app.css',
+		sourceIncludes: 'transition-duration: 1ms !important;',
+		reason:
+			'prefers-reduced-motion: reduce — must beat every component/utility transition unconditionally; permanent by design.',
+	},
+	{
+		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
+		file: 'src/styles/app.css',
+		sourceIncludes: 'animation-duration: 1ms !important;',
+		reason:
+			'prefers-reduced-motion: reduce — see transition-duration entry above.',
+	},
+	{
+		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
+		file: 'src/styles/app.css',
+		sourceIncludes: 'animation-iteration-count: 1 !important;',
+		reason:
+			'prefers-reduced-motion: reduce — see transition-duration entry above.',
+	},
+	{
+		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
+		file: 'src/styles/app.css',
+		sourceIncludes: 'scroll-behavior: auto !important;',
+		reason:
+			'prefers-reduced-motion: reduce — see transition-duration entry above.',
+	},
+	{
+		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
+		file: 'src/styles/app.css',
+		sourceIncludes: 'transition: none !important;',
+		reason:
+			'html[data-theme-changing] — suppresses cross-fade during the .dark class swap; must beat every transition unconditionally, permanent by design.',
 	},
 ];
 
-const hasNearbySelector = (lines, lineIndex, selector, lookback = 8) => {
-	const start = Math.max(0, lineIndex - lookback);
-	for (let index = lineIndex; index >= start; index--) {
+const KNOWN_GUARD_DEBT = [
+	...KNOWN_HANDOFF_GUARD_DEBT,
+	...KNOWN_IMPORTANT_FOUNDATION_DEBT,
+];
+
+// Tightened to the same rule block (F15): stop at the nearest enclosing `{`
+// or `}` above the match instead of scanning a fixed 8-line lookback window,
+// so a `rounded-full` in one rule can't ride on an unrelated selector's name
+// merely because it sits a few lines above.
+const hasNearbySelector = (lines, lineIndex, selector) => {
+	for (let index = lineIndex; index >= 0; index--) {
 		if (lines[index].includes(selector)) {
 			return true;
+		}
+
+		if (index !== lineIndex && /[{}]/.test(lines[index])) {
+			return false;
 		}
 	}
 
 	return false;
+};
+
+// Finds the [startLine, endLine] (0-indexed, inclusive) ranges of top-level
+// blocks whose opening line matches `selectorPattern`, by brace counting —
+// used to make `no-raw-visual-color` block-aware instead of file-aware (F5):
+// only the `:root { … }` / `html.dark { … }` token-declaration blocks in
+// app.css may contain raw colour literals; every other rule in the file is
+// scanned like any other source file.
+const getBlockLineRanges = (lines, selectorPattern) => {
+	const ranges = [];
+	for (let index = 0; index < lines.length; index += 1) {
+		if (!selectorPattern.test(lines[index])) {
+			continue;
+		}
+
+		let depth = 0;
+		let started = false;
+		for (let scan = index; scan < lines.length; scan += 1) {
+			for (const character of lines[scan]) {
+				if (character === '{') {
+					depth += 1;
+					started = true;
+				} else if (character === '}') {
+					depth -= 1;
+				}
+			}
+
+			if (started && depth === 0) {
+				ranges.push([index, scan]);
+				break;
+			}
+		}
+	}
+
+	return ranges;
+};
+
+const isAppCssTokenLayerLine = (relativePath, lineIndex, lines) => {
+	if (relativePath !== APP_CSS_PATH) {
+		return false;
+	}
+
+	const ranges = [
+		...getBlockLineRanges(lines, /^:root\s*\{/),
+		...getBlockLineRanges(lines, /^html\.dark\s*\{/),
+	];
+
+	return ranges.some(([start, end]) => lineIndex >= start && lineIndex <= end);
 };
 
 const isRoundedRadiusAllowed = (relativePath, line, lineIndex, lines) => {
@@ -221,11 +342,10 @@ const isRoundedRadiusAllowed = (relativePath, line, lineIndex, lines) => {
 
 const isConfirmDialogFile = (relativePath) =>
 	relativePath === 'src/components/ui/confirm-dialog.tsx' ||
-	relativePath === 'src/components/ui/dialog.tsx' ||
 	relativePath === 'src/components/ui/drawer.tsx';
 
 const isKnownHandoffGuardDebt = ({ ruleId, file, source }) => {
-	for (const debt of KNOWN_HANDOFF_GUARD_DEBT) {
+	for (const debt of KNOWN_GUARD_DEBT) {
 		if (
 			debt.ruleId === ruleId &&
 			debt.file === file &&
@@ -292,7 +412,7 @@ const rules = [
 	{
 		id: 'no-raw-visual-color',
 		message:
-			'Use front-2 semantic tokens instead of raw hex/rgb/slate/white-alpha styling.',
+			'Use front-2 semantic tokens instead of raw hex/rgb/slate/gray/zinc/neutral/white/black styling.',
 		// Covers all of src/. The earlier per-directory list silently exempted
 		// src/lib/, where a raw-hex palette landed unscanned.
 		// src/design-handoff/ is exempt: its literals are *expected* values that
@@ -300,17 +420,24 @@ const rules = [
 		appliesTo: (relativePath) =>
 			relativePath.startsWith('src/') &&
 			!relativePath.startsWith('src/design-handoff/'),
-		allow: (relativePath) => TOKEN_LAYER_FILES.has(relativePath),
+		// Block-aware, not file-aware (F5): app.css is the token layer, but only
+		// its `:root { … }` / `html.dark { … }` declaration blocks are allowed to
+		// contain raw colour literals. Every other rule in the file is scanned
+		// like any other source file, so a new `.publy-*` rule with `#fff` in it
+		// fails the guard instead of hiding behind a whole-file exemption.
+		ignoreMatch: (relativePath, _line, lineIndex, lines) =>
+			isAppCssTokenLayerLine(relativePath, lineIndex, lines),
 		patterns: [
-			/["'][#][0-9a-fA-F]{3,8}["']/, // quoted raw color tokens
-			/\b(?:bg|text|border|ring|from|to|via)-\[#(?:[0-9a-fA-F]{3,8})\]/,
-			/\b(?:color|background|background-color|border-color|outline-color)\s*:\s*#[0-9a-fA-F]{3,8}\b/,
-			/\b(?:bg|text|border|ring|from|to|via)-slate-\d{2,3}\b/,
+			/["'`][#][0-9a-fA-F]{3,8}["'`]/, // quoted/templated raw color tokens
+			/\b(?:bg|text|border|ring|from|to|via|fill|stroke|outline|accent|decoration|divide)-\[#(?:[0-9a-fA-F]{3,8})\]/,
+			/\b(?:color|background|background-color|border-color|outline-color|fill|stroke)\s*:\s*#[0-9a-fA-F]{3,8}\b/,
+			/\b(?:bg|text|border|ring|from|to|via|fill|stroke|outline|accent|decoration|divide)-(?:slate|zinc|gray|neutral)-\d{2,3}\b/,
 			/\b(?:bg|border|text|ring)-white\/\d+\b/,
 			/\b(?:bg|border|text|ring)-black\/\d+\b/,
+			/\b(?:bg|border|text|ring)-(?:white|black)\b/,
 			/["'`]\s*rgba?\(/,
-			/\b(?:bg|text|border|ring|from|to|via)-\[(?:rgba?\([^\]]+\))\]/,
-			/\b(?:color|background|background-color|border-color|outline-color|box-shadow)\s*:\s*rgba?\(/,
+			/\b(?:bg|text|border|ring|from|to|via|fill|stroke|outline|accent|decoration|divide)-\[(?:rgba?\([^\]]+\))\]/,
+			/\b(?:color|background|background-color|border-color|outline-color|box-shadow|fill|stroke)\s*:\s*rgba?\(/,
 		],
 	},
 	{
@@ -347,10 +474,26 @@ const rules = [
 	{
 		id: 'no-important-foundation',
 		message: 'Fix cascade through tokens/theme/wrappers, not !important.',
+		// app.css added (F9): it holds the app's only literal CSS `!important`
+		// declarations, previously unscanned; each pre-existing one is now a
+		// KNOWN_IMPORTANT_FOUNDATION_DEBT entry with a reason, above. Left at
+		// app-shell/ + table/ for TSX (not widened to all of src/components/):
+		// that's the exact scope the F9 failure scenario (`bg-red-500!` on
+		// data-table.tsx) needs, without also re-litigating src/components/ui/'s
+		// existing, already-reviewed `!`-suffix usages (tabs.tsx, tooltip.tsx,
+		// badge.tsx) outside this packet's ownership — see report Handoffs.
 		appliesTo: (relativePath) =>
 			relativePath.startsWith('src/components/app-shell/') ||
-			relativePath.startsWith('src/components/table/'),
-		patterns: [/!important/, /![a-z0-9]+-[a-z0-9][a-z0-9-]*/],
+			relativePath.startsWith('src/components/table/') ||
+			relativePath === APP_CSS_PATH,
+		patterns: [
+			/!important/,
+			/![a-z0-9]+-[a-z0-9][a-z0-9-]*/, // Tailwind v3 `!prefix` syntax
+			// Tailwind v4 `suffix!` syntax (e.g. `border-transparent!`,
+			// `top-1/2!`, `text-(--foo)!`) — the v3 pattern above never matches
+			// this codebase's actual `!`-suffix usages (F9).
+			/[\w\-/.[\]():%]+!(?=["'`\s}]|$)/,
+		],
 	},
 	{
 		id: 'no-rounded-full-or-999-radius',
@@ -364,7 +507,12 @@ const rules = [
 		id: 'no-non-confirmation-centered-overlay',
 		message:
 			'Use non-centered drawers for non-confirmation overlays; only confirm can stay centered.',
-		appliesTo: (relativePath) => relativePath.startsWith('src/routes/'),
+		// Was scoped to src/routes/ only, so a centered modal built in
+		// src/components/ (the most likely place for one) was invisible to it
+		// (F15). confirm-dialog.tsx/drawer.tsx are exempt via ignoreFile — the
+		// rule's own message says confirm gets to stay centered.
+		appliesTo: (relativePath) => relativePath.startsWith('src/'),
+		ignoreFile: isConfirmDialogFile,
 		patterns: [
 			/(?:top-1\/2.*left-1\/2|left-1\/2.*top-1\/2)/,
 			/\b(?:centered|center)\b[^\n]{0,140}\b(?:dialog|modal)\b/i,
@@ -385,7 +533,10 @@ const rules = [
 		id: 'no-raw-internal-anchor',
 		mode: 'source',
 		message: 'Use TanStack Link for internal route navigation.',
-		appliesTo: (relativePath) => relativePath.startsWith('src/routes/authed/'),
+		// Was scoped to src/routes/authed/ only, so a raw <a href="/staff/…">
+		// inside src/components/app-shell/ (the most likely place for one) was
+		// invisible to it (F15).
+		appliesTo: (relativePath) => relativePath.startsWith('src/'),
 		patterns: [
 			/<a\b(?:(?!<a\b)[\s\S])*?href=["']\/(staff|tenant)\b(?:(?!<a\b)[\s\S])*?>/g,
 			// Path constants (`STAFF_INVITATIONS_LIST_PATH`, `ROUTES.x`, …) don't
@@ -406,9 +557,12 @@ const rules = [
 		id: 'no-single-star-route-glob',
 		mode: 'source',
 		message:
-			"page.route() glob ends in a single '*', which cannot cross '/'. Sub-paths escape the mock and hit the real API. Use '**'.",
+			"page.route()/context.route() glob ends in a single '*', which cannot cross '/'. Sub-paths escape the mock and hit the real API. Use '**'.",
 		appliesTo: (relativePath) => relativePath.startsWith('e2e/'),
-		patterns: [/page\.route\(\s*(['"`])(?:(?!\1)[^\\])*[^*]\*\1/g],
+		// Covers context.route(...) too (F30) — Playwright's BrowserContext
+		// exposes the same route() API as Page, and a glob registered there has
+		// the identical single-`*`-cannot-cross-`/` footgun.
+		patterns: [/(?:page|context)\.route\(\s*(['"`])(?:(?!\1)[^\\])*[^*]\*\1/g],
 	},
 ];
 
@@ -444,6 +598,15 @@ export const scanFront2DesignSystem = async ({
 	baseDir = rootDir,
 	sourceDir,
 	sourceDirs = sourceDir ? [sourceDir] : [srcDir, e2eDir],
+	// Opt-in (F7) and parameterized rather than always-on against the module
+	// constant: a fixture test's temp source dir routinely reuses a real
+	// KNOWN_GUARD_DEBT file path (e.g. src/components/app-shell/app-shell.tsx)
+	// with unrelated stub content, which would otherwise misreport as "stale"
+	// on every such fixture. The real CLI run below opts in with the real
+	// KNOWN_GUARD_DEBT list; unit tests that want to exercise this mechanism
+	// pass their own narrow `guardDebt` fixture instead.
+	checkStaleDebt = false,
+	guardDebt = KNOWN_GUARD_DEBT,
 } = {}) => {
 	const files = [];
 	for (const dir of sourceDirs) {
@@ -451,7 +614,22 @@ export const scanFront2DesignSystem = async ({
 			files.push(...(await collectFiles(dir)));
 		}
 	}
+
+	// Vacuity check (F6): a missing/renamed source directory previously made
+	// `pathExists` false, so `files` silently stayed empty and the guard
+	// exited 0 having scanned nothing. Throw instead of returning `[]`, so a
+	// vacuous scan is a hard failure, not a false "pass".
+	if (files.length === 0) {
+		throw new Error(
+			`front-2 design-system guard scanned 0 files across ${sourceDirs.length} source ` +
+				`director${sourceDirs.length === 1 ? 'y' : 'ies'} (${sourceDirs.join(', ')}) — ` +
+				'the scan is vacuous. A renamed/missing source directory would cause exactly ' +
+				'this, and a vacuous scan always "passes" with 0 violations for the wrong reason.',
+		);
+	}
+
 	const violations = [];
+	const fileContentsByRelativePath = new Map();
 
 	for (const absolutePath of files) {
 		const relativePath = path
@@ -460,6 +638,7 @@ export const scanFront2DesignSystem = async ({
 			.join('/');
 		const source = await readFile(absolutePath, 'utf8');
 		const lines = source.split('\n');
+		fileContentsByRelativePath.set(relativePath, source);
 
 		for (const rule of rules) {
 			if (!rule.appliesTo(relativePath) || rule.allow?.(relativePath)) {
@@ -517,6 +696,34 @@ export const scanFront2DesignSystem = async ({
 		}
 	}
 
+	// Self-pruning stale-debt check (F7): a guardDebt entry is a standing,
+	// silent re-permit for one exact (rule, file, source substring)
+	// combination. If the file was part of this scan but no longer contains
+	// that substring, the entry is stale — either the offending code moved on
+	// its own (good) or was rewritten to no longer match (also good), and
+	// either way the entry is now dead weight that would silently re-permit a
+	// *new, unrelated* regression matching the same rule+file.
+	if (checkStaleDebt) {
+		for (const debt of guardDebt) {
+			const content = fileContentsByRelativePath.get(debt.file);
+			if (content === undefined) {
+				continue;
+			}
+
+			if (!content.includes(debt.sourceIncludes)) {
+				violations.push({
+					ruleId: 'stale-guard-debt',
+					message:
+						'guardDebt entry no longer matches any line in this file; delete it — a stale entry silently re-permits a future, unrelated violation of the same rule in the same file.',
+					file: debt.file,
+					line: 0,
+					source: `${debt.ruleId}: ${debt.sourceIncludes}`,
+				});
+			}
+		}
+	}
+
+	violations.scannedFileCount = files.length;
 	return violations;
 };
 
@@ -524,7 +731,11 @@ if (
 	process.argv[1] &&
 	pathToFileURL(process.argv[1]).href === import.meta.url
 ) {
-	const violations = await scanFront2DesignSystem();
+	const violations = await scanFront2DesignSystem({ checkStaleDebt: true });
+
+	console.error(
+		`front-2 design-system guard: scanned ${violations.scannedFileCount} files, ${violations.length} violations`,
+	);
 
 	if (violations.length > 0) {
 		console.error('front-2 design-system guard failed:');

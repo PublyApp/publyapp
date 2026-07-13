@@ -297,8 +297,6 @@ test('allows HeroUI imports and rules that should be exempt', async () => {
 	const root = await makeFixture({
 		'src/components/ui/confirm-dialog.tsx':
 			"import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';",
-		'src/components/ui/dialog.tsx':
-			"import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';\nexport const DialogPopup = DialogPrimitive.Popup;",
 		'src/components/ui/drawer.tsx':
 			'import { Dialog as DialogPrimitive } from \'@base-ui/react/dialog\';\nconst drawer = <DialogPrimitive.Popup className="publy-drawer" />;',
 		'src/components/app-shell/app-shell.tsx':
@@ -315,6 +313,25 @@ test('allows HeroUI imports and rules that should be exempt', async () => {
 			(violation) => violation.ruleId === 'no-dialog-popup-primitives',
 		).length,
 		0,
+	);
+});
+
+test('no longer exempts a deleted ui/dialog.tsx from DialogPopup usage (F12: dialog.tsx removed from the allowlist)', async () => {
+	const root = await makeFixture({
+		'src/components/ui/dialog.tsx':
+			"import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';\nexport const DialogPopup = DialogPrimitive.Popup;",
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-dialog-popup-primitives',
+		),
+		true,
 	);
 });
 
@@ -365,41 +382,34 @@ test('reports the actual internal anchor when another anchor appears first', asy
 	assert.doesNotMatch(anchors[0].source, /href=\{href\}/);
 });
 
-test('primary button chrome is on .button--primary, sizing on .button--primary.button--md', async () => {
+test('primary button chrome is on .btn-primary-chrome, with no border-radius override (F6/F9)', async () => {
 	const css = await readFile(
 		new URL('../src/styles/app.css', import.meta.url),
 		'utf8',
 	);
 
-	// chrome properties on generic class
-	assert.match(css, /\.button--primary\s*\{/);
+	// .button--primary / .button--primary.button--md are dead CSS (F9/F12):
+	// zero usages anywhere in src/, superseded by .btn-primary-chrome — this
+	// test used to pin the dead selector in place. Assert it's gone.
+	assert.doesNotMatch(css, /\.button--primary\b/);
+
+	// chrome properties live on the real class, .btn-primary-chrome
+	const chromeRuleMatch = css.match(/\.btn-primary-chrome\s*\{([^}]*)\}/);
+	assert.notEqual(chromeRuleMatch, null, '.btn-primary-chrome rule not found');
+	const chromeRuleBody = chromeRuleMatch[1];
+
 	assert.match(
-		css,
+		chromeRuleBody,
 		/border:\s*1\.33px\s+solid\s+rgba\(255,\s*255,\s*255,\s*0\.12\)/,
 	);
-	assert.match(css, /border-radius:\s*var\(--publy-radius-button\)/);
-	assert.match(css, /box-shadow:\s*var\(--publy-shadow-chrome\)/);
+	assert.match(chromeRuleBody, /box-shadow:\s*var\(--publy-shadow-chrome\)/);
 
-	// generic .button--primary must not override sizing
-	assert.doesNotMatch(css, /\.button--primary\s*\{[^}]*height:/);
-	assert.doesNotMatch(css, /\.button--primary\s*\{[^}]*min-height:/);
-
-	// default/md size variant gets the 36px height
-	assert.match(css, /\.button--primary\.button--md\s*\{/);
-	assert.match(css, /height:\s*36px/);
-	assert.match(css, /min-height:\s*36px/);
-
-	// sm/lg size must not have a height override
-	assert.doesNotMatch(css, /\.button--primary\.button--sm\s*\{[^}]*height:/);
-	assert.doesNotMatch(
-		css,
-		/\.button--primary\.button--sm\s*\{[^}]*min-height:/,
-	);
-	assert.doesNotMatch(css, /\.button--primary\.button--lg\s*\{[^}]*height:/);
-	assert.doesNotMatch(
-		css,
-		/\.button--primary\.button--lg\s*\{[^}]*min-height:/,
-	);
+	// F6: no border-radius here. This class is un-layered (must beat
+	// Tailwind's utility layer for border/box-shadow), so a border-radius
+	// declaration here would always beat every size variant's own
+	// rounded-[...] utility, forcing every primary button to the same
+	// radius regardless of size="xs"/"sm"/"default"/"lg".
+	assert.doesNotMatch(chromeRuleBody, /border-radius/);
 });
 
 test('handoff design tokens are present in app.css', async () => {
@@ -608,4 +618,202 @@ test('a design-system-ignore marker suppresses only when it carries a reason', a
 
 	assert.equal(await countFor(bare), 1, 'a bare marker must not suppress');
 	assert.equal(await countFor(reasoned), 0, 'a reasoned marker must suppress');
+});
+
+test('F30: flags a single-star glob registered via context.route(), not just page.route()', async () => {
+	const root = await makeFixture({
+		'e2e/context-route.spec.ts':
+			"await context.route('**/staff/tenants*', handler);",
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDirs: [path.join(root, 'e2e')],
+	});
+
+	const globViolations = violations.filter(
+		(violation) => violation.ruleId === 'no-single-star-route-glob',
+	);
+
+	assert.equal(globViolations.length, 1);
+	assert.match(globViolations[0].source, /staff\/tenants\*/);
+});
+
+test('F5: no-raw-visual-color is block-aware in app.css, not file-aware — raw hex outside :root/html.dark still fails', async () => {
+	const root = await makeFixture({
+		'src/styles/app.css': [
+			':root {',
+			'\t--publy-primary: #fdc700;',
+			'}',
+			'',
+			'html.dark {',
+			'\t--publy-primary: #f0bd00;',
+			'}',
+			'',
+			'.publy-new-rule {',
+			'\tbackground: #ffffff;',
+			'}',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	const colorViolations = violations.filter(
+		(violation) => violation.ruleId === 'no-raw-visual-color',
+	);
+
+	// The two :root/html.dark declarations are allowed; the third raw hex,
+	// outside both blocks, is not — this is exactly the F1 shape (a new rule
+	// with a hardcoded #fff outside the token layer) that a whole-file
+	// `allow: (path) => path === 'src/styles/app.css'` exemption would miss.
+	assert.equal(colorViolations.length, 1);
+	assert.match(colorViolations[0].source, /background:\s*#ffffff/);
+});
+
+test('F6: throws on a vacuous scan (0 files) instead of silently passing', async () => {
+	const root = await makeFixture({
+		'src/keep.txt':
+			'not scanned — wrong extension, and directory is empty of .ts/.tsx/.css',
+	});
+
+	await assert.rejects(
+		() =>
+			scanFront2DesignSystem({
+				baseDir: root,
+				sourceDirs: [path.join(root, 'nonexistent-dir')],
+			}),
+		/scanned 0 files/,
+	);
+});
+
+test('F6: does not throw when the scan finds at least one file', async () => {
+	const root = await makeFixture({
+		'src/example.tsx': '<div />',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(Array.isArray(violations), true);
+	assert.equal(violations.scannedFileCount, 1);
+});
+
+test('F7: self-pruning stale-debt check flags a guardDebt entry whose source text no longer appears in its file', async () => {
+	const root = await makeFixture({
+		'src/routes/authed/staff/example.tsx':
+			'<div className="rounded-full">x</div>',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+		checkStaleDebt: true,
+		guardDebt: [
+			{
+				ruleId: 'no-rounded-full-or-999-radius',
+				file: 'src/routes/authed/staff/example.tsx',
+				sourceIncludes: 'this substring was never in the file',
+				reason: 'fixture: intentionally stale',
+			},
+		],
+	});
+
+	const staleViolations = violations.filter(
+		(violation) => violation.ruleId === 'stale-guard-debt',
+	);
+
+	assert.equal(staleViolations.length, 1);
+	assert.equal(staleViolations[0].file, 'src/routes/authed/staff/example.tsx');
+});
+
+test('F7: self-pruning stale-debt check does not flag a guardDebt entry that still matches', async () => {
+	const root = await makeFixture({
+		'src/routes/authed/staff/example.tsx':
+			'<div className="rounded-full">x</div>',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+		checkStaleDebt: true,
+		guardDebt: [
+			{
+				ruleId: 'no-rounded-full-or-999-radius',
+				file: 'src/routes/authed/staff/example.tsx',
+				sourceIncludes: 'rounded-full',
+				reason: 'fixture: still valid',
+			},
+		],
+	});
+
+	assert.equal(
+		violations.some((violation) => violation.ruleId === 'stale-guard-debt'),
+		false,
+	);
+});
+
+test('F7: self-pruning stale-debt check is opt-in — off by default so a fixture reusing a real debt file path is not misjudged', async () => {
+	// This exact relative path is a real KNOWN_HANDOFF_GUARD_DEBT file in the
+	// live scripts/check-design-system.mjs list, registered against a
+	// completely different sourceIncludes substring than this fixture's
+	// content. Without the opt-in default, this fixture alone would
+	// misreport that real entry as stale.
+	const root = await makeFixture({
+		'src/components/app-shell/app-shell.tsx':
+			'<div className="unrelated-fixture-markup" />',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some((violation) => violation.ruleId === 'stale-guard-debt'),
+		false,
+	);
+});
+
+test('F9: no-important-foundation catches the Tailwind v4 `suffix!` syntax, not just the dead v3 `!prefix` form', async () => {
+	const root = await makeFixture({
+		'src/components/table/v4-important.tsx':
+			'<div className="border-transparent! top-1/2!">Bad</div>',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-important-foundation',
+		),
+		true,
+	);
+});
+
+test('F9: no-important-foundation now scans app.css, where the real !important declarations live', async () => {
+	const root = await makeFixture({
+		'src/styles/app.css': '.new-rule {\n\tcolor: red !important;\n}\n',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) =>
+				violation.ruleId === 'no-important-foundation' &&
+				violation.file === 'src/styles/app.css',
+		),
+		true,
+	);
 });

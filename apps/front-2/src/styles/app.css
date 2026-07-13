@@ -72,10 +72,14 @@
 		'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
 		'Liberation Mono', 'Courier New', monospace;
 	--publy-primary: #fdc700;
-	--publy-primary-hover: #f0bd00;
 	--publy-primary-active: #d9aa00;
 	--publy-primary-soft: #fffbeb;
 	--publy-primary-foreground: #733e0a;
+	/* Text colour for content painted on --publy-primary-soft (chips, the
+	   'primary' status pill tone) — distinct from --publy-primary-foreground,
+	   which is the text colour for the *solid* primary button fill and pairs
+	   badly with the soft background in dark mode (see html.dark). */
+	--publy-primary-soft-foreground: #733e0a;
 	--publy-background: #ffffff;
 	--publy-surface: #ffffff;
 	--publy-surface-raised: #fafafa;
@@ -121,7 +125,11 @@
 	--publy-selection-bar-divider: rgba(255, 255, 255, 0.1);
 	--publy-selection-bar-muted: #71717a;
 	/* WCAG >=4.5:1 with white initials (canvas ships brighter shades;
-	   accessibility invariant wins — see deviation register). */
+	   accessibility invariant wins — see deviation register). Palette and
+	   foreground are both theme-invariant by design: the WCAG contract is
+	   validated against fixed white text, not the (theme-variant)
+	   --publy-foreground-inverse token, so it must not swap in dark mode. */
+	--publy-avatar-foreground: #ffffff;
 	--publy-avatar-1: #0f766e;
 	--publy-avatar-2: #6d28d9;
 	--publy-avatar-3: #be185d;
@@ -132,14 +140,11 @@
 	--publy-avatar-8: #a21caf;
 	--publy-radius-sm: 0.375rem;
 	--publy-radius-md: 0.5rem;
-	--publy-radius-lg: 0.625rem;
 	--publy-radius-button: var(--publy-radius-control);
-	--publy-radius-menu: var(--publy-radius-control);
 	--publy-radius-card: var(--publy-radius-control);
 	--publy-radius-chip: 8px;
 	--publy-radius-small-control: 10px;
 	--publy-radius-medium-control: 12px;
-	--publy-radius-pill: 999px;
 	--publy-radius-circular: 999px;
 	--publy-radius-control: 14px;
 	--publy-radius-input: 10px;
@@ -179,7 +184,14 @@
 	--publy-shell-rail-width: 49px;
 	--publy-shell-panel-width: 272px;
 	--publy-shell-topbar-height: 64px;
-	--publy-shadow-card: 0 0 0 1px var(--publy-border);
+	/* Popup stacking scale (all portal to document.body, so paint order is
+	   z-index only): overlay backdrop < menu/select popups < drawer/dialog
+	   surface, so a Select/DropdownMenu opened from inside a Drawer paints
+	   above it instead of underneath. */
+	--publy-z-overlay: 70;
+	--publy-z-menu: 100;
+	--publy-z-select: 110;
+	--publy-z-drawer-surface: 120;
 	--publy-shadow-ring: 0 0 0 1px var(--publy-border);
 	--publy-shadow-menu:
 		0 12px 32px rgba(24, 24, 27, 0.14), 0 2px 6px rgba(24, 24, 27, 0.06);
@@ -191,13 +203,8 @@
 		0 2px 2px rgba(255, 255, 255, 0.1) inset,
 		0 2px 2.67px -0.67px rgba(42, 42, 42, 0.1),
 		0 0.67px 0.67px rgba(42, 42, 42, 0.08);
-	--publy-shadow-raised: 0 1px 2px color-mix(in srgb, black 8%, transparent);
-	--publy-shadow-inset:
-		0 1px 0 color-mix(in srgb, white 70%, transparent) inset,
-		0 0 0 1px color-mix(in srgb, white 45%, transparent) inset;
 	--publy-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
 	--publy-motion-fast: 120ms;
-	--publy-motion-panel: 180ms;
 	--accent: var(--publy-primary);
 	--accent-foreground: var(--publy-primary-foreground);
 }
@@ -205,10 +212,10 @@
 html.dark {
 	color-scheme: dark;
 	--publy-primary: #f0bd00;
-	--publy-primary-hover: #d9aa00;
 	--publy-primary-active: #c49700;
 	--publy-primary-soft: #2a2400;
 	--publy-primary-foreground: #1a0d00;
+	--publy-primary-soft-foreground: #fbbf24;
 	--publy-background: #18181b;
 	--publy-surface: #18181b;
 	--publy-surface-raised: #1f1f23;
@@ -225,7 +232,6 @@ html.dark {
 	--publy-row-border: #27272a;
 	--publy-border: rgba(255, 255, 255, 0.1);
 	--publy-border-strong: rgba(255, 255, 255, 0.15);
-	--publy-shadow-inset: 0 1px 0 color-mix(in srgb, white 6%, transparent) inset;
 	--publy-danger-soft: rgba(220, 38, 38, 0.16);
 	--publy-destructive-soft: rgba(220, 38, 38, 0.2);
 	--publy-destructive-soft-hover: rgba(220, 38, 38, 0.3);
@@ -233,6 +239,21 @@ html.dark {
 	--publy-danger-zone-ring: rgba(159, 18, 57, 0.55);
 	--publy-danger-zone-border: #4c0519;
 	--publy-danger-zone-heading: #fb7185;
+	--publy-danger: #f87171;
+	--publy-success: #34d399;
+	--publy-warning: #fbbf24;
+	--publy-alert-danger-bg: rgba(220, 38, 38, 0.16);
+	--publy-alert-danger-border: rgba(220, 38, 38, 0.32);
+	--publy-alert-danger-text: #f87171;
+	--publy-alert-warning-bg: #451a03;
+	--publy-alert-warning-border: #92400e;
+	--publy-alert-warning-text: #fbbf24;
+	--publy-alert-info-bg: #082f49;
+	--publy-alert-info-border: #075985;
+	--publy-alert-info-text: #38bdf8;
+	--publy-alert-success-bg: rgba(4, 120, 87, 0.18);
+	--publy-alert-success-border: rgba(4, 120, 87, 0.36);
+	--publy-alert-success-text: #34d399;
 	--publy-chip-active-border: #065f46;
 	--publy-chip-active-bg: #052e22;
 	--publy-chip-active-text: #34d399;
@@ -262,80 +283,88 @@ html.dark {
 	}
 }
 
-html {
-	font-family: var(--publy-font-sans);
-	background: var(--publy-background);
-	color: var(--publy-foreground);
-}
-
-@media (prefers-reduced-motion: reduce) {
-	* {
-		transition-duration: 1ms !important;
-		animation-duration: 1ms !important;
-		animation-iteration-count: 1 !important;
-		scroll-behavior: auto !important;
-	}
-}
-
-@keyframes publy-state-rise {
-	from {
-		opacity: 0;
-		transform: translateY(6px);
+/* The non-authed/authed shell chrome below is layered (like the rest of the
+   file) so a caller's own utility className (e.g. `h-9`) can win over it
+   through ordinary Tailwind v4 layer order, instead of silently losing to
+   un-layered CSS with no diagnostic. A few rules keep the CSS important
+   marker because they have a real, verified conflict with a primitive's
+   default utility classes (Badge/Button) that must keep losing — see each
+   rule's comment. */
+@layer components {
+	html {
+		font-family: var(--publy-font-sans);
+		background: var(--publy-background);
+		color: var(--publy-foreground);
 	}
 
-	to {
-		opacity: 1;
-		transform: translateY(0);
+	@media (prefers-reduced-motion: reduce) {
+		* {
+			transition-duration: 1ms !important;
+			animation-duration: 1ms !important;
+			animation-iteration-count: 1 !important;
+			scroll-behavior: auto !important;
+		}
 	}
-}
 
-@media (prefers-reduced-motion: reduce) {
-	.publy-state-icon-cluster {
-		animation: none;
+	@keyframes publy-state-rise {
+		from {
+			opacity: 0;
+			transform: translateY(6px);
+		}
+
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
 	}
-}
 
-/* ---- Non-authed shell (marketing / auth) ---- */
+	@media (prefers-reduced-motion: reduce) {
+		.publy-state-icon-cluster {
+			animation: none;
+		}
+	}
 
-.app-shell-shell {
-	@apply flex min-h-screen flex-col bg-background;
-}
+	/* ---- Non-authed shell (marketing / auth) ---- */
 
-.app-shell-header {
-	@apply border-b border-divider bg-content1;
-}
+	.app-shell-shell {
+		@apply flex min-h-screen flex-col bg-background;
+	}
 
-.app-shell-header-inner {
-	@apply mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6;
-}
+	.app-shell-header {
+		@apply border-b border-divider bg-content1;
+	}
 
-.app-shell-header-inner .app-shell-desktop-nav {
-	@apply hidden gap-2 sm:flex;
-}
+	.app-shell-header-inner {
+		@apply mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6;
+	}
 
-.app-shell-mobile-menu-wrap {
-	@apply border-t border-divider bg-content1 sm:hidden;
-}
+	.app-shell-header-inner .app-shell-desktop-nav {
+		@apply hidden gap-2 sm:flex;
+	}
 
-.app-shell-mobile-menu {
-	@apply flex flex-col gap-1 p-4;
-}
+	.app-shell-mobile-menu-wrap {
+		@apply border-t border-divider bg-content1 sm:hidden;
+	}
 
-.app-shell-main-card {
-	@apply bg-content1;
-}
+	.app-shell-mobile-menu {
+		@apply flex flex-col gap-1 p-4;
+	}
 
-.app-shell-header-subtitle {
-	color: var(--publy-foreground-muted);
-}
+	.app-shell-main-card {
+		@apply bg-content1;
+	}
 
-.app-shell-shell > .app-shell-main {
-	@apply mx-auto w-full max-w-6xl;
-}
+	.app-shell-header-subtitle {
+		color: var(--publy-foreground-muted);
+	}
 
-/* ---- Authenticated workspace shell (token-driven grid) ---- */
+	.app-shell-shell > .app-shell-main {
+		@apply mx-auto w-full max-w-6xl;
+	}
 
-/* Chromium keeps the real <body> independently wheel-scrollable (its
+	/* ---- Authenticated workspace shell (token-driven grid) ---- */
+
+	/* Chromium keeps the real <body> independently wheel-scrollable (its
    scrollable-overflow region includes descendant content even through
    nested overflow-hidden boxes) unless body's own overflow is non-visible —
    a nested container's overflow-hidden is not enough. Without this, wheeling
@@ -345,330 +374,350 @@ html {
    sticky math going wrong (2b), since both assume .app-shell-main is the
    only scroller. Scoped via :has() so marketing/auth pages, which still rely
    on natural document scroll, are unaffected. */
-body:has(.app-shell-workspace) {
-	overflow: hidden;
-}
+	body:has(.app-shell-workspace) {
+		overflow: hidden;
+	}
 
-.app-shell-workspace {
-	@apply grid h-dvh overflow-hidden;
-	grid-template-columns: var(--publy-shell-rail-width) minmax(0, 1fr);
-	background: var(--publy-background);
-	color: var(--publy-foreground);
-}
+	.app-shell-workspace {
+		@apply grid h-dvh overflow-hidden;
+		grid-template-columns: var(--publy-shell-rail-width) minmax(0, 1fr);
+		background: var(--publy-background);
+		color: var(--publy-foreground);
+	}
 
-.app-shell-workspace:has(.app-shell-secondary-panel) {
-	grid-template-columns:
-		var(--publy-shell-rail-width)
-		var(--publy-shell-panel-width)
-		minmax(0, 1fr);
-}
+	.app-shell-workspace:has(.app-shell-secondary-panel) {
+		grid-template-columns:
+			var(--publy-shell-rail-width)
+			var(--publy-shell-panel-width)
+			minmax(0, 1fr);
+	}
 
-/* ---- Rail ---- */
+	/* ---- Rail ---- */
 
-.app-shell-rail {
-	@apply sticky top-0 flex h-screen flex-col items-center gap-1 border-r;
-	padding: 12px 0;
-	background: var(--publy-surface-raised);
-	border-color: var(--publy-border);
-	width: var(--publy-shell-rail-width);
-}
+	.app-shell-rail {
+		@apply flex h-full flex-col items-center gap-1 border-r;
+		padding: 12px 0;
+		background: var(--publy-surface-raised);
+		border-color: var(--publy-border);
+		width: var(--publy-shell-rail-width);
+	}
 
-.app-shell-rail-logo {
-	@apply flex size-8 items-center justify-center mb-1;
-}
+	.app-shell-rail-logo {
+		@apply flex size-8 items-center justify-center mb-1;
+	}
 
-.app-shell-rail-link {
-	@apply flex size-8 items-center justify-center;
-	border-radius: 10px;
-	color: var(--publy-foreground-muted);
-	transition:
-		background-color var(--publy-motion-fast) var(--publy-motion-ease),
-		color var(--publy-motion-fast) var(--publy-motion-ease);
-}
+	.app-shell-rail-link {
+		@apply flex size-8 items-center justify-center;
+		border-radius: 10px;
+		color: var(--publy-foreground-muted);
+		transition:
+			background-color var(--publy-motion-fast) var(--publy-motion-ease),
+			color var(--publy-motion-fast) var(--publy-motion-ease);
+	}
 
-.app-shell-rail-link[data-bottom='true'] {
-	@apply mb-2;
-}
+	.app-shell-rail-link[data-bottom='true'] {
+		@apply mb-2;
+	}
 
-.app-shell-rail-link[data-rail-item='account'] {
-	border-radius: var(--publy-radius-circular);
-}
+	.app-shell-rail-link[data-rail-item='account'] {
+		border-radius: var(--publy-radius-circular);
+	}
 
-.app-shell-rail-account-avatar {
-	@apply flex size-8 items-center justify-center overflow-hidden;
-	border-radius: var(--publy-radius-circular);
-	border: 1px solid transparent;
-	background: var(--publy-surface-muted);
-	color: var(--publy-foreground-muted);
-}
+	.app-shell-rail-account-avatar {
+		@apply flex size-8 items-center justify-center overflow-hidden;
+		border-radius: var(--publy-radius-circular);
+		border: 1px solid transparent;
+		background: var(--publy-surface-muted);
+		color: var(--publy-foreground-muted);
+	}
 
-.app-shell-rail-account-image {
-	width: 100%;
-	height: 100%;
-	object-fit: cover;
-}
+	.app-shell-rail-account-image {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
 
-.app-shell-rail-link[data-rail-item='account'][data-active='true'] {
-	border: 2px solid var(--publy-primary);
-}
+	.app-shell-rail-link[data-rail-item='account'][data-active='true'] {
+		border: 2px solid var(--publy-primary);
+	}
 
-.app-shell-rail-link:hover,
-.app-shell-rail-link:focus-visible {
-	background: var(--publy-surface-hover);
-	color: var(--publy-foreground);
-}
+	.app-shell-rail-link:hover,
+	.app-shell-rail-link:focus-visible {
+		background: var(--publy-surface-hover);
+		color: var(--publy-foreground);
+	}
 
-.app-shell-rail-link[data-active='true'] {
-	background: var(--publy-surface-active);
-	color: var(--publy-foreground);
-}
+	.app-shell-rail-link[data-active='true'] {
+		background: var(--publy-surface-active);
+		color: var(--publy-foreground);
+	}
 
-.app-shell-rail-links {
-	@apply flex flex-1 flex-col items-center gap-1;
-}
+	.app-shell-rail-links {
+		@apply flex flex-1 flex-col items-center gap-1;
+	}
 
-.app-shell-rail-spacer {
-	@apply flex-1;
-}
+	.app-shell-rail-spacer {
+		@apply flex-1;
+	}
 
-/* ---- Secondary panel ---- */
+	/* ---- Secondary panel ---- */
 
-.app-shell-secondary-panel {
-	@apply hidden h-screen min-w-0 flex-col border-r lg:flex;
-	background: var(--publy-surface-raised);
-	border-color: var(--publy-border);
-	width: var(--publy-shell-panel-width);
-}
+	.app-shell-secondary-panel {
+		@apply hidden h-screen min-w-0 flex-col border-r lg:flex;
+		background: var(--publy-surface-raised);
+		border-color: var(--publy-border);
+		width: var(--publy-shell-panel-width);
+	}
 
-.app-shell-secondary-header {
-	@apply flex items-center gap-2 border-b px-4;
-	padding-top: 16px;
-	padding-bottom: 16px;
-	border-color: var(--publy-border);
-}
+	.app-shell-secondary-header {
+		@apply flex items-center gap-2 border-b px-4;
+		padding-top: 16px;
+		padding-bottom: 16px;
+		border-color: var(--publy-border);
+	}
 
-.app-shell-secondary-title {
-	font-size: 15px;
-	font-weight: 500;
-	color: var(--publy-foreground);
-}
+	.app-shell-secondary-title {
+		font-size: 15px;
+		font-weight: 500;
+		color: var(--publy-foreground);
+	}
 
-.app-shell-workspace-pill {
-	height: 22px !important;
-	font-size: 11px !important;
-	border-radius: var(--publy-radius-chip) !important;
-	padding: 0 8px !important;
-	background: var(--publy-surface-muted) !important;
-	color: var(--publy-foreground-muted) !important;
-}
+	/* Now in @layer components (F17), so these important markers stay: this is
+   a `<Badge variant="outline">` and Badge's own utilities (h-5, text-xs,
+   px-2 py-0.5, text-foreground) are real conflicts, not decoration — a
+   layered rule without one would lose to them and the chip would revert to
+   Badge's default 20px/12px sizing and full-strength text color. */
+	.app-shell-workspace-pill {
+		height: 22px !important;
+		font-size: 11px !important;
+		border-radius: var(--publy-radius-chip) !important;
+		padding: 0 8px !important;
+		background: var(--publy-surface-muted) !important;
+		color: var(--publy-foreground-muted) !important;
+	}
 
-/* Same horizontal inset as .app-shell-secondary-nav so the search input
+	/* Same horizontal inset as .app-shell-secondary-nav so the search input
    spans exactly the width of the nav rows below it. */
-.app-shell-secondary-search {
-	padding: 8px 8px 0;
-}
+	.app-shell-secondary-search {
+		padding: 8px 8px 0;
+	}
 
-.app-shell-search-wrapper {
-	position: relative;
-}
+	.app-shell-search-wrapper {
+		position: relative;
+	}
 
-.app-shell-search-icon {
-	position: absolute;
-	left: 10px;
-	top: 50%;
-	transform: translateY(-50%);
-	width: 14px;
-	height: 14px;
-	color: var(--publy-foreground-subtle);
-	pointer-events: none;
-}
+	.app-shell-search-icon {
+		position: absolute;
+		left: 10px;
+		top: 50%;
+		transform: translateY(-50%);
+		width: 14px;
+		height: 14px;
+		color: var(--publy-foreground-subtle);
+		pointer-events: none;
+	}
 
-.app-shell-search-input {
-	height: 32px;
-	width: 100%;
-	border-radius: 10px;
-	background: #ffffff;
-	border: 1px solid var(--publy-border);
-	box-shadow: var(--publy-shadow-input);
-	font-size: 13px;
-	color: var(--publy-foreground);
-	padding: 0 10px 0 30px;
-	outline: none;
-}
+	.app-shell-search-input {
+		height: 32px;
+		width: 100%;
+		border-radius: 10px;
+		background: var(--publy-surface);
+		border: 1px solid var(--publy-border);
+		box-shadow: var(--publy-shadow-input);
+		font-size: 13px;
+		color: var(--publy-foreground);
+		padding: 0 10px 0 30px;
+		outline: none;
+	}
 
-.app-shell-search-input::placeholder {
-	color: var(--publy-foreground-subtle);
-}
+	.app-shell-search-input::placeholder {
+		color: var(--publy-foreground-subtle);
+	}
 
-.app-shell-search-input:focus {
-	border-color: var(--publy-foreground-muted);
-}
+	.app-shell-search-input:focus {
+		border-color: var(--publy-foreground-muted);
+	}
 
-.app-shell-secondary-nav {
-	@apply flex flex-col;
-	padding: 8px;
-	gap: 2px;
-}
+	.app-shell-secondary-nav {
+		@apply flex flex-col;
+		padding: 8px;
+		gap: 2px;
+	}
 
-.app-shell-secondary-nav-link {
-	@apply flex items-center gap-2 rounded-lg px-3;
-	height: 32px;
-	font-size: 13px;
-	color: var(--publy-foreground-muted);
-	transition:
-		background-color var(--publy-motion-fast) var(--publy-motion-ease),
-		color var(--publy-motion-fast) var(--publy-motion-ease);
-}
+	.app-shell-secondary-nav-link {
+		@apply flex items-center gap-2 rounded-lg px-3;
+		height: 32px;
+		font-size: 13px;
+		color: var(--publy-foreground-muted);
+		transition:
+			background-color var(--publy-motion-fast) var(--publy-motion-ease),
+			color var(--publy-motion-fast) var(--publy-motion-ease);
+	}
 
-.app-shell-secondary-nav-link:hover {
-	background: var(--publy-surface-hover);
-	color: var(--publy-foreground);
-}
+	.app-shell-secondary-nav-link:hover {
+		background: var(--publy-surface-hover);
+		color: var(--publy-foreground);
+	}
 
-.app-shell-secondary-nav-link[data-active='true'] {
-	background: var(--publy-surface-active);
-	color: var(--publy-foreground);
-	font-weight: 500;
-}
+	.app-shell-secondary-nav-link[data-active='true'] {
+		background: var(--publy-surface-active);
+		color: var(--publy-foreground);
+		font-weight: 500;
+	}
 
-.app-shell-secondary-nav-label {
-	@apply flex-1;
-}
+	.app-shell-secondary-nav-label {
+		@apply flex-1;
+	}
 
-.app-shell-secondary-nav-count {
-	font-size: 11px;
-	color: var(--publy-foreground-subtle);
-}
+	.app-shell-secondary-nav-count {
+		font-size: 11px;
+		color: var(--publy-foreground-subtle);
+	}
 
-.app-shell-secondary-nav-count[data-tone='warning'] {
-	color: var(--publy-chip-pending-text);
-	border: 1px solid var(--publy-chip-pending-border);
-	background: var(--publy-chip-pending-bg);
-	border-radius: 6px;
-	padding: 0 7px;
-}
+	.app-shell-secondary-nav-count[data-tone='warning'] {
+		color: var(--publy-chip-pending-text);
+		border: 1px solid var(--publy-chip-pending-border);
+		background: var(--publy-chip-pending-bg);
+		border-radius: 6px;
+		padding: 0 7px;
+	}
 
-.app-shell-tenant-pill {
-	height: 22px !important;
-	font-size: 11px !important;
-	border-radius: var(--publy-radius-chip) !important;
-	padding: 0 8px !important;
-	background: var(--publy-surface-muted) !important;
-	color: var(--publy-foreground-muted) !important;
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-}
+	/* Same real conflict as .app-shell-workspace-pill above (also a
+   `<Badge variant="outline">`) — the important marker stays for the same
+   reason. */
+	.app-shell-tenant-pill {
+		height: 22px !important;
+		font-size: 11px !important;
+		border-radius: var(--publy-radius-chip) !important;
+		padding: 0 8px !important;
+		background: var(--publy-surface-muted) !important;
+		color: var(--publy-foreground-muted) !important;
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+	}
 
-.app-shell-tenant-pill-brand {
-	width: 12px;
-	height: 12px;
-	border-radius: 4px;
-	background: var(--publy-primary);
-	border: 1px solid var(--publy-primary);
-	flex-shrink: 0;
-}
+	.app-shell-tenant-pill-brand {
+		width: 12px;
+		height: 12px;
+		border-radius: 4px;
+		background: var(--publy-primary);
+		border: 1px solid var(--publy-primary);
+		flex-shrink: 0;
+	}
 
-/* ---- Body ---- */
+	/* ---- Body ---- */
 
-/* The body column owns the viewport height; only .app-shell-main scrolls,
+	/* The body column owns the viewport height; only .app-shell-main scrolls,
    so the rail/secondary panel never move with page content. */
-.app-shell-body {
-	@apply flex h-dvh min-w-0 flex-col overflow-hidden;
-}
+	.app-shell-body {
+		@apply flex h-dvh min-w-0 flex-col overflow-hidden;
+	}
 
-/* ---- Topbar ---- */
+	/* ---- Topbar ---- */
 
-.app-shell-topbar {
-	@apply z-20 flex shrink-0 items-center justify-between;
-	height: var(--publy-shell-topbar-height);
-	padding: 14px 16px;
-	background: var(--publy-background);
-	border-bottom: 0 solid transparent;
-}
+	.app-shell-topbar {
+		@apply z-20 flex shrink-0 items-center justify-between;
+		height: var(--publy-shell-topbar-height);
+		padding: 14px 16px;
+		background: var(--publy-background);
+		border-bottom: 0 solid transparent;
+	}
 
-.app-shell-topbar-left {
-	@apply flex items-center gap-3 min-w-0;
-}
+	.app-shell-topbar-left {
+		@apply flex items-center gap-3 min-w-0;
+	}
 
-.app-shell-sidebar-toggle {
-	color: var(--publy-foreground-muted) !important;
-}
+	/* No conflicting utility on this Button (ghost variant sets no base text
+   color, only hover/aria-expanded states) — an important marker was never
+   needed here and blocked the intended hover-to-foreground color
+   transition. */
+	.app-shell-sidebar-toggle {
+		color: var(--publy-foreground-muted);
+	}
 
-.app-shell-breadcrumbs {
-	@apply flex min-w-0 items-center gap-2;
-	font-size: 13px;
-	color: var(--publy-foreground-muted);
-}
+	.app-shell-breadcrumbs {
+		@apply flex min-w-0 items-center gap-2;
+		font-size: 13px;
+		color: var(--publy-foreground-muted);
+	}
 
-.app-shell-breadcrumb-chevron {
-	@apply size-4 shrink-0;
-	color: var(--publy-disabled);
-}
+	.app-shell-breadcrumb-chevron {
+		@apply size-4 shrink-0;
+		color: var(--publy-disabled);
+	}
 
-.app-shell-breadcrumb-link {
-	color: var(--publy-foreground-muted);
-}
+	.app-shell-breadcrumb-link {
+		color: var(--publy-foreground-muted);
+	}
 
-.app-shell-breadcrumb-link:hover {
-	color: var(--publy-foreground);
-}
+	.app-shell-breadcrumb-link:hover {
+		color: var(--publy-foreground);
+	}
 
-.app-shell-breadcrumb-current {
-	color: var(--publy-foreground);
-	font-weight: 500;
-}
+	.app-shell-breadcrumb-current {
+		color: var(--publy-foreground);
+		font-weight: 500;
+	}
 
-.app-shell-breadcrumb-muted {
-	color: var(--publy-foreground-muted);
-}
+	.app-shell-breadcrumb-muted {
+		color: var(--publy-foreground-muted);
+	}
 
-.app-shell-topbar-right {
-	@apply flex items-center gap-2 shrink-0;
-}
+	.app-shell-topbar-right {
+		@apply flex items-center gap-2 shrink-0;
+	}
 
-.app-shell-topbar-action-btn {
-	height: 36px !important;
-	min-height: 36px !important;
-	width: 36px !important;
-	min-width: 36px !important;
-	border-radius: 999px !important;
-	border-color: var(--publy-border) !important;
-	color: var(--publy-foreground-muted) !important;
-}
+	/* Button `variant="outline" size="icon"` real conflicts: the size utility's
+   12px radius vs. this class's deliberately-circular 999px (the guard's
+   `isRoundedRadiusAllowed` exception exists for exactly this selector), and
+   the outline variant's `border-(--publy-border-strong)` vs. the plain
+   `--publy-border` this design calls for. The important marker stays for
+   those two; height/width match the size utility's own 36px so are inert
+   either way. */
+	.app-shell-topbar-action-btn {
+		height: 36px !important;
+		min-height: 36px !important;
+		width: 36px !important;
+		min-width: 36px !important;
+		border-radius: 999px !important;
+		border-color: var(--publy-border) !important;
+		color: var(--publy-foreground-muted) !important;
+	}
 
-.app-shell-topbar-separator {
-	width: 1px;
-	height: 16px;
-	background: var(--publy-border);
-	flex-shrink: 0;
-}
+	.app-shell-topbar-separator {
+		width: 1px;
+		height: 16px;
+		background: var(--publy-border);
+		flex-shrink: 0;
+	}
 
-.app-shell-user-chip {
-	@apply flex items-center gap-2 cursor-pointer;
-}
+	.app-shell-user-chip {
+		@apply flex items-center gap-2 cursor-pointer;
+	}
 
-.app-shell-user-name {
-	font-size: 13px;
-	font-weight: 500;
-	color: var(--publy-foreground);
-	white-space: nowrap;
-}
+	.app-shell-user-name {
+		font-size: 13px;
+		font-weight: 500;
+		color: var(--publy-foreground);
+		white-space: nowrap;
+	}
 
-/* ---- Main content ---- */
+	/* ---- Main content ---- */
 
-.app-shell-main {
-	@apply min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto;
-	padding: 20px 28px 32px;
-	/* Query container for .publy-detail-grid: the rail/panel/no-panel width
+	.app-shell-main {
+		@apply min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto;
+		padding: 20px 28px 32px;
+		/* Query container for .publy-detail-grid: the rail/panel/no-panel width
 	   is only known here, not at the viewport, so the detail grid's two-
 	   column split must react to this element's content width. */
-	container-type: inline-size;
-}
+		container-type: inline-size;
+	}
 
-@media (max-width: 767px) {
-	.app-shell-main {
-		padding: 16px;
+	@media (max-width: 767px) {
+		.app-shell-main {
+			padding: 16px;
+		}
 	}
 }
 
@@ -684,53 +733,55 @@ body:has(.app-shell-workspace) {
 	padding-bottom: 0;
 }
 
-.app-shell-topbar-actions {
-	@apply flex items-center gap-2;
-}
-
-/* ---- Tablet < 1024px: rail-only shell (design 1h) ---- */
-
-@media (max-width: 1023px) {
-	.app-shell-workspace:has(.app-shell-secondary-panel) {
-		grid-template-columns: var(--publy-shell-rail-width) minmax(0, 1fr);
-	}
-}
-
-/* ---- Mobile < 768px ---- */
-
-@media (max-width: 767px) {
-	.app-shell-workspace,
-	.app-shell-workspace:has(.app-shell-secondary-panel) {
-		grid-template-columns: 1fr;
+@layer components {
+	.app-shell-topbar-actions {
+		@apply flex items-center gap-2;
 	}
 
-	.app-shell-rail {
-		@apply hidden;
+	/* ---- Tablet < 1024px: rail-only shell (design 1h) ---- */
+
+	@media (max-width: 1023px) {
+		.app-shell-workspace:has(.app-shell-secondary-panel) {
+			grid-template-columns: var(--publy-shell-rail-width) minmax(0, 1fr);
+		}
 	}
 
-	.app-shell-secondary-panel {
-		@apply hidden;
+	/* ---- Mobile < 768px ---- */
+
+	@media (max-width: 767px) {
+		.app-shell-workspace,
+		.app-shell-workspace:has(.app-shell-secondary-panel) {
+			grid-template-columns: 1fr;
+		}
+
+		.app-shell-rail {
+			@apply hidden;
+		}
+
+		.app-shell-secondary-panel {
+			@apply hidden;
+		}
+
+		.app-shell-main {
+			@apply pb-0;
+		}
 	}
 
-	.app-shell-main {
-		@apply pb-0;
-	}
-}
+	/* ---- Mobile topbar (design 1i): current crumb + avatar only ---- */
 
-/* ---- Mobile topbar (design 1i): current crumb + avatar only ---- */
+	@media (max-width: 639px) {
+		.app-shell-topbar-action-btn,
+		.app-shell-topbar-separator,
+		.app-shell-user-name,
+		.app-shell-breadcrumb-chevron,
+		.app-shell-breadcrumb-link,
+		.app-shell-breadcrumb-muted {
+			display: none;
+		}
 
-@media (max-width: 639px) {
-	.app-shell-topbar-action-btn,
-	.app-shell-topbar-separator,
-	.app-shell-user-name,
-	.app-shell-breadcrumb-chevron,
-	.app-shell-breadcrumb-link,
-	.app-shell-breadcrumb-muted {
-		display: none;
-	}
-
-	.app-shell-breadcrumb-current {
-		font-size: 15px;
+		.app-shell-breadcrumb-current {
+			font-size: 15px;
+		}
 	}
 }
 
@@ -819,7 +870,7 @@ body:has(.app-shell-workspace) {
 	.publy-status-pill[data-tone='primary'] {
 		border-color: var(--publy-primary);
 		background: var(--publy-primary-soft);
-		color: var(--publy-primary-foreground);
+		color: var(--publy-primary-soft-foreground);
 	}
 
 	.publy-status-pill[data-tone='success'] {
@@ -847,7 +898,7 @@ body:has(.app-shell-workspace) {
 		font-size: 10px;
 		font-weight: 600;
 		line-height: 1;
-		color: var(--publy-foreground-inverse);
+		color: var(--publy-avatar-foreground);
 		background: var(--publy-avatar-1);
 		user-select: none;
 	}
@@ -931,7 +982,7 @@ body:has(.app-shell-workspace) {
 	.publy-choice-chip[data-selected='true'] {
 		border-color: var(--publy-primary);
 		background: var(--publy-primary-soft);
-		color: var(--publy-primary-foreground);
+		color: var(--publy-primary-soft-foreground);
 	}
 
 	.publy-choice-chip[data-disabled='true'] {
@@ -1348,7 +1399,7 @@ body:has(.app-shell-workspace) {
 		font-size: 18px;
 		font-weight: 600;
 		line-height: 1;
-		color: var(--publy-foreground-inverse);
+		color: var(--publy-avatar-foreground);
 		background: var(--publy-avatar-1);
 		object-fit: cover;
 		user-select: none;
@@ -1830,14 +1881,8 @@ body:has(.app-shell-workspace) {
 		width: 196px;
 		min-width: 196px;
 		border-radius: var(--publy-radius-control);
-		background: rgba(255, 255, 255, 0.97);
+		background: var(--publy-overlay-surface);
 		box-shadow: var(--publy-shadow-menu);
-	}
-
-	.publy-row-actions-menu [data-slot='dropdown-menu-item'] {
-		height: 32px;
-		min-height: 32px;
-		border-radius: 9px;
 	}
 }
 
@@ -1896,10 +1941,14 @@ body:has(.app-shell-workspace) {
 	color: var(--publy-danger);
 }
 
-/* Gray UI primary "chrome" treatment (design handoff §Design Tokens). */
+/* Gray UI primary "chrome" treatment (design handoff §Design Tokens). No
+   border-radius here: this class stacks with a Tailwind `rounded-[...]`
+   size utility on `Button`'s `default` variant, and (being un-layered)
+   would otherwise always beat it, forcing every primary button — xs/sm/lg
+   included — to the same 14px `--publy-radius-button` regardless of size
+   (F6). The size variant already supplies the correct per-size radius. */
 .btn-primary-chrome {
 	border: 1.33px solid rgba(255, 255, 255, 0.12);
-	border-radius: var(--publy-radius-button);
 	box-shadow: var(--publy-shadow-chrome);
 }
 
@@ -1931,19 +1980,6 @@ body:has(.app-shell-workspace) {
 	background: var(--publy-surface);
 	border: 1px solid var(--publy-border);
 	box-shadow: none;
-}
-
-/* ---- HeroUI primary button chrome ---- */
-
-.button--primary {
-	border: 1.33px solid rgba(255, 255, 255, 0.12);
-	border-radius: var(--publy-radius-button);
-	box-shadow: var(--publy-shadow-chrome);
-}
-
-.button--primary.button--md {
-	height: 36px;
-	min-height: 36px;
 }
 
 /* ---- T6B — staff profiles & invitations ---- */
@@ -2037,7 +2073,7 @@ body:has(.app-shell-workspace) {
 	align-items: center;
 	gap: 10px;
 	padding: 10px 18px;
-	background: #fcfcfd;
+	background: var(--publy-table-header);
 	border-bottom: 1px solid var(--publy-row-border);
 }
 
@@ -2060,7 +2096,7 @@ body:has(.app-shell-workspace) {
 	width: 15px;
 	height: 15px;
 	border-radius: 5px;
-	border: 1.5px solid #d4d4d8;
+	border: 1.5px solid var(--publy-border-strong);
 	background: var(--publy-surface);
 	flex-shrink: 0;
 }
@@ -2104,49 +2140,112 @@ body:has(.app-shell-workspace) {
 }
 
 .publy-detail-chip--amber {
-	border: 1px solid #fde68a;
-	background: #fffbeb;
-	color: #b45309;
+	border: 1px solid var(--publy-chip-pending-border);
+	background: var(--publy-chip-pending-bg);
+	color: var(--publy-chip-pending-text);
 }
 
-.publy-profile-icon-tile[data-tone='0'] {
+/* Icon-tile tone palette (F13): shared by the 32px staff-profiles table
+   tile and the 56px tenant-profile detail tile — both consume the same
+   --publy-icon-tile-bg/-fg pair, so one selector list serves both instead
+   of two byte-identical rule sets drifting apart. */
+.publy-profile-icon-tile[data-tone='0'],
+.publy-profile-detail-tile[data-tone='0'] {
 	--publy-icon-tile-bg: #f0f9ff;
 	--publy-icon-tile-fg: #0369a1;
 }
 
-.publy-profile-icon-tile[data-tone='1'] {
+.publy-profile-icon-tile[data-tone='1'],
+.publy-profile-detail-tile[data-tone='1'] {
 	--publy-icon-tile-bg: #ecfdf5;
 	--publy-icon-tile-fg: #047857;
 }
 
-.publy-profile-icon-tile[data-tone='2'] {
+.publy-profile-icon-tile[data-tone='2'],
+.publy-profile-detail-tile[data-tone='2'] {
 	--publy-icon-tile-bg: #fef2f2;
 	--publy-icon-tile-fg: #be123c;
 }
 
-.publy-profile-icon-tile[data-tone='3'] {
+.publy-profile-icon-tile[data-tone='3'],
+.publy-profile-detail-tile[data-tone='3'] {
 	--publy-icon-tile-bg: #fffbeb;
 	--publy-icon-tile-fg: #b45309;
 }
 
-.publy-profile-icon-tile[data-tone='4'] {
+.publy-profile-icon-tile[data-tone='4'],
+.publy-profile-detail-tile[data-tone='4'] {
 	--publy-icon-tile-bg: #f5f3ff;
 	--publy-icon-tile-fg: #7c3aed;
 }
 
-.publy-profile-icon-tile[data-tone='5'] {
+.publy-profile-icon-tile[data-tone='5'],
+.publy-profile-detail-tile[data-tone='5'] {
 	--publy-icon-tile-bg: #fdf2f8;
 	--publy-icon-tile-fg: #be185d;
 }
 
-.publy-profile-icon-tile[data-tone='6'] {
+.publy-profile-icon-tile[data-tone='6'],
+.publy-profile-detail-tile[data-tone='6'] {
 	--publy-icon-tile-bg: #f0fdf4;
 	--publy-icon-tile-fg: #15803d;
 }
 
-.publy-profile-icon-tile[data-tone='7'] {
+.publy-profile-icon-tile[data-tone='7'],
+.publy-profile-detail-tile[data-tone='7'] {
 	--publy-icon-tile-bg: #eff6ff;
 	--publy-icon-tile-fg: #1d4ed8;
+}
+
+/* Dark counterparts (F4): the tone-bearing text sits directly on
+   --publy-icon-tile-bg, so without an html.dark override every tone stays
+   the light pastel/dark-text pairing on a dark page. */
+html.dark .publy-profile-icon-tile[data-tone='0'],
+html.dark .publy-profile-detail-tile[data-tone='0'] {
+	--publy-icon-tile-bg: #082f49;
+	--publy-icon-tile-fg: #38bdf8;
+}
+
+html.dark .publy-profile-icon-tile[data-tone='1'],
+html.dark .publy-profile-detail-tile[data-tone='1'] {
+	--publy-icon-tile-bg: #052e22;
+	--publy-icon-tile-fg: #34d399;
+}
+
+html.dark .publy-profile-icon-tile[data-tone='2'],
+html.dark .publy-profile-detail-tile[data-tone='2'] {
+	--publy-icon-tile-bg: #4c0519;
+	--publy-icon-tile-fg: #fb7185;
+}
+
+html.dark .publy-profile-icon-tile[data-tone='3'],
+html.dark .publy-profile-detail-tile[data-tone='3'] {
+	--publy-icon-tile-bg: #451a03;
+	--publy-icon-tile-fg: #fbbf24;
+}
+
+html.dark .publy-profile-icon-tile[data-tone='4'],
+html.dark .publy-profile-detail-tile[data-tone='4'] {
+	--publy-icon-tile-bg: #2e1065;
+	--publy-icon-tile-fg: #a78bfa;
+}
+
+html.dark .publy-profile-icon-tile[data-tone='5'],
+html.dark .publy-profile-detail-tile[data-tone='5'] {
+	--publy-icon-tile-bg: #500724;
+	--publy-icon-tile-fg: #f472b6;
+}
+
+html.dark .publy-profile-icon-tile[data-tone='6'],
+html.dark .publy-profile-detail-tile[data-tone='6'] {
+	--publy-icon-tile-bg: #052e16;
+	--publy-icon-tile-fg: #4ade80;
+}
+
+html.dark .publy-profile-icon-tile[data-tone='7'],
+html.dark .publy-profile-detail-tile[data-tone='7'] {
+	--publy-icon-tile-bg: #172554;
+	--publy-icon-tile-fg: #60a5fa;
 }
 
 /* ---- TEN-2 — tenant detail Profiles/Invitations/Users tabs ---- */
@@ -2196,46 +2295,6 @@ body:has(.app-shell-workspace) {
 	background: transparent;
 	border-top: none;
 	padding: 6px 0;
-}
-
-.publy-profile-detail-tile[data-tone='0'] {
-	--publy-icon-tile-bg: #f0f9ff;
-	--publy-icon-tile-fg: #0369a1;
-}
-
-.publy-profile-detail-tile[data-tone='1'] {
-	--publy-icon-tile-bg: #ecfdf5;
-	--publy-icon-tile-fg: #047857;
-}
-
-.publy-profile-detail-tile[data-tone='2'] {
-	--publy-icon-tile-bg: #fef2f2;
-	--publy-icon-tile-fg: #be123c;
-}
-
-.publy-profile-detail-tile[data-tone='3'] {
-	--publy-icon-tile-bg: #fffbeb;
-	--publy-icon-tile-fg: #b45309;
-}
-
-.publy-profile-detail-tile[data-tone='4'] {
-	--publy-icon-tile-bg: #f5f3ff;
-	--publy-icon-tile-fg: #7c3aed;
-}
-
-.publy-profile-detail-tile[data-tone='5'] {
-	--publy-icon-tile-bg: #fdf2f8;
-	--publy-icon-tile-fg: #be185d;
-}
-
-.publy-profile-detail-tile[data-tone='6'] {
-	--publy-icon-tile-bg: #f0fdf4;
-	--publy-icon-tile-fg: #15803d;
-}
-
-.publy-profile-detail-tile[data-tone='7'] {
-	--publy-icon-tile-bg: #eff6ff;
-	--publy-icon-tile-fg: #1d4ed8;
 }
 
 .publy-perm-check svg {
