@@ -14,6 +14,10 @@ import {
 	DrawerTitle,
 } from './drawer';
 
+vi.mock('react-i18next', () => ({
+	useTranslation: () => ({ t: (key: string) => key }),
+}));
+
 const noop = () => undefined;
 
 const renderDrawer = ({
@@ -77,7 +81,7 @@ describe('Drawer', () => {
 		const onOpenChange = vi.fn();
 		renderDrawer({ onOpenChange });
 
-		fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+		fireEvent.click(screen.getByRole('button', { name: 'close' }));
 
 		expect(onOpenChange).toHaveBeenCalled();
 		expect(onOpenChange.mock.calls[0]?.[0]).toBe(false);

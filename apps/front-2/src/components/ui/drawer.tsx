@@ -1,6 +1,7 @@
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
 import { IconX } from '@tabler/icons-react';
 import type * as React from 'react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '~/lib/utils';
 
 /**
@@ -53,6 +54,8 @@ function DrawerHeader({
 	children,
 	...props
 }: React.ComponentProps<'div'>) {
+	const { t } = useTranslation('common');
+
 	return (
 		<div
 			data-slot="drawer-header"
@@ -61,7 +64,7 @@ function DrawerHeader({
 		>
 			<div className="flex min-w-0 flex-col gap-[3px]">{children}</div>
 			<DialogPrimitive.Close
-				aria-label="Close"
+				aria-label={t('close')}
 				className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[var(--publy-radius-small-control)] text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/30"
 			>
 				<IconX className="size-[18px]" aria-hidden="true" />

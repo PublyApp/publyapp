@@ -31,4 +31,16 @@ describe('LogoutRedirect', () => {
 		);
 		expect(mocks.logout).toHaveBeenCalledTimes(1);
 	});
+
+	test('defaults to embedded — a div, not a nested main landmark', () => {
+		const { container } = render(<LogoutRedirect />);
+
+		expect(container.querySelector('main')).toBeNull();
+	});
+
+	test('embedded={false} opts into the full-page main landmark', () => {
+		const { container } = render(<LogoutRedirect embedded={false} />);
+
+		expect(container.querySelector('main')).not.toBeNull();
+	});
 });

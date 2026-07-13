@@ -67,7 +67,12 @@ const DENSITY_TO_ROW_HEIGHT: Record<TableDensity, TableRowHeight> = {
 
 const TABLE_DEFAULT_ROW_HEIGHT: TableRowHeight = 48;
 
-const SELECTION_LOCKED_TITLE = 'Unavailable while rows are selected';
+/**
+ * Shared i18n key for the "disabled while rows are selected" tooltip title —
+ * export it so route-level tables don't hand-roll their own duplicate
+ * literal (see tenants/$tenantId/profiles.tsx's now-removed local copy).
+ */
+export const SELECTION_LOCKED_TITLE_KEY = 'selection-locked-while-selecting';
 
 /** Optional per-column display hints read from TanStack's ColumnDef meta. */
 type ColumnDisplayMeta = {
@@ -184,6 +189,7 @@ export const DataTableCursorFooter = ({
 	disabledTitle,
 	variant = 'card',
 }: DataTableCursorFooterProps) => {
+	const { t } = useTranslation('common');
 	const paginationDisabled = disabled || isPaginationPending;
 
 	return (
@@ -209,7 +215,7 @@ export const DataTableCursorFooter = ({
 
 			<div className="flex items-center gap-4">
 				<div className="flex items-center gap-2">
-					<span data-slot="rows-per-page-label">Rows per page</span>
+					<span data-slot="rows-per-page-label">{t('rows-per-page')}</span>
 					<span
 						className="publy-page-size-select"
 						data-testid={`${testId}-page-size`}
@@ -224,7 +230,7 @@ export const DataTableCursorFooter = ({
 							disabled={paginationDisabled}
 						>
 							<SelectTrigger
-								aria-label="Rows per page"
+								aria-label={t('rows-per-page')}
 								className="h-7 gap-1 rounded-[10px] bg-background px-2 text-xs shadow-none"
 								data-testid={`${testId}-page-size-trigger`}
 							>
@@ -533,7 +539,7 @@ export const DataTable = <TData extends { id: string }>({
 				onSearchDraftChange={onSearchDraftChange}
 				searchPlaceholder={searchPlaceholder}
 				disabled={isSelectionMode}
-				disabledTitle={SELECTION_LOCKED_TITLE}
+				disabledTitle={t(SELECTION_LOCKED_TITLE_KEY)}
 				toolbarEnd={toolbarEnd}
 			/>
 
@@ -775,7 +781,7 @@ export const DataTable = <TData extends { id: string }>({
 						onNextPage={onNextPage}
 						onPreviousPage={onPreviousPage}
 						disabled={isSelectionMode}
-						disabledTitle={SELECTION_LOCKED_TITLE}
+						disabledTitle={t(SELECTION_LOCKED_TITLE_KEY)}
 					/>
 				</div>
 			) : null}

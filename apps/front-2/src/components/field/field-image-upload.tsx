@@ -1,7 +1,8 @@
-import { IconAlertCircle, IconLoader2, IconX } from '@tabler/icons-react';
+import { IconLoader2, IconX } from '@tabler/icons-react';
 import { useId, useState, type ReactNode } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
+import { renderFieldHelper } from '~/components/field/field-helper-text';
 import { Button } from '~/components/ui/button';
 import { BrandTile } from '~/components/ui/initials-avatar';
 import { Label } from '~/components/ui/label';
@@ -55,7 +56,7 @@ export const FieldImageUpload = ({
 			control={control}
 			render={({ field, fieldState: { error } }) => {
 				const currentUrl = typeof field.value === 'string' ? field.value : '';
-				const helper = error?.message ?? localError ?? helperText;
+				const helper = error?.message || localError || helperText;
 				const isInvalid = Boolean(error) || localError.length > 0;
 
 				const acceptFile = (file: File) => {
@@ -124,29 +125,11 @@ export const FieldImageUpload = ({
 					);
 				}
 
-				let helperContent: ReactNode = null;
-				if (isInvalid && helper) {
-					helperContent = (
-						<p
-							id={helperId}
-							data-slot="field-error"
-							className="publy-field-error"
-						>
-							<IconAlertCircle aria-hidden="true" />
-							{helper}
-						</p>
-					);
-				} else if (helper) {
-					helperContent = (
-						<p
-							id={helperId}
-							data-slot="field-helper"
-							className="publy-field-helper"
-						>
-							{helper}
-						</p>
-					);
-				}
+				const helperContent = renderFieldHelper({
+					helper,
+					isInvalid,
+					helperId,
+				});
 
 				return (
 					<div className="space-y-1.5">

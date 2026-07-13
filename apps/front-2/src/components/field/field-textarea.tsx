@@ -1,6 +1,6 @@
-import { IconAlertCircle } from '@tabler/icons-react';
 import { useId, type ComponentPropsWithoutRef } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
+import { renderFieldHelper } from '~/components/field/field-helper-text';
 import { Label } from '~/components/ui/label';
 import { Textarea } from '~/components/ui/textarea';
 
@@ -50,24 +50,7 @@ export const FieldTextarea = ({
 							aria-invalid={isInvalid || undefined}
 							aria-describedby={helper ? helperId : undefined}
 						/>
-						{isInvalid && helper ? (
-							<p
-								id={helperId}
-								data-slot="field-error"
-								className="publy-field-error"
-							>
-								<IconAlertCircle aria-hidden="true" />
-								{helper}
-							</p>
-						) : helper ? (
-							<p
-								id={helperId}
-								data-slot="field-helper"
-								className="publy-field-helper"
-							>
-								{helper}
-							</p>
-						) : null}
+						{renderFieldHelper({ helper, isInvalid, helperId })}
 					</div>
 				);
 			}}

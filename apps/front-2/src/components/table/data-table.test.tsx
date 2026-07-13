@@ -6,7 +6,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-import { DataTable } from './data-table';
+import { DataTable, SELECTION_LOCKED_TITLE_KEY } from './data-table';
 import type { UseRowSelectionResult } from './use-row-selection';
 
 vi.mock('react-i18next', () => ({
@@ -442,5 +442,33 @@ describe('DataTable state rendering', () => {
 			.getByTestId('test-table-rows')
 			.querySelectorAll('[data-slot="table-cell"][data-align="center"]');
 		expect(actionCells).toHaveLength(rows.length);
+	});
+});
+
+describe('DataTable i18n', () => {
+	test('routes the rows-per-page label and aria-label through t()', () => {
+		render(<DataTable {...baseProps} rows={rows} isError={false} />);
+
+		expect(screen.getByText('rows-per-page')).toBeTruthy();
+		expect(
+			screen
+				.getByTestId('test-table-page-size-trigger')
+				.getAttribute('aria-label'),
+		).toBe('rows-per-page');
+	});
+
+	test('locks the search input with the shared, keyed title while a selection is active', () => {
+		render(
+			<DataTable
+				{...baseProps}
+				rows={rows}
+				isError={false}
+				selection={createSelection({ 'row-1': true })}
+			/>,
+		);
+
+		expect(screen.getByTestId('test-table-search').getAttribute('title')).toBe(
+			SELECTION_LOCKED_TITLE_KEY,
+		);
 	});
 });

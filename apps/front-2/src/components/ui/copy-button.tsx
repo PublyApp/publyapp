@@ -1,13 +1,14 @@
 import { IconCheck, IconCopy } from '@tabler/icons-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
 import {
 	Tooltip,
 	TooltipContent,
-	TooltipProvider,
 	TooltipTrigger,
 } from '~/components/ui/tooltip';
+
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 const COPY_FEEDBACK_MS = 1500;
 
@@ -22,42 +23,71 @@ export const CopyButton = ({
 }) => {
 	const { t } = useTranslation('common');
 	const [copied, setCopied] = useState(false);
+	const [failed, setFailed] = useState(false);
+	const resetTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+		undefined,
+	);
+
+	useEffect(
+		() => () => {
+			clearTimeout(resetTimeoutRef.current);
+		},
+		[],
+	);
 
 	const handleCopy = async () => {
+		setFailed(false);
+
 		if (!navigator.clipboard?.writeText) {
+			setFailed(true);
 			return;
 		}
 
-		await navigator.clipboard.writeText(value);
-		setCopied(true);
-		setTimeout(() => setCopied(false), COPY_FEEDBACK_MS);
+		try {
+			await navigator.clipboard.writeText(value);
+			setCopied(true);
+		} catch (error) {
+			logger.warn('Failed to copy value to clipboard', { error });
+			setFailed(true);
+			return;
+		}
+
+		clearTimeout(resetTimeoutRef.current);
+		resetTimeoutRef.current = setTimeout(() => {
+			setCopied(false);
+		}, COPY_FEEDBACK_MS);
+	};
+
+	const tooltipLabel = () => {
+		if (failed) {
+			return t('copy-failed');
+		}
+		return copied ? t('copied') : t('copy');
 	};
 
 	return (
-		<TooltipProvider>
-			<Tooltip>
-				<TooltipTrigger
-					render={
-						<Button
-							type="button"
-							variant="ghost"
-							size="icon-sm"
-							aria-label={label}
-							data-testid={testId}
-							onClick={() => {
-								void handleCopy();
-							}}
-						/>
-					}
-				>
-					{copied ? (
-						<IconCheck aria-hidden="true" className="size-3.5" />
-					) : (
-						<IconCopy aria-hidden="true" className="size-3.5" />
-					)}
-				</TooltipTrigger>
-				<TooltipContent>{copied ? t('copied') : t('copy')}</TooltipContent>
-			</Tooltip>
-		</TooltipProvider>
+		<Tooltip>
+			<TooltipTrigger
+				render={
+					<Button
+						type="button"
+						variant="ghost"
+						size="icon-sm"
+						aria-label={label}
+						data-testid={testId}
+						onClick={() => {
+							void handleCopy();
+						}}
+					/>
+				}
+			>
+				{copied ? (
+					<IconCheck aria-hidden="true" className="size-3.5" />
+				) : (
+					<IconCopy aria-hidden="true" className="size-3.5" />
+				)}
+			</TooltipTrigger>
+			<TooltipContent>{tooltipLabel()}</TooltipContent>
+		</Tooltip>
 	);
 };

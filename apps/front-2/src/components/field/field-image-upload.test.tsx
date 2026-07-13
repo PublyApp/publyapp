@@ -82,12 +82,21 @@ const buildFile = (
 	return file;
 };
 
-const ImageUploadHarness = () => {
+const ImageUploadHarness = ({
+	helperText,
+}: {
+	helperText?: string;
+} = {}) => {
 	const methods = useForm({ defaultValues: { logoUrl: '' } });
 
 	return (
 		<Form methods={methods} onSubmit={methods.handleSubmit(() => undefined)}>
-			<Field.ImageUpload name="logoUrl" label="Logo" previewName="Acme" />
+			<Field.ImageUpload
+				name="logoUrl"
+				label="Logo"
+				previewName="Acme"
+				helperText={helperText}
+			/>
 			<output data-testid="logo-url-value">{methods.watch('logoUrl')}</output>
 			<output data-testid="is-dirty">
 				{String(methods.formState.isDirty)}
@@ -212,6 +221,17 @@ describe('Field.ImageUpload', () => {
 		expect((screen.getByLabelText('Logo') as HTMLInputElement).disabled).toBe(
 			true,
 		);
+	});
+
+	test('renders the passed helperText when there is neither a field error nor a local error', () => {
+		mocks.useUploadStaffImageMutation.mockReturnValue({
+			mutate: vi.fn(),
+			isPending: false,
+		});
+
+		render(<ImageUploadHarness helperText="PNG or JPG, max 2 MB" />);
+
+		expect(screen.getByText('PNG or JPG, max 2 MB')).toBeTruthy();
 	});
 
 	test('clearing an uploaded logo empties the field', () => {

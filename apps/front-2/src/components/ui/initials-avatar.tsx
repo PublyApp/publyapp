@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react';
+
 const PALETTE_SIZE = 8;
 
-const paletteIndex = (seed: string): number => {
+export const paletteIndex = (seed: string): number => {
 	let hash = 0;
 	for (const char of seed) {
 		hash = (hash * 31 + (char.codePointAt(0) ?? 0)) % 997;
@@ -8,7 +10,9 @@ const paletteIndex = (seed: string): number => {
 	return (hash % PALETTE_SIZE) + 1;
 };
 
-const toInitials = (name: string): string => {
+const firstCodePoint = (word: string): string => [...word][0] ?? '';
+
+export const toInitials = (name: string): string => {
 	const words = name
 		.split(/\s+/)
 		.map((word) => word.trim())
@@ -16,8 +20,8 @@ const toInitials = (name: string): string => {
 	if (words.length === 0) {
 		return '?';
 	}
-	const first = words[0]?.charAt(0) ?? '';
-	const second = words.length > 1 ? (words.at(-1)?.charAt(0) ?? '') : '';
+	const first = firstCodePoint(words[0] ?? '');
+	const second = words.length > 1 ? firstCodePoint(words.at(-1) ?? '') : '';
 	return `${first}${second}`.toUpperCase();
 };
 
@@ -88,11 +92,20 @@ export const BrandTile = ({
 	logoUrl?: string | null;
 	className?: string;
 }) => {
-	if (logoUrl) {
+	const [errored, setErrored] = useState(false);
+
+	useEffect(() => {
+		setErrored(false);
+	}, [logoUrl]);
+
+	if (logoUrl && !errored) {
 		return (
 			<img
 				src={logoUrl}
 				alt=""
+				width={56}
+				height={56}
+				onError={() => setErrored(true)}
 				className={
 					className ? `publy-brand-tile ${className}` : 'publy-brand-tile'
 				}

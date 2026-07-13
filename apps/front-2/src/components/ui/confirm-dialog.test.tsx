@@ -1,10 +1,14 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, test } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { ConfirmDialog } from './confirm-dialog';
+
+vi.mock('react-i18next', () => ({
+	useTranslation: () => ({ t: (key: string) => key }),
+}));
 
 const noop = () => undefined;
 
@@ -44,6 +48,14 @@ describe('ConfirmDialog', () => {
 		).not.toBeNull();
 	});
 
+	test('renders the primary tone when requested', () => {
+		render(<ConfirmDialog {...baseProps} isOpen tone="primary" />);
+
+		expect(screen.getByRole('alertdialog').getAttribute('data-tone')).toBe(
+			'primary',
+		);
+	});
+
 	test('renders extra confirmation content (inset card, type-to-confirm) between body and footer', () => {
 		render(
 			<ConfirmDialog {...baseProps} isOpen>
@@ -54,5 +66,51 @@ describe('ConfirmDialog', () => {
 		const popup = screen.getByRole('alertdialog');
 		const extra = screen.getByTestId('type-to-confirm');
 		expect(popup.contains(extra)).toBe(true);
+	});
+
+	test('falls back to the translated cancel label when none is passed', () => {
+		render(<ConfirmDialog {...baseProps} isOpen />);
+
+		expect(screen.getByRole('button', { name: 'cancel' })).toBeTruthy();
+	});
+
+	test('clicking confirm invokes onConfirm', () => {
+		const onConfirm = vi.fn();
+		render(<ConfirmDialog {...baseProps} isOpen onConfirm={onConfirm} />);
+
+		fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+		expect(onConfirm).toHaveBeenCalledTimes(1);
+	});
+
+	test('clicking cancel requests dismissal through onOpenChange', () => {
+		const onOpenChange = vi.fn();
+		render(<ConfirmDialog {...baseProps} isOpen onOpenChange={onOpenChange} />);
+
+		fireEvent.click(screen.getByRole('button', { name: 'cancel' }));
+
+		expect(onOpenChange).toHaveBeenCalledWith(false);
+	});
+
+	test('isPending disables both the cancel and confirm buttons', () => {
+		render(<ConfirmDialog {...baseProps} isOpen isPending />);
+
+		expect(
+			screen.getByRole('button', { name: 'cancel' }).hasAttribute('disabled'),
+		).toBe(true);
+		expect(
+			screen.getByRole('button', { name: 'Delete' }).hasAttribute('disabled'),
+		).toBe(true);
+	});
+
+	test('isConfirmDisabled disables only the confirm button', () => {
+		render(<ConfirmDialog {...baseProps} isOpen isConfirmDisabled />);
+
+		expect(
+			screen.getByRole('button', { name: 'cancel' }).hasAttribute('disabled'),
+		).toBe(false);
+		expect(
+			screen.getByRole('button', { name: 'Delete' }).hasAttribute('disabled'),
+		).toBe(true);
 	});
 });

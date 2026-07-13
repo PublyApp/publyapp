@@ -1,0 +1,80 @@
+/**
+ * @vitest-environment jsdom
+ */
+import { cleanup, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, test } from 'vitest';
+
+import {
+	DropdownMenu,
+	DropdownMenuCheckboxItem,
+	DropdownMenuContent,
+	DropdownMenuItem,
+} from './dropdown-menu';
+
+afterEach(cleanup);
+
+describe('DropdownMenuCheckboxItem', () => {
+	test('showCheckbox renders a visible, always-present checkbox box at the row end', () => {
+		render(
+			<DropdownMenu defaultOpen modal={false}>
+				<DropdownMenuContent>
+					<DropdownMenuCheckboxItem checked showCheckbox closeOnClick={false}>
+						Active
+					</DropdownMenuCheckboxItem>
+				</DropdownMenuContent>
+			</DropdownMenu>,
+		);
+
+		const item = screen
+			.getByText('Active')
+			.closest('[role="menuitemcheckbox"]');
+		const box = item?.querySelector(
+			'[data-slot="dropdown-menu-checkbox-item-box"]',
+		);
+		expect(box).not.toBeNull();
+		expect(box?.getAttribute('aria-hidden')).toBe('true');
+		expect(box?.getAttribute('role')).toBe('checkbox');
+		expect(box?.getAttribute('tabindex')).toBe('-1');
+	});
+
+	test('showCheckbox=false renders only the checked-only indicator, no visible box', () => {
+		render(
+			<DropdownMenu defaultOpen modal={false}>
+				<DropdownMenuContent>
+					<DropdownMenuCheckboxItem checked closeOnClick>
+						All
+					</DropdownMenuCheckboxItem>
+				</DropdownMenuContent>
+			</DropdownMenu>,
+		);
+
+		const item = screen.getByText('All').closest('[role="menuitemcheckbox"]');
+		expect(
+			item?.querySelector('[data-slot="dropdown-menu-checkbox-item-box"]'),
+		).toBeNull();
+		expect(
+			item?.querySelector(
+				'[data-slot="dropdown-menu-checkbox-item-indicator"]',
+			),
+		).not.toBeNull();
+	});
+});
+
+describe('DropdownMenuItem', () => {
+	test('uses a 9px item radius and a muted (not accent) highlighted background', () => {
+		render(
+			<DropdownMenu defaultOpen modal={false}>
+				<DropdownMenuContent>
+					<DropdownMenuItem>Edit</DropdownMenuItem>
+				</DropdownMenuContent>
+			</DropdownMenu>,
+		);
+
+		const item = screen
+			.getByText('Edit')
+			.closest('[data-slot="dropdown-menu-item"]');
+		expect(item?.className).toContain('rounded-[9px]');
+		expect(item?.className).toContain('data-highlighted:bg-muted');
+		expect(item?.className).not.toContain('data-highlighted:bg-accent');
+	});
+});

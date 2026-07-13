@@ -1,6 +1,7 @@
 import { Menu as MenuPrimitive } from '@base-ui/react/menu';
 import { IconChevronRight, IconCheck } from '@tabler/icons-react';
 import * as React from 'react';
+import { Checkbox } from '~/components/ui/checkbox';
 import { cn } from '~/lib/utils';
 
 function DropdownMenu({ ...props }: MenuPrimitive.Root.Props) {
@@ -177,16 +178,14 @@ function DropdownMenuCheckboxItem({
 			{showCheckbox ? (
 				<>
 					<span className="flex flex-1 items-center gap-2.5">{children}</span>
-					<span
-						aria-hidden="true"
+					<Checkbox
 						data-slot="dropdown-menu-checkbox-item-box"
-						className={cn(
-							'flex size-4 shrink-0 items-center justify-center rounded-[5px] border border-[color:var(--publy-border-strong)] bg-background text-current',
-							checked && 'border-primary bg-primary text-primary-foreground',
-						)}
-					>
-						{checked ? <IconCheck className="size-3.5 stroke-[2.5]" /> : null}
-					</span>
+						checked={checked}
+						readOnly
+						tabIndex={-1}
+						aria-hidden="true"
+						className="pointer-events-none shrink-0"
+					/>
 				</>
 			) : (
 				<>

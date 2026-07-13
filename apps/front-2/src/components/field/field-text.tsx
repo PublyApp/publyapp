@@ -1,6 +1,6 @@
-import { IconAlertCircle } from '@tabler/icons-react';
 import { useId, type ComponentPropsWithoutRef } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
+import { renderFieldHelper } from '~/components/field/field-helper-text';
 import { Input } from '~/components/ui/input';
 import { Label } from '~/components/ui/label';
 
@@ -13,6 +13,16 @@ export type FieldTextProps = Omit<
 	helperText?: string;
 	fullWidth?: boolean;
 	isDisabled?: boolean;
+};
+
+const toInputValue = (value: unknown): string => {
+	if (typeof value === 'string') {
+		return value;
+	}
+	if (typeof value === 'number') {
+		return String(value);
+	}
+	return '';
 };
 
 export const FieldText = ({
@@ -35,12 +45,7 @@ export const FieldText = ({
 			render={({ field, fieldState: { error } }) => {
 				const helper = error?.message ?? helperText;
 				const isInvalid = Boolean(error);
-				const inputValue =
-					typeof field.value === 'string'
-						? field.value
-						: typeof field.value === 'number'
-							? String(field.value)
-							: '';
+				const inputValue = toInputValue(field.value);
 
 				return (
 					<div className="space-y-1.5">
@@ -61,24 +66,7 @@ export const FieldText = ({
 							aria-describedby={helper ? helperId : undefined}
 							className={fullWidth ? 'w-full' : undefined}
 						/>
-						{isInvalid && helper ? (
-							<p
-								id={helperId}
-								data-slot="field-error"
-								className="publy-field-error"
-							>
-								<IconAlertCircle aria-hidden="true" />
-								{helper}
-							</p>
-						) : helper ? (
-							<p
-								id={helperId}
-								data-slot="field-helper"
-								className="publy-field-helper"
-							>
-								{helper}
-							</p>
-						) : null}
+						{renderFieldHelper({ helper, isInvalid, helperId })}
 					</div>
 				);
 			}}

@@ -14,7 +14,7 @@ export const PageHeader = ({
 }) => (
 	<header className="publy-page-header">
 		<div className="min-w-0">
-			{count !== undefined ? (
+			{count ? (
 				<div className="flex items-center gap-2.5">
 					<h1 className="publy-type-page-title">{title}</h1>
 					{count}

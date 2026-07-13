@@ -69,7 +69,7 @@ export const StateView = ({
 				className,
 			)}
 			data-tone={isPage ? undefined : tone}
-			data-testid={isPage ? undefined : testId}
+			data-testid={testId}
 		>
 			<div
 				className="publy-state-icon-cluster"
