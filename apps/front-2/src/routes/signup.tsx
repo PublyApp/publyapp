@@ -29,7 +29,7 @@ type SignUpFormValues = {
 	password: string;
 };
 
-type Translate = (key: string) => string;
+type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 const getSignUpFormSchema = (t: Translate) =>
 	z.object({

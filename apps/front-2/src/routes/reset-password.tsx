@@ -82,7 +82,7 @@ type SetNewPasswordFormValues = {
 	confirmPassword: string;
 };
 
-type Translate = (key: string) => string;
+type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 const getRequestFormSchema = (t: Translate) =>
 	z.object({
