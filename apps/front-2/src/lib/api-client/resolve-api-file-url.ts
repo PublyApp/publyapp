@@ -13,6 +13,18 @@ export const resolveApiFileUrl = (value: string): string => {
 	return new URL(value, resolveApiBaseUrl()).toString();
 };
 
+/** Trims and resolves a possibly-`null`/blank API file path against the API
+ * origin, collapsing anything empty to `null` — the shared read-side
+ * counterpart to {@link resolveApiFileUrl} every `avatarUrl`/`logoUrl`
+ * mapper should use instead of a plain string normalizer, so a root-relative
+ * `/files/...` path never renders against the front origin. */
+export const normalizeNullableFileUrl = (
+	value: string | null | undefined,
+): string | null => {
+	const trimmed = typeof value === 'string' ? value.trim() : '';
+	return trimmed ? resolveApiFileUrl(trimmed) : null;
+};
+
 /** Inverse of {@link resolveApiFileUrl} — strips the API origin back off a
  * same-origin `/files/...` url before persisting, so the stored value stays
  * root-relative and doesn't bake today's API origin into the DB. Absolute

@@ -1,15 +1,38 @@
+import type { ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
+
+vi.mock('@tanstack/react-router', () => ({
+	createFileRoute: () => (options: Record<string, unknown>) => options,
+	Link: ({ children, to, ...props }: { children: ReactNode; to: string }) => (
+		<a href={to} {...props}>
+			{children}
+		</a>
+	),
+}));
+
+vi.mock('react-i18next', () => ({
+	useTranslation: () => ({
+		t: (key: string) => key,
+		i18n: { language: 'en' },
+	}),
+}));
 
 import { IndexRoute } from './index';
 
 describe('front-2 index route', () => {
-	test('renders minimal shell headline', () => {
+	test('renders neutral, translated copy — no internal handoff jargon', () => {
 		const html = renderToStaticMarkup(<IndexRoute />);
-		expect(html).toContain('Welcome to the front-2 shell');
-		expect(html).toContain(
-			'Explore navigation, theme, and auth surface foundations from here.',
-		);
-		expect(html).toContain('Gray UI shell is active');
+
+		expect(html).toContain('welcome-title');
+		expect(html).toContain('welcome-description');
+		expect(html).not.toContain('front-2 shell');
+		expect(html).not.toContain('Gray UI shell is active');
+	});
+
+	test('links to /login as a real navigable action, not a dead button', () => {
+		const html = renderToStaticMarkup(<IndexRoute />);
+
+		expect(html).toContain('href="/login"');
 	});
 });

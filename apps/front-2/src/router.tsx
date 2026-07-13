@@ -1,6 +1,8 @@
-import { QueryClient } from '@tanstack/react-query';
+import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query';
 import { createRouter } from '@tanstack/react-router';
 import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query';
+import { triggerSessionInvalidated } from '~/lib/session-invalidation-channel';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import { routeTree } from './routeTree.gen';
 
@@ -12,6 +14,33 @@ import { routeTree } from './routeTree.gen';
 // case (glance away, glance back) into a no-op.
 const DEFAULT_QUERY_STALE_TIME_MS = 30_000;
 
+export const isAuthedSurfacePath = (pathname: string): boolean =>
+	pathname.startsWith('/staff') || pathname.startsWith('/tenant');
+
+/**
+ * Central 401→logout backstop (shell-F6): the per-route `shouldLogoutForFailure`
+ * guards sprinkled across ~50 call sites are easy to forget on a new page
+ * (the tenant picker already had), so this catches every authed-surface
+ * query/mutation 401 in one place, regardless of whether the page also has
+ * its own guard. Scoped to `/staff`/`/tenant` paths only — `buildStaffQueryOptions`
+ * is also used by anonymous-context queries on the auth surface (e.g.
+ * `accept-invitation.tsx`'s current-user check), where a 401 is expected and
+ * must NOT trigger a logout+redirect.
+ */
+export const handleAuthedQueryError = (error: unknown): void => {
+	if (typeof window === 'undefined') {
+		return;
+	}
+
+	if (!isAuthedSurfacePath(window.location.pathname)) {
+		return;
+	}
+
+	if (shouldLogoutForFailure(error)) {
+		triggerSessionInvalidated();
+	}
+};
+
 export function getRouter() {
 	const queryClient = new QueryClient({
 		defaultOptions: {
@@ -19,6 +48,8 @@ export function getRouter() {
 				staleTime: DEFAULT_QUERY_STALE_TIME_MS,
 			},
 		},
+		queryCache: new QueryCache({ onError: handleAuthedQueryError }),
+		mutationCache: new MutationCache({ onError: handleAuthedQueryError }),
 	});
 	const router = createRouter({
 		routeTree,

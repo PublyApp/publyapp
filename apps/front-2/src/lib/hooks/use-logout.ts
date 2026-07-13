@@ -9,6 +9,7 @@ import {
 } from '~/lib/tab-sync/broadcast-sync';
 
 import { queryParamKey, queryParamValue } from '@org/shared-ts/lib/constants';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 type LogoutOptions = {
 	/**
@@ -55,23 +56,33 @@ export const useLogout = () => {
 			setIsLoggingOut(true);
 
 			queryClient.clear();
-			void clear().finally(() => {
-				// Broadcast only after the clear settles — the shared session
-				// cookie is guaranteed cleared by then, so other tabs never
-				// race the sender to /login while still authenticated.
-				postBroadcast(AUTH_SYNC_CHANNEL, { type: 'logout' });
+			clear()
+				.then(() => {
+					// Broadcast only after the clear settles — the shared session
+					// cookie is guaranteed cleared by then, so other tabs never
+					// race the sender to /login while still authenticated.
+					postBroadcast(AUTH_SYNC_CHANNEL, { type: 'logout' });
 
-				if (options?.redirectTo) {
-					void navigate({ to: options.redirectTo, replace: true });
-					return;
-				}
+					if (options?.redirectTo) {
+						void navigate({ to: options.redirectTo, replace: true });
+						return;
+					}
 
-				void navigate({
-					to: '/login',
-					search: buildLoginSearch(options?.redirectCause),
-					replace: true,
+					void navigate({
+						to: '/login',
+						search: buildLoginSearch(options?.redirectCause),
+						replace: true,
+					});
+				})
+				.catch((error: unknown) => {
+					// Don't navigate on a failed clear — the session cookie is
+					// still there, so the auth-page guard would immediately
+					// bounce the user back to their workspace, making "Log out"
+					// look like it silently did nothing.
+					logger.error('logout: failed to clear the server session', error);
+					isInFlightRef.current = false;
+					setIsLoggingOut(false);
 				});
-			});
 		},
 		[clear, navigate, queryClient],
 	);

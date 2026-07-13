@@ -2,6 +2,7 @@ import {
 	createUntypedArray,
 	createUntypedString,
 } from '@microsoft/kiota-abstractions';
+import type { QueryClient } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
 import { useMutation } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
@@ -148,6 +149,16 @@ export const STAFF_TENANT_PERMISSION_CATALOG_QUERY_KEY = [
 	'tenant-permissions',
 	'catalog',
 ] as const;
+
+/** Invalidates the tenant-profiles list, every profile's details entry, and
+ * its permission-keys entry — all nest under `STAFF_TENANT_PROFILES_QUERY_KEY`
+ * (which already bakes in the `'staff'` scope prefix, unlike most sibling
+ * modules' key constants — see F16/F19), so a single prefix invalidation
+ * covers all three. */
+export const invalidateStaffTenantProfiles = (queryClient: QueryClient) =>
+	queryClient.invalidateQueries({
+		queryKey: STAFF_TENANT_PROFILES_QUERY_KEY,
+	});
 
 const normalizeString = (
 	value: string | null | undefined,
@@ -363,12 +374,14 @@ export const buildUpdateStaffTenantProfileBody = (
 	const description = normalizeString(input.description);
 
 	body.name = createUntypedString(input.name.trim()) as typeof body.name;
-	body.description =
-		description === undefined
-			? input.description === undefined
-				? undefined
-				: null
-			: (createUntypedString(description) as typeof body.description);
+
+	if (description !== undefined) {
+		body.description = createUntypedString(
+			description,
+		) as typeof body.description;
+	} else if (input.description !== undefined) {
+		body.description = null;
+	}
 
 	return body;
 };

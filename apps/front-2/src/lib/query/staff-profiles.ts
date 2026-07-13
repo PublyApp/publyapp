@@ -2,6 +2,7 @@ import {
 	createUntypedArray,
 	createUntypedString,
 } from '@microsoft/kiota-abstractions';
+import type { QueryClient } from '@tanstack/react-query';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
@@ -90,6 +91,14 @@ export type StaffAssignedPermissionGroup = {
 };
 
 export const STAFF_PROFILES_QUERY_KEY = ['staff', 'staff-profiles'] as const;
+
+/** Invalidates the staff-profiles list and every profile's details +
+ * permission-keys entries — all nest under `STAFF_PROFILES_QUERY_KEY`, which
+ * already bakes in the `'staff'` scope prefix (see F16/F19). */
+export const invalidateStaffProfiles = (queryClient: QueryClient) =>
+	queryClient.invalidateQueries({
+		queryKey: STAFF_PROFILES_QUERY_KEY,
+	});
 
 const normalizeString = (value: string | undefined): string | undefined => {
 	if (typeof value !== 'string') {

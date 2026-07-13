@@ -2,8 +2,13 @@ import {
 	createUntypedArray,
 	createUntypedString,
 } from '@microsoft/kiota-abstractions';
+import type { QueryClient } from '@tanstack/react-query';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
+import {
+	normalizeNullableFileUrl,
+	toRootRelativeApiFileUrl,
+} from '~/lib/api-client/resolve-api-file-url';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/src/apiClient';
@@ -20,6 +25,7 @@ import type {
 import {
 	buildStaffMutationOptions,
 	buildStaffQueryOptions,
+	scopedKey,
 } from '@org/shared-ts/lib/query/create-hooks';
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
@@ -95,6 +101,14 @@ export const STAFF_USER_PROFILES_QUERY_KEY = [
 	...STAFF_USER_DETAILS_QUERY_KEY,
 	'profiles',
 ] as const;
+
+/** Invalidates the staff-users list, every user's details entry, and its
+ * assigned-profiles entry — both nest under `STAFF_USERS_QUERY_KEY`, so a
+ * single prefix invalidation covers all three (see F19/F16). */
+export const invalidateStaffUsers = (queryClient: QueryClient) =>
+	queryClient.invalidateQueries({
+		queryKey: scopedKey('staff', STAFF_USERS_QUERY_KEY),
+	});
 
 const normalizeString = (
 	value: string | null | undefined,
@@ -204,7 +218,7 @@ export const toStaffUserDetails = (
 		email,
 		firstName,
 		lastName,
-		avatarUrl: normalizeNullableString(result?.avatarUrl),
+		avatarUrl: normalizeNullableFileUrl(result?.avatarUrl),
 		accountLevel: normalizeNullableString(result?.accountLevel),
 		status: normalizeNullableString(result?.status),
 		createdAt: normalizeDate(result?.createdAt),
@@ -270,7 +284,10 @@ const buildUpdateStaffUserBody = (
 	}
 
 	if (avatarUrl !== undefined) {
-		body.avatarUrl = avatarUrl === null ? null : createUntypedString(avatarUrl);
+		body.avatarUrl =
+			avatarUrl === null
+				? null
+				: createUntypedString(toRootRelativeApiFileUrl(avatarUrl));
 	}
 
 	if (accountLevel !== undefined) {

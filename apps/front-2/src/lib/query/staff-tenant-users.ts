@@ -2,8 +2,13 @@ import {
 	createUntypedArray,
 	createUntypedString,
 } from '@microsoft/kiota-abstractions';
+import type { QueryClient } from '@tanstack/react-query';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
+import {
+	normalizeNullableFileUrl,
+	toRootRelativeApiFileUrl,
+} from '~/lib/api-client/resolve-api-file-url';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/src/apiClient';
@@ -23,6 +28,7 @@ import type {
 import {
 	buildStaffMutationOptions,
 	buildStaffQueryOptions,
+	scopedKey,
 } from '@org/shared-ts/lib/query/create-hooks';
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
@@ -123,6 +129,15 @@ export const STAFF_TENANT_USER_DETAILS_QUERY_KEY = [
 	...STAFF_TENANT_USERS_QUERY_KEY,
 	'detail',
 ] as const;
+
+/** Invalidates both the tenant-users list and every user's details entry —
+ * `STAFF_TENANT_USER_DETAILS_QUERY_KEY` nests under
+ * `STAFF_TENANT_USERS_QUERY_KEY`, so a single prefix invalidation covers
+ * both (see F19/F16). */
+export const invalidateStaffTenantUsers = (queryClient: QueryClient) =>
+	queryClient.invalidateQueries({
+		queryKey: scopedKey('staff', STAFF_TENANT_USERS_QUERY_KEY),
+	});
 
 const normalizeString = (
 	value: string | null | undefined,
@@ -243,7 +258,9 @@ export const buildUpdateStaffTenantUserBody = (
 		body.avatarUrl =
 			avatarUrl === null
 				? null
-				: (createUntypedString(avatarUrl) as typeof body.avatarUrl);
+				: (createUntypedString(
+						toRootRelativeApiFileUrl(avatarUrl),
+					) as typeof body.avatarUrl);
 	}
 
 	if (accountLevel !== undefined) {
@@ -314,7 +331,7 @@ export const toStaffTenantUserRows = (
 			email,
 			level: normalizeNullableString(item.level),
 			status: normalizeNullableString(item.status),
-			avatarUrl: normalizeNullableString(item.avatarUrl),
+			avatarUrl: normalizeNullableFileUrl(item.avatarUrl),
 			displayName: getDisplayName({ firstName, lastName, email }),
 		});
 	}
@@ -339,7 +356,7 @@ export const toStaffTenantUserDetails = (
 		lastName: normalizeNullableString(result?.lastName),
 		accountLevel: normalizeNullableString(result?.level),
 		status: normalizeNullableString(result?.status),
-		avatarUrl: normalizeNullableString(result?.avatarUrl),
+		avatarUrl: normalizeNullableFileUrl(result?.avatarUrl),
 		tenantId: normalizeNullableString(result?.tenantId?.toString()),
 		createdAt: normalizeDate(result?.createdAt),
 		updatedAt: normalizeDate(result?.updatedAt),

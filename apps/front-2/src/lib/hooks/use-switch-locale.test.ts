@@ -25,6 +25,10 @@ vi.mock('~/lib/tab-sync/broadcast-sync', () => ({
 	postBroadcast: mocks.postBroadcast,
 }));
 
+vi.mock('@org/shared-ts/lib/logger/iso-logger', () => ({
+	logger: { error: vi.fn() },
+}));
+
 import { useSwitchLocale } from './use-switch-locale';
 
 describe('useSwitchLocale', () => {
@@ -77,5 +81,20 @@ describe('useSwitchLocale', () => {
 
 		resolveSetLocale();
 		await waitFor(() => expect(mocks.invalidate).toHaveBeenCalledTimes(1));
+	});
+
+	test('surfaces a failed switch instead of failing silently', async () => {
+		mocks.setLocale.mockRejectedValueOnce(new Error('network error'));
+
+		const { result } = renderHook(() => useSwitchLocale());
+
+		act(() => {
+			result.current.switchLocale('fr');
+		});
+
+		await waitFor(() => expect(result.current.isSwitching).toBe(false));
+
+		expect(result.current.hasFailed).toBe(true);
+		expect(mocks.postBroadcast).not.toHaveBeenCalled();
 	});
 });

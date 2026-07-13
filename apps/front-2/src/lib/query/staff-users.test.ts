@@ -1,6 +1,17 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
+
+vi.mock('~/lib/api-client/client-manager', () => ({
+	getClientManager: () => ({
+		getOrCreateStaffClient: () => ({}),
+	}),
+	resolveApiBaseUrl: () => 'https://api.example.test',
+}));
+
+// eslint-disable-next-line import/first -- must follow the vi.mock call above
 import {
 	buildFindStaffUsersQueryParameters,
+	invalidateStaffUsers,
+	STAFF_USERS_QUERY_KEY,
 	toAssignedStaffProfiles,
 	toStaffUserDetails,
 	toStaffUserRows,
@@ -132,6 +143,16 @@ describe('toStaffUserDetails', () => {
 			} as GetStaffUserByIdResult),
 		).toBeNull();
 	});
+
+	test('resolves a root-relative /files/ avatarUrl against the API origin', () => {
+		expect(
+			toStaffUserDetails({
+				id: 'user-8',
+				email: 'root-relative@publyapp.local',
+				avatarUrl: '/files/uploads/2026/07/avatar.png',
+			} as GetStaffUserByIdResult)?.avatarUrl,
+		).toBe('https://api.example.test/files/uploads/2026/07/avatar.png');
+	});
 });
 
 describe('toAssignedStaffProfiles', () => {
@@ -178,5 +199,17 @@ describe('toAssignedStaffProfiles', () => {
 				assignedProfiles: null,
 			} as GetStaffUserProfilesResult),
 		).toEqual([]);
+	});
+});
+
+describe('invalidateStaffUsers', () => {
+	test('invalidates the shared staff-users scope prefix', () => {
+		const invalidateQueries = vi.fn();
+
+		void invalidateStaffUsers({ invalidateQueries } as never);
+
+		expect(invalidateQueries).toHaveBeenCalledWith({
+			queryKey: ['staff', ...STAFF_USERS_QUERY_KEY],
+		});
 	});
 });

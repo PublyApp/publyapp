@@ -7,7 +7,7 @@ import {
 	useLoaderData,
 } from '@tanstack/react-router';
 import { useServerFn } from '@tanstack/react-start';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Trans, useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -18,6 +18,7 @@ import { InvalidLinkView } from '~/components/auth/invalid-link-view';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import { redirectAuthenticatedUserAwayFromAuthPage } from '~/lib/auth-route-guard';
+import { useHydrated } from '~/lib/hooks/use-hydrated';
 import {
 	checkEmailVerificationToken,
 	requestEmailVerification,
@@ -117,10 +118,24 @@ const VerifyEmailRoute = () => {
 		from: '/verify-email',
 	}) as VerifyEmailLoaderData;
 	const { t } = useTranslation('common');
-	const [submittedEmail, setSubmittedEmail] = useState<string | null>(
-		loaderData.view === 'sent' ? loaderData.email : null,
-	);
+	// Only records a submit-triggered "sent" transition — the loader-derived
+	// view is the source of truth otherwise, so a same-route navigation (the
+	// loader re-running with a different search) isn't stuck showing a stale
+	// confirmation for an email the user never actually just submitted (the
+	// same never-resyncs shape F3 fixed in reset-password.tsx).
+	const [locallySubmittedEmail, setLocallySubmittedEmail] = useState<
+		string | null
+	>(null);
 	const [errorMessage, setErrorMessage] = useState('');
+	const isHydrated = useHydrated();
+
+	useEffect(() => {
+		setLocallySubmittedEmail(null);
+	}, [loaderData]);
+
+	const submittedEmail =
+		locallySubmittedEmail ??
+		(loaderData.view === 'sent' ? loaderData.email : null);
 
 	const requestEmailVerificationAction = useServerFn(requestEmailVerification);
 	const formSchema = useMemo(() => getVerifyEmailFormSchema(t), [t]);
@@ -166,7 +181,7 @@ const VerifyEmailRoute = () => {
 
 		try {
 			await requestEmailVerificationAction({ data: { email: values.email } });
-			setSubmittedEmail(values.email);
+			setLocallySubmittedEmail(values.email);
 		} catch (error) {
 			const failure = toApiFailure(error);
 			setErrorMessage(
@@ -184,11 +199,12 @@ const VerifyEmailRoute = () => {
 
 			<form
 				onSubmit={handleSubmit(onSubmit)}
+				method="post"
 				className="space-y-4"
 				data-testid="verify-email-request-form"
 			>
 				<fieldset
-					disabled={isSubmitting}
+					disabled={!isHydrated || isSubmitting}
 					className="m-0 space-y-4 border-0 p-0"
 				>
 					{errorMessage ? (
@@ -226,7 +242,7 @@ const VerifyEmailRoute = () => {
 					<Button
 						type="submit"
 						variant="default"
-						disabled={isSubmitting}
+						disabled={!isHydrated || isSubmitting}
 						className="h-12 w-full text-sm lg:h-11"
 					>
 						{t('verify-email')}

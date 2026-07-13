@@ -70,6 +70,7 @@ const EN_LABELS: Record<string, string> = {
 	'new-password': 'New password',
 	'confirm-password': 'Confirm password',
 	'password-min-length-hint': 'Use at least 8 characters.',
+	'password-min-length-hint-n': 'Use at least {{characters}} characters.',
 	'reset-password': 'Reset password',
 	'password-reset-title': 'Password reset',
 	'password-reset-success-description':
@@ -212,10 +213,10 @@ describe('reset-password route', () => {
 
 		renderResetPasswordRoute();
 		fireEvent.change(screen.getByLabelText('New password'), {
-			target: { value: 'aurora-4417' },
+			target: { value: 'aurora-441789' },
 		});
 		fireEvent.change(screen.getByLabelText('Confirm password'), {
-			target: { value: 'aurora-4417' },
+			target: { value: 'aurora-441789' },
 		});
 		fireEvent.click(screen.getByRole('button', { name: 'Reset password' }));
 
@@ -224,12 +225,38 @@ describe('reset-password route', () => {
 				data: {
 					id: 'enc-id',
 					token: 'tok',
-					newPassword: 'aurora-4417',
-					confirmPassword: 'aurora-4417',
+					newPassword: 'aurora-441789',
+					confirmPassword: 'aurora-441789',
 				},
 			}),
 		);
 		expect(screen.getByTestId('reset-password-success')).toBeTruthy();
+	});
+
+	test('rejects an 11-character password client-side without calling the server fn', async () => {
+		mocks.loaderData = {
+			view: 'set-new',
+			id: 'enc-id',
+			token: 'tok',
+			email: 'rui@latticecloud.com',
+			fromEmailVerification: false,
+		};
+
+		renderResetPasswordRoute();
+		fireEvent.change(screen.getByLabelText('New password'), {
+			target: { value: 'aurora-4417' },
+		});
+		fireEvent.change(screen.getByLabelText('Confirm password'), {
+			target: { value: 'aurora-4417' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Reset password' }));
+
+		await waitFor(() =>
+			expect(
+				screen.getByLabelText('New password').getAttribute('aria-invalid'),
+			).toBe('true'),
+		);
+		expect(mocks.resetPassword).not.toHaveBeenCalled();
 	});
 
 	test('falls back to the invalid-link view when the token is rejected mid-submit', async () => {
@@ -244,16 +271,58 @@ describe('reset-password route', () => {
 
 		renderResetPasswordRoute();
 		fireEvent.change(screen.getByLabelText('New password'), {
-			target: { value: 'aurora-4417' },
+			target: { value: 'aurora-441789' },
 		});
 		fireEvent.change(screen.getByLabelText('Confirm password'), {
-			target: { value: 'aurora-4417' },
+			target: { value: 'aurora-441789' },
 		});
 		fireEvent.click(screen.getByRole('button', { name: 'Reset password' }));
 
 		await waitFor(() =>
 			expect(
 				screen.getByTestId('reset-password-invalid-link-view'),
+			).toBeTruthy(),
+		);
+	});
+
+	test('clicking "Request a new link" after a mid-submit rejection reaches the request form once the loader re-runs', async () => {
+		mocks.loaderData = {
+			view: 'set-new',
+			id: 'enc-id',
+			token: 'tok',
+			email: 'rui@latticecloud.com',
+			fromEmailVerification: false,
+		};
+		mocks.resetPassword.mockRejectedValue({ status: 400 });
+
+		const { rerender } = renderResetPasswordRoute();
+		fireEvent.change(screen.getByLabelText('New password'), {
+			target: { value: 'aurora-441789' },
+		});
+		fireEvent.change(screen.getByLabelText('Confirm password'), {
+			target: { value: 'aurora-441789' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Reset password' }));
+
+		await waitFor(() =>
+			expect(
+				screen.getByTestId('reset-password-invalid-link-view'),
+			).toBeTruthy(),
+		);
+
+		// Simulate the "Request a new link" same-route navigation: the URL
+		// loses its id/token, so the loader re-runs and returns the request
+		// view — a fresh object, which is what the component keys its
+		// tokenRejected reset off of.
+		mocks.loaderData = { view: 'request' };
+		const Component = (
+			Route as unknown as { component: () => ReturnType<typeof createElement> }
+		).component;
+		rerender(createElement(Component));
+
+		await waitFor(() =>
+			expect(
+				screen.getByRole('button', { name: 'Send reset link' }),
 			).toBeTruthy(),
 		);
 	});

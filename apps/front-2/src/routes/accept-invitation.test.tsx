@@ -56,8 +56,19 @@ vi.mock('@tanstack/react-router', () => ({
 		searchStr: mocks.searchStr,
 	}),
 	useNavigate: () => mocks.navigate,
-	Link: ({ children, to, ...props }: { children: ReactNode; to: string }) =>
-		createElement('a', { href: to, ...props }, children),
+	Link: ({
+		children,
+		to,
+		search,
+		...props
+	}: {
+		children: ReactNode;
+		to: string;
+		search?: Record<string, string>;
+	}) => {
+		const query = search ? `?${new URLSearchParams(search).toString()}` : '';
+		return createElement('a', { href: `${to}${query}`, ...props }, children);
+	},
 }));
 
 vi.mock('@tanstack/react-start', () => ({
@@ -229,12 +240,27 @@ describe('accept-invitation route', () => {
 		test('renders the sign-in CTA when signed out and an account already exists', () => {
 			mocks.loaderData = { ...VALID_LOADER_DATA, userExists: true };
 			mocks.hasBrowserSessionCookie.mockReturnValue(false);
+			mocks.pathname = '/accept-invitation';
+			mocks.searchStr = '?id=enc-id&token=tok';
 
 			renderAcceptInvitationRoute();
 
 			expect(
 				screen.getByTestId('accept-invitation-existing-signed-out'),
 			).toBeTruthy();
+
+			// F4: the sign-in CTA must carry the invitation's own path (so
+			// login can return here) and the invited email (so the user
+			// doesn't have to retype it) — a real <Link>, not a raw <a> that
+			// would tear down the SPA.
+			const signInLink = screen.getByRole('link', {
+				name: 'Sign in to continue',
+			});
+			const href = signInLink.getAttribute('href') ?? '';
+			expect(href.startsWith('/login?')).toBe(true);
+			const params = new URLSearchParams(href.split('?')[1]);
+			expect(params.get('rto')).toBe('/accept-invitation?id=enc-id&token=tok');
+			expect(params.get('email')).toBe(VALID_LOADER_DATA.email);
 		});
 
 		test('renders the loading state while the current-user query is still resolving', () => {

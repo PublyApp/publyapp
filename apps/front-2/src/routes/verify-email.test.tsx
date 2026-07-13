@@ -162,6 +162,27 @@ describe('verify-email route', () => {
 		expect(screen.getByText(/mara@northwind\.co/)).toBeTruthy();
 	});
 
+	test('a same-route navigation away from a loader-derived sent view reaches the request form', async () => {
+		mocks.loaderData = { view: 'sent', email: 'mara@northwind.co' };
+
+		const { rerender } = renderVerifyEmailRoute();
+		expect(screen.getByTestId('verify-email-sent')).toBeTruthy();
+
+		// Simulate navigating back to bare /verify-email: the loader re-runs
+		// and returns the request view — a fresh object, which is what the
+		// component keys its locally-submitted-email reset off of.
+		mocks.loaderData = { view: 'request' };
+		const Component = (
+			Route as unknown as { component: () => ReturnType<typeof createElement> }
+		).component;
+		rerender(createElement(Component));
+
+		await waitFor(() =>
+			expect(screen.getByRole('button', { name: 'Verify email' })).toBeTruthy(),
+		);
+		expect(screen.queryByTestId('verify-email-sent')).toBeNull();
+	});
+
 	test('renders the shared invalid-link view when the token is invalid', () => {
 		mocks.loaderData = { view: 'invalid' };
 

@@ -52,33 +52,60 @@ const getLoginFormSchema = (t: Translate) =>
 		password: z.string().min(1, t('password-is-required')),
 	});
 
-const resolveRouteRedirect = (path: string | null): string => {
+/**
+ * Auth-surface routes that a redirect_to may legitimately point back at even
+ * though they aren't under the resolved workspace surface — e.g. an
+ * invitation link's `/accept-invitation?id=…&token=…`, which the user must
+ * return to after signing in for the invitation to actually get accepted
+ * (see F4). Compared against the path only; the query string is stripped
+ * before matching.
+ */
+const RETURNABLE_AUTH_PATHS = ['/accept-invitation'];
+
+// `/\evil.com` isn't rejected by a bare `//` check: the WHATWG URL parser
+// treats a leading backslash as a path separator for special schemes, so
+// `history.pushState`/`navigate({ to })` would resolve it to host
+// `evil.com`. Reject any path containing a backslash, or any character
+// outside a conservative allowlist, rather than trying to enumerate every
+// parser quirk.
+// eslint-disable-next-line no-control-regex -- deliberately rejecting control characters
+const CONTROL_CHARACTER_PATTERN = /[\x00-\x1f]/;
+
+const isSafeRelativePath = (path: string): boolean =>
+	/^\/[^/\\][^\\]*$/.test(path) && !CONTROL_CHARACTER_PATTERN.test(path);
+
+export const resolveRouteRedirect = (path: string | null): string => {
 	if (!path) {
 		return '/';
 	}
 
-	if (!path.startsWith('/') || path.startsWith('//')) {
+	if (!isSafeRelativePath(path)) {
 		return '/';
 	}
 
 	return path;
 };
 
-const getSafeSearchRedirect = (search: string): string => {
+export const getSafeSearchRedirect = (search: string): string => {
 	const params = new URLSearchParams(search);
 	return resolveRouteRedirect(params.get(queryParamKey.login_page.redirect_to));
 };
 
-const isAllowedRedirectPath = (
+export const isAllowedRedirectPath = (
 	requested: string,
 	surfacePath: string,
 ): boolean => {
-	if (!requested || !requested.startsWith('/')) {
+	if (!requested || !isSafeRelativePath(requested)) {
 		return false;
 	}
 
+	const requestedPath = requested.split('?')[0] ?? requested;
+	if (RETURNABLE_AUTH_PATHS.includes(requestedPath)) {
+		return true;
+	}
+
 	const normalizedSurface = surfacePath.replace(/\/$/, '');
-	if (requested === normalizedSurface) {
+	if (requestedPath === normalizedSurface) {
 		return true;
 	}
 
@@ -86,7 +113,7 @@ const isAllowedRedirectPath = (
 		return true;
 	}
 
-	return requested.startsWith(`${normalizedSurface}/`);
+	return requestedPath.startsWith(`${normalizedSurface}/`);
 };
 
 const isSessionExpiredFromSearch = (search: string): boolean => {
@@ -103,6 +130,14 @@ const isPasswordResetSuccessFromSearch = (search: string): boolean => {
 		params.get(queryParamKey.login_page.redirect_cause) ===
 		queryParamValue.login_page.redirect_cause.password_reset_success
 	);
+};
+
+/** An invitation link's "Sign in to continue" CTA hands the invited email
+ * through so the user doesn't have to retype an address the app already
+ * knows (see F4). */
+const getPrefilledEmailFromSearch = (search: string): string => {
+	const params = new URLSearchParams(search);
+	return params.get(queryParamKey.login_page.email) ?? '';
 };
 
 const getFailureStatus = (error: unknown): number | undefined => {
@@ -144,7 +179,7 @@ const LoginRoute = () => {
 	} = useForm<LoginFormValues>({
 		resolver: zodResolver(loginFormSchema),
 		defaultValues: {
-			email: '',
+			email: getPrefilledEmailFromSearch(search),
 			password: '',
 		},
 	});
@@ -251,12 +286,12 @@ const LoginRoute = () => {
 					) : (
 						<>
 							{t('no-account-yet')}{' '}
-							<a
-								href="/signup"
+							<Link
+								to="/signup"
 								className="font-medium text-foreground underline underline-offset-2 transition-colors hover:text-(--publy-primary-foreground)"
 							>
 								{t('create-one')}
-							</a>
+							</Link>
 						</>
 					)
 				}
@@ -309,12 +344,12 @@ const LoginRoute = () => {
 						invalid={isPasswordInvalid}
 						autoComplete="current-password"
 						labelAdornment={
-							<a
-								href="/reset-password"
+							<Link
+								to="/reset-password"
 								className="text-xs text-muted-foreground underline underline-offset-2 transition-colors hover:text-foreground"
 							>
 								{t('forgot-password')}?
-							</a>
+							</Link>
 						}
 					/>
 					{passwordFieldErrorMessage ? (
@@ -370,14 +405,9 @@ const LoginErrorBoundary = ({
 				description="Your login request could not be authorized. Please verify your credentials and try again."
 				testId="auth-401-view"
 				actions={
-					<Button
-						variant="default"
-						onClick={() => {
-							window.location.assign('/login');
-						}}
-					>
+					<Link to="/login" className={buttonVariants({ variant: 'default' })}>
 						Back to login
-					</Button>
+					</Link>
 				}
 			/>
 		);

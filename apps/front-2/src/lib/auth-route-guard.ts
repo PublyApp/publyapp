@@ -3,7 +3,7 @@ import { redirect } from '@tanstack/react-router';
 import { selectToken } from '@org/shared-ts/lib/session/parse';
 
 import { getSessionTokensFromBrowser } from './api-client/client-manager';
-import { completeLoginRedirect } from './server/session-actions';
+import { resolveWorkspacePath } from './server/session-actions';
 
 export const hasBrowserSessionCookie = (): boolean => {
 	const tokens = getSessionTokensFromBrowser();
@@ -12,7 +12,11 @@ export const hasBrowserSessionCookie = (): boolean => {
 
 /**
  * Resolves the workspace an authenticated session belongs to, reusing the
- * same server-side scope resolution as a fresh login. Returns undefined for
+ * same server-side scope resolution as a fresh login — via the read-only
+ * `resolveWorkspacePath`, which never touches the session cookie (unlike
+ * `completeLoginRedirect`, which needs `sessionExpiresAt` to reissue it
+ * correctly and would otherwise downgrade a persistent cookie to a
+ * session-only one on every guard call — see F9). Returns undefined for
  * every non-success case (no session, stale/invalid token, unauthorized
  * scope, or the API being unreachable) so callers can treat "no target" as
  * "let the page render" without inspecting the error themselves.
@@ -21,7 +25,7 @@ export const resolveAuthenticatedWorkspacePath = async (): Promise<
 	string | undefined
 > => {
 	try {
-		const result = await completeLoginRedirect({ data: {} });
+		const result = await resolveWorkspacePath();
 		return result.targetPath;
 	} catch {
 		return undefined;

@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { IconAlertCircle, IconInfoCircle } from '@tabler/icons-react';
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useServerFn } from '@tanstack/react-start';
 import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -11,8 +11,10 @@ import { AuthFormHeader } from '~/components/auth/auth-form-header';
 import { PasswordField } from '~/components/auth/password-field';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
+import { PASSWORD_MIN_LENGTH } from '~/lib/auth-password-policy';
 import { redirectAuthenticatedUserAwayFromAuthPage } from '~/lib/auth-route-guard';
 import { FEATURES } from '~/lib/flags';
+import { useHydrated } from '~/lib/hooks/use-hydrated';
 import { register, requestEmailVerification } from '~/lib/server/auth-actions';
 
 import {
@@ -31,32 +33,30 @@ type Translate = (key: string) => string;
 
 const getSignUpFormSchema = (t: Translate) =>
 	z.object({
-		firstName: z.string().min(1, t('first-name-required')),
-		lastName: z.string().min(1, t('last-name-required')),
+		firstName: z.string().trim().min(1, t('first-name-required')),
+		lastName: z.string().trim().min(1, t('last-name-required')),
 		email: z.string().max(120).email(t('enter-valid-email-address')),
-		password: z.string().min(8, t('password-min-length-hint')),
+		password: z
+			.string()
+			.min(
+				PASSWORD_MIN_LENGTH,
+				t('password-min-length-hint-n', { characters: PASSWORD_MIN_LENGTH }),
+			),
 	});
 
+/**
+ * `/terms` and `/privacy` have no route in `src/routes.ts` yet — rendering
+ * them as `<Link>` would fail to typecheck against the generated route tree,
+ * and a raw `<a href>` would 404 on click. Plain, unlinked text until those
+ * pages exist (product TODO), rather than shipping either failure mode.
+ */
 const SignUpTermsFooter = () => {
 	const { t } = useTranslation('common');
 
 	return (
 		<p className="text-center text-xs text-muted-foreground">
-			{t('by-signing-up-agree')}{' '}
-			<a
-				href="/terms"
-				className="font-medium text-foreground underline underline-offset-2 transition-colors hover:text-(--publy-primary-foreground)"
-			>
-				{t('terms-of-service')}
-			</a>{' '}
-			{t('and')}{' '}
-			<a
-				href="/privacy"
-				className="font-medium text-foreground underline underline-offset-2 transition-colors hover:text-(--publy-primary-foreground)"
-			>
-				{t('privacy-policy')}
-			</a>
-			.
+			{t('by-signing-up-agree')} {t('terms-of-service')} {t('and')}{' '}
+			{t('privacy-policy')}.
 		</p>
 	);
 };
@@ -66,6 +66,7 @@ const SignUpRoute = () => {
 	const { t } = useTranslation('common');
 	const [errorMessage, setErrorMessage] = useState('');
 	const signupsEnabled = FEATURES.auth.signupsEnabled;
+	const isHydrated = useHydrated();
 
 	const registerAction = useServerFn(register);
 	const requestEmailVerificationAction = useServerFn(requestEmailVerification);
@@ -74,6 +75,7 @@ const SignUpRoute = () => {
 	const {
 		register: registerField,
 		handleSubmit,
+		setError,
 		formState: { isSubmitting, errors },
 	} = useForm<SignUpFormValues>({
 		resolver: zodResolver(formSchema),
@@ -84,6 +86,8 @@ const SignUpRoute = () => {
 		setErrorMessage('');
 
 		try {
+			// TODO(fixr2-api): RegisterInput only carries email/password — the
+			// name fields are validated here but not yet sent to the API.
 			const result = await registerAction({
 				data: { email: values.email, password: values.password },
 			});
@@ -97,13 +101,23 @@ const SignUpRoute = () => {
 			await navigate({ to: '/verify-email', search: { email: result.email } });
 		} catch (error) {
 			const failure = toApiFailure(error);
+
+			if (failure.kind === 'validation') {
+				setError('password', {
+					message:
+						failure.fieldErrors.password?.[0] ??
+						getFailureMessage(failure, { fallback: t('an-error-occurred') }),
+				});
+				return;
+			}
+
 			setErrorMessage(
 				getFailureMessage(failure, { fallback: t('an-error-occurred') }),
 			);
 		}
 	};
 
-	const isDisabled = !signupsEnabled || isSubmitting;
+	const isDisabled = !isHydrated || !signupsEnabled || isSubmitting;
 
 	return (
 		<div className="space-y-6">
@@ -122,18 +136,19 @@ const SignUpRoute = () => {
 				secondary={
 					<>
 						{t('already-have-account-question')}{' '}
-						<a
-							href="/login"
+						<Link
+							to="/login"
 							className="font-medium text-foreground underline underline-offset-2 transition-colors hover:text-(--publy-primary-foreground)"
 						>
 							{t('log-in')}
-						</a>
+						</Link>
 					</>
 				}
 			/>
 
 			<form
 				onSubmit={handleSubmit(onSubmit)}
+				method="post"
 				className="space-y-4"
 				data-testid="signup-form"
 			>
@@ -165,6 +180,11 @@ const SignUpRoute = () => {
 								autoComplete="given-name"
 								className="h-11 text-sm lg:h-10 lg:text-[13px]"
 							/>
+							{errors.firstName?.message ? (
+								<p className="text-xs text-destructive">
+									{errors.firstName.message}
+								</p>
+							) : null}
 						</div>
 						<div className="flex-1 space-y-1.5">
 							<label
@@ -182,6 +202,11 @@ const SignUpRoute = () => {
 								autoComplete="family-name"
 								className="h-11 text-sm lg:h-10 lg:text-[13px]"
 							/>
+							{errors.lastName?.message ? (
+								<p className="text-xs text-destructive">
+									{errors.lastName.message}
+								</p>
+							) : null}
 						</div>
 					</div>
 
@@ -211,7 +236,9 @@ const SignUpRoute = () => {
 						id="signup-password"
 						label={t('password')}
 						register={registerField('password')}
-						placeholder={t('n+ characters', { characters: '8' })}
+						placeholder={t('n+ characters', {
+							characters: PASSWORD_MIN_LENGTH,
+						})}
 						required
 						invalid={Boolean(errors.password?.message)}
 						autoComplete="new-password"

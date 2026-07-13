@@ -8,7 +8,7 @@ import {
 } from '@tabler/icons-react';
 import { createFileRoute, Link, useLoaderData } from '@tanstack/react-router';
 import { useServerFn } from '@tanstack/react-start';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Trans, useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -19,7 +19,9 @@ import { InvalidLinkView } from '~/components/auth/invalid-link-view';
 import { PasswordField } from '~/components/auth/password-field';
 import { Button, buttonVariants } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
+import { PASSWORD_MIN_LENGTH } from '~/lib/auth-password-policy';
 import { redirectAuthenticatedUserAwayFromAuthPage } from '~/lib/auth-route-guard';
+import { useHydrated } from '~/lib/hooks/use-hydrated';
 import {
 	checkResetPasswordToken,
 	requestEmailVerification,
@@ -90,7 +92,12 @@ const getRequestFormSchema = (t: Translate) =>
 const getSetNewPasswordFormSchema = (t: Translate) =>
 	z
 		.object({
-			newPassword: z.string().min(8, t('password-min-length-hint')),
+			newPassword: z
+				.string()
+				.min(
+					PASSWORD_MIN_LENGTH,
+					t('password-min-length-hint-n', { characters: PASSWORD_MIN_LENGTH }),
+				),
 			confirmPassword: z.string().min(1, t('password-is-required')),
 		})
 		.refine((data) => data.newPassword === data.confirmPassword, {
@@ -132,6 +139,7 @@ const ResetPasswordRequestForm = () => {
 	const { t } = useTranslation('common');
 	const [submitted, setSubmitted] = useState(false);
 	const [errorMessage, setErrorMessage] = useState('');
+	const isHydrated = useHydrated();
 	const requestEmailVerificationAction = useServerFn(requestEmailVerification);
 	const formSchema = useMemo(() => getRequestFormSchema(t), [t]);
 
@@ -185,11 +193,12 @@ const ResetPasswordRequestForm = () => {
 
 			<form
 				onSubmit={handleSubmit(onSubmit)}
+				method="post"
 				className="space-y-4"
 				data-testid="reset-password-request-form"
 			>
 				<fieldset
-					disabled={isSubmitting}
+					disabled={!isHydrated || isSubmitting}
 					className="m-0 space-y-4 border-0 p-0"
 				>
 					{errorMessage ? (
@@ -227,7 +236,7 @@ const ResetPasswordRequestForm = () => {
 					<Button
 						type="submit"
 						variant="default"
-						disabled={isSubmitting}
+						disabled={!isHydrated || isSubmitting}
 						className="h-12 w-full text-sm lg:h-11"
 					>
 						{t('send-reset-link')}
@@ -264,12 +273,14 @@ const SetNewPasswordForm = ({
 	const { t } = useTranslation('common');
 	const [success, setSuccess] = useState(false);
 	const [errorMessage, setErrorMessage] = useState('');
+	const isHydrated = useHydrated();
 	const resetPasswordAction = useServerFn(resetPassword);
 	const formSchema = useMemo(() => getSetNewPasswordFormSchema(t), [t]);
 
 	const {
 		register,
 		handleSubmit,
+		setError,
 		formState: { isSubmitting, errors },
 	} = useForm<SetNewPasswordFormValues>({
 		resolver: zodResolver(formSchema),
@@ -300,11 +311,22 @@ const SetNewPasswordForm = ({
 				return;
 			}
 
+			if (failure.kind === 'validation') {
+				setError('newPassword', {
+					message:
+						failure.fieldErrors.newPassword?.[0] ??
+						getFailureMessage(failure, { fallback: t('an-error-occurred') }),
+				});
+				return;
+			}
+
 			setErrorMessage(
 				getFailureMessage(failure, { fallback: t('an-error-occurred') }),
 			);
 		}
 	};
+
+	const isDisabled = !isHydrated || isSubmitting;
 
 	return (
 		<div className="space-y-6">
@@ -329,13 +351,11 @@ const SetNewPasswordForm = ({
 
 			<form
 				onSubmit={handleSubmit(onSubmit)}
+				method="post"
 				className="space-y-4"
 				data-testid="reset-password-set-new-form"
 			>
-				<fieldset
-					disabled={isSubmitting}
-					className="m-0 space-y-4 border-0 p-0"
-				>
+				<fieldset disabled={isDisabled} className="m-0 space-y-4 border-0 p-0">
 					{errorMessage ? (
 						<AuthAlert
 							tone="danger"
@@ -356,7 +376,9 @@ const SetNewPasswordForm = ({
 							autoComplete="new-password"
 						/>
 						<p className="mt-1.5 text-xs text-muted-foreground">
-							{t('password-min-length-hint')}
+							{t('password-min-length-hint-n', {
+								characters: PASSWORD_MIN_LENGTH,
+							})}
 						</p>
 						{errors.newPassword?.message ? (
 							<p className="text-xs text-destructive">
@@ -384,7 +406,7 @@ const SetNewPasswordForm = ({
 					<Button
 						type="submit"
 						variant="default"
-						disabled={isSubmitting}
+						disabled={isDisabled}
 						className="h-12 w-full text-sm lg:h-11"
 					>
 						{t('reset-password')}
@@ -399,8 +421,19 @@ const ResetPasswordRoute = () => {
 	const loaderData = useLoaderData({
 		from: '/reset-password',
 	}) as ResetPasswordLoaderData;
-	const [view, setView] = useState(loaderData.view);
 	const { t } = useTranslation('common');
+	// Models only the mid-submit token rejection (`onInvalidToken`) — the
+	// loader-derived view below is the source of truth otherwise, so a
+	// same-route "Request a new link" navigation (which re-runs the loader
+	// but does not remount this component) still reaches the request form
+	// instead of getting stuck on "Invalid link" forever (see F3).
+	const [tokenRejected, setTokenRejected] = useState(false);
+
+	useEffect(() => {
+		setTokenRejected(false);
+	}, [loaderData]);
+
+	const view = tokenRejected ? 'invalid' : loaderData.view;
 
 	if (view === 'invalid') {
 		return (
@@ -419,7 +452,7 @@ const ResetPasswordRoute = () => {
 				token={loaderData.token}
 				email={loaderData.email}
 				fromEmailVerification={loaderData.fromEmailVerification}
-				onInvalidToken={() => setView('invalid')}
+				onInvalidToken={() => setTokenRejected(true)}
 			/>
 		);
 	}

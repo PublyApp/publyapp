@@ -26,6 +26,7 @@ vi.mock('~/lib/api-client/client-manager', () => ({
 			auth: { userAuthData: { get: vi.fn() } },
 		}),
 	}),
+	resolveApiBaseUrl: () => 'https://api.example.test',
 }));
 
 // eslint-disable-next-line import/first -- must follow the vi.mock calls above
@@ -64,6 +65,18 @@ describe('toCurrentUser', () => {
 		expect(toCurrentUser(undefined)).toBeNull();
 		expect(toCurrentUser(null)).toBeNull();
 		expect(toCurrentUser({ email: 'no-id@example.com' })).toBeNull();
+	});
+
+	test('resolves a root-relative /files/ avatarUrl against the API origin', () => {
+		expect(
+			toCurrentUser({
+				id: 'user-3',
+				email: 'root-relative@example.com',
+				firstName: 'Rae',
+				lastName: 'Lee',
+				avatarUrl: '/files/uploads/2026/07/avatar.png',
+			})?.avatarUrl,
+		).toBe('https://api.example.test/files/uploads/2026/07/avatar.png');
 	});
 
 	test('falls back to a null displayName and avatarUrl when the user has no name or avatar', () => {

@@ -120,6 +120,16 @@ describe('TabSyncListener', () => {
 		expect(mocks.invalidateQueries).not.toHaveBeenCalled();
 	});
 
+	test('login while parked on another auth screen (e.g. signup) re-runs the auth-page guard', () => {
+		mocks.pathname = '/signup';
+		mountListener();
+
+		mocks.authHandler?.({ type: 'login' });
+
+		expect(mocks.invalidate).toHaveBeenCalledTimes(1);
+		expect(mocks.invalidateQueries).not.toHaveBeenCalled();
+	});
+
 	test('login while already on the authed surface only invalidates queries', () => {
 		mocks.pathname = '/staff/staff-users';
 		mountListener();

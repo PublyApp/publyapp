@@ -8,6 +8,7 @@ import {
 } from '@tabler/icons-react';
 import {
 	createFileRoute,
+	Link,
 	useLoaderData,
 	useLocation,
 	useNavigate,
@@ -25,8 +26,10 @@ import { Button, buttonVariants } from '~/components/ui/button';
 import { Card, CardContent } from '~/components/ui/card';
 import { Input } from '~/components/ui/input';
 import type { AuthBrand } from '~/layouts/auth-layout';
-import { AuthLayout } from '~/layouts/auth-layout';
+import { useSetAuthBrand } from '~/lib/auth-brand-context';
+import { PASSWORD_MIN_LENGTH } from '~/lib/auth-password-policy';
 import { hasBrowserSessionCookie } from '~/lib/auth-route-guard';
+import { useHydrated } from '~/lib/hooks/use-hydrated';
 import { useLogout } from '~/lib/hooks/use-logout';
 import { useCurrentUserQuery } from '~/lib/query/auth';
 import {
@@ -258,9 +261,11 @@ type NewUserFormValues = {
 const getNewUserFormSchema = (t: Translate) =>
 	z
 		.object({
-			firstName: z.string().min(1, t('first-name-required')),
-			lastName: z.string().min(1, t('last-name-required')),
-			password: z.string().min(12, t('at-least-12-chars-and-1-special-char')),
+			firstName: z.string().trim().min(1, t('first-name-required')),
+			lastName: z.string().trim().min(1, t('last-name-required')),
+			password: z
+				.string()
+				.min(PASSWORD_MIN_LENGTH, t('at-least-12-chars-and-1-special-char')),
 			confirmPassword: z.string(),
 		})
 		.refine((data) => data.password === data.confirmPassword, {
@@ -280,6 +285,7 @@ const NewUserForm = ({
 	const { t } = useTranslation('common');
 	const { submit, errorMessage } = useAcceptInvitationSubmit(token);
 	const formSchema = useMemo(() => getNewUserFormSchema(t), [t]);
+	const isHydrated = useHydrated();
 
 	const {
 		register,
@@ -317,11 +323,12 @@ const NewUserForm = ({
 
 			<form
 				onSubmit={onSubmit}
+				method="post"
 				className="space-y-4"
 				data-testid="accept-invitation-new-user-form"
 			>
 				<fieldset
-					disabled={isSubmitting}
+					disabled={!isHydrated || isSubmitting}
 					className="m-0 space-y-4 border-0 p-0"
 				>
 					{errorMessage ? (
@@ -416,7 +423,7 @@ const NewUserForm = ({
 					<Button
 						type="submit"
 						variant="default"
-						disabled={isSubmitting}
+						disabled={!isHydrated || isSubmitting}
 						className="h-12 w-full text-sm lg:h-11"
 					>
 						{t('create-account')}
@@ -507,11 +514,11 @@ const ExistingMatchView = ({
 const ExistingSignedOutView = ({
 	email,
 	profileName,
-	loginHref,
+	loginSearch,
 }: {
 	email: string;
 	profileName: string;
-	loginHref: string;
+	loginSearch: Record<string, string>;
 }) => {
 	const { t } = useTranslation('common');
 
@@ -529,15 +536,16 @@ const ExistingSignedOutView = ({
 				</p>
 			</div>
 
-			<a
-				href={loginHref}
+			<Link
+				to="/login"
+				search={loginSearch}
 				className={cn(
 					buttonVariants({ variant: 'default' }),
 					'h-12 w-full text-sm lg:h-11',
 				)}
 			>
 				{t('sign-in-to-continue')}
-			</a>
+			</Link>
 
 			<p className="text-center text-xs text-muted-foreground">
 				{t('accept-invitation-return-note', { email })}
@@ -647,21 +655,15 @@ const AcceptInvitationRoute = () => {
 	const authState = useInvitationAuthState();
 	const { t } = useTranslation('common');
 
-	if (loaderData.view === 'invalid') {
-		return (
-			<AuthLayout>
-				<InvalidLinkView
-					icon={<IconMailX aria-hidden="true" className="size-7" />}
-					title={t('auth-invitation-invalid')}
-					description={t('auth-invitation-invalid-description')}
-					testId="accept-invitation-invalid-link-view"
-				/>
-			</AuthLayout>
-		);
-	}
-
-	const branchKind = resolveBranchKind(loaderData, authState);
-	const brandKeys = BRAND_KEY_BY_BRANCH[branchKind];
+	// Hooks run unconditionally regardless of which branch below renders —
+	// `resolveBranchKind` needs `loaderData` narrowed to the 'valid' variant,
+	// so the narrowing happens in this ternary rather than after an early
+	// return, which would violate the rules of hooks for `useSetAuthBrand`.
+	const branchKind =
+		loaderData.view === 'valid'
+			? resolveBranchKind(loaderData, authState)
+			: undefined;
+	const brandKeys = branchKind ? BRAND_KEY_BY_BRANCH[branchKind] : undefined;
 	const brand: AuthBrand | undefined = brandKeys
 		? {
 				eyebrow: t('accept-invitation-brand-eyebrow'),
@@ -670,14 +672,31 @@ const AcceptInvitationRoute = () => {
 			}
 		: undefined;
 
+	// __root.tsx's RoutedShell now renders the single AuthLayout instance for
+	// every auth-surface route (see F1) — this pushes this route's per-branch
+	// brand copy up into it instead of nesting a second AuthLayout here.
+	useSetAuthBrand(brand);
+
+	if (loaderData.view === 'invalid') {
+		return (
+			<InvalidLinkView
+				icon={<IconMailX aria-hidden="true" className="size-7" />}
+				title={t('auth-invitation-invalid')}
+				description={t('auth-invitation-invalid-description')}
+				testId="accept-invitation-invalid-link-view"
+			/>
+		);
+	}
+
 	const stayOnPageHref = `${location.pathname}${location.searchStr}`;
-	const loginHref = `/login?${new URLSearchParams({
+	const loginSearch = {
 		[queryParamKey.login_page.redirect_to]: stayOnPageHref,
 		[queryParamKey.login_page.email]: loaderData.email,
-	}).toString()}`;
+	};
+	const loginHref = `/login?${new URLSearchParams(loginSearch).toString()}`;
 
 	return (
-		<AuthLayout brand={brand}>
+		<>
 			{branchKind === 'loading' ? <AcceptInvitationLoading /> : null}
 			{branchKind === 'new-user' ? (
 				<NewUserForm
@@ -701,7 +720,7 @@ const AcceptInvitationRoute = () => {
 				<ExistingSignedOutView
 					email={loaderData.email}
 					profileName={loaderData.profileName}
-					loginHref={loginHref}
+					loginSearch={loginSearch}
 				/>
 			) : null}
 			{branchKind === 'mismatch' ? (
@@ -716,7 +735,7 @@ const AcceptInvitationRoute = () => {
 					stayOnPageHref={stayOnPageHref}
 				/>
 			) : null}
-		</AuthLayout>
+		</>
 	);
 };
 

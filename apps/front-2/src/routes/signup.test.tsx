@@ -8,7 +8,7 @@ import {
 	screen,
 	waitFor,
 } from '@testing-library/react';
-import { createElement } from 'react';
+import { createElement, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -22,6 +22,8 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => options,
 	useNavigate: () => mocks.navigate,
+	Link: ({ children, to, ...props }: { children: ReactNode; to: string }) =>
+		createElement('a', { href: to, ...props }, children),
 }));
 
 vi.mock('@tanstack/react-start', () => ({
@@ -54,7 +56,7 @@ const EN_LABELS: Record<string, string> = {
 	'email-address': 'Email address',
 	password: 'Password',
 	'email-placeholder': 'name@company.com',
-	'n+ characters': '8+ characters',
+	'n+ characters': '{{characters}}+ characters',
 	'create-account': 'Create account',
 	'by-signing-up-agree': 'By signing up, I agree to',
 	'terms-of-service': 'Terms of service',
@@ -64,6 +66,7 @@ const EN_LABELS: Record<string, string> = {
 	'last-name-required': 'Last name is required',
 	'enter-valid-email-address': 'Enter a valid email address.',
 	'password-min-length-hint': 'Use at least 8 characters.',
+	'password-min-length-hint-n': 'Use at least {{characters}} characters.',
 	'an-error-occurred': 'An error occurred',
 	'show-password': 'Show password',
 	'hide-password': 'Hide password',
@@ -72,10 +75,11 @@ const EN_LABELS: Record<string, string> = {
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string, options?: Record<string, unknown>) => {
-			if (key === 'n+ characters' && options?.characters) {
-				return `${options.characters}+ characters`;
+			let text = EN_LABELS[key] ?? key;
+			for (const [name, value] of Object.entries(options ?? {})) {
+				text = text.replaceAll(`{{${name}}}`, String(value));
 			}
-			return EN_LABELS[key] ?? key;
+			return text;
 		},
 		i18n: { language: 'en' },
 	}),
@@ -159,13 +163,13 @@ describe('signup route', () => {
 			target: { value: 'mara@northwind.co' },
 		});
 		fireEvent.change(screen.getByLabelText('Password'), {
-			target: { value: 'aurora-4417' },
+			target: { value: 'aurora-441789' },
 		});
 		fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
 
 		await waitFor(() =>
 			expect(mocks.register).toHaveBeenCalledWith({
-				data: { email: 'mara@northwind.co', password: 'aurora-4417' },
+				data: { email: 'mara@northwind.co', password: 'aurora-441789' },
 			}),
 		);
 		await waitFor(() =>
@@ -197,12 +201,95 @@ describe('signup route', () => {
 			target: { value: 'mara@northwind.co' },
 		});
 		fireEvent.change(screen.getByLabelText('Password'), {
-			target: { value: 'aurora-4417' },
+			target: { value: 'aurora-441789' },
 		});
 		fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
 
 		await waitFor(() =>
 			expect(screen.getByTestId('signup-error-alert')).toBeTruthy(),
+		);
+		expect(mocks.navigate).not.toHaveBeenCalled();
+	});
+
+	test('rejects an 11-character password client-side without calling register', async () => {
+		mocks.signupsEnabled = true;
+
+		renderSignUpRoute();
+
+		fireEvent.change(screen.getByLabelText('First name'), {
+			target: { value: 'Mara' },
+		});
+		fireEvent.change(screen.getByLabelText('Last name'), {
+			target: { value: 'Okonkwo' },
+		});
+		fireEvent.change(screen.getByLabelText('Email address'), {
+			target: { value: 'mara@northwind.co' },
+		});
+		fireEvent.change(screen.getByLabelText('Password'), {
+			target: { value: 'aurora-4417' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+		await waitFor(() =>
+			expect(screen.getByText('Use at least 12 characters.')).toBeTruthy(),
+		);
+		expect(mocks.register).not.toHaveBeenCalled();
+	});
+
+	test('shows validation errors and does not submit when names are blank or whitespace-only', async () => {
+		mocks.signupsEnabled = true;
+
+		renderSignUpRoute();
+
+		// Whitespace-only, not truly empty: the native `required` attribute
+		// only rejects an empty string, so this is the case that only the
+		// zod `.trim().min(1)` validation (not the browser) can catch.
+		fireEvent.change(screen.getByLabelText('First name'), {
+			target: { value: '   ' },
+		});
+		fireEvent.change(screen.getByLabelText('Last name'), {
+			target: { value: '   ' },
+		});
+		fireEvent.change(screen.getByLabelText('Email address'), {
+			target: { value: 'mara@northwind.co' },
+		});
+		fireEvent.change(screen.getByLabelText('Password'), {
+			target: { value: 'aurora-441789' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+		await waitFor(() =>
+			expect(screen.getByText('First name is required')).toBeTruthy(),
+		);
+		expect(screen.getByText('Last name is required')).toBeTruthy();
+		expect(mocks.register).not.toHaveBeenCalled();
+	});
+
+	test('maps a 422 password validation failure onto the password field', async () => {
+		mocks.signupsEnabled = true;
+		mocks.register.mockRejectedValue({
+			status: 422,
+			errors: { password: ['Password is too common.'] },
+		});
+
+		renderSignUpRoute();
+
+		fireEvent.change(screen.getByLabelText('First name'), {
+			target: { value: 'Mara' },
+		});
+		fireEvent.change(screen.getByLabelText('Last name'), {
+			target: { value: 'Okonkwo' },
+		});
+		fireEvent.change(screen.getByLabelText('Email address'), {
+			target: { value: 'mara@northwind.co' },
+		});
+		fireEvent.change(screen.getByLabelText('Password'), {
+			target: { value: 'aurora-441789' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+		await waitFor(() =>
+			expect(screen.getByText('Password is too common.')).toBeTruthy(),
 		);
 		expect(mocks.navigate).not.toHaveBeenCalled();
 	});

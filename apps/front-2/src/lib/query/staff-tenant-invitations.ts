@@ -1,3 +1,4 @@
+import type { QueryClient } from '@tanstack/react-query';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
@@ -11,6 +12,7 @@ import type {
 import {
 	buildStaffMutationOptions,
 	buildStaffQueryOptions,
+	scopedKey,
 } from '@org/shared-ts/lib/query/create-hooks';
 
 export type StaffTenantInvitationsQueryVariables = {
@@ -44,6 +46,11 @@ export const STAFF_TENANT_INVITATIONS_QUERY_KEY = [
 	'staff-tenants',
 	'invitations',
 ] as const;
+
+export const invalidateStaffTenantInvitations = (queryClient: QueryClient) =>
+	queryClient.invalidateQueries({
+		queryKey: scopedKey('staff', STAFF_TENANT_INVITATIONS_QUERY_KEY),
+	});
 
 const normalizeString = (
 	value: string | null | undefined,

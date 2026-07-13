@@ -1,13 +1,12 @@
 import { beforeEach, expect, test, vi } from 'vitest';
 
 import {
-	buildAnonymousMutationOptions,
 	buildAnonymousQueryOptions,
 	buildAuthQueryOptions,
-	buildStaffMutationOptions,
 	buildStaffQueryOptions,
 	buildTenantMutationOptions,
 	buildTenantQueryOptions,
+	scopedKey,
 } from './create-hooks';
 
 type FakeClient = {
@@ -341,6 +340,17 @@ test('anonymous auth errors do not trigger onLogout for 401', async () => {
 	});
 	expect(onLogout).not.toHaveBeenCalled();
 	expect(onToast).toHaveBeenCalledTimes(1);
+});
+
+test('scopedKey prepends the scope prefix a query factory produces', () => {
+	expect(scopedKey('staff', ['staff-tenants'])).toEqual([
+		'staff',
+		'staff-tenants',
+	]);
+	expect(scopedKey('tenant', ['tenant:tenant'])).toEqual([
+		'tenant',
+		'tenant:tenant',
+	]);
 });
 
 test('auth query errors follow anonymous-style 401 handling (no onLogout)', async () => {

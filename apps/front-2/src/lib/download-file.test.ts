@@ -19,7 +19,8 @@ describe('downloadFile', () => {
 		vi.restoreAllMocks();
 	});
 
-	test('creates an object URL, clicks a download anchor, and revokes the URL', () => {
+	test('creates an object URL, clicks a download anchor, and defers revoking the URL', () => {
+		vi.useFakeTimers();
 		const clickSpy = vi
 			.spyOn(HTMLAnchorElement.prototype, 'click')
 			.mockImplementation(() => undefined);
@@ -32,7 +33,12 @@ describe('downloadFile', () => {
 
 		expect(createObjectURL).toHaveBeenCalledTimes(1);
 		expect(clickSpy).toHaveBeenCalledTimes(1);
+		expect(revokeObjectURL).not.toHaveBeenCalled();
+
+		vi.runAllTimers();
+
 		expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock-url');
+		vi.useRealTimers();
 	});
 });
 

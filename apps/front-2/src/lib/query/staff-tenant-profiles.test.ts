@@ -17,6 +17,8 @@ import {
 	assignStaffTenantProfilePermissionMutationOptions,
 	unassignStaffTenantProfilePermissionMutationOptions,
 	buildUpdateStaffTenantProfileBody,
+	invalidateStaffTenantProfiles,
+	STAFF_TENANT_PROFILES_QUERY_KEY,
 	toStaffTenantProfileDetails,
 	toStaffTenantProfilePermissionKeys,
 	toStaffTenantProfileRows,
@@ -420,5 +422,25 @@ describe('toStaffTenantProfilePermissionKeys', () => {
 
 	test('returns an empty list when the payload is empty', () => {
 		expect(toStaffTenantProfilePermissionKeys(undefined)).toEqual([]);
+	});
+});
+
+describe('buildUpdateStaffTenantProfileBody description branch', () => {
+	test('omits description entirely when it was not provided', () => {
+		const body = buildUpdateStaffTenantProfileBody({ name: 'Approvers' });
+
+		expect('description' in body).toBe(false);
+	});
+});
+
+describe('invalidateStaffTenantProfiles', () => {
+	test('invalidates the shared staff-tenant-profiles scope prefix', () => {
+		const invalidateQueries = vi.fn();
+
+		void invalidateStaffTenantProfiles({ invalidateQueries } as never);
+
+		expect(invalidateQueries).toHaveBeenCalledWith({
+			queryKey: STAFF_TENANT_PROFILES_QUERY_KEY,
+		});
 	});
 });

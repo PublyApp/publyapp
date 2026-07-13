@@ -80,7 +80,12 @@ vi.mock('react-i18next', () => ({
 	}),
 }));
 
-import { Route } from './login';
+import {
+	getSafeSearchRedirect,
+	isAllowedRedirectPath,
+	resolveRouteRedirect,
+	Route,
+} from './login';
 
 const renderLoginRoute = () => {
 	const Component = (
@@ -219,5 +224,85 @@ describe('login route', () => {
 			'true',
 		);
 		expect(mocks.navigate).not.toHaveBeenCalled();
+	});
+
+	test('prefills the email field from the ?email= search param (the invitation-login handoff)', () => {
+		mocks.searchStr = '?email=invitee%40example.com';
+
+		renderLoginRoute();
+
+		expect(screen.getByLabelText('Email address')).toHaveProperty(
+			'value',
+			'invitee@example.com',
+		);
+	});
+
+	test('honors a redirect_to pointing back at /accept-invitation after signing in', async () => {
+		mocks.searchStr = `?rto=${encodeURIComponent('/accept-invitation?id=abc&token=xyz')}`;
+		mocks.login.mockResolvedValue({
+			sessionExpiresAt: '2026-01-01T00:00:00.000Z',
+		});
+
+		renderLoginRoute();
+		fillCredentials('invitee@example.com', 'correct-horse-battery-staple');
+		fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+
+		await waitFor(() =>
+			expect(mocks.navigate).toHaveBeenCalledWith({
+				to: '/accept-invitation?id=abc&token=xyz',
+				replace: true,
+			}),
+		);
+	});
+});
+
+describe('resolveRouteRedirect', () => {
+	test('rejects protocol-relative and backslash-based open-redirect attempts', () => {
+		expect(resolveRouteRedirect('//evil.com')).toBe('/');
+		expect(resolveRouteRedirect('/\\evil.com')).toBe('/');
+		expect(resolveRouteRedirect('/\\/evil.com')).toBe('/');
+		expect(resolveRouteRedirect('https://evil.com')).toBe('/');
+		expect(resolveRouteRedirect('')).toBe('/');
+		expect(resolveRouteRedirect(null)).toBe('/');
+	});
+
+	test('passes through a safe relative path', () => {
+		expect(resolveRouteRedirect('/staff/tenants')).toBe('/staff/tenants');
+		expect(resolveRouteRedirect('/%2F%2Fevil.com')).toBe('/%2F%2Fevil.com');
+	});
+});
+
+describe('getSafeSearchRedirect', () => {
+	test('extracts and sanitises the rto search param', () => {
+		expect(getSafeSearchRedirect('?rto=%2Fstaff')).toBe('/staff');
+		expect(
+			getSafeSearchRedirect(`?rto=${encodeURIComponent('//evil.com')}`),
+		).toBe('/');
+		expect(getSafeSearchRedirect('')).toBe('/');
+	});
+});
+
+describe('isAllowedRedirectPath', () => {
+	test('allows a requested path under the resolved surface', () => {
+		expect(isAllowedRedirectPath('/staff/tenants', '/staff')).toBe(true);
+		expect(isAllowedRedirectPath('/staff', '/staff')).toBe(true);
+	});
+
+	test('rejects a requested path outside the resolved surface', () => {
+		expect(isAllowedRedirectPath('/staff/tenants?q=x', '/tenant')).toBe(false);
+	});
+
+	test('always allows the accept-invitation return path, regardless of surface', () => {
+		expect(
+			isAllowedRedirectPath('/accept-invitation?id=abc&token=xyz', '/tenant'),
+		).toBe(true);
+		expect(isAllowedRedirectPath('/accept-invitation', '/staff')).toBe(true);
+	});
+
+	test('rejects open-redirect attempts', () => {
+		expect(isAllowedRedirectPath('//evil.com', '/tenant')).toBe(false);
+		expect(isAllowedRedirectPath('/\\evil.com', '/tenant')).toBe(false);
+		expect(isAllowedRedirectPath('https://evil.com', '/tenant')).toBe(false);
+		expect(isAllowedRedirectPath('', '/tenant')).toBe(false);
 	});
 });

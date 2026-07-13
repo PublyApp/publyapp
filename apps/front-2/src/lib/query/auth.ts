@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
+import { normalizeNullableFileUrl } from '~/lib/api-client/resolve-api-file-url';
 
 import type { ApiClient } from '@org/client-ts/src/apiClient';
 import type { GetUserAuthDataResult } from '@org/client-ts/src/models/index.js';
@@ -44,7 +45,7 @@ export const toCurrentUser = (
 		email: normalizeString(result?.email) ?? '',
 		firstName,
 		lastName,
-		avatarUrl: normalizeString(result?.avatarUrl),
+		avatarUrl: normalizeNullableFileUrl(result?.avatarUrl),
 		displayName: getUserFullName({ firstName, lastName }) || null,
 	};
 };

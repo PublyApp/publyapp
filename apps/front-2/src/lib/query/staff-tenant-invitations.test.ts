@@ -1,10 +1,12 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 
 import type { InvitationListItem } from '@org/client-ts/src/models/index.js';
 
 import {
 	buildFindStaffTenantInvitationsQueryParameters,
+	invalidateStaffTenantInvitations,
 	isStaffTenantInvitationRevocable,
+	STAFF_TENANT_INVITATIONS_QUERY_KEY,
 	toStaffTenantInvitationRows,
 } from './staff-tenant-invitations';
 
@@ -125,5 +127,17 @@ describe('isStaffTenantInvitationRevocable', () => {
 				status: ' ',
 			}),
 		).toBe(false);
+	});
+});
+
+describe('invalidateStaffTenantInvitations', () => {
+	test('invalidates the shared staff-tenant-invitations scope prefix', () => {
+		const invalidateQueries = vi.fn();
+
+		void invalidateStaffTenantInvitations({ invalidateQueries } as never);
+
+		expect(invalidateQueries).toHaveBeenCalledWith({
+			queryKey: ['staff', ...STAFF_TENANT_INVITATIONS_QUERY_KEY],
+		});
 	});
 });

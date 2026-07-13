@@ -14,6 +14,9 @@ import type { i18n as I18nInstance } from 'i18next';
 import * as React from 'react';
 import { I18nextProvider, useTranslation } from 'react-i18next';
 import { Button, buttonVariants } from '~/components/ui/button';
+import { AuthBrandProvider } from '~/lib/auth-brand-context';
+import { isAuthPath, isPathForSurface } from '~/lib/auth-paths';
+import { useLogout } from '~/lib/hooks/use-logout';
 import {
 	createI18nFromResources,
 	dirForLocale,
@@ -21,6 +24,7 @@ import {
 	type I18nResources,
 	type SupportedLanguage,
 } from '~/lib/i18n.shared';
+import { subscribeToSessionInvalidated } from '~/lib/session-invalidation-channel';
 import { TabSyncListener } from '~/lib/tab-sync/tab-sync-listener';
 import { loadI18nForRequest } from '~/server/i18n-locale';
 
@@ -30,6 +34,7 @@ import { AppErrorView } from '../components/error-views/AppErrorView';
 import { LogoutRedirect } from '../components/error-views/LogoutRedirect';
 import { View403 } from '../components/error-views/View403';
 import { View404 } from '../components/error-views/View404';
+import type { AuthBrand } from '../layouts/auth-layout';
 import { AuthLayout } from '../layouts/auth-layout';
 import { MarketingLayout } from '../layouts/marketing-layout';
 import appCss from '../styles/app.css?url';
@@ -54,23 +59,12 @@ const initI18nOnClient = createClientOnlyFn(async (instance: I18nInstance) => {
 	return mod.initI18nOnClient(instance);
 });
 
-const isPathForSurface = (pathname: string, surfacePath: string) => {
-	return pathname === surfacePath || pathname.startsWith(`${surfacePath}/`);
-};
-
-const isAuthSurface = (pathname: string): boolean => {
-	return pathname === '/login' || pathname.startsWith('/auth');
-};
-
-const isAuthedSurface = (pathname: string): boolean => {
+export const isAuthedSurface = (pathname: string): boolean => {
 	return pathname.startsWith('/staff') || pathname.startsWith('/tenant');
 };
 
-const resolveRouteSurface = (pathname: string): RouteSurface => {
-	if (
-		isPathForSurface(pathname, '/login') ||
-		isPathForSurface(pathname, '/auth')
-	) {
+export const resolveRouteSurface = (pathname: string): RouteSurface => {
+	if (isAuthPath(pathname)) {
 		return 'auth';
 	}
 
@@ -82,10 +76,30 @@ const getRouteFailureStatus = (error: unknown): number | undefined => {
 	return failure.kind === 'problem' ? failure.status : undefined;
 };
 
+/**
+ * Subscribes once (mounted for every surface, like `TabSyncListener`) to the
+ * router's central 401 backstop (`router.tsx`'s `QueryCache`/`MutationCache`
+ * `onError` — shell-F6) and runs the full logout sequence for THIS tab: the
+ * backstop can only detect "an authed query 401'd", it can't call the
+ * `useLogout` hook itself since it runs outside the React tree.
+ */
+const SessionInvalidationListener = () => {
+	const { logout } = useLogout();
+
+	React.useEffect(() => {
+		return subscribeToSessionInvalidated(() => {
+			logout({ redirectCause: 'invalid_session' });
+		});
+	}, [logout]);
+
+	return null;
+};
+
 const RoutedShell = () => {
 	const location = useLocation();
 	const pathname = location.pathname;
 	const surface = resolveRouteSurface(pathname);
+	const [brand, setBrand] = React.useState<AuthBrand | undefined>(undefined);
 
 	if (
 		isPathForSurface(pathname, '/staff') ||
@@ -96,9 +110,11 @@ const RoutedShell = () => {
 
 	if (surface === 'auth') {
 		return (
-			<AuthLayout>
-				<Outlet />
-			</AuthLayout>
+			<AuthBrandProvider value={setBrand}>
+				<AuthLayout brand={brand}>
+					<Outlet />
+				</AuthLayout>
+			</AuthBrandProvider>
 		);
 	}
 
@@ -128,7 +144,7 @@ const RootErrorBoundary = ({
 	};
 
 	if (routeStatus === 401) {
-		if (isAuthSurface(pathname)) {
+		if (isAuthPath(pathname)) {
 			return (
 				<AppErrorView
 					icon={<IconLock aria-hidden="true" className="size-7" />}
@@ -136,14 +152,12 @@ const RootErrorBoundary = ({
 					title="Authentication required"
 					description="You are not signed in. Please log in again."
 					actions={
-						<Button
-							variant="default"
-							onClick={() => {
-								window.location.assign('/login');
-							}}
+						<Link
+							to="/login"
+							className={buttonVariants({ variant: 'default' })}
 						>
 							Back to login
-						</Button>
+						</Link>
 					}
 				/>
 			);
@@ -159,6 +173,11 @@ const RootErrorBoundary = ({
 				code="401 — Unauthorized"
 				title="Session expired"
 				description="Your session is no longer valid."
+				actions={
+					<Link to="/login" className={buttonVariants({ variant: 'default' })}>
+						Back to login
+					</Link>
+				}
 			/>
 		);
 	}
@@ -245,6 +264,7 @@ function RootComponent() {
 			<body>
 				<I18nextProvider i18n={i18n}>
 					<TabSyncListener />
+					<SessionInvalidationListener />
 					<RoutedShell />
 				</I18nextProvider>
 				<Scripts />

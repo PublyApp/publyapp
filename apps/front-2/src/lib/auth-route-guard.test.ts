@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
 		...opts,
 	})),
 	getSessionTokensFromBrowser: vi.fn(),
-	completeLoginRedirect: vi.fn(),
+	resolveWorkspacePath: vi.fn(),
 }));
 
 vi.mock('@tanstack/react-router', () => ({
@@ -21,7 +21,7 @@ vi.mock('./api-client/client-manager', () => ({
 }));
 
 vi.mock('./server/session-actions', () => ({
-	completeLoginRedirect: mocks.completeLoginRedirect,
+	resolveWorkspacePath: mocks.resolveWorkspacePath,
 }));
 
 import { redirectAuthenticatedUserAwayFromAuthPage } from './auth-route-guard';
@@ -42,28 +42,28 @@ describe('redirectAuthenticatedUserAwayFromAuthPage', () => {
 		await expect(
 			redirectAuthenticatedUserAwayFromAuthPage(),
 		).resolves.toBeUndefined();
-		expect(mocks.completeLoginRedirect).not.toHaveBeenCalled();
+		expect(mocks.resolveWorkspacePath).not.toHaveBeenCalled();
 	});
 
 	test('redirects to the resolved workspace when a session exists', async () => {
 		mocks.getSessionTokensFromBrowser.mockReturnValue({
 			tenantToken: 'tenant-token',
 		});
-		mocks.completeLoginRedirect.mockResolvedValue({ targetPath: '/tenant' });
+		mocks.resolveWorkspacePath.mockResolvedValue({ targetPath: '/tenant' });
 
 		await expect(redirectAuthenticatedUserAwayFromAuthPage()).rejects.toEqual({
 			isRedirect: true,
 			to: '/tenant',
 			replace: true,
 		});
-		expect(mocks.completeLoginRedirect).toHaveBeenCalledWith({ data: {} });
+		expect(mocks.resolveWorkspacePath).toHaveBeenCalledWith();
 	});
 
 	test('stays on the auth page when the session is stale or invalid (401)', async () => {
 		mocks.getSessionTokensFromBrowser.mockReturnValue({
 			tenantToken: 'stale-token',
 		});
-		mocks.completeLoginRedirect.mockRejectedValue({
+		mocks.resolveWorkspacePath.mockRejectedValue({
 			responseStatusCode: 401,
 			status: 401,
 			title: 'Unauthorized',
@@ -80,7 +80,7 @@ describe('redirectAuthenticatedUserAwayFromAuthPage', () => {
 		mocks.getSessionTokensFromBrowser.mockReturnValue({
 			tenantToken: 'unauthorized-token',
 		});
-		mocks.completeLoginRedirect.mockRejectedValue({
+		mocks.resolveWorkspacePath.mockRejectedValue({
 			responseStatusCode: 403,
 			status: 403,
 			title: 'Forbidden',
@@ -97,7 +97,7 @@ describe('redirectAuthenticatedUserAwayFromAuthPage', () => {
 		mocks.getSessionTokensFromBrowser.mockReturnValue({
 			tenantToken: 'tenant-token',
 		});
-		mocks.completeLoginRedirect.mockRejectedValue(
+		mocks.resolveWorkspacePath.mockRejectedValue(
 			new TypeError('Failed to fetch'),
 		);
 

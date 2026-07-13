@@ -1,6 +1,10 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 
-import { buildFindStaffInvitationsQueryParameters } from './staff-invitations';
+import {
+	buildFindStaffInvitationsQueryParameters,
+	invalidateStaffInvitations,
+	STAFF_INVITATIONS_QUERY_KEY,
+} from './staff-invitations';
 
 describe('buildFindStaffInvitationsQueryParameters', () => {
 	test('keeps only api-supported filters and stringifies size', () => {
@@ -33,5 +37,17 @@ describe('buildFindStaffInvitationsQueryParameters', () => {
 				status: '',
 			}),
 		).toEqual({});
+	});
+});
+
+describe('invalidateStaffInvitations', () => {
+	test('invalidates the shared staff-invitations scope prefix', () => {
+		const invalidateQueries = vi.fn();
+
+		void invalidateStaffInvitations({ invalidateQueries } as never);
+
+		expect(invalidateQueries).toHaveBeenCalledWith({
+			queryKey: ['staff', ...STAFF_INVITATIONS_QUERY_KEY],
+		});
 	});
 });

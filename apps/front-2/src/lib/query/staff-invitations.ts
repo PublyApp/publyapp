@@ -3,6 +3,7 @@ import {
 	createUntypedObject,
 	createUntypedString,
 } from '@microsoft/kiota-abstractions';
+import type { QueryClient } from '@tanstack/react-query';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
@@ -19,7 +20,17 @@ import type {
 import {
 	buildStaffMutationOptions,
 	buildStaffQueryOptions,
+	scopedKey,
 } from '@org/shared-ts/lib/query/create-hooks';
+
+export const STAFF_INVITATIONS_QUERY_KEY = ['staff-invitations'] as const;
+
+/** Invalidates the staff-invitations list and every invitation's details
+ * entry — both nest under `STAFF_INVITATIONS_QUERY_KEY` (see F19/F16). */
+export const invalidateStaffInvitations = (queryClient: QueryClient) =>
+	queryClient.invalidateQueries({
+		queryKey: scopedKey('staff', STAFF_INVITATIONS_QUERY_KEY),
+	});
 
 export type StaffInvitationInput = {
 	email: string;

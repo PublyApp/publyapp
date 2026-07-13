@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate, useRouter } from '@tanstack/react-router';
+import { isAuthPath } from '~/lib/auth-paths';
 import { applyLocale, parseLocaleSyncMessage } from '~/lib/locale-switch';
 import type { ColorScheme } from '~/lib/store/ui-store';
 import {
@@ -29,8 +30,6 @@ const isThemeSyncMessage = (data: unknown): data is ThemeSyncMessage => {
 
 const isAuthedSurface = (pathname: string): boolean =>
 	pathname.startsWith('/staff') || pathname.startsWith('/tenant');
-
-const isAuthPageSurface = (pathname: string): boolean => pathname === '/login';
 
 /**
  * Mounted once in __root.tsx so it is active on every surface, including the
@@ -70,7 +69,7 @@ export const TabSyncListener = () => {
 		}
 
 		// data.type === 'login'
-		if (isAuthPageSurface(pathname)) {
+		if (isAuthPath(pathname)) {
 			// Don't duplicate the guard's redirect logic here — just re-run it.
 			void router.invalidate();
 			return;

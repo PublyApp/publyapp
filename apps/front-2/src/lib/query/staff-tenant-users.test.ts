@@ -8,6 +8,8 @@ import {
 	buildFindStaffTenantUsersQueryParameters,
 	buildUpdateStaffTenantUserBody,
 	exportStaffTenantUsersMutationOptions,
+	invalidateStaffTenantUsers,
+	STAFF_TENANT_USERS_QUERY_KEY,
 	toStaffTenantUserBulkActionSummary,
 	toStaffTenantUserDetails,
 	toStaffTenantUserRows,
@@ -27,6 +29,7 @@ vi.mock('~/lib/api-client/client-manager', () => ({
 	getClientManager: () => ({
 		getOrCreateStaffClient: mocks.getOrCreateStaffClient,
 	}),
+	resolveApiBaseUrl: () => 'https://api.example.test',
 }));
 
 beforeEach(() => {
@@ -136,6 +139,16 @@ describe('buildCreateStaffTenantUserInvitationBody', () => {
 			}),
 		).toEqual({});
 	});
+
+	test('buildUpdateStaffTenantUserBody strips the API origin off a same-origin avatarUrl', () => {
+		expect(
+			buildUpdateStaffTenantUserBody({
+				avatarUrl: 'https://api.example.test/files/uploads/2026/07/alex.png',
+			}),
+		).toMatchObject({
+			avatarUrl: { value: '/files/uploads/2026/07/alex.png' },
+		});
+	});
 });
 
 describe('toStaffTenantUserRows', () => {
@@ -191,6 +204,24 @@ describe('toStaffTenantUserRows', () => {
 				displayName: 'second@example.com',
 			},
 		]);
+	});
+
+	test('resolves a root-relative /files/ avatarUrl against the API origin', () => {
+		const [row] = toStaffTenantUserRows([
+			{
+				id: 'user-3' as never,
+				firstName: 'Rae',
+				lastName: 'Lee',
+				email: 'rae@example.com',
+				level: 'User',
+				status: 'Active',
+				avatarUrl: '/files/uploads/2026/07/alex.png',
+			},
+		]);
+
+		expect(row?.avatarUrl).toBe(
+			'https://api.example.test/files/uploads/2026/07/alex.png',
+		);
 	});
 });
 
@@ -418,5 +449,17 @@ describe('exportStaffTenantUsersMutationOptions', () => {
 			queryParameters: { ids: 'user-1' },
 		});
 		expect(result).toBe(buffer);
+	});
+});
+
+describe('invalidateStaffTenantUsers', () => {
+	test('invalidates the shared staff-tenant-users scope prefix', () => {
+		const invalidateQueries = vi.fn();
+
+		void invalidateStaffTenantUsers({ invalidateQueries } as never);
+
+		expect(invalidateQueries).toHaveBeenCalledWith({
+			queryKey: ['staff', ...STAFF_TENANT_USERS_QUERY_KEY],
+		});
 	});
 });

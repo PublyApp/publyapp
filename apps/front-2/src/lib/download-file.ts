@@ -18,7 +18,12 @@ export const downloadFile = ({
 	document.body.append(anchor);
 	anchor.click();
 	anchor.remove();
-	URL.revokeObjectURL(url);
+	// Deferred: Firefox and Safari can drop the download if the blob URL is
+	// revoked in the same tick as click() — Chrome starts it synchronously,
+	// but the others don't guarantee that.
+	setTimeout(() => {
+		URL.revokeObjectURL(url);
+	}, 0);
 };
 
 /** `YYYY-MM-DD` for export file names — no timezone/locale ambiguity. */

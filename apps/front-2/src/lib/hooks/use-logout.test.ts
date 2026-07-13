@@ -30,6 +30,10 @@ vi.mock('~/lib/tab-sync/broadcast-sync', () => ({
 	postBroadcast: mocks.postBroadcast,
 }));
 
+vi.mock('@org/shared-ts/lib/logger/iso-logger', () => ({
+	logger: { error: vi.fn() },
+}));
+
 import { useLogout } from './use-logout';
 
 describe('useLogout', () => {
@@ -131,6 +135,29 @@ describe('useLogout', () => {
 		expect(mocks.clear).toHaveBeenCalledTimes(1);
 
 		resolveClear();
+		await waitFor(() => expect(mocks.navigate).toHaveBeenCalledTimes(1));
+	});
+
+	test('does not navigate when the server-side session clear fails, and allows retrying', async () => {
+		mocks.clear.mockRejectedValueOnce(new Error('network error'));
+
+		const { result } = renderHook(() => useLogout());
+
+		act(() => {
+			result.current.logout();
+		});
+		expect(result.current.isLoggingOut).toBe(true);
+
+		await waitFor(() => expect(result.current.isLoggingOut).toBe(false));
+
+		expect(mocks.navigate).not.toHaveBeenCalled();
+		expect(mocks.postBroadcast).not.toHaveBeenCalled();
+
+		mocks.clear.mockResolvedValueOnce(undefined);
+		act(() => {
+			result.current.logout();
+		});
+
 		await waitFor(() => expect(mocks.navigate).toHaveBeenCalledTimes(1));
 	});
 });

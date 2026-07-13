@@ -11,6 +11,7 @@ import { SESSION_TOKEN_COOKIE_KEY } from '@org/shared-ts/lib/constants';
 import { selectToken } from '@org/shared-ts/lib/session/parse';
 
 import { createClient } from '../api-client/client-manager';
+import { PASSWORD_MIN_LENGTH } from '../auth-password-policy';
 import { throwServerFailure } from './server-failure';
 import {
 	buildTenantSessionCookie,
@@ -93,7 +94,7 @@ const AcceptInvitationInputSchema = z.discriminatedUnion('mode', [
 		mode: z.literal('new-user'),
 		firstName: z.string().min(1).max(100),
 		lastName: z.string().min(1).max(100),
-		password: z.string().min(12).max(255),
+		password: z.string().min(PASSWORD_MIN_LENGTH).max(255),
 	}),
 	z.object({
 		token: z.string().min(1),

@@ -5,10 +5,11 @@ import {
 	createUntypedObject,
 	createUntypedString,
 } from '@microsoft/kiota-abstractions';
+import type { QueryClient } from '@tanstack/react-query';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 import {
-	resolveApiFileUrl,
+	normalizeNullableFileUrl,
 	toRootRelativeApiFileUrl,
 } from '~/lib/api-client/resolve-api-file-url';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
@@ -31,6 +32,7 @@ import type {
 import {
 	buildStaffMutationOptions,
 	buildStaffQueryOptions,
+	scopedKey,
 } from '@org/shared-ts/lib/query/create-hooks';
 
 export type StaffTenantsQueryVariables = {
@@ -137,13 +139,6 @@ const normalizeNullableString = (
 	value: string | null | undefined,
 ): string | null => normalizeString(value) ?? null;
 
-const normalizeNullableFileUrl = (
-	value: string | null | undefined,
-): string | null => {
-	const normalized = normalizeString(value);
-	return normalized ? resolveApiFileUrl(normalized) : null;
-};
-
 const normalizeOptionalUpdateString = (
 	value: string | null | undefined,
 ): string | null | undefined => {
@@ -170,6 +165,22 @@ export const STAFF_TENANT_DETAILS_QUERY_KEY = [
 	'staff-tenants',
 	'detail',
 ] as const;
+
+/** Invalidates both the tenants list and every tenant's details entry —
+ * `STAFF_TENANT_DETAILS_QUERY_KEY` nests under `STAFF_TENANTS_QUERY_KEY`, so
+ * a single prefix invalidation covers both. Prefer this over hand-assembling
+ * `['staff', ...STAFF_TENANTS_QUERY_KEY]` at a call site (see F19/F16). */
+export const invalidateStaffTenants = (queryClient: QueryClient) =>
+	queryClient.invalidateQueries({
+		queryKey: scopedKey('staff', STAFF_TENANTS_QUERY_KEY),
+	});
+
+/** Alias of {@link invalidateStaffTenants} for call sites acting on a single
+ * tenant's detail view — invalidates the same list+details scope. */
+export const invalidateStaffTenantDetails = (queryClient: QueryClient) =>
+	queryClient.invalidateQueries({
+		queryKey: scopedKey('staff', STAFF_TENANTS_QUERY_KEY),
+	});
 
 export const buildFindStaffTenantsQueryParameters = (
 	variables: StaffTenantsQueryVariables,

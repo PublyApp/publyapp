@@ -13,6 +13,8 @@ import {
 	updateStaffTenantMutationOptions,
 	toStaffTenantDetails,
 	toStaffTenantRows,
+	invalidateStaffTenants,
+	invalidateStaffTenantDetails,
 } from '~/lib/query/staff-tenants';
 
 import type {
@@ -728,5 +730,20 @@ describe('toStaffTenantDetails', () => {
 				name: 'Acme Corporation',
 			} as GetTenantAsStaffResult),
 		).toBeNull();
+	});
+});
+
+describe('invalidateStaffTenants / invalidateStaffTenantDetails', () => {
+	test('both invalidate the shared staff-tenants scope prefix', () => {
+		const invalidateQueries = vi.fn();
+		const queryClient = { invalidateQueries } as never;
+
+		void invalidateStaffTenants(queryClient);
+		void invalidateStaffTenantDetails(queryClient);
+
+		expect(invalidateQueries).toHaveBeenCalledTimes(2);
+		expect(invalidateQueries).toHaveBeenCalledWith({
+			queryKey: ['staff', ...STAFF_TENANTS_QUERY_KEY],
+		});
 	});
 });

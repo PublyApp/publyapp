@@ -5,6 +5,7 @@ vi.mock('./client-manager', () => ({
 }));
 
 import {
+	normalizeNullableFileUrl,
 	resolveApiFileUrl,
 	toRootRelativeApiFileUrl,
 } from './resolve-api-file-url';
@@ -60,5 +61,25 @@ describe('toRootRelativeApiFileUrl', () => {
 		expect(
 			toRootRelativeApiFileUrl('https://api.example.test/staff/tenants'),
 		).toBe('https://api.example.test/staff/tenants');
+	});
+});
+
+describe('normalizeNullableFileUrl', () => {
+	test('trims and absolutizes a root-relative /files/ path', () => {
+		expect(normalizeNullableFileUrl('  /files/uploads/avatar.png  ')).toBe(
+			'https://api.example.test/files/uploads/avatar.png',
+		);
+	});
+
+	test('returns null for null, undefined, and blank input', () => {
+		expect(normalizeNullableFileUrl(null)).toBeNull();
+		expect(normalizeNullableFileUrl(undefined)).toBeNull();
+		expect(normalizeNullableFileUrl('   ')).toBeNull();
+	});
+
+	test('passes an externally hosted absolute url through unchanged', () => {
+		expect(normalizeNullableFileUrl('https://cdn.example.com/avatar.png')).toBe(
+			'https://cdn.example.com/avatar.png',
+		);
 	});
 });

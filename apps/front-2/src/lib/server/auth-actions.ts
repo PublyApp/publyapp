@@ -3,6 +3,7 @@ import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
 import { createClient } from '../api-client/client-manager';
+import { PASSWORD_MIN_LENGTH } from '../auth-password-policy';
 import { throwServerFailure } from './server-failure';
 
 type RegisterInput = {
@@ -17,7 +18,7 @@ type RegisterResult = {
 
 const RegisterInputSchema = z.object({
 	email: z.string().min(1).email().max(120),
-	password: z.string().min(8).max(64),
+	password: z.string().min(PASSWORD_MIN_LENGTH).max(64),
 });
 
 export const register = createServerFn({ method: 'POST' })
@@ -142,8 +143,8 @@ type ResetPasswordInput = {
 const ResetPasswordInputSchema = z.object({
 	id: z.string().min(1),
 	token: z.string().min(1),
-	newPassword: z.string().min(8).max(64),
-	confirmPassword: z.string().min(8).max(64),
+	newPassword: z.string().min(PASSWORD_MIN_LENGTH).max(64),
+	confirmPassword: z.string().min(PASSWORD_MIN_LENGTH).max(64),
 });
 
 export const resetPassword = createServerFn({ method: 'POST' })

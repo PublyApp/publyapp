@@ -53,9 +53,42 @@ export const toServerFailurePayload = (
 	};
 };
 
+/**
+ * A real `Error` subclass carrying the same fields the plain-object failures
+ * this module used to throw did — `toApiFailure`'s duck-typed
+ * `readProblemShape` reads any object with these fields regardless of
+ * whether it's an `Error`, so this is a drop-in replacement that additionally
+ * gets a stack trace and `instanceof Error` support.
+ */
+export class ServerFailure extends Error {
+	responseStatusCode: number;
+	status: number;
+	title: string;
+	detail: string;
+	errors?: Record<string, string[]>;
+	translationKey?: string;
+
+	constructor(payload: ServerFailurePayload) {
+		super(payload.detail);
+		this.name = 'ServerFailure';
+		this.responseStatusCode = payload.responseStatusCode;
+		this.status = payload.status;
+		this.title = payload.title;
+		this.detail = payload.detail;
+		this.errors = payload.errors;
+		this.translationKey = payload.translationKey;
+	}
+}
+
 export const throwServerFailure = (
 	error: unknown,
 	fallbackMessage: string,
 ): never => {
-	throw toServerFailurePayload(error, fallbackMessage);
+	throw new ServerFailure(toServerFailurePayload(error, fallbackMessage));
+};
+
+export const throwServerFailurePayload = (
+	payload: ServerFailurePayload,
+): never => {
+	throw new ServerFailure(payload);
 };
