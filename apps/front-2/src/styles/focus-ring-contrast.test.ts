@@ -262,12 +262,28 @@ const ARBITRARY_RING_COLOR_VALUE_PATTERN =
 const ARBITRARY_HEX_FIXTURE = '#' + 'ffffff';
 const ARBITRARY_OKLCH_FIXTURE = 'oklch' + '(70% 0.1 90)';
 
+// W5-HARDEN2 item 2A: a utility sitting directly against a JSX className
+// quote (`"focus-visible:ring-primary/10"`, no other classes in the string)
+// has quote characters — not whitespace — as its adjacent characters. The
+// original `(?:^|\s)`/`(?=\s|$)` boundary only matched a real string
+// boundary or whitespace, so a quote-adjacent single utility parsed to zero
+// tokens even though `discoveredConsumerPaths`' raw-substring scan (below)
+// already found the file. Widened to also accept a quote/backtick as a valid
+// token boundary — real Tailwind class strings are always delimited by one
+// of `"`, `'`, `` ` ``, `{`/`}` (a template-literal expression boundary), or
+// whitespace; a bare word character never legitimately sits on the other
+// side of a real utility boundary.
+const CLASS_TOKEN_BOUNDARY_START = String.raw`(?:^|[\s"'\`{])`;
+const CLASS_TOKEN_BOUNDARY_END = String.raw`(?=[\s"'\`}]|$)`;
+
 const parseRingTokens = (
 	mergedClassName: string,
 	knownColorNames: ReadonlySet<string>,
 ): RingToken[] => {
-	const pattern =
-		/(?:^|\s)((?:[\w-]+:)*)ring-(\[[^\]]+\]|\((--[\w-]+)\)|[\w-]+?)(?:\/(\d+))?(?=\s|$)/g;
+	const pattern = new RegExp(
+		`${CLASS_TOKEN_BOUNDARY_START}((?:[\\w-]+:)*)ring-(\\[[^\\]]+\\]|\\((--[\\w-]+)\\)|[\\w-]+?)(?:/(\\d+))?${CLASS_TOKEN_BOUNDARY_END}`,
+		'g',
+	);
 	const tokens: RingToken[] = [];
 	let match: RegExpExecArray | null;
 	while ((match = pattern.exec(mergedClassName))) {
@@ -290,6 +306,48 @@ const parseRingTokens = (
 			}
 		} else if (knownColorNames.has(rawColorGroup)) {
 			tokens.push({ variants, color: rawColorGroup, alpha });
+		}
+	}
+	return tokens;
+};
+
+// W5-HARDEN2 item 2B: `ring-offset-<color>` sets the colour of the gap
+// between the element edge and the ring — visually the innermost visible
+// boundary when a ring is present, and the ONLY visible focus boundary when
+// the ring itself is transparent/absent. `parseRingTokens` above discards
+// `ring-offset-white` outright: its generic `ring-(...)` group captures
+// `offset-white` as one word, which is never a member of `knownColorNames`
+// (real token names are `ring`, `primary`, `accent`, ... — never
+// `offset-<name>`), so the utility silently vanished rather than being
+// evaluated. This is a dedicated pattern/parse for the `ring-offset-`
+// prefix, resolved and contrast-checked exactly like a main ring token
+// (see assertStateCompliant) but never merged into `parseRingTokens`' own
+// return value — every existing exact-equality test on `parseRingTokens`
+// depends on its current token shape/field set staying stable for the
+// tokens it already recognises.
+const parseRingOffsetTokens = (
+	mergedClassName: string,
+	knownColorNames: ReadonlySet<string>,
+): RingToken[] => {
+	const pattern = new RegExp(
+		`${CLASS_TOKEN_BOUNDARY_START}((?:[\\w-]+:)*)ring-offset-(\\[[^\\]]+\\]|\\((--[\\w-]+)\\)|[\\w-]+)${CLASS_TOKEN_BOUNDARY_END}`,
+		'g',
+	);
+	const tokens: RingToken[] = [];
+	let match: RegExpExecArray | null;
+	while ((match = pattern.exec(mergedClassName))) {
+		const [, chain, rawColorGroup, cssVarName] = match;
+		const variants = chain.split(':').filter(Boolean);
+
+		if (cssVarName) {
+			tokens.push({ variants, rawValue: `var(${cssVarName})`, alpha: 1 });
+		} else if (rawColorGroup.startsWith('[') && rawColorGroup.endsWith(']')) {
+			const bracketValue = rawColorGroup.slice(1, -1);
+			if (ARBITRARY_RING_COLOR_VALUE_PATTERN.test(bracketValue)) {
+				tokens.push({ variants, rawValue: bracketValue, alpha: 1 });
+			}
+		} else if (knownColorNames.has(rawColorGroup)) {
+			tokens.push({ variants, color: rawColorGroup, alpha: 1 });
 		}
 	}
 	return tokens;
@@ -336,15 +394,33 @@ const THEMES = [
 const srcRootDir = path.resolve(rootDir, '..');
 const FOCUS_RING_UTILITY_MARKER = 'focus-visible:ring';
 
-const collectTsxFiles = (dir: string): string[] => {
+// W5-HARDEN2 item 2C: was `.tsx`-only, under `src/components/` and
+// `src/routes/` only. Real Tailwind ring utilities are subject to the same
+// constraint Tailwind's own JIT scanner imposes on every class: the FULL
+// literal class string must appear somewhere in scanned source for Tailwind
+// to generate CSS for it at all — a runtime string CONCATENATION
+// (`'ring-' + color`) never works in real Tailwind either, so it isn't a
+// silent discovery gap so much as a shape that wouldn't render a ring in the
+// first place. What genuinely was invisible: a `.ts` constant/shared helper
+// (no `.tsx` extension) holding the literal utility text, and any focusable
+// consumer outside the two hand-picked roots. Widening to every non-test
+// `.ts`/`.tsx` file under the whole `src/` tree closes both — wherever the
+// literal utility text is actually authored, in whatever file, it's now
+// found and (for a `.tsx`/`.ts` file containing focusable markup or a class
+// constant) its raw source is scanned for tokens exactly as before.
+const collectSourceFiles = (dir: string): string[] => {
 	const results: string[] = [];
 	for (const entry of readdirSync(dir, { withFileTypes: true })) {
 		const fullPath = path.join(dir, entry.name);
 		if (entry.isDirectory()) {
-			results.push(...collectTsxFiles(fullPath));
+			results.push(...collectSourceFiles(fullPath));
 			continue;
 		}
-		if (entry.name.endsWith('.tsx') && !entry.name.endsWith('.test.tsx')) {
+		if (
+			(entry.name.endsWith('.tsx') || entry.name.endsWith('.ts')) &&
+			!entry.name.endsWith('.test.tsx') &&
+			!entry.name.endsWith('.test.ts')
+		) {
 			results.push(fullPath);
 		}
 	}
@@ -354,11 +430,11 @@ const collectTsxFiles = (dir: string): string[] => {
 // W5-HARDEN (W5-VERIFY2): a hand-maintained consumer list is itself the
 // defect this finding class keeps re-finding — `focus-visible:ring-primary/10`
 // shipped on a real, focusable ROUTE consumer that this list never named,
-// because nobody added it. Scanning the whole components/routes tree for any
-// file whose source contains a static `focus-visible:ring` utility means an
-// unlisted file can no longer be invisible; only button.tsx/badge.tsx are
-// excluded, because their CVA variants are already exercised through the
-// real `cn()`-merged pipeline below (this scan reads raw source text, so it
+// because nobody added it. Scanning the whole src/ tree for any file whose
+// source contains a static `focus-visible:ring` utility means an unlisted
+// file can no longer be invisible; only button.tsx/badge.tsx are excluded,
+// because their CVA variants are already exercised through the real
+// `cn()`-merged pipeline below (this scan reads raw source text, so it
 // cannot see a runtime-merged CVA variant's ring the way the variant-key
 // loop does).
 const STATIC_CONSUMER_EXCLUSIONS = new Set([
@@ -366,10 +442,7 @@ const STATIC_CONSUMER_EXCLUSIONS = new Set([
 	path.join(uiDir, 'badge.tsx'),
 ]);
 
-const discoveredConsumerPaths = [
-	...collectTsxFiles(path.join(srcRootDir, 'components')),
-	...collectTsxFiles(path.join(srcRootDir, 'routes')),
-].filter(
+const discoveredConsumerPaths = collectSourceFiles(srcRootDir).filter(
 	(absolutePath) =>
 		!STATIC_CONSUMER_EXCLUSIONS.has(absolutePath) &&
 		readFileSync(absolutePath, 'utf8').includes(FOCUS_RING_UTILITY_MARKER),
@@ -453,10 +526,7 @@ describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 	// guard exists to close. Rather than let that shape through unverified,
 	// fail the whole suite if it's ever used anywhere in scope.
 	test('no focus-adjacent inline style expresses a ring/shadow colour (unverifiable by this guard — must fail closed)', () => {
-		const allProductFiles = [
-			...collectTsxFiles(path.join(srcRootDir, 'components')),
-			...collectTsxFiles(path.join(srcRootDir, 'routes')),
-		];
+		const allProductFiles = collectSourceFiles(srcRootDir);
 		const inlineStyleRingPattern =
 			/style=\{\{[^}]*(?:boxShadow|outlineColor|ringColor)[^}]*\}\}/i;
 		const offenders = allProductFiles
@@ -474,6 +544,43 @@ describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 		expect(
 			inlineStyleRingPattern.test(
 				"<div style={{ boxShadow: '0 0 0 3px rgba(0,0,0,.4)' }} />",
+			),
+		).toBe(true);
+	});
+
+	// W5-HARDEN2 item 2C: even with discovery widened to the whole src/ tree
+	// (above), a ring/focus utility built by runtime string CONCATENATION
+	// (`'ring-' + variant` or `` `focus-visible:ring-${color}` ``) can never
+	// be resolved statically — there is no complete literal utility string
+	// anywhere in source for this guard (or Tailwind's own JIT scanner) to
+	// find. Rather than silently treat "found no tokens" as "compliant", fail
+	// the whole suite if that shape is ever used anywhere in scope — the same
+	// fail-closed contract the inline-style check above already applies to
+	// its own unverifiable shape.
+	test('no focus-visible ring/ring-offset utility is composed via runtime string concatenation or interpolation (unverifiable by this guard — must fail closed)', () => {
+		const allProductFiles = collectSourceFiles(srcRootDir);
+		const dynamicRingCompositionPattern =
+			/focus-visible:ring(?:-offset)?[\w-]*\$\{|\+\s*['"`][\w-]*ring(?:-offset)?[\w-]*['"`]|['"`][\w-]*ring(?:-offset)?[\w-]*['"`]\s*\+/;
+		const offenders = allProductFiles
+			.filter((filePath) =>
+				dynamicRingCompositionPattern.test(readFileSync(filePath, 'utf8')),
+			)
+			.map((filePath) => path.relative(srcRootDir, filePath));
+
+		expect(offenders).toEqual([]);
+	});
+
+	test('the dynamic-ring-composition fail-closed check itself catches a planted template-literal interpolation and a planted string concatenation (evasion proof)', () => {
+		const dynamicRingCompositionPattern =
+			/focus-visible:ring(?:-offset)?[\w-]*\$\{|\+\s*['"`][\w-]*ring(?:-offset)?[\w-]*['"`]|['"`][\w-]*ring(?:-offset)?[\w-]*['"`]\s*\+/;
+		expect(
+			dynamicRingCompositionPattern.test(
+				'const cls = `focus-visible:ring-${variant}`;',
+			),
+		).toBe(true);
+		expect(
+			dynamicRingCompositionPattern.test(
+				"const cls = 'focus-visible:' + 'ring-primary';",
 			),
 		).toBe(true);
 	});
@@ -521,21 +628,22 @@ describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 			expect(ratio).toBeGreaterThanOrEqual(CONTRAST_FLOOR);
 		});
 
-		/** Resolves the winning ring token for a state and asserts it clears
-		 * the contrast floor. `stateName` and `consumerLabel` are only for
-		 * the assertion message. */
-		const assertStateCompliant = (
+		/** Resolves a single winning token (either the main ring colour or the
+		 * ring-offset colour — `utilityPrefix` is only used to label the
+		 * assertion message) and asserts it clears the contrast floor. Shared
+		 * by both checks in `assertStateCompliant` below so the offset colour
+		 * is verified through the exact same fail-closed resolution path as
+		 * the main ring colour, not a parallel, potentially-looser one. */
+		const assertWinnerCompliant = (
+			winner: RingToken | undefined,
+			utilityPrefix: string,
 			consumerLabel: string,
-			mergedClassName: string,
-			activeVariants: Set<string>,
 			stateName: string,
 		) => {
-			const tokens = parseRingTokens(mergedClassName, knownColorNames);
-			const winner = resolveWinningRingToken(tokens, activeVariants);
 			if (!winner) {
-				// No ring-colour utility applies while focus-visible is active in
-				// this state (e.g. a consumer with no aria-invalid styling at
-				// all) -- nothing to assert.
+				// No such utility applies while focus-visible is active in this
+				// state (e.g. a consumer with no aria-invalid styling at all, or
+				// no ring-offset utility at all) -- nothing to assert.
 				return;
 			}
 			// W5-HARDEN: fail closed, not open. `winner.color` (a known semantic
@@ -557,15 +665,48 @@ describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 			);
 			const ratio = contrastRatio(renderedRingRgb, surfaceRgb);
 			const winnerLabel = winner.color
-				? `ring-${winner.color}`
-				: `ring-[${winner.rawValue}]`;
+				? `${utilityPrefix}-${winner.color}`
+				: `${utilityPrefix}-[${winner.rawValue}]`;
 			expect(
 				ratio,
-				`${consumerLabel} (${theme.name}, ${stateName}): winning ring token ` +
+				`${consumerLabel} (${theme.name}, ${stateName}): winning ${utilityPrefix} token ` +
 					`is ${winner.variants.join(':')}:${winnerLabel}` +
 					(winner.alpha < 1 ? `/${Math.round(winner.alpha * 100)}` : '') +
 					` -> ${ratio.toFixed(2)}:1`,
 			).toBeGreaterThanOrEqual(CONTRAST_FLOOR);
+		};
+
+		/** Resolves the winning ring token AND the winning ring-offset token
+		 * (W5-HARDEN2 item 2B — a different CSS property, evaluated separately
+		 * rather than merged into one winner-take-all resolution, since
+		 * `ring-color` and `ring-offset-color` don't override each other the
+		 * way same-property Tailwind utilities do) for a state and asserts
+		 * each clears the contrast floor. `stateName` and `consumerLabel` are
+		 * only for the assertion message. */
+		const assertStateCompliant = (
+			consumerLabel: string,
+			mergedClassName: string,
+			activeVariants: Set<string>,
+			stateName: string,
+		) => {
+			const tokens = parseRingTokens(mergedClassName, knownColorNames);
+			const winner = resolveWinningRingToken(tokens, activeVariants);
+			assertWinnerCompliant(winner, 'ring', consumerLabel, stateName);
+
+			const offsetTokens = parseRingOffsetTokens(
+				mergedClassName,
+				knownColorNames,
+			);
+			const offsetWinner = resolveWinningRingToken(
+				offsetTokens,
+				activeVariants,
+			);
+			assertWinnerCompliant(
+				offsetWinner,
+				'ring-offset',
+				consumerLabel,
+				stateName,
+			);
 		};
 
 		const FOCUS_ONLY =
@@ -715,6 +856,46 @@ describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 			expect(
 				parseRingTokens('focus-visible:ring-[3px]', knownColorNames),
 			).toEqual([]);
+		});
+
+		test(`parseRingTokens resolves a quote-adjacent utility with no whitespace-delimited neighbour in ${theme.name} mode`, () => {
+			expect(
+				parseRingTokens(
+					'<button className="focus-visible:ring-primary/10" />',
+					knownColorNames,
+				),
+			).toEqual([
+				{ variants: ['focus-visible'], color: 'primary', alpha: 0.1 },
+			]);
+			expect(
+				parseRingTokens(
+					'const cls = `focus-visible:ring-accent`;',
+					knownColorNames,
+				),
+			).toEqual([{ variants: ['focus-visible'], color: 'accent', alpha: 1 }]);
+		});
+
+		test(`parseRingOffsetTokens resolves a ring-offset colour utility in ${theme.name} mode`, () => {
+			expect(
+				parseRingOffsetTokens(
+					'focus-visible:ring-2 focus-visible:ring-offset-primary',
+					knownColorNames,
+				),
+			).toEqual([{ variants: ['focus-visible'], color: 'primary', alpha: 1 }]);
+			expect(
+				parseRingOffsetTokens('ring-2 ring-offset-2', knownColorNames),
+			).toEqual([]);
+		});
+
+		test(`a planted low-contrast ring-offset colour fails the contrast floor in ${theme.name} mode (W5-HARDEN2 evasion proof)`, () => {
+			expect(() =>
+				assertStateCompliant(
+					'evasion-fixture',
+					`focus-visible:ring-2 focus-visible:ring-offset-[${surfaceHex}]`,
+					FOCUS_ONLY,
+					'focused only',
+				),
+			).toThrow();
 		});
 
 		test(`the same-variant-chain tie-break resolves to the LAST ring utility, matching real tailwind-merge order, in ${theme.name} mode`, () => {
