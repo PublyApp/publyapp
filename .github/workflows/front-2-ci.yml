@@ -56,6 +56,9 @@ jobs:
         run: pnpm --filter front-2 check:context-chunk-isolation
 
       - name: Smoke start front-2 server and verify stylesheet tag
+        env:
+          PUBLIC_API_BASE_URL: 'http://127.0.0.1:5000'
+          SERVER_API_BASE_URL: 'http://127.0.0.1:5000'
         run: |
           pnpm --filter front-2 start > /tmp/front-2-ci-server.log 2>&1 &
           FRONT_2_SERVER_PID=$!
