@@ -582,11 +582,11 @@ public class TenantAsStaffService : ITenantAsStaffService {
 
 					// Durable delivery record in the same transaction as the
 					// invitation and the tenant itself (round-5 API F3).
-					_dbContext.InvitationEmailOutbox.Add(
-						InvitationEmailOutbox.CreateTenantInvitation(
-							email, args.Name, token, accountLevel
-						)
+					var initialUserOutboxRow = InvitationEmailOutbox.CreateTenantInvitation(
+						email, args.Name, token, accountLevel
 					);
+					initialUserOutboxRow.Invitation = invitation;
+					_dbContext.InvitationEmailOutbox.Add(initialUserOutboxRow);
 
 					invitationTokens.Add((email, token, accountLevel));
 				}

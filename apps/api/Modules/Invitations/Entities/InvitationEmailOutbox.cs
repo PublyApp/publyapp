@@ -16,7 +16,14 @@ public enum InvitationEmailOutboxStatus {
 	Pending = 0,
 	Sent = 1,
 	// Terminal: attempts exhausted. Kept (not deleted) for operator visibility/manual redelivery.
-	Failed = 2
+	Failed = 2,
+	// Claimed by a dispatcher instance for delivery (round-6 API F2). A row leased
+	// past LeaseDuration without transitioning to Sent/Failed is treated as
+	// abandoned (crashed process) and becomes claimable again.
+	Processing = 3,
+	// Terminal: the owning invitation was revoked/accepted/superseded before this
+	// row was sent (round-6 API F3). Kept for operator visibility, never sent.
+	Cancelled = 4
 }
 
 /// <summary>
@@ -28,6 +35,7 @@ public enum InvitationEmailOutboxStatus {
 /// </summary>
 [Table("invitation_email_outbox")]
 [Index(nameof(Status), nameof(NextAttemptAt))]
+[Index(nameof(InvitationId))]
 public class InvitationEmailOutbox : BaseAttributes, INoTenantEntity {
 	[Column("email")]
 	public required string Email { get; set; }
@@ -46,6 +54,15 @@ public class InvitationEmailOutbox : BaseAttributes, INoTenantEntity {
 	[Column("account_level")]
 	public AccountLevel? AccountLevel { get; set; }
 
+	// Links this row back to the invitation it delivers a link for, so revoke/accept
+	// can cancel a still-pending send and the dispatcher can recheck eligibility
+	// right before sending (round-6 API F3). Nullable only because it is populated
+	// via EF's same-SaveChanges FK fixup from the newly created Invitation
+	// (store-generated uuidv7 id) — always set by every current producer.
+	[Column("invitation_id")]
+	public Guid? InvitationId { get; set; }
+	public Invitation? Invitation { get; set; }
+
 	[Column("status")]
 	public InvitationEmailOutboxStatus Status { get; set; } = InvitationEmailOutboxStatus.Pending;
 
@@ -60,6 +77,10 @@ public class InvitationEmailOutbox : BaseAttributes, INoTenantEntity {
 
 	[Column("sent_at")]
 	public DateTime? SentAt { get; set; }
+
+	// Set when a dispatcher instance claims this row for delivery (round-6 API F2).
+	[Column("claimed_at")]
+	public DateTime? ClaimedAt { get; set; }
 
 	public static InvitationEmailOutbox CreateTenantInvitation(
 		string email,
@@ -82,5 +103,24 @@ public class InvitationEmailOutbox : BaseAttributes, INoTenantEntity {
 			Kind = InvitationEmailKind.StaffInvitation,
 			Token = token
 		};
+	}
+
+	// Cancels any not-yet-delivered rows for an invitation that just became
+	// ineligible (revoked/accepted/superseded). Mutates tracked entities only —
+	// callers must still call SaveChangesAsync (round-6 API F3, sweep target).
+	public static async Task CancelPendingForInvitationAsync(
+		PublyApp.Api.Data.DbContext.AppDbContext dbContext,
+		Guid invitationId,
+		CancellationToken cancellationToken = default
+	) {
+		var rows = await dbContext.InvitationEmailOutbox
+			.Where(o => o.InvitationId == invitationId
+				&& (o.Status == InvitationEmailOutboxStatus.Pending
+					|| o.Status == InvitationEmailOutboxStatus.Processing))
+			.ToListAsync(cancellationToken);
+
+		foreach (var row in rows) {
+			row.Status = InvitationEmailOutboxStatus.Cancelled;
+		}
 	}
 }

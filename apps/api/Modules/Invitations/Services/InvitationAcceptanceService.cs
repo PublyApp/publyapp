@@ -105,6 +105,9 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 			// Mark invitation as accepted
 			invitation.Status = InvitationStatus.Accepted;
 			invitation.AcceptedAt = DateTime.UtcNow;
+			await InvitationEmailOutbox.CancelPendingForInvitationAsync(
+				_dbContext, invitation.GetRequiredId(), cancellationToken
+			);
 			await _dbContext.SaveChangesAsync(cancellationToken);
 
 			await tx.CommitAsync(cancellationToken);
@@ -205,6 +208,9 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 			// Mark invitation as accepted
 			invitation.Status = InvitationStatus.Accepted;
 			invitation.AcceptedAt = DateTime.UtcNow;
+			await InvitationEmailOutbox.CancelPendingForInvitationAsync(
+				_dbContext, invitation.GetRequiredId(), cancellationToken
+			);
 			await _dbContext.SaveChangesAsync(cancellationToken);
 
 			await tx.CommitAsync(cancellationToken);
@@ -339,6 +345,9 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 
 			invitation.Status = InvitationStatus.Accepted;
 			invitation.AcceptedAt = DateTime.UtcNow;
+			await InvitationEmailOutbox.CancelPendingForInvitationAsync(
+				_dbContext, invitation.GetRequiredId(), cancellationToken
+			);
 			await _dbContext.SaveChangesAsync(cancellationToken);
 
 			await tx.CommitAsync(cancellationToken);
@@ -390,6 +399,10 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 
 		invitation.Status = InvitationStatus.Accepted;
 		invitation.AcceptedAt = DateTime.UtcNow;
+
+		await InvitationEmailOutbox.CancelPendingForInvitationAsync(
+			_dbContext, invitationId, cancellationToken
+		);
 
 		await _dbContext.SaveChangesAsync(cancellationToken);
 
