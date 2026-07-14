@@ -46,13 +46,12 @@ import {
 	TableHeader,
 	TableRow,
 } from '~/components/ui/table';
+import { PAGE_SIZE_OPTIONS } from '~/lib/url-state/table-search-params';
 
 import { toSortingState } from './sort-descriptor';
 import type { SortState } from './sort-descriptor';
 import { resolveTableBodyState } from './table-body-state';
 import type { UseRowSelectionResult } from './use-row-selection';
-
-const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
 
 const SKELETON_ROW_KEYS = [
 	'sk-1',

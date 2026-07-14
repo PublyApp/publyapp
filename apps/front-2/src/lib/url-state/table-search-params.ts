@@ -39,13 +39,20 @@ const isPositiveSafeInteger = (value: number): boolean =>
 	Number.isSafeInteger(value) && value > 0;
 
 /**
- * Matches the largest entry in `PAGE_SIZE_OPTIONS`
- * (`~/components/table/data-table.tsx`) — no table's page-size control can
- * ever request more than this. A hand-typed `size` above this bound falls
- * back to the caller's default instead of being honored, closing the
- * unbounded-page DoS surface (review-r2-tests.md F4).
+ * Every table's page-size control (`~/components/table/data-table.tsx`)
+ * offers exactly these choices — the single source of truth both the
+ * control and the URL-state clamp below derive from, so they can't drift
+ * out of sync (review-r3-tests.md F12).
  */
-const MAX_TABLE_SIZE = 100;
+export const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
+
+/**
+ * No table's page-size control can ever request more than this. A
+ * hand-typed `size` above this bound falls back to the caller's default
+ * instead of being honored, closing the unbounded-page DoS surface
+ * (review-r2-tests.md F4).
+ */
+const MAX_TABLE_SIZE = Math.max(...PAGE_SIZE_OPTIONS);
 
 const parseSize = (value: unknown): number | undefined => {
 	if (typeof value === 'number') {
