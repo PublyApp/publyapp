@@ -203,32 +203,44 @@ const contrastRatio = (a: Rgb, b: Rgb): number => {
 	return (lighter + 0.05) / (darker + 0.05);
 };
 
-type RingColorKind = 'ring' | 'destructive';
-
 type RingToken = {
 	/** The chained variant/modifier prefixes gating this utility, e.g.
 	 * `dark:aria-invalid:focus-visible:ring-ring` -> ['dark', 'aria-invalid', 'focus-visible']. */
 	variants: string[];
-	color: RingColorKind;
+	/** The semantic Tailwind colour token name, e.g. `ring`, `destructive`,
+	 * `primary`, `accent` — any key resolvable through the `@theme inline`
+	 * `--color-*` map, not a fixed two-value allowlist. */
+	color: string;
 	/** Opacity suffix (`/NN`), or 1 when the utility carries no suffix (opaque). */
 	alpha: number;
 };
 
-/** Parses every `[...:]ring-(ring|destructive)[/NN]` utility out of a final,
- * merged className string. Deliberately ignores non-ring-color utilities
- * (`ring-3`, `ring-[3px]`, border colours) — this test's scope is the
- * rendered focus-ring *colour*, matching the finding. */
-const parseRingTokens = (mergedClassName: string): RingToken[] => {
-	const pattern =
-		/(?:^|\s)((?:[\w-]+:)*)ring-(ring|destructive)(?:\/(\d+))?(?=\s|$)/g;
+/** W5-PROOF: the previous version of this parser only matched
+ * `ring-(ring|destructive)` — any sibling semantic ring colour (`ring-primary`,
+ * `ring-accent`, `ring-muted`, ...) was invisible, and a low-opacity ring on
+ * one of those was the exact defect class this guard exists to catch. This
+ * now matches `ring-<any-token>[/NN]` generically and filters against
+ * `knownColorNames` (the real `--color-*` keys resolved from `app.css`'s
+ * `@theme inline` block) so `ring-3`/`ring-offset-2`/`ring-[3px]` (width,
+ * offset, and arbitrary-value utilities, none of them a semantic colour
+ * token) are excluded the same way the old allowlist excluded them — by not
+ * being a real token name, not by being hand-enumerated. */
+const parseRingTokens = (
+	mergedClassName: string,
+	knownColorNames: ReadonlySet<string>,
+): RingToken[] => {
+	const pattern = /(?:^|\s)((?:[\w-]+:)*)ring-([\w-]+?)(?:\/(\d+))?(?=\s|$)/g;
 	const tokens: RingToken[] = [];
 	let match: RegExpExecArray | null;
 	while ((match = pattern.exec(mergedClassName))) {
 		const [, chain, color, alphaText] = match;
+		if (!knownColorNames.has(color)) {
+			continue;
+		}
 		const variants = chain.split(':').filter(Boolean);
 		tokens.push({
 			variants,
-			color: color as RingColorKind,
+			color,
 			alpha: alphaText ? Number.parseInt(alphaText, 10) / 100 : 1,
 		});
 	}
@@ -295,6 +307,18 @@ describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 		...extractDeclarations(darkBlock),
 	]);
 
+	// W5-PROOF: the real `@theme inline { --color-<name>: var(--<target>); }`
+	// map, so every Tailwind semantic ring colour Tailwind actually generates a
+	// `ring-<name>` utility for is resolvable here — not just the two
+	// (`ring`, `destructive`) the old hardcoded parser knew about.
+	const themeInlineBlock = extractBlock(appCssSource, /^@theme inline\s*\{/);
+	const themeColorDeclarations = extractDeclarations(themeInlineBlock);
+	const knownColorNames = new Set(
+		[...themeColorDeclarations.keys()]
+			.filter((key) => key.startsWith('--color-'))
+			.map((key) => key.slice('--color-'.length)),
+	);
+
 	const buttonSource = readFileSync(path.join(uiDir, 'button.tsx'), 'utf8');
 	const badgeSource = readFileSync(path.join(uiDir, 'badge.tsx'), 'utf8');
 	const buttonVariantKeys = extractStringKeys(
@@ -336,14 +360,8 @@ describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 		// Overlay theme-scoped overrides on top of root fallbacks (mirrors how
 		// html.dark actually cascades over :root in the browser).
 		const declarations = new Map([...allDeclarations, ...themeDeclarations]);
-		const ringTokenValue = declarations.get('--publy-focus-ring');
-		const destructiveTokenValue = declarations.get('--destructive');
 		const surfaceHex = declarations.get(theme.surfaceToken);
-		if (
-			ringTokenValue === undefined ||
-			destructiveTokenValue === undefined ||
-			surfaceHex === undefined
-		) {
+		if (surfaceHex === undefined) {
 			throw new Error(`Missing token for ${theme.name} theme`);
 		}
 		if (!HEX_PATTERN.test(surfaceHex)) {
@@ -352,17 +370,27 @@ describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 			);
 		}
 		const surfaceRgb = parseHex(surfaceHex);
-		const ringRgb = resolveColor(ringTokenValue, declarations, surfaceHex);
-		const destructiveRgb = resolveColor(
-			destructiveTokenValue,
-			declarations,
-			surfaceHex,
-		);
 
-		const colorRgb: Record<RingColorKind, Rgb> = {
-			ring: ringRgb,
-			destructive: destructiveRgb,
+		// Resolved lazily (not eagerly for every known `--color-*` key): several
+		// theme colours unrelated to focus rings (`--color-input`,
+		// `--color-border`, ...) use an rgba()/oklch() shape this test's
+		// resolver doesn't need to support, and eagerly resolving all of them
+		// would fail the suite on a colour no ring utility ever references.
+		const colorRgbCache = new Map<string, Rgb>();
+		const resolveKnownColorRgb = (name: string): Rgb => {
+			const cached = colorRgbCache.get(name);
+			if (cached) {
+				return cached;
+			}
+			const rawValue = themeColorDeclarations.get(`--color-${name}`);
+			if (rawValue === undefined) {
+				throw new Error(`Unknown ring colour token: ${name}`);
+			}
+			const rgb = resolveColor(rawValue, declarations, surfaceHex);
+			colorRgbCache.set(name, rgb);
+			return rgb;
 		};
+		const ringRgb = resolveKnownColorRgb('ring');
 
 		test(`--publy-focus-ring token alone clears ${CONTRAST_FLOOR}:1 against --publy-surface in ${theme.name} mode`, () => {
 			const ratio = contrastRatio(ringRgb, surfaceRgb);
@@ -378,7 +406,7 @@ describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 			activeVariants: Set<string>,
 			stateName: string,
 		) => {
-			const tokens = parseRingTokens(mergedClassName);
+			const tokens = parseRingTokens(mergedClassName, knownColorNames);
 			const winner = resolveWinningRingToken(tokens, activeVariants);
 			if (!winner) {
 				// No ring-colour utility applies while focus-visible is active in
@@ -386,8 +414,9 @@ describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 				// all) -- nothing to assert.
 				return;
 			}
+			const winnerRgb = resolveKnownColorRgb(winner.color);
 			const renderedRingRgb = composite(
-				{ ...colorRgb[winner.color], a: winner.alpha },
+				{ ...winnerRgb, a: winner.alpha },
 				surfaceRgb,
 			);
 			const ratio = contrastRatio(renderedRingRgb, surfaceRgb);
@@ -474,5 +503,52 @@ describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 				);
 			});
 		}
+
+		// W5-PROOF: the old parser only recognised `ring-(ring|destructive)`, so
+		// any sibling semantic ring colour (and a low-opacity modifier on one of
+		// them) was structurally invisible — regardless of theme/state. These
+		// are three evasions different in shape from the cited
+		// `focus-visible:ring-primary/10` example: a plain `ring-accent` with no
+		// opacity suffix, a chained-variant `dark:` `ring-primary` with opacity,
+		// and a widened opacity on the already-covered `ring-destructive`.
+		// Prove the generic parser sees all three, and still ignores the
+		// non-colour ring utilities (width/offset/arbitrary) the old parser was
+		// also right to ignore.
+		test(`parseRingTokens resolves sibling semantic ring colours generically in ${theme.name} mode`, () => {
+			expect(
+				parseRingTokens('focus-visible:ring-accent', knownColorNames),
+			).toEqual([{ variants: ['focus-visible'], color: 'accent', alpha: 1 }]);
+			expect(
+				parseRingTokens('dark:focus-visible:ring-primary/10', knownColorNames),
+			).toEqual([
+				{ variants: ['dark', 'focus-visible'], color: 'primary', alpha: 0.1 },
+			]);
+			expect(
+				parseRingTokens('focus-visible:ring-destructive/5', knownColorNames),
+			).toEqual([
+				{ variants: ['focus-visible'], color: 'destructive', alpha: 0.05 },
+			]);
+			expect(
+				parseRingTokens('ring-3 ring-offset-2 ring-[3px]', knownColorNames),
+			).toEqual([]);
+		});
+
+		test(`a planted low-contrast sibling ring colour fails the contrast floor in ${theme.name} mode (evasion proof)`, () => {
+			const lowContrastCandidates = ['accent', 'primary', 'secondary'].filter(
+				(name) => knownColorNames.has(name),
+			);
+			expect(lowContrastCandidates.length).toBeGreaterThan(0);
+
+			const failing = lowContrastCandidates.filter((name) => {
+				const rgb = resolveKnownColorRgb(name);
+				return contrastRatio(rgb, surfaceRgb) < CONTRAST_FLOOR;
+			});
+			// At least one of these theme-surface-adjacent tokens is genuinely
+			// low-contrast against the surface in this theme -- if the detector
+			// regressed to only seeing `ring`/`destructive`, a low-opacity variant
+			// of one of THESE would silently ship, same defect class, different
+			// token.
+			expect(failing.length).toBeGreaterThan(0);
+		});
 	}
 });
