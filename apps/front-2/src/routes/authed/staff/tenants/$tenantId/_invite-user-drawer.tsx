@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -57,12 +57,17 @@ export const InviteTenantUserDrawer = ({
 	onInvited: () => void;
 	onSessionExpired: () => void;
 }) => {
-	const { t } = useTranslation('common');
+	const { t, i18n } = useTranslation('common');
 	const queryClient = useQueryClient();
 	const { mutateAsync, isPending } = useInviteTenantUserMutation();
 	const [serverErrors, setServerErrors] = useState<string[]>([]);
+	const resolver = useMemo(
+		() => zodResolver(buildInviteUserSchema(t)),
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- rebuild on language change so messages stay localized
+		[i18n.language],
+	);
 	const methods = useForm<InviteTenantUserFormValues>({
-		resolver: zodResolver(buildInviteUserSchema(t)),
+		resolver,
 		defaultValues: DEFAULT_VALUES,
 	});
 	const { reset, formState } = methods;
@@ -95,17 +100,16 @@ export const InviteTenantUserDrawer = ({
 			}
 
 			const failure = toApiFailure(error);
-			if (failure.kind === 'validation') {
-				const messages = Object.values(failure.fieldErrors).flat();
-				setServerErrors(
-					messages.length > 0
-						? messages
-						: [
-								getFailureMessage(failure, {
-									fallback: t('invite-tenant-user-failed'),
-								}),
-							],
-				);
+			if (
+				failure.kind === 'validation' &&
+				(failure.fieldErrors.email?.length ?? 0) > 0
+			) {
+				methods.setError('email', {
+					type: 'server',
+					message: getFailureMessage(failure, {
+						fallback: t('invite-tenant-user-failed'),
+					}),
+				});
 				return;
 			}
 

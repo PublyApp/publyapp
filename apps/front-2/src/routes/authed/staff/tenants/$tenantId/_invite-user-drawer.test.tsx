@@ -43,6 +43,7 @@ vi.mock('react-i18next', () => ({
 
 			return labels[key] ?? key;
 		},
+		i18n: { language: 'en' },
 	}),
 }));
 
@@ -110,17 +111,23 @@ vi.mock('~/components/field', () => ({
 			label: string;
 			isDisabled?: boolean;
 		}) => {
-			const { register } = useFormContext();
+			const {
+				register,
+				formState: { errors },
+			} = useFormContext();
+			const error = errors[name]?.message as string | undefined;
 			return createElement(
 				'label',
 				undefined,
 				createElement('span', undefined, label),
 				createElement('input', {
 					'aria-label': label,
+					'aria-invalid': error ? 'true' : undefined,
 					disabled: isDisabled,
 					type: 'email',
 					...register(name),
 				}),
+				error ? createElement('p', undefined, error) : null,
 			);
 		},
 		Select: ({
@@ -245,6 +252,39 @@ describe('InviteTenantUserDrawer', () => {
 		fireEvent.click(screen.getByRole('button', { name: 'Invite people' }));
 
 		await waitFor(() => expect(mocks.inviteMutation).not.toHaveBeenCalled());
+	});
+
+	test('maps a server email field error onto the email field via getFailureMessage, never the raw server string (r3-tenants-F15)', async () => {
+		mocks.inviteMutation.mockRejectedValue({
+			status: 422,
+			responseStatusCode: 422,
+			errors: { Email: ['Email must be a valid email address'] },
+		});
+
+		render(
+			<InviteTenantUserDrawer
+				tenantId="tenant-1"
+				isOpen
+				onOpenChange={vi.fn()}
+				onInvited={vi.fn()}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		fireEvent.change(screen.getByLabelText('Email'), {
+			target: { value: 'new-user@example.com' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Invite people' }));
+
+		await waitFor(() =>
+			expect(screen.getByText('Unable to send the invitation.')).toBeTruthy(),
+		);
+		expect(
+			screen.queryByText('Email must be a valid email address'),
+		).toBeNull();
+		expect(screen.getByLabelText('Email').getAttribute('aria-invalid')).toBe(
+			'true',
+		);
 	});
 
 	test('redirects to logout when the invite request should end the session', async () => {
