@@ -38,7 +38,13 @@ const unwrapUntyped = (value: unknown): unknown => {
 };
 
 describe('toStaffProfileRows', () => {
-	test('normalizes API items and skips rows without ids', () => {
+	// shell-r5-F3: a row with no readable name is malformed and is now
+	// dropped rather than rendered with a fabricated `'—'` placeholder a
+	// staff admin can't distinguish from a legitimate value — this test
+	// previously pinned that forbidden `'—'` outcome (duplicating, and
+	// drifting from, the dedicated mapper coverage added in
+	// src/lib/query/staff-profiles.test.ts for the same fix).
+	test('normalizes API items and skips rows without ids or a usable name', () => {
 		const items: StaffProfileItem[] = [
 			{
 				id: 'profile-admin',
@@ -66,14 +72,6 @@ describe('toStaffProfileRows', () => {
 				name: 'Admin',
 				description: 'Administrators',
 				userAccountCount: 3,
-				icon: expect.any(String) as string,
-				iconTone: expect.any(String) as string,
-			},
-			{
-				id: 'profile-empty',
-				name: '—',
-				description: null,
-				userAccountCount: null,
 				icon: expect.any(String) as string,
 				iconTone: expect.any(String) as string,
 			},
