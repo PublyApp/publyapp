@@ -4,7 +4,7 @@ import type { ColumnDef } from '@tanstack/react-table';
  * @vitest-environment jsdom
  */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { DataTable, SELECTION_LOCKED_TITLE_KEY } from './data-table';
 import type { UseRowSelectionResult } from './use-row-selection';
@@ -60,6 +60,37 @@ const rows: TestRow[] = [
 	{ id: 'row-1', name: 'Alice' },
 	{ id: 'row-2', name: 'Bob' },
 ];
+
+/**
+ * DataTable derives its responsive breakpoints from `window.matchMedia`
+ * (r3-shell-F7), not from raw `window.innerWidth` + a `resize` listener —
+ * `vitest.setup.ts`'s jsdom `matchMedia` polyfill is driven off
+ * `window.innerWidth` and only fires `change` for a query whose `matches`
+ * actually flipped, so the existing innerWidth+resize pattern below still
+ * exercises it faithfully (and proves the "only re-render on an actual
+ * crossing" fix for real, not via an approximation).
+ */
+const installViewportWidthControl = () => {
+	const originalInnerWidth = window.innerWidth;
+
+	return {
+		setViewportWidth: (width: number): void => {
+			Object.defineProperty(window, 'innerWidth', {
+				writable: true,
+				configurable: true,
+				value: width,
+			});
+			fireEvent(window, new Event('resize'));
+		},
+		restore: (): void => {
+			Object.defineProperty(window, 'innerWidth', {
+				writable: true,
+				configurable: true,
+				value: originalInnerWidth,
+			});
+		},
+	};
+};
 
 const createSelection = (
 	rowSelection: Record<string, boolean>,
@@ -391,23 +422,18 @@ describe('DataTable state rendering', () => {
 	});
 
 	describe('DataTable hideBelow column visibility', () => {
-		const originalInnerWidth = window.innerWidth;
+		let viewportWidthControl: ReturnType<typeof installViewportWidthControl>;
+
+		beforeEach(() => {
+			viewportWidthControl = installViewportWidthControl();
+		});
 
 		afterEach(() => {
-			Object.defineProperty(window, 'innerWidth', {
-				writable: true,
-				configurable: true,
-				value: originalInnerWidth,
-			});
+			viewportWidthControl.restore();
 		});
 
 		const setViewportWidth = (width: number): void => {
-			Object.defineProperty(window, 'innerWidth', {
-				writable: true,
-				configurable: true,
-				value: width,
-			});
-			fireEvent(window, new Event('resize'));
+			viewportWidthControl.setViewportWidth(width);
 		};
 
 		const responsiveColumns: ColumnDef<TestRow>[] = [
@@ -460,26 +486,66 @@ describe('DataTable state rendering', () => {
 					.hasAttribute('data-fixed-columns'),
 			).toBe(true);
 		});
+
+		test('does not re-render on an intermediate resize tick that crosses no breakpoint (r3-shell-F7)', () => {
+			let renderCount = 0;
+			const countingColumns: ColumnDef<TestRow>[] = [
+				{
+					id: 'name',
+					accessorKey: 'name',
+					header: 'Name',
+					cell: ({ getValue }) => {
+						renderCount += 1;
+						return String(getValue());
+					},
+				},
+				{
+					id: 'bio',
+					accessorKey: 'name',
+					header: 'Bio',
+					meta: { width: '150px', hideBelow: 768 },
+					cell: ({ getValue }) => String(getValue()),
+				},
+			];
+
+			setViewportWidth(1024);
+			render(
+				<DataTable
+					{...baseProps}
+					columns={countingColumns}
+					rows={rows}
+					isError={false}
+				/>,
+			);
+
+			const renderCountAfterMount = renderCount;
+
+			// Neither tick crosses the 768px breakpoint — a raw
+			// window.innerWidth+resize subscription (the pre-fix
+			// implementation) would still snapshot a new number on every one
+			// of these and re-render the whole table; the matchMedia-based
+			// subscription must not.
+			setViewportWidth(900);
+			setViewportWidth(1200);
+			setViewportWidth(1024);
+
+			expect(renderCount).toBe(renderCountAfterMount);
+		});
 	});
 
 	describe('DataTable pinWidthAbove column width', () => {
-		const originalInnerWidth = window.innerWidth;
+		let viewportWidthControl: ReturnType<typeof installViewportWidthControl>;
+
+		beforeEach(() => {
+			viewportWidthControl = installViewportWidthControl();
+		});
 
 		afterEach(() => {
-			Object.defineProperty(window, 'innerWidth', {
-				writable: true,
-				configurable: true,
-				value: originalInnerWidth,
-			});
+			viewportWidthControl.restore();
 		});
 
 		const setViewportWidth = (width: number): void => {
-			Object.defineProperty(window, 'innerWidth', {
-				writable: true,
-				configurable: true,
-				value: width,
-			});
-			fireEvent(window, new Event('resize'));
+			viewportWidthControl.setViewportWidth(width);
 		};
 
 		const pinnedColumns: ColumnDef<TestRow>[] = [
@@ -526,23 +592,18 @@ describe('DataTable state rendering', () => {
 	});
 
 	describe('DataTable P3 grid contract (ratified desktop track widths)', () => {
-		const originalInnerWidth = window.innerWidth;
+		let viewportWidthControl: ReturnType<typeof installViewportWidthControl>;
+
+		beforeEach(() => {
+			viewportWidthControl = installViewportWidthControl();
+		});
 
 		afterEach(() => {
-			Object.defineProperty(window, 'innerWidth', {
-				writable: true,
-				configurable: true,
-				value: originalInnerWidth,
-			});
+			viewportWidthControl.restore();
 		});
 
 		const setViewportWidth = (width: number): void => {
-			Object.defineProperty(window, 'innerWidth', {
-				writable: true,
-				configurable: true,
-				value: width,
-			});
-			fireEvent(window, new Event('resize'));
+			viewportWidthControl.setViewportWidth(width);
 		};
 
 		// SPEC 2g grid: 40 / 240 / 1fr / 104 / 140 / 120 / 40 — mirrors the
@@ -837,5 +898,115 @@ describe('DataTable a11y', () => {
 			(cell) => cell.closest('tr')?.getAttribute('data-row-index') === '0',
 		) as HTMLElement;
 		expect(firstRowCell.getAttribute('tabindex')).toBe('-1');
+	});
+
+	describe('DataTable grid keyboard navigation (r3-shell-F8)', () => {
+		const multiColumnColumns: ColumnDef<TestRow>[] = [
+			{
+				id: 'name',
+				accessorKey: 'name',
+				header: 'Name',
+				cell: ({ getValue }) => String(getValue()),
+			},
+			{
+				id: 'id',
+				accessorKey: 'id',
+				header: 'ID',
+				cell: ({ getValue }) => String(getValue()),
+			},
+		];
+
+		const cellAt = (rowIndex: number, cellIndex: number): HTMLElement =>
+			screen
+				.getByTestId('test-table-rows')
+				.querySelector(
+					`tr[data-row-index="${rowIndex}"] td[data-cell-index="${cellIndex}"]`,
+				) as HTMLElement;
+
+		// hasSelection={true} via `selection` gives cell-index 0 to the row
+		// checkbox, so a 2-column table has 3 focusable cells (0/1/2) per row —
+		// enough range to prove ArrowLeft/ArrowRight/Home/End move within it.
+		const renderGrid = () =>
+			render(
+				<DataTable
+					{...baseProps}
+					columns={multiColumnColumns}
+					rows={rows}
+					isError={false}
+					selection={createSelection({})}
+				/>,
+			);
+
+		test('ArrowRight moves focus to the next cell in the row', () => {
+			renderGrid();
+			const start = cellAt(0, 0);
+			start.focus();
+
+			fireEvent.keyDown(start, { key: 'ArrowRight' });
+
+			expect(document.activeElement).toBe(cellAt(0, 1));
+		});
+
+		test('ArrowRight at the last cell of a row does not move focus', () => {
+			renderGrid();
+			const lastCell = cellAt(0, 2);
+			lastCell.focus();
+
+			fireEvent.keyDown(lastCell, { key: 'ArrowRight' });
+
+			expect(document.activeElement).toBe(lastCell);
+		});
+
+		test('ArrowLeft moves focus to the previous cell in the row', () => {
+			renderGrid();
+			const middleCell = cellAt(0, 1);
+			middleCell.focus();
+
+			fireEvent.keyDown(middleCell, { key: 'ArrowLeft' });
+
+			expect(document.activeElement).toBe(cellAt(0, 0));
+		});
+
+		test('ArrowLeft at the first cell of a row does not move focus', () => {
+			renderGrid();
+			const firstCell = cellAt(0, 0);
+			firstCell.focus();
+
+			fireEvent.keyDown(firstCell, { key: 'ArrowLeft' });
+
+			expect(document.activeElement).toBe(firstCell);
+		});
+
+		test('Home moves focus to the first cell of the row', () => {
+			renderGrid();
+			const middleCell = cellAt(1, 1);
+			middleCell.focus();
+
+			fireEvent.keyDown(middleCell, { key: 'Home' });
+
+			expect(document.activeElement).toBe(cellAt(1, 0));
+		});
+
+		test('End moves focus to the last cell of the row', () => {
+			renderGrid();
+			const middleCell = cellAt(1, 1);
+			middleCell.focus();
+
+			fireEvent.keyDown(middleCell, { key: 'End' });
+
+			expect(document.activeElement).toBe(cellAt(1, 2));
+		});
+
+		test('ArrowDown/ArrowUp still move focus vertically alongside the new horizontal keys', () => {
+			renderGrid();
+			const topCell = cellAt(0, 1);
+			topCell.focus();
+
+			fireEvent.keyDown(topCell, { key: 'ArrowDown' });
+			expect(document.activeElement).toBe(cellAt(1, 1));
+
+			fireEvent.keyDown(cellAt(1, 1), { key: 'ArrowUp' });
+			expect(document.activeElement).toBe(cellAt(0, 1));
+		});
 	});
 });

@@ -15,6 +15,7 @@ import {
 	useReactTable,
 } from '@tanstack/react-table';
 import {
+	useCallback,
 	useMemo,
 	useState,
 	useSyncExternalStore,
@@ -134,42 +135,101 @@ const columnDisplayMeta = (
 /** Resolves a column's effective `<col>` width, honoring `pinWidthAbove`. */
 const resolveColumnWidth = (
 	displayMeta: ColumnDisplayMeta,
-	viewportWidth: number,
+	matchedBreakpoints: ReadonlySet<number>,
 ): string | undefined => {
 	if (displayMeta.width == null) {
 		return undefined;
 	}
 	if (
 		displayMeta.pinWidthAbove != null &&
-		viewportWidth < displayMeta.pinWidthAbove
+		!matchedBreakpoints.has(displayMeta.pinWidthAbove)
 	) {
 		return undefined;
 	}
 	return displayMeta.width;
 };
 
-const subscribeToViewportWidth = (callback: () => void): (() => void) => {
-	window.addEventListener('resize', callback);
-	return () => window.removeEventListener('resize', callback);
+/** Every distinct `hideBelow`/`pinWidthAbove` value a table's columns
+ * declare — the only widths a resize can actually need to react to. */
+const collectDisplayBreakpoints = (
+	columns: (ColumnDef<never> | { meta?: unknown })[],
+): number[] => {
+	const breakpoints = new Set<number>();
+	for (const column of columns) {
+		const meta = columnDisplayMeta(column);
+		if (meta.hideBelow != null) {
+			breakpoints.add(meta.hideBelow);
+		}
+		if (meta.pinWidthAbove != null) {
+			breakpoints.add(meta.pinWidthAbove);
+		}
+	}
+	return [...breakpoints].sort((left, right) => left - right);
 };
 
-const getViewportWidthSnapshot = (): number => window.innerWidth;
+const matchedBreakpointsKey = (breakpoints: number[]): string =>
+	breakpoints
+		.filter(
+			(breakpoint) => window.matchMedia(`(min-width: ${breakpoint}px)`).matches,
+		)
+		.join(',');
 
 /**
- * SSR/first-paint snapshot is `Infinity` so every `hideBelow` column renders
- * on the server and during hydration (desktop-first, same convention as
- * `useMediaQuery`'s `true` server snapshot) — `useSyncExternalStore`
- * reconciles to the real width right after mount.
+ * Subscribes to exactly the distinct breakpoints a table's columns declare,
+ * not to every pixel of a window resize (r3-shell-F7 / r2-F10): the old
+ * `useViewportWidth` snapshotted raw `window.innerWidth` off a `resize`
+ * listener, so a full window drag produced a new number — and therefore a
+ * new `columnVisibility` object and a new `useReactTable` state — at up to
+ * ~60 Hz, re-rendering the entire table on every tick even though the only
+ * thing that can actually change is which breakpoints are crossed. One
+ * `matchMedia` listener per distinct breakpoint only fires on an actual
+ * crossing.
  */
-const getViewportWidthServerSnapshot = (): number => Number.POSITIVE_INFINITY;
+const useMatchedBreakpoints = (breakpoints: number[]): ReadonlySet<number> => {
+	// `breakpoints` is a fresh array each render (derived from `columns` via
+	// `useMemo`), so subscribe/getSnapshot key off its stable string identity
+	// instead, to avoid resubscribing every render for the same set of values.
+	const key = breakpoints.join(',');
 
-/** Drives per-column `hideBelow` breakpoints off the live viewport width. */
-const useViewportWidth = (): number =>
-	useSyncExternalStore(
-		subscribeToViewportWidth,
-		getViewportWidthSnapshot,
-		getViewportWidthServerSnapshot,
+	const subscribe = useCallback(
+		(callback: () => void) => {
+			const mediaQueryLists = breakpoints.map((breakpoint) =>
+				window.matchMedia(`(min-width: ${breakpoint}px)`),
+			);
+			for (const mediaQueryList of mediaQueryLists) {
+				mediaQueryList.addEventListener('change', callback);
+			}
+			return () => {
+				for (const mediaQueryList of mediaQueryLists) {
+					mediaQueryList.removeEventListener('change', callback);
+				}
+			};
+		},
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- `key` is `breakpoints`' stable identity; see comment above.
+		[key],
 	);
+	const getSnapshot = useCallback(
+		() => matchedBreakpointsKey(breakpoints),
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+		[key],
+	);
+	// SSR/first-paint: every breakpoint matches, so every `hideBelow` column
+	// renders on the server and during hydration (desktop-first, same
+	// convention as `useMediaQuery`'s `true` server snapshot) —
+	// `useSyncExternalStore` reconciles to the real matches right after mount.
+	const getServerSnapshot = useCallback(() => key, [key]);
+
+	const matchedKey = useSyncExternalStore(
+		subscribe,
+		getSnapshot,
+		getServerSnapshot,
+	);
+
+	return useMemo(
+		() => new Set(matchedKey ? matchedKey.split(',').map(Number) : []),
+		[matchedKey],
+	);
+};
 
 const resolveAriaSortState = (
 	tableSort: { id: string; desc: boolean } | undefined,
@@ -443,18 +503,22 @@ export const DataTable = <TData extends { id: string }>({
 	const { t } = useTranslation('common');
 	const isSelectionMode = selection?.isSelectionMode ?? false;
 	const hasSelection = selection != null;
-	const viewportWidth = useViewportWidth();
+	const displayBreakpoints = useMemo(
+		() => collectDisplayBreakpoints(columns),
+		[columns],
+	);
+	const matchedBreakpoints = useMatchedBreakpoints(displayBreakpoints);
 	const [focusedCell, setFocusedCell] = useState({ row: 0, cell: 0 });
 	const columnVisibility = useMemo<VisibilityState>(() => {
 		const visibility: VisibilityState = {};
 		for (const column of columns) {
 			const hideBelow = columnDisplayMeta(column).hideBelow;
 			if (hideBelow != null && column.id != null) {
-				visibility[column.id] = viewportWidth >= hideBelow;
+				visibility[column.id] = matchedBreakpoints.has(hideBelow);
 			}
 		}
 		return visibility;
-	}, [columns, viewportWidth]);
+	}, [columns, matchedBreakpoints]);
 	const resolvedRowHeight = useMemo<TableRowHeight>(() => {
 		if (rowHeight != null) {
 			return rowHeight;
@@ -603,25 +667,64 @@ export const DataTable = <TData extends { id: string }>({
 		selection.onSelectionChange(nextSelection);
 	};
 
+	const focusCellAt = (
+		tableBody: HTMLTableSectionElement | null,
+		rowIndex: number,
+		cellIndex: number,
+	): HTMLTableCellElement | null =>
+		tableBody?.querySelector<HTMLTableCellElement>(
+			`tr[data-row-index="${rowIndex}"] td[data-cell-index="${cellIndex}"]`,
+		) ?? null;
+
+	/**
+	 * `role="grid"` promises the full WAI-ARIA APG "Data Grid" 2D arrow-key
+	 * contract, not just vertical movement (r3-shell-F8): ArrowLeft/ArrowRight
+	 * move within the row (clamped to the visible column range) and Home/End
+	 * jump to the row's first/last cell — all reusing the same
+	 * `data-cell-index`/`data-row-index` lookup ArrowDown/ArrowUp already did.
+	 */
 	const handleCellNavigation = (
 		event: KeyboardEvent<HTMLTableCellElement>,
 		currentRowIndex: number,
 		currentCellIndex: number,
 	): void => {
-		if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') {
-			return;
-		}
-
-		const rowDelta = event.key === 'ArrowDown' ? 1 : -1;
-		const nextRowIndex = currentRowIndex + rowDelta;
-		if (nextRowIndex < 0 || nextRowIndex >= rowModels.length) {
-			return;
-		}
-
 		const tableBody = event.currentTarget.closest('tbody');
-		const nextCell = tableBody?.querySelector<HTMLTableCellElement>(
-			`tr[data-row-index="${nextRowIndex}"] td[data-cell-index="${currentCellIndex}"]`,
-		);
+
+		if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+			const rowDelta = event.key === 'ArrowDown' ? 1 : -1;
+			const nextRowIndex = currentRowIndex + rowDelta;
+			if (nextRowIndex < 0 || nextRowIndex >= rowModels.length) {
+				return;
+			}
+
+			const nextCell = focusCellAt(tableBody, nextRowIndex, currentCellIndex);
+			if (nextCell) {
+				event.preventDefault();
+				nextCell.focus();
+			}
+			return;
+		}
+
+		let nextCellIndex: number | undefined;
+		if (event.key === 'ArrowRight') {
+			nextCellIndex = currentCellIndex + 1;
+		} else if (event.key === 'ArrowLeft') {
+			nextCellIndex = currentCellIndex - 1;
+		} else if (event.key === 'Home') {
+			nextCellIndex = 0;
+		} else if (event.key === 'End') {
+			nextCellIndex = totalCellsPerRow - 1;
+		}
+
+		if (
+			nextCellIndex === undefined ||
+			nextCellIndex < 0 ||
+			nextCellIndex >= totalCellsPerRow
+		) {
+			return;
+		}
+
+		const nextCell = focusCellAt(tableBody, currentRowIndex, nextCellIndex);
 		if (nextCell) {
 			event.preventDefault();
 			nextCell.focus();
@@ -729,7 +832,10 @@ export const DataTable = <TData extends { id: string }>({
 							{hasSelection ? <col style={{ width: '40px' }} /> : null}
 							{table.getVisibleLeafColumns().map((column) => {
 								const displayMeta = columnDisplayMeta(column.columnDef);
-								const width = resolveColumnWidth(displayMeta, viewportWidth);
+								const width = resolveColumnWidth(
+									displayMeta,
+									matchedBreakpoints,
+								);
 								return (
 									<col key={column.id} style={width ? { width } : undefined} />
 								);
