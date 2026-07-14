@@ -520,8 +520,14 @@ html.dark {
 
 	/* ---- Secondary panel ---- */
 
+	/* r4-shell-F5: the r1 h-screen -> h-full/h-dvh viewport-unit fix (see
+	   .app-shell-rail above) stopped at the rail; this panel still used
+	   h-screen, which ignores dynamic mobile browser chrome and the h-dvh
+	   overflow-hidden grid it sits in. h-full min-h-0 bounds it to its grid
+	   track instead; the nav list below (not this flex container) owns the
+	   vertical scroll so the fixed header never gets pushed off-screen. */
 	.app-shell-secondary-panel {
-		@apply hidden h-screen min-w-0 flex-col border-r lg:flex;
+		@apply hidden h-full min-h-0 min-w-0 flex-col border-r lg:flex;
 		background: var(--publy-surface-raised);
 		border-color: var(--publy-border);
 		width: var(--publy-shell-panel-width);
@@ -602,7 +608,7 @@ html.dark {
 	}
 
 	.app-shell-secondary-nav {
-		@apply flex flex-col;
+		@apply flex min-h-0 flex-1 flex-col overflow-y-auto;
 		padding: 8px;
 		gap: 2px;
 	}
