@@ -145,12 +145,14 @@ vi.mock('react-i18next', () => ({
 				users: 'Users',
 				assign: 'Assign',
 				assigned: 'Assigned',
+				'assign-permission': 'Assign {{name}}',
 				'assigned-permission-keys': 'Assigned permission keys',
 				'assigned-users': 'Assigned users',
 				available: 'Available',
 				'back-to-profiles': 'Back to profiles',
 				'confirm-delete-tenant-profile-description':
 					'This will permanently delete this tenant profile. Users assigned to this profile may be affected and the action cannot be undone.',
+				'danger-zone': 'Danger zone',
 				default: 'Default',
 				'default-profile': 'Default profile',
 				'default-profile-delete-disabled': "Default profiles can't be deleted.",
@@ -430,7 +432,7 @@ describe('staff tenant profile details route', () => {
 		expect(mocks.useStaffTenantPermissionCatalogQuery).toHaveBeenCalledWith({});
 	});
 
-	test('moves the delete action into the dedicated danger section under permissions', () => {
+	test('moves the delete action into a labeled danger-zone section under permissions', () => {
 		mocks.toStaffTenantProfileDetails.mockReturnValue({
 			...nonDefaultProfile,
 		});
@@ -441,13 +443,40 @@ describe('staff tenant profile details route', () => {
 		const deleteButton = screen.getByRole('button', {
 			name: 'Delete profile',
 		});
+		const dangerZoneHeading = screen.getByRole('heading', {
+			name: 'Danger zone',
+		});
+		const dangerZoneSection = dangerZoneHeading.closest('section');
 
 		expect(deleteButton).toBeTruthy();
 		expect(
 			editButton.closest('div')?.closest('div')?.contains(deleteButton),
 		).toBe(false);
 		expect(editButton.closest('section')).toBe(null);
-		expect(deleteButton.closest('section')).not.toBeNull();
+		expect(dangerZoneSection).not.toBeNull();
+		expect(dangerZoneSection?.contains(deleteButton)).toBe(true);
+		expect(
+			screen.getByText(
+				'This will permanently delete this tenant profile. Users assigned to this profile may be affected and the action cannot be undone.',
+			),
+		).toBeTruthy();
+	});
+
+	test('shows the danger-zone description and no delete button for default profiles', () => {
+		renderPage();
+
+		const dangerZoneHeading = screen.getByRole('heading', {
+			name: 'Danger zone',
+		});
+		const dangerZoneSection = dangerZoneHeading.closest('section');
+
+		expect(dangerZoneSection).not.toBeNull();
+		expect(
+			dangerZoneSection?.textContent?.includes(
+				"Default profiles can't be deleted.",
+			),
+		).toBe(true);
+		expect(screen.queryByRole('button', { name: 'Delete profile' })).toBeNull();
 	});
 
 	test('disables all permission action buttons while a mutation is in flight', async () => {

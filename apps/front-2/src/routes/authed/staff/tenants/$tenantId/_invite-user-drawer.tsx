@@ -144,7 +144,7 @@ export const InviteTenantUserDrawer = ({
 						<Field.Email
 							name="email"
 							label={t('email')}
-							placeholder="name@company.com"
+							placeholder={t('email-placeholder')}
 							isDisabled={isFormLocked}
 							fullWidth
 						/>

@@ -39,6 +39,10 @@ vi.mock('react-i18next', () => ({
 				cancel: 'Cancel',
 				'invite-people': 'Invite people',
 				'invite-tenant-user-failed': 'Unable to send the invitation.',
+				// Distinct from the literal 'name@company.com' the field used to
+				// hardcode — proves the placeholder is sourced from t(), not a
+				// hardcoded English string, by matching the real FR bundle value.
+				'email-placeholder': 'nom@entreprise.com',
 			};
 
 			return labels[key] ?? key;
@@ -106,10 +110,12 @@ vi.mock('~/components/field', () => ({
 			name,
 			label,
 			isDisabled,
+			placeholder,
 		}: {
 			name: string;
 			label: string;
 			isDisabled?: boolean;
+			placeholder?: string;
 		}) => {
 			const {
 				register,
@@ -124,6 +130,7 @@ vi.mock('~/components/field', () => ({
 					'aria-label': label,
 					'aria-invalid': error ? 'true' : undefined,
 					disabled: isDisabled,
+					placeholder,
 					type: 'email',
 					...register(name),
 				}),
@@ -203,6 +210,22 @@ describe('InviteTenantUserDrawer', () => {
 		);
 
 		expect(screen.queryByTestId('invite-tenant-user-drawer')).toBeNull();
+	});
+
+	test('sources the email placeholder from the localized email-placeholder key', () => {
+		render(
+			<InviteTenantUserDrawer
+				tenantId="tenant-1"
+				isOpen
+				onOpenChange={vi.fn()}
+				onInvited={vi.fn()}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		expect(screen.getByLabelText('Email').getAttribute('placeholder')).toBe(
+			'nom@entreprise.com',
+		);
 	});
 
 	test('submits the invitation, invalidates queries, and calls onInvited', async () => {

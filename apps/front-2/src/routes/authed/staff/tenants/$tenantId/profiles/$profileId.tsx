@@ -14,6 +14,7 @@ import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
+import { DangerZoneCard, DangerZoneRow } from '~/components/ui/detail-layout';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import {
 	buildStaffTenantPermissionCatalogOptions,
@@ -657,8 +658,11 @@ function StaffTenantProfileDetailsPage() {
 															onClick={() => {
 																void handleAssignPermission(permission.key);
 															}}
+															aria-label={t('assign-permission', {
+																name: permission.label,
+															})}
 														>
-															{t('assign')} {permission.key}
+															{t('assign')}
 														</Button>
 													</div>
 												</li>
@@ -668,31 +672,38 @@ function StaffTenantProfileDetailsPage() {
 								</section>
 							)}
 
-							<section className="space-y-3 border-t border-border pt-3">
-								{profile.isDefault ? (
-									<div className="rounded-large border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
-										{t('default-profile-delete-disabled')}
-									</div>
-								) : (
-									<Button
-										type="button"
-										variant="destructive"
-										onClick={() => setPendingDelete(true)}
-										disabled={deleteProfile.isPending}
-									>
-										{t('delete-profile')}
-									</Button>
-								)}
+							<DangerZoneCard title={t('danger-zone')}>
+								<DangerZoneRow
+									title={t('delete-profile')}
+									description={
+										profile.isDefault
+											? t('default-profile-delete-disabled')
+											: t('confirm-delete-tenant-profile-description')
+									}
+									action={
+										profile.isDefault ? null : (
+											<Button
+												type="button"
+												variant="destructive"
+												size="sm"
+												onClick={() => setPendingDelete(true)}
+												disabled={deleteProfile.isPending}
+											>
+												{t('delete-profile')}
+											</Button>
+										)
+									}
+								/>
+							</DangerZoneCard>
 
-								{actionError ? (
-									<div
-										className="rounded-large border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-										role="status"
-									>
-										{actionError}
-									</div>
-								) : null}
-							</section>
+							{actionError ? (
+								<div
+									className="rounded-large border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+									role="status"
+								>
+									{actionError}
+								</div>
+							) : null}
 
 							{permissionActionError ? (
 								<p className="text-sm text-destructive">
