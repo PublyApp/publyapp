@@ -16,14 +16,13 @@ import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import {
 	toStaffTenantUserDetails,
-	invalidateStaffTenantUsers,
 	useRemoveStaffTenantUserMutation,
 	useReactivateStaffTenantUserMutation,
 	useSuspendStaffTenantUserMutation,
 	useStaffTenantUserDetailsQuery,
 } from '~/lib/query/staff-tenant-users';
 import {
-	invalidateStaffTenantDetails,
+	invalidateAllStaffTenantScopes,
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
@@ -286,10 +285,7 @@ function StaffTenantUserDetailsPage() {
 		isStatusActionPending || isGloballySuspended || !membershipAction;
 
 	const invalidateTenantUserQueries = async () => {
-		await Promise.all([
-			invalidateStaffTenantUsers(queryClient),
-			invalidateStaffTenantDetails(queryClient),
-		]);
+		await invalidateAllStaffTenantScopes(queryClient);
 	};
 
 	const handleMembershipAction = async (action: 'suspend' | 'reactivate') => {

@@ -25,8 +25,7 @@ const mocks = vi.hoisted(() => ({
 	useBulkDeleteStaffTenantProfilesMutation: vi.fn(),
 	toStaffTenantProfileBulkActionSummary: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
-	invalidateStaffTenantProfiles: vi.fn().mockResolvedValue(undefined),
-	invalidateStaffTenantDetails: vi.fn().mockResolvedValue(undefined),
+	invalidateAllStaffTenantScopes: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -160,7 +159,6 @@ vi.mock('~/components/error-views/View403', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenant-profiles', () => ({
-	invalidateStaffTenantProfiles: mocks.invalidateStaffTenantProfiles,
 	toStaffTenantProfileRows: mocks.toStaffTenantProfileRows,
 	useStaffTenantProfilesQuery: mocks.useStaffTenantProfilesQuery,
 	useDeleteStaffTenantProfileMutation:
@@ -172,7 +170,7 @@ vi.mock('~/lib/query/staff-tenant-profiles', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenants', () => ({
-	invalidateStaffTenantDetails: mocks.invalidateStaffTenantDetails,
+	invalidateAllStaffTenantScopes: mocks.invalidateAllStaffTenantScopes,
 	toStaffTenantDetails: mocks.toStaffTenantDetails,
 	useStaffTenantDetailsQuery: mocks.useStaffTenantDetailsQuery,
 }));
@@ -459,10 +457,7 @@ describe('staff tenant profiles route', () => {
 			}),
 		);
 		await waitFor(() =>
-			expect(mocks.invalidateStaffTenantProfiles).toHaveBeenCalled(),
-		);
-		await waitFor(() =>
-			expect(mocks.invalidateStaffTenantDetails).toHaveBeenCalled(),
+			expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled(),
 		);
 	});
 
@@ -583,10 +578,7 @@ describe('staff tenant profiles route', () => {
 			}),
 		);
 		await waitFor(() =>
-			expect(mocks.invalidateStaffTenantProfiles).toHaveBeenCalled(),
-		);
-		await waitFor(() =>
-			expect(mocks.invalidateStaffTenantDetails).toHaveBeenCalled(),
+			expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled(),
 		);
 		await waitFor(() =>
 			expect(

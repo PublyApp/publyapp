@@ -47,7 +47,6 @@ import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import { downloadFile, formatExportDateStamp } from '~/lib/download-file';
 import {
-	invalidateStaffTenantUsers,
 	toStaffTenantUserBulkActionSummary,
 	toStaffTenantUserRows,
 	useBulkRemoveStaffTenantUsersMutation,
@@ -59,7 +58,7 @@ import {
 	type StaffTenantUserRow,
 } from '~/lib/query/staff-tenant-users';
 import {
-	invalidateStaffTenantDetails,
+	invalidateAllStaffTenantScopes,
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
@@ -280,10 +279,7 @@ const TenantUserRowActions = ({
 		removeMutation.isPending;
 
 	const invalidateTenantUserQueries = () =>
-		Promise.all([
-			invalidateStaffTenantUsers(queryClient),
-			invalidateStaffTenantDetails(queryClient),
-		]);
+		invalidateAllStaffTenantScopes(queryClient);
 
 	const performAction = async (action: 'suspend' | 'reactivate' | 'remove') => {
 		setActionError('');
@@ -993,10 +989,7 @@ const TenantUserBulkActions = ({
 
 		setIsRemoveDialogOpen(false);
 		selection.clearSelection();
-		await Promise.all([
-			invalidateStaffTenantUsers(queryClient),
-			invalidateStaffTenantDetails(queryClient),
-		]);
+		await invalidateAllStaffTenantScopes(queryClient);
 
 		const summary = toStaffTenantUserBulkActionSummary(result);
 		onFeedback({

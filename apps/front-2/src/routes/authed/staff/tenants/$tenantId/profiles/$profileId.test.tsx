@@ -87,7 +87,7 @@ vi.mock('~/components/error-views/View403', () => ({
 vi.mock('~/lib/query/staff-tenants', () => ({
 	useStaffTenantDetailsQuery: mocks.useStaffTenantDetailsQuery,
 	toStaffTenantDetails: mocks.toStaffTenantDetails,
-	invalidateStaffTenantDetails: (queryClient: {
+	invalidateAllStaffTenantScopes: (queryClient: {
 		invalidateQueries: (arg: unknown) => unknown;
 	}) =>
 		queryClient.invalidateQueries({
@@ -109,12 +109,6 @@ vi.mock('~/lib/query/staff-tenant-profiles', () => ({
 		'profiles',
 		'permission-keys',
 	],
-	invalidateStaffTenantProfiles: (queryClient: {
-		invalidateQueries: (arg: unknown) => unknown;
-	}) =>
-		queryClient.invalidateQueries({
-			queryKey: ['staff', 'staff-tenants', 'profiles'],
-		}),
 	buildStaffTenantPermissionCatalogOptions:
 		mocks.buildStaffTenantPermissionCatalogOptions,
 	useStaffTenantProfileDetailsQuery: mocks.useStaffTenantProfileDetailsQuery,
@@ -467,10 +461,7 @@ describe('staff tenant profile details route', () => {
 			});
 		});
 		await waitFor(() => {
-			expect(mocks.queryClient.invalidateQueries).toHaveBeenNthCalledWith(1, {
-				queryKey: ['staff', 'staff-tenants', 'profiles'],
-			});
-			expect(mocks.queryClient.invalidateQueries).toHaveBeenNthCalledWith(2, {
+			expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
 				queryKey: ['staff', 'staff-tenants'],
 			});
 		});
@@ -498,10 +489,7 @@ describe('staff tenant profile details route', () => {
 			});
 		});
 		await waitFor(() => {
-			expect(mocks.queryClient.invalidateQueries).toHaveBeenNthCalledWith(1, {
-				queryKey: ['staff', 'staff-tenants', 'profiles'],
-			});
-			expect(mocks.queryClient.invalidateQueries).toHaveBeenNthCalledWith(2, {
+			expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
 				queryKey: ['staff', 'staff-tenants'],
 			});
 		});
@@ -610,10 +598,7 @@ describe('staff tenant profile details route', () => {
 			});
 		});
 		await waitFor(() => {
-			expect(mocks.queryClient.invalidateQueries).toHaveBeenNthCalledWith(1, {
-				queryKey: ['staff', 'staff-tenants', 'profiles'],
-			});
-			expect(mocks.queryClient.invalidateQueries).toHaveBeenNthCalledWith(2, {
+			expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
 				queryKey: ['staff', 'staff-tenants'],
 			});
 			expect(mocks.navigate).toHaveBeenCalledWith({

@@ -18,7 +18,6 @@ import {
 } from '~/components/ui/drawer';
 import {
 	buildStaffTenantPermissionCatalogGroups,
-	invalidateStaffTenantProfiles,
 	type StaffTenantPermissionGroup,
 	useAssignStaffTenantProfilePermissionMutation,
 	useCreateStaffTenantProfileMutation,
@@ -26,7 +25,7 @@ import {
 	useUnassignStaffTenantProfilePermissionMutation,
 	useUpdateStaffTenantProfileMutation,
 } from '~/lib/query/staff-tenant-profiles';
-import { invalidateStaffTenantDetails } from '~/lib/query/staff-tenants';
+import { invalidateAllStaffTenantScopes } from '~/lib/query/staff-tenants';
 import { shouldLogoutForFailure } from '~/routes/authed/layout';
 
 import {
@@ -196,10 +195,7 @@ export const ProfileFormDrawer = ({
 	const isFormLocked = isSaving || methods.formState.isSubmitting;
 
 	const invalidateProfileQueries = () =>
-		Promise.all([
-			invalidateStaffTenantProfiles(queryClient),
-			invalidateStaffTenantDetails(queryClient),
-		]);
+		invalidateAllStaffTenantScopes(queryClient);
 
 	const onSubmit = methods.handleSubmit(async (values) => {
 		setServerError('');

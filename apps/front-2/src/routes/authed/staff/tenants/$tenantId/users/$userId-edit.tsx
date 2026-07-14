@@ -19,13 +19,12 @@ import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import {
-	invalidateStaffTenantUsers,
 	toStaffTenantUserDetails,
 	useStaffTenantUserDetailsQuery,
 	useUpdateStaffTenantUserMutation,
 } from '~/lib/query/staff-tenant-users';
 import {
-	invalidateStaffTenantDetails,
+	invalidateAllStaffTenantScopes,
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
@@ -372,10 +371,7 @@ function StaffTenantUserEditPage() {
 		try {
 			setServerError('');
 			await updateTenantUser.mutateAsync(payload);
-			await Promise.all([
-				invalidateStaffTenantUsers(queryClient),
-				invalidateStaffTenantDetails(queryClient),
-			]);
+			await invalidateAllStaffTenantScopes(queryClient);
 			void navigate({
 				to: '/staff/tenants/$tenantId/users/$userId',
 				params: { tenantId, userId },

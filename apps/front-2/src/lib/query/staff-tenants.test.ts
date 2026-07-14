@@ -14,7 +14,7 @@ import {
 	toStaffTenantDetails,
 	toStaffTenantRows,
 	invalidateStaffTenants,
-	invalidateStaffTenantDetails,
+	invalidateAllStaffTenantScopes,
 } from '~/lib/query/staff-tenants';
 
 import type {
@@ -733,13 +733,13 @@ describe('toStaffTenantDetails', () => {
 	});
 });
 
-describe('invalidateStaffTenants / invalidateStaffTenantDetails', () => {
+describe('invalidateStaffTenants / invalidateAllStaffTenantScopes', () => {
 	test('both invalidate the shared staff-tenants scope prefix', () => {
 		const invalidateQueries = vi.fn();
 		const queryClient = { invalidateQueries } as never;
 
 		void invalidateStaffTenants(queryClient);
-		void invalidateStaffTenantDetails(queryClient);
+		void invalidateAllStaffTenantScopes(queryClient);
 
 		expect(invalidateQueries).toHaveBeenCalledTimes(2);
 		expect(invalidateQueries).toHaveBeenCalledWith({

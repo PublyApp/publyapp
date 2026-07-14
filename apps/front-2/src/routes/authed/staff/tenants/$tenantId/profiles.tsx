@@ -62,7 +62,6 @@ import {
 	StateSurface,
 } from '~/components/ui/state-surface';
 import {
-	invalidateStaffTenantProfiles,
 	toStaffTenantProfileBulkActionSummary,
 	toStaffTenantProfileRows,
 	useBulkDeleteStaffTenantProfilesMutation,
@@ -71,7 +70,7 @@ import {
 	type StaffTenantProfileRow,
 } from '~/lib/query/staff-tenant-profiles';
 import {
-	invalidateStaffTenantDetails,
+	invalidateAllStaffTenantScopes,
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
@@ -560,10 +559,7 @@ const ProfileBulkActions = ({
 
 		setIsDeleteDialogOpen(false);
 		selection.clearSelection();
-		await Promise.all([
-			invalidateStaffTenantProfiles(queryClient),
-			invalidateStaffTenantDetails(queryClient),
-		]);
+		await invalidateAllStaffTenantScopes(queryClient);
 
 		const summary = toStaffTenantProfileBulkActionSummary(result);
 		onFeedback({
@@ -936,10 +932,7 @@ function StaffTenantProfilesPage() {
 				tenantId,
 				profileId: deleteTarget.id,
 			});
-			await Promise.all([
-				invalidateStaffTenantProfiles(queryClient),
-				invalidateStaffTenantDetails(queryClient),
-			]);
+			await invalidateAllStaffTenantScopes(queryClient);
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
 				setShouldRedirectToLogout(true);

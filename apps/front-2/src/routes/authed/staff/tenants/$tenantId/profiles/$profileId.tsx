@@ -17,7 +17,6 @@ import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import {
 	buildStaffTenantPermissionCatalogOptions,
-	invalidateStaffTenantProfiles,
 	useAssignStaffTenantProfilePermissionMutation,
 	toStaffTenantProfileDetails,
 	toStaffTenantProfilePermissionKeys,
@@ -28,7 +27,7 @@ import {
 	useUnassignStaffTenantProfilePermissionMutation,
 } from '~/lib/query/staff-tenant-profiles';
 import {
-	invalidateStaffTenantDetails,
+	invalidateAllStaffTenantScopes,
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
@@ -261,10 +260,7 @@ function StaffTenantProfileDetailsPage() {
 
 	const isPermissionBusy = busyPermissionKey.length > 0;
 	const invalidatePermissionQueries = () =>
-		Promise.all([
-			invalidateStaffTenantProfiles(queryClient),
-			invalidateStaffTenantDetails(queryClient),
-		]);
+		invalidateAllStaffTenantScopes(queryClient);
 
 	if (shouldRedirectToLogout) {
 		return <LogoutRedirect />;

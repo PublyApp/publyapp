@@ -24,7 +24,7 @@ const mocks = vi.hoisted(() => ({
 	useAssignStaffTenantProfilePermissionMutation: vi.fn(),
 	useUnassignStaffTenantProfilePermissionMutation: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
-	invalidateStaffTenantDetails: vi.fn().mockResolvedValue(undefined),
+	invalidateAllStaffTenantScopes: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -198,7 +198,7 @@ vi.mock('~/lib/query/staff-tenant-profiles', async () => {
 });
 
 vi.mock('~/lib/query/staff-tenants', () => ({
-	invalidateStaffTenantDetails: mocks.invalidateStaffTenantDetails,
+	invalidateAllStaffTenantScopes: mocks.invalidateAllStaffTenantScopes,
 }));
 
 vi.mock('~/routes/authed/layout', () => ({
@@ -321,12 +321,7 @@ describe('ProfileFormDrawer', () => {
 			),
 		);
 		await waitFor(() => expect(onSaved).toHaveBeenCalledWith('profile-1'));
-		expect(mocks.invalidateQueries).toHaveBeenCalledWith(
-			expect.objectContaining({
-				queryKey: ['staff', 'staff-tenants', 'profiles'],
-			}),
-		);
-		expect(mocks.invalidateStaffTenantDetails).toHaveBeenCalled();
+		expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled();
 	});
 
 	test('blocks submission when the profile name is empty (name.min(1))', async () => {
@@ -477,13 +472,8 @@ describe('ProfileFormDrawer', () => {
 		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
 
 		await waitFor(() =>
-			expect(mocks.invalidateQueries).toHaveBeenCalledWith(
-				expect.objectContaining({
-					queryKey: ['staff', 'staff-tenants', 'profiles'],
-				}),
-			),
+			expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled(),
 		);
-		expect(mocks.invalidateStaffTenantDetails).toHaveBeenCalled();
 		expect(onSaved).not.toHaveBeenCalled();
 	});
 

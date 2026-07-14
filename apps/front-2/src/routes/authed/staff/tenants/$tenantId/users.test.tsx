@@ -31,8 +31,7 @@ const mocks = vi.hoisted(() => ({
 	useExportStaffTenantUsersMutation: vi.fn(),
 	downloadFile: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
-	invalidateStaffTenantUsers: vi.fn().mockResolvedValue(undefined),
-	invalidateStaffTenantDetails: vi.fn().mockResolvedValue(undefined),
+	invalidateAllStaffTenantScopes: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -170,7 +169,6 @@ vi.mock('~/components/error-views/View403', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenant-users', () => ({
-	invalidateStaffTenantUsers: mocks.invalidateStaffTenantUsers,
 	toStaffTenantUserRows: mocks.toStaffTenantUserRows,
 	useStaffTenantUsersQuery: mocks.useStaffTenantUsersQuery,
 	useSuspendStaffTenantUserMutation: mocks.useSuspendStaffTenantUserMutation,
@@ -196,7 +194,7 @@ vi.mock('~/lib/query/staff-tenant-users', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenants', () => ({
-	invalidateStaffTenantDetails: mocks.invalidateStaffTenantDetails,
+	invalidateAllStaffTenantScopes: mocks.invalidateAllStaffTenantScopes,
 	toStaffTenantDetails: mocks.toStaffTenantDetails,
 	useStaffTenantDetailsQuery: mocks.useStaffTenantDetailsQuery,
 }));
@@ -560,10 +558,7 @@ describe('staff tenant users route', () => {
 			}),
 		);
 		await waitFor(() =>
-			expect(mocks.invalidateStaffTenantUsers).toHaveBeenCalled(),
-		);
-		await waitFor(() =>
-			expect(mocks.invalidateStaffTenantDetails).toHaveBeenCalled(),
+			expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled(),
 		);
 	});
 
@@ -838,8 +833,7 @@ describe('staff tenant users route', () => {
 				screen.getByText('Successfully removed 1 user(s) from this tenant.'),
 			).toBeTruthy(),
 		);
-		expect(mocks.invalidateStaffTenantUsers).toHaveBeenCalled();
-		expect(mocks.invalidateStaffTenantDetails).toHaveBeenCalled();
+		expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled();
 	});
 });
 

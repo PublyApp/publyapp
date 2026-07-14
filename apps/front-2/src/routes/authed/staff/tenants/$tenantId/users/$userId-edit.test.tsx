@@ -205,18 +205,12 @@ vi.mock('~/lib/query/staff-tenant-users', () => ({
 	useUpdateStaffTenantUserMutation: mocks.useUpdateStaffTenantUserMutation,
 	useStaffTenantUserDetailsQuery: mocks.useStaffTenantUserDetailsQuery,
 	toStaffTenantUserDetails: mocks.toStaffTenantUserDetails,
-	invalidateStaffTenantUsers: (queryClient: {
-		invalidateQueries: (arg: unknown) => unknown;
-	}) =>
-		queryClient.invalidateQueries({
-			queryKey: ['staff', 'staff-tenants', 'users'],
-		}),
 }));
 
 vi.mock('~/lib/query/staff-tenants', () => ({
 	toStaffTenantDetails: mocks.toStaffTenantDetails,
 	useStaffTenantDetailsQuery: mocks.useStaffTenantDetailsQuery,
-	invalidateStaffTenantDetails: (queryClient: {
+	invalidateAllStaffTenantScopes: (queryClient: {
 		invalidateQueries: (arg: unknown) => unknown;
 	}) =>
 		queryClient.invalidateQueries({
@@ -355,12 +349,7 @@ describe('staff tenant user edit route', () => {
 			}),
 		);
 		await waitFor(() =>
-			expect(mocks.invalidateQueries).toHaveBeenNthCalledWith(1, {
-				queryKey: ['staff', 'staff-tenants', 'users'],
-			}),
-		);
-		await waitFor(() =>
-			expect(mocks.invalidateQueries).toHaveBeenNthCalledWith(2, {
+			expect(mocks.invalidateQueries).toHaveBeenCalledWith({
 				queryKey: ['staff', 'staff-tenants'],
 			}),
 		);

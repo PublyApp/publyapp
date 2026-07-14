@@ -159,18 +159,12 @@ vi.mock('~/lib/query/staff-tenant-users', () => ({
 	useReactivateStaffTenantUserMutation:
 		mocks.useReactivateStaffTenantUserMutation,
 	useRemoveStaffTenantUserMutation: mocks.useRemoveStaffTenantUserMutation,
-	invalidateStaffTenantUsers: (queryClient: {
-		invalidateQueries: (arg: unknown) => unknown;
-	}) =>
-		queryClient.invalidateQueries({
-			queryKey: ['staff', 'staff-tenants', 'users'],
-		}),
 }));
 
 vi.mock('~/lib/query/staff-tenants', () => ({
 	toStaffTenantDetails: mocks.toStaffTenantDetails,
 	useStaffTenantDetailsQuery: mocks.useStaffTenantDetailsQuery,
-	invalidateStaffTenantDetails: (queryClient: {
+	invalidateAllStaffTenantScopes: (queryClient: {
 		invalidateQueries: (arg: unknown) => unknown;
 	}) =>
 		queryClient.invalidateQueries({
@@ -391,12 +385,7 @@ describe('staff tenant user details route', () => {
 			}),
 		);
 		await waitFor(() =>
-			expect(mocks.invalidateQueries).toHaveBeenNthCalledWith(1, {
-				queryKey: ['staff', 'staff-tenants', 'users'],
-			}),
-		);
-		await waitFor(() =>
-			expect(mocks.invalidateQueries).toHaveBeenNthCalledWith(2, {
+			expect(mocks.invalidateQueries).toHaveBeenCalledWith({
 				queryKey: ['staff', 'staff-tenants'],
 			}),
 		);
@@ -431,12 +420,7 @@ describe('staff tenant user details route', () => {
 			}),
 		);
 		await waitFor(() =>
-			expect(mocks.invalidateQueries).toHaveBeenNthCalledWith(1, {
-				queryKey: ['staff', 'staff-tenants', 'users'],
-			}),
-		);
-		await waitFor(() =>
-			expect(mocks.invalidateQueries).toHaveBeenNthCalledWith(2, {
+			expect(mocks.invalidateQueries).toHaveBeenCalledWith({
 				queryKey: ['staff', 'staff-tenants'],
 			}),
 		);
@@ -528,12 +512,7 @@ describe('staff tenant user details route', () => {
 			}),
 		);
 		await waitFor(() =>
-			expect(mocks.invalidateQueries).toHaveBeenNthCalledWith(1, {
-				queryKey: ['staff', 'staff-tenants', 'users'],
-			}),
-		);
-		await waitFor(() =>
-			expect(mocks.invalidateQueries).toHaveBeenNthCalledWith(2, {
+			expect(mocks.invalidateQueries).toHaveBeenCalledWith({
 				queryKey: ['staff', 'staff-tenants'],
 			}),
 		);

@@ -175,9 +175,13 @@ export const invalidateStaffTenants = (queryClient: QueryClient) =>
 		queryKey: scopedKey('staff', STAFF_TENANTS_QUERY_KEY),
 	});
 
-/** Alias of {@link invalidateStaffTenants} for call sites acting on a single
- * tenant's detail view — invalidates the same list+details scope. */
-export const invalidateStaffTenantDetails = (queryClient: QueryClient) =>
+/** Same scope as {@link invalidateStaffTenants} (the prefix-match already
+ * covers the tenants list, every tenant's details, and every child resource
+ * scoped under a tenant — users/profiles/invitations) — named for the child
+ * resource call sites that pair a mutation with "and refresh the parent
+ * tenant too". A prior name (`invalidateStaffTenantDetails`) implied a
+ * narrow details-only scope it never had (r3-tenants-F9). */
+export const invalidateAllStaffTenantScopes = (queryClient: QueryClient) =>
 	queryClient.invalidateQueries({
 		queryKey: scopedKey('staff', STAFF_TENANTS_QUERY_KEY),
 	});

@@ -32,7 +32,6 @@ import { InitialsAvatar } from '~/components/ui/initials-avatar';
 import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import {
-	invalidateStaffTenantInvitations,
 	isStaffTenantInvitationRevocable,
 	type StaffTenantInvitationRow,
 	toStaffTenantInvitationRows,
@@ -40,7 +39,7 @@ import {
 	useStaffTenantInvitationsQuery,
 } from '~/lib/query/staff-tenant-invitations';
 import {
-	invalidateStaffTenantDetails,
+	invalidateAllStaffTenantScopes,
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
@@ -322,10 +321,7 @@ function StaffTenantInvitationsPage() {
 					tenantId,
 					invitationId: row.id,
 				});
-				await Promise.all([
-					invalidateStaffTenantInvitations(queryClient),
-					invalidateStaffTenantDetails(queryClient),
-				]);
+				await invalidateAllStaffTenantScopes(queryClient);
 				setFeedback({
 					tone: 'success',
 					message: t('revoke-invitation-success'),

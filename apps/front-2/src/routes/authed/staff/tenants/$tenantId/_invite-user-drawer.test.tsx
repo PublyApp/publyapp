@@ -17,9 +17,7 @@ const mocks = vi.hoisted(() => ({
 	inviteMutation: vi.fn(),
 	useInviteTenantUserMutation: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
-	invalidateStaffTenantUsers: vi.fn().mockResolvedValue(undefined),
-	invalidateStaffTenantInvitations: vi.fn().mockResolvedValue(undefined),
-	invalidateStaffTenantDetails: vi.fn().mockResolvedValue(undefined),
+	invalidateAllStaffTenantScopes: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -157,17 +155,12 @@ vi.mock('~/components/field', () => ({
 	},
 }));
 
-vi.mock('~/lib/query/staff-tenant-invitations', () => ({
-	invalidateStaffTenantInvitations: mocks.invalidateStaffTenantInvitations,
-}));
-
 vi.mock('~/lib/query/staff-tenant-users', () => ({
-	invalidateStaffTenantUsers: mocks.invalidateStaffTenantUsers,
 	useInviteTenantUserMutation: mocks.useInviteTenantUserMutation,
 }));
 
 vi.mock('~/lib/query/staff-tenants', () => ({
-	invalidateStaffTenantDetails: mocks.invalidateStaffTenantDetails,
+	invalidateAllStaffTenantScopes: mocks.invalidateAllStaffTenantScopes,
 }));
 
 vi.mock('~/routes/authed/layout', () => ({
@@ -232,9 +225,7 @@ describe('InviteTenantUserDrawer', () => {
 			}),
 		);
 		await waitFor(() => expect(onInvited).toHaveBeenCalled());
-		expect(mocks.invalidateStaffTenantUsers).toHaveBeenCalled();
-		expect(mocks.invalidateStaffTenantInvitations).toHaveBeenCalled();
-		expect(mocks.invalidateStaffTenantDetails).toHaveBeenCalled();
+		expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled();
 	});
 
 	test('blocks submission when the email is invalid (email schema rule)', async () => {

@@ -15,12 +15,8 @@ import {
 	DrawerHeader,
 	DrawerTitle,
 } from '~/components/ui/drawer';
-import { invalidateStaffTenantInvitations } from '~/lib/query/staff-tenant-invitations';
-import {
-	invalidateStaffTenantUsers,
-	useInviteTenantUserMutation,
-} from '~/lib/query/staff-tenant-users';
-import { invalidateStaffTenantDetails } from '~/lib/query/staff-tenants';
+import { useInviteTenantUserMutation } from '~/lib/query/staff-tenant-users';
+import { invalidateAllStaffTenantScopes } from '~/lib/query/staff-tenants';
 import { shouldLogoutForFailure } from '~/routes/authed/layout';
 
 import {
@@ -79,11 +75,7 @@ export const InviteTenantUserDrawer = ({
 	}, [isOpen, reset]);
 
 	const invalidateTenantData = () =>
-		Promise.all([
-			invalidateStaffTenantUsers(queryClient),
-			invalidateStaffTenantInvitations(queryClient),
-			invalidateStaffTenantDetails(queryClient),
-		]);
+		invalidateAllStaffTenantScopes(queryClient);
 
 	const onSubmit = methods.handleSubmit(async (values) => {
 		setServerErrors([]);

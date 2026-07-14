@@ -22,8 +22,7 @@ const mocks = vi.hoisted(() => ({
 	useStaffTenantInvitationsQuery: vi.fn(),
 	useRevokeStaffTenantInvitationMutation: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
-	invalidateStaffTenantInvitations: vi.fn().mockResolvedValue(undefined),
-	invalidateStaffTenantDetails: vi.fn().mockResolvedValue(undefined),
+	invalidateAllStaffTenantScopes: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -143,7 +142,6 @@ vi.mock('~/components/error-views/View403', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenant-invitations', () => ({
-	invalidateStaffTenantInvitations: mocks.invalidateStaffTenantInvitations,
 	isStaffTenantInvitationRevocable: (row: { status: string | null }) =>
 		row.status?.trim().toLowerCase() === 'pending',
 	toStaffTenantInvitationRows: mocks.toStaffTenantInvitationRows,
@@ -153,7 +151,7 @@ vi.mock('~/lib/query/staff-tenant-invitations', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenants', () => ({
-	invalidateStaffTenantDetails: mocks.invalidateStaffTenantDetails,
+	invalidateAllStaffTenantScopes: mocks.invalidateAllStaffTenantScopes,
 	toStaffTenantDetails: mocks.toStaffTenantDetails,
 	useStaffTenantDetailsQuery: mocks.useStaffTenantDetailsQuery,
 }));
@@ -395,10 +393,7 @@ describe('staff tenant invitations route', () => {
 			}),
 		);
 		await waitFor(() =>
-			expect(mocks.invalidateStaffTenantInvitations).toHaveBeenCalled(),
-		);
-		await waitFor(() =>
-			expect(mocks.invalidateStaffTenantDetails).toHaveBeenCalled(),
+			expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled(),
 		);
 		expect(screen.getByText('Invitation revoked.')).toBeTruthy();
 	});
