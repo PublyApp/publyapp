@@ -13,6 +13,7 @@ import { View403 } from '~/components/error-views/View403';
 import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
+import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import {
 	toStaffTenantUserDetails,
 	invalidateStaffTenantUsers,
@@ -139,7 +140,7 @@ const TenantUserDetailsLoading = () => {
 			data-testid="staff-tenant-user-details-loading"
 		>
 			<div className="flex items-center gap-3 text-sm text-muted-foreground">
-				<div className="h-2 w-2 rounded-full bg-primary" />
+				<LoadingSpinner />
 				<span>{t('loading-tenant-user')}</span>
 			</div>
 		</div>

@@ -17,6 +17,7 @@ import { Field, Form } from '~/components/field';
 import type { FieldSelectOption } from '~/components/field';
 import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
+import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import {
 	invalidateStaffTenantUsers,
 	toStaffTenantUserDetails,
@@ -132,11 +133,7 @@ const TenantUserEditLoading = () => {
 			data-testid="staff-tenant-user-edit-loading"
 		>
 			<div className="flex items-center gap-3 text-sm text-muted-foreground">
-				<span
-					role="status"
-					aria-label={t('loading')}
-					className="size-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"
-				/>
+				<LoadingSpinner />
 				<span>{t('loading-tenant-user')}</span>
 			</div>
 		</div>

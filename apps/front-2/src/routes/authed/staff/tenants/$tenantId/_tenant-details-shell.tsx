@@ -12,6 +12,7 @@ import { View403 } from '~/components/error-views/View403';
 import { Button, buttonVariants } from '~/components/ui/button';
 import { CopyButton } from '~/components/ui/copy-button';
 import { BrandTile } from '~/components/ui/initials-avatar';
+import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import type { StaffTenantDetails } from '~/lib/query/staff-tenants';
@@ -192,18 +193,6 @@ const getFailureDescription = (error: unknown, fallback: string): string => {
 	}
 
 	return fallback;
-};
-
-const LoadingSpinner = () => {
-	const { t } = useTranslation('common');
-
-	return (
-		<span
-			role="status"
-			aria-label={t('loading')}
-			className="size-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"
-		/>
-	);
 };
 
 export const DetailItem = ({

@@ -37,8 +37,8 @@ vi.mock('~/components/ui/select', () => {
 	}) => createElement('option', { value }, children);
 
 	// Forwards every prop (aria-labelledby, aria-invalid, onBlur, ...) so the
-	// mocked <select> below can re-apply them — Field.Select puts the
-	// accessible-name wiring on SelectTrigger, not on <Select> itself.
+	// mocked native control below can re-apply them — Field.Select puts the
+	// accessible-name wiring on SelectTrigger, not on the outer Select.
 	const SelectTrigger = ({
 		children,
 		...triggerProps

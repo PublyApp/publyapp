@@ -14,6 +14,7 @@ import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
+import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import {
 	buildStaffTenantPermissionCatalogOptions,
 	invalidateStaffTenantProfiles,
@@ -88,18 +89,6 @@ const ProfileDetailsLoading = () => {
 				<span>{t('loading-tenant-profile')}</span>
 			</div>
 		</div>
-	);
-};
-
-const LoadingSpinner = () => {
-	const { t } = useTranslation('common');
-
-	return (
-		<span
-			role="status"
-			aria-label={t('loading')}
-			className="size-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"
-		/>
 	);
 };
 
@@ -602,7 +591,7 @@ function StaffTenantProfileDetailsPage() {
 							<section className="space-y-3">
 								<div className="flex items-center justify-between">
 									<p className="font-medium text-foreground">{t('assigned')}</p>
-									<span className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">
+									<span className="publy-detail-chip publy-detail-chip--outline">
 										{assignedPermissionEntries.length}
 									</span>
 								</div>
@@ -656,7 +645,7 @@ function StaffTenantProfileDetailsPage() {
 										<p className="font-medium text-foreground">
 											{t('available')}
 										</p>
-										<span className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">
+										<span className="publy-detail-chip publy-detail-chip--outline">
 											{availablePermissionEntries.length}
 										</span>
 									</div>

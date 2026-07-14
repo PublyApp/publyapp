@@ -74,36 +74,6 @@ const KNOWN_HANDOFF_GUARD_DEBT = [
 	},
 	{
 		ruleId: ROUNDED_RULE_ID,
-		file: 'src/routes/authed/staff/tenants/$tenantId/_tenant-details-shell.tsx',
-		sourceIncludes: 'size-4 animate-spin rounded-full',
-		reason: 'Legacy route spinner; module pass owns this.',
-	},
-	{
-		ruleId: ROUNDED_RULE_ID,
-		file: 'src/routes/authed/staff/tenants/$tenantId/profiles/$profileId.tsx',
-		sourceIncludes: 'size-4 animate-spin rounded-full',
-		reason: 'Legacy route spinner; module pass owns this.',
-	},
-	{
-		ruleId: ROUNDED_RULE_ID,
-		file: 'src/routes/authed/staff/tenants/$tenantId/profiles/$profileId.tsx',
-		sourceIncludes: 'rounded-full bg-muted px-2 py-1',
-		reason: 'Legacy status chip; Tenants module pass owns this.',
-	},
-	{
-		ruleId: ROUNDED_RULE_ID,
-		file: 'src/routes/authed/staff/tenants/$tenantId/users/$userId-edit.tsx',
-		sourceIncludes: 'size-4 animate-spin rounded-full',
-		reason: 'Legacy route spinner; module pass owns this.',
-	},
-	{
-		ruleId: ROUNDED_RULE_ID,
-		file: 'src/routes/authed/staff/tenants/$tenantId/users/$userId.tsx',
-		sourceIncludes: 'h-2 w-2 rounded-full bg-primary',
-		reason: 'Legacy status dot; Tenants module pass owns this.',
-	},
-	{
-		ruleId: ROUNDED_RULE_ID,
 		file: 'src/components/ui/loading-spinner.tsx',
 		sourceIncludes: 'size-4 animate-spin rounded-full',
 		reason:
@@ -342,6 +312,18 @@ const isRoundedRadiusAllowed = (relativePath, line, lineIndex, lines) => {
 
 	if (relativePath === 'src/components/app-shell/app-shell.tsx') {
 		return line.includes('app-shell-topbar-action-btn');
+	}
+
+	// SimpleLayout's theme/language buttons are the same 36px circular
+	// treatment as the workspace topbar's, expressed as inline Tailwind
+	// utilities instead of the shared class — they must NOT reuse
+	// `.app-shell-topbar-action-btn` itself, since that class is `display:
+	// none` below 640px in the workspace topbar's mobile rule (r3-shell-F1).
+	if (
+		relativePath === 'src/layouts/simple-layout.tsx' ||
+		relativePath === 'src/layouts/simple-layout.test.tsx'
+	) {
+		return line.includes('rounded-full');
 	}
 
 	if (relativePath !== 'src/styles/app.css') {
