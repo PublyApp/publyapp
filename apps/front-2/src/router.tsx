@@ -46,16 +46,39 @@ export const shouldRetryQuery = (
 };
 
 /**
+ * Backstop source shape shared by `Query`/`Mutation` — both expose a `.meta`
+ * getter that mirrors their options' `meta`.
+ */
+type AuthedErrorBackstopSource = {
+	meta?: { skipAuthedErrorBackstop?: boolean };
+};
+
+/**
  * Central 401→logout backstop (shell-F6): the per-route `shouldLogoutForFailure`
  * guards sprinkled across ~50 call sites are easy to forget on a new page
  * (the tenant picker already had), so this catches every authed-surface
  * query/mutation 401 in one place, regardless of whether the page also has
- * its own guard. Scoped to `/staff`/`/tenant` paths only — `buildStaffQueryOptions`
- * is also used by anonymous-context queries on the auth surface (e.g.
- * `accept-invitation.tsx`'s current-user check), where a 401 is expected and
- * must NOT trigger a logout+redirect.
+ * its own guard.
+ *
+ * Ownership is decided from the `Query`/`Mutation` passed in, not just the
+ * pathname at callback time (shell-r6-F2): a query/mutation started on the
+ * auth surface (e.g. `accept-invitation.tsx`'s current-user check, opted out
+ * via `meta.skipAuthedErrorBackstop`) can still resolve its 401 AFTER a
+ * cross-tab login has already navigated this tab to `/staff`/`/tenant` — at
+ * that point `window.location.pathname` alone can no longer tell an expected
+ * auth-surface 401 apart from a genuine authed-surface one, and clearing a
+ * newly established session on that stale response is the exact bug this
+ * opt-out closes. The pathname check remains the fallback for every query/
+ * mutation that does NOT explicitly opt out.
  */
-export const handleAuthedQueryError = (error: unknown): void => {
+export const handleAuthedQueryError = (
+	error: unknown,
+	source?: AuthedErrorBackstopSource,
+): void => {
+	if (source?.meta?.skipAuthedErrorBackstop) {
+		return;
+	}
+
 	if (typeof window === 'undefined') {
 		return;
 	}
@@ -78,7 +101,10 @@ export function getRouter() {
 			},
 		},
 		queryCache: new QueryCache({ onError: handleAuthedQueryError }),
-		mutationCache: new MutationCache({ onError: handleAuthedQueryError }),
+		mutationCache: new MutationCache({
+			onError: (error, _variables, _onMutateResult, mutation) =>
+				handleAuthedQueryError(error, mutation),
+		}),
 	});
 	const router = createRouter({
 		routeTree,

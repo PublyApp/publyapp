@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
 				staleTime?: number;
 				refetchOnWindowFocus?: boolean;
 				queryFn?: () => unknown;
+				meta?: { skipAuthedErrorBackstop?: boolean };
 		  }
 		| undefined,
 	userAuthDataGet: vi.fn(),
@@ -56,6 +57,23 @@ describe('useCurrentUserQuery', () => {
 		await mocks.capturedOptions?.queryFn?.();
 
 		expect(mocks.userAuthDataGet).toHaveBeenCalled();
+	});
+
+	// shell-r6-F2: the auth surface (accept-invitation) reuses this
+	// scope-agnostic query where a 401 is expected — it must opt the query
+	// out of the central authed-error backstop regardless of pathname.
+	test('carries no backstop opt-out by default (authed consumers, e.g. the user menu)', () => {
+		renderHook(() => useCurrentUserQuery());
+
+		expect(mocks.capturedOptions?.meta).toBeUndefined();
+	});
+
+	test('sets meta.skipAuthedErrorBackstop when used on the auth surface', () => {
+		renderHook(() => useCurrentUserQuery({ authSurface: true }));
+
+		expect(mocks.capturedOptions?.meta).toEqual({
+			skipAuthedErrorBackstop: true,
+		});
 	});
 });
 

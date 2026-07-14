@@ -67,6 +67,17 @@ const fetchCurrentUser = async (): Promise<GetUserAuthDataResult> => {
 type CurrentUserQueryOptions = {
 	enabled?: boolean;
 	retry?: boolean;
+	/**
+	 * The auth surface (e.g. `accept-invitation.tsx`) reuses this
+	 * scope-agnostic query to detect an already-signed-in visitor, where a
+	 * 401 is an expected, normal outcome. Setting this attaches
+	 * `meta.skipAuthedErrorBackstop` so the central `handleAuthedQueryError`
+	 * backstop (router.tsx, shell-r6-F2) ignores this query's errors
+	 * regardless of `window.location.pathname` at the time it settles —
+	 * closing the race where a cross-tab login navigates this tab to
+	 * `/staff`/`/tenant` while this request is still in flight.
+	 */
+	authSurface?: boolean;
 };
 
 // Session-stable: the signed-in user only changes on login/logout, both of
@@ -81,4 +92,5 @@ export const useCurrentUserQuery = (options?: CurrentUserQueryOptions) =>
 		retry: options?.retry,
 		staleTime: Infinity,
 		refetchOnWindowFocus: false,
+		meta: options?.authSurface ? { skipAuthedErrorBackstop: true } : undefined,
 	});

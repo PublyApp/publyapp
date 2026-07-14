@@ -114,6 +114,7 @@ const useInvitationAuthState = (): AuthState => {
 	const currentUserQuery = useCurrentUserQuery({
 		enabled: hasSession,
 		retry: false,
+		authSurface: true,
 	});
 
 	if (!isMounted) {

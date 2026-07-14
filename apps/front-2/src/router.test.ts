@@ -141,4 +141,35 @@ describe('handleAuthedQueryError', () => {
 
 		expect(mocks.triggerSessionInvalidated).not.toHaveBeenCalled();
 	});
+
+	// shell-r6-F2: an auth-surface query (e.g. accept-invitation's
+	// current-user check) can resolve its 401 AFTER a cross-tab login has
+	// already navigated this tab to an authed path. Pathname-at-callback-time
+	// alone cannot tell that apart from a genuine authed 401 — the opt-out
+	// meta must win regardless of the CURRENT pathname.
+	test('does not trigger for an opted-out query even when the pathname has since become an authed path', () => {
+		vi.stubGlobal('window', {
+			location: { pathname: '/staff/staff-users' },
+		});
+
+		handleAuthedQueryError(
+			{ responseStatusCode: 401, title: 'Unauthorized' },
+			{ meta: { skipAuthedErrorBackstop: true } },
+		);
+
+		expect(mocks.triggerSessionInvalidated).not.toHaveBeenCalled();
+	});
+
+	// Inverse direction: a genuine authed-surface query/mutation (no opt-out)
+	// must still trigger the backstop even though the pathname may have since
+	// moved (e.g. navigated to another authed route before the 401 settled).
+	test('still triggers for a non-opted-out query on an authed path even without a Query/Mutation source', () => {
+		vi.stubGlobal('window', {
+			location: { pathname: '/tenant/dashboard' },
+		});
+
+		handleAuthedQueryError({ responseStatusCode: 401, title: 'Unauthorized' });
+
+		expect(mocks.triggerSessionInvalidated).toHaveBeenCalledTimes(1);
+	});
 });
