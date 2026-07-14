@@ -115,14 +115,34 @@ const collectSourceFiles = async (dir: string): Promise<string[]> => {
 	return files;
 };
 
+type SourceFile = { file: string; source: string };
+
+// The staff surface tree walk + full-file read is repeated once per CHECK
+// below plus once more for the suppression-inventory diff. Under vitest's
+// file-level parallelism, redoing that IO 4x per run starves other workers'
+// CPU/IO budget in the full suite — see W6-FLAKE. Cached once per test-file
+// process since the tree doesn't change mid-run.
+let cachedSourceFiles: Promise<SourceFile[]> | null = null;
+
+const getSourceFiles = (dir: string): Promise<SourceFile[]> => {
+	cachedSourceFiles ??= collectSourceFiles(dir).then((files) =>
+		Promise.all(
+			files.map(async (file) => ({
+				file,
+				source: await readFile(file, 'utf8'),
+			})),
+		),
+	);
+	return cachedSourceFiles;
+};
+
 describe('staff surface data-honesty guard', () => {
 	for (const check of CHECKS) {
 		test(`never renders ${check.description}`, async () => {
-			const files = await collectSourceFiles(staffDir);
+			const files = await getSourceFiles(staffDir);
 			const offenders: string[] = [];
 
-			for (const file of files) {
-				const source = await readFile(file, 'utf8');
+			for (const { file, source } of files) {
 				const lines = source.split('\n');
 				const relativePath = path.relative(staffDir, file);
 				// `matchAll` (not a single `.test()`) so a multi-line match — the
@@ -253,11 +273,10 @@ describe('data-honesty-ignore suppression sites match the committed inventory', 
 	// reviewer to actually read. An undocumented suppression fails the guard
 	// even if its reason is perfectly substantive.
 	test('every data-honesty-ignore site under the staff surface is documented, and no inventory entry is stale', async () => {
-		const files = await collectSourceFiles(staffDir);
+		const files = await getSourceFiles(staffDir);
 		const found: SuppressionSite[] = [];
 
-		for (const file of files) {
-			const source = await readFile(file, 'utf8');
+		for (const { file, source } of files) {
 			const relativePath = `src/routes/authed/staff/${path.relative(staffDir, file).split(path.sep).join('/')}`;
 			found.push(
 				...findSuppressionSitesInSource(source, relativePath).filter(

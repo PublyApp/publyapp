@@ -136,16 +136,40 @@ const collectFiles = async (dir: string): Promise<string[]> => {
 	return files;
 };
 
+type SourceFile = {
+	absolutePath: string;
+	relativePath: string;
+	source: string;
+};
+
+// The full `src` tree is ~300 files; walking + reading it is the expensive
+// part of every test below, and several tests need it independently. Under
+// vitest's file-level parallelism, re-walking it 4x per run (as this file
+// used to) meaningfully starves other workers' CPU/IO budget in the full
+// suite — see W6-FLAKE. Cached once per test-file process since the tree
+// doesn't change mid-run.
+let cachedSourceFiles: Promise<SourceFile[]> | null = null;
+
+const getSourceFiles = (dir: string): Promise<SourceFile[]> => {
+	cachedSourceFiles ??= collectFiles(dir).then((files) =>
+		Promise.all(
+			files.map(async (absolutePath) => ({
+				absolutePath,
+				relativePath: path.relative(dir, absolutePath),
+				source: await readFile(absolutePath, 'utf8'),
+			})),
+		),
+	);
+	return cachedSourceFiles;
+};
+
 export const extractI18nKeyUsages = async (
 	dir: string,
 ): Promise<Map<string, string[]>> => {
-	const files = await collectFiles(dir);
+	const files = await getSourceFiles(dir);
 	const usagesByKey = new Map<string, string[]>();
 
-	for (const absolutePath of files) {
-		const source = await readFile(absolutePath, 'utf8');
-		const relativePath = path.relative(dir, absolutePath);
-
+	for (const { relativePath, source } of files) {
 		for (const pattern of KEY_PATTERNS) {
 			for (const match of source.matchAll(pattern)) {
 				const rawKey = match[2];
@@ -1236,10 +1260,10 @@ describe('i18n key coverage', () => {
 	});
 
 	test('no hardcoded English UI literal escapes t() (r3-shell-F2)', async () => {
-		const files = await collectFiles(srcDir);
+		const files = await getSourceFiles(srcDir);
 		const findings: string[] = [];
 
-		for (const absolutePath of files) {
+		for (const { absolutePath, relativePath, source } of files) {
 			if (
 				absolutePath.endsWith('.test.ts') ||
 				absolutePath.endsWith('.test.tsx')
@@ -1247,8 +1271,6 @@ describe('i18n key coverage', () => {
 				continue;
 			}
 
-			const relativePath = path.relative(srcDir, absolutePath);
-			const source = await readFile(absolutePath, 'utf8');
 			findings.push(...findHardcodedUiLiterals(source, relativePath));
 		}
 
@@ -1315,12 +1337,11 @@ describe('i18n-guard-ignore suppression sites match the committed inventory', ()
 	// inventory check — every real suppression site under src/ must be
 	// checked into suppression-inventory.json.
 	test('every i18n-guard-ignore site under src is documented, and no inventory entry is stale', async () => {
-		const files = await collectFiles(srcDir);
+		const files = await getSourceFiles(srcDir);
 		const found: SuppressionSite[] = [];
 
-		for (const absolutePath of files) {
+		for (const { absolutePath, source } of files) {
 			const relativePath = `src/${path.relative(srcDir, absolutePath).split(path.sep).join('/')}`;
-			const source = await readFile(absolutePath, 'utf8');
 			found.push(
 				...findSuppressionSitesInSource(source, relativePath).filter(
 					(site) => site.convention === 'i18n-guard-ignore',
