@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-import { API_BASE_URL } from './helpers/api';
+import { API_BASE_URL, getSessionTokenFromBrowser } from './helpers/api';
 import { loginAsStaffAdmin } from './helpers/login';
 import { expectTableFitsCard } from './helpers/table-fits-card';
 
@@ -214,22 +214,20 @@ test.describe('staff users table', () => {
 	// review-r2-tests.md F4 (review-r3-tests.md F1): the API must 422 a
 	// `limit` above its own maximum instead of materialising every row.
 	//
-	// The request must carry `X-Session-Token` explicitly. `page.request` shares
-	// the browser context's COOKIES, and the session token does live in the
-	// `publyapp-session_token` cookie — but the API authenticates off the header
+	// The request must carry `X-Session-Token` explicitly: `page.request` shares
+	// the browser context's COOKIES, but the API authenticates off the header
 	// (client-manager.ts:257 copies the token into `X-Session-Token` on every
-	// call), not the cookie. Without it this request 401s before validation ever
-	// runs, so the test would pass/fail for entirely the wrong reason.
+	// call), and the cookie holds a SCOPED value (`s:<staff>`), not a bare token.
+	// `getSessionTokenFromBrowser` decodes it with the product's own parser.
+	// Without this the request 401s before validation ever runs, and the test
+	// fails for entirely the wrong reason.
 	test('the API rejects a limit above the maximum even when the front-end clamp is bypassed', async ({
 		page,
 	}) => {
 		await loginAsStaffAdmin(page);
 
-		const cookies = await page.context().cookies();
-		const sessionToken = cookies.find(
-			(cookie) => cookie.name === 'publyapp-session_token',
-		)?.value;
-		expect(sessionToken, 'staff-admin session token cookie').toBeTruthy();
+		const sessionToken = await getSessionTokenFromBrowser(page, 'staff');
+		expect(sessionToken, 'staff-admin session token').toBeTruthy();
 
 		const response = await page.request.get(
 			`${API_BASE_URL}/staff/users?limit=1000000`,
