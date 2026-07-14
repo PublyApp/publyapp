@@ -91,7 +91,7 @@
 	--publy-row-border: #f1f1f3;
 	/* W4-GUARDS: #ca8a04 measured 2.94:1 against #ffffff, under the 3:1
 	   focus-indicator floor; darkened to the amber-700 step to clear it
-	   (see focus-ring.contrast.test.ts). */
+	   (see focus-ring-contrast.test.ts). */
 	--publy-focus-ring: #a16207;
 	--publy-danger: #dc2626;
 	--publy-danger-soft: rgba(220, 38, 38, 0.08);
