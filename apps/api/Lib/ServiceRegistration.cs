@@ -140,6 +140,12 @@ public static class ServiceRegistration {
 			_ => new LocalDiskFileStorage(AppEnvironment.Instance.FILE_STORAGE_ROOT)
 		);
 
+		// Durable invitation email outbox: writers persist rows transactionally and
+		// signal this dispatcher, which delivers them on its own host-lifetime token
+		// (never a per-request token) with retry and restart recovery.
+		builder.Services.AddSingleton<IInvitationEmailOutboxSignal, InvitationEmailOutboxSignal>();
+		builder.Services.AddHostedService<InvitationEmailOutboxDispatcher>();
+
 		return builder;
 	}
 

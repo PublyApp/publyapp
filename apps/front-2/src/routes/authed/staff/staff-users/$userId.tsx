@@ -393,7 +393,14 @@ function StaffUserDetailsPage() {
 		user,
 		locale: i18n.language,
 		profiles,
+		// `detailQuery.isPending` alone gates the page's own loading screen —
+		// profiles is a separate query that can still be pending once details
+		// resolve, so the overview tab must model this explicitly instead of
+		// treating "not yet loaded" the same as "loaded, zero assignments"
+		// (r5-F6).
+		profilesIsPending: profilesQuery.isPending,
 		profilesHasError,
+		onRetryProfiles: () => void profilesQuery.refetch(),
 		maxProfilesPerUser: maxProfilesPerUser ?? 0,
 		canSuspend,
 		canReactivate,

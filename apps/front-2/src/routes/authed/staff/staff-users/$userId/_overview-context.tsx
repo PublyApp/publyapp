@@ -8,7 +8,9 @@ export type StaffUserOverviewContextValue = {
 	user: StaffUserDetails;
 	locale: string;
 	profiles: AssignedStaffProfile[];
+	profilesIsPending: boolean;
 	profilesHasError: boolean;
+	onRetryProfiles: () => void;
 	maxProfilesPerUser: number;
 	canSuspend: boolean;
 	canReactivate: boolean;

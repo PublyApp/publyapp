@@ -1,4 +1,4 @@
-import { IconId } from '@tabler/icons-react';
+import { IconId, IconLoader2 } from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
@@ -86,6 +86,31 @@ const ContactDetailsCard = ({
 						value={formatDateTime(details.updatedAt, locale)}
 					/>
 				</div>
+			</div>
+		</section>
+	);
+};
+
+const AssignedProfilesLoadingCard = () => {
+	const { t } = useTranslation('common');
+
+	return (
+		<section
+			className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] shadow-[var(--publy-shadow-ring)]"
+			data-testid="staff-user-profiles-loading"
+		>
+			<div className="publy-card-header">
+				<p className="publy-type-section-title">
+					{t('assigned-profiles-and-roles')}
+				</p>
+			</div>
+			<div className="flex items-center gap-2.5 px-4 pb-4 pt-3 text-sm text-muted-foreground">
+				<IconLoader2
+					role="status"
+					aria-label={t('common-loading')}
+					className="size-4 animate-spin"
+				/>
+				<span>{t('loading-assigned-profiles')}</span>
 			</div>
 		</section>
 	);
@@ -202,7 +227,9 @@ function StaffUserOverviewTab() {
 		user,
 		locale,
 		profiles,
+		profilesIsPending,
 		profilesHasError,
+		onRetryProfiles,
 		maxProfilesPerUser,
 		canSuspend,
 		canReactivate,
@@ -213,23 +240,44 @@ function StaffUserOverviewTab() {
 		onOpenDeleteDialog,
 	} = useStaffUserOverviewContext();
 
+	const renderProfilesCard = () => {
+		// Order matters: pending must win over the empty-collection render even
+		// though `toAssignedStaffProfiles` maps an unresolved query's `undefined`
+		// data to `[]` — otherwise "no profiles assigned" renders as a definitive
+		// statement while the authorization query is still outstanding (r5-F6).
+		if (profilesIsPending) {
+			return <AssignedProfilesLoadingCard />;
+		}
+
+		if (profilesHasError) {
+			return (
+				<div
+					data-testid="staff-user-profiles-error"
+					className="space-y-3 rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] p-4 shadow-[var(--publy-shadow-ring)] text-sm text-muted-foreground"
+				>
+					<p>{t('unable-to-load-assigned-profiles')}</p>
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						onClick={onRetryProfiles}
+					>
+						{t('try-again')}
+					</Button>
+				</div>
+			);
+		}
+
+		return (
+			<AssignedProfilesCard profiles={profiles} maxProfiles={maxProfilesPerUser} />
+		);
+	};
+
 	return (
 		<DetailGrid>
 			<DetailMain>
 				<ContactDetailsCard details={user} locale={locale} />
-				{profilesHasError ? (
-					<div
-						data-testid="staff-user-profiles-error"
-						className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] p-4 shadow-[var(--publy-shadow-ring)] text-sm text-muted-foreground"
-					>
-						{t('unable-to-load-assigned-profiles')}
-					</div>
-				) : (
-					<AssignedProfilesCard
-						profiles={profiles}
-						maxProfiles={maxProfilesPerUser}
-					/>
-				)}
+				{renderProfilesCard()}
 			</DetailMain>
 			<DetailAside>
 				<AccountCard displayId={user.id} />

@@ -6,9 +6,6 @@ using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-using Polly;
-
-using PublyApp.Api.Infrastructure.Messaging.Email;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.ProblemResults;
@@ -381,7 +378,6 @@ public sealed class CreateTenantAsStaff {
 	Handle(
 		[FromBody] CreateTenantAsStaffBody body,
 		[FromServices] ITenantAsStaffService tenantAsStaffService,
-		[FromServices] IEmailService emailService,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] ILogger<CreateTenantAsStaff> logger,
 		CancellationToken cancellationToken
@@ -470,15 +466,10 @@ public sealed class CreateTenantAsStaff {
 
 			var result = success.Data;
 
-			_ = Task.Run(async () => {
-				await SendTenantInvitationEmailsAsync(
-					emailService,
-					logger,
-					result.Tenant.Name,
-					result.InvitationTokens,
-					cancellationToken
-				);
-			}, cancellationToken);
+			// CreateTenantWithInitialUsersAsync persisted a durable email outbox row
+			// per invitation in the same transaction as the tenant/invitation rows
+			// (round-5 API F3); InvitationEmailOutboxDispatcher delivers them
+			// out-of-band, so there is nothing to schedule here.
 
 			if (logger.IsEnabled(LogLevel.Information)) {
 				logger.LogInformation(
@@ -499,100 +490,6 @@ public sealed class CreateTenantAsStaff {
 		} catch (InvalidOperationException ex) {
 			logger.LogWarning(ex, "Tenant creation validation failed");
 			return TypedProblems.BadRequest(ex.Message, ResponseKeys.BadRequest);
-		}
-	}
-
-	private static async Task SendTenantInvitationEmailsAsync(
-		IEmailService emailService,
-		ILogger logger,
-		string tenantName,
-		List<(string Email, string Token, AccountLevel Level)> invitationTokens,
-		CancellationToken cancellationToken
-	) {
-		const int maxConcurrency = 5;
-		using var semaphore = new SemaphoreSlim(maxConcurrency);
-
-		var tasks = invitationTokens.Select(async (invitation) => {
-			await semaphore.WaitAsync(cancellationToken);
-			try {
-				await SendEmailWithRetryAsync(
-					async () => {
-						await emailService.SendTenantInvitationEmailAsync(
-							invitation.Email,
-							tenantName,
-							invitation.Token,
-							invitation.Level
-						);
-					},
-					logger,
-					invitation.Email,
-					cancellationToken
-				);
-			} finally {
-				semaphore.Release();
-			}
-		});
-
-		await Task.WhenAll(tasks);
-	}
-
-	private static async Task SendEmailWithRetryAsync(
-		Func<Task> sendEmailAction,
-		ILogger logger,
-		string email,
-		CancellationToken cancellationToken
-	) {
-		var context = new Context {
-			["logger"] = logger,
-			["email"] = email
-		};
-
-		var retryPolicy = Policy
-			.Handle<Exception>()
-			.WaitAndRetryAsync(
-				retryCount: 3,
-				sleepDurationProvider: retryAttempt =>
-					TimeSpan.FromSeconds(Math.Pow(2, retryAttempt - 1)),
-				onRetry: (exception, timeSpan, retryCount, ctx) => {
-					var log = (ILogger)ctx["logger"];
-					var emailAddr = (string)ctx["email"];
-
-					if (log.IsEnabled(LogLevel.Warning)) {
-						log.LogWarning(
-							exception,
-							"Failed to send tenant invitation email to {Email} (attempt {Attempt}/3), " +
-							"retrying in {Delay}ms",
-							emailAddr,
-							retryCount,
-							timeSpan.TotalMilliseconds
-						);
-					}
-				}
-			);
-
-		try {
-			await retryPolicy.ExecuteAsync(
-				async (ctx, ct) => {
-					await sendEmailAction();
-				},
-				context,
-				cancellationToken
-			);
-
-			if (logger.IsEnabled(LogLevel.Information)) {
-				logger.LogInformation(
-					"Successfully sent tenant invitation email to {Email}",
-					email
-				);
-			}
-		} catch (Exception ex) {
-			if (logger.IsEnabled(LogLevel.Error)) {
-				logger.LogError(
-					ex,
-					"Failed to send tenant invitation email to {Email} after 3 attempts",
-					email
-				);
-			}
 		}
 	}
 }

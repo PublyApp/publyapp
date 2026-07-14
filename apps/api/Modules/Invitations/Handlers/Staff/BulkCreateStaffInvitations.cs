@@ -5,9 +5,6 @@ using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-using Polly;
-
-using PublyApp.Api.Infrastructure.Messaging.Email;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Localization;
@@ -245,9 +242,7 @@ public sealed class BulkCreateStaffInvitations {
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IInvitationService invitationService,
 		[FromServices] IAccountService accountService,
-		[FromServices] IEmailService emailService,
 		[FromServices] IAuditLogService auditLogService,
-		[FromServices] ILogger<BulkCreateStaffInvitations> logger,
 		CancellationToken cancellationToken = default
 	) {
 		var account = authContext.AccountStaff;
@@ -353,15 +348,9 @@ public sealed class BulkCreateStaffInvitations {
 			cancellationToken
 		);
 
-		// Send invitation emails (fire and forget - don't block response)
-		_ = Task.Run(async () => {
-			await SendInvitationEmailsAsync(
-				emailService,
-				logger,
-				invitationTokens,
-				cancellationToken
-			);
-		}, cancellationToken);
+		// Invitation creation persisted a durable email outbox row per invitation in
+		// the same transaction (round-5 API F3); InvitationEmailOutboxDispatcher
+		// delivers them out-of-band, so there is nothing to schedule here.
 
 		// Audit logging
 		await auditLogService.LogAsync(
@@ -381,112 +370,5 @@ public sealed class BulkCreateStaffInvitations {
 				Created = invitationTokens.Count
 			}
 		);
-	}
-
-	/// <summary>
-	/// Sends invitation emails with controlled concurrency and retry logic.
-	/// </summary>
-	private static async Task SendInvitationEmailsAsync(
-		IEmailService emailService,
-		ILogger logger,
-		List<(string Email, string Token)> invitationTokens,
-		CancellationToken cancellationToken
-	) {
-		if (invitationTokens.Count == 0) {
-			return;
-		}
-
-		const int maxConcurrency = 5;
-		using var semaphore = new SemaphoreSlim(maxConcurrency);
-
-		var tasks = invitationTokens.Select(async (invitation) => {
-			await semaphore.WaitAsync(cancellationToken);
-			try {
-				await SendEmailWithRetryAsync(
-					async () => {
-						await emailService.SendInvitationToJoinStaffEmailAsync(
-							invitation.Email,
-							invitation.Token
-						);
-					},
-					logger,
-					invitation.Email,
-					cancellationToken
-				);
-			} finally {
-				semaphore.Release();
-			}
-		});
-
-		await Task.WhenAll(tasks);
-	}
-
-	/// <summary>
-	/// Sends an email with exponential backoff retry logic using Polly.
-	/// Creates a retry policy per call with Context for per-call logging.
-	/// Policy creation is lightweight, so this approach is acceptable for this use case.
-	/// </summary>
-	private static async Task SendEmailWithRetryAsync(
-		Func<Task> sendEmailAction,
-		ILogger logger,
-		string email,
-		CancellationToken cancellationToken
-	) {
-		// Create context to pass logger/email info for retry logging
-		var context = new Context {
-			["logger"] = logger,
-			["email"] = email
-		};
-
-		// Create policy with onRetry that uses context (policy creation is lightweight)
-		var retryPolicy = Policy
-			.Handle<Exception>()
-			.WaitAndRetryAsync(
-				retryCount: 3,
-				sleepDurationProvider: retryAttempt =>
-					TimeSpan.FromSeconds(Math.Pow(2, retryAttempt - 1)),
-				onRetry: (exception, timeSpan, retryCount, ctx) => {
-					var log = (ILogger)ctx["logger"];
-					var emailAddr = (string)ctx["email"];
-
-					if (log.IsEnabled(LogLevel.Warning)) {
-						log.LogWarning(
-							exception,
-							"Failed to send invitation email to {Email} (attempt {Attempt}/3), " +
-							"retrying in {Delay}ms",
-							emailAddr,
-							retryCount,
-							timeSpan.TotalMilliseconds
-						);
-					}
-				}
-			);
-
-		try {
-			await retryPolicy.ExecuteAsync(
-				async (ctx, ct) => {
-					await sendEmailAction();
-				},
-				context,
-				cancellationToken
-			);
-
-			// Log success only after policy completes successfully
-			if (logger.IsEnabled(LogLevel.Information)) {
-				logger.LogInformation(
-					"Successfully sent invitation email to {Email}",
-					email
-				);
-			}
-		} catch (Exception ex) {
-			if (logger.IsEnabled(LogLevel.Error)) {
-				logger.LogError(
-					ex,
-					"Failed to send invitation email to {Email} after 3 attempts",
-					email
-				);
-			}
-			// Don't rethrow - email failures shouldn't break the main operation
-		}
 	}
 }

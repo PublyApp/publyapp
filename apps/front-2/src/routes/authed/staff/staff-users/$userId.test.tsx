@@ -55,12 +55,20 @@ vi.mock('@tanstack/react-router', () => ({
 			canReactivate,
 			isDeletePending,
 			suspendLabelKey,
+			profilesIsPending,
+			onRetryProfiles,
 		} = useStaffUserOverviewContext();
 		const suspendLabel =
 			suspendLabelKey === 'reactivate' ? 'Reactivate' : 'Suspend';
 
 		return (
 			<div data-testid="staff-user-details-outlet">
+				<span data-testid="staff-user-details-outlet-profiles-pending">
+					{String(profilesIsPending)}
+				</span>
+				<button type="button" onClick={onRetryProfiles}>
+					Retry profiles
+				</button>
 				<button
 					type="button"
 					onClick={onOpenSuspendDialog}
@@ -314,6 +322,44 @@ describe('staff user details route shell', () => {
 		expect(screen.getByText('Settings')).toBeTruthy();
 
 		expect(screen.getByTestId('staff-user-details-outlet')).toBeTruthy();
+	});
+
+	test('renders the page (past the details-pending gate) while the profiles query is still pending, and surfaces that pending state through context (r5-F6)', () => {
+		mocks.useStaffUserProfilesQuery.mockReturnValue(
+			buildQueryResult({ data: undefined, isPending: true }),
+		);
+
+		renderPage();
+
+		expect(screen.getByTestId('staff-user-details-page')).toBeTruthy();
+		expect(
+			screen.getByTestId('staff-user-details-outlet-profiles-pending')
+				.textContent,
+		).toBe('true');
+	});
+
+	test('surfaces profiles resolved (non-pending) through context once the query succeeds', () => {
+		renderPage();
+
+		expect(
+			screen.getByTestId('staff-user-details-outlet-profiles-pending')
+				.textContent,
+		).toBe('false');
+	});
+
+	test('the context retry callback refetches the profiles query, not the details query', () => {
+		const profilesRefetch = vi.fn().mockResolvedValue(undefined);
+		mocks.useStaffUserProfilesQuery.mockReturnValue(
+			buildQueryResult({
+				data: { assignedProfiles: [], maxProfilesPerUser: 5 },
+				refetch: profilesRefetch,
+			}),
+		);
+
+		renderPage();
+		fireEvent.click(screen.getByText('Retry profiles'));
+
+		expect(profilesRefetch).toHaveBeenCalledTimes(1);
 	});
 
 	test('each tab trigger renders as a real anchor with the deep-linkable href', () => {

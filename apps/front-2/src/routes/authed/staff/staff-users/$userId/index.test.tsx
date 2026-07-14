@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
 	onOpenSuspendDialog: vi.fn(),
 	onOpenDeleteDialog: vi.fn(),
+	onRetryProfiles: vi.fn(),
 }));
 
 vi.mock('@tanstack/react-router', () => ({
@@ -70,6 +71,9 @@ const I18N_LABELS: Record<string, string> = {
 	delete: 'Delete',
 	suspend: 'Suspend',
 	reactivate: 'Reactivate',
+	'common-loading': 'Loading...',
+	'loading-assigned-profiles': 'Loading assigned profiles…',
+	'try-again': 'Try again',
 };
 
 vi.mock('react-i18next', () => ({
@@ -130,7 +134,9 @@ const buildContextValue = (
 		{ id: 'profile-1', name: 'Platform admin', description: 'Full access' },
 		{ id: 'profile-2', name: 'Support staff', description: null },
 	],
+	profilesIsPending: false,
 	profilesHasError: false,
+	onRetryProfiles: mocks.onRetryProfiles,
 	maxProfilesPerUser: 5,
 	canSuspend: true,
 	canReactivate: false,
@@ -205,6 +211,37 @@ describe('staff user overview tab', () => {
 
 		expect(screen.getByTestId('staff-user-profiles-error')).toBeTruthy();
 		expect(screen.queryByText('Assigned profiles & roles')).toBeNull();
+	});
+
+	test('clicking "Try again" on the profiles error retries the query (r5-F6)', () => {
+		renderTab(buildContextValue({ profilesHasError: true }));
+
+		fireEvent.click(
+			screen.getByRole('button', { name: 'Try again' }),
+		);
+
+		expect(mocks.onRetryProfiles).toHaveBeenCalledTimes(1);
+	});
+
+	test('renders a profiles loading state instead of "no profiles assigned" while the profiles query is still pending (r5-F6)', () => {
+		renderTab(buildContextValue({ profilesIsPending: true, profiles: [] }));
+
+		expect(screen.getByTestId('staff-user-profiles-loading')).toBeTruthy();
+		expect(screen.queryByText('No profiles are currently assigned.')).toBeNull();
+		expect(screen.queryByText('0 assigned')).toBeNull();
+	});
+
+	test('pending wins over both the error and empty-collection renders', () => {
+		renderTab(
+			buildContextValue({
+				profilesIsPending: true,
+				profilesHasError: true,
+				profiles: [],
+			}),
+		);
+
+		expect(screen.getByTestId('staff-user-profiles-loading')).toBeTruthy();
+		expect(screen.queryByTestId('staff-user-profiles-error')).toBeNull();
 	});
 
 	test('clicking suspend/reactivate in the danger zone calls the context callback', () => {
