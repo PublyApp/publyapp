@@ -17,10 +17,15 @@ vi.mock('@tanstack/react-router', () => ({
 		createElement('a', { href: to, ...props }, children),
 }));
 
-vi.mock('react-i18next', () => ({
-	useTranslation: () => ({ t: (key: string) => key }),
-	I18nextProvider: ({ children }: { children?: ReactNode }) => children,
-}));
+vi.mock('react-i18next', async () => {
+	const actual =
+		await vi.importActual<typeof import('react-i18next')>('react-i18next');
+
+	return {
+		...actual,
+		useTranslation: () => ({ t: (key: string) => key }),
+	};
+});
 
 import { RootErrorBoundary } from './__root';
 

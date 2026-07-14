@@ -35,6 +35,10 @@ const LOCALE_RESOURCES: Record<SupportedLanguage, LocaleLanguageBundle> = {
 	fr: frResource as LocaleLanguageBundle,
 };
 
+export const FALLBACK_I18N_RESOURCES: I18nResources = {
+	[FALLBACK_LANGUAGE]: LOCALE_RESOURCES[FALLBACK_LANGUAGE],
+};
+
 export const createI18nFromResources = (
 	locale: SupportedLanguage,
 	resources: I18nResources,

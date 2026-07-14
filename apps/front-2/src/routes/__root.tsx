@@ -20,6 +20,7 @@ import { useLogout } from '~/lib/hooks/use-logout';
 import {
 	createI18nFromResources,
 	dirForLocale,
+	FALLBACK_I18N_RESOURCES,
 	FALLBACK_LANGUAGE,
 	type I18nResources,
 	type SupportedLanguage,
@@ -47,13 +48,116 @@ type RootLoaderData = {
 
 type RouteSurface = 'auth' | 'marketing';
 
-const FALLBACK_I18N_RESOURCES: I18nResources = {
-	[FALLBACK_LANGUAGE]: {
-		common: {},
-		zod: {},
-		'response-message': {},
-	},
+const FALLBACK_I18N_INSTANCE = createI18nFromResources(
+	FALLBACK_LANGUAGE,
+	FALLBACK_I18N_RESOURCES,
+);
+
+const RootErrorBoundaryContent = ({
+	error,
+	reset,
+}: {
+	error: unknown;
+	reset: () => void;
+}) => {
+	const pathname = useLocation({
+		select: (location) => location.pathname,
+	});
+	const router = useRouter();
+	const { t } = useTranslation('common');
+	const routeStatus = getRouteFailureStatus(error);
+	const retry = () => {
+		reset();
+		void router.invalidate();
+	};
+
+	if (routeStatus === 401) {
+		if (isAuthPath(pathname)) {
+			return (
+				<AppErrorView
+					embedded={false}
+					icon={<IconLock aria-hidden="true" className="size-7" />}
+					code={t('error-401-code')}
+					title={t('authentication-required')}
+					description={t('sign-in-required-description')}
+					actions={
+						<Link
+							to="/login"
+							className={buttonVariants({ variant: 'default' })}
+						>
+							{t('back-to-login')}
+						</Link>
+					}
+				/>
+			);
+		}
+
+		if (isAuthedSurface(pathname)) {
+			return <LogoutRedirect embedded={false} />;
+		}
+
+		return (
+			<AppErrorView
+				embedded={false}
+				icon={<IconLock aria-hidden="true" className="size-7" />}
+				code={t('error-401-code')}
+				title={t('session-expired')}
+				description={t('session-no-longer-valid-description')}
+				actions={
+					<Link to="/login" className={buttonVariants({ variant: 'default' })}>
+						{t('back-to-login')}
+					</Link>
+				}
+			/>
+		);
+	}
+
+	if (routeStatus === 403) {
+		return <View403 embedded={false} />;
+	}
+
+	if (routeStatus === 404) {
+		return <View404 embedded={false} />;
+	}
+
+	return (
+		<AppErrorView
+			embedded={false}
+			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
+			code={t('error-500-code')}
+			title={t('something-went-wrong')}
+			description={t('unexpected-app-error-description')}
+			actions={
+				<>
+					<Button variant="default" onClick={retry} type="button">
+						{t('retry')}
+					</Button>
+					<Link to="/" className={buttonVariants({ variant: 'outline' })}>
+						{t('go-to-home')}
+					</Link>
+				</>
+			}
+		/>
+	);
 };
+
+export const RootErrorBoundary = ({
+	error,
+	reset,
+}: {
+	error: unknown;
+	reset: () => void;
+}) => (
+	<I18nextProvider i18n={FALLBACK_I18N_INSTANCE}>
+		<RootErrorBoundaryContent error={error} reset={reset} />
+	</I18nextProvider>
+);
+
+const RootNotFound = () => (
+	<I18nextProvider i18n={FALLBACK_I18N_INSTANCE}>
+		<View404 embedded={false} />
+	</I18nextProvider>
+);
 
 const initI18nOnClient = createClientOnlyFn(async (instance: I18nInstance) => {
 	const mod = await import('~/lib/i18n.client');
@@ -186,94 +290,6 @@ const RoutedShell = () => {
 	);
 };
 
-export const RootErrorBoundary = ({
-	error,
-	reset,
-}: {
-	error: unknown;
-	reset: () => void;
-}) => {
-	const pathname = useLocation({
-		select: (location) => location.pathname,
-	});
-	const router = useRouter();
-	const { t } = useTranslation('common');
-	const routeStatus = getRouteFailureStatus(error);
-	const retry = () => {
-		reset();
-		void router.invalidate();
-	};
-
-	if (routeStatus === 401) {
-		if (isAuthPath(pathname)) {
-			return (
-				<AppErrorView
-					embedded={false}
-					icon={<IconLock aria-hidden="true" className="size-7" />}
-					code={t('error-401-code')}
-					title={t('authentication-required')}
-					description={t('sign-in-required-description')}
-					actions={
-						<Link
-							to="/login"
-							className={buttonVariants({ variant: 'default' })}
-						>
-							{t('back-to-login')}
-						</Link>
-					}
-				/>
-			);
-		}
-
-		if (isAuthedSurface(pathname)) {
-			return <LogoutRedirect embedded={false} />;
-		}
-
-		return (
-			<AppErrorView
-				embedded={false}
-				icon={<IconLock aria-hidden="true" className="size-7" />}
-				code={t('error-401-code')}
-				title={t('session-expired')}
-				description={t('session-no-longer-valid-description')}
-				actions={
-					<Link to="/login" className={buttonVariants({ variant: 'default' })}>
-						{t('back-to-login')}
-					</Link>
-				}
-			/>
-		);
-	}
-
-	if (routeStatus === 403) {
-		return <View403 embedded={false} />;
-	}
-
-	if (routeStatus === 404) {
-		return <View404 embedded={false} />;
-	}
-
-	return (
-		<AppErrorView
-			embedded={false}
-			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-			code={t('error-500-code')}
-			title={t('something-went-wrong')}
-			description={t('unexpected-app-error-description')}
-			actions={
-				<>
-					<Button variant="default" onClick={retry} type="button">
-						{t('retry')}
-					</Button>
-					<Link to="/" className={buttonVariants({ variant: 'outline' })}>
-						{t('go-to-home')}
-					</Link>
-				</>
-			}
-		/>
-	);
-};
-
 export const Route = createRootRouteWithContext<{
 	queryClient: QueryClient;
 }>()({
@@ -287,7 +303,7 @@ export const Route = createRootRouteWithContext<{
 	}),
 	loader: async (): Promise<RootLoaderData> => loadI18nForRequest(),
 	errorComponent: RootErrorBoundary,
-	notFoundComponent: () => <View404 embedded={false} />,
+	notFoundComponent: RootNotFound,
 	component: RootComponent,
 });
 
