@@ -36,6 +36,22 @@ const KEY_MAP_DECLARATION_PATTERN =
 const KEBAB_I18N_KEY_CANDIDATE = /^[a-z][a-z0-9]*(-[a-z0-9]+){2,}$/;
 const STRING_LITERAL_PATTERN = /(['"])([a-zA-Z0-9_.-]+)\1/g;
 
+// r3-tests-F6: a scalar `*_KEY`/`*_KEYS` const (not an object-literal lookup
+// map) is invisible to KEY_MAP_DECLARATION_PATTERN, since that pattern only
+// matches a declaration ending in `= {`. This is the shape
+// `export const SELECTION_LOCKED_TITLE_KEY = 'selection-locked-while-selecting';`
+// takes — `t(SELECTION_LOCKED_TITLE_KEY)` call sites never put the literal
+// next to `t(`, so KEY_PATTERNS misses it too. Requires the declaration
+// itself starts with `const` (so a re-export or a mid-object property named
+// similarly isn't misread as a fresh declaration). A `_KEY`-suffixed name
+// isn't always an i18n key though (e.g. `$invitationId.tsx`'s
+// `NOT_FOUND_TRANSLATION_KEY = 'malformed-id'` is a problem-status
+// discriminant, never passed to `t()`) — reuses the same
+// KEBAB_I18N_KEY_CANDIDATE multi-segment heuristic as the object-literal
+// extractor above to keep short, ambiguous values like that out.
+const SCALAR_KEY_DECLARATION_PATTERN =
+	/\bconst\s+[A-Z][A-Z0-9_]*_KEYS?\s*(?::[^=\n]+)?=\s*(['"])([a-z][a-z0-9-]*)\1/g;
+
 const extractKeyMapLiteralUsages = (
 	source: string,
 	relativePath: string,
@@ -73,6 +89,23 @@ const extractKeyMapLiteralUsages = (
 			usages.push(relativePath);
 			usagesByKey.set(candidate, usages);
 		}
+	}
+};
+
+const extractScalarKeyDeclarations = (
+	source: string,
+	relativePath: string,
+	usagesByKey: Map<string, string[]>,
+): void => {
+	for (const match of source.matchAll(SCALAR_KEY_DECLARATION_PATTERN)) {
+		const candidate = match[2];
+		if (!KEBAB_I18N_KEY_CANDIDATE.test(candidate)) {
+			continue;
+		}
+
+		const usages = usagesByKey.get(candidate) ?? [];
+		usages.push(relativePath);
+		usagesByKey.set(candidate, usages);
 	}
 };
 
@@ -118,6 +151,7 @@ export const extractI18nKeyUsages = async (
 		}
 
 		extractKeyMapLiteralUsages(source, relativePath, usagesByKey);
+		extractScalarKeyDeclarations(source, relativePath, usagesByKey);
 	}
 
 	return usagesByKey;
@@ -213,6 +247,18 @@ describe('i18n key coverage', () => {
 
 		expect(missingEn, 'keys missing from common.en.json').toEqual([]);
 		expect(missingFr, 'keys missing from common.fr.json').toEqual([]);
+	});
+
+	// r3-tests-F6: a canary for the scalar-`*_KEY` extractor itself going
+	// blind (e.g. a future refactor of SCALAR_KEY_DECLARATION_PATTERN that
+	// stops matching real declarations) — without this, the extractor could
+	// silently stop seeing data-table.tsx's `SELECTION_LOCKED_TITLE_KEY` and
+	// the coverage test above would pass for the wrong reason (0 usages
+	// found, not 0 missing keys).
+	test('the scalar-*_KEY extractor still sees the r3-tests-F6 canary key', async () => {
+		const usagesByKey = await extractI18nKeyUsages(srcDir);
+
+		expect(usagesByKey.has('selection-locked-while-selecting')).toBe(true);
 	});
 
 	test('no hardcoded English UI literal escapes t() (r3-shell-F2)', async () => {
