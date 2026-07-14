@@ -10,7 +10,6 @@ describe('buildFindStaffInvitationsQueryParameters', () => {
 	test('keeps only api-supported filters and stringifies size', () => {
 		expect(
 			buildFindStaffInvitationsQueryParameters({
-				q: 'staff-admin',
 				cursor: 'cursor-123',
 				size: 50,
 				sortId: 'created_at',
@@ -29,7 +28,6 @@ describe('buildFindStaffInvitationsQueryParameters', () => {
 	test('omits empty values', () => {
 		expect(
 			buildFindStaffInvitationsQueryParameters({
-				q: '  ',
 				size: undefined,
 				sortId: undefined,
 				sortOrder: undefined,
@@ -37,6 +35,28 @@ describe('buildFindStaffInvitationsQueryParameters', () => {
 				status: '',
 			}),
 		).toEqual({});
+	});
+
+	// users-auth-r6-F2: the variables type no longer has a `q` field at all —
+	// this pins that a caller cannot smuggle one through even via an `as`
+	// cast/spread, since the builder only ever reads the fields it knows.
+	test('drops an unsupported q field even if present on the input object', () => {
+		expect(
+			buildFindStaffInvitationsQueryParameters({
+				cursor: 'cursor-123',
+				size: 50,
+				sortId: 'created_at',
+				sortOrder: 'desc',
+				status: 'pending,accepted',
+				...({ q: 'staff-admin' } as object),
+			}),
+		).toEqual({
+			cursor: 'cursor-123',
+			limit: '50',
+			sortId: 'created_at',
+			sortOrder: 'desc',
+			status: 'pending,accepted',
+		});
 	});
 });
 

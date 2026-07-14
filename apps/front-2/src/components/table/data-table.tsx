@@ -244,8 +244,14 @@ const resolveAriaSortState = (
 
 export type DataTableToolbarProps = {
 	testId: string;
-	searchDraft: string;
-	onSearchDraftChange: (value: string) => void;
+	/**
+	 * Both omitted together hides the search input entirely — for a list
+	 * whose backend has no search contract, rendering a text box that quietly
+	 * does nothing is a lie about what the product can do (users-auth-r6-F2).
+	 * Every list with a real search contract must keep passing both.
+	 */
+	searchDraft?: string;
+	onSearchDraftChange?: (value: string) => void;
 	searchPlaceholder?: string;
 	disabled?: boolean;
 	disabledTitle?: string;
@@ -268,19 +274,21 @@ export const DataTableToolbar = ({
 
 	return (
 		<div className="publy-data-table-toolbar" data-testid={`${testId}-toolbar`}>
-			<div className="publy-search-wrapper">
-				<IconSearch aria-hidden="true" className="publy-search-icon" />
-				<Input
-					aria-label={t('search')}
-					className="publy-data-table-search-input bg-background pl-9"
-					value={searchDraft}
-					onChange={(event) => onSearchDraftChange(event.target.value)}
-					disabled={disabled}
-					title={disabled ? disabledTitle : undefined}
-					placeholder={resolvedPlaceholder}
-					data-testid={`${testId}-search`}
-				/>
-			</div>
+			{onSearchDraftChange ? (
+				<div className="publy-search-wrapper">
+					<IconSearch aria-hidden="true" className="publy-search-icon" />
+					<Input
+						aria-label={t('search')}
+						className="publy-data-table-search-input bg-background pl-9"
+						value={searchDraft ?? ''}
+						onChange={(event) => onSearchDraftChange(event.target.value)}
+						disabled={disabled}
+						title={disabled ? disabledTitle : undefined}
+						placeholder={resolvedPlaceholder}
+						data-testid={`${testId}-search`}
+					/>
+				</div>
+			) : null}
 			{toolbarEnd ? (
 				<div className="publy-data-table-toolbar-end">{toolbarEnd}</div>
 			) : null}
@@ -447,8 +455,8 @@ export type DataTableProps<TData extends { id: string }> = {
 	isPaginationPending: boolean;
 	onNextPage: () => void;
 	onPreviousPage: () => void;
-	searchDraft: string;
-	onSearchDraftChange: (value: string) => void;
+	searchDraft?: string;
+	onSearchDraftChange?: (value: string) => void;
 	density?: TableDensity;
 	rowHeight?: TableRowHeight;
 	selection?: UseRowSelectionResult;

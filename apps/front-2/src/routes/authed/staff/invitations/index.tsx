@@ -1,6 +1,6 @@
 import { IconChevronDown, IconCircleDot, IconPlus } from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
@@ -97,9 +97,13 @@ function StaffInvitationsPage() {
 		defaultSize: DEFAULT_SIZE,
 		cursorResetKey: search.status ?? '',
 	});
+	// users-auth-r6-F2: the API's FindStaffInvitations contract has no search
+	// parameter (see apps/api/Modules/Invitations/Handlers/Staff/
+	// FindStaffInvitations.cs) — `q` is never sent here, and the search input
+	// is removed from the toolbar below, rather than rendering a text box
+	// that silently filters nothing.
 	const query = useStaffInvitationsQuery({
 		...controller.apiVariables,
-		q: controller.search.committed,
 		status: search.status,
 	});
 
@@ -118,13 +122,6 @@ function StaffInvitationsPage() {
 	});
 	const rows = toRows(query.data?.data);
 	const selection = useRowSelection(rows.map((row) => row.id));
-
-	const { resetDraftToCommitted } = controller.search;
-	useEffect(() => {
-		if (selection.isSelectionMode) {
-			resetDraftToCommitted();
-		}
-	}, [selection.isSelectionMode, resetDraftToCommitted]);
 
 	if (query.isError && shouldLogoutForFailure(query.error)) {
 		return <LogoutRedirect />;
@@ -229,7 +226,7 @@ function StaffInvitationsPage() {
 				onRetry={() => void query.refetch()}
 				emptyContent={t('no-invitations-found')}
 				noMatchContent={t('no-invitations-match-your-search')}
-				hasActiveSearch={Boolean(controller.search.committed)}
+				hasActiveSearch={selectedStatuses.length > 0}
 				sort={controller.sort}
 				onSortChange={controller.onSortChange}
 				size={controller.size}
@@ -242,9 +239,6 @@ function StaffInvitationsPage() {
 					controller.cursor.onNextPage(query.data?.nextCursor ?? undefined)
 				}
 				onPreviousPage={controller.cursor.onPreviousPage}
-				searchDraft={controller.search.draft}
-				onSearchDraftChange={controller.search.onDraftChange}
-				searchPlaceholder={t('search-invitations')}
 				selection={selection}
 			/>
 			<StaffListExportSelectedAction

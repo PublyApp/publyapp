@@ -130,6 +130,34 @@ const baseProps = {
 	onSearchDraftChange: noop,
 };
 
+// users-auth-r6-F2: a list backed by an API with no search contract must not
+// render a search box that silently filters nothing — omitting BOTH
+// searchDraft/onSearchDraftChange hides the control entirely; a list that
+// does have real search keeps rendering it exactly as before.
+describe('DataTable search box (users-auth-r6-F2)', () => {
+	afterEach(() => {
+		cleanup();
+	});
+
+	test('renders the search input when searchDraft/onSearchDraftChange are provided', () => {
+		render(<DataTable {...baseProps} />);
+
+		expect(screen.getByTestId('test-table-search')).toBeTruthy();
+	});
+
+	test('omits the search input entirely when searchDraft/onSearchDraftChange are both omitted', () => {
+		const {
+			searchDraft: _searchDraft,
+			onSearchDraftChange: _onChange,
+			...propsWithoutSearch
+		} = baseProps;
+
+		render(<DataTable {...propsWithoutSearch} />);
+
+		expect(screen.queryByTestId('test-table-search')).toBeNull();
+	});
+});
+
 describe('DataTable errorContent', () => {
 	test('renders default fallback message when no errorContent is provided', () => {
 		render(<DataTable {...baseProps} />);
