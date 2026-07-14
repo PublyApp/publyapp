@@ -543,12 +543,14 @@ function StaffProfileDetailsPage() {
 								{details.description || t('no-description')}
 							</span>
 							<span className="shrink-0 whitespace-nowrap">
-								{' · '}
-								{details.userAccountCount === null
-									? '—'
-									: t('profile-member-count', {
+								{details.userAccountCount === null ? null : (
+									<>
+										{' · '}
+										{t('profile-member-count', {
 											count: details.userAccountCount,
 										})}
+									</>
+								)}
 								{' · '}
 								{t('assigned-permissions-count', {
 									count: assignedKeys.length,
@@ -622,10 +624,13 @@ function StaffProfileDetailsPage() {
 					<Card className="publy-detail-card">
 						<div className="publy-detail-card-header">
 							<span className="text-[14px] font-semibold">
-								{t('members')}{' '}
-								<span className="font-normal text-[var(--publy-foreground-subtle)]">
-									· {userCount === null ? '—' : userCount}
-								</span>
+								{t('members')}
+								{userCount === null ? null : (
+									<span className="font-normal text-[var(--publy-foreground-subtle)]">
+										{' '}
+										· {userCount}
+									</span>
+								)}
 							</span>
 							<Link
 								to="/staff/profiles/$profileId/users"

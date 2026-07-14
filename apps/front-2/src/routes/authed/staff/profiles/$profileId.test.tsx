@@ -165,7 +165,7 @@ describe('staff profile details route', () => {
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 	});
 
-	test('renders em-dash when member count is null instead of 0 members', () => {
+	test('omits the member count metric entirely when it is null, instead of fabricating "0 members" or an em-dash (r5-F5)', () => {
 		mocks.useStaffProfileDetailsQuery.mockReturnValue(
 			buildQueryResult({
 				data: {
@@ -184,6 +184,9 @@ describe('staff profile details route', () => {
 		expect(screen.getByTestId('staff-profile-details-page')).toBeTruthy();
 		const body = document.body.textContent ?? '';
 		expect(body).not.toMatch(/0 member/);
+		// A bare em-dash standing in for the unavailable count is just as
+		// dishonest as fabricating "0 members" — both look like real data.
+		expect(body).not.toContain('—');
 	});
 
 	test('renders a back link to the staff profiles list', () => {

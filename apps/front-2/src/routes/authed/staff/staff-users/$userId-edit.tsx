@@ -533,18 +533,6 @@ function StaffUserEditPage() {
 					</div>
 				</section>
 
-				<section className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] shadow-[var(--publy-shadow-ring)]">
-					<div className="publy-card-header">
-						<p className="publy-type-section-title">{t('security')}</p>
-					</div>
-					<div className="px-5">
-						{/* TODO(contract): security preference endpoints are not available. */}
-						<p className="py-4 text-sm text-muted-foreground">
-							{t('security-preferences-not-available')}
-						</p>
-					</div>
-				</section>
-
 				{serverError ? (
 					<p className="text-sm text-destructive" role="alert">
 						{serverError}

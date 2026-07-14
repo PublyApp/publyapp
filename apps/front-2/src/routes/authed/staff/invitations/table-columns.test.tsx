@@ -166,6 +166,79 @@ describe('createInvitationColumns', () => {
 		const link = screen.getByRole('link', { name: /person@example\.com/ });
 		expect(link.getAttribute('href')).toBe('/staff/invitations/invitation-1');
 	});
+
+	describe('missing-data cells (r5-F5)', () => {
+		beforeEach(() => {
+			cleanup();
+		});
+
+		afterEach(() => {
+			cleanup();
+		});
+
+		test('flags a missing required email as a data-integrity problem instead of fabricating a dash', () => {
+			const columns = createInvitationColumns({
+				t,
+				locale: 'en',
+				onActionSuccess: () => undefined,
+				onActionError: () => undefined,
+			});
+			const emailColumn = columns.find((column) => column.id === 'email');
+			const cellRenderer = emailColumn?.cell as (props: {
+				row: { original: ReturnType<typeof buildRow> };
+			}) => ReactNode;
+
+			render(cellRenderer({ row: { original: buildRow({ email: '' }) } }));
+
+			expect(screen.getByText('invitation-missing-email')).toBeTruthy();
+			expect(screen.queryByText('-')).toBeNull();
+			expect(screen.queryByRole('link')).toBeNull();
+		});
+
+		test('labels a missing profile lookup as unknown instead of fabricating a dash', () => {
+			const columns = createInvitationColumns({
+				t,
+				locale: 'en',
+				onActionSuccess: () => undefined,
+				onActionError: () => undefined,
+			});
+			const profileColumn = columns.find(
+				(column) => column.id === 'profile_name',
+			);
+			const cellRenderer = profileColumn?.cell as (props: {
+				row: { original: ReturnType<typeof buildRow> };
+			}) => ReactNode;
+
+			render(
+				cellRenderer({ row: { original: buildRow({ profileName: '' }) } }),
+			);
+
+			expect(screen.getByText('unknown-profile')).toBeTruthy();
+			expect(screen.queryByText('-')).toBeNull();
+		});
+
+		test('labels a missing inviter lookup as unknown instead of fabricating a dash', () => {
+			const columns = createInvitationColumns({
+				t,
+				locale: 'en',
+				onActionSuccess: () => undefined,
+				onActionError: () => undefined,
+			});
+			const invitedByColumn = columns.find(
+				(column) => column.id === 'invited_by_name',
+			);
+			const cellRenderer = invitedByColumn?.cell as (props: {
+				row: { original: ReturnType<typeof buildRow> };
+			}) => ReactNode;
+
+			render(
+				cellRenderer({ row: { original: buildRow({ invitedByName: '' }) } }),
+			);
+
+			expect(screen.getByText('unknown-inviter')).toBeTruthy();
+			expect(screen.queryByText('-')).toBeNull();
+		});
+	});
 });
 
 describe('InvitationRowActions', () => {

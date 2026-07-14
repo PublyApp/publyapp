@@ -167,7 +167,22 @@ export const createInvitationColumns = ({
 		accessorKey: 'email',
 		meta: { width: '300px' },
 		cell: ({ row }) => {
-			const email = row.original.email || '-';
+			const email = row.original.email;
+			// `email` is the invitation's required identity field, never a
+			// genuinely-optional lookup — a blank value is a data-integrity
+			// problem, not "no data yet", so it must never be silently rendered
+			// as a neutral em-dash that looks like real data (r5-F5).
+			if (!email) {
+				return (
+					<span
+						className="flex min-w-0 items-center text-[13px] text-destructive"
+						title={t('invitation-missing-email')}
+					>
+						{t('invitation-missing-email')}
+					</span>
+				);
+			}
+
 			return (
 				<Link
 					to="/staff/invitations/$invitationId"
@@ -196,13 +211,18 @@ export const createInvitationColumns = ({
 		accessorKey: 'profileName',
 		enableSorting: false,
 		cell: ({ row }) => {
-			const profileName = row.original.profileName;
+			// A missing profile lookup is a genuinely legitimate related-data
+			// gap (the profile can be deleted after the invitation was sent) —
+			// unlike `email`, this isn't a data-integrity error, so it gets a
+			// semantic "unknown" label rather than a plain dash that would look
+			// like the same kind of missing-data as the required-field case.
+			const profileName = row.original.profileName || t('unknown-profile');
 			return (
 				<span
 					className="block truncate text-[12px] text-[var(--publy-foreground-secondary)]"
-					title={profileName || undefined}
+					title={profileName}
 				>
-					{profileName || '-'}
+					{profileName}
 				</span>
 			);
 		},
@@ -219,13 +239,16 @@ export const createInvitationColumns = ({
 		enableSorting: false,
 		meta: { width: '150px' },
 		cell: ({ row }) => {
-			const invitedByName = row.original.invitedByName;
+			// Same reasoning as `profileName`: the inviting account can be
+			// deleted after the invitation was sent, so a missing name here is
+			// a legitimate related-data gap, not a data-integrity error.
+			const invitedByName = row.original.invitedByName || t('unknown-inviter');
 			return (
 				<span
 					className="block truncate text-[13px] text-[var(--publy-foreground-secondary)]"
-					title={invitedByName || undefined}
+					title={invitedByName}
 				>
-					{invitedByName || '-'}
+					{invitedByName}
 				</span>
 			);
 		},

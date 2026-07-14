@@ -149,8 +149,6 @@ vi.mock('react-i18next', () => ({
 				'unknown-error': 'Unable to save staff user.',
 				'edit-staff-user': 'Edit staff user',
 				'invalid-url': 'Invalid URL',
-				'security-preferences-not-available':
-					'Not available — security preferences are not yet exposed by the API',
 				'showing-first-n-profiles': 'Showing the first profiles.',
 			};
 
@@ -576,11 +574,11 @@ describe('staff user edit route', () => {
 		expect(screen.getByDisplayValue('Admin')).toBeTruthy();
 		expect(screen.getByDisplayValue('Active')).toBeTruthy();
 		expect(screen.getByLabelText('Status')).toHaveProperty('disabled', true);
-		expect(
-			screen.getByText(
-				'Not available — security preferences are not yet exposed by the API',
-			),
-		).toBeTruthy();
+		// r5-F5: no Security card — it only ever rendered an internal
+		// contract-absence message as if it were product content. Matches on
+		// the untranslated `security` key stem so this stays red even if a
+		// future i18n label wording changes.
+		expect(screen.queryByText(/security/i)).toBeNull();
 		expect(screen.queryAllByRole('switch')).toHaveLength(0);
 		expect(screen.getByDisplayValue('alex@example.com')).toHaveProperty(
 			'disabled',
