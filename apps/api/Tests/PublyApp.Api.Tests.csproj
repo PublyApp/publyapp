@@ -29,6 +29,7 @@
 		<Compile Include="..\Data\**\*.Spec.cs" Link="Data\%(RecursiveDir)%(Filename)%(Extension)" />
 		<Compile Include="..\Infrastructure\**\*.Spec.cs" Link="Infrastructure\%(RecursiveDir)%(Filename)%(Extension)" />
 		<Compile Include="..\Lib\**\*.Spec.cs" Link="Lib\%(RecursiveDir)%(Filename)%(Extension)" />
+		<Compile Include="..\Migrations\**\*.Spec.cs" Link="Migrations\%(RecursiveDir)%(Filename)%(Extension)" />
 		<Compile Include="..\Modules\**\*.Spec.cs" Link="Modules\%(RecursiveDir)%(Filename)%(Extension)" />
 	</ItemGroup>
 
