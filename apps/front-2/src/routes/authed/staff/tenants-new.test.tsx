@@ -50,6 +50,7 @@ const LABELS: Record<string, string> = {
 	'download-template': 'Download template',
 	'parsed-file-summary': '{{detected}} members detected · {{valid}} valid',
 	'parsed-file-invalid-rows': '{{count}} rows skipped (invalid email)',
+	'parsed-file-duplicate-rows': '{{count}} rows skipped (already added)',
 	'import-file-too-large': 'This file is too large. Choose a file under 2 MB.',
 	'import-file-invalid-type': 'Unsupported file type. Choose a CSV file.',
 	'import-file-parse-failed':
@@ -64,8 +65,6 @@ const LABELS: Record<string, string> = {
 	remove: 'Remove',
 	setup: 'Setup',
 	'seed-default-profiles': 'Seed default profiles',
-	'require-sso': 'Require SSO',
-	'require-sso-hint': 'Coming soon',
 	preview: 'Preview',
 	status: 'Status',
 	active: 'Active',
@@ -76,7 +75,6 @@ const LABELS: Record<string, string> = {
 	'preview-members-checklist-detailed':
 		'{{count}} members invited ({{csv}} CSV · {{manual}} manual)',
 	'preview-default-profile-checklist': 'Default profile seeded',
-	'preview-sso-not-required': 'SSO not required',
 	'create-tenant-summary-owners': '{{count}} owner(s)',
 	'create-tenant-summary-members': '{{count}} member(s)',
 	'create-tenant-summary-suffix': 'will be invited on creation',
@@ -561,20 +559,13 @@ describe('staff tenant create route', () => {
 		).toBeTruthy();
 	});
 
-	test('seed default profiles defaults on and require SSO is disabled with a hint', () => {
+	test('seed default profiles defaults on', () => {
 		renderPage();
 
 		const seedSwitch = screen.getByRole('checkbox', {
 			name: 'Seed default profiles',
 		}) as HTMLInputElement;
 		expect(seedSwitch.checked).toBe(true);
-
-		const ssoSwitch = screen.getByRole('checkbox', {
-			name: 'Require SSO',
-		}) as HTMLInputElement;
-		expect(ssoSwitch.disabled).toBe(true);
-		expect(ssoSwitch.checked).toBe(false);
-		expect(screen.getByText('Coming soon')).toBeTruthy();
 	});
 
 	test('adds and removes owner rows, tagging only the first as Primary', () => {
@@ -701,9 +692,6 @@ describe('staff tenant create route', () => {
 		).toContain('1 owners get full access');
 		expect(screen.getByTestId('preview-checklist-profile').textContent).toBe(
 			'Default profile seeded',
-		);
-		expect(screen.getByTestId('preview-checklist-sso').textContent).toBe(
-			'SSO not required',
 		);
 	});
 
@@ -1200,6 +1188,30 @@ describe('staff tenant create route', () => {
 				}),
 			),
 		);
+	});
+
+	test('shows a duplicate-rows hint when the CSV re-lists an already-added member (r3-tenants-F13)', async () => {
+		renderPage();
+
+		fillOrganizationName('Acme Corporation');
+		fireEvent.change(getEmailInputs()[0]!, {
+			target: { value: 'owner@acme.com' },
+		});
+
+		const csvContent = 'email,role\ncsv1@acme.com,user\nowner@acme.com,user\n';
+		const file = new File([csvContent], 'members.csv', { type: 'text/csv' });
+		Object.defineProperty(file, 'text', {
+			value: () => Promise.resolve(csvContent),
+		});
+
+		const fileInput = screen.getByLabelText(
+			'Drag a CSV file, or browse',
+		) as HTMLInputElement;
+		fireEvent.change(fileInput, { target: { files: [file] } });
+
+		await waitFor(() => expect(screen.getByText('members.csv')).toBeTruthy());
+		expect(screen.getByText('2 members detected · 1 valid')).toBeTruthy();
+		expect(screen.getByText('1 rows skipped (already added)')).toBeTruthy();
 	});
 
 	test('rejects an oversized import file via the file input without reading it', () => {

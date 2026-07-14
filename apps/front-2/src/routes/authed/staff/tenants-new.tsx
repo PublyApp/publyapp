@@ -28,7 +28,6 @@ import {
 	SelectTrigger,
 } from '~/components/ui/select';
 import { statusPillTone } from '~/components/ui/status-tone';
-import { Switch } from '~/components/ui/switch';
 import { downloadFile } from '~/lib/download-file';
 import {
 	invalidateStaffTenants,
@@ -942,6 +941,13 @@ function StaffTenantCreateRoute() {
 													})}
 												</p>
 											) : null}
+											{parsedOutcome.duplicateCount > 0 ? (
+												<p className="publy-type-helper">
+													{t('parsed-file-duplicate-rows', {
+														count: parsedOutcome.duplicateCount,
+													})}
+												</p>
+											) : null}
 										</div>
 									</div>
 									<Button
@@ -1033,24 +1039,6 @@ function StaffTenantCreateRoute() {
 								label={t('seed-default-profiles')}
 								isDisabled={isFormLocked}
 							/>
-							<div
-								data-slot="field-switch-row"
-								className="publy-field-switch-row"
-							>
-								<div className="flex min-w-0 flex-col gap-px">
-									<span className="publy-field-switch-title">
-										{t('require-sso')}
-									</span>
-									<span className="publy-field-switch-description">
-										{t('require-sso-hint')}
-									</span>
-								</div>
-								<Switch
-									checked={false}
-									disabled
-									aria-label={t('require-sso')}
-								/>
-							</div>
 						</section>
 					</div>
 
@@ -1163,9 +1151,6 @@ function StaffTenantCreateRoute() {
 										testId="preview-checklist-profile"
 									>
 										{t('preview-default-profile-checklist')}
-									</ChecklistRow>
-									<ChecklistRow checked={false} testId="preview-checklist-sso">
-										{t('preview-sso-not-required')}
 									</ChecklistRow>
 								</ul>
 							</Card>
