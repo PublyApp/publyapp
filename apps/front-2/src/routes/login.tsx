@@ -27,6 +27,11 @@ import { View404 } from '~/components/error-views/View404';
 import { Button, buttonVariants } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import { redirectAuthenticatedUserAwayFromAuthPage } from '~/lib/auth-route-guard';
+import {
+	getSafeSearchRedirect,
+	isSafeRelativePath,
+	resolveRouteRedirect,
+} from '~/lib/safe-redirect-path';
 import { completeLoginRedirect, login } from '~/lib/server/session-actions';
 import {
 	AUTH_SYNC_CHANNEL,
@@ -38,6 +43,12 @@ import {
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { queryParamKey, queryParamValue } from '@org/shared-ts/lib/constants';
+
+// Re-exported for `login.test.tsx` and `~/lib/hooks/use-logout.ts` — the
+// implementation lives in `~/lib/safe-redirect-path` (shared, not
+// login-specific), but these remain part of this route's tested public
+// surface.
+export { getSafeSearchRedirect, resolveRouteRedirect };
 
 type LoginFormValues = {
 	email: string;
@@ -61,35 +72,6 @@ const getLoginFormSchema = (t: Translate) =>
  * before matching.
  */
 const RETURNABLE_AUTH_PATHS = ['/accept-invitation'];
-
-// `/\evil.com` isn't rejected by a bare `//` check: the WHATWG URL parser
-// treats a leading backslash as a path separator for special schemes, so
-// `history.pushState`/`navigate({ to })` would resolve it to host
-// `evil.com`. Reject any path containing a backslash, or any character
-// outside a conservative allowlist, rather than trying to enumerate every
-// parser quirk.
-// eslint-disable-next-line no-control-regex -- deliberately rejecting control characters
-const CONTROL_CHARACTER_PATTERN = /[\x00-\x1f]/;
-
-const isSafeRelativePath = (path: string): boolean =>
-	/^\/[^/\\][^\\]*$/.test(path) && !CONTROL_CHARACTER_PATTERN.test(path);
-
-export const resolveRouteRedirect = (path: string | null): string => {
-	if (!path) {
-		return '/';
-	}
-
-	if (!isSafeRelativePath(path)) {
-		return '/';
-	}
-
-	return path;
-};
-
-export const getSafeSearchRedirect = (search: string): string => {
-	const params = new URLSearchParams(search);
-	return resolveRouteRedirect(params.get(queryParamKey.login_page.redirect_to));
-};
 
 export const isAllowedRedirectPath = (
 	requested: string,

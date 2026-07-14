@@ -147,6 +147,38 @@ describe('useLogout', () => {
 		});
 	});
 
+	test('navigates to an explicit redirectTo when supplied (accept-invitation "Not you?" flow)', async () => {
+		const { result } = renderHook(() => useLogout());
+
+		act(() => {
+			result.current.logout({
+				redirectTo: '/accept-invitation?id=abc&token=xyz',
+			});
+		});
+
+		await waitFor(() => expect(mocks.navigate).toHaveBeenCalledTimes(1));
+
+		expect(mocks.navigate).toHaveBeenCalledWith({
+			to: '/accept-invitation?id=abc&token=xyz',
+			replace: true,
+		});
+	});
+
+	test('neutralizes an unsafe redirectTo instead of navigating off-origin (r3-users-auth F14)', async () => {
+		const { result } = renderHook(() => useLogout());
+
+		act(() => {
+			result.current.logout({ redirectTo: '//evil.com' });
+		});
+
+		await waitFor(() => expect(mocks.navigate).toHaveBeenCalledTimes(1));
+
+		expect(mocks.navigate).toHaveBeenCalledWith({
+			to: '/',
+			replace: true,
+		});
+	});
+
 	test('broadcasts logout only after the server-side session clear settles, before navigating', async () => {
 		let resolveClear: () => void = () => {};
 		mocks.clear.mockReturnValue(

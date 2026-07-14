@@ -3,6 +3,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { useServerFn } from '@tanstack/react-start';
 import { useCallback, useState } from 'react';
 import { buildLoginRedirectSearch } from '~/lib/login-redirect-search';
+import { resolveRouteRedirect } from '~/lib/safe-redirect-path';
 import { clearSession } from '~/lib/server/session-actions';
 import {
 	AUTH_SYNC_CHANNEL,
@@ -95,8 +96,17 @@ export const useLogout = () => {
 					// race the sender to /login while still authenticated.
 					postBroadcast(AUTH_SYNC_CHANNEL, { type: 'logout' });
 
+					// Every current caller passes an internal value (accept-invitation's
+					// `stayOnPageHref`/`loginHref`), so this is hardening rather than a
+					// live-bug fix — routes it through the same validator `login.tsx`
+					// already uses for its own redirect param, closing the open-redirect
+					// surface an untrusted `redirectTo` would otherwise be (r3-users-auth
+					// F14).
 					const navigation = options?.redirectTo
-						? navigate({ to: options.redirectTo, replace: true })
+						? navigate({
+								to: resolveRouteRedirect(options.redirectTo),
+								replace: true,
+							})
 						: navigate({
 								to: '/login',
 								search: buildLoginSearch(

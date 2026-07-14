@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate, useRouter } from '@tanstack/react-router';
 import { isAuthPath } from '~/lib/auth-paths';
 import { applyLocale, parseLocaleSyncMessage } from '~/lib/locale-switch';
+import { CURRENT_USER_QUERY_KEY } from '~/lib/query/auth';
 import type { ColorScheme } from '~/lib/store/ui-store';
 import {
 	useUiStore,
@@ -59,8 +60,16 @@ export const TabSyncListener = () => {
 		}
 
 		if (data.type === 'logout') {
-			// Marketing/auth-surface tabs have nothing to log out of — ignore.
+			// Non-authed surfaces (marketing, /login, /accept-invitation) have no
+			// full session cache to tear down, but a page like accept-invitation
+			// can still be mid-render on a "Signed in as <email>" branch driven by
+			// `useCurrentUserQuery` — invalidate it unconditionally so that state
+			// re-resolves to signed-out instead of lying until the next user
+			// action 401s (review-r3-users-auth.md F14).
 			if (!isAuthedSurface(pathname)) {
+				void queryClient.invalidateQueries({
+					queryKey: CURRENT_USER_QUERY_KEY,
+				});
 				return;
 			}
 			// Navigate first, clear after — the exact ordering `useLogout`

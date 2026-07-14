@@ -100,7 +100,7 @@ describe('TabSyncListener', () => {
 		expect(navigateOrder).toBeLessThan(queryClientClearOrder);
 	});
 
-	test('logout on the login page is ignored', () => {
+	test('logout on the login page skips navigation/cache-clear but still invalidates the current-user query', () => {
 		mocks.pathname = '/login';
 		mountListener();
 
@@ -108,9 +108,12 @@ describe('TabSyncListener', () => {
 
 		expect(mocks.queryClientClear).not.toHaveBeenCalled();
 		expect(mocks.navigate).not.toHaveBeenCalled();
+		expect(mocks.invalidateQueries).toHaveBeenCalledWith({
+			queryKey: ['current-user'],
+		});
 	});
 
-	test('logout on a marketing surface is ignored', () => {
+	test('logout on a marketing surface skips navigation/cache-clear but still invalidates the current-user query', () => {
 		mocks.pathname = '/pricing';
 		mountListener();
 
@@ -118,6 +121,21 @@ describe('TabSyncListener', () => {
 
 		expect(mocks.queryClientClear).not.toHaveBeenCalled();
 		expect(mocks.navigate).not.toHaveBeenCalled();
+		expect(mocks.invalidateQueries).toHaveBeenCalledWith({
+			queryKey: ['current-user'],
+		});
+	});
+
+	test('logout on the accept-invitation page invalidates the current-user query so a "signed in as" branch re-resolves (r3-users-auth F14)', () => {
+		mocks.pathname = '/accept-invitation';
+		mountListener();
+
+		mocks.authHandler?.({ type: 'logout' });
+
+		expect(mocks.navigate).not.toHaveBeenCalled();
+		expect(mocks.invalidateQueries).toHaveBeenCalledWith({
+			queryKey: ['current-user'],
+		});
 	});
 
 	test('login while parked on the login page re-runs the auth-page guard', () => {
