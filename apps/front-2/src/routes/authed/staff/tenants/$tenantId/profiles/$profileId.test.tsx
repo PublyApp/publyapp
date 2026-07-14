@@ -195,6 +195,7 @@ vi.mock('react-i18next', () => ({
 				'unable-to-update-tenant-profile-permission':
 					'Unable to update this tenant profile permission.',
 				unassign: 'Unassign',
+				'unassign-permission': 'Unassign {{name}}',
 				yes: 'Yes',
 			};
 

@@ -314,10 +314,6 @@ function StaffTenantEditRoute() {
 	}
 
 	const onSubmit = handleSubmit(async (values) => {
-		if (!isDirty) {
-			return;
-		}
-
 		setServerError('');
 		const payload: StaffTenantUpdateInput = { tenantId };
 
@@ -688,7 +684,7 @@ function StaffTenantEditRoute() {
 					>
 						{t('cancel')}
 					</Button>
-					<Button type="submit" disabled={isPending}>
+					<Button type="submit" disabled={isPending || !isDirty}>
 						{t('save-changes')}
 					</Button>
 				</FormActionBar>

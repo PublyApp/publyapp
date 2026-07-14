@@ -625,8 +625,11 @@ function StaffTenantProfileDetailsPage() {
 														onClick={() => {
 															void handleUnassignPermission(permission.key);
 														}}
+														aria-label={t('unassign-permission', {
+															name: permission.label,
+														})}
 													>
-														{t('unassign')} {permission.key}
+														{t('unassign')}
 													</Button>
 												</div>
 											</li>

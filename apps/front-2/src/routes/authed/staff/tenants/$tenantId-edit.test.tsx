@@ -536,6 +536,21 @@ describe('staff tenant edit route', () => {
 		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111');
 	});
 
+	test('disables Save on a pristine form and enables it once a field is edited (r3-tenants-F17)', () => {
+		renderPage();
+
+		const saveButton = screen.getByRole('button', {
+			name: 'Save changes',
+		}) as HTMLButtonElement;
+		expect(saveButton.disabled).toBe(true);
+
+		fireEvent.change(screen.getByLabelText('Organization name'), {
+			target: { value: 'Acme Corporation Updated' },
+		});
+
+		expect(saveButton.disabled).toBe(false);
+	});
+
 	test('renders the Identity, Contact, Regional, and Internal notes sections with the tenant values', () => {
 		renderPage();
 
