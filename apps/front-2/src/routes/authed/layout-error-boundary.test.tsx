@@ -59,14 +59,25 @@ describe('authed layout 500 branch renders a translated code, not a hardcoded En
 		cleanup();
 	});
 
-	test('English: renders the translated 500 code', () => {
+	// r5/W5-HARDEN item 6: the English literal ("500 — Server Error") is
+	// identical to its translated value, so asserting only the rendered text
+	// cannot distinguish a real t('error-500-code') call from a hardcoded
+	// string that happens to match — it would pass against either. Spying on
+	// the i18n instance's `t` proves the translation path is actually taken.
+	test('English: renders the translated 500 code, calling t() rather than a hardcoded literal', () => {
+		const i18n = buildI18n('en');
+		const tSpy = vi.spyOn(i18n, 't');
+
 		render(
-			<I18nextProvider i18n={buildI18n('en')}>
+			<I18nextProvider i18n={i18n}>
 				<AuthedLayoutErrorBoundary error={new Error('boom')} reset={vi.fn()} />
 			</I18nextProvider>,
 		);
 
 		expect(screen.getByText('500 — Server Error')).toBeTruthy();
+		expect(tSpy.mock.calls.some((call) => call[0] === 'error-500-code')).toBe(
+			true,
+		);
 	});
 
 	test('French: renders the French 500 code, not the hardcoded English literal', () => {
