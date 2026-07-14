@@ -11,7 +11,7 @@ import type { UseRowSelectionResult } from './use-row-selection';
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string) => {
+		t: (key: string, options?: Record<string, unknown>) => {
 			const labels: Record<string, string> = {
 				'list-unavailable-title': 'List unavailable',
 				'list-error-default-description':
@@ -22,9 +22,22 @@ vi.mock('react-i18next', () => ({
 					'No records yet. Create one to get started.',
 				'list-no-match-title': 'No matches for that search',
 				'list-no-match-default-description': 'No results match your search.',
+				'select-row-named': 'Select {{name}}',
 			};
 
-			return labels[key] ?? key;
+			let text = labels[key] ?? key;
+			if (!options) {
+				return text;
+			}
+
+			// Interpolates like real i18next — without this, `select-row-named`
+			// always resolves to the same literal string regardless of `name`,
+			// so a `getRowLabel` regression (e.g. always returning `row.id`)
+			// could not fail the a11y-label test below (r3-tests-F8).
+			for (const [optionKey, value] of Object.entries(options)) {
+				text = text.replaceAll(`{{${optionKey}}}`, String(value));
+			}
+			return text;
 		},
 		i18n: { language: 'en' },
 	}),
@@ -765,9 +778,11 @@ describe('DataTable a11y', () => {
 			/>,
 		);
 
-		expect(screen.getAllByLabelText('select-row-named')).toHaveLength(
-			rows.length,
-		);
+		// The mock now interpolates {{name}}, so this genuinely fails if
+		// getRowLabel stops being invoked (e.g. regresses to a hardcoded
+		// string) instead of always passing regardless of the label content.
+		expect(screen.getByLabelText('Select row-1')).toBeTruthy();
+		expect(screen.getByLabelText('Select row-2')).toBeTruthy();
 
 		rerender(
 			<DataTable
@@ -779,13 +794,8 @@ describe('DataTable a11y', () => {
 			/>,
 		);
 
-		// The mocked t() ignores interpolation options, so both the default
-		// (row.id) and the custom (row.name) label resolve to the same key —
-		// this test only proves getRowLabel is actually invoked and doesn't
-		// throw, wiring is covered; per-value substitution is t()'s job.
-		expect(screen.getAllByLabelText('select-row-named')).toHaveLength(
-			rows.length,
-		);
+		expect(screen.getByLabelText('Select Alice')).toBeTruthy();
+		expect(screen.getByLabelText('Select Bob')).toBeTruthy();
 	});
 
 	test('only one body cell is a tab stop at a time (roving tabindex), not every cell', () => {
