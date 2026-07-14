@@ -366,7 +366,7 @@ public sealed class FindTenantsAsStaffSpec
 
 		var url = TenantTestHelper.GetFindUrl(
 			q: Uri.EscapeDataString("%"),
-			limit: 200
+			limit: 100
 		);
 		var request = new HttpRequestMessage(
 			HttpMethod.Get, url
