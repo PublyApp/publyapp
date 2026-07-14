@@ -210,9 +210,11 @@ const OrganizationCard = ({
 			</div>
 			<div className="grid grid-cols-1 gap-4 px-4 pb-4 pt-3 md:grid-cols-3">
 				<OrgField label={t('name')} value={tenant.name} />
+				{/* data-honesty-ignore: legal name is a documented OPTIONAL field — a tenant without a registered legal name has none, this is not fabricated identity data */}
 				<OrgField label={t('legal-name')} value={tenant.legalName ?? '—'} />
 				<OrgField
 					label={t('code')}
+					// data-honesty-ignore: tenant code is a documented OPTIONAL field — a tenant without an assigned workspace slug has none, this is not fabricated identity data
 					value={tenant.code ?? '—'}
 					mono
 					copyValue={tenant.code ?? undefined}

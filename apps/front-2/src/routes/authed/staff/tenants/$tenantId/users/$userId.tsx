@@ -470,7 +470,14 @@ function StaffTenantUserDetailsPage() {
 						value={formatTenantUserStatusLabel(user.status, t)}
 					/>
 					<DetailItem label={t('user-id')} value={user.id} />
-					<DetailItem label={t('tenant-id')} value={user.tenantId ?? '—'} />
+					{/* W6-GUARDS (tests F7 / users-auth F11): the API's own
+					`tenantId` is nullable in the response type, but this route is
+					already scoped to a validated tenant via `Route.useParams()` —
+					sourcing the display value from the ROUTE removes the fabricated
+					'—' placeholder for a required identity field entirely, instead
+					of tolerating a null API value. */}
+					<DetailItem label={t('tenant-id')} value={tenantId} />
+					{/* data-honesty-ignore: avatarUrl is a documented OPTIONAL field — a user with no uploaded avatar has none, this is not fabricated identity data */}
 					<DetailItem label={t('avatar-url')} value={user.avatarUrl ?? '—'} />
 				</div>
 			</Card>

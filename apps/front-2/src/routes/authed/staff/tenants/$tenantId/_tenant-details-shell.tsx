@@ -79,6 +79,7 @@ export const formatTenantUserLevelLabel = (
 	if (normalized === 'user') {
 		return t('user');
 	}
+	// data-honesty-ignore: an unrecognized/absent account level is a genuine "no value" formatter case, not fabricated identity data
 	return level ?? '—';
 };
 
@@ -420,6 +421,7 @@ export const TenantDetailsPageShell = ({
 								publyapp.com/
 							</span>
 							<span className="publy-tenant-identity-meta-code">
+								{/* data-honesty-ignore: tenant code is a documented OPTIONAL field — a tenant without an assigned workspace slug has none, this is not fabricated identity data */}
 								{tenant.code ?? '—'}
 							</span>
 							{tenant.code ? (

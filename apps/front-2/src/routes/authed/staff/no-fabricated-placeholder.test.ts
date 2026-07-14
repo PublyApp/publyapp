@@ -55,9 +55,17 @@ const CHECKS: PlaceholderCheck[] = [
 	{
 		name: 'raw-dash-fallback',
 		description:
-			"a raw '-'/'—' literal used as a JSX fallback for otherwise-real data (`value || '-'`, `cond ? '—' : value`), which reads as real data to an administrator",
+			"a raw '-'/'—' literal used as a JSX fallback for otherwise-real data (`value || '-'`, `cond ? '—' : value`, `value ?? '—'`), which reads as real data to an administrator",
+		// W6-GUARDS (tests F7 / users-auth F11): the nullish-coalescing form
+		// (`value ?? '—'`) matched NONE of the three branches — `||`, the
+		// ternary `? '-' :`, and a bare `: '-'` — even though it is
+		// semantically identical to the `||` fallback for the exact case this
+		// rule exists to catch (a required field whose value is null/undefined
+		// renders a dash as if it were real data). Added as its own branch
+		// rather than folded into `||`'s branch so each shape stays independently
+		// readable/testable.
 		pattern:
-			/(\|\|\s*['"][-—]['"])|(\?\s*['"][-—]['"]\s*:)|(:\s*['"][-—]['"](?!\s*[a-zA-Z]))/,
+			/(\|\|\s*['"][-—]['"])|(\?\?\s*['"][-—]['"])|(\?\s*['"][-—]['"]\s*:)|(:\s*['"][-—]['"](?!\s*[a-zA-Z]))/,
 	},
 	{
 		name: 'not-available-key-as-content',
@@ -141,6 +149,34 @@ describe('staff surface data-honesty guard', () => {
 			expect(offenders).toEqual([]);
 		});
 	}
+});
+
+// W6-GUARDS (tests F7 / users-auth F11): `raw-dash-fallback` matched `||` and
+// the ternary forms but not nullish coalescing (`??`) — the exact shape a
+// required tenant identity field used to render the prohibited placeholder
+// through, undetected. This directly exercises the pattern (not the whole
+// repo sweep) so the evasion is provably closed independent of which real
+// files currently use the shape.
+describe('raw-dash-fallback pattern catches the nullish-coalescing (??) shape', () => {
+	const rawDashFallbackCheck = CHECKS.find(
+		(check) => check.name === 'raw-dash-fallback',
+	);
+	if (!rawDashFallbackCheck) {
+		throw new Error('raw-dash-fallback check not found');
+	}
+	const pattern = rawDashFallbackCheck.pattern;
+
+	test("matches a `value ?? '—'` fallback", () => {
+		expect(pattern.test("value={user.tenantId ?? '—'}")).toBe(true);
+	});
+
+	test("matches a `value ?? '-'` fallback (plain hyphen)", () => {
+		expect(pattern.test("value={user.tenantId ?? '-'}")).toBe(true);
+	});
+
+	test('does not match an ordinary ?? fallback to a non-dash default', () => {
+		expect(pattern.test("value={user.tenantId ?? 'Unknown'}")).toBe(false);
+	});
 });
 
 describe('data-honesty-ignore suppression requires a substantive reason', () => {

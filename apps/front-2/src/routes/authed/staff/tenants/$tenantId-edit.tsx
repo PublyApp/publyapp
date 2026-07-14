@@ -446,6 +446,7 @@ function StaffTenantEditRoute() {
 							/>
 							<div className="grid grid-cols-[1fr_128px] items-start gap-3">
 								<ReadOnlySlugField
+									// data-honesty-ignore: tenant code is a documented OPTIONAL field — a tenant without an assigned workspace slug has none, this is not fabricated identity data
 									code={tenant.code ?? '—'}
 									label={t('workspace-slug')}
 									hint={t('workspace-slug-immutable-hint')}
@@ -577,6 +578,7 @@ function StaffTenantEditRoute() {
 											<span className="publy-tenant-identity-meta-prefix">
 												publyapp.com/
 											</span>
+											{/* data-honesty-ignore: tenant code is a documented OPTIONAL field — a tenant without an assigned workspace slug has none, this is not fabricated identity data */}
 											<span>{tenant.code ?? '—'}</span>
 										</p>
 										{previewWebsiteHostname ? (
