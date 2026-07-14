@@ -259,6 +259,104 @@ public sealed class RequestPasswordResetSpec
 		return null;
 	}
 
+	// round-6 F5: repeated requests must not rotate a token that is still
+	// live — rotating on every hit invalidated the user's previous, still-
+	// unused link (e.g. an attacker or a double-submit stranding the real
+	// user mid-reset).
+	[Fact]
+	public async Task
+	ItShouldNotRotateAStillValidTokenOnRepeatedRequests() {
+		var email = $"reset-repeat-{Guid.NewGuid():N}@example.com";
+		await using (var scope = _fixture.Factory.Services.CreateAsyncScope()) {
+			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+			var user = new User {
+				Email = email,
+				Password = PasswordUtils.HashPassword(TestConstants.SeedPassword),
+				FirstName = "Repeat",
+				LastName = "Reset",
+				IsVerified = true,
+				Status = UserStatus.Active,
+			};
+			_ = dbContext.User.Add(user);
+			_ = await dbContext.SaveChangesAsync();
+		}
+
+		using var firstResponse = await _http.PostAsJsonAsync(
+			Routes.Auth.RequestPasswordReset,
+			new { email }
+		);
+		firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		string? firstToken;
+		DateTime? firstExpiresAt;
+		await using (var scope = _fixture.Factory.Services.CreateAsyncScope()) {
+			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+			var user = await dbContext.User
+				.IgnoreQueryFilters()
+				.SingleAsync(u => u.Email == email);
+			firstToken = user.PasswordResetToken;
+			firstExpiresAt = user.PasswordResetTokenExpiresAt;
+		}
+
+		firstToken.Should().NotBeNullOrEmpty();
+
+		using var secondResponse = await _http.PostAsJsonAsync(
+			Routes.Auth.RequestPasswordReset,
+			new { email }
+		);
+		secondResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		await using (var scope = _fixture.Factory.Services.CreateAsyncScope()) {
+			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+			var user = await dbContext.User
+				.IgnoreQueryFilters()
+				.SingleAsync(u => u.Email == email);
+
+			user.PasswordResetToken.Should().Be(firstToken);
+			user.PasswordResetTokenExpiresAt.Should().Be(firstExpiresAt);
+		}
+	}
+
+	[Fact]
+	public async Task
+	ItShouldIssueAFreshTokenWhenThePreviousOneHasExpired() {
+		var email = $"reset-expired-{Guid.NewGuid():N}@example.com";
+		const string expiredToken = "expired-token-value";
+		await using (var scope = _fixture.Factory.Services.CreateAsyncScope()) {
+			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+			var user = new User {
+				Email = email,
+				Password = PasswordUtils.HashPassword(TestConstants.SeedPassword),
+				FirstName = "Expired",
+				LastName = "Reset",
+				IsVerified = true,
+				Status = UserStatus.Active,
+				PasswordResetToken = expiredToken,
+				PasswordResetTokenExpiresAt = DateTime.UtcNow.AddMinutes(-1),
+			};
+			_ = dbContext.User.Add(user);
+			_ = await dbContext.SaveChangesAsync();
+		}
+
+		using var response = await _http.PostAsJsonAsync(
+			Routes.Auth.RequestPasswordReset,
+			new { email }
+		);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		await using (var scope = _fixture.Factory.Services.CreateAsyncScope()) {
+			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+			var user = await dbContext.User
+				.IgnoreQueryFilters()
+				.SingleAsync(u => u.Email == email);
+
+			user.PasswordResetToken.Should().NotBeNullOrEmpty();
+			user.PasswordResetToken.Should().NotBe(expiredToken);
+			user.PasswordResetTokenExpiresAt.Should().NotBeNull();
+			user.PasswordResetTokenExpiresAt!.Value.Should().BeAfter(DateTime.UtcNow);
+		}
+	}
+
 	[Fact]
 	public async Task
 	ItShouldReturnValidationErrorForInvalidEmail() {

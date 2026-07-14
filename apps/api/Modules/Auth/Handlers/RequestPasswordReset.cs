@@ -63,15 +63,28 @@ public sealed class RequestPasswordReset {
 		// own shouldResetPassword gate). Either way, the response below never
 		// varies, so this branch is invisible to the caller.
 		if (user is not null && user.IsVerified) {
-			var passwordResetToken = CryptoUtils.RandomString(env.PASSWORD_RESET_TOKEN_LENGTH);
-			var passwordResetTokenExpiresAt = DateTime.UtcNow.AddDays(
-				env.PASSWORD_RESET_TOKEN_VALIDITY_DURATION
-			);
+			// round-6 F5: a still-live (unexpired) token is reused rather than
+			// rotated. Rotating on every hit let a repeated request silently
+			// invalidate a legitimate link the user had not yet clicked — an
+			// attacker (or an accidental double-submit) could strand the real
+			// user mid-reset. An already-expired or never-issued token still
+			// gets a fresh one.
+			string passwordResetToken;
+			if (user.PasswordResetToken is not null
+				&& user.PasswordResetTokenExpiresAt is { } existingExpiresAt
+				&& existingExpiresAt > DateTime.UtcNow) {
+				passwordResetToken = user.PasswordResetToken;
+			} else {
+				passwordResetToken = CryptoUtils.RandomString(env.PASSWORD_RESET_TOKEN_LENGTH);
+				var passwordResetTokenExpiresAt = DateTime.UtcNow.AddDays(
+					env.PASSWORD_RESET_TOKEN_VALIDITY_DURATION
+				);
 
-			user.PasswordResetToken = passwordResetToken;
-			user.PasswordResetTokenExpiresAt = passwordResetTokenExpiresAt;
+				user.PasswordResetToken = passwordResetToken;
+				user.PasswordResetTokenExpiresAt = passwordResetTokenExpiresAt;
 
-			await userService.UpdateUserAsync(user, cancellationToken);
+				await userService.UpdateUserAsync(user, cancellationToken);
+			}
 
 			var userEmail = user.Email;
 
