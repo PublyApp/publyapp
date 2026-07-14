@@ -407,7 +407,7 @@ function StaffTenantUserDetailsPage() {
 				</div>
 
 				{!canChangeStatus ? (
-					<p className="rounded-large border border-dashed border-divider bg-content1 p-2 text-xs text-muted-foreground">
+					<p className="rounded-large border border-dashed border-border bg-card p-2 text-xs text-muted-foreground">
 						{isGloballySuspended
 							? t('membership-lifecycle-disabled-globally-suspended')
 							: t('membership-lifecycle-unavailable-status')}
@@ -498,7 +498,7 @@ function StaffTenantUserDetailsPage() {
 						/>
 					) : null}
 					{!user.createdAt && !user.updatedAt ? (
-						<div className="rounded-large border border-dashed border-divider bg-content1 p-4 text-sm text-muted-foreground">
+						<div className="rounded-large border border-dashed border-border bg-card p-4 text-sm text-muted-foreground">
 							{t('tenant-user-no-timestamps')}
 						</div>
 					) : null}

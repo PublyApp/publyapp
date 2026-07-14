@@ -320,7 +320,7 @@ function StaffProfileUsersPage() {
 								{t('assigned-users-for-this-staff-profile')}
 							</p>
 						</div>
-						<div className="rounded-large border border-divider bg-content1 p-4">
+						<div className="rounded-large border border-border bg-card p-4">
 							<p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
 								{t('assigned-users')}
 							</p>

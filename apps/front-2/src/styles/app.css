@@ -25,15 +25,9 @@
 	--color-destructive: var(--destructive);
 	--color-success: var(--publy-success);
 	--color-warning: var(--publy-warning);
-	/* --color-content1/--color-divider are legacy HeroUI-era semantic names
-	   (bg-content1/border-divider) still used by a handful of route files;
-	   --color-content2/--color-content3/--color-default had zero usages
-	   anywhere and are gone (F10). */
-	--color-content1: var(--publy-surface);
 	--color-ring: var(--ring);
 	--color-input: var(--input);
 	--color-border: var(--border);
-	--color-divider: var(--publy-border);
 	--radius-sm: calc(var(--radius) * 0.6);
 	--radius-md: calc(var(--radius) * 0.8);
 	--radius-lg: var(--radius);
@@ -391,7 +385,7 @@ html.dark {
 	}
 
 	.app-shell-header {
-		@apply border-b border-divider bg-content1;
+		@apply border-b border-border bg-card;
 	}
 
 	.app-shell-header-inner {
@@ -403,7 +397,7 @@ html.dark {
 	}
 
 	.app-shell-mobile-menu-wrap {
-		@apply border-t border-divider bg-content1 sm:hidden;
+		@apply border-t border-border bg-card sm:hidden;
 	}
 
 	.app-shell-mobile-menu {
@@ -411,7 +405,7 @@ html.dark {
 	}
 
 	.app-shell-main-card {
-		@apply bg-content1;
+		@apply bg-card;
 	}
 
 	.app-shell-header-subtitle {

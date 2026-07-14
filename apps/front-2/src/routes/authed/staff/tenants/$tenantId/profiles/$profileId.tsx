@@ -552,7 +552,7 @@ function StaffTenantProfileDetailsPage() {
 
 						<div className="space-y-4">
 							{permissionCatalogQuery.isPending ? (
-								<div className="rounded-large border border-dashed border-divider px-4 py-6 text-sm text-muted-foreground">
+								<div className="rounded-large border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
 									<div className="flex items-center gap-2">
 										<LoadingSpinner />
 										<span>{t('loading-available-permissions')}</span>
@@ -593,7 +593,7 @@ function StaffTenantProfileDetailsPage() {
 								</div>
 
 								{assignedPermissionEntries.length === 0 ? (
-									<div className="rounded-large border border-dashed border-divider px-4 py-3 text-sm text-muted-foreground">
+									<div className="rounded-large border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
 										{t('no-permissions-assigned-to-profile')}
 									</div>
 								) : (
@@ -601,7 +601,7 @@ function StaffTenantProfileDetailsPage() {
 										{assignedPermissionEntries.map((permission) => (
 											<li
 												key={permission.key}
-												className="rounded-large border border-divider bg-content1 px-3 py-3"
+												className="rounded-large border border-border bg-card px-3 py-3"
 											>
 												<div className="flex items-start justify-between gap-3">
 													<div>
@@ -650,7 +650,7 @@ function StaffTenantProfileDetailsPage() {
 									</div>
 
 									{availablePermissionEntries.length === 0 ? (
-										<div className="rounded-large border border-dashed border-divider px-4 py-3 text-sm text-muted-foreground">
+										<div className="rounded-large border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
 											{assignedPermissionEntries.length === 0
 												? t('no-permissions-available')
 												: t('no-additional-permission-keys-available')}
@@ -660,7 +660,7 @@ function StaffTenantProfileDetailsPage() {
 											{availablePermissionEntries.map((permission) => (
 												<li
 													key={permission.key}
-													className="rounded-large border border-divider bg-content1 px-3 py-3"
+													className="rounded-large border border-border bg-card px-3 py-3"
 												>
 													<div className="flex items-start justify-between gap-3">
 														<div>
