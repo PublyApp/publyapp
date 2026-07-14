@@ -82,14 +82,31 @@ public sealed class RequestPasswordResetSpec
 		user.PasswordResetTokenExpiresAt.Should().NotBeNull();
 	}
 
+	// Headers that legitimately vary per-request/per-response regardless of
+	// account state and must not be compared: wall-clock/tracing identifiers
+	// (a fresh value every call, by design — comparing them would make this
+	// test permanently red, not catch an oracle) and `Content-Length`, which
+	// is a metadata effect of the header set order/whitespace, not itself an
+	// account-state signal.
+	private static readonly string[] VolatileHeaderNames = [
+		"Date",
+		"Traceparent",
+		"Tracestate",
+		"Request-Id",
+		"X-Request-Id",
+		"X-Correlation-Id",
+		"Content-Length",
+	];
+
 	// r5/W5-PROOF: asserting only `200` + `status == "success"` for the
 	// non-existent-email case leaves room for a response shaped like
 	// `{ "status": "success", "accountExists": false }` to still pass —
 	// reopening account enumeration through an extra field the deserializer
 	// above never looks at. Compares the full raw response (status code,
-	// content type, and exact body bytes) across an existing-verified, an
-	// existing-unverified, and a non-existent email so any distinguishing
-	// field — known or not yet invented — fails this test.
+	// content type, exact body bytes, every non-volatile response header, and
+	// `Set-Cookie`) across an existing-verified, an existing-unverified, and
+	// a non-existent email so any distinguishing field or header — known or
+	// not yet invented — fails this test.
 	[Fact]
 	public async Task
 	ItShouldReturnIndistinguishableResponsesForVerifiedUnverifiedAndNonExistentEmails() {
@@ -120,12 +137,43 @@ public sealed class RequestPasswordResetSpec
 		nonExistentResponse.Content.Headers.ContentType.Should()
 			.Be(verifiedResponse.Content.Headers.ContentType);
 
+		var verifiedHeaders = FlattenObservableHeaders(verifiedResponse);
+		var unverifiedHeaders = FlattenObservableHeaders(unverifiedResponse);
+		var nonExistentHeaders = FlattenObservableHeaders(nonExistentResponse);
+
+		unverifiedHeaders.Should().BeEquivalentTo(verifiedHeaders);
+		nonExistentHeaders.Should().BeEquivalentTo(verifiedHeaders);
+
 		var verifiedBody = await verifiedResponse.Content.ReadAsStringAsync();
 		var unverifiedBody = await unverifiedResponse.Content.ReadAsStringAsync();
 		var nonExistentBody = await nonExistentResponse.Content.ReadAsStringAsync();
 
 		unverifiedBody.Should().Be(verifiedBody);
 		nonExistentBody.Should().Be(verifiedBody);
+	}
+
+	private static Dictionary<string, string[]> FlattenObservableHeaders(
+		HttpResponseMessage response
+	) {
+		var headers = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+
+		foreach (var header in response.Headers) {
+			if (VolatileHeaderNames.Contains(header.Key, StringComparer.OrdinalIgnoreCase)) {
+				continue;
+			}
+
+			headers[header.Key] = [.. header.Value.OrderBy(v => v, StringComparer.Ordinal)];
+		}
+
+		foreach (var header in response.Content.Headers) {
+			if (VolatileHeaderNames.Contains(header.Key, StringComparer.OrdinalIgnoreCase)) {
+				continue;
+			}
+
+			headers[header.Key] = [.. header.Value.OrderBy(v => v, StringComparer.Ordinal)];
+		}
+
+		return headers;
 	}
 
 	// r5/W5-PROOF: nothing previously asserted that the reset email was ever
