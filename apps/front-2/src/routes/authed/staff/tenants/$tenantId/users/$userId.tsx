@@ -34,6 +34,7 @@ import {
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 import {
+	BackToTenantsLink,
 	DetailItem,
 	formatDateTime,
 	formatTenantUserLevelLabel,
@@ -92,6 +93,7 @@ const MissingTenantUserView = ({ error }: { error: unknown }) => {
 				t('tenant-user-not-found-description'),
 			)}
 			testId="staff-tenant-user-details-not-found"
+			actions={<BackToTenantsLink />}
 		/>
 	);
 };
@@ -225,11 +227,14 @@ function StaffTenantUserDetailsPage() {
 	if (!tenant) {
 		return (
 			<AppErrorView
-				icon={<IconSearchOff aria-hidden="true" className="size-7" />}
+				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 				code={t('error-500-code')}
 				title={t('tenant-details-error-title')}
 				description={t('tenant-response-incomplete')}
 				testId="staff-tenant-details-empty"
+				actions={
+					<TenantRetryActions onRetry={() => void tenantQuery.refetch()} />
+				}
 			/>
 		);
 	}
@@ -252,6 +257,7 @@ function StaffTenantUserDetailsPage() {
 				title={t('tenant-user-not-found-title')}
 				description={t('tenant-user-payload-empty')}
 				testId="staff-tenant-user-details-empty"
+				actions={<BackToTenantsLink />}
 			/>
 		);
 	}

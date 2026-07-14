@@ -1,9 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import {
-	IconAlertCircle,
-	IconArrowLeft,
-	IconSearchOff,
-} from '@tabler/icons-react';
+import { IconAlertCircle, IconArrowLeft } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -45,6 +41,7 @@ import {
 	getRelativeTimeParts,
 	TenantDetailsError,
 	TenantDetailsLoading,
+	TenantRetryActions,
 } from './$tenantId/_tenant-details-shell';
 import {
 	getWebsiteHostname,
@@ -304,11 +301,14 @@ function StaffTenantEditRoute() {
 	if (!tenant) {
 		return (
 			<AppErrorView
-				icon={<IconSearchOff aria-hidden="true" className="size-7" />}
-				code={t('error-404-code')}
-				title={t('tenant-not-found-title')}
-				description={t('tenant-payload-empty')}
+				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
+				code={t('error-500-code')}
+				title={t('tenant-details-error-title')}
+				description={t('tenant-response-incomplete')}
 				testId="staff-tenant-edit-not-found"
+				actions={
+					<TenantRetryActions onRetry={() => void detailsQuery.refetch()} />
+				}
 			/>
 		);
 	}

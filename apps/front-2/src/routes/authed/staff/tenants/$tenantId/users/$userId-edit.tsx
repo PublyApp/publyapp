@@ -36,6 +36,7 @@ import {
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 import {
+	BackToTenantsLink,
 	formatTenantUserLevelLabel,
 	MALFORMED_ID_TRANSLATION_KEY,
 	TenantDetailsError,
@@ -155,6 +156,7 @@ const MissingTenantUserView = ({ error }: { error: unknown }) => {
 				t('tenant-user-not-found-description'),
 			)}
 			testId="staff-tenant-user-edit-not-found"
+			actions={<BackToTenantsLink />}
 		/>
 	);
 };
@@ -343,6 +345,7 @@ function StaffTenantUserEditPage() {
 				title={t('tenant-user-not-found-title')}
 				description={t('tenant-user-payload-empty')}
 				testId="staff-tenant-user-edit-not-found"
+				actions={<BackToTenantsLink />}
 			/>
 		);
 	}

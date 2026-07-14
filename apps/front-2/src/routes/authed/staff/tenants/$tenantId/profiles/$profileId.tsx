@@ -39,6 +39,7 @@ import {
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 import {
+	BackToTenantsLink,
 	DetailItem,
 	MALFORMED_ID_TRANSLATION_KEY,
 	TenantDetailsError,
@@ -115,6 +116,7 @@ const MissingTenantProfileView = ({ error }: { error: unknown }) => {
 				t('tenant-profile-not-found-description'),
 			)}
 			testId="staff-tenant-profile-details-not-found"
+			actions={<BackToTenantsLink />}
 		/>
 	);
 };
@@ -352,6 +354,7 @@ function StaffTenantProfileDetailsPage() {
 				title={t('tenant-profile-not-found-title')}
 				description={t('tenant-profile-payload-empty')}
 				testId="staff-tenant-profile-details-not-found"
+				actions={<BackToTenantsLink />}
 			/>
 		);
 	}

@@ -276,7 +276,7 @@ export const TenantDetailsLoading = () => {
 	);
 };
 
-const BackToTenantsLink = () => {
+export const BackToTenantsLink = () => {
 	const { t } = useTranslation('common');
 
 	return (
