@@ -41,17 +41,29 @@ import { AuthLayout } from '../layouts/auth-layout';
 import { MarketingLayout } from '../layouts/marketing-layout';
 import appCss from '../styles/app.css?url';
 
-type RootLoaderData = {
+type RootRouteContext = {
 	locale: SupportedLanguage;
 	resources: I18nResources;
 };
 
 type RouteSurface = 'auth' | 'marketing';
 
-const FALLBACK_I18N_INSTANCE = createI18nFromResources(
-	FALLBACK_LANGUAGE,
-	FALLBACK_I18N_RESOURCES,
-);
+/**
+ * Resolved in `beforeLoad`, not `loader` (shell-r5-F1): `beforeLoad`-provided
+ * match context survives a subsequent `loader` throw (TanStack Router keeps
+ * `__beforeLoadContext` on the match regardless of load status), so the
+ * `shellComponent` below — which wraps the success/error/not-found branches
+ * alike — can always read a real, locale-aware i18n instance. Falling back to
+ * `FALLBACK_LANGUAGE`/`FALLBACK_I18N_RESOURCES` here only covers the (now
+ * vanishingly rare) case where `beforeLoad` itself throws.
+ */
+const resolveRootContext = async (): Promise<RootRouteContext> => {
+	try {
+		return await loadI18nForRequest();
+	} catch {
+		return { locale: FALLBACK_LANGUAGE, resources: FALLBACK_I18N_RESOURCES };
+	}
+};
 
 const RootErrorBoundaryContent = ({
 	error,
@@ -141,23 +153,20 @@ const RootErrorBoundaryContent = ({
 	);
 };
 
+// No i18n provider here: the root `shellComponent` (below) wraps every
+// branch — success, error, and not-found alike — in a single locale-aware
+// `<I18nextProvider>` sourced from `beforeLoad` context (shell-r5-F1). A
+// provider nested here would win over the shell's and silently pin these
+// branches back to English regardless of the request's locale.
 export const RootErrorBoundary = ({
 	error,
 	reset,
 }: {
 	error: unknown;
 	reset: () => void;
-}) => (
-	<I18nextProvider i18n={FALLBACK_I18N_INSTANCE}>
-		<RootErrorBoundaryContent error={error} reset={reset} />
-	</I18nextProvider>
-);
+}) => <RootErrorBoundaryContent error={error} reset={reset} />;
 
-export const RootNotFound = () => (
-	<I18nextProvider i18n={FALLBACK_I18N_INSTANCE}>
-		<View404 embedded={false} />
-	</I18nextProvider>
-);
+export const RootNotFound = () => <View404 embedded={false} />;
 
 const initI18nOnClient = createClientOnlyFn(async (instance: I18nInstance) => {
 	const mod = await import('~/lib/i18n.client');
@@ -301,18 +310,29 @@ export const Route = createRootRouteWithContext<{
 		],
 		links: [{ rel: 'stylesheet', href: appCss }],
 	}),
-	loader: async (): Promise<RootLoaderData> => loadI18nForRequest(),
+	beforeLoad: resolveRootContext,
 	errorComponent: RootErrorBoundary,
 	notFoundComponent: RootNotFound,
 	component: RootComponent,
+	shellComponent: RootShell,
 });
 
-function RootComponent() {
-	const data = Route.useLoaderData({
-		structuralSharing: false,
-	}) as RootLoaderData | undefined;
-	const locale = data?.locale ?? FALLBACK_LANGUAGE;
-	const resources = data?.resources ?? FALLBACK_I18N_RESOURCES;
+/**
+ * The ONLY place `<html>`/`<head>`/`<body>`/`<Scripts>` and the locale-aware
+ * `<I18nextProvider>` are mounted (shell-r5-F1). `shellComponent` wraps
+ * TanStack Router's success/error/not-found selection (`Match.js`), so a cold
+ * root loader throw or an unmatched route still gets the full document —
+ * stylesheet, CSP nonce scripts, runtime env injection eligibility
+ * (`server.ts` only rewrites `</head>`-bearing responses) — and the correct
+ * French/English copy, not an English-only fragment.
+ */
+function RootShell({ children }: { children: React.ReactNode }) {
+	const { locale, resources } = Route.useRouteContext({
+		select: (context) => ({
+			locale: context.locale,
+			resources: context.resources,
+		}),
+	});
 	const i18n = React.useMemo(
 		() => createI18nFromResources(locale, resources),
 		[locale, resources],
@@ -353,10 +373,14 @@ function RootComponent() {
 					<TabSyncListener />
 					<SessionInvalidationListener />
 					<ThemeHydrationListener />
-					<RoutedShell />
+					{children}
 				</I18nextProvider>
 				<Scripts />
 			</body>
 		</html>
 	);
+}
+
+function RootComponent() {
+	return <RoutedShell />;
 }
