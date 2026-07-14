@@ -240,7 +240,7 @@ test.describe('staff tenants list', () => {
 		await expect(page.getByTestId(`${TABLE}-rows`)).toBeVisible();
 
 		await expect(
-			page.getByRole('checkbox', { name: `Select row ${ACTIVE_TENANT_ID}` }),
+			page.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 		).toBeVisible();
 
 		const activeTenantRow = page.getByRole('row', {
@@ -301,7 +301,7 @@ test.describe('staff tenants list', () => {
 		await expect(page.getByTestId(`${TABLE}-rows`)).toBeVisible();
 
 		await page
-			.getByRole('checkbox', { name: `Select row ${ACTIVE_TENANT_ID}` })
+			.getByRole('checkbox', { name: 'Select Acme Corporation' })
 			.click();
 		await expect(page.getByText('1 selected')).toBeVisible();
 		await expectFloatingSelectionBarAtViewportBottom(page);
@@ -327,7 +327,7 @@ test.describe('staff tenants list', () => {
 			page.getByText('Successfully suspended 1 tenant(s).'),
 		).toBeVisible();
 		await expect(
-			page.getByRole('checkbox', { name: `Select row ${ACTIVE_TENANT_ID}` }),
+			page.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 		).toHaveAttribute('aria-checked', 'false');
 		// Success clears the selection — the bar plays its exit animation and unmounts.
 		await expect(bar).toBeHidden();
@@ -343,7 +343,7 @@ test.describe('staff tenants list', () => {
 		await expect(page.getByTestId(`${TABLE}-rows`)).toBeVisible();
 
 		await page
-			.getByRole('checkbox', { name: `Select row ${ACTIVE_TENANT_ID}` })
+			.getByRole('checkbox', { name: 'Select Acme Corporation' })
 			.click();
 		const bar = page.getByTestId('floating-selection-bar');
 		await expectFloatingSelectionBarAtViewportBottom(page);
@@ -351,7 +351,7 @@ test.describe('staff tenants list', () => {
 		await bar.getByRole('button', { name: 'Clear selection' }).click();
 		await expect(bar).toBeHidden();
 		await expect(
-			page.getByRole('checkbox', { name: `Select row ${ACTIVE_TENANT_ID}` }),
+			page.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 		).toHaveAttribute('aria-checked', 'false');
 	});
 
@@ -366,7 +366,7 @@ test.describe('staff tenants list', () => {
 
 		await page
 			.getByRole('checkbox', {
-				name: `Select row ${SUSPENDED_TENANT_ID}`,
+				name: 'Select Globex Suspended Co',
 			})
 			.click();
 		const bar = page.getByTestId('floating-selection-bar');
