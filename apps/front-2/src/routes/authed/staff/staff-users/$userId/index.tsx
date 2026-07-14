@@ -138,7 +138,7 @@ const AssignedProfilesCard = ({
 											params={{ profileId: profile.id }}
 											className="text-sm font-medium text-foreground hover:underline"
 										>
-											{profile.name}
+											{profile.name ?? t('unnamed-profile')}
 										</Link>
 										<p
 											className="truncate text-xs text-muted-foreground"

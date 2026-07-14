@@ -36,7 +36,7 @@ const TenantPickerRow = ({ tenant, onSelect }: TenantPickerRowProps) => {
 			<div className="min-w-0 flex-1 text-left">
 				<div className="flex items-center gap-2">
 					<span className="truncate text-sm font-medium text-foreground">
-						{tenant.name}
+						{tenant.name ?? t('unnamed-tenant')}
 					</span>
 					{isSuspended ? (
 						<span className="shrink-0 rounded-[var(--publy-radius-chip)] bg-(--publy-alert-danger-bg) px-2 py-0.5 text-xs font-medium text-(--publy-alert-danger-text)">

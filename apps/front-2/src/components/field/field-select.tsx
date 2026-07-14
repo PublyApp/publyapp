@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { renderFieldHelper } from '~/components/field/field-helper-text';
 import { Label } from '~/components/ui/label';
 import {
@@ -26,15 +27,17 @@ export type FieldSelectProps = {
 export const FieldSelect = ({
 	name,
 	label,
-	placeholder = 'Select…',
+	placeholder,
 	options,
 	helperText,
 	isDisabled,
 }: FieldSelectProps) => {
 	const { control } = useFormContext();
+	const { t } = useTranslation('common');
 	const fieldId = useId();
 	const labelId = `${fieldId}-label`;
 	const helperId = `${fieldId}-helper`;
+	const resolvedPlaceholder = placeholder ?? t('select-placeholder');
 
 	return (
 		<Controller
@@ -68,7 +71,7 @@ export const FieldSelect = ({
 									data-slot="select-value"
 									className={selected ? undefined : 'text-muted-foreground'}
 								>
-									{selected?.label ?? placeholder}
+									{selected?.label ?? resolvedPlaceholder}
 								</span>
 							</SelectTrigger>
 							<SelectContent>

@@ -521,7 +521,7 @@ function StaffUserEditPage() {
 									label={t('profiles')}
 									options={profileOptions.map((profile) => ({
 										value: profile.id,
-										label: profile.name,
+										label: profile.name ?? t('unnamed-profile'),
 										description: profile.description ?? undefined,
 									}))}
 									isDisabled={isSubmittingForm}

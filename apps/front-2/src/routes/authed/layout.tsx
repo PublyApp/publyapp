@@ -101,7 +101,11 @@ const parseRedirectCode = async (token: string): Promise<string | null> => {
 		throw new ServerFailure({
 			responseStatusCode: failure.status,
 			status: failure.status,
+			// Internal ServerFailure metadata, never rendered raw — the displayed
+			// copy comes from t() keyed off .status/.translationKey (__root.tsx).
+			// i18n-guard-ignore: no-hardcoded-ui-literal — see comment above.
 			title: failure.title ?? 'Request failed',
+			// i18n-guard-ignore: no-hardcoded-ui-literal — see title above.
 			detail: failure.detail ?? 'Request failed',
 			translationKey: failure.translationKey,
 		});

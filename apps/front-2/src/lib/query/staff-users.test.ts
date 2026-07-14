@@ -186,7 +186,7 @@ describe('toAssignedStaffProfiles', () => {
 			},
 			{
 				id: 'profile-2',
-				name: 'Unnamed profile',
+				name: undefined,
 				description: null,
 			},
 		]);

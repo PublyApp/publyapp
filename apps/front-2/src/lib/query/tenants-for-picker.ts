@@ -6,7 +6,7 @@ import { TENANT_STATUS_ENUM } from '@org/shared-ts/lib/constants';
 
 export type TenantForPickerRow = {
 	id: string;
-	name: string;
+	name: string | null;
 	code: string | null;
 	status: string | null;
 };
@@ -53,7 +53,7 @@ export const toTenantsForPickerData = (
 
 		rows.push({
 			id,
-			name: normalizeString(item.name) ?? '—',
+			name: normalizeString(item.name),
 			code: normalizeString(item.code),
 			status: normalizeString(item.status),
 		});

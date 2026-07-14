@@ -7,7 +7,6 @@ import {
 	render,
 	screen,
 	waitFor,
-	within,
 } from '@testing-library/react';
 import type { JSX } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';

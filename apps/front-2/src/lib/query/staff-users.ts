@@ -57,7 +57,7 @@ export type StaffUserRow = {
 
 export type AssignedStaffProfile = {
 	id: string;
-	name: string;
+	name: string | undefined;
 	description: string | null;
 };
 
@@ -255,7 +255,7 @@ export const toAssignedStaffProfiles = (
 
 		profiles.push({
 			id,
-			name: normalizeString(item.name) ?? 'Unnamed profile',
+			name: normalizeString(item.name),
 			description: normalizeNullableString(item.description),
 		});
 	}

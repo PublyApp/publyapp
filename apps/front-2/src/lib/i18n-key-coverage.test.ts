@@ -183,11 +183,76 @@ const TOP_LEVEL_TERNARY_ASSIGNMENT_PATTERN =
 	/\b(?:const|let)\s+\w+\s*(?::[^=\n]+)?=\s*[^;\n?]*\?\s*(['"])([A-Z][^'"]*)\1\s*:\s*(['"])([A-Z][^'"]*)\3/g;
 const LABEL_PROPERTY_LITERAL_PATTERN = /\blabel:\s*(['"])([A-Z][^'"]*)\1/g;
 
+// r4-shell-F2: three live shapes the original detector's grammar could not
+// see at all — a destructured parameter's default value (`placeholder =
+// 'Select…'`), a `??`/`||` fallback feeding a display string (`normalizeString(
+// item.name) ?? 'Unnamed profile'`), and plain JSX text that is a tag's
+// entire content (`<span>Unnamed profile</span>`) rather than a `{}` braced
+// expression. Each requires its own conservative shape to avoid flagging
+// ordinary non-copy defaults (`enabled = false`, `variant = 'outline'`) —
+// scoped to a capitalized, multi-character quoted literal.
+const DEFAULT_PARAM_LITERAL_PATTERN =
+	/\b\w+\s*=\s*(['"])([A-Z][^'"]{1,80})\1\s*[,}]/g;
+const NULLISH_OR_FALLBACK_LITERAL_PATTERN =
+	/(?:\?\?|\|\|)\s*(['"])([A-Z][^'"]{1,80})\1/g;
+const JSX_SOLE_TEXT_CONTENT_PATTERN =
+	/<(span|p|h[1-6]|button|label|dt|dd|td|th|li)\b[^>]*>([A-Z][^<{}\n]{1,80})<\/\1>/g;
+
+// An opt-out comment on the line directly above the offending line, mirroring
+// check-design-system.mjs's `design-system-ignore` convention — requires a
+// reason so the suppression has to be argued, not just added. Reserved for
+// genuine non-presentation strings (e.g. an internal Error payload field
+// that is never rendered raw — the actual user-facing copy is produced by
+// `t()` keyed off `.status`/`.translationKey` elsewhere).
+const I18N_GUARD_SUPPRESSION_PREFIX = 'i18n-guard-ignore:';
+
+const isI18nGuardSuppressed = (
+	lines: string[],
+	lineNumber: number,
+): boolean => {
+	const previous = lines[lineNumber - 2] ?? '';
+	const at = previous.indexOf(I18N_GUARD_SUPPRESSION_PREFIX);
+	return (
+		at !== -1 &&
+		previous.slice(at + I18N_GUARD_SUPPRESSION_PREFIX.length).trim().length > 0
+	);
+};
+
 const findHardcodedUiLiterals = (
 	source: string,
 	relativePath: string,
 ): string[] => {
 	const findings: string[] = [];
+	const lines = source.split('\n');
+	const lineNumberAt = (index: number): number =>
+		source.slice(0, index).split('\n').length;
+
+	for (const match of source.matchAll(DEFAULT_PARAM_LITERAL_PATTERN)) {
+		if (
+			!LOCALE_SELF_NAME_ALLOWLIST.has(match[2]) &&
+			!isI18nGuardSuppressed(lines, lineNumberAt(match.index))
+		) {
+			findings.push(`${relativePath}: ${match[0].trim()}`);
+		}
+	}
+
+	for (const match of source.matchAll(NULLISH_OR_FALLBACK_LITERAL_PATTERN)) {
+		if (
+			!LOCALE_SELF_NAME_ALLOWLIST.has(match[2]) &&
+			!isI18nGuardSuppressed(lines, lineNumberAt(match.index))
+		) {
+			findings.push(`${relativePath}: ${match[0]}`);
+		}
+	}
+
+	for (const match of source.matchAll(JSX_SOLE_TEXT_CONTENT_PATTERN)) {
+		if (
+			!LOCALE_SELF_NAME_ALLOWLIST.has(match[2].trim()) &&
+			!isI18nGuardSuppressed(lines, lineNumberAt(match.index))
+		) {
+			findings.push(`${relativePath}: ${match[0]}`);
+		}
+	}
 
 	for (const match of source.matchAll(JSX_ATTR_EXPRESSION_PATTERN)) {
 		const [, attrName, expression] = match;
