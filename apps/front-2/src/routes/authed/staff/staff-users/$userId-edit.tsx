@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { IconAlertCircle, IconArrowLeft } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -234,18 +234,13 @@ function StaffUserEditPage() {
 			profileIds: [],
 		},
 	});
-	const { formState, getValues, reset } = methods;
+	const { formState, reset } = methods;
 	const { errors, isSubmitting } = formState;
-	const valuesAreEqual = (
-		left: readonly string[],
-		right: readonly string[],
-	): boolean => {
-		if (left.length !== right.length) {
-			return false;
-		}
-
-		return left.every((value, index) => value === right[index]);
-	};
+	// Tracks which userId the form currently holds hydrated data for. Comparing
+	// against this (rather than diffing profileIds) guarantees the zero-profile
+	// case still hydrates, and forces a fresh reset on a dirty userId transition
+	// so a previous user's in-progress edits can never survive into the next one.
+	const hydratedUserIdRef = useRef<string | null>(null);
 
 	useEffect(() => {
 		if (
@@ -257,12 +252,8 @@ function StaffUserEditPage() {
 			return;
 		}
 
-		if (formState.isDirty) {
-			return;
-		}
-
-		const nextProfileIds = assignedProfiles.map((profile) => profile.id);
-		if (valuesAreEqual(getValues('profileIds'), nextProfileIds)) {
+		const isHydratedForCurrentUser = hydratedUserIdRef.current === userId;
+		if (isHydratedForCurrentUser && formState.isDirty) {
 			return;
 		}
 
@@ -273,18 +264,18 @@ function StaffUserEditPage() {
 			email: user.email,
 			accountLevel: normalizeAccountLevel(user.accountLevel),
 			status: normalizeStatus(user.status),
-			profileIds: nextProfileIds,
+			profileIds: assignedProfiles.map((profile) => profile.id),
 		});
+		hydratedUserIdRef.current = userId;
 	}, [
 		assignedProfiles,
 		formState.isDirty,
-		getValues,
 		reset,
 		user,
+		userId,
 		detailsQuery.isSuccess,
 		assignedProfilesQuery.isSuccess,
-		detailsQuery.isPending,
-		assignedProfilesQuery.isPending,
+		assignedProfilesQuery.data,
 	]);
 
 	if (

@@ -413,7 +413,7 @@ describe('staff user edit route', () => {
 		cleanup();
 	});
 
-	test('delays hydration until profile data resolves to avoid overwriting assignments with []', async () => {
+	test('delays hydration until profile data resolves, then fully hydrates identity and access fields even with zero assigned profiles', async () => {
 		setDetailState(USER_A, {
 			data: { id: USER_A },
 			isPending: true,
@@ -435,7 +435,16 @@ describe('staff user edit route', () => {
 		});
 		rendered.rerender(<Component />);
 
-		await waitFor(() => expect(screen.getByText('Publishing')).toBeTruthy());
+		// The zero-profile case must still hydrate identity/access fields — it
+		// must never fall back to the form's blank defaults (r5-F1).
+		await waitFor(() => expect(screen.getByDisplayValue('Alex')).toBeTruthy());
+		expect(screen.getByDisplayValue('User')).toBeTruthy();
+		expect(
+			screen.getByDisplayValue('https://example.com/avatar-a.png'),
+		).toBeTruthy();
+		expect(screen.getByDisplayValue('alex@example.com')).toBeTruthy();
+		expect(screen.getByDisplayValue('Admin')).toBeTruthy();
+		expect(screen.getByDisplayValue('Active')).toBeTruthy();
 		expect(
 			(screen.getByRole('checkbox', { name: 'Publishing' }) as HTMLInputElement)
 				.checked,
@@ -445,6 +454,19 @@ describe('staff user edit route', () => {
 				.checked,
 		).toBe(false);
 
+		// Assignments stay empty through this final assertion — the r4 test's
+		// mistake was swapping in non-empty data before asserting hydration.
+		expect(
+			(screen.getByRole('checkbox', { name: 'Publishing' }) as HTMLInputElement)
+				.checked,
+		).toBe(false);
+		expect(
+			(screen.getByRole('checkbox', { name: 'Billing' }) as HTMLInputElement)
+				.checked,
+		).toBe(false);
+	});
+
+	test('hydrates non-empty assignments once profile data resolves', async () => {
 		setProfileState(USER_A, {
 			data: {
 				assignedProfiles: [
@@ -455,18 +477,22 @@ describe('staff user edit route', () => {
 			isPending: false,
 			isSuccess: true,
 		});
-		rendered.rerender(<Component />);
+
+		renderPage();
 
 		await waitFor(() => {
-			const { getByRole } = rendered;
-			const publishing = getByRole('checkbox', { name: 'Publishing' });
-			expect((publishing as HTMLInputElement).checked).toBe(true);
+			expect(
+				(
+					screen.getByRole('checkbox', {
+						name: 'Publishing',
+					}) as HTMLInputElement
+				).checked,
+			).toBe(true);
 		});
-		await waitFor(() => {
-			const { getByRole } = rendered;
-			const billing = getByRole('checkbox', { name: 'Billing' });
-			expect((billing as HTMLInputElement).checked).toBe(true);
-		});
+		expect(
+			(screen.getByRole('checkbox', { name: 'Billing' }) as HTMLInputElement)
+				.checked,
+		).toBe(true);
 	});
 
 	test('re-hydrates when the route param changes to a new user', async () => {
@@ -496,6 +522,41 @@ describe('staff user edit route', () => {
 		await waitFor(() => {
 			expect(screen.getByDisplayValue('Bea')).toBeTruthy();
 		});
+		expect(findCheckbox('Publishing').checked).toBe(false);
+		expect(findCheckbox('Billing').checked).toBe(true);
+	});
+
+	test('discards user A dirty edits when the route param transitions to user B', async () => {
+		const rendered = renderPage();
+		const findCheckbox = (name: string): HTMLInputElement =>
+			rendered.getByRole('checkbox', { name }) as HTMLInputElement;
+
+		await waitFor(() => expect(screen.getByDisplayValue('Alex')).toBeTruthy());
+
+		fireEvent.change(screen.getByDisplayValue('Alex'), {
+			target: { value: 'Dirty Name' },
+		});
+		expect(screen.getByDisplayValue('Dirty Name')).toBeTruthy();
+
+		setActiveUser(USER_B);
+		setDetailState(USER_B, {
+			data: { id: USER_B },
+			isPending: false,
+			isSuccess: true,
+		});
+		setProfileState(USER_B, {
+			data: {
+				assignedProfiles: [
+					{ id: 'profile-2', name: 'Billing', description: null },
+				],
+			},
+			isPending: false,
+			isSuccess: true,
+		});
+		rendered.rerender(<Component />);
+
+		await waitFor(() => expect(screen.getByDisplayValue('Bea')).toBeTruthy());
+		expect(screen.queryByDisplayValue('Dirty Name')).toBeNull();
 		expect(findCheckbox('Publishing').checked).toBe(false);
 		expect(findCheckbox('Billing').checked).toBe(true);
 	});
