@@ -1290,5 +1290,9 @@
 	"field-validation-demo": "Field validation demo",
 	"field-validation-submitted-value": "Submitted: {{email}}",
 	"submit": "Submit",
-	"showing-first-n-profiles": "Showing the first {{count}} profiles."
+	"showing-first-n-profiles": "Showing the first {{count}} profiles.",
+	"seo-default-title": "PublyApp",
+	"seo-home-description": "PublyApp keeps your whole team and every channel moving together — from first draft to published.",
+	"seo-login-title": "Sign in to PublyApp",
+	"seo-login-description": "Sign in to your PublyApp workspace to get started."
 }

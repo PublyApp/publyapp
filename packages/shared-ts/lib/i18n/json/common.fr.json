@@ -1290,5 +1290,9 @@
 	"field-validation-demo": "Démo de validation de champ",
 	"field-validation-submitted-value": "Envoyé : {{email}}",
 	"submit": "Envoyer",
-	"showing-first-n-profiles": "Affichage des {{count}} premiers profils."
+	"showing-first-n-profiles": "Affichage des {{count}} premiers profils.",
+	"seo-default-title": "PublyApp",
+	"seo-home-description": "PublyApp permet à toute votre équipe et à chaque canal d'avancer ensemble, du premier brouillon jusqu'à la publication.",
+	"seo-login-title": "Connexion à PublyApp",
+	"seo-login-description": "Connectez-vous à votre espace de travail PublyApp pour commencer."
 }

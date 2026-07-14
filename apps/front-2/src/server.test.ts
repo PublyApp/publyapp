@@ -16,9 +16,11 @@ vi.mock('./lib/env', async (importOriginal) => {
 import {
 	escapeHtml,
 	injectPublicRuntimeEnv,
+	injectSeoMarkup,
 	isIndexableSeoRoute,
 	renderPublicEnvScript,
 	resolvePublicApiBaseUrlEnv,
+	resolveSeoTranslator,
 } from './server';
 
 // This handler injects request-origin/locale-derived values into raw HTML —
@@ -89,5 +91,78 @@ describe('isIndexableSeoRoute', () => {
 		expect(isIndexableSeoRoute('/staff/staff-users', 200)).toBe(false);
 		expect(isIndexableSeoRoute('/', 404)).toBe(false);
 		expect(isIndexableSeoRoute('/', 500)).toBe(false);
+	});
+});
+
+// shell-r6-F1: the SEO title/description must be PublyApp-branded and
+// locale-aware everywhere a document is rendered — not just the two
+// indexable routes, and never the internal migration codename.
+describe('injectSeoMarkup / resolveSeoTranslator (shell-r6-F1)', () => {
+	const html = '<html><head></head><body></body></html>';
+	const request = (path: string) => new Request(`https://publyapp.test${path}`);
+
+	test('home route gets a PublyApp-branded title/description in English', async () => {
+		const t = await resolveSeoTranslator('en');
+		const output = injectSeoMarkup(html, request('/'), 'en', 'nonce', true, t);
+
+		expect(output).toContain('<title>PublyApp</title>');
+		expect(output).toContain(
+			'content="PublyApp keeps your whole team and every channel moving together',
+		);
+		expect(output).not.toContain('front-2');
+	});
+
+	test('home route gets a PublyApp-branded title/description in French', async () => {
+		const t = await resolveSeoTranslator('fr');
+		const output = injectSeoMarkup(html, request('/'), 'fr', 'nonce', true, t);
+
+		expect(output).toContain('<title>PublyApp</title>');
+		expect(output).toContain(
+			'content="PublyApp permet à toute votre équipe et à chaque canal d&#39;avancer ensemble',
+		);
+		expect(output).not.toContain('front-2');
+	});
+
+	test('login route gets a PublyApp-branded, localized title/description', async () => {
+		const en = await resolveSeoTranslator('en');
+		const enOutput = injectSeoMarkup(
+			html,
+			request('/login'),
+			'en',
+			'nonce',
+			true,
+			en,
+		);
+		expect(enOutput).toContain('<title>Sign in to PublyApp</title>');
+		expect(enOutput).toContain(
+			'content="Sign in to your PublyApp workspace to get started."',
+		);
+
+		const fr = await resolveSeoTranslator('fr');
+		const frOutput = injectSeoMarkup(
+			html,
+			request('/login'),
+			'fr',
+			'nonce',
+			true,
+			fr,
+		);
+		expect(frOutput).toContain('<title>Connexion à PublyApp</title>');
+		expect(frOutput).not.toContain('front-2');
+	});
+
+	test('every non-indexable (authenticated) route also gets a PublyApp title, not the migration codename', async () => {
+		const t = await resolveSeoTranslator('en');
+		const output = injectSeoMarkup(
+			html,
+			request('/staff/staff-users'),
+			'en',
+			'nonce',
+			false,
+			t,
+		);
+
+		expect(output).toContain('<title>PublyApp</title>');
+		expect(output).not.toContain('front-2');
 	});
 });
