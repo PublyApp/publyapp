@@ -37,6 +37,11 @@ import {
 	type StaffTenantProfilesSearchParamInput,
 } from '~/routes/authed/staff/tenants/$tenantId/profiles';
 import {
+	parseProfileDetailsSearchParams,
+	Route as TenantProfileDetailsRoute,
+	type ProfileDetailsSearchParamInput,
+} from '~/routes/authed/staff/tenants/$tenantId/profiles/$profileId';
+import {
 	parseTenantUsersListSearchParams,
 	Route as TenantUsersRoute,
 	type TenantUsersListSearchParamInput,
@@ -165,6 +170,46 @@ describe('malformed deep links are canonicalized at the router boundary (r4-tena
 		expect(history.location.href).not.toContain('maybe');
 		expect(history.location.href).not.toContain('view=list');
 		expect(history.location.href).not.toContain('new=yes');
+	});
+
+	test('tenant profile details: a non-1 edit value is dropped from the URL', async () => {
+		const { router, history } = buildHarness(
+			'/staff/tenants/$tenantId/profiles/$profileId',
+			asValidateSearch(TenantProfileDetailsRoute),
+			(search) => {
+				const parsed = parseProfileDetailsSearchParams(
+					search as ProfileDetailsSearchParamInput,
+				);
+				return { edit: parsed.edit === 1 ? 'open' : 'closed' };
+			},
+			'/staff/tenants/t1/profiles/p1?edit=2',
+		);
+
+		render(<RouterProvider router={router} />);
+		await waitFor(() => screen.getByTestId('resolved-search'));
+
+		expect(screen.getByTestId('field-edit').textContent).toBe('closed');
+		expect(history.location.href).not.toContain('edit=2');
+	});
+
+	test('tenant profile details: a "yes" edit value is dropped from the URL', async () => {
+		const { router, history } = buildHarness(
+			'/staff/tenants/$tenantId/profiles/$profileId',
+			asValidateSearch(TenantProfileDetailsRoute),
+			(search) => {
+				const parsed = parseProfileDetailsSearchParams(
+					search as ProfileDetailsSearchParamInput,
+				);
+				return { edit: parsed.edit === 1 ? 'open' : 'closed' };
+			},
+			'/staff/tenants/t1/profiles/p1?edit=yes',
+		);
+
+		render(<RouterProvider router={router} />);
+		await waitFor(() => screen.getByTestId('resolved-search'));
+
+		expect(screen.getByTestId('field-edit').textContent).toBe('closed');
+		expect(history.location.href).not.toContain('edit=yes');
 	});
 
 	test('tenant invitations: an unrecognized status key is dropped from the URL', async () => {
