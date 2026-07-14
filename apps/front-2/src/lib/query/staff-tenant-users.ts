@@ -188,7 +188,7 @@ const getDisplayName = ({
 	email,
 }: Pick<StaffTenantUserRow, 'firstName' | 'lastName' | 'email'>): string => {
 	const fullName = getUserFullName({ firstName, lastName });
-	return fullName || email || '—';
+	return fullName || email;
 };
 
 export const buildFindStaffTenantUsersQueryParameters = (
@@ -317,12 +317,16 @@ export const toStaffTenantUserRows = (
 	const rows: StaffTenantUserRow[] = [];
 
 	for (const item of items ?? []) {
+		// Email is the required fallback identity `getDisplayName` reads when
+		// no name is set — dropped rather than shown with a `'—'` placeholder
+		// a staff admin can't distinguish from a legitimate value
+		// (shell-r5-F3).
 		const id = normalizeString(item.id?.toString());
-		if (!id) {
+		const email = normalizeString(item.email);
+		if (!id || !email) {
 			continue;
 		}
 
-		const email = normalizeString(item.email) ?? '';
 		const firstName = normalizeNullableString(item.firstName);
 		const lastName = normalizeNullableString(item.lastName);
 
@@ -345,15 +349,18 @@ export const toStaffTenantUserDetails = (
 	result: TenantUserDetailsResult | null | undefined,
 ): StaffTenantUserDetails | null => {
 	const id = normalizeString(result?.id?.toString());
-	if (!id) {
+	const email = normalizeString(result?.email);
+
+	// A malformed payload (missing the required identity) is treated the same
+	// as "not found" — never rendered with a `'—'` placeholder a staff admin
+	// can't distinguish from a legitimate value (shell-r5-F3).
+	if (!id || !email) {
 		return null;
 	}
 
-	const email = normalizeString(result?.email);
-
 	return {
 		id,
-		email: email ?? '',
+		email,
 		firstName: normalizeNullableString(result?.firstName),
 		lastName: normalizeNullableString(result?.lastName),
 		accountLevel: normalizeNullableString(result?.level),
@@ -365,7 +372,7 @@ export const toStaffTenantUserDetails = (
 		displayName: getDisplayName({
 			firstName: normalizeNullableString(result?.firstName),
 			lastName: normalizeNullableString(result?.lastName),
-			email: email ?? '',
+			email,
 		}),
 	};
 };

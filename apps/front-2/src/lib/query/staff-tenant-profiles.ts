@@ -399,14 +399,18 @@ export const toStaffTenantProfileRows = (
 	const rows: StaffTenantProfileRow[] = [];
 
 	for (const item of items ?? []) {
+		// A row with no readable name is malformed — dropped rather than shown
+		// with a `'—'` placeholder a staff admin can't distinguish from a
+		// legitimate value (shell-r5-F3).
 		const id = normalizeString(item.id?.toString());
-		if (!id) {
+		const name = normalizeString(item.name);
+		if (!id || !name) {
 			continue;
 		}
 
 		rows.push({
 			id,
-			name: normalizeString(item.name) ?? '—',
+			name,
 			description: normalizeNullableString(item.description),
 			isDefault: item.isDefault === true,
 			userAccountCount: item.userAccountCount ?? 0,
@@ -422,14 +426,18 @@ export const toStaffTenantProfileDetails = (
 ): StaffTenantProfileDetails | null => {
 	const profile = result?.profile;
 	const id = normalizeString(profile?.id?.toString());
+	const name = normalizeString(profile?.name);
 
-	if (!id) {
+	// A malformed payload (missing the required identity) is treated the same
+	// as "not found" — never rendered with a `'—'` placeholder a staff admin
+	// can't distinguish from a legitimate value (shell-r5-F3).
+	if (!id || !name) {
 		return null;
 	}
 
 	return {
 		id,
-		name: normalizeString(profile?.name) ?? '—',
+		name,
 		description: normalizeNullableString(profile?.description),
 		isDefault: profile?.isDefault === true,
 		userAccountCount: profile?.userAccountCount ?? 0,

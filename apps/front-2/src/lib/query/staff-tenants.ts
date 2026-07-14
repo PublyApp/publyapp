@@ -216,14 +216,18 @@ export const toStaffTenantRows = (
 	const rows: StaffTenantRow[] = [];
 
 	for (const item of items ?? []) {
+		// A row with no readable name is malformed — dropped rather than shown
+		// with a `'—'` placeholder a staff admin can't distinguish from a
+		// legitimate value (shell-r5-F3).
 		const id = normalizeString(item.id ?? undefined);
-		if (!id) {
+		const name = normalizeString(item.name);
+		if (!id || !name) {
 			continue;
 		}
 
 		rows.push({
 			id,
-			name: normalizeString(item.name) ?? '—',
+			name,
 			status: normalizeNullableString(item.status),
 			usersCount: item.usersCount ?? 0,
 			maxUsers: item.maxUsers ?? 0,
@@ -237,13 +241,17 @@ export const toStaffTenantDetails = (
 	result: GetTenantAsStaffResult | null | undefined,
 ): StaffTenantDetails | null => {
 	const id = normalizeString(result?.tenantId?.toString() ?? undefined);
-	if (!id) {
+	const name = normalizeString(result?.name);
+	// A malformed payload (missing the required identity) is treated the same
+	// as "not found" — never rendered with a `'—'` placeholder a staff admin
+	// can't distinguish from a legitimate value (shell-r5-F3).
+	if (!id || !name) {
 		return null;
 	}
 
 	return {
 		id,
-		name: normalizeString(result?.name) ?? '—',
+		name,
 		code: normalizeNullableString(result?.code),
 		status: normalizeNullableString(result?.status),
 		usersCount: result?.usersCount ?? 0,

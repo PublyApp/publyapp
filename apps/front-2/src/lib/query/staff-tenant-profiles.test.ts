@@ -389,14 +389,6 @@ describe('toStaffTenantProfileRows', () => {
 				userAccountCount: 1,
 				permissionsCount: 1,
 			},
-			{
-				id: 'profile-2' as never,
-				name: null,
-				description: ' ',
-				isDefault: null,
-				userAccountCount: null,
-				permissionsCount: null,
-			},
 		];
 
 		expect(toStaffTenantProfileRows(items)).toEqual([
@@ -408,15 +400,33 @@ describe('toStaffTenantProfileRows', () => {
 				userAccountCount: 7,
 				permissionsCount: 12,
 			},
+		]);
+	});
+
+	// shell-r5-F3: a row missing its required `name` used to be kept with a
+	// `'—'` placeholder a staff admin can't distinguish from real data. It
+	// must be dropped instead.
+	test('drops a row with a blank/missing name rather than fabricating a placeholder', () => {
+		const items: TenantProfileItem[] = [
 			{
-				id: 'profile-2',
-				name: '—',
+				id: 'profile-2' as never,
+				name: null,
+				description: ' ',
+				isDefault: null,
+				userAccountCount: null,
+				permissionsCount: null,
+			},
+			{
+				id: 'profile-3' as never,
+				name: '   ',
 				description: null,
 				isDefault: false,
 				userAccountCount: 0,
 				permissionsCount: 0,
 			},
-		]);
+		];
+
+		expect(toStaffTenantProfileRows(items)).toEqual([]);
 	});
 });
 
@@ -447,6 +457,20 @@ describe('toStaffTenantProfileDetails', () => {
 				profile: {
 					id: ' ' as never,
 					name: 'Approvers',
+				},
+			} as GetTenantProfileByIdResponse),
+		).toBeNull();
+	});
+
+	// shell-r5-F3: a payload missing its required `name` used to be treated
+	// as present-but-blank, fabricating a `'—'` placeholder. It must be
+	// treated the same as "not found" instead.
+	test('returns null when the payload has no usable name', () => {
+		expect(
+			toStaffTenantProfileDetails({
+				profile: {
+					id: 'profile-8' as never,
+					name: '   ',
 				},
 			} as GetTenantProfileByIdResponse),
 		).toBeNull();

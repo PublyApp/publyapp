@@ -105,18 +105,25 @@ export const toStaffTenantInvitationRows = (
 	const rows: StaffTenantInvitationRow[] = [];
 
 	for (const item of items ?? []) {
+		// Required identities a staff admin reads as real data — a malformed
+		// or forward-incompatible payload missing one is dropped rather than
+		// shown with a `'—'` placeholder a staff admin can't distinguish from
+		// a legitimate value (shell-r5-F3).
 		const id = normalizeString(item.id?.toString());
-		if (!id) {
+		const email = normalizeString(item.email);
+		const profileName = normalizeString(item.profileName);
+		const invitedByName = normalizeString(item.invitedByName);
+		if (!id || !email || !profileName || !invitedByName) {
 			continue;
 		}
 
 		rows.push({
 			id,
-			email: normalizeString(item.email) ?? '—',
+			email,
 			status: normalizeNullableString(item.status),
 			scope: normalizeNullableString(item.scope),
-			profileName: normalizeString(item.profileName) ?? '—',
-			invitedByName: normalizeString(item.invitedByName) ?? '—',
+			profileName,
+			invitedByName,
 			acceptedAt: item.acceptedAt ?? null,
 			createdAt: item.createdAt ?? null,
 			expiresAt: item.expiresAt ?? null,

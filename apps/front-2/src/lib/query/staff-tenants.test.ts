@@ -604,13 +604,6 @@ describe('toStaffTenantRows', () => {
 				usersCount: 1,
 				maxUsers: 10,
 			},
-			{
-				id: 'tenant-2',
-				name: null,
-				status: null,
-				usersCount: null,
-				maxUsers: null,
-			},
 		];
 
 		expect(toStaffTenantRows(items)).toEqual([
@@ -621,14 +614,31 @@ describe('toStaffTenantRows', () => {
 				usersCount: 12,
 				maxUsers: 50,
 			},
+		]);
+	});
+
+	// shell-r5-F3: a row missing its required `name` used to be kept with a
+	// `'—'` placeholder a staff admin can't distinguish from real data. It
+	// must be dropped instead.
+	test('drops a row with a blank/missing name rather than fabricating a placeholder', () => {
+		const items: TenantAsStaffListItem[] = [
 			{
 				id: 'tenant-2',
-				name: '—',
+				name: null,
 				status: null,
+				usersCount: null,
+				maxUsers: null,
+			},
+			{
+				id: 'tenant-3',
+				name: '   ',
+				status: 'Active',
 				usersCount: 0,
 				maxUsers: 0,
 			},
-		]);
+		];
+
+		expect(toStaffTenantRows(items)).toEqual([]);
 	});
 });
 
@@ -728,6 +738,18 @@ describe('toStaffTenantDetails', () => {
 			toStaffTenantDetails({
 				tenantId: ' ',
 				name: 'Acme Corporation',
+			} as GetTenantAsStaffResult),
+		).toBeNull();
+	});
+
+	// shell-r5-F3: a payload missing its required `name` used to be treated
+	// as present-but-blank, fabricating a `'—'` placeholder. It must be
+	// treated the same as "not found" instead.
+	test('returns null when the payload has no usable name', () => {
+		expect(
+			toStaffTenantDetails({
+				tenantId: 'tenant-10',
+				name: '   ',
 			} as GetTenantAsStaffResult),
 		).toBeNull();
 	});

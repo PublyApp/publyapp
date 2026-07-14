@@ -161,7 +161,7 @@ const getDisplayName = ({
 		firstName,
 		lastName,
 	});
-	return fullName || email || '—';
+	return fullName || email;
 };
 
 export const buildFindStaffUsersQueryParameters = (
@@ -190,12 +190,16 @@ export const toStaffUserRows = (
 	const rows: StaffUserRow[] = [];
 
 	for (const item of items ?? []) {
+		// Email is the required fallback identity `getDisplayName` reads when
+		// no name is set — dropped rather than shown with a `'—'` placeholder
+		// a staff admin can't distinguish from a legitimate value
+		// (shell-r5-F3).
 		const id = normalizeString(item.id ?? undefined);
-		if (!id) {
+		const email = normalizeString(item.email);
+		if (!id || !email) {
 			continue;
 		}
 
-		const email = normalizeString(item.email) ?? '';
 		const firstName = normalizeNullableString(item.firstName);
 		const lastName = normalizeNullableString(item.lastName);
 
@@ -217,11 +221,15 @@ export const toStaffUserDetails = (
 	result: GetStaffUserByIdResult | null | undefined,
 ): StaffUserDetails | null => {
 	const id = normalizeString(result?.id ?? undefined);
-	if (!id) {
+	const email = normalizeString(result?.email);
+
+	// A malformed payload (missing the required identity) is treated the same
+	// as "not found" — never rendered with a `'—'` placeholder a staff admin
+	// can't distinguish from a legitimate value (shell-r5-F3).
+	if (!id || !email) {
 		return null;
 	}
 
-	const email = normalizeString(result?.email) ?? '';
 	const firstName = normalizeNullableString(result?.firstName);
 	const lastName = normalizeNullableString(result?.lastName);
 

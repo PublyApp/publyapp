@@ -223,6 +223,29 @@ describe('toStaffTenantUserRows', () => {
 			'https://api.example.test/files/uploads/2026/07/alex.png',
 		);
 	});
+
+	// shell-r5-F3: a row missing its required `email` (the fallback identity
+	// `getDisplayName` reads when no name is set) used to be kept with a
+	// `'—'` placeholder a staff admin can't distinguish from real data. It
+	// must be dropped instead.
+	test('drops a row with a blank/missing email rather than fabricating a placeholder', () => {
+		const items: TenantUserItem[] = [
+			{
+				id: 'user-4' as never,
+				firstName: 'Nobody',
+				lastName: 'Home',
+				email: '   ',
+				level: 'Member',
+				status: 'Active',
+			},
+			{
+				id: 'user-5' as never,
+				email: null as never,
+			},
+		];
+
+		expect(toStaffTenantUserRows(items)).toEqual([]);
+	});
 });
 
 describe('toStaffTenantUserDetails', () => {
@@ -271,6 +294,18 @@ describe('toStaffTenantUserDetails', () => {
 			toStaffTenantUserDetails({
 				id: ' ',
 				email: 'owner@publyapp.local',
+			} as TenantUserDetailsResult),
+		).toBeNull();
+	});
+
+	// shell-r5-F3: a payload missing its required `email` used to be treated
+	// as present-but-blank, letting `displayName` fabricate a `'—'`
+	// placeholder. It must be treated the same as "not found" instead.
+	test('returns null when the payload has no usable email', () => {
+		expect(
+			toStaffTenantUserDetails({
+				id: 'user-9',
+				email: '   ',
 			} as TenantUserDetailsResult),
 		).toBeNull();
 	});

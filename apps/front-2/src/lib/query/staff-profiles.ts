@@ -177,16 +177,21 @@ export const toStaffProfileRows = (
 	const rows: StaffProfileRow[] = [];
 
 	for (const item of list) {
-		if (typeof item.id !== 'string' || item.id.length === 0) {
+		// A row with no readable name is malformed — dropped rather than shown
+		// with a `'—'` placeholder (and its icon derived from a fabricated
+		// `'profile'` fallback) that a staff admin can't distinguish from a
+		// legitimate value (shell-r5-F3).
+		const name = item.name?.trim();
+		if (typeof item.id !== 'string' || item.id.length === 0 || !name) {
 			continue;
 		}
 
 		rows.push({
 			id: item.id,
-			name: item.name?.trim() || '—',
+			name,
 			description: item.description ?? null,
 			userAccountCount: item.userAccountCount ?? null,
-			...deriveProfileIcon(item.name?.trim() || 'profile'),
+			...deriveProfileIcon(name),
 		});
 	}
 
@@ -198,19 +203,21 @@ export const toStaffProfileDetails = (
 ): StaffProfileDetails | null => {
 	const profile = result?.profile;
 	const id = normalizeString(profile?.id ?? undefined);
+	const name = normalizeString(profile?.name ?? undefined);
 
-	if (!id) {
+	// A malformed payload (missing the required identity) is treated the same
+	// as "not found" — never rendered with a `'—'` placeholder or an icon
+	// derived from a fabricated `'profile'` fallback (shell-r5-F3).
+	if (!id || !name) {
 		return null;
 	}
 
 	return {
 		id,
-		name: normalizeString(profile?.name ?? undefined) ?? '—',
+		name,
 		description: profile?.description ?? null,
 		userAccountCount: profile?.userAccountCount ?? null,
-		...deriveProfileIcon(
-			normalizeString(profile?.name ?? undefined) ?? 'profile',
-		),
+		...deriveProfileIcon(name),
 	};
 };
 
