@@ -516,6 +516,84 @@ test('flags rgb and rgba color strings and style declarations', async () => {
 	);
 });
 
+// r4-ui-F3: the original guard only recognized hex/rgb(a) as direct colour
+// literals — hsl(a), hwb, lab, lch, oklab, oklch, and color() sailed through
+// unrouted-to-a-token in a property value, an arbitrary Tailwind bracket
+// value, and a bare custom-property declaration alike.
+test('r4-ui-F3: flags hsl/hwb/lab/lch/oklab/oklch/color() literals in property values, arbitrary Tailwind values, and custom properties', async () => {
+	const root = await makeFixture({
+		'src/styles/other.css': [
+			'.a { background: hsl(0 100% 50%); }',
+			'.b { border-color: hwb(220 30% 20%); }',
+			'.c { color: lab(29.2345% 39.3825 20.0664); }',
+			'.d { outline-color: lch(52.2% 72.2 50); }',
+			'.e { fill: oklab(59% 0.1 0.1); }',
+			'.f { stroke: oklch(60% 0.15 30); }',
+			'.g { background-color: color(display-p3 1 0 0); }',
+			'.h { --publy-icon-tile-bg: oklch(70% 0.1 200); }',
+		].join('\n'),
+		'src/components/table/data-table.tsx':
+			'<div className="bg-[hsl(220_10%_10%)]" />',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.filter((violation) => violation.ruleId === 'no-raw-visual-color')
+			.length,
+		8,
+	);
+});
+
+test('r4-ui-F3: token-theme-parity flags a light-only root oklch() token with no html.dark counterpart', async () => {
+	const root = await makeFixture({
+		'src/styles/app.css': [
+			':root {',
+			'\t--publy-surface-experimental: oklch(95% 0.02 90);',
+			'}',
+			'',
+			'html.dark {',
+			'\t--publy-other-token: 1;',
+			'}',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+		checkTokenGuards: true,
+	});
+
+	assert.ok(
+		violations.some(
+			(violation) =>
+				violation.ruleId === 'token-theme-parity' &&
+				violation.source.includes('oklch'),
+		),
+	);
+});
+
+test('r4-ui-F3: does not flag color-mix() referencing a token as a raw colour literal', async () => {
+	const root = await makeFixture({
+		'src/styles/other.css':
+			'.ok { background: color-mix(in srgb, var(--publy-primary) 25%, transparent); }',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.filter((violation) => violation.ruleId === 'no-raw-visual-color')
+			.length,
+		0,
+	);
+});
+
 test('flags wrapped internal staff and tenant anchors in authed routes', async () => {
 	const root = await makeFixture({
 		'src/routes/authed/staff/example.tsx': `

@@ -13,12 +13,6 @@ const ROUNDED_RULE_ID = 'no-rounded-full-or-999-radius';
 const KNOWN_HANDOFF_GUARD_DEBT = [
 	{
 		ruleId: ROUNDED_RULE_ID,
-		file: 'src/components/app-shell/app-shell.tsx',
-		sourceIncludes: 'rounded-full px-4 py-2',
-		reason: 'Legacy mobile shell trigger; Task 3 shell pass owns this.',
-	},
-	{
-		ruleId: ROUNDED_RULE_ID,
 		file: 'src/components/query-display.tsx',
 		sourceIncludes: 'animate-spin rounded-full border-2',
 		reason: 'Legacy loading spinner; spinner cleanup is outside Task 1.',
@@ -59,12 +53,6 @@ const KNOWN_HANDOFF_GUARD_DEBT = [
 		file: 'src/components/table/data-table.tsx',
 		sourceIncludes: 'size-3.5 animate-spin rounded-full',
 		reason: 'Legacy pagination spinner; Task 4 table pass owns this.',
-	},
-	{
-		ruleId: ROUNDED_RULE_ID,
-		file: 'src/routes/authed/staff/invitations/$invitationId.tsx',
-		sourceIncludes: 'h-auto rounded-full border-none',
-		reason: 'Legacy staff invitation chip; module pass owns this.',
 	},
 	{
 		ruleId: ROUNDED_RULE_ID,
@@ -234,6 +222,27 @@ const KNOWN_IMPORTANT_FOUNDATION_DEBT = [
 	},
 ];
 
+// r4-shell-F3: the app-shell mobile-nav `rounded-full` pill this allowlist
+// used to carry was a real, shipped violation of the locked corner-radius
+// rule — the guard reported "0 violations" only because this debt entry
+// suppressed it, not because the surface was compliant. The pill is now
+// fixed (see app-shell.tsx); this scope is finalized permanently, not just
+// for the current entries, so a future debt entry can never quietly
+// re-permit the same class of violation in this directory again.
+const FINALIZED_NO_DEBT_SCOPES = ['src/components/app-shell/'];
+
+for (const debt of KNOWN_HANDOFF_GUARD_DEBT) {
+	const finalizedScope = FINALIZED_NO_DEBT_SCOPES.find((scope) =>
+		debt.file.startsWith(scope),
+	);
+	if (finalizedScope) {
+		throw new Error(
+			`KNOWN_HANDOFF_GUARD_DEBT may not target "${finalizedScope}" (finalized scope, r4-shell-F3): ` +
+				`${debt.file} — ${debt.ruleId}: ${debt.sourceIncludes}`,
+		);
+	}
+}
+
 const KNOWN_GUARD_DEBT = [
 	...KNOWN_HANDOFF_GUARD_DEBT,
 	...KNOWN_IMPORTANT_FOUNDATION_DEBT,
@@ -343,14 +352,27 @@ const isRoundedRadiusAllowed = (relativePath, line, lineIndex, lines) => {
 	);
 };
 
+// r4-ui-F3: the direct-colour-function source, centralized so every scanner
+// (token parity, property values, arbitrary Tailwind, custom properties) sees
+// the same set of standard CSS colour functions instead of each maintaining
+// its own hex/rgb(a)-only copy. Covers hex plus every standard CSS colour
+// function — rgb(a), hsl(a), hwb, lab, lch, oklab, oklch, color() — while
+// `(?!-mix)` after `color` keeps `color-mix(in srgb, var(--x) N%, ...)`
+// (a reference, not a literal) out of this list; that intentional case is
+// still recognized and exempted separately wherever it appears.
+const DIRECT_COLOR_FUNCTION_NAMES =
+	'rgba?|hsla?|hwb|lab|lch|oklab|oklch|color(?!-mix)';
+
 // F3: a colour literal directly in the value — `#fff`, `rgba(0, 0, 0, .5)`,
-// `hsl(200 10% 10%)` — as opposed to a value that only *references* another
-// (already theme-aware) token, e.g. `0 0 0 1px var(--publy-border)` or
+// `hsl(200 10% 10%)`, `oklch(95% .1 90)` — as opposed to a value that only
+// *references* another (already theme-aware) token, e.g.
+// `0 0 0 1px var(--publy-border)` or
 // `color-mix(in srgb, var(--publy-primary) 25%, transparent)`. Those need no
 // dark counterpart of their own: they inherit theme-awareness from the token
 // they point at.
-const COLOR_LITERAL_PATTERN =
-	/#[0-9a-fA-F]{3,8}\b|\brgba?\(\s*\d|\bhsla?\(\s*\d/;
+const COLOR_LITERAL_PATTERN = new RegExp(
+	`#[0-9a-fA-F]{3,8}\\b|\\b(?:${DIRECT_COLOR_FUNCTION_NAMES})\\(`,
+);
 
 // Tokens whose colour is deliberately fixed across both themes — documented
 // per-entry so the guard can still see and reason about every exemption
@@ -647,22 +669,27 @@ const RAW_COLOR_PROPERTY_HEX_PATTERN = new RegExp(
 const RAW_COLOR_PROPERTY_HEX_PATTERN_MULTILINE = new RegExp(
 	`\\b(?:${RAW_COLOR_PROPERTY_NAMES})\\s*:[^;]*#[0-9a-fA-F]{3,8}\\b`,
 );
+// r4-ui-F3: widened past rgb(a)/hsl(a) to every standard direct colour
+// function (see DIRECT_COLOR_FUNCTION_NAMES) — hwb/lab/lch/oklab/oklch/
+// color() literals in a property value are just as unrouted to a theme-aware
+// token as an rgba() one.
 const RAW_COLOR_PROPERTY_RGBA_PATTERN = new RegExp(
-	`\\b(?:${RAW_COLOR_PROPERTY_NAMES}|box-shadow)\\s*:\\s*rgba?\\(`,
+	`\\b(?:${RAW_COLOR_PROPERTY_NAMES}|box-shadow)\\s*:\\s*(?:${DIRECT_COLOR_FUNCTION_NAMES})\\(`,
 );
 const RAW_COLOR_PROPERTY_RGBA_PATTERN_MULTILINE = new RegExp(
-	`\\b(?:${RAW_COLOR_PROPERTY_NAMES}|box-shadow)\\s*:[^;]*rgba?\\(`,
+	`\\b(?:${RAW_COLOR_PROPERTY_NAMES}|box-shadow)\\s*:[^;]*(?:${DIRECT_COLOR_FUNCTION_NAMES})\\(`,
 );
 // F3: a `--custom-prop:` declaration is invisible to the property-name
-// patterns above (it has no property name at all), so a raw hex/rgba/hsla
-// literal handed straight to a custom property — e.g.
+// patterns above (it has no property name at all), so a raw hex/rgba/hsla/
+// oklch/etc. literal handed straight to a custom property — e.g.
 // `--publy-icon-tile-bg: #f0f9ff;` — sailed through unscanned. Matched
 // per-statement/per-line like the others; whether it needs a dark
 // counterpart is token-theme-parity's job (checkTokenGuardViolations), not
 // this rule's — this rule only flags the literal existing at all outside the
 // :root/html.dark token layer (see `ignoreMatch: isAppCssTokenLayerLine`).
-const RAW_COLOR_CUSTOM_PROPERTY_PATTERN =
-	/^\s*--[\w-]+\s*:[^;]*(?:#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\()/;
+const RAW_COLOR_CUSTOM_PROPERTY_PATTERN = new RegExp(
+	`^\\s*--[\\w-]+\\s*:[^;]*(?:#[0-9a-fA-F]{3,8}\\b|\\b(?:${DIRECT_COLOR_FUNCTION_NAMES})\\()`,
+);
 const RAW_COLOR_MULTILINE_PATTERN_OVERRIDES = new Map([
 	[RAW_COLOR_PROPERTY_HEX_PATTERN, RAW_COLOR_PROPERTY_HEX_PATTERN_MULTILINE],
 	[RAW_COLOR_PROPERTY_RGBA_PATTERN, RAW_COLOR_PROPERTY_RGBA_PATTERN_MULTILINE],

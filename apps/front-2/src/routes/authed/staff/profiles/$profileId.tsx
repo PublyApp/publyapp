@@ -561,7 +561,7 @@ function StaffProfileDetailsPage() {
 					<Link
 						to="/staff/profiles/$profileId/users"
 						params={{ profileId }}
-						className="inline-flex items-center gap-1.5 rounded-[var(--publy-border-radius-control)] border border-input bg-background px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+						className="inline-flex items-center gap-1.5 rounded-[var(--publy-radius-control)] border border-input bg-background px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
 					>
 						{t('view-all-assigned-users')}
 					</Link>
