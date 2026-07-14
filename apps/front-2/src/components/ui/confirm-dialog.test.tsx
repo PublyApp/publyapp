@@ -192,4 +192,20 @@ describe('ConfirmDialog', () => {
 			screen.getByRole('button', { name: 'Delete' }).hasAttribute('disabled'),
 		).toBe(true);
 	});
+
+	// W5-UI F1 integration case: the destructive confirm button is where the
+	// finding's failure scenario actually happens (a keyboard user tabbing to
+	// the "Delete" button in a real danger-zone flow). The Button `destructive`
+	// variant must not reintroduce a low-opacity `ring-destructive` override
+	// that clobbers the compliant base `ring-ring` through the real `cn()`
+	// merge this component renders through.
+	test('the destructive confirm button does not carry a low-opacity focus-visible ring override', () => {
+		render(<ConfirmDialog {...baseProps} isOpen tone="danger" />);
+
+		const confirmButton = screen.getByRole('button', { name: 'Delete' });
+		expect(confirmButton.className).toContain('focus-visible:ring-ring');
+		expect(confirmButton.className).not.toMatch(
+			/focus-visible:ring-destructive/,
+		);
+	});
 });

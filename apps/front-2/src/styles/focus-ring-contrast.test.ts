@@ -3,20 +3,40 @@
  * focus-ring *contrast*, only class-name presence. r3 previously "fixed"
  * this finding and made it worse (compounded opacity) and nothing noticed.
  *
- * This reads the real `app.css` source (the file the build actually
- * compiles), resolves `--publy-focus-ring` for both themes — following
- * `color-mix(in srgb, var(--x) N%, transparent)` composited over the
- * adjacent surface exactly like a browser would render it — and asserts a
- * project-approved >=3:1 contrast floor (WCAG 2.x non-text/UI-component
- * minimum) against every control's rendered ring. Also parses each
- * consumer's utility class string for a `ring-ring/NN` opacity suffix so a
- * regression in either the token OR a component's utility is caught.
+ * W5-UI (round-5 remediation, review-r5-ui.md F1): the round-4 version of
+ * this test only checked the *base* recipe's `focus-visible:ring-ring`
+ * source text — it never rendered a CVA variant through the real merge
+ * pipeline, so it never saw that the `destructive` Button/Badge variants
+ * appended a low-opacity `focus-visible:ring-destructive/NN` that
+ * `tailwind-merge` used to REPLACE the compliant base ring (same
+ * `focus-visible:` modifier group, later entry wins the merge). It also
+ * never modelled the `aria-invalid` + `focus-visible` combined state, where
+ * a compliant base ring and a low-opacity validation ring apply
+ * simultaneously under *different* modifier groups (so `tailwind-merge`
+ * does not dedupe them) and the browser resolves the conflict by CSS
+ * specificity instead.
+ *
+ * This rewrite:
+ *  - Resolves every CVA `variant` key for Button/Badge (extracted from
+ *    source, not hand-maintained, so a newly added variant enters coverage
+ *    automatically — see `assertKnownVariants`) through the REAL
+ *    `buttonVariants`/`badgeVariants` + `cn()` pipeline, exactly as the
+ *    component renders it.
+ *  - Simulates CSS specificity resolution (more chained variants ⇒ wins)
+ *    across two states per consumer: focus-visible alone, and
+ *    focus-visible + aria-invalid together — the state the round-5 finding
+ *    showed was unguarded.
+ *  - Still reads the real `app.css` source and resolves `--publy-focus-ring`
+ *    / `--destructive` for both themes exactly like a browser would.
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, test } from 'vitest';
+import { badgeVariants } from '~/components/ui/badge';
+import { buttonVariants } from '~/components/ui/button';
+import { cn } from '~/lib/utils';
 
 const rootDir = path.resolve(fileURLToPath(new URL('.', import.meta.url)));
 const appCssPath = path.join(rootDir, 'app.css');
@@ -73,6 +93,40 @@ const extractDeclarations = (blockText: string): Map<string, string> => {
 		declarations.set(match[1], match[2].trim());
 	}
 	return declarations;
+};
+
+/** Extracts an object literal block (e.g. the `variant: { ... }` block inside
+ * a `cva(...)` config) by brace-counting from the first `${key}: {` match, so
+ * newly added variant keys are picked up without editing this file. */
+const extractObjectBlock = (source: string, key: string): string => {
+	const startMarker = `${key}: {`;
+	const start = source.indexOf(startMarker);
+	if (start === -1) {
+		throw new Error(`Object block not found for key "${key}"`);
+	}
+	let depth = 0;
+	let index = start + startMarker.length - 1;
+	do {
+		if (source[index] === '{') {
+			depth += 1;
+		} else if (source[index] === '}') {
+			depth -= 1;
+		}
+		index += 1;
+	} while (depth > 0);
+	return source.slice(start, index);
+};
+
+/** Extracts the top-level string-valued keys of an object block, e.g.
+ * `default:\n\t'...'` -> "default". Used to enumerate CVA variant keys. */
+const extractStringKeys = (blockText: string): string[] => {
+	const pattern = /([\w-]+):\s*\n?\s*'/g;
+	const keys: string[] = [];
+	let match: RegExpExecArray | null;
+	while ((match = pattern.exec(blockText))) {
+		keys.push(match[1]);
+	}
+	return keys;
 };
 
 const composite = (fg: Rgb, bg: Rgb): Rgb => ({
@@ -149,15 +203,61 @@ const contrastRatio = (a: Rgb, b: Rgb): number => {
 	return (lighter + 0.05) / (darker + 0.05);
 };
 
-/** Extracts the ring-opacity suffix (if any) a consumer applies on top of
- * the `--ring` token, e.g. `focus-visible:ring-ring/15` -> 0.15. Absent
- * suffix means full-strength (1). */
-const extractConsumerRingAlpha = (source: string): number => {
-	const match = /focus-visible:ring-ring(?:\/(\d+))?\b/.exec(source);
-	if (!match) {
-		throw new Error('No focus-visible:ring-ring utility found in consumer');
+type RingColorKind = 'ring' | 'destructive';
+
+type RingToken = {
+	/** The chained variant/modifier prefixes gating this utility, e.g.
+	 * `dark:aria-invalid:focus-visible:ring-ring` -> ['dark', 'aria-invalid', 'focus-visible']. */
+	variants: string[];
+	color: RingColorKind;
+	/** Opacity suffix (`/NN`), or 1 when the utility carries no suffix (opaque). */
+	alpha: number;
+};
+
+/** Parses every `[...:]ring-(ring|destructive)[/NN]` utility out of a final,
+ * merged className string. Deliberately ignores non-ring-color utilities
+ * (`ring-3`, `ring-[3px]`, border colours) — this test's scope is the
+ * rendered focus-ring *colour*, matching the finding. */
+const parseRingTokens = (mergedClassName: string): RingToken[] => {
+	const pattern =
+		/(?:^|\s)((?:[\w-]+:)*)ring-(ring|destructive)(?:\/(\d+))?(?=\s|$)/g;
+	const tokens: RingToken[] = [];
+	let match: RegExpExecArray | null;
+	while ((match = pattern.exec(mergedClassName))) {
+		const [, chain, color, alphaText] = match;
+		const variants = chain.split(':').filter(Boolean);
+		tokens.push({
+			variants,
+			color: color as RingColorKind,
+			alpha: alphaText ? Number.parseInt(alphaText, 10) / 100 : 1,
+		});
 	}
-	return match[1] ? Number.parseInt(match[1], 10) / 100 : 1;
+	return tokens;
+};
+
+/** Simulates CSS cascade resolution for the ring-colour utilities active in
+ * `activeVariants` (a state, e.g. focused + invalid, in a given theme):
+ * a token applies only if every one of its gating variants is active, and
+ * among applicable tokens the one with the MOST chained variants wins (more
+ * chained variants ⇒ a more specific compound selector in the generated
+ * stylesheet, which always wins regardless of source/declaration order). */
+const resolveWinningRingToken = (
+	tokens: RingToken[],
+	activeVariants: Set<string>,
+): RingToken | undefined => {
+	const applicable = tokens.filter((token) =>
+		token.variants.every((variant) => activeVariants.has(variant)),
+	);
+	if (applicable.length === 0) {
+		return undefined;
+	}
+	let winner = applicable[0];
+	for (const candidate of applicable) {
+		if (candidate.variants.length >= winner.variants.length) {
+			winner = candidate;
+		}
+	}
+	return winner;
 };
 
 const THEMES = [
@@ -173,20 +273,20 @@ const THEMES = [
 	},
 ] as const;
 
-const CONSUMERS = [
+/** Non-CVA consumers: a single static className recipe (no `variant` prop
+ * affecting the ring), read straight from source. */
+const STATIC_CONSUMERS = [
 	'input.tsx',
 	'textarea.tsx',
-	'button.tsx',
 	'checkbox.tsx',
 	'switch.tsx',
 	'tabs.tsx',
-	'badge.tsx',
 	'drawer.tsx',
 	'confirm-dialog.tsx',
 	'select.tsx',
 ] as const;
 
-describe('focus-ring contrast (W4-GUARDS ui-F1)', () => {
+describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 	const appCssSource = readFileSync(appCssPath, 'utf8');
 	const rootBlock = extractBlock(appCssSource, /^:root\s*\{/);
 	const darkBlock = extractBlock(appCssSource, /^html\.dark\s*\{/);
@@ -195,6 +295,41 @@ describe('focus-ring contrast (W4-GUARDS ui-F1)', () => {
 		...extractDeclarations(darkBlock),
 	]);
 
+	const buttonSource = readFileSync(path.join(uiDir, 'button.tsx'), 'utf8');
+	const badgeSource = readFileSync(path.join(uiDir, 'badge.tsx'), 'utf8');
+	const buttonVariantKeys = extractStringKeys(
+		extractObjectBlock(buttonSource, 'variant'),
+	);
+	const badgeVariantKeys = extractStringKeys(
+		extractObjectBlock(badgeSource, 'variant'),
+	);
+
+	test('button variant coverage is not stale (fails loudly if a variant is added without updating this sweep)', () => {
+		expect(buttonVariantKeys.sort()).toEqual(
+			[
+				'default',
+				'destructive',
+				'ghost',
+				'link',
+				'outline',
+				'secondary',
+			].sort(),
+		);
+	});
+
+	test('badge variant coverage is not stale (fails loudly if a variant is added without updating this sweep)', () => {
+		expect(badgeVariantKeys.sort()).toEqual(
+			[
+				'default',
+				'destructive',
+				'ghost',
+				'link',
+				'outline',
+				'secondary',
+			].sort(),
+		);
+	});
+
 	for (const theme of THEMES) {
 		const themeBlock = theme.name === 'light' ? rootBlock : darkBlock;
 		const themeDeclarations = extractDeclarations(themeBlock);
@@ -202,8 +337,13 @@ describe('focus-ring contrast (W4-GUARDS ui-F1)', () => {
 		// html.dark actually cascades over :root in the browser).
 		const declarations = new Map([...allDeclarations, ...themeDeclarations]);
 		const ringTokenValue = declarations.get('--publy-focus-ring');
+		const destructiveTokenValue = declarations.get('--destructive');
 		const surfaceHex = declarations.get(theme.surfaceToken);
-		if (ringTokenValue === undefined || surfaceHex === undefined) {
+		if (
+			ringTokenValue === undefined ||
+			destructiveTokenValue === undefined ||
+			surfaceHex === undefined
+		) {
 			throw new Error(`Missing token for ${theme.name} theme`);
 		}
 		if (!HEX_PATTERN.test(surfaceHex)) {
@@ -211,26 +351,127 @@ describe('focus-ring contrast (W4-GUARDS ui-F1)', () => {
 				`Expected surface token to be a hex literal: ${surfaceHex}`,
 			);
 		}
+		const surfaceRgb = parseHex(surfaceHex);
+		const ringRgb = resolveColor(ringTokenValue, declarations, surfaceHex);
+		const destructiveRgb = resolveColor(
+			destructiveTokenValue,
+			declarations,
+			surfaceHex,
+		);
+
+		const colorRgb: Record<RingColorKind, Rgb> = {
+			ring: ringRgb,
+			destructive: destructiveRgb,
+		};
 
 		test(`--publy-focus-ring token alone clears ${CONTRAST_FLOOR}:1 against --publy-surface in ${theme.name} mode`, () => {
-			const ringRgb = resolveColor(ringTokenValue, declarations, surfaceHex);
-			const surfaceRgb = parseHex(surfaceHex);
 			const ratio = contrastRatio(ringRgb, surfaceRgb);
 			expect(ratio).toBeGreaterThanOrEqual(CONTRAST_FLOOR);
 		});
 
-		for (const consumer of CONSUMERS) {
-			test(`${consumer} renders a >= ${CONTRAST_FLOOR}:1 focus ring in ${theme.name} mode`, () => {
-				const consumerSource = readFileSync(path.join(uiDir, consumer), 'utf8');
-				const consumerAlpha = extractConsumerRingAlpha(consumerSource);
-				const surfaceRgb = parseHex(surfaceHex);
-				const tokenRgb = resolveColor(ringTokenValue, declarations, surfaceHex);
-				const renderedRingRgb = composite(
-					{ ...tokenRgb, a: consumerAlpha },
-					surfaceRgb,
+		/** Resolves the winning ring token for a state and asserts it clears
+		 * the contrast floor. `stateName` and `consumerLabel` are only for
+		 * the assertion message. */
+		const assertStateCompliant = (
+			consumerLabel: string,
+			mergedClassName: string,
+			activeVariants: Set<string>,
+			stateName: string,
+		) => {
+			const tokens = parseRingTokens(mergedClassName);
+			const winner = resolveWinningRingToken(tokens, activeVariants);
+			if (!winner) {
+				// No ring-colour utility applies while focus-visible is active in
+				// this state (e.g. a consumer with no aria-invalid styling at
+				// all) -- nothing to assert.
+				return;
+			}
+			const renderedRingRgb = composite(
+				{ ...colorRgb[winner.color], a: winner.alpha },
+				surfaceRgb,
+			);
+			const ratio = contrastRatio(renderedRingRgb, surfaceRgb);
+			expect(
+				ratio,
+				`${consumerLabel} (${theme.name}, ${stateName}): winning ring token ` +
+					`is ${winner.variants.join(':')}:ring-${winner.color}` +
+					(winner.alpha < 1 ? `/${Math.round(winner.alpha * 100)}` : '') +
+					` -> ${ratio.toFixed(2)}:1`,
+			).toBeGreaterThanOrEqual(CONTRAST_FLOOR);
+		};
+
+		const FOCUS_ONLY =
+			theme.name === 'dark'
+				? new Set(['focus-visible', 'dark'])
+				: new Set(['focus-visible']);
+		const FOCUS_AND_INVALID =
+			theme.name === 'dark'
+				? new Set(['focus-visible', 'aria-invalid', 'dark'])
+				: new Set(['focus-visible', 'aria-invalid']);
+
+		for (const consumer of STATIC_CONSUMERS) {
+			const consumerSource = readFileSync(path.join(uiDir, consumer), 'utf8');
+
+			test(`${consumer} renders a >= ${CONTRAST_FLOOR}:1 focus ring in ${theme.name} mode (focused only)`, () => {
+				assertStateCompliant(
+					consumer,
+					consumerSource,
+					FOCUS_ONLY,
+					'focused only',
 				);
-				const ratio = contrastRatio(renderedRingRgb, surfaceRgb);
-				expect(ratio).toBeGreaterThanOrEqual(CONTRAST_FLOOR);
+			});
+
+			test(`${consumer} renders a >= ${CONTRAST_FLOOR}:1 focus ring in ${theme.name} mode (focused + aria-invalid)`, () => {
+				assertStateCompliant(
+					consumer,
+					consumerSource,
+					FOCUS_AND_INVALID,
+					'focused + aria-invalid',
+				);
+			});
+		}
+
+		for (const variant of buttonVariantKeys) {
+			const merged = cn(buttonVariants({ variant: variant as never }));
+
+			test(`button.tsx (variant="${variant}") renders a >= ${CONTRAST_FLOOR}:1 focus ring in ${theme.name} mode (focused only)`, () => {
+				assertStateCompliant(
+					`button.tsx[variant=${variant}]`,
+					merged,
+					FOCUS_ONLY,
+					'focused only',
+				);
+			});
+
+			test(`button.tsx (variant="${variant}") renders a >= ${CONTRAST_FLOOR}:1 focus ring in ${theme.name} mode (focused + aria-invalid)`, () => {
+				assertStateCompliant(
+					`button.tsx[variant=${variant}]`,
+					merged,
+					FOCUS_AND_INVALID,
+					'focused + aria-invalid',
+				);
+			});
+		}
+
+		for (const variant of badgeVariantKeys) {
+			const merged = cn(badgeVariants({ variant: variant as never }));
+
+			test(`badge.tsx (variant="${variant}") renders a >= ${CONTRAST_FLOOR}:1 focus ring in ${theme.name} mode (focused only)`, () => {
+				assertStateCompliant(
+					`badge.tsx[variant=${variant}]`,
+					merged,
+					FOCUS_ONLY,
+					'focused only',
+				);
+			});
+
+			test(`badge.tsx (variant="${variant}") renders a >= ${CONTRAST_FLOOR}:1 focus ring in ${theme.name} mode (focused + aria-invalid)`, () => {
+				assertStateCompliant(
+					`badge.tsx[variant=${variant}]`,
+					merged,
+					FOCUS_AND_INVALID,
+					'focused + aria-invalid',
+				);
 			});
 		}
 	}
