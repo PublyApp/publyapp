@@ -178,11 +178,11 @@ describe('CopyButton', () => {
 
 		const first = {
 			resolve: () => {},
-			reject: (error: Error) => {},
+			reject: (_error: Error) => {},
 		} as { resolve: () => void; reject: (error: Error) => void };
 		const second = {
 			resolve: () => {},
-			reject: (error: Error) => {},
+			reject: (_error: Error) => {},
 		} as { resolve: () => void; reject: (error: Error) => void };
 
 		const createWriteText = () => {
