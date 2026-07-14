@@ -256,24 +256,28 @@ const isProseLikeLiteral = (value: string): boolean => {
 // finding — no word-count requirement — since there is no wiring/testId use
 // case competing for those positions the way there is for a bare literal or
 // a `??` fallback.
-const isCopyLikeLiteral = (value: string): boolean => {
+// W5-HARDEN2: the kebab-key exemption below must NOT apply to a definite
+// assistive/DOM-copy position (JSX attribute, DOM property write,
+// setAttribute, insertAdjacentText, ...) — `aria-label="delete-selected-users"`
+// is real, rendered assistive copy that happens to look kebab-shaped, not an
+// i18n key reference (a key reference is always passed to `t()`, never
+// rendered as a literal attribute value). The exemption exists ONLY to
+// protect the one shape it was found for: an object-literal LOOKUP TABLE
+// whose values are themselves i18n keys resolved by `t()` elsewhere (see the
+// call site below). `allowKeyLookupExemption` defaults to false so every
+// other caller — every JSX attribute and DOM-sink call site — evaluates a
+// kebab-shaped literal as real copy, same as any other value.
+const isCopyLikeLiteral = (
+	value: string,
+	allowKeyLookupExemption = false,
+): boolean => {
 	const trimmed = value.trim();
 	if (
 		trimmed.length < 2 ||
 		LOCALE_SELF_NAME_ALLOWLIST.has(trimmed) ||
 		NEVER_TRANSLATED_LITERAL_ALLOWLIST.has(trimmed) ||
 		URL_EMAIL_OR_DOMAIN_PATTERN.test(trimmed) ||
-		// W5-HARDEN: widening ALWAYS_COPY-style detection to a `subtitle:`
-		// object property (see COPY_LIKE_ATTRIBUTE_NAME_PATTERN) surfaced a real
-		// false positive — a `Record<Branch, { headline; subtitle }>` lookup
-		// table whose values are i18n KEYS
-		// (`accept-invitation-brand-subtitle-new-user`), passed to `t()`
-		// elsewhere, exactly like KEY_MAP_DECLARATION_PATTERN's extraction above
-		// already treats multi-segment kebab-case values as candidate keys, not
-		// copy. Real UI copy in this codebase is never all-lowercase-and-hyphens
-		// with 3+ segments, so this is a safe, general exemption, not a
-		// per-file patch.
-		KEBAB_I18N_KEY_CANDIDATE.test(trimmed)
+		(allowKeyLookupExemption && KEBAB_I18N_KEY_CANDIDATE.test(trimmed))
 	) {
 		return false;
 	}
@@ -281,6 +285,19 @@ const isCopyLikeLiteral = (value: string): boolean => {
 	// ('POST', 'UTC', 'ACTIVE') — deliberately no whitespace requirement.
 	return /[a-z]/.test(trimmed);
 };
+
+// W5-HARDEN: widening ALWAYS_COPY-style detection to a `subtitle:` object
+// property (see COPY_LIKE_ATTRIBUTE_NAME_PATTERN) surfaced a real false
+// positive — a `Record<Branch, { headline; subtitle }>` lookup table whose
+// values are i18n KEYS (`accept-invitation-brand-subtitle-new-user`), passed
+// to `t()` elsewhere, exactly like KEY_MAP_DECLARATION_PATTERN's extraction
+// above already treats multi-segment kebab-case values as candidate keys, not
+// copy. Real UI copy in this codebase is never all-lowercase-and-hyphens with
+// 3+ segments, so this is a safe, general exemption for an object-literal
+// property VALUE specifically — never for a JSX attribute or DOM-sink literal
+// (see isCopyLikeLiteral's `allowKeyLookupExemption` above).
+const isCopyLikeObjectPropertyValue = (value: string): boolean =>
+	isCopyLikeLiteral(value, true);
 
 // r5-tests-F2: attribute names that are structurally never user-visible copy
 // (styling/wiring/enum-valued props) are exempted regardless of how
@@ -342,6 +359,12 @@ const NEVER_COPY_ATTRIBUTE_NAMES = new Set([
 // checked with isCopyLikeLiteral (no internal-whitespace requirement)
 // instead of the conservative isProseLikeLiteral used for ambiguous
 // positions.
+// W5-HARDEN2: `action` added — a component's `action="Delete"` prop is the
+// same single-word-copy shape as `label`/`title` (a verb-label for a
+// button/menu-item), and single-word copy in it was invisible: `action`
+// doesn't end in any COPY_LIKE_ATTRIBUTE_NAME_PATTERN suffix, so it fell back
+// to isProseLikeLiteral's internal-whitespace requirement, which single-word
+// copy never has.
 const ALWAYS_COPY_ATTRIBUTE_NAMES = new Set([
 	'aria-label',
 	'aria-description',
@@ -350,6 +373,7 @@ const ALWAYS_COPY_ATTRIBUTE_NAMES = new Set([
 	'label',
 	'description',
 	'alt',
+	'action',
 ]);
 
 // W5-HARDEN (W5-VERIFY2): `<Widget emptyText="Empty" tooltip="Delete" />`
@@ -382,42 +406,102 @@ const isDefiniteCopyPositionName = (name: string): boolean =>
 // elsewhere, same rationale as this file's `i18n-guard-ignore` convention),
 // and a `<meta>`/SEO descriptor (`{ name: 'viewport', content: '...' }`,
 // `{ property: 'og:title', content: title }`, a TanStack Router `head()`
-// result with `title`/`meta`/`links` siblings). Both are recognizable
-// structurally by a sibling key that never appears on a real UI-copy object:
-// flag `title`/`content`/`description`/`subtitle` only when the enclosing
-// object literal has NONE of these siblings.
-const META_OR_PROBLEM_DETAILS_SIBLING_KEYS = new Set([
-	'name',
-	'property',
-	'charSet',
+// result with `title`/`meta`/`links` siblings).
+//
+// W5-HARDEN2: the original version keyed this off ANY single sibling from one
+// flat set — an ordinary UI view-model carrying a `status` enum alongside
+// real `title`/`description` copy (a toast, a banner) collided with the
+// problem-details signature on that one ambiguous key and had its genuine
+// copy silently exempted. This now identifies the two shapes it was meant to
+// by what actually discriminates them structurally, not by any one
+// coincidental name:
+//  - a `<meta>`/SEO/TanStack `head()` descriptor always carries `content`
+//    (the `{ name, content }` / `{ property, content }` pair) or one of the
+//    route-`head()`-only keys (`meta`, `links`, `canonical`, `sitemap`,
+//    `robots`, `charSet`) — none of which a real UI copy object ever uses;
+//  - an RFC 7807 problem-details object always carries AT LEAST TWO of its
+//    signature fields together (`status` alone is exactly the ambiguous
+//    single-key collision that caused the false negative; `status` PLUS
+//    `responseStatusCode`/`httpStatus`/`translationKey`/`detail` together is
+//    the real, recognizable shape).
+const META_DESCRIPTOR_MARKER_KEYS = new Set([
+	'content',
 	'meta',
 	'links',
 	'canonical',
 	'sitemap',
 	'robots',
+	'charSet',
+]);
+const PROBLEM_DETAILS_MARKER_KEYS = new Set([
 	'status',
 	'responseStatusCode',
 	'httpStatus',
 	'translationKey',
 	'detail',
 ]);
+const MIN_PROBLEM_DETAILS_MARKER_COUNT = 2;
 
-const isMetaOrProblemDetailsDescriptor = (node: ts.Node): boolean =>
-	ts.isObjectLiteralExpression(node) &&
-	node.properties.some(
-		(property) =>
-			property.name &&
-			(ts.isIdentifier(property.name) || ts.isStringLiteral(property.name)) &&
-			META_OR_PROBLEM_DETAILS_SIBLING_KEYS.has(property.name.text),
+const isMetaOrProblemDetailsDescriptor = (node: ts.Node): boolean => {
+	if (!ts.isObjectLiteralExpression(node)) {
+		return false;
+	}
+
+	const siblingNames = new Set(
+		node.properties
+			.map((property) =>
+				property.name &&
+				(ts.isIdentifier(property.name) || ts.isStringLiteral(property.name))
+					? property.name.text
+					: undefined,
+			)
+			.filter((name): name is string => name !== undefined),
 	);
+
+	const hasMetaDescriptorMarker = [...META_DESCRIPTOR_MARKER_KEYS].some((key) =>
+		siblingNames.has(key),
+	);
+	const problemDetailsMarkerCount = [...PROBLEM_DETAILS_MARKER_KEYS].filter(
+		(key) => siblingNames.has(key),
+	).length;
+
+	return (
+		hasMetaDescriptorMarker ||
+		problemDetailsMarkerCount >= MIN_PROBLEM_DETAILS_MARKER_COUNT
+	);
+};
 
 // W5-HARDEN: imperative DOM property writes that land copy on-screen exactly
 // like the JSX attributes above do, just through a different API
 // (`element.title = 'Delete'` instead of `<span title="Delete" />`).
+// W5-HARDEN2: `innerHTML` added — `element.innerHTML = 'Delete account'` is
+// the same direct copy-on-screen write as `.textContent`/`.innerText`, just
+// through the HTML-parsing sink instead of the text sink.
 const COPY_LIKE_DOM_PROPERTY_NAMES = new Set([
 	'title',
 	'textContent',
 	'innerText',
+	'innerHTML',
+]);
+
+// W5-HARDEN2: the direct DOM text-insertion call APIs that
+// COPY_LIKE_DOM_PROPERTY_NAMES/setAttribute above don't cover — each renders
+// its argument as visible page copy exactly like a property write does, just
+// through a call instead of an assignment:
+//  - `el.insertAdjacentText(position, text)` — `text` (2nd arg) is copy;
+//  - `el.append(text)` / `el.prepend(text)` — restricted to exactly ONE
+//    argument, since `FormData.append(name, value)` and
+//    `URLSearchParams.append(name, value)` share the method name but always
+//    take two arguments, and their values are data, not rendered copy;
+//  - `document.createTextNode(text)` — `text` (1st arg) becomes a rendered
+//    text node wherever the returned node is later inserted (e.g.
+//    `el.appendChild(document.createTextNode('Delete account'))` — the
+//    visitor's own recursion into call arguments finds this nested call
+//    without any special-casing of `appendChild` itself).
+const COPY_LIKE_SINGLE_ARG_DOM_CALL_NAMES = new Set([
+	'createTextNode',
+	'append',
+	'prepend',
 ]);
 
 // An opt-out comment on the line directly above the offending line, mirroring
@@ -549,7 +633,7 @@ const findHardcodedUiLiterals = (
 		) {
 			for (const value of collectProseLiteralValues(
 				node.initializer,
-				isCopyLikeLiteral,
+				isCopyLikeObjectPropertyValue,
 			)) {
 				report(node, `${node.name.text}: "${value}"`);
 			}
@@ -587,6 +671,31 @@ const findHardcodedUiLiterals = (
 				isCopyLikeLiteral,
 			)) {
 				report(node, `setAttribute("${attrName}", "${value}")`);
+			}
+		} else if (
+			ts.isCallExpression(node) &&
+			ts.isPropertyAccessExpression(node.expression) &&
+			node.expression.name.text === 'insertAdjacentText' &&
+			node.arguments.length >= 2
+		) {
+			for (const value of collectProseLiteralValues(
+				node.arguments[1],
+				isCopyLikeLiteral,
+			)) {
+				report(node, `insertAdjacentText(..., "${value}")`);
+			}
+		} else if (
+			ts.isCallExpression(node) &&
+			ts.isPropertyAccessExpression(node.expression) &&
+			COPY_LIKE_SINGLE_ARG_DOM_CALL_NAMES.has(node.expression.name.text) &&
+			node.arguments.length === 1
+		) {
+			const calleeName = node.expression.name.text;
+			for (const value of collectProseLiteralValues(
+				node.arguments[0],
+				isCopyLikeLiteral,
+			)) {
+				report(node, `${calleeName}("${value}")`);
 			}
 		} else if (
 			(ts.isBinaryExpression(node) &&
@@ -796,6 +905,100 @@ describe('i18n key coverage', () => {
 				'<input placeholder="user@example.com" />',
 				'<input placeholder="publyapp.com/free-trial" />',
 			].join('\n'),
+			'canary.tsx',
+		);
+
+		expect(findings).toEqual([]);
+	});
+
+	// W5-HARDEN2 (W5-VERIFY3B report): the exact fixture the report planted —
+	// a single-word component prop (`action`), assistive copy that happens to
+	// be kebab-shaped (`aria-label`), and four direct DOM insertion sinks
+	// (`innerHTML`, `insertAdjacentText`, `append`, `createTextNode` via
+	// `appendChild`) — all sailed through undetected before this fix.
+	test('findHardcodedUiLiterals catches a single-word unknown-prop action, kebab-shaped assistive copy, and direct DOM insertion sinks (W5-HARDEN2 canary)', () => {
+		const findings = findHardcodedUiLiterals(
+			[
+				'const Widget = (_props: { action: string }) => null;',
+				'const actionCopy = <Widget action="Delete" />;',
+				'const assistiveCopy = <button aria-label="delete-selected-users" />;',
+				"element.innerHTML = 'Delete account';",
+				"element.insertAdjacentText('beforeend', 'Delete account');",
+				"document.body.append('Delete account');",
+				"document.body.appendChild(document.createTextNode('Delete account'));",
+				'void actionCopy;',
+				'void assistiveCopy;',
+			].join('\n'),
+			'canary.tsx',
+		);
+
+		expect(findings).toContainEqual(expect.stringContaining('action="Delete"'));
+		expect(findings).toContainEqual(
+			expect.stringContaining('aria-label="delete-selected-users"'),
+		);
+		expect(findings).toContainEqual(
+			expect.stringContaining('innerHTML = "Delete account"'),
+		);
+		expect(findings).toContainEqual(
+			expect.stringContaining('insertAdjacentText(..., "Delete account")'),
+		);
+		expect(findings).toContainEqual(
+			expect.stringContaining('append("Delete account")'),
+		);
+		expect(findings).toContainEqual(
+			expect.stringContaining('createTextNode("Delete account")'),
+		);
+	});
+
+	// W5-HARDEN2: a normal UI view-model carrying a `status` enum ALONGSIDE
+	// real title/description copy (a toast/banner) must not have that copy
+	// exempted just because it also has a `status` key — the tightened
+	// problem-details signature requires 2+ marker keys together, and `status`
+	// alone is deliberately not enough. A genuine RFC 7807 problem-details
+	// object (2+ markers) and a genuine <meta>/head() descriptor (a `content`
+	// sibling) must still be exempted.
+	test('findHardcodedUiLiterals flags an ordinary status+title+description UI object, but still exempts real problem-details and meta descriptors (W5-HARDEN2 canary)', () => {
+		const findings = findHardcodedUiLiterals(
+			[
+				"export const bannerCopy = { status: 'warning', title: 'Delete account', description: 'Try again later' };",
+				"export const problemDetails = { status: 401, responseStatusCode: 401, title: 'Unauthorized', detail: 'x' };",
+				"export const metaDescriptor = { name: 'viewport', content: 'Delete account' };",
+			].join('\n'),
+			'canary.tsx',
+		);
+
+		expect(findings).toContainEqual(
+			expect.stringContaining('title: "Delete account"'),
+		);
+		expect(findings).toContainEqual(
+			expect.stringContaining('description: "Try again later"'),
+		);
+		expect(findings.some((finding) => finding.includes('Unauthorized'))).toBe(
+			false,
+		);
+		expect(findings.some((finding) => finding.includes('metaDescriptor'))).toBe(
+			false,
+		);
+	});
+
+	// The kebab-key exemption must still protect the one shape it exists for —
+	// an object-literal lookup TABLE whose values are i18n keys — even though
+	// it no longer applies to JSX attributes/DOM sinks.
+	test('findHardcodedUiLiterals still exempts a kebab-shaped i18n-key lookup table value in an object property (regression guard)', () => {
+		const findings = findHardcodedUiLiterals(
+			"const labels: Record<string, { subtitle: string }> = { a: { subtitle: 'accept-invitation-brand-subtitle-new-user' } };",
+			'canary.tsx',
+		);
+
+		expect(findings).toEqual([]);
+	});
+
+	// FormData/URLSearchParams also expose a 2-argument `.append(name, value)`
+	// method — the single-argument restriction on COPY_LIKE_SINGLE_ARG_DOM_CALL_NAMES
+	// must not flag it as a DOM text-insertion sink.
+	test('findHardcodedUiLiterals does not flag a 2-argument FormData/URLSearchParams-shaped .append() call', () => {
+		const findings = findHardcodedUiLiterals(
+			"formData.append('accountStatus', 'Delete account requested');",
 			'canary.tsx',
 		);
 
