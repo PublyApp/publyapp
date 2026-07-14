@@ -15,6 +15,7 @@ import { AuthAlert } from '~/components/auth/auth-alert';
 import { AuthFormHeader } from '~/components/auth/auth-form-header';
 import { EmailSentConfirmation } from '~/components/auth/email-sent-confirmation';
 import { InvalidLinkView } from '~/components/auth/invalid-link-view';
+import { PrecheckUnavailableView } from '~/components/auth/precheck-unavailable-view';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import { redirectAuthenticatedUserAwayFromAuthPage } from '~/lib/auth-route-guard';
@@ -32,6 +33,7 @@ import { queryParamKey, queryParamValue } from '@org/shared-ts/lib/constants';
 
 type VerifyEmailLoaderData =
 	| { view: 'invalid' }
+	| { view: 'unavailable' }
 	| { view: 'sent'; email: string }
 	| { view: 'request' };
 
@@ -84,7 +86,9 @@ const verifyEmailLoader = async ({
 	if (id && token) {
 		const result = await checkEmailVerificationToken({ data: { id, token } });
 		if (!result.ok) {
-			return { view: 'invalid' };
+			return {
+				view: result.reason === 'unavailable' ? 'unavailable' : 'invalid',
+			};
 		}
 
 		throw redirect({
@@ -148,6 +152,12 @@ const VerifyEmailRoute = () => {
 		resolver: zodResolver(formSchema),
 		defaultValues: { email: '' },
 	});
+
+	if (loaderData.view === 'unavailable') {
+		return (
+			<PrecheckUnavailableView testId="verify-email-precheck-unavailable-view" />
+		);
+	}
 
 	if (loaderData.view === 'invalid') {
 		return (

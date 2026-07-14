@@ -17,6 +17,7 @@ import { AuthFormHeader } from '~/components/auth/auth-form-header';
 import { EmailSentConfirmation } from '~/components/auth/email-sent-confirmation';
 import { InvalidLinkView } from '~/components/auth/invalid-link-view';
 import { PasswordField } from '~/components/auth/password-field';
+import { PrecheckUnavailableView } from '~/components/auth/precheck-unavailable-view';
 import { Button, buttonVariants } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import { PASSWORD_MIN_LENGTH } from '~/lib/auth-password-policy';
@@ -36,6 +37,7 @@ import { queryParamKey, queryParamValue } from '@org/shared-ts/lib/constants';
 
 type ResetPasswordLoaderData =
 	| { view: 'invalid' }
+	| { view: 'unavailable' }
 	| { view: 'request' }
 	| {
 			view: 'set-new';
@@ -60,7 +62,9 @@ const resetPasswordLoader = async ({
 
 	const result = await checkResetPasswordToken({ data: { id, token } });
 	if (!result.ok) {
-		return { view: 'invalid' };
+		return {
+			view: result.reason === 'unavailable' ? 'unavailable' : 'invalid',
+		};
 	}
 
 	const fromEmailVerification =
@@ -453,6 +457,12 @@ const ResetPasswordRoute = () => {
 	}, [loaderData]);
 
 	const view = tokenRejected ? 'invalid' : loaderData.view;
+
+	if (view === 'unavailable') {
+		return (
+			<PrecheckUnavailableView testId="reset-password-precheck-unavailable-view" />
+		);
+	}
 
 	if (view === 'invalid') {
 		return (

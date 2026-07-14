@@ -1293,5 +1293,7 @@
 	"seo-default-title": "PublyApp",
 	"seo-home-description": "PublyApp permet à toute votre équipe et à chaque canal d'avancer ensemble, du premier brouillon jusqu'à la publication.",
 	"seo-login-title": "Connexion à PublyApp",
-	"seo-login-description": "Connectez-vous à votre espace de travail PublyApp pour commencer."
+	"seo-login-description": "Connectez-vous à votre espace de travail PublyApp pour commencer.",
+	"auth-precheck-unavailable-title": "Impossible de vérifier ce lien",
+	"auth-precheck-unavailable-description": "Cela ressemble à un problème de connexion temporaire, pas à un lien invalide. Veuillez réessayer."
 }

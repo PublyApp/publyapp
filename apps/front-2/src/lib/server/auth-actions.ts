@@ -7,6 +7,7 @@ import { getRegisterSchema } from '@org/shared-ts/validations/auth.validations';
 
 import { createClient } from '../api-client/client-manager';
 import { PASSWORD_MIN_LENGTH } from '../auth-password-policy';
+import { classifyPrecheckFailure } from './precheck-outcome';
 import { throwServerFailure } from './server-failure';
 
 type RegisterInput = {
@@ -142,13 +143,15 @@ const CheckTokenInputSchema = z.object({
 
 type CheckEmailVerificationTokenResult =
 	| { ok: true; resetPasswordUrl?: string }
-	| { ok: false };
+	| { ok: false; reason: 'invalid' | 'unavailable' };
 
 /**
- * Any failure (malformed id/token, expired token, unknown error) collapses
- * to `ok: false` on purpose — the API never distinguishes these reasons
- * either (see apps/api CheckEmailVerificationToken.cs), so surfacing more
- * detail here would just be guesswork.
+ * Malformed/expired/reused token collapses to a single `reason: 'invalid'`
+ * on purpose — the API never distinguishes those cases either (see apps/api
+ * CheckEmailVerificationToken.cs), so surfacing more detail here would just
+ * be guesswork. A transient failure (network blip, 5xx) is a DIFFERENT
+ * axis: it means the API could not be reached, not that the link is bad —
+ * `classifyPrecheckFailure` keeps that reason separate (users-auth-r6-F1).
  */
 export const checkEmailVerificationToken = createServerFn({ method: 'POST' })
 	.validator((data): CheckTokenInput => CheckTokenInputSchema.parse(data))
@@ -163,14 +166,14 @@ export const checkEmailVerificationToken = createServerFn({ method: 'POST' })
 				ok: true,
 				resetPasswordUrl: result?.resetPasswordUrl ?? undefined,
 			};
-		} catch {
-			return { ok: false };
+		} catch (error) {
+			return { ok: false, reason: classifyPrecheckFailure(error) };
 		}
 	});
 
 type CheckResetPasswordTokenResult =
 	| { ok: true; email: string }
-	| { ok: false };
+	| { ok: false; reason: 'invalid' | 'unavailable' };
 
 export const checkResetPasswordToken = createServerFn({ method: 'POST' })
 	.validator((data): CheckTokenInput => CheckTokenInputSchema.parse(data))
@@ -182,8 +185,8 @@ export const checkResetPasswordToken = createServerFn({ method: 'POST' })
 				queryParameters: { id: data.id, token: data.token },
 			});
 			return { ok: true, email: result?.email ?? '' };
-		} catch {
-			return { ok: false };
+		} catch (error) {
+			return { ok: false, reason: classifyPrecheckFailure(error) };
 		}
 	});
 

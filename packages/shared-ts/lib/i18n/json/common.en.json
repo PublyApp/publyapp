@@ -1293,5 +1293,7 @@
 	"seo-default-title": "PublyApp",
 	"seo-home-description": "PublyApp keeps your whole team and every channel moving together — from first draft to published.",
 	"seo-login-title": "Sign in to PublyApp",
-	"seo-login-description": "Sign in to your PublyApp workspace to get started."
+	"seo-login-description": "Sign in to your PublyApp workspace to get started.",
+	"auth-precheck-unavailable-title": "We couldn't check this link",
+	"auth-precheck-unavailable-description": "This looks like a temporary connection problem, not an invalid link. Please try again."
 }

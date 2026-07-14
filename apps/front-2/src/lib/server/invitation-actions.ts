@@ -12,6 +12,7 @@ import { selectToken } from '@org/shared-ts/lib/session/parse';
 
 import { createClient } from '../api-client/client-manager';
 import { PASSWORD_MIN_LENGTH } from '../auth-password-policy';
+import { classifyPrecheckFailure } from './precheck-outcome';
 import { throwServerFailure } from './server-failure';
 import {
 	buildTenantSessionCookie,
@@ -36,7 +37,7 @@ type InvitationInfoResult =
 			profileName: string;
 			userExists: boolean;
 	  }
-	| { ok: false };
+	| { ok: false; reason: 'invalid' | 'unavailable' };
 
 /**
  * Combines the pre-validation check (email/userExists) and the display
@@ -61,7 +62,7 @@ export const loadInvitationInfo = createServerFn({ method: 'POST' })
 			]);
 
 			if (!detailsResult?.email) {
-				return { ok: false };
+				return { ok: false, reason: 'invalid' };
 			}
 
 			return {
@@ -70,8 +71,8 @@ export const loadInvitationInfo = createServerFn({ method: 'POST' })
 				profileName: detailsResult.profileName ?? '',
 				userExists: checkResult?.userExists ?? false,
 			};
-		} catch {
-			return { ok: false };
+		} catch (error) {
+			return { ok: false, reason: classifyPrecheckFailure(error) };
 		}
 	});
 

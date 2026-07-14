@@ -22,6 +22,7 @@ import { AuthAlert } from '~/components/auth/auth-alert';
 import { AuthFormHeader } from '~/components/auth/auth-form-header';
 import { InvalidLinkView } from '~/components/auth/invalid-link-view';
 import { PasswordField } from '~/components/auth/password-field';
+import { PrecheckUnavailableView } from '~/components/auth/precheck-unavailable-view';
 import { Button, buttonVariants } from '~/components/ui/button';
 import { Card, CardContent } from '~/components/ui/card';
 import { Input } from '~/components/ui/input';
@@ -51,6 +52,7 @@ import { queryParamKey } from '@org/shared-ts/lib/constants';
 
 type InvitationLoaderData =
 	| { view: 'invalid' }
+	| { view: 'unavailable' }
 	| {
 			view: 'valid';
 			token: string;
@@ -74,7 +76,9 @@ const invitationLoader = async ({
 
 	const result = await loadInvitationInfo({ data: { id, token } });
 	if (!result.ok) {
-		return { view: 'invalid' };
+		return {
+			view: result.reason === 'unavailable' ? 'unavailable' : 'invalid',
+		};
 	}
 
 	return {
@@ -772,6 +776,12 @@ const AcceptInvitationRoute = () => {
 	// every auth-surface route (see F1) — this pushes this route's per-branch
 	// brand copy up into it instead of nesting a second AuthLayout here.
 	useSetAuthBrand(brand);
+
+	if (loaderData.view === 'unavailable') {
+		return (
+			<PrecheckUnavailableView testId="accept-invitation-precheck-unavailable-view" />
+		);
+	}
 
 	if (loaderData.view === 'invalid') {
 		return (

@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
 	requestPasswordResetPost: vi.fn(),
 	requestEmailVerificationPost: vi.fn(),
+	checkEmailVerificationTokenGet: vi.fn(),
+	checkResetPasswordTokenGet: vi.fn(),
 }));
 
 vi.mock('../api-client/client-manager', () => ({
@@ -10,6 +12,10 @@ vi.mock('../api-client/client-manager', () => ({
 		auth: {
 			requestPasswordReset: { post: mocks.requestPasswordResetPost },
 			verifyEmailRequest: { post: mocks.requestEmailVerificationPost },
+			checkEmailVerificationToken: {
+				get: mocks.checkEmailVerificationTokenGet,
+			},
+			checkResetPasswordToken: { get: mocks.checkResetPasswordTokenGet },
 		},
 	}),
 }));
@@ -42,6 +48,8 @@ vi.mock('@tanstack/react-start', () => ({
 
 // eslint-disable-next-line import/first -- must follow the vi.mock call above
 import {
+	checkEmailVerificationToken,
+	checkResetPasswordToken,
 	RegisterInputSchema,
 	requestEmailVerification,
 	requestPasswordReset,
@@ -122,5 +130,98 @@ describe('requestEmailVerification', () => {
 
 		expect(mocks.requestEmailVerificationPost).toHaveBeenCalledTimes(1);
 		expect(mocks.requestPasswordResetPost).not.toHaveBeenCalled();
+	});
+});
+
+// users-auth-r6-F1: a transient failure (network/5xx) checking the token
+// must NOT collapse into the same "invalid link" bucket as a terminal 4xx
+// (malformed/expired/reused token) — it needs `reason: 'unavailable'` so the
+// caller can offer a retry instead of sending the user into recovery.
+describe('checkEmailVerificationToken', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	test('resolves ok:true on a valid token', async () => {
+		mocks.checkEmailVerificationTokenGet.mockResolvedValue({
+			resetPasswordUrl: 'https://front-2.test/reset-password',
+		});
+
+		await expect(
+			checkEmailVerificationToken({ data: { id: 'user-1', token: 'tok' } }),
+		).resolves.toEqual({
+			ok: true,
+			resetPasswordUrl: 'https://front-2.test/reset-password',
+		});
+	});
+
+	test('classifies a terminal 400 (malformed/expired token) as invalid', async () => {
+		mocks.checkEmailVerificationTokenGet.mockRejectedValue({
+			responseStatusCode: 400,
+			title: 'Bad request',
+		});
+
+		await expect(
+			checkEmailVerificationToken({ data: { id: 'user-1', token: 'tok' } }),
+		).resolves.toEqual({ ok: false, reason: 'invalid' });
+	});
+
+	test('classifies a transient 500 as unavailable, not invalid', async () => {
+		mocks.checkEmailVerificationTokenGet.mockRejectedValue({
+			responseStatusCode: 500,
+			title: 'Internal error',
+		});
+
+		await expect(
+			checkEmailVerificationToken({ data: { id: 'user-1', token: 'tok' } }),
+		).resolves.toEqual({ ok: false, reason: 'unavailable' });
+	});
+
+	test('classifies a network failure as unavailable, not invalid', async () => {
+		mocks.checkEmailVerificationTokenGet.mockRejectedValue(
+			new TypeError('Failed to fetch'),
+		);
+
+		await expect(
+			checkEmailVerificationToken({ data: { id: 'user-1', token: 'tok' } }),
+		).resolves.toEqual({ ok: false, reason: 'unavailable' });
+	});
+});
+
+describe('checkResetPasswordToken', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	test('resolves ok:true with the email on a valid token', async () => {
+		mocks.checkResetPasswordTokenGet.mockResolvedValue({
+			email: 'rui@latticecloud.com',
+		});
+
+		await expect(
+			checkResetPasswordToken({ data: { id: 'user-1', token: 'tok' } }),
+		).resolves.toEqual({ ok: true, email: 'rui@latticecloud.com' });
+	});
+
+	test('classifies a terminal 404 (unknown token) as invalid', async () => {
+		mocks.checkResetPasswordTokenGet.mockRejectedValue({
+			responseStatusCode: 404,
+			title: 'Not found',
+		});
+
+		await expect(
+			checkResetPasswordToken({ data: { id: 'user-1', token: 'tok' } }),
+		).resolves.toEqual({ ok: false, reason: 'invalid' });
+	});
+
+	test('classifies a transient 503 as unavailable, not invalid', async () => {
+		mocks.checkResetPasswordTokenGet.mockRejectedValue({
+			responseStatusCode: 503,
+			title: 'Service unavailable',
+		});
+
+		await expect(
+			checkResetPasswordToken({ data: { id: 'user-1', token: 'tok' } }),
+		).resolves.toEqual({ ok: false, reason: 'unavailable' });
 	});
 });
