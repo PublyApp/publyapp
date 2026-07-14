@@ -21,6 +21,7 @@ import {
 	getSessionTokensFromBrowser,
 } from '~/lib/api-client/client-manager';
 import { buildLoginRedirectSearch } from '~/lib/login-redirect-search';
+import { shouldShowSecondaryPanel } from '~/lib/navigation/route-metadata';
 import { ServerFailure } from '~/lib/server/server-failure';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
@@ -190,6 +191,16 @@ const AuthedRoutePendingSkeleton = () => {
 		);
 	}
 
+	// r4-shell-F4: `.app-shell-workspace:has(.app-shell-secondary-panel)`
+	// (app.css) widens the grid purely off DOM presence — no store/JS
+	// conditional needed here. `shouldShowSecondaryPanel(pathname)` with no
+	// options uses the exact same defaults the real shell falls back to
+	// before `sidebarOpen` hydrates (list routes open, rail-only/detail
+	// routes closed — see route-metadata.tsx), so this store-free skeleton
+	// still reserves the right grid track and the real first frame doesn't
+	// pop the layout when it mounts.
+	const showSecondaryPanel = shouldShowSecondaryPanel(pathname);
+
 	return (
 		<div
 			className="app-shell-workspace"
@@ -201,6 +212,12 @@ const AuthedRoutePendingSkeleton = () => {
 				aria-label={t('primary-navigation')}
 				data-testid="app-shell-pending-rail"
 			/>
+			{showSecondaryPanel ? (
+				<aside
+					className="app-shell-secondary-panel"
+					data-testid="app-shell-pending-secondary-panel"
+				/>
+			) : null}
 			<div className="app-shell-body">
 				<header
 					className="app-shell-topbar"
