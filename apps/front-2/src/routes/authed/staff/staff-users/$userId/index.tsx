@@ -240,8 +240,8 @@ function StaffUserOverviewTab() {
 						action={
 							<Button
 								type="button"
-								className="publy-danger-action"
-								variant="secondary"
+								variant="destructive"
+								size="sm"
 								onClick={onOpenSuspendDialog}
 								disabled={!canSuspend && !canReactivate}
 							>
@@ -256,7 +256,7 @@ function StaffUserOverviewTab() {
 							<Button
 								type="button"
 								variant="destructive"
-								className="publy-danger-action"
+								size="sm"
 								onClick={onOpenDeleteDialog}
 								disabled={isDeletePending}
 							>

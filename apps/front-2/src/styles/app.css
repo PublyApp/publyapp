@@ -1396,21 +1396,6 @@ html.dark {
 		color: var(--publy-foreground-subtle);
 	}
 
-	.publy-danger-zone-row .publy-danger-action,
-	.publy-danger-action {
-		@apply inline-flex shrink-0 cursor-pointer items-center text-xs font-medium;
-		height: 30px;
-		padding: 0 12px;
-		border-radius: 12px;
-		border: 1px solid transparent;
-		background: var(--publy-danger-soft);
-		color: var(--publy-danger);
-	}
-
-	.publy-danger-action:hover {
-		background: color-mix(in srgb, var(--publy-danger) 16%, transparent);
-	}
-
 	/* ---- Tenant identity brand tile (handoff 2c/3b) ---- */
 
 	.publy-brand-tile {

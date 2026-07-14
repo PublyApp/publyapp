@@ -674,8 +674,8 @@ function StaffTenantDetailsPage() {
 							action={
 								<Button
 									type="button"
-									variant="secondary"
-									className="publy-danger-action"
+									variant="destructive"
+									size="sm"
 									onClick={() =>
 										setPendingAction(isActive ? 'suspend' : 'reactivate')
 									}
@@ -697,7 +697,7 @@ function StaffTenantDetailsPage() {
 								<Button
 									type="button"
 									variant="destructive"
-									className="publy-danger-action"
+									size="sm"
 									onClick={() => setPendingAction('delete')}
 									disabled={!canDelete || deleteMutation.isPending}
 									title={
