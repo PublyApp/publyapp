@@ -768,7 +768,6 @@ function StaffTenantProfilesPage() {
 	const queryClient = useQueryClient();
 	const [deleteTarget, setDeleteTarget] =
 		useState<StaffTenantProfileRow | null>(null);
-	const [deleteError, setDeleteError] = useState('');
 	const [shouldRedirectToLogout, setShouldRedirectToLogout] = useState(false);
 	const [bulkFeedback, setBulkFeedback] = useState<ProfileBulkFeedback | null>(
 		null,
@@ -925,8 +924,6 @@ function StaffTenantProfilesPage() {
 			return;
 		}
 
-		setDeleteError('');
-
 		try {
 			await deleteProfile.mutateAsync({
 				tenantId,
@@ -939,11 +936,12 @@ function StaffTenantProfilesPage() {
 				return;
 			}
 
-			setDeleteError(
-				getFailureMessage(toApiFailure(error), {
+			setBulkFeedback({
+				tone: 'error',
+				message: getFailureMessage(toApiFailure(error), {
 					fallback: t('unable-to-delete-tenant-profile'),
 				}),
-			);
+			});
 			return;
 		} finally {
 			setDeleteTarget(null);
@@ -1169,12 +1167,6 @@ function StaffTenantProfilesPage() {
 					if (!isOpen) setDeleteTarget(null);
 				}}
 			/>
-
-			{deleteError ? (
-				<p className="text-sm text-destructive" role="status">
-					{deleteError}
-				</p>
-			) : null}
 
 			<ProfileFormDrawer
 				tenantId={tenantId}

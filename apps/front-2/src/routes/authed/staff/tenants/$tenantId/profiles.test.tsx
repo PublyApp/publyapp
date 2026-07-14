@@ -7,6 +7,7 @@ import {
 	render,
 	screen,
 	waitFor,
+	within,
 } from '@testing-library/react';
 import type { JSX } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -458,6 +459,37 @@ describe('staff tenant profiles route', () => {
 		);
 		await waitFor(() =>
 			expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled(),
+		);
+	});
+
+	test('shows a failed profile delete in the top feedback bar, not silently at the page bottom (r3-tenants-F12)', async () => {
+		mocks.deleteProfileMutation.mockRejectedValue({
+			kind: 'problem',
+			status: 409,
+			responseStatusCode: 409,
+			title: 'Conflict',
+			detail: 'This profile is still assigned to a user.',
+		});
+
+		renderPage();
+
+		const triggers = screen.getAllByRole('button', { name: /^Actions for/ });
+		fireEvent.click(triggers[1]);
+		fireEvent.click(await screen.findByRole('menuitem', { name: 'Delete' }));
+
+		await waitFor(() =>
+			expect(screen.getByRole('heading', { name: 'Delete' })).toBeTruthy(),
+		);
+		fireEvent.click(
+			screen.getAllByRole('button', { name: 'Delete' }).slice(-1)[0],
+		);
+
+		await waitFor(() =>
+			expect(
+				within(screen.getByRole('status')).getByText(
+					'This profile is still assigned to a user.',
+				),
+			).toBeTruthy(),
 		);
 	});
 
