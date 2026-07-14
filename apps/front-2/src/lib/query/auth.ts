@@ -2,9 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 import { normalizeNullableFileUrl } from '~/lib/api-client/resolve-api-file-url';
 
-import type { ApiClient } from '@org/client-ts/src/apiClient';
 import type { GetUserAuthDataResult } from '@org/client-ts/src/models/index.js';
-import { buildStaffQueryOptions } from '@org/shared-ts/lib/query/create-hooks';
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
 export type CurrentUser = {
@@ -17,8 +15,6 @@ export type CurrentUser = {
 };
 
 export const CURRENT_USER_QUERY_KEY = ['current-user'] as const;
-
-type CurrentUserQueryVariables = Record<string, never>;
 
 const normalizeString = (value: string | null | undefined): string | null => {
 	if (typeof value !== 'string') {
@@ -50,25 +46,21 @@ export const toCurrentUser = (
 	};
 };
 
-const currentUserQueryOptions = buildStaffQueryOptions<
-	ApiClient,
-	GetUserAuthDataResult,
-	CurrentUserQueryVariables
->(
-	{
-		queryKeyFn: () => [...CURRENT_USER_QUERY_KEY],
-		fetcher: async (client) => {
-			const result = await client.auth.userAuthData.get();
+// `/auth/user-auth-data` is scope-agnostic: it must authenticate whichever
+// account is signed in (tenant or staff), so this bypasses the staff-only
+// `buildStaffQueryOptions` factory and reads through the session-neutral
+// client instead (r3-shell-F3 — a tenant session was previously invisible
+// here, since `getOrCreateStaffClient()` never carries a tenant token).
+const fetchCurrentUser = async (): Promise<GetUserAuthDataResult> => {
+	const client = getClientManager().getOrCreateSessionClient();
+	const result = await client.auth.userAuthData.get();
 
-			if (!result) {
-				throw new Error('current user auth data result was empty');
-			}
+	if (!result) {
+		throw new Error('current user auth data result was empty');
+	}
 
-			return result;
-		},
-	},
-	{ clientAccessor: getClientManager() },
-);
+	return result;
+};
 
 type CurrentUserQueryOptions = {
 	enabled?: boolean;
@@ -81,8 +73,8 @@ type CurrentUserQueryOptions = {
 // tab-refocus refetch is redundant, not a freshness fix.
 export const useCurrentUserQuery = (options?: CurrentUserQueryOptions) =>
 	useQuery({
-		queryKey: currentUserQueryOptions.queryKey({}),
-		queryFn: () => currentUserQueryOptions.fetcher({}),
+		queryKey: [...CURRENT_USER_QUERY_KEY],
+		queryFn: fetchCurrentUser,
 		enabled: options?.enabled,
 		retry: options?.retry,
 		staleTime: Infinity,

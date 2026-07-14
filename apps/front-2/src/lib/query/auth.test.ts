@@ -9,8 +9,10 @@ const mocks = vi.hoisted(() => ({
 		| {
 				staleTime?: number;
 				refetchOnWindowFocus?: boolean;
+				queryFn?: () => unknown;
 		  }
 		| undefined,
+	userAuthDataGet: vi.fn(),
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -21,9 +23,12 @@ vi.mock('@tanstack/react-query', () => ({
 }));
 
 vi.mock('~/lib/api-client/client-manager', () => ({
+	// Only a session-neutral client is exposed here — no
+	// `getOrCreateStaffClient` — so a regression back to the staff-only
+	// factory would throw at fetch time instead of silently 401ing.
 	getClientManager: () => ({
-		getOrCreateStaffClient: () => ({
-			auth: { userAuthData: { get: vi.fn() } },
+		getOrCreateSessionClient: () => ({
+			auth: { userAuthData: { get: mocks.userAuthDataGet } },
 		}),
 	}),
 	resolveApiBaseUrl: () => 'https://api.example.test',
@@ -38,6 +43,19 @@ describe('useCurrentUserQuery', () => {
 
 		expect(mocks.capturedOptions?.staleTime).toBe(Infinity);
 		expect(mocks.capturedOptions?.refetchOnWindowFocus).toBe(false);
+	});
+
+	test('reads through the scope-neutral session client, not a staff-only one (r3-shell-F3)', async () => {
+		mocks.userAuthDataGet.mockResolvedValue({
+			id: 'tenant-user-1',
+			email: 'tenant-user@example.com',
+		});
+
+		renderHook(() => useCurrentUserQuery());
+
+		await mocks.capturedOptions?.queryFn?.();
+
+		expect(mocks.userAuthDataGet).toHaveBeenCalled();
 	});
 });
 
