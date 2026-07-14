@@ -274,7 +274,11 @@ function StaffTenantEditRoute() {
 			return;
 		}
 
-		reset(tenantFormValues);
+		// keepDirtyValues preserves any field the user has already edited while
+		// still applying server changes to fields that are still pristine — a
+		// plain reset() would silently overwrite in-progress edits on every
+		// background refetch (r5-tenants-F2).
+		reset(tenantFormValues, { keepDirtyValues: true });
 	}, [reset, tenantFormValues]);
 
 	if (shouldLogout) {

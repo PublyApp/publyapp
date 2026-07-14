@@ -525,6 +525,35 @@ describe('staff tenant edit route', () => {
 		).toBe('Acme Corporation Edited');
 	});
 
+	test('keeps a dirty field but applies a genuine refetch change to other fields (r5-tenants-F2)', () => {
+		const renderResult = renderPage();
+		const nameInput = screen.getByLabelText(
+			'Organization name',
+		) as HTMLInputElement;
+
+		fireEvent.change(nameInput, {
+			target: { value: 'Acme Corporation Edited' },
+		});
+
+		// A real background refetch: another admin raised the seat count while
+		// this tab was unfocused. This changes tenantFormValues' identity,
+		// unlike the byte-identical-data rerender above.
+		const refetchedTenant = buildTenant({ maxUsers: 40 });
+		mocks.toStaffTenantDetails.mockImplementation(() => refetchedTenant);
+		mocks.useStaffTenantDetailsQuery.mockReturnValue(
+			buildQueryResult({ data: refetchedTenant }),
+		);
+
+		renderResult.rerender(<RouteComponent />);
+
+		expect(
+			(screen.getByLabelText('Organization name') as HTMLInputElement).value,
+		).toBe('Acme Corporation Edited');
+		expect((screen.getByLabelText('Seats') as HTMLInputElement).value).toBe(
+			'40',
+		);
+	});
+
 	test('renders the edit form with tenant values and navigation action', () => {
 		renderPage();
 

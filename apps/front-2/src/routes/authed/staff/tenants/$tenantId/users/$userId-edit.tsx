@@ -6,8 +6,8 @@ import {
 	IconSearchOff,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { createFileRoute, Link } from '@tanstack/react-router';
-import { useEffect, useMemo, useState } from 'react';
+import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -17,6 +17,7 @@ import { Field, Form } from '~/components/field';
 import type { FieldSelectOption } from '~/components/field';
 import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
+import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import {
 	toStaffTenantUserDetails,
@@ -35,6 +36,7 @@ import {
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
+import { isAbsoluteHttpUrl } from '../../tenant-organization-profile-fields';
 import {
 	BackToTenantsLink,
 	formatTenantUserLevelLabel,
@@ -74,7 +76,10 @@ const buildTenantUserEditSchema = (t: (key: string) => string) =>
 			.string()
 			.trim()
 			.max(1024, { message: t('avatar-url-too-long') })
-			.optional(),
+			.optional()
+			.refine((value) => !value || isAbsoluteHttpUrl(value), {
+				message: t('avatar-url-invalid'),
+			}),
 		accountLevel: z.enum(EDIT_ACCOUNT_LEVEL_OPTIONS),
 	});
 
@@ -210,6 +215,7 @@ function StaffTenantUserEditPage() {
 	const queryClient = useQueryClient();
 	const [shouldLogout, setShouldLogout] = useState(false);
 	const [serverError, setServerError] = useState('');
+	const hasSavedRef = useRef(false);
 
 	const tenantQuery = useStaffTenantDetailsQuery(
 		{ tenantId },
@@ -250,8 +256,13 @@ function StaffTenantUserEditPage() {
 		},
 	});
 	const { handleSubmit, reset, formState } = methods;
-	const { isSubmitting } = formState;
+	const { isSubmitting, isDirty } = formState;
 	const tenant = toStaffTenantDetails(tenantQuery.data);
+
+	const blocker = useBlocker({
+		shouldBlockFn: () => isDirty && !hasSavedRef.current,
+		withResolver: true,
+	});
 
 	const userFormValues = useMemo<TenantUserEditValues | null>(
 		() =>
@@ -277,7 +288,11 @@ function StaffTenantUserEditPage() {
 			return;
 		}
 
-		reset(userFormValues);
+		// keepDirtyValues preserves any field the user has already edited while
+		// still applying server changes to fields that are still pristine — a
+		// plain reset() would silently overwrite in-progress edits on every
+		// background refetch (r5-tenants-F2).
+		reset(userFormValues, { keepDirtyValues: true });
 	}, [reset, userFormValues]);
 
 	if (shouldLogout) {
@@ -372,6 +387,7 @@ function StaffTenantUserEditPage() {
 			setServerError('');
 			await updateTenantUser.mutateAsync(payload);
 			await invalidateAllStaffTenantScopes(queryClient);
+			hasSavedRef.current = true;
 			void navigate({
 				to: '/staff/tenants/$tenantId/users/$userId',
 				params: { tenantId, userId },
@@ -382,8 +398,22 @@ function StaffTenantUserEditPage() {
 				return;
 			}
 
+			const failure = toApiFailure(error);
+			if (
+				failure.kind === 'validation' &&
+				(failure.fieldErrors.avatarUrl?.length ?? 0) > 0
+			) {
+				methods.setError('avatarUrl', {
+					type: 'server',
+					message: getFailureMessage(failure, {
+						fallback: t('tenant-user-update-failed'),
+					}),
+				});
+				return;
+			}
+
 			setServerError(
-				getFailureMessage(toApiFailure(error), {
+				getFailureMessage(failure, {
 					fallback: t('tenant-user-update-failed'),
 				}),
 			);
@@ -461,6 +491,21 @@ function StaffTenantUserEditPage() {
 					</div>
 				</Form>
 			</Card>
+
+			<ConfirmDialog
+				isOpen={blocker.status === 'blocked'}
+				title={t('unsaved-changes-dialog-title')}
+				description={t('unsaved-changes-dialog-description')}
+				confirmLabel={t('leave-page')}
+				cancelLabel={t('cancel')}
+				tone="danger"
+				onConfirm={() => blocker.proceed?.()}
+				onOpenChange={(isOpen) => {
+					if (!isOpen) {
+						blocker.reset?.();
+					}
+				}}
+			/>
 		</TenantDetailsPageShell>
 	);
 }
