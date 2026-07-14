@@ -532,8 +532,73 @@ test('r4-ui-F3: flags hsl/hwb/lab/lch/oklab/oklch/color() literals in property v
 			'.g { background-color: color(display-p3 1 0 0); }',
 			'.h { --publy-icon-tile-bg: oklch(70% 0.1 200); }',
 		].join('\n'),
+		// r5-ui-F2: this Tailwind arbitrary-value `bg-[hsl(...)]` is the exact
+		// spelling the round-5 review demonstrated as invisible — the
+		// arbitrary-utility detector was hard-coded to `rgba?` only, so this
+		// ninth literal never joined the eight CSS-declaration hits below,
+		// and the old assertion (`8`) silently certified that gap as green.
 		'src/components/table/data-table.tsx':
 			'<div className="bg-[hsl(220_10%_10%)]" />',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+	const colorViolations = violations.filter(
+		(violation) => violation.ruleId === 'no-raw-visual-color',
+	);
+
+	// r5-ui-F2: assert each of the nine injected literals individually (not
+	// just the aggregate count) so that removing ANY ONE detector — not only
+	// dropping the total below 9 — fails this test. An aggregate `length ===
+	// 9` alone would still pass if two detectors merged onto the same line or
+	// a detector silently swapped which literal it caught.
+	const bySource = (needle) =>
+		colorViolations.filter((violation) => violation.source.includes(needle));
+	assert.equal(bySource('hsl(0 100% 50%)').length, 1, 'hsl() in background');
+	assert.equal(bySource('hwb(220 30% 20%)').length, 1, 'hwb() in border-color');
+	assert.equal(
+		bySource('lab(29.2345% 39.3825 20.0664)').length,
+		1,
+		'lab() in color',
+	);
+	assert.equal(
+		bySource('lch(52.2% 72.2 50)').length,
+		1,
+		'lch() in outline-color',
+	);
+	assert.equal(bySource('oklab(59% 0.1 0.1)').length, 1, 'oklab() in fill');
+	assert.equal(bySource('oklch(60% 0.15 30)').length, 1, 'oklch() in stroke');
+	assert.equal(
+		bySource('color(display-p3 1 0 0)').length,
+		1,
+		'color() in background-color',
+	);
+	assert.equal(
+		bySource('oklch(70% 0.1 200)').length,
+		1,
+		'oklch() in a custom property',
+	);
+	assert.equal(
+		bySource('bg-[hsl(220_10%_10%)]').length,
+		1,
+		'oklch()/hsl() inside a Tailwind arbitrary-value utility',
+	);
+	assert.equal(colorViolations.length, 9);
+});
+
+// r5-ui-F2: three evasions different in shape from the round-5-cited example
+// (a Tailwind `bg-[hsl(...)]` utility) — a quoted/templated non-rgba colour
+// function, a `color-mix()` call whose operand is a raw literal instead of a
+// `var(...)` reference, and the same raw-operand shape nested inside an
+// otherwise-safe-looking `color-mix()` transparency blend. Each is planted,
+// proven caught, then removed (see the packet report for the RED/GREEN
+// transcripts of the underlying regex change).
+test('r5-ui-F2: flags a quoted oklch() string literal (not just rgba)', async () => {
+	const root = await makeFixture({
+		'src/components/table/data-table.tsx':
+			"const glow = 'oklch(70% 0.15 260)';",
 	});
 
 	const violations = await scanFront2DesignSystem({
@@ -544,8 +609,54 @@ test('r4-ui-F3: flags hsl/hwb/lab/lch/oklab/oklch/color() literals in property v
 	assert.equal(
 		violations.filter((violation) => violation.ruleId === 'no-raw-visual-color')
 			.length,
-		8,
+		1,
 	);
+});
+
+test('r5-ui-F2: flags a raw colour literal in a shadow-[] arbitrary utility, not just bg/text/border/ring', async () => {
+	const root = await makeFixture({
+		'src/components/app-shell/app-shell.tsx':
+			'<div className="shadow-[0_0_0_3px_rgba(253,199,0,0.16)]" />',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.filter((violation) => violation.ruleId === 'no-raw-visual-color')
+			.length,
+		1,
+	);
+});
+
+test('r5-ui-F2: flags color-mix() whose operand is a raw hex/rgba literal, not a token reference', async () => {
+	const root = await makeFixture({
+		'src/styles/other.css': [
+			'.a { background: color-mix(in srgb, #fff 25%, transparent); }',
+			'.b { border-color: color-mix(in srgb, rgba(0, 0, 0, 0.4) 10%, white); }',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+	const colorViolations = violations.filter(
+		(violation) => violation.ruleId === 'no-raw-visual-color',
+	);
+	// Each line trips both the new colour-mix-operand detector AND the
+	// pre-existing hex/rgba property-value detector (whose multiline variant
+	// scans the whole `;`-terminated declaration, not just the text
+	// immediately after the colon) — asserting distinct flagged lines rather
+	// than a raw match count keeps this test independent of that overlap.
+	const flaggedLines = new Set(
+		colorViolations.map((violation) => violation.line),
+	);
+
+	assert.ok(colorViolations.length >= 2, 'both lines produce at least one hit');
+	assert.deepEqual([...flaggedLines].sort(), [1, 2]);
 });
 
 test('r4-ui-F3: token-theme-parity flags a light-only root oklch() token with no html.dark counterpart', async () => {

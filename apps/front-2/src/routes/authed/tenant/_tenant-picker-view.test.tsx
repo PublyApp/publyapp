@@ -6,14 +6,13 @@ import { fileURLToPath } from 'node:url';
  * @vitest-environment jsdom
  *
  * r5-F4: the selectable tenant-picker row suppressed the native outline and
- * fell back to a raw `shadow-[0_0_0_3px_rgba(253,199,0,0.16)]` focus
- * indicator, measured at 1.08:1 against the light-theme card surface — far
- * under the 3:1 WCAG non-text-indicator floor — because
- * `no-raw-visual-color` only recognises an arbitrary utility when the
- * bracket *starts* with `rgb(a)`, not when it's nested inside a `shadow-[]`
- * value. This test renders the real row and computes the same contrast the
+ * fell back to an arbitrary-utility box-shadow embedding a translucent
+ * accent-colour literal as its focus indicator, measured at 1.08:1 against
+ * the light-theme card surface — far under the 3:1 WCAG non-text-indicator
+ * floor. This test renders the real row and computes the same contrast the
  * browser would, so a future raw-colour regression here fails on substance
- * (contrast/shape), not just on the guard's narrow bracket-prefix check.
+ * (contrast/shape), independently of whatever the static design-system
+ * guard's arbitrary-utility detector currently covers.
  */
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';

@@ -694,6 +694,44 @@ const RAW_COLOR_MULTILINE_PATTERN_OVERRIDES = new Map([
 	[RAW_COLOR_PROPERTY_HEX_PATTERN, RAW_COLOR_PROPERTY_HEX_PATTERN_MULTILINE],
 	[RAW_COLOR_PROPERTY_RGBA_PATTERN, RAW_COLOR_PROPERTY_RGBA_PATTERN_MULTILINE],
 ]);
+// r5-ui-F2: the quoted/templated and Tailwind-arbitrary variants below were
+// hard-coded to `rgba?` only, so a quoted `'hsl(0 0% 0%)'`/`` `oklch(...)` ``
+// string or an arbitrary utility like `bg-[oklch(95%_0.02_90)]` sailed
+// through unscanned even though DIRECT_COLOR_FUNCTION_NAMES (used by the
+// property-value patterns above) already covers every standard CSS colour
+// function. Both now share that same function list instead of maintaining a
+// second, narrower rgba-only copy.
+const QUOTED_DIRECT_COLOR_PATTERN = new RegExp(
+	`["'\`]\\s*(?:${DIRECT_COLOR_FUNCTION_NAMES})\\(`,
+);
+// r5-ui-F2 (evasion #3 — see the packet report): a `shadow-[]` arbitrary
+// value composes an offset/blur/spread prefix with the colour function
+// (`shadow-[0_0_0_3px_rgba(...)]`), so requiring the function at the very
+// start of the bracket (as the bg/text/etc. case above still legitimately
+// does — a raw prefix there is never itself a colour utility) missed it
+// entirely. This variant allows arbitrary non-`]` text before the function,
+// so it catches the colour literal wherever it sits inside the brackets.
+const ARBITRARY_TAILWIND_DIRECT_COLOR_ANYWHERE_PATTERN = new RegExp(
+	'\\b(?:shadow)-' +
+		`\\[[^\\]]*(?:${DIRECT_COLOR_FUNCTION_NAMES})\\([^\\]]*\\]`,
+);
+const ARBITRARY_TAILWIND_DIRECT_COLOR_PATTERN = new RegExp(
+	'\\b(?:bg|text|border|ring|from|to|via|fill|stroke|outline|accent|decoration|divide)-' +
+		`\\[(?:${DIRECT_COLOR_FUNCTION_NAMES})\\([^\\]]+\\)\\]`,
+);
+// r5-ui-F2: `color(?!-mix)` inside DIRECT_COLOR_FUNCTION_NAMES deliberately
+// exempts `color-mix(...)` itself (it's a reference form, not a literal —
+// see the DIRECT_COLOR_FUNCTION_NAMES comment above), but that exemption was
+// applied wholesale: `color-mix(in srgb, #fff 25%, transparent)` and
+// `color-mix(in srgb, rgba(0,0,0,.4) 25%, transparent)` are just as much raw
+// literals as a bare `#fff` — they only become safe once every colour
+// operand is a semantic `var(...)` reference (or a theme-invariant keyword
+// like `transparent`/`currentColor`). Flag any `color-mix(...)` call whose
+// argument list still contains a raw hex or nested colour-function operand.
+const COLOR_MIX_RAW_OPERAND_PATTERN = new RegExp(
+	'color-mix\\([^)]*(?:#[0-9a-fA-F]{3,8}\\b|' +
+		'\\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch)\\()',
+);
 
 const rules = [
 	{
@@ -743,16 +781,18 @@ const rules = [
 			isAppCssTokenLayerLine(relativePath, lineIndex, lines),
 		patterns: [
 			/["'`][#][0-9a-fA-F]{3,8}["'`]/, // quoted/templated raw color tokens
-			/\b(?:bg|text|border|ring|from|to|via|fill|stroke|outline|accent|decoration|divide)-\[#(?:[0-9a-fA-F]{3,8})\]/,
+			/\b(?:bg|text|border|ring|shadow|from|to|via|fill|stroke|outline|accent|decoration|divide)-\[#(?:[0-9a-fA-F]{3,8})\]/,
 			RAW_COLOR_PROPERTY_HEX_PATTERN,
 			/\b(?:bg|text|border|ring|from|to|via|fill|stroke|outline|accent|decoration|divide)-(?:slate|zinc|gray|neutral)-\d{2,3}\b/,
 			/\b(?:bg|border|text|ring)-white\/\d+\b/,
 			/\b(?:bg|border|text|ring)-black\/\d+\b/,
 			/\b(?:bg|border|text|ring)-(?:white|black)\b/,
-			/["'`]\s*rgba?\(/,
-			/\b(?:bg|text|border|ring|from|to|via|fill|stroke|outline|accent|decoration|divide)-\[(?:rgba?\([^\]]+\))\]/,
+			QUOTED_DIRECT_COLOR_PATTERN,
+			ARBITRARY_TAILWIND_DIRECT_COLOR_PATTERN,
+			ARBITRARY_TAILWIND_DIRECT_COLOR_ANYWHERE_PATTERN,
 			RAW_COLOR_PROPERTY_RGBA_PATTERN,
 			RAW_COLOR_CUSTOM_PROPERTY_PATTERN,
+			COLOR_MIX_RAW_OPERAND_PATTERN,
 		],
 	},
 	{
