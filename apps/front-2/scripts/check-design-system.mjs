@@ -7,7 +7,7 @@ import suppressionInventory from '../src/lib/suppression-inventory.json' with { 
 import {
 	diffSuppressionInventory,
 	findSuppressionSitesInSource,
-	isSubstantiveSuppressionReason,
+	isPreviousLineSuppressed,
 } from '../src/lib/suppression-reason.ts';
 
 const rootDir = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -632,23 +632,15 @@ const isKnownHandoffGuardDebt = ({ ruleId, file, source }) => {
 // An opt-out comment on the line directly above the offending line. Requires a
 // reason after the rule id so the suppression has to be argued, not just added.
 //
-// W5-HARDEN: reason-quality (isSubstantiveSuppressionReason) and the
-// suppression-inventory diff below are the shared helper from
-// suppression-reason.ts, also used by the data-honesty and i18n-guard
-// conventions — see that file for why "at least 3 word characters" (the
-// pre-hardening bar here) accepted `aaa`/`xxx`/`123` and why a heuristic
-// alone can't fully close this hole.
-const SUPPRESSION_PREFIX = 'design-system-ignore:';
-
-const isInlineSuppressed = (lines, line, ruleId) => {
-	const previous = lines[line - 2] ?? '';
-	const marker = `${SUPPRESSION_PREFIX} ${ruleId}`;
-	const at = previous.indexOf(marker);
-	if (at === -1) {
-		return false;
-	}
-	return isSubstantiveSuppressionReason(previous.slice(at + marker.length));
-};
+// W5-HARDEN2: this used to be its own `previous.indexOf(marker)` scan, which
+// (unlike inventory discovery) honoured a marker embedded anywhere on the
+// previous line — including after real code. It now defers entirely to
+// `isPreviousLineSuppressed`, the single shared parser also used by
+// `findSuppressionSitesInSource`/the inventory diff below, so this guard and
+// the inventory can never again disagree about what counts as a suppression
+// site. See suppression-reason.ts for the full rationale.
+const isInlineSuppressed = (lines, line, ruleId) =>
+	isPreviousLineSuppressed(lines, line, 'design-system-ignore', ruleId);
 
 const recordViolation = (violations, violation, lines) => {
 	if (isKnownHandoffGuardDebt(violation)) {

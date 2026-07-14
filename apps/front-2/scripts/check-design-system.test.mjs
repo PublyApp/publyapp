@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
+import { findSuppressionSitesInSource } from '../src/lib/suppression-reason.ts';
 import { scanFront2DesignSystem } from './check-design-system.mjs';
 
 const makeFixture = async (files) => {
@@ -1811,4 +1812,69 @@ test('checkSuppressionInventory: the real repo has zero drift against the commit
 		),
 		[],
 	);
+});
+
+// W5-HARDEN2: the actual defect W5-VERIFY3B found — the live guard's
+// suppression check and suppression-inventory discovery were two independent
+// parsers that could (and did) disagree: a marker embedded on the previous
+// line AFTER real code (`const x = true; // design-system-ignore: rule — reason`)
+// was honoured by the live guard (`previous.indexOf(marker)`, unanchored) but
+// invisible to `findSuppressionSitesInSource` (requires the marker be the
+// first thing after a real comment opener on the trimmed line) — the CLI
+// reported "0 violations" for a raw-hex literal that was, in fact, silenced.
+// Both now call the SAME parser (`isPreviousLineSuppressed` /
+// `findSuppressionSitesInSource`), so this drives both code paths — the real
+// no-raw-visual-color violation outcome, and raw site discovery — over an
+// identical fixture corpus and asserts they can never again disagree. The
+// second corpus entry is a differently-shaped evasion of my own invention
+// (embedded marker inside a `/* */` line that doesn't open the line, rather
+// than a `//` line comment) — different comment syntax, same underlying bug
+// class — proving this isn't just a literal replay of the cited example.
+const DIVERGENCE_CORPUS = [
+	{
+		name: 'embedded trailing marker after real code (W5-VERIFY3B report shape)',
+		previousLine:
+			'const suppressionAnchor = true; // design-system-ignore: no-raw-visual-color — intentionally raw interoperability fixture',
+	},
+	{
+		name: 'marker embedded in a block comment that does not open the line (second, differently-shaped evasion)',
+		previousLine:
+			'x; /* design-system-ignore: no-raw-visual-color — a second embedded shape, different comment syntax */',
+	},
+	{
+		name: 'a genuine, comment-opener-first marker (must agree as SUPPRESSED, not just as rejected)',
+		previousLine:
+			'// design-system-ignore: no-raw-visual-color — intentionally raw interoperability fixture',
+	},
+];
+
+test('the live guard and suppression-inventory discovery never disagree on whether a line is a suppression site', async () => {
+	for (const { name, previousLine } of DIVERGENCE_CORPUS) {
+		const relativePath = 'src/components/w5-harden2-divergence.tsx';
+		const root = await makeFixture({
+			[relativePath]: [
+				previousLine,
+				"export const w5Harden2DivergenceColor = '#abcdef';",
+			].join('\n'),
+		});
+
+		const violations = await scanFront2DesignSystem({
+			baseDir: root,
+			sourceDir: path.join(root, 'src'),
+		});
+		const liveSuppressed = !violations.some(
+			(violation) => violation.ruleId === 'no-raw-visual-color',
+		);
+
+		const inventoryFound = findSuppressionSitesInSource(
+			previousLine,
+			relativePath,
+		).some((site) => site.convention === 'design-system-ignore');
+
+		assert.equal(
+			liveSuppressed,
+			inventoryFound,
+			`${name}: live guard suppressed=${liveSuppressed} but inventory discovery found=${inventoryFound}`,
+		);
+	}
 });

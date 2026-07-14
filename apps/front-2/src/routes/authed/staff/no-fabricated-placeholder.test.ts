@@ -7,7 +7,7 @@ import suppressionInventory from '~/lib/suppression-inventory.json';
 import {
 	diffSuppressionInventory,
 	findSuppressionSitesInSource,
-	isSubstantiveSuppressionReason,
+	isPreviousLineSuppressed,
 	type SuppressionSite,
 } from '~/lib/suppression-reason';
 
@@ -76,26 +76,18 @@ const CHECKS: PlaceholderCheck[] = [
 // `condition ? t(key) : '—'`), which every reviewer in this remediation chain
 // (r5-shell, W5-UA, W5-TEN) independently classified as a distinct, accepted
 // UX convention rather than a fabricated identity.
-const DATA_HONESTY_SUPPRESSION_PREFIX = 'data-honesty-ignore:';
-
-// W5-HARDEN: reason-quality (isSubstantiveSuppressionReason) plus the
-// committed suppression-inventory diff below are the shared helper from
-// suppression-reason.ts — see that file for why "at least 3 word
-// characters" (the pre-hardening bar) accepted `aaa`/`xxx`/`123` and why a
-// heuristic alone can't fully close this hole.
+// W5-HARDEN2: this used to be its own `previous.indexOf(marker)` scan, which
+// (unlike inventory discovery) honoured a marker embedded anywhere on the
+// previous line — including after real code. It now defers entirely to
+// `isPreviousLineSuppressed`, the single shared parser also used by
+// `findSuppressionSitesInSource`/the inventory diff below, so this guard and
+// the inventory can never again disagree about what counts as a suppression
+// site. See suppression-reason.ts for the full rationale.
 const isDataHonestySuppressed = (
 	lines: string[],
 	lineNumber: number,
-): boolean => {
-	const previous = lines[lineNumber - 2] ?? '';
-	const at = previous.indexOf(DATA_HONESTY_SUPPRESSION_PREFIX);
-	if (at === -1) {
-		return false;
-	}
-	return isSubstantiveSuppressionReason(
-		previous.slice(at + DATA_HONESTY_SUPPRESSION_PREFIX.length),
-	);
-};
+): boolean =>
+	isPreviousLineSuppressed(lines, lineNumber, 'data-honesty-ignore');
 
 const collectSourceFiles = async (dir: string): Promise<string[]> => {
 	const entries = await readdir(dir, { withFileTypes: true });

@@ -8,7 +8,7 @@ import suppressionInventory from '~/lib/suppression-inventory.json';
 import {
 	diffSuppressionInventory,
 	findSuppressionSitesInSource,
-	isSubstantiveSuppressionReason,
+	isPreviousLineSuppressed,
 	type SuppressionSite,
 } from '~/lib/suppression-reason';
 
@@ -426,21 +426,15 @@ const COPY_LIKE_DOM_PROPERTY_NAMES = new Set([
 // genuine non-presentation strings (e.g. an internal Error payload field
 // that is never rendered raw — the actual user-facing copy is produced by
 // `t()` keyed off `.status`/`.translationKey` elsewhere).
-const I18N_GUARD_SUPPRESSION_PREFIX = 'i18n-guard-ignore:';
-
-const isI18nGuardSuppressed = (
-	lines: string[],
-	lineNumber: number,
-): boolean => {
-	const previous = lines[lineNumber - 2] ?? '';
-	const at = previous.indexOf(I18N_GUARD_SUPPRESSION_PREFIX);
-	if (at === -1) {
-		return false;
-	}
-	return isSubstantiveSuppressionReason(
-		previous.slice(at + I18N_GUARD_SUPPRESSION_PREFIX.length),
-	);
-};
+// W5-HARDEN2: this used to be its own `previous.indexOf(marker)` scan, which
+// (unlike inventory discovery) honoured a marker embedded anywhere on the
+// previous line — including after real code. It now defers entirely to
+// `isPreviousLineSuppressed`, the single shared parser also used by
+// `findSuppressionSitesInSource`/the inventory diff below, so this guard and
+// the inventory can never again disagree about what counts as a suppression
+// site. See suppression-reason.ts for the full rationale.
+const isI18nGuardSuppressed = (lines: string[], lineNumber: number): boolean =>
+	isPreviousLineSuppressed(lines, lineNumber, 'i18n-guard-ignore');
 
 // Two prose-literal string values are eligible findings: a bare string
 // literal, or a ternary whose both branches are string literals (the
