@@ -1,4 +1,10 @@
-import { IconChevronDown, IconLanguage, IconLogout } from '@tabler/icons-react';
+import {
+	IconChevronDown,
+	IconLanguage,
+	IconLogout,
+	IconMoon,
+	IconSun,
+} from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { Avatar, AvatarImage } from '~/components/ui/avatar';
 import {
@@ -25,6 +31,10 @@ import {
 	SUPPORTED_LANGUAGES,
 } from '~/lib/i18n.shared';
 import { toCurrentUser, useCurrentUserQuery } from '~/lib/query/auth';
+import {
+	useUiStore,
+	withThemeTransitionSuppressed,
+} from '~/lib/store/ui-store';
 
 export const AppShellUserMenu = () => {
 	const { t, i18n } = useTranslation('common');
@@ -32,6 +42,9 @@ export const AppShellUserMenu = () => {
 	const currentUser = toCurrentUser(data);
 	const { logout, isLoggingOut } = useLogout();
 	const { switchLocale, isSwitching } = useSwitchLocale();
+	const colorScheme = useUiStore((state) => state.colorScheme);
+	const toggleColorScheme = useUiStore((state) => state.toggleColorScheme);
+	const isDarkMode = colorScheme === 'dark';
 
 	const displayName = currentUser?.displayName || t('un-named');
 	const avatarSeed = currentUser?.displayName || currentUser?.email || '?';
@@ -105,6 +118,14 @@ export const AppShellUserMenu = () => {
 						</DropdownMenuSubContent>
 					</DropdownMenuPortal>
 				</DropdownMenuSub>
+				<DropdownMenuSeparator />
+				<DropdownMenuItem
+					onClick={() => withThemeTransitionSuppressed(toggleColorScheme)}
+					data-testid="app-shell-user-menu-theme"
+				>
+					{isDarkMode ? <IconSun /> : <IconMoon />}
+					{isDarkMode ? t('switch-to-light-mode') : t('switch-to-dark-mode')}
+				</DropdownMenuItem>
 				<DropdownMenuSeparator />
 				<DropdownMenuItem
 					variant="destructive"

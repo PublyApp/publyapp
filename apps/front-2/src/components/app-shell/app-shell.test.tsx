@@ -1,5 +1,11 @@
 /** @vitest-environment jsdom */
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import {
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	within,
+} from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -265,5 +271,18 @@ describe('AppShell navigation reality (no dead links, no fabricated data)', () =
 			drawer.querySelectorAll('[data-rail-item]'),
 		).map((el) => el.getAttribute('data-rail-item'));
 		expect(drawerRailItemIds).toEqual(['dashboard', 'tenants', 'staff']);
+
+		// Each rail item must be reachable BY NAME in the drawer, not just by
+		// testid/data-rail-item — a column of bare icon glyphs with only an
+		// aria-label is ambiguous in a full-width sheet (r3-shell-F6).
+		expect(
+			within(drawer).getByRole('link', { name: 'nav-dashboard' }),
+		).toBeTruthy();
+		expect(
+			within(drawer).getByRole('link', { name: 'nav-tenants' }),
+		).toBeTruthy();
+		expect(
+			within(drawer).getByRole('link', { name: 'nav-staff' }),
+		).toBeTruthy();
 	});
 });

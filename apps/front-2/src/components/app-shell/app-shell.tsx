@@ -235,13 +235,36 @@ const RailLink = ({
 	item,
 	isActive,
 	onNavigate,
+	showLabel = false,
 }: {
 	item: AppRouteMetadata;
 	isActive: boolean;
 	onNavigate?: () => void;
+	/** The mobile drawer renders a full-width sheet, where a column of bare
+	 * icon glyphs is ambiguous — show the label inline there instead of
+	 * relying solely on `aria-label` (r3-shell-F6). */
+	showLabel?: boolean;
 }) => {
 	const { t } = useTranslation('common');
 	const Icon = item.Icon;
+
+	if (showLabel) {
+		return (
+			<Link
+				to={item.path}
+				aria-current={isActive ? 'page' : undefined}
+				onClick={onNavigate}
+				data-rail-item={item.id}
+				data-active={isActive ? 'true' : undefined}
+				className="app-shell-secondary-nav-link"
+			>
+				<Icon aria-hidden="true" className="size-4 shrink-0" />
+				<span className="app-shell-secondary-nav-label">
+					{t(item.labelKey)}
+				</span>
+			</Link>
+		);
+	}
 
 	return (
 		<Link
@@ -509,6 +532,7 @@ const AuthedWorkspaceShell = ({
 										item={item}
 										isActive={isActive}
 										onNavigate={closeMobileNav}
+										showLabel
 									/>
 								);
 							})}

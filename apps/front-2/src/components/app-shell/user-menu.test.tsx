@@ -52,6 +52,7 @@ vi.mock('~/server/i18n-locale', () => ({
 vi.mock('~/lib/tab-sync/broadcast-sync', () => ({
 	AUTH_SYNC_CHANNEL: 'publyapp:auth-sync',
 	LOCALE_SYNC_CHANNEL: 'publyapp:locale-sync',
+	THEME_SYNC_CHANNEL: 'publyapp:theme-sync',
 	postBroadcast: mocks.postBroadcast,
 }));
 
@@ -67,6 +68,8 @@ vi.mock('react-i18next', () => ({
 				'log-out': 'Log out',
 				'un-named': 'No name',
 				language: 'Language',
+				'switch-to-light-mode': 'Switch to light mode',
+				'switch-to-dark-mode': 'Switch to dark mode',
 			};
 			return labels[key] ?? key;
 		},
@@ -75,6 +78,7 @@ vi.mock('react-i18next', () => ({
 }));
 
 import { __resetLogoutInFlightForTests } from '~/lib/hooks/use-logout';
+import { useUiStore } from '~/lib/store/ui-store';
 
 import { AppShellUserMenu } from './user-menu';
 
@@ -146,6 +150,19 @@ describe('AppShellUserMenu', () => {
 		const queryClientClearOrder =
 			mocks.queryClientClear.mock.invocationCallOrder[0];
 		expect(navigateOrder).toBeLessThan(queryClientClearOrder);
+	});
+
+	test('offers a theme toggle in the menu, so the authed shell has a theme control on a phone (r3-shell-F6)', async () => {
+		useUiStore.setState({ colorScheme: 'light' });
+		render(<AppShellUserMenu />);
+
+		fireEvent.click(screen.getByTestId('app-shell-user-menu-trigger'));
+		const themeItem = await screen.findByTestId('app-shell-user-menu-theme');
+		expect(themeItem.textContent).toContain('Switch to dark mode');
+
+		fireEvent.click(themeItem);
+
+		expect(useUiStore.getState().colorScheme).toBe('dark');
 	});
 
 	test('opens the language submenu and shows the current locale checked', async () => {
