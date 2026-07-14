@@ -129,6 +129,71 @@ export const extractI18nKeyUsages = async (
 const resolvesInBundle = (key: string, bundle: Record<string, unknown>) =>
 	key in bundle || `${key}_one` in bundle || `${key}_other` in bundle;
 
+// A bare string literal never touches `t()`, so the coverage test above is
+// structurally blind to it — this catches the class of defect that let it
+// (r3-shell-F2). It scans for the shapes hardcoded chrome copy actually
+// takes: a literal (or a ternary of two literals) passed straight to
+// `aria-label`/`placeholder`/`title`, a `label:` object-literal property, and
+// a ternary assigned to a variable that's used as one (the `const label =
+// cond ? 'A' : 'B'` shape `t()` calls never appear next to).
+// Language self-names (LOCALE_LABELS-style 'English'/'Français') are the one
+// legitimate never-translated case: a language's own name isn't localized.
+const LOCALE_SELF_NAME_ALLOWLIST = new Set(['English', 'Français']);
+
+const JSX_ATTR_EXPRESSION_PATTERN =
+	/\b(aria-label|placeholder|title)=\{([^{}]+)\}/g;
+const BARE_STRING_LITERAL_PATTERN = /^(['"])([A-Z][^'"]*)\1$/;
+const TERNARY_OF_STRING_LITERALS_PATTERN =
+	/^[^?]+\?\s*(['"])([A-Z][^'"]*)\1\s*:\s*(['"])([A-Z][^'"]*)\3$/;
+const TOP_LEVEL_TERNARY_ASSIGNMENT_PATTERN =
+	/\b(?:const|let)\s+\w+\s*(?::[^=\n]+)?=\s*[^;\n?]*\?\s*(['"])([A-Z][^'"]*)\1\s*:\s*(['"])([A-Z][^'"]*)\3/g;
+const LABEL_PROPERTY_LITERAL_PATTERN = /\blabel:\s*(['"])([A-Z][^'"]*)\1/g;
+
+const findHardcodedUiLiterals = (
+	source: string,
+	relativePath: string,
+): string[] => {
+	const findings: string[] = [];
+
+	for (const match of source.matchAll(JSX_ATTR_EXPRESSION_PATTERN)) {
+		const [, attrName, expression] = match;
+		const trimmed = expression.trim();
+
+		const bare = trimmed.match(BARE_STRING_LITERAL_PATTERN);
+		if (bare && !LOCALE_SELF_NAME_ALLOWLIST.has(bare[2])) {
+			findings.push(`${relativePath}: ${attrName}={${bare[0]}}`);
+			continue;
+		}
+
+		const ternary = trimmed.match(TERNARY_OF_STRING_LITERALS_PATTERN);
+		if (ternary) {
+			for (const value of [ternary[2], ternary[4]]) {
+				if (!LOCALE_SELF_NAME_ALLOWLIST.has(value)) {
+					findings.push(`${relativePath}: ${attrName}={${trimmed}}`);
+					break;
+				}
+			}
+		}
+	}
+
+	for (const match of source.matchAll(TOP_LEVEL_TERNARY_ASSIGNMENT_PATTERN)) {
+		for (const value of [match[2], match[4]]) {
+			if (!LOCALE_SELF_NAME_ALLOWLIST.has(value)) {
+				findings.push(`${relativePath}: ${match[0].trim()}`);
+				break;
+			}
+		}
+	}
+
+	for (const match of source.matchAll(LABEL_PROPERTY_LITERAL_PATTERN)) {
+		if (!LOCALE_SELF_NAME_ALLOWLIST.has(match[2])) {
+			findings.push(`${relativePath}: ${match[0]}`);
+		}
+	}
+
+	return findings;
+};
+
 describe('i18n key coverage', () => {
 	test('every t()/i18nKey literal under src resolves in both common bundles', async () => {
 		const usagesByKey = await extractI18nKeyUsages(srcDir);
@@ -148,5 +213,25 @@ describe('i18n key coverage', () => {
 
 		expect(missingEn, 'keys missing from common.en.json').toEqual([]);
 		expect(missingFr, 'keys missing from common.fr.json').toEqual([]);
+	});
+
+	test('no hardcoded English UI literal escapes t() (r3-shell-F2)', async () => {
+		const files = await collectFiles(srcDir);
+		const findings: string[] = [];
+
+		for (const absolutePath of files) {
+			if (
+				absolutePath.endsWith('.test.ts') ||
+				absolutePath.endsWith('.test.tsx')
+			) {
+				continue;
+			}
+
+			const relativePath = path.relative(srcDir, absolutePath);
+			const source = await readFile(absolutePath, 'utf8');
+			findings.push(...findHardcodedUiLiterals(source, relativePath));
+		}
+
+		expect(findings, 'hardcoded English literals bypassing t()').toEqual([]);
 	});
 });

@@ -4,9 +4,11 @@ import { useState } from 'react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
+import { View404 } from '~/components/error-views/View404';
 import { Form, Field } from '~/components/field';
 import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
+import { FEATURES } from '~/lib/flags';
 
 type FieldValidationValues = {
 	email: string;
@@ -69,5 +71,10 @@ const FieldValidationRoute = () => {
 };
 
 export const Route = createFileRoute('/field-validation')({
-	component: FieldValidationRoute,
+	// Dev-only scaffolding — never a publicly reachable production route
+	// (r3-shell-F14). No conditional hook calls: the whole component swaps at
+	// module-eval time, not inside a render.
+	component: FEATURES.dev.fieldValidationDemoEnabled
+		? FieldValidationRoute
+		: View404,
 });

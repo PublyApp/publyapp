@@ -18,4 +18,12 @@ export const FEATURES = {
 	auth: {
 		signupsEnabled: readFlag('VITE_FEATURE_SIGNUPS_ENABLED', false),
 	},
+	dev: {
+		/** Zod/RHF scaffolding demo at /field-validation — dev-only, never a
+		 * publicly reachable production route (r3-shell-F14). */
+		fieldValidationDemoEnabled: readFlag(
+			'VITE_FEATURE_FIELD_VALIDATION_DEMO_ENABLED',
+			false,
+		),
+	},
 } as const;

@@ -1,4 +1,5 @@
 import { IconMoon, IconSun } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
 
 import {
@@ -9,12 +10,13 @@ import {
 export const THEME_TOGGLE_TEST_ID = 'theme-toggle';
 
 export const ThemeToggle = ({ className }: { className?: string }) => {
-	const { colorScheme, toggleColorScheme } = useUiStore((state) => ({
-		colorScheme: state.colorScheme,
-		toggleColorScheme: state.toggleColorScheme,
-	}));
+	const { t } = useTranslation('common');
+	const colorScheme = useUiStore((state) => state.colorScheme);
+	const toggleColorScheme = useUiStore((state) => state.toggleColorScheme);
 	const isDarkMode = colorScheme === 'dark';
-	const label = isDarkMode ? 'Switch to light mode' : 'Switch to dark mode';
+	const label = isDarkMode
+		? t('switch-to-light-mode')
+		: t('switch-to-dark-mode');
 	const Icon = isDarkMode ? IconSun : IconMoon;
 	const ariaPressed = isDarkMode;
 

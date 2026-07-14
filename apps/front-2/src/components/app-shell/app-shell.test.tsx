@@ -85,7 +85,7 @@ describe('AppShell secondary-panel toggle', () => {
 		);
 
 		expect(
-			screen.getByRole('button', { name: 'Collapse navigation panel' }),
+			screen.getByRole('button', { name: 'collapse-navigation-panel' }),
 		).toBeTruthy();
 		expect(screen.getByTestId('app-shell-secondary-panel')).toBeTruthy();
 	});
@@ -98,7 +98,7 @@ describe('AppShell secondary-panel toggle', () => {
 		);
 
 		expect(
-			screen.getByRole('button', { name: 'Expand navigation panel' }),
+			screen.getByRole('button', { name: 'expand-navigation-panel' }),
 		).toBeTruthy();
 		expect(screen.queryByTestId('app-shell-secondary-panel')).toBeNull();
 	});
@@ -111,12 +111,12 @@ describe('AppShell secondary-panel toggle', () => {
 		);
 
 		fireEvent.click(
-			screen.getByRole('button', { name: 'Expand navigation panel' }),
+			screen.getByRole('button', { name: 'expand-navigation-panel' }),
 		);
 
 		expect(screen.getByTestId('app-shell-secondary-panel')).toBeTruthy();
 		expect(
-			screen.getByRole('button', { name: 'Collapse navigation panel' }),
+			screen.getByRole('button', { name: 'collapse-navigation-panel' }),
 		).toBeTruthy();
 	});
 
@@ -128,7 +128,7 @@ describe('AppShell secondary-panel toggle', () => {
 		);
 
 		fireEvent.click(
-			screen.getByRole('button', { name: 'Expand navigation panel' }),
+			screen.getByRole('button', { name: 'expand-navigation-panel' }),
 		);
 		expect(screen.getByTestId('app-shell-secondary-panel')).toBeTruthy();
 
@@ -140,7 +140,7 @@ describe('AppShell secondary-panel toggle', () => {
 
 		expect(screen.getByTestId('app-shell-secondary-panel')).toBeTruthy();
 		expect(
-			screen.getByRole('button', { name: 'Collapse navigation panel' }),
+			screen.getByRole('button', { name: 'collapse-navigation-panel' }),
 		).toBeTruthy();
 	});
 
@@ -165,7 +165,7 @@ describe('AppShell secondary-panel toggle', () => {
 
 		expect(screen.getByTestId('app-shell-secondary-panel')).toBeTruthy();
 		expect(
-			screen.getByRole('button', { name: 'Collapse navigation panel' }),
+			screen.getByRole('button', { name: 'collapse-navigation-panel' }),
 		).toBeTruthy();
 	});
 
@@ -178,10 +178,10 @@ describe('AppShell secondary-panel toggle', () => {
 			</AppShell>,
 		);
 		expect(
-			screen.queryByRole('button', { name: 'Collapse navigation panel' }),
+			screen.queryByRole('button', { name: 'collapse-navigation-panel' }),
 		).toBeNull();
 		expect(
-			screen.queryByRole('button', { name: 'Expand navigation panel' }),
+			screen.queryByRole('button', { name: 'expand-navigation-panel' }),
 		).toBeNull();
 
 		rerender(
@@ -190,10 +190,10 @@ describe('AppShell secondary-panel toggle', () => {
 			</AppShell>,
 		);
 		expect(
-			screen.queryByRole('button', { name: 'Collapse navigation panel' }),
+			screen.queryByRole('button', { name: 'collapse-navigation-panel' }),
 		).toBeNull();
 		expect(
-			screen.queryByRole('button', { name: 'Expand navigation panel' }),
+			screen.queryByRole('button', { name: 'expand-navigation-panel' }),
 		).toBeNull();
 	});
 });

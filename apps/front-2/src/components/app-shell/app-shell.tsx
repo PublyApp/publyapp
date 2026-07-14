@@ -36,10 +36,10 @@ import { useUiStore } from '../../lib/store/ui-store';
 import { ThemeToggle } from './theme/theme-toggle';
 import { AppShellUserMenu } from './user-menu';
 
-type AppShellMode = 'auth' | 'authed' | 'marketing';
+type AppShellMode = 'authed' | 'marketing';
 
 type NavItem = {
-	label: string;
+	labelKey: string;
 	path: string;
 };
 
@@ -53,28 +53,16 @@ type AppShellProps = {
 	search?: AppShellSearch;
 };
 
-const NAV_ITEMS: Record<Exclude<AppShellMode, 'authed'>, NavItem[]> = {
-	auth: [
-		{
-			label: 'Marketing',
-			path: '/',
-		},
-		{
-			label: 'Sign in',
-			path: '/login',
-		},
-	],
-	marketing: [
-		{
-			label: 'Home',
-			path: '/',
-		},
-		{
-			label: 'Login',
-			path: '/login',
-		},
-	],
-};
+const MARKETING_NAV_ITEMS: NavItem[] = [
+	{
+		labelKey: 'nav-home',
+		path: '/',
+	},
+	{
+		labelKey: 'login',
+		path: '/login',
+	},
+];
 
 const isActivePath = (pathname: string, target: string) => {
 	if (target === '/') {
@@ -101,12 +89,12 @@ const AppShellHeader = ({
 	mode,
 	pathname,
 }: {
-	mode: AppShellMode;
+	mode: Exclude<AppShellMode, 'authed'>;
 	pathname: string;
 }) => {
+	const { t } = useTranslation('common');
 	const [isMenuOpen, setIsMenuOpen] = useState(false);
-	const navItems =
-		mode === 'authed' ? [] : NAV_ITEMS[mode as keyof typeof NAV_ITEMS];
+	const navItems = MARKETING_NAV_ITEMS;
 	const activePath = getActivePath(navItems, pathname);
 	const closeMenu = () => setIsMenuOpen(false);
 
@@ -132,10 +120,6 @@ const AppShellHeader = ({
 		setIsMenuOpen(false);
 	}, [mode, pathname]);
 
-	if (mode === 'authed') {
-		return null;
-	}
-
 	const renderNavButtons = ({
 		closeOnSelect = false,
 		isMobile = false,
@@ -144,7 +128,7 @@ const AppShellHeader = ({
 		isMobile?: boolean;
 	}) => (
 		<nav
-			aria-label={isMobile ? 'Mobile navigation' : 'Primary navigation'}
+			aria-label={isMobile ? t('mobile-navigation') : t('primary-navigation')}
 			className={
 				isMobile
 					? 'app-shell-mobile-menu'
@@ -158,7 +142,7 @@ const AppShellHeader = ({
 
 				return (
 					<Link
-						key={item.label}
+						key={item.labelKey}
 						to={item.path}
 						aria-current={isActive ? 'page' : undefined}
 						onClick={closeOnSelect ? closeMenu : undefined}
@@ -172,23 +156,20 @@ const AppShellHeader = ({
 								: { color: 'var(--publy-foreground-muted)' }
 						}
 					>
-						{item.label}
+						{t(item.labelKey)}
 					</Link>
 				);
 			})}
 		</nav>
 	);
 
-	const navButtonLabel = isMenuOpen ? 'Close navigation' : 'Open navigation';
+	const navButtonLabel = isMenuOpen ? t('nav-close-menu') : t('nav-open-menu');
 
 	return (
 		<header className="app-shell-header">
 			<div className="app-shell-header-inner">
-				<div>
-					<div className="font-semibold tracking-wide text-foreground">
-						PublyApp
-					</div>
-					<div className="app-shell-header-subtitle text-xs">front-2 shell</div>
+				<div className="font-semibold tracking-wide text-foreground">
+					PublyApp
 				</div>
 				{renderNavButtons({})}
 				<div className="flex items-center gap-2">
@@ -427,7 +408,6 @@ const AuthedWorkspaceShell = ({
 								isMobileNavOpen ? t('nav-close-menu') : t('nav-open-menu')
 							}
 							aria-expanded={isMobileNavOpen}
-							aria-controls="app-shell-mobile-nav-drawer"
 							onClick={() => setIsMobileNavOpen(true)}
 							className="app-shell-mobile-nav-toggle flex md:hidden"
 							data-testid="app-shell-mobile-nav-toggle"
@@ -441,8 +421,8 @@ const AuthedWorkspaceShell = ({
 									variant="ghost"
 									aria-label={
 										isSecondaryPanelOpenForToggle
-											? 'Collapse navigation panel'
-											: 'Expand navigation panel'
+											? t('collapse-navigation-panel')
+											: t('expand-navigation-panel')
 									}
 									onClick={handleToggleSecondaryPanel}
 									className="app-shell-sidebar-toggle"
