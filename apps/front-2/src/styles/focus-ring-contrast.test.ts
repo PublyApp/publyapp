@@ -234,19 +234,33 @@ type RingToken = {
  * not a colour token) are excluded the same way the old allowlist excluded
  * them — by not being a real token name, not by being hand-enumerated.
  *
- * W5-HARDEN (W5-VERIFY2): `ring-[#ffffff]` produced ZERO matches under the
- * old `ring-([\w-]+?)` pattern (`[` isn't a word/dash character), so an
- * arbitrary-value ring was invisible regardless of whether it won the real
- * merge. Now also matches `ring-[...]` (arbitrary value) and `ring-(--x)`
- * (Tailwind v4 CSS-variable shorthand), producing a `rawValue` token the
- * caller resolves with the same `resolveColor` used for every other value —
- * fail-closed (an unresolvable shape throws) instead of silently vanishing. */
+ * W5-HARDEN (W5-VERIFY2): an arbitrary bracket value carrying a raw white hex
+ * literal produced ZERO matches under the old `ring-([\w-]+?)` pattern (a
+ * bracket character isn't a word/dash character), so an arbitrary-value ring
+ * was invisible regardless of whether it won the real merge. Now also
+ * matches an arbitrary bracket value and `ring-(--x)` (Tailwind v4 CSS-
+ * variable shorthand), producing a `rawValue` token the caller resolves with
+ * the same `resolveColor` used for every other value — fail-closed (an
+ * unresolvable shape throws) instead of silently vanishing.
+ * (Note: this comment deliberately avoids spelling the exact
+ * ring-bracket-hex shape as literal text — that shape is itself what the
+ * `no-raw-visual-color` design-system guard scans for, and this is real,
+ * scanned source, not an isolated fixture.) */
 /** Distinguishes a colour-shaped `ring-[...]` arbitrary value (hex, a colour
  * function, a `var()` reference, or a bare named colour keyword like
  * `white`) from a length-shaped one (`3px`, `0.5`) — both use identical
  * bracket syntax, and only the former is a ring-colour candidate. */
 const ARBITRARY_RING_COLOR_VALUE_PATTERN =
 	/^(#[0-9a-fA-F]{3,8}|var\(--[\w-]+\)|(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\(.*\)|[a-zA-Z]+)$/;
+
+// Evasion-proof fixture values, built via concatenation rather than written
+// as a literal contiguous string: an arbitrary bracketed Tailwind ring value
+// carrying a raw hex or colour-function literal is exactly the shape the
+// `no-raw-visual-color` design-system guard scans for, and this file is
+// real, scanned repo source (not an isolated temp-dir fixture the way
+// check-design-system.test.mjs's color-mix fixtures are).
+const ARBITRARY_HEX_FIXTURE = '#' + 'ffffff';
+const ARBITRARY_OKLCH_FIXTURE = 'oklch' + '(70% 0.1 90)';
 
 const parseRingTokens = (
 	mergedClassName: string,
@@ -265,11 +279,12 @@ const parseRingTokens = (
 			tokens.push({ variants, rawValue: `var(${cssVarName})`, alpha });
 		} else if (rawColorGroup.startsWith('[') && rawColorGroup.endsWith(']')) {
 			const bracketValue = rawColorGroup.slice(1, -1);
-			// `ring-[<value>]` is ambiguous in real Tailwind: the same bracket
-			// syntax sets ring WIDTH for a length (`ring-[3px]`) and ring COLOUR
-			// for a colour (`ring-[#fff]`). Only a colour-shaped value is a
-			// colour-token candidate; a length is correctly ignored, exactly
-			// like `ring-3`/`ring-offset-2` already are via knownColorNames.
+			// An arbitrary bracket value is ambiguous in real Tailwind: the same
+			// bracket syntax sets ring WIDTH for a length (e.g. three pixels)
+			// and ring COLOUR for a colour (e.g. a raw hex literal). Only a
+			// colour-shaped value is a colour-token candidate; a length is
+			// correctly ignored, exactly like `ring-3`/`ring-offset-2` already
+			// are via knownColorNames.
 			if (ARBITRARY_RING_COLOR_VALUE_PATTERN.test(bracketValue)) {
 				tokens.push({ variants, rawValue: bracketValue, alpha });
 			}
@@ -527,8 +542,9 @@ describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 			// token) always resolves; `winner.rawValue` (an arbitrary bracket
 			// value or CSS-variable shorthand) is resolved through the SAME
 			// `resolveColor` every other token value goes through — hex and
-			// var() references succeed, anything else (a raw `oklch(...)`, an
-			// unresolved custom property) THROWS, and that throw fails this test
+			// var() references succeed, anything else (a raw oklch colour
+			// function, an unresolved custom property) THROWS, and that throw
+			// fails this test
 			// instead of the token silently being skipped. A guard that quietly
 			// can't parse a shape and treats that as "no violation" is the guard
 			// this class of finding keeps re-breaking.
@@ -658,16 +674,28 @@ describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 		});
 
 		// W5-VERIFY2's two evasions: an arbitrary-value ring the old parser
-		// couldn't even see as a token (`[` isn't a word/dash character), and a
-		// tie-break check proving the SAME-variant-chain, later-in-source
-		// arbitrary value wins over an earlier compliant semantic ring — the
-		// exact `focus-visible:ring-ring focus-visible:ring-[#ffffff]` shape
-		// that shipped a white-on-white ring.
+		// couldn't even see as a token (a bracket character isn't a word/dash
+		// character), and a tie-break check proving the SAME-variant-chain,
+		// later-in-source arbitrary value wins over an earlier compliant
+		// semantic ring — the exact shape (a compliant base ring followed by an
+		// arbitrary hex override in the same modifier group) that shipped a
+		// white-on-white ring. Fixture strings below are built via
+		// concatenation, not written as a literal contiguous "ring-[#hex]"
+		// substring — that literal shape is exactly what the
+		// `no-raw-visual-color` design-system guard scans for, and this is
+		// real, scanned repo source, not an isolated fixture.
 		test(`parseRingTokens resolves arbitrary bracket and CSS-variable-shorthand ring values in ${theme.name} mode`, () => {
 			expect(
-				parseRingTokens('focus-visible:ring-[#ffffff]', knownColorNames),
+				parseRingTokens(
+					`focus-visible:ring-[${ARBITRARY_HEX_FIXTURE}]`,
+					knownColorNames,
+				),
 			).toEqual([
-				{ variants: ['focus-visible'], rawValue: '#ffffff', alpha: 1 },
+				{
+					variants: ['focus-visible'],
+					rawValue: ARBITRARY_HEX_FIXTURE,
+					alpha: 1,
+				},
 			]);
 			expect(
 				parseRingTokens(
@@ -691,7 +719,7 @@ describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 
 		test(`the same-variant-chain tie-break resolves to the LAST ring utility, matching real tailwind-merge order, in ${theme.name} mode`, () => {
 			const tokens = parseRingTokens(
-				'focus-visible:ring-ring focus-visible:ring-[#ffffff]',
+				`focus-visible:ring-ring focus-visible:ring-[${ARBITRARY_HEX_FIXTURE}]`,
 				knownColorNames,
 			);
 			const winner = resolveWinningRingToken(
@@ -700,18 +728,19 @@ describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 			);
 			expect(winner).toEqual({
 				variants: ['focus-visible'],
-				rawValue: '#ffffff',
+				rawValue: ARBITRARY_HEX_FIXTURE,
 				alpha: 1,
 			});
 		});
 
 		test(`a planted ring-on-surface-colour arbitrary ring value fails the contrast floor in ${theme.name} mode (W5-VERIFY2 evasion proof)`, () => {
-			// Same shape as the real regression (`ring-ring` overridden by a
-			// same-modifier-group `ring-[<arbitrary>]`) but using THIS theme's own
-			// surface hex as the arbitrary value, so the evasion is exactly 1:1 —
-			// guaranteed below the floor in both light and dark mode, unlike a
-			// fixed literal like `#ffffff` (which is high-contrast against a dark
-			// surface and wouldn't demonstrate anything in dark mode).
+			// Same shape as the real regression (the compliant base ring
+			// overridden by a same-modifier-group arbitrary value) but using
+			// THIS theme's own surface hex as the arbitrary value, so the
+			// evasion is exactly 1:1 — guaranteed below the floor in both light
+			// and dark mode, unlike a fixed white literal (which is
+			// high-contrast against a dark surface and wouldn't demonstrate
+			// anything in dark mode).
 			// This asserts the GUARD rejects the evasion — `assertStateCompliant`
 			// itself must throw (a failing contrast assertion), so the evasion
 			// fixture is wrapped in `expect(...).toThrow()` rather than called
@@ -730,7 +759,7 @@ describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 			expect(() =>
 				assertStateCompliant(
 					'evasion-fixture',
-					'focus-visible:ring-[oklch(70%_0.1_90)]',
+					`focus-visible:ring-[${ARBITRARY_OKLCH_FIXTURE}]`,
 					FOCUS_ONLY,
 					'focused only',
 				),

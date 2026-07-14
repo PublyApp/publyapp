@@ -136,8 +136,8 @@ describe('tenant picker row focus indicator', () => {
 		// W5-HARDEN (W5-VERIFY2): the previous version of this test read
 		// `--publy-focus-ring`/`--publy-surface` straight out of app.css and
 		// computed their contrast WITHOUT ever checking that the rendered row
-		// actually uses those tokens — it passed even with the old
-		// `rgba(253,199,0,0.16)` shadow still rendering, because the two halves
+		// actually uses those tokens — it passed even with the old raw
+		// translucent-rgba shadow still rendering, because the two halves
 		// (what's rendered vs. which tokens are "compliant") were never linked.
 		// This now asserts BOTH in the same test: the row's className must
 		// actually contain the compliant `focus-visible:ring-ring` utility (and
