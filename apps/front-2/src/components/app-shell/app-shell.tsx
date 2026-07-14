@@ -571,12 +571,6 @@ export const AppShell = ({
 	pathname = '/',
 	search = {},
 }: AppShellProps) => {
-	const hydrateFromStorage = useUiStore((state) => state.hydrateFromStorage);
-
-	useEffect(() => {
-		hydrateFromStorage();
-	}, [hydrateFromStorage]);
-
 	if (mode === 'authed') {
 		return (
 			<AppShellNavigation mode={mode} pathname={pathname} search={search}>
