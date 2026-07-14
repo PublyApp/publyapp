@@ -4,6 +4,13 @@ import { fileURLToPath } from 'node:url';
 
 import ts from 'typescript';
 import { describe, expect, test } from 'vitest';
+import suppressionInventory from '~/lib/suppression-inventory.json';
+import {
+	diffSuppressionInventory,
+	findSuppressionSitesInSource,
+	isSubstantiveSuppressionReason,
+	type SuppressionSite,
+} from '~/lib/suppression-reason';
 
 import enResource from '@org/shared-ts/lib/i18n/locales/en';
 import frResource from '@org/shared-ts/lib/i18n/locales/fr';
@@ -184,8 +191,16 @@ const NEVER_TRANSLATED_LITERAL_ALLOWLIST = new Set(['PublyApp']);
 // exactly the single-word-with-a-dot shape isCopyLikeLiteral's relaxed,
 // no-whitespace check would otherwise catch now that testId-style
 // exemption no longer comes for free from the whitespace requirement.
+//
+// W5-HARDEN (W5-VERIFY2): the previous pattern only anchored the START of
+// the string (`^https?:\/\/`), so a trailing prefix match exempted the
+// WHOLE literal — `aria-label="https://example.com Delete account"` rode
+// behind the URL and vanished. Every alternative is now anchored at BOTH
+// ends (`^...$`, and `\S+`/`\S*` instead of an open-ended tail) so the
+// exemption only applies when the entire trimmed value IS a URL/email/
+// domain-path and nothing else — real copy can never hide behind it again.
 const URL_EMAIL_OR_DOMAIN_PATTERN =
-	/^(https?:\/\/|[\w.-]+@[\w.-]+\.\w+$|[a-z0-9-]+(\.[a-z0-9-]+)+\/)/i;
+	/^(?:https?:\/\/\S+|[\w.-]+@[\w.-]+\.\w+|[a-z0-9-]+(?:\.[a-z0-9-]+)+\/\S*)$/i;
 
 // r5-tests-F2: the round-4/round-3 detector was a closed regex grammar — a
 // fixed native-tag allowlist for JSX text (`span|p|h1-6|button|label|dt|dd|
@@ -247,7 +262,18 @@ const isCopyLikeLiteral = (value: string): boolean => {
 		trimmed.length < 2 ||
 		LOCALE_SELF_NAME_ALLOWLIST.has(trimmed) ||
 		NEVER_TRANSLATED_LITERAL_ALLOWLIST.has(trimmed) ||
-		URL_EMAIL_OR_DOMAIN_PATTERN.test(trimmed)
+		URL_EMAIL_OR_DOMAIN_PATTERN.test(trimmed) ||
+		// W5-HARDEN: widening ALWAYS_COPY-style detection to a `subtitle:`
+		// object property (see COPY_LIKE_ATTRIBUTE_NAME_PATTERN) surfaced a real
+		// false positive — a `Record<Branch, { headline; subtitle }>` lookup
+		// table whose values are i18n KEYS
+		// (`accept-invitation-brand-subtitle-new-user`), passed to `t()`
+		// elsewhere, exactly like KEY_MAP_DECLARATION_PATTERN's extraction above
+		// already treats multi-segment kebab-case values as candidate keys, not
+		// copy. Real UI copy in this codebase is never all-lowercase-and-hyphens
+		// with 3+ segments, so this is a safe, general exemption, not a
+		// per-file patch.
+		KEBAB_I18N_KEY_CANDIDATE.test(trimmed)
 	) {
 		return false;
 	}
@@ -326,6 +352,74 @@ const ALWAYS_COPY_ATTRIBUTE_NAMES = new Set([
 	'alt',
 ]);
 
+// W5-HARDEN (W5-VERIFY2): `<Widget emptyText="Empty" tooltip="Delete" />`
+// sailed through — `emptyText`/`tooltip` aren't in ALWAYS_COPY_ATTRIBUTE_NAMES,
+// so they fell back to isProseLikeLiteral's internal-whitespace requirement
+// and single-word copy in those props was invisible. A hand-typed name list
+// can never keep up with every copy-bearing prop this codebase's components
+// will ever invent, so this is a naming-convention pattern instead: any
+// attribute/prop name ending in one of these copy-suggesting suffixes is
+// treated as a definite-copy position (isCopyLikeLiteral, no whitespace
+// requirement), the same way ALWAYS_COPY_ATTRIBUTE_NAMES already is. Names in
+// NEVER_COPY_ATTRIBUTE_NAMES are still checked first and win regardless
+// (e.g. a hypothetical `errorColor` prop would match `color`'s exemption
+// before it reached this pattern — NEVER_COPY_ATTRIBUTE_NAMES is an exact-name
+// set, not suffix-based, so that particular clash doesn't arise today).
+const COPY_LIKE_ATTRIBUTE_NAME_PATTERN =
+	/(?:text|label|title|description|message|tooltip|caption|heading|subtitle|hint|placeholder|prompt|summary|content|copy|error|warning|empty)$/i;
+
+const isDefiniteCopyPositionName = (name: string): boolean =>
+	ALWAYS_COPY_ATTRIBUTE_NAMES.has(name) ||
+	COPY_LIKE_ATTRIBUTE_NAME_PATTERN.test(name);
+
+// W5-HARDEN: widening the object-literal-property check surfaced real false
+// positives — `title`/`content`/`description` are also the field names of
+// two unrelated, genuinely non-copy shapes that already exist throughout
+// this codebase: an RFC 7807-style problem-details object (`{ status,
+// responseStatusCode, title: 'Unauthorized', detail }`, per
+// docs/guides/architecture-details.md's error-response convention — the
+// actual user-facing text is produced by `t()` keyed off `.translationKey`
+// elsewhere, same rationale as this file's `i18n-guard-ignore` convention),
+// and a `<meta>`/SEO descriptor (`{ name: 'viewport', content: '...' }`,
+// `{ property: 'og:title', content: title }`, a TanStack Router `head()`
+// result with `title`/`meta`/`links` siblings). Both are recognizable
+// structurally by a sibling key that never appears on a real UI-copy object:
+// flag `title`/`content`/`description`/`subtitle` only when the enclosing
+// object literal has NONE of these siblings.
+const META_OR_PROBLEM_DETAILS_SIBLING_KEYS = new Set([
+	'name',
+	'property',
+	'charSet',
+	'meta',
+	'links',
+	'canonical',
+	'sitemap',
+	'robots',
+	'status',
+	'responseStatusCode',
+	'httpStatus',
+	'translationKey',
+	'detail',
+]);
+
+const isMetaOrProblemDetailsDescriptor = (node: ts.Node): boolean =>
+	ts.isObjectLiteralExpression(node) &&
+	node.properties.some(
+		(property) =>
+			property.name &&
+			(ts.isIdentifier(property.name) || ts.isStringLiteral(property.name)) &&
+			META_OR_PROBLEM_DETAILS_SIBLING_KEYS.has(property.name.text),
+	);
+
+// W5-HARDEN: imperative DOM property writes that land copy on-screen exactly
+// like the JSX attributes above do, just through a different API
+// (`element.title = 'Delete'` instead of `<span title="Delete" />`).
+const COPY_LIKE_DOM_PROPERTY_NAMES = new Set([
+	'title',
+	'textContent',
+	'innerText',
+]);
+
 // An opt-out comment on the line directly above the offending line, mirroring
 // check-design-system.mjs's `design-system-ignore` convention — requires a
 // reason so the suppression has to be argued, not just added. Reserved for
@@ -333,13 +427,6 @@ const ALWAYS_COPY_ATTRIBUTE_NAMES = new Set([
 // that is never rendered raw — the actual user-facing copy is produced by
 // `t()` keyed off `.status`/`.translationKey` elsewhere).
 const I18N_GUARD_SUPPRESSION_PREFIX = 'i18n-guard-ignore:';
-
-// Strips whatever comment syntax the file allows (`//`, `/* */`, `{/* */}`)
-// off the tail of the reason before testing it for substance, so a bare
-// `{/* i18n-guard-ignore: */}` — whose only "reason" text is the comment's
-// own closing delimiters — cannot pass as a reasoned suppression.
-const extractSuppressionReason = (rawReason: string): string =>
-	rawReason.replace(/(\*\/\}|\*\/|\}|-->)\s*$/, '').trim();
 
 const isI18nGuardSuppressed = (
 	lines: string[],
@@ -350,10 +437,9 @@ const isI18nGuardSuppressed = (
 	if (at === -1) {
 		return false;
 	}
-	const reason = extractSuppressionReason(
+	return isSubstantiveSuppressionReason(
 		previous.slice(at + I18N_GUARD_SUPPRESSION_PREFIX.length),
 	);
-	return (reason.match(/\w/g)?.length ?? 0) >= 3;
 };
 
 // Two prose-literal string values are eligible findings: a bare string
@@ -434,7 +520,7 @@ const findHardcodedUiLiterals = (
 		} else if (ts.isJsxAttribute(node)) {
 			const attrName = node.name.getText(sourceFile);
 			if (!NEVER_COPY_ATTRIBUTE_NAMES.has(attrName)) {
-				const isCopy = ALWAYS_COPY_ATTRIBUTE_NAMES.has(attrName)
+				const isCopy = isDefiniteCopyPositionName(attrName)
 					? isCopyLikeLiteral
 					: isProseLikeLiteral;
 				const initializer = node.initializer;
@@ -457,14 +543,56 @@ const findHardcodedUiLiterals = (
 			}
 		} else if (
 			ts.isPropertyAssignment(node) &&
-			ts.isIdentifier(node.name) &&
-			node.name.text === 'label'
+			(ts.isIdentifier(node.name) || ts.isStringLiteral(node.name)) &&
+			// W5-HARDEN (W5-VERIFY2): `{ title: 'Delete' }` sailed through — only
+			// an object-literal property literally named `label` was checked.
+			// Widened to the same definite-copy name set JSX attributes use
+			// (`title`, `description`, `tooltip`, `emptyText`, ...), so a plain
+			// object-literal toast/column/option config is covered the same way
+			// a component prop is, not just the one hand-picked key.
+			isDefiniteCopyPositionName(node.name.text) &&
+			!isMetaOrProblemDetailsDescriptor(node.parent)
 		) {
 			for (const value of collectProseLiteralValues(
 				node.initializer,
 				isCopyLikeLiteral,
 			)) {
-				report(node, `label: "${value}"`);
+				report(node, `${node.name.text}: "${value}"`);
+			}
+		} else if (
+			// W5-HARDEN (W5-VERIFY2): `element.title = 'Delete'` and
+			// `element.setAttribute('aria-label', 'Cancel')` are imperative DOM
+			// writes — entirely outside the JSX-attribute/object-literal shapes
+			// above. `element.title =`/`.textContent =`/`.innerText =` assigns a
+			// copy-bearing DOM property directly; `setAttribute` with a
+			// definite-copy attribute name (`aria-label`, `title`, ...) does the
+			// same through a different API. Both are covered here instead of
+			// only the declarative shapes.
+			ts.isBinaryExpression(node) &&
+			node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+			ts.isPropertyAccessExpression(node.left) &&
+			COPY_LIKE_DOM_PROPERTY_NAMES.has(node.left.name.text)
+		) {
+			for (const value of collectProseLiteralValues(
+				node.right,
+				isCopyLikeLiteral,
+			)) {
+				report(node, `${node.left.name.text} = "${value}"`);
+			}
+		} else if (
+			ts.isCallExpression(node) &&
+			ts.isPropertyAccessExpression(node.expression) &&
+			node.expression.name.text === 'setAttribute' &&
+			node.arguments.length >= 2 &&
+			ts.isStringLiteralLike(node.arguments[0]) &&
+			isDefiniteCopyPositionName(node.arguments[0].text)
+		) {
+			const attrName = node.arguments[0].text;
+			for (const value of collectProseLiteralValues(
+				node.arguments[1],
+				isCopyLikeLiteral,
+			)) {
+				report(node, `setAttribute("${attrName}", "${value}")`);
 			}
 		} else if (
 			(ts.isBinaryExpression(node) &&
@@ -630,6 +758,56 @@ describe('i18n key coverage', () => {
 		expect(findings).toEqual([]);
 	});
 
+	// W5-VERIFY2: all four of these evaded the pre-hardening detector — the
+	// URL exemption was prefix-only, `emptyText`/`tooltip` weren't on the
+	// hand-typed always-copy list, imperative DOM writes were outside the
+	// AST visitor entirely, and only a `label:` object property was checked.
+	test('findHardcodedUiLiterals catches copy trailing a URL, an arbitrary copy prop, imperative DOM writes, and a non-label object property (W5-VERIFY2 canary)', () => {
+		const findings = findHardcodedUiLiterals(
+			[
+				'<button aria-label="https://example.com Delete account" />',
+				'<Widget emptyText="Empty" tooltip="Delete" />',
+				"element.title = 'Delete';",
+				"element.setAttribute('aria-label', 'Cancel');",
+				"export const verifyToastCopy = { title: 'Delete' };",
+			].join('\n'),
+			'canary.tsx',
+		);
+
+		expect(findings).toContainEqual(
+			expect.stringContaining('https://example.com Delete account'),
+		);
+		expect(findings).toContainEqual(
+			expect.stringContaining('emptyText="Empty"'),
+		);
+		expect(findings).toContainEqual(
+			expect.stringContaining('tooltip="Delete"'),
+		);
+		expect(findings).toContainEqual(
+			expect.stringContaining('title = "Delete"'),
+		);
+		expect(findings).toContainEqual(
+			expect.stringContaining('setAttribute("aria-label", "Cancel")'),
+		);
+		expect(findings).toContainEqual(expect.stringContaining('title: "Delete"'));
+	});
+
+	// The URL/email exemption must still hold when the value IS purely a
+	// URL/email/domain-path and nothing trails it — the anchoring fix must
+	// not turn every legitimate placeholder into a false positive.
+	test('findHardcodedUiLiterals still exempts a bare URL/email placeholder after the anchoring fix', () => {
+		const findings = findHardcodedUiLiterals(
+			[
+				'<input placeholder="https://example.com" />',
+				'<input placeholder="user@example.com" />',
+				'<input placeholder="publyapp.com/free-trial" />',
+			].join('\n'),
+			'canary.tsx',
+		);
+
+		expect(findings).toEqual([]);
+	});
+
 	test('every t()/i18nKey literal under src resolves in both common bundles', async () => {
 		const usagesByKey = await extractI18nKeyUsages(srcDir);
 		expect(usagesByKey.size).toBeGreaterThan(0);
@@ -719,5 +897,52 @@ describe('i18n-guard-ignore suppression requires a substantive reason', () => {
 				2,
 			),
 		).toBe(true);
+	});
+
+	// W5-VERIFY2 planted `{/* i18n-guard-ignore: 123 */}` and it suppressed the
+	// violation. Same shared bar as data-honesty-ignore — see
+	// suppression-reason.ts.
+	test('rejects a digit-only noise reason', () => {
+		notSuppressed('{/* i18n-guard-ignore: 123 456 789 */}');
+	});
+
+	test('rejects a repeated-character noise word', () => {
+		notSuppressed('{/* i18n-guard-ignore: xxx */}');
+	});
+
+	test('rejects a punctuation-only noise reason', () => {
+		notSuppressed('{/* i18n-guard-ignore: !!! --- ??? */}');
+	});
+});
+
+describe('i18n-guard-ignore suppression sites match the committed inventory', () => {
+	// W5-HARDEN: same structural backstop as the data-honesty-ignore
+	// inventory check — every real suppression site under src/ must be
+	// checked into suppression-inventory.json.
+	test('every i18n-guard-ignore site under src is documented, and no inventory entry is stale', async () => {
+		const files = await collectFiles(srcDir);
+		const found: SuppressionSite[] = [];
+
+		for (const absolutePath of files) {
+			const relativePath = `src/${path.relative(srcDir, absolutePath).split(path.sep).join('/')}`;
+			const source = await readFile(absolutePath, 'utf8');
+			found.push(
+				...findSuppressionSitesInSource(source, relativePath).filter(
+					(site) => site.convention === 'i18n-guard-ignore',
+				),
+			);
+		}
+
+		const relevantInventory = (
+			suppressionInventory as SuppressionSite[]
+		).filter((site) => site.convention === 'i18n-guard-ignore');
+
+		const { undocumented, stale } = diffSuppressionInventory(
+			found,
+			relevantInventory,
+		);
+
+		expect(undocumented, 'undocumented suppression sites').toEqual([]);
+		expect(stale, 'stale inventory entries').toEqual([]);
 	});
 });
