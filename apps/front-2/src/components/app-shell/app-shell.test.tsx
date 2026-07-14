@@ -11,11 +11,37 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
 	isDesktop: true,
+	linkPrevSearch: {} as unknown,
 }));
 
 vi.mock('@tanstack/react-router', () => ({
-	Link: ({ children, to, ...props }: { children?: ReactNode; to: string }) =>
-		createElement('a', { href: to, ...props }, children),
+	Link: ({
+		children,
+		to,
+		search,
+		...props
+	}: {
+		children?: ReactNode;
+		to: string;
+		search?: unknown;
+	}) => {
+		const resolvedSearch =
+			typeof search === 'function'
+				? (search as (prev: unknown) => unknown)(mocks.linkPrevSearch)
+				: search;
+		return createElement(
+			'a',
+			{
+				href: to,
+				'data-search':
+					resolvedSearch !== undefined
+						? JSON.stringify(resolvedSearch)
+						: undefined,
+				...props,
+			},
+			children,
+		);
+	},
 }));
 
 vi.mock('./user-menu', () => ({
@@ -284,5 +310,42 @@ describe('AppShell navigation reality (no dead links, no fabricated data)', () =
 		expect(
 			within(drawer).getByRole('link', { name: 'nav-staff' }),
 		).toBeTruthy();
+	});
+});
+
+describe('AppShell secondary-panel status links preserve the toolbar search state (r3-tenants-F5)', () => {
+	afterEach(() => {
+		cleanup();
+		mocks.linkPrevSearch = {};
+	});
+
+	test('a panel status link keeps q/sort/size and sets (or clears) only status', () => {
+		mocks.linkPrevSearch = {
+			q: 'ac',
+			sortId: 'name',
+			size: 50,
+			status: 'suspended',
+		};
+
+		render(
+			<AppShell
+				mode="authed"
+				pathname="/staff/tenants"
+				search={{ status: 'suspended' }}
+			>
+				content
+			</AppShell>,
+		);
+
+		const activeLink = screen.getByRole('link', { name: 'nav-tenants-active' });
+		const search = JSON.parse(activeLink.getAttribute('data-search') ?? '{}');
+		expect(search).toMatchObject({ q: 'ac', sortId: 'name', size: 50 });
+		expect(search.status).toBe('active');
+		expect(search.cursor).toBeUndefined();
+
+		const allLink = screen.getByRole('link', { name: 'nav-tenants-all' });
+		const allSearch = JSON.parse(allLink.getAttribute('data-search') ?? '{}');
+		expect(allSearch).toMatchObject({ q: 'ac', sortId: 'name', size: 50 });
+		expect(allSearch.status).toBeUndefined();
 	});
 });

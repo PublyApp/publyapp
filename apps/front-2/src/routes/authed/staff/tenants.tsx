@@ -750,11 +750,9 @@ const TenantLifecycleActionsCell = ({
 
 	if (!canSuspend && !canReactivate && !canDelete) {
 		return (
-			<span
-				aria-label={t('no-lifecycle-actions')}
-				className="text-muted-foreground"
-			>
-				—
+			<span className="text-muted-foreground">
+				<span aria-hidden="true">—</span>
+				<span className="sr-only">{t('no-lifecycle-actions')}</span>
 			</span>
 		);
 	}

@@ -299,7 +299,12 @@ const SecondaryPanelNavItem = ({
 	return (
 		<Link
 			to={item.path}
-			search={item.search}
+			search={(prev: AppShellSearch) => ({
+				...prev,
+				...item.search,
+				status: item.search?.status,
+				cursor: undefined,
+			})}
 			onClick={onNavigate}
 			className="app-shell-secondary-nav-link"
 			data-active={isActive ? 'true' : undefined}

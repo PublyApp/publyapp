@@ -245,11 +245,9 @@ export const createColumns = ({
 					</DropdownMenuItem>
 				</DataTableRowActions>
 			) : (
-				<span
-					aria-label={t('no-actions-available')}
-					className="flex justify-center text-muted-foreground"
-				>
-					—
+				<span className="flex justify-center text-muted-foreground">
+					<span aria-hidden="true">—</span>
+					<span className="sr-only">{t('no-actions-available')}</span>
 				</span>
 			),
 	},

@@ -57,7 +57,10 @@ import {
 	TenantDetailsPageShell,
 	TenantRetryActions,
 } from './$tenantId/_tenant-details-shell';
-import { getWebsiteHostname } from './tenant-organization-profile-fields';
+import {
+	getWebsiteHostname,
+	isAbsoluteHttpUrl,
+} from './tenant-organization-profile-fields';
 
 const TENANT_STATUS_ACTIVE = 'Active';
 const TENANT_STATUS_SUSPENDED = 'Suspended';
@@ -187,9 +190,10 @@ const OrganizationCard = ({
 	locale: string;
 	t: (key: string, options?: Record<string, unknown>) => string;
 }) => {
-	const websiteHostname = tenant.websiteUrl
-		? getWebsiteHostname(tenant.websiteUrl)
-		: null;
+	const websiteHostname =
+		tenant.websiteUrl && isAbsoluteHttpUrl(tenant.websiteUrl)
+			? getWebsiteHostname(tenant.websiteUrl)
+			: null;
 
 	return (
 		<section className="rounded-[var(--publy-radius-card)] bg-card shadow-[var(--publy-shadow-ring)]">

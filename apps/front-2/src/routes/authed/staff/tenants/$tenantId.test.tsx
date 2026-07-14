@@ -338,6 +338,18 @@ describe('staff tenant details route', () => {
 		expect(lastActiveLabel.parentElement?.textContent).toContain('—');
 	});
 
+	test('renders no website link for a non-http(s) websiteUrl (r3-tenants-F3)', () => {
+		mocks.toStaffTenantDetails.mockReturnValue({
+			...ACTIVE_TENANT,
+			websiteUrl: 'javascript://evil.com/%0aalert(1)',
+		});
+
+		renderPage();
+
+		expect(screen.queryByText('Website')).toBeNull();
+		expect(document.querySelector('a[href^="javascript:"]')).toBeNull();
+	});
+
 	test('renders the owners, pending invites, and profiles stat cards from the new detail counts', () => {
 		renderPage();
 
