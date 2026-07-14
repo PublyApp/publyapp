@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
 using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Infrastructure.Messaging.Email;
 using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -45,6 +46,7 @@ public sealed class TenantAsStaffServiceSpec
 		var service = new TenantAsStaffService(
 			serviceDbContext,
 			fileStorage,
+			new InvitationEmailOutboxSignal(),
 			NullLogger<TenantAsStaffService>.Instance
 		);
 

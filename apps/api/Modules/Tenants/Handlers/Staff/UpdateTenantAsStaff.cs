@@ -205,6 +205,7 @@ public sealed class UpdateTenantAsStaff {
 		[FromServices] ITenantAsStaffService tenantService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] IRequestAuthContext authContext,
+		[FromServices] ILogger<UpdateTenantAsStaff> logger,
 		CancellationToken cancellationToken = default
 	) {
 		if (!Guid.TryParse(tenantId, out var tenantIdGuid)) {
@@ -292,41 +293,50 @@ public sealed class UpdateTenantAsStaff {
 			);
 		}
 		var tenant = success.Tenant;
-		var usersCount = await tenantService
-			.CountTenantUsersAsync(
-				tenantIdGuid, cancellationToken
-			);
+		var usersCount = success.UsersCount;
 
-		await auditLogService.LogAsync(
-			new CreateAuditLogArgs(
-				UserId: account.UserId,
-				Action: AuditActions.TenantUpdated,
-				TargetId: tenantIdGuid,
-				Details: new {
-					Name = args.Name,
-					LogoUrl = args.LogoUrl.IsPresent
-						? args.LogoUrl.Value : null,
-					MaxUsers = args.MaxUsers,
-					LegalName = args.LegalName.IsPresent
-						? args.LegalName.Value : null,
-					Description = args.Description.IsPresent
-						? args.Description.Value : null,
-					WebsiteUrl = args.WebsiteUrl.IsPresent
-						? args.WebsiteUrl.Value : null,
-					BillingEmail = args.BillingEmail.IsPresent
-						? args.BillingEmail.Value : null,
-					SupportEmail = args.SupportEmail.IsPresent
-						? args.SupportEmail.Value : null,
-					DefaultLocale = args.DefaultLocale.IsPresent
-						? args.DefaultLocale.Value : null,
-					Timezone = args.Timezone.IsPresent
-						? args.Timezone.Value : null,
-					Notes = args.Notes.IsPresent
-						? args.Notes.Value : null,
-				}
-			),
-			cancellationToken
-		);
+		// The tenant mutation already committed durably above. Audit persistence
+		// is best-effort from here on: it must never turn an already-successful
+		// update into a 500 that tells the caller to retry (round-5 API F2).
+		try {
+			await auditLogService.LogAsync(
+				new CreateAuditLogArgs(
+					UserId: account.UserId,
+					Action: AuditActions.TenantUpdated,
+					TargetId: tenantIdGuid,
+					Details: new {
+						Name = args.Name,
+						LogoUrl = args.LogoUrl.IsPresent
+							? args.LogoUrl.Value : null,
+						MaxUsers = args.MaxUsers,
+						LegalName = args.LegalName.IsPresent
+							? args.LegalName.Value : null,
+						Description = args.Description.IsPresent
+							? args.Description.Value : null,
+						WebsiteUrl = args.WebsiteUrl.IsPresent
+							? args.WebsiteUrl.Value : null,
+						BillingEmail = args.BillingEmail.IsPresent
+							? args.BillingEmail.Value : null,
+						SupportEmail = args.SupportEmail.IsPresent
+							? args.SupportEmail.Value : null,
+						DefaultLocale = args.DefaultLocale.IsPresent
+							? args.DefaultLocale.Value : null,
+						Timezone = args.Timezone.IsPresent
+							? args.Timezone.Value : null,
+						Notes = args.Notes.IsPresent
+							? args.Notes.Value : null,
+					}
+				),
+				cancellationToken
+			);
+		} catch (Exception ex) {
+			logger.LogWarning(
+				ex,
+				"Failed to write audit log for tenant update {TenantId} by staff user {UserId}",
+				tenantIdGuid,
+				account.UserId
+			);
+		}
 
 		return TypedResults.Ok(new GetTenantAsStaffResult {
 			TenantId = tenant.GetRequiredId(),

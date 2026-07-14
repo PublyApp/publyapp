@@ -73,24 +73,34 @@ public sealed class BulkSuspendTenantsAsStaff {
 			result.SucceededCount,
 			result.FailedCount);
 
-		// Log audit for each successful suspension
+		// The bulk suspend already committed above; audit persistence is
+		// best-effort from here so it never turns an already-successful mutation
+		// into a 500 (round-5 API F2 — sweep of every post-commit side effect).
 		var account = authContext.AccountStaff;
 		if (account is not null) {
-			// We can't easily get individual tenant names in bulk without extra queries
-			// Log a summary audit entry
-			await auditLogService.LogAsync(
-				new CreateAuditLogArgs(
-					UserId: account.UserId,
-					Action: AuditActions.TenantBulkSuspended,
-					TargetId: account.UserId, // Use actor as target since multiple tenants
-					Details: new {
-						Count = result.SucceededCount,
-						FailedCount = result.FailedCount,
-						Reason = reason
-					}
-				),
-				cancellationToken
-			);
+			try {
+				// We can't easily get individual tenant names in bulk without extra queries
+				// Log a summary audit entry
+				await auditLogService.LogAsync(
+					new CreateAuditLogArgs(
+						UserId: account.UserId,
+						Action: AuditActions.TenantBulkSuspended,
+						TargetId: account.UserId, // Use actor as target since multiple tenants
+						Details: new {
+							Count = result.SucceededCount,
+							FailedCount = result.FailedCount,
+							Reason = reason
+						}
+					),
+					cancellationToken
+				);
+			} catch (Exception ex) {
+				logger.LogWarning(
+					ex,
+					"Failed to write audit log for tenant bulk suspend by staff user {UserId}",
+					account.UserId
+				);
+			}
 		}
 
 		return TypedResults.Ok(new BulkSuspendTenantsResult {

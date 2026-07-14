@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Infrastructure.Messaging.Email;
 using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
@@ -77,7 +78,7 @@ public record BulkDeleteResult(
 
 // Result types for update/delete operations
 public abstract record UpdateTenantResult {
-	public sealed record Success(Tenant Tenant) : UpdateTenantResult;
+	public sealed record Success(Tenant Tenant, int UsersCount) : UpdateTenantResult;
 	public sealed record NotFound : UpdateTenantResult;
 	public sealed record MaxUsersBelowCurrentCount : UpdateTenantResult;
 }
@@ -225,15 +226,18 @@ public interface ITenantAsStaffService {
 public class TenantAsStaffService : ITenantAsStaffService {
 	private readonly AppDbContext _dbContext;
 	private readonly IFileStorage _fileStorage;
+	private readonly IInvitationEmailOutboxSignal _outboxSignal;
 	private readonly ILogger<TenantAsStaffService> _logger;
 
 	public TenantAsStaffService(
 		AppDbContext dbContext,
 		IFileStorage fileStorage,
+		IInvitationEmailOutboxSignal outboxSignal,
 		ILogger<TenantAsStaffService> logger
 	) {
 		_dbContext = dbContext;
 		_fileStorage = fileStorage;
+		_outboxSignal = outboxSignal;
 		_logger = logger;
 	}
 
@@ -576,11 +580,20 @@ public class TenantAsStaffService : ITenantAsStaffService {
 					invitation.ValidateInvitationType();
 					_dbContext.Invitation.Add(invitation);
 
+					// Durable delivery record in the same transaction as the
+					// invitation and the tenant itself (round-5 API F3).
+					_dbContext.InvitationEmailOutbox.Add(
+						InvitationEmailOutbox.CreateTenantInvitation(
+							email, args.Name, token, accountLevel
+						)
+					);
+
 					invitationTokens.Add((email, token, accountLevel));
 				}
 
 				await _dbContext.SaveChangesAsync(cancellationToken);
 				await transaction.CommitAsync(cancellationToken);
+				_outboxSignal.Notify();
 
 				return new CreateTenantWithInitialUsersOutcome.Success(
 					new CreateTenantWithInitialUsersResult {
@@ -798,14 +811,16 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			return new UpdateTenantResult.NotFound();
 		}
 
+		// Computed once, before the mutation commits, so the response projection's
+		// UsersCount never requires a post-commit query the handler could fail on
+		// after the tenant record is already durably updated (round-5 API F2).
+		var currentUserCount = await CountTenantUsersAsync(
+			tenantId, cancellationToken
+		);
+
 		// Validate MaxUsers against current user count
-		if (args.MaxUsers is not null) {
-			var currentUserCount = await CountTenantUsersAsync(
-				tenantId, cancellationToken
-			);
-			if (args.MaxUsers.Value < currentUserCount) {
-				return new UpdateTenantResult.MaxUsersBelowCurrentCount();
-			}
+		if (args.MaxUsers is not null && args.MaxUsers.Value < currentUserCount) {
+			return new UpdateTenantResult.MaxUsersBelowCurrentCount();
 		}
 
 		// Captured before mutation so a replaced/cleared logoUrl can have its old
@@ -855,7 +870,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			);
 		}
 
-		return new UpdateTenantResult.Success(tenant);
+		return new UpdateTenantResult.Success(tenant, currentUserCount);
 	}
 
 	// Best-effort cleanup of the blob a logoUrl replace/clear leaves behind.
