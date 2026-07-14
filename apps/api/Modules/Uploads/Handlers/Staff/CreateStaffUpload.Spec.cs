@@ -5,12 +5,14 @@ using System.Text.RegularExpressions;
 
 using FluentAssertions;
 
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -160,16 +162,53 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 		fileResponse.Content.Headers.ContentType!.MediaType.Should().Be("image/png");
 	}
 
+	// r4-tests-F2: the prior version only asserted 404 for `../appsettings.json`
+	// and `%2e%2e/%2e%2e/etc/passwd` — both are canonical dot-segment URLs that
+	// HttpClient/Uri normalize away (RFC 3986 §5.2.4) before the request ever
+	// reaches the server, and even if they did reach it, the default storage
+	// root (`.artifacts/storage`) never contains an `appsettings.json` or
+	// `/etc/passwd` sentinel, so 404 there proves nothing about the traversal
+	// boundary — a decode-and-allow regression would still return 404 by
+	// "target absent," not "traversal rejected." This rebuild creates a real
+	// control file inside the storage root and a real, uniquely named
+	// sentinel immediately outside it, proves the control is served (so the
+	// serving mechanism itself is known-good), then reaches the static-file
+	// middleware with the literal ".." bytes still in `HttpContext.Request.Path`
+	// via `TestServer.SendAsync` (which builds the `HttpContext` directly,
+	// bypassing all `Uri`/`HttpClient` string-based normalization) and asserts
+	// the real, existing sentinel is NOT served.
 	[Fact]
-	public async Task ItShouldReturn404ForPathTraversalInTheServedFileRoute() {
-		using var response = await _http.GetAsync("/files/../appsettings.json");
-		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+	public async Task ItShouldRejectPathTraversalToARealFileOutsideTheServedRoot() {
+		var fileStorage = _fixture.Factory.Services.GetRequiredService<IFileStorage>();
+		var rootPath = fileStorage.RootPath;
+		Directory.CreateDirectory(rootPath);
 
-		using var encodedResponse = await _http.GetAsync("/files/..%2fappsettings.json");
-		encodedResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
+		var controlFileName = $"traversal-control-{Guid.NewGuid():N}.txt";
+		var controlContent = $"control-{Guid.NewGuid():N}";
+		var controlPath = Path.Combine(rootPath, controlFileName);
 
-		using var doublyEncodedResponse = await _http.GetAsync("/files/%2e%2e/%2e%2e/etc/passwd");
-		doublyEncodedResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
+		var sentinelFileName = $"traversal-sentinel-{Guid.NewGuid():N}.txt";
+		var sentinelContent = $"sentinel-{Guid.NewGuid():N}";
+		var sentinelPath = Path.Combine(rootPath, "..", sentinelFileName);
+
+		await File.WriteAllTextAsync(controlPath, controlContent);
+		await File.WriteAllTextAsync(sentinelPath, sentinelContent);
+
+		try {
+			using var controlResponse = await _http.GetAsync($"/files/{controlFileName}");
+			controlResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+			(await controlResponse.Content.ReadAsStringAsync()).Should().Be(controlContent);
+
+			var traversalContext = await _fixture.Factory.Server.SendAsync(context => {
+				context.Request.Method = "GET";
+				context.Request.Path = new PathString($"/files/../{sentinelFileName}");
+			});
+
+			traversalContext.Response.StatusCode.Should().Be((int)HttpStatusCode.NotFound);
+		} finally {
+			File.Delete(controlPath);
+			File.Delete(sentinelPath);
+		}
 	}
 
 	// Covers the delivery half of the upload feature — the anonymous /files
