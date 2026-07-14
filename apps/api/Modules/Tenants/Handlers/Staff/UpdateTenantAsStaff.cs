@@ -150,7 +150,7 @@ public class UpdateTenantAsStaffBodyValidator
 	: AbstractValidator<UpdateTenantAsStaffBody> {
 	public UpdateTenantAsStaffBodyValidator() {
 		RuleFor(x => x.Name)
-			.MustBePatchFieldStringWithLength("Name", 5, int.MaxValue);
+			.MustBePatchFieldStringWithLength("Name", 5, TenantValidationRules.NameMaxLength);
 
 		RuleFor(x => x.LogoUrl)
 			.MustBePatchFieldLogoUrl();
@@ -175,7 +175,7 @@ public class UpdateTenantAsStaffBodyValidator
 			.MustBePatchFieldStringWithMaxLength("Description", 1024);
 
 		RuleFor(x => x.WebsiteUrl)
-			.MustBePatchFieldClearableUrl("WebsiteUrl");
+			.MustBePatchFieldClearableUrl("WebsiteUrl", TenantValidationRules.WebsiteUrlMaxLength);
 
 		RuleFor(x => x.BillingEmail)
 			.MustBePatchFieldEmailWithMaxLength("BillingEmail", 320);

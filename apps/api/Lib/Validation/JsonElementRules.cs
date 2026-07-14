@@ -194,7 +194,8 @@ public static class JsonElementRules {
 	public static IRuleBuilderOptions<T, JsonElement?>
 		MustBeNullableClearableUrl<T>(
 			this IRuleBuilder<T, JsonElement?> ruleBuilder,
-			string fieldName
+			string fieldName,
+			int? maxLength = null
 	) {
 		return ruleBuilder
 			.Must(e => {
@@ -222,6 +223,15 @@ public static class JsonElementRules {
 			})
 			.WithMessage(
 				$"{fieldName} must be a valid URL"
+			)
+			.Must(e => {
+				if (maxLength is null || e is null || e.Value.ValueKind != JsonValueKind.String) {
+					return true;
+				}
+				return (e.Value.GetString()?.Length ?? 0) <= maxLength;
+			})
+			.WithMessage(
+				$"{fieldName} must be {maxLength} characters or less"
 			);
 	}
 
@@ -273,7 +283,8 @@ public static class JsonElementRules {
 	public static IRuleBuilderOptions<T, JsonElement>
 		MustBePatchFieldClearableUrl<T>(
 			this IRuleBuilder<T, JsonElement> ruleBuilder,
-			string fieldName
+			string fieldName,
+			int? maxLength = null
 	) {
 		return ruleBuilder
 			.Must(e => {
@@ -301,6 +312,15 @@ public static class JsonElementRules {
 			})
 			.WithMessage(
 				$"{fieldName} must be a string, null, or omitted"
+			)
+			.Must(e => {
+				if (maxLength is null || e.ValueKind != JsonValueKind.String) {
+					return true;
+				}
+				return (e.GetString()?.Length ?? 0) <= maxLength;
+			})
+			.WithMessage(
+				$"{fieldName} must be {maxLength} characters or less"
 			);
 	}
 

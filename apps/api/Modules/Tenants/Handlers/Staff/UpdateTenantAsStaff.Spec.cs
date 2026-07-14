@@ -21,6 +21,7 @@ using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Tenants.Entities;
+using PublyApp.Api.Modules.Tenants.Validation;
 using PublyApp.Api.Modules.Uploads.Handlers.Staff;
 using PublyApp.Api.Modules.Users.Entities;
 
@@ -791,6 +792,7 @@ public sealed class UpdateTenantAsStaffSpec
 	[InlineData("legalName", 257)]
 	[InlineData("description", 1025)]
 	[InlineData("notes", 4001)]
+	[InlineData("name", 257)]
 	public async Task
 	ItShouldReturnUnprocessableEntityWhenOrganizationFieldExceedsMaxLength(
 		string field,
@@ -810,6 +812,64 @@ public sealed class UpdateTenantAsStaffSpec
 				seededTenant.TenantId,
 				body
 			)
+		);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.UnprocessableEntity);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldUpdateTenantWhenNameIsExactlyAtMaxLength() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantAsync("Tenant Name Exact Length");
+
+		// Prefixed with a unique marker (well under the limit) so the name stays
+		// unique across test runs while the total length still lands exactly at
+		// NameMaxLength.
+		var prefix = $"Tenant Exact {Guid.NewGuid():N} ";
+		var name = prefix + new string(
+			'a', TenantValidationRules.NameMaxLength - prefix.Length
+		);
+		name.Length.Should().Be(TenantValidationRules.NameMaxLength);
+
+		using var response = await TenantTestHelper.UpdateTenantAsync(
+			_http,
+			staffToken,
+			seededTenant.TenantId,
+			new { name }
+		);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+		var persisted = await dbContext.Tenant
+			.Where(t => t.Id == seededTenant.TenantId)
+			.SingleAsync();
+		persisted.Name.Should().Be(name);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnUnprocessableEntityWhenWebsiteUrlExceedsMaxLength() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantAsync("Tenant WebsiteUrl Too Long");
+
+		var oversizedWebsiteUrl =
+			"https://example.com/" + new string('a', TenantValidationRules.WebsiteUrlMaxLength);
+
+		using var response = await TenantTestHelper.UpdateTenantAsync(
+			_http,
+			staffToken,
+			seededTenant.TenantId,
+			new { websiteUrl = oversizedWebsiteUrl }
 		);
 
 		response.StatusCode.Should()

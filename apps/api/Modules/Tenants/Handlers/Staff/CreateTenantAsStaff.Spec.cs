@@ -21,6 +21,7 @@ using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Profiles.Entities;
 using PublyApp.Api.Modules.Tenants.Entities;
+using PublyApp.Api.Modules.Tenants.Validation;
 using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
@@ -520,6 +521,84 @@ public sealed class CreateTenantAsStaffSpec
 		);
 
 		await AssertValidationProblemAsync(response, "LogoUrl");
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnUnprocessableEntityWhenNameExceedsMaxLength() {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+
+		var body = new {
+			name = new string('a', TenantValidationRules.NameMaxLength + 1),
+			maxUsers = 3,
+			initialUsers = new[] {
+				new { email = "admin@example.com", accountLevel = "Admin" }
+			}
+		};
+
+		using var response = await _http.SendAsync(
+			CreateTenantRequest(token, body)
+		);
+
+		await AssertValidationProblemAsync(response, "Name");
+	}
+
+	[Fact]
+	public async Task
+	ItShouldCreateTenantWhenNameIsExactlyAtMaxLength() {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+
+		// Prefixed with a unique marker (well under the limit) so the name stays
+		// unique across test runs while the total length still lands exactly at
+		// NameMaxLength.
+		var prefix = $"Tenant Exact {Guid.NewGuid():N} ";
+		var name = prefix + new string(
+			'a', TenantValidationRules.NameMaxLength - prefix.Length
+		);
+		name.Length.Should().Be(TenantValidationRules.NameMaxLength);
+
+		var created = await CreateTenantSuccessfullyAsync(
+			token,
+			new {
+				name,
+				maxUsers = 3,
+				initialUsers = new[] {
+					new {
+						email = $"tenant-name-exact-{Guid.NewGuid():N}@example.com",
+						accountLevel = "Admin"
+					}
+				}
+			}
+		);
+
+		created.Name.Should().Be(name);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnUnprocessableEntityWhenWebsiteUrlExceedsMaxLength() {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+
+		var oversizedWebsiteUrl =
+			"https://example.com/" + new string('a', TenantValidationRules.WebsiteUrlMaxLength);
+
+		var body = new {
+			name = $"Tenant Create WebsiteUrl Too Long {Guid.NewGuid():N}",
+			maxUsers = 3,
+			websiteUrl = oversizedWebsiteUrl,
+			initialUsers = new[] {
+				new { email = "admin@example.com", accountLevel = "Admin" }
+			}
+		};
+
+		using var response = await _http.SendAsync(
+			CreateTenantRequest(token, body)
+		);
+
+		await AssertValidationProblemAsync(response, "WebsiteUrl");
 	}
 
 	[Theory]

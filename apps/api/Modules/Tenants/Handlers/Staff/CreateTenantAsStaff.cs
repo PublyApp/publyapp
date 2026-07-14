@@ -137,7 +137,7 @@ public partial class CreateTenantAsStaffBodyValidator : AbstractValidator<Create
 
 	public CreateTenantAsStaffBodyValidator() {
 		RuleFor(x => x.Name)
-			.MustBeRequiredStringWithLength("Name", 5, int.MaxValue);
+			.MustBeRequiredStringWithLength("Name", 5, TenantValidationRules.NameMaxLength);
 
 		RuleFor(x => x.MaxUsers).Custom((element, context) => {
 			var kind = element.ValueKind;
@@ -168,7 +168,7 @@ public partial class CreateTenantAsStaffBodyValidator : AbstractValidator<Create
 			.MustBeNullableStringWithMaxLength("Description", 1024);
 
 		RuleFor(x => x.WebsiteUrl)
-			.MustBeNullableClearableUrl("WebsiteUrl");
+			.MustBeNullableClearableUrl("WebsiteUrl", TenantValidationRules.WebsiteUrlMaxLength);
 
 		RuleFor(x => x.BillingEmail)
 			.MustBeNullableEmailWithMaxLength("BillingEmail", 320);

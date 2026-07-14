@@ -17,6 +17,8 @@ public static partial class TenantValidationRules {
 		new(StringComparer.Ordinal) { "en", "fr" };
 
 	public const int LogoUrlMaxLength = 2048;
+	public const int NameMaxLength = 256;
+	public const int WebsiteUrlMaxLength = 2048;
 
 	// Matches exactly what CreateStaffUpload returns (see StaffUploadCreated.Url):
 	// "/files/" + the server-generated relative storage path.
