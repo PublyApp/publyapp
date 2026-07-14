@@ -153,7 +153,7 @@ export const RootErrorBoundary = ({
 	</I18nextProvider>
 );
 
-const RootNotFound = () => (
+export const RootNotFound = () => (
 	<I18nextProvider i18n={FALLBACK_I18N_INSTANCE}>
 		<View404 embedded={false} />
 	</I18nextProvider>
