@@ -176,6 +176,11 @@ const LOCALE_SELF_NAME_ALLOWLIST = new Set(['English', 'Français']);
 
 const JSX_ATTR_EXPRESSION_PATTERN =
 	/\b(aria-label|placeholder|title)=\{([^{}]+)\}/g;
+// r4-tests-F1: `aria-label="Delete account"` — a plain, unbraced JSX string
+// attribute — is a different token shape than `aria-label={...}` above and
+// was invisible to it.
+const JSX_ATTR_STRING_LITERAL_PATTERN =
+	/\b(aria-label|placeholder|title)=(["'])([A-Z][^"']*)\2/g;
 const BARE_STRING_LITERAL_PATTERN = /^(['"])([A-Z][^'"]*)\1$/;
 const TERNARY_OF_STRING_LITERALS_PATTERN =
 	/^[^?]+\?\s*(['"])([A-Z][^'"]*)\1\s*:\s*(['"])([A-Z][^'"]*)\3$/;
@@ -275,6 +280,16 @@ const findHardcodedUiLiterals = (
 		}
 	}
 
+	for (const match of source.matchAll(JSX_ATTR_STRING_LITERAL_PATTERN)) {
+		const [, attrName, , value] = match;
+		if (
+			!LOCALE_SELF_NAME_ALLOWLIST.has(value) &&
+			!isI18nGuardSuppressed(lines, lineNumberAt(match.index))
+		) {
+			findings.push(`${relativePath}: ${attrName}="${value}"`);
+		}
+	}
+
 	for (const match of source.matchAll(TOP_LEVEL_TERNARY_ASSIGNMENT_PATTERN)) {
 		for (const value of [match[2], match[4]]) {
 			if (!LOCALE_SELF_NAME_ALLOWLIST.has(value)) {
@@ -294,6 +309,24 @@ const findHardcodedUiLiterals = (
 };
 
 describe('i18n key coverage', () => {
+	// r4-tests-F1: the review's exact planted example against the pre-fix
+	// detector reported "planted hardcoded UI matches: 0" — a plain JSX text
+	// node and an unbraced string attribute were both invisible. This canary
+	// fails if that class of blindness ever regresses.
+	test('findHardcodedUiLiterals catches plain JSX text and an unbraced string attribute (r4-tests-F1 canary)', () => {
+		const findings = findHardcodedUiLiterals(
+			'<p>Password reset sent</p><button aria-label="Delete account">Delete account</button>',
+			'canary.tsx',
+		);
+
+		expect(findings).toContainEqual(
+			expect.stringContaining('<p>Password reset sent</p>'),
+		);
+		expect(findings).toContainEqual(
+			expect.stringContaining('aria-label="Delete account"'),
+		);
+	});
+
 	test('every t()/i18nKey literal under src resolves in both common bundles', async () => {
 		const usagesByKey = await extractI18nKeyUsages(srcDir);
 		expect(usagesByKey.size).toBeGreaterThan(0);
