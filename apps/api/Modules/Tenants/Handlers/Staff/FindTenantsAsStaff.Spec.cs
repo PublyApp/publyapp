@@ -392,6 +392,123 @@ public sealed class FindTenantsAsStaffSpec
 
 	[Fact]
 	public async Task
+	ItShouldExcludeSoftDeletedUsersFromUsersCountInTenantsListAggregate() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var marker = Guid.NewGuid().ToString("N")[..8];
+		var tenantName = $"Tenant List Soft Deleted User {marker}";
+		var tenantId = await SeedTenantWithSoftDeletedUserForFindAsync(tenantName);
+
+		var url = TenantTestHelper.GetFindUrl(q: tenantName);
+		var request = new HttpRequestMessage(HttpMethod.Get, url)
+			.WithSessionToken(staffToken);
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+
+		var match = result.Data.Should().ContainSingle(
+			t => t.Id == tenantId
+		).Subject;
+		match.UsersCount.Should().Be(2);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldTreatABareUnderscoreSearchAsALiteralCharacterNotAWildcard() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var marker = Guid.NewGuid().ToString("N")[..8];
+
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var withUnderscore = new Tenant {
+			Name = $"Has_Underscore{marker}",
+			Code = Guid.NewGuid().ToString("N")[..10],
+			Status = TenantStatus.Active,
+			MaxUsers = 10,
+		};
+		var withoutUnderscore = new Tenant {
+			Name = $"NoUnderscoreHere{marker}",
+			Code = $"d{Guid.NewGuid().ToString("N")[..9]}",
+			Status = TenantStatus.Active,
+			MaxUsers = 10,
+		};
+		await dbContext.Tenant.AddRangeAsync(withUnderscore, withoutUnderscore);
+		await dbContext.SaveChangesAsync();
+
+		var url = TenantTestHelper.GetFindUrl(
+			q: Uri.EscapeDataString("_"),
+			limit: 100
+		);
+		var request = new HttpRequestMessage(HttpMethod.Get, url)
+			.WithSessionToken(staffToken);
+
+		using var response =
+			await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var result = await response.Content
+			.ReadFromJsonAsync<FindResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+
+		result.Data.Should().Contain(t => t.Name == $"Has_Underscore{marker}");
+		result.Data.Should().NotContain(t => t.Name == $"NoUnderscoreHere{marker}");
+	}
+
+	[Fact]
+	public async Task
+	ItShouldTreatABareBackslashSearchAsALiteralCharacterNotAWildcard() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var marker = Guid.NewGuid().ToString("N")[..8];
+
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var withBackslash = new Tenant {
+			Name = $"Has\\Backslash{marker}",
+			Code = Guid.NewGuid().ToString("N")[..10],
+			Status = TenantStatus.Active,
+			MaxUsers = 10,
+		};
+		var withoutBackslash = new Tenant {
+			Name = $"NoBackslashHere{marker}",
+			Code = $"c{Guid.NewGuid().ToString("N")[..9]}",
+			Status = TenantStatus.Active,
+			MaxUsers = 10,
+		};
+		await dbContext.Tenant.AddRangeAsync(withBackslash, withoutBackslash);
+		await dbContext.SaveChangesAsync();
+
+		var url = TenantTestHelper.GetFindUrl(
+			q: Uri.EscapeDataString(@"\"),
+			limit: 100
+		);
+		var request = new HttpRequestMessage(HttpMethod.Get, url)
+			.WithSessionToken(staffToken);
+
+		using var response =
+			await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var result = await response.Content
+			.ReadFromJsonAsync<FindResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+
+		result.Data.Should().Contain(t => t.Name == $"Has\\Backslash{marker}");
+		result.Data.Should().NotContain(t => t.Name == $"NoBackslashHere{marker}");
+	}
+
+	[Fact]
+	public async Task
 	ItShouldFilterByMultipleStatuses() {
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();
@@ -481,6 +598,77 @@ public sealed class FindTenantsAsStaffSpec
 	private async Task<string> CreateUnprivilegedStaffUserTokenAsync() {
 		var (token, _) = await CreateUnprivilegedStaffUserAsync();
 		return token;
+	}
+
+	private async Task<Guid> SeedTenantWithSoftDeletedUserForFindAsync(
+		string tenantName
+	) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var tenant = new Tenant {
+			Name = tenantName,
+			Code = Guid.NewGuid().ToString("N")[..10],
+			Status = TenantStatus.Active,
+			MaxUsers = 10,
+		};
+		await dbContext.Tenant.AddAsync(tenant);
+		await dbContext.SaveChangesAsync();
+		var tenantId = tenant.GetRequiredId();
+
+		await AddFindTenantUserAsync(
+			dbContext,
+			tenantId,
+			isUserDeleted: false,
+			AccountLevel.Admin
+		);
+		await AddFindTenantUserAsync(
+			dbContext,
+			tenantId,
+			isUserDeleted: false,
+			AccountLevel.User
+		);
+		await AddFindTenantUserAsync(
+			dbContext,
+			tenantId,
+			isUserDeleted: true,
+			AccountLevel.User
+		);
+
+		return tenantId;
+	}
+
+	private static async Task AddFindTenantUserAsync(
+		AppDbContext dbContext,
+		Guid tenantId,
+		bool isUserDeleted,
+		AccountLevel level
+	) {
+		var user = new User {
+			Email = $"tenant-find-user-{Guid.NewGuid():N}@example.com",
+			Password = PasswordUtils.HashPassword(
+				TestConstants.SeedPassword
+			),
+			FirstName = "Find",
+			LastName = "Tenant",
+			Status = UserStatus.Active,
+			IsVerified = true,
+		};
+		await dbContext.User.AddAsync(user);
+		await dbContext.SaveChangesAsync();
+
+		await dbContext.UserAccount.AddAsync(
+			UserAccount.CreateTenantAccount(
+				user.GetRequiredId(), tenantId, level
+			)
+		);
+		if (isUserDeleted) {
+			user.IsDeleted = true;
+		}
+
+		await dbContext.SaveChangesAsync();
 	}
 
 	private static string GetCreateProfileUrl() {

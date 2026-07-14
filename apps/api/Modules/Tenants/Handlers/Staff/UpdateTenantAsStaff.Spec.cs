@@ -760,12 +760,14 @@ public sealed class UpdateTenantAsStaffSpec
 	[InlineData("supportEmail", "not-an-email")]
 	[InlineData("websiteUrl", "not-a-url")]
 	[InlineData("defaultLocale", "de")]
+	[InlineData("defaultLocale", "FR")]
+	[InlineData("defaultLocale", "En")]
 	[InlineData("timezone", "Not/A_Real_Zone")]
 	public async Task
 	ItShouldReturnUnprocessableEntityForInvalidOrganizationFieldValues(
 		string field,
 		string invalidValue
-	) {
+) {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var seededTenant =

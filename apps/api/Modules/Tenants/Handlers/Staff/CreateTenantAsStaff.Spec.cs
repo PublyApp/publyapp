@@ -527,12 +527,14 @@ public sealed class CreateTenantAsStaffSpec
 	[InlineData("supportEmail", "not-an-email")]
 	[InlineData("websiteUrl", "not-a-url")]
 	[InlineData("defaultLocale", "de")]
+	[InlineData("defaultLocale", "FR")]
+	[InlineData("defaultLocale", "En")]
 	[InlineData("timezone", "Not/A_Real_Zone")]
 	public async Task
 	ItShouldReturnUnprocessableEntityForInvalidOrganizationFieldValues(
 		string field,
 		string invalidValue
-	) {
+) {
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();
 

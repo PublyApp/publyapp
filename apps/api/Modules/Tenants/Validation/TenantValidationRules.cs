@@ -14,7 +14,7 @@ public static partial class TenantValidationRules {
 	// Wire contract: lowercase locale tokens. Drives future invitation-email
 	// language selection — not wired to any behavior yet.
 	private static readonly HashSet<string> AllowedLocales =
-		new(StringComparer.OrdinalIgnoreCase) { "en", "fr" };
+		new(StringComparer.Ordinal) { "en", "fr" };
 
 	public const int LogoUrlMaxLength = 2048;
 

@@ -439,6 +439,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			from ua in _dbContext.UserAccount.AsNoTracking()
 			where ua.Scope == AccountScope.Tenant
 				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted
 				&& ua.TenantId != null
 				&& tenantIds.Contains(ua.TenantId.Value)
 			group ua by ua.TenantId into g
@@ -857,38 +858,42 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		return new UpdateTenantResult.Success(tenant);
 	}
 
-	// Best-effort cleanup of the blob a logoUrl replace/clear leaves behind. Runs after
-	// the update has already committed, so a delete failure here must never surface as
-	// a request failure — it only risks a harmless orphaned file, not data loss.
+	// Best-effort cleanup of the blob a logoUrl replace/clear leaves behind.
+	// Runs after the update has already committed, so a failure here must never
+	// surface as a request failure — it only risks a harmless orphaned file.
 	private async Task DeleteReplacedLogoBlobAsync(
 		Guid tenantId,
 		string? previousLogoUrl,
 		string? newLogoUrl,
 		CancellationToken cancellationToken
 	) {
-		if (previousLogoUrl is null
+		if (
+			previousLogoUrl is null
 			|| previousLogoUrl == newLogoUrl
-			|| !TenantValidationRules.IsServedUploadLogoUrl(previousLogoUrl)) {
+			|| !TenantValidationRules.IsServedUploadLogoUrl(previousLogoUrl)
+		) {
 			return;
 		}
 
-		var stillReferenced = await _dbContext.Tenant
-			.AnyAsync(
-				t => t.Id != tenantId && !t.IsDeleted && t.LogoUrl == previousLogoUrl,
-				cancellationToken
-			);
-		if (stillReferenced) {
-			return;
-		}
-
-		var relativePath = previousLogoUrl["/files/".Length..];
 		try {
+			var stillReferenced = await _dbContext.Tenant
+				.AnyAsync(
+					t => t.Id != tenantId
+						&& !t.IsDeleted
+						&& t.LogoUrl == previousLogoUrl,
+					cancellationToken
+				);
+			if (stillReferenced) {
+				return;
+			}
+
+			var relativePath = previousLogoUrl["/files/".Length..];
 			await _fileStorage.DeleteAsync(relativePath, cancellationToken);
 		} catch (Exception ex) {
 			_logger.LogWarning(
 				ex,
-				"Failed to delete replaced logo blob {RelativePath} for tenant {TenantId}",
-				relativePath,
+				"Failed to clean up replaced logo blob {PreviousLogoUrl} for tenant {TenantId}",
+				previousLogoUrl,
 				tenantId
 			);
 		}
