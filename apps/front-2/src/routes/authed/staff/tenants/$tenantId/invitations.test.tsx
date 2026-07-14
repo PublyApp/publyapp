@@ -489,9 +489,9 @@ describe('staff tenant invitations route', () => {
 			{ target: { value: 'an' } },
 		);
 
-		// Simulate clearing the status filter within the 300ms debounce window:
-		// the parse helper omits `status` entirely rather than setting it to
-		// undefined, so the route re-renders with no `status` key at all.
+		// Simulate clearing the status filter within the 300ms debounce window.
+		// canonicalized parsing stores explicit `status: undefined` so the
+		// rerendered route search keeps the canonical key shape.
 		mocks.search = {};
 		renderResult.rerender(<Component />);
 
@@ -500,8 +500,41 @@ describe('staff tenant invitations route', () => {
 		const lastCall = mocks.navigate.mock.calls.at(-1)?.[0] as {
 			search?: Record<string, unknown>;
 		};
-		expect(lastCall?.search).not.toHaveProperty('status');
+		expect(
+			Object.prototype.hasOwnProperty.call(lastCall?.search, 'status'),
+		).toBe(true);
+		expect(lastCall?.search?.status).toBeUndefined();
 		expect(lastCall?.search).toMatchObject({ q: 'an' });
+	});
+
+	test('canonicalizes malformed deep-link status filters before rendering', () => {
+		const validateSearch = (
+			Route as unknown as {
+				validateSearch: (
+					search: Record<string, unknown>,
+				) => Record<string, unknown>;
+			}
+		).validateSearch;
+		const canonicalSearch = validateSearch({ status: 'bogus' });
+
+		expect(
+			Object.prototype.hasOwnProperty.call(canonicalSearch, 'status'),
+		).toBe(true);
+		expect(canonicalSearch.status).toBeUndefined();
+
+		mocks.search = canonicalSearch;
+		renderPage();
+
+		expect(
+			screen.getByRole('button', { name: /All statuses/ }).textContent,
+		).toContain('All statuses');
+		expect(mocks.useStaffTenantInvitationsQuery).toHaveBeenCalledWith(
+			expect.objectContaining({
+				tenantId: '11111111-1111-1111-1111-111111111111',
+				status: undefined,
+			}),
+			{ enabled: true },
+		);
 	});
 
 	test('renders the no-match state when search is active and no rows match', () => {

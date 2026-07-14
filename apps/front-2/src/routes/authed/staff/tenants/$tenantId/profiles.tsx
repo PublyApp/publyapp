@@ -167,9 +167,9 @@ const parseStaffTenantProfilesSearchParams = (
 
 	return {
 		...base,
-		...(isCreateOpen ? { new: 1 as const } : {}),
-		...(isDefault === undefined ? {} : { is_default: isDefault }),
-		...(view === 'table' ? { view } : {}),
+		new: isCreateOpen ? (1 as const) : undefined,
+		is_default: isDefault,
+		view: view === 'table' ? view : undefined,
 	};
 };
 
@@ -182,9 +182,9 @@ const serializeStaffTenantProfilesSearchParams = (
 
 	return {
 		...next,
-		...(params.new === 1 ? { new: 1 as const } : {}),
-		...(isDefault === undefined ? {} : { is_default: isDefault }),
-		...(view === 'table' ? { view } : {}),
+		new: params.new === 1 ? (1 as const) : undefined,
+		is_default: isDefault,
+		view: view === 'table' ? view : undefined,
 	};
 };
 

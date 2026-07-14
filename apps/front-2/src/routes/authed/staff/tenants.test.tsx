@@ -276,6 +276,33 @@ describe('staff tenants route', () => {
 		});
 	});
 
+	test('canonicalizes a malformed tenant status key from a deep link', () => {
+		const validateSearch = (
+			Route as unknown as {
+				validateSearch: (
+					search: Record<string, unknown>,
+				) => Record<string, unknown>;
+			}
+		).validateSearch;
+		const canonicalSearch = validateSearch({ status: 'bogus' });
+
+		expect(
+			Object.prototype.hasOwnProperty.call(canonicalSearch, 'status'),
+		).toBe(true);
+		expect(canonicalSearch.status).toBeUndefined();
+
+		mocks.search = canonicalSearch;
+		renderPage();
+
+		expect(
+			screen.getByTestId('staff-tenants-table-status-filter-trigger')
+				.textContent,
+		).toContain('All statuses');
+		expect(mocks.useStaffTenantsQuery).toHaveBeenCalledWith(
+			expect.objectContaining({ status: undefined }),
+		);
+	});
+
 	test('passes the suspended status filter from the URL through to the tenants query', () => {
 		mocks.search = { status: 'suspended' };
 
@@ -376,7 +403,8 @@ describe('staff tenants route', () => {
 		const lastCall = mocks.navigate.mock.calls.at(-1)?.[0] as {
 			search?: Record<string, unknown>;
 		};
-		expect(lastCall?.search).not.toHaveProperty('status');
+		expect(lastCall?.search).toHaveProperty('status');
+		expect(lastCall?.search?.status).toBeUndefined();
 		expect(lastCall?.search).toMatchObject({ q: 'an' });
 	});
 
@@ -453,8 +481,8 @@ describe('staff tenants route', () => {
 		);
 		const [[navigatedArgs]] = mocks.navigate.mock.calls;
 		expect(
-			(navigatedArgs as { search: Record<string, unknown> }).search.status,
-		).toBeUndefined();
+			(navigatedArgs as { search: Record<string, unknown> }).search,
+		).toMatchObject({ status: undefined });
 	});
 
 	test('renders the no-match state when search is active and no rows match', () => {

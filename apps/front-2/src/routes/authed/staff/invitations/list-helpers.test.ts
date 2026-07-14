@@ -32,7 +32,7 @@ describe('parseInvitationListSearchParams', () => {
 			parseInvitationListSearchParams({
 				status: '  ',
 			}),
-		).toEqual({});
+		).toEqual({ status: undefined });
 	});
 });
 

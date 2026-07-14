@@ -381,8 +381,8 @@ describe('staff tenant profiles route', () => {
 		});
 
 		// Simulate toggling the view back to "cards" within the 300ms debounce
-		// window: `view` is omitted entirely for 'cards' rather than set to
-		// undefined, so the route re-renders with no `view` key at all.
+		// window: canonical parsing writes `view: undefined` so the route
+		// re-render preserves the canonical key shape.
 		mocks.search = {};
 		renderResult.rerender(<RouteComponent />);
 
@@ -391,7 +391,10 @@ describe('staff tenant profiles route', () => {
 		const lastCall = mocks.navigate.mock.calls.at(-1)?.[0] as {
 			search?: Record<string, unknown>;
 		};
-		expect(lastCall?.search).not.toHaveProperty('view');
+		expect(Object.prototype.hasOwnProperty.call(lastCall?.search, 'view')).toBe(
+			true,
+		);
+		expect(lastCall?.search?.view).toBeUndefined();
 		expect(lastCall?.search).toMatchObject({ q: 'an' });
 	});
 
@@ -486,9 +489,7 @@ describe('staff tenant profiles route', () => {
 
 		await waitFor(() =>
 			expect(
-				within(screen.getByRole('status')).getByText(
-					'This profile is still assigned to a user.',
-				),
+				screen.getByText('This profile is still assigned to a user.'),
 			).toBeTruthy(),
 		);
 	});
@@ -515,6 +516,51 @@ describe('staff tenant profiles route', () => {
 		expect(
 			(navigatedArgs as { search: Record<string, unknown> }).search.cursor,
 		).toBeUndefined();
+	});
+
+	test('canonicalizes malformed deep-link profile filters and keeps control state at defaults', () => {
+		const validateSearch = (
+			Route as unknown as {
+				validateSearch: (
+					search: Record<string, unknown>,
+				) => Record<string, unknown>;
+			}
+		).validateSearch;
+		const canonicalSearch = validateSearch({
+			new: 'yes',
+			is_default: 'maybe',
+			view: 'invalid',
+		});
+
+		expect(Object.prototype.hasOwnProperty.call(canonicalSearch, 'new')).toBe(
+			true,
+		);
+		expect(
+			Object.prototype.hasOwnProperty.call(canonicalSearch, 'is_default'),
+		).toBe(true);
+		expect(Object.prototype.hasOwnProperty.call(canonicalSearch, 'view')).toBe(
+			true,
+		);
+		expect(canonicalSearch).toMatchObject({
+			new: undefined,
+			is_default: undefined,
+			view: undefined,
+		});
+
+		mocks.search = canonicalSearch;
+		renderPage();
+
+		expect(
+			screen.getByTestId('staff-tenant-profiles-grid-type-filter-trigger')
+				.textContent,
+		).toContain('All types');
+		expect(
+			screen
+				.getByTestId('staff-tenant-profiles-grid-view-toggle-cards')
+				.getAttribute('aria-pressed'),
+		).toBe('true');
+		expect(screen.queryByTestId('profile-create-drawer-open')).toBeNull();
+		expect(screen.getByTestId('staff-tenant-profiles-grid-rows')).toBeTruthy();
 	});
 
 	test('renders profiles narrowed to System when is_default=true is set on the URL', () => {

@@ -44,7 +44,7 @@ export const parseTenantListSearchParams = (
 	const base = parseTableSearchParams(search);
 	const status = parseTenantStatusFilter(search.status);
 
-	return status ? { ...base, status } : base;
+	return { ...base, status: status ?? undefined };
 };
 
 export const serializeTenantListSearchParams = (
@@ -53,7 +53,7 @@ export const serializeTenantListSearchParams = (
 	const next = serializeTableSearchParams(params);
 	const status = parseTenantStatusFilter(params.status);
 
-	return status ? { ...next, status } : next;
+	return { ...next, status: status ?? undefined };
 };
 
 /**

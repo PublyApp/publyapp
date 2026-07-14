@@ -220,9 +220,9 @@ export const parseTenantUsersListSearchParams = (
 
 	return {
 		...base,
-		...(status ? { status } : {}),
-		...(level ? { level } : {}),
-		...(invite ? { invite } : {}),
+		status,
+		level,
+		invite,
 	};
 };
 
@@ -240,9 +240,9 @@ export const serializeTenantUsersListSearchParams = (
 
 	return {
 		...next,
-		...(status ? { status } : {}),
-		...(level ? { level } : {}),
-		...(invite ? { invite } : {}),
+		status: status || undefined,
+		level: level || undefined,
+		invite,
 	};
 };
 

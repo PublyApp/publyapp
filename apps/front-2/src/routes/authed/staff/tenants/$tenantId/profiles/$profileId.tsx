@@ -470,28 +470,6 @@ function StaffTenantProfileDetailsPage() {
 							>
 								{t('edit-profile')}
 							</Button>
-							{profile.isDefault ? (
-								<div className="rounded-large border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
-									{t('default-profile-delete-disabled')}
-								</div>
-							) : (
-								<Button
-									type="button"
-									variant="destructive"
-									onClick={() => setPendingDelete(true)}
-									disabled={deleteProfile.isPending}
-								>
-									{t('delete-profile')}
-								</Button>
-							)}
-							{actionError ? (
-								<div
-									className="rounded-large border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-									role="status"
-								>
-									{actionError}
-								</div>
-							) : null}
 						</div>
 					</div>
 				</div>
@@ -618,10 +596,7 @@ function StaffTenantProfileDetailsPage() {
 														type="button"
 														size="sm"
 														variant="outline"
-														disabled={
-															isPermissionBusy &&
-															busyPermissionKey !== permission.key
-														}
+														disabled={isPermissionBusy}
 														onClick={() => {
 															void handleUnassignPermission(permission.key);
 														}}
@@ -638,7 +613,8 @@ function StaffTenantProfileDetailsPage() {
 								)}
 							</section>
 
-							{permissionCatalogQuery.isPending ? null : (
+							{permissionCatalogQuery.isPending ||
+							permissionCatalogQuery.isError ? null : (
 								<section className="space-y-3">
 									<div className="flex items-center justify-between">
 										<p className="font-medium text-foreground">
@@ -677,10 +653,7 @@ function StaffTenantProfileDetailsPage() {
 															type="button"
 															size="sm"
 															variant="outline"
-															disabled={
-																isPermissionBusy &&
-																busyPermissionKey !== permission.key
-															}
+															disabled={isPermissionBusy}
 															onClick={() => {
 																void handleAssignPermission(permission.key);
 															}}
@@ -694,6 +667,32 @@ function StaffTenantProfileDetailsPage() {
 									)}
 								</section>
 							)}
+
+							<section className="space-y-3 border-t border-border pt-3">
+								{profile.isDefault ? (
+									<div className="rounded-large border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
+										{t('default-profile-delete-disabled')}
+									</div>
+								) : (
+									<Button
+										type="button"
+										variant="destructive"
+										onClick={() => setPendingDelete(true)}
+										disabled={deleteProfile.isPending}
+									>
+										{t('delete-profile')}
+									</Button>
+								)}
+
+								{actionError ? (
+									<div
+										className="rounded-large border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+										role="status"
+									>
+										{actionError}
+									</div>
+								) : null}
+							</section>
 
 							{permissionActionError ? (
 								<p className="text-sm text-destructive">

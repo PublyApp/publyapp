@@ -93,7 +93,7 @@ export const parseInvitationListSearchParams = (
 		parseInvitationStatusFilter(search.status),
 	);
 
-	return status ? { ...base, status } : base;
+	return { ...base, status: status || undefined };
 };
 
 export const serializeInvitationListSearchParams = (
@@ -104,7 +104,7 @@ export const serializeInvitationListSearchParams = (
 		parseInvitationStatusFilter(params.status),
 	);
 
-	return status ? { ...next, status } : next;
+	return { ...next, status: status || undefined };
 };
 
 export const formatInvitationStatusLabel = (

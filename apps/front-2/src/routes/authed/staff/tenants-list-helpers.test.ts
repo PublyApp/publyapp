@@ -44,13 +44,17 @@ describe('parseTenantListSearchParams / serializeTenantListSearchParams', () => 
 		const parsed = parseTenantListSearchParams({ status: 'bogus' });
 
 		expect(parsed.status).toBeUndefined();
-		expect(serializeTenantListSearchParams(parsed).status).toBeUndefined();
+		expect(serializeTenantListSearchParams(parsed)).toEqual({
+			status: undefined,
+		});
 	});
 
 	test('no status param yields no status key', () => {
 		const parsed = parseTenantListSearchParams({});
 
 		expect(parsed.status).toBeUndefined();
-		expect(serializeTenantListSearchParams(parsed)).toEqual({});
+		expect(serializeTenantListSearchParams(parsed)).toEqual({
+			status: undefined,
+		});
 	});
 });

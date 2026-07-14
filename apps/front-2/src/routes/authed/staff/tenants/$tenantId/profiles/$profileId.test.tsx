@@ -223,6 +223,14 @@ const buildQueryResult = (overrides: Record<string, unknown> = {}) => ({
 	...overrides,
 });
 
+const nonDefaultProfile = {
+	id: '22222222-2222-2222-2222-222222222222',
+	name: 'Approvers',
+	description: 'Can review approvals',
+	isDefault: false,
+	userAccountCount: 7,
+};
+
 const renderPage = () => {
 	const Component = (
 		Route as unknown as {
@@ -420,6 +428,104 @@ describe('staff tenant profile details route', () => {
 			{ enabled: true },
 		);
 		expect(mocks.useStaffTenantPermissionCatalogQuery).toHaveBeenCalledWith({});
+	});
+
+	test('moves the delete action into the dedicated danger section under permissions', () => {
+		mocks.toStaffTenantProfileDetails.mockReturnValue({
+			...nonDefaultProfile,
+		});
+
+		renderPage();
+
+		const editButton = screen.getByRole('button', { name: 'Edit profile' });
+		const deleteButton = screen.getByRole('button', {
+			name: 'Delete profile',
+		});
+
+		expect(deleteButton).toBeTruthy();
+		expect(
+			editButton.closest('div')?.closest('div')?.contains(deleteButton),
+		).toBe(false);
+		expect(editButton.closest('section')).toBe(null);
+		expect(deleteButton.closest('section')).not.toBeNull();
+	});
+
+	test('disables all permission action buttons while a mutation is in flight', async () => {
+		let resolveAssign: () => void = () => {};
+		const assignDeferred = new Promise<void>((resolve) => {
+			resolveAssign = resolve;
+		});
+		const assignPermission = vi.fn(() => assignDeferred);
+
+		mocks.useAssignStaffTenantProfilePermissionMutation.mockReturnValue({
+			isPending: false,
+			mutateAsync: assignPermission,
+		});
+
+		mocks.toStaffTenantProfileDetails.mockReturnValue({
+			...nonDefaultProfile,
+		});
+
+		renderPage();
+
+		const assignButton = screen.getByRole('button', {
+			name: /Assign tenant.users.write/,
+		});
+		const unassignButton = screen.getByRole('button', {
+			name: /Unassign tenant.approvals.review/,
+		});
+
+		expect(assignButton.hasAttribute('disabled')).toBe(false);
+		expect(unassignButton.hasAttribute('disabled')).toBe(false);
+
+		fireEvent.click(assignButton);
+
+		expect(assignPermission).toHaveBeenCalledTimes(1);
+		expect(assignButton).toHaveProperty('disabled', true);
+		expect(unassignButton).toHaveProperty('disabled', true);
+
+		fireEvent.click(assignButton);
+		fireEvent.click(unassignButton);
+
+		expect(assignPermission).toHaveBeenCalledTimes(1);
+
+		resolveAssign();
+		await waitFor(() => {
+			expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+				queryKey: ['staff', 'staff-tenants'],
+			});
+		});
+	});
+
+	test('omits the available permissions section when the permission catalog fails', async () => {
+		mocks.toStaffTenantProfileDetails.mockReturnValue({
+			...nonDefaultProfile,
+		});
+		mocks.useStaffTenantPermissionCatalogQuery.mockReturnValue(
+			buildQueryResult({
+				isError: true,
+				data: {
+					additionalData: {},
+				},
+				error: {
+					status: 503,
+					responseStatusCode: 503,
+					title: 'Service Unavailable',
+					detail: 'Temporary outage',
+				},
+			}),
+		);
+
+		renderPage();
+
+		expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
+		expect(screen.getByText('Temporary outage')).toBeTruthy();
+		expect(screen.queryByText('No permission keys are available.')).toBeNull();
+		expect(
+			screen.queryByText(
+				'No additional permission keys are available to assign.',
+			),
+		).toBeNull();
 	});
 
 	test('edit profile button navigates to open the edit drawer via search state', () => {

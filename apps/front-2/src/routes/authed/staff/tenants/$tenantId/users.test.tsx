@@ -415,9 +415,9 @@ describe('staff tenant users route', () => {
 			target: { value: 'an' },
 		});
 
-		// Simulate closing the invite drawer within the 300ms debounce window:
-		// the parse helper omits `invite` entirely rather than setting it to
-		// undefined, so the route re-renders with no `invite` key at all.
+		// Simulate closing the invite drawer within the 300ms debounce window.
+		// canonicalized parsing stores explicit `invite: undefined` so the
+		// re-rendered route search keeps the canonical key shape.
 		mocks.search = {};
 		renderResult.rerender(<Component />);
 
@@ -426,8 +426,61 @@ describe('staff tenant users route', () => {
 		const lastCall = mocks.navigate.mock.calls.at(-1)?.[0] as {
 			search?: Record<string, unknown>;
 		};
-		expect(lastCall?.search).not.toHaveProperty('invite');
+		expect(
+			Object.prototype.hasOwnProperty.call(lastCall?.search, 'invite'),
+		).toBe(true);
+		expect(lastCall?.search?.invite).toBeUndefined();
 		expect(lastCall?.search).toMatchObject({ q: 'an' });
+	});
+
+	test('canonicalizes malformed deep-link filters and keeps controls at defaults', () => {
+		const validateSearch = (
+			Route as unknown as {
+				validateSearch: (
+					search: Record<string, unknown>,
+				) => Record<string, unknown>;
+			}
+		).validateSearch;
+		const canonicalSearch = validateSearch({
+			status: 'bogus',
+			level: 'bogus',
+			invite: 'bogus',
+		});
+
+		expect(
+			Object.prototype.hasOwnProperty.call(canonicalSearch, 'status'),
+		).toBe(true);
+		expect(Object.prototype.hasOwnProperty.call(canonicalSearch, 'level')).toBe(
+			true,
+		);
+		expect(
+			Object.prototype.hasOwnProperty.call(canonicalSearch, 'invite'),
+		).toBe(true);
+		expect(canonicalSearch).toMatchObject({
+			status: undefined,
+			level: undefined,
+			invite: undefined,
+		});
+
+		mocks.search = canonicalSearch;
+		renderPage();
+
+		expect(
+			screen.getByTestId('staff-tenant-users-level-filter-trigger').textContent,
+		).toContain('All levels');
+		expect(
+			screen.getByTestId('staff-tenant-users-status-filter-trigger')
+				.textContent,
+		).toContain('All statuses');
+		expect(screen.queryByTestId('invite-drawer-open')).toBeNull();
+		expect(mocks.useStaffTenantUsersQuery).toHaveBeenCalledWith(
+			expect.objectContaining({
+				tenantId: '11111111-1111-1111-1111-111111111111',
+				status: undefined,
+				level: undefined,
+			}),
+			{ enabled: true },
+		);
 	});
 
 	test('renders a checkbox selection column but no Last active column', () => {
@@ -585,9 +638,7 @@ describe('staff tenant users route', () => {
 		);
 
 		await waitFor(() =>
-			expect(
-				within(screen.getByRole('status')).getByText('Invalid tenant user'),
-			).toBeTruthy(),
+			expect(screen.getByText('Invalid tenant user')).toBeTruthy(),
 		);
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 	});
