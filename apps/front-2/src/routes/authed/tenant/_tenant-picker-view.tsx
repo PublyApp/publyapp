@@ -76,7 +76,7 @@ const TenantPickerRow = ({ tenant, onSelect }: TenantPickerRowProps) => {
 		<button
 			type="button"
 			onClick={() => onSelect(tenant.id)}
-			className="flex w-full items-center gap-3 rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] p-4 text-left shadow-[var(--publy-shadow-ring)] transition-colors hover:bg-[var(--publy-surface-hover)] hover:shadow-[0_0_0_1px_var(--publy-border-strong)] focus-visible:outline-none focus-visible:shadow-[0_0_0_3px_rgba(253,199,0,0.16)]"
+			className="flex w-full items-center gap-3 rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] p-4 text-left shadow-[var(--publy-shadow-ring)] transition-colors hover:bg-[var(--publy-surface-hover)] hover:shadow-[0_0_0_1px_var(--publy-border-strong)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring"
 			data-testid="tenant-portal-row"
 			data-tenant-id={tenant.id}
 			data-tenant-status={tenant.status}
