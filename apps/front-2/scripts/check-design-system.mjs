@@ -781,29 +781,67 @@ const splitTopLevel = (text, separator) => {
 	return parts;
 };
 
-/** A color-mix() colour operand is one `<color> <percentage>?` segment.
- * Safe forms are a `var(...)` reference or one of the theme-invariant
- * keywords; anything else — hex, `rgb()`/`hsl()`/`oklch()`/`color()`, or a
- * bare named colour keyword like `white`/`red` — is a raw literal. */
+// W5-HARDEN2: relative colour syntax — `rgb(from <base> r g b)` (and the
+// hsl/hwb/lab/lch/oklab/oklch/color() equivalents) — derives every channel
+// from `<base>`. When `<base>` is itself a `var(...)` reference or a
+// theme-invariant keyword, the whole expression is exactly as token-derived
+// as a plain `var(...)` operand — the trailing channel-name identifiers
+// (`r g b`, `h s l`, ...) are never themselves colour literals, so they must
+// not make this read as "not a var(), therefore raw". Only the base matters.
+const RELATIVE_COLOR_BASE_PATTERN =
+	/^(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\(\s*from\s+(var\(--[\w-]+\)|[a-zA-Z]+)\s+/i;
+
+/** A color-mix() colour operand is one `<color> <percentage>?` segment. Safe
+ * forms are a `var(...)` reference, a theme-invariant keyword, a NESTED
+ * color-mix() whose own operands are all themselves safe (checked
+ * recursively — the outer function name being `color-mix` is not itself
+ * evidence of safety OR rawness, only its operands are), or relative colour
+ * syntax (`rgb(from var(--x) r g b)`) based on a safe colour. Anything else —
+ * hex, `rgb()`/`hsl()`/`oklch()`/`color()` given literal channels, or a bare
+ * named colour keyword like `white`/`red` — is a raw literal. */
+const isSafeColorMixValue = (withoutPercentage) => {
+	if (/^var\(/i.test(withoutPercentage)) {
+		return true;
+	}
+	if (COLOR_MIX_SAFE_KEYWORDS.has(withoutPercentage.toLowerCase())) {
+		return true;
+	}
+	// Case-insensitive (W5-HARDEN2 item 4A): CSS function/keyword spelling is
+	// ASCII case-insensitive end to end — `COLOR-MIX(...)` is exactly as real
+	// as `color-mix(...)`, and a nested operand can be spelled either way too.
+	if (/^color-mix\(/i.test(withoutPercentage)) {
+		return !hasRawColorMixOperand(withoutPercentage);
+	}
+	const relativeMatch = RELATIVE_COLOR_BASE_PATTERN.exec(withoutPercentage);
+	if (relativeMatch) {
+		const base = relativeMatch[1];
+		return (
+			/^var\(/i.test(base) || COLOR_MIX_SAFE_KEYWORDS.has(base.toLowerCase())
+		);
+	}
+	return false;
+};
+
 const isRawColorMixOperand = (segment) => {
 	const trimmed = segment.trim();
 	if (trimmed === '') {
 		return false;
 	}
 	const withoutPercentage = trimmed.replace(/\s+[\d.]+%\s*$/, '').trim();
-	if (/^var\(/i.test(withoutPercentage)) {
-		return false;
-	}
-	return !COLOR_MIX_SAFE_KEYWORDS.has(withoutPercentage.toLowerCase());
+	return !isSafeColorMixValue(withoutPercentage);
 };
 
-/** Finds every `color-mix(...)` call in `text` (there may be several — a
- * multi-declaration CSS statement, or several arbitrary-utility calls on one
- * line) and returns true if ANY of them has a raw colour operand. The first
- * comma-separated segment inside the parens is the `in <space>[ <method>
- * hue]` colour-interpolation clause, never a colour operand — it's skipped. */
-const hasRawColorMixOperand = (text) => {
-	const openerPattern = /color-mix\(/g;
+/** Finds every top-level `color-mix(...)` call in `text` (there may be
+ * several — a multi-declaration CSS statement, or several arbitrary-utility
+ * calls on one line) by balanced-paren matching over the FULL text — which
+ * works identically whether the call sits on one line or is wrapped across
+ * several (a multi-line template literal), since paren balancing indexes raw
+ * characters and does not care about newlines. Matching is case-insensitive
+ * (W5-HARDEN2 item 4A — see isSafeColorMixValue). Returns the opener's
+ * character offset and its raw argument-list text for each call found. */
+const findColorMixArgLists = (text) => {
+	const calls = [];
+	const openerPattern = /color-mix\(/gi;
 	let openerMatch;
 	while ((openerMatch = openerPattern.exec(text))) {
 		const openParenIndex = openerMatch.index + openerMatch[0].length - 1;
@@ -824,18 +862,32 @@ const hasRawColorMixOperand = (text) => {
 			continue;
 		}
 
-		const argsText = text.slice(openParenIndex + 1, closeParenIndex);
-		const segments = splitTopLevel(argsText, ',');
-		for (const segment of segments.slice(1)) {
-			if (isRawColorMixOperand(segment)) {
-				return true;
-			}
-		}
+		calls.push({
+			openerIndex: openerMatch.index,
+			argsText: text.slice(openParenIndex + 1, closeParenIndex),
+		});
 
 		openerPattern.lastIndex = closeParenIndex;
 	}
-	return false;
+	return calls;
 };
+
+/** The first comma-separated segment inside a color-mix() argument list is
+ * the `in <space>[ <method> hue]` colour-interpolation clause, never a
+ * colour operand — it's skipped. */
+const colorMixArgsHaveRawOperand = (argsText) =>
+	splitTopLevel(argsText, ',')
+		.slice(1)
+		.some((segment) => isRawColorMixOperand(segment));
+
+/** Returns true if ANY color-mix() call found anywhere in `text` has a raw
+ * colour operand — used both by the shared per-line/per-statement pattern
+ * object below (COLOR_MIX_RAW_OPERAND_PATTERN, CSS files) and recursively by
+ * isSafeColorMixValue to evaluate a nested color-mix() operand. */
+const hasRawColorMixOperand = (text) =>
+	findColorMixArgLists(text).some((call) =>
+		colorMixArgsHaveRawOperand(call.argsText),
+	);
 
 const COLOR_MIX_RAW_OPERAND_PATTERN = { test: hasRawColorMixOperand };
 
@@ -1217,6 +1269,15 @@ export const scanFront2DesignSystem = async ({
 				for (let index = 0; index < lines.length; index += 1) {
 					const line = lines[index];
 					for (const pattern of rule.patterns) {
+						// W5-HARDEN2 item 4B: a color-mix() call can wrap across
+						// multiple lines (a multi-line template literal); this
+						// per-LINE loop can never see a call whose opener and raw
+						// operand sit on different lines, so it's handled once,
+						// whole-file, in the dedicated pass below instead of here.
+						if (pattern === COLOR_MIX_RAW_OPERAND_PATTERN) {
+							continue;
+						}
+
 						if (!pattern.test(line)) {
 							continue;
 						}
@@ -1239,6 +1300,59 @@ export const scanFront2DesignSystem = async ({
 					}
 				}
 			}
+		}
+	}
+
+	// W5-HARDEN2 item 4B: dedicated whole-source pass for the color-mix
+	// raw-operand check. CSS files already get multi-line coverage above (the
+	// `;`-terminated statement-join branch joins a whole declaration, however
+	// many lines it spans, before testing patterns against it). Every other
+	// scanned extension (.ts/.tsx/.mjs) only ran the per-line loop above,
+	// which tests one line at a time and can never find a color-mix(...)
+	// call's matching close paren when it sits on a later line — so a
+	// multi-line, non-CSS raw operand was structurally invisible. Scanning
+	// the FULL file text (not one line at a time) finds the matching paren
+	// regardless of how many newlines it crosses, exactly like the CSS
+	// statement branch already does for its own declarations.
+	const colorMixRule = rules.find((rule) => rule.id === 'no-raw-visual-color');
+	for (const [relativePath, source] of fileContentsByRelativePath) {
+		if (
+			relativePath.endsWith('.css') ||
+			!colorMixRule.appliesTo(relativePath)
+		) {
+			continue;
+		}
+
+		const lines = source.split('\n');
+		for (const call of findColorMixArgLists(source)) {
+			if (!colorMixArgsHaveRawOperand(call.argsText)) {
+				continue;
+			}
+
+			const lineIndex =
+				source.slice(0, call.openerIndex).split('\n').length - 1;
+			if (
+				colorMixRule.ignoreMatch?.(
+					relativePath,
+					lines[lineIndex],
+					lineIndex,
+					lines,
+				)
+			) {
+				continue;
+			}
+
+			recordViolation(
+				violations,
+				{
+					ruleId: colorMixRule.id,
+					message: colorMixRule.message,
+					file: relativePath,
+					line: lineIndex + 1,
+					source: lines[lineIndex].trim(),
+				},
+				lines,
+			);
 		}
 	}
 

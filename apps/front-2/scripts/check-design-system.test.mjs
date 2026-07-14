@@ -723,6 +723,134 @@ test('r5-ui-F2 (hardened): does not flag a fully token-referencing color-mix()',
 	);
 });
 
+// W5-HARDEN2 item 4A: CSS function/keyword spelling is ASCII case-insensitive
+// end to end — `COLOR-MIX(IN SRGB, WHITE 25%, TRANSPARENT)` is exactly as raw
+// as the lowercase form, but the opener regex used to be case-sensitive.
+test('W5-HARDEN2: flags an uppercase-spelled color-mix() with a raw operand', async () => {
+	const root = await makeFixture({
+		'src/components/table/data-table.tsx':
+			'const glow = `COLOR-MIX(IN SRGB, WHITE 25%, TRANSPARENT)`;',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.filter((violation) => violation.ruleId === 'no-raw-visual-color')
+			.length,
+		1,
+	);
+});
+
+// W5-HARDEN2 item 4B: the ordinary source driver tests one line at a time,
+// so a color-mix() call wrapped across several lines (a multi-line template
+// literal) never has its matching close paren on the same line the opener
+// was found on — invisible to a per-line scan. A whole-file pass (mirroring
+// how the CSS statement-join branch already spans multiple lines) is
+// required to see it.
+test('W5-HARDEN2: flags a color-mix() with a raw operand wrapped across multiple lines in a .tsx template literal', async () => {
+	const root = await makeFixture({
+		'src/components/table/data-table.tsx': [
+			'export const w5Harden2ColorMix = `color-mix(',
+			'\tin srgb,',
+			'\tvar(--publy-primary) 50%,',
+			'\twhite 50%',
+			')`;',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+	const colorViolations = violations.filter(
+		(violation) => violation.ruleId === 'no-raw-visual-color',
+	);
+
+	assert.equal(colorViolations.length, 1);
+	assert.equal(colorViolations[0].line, 1);
+});
+
+// A multi-line color-mix() call whose every operand is safe must still be
+// clean — the whole-file pass must not regress into treating "spans several
+// lines" itself as suspicious.
+test('W5-HARDEN2: does not flag a fully token-referencing color-mix() wrapped across multiple lines', async () => {
+	const root = await makeFixture({
+		'src/components/table/data-table.tsx': [
+			'export const w5Harden2ColorMix = `color-mix(',
+			'\tin srgb,',
+			'\tvar(--publy-primary) 50%,',
+			'\ttransparent',
+			')`;',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.deepEqual(
+		violations.filter(
+			(violation) => violation.ruleId === 'no-raw-visual-color',
+		),
+		[],
+	);
+});
+
+// W5-HARDEN2 item 4 (over-rejection, boundary matrix): a fully token-derived
+// NESTED color-mix() and a token-derived relative-colour operand
+// (`rgb(from var(--x) r g b)`) must NOT be flagged — every colour source in
+// both is theme-aware, only the syntax is more complex than a bare var().
+test('W5-HARDEN2: does not flag a fully token-referencing nested color-mix() or relative-colour operand', async () => {
+	const root = await makeFixture({
+		'src/components/table/data-table.tsx': [
+			'const nested = `color-mix(in srgb, color-mix(in srgb, var(--publy-primary) 50%, transparent) 50%, var(--publy-secondary))`;',
+			'const relative = `color-mix(in srgb, rgb(from var(--publy-primary) r g b) 50%, transparent)`;',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.deepEqual(
+		violations.filter(
+			(violation) => violation.ruleId === 'no-raw-visual-color',
+		),
+		[],
+	);
+});
+
+// The nested/relative safety carve-outs above must not become a blanket
+// exemption: a nested color-mix() with its OWN raw operand, and a relative
+// operand based on a raw (non-var) colour, must still be flagged.
+test('W5-HARDEN2: still flags a nested color-mix() with its own raw operand, and a relative-colour operand based on a raw colour', async () => {
+	const root = await makeFixture({
+		'src/components/table/data-table.tsx': [
+			'const nested = `color-mix(in srgb, color-mix(in srgb, white 50%, transparent) 50%, var(--publy-secondary))`;',
+			'const relative = `color-mix(in srgb, rgb(from white r g b) 50%, transparent)`;',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+	const colorViolations = violations.filter(
+		(violation) => violation.ruleId === 'no-raw-visual-color',
+	);
+	const flaggedLines = new Set(
+		colorViolations.map((violation) => violation.line),
+	);
+
+	assert.equal(colorViolations.length, 2);
+	assert.deepEqual([...flaggedLines].sort(), [1, 2]);
+});
+
 test('r4-ui-F3: token-theme-parity flags a light-only root oklch() token with no html.dark counterpart', async () => {
 	const root = await makeFixture({
 		'src/styles/app.css': [
