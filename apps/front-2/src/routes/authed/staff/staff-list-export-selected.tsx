@@ -13,8 +13,25 @@ export type CsvExportColumn<TRow> = {
 	getValue: (row: TRow) => string;
 };
 
-const escapeCsvField = (value: string): string =>
-	/[",\r\n]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value;
+const normalizeLeadingFormulaPrefix = (value: string): string => {
+	const beginsWithFormula = /^[=+\-@]/.test(
+		value.replace(/^[\u0000-\u001f\s]+/g, ''),
+	);
+
+	if (!beginsWithFormula) {
+		return value;
+	}
+
+	return `'${value}`;
+};
+
+const escapeCsvField = (value: string): string => {
+	const safeValue = normalizeLeadingFormulaPrefix(value);
+
+	return /[",\r\n]/.test(safeValue)
+		? `"${safeValue.replaceAll('"', '""')}"`
+		: safeValue;
+};
 
 const buildCsvContent = (headers: string[], rows: string[][]): string =>
 	[headers, ...rows]

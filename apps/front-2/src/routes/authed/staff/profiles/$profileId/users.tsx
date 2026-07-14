@@ -15,6 +15,8 @@ import { useTableController } from '~/components/table/use-table-controller';
 import { Button, buttonVariants } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
+import { StatusPill } from '~/components/ui/product-page';
+import { statusPillTone } from '~/components/ui/status-tone';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import {
 	toStaffProfileUserRows,
@@ -37,6 +39,8 @@ import type {
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
+import { formatStaffStatusLabel } from '../../staff-users/status-labels';
+
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
 const MALFORMED_ID_TRANSLATION_KEY = 'malformed-id';
@@ -49,19 +53,25 @@ export const buildColumns = (
 		header: t('name'),
 		enableSorting: false,
 		cell: ({ row }) => (
-			<div className="space-y-1">
-				<p className="font-medium text-foreground">
-					{getUserFullName({
-						firstName: row.original.firstName,
-						lastName: row.original.lastName,
-					}) ||
-						row.original.email ||
-						'—'}
-				</p>
-				<p className="text-xs text-muted-foreground">
-					{row.original.email || t('no-email-address')}
-				</p>
-			</div>
+			<Link
+				to="/staff/staff-users/$userId"
+				params={{ userId: row.original.id }}
+				className="publy-record-link"
+			>
+				<div className="space-y-1">
+					<p className="font-medium text-foreground">
+						{getUserFullName({
+							firstName: row.original.firstName,
+							lastName: row.original.lastName,
+						}) ||
+							row.original.email ||
+							t('no-email-address')}
+					</p>
+					<p className="text-xs text-muted-foreground">
+						{row.original.email || t('no-email-address')}
+					</p>
+				</div>
+			</Link>
 		),
 	},
 	{
@@ -69,7 +79,15 @@ export const buildColumns = (
 		header: t('status'),
 		accessorKey: 'status',
 		meta: { width: '122px' },
-		cell: ({ getValue }) => getValue<string | null>() ?? '—',
+		cell: ({ getValue }) => {
+			const status = getValue<string | null>();
+
+			return (
+				<StatusPill tone={statusPillTone(status)}>
+					{formatStaffStatusLabel(status, t)}
+				</StatusPill>
+			);
+		},
 	},
 ];
 

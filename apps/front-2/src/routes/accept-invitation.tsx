@@ -89,7 +89,8 @@ const invitationLoader = async ({
 type AuthState =
 	| { status: 'checking' }
 	| { status: 'anonymous' }
-	| { status: 'authenticated'; email: string };
+	| { status: 'authenticated'; email: string }
+	| { status: 'auth-lookup-error'; error: unknown };
 
 /**
  * `isMounted` keeps the first client render identical to the SSR render
@@ -126,7 +127,12 @@ const useInvitationAuthState = (): AuthState => {
 	}
 
 	if (currentUserQuery.isError) {
-		return { status: 'anonymous' };
+		const failure = toApiFailure(currentUserQuery.error);
+		if (failure.kind === 'problem' && failure.status === 401) {
+			return { status: 'anonymous' };
+		}
+
+		return { status: 'auth-lookup-error', error: currentUserQuery.error };
 	}
 
 	return { status: 'checking' };
@@ -137,7 +143,8 @@ type BranchKind =
 	| 'new-user'
 	| 'existing-match'
 	| 'existing-signed-out'
-	| 'mismatch';
+	| 'mismatch'
+	| 'auth-lookup-error';
 
 const resolveBranchKind = (
 	loaderData: Extract<InvitationLoaderData, { view: 'valid' }>,
@@ -149,6 +156,10 @@ const resolveBranchKind = (
 
 	if (authState.status === 'anonymous') {
 		return loaderData.userExists ? 'existing-signed-out' : 'new-user';
+	}
+
+	if (authState.status === 'auth-lookup-error') {
+		return 'auth-lookup-error';
 	}
 
 	const emailMatches =
@@ -204,6 +215,34 @@ const AcceptInvitationLoading = () => {
 	);
 };
 
+const AuthLookupErrorView = ({ error }: { error: unknown }) => {
+	const { t } = useTranslation('common');
+	const failure = toApiFailure(error);
+	const message = getFailureMessage(failure, {
+		fallback: t('an-error-occurred'),
+	});
+
+	return (
+		<div
+			className="space-y-6"
+			data-testid="accept-invitation-auth-lookup-error"
+		>
+			<AuthAlert tone="danger" icon={<IconAlertCircle aria-hidden="true" />}>
+				{message}
+			</AuthAlert>
+			<Button
+				type="button"
+				variant="outline"
+				onClick={() => {
+					window.location.reload();
+				}}
+			>
+				{t('try-again')}
+			</Button>
+		</div>
+	);
+};
+
 type AcceptPayload =
 	| {
 			mode: 'new-user';
@@ -212,6 +251,12 @@ type AcceptPayload =
 			password: string;
 	  }
 	| { mode: 'existing-account' };
+
+type AcceptInvitationActionResult = {
+	sessionExpiresAt?: string;
+	tenantId?: string;
+	userId?: string;
+};
 
 /**
  * Shared accept → establish-session → broadcast → navigate sequence behind
@@ -226,13 +271,27 @@ const useAcceptInvitationSubmit = (token: string) => {
 	const completeRedirect = useServerFn(completeLoginRedirect);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [errorMessage, setErrorMessage] = useState('');
+	const [acceptedResult, setAcceptedResult] =
+		useState<AcceptInvitationActionResult | null>(null);
 
 	const submit = async (payload: AcceptPayload) => {
 		setErrorMessage('');
 		setIsSubmitting(true);
 
 		try {
-			const result = await acceptAction({ data: { token, ...payload } });
+			const result =
+				acceptedResult ??
+				((await acceptAction({
+					data: { token, ...payload },
+				})) as AcceptInvitationActionResult) ??
+				null;
+			if (!acceptedResult) {
+				setAcceptedResult(result);
+			}
+			if (!result.sessionExpiresAt) {
+				throw new Error('acceptance did not return a session expiration');
+			}
+
 			const redirect = await completeRedirect({
 				data: { sessionExpiresAt: result.sessionExpiresAt },
 			});
@@ -244,6 +303,7 @@ const useAcceptInvitationSubmit = (token: string) => {
 			setErrorMessage(
 				getFailureMessage(failure, { fallback: t('an-error-occurred') }),
 			);
+		} finally {
 			setIsSubmitting(false);
 		}
 	};
@@ -697,10 +757,16 @@ const AcceptInvitationRoute = () => {
 		[queryParamKey.login_page.email]: loaderData.email,
 	};
 	const loginHref = `/login?${new URLSearchParams(loginSearch).toString()}`;
+	const showAuthLookupError =
+		branchKind === 'auth-lookup-error' &&
+		authState.status === 'auth-lookup-error';
 
 	return (
 		<>
 			{branchKind === 'loading' ? <AcceptInvitationLoading /> : null}
+			{showAuthLookupError ? (
+				<AuthLookupErrorView error={authState.error} />
+			) : null}
 			{branchKind === 'new-user' ? (
 				<NewUserForm
 					token={loaderData.token}

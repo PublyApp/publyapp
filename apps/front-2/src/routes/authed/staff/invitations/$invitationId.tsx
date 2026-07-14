@@ -366,7 +366,7 @@ const InvitationDetailsCard = ({
 									<Badge
 										variant="outline"
 										key={`${String(profile.id ?? '')}:${profile.name ?? ''}`}
-										className="h-auto rounded-full border-none bg-muted px-2 py-0.5 text-xs font-medium text-foreground"
+										className="h-auto rounded-[var(--publy-radius-chip)] border-none bg-muted px-2 py-0.5 text-xs font-medium text-foreground"
 									>
 										{profile.name?.trim() || t('unnamed-profile')}
 									</Badge>

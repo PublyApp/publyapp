@@ -69,4 +69,48 @@ describe('StaffListExportSelectedAction', () => {
 			mimeType: 'text/csv;charset=utf-8',
 		});
 	});
+
+	test('neutralizes spreadsheet formula prefixes before CSV escaping', () => {
+		const formulaRows = [
+			{ id: 'row-3', value: '=HYPERLINK("https://attacker.example")' },
+			{ id: 'row-4', value: '+SUM(A1:A2)' },
+			{ id: 'row-5', value: '-2' },
+			{ id: 'row-6', value: '@cmd("boom")' },
+			{ id: 'row-7', value: ' \t\r\n=WEIRD' },
+		];
+
+		const FormulaHarness = ({
+			initiallySelected,
+		}: {
+			initiallySelected: string[];
+		}) => {
+			const selection = useRowSelection(formulaRows.map((row) => row.id));
+			if (initiallySelected.length > 0 && selection.selectedCount === 0) {
+				selection.onSelectionChange(new Set(initiallySelected));
+			}
+
+			return (
+				<StaffListExportSelectedAction
+					rows={formulaRows.map((row) => ({ id: row.id, name: row.value }))}
+					selection={selection}
+					fileNamePrefix="staff-test"
+					columns={[{ header: 'Name', getValue: (row) => row.name }]}
+				/>
+			);
+		};
+
+		render(
+			<FormulaHarness
+				initiallySelected={['row-3', 'row-4', 'row-5', 'row-6', 'row-7']}
+			/>,
+		);
+
+		fireEvent.click(screen.getByText('export-selected'));
+
+		expect(mocks.downloadFile).toHaveBeenCalledWith({
+			data: 'Name\r\n"\'=HYPERLINK(""https://attacker.example"")"\r\n\'+SUM(A1:A2)\r\n\'-2\r\n"\'@cmd(""boom"")"\r\n"\' \t\r\n=WEIRD"',
+			fileName: 'staff-test-2026-07-14.csv',
+			mimeType: 'text/csv;charset=utf-8',
+		});
+	});
 });

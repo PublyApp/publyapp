@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { IconAlertCircle, IconArrowLeft } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -234,20 +234,38 @@ function StaffUserEditPage() {
 			profileIds: [],
 		},
 	});
-	const { formState, reset } = methods;
+	const { formState, getValues, reset } = methods;
 	const { errors, isSubmitting } = formState;
+	const valuesAreEqual = (
+		left: readonly string[],
+		right: readonly string[],
+	): boolean => {
+		if (left.length !== right.length) {
+			return false;
+		}
 
-	// One-shot: a background refetch (e.g. the invalidation this form's own
-	// submit triggers) must never re-run `reset()` and clobber selections the
-	// user has made but not yet saved.
-	const hasHydratedRef = useRef(false);
+		return left.every((value, index) => value === right[index]);
+	};
 
 	useEffect(() => {
-		if (!user || hasHydratedRef.current) {
+		if (
+			!user ||
+			!detailsQuery.isSuccess ||
+			!assignedProfilesQuery.isSuccess ||
+			assignedProfilesQuery.data === undefined
+		) {
 			return;
 		}
 
-		hasHydratedRef.current = true;
+		if (formState.isDirty) {
+			return;
+		}
+
+		const nextProfileIds = assignedProfiles.map((profile) => profile.id);
+		if (valuesAreEqual(getValues('profileIds'), nextProfileIds)) {
+			return;
+		}
+
 		reset({
 			firstName: user.firstName ?? '',
 			lastName: user.lastName ?? '',
@@ -255,9 +273,19 @@ function StaffUserEditPage() {
 			email: user.email,
 			accountLevel: normalizeAccountLevel(user.accountLevel),
 			status: normalizeStatus(user.status),
-			profileIds: assignedProfiles.map((profile) => profile.id),
+			profileIds: nextProfileIds,
 		});
-	}, [assignedProfiles, reset, user]);
+	}, [
+		assignedProfiles,
+		formState.isDirty,
+		getValues,
+		reset,
+		user,
+		detailsQuery.isSuccess,
+		assignedProfilesQuery.isSuccess,
+		detailsQuery.isPending,
+		assignedProfilesQuery.isPending,
+	]);
 
 	if (
 		(detailsQuery.isError && shouldLogoutForFailure(detailsQuery.error)) ||

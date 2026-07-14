@@ -62,7 +62,7 @@ const buildRow = (overrides: Record<string, unknown> = {}) => ({
 	...overrides,
 });
 
-const renderActionsCell = () => {
+const renderActionsCell = (status = 'pending') => {
 	const columns = createInvitationColumns({
 		t,
 		locale: 'en',
@@ -77,7 +77,7 @@ const renderActionsCell = () => {
 
 	return render(
 		<QueryClientProvider client={queryClient}>
-			{cellRenderer({ row: { original: buildRow() } })}
+			{cellRenderer({ row: { original: buildRow({ status }) } })}
 		</QueryClientProvider>,
 	);
 };
@@ -261,4 +261,40 @@ describe('InvitationRowActions', () => {
 			)?.getAttribute('data-disabled'),
 		).not.toBeNull();
 	});
+
+	test.each([['accepted'], ['expired'], ['revoked']])(
+		'does not call resend for %s invitations and reports ineligible action',
+		async (status) => {
+			renderActionsCell(status);
+			await openMenu();
+
+			fireEvent.click(screen.getByText('send-reminder'));
+
+			expect(mocks.onActionError).toHaveBeenCalledWith(
+				'only-pending-invitations-can-be-managed',
+			);
+			expect(mocks.onActionSuccess).not.toHaveBeenCalled();
+			expect(
+				mocks.useResendStaffInvitationMutation().mutateAsync,
+			).not.toHaveBeenCalled();
+		},
+	);
+
+	test.each([['accepted'], ['expired'], ['revoked']])(
+		'does not open revoke confirmation for ineligible %s invitations',
+		async (status) => {
+			renderActionsCell(status);
+			await openMenu();
+
+			fireEvent.click(screen.getByText('revoke-invitation'));
+
+			expect(screen.queryByText('revoke')).toBeNull();
+			expect(mocks.onActionError).toHaveBeenCalledWith(
+				'only-pending-invitations-can-be-managed',
+			);
+			expect(
+				mocks.useRevokeStaffInvitationMutation().mutateAsync,
+			).not.toHaveBeenCalled();
+		},
+	);
 });

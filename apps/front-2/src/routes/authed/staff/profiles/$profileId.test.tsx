@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
 	useStaffProfilePermissionKeysQuery: vi.fn(),
 	useStaffPermissionCatalogQuery: vi.fn(),
 	useStaffProfileUsersQuery: vi.fn(),
-	shouldLogoutForFailure: vi.fn(() => false),
+	shouldLogoutForFailure: vi.fn((..._args: unknown[]) => false),
 }));
 
 vi.mock('@tanstack/react-router', () => ({
@@ -23,15 +23,24 @@ vi.mock('@tanstack/react-router', () => ({
 	Link: ({
 		children,
 		to,
+		params,
 		...props
 	}: {
 		children: React.ReactNode;
 		to: string;
-	}) => (
-		<a href={to} {...props}>
-			{children}
-		</a>
-	),
+		params?: Record<string, string>;
+	}) => {
+		let href = to;
+		for (const [key, value] of Object.entries(params ?? {})) {
+			href = href.replace(`$${key}`, value);
+		}
+
+		return (
+			<a href={href} {...props}>
+				{children}
+			</a>
+		);
+	},
 }));
 
 vi.mock('react-i18next', () => ({
@@ -74,7 +83,9 @@ vi.mock('~/lib/query/staff-profiles', () => ({
 }));
 
 vi.mock('~/lib/query/staff-profile-users', () => ({
-	toStaffProfileUserRows: vi.fn(() => []),
+	toStaffProfileUserRows: vi.fn(
+		(users: unknown[] | null | undefined) => users ?? [],
+	),
 	useStaffProfileUsersQuery: mocks.useStaffProfileUsersQuery,
 }));
 
@@ -219,6 +230,111 @@ describe('staff profile details route', () => {
 		const header = within(screen.getByTestId('staff-profile-identity-header'));
 		expect(header.queryByText('Custom')).toBeNull();
 		expect(header.getByText('profile')).toBeTruthy();
+	});
+
+	test('renders loading state for the members preview while users query is pending', () => {
+		mocks.useStaffProfileUsersQuery.mockReturnValue(
+			buildQueryResult({ isPending: true }),
+		);
+
+		renderPage();
+
+		expect(screen.getByText('loading-staff-profile')).toBeTruthy();
+		expect(screen.queryByText('no-members-yet')).toBeNull();
+	});
+
+	test('renders permission-specific members error for 403', () => {
+		mocks.useStaffProfileUsersQuery.mockReturnValue(
+			buildQueryResult({
+				error: {
+					status: 403,
+					responseStatusCode: 403,
+					title: 'Forbidden',
+					detail: 'Forbidden',
+				},
+				isError: true,
+			}),
+		);
+
+		renderPage();
+
+		expect(
+			screen.getByText('no-permission-to-view-assigned-users'),
+		).toBeTruthy();
+		expect(screen.queryByText('no-members-yet')).toBeNull();
+	});
+
+	test('renders retryable members preview error for non-403 failures', () => {
+		mocks.useStaffProfileUsersQuery.mockReturnValue(
+			buildQueryResult({
+				error: {
+					status: 500,
+					responseStatusCode: 500,
+					title: 'Server Error',
+					detail: 'Oops',
+				},
+				isError: true,
+			}),
+		);
+
+		renderPage();
+
+		expect(
+			screen.getByText('problem-loading-staff-profile-details'),
+		).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'try-again' })).toBeTruthy();
+	});
+
+	test('logs out when the assigned-users query returns an auth failure', () => {
+		mocks.shouldLogoutForFailure.mockImplementation(
+			(error: unknown) =>
+				typeof error === 'object' &&
+				error !== null &&
+				'status' in error &&
+				(error as { status?: number }).status === 401,
+		);
+		mocks.useStaffProfileUsersQuery.mockReturnValue(
+			buildQueryResult({
+				error: {
+					status: 401,
+					responseStatusCode: 401,
+					title: 'Unauthorized',
+					detail: 'Unauthorized',
+				},
+				isError: true,
+			}),
+		);
+
+		renderPage();
+
+		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
+		expect(
+			screen.queryByText('problem-loading-staff-profile-details'),
+		).toBeNull();
+	});
+
+	test('shows no members only after a successful users load with no rows', () => {
+		mocks.useStaffProfileUsersQuery.mockReturnValue(
+			buildQueryResult({
+				data: { users: [], count: 0 },
+			}),
+		);
+
+		renderPage();
+
+		expect(screen.getByText('no-members-yet')).toBeTruthy();
+	});
+
+	test('does not show edit-permissions link and keeps view-all pointing to profile users', () => {
+		renderPage();
+
+		expect(screen.queryByText('edit-permissions')).toBeNull();
+		const viewAllLink = screen.getByRole('link', {
+			name: 'view-all-assigned-users',
+		}) as HTMLAnchorElement;
+		expect(viewAllLink.getAttribute('href')).toBe(
+			'/staff/profiles/11111111-1111-1111-1111-111111111111/users',
+		);
 	});
 
 	test('does not render a fabricated "Type" row in the About card', () => {

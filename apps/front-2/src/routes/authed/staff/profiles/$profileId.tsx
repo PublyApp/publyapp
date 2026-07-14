@@ -5,14 +5,11 @@ import {
 	IconCalendar,
 	IconChartBar,
 	IconCheck,
-	IconDots,
 	IconNews,
-	IconPencil,
 	IconSearchOff,
 	IconSettings,
 	IconShield,
 	IconUsers,
-	IconUsersPlus,
 	IconWorld,
 } from '@tabler/icons-react';
 import type { Icon } from '@tabler/icons-react';
@@ -362,7 +359,8 @@ function StaffProfileDetailsPage() {
 		(permissionKeysQuery.isError &&
 			shouldLogoutForFailure(permissionKeysQuery.error)) ||
 		(permissionCatalogQuery.isError &&
-			shouldLogoutForFailure(permissionCatalogQuery.error))
+			shouldLogoutForFailure(permissionCatalogQuery.error)) ||
+		(usersQuery.isError && shouldLogoutForFailure(usersQuery.error))
 	) {
 		return <LogoutRedirect />;
 	}
@@ -424,7 +422,71 @@ function StaffProfileDetailsPage() {
 		| StaffPermissionCatalog
 		| undefined;
 	const userRows = toStaffProfileUserRows(usersQuery.data?.users);
+	const usersFailure = usersQuery.isError
+		? toApiFailure(usersQuery.error)
+		: null;
+	const hasUsersData = !usersQuery.isPending && !usersQuery.isError;
 	const userCount = details.userAccountCount;
+	const membersCardContent = (() => {
+		if (usersFailure) {
+			if (usersFailure.kind === 'problem' && usersFailure.status === 403) {
+				return (
+					<div className="px-[18px] py-8 text-center text-[13px] text-muted-foreground">
+						{t('no-permission-to-view-assigned-users')}
+					</div>
+				);
+			}
+
+			return (
+				<div className="flex flex-col gap-2 px-[18px] py-8 text-[13px] text-muted-foreground">
+					<p>{t('problem-loading-staff-profile-details')}</p>
+					<Button
+						type="button"
+						onClick={() => void usersQuery.refetch()}
+						className="h-8 w-max"
+					>
+						{t('try-again')}
+					</Button>
+				</div>
+			);
+		}
+
+		if (usersQuery.isPending) {
+			return (
+				<div className="px-[18px] py-8 text-center text-[13px] text-muted-foreground">
+					{t('loading-staff-profile')}
+				</div>
+			);
+		}
+
+		if (hasUsersData && userRows.length === 0) {
+			return (
+				<div className="px-[18px] py-8 text-center text-[13px] text-muted-foreground">
+					{t('no-members-yet')}
+				</div>
+			);
+		}
+
+		return userRows.slice(0, 5).map((user) => (
+			<div
+				key={user.id}
+				className="flex items-center gap-[11px] px-[18px] py-[11px] border-b border-[var(--publy-row-border)] last:border-b-0"
+			>
+				<InitialsAvatar
+					name={
+						[user.firstName, user.lastName].filter(Boolean).join(' ') ||
+						user.email
+					}
+				/>
+				<div className="flex flex-col gap-px min-w-0">
+					<span className="text-[13px] font-medium truncate">
+						{[user.firstName, user.lastName].filter(Boolean).join(' ') ||
+							user.email}
+					</span>
+				</div>
+			</div>
+		));
+	})();
 	let catalogPermCount = 0;
 	if (catalog) {
 		for (const module of Object.values(catalog)) {
@@ -496,21 +558,13 @@ function StaffProfileDetailsPage() {
 					</div>
 				</div>
 				<div className="flex items-center gap-2.5">
-					<Button variant="outline" size="sm" className="gap-1.5">
-						<IconUsersPlus className="size-4" />
-						{t('assign-to-users')}
-					</Button>
-					<Button variant="outline" size="sm" className="gap-1.5">
-						<IconPencil className="size-4" />
-						{t('edit')}
-					</Button>
-					<Button
-						variant="outline"
-						size="icon-sm"
-						aria-label={t('more-actions')}
+					<Link
+						to="/staff/profiles/$profileId/users"
+						params={{ profileId }}
+						className="inline-flex items-center gap-1.5 rounded-[var(--publy-border-radius-control)] border border-input bg-background px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
 					>
-						<IconDots className="size-4" />
-					</Button>
+						{t('view-all-assigned-users')}
+					</Link>
 				</div>
 			</div>
 
@@ -522,13 +576,6 @@ function StaffProfileDetailsPage() {
 							<span className="text-[14px] font-semibold">
 								{t('permissions-in-this-profile')}
 							</span>
-							<Link
-								to="/staff/profiles"
-								className="text-[12px] no-underline inline-flex items-center gap-[5px] text-[var(--publy-foreground-muted)]"
-							>
-								<IconPencil className="size-[13px]" />
-								{t('edit-permissions')}
-							</Link>
 						</div>
 						{assignedKeys.length === 0 ? (
 							<div className="px-[18px] py-8 text-center text-[13px] text-muted-foreground">
@@ -581,41 +628,14 @@ function StaffProfileDetailsPage() {
 								</span>
 							</span>
 							<Link
-								to="/staff/profiles"
+								to="/staff/profiles/$profileId/users"
+								params={{ profileId }}
 								className="text-[12px] no-underline text-[var(--publy-foreground-muted)]"
 							>
 								{t('view-all')}
 							</Link>
 						</div>
-						<div className="flex flex-col">
-							{userRows.length === 0 ? (
-								<div className="px-[18px] py-8 text-center text-[13px] text-muted-foreground">
-									{t('no-members-yet')}
-								</div>
-							) : (
-								userRows.slice(0, 5).map((user) => (
-									<div
-										key={user.id}
-										className="flex items-center gap-[11px] px-[18px] py-[11px] border-b border-[var(--publy-row-border)] last:border-b-0"
-									>
-										<InitialsAvatar
-											name={
-												[user.firstName, user.lastName]
-													.filter(Boolean)
-													.join(' ') || user.email
-											}
-										/>
-										<div className="flex flex-col gap-px min-w-0">
-											<span className="text-[13px] font-medium truncate">
-												{[user.firstName, user.lastName]
-													.filter(Boolean)
-													.join(' ') || user.email}
-											</span>
-										</div>
-									</div>
-								))
-							)}
-						</div>
+						<div className="flex flex-col">{membersCardContent}</div>
 					</Card>
 				</DetailAside>
 			</DetailGrid>

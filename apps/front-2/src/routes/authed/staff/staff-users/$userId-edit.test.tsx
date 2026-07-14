@@ -12,6 +12,9 @@ import * as React from 'react';
 import { createElement, type JSX, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
+const USER_A = '11111111-1111-1111-1111-111111111111';
+const USER_B = '22222222-2222-2222-2222-222222222222';
+
 const mocks = vi.hoisted(() => ({
 	toStaffUserDetails: vi.fn(),
 	toAssignedStaffProfiles: vi.fn(),
@@ -28,11 +31,74 @@ const mocks = vi.hoisted(() => ({
 	shouldLogoutForFailure: vi.fn(() => false),
 }));
 
+const getUserDetails = (userId: string) => ({
+	id: userId,
+	email: userId === USER_A ? 'alex@example.com' : 'bea@example.com',
+	firstName: userId === USER_A ? 'Alex' : 'Bea',
+	lastName: 'User',
+	avatarUrl:
+		userId === USER_A
+			? 'https://example.com/avatar-a.png'
+			: 'https://example.com/avatar-b.png',
+	accountLevel: userId === USER_A ? 'Admin' : 'User',
+	status: 'Active',
+	displayName: userId === USER_A ? 'Alex User' : 'Bea User',
+	createdAt: null,
+	updatedAt: null,
+});
+
+type QueryState = {
+	data?: unknown;
+	error?: unknown;
+	isPending: boolean;
+	isSuccess: boolean;
+	isError: boolean;
+	isFetching: boolean;
+	refetch: ReturnType<typeof vi.fn>;
+};
+
+const buildQueryResult = (overrides: Partial<QueryState> = {}): QueryState => ({
+	data: undefined,
+	error: null,
+	isPending: false,
+	isSuccess: true,
+	isError: false,
+	isFetching: false,
+	refetch: vi.fn().mockResolvedValue(undefined),
+	...overrides,
+});
+
+const queryState = {
+	activeUserId: USER_A,
+	details: new Map<string, QueryState>(),
+	profiles: new Map<string, QueryState>(),
+};
+
+const setActiveUser = (userId: string) => {
+	queryState.activeUserId = userId;
+};
+
+const setDetailState = (userId: string, overrides: Partial<QueryState>) => {
+	queryState.details.set(userId, { ...buildQueryResult(), ...overrides });
+};
+
+const setProfileState = (userId: string, overrides: Partial<QueryState>) => {
+	queryState.profiles.set(userId, { ...buildQueryResult(), ...overrides });
+};
+
+const getDetailState = (userId: string): QueryState =>
+	queryState.details.get(userId) ??
+	buildQueryResult({ isSuccess: false, isPending: true });
+
+const getProfileState = (userId: string): QueryState =>
+	queryState.profiles.get(userId) ??
+	buildQueryResult({ isSuccess: false, isPending: true });
+
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => ({
 		...options,
 		useParams: () => ({
-			userId: '11111111-1111-1111-1111-111111111111',
+			userId: queryState.activeUserId,
 		}),
 		useNavigate: () => mocks.navigate,
 	}),
@@ -250,8 +316,10 @@ vi.mock('~/lib/query/staff-users', () => ({
 	}) => queryClient.invalidateQueries({ queryKey: ['staff', 'staff-users'] }),
 	toStaffUserDetails: mocks.toStaffUserDetails,
 	toAssignedStaffProfiles: mocks.toAssignedStaffProfiles,
-	useStaffUserDetailsQuery: mocks.useStaffUserDetailsQuery,
-	useStaffUserProfilesQuery: mocks.useStaffUserProfilesQuery,
+	useStaffUserDetailsQuery: ({ userId }: { userId: string }) =>
+		getDetailState(userId),
+	useStaffUserProfilesQuery: ({ userId }: { userId: string }) =>
+		getProfileState(userId),
 	useUpdateStaffUserMutation: mocks.useUpdateStaffUserMutation,
 	useUpdateStaffUserProfilesMutation: mocks.useUpdateStaffUserProfilesMutation,
 }));
@@ -267,29 +335,20 @@ vi.mock('~/lib/should-logout-for-failure', () => ({
 
 import { Route } from './$userId-edit';
 
-const buildQueryResult = (overrides: Record<string, unknown> = {}) => ({
-	data: undefined,
-	error: null,
-	isPending: false,
-	isError: false,
-	isFetching: false,
-	refetch: vi.fn().mockResolvedValue(undefined),
-	...overrides,
-});
+const Component = (
+	Route as unknown as {
+		component: () => JSX.Element;
+	}
+).component;
 
-const renderPage = () => {
-	const Component = (
-		Route as unknown as {
-			component: () => JSX.Element;
-		}
-	).component;
-
-	return render(<Component />);
-};
+const renderPage = () => render(<Component />);
 
 describe('staff user edit route', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		queryState.activeUserId = USER_A;
+		queryState.details.clear();
+		queryState.profiles.clear();
 		mocks.navigate.mockResolvedValue(undefined);
 		mocks.invalidateQueries.mockResolvedValue(undefined);
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
@@ -301,40 +360,144 @@ describe('staff user edit route', () => {
 			mutateAsync: mocks.updateStaffUserProfiles,
 			isPending: false,
 		});
-		mocks.useStaffUserDetailsQuery.mockReturnValue(
-			buildQueryResult({
-				data: { id: '11111111-1111-1111-1111-111111111111' },
-			}),
+
+		mocks.toStaffUserDetails.mockImplementation(({ id }: { id: string }) =>
+			getUserDetails(id),
 		);
-		mocks.useStaffUserProfilesQuery.mockReturnValue(
-			buildQueryResult({ data: { assignedProfiles: [] } }),
+		mocks.toAssignedStaffProfiles.mockImplementation(
+			(
+				payload:
+					| { assignedProfiles?: Array<{ id: string }> }
+					| undefined
+					| null,
+			) => {
+				const profiles = payload?.assignedProfiles;
+				if (!profiles) {
+					return [];
+				}
+				return profiles.map((profile) => ({
+					id: profile.id,
+					name: profile.id === 'profile-1' ? 'Publishing' : 'Billing',
+					description: null,
+				}));
+			},
 		);
-		mocks.useStaffProfilesQuery.mockReturnValue(
-			buildQueryResult({ data: { data: [] } }),
-		);
-		mocks.toStaffUserDetails.mockReturnValue({
-			id: '11111111-1111-1111-1111-111111111111',
-			email: 'alex@example.com',
-			firstName: 'Alex',
-			lastName: 'User',
-			avatarUrl: 'https://example.com/avatar.png',
-			accountLevel: 'Admin',
-			status: 'Active',
-			displayName: 'Alex User',
-			createdAt: null,
-			updatedAt: null,
-		});
-		mocks.toAssignedStaffProfiles.mockReturnValue([
-			{ id: 'profile-1', name: 'Publishing', description: null },
-		]);
 		mocks.toStaffProfileRows.mockReturnValue([
 			{ id: 'profile-1', name: 'Publishing', description: null },
 			{ id: 'profile-2', name: 'Billing', description: null },
 		]);
+
+		setDetailState(USER_A, {
+			data: {
+				id: USER_A,
+				email: 'alex@example.com',
+			},
+			isPending: false,
+			isSuccess: true,
+		});
+		setProfileState(USER_A, {
+			data: {
+				assignedProfiles: [
+					{ id: 'profile-1', name: 'Publishing', description: null },
+				],
+			},
+			isPending: false,
+			isSuccess: true,
+		});
+		mocks.useStaffProfilesQuery.mockReturnValue(
+			buildQueryResult({ data: { data: [] } }),
+		);
 	});
 
 	afterEach(() => {
 		cleanup();
+	});
+
+	test('delays hydration until profile data resolves to avoid overwriting assignments with []', async () => {
+		setDetailState(USER_A, {
+			data: { id: USER_A },
+			isPending: true,
+			isSuccess: false,
+		});
+		setProfileState(USER_A, {
+			data: { assignedProfiles: [] },
+			isPending: false,
+			isSuccess: true,
+		});
+
+		const rendered = renderPage();
+		expect(screen.getByTestId('staff-user-edit-loading')).toBeTruthy();
+
+		setDetailState(USER_A, {
+			data: { id: USER_A },
+			isPending: false,
+			isSuccess: true,
+		});
+		rendered.rerender(<Component />);
+
+		await waitFor(() => expect(screen.getByText('Publishing')).toBeTruthy());
+		expect(
+			(screen.getByRole('checkbox', { name: 'Publishing' }) as HTMLInputElement)
+				.checked,
+		).toBe(false);
+		expect(
+			(screen.getByRole('checkbox', { name: 'Billing' }) as HTMLInputElement)
+				.checked,
+		).toBe(false);
+
+		setProfileState(USER_A, {
+			data: {
+				assignedProfiles: [
+					{ id: 'profile-1', name: 'Publishing', description: null },
+					{ id: 'profile-2', name: 'Billing', description: null },
+				],
+			},
+			isPending: false,
+			isSuccess: true,
+		});
+		rendered.rerender(<Component />);
+
+		await waitFor(() => {
+			const { getByRole } = rendered;
+			const publishing = getByRole('checkbox', { name: 'Publishing' });
+			expect((publishing as HTMLInputElement).checked).toBe(true);
+		});
+		await waitFor(() => {
+			const { getByRole } = rendered;
+			const billing = getByRole('checkbox', { name: 'Billing' });
+			expect((billing as HTMLInputElement).checked).toBe(true);
+		});
+	});
+
+	test('re-hydrates when the route param changes to a new user', async () => {
+		const rendered = renderPage();
+		const findCheckbox = (name: string): HTMLInputElement =>
+			rendered.getByRole('checkbox', { name }) as HTMLInputElement;
+
+		setActiveUser(USER_B);
+		setDetailState(USER_B, {
+			data: {
+				id: USER_B,
+			},
+			isPending: false,
+			isSuccess: true,
+		});
+		setProfileState(USER_B, {
+			data: {
+				assignedProfiles: [
+					{ id: 'profile-2', name: 'Billing', description: null },
+				],
+			},
+			isPending: false,
+			isSuccess: true,
+		});
+		rendered.rerender(<Component />);
+
+		await waitFor(() => {
+			expect(screen.getByDisplayValue('Bea')).toBeTruthy();
+		});
+		expect(findCheckbox('Publishing').checked).toBe(false);
+		expect(findCheckbox('Billing').checked).toBe(true);
 	});
 
 	test('renders loaded identity, access, and disabled contract fields', () => {
@@ -347,7 +510,7 @@ describe('staff user edit route', () => {
 		expect(screen.getByDisplayValue('Alex')).toBeTruthy();
 		expect(screen.getByDisplayValue('User')).toBeTruthy();
 		expect(
-			screen.getByDisplayValue('https://example.com/avatar.png'),
+			screen.getByDisplayValue('https://example.com/avatar-a.png'),
 		).toBeTruthy();
 		expect(screen.getByDisplayValue('Admin')).toBeTruthy();
 		expect(screen.getByDisplayValue('Active')).toBeTruthy();

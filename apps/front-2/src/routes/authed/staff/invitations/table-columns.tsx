@@ -68,8 +68,18 @@ const InvitationRowActions = ({
 	const resendMutation = useResendStaffInvitationMutation();
 	const revokeMutation = useRevokeStaffInvitationMutation();
 	const isActionPending = resendMutation.isPending || revokeMutation.isPending;
+	const canManage = row.status === 'pending';
+
+	const handleIneligibleAction = () => {
+		onError(t('only-pending-invitations-can-be-managed'));
+	};
 
 	const handleResend = async () => {
+		if (!canManage) {
+			handleIneligibleAction();
+			return;
+		}
+
 		try {
 			await resendMutation.mutateAsync({ invitationId: row.id });
 			onSuccess();
@@ -83,6 +93,12 @@ const InvitationRowActions = ({
 	};
 
 	const handleRevoke = async () => {
+		if (!canManage) {
+			handleIneligibleAction();
+			setConfirmOpen(false);
+			return;
+		}
+
 		try {
 			await revokeMutation.mutateAsync({ invitationId: row.id });
 			await invalidateStaffInvitations(queryClient);
@@ -112,7 +128,9 @@ const InvitationRowActions = ({
 					{t('send-reminder')}
 				</DropdownMenuItem>
 				<DropdownMenuItem
-					onClick={() => setConfirmOpen(true)}
+					onClick={() =>
+						void (canManage ? setConfirmOpen(true) : handleRevoke())
+					}
 					disabled={isActionPending}
 				>
 					<IconX className="size-[15px]" />

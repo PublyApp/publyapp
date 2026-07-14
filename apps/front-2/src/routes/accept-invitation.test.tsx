@@ -28,6 +28,12 @@ const VALID_LOADER_DATA: InvitationLoaderData = {
 	profileName: 'Editor',
 	userExists: false,
 };
+type CurrentUserQueryState = {
+	isSuccess: boolean;
+	isError: boolean;
+	error?: unknown;
+	data?: { email?: string };
+};
 
 const mocks = vi.hoisted(() => ({
 	loaderData: { view: 'invalid' } as InvitationLoaderData,
@@ -42,8 +48,9 @@ const mocks = vi.hoisted(() => ({
 	currentUserQuery: {
 		isSuccess: false,
 		isError: false,
+		error: undefined as unknown,
 		data: undefined as { email?: string } | undefined,
-	},
+	} as CurrentUserQueryState,
 	logout: vi.fn(),
 	isLoggingOut: false,
 }));
@@ -308,12 +315,31 @@ describe('accept-invitation route', () => {
 			mocks.currentUserQuery = {
 				isSuccess: false,
 				isError: true,
+				error: { status: 401 },
 				data: undefined,
 			};
 
 			renderAcceptInvitationRoute();
 
 			expect(screen.getByTestId('accept-invitation-new-user')).toBeTruthy();
+		});
+
+		test('renders the auth-lookup error screen for non-401 lookup failures', () => {
+			mocks.hasBrowserSessionCookie.mockReturnValue(true);
+			mocks.currentUserQuery = {
+				isSuccess: false,
+				isError: true,
+				error: { status: 500, detail: 'Session service unavailable' },
+				data: undefined,
+			};
+
+			renderAcceptInvitationRoute();
+
+			expect(
+				screen.getByTestId('accept-invitation-auth-lookup-error'),
+			).toBeTruthy();
+			expect(screen.getByText('Session service unavailable')).toBeTruthy();
+			expect(screen.getByRole('button', { name: 'try-again' })).toBeTruthy();
 		});
 	});
 
@@ -361,6 +387,63 @@ describe('accept-invitation route', () => {
 			expect(mocks.postBroadcast).toHaveBeenCalledWith('publyapp:auth-sync', {
 				type: 'login',
 			});
+			expect(mocks.navigate).toHaveBeenCalledWith({
+				to: '/tenant',
+				replace: true,
+			});
+		});
+
+		test('retries redirect only after a successful acceptance, never double-calling accept', async () => {
+			mocks.loaderData = { ...VALID_LOADER_DATA, userExists: false };
+			mocks.hasBrowserSessionCookie.mockReturnValue(false);
+			mocks.acceptInvitation.mockResolvedValue({
+				sessionExpiresAt: '2026-01-01T00:00:00.000Z',
+			});
+			mocks.completeLoginRedirect
+				.mockRejectedValueOnce({ status: 500, detail: 'Temporary outage' })
+				.mockResolvedValue({ targetPath: '/tenant' });
+
+			renderAcceptInvitationRoute();
+
+			fireEvent.change(screen.getByLabelText('First name'), {
+				target: { value: 'Jordan' },
+			});
+			fireEvent.change(screen.getByLabelText('Last name'), {
+				target: { value: 'Reyes' },
+			});
+			fireEvent.change(screen.getByLabelText('Password'), {
+				target: { value: 'correct-horse-battery' },
+			});
+			fireEvent.change(screen.getByLabelText('Confirm password'), {
+				target: { value: 'correct-horse-battery' },
+			});
+			fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+			await waitFor(() =>
+				expect(mocks.acceptInvitation).toHaveBeenCalledWith({
+					data: {
+						token: 'tok',
+						mode: 'new-user',
+						firstName: 'Jordan',
+						lastName: 'Reyes',
+						password: 'correct-horse-battery',
+					},
+				}),
+			);
+			await waitFor(() =>
+				expect(mocks.completeLoginRedirect).toHaveBeenCalledWith({
+					data: { sessionExpiresAt: '2026-01-01T00:00:00.000Z' },
+				}),
+			);
+			expect(screen.getByTestId('accept-invitation-error-alert')).toBeTruthy();
+
+			fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+			await waitFor(() =>
+				expect(mocks.completeLoginRedirect).toHaveBeenCalledTimes(2),
+			);
+			expect(mocks.acceptInvitation).toHaveBeenCalledTimes(1);
+			expect(mocks.postBroadcast).toHaveBeenCalledTimes(1);
 			expect(mocks.navigate).toHaveBeenCalledWith({
 				to: '/tenant',
 				replace: true,
