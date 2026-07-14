@@ -433,7 +433,7 @@ describe('staff tenant users route', () => {
 		expect(lastCall?.search).toMatchObject({ q: 'an' });
 	});
 
-	test('canonicalizes malformed deep-link filters and keeps controls at defaults', () => {
+	test('renders default filter controls when handed an already-canonicalized search (URL-level proof: deep-link-canonicalization.test.tsx)', () => {
 		const validateSearch = (
 			Route as unknown as {
 				validateSearch: (

@@ -276,7 +276,7 @@ describe('staff tenants route', () => {
 		});
 	});
 
-	test('canonicalizes a malformed tenant status key from a deep link', () => {
+	test('renders the default status control when handed an already-canonicalized search (URL-level proof: deep-link-canonicalization.test.tsx)', () => {
 		const validateSearch = (
 			Route as unknown as {
 				validateSearch: (

@@ -518,7 +518,7 @@ describe('staff tenant profiles route', () => {
 		).toBeUndefined();
 	});
 
-	test('canonicalizes malformed deep-link profile filters and keeps control state at defaults', () => {
+	test('renders default filter controls when handed an already-canonicalized search (URL-level proof: deep-link-canonicalization.test.tsx)', () => {
 		const validateSearch = (
 			Route as unknown as {
 				validateSearch: (

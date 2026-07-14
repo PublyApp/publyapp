@@ -100,7 +100,7 @@ import { ProfileFormDrawer } from './profiles/_profile-form-drawer';
 export type StaffTenantProfileTypeFilter = 'true' | 'false';
 export type StaffTenantProfilesViewMode = 'cards' | 'table';
 
-type StaffTenantProfilesSearchParams = TableSearchParams & {
+export type StaffTenantProfilesSearchParams = TableSearchParams & {
 	new?: 1;
 	/** Snake_case + a REAL boolean: this object IS the route search state the
 	 * router serializes into the URL — a camelCase key would leak into the URL,
@@ -108,7 +108,7 @@ type StaffTenantProfilesSearchParams = TableSearchParams & {
 	is_default?: boolean;
 	view?: 'table';
 };
-type StaffTenantProfilesSearchParamInput = TableSearchParamInput & {
+export type StaffTenantProfilesSearchParamInput = TableSearchParamInput & {
 	new?: unknown;
 	is_default?: unknown;
 	view?: unknown;
@@ -153,7 +153,7 @@ export const parseStaffTenantProfilesViewMode = (
 ): StaffTenantProfilesViewMode =>
 	normalizeUnknownString(value)?.toLowerCase() === 'table' ? 'table' : 'cards';
 
-const parseStaffTenantProfilesSearchParams = (
+export const parseStaffTenantProfilesSearchParams = (
 	search: StaffTenantProfilesSearchParamInput,
 ): StaffTenantProfilesSearchParams => {
 	const base = parseTableSearchParams(search);
@@ -173,7 +173,7 @@ const parseStaffTenantProfilesSearchParams = (
 	};
 };
 
-const serializeStaffTenantProfilesSearchParams = (
+export const serializeStaffTenantProfilesSearchParams = (
 	params: StaffTenantProfilesSearchParams,
 ): Record<string, string | number | boolean | undefined> => {
 	const next = serializeTableSearchParams(params);
