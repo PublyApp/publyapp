@@ -13,10 +13,11 @@ import {
 	getFailureMessage,
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
+import { MAX_UPLOAD_BYTES } from '@org/shared-ts/lib/constants';
 
-/** Mirrors the server's accepted image types and `UPLOAD_MAX_BYTES` default
- * (apps/api/Lib/AppEnvironment.cs) as a client-side courtesy check — the
- * server stays authoritative and re-validates by magic-byte sniffing. */
+/** Mirrors the server's accepted image types (apps/api/Lib/AppEnvironment.cs)
+ * as a client-side courtesy check — the server stays authoritative and
+ * re-validates by magic-byte sniffing. */
 const ACCEPTED_MIME_TYPES = [
 	'image/png',
 	'image/jpeg',
@@ -24,7 +25,6 @@ const ACCEPTED_MIME_TYPES = [
 	'image/gif',
 ];
 const ACCEPT_ATTR = ACCEPTED_MIME_TYPES.join(',');
-const MAX_UPLOAD_BYTES = 2_000_000;
 
 export type FieldImageUploadProps = {
 	name: string;
@@ -79,6 +79,8 @@ export const FieldImageUpload = ({
 								const url = result?.url;
 								if (url) {
 									field.onChange(resolveApiFileUrl(url));
+								} else {
+									setLocalError(t('logo-upload-failed'));
 								}
 							},
 							onError: (uploadError) => {

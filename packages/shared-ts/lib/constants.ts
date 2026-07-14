@@ -454,3 +454,15 @@ export const MAX_PROFILES_PER_ACCOUNT = 5;
  * TenantUserCompanyActionsForStaff handler. Keep the two values in sync.
  */
 export const BULK_ACTION_MAX_COUNT = 100;
+
+/**
+ * Client-side courtesy limit for staff image uploads (avatar/logo). Mirrors
+ * `AppEnvironment.Instance.UPLOAD_MAX_BYTES`'s default
+ * (`apps/api/Lib/AppEnvironment.cs`) so the client rejects an oversized file
+ * before spending an upload round-trip — the server's env-configured value
+ * stays authoritative and re-validates independently. Unlike
+ * `BULK_ACTION_MAX_COUNT`, the server value is runtime-configurable, so this
+ * constant can silently drift from a raised/lowered server limit; keep the
+ * two in sync by hand if `UPLOAD_MAX_BYTES`'s default ever changes.
+ */
+export const MAX_UPLOAD_BYTES = 2_000_000;

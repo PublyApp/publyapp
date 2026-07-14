@@ -178,6 +178,33 @@ describe('Field.ImageUpload', () => {
 		);
 	});
 
+	test('surfaces an inline error when a successful upload response has no url (r3-tests-F15)', async () => {
+		mocks.useUploadStaffImageMutation.mockReturnValue({
+			mutate: (
+				_input: unknown,
+				opts: { onSuccess: (result: { url?: string }) => void },
+			) => {
+				opts.onSuccess({});
+			},
+			isPending: false,
+		});
+
+		render(<ImageUploadHarness />);
+
+		const input = screen.getByLabelText('Logo') as HTMLInputElement;
+		fireEvent.change(input, {
+			target: { files: [buildFile('logo.png', 1000)] },
+		});
+
+		await waitFor(() => {
+			expect(
+				screen.getByText("Couldn't upload the image. Please try again."),
+			).toBeTruthy();
+		});
+		expect(screen.getByTestId('logo-url-value').textContent).toBe('');
+		expect(screen.getByTestId('is-dirty').textContent).toBe('false');
+	});
+
 	test('surfaces a server upload failure inline', async () => {
 		mocks.useUploadStaffImageMutation.mockReturnValue({
 			mutate: (
