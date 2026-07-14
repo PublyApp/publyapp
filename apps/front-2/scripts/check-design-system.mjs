@@ -918,22 +918,30 @@ export const scanFront2DesignSystem = async ({
 	checkTokenGuards = false,
 } = {}) => {
 	const files = [];
+	const emptyDirs = [];
 	for (const dir of sourceDirs) {
-		if (await pathExists(dir)) {
-			files.push(...(await collectFiles(dir)));
+		const dirFiles = (await pathExists(dir)) ? await collectFiles(dir) : [];
+		if (dirFiles.length === 0) {
+			emptyDirs.push(dir);
 		}
+		files.push(...dirFiles);
 	}
 
-	// Vacuity check (F6): a missing/renamed source directory previously made
-	// `pathExists` false, so `files` silently stayed empty and the guard
-	// exited 0 having scanned nothing. Throw instead of returning `[]`, so a
-	// vacuous scan is a hard failure, not a false "pass".
-	if (files.length === 0) {
+	// Vacuity check (F6, widened per-directory by r3-F4): a missing/renamed
+	// source directory previously made `pathExists` false for just that one
+	// directory, so `files` overall could still be non-empty (e.g. `src/`
+	// alone contributes ~300 files) and the guard exited 0 having silently
+	// scanned nothing from the missing directory — invisible to rules whose
+	// `appliesTo` only matches that directory (e.g. `no-single-star-route-glob`
+	// only applies under `e2e/`). Throw if ANY configured sourceDir
+	// contributed zero files, not just when the combined total is zero.
+	if (emptyDirs.length > 0) {
 		throw new Error(
-			`front-2 design-system guard scanned 0 files across ${sourceDirs.length} source ` +
-				`director${sourceDirs.length === 1 ? 'y' : 'ies'} (${sourceDirs.join(', ')}) — ` +
-				'the scan is vacuous. A renamed/missing source directory would cause exactly ' +
-				'this, and a vacuous scan always "passes" with 0 violations for the wrong reason.',
+			`front-2 design-system guard scanned 0 files from ${emptyDirs.length} of ` +
+				`${sourceDirs.length} source director${sourceDirs.length === 1 ? 'y' : 'ies'} ` +
+				`(${emptyDirs.join(', ')}) — the scan is vacuous for that directory. A ` +
+				'renamed/missing source directory would cause exactly this, and rules scoped ' +
+				'to that directory would silently pass with 0 violations for the wrong reason.',
 		);
 	}
 

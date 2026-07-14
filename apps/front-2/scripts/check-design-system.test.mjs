@@ -880,6 +880,25 @@ test('F6: does not throw when the scan finds at least one file', async () => {
 	assert.equal(violations.scannedFileCount, 1);
 });
 
+test('r3-F4: throws when one of several sourceDirs is missing, even though the combined total is non-zero', async () => {
+	const root = await makeFixture({
+		'src/example.tsx': '<div />',
+	});
+
+	// `src/` alone contributes a file, so the old combined `files.length === 0`
+	// check would never fire here — but `e2e/` was never created, so any rule
+	// scoped to `e2e/` (e.g. `no-single-star-route-glob`) silently scans
+	// nothing. This must still throw.
+	await assert.rejects(
+		() =>
+			scanFront2DesignSystem({
+				baseDir: root,
+				sourceDirs: [path.join(root, 'src'), path.join(root, 'e2e')],
+			}),
+		/scanned 0 files from 1 of 2 source directories/,
+	);
+});
+
 test('F7: self-pruning stale-debt check flags a guardDebt entry whose source text no longer appears in its file', async () => {
 	const root = await makeFixture({
 		'src/routes/authed/staff/example.tsx':
