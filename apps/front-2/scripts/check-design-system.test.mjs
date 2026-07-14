@@ -631,11 +631,24 @@ test('r5-ui-F2: flags a raw colour literal in a shadow-[] arbitrary utility, not
 	);
 });
 
+// W5-PROOF: the original version of this test put both fixture lines in a
+// `<property>: color-mix(...)` CSS declaration, which the pre-existing
+// RAW_COLOR_PROPERTY_HEX_PATTERN_MULTILINE/RAW_COLOR_PROPERTY_RGBA_PATTERN_MULTILINE
+// scanners already flag on their own — their `[^;]*` infix tolerance matches
+// straight through `color-mix(in srgb, ` to the `#fff`/`rgba(` operand
+// beyond it, with no awareness that `color-mix` is even present. Deleting
+// COLOR_MIX_RAW_OPERAND_PATTERN left the test green, so it never proved the
+// new detector does anything. This fixture instead puts the exact same
+// operand shapes inside a plain template-literal assignment in a .tsx file —
+// no CSS property name, no custom-property prefix, no Tailwind arbitrary
+// bracket, no quote immediately before the colour function (the one shape
+// QUOTED_DIRECT_COLOR_PATTERN would catch) — so only
+// COLOR_MIX_RAW_OPERAND_PATTERN can see the raw operand.
 test('r5-ui-F2: flags color-mix() whose operand is a raw hex/rgba literal, not a token reference', async () => {
 	const root = await makeFixture({
-		'src/styles/other.css': [
-			'.a { background: color-mix(in srgb, #fff 25%, transparent); }',
-			'.b { border-color: color-mix(in srgb, rgba(0, 0, 0, 0.4) 10%, white); }',
+		'src/components/table/data-table.tsx': [
+			'const glowA = `color-mix(in srgb, #fff 25%, transparent)`;',
+			'const glowB = `color-mix(in srgb, rgba(0, 0, 0, 0.4) 10%, white)`;',
 		].join('\n'),
 	});
 
@@ -646,16 +659,11 @@ test('r5-ui-F2: flags color-mix() whose operand is a raw hex/rgba literal, not a
 	const colorViolations = violations.filter(
 		(violation) => violation.ruleId === 'no-raw-visual-color',
 	);
-	// Each line trips both the new colour-mix-operand detector AND the
-	// pre-existing hex/rgba property-value detector (whose multiline variant
-	// scans the whole `;`-terminated declaration, not just the text
-	// immediately after the colon) — asserting distinct flagged lines rather
-	// than a raw match count keeps this test independent of that overlap.
 	const flaggedLines = new Set(
 		colorViolations.map((violation) => violation.line),
 	);
 
-	assert.ok(colorViolations.length >= 2, 'both lines produce at least one hit');
+	assert.equal(colorViolations.length, 2);
 	assert.deepEqual([...flaggedLines].sort(), [1, 2]);
 });
 
