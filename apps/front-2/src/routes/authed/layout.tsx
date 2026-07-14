@@ -259,7 +259,7 @@ const AuthedLayoutErrorBoundary = ({
 	return (
 		<AppErrorView
 			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-			code="500 — Server Error"
+			code={t('error-500-code')}
 			title={t('something-went-wrong')}
 			description={t('problem-loading-page')}
 			actions={
@@ -405,7 +405,7 @@ function AuthedRouteLayout() {
 		return (
 			<AppErrorView
 				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-				code="500 — Server Error"
+				code={t('error-500-code')}
 				title={t('something-went-wrong')}
 				description={t('problem-loading-page')}
 				actions={
