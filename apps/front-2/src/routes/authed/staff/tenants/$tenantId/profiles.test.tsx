@@ -397,6 +397,43 @@ describe('staff tenant profiles route', () => {
 		expect(lastCall?.search).toMatchObject({ q: 'an' });
 	});
 
+	// tenants-r6-F2: entering selection mode must freeze the query that
+	// defines the destructive bulk-action target set — a still-pending
+	// search debounce or a still-clickable type filter can silently change
+	// which rows a bulk action would hit right after selection.
+	test('selecting a row while a search commit is pending cancels the pending debounce (tenants-r6-F2)', async () => {
+		mocks.search = { view: 'table' };
+		renderPage();
+
+		fireEvent.change(screen.getByTestId('staff-tenant-profiles-grid-search'), {
+			target: { value: 'an' },
+		});
+		fireEvent.click(screen.getByRole('checkbox', { name: 'Select all rows' }));
+
+		await new Promise((resolve) => setTimeout(resolve, 350));
+
+		expect(mocks.navigate).not.toHaveBeenCalledWith(
+			expect.objectContaining({
+				search: expect.objectContaining({ q: 'an' }),
+			}),
+		);
+	});
+
+	test('disables the type filter trigger while a row is selected (tenants-r6-F2)', () => {
+		mocks.search = { view: 'table' };
+		renderPage();
+
+		fireEvent.click(screen.getByRole('checkbox', { name: 'Select all rows' }));
+
+		expect(
+			(
+				screen.getByTestId(
+					'staff-tenant-profiles-grid-type-filter-trigger',
+				) as HTMLButtonElement
+			).disabled,
+		).toBe(true);
+	});
+
 	test('shows the honest profiles count next to the tab title', () => {
 		renderPage();
 

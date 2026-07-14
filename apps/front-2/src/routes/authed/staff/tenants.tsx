@@ -11,10 +11,13 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
-import { DataTable } from '~/components/table/data-table';
+import {
+	DataTable,
+	SELECTION_LOCKED_TITLE_KEY,
+} from '~/components/table/data-table';
 import {
 	FLOATING_SELECTION_BAR_ACTION_BUTTON_CLASS_NAME,
 	FloatingSelectionBar,
@@ -93,9 +96,11 @@ const formatTenantStatusFilterLabel = (
 const TenantStatusFilterMenu = ({
 	value,
 	onChange,
+	disabled,
 }: {
 	value: TenantStatusFilter | undefined;
 	onChange: (next: TenantStatusFilter | undefined) => void;
+	disabled?: boolean;
 }) => {
 	const { t } = useTranslation('common');
 	const label = formatTenantStatusFilterLabel(value, t);
@@ -109,6 +114,8 @@ const TenantStatusFilterMenu = ({
 						variant="outline"
 						className="publy-data-table-filter-button max-w-64 text-[13px]"
 						data-testid="staff-tenants-table-status-filter-trigger"
+						disabled={disabled}
+						title={disabled ? t(SELECTION_LOCKED_TITLE_KEY) : undefined}
 					/>
 				}
 			>
@@ -273,6 +280,21 @@ function StaffTenantsPage() {
 	});
 	const rows = toStaffTenantRows(query.data?.data);
 	const selection = useRowSelection(rows.map((row) => row.id));
+
+	// tenants-r6-F2: freeze the destructive selection target set — a pending
+	// search debounce or a still-clickable status filter can silently swap
+	// out which rows a bulk action will hit after the user has already
+	// selected them. Cancel the pending search commit the moment selection
+	// mode starts (mirrors invitations/index.tsx, staff-users.tsx,
+	// profiles.tsx); the status filter trigger below is disabled for the
+	// same reason.
+	const { resetDraftToCommitted } = controller.search;
+	useEffect(() => {
+		if (selection.isSelectionMode) {
+			resetDraftToCommitted();
+		}
+	}, [selection.isSelectionMode, resetDraftToCommitted]);
+
 	const onSessionExpired = useCallback(() => setShouldLogout(true), []);
 	const onRowActionFeedback = useCallback(
 		(feedback: TenantBulkFeedback) => setBulkFeedback(feedback),
@@ -354,6 +376,7 @@ function StaffTenantsPage() {
 					<TenantStatusFilterMenu
 						value={search.status}
 						onChange={setStatusFilter}
+						disabled={selection.isSelectionMode}
 					/>
 				}
 			/>

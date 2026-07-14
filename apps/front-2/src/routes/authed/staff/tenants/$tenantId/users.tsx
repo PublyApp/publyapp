@@ -17,11 +17,14 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
-import { DataTable } from '~/components/table/data-table';
+import {
+	DataTable,
+	SELECTION_LOCKED_TITLE_KEY,
+} from '~/components/table/data-table';
 import {
 	FLOATING_SELECTION_BAR_ACTION_BUTTON_CLASS_NAME,
 	FloatingSelectionBar,
@@ -560,6 +563,18 @@ function StaffTenantUsersPage() {
 
 	const rows = toStaffTenantUserRows(usersQuery.data?.data);
 	const selection = useRowSelection(rows.map((row) => row.id));
+
+	// tenants-r6-F2: freeze the destructive selection target set — cancel a
+	// pending search commit the moment selection mode starts (mirrors
+	// invitations/index.tsx, staff-users.tsx, profiles.tsx); the level/status
+	// filter triggers above are disabled for the same reason.
+	const { resetDraftToCommitted } = controller.search;
+	useEffect(() => {
+		if (selection.isSelectionMode) {
+			resetDraftToCommitted();
+		}
+	}, [selection.isSelectionMode, resetDraftToCommitted]);
+
 	const onUserSessionExpired = useCallback(() => setShouldLogout(true), []);
 	const columns = useMemo(
 		() =>
@@ -768,6 +783,12 @@ function StaffTenantUsersPage() {
 										variant="outline"
 										className="publy-data-table-filter-button max-w-64 text-[13px]"
 										data-testid="staff-tenant-users-level-filter-trigger"
+										disabled={selection.isSelectionMode}
+										title={
+											selection.isSelectionMode
+												? t(SELECTION_LOCKED_TITLE_KEY)
+												: undefined
+										}
 									/>
 								}
 							>
@@ -813,6 +834,12 @@ function StaffTenantUsersPage() {
 										variant="outline"
 										className="publy-data-table-filter-button max-w-64 text-[13px]"
 										data-testid="staff-tenant-users-status-filter-trigger"
+										disabled={selection.isSelectionMode}
+										title={
+											selection.isSelectionMode
+												? t(SELECTION_LOCKED_TITLE_KEY)
+												: undefined
+										}
 									/>
 								}
 							>

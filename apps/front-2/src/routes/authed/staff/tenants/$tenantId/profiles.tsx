@@ -22,7 +22,7 @@ import type { Icon } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -697,10 +697,12 @@ const ProfileTypeFilter = ({
 	value,
 	onChange,
 	testId,
+	disabled,
 }: {
 	value: StaffTenantProfileTypeFilter | undefined;
 	onChange: (next: StaffTenantProfileTypeFilter | undefined) => void;
 	testId: string;
+	disabled?: boolean;
 }) => {
 	const { t } = useTranslation('common');
 	const label = formatProfileTypeFilterLabel(value, t);
@@ -714,6 +716,8 @@ const ProfileTypeFilter = ({
 						variant="outline"
 						className="publy-data-table-filter-button max-w-64 text-[13px]"
 						data-testid={`${testId}-type-filter-trigger`}
+						disabled={disabled}
+						title={disabled ? t(SELECTION_LOCKED_TITLE_KEY) : undefined}
 					/>
 				}
 			>
@@ -847,6 +851,18 @@ function StaffTenantProfilesPage() {
 
 	const rows = toStaffTenantProfileRows(profilesQuery.data?.data);
 	const selection = useRowSelection(rows.map((row) => row.id));
+
+	// tenants-r6-F2: freeze the destructive selection target set — cancel a
+	// pending search commit the moment selection mode starts (mirrors
+	// invitations/index.tsx, staff-users.tsx, staff/profiles.tsx); the type
+	// filter trigger below is disabled for the same reason.
+	const { resetDraftToCommitted } = controller.search;
+	useEffect(() => {
+		if (selection.isSelectionMode) {
+			resetDraftToCommitted();
+		}
+	}, [selection.isSelectionMode, resetDraftToCommitted]);
+
 	const columns = useMemo(
 		() => makeTenantProfileColumns(tenantId, t, setDeleteTarget),
 		[tenantId, t, setDeleteTarget],
@@ -954,6 +970,7 @@ function StaffTenantProfilesPage() {
 				value={toStaffTenantProfileTypeFilterString(search.is_default)}
 				onChange={setTypeFilter}
 				testId={testId}
+				disabled={selection.isSelectionMode}
 			/>
 			<ProfileViewToggle view={view} onChange={setView} testId={testId} />
 		</div>

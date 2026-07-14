@@ -383,6 +383,45 @@ describe('staff tenants route', () => {
 		expect(lastCall?.search).toMatchObject({ status: 'active', q: 'an' });
 	});
 
+	// tenants-r6-F2: entering selection mode must freeze the query that
+	// defines the destructive bulk-action target set — a still-pending
+	// search debounce or a still-clickable status filter can silently
+	// change which rows a bulk action would hit right after selection.
+	test('selecting a row while a search commit is pending cancels the pending debounce (tenants-r6-F2)', async () => {
+		renderPage();
+
+		fireEvent.change(screen.getByTestId('staff-tenants-table-search'), {
+			target: { value: 'an' },
+		});
+		fireEvent.click(
+			screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
+		);
+
+		await new Promise((resolve) => setTimeout(resolve, 350));
+
+		expect(mocks.navigate).not.toHaveBeenCalledWith(
+			expect.objectContaining({
+				search: expect.objectContaining({ q: 'an' }),
+			}),
+		);
+	});
+
+	test('disables the status filter trigger while a row is selected (tenants-r6-F2)', () => {
+		renderPage();
+
+		fireEvent.click(
+			screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
+		);
+
+		expect(
+			(
+				screen.getByTestId(
+					'staff-tenants-table-status-filter-trigger',
+				) as HTMLButtonElement
+			).disabled,
+		).toBe(true);
+	});
+
 	test('a debounced search commit does not revert a status filter cleared within the debounce window (r3-F1)', async () => {
 		mocks.search = { status: 'active' };
 		const renderResult = renderPage();

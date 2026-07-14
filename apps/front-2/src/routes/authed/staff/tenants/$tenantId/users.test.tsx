@@ -432,6 +432,48 @@ describe('staff tenant users route', () => {
 		expect(lastCall?.search).toMatchObject({ q: 'an' });
 	});
 
+	// tenants-r6-F2: entering selection mode must freeze the query that
+	// defines the destructive bulk-action target set — a still-pending
+	// search debounce or a still-clickable level/status filter can silently
+	// change which rows a bulk action would hit right after selection.
+	test('selecting a row while a search commit is pending cancels the pending debounce (tenants-r6-F2)', async () => {
+		renderPage();
+
+		fireEvent.change(screen.getByTestId('staff-tenant-users-table-search'), {
+			target: { value: 'an' },
+		});
+		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
+
+		await new Promise((resolve) => setTimeout(resolve, 350));
+
+		expect(mocks.navigate).not.toHaveBeenCalledWith(
+			expect.objectContaining({
+				search: expect.objectContaining({ q: 'an' }),
+			}),
+		);
+	});
+
+	test('disables the level and status filter triggers while a row is selected (tenants-r6-F2)', () => {
+		renderPage();
+
+		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
+
+		expect(
+			(
+				screen.getByTestId(
+					'staff-tenant-users-level-filter-trigger',
+				) as HTMLButtonElement
+			).disabled,
+		).toBe(true);
+		expect(
+			(
+				screen.getByTestId(
+					'staff-tenant-users-status-filter-trigger',
+				) as HTMLButtonElement
+			).disabled,
+		).toBe(true);
+	});
+
 	test('renders default filter controls when handed an already-canonicalized search (URL-level proof: deep-link-canonicalization.test.tsx)', () => {
 		const validateSearch = (
 			Route as unknown as {
