@@ -31,6 +31,8 @@ import {
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
+import { ChangeStaffUserEmailDialog } from './_change-email-dialog';
+
 const ACCOUNT_LEVEL_OPTIONS = ['Admin', 'User'] as const;
 const STATUS_OPTIONS = ['Active', 'Suspended'] as const;
 
@@ -193,6 +195,7 @@ function StaffUserEditPage() {
 	const { t } = useTranslation('common');
 	const [shouldLogout, setShouldLogout] = useState(false);
 	const [serverError, setServerError] = useState('');
+	const [isChangeEmailOpen, setIsChangeEmailOpen] = useState(false);
 
 	const detailsQuery = useStaffUserDetailsQuery(
 		{ userId },
@@ -460,13 +463,22 @@ function StaffUserEditPage() {
 							placeholder={t('last-name')}
 							isDisabled={isSubmittingForm}
 						/>
-						{/* TODO(contract): email updates use the separate email endpoint. */}
-						<Field.Email
-							name="email"
-							label={t('email-address')}
-							helperText={t('email-managed-separately')}
-							isDisabled
-						/>
+						<div className="space-y-2">
+							<Field.Email
+								name="email"
+								label={t('email-address')}
+								helperText={t('email-managed-separately')}
+								isDisabled
+							/>
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								onClick={() => setIsChangeEmailOpen(true)}
+							>
+								{t('change-email')}
+							</Button>
+						</div>
 						<Field.Text
 							name="avatarUrl"
 							label={t('avatar-url')}
@@ -561,6 +573,14 @@ function StaffUserEditPage() {
 					</Button>
 				</FormActionBar>
 			</Form>
+			<ChangeStaffUserEmailDialog
+				userId={userId}
+				currentEmail={user?.email ?? ''}
+				isOpen={isChangeEmailOpen}
+				onOpenChange={setIsChangeEmailOpen}
+				onUpdated={() => setIsChangeEmailOpen(false)}
+				onSessionExpired={() => setShouldLogout(true)}
+			/>
 		</FormPageLayout>
 	);
 }

@@ -1089,6 +1089,8 @@
 	"edit-staff-user-description": "Update this staff user’s identity, access, and security settings.",
 	"access": "Access",
 	"email-managed-separately": "Email changes are managed separately.",
+	"change-staff-user-email-description": "Send this user a new sign-in email address. They will use it the next time they sign in.",
+	"update-staff-user-email-failed": "Unable to update this user's email.",
 	"status-managed-from-details": "Status changes are managed from the user details screen.",
 	"no-profiles-available": "No profiles are available.",
 	"security-preferences-not-available": "Not available — security preferences are not yet exposed by the API",

@@ -7,6 +7,7 @@ import {
 	render,
 	screen,
 	waitFor,
+	within,
 } from '@testing-library/react';
 import * as React from 'react';
 import { createElement, type JSX, type ReactNode } from 'react';
@@ -24,8 +25,10 @@ const mocks = vi.hoisted(() => ({
 	useStaffProfilesQuery: vi.fn(),
 	useUpdateStaffUserMutation: vi.fn(),
 	useUpdateStaffUserProfilesMutation: vi.fn(),
+	useUpdateStaffUserEmailMutation: vi.fn(),
 	updateStaffUser: vi.fn(),
 	updateStaffUserProfiles: vi.fn(),
+	updateStaffUserEmail: vi.fn(),
 	invalidateQueries: vi.fn(),
 	navigate: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
@@ -133,6 +136,7 @@ vi.mock('react-i18next', () => ({
 			const labels: Record<string, string> = {
 				'back-to-user': 'Back to staff user',
 				'email-address': 'Email address',
+				'email-managed-separately': 'Email changes are managed separately.',
 				'account-level': 'Role',
 				'first-name': 'First name',
 				'last-name': 'Last name',
@@ -150,10 +154,18 @@ vi.mock('react-i18next', () => ({
 				'edit-staff-user': 'Edit staff user',
 				'invalid-url': 'Invalid URL',
 				'showing-first-n-profiles': 'Showing the first profiles.',
+				'change-email': 'Change email',
+				'change-staff-user-email-description':
+					'Send this user a new sign-in email address.',
+				email: 'Email',
+				'email-required': 'Email is required.',
+				'invalid-email-address': 'Invalid email address',
+				'update-staff-user-email-failed': "Unable to update this user's email.",
 			};
 
 			return labels[key] ?? key;
 		},
+		i18n: { language: 'en' },
 	}),
 }));
 
@@ -320,6 +332,7 @@ vi.mock('~/lib/query/staff-users', () => ({
 		getProfileState(userId),
 	useUpdateStaffUserMutation: mocks.useUpdateStaffUserMutation,
 	useUpdateStaffUserProfilesMutation: mocks.useUpdateStaffUserProfilesMutation,
+	useUpdateStaffUserEmailMutation: mocks.useUpdateStaffUserEmailMutation,
 }));
 
 vi.mock('~/lib/query/staff-profiles', () => ({
@@ -356,6 +369,10 @@ describe('staff user edit route', () => {
 		});
 		mocks.useUpdateStaffUserProfilesMutation.mockReturnValue({
 			mutateAsync: mocks.updateStaffUserProfiles,
+			isPending: false,
+		});
+		mocks.useUpdateStaffUserEmailMutation.mockReturnValue({
+			mutateAsync: mocks.updateStaffUserEmail,
 			isPending: false,
 		});
 
@@ -586,6 +603,34 @@ describe('staff user edit route', () => {
 		);
 		expect(screen.getByText('Publishing')).toBeTruthy();
 		expect(screen.getByText('Billing')).toBeTruthy();
+	});
+
+	// users-auth-r6-F4: the disabled email field must have a real route to
+	// the update-email endpoint, not just a "managed separately" dead end.
+	test('the Change email button opens a dialog that updates the email via the dedicated mutation', async () => {
+		mocks.updateStaffUserEmail.mockResolvedValue({ id: USER_A });
+
+		renderPage();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Change email' }));
+
+		const dialog = within(screen.getByTestId('change-staff-user-email-dialog'));
+		expect((dialog.getByLabelText('Email') as HTMLInputElement).value).toBe(
+			'alex@example.com',
+		);
+
+		fireEvent.change(dialog.getByLabelText('Email'), {
+			target: { value: 'alex-new@example.com' },
+		});
+		fireEvent.click(dialog.getByRole('button', { name: 'Save changes' }));
+
+		await waitFor(() =>
+			expect(mocks.updateStaffUserEmail).toHaveBeenCalledWith({
+				userId: USER_A,
+				email: 'alex-new@example.com',
+			}),
+		);
+		expect(mocks.invalidateQueries).toHaveBeenCalled();
 	});
 
 	test('does not hint at a truncated profile list when the profiles query has no further cursor', () => {

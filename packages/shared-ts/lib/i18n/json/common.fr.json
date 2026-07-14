@@ -1089,6 +1089,8 @@
 	"edit-staff-user-description": "Mettez à jour l’identité, l’accès et les paramètres de sécurité de ce membre du personnel.",
 	"access": "Accès",
 	"email-managed-separately": "Les modifications d’e-mail sont gérées séparément.",
+	"change-staff-user-email-description": "Envoyez à cet utilisateur une nouvelle adresse e-mail de connexion. Il l’utilisera lors de sa prochaine connexion.",
+	"update-staff-user-email-failed": "Impossible de mettre à jour l’e-mail de cet utilisateur.",
 	"status-managed-from-details": "Les modifications de statut sont gérées depuis l’écran de détails de l’utilisateur.",
 	"no-profiles-available": "Aucun profil n’est disponible.",
 	"security-preferences-not-available": "Non disponible — les préférences de sécurité ne sont pas encore exposées par l’API.",
