@@ -667,6 +667,61 @@ test('r5-ui-F2: flags color-mix() whose operand is a raw hex/rgba literal, not a
 	assert.deepEqual([...flaggedLines].sort(), [1, 2]);
 });
 
+// W5-HARDEN (W5-VERIFY2): three evasions different in shape from the
+// original raw-hex/rgba fixture above, all planted by the verifier and all
+// invisible to the old whole-expression regex (`[^)]*` stopped at the first
+// nested `)`, and the pattern never recognised a bare named colour or a
+// `color()` function at all):
+//  - a raw colour as the SECOND operand, after a var() first operand;
+//  - a bare named CSS colour keyword (`white`) with no function wrapper;
+//  - a `color(display-p3 ...)` function operand.
+test('r5-ui-F2 (hardened): flags a raw second operand after var(), a bare named colour, and color()', async () => {
+	const root = await makeFixture({
+		'src/components/table/data-table.tsx': [
+			'const rawSecondOperand = `color-mix(in srgb, var(--primary) 50%, #ffffff)`;',
+			'const namedRawOperand = `color-mix(in srgb, white 25%, transparent)`;',
+			'const colorFunctionOperand = `color-mix(in srgb, color(display-p3 1 0 0) 25%, transparent)`;',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+	const colorViolations = violations.filter(
+		(violation) => violation.ruleId === 'no-raw-visual-color',
+	);
+	const flaggedLines = new Set(
+		colorViolations.map((violation) => violation.line),
+	);
+
+	assert.equal(colorViolations.length, 3);
+	assert.deepEqual([...flaggedLines].sort(), [1, 2, 3]);
+});
+
+// A color-mix() whose colour-interpolation clause (`in oklab`) and every
+// operand is a var()/theme-invariant keyword must still be clean — the
+// operand parser must not regress into flagging the safe case it exists to
+// permit.
+test('r5-ui-F2 (hardened): does not flag a fully token-referencing color-mix()', async () => {
+	const root = await makeFixture({
+		'src/components/table/data-table.tsx':
+			'const glow = `color-mix(in oklab, var(--publy-primary) 25%, transparent)`;',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.deepEqual(
+		violations.filter(
+			(violation) => violation.ruleId === 'no-raw-visual-color',
+		),
+		[],
+	);
+});
+
 test('r4-ui-F3: token-theme-parity flags a light-only root oklch() token with no html.dark counterpart', async () => {
 	const root = await makeFixture({
 		'src/styles/app.css': [
@@ -1694,6 +1749,65 @@ test('F3: the real app.css token layer passes both guards with zero violations',
 			(violation) =>
 				violation.ruleId === 'token-theme-parity' ||
 				violation.ruleId === 'token-must-be-declared',
+		),
+		[],
+	);
+});
+
+// W5-HARDEN: reason-quality alone can't stop `aaa` becoming a "substantive"
+// reason wordier than the bar requires — the structural backstop is this
+// inventory diff. A design-system-ignore comment that isn't in
+// suppression-inventory.json (planted here, never regenerated) must fail.
+test('checkSuppressionInventory: an undocumented design-system-ignore suppression fails the guard', async () => {
+	const root = await makeFixture({
+		'src/components/table/data-table.tsx': [
+			'{/* design-system-ignore: no-rounded-full-or-999-radius a brand new undocumented reason */}',
+			'<div className="rounded-full" />',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+		checkSuppressionInventory: true,
+	});
+
+	assert.ok(
+		violations.some(
+			(violation) => violation.ruleId === 'suppression-inventory-drift',
+		),
+	);
+});
+
+test('checkSuppressionInventory: is opt-in — off by default so ordinary fixtures are not misjudged against the real inventory', async () => {
+	const root = await makeFixture({
+		'src/components/table/data-table.tsx': [
+			'{/* design-system-ignore: no-rounded-full-or-999-radius a brand new undocumented reason */}',
+			'<div className="rounded-full" />',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.deepEqual(
+		violations.filter(
+			(violation) => violation.ruleId === 'suppression-inventory-drift',
+		),
+		[],
+	);
+});
+
+test('checkSuppressionInventory: the real repo has zero drift against the committed inventory', async () => {
+	const violations = await scanFront2DesignSystem({
+		checkSuppressionInventory: true,
+	});
+
+	assert.deepEqual(
+		violations.filter(
+			(violation) => violation.ruleId === 'suppression-inventory-drift',
 		),
 		[],
 	);
