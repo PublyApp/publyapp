@@ -1,4 +1,4 @@
-import { IconCheck, IconCopy } from '@tabler/icons-react';
+import { IconAlertTriangle, IconCheck, IconCopy } from '@tabler/icons-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
@@ -65,6 +65,28 @@ export const CopyButton = ({
 		return copied ? t('copied') : t('copy');
 	};
 
+	const status = () => {
+		if (failed) {
+			return 'failed';
+		}
+		return copied ? 'copied' : 'idle';
+	};
+
+	const icon = () => {
+		if (failed) {
+			return (
+				<IconAlertTriangle
+					aria-hidden="true"
+					className="size-3.5 text-destructive"
+				/>
+			);
+		}
+		if (copied) {
+			return <IconCheck aria-hidden="true" className="size-3.5" />;
+		}
+		return <IconCopy aria-hidden="true" className="size-3.5" />;
+	};
+
 	return (
 		<Tooltip>
 			<TooltipTrigger
@@ -75,17 +97,15 @@ export const CopyButton = ({
 						size="icon-sm"
 						aria-label={label}
 						data-testid={testId}
+						data-state={status()}
+						aria-live="polite"
 						onClick={() => {
 							void handleCopy();
 						}}
 					/>
 				}
 			>
-				{copied ? (
-					<IconCheck aria-hidden="true" className="size-3.5" />
-				) : (
-					<IconCopy aria-hidden="true" className="size-3.5" />
-				)}
+				{icon()}
 			</TooltipTrigger>
 			<TooltipContent>{tooltipLabel()}</TooltipContent>
 		</Tooltip>

@@ -25,15 +25,15 @@
 	--color-destructive: var(--destructive);
 	--color-success: var(--publy-success);
 	--color-warning: var(--publy-warning);
+	/* --color-content1/--color-divider are legacy HeroUI-era semantic names
+	   (bg-content1/border-divider) still used by a handful of route files;
+	   --color-content2/--color-content3/--color-default had zero usages
+	   anywhere and are gone (F10). */
 	--color-content1: var(--publy-surface);
-	--color-content2: var(--publy-surface-raised);
-	--color-content3: var(--publy-surface-muted);
-	--color-default: var(--publy-surface-muted);
 	--color-ring: var(--ring);
 	--color-input: var(--input);
 	--color-border: var(--border);
 	--color-divider: var(--publy-border);
-	--color-focus: var(--publy-focus-ring);
 	--radius-sm: calc(var(--radius) * 0.6);
 	--radius-md: calc(var(--radius) * 0.8);
 	--radius-lg: var(--radius);
@@ -65,7 +65,7 @@
 	--destructive: var(--publy-danger);
 	--border: var(--publy-border);
 	--input: var(--publy-border);
-	--ring: var(--publy-foreground-subtle);
+	--ring: var(--publy-focus-ring);
 	--radius: 0.625rem;
 	--publy-font-sans: Geist, ui-sans-serif, system-ui, sans-serif;
 	--publy-font-mono:
@@ -146,6 +146,8 @@
 	--publy-radius-medium-control: 12px;
 	--publy-radius-circular: 999px;
 	--publy-radius-control: 14px;
+	/* Dropdown/context menu items (conventions.md spec.json radii.menuItem). */
+	--publy-radius-menu-item: 9px;
 	--publy-radius-input: 10px;
 	--publy-modal-radius: 28px;
 	--publy-backdrop: rgba(24, 24, 27, 0.32);
@@ -201,12 +203,33 @@
 		0 2px 2px rgba(255, 255, 255, 0.1) inset,
 		0 2px 2.67px -0.67px rgba(42, 42, 42, 0.1),
 		0 0.67px 0.67px rgba(42, 42, 42, 0.08);
+	--publy-chrome-border: 1.33px solid rgba(255, 255, 255, 0.12);
 	--publy-shadow-selection-bar:
 		0 20px 25px -5px rgb(0 0 0 / 0.15), 0 8px 10px -6px rgb(0 0 0 / 0.15);
 	--publy-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
 	--publy-motion-fast: 120ms;
 	--accent: var(--publy-primary);
 	--accent-foreground: var(--publy-primary-foreground);
+	/* Profile icon-tile tone palette (F13/F3): named so the per-`data-tone`
+	   component rules below can reference them instead of repeating the
+	   literal hex values, which lets token-theme-parity (not a bespoke
+	   per-selector check) verify every tone has a dark counterpart. */
+	--publy-profile-tone-0-bg: #f0f9ff;
+	--publy-profile-tone-0-fg: #0369a1;
+	--publy-profile-tone-1-bg: #ecfdf5;
+	--publy-profile-tone-1-fg: #047857;
+	--publy-profile-tone-2-bg: #fef2f2;
+	--publy-profile-tone-2-fg: #be123c;
+	--publy-profile-tone-3-bg: #fffbeb;
+	--publy-profile-tone-3-fg: #b45309;
+	--publy-profile-tone-4-bg: #f5f3ff;
+	--publy-profile-tone-4-fg: #7c3aed;
+	--publy-profile-tone-5-bg: #fdf2f8;
+	--publy-profile-tone-5-fg: #be185d;
+	--publy-profile-tone-6-bg: #f0fdf4;
+	--publy-profile-tone-6-fg: #15803d;
+	--publy-profile-tone-7-bg: #eff6ff;
+	--publy-profile-tone-7-fg: #1d4ed8;
 }
 
 html.dark {
@@ -294,6 +317,22 @@ html.dark {
 	--publy-selection-bar-hover: rgba(0, 0, 0, 0.08);
 	--publy-selection-bar-divider: rgba(0, 0, 0, 0.1);
 	--publy-selection-bar-muted: #71717a;
+	--publy-profile-tone-0-bg: #082f49;
+	--publy-profile-tone-0-fg: #38bdf8;
+	--publy-profile-tone-1-bg: #052e22;
+	--publy-profile-tone-1-fg: #34d399;
+	--publy-profile-tone-2-bg: #4c0519;
+	--publy-profile-tone-2-fg: #fb7185;
+	--publy-profile-tone-3-bg: #451a03;
+	--publy-profile-tone-3-fg: #fbbf24;
+	--publy-profile-tone-4-bg: #2e1065;
+	--publy-profile-tone-4-fg: #a78bfa;
+	--publy-profile-tone-5-bg: #500724;
+	--publy-profile-tone-5-fg: #f472b6;
+	--publy-profile-tone-6-bg: #052e16;
+	--publy-profile-tone-6-fg: #4ade80;
+	--publy-profile-tone-7-bg: #172554;
+	--publy-profile-tone-7-fg: #60a5fa;
 }
 
 @layer base {
@@ -555,8 +594,13 @@ html.dark {
 		color: var(--publy-foreground-subtle);
 	}
 
-	.app-shell-search-input:focus {
-		border-color: var(--publy-foreground-muted);
+	/* F8: keyed off the same --ring token the primitive inputs' `ring-ring`
+	   utility resolves to (see `--ring` in :root, wired to
+	   --publy-focus-ring), and :focus-visible (not :focus) so the ring only
+	   shows for keyboard focus, matching every other control in the app. */
+	.app-shell-search-input:focus-visible {
+		border-color: var(--ring);
+		box-shadow: 0 0 0 3px var(--ring);
 	}
 
 	.app-shell-secondary-nav {
@@ -742,18 +786,6 @@ html.dark {
 	}
 }
 
-/* Zeroes the scroller's own bottom padding for form pages so
-   .publy-form-action-bar's bottom padding is the only source of that space
-   (handoff 2b) — this has to live unlayered, next to the base .app-shell-main
-   rule it overrides, not inside `@layer components` alongside the bar's own
-   styles: Tailwind's cascade layers always lose to unlayered declarations
-   regardless of selector specificity, so a layered `:has()` override (even
-   with a more specific selector) can never beat this rule's plain `padding`
-   shorthand. */
-.app-shell-main:has(.publy-form-action-bar) {
-	padding-bottom: 0;
-}
-
 @layer components {
 	.app-shell-topbar-actions {
 		@apply flex items-center gap-2;
@@ -830,9 +862,7 @@ html.dark {
 		letter-spacing: 0;
 	}
 
-	.publy-type-table-cell,
-	.publy-type-metadata-value,
-	.publy-type-action {
+	.publy-type-metadata-value {
 		@apply text-sm leading-5;
 		color: var(--publy-foreground);
 	}
@@ -850,13 +880,6 @@ html.dark {
 
 	.publy-action-cluster {
 		@apply flex flex-wrap items-center gap-2;
-	}
-
-	.publy-metric-tile {
-		@apply flex items-center gap-3 p-4;
-		background: var(--publy-surface);
-		border-radius: var(--publy-radius-control);
-		box-shadow: var(--publy-shadow-ring);
 	}
 
 	.publy-status-pill {
@@ -1034,21 +1057,6 @@ html.dark {
 	.publy-icon-tile[data-tone='success'] {
 		background: var(--publy-chip-active-bg);
 		color: var(--publy-chip-active-text);
-	}
-
-	.publy-metadata-card {
-		@apply space-y-3 p-4;
-		background: var(--publy-surface);
-		border-radius: var(--publy-radius-control);
-		box-shadow: var(--publy-shadow-ring);
-	}
-
-	.publy-metadata-rows > * + * {
-		border-top-color: var(--publy-row-border);
-	}
-
-	.publy-metadata-rows {
-		@apply divide-y;
 	}
 
 	.publy-detail-row {
@@ -1241,11 +1249,15 @@ html.dark {
 	/* Reserves clearance so the last field of a form scrolls (and keyboard-
 	   focus scrolls) fully above the pinned action bar instead of resting
 	   underneath it. Height mirrors the bar: ~93px content (h-9 button +
-	   12px top/32px bottom padding + 1px border) plus a comfort margin. The
-	   scroller's own bottom padding is zeroed out (see `.app-shell-main:has`
-	   near its base rule, above, and the bar's comment above) since the bar
-	   now supplies that space itself. */
+	   12px top/32px bottom padding + 1px border) plus a comfort margin. Also
+	   zeroes the scroller's own bottom padding so the bar's own bottom
+	   padding (handoff 2b) is the only source of that space — both live in
+	   the same layered rule as the base `.app-shell-main` padding (`<main>`
+	   carries no Tailwind utility of its own), so this selector's higher
+	   specificity (0,2,0 vs 0,1,0) wins outright without needing to escape
+	   the layer. */
 	.app-shell-main:has(.publy-form-action-bar) {
+		padding-bottom: 0;
 		scroll-padding-bottom: 104px;
 	}
 
@@ -1939,7 +1951,7 @@ html.dark {
 .publy-row-actions-menu [data-slot='dropdown-menu-item'] {
 	height: 32px;
 	min-height: 32px;
-	border-radius: 9px;
+	border-radius: var(--publy-radius-menu-item);
 }
 
 .publy-row-actions-menu
@@ -1954,7 +1966,7 @@ html.dark {
    included — to the same 14px `--publy-radius-button` regardless of size
    (F6). The size variant already supplies the correct per-size radius. */
 .btn-primary-chrome {
-	border: 1.33px solid rgba(255, 255, 255, 0.12);
+	border: var(--publy-chrome-border);
 	box-shadow: var(--publy-shadow-chrome);
 }
 
@@ -2156,101 +2168,50 @@ html.dark {
 	of two byte-identical rule sets drifting apart. */
 	.publy-profile-icon-tile[data-tone='0'],
 	.publy-profile-detail-tile[data-tone='0'] {
-		--publy-icon-tile-bg: #f0f9ff;
-		--publy-icon-tile-fg: #0369a1;
+		--publy-icon-tile-bg: var(--publy-profile-tone-0-bg);
+		--publy-icon-tile-fg: var(--publy-profile-tone-0-fg);
 	}
 
 	.publy-profile-icon-tile[data-tone='1'],
 	.publy-profile-detail-tile[data-tone='1'] {
-		--publy-icon-tile-bg: #ecfdf5;
-		--publy-icon-tile-fg: #047857;
+		--publy-icon-tile-bg: var(--publy-profile-tone-1-bg);
+		--publy-icon-tile-fg: var(--publy-profile-tone-1-fg);
 	}
 
 	.publy-profile-icon-tile[data-tone='2'],
 	.publy-profile-detail-tile[data-tone='2'] {
-		--publy-icon-tile-bg: #fef2f2;
-		--publy-icon-tile-fg: #be123c;
+		--publy-icon-tile-bg: var(--publy-profile-tone-2-bg);
+		--publy-icon-tile-fg: var(--publy-profile-tone-2-fg);
 	}
 
 	.publy-profile-icon-tile[data-tone='3'],
 	.publy-profile-detail-tile[data-tone='3'] {
-		--publy-icon-tile-bg: #fffbeb;
-		--publy-icon-tile-fg: #b45309;
+		--publy-icon-tile-bg: var(--publy-profile-tone-3-bg);
+		--publy-icon-tile-fg: var(--publy-profile-tone-3-fg);
 	}
 
 	.publy-profile-icon-tile[data-tone='4'],
 	.publy-profile-detail-tile[data-tone='4'] {
-		--publy-icon-tile-bg: #f5f3ff;
-		--publy-icon-tile-fg: #7c3aed;
+		--publy-icon-tile-bg: var(--publy-profile-tone-4-bg);
+		--publy-icon-tile-fg: var(--publy-profile-tone-4-fg);
 	}
 
 	.publy-profile-icon-tile[data-tone='5'],
 	.publy-profile-detail-tile[data-tone='5'] {
-		--publy-icon-tile-bg: #fdf2f8;
-		--publy-icon-tile-fg: #be185d;
+		--publy-icon-tile-bg: var(--publy-profile-tone-5-bg);
+		--publy-icon-tile-fg: var(--publy-profile-tone-5-fg);
 	}
 
 	.publy-profile-icon-tile[data-tone='6'],
 	.publy-profile-detail-tile[data-tone='6'] {
-		--publy-icon-tile-bg: #f0fdf4;
-		--publy-icon-tile-fg: #15803d;
+		--publy-icon-tile-bg: var(--publy-profile-tone-6-bg);
+		--publy-icon-tile-fg: var(--publy-profile-tone-6-fg);
 	}
 
 	.publy-profile-icon-tile[data-tone='7'],
 	.publy-profile-detail-tile[data-tone='7'] {
-		--publy-icon-tile-bg: #eff6ff;
-		--publy-icon-tile-fg: #1d4ed8;
-	}
-
-	/* Dark counterparts (F4): the tone-bearing text sits directly on
-	--publy-icon-tile-bg, so without an html.dark override every tone stays
-	the light pastel/dark-text pairing on a dark page. */
-	html.dark .publy-profile-icon-tile[data-tone='0'],
-	html.dark .publy-profile-detail-tile[data-tone='0'] {
-		--publy-icon-tile-bg: #082f49;
-		--publy-icon-tile-fg: #38bdf8;
-	}
-
-	html.dark .publy-profile-icon-tile[data-tone='1'],
-	html.dark .publy-profile-detail-tile[data-tone='1'] {
-		--publy-icon-tile-bg: #052e22;
-		--publy-icon-tile-fg: #34d399;
-	}
-
-	html.dark .publy-profile-icon-tile[data-tone='2'],
-	html.dark .publy-profile-detail-tile[data-tone='2'] {
-		--publy-icon-tile-bg: #4c0519;
-		--publy-icon-tile-fg: #fb7185;
-	}
-
-	html.dark .publy-profile-icon-tile[data-tone='3'],
-	html.dark .publy-profile-detail-tile[data-tone='3'] {
-		--publy-icon-tile-bg: #451a03;
-		--publy-icon-tile-fg: #fbbf24;
-	}
-
-	html.dark .publy-profile-icon-tile[data-tone='4'],
-	html.dark .publy-profile-detail-tile[data-tone='4'] {
-		--publy-icon-tile-bg: #2e1065;
-		--publy-icon-tile-fg: #a78bfa;
-	}
-
-	html.dark .publy-profile-icon-tile[data-tone='5'],
-	html.dark .publy-profile-detail-tile[data-tone='5'] {
-		--publy-icon-tile-bg: #500724;
-		--publy-icon-tile-fg: #f472b6;
-	}
-
-	html.dark .publy-profile-icon-tile[data-tone='6'],
-	html.dark .publy-profile-detail-tile[data-tone='6'] {
-		--publy-icon-tile-bg: #052e16;
-		--publy-icon-tile-fg: #4ade80;
-	}
-
-	html.dark .publy-profile-icon-tile[data-tone='7'],
-	html.dark .publy-profile-detail-tile[data-tone='7'] {
-		--publy-icon-tile-bg: #172554;
-		--publy-icon-tile-fg: #60a5fa;
+		--publy-icon-tile-bg: var(--publy-profile-tone-7-bg);
+		--publy-icon-tile-fg: var(--publy-profile-tone-7-fg);
 	}
 
 	/* ---- TEN-2 — tenant detail Profiles/Invitations/Users tabs ---- */

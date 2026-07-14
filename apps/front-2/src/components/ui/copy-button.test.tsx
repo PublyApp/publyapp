@@ -92,13 +92,13 @@ describe('CopyButton', () => {
 		expect(container.querySelector('.tabler-icon-check')).toBeNull();
 	});
 
-	test('a rejected clipboard write does not throw, logs a warning, and surfaces a failure tooltip', async () => {
+	test('a rejected clipboard write does not throw, logs a warning, and flips the icon without re-hovering', async () => {
 		vi.useFakeTimers();
 		const writeText = vi.fn().mockRejectedValue(new Error('denied'));
 		Object.assign(navigator, { clipboard: { writeText } });
 		const { logger } = await import('@org/shared-ts/lib/logger/iso-logger');
 
-		render(<CopyButton value="secret" label="Copy" />);
+		const { container } = render(<CopyButton value="secret" label="Copy" />);
 		const button = screen.getByRole('button', { name: 'Copy' });
 
 		expect(() => {
@@ -112,13 +112,41 @@ describe('CopyButton', () => {
 			{ error: expect.any(Error) },
 		);
 
-		fireEvent.mouseEnter(button);
-		fireEvent.focus(button);
-		await vi.advanceTimersByTimeAsync(1000);
-
+		// No re-hover: the icon flip is the only feedback surface once the
+		// click that failed the copy is also the click that closes the
+		// tooltip (Base UI's `closeOnClick`, disabled on this trigger).
 		await vi.waitFor(() =>
-			expect(screen.getByText('copy-failed')).toBeTruthy(),
+			expect(
+				container.querySelector('.tabler-icon-alert-triangle'),
+			).not.toBeNull(),
 		);
+		expect(container.querySelector('.tabler-icon-copy')).toBeNull();
+		expect(button.getAttribute('data-state')).toBe('failed');
+	});
+
+	test('the tooltip trigger never closes on click, so failure feedback stays visible', async () => {
+		vi.useFakeTimers();
+		const writeText = vi.fn().mockResolvedValue(undefined);
+		Object.assign(navigator, { clipboard: { writeText } });
+
+		render(<CopyButton value="secret" label="Copy" />);
+		const button = screen.getByRole('button', { name: 'Copy' });
+
+		await act(async () => {
+			fireEvent.mouseEnter(button);
+			fireEvent.focus(button);
+			await vi.advanceTimersByTimeAsync(1000);
+		});
+		expect(screen.queryByText('copy')).toBeTruthy();
+
+		await act(async () => {
+			fireEvent.click(button);
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+
+		await vi.waitFor(() => expect(writeText).toHaveBeenCalled());
+		expect(screen.queryByText('copied')).toBeTruthy();
 	});
 
 	test('clipboard being unavailable does not throw', () => {

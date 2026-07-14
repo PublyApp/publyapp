@@ -398,11 +398,16 @@ test('primary button chrome is on .btn-primary-chrome, with no border-radius ove
 	assert.notEqual(chromeRuleMatch, null, '.btn-primary-chrome rule not found');
 	const chromeRuleBody = chromeRuleMatch[1];
 
-	assert.match(
-		chromeRuleBody,
-		/border:\s*1\.33px\s+solid\s+rgba\(255,\s*255,\s*255,\s*0\.12\)/,
-	);
+	// F3: the border literal moved into a named, theme-invariant token
+	// (--publy-chrome-border) so no-raw-visual-color's border-shorthand scan
+	// doesn't flag the bevel as an unrouted raw rgba() literal.
+	assert.match(chromeRuleBody, /border:\s*var\(--publy-chrome-border\)/);
 	assert.match(chromeRuleBody, /box-shadow:\s*var\(--publy-shadow-chrome\)/);
+
+	assert.match(
+		css,
+		/--publy-chrome-border:\s*1\.33px\s+solid\s+rgba\(255,\s*255,\s*255,\s*0\.12\)/,
+	);
 
 	// F6: no border-radius here. This class is un-layered (must beat
 	// Tailwind's utility layer for border/box-shadow), so a border-radius
@@ -673,6 +678,178 @@ test('F5: no-raw-visual-color is block-aware in app.css, not file-aware — raw 
 	assert.match(colorViolations[0].source, /background:\s*#ffffff/);
 });
 
+// r3 F3: the property allowlist previously only covered
+// color/background/border-color/outline-color — a `border:`/`outline:`
+// shorthand carrying the same literal sailed through unflagged, which is
+// exactly how .btn-primary-chrome's border landed unscanned next to its
+// correctly-tokenised box-shadow twin.
+test('r3 F3: no-raw-visual-color catches the border/outline shorthand, not just border-color/outline-color', async () => {
+	const root = await makeFixture({
+		'src/styles/app.css': [
+			':root {',
+			'\t--publy-primary: #fdc700;',
+			'}',
+			'',
+			'html.dark {',
+			'\t--publy-primary: #f0bd00;',
+			'}',
+			'',
+			'.publy-new-chrome {',
+			'\tborder: 1px solid rgba(255, 255, 255, 0.12);',
+			'\toutline: 2px solid #ffffff;',
+			'}',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	const colorViolations = violations.filter(
+		(violation) => violation.ruleId === 'no-raw-visual-color',
+	);
+
+	assert.equal(colorViolations.length, 2);
+	assert.ok(colorViolations.some((v) => /border:/.test(v.source)));
+	assert.ok(colorViolations.some((v) => /outline:/.test(v.source)));
+});
+
+// r3 F3: a raw literal handed straight to a `--custom-prop:` declaration has
+// no property name at all, so it was invisible to every pattern in the
+// rule — the shape 32 `--publy-icon-tile-bg`/`-fg` literals shipped as.
+test('r3 F3: no-raw-visual-color catches a raw colour literal in a custom-property declaration', async () => {
+	const root = await makeFixture({
+		'src/styles/app.css': [
+			':root {',
+			'\t--publy-primary: #fdc700;',
+			'}',
+			'',
+			'html.dark {',
+			'\t--publy-primary: #f0bd00;',
+			'}',
+			'',
+			".publy-tone-tile[data-tone='0'] {",
+			'\t--publy-tone-bg: #f0f9ff;',
+			'}',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	const colorViolations = violations.filter(
+		(violation) => violation.ruleId === 'no-raw-visual-color',
+	);
+
+	assert.equal(colorViolations.length, 1);
+	assert.match(colorViolations[0].source, /--publy-tone-bg:\s*#f0f9ff/);
+});
+
+// r3 F3: token-theme-parity's :root/html.dark loop is blind to a
+// colour-valued custom property declared on an ordinary component
+// selector — the same 32-literal shape, but checking whether it has a
+// paired `html.dark <selector>` counterpart rather than whether it's a raw
+// literal at all.
+test('r3 F3: token-theme-parity flags a selector-scoped custom property with no html.dark counterpart', async () => {
+	const root = await makeFixture({
+		'src/styles/app.css': [
+			':root {',
+			'\t--publy-primary: #fdc700;',
+			'}',
+			'',
+			'html.dark {',
+			'\t--publy-primary: #f0bd00;',
+			'}',
+			'',
+			".publy-tone-tile[data-tone='0'] {",
+			'\t--publy-tone-bg: #f0f9ff;',
+			'}',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+		checkTokenGuards: true,
+	});
+
+	const parityHits = violations.filter(
+		(violation) =>
+			violation.ruleId === 'token-theme-parity' &&
+			/--publy-tone-bg/.test(violation.source),
+	);
+
+	assert.equal(parityHits.length, 1);
+});
+
+test('r3 F3: token-theme-parity does not flag a selector-scoped custom property that has a matching html.dark counterpart', async () => {
+	const root = await makeFixture({
+		'src/styles/app.css': [
+			':root {',
+			'\t--publy-primary: #fdc700;',
+			'}',
+			'',
+			'html.dark {',
+			'\t--publy-primary: #f0bd00;',
+			'}',
+			'',
+			".publy-tone-tile[data-tone='0'] {",
+			'\t--publy-tone-bg: #f0f9ff;',
+			'}',
+			'',
+			"html.dark .publy-tone-tile[data-tone='0'] {",
+			'\t--publy-tone-bg: #082f49;',
+			'}',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+		checkTokenGuards: true,
+	});
+
+	const parityHits = violations.filter(
+		(violation) =>
+			violation.ruleId === 'token-theme-parity' &&
+			/--publy-tone-bg/.test(violation.source),
+	);
+
+	assert.equal(parityHits.length, 0);
+});
+
+// r3 F4: `recordViolation` only honoured `design-system-ignore` when it
+// received a `lines` argument — the default line-scan branch (every
+// line-mode rule except the two `mode: 'source'` rules) called it without
+// one, so the escape hatch was inert for exactly the rules contributors are
+// most likely to reach for it on.
+test('r3 F4: a design-system-ignore marker suppresses a default line-scan rule (no-prototype-icons)', async () => {
+	const bare = await makeFixture({
+		'src/routes/authed/staff/bare.tsx':
+			'// design-system-ignore: no-prototype-icons\n<AppErrorView icon="!" title="Error" />',
+	});
+	const reasoned = await makeFixture({
+		'src/routes/authed/staff/reasoned.tsx':
+			'// design-system-ignore: no-prototype-icons — legacy fixture pending redesign\n<AppErrorView icon="!" title="Error" />',
+	});
+
+	const countFor = async (root) => {
+		const violations = await scanFront2DesignSystem({
+			baseDir: root,
+			sourceDir: path.join(root, 'src'),
+		});
+		return violations.filter(
+			(violation) => violation.ruleId === 'no-prototype-icons',
+		).length;
+	};
+
+	assert.equal(await countFor(bare), 1, 'a bare marker must not suppress');
+	assert.equal(await countFor(reasoned), 0, 'a reasoned marker must suppress');
+});
+
 test('F6: throws on a vacuous scan (0 files) instead of silently passing', async () => {
 	const root = await makeFixture({
 		'src/keep.txt':
@@ -754,6 +931,40 @@ test('F7: self-pruning stale-debt check does not flag a guardDebt entry that sti
 	assert.equal(
 		violations.some((violation) => violation.ruleId === 'stale-guard-debt'),
 		false,
+	);
+});
+
+// r3 F10: a debt entry whose file was deleted entirely (not just present
+// with different content) used to `continue` past unnoticed, so it lived on
+// forever and would silently re-permit a violation if the path was ever
+// recreated.
+test('r3 F10: self-pruning stale-debt check flags a guardDebt entry whose file no longer exists in the scan', async () => {
+	const root = await makeFixture({
+		'src/routes/authed/staff/still-here.tsx': '<div>ok</div>',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+		checkStaleDebt: true,
+		guardDebt: [
+			{
+				ruleId: 'no-rounded-full-or-999-radius',
+				file: 'src/routes/authed/staff/deleted-file.tsx',
+				sourceIncludes: 'rounded-full',
+				reason: 'fixture: file no longer exists',
+			},
+		],
+	});
+
+	const staleViolations = violations.filter(
+		(violation) => violation.ruleId === 'stale-guard-debt',
+	);
+
+	assert.equal(staleViolations.length, 1);
+	assert.equal(
+		staleViolations[0].file,
+		'src/routes/authed/staff/deleted-file.tsx',
 	);
 });
 

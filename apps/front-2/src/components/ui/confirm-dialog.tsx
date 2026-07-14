@@ -41,7 +41,16 @@ export const ConfirmDialog = ({
 	const resolvedCancelLabel = cancelLabel ?? t('cancel');
 
 	return (
-		<DialogPrimitive.Root open={isOpen} onOpenChange={onOpenChange}>
+		<DialogPrimitive.Root
+			open={isOpen}
+			disablePointerDismissal={isPending}
+			onOpenChange={(next) => {
+				if (isPending && !next) {
+					return;
+				}
+				onOpenChange(next);
+			}}
+		>
 			<DialogPrimitive.Portal>
 				<DialogPrimitive.Backdrop className="publy-overlay-backdrop z-(--publy-z-overlay) transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[opacity] data-ending-style:opacity-0 data-starting-style:opacity-0 motion-reduce:transition-none supports-backdrop-filter:backdrop-blur-sm" />
 				<DialogPrimitive.Popup
@@ -70,7 +79,8 @@ export const ConfirmDialog = ({
 						</div>
 						<DialogPrimitive.Close
 							aria-label={t('close')}
-							className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[var(--publy-radius-small-control)] text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/30"
+							disabled={isPending}
+							className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[var(--publy-radius-small-control)] text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50"
 						>
 							<IconX className="size-[18px]" aria-hidden="true" />
 						</DialogPrimitive.Close>

@@ -22,16 +22,14 @@ const noop = () => undefined;
 
 const renderDrawer = ({
 	isOpen = true,
-	size,
 	onOpenChange = noop,
 }: {
 	isOpen?: boolean;
-	size?: 'default';
 	onOpenChange?: (isOpen: boolean) => void;
 } = {}) =>
 	render(
 		<Drawer open={isOpen} onOpenChange={onOpenChange}>
-			<DrawerContent size={size}>
+			<DrawerContent>
 				<DrawerHeader>
 					<DrawerTitle>Invite members</DrawerTitle>
 					<DrawerDescription>Send invitations to teammates.</DrawerDescription>
@@ -59,7 +57,6 @@ describe('Drawer', () => {
 
 		const drawer = screen.getByRole('dialog');
 		expect(drawer.getAttribute('data-slot')).toBe('drawer');
-		expect(drawer.getAttribute('data-size')).toBe('default');
 		expect(drawer.className).toContain('publy-drawer');
 
 		expect(drawer.querySelector('[data-slot="drawer-header"]')).not.toBeNull();

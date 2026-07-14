@@ -88,4 +88,30 @@ describe('BrandTile', () => {
 		expect(container.querySelector('img')).toBeNull();
 		expect(screen.getByText('AI')).toBeTruthy();
 	});
+
+	// r3 F12: reset-by-identity (`key={logoUrl}`) — a new logoUrl after a
+	// previous one failed must retry the image instead of staying stuck on
+	// the initials fallback forever.
+	test('a new logoUrl after a previous failure retries the image (reset by identity)', () => {
+		const { container, rerender } = render(
+			<BrandTile name="Acme Inc" logoUrl="https://example.com/old.png" />,
+		);
+
+		const firstImage = container.querySelector('img');
+		expect(firstImage).not.toBeNull();
+		if (firstImage) {
+			fireEvent.error(firstImage);
+		}
+		expect(container.querySelector('img')).toBeNull();
+
+		rerender(
+			<BrandTile name="Acme Inc" logoUrl="https://example.com/new.png" />,
+		);
+
+		const secondImage = container.querySelector('img');
+		expect(secondImage).not.toBeNull();
+		expect(secondImage?.getAttribute('src')).toBe(
+			'https://example.com/new.png',
+		);
+	});
 });

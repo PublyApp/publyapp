@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { cn } from '~/lib/utils';
 
 const PALETTE_SIZE = 8;
 
@@ -89,7 +90,10 @@ export const AvatarStack = ({
  * header) — distinct from InitialsAvatar, which is circular and reserved for
  * people. Falls back to hashed initials when there's no logoUrl.
  */
-export const BrandTile = ({
+// Keyed by `logoUrl` at the `BrandTile` call site below, so a `logoUrl`
+// change remounts a fresh instance (fresh `errored` state) by identity
+// instead of a reset-in-an-effect (F12).
+const BrandTileVisual = ({
 	name,
 	logoUrl,
 	className,
@@ -100,10 +104,6 @@ export const BrandTile = ({
 }) => {
 	const [errored, setErrored] = useState(false);
 
-	useEffect(() => {
-		setErrored(false);
-	}, [logoUrl]);
-
 	if (logoUrl && !errored) {
 		return (
 			<img
@@ -112,9 +112,7 @@ export const BrandTile = ({
 				width={56}
 				height={56}
 				onError={() => setErrored(true)}
-				className={
-					className ? `publy-brand-tile ${className}` : 'publy-brand-tile'
-				}
+				className={cn('publy-brand-tile', className)}
 			/>
 		);
 	}
@@ -122,12 +120,27 @@ export const BrandTile = ({
 	return (
 		<span
 			aria-hidden="true"
-			className={
-				className ? `publy-brand-tile ${className}` : 'publy-brand-tile'
-			}
+			className={cn('publy-brand-tile', className)}
 			data-palette={paletteIndex(name)}
 		>
 			{toInitials(name)}
 		</span>
 	);
 };
+
+export const BrandTile = ({
+	name,
+	logoUrl,
+	className,
+}: {
+	name: string;
+	logoUrl?: string | null;
+	className?: string;
+}) => (
+	<BrandTileVisual
+		key={logoUrl ?? 'none'}
+		name={name}
+		logoUrl={logoUrl}
+		className={className}
+	/>
+);

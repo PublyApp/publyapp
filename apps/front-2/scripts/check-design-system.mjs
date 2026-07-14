@@ -389,6 +389,11 @@ const THEME_INVARIANT_TOKENS = [
 		reason:
 			'.btn-primary-chrome bevel is pinned to the handoff spec value (see check-design-system.test.mjs) and reads as a consistent metal highlight regardless of surface tone.',
 	},
+	{
+		exact: '--publy-chrome-border',
+		reason:
+			'.btn-primary-chrome border is the same fixed metal bevel as --publy-shadow-chrome above and must not swap in dark mode either.',
+	},
 ];
 
 const isThemeInvariantToken = (name) =>
@@ -416,6 +421,74 @@ const findDeclarationLine = (lines, start, end, tokenName) => {
 		}
 	}
 	return start + 1;
+};
+
+// F3: token-theme-parity above only reads the :root/html.dark token *layer*
+// blocks, so a colour-valued custom property declared per-selector on an
+// ordinary component rule (e.g. `--publy-icon-tile-bg`/`-fg` per
+// `data-tone`) was invisible to it — the exact shape that shipped 32 raw hex
+// literals unpaired. Walks every top-level `selector { … }` block in
+// app.css (this file has no CSS nesting, so brace-counting from a block's
+// own header line never crosses into an unrelated block), skips
+// :root/html.dark (handled above) and at-rule headers, and pairs each
+// remaining block's declarations against a `html.dark <same selector>`
+// block, keyed by the last selector in a possibly comma-separated list —
+// which is how every existing dark counterpart in this file is spelled
+// (`html.dark .foo, html.dark .bar { … }` mirrors `.foo, .bar { … }`).
+const collectScopedCustomPropertyDeclarations = (appCssLines) => {
+	const byKey = new Map();
+
+	for (let index = 0; index < appCssLines.length; index += 1) {
+		const trimmed = appCssLines[index].trim();
+		if (!trimmed.endsWith('{') || trimmed.startsWith('@')) {
+			continue;
+		}
+
+		const header = trimmed.slice(0, -1).trim();
+		if (header === '' || header === ':root' || header === 'html.dark') {
+			continue;
+		}
+
+		let depth = 0;
+		let started = false;
+		let endLine = index;
+		for (let scan = index; scan < appCssLines.length; scan += 1) {
+			for (const character of appCssLines[scan]) {
+				if (character === '{') {
+					depth += 1;
+					started = true;
+				} else if (character === '}') {
+					depth -= 1;
+				}
+			}
+			if (started && depth === 0) {
+				endLine = scan;
+				break;
+			}
+		}
+
+		const isDark = /^html\.dark\b/.test(header);
+		const key = header.replace(/^html\.dark\s+/, '');
+		const blockText = appCssLines.slice(index + 1, endLine).join('\n');
+		const declarations = extractTokenDeclarations(blockText);
+		if (declarations.size > 0) {
+			const entry = byKey.get(key) ?? { light: new Map(), dark: new Map() };
+			const bucket = isDark ? entry.dark : entry.light;
+			for (const [name, value] of declarations) {
+				if (!bucket.has(name)) {
+					bucket.set(name, {
+						value,
+						line: findDeclarationLine(appCssLines, index, endLine, name),
+					});
+				}
+			}
+			byKey.set(key, entry);
+		}
+
+		index = endLine;
+	}
+
+	return byKey;
 };
 
 // F3: two guards over the token *layer* itself, run once over the whole scan
@@ -471,6 +544,34 @@ const checkTokenGuardViolations = (fileContentsByRelativePath) => {
 				: 0,
 			source: `${name}: ${value}`,
 		});
+	}
+
+	// token-theme-parity (selector-scoped): a colour-valued custom property
+	// declared on a component selector (not :root/html.dark) also needs an
+	// `html.dark <same selector>` counterpart, unless it's theme-invariant.
+	const scopedDeclarations =
+		collectScopedCustomPropertyDeclarations(appCssLines);
+	for (const [key, entry] of scopedDeclarations) {
+		for (const [name, { value, line }] of entry.light) {
+			if (!COLOR_LITERAL_PATTERN.test(value)) {
+				continue;
+			}
+
+			if (isThemeInvariantToken(name) || entry.dark.has(name)) {
+				continue;
+			}
+
+			violations.push({
+				ruleId: 'token-theme-parity',
+				message:
+					`Colour-valued custom property "${name}" declared on \`${key}\` has no ` +
+					`\`html.dark ${key}\` counterpart and is not on the theme-invariant allowlist — ` +
+					'it will render its light value on dark surfaces too.',
+				file: APP_CSS_PATH,
+				line,
+				source: `${name}: ${value}`,
+			});
+		}
 	}
 
 	// token-must-be-declared: every --publy-* reference across the scan
@@ -550,14 +651,36 @@ const recordViolation = (violations, violation, lines) => {
 // that widening is only safe once a value is known to be one CSS
 // declaration bounded by `;`, which per-line text (potentially a JS object
 // literal with comma-separated properties on one line) is not.
-const RAW_COLOR_PROPERTY_HEX_PATTERN =
-	/\b(?:color|background|background-color|border-color|outline-color|fill|stroke)\s*:\s*#[0-9a-fA-F]{3,8}\b/;
-const RAW_COLOR_PROPERTY_HEX_PATTERN_MULTILINE =
-	/\b(?:color|background|background-color|border-color|outline-color|fill|stroke)\s*:[^;]*#[0-9a-fA-F]{3,8}\b/;
-const RAW_COLOR_PROPERTY_RGBA_PATTERN =
-	/\b(?:color|background|background-color|border-color|outline-color|box-shadow|fill|stroke)\s*:\s*rgba?\(/;
-const RAW_COLOR_PROPERTY_RGBA_PATTERN_MULTILINE =
-	/\b(?:color|background|background-color|border-color|outline-color|box-shadow|fill|stroke)\s*:[^;]*rgba?\(/;
+// F3: widened past the original color/background/border-color/outline-color
+// list to also cover the `border`/`outline` shorthands (a literal there is
+// the same visible line as `border-color`, just spelled differently) and the
+// remaining colour-bearing properties the original list missed entirely.
+const RAW_COLOR_PROPERTY_NAMES =
+	'color|background|background-color|background-image|border|border-color|' +
+	'border-top|border-right|border-bottom|border-left|outline|outline-color|' +
+	'text-shadow|caret-color|accent-color|fill|stroke';
+const RAW_COLOR_PROPERTY_HEX_PATTERN = new RegExp(
+	`\\b(?:${RAW_COLOR_PROPERTY_NAMES})\\s*:\\s*#[0-9a-fA-F]{3,8}\\b`,
+);
+const RAW_COLOR_PROPERTY_HEX_PATTERN_MULTILINE = new RegExp(
+	`\\b(?:${RAW_COLOR_PROPERTY_NAMES})\\s*:[^;]*#[0-9a-fA-F]{3,8}\\b`,
+);
+const RAW_COLOR_PROPERTY_RGBA_PATTERN = new RegExp(
+	`\\b(?:${RAW_COLOR_PROPERTY_NAMES}|box-shadow)\\s*:\\s*rgba?\\(`,
+);
+const RAW_COLOR_PROPERTY_RGBA_PATTERN_MULTILINE = new RegExp(
+	`\\b(?:${RAW_COLOR_PROPERTY_NAMES}|box-shadow)\\s*:[^;]*rgba?\\(`,
+);
+// F3: a `--custom-prop:` declaration is invisible to the property-name
+// patterns above (it has no property name at all), so a raw hex/rgba/hsla
+// literal handed straight to a custom property — e.g.
+// `--publy-icon-tile-bg: #f0f9ff;` — sailed through unscanned. Matched
+// per-statement/per-line like the others; whether it needs a dark
+// counterpart is token-theme-parity's job (checkTokenGuardViolations), not
+// this rule's — this rule only flags the literal existing at all outside the
+// :root/html.dark token layer (see `ignoreMatch: isAppCssTokenLayerLine`).
+const RAW_COLOR_CUSTOM_PROPERTY_PATTERN =
+	/^\s*--[\w-]+\s*:[^;]*(?:#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\()/;
 const RAW_COLOR_MULTILINE_PATTERN_OVERRIDES = new Map([
 	[RAW_COLOR_PROPERTY_HEX_PATTERN, RAW_COLOR_PROPERTY_HEX_PATTERN_MULTILINE],
 	[RAW_COLOR_PROPERTY_RGBA_PATTERN, RAW_COLOR_PROPERTY_RGBA_PATTERN_MULTILINE],
@@ -620,6 +743,7 @@ const rules = [
 			/["'`]\s*rgba?\(/,
 			/\b(?:bg|text|border|ring|from|to|via|fill|stroke|outline|accent|decoration|divide)-\[(?:rgba?\([^\]]+\))\]/,
 			RAW_COLOR_PROPERTY_RGBA_PATTERN,
+			RAW_COLOR_CUSTOM_PROPERTY_PATTERN,
 		],
 	},
 	{
@@ -933,13 +1057,17 @@ export const scanFront2DesignSystem = async ({
 							continue;
 						}
 
-						recordViolation(violations, {
-							ruleId: rule.id,
-							message: rule.message,
-							file: relativePath,
-							line: index + 1,
-							source: line.trim(),
-						});
+						recordViolation(
+							violations,
+							{
+								ruleId: rule.id,
+								message: rule.message,
+								file: relativePath,
+								line: index + 1,
+								source: line.trim(),
+							},
+							lines,
+						);
 					}
 				}
 			}
@@ -956,7 +1084,22 @@ export const scanFront2DesignSystem = async ({
 	if (checkStaleDebt) {
 		for (const debt of guardDebt) {
 			const content = fileContentsByRelativePath.get(debt.file);
+
+			// F10: a debt entry whose file was deleted (not just absent from a
+			// narrower fixture scan — checkStaleDebt is itself opt-in, on only
+			// for the real CLI run's full src/+e2e/ scan) is stale too: the file
+			// it silently re-permits a violation in no longer exists, and if the
+			// path is ever recreated the entry would immediately re-permit
+			// whatever lands there, unrelated to the original offense.
 			if (content === undefined) {
+				violations.push({
+					ruleId: 'stale-guard-debt',
+					message:
+						"guardDebt entry's file was not found in this scan (deleted or renamed); delete the entry — a stale entry silently re-permits a violation of the same rule if the path is ever recreated.",
+					file: debt.file,
+					line: 0,
+					source: `${debt.ruleId}: ${debt.sourceIncludes}`,
+				});
 				continue;
 			}
 

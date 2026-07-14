@@ -116,6 +116,72 @@ describe('ConfirmDialog', () => {
 		).toBe(true);
 	});
 
+	test('isPending disables the header close button', () => {
+		render(<ConfirmDialog {...baseProps} isOpen isPending />);
+
+		expect(
+			screen.getByRole('button', { name: 'close' }).hasAttribute('disabled'),
+		).toBe(true);
+	});
+
+	// F2: Escape must not dismiss a pending confirm dialog — a mutation is in flight.
+	test('pressing Escape while isPending does not call onOpenChange', () => {
+		const onOpenChange = vi.fn();
+		render(
+			<ConfirmDialog
+				{...baseProps}
+				isOpen
+				isPending
+				onOpenChange={onOpenChange}
+			/>,
+		);
+
+		fireEvent.keyDown(document, { key: 'Escape' });
+
+		expect(onOpenChange).not.toHaveBeenCalled();
+	});
+
+	// F2: clicking the backdrop while isPending does not call onOpenChange.
+	test('clicking the backdrop while isPending does not call onOpenChange', () => {
+		const onOpenChange = vi.fn();
+		render(
+			<ConfirmDialog
+				{...baseProps}
+				isOpen
+				isPending
+				onOpenChange={onOpenChange}
+			/>,
+		);
+
+		const backdrop = document.querySelector('.publy-overlay-backdrop');
+		expect(backdrop).not.toBeNull();
+		if (backdrop) {
+			fireEvent.pointerDown(backdrop);
+			fireEvent.pointerUp(backdrop);
+			fireEvent.click(backdrop);
+		}
+
+		expect(onOpenChange).not.toHaveBeenCalled();
+	});
+
+	// F2: clicking the header ✕ while isPending does not call onOpenChange
+	// (belt-and-suspenders on top of the `disabled` attribute).
+	test('clicking the header close button while isPending does not call onOpenChange', () => {
+		const onOpenChange = vi.fn();
+		render(
+			<ConfirmDialog
+				{...baseProps}
+				isOpen
+				isPending
+				onOpenChange={onOpenChange}
+			/>,
+		);
+
+		fireEvent.click(screen.getByRole('button', { name: 'close' }));
+
+		expect(onOpenChange).not.toHaveBeenCalled();
+	});
+
 	test('isConfirmDisabled disables only the confirm button', () => {
 		render(<ConfirmDialog {...baseProps} isOpen isConfirmDisabled />);
 

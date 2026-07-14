@@ -30,26 +30,6 @@ export const PageHeader = ({
 	</header>
 );
 
-export const ActionCluster = ({ children }: { children: ReactNode }) => (
-	<div className="publy-action-cluster">{children}</div>
-);
-
-export const MetricTile = ({
-	label,
-	value,
-	helper,
-}: {
-	label: string;
-	value: ReactNode;
-	helper?: string;
-}) => (
-	<div className="publy-metric-tile">
-		<div className="publy-type-stat-label">{label}</div>
-		<div className="publy-type-stat-value">{value}</div>
-		{helper ? <div className="publy-type-helper">{helper}</div> : null}
-	</div>
-);
-
 export const StatusPill = ({
 	children,
 	tone = 'neutral',
@@ -60,19 +40,6 @@ export const StatusPill = ({
 	<span className="publy-status-pill" data-tone={tone}>
 		{children}
 	</span>
-);
-
-export const MetadataCard = ({
-	title,
-	children,
-}: {
-	title?: string;
-	children: ReactNode;
-}) => (
-	<section className="publy-metadata-card">
-		{title ? <h2 className="publy-type-section-title">{title}</h2> : null}
-		<div className="publy-metadata-rows">{children}</div>
-	</section>
 );
 
 export const DetailRow = ({

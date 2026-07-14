@@ -81,7 +81,10 @@ describe('DropdownMenuContent', () => {
 });
 
 describe('DropdownMenuItem', () => {
-	test('uses a 9px item radius and a muted (not accent) highlighted background', () => {
+	// r3 F9: pinned to the shared --publy-radius-menu-item token reference
+	// rather than the literal `9px`, so a future rename/retune of the token
+	// can't silently drift this assertion out of sync with the real value.
+	test('uses the shared menu-item radius token and a muted (not accent) highlighted background', () => {
 		render(
 			<DropdownMenu defaultOpen modal={false}>
 				<DropdownMenuContent>
@@ -93,7 +96,10 @@ describe('DropdownMenuItem', () => {
 		const item = screen
 			.getByText('Edit')
 			.closest('[data-slot="dropdown-menu-item"]');
-		expect(item?.className).toContain('rounded-[9px]');
+		expect(item?.className).toContain(
+			'rounded-[var(--publy-radius-menu-item)]',
+		);
+		expect(item?.className).not.toMatch(/rounded-\[9px\]/);
 		expect(item?.className).toContain('data-highlighted:bg-muted');
 		expect(item?.className).not.toContain('data-highlighted:bg-accent');
 	});

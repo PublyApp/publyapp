@@ -11,8 +11,6 @@ import { cn } from '~/lib/utils';
  * app.css (`.publy-drawer*`) so the handoff values stay token-driven.
  */
 
-export type DrawerSize = 'default';
-
 function Drawer(props: DialogPrimitive.Root.Props) {
 	return <DialogPrimitive.Root {...props} />;
 }
@@ -27,16 +25,14 @@ function DrawerClose(props: DialogPrimitive.Close.Props) {
 
 function DrawerContent({
 	className,
-	size = 'default',
 	children,
 	...props
-}: DialogPrimitive.Popup.Props & { size?: DrawerSize }) {
+}: DialogPrimitive.Popup.Props) {
 	return (
 		<DialogPrimitive.Portal>
 			<DialogPrimitive.Backdrop className="publy-overlay-backdrop z-(--publy-z-overlay) transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[opacity] data-ending-style:opacity-0 data-starting-style:opacity-0 motion-reduce:transition-none" />
 			<DialogPrimitive.Popup
 				data-slot="drawer"
-				data-size={size}
 				className={cn(
 					'publy-drawer z-(--publy-z-drawer-surface) outline-none transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform data-ending-style:translate-x-full data-starting-style:translate-x-full motion-reduce:transition-none',
 					className,
