@@ -85,9 +85,12 @@ public sealed class RequestPasswordResetSpec
 	// Headers that legitimately vary per-request/per-response regardless of
 	// account state and must not be compared: wall-clock/tracing identifiers
 	// (a fresh value every call, by design — comparing them would make this
-	// test permanently red, not catch an oracle) and `Content-Length`, which
-	// is a metadata effect of the header set order/whitespace, not itself an
-	// account-state signal.
+	// test permanently red, not catch an oracle). `Content-Length` is
+	// deliberately NOT on this list (W5-HARDEN2): it measures the response
+	// representation's byte length, not header order/whitespace, and if it
+	// ever varied by account branch that variation would itself be the
+	// enumeration oracle this spec exists to catch — excluding it would hide
+	// exactly the defect this test is for.
 	private static readonly string[] VolatileHeaderNames = [
 		"Date",
 		"Traceparent",
@@ -95,7 +98,6 @@ public sealed class RequestPasswordResetSpec
 		"Request-Id",
 		"X-Request-Id",
 		"X-Correlation-Id",
-		"Content-Length",
 	];
 
 	// r5/W5-PROOF: asserting only `200` + `status == "success"` for the
