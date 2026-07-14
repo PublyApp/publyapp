@@ -4,22 +4,30 @@ import { loginAsStaffAdmin } from './helpers/login';
 
 const THEME_TOGGLE_TEST_ID = 'theme-toggle';
 
-test('logout in one tab bounces every other authed tab to /login', async ({
-	page,
-}) => {
-	await loginAsStaffAdmin(page);
+test.describe('logout in one tab', () => {
+	// Own clean context, not the shared staff-admin `storageState`: the day
+	// `clearSession` starts revoking the session server-side (queued —
+	// review-r3-tests.md F11), logging out here would invalidate the token
+	// every other `chromium`-project test running concurrently is relying on.
+	test.use({ storageState: { cookies: [], origins: [] } });
 
-	const otherTab = await page.context().newPage();
-	await otherTab.goto('/staff/staff-users');
-	await expect(otherTab.getByTestId('staff-users-table')).toBeVisible();
+	test('logout in one tab bounces every other authed tab to /login', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
 
-	await page.getByTestId('app-shell-user-menu-trigger').click();
-	await expect(page.getByTestId('app-shell-user-menu')).toBeVisible();
-	await page.getByTestId('app-shell-user-menu-logout').click();
+		const otherTab = await page.context().newPage();
+		await otherTab.goto('/staff/staff-users');
+		await expect(otherTab.getByTestId('staff-users-table')).toBeVisible();
 
-	await expect(page).toHaveURL(/\/login$/);
-	await expect(otherTab).toHaveURL(/\/login$/, { timeout: 10_000 });
-	await expect(otherTab.getByTestId('auth-login-form')).toBeVisible();
+		await page.getByTestId('app-shell-user-menu-trigger').click();
+		await expect(page.getByTestId('app-shell-user-menu')).toBeVisible();
+		await page.getByTestId('app-shell-user-menu-logout').click();
+
+		await expect(page).toHaveURL(/\/login$/);
+		await expect(otherTab).toHaveURL(/\/login$/, { timeout: 10_000 });
+		await expect(otherTab.getByTestId('auth-login-form')).toBeVisible();
+	});
 });
 
 test('toggling the theme in one tab flips it in every other tab', async ({

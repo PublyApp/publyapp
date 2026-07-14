@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { API_BASE_URL } from './helpers/api';
 import { loginAsStaffAdmin } from './helpers/login';
+import { expectTableFitsCard } from './helpers/table-fits-card';
 
 const STAFF_PROFILES_PATH = '/staff/profiles';
 const TABLE = 'staff-profiles-table';
@@ -181,3 +182,15 @@ test.describe('staff profiles route', () => {
 		}
 	});
 });
+
+for (const width of [768, 390]) {
+	test.describe(`staff profiles table responsive at ${width}px`, () => {
+		test.use({ viewport: { width, height: 800 } });
+
+		test('table never overflows its card', async ({ page }) => {
+			await loginAsStaffAdmin(page);
+			await page.goto(STAFF_PROFILES_PATH);
+			await expectTableFitsCard(page, TABLE);
+		});
+	});
+}

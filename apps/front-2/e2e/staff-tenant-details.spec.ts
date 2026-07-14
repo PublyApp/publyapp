@@ -5,8 +5,8 @@ import { loginAsStaffAdmin } from './helpers/login';
 import { expectTableFitsCard } from './helpers/table-fits-card';
 
 const TENANT_ID = '0197b8f0-3333-7ccc-8ccc-cccccccccccc';
-// The first seeded user row in mockTenantDetails's /users fixture — the one
-// `getByLabel(/^Select (?!all rows)/).first()` selects.
+// The seeded user row in mockTenantDetails's /users fixture selected via
+// `getByRole('checkbox', { name: 'Select Jamie Lee' })`.
 const JAMIE_USER_ID = '0197b8f0-4444-7ccc-8ccc-dddddddddddd';
 
 const isApiPath = (url: string, path: string): boolean => {
@@ -546,10 +546,7 @@ test.describe('staff tenant users bulk toolbar', () => {
 		await page.goto(`/staff/tenants/${TENANT_ID}/users`);
 		await expect(page.getByTestId('staff-tenant-users-page')).toBeVisible();
 
-		await page
-			.getByLabel(/^Select (?!all rows)/)
-			.first()
-			.click();
+		await page.getByRole('checkbox', { name: 'Select Jamie Lee' }).click();
 		await expect(page.getByText('1 selected')).toBeVisible();
 		await expectFloatingSelectionBarAtViewportBottom(page);
 
@@ -600,10 +597,7 @@ test.describe('staff tenant users bulk toolbar', () => {
 		await page.goto(`/staff/tenants/${TENANT_ID}/users`);
 		await expect(page.getByTestId('staff-tenant-users-page')).toBeVisible();
 
-		await page
-			.getByLabel(/^Select (?!all rows)/)
-			.first()
-			.click();
+		await page.getByRole('checkbox', { name: 'Select Jamie Lee' }).click();
 		await expectFloatingSelectionBarAtViewportBottom(page);
 		await page
 			.getByTestId('floating-selection-bar')

@@ -83,6 +83,12 @@ jobs:
       - name: Typecheck front-2
         run: pnpm --filter front-2 typecheck
 
+      - name: Lint front-2
+        run: |
+          npx oxlint --quiet apps/front-2 packages/shared-ts
+          pnpm lint:disables
+          pnpm check:frontend-barrels
+
       - name: Check front-2 design system
         run: pnpm --filter front-2 check:design-system
 

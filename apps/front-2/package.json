@@ -15,7 +15,7 @@
 		"test:design-system-guard": "node --test scripts/check-design-system.test.mjs",
 		"check:context-chunk-isolation": "node scripts/check-context-chunk-isolation.mjs",
 		"test:context-chunk-isolation-guard": "node --test scripts/check-context-chunk-isolation.test.mjs",
-		"test": "vitest run && pnpm test:request-counter && pnpm test:design-system-guard && pnpm check:design-system && pnpm check:context-chunk-isolation"
+		"test": "vitest run && pnpm test:request-counter && pnpm test:design-system-guard && pnpm test:context-chunk-isolation-guard && pnpm check:design-system && pnpm check:context-chunk-isolation"
 	},
 	"dependencies": {
 		"@base-ui/react": "1.3.0",

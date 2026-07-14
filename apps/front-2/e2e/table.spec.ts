@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
+import { API_BASE_URL } from './helpers/api';
 import { loginAsStaffAdmin } from './helpers/login';
 import { expectTableFitsCard } from './helpers/table-fits-card';
 
@@ -178,18 +179,52 @@ test.describe('staff users table', () => {
 		expect(backToFirstRowText).toEqual(firstRowText);
 	});
 
-	// Neither layer currently bounds page size (review-r2-tests.md F4) — this
-	// pins that a hand-typed, unbounded `size` at least renders a normal table
-	// rather than an error view or a hang, while the front/API clamps land.
-	test('an oversized size param still renders a normal table instead of an error view or a hang', async ({
+	// The front-end clamp caps a hand-typed, unbounded `size` at
+	// MAX_TABLE_SIZE (table-search-params.ts) before it ever reaches the
+	// wire — assert the outgoing `limit` param directly instead of only the
+	// symptom-free render, which would also pass if the clamp regressed
+	// (review-r3-tests.md F10). The render assertions stay as the anti-hang
+	// check.
+	test('an oversized size param is clamped on the wire and still renders a normal table', async ({
 		page,
 	}) => {
 		await loginAsStaffAdmin(page);
+
+		const usersResponse = page.waitForResponse(
+			(response) =>
+				response.url().includes('/staff/users') &&
+				response.request().method() === 'GET',
+		);
 		await page.goto('/staff/staff-users?size=100000');
+		const response = await usersResponse;
+		const requestedLimit = Number(
+			new URL(response.url()).searchParams.get('limit'),
+		);
+		expect(requestedLimit).toBeGreaterThan(0);
+		expect(requestedLimit).toBeLessThanOrEqual(100);
 
 		await expect(page.getByTestId(`${TABLE}-rows`)).toBeVisible();
 		await expect(page.getByTestId(`${TABLE}-error`)).toHaveCount(0);
 		await expect(page.getByText('staff-admin@example.com')).toBeVisible();
+	});
+
+	// The front-end clamp only protects this table's own UI — anyone with a
+	// valid session token can call the API directly, bypassing
+	// table-search-params.ts entirely. Pins the still-open API half of
+	// review-r2-tests.md F4 (review-r3-tests.md F1): the API must 422 a
+	// `limit` above its own maximum instead of materialising every row.
+	// Currently RED — PaginationPredicates.BeValidNullableNumber has no
+	// upper bound yet; turns green once the API-side clamp lands.
+	test('the API rejects a limit above the maximum even when the front-end clamp is bypassed', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+
+		const response = await page.request.get(
+			`${API_BASE_URL}/staff/users?limit=1000000`,
+		);
+
+		expect(response.status()).toBe(422);
 	});
 
 	test('has zero automatically detectable accessibility violations', async ({
