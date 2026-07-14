@@ -2269,13 +2269,6 @@ html.dark {
 		height: 19px;
 	}
 
-	/* Selected card in the tenant Profiles grid: an amber ring replaces the
-	neutral shadow-ring (FIX-4 owner ruling — checkbox alone was not a visible
-	selection affordance on the card surface). */
-	.publy-profile-card--selected {
-		box-shadow: 0 0 0 2px var(--publy-primary);
-	}
-
 	.publy-profile-card-grid {
 		display: grid;
 		grid-template-columns: repeat(3, 1fr);
@@ -2305,6 +2298,19 @@ html.dark {
 	.publy-perm-check svg {
 		color: var(--publy-primary-foreground);
 	}
+}
+
+/* Selected card in the tenant Profiles grid: an amber ring replaces the
+   neutral shadow-ring (FIX-4 owner ruling — checkbox alone was not a visible
+   selection affordance on the card surface). Must live unlayered, not inside
+   `@layer components` alongside the rest of this section's rules above: the
+   `Card` primitive carries `shadow-[var(--publy-shadow-ring)]` as a Tailwind
+   utility, and Tailwind's `utilities` layer always beats `components`
+   regardless of source order or selector specificity, so a layered
+   `box-shadow` here can never override it (same cascade-layer gotcha as
+   `.app-shell-main:has(.publy-form-action-bar)` above). */
+.publy-profile-card--selected {
+	box-shadow: 0 0 0 2px var(--publy-primary);
 }
 
 /* Theme switching must not animate: suppress every transition for one frame
