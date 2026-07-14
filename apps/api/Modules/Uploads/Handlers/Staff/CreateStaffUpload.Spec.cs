@@ -36,8 +36,11 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 		AppRoutes.Uploads.ForStaff.Create
 	);
 
-	// Minimal valid magic-byte payloads for each supported image type,
-	// padded past the 12-byte sniff window with filler bytes.
+	// SniffImageType (CreateStaffUpload.cs) only inspects the leading magic-byte
+	// header, never decodes the image body — these fixtures satisfy exactly that
+	// check plus (for GIF) a non-zero logical-screen width/height, and nothing
+	// more. They are NOT complete, decodable images: do not read "accepted by
+	// this endpoint" as "is a usable image" (round-5 API F5).
 	private static readonly byte[] PngBytes = [
 		0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
 		0x00, 0x00, 0x00, 0x0D, 0x00, 0x00
@@ -50,9 +53,11 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 		0x00, 0x00, 0x00, 0x00,
 		(byte)'W', (byte)'E', (byte)'B', (byte)'P'
 	];
+	// Logical screen descriptor width=1, height=1 (little-endian uint16 each) —
+	// SniffImageType now rejects a zero-sized canvas (round-5 API F5).
 	private static readonly byte[] GifBytes = [
 		(byte)'G', (byte)'I', (byte)'F', (byte)'8', (byte)'9', (byte)'a',
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+		0x01, 0x00, 0x01, 0x00, 0x00, 0x00
 	];
 
 	private readonly HttpClient _http;
@@ -316,7 +321,11 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
-	public async Task ItShouldReturn422WhenMagicBytesAreSpoofed() {
+	public async Task ItShouldReturn422WhenFileHasNoImageSignatureAtAll() {
+		// Not a spoofing attempt: this content has no image magic-byte prefix at
+		// all. See ItShouldAccept... below for the actual spoofing case (valid
+		// magic bytes followed by arbitrary data), which SniffImageType does NOT
+		// currently detect (round-5 API F5).
 		var token = await _authClient.LoginAsStaffAdminAsync();
 		var fakeBytes = "this is plain text, not an image at all"u8.ToArray();
 
@@ -332,6 +341,61 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 		problem.Should().NotBeNull();
 		Assert.NotNull(problem);
 		problem.Errors.Keys.Should().Contain("file");
+	}
+
+	[Fact]
+	public async Task ItShouldReturn422WhenPngSignatureIsTruncated() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		// Only the first 4 of the 8 PNG signature bytes — SniffImageType must not
+		// misclassify a short read as a valid image (round-5 API F5).
+		var truncatedBytes = PngBytes[..4];
+
+		using var response = await _http.SendAsync(
+			BuildUploadRequest(token, truncatedBytes, "truncated.png", "image/png")
+		);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+	}
+
+	[Fact]
+	public async Task ItShouldReturn422WhenGifLogicalScreenIsZeroSized() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		// Valid GIF89a signature but width=0, height=0 — a degenerate canvas that
+		// cannot be a real image (round-5 API F5).
+		byte[] zeroSizedGif = [
+			(byte)'G', (byte)'I', (byte)'F', (byte)'8', (byte)'9', (byte)'a',
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+		];
+
+		using var response = await _http.SendAsync(
+			BuildUploadRequest(token, zeroSizedGif, "empty.gif", "image/gif")
+		);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+	}
+
+	[Fact]
+	public async Task ItShouldAcceptValidMagicBytesFollowedByArbitraryNonImageData() {
+		// Documents a real, known gap rather than certifying protection that
+		// doesn't exist: SniffImageType only inspects the leading magic-byte
+		// header and never decodes the body, so a valid PNG signature followed
+		// by non-image garbage is still accepted. This is an accepted risk here
+		// because the endpoint rewrites the extension server-side and serves
+		// uploads with `nosniff`, which together block the HTML/SVG stored-XSS
+		// vector — but the accepted content is not guaranteed to be a usable or
+		// safe image otherwise (round-5 API F5; see CreateStaffUpload.cs F5
+		// comment for the hardening this would require: full decode + dimension
+		// bounds via a hardened image library).
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var spoofedBytes = PngBytes
+			.Concat("<script>alert(1)</script> definitely not image data"u8.ToArray())
+			.ToArray();
+
+		using var response = await _http.SendAsync(
+			BuildUploadRequest(token, spoofedBytes, "spoofed.png", "image/png")
+		);
+
+		response.StatusCode.Should().Be(HttpStatusCode.Created);
 	}
 
 	[Fact]

@@ -130,6 +130,14 @@ public sealed class CreateStaffUpload {
 	// Sniffs the leading bytes of the stream to determine the real image type,
 	// never trusting the client-supplied file name or Content-Type header.
 	// Leaves the stream position unspecified on return; callers must reset it.
+	//
+	// Known gap (round-5 API F5): this only inspects the magic-byte header and
+	// never decodes the body, so a valid signature followed by arbitrary
+	// non-image data still passes. The extension rewrite + `nosniff` on served
+	// uploads block the HTML/SVG stored-XSS vector this would otherwise open,
+	// but nothing here guarantees the accepted content is a usable/safe image.
+	// Closing that gap needs a hardened image-decode library plus
+	// dimension/pixel-count bounds, not another magic-byte check.
 	private static (string ContentType, string Extension)? SniffImageType(Stream stream) {
 		// Stream.Read is contractually allowed to return fewer bytes than requested
 		// even when more are available; ReadAtLeast loops until the buffer is full
@@ -143,7 +151,7 @@ public sealed class CreateStaffUpload {
 		if (read >= 3 && IsJpeg(header)) {
 			return ("image/jpeg", ".jpg");
 		}
-		if (read >= 6 && IsGif(header)) {
+		if (read >= 10 && IsGif(header)) {
 			return ("image/gif", ".gif");
 		}
 		if (read >= 12 && IsWebP(header)) {
@@ -165,7 +173,17 @@ public sealed class CreateStaffUpload {
 	private static bool IsGif(ReadOnlySpan<byte> header) {
 		ReadOnlySpan<byte> gif87A = "GIF87a"u8;
 		ReadOnlySpan<byte> gif89A = "GIF89a"u8;
-		return header[..6].SequenceEqual(gif87A) || header[..6].SequenceEqual(gif89A);
+		if (!(header[..6].SequenceEqual(gif87A) || header[..6].SequenceEqual(gif89A))) {
+			return false;
+		}
+
+		// Logical screen descriptor immediately follows the signature: width then
+		// height, both little-endian uint16 (GIF89a spec section 18). A zero-sized
+		// canvas cannot be a real image, so reject rather than certify a degenerate
+		// payload as a valid GIF (round-5 API F5).
+		var width = header[6] | (header[7] << 8);
+		var height = header[8] | (header[9] << 8);
+		return width > 0 && height > 0;
 	}
 
 	private static bool IsWebP(ReadOnlySpan<byte> header) {
