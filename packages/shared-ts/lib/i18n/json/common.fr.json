@@ -1185,7 +1185,6 @@
 	"select-profile-checkbox-label": "Sélectionner {{name}}",
 	"support-email-too-long": "L'adresse e-mail du support est trop longue.",
 	"tenant-membership-status": "Statut d'adhésion au client",
-	"tenant-name-required": "Le nom du client est requis.",
 	"tenant-name-too-long": "Le nom du client est trop long.",
 	"tenant-profile-details-description": "Informations principales de ce profil de client.",
 	"tenant-profile-load-error-description": "Un problème est survenu lors du chargement des détails du profil.",

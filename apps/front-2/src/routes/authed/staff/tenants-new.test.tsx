@@ -482,6 +482,23 @@ const confirmCreate = async () => {
 	);
 };
 
+/**
+ * The create form's Zod resolver validates asynchronously, so the confirm
+ * dialog does not open synchronously with `submitForm()` — a bare
+ * `waitFor(() => expect(dialog).toBeNull())` would pass trivially on its
+ * very first (pre-validation) check and never actually prove the submission
+ * was rejected. This settles past that validation tick with a real delay
+ * before asserting the dialog never opened, so a validation regression that
+ * lets the dialog open can't hide behind the race.
+ */
+const expectFormSubmissionBlocked = async () => {
+	await new Promise((resolve) => {
+		setTimeout(resolve, 50);
+	});
+	expect(screen.queryByRole('alertdialog')).toBeNull();
+	expect(mocks.mutateAsync).not.toHaveBeenCalled();
+};
+
 describe('staff tenant create route', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -806,7 +823,66 @@ describe('staff tenant create route', () => {
 
 		submitForm();
 
-		await waitFor(() => expect(mocks.mutateAsync).not.toHaveBeenCalled());
+		await expectFormSubmissionBlocked();
+	});
+
+	// tenants-r6-F1: create and edit must enforce the SAME contract as the API
+	// (min 5, max 256 — TenantValidationRules.NameMaxLength), so these boundary
+	// cases pin the exact edges instead of only the pre-existing under-5 case.
+	test('blocks submission at exactly 4 characters (one below the API minimum)', async () => {
+		renderPage();
+
+		fillOrganizationName('Acme');
+		fireEvent.change(getEmailInputs()[0]!, {
+			target: { value: 'owner@acme.com' },
+		});
+
+		submitForm();
+
+		await expectFormSubmissionBlocked();
+	});
+
+	test('accepts exactly 5 characters (the API minimum)', async () => {
+		mocks.mutateAsync.mockResolvedValue({ id: 'tenant-001' });
+		renderPage();
+
+		fillOrganizationName('Acme1');
+		fireEvent.change(getEmailInputs()[0]!, {
+			target: { value: 'owner@acme.com' },
+		});
+
+		submitForm();
+		await confirmCreate();
+
+		await waitFor(() => expect(mocks.mutateAsync).toHaveBeenCalled());
+	});
+
+	test('accepts exactly 256 characters (the API maximum)', async () => {
+		mocks.mutateAsync.mockResolvedValue({ id: 'tenant-001' });
+		renderPage();
+
+		fillOrganizationName('A'.repeat(256));
+		fireEvent.change(getEmailInputs()[0]!, {
+			target: { value: 'owner@acme.com' },
+		});
+
+		submitForm();
+		await confirmCreate();
+
+		await waitFor(() => expect(mocks.mutateAsync).toHaveBeenCalled());
+	});
+
+	test('blocks submission at 257 characters (one above the API maximum) instead of round-tripping a 422', async () => {
+		renderPage();
+
+		fillOrganizationName('A'.repeat(257));
+		fireEvent.change(getEmailInputs()[0]!, {
+			target: { value: 'owner@acme.com' },
+		});
+
+		submitForm();
+
+		await expectFormSubmissionBlocked();
 	});
 
 	test('blocks submission when the website URL is invalid (websiteUrl schema rule)', async () => {

@@ -128,7 +128,8 @@ const buildCreateTenantSchema = (
 			name: z
 				.string()
 				.trim()
-				.min(5, { message: t('tenant-name-too-short') }),
+				.min(5, { message: t('tenant-name-too-short') })
+				.max(256, { message: t('tenant-name-too-long') }),
 			code: z
 				.string()
 				.trim()

@@ -54,8 +54,8 @@ const buildEditTenantSchema = (t: (key: string) => string) =>
 		name: z
 			.string()
 			.trim()
-			.min(1, { message: t('tenant-name-required') })
-			.max(128, { message: t('tenant-name-too-long') })
+			.min(5, { message: t('tenant-name-too-short') })
+			.max(256, { message: t('tenant-name-too-long') })
 			.optional(),
 		maxUsers: z.coerce
 			.number({ invalid_type_error: t('seats-required') })

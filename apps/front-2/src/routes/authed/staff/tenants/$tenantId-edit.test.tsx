@@ -778,6 +778,81 @@ describe('staff tenant edit route', () => {
 		expect(payload.notes).toBeUndefined();
 	});
 
+	// tenants-r6-F1: create and edit must enforce the SAME contract as the API
+	// (min 5, max 256 — TenantValidationRules.NameMaxLength). Edit previously
+	// allowed 1-4 characters and rejected anything over 128; these boundary
+	// cases pin the exact edges the API actually enforces.
+	test('blocks submission at exactly 4 characters (one below the API minimum)', async () => {
+		renderPage();
+
+		fireEvent.change(screen.getByLabelText('Organization name'), {
+			target: { value: 'Acme' },
+		});
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Save changes' }).closest('form')!,
+		);
+
+		await waitFor(() =>
+			expect(mocks.updateTenantMutation).not.toHaveBeenCalled(),
+		);
+	});
+
+	test('accepts exactly 5 characters (the API minimum)', async () => {
+		mocks.updateTenantMutation.mockResolvedValue({
+			tenantId: '11111111-1111-1111-1111-111111111111',
+		});
+		renderPage();
+
+		fireEvent.change(screen.getByLabelText('Organization name'), {
+			target: { value: 'Acme1' },
+		});
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Save changes' }).closest('form')!,
+		);
+
+		await waitFor(() =>
+			expect(mocks.updateTenantMutation).toHaveBeenCalledWith(
+				expect.objectContaining({ name: 'Acme1' }),
+			),
+		);
+	});
+
+	test('accepts exactly 256 characters (the API maximum, previously rejected at 128)', async () => {
+		mocks.updateTenantMutation.mockResolvedValue({
+			tenantId: '11111111-1111-1111-1111-111111111111',
+		});
+		renderPage();
+
+		const longName = 'A'.repeat(256);
+		fireEvent.change(screen.getByLabelText('Organization name'), {
+			target: { value: longName },
+		});
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Save changes' }).closest('form')!,
+		);
+
+		await waitFor(() =>
+			expect(mocks.updateTenantMutation).toHaveBeenCalledWith(
+				expect.objectContaining({ name: longName }),
+			),
+		);
+	});
+
+	test('blocks submission at 257 characters (one above the API maximum) instead of round-tripping a 422', async () => {
+		renderPage();
+
+		fireEvent.change(screen.getByLabelText('Organization name'), {
+			target: { value: 'A'.repeat(257) },
+		});
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Save changes' }).closest('form')!,
+		);
+
+		await waitFor(() =>
+			expect(mocks.updateTenantMutation).not.toHaveBeenCalled(),
+		);
+	});
+
 	test('the reset-to-saved button restores saved values and hides once the form is clean', () => {
 		renderPage();
 

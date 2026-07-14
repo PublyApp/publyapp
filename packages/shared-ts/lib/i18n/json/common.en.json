@@ -1185,7 +1185,6 @@
 	"select-profile-checkbox-label": "Select {{name}}",
 	"support-email-too-long": "Support email is too long.",
 	"tenant-membership-status": "Tenant membership status",
-	"tenant-name-required": "Tenant name is required.",
 	"tenant-name-too-long": "Tenant name is too long.",
 	"tenant-profile-details-description": "Core information for this tenant profile.",
 	"tenant-profile-load-error-description": "There was a problem loading the profile details.",
