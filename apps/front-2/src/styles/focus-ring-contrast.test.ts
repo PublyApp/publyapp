@@ -29,7 +29,7 @@
  *  - Still reads the real `app.css` source and resolves `--publy-focus-ring`
  *    / `--destructive` for both themes exactly like a browser would.
  */
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -209,8 +209,17 @@ type RingToken = {
 	variants: string[];
 	/** The semantic Tailwind colour token name, e.g. `ring`, `destructive`,
 	 * `primary`, `accent` — any key resolvable through the `@theme inline`
-	 * `--color-*` map, not a fixed two-value allowlist. */
-	color: string;
+	 * `--color-*` map, not a fixed two-value allowlist. Mutually exclusive
+	 * with `rawValue` — a token is either a semantic name or an arbitrary
+	 * value, never both. */
+	color?: string;
+	/** W5-HARDEN (W5-VERIFY2): the raw contents of a `ring-[...]` arbitrary
+	 * value, or the `var(--x)` form of a `ring-(--x)` CSS-variable shorthand —
+	 * resolved the same way `resolveColor` resolves any other token value.
+	 * The old parser only matched `ring-[\w-]+`, so an arbitrary bracket value
+	 * produced zero regex matches and was invisible to this guard entirely,
+	 * even when it won the real merge over a compliant semantic ring. */
+	rawValue?: string;
 	/** Opacity suffix (`/NN`), or 1 when the utility carries no suffix (opaque). */
 	alpha: number;
 };
@@ -221,28 +230,52 @@ type RingToken = {
  * one of those was the exact defect class this guard exists to catch. This
  * now matches `ring-<any-token>[/NN]` generically and filters against
  * `knownColorNames` (the real `--color-*` keys resolved from `app.css`'s
- * `@theme inline` block) so `ring-3`/`ring-offset-2`/`ring-[3px]` (width,
- * offset, and arbitrary-value utilities, none of them a semantic colour
- * token) are excluded the same way the old allowlist excluded them — by not
- * being a real token name, not by being hand-enumerated. */
+ * `@theme inline` block) so `ring-3`/`ring-offset-2` (width/offset utilities,
+ * not a colour token) are excluded the same way the old allowlist excluded
+ * them — by not being a real token name, not by being hand-enumerated.
+ *
+ * W5-HARDEN (W5-VERIFY2): `ring-[#ffffff]` produced ZERO matches under the
+ * old `ring-([\w-]+?)` pattern (`[` isn't a word/dash character), so an
+ * arbitrary-value ring was invisible regardless of whether it won the real
+ * merge. Now also matches `ring-[...]` (arbitrary value) and `ring-(--x)`
+ * (Tailwind v4 CSS-variable shorthand), producing a `rawValue` token the
+ * caller resolves with the same `resolveColor` used for every other value —
+ * fail-closed (an unresolvable shape throws) instead of silently vanishing. */
+/** Distinguishes a colour-shaped `ring-[...]` arbitrary value (hex, a colour
+ * function, a `var()` reference, or a bare named colour keyword like
+ * `white`) from a length-shaped one (`3px`, `0.5`) — both use identical
+ * bracket syntax, and only the former is a ring-colour candidate. */
+const ARBITRARY_RING_COLOR_VALUE_PATTERN =
+	/^(#[0-9a-fA-F]{3,8}|var\(--[\w-]+\)|(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\(.*\)|[a-zA-Z]+)$/;
+
 const parseRingTokens = (
 	mergedClassName: string,
 	knownColorNames: ReadonlySet<string>,
 ): RingToken[] => {
-	const pattern = /(?:^|\s)((?:[\w-]+:)*)ring-([\w-]+?)(?:\/(\d+))?(?=\s|$)/g;
+	const pattern =
+		/(?:^|\s)((?:[\w-]+:)*)ring-(\[[^\]]+\]|\((--[\w-]+)\)|[\w-]+?)(?:\/(\d+))?(?=\s|$)/g;
 	const tokens: RingToken[] = [];
 	let match: RegExpExecArray | null;
 	while ((match = pattern.exec(mergedClassName))) {
-		const [, chain, color, alphaText] = match;
-		if (!knownColorNames.has(color)) {
-			continue;
-		}
+		const [, chain, rawColorGroup, cssVarName, alphaText] = match;
 		const variants = chain.split(':').filter(Boolean);
-		tokens.push({
-			variants,
-			color,
-			alpha: alphaText ? Number.parseInt(alphaText, 10) / 100 : 1,
-		});
+		const alpha = alphaText ? Number.parseInt(alphaText, 10) / 100 : 1;
+
+		if (cssVarName) {
+			tokens.push({ variants, rawValue: `var(${cssVarName})`, alpha });
+		} else if (rawColorGroup.startsWith('[') && rawColorGroup.endsWith(']')) {
+			const bracketValue = rawColorGroup.slice(1, -1);
+			// `ring-[<value>]` is ambiguous in real Tailwind: the same bracket
+			// syntax sets ring WIDTH for a length (`ring-[3px]`) and ring COLOUR
+			// for a colour (`ring-[#fff]`). Only a colour-shaped value is a
+			// colour-token candidate; a length is correctly ignored, exactly
+			// like `ring-3`/`ring-offset-2` already are via knownColorNames.
+			if (ARBITRARY_RING_COLOR_VALUE_PATTERN.test(bracketValue)) {
+				tokens.push({ variants, rawValue: bracketValue, alpha });
+			}
+		} else if (knownColorNames.has(rawColorGroup)) {
+			tokens.push({ variants, color: rawColorGroup, alpha });
+		}
 	}
 	return tokens;
 };
@@ -285,18 +318,47 @@ const THEMES = [
 	},
 ] as const;
 
-/** Non-CVA consumers: a single static className recipe (no `variant` prop
- * affecting the ring), read straight from source. */
-const STATIC_CONSUMERS = [
-	'input.tsx',
-	'textarea.tsx',
-	'checkbox.tsx',
-	'switch.tsx',
-	'tabs.tsx',
-	'drawer.tsx',
-	'confirm-dialog.tsx',
-	'select.tsx',
-] as const;
+const srcRootDir = path.resolve(rootDir, '..');
+const FOCUS_RING_UTILITY_MARKER = 'focus-visible:ring';
+
+const collectTsxFiles = (dir: string): string[] => {
+	const results: string[] = [];
+	for (const entry of readdirSync(dir, { withFileTypes: true })) {
+		const fullPath = path.join(dir, entry.name);
+		if (entry.isDirectory()) {
+			results.push(...collectTsxFiles(fullPath));
+			continue;
+		}
+		if (entry.name.endsWith('.tsx') && !entry.name.endsWith('.test.tsx')) {
+			results.push(fullPath);
+		}
+	}
+	return results;
+};
+
+// W5-HARDEN (W5-VERIFY2): a hand-maintained consumer list is itself the
+// defect this finding class keeps re-finding — `focus-visible:ring-primary/10`
+// shipped on a real, focusable ROUTE consumer that this list never named,
+// because nobody added it. Scanning the whole components/routes tree for any
+// file whose source contains a static `focus-visible:ring` utility means an
+// unlisted file can no longer be invisible; only button.tsx/badge.tsx are
+// excluded, because their CVA variants are already exercised through the
+// real `cn()`-merged pipeline below (this scan reads raw source text, so it
+// cannot see a runtime-merged CVA variant's ring the way the variant-key
+// loop does).
+const STATIC_CONSUMER_EXCLUSIONS = new Set([
+	path.join(uiDir, 'button.tsx'),
+	path.join(uiDir, 'badge.tsx'),
+]);
+
+const discoveredConsumerPaths = [
+	...collectTsxFiles(path.join(srcRootDir, 'components')),
+	...collectTsxFiles(path.join(srcRootDir, 'routes')),
+].filter(
+	(absolutePath) =>
+		!STATIC_CONSUMER_EXCLUSIONS.has(absolutePath) &&
+		readFileSync(absolutePath, 'utf8').includes(FOCUS_RING_UTILITY_MARKER),
+);
 
 describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 	const appCssSource = readFileSync(appCssPath, 'utf8');
@@ -352,6 +414,53 @@ describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 				'secondary',
 			].sort(),
 		);
+	});
+
+	// W5-HARDEN (W5-VERIFY2): `focus-visible:ring-primary/10` shipped on a real
+	// focusable ROUTE consumer that the old hand-maintained STATIC_CONSUMERS
+	// list never named — a hand-written inventory is itself the defect. This
+	// proves the replacement (scanning components/ AND routes/ for the
+	// utility) actually reaches beyond src/components/ui/, not just that it
+	// runs without throwing.
+	test('the discovered consumer set is not scoped to src/components/ui/ alone (the class of miss that let a route consumer ship unguarded)', () => {
+		const hasRouteConsumer = discoveredConsumerPaths.some((consumerPath) =>
+			consumerPath.startsWith(path.join(srcRootDir, 'routes')),
+		);
+		expect(discoveredConsumerPaths.length).toBeGreaterThan(0);
+		expect(hasRouteConsumer).toBe(true);
+	});
+
+	// W5-HARDEN: a ring colour set via inline `style=` is entirely outside
+	// className-based scanning (parseRingTokens only ever sees classes), so a
+	// consumer that moved its focus ring into `style={{ boxShadow: ... }}`
+	// would render zero tokens and `assertStateCompliant` would just return
+	// early as "nothing to assert" — the exact silent-pass failure mode this
+	// guard exists to close. Rather than let that shape through unverified,
+	// fail the whole suite if it's ever used anywhere in scope.
+	test('no focus-adjacent inline style expresses a ring/shadow colour (unverifiable by this guard — must fail closed)', () => {
+		const allProductFiles = [
+			...collectTsxFiles(path.join(srcRootDir, 'components')),
+			...collectTsxFiles(path.join(srcRootDir, 'routes')),
+		];
+		const inlineStyleRingPattern =
+			/style=\{\{[^}]*(?:boxShadow|outlineColor|ringColor)[^}]*\}\}/i;
+		const offenders = allProductFiles
+			.filter((filePath) =>
+				inlineStyleRingPattern.test(readFileSync(filePath, 'utf8')),
+			)
+			.map((filePath) => path.relative(srcRootDir, filePath));
+
+		expect(offenders).toEqual([]);
+	});
+
+	test('the inline-style fail-closed check itself catches a planted boxShadow-based ring (evasion proof)', () => {
+		const inlineStyleRingPattern =
+			/style=\{\{[^}]*(?:boxShadow|outlineColor|ringColor)[^}]*\}\}/i;
+		expect(
+			inlineStyleRingPattern.test(
+				"<div style={{ boxShadow: '0 0 0 3px rgba(0,0,0,.4)' }} />",
+			),
+		).toBe(true);
 	});
 
 	for (const theme of THEMES) {
@@ -414,16 +523,30 @@ describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 				// all) -- nothing to assert.
 				return;
 			}
-			const winnerRgb = resolveKnownColorRgb(winner.color);
+			// W5-HARDEN: fail closed, not open. `winner.color` (a known semantic
+			// token) always resolves; `winner.rawValue` (an arbitrary bracket
+			// value or CSS-variable shorthand) is resolved through the SAME
+			// `resolveColor` every other token value goes through — hex and
+			// var() references succeed, anything else (a raw `oklch(...)`, an
+			// unresolved custom property) THROWS, and that throw fails this test
+			// instead of the token silently being skipped. A guard that quietly
+			// can't parse a shape and treats that as "no violation" is the guard
+			// this class of finding keeps re-breaking.
+			const winnerRgb = winner.color
+				? resolveKnownColorRgb(winner.color)
+				: resolveColor(winner.rawValue as string, declarations, surfaceHex);
 			const renderedRingRgb = composite(
 				{ ...winnerRgb, a: winner.alpha },
 				surfaceRgb,
 			);
 			const ratio = contrastRatio(renderedRingRgb, surfaceRgb);
+			const winnerLabel = winner.color
+				? `ring-${winner.color}`
+				: `ring-[${winner.rawValue}]`;
 			expect(
 				ratio,
 				`${consumerLabel} (${theme.name}, ${stateName}): winning ring token ` +
-					`is ${winner.variants.join(':')}:ring-${winner.color}` +
+					`is ${winner.variants.join(':')}:${winnerLabel}` +
 					(winner.alpha < 1 ? `/${Math.round(winner.alpha * 100)}` : '') +
 					` -> ${ratio.toFixed(2)}:1`,
 			).toBeGreaterThanOrEqual(CONTRAST_FLOOR);
@@ -438,21 +561,22 @@ describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 				? new Set(['focus-visible', 'aria-invalid', 'dark'])
 				: new Set(['focus-visible', 'aria-invalid']);
 
-		for (const consumer of STATIC_CONSUMERS) {
-			const consumerSource = readFileSync(path.join(uiDir, consumer), 'utf8');
+		for (const consumerPath of discoveredConsumerPaths) {
+			const consumerLabel = path.relative(srcRootDir, consumerPath);
+			const consumerSource = readFileSync(consumerPath, 'utf8');
 
-			test(`${consumer} renders a >= ${CONTRAST_FLOOR}:1 focus ring in ${theme.name} mode (focused only)`, () => {
+			test(`${consumerLabel} renders a >= ${CONTRAST_FLOOR}:1 focus ring in ${theme.name} mode (focused only)`, () => {
 				assertStateCompliant(
-					consumer,
+					consumerLabel,
 					consumerSource,
 					FOCUS_ONLY,
 					'focused only',
 				);
 			});
 
-			test(`${consumer} renders a >= ${CONTRAST_FLOOR}:1 focus ring in ${theme.name} mode (focused + aria-invalid)`, () => {
+			test(`${consumerLabel} renders a >= ${CONTRAST_FLOOR}:1 focus ring in ${theme.name} mode (focused + aria-invalid)`, () => {
 				assertStateCompliant(
-					consumer,
+					consumerLabel,
 					consumerSource,
 					FOCUS_AND_INVALID,
 					'focused + aria-invalid',
@@ -531,6 +655,86 @@ describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 			expect(
 				parseRingTokens('ring-3 ring-offset-2 ring-[3px]', knownColorNames),
 			).toEqual([]);
+		});
+
+		// W5-VERIFY2's two evasions: an arbitrary-value ring the old parser
+		// couldn't even see as a token (`[` isn't a word/dash character), and a
+		// tie-break check proving the SAME-variant-chain, later-in-source
+		// arbitrary value wins over an earlier compliant semantic ring — the
+		// exact `focus-visible:ring-ring focus-visible:ring-[#ffffff]` shape
+		// that shipped a white-on-white ring.
+		test(`parseRingTokens resolves arbitrary bracket and CSS-variable-shorthand ring values in ${theme.name} mode`, () => {
+			expect(
+				parseRingTokens('focus-visible:ring-[#ffffff]', knownColorNames),
+			).toEqual([
+				{ variants: ['focus-visible'], rawValue: '#ffffff', alpha: 1 },
+			]);
+			expect(
+				parseRingTokens(
+					'focus-visible:ring-(--publy-primary)',
+					knownColorNames,
+				),
+			).toEqual([
+				{
+					variants: ['focus-visible'],
+					rawValue: 'var(--publy-primary)',
+					alpha: 1,
+				},
+			]);
+			// A length-shaped bracket value is still correctly NOT a colour
+			// candidate — only the syntax is shared with a real arbitrary
+			// colour, not the meaning.
+			expect(
+				parseRingTokens('focus-visible:ring-[3px]', knownColorNames),
+			).toEqual([]);
+		});
+
+		test(`the same-variant-chain tie-break resolves to the LAST ring utility, matching real tailwind-merge order, in ${theme.name} mode`, () => {
+			const tokens = parseRingTokens(
+				'focus-visible:ring-ring focus-visible:ring-[#ffffff]',
+				knownColorNames,
+			);
+			const winner = resolveWinningRingToken(
+				tokens,
+				new Set(['focus-visible']),
+			);
+			expect(winner).toEqual({
+				variants: ['focus-visible'],
+				rawValue: '#ffffff',
+				alpha: 1,
+			});
+		});
+
+		test(`a planted ring-on-surface-colour arbitrary ring value fails the contrast floor in ${theme.name} mode (W5-VERIFY2 evasion proof)`, () => {
+			// Same shape as the real regression (`ring-ring` overridden by a
+			// same-modifier-group `ring-[<arbitrary>]`) but using THIS theme's own
+			// surface hex as the arbitrary value, so the evasion is exactly 1:1 —
+			// guaranteed below the floor in both light and dark mode, unlike a
+			// fixed literal like `#ffffff` (which is high-contrast against a dark
+			// surface and wouldn't demonstrate anything in dark mode).
+			// This asserts the GUARD rejects the evasion — `assertStateCompliant`
+			// itself must throw (a failing contrast assertion), so the evasion
+			// fixture is wrapped in `expect(...).toThrow()` rather than called
+			// directly, which would instead make THIS test red.
+			expect(() =>
+				assertStateCompliant(
+					'evasion-fixture',
+					`focus-visible:ring-ring focus-visible:ring-[${surfaceHex}]`,
+					FOCUS_ONLY,
+					'focused only',
+				),
+			).toThrow();
+		});
+
+		test(`an unresolvable arbitrary ring colour fails closed instead of being silently skipped in ${theme.name} mode`, () => {
+			expect(() =>
+				assertStateCompliant(
+					'evasion-fixture',
+					'focus-visible:ring-[oklch(70%_0.1_90)]',
+					FOCUS_ONLY,
+					'focused only',
+				),
+			).toThrow(/Unsupported colour value shape/);
 		});
 
 		test(`a planted low-contrast sibling ring colour fails the contrast floor in ${theme.name} mode (evasion proof)`, () => {

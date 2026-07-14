@@ -133,7 +133,26 @@ describe('tenant picker row focus indicator', () => {
 	});
 
 	for (const theme of THEMES) {
-		test(`renders a >=3:1 contrast focus ring against the card surface in the ${theme.name} theme`, () => {
+		// W5-HARDEN (W5-VERIFY2): the previous version of this test read
+		// `--publy-focus-ring`/`--publy-surface` straight out of app.css and
+		// computed their contrast WITHOUT ever checking that the rendered row
+		// actually uses those tokens — it passed even with the old
+		// `rgba(253,199,0,0.16)` shadow still rendering, because the two halves
+		// (what's rendered vs. which tokens are "compliant") were never linked.
+		// This now asserts BOTH in the same test: the row's className must
+		// actually contain the compliant `focus-visible:ring-ring` utility (and
+		// none of the raw-colour-function shapes it replaced), THEN computes
+		// contrast for the tokens that utility resolves to — so reverting to
+		// the raw shadow fails on the className assertion, not just a
+		// disconnected token-pair contrast check.
+		test(`renders a >=3:1 contrast focus ring against the card surface in the ${theme.name} theme, using the actual rendered ring class`, () => {
+			const row = renderActiveRow();
+
+			expect(row.className).toContain('focus-visible:ring-ring');
+			expect(row.className).not.toMatch(
+				/rgba?\(|hsla?\(|oklch\(|#[0-9a-fA-F]{3,8}/,
+			);
+
 			const ringHex = nthTokenHex('--publy-focus-ring', theme.ringOccurrence);
 			const surfaceHex = nthTokenHex(
 				'--publy-surface',
