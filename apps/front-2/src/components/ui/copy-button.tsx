@@ -86,6 +86,17 @@ export const CopyButton = ({
 		return copied ? 'copied' : 'idle';
 	};
 
+	// Only the copy *result* is worth an unsolicited screen-reader
+	// announcement; the idle label is already exposed via `aria-label` and
+	// re-announcing it here (both on mount and again after the feedback
+	// window resets) would double-announce the same text as label + status.
+	const liveAnnouncement = () => {
+		if (failed) {
+			return t('copy-failed');
+		}
+		return copied ? t('copied') : '';
+	};
+
 	const icon = () => {
 		if (failed) {
 			return (
@@ -104,7 +115,7 @@ export const CopyButton = ({
 	return (
 		<Tooltip>
 			<span id={statusId} role="status" aria-live="polite" className="sr-only">
-				{tooltipLabel()}
+				{liveAnnouncement()}
 			</span>
 			<TooltipTrigger
 				render={
@@ -115,7 +126,6 @@ export const CopyButton = ({
 						aria-label={label}
 						data-testid={testId}
 						data-state={status()}
-						aria-describedby={statusId}
 						onClick={() => {
 							void handleCopy();
 						}}

@@ -29,6 +29,31 @@ afterEach(() => {
 });
 
 describe('CopyButton', () => {
+	// W5-UI F3: the live region must stay silent on mount (the accessible name
+	// already comes from `aria-label`), announce only the copy result, and go
+	// silent again after the feedback window instead of re-announcing "copy".
+	test('the live region is silent on mount, announces only the copy result, and goes silent again after reset', async () => {
+		vi.useFakeTimers();
+		const writeText = vi.fn().mockResolvedValue(undefined);
+		Object.assign(navigator, { clipboard: { writeText } });
+
+		render(<CopyButton value="secret" label="Copy" />);
+
+		expect(getStatusText()).toBe('');
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+		expect(getStatusText()).toBe('copied');
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(1500);
+		});
+		expect(getStatusText()).toBe('');
+	});
+
 	test('copies the value, updates the announceable status text, and flips the icon back after the feedback window', async () => {
 		vi.useFakeTimers();
 		const writeText = vi.fn().mockResolvedValue(undefined);
@@ -51,7 +76,9 @@ describe('CopyButton', () => {
 			expect(container.querySelector('.tabler-icon-check')).toBeNull(),
 		);
 		expect(container.querySelector('.tabler-icon-copy')).not.toBeNull();
-		expect(getStatusText()).toBe('copy');
+		// The idle label is already exposed via `aria-label`; the live region
+		// goes silent after the feedback window instead of re-announcing it.
+		expect(getStatusText()).toBe('');
 	});
 
 	test('a second click before the feedback window elapses re-arms the timer instead of stacking it', async () => {
@@ -149,7 +176,9 @@ describe('CopyButton', () => {
 			fireEvent.focus(button);
 			await vi.advanceTimersByTimeAsync(1000);
 		});
-		expect(screen.getByRole('status').textContent?.trim()).toBe('copy');
+		// Idle: the live region stays silent (the tooltip still visually shows
+		// "copy" via TooltipContent, but that is not what is under test here).
+		expect(screen.getByRole('status').textContent?.trim()).toBe('');
 
 		await act(async () => {
 			fireEvent.click(button);
