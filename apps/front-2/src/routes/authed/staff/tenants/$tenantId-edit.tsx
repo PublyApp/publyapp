@@ -410,6 +410,7 @@ function StaffTenantEditRoute() {
 
 	const formatLastActive = (value: Date | null): string => {
 		const parts = getRelativeTimeParts(value);
+		// data-honesty-ignore: relative-time "never active" fallback, not a fabricated identity
 		return parts ? t(parts.key, { count: parts.count }) : '—';
 	};
 

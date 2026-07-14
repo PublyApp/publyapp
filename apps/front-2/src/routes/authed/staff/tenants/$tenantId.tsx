@@ -178,6 +178,7 @@ const formatLastActive = (
 	t: (key: string, options?: Record<string, unknown>) => string,
 ): string => {
 	const parts = getRelativeTimeParts(value);
+	// data-honesty-ignore: relative-time "never active" fallback, not a fabricated identity
 	return parts ? t(parts.key, { count: parts.count }) : '—';
 };
 
@@ -314,7 +315,7 @@ const UsersPreviewCard = ({
 								{row.displayName}
 							</p>
 							<p className="truncate text-xs text-muted-foreground">
-								{row.email || '—'}
+								{row.email}
 							</p>
 						</div>
 						<StatusPill tone="neutral">
@@ -390,7 +391,7 @@ const OwnersCard = ({
 								{row.displayName}
 							</p>
 							<p className="truncate text-xs text-muted-foreground">
-								{row.email || '—'}
+								{row.email}
 							</p>
 						</div>
 						<span className="publy-detail-chip publy-detail-chip--amber shrink-0">

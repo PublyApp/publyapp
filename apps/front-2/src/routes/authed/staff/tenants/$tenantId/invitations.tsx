@@ -132,7 +132,7 @@ export const createColumns = ({
 		),
 		accessorKey: 'email',
 		cell: ({ row }) => {
-			const email = row.original.email || '—';
+			const email = row.original.email;
 			return (
 				<div className="flex min-w-0 items-center gap-2.5">
 					<InitialsAvatar name={row.original.email} />

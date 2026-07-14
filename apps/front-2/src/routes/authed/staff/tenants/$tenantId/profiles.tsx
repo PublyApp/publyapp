@@ -368,9 +368,9 @@ const ProfileCard = ({
 						to="/staff/tenants/$tenantId/profiles/$profileId"
 						params={{ tenantId, profileId: profile.id }}
 						className="publy-record-link truncate text-[14px] font-semibold text-foreground no-underline"
-						title={profile.name || undefined}
+						title={profile.name}
 					>
-						{profile.name || '—'}
+						{profile.name}
 					</Link>
 					<span className={tenantProfileTypeChipClassName(profile.isDefault)}>
 						{profile.isDefault ? t('system') : t('custom')}
@@ -425,9 +425,9 @@ const ProfileNameCell = ({
 			<span className="flex min-w-0 flex-wrap items-center gap-2">
 				<span
 					className="publy-record-link truncate text-[13px] font-medium"
-					title={profile.name || undefined}
+					title={profile.name}
 				>
-					{profile.name || '—'}
+					{profile.name}
 				</span>
 				<span className={tenantProfileTypeChipClassName(profile.isDefault)}>
 					{profile.isDefault ? t('system') : t('custom')}

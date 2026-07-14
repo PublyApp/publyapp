@@ -435,9 +435,9 @@ export const makeTenantUserColumns = (
 					</span>
 					<span
 						className="block truncate text-xs text-muted-foreground"
-						title={row.original.email || undefined}
+						title={row.original.email}
 					>
-						{row.original.email || '—'}
+						{row.original.email}
 					</span>
 				</span>
 			</Link>

@@ -460,7 +460,7 @@ function StaffTenantUserDetailsPage() {
 
 			<Card className="space-y-4 p-5">
 				<div className="grid gap-4 md:grid-cols-2">
-					<DetailItem label={t('email')} value={user.email || '—'} />
+					<DetailItem label={t('email')} value={user.email} />
 					<DetailItem
 						label={t('account-level')}
 						value={formatTenantUserLevelLabel(user.accountLevel, t)}
