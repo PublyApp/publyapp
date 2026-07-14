@@ -186,7 +186,7 @@ const RoutedShell = () => {
 	);
 };
 
-const RootErrorBoundary = ({
+export const RootErrorBoundary = ({
 	error,
 	reset,
 }: {
@@ -208,6 +208,7 @@ const RootErrorBoundary = ({
 		if (isAuthPath(pathname)) {
 			return (
 				<AppErrorView
+					embedded={false}
 					icon={<IconLock aria-hidden="true" className="size-7" />}
 					code={t('error-401-code')}
 					title={t('authentication-required')}
@@ -225,11 +226,12 @@ const RootErrorBoundary = ({
 		}
 
 		if (isAuthedSurface(pathname)) {
-			return <LogoutRedirect />;
+			return <LogoutRedirect embedded={false} />;
 		}
 
 		return (
 			<AppErrorView
+				embedded={false}
 				icon={<IconLock aria-hidden="true" className="size-7" />}
 				code={t('error-401-code')}
 				title={t('session-expired')}
@@ -244,15 +246,16 @@ const RootErrorBoundary = ({
 	}
 
 	if (routeStatus === 403) {
-		return <View403 />;
+		return <View403 embedded={false} />;
 	}
 
 	if (routeStatus === 404) {
-		return <View404 />;
+		return <View404 embedded={false} />;
 	}
 
 	return (
 		<AppErrorView
+			embedded={false}
 			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 			code={t('error-500-code')}
 			title={t('something-went-wrong')}
@@ -284,7 +287,7 @@ export const Route = createRootRouteWithContext<{
 	}),
 	loader: async (): Promise<RootLoaderData> => loadI18nForRequest(),
 	errorComponent: RootErrorBoundary,
-	notFoundComponent: () => <View404 />,
+	notFoundComponent: () => <View404 embedded={false} />,
 	component: RootComponent,
 });
 
