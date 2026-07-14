@@ -412,6 +412,18 @@ const isThemeInvariantToken = (name) =>
 		entry.exact ? entry.exact === name : name.startsWith(entry.prefix),
 	);
 
+// W6-GUARDS (ui F3): this raw regex used to scan comments along with real
+// declarations — `/* --publy-new-tone: dark value pending; */` satisfied
+// BOTH token-theme-parity (the parity guard saw the commented name as
+// "declared" in the block it appeared in, even though the browser never
+// resolves it there) and token-must-be-declared (any comment anywhere in
+// app.css mentioning a token name made every real `var(--publy-x)` usage
+// look declared, even if no real declaration existed anywhere). Every
+// consumer of this function — token parity, the scoped custom-property
+// pairing walk, and the whole-source declared-names set — shares this one
+// parser, so stripping comments here closes the hole everywhere at once.
+const stripCssComments = (text) => text.replace(/\/\*[\s\S]*?\*\//g, '');
+
 // Parses `--publy-x: value;` pairs out of a block of CSS text, tolerating
 // multi-line values (e.g. a wrapped `box-shadow` declaration) since this
 // operates on the whole block instead of scanning line-by-line.
@@ -419,7 +431,7 @@ const extractTokenDeclarations = (blockText) => {
 	const declarations = new Map();
 	const pattern = /(--publy-[\w-]+)\s*:\s*([^;]+);/g;
 	let match;
-	while ((match = pattern.exec(blockText))) {
+	while ((match = pattern.exec(stripCssComments(blockText)))) {
 		declarations.set(match[1], match[2].trim());
 	}
 	return declarations;
@@ -668,10 +680,22 @@ const recordViolation = (violations, violation, lines) => {
 // list to also cover the `border`/`outline` shorthands (a literal there is
 // the same visible line as `border-color`, just spelled differently) and the
 // remaining colour-bearing properties the original list missed entirely.
+// W6-GUARDS (ui F5): `box-shadow`/`filter`/`backdrop-filter` were missing
+// from THIS list entirely — only the colour-FUNCTION pattern below added
+// `box-shadow` as a one-off — so a raw hex/named-colour shadow (as opposed
+// to an `rgba(...)` one) sailed through unscanned. Also added the camelCase
+// spellings (`boxShadow`, `backgroundColor`, ...) a TS/TSX inline
+// `style={{ ... }}` object or a shared style-object constant uses instead of
+// kebab-case — the property-name half of the same finding's "the property
+// detector only understands kebab-case CSS".
 const RAW_COLOR_PROPERTY_NAMES =
-	'color|background|background-color|background-image|border|border-color|' +
-	'border-top|border-right|border-bottom|border-left|outline|outline-color|' +
-	'text-shadow|caret-color|accent-color|fill|stroke';
+	'color|background|background-color|backgroundColor|background-image|' +
+	'backgroundImage|border|border-color|borderColor|' +
+	'border-top|borderTop|border-right|borderRight|border-bottom|borderBottom|' +
+	'border-left|borderLeft|outline|outline-color|outlineColor|box-shadow|' +
+	'boxShadow|filter|backdrop-filter|backdropFilter|' +
+	'text-shadow|textShadow|caret-color|caretColor|accent-color|accentColor|' +
+	'fill|stroke';
 const RAW_COLOR_PROPERTY_HEX_PATTERN = new RegExp(
 	`\\b(?:${RAW_COLOR_PROPERTY_NAMES})\\s*:\\s*#[0-9a-fA-F]{3,8}\\b`,
 );
@@ -683,10 +707,185 @@ const RAW_COLOR_PROPERTY_HEX_PATTERN_MULTILINE = new RegExp(
 // color() literals in a property value are just as unrouted to a theme-aware
 // token as an rgba() one.
 const RAW_COLOR_PROPERTY_RGBA_PATTERN = new RegExp(
-	`\\b(?:${RAW_COLOR_PROPERTY_NAMES}|box-shadow)\\s*:\\s*(?:${DIRECT_COLOR_FUNCTION_NAMES})\\(`,
+	`\\b(?:${RAW_COLOR_PROPERTY_NAMES})\\s*:\\s*(?:${DIRECT_COLOR_FUNCTION_NAMES})\\(`,
 );
 const RAW_COLOR_PROPERTY_RGBA_PATTERN_MULTILINE = new RegExp(
-	`\\b(?:${RAW_COLOR_PROPERTY_NAMES}|box-shadow)\\s*:[^;]*(?:${DIRECT_COLOR_FUNCTION_NAMES})\\(`,
+	`\\b(?:${RAW_COLOR_PROPERTY_NAMES})\\s*:[^;]*(?:${DIRECT_COLOR_FUNCTION_NAMES})\\(`,
+);
+// W6-GUARDS (shell F6 / ui F6): a raw CSS/inline-style NAMED colour keyword
+// (`color: red;`, `style={{ color: 'red' }}`) was entirely unguarded outside
+// `color-mix()` — every direct-literal pattern above only ever recognised
+// hex and colour-function shapes. Anchored immediately after the colon (not
+// widened to `[^;]*`) so a token reference elsewhere in the SAME declaration
+// value — `border: 1px solid var(--publy-border-strong)` — can never
+// false-positive on an unrelated word that happens to share a colour name.
+const CSS_NAMED_COLOR_NAMES = [
+	'aliceblue',
+	'antiquewhite',
+	'aqua',
+	'aquamarine',
+	'azure',
+	'beige',
+	'bisque',
+	'black',
+	'blanchedalmond',
+	'blue',
+	'blueviolet',
+	'brown',
+	'burlywood',
+	'cadetblue',
+	'chartreuse',
+	'chocolate',
+	'coral',
+	'cornflowerblue',
+	'cornsilk',
+	'crimson',
+	'cyan',
+	'darkblue',
+	'darkcyan',
+	'darkgoldenrod',
+	'darkgray',
+	'darkgreen',
+	'darkgrey',
+	'darkkhaki',
+	'darkmagenta',
+	'darkolivegreen',
+	'darkorange',
+	'darkorchid',
+	'darkred',
+	'darksalmon',
+	'darkseagreen',
+	'darkslateblue',
+	'darkslategray',
+	'darkslategrey',
+	'darkturquoise',
+	'darkviolet',
+	'deeppink',
+	'deepskyblue',
+	'dimgray',
+	'dimgrey',
+	'dodgerblue',
+	'firebrick',
+	'floralwhite',
+	'forestgreen',
+	'fuchsia',
+	'gainsboro',
+	'ghostwhite',
+	'gold',
+	'goldenrod',
+	'gray',
+	'green',
+	'greenyellow',
+	'grey',
+	'honeydew',
+	'hotpink',
+	'indianred',
+	'indigo',
+	'ivory',
+	'khaki',
+	'lavender',
+	'lavenderblush',
+	'lawngreen',
+	'lemonchiffon',
+	'lightblue',
+	'lightcoral',
+	'lightcyan',
+	'lightgoldenrodyellow',
+	'lightgray',
+	'lightgreen',
+	'lightgrey',
+	'lightpink',
+	'lightsalmon',
+	'lightseagreen',
+	'lightskyblue',
+	'lightslategray',
+	'lightslategrey',
+	'lightsteelblue',
+	'lightyellow',
+	'lime',
+	'limegreen',
+	'linen',
+	'magenta',
+	'maroon',
+	'mediumaquamarine',
+	'mediumblue',
+	'mediumorchid',
+	'mediumpurple',
+	'mediumseagreen',
+	'mediumslateblue',
+	'mediumspringgreen',
+	'mediumturquoise',
+	'mediumvioletred',
+	'midnightblue',
+	'mintcream',
+	'mistyrose',
+	'moccasin',
+	'navajowhite',
+	'navy',
+	'oldlace',
+	'olive',
+	'olivedrab',
+	'orange',
+	'orangered',
+	'orchid',
+	'palegoldenrod',
+	'palegreen',
+	'paleturquoise',
+	'palevioletred',
+	'papayawhip',
+	'peachpuff',
+	'peru',
+	'pink',
+	'plum',
+	'powderblue',
+	'purple',
+	'rebeccapurple',
+	'red',
+	'rosybrown',
+	'royalblue',
+	'saddlebrown',
+	'salmon',
+	'sandybrown',
+	'seagreen',
+	'seashell',
+	'sienna',
+	'silver',
+	'skyblue',
+	'slateblue',
+	'slategray',
+	'slategrey',
+	'snow',
+	'springgreen',
+	'steelblue',
+	'tan',
+	'teal',
+	'thistle',
+	'tomato',
+	'turquoise',
+	'violet',
+	'wheat',
+	'white',
+	'whitesmoke',
+	'yellow',
+	'yellowgreen',
+];
+const RAW_COLOR_PROPERTY_NAMED_PATTERN = new RegExp(
+	`\\b(?:${RAW_COLOR_PROPERTY_NAMES})\\s*:\\s*["'\`]?(?:${CSS_NAMED_COLOR_NAMES.join('|')})\\b`,
+	'i',
+);
+// W6-GUARDS (ui F5): a shorthand value (`box-shadow: 0 0 0 3px red;`) puts
+// the named colour AFTER other tokens (offset/blur/spread), not immediately
+// after the colon — the anchored pattern above only ever checked the FIRST
+// token. Widened the same way the hex/rgba multi-line variants are, but with
+// an explicit `(?<![\w-])`/`(?![\w-])` boundary (not just `\b`) so a token
+// reference elsewhere in the SAME declaration can never false-positive on a
+// colour-name word fragment (`var(--publy-border-strong)` contains no
+// standalone "red"/"tan", but this guards the general case: `\b` alone
+// treats the boundary between `-` and a letter as a word boundary, which
+// `--publy-red-500` would trip without this stricter check).
+const RAW_COLOR_PROPERTY_NAMED_PATTERN_MULTILINE = new RegExp(
+	`\\b(?:${RAW_COLOR_PROPERTY_NAMES})\\s*:[^;]*(?<![\\w-])(?:${CSS_NAMED_COLOR_NAMES.join('|')})(?![\\w-])`,
+	'i',
 );
 // F3: a `--custom-prop:` declaration is invisible to the property-name
 // patterns above (it has no property name at all), so a raw hex/rgba/hsla/
@@ -702,6 +901,10 @@ const RAW_COLOR_CUSTOM_PROPERTY_PATTERN = new RegExp(
 const RAW_COLOR_MULTILINE_PATTERN_OVERRIDES = new Map([
 	[RAW_COLOR_PROPERTY_HEX_PATTERN, RAW_COLOR_PROPERTY_HEX_PATTERN_MULTILINE],
 	[RAW_COLOR_PROPERTY_RGBA_PATTERN, RAW_COLOR_PROPERTY_RGBA_PATTERN_MULTILINE],
+	[
+		RAW_COLOR_PROPERTY_NAMED_PATTERN,
+		RAW_COLOR_PROPERTY_NAMED_PATTERN_MULTILINE,
+	],
 ]);
 // r5-ui-F2: the quoted/templated and Tailwind-arbitrary variants below were
 // hard-coded to `rgba?` only, so a quoted `'hsl(0 0% 0%)'`/`` `oklch(...)` ``
@@ -781,6 +984,30 @@ const splitTopLevel = (text, separator) => {
 	return parts;
 };
 
+/** Extracts the balanced argument-list text of a `var(...)` call at the start
+ * of `value` (already confirmed via `/^var\(/i`), so a fallback containing
+ * its own nested parens (another `var()`, a `color-mix()`, a colour
+ * function) is captured whole instead of truncated at the first `)`. Returns
+ * `null` for an unbalanced/malformed call. */
+const extractVarArgs = (value) => {
+	const openParenIndex = value.indexOf('(');
+	if (openParenIndex === -1) {
+		return null;
+	}
+	let depth = 0;
+	for (let index = openParenIndex; index < value.length; index += 1) {
+		if (value[index] === '(') {
+			depth += 1;
+		} else if (value[index] === ')') {
+			depth -= 1;
+			if (depth === 0) {
+				return value.slice(openParenIndex + 1, index);
+			}
+		}
+	}
+	return null;
+};
+
 // W5-HARDEN2: relative colour syntax — `rgb(from <base> r g b)` (and the
 // hsl/hwb/lab/lch/oklab/oklch/color() equivalents) — derives every channel
 // from `<base>`. When `<base>` is itself a `var(...)` reference or a
@@ -801,7 +1028,26 @@ const RELATIVE_COLOR_BASE_PATTERN =
  * named colour keyword like `white`/`red` — is a raw literal. */
 const isSafeColorMixValue = (withoutPercentage) => {
 	if (/^var\(/i.test(withoutPercentage)) {
-		return true;
+		// W6-GUARDS (tests F5): a bare `var(--x)` operand is always safe — the
+		// referenced custom property is itself a theme-aware token by
+		// definition — but this used to accept ANY value starting with `var(`,
+		// including one carrying a raw-literal FALLBACK
+		// (`var(--missing-brand, #fff)`): when the custom property is unset,
+		// the browser renders the raw fallback directly, which is exactly as
+		// raw as a bare `#fff` operand. Parse the var() call as a balanced
+		// function and, when a fallback is present, validate IT the same way
+		// any other color-mix operand is validated (recursively — the
+		// fallback can itself be a safe var()/keyword/nested color-mix, or a
+		// raw literal).
+		const argsText = extractVarArgs(withoutPercentage);
+		if (argsText === null) {
+			return false;
+		}
+		const [, ...fallbackParts] = splitTopLevel(argsText, ',');
+		if (fallbackParts.length === 0) {
+			return true;
+		}
+		return isSafeColorMixValue(fallbackParts.join(',').trim());
 	}
 	if (COLOR_MIX_SAFE_KEYWORDS.has(withoutPercentage.toLowerCase())) {
 		return true;
@@ -949,6 +1195,7 @@ const rules = [
 			ARBITRARY_TAILWIND_DIRECT_COLOR_PATTERN,
 			ARBITRARY_TAILWIND_DIRECT_COLOR_ANYWHERE_PATTERN,
 			RAW_COLOR_PROPERTY_RGBA_PATTERN,
+			RAW_COLOR_PROPERTY_NAMED_PATTERN,
 			RAW_COLOR_CUSTOM_PROPERTY_PATTERN,
 			COLOR_MIX_RAW_OPERAND_PATTERN,
 		],
@@ -1089,10 +1336,29 @@ const rules = [
 		message:
 			"page.route()/context.route() glob ends in a single '*', which cannot cross '/'. Sub-paths escape the mock and hit the real API. Use '**'.",
 		appliesTo: (relativePath) => relativePath.startsWith('e2e/'),
-		// Covers context.route(...) too (F30) — Playwright's BrowserContext
-		// exposes the same route() API as Page, and a glob registered there has
-		// the identical single-`*`-cannot-cross-`/` footgun.
-		patterns: [/(?:page|context)\.route\(\s*(['"`])(?:(?!\1)[^\\])*[^*]\*\1/g],
+		// W6-GUARDS (tests F6): the previous pattern was anchored to exactly the
+		// two literal receiver names `page`/`context` and a quoted string
+		// literal argument — a fixture/receiver alias (`staffPage.route`,
+		// `browserContext.route`, any destructured/renamed Playwright fixture)
+		// or a glob passed through a local constant expression instead of an
+		// inline literal were both structurally invisible. `.route(` is a
+		// Playwright-specific method name with no ordinary-code collision risk
+		// in an e2e spec file, so the receiver is now ANY identifier, not just
+		// the two hand-picked ones (fixes the alias evasion). A `.route()` call
+		// whose first argument isn't a literal at all — a bare identifier —
+		// can never be statically checked for the single-star shape, so it now
+		// fails CLOSED instead of silently passing (fixes the constant
+		// evasion): inline the glob literal, or widen it to `**`, so it's
+		// checkable again. A template-literal argument (with or without
+		// interpolation) is deliberately still checked by the first pattern
+		// only, not treated as unresolvable — this codebase's existing e2e
+		// specs widely compose globs as `` `**${suffix}` ``/`` `${BASE}${path}` ``
+		// template literals, and the interpolated portion is never itself the
+		// trailing-star boundary in any current usage.
+		patterns: [
+			/\b\w+\.route\(\s*(['"`])(?:(?!\1)[^\\])*[^*]\*\1/g,
+			/\b\w+\.route\(\s*(?!['"`/])\S[^,)]*/g,
+		],
 	},
 ];
 

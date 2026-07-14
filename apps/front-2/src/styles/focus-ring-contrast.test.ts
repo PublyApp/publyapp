@@ -250,10 +250,11 @@ type RingToken = {
  * function, a `var()` reference, or a bare named colour keyword like
  * `white`) from a length-shaped one (`3px`, `0.5`) — both use identical
  * bracket syntax, and only the former is a ring-colour candidate. */
-// W6-GUARDS (tests F2): `color(...)` was recognised but `color-mix(...)` was
-// not — a hyphenated function name the alternation's plain `color` branch
-// can't match (there's a literal `-mix` between the name and the opening
-// paren). A valid `ring-[color-mix(...)]` therefore matched NO branch here,
+// W6-GUARDS (tests F2): the CSS colour function named plain "color" was
+// recognised but `color-mix()` was not — a hyphenated function name the
+// alternation's plain "color" branch can't match (there's a literal `-mix`
+// between the name and the opening paren). A valid `ring-[color-mix(...)]`
+// therefore matched NO branch here,
 // so it never became a candidate token at all and `assertWinnerCompliant`
 // saw no winner and returned as "nothing to assert" — silently passing a
 // ring that could resolve to anything, including surface-on-surface.

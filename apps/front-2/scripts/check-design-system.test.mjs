@@ -517,6 +517,75 @@ test('flags rgb and rgba color strings and style declarations', async () => {
 	);
 });
 
+// W6-GUARDS (shell F6 / ui F6): a CSS named colour keyword outside
+// `color-mix()` was entirely unguarded — every direct-literal pattern only
+// ever recognised hex and colour-function shapes.
+test('W6-GUARDS: flags a raw CSS named colour keyword in a declaration and an inline style object', async () => {
+	const root = await makeFixture({
+		'src/styles/other.css': '.danger { color: red; }',
+		'src/components/table/data-table.tsx':
+			"const chrome = { background: 'rebeccapurple' };",
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.filter((violation) => violation.ruleId === 'no-raw-visual-color')
+			.length,
+		2,
+	);
+});
+
+// Regression guard: a token reference/value that merely CONTAINS a named
+// colour as a word fragment (`var(--publy-border-strong)`) must not
+// false-positive — the named-colour pattern is anchored directly after the
+// property's colon, not widened across the whole declaration value.
+test('W6-GUARDS: does not flag a token reference whose name happens to contain a colour-name fragment (regression guard)', async () => {
+	const root = await makeFixture({
+		'src/styles/other.css':
+			'.ok { border: 1px solid var(--publy-border-strong); }',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.deepEqual(
+		violations.filter(
+			(violation) => violation.ruleId === 'no-raw-visual-color',
+		),
+		[],
+	);
+});
+
+// W6-GUARDS (ui F5): `box-shadow` was only present in the colour-FUNCTION
+// pattern, not the hex/named-colour patterns — a raw hex or named-colour
+// shadow sailed through while the equivalent rgba() shadow was already
+// caught.
+test('W6-GUARDS: flags a raw hex and a raw named colour used in a box-shadow declaration', async () => {
+	const root = await makeFixture({
+		'src/styles/other.css': [
+			'.a { box-shadow: 0 0 0 3px #ffffff; }',
+			'.b { box-shadow: 0 0 0 3px red; }',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.filter((violation) => violation.ruleId === 'no-raw-visual-color')
+			.length,
+		2,
+	);
+});
+
 // r4-ui-F3: the original guard only recognized hex/rgb(a) as direct colour
 // literals — hsl(a), hwb, lab, lch, oklab, oklch, and color() sailed through
 // unrouted-to-a-token in a property value, an arbitrary Tailwind bracket
@@ -708,6 +777,51 @@ test('r5-ui-F2 (hardened): does not flag a fully token-referencing color-mix()',
 	const root = await makeFixture({
 		'src/components/table/data-table.tsx':
 			'const glow = `color-mix(in oklab, var(--publy-primary) 25%, transparent)`;',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.deepEqual(
+		violations.filter(
+			(violation) => violation.ruleId === 'no-raw-visual-color',
+		),
+		[],
+	);
+});
+
+// W6-GUARDS (tests F5): `isSafeColorMixValue` accepted ANY operand starting
+// with `var(` as safe, without inspecting its fallback — a raw-literal
+// fallback (rendered by the browser whenever the custom property is unset)
+// is exactly as raw as a bare literal operand.
+test('W6-GUARDS: flags a color-mix() operand whose var() carries a raw hex fallback', async () => {
+	const root = await makeFixture({
+		'src/components/table/data-table.tsx':
+			'const glow = `color-mix(in srgb, var(--missing-brand, #ffffff) 50%, transparent)`;',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.filter((violation) => violation.ruleId === 'no-raw-visual-color')
+			.length,
+		1,
+	);
+});
+
+// Regression guard: a var() fallback that is ITSELF safe (another token
+// reference, or a theme-invariant keyword) must stay clean.
+test('W6-GUARDS: does not flag a color-mix() operand whose var() fallback is itself a safe token/keyword (regression guard)', async () => {
+	const root = await makeFixture({
+		'src/components/table/data-table.tsx': [
+			'const a = `color-mix(in srgb, var(--publy-primary, var(--publy-accent)) 50%, transparent)`;',
+			'const b = `color-mix(in srgb, var(--publy-primary, transparent) 50%, transparent)`;',
+		].join('\n'),
 	});
 
 	const violations = await scanFront2DesignSystem({
@@ -1069,6 +1183,74 @@ test('F30: flags a single-star glob registered via context.route(), not just pag
 
 	assert.equal(globViolations.length, 1);
 	assert.match(globViolations[0].source, /staff\/tenants\*/);
+});
+
+// W6-GUARDS (tests F6): a fixture/receiver alias — a renamed or destructured
+// Playwright fixture, not the two hand-picked names `page`/`context` — was
+// structurally invisible to the previous receiver-name-anchored regex.
+test('W6-GUARDS: flags a single-star glob registered via an aliased receiver, not just page/context', async () => {
+	const root = await makeFixture({
+		'e2e/staff-fixture.spec.ts':
+			"await staffPage.route('**/staff/tenants*', handler);",
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDirs: [path.join(root, 'e2e')],
+	});
+
+	const globViolations = violations.filter(
+		(violation) => violation.ruleId === 'no-single-star-route-glob',
+	);
+
+	assert.equal(globViolations.length, 1);
+	assert.match(globViolations[0].source, /staff\/tenants\*/);
+});
+
+// W6-GUARDS (tests F6): a glob passed through a local constant instead of an
+// inline literal — a different shape from the alias evasion above — can
+// never be statically checked for the single-star shape, so it must fail
+// closed rather than silently pass.
+test('W6-GUARDS: fails closed when a route glob is passed as a non-literal identifier, not inlined', async () => {
+	const root = await makeFixture({
+		'e2e/constant-glob.spec.ts':
+			"const glob = '**/staff/tenants*';\nawait page.route(glob, handler);",
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDirs: [path.join(root, 'e2e')],
+	});
+
+	const globViolations = violations.filter(
+		(violation) => violation.ruleId === 'no-single-star-route-glob',
+	);
+
+	assert.equal(globViolations.length, 1);
+	assert.match(globViolations[0].source, /page\.route\(glob/);
+});
+
+// Regression guard: this codebase's existing e2e specs widely compose globs
+// as template literals (`` `**/staff/tenants/${TENANT_ID}/users` `` and
+// similar), with or without a trailing `**`. The fail-closed constant check
+// above must not treat every template-literal glob as unresolvable — only a
+// genuinely non-literal (bare identifier) argument.
+test('W6-GUARDS: does not fail closed on an ordinary interpolated template-literal glob (regression guard)', async () => {
+	const root = await makeFixture({
+		'e2e/template-glob.spec.ts':
+			'await page.route(\n\t`**/staff/tenants/${TENANT_ID}/users/export**`,\n\thandler,\n);',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDirs: [path.join(root, 'e2e')],
+	});
+
+	const globViolations = violations.filter(
+		(violation) => violation.ruleId === 'no-single-star-route-glob',
+	);
+
+	assert.equal(globViolations.length, 0);
 });
 
 test('F5: no-raw-visual-color is block-aware in app.css, not file-aware — raw hex outside :root/html.dark still fails', async () => {
@@ -1597,6 +1779,56 @@ test('F3: token-must-be-declared does not flag a reference to a token declared i
 		),
 		false,
 	);
+});
+
+// W6-GUARDS (ui F3): the token-declaration extractor regexed raw source text
+// without stripping comments, so a commented-out mention of a token name
+// satisfied `token-must-be-declared` for a real usage even though no actual
+// declaration exists anywhere.
+test('W6-GUARDS: token-must-be-declared still flags a reference whose only "declaration" is inside a CSS comment', async () => {
+	const root = await makeFixture({
+		'src/styles/app.css':
+			':root {\n\t/* --publy-missing: reserved; */\n\t--publy-primary: #fdc700;\n}\n',
+		'src/components/ui/card.tsx':
+			'<div style={{ boxShadow: "var(--publy-missing)" }} />',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+		checkTokenGuards: true,
+	});
+
+	const declaredHits = violations.filter(
+		(violation) => violation.ruleId === 'token-must-be-declared',
+	);
+
+	assert.equal(declaredHits.length, 1);
+	assert.match(declaredHits[0].source, /--publy-missing/);
+});
+
+// W6-GUARDS (ui F3): the same comment-blindness let token-theme-parity pass
+// a token that is genuinely declared in :root but only ever COMMENTED in
+// html.dark — the parity guard must still see it as missing a real dark
+// counterpart.
+test('W6-GUARDS: token-theme-parity still flags a token whose only html.dark "counterpart" is inside a CSS comment', async () => {
+	const root = await makeFixture({
+		'src/styles/app.css':
+			':root {\n\t--publy-primary: #fdc700;\n}\n\nhtml.dark {\n\t/* --publy-primary: dark value pending; */\n}\n',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+		checkTokenGuards: true,
+	});
+
+	const parityHits = violations.filter(
+		(violation) => violation.ruleId === 'token-theme-parity',
+	);
+
+	assert.equal(parityHits.length, 1);
+	assert.match(parityHits[0].source, /--publy-primary/);
 });
 
 test('F3: token guards are opt-in — off by default so an existing fixture without a full token layer is not misjudged', async () => {
