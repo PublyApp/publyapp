@@ -106,7 +106,18 @@ internal static class TenantUserMembershipOperations {
 				select new { Account = ua, User = u }
 			).ToListAsync(cancellationToken);
 
-			var accountByUserId = accounts.ToDictionary(row => row.Account.UserId);
+			// Grouped rather than a plain ToDictionary: historical rows created before
+			// the ux_user_accounts_tenant_active constraint was backfilled may still
+			// contain duplicate active memberships for a single user, and a bare
+			// ToDictionary throws on the second key. Deterministically picking the
+			// newest row to act on keeps this bulk operation from 500ing on legacy
+			// duplicate data; it does not itself repair the duplicate.
+			var accountByUserId = accounts
+				.GroupBy(row => row.Account.UserId)
+				.ToDictionary(
+					group => group.Key,
+					group => group.OrderByDescending(row => row.Account.CreatedAt).First()
+				);
 			var activeAdminCount = await CountActiveTenantAdminsAsync(
 				dbContext,
 				tenantId,

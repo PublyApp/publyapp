@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PublyApp.Api.Data.DbContext;
@@ -11,9 +12,11 @@ using PublyApp.Api.Data.DbContext;
 namespace PublyApp.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260714135430_AddUserAccountMembershipUniqueness")]
+    partial class AddUserAccountMembershipUniqueness
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -237,79 +240,6 @@ namespace PublyApp.Api.Migrations
 
                             t.HasCheckConstraint("CK_Invitation_Tenant_Constraints", "(scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR scope != 1");
                         });
-                });
-
-            modelBuilder.Entity("PublyApp.Api.Modules.Invitations.Entities.InvitationEmailOutbox", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("uuidv7()");
-
-                    b.Property<int?>("AccountLevel")
-                        .HasColumnType("integer")
-                        .HasColumnName("account_level");
-
-                    b.Property<int>("AttemptCount")
-                        .HasColumnType("integer")
-                        .HasColumnName("attempt_count");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("deleted_at");
-
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("email");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_deleted");
-
-                    b.Property<int>("Kind")
-                        .HasColumnType("integer")
-                        .HasColumnName("kind");
-
-                    b.Property<string>("LastError")
-                        .HasColumnType("text")
-                        .HasColumnName("last_error");
-
-                    b.Property<DateTime>("NextAttemptAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("next_attempt_at");
-
-                    b.Property<DateTime?>("SentAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("sent_at");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer")
-                        .HasColumnName("status");
-
-                    b.Property<string>("TenantName")
-                        .HasColumnType("text")
-                        .HasColumnName("tenant_name");
-
-                    b.Property<string>("Token")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("token");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Status", "NextAttemptAt");
-
-                    b.ToTable("invitation_email_outbox");
                 });
 
             modelBuilder.Entity("PublyApp.Api.Modules.Invitations.Entities.InvitationProfile", b =>

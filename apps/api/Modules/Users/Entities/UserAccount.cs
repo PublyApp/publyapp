@@ -11,7 +11,11 @@ namespace PublyApp.Api.Modules.Users.Entities;
 /// Unified account table for users across all scopes (Staff, Tenant, Project)
 /// </summary>
 [Table("user_accounts")]
-[Index(nameof(UserId), nameof(TenantId), nameof(ProjectId), nameof(Scope), IsUnique = true)]
+// Membership uniqueness per scope is enforced via filtered unique indexes in
+// AppDbContext (ux_user_accounts_staff_active, ux_user_accounts_tenant_active,
+// ux_user_accounts_project_active) because PostgreSQL treats NULLs as distinct
+// under a plain composite unique index, which would let TenantId/ProjectId
+// NULLs bypass this attribute-based index entirely.
 [Index(nameof(UserId), nameof(Scope))]
 [Index(nameof(TenantId), nameof(Scope))]
 [Index(nameof(ProjectId), nameof(Scope))]
