@@ -374,8 +374,16 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 	}
 
+	// r5/W5-HARDEN item 4: renamed from ItShouldAcceptValidMagicBytesFollowedBy...
+	// to name the actual contract instead of implying full validation. The
+	// endpoint's documented promise is signature sniffing (leading magic bytes
+	// only), never a full decode — see the SniffImageType doc comment in
+	// CreateStaffUpload.cs. If a real security hole is judged to exist here
+	// (undecodable images reaching storage), closing it means adding full
+	// image decode + dimension bounds via a hardened image library, which is
+	// an owner decision out of scope for this fix.
 	[Fact]
-	public async Task ItShouldAcceptValidMagicBytesFollowedByArbitraryNonImageData() {
+	public async Task ItShouldAcceptFilesWhoseSignatureIsValidWithoutDecodingThePayload() {
 		// Documents a real, known gap rather than certifying protection that
 		// doesn't exist: SniffImageType only inspects the leading magic-byte
 		// header and never decodes the body, so a valid PNG signature followed
