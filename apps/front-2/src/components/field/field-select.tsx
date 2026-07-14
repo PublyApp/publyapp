@@ -61,6 +61,8 @@ export const FieldSelect = ({
 							disabled={isDisabled}
 						>
 							<SelectTrigger
+								ref={field.ref}
+								name={field.name}
 								className="w-full"
 								aria-labelledby={labelId}
 								aria-invalid={isInvalid || undefined}

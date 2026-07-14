@@ -43,6 +43,8 @@ export const FieldSwitch = ({
 						) : null}
 					</div>
 					<Switch
+						ref={field.ref}
+						name={field.name}
 						id={fieldId}
 						checked={Boolean(field.value)}
 						onCheckedChange={(checked) => {
