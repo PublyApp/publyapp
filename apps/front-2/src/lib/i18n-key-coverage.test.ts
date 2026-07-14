@@ -424,8 +424,16 @@ const isDefiniteCopyPositionName = (name: string): boolean =>
 //    single-key collision that caused the false negative; `status` PLUS
 //    `responseStatusCode`/`httpStatus`/`translationKey`/`detail` together is
 //    the real, recognizable shape).
-const META_DESCRIPTOR_MARKER_KEYS = new Set([
-	'content',
+// W6-GUARDS (tests F4): `content` used to be a member of
+// META_DESCRIPTOR_MARKER_KEYS on its own, so ANY object carrying a `content`
+// property — including an ordinary confirmation/toast view-model shaped
+// `{ title: 'Delete account', content: 'This cannot be undone' }` — was
+// exempted wholesale. A real `<meta>`/SEO descriptor always pairs `content`
+// with `name` or `property` (`{ name: 'viewport', content }`,
+// `{ property: 'og:title', content }`); those route-`head()`-only keys
+// (`meta`, `links`, `canonical`, `sitemap`, `robots`, `charSet`) are still
+// sufficient alone — no ordinary UI copy object in this codebase uses them.
+const ROUTE_HEAD_ONLY_MARKER_KEYS = new Set([
 	'meta',
 	'links',
 	'canonical',
@@ -433,14 +441,21 @@ const META_DESCRIPTOR_MARKER_KEYS = new Set([
 	'robots',
 	'charSet',
 ]);
-const PROBLEM_DETAILS_MARKER_KEYS = new Set([
-	'status',
+const META_TAG_PAIR_KEYS = new Set(['name', 'property']);
+
+// W6-GUARDS (tests F4): the same over-broad shape applied to problem-details
+// recognition — "any two of five generic-sounding names" let an ordinary
+// `{ status: 'warning', detail: 'Try again later' }` banner collide with the
+// RFC 7807 signature on two names ordinary UI copy plausibly reuses. A real
+// AppProblemDetails payload (docs/guides/architecture-details.md) always
+// carries `status` AND `detail` together, AND at least one API-contract-only
+// discriminator field an ordinary UI view-model has no reason to name.
+const PROBLEM_DETAILS_CORE_KEYS = new Set(['status', 'detail']);
+const PROBLEM_DETAILS_DISCRIMINATOR_KEYS = new Set([
 	'responseStatusCode',
 	'httpStatus',
 	'translationKey',
-	'detail',
 ]);
-const MIN_PROBLEM_DETAILS_MARKER_COUNT = 2;
 
 const isMetaOrProblemDetailsDescriptor = (node: ts.Node): boolean => {
 	if (!ts.isObjectLiteralExpression(node)) {
@@ -458,17 +473,19 @@ const isMetaOrProblemDetailsDescriptor = (node: ts.Node): boolean => {
 			.filter((name): name is string => name !== undefined),
 	);
 
-	const hasMetaDescriptorMarker = [...META_DESCRIPTOR_MARKER_KEYS].some((key) =>
+	const hasRouteHeadOnlyMarker = [...ROUTE_HEAD_ONLY_MARKER_KEYS].some((key) =>
 		siblingNames.has(key),
 	);
-	const problemDetailsMarkerCount = [...PROBLEM_DETAILS_MARKER_KEYS].filter(
-		(key) => siblingNames.has(key),
-	).length;
+	const hasMetaTagPair =
+		siblingNames.has('content') &&
+		[...META_TAG_PAIR_KEYS].some((key) => siblingNames.has(key));
+	const hasProblemDetailsShape =
+		[...PROBLEM_DETAILS_CORE_KEYS].every((key) => siblingNames.has(key)) &&
+		[...PROBLEM_DETAILS_DISCRIMINATOR_KEYS].some((key) =>
+			siblingNames.has(key),
+		);
 
-	return (
-		hasMetaDescriptorMarker ||
-		problemDetailsMarkerCount >= MIN_PROBLEM_DETAILS_MARKER_COUNT
-	);
+	return hasRouteHeadOnlyMarker || hasMetaTagPair || hasProblemDetailsShape;
 };
 
 // W5-HARDEN: imperative DOM property writes that land copy on-screen exactly
@@ -520,12 +537,50 @@ const COPY_LIKE_SINGLE_ARG_DOM_CALL_NAMES = new Set([
 const isI18nGuardSuppressed = (lines: string[], lineNumber: number): boolean =>
 	isPreviousLineSuppressed(lines, lineNumber, 'i18n-guard-ignore');
 
-// Two prose-literal string values are eligible findings: a bare string
-// literal, or a ternary whose both branches are string literals (the
-// `cond ? 'A' : 'B'` shape `t()` calls never sit next to). Anything else —
-// an identifier, a `t(...)` call, a template literal with interpolation, a
+// Eligible findings: a bare string literal; a ternary whose both branches are
+// string literals (the `cond ? 'A' : 'B'` shape `t()` calls never sit next
+// to); a template literal WITH interpolation, checked span-by-span (W6-GUARDS
+// — see below); or a `+` string-concatenation chain, checked operand-by-
+// operand (W6-GUARDS). Anything else — a bare identifier, a `t(...)` call, a
 // ternary with a non-literal branch — is presumed already i18n-aware or
 // non-copy, and is left alone.
+//
+// W6-GUARDS (round-6: shell F5, tests F3, tests F4 — three independent
+// lanes): the previous version bailed out of BOTH shapes entirely — its own
+// comment said "a template literal with interpolation is presumed already
+// i18n-aware" — so `` `Delete ${count} users` `` and `'Delete ' + name` were
+// invisible at every one of the seven advertised sinks (JSX children,
+// attributes, object properties, DOM assignments, setAttribute,
+// insertAdjacentText, single-arg DOM calls), because they all funnel through
+// this one collector. Real interpolated copy IS still safe to leave alone —
+// but only when it carries NO static prose text at all (e.g.
+// `` `${translatedGreeting} ${translatedName}` ``, where every span between interpolations is
+// empty/whitespace). The fix inspects exactly that: the STATIC text spans of
+// a template literal (the parts NOT inside `${...}`), and the string-literal
+// OPERANDS of a `+` chain, independent of what the interpolated/non-literal
+// parts are.
+/** Collects only the literal text fragments of a `+`-concatenation chain
+ * (skipping non-literal operands like an interpolated identifier), in
+ * left-to-right order, so they can be joined back into the text a reader
+ * would actually see rendered — `'Delete ' + name` -> `['Delete ']`, joined
+ * to `'Delete '`, preserving the trailing space that makes it read as a
+ * sentence fragment once combined with its neighbour. */
+const collectStringLiteralOperands = (expression: ts.Expression): string[] => {
+	if (ts.isStringLiteralLike(expression)) {
+		return [expression.text];
+	}
+	if (
+		ts.isBinaryExpression(expression) &&
+		expression.operatorToken.kind === ts.SyntaxKind.PlusToken
+	) {
+		return [
+			...collectStringLiteralOperands(expression.left),
+			...collectStringLiteralOperands(expression.right),
+		];
+	}
+	return [];
+};
+
 const collectProseLiteralValues = (
 	expression: ts.Expression,
 	isCopy: (value: string) => boolean = isProseLikeLiteral,
@@ -544,6 +599,43 @@ const collectProseLiteralValues = (
 		) {
 			return [...whenTrue, ...whenFalse];
 		}
+	}
+
+	// W6-GUARDS: a template literal's individual static spans, checked in
+	// isolation, are frequently single words that don't clear a conservative
+	// isCopy's internal-whitespace bar even when the sentence they form once
+	// joined around the interpolation obviously does (`` `Delete ${count}
+	// users` `` -> spans "Delete " / " users", each one word alone). Joining
+	// the static spans back into the text a reader actually sees (with the
+	// interpolated part omitted, since its rendered value is dynamic) fixes
+	// this without weakening isCopy itself.
+	if (ts.isTemplateExpression(expression)) {
+		const staticSpans = [
+			expression.head.text,
+			...expression.templateSpans.map((span) => span.literal.text),
+		];
+		const combinedText = staticSpans.join(' ').trim();
+		return isCopy(combinedText) ? [combinedText] : [];
+	}
+
+	if (
+		ts.isBinaryExpression(expression) &&
+		expression.operatorToken.kind === ts.SyntaxKind.PlusToken
+	) {
+		const individual = [
+			...collectProseLiteralValues(expression.left, isCopy),
+			...collectProseLiteralValues(expression.right, isCopy),
+		];
+		if (individual.length > 0) {
+			return individual;
+		}
+		// Same rationale as the template-literal branch: a concatenation's
+		// literal fragments can each be single words that only read as a
+		// sentence once combined (`'Delete ' + name`).
+		const combinedText = collectStringLiteralOperands(expression)
+			.join('')
+			.trim();
+		return isCopy(combinedText) ? [combinedText] : [];
 	}
 
 	return [];
@@ -1003,6 +1095,112 @@ describe('i18n key coverage', () => {
 		);
 
 		expect(findings).toEqual([]);
+	});
+
+	// W6-GUARDS (shell F5 / tests F3): interpolated JSX children and attributes
+	// were exempted entirely before this fix — different sink shapes than any
+	// prior evasion (a template-literal JSX child, a template-literal
+	// definite-copy attribute).
+	test('findHardcodedUiLiterals catches interpolated template-literal copy at JSX children and attribute sinks (W6-GUARDS canary)', () => {
+		const findings = findHardcodedUiLiterals(
+			[
+				'const count = 3;',
+				'const name = "Jane";',
+				'const child = <button>{`Delete ${count} users`}</button>;',
+				'const attr = <button aria-label={`Delete ${name}`} />;',
+				'void child;',
+				'void attr;',
+			].join('\n'),
+			'canary.tsx',
+		);
+
+		expect(findings).toContainEqual(
+			expect.stringContaining('JSX expression child {"Delete   users"}'),
+		);
+		expect(findings).toContainEqual(
+			expect.stringContaining('aria-label={"Delete"}'),
+		);
+	});
+
+	// W6-GUARDS (shell F5 / tests F3): string concatenation is a different
+	// syntax shape from interpolation — a `+` chain, not a template literal —
+	// and was equally exempted before this fix.
+	test('findHardcodedUiLiterals catches string-concatenation copy at a definite-copy attribute sink (W6-GUARDS canary)', () => {
+		const findings = findHardcodedUiLiterals(
+			[
+				'const name = "Jane";',
+				"const attr = <button aria-label={'Delete ' + name} />;",
+				'void attr;',
+			].join('\n'),
+			'canary.tsx',
+		);
+
+		expect(findings).toContainEqual(
+			expect.stringContaining('aria-label={"Delete '),
+		);
+	});
+
+	// W6-GUARDS (shell F5 / tests F3): a real interpolated usage that carries
+	// NO static prose text at all (every span between interpolations is
+	// empty/whitespace) must stay exempt — this is the shape the finding's own
+	// "safe today" example described, and the fix must not turn it into a
+	// false positive.
+	test('findHardcodedUiLiterals still exempts an interpolation with no static prose text (regression guard)', () => {
+		const findings = findHardcodedUiLiterals(
+			[
+				'const translatedGreeting = "Bonjour";',
+				'const translatedName = "Jane";',
+				'const child = <span>{`${translatedGreeting} ${translatedName}`}</span>;',
+				'void child;',
+			].join('\n'),
+			'canary.tsx',
+		);
+
+		expect(findings).toEqual([]);
+	});
+
+	// W6-GUARDS (tests F4): `content` used to exempt ANY sibling object purely
+	// by its own presence — an ordinary confirmation/toast view-model shaped
+	// exactly like the finding's cited evasion.
+	test('findHardcodedUiLiterals flags an ordinary title+content UI object that is not a real <meta> descriptor (W6-GUARDS canary)', () => {
+		const findings = findHardcodedUiLiterals(
+			"export const confirmCopy = { title: 'Delete account', content: 'This cannot be undone' };",
+			'canary.tsx',
+		);
+
+		expect(findings).toContainEqual(
+			expect.stringContaining('title: "Delete account"'),
+		);
+		expect(findings).toContainEqual(
+			expect.stringContaining('content: "This cannot be undone"'),
+		);
+	});
+
+	// W6-GUARDS (tests F4): a genuine `<meta>`/SEO descriptor (`content` paired
+	// with `name`/`property`) must stay exempt — the fix narrows the marker,
+	// it must not remove the real shape it protects.
+	test('findHardcodedUiLiterals still exempts a real <meta>/SEO content+property pair (regression guard)', () => {
+		const findings = findHardcodedUiLiterals(
+			"export const ogTitle = { property: 'og:title', content: 'Delete account' };",
+			'canary.tsx',
+		);
+
+		expect(findings).toEqual([]);
+	});
+
+	// W6-GUARDS (tests F4): an ordinary banner reusing exactly two
+	// problem-shaped names (`status` + `detail`), with no API-contract-only
+	// discriminator field, is real UI copy and must not collide with the RFC
+	// 7807 signature.
+	test('findHardcodedUiLiterals flags an ordinary status+detail banner that is not a real problem-details payload (W6-GUARDS canary)', () => {
+		const findings = findHardcodedUiLiterals(
+			"export const banner = { status: 'warning', detail: 'x', description: 'Try again later' };",
+			'canary.tsx',
+		);
+
+		expect(findings).toContainEqual(
+			expect.stringContaining('description: "Try again later"'),
+		);
 	});
 
 	test('every t()/i18nKey literal under src resolves in both common bundles', async () => {
