@@ -478,8 +478,8 @@ describe('i18n key coverage', () => {
 	test('findHardcodedUiLiterals does not flag structural/enum props, t() calls, or the locale self-name allowlist', () => {
 		const findings = findHardcodedUiLiterals(
 			[
-				'<Button variant="Outline" type="Submit" className="MyClass">{t(\'delete-account\')}</Button>',
-				"<span aria-label={t('delete-account')}>{t('delete-account')}</span>",
+				'<Button variant="Outline" type="Submit" className="MyClass">{t(\'submit\')}</Button>',
+				"<span aria-label={t('submit')}>{t('submit')}</span>",
 				"const label = locale === 'fr' ? 'Français' : 'English';",
 			].join('\n'),
 			'canary.tsx',
