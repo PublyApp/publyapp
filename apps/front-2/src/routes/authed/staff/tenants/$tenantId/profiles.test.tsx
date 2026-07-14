@@ -619,6 +619,84 @@ describe('staff tenant profiles route', () => {
 		);
 	});
 
+	test('reports a partial-success message when some bulk-deleted profiles fail', async () => {
+		mocks.bulkDeleteProfileMutation.mockResolvedValue({
+			succeededCount: 1,
+			failedCount: 1,
+			failedItems: [],
+		});
+		mocks.toStaffTenantProfileBulkActionSummary.mockReturnValue({
+			succeededCount: 1,
+			failedCount: 1,
+			failedItems: [],
+		});
+
+		renderPage();
+
+		fireEvent.click(
+			screen.getByTestId('staff-tenant-profile-card-select-profile-2'),
+		);
+
+		fireEvent.click(
+			await screen.findByRole('button', { name: 'Delete selected' }),
+		);
+		await waitFor(() =>
+			expect(
+				screen.getByRole('heading', { name: 'Delete selected' }),
+			).toBeTruthy(),
+		);
+		fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[0]);
+
+		await waitFor(() =>
+			expect(mocks.bulkDeleteProfileMutation).toHaveBeenCalledWith({
+				tenantId: '11111111-1111-1111-1111-111111111111',
+				profileIds: ['profile-2'],
+			}),
+		);
+		await waitFor(() =>
+			expect(screen.getByText('Deleted 1 profile(s), 1 failed.')).toBeTruthy(),
+		);
+	});
+
+	test('reports a failure message when every bulk-deleted profile fails', async () => {
+		mocks.bulkDeleteProfileMutation.mockResolvedValue({
+			succeededCount: 0,
+			failedCount: 1,
+			failedItems: [],
+		});
+		mocks.toStaffTenantProfileBulkActionSummary.mockReturnValue({
+			succeededCount: 0,
+			failedCount: 1,
+			failedItems: [],
+		});
+
+		renderPage();
+
+		fireEvent.click(
+			screen.getByTestId('staff-tenant-profile-card-select-profile-2'),
+		);
+
+		fireEvent.click(
+			await screen.findByRole('button', { name: 'Delete selected' }),
+		);
+		await waitFor(() =>
+			expect(
+				screen.getByRole('heading', { name: 'Delete selected' }),
+			).toBeTruthy(),
+		);
+		fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[0]);
+
+		await waitFor(() =>
+			expect(mocks.bulkDeleteProfileMutation).toHaveBeenCalledWith({
+				tenantId: '11111111-1111-1111-1111-111111111111',
+				profileIds: ['profile-2'],
+			}),
+		);
+		await waitFor(() =>
+			expect(screen.getByText('Deleted 0 profile(s), 1 failed.')).toBeTruthy(),
+		);
+	});
+
 	test('warns and fires no mutation when only the default profile is selected for bulk delete', async () => {
 		renderPage();
 

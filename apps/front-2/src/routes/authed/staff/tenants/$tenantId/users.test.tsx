@@ -865,6 +865,70 @@ describe('staff tenant users route', () => {
 		);
 		expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled();
 	});
+
+	test('reports a partial-success message when some bulk-removed users fail', async () => {
+		mocks.bulkRemoveMutation.mockResolvedValue({
+			succeededCount: 1,
+			failedCount: 1,
+			failedItems: [],
+		});
+
+		renderPage();
+
+		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
+		fireEvent.click(
+			await screen.findByRole('button', { name: 'More actions' }),
+		);
+		fireEvent.click(
+			await screen.findByRole('menuitem', {
+				name: 'Remove selected from tenant',
+			}),
+		);
+
+		await waitFor(() =>
+			expect(
+				screen.getByRole('heading', { name: 'Remove selected from tenant' }),
+			).toBeTruthy(),
+		);
+		fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+
+		await waitFor(() =>
+			expect(screen.getByText('Removed 1 user(s), 1 failed.')).toBeTruthy(),
+		);
+		expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled();
+	});
+
+	test('reports a failure message when every bulk-removed user fails', async () => {
+		mocks.bulkRemoveMutation.mockResolvedValue({
+			succeededCount: 0,
+			failedCount: 1,
+			failedItems: [],
+		});
+
+		renderPage();
+
+		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
+		fireEvent.click(
+			await screen.findByRole('button', { name: 'More actions' }),
+		);
+		fireEvent.click(
+			await screen.findByRole('menuitem', {
+				name: 'Remove selected from tenant',
+			}),
+		);
+
+		await waitFor(() =>
+			expect(
+				screen.getByRole('heading', { name: 'Remove selected from tenant' }),
+			).toBeTruthy(),
+		);
+		fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+
+		await waitFor(() =>
+			expect(screen.getByText('Removed 0 user(s), 1 failed.')).toBeTruthy(),
+		);
+		expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled();
+	});
 });
 
 describe('makeTenantUserColumns column widths', () => {
