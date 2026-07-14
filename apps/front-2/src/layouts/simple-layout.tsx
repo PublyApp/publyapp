@@ -23,6 +23,16 @@ type SimpleLayoutProps = {
 	children: ReactNode;
 };
 
+/**
+ * Deliberately NOT `.app-shell-topbar-action-btn` — that class is hidden by
+ * the workspace topbar's `<640px` mobile rule (app.css), which this
+ * standalone header must never be subject to (r3-shell-F1): it is the only
+ * surface where a signed-in tenant user can switch locale before entering an
+ * org, so hiding it on a phone leaves no locale control anywhere.
+ */
+const STANDALONE_TOPBAR_ACTION_BTN_CLASS =
+	'h-9 w-9 rounded-full border-(--publy-border) text-(--publy-foreground-muted)';
+
 const LanguageSwitchButton = () => {
 	const { t, i18n } = useTranslation('common');
 	const { switchLocale, isSwitching } = useSwitchLocale();
@@ -35,7 +45,7 @@ const LanguageSwitchButton = () => {
 			<DropdownMenuTrigger
 				className={cn(
 					buttonVariants({ variant: 'outline', size: 'icon' }),
-					'app-shell-topbar-action-btn',
+					STANDALONE_TOPBAR_ACTION_BTN_CLASS,
 				)}
 				aria-label={t('language')}
 				data-testid="tenant-portal-language-button"
@@ -85,7 +95,7 @@ export const SimpleLayout = ({ children }: SimpleLayoutProps) => {
 			<header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4 sm:h-[60px] sm:px-6">
 				<img src={logoSvg} alt="PublyApp" className="size-7" />
 				<div className="flex items-center gap-2">
-					<ThemeToggle className="app-shell-topbar-action-btn" />
+					<ThemeToggle className={STANDALONE_TOPBAR_ACTION_BTN_CLASS} />
 					<LanguageSwitchButton />
 				</div>
 			</header>
