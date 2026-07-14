@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { Field, Form } from '~/components/field';
 import { Button } from '~/components/ui/button';
 import { Checkbox } from '~/components/ui/checkbox';
+import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
 	Drawer,
 	DrawerBody,
@@ -168,7 +169,11 @@ export const ProfileFormDrawer = ({
 		resolver,
 		defaultValues: EMPTY_VALUES,
 	});
-	const { reset } = methods;
+	const {
+		reset,
+		formState: { isDirty, isSubmitting },
+	} = methods;
+	const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
 
 	useEffect(() => {
 		if (!isOpen) {
@@ -176,6 +181,7 @@ export const ProfileFormDrawer = ({
 		}
 
 		setServerError('');
+		setIsDiscardConfirmOpen(false);
 		reset(
 			mode === 'edit' && profile
 				? {
@@ -192,7 +198,19 @@ export const ProfileFormDrawer = ({
 	}, [isOpen, mode, profile?.id, reset]);
 
 	const isSaving = createProfile.isPending || updateProfile.isPending;
-	const isFormLocked = isSaving || methods.formState.isSubmitting;
+	const isFormLocked = isSaving || isSubmitting;
+
+	// tenants-r6-F3: every close path (Escape, backdrop click, Cancel, and
+	// browser back — all funneled through Base UI's `onOpenChange`) must
+	// confirm before discarding a dirty create/edit form.
+	const requestClose = () => {
+		if (isDirty) {
+			setIsDiscardConfirmOpen(true);
+			return;
+		}
+
+		onOpenChange(false);
+	};
 
 	const invalidateProfileQueries = () =>
 		invalidateAllStaffTenantScopes(queryClient);
@@ -288,9 +306,16 @@ export const ProfileFormDrawer = ({
 		<Drawer
 			open={isOpen}
 			onOpenChange={(open) => {
-				if (!isFormLocked) {
-					onOpenChange(open);
+				if (isFormLocked) {
+					return;
 				}
+
+				if (!open) {
+					requestClose();
+					return;
+				}
+
+				onOpenChange(open);
 			}}
 		>
 			<DrawerContent data-testid="profile-form-drawer">
@@ -357,7 +382,7 @@ export const ProfileFormDrawer = ({
 							type="button"
 							variant="ghost"
 							disabled={isFormLocked}
-							onClick={() => onOpenChange(false)}
+							onClick={requestClose}
 						>
 							{t('cancel')}
 						</Button>
@@ -367,6 +392,18 @@ export const ProfileFormDrawer = ({
 					</DrawerFooter>
 				</Form>
 			</DrawerContent>
+			<ConfirmDialog
+				isOpen={isDiscardConfirmOpen}
+				title={t('unsaved-changes-dialog-title')}
+				description={t('unsaved-changes-dialog-description')}
+				confirmLabel={t('leave-page')}
+				tone="danger"
+				onOpenChange={setIsDiscardConfirmOpen}
+				onConfirm={() => {
+					setIsDiscardConfirmOpen(false);
+					onOpenChange(false);
+				}}
+			/>
 		</Drawer>
 	);
 };

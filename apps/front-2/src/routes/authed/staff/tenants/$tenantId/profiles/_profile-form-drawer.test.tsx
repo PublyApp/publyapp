@@ -7,6 +7,7 @@ import {
 	render,
 	screen,
 	waitFor,
+	within,
 } from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
 import { FormProvider, useFormContext } from 'react-hook-form';
@@ -57,6 +58,10 @@ vi.mock('react-i18next', () => ({
 				'profile-save-failed': 'Unable to save this tenant profile.',
 				'tenant-profile-permission-update-partial-success':
 					'Updated {{succeeded}} permission(s), {{failed}} failed.',
+				'unsaved-changes-dialog-title': 'Leave without saving?',
+				'unsaved-changes-dialog-description':
+					'You have unsaved changes that will be lost if you leave this page.',
+				'leave-page': 'Leave page',
 			};
 
 			return labels[key] ?? key;
@@ -286,6 +291,54 @@ describe('ProfileFormDrawer', () => {
 		expect(screen.getByText('Posts')).toBeTruthy();
 		expect(screen.getByText('Read users')).toBeTruthy();
 		expect(screen.getByText('Publish posts')).toBeTruthy();
+	});
+
+	// tenants-r6-F3: Cancel is a "close" path just like Escape/backdrop —
+	// dirty edits must not be discarded silently.
+	test('Cancel closes immediately when the form is pristine', () => {
+		const onOpenChange = vi.fn();
+		render(
+			<ProfileFormDrawer
+				tenantId="tenant-1"
+				mode="create"
+				isOpen
+				onOpenChange={onOpenChange}
+				onSaved={vi.fn()}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+		expect(onOpenChange).toHaveBeenCalledWith(false);
+		expect(screen.queryByRole('alertdialog')).toBeNull();
+	});
+
+	test('Cancel on a dirty form asks for confirmation instead of discarding silently, and Leave page proceeds', () => {
+		const onOpenChange = vi.fn();
+		render(
+			<ProfileFormDrawer
+				tenantId="tenant-1"
+				mode="create"
+				isOpen
+				onOpenChange={onOpenChange}
+				onSaved={vi.fn()}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		fireEvent.change(screen.getByLabelText('Profile name'), {
+			target: { value: 'Approvers' },
+		});
+
+		fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+		expect(onOpenChange).not.toHaveBeenCalled();
+		const dialog = screen.getByRole('alertdialog');
+
+		fireEvent.click(within(dialog).getByRole('button', { name: 'Leave page' }));
+
+		expect(onOpenChange).toHaveBeenCalledWith(false);
 	});
 
 	test('create mode submits name, description, and selected permission keys', async () => {

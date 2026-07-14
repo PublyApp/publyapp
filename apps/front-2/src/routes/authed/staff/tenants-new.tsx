@@ -452,8 +452,13 @@ function StaffTenantCreateRoute() {
 	} = methods;
 	const isFormLocked = isSubmitting || createTenant.isPending;
 
+	// tenants-r6-F3: `isDirty` only tracks RHF-registered fields — the CSV/
+	// Excel import populates `parsedFile`, state that lives OUTSIDE the form,
+	// so a populated import with an otherwise-pristine form used to leave
+	// silently through the blocker. `parsedFile !== null` closes that gap.
 	const blocker = useBlocker({
-		shouldBlockFn: () => isDirty && !hasCreatedRef.current,
+		shouldBlockFn: () =>
+			(isDirty || parsedFile !== null) && !hasCreatedRef.current,
 		withResolver: true,
 	});
 	const name = useWatch({ control, name: 'name' }) ?? '';

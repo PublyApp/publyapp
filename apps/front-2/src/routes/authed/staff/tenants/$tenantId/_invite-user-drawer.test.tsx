@@ -7,6 +7,7 @@ import {
 	render,
 	screen,
 	waitFor,
+	within,
 } from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
 import { FormProvider, useFormContext } from 'react-hook-form';
@@ -39,6 +40,10 @@ vi.mock('react-i18next', () => ({
 				cancel: 'Cancel',
 				'invite-people': 'Invite people',
 				'invite-tenant-user-failed': 'Unable to send the invitation.',
+				'unsaved-changes-dialog-title': 'Leave without saving?',
+				'unsaved-changes-dialog-description':
+					'You have unsaved changes that will be lost if you leave this page.',
+				'leave-page': 'Leave page',
 				// Distinct from the literal 'name@company.com' the field used to
 				// hardcode — proves the placeholder is sourced from t(), not a
 				// hardcoded English string, by matching the real FR bundle value.
@@ -226,6 +231,52 @@ describe('InviteTenantUserDrawer', () => {
 		expect(screen.getByLabelText('Email').getAttribute('placeholder')).toBe(
 			'nom@entreprise.com',
 		);
+	});
+
+	// tenants-r6-F3: Cancel is a "close" path just like Escape/backdrop —
+	// dirty edits must not be discarded silently.
+	test('Cancel closes immediately when the form is pristine', () => {
+		const onOpenChange = vi.fn();
+		render(
+			<InviteTenantUserDrawer
+				tenantId="tenant-1"
+				isOpen
+				onOpenChange={onOpenChange}
+				onInvited={vi.fn()}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+		expect(onOpenChange).toHaveBeenCalledWith(false);
+		expect(screen.queryByRole('alertdialog')).toBeNull();
+	});
+
+	test('Cancel on a dirty form asks for confirmation instead of discarding silently, and Leave page proceeds', () => {
+		const onOpenChange = vi.fn();
+		render(
+			<InviteTenantUserDrawer
+				tenantId="tenant-1"
+				isOpen
+				onOpenChange={onOpenChange}
+				onInvited={vi.fn()}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		fireEvent.change(screen.getByLabelText('Email'), {
+			target: { value: 'someone@acme.com' },
+		});
+
+		fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+		expect(onOpenChange).not.toHaveBeenCalled();
+		const dialog = screen.getByRole('alertdialog');
+
+		fireEvent.click(within(dialog).getByRole('button', { name: 'Leave page' }));
+
+		expect(onOpenChange).toHaveBeenCalledWith(false);
 	});
 
 	test('submits the invitation, invalidates queries, and calls onInvited', async () => {

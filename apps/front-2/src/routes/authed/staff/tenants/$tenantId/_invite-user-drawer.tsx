@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { Field, Form } from '~/components/field';
 import { Button } from '~/components/ui/button';
+import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
 	Drawer,
 	DrawerBody,
@@ -70,14 +71,31 @@ export const InviteTenantUserDrawer = ({
 		resolver,
 		defaultValues: DEFAULT_VALUES,
 	});
-	const { reset, formState } = methods;
+	const {
+		reset,
+		formState: { isDirty, isSubmitting },
+	} = methods;
+	const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
 
 	useEffect(() => {
 		if (isOpen) {
 			setServerErrors([]);
+			setIsDiscardConfirmOpen(false);
 			reset(DEFAULT_VALUES);
 		}
 	}, [isOpen, reset]);
+
+	// tenants-r6-F3: every close path (Escape, backdrop click, Cancel, and
+	// browser back — all funneled through Base UI's `onOpenChange`) must
+	// confirm before discarding a dirty form, not just the page-level forms.
+	const requestClose = () => {
+		if (isDirty) {
+			setIsDiscardConfirmOpen(true);
+			return;
+		}
+
+		onOpenChange(false);
+	};
 
 	const invalidateTenantData = () =>
 		invalidateAllStaffTenantScopes(queryClient);
@@ -121,15 +139,22 @@ export const InviteTenantUserDrawer = ({
 		}
 	});
 
-	const isFormLocked = isPending || formState.isSubmitting;
+	const isFormLocked = isPending || isSubmitting;
 
 	return (
 		<Drawer
 			open={isOpen}
 			onOpenChange={(open) => {
-				if (!isFormLocked) {
-					onOpenChange(open);
+				if (isFormLocked) {
+					return;
 				}
+
+				if (!open) {
+					requestClose();
+					return;
+				}
+
+				onOpenChange(open);
 			}}
 		>
 			<DrawerContent data-testid="invite-tenant-user-drawer">
@@ -175,7 +200,7 @@ export const InviteTenantUserDrawer = ({
 							type="button"
 							variant="ghost"
 							disabled={isFormLocked}
-							onClick={() => onOpenChange(false)}
+							onClick={requestClose}
 						>
 							{t('cancel')}
 						</Button>
@@ -185,6 +210,18 @@ export const InviteTenantUserDrawer = ({
 					</DrawerFooter>
 				</Form>
 			</DrawerContent>
+			<ConfirmDialog
+				isOpen={isDiscardConfirmOpen}
+				title={t('unsaved-changes-dialog-title')}
+				description={t('unsaved-changes-dialog-description')}
+				confirmLabel={t('leave-page')}
+				tone="danger"
+				onOpenChange={setIsDiscardConfirmOpen}
+				onConfirm={() => {
+					setIsDiscardConfirmOpen(false);
+					onOpenChange(false);
+				}}
+			/>
 		</Drawer>
 	);
 };

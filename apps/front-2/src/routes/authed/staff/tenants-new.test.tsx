@@ -1391,6 +1391,31 @@ describe('staff tenant create route', () => {
 		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
 	});
 
+	// tenants-r6-F3: `isDirty` only tracks RHF-registered fields; a populated
+	// CSV/Excel import lives in separate `parsedFile` state, so an
+	// otherwise-pristine form used to let an import-only navigation through
+	// the nav guard without confirmation.
+	test('the nav-guard shouldBlockFn blocks after an import-only change, with no RHF field touched', async () => {
+		renderPage();
+
+		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+
+		const csvContent = 'email,role\ncsv1@acme.com,user\n';
+		const file = new File([csvContent], 'members.csv', { type: 'text/csv' });
+		Object.defineProperty(file, 'text', {
+			value: () => Promise.resolve(csvContent),
+		});
+
+		const fileInput = screen.getByLabelText(
+			'Drag a CSV file, or browse',
+		) as HTMLInputElement;
+		fireEvent.change(fileInput, { target: { files: [file] } });
+
+		await waitFor(() => expect(screen.getByText('members.csv')).toBeTruthy());
+
+		expect(mocks.capturedShouldBlockFn?.()).toBe(true);
+	});
+
 	test('shows the unsaved-changes confirm dialog when the router blocks navigation, and Leave page proceeds', () => {
 		const proceed = vi.fn();
 		const reset = vi.fn();
