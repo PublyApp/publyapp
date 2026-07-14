@@ -150,6 +150,7 @@ const TenantStatusFilterMenu = ({
 
 const buildTenantColumns = (
 	onSessionExpired: () => void,
+	onFeedback: (feedback: TenantBulkFeedback) => void,
 	t: (key: string) => string,
 ): ColumnDef<StaffTenantRow>[] => [
 	{
@@ -218,6 +219,7 @@ const buildTenantColumns = (
 			<TenantLifecycleActionsCell
 				tenant={row.original}
 				onSessionExpired={onSessionExpired}
+				onFeedback={onFeedback}
 			/>
 		),
 	},
@@ -272,9 +274,13 @@ function StaffTenantsPage() {
 	const rows = toStaffTenantRows(query.data?.data);
 	const selection = useRowSelection(rows.map((row) => row.id));
 	const onSessionExpired = useCallback(() => setShouldLogout(true), []);
+	const onRowActionFeedback = useCallback(
+		(feedback: TenantBulkFeedback) => setBulkFeedback(feedback),
+		[],
+	);
 	const columns = useMemo(
-		() => buildTenantColumns(onSessionExpired, t),
-		[onSessionExpired, t],
+		() => buildTenantColumns(onSessionExpired, onRowActionFeedback, t),
+		[onSessionExpired, onRowActionFeedback, t],
 	);
 
 	if (query.isError && shouldLogoutForFailure(query.error)) {
@@ -692,13 +698,14 @@ const TenantBulkActions = ({
 const TenantLifecycleActionsCell = ({
 	tenant,
 	onSessionExpired,
+	onFeedback,
 }: {
 	tenant: StaffTenantRow;
 	onSessionExpired: () => void;
+	onFeedback: (feedback: TenantBulkFeedback) => void;
 }) => {
 	const { t } = useTranslation('common');
 	const queryClient = useQueryClient();
-	const [errorMessage, setErrorMessage] = useState('');
 	const [pendingAction, setPendingAction] =
 		useState<PendingLifecycleAction>(null);
 	const suspendTenantMutation = useSuspendStaffTenantMutation();
@@ -718,8 +725,6 @@ const TenantLifecycleActionsCell = ({
 	};
 
 	const performAction = async (action: 'suspend' | 'reactivate' | 'delete') => {
-		setErrorMessage('');
-
 		try {
 			if (action === 'suspend') {
 				await suspendTenantMutation.mutateAsync({ tenantId: tenant.id });
@@ -738,11 +743,12 @@ const TenantLifecycleActionsCell = ({
 				return;
 			}
 
-			setErrorMessage(
-				getFailureMessage(toApiFailure(error), {
+			onFeedback({
+				tone: 'error',
+				message: getFailureMessage(toApiFailure(error), {
 					fallback: t(TENANT_LIFECYCLE_ACTION_FALLBACK_KEYS[action]),
 				}),
-			);
+			});
 		} finally {
 			setPendingAction(null);
 		}
@@ -800,11 +806,6 @@ const TenantLifecycleActionsCell = ({
 					</>
 				) : null}
 			</DataTableRowActions>
-			{errorMessage ? (
-				<p className="max-w-56 text-right text-xs text-destructive">
-					{errorMessage}
-				</p>
-			) : null}
 
 			<ConfirmDialog
 				isOpen={pendingAction !== null}

@@ -5,6 +5,7 @@ import {
 	render,
 	screen,
 	waitFor,
+	within,
 } from '@testing-library/react';
 import type { JSX, ReactNode } from 'react';
 import { createElement } from 'react';
@@ -717,7 +718,9 @@ describe('staff tenants route', () => {
 		);
 
 		await waitFor(() =>
-			expect(screen.getByText('Invalid tenant')).toBeTruthy(),
+			expect(
+				within(screen.getByRole('status')).getByText('Invalid tenant'),
+			).toBeTruthy(),
 		);
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 		expect(mocks.invalidateQueries).not.toHaveBeenCalled();

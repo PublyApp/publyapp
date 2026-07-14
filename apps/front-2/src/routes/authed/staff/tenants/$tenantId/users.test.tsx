@@ -7,6 +7,7 @@ import {
 	render,
 	screen,
 	waitFor,
+	within,
 } from '@testing-library/react';
 import type { JSX } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -562,6 +563,35 @@ describe('staff tenant users route', () => {
 		);
 	});
 
+	test('shows a failed row action in the top feedback bar, not inside the actions cell (r3-tenants-F11)', async () => {
+		mocks.suspendMutation.mockRejectedValue({
+			kind: 'problem',
+			status: 400,
+			responseStatusCode: 400,
+			title: 'Invalid tenant user',
+			detail: 'Invalid tenant user',
+		});
+
+		renderPage();
+
+		fireEvent.click(screen.getByRole('button', { name: /^Actions for/ }));
+		fireEvent.click(await screen.findByRole('menuitem', { name: 'Suspend' }));
+
+		await waitFor(() =>
+			expect(screen.getByRole('heading', { name: 'Suspend' })).toBeTruthy(),
+		);
+		fireEvent.click(
+			screen.getAllByRole('button', { name: 'Suspend' }).slice(-1)[0],
+		);
+
+		await waitFor(() =>
+			expect(
+				within(screen.getByRole('status')).getByText('Invalid tenant user'),
+			).toBeTruthy(),
+		);
+		expect(screen.queryByTestId('logout-redirect')).toBeNull();
+	});
+
 	test('removes a user from the tenant after explicit confirmation', async () => {
 		mocks.removeMutation.mockResolvedValue({});
 
@@ -843,6 +873,7 @@ describe('makeTenantUserColumns column widths', () => {
 			'11111111-1111-1111-1111-111111111111',
 			identityT,
 			() => undefined,
+			() => undefined,
 		);
 		const widthById = Object.fromEntries(
 			columns.map((column) => [column.id, column.meta?.width]),
@@ -860,6 +891,7 @@ describe('makeTenantUserColumns column widths', () => {
 		const columns = makeTenantUserColumns(
 			'11111111-1111-1111-1111-111111111111',
 			identityT,
+			() => undefined,
 			() => undefined,
 		);
 		const hideBelowById = Object.fromEntries(

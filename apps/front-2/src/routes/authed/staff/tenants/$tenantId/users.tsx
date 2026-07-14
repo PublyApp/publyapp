@@ -256,16 +256,17 @@ const TenantUserRowActions = ({
 	tenantId,
 	user,
 	onSessionExpired,
+	onFeedback,
 }: {
 	tenantId: string;
 	user: StaffTenantUserRow;
 	onSessionExpired: () => void;
+	onFeedback: (feedback: TenantUserBulkFeedback) => void;
 }) => {
 	const { t } = useTranslation('common');
 	const queryClient = useQueryClient();
 	const [pendingAction, setPendingAction] =
 		useState<TenantUserPendingAction>(null);
-	const [actionError, setActionError] = useState('');
 	const suspendMutation = useSuspendStaffTenantUserMutation();
 	const reactivateMutation = useReactivateStaffTenantUserMutation();
 	const removeMutation = useRemoveStaffTenantUserMutation();
@@ -282,8 +283,6 @@ const TenantUserRowActions = ({
 		invalidateAllStaffTenantScopes(queryClient);
 
 	const performAction = async (action: 'suspend' | 'reactivate' | 'remove') => {
-		setActionError('');
-
 		try {
 			if (action === 'suspend') {
 				await suspendMutation.mutateAsync({ tenantId, userId: user.id });
@@ -300,11 +299,12 @@ const TenantUserRowActions = ({
 				return;
 			}
 
-			setActionError(
-				getFailureMessage(toApiFailure(error), {
+			onFeedback({
+				tone: 'error',
+				message: getFailureMessage(toApiFailure(error), {
 					fallback: t('unable-to-update-tenant-user'),
 				}),
-			);
+			});
 		} finally {
 			setPendingAction(null);
 		}
@@ -389,11 +389,6 @@ const TenantUserRowActions = ({
 					{t('remove-user-from-tenant')}
 				</DropdownMenuItem>
 			</DataTableRowActions>
-			{actionError ? (
-				<p className="max-w-40 text-right text-xs text-destructive">
-					{actionError}
-				</p>
-			) : null}
 
 			<ConfirmDialog
 				isOpen={pendingAction !== null}
@@ -418,6 +413,7 @@ export const makeTenantUserColumns = (
 	tenantId: string,
 	t: (key: string) => string,
 	onSessionExpired: () => void,
+	onFeedback: (feedback: TenantUserBulkFeedback) => void,
 ): ColumnDef<StaffTenantUserRow>[] => [
 	{
 		id: 'name',
@@ -485,6 +481,7 @@ export const makeTenantUserColumns = (
 				tenantId={tenantId}
 				user={row.original}
 				onSessionExpired={onSessionExpired}
+				onFeedback={onFeedback}
 			/>
 		),
 	},
@@ -565,7 +562,8 @@ function StaffTenantUsersPage() {
 	const selection = useRowSelection(rows.map((row) => row.id));
 	const onUserSessionExpired = useCallback(() => setShouldLogout(true), []);
 	const columns = useMemo(
-		() => makeTenantUserColumns(tenantId, t, onUserSessionExpired),
+		() =>
+			makeTenantUserColumns(tenantId, t, onUserSessionExpired, setBulkFeedback),
 		[tenantId, t, onUserSessionExpired],
 	);
 
