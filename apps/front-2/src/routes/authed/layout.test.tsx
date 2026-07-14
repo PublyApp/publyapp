@@ -111,15 +111,20 @@ describe('beforeLoad session-token guard', () => {
 		).rejects.toEqual({ to: '/staff' });
 	});
 
-	test('redirects a tokenless visitor to /login with the session-expired search', async () => {
+	test('redirects a tokenless visitor to /login carrying rto but no forged rc', async () => {
 		mocks.tokens = {} as typeof mocks.tokens;
 
-		await expect(
-			routeOptions.beforeLoad({ location: { pathname: '/staff/profiles' } }),
-		).rejects.toMatchObject({
+		const rejection = await routeOptions
+			.beforeLoad({ location: { pathname: '/staff/profiles' } })
+			.catch((error: unknown) => error);
+
+		expect(rejection).toMatchObject({
 			to: '/login',
-			search: { rc: 'invalid_session' },
+			search: { rto: '/staff/profiles' },
 		});
+		expect(
+			(rejection as { search?: Record<string, unknown> }).search,
+		).not.toHaveProperty('rc');
 	});
 
 	test('does not redirect when the session token matches the surface', async () => {

@@ -14,7 +14,7 @@ import { Card } from '~/components/ui/card';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import { FALLBACK_LANGUAGE, isSupportedLanguage } from '~/lib/i18n.shared';
 import {
-	STAFF_PROFILES_QUERY_KEY,
+	invalidateStaffProfiles,
 	type StaffPermissionCatalogEntry,
 	useCreateStaffProfileMutation,
 	useStaffPermissionCatalogQuery,
@@ -191,9 +191,7 @@ function NewStaffProfileRoute() {
 				permissions: values.permissions,
 				emails: values.emails,
 			});
-			await queryClient.invalidateQueries({
-				queryKey: STAFF_PROFILES_QUERY_KEY,
-			});
+			await invalidateStaffProfiles(queryClient);
 			void navigate({
 				to: '/staff/profiles',
 			});

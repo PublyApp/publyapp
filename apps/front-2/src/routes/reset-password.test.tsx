@@ -33,8 +33,19 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => options,
 	useLoaderData: () => mocks.loaderData,
-	Link: ({ children, to, ...props }: { children: ReactNode; to: string }) =>
-		createElement('a', { href: to, ...props }, children),
+	Link: ({
+		children,
+		to,
+		search,
+		...props
+	}: {
+		children: ReactNode;
+		to: string;
+		search?: Record<string, string>;
+	}) => {
+		const query = search ? `?${new URLSearchParams(search).toString()}` : '';
+		return createElement('a', { href: `${to}${query}`, ...props }, children);
+	},
 }));
 
 vi.mock('@tanstack/react-start', () => ({
@@ -233,6 +244,34 @@ describe('reset-password route', () => {
 		expect(screen.getByTestId('reset-password-success')).toBeTruthy();
 	});
 
+	test("the success screen's sign-in link carries rc=password_reset_success so /login can show the banner", async () => {
+		mocks.loaderData = {
+			view: 'set-new',
+			id: 'enc-id',
+			token: 'tok',
+			email: 'rui@latticecloud.com',
+			fromEmailVerification: false,
+		};
+		mocks.resetPassword.mockResolvedValue({ status: 'success' });
+
+		renderResetPasswordRoute();
+		fireEvent.change(screen.getByLabelText('New password'), {
+			target: { value: 'aurora-441789' },
+		});
+		fireEvent.change(screen.getByLabelText('Confirm password'), {
+			target: { value: 'aurora-441789' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Reset password' }));
+
+		await waitFor(() =>
+			expect(screen.getByTestId('reset-password-success')).toBeTruthy(),
+		);
+		const signInLink = screen.getByRole('link', { name: 'Back to sign in' });
+		expect(signInLink.getAttribute('href')).toBe(
+			'/login?rc=password_reset_success',
+		);
+	});
+
 	test('rejects an 11-character password client-side without calling the server fn', async () => {
 		mocks.loaderData = {
 			view: 'set-new',
@@ -283,6 +322,38 @@ describe('reset-password route', () => {
 				screen.getByTestId('reset-password-invalid-link-view'),
 			).toBeTruthy(),
 		);
+	});
+
+	test('maps a 422 new-password validation failure onto the new-password field using the API PascalCase key', async () => {
+		// ValidationResult.ToDictionary() (ReqBodyValidationFilter.cs) keys 422
+		// errors by PascalCase PropertyName (`NewPassword`), never camelCase (r3-F2).
+		mocks.loaderData = {
+			view: 'set-new',
+			id: 'enc-id',
+			token: 'tok',
+			email: 'rui@latticecloud.com',
+			fromEmailVerification: false,
+		};
+		mocks.resetPassword.mockRejectedValue({
+			status: 422,
+			errors: { NewPassword: ['This password has been compromised.'] },
+		});
+
+		renderResetPasswordRoute();
+		fireEvent.change(screen.getByLabelText('New password'), {
+			target: { value: 'aurora-441789' },
+		});
+		fireEvent.change(screen.getByLabelText('Confirm password'), {
+			target: { value: 'aurora-441789' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Reset password' }));
+
+		await waitFor(() =>
+			expect(
+				screen.getByText('This password has been compromised.'),
+			).toBeTruthy(),
+		);
+		expect(screen.queryByTestId('reset-password-success')).toBeNull();
 	});
 
 	test('clicking "Request a new link" after a mid-submit rejection reaches the request form once the loader re-runs', async () => {

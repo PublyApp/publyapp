@@ -22,7 +22,7 @@ import { InitialsAvatar } from '~/components/ui/initials-avatar';
 import { Input } from '~/components/ui/input';
 import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
-import { Tabs, TabsList, TabsTrigger } from '~/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import {
 	STAFF_USER_DETAILS_QUERY_KEY,
 	invalidateStaffUsers,
@@ -46,6 +46,10 @@ import {
 	StaffUserOverviewContext,
 	type StaffUserOverviewContextValue,
 } from './$userId/_overview-context';
+import {
+	formatAccountLevelLabel,
+	formatStaffStatusLabel,
+} from './status-labels';
 
 const MALFORMED_ID_TRANSLATION_KEY = 'malformed-id';
 const STAFF_STATUS_ACTIVE = 'active';
@@ -429,11 +433,13 @@ function StaffUserDetailsPage() {
 									{user.displayName}
 								</h1>
 								{user.accountLevel ? (
-									<StatusPill tone="neutral">{user.accountLevel}</StatusPill>
+									<StatusPill tone="neutral">
+										{formatAccountLevelLabel(user.accountLevel, t)}
+									</StatusPill>
 								) : null}
 								{user.status ? (
 									<StatusPill tone={statusPillTone(user.status)}>
-										{user.status}
+										{formatStaffStatusLabel(user.status, t)}
 									</StatusPill>
 								) : null}
 							</div>
@@ -519,7 +525,7 @@ function StaffUserDetailsPage() {
 						</TabsTrigger>
 					</TabsList>
 
-					<div className="mt-5">
+					<TabsContent value={activeSection} className="mt-5">
 						<StaffUserOverviewContext.Provider value={overviewContextValue}>
 							<Outlet />
 						</StaffUserOverviewContext.Provider>
@@ -534,7 +540,7 @@ function StaffUserDetailsPage() {
 								{detailActionError}
 							</div>
 						) : null}
-					</div>
+					</TabsContent>
 				</Tabs>
 			</div>
 

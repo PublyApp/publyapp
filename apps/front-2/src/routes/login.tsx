@@ -109,10 +109,6 @@ export const isAllowedRedirectPath = (
 		return true;
 	}
 
-	if (normalizedSurface === '/') {
-		return true;
-	}
-
 	return requestedPath.startsWith(`${normalizedSurface}/`);
 };
 
@@ -229,13 +225,22 @@ const LoginRoute = () => {
 			}
 
 			if (failure.kind === 'validation') {
-				setError('email', {
-					message:
-						failure.fieldErrors.email?.[0] ??
-						getFailureMessage(failure, {
+				const formFields: Array<keyof LoginFormValues> = ['email', 'password'];
+				let mappedToField = false;
+				for (const field of formFields) {
+					const message = failure.fieldErrors[field]?.[0];
+					if (message) {
+						setError(field, { message });
+						mappedToField = true;
+					}
+				}
+				if (!mappedToField) {
+					setError('email', {
+						message: getFailureMessage(failure, {
 							fallback: t('enter-valid-email-and-password'),
 						}),
-				});
+					});
+				}
 				return;
 			}
 

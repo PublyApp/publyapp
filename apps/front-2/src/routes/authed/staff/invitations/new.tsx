@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { IconArrowLeft } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { i18n as I18nInstance } from 'i18next';
 import {
@@ -21,6 +22,7 @@ import { Input } from '~/components/ui/input';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import { FALLBACK_LANGUAGE, isSupportedLanguage } from '~/lib/i18n.shared';
 import {
+	invalidateStaffInvitations,
 	useBulkCreateStaffInvitationsMutation,
 	type StaffInvitationInput,
 } from '~/lib/query/staff-invitations';
@@ -186,6 +188,7 @@ function NewStaffInvitationsRoute() {
 		sortOrder: 'asc',
 		q: deferredProfileSearch || undefined,
 	});
+	const queryClient = useQueryClient();
 	const createInvitations = useBulkCreateStaffInvitationsMutation();
 
 	useEffect(() => {
@@ -234,6 +237,7 @@ function NewStaffInvitationsRoute() {
 			const result = await createInvitations.mutateAsync(values);
 			const createdCount = result?.created ?? values.invitations.length;
 
+			await invalidateStaffInvitations(queryClient);
 			methods.reset(DEFAULT_VALUES);
 			setSuccessMessage(
 				t('invitations-sent-successfully', { count: createdCount }),

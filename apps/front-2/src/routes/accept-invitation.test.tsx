@@ -118,8 +118,7 @@ const EN_LABELS: Record<string, string> = {
 	'create-account': 'Create account',
 	'first-name-required': 'First name is required',
 	'last-name-required': 'Last name is required',
-	'at-least-12-chars-and-1-special-char':
-		'Password must be at least 12 characters and contain at least 1 special character',
+	'password-min-length-hint-n': 'Use at least {{characters}} characters.',
 	'passwords-do-not-match': 'Passwords do not match',
 	'accept-invitation-title': 'Accept your invitation',
 	'auth-invitation-existing-user-authenticated-description':

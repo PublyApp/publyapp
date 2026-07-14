@@ -100,7 +100,7 @@ describe('createInvitationColumns', () => {
 		});
 	});
 
-	test('applies the SPEC 2i column grid, leaving exactly one fluid column', () => {
+	test('applies the column grid, leaving exactly one fluid column', () => {
 		const columns = createInvitationColumns({
 			t,
 			locale: 'en',
@@ -111,9 +111,12 @@ describe('createInvitationColumns', () => {
 			columns.map((column) => [column.id, column.meta?.width]),
 		);
 
+		// No `role` column: `InvitationListItem` carries no role field, and
+		// per docs/guides/front-2/conventions.md's data-honesty rule a column
+		// with nothing to back it must not exist rather than render a
+		// fabricated "—".
 		expect(widthById).toEqual({
 			email: '300px',
-			role: '116px',
 			profile_name: undefined,
 			invited_by_name: '150px',
 			expires_at: '120px',

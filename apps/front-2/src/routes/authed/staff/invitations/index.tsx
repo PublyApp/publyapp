@@ -16,8 +16,10 @@ import {
 	DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu';
 import { PageHeader } from '~/components/ui/product-page';
+import { formatDateTime } from '~/lib/format-date-time';
 import { useStaffInvitationsQuery } from '~/lib/query/staff-invitations';
 import { shouldLogoutForFailure } from '~/routes/authed/layout';
+import { StaffListExportSelectedAction } from '~/routes/authed/staff/staff-list-export-selected';
 
 import type { InvitationListItem } from '@org/client-ts/src/models/index.js';
 
@@ -160,11 +162,6 @@ function StaffInvitationsPage() {
 			<PageHeader
 				title={t('staff-invitations')}
 				description={t('invite-staff-users-to-the-platform')}
-				count={
-					rows.length > 0 ? (
-						<span className="publy-profile-count-badge">{rows.length}</span>
-					) : null
-				}
 				actions={
 					<Link
 						to="/staff/invitations/new"
@@ -249,6 +246,24 @@ function StaffInvitationsPage() {
 				onSearchDraftChange={controller.search.onDraftChange}
 				searchPlaceholder={t('search-invitations')}
 				selection={selection}
+			/>
+			<StaffListExportSelectedAction
+				rows={rows}
+				selection={selection}
+				fileNamePrefix="staff-invitations"
+				columns={[
+					{ header: t('invitee'), getValue: (row) => row.email },
+					{ header: t('profiles'), getValue: (row) => row.profileName },
+					{ header: t('invited-by'), getValue: (row) => row.invitedByName },
+					{
+						header: t('status'),
+						getValue: (row) => t(getInvitationStatusLabelKey(row.status)),
+					},
+					{
+						header: t('expires'),
+						getValue: (row) => formatDateTime(row.expiresAt, i18n.language),
+					},
+				]}
 			/>
 		</div>
 	);

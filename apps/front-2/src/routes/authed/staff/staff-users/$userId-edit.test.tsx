@@ -85,6 +85,7 @@ vi.mock('react-i18next', () => ({
 				'invalid-url': 'Invalid URL',
 				'security-preferences-not-available':
 					'Not available — security preferences are not yet exposed by the API',
+				'showing-first-n-profiles': 'Showing the first profiles.',
 			};
 
 			return labels[key] ?? key;
@@ -365,6 +366,22 @@ describe('staff user edit route', () => {
 		expect(screen.getByText('Billing')).toBeTruthy();
 	});
 
+	test('does not hint at a truncated profile list when the profiles query has no further cursor', () => {
+		renderPage();
+
+		expect(screen.queryByText('Showing the first profiles.')).toBeNull();
+	});
+
+	test('hints that the assignable-profile list is truncated when the profiles query reports a further cursor', () => {
+		mocks.useStaffProfilesQuery.mockReturnValue(
+			buildQueryResult({ data: { data: [], nextCursor: 'cursor-2' } }),
+		);
+
+		renderPage();
+
+		expect(screen.getByText('Showing the first profiles.')).toBeTruthy();
+	});
+
 	test('blocks submit when a field fails validation', async () => {
 		renderPage();
 
@@ -411,6 +428,43 @@ describe('staff user edit route', () => {
 				params: { userId: '11111111-1111-1111-1111-111111111111' },
 			}),
 		);
+	});
+
+	test('keeps the ticked profile checkbox and an enabled Save button when the identity update succeeds but the profile update 422s', async () => {
+		mocks.updateStaffUser.mockResolvedValue({
+			id: '11111111-1111-1111-1111-111111111111',
+		});
+		mocks.updateStaffUserProfiles.mockRejectedValue({
+			status: 422,
+			errors: { ProfileIds: ['maxProfilesPerUser exceeded'] },
+		});
+		renderPage();
+
+		fireEvent.change(screen.getByLabelText('First name'), {
+			target: { value: 'Alex Updated' },
+		});
+		fireEvent.click(screen.getByRole('checkbox', { name: 'Billing' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+		await waitFor(() =>
+			expect(mocks.updateStaffUserProfiles).toHaveBeenCalled(),
+		);
+		expect(mocks.navigate).not.toHaveBeenCalled();
+		// The identity mutation must not invalidate on its own — an
+		// invalidation between the two mutations would refetch and re-run the
+		// hydration effect, wiping this still-ticked checkbox (r3-F8).
+		expect(mocks.invalidateQueries).not.toHaveBeenCalled();
+		expect(
+			(screen.getByRole('checkbox', { name: 'Billing' }) as HTMLInputElement)
+				.checked,
+		).toBe(true);
+		expect(
+			(
+				screen.getByRole('button', {
+					name: 'Save changes',
+				}) as HTMLButtonElement
+			).disabled,
+		).toBe(false);
 	});
 
 	test('surfaces a failed save and stays on the edit route', async () => {

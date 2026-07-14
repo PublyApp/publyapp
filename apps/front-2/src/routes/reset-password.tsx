@@ -127,7 +127,14 @@ const ResetPasswordSuccess = () => {
 					{t('password-reset-success-description')}
 				</p>
 			</div>
-			<Link to="/login" className={buttonVariants({ variant: 'default' })}>
+			<Link
+				to="/login"
+				search={{
+					[queryParamKey.login_page.redirect_cause]:
+						queryParamValue.login_page.redirect_cause.password_reset_success,
+				}}
+				className={buttonVariants({ variant: 'default' })}
+			>
 				{t('back-to-sign-in')}
 				<IconArrowRight aria-hidden="true" className="size-4" />
 			</Link>
@@ -312,11 +319,23 @@ const SetNewPasswordForm = ({
 			}
 
 			if (failure.kind === 'validation') {
-				setError('newPassword', {
-					message:
-						failure.fieldErrors.newPassword?.[0] ??
+				const formFields: Array<keyof SetNewPasswordFormValues> = [
+					'newPassword',
+					'confirmPassword',
+				];
+				let mappedToField = false;
+				for (const field of formFields) {
+					const message = failure.fieldErrors[field]?.[0];
+					if (message) {
+						setError(field, { message });
+						mappedToField = true;
+					}
+				}
+				if (!mappedToField) {
+					setErrorMessage(
 						getFailureMessage(failure, { fallback: t('an-error-occurred') }),
-				});
+					);
+				}
 				return;
 			}
 

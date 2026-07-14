@@ -13,6 +13,10 @@ import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import { formatDateTime } from '~/lib/format-date-time';
 import type { AssignedStaffProfile } from '~/lib/query/staff-users';
+import {
+	formatAccountLevelLabel,
+	formatStaffStatusLabel,
+} from '~/routes/authed/staff/staff-users/status-labels';
 
 import { useStaffUserOverviewContext } from './_overview-context';
 
@@ -60,13 +64,16 @@ const ContactDetailsCard = ({
 						value={details.email || t('no-email-address')}
 					/>
 					{details.accountLevel ? (
-						<DetailMetaItem label={t('role')} value={details.accountLevel} />
+						<DetailMetaItem
+							label={t('role')}
+							value={formatAccountLevelLabel(details.accountLevel, t)}
+						/>
 					) : null}
 					<DetailMetaItem
 						label={t('status')}
 						value={
 							<StatusPill tone={statusPillTone(details.status)}>
-								{details.status || t('unknown')}
+								{formatStaffStatusLabel(details.status, t)}
 							</StatusPill>
 						}
 					/>

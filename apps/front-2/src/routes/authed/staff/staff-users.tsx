@@ -34,6 +34,11 @@ import type {
 	TableSearchParams,
 } from '~/lib/url-state/table-search-params';
 import { shouldLogoutForFailure } from '~/routes/authed/layout';
+import { StaffListExportSelectedAction } from '~/routes/authed/staff/staff-list-export-selected';
+import {
+	formatAccountLevelLabel,
+	formatStaffStatusLabel,
+} from '~/routes/authed/staff/staff-users/status-labels';
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 // Locked contract default (docs/front-2-migration/parity-contract.md): 100,
 // matching the current app and the selectable page-size options.
@@ -86,7 +91,7 @@ const buildColumns = (
 		meta: { headerIcon: <IconIdBadge2 />, width: '104px', hideBelow: 768 },
 		cell: ({ getValue }) => (
 			<StatusPill tone="neutral">
-				{getValue<string | null>() ?? t('unknown')}
+				{formatAccountLevelLabel(getValue<string | null>(), t)}
 			</StatusPill>
 		),
 	},
@@ -99,7 +104,7 @@ const buildColumns = (
 			const status = getValue<string | null>();
 			return (
 				<StatusPill tone={statusPillTone(status)}>
-					{status ?? t('unknown')}
+					{formatStaffStatusLabel(status, t)}
 				</StatusPill>
 			);
 		},
@@ -185,11 +190,6 @@ function StaffUsersPage() {
 			<PageHeader
 				title={t('staff-users-page-title')}
 				description={t('staff-users-page-description')}
-				count={
-					rows.length > 0 ? (
-						<span className="publy-profile-count-badge">{rows.length}</span>
-					) : null
-				}
 				actions={
 					<Link
 						to={'/staff/invitations/new' as never} // Route is not yet migrated for typed route checks; parity contract keeps this external path.
@@ -225,6 +225,23 @@ function StaffUsersPage() {
 				onSearchDraftChange={controller.search.onDraftChange}
 				selection={selection}
 				searchPlaceholder={t('search-staff-users')}
+			/>
+			<StaffListExportSelectedAction
+				rows={rows}
+				selection={selection}
+				fileNamePrefix="staff-users"
+				columns={[
+					{ header: t('name'), getValue: (row) => row.displayName },
+					{ header: t('email'), getValue: (row) => row.email },
+					{
+						header: t('level'),
+						getValue: (row) => formatAccountLevelLabel(row.level, t),
+					},
+					{
+						header: t('status'),
+						getValue: (row) => formatStaffStatusLabel(row.status, t),
+					},
+				]}
 			/>
 		</div>
 	);

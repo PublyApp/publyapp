@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { IconAlertCircle, IconArrowLeft } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -237,11 +237,17 @@ function StaffUserEditPage() {
 	const { formState, reset } = methods;
 	const { errors, isSubmitting } = formState;
 
+	// One-shot: a background refetch (e.g. the invalidation this form's own
+	// submit triggers) must never re-run `reset()` and clobber selections the
+	// user has made but not yet saved.
+	const hasHydratedRef = useRef(false);
+
 	useEffect(() => {
-		if (!user) {
+		if (!user || hasHydratedRef.current) {
 			return;
 		}
 
+		hasHydratedRef.current = true;
 		reset({
 			firstName: user.firstName ?? '',
 			lastName: user.lastName ?? '',
@@ -344,7 +350,6 @@ function StaffUserEditPage() {
 			setServerError('');
 			if (hasIdentityChanges) {
 				await updateStaffUser.mutateAsync(updateInput);
-				await invalidateStaffUsers(queryClient);
 			}
 
 			if (hasProfileChanges) {
@@ -352,6 +357,13 @@ function StaffUserEditPage() {
 					userId,
 					profileIds: values.profileIds,
 				});
+			}
+
+			// Invalidate once, after both mutations have fully succeeded — an
+			// invalidation between them refetches `assignedProfiles`, which
+			// re-runs the hydration effect and wipes the not-yet-saved profile
+			// selection before the second mutation even attempts (r3-F8).
+			if (hasIdentityChanges || hasProfileChanges) {
 				await invalidateStaffUsers(queryClient);
 			}
 
@@ -475,16 +487,25 @@ function StaffUserEditPage() {
 							/>
 						</div>
 						{profileOptions.length > 0 ? (
-							<Field.CheckboxGroup
-								name="profileIds"
-								label={t('profiles')}
-								options={profileOptions.map((profile) => ({
-									value: profile.id,
-									label: profile.name,
-									description: profile.description ?? undefined,
-								}))}
-								isDisabled={isSubmittingForm}
-							/>
+							<>
+								<Field.CheckboxGroup
+									name="profileIds"
+									label={t('profiles')}
+									options={profileOptions.map((profile) => ({
+										value: profile.id,
+										label: profile.name,
+										description: profile.description ?? undefined,
+									}))}
+									isDisabled={isSubmittingForm}
+								/>
+								{profilesQuery.data?.nextCursor ? (
+									<p className="text-xs text-muted-foreground">
+										{t('showing-first-n-profiles', {
+											count: profileOptions.length,
+										})}
+									</p>
+								) : null}
+							</>
 						) : (
 							<p className="text-sm text-muted-foreground">
 								{t('no-profiles-available')}

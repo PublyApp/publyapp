@@ -31,6 +31,29 @@ const toString = (value: unknown): string | undefined => {
 	return typeof value === 'string' ? value : undefined;
 };
 
+// FluentValidation's `ValidationResult.ToDictionary()` keys the 422 body by
+// the rule's PropertyName verbatim (`RuleFor(x => x.Email)` -> `"Email"`),
+// so every consumer that reads `fieldErrors.<camelCase>` would otherwise miss
+// every field error. Normalising once here means no form has to know the
+// wire casing.
+const toCamelCase = (field: string): string => {
+	if (field.length === 0) {
+		return field;
+	}
+
+	if (/^[A-Z0-9_]+$/.test(field)) {
+		return field.toLowerCase();
+	}
+
+	const leadingAcronymMatch = /^[A-Z]+(?=[A-Z][a-z])/.exec(field);
+	if (leadingAcronymMatch) {
+		const prefix = leadingAcronymMatch[0].toLowerCase();
+		return prefix + field.slice(leadingAcronymMatch[0].length);
+	}
+
+	return field.charAt(0).toLowerCase() + field.slice(1);
+};
+
 const toRecordOfStringArrays = (
 	value: unknown,
 ): Record<string, string[]> | undefined => {
@@ -53,7 +76,7 @@ const toRecordOfStringArrays = (
 			.filter((item): item is string => typeof item === 'string')
 			.filter(Boolean);
 		if (messages.length > 0) {
-			parsed[field] = messages;
+			parsed[toCamelCase(field)] = messages;
 		}
 	}
 
@@ -241,20 +264,17 @@ export const toApiFailure = (error: unknown): ApiFailure => {
 		const statusCode = toNumber(
 			(error as { responseStatusCode: number }).responseStatusCode,
 		);
+		const httpErrorLabel =
+			statusCode === undefined ? 'HTTP Error 500' : `HTTP Error ${statusCode}`;
 		return {
 			kind: 'problem',
 			status: statusCode ?? 500,
 			translationKey: undefined,
 			detail:
-				statusCode === undefined
-					? `HTTP Error 500`
-					: error instanceof Error
-						? error.message
-						: `HTTP Error ${statusCode}`,
-			title:
-				statusCode === undefined
-					? 'HTTP Error 500'
-					: `HTTP Error ${statusCode}`,
+				statusCode !== undefined && error instanceof Error
+					? error.message
+					: httpErrorLabel,
+			title: httpErrorLabel,
 		};
 	}
 

@@ -20,14 +20,11 @@ import {
 	createClient,
 	getSessionTokensFromBrowser,
 } from '~/lib/api-client/client-manager';
+import { buildLoginRedirectSearch } from '~/lib/login-redirect-search';
 import { ServerFailure } from '~/lib/server/server-failure';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
-import {
-	queryParamKey,
-	queryParamValue,
-	REDIRECT_CODE,
-} from '@org/shared-ts/lib/constants';
+import { REDIRECT_CODE } from '@org/shared-ts/lib/constants';
 import {
 	selectToken,
 	type ParsedSessionTokens,
@@ -47,11 +44,6 @@ const getFailureStatus = (error: unknown): number | undefined => {
 	const failure = toApiFailure(error);
 	return failure.kind === 'problem' ? failure.status : undefined;
 };
-
-const getSessionExpiredSearch = () => ({
-	[queryParamKey.login_page.redirect_cause]:
-		queryParamValue.login_page.redirect_cause.invalid_session,
-});
 
 export const determineSessionToken = (
 	tokens: ParsedSessionTokens,
@@ -285,7 +277,12 @@ export const Route = createFileRoute('/_authed-layout')({
 		if (!token) {
 			throw redirect({
 				to: '/login',
-				search: getSessionExpiredSearch(),
+				search: buildLoginRedirectSearch({
+					hadSession: Boolean(
+						tokens.staffToken || selectToken(tokens, 'tenant'),
+					),
+					returnTo: `${pathname}${location.searchStr ?? ''}`,
+				}),
 			});
 		}
 	},

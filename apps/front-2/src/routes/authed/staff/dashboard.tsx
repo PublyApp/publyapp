@@ -5,7 +5,7 @@ import {
 	useRouterState,
 } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
-import { Tabs, TabsList, TabsTrigger } from '~/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
 
 const TAB_ROUTE_SUFFIXES = ['activity', 'reports'] as const;
 type DashboardSection = 'overview' | (typeof TAB_ROUTE_SUFFIXES)[number];
@@ -56,9 +56,9 @@ function StaffDashboardPage() {
 					</TabsTrigger>
 				</TabsList>
 
-				<div className="mt-5">
+				<TabsContent value={activeSection} className="mt-5">
 					<Outlet />
-				</div>
+				</TabsContent>
 			</Tabs>
 		</div>
 	);

@@ -166,7 +166,10 @@ vi.mock('~/components/field', () => ({
 }));
 
 vi.mock('~/lib/query/staff-profiles', () => ({
-	STAFF_PROFILES_QUERY_KEY: ['staff', 'staff-profiles'],
+	invalidateStaffProfiles: (queryClient: {
+		invalidateQueries: (options: { queryKey: unknown[] }) => Promise<unknown>;
+	}) =>
+		queryClient.invalidateQueries({ queryKey: ['staff', 'staff-profiles'] }),
 	useCreateStaffProfileMutation: mocks.useCreateStaffProfileMutation,
 	useStaffPermissionCatalogQuery: mocks.useStaffPermissionCatalogQuery,
 }));

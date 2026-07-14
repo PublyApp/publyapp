@@ -12,13 +12,11 @@ import { buildColumns } from './profiles';
 const t = (key: string): string => key;
 
 describe('staff profiles column grid', () => {
-	// SPEC 2g grid: 40 / 240 / 1fr / 104 / 140 / 120 / 40 — the permissions
-	// and updated columns were silently dropped in 506351cf (an i18n-only
-	// sweep that removed two whole columns instead of just re-keying their
-	// labels), which broke this grid a second time on this branch. Pinning
-	// the per-column width shape here means any future column drop or width
-	// edit shows up as a vitest failure, not just a docker e2e one.
-	test('applies the SPEC 2g column grid across all six columns', () => {
+	// `StaffProfileItem` carries only description/id/name/userAccountCount —
+	// no permission count, no updated_at (packages/client-ts/src/models/index.ts).
+	// Per docs/guides/front-2/conventions.md's data-honesty rule, a column with
+	// no backing field must not exist rather than render a fabricated "—".
+	test('applies the column grid across the columns the contract can back', () => {
 		const columns = buildColumns(t);
 		const widthById = Object.fromEntries(
 			columns.map((column) => [column.id, column.meta?.width]),
@@ -28,23 +26,14 @@ describe('staff profiles column grid', () => {
 			name: '240px',
 			description: undefined,
 			members: '104px',
-			permissions: '140px',
-			updated: '120px',
 			actions: '40px',
 		});
 	});
 
-	test('never drops the permissions or updated columns', () => {
+	test('never renders a permissions or updated column the API does not back', () => {
 		const columns = buildColumns(t);
 		const ids = columns.map((column) => column.id);
 
-		expect(ids).toEqual([
-			'name',
-			'description',
-			'members',
-			'permissions',
-			'updated',
-			'actions',
-		]);
+		expect(ids).toEqual(['name', 'description', 'members', 'actions']);
 	});
 });

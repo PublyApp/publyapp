@@ -4,7 +4,6 @@ import {
 	IconCalendar,
 	IconChartBar,
 	IconEye,
-	IconKey,
 	IconNews,
 	IconPlus,
 	IconSettings,
@@ -40,6 +39,7 @@ import type {
 	TableSearchParams,
 } from '~/lib/url-state/table-search-params';
 import { shouldLogoutForFailure } from '~/routes/authed/layout';
+import { StaffListExportSelectedAction } from '~/routes/authed/staff/staff-list-export-selected';
 
 // Default server ordering by creation date provides stable, deterministic pagination.
 // No column advertises this sort key: `Profile` is the only sortable column and it sorts
@@ -140,37 +140,6 @@ export const buildColumns = (
 		},
 	},
 	{
-		id: 'permissions',
-		header: () => (
-			<div className="inline-flex items-center gap-1.5">
-				<IconKey className="size-3.5 text-muted-foreground" />
-				<span>{t('permissions')}</span>
-			</div>
-		),
-		enableSorting: false,
-		meta: { width: '140px', hideBelow: 768 },
-		cell: () => (
-			<span className="text-[13px] text-muted-foreground">
-				{/* TODO(contract): permission count not in profile list response */}—
-			</span>
-		),
-	},
-	{
-		id: 'updated',
-		header: () => (
-			<div className="inline-flex items-center gap-1.5">
-				<span>{t('updated')}</span>
-			</div>
-		),
-		enableSorting: false,
-		meta: { width: '120px', hideBelow: 768 },
-		cell: () => (
-			<span className="text-[13px] text-muted-foreground">
-				{/* TODO(contract): updated_at not in profile list response */}—
-			</span>
-		),
-	},
-	{
 		id: 'actions',
 		header: () => <span className="sr-only">{t('actions')}</span>,
 		enableSorting: false,
@@ -249,11 +218,6 @@ function StaffProfilesPage() {
 			<PageHeader
 				title={t('profiles')}
 				description={t('staff-profiles-page-description')}
-				count={
-					rows.length > 0 ? (
-						<span className="publy-profile-count-badge">{rows.length}</span>
-					) : null
-				}
 				actions={
 					<Link
 						to={'/staff/profiles/new' as never}
@@ -290,6 +254,22 @@ function StaffProfilesPage() {
 				searchPlaceholder={t('search-profiles')}
 				selection={selection}
 				rowHeight={56}
+			/>
+			<StaffListExportSelectedAction
+				rows={rows}
+				selection={selection}
+				fileNamePrefix="staff-profiles"
+				columns={[
+					{ header: t('profile'), getValue: (row) => row.name },
+					{
+						header: t('description'),
+						getValue: (row) => row.description ?? '',
+					},
+					{
+						header: t('members'),
+						getValue: (row) => String(row.userAccountCount ?? ''),
+					},
+				]}
 			/>
 		</div>
 	);

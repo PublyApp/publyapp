@@ -226,6 +226,24 @@ describe('login route', () => {
 		expect(mocks.navigate).not.toHaveBeenCalled();
 	});
 
+	test('maps a 422 email validation failure onto the email field using the API PascalCase key', async () => {
+		// ValidationResult.ToDictionary() (ReqBodyValidationFilter.cs) keys 422
+		// errors by PascalCase PropertyName — never camelCase (r3-F2).
+		mocks.login.mockRejectedValue({
+			status: 422,
+			errors: { Email: ['Enter a valid email address.'] },
+		});
+
+		renderLoginRoute();
+		fillCredentials('user@example.com', 'correct-horse-battery-staple');
+		fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+
+		await waitFor(() =>
+			expect(screen.getByText('Enter a valid email address.')).toBeTruthy(),
+		);
+		expect(mocks.navigate).not.toHaveBeenCalled();
+	});
+
 	test('prefills the email field from the ?email= search param (the invitation-login handoff)', () => {
 		mocks.searchStr = '?email=invitee%40example.com';
 

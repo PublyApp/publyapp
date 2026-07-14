@@ -22,6 +22,12 @@ const mocks = vi.hoisted(() => ({
 	useBulkCreateStaffInvitationsMutation: vi.fn(),
 	useStaffProfilesQuery: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
+	invalidateStaffInvitations: vi.fn().mockResolvedValue(undefined),
+	queryClient: { fake: 'query-client' },
+}));
+
+vi.mock('@tanstack/react-query', () => ({
+	useQueryClient: () => mocks.queryClient,
 }));
 
 vi.mock('@tanstack/react-router', () => ({
@@ -165,6 +171,7 @@ vi.mock('~/components/field', () => ({
 vi.mock('~/lib/query/staff-invitations', () => ({
 	useBulkCreateStaffInvitationsMutation:
 		mocks.useBulkCreateStaffInvitationsMutation,
+	invalidateStaffInvitations: mocks.invalidateStaffInvitations,
 }));
 
 vi.mock('~/lib/query/staff-profiles', () => ({
@@ -212,6 +219,7 @@ describe('staff invitation create route', () => {
 			mutateAsync: vi.fn().mockResolvedValue({ created: 1 }),
 			isPending: false,
 		});
+		mocks.invalidateStaffInvitations.mockResolvedValue(undefined);
 	});
 
 	afterEach(() => {
@@ -275,6 +283,31 @@ describe('staff invitation create route', () => {
 			expect(mocks.navigate).toHaveBeenCalledWith({
 				to: '/staff/invitations',
 			}),
+		);
+	});
+
+	test('invalidates the staff invitations list query so the sent invitations are not hidden by a fresh cache entry', async () => {
+		const mutateAsync = vi.fn().mockResolvedValue({ created: 1 });
+
+		mocks.useBulkCreateStaffInvitationsMutation.mockReturnValue({
+			mutateAsync,
+			isPending: false,
+		});
+
+		renderPage();
+
+		fireEvent.change(screen.getByRole('textbox', { name: 'Email address' }), {
+			target: { value: 'new-staff@example.com' },
+		});
+		fireEvent.click(screen.getByRole('checkbox', { name: 'Admin' }));
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Send invitations' }).closest('form')!,
+		);
+
+		await waitFor(() =>
+			expect(mocks.invalidateStaffInvitations).toHaveBeenCalledWith(
+				mocks.queryClient,
+			),
 		);
 	});
 });

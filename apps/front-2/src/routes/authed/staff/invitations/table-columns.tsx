@@ -2,7 +2,6 @@ import {
 	IconCircleDot,
 	IconClock,
 	IconId,
-	IconIdBadge2,
 	IconMail,
 	IconRefresh,
 	IconUser,
@@ -167,22 +166,6 @@ export const createInvitationColumns = ({
 				</Link>
 			);
 		},
-	},
-	{
-		id: 'role',
-		header: () => (
-			<div className="inline-flex items-center gap-1.5">
-				<IconIdBadge2 className="size-3.5 text-muted-foreground" />
-				<span>{t('role')}</span>
-			</div>
-		),
-		enableSorting: false,
-		meta: { width: '116px' },
-		cell: () => (
-			<span className="publy-detail-chip publy-detail-chip--outline">
-				{/* TODO(contract): role not in InvitationListItem */}—
-			</span>
-		),
 	},
 	{
 		id: 'profile_name',

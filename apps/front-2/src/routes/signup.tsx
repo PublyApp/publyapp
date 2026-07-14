@@ -106,11 +106,25 @@ const SignUpRoute = () => {
 			const failure = toApiFailure(error);
 
 			if (failure.kind === 'validation') {
-				setError('password', {
-					message:
-						failure.fieldErrors.password?.[0] ??
+				const formFields: Array<keyof SignUpFormValues> = [
+					'firstName',
+					'lastName',
+					'email',
+					'password',
+				];
+				let mappedToField = false;
+				for (const field of formFields) {
+					const message = failure.fieldErrors[field]?.[0];
+					if (message) {
+						setError(field, { message });
+						mappedToField = true;
+					}
+				}
+				if (!mappedToField) {
+					setErrorMessage(
 						getFailureMessage(failure, { fallback: t('an-error-occurred') }),
-				});
+					);
+				}
 				return;
 			}
 

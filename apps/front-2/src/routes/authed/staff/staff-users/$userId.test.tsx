@@ -114,6 +114,12 @@ const I18N_LABELS: Record<string, string> = {
 	'try-again': 'Try Again',
 	'loading-staff-user': 'Loading staff user…',
 	'no-email-address': 'No email address',
+	admin: 'Admin',
+	user: 'User',
+	'status-active': 'Active',
+	'status-suspended': 'Suspended',
+	'status-unknown': 'Unknown',
+	unknown: 'Unknown',
 	edit: 'Edit',
 	overview: 'Overview',
 	permissions: 'Permissions',
@@ -249,7 +255,7 @@ describe('staff user details route shell', () => {
 			firstName: 'Owner',
 			lastName: 'User',
 			avatarUrl: null,
-			accountLevel: 'Owner',
+			accountLevel: 'Admin',
 			status: 'Active',
 			createdAt: new Date('2026-07-01T09:00:00Z'),
 			updatedAt: new Date('2026-07-02T10:00:00Z'),
@@ -269,7 +275,7 @@ describe('staff user details route shell', () => {
 			firstName: 'Owner',
 			lastName: 'User',
 			avatarUrl: null,
-			accountLevel: 'Owner',
+			accountLevel: 'Admin',
 			status: 'Active',
 			createdAt: new Date('2026-07-01T09:00:00Z'),
 			updatedAt: new Date('2026-07-02T10:00:00Z'),
@@ -288,7 +294,7 @@ describe('staff user details route shell', () => {
 		expect(screen.getByTestId('staff-user-details-page')).toBeTruthy();
 
 		const page = within(screen.getByTestId('staff-user-details-page'));
-		expect(page.getAllByText('Owner')).toHaveLength(1);
+		expect(page.getAllByText('Admin')).toHaveLength(1);
 		expect(page.getAllByText('Active')).toHaveLength(1);
 
 		expect(
@@ -508,7 +514,7 @@ describe('staff user details route shell', () => {
 			firstName: 'Owner',
 			lastName: 'User',
 			avatarUrl: null,
-			accountLevel: 'Owner',
+			accountLevel: 'Admin',
 			status: 'Suspended',
 			createdAt: new Date('2026-07-01T09:00:00Z'),
 			updatedAt: new Date('2026-07-02T10:00:00Z'),

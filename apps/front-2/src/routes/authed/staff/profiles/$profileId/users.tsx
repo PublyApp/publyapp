@@ -15,7 +15,7 @@ import { useTableController } from '~/components/table/use-table-controller';
 import { Button, buttonVariants } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
-import { Tabs, TabsList, TabsTrigger } from '~/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import {
 	toStaffProfileUserRows,
 	useStaffProfileUsersQuery,
@@ -343,59 +343,64 @@ function StaffProfileUsersPage() {
 						</TabsTrigger>
 						<TabsTrigger value="users">{t('users')}</TabsTrigger>
 					</TabsList>
+
+					<TabsContent value="users">
+						<Card className="space-y-4 p-5">
+							<div className="space-y-1">
+								<p className="text-lg font-semibold text-foreground">
+									{t('assigned-users')}
+								</p>
+								<p className="text-sm text-muted-foreground">
+									{t('staff-profile-users-description')}
+								</p>
+							</div>
+
+							<DataTable
+								testId="staff-profile-users-table"
+								ariaLabel={t('assigned-staff-profile-users')}
+								columns={columns}
+								rows={rows}
+								isPending={usersQuery.isPending}
+								isError={usersQuery.isError}
+								onRetry={() => void usersQuery.refetch()}
+								errorContent={
+									usersFailure?.kind === 'problem' &&
+									usersFailure.status === 403 ? (
+										<p className="text-sm text-muted-foreground">
+											{t('no-permission-to-view-assigned-users')}
+										</p>
+									) : undefined
+								}
+								emptyContent={t('no-users-assigned-to-profile')}
+								noMatchContent={t('no-assigned-users-match-search')}
+								hasActiveSearch={Boolean(controller.search.committed)}
+								sort={controller.sort}
+								onSortChange={controller.onSortChange}
+								size={controller.size}
+								onSizeChange={controller.onSizeChange}
+								pageIndex={pageIndex}
+								hasPreviousPage={hasPreviousPage}
+								hasNextPage={hasNextPage}
+								isPaginationPending={
+									usersQuery.isFetching && !usersQuery.isPending
+								}
+								onNextPage={() => {
+									if (hasNextPage) {
+										setPageIndex((current) => current + 1);
+									}
+								}}
+								onPreviousPage={() => {
+									if (hasPreviousPage) {
+										setPageIndex((current) => Math.max(current - 1, 0));
+									}
+								}}
+								searchDraft={controller.search.draft}
+								onSearchDraftChange={controller.search.onDraftChange}
+							/>
+						</Card>
+					</TabsContent>
 				</Tabs>
 			</div>
-
-			<Card className="space-y-4 p-5">
-				<div className="space-y-1">
-					<p className="text-lg font-semibold text-foreground">
-						{t('assigned-users')}
-					</p>
-					<p className="text-sm text-muted-foreground">
-						{t('staff-profile-users-description')}
-					</p>
-				</div>
-
-				<DataTable
-					testId="staff-profile-users-table"
-					ariaLabel={t('assigned-staff-profile-users')}
-					columns={columns}
-					rows={rows}
-					isPending={usersQuery.isPending}
-					isError={usersQuery.isError}
-					onRetry={() => void usersQuery.refetch()}
-					errorContent={
-						usersFailure?.kind === 'problem' && usersFailure.status === 403 ? (
-							<p className="text-sm text-muted-foreground">
-								{t('no-permission-to-view-assigned-users')}
-							</p>
-						) : undefined
-					}
-					emptyContent={t('no-users-assigned-to-profile')}
-					noMatchContent={t('no-assigned-users-match-search')}
-					hasActiveSearch={Boolean(controller.search.committed)}
-					sort={controller.sort}
-					onSortChange={controller.onSortChange}
-					size={controller.size}
-					onSizeChange={controller.onSizeChange}
-					pageIndex={pageIndex}
-					hasPreviousPage={hasPreviousPage}
-					hasNextPage={hasNextPage}
-					isPaginationPending={usersQuery.isFetching && !usersQuery.isPending}
-					onNextPage={() => {
-						if (hasNextPage) {
-							setPageIndex((current) => current + 1);
-						}
-					}}
-					onPreviousPage={() => {
-						if (hasPreviousPage) {
-							setPageIndex((current) => Math.max(current - 1, 0));
-						}
-					}}
-					searchDraft={controller.search.draft}
-					onSearchDraftChange={controller.search.onDraftChange}
-				/>
-			</Card>
 		</div>
 	);
 }

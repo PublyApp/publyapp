@@ -158,7 +158,7 @@ const resolveBranchKind = (
 	return emailMatches ? 'existing-match' : 'mismatch';
 };
 
-type Translate = (key: string) => string;
+type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 const InvitationDetailsCard = ({
 	email,
@@ -265,7 +265,10 @@ const getNewUserFormSchema = (t: Translate) =>
 			lastName: z.string().trim().min(1, t('last-name-required')),
 			password: z
 				.string()
-				.min(PASSWORD_MIN_LENGTH, t('at-least-12-chars-and-1-special-char')),
+				.min(
+					PASSWORD_MIN_LENGTH,
+					t('password-min-length-hint-n', { characters: PASSWORD_MIN_LENGTH }),
+				),
 			confirmPassword: z.string(),
 		})
 		.refine((data) => data.password === data.confirmPassword, {

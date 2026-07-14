@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { Form, Field } from '~/components/field';
 import { Button } from '~/components/ui/button';
@@ -12,6 +13,7 @@ type FieldValidationValues = {
 };
 
 const FieldValidationRoute = () => {
+	const { t } = useTranslation('common');
 	const resolver = zodResolver(
 		z.object({
 			email: z.string().email(),
@@ -27,7 +29,7 @@ const FieldValidationRoute = () => {
 	const [status, setStatus] = useState('');
 
 	const onSubmit: SubmitHandler<FieldValidationValues> = (values) => {
-		setStatus(`Submitted: ${values.email}`);
+		setStatus(t('field-validation-submitted-value', { email: values.email }));
 	};
 
 	return (
@@ -36,14 +38,14 @@ const FieldValidationRoute = () => {
 				className="text-2xl font-semibold"
 				data-testid="field-validation-title"
 			>
-				Field validation demo
+				{t('field-validation-demo')}
 			</h1>
 			<Card className="space-y-4 p-4">
 				<Form methods={methods} onSubmit={methods.handleSubmit(onSubmit)}>
 					<Field.Email
 						name="email"
-						label="Email"
-						placeholder="name@company.com"
+						label={t('email')}
+						placeholder={t('email-placeholder')}
 						required
 					/>
 					<Button
@@ -52,7 +54,7 @@ const FieldValidationRoute = () => {
 						className="w-full"
 						data-testid="field-validation-submit"
 					>
-						Submit
+						{t('submit')}
 					</Button>
 				</Form>
 				<p

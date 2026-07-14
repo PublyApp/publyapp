@@ -272,9 +272,12 @@ describe('signup route', () => {
 
 	test('maps a 422 password validation failure onto the password field', async () => {
 		mocks.signupsEnabled = true;
+		// The API's ValidationResult.ToDictionary() keys errors by the rule's
+		// PascalCase PropertyName (ReqBodyValidationFilter.cs), never camelCase —
+		// pin the real wire shape so this doesn't regress silently (r3-F2).
 		mocks.register.mockRejectedValue({
 			status: 422,
-			errors: { password: ['Password is too common.'] },
+			errors: { Password: ['Password is too common.'] },
 		});
 
 		renderSignUpRoute();
@@ -295,6 +298,35 @@ describe('signup route', () => {
 
 		await waitFor(() =>
 			expect(screen.getByText('Password is too common.')).toBeTruthy(),
+		);
+		expect(mocks.navigate).not.toHaveBeenCalled();
+	});
+
+	test('maps a 422 email validation failure onto the email field, not the password field', async () => {
+		mocks.signupsEnabled = true;
+		mocks.register.mockRejectedValue({
+			status: 422,
+			errors: { Email: ['Email is already registered.'] },
+		});
+
+		renderSignUpRoute();
+
+		fireEvent.change(screen.getByLabelText('First name'), {
+			target: { value: 'Mara' },
+		});
+		fireEvent.change(screen.getByLabelText('Last name'), {
+			target: { value: 'Okonkwo' },
+		});
+		fireEvent.change(screen.getByLabelText('Email address'), {
+			target: { value: 'mara@northwind.co' },
+		});
+		fireEvent.change(screen.getByLabelText('Password'), {
+			target: { value: 'aurora-441789' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+		await waitFor(() =>
+			expect(screen.getByText('Email is already registered.')).toBeTruthy(),
 		);
 		expect(mocks.navigate).not.toHaveBeenCalled();
 	});

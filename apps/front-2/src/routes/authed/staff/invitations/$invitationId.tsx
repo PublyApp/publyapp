@@ -321,7 +321,7 @@ const InvitationDetailsCard = ({
 				description={t('invitation-removal-description')}
 				confirmLabel={t('revoke')}
 				isPending={revoke.isPending}
-				onConfirm={handleRevoke}
+				onConfirm={() => void handleRevoke()}
 				onOpenChange={setPendingRevoke}
 			/>
 
