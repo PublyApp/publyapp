@@ -610,6 +610,57 @@
         }
       }
     },
+    "/auth/request-password-reset": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Request Password Reset",
+        "operationId": "RequestPasswordReset",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestPasswordResetBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestPasswordResetResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/reset-password": {
       "post": {
         "tags": [
@@ -10570,6 +10621,25 @@
           }
         },
         "description": "HTTP wire result for the reactivate tenant-user operation; top-level sibling per the\nhandler file contract, with no Dto suffix on wire types."
+      },
+      "RequestPasswordResetBody": {
+        "required": [
+          "email"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "$ref": "#/components/schemas/JsonElement"
+          }
+        }
+      },
+      "RequestPasswordResetResult": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          }
+        }
       },
       "ResetPasswordBody": {
         "required": [
