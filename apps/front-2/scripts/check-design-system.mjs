@@ -3,6 +3,13 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import suppressionInventory from '../src/lib/suppression-inventory.json' with { type: 'json' };
+import {
+	diffSuppressionInventory,
+	findSuppressionSitesInSource,
+	isSubstantiveSuppressionReason,
+} from '../src/lib/suppression-reason.ts';
+
 const rootDir = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const srcDir = path.join(rootDir, 'src');
 const e2eDir = path.join(rootDir, 'e2e');
@@ -624,14 +631,14 @@ const isKnownHandoffGuardDebt = ({ ruleId, file, source }) => {
 
 // An opt-out comment on the line directly above the offending line. Requires a
 // reason after the rule id so the suppression has to be argued, not just added.
+//
+// W5-HARDEN: reason-quality (isSubstantiveSuppressionReason) and the
+// suppression-inventory diff below are the shared helper from
+// suppression-reason.ts, also used by the data-honesty and i18n-guard
+// conventions — see that file for why "at least 3 word characters" (the
+// pre-hardening bar here) accepted `aaa`/`xxx`/`123` and why a heuristic
+// alone can't fully close this hole.
 const SUPPRESSION_PREFIX = 'design-system-ignore:';
-
-// Strips whatever comment syntax the file allows (`//`, `/* */`, `{/* */}`)
-// off the tail of the reason before testing it for substance, so a bare
-// `{/* design-system-ignore: rule-id */}` — whose only "reason" text is the
-// comment's own closing delimiters — cannot pass as a reasoned suppression.
-const extractSuppressionReason = (rawReason) =>
-	rawReason.replace(/(\*\/\}|\*\/|\}|-->)\s*$/, '').trim();
 
 const isInlineSuppressed = (lines, line, ruleId) => {
 	const previous = lines[line - 2] ?? '';
@@ -640,8 +647,7 @@ const isInlineSuppressed = (lines, line, ruleId) => {
 	if (at === -1) {
 		return false;
 	}
-	const reason = extractSuppressionReason(previous.slice(at + marker.length));
-	return (reason.match(/\w/g)?.length ?? 0) >= 3;
+	return isSubstantiveSuppressionReason(previous.slice(at + marker.length));
 };
 
 const recordViolation = (violations, violation, lines) => {
@@ -738,11 +744,108 @@ const ARBITRARY_TAILWIND_DIRECT_COLOR_PATTERN = new RegExp(
 // literals as a bare `#fff` — they only become safe once every colour
 // operand is a semantic `var(...)` reference (or a theme-invariant keyword
 // like `transparent`/`currentColor`). Flag any `color-mix(...)` call whose
-// argument list still contains a raw hex or nested colour-function operand.
-const COLOR_MIX_RAW_OPERAND_PATTERN = new RegExp(
-	'color-mix\\([^)]*(?:#[0-9a-fA-F]{3,8}\\b|' +
-		'\\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch)\\()',
-);
+// argument list still contains a raw hex, named-colour, or colour-function
+// operand.
+//
+// W5-HARDEN (W5-VERIFY2): a single whole-expression regex (`[^)]*` from
+// `color-mix(` to the first raw-colour match) cannot see past the FIRST
+// nested `)` — `color-mix(in srgb, var(--primary) 50%, #ffffff)` stops at
+// `var()`'s closing paren and never reaches the raw `#ffffff` second
+// operand. It also never recognised a raw NAMED colour (`white`) or a
+// `color()` function operand. Rather than patch the regex for each shape
+// (the same mistake that produced the original hole), this parses the real
+// argument list — splitting on top-level commas so nested parens in `var()`/
+// `rgba()` never get mistaken for a top-level separator — and validates
+// EVERY colour operand independently, wherever it sits in the list.
+const COLOR_MIX_SAFE_KEYWORDS = new Set([
+	'transparent',
+	'currentcolor',
+	'inherit',
+	'initial',
+	'unset',
+	'revert',
+	'revert-layer',
+]);
+
+/** Splits `text` on top-level occurrences of `separator`, treating any
+ * substring inside matching parens as opaque (so `var(--x)`/`rgba(0,0,0,.4)`
+ * never contribute a false split point). */
+const splitTopLevel = (text, separator) => {
+	const parts = [];
+	let depth = 0;
+	let start = 0;
+	for (let index = 0; index < text.length; index += 1) {
+		const character = text[index];
+		if (character === '(') {
+			depth += 1;
+		} else if (character === ')') {
+			depth -= 1;
+		} else if (character === separator && depth === 0) {
+			parts.push(text.slice(start, index));
+			start = index + 1;
+		}
+	}
+	parts.push(text.slice(start));
+	return parts;
+};
+
+/** A color-mix() colour operand is one `<color> <percentage>?` segment.
+ * Safe forms are a `var(...)` reference or one of the theme-invariant
+ * keywords; anything else — hex, `rgb()`/`hsl()`/`oklch()`/`color()`, or a
+ * bare named colour keyword like `white`/`red` — is a raw literal. */
+const isRawColorMixOperand = (segment) => {
+	const trimmed = segment.trim();
+	if (trimmed === '') {
+		return false;
+	}
+	const withoutPercentage = trimmed.replace(/\s+[\d.]+%\s*$/, '').trim();
+	if (/^var\(/i.test(withoutPercentage)) {
+		return false;
+	}
+	return !COLOR_MIX_SAFE_KEYWORDS.has(withoutPercentage.toLowerCase());
+};
+
+/** Finds every `color-mix(...)` call in `text` (there may be several — a
+ * multi-declaration CSS statement, or several arbitrary-utility calls on one
+ * line) and returns true if ANY of them has a raw colour operand. The first
+ * comma-separated segment inside the parens is the `in <space>[ <method>
+ * hue]` colour-interpolation clause, never a colour operand — it's skipped. */
+const hasRawColorMixOperand = (text) => {
+	const openerPattern = /color-mix\(/g;
+	let openerMatch;
+	while ((openerMatch = openerPattern.exec(text))) {
+		const openParenIndex = openerMatch.index + openerMatch[0].length - 1;
+		let depth = 0;
+		let closeParenIndex = -1;
+		for (let index = openParenIndex; index < text.length; index += 1) {
+			if (text[index] === '(') {
+				depth += 1;
+			} else if (text[index] === ')') {
+				depth -= 1;
+				if (depth === 0) {
+					closeParenIndex = index;
+					break;
+				}
+			}
+		}
+		if (closeParenIndex === -1) {
+			continue;
+		}
+
+		const argsText = text.slice(openParenIndex + 1, closeParenIndex);
+		const segments = splitTopLevel(argsText, ',');
+		for (const segment of segments.slice(1)) {
+			if (isRawColorMixOperand(segment)) {
+				return true;
+			}
+		}
+
+		openerPattern.lastIndex = closeParenIndex;
+	}
+	return false;
+};
+
+const COLOR_MIX_RAW_OPERAND_PATTERN = { test: hasRawColorMixOperand };
 
 const rules = [
 	{
@@ -994,6 +1097,11 @@ export const scanFront2DesignSystem = async ({
 	// build a full :root/html.dark token layer shouldn't be misjudged against
 	// the real app.css token set.
 	checkTokenGuards = false,
+	// Same opt-in reasoning again: a fixture temp dir's `design-system-ignore`
+	// comments (planted to exercise isInlineSuppressed) have nothing to do
+	// with the real, committed suppression-inventory.json, so comparing a
+	// fixture scan against it would spuriously fail every such test.
+	checkSuppressionInventory = false,
 } = {}) => {
 	const files = [];
 	const emptyDirs = [];
@@ -1188,6 +1296,52 @@ export const scanFront2DesignSystem = async ({
 		violations.push(...checkTokenGuardViolations(fileContentsByRelativePath));
 	}
 
+	// W5-HARDEN: reason-quality alone can't stop a suppression reworded to
+	// clear the bar without argument — the structural backstop is this
+	// inventory diff. A `design-system-ignore` comment that exists in code
+	// but not in suppression-inventory.json (added/reworded without
+	// regenerating it), or an inventory entry no longer found in code, both
+	// fail the guard.
+	if (checkSuppressionInventory) {
+		const found = [];
+		for (const [relativePath, source] of fileContentsByRelativePath) {
+			found.push(
+				...findSuppressionSitesInSource(source, relativePath).filter(
+					(site) => site.convention === 'design-system-ignore',
+				),
+			);
+		}
+		const relevantInventory = suppressionInventory.filter(
+			(site) => site.convention === 'design-system-ignore',
+		);
+		const { undocumented, stale } = diffSuppressionInventory(
+			found,
+			relevantInventory,
+		);
+		for (const site of undocumented) {
+			violations.push({
+				ruleId: 'suppression-inventory-drift',
+				message:
+					'design-system-ignore suppression is not in suppression-inventory.json — ' +
+					'run `node scripts/generate-suppression-inventory.mjs` and commit the result.',
+				file: site.file,
+				line: 0,
+				source: site.reason,
+			});
+		}
+		for (const site of stale) {
+			violations.push({
+				ruleId: 'suppression-inventory-drift',
+				message:
+					'suppression-inventory.json lists a design-system-ignore site no longer found in ' +
+					'this scan — run `node scripts/generate-suppression-inventory.mjs` and commit the result.',
+				file: site.file,
+				line: 0,
+				source: site.reason,
+			});
+		}
+	}
+
 	violations.scannedFileCount = files.length;
 	return violations;
 };
@@ -1199,6 +1353,7 @@ if (
 	const violations = await scanFront2DesignSystem({
 		checkStaleDebt: true,
 		checkTokenGuards: true,
+		checkSuppressionInventory: true,
 	});
 
 	console.error(

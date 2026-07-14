@@ -1,0 +1,42 @@
+[
+	{
+		"convention": "data-honesty-ignore",
+		"file": "src/routes/authed/staff/tenants/$tenantId-edit.tsx",
+		"reason": "relative-time \"never active\" fallback, not a fabricated identity"
+	},
+	{
+		"convention": "data-honesty-ignore",
+		"file": "src/routes/authed/staff/tenants/$tenantId.tsx",
+		"reason": "relative-time \"never active\" fallback, not a fabricated identity"
+	},
+	{
+		"convention": "i18n-guard-ignore",
+		"file": "src/lib/server/server-failure.ts",
+		"reason": "no-hardcoded-ui-literal — see comment above."
+	},
+	{
+		"convention": "i18n-guard-ignore",
+		"file": "src/lib/server/server-failure.ts",
+		"reason": "no-hardcoded-ui-literal — see title above."
+	},
+	{
+		"convention": "i18n-guard-ignore",
+		"file": "src/lib/server/server-failure.ts",
+		"reason": "no-hardcoded-ui-literal — see title above."
+	},
+	{
+		"convention": "i18n-guard-ignore",
+		"file": "src/lib/server/server-failure.ts",
+		"reason": "no-hardcoded-ui-literal — see title above."
+	},
+	{
+		"convention": "i18n-guard-ignore",
+		"file": "src/routes/authed/layout.tsx",
+		"reason": "no-hardcoded-ui-literal — see comment above."
+	},
+	{
+		"convention": "i18n-guard-ignore",
+		"file": "src/routes/authed/layout.tsx",
+		"reason": "no-hardcoded-ui-literal — see title above."
+	}
+]

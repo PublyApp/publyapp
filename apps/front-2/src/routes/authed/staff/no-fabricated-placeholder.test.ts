@@ -3,6 +3,13 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, test } from 'vitest';
+import suppressionInventory from '~/lib/suppression-inventory.json';
+import {
+	diffSuppressionInventory,
+	findSuppressionSitesInSource,
+	isSubstantiveSuppressionReason,
+	type SuppressionSite,
+} from '~/lib/suppression-reason';
 
 // Guards docs/guides/front-2/conventions.md's §Content & data honesty rule:
 // "never render fabricated or placeholder admin data".
@@ -71,13 +78,11 @@ const CHECKS: PlaceholderCheck[] = [
 // UX convention rather than a fabricated identity.
 const DATA_HONESTY_SUPPRESSION_PREFIX = 'data-honesty-ignore:';
 
-// Strips whatever comment syntax the file allows (`//`, `/* */`, `{/* */}`)
-// off the tail of the suppression reason before testing it for substance, so
-// a bare `{/* data-honesty-ignore: */}` — whose only "reason" text is the
-// comment's own closing delimiters — cannot pass as a reasoned suppression.
-const extractSuppressionReason = (rawReason: string): string =>
-	rawReason.replace(/(\*\/\}|\*\/|\}|-->)\s*$/, '').trim();
-
+// W5-HARDEN: reason-quality (isSubstantiveSuppressionReason) plus the
+// committed suppression-inventory diff below are the shared helper from
+// suppression-reason.ts — see that file for why "at least 3 word
+// characters" (the pre-hardening bar) accepted `aaa`/`xxx`/`123` and why a
+// heuristic alone can't fully close this hole.
 const isDataHonestySuppressed = (
 	lines: string[],
 	lineNumber: number,
@@ -87,10 +92,9 @@ const isDataHonestySuppressed = (
 	if (at === -1) {
 		return false;
 	}
-	const reason = extractSuppressionReason(
+	return isSubstantiveSuppressionReason(
 		previous.slice(at + DATA_HONESTY_SUPPRESSION_PREFIX.length),
 	);
-	return (reason.match(/\w/g)?.length ?? 0) >= 3;
 };
 
 const collectSourceFiles = async (dir: string): Promise<string[]> => {
@@ -186,5 +190,68 @@ describe('data-honesty-ignore suppression requires a substantive reason', () => 
 				2,
 			),
 		).toBe(true);
+	});
+
+	// W5-VERIFY2 planted `{/* data-honesty-ignore: xxx */}` and it suppressed
+	// the violation — "at least 3 word characters" is not a substantive
+	// reason. These four evasions are different in shape from that one plant
+	// and from each other: a three-letter repeated-character word, a
+	// digit-only "reason", a punctuation-only "reason", and a reason stitched
+	// from three throwaway one-letter words that would otherwise clear a
+	// naive word-count-only bar.
+	test('rejects a repeated-character noise word (`xxx` is not a reason)', () => {
+		notSuppressed('{/* data-honesty-ignore: xxx */}');
+	});
+
+	test('rejects a digit-only noise reason', () => {
+		notSuppressed('{/* data-honesty-ignore: 123 456 789 */}');
+	});
+
+	test('rejects a punctuation-only noise reason', () => {
+		notSuppressed('{/* data-honesty-ignore: !!! --- ??? */}');
+	});
+
+	test('rejects three throwaway one-letter words stitched together', () => {
+		notSuppressed('{/* data-honesty-ignore: a b c */}');
+	});
+});
+
+describe('data-honesty-ignore suppression sites match the committed inventory', () => {
+	// W5-HARDEN: reason-quality alone can't stop `aaa` becoming "suppressed
+	// because of reasons" — a plausible-looking sentence clears any regex bar.
+	// This is the structural backstop: every real suppression site in this
+	// directory must be checked into suppression-inventory.json, so a NEW or
+	// REWORDED suppression shows up in the diff, with its reason, for a
+	// reviewer to actually read. An undocumented suppression fails the guard
+	// even if its reason is perfectly substantive.
+	test('every data-honesty-ignore site under the staff surface is documented, and no inventory entry is stale', async () => {
+		const files = await collectSourceFiles(staffDir);
+		const found: SuppressionSite[] = [];
+
+		for (const file of files) {
+			const source = await readFile(file, 'utf8');
+			const relativePath = `src/routes/authed/staff/${path.relative(staffDir, file).split(path.sep).join('/')}`;
+			found.push(
+				...findSuppressionSitesInSource(source, relativePath).filter(
+					(site) => site.convention === 'data-honesty-ignore',
+				),
+			);
+		}
+
+		const relevantInventory = (
+			suppressionInventory as SuppressionSite[]
+		).filter(
+			(site) =>
+				site.convention === 'data-honesty-ignore' &&
+				site.file.startsWith('src/routes/authed/staff/'),
+		);
+
+		const { undocumented, stale } = diffSuppressionInventory(
+			found,
+			relevantInventory,
+		);
+
+		expect(undocumented, 'undocumented suppression sites').toEqual([]);
+		expect(stale, 'stale inventory entries').toEqual([]);
 	});
 });
