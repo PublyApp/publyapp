@@ -4,8 +4,10 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
@@ -13,6 +15,7 @@ using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Tenants.Services;
 
 using Xunit;
@@ -539,6 +542,98 @@ public sealed class TenantAuthFilterSpec
 
 		var afterValue = await GetLastActivityAtAsync(acmeId);
 		afterValue.Should().BeCloseTo(freshValue, TimeSpan.FromSeconds(1));
+	}
+
+	[Fact]
+	public async Task
+	ItShouldStillReturnOkWhenTheLastActivityWriteThrows() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var acmeId =
+			await TenantTestHelper.GetTenantIdByNameAsync(
+				_http,
+				staffToken,
+				SeedConstants.Tenants.AcmeName
+			);
+
+		await SetLastActivityAtAsync(acmeId, null);
+
+		var acmeAdminToken = await _authClient.LoginAsync(
+			TestConstants.AcmeAdminEmail,
+			TestConstants.SeedPassword
+		);
+
+		await using var throwingFactory =
+			_fixture.Factory.WithWebHostBuilder(builder => {
+				builder.ConfigureServices(services => {
+					services.RemoveAll<ITenantService>();
+					services.AddScoped<ITenantService>(sp =>
+						new ThrowingTouchTenantService(
+							new TenantService(
+								sp.GetRequiredService<AppDbContext>()
+							)
+						));
+				});
+			});
+		using var throwingClient = throwingFactory.CreateClient(
+			new WebApplicationFactoryClientOptions {
+				HandleCookies = false
+			}
+		);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			TestEndpoint
+		)
+			.WithSessionToken(acmeAdminToken)
+			.WithTenantId(acmeId);
+
+		using var response =
+			await throwingClient.SendAsync(request);
+
+		// The proof this test exists for: an ancillary write failure must not
+		// turn an otherwise-valid tenant request into a 500 (round-6 F8).
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var lastActivityAt =
+			await GetLastActivityAtAsync(acmeId);
+		lastActivityAt.Should().BeNull();
+	}
+
+	// Decorates the real TenantService so reads behave normally but the
+	// ancillary write always fails, proving TenantAuthFilter isolates that
+	// failure from the request's success path.
+	private sealed class ThrowingTouchTenantService : ITenantService {
+		private readonly ITenantService _inner;
+
+		public ThrowingTouchTenantService(ITenantService inner) {
+			_inner = inner;
+		}
+
+		public Task<Tenant?> GetTenantByIdAsync(
+			Guid tenantId,
+			CancellationToken cancellationToken = default
+		) {
+			return _inner.GetTenantByIdAsync(tenantId, cancellationToken);
+		}
+
+		public Task<Tenant?> GetTenantByIdIncludingSuspendedAsync(
+			Guid tenantId,
+			CancellationToken cancellationToken = default
+		) {
+			return _inner.GetTenantByIdIncludingSuspendedAsync(
+				tenantId, cancellationToken
+			);
+		}
+
+		public Task TouchLastActivityAsync(
+			Guid tenantId,
+			CancellationToken cancellationToken = default
+		) {
+			throw new InvalidOperationException(
+				"simulated last-activity write failure"
+			);
+		}
 	}
 
 	private async Task SetLastActivityAtAsync(

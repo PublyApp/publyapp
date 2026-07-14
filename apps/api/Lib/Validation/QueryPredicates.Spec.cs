@@ -170,5 +170,40 @@ namespace PublyApp.Api.Lib.Validation {
 				.ParseNullableDate("   ");
 			_ = result.Should().BeNull();
 		}
+
+		// ============== BeValidNullableBoolean / ParseNullableBoolean ==============
+
+		[Theory]
+		[InlineData(null, true)]
+		[InlineData("", true)]
+		[InlineData("   ", true)]
+		[InlineData("true", true)]
+		[InlineData("false", true)]
+		[InlineData(" true ", true)]
+		[InlineData("TRUE", false)]
+		[InlineData("yes", false)]
+		public void ItShouldValidateNullableBooleanWhenGivenInput(
+			string? value, bool expected
+		) {
+			bool result = QueryPredicates
+				.BeValidNullableBoolean(value);
+			_ = result.Should().Be(expected);
+		}
+
+		[Theory]
+		[InlineData(null, null)]
+		[InlineData("", null)]
+		[InlineData("   ", null)]
+		[InlineData("true", true)]
+		[InlineData("false", false)]
+		[InlineData(" true ", true)]
+		[InlineData(" false ", false)]
+		public void ItShouldParseNullableBooleanWhenGivenInput(
+			string? value, bool? expected
+		) {
+			bool? result = QueryPredicates
+				.ParseNullableBoolean(value);
+			_ = result.Should().Be(expected);
+		}
 	}
 }

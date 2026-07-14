@@ -209,6 +209,48 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldReturn200ForWhitespaceStatus() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetExportUrl(tenantId.ToString(), status: " ")
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+	}
+
+	[Fact]
+	public async Task ItShouldReturn200ForWhitespaceLevel() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetExportUrl(tenantId.ToString(), level: " ")
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+	}
+
+	[Fact]
+	public async Task ItShouldReturn200ForWhitespaceIds() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetExportUrl(tenantId.ToString(), ids: " ")
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+	}
+
+	[Fact]
 	public async Task ItShouldExcludeCrossTenantIdsFromExport() {
 		var token = await _authClient.LoginAsStaffAdminAsync();
 		var (tenantAId, _) = await SeedTenantWithAdminAsync();

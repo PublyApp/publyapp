@@ -80,7 +80,7 @@ public class ExportTenantUsersAsStaffQueryValidator
 		// added there is automatically accepted here too.
 		RuleFor(x => x.Status)
 			.Must(raw => {
-				if (string.IsNullOrEmpty(raw)) {
+				if (string.IsNullOrWhiteSpace(raw)) {
 					return true;
 				}
 
@@ -92,7 +92,7 @@ public class ExportTenantUsersAsStaffQueryValidator
 
 		RuleFor(x => x.Level)
 			.Must(raw => {
-				if (string.IsNullOrEmpty(raw)) {
+				if (string.IsNullOrWhiteSpace(raw)) {
 					return true;
 				}
 
@@ -104,7 +104,7 @@ public class ExportTenantUsersAsStaffQueryValidator
 
 		RuleFor(x => x.Ids)
 			.Must(raw => {
-				if (string.IsNullOrEmpty(raw)) {
+				if (string.IsNullOrWhiteSpace(raw)) {
 					return true;
 				}
 

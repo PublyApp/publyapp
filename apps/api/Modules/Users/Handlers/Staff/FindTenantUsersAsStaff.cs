@@ -59,7 +59,7 @@ public class FindTenantUsersAsStaffQueryValidator
 			.WithMessage("q must be at most 200 characters");
 		RuleFor(x => x.Status)
 			.Must(raw => {
-				if (string.IsNullOrEmpty(raw)) {
+				if (string.IsNullOrWhiteSpace(raw)) {
 					return true;
 				}
 
@@ -74,7 +74,7 @@ public class FindTenantUsersAsStaffQueryValidator
 			.WithMessage($"status must be one of: {TenantUserFilterQuery.AllowedStatusesDisplay}");
 		RuleFor(x => x.Level)
 			.Must(raw => {
-				if (string.IsNullOrEmpty(raw)) {
+				if (string.IsNullOrWhiteSpace(raw)) {
 					return true;
 				}
 

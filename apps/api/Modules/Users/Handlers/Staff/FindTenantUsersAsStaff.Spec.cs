@@ -300,6 +300,64 @@ public sealed class FindTenantUsersAsStaffSpec
 
 	[Fact]
 	public async Task
+	ItShouldReturnOkWhenStatusIsWhitespace() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tenantId =
+			await TenantTestHelper
+				.GetTenantIdByNameAsync(
+					_http,
+					staffToken,
+					SeedConstants.Tenants.AcmeName
+				);
+
+		var url = GetFindUrl(
+			tenantId,
+			status: "%20"
+		);
+		var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			url
+		).WithSessionToken(staffToken);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnOkWhenLevelIsWhitespace() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tenantId =
+			await TenantTestHelper
+				.GetTenantIdByNameAsync(
+					_http,
+					staffToken,
+					SeedConstants.Tenants.AcmeName
+				);
+
+		var url = GetFindUrl(
+			tenantId,
+			level: "%20"
+		);
+		var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			url
+		).WithSessionToken(staffToken);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+	}
+
+	[Fact]
+	public async Task
 	ItShouldReturnUnauthorizedWithoutSession() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();

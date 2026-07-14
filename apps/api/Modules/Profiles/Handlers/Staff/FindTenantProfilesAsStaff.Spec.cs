@@ -175,6 +175,33 @@ public sealed class FindTenantProfilesAsStaffSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldReturnBothProfileTypesWhenIsDefaultIsWhitespace() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await SeedFreshTenantAsync("Profiles IsDefault Whitespace");
+		var defaultProfileId = await SeedTenantProfileAsync(
+			tenantId, permissionCount: 0, isDefault: true
+		);
+		var customProfileId = await SeedTenantProfileAsync(
+			tenantId, permissionCount: 0, isDefault: false
+		);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetUrl(tenantId.ToString(), $"limit=100&is_default={Uri.EscapeDataString(" ")}")
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content.ReadFromJsonAsync<FindTenantProfilesResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+
+		result.Data.Should().Contain(p => p.Id == defaultProfileId);
+		result.Data.Should().Contain(p => p.Id == customProfileId);
+	}
+
+	[Fact]
 	public async Task ItShouldTreatABarePercentSearchAsALiteralCharacterNotAWildcard() {
 		var token = await _authClient.LoginAsStaffAdminAsync();
 		var tenantId = await SeedFreshTenantAsync("Profiles Percent Search");
