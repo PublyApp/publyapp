@@ -104,10 +104,23 @@ const assertSurface = async (
 	}
 
 	expect(enforced, `${surface.path} enforced CSP header`).toBeTruthy();
-	expect(reportOnly, `${surface.path} report-only CSP header`).toBeTruthy();
+
+	// No report-only copy of the policy, by design (review-r3-shell.md F9, fixed
+	// in W3-CD `942d2844`): `applyCspHeaders` used to emit the *identical* policy
+	// twice — once enforced, once report-only — while no policy carried a
+	// `report-uri`/`report-to` directive. The report-only header therefore
+	// reported nowhere, cost bytes on every response, and made every browser
+	// parse and evaluate the same policy a second time. Asserting its ABSENCE
+	// here keeps a future "let's add report-only back" from landing without also
+	// adding a real reporting endpoint. Pinned at the unit level too, in
+	// src/server/csp.test.ts.
+	expect(
+		reportOnly,
+		`${surface.path} must not emit a second, report-only copy of the policy`,
+	).toBeUndefined();
 
 	const nonce = extractNonceFromPolicy(enforced ?? '');
-	expect(reportOnly).toContain(`'nonce-${nonce}'`);
+	expect(nonce, `${surface.path} nonce in enforced policy`).toBeTruthy();
 
 	const html = await response.text();
 	const inlineScripts = extractInlineScripts(html);

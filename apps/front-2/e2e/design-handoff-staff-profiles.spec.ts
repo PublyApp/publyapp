@@ -219,8 +219,17 @@ test('applies the P3 column grid, truncates long text without horizontal scroll,
 	const tableRows = page.getByTestId('staff-profiles-table-rows');
 	await expect(tableRows).toBeVisible({ timeout: 10_000 });
 
-	// SPEC 2g grid: 40 / 240 / 1fr / 104 / 140 / 120 / 40 — every implemented
-	// column but Description (the fluid slot) carries a fixed pixel width.
+	// SPEC 2g grid, restricted to the columns the API can actually populate:
+	// 40 / 240 / 1fr / 104 / 40 — every implemented column but Description (the
+	// fluid slot) carries a fixed pixel width.
+	//
+	// The design canvas also specifies a 140px `Permissions` and a 120px `Updated`
+	// column. Both are gone from the product (review-r3-users-auth.md F1, W3-E
+	// `a709628f`): `GET /staff/profiles` returns neither field, so shipping them
+	// meant rendering fabricated placeholder content — which the owner ruling
+	// bans. Their pixel widths are therefore NOT asserted here; restoring the
+	// columns is an owner decision (extend the API contract, or drop them from the
+	// canvas), not something a spec should quietly re-pin.
 	await expect(page.getByRole('columnheader', { name: 'Profile' })).toHaveCSS(
 		'width',
 		'240px',
@@ -231,10 +240,9 @@ test('applies the P3 column grid, truncates long text without horizontal scroll,
 	);
 	await expect(
 		page.getByRole('columnheader', { name: 'Permissions' }),
-	).toHaveCSS('width', '140px');
-	await expect(page.getByRole('columnheader', { name: 'Updated' })).toHaveCSS(
-		'width',
-		'120px',
+	).toHaveCount(0);
+	await expect(page.getByRole('columnheader', { name: 'Updated' })).toHaveCount(
+		0,
 	);
 
 	// The table must not force horizontal scroll: description truncates to

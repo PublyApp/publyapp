@@ -210,20 +210,38 @@ test.describe('staff users table', () => {
 
 	// The front-end clamp only protects this table's own UI — anyone with a
 	// valid session token can call the API directly, bypassing
-	// table-search-params.ts entirely. Pins the still-open API half of
+	// table-search-params.ts entirely. Pins the API half of
 	// review-r2-tests.md F4 (review-r3-tests.md F1): the API must 422 a
 	// `limit` above its own maximum instead of materialising every row.
-	// Currently RED — PaginationPredicates.BeValidNullableNumber has no
-	// upper bound yet; turns green once the API-side clamp lands.
+	//
+	// The request must carry `X-Session-Token` explicitly. `page.request` shares
+	// the browser context's COOKIES, and the session token does live in the
+	// `publyapp-session_token` cookie — but the API authenticates off the header
+	// (client-manager.ts:257 copies the token into `X-Session-Token` on every
+	// call), not the cookie. Without it this request 401s before validation ever
+	// runs, so the test would pass/fail for entirely the wrong reason.
 	test('the API rejects a limit above the maximum even when the front-end clamp is bypassed', async ({
 		page,
 	}) => {
 		await loginAsStaffAdmin(page);
 
+		const cookies = await page.context().cookies();
+		const sessionToken = cookies.find(
+			(cookie) => cookie.name === 'publyapp-session_token',
+		)?.value;
+		expect(sessionToken, 'staff-admin session token cookie').toBeTruthy();
+
 		const response = await page.request.get(
 			`${API_BASE_URL}/staff/users?limit=1000000`,
+			{ headers: { 'X-Session-Token': sessionToken ?? '' } },
 		);
 
+		// 401 here would mean the request never reached validation (see above);
+		// fail loudly on that rather than reporting a misleading limit failure.
+		expect(
+			response.status(),
+			'request must be authenticated before limit validation is exercised',
+		).not.toBe(401);
 		expect(response.status()).toBe(422);
 	});
 

@@ -140,7 +140,7 @@ test.describe('staff create-tenant workspace slug and owners section', () => {
 		).toBeDisabled();
 	});
 
-	test('the Download template action and Require SSO switch (disabled) are present in the members/setup sections', async ({
+	test('the Download template action is present, and no fabricated Require SSO switch ships with it', async ({
 		page,
 	}) => {
 		await loginAsStaffAdmin(page);
@@ -152,9 +152,15 @@ test.describe('staff create-tenant workspace slug and owners section', () => {
 		await expect(
 			page.getByRole('button', { name: 'Download template' }),
 		).toBeVisible();
-		await expect(
-			page.getByRole('switch', { name: 'Require SSO' }),
-		).toBeDisabled();
+
+		// The "Require SSO" switch is deliberately gone (review-r3-tenants.md F14,
+		// removed in W3-CD): it was permanently `disabled` and hard-wired to
+		// `false` — a dead affordance advertising a capability the product does not
+		// have, i.e. fabricated admin state. Re-adding it requires a real SSO
+		// setting on the tenant contract, not a decorative switch.
+		await expect(page.getByRole('switch', { name: 'Require SSO' })).toHaveCount(
+			0,
+		);
 	});
 });
 

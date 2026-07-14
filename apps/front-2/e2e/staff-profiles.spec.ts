@@ -93,14 +93,23 @@ test.describe('staff profiles route', () => {
 			page.getByRole('columnheader', { name: 'Members' }),
 		).toBeVisible();
 		await expect(
-			page.getByRole('columnheader', { name: 'Permissions' }),
-		).toBeVisible();
-		await expect(
-			page.getByRole('columnheader', { name: 'Updated' }),
-		).toBeVisible();
-		await expect(
 			page.getByRole('columnheader', { name: 'Actions' }),
 		).toBeAttached();
+
+		// The honest 4-column grid: profile / description / members / actions.
+		// `Permissions` and `Updated` are deliberately GONE (review-r3-users-auth.md
+		// F1, fixed in W3-E `a709628f`): the staff-profiles API returns neither
+		// field, so both columns rendered fabricated placeholder content — banned by
+		// the owner ruling against design-mock data in shipped surfaces. They came
+		// back once already (a captain micro-fix reverted the deletion), so assert
+		// their absence rather than just omitting them; src/routes/authed/staff/
+		// no-fabricated-placeholder.test.ts guards the same thing at the unit level.
+		await expect(
+			page.getByRole('columnheader', { name: 'Permissions' }),
+		).toHaveCount(0);
+		await expect(
+			page.getByRole('columnheader', { name: 'Updated' }),
+		).toHaveCount(0);
 
 		for (const profile of profiles.slice(0, 3)) {
 			await expect(profileRow(page, profile.name)).toBeVisible();

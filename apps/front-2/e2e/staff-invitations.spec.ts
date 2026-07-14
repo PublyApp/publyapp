@@ -100,9 +100,13 @@ test.describe('staff invitations list', () => {
 		await expect(
 			page.getByRole('columnheader', { name: 'Invitee' }),
 		).toBeVisible();
-		await expect(
-			page.getByRole('columnheader', { name: 'Role' }),
-		).toBeVisible();
+		// No `Role` column: the invitations API carries no role for an invitee, so
+		// the column rendered a fabricated constant (review-r3-users-auth.md F1,
+		// removed in W3-E `a709628f`). Assert its absence — it was restored once
+		// already by an unrelated fix.
+		await expect(page.getByRole('columnheader', { name: 'Role' })).toHaveCount(
+			0,
+		);
 		await expect(
 			page.getByRole('columnheader', { name: 'Profiles' }),
 		).toBeVisible();
