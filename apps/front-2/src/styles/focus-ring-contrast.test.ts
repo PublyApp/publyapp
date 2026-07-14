@@ -250,8 +250,15 @@ type RingToken = {
  * function, a `var()` reference, or a bare named colour keyword like
  * `white`) from a length-shaped one (`3px`, `0.5`) — both use identical
  * bracket syntax, and only the former is a ring-colour candidate. */
+// W6-GUARDS (tests F2): `color(...)` was recognised but `color-mix(...)` was
+// not — a hyphenated function name the alternation's plain `color` branch
+// can't match (there's a literal `-mix` between the name and the opening
+// paren). A valid `ring-[color-mix(...)]` therefore matched NO branch here,
+// so it never became a candidate token at all and `assertWinnerCompliant`
+// saw no winner and returned as "nothing to assert" — silently passing a
+// ring that could resolve to anything, including surface-on-surface.
 const ARBITRARY_RING_COLOR_VALUE_PATTERN =
-	/^(#[0-9a-fA-F]{3,8}|var\(--[\w-]+\)|(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\(.*\)|[a-zA-Z]+)$/;
+	/^(#[0-9a-fA-F]{3,8}|var\(--[\w-]+\)|(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color(?:-mix)?)\(.*\)|[a-zA-Z]+)$/;
 
 // Evasion-proof fixture values, built via concatenation rather than written
 // as a literal contiguous string: an arbitrary bracketed Tailwind ring value
@@ -393,6 +400,73 @@ const THEMES = [
 
 const srcRootDir = path.resolve(rootDir, '..');
 const FOCUS_RING_UTILITY_MARKER = 'focus-visible:ring';
+
+// W6-GUARDS (round-6: shell F4, tests F2, ui F2, users-auth F10 — four
+// independent lanes): the previous version of this suite read consumer
+// discovery correctly (per FILE) but then evaluated compliance per file too
+// — every `ring-*`/`ring-offset-*` token anywhere in the file's raw source
+// was pooled into ONE `resolveWinningRingToken` call. CSS cascade resolution
+// is per ELEMENT, not per file: a later, compliant token on an unrelated
+// component can "win" the file-wide simulation and certify an earlier,
+// non-compliant element that was never actually overridden in the browser.
+// This extracts every individual string-literal class expression (a quoted
+// or template-literal string) that contains the marker and tests each one
+// independently, so one element's tokens can never absorb or hide another
+// element's tokens the way pooling the whole file did.
+type ClassLiteral = { line: number; text: string };
+
+const STRING_LITERAL_PATTERN = /(["'`])((?:\\.|(?!\1)[\s\S])*?)\1/g;
+
+const extractRingClassLiterals = (source: string): ClassLiteral[] => {
+	const literals: ClassLiteral[] = [];
+	let match: RegExpExecArray | null;
+	STRING_LITERAL_PATTERN.lastIndex = 0;
+	while ((match = STRING_LITERAL_PATTERN.exec(source))) {
+		const text = match[2];
+		if (!text.includes(FOCUS_RING_UTILITY_MARKER)) {
+			continue;
+		}
+		const line = source.slice(0, match.index).split('\n').length;
+		literals.push({ line, text });
+	}
+	return literals;
+};
+
+// W6-GUARDS: `resolveWinningRingToken` silently drops any token whose
+// variant chain isn't a subset of the state currently under test (e.g.
+// `hover:focus-visible:ring-primary/10` is never a member of `activeVariants`
+// for ANY state this suite enumerates), and `assertWinnerCompliant` then
+// treats "no winner" as "nothing to assert" — so a ring gated by an
+// unreviewed modifier (hover, a breakpoint, `data-*`, `checked`, `open`, ...)
+// is never actually contrast-checked under any state, in either direction.
+// Only the three modifiers this suite explicitly models as active/inactive
+// states are safe to silently exclude; anything else must fail the suite
+// closed rather than silently pass as unverifiable.
+const ALLOWED_VARIANT_MODIFIERS = new Set([
+	'focus-visible',
+	'aria-invalid',
+	'dark',
+]);
+
+const assertNoUnmodelledVariants = (
+	tokens: RingToken[],
+	consumerLabel: string,
+): void => {
+	for (const token of tokens) {
+		const unmodelled = token.variants.filter(
+			(variant) => !ALLOWED_VARIANT_MODIFIERS.has(variant),
+		);
+		if (unmodelled.length > 0) {
+			throw new Error(
+				`${consumerLabel}: ring utility gated by unmodelled variant(s) ` +
+					`${unmodelled.join(', ')} — this guard only evaluates ` +
+					`${[...ALLOWED_VARIANT_MODIFIERS].join('/')} states, so this ring's ` +
+					'contrast can never be verified. Extend ALLOWED_VARIANT_MODIFIERS ' +
+					'and the active-state sets, or remove the modifier.',
+			);
+		}
+	}
+};
 
 // W5-HARDEN2 item 2C: was `.tsx`-only, under `src/components/` and
 // `src/routes/` only. Real Tailwind ring utilities are subject to the same
@@ -690,6 +764,7 @@ describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 			stateName: string,
 		) => {
 			const tokens = parseRingTokens(mergedClassName, knownColorNames);
+			assertNoUnmodelledVariants(tokens, consumerLabel);
 			const winner = resolveWinningRingToken(tokens, activeVariants);
 			assertWinnerCompliant(winner, 'ring', consumerLabel, stateName);
 
@@ -697,6 +772,7 @@ describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 				mergedClassName,
 				knownColorNames,
 			);
+			assertNoUnmodelledVariants(offsetTokens, consumerLabel);
 			const offsetWinner = resolveWinningRingToken(
 				offsetTokens,
 				activeVariants,
@@ -721,24 +797,42 @@ describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 		for (const consumerPath of discoveredConsumerPaths) {
 			const consumerLabel = path.relative(srcRootDir, consumerPath);
 			const consumerSource = readFileSync(consumerPath, 'utf8');
+			const classLiterals = extractRingClassLiterals(consumerSource);
 
-			test(`${consumerLabel} renders a >= ${CONTRAST_FLOOR}:1 focus ring in ${theme.name} mode (focused only)`, () => {
-				assertStateCompliant(
-					consumerLabel,
-					consumerSource,
-					FOCUS_ONLY,
-					'focused only',
-				);
-			});
+			// W6-GUARDS: one test per DISCOVERED CLASS EXPRESSION, not one per
+			// file — see the extractRingClassLiterals comment above. A file
+			// containing marker text only inside a non-string context (a
+			// comment, a type) is still discovered by the raw-substring scan
+			// that built `discoveredConsumerPaths`, so this must never come up
+			// empty for a genuinely discovered file.
+			expect(
+				classLiterals.length,
+				`${consumerLabel}: discovered via the '${FOCUS_RING_UTILITY_MARKER}' ` +
+					'raw-substring scan but no string-literal class expression ' +
+					'actually contains the marker — investigate the source shape.',
+			).toBeGreaterThan(0);
 
-			test(`${consumerLabel} renders a >= ${CONTRAST_FLOOR}:1 focus ring in ${theme.name} mode (focused + aria-invalid)`, () => {
-				assertStateCompliant(
-					consumerLabel,
-					consumerSource,
-					FOCUS_AND_INVALID,
-					'focused + aria-invalid',
-				);
-			});
+			for (const literal of classLiterals) {
+				const elementLabel = `${consumerLabel}:${literal.line}`;
+
+				test(`${elementLabel} renders a >= ${CONTRAST_FLOOR}:1 focus ring in ${theme.name} mode (focused only)`, () => {
+					assertStateCompliant(
+						elementLabel,
+						literal.text,
+						FOCUS_ONLY,
+						'focused only',
+					);
+				});
+
+				test(`${elementLabel} renders a >= ${CONTRAST_FLOOR}:1 focus ring in ${theme.name} mode (focused + aria-invalid)`, () => {
+					assertStateCompliant(
+						elementLabel,
+						literal.text,
+						FOCUS_AND_INVALID,
+						'focused + aria-invalid',
+					);
+				});
+			}
 		}
 
 		for (const variant of buttonVariantKeys) {
@@ -963,6 +1057,80 @@ describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 			// of one of THESE would silently ship, same defect class, different
 			// token.
 			expect(failing.length).toBeGreaterThan(0);
+		});
+
+		// W6-GUARDS (shell F4 / tests F2 / ui F2 / users-auth F10): proves the
+		// file-wide pooling defect is actually closed, not just that the code
+		// changed. Simulates the exact cited evasion — TWO elements in one
+		// file, the FIRST non-compliant, the SECOND compliant — through the
+		// real per-literal extraction + assertStateCompliant path used above,
+		// not a hand-rolled substitute assertion.
+		test(`two unrelated elements in one file: a noncompliant first ring is no longer hidden by a compliant later ring in ${theme.name} mode (evasion proof)`, () => {
+			const twoElementSource = [
+				`const first = "focus-visible:ring-[${surfaceHex}]";`,
+				`const second = "focus-visible:ring-ring";`,
+			].join('\n');
+			const literals = extractRingClassLiterals(twoElementSource);
+			expect(literals).toHaveLength(2);
+
+			// Old (file-wide) behaviour: pooling literals[0] + literals[1] into
+			// one call resolves the winner to the LAST/most-specific token,
+			// certifying the whole file even though the first element alone is
+			// surface-on-surface. New behaviour: each literal is asserted
+			// independently, so the first one must fail on its own.
+			expect(() =>
+				assertStateCompliant(
+					'evasion-fixture:1',
+					literals[0].text,
+					FOCUS_ONLY,
+					'focused only',
+				),
+			).toThrow();
+			expect(() =>
+				assertStateCompliant(
+					'evasion-fixture:2',
+					literals[1].text,
+					FOCUS_ONLY,
+					'focused only',
+				),
+			).not.toThrow();
+		});
+
+		// W6-GUARDS: proves a ring gated by an unreviewed modifier (`hover`
+		// here — different in shape from the `sm:` breakpoint example in the
+		// finding) is no longer silently treated as "nothing to assert". Under
+		// the old code, `hover` is in no active-variants set this suite ever
+		// builds, so `resolveWinningRingToken` always excluded the token and
+		// `assertWinnerCompliant` returned early for every state.
+		test(`a ring gated by an unmodelled 'hover' variant fails closed instead of being silently unverified in ${theme.name} mode (evasion proof)`, () => {
+			expect(() =>
+				assertStateCompliant(
+					'evasion-fixture',
+					'hover:focus-visible:ring-primary/10',
+					FOCUS_ONLY,
+					'focused only',
+				),
+			).toThrow(/unmodelled variant/);
+		});
+
+		// W6-GUARDS: proves this guard (post-fix) actually catches the REAL
+		// shipped bug (ui F1) on PRE-FIX product code — an unlayered CSS rule
+		// setting `box-shadow`/`border` unconditionally, which always beats a
+		// layered `focus-visible:ring-3 focus-visible:ring-ring` utility and
+		// removes the focus indicator entirely. Class-token analysis alone
+		// cannot see the unlayered override (that's a real cascade fact the
+		// TSX class string doesn't encode), so this test targets what the
+		// class-string guard family CAN see and prove: the choice-chip's
+		// pre-fix 30%-opacity outline color-mix, reproduced verbatim as it
+		// shipped before this packet's `app.css` fix.
+		test(`the pre-fix choice-chip low-opacity outline would have failed this contrast floor in ${theme.name} mode (ui-F1 regression proof)`, () => {
+			const preFixChoiceChipRingRgb = resolveColor(
+				'color-mix(in srgb, var(--publy-foreground-subtle) 30%, transparent)',
+				declarations,
+				surfaceHex,
+			);
+			const ratio = contrastRatio(preFixChoiceChipRingRgb, surfaceRgb);
+			expect(ratio).toBeLessThan(CONTRAST_FLOOR);
 		});
 	}
 });

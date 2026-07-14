@@ -202,6 +202,31 @@ export const isPreviousLineSuppressed = (
 const siteKey = (site: SuppressionSite): string =>
 	`${site.convention} ${site.file} ${site.reason}`;
 
+// W6-GUARDS: round 6 (five independent lanes: shell F3, tenants F4, tests F1,
+// ui F4, users-auth F9) found `Set`-based comparison is cardinality-blind — a
+// file that already carries one inventoried suppression could carry a SECOND,
+// uninventoried one (same convention/file/reason) without the diff noticing,
+// because both `foundKeys`/`inventoryKeys` reduce to the same one-element
+// `Set`. This is not hypothetical: the committed inventory already has three
+// identical `i18n-guard-ignore` entries for `server-failure.ts`.
+//
+// The fix compares MULTISETS: every found site consumes one matching
+// inventory occurrence (by key) if one remains, else it is undocumented;
+// every inventory site consumes one matching found occurrence if one
+// remains, else it is stale. Adding, removing, or rewording ANY single
+// occurrence — even in a file that already has other occurrences sharing the
+// same key — now changes the found/inventory counts for that key and is
+// caught, without inventing a second notion of site identity (still just
+// convention+file+reason, still backed by the one shared parser).
+const countBySiteKey = (sites: SuppressionSite[]): Map<string, number> => {
+	const counts = new Map<string, number>();
+	for (const site of sites) {
+		const key = siteKey(site);
+		counts.set(key, (counts.get(key) ?? 0) + 1);
+	}
+	return counts;
+};
+
 /**
  * Compares the suppression sites actually found in a scan against the
  * committed inventory. A suppression that exists in code but not in the
@@ -216,11 +241,27 @@ export const diffSuppressionInventory = (
 	found: SuppressionSite[],
 	inventory: SuppressionSite[],
 ): { undocumented: SuppressionSite[]; stale: SuppressionSite[] } => {
-	const foundKeys = new Set(found.map(siteKey));
-	const inventoryKeys = new Set(inventory.map(siteKey));
+	const remainingInventory = countBySiteKey(inventory);
+	const undocumented = found.filter((site) => {
+		const key = siteKey(site);
+		const remaining = remainingInventory.get(key) ?? 0;
+		if (remaining <= 0) {
+			return true;
+		}
+		remainingInventory.set(key, remaining - 1);
+		return false;
+	});
 
-	return {
-		undocumented: found.filter((site) => !inventoryKeys.has(siteKey(site))),
-		stale: inventory.filter((site) => !foundKeys.has(siteKey(site))),
-	};
+	const remainingFound = countBySiteKey(found);
+	const stale = inventory.filter((site) => {
+		const key = siteKey(site);
+		const remaining = remainingFound.get(key) ?? 0;
+		if (remaining <= 0) {
+			return true;
+		}
+		remainingFound.set(key, remaining - 1);
+		return false;
+	});
+
+	return { undocumented, stale };
 };
