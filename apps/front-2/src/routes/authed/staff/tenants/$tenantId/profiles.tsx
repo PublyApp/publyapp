@@ -784,10 +784,9 @@ function StaffTenantProfilesPage() {
 
 	const onSearchChange = (next: TableSearchParams): void => {
 		void navigate({
-			search: serializeStaffTenantProfilesSearchParams({
-				...search,
-				...next,
-			}) as unknown as TableSearchParams,
+			search: serializeStaffTenantProfilesSearchParams(
+				next,
+			) as unknown as TableSearchParams,
 			replace: true,
 		});
 	};

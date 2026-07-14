@@ -406,6 +406,31 @@ describe('staff tenant users route', () => {
 		expect(lastCall?.search).toMatchObject({ invite: 1, q: 'an' });
 	});
 
+	test('a debounced search commit does not reopen a drawer closed within the debounce window (r3-F1)', async () => {
+		mocks.search = { invite: 1 };
+		const Component = (Route as unknown as { component: () => JSX.Element })
+			.component;
+		const renderResult = render(<Component />);
+
+		fireEvent.change(screen.getByTestId('staff-tenant-users-table-search'), {
+			target: { value: 'an' },
+		});
+
+		// Simulate closing the invite drawer within the 300ms debounce window:
+		// the parse helper omits `invite` entirely rather than setting it to
+		// undefined, so the route re-renders with no `invite` key at all.
+		mocks.search = {};
+		renderResult.rerender(<Component />);
+
+		await new Promise((resolve) => setTimeout(resolve, 350));
+
+		const lastCall = mocks.navigate.mock.calls.at(-1)?.[0] as {
+			search?: Record<string, unknown>;
+		};
+		expect(lastCall?.search).not.toHaveProperty('invite');
+		expect(lastCall?.search).toMatchObject({ q: 'an' });
+	});
+
 	test('renders a checkbox selection column but no Last active column', () => {
 		renderPage();
 

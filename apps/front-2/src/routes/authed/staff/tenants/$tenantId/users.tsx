@@ -523,10 +523,7 @@ function StaffTenantUsersPage() {
 
 	const onSearchChange = (next: TenantUsersListSearchParams): void => {
 		void navigate({
-			search: serializeTenantUsersListSearchParams({
-				...search,
-				...next,
-			}),
+			search: serializeTenantUsersListSearchParams(next),
 			replace: true,
 		});
 	};

@@ -283,10 +283,7 @@ function StaffTenantInvitationsPage() {
 
 	const onSearchChange = (next: InvitationListSearchParams): void => {
 		void navigate({
-			search: serializeInvitationListSearchParams({
-				...search,
-				...next,
-			}),
+			search: serializeInvitationListSearchParams(next),
 			replace: true,
 		});
 	};

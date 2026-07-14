@@ -373,6 +373,29 @@ describe('staff tenant profiles route', () => {
 		expect(lastCall?.search).toMatchObject({ new: 1, q: 'an' });
 	});
 
+	test('a debounced search commit does not revert the view toggled within the debounce window (r3-F1)', async () => {
+		mocks.search = { view: 'table' };
+		const renderResult = renderPage();
+
+		fireEvent.change(screen.getByTestId('staff-tenant-profiles-grid-search'), {
+			target: { value: 'an' },
+		});
+
+		// Simulate toggling the view back to "cards" within the 300ms debounce
+		// window: `view` is omitted entirely for 'cards' rather than set to
+		// undefined, so the route re-renders with no `view` key at all.
+		mocks.search = {};
+		renderResult.rerender(<RouteComponent />);
+
+		await new Promise((resolve) => setTimeout(resolve, 350));
+
+		const lastCall = mocks.navigate.mock.calls.at(-1)?.[0] as {
+			search?: Record<string, unknown>;
+		};
+		expect(lastCall?.search).not.toHaveProperty('view');
+		expect(lastCall?.search).toMatchObject({ q: 'an' });
+	});
+
 	test('shows the honest profiles count next to the tab title', () => {
 		renderPage();
 

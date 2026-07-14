@@ -355,6 +355,30 @@ describe('staff tenants route', () => {
 		expect(lastCall?.search).toMatchObject({ status: 'active', q: 'an' });
 	});
 
+	test('a debounced search commit does not revert a status filter cleared within the debounce window (r3-F1)', async () => {
+		mocks.search = { status: 'active' };
+		const renderResult = renderPage();
+
+		fireEvent.change(screen.getByTestId('staff-tenants-table-search'), {
+			target: { value: 'an' },
+		});
+
+		// Simulate clearing the status filter ("All statuses") within the
+		// 300ms debounce window: the parse helper omits `status` entirely
+		// rather than setting it to undefined, so the route re-renders with
+		// no `status` key at all.
+		mocks.search = {};
+		renderResult.rerender(<RouteComponent />);
+
+		await new Promise((resolve) => setTimeout(resolve, 350));
+
+		const lastCall = mocks.navigate.mock.calls.at(-1)?.[0] as {
+			search?: Record<string, unknown>;
+		};
+		expect(lastCall?.search).not.toHaveProperty('status');
+		expect(lastCall?.search).toMatchObject({ q: 'an' });
+	});
+
 	test('selecting Pending in the status filter navigates with status=pending', async () => {
 		renderPage();
 
