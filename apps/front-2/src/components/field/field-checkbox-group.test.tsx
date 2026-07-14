@@ -85,4 +85,32 @@ describe('Field.CheckboxGroup', () => {
 			expect(screen.getByTestId('selected-profile-ids').textContent).toBe('');
 		});
 	});
+
+	// shell-r5-F4: the group used to forward no `field.ref`, so RHF's
+	// submit-time `setFocus` had nowhere to land, and the group's label was
+	// an unrelated `<p>` with no `role`/`aria-labelledby` tying it to the
+	// choices or the error text.
+	test('RHF focuses the first checkbox on a submit-time validation error', async () => {
+		render(<CheckboxGroupWithRHF />);
+
+		fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
+
+		await waitFor(() => {
+			expect(document.activeElement).toBe(
+				screen.getByRole('checkbox', { name: 'Admin' }),
+			);
+		});
+	});
+
+	test('exposes an accessible group with a name and error association', async () => {
+		render(<CheckboxGroupWithRHF />);
+
+		fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
+
+		const group = await screen.findByRole('group', { name: 'Profiles' });
+		const error = await screen.findByText('Pick at least one profile');
+
+		expect(group.getAttribute('aria-describedby')).toBe(error.id);
+		expect(group.getAttribute('aria-invalid')).toBe('true');
+	});
 });

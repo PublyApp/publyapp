@@ -1,6 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
+import { zodResolver } from '@hookform/resolvers/zod';
 import {
 	cleanup,
 	fireEvent,
@@ -11,6 +12,7 @@ import {
 import { createElement, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import { z } from 'zod';
 
 const mocks = vi.hoisted(() => ({
 	useUploadStaffImageMutation: vi.fn(),
@@ -105,9 +107,62 @@ const ImageUploadHarness = ({
 	);
 };
 
+const RequiredImageUploadHarness = () => {
+	const methods = useForm({
+		resolver: zodResolver(
+			z.object({ logoUrl: z.string().min(1, 'Logo is required') }),
+		),
+		defaultValues: { logoUrl: '' },
+	});
+
+	return (
+		<Form methods={methods} onSubmit={methods.handleSubmit(() => undefined)}>
+			<Field.ImageUpload name="logoUrl" label="Logo" previewName="Acme" />
+			<button type="submit">Submit</button>
+			<output data-testid="touched-logo-url">
+				{String(Boolean(methods.formState.touchedFields.logoUrl))}
+			</output>
+		</Form>
+	);
+};
+
 describe('Field.ImageUpload', () => {
 	afterEach(() => {
 		cleanup();
+	});
+
+	// shell-r5-F4: the file input forwarded no `field.ref`/`name`/`onBlur`,
+	// so RHF's submit-time focus-on-invalid had nowhere to land and the
+	// field's touched state never flipped on blur.
+	test('RHF focuses the file input on a submit-time validation error', async () => {
+		mocks.useUploadStaffImageMutation.mockReturnValue({
+			mutate: vi.fn(),
+			isPending: false,
+		});
+
+		render(<RequiredImageUploadHarness />);
+
+		fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
+
+		await waitFor(() => {
+			expect(document.activeElement).toBe(screen.getByLabelText('Logo'));
+		});
+	});
+
+	test('carries the RHF field name and marks the field touched on blur', () => {
+		mocks.useUploadStaffImageMutation.mockReturnValue({
+			mutate: vi.fn(),
+			isPending: false,
+		});
+
+		render(<RequiredImageUploadHarness />);
+
+		const input = screen.getByLabelText('Logo') as HTMLInputElement;
+		expect(input.name).toBe('logoUrl');
+
+		fireEvent.blur(input);
+
+		expect(screen.getByTestId('touched-logo-url').textContent).toBe('true');
 	});
 
 	test('rejects a file with a disallowed MIME type without uploading', () => {

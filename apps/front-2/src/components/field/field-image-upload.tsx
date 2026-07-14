@@ -183,6 +183,8 @@ export const FieldImageUpload = ({
 							) : null}
 							<input
 								id={fieldId}
+								ref={field.ref}
+								name={field.name}
 								type="file"
 								accept={ACCEPT_ATTR}
 								aria-label={label}
@@ -190,6 +192,7 @@ export const FieldImageUpload = ({
 								aria-describedby={helper ? helperId : undefined}
 								disabled={isControlDisabled}
 								className="sr-only"
+								onBlur={field.onBlur}
 								onChange={(event) => {
 									handleFiles(event.target.files);
 									event.target.value = '';
