@@ -90,7 +90,12 @@ type AuthState =
 	| { status: 'checking' }
 	| { status: 'anonymous' }
 	| { status: 'authenticated'; email: string }
-	| { status: 'auth-lookup-error'; error: unknown };
+	| {
+			status: 'auth-lookup-error';
+			error: unknown;
+			refetch: () => void;
+			isRefetching: boolean;
+	  };
 
 /**
  * `isMounted` keeps the first client render identical to the SSR render
@@ -132,7 +137,12 @@ const useInvitationAuthState = (): AuthState => {
 			return { status: 'anonymous' };
 		}
 
-		return { status: 'auth-lookup-error', error: currentUserQuery.error };
+		return {
+			status: 'auth-lookup-error',
+			error: currentUserQuery.error,
+			refetch: () => void currentUserQuery.refetch(),
+			isRefetching: currentUserQuery.isFetching,
+		};
 	}
 
 	return { status: 'checking' };
@@ -215,7 +225,15 @@ const AcceptInvitationLoading = () => {
 	);
 };
 
-const AuthLookupErrorView = ({ error }: { error: unknown }) => {
+const AuthLookupErrorView = ({
+	error,
+	onRetry,
+	isRetrying,
+}: {
+	error: unknown;
+	onRetry: () => void;
+	isRetrying: boolean;
+}) => {
 	const { t } = useTranslation('common');
 	const failure = toApiFailure(error);
 	const message = getFailureMessage(failure, {
@@ -233,9 +251,8 @@ const AuthLookupErrorView = ({ error }: { error: unknown }) => {
 			<Button
 				type="button"
 				variant="outline"
-				onClick={() => {
-					window.location.reload();
-				}}
+				disabled={isRetrying}
+				onClick={onRetry}
 			>
 				{t('try-again')}
 			</Button>
@@ -337,23 +354,26 @@ const getNewUserFormSchema = (t: Translate) =>
 		});
 
 const NewUserForm = ({
-	token,
 	email,
 	profileName,
+	submit,
+	isSubmitting: isAcceptSubmitting,
+	errorMessage,
 }: {
-	token: string;
 	email: string;
 	profileName: string;
+	submit: (payload: AcceptPayload) => Promise<void>;
+	isSubmitting: boolean;
+	errorMessage: string;
 }) => {
 	const { t } = useTranslation('common');
-	const { submit, errorMessage } = useAcceptInvitationSubmit(token);
 	const formSchema = useMemo(() => getNewUserFormSchema(t), [t]);
 	const isHydrated = useHydrated();
 
 	const {
 		register,
 		handleSubmit,
-		formState: { isSubmitting, errors },
+		formState: { isSubmitting: isFormSubmitting, errors },
 	} = useForm<NewUserFormValues>({
 		resolver: zodResolver(formSchema),
 		defaultValues: {
@@ -363,6 +383,7 @@ const NewUserForm = ({
 			confirmPassword: '',
 		},
 	});
+	const isSubmitting = isFormSubmitting || isAcceptSubmitting;
 
 	const onSubmit = handleSubmit(async (values) => {
 		await submit({
@@ -498,21 +519,23 @@ const NewUserForm = ({
 };
 
 const ExistingMatchView = ({
-	token,
 	email,
 	profileName,
 	currentEmail,
 	stayOnPageHref,
+	submit,
+	isSubmitting,
+	errorMessage,
 }: {
-	token: string;
 	email: string;
 	profileName: string;
 	currentEmail: string;
 	stayOnPageHref: string;
+	submit: (payload: AcceptPayload) => Promise<void>;
+	isSubmitting: boolean;
+	errorMessage: string;
 }) => {
 	const { t } = useTranslation('common');
-	const { submit, isSubmitting, errorMessage } =
-		useAcceptInvitationSubmit(token);
 	const { logout, isLoggingOut } = useLogout();
 
 	return (
@@ -717,6 +740,15 @@ const AcceptInvitationRoute = () => {
 	const location = useLocation();
 	const authState = useInvitationAuthState();
 	const { t } = useTranslation('common');
+	// Owned above branch selection (keyed by the invitation token, which is
+	// fixed for the lifetime of this route) so the committed acceptance result
+	// survives an auth-state transition that swaps the rendered branch between
+	// NewUserForm and ExistingMatchView (r5-F2) — each of those used to
+	// instantiate its own instance of this hook and lost `acceptedResult` on
+	// unmount.
+	const acceptSubmit = useAcceptInvitationSubmit(
+		loaderData.view === 'valid' ? loaderData.token : '',
+	);
 
 	// Hooks run unconditionally regardless of which branch below renders —
 	// `resolveBranchKind` needs `loaderData` narrowed to the 'valid' variant,
@@ -764,25 +796,33 @@ const AcceptInvitationRoute = () => {
 	return (
 		<>
 			{branchKind === 'loading' ? <AcceptInvitationLoading /> : null}
-			{showAuthLookupError ? (
-				<AuthLookupErrorView error={authState.error} />
+			{showAuthLookupError && authState.status === 'auth-lookup-error' ? (
+				<AuthLookupErrorView
+					error={authState.error}
+					onRetry={authState.refetch}
+					isRetrying={authState.isRefetching}
+				/>
 			) : null}
 			{branchKind === 'new-user' ? (
 				<NewUserForm
-					token={loaderData.token}
 					email={loaderData.email}
 					profileName={loaderData.profileName}
+					submit={acceptSubmit.submit}
+					isSubmitting={acceptSubmit.isSubmitting}
+					errorMessage={acceptSubmit.errorMessage}
 				/>
 			) : null}
 			{branchKind === 'existing-match' ? (
 				<ExistingMatchView
-					token={loaderData.token}
 					email={loaderData.email}
 					profileName={loaderData.profileName}
 					currentEmail={
 						authState.status === 'authenticated' ? authState.email : ''
 					}
 					stayOnPageHref={stayOnPageHref}
+					submit={acceptSubmit.submit}
+					isSubmitting={acceptSubmit.isSubmitting}
+					errorMessage={acceptSubmit.errorMessage}
 				/>
 			) : null}
 			{branchKind === 'existing-signed-out' ? (

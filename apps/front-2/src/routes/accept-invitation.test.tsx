@@ -33,6 +33,8 @@ type CurrentUserQueryState = {
 	isError: boolean;
 	error?: unknown;
 	data?: { email?: string };
+	isFetching?: boolean;
+	refetch?: ReturnType<typeof vi.fn>;
 };
 
 const mocks = vi.hoisted(() => ({
@@ -45,6 +47,7 @@ const mocks = vi.hoisted(() => ({
 	completeLoginRedirect: vi.fn(),
 	postBroadcast: vi.fn(),
 	hasBrowserSessionCookie: vi.fn(),
+	currentUserQueryRefetch: vi.fn(),
 	currentUserQuery: {
 		isSuccess: false,
 		isError: false,
@@ -101,7 +104,11 @@ vi.mock('~/lib/auth-route-guard', () => ({
 }));
 
 vi.mock('~/lib/query/auth', () => ({
-	useCurrentUserQuery: () => mocks.currentUserQuery,
+	useCurrentUserQuery: () => ({
+		isFetching: false,
+		refetch: mocks.currentUserQueryRefetch,
+		...mocks.currentUserQuery,
+	}),
 }));
 
 vi.mock('~/lib/hooks/use-logout', () => ({
@@ -195,12 +202,12 @@ vi.mock('react-i18next', () => ({
 
 import { Route } from './accept-invitation';
 
-const renderAcceptInvitationRoute = () => {
-	const Component = (
-		Route as unknown as { component: () => ReturnType<typeof createElement> }
-	).component;
-	return render(createElement(Component));
-};
+const getRouteComponent = () =>
+	(Route as unknown as { component: () => ReturnType<typeof createElement> })
+		.component;
+
+const renderAcceptInvitationRoute = () =>
+	render(createElement(getRouteComponent()));
 
 describe('accept-invitation route', () => {
 	beforeEach(() => {
@@ -212,6 +219,7 @@ describe('accept-invitation route', () => {
 			isError: false,
 			data: undefined,
 		};
+		mocks.currentUserQueryRefetch.mockReset();
 		mocks.isLoggingOut = false;
 		mocks.completeLoginRedirect.mockResolvedValue({ targetPath: '/tenant' });
 	});
@@ -341,6 +349,36 @@ describe('accept-invitation route', () => {
 			expect(screen.getByText('Session service unavailable')).toBeTruthy();
 			expect(screen.getByRole('button', { name: 'try-again' })).toBeTruthy();
 		});
+
+		test('retrying an auth-lookup error refetches the current-user query instead of reloading the document', () => {
+			mocks.hasBrowserSessionCookie.mockReturnValue(true);
+			mocks.currentUserQuery = {
+				isSuccess: false,
+				isError: true,
+				error: { status: 500, detail: 'Session service unavailable' },
+				data: undefined,
+			};
+			const reloadSpy = vi.fn();
+			const originalLocation = window.location;
+			Object.defineProperty(window, 'location', {
+				configurable: true,
+				value: { ...originalLocation, reload: reloadSpy },
+			});
+
+			try {
+				renderAcceptInvitationRoute();
+
+				fireEvent.click(screen.getByRole('button', { name: 'try-again' }));
+
+				expect(mocks.currentUserQueryRefetch).toHaveBeenCalledTimes(1);
+				expect(reloadSpy).not.toHaveBeenCalled();
+			} finally {
+				Object.defineProperty(window, 'location', {
+					configurable: true,
+					value: originalLocation,
+				});
+			}
+		});
 	});
 
 	describe('accept payload shapes and session establishment', () => {
@@ -442,6 +480,79 @@ describe('accept-invitation route', () => {
 			await waitFor(() =>
 				expect(mocks.completeLoginRedirect).toHaveBeenCalledTimes(2),
 			);
+			expect(mocks.acceptInvitation).toHaveBeenCalledTimes(1);
+			expect(mocks.postBroadcast).toHaveBeenCalledTimes(1);
+			expect(mocks.navigate).toHaveBeenCalledWith({
+				to: '/tenant',
+				replace: true,
+			});
+		});
+
+		test('preserves the committed acceptance across an auth-state transition from new-user to existing-match, and retry completes without re-accepting (r5-F2)', async () => {
+			mocks.loaderData = { ...VALID_LOADER_DATA, userExists: false };
+			mocks.hasBrowserSessionCookie.mockReturnValue(false);
+			mocks.acceptInvitation.mockResolvedValue({
+				sessionExpiresAt: '2026-01-01T00:00:00.000Z',
+			});
+			mocks.completeLoginRedirect.mockRejectedValueOnce({
+				status: 500,
+				detail: 'Temporary outage',
+			});
+
+			const rendered = renderAcceptInvitationRoute();
+
+			fireEvent.change(screen.getByLabelText('First name'), {
+				target: { value: 'Jordan' },
+			});
+			fireEvent.change(screen.getByLabelText('Last name'), {
+				target: { value: 'Reyes' },
+			});
+			fireEvent.change(screen.getByLabelText('Password'), {
+				target: { value: 'correct-horse-battery' },
+			});
+			fireEvent.change(screen.getByLabelText('Confirm password'), {
+				target: { value: 'correct-horse-battery' },
+			});
+			fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+			await waitFor(() =>
+				expect(mocks.acceptInvitation).toHaveBeenCalledTimes(1),
+			);
+			await waitFor(() =>
+				expect(
+					screen.getByTestId('accept-invitation-error-alert'),
+				).toBeTruthy(),
+			);
+
+			// The server already committed the session cookie before the
+			// redirect-completion step transiently failed. On the next render the
+			// browser session cookie is present and the current-user lookup
+			// matches the invited email — this swaps the rendered branch from
+			// new-user to existing-match, unmounting NewUserForm entirely.
+			mocks.hasBrowserSessionCookie.mockReturnValue(true);
+			mocks.currentUserQuery = {
+				isSuccess: true,
+				isError: false,
+				data: { email: VALID_LOADER_DATA.email },
+			};
+			mocks.completeLoginRedirect.mockResolvedValue({ targetPath: '/tenant' });
+			rendered.rerender(createElement(getRouteComponent()));
+
+			await waitFor(() =>
+				expect(
+					screen.getByTestId('accept-invitation-existing-match'),
+				).toBeTruthy(),
+			);
+
+			fireEvent.click(
+				screen.getByRole('button', { name: 'Join organization' }),
+			);
+
+			await waitFor(() =>
+				expect(mocks.completeLoginRedirect).toHaveBeenCalledTimes(2),
+			);
+			// The accepted result from the first (new-user) attempt survived the
+			// branch swap — the retry must not call acceptInvitation again.
 			expect(mocks.acceptInvitation).toHaveBeenCalledTimes(1);
 			expect(mocks.postBroadcast).toHaveBeenCalledTimes(1);
 			expect(mocks.navigate).toHaveBeenCalledWith({
