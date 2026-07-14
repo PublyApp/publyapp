@@ -101,7 +101,7 @@ const InvitationDetailsEmpty = () => {
 	return (
 		<AppErrorView
 			icon={<IconHelpCircle aria-hidden="true" className="size-7" />}
-			code="404"
+			code={t('error-404-code')}
 			title={t('invitation-not-found')}
 			description={t('invitation-not-found-description')}
 			testId="staff-invitation-details-not-found"
@@ -140,7 +140,7 @@ const InvitationDetailsError = ({
 	return (
 		<AppErrorView
 			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-			code="500"
+			code={t('error-500-code')}
 			title={t('invitation-details-error-title')}
 			description={t('invitation-details-error-description')}
 			testId="staff-invitation-details-error"

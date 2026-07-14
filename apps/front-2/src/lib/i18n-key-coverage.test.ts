@@ -193,18 +193,25 @@ const isProseLikeLiteral = (value: string): boolean => {
 	if (trimmed.length < 2 || LOCALE_SELF_NAME_ALLOWLIST.has(trimmed)) {
 		return false;
 	}
-	if (!/^[A-Z]/.test(trimmed) || !/[a-z]/.test(trimmed)) {
-		// Requires an initial capital AND at least one lowercase letter, so
-		// all-caps technical constants/enum values (`'POST'`, `'UTC'`) and
-		// symbol-only strings don't false-positive — real UI copy is never
-		// all-caps in this codebase's i18n bundles.
+	if (!/[a-z]/.test(trimmed)) {
+		// Requires at least one LOWERCASE letter, so all-caps technical
+		// constants/enum values (`'POST'`, `'UTC'`, `'ACTIVE'`) and
+		// symbol/digit-only strings don't false-positive — real UI copy is
+		// never all-caps in this codebase's i18n bundles. r5-shell-F2: this
+		// deliberately does NOT also require an initial capital letter — the
+		// round-5 finding's exact evasion, `code="500 — Server Error"`, starts
+		// with a digit, and a leading-capital requirement made it invisible.
 		return false;
 	}
-	// A single capitalized word is ambiguous (could be an enum-like value
-	// such as `'Bearer'` or `'Active'`); only flag it when it reads as a
-	// sentence/phrase (contains whitespace) or is long enough that a
-	// single-word technical constant is implausible.
-	return /\s/.test(trimmed) || trimmed.length > 15;
+	// Requires internal whitespace — a real sentence/phrase reads as multiple
+	// words. This is deliberately NOT "long enough" as a fallback: kebab-case
+	// identifiers, slugs, and URLs (`staff-tenant-user-details-empty`,
+	// `https://example.com`) are frequently long, lowercase, and
+	// letter-only, and a length-only fallback flagged all of them. Requiring
+	// a space excludes every one of those (no CSS-identifier/URL/email
+	// spelling in this codebase contains a literal space) while still
+	// catching any multi-word phrase, however it's capitalized.
+	return /\s/.test(trimmed);
 };
 
 // r5-tests-F2: attribute names that are structurally never user-visible copy
@@ -473,6 +480,20 @@ describe('i18n key coverage', () => {
 		expect(
 			findings.some((finding) => finding.includes('JSX expression child')),
 		).toBe(true);
+	});
+
+	// r5-shell-F2: the exact live regression this canary must never miss again
+	// — a numeric-leading `code="500 — Server Error"` prop was invisible to
+	// the round-4 detector's "must start with an uppercase letter" heuristic.
+	test('findHardcodedUiLiterals catches a numeric-leading component prop (r5-shell-F2 canary)', () => {
+		const findings = findHardcodedUiLiterals(
+			'<AppErrorView code="500 — Server Error" />',
+			'canary.tsx',
+		);
+
+		expect(findings).toContainEqual(
+			expect.stringContaining('code="500 — Server Error"'),
+		);
 	});
 
 	test('findHardcodedUiLiterals does not flag structural/enum props, t() calls, or the locale self-name allowlist', () => {

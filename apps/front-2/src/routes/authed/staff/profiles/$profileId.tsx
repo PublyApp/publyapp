@@ -106,7 +106,7 @@ const MissingProfileView = ({ error }: { error: unknown }) => {
 	return (
 		<AppErrorView
 			icon={<IconSearchOff aria-hidden="true" className="size-7" />}
-			code="404 — Not Found"
+			code={t('error-404-code')}
 			title={t('staff-profile-not-found')}
 			description={getFailureDescription(
 				failure,
@@ -148,7 +148,7 @@ const ProfileDetailsError = ({
 	return (
 		<AppErrorView
 			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-			code="500 — Server Error"
+			code={t('error-500-code')}
 			title={t('unable-to-load-staff-profile')}
 			description={t('problem-loading-staff-profile-details')}
 			testId="staff-profile-details-error"
@@ -401,7 +401,7 @@ function StaffProfileDetailsPage() {
 		return (
 			<AppErrorView
 				icon={<IconSearchOff aria-hidden="true" className="size-7" />}
-				code="404 — Not Found"
+				code={t('error-404-code')}
 				title={t('staff-profile-not-found')}
 				description={t('staff-profile-payload-empty')}
 				testId="staff-profile-details-empty"

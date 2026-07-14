@@ -227,7 +227,7 @@ function StaffUserDetailsPage() {
 			return (
 				<AppErrorView
 					icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-					code="404 — Not Found"
+					code={t('error-404-code')}
 					title={t('staff-user-not-found-title')}
 					description={getFailureDescription(
 						detailQuery.error,
@@ -253,7 +253,7 @@ function StaffUserDetailsPage() {
 		return (
 			<AppErrorView
 				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-				code="500 — Server Error"
+				code={t('error-500-code')}
 				title={t('unable-to-load-staff-user')}
 				description={t('problem-loading-staff-user-details')}
 				testId="staff-user-details-error"
@@ -284,7 +284,7 @@ function StaffUserDetailsPage() {
 		return (
 			<AppErrorView
 				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-				code="404 — Not Found"
+				code={t('error-404-code')}
 				title={t('staff-user-not-found-title')}
 				description={t('staff-user-payload-empty')}
 				testId="staff-user-details-empty"
