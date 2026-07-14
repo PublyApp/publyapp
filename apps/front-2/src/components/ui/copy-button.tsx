@@ -1,5 +1,5 @@
 import { IconAlertTriangle, IconCheck, IconCopy } from '@tabler/icons-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
 import {
@@ -22,11 +22,13 @@ export const CopyButton = ({
 	testId?: string;
 }) => {
 	const { t } = useTranslation('common');
+	const statusId = useId();
 	const [copied, setCopied] = useState(false);
 	const [failed, setFailed] = useState(false);
 	const resetTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
 		undefined,
 	);
+	const copyRequestRef = useRef(0);
 
 	useEffect(
 		() => () => {
@@ -37,6 +39,8 @@ export const CopyButton = ({
 
 	const handleCopy = async () => {
 		setFailed(false);
+		setCopied(false);
+		const requestId = ++copyRequestRef.current;
 
 		if (!navigator.clipboard?.writeText) {
 			setFailed(true);
@@ -45,8 +49,14 @@ export const CopyButton = ({
 
 		try {
 			await navigator.clipboard.writeText(value);
+			if (requestId !== copyRequestRef.current) {
+				return;
+			}
 			setCopied(true);
 		} catch (error) {
+			if (requestId !== copyRequestRef.current) {
+				return;
+			}
 			logger.warn('Failed to copy value to clipboard', { error });
 			setFailed(true);
 			return;
@@ -54,7 +64,11 @@ export const CopyButton = ({
 
 		clearTimeout(resetTimeoutRef.current);
 		resetTimeoutRef.current = setTimeout(() => {
+			if (requestId !== copyRequestRef.current) {
+				return;
+			}
 			setCopied(false);
+			setFailed(false);
 		}, COPY_FEEDBACK_MS);
 	};
 
@@ -89,6 +103,9 @@ export const CopyButton = ({
 
 	return (
 		<Tooltip>
+			<span id={statusId} role="status" aria-live="polite" className="sr-only">
+				{tooltipLabel()}
+			</span>
 			<TooltipTrigger
 				render={
 					<Button
@@ -98,7 +115,7 @@ export const CopyButton = ({
 						aria-label={label}
 						data-testid={testId}
 						data-state={status()}
-						aria-live="polite"
+						aria-describedby={statusId}
 						onClick={() => {
 							void handleCopy();
 						}}

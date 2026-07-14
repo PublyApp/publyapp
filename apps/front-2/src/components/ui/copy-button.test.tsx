@@ -20,13 +20,16 @@ vi.mock('@org/shared-ts/lib/logger/iso-logger', () => ({
 	logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
 
+const getStatusText = () => screen.getByRole('status').textContent?.trim();
+
 afterEach(() => {
 	cleanup();
+	vi.clearAllMocks();
 	vi.useRealTimers();
 });
 
 describe('CopyButton', () => {
-	test('copies the value and flips the icon back after the feedback window', async () => {
+	test('copies the value, updates the announceable status text, and flips the icon back after the feedback window', async () => {
 		vi.useFakeTimers();
 		const writeText = vi.fn().mockResolvedValue(undefined);
 		Object.assign(navigator, { clipboard: { writeText } });
@@ -40,6 +43,7 @@ describe('CopyButton', () => {
 			expect(container.querySelector('.tabler-icon-check')).not.toBeNull(),
 		);
 		expect(container.querySelector('.tabler-icon-copy')).toBeNull();
+		expect(getStatusText()).toBe('copied');
 
 		await vi.advanceTimersByTimeAsync(1500);
 
@@ -47,6 +51,7 @@ describe('CopyButton', () => {
 			expect(container.querySelector('.tabler-icon-check')).toBeNull(),
 		);
 		expect(container.querySelector('.tabler-icon-copy')).not.toBeNull();
+		expect(getStatusText()).toBe('copy');
 	});
 
 	test('a second click before the feedback window elapses re-arms the timer instead of stacking it', async () => {
@@ -80,6 +85,7 @@ describe('CopyButton', () => {
 			await Promise.resolve();
 		});
 		expect(writeText).toHaveBeenCalledTimes(2);
+		expect(getStatusText()).toBe('copied');
 
 		await act(async () => {
 			await vi.advanceTimersByTimeAsync(500);
@@ -92,7 +98,7 @@ describe('CopyButton', () => {
 		expect(container.querySelector('.tabler-icon-check')).toBeNull();
 	});
 
-	test('a rejected clipboard write does not throw, logs a warning, and flips the icon without re-hovering', async () => {
+	test('a rejected clipboard write does not throw, logs a warning, and flips the status text to failed', async () => {
 		vi.useFakeTimers();
 		const writeText = vi.fn().mockRejectedValue(new Error('denied'));
 		Object.assign(navigator, { clipboard: { writeText } });
@@ -107,10 +113,16 @@ describe('CopyButton', () => {
 
 		await vi.waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
 		await vi.waitFor(() => expect(logger.warn).toHaveBeenCalledTimes(1));
+		await vi.waitFor(() =>
+			expect(
+				screen.getByRole('button', { name: 'Copy' }).getAttribute('data-state'),
+			).toBe('failed'),
+		);
 		expect(logger.warn).toHaveBeenCalledWith(
 			'Failed to copy value to clipboard',
 			{ error: expect.any(Error) },
 		);
+		expect(getStatusText()).toBe('copy-failed');
 
 		// No re-hover: the icon flip is the only feedback surface once the
 		// click that failed the copy is also the click that closes the
@@ -137,7 +149,7 @@ describe('CopyButton', () => {
 			fireEvent.focus(button);
 			await vi.advanceTimersByTimeAsync(1000);
 		});
-		expect(screen.queryByText('copy')).toBeTruthy();
+		expect(screen.getByRole('status').textContent?.trim()).toBe('copy');
 
 		await act(async () => {
 			fireEvent.click(button);
@@ -146,10 +158,10 @@ describe('CopyButton', () => {
 		});
 
 		await vi.waitFor(() => expect(writeText).toHaveBeenCalled());
-		expect(screen.queryByText('copied')).toBeTruthy();
+		expect(getStatusText()).toBe('copied');
 	});
 
-	test('clipboard being unavailable does not throw', () => {
+	test('clipboard being unavailable marks copy as failed', () => {
 		Object.assign(navigator, { clipboard: undefined });
 
 		render(<CopyButton value="secret" label="Copy" />);
@@ -157,6 +169,65 @@ describe('CopyButton', () => {
 		expect(() => {
 			fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
 		}).not.toThrow();
+
+		expect(getStatusText()).toBe('copy-failed');
+	});
+
+	test('the latest copy request is always the one reflected in feedback state', async () => {
+		vi.useFakeTimers();
+
+		const first = {
+			resolve: () => {},
+			reject: (error: Error) => {},
+		} as { resolve: () => void; reject: (error: Error) => void };
+		const second = {
+			resolve: () => {},
+			reject: (error: Error) => {},
+		} as { resolve: () => void; reject: (error: Error) => void };
+
+		const createWriteText = () => {
+			const writes = [first, second];
+			return vi.fn().mockImplementation(
+				() =>
+					new Promise((resolve, reject) => {
+						const write = writes.shift();
+						if (write) {
+							write.resolve = resolve;
+							write.reject = reject;
+						}
+					}),
+			);
+		};
+
+		const writeText = createWriteText();
+		Object.assign(navigator, { clipboard: { writeText } });
+
+		render(<CopyButton value="secret" label="Copy" />);
+		const button = screen.getByRole('button', { name: 'Copy' });
+
+		fireEvent.click(button);
+		await act(async () => {
+			await Promise.resolve();
+		});
+
+		fireEvent.click(button);
+		await act(async () => {
+			await Promise.resolve();
+		});
+
+		expect(writeText).toHaveBeenCalledTimes(2);
+
+		await act(async () => {
+			second.resolve();
+			await Promise.resolve();
+		});
+		expect(getStatusText()).toBe('copied');
+
+		await act(async () => {
+			first.reject(new Error('stale'));
+			await Promise.resolve();
+		});
+		expect(getStatusText()).toBe('copied');
 	});
 
 	test('unmounting mid-feedback-window does not throw (pending timeout is cleared)', async () => {

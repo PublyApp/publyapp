@@ -89,7 +89,7 @@
 	--publy-border: #e4e4e7;
 	--publy-border-strong: #d4d4d8;
 	--publy-row-border: #f1f1f3;
-	--publy-focus-ring: color-mix(in srgb, var(--publy-primary) 25%, transparent);
+	--publy-focus-ring: #ca8a04;
 	--publy-danger: #dc2626;
 	--publy-danger-soft: rgba(220, 38, 38, 0.08);
 	--publy-destructive-soft: rgba(220, 38, 38, 0.1);
@@ -239,6 +239,7 @@ html.dark {
 	--publy-surface-muted: #27272a;
 	--publy-surface-hover: #2f2f33;
 	--publy-surface-active: #37373d;
+	--publy-focus-ring: #facc15;
 	--publy-foreground: #fafafa;
 	--publy-foreground-secondary: #d4d4d8;
 	--publy-foreground-muted: #a1a1aa;

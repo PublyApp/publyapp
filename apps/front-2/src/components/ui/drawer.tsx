@@ -61,7 +61,7 @@ function DrawerHeader({
 			<div className="flex min-w-0 flex-col gap-[3px]">{children}</div>
 			<DialogPrimitive.Close
 				aria-label={t('close')}
-				className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[var(--publy-radius-small-control)] text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/30"
+				className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[var(--publy-radius-small-control)] text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring"
 			>
 				<IconX className="size-[18px]" aria-hidden="true" />
 			</DialogPrimitive.Close>

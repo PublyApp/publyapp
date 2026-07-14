@@ -36,6 +36,10 @@ describe('toInitials', () => {
 	test('handles astral-plane first characters without a lone surrogate', () => {
 		expect(toInitials('😀 Lovelace')).toBe('😀L');
 	});
+
+	test('does not expand uppercase conversion into a multi-symbol output', () => {
+		expect(toInitials('ß ß')).toBe('SS');
+	});
 });
 
 describe('paletteIndex', () => {

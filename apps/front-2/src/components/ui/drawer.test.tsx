@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import * as React from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import {
@@ -12,6 +13,7 @@ import {
 	DrawerFooter,
 	DrawerHeader,
 	DrawerTitle,
+	DrawerTrigger,
 } from './drawer';
 
 vi.mock('react-i18next', () => ({
@@ -44,6 +46,44 @@ const renderDrawer = ({
 		</Drawer>,
 	);
 
+const renderControlledWithTrigger = ({
+	onOpenChange,
+}: {
+	onOpenChange?: (isOpen: boolean) => void;
+}) => {
+	const ControlledDrawer = () => {
+		const [isOpen, setIsOpen] = React.useState(false);
+
+		return (
+			<Drawer
+				open={isOpen}
+				onOpenChange={(next) => {
+					setIsOpen(next);
+					onOpenChange?.(next);
+				}}
+			>
+				<DrawerTrigger render={<button type="button">Open drawer</button>} />
+				<DrawerContent>
+					<DrawerHeader>
+						<DrawerTitle>Invite members</DrawerTitle>
+						<DrawerDescription>
+							Send invitations to teammates.
+						</DrawerDescription>
+					</DrawerHeader>
+					<DrawerBody>
+						<p>Drawer body content</p>
+					</DrawerBody>
+					<DrawerFooter>
+						<button type="button">Send invites</button>
+					</DrawerFooter>
+				</DrawerContent>
+			</Drawer>
+		);
+	};
+
+	return render(<ControlledDrawer />);
+};
+
 afterEach(cleanup);
 
 describe('Drawer', () => {
@@ -66,9 +106,6 @@ describe('Drawer', () => {
 		expect(screen.getByText('Send invitations to teammates.')).toBeTruthy();
 	});
 
-	// F1: the drawer surface must outrank a Select/DropdownMenu opened from
-	// inside it, so it consumes --publy-z-drawer-surface (< --publy-z-menu),
-	// not the old hardcoded z-[71].
 	test('the drawer surface and backdrop use the shared z-index tokens, not hardcoded magic numbers', () => {
 		renderDrawer();
 
@@ -89,5 +126,54 @@ describe('Drawer', () => {
 
 		expect(onOpenChange).toHaveBeenCalled();
 		expect(onOpenChange.mock.calls[0]?.[0]).toBe(false);
+		expect(onOpenChange.mock.calls[0]?.[1]).toBeDefined();
+	});
+
+	test('pressing Escape requests dismissal through onOpenChange', () => {
+		const onOpenChange = vi.fn();
+		render(
+			<Drawer open={true} onOpenChange={onOpenChange}>
+				<DrawerContent>
+					<DrawerHeader>
+						<DrawerTitle>Invite members</DrawerTitle>
+						<DrawerDescription>
+							Send invitations to teammates.
+						</DrawerDescription>
+					</DrawerHeader>
+				</DrawerContent>
+			</Drawer>,
+		);
+
+		fireEvent.keyDown(document, { key: 'Escape' });
+
+		expect(onOpenChange).toHaveBeenCalledWith(false, expect.any(Object));
+	});
+
+	test('clicking backdrop requests dismissal through onOpenChange', () => {
+		const onOpenChange = vi.fn();
+		renderDrawer({ onOpenChange });
+
+		const backdrop = document.querySelector('.publy-overlay-backdrop');
+		expect(backdrop).not.toBeNull();
+		if (backdrop) {
+			fireEvent.pointerDown(backdrop);
+			fireEvent.pointerUp(backdrop);
+			fireEvent.click(backdrop);
+		}
+
+		expect(onOpenChange).toHaveBeenCalledWith(false, expect.any(Object));
+	});
+
+	test('focus returns to the opener after dismissal', async () => {
+		renderControlledWithTrigger({});
+
+		const openButton = screen.getByRole('button', { name: 'Open drawer' });
+		fireEvent.click(openButton);
+
+		const closeButton = await screen.findByRole('button', { name: 'close' });
+		fireEvent.click(closeButton);
+
+		expect(screen.getByRole('button', { name: 'Open drawer' })).toBeTruthy();
+		expect(document.activeElement?.textContent).toBe(openButton.textContent);
 	});
 });

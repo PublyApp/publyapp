@@ -1,7 +1,8 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import * as React from 'react';
 import { afterEach, describe, expect, test } from 'vitest';
 
 import {
@@ -25,6 +26,29 @@ const renderSelect = () =>
 		</Select>,
 	);
 
+const renderControlledSelect = () => {
+	const Controlled = () => {
+		const [value, setValue] = React.useState('a');
+
+		return (
+			<div>
+				<Select value={value} onValueChange={(next) => setValue(next)}>
+					<SelectTrigger>
+						<SelectValue />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="a">Alpha</SelectItem>
+						<SelectItem value="b">Beta</SelectItem>
+					</SelectContent>
+				</Select>
+				<div data-testid="selected-value">{value}</div>
+			</div>
+		);
+	};
+
+	return render(<Controlled />);
+};
+
 afterEach(cleanup);
 
 describe('Select', () => {
@@ -35,6 +59,38 @@ describe('Select', () => {
 			.getByText('Alpha')
 			.closest('[data-slot="select-content"]');
 		expect(popup?.getAttribute('data-align-trigger')).toBe('false');
+	});
+
+	test('updates controlled state through selection interactions', async () => {
+		renderControlledSelect();
+
+		const trigger = screen.getByRole('combobox');
+		const display = screen.getByTestId('selected-value');
+		expect(display.textContent).toBe('a');
+
+		fireEvent.click(trigger);
+
+		const beta = await screen.findByText('Beta');
+		expect(beta).not.toBeNull();
+		const betaRow = beta.closest('[data-slot="select-item"]');
+		expect(betaRow).not.toBeNull();
+
+		fireEvent.mouseMove(betaRow as HTMLElement);
+		fireEvent.mouseDown(betaRow as HTMLElement);
+		fireEvent.click(betaRow as HTMLElement);
+
+		expect(screen.getByTestId('selected-value').textContent).toBe('b');
+	});
+
+	test('closes when Escape is pressed while open', async () => {
+		renderControlledSelect();
+
+		const trigger = screen.getByRole('combobox');
+		fireEvent.click(trigger);
+		fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+		fireEvent.keyDown(trigger, { key: 'Escape' });
+
+		expect(screen.queryByText('Beta')).toBeNull();
 	});
 
 	// F1: the popup must consume the shared --publy-z-select token (which

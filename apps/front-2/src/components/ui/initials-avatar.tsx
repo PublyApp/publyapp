@@ -22,8 +22,9 @@ export const toInitials = (name: string): string => {
 	if (words.length === 0) {
 		return '?';
 	}
-	const first = firstCodePoint(words[0] ?? '');
-	const second = words.length > 1 ? firstCodePoint(words.at(-1) ?? '') : '';
+	const first = firstCodePoint(words[0]?.toUpperCase() ?? '');
+	const second =
+		words.length > 1 ? firstCodePoint(words.at(-1)?.toUpperCase() ?? '') : '';
 	return `${first}${second}`.toUpperCase();
 };
 

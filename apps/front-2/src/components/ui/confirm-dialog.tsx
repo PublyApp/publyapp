@@ -80,7 +80,7 @@ export const ConfirmDialog = ({
 						<DialogPrimitive.Close
 							aria-label={t('close')}
 							disabled={isPending}
-							className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[var(--publy-radius-small-control)] text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50"
+							className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[var(--publy-radius-small-control)] text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
 						>
 							<IconX className="size-[18px]" aria-hidden="true" />
 						</DialogPrimitive.Close>

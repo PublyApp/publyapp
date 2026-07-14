@@ -1,14 +1,27 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, render, screen } from '@testing-library/react';
+import {
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
 
 import {
 	DropdownMenu,
+	DropdownMenuTrigger,
 	DropdownMenuCheckboxItem,
 	DropdownMenuContent,
 	DropdownMenuItem,
+	DropdownMenuRadioItem,
+	DropdownMenuRadioGroup,
+	DropdownMenuPortal,
+	DropdownMenuSub,
+	DropdownMenuSubContent,
+	DropdownMenuSubTrigger,
 } from './dropdown-menu';
 
 afterEach(cleanup);
@@ -102,5 +115,73 @@ describe('DropdownMenuItem', () => {
 		expect(item?.className).not.toMatch(/rounded-\[9px\]/);
 		expect(item?.className).toContain('data-highlighted:bg-muted');
 		expect(item?.className).not.toContain('data-highlighted:bg-accent');
+	});
+
+	test('keeps destructive rows on muted focus/highlight surfaces', () => {
+		render(
+			<DropdownMenu defaultOpen modal={false}>
+				<DropdownMenuContent>
+					<DropdownMenuItem variant="destructive">Delete</DropdownMenuItem>
+				</DropdownMenuContent>
+			</DropdownMenu>,
+		);
+
+		const item = screen
+			.getByText('Delete')
+			.closest('[data-slot="dropdown-menu-item"]');
+		expect(item?.className).toContain('focus:bg-muted');
+		expect(item?.className).toContain('data-highlighted:bg-muted');
+		expect(item?.className).not.toContain('focus:bg-destructive');
+		expect(item?.className).not.toContain('data-highlighted:bg-destructive');
+		expect(item?.getAttribute('data-variant')).toBe('destructive');
+	});
+
+	test('renders submenu triggers and radio items with shared menu-item treatment', async () => {
+		render(
+			<DropdownMenu modal={false}>
+				<DropdownMenuTrigger>Menu</DropdownMenuTrigger>
+				<DropdownMenuContent>
+					<DropdownMenuSub open>
+						<DropdownMenuSubTrigger
+							data-testid="menu-sub-trigger"
+							openOnHover={false}
+						>
+							More
+						</DropdownMenuSubTrigger>
+						<DropdownMenuPortal>
+							<DropdownMenuSubContent>
+								<DropdownMenuRadioGroup>
+									<DropdownMenuRadioItem value="read">
+										Read
+									</DropdownMenuRadioItem>
+									<DropdownMenuRadioItem value="write">
+										Write
+									</DropdownMenuRadioItem>
+								</DropdownMenuRadioGroup>
+							</DropdownMenuSubContent>
+						</DropdownMenuPortal>
+					</DropdownMenuSub>
+				</DropdownMenuContent>
+			</DropdownMenu>,
+		);
+
+		fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+		await waitFor(() =>
+			expect(screen.getByTestId('menu-sub-trigger')).toBeTruthy(),
+		);
+
+		const trigger = screen.getByTestId('menu-sub-trigger');
+		expect(trigger).not.toBeNull();
+		fireEvent.click(trigger);
+
+		const read = await screen.findByRole('menuitemradio', { name: 'Read' });
+		const write = await screen.findByRole('menuitemradio', { name: 'Write' });
+
+		expect(
+			read.closest('[data-slot="dropdown-menu-radio-item"]'),
+		).not.toBeNull();
+		expect(
+			write.closest('[data-slot="dropdown-menu-radio-item"]'),
+		).not.toBeNull();
 	});
 });
