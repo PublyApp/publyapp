@@ -208,6 +208,48 @@ public sealed class FindStaffProfileUsersSpec
 	}
 
 	[Fact]
+	public async Task ItShouldTreatABarePercentSearchAsALiteralCharacterNotAWildcard() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var profileId = await CreateStaffProfileAsync(token);
+		var marker = Guid.NewGuid().ToString("N")[..8];
+
+		var withPercentEmail = $"has-percent-{marker}@example.com";
+		var withoutPercentEmail = $"no-percent-{marker}@example.com";
+
+		var withPercentUserId = await CreateStaffUserAsync(
+			token, withPercentEmail, firstName: $"Has%Percent{marker}"
+		);
+		var withoutPercentUserId = await CreateStaffUserAsync(
+			token, withoutPercentEmail, firstName: $"NoPercentAtAll{marker}"
+		);
+
+		await AssignProfileToStaffUserAsync(token, withPercentUserId, profileId);
+		await AssignProfileToStaffUserAsync(token, withoutPercentUserId, profileId);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetUrl(profileId) + $"?limit=50&q={Uri.EscapeDataString("%")}"
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content.ReadFromJsonAsync<FindStaffProfileUsersResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+
+		// If '%' were interpolated unescaped into the ILIKE pattern, "%%%"
+		// collapses to a bare wildcard matching every row. Escaped, only the
+		// user whose name literally contains '%' may match.
+		result.Users.Should().Contain(u =>
+					string.Equals(u.Email, withPercentEmail, StringComparison.OrdinalIgnoreCase)
+				);
+		result.Users.Should().NotContain(u =>
+			string.Equals(u.Email, withoutPercentEmail, StringComparison.OrdinalIgnoreCase)
+		);
+	}
+
+	[Fact]
 	public async Task ItShouldReturnBadRequestForInvalidSortId() {
 		var token = await _authClient.LoginAsStaffAdminAsync();
 		var profileId = await CreateStaffProfileAsync(token);

@@ -11,6 +11,7 @@ using PublyApp.Api.Infrastructure.Messaging.Email;
 using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Lib.Extensions;
+using PublyApp.Api.Modules.Uploads;
 
 using Resend;
 
@@ -103,7 +104,8 @@ public static class ServiceRegistration {
 		// This is purely defense-in-depth against non-upload multipart abuse; the
 		// endpoint-level RequestSizeLimitAttribute is the authoritative cap here.
 		builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options => {
-			options.MultipartBodyLengthLimit = AppEnvironment.Instance.UPLOAD_MAX_BYTES + 1_048_576;
+			options.MultipartBodyLengthLimit =
+				AppEnvironment.Instance.UPLOAD_MAX_BYTES + UploadLimits.FormOptionsHeadroomBytes;
 		});
 
 		return builder;

@@ -67,6 +67,12 @@ public static partial class TenantValidationRules {
 					return false;
 				}
 				var str = e.Value.GetString();
+				// Whitespace-only is treated as a clear, matching the org-profile
+				// fields' NormalizeClearableString mapping to null — GetLogoUrl()
+				// routes the String case through the same helper.
+				if (string.IsNullOrWhiteSpace(str)) {
+					return true;
+				}
 				return str is not null && IsValidLogoUrl(str);
 			})
 			.WithMessage(
@@ -94,6 +100,12 @@ public static partial class TenantValidationRules {
 					return false;
 				}
 				var str = e.GetString();
+				// Whitespace-only is treated as a clear, matching the org-profile
+				// fields' NormalizeClearableString mapping to null — GetLogoUrl()
+				// routes the String case through the same helper.
+				if (string.IsNullOrWhiteSpace(str)) {
+					return true;
+				}
 				return str is not null && IsValidLogoUrl(str);
 			})
 			.WithMessage(

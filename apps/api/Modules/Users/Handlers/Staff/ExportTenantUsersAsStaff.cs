@@ -29,66 +29,15 @@ public class ExportTenantUsersAsStaffQuery {
 	public string? Ids { get; set; }
 
 	public string? GetSearchNormalized() {
-		if (Search is null) {
-			return null;
-		}
-
-		var trimmed = Search.Trim();
-		return trimmed.Length == 0 ? null : trimmed;
+		return TenantUserFilterQuery.NormalizeSearch(Search);
 	}
 
 	public IReadOnlySet<TenantUserStatus>? GetStatusesOrNull() {
-		if (Status is null) {
-			return null;
-		}
-
-		var trimmed = Status.Trim();
-		if (trimmed.Length == 0) {
-			return null;
-		}
-
-		var parts = trimmed
-			.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-		if (parts.Length == 0) {
-			return null;
-		}
-
-		var statuses = new HashSet<TenantUserStatus>();
-		foreach (var part in parts) {
-			TenantUserStatus? parsed = UserAccount.ParseTenantStatus(part);
-			if (parsed is { } status) {
-				statuses.Add(status);
-			}
-		}
-
-		return statuses.Count > 0 ? statuses : null;
+		return TenantUserFilterQuery.ParseStatuses(Status);
 	}
 
 	public IReadOnlySet<AccountLevel>? GetLevelsOrNull() {
-		if (Level is null) {
-			return null;
-		}
-
-		var trimmed = Level.Trim();
-		if (trimmed.Length == 0) {
-			return null;
-		}
-
-		var parts = trimmed
-			.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-		if (parts.Length == 0) {
-			return null;
-		}
-
-		var levels = new HashSet<AccountLevel>();
-		foreach (var part in parts) {
-			AccountLevel? parsed = UserAccount.ParseLevel(part);
-			if (parsed is { } level) {
-				levels.Add(level);
-			}
-		}
-
-		return levels.Count > 0 ? levels : null;
+		return TenantUserFilterQuery.ParseLevels(Level);
 	}
 
 	public IReadOnlySet<Guid>? GetIdsOrNull() {
@@ -120,28 +69,15 @@ public class ExportTenantUsersAsStaffQuery {
 
 public class ExportTenantUsersAsStaffQueryValidator
 	: AbstractValidator<ExportTenantUsersAsStaffQuery> {
-	// Reuse the same allowed wire tokens as FindTenantUsersAsStaffQueryValidator so the
-	// export endpoint accepts exactly the filters the list page can produce.
-	private static readonly HashSet<string> AllowedStatusSet = new(
-		StringComparer.OrdinalIgnoreCase
-	) {
-		"active",
-		"suspended",
-		"globally_suspended",
-	};
-
-	private static readonly HashSet<string> AllowedLevelSet = new(
-		StringComparer.OrdinalIgnoreCase
-	) {
-		"admin",
-		"user",
-	};
-
 	public ExportTenantUsersAsStaffQueryValidator() {
 		RuleFor(x => x.Search)
 			.MaximumLength(200)
 			.WithMessage("q must be at most 200 characters");
 
+		// Shares TenantUserFilterQuery.AllowedStatusSet/AllowedLevelSet with
+		// FindTenantUsersAsStaffQueryValidator so the export endpoint accepts
+		// exactly the filters the list page can produce — a new enum member
+		// added there is automatically accepted here too.
 		RuleFor(x => x.Status)
 			.Must(raw => {
 				if (string.IsNullOrEmpty(raw)) {
@@ -150,9 +86,9 @@ public class ExportTenantUsersAsStaffQueryValidator
 
 				var parts = raw.Split(',', StringSplitOptions.TrimEntries);
 				return parts.Length > 0
-					&& parts.All(p => p.Length > 0 && AllowedStatusSet.Contains(p));
+					&& parts.All(p => p.Length > 0 && TenantUserFilterQuery.AllowedStatusSet.Contains(p));
 			})
-			.WithMessage("status must be one of: active, suspended, globally_suspended");
+			.WithMessage($"status must be one of: {TenantUserFilterQuery.AllowedStatusesDisplay}");
 
 		RuleFor(x => x.Level)
 			.Must(raw => {
@@ -162,9 +98,9 @@ public class ExportTenantUsersAsStaffQueryValidator
 
 				var parts = raw.Split(',', StringSplitOptions.TrimEntries);
 				return parts.Length > 0
-					&& parts.All(p => p.Length > 0 && AllowedLevelSet.Contains(p));
+					&& parts.All(p => p.Length > 0 && TenantUserFilterQuery.AllowedLevelSet.Contains(p));
 			})
-			.WithMessage("level must be one of: admin, user");
+			.WithMessage($"level must be one of: {TenantUserFilterQuery.AllowedLevelsDisplay}");
 
 		RuleFor(x => x.Ids)
 			.Must(raw => {
@@ -272,7 +208,11 @@ public sealed class ExportTenantUsersAsStaff {
 		return Results.Empty;
 	}
 
-	private static async Task WriteCsvAsync(
+	// Public (not private) so the mid-stream-failure abort path can be exercised
+	// directly by a unit test with a fake IAsyncEnumerable and a fake
+	// IHttpRequestLifetimeFeature — TestServer cannot make ExportAsync's real
+	// EF Core enumeration throw mid-stream.
+	public static async Task WriteCsvAsync(
 		HttpContext httpContext,
 		IAsyncEnumerable<TenantUserExportItem> items,
 		CancellationToken cancellationToken

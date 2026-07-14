@@ -4,6 +4,8 @@ using System.Reflection;
 
 using FluentAssertions;
 
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -17,6 +19,7 @@ using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Users.Entities;
+using PublyApp.Api.Modules.Users.Services;
 
 using Xunit;
 
@@ -397,6 +400,54 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		// literally contain a '%' character.
 		content.Should().Contain($"Has%Percent{marker}");
 		content.Should().NotContain($"NoPercentAtAll{marker}");
+	}
+
+	// WriteCsvAsync's mid-stream failure path (r2 F6) cannot be exercised through
+	// a real HTTP round-trip: TestServer has no way to make ExportAsync's EF Core
+	// enumeration throw after rows have already been written. Call the (public)
+	// streaming method directly with a throwing IAsyncEnumerable and a fake
+	// IHttpRequestLifetimeFeature so the abort behavior is actually pinned.
+	[Fact]
+	public async Task ItShouldAbortTheConnectionWhenTheExportEnumerationThrowsMidStream() {
+		var lifetimeFeature = new FakeHttpRequestLifetimeFeature();
+		var features = new FeatureCollection();
+		features.Set<IHttpRequestLifetimeFeature>(lifetimeFeature);
+		features.Set<IHttpResponseFeature>(new HttpResponseFeature());
+		features.Set<IHttpResponseBodyFeature>(new StreamResponseBodyFeature(new MemoryStream()));
+
+		var httpContext = new DefaultHttpContext(features);
+
+		var act = async () => await ExportTenantUsersAsStaff.WriteCsvAsync(
+			httpContext,
+			ThrowingExportItemsAsync(),
+			CancellationToken.None
+		);
+
+		await act.Should().ThrowAsync<InvalidOperationException>();
+		lifetimeFeature.WasAborted.Should().BeTrue(
+			"a mid-stream failure must abort the connection, not silently truncate the CSV"
+		);
+	}
+
+	private static async IAsyncEnumerable<TenantUserExportItem> ThrowingExportItemsAsync() {
+		yield return new TenantUserExportItem {
+			Email = "first-row@example.com",
+			Level = "User",
+			Status = "Active",
+			CreatedAt = DateTime.UtcNow,
+		};
+		await Task.Yield();
+		throw new InvalidOperationException("Simulated mid-stream enumeration failure");
+	}
+
+	private sealed class FakeHttpRequestLifetimeFeature
+		: IHttpRequestLifetimeFeature {
+		public bool WasAborted { get; private set; }
+		public CancellationToken RequestAborted { get; set; }
+
+		public void Abort() {
+			WasAborted = true;
+		}
 	}
 
 	[Fact]

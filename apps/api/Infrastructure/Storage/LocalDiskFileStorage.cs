@@ -65,13 +65,27 @@ public sealed partial class LocalDiskFileStorage : IFileStorage {
 		}
 		Directory.CreateDirectory(directory);
 
-		await using var fileStream = new FileStream(
-			fullPath,
-			FileMode.CreateNew,
-			FileAccess.Write,
-			FileShare.None
-		);
-		await content.CopyToAsync(fileStream, cancellationToken);
+		try {
+			await using var fileStream = new FileStream(
+				fullPath,
+				FileMode.CreateNew,
+				FileAccess.Write,
+				FileShare.None
+			);
+			await content.CopyToAsync(fileStream, cancellationToken);
+		} catch {
+			// The stream may be partially written (cancellation, a throwing source
+			// stream, or a full disk) — never leave a partial, anonymously-served
+			// blob behind. Best-effort: deletion failure must not mask the original.
+			try {
+				if (File.Exists(fullPath)) {
+					File.Delete(fullPath);
+				}
+			} catch {
+				// Best-effort cleanup only; the original exception is what matters.
+			}
+			throw;
+		}
 
 		return relativePath;
 	}

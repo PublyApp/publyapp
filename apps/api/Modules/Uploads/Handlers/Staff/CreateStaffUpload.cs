@@ -17,6 +17,19 @@ public record StaffUploadCreated {
 	public required string ContentType { get; init; }
 }
 
+/// <summary>
+/// Uploads a single image and returns a served URL under <c>/files</c>. The
+/// permission required is <c>uploads:create</c> — a generic, purpose-agnostic
+/// bucket, not <c>tenants:logo:upload</c> — because this endpoint is not
+/// tenant-logo-specific despite being the only current caller. The returned URL
+/// is served <b>anonymously</b>, from the API origin, with no tenant scoping and
+/// no expiry (see <c>Program.cs</c>'s anonymous <c>UseStaticFiles</c> mapping for
+/// <c>/files</c>): anything saved here is world-readable by URL forever. Never
+/// upload anything not intended to be public. If a private-asset tier becomes
+/// necessary, prefix server-generated paths by purpose (e.g.
+/// <c>uploads/public/...</c>) before that need arrives, so URLs already
+/// persisted in <c>tenants.logo_url</c> keep working unchanged.
+/// </summary>
 public sealed class CreateStaffUpload {
 	// Longest magic-byte prefix needed to sniff any supported image type (WEBP: "RIFF"+size(4)+"WEBP").
 	private const int SniffBufferLength = 12;

@@ -15,6 +15,7 @@ using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Auth.Utils;
+using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
@@ -334,6 +335,59 @@ public sealed class FindTenantsAsStaffSpec
 		result.Data.Should().Contain(
 					t => t.Name == SeedConstants.Tenants.AcmeName
 				);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldTreatABarePercentSearchAsALiteralCharacterNotAWildcard() {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+		var marker = Guid.NewGuid().ToString("N")[..8];
+
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var withPercent = new Tenant {
+			Name = $"Has%Percent{marker}",
+			Code = Guid.NewGuid().ToString("N")[..10],
+			Status = TenantStatus.Active,
+			MaxUsers = 10,
+		};
+		var withoutPercent = new Tenant {
+			Name = $"NoPercentAtAll{marker}",
+			Code = Guid.NewGuid().ToString("N")[..10],
+			Status = TenantStatus.Active,
+			MaxUsers = 10,
+		};
+		await dbContext.Tenant.AddRangeAsync(withPercent, withoutPercent);
+		await dbContext.SaveChangesAsync();
+
+		var url = TenantTestHelper.GetFindUrl(
+			q: Uri.EscapeDataString("%"),
+			limit: 200
+		);
+		var request = new HttpRequestMessage(
+			HttpMethod.Get, url
+		).WithSessionToken(token);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<FindResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+
+		// If '%' were interpolated unescaped into the ILIKE pattern, "%%%"
+		// collapses to a bare wildcard matching every row. Escaped, only the
+		// tenant whose name literally contains '%' may match.
+		result.Data.Should().Contain(t => t.Name == $"Has%Percent{marker}");
+		result.Data.Should().NotContain(t => t.Name == $"NoPercentAtAll{marker}");
 	}
 
 	[Fact]

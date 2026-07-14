@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Users.Services;
@@ -435,12 +436,12 @@ public class StaffUserQueryService : IStaffUserQueryService {
 			if (trimmed.Length > 0) {
 				// Search is intentionally substring-based so staff can quickly find
 				// records by partial email or name fragments.
-				var pattern = $"%{trimmed}%";
+				var pattern = $"%{LikePatternUtils.EscapeLikePattern(trimmed)}%";
 				query =
 					from ua in query
-					where (ua.User.FirstName != null && EF.Functions.ILike(ua.User.FirstName, pattern))
-						|| (ua.User.LastName != null && EF.Functions.ILike(ua.User.LastName, pattern))
-						|| EF.Functions.ILike(ua.User.Email, pattern)
+					where (ua.User.FirstName != null && EF.Functions.ILike(ua.User.FirstName, pattern, LikePatternUtils.LikeEscapeChar))
+						|| (ua.User.LastName != null && EF.Functions.ILike(ua.User.LastName, pattern, LikePatternUtils.LikeEscapeChar))
+						|| EF.Functions.ILike(ua.User.Email, pattern, LikePatternUtils.LikeEscapeChar)
 					select ua;
 			}
 		}

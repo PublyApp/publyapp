@@ -61,7 +61,7 @@ public record UpdateTenantAsStaffBody {
 				PatchField<string?>.Set(null),
 			JsonValueKind.String =>
 				PatchField<string?>.Set(
-					LogoUrl.GetValueAsString()
+					NormalizeClearableString(LogoUrl.GetValueAsString())
 				),
 			JsonValueKind.Object
 				or JsonValueKind.Array
@@ -175,7 +175,7 @@ public class UpdateTenantAsStaffBodyValidator
 			.MustBePatchFieldStringWithMaxLength("Description", 1024);
 
 		RuleFor(x => x.WebsiteUrl)
-			.MustBePatchFieldUrl("WebsiteUrl");
+			.MustBePatchFieldClearableUrl("WebsiteUrl");
 
 		RuleFor(x => x.BillingEmail)
 			.MustBePatchFieldEmailWithMaxLength("BillingEmail", 320);

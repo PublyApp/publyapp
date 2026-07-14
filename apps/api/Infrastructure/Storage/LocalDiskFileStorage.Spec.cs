@@ -99,4 +99,57 @@ public sealed class LocalDiskFileStorageSpec : IDisposable {
 
 		await act.Should().ThrowAsync<ArgumentException>();
 	}
+
+	[Fact]
+	public async Task ItShouldNotLeaveAPartialFileWhenTheSourceStreamThrows() {
+		using var content = new ThrowingStream();
+
+		var act = async () => await _storage.SaveAsync(content, ".png");
+
+		await act.Should().ThrowAsync<InvalidOperationException>();
+
+		GetSavedFilePaths().Should().BeEmpty(
+			"a failed save must not leave a partial blob on disk"
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldNotLeaveAPartialFileWhenCancelled() {
+		using var content = new MemoryStream(new byte[1024 * 1024]);
+		using var cts = new CancellationTokenSource();
+		cts.Cancel();
+
+		var act = async () => await _storage.SaveAsync(content, ".png", cts.Token);
+
+		await act.Should().ThrowAsync<OperationCanceledException>();
+
+		GetSavedFilePaths().Should().BeEmpty(
+			"a cancelled save must not leave a partial blob on disk"
+		);
+	}
+
+	private IEnumerable<string> GetSavedFilePaths() {
+		var uploadsRoot = Path.Combine(_root, "uploads");
+		return Directory.Exists(uploadsRoot)
+			? Directory.EnumerateFiles(uploadsRoot, "*", SearchOption.AllDirectories)
+			: [];
+	}
+
+	private sealed class ThrowingStream : MemoryStream {
+		public override Task<int> ReadAsync(
+			byte[] buffer, int offset, int count, CancellationToken cancellationToken
+		) {
+			throw new InvalidOperationException("Simulated read failure");
+		}
+
+		public override ValueTask<int> ReadAsync(
+			Memory<byte> buffer, CancellationToken cancellationToken = default
+		) {
+			throw new InvalidOperationException("Simulated read failure");
+		}
+
+		public override int Read(byte[] buffer, int offset, int count) {
+			throw new InvalidOperationException("Simulated read failure");
+		}
+	}
 }

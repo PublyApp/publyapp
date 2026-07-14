@@ -63,6 +63,13 @@ public class Program {
 			FileProvider = new PhysicalFileProvider(fileStorage.RootPath),
 			RequestPath = "/files",
 			ServeUnknownFileTypes = false,
+			// Safe precisely because paths are server-generated UUID v7 file names
+			// (see LocalDiskFileStorage.SaveAsync): a replaced logo gets a new UUID,
+			// never a new body at the same URL, so the client can cache forever
+			// instead of round-tripping an If-None-Match revalidation per paint.
+			OnPrepareResponse = ctx => {
+				ctx.Context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
+			},
 		});
 
 		app.MapAuthEndpoints();

@@ -46,6 +46,18 @@ public sealed class JsonElementRulesSpec {
 		public JsonElement? NullableUrl { get; set; }
 	}
 
+	private class PatchFieldUrlModel {
+		public JsonElement PatchFieldUrl { get; set; }
+	}
+
+	private class NullableClearableUrlModel {
+		public JsonElement? NullableClearableUrl { get; set; }
+	}
+
+	private class PatchFieldClearableUrlModel {
+		public JsonElement PatchFieldClearableUrl { get; set; }
+	}
+
 	private class NullableBooleanModel {
 		public JsonElement? NullableBoolean { get; set; }
 	}
@@ -111,6 +123,30 @@ public sealed class JsonElementRulesSpec {
 		public NullableUrlValidator() {
 			RuleFor(x => x.NullableUrl)
 				.MustBeNullableUrl("TestField");
+		}
+	}
+
+	private class PatchFieldUrlValidator
+		: AbstractValidator<PatchFieldUrlModel> {
+		public PatchFieldUrlValidator() {
+			RuleFor(x => x.PatchFieldUrl)
+				.MustBePatchFieldUrl("TestField");
+		}
+	}
+
+	private class NullableClearableUrlValidator
+		: AbstractValidator<NullableClearableUrlModel> {
+		public NullableClearableUrlValidator() {
+			RuleFor(x => x.NullableClearableUrl)
+				.MustBeNullableClearableUrl("TestField");
+		}
+	}
+
+	private class PatchFieldClearableUrlValidator
+		: AbstractValidator<PatchFieldClearableUrlModel> {
+		public PatchFieldClearableUrlValidator() {
+			RuleFor(x => x.PatchFieldClearableUrl)
+				.MustBePatchFieldClearableUrl("TestField");
 		}
 	}
 
@@ -390,6 +426,150 @@ public sealed class JsonElementRulesSpec {
 		var result = new NullableUrlValidator()
 			.Validate(model);
 		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldFailNullableUrlWhenEmptyString() {
+		var url = JsonSerializer.SerializeToElement("");
+		var model = new NullableUrlModel {
+			NullableUrl = url,
+		};
+		var result = new NullableUrlValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldFailNullableUrlWhenWhitespaceOnly() {
+		var url = JsonSerializer.SerializeToElement("   ");
+		var model = new NullableUrlModel {
+			NullableUrl = url,
+		};
+		var result = new NullableUrlValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	// ==================== PatchFieldUrl ====================
+
+	[Fact]
+	public void ItShouldPassPatchFieldUrlWhenUndefined() {
+		var model = new PatchFieldUrlModel();
+		var result = new PatchFieldUrlValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldPassPatchFieldUrlWhenJsonNull() {
+		var model = new PatchFieldUrlModel {
+			PatchFieldUrl = JsonSerializer.SerializeToElement((string?)null),
+		};
+		var result = new PatchFieldUrlValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldPassPatchFieldUrlWhenValidHttp() {
+		var model = new PatchFieldUrlModel {
+			PatchFieldUrl = JsonSerializer.SerializeToElement("https://example.com"),
+		};
+		var result = new PatchFieldUrlValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldFailPatchFieldUrlWhenInvalid() {
+		var model = new PatchFieldUrlModel {
+			PatchFieldUrl = JsonSerializer.SerializeToElement("not a url"),
+		};
+		var result = new PatchFieldUrlValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldFailPatchFieldUrlWhenEmptyString() {
+		var model = new PatchFieldUrlModel {
+			PatchFieldUrl = JsonSerializer.SerializeToElement(""),
+		};
+		var result = new PatchFieldUrlValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	// ==================== NullableClearableUrl ====================
+
+	[Fact]
+	public void ItShouldPassNullableClearableUrlWhenValidHttp() {
+		var model = new NullableClearableUrlModel {
+			NullableClearableUrl = JsonSerializer.SerializeToElement("https://example.com"),
+		};
+		var result = new NullableClearableUrlValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldFailNullableClearableUrlWhenInvalid() {
+		var model = new NullableClearableUrlModel {
+			NullableClearableUrl = JsonSerializer.SerializeToElement("not a url"),
+		};
+		var result = new NullableClearableUrlValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldPassNullableClearableUrlWhenEmptyString() {
+		var model = new NullableClearableUrlModel {
+			NullableClearableUrl = JsonSerializer.SerializeToElement(""),
+		};
+		var result = new NullableClearableUrlValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldPassNullableClearableUrlWhenNull() {
+		var model = new NullableClearableUrlModel {
+			NullableClearableUrl = null,
+		};
+		var result = new NullableClearableUrlValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	// ==================== PatchFieldClearableUrl ====================
+
+	[Fact]
+	public void ItShouldPassPatchFieldClearableUrlWhenUndefined() {
+		var model = new PatchFieldClearableUrlModel();
+		var result = new PatchFieldClearableUrlValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldPassPatchFieldClearableUrlWhenEmptyString() {
+		var model = new PatchFieldClearableUrlModel {
+			PatchFieldClearableUrl = JsonSerializer.SerializeToElement(""),
+		};
+		var result = new PatchFieldClearableUrlValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldFailPatchFieldClearableUrlWhenInvalid() {
+		var model = new PatchFieldClearableUrlModel {
+			PatchFieldClearableUrl = JsonSerializer.SerializeToElement("not a url"),
+		};
+		var result = new PatchFieldClearableUrlValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeFalse();
 	}
 
 	// ==================== NullableBoolean ====================

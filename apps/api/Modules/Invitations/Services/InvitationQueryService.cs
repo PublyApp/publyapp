@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Invitations.Entities;
 
 namespace PublyApp.Api.Modules.Invitations.Services;
@@ -44,24 +45,9 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 	private readonly AppDbContext _dbContext;
 	private readonly ILogger<InvitationQueryService> _logger;
 
-	// Backslash: EF.Functions.ILike's escape-char parameter, so backslashes
-	// inserted by EscapeLikePattern are significant to Postgres.
-	private const string LikeEscapeChar = "\\";
-
 	public InvitationQueryService(AppDbContext dbContext, ILogger<InvitationQueryService> logger) {
 		_dbContext = dbContext;
 		_logger = logger;
-	}
-
-	// Neutralizes ILIKE wildcard metacharacters in caller-supplied search text so
-	// e.g. a literal "%" or "_" in the query only matches that literal character,
-	// not "any run of characters" / "any single character". Must be paired with
-	// EF.Functions.ILike(col, pattern, LikeEscapeChar).
-	private static string EscapeLikePattern(string value) {
-		return value
-			.Replace("\\", "\\\\", StringComparison.Ordinal)
-			.Replace("%", "\\%", StringComparison.Ordinal)
-			.Replace("_", "\\_", StringComparison.Ordinal);
 	}
 
 	public async Task<Invitation?> GetInvitationByTokenAsync(
@@ -511,8 +497,8 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 
 		var searchQuery = filters.Search;
 		if (!string.IsNullOrWhiteSpace(searchQuery)) {
-			var pattern = $"%{EscapeLikePattern(searchQuery.Trim())}%";
-			query = query.Where(inv => EF.Functions.ILike(inv.Email, pattern, LikeEscapeChar));
+			var pattern = $"%{LikePatternUtils.EscapeLikePattern(searchQuery.Trim())}%";
+			query = query.Where(inv => EF.Functions.ILike(inv.Email, pattern, LikePatternUtils.LikeEscapeChar));
 		}
 
 		if (filters.Status is { Count: > 0 } statuses) {

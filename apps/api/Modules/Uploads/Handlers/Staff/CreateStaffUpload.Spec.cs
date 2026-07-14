@@ -167,6 +167,35 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 
 		using var encodedResponse = await _http.GetAsync("/files/..%2fappsettings.json");
 		encodedResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
+
+		using var doublyEncodedResponse = await _http.GetAsync("/files/%2e%2e/%2e%2e/etc/passwd");
+		doublyEncodedResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
+	}
+
+	// Covers the delivery half of the upload feature — the anonymous /files
+	// static-file middleware wired in Program.cs (per review r1-api F7). Folded
+	// in here (rather than a standalone FileServing.Spec.cs) because it has no
+	// FileServing.cs source to sit beside — this endpoint's served-URL contract
+	// is what CreateStaffUpload actually returns.
+	[Fact]
+	public async Task ItShouldServeUploadedFilesAnonymously() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+
+		using var uploadResponse = await _http.SendAsync(
+			BuildUploadRequest(token, PngBytes, "logo.png", "image/png")
+		);
+		uploadResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+
+		var uploaded = await uploadResponse.Content.ReadFromJsonAsync<StaffUploadCreated>();
+		uploaded.Should().NotBeNull();
+		Assert.NotNull(uploaded);
+
+		// A deliberately bare request — no session token, no tenant header —
+		// pins the intended contract: the served asset is public.
+		using var request = new HttpRequestMessage(HttpMethod.Get, uploaded.Url);
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
 	[Fact]
@@ -196,8 +225,8 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldReturn413WhenFileExceedsMaxSize() {
 		var token = await _authClient.LoginAsStaffAdminAsync();
 		// Stays under the transport-level RequestSizeLimitAttribute buffer
-		// (UPLOAD_MAX_BYTES + 8192) so this exercises the handler's own size
-		// check, not Kestrel's earlier rejection.
+		// (UPLOAD_MAX_BYTES + UploadLimits.MultipartHeaderHeadroomBytes) so this
+		// exercises the handler's own size check, not Kestrel's earlier rejection.
 		var oversized = new byte[AppEnvironment.Instance.UPLOAD_MAX_BYTES + 1];
 		PngBytes.CopyTo(oversized, 0);
 
@@ -235,7 +264,15 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 			+ "spooled to disk before being rejected"
 		);
 		sizeLimit!.MaxRequestBodySize.Should().Be(
-			AppEnvironment.Instance.UPLOAD_MAX_BYTES + 8192
+			AppEnvironment.Instance.UPLOAD_MAX_BYTES + UploadLimits.MultipartHeaderHeadroomBytes
+		);
+
+		// Pin the ordering invariant the two headroom constants depend on: the
+		// endpoint-level transport limit (this attribute) must trip before the
+		// shared FormOptions.MultipartBodyLengthLimit, or an oversize upload on
+		// this endpoint would 400 instead of 413.
+		sizeLimit.MaxRequestBodySize.Should().BeLessThan(
+			AppEnvironment.Instance.UPLOAD_MAX_BYTES + UploadLimits.FormOptionsHeadroomBytes
 		);
 	}
 

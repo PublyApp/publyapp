@@ -51,7 +51,7 @@ public class CreateTenantAsStaffBody {
 	}
 
 	public string? GetLogoUrl() {
-		return LogoUrl.GetValueAsStringOrNull();
+		return NormalizeClearableString(LogoUrl.GetValueAsStringOrNull());
 	}
 
 	public string? GetLegalName() {
@@ -171,7 +171,7 @@ public partial class CreateTenantAsStaffBodyValidator : AbstractValidator<Create
 			.MustBeNullableStringWithMaxLength("Description", 1024);
 
 		RuleFor(x => x.WebsiteUrl)
-			.MustBeNullableUrl("WebsiteUrl");
+			.MustBeNullableClearableUrl("WebsiteUrl");
 
 		RuleFor(x => x.BillingEmail)
 			.MustBeNullableEmailWithMaxLength("BillingEmail", 320);

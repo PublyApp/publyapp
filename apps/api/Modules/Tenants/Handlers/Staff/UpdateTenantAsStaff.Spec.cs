@@ -162,6 +162,43 @@ public sealed class UpdateTenantAsStaffSpec
 
 	[Fact]
 	public async Task
+	ItShouldClearLogoUrlWhenSetToEmptyString() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantAsync("Tenant Logo Empty String Clear");
+
+		using var setResponse =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				seededTenant.TenantId,
+				new { logoUrl = "https://example.com/logo.png" }
+			);
+		setResponse.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+
+		// Empty string must clear logoUrl the same way it clears websiteUrl/
+		// billingEmail/legalName — not 422, and not persisted as a literal "".
+		using var clearResponse =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				seededTenant.TenantId,
+				new { logoUrl = "" }
+			);
+
+		clearResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await clearResponse.Content
+			.ReadFromJsonAsync<GetTenantAsStaffResult>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+		result.LogoUrl.Should().BeNull();
+	}
+
+	[Fact]
+	public async Task
 	ItShouldSetLogoUrlWhenStringProvided() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();

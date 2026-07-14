@@ -276,6 +276,37 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 			_ = result.AccountLevel.Should().Be("Admin");
 		}
 
+		[Fact]
+		public async Task
+		ItShouldReturnUnprocessableEntityForEmptyAvatarUrl() {
+			string token =
+				await _authClient.LoginAsStaffAdminAsync();
+
+			string userId = await GetStaffUserIdByEmailAsync(
+				_http,
+				token,
+				TestConstants.StaffUserEmail
+			);
+
+			string url = GetUrl(userId);
+			HttpRequestMessage request = new HttpRequestMessage(
+				HttpMethod.Patch, url
+			).WithSessionToken(token);
+
+			request.Content = JsonContent.Create(
+				new { avatarUrl = "" }
+			);
+
+			using HttpResponseMessage response =
+				await _http.SendAsync(request);
+
+			// avatarUrl has no "blank means clear" semantics on this endpoint —
+			// unlike websiteUrl on the tenant org profile, an empty string must
+			// still 422 rather than silently persisting "" as the avatar URL.
+			_ = response.StatusCode.Should()
+				.Be(HttpStatusCode.UnprocessableEntity);
+		}
+
 		// -- Helper methods --
 
 		private static async Task<string> GetStaffUserIdByEmailAsync(

@@ -136,6 +136,46 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 
 	[Fact]
 	public async Task
+	ItShouldTreatABarePercentSearchAsALiteralCharacterNotAWildcard() {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var acmeTenantId = await TenantTestHelper.GetTenantIdByNameAsync(
+			_http,
+			staffToken,
+			SeedConstants.Tenants.AcmeName
+		);
+		var userId = await GetUserIdByEmailAsync(
+			staffToken,
+			acmeTenantId,
+			SeedConstants.CrossTenant.AliceEmail
+		);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetUrl(
+				userId,
+				limit: 10,
+				sortId: "tenant_name",
+				sortOrder: "asc",
+				q: "%"
+			)
+		).WithSessionToken(staffToken);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var result = await response.Content
+			.ReadFromJsonAsync<FindCompaniesResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+
+		// Alice's companies (Acme, TechStart) contain no literal '%' in name or
+		// code. If '%' were interpolated unescaped into the ILIKE pattern, it
+		// would collapse to a wildcard matching both; escaped, neither matches.
+		result.Data.Should().BeEmpty();
+	}
+
+	[Fact]
+	public async Task
 	ItShouldReturnEmptyCompanyPageWhenTenantUserHasNoLiveCompanies() {
 		var staffToken = await _authClient.LoginAsStaffAdminAsync();
 		var techStartTenantId =

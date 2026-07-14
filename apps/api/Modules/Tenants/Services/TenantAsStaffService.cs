@@ -395,10 +395,10 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			// - Name: substring match (ILIKE %q%) backed by pg_trgm index on tenants.name.
 			// - Code: prefix match only (StartsWith) so we can rely on the existing btree index
 			//   and avoid adding a second (GIN) index on the same column as the unique index.
-			var pattern = $"%{search}%";
+			var pattern = $"%{LikePatternUtils.EscapeLikePattern(search)}%";
 			var codePrefix = search.ToLowerInvariant();
 			baseQuery = baseQuery.Where(t =>
-				EF.Functions.ILike(t.Name, pattern) ||
+				EF.Functions.ILike(t.Name, pattern, LikePatternUtils.LikeEscapeChar) ||
 				t.Code.StartsWith(codePrefix)
 			);
 		}

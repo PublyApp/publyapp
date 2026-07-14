@@ -30,7 +30,9 @@ public static class UploadEndpointsForStaff {
 			// A small buffer above UPLOAD_MAX_BYTES keeps this permissive
 			// relative to the handler's own authoritative size check.
 			.WithMetadata(
-				new RequestSizeLimitAttribute(AppEnvironment.Instance.UPLOAD_MAX_BYTES + 8192)
+				new RequestSizeLimitAttribute(
+					AppEnvironment.Instance.UPLOAD_MAX_BYTES + UploadLimits.MultipartHeaderHeadroomBytes
+				)
 			)
 			.WithPermission([
 				AppPermissions.Staff.Uploads.CREATE

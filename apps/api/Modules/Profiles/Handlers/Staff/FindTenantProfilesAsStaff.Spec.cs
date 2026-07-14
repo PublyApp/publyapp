@@ -175,6 +175,33 @@ public sealed class FindTenantProfilesAsStaffSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldTreatABarePercentSearchAsALiteralCharacterNotAWildcard() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await SeedFreshTenantAsync("Profiles Percent Search");
+		var marker = Guid.NewGuid().ToString("N")[..8];
+		var withPercentId = await SeedTenantProfileWithNameAsync(tenantId, $"Has%Percent{marker}");
+		var withoutPercentId = await SeedTenantProfileWithNameAsync(tenantId, $"NoPercentAtAll{marker}");
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetUrl(tenantId.ToString(), $"limit=100&q={Uri.EscapeDataString("%")}")
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content.ReadFromJsonAsync<FindTenantProfilesResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+
+		// If '%' were interpolated unescaped into the ILIKE pattern, "%%%"
+		// collapses to a bare wildcard matching every row. Escaped, only the
+		// profile whose name literally contains '%' may match.
+		result.Data.Should().Contain(p => p.Id == withPercentId);
+		result.Data.Should().NotContain(p => p.Id == withoutPercentId);
+	}
+
+	[Fact]
 	public async Task ItShouldReturnUnprocessableEntityForInvalidIsDefaultValue() {
 		var token = await _authClient.LoginAsStaffAdminAsync();
 		var tenantId = await GetTenantIdAsync();
@@ -211,6 +238,17 @@ public sealed class FindTenantProfilesAsStaffSpec : IClassFixture<ApiFixture> {
 		await dbContext.SaveChangesAsync();
 
 		return tenant.GetRequiredId();
+	}
+
+	private async Task<Guid> SeedTenantProfileWithNameAsync(Guid tenantId, string name) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var profile = Profile.CreateTenantProfile(tenantId, name, isDefault: false);
+		await dbContext.Profile.AddAsync(profile);
+		await dbContext.SaveChangesAsync();
+
+		return profile.GetRequiredId();
 	}
 
 	private async Task<Guid> SeedTenantProfileAsync(

@@ -168,8 +168,47 @@ public static class JsonElementRules {
 					return false;
 				}
 				var url = e.Value.GetString();
-				// Whitespace-only is treated as a clear, matching the handler's
-				// NormalizeClearableString mapping to null — not a validation failure.
+				if (string.IsNullOrWhiteSpace(url)) {
+					return false;
+				}
+				if (!Uri.TryCreate(
+					url, UriKind.Absolute, out var result
+				)) {
+					return false;
+				}
+				return result.Scheme == Uri.UriSchemeHttp
+					|| result.Scheme == Uri.UriSchemeHttps;
+			})
+			.WithMessage(
+				$"{fieldName} must be a valid URL"
+			);
+	}
+
+	/// <summary>
+	/// Validates a nullable JsonElement? URL field where blank/whitespace-only
+	/// input is treated as a clear (valid), for fields whose handler getter
+	/// normalizes blank to null before persisting (e.g. NormalizeClearableString).
+	/// Do not use this for fields whose getter does no such normalization —
+	/// use <see cref="MustBeNullableUrl{T}"/> there instead.
+	/// </summary>
+	public static IRuleBuilderOptions<T, JsonElement?>
+		MustBeNullableClearableUrl<T>(
+			this IRuleBuilder<T, JsonElement?> ruleBuilder,
+			string fieldName
+	) {
+		return ruleBuilder
+			.Must(e => {
+				if (e is null) {
+					return true;
+				}
+				var kind = e.Value.ValueKind;
+				if (kind is JsonValueKind.Null) {
+					return true;
+				}
+				if (kind != JsonValueKind.String) {
+					return false;
+				}
+				var url = e.Value.GetString();
 				if (string.IsNullOrWhiteSpace(url)) {
 					return true;
 				}
@@ -208,8 +247,47 @@ public static class JsonElementRules {
 					return false;
 				}
 				var url = e.GetString();
-				// Whitespace-only is treated as a clear, matching the handler's
-				// NormalizeClearableString mapping to null — not a validation failure.
+				if (string.IsNullOrWhiteSpace(url)) {
+					return false;
+				}
+				if (!Uri.TryCreate(
+					url, UriKind.Absolute, out var result
+				)) {
+					return false;
+				}
+				return result.Scheme == Uri.UriSchemeHttp
+					|| result.Scheme == Uri.UriSchemeHttps;
+			})
+			.WithMessage(
+				$"{fieldName} must be a string, null, or omitted"
+			);
+	}
+
+	/// <summary>
+	/// Validates a non-nullable JsonElement URL field for PatchField pattern where
+	/// blank/whitespace-only input is treated as a clear (valid), for fields whose
+	/// handler getter normalizes blank to null before persisting (e.g.
+	/// NormalizeClearableString). Do not use this for fields whose getter does no
+	/// such normalization — use <see cref="MustBePatchFieldUrl{T}"/> there instead.
+	/// </summary>
+	public static IRuleBuilderOptions<T, JsonElement>
+		MustBePatchFieldClearableUrl<T>(
+			this IRuleBuilder<T, JsonElement> ruleBuilder,
+			string fieldName
+	) {
+		return ruleBuilder
+			.Must(e => {
+				var kind = e.ValueKind;
+				if (kind is JsonValueKind.Undefined) {
+					return true;
+				}
+				if (kind is JsonValueKind.Null) {
+					return true;
+				}
+				if (kind is not JsonValueKind.String) {
+					return false;
+				}
+				var url = e.GetString();
 				if (string.IsNullOrWhiteSpace(url)) {
 					return true;
 				}

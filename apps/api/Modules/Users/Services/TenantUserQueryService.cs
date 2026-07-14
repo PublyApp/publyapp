@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Users.Services;
@@ -96,26 +97,10 @@ public interface ITenantUserQueryService {
 
 [Service(ServiceLifetime.Scoped)]
 public class TenantUserQueryService : ITenantUserQueryService {
-	// Passed as the ILIKE ESCAPE argument so an escaped '%'/'_' in the pattern below
-	// is matched literally instead of as a wildcard.
-	private const string LikeEscapeChar = "\\";
-
 	private readonly AppDbContext _dbContext;
 
 	public TenantUserQueryService(AppDbContext dbContext) {
 		_dbContext = dbContext;
-	}
-
-	// Neutralizes ILIKE wildcard metacharacters in caller-supplied search text so
-	// e.g. a literal "%" or "_" in the query only matches that literal character,
-	// not "any run of characters" / "any single character". Must be paired with
-	// EF.Functions.ILike(col, pattern, LikeEscapeChar) — the escape char is what
-	// makes the backslashes inserted here significant to Postgres.
-	private static string EscapeLikePattern(string value) {
-		return value
-			.Replace("\\", "\\\\", StringComparison.Ordinal)
-			.Replace("%", "\\%", StringComparison.Ordinal)
-			.Replace("_", "\\_", StringComparison.Ordinal);
 	}
 
 	private static int GetTenantUserStatusRank(
@@ -436,11 +421,11 @@ public class TenantUserQueryService : ITenantUserQueryService {
 		// beyond an actual substring (see EscapeLikePattern).
 		if (args.Filters?.Search is { } search) {
 			var effectiveQ = search.Trim();
-			var pattern = $"%{EscapeLikePattern(effectiveQ)}%";
+			var pattern = $"%{LikePatternUtils.EscapeLikePattern(effectiveQ)}%";
 			query = query.Where(ua =>
-				(ua.User.FirstName != null && EF.Functions.ILike(ua.User.FirstName, pattern, LikeEscapeChar)) ||
-				(ua.User.LastName != null && EF.Functions.ILike(ua.User.LastName, pattern, LikeEscapeChar)) ||
-				EF.Functions.ILike(ua.User.Email, pattern, LikeEscapeChar)
+				(ua.User.FirstName != null && EF.Functions.ILike(ua.User.FirstName, pattern, LikePatternUtils.LikeEscapeChar)) ||
+				(ua.User.LastName != null && EF.Functions.ILike(ua.User.LastName, pattern, LikePatternUtils.LikeEscapeChar)) ||
+				EF.Functions.ILike(ua.User.Email, pattern, LikePatternUtils.LikeEscapeChar)
 			);
 		}
 
@@ -603,11 +588,11 @@ public class TenantUserQueryService : ITenantUserQueryService {
 		ExportTenantUsersArgs args
 	) {
 		if (args.Search is { } search) {
-			var pattern = $"%{EscapeLikePattern(search)}%";
+			var pattern = $"%{LikePatternUtils.EscapeLikePattern(search)}%";
 			query = query.Where(ua =>
-				(ua.User.FirstName != null && EF.Functions.ILike(ua.User.FirstName, pattern, LikeEscapeChar)) ||
-				(ua.User.LastName != null && EF.Functions.ILike(ua.User.LastName, pattern, LikeEscapeChar)) ||
-				EF.Functions.ILike(ua.User.Email, pattern, LikeEscapeChar)
+				(ua.User.FirstName != null && EF.Functions.ILike(ua.User.FirstName, pattern, LikePatternUtils.LikeEscapeChar)) ||
+				(ua.User.LastName != null && EF.Functions.ILike(ua.User.LastName, pattern, LikePatternUtils.LikeEscapeChar)) ||
+				EF.Functions.ILike(ua.User.Email, pattern, LikePatternUtils.LikeEscapeChar)
 			);
 		}
 
