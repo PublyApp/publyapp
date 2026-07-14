@@ -15,8 +15,12 @@ namespace PublyApp.Api.Infrastructure.Messaging.Email;
 public sealed class InvitationEmailOutboxDispatcher : BackgroundService {
 	private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(5);
 	private const int BatchSize = 20;
-	private const int MaxAttempts = 8;
-	private const int MaxBackoffSeconds = 900;
+
+	// Public, not private: exercised directly by
+	// InvitationEmailOutboxDispatcher.Spec.cs to prove retry/backoff/permanent-failure
+	// behavior without depending on ExecuteAsync's poll timing (round-5 API F3, LAW 2).
+	public const int MaxAttempts = 8;
+	public const int MaxBackoffSeconds = 900;
 
 	private readonly IServiceScopeFactory _scopeFactory;
 	private readonly IInvitationEmailOutboxSignal _signal;
@@ -47,7 +51,9 @@ public sealed class InvitationEmailOutboxDispatcher : BackgroundService {
 		}
 	}
 
-	private async Task ProcessBatchAsync(CancellationToken stoppingToken) {
+	// Public: lets specs drive a single batch deterministically instead of racing
+	// ExecuteAsync's poll loop (round-5 API F3, LAW 2).
+	public async Task ProcessBatchAsync(CancellationToken stoppingToken) {
 		using var scope = _scopeFactory.CreateScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
@@ -64,7 +70,10 @@ public sealed class InvitationEmailOutboxDispatcher : BackgroundService {
 		}
 	}
 
-	private async Task SendOneAsync(
+	// Public: lets specs exercise retry/backoff/permanent-failure behavior on a
+	// single row directly, without racing the live background poll loop that also
+	// runs against the shared test database (round-5 API F3, LAW 2).
+	public async Task SendOneAsync(
 		AppDbContext dbContext,
 		IEmailService emailService,
 		InvitationEmailOutbox item,

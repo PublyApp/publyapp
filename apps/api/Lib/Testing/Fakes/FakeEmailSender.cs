@@ -25,6 +25,14 @@ namespace PublyApp.Api.Lib.Testing.Fakes {
 			}
 		}
 
+		/// <summary>
+		/// When set, SendAsync throws instead of recording the request for any
+		/// request this predicate returns true for. Used to prove retry/backoff
+		/// behavior (e.g. InvitationEmailOutboxDispatcher) under a real send failure.
+		/// Reset (set back to null) at the start of tests that use it.
+		/// </summary>
+		public Func<EmailRequest, bool>? ShouldFail { get; set; }
+
 		// This fake completes synchronously after recording the
 		// request; suppress CS1998 instead of adding an artificial
 		// await.
@@ -32,6 +40,10 @@ namespace PublyApp.Api.Lib.Testing.Fakes {
 		public async Task<EmailResult> SendAsync(
 			EmailRequest request
 		) {
+			if (ShouldFail?.Invoke(request) == true) {
+				throw new InvalidOperationException("FakeEmailSender: simulated send failure");
+			}
+
 			_sentEmails.Add(request);
 			return new EmailResult {
 				Success = true,
