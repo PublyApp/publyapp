@@ -2,6 +2,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import ts from 'typescript';
 import { describe, expect, test } from 'vitest';
 
 import enResource from '@org/shared-ts/lib/i18n/locales/en';
@@ -165,43 +166,100 @@ const resolvesInBundle = (key: string, bundle: Record<string, unknown>) =>
 
 // A bare string literal never touches `t()`, so the coverage test above is
 // structurally blind to it — this catches the class of defect that let it
-// (r3-shell-F2). It scans for the shapes hardcoded chrome copy actually
-// takes: a literal (or a ternary of two literals) passed straight to
-// `aria-label`/`placeholder`/`title`, a `label:` object-literal property, and
-// a ternary assigned to a variable that's used as one (the `const label =
-// cond ? 'A' : 'B'` shape `t()` calls never appear next to).
-// Language self-names (LOCALE_LABELS-style 'English'/'Français') are the one
-// legitimate never-translated case: a language's own name isn't localized.
+// (r3-shell-F2). Language self-names (LOCALE_LABELS-style
+// 'English'/'Français') are the one legitimate never-translated case: a
+// language's own name isn't localized.
 const LOCALE_SELF_NAME_ALLOWLIST = new Set(['English', 'Français']);
 
-const JSX_ATTR_EXPRESSION_PATTERN =
-	/\b(aria-label|placeholder|title)=\{([^{}]+)\}/g;
-// r4-tests-F1: `aria-label="Delete account"` — a plain, unbraced JSX string
-// attribute — is a different token shape than `aria-label={...}` above and
-// was invisible to it.
-const JSX_ATTR_STRING_LITERAL_PATTERN =
-	/\b(aria-label|placeholder|title)=(["'])([A-Z][^"']*)\2/g;
-const BARE_STRING_LITERAL_PATTERN = /^(['"])([A-Z][^'"]*)\1$/;
-const TERNARY_OF_STRING_LITERALS_PATTERN =
-	/^[^?]+\?\s*(['"])([A-Z][^'"]*)\1\s*:\s*(['"])([A-Z][^'"]*)\3$/;
-const TOP_LEVEL_TERNARY_ASSIGNMENT_PATTERN =
-	/\b(?:const|let)\s+\w+\s*(?::[^=\n]+)?=\s*[^;\n?]*\?\s*(['"])([A-Z][^'"]*)\1\s*:\s*(['"])([A-Z][^'"]*)\3/g;
-const LABEL_PROPERTY_LITERAL_PATTERN = /\blabel:\s*(['"])([A-Z][^'"]*)\1/g;
+// r5-tests-F2: the round-4/round-3 detector was a closed regex grammar — a
+// fixed native-tag allowlist for JSX text (`span|p|h1-6|button|label|dt|dd|
+// td|th|li`, one line only) and a fixed attribute-name allowlist
+// (`aria-label|placeholder|title`). `<Button>Delete account</Button>` (a
+// custom component, not in the tag list), `<p>\nDelete account\n</p>`
+// (multiline text, excluded by the `[^<{}\n]` character class),
+// `description="Delete account"` (an attribute name outside the fixed
+// three), and `{'Delete account'}` (a bare JSX expression child, no
+// attribute at all) all produced zero findings under the old grammar. This
+// rewrite walks the real TypeScript/JSX AST instead of re-deriving one shape
+// at a time from regex: every `JsxText` child of every element (native or
+// custom, any tag, any line count) and every JSX attribute's string/ternary
+// value are visited structurally, so no tag name or attribute name needs to
+// be enumerated up front. `t(...)`-wrapped or already-computed values (an
+// identifier, a call expression, a template literal with interpolation)
+// never match — only a literal or a two-literal ternary sitting directly in
+// copy position does.
+const isProseLikeLiteral = (value: string): boolean => {
+	const trimmed = value.trim();
+	if (trimmed.length < 2 || LOCALE_SELF_NAME_ALLOWLIST.has(trimmed)) {
+		return false;
+	}
+	if (!/^[A-Z]/.test(trimmed) || !/[a-z]/.test(trimmed)) {
+		// Requires an initial capital AND at least one lowercase letter, so
+		// all-caps technical constants/enum values (`'POST'`, `'UTC'`) and
+		// symbol-only strings don't false-positive — real UI copy is never
+		// all-caps in this codebase's i18n bundles.
+		return false;
+	}
+	// A single capitalized word is ambiguous (could be an enum-like value
+	// such as `'Bearer'` or `'Active'`); only flag it when it reads as a
+	// sentence/phrase (contains whitespace) or is long enough that a
+	// single-word technical constant is implausible.
+	return /\s/.test(trimmed) || trimmed.length > 15;
+};
 
-// r4-shell-F2: three live shapes the original detector's grammar could not
-// see at all — a destructured parameter's default value (`placeholder =
-// 'Select…'`), a `??`/`||` fallback feeding a display string (`normalizeString(
-// item.name) ?? 'Unnamed profile'`), and plain JSX text that is a tag's
-// entire content (`<span>Unnamed profile</span>`) rather than a `{}` braced
-// expression. Each requires its own conservative shape to avoid flagging
-// ordinary non-copy defaults (`enabled = false`, `variant = 'outline'`) —
-// scoped to a capitalized, multi-character quoted literal.
-const DEFAULT_PARAM_LITERAL_PATTERN =
-	/\b\w+\s*=\s*(['"])([A-Z][^'"]{1,80})\1\s*[,}]/g;
-const NULLISH_OR_FALLBACK_LITERAL_PATTERN =
-	/(?:\?\?|\|\|)\s*(['"])([A-Z][^'"]{1,80})\1/g;
-const JSX_SOLE_TEXT_CONTENT_PATTERN =
-	/<(span|p|h[1-6]|button|label|dt|dd|td|th|li)\b[^>]*>([A-Z][^<{}\n]{1,80})<\/\1>/g;
+// r5-tests-F2: attribute names that are structurally never user-visible copy
+// (styling/wiring/enum-valued props) are exempted regardless of how
+// prose-like their string value looks, so `variant="Outline"`-shaped typos
+// in enum props don't become permanent false positives the suite has to
+// suppress one-by-one. Everything else — including component-specific copy
+// props this list has never heard of (`description`, `helperText`,
+// `emptyText`, ...) — is evaluated as a copy candidate.
+const NEVER_COPY_ATTRIBUTE_NAMES = new Set([
+	'className',
+	'id',
+	'key',
+	'ref',
+	'name',
+	'type',
+	'role',
+	'variant',
+	'size',
+	'as',
+	'to',
+	'href',
+	'path',
+	'icon',
+	'color',
+	'align',
+	'side',
+	'sideOffset',
+	'direction',
+	'orientation',
+	'value',
+	'defaultValue',
+	'min',
+	'max',
+	'step',
+	'pattern',
+	'autoComplete',
+	'rel',
+	'target',
+	'method',
+	'htmlFor',
+	'style',
+	'src',
+	'srcSet',
+	'sizes',
+	'width',
+	'height',
+	'viewBox',
+	'fill',
+	'stroke',
+	'xmlns',
+	'data-testid',
+	'data-rail-item',
+	'data-slot',
+]);
 
 // An opt-out comment on the line directly above the offending line, mirroring
 // check-design-system.mjs's `design-system-ignore` convention — requires a
@@ -223,87 +281,147 @@ const isI18nGuardSuppressed = (
 	);
 };
 
+// Two prose-literal string values are eligible findings: a bare string
+// literal, or a ternary whose both branches are string literals (the
+// `cond ? 'A' : 'B'` shape `t()` calls never sit next to). Anything else —
+// an identifier, a `t(...)` call, a template literal with interpolation, a
+// ternary with a non-literal branch — is presumed already i18n-aware or
+// non-copy, and is left alone.
+const collectProseLiteralValues = (expression: ts.Expression): string[] => {
+	if (ts.isStringLiteralLike(expression)) {
+		return isProseLikeLiteral(expression.text) ? [expression.text] : [];
+	}
+
+	if (ts.isConditionalExpression(expression)) {
+		const whenTrue = collectProseLiteralValues(expression.whenTrue);
+		const whenFalse = collectProseLiteralValues(expression.whenFalse);
+		if (
+			ts.isStringLiteralLike(expression.whenTrue) &&
+			ts.isStringLiteralLike(expression.whenFalse) &&
+			(whenTrue.length > 0 || whenFalse.length > 0)
+		) {
+			return [...whenTrue, ...whenFalse];
+		}
+	}
+
+	return [];
+};
+
 const findHardcodedUiLiterals = (
 	source: string,
 	relativePath: string,
 ): string[] => {
 	const findings: string[] = [];
 	const lines = source.split('\n');
-	const lineNumberAt = (index: number): number =>
-		source.slice(0, index).split('\n').length;
 
-	for (const match of source.matchAll(DEFAULT_PARAM_LITERAL_PATTERN)) {
-		if (
-			!LOCALE_SELF_NAME_ALLOWLIST.has(match[2]) &&
-			!isI18nGuardSuppressed(lines, lineNumberAt(match.index))
+	const sourceFile = ts.createSourceFile(
+		relativePath,
+		source,
+		ts.ScriptTarget.Latest,
+		true,
+		relativePath.endsWith('.tsx') || !relativePath.endsWith('.ts')
+			? ts.ScriptKind.TSX
+			: ts.ScriptKind.TS,
+	);
+
+	const lineOf = (pos: number): number =>
+		sourceFile.getLineAndCharacterOfPosition(pos).line + 1;
+
+	const report = (node: ts.Node, text: string): void => {
+		const lineNumber = lineOf(node.getStart(sourceFile));
+		if (isI18nGuardSuppressed(lines, lineNumber)) {
+			return;
+		}
+		findings.push(`${relativePath}:${lineNumber}: ${text}`);
+	};
+
+	const visit = (node: ts.Node): void => {
+		if (ts.isJsxText(node)) {
+			const text = node.text.replace(/\s+/g, ' ').trim();
+			if (
+				text.length > 0 &&
+				/[a-zA-Z]/.test(text) &&
+				isProseLikeLiteral(text)
+			) {
+				report(node, `JSX text "${text}"`);
+			}
+		} else if (
+			ts.isJsxExpression(node) &&
+			node.expression &&
+			!ts.isJsxAttribute(node.parent)
 		) {
-			findings.push(`${relativePath}: ${match[0].trim()}`);
-		}
-	}
-
-	for (const match of source.matchAll(NULLISH_OR_FALLBACK_LITERAL_PATTERN)) {
-		if (
-			!LOCALE_SELF_NAME_ALLOWLIST.has(match[2]) &&
-			!isI18nGuardSuppressed(lines, lineNumberAt(match.index))
-		) {
-			findings.push(`${relativePath}: ${match[0]}`);
-		}
-	}
-
-	for (const match of source.matchAll(JSX_SOLE_TEXT_CONTENT_PATTERN)) {
-		if (
-			!LOCALE_SELF_NAME_ALLOWLIST.has(match[2].trim()) &&
-			!isI18nGuardSuppressed(lines, lineNumberAt(match.index))
-		) {
-			findings.push(`${relativePath}: ${match[0]}`);
-		}
-	}
-
-	for (const match of source.matchAll(JSX_ATTR_EXPRESSION_PATTERN)) {
-		const [, attrName, expression] = match;
-		const trimmed = expression.trim();
-
-		const bare = trimmed.match(BARE_STRING_LITERAL_PATTERN);
-		if (bare && !LOCALE_SELF_NAME_ALLOWLIST.has(bare[2])) {
-			findings.push(`${relativePath}: ${attrName}={${bare[0]}}`);
-			continue;
-		}
-
-		const ternary = trimmed.match(TERNARY_OF_STRING_LITERALS_PATTERN);
-		if (ternary) {
-			for (const value of [ternary[2], ternary[4]]) {
-				if (!LOCALE_SELF_NAME_ALLOWLIST.has(value)) {
-					findings.push(`${relativePath}: ${attrName}={${trimmed}}`);
-					break;
+			// A JSX attribute's `={...}` value is handled below via
+			// JsxAttribute so it can see the attribute name; this branch only
+			// fires for a bare expression sitting directly in element/fragment
+			// content (`{'Delete account'}`).
+			for (const value of collectProseLiteralValues(node.expression)) {
+				report(node, `JSX expression child {${JSON.stringify(value)}}`);
+			}
+		} else if (ts.isJsxAttribute(node)) {
+			const attrName = node.name.getText(sourceFile);
+			if (!NEVER_COPY_ATTRIBUTE_NAMES.has(attrName)) {
+				const initializer = node.initializer;
+				if (initializer && ts.isStringLiteral(initializer)) {
+					if (isProseLikeLiteral(initializer.text)) {
+						report(node, `${attrName}="${initializer.text}"`);
+					}
+				} else if (
+					initializer &&
+					ts.isJsxExpression(initializer) &&
+					initializer.expression
+				) {
+					for (const value of collectProseLiteralValues(
+						initializer.expression,
+					)) {
+						report(node, `${attrName}={"${value}"}`);
+					}
 				}
 			}
-		}
-	}
-
-	for (const match of source.matchAll(JSX_ATTR_STRING_LITERAL_PATTERN)) {
-		const [, attrName, , value] = match;
-		if (
-			!LOCALE_SELF_NAME_ALLOWLIST.has(value) &&
-			!isI18nGuardSuppressed(lines, lineNumberAt(match.index))
+		} else if (
+			ts.isPropertyAssignment(node) &&
+			ts.isIdentifier(node.name) &&
+			node.name.text === 'label'
 		) {
-			findings.push(`${relativePath}: ${attrName}="${value}"`);
-		}
-	}
-
-	for (const match of source.matchAll(TOP_LEVEL_TERNARY_ASSIGNMENT_PATTERN)) {
-		for (const value of [match[2], match[4]]) {
-			if (!LOCALE_SELF_NAME_ALLOWLIST.has(value)) {
-				findings.push(`${relativePath}: ${match[0].trim()}`);
-				break;
+			for (const value of collectProseLiteralValues(node.initializer)) {
+				report(node, `label: "${value}"`);
+			}
+		} else if (
+			(ts.isBinaryExpression(node) &&
+				(node.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken ||
+					node.operatorToken.kind === ts.SyntaxKind.BarBarToken)) ||
+			ts.isParameter(node)
+		) {
+			// `??`/`||` fallback feeding a display string, and a destructured
+			// parameter's default value (`placeholder = 'Select…'`) — both
+			// r4-shell-F2 shapes, now handled by the same literal/ternary
+			// collector instead of their own bespoke regex.
+			let candidate: ts.Expression | undefined;
+			if (ts.isParameter(node)) {
+				candidate = node.initializer;
+			} else if (ts.isBinaryExpression(node)) {
+				candidate = node.right;
+			}
+			if (candidate) {
+				for (const value of collectProseLiteralValues(candidate)) {
+					report(node, `"${value}"`);
+				}
+			}
+		} else if (
+			ts.isVariableDeclaration(node) &&
+			node.initializer &&
+			ts.isConditionalExpression(node.initializer)
+		) {
+			// `const label = cond ? 'A' : 'B'` — a ternary assigned straight
+			// to a variable, never passed to `t()` at the assignment site.
+			for (const value of collectProseLiteralValues(node.initializer)) {
+				report(node, `"${value}"`);
 			}
 		}
-	}
 
-	for (const match of source.matchAll(LABEL_PROPERTY_LITERAL_PATTERN)) {
-		if (!LOCALE_SELF_NAME_ALLOWLIST.has(match[2])) {
-			findings.push(`${relativePath}: ${match[0]}`);
-		}
-	}
+		ts.forEachChild(node, visit);
+	};
+
+	visit(sourceFile);
 
 	return findings;
 };
@@ -320,11 +438,54 @@ describe('i18n key coverage', () => {
 		);
 
 		expect(findings).toContainEqual(
-			expect.stringContaining('<p>Password reset sent</p>'),
+			expect.stringContaining('Password reset sent'),
 		);
 		expect(findings).toContainEqual(
 			expect.stringContaining('aria-label="Delete account"'),
 		);
+	});
+
+	// r5-tests-F2: four evasions different in shape from the round-4 canary
+	// above — a custom (non-native) component tag, JSX text wrapped across
+	// multiple lines, a copy-bearing attribute name outside the old
+	// aria-label/placeholder/title allowlist, and a bare string literal sitting
+	// directly as a JSX expression child with no attribute at all. The old
+	// regex grammar found none of these; each is planted here, proven caught,
+	// and this canary now guards the class instead of the one cited example.
+	test('findHardcodedUiLiterals catches a custom component tag, multiline JSX text, an arbitrary copy prop, and a bare expression child (r5-tests-F2 canary)', () => {
+		const findings = findHardcodedUiLiterals(
+			[
+				'<Button>Delete account</Button>',
+				'<p>\n\tPassword reset sent\n</p>',
+				'<Empty description="No invitations yet" />',
+				"<span>{'Delete account'}</span>",
+			].join('\n'),
+			'canary.tsx',
+		);
+
+		expect(findings).toContainEqual(expect.stringContaining('Delete account'));
+		expect(findings).toContainEqual(
+			expect.stringContaining('Password reset sent'),
+		);
+		expect(findings).toContainEqual(
+			expect.stringContaining('description="No invitations yet"'),
+		);
+		expect(
+			findings.some((finding) => finding.includes('JSX expression child')),
+		).toBe(true);
+	});
+
+	test('findHardcodedUiLiterals does not flag structural/enum props, t() calls, or the locale self-name allowlist', () => {
+		const findings = findHardcodedUiLiterals(
+			[
+				'<Button variant="Outline" type="Submit" className="MyClass">{t(\'delete-account\')}</Button>',
+				"<span aria-label={t('delete-account')}>{t('delete-account')}</span>",
+				"const label = locale === 'fr' ? 'Français' : 'English';",
+			].join('\n'),
+			'canary.tsx',
+		);
+
+		expect(findings).toEqual([]);
 	});
 
 	test('every t()/i18nKey literal under src resolves in both common bundles', async () => {
