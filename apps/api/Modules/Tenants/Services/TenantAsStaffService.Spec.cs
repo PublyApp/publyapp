@@ -13,6 +13,7 @@ using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Modules.Tenants.Entities;
+using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
 
@@ -216,6 +217,88 @@ public sealed class TenantAsStaffServiceSpec
 		private static bool IsTenantUpdateCommand(string commandText) {
 			return commandText.Contains("UPDATE ", StringComparison.OrdinalIgnoreCase)
 				&& commandText.Contains("tenants", StringComparison.OrdinalIgnoreCase);
+		}
+	}
+
+	// The rule: any path that durably enqueues InvitationEmailOutbox rows must call
+	// _outboxSignal.Notify() so the dispatcher wakes immediately instead of relying
+	// on its poll interval. Replacing Notify() with a no-op left this dependency with
+	// no assertion at all (round-5 W5-VERIFY2 finding #2).
+	[Fact]
+	public async Task
+	ItShouldNotifyTheOutboxSignalAfterCreatingTenantWithInitialUsers() {
+		var connectionString = await GetConnectionStringAsync();
+		var fakeOutboxSignal = new FakeInvitationEmailOutboxSignal();
+
+		await using var serviceDbContext = new AppDbContext(
+			new DbContextOptionsBuilder<AppDbContext>()
+				.UseNpgsql(connectionString)
+				.Options
+		);
+
+		var service = new TenantAsStaffService(
+			serviceDbContext,
+			new TrackingFileStorage(),
+			fakeOutboxSignal,
+			NullLogger<TenantAsStaffService>.Instance
+		);
+
+		var result = await service.CreateTenantWithInitialUsersAsync(
+			new CreateTenantWithInitialUsersArgs(
+				Name: $"Outbox Notify Tenant {Guid.NewGuid():N}",
+				MaxUsers: 10,
+				InitialUsers: [(Email: $"invitee-{Guid.NewGuid():N}@example.com", AccountLevel: AccountLevel.Admin)],
+				InvitedByUserId: (await SeedStaffUserAsync()),
+				Code: null,
+				SeedDefaultProfile: false,
+				LogoUrl: null,
+				LegalName: null,
+				Description: null,
+				WebsiteUrl: null,
+				BillingEmail: null,
+				SupportEmail: null,
+				DefaultLocale: null,
+				Timezone: null,
+				Notes: null
+			)
+		);
+
+		result.Should().BeOfType<CreateTenantWithInitialUsersOutcome.Success>();
+		fakeOutboxSignal.NotifyCallCount.Should().Be(1);
+	}
+
+	private async Task<Guid> SeedStaffUserAsync() {
+		await using var seedScope = _fixture.Factory.Services.CreateAsyncScope();
+		var seedContext = seedScope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var user = new User {
+			Email = $"staff-{Guid.NewGuid():N}@example.com",
+			Password = "unused-hash",
+			FirstName = "Staff",
+			LastName = "User",
+			IsVerified = true,
+			Status = UserStatus.Active,
+		};
+		seedContext.User.Add(user);
+		await seedContext.SaveChangesAsync();
+
+		return user.GetRequiredId();
+	}
+
+	private sealed class FakeInvitationEmailOutboxSignal : IInvitationEmailOutboxSignal {
+		private int _notifyCallCount;
+
+		public int NotifyCallCount {
+			get { return _notifyCallCount; }
+		}
+
+		public void Notify() {
+			_notifyCallCount += 1;
+		}
+
+		public Task WaitAsync(TimeSpan timeout, CancellationToken cancellationToken) {
+			return Task.CompletedTask;
 		}
 	}
 
