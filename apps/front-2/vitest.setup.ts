@@ -1,3 +1,17 @@
+import { configure } from '@testing-library/react';
+
+/**
+ * `waitFor`/`findBy*` default to a 1000ms timeout. Under vitest's file-level
+ * parallelism (up to CPU-core-many worker processes contending for the host),
+ * that budget is tight enough to flake on ordinary async assertions — not
+ * just ones rendering unusually large fixtures — once enough other test
+ * files are running concurrently (see W6-FLAKE). This raises the shared
+ * budget suite-wide instead of patching individual call sites: a genuine
+ * regression still fails the assertion, just with more headroom for a
+ * still-resolving re-render to catch up under load.
+ */
+configure({ asyncUtilTimeout: 25000 });
+
 /**
  * `DataTable` derives its responsive breakpoints from `window.matchMedia`
  * (review-r3-shell.md F7), not from `window.innerWidth` + a raw `resize`
