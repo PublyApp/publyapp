@@ -71,17 +71,26 @@ const CHECKS: PlaceholderCheck[] = [
 // UX convention rather than a fabricated identity.
 const DATA_HONESTY_SUPPRESSION_PREFIX = 'data-honesty-ignore:';
 
+// Strips whatever comment syntax the file allows (`//`, `/* */`, `{/* */}`)
+// off the tail of the suppression reason before testing it for substance, so
+// a bare `{/* data-honesty-ignore: */}` — whose only "reason" text is the
+// comment's own closing delimiters — cannot pass as a reasoned suppression.
+const extractSuppressionReason = (rawReason: string): string =>
+	rawReason.replace(/(\*\/\}|\*\/|\}|-->)\s*$/, '').trim();
+
 const isDataHonestySuppressed = (
 	lines: string[],
 	lineNumber: number,
 ): boolean => {
 	const previous = lines[lineNumber - 2] ?? '';
 	const at = previous.indexOf(DATA_HONESTY_SUPPRESSION_PREFIX);
-	return (
-		at !== -1 &&
-		previous.slice(at + DATA_HONESTY_SUPPRESSION_PREFIX.length).trim().length >
-			0
+	if (at === -1) {
+		return false;
+	}
+	const reason = extractSuppressionReason(
+		previous.slice(at + DATA_HONESTY_SUPPRESSION_PREFIX.length),
 	);
+	return (reason.match(/\w/g)?.length ?? 0) >= 3;
 };
 
 const collectSourceFiles = async (dir: string): Promise<string[]> => {
@@ -136,4 +145,46 @@ describe('staff surface data-honesty guard', () => {
 			expect(offenders).toEqual([]);
 		});
 	}
+});
+
+describe('data-honesty-ignore suppression requires a substantive reason', () => {
+	// `isDataHonestySuppressed` only inspects the line directly above the
+	// offending line, so each fixture below is a two-line `lines` array: the
+	// suppression comment, then a stand-in offending line (content is
+	// irrelevant to the function under test — only line[lineNumber - 2] is
+	// read for lineNumber 2).
+	const notSuppressed = (previousLine: string) =>
+		expect(isDataHonestySuppressed([previousLine, "'—'"], 2)).toBe(false);
+
+	test('rejects an empty JSX comment marker (`*/}` is not a reason)', () => {
+		notSuppressed('{/* data-honesty-ignore: */}');
+	});
+
+	test('rejects an empty line-comment marker', () => {
+		notSuppressed('// data-honesty-ignore:');
+	});
+
+	test('rejects an empty block-comment marker with trailing whitespace', () => {
+		notSuppressed('/* data-honesty-ignore:   */');
+	});
+
+	test('rejects a single-character non-reason', () => {
+		notSuppressed('{/* data-honesty-ignore: . */}');
+	});
+
+	test('rejects an empty JSX comment marker with trailing spaces', () => {
+		notSuppressed('{/* data-honesty-ignore: */}   ');
+	});
+
+	test('accepts a genuine reasoned suppression', () => {
+		expect(
+			isDataHonestySuppressed(
+				[
+					"{/* data-honesty-ignore: relative-time formatter's no-value case, not fabricated identity */}",
+					"'—'",
+				],
+				2,
+			),
+		).toBe(true);
+	});
 });

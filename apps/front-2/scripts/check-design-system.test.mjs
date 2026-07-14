@@ -814,6 +814,52 @@ test('a design-system-ignore marker suppresses only when it carries a reason', a
 	assert.equal(await countFor(reasoned), 0, 'a reasoned marker must suppress');
 });
 
+// W5-PROOF: a JSX-comment-form marker whose only "reason" text is the
+// comment's own closing delimiter (`*/}`) must not count as reasoned — the
+// same emptiness bug the data-honesty and i18n-guard suppression conventions
+// shared.
+test('a design-system-ignore marker in JSX-comment form still requires a reason beyond `*/}`', async () => {
+	const countForSource = async (source) => {
+		const root = await makeFixture({ 'e2e/jsx.spec.ts': source });
+		const violations = await scanFront2DesignSystem({
+			baseDir: root,
+			sourceDirs: [path.join(root, 'e2e')],
+		});
+		return violations.filter(
+			(violation) => violation.ruleId === 'no-single-star-route-glob',
+		).length;
+	};
+
+	assert.equal(
+		await countForSource(
+			"{/* design-system-ignore: no-single-star-route-glob */}\nawait page.route('**/staff/tenants*', handler);",
+		),
+		1,
+		'a bare JSX comment marker (only `*/}` after the rule id) must not suppress',
+	);
+	assert.equal(
+		await countForSource(
+			"{/* design-system-ignore: no-single-star-route-glob   */}\nawait page.route('**/staff/tenants*', handler);",
+		),
+		1,
+		'trailing whitespace before the JSX close must not count as a reason',
+	);
+	assert.equal(
+		await countForSource(
+			"{/* design-system-ignore: no-single-star-route-glob . */}\nawait page.route('**/staff/tenants*', handler);",
+		),
+		1,
+		'a single non-word character must not count as a reason',
+	);
+	assert.equal(
+		await countForSource(
+			"{/* design-system-ignore: no-single-star-route-glob — collection-only mock */}\nawait page.route('**/staff/tenants*', handler);",
+		),
+		0,
+		'a genuine reasoned JSX comment marker must still suppress',
+	);
+});
+
 test('F30: flags a single-star glob registered via context.route(), not just page.route()', async () => {
 	const root = await makeFixture({
 		'e2e/context-route.spec.ts':

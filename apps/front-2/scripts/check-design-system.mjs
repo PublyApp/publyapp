@@ -626,11 +626,22 @@ const isKnownHandoffGuardDebt = ({ ruleId, file, source }) => {
 // reason after the rule id so the suppression has to be argued, not just added.
 const SUPPRESSION_PREFIX = 'design-system-ignore:';
 
+// Strips whatever comment syntax the file allows (`//`, `/* */`, `{/* */}`)
+// off the tail of the reason before testing it for substance, so a bare
+// `{/* design-system-ignore: rule-id */}` — whose only "reason" text is the
+// comment's own closing delimiters — cannot pass as a reasoned suppression.
+const extractSuppressionReason = (rawReason) =>
+	rawReason.replace(/(\*\/\}|\*\/|\}|-->)\s*$/, '').trim();
+
 const isInlineSuppressed = (lines, line, ruleId) => {
 	const previous = lines[line - 2] ?? '';
 	const marker = `${SUPPRESSION_PREFIX} ${ruleId}`;
 	const at = previous.indexOf(marker);
-	return at !== -1 && previous.slice(at + marker.length).trim().length > 0;
+	if (at === -1) {
+		return false;
+	}
+	const reason = extractSuppressionReason(previous.slice(at + marker.length));
+	return (reason.match(/\w/g)?.length ?? 0) >= 3;
 };
 
 const recordViolation = (violations, violation, lines) => {

@@ -276,16 +276,26 @@ const NEVER_COPY_ATTRIBUTE_NAMES = new Set([
 // `t()` keyed off `.status`/`.translationKey` elsewhere).
 const I18N_GUARD_SUPPRESSION_PREFIX = 'i18n-guard-ignore:';
 
+// Strips whatever comment syntax the file allows (`//`, `/* */`, `{/* */}`)
+// off the tail of the reason before testing it for substance, so a bare
+// `{/* i18n-guard-ignore: */}` — whose only "reason" text is the comment's
+// own closing delimiters — cannot pass as a reasoned suppression.
+const extractSuppressionReason = (rawReason: string): string =>
+	rawReason.replace(/(\*\/\}|\*\/|\}|-->)\s*$/, '').trim();
+
 const isI18nGuardSuppressed = (
 	lines: string[],
 	lineNumber: number,
 ): boolean => {
 	const previous = lines[lineNumber - 2] ?? '';
 	const at = previous.indexOf(I18N_GUARD_SUPPRESSION_PREFIX);
-	return (
-		at !== -1 &&
-		previous.slice(at + I18N_GUARD_SUPPRESSION_PREFIX.length).trim().length > 0
+	if (at === -1) {
+		return false;
+	}
+	const reason = extractSuppressionReason(
+		previous.slice(at + I18N_GUARD_SUPPRESSION_PREFIX.length),
 	);
+	return (reason.match(/\w/g)?.length ?? 0) >= 3;
 };
 
 // Two prose-literal string values are eligible findings: a bare string
@@ -559,5 +569,44 @@ describe('i18n key coverage', () => {
 		}
 
 		expect(findings, 'hardcoded English literals bypassing t()').toEqual([]);
+	});
+});
+
+describe('i18n-guard-ignore suppression requires a substantive reason', () => {
+	// `isI18nGuardSuppressed` only inspects the line directly above the
+	// offending line, so each fixture below is a two-line `lines` array.
+	const notSuppressed = (previousLine: string) =>
+		expect(isI18nGuardSuppressed([previousLine, "'Delete'"], 2)).toBe(false);
+
+	test('rejects an empty JSX comment marker (`*/}` is not a reason)', () => {
+		notSuppressed('{/* i18n-guard-ignore: */}');
+	});
+
+	test('rejects an empty line-comment marker', () => {
+		notSuppressed('// i18n-guard-ignore:');
+	});
+
+	test('rejects an empty block-comment marker with trailing whitespace', () => {
+		notSuppressed('/* i18n-guard-ignore:   */');
+	});
+
+	test('rejects a single-character non-reason', () => {
+		notSuppressed('{/* i18n-guard-ignore: . */}');
+	});
+
+	test('rejects an empty JSX comment marker with trailing spaces', () => {
+		notSuppressed('{/* i18n-guard-ignore: */}   ');
+	});
+
+	test('accepts a genuine reasoned suppression', () => {
+		expect(
+			isI18nGuardSuppressed(
+				[
+					'{/* i18n-guard-ignore: internal error payload field, never rendered raw */}',
+					"'Delete'",
+				],
+				2,
+			),
+		).toBe(true);
 	});
 });
