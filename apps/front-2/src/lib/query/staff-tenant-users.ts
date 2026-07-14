@@ -124,6 +124,8 @@ export type StaffTenantUserDetails = {
 	displayName: string;
 };
 
+/** @internal Unscoped — `scopedKey('staff', …)` is the only way to build an
+ * invalidation key from this; use `invalidateStaffTenantUsers`. */
 export const STAFF_TENANT_USERS_QUERY_KEY = ['staff-tenants', 'users'] as const;
 export const STAFF_TENANT_USER_DETAILS_QUERY_KEY = [
 	...STAFF_TENANT_USERS_QUERY_KEY,

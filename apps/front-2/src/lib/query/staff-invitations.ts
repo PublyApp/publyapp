@@ -23,6 +23,8 @@ import {
 	scopedKey,
 } from '@org/shared-ts/lib/query/create-hooks';
 
+/** @internal Unscoped — `scopedKey('staff', …)` is the only way to build an
+ * invalidation key from this; use `invalidateStaffInvitations`. */
 export const STAFF_INVITATIONS_QUERY_KEY = ['staff-invitations'] as const;
 
 /** Invalidates the staff-invitations list and every invitation's details

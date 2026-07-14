@@ -488,7 +488,7 @@ describe('invalidateStaffTenantProfiles', () => {
 		void invalidateStaffTenantProfiles({ invalidateQueries } as never);
 
 		expect(invalidateQueries).toHaveBeenCalledWith({
-			queryKey: STAFF_TENANT_PROFILES_QUERY_KEY,
+			queryKey: ['staff', ...STAFF_TENANT_PROFILES_QUERY_KEY],
 		});
 	});
 });

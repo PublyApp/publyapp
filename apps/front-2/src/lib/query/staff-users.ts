@@ -92,6 +92,10 @@ export type StaffUserProfilesUpdateInput = {
 	profileIds: string[];
 };
 
+/** @internal Unscoped — `scopedKey('staff', …)` is the only way to build an
+ * invalidation/removal key from this (review-r3-users-auth.md F11); use
+ * `invalidateStaffUsers` / `removeStaffUserDetails`, never hand-assemble a
+ * prefixed key at a call site. */
 export const STAFF_USERS_QUERY_KEY = ['staff-users'] as const;
 export const STAFF_USER_DETAILS_QUERY_KEY = [
 	...STAFF_USERS_QUERY_KEY,
@@ -108,6 +112,14 @@ export const STAFF_USER_PROFILES_QUERY_KEY = [
 export const invalidateStaffUsers = (queryClient: QueryClient) =>
 	queryClient.invalidateQueries({
 		queryKey: scopedKey('staff', STAFF_USERS_QUERY_KEY),
+	});
+
+/** Removes a single deleted user's details entry from the cache outright
+ * (rather than just invalidating it) so a stale details fetch can't race the
+ * navigation away from its now-404 route (review-r3-users-auth.md F11). */
+export const removeStaffUserDetails = (queryClient: QueryClient) =>
+	queryClient.removeQueries({
+		queryKey: scopedKey('staff', STAFF_USER_DETAILS_QUERY_KEY),
 	});
 
 const normalizeString = (

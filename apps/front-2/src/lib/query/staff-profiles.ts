@@ -20,6 +20,7 @@ import type { StaffGetResponse } from '@org/client-ts/src/staff/permissions/scop
 import {
 	buildStaffMutationOptions,
 	buildStaffQueryOptions,
+	scopedKey,
 } from '@org/shared-ts/lib/query/create-hooks';
 
 export type StaffProfilesQueryVariables = {
@@ -90,14 +91,19 @@ export type StaffAssignedPermissionGroup = {
 	permissions: StaffAssignedPermission[];
 };
 
-export const STAFF_PROFILES_QUERY_KEY = ['staff', 'staff-profiles'] as const;
+/**
+ * @internal Unscoped — `scopedKey('staff', …)` is the only way to build an
+ * invalidation/removal key from this. Don't hand-assemble a prefixed key at
+ * a call site (review-r3-users-auth.md F11); use `invalidateStaffProfiles`.
+ */
+export const STAFF_PROFILES_QUERY_KEY = ['staff-profiles'] as const;
 
 /** Invalidates the staff-profiles list and every profile's details +
- * permission-keys entries — all nest under `STAFF_PROFILES_QUERY_KEY`, which
- * already bakes in the `'staff'` scope prefix (see F16/F19). */
+ * permission-keys entries — all nest under `STAFF_PROFILES_QUERY_KEY` (see
+ * F16/F19). */
 export const invalidateStaffProfiles = (queryClient: QueryClient) =>
 	queryClient.invalidateQueries({
-		queryKey: STAFF_PROFILES_QUERY_KEY,
+		queryKey: scopedKey('staff', STAFF_PROFILES_QUERY_KEY),
 	});
 
 const normalizeString = (value: string | undefined): string | undefined => {
@@ -348,7 +354,7 @@ const staffProfilesQueryOptions = buildStaffQueryOptions<
 	StaffProfilesQueryVariables
 >(
 	{
-		queryKeyFn: () => ['staff-profiles'],
+		queryKeyFn: () => [...STAFF_PROFILES_QUERY_KEY],
 		fetcher: async (client, vars) => {
 			const result = await client.staff.profiles.get({
 				queryParameters: {

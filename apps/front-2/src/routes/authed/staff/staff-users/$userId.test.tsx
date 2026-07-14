@@ -175,6 +175,12 @@ vi.mock('~/lib/query/staff-users', () => ({
 	invalidateStaffUsers: (queryClient: {
 		invalidateQueries: (options: { queryKey: unknown[] }) => Promise<unknown>;
 	}) => queryClient.invalidateQueries({ queryKey: ['staff', 'staff-users'] }),
+	removeStaffUserDetails: (queryClient: {
+		removeQueries: (options: { queryKey: unknown[] }) => unknown;
+	}) =>
+		queryClient.removeQueries({
+			queryKey: ['staff', 'staff-users', 'detail'],
+		}),
 	toAssignedStaffProfiles: mocks.toAssignedStaffProfiles,
 	toStaffUserDetails: mocks.toStaffUserDetails,
 	useStaffUserProfilesQuery: mocks.useStaffUserProfilesQuery,

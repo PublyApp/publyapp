@@ -14,6 +14,8 @@ export type CurrentUser = {
 	displayName: string | null;
 };
 
+/** @internal Build an invalidation/removal key from this via `scopedKey()`
+ * rather than hand-assembling a prefixed array at a call site. */
 export const CURRENT_USER_QUERY_KEY = ['current-user'] as const;
 
 const normalizeString = (value: string | null | undefined): string | null => {

@@ -24,6 +24,7 @@ import type { TenantGetResponse } from '@org/client-ts/src/staff/permissions/sco
 import {
 	buildStaffMutationOptions,
 	buildStaffQueryOptions,
+	scopedKey,
 } from '@org/shared-ts/lib/query/create-hooks';
 
 export type StaffTenantProfilesQueryVariables = {
@@ -131,8 +132,16 @@ export type StaffTenantPermissionGroup = {
 	options: StaffTenantPermissionOption[];
 };
 
+/**
+ * @internal Unscoped — `scopedKey('staff', …)` is the only way to build an
+ * invalidation key from this (review-r3-users-auth.md F11); use
+ * `invalidateStaffTenantProfiles`. Was previously scoped in-place, which
+ * forced every `queryKeyFn` below to `.slice(1)` it back off before handing
+ * it to `buildStaffQueryOptions` (which scopes again) — a second, easy-to-
+ * forget-in-a-new-call-site incompatible shape, same defect class as
+ * `staff-profiles.ts`'s `STAFF_PROFILES_QUERY_KEY`.
+ */
 export const STAFF_TENANT_PROFILES_QUERY_KEY = [
-	'staff',
 	'staff-tenants',
 	'profiles',
 ] as const;
@@ -144,20 +153,18 @@ export const STAFF_TENANT_PROFILE_PERMISSION_KEYS_QUERY_KEY = [
 	...STAFF_TENANT_PROFILES_QUERY_KEY,
 	'permission-keys',
 ] as const;
+/** @internal Unscoped — see `STAFF_TENANT_PROFILES_QUERY_KEY` above. */
 export const STAFF_TENANT_PERMISSION_CATALOG_QUERY_KEY = [
-	'staff',
 	'tenant-permissions',
 	'catalog',
 ] as const;
 
 /** Invalidates the tenant-profiles list, every profile's details entry, and
- * its permission-keys entry — all nest under `STAFF_TENANT_PROFILES_QUERY_KEY`
- * (which already bakes in the `'staff'` scope prefix, unlike most sibling
- * modules' key constants — see F16/F19), so a single prefix invalidation
- * covers all three. */
+ * its permission-keys entry — all nest under `STAFF_TENANT_PROFILES_QUERY_KEY`,
+ * so a single prefix invalidation covers all three. */
 export const invalidateStaffTenantProfiles = (queryClient: QueryClient) =>
 	queryClient.invalidateQueries({
-		queryKey: STAFF_TENANT_PROFILES_QUERY_KEY,
+		queryKey: scopedKey('staff', STAFF_TENANT_PROFILES_QUERY_KEY),
 	});
 
 const normalizeString = (
@@ -454,7 +461,7 @@ const staffTenantProfilesQueryOptions = buildStaffQueryOptions<
 	StaffTenantProfilesQueryVariables
 >(
 	{
-		queryKeyFn: () => [...STAFF_TENANT_PROFILES_QUERY_KEY.slice(1)],
+		queryKeyFn: () => [...STAFF_TENANT_PROFILES_QUERY_KEY],
 		fetcher: async (client, variables) => {
 			const result = await client.staff.tenants
 				.byTenantId(variables.tenantId)
@@ -545,7 +552,7 @@ const staffTenantProfileDetailsQueryOptions = buildStaffQueryOptions<
 	StaffTenantProfileDetailsQueryVariables
 >(
 	{
-		queryKeyFn: () => [...STAFF_TENANT_PROFILE_DETAILS_QUERY_KEY.slice(1)],
+		queryKeyFn: () => [...STAFF_TENANT_PROFILE_DETAILS_QUERY_KEY],
 		fetcher: async (client, variables) => {
 			const result = await client.staff.tenants
 				.byTenantId(variables.tenantId)
@@ -568,9 +575,7 @@ const staffTenantProfilePermissionKeysQueryOptions = buildStaffQueryOptions<
 	StaffTenantProfilePermissionKeysQueryVariables
 >(
 	{
-		queryKeyFn: () => [
-			...STAFF_TENANT_PROFILE_PERMISSION_KEYS_QUERY_KEY.slice(1),
-		],
+		queryKeyFn: () => [...STAFF_TENANT_PROFILE_PERMISSION_KEYS_QUERY_KEY],
 		fetcher: async (client, variables) => {
 			const result = await client.staff.tenants
 				.byTenantId(variables.tenantId)
@@ -595,7 +600,7 @@ const staffTenantPermissionCatalogQueryOptions = buildStaffQueryOptions<
 	StaffTenantPermissionCatalogQueryVariables
 >(
 	{
-		queryKeyFn: () => [...STAFF_TENANT_PERMISSION_CATALOG_QUERY_KEY.slice(1)],
+		queryKeyFn: () => [...STAFF_TENANT_PERMISSION_CATALOG_QUERY_KEY],
 		fetcher: async (client, variables) => {
 			const result = await client.staff.permissions.scopes.tenant.get({
 				queryParameters: {

@@ -24,8 +24,8 @@ import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import {
-	STAFF_USER_DETAILS_QUERY_KEY,
 	invalidateStaffUsers,
+	removeStaffUserDetails,
 	toAssignedStaffProfiles,
 	toStaffUserDetails,
 	useDeleteStaffUserMutation,
@@ -379,9 +379,7 @@ function StaffUserDetailsPage() {
 			logger.warn('Staff user delete navigation failed', error);
 		}
 
-		queryClient.removeQueries({
-			queryKey: ['staff', ...STAFF_USER_DETAILS_QUERY_KEY],
-		});
+		removeStaffUserDetails(queryClient);
 		void invalidateStaffUsers(queryClient);
 	};
 

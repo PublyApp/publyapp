@@ -42,6 +42,8 @@ export type StaffTenantInvitationActionVariables = {
 	invitationId: string;
 };
 
+/** @internal Unscoped — `scopedKey('staff', …)` is the only way to build an
+ * invalidation key from this; use `invalidateStaffTenantInvitations`. */
 export const STAFF_TENANT_INVITATIONS_QUERY_KEY = [
 	'staff-tenants',
 	'invitations',

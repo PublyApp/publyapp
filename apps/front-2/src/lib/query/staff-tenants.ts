@@ -122,6 +122,8 @@ export type CreateStaffTenantInput = {
 	notes?: string;
 };
 
+/** @internal Unscoped — `scopedKey('staff', …)` is the only way to build an
+ * invalidation key from this; use `invalidateAllStaffTenantScopes`. */
 export const STAFF_TENANTS_QUERY_KEY = ['staff-tenants'] as const;
 
 const normalizeString = (
@@ -161,6 +163,8 @@ const normalizeDate = (value: Date | null | undefined): Date | null => {
 const isPositiveSafeInteger = (value: number | undefined): value is number =>
 	typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
 
+/** @internal Unscoped — `scopedKey('staff', …)` is the only way to build an
+ * invalidation key from this; use `invalidateAllStaffTenantScopes`. */
 export const STAFF_TENANT_DETAILS_QUERY_KEY = [
 	'staff-tenants',
 	'detail',
