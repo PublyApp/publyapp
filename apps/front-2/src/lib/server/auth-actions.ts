@@ -75,10 +75,10 @@ const EmailInputSchema = z.object({
 });
 
 /**
- * Backs both the verify-email request screen and the reset-password request
- * screen — there is no dedicated "request reset link" endpoint, the API
- * issues a fresh verification/reset token off the same email-verification
- * flow either way (matches apps/front's reset-password loader).
+ * Backs the verify-email request/resend screen and the signup confirmation
+ * step. The reset-password request screen uses the dedicated
+ * `requestPasswordReset` below — this action only ever sends a
+ * verification email, never a reset link.
  *
  * The underlying API call's outcome is deliberately swallowed (success or
  * 404-user-not-found alike) so a submitted email can never be used to probe
@@ -94,6 +94,35 @@ export const requestEmailVerification = createServerFn({ method: 'POST' })
 
 		try {
 			await client.auth.verifyEmailRequest.post(body);
+		} catch {
+			// Intentionally swallowed — see doc comment above.
+		}
+
+		return { status: 'sent' } as const;
+	});
+
+/**
+ * Backs the reset-password request screen, calling the dedicated
+ * `/auth/request-password-reset` endpoint — distinct from
+ * `requestEmailVerification`, which sends a verification email and cannot
+ * ever mail a reset link to an already-verified account.
+ *
+ * The underlying API call's outcome is deliberately swallowed (success or
+ * 404-user-not-found alike) so a submitted email can never be used to probe
+ * whether an account exists — the API itself is enumeration-safe (always
+ * returns `{ status: "success" }`), and this mirrors that here in case of
+ * network/transport failure.
+ */
+export const requestPasswordReset = createServerFn({ method: 'POST' })
+	.validator((data): EmailInput => EmailInputSchema.parse(data))
+	.handler(async ({ data }) => {
+		const client = createClient({ getSessionToken: () => undefined });
+		const body = {
+			email: createUntypedString(data.email),
+		} as Parameters<typeof client.auth.requestPasswordReset.post>[0];
+
+		try {
+			await client.auth.requestPasswordReset.post(body);
 		} catch {
 			// Intentionally swallowed — see doc comment above.
 		}

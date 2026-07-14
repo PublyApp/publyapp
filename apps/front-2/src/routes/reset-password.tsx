@@ -24,7 +24,7 @@ import { redirectAuthenticatedUserAwayFromAuthPage } from '~/lib/auth-route-guar
 import { useHydrated } from '~/lib/hooks/use-hydrated';
 import {
 	checkResetPasswordToken,
-	requestEmailVerification,
+	requestPasswordReset,
 	resetPassword,
 } from '~/lib/server/auth-actions';
 
@@ -147,7 +147,7 @@ const ResetPasswordRequestForm = () => {
 	const [submitted, setSubmitted] = useState(false);
 	const [errorMessage, setErrorMessage] = useState('');
 	const isHydrated = useHydrated();
-	const requestEmailVerificationAction = useServerFn(requestEmailVerification);
+	const requestPasswordResetAction = useServerFn(requestPasswordReset);
 	const formSchema = useMemo(() => getRequestFormSchema(t), [t]);
 
 	const {
@@ -181,7 +181,7 @@ const ResetPasswordRequestForm = () => {
 		setErrorMessage('');
 
 		try {
-			await requestEmailVerificationAction({ data: { email: values.email } });
+			await requestPasswordResetAction({ data: { email: values.email } });
 			setSubmitted(true);
 		} catch (error) {
 			const failure = toApiFailure(error);

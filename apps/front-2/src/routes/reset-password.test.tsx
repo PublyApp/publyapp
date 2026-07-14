@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => ({
 	loaderData: { view: 'request' } as ResetPasswordLoaderData,
 	checkResetPasswordToken: vi.fn(),
 	requestEmailVerification: vi.fn(),
+	requestPasswordReset: vi.fn(),
 	resetPassword: vi.fn(),
 	guard: vi.fn(),
 }));
@@ -55,6 +56,7 @@ vi.mock('@tanstack/react-start', () => ({
 vi.mock('~/lib/server/auth-actions', () => ({
 	checkResetPasswordToken: mocks.checkResetPasswordToken,
 	requestEmailVerification: mocks.requestEmailVerification,
+	requestPasswordReset: mocks.requestPasswordReset,
 	resetPassword: mocks.resetPassword,
 }));
 
@@ -159,7 +161,7 @@ describe('reset-password route', () => {
 	});
 
 	test('submits the request form and shows the sent confirmation', async () => {
-		mocks.requestEmailVerification.mockResolvedValue({ status: 'sent' });
+		mocks.requestPasswordReset.mockResolvedValue({ status: 'sent' });
 
 		renderResetPasswordRoute();
 		fireEvent.change(screen.getByLabelText('Email address'), {
@@ -168,11 +170,41 @@ describe('reset-password route', () => {
 		fireEvent.click(screen.getByRole('button', { name: 'Send reset link' }));
 
 		await waitFor(() =>
-			expect(mocks.requestEmailVerification).toHaveBeenCalledWith({
+			expect(mocks.requestPasswordReset).toHaveBeenCalledWith({
 				data: { email: 'rui@latticecloud.com' },
 			}),
 		);
 		expect(screen.getByTestId('reset-password-request-sent')).toBeTruthy();
+	});
+
+	test('never calls requestEmailVerification from the forgot-password form', async () => {
+		mocks.requestPasswordReset.mockResolvedValue({ status: 'sent' });
+
+		renderResetPasswordRoute();
+		fireEvent.change(screen.getByLabelText('Email address'), {
+			target: { value: 'rui@latticecloud.com' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Send reset link' }));
+
+		await waitFor(() => expect(mocks.requestPasswordReset).toHaveBeenCalled());
+		expect(mocks.requestEmailVerification).not.toHaveBeenCalled();
+	});
+
+	test('still calls the password-reset action (not requestEmailVerification) when the call rejects', async () => {
+		mocks.requestPasswordReset.mockRejectedValue(new Error('boom'));
+
+		renderResetPasswordRoute();
+		fireEvent.change(screen.getByLabelText('Email address'), {
+			target: { value: 'rui@latticecloud.com' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Send reset link' }));
+
+		await waitFor(() =>
+			expect(mocks.requestPasswordReset).toHaveBeenCalledWith({
+				data: { email: 'rui@latticecloud.com' },
+			}),
+		);
+		expect(mocks.requestEmailVerification).not.toHaveBeenCalled();
 	});
 
 	test('renders the set-new-password form for a valid token, with the email-verified banner', () => {
