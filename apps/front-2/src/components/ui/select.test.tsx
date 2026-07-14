@@ -32,7 +32,7 @@ const renderControlledSelect = () => {
 
 		return (
 			<div>
-				<Select value={value} onValueChange={(next) => setValue(next)}>
+				<Select value={value} onValueChange={(next) => setValue(next ?? '')}>
 					<SelectTrigger>
 						<SelectValue />
 					</SelectTrigger>
