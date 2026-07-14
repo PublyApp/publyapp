@@ -24,7 +24,7 @@ import {
 	useStaffInvitationDetailsQuery,
 	useStaffInvitationLinkMutation,
 } from '~/lib/query/staff-invitations';
-import { shouldLogoutForFailure } from '~/routes/authed/layout';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import type { StaffInvitationDetails } from '@org/client-ts/src/models/index.js';
 import {

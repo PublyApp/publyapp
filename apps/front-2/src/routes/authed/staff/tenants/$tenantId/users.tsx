@@ -62,13 +62,13 @@ import {
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 import {
 	parseTableSearchParams,
 	serializeTableSearchParams,
 	type TableSearchParamInput,
 	type TableSearchParams,
 } from '~/lib/url-state/table-search-params';
-import { shouldLogoutForFailure } from '~/routes/authed/layout';
 
 import {
 	getFailureMessage,

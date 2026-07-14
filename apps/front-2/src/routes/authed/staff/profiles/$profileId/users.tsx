@@ -24,6 +24,7 @@ import {
 	toStaffProfileDetails,
 	useStaffProfileDetailsQuery,
 } from '~/lib/query/staff-profiles';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 import {
 	parseTableSearchParams,
 	serializeTableSearchParams,
@@ -32,7 +33,6 @@ import type {
 	TableSearchParamInput,
 	TableSearchParams,
 } from '~/lib/url-state/table-search-params';
-import { shouldLogoutForFailure } from '~/routes/authed/layout';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';

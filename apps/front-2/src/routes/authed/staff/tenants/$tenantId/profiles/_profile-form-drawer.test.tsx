@@ -201,7 +201,7 @@ vi.mock('~/lib/query/staff-tenants', () => ({
 	invalidateAllStaffTenantScopes: mocks.invalidateAllStaffTenantScopes,
 }));
 
-vi.mock('~/routes/authed/layout', () => ({
+vi.mock('~/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 

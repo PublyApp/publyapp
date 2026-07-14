@@ -30,6 +30,7 @@ import {
 	toStaffProfileRows,
 	useStaffProfilesQuery,
 } from '~/lib/query/staff-profiles';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 import {
 	parseTableSearchParams,
 	serializeTableSearchParams,
@@ -38,7 +39,6 @@ import type {
 	TableSearchParamInput,
 	TableSearchParams,
 } from '~/lib/url-state/table-search-params';
-import { shouldLogoutForFailure } from '~/routes/authed/layout';
 import { StaffListExportSelectedAction } from '~/routes/authed/staff/staff-list-export-selected';
 
 // Default server ordering by creation date provides stable, deterministic pagination.

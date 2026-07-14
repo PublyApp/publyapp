@@ -39,7 +39,7 @@ import {
 	useSuspendStaffTenantMutation,
 	type StaffTenantDetails,
 } from '~/lib/query/staff-tenants';
-import { shouldLogoutForFailure } from '~/routes/authed/layout';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import {
 	getFailureMessage,

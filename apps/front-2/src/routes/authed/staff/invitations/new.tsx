@@ -27,7 +27,7 @@ import {
 	type StaffInvitationInput,
 } from '~/lib/query/staff-invitations';
 import { useStaffProfilesQuery } from '~/lib/query/staff-profiles';
-import { shouldLogoutForFailure } from '~/routes/authed/layout';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import type { StaffProfileItem } from '@org/client-ts/src/models/index.js';
 import {

@@ -74,6 +74,7 @@ import {
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 import {
 	parseTableSearchParams,
 	serializeTableSearchParams,
@@ -81,7 +82,6 @@ import {
 	type TableSearchParams,
 } from '~/lib/url-state/table-search-params';
 import { cn } from '~/lib/utils';
-import { shouldLogoutForFailure } from '~/routes/authed/layout';
 
 import {
 	getFailureMessage,

@@ -24,7 +24,7 @@ import {
 	useUpdateStaffUserMutation,
 	useUpdateStaffUserProfilesMutation,
 } from '~/lib/query/staff-users';
-import { shouldLogoutForFailure } from '~/routes/authed/layout';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import {
 	getFailureMessage,

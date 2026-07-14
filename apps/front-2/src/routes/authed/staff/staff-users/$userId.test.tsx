@@ -190,7 +190,7 @@ vi.mock('~/lib/query/staff-users', () => ({
 	useSuspendStaffUserMutation: mocks.useSuspendStaffUserMutation,
 }));
 
-vi.mock('~/routes/authed/layout', () => ({
+vi.mock('~/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 

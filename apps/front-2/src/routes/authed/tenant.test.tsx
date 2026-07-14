@@ -49,7 +49,7 @@ vi.mock('~/lib/hooks/use-logout', () => ({
 	}),
 }));
 
-vi.mock('~/routes/authed/layout', () => ({
+vi.mock('~/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 

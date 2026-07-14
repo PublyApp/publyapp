@@ -78,7 +78,7 @@ vi.mock('~/lib/query/staff-profile-users', () => ({
 	useStaffProfileUsersQuery: mocks.useStaffProfileUsersQuery,
 }));
 
-vi.mock('~/routes/authed/layout', () => ({
+vi.mock('~/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 

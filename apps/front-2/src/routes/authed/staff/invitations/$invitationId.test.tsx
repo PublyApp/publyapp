@@ -80,7 +80,7 @@ vi.mock('~/lib/query/staff-invitations', () => ({
 	invalidateStaffInvitations: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock('~/routes/authed/layout', () => ({
+vi.mock('~/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 

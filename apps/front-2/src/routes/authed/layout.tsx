@@ -22,6 +22,7 @@ import {
 } from '~/lib/api-client/client-manager';
 import { buildLoginRedirectSearch } from '~/lib/login-redirect-search';
 import { ServerFailure } from '~/lib/server/server-failure';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { REDIRECT_CODE } from '@org/shared-ts/lib/constants';
@@ -34,11 +35,6 @@ import { AuthedLayout } from '../../layouts/authed-layout';
 
 const STAFF_PATH = '/staff';
 const TENANT_PATH = '/tenant';
-
-export const shouldLogoutForFailure = (error: unknown): boolean => {
-	const failure = toApiFailure(error);
-	return failure.kind === 'problem' && failure.status === 401;
-};
 
 const getFailureStatus = (error: unknown): number | undefined => {
 	const failure = toApiFailure(error);

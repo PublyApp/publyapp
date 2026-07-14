@@ -33,8 +33,8 @@ import {
 	invalidateStaffTenants,
 	useCreateStaffTenantMutation,
 } from '~/lib/query/staff-tenants';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 import { cn } from '~/lib/utils';
-import { shouldLogoutForFailure } from '~/routes/authed/layout';
 
 import {
 	getFailureMessage,

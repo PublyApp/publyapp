@@ -19,7 +19,7 @@ import {
 	useCreateStaffProfileMutation,
 	useStaffPermissionCatalogQuery,
 } from '~/lib/query/staff-profiles';
-import { shouldLogoutForFailure } from '~/routes/authed/layout';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import {
 	getFailureMessage,

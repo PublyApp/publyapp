@@ -42,7 +42,7 @@ import {
 	useStaffProfileDetailsQuery,
 	useStaffProfilePermissionKeysQuery,
 } from '~/lib/query/staff-profiles';
-import { shouldLogoutForFailure } from '~/routes/authed/layout';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 

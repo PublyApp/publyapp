@@ -126,7 +126,7 @@ vi.mock('~/lib/query/staff-tenant-profiles', () => ({
 		mocks.useUnassignStaffTenantProfilePermissionMutation,
 }));
 
-vi.mock('~/routes/authed/layout', () => ({
+vi.mock('~/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 

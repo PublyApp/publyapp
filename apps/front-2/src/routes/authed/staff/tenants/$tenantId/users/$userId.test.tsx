@@ -172,7 +172,7 @@ vi.mock('~/lib/query/staff-tenants', () => ({
 		}),
 }));
 
-vi.mock('~/routes/authed/layout', () => ({
+vi.mock('~/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 

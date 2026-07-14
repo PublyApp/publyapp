@@ -156,7 +156,7 @@ vi.mock('~/lib/query/staff-tenants', () => ({
 	useStaffTenantDetailsQuery: mocks.useStaffTenantDetailsQuery,
 }));
 
-vi.mock('~/routes/authed/layout', () => ({
+vi.mock('~/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 

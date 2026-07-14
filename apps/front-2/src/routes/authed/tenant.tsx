@@ -5,7 +5,7 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import QueryDisplay from '~/components/query-display';
 import { SimpleLayout } from '~/layouts/simple-layout';
 import { useTenantsForPickerQuery } from '~/lib/query/tenants-for-picker';
-import { shouldLogoutForFailure } from '~/routes/authed/layout';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import {
 	TenantPortalEmptyState,

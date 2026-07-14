@@ -17,7 +17,7 @@ import {
 } from '~/components/ui/drawer';
 import { useInviteTenantUserMutation } from '~/lib/query/staff-tenant-users';
 import { invalidateAllStaffTenantScopes } from '~/lib/query/staff-tenants';
-import { shouldLogoutForFailure } from '~/routes/authed/layout';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import {
 	getFailureMessage,
