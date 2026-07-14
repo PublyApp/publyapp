@@ -171,6 +171,22 @@ const resolvesInBundle = (key: string, bundle: Record<string, unknown>) =>
 // language's own name isn't localized.
 const LOCALE_SELF_NAME_ALLOWLIST = new Set(['English', 'Français']);
 
+// W5-PROOF: the brand wordmark is never localized (same convention as
+// `<Image>`'s brand-wordmark exception in the content-imagery rule) and, once
+// isCopyLikeLiteral below drops the internal-whitespace requirement, a bare
+// "PublyApp" in JSX text/alt would otherwise read as an untranslated string.
+const NEVER_TRANSLATED_LITERAL_ALLOWLIST = new Set(['PublyApp']);
+
+// W5-PROOF: URL/email/bare-domain example values are common, legitimate
+// `placeholder`/`alt` content (`placeholder="user@example.com"`,
+// `placeholder="https://example.com"`, a `publyapp.com/<slug>` preview
+// fragment) — none of them are copy needing translation, but they are
+// exactly the single-word-with-a-dot shape isCopyLikeLiteral's relaxed,
+// no-whitespace check would otherwise catch now that testId-style
+// exemption no longer comes for free from the whitespace requirement.
+const URL_EMAIL_OR_DOMAIN_PATTERN =
+	/^(https?:\/\/|[\w.-]+@[\w.-]+\.\w+$|[a-z0-9-]+(\.[a-z0-9-]+)+\/)/i;
+
 // r5-tests-F2: the round-4/round-3 detector was a closed regex grammar — a
 // fixed native-tag allowlist for JSX text (`span|p|h1-6|button|label|dt|dd|
 // td|th|li`, one line only) and a fixed attribute-name allowlist
@@ -212,6 +228,32 @@ const isProseLikeLiteral = (value: string): boolean => {
 	// spelling in this codebase contains a literal space) while still
 	// catching any multi-word phrase, however it's capitalized.
 	return /\s/.test(trimmed);
+};
+
+// W5-PROOF: the internal-whitespace requirement above exists to keep
+// kebab-case testIds and URL/email placeholders out of the ambiguous
+// positions (bare string literals, `??`/`||` fallbacks, parameter defaults),
+// but it made single-word real copy ("Delete", "Save", "Suspendre")
+// completely invisible everywhere it appears — including positions that are
+// BY DEFINITION user-visible copy, not ambiguous at all. For those positions
+// (JSX text content, and the ALWAYS_COPY_ATTRIBUTE_NAMES attributes/props
+// below) any non-empty, letter-containing, non-all-caps literal is a
+// finding — no word-count requirement — since there is no wiring/testId use
+// case competing for those positions the way there is for a bare literal or
+// a `??` fallback.
+const isCopyLikeLiteral = (value: string): boolean => {
+	const trimmed = value.trim();
+	if (
+		trimmed.length < 2 ||
+		LOCALE_SELF_NAME_ALLOWLIST.has(trimmed) ||
+		NEVER_TRANSLATED_LITERAL_ALLOWLIST.has(trimmed) ||
+		URL_EMAIL_OR_DOMAIN_PATTERN.test(trimmed)
+	) {
+		return false;
+	}
+	// Same all-caps technical-constant exemption as isProseLikeLiteral
+	// ('POST', 'UTC', 'ACTIVE') — deliberately no whitespace requirement.
+	return /[a-z]/.test(trimmed);
 };
 
 // r5-tests-F2: attribute names that are structurally never user-visible copy
@@ -268,6 +310,22 @@ const NEVER_COPY_ATTRIBUTE_NAMES = new Set([
 	'data-slot',
 ]);
 
+// W5-PROOF: attribute/prop names that are BY DEFINITION user-visible copy
+// wherever they appear — a single word here ("Delete", "Cancel") is exactly
+// as much a fabricated-English-copy problem as a full sentence, so these are
+// checked with isCopyLikeLiteral (no internal-whitespace requirement)
+// instead of the conservative isProseLikeLiteral used for ambiguous
+// positions.
+const ALWAYS_COPY_ATTRIBUTE_NAMES = new Set([
+	'aria-label',
+	'aria-description',
+	'placeholder',
+	'title',
+	'label',
+	'description',
+	'alt',
+]);
+
 // An opt-out comment on the line directly above the offending line, mirroring
 // check-design-system.mjs's `design-system-ignore` convention — requires a
 // reason so the suppression has to be argued, not just added. Reserved for
@@ -304,14 +362,17 @@ const isI18nGuardSuppressed = (
 // an identifier, a `t(...)` call, a template literal with interpolation, a
 // ternary with a non-literal branch — is presumed already i18n-aware or
 // non-copy, and is left alone.
-const collectProseLiteralValues = (expression: ts.Expression): string[] => {
+const collectProseLiteralValues = (
+	expression: ts.Expression,
+	isCopy: (value: string) => boolean = isProseLikeLiteral,
+): string[] => {
 	if (ts.isStringLiteralLike(expression)) {
-		return isProseLikeLiteral(expression.text) ? [expression.text] : [];
+		return isCopy(expression.text) ? [expression.text] : [];
 	}
 
 	if (ts.isConditionalExpression(expression)) {
-		const whenTrue = collectProseLiteralValues(expression.whenTrue);
-		const whenFalse = collectProseLiteralValues(expression.whenFalse);
+		const whenTrue = collectProseLiteralValues(expression.whenTrue, isCopy);
+		const whenFalse = collectProseLiteralValues(expression.whenFalse, isCopy);
 		if (
 			ts.isStringLiteralLike(expression.whenTrue) &&
 			ts.isStringLiteralLike(expression.whenFalse) &&
@@ -355,11 +416,7 @@ const findHardcodedUiLiterals = (
 	const visit = (node: ts.Node): void => {
 		if (ts.isJsxText(node)) {
 			const text = node.text.replace(/\s+/g, ' ').trim();
-			if (
-				text.length > 0 &&
-				/[a-zA-Z]/.test(text) &&
-				isProseLikeLiteral(text)
-			) {
+			if (text.length > 0 && /[a-zA-Z]/.test(text) && isCopyLikeLiteral(text)) {
 				report(node, `JSX text "${text}"`);
 			}
 		} else if (
@@ -377,9 +434,12 @@ const findHardcodedUiLiterals = (
 		} else if (ts.isJsxAttribute(node)) {
 			const attrName = node.name.getText(sourceFile);
 			if (!NEVER_COPY_ATTRIBUTE_NAMES.has(attrName)) {
+				const isCopy = ALWAYS_COPY_ATTRIBUTE_NAMES.has(attrName)
+					? isCopyLikeLiteral
+					: isProseLikeLiteral;
 				const initializer = node.initializer;
 				if (initializer && ts.isStringLiteral(initializer)) {
-					if (isProseLikeLiteral(initializer.text)) {
+					if (isCopy(initializer.text)) {
 						report(node, `${attrName}="${initializer.text}"`);
 					}
 				} else if (
@@ -389,6 +449,7 @@ const findHardcodedUiLiterals = (
 				) {
 					for (const value of collectProseLiteralValues(
 						initializer.expression,
+						isCopy,
 					)) {
 						report(node, `${attrName}={"${value}"}`);
 					}
@@ -399,7 +460,10 @@ const findHardcodedUiLiterals = (
 			ts.isIdentifier(node.name) &&
 			node.name.text === 'label'
 		) {
-			for (const value of collectProseLiteralValues(node.initializer)) {
+			for (const value of collectProseLiteralValues(
+				node.initializer,
+				isCopyLikeLiteral,
+			)) {
 				report(node, `label: "${value}"`);
 			}
 		} else if (
@@ -504,6 +568,53 @@ describe('i18n key coverage', () => {
 		expect(findings).toContainEqual(
 			expect.stringContaining('code="500 — Server Error"'),
 		);
+	});
+
+	// W5-PROOF: isProseLikeLiteral's internal-whitespace requirement made any
+	// single-word piece of real UI copy invisible everywhere — a large share
+	// of real button/aria copy. Each of these single-word shapes must now be
+	// caught in the definite-copy positions (JSX text, aria-label, title,
+	// placeholder).
+	test('findHardcodedUiLiterals catches single-word copy in aria-label, title, JSX text, and placeholder (W5-PROOF canary)', () => {
+		const findings = findHardcodedUiLiterals(
+			[
+				'<button aria-label="Delete">X</button>',
+				'<span title="Cancel">X</span>',
+				'<Button>Delete</Button>',
+				'<input placeholder="Save" />',
+			].join('\n'),
+			'canary.tsx',
+		);
+
+		expect(findings).toContainEqual(
+			expect.stringContaining('aria-label="Delete"'),
+		);
+		expect(findings).toContainEqual(expect.stringContaining('title="Cancel"'));
+		expect(findings).toContainEqual(
+			expect.stringContaining('JSX text "Delete"'),
+		);
+		expect(findings).toContainEqual(
+			expect.stringContaining('placeholder="Save"'),
+		);
+	});
+
+	// W5-PROOF: the relaxed no-whitespace-required check for definite-copy
+	// positions must not turn real, legitimate single-word technical values in
+	// those SAME positions into false positives — a testId-shaped value, a
+	// URL/email placeholder example, and the brand wordmark.
+	test('findHardcodedUiLiterals does not flag testIds, URL/email placeholder examples, or the brand wordmark (W5-PROOF canary)', () => {
+		const findings = findHardcodedUiLiterals(
+			[
+				'<button data-testid="delete-account-button">{t(\'delete\')}</button>',
+				'<input placeholder="user@example.com" />',
+				'<input placeholder="https://example.com" />',
+				'<img alt="PublyApp" />',
+				'<span>PublyApp</span>',
+			].join('\n'),
+			'canary.tsx',
+		);
+
+		expect(findings).toEqual([]);
 	});
 
 	test('findHardcodedUiLiterals does not flag structural/enum props, t() calls, or the locale self-name allowlist', () => {
