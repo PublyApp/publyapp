@@ -8,20 +8,15 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
+import { Field, Form } from '~/components/field';
+import type { FieldSelectOption } from '~/components/field';
 import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from '~/components/ui/select';
 import {
 	invalidateStaffTenantUsers,
 	toStaffTenantUserDetails,
@@ -41,6 +36,7 @@ import {
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 import {
+	formatTenantUserLevelLabel,
 	MALFORMED_ID_TRANSLATION_KEY,
 	TenantDetailsError,
 	TenantDetailsLoading,
@@ -61,14 +57,29 @@ const normalizeOptionalUpdateString = (
 	return trimmed;
 };
 
-const tenantUserEditSchema = z.object({
-	firstName: z.string().trim().max(128).optional(),
-	lastName: z.string().trim().max(128).optional(),
-	avatarUrl: z.string().trim().max(1024).optional(),
-	accountLevel: z.enum(EDIT_ACCOUNT_LEVEL_OPTIONS),
-});
+const buildTenantUserEditSchema = (t: (key: string) => string) =>
+	z.object({
+		firstName: z
+			.string()
+			.trim()
+			.max(128, { message: t('firstname-too-long') })
+			.optional(),
+		lastName: z
+			.string()
+			.trim()
+			.max(128, { message: t('lastname-too-long') })
+			.optional(),
+		avatarUrl: z
+			.string()
+			.trim()
+			.max(1024, { message: t('avatar-url-too-long') })
+			.optional(),
+		accountLevel: z.enum(EDIT_ACCOUNT_LEVEL_OPTIONS),
+	});
 
-type TenantUserEditValues = z.infer<typeof tenantUserEditSchema>;
+type TenantUserEditValues = z.infer<
+	ReturnType<typeof buildTenantUserEditSchema>
+>;
 
 type TenantUserEditPayload = {
 	tenantId: string;
@@ -197,7 +208,7 @@ export const Route = createFileRoute(
 function StaffTenantUserEditPage() {
 	const { tenantId, userId } = Route.useParams();
 	const navigate = Route.useNavigate();
-	const { t } = useTranslation('common');
+	const { t, i18n } = useTranslation('common');
 	const queryClient = useQueryClient();
 	const [shouldLogout, setShouldLogout] = useState(false);
 	const [serverError, setServerError] = useState('');
@@ -218,8 +229,21 @@ function StaffTenantUserEditPage() {
 	);
 	const updateTenantUser = useUpdateStaffTenantUserMutation();
 	const user = toStaffTenantUserDetails(detailsQuery.data);
+	const resolver = useMemo(
+		() => zodResolver(buildTenantUserEditSchema(t)),
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- rebuild on language change so messages stay localized
+		[i18n.language],
+	);
+	const accountLevelOptions: FieldSelectOption[] = useMemo(
+		() =>
+			EDIT_ACCOUNT_LEVEL_OPTIONS.map((option) => ({
+				value: option,
+				label: formatTenantUserLevelLabel(option, t),
+			})),
+		[t],
+	);
 	const methods = useForm<TenantUserEditValues>({
-		resolver: zodResolver(tenantUserEditSchema),
+		resolver,
 		defaultValues: {
 			firstName: '',
 			lastName: '',
@@ -227,8 +251,8 @@ function StaffTenantUserEditPage() {
 			accountLevel: 'User',
 		},
 	});
-	const { register, handleSubmit, reset, control, formState } = methods;
-	const { errors, isSubmitting } = formState;
+	const { handleSubmit, reset, formState } = methods;
+	const { isSubmitting } = formState;
 	const tenant = toStaffTenantDetails(tenantQuery.data);
 
 	const userFormValues = useMemo<TenantUserEditValues | null>(
@@ -404,102 +428,31 @@ function StaffTenantUserEditPage() {
 			</div>
 
 			<Card className="space-y-4 p-5">
-				<form className="space-y-4" onSubmit={onSubmit} noValidate>
-					<div className="space-y-2">
-						<label htmlFor="tenant-user-first-name" className="text-sm">
-							{t('first-name')}
-						</label>
-						<input
-							id="tenant-user-first-name"
-							type="text"
-							className="w-full rounded-medium border border-divider bg-content1 p-2"
-							aria-label={t('first-name')}
-							disabled={isSubmittingForm}
-							{...register('firstName')}
-						/>
-						{errors.firstName ? (
-							<p className="text-sm text-destructive">
-								{errors.firstName.message}
-							</p>
-						) : null}
-					</div>
-
-					<div className="space-y-2">
-						<label htmlFor="tenant-user-last-name" className="text-sm">
-							{t('last-name')}
-						</label>
-						<input
-							id="tenant-user-last-name"
-							type="text"
-							className="w-full rounded-medium border border-divider bg-content1 p-2"
-							aria-label={t('last-name')}
-							disabled={isSubmittingForm}
-							{...register('lastName')}
-						/>
-						{errors.lastName ? (
-							<p className="text-sm text-destructive">
-								{errors.lastName.message}
-							</p>
-						) : null}
-					</div>
-
-					<div className="space-y-2">
-						<label htmlFor="tenant-user-avatar-url" className="text-sm">
-							{t('avatar-url')}
-						</label>
-						<input
-							id="tenant-user-avatar-url"
-							type="text"
-							className="w-full rounded-medium border border-divider bg-content1 p-2"
-							aria-label={t('avatar-url')}
-							disabled={isSubmittingForm}
-							{...register('avatarUrl')}
-						/>
-						{errors.avatarUrl ? (
-							<p className="text-sm text-destructive">
-								{errors.avatarUrl.message}
-							</p>
-						) : null}
-					</div>
-
-					<div className="space-y-2">
-						<label htmlFor="tenant-user-account-level" className="text-sm">
-							{t('account-level')}
-						</label>
-						<Controller
-							control={control}
-							name="accountLevel"
-							render={({ field }) => (
-								<Select
-									id="tenant-user-account-level"
-									aria-label={t('account-level')}
-									value={field.value}
-									onValueChange={(nextValue) => {
-										if (typeof nextValue === 'string') {
-											field.onChange(nextValue);
-										}
-									}}
-									disabled={isSubmittingForm}
-								>
-									<SelectTrigger>
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										{EDIT_ACCOUNT_LEVEL_OPTIONS.map((option) => (
-											<SelectItem key={option} value={option}>
-												{option}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							)}
-						/>
-						{errors.accountLevel ? (
-							<p className="text-sm text-destructive">
-								{errors.accountLevel.message}
-							</p>
-						) : null}
-					</div>
+				<Form methods={methods} onSubmit={onSubmit}>
+					<Field.Text
+						name="firstName"
+						label={t('first-name')}
+						fullWidth
+						isDisabled={isSubmittingForm}
+					/>
+					<Field.Text
+						name="lastName"
+						label={t('last-name')}
+						fullWidth
+						isDisabled={isSubmittingForm}
+					/>
+					<Field.Text
+						name="avatarUrl"
+						label={t('avatar-url')}
+						fullWidth
+						isDisabled={isSubmittingForm}
+					/>
+					<Field.Select
+						name="accountLevel"
+						label={t('account-level')}
+						options={accountLevelOptions}
+						isDisabled={isSubmittingForm}
+					/>
 
 					{serverError ? (
 						<p className="text-sm text-destructive">{serverError}</p>
@@ -510,7 +463,7 @@ function StaffTenantUserEditPage() {
 							{t('save-changes')}
 						</Button>
 					</div>
-				</form>
+				</Form>
 			</Card>
 		</TenantDetailsPageShell>
 	);

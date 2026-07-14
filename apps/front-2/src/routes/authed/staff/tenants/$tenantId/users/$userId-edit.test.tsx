@@ -36,30 +36,53 @@ vi.mock('~/components/ui/select', () => {
 		value?: string;
 	}) => createElement('option', { value }, children);
 
-	const SelectTrigger = ({ children }: { children?: ReactNode }) =>
-		createElement('div', null, children);
+	// Forwards every prop (aria-labelledby, aria-invalid, onBlur, ...) so the
+	// mocked <select> below can re-apply them — Field.Select puts the
+	// accessible-name wiring on SelectTrigger, not on <Select> itself.
+	const SelectTrigger = ({
+		children,
+		...triggerProps
+	}: {
+		children?: ReactNode;
+		[key: string]: unknown;
+	}) => createElement('div', triggerProps, children);
 
 	const SelectValue = () => null;
 
-	const flattenSelectChildren = (children: ReactNode): ReactNode[] =>
-		React.Children.toArray(children).flatMap((child) => {
+	const collectSelectContent = (
+		children: ReactNode,
+	): { options: ReactNode[]; triggerProps: Record<string, unknown> } => {
+		let triggerProps: Record<string, unknown> = {};
+		const options: ReactNode[] = [];
+
+		for (const child of React.Children.toArray(children)) {
 			if (!React.isValidElement(child)) {
-				return [child];
+				continue;
 			}
 
-			if (child.type === SelectTrigger || child.type === SelectContent) {
-				const { children: nestedChildren } = child.props as {
-					children?: ReactNode;
-				};
-				return nestedChildren ? flattenSelectChildren(nestedChildren) : [];
+			if (child.type === SelectTrigger) {
+				triggerProps = { ...(child.props as Record<string, unknown>) };
+				delete triggerProps.children;
+				continue;
+			}
+
+			if (child.type === SelectContent) {
+				const nested = (child.props as { children?: ReactNode }).children;
+				if (nested) {
+					options.push(...React.Children.toArray(nested));
+				}
+				continue;
 			}
 
 			if (child.type === SelectValue) {
-				return [];
+				continue;
 			}
 
-			return [child];
-		});
+			options.push(child);
+		}
+
+		return { options, triggerProps };
+	};
 
 	return {
 		Select: ({
@@ -73,8 +96,9 @@ vi.mock('~/components/ui/select', () => {
 			value?: string;
 			onValueChange?: (value: string) => void;
 			disabled?: boolean;
-		}) =>
-			createElement(
+		}) => {
+			const { options, triggerProps } = collectSelectContent(children);
+			return createElement(
 				'select',
 				{
 					value,
@@ -82,10 +106,12 @@ vi.mock('~/components/ui/select', () => {
 						onValueChange?.(e.target.value);
 					},
 					disabled,
+					...triggerProps,
 					...props,
 				},
-				flattenSelectChildren(children),
-			),
+				options,
+			);
+		},
 		SelectContent,
 		SelectItem,
 		SelectTrigger,
