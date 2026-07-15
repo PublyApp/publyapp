@@ -15,7 +15,7 @@ import {
 	IconX,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -512,10 +512,20 @@ function StaffTenantUsersPage() {
 	const [shouldLogout, setShouldLogout] = useState(false);
 	const [bulkFeedback, setBulkFeedback] =
 		useState<TenantUserBulkFeedback | null>(null);
+	const [isInviteFormDirty, setIsInviteFormDirty] = useState(false);
 
 	const selectedStatuses = parseTenantUserStatusFilter(search.status);
 	const selectedLevels = parseTenantUserLevelFilter(search.level);
 	const isInviteDrawerOpen = search.invite === 1;
+
+	// The invite drawer's open flag lives in the URL (`?invite=1`); a browser
+	// Back or a sibling-route navigation changes/unmounts it without ever
+	// calling the drawer's own `onOpenChange` close guard, discarding a dirty
+	// invite draft silently (tenants-r1-F2).
+	const inviteDrawerBlocker = useBlocker({
+		shouldBlockFn: () => isInviteDrawerOpen && isInviteFormDirty,
+		withResolver: true,
+	});
 
 	const onSearchChange = (next: TenantUsersListSearchParams): void => {
 		void navigate({
@@ -905,11 +915,26 @@ function StaffTenantUsersPage() {
 				isOpen={isInviteDrawerOpen}
 				onOpenChange={setInviteDrawerOpen}
 				onSessionExpired={() => setShouldLogout(true)}
+				onDirtyChange={setIsInviteFormDirty}
 				onInvited={() => {
 					void navigate({
 						to: '/staff/tenants/$tenantId/invitations',
 						params: { tenantId },
 					});
+				}}
+			/>
+			<ConfirmDialog
+				isOpen={inviteDrawerBlocker.status === 'blocked'}
+				title={t('unsaved-changes-dialog-title')}
+				description={t('unsaved-changes-dialog-description')}
+				confirmLabel={t('leave-page')}
+				cancelLabel={t('cancel')}
+				tone="danger"
+				onConfirm={() => inviteDrawerBlocker.proceed?.()}
+				onOpenChange={(isOpen) => {
+					if (!isOpen) {
+						inviteDrawerBlocker.reset?.();
+					}
 				}}
 			/>
 		</TenantDetailsPageShell>

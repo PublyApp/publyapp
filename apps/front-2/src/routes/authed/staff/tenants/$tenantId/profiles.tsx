@@ -20,7 +20,7 @@ import {
 } from '@tabler/icons-react';
 import type { Icon } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -777,8 +777,18 @@ function StaffTenantProfilesPage() {
 		null,
 	);
 	const deleteProfile = useDeleteStaffTenantProfileMutation();
+	const [isCreateFormDirty, setIsCreateFormDirty] = useState(false);
 
 	const isCreateDrawerOpen = search.new === 1;
+
+	// The create drawer's open flag lives in the URL (`?new=1`); a browser
+	// Back or a sibling-route navigation changes/unmounts it without ever
+	// calling the drawer's own `onOpenChange` close guard, discarding a dirty
+	// create draft silently (tenants-r1-F2).
+	const createDrawerBlocker = useBlocker({
+		shouldBlockFn: () => isCreateDrawerOpen && isCreateFormDirty,
+		withResolver: true,
+	});
 	const view = parseStaffTenantProfilesViewMode(search.view);
 
 	const onSearchChange = (next: TableSearchParams): void => {
@@ -1191,6 +1201,7 @@ function StaffTenantProfilesPage() {
 				isOpen={isCreateDrawerOpen}
 				onOpenChange={setCreateDrawerOpen}
 				onSessionExpired={() => setShouldRedirectToLogout(true)}
+				onDirtyChange={setIsCreateFormDirty}
 				onSaved={(profileId) => {
 					if (profileId) {
 						void navigate({
@@ -1201,6 +1212,20 @@ function StaffTenantProfilesPage() {
 					}
 
 					setCreateDrawerOpen(false);
+				}}
+			/>
+			<ConfirmDialog
+				isOpen={createDrawerBlocker.status === 'blocked'}
+				title={t('unsaved-changes-dialog-title')}
+				description={t('unsaved-changes-dialog-description')}
+				confirmLabel={t('leave-page')}
+				cancelLabel={t('cancel')}
+				tone="danger"
+				onConfirm={() => createDrawerBlocker.proceed?.()}
+				onOpenChange={(isOpen) => {
+					if (!isOpen) {
+						createDrawerBlocker.reset?.();
+					}
 				}}
 			/>
 		</TenantDetailsPageShell>

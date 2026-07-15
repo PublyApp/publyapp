@@ -51,12 +51,20 @@ export const InviteTenantUserDrawer = ({
 	onOpenChange,
 	onInvited,
 	onSessionExpired,
+	onDirtyChange,
 }: {
 	tenantId: string;
 	isOpen: boolean;
 	onOpenChange: (isOpen: boolean) => void;
 	onInvited: () => void;
 	onSessionExpired: () => void;
+	/**
+	 * Reports form dirtiness to the parent so it can guard the URL-driven
+	 * open path (`?invite=1`) against a browser Back or sibling-route
+	 * navigation — those transitions update/unmount this drawer without ever
+	 * calling `onOpenChange` (tenants-r1-F2).
+	 */
+	onDirtyChange?: (isDirty: boolean) => void;
 }) => {
 	const { t, i18n } = useTranslation('common');
 	const queryClient = useQueryClient();
@@ -85,6 +93,10 @@ export const InviteTenantUserDrawer = ({
 		}
 	}, [isOpen, reset]);
 
+	useEffect(() => {
+		onDirtyChange?.(isDirty);
+	}, [isDirty, onDirtyChange]);
+
 	// tenants-r6-F3: every close path (Escape, backdrop click, Cancel, and
 	// browser back — all funneled through Base UI's `onOpenChange`) must
 	// confirm before discarding a dirty form, not just the page-level forms.
@@ -110,6 +122,9 @@ export const InviteTenantUserDrawer = ({
 				accountLevel: values.accountLevel,
 			});
 			await invalidateTenantData();
+			// A successful submit must never trip the parent's nav guard on the
+			// navigation `onInvited` performs next.
+			onDirtyChange?.(false);
 			onInvited();
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
@@ -219,6 +234,10 @@ export const InviteTenantUserDrawer = ({
 				onOpenChange={setIsDiscardConfirmOpen}
 				onConfirm={() => {
 					setIsDiscardConfirmOpen(false);
+					// The user already confirmed the discard here — clear dirtiness
+					// first so the parent's URL nav guard doesn't immediately block
+					// the close navigation this triggers with a second prompt.
+					onDirtyChange?.(false);
 					onOpenChange(false);
 				}}
 			/>

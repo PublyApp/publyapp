@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import {
+	act,
 	cleanup,
 	fireEvent,
 	render,
@@ -29,6 +30,13 @@ const mocks = vi.hoisted(() => ({
 	useAssignStaffTenantProfilePermissionMutation: vi.fn(),
 	useUnassignStaffTenantProfilePermissionMutation: vi.fn(),
 	shouldLogoutForFailure: vi.fn((_: unknown) => false),
+	blockerResolver: {
+		status: 'idle' as 'idle' | 'blocked',
+		proceed: undefined as (() => void) | undefined,
+		reset: undefined as (() => void) | undefined,
+	},
+	capturedShouldBlockFn: undefined as (() => boolean) | undefined,
+	capturedOnDirtyChange: undefined as ((isDirty: boolean) => void) | undefined,
 }));
 
 vi.mock('@tanstack/react-router', () => ({
@@ -62,6 +70,10 @@ vi.mock('@tanstack/react-router', () => ({
 				{children}
 			</a>
 		);
+	},
+	useBlocker: (opts: { shouldBlockFn: () => boolean }) => {
+		mocks.capturedShouldBlockFn = opts.shouldBlockFn;
+		return mocks.blockerResolver;
 	},
 }));
 
@@ -131,8 +143,16 @@ vi.mock('~/lib/should-logout-for-failure', () => ({
 }));
 
 vi.mock('./_profile-form-drawer', () => ({
-	ProfileFormDrawer: ({ isOpen }: { isOpen: boolean }) =>
-		isOpen ? <div data-testid="profile-edit-drawer-open" /> : null,
+	ProfileFormDrawer: ({
+		isOpen,
+		onDirtyChange,
+	}: {
+		isOpen: boolean;
+		onDirtyChange?: (isDirty: boolean) => void;
+	}) => {
+		mocks.capturedOnDirtyChange = onDirtyChange;
+		return isOpen ? <div data-testid="profile-edit-drawer-open" /> : null;
+	},
 }));
 
 vi.mock('react-i18next', () => ({
@@ -199,6 +219,11 @@ vi.mock('react-i18next', () => ({
 				unassign: 'Unassign',
 				'unassign-permission': 'Unassign {{name}}',
 				yes: 'Yes',
+				'unsaved-changes-dialog-title': 'Leave without saving?',
+				'unsaved-changes-dialog-description':
+					'You have unsaved changes that will be lost if you leave this page.',
+				'leave-page': 'Leave page',
+				cancel: 'Cancel',
 			};
 
 			let text = labels[key] ?? key;
@@ -247,6 +272,11 @@ describe('staff tenant profile details route', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mocks.search = {};
+		mocks.blockerResolver.status = 'idle';
+		mocks.blockerResolver.proceed = undefined;
+		mocks.blockerResolver.reset = undefined;
+		mocks.capturedShouldBlockFn = undefined;
+		mocks.capturedOnDirtyChange = undefined;
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
 		mocks.useDeleteStaffTenantProfileMutation.mockReturnValue({
 			isPending: false,
@@ -890,5 +920,46 @@ describe('staff tenant profile details route', () => {
 		renderPage();
 
 		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
+	});
+
+	// tenants-r1-F2: the edit drawer's open flag is URL-driven (`?edit=1`); a
+	// browser Back or sibling-route navigation changes/unmounts it without
+	// ever calling the drawer's own close guard, discarding a dirty edit
+	// draft with no confirmation.
+	test('the URL nav-guard only blocks navigation while the edit drawer is open AND dirty', () => {
+		mocks.search = { edit: 1 };
+		renderPage();
+
+		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+
+		act(() => mocks.capturedOnDirtyChange?.(true));
+		expect(mocks.capturedShouldBlockFn?.()).toBe(true);
+
+		act(() => mocks.capturedOnDirtyChange?.(false));
+		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+	});
+
+	test('the URL nav-guard never blocks when the edit drawer is closed, even if reported dirty', () => {
+		mocks.search = {};
+		renderPage();
+
+		act(() => mocks.capturedOnDirtyChange?.(true));
+		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+	});
+
+	test('shows the unsaved-changes confirm dialog when the router blocks navigation away from a dirty edit drawer', () => {
+		const proceed = vi.fn();
+		const reset = vi.fn();
+		mocks.search = { edit: 1 };
+		mocks.blockerResolver.status = 'blocked';
+		mocks.blockerResolver.proceed = proceed;
+		mocks.blockerResolver.reset = reset;
+
+		renderPage();
+
+		expect(screen.getByText('Leave without saving?')).toBeTruthy();
+		fireEvent.click(screen.getByRole('button', { name: 'Leave page' }));
+		expect(proceed).toHaveBeenCalled();
+		expect(reset).not.toHaveBeenCalled();
 	});
 });

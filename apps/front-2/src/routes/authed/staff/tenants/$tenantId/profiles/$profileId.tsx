@@ -4,7 +4,7 @@ import {
 	IconSearchOff,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
@@ -180,12 +180,22 @@ function StaffTenantProfileDetailsPage() {
 	const [busyPermissionKey, setBusyPermissionKey] = useState('');
 	const [shouldRedirectToLogout, setShouldRedirectToLogout] = useState(false);
 	const isEditDrawerOpen = search.edit === 1;
+	const [isEditFormDirty, setIsEditFormDirty] = useState(false);
 	const setEditDrawerOpen = (isOpen: boolean): void => {
 		void navigate({
 			search: isOpen ? { edit: 1 } : {},
 			replace: true,
 		});
 	};
+
+	// The edit drawer's open flag lives in the URL (`?edit=1`); a browser
+	// Back or a sibling-route navigation changes/unmounts it without ever
+	// calling the drawer's own `onOpenChange` close guard, discarding a dirty
+	// edit draft silently (tenants-r1-F2).
+	const editDrawerBlocker = useBlocker({
+		shouldBlockFn: () => isEditDrawerOpen && isEditFormDirty,
+		withResolver: true,
+	});
 
 	const tenantQuery = useStaffTenantDetailsQuery(
 		{ tenantId },
@@ -725,7 +735,22 @@ function StaffTenantProfileDetailsPage() {
 				profile={profileFormDrawerProfile}
 				onOpenChange={setEditDrawerOpen}
 				onSessionExpired={() => setShouldRedirectToLogout(true)}
+				onDirtyChange={setIsEditFormDirty}
 				onSaved={() => setEditDrawerOpen(false)}
+			/>
+			<ConfirmDialog
+				isOpen={editDrawerBlocker.status === 'blocked'}
+				title={t('unsaved-changes-dialog-title')}
+				description={t('unsaved-changes-dialog-description')}
+				confirmLabel={t('leave-page')}
+				cancelLabel={t('cancel')}
+				tone="danger"
+				onConfirm={() => editDrawerBlocker.proceed?.()}
+				onOpenChange={(isOpen) => {
+					if (!isOpen) {
+						editDrawerBlocker.reset?.();
+					}
+				}}
 			/>
 		</TenantDetailsPageShell>
 	);

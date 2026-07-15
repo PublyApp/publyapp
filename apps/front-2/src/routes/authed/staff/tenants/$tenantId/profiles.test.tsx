@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import {
+	act,
 	cleanup,
 	fireEvent,
 	render,
@@ -26,6 +27,13 @@ const mocks = vi.hoisted(() => ({
 	toStaffTenantProfileBulkActionSummary: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
 	invalidateAllStaffTenantScopes: vi.fn().mockResolvedValue(undefined),
+	blockerResolver: {
+		status: 'idle' as 'idle' | 'blocked',
+		proceed: undefined as (() => void) | undefined,
+		reset: undefined as (() => void) | undefined,
+	},
+	capturedShouldBlockFn: undefined as (() => boolean) | undefined,
+	capturedOnDirtyChange: undefined as ((isDirty: boolean) => void) | undefined,
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -64,6 +72,10 @@ vi.mock('@tanstack/react-router', () => ({
 				{children}
 			</a>
 		);
+	},
+	useBlocker: (opts: { shouldBlockFn: () => boolean }) => {
+		mocks.capturedShouldBlockFn = opts.shouldBlockFn;
+		return mocks.blockerResolver;
 	},
 }));
 
@@ -121,6 +133,10 @@ const TRANSLATIONS: Record<string, string> = {
 	'select-all-visible': 'Select all {{count}}',
 	'selected-count': '{{count}} selected',
 	close: 'Close',
+	'unsaved-changes-dialog-title': 'Leave without saving?',
+	'unsaved-changes-dialog-description':
+		'You have unsaved changes that will be lost if you leave this page.',
+	'leave-page': 'Leave page',
 	'actions-for': 'Actions for {{name}}',
 	'tenant-profiles-table-aria-label': 'Tenant profiles',
 	'tenant-profiles-empty-description': 'No tenant profiles found.',
@@ -180,8 +196,16 @@ vi.mock('~/lib/should-logout-for-failure', () => ({
 }));
 
 vi.mock('./profiles/_profile-form-drawer', () => ({
-	ProfileFormDrawer: ({ isOpen }: { isOpen: boolean }) =>
-		isOpen ? <div data-testid="profile-create-drawer-open" /> : null,
+	ProfileFormDrawer: ({
+		isOpen,
+		onDirtyChange,
+	}: {
+		isOpen: boolean;
+		onDirtyChange?: (isDirty: boolean) => void;
+	}) => {
+		mocks.capturedOnDirtyChange = onDirtyChange;
+		return isOpen ? <div data-testid="profile-create-drawer-open" /> : null;
+	},
 }));
 
 import {
@@ -212,6 +236,11 @@ describe('staff tenant profiles route', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mocks.search = {};
+		mocks.blockerResolver.status = 'idle';
+		mocks.blockerResolver.proceed = undefined;
+		mocks.blockerResolver.reset = undefined;
+		mocks.capturedShouldBlockFn = undefined;
+		mocks.capturedOnDirtyChange = undefined;
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
 		mocks.invalidateQueries.mockResolvedValue(undefined);
 		mocks.useDeleteStaffTenantProfileMutation.mockReturnValue({
@@ -974,6 +1003,47 @@ describe('staff tenant profiles route', () => {
 		renderPage();
 
 		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
+	});
+
+	// tenants-r1-F2: the create drawer's open flag is URL-driven (`?new=1`); a
+	// browser Back or sibling-route navigation changes/unmounts it without
+	// ever calling the drawer's own close guard, discarding a dirty create
+	// draft with no confirmation.
+	test('the URL nav-guard only blocks navigation while the create drawer is open AND dirty', () => {
+		mocks.search = { new: 1 };
+		renderPage();
+
+		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+
+		act(() => mocks.capturedOnDirtyChange?.(true));
+		expect(mocks.capturedShouldBlockFn?.()).toBe(true);
+
+		act(() => mocks.capturedOnDirtyChange?.(false));
+		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+	});
+
+	test('the URL nav-guard never blocks when the create drawer is closed, even if reported dirty', () => {
+		mocks.search = {};
+		renderPage();
+
+		act(() => mocks.capturedOnDirtyChange?.(true));
+		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+	});
+
+	test('shows the unsaved-changes confirm dialog when the router blocks navigation away from a dirty create drawer', () => {
+		const proceed = vi.fn();
+		const reset = vi.fn();
+		mocks.search = { new: 1 };
+		mocks.blockerResolver.status = 'blocked';
+		mocks.blockerResolver.proceed = proceed;
+		mocks.blockerResolver.reset = reset;
+
+		renderPage();
+
+		expect(screen.getByText('Leave without saving?')).toBeTruthy();
+		fireEvent.click(screen.getByRole('button', { name: 'Leave page' }));
+		expect(proceed).toHaveBeenCalled();
+		expect(reset).not.toHaveBeenCalled();
 	});
 });
 
