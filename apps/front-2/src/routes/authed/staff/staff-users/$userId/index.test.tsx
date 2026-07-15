@@ -216,9 +216,7 @@ describe('staff user overview tab', () => {
 	test('clicking "Try again" on the profiles error retries the query (r5-F6)', () => {
 		renderTab(buildContextValue({ profilesHasError: true }));
 
-		fireEvent.click(
-			screen.getByRole('button', { name: 'Try again' }),
-		);
+		fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
 
 		expect(mocks.onRetryProfiles).toHaveBeenCalledTimes(1);
 	});
@@ -227,7 +225,9 @@ describe('staff user overview tab', () => {
 		renderTab(buildContextValue({ profilesIsPending: true, profiles: [] }));
 
 		expect(screen.getByTestId('staff-user-profiles-loading')).toBeTruthy();
-		expect(screen.queryByText('No profiles are currently assigned.')).toBeNull();
+		expect(
+			screen.queryByText('No profiles are currently assigned.'),
+		).toBeNull();
 		expect(screen.queryByText('0 assigned')).toBeNull();
 	});
 

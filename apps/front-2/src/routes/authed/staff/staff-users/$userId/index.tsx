@@ -269,7 +269,10 @@ function StaffUserOverviewTab() {
 		}
 
 		return (
-			<AssignedProfilesCard profiles={profiles} maxProfiles={maxProfilesPerUser} />
+			<AssignedProfilesCard
+				profiles={profiles}
+				maxProfiles={maxProfilesPerUser}
+			/>
 		);
 	};
 
