@@ -8,6 +8,16 @@ import { View404 } from '~/components/error-views/View404';
 import { Form, Field } from '~/components/field';
 import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
+import { Input } from '~/components/ui/input';
+import { Label } from '~/components/ui/label';
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from '~/components/ui/select';
+import { Textarea } from '~/components/ui/textarea';
 import { FEATURES } from '~/lib/flags';
 
 type FieldValidationValues = {
@@ -66,6 +76,53 @@ const FieldValidationRoute = () => {
 					{status}
 				</p>
 			</Card>
+			<Card
+				className="space-y-4 p-4"
+				data-testid="form-control-outline-fixture"
+			>
+				<div className="space-y-1.5">
+					<Label htmlFor="outline-input">{t('name')}</Label>
+					<Input
+						id="outline-input"
+						data-testid="outline-input"
+						defaultValue="Input value"
+					/>
+				</div>
+				<div className="space-y-1.5">
+					<Label htmlFor="outline-textarea">{t('description')}</Label>
+					<Textarea
+						id="outline-textarea"
+						data-testid="outline-textarea"
+						defaultValue="Textarea value"
+					/>
+				</div>
+				<div className="space-y-1.5">
+					<Label htmlFor="outline-select">{t('status')}</Label>
+					<Select defaultValue="alpha">
+						<SelectTrigger
+							id="outline-select"
+							className="w-full"
+							data-testid="outline-select"
+						>
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="alpha">{t('active')}</SelectItem>
+							<SelectItem value="beta">{t('inactive')}</SelectItem>
+						</SelectContent>
+					</Select>
+				</div>
+			</Card>
+			<div
+				aria-hidden="true"
+				className="pointer-events-none fixed size-px border border-ring bg-input/50 opacity-0 shadow-[var(--publy-shadow-input)] ring-3 ring-ring/30"
+				data-testid="outline-expected-focus"
+			/>
+			<div
+				aria-hidden="true"
+				className="pointer-events-none fixed size-px border border-destructive bg-input/50 opacity-0 shadow-[var(--publy-shadow-input)] ring-3 ring-destructive/20 dark:ring-destructive/40"
+				data-testid="outline-expected-invalid-focus"
+			/>
 		</div>
 	);
 };

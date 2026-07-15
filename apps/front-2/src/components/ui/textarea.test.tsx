@@ -9,15 +9,55 @@ import { Textarea } from './textarea';
 afterEach(cleanup);
 
 describe('Textarea', () => {
-	test('renders with textarea semantics and focus-visible focus ring token classes', () => {
+	test('preserves textarea semantics and uses the shared form-control state matrix', () => {
 		render(<Textarea />);
 
 		const textarea = screen.getByRole('textbox');
+		const classes = new Set(textarea.className.split(/\s+/));
+
 		expect(textarea.tagName).toBe('TEXTAREA');
 		expect(textarea.getAttribute('data-slot')).toBe('textarea');
-		expect(textarea.className).toContain('focus-visible:border-ring');
-		expect(textarea.className).toContain('focus-visible:ring-3');
-		expect(textarea.className).toContain('focus-visible:ring-ring');
-		expect(textarea.className).not.toMatch(/focus-visible:ring-[^\s]*\//);
+		for (const token of [
+			'border',
+			'border-border',
+			'bg-input/50',
+			'shadow-[var(--publy-shadow-input)]',
+			'focus-visible:border-ring',
+			'focus-visible:ring-3',
+			'focus-visible:ring-ring/30',
+			'aria-invalid:border-destructive',
+			'aria-invalid:ring-3',
+			'aria-invalid:ring-destructive/20',
+			'dark:aria-invalid:border-destructive/50',
+			'dark:aria-invalid:ring-destructive/40',
+			'aria-invalid:focus-visible:border-destructive',
+			'aria-invalid:focus-visible:ring-destructive/20',
+			'dark:aria-invalid:focus-visible:border-destructive',
+			'dark:aria-invalid:focus-visible:ring-destructive/40',
+			'disabled:pointer-events-none',
+			'disabled:cursor-not-allowed',
+			'disabled:opacity-50',
+		]) {
+			expect(classes).toContain(token);
+		}
+		for (const token of [
+			'bg-input/35',
+			'focus-visible:ring-ring',
+			'aria-invalid:ring-destructive/12',
+			'rounded-3xl',
+		]) {
+			expect(classes).not.toContain(token);
+		}
+		for (const token of [
+			'min-h-20',
+			'resize-y',
+			'rounded-[var(--publy-radius-input)]',
+			'px-3.5',
+			'py-2',
+			'text-base',
+			'md:text-[13px]',
+		]) {
+			expect(classes).toContain(token);
+		}
 	});
 });
