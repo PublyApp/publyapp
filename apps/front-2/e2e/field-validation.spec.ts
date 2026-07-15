@@ -51,31 +51,12 @@ const readControlStyle = (control: Locator): Promise<ComputedControlStyle> =>
 
 const readExpectedStyle = async (
 	page: Page,
-	colorScheme: ColorScheme,
 	isInvalid: boolean,
 ): Promise<ComputedControlStyle> =>
-	page.evaluate(
-		({ colorScheme, isInvalid }) => {
-			const probe = document.createElement('div');
-			let indicatorClasses = 'border-ring ring-ring/30';
-			if (isInvalid) {
-				indicatorClasses =
-					colorScheme === 'dark'
-						? 'border-destructive ring-destructive/40'
-						: 'border-destructive ring-destructive/20';
-			}
-			probe.className = `fixed border bg-input/50 shadow-[var(--publy-shadow-input)] ring-3 ${indicatorClasses}`;
-			document.body.append(probe);
-			const style = window.getComputedStyle(probe);
-			const result = {
-				backgroundColor: style.backgroundColor,
-				borderColor: style.borderColor,
-				boxShadow: style.boxShadow,
-			};
-			probe.remove();
-			return result;
-		},
-		{ colorScheme, isInvalid },
+	readControlStyle(
+		page.getByTestId(
+			isInvalid ? 'outline-expected-invalid-focus' : 'outline-expected-focus',
+		),
 	);
 
 type BrowserContextLike = {
@@ -191,7 +172,7 @@ test('shared controls match the Gray UI outline treatment in light and dark them
 			const afterFocus = await control.boundingBox();
 			expect(afterFocus).toEqual(beforeFocus);
 
-			const expectedFocus = await readExpectedStyle(page, colorScheme, false);
+			const expectedFocus = await readExpectedStyle(page, false);
 			await expect.poll(() => readControlStyle(control)).toEqual(expectedFocus);
 			await page.screenshot({
 				path: `test-results/gray-ui/form-controls-${colorScheme}-${fixture}-focus.png`,
@@ -206,7 +187,7 @@ test('shared controls match the Gray UI outline treatment in light and dark them
 			const invalidFocusBox = await control.boundingBox();
 			expect(invalidFocusBox).toEqual(beforeFocus);
 
-			const expectedInvalid = await readExpectedStyle(page, colorScheme, true);
+			const expectedInvalid = await readExpectedStyle(page, true);
 			await expect
 				.poll(() => readControlStyle(control))
 				.toEqual(expectedInvalid);

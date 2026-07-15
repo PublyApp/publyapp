@@ -113,6 +113,16 @@ const FieldValidationRoute = () => {
 					</Select>
 				</div>
 			</Card>
+			<div
+				aria-hidden="true"
+				className="pointer-events-none fixed size-px border border-ring bg-input/50 opacity-0 shadow-[var(--publy-shadow-input)] ring-3 ring-ring/30"
+				data-testid="outline-expected-focus"
+			/>
+			<div
+				aria-hidden="true"
+				className="pointer-events-none fixed size-px border border-destructive bg-input/50 opacity-0 shadow-[var(--publy-shadow-input)] ring-3 ring-destructive/20 dark:ring-destructive/40"
+				data-testid="outline-expected-invalid-focus"
+			/>
 		</div>
 	);
 };
