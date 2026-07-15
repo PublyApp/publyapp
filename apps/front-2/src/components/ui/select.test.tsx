@@ -52,6 +52,56 @@ const renderControlledSelect = () => {
 afterEach(cleanup);
 
 describe('Select', () => {
+	test('preserves trigger semantics and uses the shared form-control state matrix', () => {
+		renderSelect();
+
+		const trigger = screen.getByRole('combobox');
+		const classes = new Set(trigger.className.split(/\s+/));
+
+		expect(trigger.getAttribute('data-slot')).toBe('select-trigger');
+		expect(trigger.getAttribute('data-size')).toBe('default');
+		for (const token of [
+			'border',
+			'border-border',
+			'bg-input/50',
+			'shadow-[var(--publy-shadow-input)]',
+			'focus-visible:border-ring',
+			'focus-visible:ring-3',
+			'focus-visible:ring-ring/30',
+			'aria-invalid:border-destructive',
+			'aria-invalid:ring-3',
+			'aria-invalid:ring-destructive/20',
+			'dark:aria-invalid:border-destructive/50',
+			'dark:aria-invalid:ring-destructive/40',
+			'aria-invalid:focus-visible:border-destructive',
+			'aria-invalid:focus-visible:ring-destructive/20',
+			'dark:aria-invalid:focus-visible:border-destructive',
+			'dark:aria-invalid:focus-visible:ring-destructive/40',
+			'disabled:cursor-not-allowed',
+			'disabled:opacity-50',
+		]) {
+			expect(classes).toContain(token);
+		}
+		for (const token of [
+			'bg-input/35',
+			'focus-visible:ring-ring',
+			'aria-invalid:ring-destructive/12',
+			'rounded-3xl',
+		]) {
+			expect(classes).not.toContain(token);
+		}
+		for (const token of [
+			'rounded-[var(--publy-radius-input)]',
+			'px-3',
+			'py-2',
+			'text-[13px]',
+			'data-[size=default]:h-9',
+			'data-[size=sm]:h-8',
+		]) {
+			expect(classes).toContain(token);
+		}
+	});
+
 	test('defaults to a trigger-anchored popup, not item-aligned', () => {
 		renderSelect();
 
