@@ -26,6 +26,7 @@ import {
 	type I18nResources,
 	type SupportedLanguage,
 } from '~/lib/i18n.shared';
+import { registerMutationToastI18n } from '~/lib/mutation-toast';
 import { subscribeToSessionInvalidated } from '~/lib/session-invalidation-channel';
 import { COLOR_SCHEME_STORAGE_KEY, useUiStore } from '~/lib/store/ui-store';
 import { TabSyncListener } from '~/lib/tab-sync/tab-sync-listener';
@@ -341,7 +342,12 @@ function RootShell({ children }: { children: React.ReactNode }) {
 	const cspNonce = router.options.ssr?.nonce ?? '';
 
 	React.useEffect(() => {
+		registerMutationToastI18n(i18n);
 		void initI18nOnClient(i18n);
+
+		return () => {
+			registerMutationToastI18n(undefined);
+		};
 	}, [i18n]);
 
 	return (

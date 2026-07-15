@@ -2,6 +2,8 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
+	displayMutationFeedback: vi.fn(() => Promise.resolve()),
+	loggerError: vi.fn(),
 	triggerSessionInvalidated: vi.fn(),
 }));
 
@@ -9,9 +11,19 @@ vi.mock('~/lib/session-invalidation-channel', () => ({
 	triggerSessionInvalidated: mocks.triggerSessionInvalidated,
 }));
 
+vi.mock('~/lib/mutation-toast', () => ({
+	displayMutationFeedback: mocks.displayMutationFeedback,
+}));
+
+vi.mock('@org/shared-ts/lib/logger/iso-logger', () => ({
+	logger: { error: mocks.loggerError },
+}));
+
 import {
 	getRouter,
 	handleAuthedQueryError,
+	handleMutationError,
+	handleMutationSuccess,
 	isAuthedSurfacePath,
 	shouldRetryQuery,
 } from './router';
@@ -68,6 +80,170 @@ describe('getRouter', () => {
 		expect(mocks.triggerSessionInvalidated).toHaveBeenCalledTimes(2);
 
 		window.history.pushState({}, '', '/');
+	});
+
+	test('wires central mutation success and error handlers without changing query ownership', () => {
+		const router = getRouter();
+		const { queryClient } = router.options.context;
+		const mutationCache = queryClient.getMutationCache();
+
+		expect(mutationCache.config.onError).toBeTypeOf('function');
+		expect(mutationCache.config.onSuccess).toBeTypeOf('function');
+
+		queryClient
+			.getQueryCache()
+			.config.onError?.(
+				{ responseStatusCode: 500, title: 'Query failed' } as unknown as Error,
+				{} as never,
+			);
+		expect(mocks.displayMutationFeedback).not.toHaveBeenCalled();
+	});
+});
+
+describe('handleMutationError', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
+	test('displays exactly one ordinary problem error intent', () => {
+		handleMutationError(
+			{ responseStatusCode: 500, title: 'Server failed' },
+			{},
+		);
+
+		expect(mocks.displayMutationFeedback).toHaveBeenCalledTimes(1);
+		expect(mocks.displayMutationFeedback).toHaveBeenCalledWith(
+			expect.objectContaining({ kind: 'error' }),
+		);
+	});
+
+	test('invalidates an authed 401 once without sending a toast intent', () => {
+		vi.stubGlobal('window', {
+			location: { pathname: '/staff/staff-users' },
+		});
+
+		handleMutationError({ responseStatusCode: 401, title: 'Unauthorized' }, {});
+
+		expect(mocks.triggerSessionInvalidated).toHaveBeenCalledTimes(1);
+		expect(mocks.displayMutationFeedback).not.toHaveBeenCalled();
+	});
+
+	test('keeps aborts silent', () => {
+		handleMutationError(new DOMException('Aborted', 'AbortError'), {});
+
+		expect(mocks.displayMutationFeedback).not.toHaveBeenCalled();
+	});
+
+	test('silences only validation owned by the form', () => {
+		handleMutationError(
+			{ responseStatusCode: 422, errors: { email: ['Invalid'] } },
+			{ meta: { validationHandledByForm: true } },
+		);
+
+		expect(mocks.displayMutationFeedback).not.toHaveBeenCalled();
+
+		handleMutationError(
+			{ responseStatusCode: 422, errors: { email: ['Invalid'] } },
+			{},
+		);
+
+		expect(mocks.displayMutationFeedback).toHaveBeenCalledTimes(1);
+	});
+
+	test('silences failures owned by a local error handler', () => {
+		handleMutationError(
+			{ responseStatusCode: 500, title: 'Handled locally' },
+			{ meta: { skipGlobalErrorHandler: true } },
+		);
+
+		expect(mocks.displayMutationFeedback).not.toHaveBeenCalled();
+	});
+
+	test('does not let the auth-backstop opt-out silence a visible non-401 failure', () => {
+		handleMutationError(
+			{ responseStatusCode: 500, title: 'Still visible' },
+			{ meta: { skipAuthedErrorBackstop: true } },
+		);
+
+		expect(mocks.displayMutationFeedback).toHaveBeenCalledTimes(1);
+	});
+
+	test('logs an unexpected adapter rejection without throwing', async () => {
+		mocks.displayMutationFeedback.mockRejectedValueOnce(
+			new Error('adapter failed'),
+		);
+
+		expect(() =>
+			handleMutationError({ responseStatusCode: 500, title: 'Visible' }, {}),
+		).not.toThrow();
+
+		await vi.waitFor(() => {
+			expect(mocks.loggerError).toHaveBeenCalledWith(
+				'[Mutation Toast Handler Error]',
+				expect.anything(),
+			);
+		});
+	});
+});
+
+describe('handleMutationSuccess', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	test('uses one explicit success intent', () => {
+		handleMutationSuccess(
+			{ message: 'ignored' },
+			{
+				meta: { successMessage: 'frontend-success' },
+			},
+		);
+
+		expect(mocks.displayMutationFeedback).toHaveBeenCalledTimes(1);
+		expect(mocks.displayMutationFeedback).toHaveBeenCalledWith({
+			kind: 'success',
+			translationKey: 'frontend-success',
+		});
+	});
+
+	test('uses the response success policy when explicitly enabled', () => {
+		handleMutationSuccess(
+			{ translationKey: 'backend-success', message: 'Created' },
+			{ meta: { showSuccessToast: true } },
+		);
+
+		expect(mocks.displayMutationFeedback).toHaveBeenCalledWith({
+			kind: 'success',
+			translationKey: 'backend-success',
+			fallbackMessage: 'Created',
+		});
+	});
+
+	test('keeps configured silent success silent', () => {
+		handleMutationSuccess(
+			{ message: 'Do not show' },
+			{
+				meta: { silentSuccess: true },
+			},
+		);
+
+		expect(mocks.displayMutationFeedback).not.toHaveBeenCalled();
+	});
+
+	test('keeps absent or unrecognized success metadata as a compatibility no-op', () => {
+		handleMutationSuccess({ message: 'No metadata' }, {});
+		handleMutationSuccess(
+			{ message: 'Unknown metadata' },
+			{
+				meta: { validationHandledByForm: true },
+			},
+		);
+
+		expect(mocks.displayMutationFeedback).not.toHaveBeenCalled();
 	});
 });
 
