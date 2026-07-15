@@ -14,6 +14,7 @@ import type { i18n as I18nInstance } from 'i18next';
 import * as React from 'react';
 import { I18nextProvider, useTranslation } from 'react-i18next';
 import { Button, buttonVariants } from '~/components/ui/button';
+import { AppToaster } from '~/components/ui/toaster';
 import { AuthBrandProvider } from '~/lib/auth-brand-context';
 import { isAuthPath, isPathForSurface } from '~/lib/auth-paths';
 import { useLogout } from '~/lib/hooks/use-logout';
@@ -372,6 +373,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
 					<TabSyncListener />
 					<SessionInvalidationListener />
 					<ThemeHydrationListener />
+					<AppToaster />
 					{children}
 				</I18nextProvider>
 				<Scripts />
