@@ -6,7 +6,6 @@ import {
 	IconPlus,
 	IconRefresh,
 	IconTrash,
-	IconX,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
@@ -42,6 +41,10 @@ import { InitialsAvatar } from '~/components/ui/initials-avatar';
 import { PageHeader, StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import {
+	displayLocalMutationFailure,
+	toastLocalMutationResult,
+} from '~/lib/mutation-toast';
+import {
 	invalidateStaffTenants,
 	type StaffTenantRow,
 	toStaffTenantRows,
@@ -56,10 +59,6 @@ import {
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 import type { TableSearchParams } from '~/lib/url-state/table-search-params';
 
-import {
-	getFailureMessage,
-	toApiFailure,
-} from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { BULK_ACTION_MAX_COUNT } from '@org/shared-ts/lib/constants';
 
 import {
@@ -167,7 +166,6 @@ const TenantStatusFilterMenu = ({
 
 const buildTenantColumns = (
 	onSessionExpired: () => void,
-	onFeedback: (feedback: TenantBulkFeedback) => void,
 	t: (key: string) => string,
 ): ColumnDef<StaffTenantRow>[] => [
 	{
@@ -236,7 +234,6 @@ const buildTenantColumns = (
 			<TenantLifecycleActionsCell
 				tenant={row.original}
 				onSessionExpired={onSessionExpired}
-				onFeedback={onFeedback}
 			/>
 		),
 	},
@@ -250,9 +247,6 @@ export const Route = createFileRoute('/_authed-layout/staff/tenants')({
 
 function StaffTenantsPage() {
 	const [shouldLogout, setShouldLogout] = useState(false);
-	const [bulkFeedback, setBulkFeedback] = useState<TenantBulkFeedback | null>(
-		null,
-	);
 	const navigate = Route.useNavigate();
 	const search = parseTenantListSearchParams(
 		Route.useSearch() as TenantListSearchParamInput,
@@ -307,13 +301,9 @@ function StaffTenantsPage() {
 	}, [selection.isSelectionMode, resetDraftToCommitted]);
 
 	const onSessionExpired = useCallback(() => setShouldLogout(true), []);
-	const onRowActionFeedback = useCallback(
-		(feedback: TenantBulkFeedback) => setBulkFeedback(feedback),
-		[],
-	);
 	const columns = useMemo(
-		() => buildTenantColumns(onSessionExpired, onRowActionFeedback, t),
-		[onSessionExpired, onRowActionFeedback, t],
+		() => buildTenantColumns(onSessionExpired, t),
+		[onSessionExpired, t],
 	);
 
 	if (query.isError && shouldLogoutForFailure(query.error)) {
@@ -339,25 +329,6 @@ function StaffTenantsPage() {
 					</Link>
 				}
 			/>
-			{bulkFeedback ? (
-				<div
-					className="flex items-center gap-1.5 text-xs"
-					data-tone={bulkFeedback.tone}
-					role="status"
-				>
-					<span className={bulkFeedbackToneClassName(bulkFeedback.tone)}>
-						{bulkFeedback.message}
-					</span>
-					<button
-						type="button"
-						aria-label={t('close')}
-						onClick={() => setBulkFeedback(null)}
-						className="text-muted-foreground"
-					>
-						<IconX className="size-3.5" />
-					</button>
-				</div>
-			) : null}
 			<DataTable
 				testId="staff-tenants-table"
 				ariaLabel={t('staff-tenants-table-aria-label')}
@@ -408,7 +379,6 @@ function StaffTenantsPage() {
 					rows={rows}
 					selection={selection}
 					onSessionExpired={onSessionExpired}
-					onFeedback={setBulkFeedback}
 				/>
 			</FloatingSelectionBar>
 		</div>
@@ -479,23 +449,6 @@ const getBulkConfirmDialogConfig = (
 	}
 };
 
-type TenantBulkFeedback = {
-	tone: 'warning' | 'success' | 'error';
-	message: string;
-};
-
-const bulkFeedbackToneClassName = (
-	tone: TenantBulkFeedback['tone'],
-): string => {
-	if (tone === 'error') {
-		return 'text-destructive';
-	}
-	if (tone === 'success') {
-		return 'text-[var(--publy-success)]';
-	}
-	return 'text-muted-foreground';
-};
-
 type TenantBulkActionKey = 'suspend' | 'reactivate' | 'delete';
 
 const TENANT_BULK_FAILURE_KEYS: Record<TenantBulkActionKey, string> = {
@@ -516,25 +469,14 @@ const TENANT_BULK_PARTIAL_SUCCESS_KEYS: Record<TenantBulkActionKey, string> = {
 	delete: 'tenant-bulk-delete-partial-success',
 };
 
-const TENANT_LIFECYCLE_ACTION_FALLBACK_KEYS: Record<
-	TenantBulkActionKey,
-	string
-> = {
-	suspend: 'unable-to-suspend-tenant',
-	reactivate: 'unable-to-reactivate-tenant',
-	delete: 'unable-to-delete-tenant',
-};
-
 const TenantBulkActions = ({
 	rows,
 	selection,
 	onSessionExpired,
-	onFeedback,
 }: {
 	rows: StaffTenantRow[];
 	selection: UseRowSelectionResult;
 	onSessionExpired: () => void;
-	onFeedback: (feedback: TenantBulkFeedback | null) => void;
 }) => {
 	const { t } = useTranslation('common');
 	const queryClient = useQueryClient();
@@ -587,12 +529,11 @@ const TenantBulkActions = ({
 	};
 
 	// MenuItems render unconditionally (docs/guides/bulk-action-ux-conventions.md):
-	// the click handler enforces eligibility and surfaces the reason inline
+	// the click handler enforces eligibility and surfaces the reason
 	// rather than disabling or hiding the item.
 	const handleMenuItemClick = (action: PendingLifecycleAction) => {
-		onFeedback(null);
 		if (eligibleIdsFor(action).length === 0) {
-			onFeedback({ tone: 'warning', message: ineligibleMessageFor(action) });
+			toastLocalMutationResult.warning(ineligibleMessageFor(action));
 			return;
 		}
 		setPendingAction(action);
@@ -600,7 +541,6 @@ const TenantBulkActions = ({
 
 	const performBulkAction = async (action: TenantBulkActionKey) => {
 		const eligibleIds = eligibleIdsFor(action);
-		onFeedback(null);
 
 		let result;
 		try {
@@ -624,32 +564,33 @@ const TenantBulkActions = ({
 				return;
 			}
 
-			onFeedback({
-				tone: 'error',
-				message: getFailureMessage(toApiFailure(error), {
-					fallback: t(TENANT_BULK_FAILURE_KEYS[action]),
-				}),
-			});
+			await displayLocalMutationFailure(
+				error,
+				t(TENANT_BULK_FAILURE_KEYS[action]),
+			);
 			return;
 		}
 
 		setPendingAction(null);
 		selection.clearSelection();
-		await invalidateStaffTenants(queryClient);
 
 		const succeededCount = result?.succeededCount ?? 0;
 		const failedCount = result?.failedCount ?? 0;
 
-		onFeedback({
-			tone: failedCount > 0 ? 'error' : 'success',
-			message:
-				failedCount > 0
-					? t(TENANT_BULK_PARTIAL_SUCCESS_KEYS[action], {
-							succeeded: succeededCount,
-							failed: failedCount,
-						})
-					: t(TENANT_BULK_SUCCESS_KEYS[action], { count: succeededCount }),
-		});
+		if (failedCount > 0) {
+			toastLocalMutationResult.error(
+				t(TENANT_BULK_PARTIAL_SUCCESS_KEYS[action], {
+					succeeded: succeededCount,
+					failed: failedCount,
+				}),
+			);
+		} else {
+			toastLocalMutationResult.success(
+				t(TENANT_BULK_SUCCESS_KEYS[action], { count: succeededCount }),
+			);
+		}
+
+		await invalidateStaffTenants(queryClient);
 	};
 
 	const dialogConfig = getBulkConfirmDialogConfig(
@@ -734,11 +675,9 @@ const TenantBulkActions = ({
 const TenantLifecycleActionsCell = ({
 	tenant,
 	onSessionExpired,
-	onFeedback,
 }: {
 	tenant: StaffTenantRow;
 	onSessionExpired: () => void;
-	onFeedback: (feedback: TenantBulkFeedback) => void;
 }) => {
 	const { t } = useTranslation('common');
 	const queryClient = useQueryClient();
@@ -771,23 +710,16 @@ const TenantLifecycleActionsCell = ({
 			if (action === 'delete') {
 				await deleteTenantMutation.mutateAsync({ tenantId: tenant.id });
 			}
-
-			await invalidateTenantQueries();
 		} catch (error) {
+			setPendingAction(null);
 			if (shouldLogoutForFailure(error)) {
 				onSessionExpired();
-				return;
 			}
-
-			onFeedback({
-				tone: 'error',
-				message: getFailureMessage(toApiFailure(error), {
-					fallback: t(TENANT_LIFECYCLE_ACTION_FALLBACK_KEYS[action]),
-				}),
-			});
-		} finally {
-			setPendingAction(null);
+			return;
 		}
+
+		setPendingAction(null);
+		await invalidateTenantQueries();
 	};
 
 	if (!canSuspend && !canReactivate && !canDelete) {

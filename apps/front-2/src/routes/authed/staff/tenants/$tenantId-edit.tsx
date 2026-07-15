@@ -30,10 +30,7 @@ import {
 } from '~/lib/query/staff-tenants';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
-import {
-	getFailureMessage,
-	toApiFailure,
-} from '@org/shared-ts/lib/api-failure/to-api-failure';
+import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 import {
 	formatShortDate,
@@ -180,7 +177,6 @@ function StaffTenantEditRoute() {
 	const navigate = Route.useNavigate();
 	const queryClient = useQueryClient();
 	const [shouldLogout, setShouldLogout] = useState(false);
-	const [serverError, setServerError] = useState('');
 	const hasSavedRef = useRef(false);
 	const detailsQuery = useStaffTenantDetailsQuery(
 		{ tenantId },
@@ -318,7 +314,6 @@ function StaffTenantEditRoute() {
 	}
 
 	const onSubmit = handleSubmit(async (values) => {
-		setServerError('');
 		const payload: StaffTenantUpdateInput = { tenantId };
 
 		if (dirtyFields.name && values.name !== undefined) {
@@ -372,24 +367,34 @@ function StaffTenantEditRoute() {
 
 		try {
 			await updateTenant.mutateAsync(payload);
-			await invalidateStaffTenants(queryClient);
-			hasSavedRef.current = true;
-			void navigate({
-				to: '/staff/tenants/$tenantId',
-				params: { tenantId },
-			});
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
 				setShouldLogout(true);
 				return;
 			}
 
-			setServerError(
-				getFailureMessage(toApiFailure(error), {
-					fallback: t('tenant-update-failed'),
-				}),
-			);
+			const failure = toApiFailure(error);
+			if (failure.kind === 'validation') {
+				const fieldNames = Object.keys(
+					EMPTY_FORM_VALUES,
+				) as (keyof EditTenantFormValues)[];
+
+				for (const fieldName of fieldNames) {
+					const message = failure.fieldErrors[fieldName]?.[0];
+					if (message) {
+						methods.setError(fieldName, { type: 'server', message });
+					}
+				}
+			}
+			return;
 		}
+
+		await invalidateStaffTenants(queryClient);
+		hasSavedRef.current = true;
+		void navigate({
+			to: '/staff/tenants/$tenantId',
+			params: { tenantId },
+		});
 	});
 
 	const previewName = watchedName.trim().length > 0 ? watchedName : tenant.name;
@@ -650,10 +655,6 @@ function StaffTenantEditRoute() {
 						</div>
 					</aside>
 				</div>
-
-				{serverError ? (
-					<p className="text-sm text-destructive">{serverError}</p>
-				) : null}
 
 				<FormActionBar
 					status={

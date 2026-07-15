@@ -88,7 +88,12 @@ vi.mock('~/components/field', () => ({
 			isDisabled?: boolean;
 			type?: string;
 		}) => {
-			const { register } = useFormContext();
+			const {
+				register,
+				formState: { errors },
+			} = useFormContext();
+			const message = (errors[name] as { message?: string } | undefined)
+				?.message;
 
 			return createElement(
 				'label',
@@ -100,6 +105,7 @@ vi.mock('~/components/field', () => ({
 					type: type ?? 'text',
 					...register(name),
 				}),
+				message ? createElement('span', undefined, message) : null,
 			);
 		},
 		Email: ({
@@ -925,12 +931,13 @@ describe('staff tenant edit route', () => {
 		expect(proceed).not.toHaveBeenCalled();
 	});
 
-	test('renders a local failure without logging out for non-401 API failures', async () => {
+	test('keeps server-side field validation inline without a duplicate general result', async () => {
 		const updateError = {
 			status: 422,
 			responseStatusCode: 422,
 			title: 'Validation failed',
 			detail: 'The tenant payload is invalid.',
+			errors: { MaxUsers: ['Seats must be at least the current user count.'] },
 		};
 		mocks.updateTenantMutation.mockRejectedValue(updateError);
 
@@ -944,10 +951,37 @@ describe('staff tenant edit route', () => {
 		);
 
 		await waitFor(() =>
-			expect(screen.getByText('The tenant payload is invalid.')).toBeTruthy(),
+			expect(
+				screen.getByText('Seats must be at least the current user count.'),
+			).toBeTruthy(),
 		);
+		expect(screen.queryByText('The tenant payload is invalid.')).toBeNull();
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 		expect(mocks.shouldLogoutForFailure).toHaveBeenCalled();
+	});
+
+	test('leaves ordinary update failures to the central toast owner', async () => {
+		mocks.updateTenantMutation.mockRejectedValue({
+			status: 500,
+			responseStatusCode: 500,
+			title: 'Update failed',
+			detail: 'Tenant update is temporarily unavailable.',
+		});
+
+		renderPage();
+
+		fireEvent.change(screen.getByLabelText('Seats'), {
+			target: { value: '25' },
+		});
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Save changes' }).closest('form')!,
+		);
+
+		await waitFor(() => expect(mocks.updateTenantMutation).toHaveBeenCalled());
+		expect(
+			screen.queryByText('Tenant update is temporarily unavailable.'),
+		).toBeNull();
+		expect(mocks.navigate).not.toHaveBeenCalled();
 	});
 
 	test('redirects to logout when an update failure should end the session', async () => {

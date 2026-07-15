@@ -30,6 +30,10 @@ const mocks = vi.hoisted(() => ({
 	useBulkSuspendStaffTenantsMutation: vi.fn(),
 	useBulkReactivateStaffTenantsMutation: vi.fn(),
 	useBulkDeleteStaffTenantsMutation: vi.fn(),
+	displayLocalMutationFailure: vi.fn().mockResolvedValue(undefined),
+	toastSuccess: vi.fn(),
+	toastError: vi.fn(),
+	toastWarning: vi.fn(),
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -160,6 +164,15 @@ vi.mock('~/lib/query/staff-tenants', () => ({
 
 vi.mock('~/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
+}));
+
+vi.mock('~/lib/mutation-toast', () => ({
+	displayLocalMutationFailure: mocks.displayLocalMutationFailure,
+	toastLocalMutationResult: {
+		success: mocks.toastSuccess,
+		error: mocks.toastError,
+		warning: mocks.toastWarning,
+	},
 }));
 
 import { Route } from './tenants';
@@ -811,9 +824,12 @@ describe('staff tenants route', () => {
 				queryKey: ['staff', 'staff-tenants'],
 			}),
 		);
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+		expect(mocks.toastError).not.toHaveBeenCalled();
+		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
 	});
 
-	test('shows a local non-auth error when a tenant action fails with 400', async () => {
+	test('leaves row lifecycle failure feedback to the central mutation owner', async () => {
 		mocks.suspendTenantMutation.mockRejectedValue({
 			kind: 'problem',
 			status: 400,
@@ -836,11 +852,11 @@ describe('staff tenants route', () => {
 			screen.getAllByRole('button', { name: 'Suspend' }).slice(-1)[0],
 		);
 
-		await waitFor(() =>
-			expect(
-				within(screen.getByRole('status')).getByText('Invalid tenant'),
-			).toBeTruthy(),
-		);
+		await waitFor(() => expect(mocks.suspendTenantMutation).toHaveBeenCalled());
+		expect(screen.queryByRole('status')).toBeNull();
+		expect(screen.queryByText('Invalid tenant')).toBeNull();
+		expect(mocks.toastError).not.toHaveBeenCalled();
+		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 		expect(mocks.invalidateQueries).not.toHaveBeenCalled();
 	});
@@ -927,7 +943,7 @@ describe('staff tenants route', () => {
 			expect(screen.getByTestId('staff-tenants-table-toolbar')).toBeTruthy();
 		});
 
-		test('an ineligible bulk suspend click shows inline feedback and does not open the confirm dialog', async () => {
+		test('an ineligible bulk suspend click shows one warning toast and does not open the confirm dialog', async () => {
 			mocks.toStaffTenantRows.mockReturnValue([
 				{
 					id: 'tenant-1',
@@ -966,9 +982,13 @@ describe('staff tenants route', () => {
 				await screen.findByRole('menuitem', { name: 'Suspend selected' }),
 			);
 
+			expect(mocks.toastWarning).toHaveBeenCalledWith(
+				'Select at least one active tenant to suspend.',
+			);
+			expect(mocks.toastWarning).toHaveBeenCalledTimes(1);
 			expect(
-				screen.getByText('Select at least one active tenant to suspend.'),
-			).toBeTruthy();
+				screen.queryByText('Select at least one active tenant to suspend.'),
+			).toBeNull();
 			expect(
 				screen.queryByRole('heading', { name: 'Suspend selected' }),
 			).toBeNull();
@@ -1012,10 +1032,12 @@ describe('staff tenants route', () => {
 				}),
 			);
 			await waitFor(() =>
-				expect(
-					screen.getByText('Successfully suspended 1 tenant(s).'),
-				).toBeTruthy(),
+				expect(mocks.toastSuccess).toHaveBeenCalledWith(
+					'Successfully suspended 1 tenant(s).',
+				),
 			);
+			expect(mocks.toastSuccess).toHaveBeenCalledTimes(1);
+			expect(screen.queryByRole('status')).toBeNull();
 			expect(mocks.invalidateQueries).toHaveBeenCalledWith({
 				queryKey: ['staff', 'staff-tenants'],
 			});
@@ -1053,10 +1075,46 @@ describe('staff tenants route', () => {
 			);
 
 			await waitFor(() =>
-				expect(
-					screen.getByText('Suspended 1 tenant(s), 1 failed.'),
-				).toBeTruthy(),
+				expect(mocks.toastError).toHaveBeenCalledWith(
+					'Suspended 1 tenant(s), 1 failed.',
+				),
 			);
+			expect(mocks.toastError).toHaveBeenCalledTimes(1);
+			expect(screen.queryByRole('status')).toBeNull();
+		});
+
+		test('reports a bulk action failure through one local error toast owner', async () => {
+			const error = {
+				kind: 'problem',
+				status: 400,
+				responseStatusCode: 400,
+				title: 'Invalid tenants',
+				detail: 'The selected tenants cannot be suspended.',
+			};
+			mocks.bulkSuspendTenantsMutation.mockRejectedValue(error);
+
+			renderPage();
+
+			fireEvent.click(
+				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
+			);
+			fireEvent.click(
+				await screen.findByRole('button', { name: 'More actions' }),
+			);
+			fireEvent.click(
+				await screen.findByRole('menuitem', { name: 'Suspend selected' }),
+			);
+			const dialog = await screen.findByRole('alertdialog');
+			fireEvent.click(within(dialog).getByRole('button', { name: 'Suspend' }));
+
+			await waitFor(() =>
+				expect(mocks.displayLocalMutationFailure).toHaveBeenCalledWith(
+					error,
+					'Failed to suspend selected tenants.',
+				),
+			);
+			expect(mocks.displayLocalMutationFailure).toHaveBeenCalledTimes(1);
+			expect(screen.queryByRole('status')).toBeNull();
 		});
 
 		test('redirects to logout when a bulk action fails with 401', async () => {
@@ -1092,6 +1150,8 @@ describe('staff tenants route', () => {
 			await waitFor(() =>
 				expect(screen.getByTestId('logout-redirect')).toBeTruthy(),
 			);
+			expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
+			expect(mocks.toastError).not.toHaveBeenCalled();
 		});
 
 		const mixedStatusTenants = [
@@ -1116,7 +1176,7 @@ describe('staff tenants route', () => {
 			status: 'Suspended',
 		}));
 
-		test('a mixed active/suspended bulk delete click shows inline feedback and fires no mutation', async () => {
+		test('a mixed active/suspended bulk delete click shows one warning toast and fires no mutation', async () => {
 			mocks.toStaffTenantRows.mockReturnValue(mixedStatusTenants);
 			mocks.useStaffTenantsQuery.mockReturnValue(
 				buildQueryResult({
@@ -1139,11 +1199,10 @@ describe('staff tenants route', () => {
 				await screen.findByRole('menuitem', { name: 'Delete selected' }),
 			);
 
-			expect(
-				screen.getByText(
-					'Only suspended tenants can be deleted. Clear active tenants from the selection first.',
-				),
-			).toBeTruthy();
+			expect(mocks.toastWarning).toHaveBeenCalledWith(
+				'Only suspended tenants can be deleted. Clear active tenants from the selection first.',
+			);
+			expect(mocks.toastWarning).toHaveBeenCalledTimes(1);
 			expect(
 				screen.queryByRole('heading', { name: 'Delete selected' }),
 			).toBeNull();
