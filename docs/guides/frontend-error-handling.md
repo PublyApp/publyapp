@@ -2,7 +2,10 @@
 
 ## Overview
 
-This document describes the centralized error handling system for the PublyApp frontend. All API errors are normalized into an `ApiFailure` discriminated union and handled globally via React Query's `MutationCache` and `QueryCache`.
+This document describes centralized error handling for both PublyApp frontends.
+The examples and API reference below describe the legacy `apps/front`
+implementation unless a section is explicitly labelled front-2. The legacy
+frontend is unchanged by the front-2 policy below.
 
 **Related Documentation:**
 - Analysis: `docs/analysis/analysis-client-side-problem-details-error-handling.md`
@@ -10,9 +13,84 @@ This document describes the centralized error handling system for the PublyApp f
 
 ---
 
-## Quick Start
+## Front-2 Mutation Feedback
 
-### Default Behavior (No Code Needed)
+`apps/front-2` normalizes failures with `toApiFailure` and resolves feedback
+policy with the pure functions in
+`@org/shared-ts/lib/mutation-feedback/policy`. Presentation stays front-2-local:
+`router.tsx` owns the global `MutationCache`, `lib/mutation-toast.ts` translates
+and presents the intent, and `components/ui/toaster.tsx` mounts Sonner. Those
+two adapter files are the only front-2 production modules allowed to import
+`sonner`.
+
+The feedback matrix is:
+
+<!-- markdownlint-disable MD013 -->
+
+| Operation or result | Front-2 behavior |
+| --- | --- |
+| User-command mutation success | Show one success toast |
+| General mutation failure | Show one error toast |
+| Handled 422 field validation | Keep field errors inline; do not duplicate them in a toast |
+| Query failure | Keep persistent query/error-view feedback; do not use mutation toasts |
+| Aborted mutation | Stay silent |
+| 401 mutation failure | Stay silent while the auth backstop expires the session |
+| Compound, bulk, export, or upload flow | Name exactly one feedback owner |
+
+<!-- markdownlint-enable MD013 -->
+
+A form may suppress the global 422 toast only after it declares
+`validationHandledByForm: true`. Its mapping must still be exhaustive: every
+server field error must map to a visible field message, and unmapped or
+form-level validation must render a visible summary or root error. Silent loss
+of an unrecognized field is not a handled state. Generic alerts, component
+feedback state, `setError`, validation summaries, and retryable partial-state
+UI remain valid; the architecture policy does not ban them.
+
+Front-2 mutation factories use the current `MutationFeedbackMeta` type from
+`@org/shared-ts/lib/mutation-feedback/types`:
+
+```typescript
+const mutation = buildStaffMutationOptions(
+  {
+    mutationKeyFn: () => ['staff-users', 'create'],
+    mutationFn: (client, variables) => client.staff.users.post(variables),
+    meta: {
+      successMessage: 'staff-user-created-success',
+      validationHandledByForm: true,
+    },
+  },
+  { clientAccessor: getClientManager() },
+);
+```
+
+- `successMessage` names the translation key for the global success toast.
+- `silentSuccess` assigns success feedback to a local or compound-flow owner.
+  It is mutually exclusive with `successMessage` in `MutationFeedbackMeta`.
+- `validationHandledByForm` suppresses only handled validation feedback. The
+  form must provide the exhaustive visible fallback described above.
+- `skipGlobalErrorHandler` assigns failure feedback to a named local owner.
+  That owner must display the non-silent failure exactly once.
+
+For compound, bulk, export, and upload flows, choose either the global
+`MutationCache` or one local coordinator as the sole owner. When the
+coordinator owns feedback, configure the mutation with `silentSuccess: true`
+and `skipGlobalErrorHandler: true`; do not also emit a global toast. Pure
+classification and policy remain in `@org/shared-ts`; Sonner translation and
+display remain in front-2. Front-2 factories must never configure
+`handlers.onToast`, because that shared seam also processes query failures.
+
+The executable rules live in
+`apps/front-2/src/lib/mutation-feedback-architecture.test.ts`. They keep Sonner
+behind its adapters, direct `useMutation(...)` construction under
+`src/lib/query`, query feedback out of `QueryCache`, mutation feedback in
+`MutationCache`, and `handlers.onToast` out of front-2 query factories.
+
+---
+
+## Legacy Frontend Quick Start
+
+### Legacy Default Behavior (No Code Needed)
 
 Most mutations "just work" - errors are automatically toasted:
 
@@ -229,7 +307,7 @@ type UnknownFailure = {
 
 ---
 
-## Mutation Meta Options
+## Legacy Frontend Mutation Meta Options
 
 Configure mutation behavior via the `meta` property:
 
@@ -400,7 +478,7 @@ apps/front/app/lib/
 
 ---
 
-## Examples
+## Legacy Frontend Examples
 
 ### Simple Mutation (Default Behavior)
 
