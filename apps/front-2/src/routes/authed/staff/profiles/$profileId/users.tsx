@@ -317,10 +317,10 @@ function StaffProfileUsersPage() {
 
 	return (
 		<div
-			className="mx-auto w-full max-w-5xl space-y-6"
+			className="mx-auto flex h-full w-full max-w-5xl min-h-0 flex-col gap-6"
 			data-testid="staff-profile-users-page"
 		>
-			<div className="space-y-4">
+			<div className="shrink-0 space-y-4">
 				<div className="space-y-2">
 					<Link to="/staff/profiles" className="publy-back-link">
 						<IconArrowLeft aria-hidden="true" className="size-3" />
@@ -348,77 +348,81 @@ function StaffProfileUsersPage() {
 						</div>
 					</div>
 				</div>
-
-				<Tabs value="users">
-					<TabsList variant="line" aria-label={t('staff-profile-sections')}>
-						<TabsTrigger
-							value="basics"
-							render={
-								<Link to="/staff/profiles/$profileId" params={{ profileId }} />
-							}
-						>
-							{t('basics')}
-						</TabsTrigger>
-						<TabsTrigger value="users">{t('users')}</TabsTrigger>
-					</TabsList>
-
-					<TabsContent value="users">
-						<Card className="space-y-4 p-5">
-							<div className="space-y-1">
-								<p className="text-lg font-semibold text-foreground">
-									{t('assigned-users')}
-								</p>
-								<p className="text-sm text-muted-foreground">
-									{t('staff-profile-users-description')}
-								</p>
-							</div>
-
-							<DataTable
-								testId="staff-profile-users-table"
-								ariaLabel={t('assigned-staff-profile-users')}
-								columns={columns}
-								rows={rows}
-								isPending={usersQuery.isPending}
-								isError={usersQuery.isError}
-								onRetry={() => void usersQuery.refetch()}
-								errorContent={
-									usersFailure?.kind === 'problem' &&
-									usersFailure.status === 403 ? (
-										<p className="text-sm text-muted-foreground">
-											{t('no-permission-to-view-assigned-users')}
-										</p>
-									) : undefined
-								}
-								emptyContent={t('no-users-assigned-to-profile')}
-								noMatchContent={t('no-assigned-users-match-search')}
-								hasActiveSearch={Boolean(controller.search.committed)}
-								sort={controller.sort}
-								onSortChange={controller.onSortChange}
-								size={controller.size}
-								onSizeChange={controller.onSizeChange}
-								pageIndex={pageIndex}
-								hasPreviousPage={hasPreviousPage}
-								hasNextPage={hasNextPage}
-								isPaginationPending={
-									usersQuery.isFetching && !usersQuery.isPending
-								}
-								onNextPage={() => {
-									if (hasNextPage) {
-										setPageIndex((current) => current + 1);
-									}
-								}}
-								onPreviousPage={() => {
-									if (hasPreviousPage) {
-										setPageIndex((current) => Math.max(current - 1, 0));
-									}
-								}}
-								searchDraft={controller.search.draft}
-								onSearchDraftChange={controller.search.onDraftChange}
-							/>
-						</Card>
-					</TabsContent>
-				</Tabs>
 			</div>
+
+			<Tabs value="users" className="min-h-0 flex-1">
+				<TabsList
+					variant="line"
+					aria-label={t('staff-profile-sections')}
+					className="shrink-0"
+				>
+					<TabsTrigger
+						value="basics"
+						render={
+							<Link to="/staff/profiles/$profileId" params={{ profileId }} />
+						}
+					>
+						{t('basics')}
+					</TabsTrigger>
+					<TabsTrigger value="users">{t('users')}</TabsTrigger>
+				</TabsList>
+
+				<TabsContent value="users" className="publy-detail-tab-body min-h-0">
+					<Card className="min-h-0 flex-1 gap-4 p-5">
+						<div className="shrink-0 space-y-1">
+							<p className="text-lg font-semibold text-foreground">
+								{t('assigned-users')}
+							</p>
+							<p className="text-sm text-muted-foreground">
+								{t('staff-profile-users-description')}
+							</p>
+						</div>
+
+						<DataTable
+							testId="staff-profile-users-table"
+							ariaLabel={t('assigned-staff-profile-users')}
+							columns={columns}
+							rows={rows}
+							isPending={usersQuery.isPending}
+							isError={usersQuery.isError}
+							onRetry={() => void usersQuery.refetch()}
+							errorContent={
+								usersFailure?.kind === 'problem' &&
+								usersFailure.status === 403 ? (
+									<p className="text-sm text-muted-foreground">
+										{t('no-permission-to-view-assigned-users')}
+									</p>
+								) : undefined
+							}
+							emptyContent={t('no-users-assigned-to-profile')}
+							noMatchContent={t('no-assigned-users-match-search')}
+							hasActiveSearch={Boolean(controller.search.committed)}
+							sort={controller.sort}
+							onSortChange={controller.onSortChange}
+							size={controller.size}
+							onSizeChange={controller.onSizeChange}
+							pageIndex={pageIndex}
+							hasPreviousPage={hasPreviousPage}
+							hasNextPage={hasNextPage}
+							isPaginationPending={
+								usersQuery.isFetching && !usersQuery.isPending
+							}
+							onNextPage={() => {
+								if (hasNextPage) {
+									setPageIndex((current) => current + 1);
+								}
+							}}
+							onPreviousPage={() => {
+								if (hasPreviousPage) {
+									setPageIndex((current) => Math.max(current - 1, 0));
+								}
+							}}
+							searchDraft={controller.search.draft}
+							onSearchDraftChange={controller.search.onDraftChange}
+						/>
+					</Card>
+				</TabsContent>
+			</Tabs>
 		</div>
 	);
 }
