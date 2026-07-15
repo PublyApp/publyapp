@@ -18,6 +18,10 @@ import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { Input } from '~/components/ui/input';
 import { formatDateTime } from '~/lib/format-date-time';
 import {
+	displayLocalMutationFailure,
+	toastLocalMutationResult,
+} from '~/lib/mutation-toast';
+import {
 	invalidateStaffInvitations,
 	useRevokeStaffInvitationMutation,
 	useResendStaffInvitationMutation,
@@ -27,21 +31,12 @@ import {
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import type { StaffInvitationDetails } from '@org/client-ts/src/models/index.js';
-import {
-	getFailureMessage,
-	toApiFailure,
-} from '@org/shared-ts/lib/api-failure/to-api-failure';
+import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 import {
 	getInvitationStatusLabelKey,
 	normalizeInvitationStatus,
 } from './list-helpers';
-
-type ActionFeedbackTone = 'success' | 'error' | 'info';
-type ActionFeedback = {
-	message: string;
-	tone: ActionFeedbackTone;
-};
 
 type InvitationDetailsCardProps = {
 	invitationId: string;
@@ -52,17 +47,6 @@ type InvitationDetailsCardProps = {
 
 const NOT_FOUND_TRANSLATION_KEY = 'malformed-id';
 const STAFF_INVITATIONS_LIST_PATH = '/staff/invitations';
-
-const getFeedbackClassName = (tone: ActionFeedbackTone): string => {
-	switch (tone) {
-		case 'success':
-			return 'border-success/20 bg-success/10 text-success';
-		case 'info':
-			return 'border-primary/30 bg-primary/10 text-primary-active';
-		case 'error':
-			return 'border-destructive/20 bg-destructive/10 text-destructive';
-	}
-};
 
 const isProblemStatus = (
 	error: unknown,
@@ -189,7 +173,6 @@ const InvitationDetailsCard = ({
 	const { t, i18n } = useTranslation('common');
 	const locale = i18n?.language ?? 'en';
 	const queryClient = useQueryClient();
-	const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
 	const [inviteLink, setInviteLink] = useState<string>('');
 	const [pendingRevoke, setPendingRevoke] = useState(false);
 
@@ -203,80 +186,52 @@ const InvitationDetailsCard = ({
 	const activeMutationPending =
 		copyLink.isPending || resend.isPending || revoke.isPending;
 
-	const handleActionError = (error: unknown, fallback: string) => {
-		if (shouldLogoutForFailure(error)) {
-			onAuthFailure();
-			return;
-		}
-
-		setFeedback({
-			tone: 'error',
-			message: getFailureMessage(toApiFailure(error), { fallback }),
-		});
-	};
-
 	const handleCopyLink = async () => {
-		setFeedback(null);
-
 		try {
 			const result = await copyLink.mutateAsync({ invitationId });
 			const nextLink = result.link?.trim();
 			if (!nextLink) {
-				setFeedback({
-					tone: 'error',
-					message: t('invite-link-response-empty'),
-				});
-				return;
+				throw new Error(t('invite-link-response-empty'));
 			}
 
 			setInviteLink(nextLink);
 
 			if (navigator.clipboard?.writeText) {
 				await navigator.clipboard.writeText(nextLink);
-				setFeedback({
-					tone: 'success',
-					message: t('copy-link-success'),
-				});
+				toastLocalMutationResult.success(t('copy-link-success'));
 				return;
 			}
 
-			setFeedback({
-				tone: 'info',
-				message: t('copy-link-ready'),
-			});
+			toastLocalMutationResult.info(t('copy-link-ready'));
 		} catch (error) {
-			handleActionError(error, t('unable-to-copy-invite-link'));
+			if (shouldLogoutForFailure(error)) {
+				onAuthFailure();
+				return;
+			}
+
+			await displayLocalMutationFailure(error, t('unable-to-copy-invite-link'));
 		}
 	};
 
 	const handleResend = async () => {
-		setFeedback(null);
-
 		try {
 			await resend.mutateAsync({ invitationId });
-			setFeedback({
-				tone: 'success',
-				message: t('resend-invitation-success'),
-			});
 		} catch (error) {
-			handleActionError(error, t('unable-to-resend-invitation'));
+			if (shouldLogoutForFailure(error)) {
+				onAuthFailure();
+			}
 		}
 	};
 
 	const handleRevoke = async () => {
-		setFeedback(null);
-
 		try {
 			await revoke.mutateAsync({ invitationId });
 			await Promise.all([invalidateStaffInvitations(queryClient), onRefresh()]);
 			setInviteLink('');
-			setPendingRevoke(false);
-			setFeedback({
-				tone: 'success',
-				message: t('revoke-invitation-success'),
-			});
 		} catch (error) {
-			handleActionError(error, t('unable-to-revoke-invitation'));
+			if (shouldLogoutForFailure(error)) {
+				onAuthFailure();
+			}
 		} finally {
 			setPendingRevoke(false);
 		}
@@ -324,15 +279,6 @@ const InvitationDetailsCard = ({
 				onConfirm={() => void handleRevoke()}
 				onOpenChange={setPendingRevoke}
 			/>
-
-			{feedback ? (
-				<div
-					className={`rounded-large border px-4 py-3 text-sm ${getFeedbackClassName(feedback.tone)}`}
-					role={feedback.tone === 'error' ? 'alert' : 'status'}
-				>
-					{feedback.message}
-				</div>
-			) : null}
 
 			{!canManage ? (
 				<div className="rounded-large border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">

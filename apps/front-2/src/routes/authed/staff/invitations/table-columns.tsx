@@ -19,16 +19,12 @@ import { InitialsAvatar } from '~/components/ui/initials-avatar';
 import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import { formatDateTime } from '~/lib/format-date-time';
+import { toastLocalMutationResult } from '~/lib/mutation-toast';
 import {
 	invalidateStaffInvitations,
 	useResendStaffInvitationMutation,
 	useRevokeStaffInvitationMutation,
 } from '~/lib/query/staff-invitations';
-
-import {
-	getFailureMessage,
-	toApiFailure,
-} from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 import {
 	getInvitationStatusLabelKey,
@@ -49,19 +45,9 @@ export type InvitationRow = {
 type CreateInvitationColumnsArgs = {
 	t: (key: string, options?: Record<string, unknown>) => string;
 	locale: string;
-	onActionSuccess: () => void;
-	onActionError: (message: string) => void;
 };
 
-const InvitationRowActions = ({
-	row,
-	onSuccess,
-	onError,
-}: {
-	row: InvitationRow;
-	onSuccess: () => void;
-	onError: (message: string) => void;
-}) => {
+const InvitationRowActions = ({ row }: { row: InvitationRow }) => {
 	const { t } = useTranslation('common');
 	const queryClient = useQueryClient();
 	const [isConfirmOpen, setConfirmOpen] = useState(false);
@@ -71,7 +57,9 @@ const InvitationRowActions = ({
 	const canManage = row.status === 'pending';
 
 	const handleIneligibleAction = () => {
-		onError(t('only-pending-invitations-can-be-managed'));
+		toastLocalMutationResult.warning(
+			t('only-pending-invitations-can-be-managed'),
+		);
 	};
 
 	const handleResend = async () => {
@@ -82,13 +70,9 @@ const InvitationRowActions = ({
 
 		try {
 			await resendMutation.mutateAsync({ invitationId: row.id });
-			onSuccess();
-		} catch (error) {
-			onError(
-				getFailureMessage(toApiFailure(error), {
-					fallback: t('unable-to-resend-invitation'),
-				}),
-			);
+			await invalidateStaffInvitations(queryClient);
+		} catch {
+			// MutationCache owns ordinary mutation feedback.
 		}
 	};
 
@@ -102,15 +86,10 @@ const InvitationRowActions = ({
 		try {
 			await revokeMutation.mutateAsync({ invitationId: row.id });
 			await invalidateStaffInvitations(queryClient);
+		} catch {
+			// MutationCache owns ordinary mutation feedback.
+		} finally {
 			setConfirmOpen(false);
-			onSuccess();
-		} catch (error) {
-			setConfirmOpen(false);
-			onError(
-				getFailureMessage(toApiFailure(error), {
-					fallback: t('unable-to-revoke-invitation'),
-				}),
-			);
 		}
 	};
 
@@ -153,8 +132,6 @@ const InvitationRowActions = ({
 export const createInvitationColumns = ({
 	t,
 	locale,
-	onActionSuccess,
-	onActionError,
 }: CreateInvitationColumnsArgs): ColumnDef<InvitationRow>[] => [
 	{
 		id: 'email',
@@ -290,12 +267,6 @@ export const createInvitationColumns = ({
 		header: () => <span className="sr-only">{t('actions')}</span>,
 		enableSorting: false,
 		meta: { width: '40px', align: 'center' },
-		cell: ({ row }) => (
-			<InvitationRowActions
-				row={row.original}
-				onSuccess={onActionSuccess}
-				onError={onActionError}
-			/>
-		),
+		cell: ({ row }) => <InvitationRowActions row={row.original} />,
 	},
 ];

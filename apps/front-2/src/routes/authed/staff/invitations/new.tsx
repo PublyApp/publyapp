@@ -154,7 +154,6 @@ function NewStaffInvitationsRoute() {
 	const [profileSearch, setProfileSearch] = useState('');
 	const deferredProfileSearch = useDeferredValue(profileSearch.trim());
 	const [serverErrors, setServerErrors] = useState<string[]>([]);
-	const [successMessage, setSuccessMessage] = useState('');
 	const redirectTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
 		undefined,
 	);
@@ -237,17 +236,12 @@ function NewStaffInvitationsRoute() {
 
 	const onSubmit = methods.handleSubmit(async (values) => {
 		setServerErrors([]);
-		setSuccessMessage('');
 
 		try {
-			const result = await createInvitations.mutateAsync(values);
-			const createdCount = result?.created ?? values.invitations.length;
+			await createInvitations.mutateAsync(values);
 
 			await invalidateStaffInvitations(queryClient);
 			methods.reset(DEFAULT_VALUES);
-			setSuccessMessage(
-				t('invitations-sent-successfully', { count: createdCount }),
-			);
 
 			redirectTimeoutRef.current = setTimeout(() => {
 				startTransition(() => {
@@ -271,12 +265,6 @@ function NewStaffInvitationsRoute() {
 				);
 				return;
 			}
-
-			setServerErrors([
-				getFailureMessage(failure, {
-					fallback: t('invitations-could-not-be-sent'),
-				}),
-			]);
 		}
 	});
 
@@ -323,12 +311,6 @@ function NewStaffInvitationsRoute() {
 					<div className="flex items-center gap-2 text-sm text-muted-foreground">
 						<LoadingSpinner />
 						<span>{t('profiles')}</span>
-					</div>
-				) : null}
-
-				{successMessage ? (
-					<div className="rounded-medium border border-success/20 bg-success/10 px-3 py-2 text-sm text-success">
-						{successMessage}
 					</div>
 				) : null}
 

@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => ({
 	inviteHostIsOpen: false,
 	inviteHostOnOpenChange: (_isOpen: boolean) => {},
 	inviteHostOnInvited: () => {},
+	displayMutationFeedback: vi.fn().mockResolvedValue(undefined),
 }));
 
 let currentLanguage = 'en';
@@ -198,6 +199,10 @@ vi.mock('./_invite-user-drawer-host', () => ({
 
 		return isOpen ? <div data-testid="invite-drawer-open" /> : null;
 	},
+}));
+
+vi.mock('~/lib/mutation-toast', () => ({
+	displayMutationFeedback: mocks.displayMutationFeedback,
 }));
 
 import { createColumns, isInvitationExpiringSoon, Route } from './invitations';
@@ -473,8 +478,11 @@ describe('staff tenant invitations route', () => {
 		expect(screen.getByText('accepted@example.com')).toBeTruthy();
 	});
 
-	test('revokes a pending invitation, invalidates the tenant invitations query, and shows success feedback', async () => {
-		const revoke = vi.fn().mockResolvedValue({});
+	test('revokes a pending invitation with one central success toast and no status banner', async () => {
+		const revoke = vi.fn().mockImplementation(async () => {
+			await mocks.displayMutationFeedback({ kind: 'success' });
+			return {};
+		});
 		mocks.useRevokeStaffTenantInvitationMutation.mockReturnValue({
 			mutateAsync: revoke,
 			isPending: false,
@@ -500,15 +508,20 @@ describe('staff tenant invitations route', () => {
 		await waitFor(() =>
 			expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled(),
 		);
-		expect(screen.getByText('Invitation revoked.')).toBeTruthy();
+		expect(mocks.displayMutationFeedback).toHaveBeenCalledTimes(1);
+		expect(screen.queryByText('Invitation revoked.')).toBeNull();
 	});
 
-	test('shows an inline revoke error for forbidden failures without logging out', async () => {
-		const revoke = vi.fn().mockRejectedValue({
+	test('uses one central error toast for an ordinary revoke failure', async () => {
+		const failure = {
 			status: 403,
 			responseStatusCode: 403,
 			title: 'Forbidden',
 			detail: 'Forbidden',
+		};
+		const revoke = vi.fn().mockImplementation(async () => {
+			await mocks.displayMutationFeedback({ kind: 'error' });
+			throw failure;
 		});
 		mocks.useRevokeStaffTenantInvitationMutation.mockReturnValue({
 			mutateAsync: revoke,
@@ -527,7 +540,8 @@ describe('staff tenant invitations route', () => {
 		);
 
 		await waitFor(() => expect(revoke).toHaveBeenCalledTimes(1));
-		await waitFor(() => expect(screen.getByText('Forbidden')).toBeTruthy());
+		expect(mocks.displayMutationFeedback).toHaveBeenCalledTimes(1);
+		expect(screen.queryByText('Forbidden')).toBeNull();
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 	});
 
@@ -559,6 +573,7 @@ describe('staff tenant invitations route', () => {
 		await waitFor(() =>
 			expect(screen.getByTestId('logout-redirect')).toBeTruthy(),
 		);
+		expect(mocks.displayMutationFeedback).not.toHaveBeenCalled();
 	});
 
 	test('a debounced search commit does not revert a status filter chosen within the debounce window (F1)', async () => {

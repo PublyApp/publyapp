@@ -15,8 +15,7 @@ const mocks = vi.hoisted(() => ({
 	useResendStaffInvitationMutation: vi.fn(),
 	useRevokeStaffInvitationMutation: vi.fn(),
 	invalidateStaffInvitations: vi.fn().mockResolvedValue(undefined),
-	onActionSuccess: vi.fn(),
-	onActionError: vi.fn(),
+	toastWarning: vi.fn(),
 }));
 
 vi.mock('@tanstack/react-router', () => ({
@@ -46,6 +45,12 @@ vi.mock('~/lib/query/staff-invitations', () => ({
 	invalidateStaffInvitations: mocks.invalidateStaffInvitations,
 }));
 
+vi.mock('~/lib/mutation-toast', () => ({
+	toastLocalMutationResult: {
+		warning: mocks.toastWarning,
+	},
+}));
+
 import { createInvitationColumns } from './table-columns';
 
 const t = (key: string): string => key;
@@ -66,8 +71,6 @@ const renderActionsCell = (status = 'pending') => {
 	const columns = createInvitationColumns({
 		t,
 		locale: 'en',
-		onActionSuccess: mocks.onActionSuccess,
-		onActionError: mocks.onActionError,
 	});
 	const actionsColumn = columns.find((column) => column.id === 'actions');
 	const cellRenderer = actionsColumn?.cell as (props: {
@@ -87,8 +90,6 @@ describe('createInvitationColumns', () => {
 		const columns = createInvitationColumns({
 			t,
 			locale: 'en',
-			onActionSuccess: () => undefined,
-			onActionError: () => undefined,
 		});
 		const profileColumn = columns.find(
 			(column) => column.id === 'profile_name',
@@ -104,8 +105,6 @@ describe('createInvitationColumns', () => {
 		const columns = createInvitationColumns({
 			t,
 			locale: 'en',
-			onActionSuccess: () => undefined,
-			onActionError: () => undefined,
 		});
 		const widthById = Object.fromEntries(
 			columns.map((column) => [column.id, column.meta?.width]),
@@ -129,8 +128,6 @@ describe('createInvitationColumns', () => {
 		const columns = createInvitationColumns({
 			t,
 			locale: 'en',
-			onActionSuccess: () => undefined,
-			onActionError: () => undefined,
 		});
 		const actionsColumn = columns.find((column) => column.id === 'actions');
 
@@ -141,8 +138,6 @@ describe('createInvitationColumns', () => {
 		const columns = createInvitationColumns({
 			t,
 			locale: 'en',
-			onActionSuccess: () => undefined,
-			onActionError: () => undefined,
 		});
 		const emailColumn = columns.find((column) => column.id === 'email');
 		const row = {
@@ -180,8 +175,6 @@ describe('createInvitationColumns', () => {
 			const columns = createInvitationColumns({
 				t,
 				locale: 'en',
-				onActionSuccess: () => undefined,
-				onActionError: () => undefined,
 			});
 			const emailColumn = columns.find((column) => column.id === 'email');
 			const cellRenderer = emailColumn?.cell as (props: {
@@ -199,8 +192,6 @@ describe('createInvitationColumns', () => {
 			const columns = createInvitationColumns({
 				t,
 				locale: 'en',
-				onActionSuccess: () => undefined,
-				onActionError: () => undefined,
 			});
 			const profileColumn = columns.find(
 				(column) => column.id === 'profile_name',
@@ -221,8 +212,6 @@ describe('createInvitationColumns', () => {
 			const columns = createInvitationColumns({
 				t,
 				locale: 'en',
-				onActionSuccess: () => undefined,
-				onActionError: () => undefined,
 			});
 			const invitedByColumn = columns.find(
 				(column) => column.id === 'invited_by_name',
@@ -280,7 +269,7 @@ describe('InvitationRowActions', () => {
 		).not.toHaveBeenCalled();
 	});
 
-	test('confirming revoke calls the mutation, invalidates staff invitations, and reports success', async () => {
+	test('confirming revoke relies on central feedback, invalidates, and closes the dialog', async () => {
 		renderActionsCell();
 		await openMenu();
 		fireEvent.click(screen.getByText('revoke-invitation'));
@@ -288,14 +277,16 @@ describe('InvitationRowActions', () => {
 
 		fireEvent.click(screen.getByText('revoke'));
 
-		await waitFor(() => expect(mocks.onActionSuccess).toHaveBeenCalled());
+		await waitFor(() =>
+			expect(mocks.invalidateStaffInvitations).toHaveBeenCalled(),
+		);
 		expect(
 			mocks.useRevokeStaffInvitationMutation().mutateAsync,
 		).toHaveBeenCalledWith({ invitationId: 'invitation-1' });
 		expect(mocks.invalidateStaffInvitations).toHaveBeenCalled();
 	});
 
-	test('a failed revoke reports the failure instead of silently doing nothing', async () => {
+	test('a failed revoke relies on central feedback and closes the dialog', async () => {
 		mocks.useRevokeStaffInvitationMutation.mockReturnValue({
 			mutateAsync: vi.fn().mockRejectedValue({
 				status: 403,
@@ -312,9 +303,9 @@ describe('InvitationRowActions', () => {
 
 		fireEvent.click(screen.getByText('revoke'));
 
-		await waitFor(() => expect(mocks.onActionError).toHaveBeenCalled());
-		expect(mocks.onActionSuccess).not.toHaveBeenCalled();
+		await waitFor(() => expect(screen.queryByText('revoke')).toBeNull());
 		expect(mocks.invalidateStaffInvitations).not.toHaveBeenCalled();
+		expect(mocks.toastWarning).not.toHaveBeenCalled();
 	});
 
 	test('both row actions are disabled while a mutation is pending, guarding against double submission', async () => {
@@ -336,17 +327,16 @@ describe('InvitationRowActions', () => {
 	});
 
 	test.each([['accepted'], ['expired'], ['revoked']])(
-		'does not call resend for %s invitations and reports ineligible action',
+		'does not call resend for %s invitations and warns locally',
 		async (status) => {
 			renderActionsCell(status);
 			await openMenu();
 
 			fireEvent.click(screen.getByText('send-reminder'));
 
-			expect(mocks.onActionError).toHaveBeenCalledWith(
+			expect(mocks.toastWarning).toHaveBeenCalledWith(
 				'only-pending-invitations-can-be-managed',
 			);
-			expect(mocks.onActionSuccess).not.toHaveBeenCalled();
 			expect(
 				mocks.useResendStaffInvitationMutation().mutateAsync,
 			).not.toHaveBeenCalled();
@@ -362,7 +352,7 @@ describe('InvitationRowActions', () => {
 			fireEvent.click(screen.getByText('revoke-invitation'));
 
 			expect(screen.queryByText('revoke')).toBeNull();
-			expect(mocks.onActionError).toHaveBeenCalledWith(
+			expect(mocks.toastWarning).toHaveBeenCalledWith(
 				'only-pending-invitations-can-be-managed',
 			);
 			expect(

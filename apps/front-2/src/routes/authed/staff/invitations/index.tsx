@@ -1,6 +1,5 @@
 import { IconChevronDown, IconCircleDot, IconPlus } from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
@@ -105,18 +104,9 @@ function StaffInvitationsPage() {
 		status: search.status,
 	});
 
-	const [actionError, setActionError] = useState('');
-
-	const onRefetch = useCallback(() => {
-		setActionError('');
-		void query.refetch();
-	}, [query]);
-
 	const columns = createInvitationColumns({
 		t: (key, options) => t(key, options),
 		locale: i18n.language,
-		onActionSuccess: onRefetch,
-		onActionError: setActionError,
 	});
 	const rows = toRows(query.data?.data);
 	const selection = useRowSelection(rows.map((row) => row.id));
@@ -167,15 +157,6 @@ function StaffInvitationsPage() {
 					</Link>
 				}
 			/>
-
-			{actionError ? (
-				<div
-					className="mb-4 rounded-large border border-destructive/30 bg-destructive/8 px-4 py-3 text-sm text-destructive"
-					role="alert"
-				>
-					{actionError}
-				</div>
-			) : null}
 
 			<DataTable
 				toolbarEnd={
