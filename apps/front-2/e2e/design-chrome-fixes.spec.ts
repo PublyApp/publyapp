@@ -167,12 +167,20 @@ test.describe('FIX-3: design-system chrome rulings', () => {
 
 		const trigger = page.getByTestId('staff-users-table-page-size-trigger');
 		await expect(trigger).toBeVisible();
-		const triggerBox = await trigger.boundingBox();
+		// Every geometry read in this test goes through waitForBoundingBoxToSettle,
+		// never a raw boundingBox(): the trigger can briefly detach while the table
+		// re-renders (see the second read below), and a raw read then returns null.
+		const triggerBox = await waitForBoundingBoxToSettle(trigger);
 		expect(triggerBox).not.toBeNull();
 
 		await trigger.click();
 		const popup = page.locator('[data-slot="select-content"]');
-		await expect(popup).toBeVisible();
+		// Cold-stack headroom: on the gate's freshly-built run 1 the staff-users
+		// route JS can still be warming when the click fires, so the popup mount
+		// occasionally exceeds the default 5s. A genuinely broken popup still
+		// fails at 15s; the geometry assertions below (the real subject of this
+		// test) are unchanged.
+		await expect(popup).toBeVisible({ timeout: 15000 });
 		// toBeVisible() is satisfied the instant the popup mounts, while its
 		// entry animation (scale/translate) is still in flight — the tight
 		// (<12px, <8px) tolerances below need a settled geometry read, not a
@@ -198,12 +206,19 @@ test.describe('FIX-3: design-system chrome rulings', () => {
 
 		// Selecting 50 re-renders the table with a different row count, which
 		// can move the trigger itself — anchoring is judged relative to the
-		// trigger, so re-measure it before the second open.
-		const secondTriggerBox = await trigger.boundingBox();
+		// trigger, so re-measure it before the second open. Settle-wait rather
+		// than a raw boundingBox(): the re-render can detach the trigger mid-read.
+		const secondTriggerBox = await waitForBoundingBoxToSettle(trigger);
 		expect(secondTriggerBox).not.toBeNull();
 
-		await trigger.click();
-		await expect(popup).toBeVisible();
+		// The reopen click can race the previous close's focus-settle on a cold
+		// stack, landing during the transition and being dropped — the popup then
+		// resolves in its data-closed state. Retry the open until the content is
+		// actually visible, with the same cold-stack headroom as the first open.
+		await expect(async () => {
+			await trigger.click();
+			await expect(popup).toBeVisible({ timeout: 3000 });
+		}).toPass({ timeout: 15000 });
 		const secondPopupBox = await waitForBoundingBoxToSettle(popup);
 		expect(secondPopupBox).not.toBeNull();
 

@@ -85,10 +85,14 @@ const hasLinkTag = (
 	});
 };
 
+// Round-6 shell F1 replaced the internal front-2 scaffold copy with real,
+// localized product copy (seo-*-description keys in common.en.json). These
+// assertions track that copy; the gate must verify the shipped description,
+// not the migration-era placeholder it used to leak.
 const expectedDescription = (path: string): string =>
 	path === '/login'
-		? 'Sign in to front-2.'
-		: 'front-2 foundations: i18n, CSP, SEO, analytics.';
+		? 'Sign in to your PublyApp workspace to get started.'
+		: 'PublyApp keeps your whole team and every channel moving together — from first draft to published.';
 
 const assertMetaFromHtml = async (request: APIRequestContext, path: string) => {
 	const response = await request.get(path);
