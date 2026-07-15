@@ -17,6 +17,154 @@ const makeFixture = async (files) => {
 	return root;
 };
 
+const scanStatusFixture = async (source) => {
+	const root = await makeFixture({
+		'src/routes/authed/staff/status-fixture.tsx': source,
+	});
+	return scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+};
+
+test('status menu guard accepts persistent value checkboxes and an exclusive reset', async () => {
+	const violations = await scanStatusFixture(`
+		<DropdownMenuContent>
+			<DropdownMenuCheckboxItem checked={statuses.length === 0} closeOnClick>
+				{t('all-statuses')}
+			</DropdownMenuCheckboxItem>
+			{STATUS_VALUES.map((status) => (
+				<DropdownMenuCheckboxItem checked={statuses.includes(status)} closeOnClick={false} showCheckbox>
+					{status}
+				</DropdownMenuCheckboxItem>
+			))}
+		</DropdownMenuContent>
+	`);
+	assert.equal(
+		violations.some(
+			(item) => item.ruleId === 'status-filter-checkbox-contract',
+		),
+		false,
+	);
+});
+
+test('status menu guard accepts an explicit reset-key-discovered menu', async () => {
+	const violations = await scanStatusFixture(`
+		<DropdownMenuContent>
+			<DropdownMenuCheckboxItem closeOnClick>{t('all-statuses')}</DropdownMenuCheckboxItem>
+			<DropdownMenuCheckboxItem closeOnClick={false} showCheckbox>Active</DropdownMenuCheckboxItem>
+		</DropdownMenuContent>
+	`);
+	assert.equal(
+		violations.some(
+			(item) => item.ruleId === 'status-filter-checkbox-contract',
+		),
+		false,
+	);
+});
+
+test('status menu guard ignores persistent non-status filters', async () => {
+	const violations = await scanStatusFixture(`
+		<DropdownMenuContent>
+			{LEVEL_VALUES.map((level) => (
+				<DropdownMenuCheckboxItem closeOnClick={false}>{level}</DropdownMenuCheckboxItem>
+			))}
+		</DropdownMenuContent>
+	`);
+	assert.equal(
+		violations.some(
+			(item) => item.ruleId === 'status-filter-checkbox-contract',
+		),
+		false,
+	);
+});
+
+for (const fixture of [
+	{
+		name: 'missing showCheckbox',
+		item: '<DropdownMenuCheckboxItem closeOnClick={false}>{status}</DropdownMenuCheckboxItem>',
+		message: /showCheckbox/,
+	},
+	{
+		name: 'closing status value',
+		item: '<DropdownMenuCheckboxItem closeOnClick>{status}</DropdownMenuCheckboxItem>',
+		message: /closeOnClick=\{false\}/,
+	},
+]) {
+	test(`status menu guard rejects ${fixture.name}`, async () => {
+		const violations = await scanStatusFixture(`
+			<DropdownMenuContent>
+				<DropdownMenuCheckboxItem closeOnClick>{t('all-statuses')}</DropdownMenuCheckboxItem>
+				{STATUSES.map((status) => (${fixture.item}))}
+			</DropdownMenuContent>
+		`);
+		const violation = violations.find(
+			(entry) =>
+				entry.ruleId === 'status-filter-checkbox-contract' &&
+				fixture.message.test(entry.message),
+		);
+		assert.ok(violation);
+	});
+}
+
+test('status menu guard rejects a persistent status menu without All statuses', async () => {
+	const violations = await scanStatusFixture(`
+		<DropdownMenuContent>
+			{STATUSES.map((status) => (
+				<DropdownMenuCheckboxItem closeOnClick={false} showCheckbox>{status}</DropdownMenuCheckboxItem>
+			))}
+		</DropdownMenuContent>
+	`);
+	assert.ok(
+		violations.some(
+			(entry) =>
+				entry.ruleId === 'status-filter-checkbox-contract' &&
+				/All statuses/.test(entry.message),
+		),
+	);
+});
+
+for (const [name, attributes] of [
+	['shows a checkbox', 'closeOnClick showCheckbox'],
+	['does not explicitly close', 'closeOnClick={false}'],
+]) {
+	test(`status menu guard rejects an All statuses reset that ${name}`, async () => {
+		const violations = await scanStatusFixture(`
+			<DropdownMenuContent>
+				<DropdownMenuCheckboxItem ${attributes}>{t('all-statuses')}</DropdownMenuCheckboxItem>
+				{STATUSES.map((status) => (
+					<DropdownMenuCheckboxItem closeOnClick={false} showCheckbox>{status}</DropdownMenuCheckboxItem>
+				))}
+			</DropdownMenuContent>
+		`);
+		assert.ok(
+			violations.some(
+				(entry) =>
+					entry.ruleId === 'status-filter-checkbox-contract' &&
+					/reset/.test(entry.message),
+			),
+		);
+	});
+}
+
+test('status menu guard fails closed on spread-obscured item attributes', async () => {
+	const violations = await scanStatusFixture(`
+		<DropdownMenuContent>
+			<DropdownMenuCheckboxItem closeOnClick>{t('all-statuses')}</DropdownMenuCheckboxItem>
+			{STATUSES.map((status) => (
+				<DropdownMenuCheckboxItem {...statusItemProps}>{status}</DropdownMenuCheckboxItem>
+			))}
+		</DropdownMenuContent>
+	`);
+	assert.ok(
+		violations.some(
+			(entry) =>
+				entry.ruleId === 'status-filter-checkbox-contract' &&
+				/cannot classify/.test(entry.message),
+		),
+	);
+});
+
 test('flags raw shell colors, prototype icons, native selects, confirms, and important overrides', async () => {
 	const root = await makeFixture({
 		'src/components/app-shell/app-shell.tsx':

@@ -3,6 +3,8 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import ts from 'typescript';
+
 import suppressionInventory from '../src/lib/suppression-inventory.json' with { type: 'json' };
 import {
 	diffSuppressionInventory,
@@ -13,6 +15,187 @@ import {
 const rootDir = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const srcDir = path.join(rootDir, 'src');
 const e2eDir = path.join(rootDir, 'e2e');
+
+const STATUS_FILTER_RULE_ID = 'status-filter-checkbox-contract';
+
+const jsxTagName = (node) => {
+	const tagName = ts.isJsxElement(node)
+		? node.openingElement.tagName
+		: node.tagName;
+	return tagName.getText();
+};
+
+const visitDescendants = (node, visitor) => {
+	visitor(node);
+	node.forEachChild((child) => visitDescendants(child, visitor));
+};
+
+const attributeNamed = (opening, name) =>
+	opening.attributes.properties.find(
+		(attribute) => ts.isJsxAttribute(attribute) && attribute.name.text === name,
+	);
+
+const hasSpreadAttribute = (opening) =>
+	opening.attributes.properties.some(ts.isJsxSpreadAttribute);
+
+const isExplicitFalse = (attribute) =>
+	attribute?.initializer &&
+	ts.isJsxExpression(attribute.initializer) &&
+	attribute.initializer.expression?.kind === ts.SyntaxKind.FalseKeyword;
+
+const isExplicitClosing = (attribute) =>
+	Boolean(attribute) && !isExplicitFalse(attribute);
+
+const lineForNode = (sourceFile, node) =>
+	sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
+
+const containsStatusMap = (menu, sourceFile) => {
+	let found = false;
+	visitDescendants(menu, (node) => {
+		if (
+			ts.isCallExpression(node) &&
+			ts.isPropertyAccessExpression(node.expression) &&
+			node.expression.name.text === 'map' &&
+			/status/i.test(node.getText(sourceFile))
+		) {
+			found = true;
+		}
+	});
+	return found;
+};
+
+const statusMenuViolations = (relativePath, source) => {
+	if (!relativePath.startsWith('src/') || !relativePath.endsWith('.tsx')) {
+		return [];
+	}
+
+	const sourceFile = ts.createSourceFile(
+		relativePath,
+		source,
+		ts.ScriptTarget.Latest,
+		true,
+		ts.ScriptKind.TSX,
+	);
+	if (sourceFile.parseDiagnostics.length > 0) {
+		return sourceFile.parseDiagnostics.map((diagnostic) => ({
+			ruleId: STATUS_FILTER_RULE_ID,
+			message: `cannot parse TSX status-menu candidate safely: ${ts.flattenDiagnosticMessageText(diagnostic.messageText, ' ')}`,
+			file: relativePath,
+			line:
+				diagnostic.start == null
+					? 1
+					: sourceFile.getLineAndCharacterOfPosition(diagnostic.start).line + 1,
+			source:
+				diagnostic.start == null
+					? ''
+					: sourceFile.text.slice(
+							diagnostic.start,
+							diagnostic.start + (diagnostic.length ?? 1),
+						),
+		}));
+	}
+
+	const violations = [];
+	visitDescendants(sourceFile, (node) => {
+		if (!ts.isJsxElement(node) || jsxTagName(node) !== 'DropdownMenuContent') {
+			return;
+		}
+		const menuText = node.getText(sourceFile);
+		const isStatusMenu =
+			/all-statuses/i.test(menuText) || containsStatusMap(node, sourceFile);
+		if (!isStatusMenu) return;
+
+		const items = [];
+		visitDescendants(node, (child) => {
+			if (
+				(ts.isJsxElement(child) || ts.isJsxSelfClosingElement(child)) &&
+				jsxTagName(child) === 'DropdownMenuCheckboxItem'
+			) {
+				items.push(child);
+			}
+		});
+		const resetItems = items.filter((item) =>
+			/all-statuses/i.test(item.getText(sourceFile)),
+		);
+		const valueItems = items.filter((item) => !resetItems.includes(item));
+
+		if (valueItems.length > 0 && resetItems.length !== 1) {
+			violations.push({
+				ruleId: STATUS_FILTER_RULE_ID,
+				message:
+					'persistent status menu must contain exactly one All statuses reset item',
+				file: relativePath,
+				line: lineForNode(sourceFile, node),
+				source: node.openingElement.getText(sourceFile),
+			});
+		}
+
+		for (const item of valueItems) {
+			const opening = ts.isJsxElement(item) ? item.openingElement : item;
+			if (hasSpreadAttribute(opening)) {
+				violations.push({
+					ruleId: STATUS_FILTER_RULE_ID,
+					message:
+						'cannot classify status item attributes hidden by a JSX spread',
+					file: relativePath,
+					line: lineForNode(sourceFile, opening),
+					source: opening.getText(sourceFile),
+				});
+				continue;
+			}
+			if (!attributeNamed(opening, 'showCheckbox')) {
+				violations.push({
+					ruleId: STATUS_FILTER_RULE_ID,
+					message: 'status value must explicitly use showCheckbox',
+					file: relativePath,
+					line: lineForNode(sourceFile, opening),
+					source: opening.getText(sourceFile),
+				});
+			}
+			if (!isExplicitFalse(attributeNamed(opening, 'closeOnClick'))) {
+				violations.push({
+					ruleId: STATUS_FILTER_RULE_ID,
+					message: 'status value must explicitly use closeOnClick={false}',
+					file: relativePath,
+					line: lineForNode(sourceFile, opening),
+					source: opening.getText(sourceFile),
+				});
+			}
+		}
+
+		for (const reset of resetItems) {
+			const opening = ts.isJsxElement(reset) ? reset.openingElement : reset;
+			if (hasSpreadAttribute(opening)) {
+				violations.push({
+					ruleId: STATUS_FILTER_RULE_ID,
+					message: 'cannot classify reset attributes hidden by a JSX spread',
+					file: relativePath,
+					line: lineForNode(sourceFile, opening),
+					source: opening.getText(sourceFile),
+				});
+			}
+			if (attributeNamed(opening, 'showCheckbox')) {
+				violations.push({
+					ruleId: STATUS_FILTER_RULE_ID,
+					message: 'All statuses reset must not use showCheckbox',
+					file: relativePath,
+					line: lineForNode(sourceFile, opening),
+					source: opening.getText(sourceFile),
+				});
+			}
+			if (!isExplicitClosing(attributeNamed(opening, 'closeOnClick'))) {
+				violations.push({
+					ruleId: STATUS_FILTER_RULE_ID,
+					message: 'All statuses reset must explicitly close on click',
+					file: relativePath,
+					line: lineForNode(sourceFile, opening),
+					source: opening.getText(sourceFile),
+				});
+			}
+		}
+	});
+	return violations;
+};
 
 const TEXT_EXTENSIONS = new Set(['.ts', '.tsx', '.css']);
 const APP_CSS_PATH = 'src/styles/app.css';
@@ -1452,6 +1635,7 @@ export const scanFront2DesignSystem = async ({
 		const source = await readFile(absolutePath, 'utf8');
 		const lines = source.split('\n');
 		fileContentsByRelativePath.set(relativePath, source);
+		violations.push(...statusMenuViolations(relativePath, source));
 
 		for (const rule of rules) {
 			if (!rule.appliesTo(relativePath) || rule.allow?.(relativePath)) {
