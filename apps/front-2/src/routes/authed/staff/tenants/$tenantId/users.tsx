@@ -17,7 +17,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -518,12 +518,24 @@ function StaffTenantUsersPage() {
 	const selectedLevels = parseTenantUserLevelFilter(search.level);
 	const isInviteDrawerOpen = search.invite === 1;
 
+	// `onDirtyChange(false)` (called by the drawer right before an
+	// app-initiated close/submit navigation) is an async React state update —
+	// a `navigate()` fired synchronously right after it still sees the old
+	// (dirty) render's `shouldBlockFn` closure. This ref is set synchronously
+	// by every app-initiated close/navigate path below so the guard never
+	// blocks its own transition (W8-DRAWER; only a real browser Back or
+	// sibling-route nav should ever trip it).
+	const inviteDrawerNavBypassRef = useRef(false);
+
 	// The invite drawer's open flag lives in the URL (`?invite=1`); a browser
 	// Back or a sibling-route navigation changes/unmounts it without ever
 	// calling the drawer's own `onOpenChange` close guard, discarding a dirty
 	// invite draft silently (tenants-r1-F2).
 	const inviteDrawerBlocker = useBlocker({
-		shouldBlockFn: () => isInviteDrawerOpen && isInviteFormDirty,
+		shouldBlockFn: () =>
+			isInviteDrawerOpen &&
+			isInviteFormDirty &&
+			!inviteDrawerNavBypassRef.current,
 		withResolver: true,
 	});
 
@@ -535,6 +547,9 @@ function StaffTenantUsersPage() {
 	};
 
 	const setInviteDrawerOpen = (isOpen: boolean): void => {
+		// Opening re-arms the guard for the new draft; every close here is
+		// either a not-dirty close or a discard the drawer already confirmed.
+		inviteDrawerNavBypassRef.current = !isOpen;
 		void navigate({
 			search: serializeTenantUsersListSearchParams({
 				...search,
@@ -917,6 +932,9 @@ function StaffTenantUsersPage() {
 				onSessionExpired={() => setShouldLogout(true)}
 				onDirtyChange={setIsInviteFormDirty}
 				onInvited={() => {
+					// A successful submit must never be blocked by the parent's own
+					// nav guard reading a not-yet-flushed dirty flag (W8-DRAWER).
+					inviteDrawerNavBypassRef.current = true;
 					void navigate({
 						to: '/staff/tenants/$tenantId/invitations',
 						params: { tenantId },

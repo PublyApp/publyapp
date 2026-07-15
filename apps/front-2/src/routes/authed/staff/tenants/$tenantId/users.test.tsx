@@ -40,6 +40,7 @@ const mocks = vi.hoisted(() => ({
 	},
 	capturedShouldBlockFn: undefined as (() => boolean) | undefined,
 	capturedOnDirtyChange: undefined as ((isDirty: boolean) => void) | undefined,
+	capturedOnInvited: undefined as (() => void) | undefined,
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -228,11 +229,14 @@ vi.mock('./_invite-user-drawer', () => ({
 	InviteTenantUserDrawer: ({
 		isOpen,
 		onDirtyChange,
+		onInvited,
 	}: {
 		isOpen: boolean;
 		onDirtyChange?: (isDirty: boolean) => void;
+		onInvited?: () => void;
 	}) => {
 		mocks.capturedOnDirtyChange = onDirtyChange;
+		mocks.capturedOnInvited = onInvited;
 		return isOpen ? <div data-testid="invite-drawer-open" /> : null;
 	},
 }));
@@ -278,6 +282,7 @@ describe('staff tenant users route', () => {
 		mocks.blockerResolver.reset = undefined;
 		mocks.capturedShouldBlockFn = undefined;
 		mocks.capturedOnDirtyChange = undefined;
+		mocks.capturedOnInvited = undefined;
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
 		mocks.invalidateQueries.mockResolvedValue(undefined);
 		mocks.useSuspendStaffTenantUserMutation.mockReturnValue({
@@ -1074,6 +1079,43 @@ describe('staff tenant users route', () => {
 
 		act(() => mocks.capturedOnDirtyChange?.(true));
 		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+	});
+
+	// W8-DRAWER: `onDirtyChange(false)` is an async state update — a
+	// successful submit calls it and then `onInvited()` synchronously in the
+	// same tick, so the guard's closure still sees the old (dirty) render.
+	// Without a synchronous bypass, this leaves the invite-people navigation
+	// permanently blocked after a successful submit.
+	test('a successful invite submit does not leave the nav guard blocking its own navigation (W8-DRAWER)', () => {
+		mocks.search = { invite: 1 };
+		renderPage();
+
+		// The drawer reports dirty while the user fills the form.
+		act(() => mocks.capturedOnDirtyChange?.(true));
+		expect(mocks.capturedShouldBlockFn?.()).toBe(true);
+
+		// Simulate the drawer's real onSubmit sequence: it calls
+		// `onDirtyChange(false)` (state update, not yet flushed) and then
+		// `onInvited()` synchronously in the same tick — exactly like
+		// _invite-user-drawer.tsx's onSubmit does. React batches state updates
+		// across a single `act` callback and only applies them once it
+		// returns, so asserting *inside* this callback (before the flush)
+		// reproduces the real stale-closure race; asserting after the act()
+		// block returns would see the already-flushed (non-dirty) state and
+		// pass even without the fix.
+		act(() => {
+			mocks.capturedOnDirtyChange?.(false);
+			mocks.capturedOnInvited?.();
+
+			expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+		});
+
+		expect(mocks.navigate).toHaveBeenCalledWith(
+			expect.objectContaining({
+				to: '/staff/tenants/$tenantId/invitations',
+				params: { tenantId: '11111111-1111-1111-1111-111111111111' },
+			}),
+		);
 	});
 
 	test('shows the unsaved-changes confirm dialog when the router blocks navigation away from a dirty invite drawer', () => {

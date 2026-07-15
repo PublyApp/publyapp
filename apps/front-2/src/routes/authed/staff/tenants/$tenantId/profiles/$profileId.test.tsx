@@ -37,6 +37,7 @@ const mocks = vi.hoisted(() => ({
 	},
 	capturedShouldBlockFn: undefined as (() => boolean) | undefined,
 	capturedOnDirtyChange: undefined as ((isDirty: boolean) => void) | undefined,
+	capturedOnSaved: undefined as (() => void) | undefined,
 }));
 
 vi.mock('@tanstack/react-router', () => ({
@@ -146,11 +147,14 @@ vi.mock('./_profile-form-drawer', () => ({
 	ProfileFormDrawer: ({
 		isOpen,
 		onDirtyChange,
+		onSaved,
 	}: {
 		isOpen: boolean;
 		onDirtyChange?: (isDirty: boolean) => void;
+		onSaved?: () => void;
 	}) => {
 		mocks.capturedOnDirtyChange = onDirtyChange;
+		mocks.capturedOnSaved = onSaved;
 		return isOpen ? <div data-testid="profile-edit-drawer-open" /> : null;
 	},
 }));
@@ -277,6 +281,7 @@ describe('staff tenant profile details route', () => {
 		mocks.blockerResolver.reset = undefined;
 		mocks.capturedShouldBlockFn = undefined;
 		mocks.capturedOnDirtyChange = undefined;
+		mocks.capturedOnSaved = undefined;
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
 		mocks.useDeleteStaffTenantProfileMutation.mockReturnValue({
 			isPending: false,
@@ -945,6 +950,35 @@ describe('staff tenant profile details route', () => {
 
 		act(() => mocks.capturedOnDirtyChange?.(true));
 		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+	});
+
+	// W8-DRAWER: `onDirtyChange(false)` is an async state update — a
+	// successful edit submit calls it and then `onSaved()` (which closes the
+	// drawer via setEditDrawerOpen(false)) synchronously in the same tick, so
+	// the guard's closure still sees the old (dirty) render.
+	test('a successful edit submit does not leave the nav guard blocking its own drawer close (W8-DRAWER)', () => {
+		mocks.search = { edit: 1 };
+		renderPage();
+
+		act(() => mocks.capturedOnDirtyChange?.(true));
+		expect(mocks.capturedShouldBlockFn?.()).toBe(true);
+
+		// React batches state updates across a single `act` callback and only
+		// applies them once it returns, so asserting *inside* this callback
+		// (before the flush) reproduces the real stale-closure race.
+		act(() => {
+			mocks.capturedOnDirtyChange?.(false);
+			mocks.capturedOnSaved?.();
+
+			expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+		});
+
+		expect(mocks.navigate).toHaveBeenCalledWith(
+			expect.objectContaining({
+				search: {},
+				replace: true,
+			}),
+		);
 	});
 
 	test('shows the unsaved-changes confirm dialog when the router blocks navigation away from a dirty edit drawer', () => {

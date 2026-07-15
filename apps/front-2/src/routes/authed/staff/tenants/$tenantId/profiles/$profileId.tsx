@@ -5,7 +5,7 @@ import {
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -181,7 +181,19 @@ function StaffTenantProfileDetailsPage() {
 	const [shouldRedirectToLogout, setShouldRedirectToLogout] = useState(false);
 	const isEditDrawerOpen = search.edit === 1;
 	const [isEditFormDirty, setIsEditFormDirty] = useState(false);
+	// `onDirtyChange(false)` (called by the drawer right before an
+	// app-initiated close/submit navigation) is an async React state update —
+	// a `navigate()` fired synchronously right after it still sees the old
+	// (dirty) render's `shouldBlockFn` closure. This ref is set synchronously
+	// by every app-initiated close/navigate path below so the guard never
+	// blocks its own transition (W8-DRAWER; only a real browser Back or
+	// sibling-route nav should ever trip it).
+	const editDrawerNavBypassRef = useRef(false);
 	const setEditDrawerOpen = (isOpen: boolean): void => {
+		// Opening re-arms the guard for the new draft; every close here is
+		// either a not-dirty close or a discard the drawer already confirmed
+		// (including the successful-save close via `onSaved`).
+		editDrawerNavBypassRef.current = !isOpen;
 		void navigate({
 			search: isOpen ? { edit: 1 } : {},
 			replace: true,
@@ -193,7 +205,8 @@ function StaffTenantProfileDetailsPage() {
 	// calling the drawer's own `onOpenChange` close guard, discarding a dirty
 	// edit draft silently (tenants-r1-F2).
 	const editDrawerBlocker = useBlocker({
-		shouldBlockFn: () => isEditDrawerOpen && isEditFormDirty,
+		shouldBlockFn: () =>
+			isEditDrawerOpen && isEditFormDirty && !editDrawerNavBypassRef.current,
 		withResolver: true,
 	});
 

@@ -22,7 +22,7 @@ import type { Icon } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -781,12 +781,24 @@ function StaffTenantProfilesPage() {
 
 	const isCreateDrawerOpen = search.new === 1;
 
+	// `onDirtyChange(false)` (called by the drawer right before an
+	// app-initiated close/submit navigation) is an async React state update —
+	// a `navigate()` fired synchronously right after it still sees the old
+	// (dirty) render's `shouldBlockFn` closure. This ref is set synchronously
+	// by every app-initiated close/navigate path below so the guard never
+	// blocks its own transition (W8-DRAWER; only a real browser Back or
+	// sibling-route nav should ever trip it).
+	const createDrawerNavBypassRef = useRef(false);
+
 	// The create drawer's open flag lives in the URL (`?new=1`); a browser
 	// Back or a sibling-route navigation changes/unmounts it without ever
 	// calling the drawer's own `onOpenChange` close guard, discarding a dirty
 	// create draft silently (tenants-r1-F2).
 	const createDrawerBlocker = useBlocker({
-		shouldBlockFn: () => isCreateDrawerOpen && isCreateFormDirty,
+		shouldBlockFn: () =>
+			isCreateDrawerOpen &&
+			isCreateFormDirty &&
+			!createDrawerNavBypassRef.current,
 		withResolver: true,
 	});
 	const view = parseStaffTenantProfilesViewMode(search.view);
@@ -801,6 +813,9 @@ function StaffTenantProfilesPage() {
 	};
 
 	const setCreateDrawerOpen = (isOpen: boolean): void => {
+		// Opening re-arms the guard for the new draft; every close here is
+		// either a not-dirty close or a discard the drawer already confirmed.
+		createDrawerNavBypassRef.current = !isOpen;
 		void navigate({
 			search: serializeStaffTenantProfilesSearchParams({
 				...search,
@@ -1203,6 +1218,10 @@ function StaffTenantProfilesPage() {
 				onSessionExpired={() => setShouldRedirectToLogout(true)}
 				onDirtyChange={setIsCreateFormDirty}
 				onSaved={(profileId) => {
+					// A successful submit must never be blocked by the parent's own
+					// nav guard reading a not-yet-flushed dirty flag (W8-DRAWER).
+					createDrawerNavBypassRef.current = true;
+
 					if (profileId) {
 						void navigate({
 							to: '/staff/tenants/$tenantId/profiles/$profileId',
