@@ -43,8 +43,11 @@ const isExplicitFalse = (attribute) =>
 	ts.isJsxExpression(attribute.initializer) &&
 	attribute.initializer.expression?.kind === ts.SyntaxKind.FalseKeyword;
 
-const isExplicitClosing = (attribute) =>
-	Boolean(attribute) && !isExplicitFalse(attribute);
+const isExplicitTrue = (attribute) =>
+	Boolean(attribute) &&
+	(attribute.initializer == null ||
+		(ts.isJsxExpression(attribute.initializer) &&
+			attribute.initializer.expression?.kind === ts.SyntaxKind.TrueKeyword));
 
 const lineForNode = (sourceFile, node) =>
 	sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
@@ -143,10 +146,10 @@ const statusMenuViolations = (relativePath, source) => {
 				});
 				continue;
 			}
-			if (!attributeNamed(opening, 'showCheckbox')) {
+			if (!isExplicitTrue(attributeNamed(opening, 'showCheckbox'))) {
 				violations.push({
 					ruleId: STATUS_FILTER_RULE_ID,
-					message: 'status value must explicitly use showCheckbox',
+					message: 'status value must explicitly use showCheckbox={true}',
 					file: relativePath,
 					line: lineForNode(sourceFile, opening),
 					source: opening.getText(sourceFile),
@@ -183,7 +186,7 @@ const statusMenuViolations = (relativePath, source) => {
 					source: opening.getText(sourceFile),
 				});
 			}
-			if (!isExplicitClosing(attributeNamed(opening, 'closeOnClick'))) {
+			if (!isExplicitTrue(attributeNamed(opening, 'closeOnClick'))) {
 				violations.push({
 					ruleId: STATUS_FILTER_RULE_ID,
 					message: 'All statuses reset must explicitly close on click',

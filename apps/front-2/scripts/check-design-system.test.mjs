@@ -165,6 +165,42 @@ test('status menu guard fails closed on spread-obscured item attributes', async 
 	);
 });
 
+test('status menu guard rejects a status value with showCheckbox={false}', async () => {
+	const violations = await scanStatusFixture(`
+		<DropdownMenuContent>
+			<DropdownMenuCheckboxItem closeOnClick>{t('all-statuses')}</DropdownMenuCheckboxItem>
+			{STATUSES.map((status) => (
+				<DropdownMenuCheckboxItem closeOnClick={false} showCheckbox={false}>{status}</DropdownMenuCheckboxItem>
+			))}
+		</DropdownMenuContent>
+	`);
+	assert.ok(
+		violations.some(
+			(entry) =>
+				entry.ruleId === 'status-filter-checkbox-contract' &&
+				/showCheckbox/.test(entry.message),
+		),
+	);
+});
+
+test('status menu guard rejects a reset with a non-literal closeOnClick value', async () => {
+	const violations = await scanStatusFixture(`
+		<DropdownMenuContent>
+			<DropdownMenuCheckboxItem closeOnClick={shouldClose}>{t('all-statuses')}</DropdownMenuCheckboxItem>
+			{STATUSES.map((status) => (
+				<DropdownMenuCheckboxItem closeOnClick={false} showCheckbox>{status}</DropdownMenuCheckboxItem>
+			))}
+		</DropdownMenuContent>
+	`);
+	assert.ok(
+		violations.some(
+			(entry) =>
+				entry.ruleId === 'status-filter-checkbox-contract' &&
+				/reset/.test(entry.message),
+		),
+	);
+});
+
 test('flags raw shell colors, prototype icons, native selects, confirms, and important overrides', async () => {
 	const root = await makeFixture({
 		'src/components/app-shell/app-shell.tsx':
