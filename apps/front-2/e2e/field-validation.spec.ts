@@ -1,9 +1,82 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import { LOCALE_COOKIE_KEY } from '@org/shared-ts/lib/constants';
 
+import { COLOR_SCHEME_STORAGE_KEY } from '../src/lib/store/ui-store';
+
 const DEFAULT_BASE_URL = 'https://front-2.localhost:8443';
+
+type ColorScheme = 'light' | 'dark';
+type ControlFixture = 'outline-input' | 'outline-textarea' | 'outline-select';
+type ComputedControlStyle = {
+	backgroundColor: string;
+	borderColor: string;
+	boxShadow: string;
+};
+
+const CONTROL_FIXTURES: readonly ControlFixture[] = [
+	'outline-input',
+	'outline-textarea',
+	'outline-select',
+];
+
+const seedTheme = async (
+	page: Page,
+	colorScheme: ColorScheme,
+): Promise<void> => {
+	await page.evaluate(
+		({ key, colorScheme }) => {
+			window.localStorage.setItem(
+				key,
+				JSON.stringify({
+					state: { colorScheme, sidebarOpen: true },
+					version: 0,
+				}),
+			);
+		},
+		{ key: COLOR_SCHEME_STORAGE_KEY, colorScheme },
+	);
+};
+
+const readControlStyle = (control: Locator): Promise<ComputedControlStyle> =>
+	control.evaluate((element) => {
+		const style = window.getComputedStyle(element);
+		return {
+			backgroundColor: style.backgroundColor,
+			borderColor: style.borderColor,
+			boxShadow: style.boxShadow,
+		};
+	});
+
+const readExpectedStyle = async (
+	page: Page,
+	colorScheme: ColorScheme,
+	isInvalid: boolean,
+): Promise<ComputedControlStyle> =>
+	page.evaluate(
+		({ colorScheme, isInvalid }) => {
+			const probe = document.createElement('div');
+			let indicatorClasses = 'border-ring ring-ring/30';
+			if (isInvalid) {
+				indicatorClasses =
+					colorScheme === 'dark'
+						? 'border-destructive ring-destructive/40'
+						: 'border-destructive ring-destructive/20';
+			}
+			probe.className = `fixed border bg-input/50 shadow-[var(--publy-shadow-input)] ring-3 ${indicatorClasses}`;
+			document.body.append(probe);
+			const style = window.getComputedStyle(probe);
+			const result = {
+				backgroundColor: style.backgroundColor,
+				borderColor: style.borderColor,
+				boxShadow: style.boxShadow,
+			};
+			probe.remove();
+			return result;
+		},
+		{ colorScheme, isInvalid },
+	);
 
 type BrowserContextLike = {
 	context: () => {
@@ -87,4 +160,64 @@ test('shows English InterZod message on invalid email, clears on valid input', a
 	await page.getByTestId('field-validation-submit').click();
 
 	await expect(page.getByText('Invalid email')).toBeHidden();
+});
+
+test('shared controls match the Gray UI outline treatment in light and dark themes', async ({
+	page,
+	baseURL,
+}) => {
+	const resolvedBaseUrl = baseURL || DEFAULT_BASE_URL;
+	await page.setViewportSize({ width: 1280, height: 900 });
+
+	for (const colorScheme of ['light', 'dark'] as const) {
+		await page.goto('/');
+		await seedTheme(page, colorScheme);
+		await visitFieldValidation(page, 'en', resolvedBaseUrl);
+		await expect(page.locator('html')).toHaveAttribute(
+			'data-theme',
+			colorScheme,
+		);
+		await expect(
+			page.getByTestId('form-control-outline-fixture'),
+		).toBeVisible();
+
+		for (const fixture of CONTROL_FIXTURES) {
+			const control = page.getByTestId(fixture);
+			const beforeFocus = await control.boundingBox();
+			expect(beforeFocus).not.toBeNull();
+
+			await control.focus();
+			await expect(control).toBeFocused();
+			const afterFocus = await control.boundingBox();
+			expect(afterFocus).toEqual(beforeFocus);
+
+			const expectedFocus = await readExpectedStyle(page, colorScheme, false);
+			await expect.poll(() => readControlStyle(control)).toEqual(expectedFocus);
+			await page.screenshot({
+				path: `test-results/gray-ui/form-controls-${colorScheme}-${fixture}-focus.png`,
+				fullPage: true,
+			});
+
+			await control.evaluate((element) => {
+				element.setAttribute('aria-invalid', 'true');
+			});
+			await expect(control).toHaveAttribute('aria-invalid', 'true');
+			await expect(control).toBeFocused();
+			const invalidFocusBox = await control.boundingBox();
+			expect(invalidFocusBox).toEqual(beforeFocus);
+
+			const expectedInvalid = await readExpectedStyle(page, colorScheme, true);
+			await expect
+				.poll(() => readControlStyle(control))
+				.toEqual(expectedInvalid);
+			await page.screenshot({
+				path: `test-results/gray-ui/form-controls-${colorScheme}-${fixture}-invalid-focus.png`,
+				fullPage: true,
+			});
+
+			await control.evaluate((element) => {
+				element.removeAttribute('aria-invalid');
+			});
+		}
+	}
 });

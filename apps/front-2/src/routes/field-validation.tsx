@@ -8,6 +8,16 @@ import { View404 } from '~/components/error-views/View404';
 import { Form, Field } from '~/components/field';
 import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
+import { Input } from '~/components/ui/input';
+import { Label } from '~/components/ui/label';
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from '~/components/ui/select';
+import { Textarea } from '~/components/ui/textarea';
 import { FEATURES } from '~/lib/flags';
 
 type FieldValidationValues = {
@@ -65,6 +75,43 @@ const FieldValidationRoute = () => {
 				>
 					{status}
 				</p>
+			</Card>
+			<Card
+				className="space-y-4 p-4"
+				data-testid="form-control-outline-fixture"
+			>
+				<div className="space-y-1.5">
+					<Label htmlFor="outline-input">Outline input</Label>
+					<Input
+						id="outline-input"
+						data-testid="outline-input"
+						defaultValue="Input value"
+					/>
+				</div>
+				<div className="space-y-1.5">
+					<Label htmlFor="outline-textarea">Outline textarea</Label>
+					<Textarea
+						id="outline-textarea"
+						data-testid="outline-textarea"
+						defaultValue="Textarea value"
+					/>
+				</div>
+				<div className="space-y-1.5">
+					<Label htmlFor="outline-select">Outline select</Label>
+					<Select defaultValue="alpha">
+						<SelectTrigger
+							id="outline-select"
+							className="w-full"
+							data-testid="outline-select"
+						>
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="alpha">Alpha</SelectItem>
+							<SelectItem value="beta">Beta</SelectItem>
+						</SelectContent>
+					</Select>
+				</div>
 			</Card>
 		</div>
 	);
