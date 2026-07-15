@@ -54,6 +54,7 @@ import {
 	useSuspendStaffTenantMutation,
 } from '~/lib/query/staff-tenants';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
+import type { TableSearchParams } from '~/lib/url-state/table-search-params';
 
 import {
 	getFailureMessage,
@@ -64,6 +65,7 @@ import { BULK_ACTION_MAX_COUNT } from '@org/shared-ts/lib/constants';
 import {
 	parseTenantListSearchParams,
 	serializeTenantListSearchParams,
+	serializeTenantStatusFilter,
 	TENANT_STATUS_FILTERS,
 	validateTenantListSearchParams,
 	type TenantListSearchParamInput,
@@ -78,19 +80,19 @@ const TENANT_STATUS_ACTIVE = 'Active';
 const TENANT_STATUS_SUSPENDED = 'Suspended';
 
 const formatTenantStatusFilterLabel = (
-	value: TenantStatusFilter | undefined,
+	statuses: readonly TenantStatusFilter[],
 	t: (key: string) => string,
 ): string => {
-	if (value === 'pending') {
-		return t('status-pending');
+	if (statuses.length === 0) {
+		return t('all-statuses');
 	}
-	if (value === 'active') {
-		return t('status-active');
-	}
-	if (value === 'suspended') {
-		return t('status-suspended');
-	}
-	return t('all-statuses');
+	return statuses
+		.map((status) => {
+			if (status === 'pending') return t('status-pending');
+			if (status === 'active') return t('status-active');
+			return t('status-suspended');
+		})
+		.join(', ');
 };
 
 const TenantStatusFilterMenu = ({
@@ -98,12 +100,23 @@ const TenantStatusFilterMenu = ({
 	onChange,
 	disabled,
 }: {
-	value: TenantStatusFilter | undefined;
-	onChange: (next: TenantStatusFilter | undefined) => void;
+	value: readonly TenantStatusFilter[];
+	onChange: (next: TenantStatusFilter[]) => void;
 	disabled?: boolean;
 }) => {
 	const { t } = useTranslation('common');
 	const label = formatTenantStatusFilterLabel(value, t);
+	const selected = new Set(value);
+
+	const toggleStatus = (status: TenantStatusFilter): void => {
+		onChange(
+			selected.has(status)
+				? value.filter((item) => item !== status)
+				: TENANT_STATUS_FILTERS.filter(
+						(item) => selected.has(item) || item === status,
+					),
+		);
+	};
 
 	return (
 		<DropdownMenu>
@@ -128,28 +141,25 @@ const TenantStatusFilterMenu = ({
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end" sideOffset={6}>
 				<DropdownMenuCheckboxItem
-					checked={value === undefined}
+					checked={value.length === 0}
 					closeOnClick
 					data-testid="staff-tenants-table-status-filter-all"
-					onCheckedChange={() => onChange(undefined)}
+					onCheckedChange={() => onChange([])}
 				>
 					{t('all-statuses')}
 				</DropdownMenuCheckboxItem>
 				{TENANT_STATUS_FILTERS.map((status) => (
 					<DropdownMenuCheckboxItem
 						key={status}
-						checked={value === status}
-						closeOnClick
+						checked={selected.has(status)}
+						closeOnClick={false}
+						showCheckbox
 						data-testid={`staff-tenants-table-status-filter-${status}`}
-						onCheckedChange={() => onChange(status)}
+						onCheckedChange={() => toggleStatus(status)}
 					>
-						{formatTenantStatusFilterLabel(status, t)}
+						{formatTenantStatusFilterLabel([status], t)}
 					</DropdownMenuCheckboxItem>
 				))}
-				<DropdownMenuSeparator />
-				<DropdownMenuItem onClick={() => onChange(undefined)}>
-					{t('clear')}
-				</DropdownMenuItem>
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);
@@ -249,14 +259,14 @@ function StaffTenantsPage() {
 	);
 	const { t } = useTranslation('common');
 
-	const onSearchChange = (next: TenantListSearchParams): void => {
+	const onSearchChange = (next: TableSearchParams): void => {
 		void navigate({
-			search: serializeTenantListSearchParams(next),
+			search: serializeTenantListSearchParams(next as TenantListSearchParams),
 			replace: true,
 		});
 	};
 
-	const setStatusFilter = (next: TenantStatusFilter | undefined): void => {
+	const setStatusFilter = (next: TenantStatusFilter[]): void => {
 		void navigate({
 			search: serializeTenantListSearchParams({
 				...search,
@@ -267,16 +277,17 @@ function StaffTenantsPage() {
 		});
 	};
 
+	const serializedStatus = serializeTenantStatusFilter(search.status);
 	const controller = useTableController({
 		search,
 		onSearchChange,
 		defaultSort: DEFAULT_SORT,
 		defaultSize: DEFAULT_SIZE,
-		cursorResetKey: search.status ?? '',
+		cursorResetKey: serializedStatus ?? '',
 	});
 	const query = useStaffTenantsQuery({
 		...controller.apiVariables,
-		status: search.status,
+		status: serializedStatus,
 	});
 	const rows = toStaffTenantRows(query.data?.data);
 	const selection = useRowSelection(rows.map((row) => row.id));
@@ -356,7 +367,9 @@ function StaffTenantsPage() {
 				isPending={query.isPending}
 				isError={query.isError}
 				onRetry={() => void query.refetch()}
-				hasActiveSearch={Boolean(controller.search.committed || search.status)}
+				hasActiveSearch={Boolean(
+					controller.search.committed || search.status.length > 0,
+				)}
 				sort={controller.sort}
 				onSortChange={controller.onSortChange}
 				size={controller.size}

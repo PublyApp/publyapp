@@ -557,12 +557,30 @@ describe('buildFindStaffTenantsQueryParameters', () => {
 		).toEqual({});
 	});
 
+	test('passes a canonical multi-status value through unchanged', () => {
+		expect(
+			buildFindStaffTenantsQueryParameters({
+				status: 'active,suspended',
+			}),
+		).toEqual({ status: 'active,suspended' });
+	});
+
 	test('builds a tenant details query key with a stable prefix', () => {
 		expect(STAFF_TENANT_DETAILS_QUERY_KEY).toEqual(['staff-tenants', 'detail']);
 	});
 });
 
 describe('staffTenantsQueryOptions.queryKey', () => {
+	test('keys combined statuses independently', () => {
+		expect(
+			staffTenantsQueryOptions.queryKey({ status: 'active,suspended' }),
+		).toEqual([
+			'staff',
+			...STAFF_TENANTS_QUERY_KEY,
+			{ status: 'active,suspended' },
+		]);
+	});
+
 	test('changes when the status filter changes, so switching filters never serves stale cached rows', () => {
 		const noFilter = staffTenantsQueryOptions.queryKey({});
 		const active = staffTenantsQueryOptions.queryKey({ status: 'active' });

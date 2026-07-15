@@ -260,6 +260,14 @@ describe('front-2 route metadata', () => {
 				status: 'suspended',
 			}),
 		).toBe(false);
+
+		for (const item of [pending, active, suspended, allTenants]) {
+			expect(
+				isSecondaryPanelItemActive(item, '/staff/tenants', {
+					status: 'active,suspended',
+				}),
+			).toBe(false);
+		}
 	});
 
 	test('breadcrumbs use staff/tenant handoff roots and translation keys, never fabricated names', () => {

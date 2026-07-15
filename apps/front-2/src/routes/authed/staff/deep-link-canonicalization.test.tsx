@@ -97,22 +97,46 @@ describe('malformed deep links are canonicalized at the router boundary (r4-tena
 		cleanup();
 	});
 
-	test('tenants: an unrecognized status key is dropped from the URL and the control defaults to "all"', async () => {
+	test('tenants: mixed, duplicate, and partly invalid statuses rewrite canonically', async () => {
 		const { router, history } = buildHarness(
 			'/staff/tenants',
 			asValidateSearch(TenantsRoute),
 			(search) => ({
-				status: parseTenantListSearchParams(search).status ?? 'all',
+				status: parseTenantListSearchParams(search).status.join(','),
 			}),
-			'/staff/tenants?status=bogus',
+			'/staff/tenants?status=Suspended%2Cactive%2Cbogus%2Cactive',
 		);
 
 		render(<RouterProvider router={router} />);
 		await waitFor(() => screen.getByTestId('resolved-search'));
 
+		expect(screen.getByTestId('field-status').textContent).toBe(
+			'active,suspended',
+		);
+		expect(
+			new URL(history.location.href, 'http://localhost').searchParams.get(
+				'status',
+			),
+		).toBe('active,suspended');
+	});
+
+	test('tenants: wholly invalid statuses are omitted', async () => {
+		const { router, history } = buildHarness(
+			'/staff/tenants',
+			asValidateSearch(TenantsRoute),
+			(search) => ({
+				status: parseTenantListSearchParams(search).status.join(',') || 'all',
+			}),
+			'/staff/tenants?status=bogus%2Cunknown',
+		);
+		render(<RouterProvider router={router} />);
+		await waitFor(() => screen.getByTestId('resolved-search'));
 		expect(screen.getByTestId('field-status').textContent).toBe('all');
-		expect(history.location.href).not.toContain('status=bogus');
-		expect(history.location.href).not.toContain('bogus');
+		expect(
+			new URL(history.location.href, 'http://localhost').searchParams.has(
+				'status',
+			),
+		).toBe(false);
 	});
 
 	test('tenant users: unrecognized status/level and a non-1 invite value are dropped from the URL', async () => {
