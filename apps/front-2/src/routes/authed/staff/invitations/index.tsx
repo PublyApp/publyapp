@@ -11,8 +11,6 @@ import {
 	DropdownMenu,
 	DropdownMenuCheckboxItem,
 	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu';
 import { PageHeader } from '~/components/ui/product-page';
@@ -199,6 +197,13 @@ function StaffInvitationsPage() {
 							<IconChevronDown aria-hidden="true" className="size-3" />
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end" sideOffset={6}>
+							<DropdownMenuCheckboxItem
+								checked={selectedStatuses.length === 0}
+								closeOnClick
+								onCheckedChange={() => setStatuses([])}
+							>
+								{t('all-statuses')}
+							</DropdownMenuCheckboxItem>
 							{KNOWN_INVITATION_STATUSES.map((status) => (
 								<DropdownMenuCheckboxItem
 									key={status}
@@ -210,10 +215,6 @@ function StaffInvitationsPage() {
 									{t(getInvitationStatusLabelKey(status))}
 								</DropdownMenuCheckboxItem>
 							))}
-							<DropdownMenuSeparator />
-							<DropdownMenuItem onClick={() => setStatuses([])}>
-								{t('clear')}
-							</DropdownMenuItem>
 						</DropdownMenuContent>
 					</DropdownMenu>
 				}

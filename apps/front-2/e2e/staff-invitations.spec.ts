@@ -88,6 +88,28 @@ const mockStaffProfiles = async (page: Page) => {
 };
 
 test.describe('staff invitations list', () => {
+	test('All statuses resets and closes without a persistent square checkbox', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await mockStaffInvitations(page, seededInvitationsPayload);
+		await page.goto('/staff/invitations?status=pending,accepted');
+
+		const trigger = page.getByRole('button', { name: /Pending, Accepted/i });
+		await trigger.click();
+		const allStatuses = page.getByRole('menuitemcheckbox', {
+			name: 'All statuses',
+		});
+		await expect(
+			allStatuses.locator('[data-slot="dropdown-menu-checkbox-item-box"]'),
+		).toHaveCount(0);
+		await allStatuses.click();
+		await expect(page.getByRole('menu')).toBeHidden();
+		await expect
+			.poll(() => new URL(page.url()).searchParams.has('status'))
+			.toBe(false);
+	});
+
 	test('renders seeded invitation rows and timing columns', async ({
 		page,
 	}) => {

@@ -2,57 +2,69 @@ import { describe, expect, test } from 'vitest';
 
 import {
 	parseTenantListSearchParams,
-	serializeTenantListSearchParams,
 	parseTenantStatusFilter,
+	serializeTenantListSearchParams,
+	serializeTenantStatusFilter,
+	type TenantStatusFilter,
 } from './tenants-list-helpers';
 
 describe('parseTenantStatusFilter', () => {
-	test('accepts known statuses case-insensitively', () => {
-		expect(parseTenantStatusFilter('Pending')).toBe('pending');
-		expect(parseTenantStatusFilter('active')).toBe('active');
-		expect(parseTenantStatusFilter('Suspended')).toBe('suspended');
+	test.each([
+		['Pending', ['pending']],
+		['active', ['active']],
+		['Suspended', ['suspended']],
+		['suspended, active', ['active', 'suspended']],
+		['Suspended,pending,active,pending', ['pending', 'active', 'suspended']],
+		['active,bogus,suspended', ['active', 'suspended']],
+	])('canonicalizes %s', (input, expected) => {
+		expect(parseTenantStatusFilter(input)).toEqual(expected);
 	});
 
-	test('collapses an unknown value to undefined', () => {
-		expect(parseTenantStatusFilter('bogus')).toBeUndefined();
-		expect(parseTenantStatusFilter(undefined)).toBeUndefined();
-		expect(parseTenantStatusFilter(42)).toBeUndefined();
+	test.each([undefined, '', '   ', 'bogus', 42])(
+		'collapses %j to an empty selection',
+		(input) => {
+			expect(parseTenantStatusFilter(input)).toEqual([]);
+		},
+	);
+});
+
+describe('serializeTenantStatusFilter', () => {
+	test.each([
+		[[], undefined],
+		[['active'], 'active'],
+		[['suspended', 'active'], 'active,suspended'],
+		[['suspended', 'pending', 'active', 'pending'], 'pending,active,suspended'],
+	])('serializes %j to %j', (input, expected) => {
+		expect(serializeTenantStatusFilter(input as TenantStatusFilter[])).toBe(
+			expected,
+		);
 	});
 });
 
 describe('parseTenantListSearchParams / serializeTenantListSearchParams', () => {
-	test('round-trips a status filter alongside the generic table params', () => {
+	test('round-trips canonical statuses alongside generic table params', () => {
 		const parsed = parseTenantListSearchParams({
-			status: 'active',
+			status: 'Suspended, active,active',
 			q: ' acme ',
 			sort_id: 'name',
 			sort_order: 'asc',
 		});
 
-		expect(parsed.status).toBe('active');
-		expect(parsed.q).toBe('acme');
-
+		expect(parsed).toMatchObject({
+			status: ['active', 'suspended'],
+			q: 'acme',
+		});
 		expect(serializeTenantListSearchParams(parsed)).toEqual({
-			status: 'active',
+			status: 'active,suspended',
 			q: 'acme',
 			sort_id: 'name',
 			sort_order: 'asc',
 		});
 	});
 
-	test('an unknown status value never reaches the parsed params or the API', () => {
-		const parsed = parseTenantListSearchParams({ status: 'bogus' });
-
-		expect(parsed.status).toBeUndefined();
-		expect(serializeTenantListSearchParams(parsed)).toEqual({
-			status: undefined,
-		});
-	});
-
-	test('no status param yields no status key', () => {
-		const parsed = parseTenantListSearchParams({});
-
-		expect(parsed.status).toBeUndefined();
+	test('invalid-only input never reaches the request shape', () => {
+		const parsed = parseTenantListSearchParams({ status: 'bogus,unknown' });
+		expect(parsed.status).toEqual([]);
 		expect(serializeTenantListSearchParams(parsed)).toEqual({
 			status: undefined,
 		});

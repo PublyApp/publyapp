@@ -318,48 +318,96 @@ describe('staff tenants route', () => {
 		});
 	});
 
-	test('renders a status filter trigger reflecting the URL and lists All/Active/Suspended', async () => {
+	test('renders persistent square checkbox rows and a distinct All statuses reset', async () => {
+		mocks.search = { status: 'active,suspended' };
 		renderPage();
 
-		expect(
-			screen.getByTestId('staff-tenants-table-status-filter-trigger')
-				.textContent,
-		).toContain('All statuses');
+		const trigger = screen.getByTestId(
+			'staff-tenants-table-status-filter-trigger',
+		);
+		expect(trigger.textContent).toContain('Active, Suspended');
+		fireEvent.click(trigger);
 
-		fireEvent.click(
-			screen.getByTestId('staff-tenants-table-status-filter-trigger'),
+		const all = await screen.findByTestId(
+			'staff-tenants-table-status-filter-all',
+		);
+		const pending = screen.getByTestId(
+			'staff-tenants-table-status-filter-pending',
+		);
+		const active = screen.getByTestId(
+			'staff-tenants-table-status-filter-active',
+		);
+		const suspended = screen.getByTestId(
+			'staff-tenants-table-status-filter-suspended',
 		);
 
 		expect(
-			await screen.findByTestId('staff-tenants-table-status-filter-all'),
-		).toBeTruthy();
-		expect(
-			screen.getByTestId('staff-tenants-table-status-filter-pending'),
-		).toBeTruthy();
-		expect(
-			screen.getByTestId('staff-tenants-table-status-filter-active'),
-		).toBeTruthy();
+			all.querySelector('[data-slot="dropdown-menu-checkbox-item-box"]'),
+		).toBeNull();
+		for (const item of [pending, active, suspended]) {
+			expect(item.getAttribute('role')).toBe('menuitemcheckbox');
+			expect(
+				item.querySelector('[data-slot="dropdown-menu-checkbox-item-box"]'),
+			).not.toBeNull();
+		}
+		expect(active.getAttribute('aria-checked')).toBe('true');
+		expect(suspended.getAttribute('aria-checked')).toBe('true');
+	});
+
+	test('toggles multiple statuses without closing and clears the cursor', async () => {
+		const view = renderPage();
+		const trigger = screen.getByTestId(
+			'staff-tenants-table-status-filter-trigger',
+		);
+		fireEvent.click(trigger);
+		fireEvent.click(
+			await screen.findByTestId('staff-tenants-table-status-filter-active'),
+		);
+
 		expect(
 			screen.getByTestId('staff-tenants-table-status-filter-suspended'),
 		).toBeTruthy();
+		mocks.search = { status: 'active' };
+		view.rerender(<RouteComponent />);
+		fireEvent.click(
+			await screen.findByTestId('staff-tenants-table-status-filter-suspended'),
+		);
+
+		const toggleSearch = mocks.navigate.mock.calls.at(-1)?.[0]?.search as
+			| Record<string, unknown>
+			| undefined;
+		expect(toggleSearch?.status).toBe('active,suspended');
+		expect(toggleSearch?.cursor).toBeUndefined();
+		expect(mocks.navigate.mock.calls.at(-1)?.[0]?.replace).toBe(true);
 	});
 
-	test('selecting Active in the status filter navigates with status=active', async () => {
-		renderPage();
-
+	test('deselects a selected status and All statuses resets the set', async () => {
+		mocks.search = { status: 'active,suspended', cursor: 'cursor-2' };
+		const view = renderPage();
 		fireEvent.click(
 			screen.getByTestId('staff-tenants-table-status-filter-trigger'),
 		);
 		fireEvent.click(
 			await screen.findByTestId('staff-tenants-table-status-filter-active'),
 		);
+		const deselectSearch = mocks.navigate.mock.calls.at(-1)?.[0]?.search as
+			| Record<string, unknown>
+			| undefined;
+		expect(deselectSearch?.status).toBe('suspended');
+		expect(deselectSearch?.cursor).toBeUndefined();
+		expect(mocks.navigate.mock.calls.at(-1)?.[0]?.replace).toBe(true);
 
-		expect(mocks.navigate).toHaveBeenCalledWith(
-			expect.objectContaining({
-				search: expect.objectContaining({ status: 'active' }),
-				replace: true,
-			}),
+		mocks.search = { status: 'suspended' };
+		view.rerender(<RouteComponent />);
+		fireEvent.click(
+			await screen.findByTestId('staff-tenants-table-status-filter-all'),
 		);
+		const resetSearch = mocks.navigate.mock.calls.at(-1)?.[0]?.search as
+			| Record<string, unknown>
+			| undefined;
+		expect(resetSearch?.status).toBeUndefined();
+		expect(resetSearch?.cursor).toBeUndefined();
+		expect(mocks.navigate.mock.calls.at(-1)?.[0]?.replace).toBe(true);
 	});
 
 	test('a debounced search commit does not revert a status filter chosen within the debounce window (F1)', async () => {
@@ -372,7 +420,7 @@ describe('staff tenants route', () => {
 		// Simulate choosing "Active" within the 300ms debounce window: the
 		// route re-renders with the new URL search state, same as a real
 		// navigation would, before the debounced commit fires.
-		mocks.search = { status: 'active' };
+		mocks.search = { status: 'active,suspended' };
 		renderResult.rerender(<RouteComponent />);
 
 		await new Promise((resolve) => setTimeout(resolve, 350));
@@ -380,7 +428,10 @@ describe('staff tenants route', () => {
 		const lastCall = mocks.navigate.mock.calls.at(-1)?.[0] as {
 			search?: Record<string, unknown>;
 		};
-		expect(lastCall?.search).toMatchObject({ status: 'active', q: 'an' });
+		expect(lastCall?.search).toMatchObject({
+			status: 'active,suspended',
+			q: 'an',
+		});
 	});
 
 	// tenants-r6-F2: entering selection mode must freeze the query that
@@ -423,7 +474,7 @@ describe('staff tenants route', () => {
 	});
 
 	test('a debounced search commit does not revert a status filter cleared within the debounce window (r3-F1)', async () => {
-		mocks.search = { status: 'active' };
+		mocks.search = { status: 'active,suspended' };
 		const renderResult = renderPage();
 
 		fireEvent.change(screen.getByTestId('staff-tenants-table-search'), {
@@ -491,7 +542,7 @@ describe('staff tenants route', () => {
 
 		// Simulate the URL now reflecting a status filter change — the route
 		// re-renders with new search props, same as a real navigation would.
-		mocks.search = { status: 'active' };
+		mocks.search = { status: 'active,suspended' };
 		renderResult.rerender(<RouteComponent />);
 
 		expect(screen.getByText('Page 1')).toBeTruthy();
@@ -525,7 +576,7 @@ describe('staff tenants route', () => {
 	});
 
 	test('renders the no-match state when search is active and no rows match', () => {
-		mocks.search = { q: 'acme' };
+		mocks.search = { q: 'acme', status: 'active,suspended' };
 		mocks.toStaffTenantRows.mockReturnValue([]);
 		mocks.useStaffTenantsQuery.mockReturnValue(
 			buildQueryResult({
@@ -546,6 +597,7 @@ describe('staff tenants route', () => {
 			sortOrder: 'desc',
 			cursor: undefined,
 			size: 100,
+			status: 'active,suspended',
 		});
 	});
 

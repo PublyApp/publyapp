@@ -17,44 +17,53 @@ export type TenantStatusFilter = (typeof TENANT_STATUS_FILTERS)[number];
 const TENANT_STATUS_FILTER_SET = new Set<string>(TENANT_STATUS_FILTERS);
 
 export type TenantListSearchParams = TableSearchParams & {
-	status?: TenantStatusFilter;
+	status: TenantStatusFilter[];
 };
 
 export type TenantListSearchParamInput = TableSearchParamInput & {
 	status?: unknown;
 };
 
-/** An unrecognized value collapses to `undefined` rather than reaching the API. */
 export const parseTenantStatusFilter = (
 	value: unknown,
-): TenantStatusFilter | undefined => {
+): TenantStatusFilter[] => {
 	if (typeof value !== 'string') {
-		return undefined;
+		return [];
 	}
 
-	const normalized = value.trim().toLowerCase();
-	return TENANT_STATUS_FILTER_SET.has(normalized)
-		? (normalized as TenantStatusFilter)
-		: undefined;
+	const selected = new Set(
+		value
+			.split(',')
+			.map((token) => token.trim().toLowerCase())
+			.filter((token) => TENANT_STATUS_FILTER_SET.has(token)),
+	);
+
+	return TENANT_STATUS_FILTERS.filter((status) => selected.has(status));
+};
+
+export const serializeTenantStatusFilter = (
+	statuses: readonly TenantStatusFilter[],
+): string | undefined => {
+	const selected = new Set(statuses);
+	const canonical = TENANT_STATUS_FILTERS.filter((status) =>
+		selected.has(status),
+	);
+	return canonical.length > 0 ? canonical.join(',') : undefined;
 };
 
 export const parseTenantListSearchParams = (
 	search: TenantListSearchParamInput,
-): TenantListSearchParams => {
-	const base = parseTableSearchParams(search);
-	const status = parseTenantStatusFilter(search.status);
-
-	return { ...base, status: status ?? undefined };
-};
+): TenantListSearchParams => ({
+	...parseTableSearchParams(search),
+	status: parseTenantStatusFilter(search.status),
+});
 
 export const serializeTenantListSearchParams = (
 	params: TenantListSearchParams,
-): Record<string, string | undefined> => {
-	const next = serializeTableSearchParams(params);
-	const status = parseTenantStatusFilter(params.status);
-
-	return { ...next, status: status ?? undefined };
-};
+): Record<string, string | undefined> => ({
+	...serializeTableSearchParams(params),
+	status: serializeTenantStatusFilter(params.status),
+});
 
 /**
  * `validateSearch` must return the SAME snake_case shape the router already
