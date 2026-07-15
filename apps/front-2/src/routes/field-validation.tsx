@@ -81,7 +81,7 @@ const FieldValidationRoute = () => {
 				data-testid="form-control-outline-fixture"
 			>
 				<div className="space-y-1.5">
-					<Label htmlFor="outline-input">Outline input</Label>
+					<Label htmlFor="outline-input">{t('name')}</Label>
 					<Input
 						id="outline-input"
 						data-testid="outline-input"
@@ -89,7 +89,7 @@ const FieldValidationRoute = () => {
 					/>
 				</div>
 				<div className="space-y-1.5">
-					<Label htmlFor="outline-textarea">Outline textarea</Label>
+					<Label htmlFor="outline-textarea">{t('description')}</Label>
 					<Textarea
 						id="outline-textarea"
 						data-testid="outline-textarea"
@@ -97,7 +97,7 @@ const FieldValidationRoute = () => {
 					/>
 				</div>
 				<div className="space-y-1.5">
-					<Label htmlFor="outline-select">Outline select</Label>
+					<Label htmlFor="outline-select">{t('status')}</Label>
 					<Select defaultValue="alpha">
 						<SelectTrigger
 							id="outline-select"
@@ -107,8 +107,8 @@ const FieldValidationRoute = () => {
 							<SelectValue />
 						</SelectTrigger>
 						<SelectContent>
-							<SelectItem value="alpha">Alpha</SelectItem>
-							<SelectItem value="beta">Beta</SelectItem>
+							<SelectItem value="alpha">{t('active')}</SelectItem>
+							<SelectItem value="beta">{t('inactive')}</SelectItem>
 						</SelectContent>
 					</Select>
 				</div>
