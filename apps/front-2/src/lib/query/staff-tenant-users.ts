@@ -418,7 +418,10 @@ const createStaffTenantUserInvitationMutationOptions =
 							accountLevel: variables.accountLevel,
 						}),
 					),
-			meta: { successMessage: 'invitation-sent-success' },
+			meta: {
+				successMessage: 'invitation-sent-success',
+				validationHandledByForm: true,
+			},
 		},
 		{ clientAccessor: getClientManager() },
 	);

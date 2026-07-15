@@ -13,6 +13,7 @@ import {
 	toStaffTenantUserBulkActionSummary,
 	toStaffTenantUserDetails,
 	toStaffTenantUserRows,
+	useInviteTenantUserMutation,
 } from '~/lib/query/staff-tenant-users';
 
 import type {
@@ -23,6 +24,12 @@ import type {
 
 const mocks = vi.hoisted(() => ({
 	getOrCreateStaffClient: vi.fn(),
+	useMutation: vi.fn((options: unknown) => options),
+}));
+
+vi.mock('@tanstack/react-query', () => ({
+	useMutation: mocks.useMutation,
+	useQuery: vi.fn(),
 }));
 
 vi.mock('~/lib/api-client/client-manager', () => ({
@@ -87,6 +94,17 @@ describe('buildFindStaffTenantUsersQueryParameters', () => {
 });
 
 describe('buildCreateStaffTenantUserInvitationBody', () => {
+	test('marks invitation validation as handled by its form', () => {
+		const mutation = useInviteTenantUserMutation() as unknown as {
+			meta: Record<string, unknown>;
+		};
+
+		expect(mutation.meta).toEqual({
+			successMessage: 'invitation-sent-success',
+			validationHandledByForm: true,
+		});
+	});
+
 	test('trims email and account level and wraps them for the API contract', () => {
 		expect(
 			buildCreateStaffTenantUserInvitationBody({

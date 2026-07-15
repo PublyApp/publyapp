@@ -61,7 +61,7 @@ export const ChangeStaffUserEmailDialog = ({
 	const { t, i18n } = useTranslation('common');
 	const queryClient = useQueryClient();
 	const { mutateAsync, isPending } = useUpdateStaffUserEmailMutation();
-	const [serverErrors, setServerErrors] = useState<string[]>([]);
+	const [rootValidationError, setRootValidationError] = useState('');
 	const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 	const resolver = useMemo(
 		() => zodResolver(buildChangeEmailSchema(t)),
@@ -80,7 +80,7 @@ export const ChangeStaffUserEmailDialog = ({
 
 	useEffect(() => {
 		if (isOpen) {
-			setServerErrors([]);
+			setRootValidationError('');
 			setShowDiscardConfirm(false);
 			reset({ email: currentEmail });
 		}
@@ -103,12 +103,10 @@ export const ChangeStaffUserEmailDialog = ({
 	};
 
 	const onSubmit = methods.handleSubmit(async (values) => {
-		setServerErrors([]);
+		setRootValidationError('');
 
 		try {
 			await mutateAsync({ userId, email: values.email });
-			await invalidateStaffUsers(queryClient);
-			onUpdated(values.email);
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
 				onSessionExpired();
@@ -116,25 +114,33 @@ export const ChangeStaffUserEmailDialog = ({
 			}
 
 			const failure = toApiFailure(error);
-			if (
-				failure.kind === 'validation' &&
-				(failure.fieldErrors.email?.length ?? 0) > 0
-			) {
-				methods.setError('email', {
-					type: 'server',
-					message: getFailureMessage(failure, {
-						fallback: t('update-staff-user-email-failed'),
-					}),
-				});
-				return;
-			}
+			if (failure.kind === 'validation') {
+				const hasEmailError = (failure.fieldErrors.email?.length ?? 0) > 0;
+				if (hasEmailError) {
+					methods.setError('email', {
+						type: 'server',
+						message: getFailureMessage(failure, {
+							fallback: t('update-staff-user-email-failed'),
+						}),
+					});
+				}
 
-			setServerErrors([
-				getFailureMessage(failure, {
-					fallback: t('update-staff-user-email-failed'),
-				}),
-			]);
+				const hasUnmappedError = Object.keys(failure.fieldErrors).some(
+					(field) => field !== 'email',
+				);
+				if (!hasEmailError || hasUnmappedError) {
+					setRootValidationError(
+						getFailureMessage(failure, {
+							fallback: t('update-staff-user-email-failed'),
+						}),
+					);
+				}
+			}
+			return;
 		}
+
+		await invalidateStaffUsers(queryClient);
+		onUpdated(values.email);
 	});
 
 	return (
@@ -165,17 +171,10 @@ export const ChangeStaffUserEmailDialog = ({
 								isDisabled={isFormLocked}
 								fullWidth
 							/>
-							{serverErrors.length > 0 ? (
-								<div
-									className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive"
-									role="alert"
-								>
-									<ul className="list-disc space-y-1 pl-4">
-										{serverErrors.map((error) => (
-											<li key={error}>{error}</li>
-										))}
-									</ul>
-								</div>
+							{rootValidationError ? (
+								<p className="text-sm text-destructive" role="alert">
+									{rootValidationError}
+								</p>
 							) : null}
 						</DrawerBody>
 						<DrawerFooter>

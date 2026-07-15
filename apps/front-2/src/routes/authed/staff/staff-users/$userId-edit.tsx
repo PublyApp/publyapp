@@ -13,6 +13,10 @@ import { Field, Form, FormActionBar, FormPageLayout } from '~/components/field';
 import { Button, buttonVariants } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
+	displayLocalMutationFailure,
+	toastLocalMutationResult,
+} from '~/lib/mutation-toast';
+import {
 	toStaffProfileRows,
 	useStaffProfilesQuery,
 } from '~/lib/query/staff-profiles';
@@ -386,11 +390,7 @@ function StaffUserEditPage() {
 					return;
 				}
 
-				setServerError(
-					getFailureMessage(toApiFailure(error), {
-						fallback: t('unknown-error'),
-					}),
-				);
+				await displayLocalMutationFailure(error, t('unknown-error'));
 				return;
 			}
 
@@ -426,17 +426,20 @@ function StaffUserEditPage() {
 					return;
 				}
 
-				setServerError(
-					hasIdentityChanges
-						? t('staff-user-identity-saved-profiles-failed', {
-								reason: getFailureMessage(toApiFailure(error), {
-									fallback: t('unknown-error'),
-								}),
-							})
-						: getFailureMessage(toApiFailure(error), {
+				if (hasIdentityChanges) {
+					const partialFailureMessage = t(
+						'staff-user-identity-saved-profiles-failed',
+						{
+							reason: getFailureMessage(toApiFailure(error), {
 								fallback: t('unknown-error'),
 							}),
-				);
+						},
+					);
+					setServerError(partialFailureMessage);
+					toastLocalMutationResult.error(partialFailureMessage);
+				} else {
+					await displayLocalMutationFailure(error, t('unknown-error'));
+				}
 				return;
 			}
 
@@ -444,6 +447,7 @@ function StaffUserEditPage() {
 		}
 
 		hasSavedRef.current = true;
+		toastLocalMutationResult.success(t('staff-user-updated-success'));
 		void navigate({
 			to: '/staff/staff-users/$userId',
 			params: { userId },

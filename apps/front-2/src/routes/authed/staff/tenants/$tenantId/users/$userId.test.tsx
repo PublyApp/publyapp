@@ -25,6 +25,13 @@ const mocks = vi.hoisted(() => ({
 	useReactivateStaffTenantUserMutation: vi.fn(),
 	useRemoveStaffTenantUserMutation: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
+	displayLocalMutationFailure: vi.fn(),
+	toastSuccess: vi.fn(),
+}));
+
+vi.mock('~/lib/mutation-toast', () => ({
+	displayLocalMutationFailure: mocks.displayLocalMutationFailure,
+	toastLocalMutationResult: { success: mocks.toastSuccess },
 }));
 
 vi.mock('@tanstack/react-router', () => ({
@@ -529,35 +536,40 @@ describe('staff tenant user details route', () => {
 		['400', 'Tenant cannot be removed'],
 		['409', 'Tenant user not in tenant'],
 		['422', 'Validation failed'],
-	])('keeps remove action %s failures local', async (status, message) => {
-		mocks.removeTenantUserMutation.mockRejectedValue({
-			kind: 'problem',
-			status: Number(status),
-			responseStatusCode: Number(status),
-			title: message,
-			detail: message,
-		});
+	])(
+		'leaves remove action %s failures to central feedback',
+		async (status, message) => {
+			mocks.removeTenantUserMutation.mockRejectedValue({
+				kind: 'problem',
+				status: Number(status),
+				responseStatusCode: Number(status),
+				title: message,
+				detail: message,
+			});
 
-		renderPage();
+			renderPage();
 
-		fireEvent.click(
-			screen.getByRole('button', { name: /Remove from tenant/i }),
-		);
+			fireEvent.click(
+				screen.getByRole('button', { name: /Remove from tenant/i }),
+			);
 
-		await waitFor(() =>
-			expect(screen.getByText('Remove tenant user')).toBeTruthy(),
-		);
-		fireEvent.click(
-			screen.getAllByRole('button', { name: 'Remove' }).slice(-1)[0],
-		);
+			await waitFor(() =>
+				expect(screen.getByText('Remove tenant user')).toBeTruthy(),
+			);
+			fireEvent.click(
+				screen.getAllByRole('button', { name: 'Remove' }).slice(-1)[0],
+			);
 
-		await waitFor(() =>
-			expect(mocks.removeTenantUserMutation).toHaveBeenCalledTimes(1),
-		);
-		await waitFor(() => expect(screen.getByText(message)).toBeTruthy());
-		expect(screen.queryByTestId('logout-redirect')).toBeNull();
-		expect(mocks.invalidateQueries).not.toHaveBeenCalled();
-	});
+			await waitFor(() =>
+				expect(mocks.removeTenantUserMutation).toHaveBeenCalledTimes(1),
+			);
+			expect(screen.queryByText(message)).toBeNull();
+			expect(screen.queryByTestId('logout-redirect')).toBeNull();
+			expect(mocks.invalidateQueries).not.toHaveBeenCalled();
+			expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
+			expect(mocks.toastSuccess).not.toHaveBeenCalled();
+		},
+	);
 
 	test('redirects to logout only when remove action fails with 401', async () => {
 		mocks.shouldLogoutForFailure.mockReturnValue(true);
@@ -596,26 +608,31 @@ describe('staff tenant user details route', () => {
 		[400, 'Bad request'],
 		[409, 'Membership already suspended'],
 		[422, 'Validation failed'],
-	])('keeps non-401 action failures local (%i)', async (status, message) => {
-		mocks.suspendTenantUserMutation.mockRejectedValue({
-			kind: 'problem',
-			status,
-			responseStatusCode: status,
-			title: message,
-			detail: message,
-		});
+	])(
+		'leaves non-401 action failures to central feedback (%i)',
+		async (status, message) => {
+			mocks.suspendTenantUserMutation.mockRejectedValue({
+				kind: 'problem',
+				status,
+				responseStatusCode: status,
+				title: message,
+				detail: message,
+			});
 
-		renderPage();
+			renderPage();
 
-		fireEvent.click(screen.getByRole('button', { name: 'Suspend' }));
+			fireEvent.click(screen.getByRole('button', { name: 'Suspend' }));
 
-		await waitFor(() =>
-			expect(mocks.suspendTenantUserMutation).toHaveBeenCalledTimes(1),
-		);
-		await waitFor(() => expect(screen.getByText(message)).toBeTruthy());
-		expect(screen.queryByTestId('logout-redirect')).toBeNull();
-		expect(mocks.invalidateQueries).not.toHaveBeenCalled();
-	});
+			await waitFor(() =>
+				expect(mocks.suspendTenantUserMutation).toHaveBeenCalledTimes(1),
+			);
+			expect(screen.queryByText(message)).toBeNull();
+			expect(screen.queryByTestId('logout-redirect')).toBeNull();
+			expect(mocks.invalidateQueries).not.toHaveBeenCalled();
+			expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
+			expect(mocks.toastSuccess).not.toHaveBeenCalled();
+		},
+	);
 
 	test('redirects to logout only when membership action fails with 401', async () => {
 		mocks.shouldLogoutForFailure.mockReturnValue(true);

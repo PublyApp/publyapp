@@ -7,6 +7,7 @@ import { Button } from '~/components/ui/button';
 import { BrandTile } from '~/components/ui/initials-avatar';
 import { Label } from '~/components/ui/label';
 import { resolveApiFileUrl } from '~/lib/api-client/resolve-api-file-url';
+import { toastLocalMutationResult } from '~/lib/mutation-toast';
 import { useUploadStaffImageMutation } from '~/lib/query/staff-uploads';
 
 import {
@@ -76,9 +77,10 @@ export const FieldImageUpload = ({
 						{ file },
 						{
 							onSuccess: (result) => {
-								const url = result?.url;
+								const url = result?.url?.trim();
 								if (url) {
 									field.onChange(resolveApiFileUrl(url));
+									toastLocalMutationResult.success(t('image-uploaded-success'));
 								} else {
 									setLocalError(t('logo-upload-failed'));
 								}

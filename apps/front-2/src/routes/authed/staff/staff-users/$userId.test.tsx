@@ -23,12 +23,19 @@ const mocks = vi.hoisted(() => ({
 	useReactivateStaffUserMutation: vi.fn(),
 	useSuspendStaffUserMutation: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
+	displayLocalMutationFailure: vi.fn(),
+	toastSuccess: vi.fn(),
 	navigate: vi.fn().mockResolvedValue(undefined),
 	pathname: '/staff/staff-users/11111111-1111-1111-1111-111111111111/',
 	queryClient: {
 		invalidateQueries: vi.fn().mockResolvedValue(undefined),
 		removeQueries: vi.fn(),
 	},
+}));
+
+vi.mock('~/lib/mutation-toast', () => ({
+	displayLocalMutationFailure: mocks.displayLocalMutationFailure,
+	toastLocalMutationResult: { success: mocks.toastSuccess },
 }));
 
 vi.mock('@tanstack/react-router', () => ({
@@ -534,7 +541,7 @@ describe('staff user details route shell', () => {
 	// Suspend is triggered from the Danger-zone card in `$userId/index.tsx`
 	// (rendered here by the Outlet stub via the shared overview context) — the
 	// header no longer carries a Suspend control.
-	test('ItShouldCallSuspendMutationWhenSuspendConfirmed', () => {
+	test('ItShouldCallSuspendMutationWhenSuspendConfirmed', async () => {
 		const suspendMutateAsync = vi.fn().mockResolvedValue(undefined);
 		mocks.useSuspendStaffUserMutation.mockReturnValue(
 			buildMutationResult({ mutateAsync: suspendMutateAsync }),
@@ -556,6 +563,14 @@ describe('staff user details route shell', () => {
 		expect(suspendMutateAsync).toHaveBeenCalledWith({
 			userId: USER_ID,
 		});
+		await vi.waitFor(() =>
+			expect(mocks.queryClient.invalidateQueries).toHaveBeenCalled(),
+		);
+		expect(
+			screen.queryByText('This staff user has been suspended.'),
+		).toBeNull();
+		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
 	});
 
 	// (c) when status is suspended the control reads Reactivate and confirming calls reactivateUser.mutateAsync
@@ -672,10 +687,9 @@ describe('staff user details route shell', () => {
 			expect(mocks.deleteMutateAsync).toHaveBeenCalledWith({
 				userId: USER_ID,
 			});
-			expect(screen.getByRole('alert').textContent).toContain(
-				'Unable to delete this staff user.',
-			);
 		});
+		expect(screen.queryByRole('alert')).toBeNull();
+		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
 
 		expect(mocks.navigate).not.toHaveBeenCalled();
 		expect(mocks.queryClient.removeQueries).not.toHaveBeenCalled();

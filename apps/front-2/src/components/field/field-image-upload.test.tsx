@@ -11,12 +11,19 @@ import {
 } from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { z } from 'zod';
 
 const mocks = vi.hoisted(() => ({
 	useUploadStaffImageMutation: vi.fn(),
+	toastSuccess: vi.fn(),
 	API_ORIGIN: 'https://api.test.example',
+}));
+
+vi.mock('~/lib/mutation-toast', () => ({
+	toastLocalMutationResult: {
+		success: mocks.toastSuccess,
+	},
 }));
 
 vi.mock('~/lib/query/staff-uploads', () => ({
@@ -61,6 +68,7 @@ vi.mock('react-i18next', () => ({
 				'logo-upload-invalid-type': 'Image must be PNG, JPEG, WEBP, or GIF',
 				'logo-upload-too-large': 'Image must be 2 MB or smaller',
 				'logo-upload-failed': "Couldn't upload the image. Please try again.",
+				'image-uploaded-success': 'Image uploaded successfully.',
 				'clear-logo': 'Clear logo',
 			};
 
@@ -127,6 +135,10 @@ const RequiredImageUploadHarness = () => {
 };
 
 describe('Field.ImageUpload', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
 	afterEach(() => {
 		cleanup();
 	});
@@ -184,6 +196,7 @@ describe('Field.ImageUpload', () => {
 			screen.getByText('Image must be PNG, JPEG, WEBP, or GIF'),
 		).toBeTruthy();
 		expect(screen.getByTestId('logo-url-value').textContent).toBe('');
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
 	});
 
 	test('rejects a file over the 2 MB size limit without uploading', () => {
@@ -202,6 +215,7 @@ describe('Field.ImageUpload', () => {
 
 		expect(mutate).not.toHaveBeenCalled();
 		expect(screen.getByText('Image must be 2 MB or smaller')).toBeTruthy();
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
 	});
 
 	test('a successful upload sets the field value and marks the form dirty', async () => {
@@ -231,6 +245,10 @@ describe('Field.ImageUpload', () => {
 		expect(screen.getByTestId('logo-upload-url').textContent).toBe(
 			`${API_ORIGIN}/files/uploads/2026/07/logo.png`,
 		);
+		expect(mocks.toastSuccess).toHaveBeenCalledOnce();
+		expect(mocks.toastSuccess).toHaveBeenCalledWith(
+			'Image uploaded successfully.',
+		);
 	});
 
 	test('surfaces an inline error when a successful upload response has no url (r3-tests-F15)', async () => {
@@ -258,6 +276,33 @@ describe('Field.ImageUpload', () => {
 		});
 		expect(screen.getByTestId('logo-url-value').textContent).toBe('');
 		expect(screen.getByTestId('is-dirty').textContent).toBe('false');
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+	});
+
+	test('treats a whitespace-only upload url as unusable without a toast', async () => {
+		mocks.useUploadStaffImageMutation.mockReturnValue({
+			mutate: (
+				_input: unknown,
+				opts: { onSuccess: (result: { url?: string }) => void },
+			) => {
+				opts.onSuccess({ url: '   ' });
+			},
+			isPending: false,
+		});
+
+		render(<ImageUploadHarness />);
+
+		fireEvent.change(screen.getByLabelText('Logo') as HTMLInputElement, {
+			target: { files: [buildFile('logo.png', 1000)] },
+		});
+
+		await waitFor(() => {
+			expect(
+				screen.getByText("Couldn't upload the image. Please try again."),
+			).toBeTruthy();
+		});
+		expect(screen.getByTestId('logo-url-value').textContent).toBe('');
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
 	});
 
 	test('surfaces a server upload failure inline', async () => {
@@ -289,6 +334,7 @@ describe('Field.ImageUpload', () => {
 			).toBeTruthy();
 		});
 		expect(screen.getByTestId('logo-url-value').textContent).toBe('');
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
 	});
 
 	test('shows a busy state while the upload is pending', () => {

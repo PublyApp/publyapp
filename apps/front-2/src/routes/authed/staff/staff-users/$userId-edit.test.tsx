@@ -32,12 +32,23 @@ const mocks = vi.hoisted(() => ({
 	invalidateQueries: vi.fn(),
 	navigate: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
+	displayLocalMutationFailure: vi.fn().mockResolvedValue(undefined),
+	toastSuccess: vi.fn(),
+	toastError: vi.fn(),
 	blockerResolver: {
 		status: 'idle' as 'idle' | 'blocked',
 		proceed: undefined as (() => void) | undefined,
 		reset: undefined as (() => void) | undefined,
 	},
 	capturedShouldBlockFn: undefined as (() => boolean) | undefined,
+}));
+
+vi.mock('~/lib/mutation-toast', () => ({
+	displayLocalMutationFailure: mocks.displayLocalMutationFailure,
+	toastLocalMutationResult: {
+		success: mocks.toastSuccess,
+		error: mocks.toastError,
+	},
 }));
 
 const getUserDetails = (userId: string) => ({
@@ -161,6 +172,7 @@ vi.mock('react-i18next', () => ({
 				cancel: 'Cancel',
 				'save-changes': 'Save changes',
 				'unknown-error': 'Unable to save staff user.',
+				'staff-user-updated-success': 'Staff user updated successfully.',
 				'edit-staff-user': 'Edit staff user',
 				'invalid-url': 'Invalid URL',
 				'showing-first-n-profiles': 'Showing the first profiles.',
@@ -716,6 +728,13 @@ describe('staff user edit route', () => {
 				params: { userId: '11111111-1111-1111-1111-111111111111' },
 			}),
 		);
+		expect(mocks.toastSuccess).toHaveBeenCalledOnce();
+		expect(mocks.toastSuccess).toHaveBeenCalledWith(
+			'Staff user updated successfully.',
+		);
+		expect(mocks.toastSuccess.mock.invocationCallOrder[0]).toBeLessThan(
+			mocks.navigate.mock.invocationCallOrder[0],
+		);
 	});
 
 	// users-auth-r1-F3: the OLD version of this test asserted
@@ -746,6 +765,8 @@ describe('staff user edit route', () => {
 			expect(mocks.updateStaffUserProfiles).toHaveBeenCalled(),
 		);
 		expect(mocks.navigate).not.toHaveBeenCalled();
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+		expect(mocks.toastError).toHaveBeenCalledOnce();
 
 		// The identity write already committed in the database — the UI must
 		// invalidate/refetch it rather than silently show stale cache while
@@ -784,7 +805,7 @@ describe('staff user edit route', () => {
 		expect(mocks.updateStaffUser).not.toHaveBeenCalled();
 	});
 
-	test('surfaces a failed save and stays on the edit route', async () => {
+	test('toasts a failed save once and stays on the edit route', async () => {
 		mocks.updateStaffUser.mockRejectedValue(new Error('save failed'));
 		renderPage();
 
@@ -794,8 +815,13 @@ describe('staff user edit route', () => {
 		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
 
 		await waitFor(() =>
-			expect(screen.getByRole('alert').textContent).toBe('save failed'),
+			expect(mocks.displayLocalMutationFailure).toHaveBeenCalledOnce(),
 		);
+		expect(mocks.displayLocalMutationFailure).toHaveBeenCalledWith(
+			expect.any(Error),
+			'Unable to save staff user.',
+		);
+		expect(screen.queryByRole('alert')).toBeNull();
 		expect(mocks.navigate).not.toHaveBeenCalled();
 	});
 

@@ -22,12 +22,19 @@ const mocks = vi.hoisted(() => ({
 	toStaffTenantDetails: vi.fn(),
 	toStaffTenantUserDetails: vi.fn(),
 	shouldLogoutForFailure: vi.fn<(error: unknown) => boolean>(() => false),
+	displayLocalMutationFailure: vi.fn(),
+	toastSuccess: vi.fn(),
 	blockerResolver: {
 		status: 'idle' as 'idle' | 'blocked',
 		proceed: undefined as (() => void) | undefined,
 		reset: undefined as (() => void) | undefined,
 	},
 	capturedShouldBlockFn: undefined as (() => boolean) | undefined,
+}));
+
+vi.mock('~/lib/mutation-toast', () => ({
+	displayLocalMutationFailure: mocks.displayLocalMutationFailure,
+	toastLocalMutationResult: { success: mocks.toastSuccess },
 }));
 
 vi.mock('~/components/ui/select', () => {
@@ -533,6 +540,43 @@ describe('staff tenant user edit route', () => {
 		expect(
 			screen.queryByText('The avatar URL must be an absolute http(s) URL.'),
 		).toBeTruthy();
+		expect(screen.queryByRole('alert')).toBeNull();
+	});
+
+	test('shows both the avatar error and root summary for mixed validation fields', async () => {
+		const mutateAsync = vi.fn().mockRejectedValue({
+			status: 422,
+			responseStatusCode: 422,
+			title: 'Validation failed',
+			detail: 'Validation failed',
+			errors: {
+				AvatarUrl: ['The avatar URL must be an absolute http(s) URL.'],
+				FirstName: ['First name is too long.'],
+			},
+		});
+		mocks.useUpdateStaffTenantUserMutation.mockReturnValue({
+			mutateAsync,
+			isPending: false,
+		});
+
+		renderPage();
+
+		fireEvent.change(screen.getByLabelText('Avatar URL'), {
+			target: { value: 'https://example.com/new-avatar.png' },
+		});
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Save changes' }).closest('form')!,
+		);
+
+		await waitFor(() => expect(mutateAsync).toHaveBeenCalledOnce());
+		await waitFor(() =>
+			expect(
+				screen.getByLabelText('Avatar URL').getAttribute('aria-invalid'),
+			).toBe('true'),
+		);
+		expect(screen.getByRole('alert').textContent).toBe('Validation failed');
+		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
 	});
 
 	test('sends null for cleared nullable fields on success', async () => {
@@ -573,7 +617,7 @@ describe('staff tenant user edit route', () => {
 				title: 'Bad request',
 				detail: 'The tenant user link is invalid.',
 			},
-			message: 'The tenant user link is invalid.',
+			message: null,
 		},
 		{
 			name: '403',
@@ -583,7 +627,7 @@ describe('staff tenant user edit route', () => {
 				title: 'Forbidden',
 				detail: 'Forbidden',
 			},
-			message: 'Forbidden',
+			message: null,
 		},
 		{
 			name: '422',
@@ -606,10 +650,10 @@ describe('staff tenant user edit route', () => {
 				title: 'Server Error',
 				detail: 'Unexpected failure',
 			},
-			message: 'Unexpected failure',
+			message: null,
 		},
 	])(
-		'displays local inline errors for submit failure status %s without logout',
+		'keeps only handled validation inline for submit failure status %s',
 		async ({ error, message }) => {
 			const mutateAsync = vi.fn().mockRejectedValue(error);
 			mocks.useUpdateStaffTenantUserMutation.mockReturnValue({
@@ -624,10 +668,16 @@ describe('staff tenant user edit route', () => {
 			);
 
 			await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
-			await waitFor(() => expect(screen.getByText(message)).toBeTruthy());
+			if (message) {
+				await waitFor(() => expect(screen.getByText(message)).toBeTruthy());
+			} else {
+				expect(screen.queryByText(error.detail)).toBeNull();
+			}
 			expect(screen.queryByTestId('logout-redirect')).toBeNull();
 			expect(mocks.navigate).not.toHaveBeenCalled();
 			expect(mocks.invalidateQueries).not.toHaveBeenCalled();
+			expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
+			expect(mocks.toastSuccess).not.toHaveBeenCalled();
 		},
 	);
 

@@ -19,6 +19,13 @@ const mocks = vi.hoisted(() => ({
 	useInviteTenantUserMutation: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
 	invalidateAllStaffTenantScopes: vi.fn().mockResolvedValue(undefined),
+	displayLocalMutationFailure: vi.fn(),
+	toastSuccess: vi.fn(),
+}));
+
+vi.mock('~/lib/mutation-toast', () => ({
+	displayLocalMutationFailure: mocks.displayLocalMutationFailure,
+	toastLocalMutationResult: { success: mocks.toastSuccess },
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -359,6 +366,100 @@ describe('InviteTenantUserDrawer', () => {
 		expect(screen.getByLabelText('Email').getAttribute('aria-invalid')).toBe(
 			'true',
 		);
+		expect(screen.queryByRole('alert')).toBeNull();
+		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+	});
+
+	test('shows both the email error and root summary for mixed validation fields', async () => {
+		mocks.inviteMutation.mockRejectedValue({
+			status: 422,
+			responseStatusCode: 422,
+			errors: {
+				Email: ['Email must be a valid email address'],
+				TenantId: ['Tenant is invalid'],
+			},
+		});
+
+		render(
+			<InviteTenantUserDrawer
+				tenantId="tenant-1"
+				isOpen
+				onOpenChange={vi.fn()}
+				onInvited={vi.fn()}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		fireEvent.change(screen.getByLabelText('Email'), {
+			target: { value: 'new-user@example.com' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Invite people' }));
+
+		await waitFor(() =>
+			expect(screen.getByLabelText('Email').getAttribute('aria-invalid')).toBe(
+				'true',
+			),
+		);
+		expect(screen.getByRole('alert').textContent).toBe(
+			'Unable to send the invitation.',
+		);
+		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+	});
+
+	test('leaves general failures to central feedback without a persistent result block', async () => {
+		mocks.inviteMutation.mockRejectedValue({
+			status: 500,
+			detail: 'Invitation failed',
+		});
+
+		render(
+			<InviteTenantUserDrawer
+				tenantId="tenant-1"
+				isOpen
+				onOpenChange={vi.fn()}
+				onInvited={vi.fn()}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		fireEvent.change(screen.getByLabelText('Email'), {
+			target: { value: 'new-user@example.com' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Invite people' }));
+
+		await waitFor(() => expect(mocks.inviteMutation).toHaveBeenCalledOnce());
+		expect(screen.queryByRole('alert')).toBeNull();
+		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
+	});
+
+	test('shows an inline root fallback for validation fields outside the invite controls', async () => {
+		mocks.inviteMutation.mockRejectedValue({
+			status: 422,
+			errors: { TenantId: ['Tenant is invalid'] },
+		});
+
+		render(
+			<InviteTenantUserDrawer
+				tenantId="tenant-1"
+				isOpen
+				onOpenChange={vi.fn()}
+				onInvited={vi.fn()}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		fireEvent.change(screen.getByLabelText('Email'), {
+			target: { value: 'new-user@example.com' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Invite people' }));
+
+		await waitFor(() =>
+			expect(screen.getByText('Unable to send the invitation.')).toBeTruthy(),
+		);
+		expect(screen.getByRole('alert')).toBeTruthy();
+		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
 	});
 
 	test('redirects to logout when the invite request should end the session', async () => {

@@ -69,7 +69,7 @@ export const InviteTenantUserDrawer = ({
 	const { t, i18n } = useTranslation('common');
 	const queryClient = useQueryClient();
 	const { mutateAsync, isPending } = useInviteTenantUserMutation();
-	const [serverErrors, setServerErrors] = useState<string[]>([]);
+	const [rootValidationError, setRootValidationError] = useState('');
 	const resolver = useMemo(
 		() => zodResolver(buildInviteUserSchema(t)),
 		// eslint-disable-next-line react-hooks/exhaustive-deps -- rebuild on language change so messages stay localized
@@ -87,7 +87,7 @@ export const InviteTenantUserDrawer = ({
 
 	useEffect(() => {
 		if (isOpen) {
-			setServerErrors([]);
+			setRootValidationError('');
 			setIsDiscardConfirmOpen(false);
 			reset(DEFAULT_VALUES);
 		}
@@ -113,7 +113,7 @@ export const InviteTenantUserDrawer = ({
 		invalidateAllStaffTenantScopes(queryClient);
 
 	const onSubmit = methods.handleSubmit(async (values) => {
-		setServerErrors([]);
+		setRootValidationError('');
 
 		try {
 			await mutateAsync({
@@ -121,11 +121,6 @@ export const InviteTenantUserDrawer = ({
 				email: values.email,
 				accountLevel: values.accountLevel,
 			});
-			await invalidateTenantData();
-			// A successful submit must never trip the parent's nav guard on the
-			// navigation `onInvited` performs next.
-			onDirtyChange?.(false);
-			onInvited();
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
 				onSessionExpired();
@@ -133,25 +128,36 @@ export const InviteTenantUserDrawer = ({
 			}
 
 			const failure = toApiFailure(error);
-			if (
-				failure.kind === 'validation' &&
-				(failure.fieldErrors.email?.length ?? 0) > 0
-			) {
-				methods.setError('email', {
-					type: 'server',
-					message: getFailureMessage(failure, {
-						fallback: t('invite-tenant-user-failed'),
-					}),
-				});
-				return;
-			}
+			if (failure.kind === 'validation') {
+				const hasEmailError = (failure.fieldErrors.email?.length ?? 0) > 0;
+				if (hasEmailError) {
+					methods.setError('email', {
+						type: 'server',
+						message: getFailureMessage(failure, {
+							fallback: t('invite-tenant-user-failed'),
+						}),
+					});
+				}
 
-			setServerErrors([
-				getFailureMessage(failure, {
-					fallback: t('invite-tenant-user-failed'),
-				}),
-			]);
+				const hasUnmappedError = Object.keys(failure.fieldErrors).some(
+					(field) => field !== 'email',
+				);
+				if (!hasEmailError || hasUnmappedError) {
+					setRootValidationError(
+						getFailureMessage(failure, {
+							fallback: t('invite-tenant-user-failed'),
+						}),
+					);
+				}
+			}
+			return;
 		}
+
+		await invalidateTenantData();
+		// A successful submit must never trip the parent's nav guard on the
+		// navigation `onInvited` performs next.
+		onDirtyChange?.(false);
+		onInvited();
 	});
 
 	const isFormLocked = isPending || isSubmitting;
@@ -197,17 +203,10 @@ export const InviteTenantUserDrawer = ({
 							]}
 							isDisabled={isFormLocked}
 						/>
-						{serverErrors.length > 0 ? (
-							<div
-								className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive"
-								role="alert"
-							>
-								<ul className="list-disc space-y-1 pl-4">
-									{serverErrors.map((error) => (
-										<li key={error}>{error}</li>
-									))}
-								</ul>
-							</div>
+						{rootValidationError ? (
+							<p className="text-sm text-destructive" role="alert">
+								{rootValidationError}
+							</p>
 						) : null}
 					</DrawerBody>
 					<DrawerFooter>

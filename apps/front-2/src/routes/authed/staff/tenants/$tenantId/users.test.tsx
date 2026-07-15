@@ -30,6 +30,9 @@ const mocks = vi.hoisted(() => ({
 	useBulkRemoveStaffTenantUsersMutation: vi.fn(),
 	useExportStaffTenantUsersMutation: vi.fn(),
 	downloadFile: vi.fn(),
+	displayLocalMutationFailure: vi.fn().mockResolvedValue(undefined),
+	toastSuccess: vi.fn(),
+	toastError: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
 	invalidateAllStaffTenantScopes: vi.fn().mockResolvedValue(undefined),
 	inviteHostIsOpen: false,
@@ -38,6 +41,14 @@ const mocks = vi.hoisted(() => ({
 	inviteHostOnDirtyChange: undefined as
 		| undefined
 		| ((isDirty: boolean) => void),
+}));
+
+vi.mock('~/lib/mutation-toast', () => ({
+	displayLocalMutationFailure: mocks.displayLocalMutationFailure,
+	toastLocalMutationResult: {
+		success: mocks.toastSuccess,
+		error: mocks.toastError,
+	},
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -124,6 +135,7 @@ const TRANSLATIONS: Record<string, string> = {
 		'Reduce your selection to at most {{max}} items ({{count}} selected).',
 	'export-selected-users': 'Export selected users',
 	'export-failed': 'Export failed',
+	'export-completed-success': 'Export completed.',
 	'remove-selected-from-tenant': 'Remove selected from tenant',
 	'confirm-bulk-remove-tenant-users':
 		'Are you sure you want to remove {{count}} selected user(s) from this tenant?',
@@ -706,7 +718,7 @@ describe('staff tenant users route', () => {
 		);
 	});
 
-	test('shows a failed row action in the top feedback bar, not inside the actions cell (r3-tenants-F11)', async () => {
+	test('leaves a failed row action to central feedback without a persistent bar', async () => {
 		mocks.suspendMutation.mockRejectedValue({
 			kind: 'problem',
 			status: 400,
@@ -727,10 +739,10 @@ describe('staff tenant users route', () => {
 			screen.getAllByRole('button', { name: 'Suspend' }).slice(-1)[0],
 		);
 
-		await waitFor(() =>
-			expect(screen.getByText('Invalid tenant user')).toBeTruthy(),
-		);
+		await waitFor(() => expect(mocks.suspendMutation).toHaveBeenCalledOnce());
+		expect(screen.queryByText('Invalid tenant user')).toBeNull();
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
+		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
 	});
 
 	test('removes a user from the tenant after explicit confirmation', async () => {
@@ -965,6 +977,77 @@ describe('staff tenant users route', () => {
 				mimeType: 'text/csv',
 			}),
 		);
+		expect(mocks.toastSuccess).toHaveBeenCalledOnce();
+		expect(mocks.toastSuccess).toHaveBeenCalledWith('Export completed.');
+		expect(mocks.downloadFile.mock.invocationCallOrder[0]).toBeLessThan(
+			mocks.toastSuccess.mock.invocationCallOrder[0],
+		);
+	});
+
+	test('displays one local mutation failure when the export request rejects', async () => {
+		const error = new Error('request failed');
+		mocks.exportMutation.mockRejectedValue(error);
+
+		renderPage();
+
+		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
+		fireEvent.click(
+			await screen.findByRole('button', { name: 'More actions' }),
+		);
+		fireEvent.click(
+			await screen.findByRole('menuitem', { name: 'Export selected users' }),
+		);
+
+		await waitFor(() =>
+			expect(mocks.displayLocalMutationFailure).toHaveBeenCalledOnce(),
+		);
+		expect(mocks.displayLocalMutationFailure).toHaveBeenCalledWith(
+			error,
+			'Export failed',
+		);
+		expect(mocks.downloadFile).not.toHaveBeenCalled();
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+	});
+
+	test('shows one export failure when the response has no data', async () => {
+		mocks.exportMutation.mockResolvedValue(undefined);
+
+		renderPage();
+
+		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
+		fireEvent.click(
+			await screen.findByRole('button', { name: 'More actions' }),
+		);
+		fireEvent.click(
+			await screen.findByRole('menuitem', { name: 'Export selected users' }),
+		);
+
+		await waitFor(() => expect(mocks.toastError).toHaveBeenCalledOnce());
+		expect(mocks.toastError).toHaveBeenCalledWith('Export failed');
+		expect(mocks.downloadFile).not.toHaveBeenCalled();
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+	});
+
+	test('shows one export failure when download post-processing throws', async () => {
+		mocks.exportMutation.mockResolvedValue(new ArrayBuffer(4));
+		mocks.downloadFile.mockImplementation(() => {
+			throw new Error('download failed');
+		});
+
+		renderPage();
+
+		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
+		fireEvent.click(
+			await screen.findByRole('button', { name: 'More actions' }),
+		);
+		fireEvent.click(
+			await screen.findByRole('menuitem', { name: 'Export selected users' }),
+		);
+
+		await waitFor(() => expect(mocks.toastError).toHaveBeenCalledOnce());
+		expect(mocks.toastError).toHaveBeenCalledWith('Export failed');
+		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
 	});
 
 	test('removes selected users after explicit confirmation and shows a success summary', async () => {
@@ -999,11 +1082,13 @@ describe('staff tenant users route', () => {
 				userIds: ['user-1'],
 			}),
 		);
-		await waitFor(() =>
-			expect(
-				screen.getByText('Successfully removed 1 user(s) from this tenant.'),
-			).toBeTruthy(),
+		await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalledOnce());
+		expect(mocks.toastSuccess).toHaveBeenCalledWith(
+			'Successfully removed 1 user(s) from this tenant.',
 		);
+		expect(
+			screen.queryByText('Successfully removed 1 user(s) from this tenant.'),
+		).toBeNull();
 		expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled();
 	});
 
@@ -1033,8 +1118,9 @@ describe('staff tenant users route', () => {
 		);
 		fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
 
-		await waitFor(() =>
-			expect(screen.getByText('Removed 1 user(s), 1 failed.')).toBeTruthy(),
+		await waitFor(() => expect(mocks.toastError).toHaveBeenCalledOnce());
+		expect(mocks.toastError).toHaveBeenCalledWith(
+			'Removed 1 user(s), 1 failed.',
 		);
 		expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled();
 	});
@@ -1065,10 +1151,41 @@ describe('staff tenant users route', () => {
 		);
 		fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
 
-		await waitFor(() =>
-			expect(screen.getByText('Removed 0 user(s), 1 failed.')).toBeTruthy(),
+		await waitFor(() => expect(mocks.toastError).toHaveBeenCalledOnce());
+		expect(mocks.toastError).toHaveBeenCalledWith(
+			'Failed to remove selected users from this tenant.',
 		);
 		expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled();
+	});
+	test('displays one local failure when bulk removal rejects', async () => {
+		const error = new Error('bulk request failed');
+		mocks.bulkRemoveMutation.mockRejectedValue(error);
+
+		renderPage();
+
+		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
+		fireEvent.click(
+			await screen.findByRole('button', { name: 'More actions' }),
+		);
+		fireEvent.click(
+			await screen.findByRole('menuitem', {
+				name: 'Remove selected from tenant',
+			}),
+		);
+		await screen.findByRole('heading', {
+			name: 'Remove selected from tenant',
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+
+		await waitFor(() =>
+			expect(mocks.displayLocalMutationFailure).toHaveBeenCalledOnce(),
+		);
+		expect(mocks.displayLocalMutationFailure).toHaveBeenCalledWith(
+			error,
+			'Failed to remove selected users from this tenant.',
+		);
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+		expect(mocks.toastError).not.toHaveBeenCalled();
 	});
 });
 
@@ -1077,7 +1194,6 @@ describe('makeTenantUserColumns column widths', () => {
 		const columns = makeTenantUserColumns(
 			'11111111-1111-1111-1111-111111111111',
 			identityT,
-			() => undefined,
 			() => undefined,
 		);
 		const widthById = Object.fromEntries(
@@ -1096,7 +1212,6 @@ describe('makeTenantUserColumns column widths', () => {
 		const columns = makeTenantUserColumns(
 			'11111111-1111-1111-1111-111111111111',
 			identityT,
-			() => undefined,
 			() => undefined,
 		);
 		const hideBelowById = Object.fromEntries(
