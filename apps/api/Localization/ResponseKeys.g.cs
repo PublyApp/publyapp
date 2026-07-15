@@ -145,6 +145,21 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey InvitationRevoked = new("invitation-revoked");
 
 	/// <summary>
+	/// This invitation has already been accepted
+	/// </summary>
+	public static readonly TranslationKey InvitationTokenAlreadyAccepted = new("invitation-token-already-accepted");
+
+	/// <summary>
+	/// This invitation has expired
+	/// </summary>
+	public static readonly TranslationKey InvitationTokenExpired = new("invitation-token-expired");
+
+	/// <summary>
+	/// This invitation has been revoked
+	/// </summary>
+	public static readonly TranslationKey InvitationTokenRevoked = new("invitation-token-revoked");
+
+	/// <summary>
 	/// Malformed ID
 	/// </summary>
 	public static readonly TranslationKey MalformedId = new("malformed-id");

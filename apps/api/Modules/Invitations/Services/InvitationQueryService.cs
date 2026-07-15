@@ -10,8 +10,26 @@ namespace PublyApp.Api.Modules.Invitations.Services;
 
 public sealed record TenantInvitationCounts(int Pending, int ExpiringSoon);
 
+// Discriminates why a checked invitation token cannot be accepted, so callers can tell an
+// already-used link apart from an expired or revoked one instead of collapsing them all into
+// "not found". NotFound also covers a token that never existed and a soft-deleted invitation
+// (the latter has no reachable creation path today, so it is treated the same as unknown).
+public enum InvitationTokenStatus {
+	Valid,
+	NotFound,
+	AlreadyAccepted,
+	Expired,
+	Revoked,
+}
+
+public sealed record InvitationTokenLookupResult(InvitationTokenStatus Status, Invitation? Invitation);
+
 public interface IInvitationQueryService {
 	Task<Invitation?> GetInvitationByTokenAsync(
+		string token,
+		CancellationToken cancellationToken = default);
+
+	Task<InvitationTokenLookupResult> GetInvitationTokenStatusAsync(
 		string token,
 		CancellationToken cancellationToken = default);
 
@@ -54,16 +72,7 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 		string token,
 		CancellationToken cancellationToken = default
 	) {
-		// Intentionally tracked: anonymous acceptance mutates this invitation later in the same request scope.
-		var invitationQuery =
-			from inv in _dbContext.Invitation
-			where inv.Token == token
-			select inv;
-
-		var invitation = await invitationQuery
-			.Include(inv => inv.InvitationProfiles)
-			.ThenInclude(ip => ip.Profile)
-			.FirstOrDefaultAsync(cancellationToken);
+		var invitation = await FindInvitationByTokenAsync(token, cancellationToken);
 
 		if (invitation is null) {
 			return null;
@@ -80,6 +89,49 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 		}
 
 		return invitation;
+	}
+
+	public async Task<InvitationTokenLookupResult> GetInvitationTokenStatusAsync(
+		string token,
+		CancellationToken cancellationToken = default
+	) {
+		var invitation = await FindInvitationByTokenAsync(token, cancellationToken);
+
+		if (invitation is null || invitation.IsDeleted) {
+			return new InvitationTokenLookupResult(InvitationTokenStatus.NotFound, null);
+		}
+
+		if (invitation.CanBeAccepted()) {
+			return new InvitationTokenLookupResult(InvitationTokenStatus.Valid, invitation);
+		}
+
+		if (invitation.IsAccepted()) {
+			return new InvitationTokenLookupResult(InvitationTokenStatus.AlreadyAccepted, invitation);
+		}
+
+		if (invitation.IsRevoked()) {
+			return new InvitationTokenLookupResult(InvitationTokenStatus.Revoked, invitation);
+		}
+
+		// Only remaining case given CanBeAccepted()/IsAccepted()/IsRevoked() above: still Pending
+		// but past ExpiresAt.
+		return new InvitationTokenLookupResult(InvitationTokenStatus.Expired, invitation);
+	}
+
+	private async Task<Invitation?> FindInvitationByTokenAsync(
+		string token,
+		CancellationToken cancellationToken
+	) {
+		// Intentionally tracked: anonymous acceptance mutates this invitation later in the same request scope.
+		var invitationQuery =
+			from inv in _dbContext.Invitation
+			where inv.Token == token
+			select inv;
+
+		return await invitationQuery
+			.Include(inv => inv.InvitationProfiles)
+			.ThenInclude(ip => ip.Profile)
+			.FirstOrDefaultAsync(cancellationToken);
 	}
 
 	public async Task<Invitation?> GetStaffInvitationByIdAsync(
