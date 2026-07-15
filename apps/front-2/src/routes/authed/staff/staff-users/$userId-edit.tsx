@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { IconAlertCircle, IconArrowLeft } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -11,6 +11,7 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
 import { Field, Form, FormActionBar, FormPageLayout } from '~/components/field';
 import { Button, buttonVariants } from '~/components/ui/button';
+import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
 	toStaffProfileRows,
 	useStaffProfilesQuery,
@@ -196,6 +197,7 @@ function StaffUserEditPage() {
 	const [shouldLogout, setShouldLogout] = useState(false);
 	const [serverError, setServerError] = useState('');
 	const [isChangeEmailOpen, setIsChangeEmailOpen] = useState(false);
+	const hasSavedRef = useRef(false);
 
 	const detailsQuery = useStaffUserDetailsQuery(
 		{ userId },
@@ -280,6 +282,11 @@ function StaffUserEditPage() {
 		assignedProfilesQuery.isSuccess,
 		assignedProfilesQuery.data,
 	]);
+
+	const blocker = useBlocker({
+		shouldBlockFn: () => formState.isDirty && !hasSavedRef.current,
+		withResolver: true,
+	});
 
 	if (
 		(detailsQuery.isError && shouldLogoutForFailure(detailsQuery.error)) ||
@@ -368,43 +375,79 @@ function StaffUserEditPage() {
 		const hasIdentityChanges = Object.keys(updateInput).length > 1;
 		const hasProfileChanges = Boolean(formState.dirtyFields.profileIds);
 
-		try {
-			setServerError('');
-			if (hasIdentityChanges) {
+		setServerError('');
+
+		if (hasIdentityChanges) {
+			try {
 				await updateStaffUser.mutateAsync(updateInput);
+			} catch (error) {
+				if (shouldLogoutForFailure(error)) {
+					setShouldLogout(true);
+					return;
+				}
+
+				setServerError(
+					getFailureMessage(toApiFailure(error), {
+						fallback: t('unknown-error'),
+					}),
+				);
+				return;
 			}
 
-			if (hasProfileChanges) {
+			// The identity write is now durable — mark only the committed
+			// fields clean at their new values so a retry after a later
+			// failure can't resend an already-saved step, then refetch.
+			// `profileIds` is untouched here: while it is still dirty the
+			// hydration effect's `formState.isDirty` guard bails out, so
+			// this refetch cannot wipe an in-progress, not-yet-saved profile
+			// selection (r3-F8).
+			for (const field of [
+				'firstName',
+				'lastName',
+				'avatarUrl',
+				'accountLevel',
+			] as const) {
+				if (formState.dirtyFields[field]) {
+					methods.resetField(field, { defaultValue: values[field] });
+				}
+			}
+			await invalidateStaffUsers(queryClient);
+		}
+
+		if (hasProfileChanges) {
+			try {
 				await updateStaffUserProfiles.mutateAsync({
 					userId,
 					profileIds: values.profileIds,
 				});
-			}
+			} catch (error) {
+				if (shouldLogoutForFailure(error)) {
+					setShouldLogout(true);
+					return;
+				}
 
-			// Invalidate once, after both mutations have fully succeeded — an
-			// invalidation between them refetches `assignedProfiles`, which
-			// re-runs the hydration effect and wipes the not-yet-saved profile
-			// selection before the second mutation even attempts (r3-F8).
-			if (hasIdentityChanges || hasProfileChanges) {
-				await invalidateStaffUsers(queryClient);
-			}
-
-			void navigate({
-				to: '/staff/staff-users/$userId',
-				params: { userId },
-			});
-		} catch (error) {
-			if (shouldLogoutForFailure(error)) {
-				setShouldLogout(true);
+				setServerError(
+					hasIdentityChanges
+						? t('staff-user-identity-saved-profiles-failed', {
+								reason: getFailureMessage(toApiFailure(error), {
+									fallback: t('unknown-error'),
+								}),
+							})
+						: getFailureMessage(toApiFailure(error), {
+								fallback: t('unknown-error'),
+							}),
+				);
 				return;
 			}
 
-			setServerError(
-				getFailureMessage(toApiFailure(error), {
-					fallback: t('unknown-error'),
-				}),
-			);
+			await invalidateStaffUsers(queryClient);
 		}
+
+		hasSavedRef.current = true;
+		void navigate({
+			to: '/staff/staff-users/$userId',
+			params: { userId },
+		});
 	});
 
 	const isSubmittingForm =
@@ -580,6 +623,20 @@ function StaffUserEditPage() {
 				onOpenChange={setIsChangeEmailOpen}
 				onUpdated={() => setIsChangeEmailOpen(false)}
 				onSessionExpired={() => setShouldLogout(true)}
+			/>
+			<ConfirmDialog
+				isOpen={blocker.status === 'blocked'}
+				title={t('unsaved-changes-dialog-title')}
+				description={t('unsaved-changes-dialog-description')}
+				confirmLabel={t('leave-page')}
+				cancelLabel={t('cancel')}
+				tone="danger"
+				onConfirm={() => blocker.proceed?.()}
+				onOpenChange={(isOpen) => {
+					if (!isOpen) {
+						blocker.reset?.();
+					}
+				}}
 			/>
 		</FormPageLayout>
 	);

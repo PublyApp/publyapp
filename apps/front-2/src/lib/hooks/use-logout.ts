@@ -102,10 +102,16 @@ export const useLogout = () => {
 					// already uses for its own redirect param, closing the open-redirect
 					// surface an untrusted `redirectTo` would otherwise be (r3-users-auth
 					// F14).
+					// `ignoreBlocker: true` — a dirty-form nav-guard (useBlocker) must
+					// never strand a user behind a confirmation dialog while the
+					// session is already being torn down: a cross-tab logout, an
+					// expired-session redirect, or the user's own "Log out" action
+					// all have to win over an "unsaved changes" prompt.
 					const navigation = options?.redirectTo
 						? navigate({
 								to: resolveRouteRedirect(options.redirectTo),
 								replace: true,
+								ignoreBlocker: true,
 							})
 						: navigate({
 								to: '/login',
@@ -114,6 +120,7 @@ export const useLogout = () => {
 									options?.returnTo,
 								),
 								replace: true,
+								ignoreBlocker: true,
 							});
 
 					// Clear the query cache only once navigation away from the

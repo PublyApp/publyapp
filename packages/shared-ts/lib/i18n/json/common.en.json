@@ -647,6 +647,7 @@
 	"staff-user-details-error-description": "We couldn't load the staff member details. Please try again or contact support if the problem persists.",
 	"staff-user-profiles-error-title": "Failed to load profiles",
 	"staff-user-profiles-error-description": "Couldn't load assigned profiles.",
+	"staff-user-identity-saved-profiles-failed": "The name and access changes were saved, but the profile assignments failed to save: {{reason}} Adjust the selection and try again.",
 	"tenant-user-not-found-title": "Tenant user not found",
 	"tenant-user-not-found-description": "This tenant user does not exist, or you no longer have access to this tenant-user identity.",
 	"tenant-user-details-error-title": "Failed to load tenant user data",

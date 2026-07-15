@@ -1,9 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
 import type { i18n as I18nInstance } from 'i18next';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -11,6 +11,7 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { Field, Form } from '~/components/field';
 import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
+import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import { FALLBACK_LANGUAGE, isSupportedLanguage } from '~/lib/i18n.shared';
 import {
@@ -153,6 +154,7 @@ function NewStaffProfileRoute() {
 	const { t, i18n } = useTranslation('common');
 	const [shouldLogout, setShouldLogout] = useState(false);
 	const [serverError, setServerError] = useState('');
+	const hasSavedRef = useRef(false);
 
 	const resolver = useMemo(
 		() => zodResolver(getNewStaffProfileSchema(getInterZodForI18n(i18n))),
@@ -162,6 +164,11 @@ function NewStaffProfileRoute() {
 	const methods = useForm<NewStaffProfileValues>({
 		resolver,
 		defaultValues: DEFAULT_VALUES,
+	});
+
+	const blocker = useBlocker({
+		shouldBlockFn: () => methods.formState.isDirty && !hasSavedRef.current,
+		withResolver: true,
 	});
 
 	const permissionsQuery = useStaffPermissionCatalogQuery({
@@ -192,6 +199,7 @@ function NewStaffProfileRoute() {
 				emails: values.emails,
 			});
 			await invalidateStaffProfiles(queryClient);
+			hasSavedRef.current = true;
 			void navigate({
 				to: '/staff/profiles',
 			});
@@ -292,6 +300,20 @@ function NewStaffProfileRoute() {
 					);
 				})()}
 			</Card>
+			<ConfirmDialog
+				isOpen={blocker.status === 'blocked'}
+				title={t('unsaved-changes-dialog-title')}
+				description={t('unsaved-changes-dialog-description')}
+				confirmLabel={t('leave-page')}
+				cancelLabel={t('cancel')}
+				tone="danger"
+				onConfirm={() => blocker.proceed?.()}
+				onOpenChange={(isOpen) => {
+					if (!isOpen) {
+						blocker.reset?.();
+					}
+				}}
+			/>
 		</div>
 	);
 }

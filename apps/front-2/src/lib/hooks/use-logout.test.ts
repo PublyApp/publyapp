@@ -65,6 +65,7 @@ describe('useLogout', () => {
 			to: '/login',
 			search: undefined,
 			replace: true,
+			ignoreBlocker: true,
 		});
 		expect(mocks.postBroadcast).toHaveBeenCalledWith('publyapp:auth-sync', {
 			type: 'logout',
@@ -122,6 +123,7 @@ describe('useLogout', () => {
 			to: '/login',
 			search: { rc: 'invalid_session' },
 			replace: true,
+			ignoreBlocker: true,
 		});
 		expect(mocks.postBroadcast).toHaveBeenCalledWith('publyapp:auth-sync', {
 			type: 'logout',
@@ -144,6 +146,7 @@ describe('useLogout', () => {
 			to: '/login',
 			search: { rc: 'invalid_session', rto: '/staff/tenants/1?q=alice' },
 			replace: true,
+			ignoreBlocker: true,
 		});
 	});
 
@@ -161,6 +164,7 @@ describe('useLogout', () => {
 		expect(mocks.navigate).toHaveBeenCalledWith({
 			to: '/accept-invitation?id=abc&token=xyz',
 			replace: true,
+			ignoreBlocker: true,
 		});
 	});
 
@@ -176,6 +180,7 @@ describe('useLogout', () => {
 		expect(mocks.navigate).toHaveBeenCalledWith({
 			to: '/',
 			replace: true,
+			ignoreBlocker: true,
 		});
 	});
 
@@ -264,6 +269,7 @@ describe('useLogout', () => {
 			to: '/login',
 			search: { rc: 'invalid_session' },
 			replace: true,
+			ignoreBlocker: true,
 		});
 
 		first.unmount();

@@ -23,6 +23,12 @@ const mocks = vi.hoisted(() => ({
 	useCreateStaffProfileMutation: vi.fn(),
 	useStaffPermissionCatalogQuery: vi.fn(),
 	shouldLogoutForFailure: vi.fn((_: unknown) => false),
+	blockerResolver: {
+		status: 'idle' as 'idle' | 'blocked',
+		proceed: undefined as (() => void) | undefined,
+		reset: undefined as (() => void) | undefined,
+	},
+	capturedShouldBlockFn: undefined as (() => boolean) | undefined,
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -38,6 +44,10 @@ vi.mock('@tanstack/react-router', () => ({
 	}),
 	Link: ({ children, to, ...props }: { children: ReactNode; to: string }) =>
 		createElement('a', { href: to, ...props }, children),
+	useBlocker: (opts: { shouldBlockFn: () => boolean }) => {
+		mocks.capturedShouldBlockFn = opts.shouldBlockFn;
+		return mocks.blockerResolver;
+	},
 }));
 
 vi.mock('react-i18next', () => ({
@@ -54,6 +64,11 @@ vi.mock('react-i18next', () => ({
 				'profile-created-successfully': 'Profile created successfully',
 				'unable-to-load-staff-permissions': 'Unable to load staff permissions.',
 				'profile-save-failed': 'Unable to save the profile.',
+				'unsaved-changes-dialog-title': 'Leave without saving?',
+				'unsaved-changes-dialog-description':
+					'You have unsaved changes that will be lost if you leave this page.',
+				'leave-page': 'Leave page',
+				cancel: 'Cancel',
 			};
 
 			return labels[key] ?? key;
@@ -211,6 +226,10 @@ const renderPage = () => {
 describe('staff profile create route', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mocks.blockerResolver.status = 'idle';
+		mocks.blockerResolver.proceed = undefined;
+		mocks.blockerResolver.reset = undefined;
+		mocks.capturedShouldBlockFn = undefined;
 
 		mocks.useStaffPermissionCatalogQuery.mockReturnValue(
 			buildPermissionCatalogQuery(),
@@ -407,5 +426,49 @@ describe('staff profile create route', () => {
 			expect(screen.getByText('Unable to save the profile.')).toBeTruthy(),
 		);
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
+	});
+
+	// users-auth-r1-F4: this Back-link-only create route had no `useBlocker`,
+	// so a Back click discarded a dirty draft with no confirmation.
+	test('the nav-guard shouldBlockFn blocks while dirty and stops blocking once the save completes', async () => {
+		const mutateAsync = vi.fn().mockResolvedValue({ profileId: 'profile-1' });
+		mocks.useCreateStaffProfileMutation.mockReturnValue({
+			mutateAsync,
+			isPending: false,
+		});
+		renderPage();
+
+		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+
+		fireEvent.change(screen.getByRole('textbox', { name: 'Profile name' }), {
+			target: { value: 'Platform admin' },
+		});
+		fireEvent.change(screen.getByRole('textbox', { name: 'Description' }), {
+			target: { value: 'Full access' },
+		});
+		fireEvent.click(screen.getByRole('checkbox', { name: 'staff.users.read' }));
+		expect(mocks.capturedShouldBlockFn?.()).toBe(true);
+
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Create profile' }).closest('form')!,
+		);
+
+		await waitFor(() => expect(mocks.navigate).toHaveBeenCalled());
+		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+	});
+
+	test('shows the unsaved-changes confirm dialog when the router blocks navigation, and Leave page proceeds', () => {
+		const proceed = vi.fn();
+		const reset = vi.fn();
+		mocks.blockerResolver.status = 'blocked';
+		mocks.blockerResolver.proceed = proceed;
+		mocks.blockerResolver.reset = reset;
+
+		renderPage();
+
+		expect(screen.getByText('Leave without saving?')).toBeTruthy();
+		fireEvent.click(screen.getByRole('button', { name: 'Leave page' }));
+		expect(proceed).toHaveBeenCalled();
+		expect(reset).not.toHaveBeenCalled();
 	});
 });

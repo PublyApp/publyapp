@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
 import type { i18n as I18nInstance } from 'i18next';
 import {
 	startTransition,
@@ -18,6 +18,7 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { Field, Form } from '~/components/field';
 import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
+import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { Input } from '~/components/ui/input';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import { FALLBACK_LANGUAGE, isSupportedLanguage } from '~/lib/i18n.shared';
@@ -171,8 +172,13 @@ function NewStaffInvitationsRoute() {
 
 	const {
 		control,
-		formState: { isSubmitting },
+		formState: { isSubmitting, isDirty },
 	} = methods;
+
+	const blocker = useBlocker({
+		shouldBlockFn: () => isDirty,
+		withResolver: true,
+	});
 	const { fields, append, remove } = useFieldArray({
 		control,
 		name: 'invitations',
@@ -438,6 +444,20 @@ function NewStaffInvitationsRoute() {
 					</div>
 				</Form>
 			</Card>
+			<ConfirmDialog
+				isOpen={blocker.status === 'blocked'}
+				title={t('unsaved-changes-dialog-title')}
+				description={t('unsaved-changes-dialog-description')}
+				confirmLabel={t('leave-page')}
+				cancelLabel={t('cancel')}
+				tone="danger"
+				onConfirm={() => blocker.proceed?.()}
+				onOpenChange={(isOpen) => {
+					if (!isOpen) {
+						blocker.reset?.();
+					}
+				}}
+			/>
 		</div>
 	);
 }

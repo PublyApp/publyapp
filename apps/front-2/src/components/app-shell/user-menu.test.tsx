@@ -144,6 +144,7 @@ describe('AppShellUserMenu', () => {
 			to: '/login',
 			search: undefined,
 			replace: true,
+			ignoreBlocker: true,
 		});
 
 		const navigateOrder = mocks.navigate.mock.invocationCallOrder[0];

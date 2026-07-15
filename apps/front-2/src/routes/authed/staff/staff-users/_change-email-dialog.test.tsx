@@ -39,6 +39,11 @@ vi.mock('react-i18next', () => ({
 				'update-staff-user-email-failed': "Unable to update this user's email.",
 				'invalid-email-address': 'Invalid email address',
 				'email-required': 'Email is required.',
+				'unsaved-changes-dialog-title': 'Leave without saving?',
+				'unsaved-changes-dialog-description':
+					'You have unsaved changes that will be lost if you leave this page.',
+				'leave-page': 'Leave page',
+				close: 'Close',
 			};
 
 			return labels[key] ?? key;
@@ -306,5 +311,103 @@ describe('ChangeStaffUserEmailDialog', () => {
 		);
 
 		await waitFor(() => expect(onSessionExpired).toHaveBeenCalled());
+	});
+
+	// users-auth-r1-F4: Cancel closed on every click with no guard, discarding
+	// a typed replacement email with no confirmation.
+	test('Cancel on a dirty email shows the unsaved-changes confirmation instead of closing immediately', () => {
+		const onOpenChange = vi.fn();
+
+		render(
+			<ChangeStaffUserEmailDialog
+				userId="user-1"
+				currentEmail="rui@latticecloud.com"
+				isOpen
+				onOpenChange={onOpenChange}
+				onUpdated={vi.fn()}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		fireEvent.change(screen.getByLabelText('Email'), {
+			target: { value: 'new-email@latticecloud.com' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+		expect(onOpenChange).not.toHaveBeenCalled();
+		expect(screen.getByText('Leave without saving?')).toBeTruthy();
+	});
+
+	test('confirming the leave prompt closes the drawer via onOpenChange', () => {
+		const onOpenChange = vi.fn();
+
+		render(
+			<ChangeStaffUserEmailDialog
+				userId="user-1"
+				currentEmail="rui@latticecloud.com"
+				isOpen
+				onOpenChange={onOpenChange}
+				onUpdated={vi.fn()}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		fireEvent.change(screen.getByLabelText('Email'), {
+			target: { value: 'new-email@latticecloud.com' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Leave page' }));
+
+		expect(onOpenChange).toHaveBeenCalledWith(false);
+	});
+
+	test('cancelling the leave prompt keeps the drawer open with the typed email intact', () => {
+		const onOpenChange = vi.fn();
+
+		render(
+			<ChangeStaffUserEmailDialog
+				userId="user-1"
+				currentEmail="rui@latticecloud.com"
+				isOpen
+				onOpenChange={onOpenChange}
+				onUpdated={vi.fn()}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		fireEvent.change(screen.getByLabelText('Email'), {
+			target: { value: 'new-email@latticecloud.com' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+		fireEvent.click(
+			screen
+				.getByRole('alertdialog')
+				.querySelector('[aria-label="Close"]') as HTMLElement,
+		);
+
+		expect(onOpenChange).not.toHaveBeenCalled();
+		expect((screen.getByLabelText('Email') as HTMLInputElement).value).toBe(
+			'new-email@latticecloud.com',
+		);
+	});
+
+	test('Cancel on a pristine (unchanged) email closes immediately with no confirmation', () => {
+		const onOpenChange = vi.fn();
+
+		render(
+			<ChangeStaffUserEmailDialog
+				userId="user-1"
+				currentEmail="rui@latticecloud.com"
+				isOpen
+				onOpenChange={onOpenChange}
+				onUpdated={vi.fn()}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+		expect(onOpenChange).toHaveBeenCalledWith(false);
+		expect(screen.queryByText('Leave without saving?')).toBeNull();
 	});
 });

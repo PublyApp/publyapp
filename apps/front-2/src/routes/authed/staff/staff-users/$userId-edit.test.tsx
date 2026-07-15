@@ -32,6 +32,12 @@ const mocks = vi.hoisted(() => ({
 	invalidateQueries: vi.fn(),
 	navigate: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
+	blockerResolver: {
+		status: 'idle' as 'idle' | 'blocked',
+		proceed: undefined as (() => void) | undefined,
+		reset: undefined as (() => void) | undefined,
+	},
+	capturedShouldBlockFn: undefined as (() => boolean) | undefined,
 }));
 
 const getUserDetails = (userId: string) => ({
@@ -122,6 +128,10 @@ vi.mock('@tanstack/react-router', () => ({
 
 		return createElement('a', { href, ...props }, children);
 	},
+	useBlocker: (opts: { shouldBlockFn: () => boolean }) => {
+		mocks.capturedShouldBlockFn = opts.shouldBlockFn;
+		return mocks.blockerResolver;
+	},
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -161,6 +171,13 @@ vi.mock('react-i18next', () => ({
 				'email-required': 'Email is required.',
 				'invalid-email-address': 'Invalid email address',
 				'update-staff-user-email-failed': "Unable to update this user's email.",
+				'unsaved-changes-dialog-title': 'Leave without saving?',
+				'unsaved-changes-dialog-description':
+					'You have unsaved changes that will be lost if you leave this page.',
+				'leave-page': 'Leave page',
+				close: 'Close',
+				'staff-user-identity-saved-profiles-failed':
+					'Identity saved, but profile assignments failed to save.',
 			};
 
 			return labels[key] ?? key;
@@ -360,6 +377,10 @@ describe('staff user edit route', () => {
 		queryState.activeUserId = USER_A;
 		queryState.details.clear();
 		queryState.profiles.clear();
+		mocks.blockerResolver.status = 'idle';
+		mocks.blockerResolver.proceed = undefined;
+		mocks.blockerResolver.reset = undefined;
+		mocks.capturedShouldBlockFn = undefined;
 		mocks.navigate.mockResolvedValue(undefined);
 		mocks.invalidateQueries.mockResolvedValue(undefined);
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
@@ -697,7 +718,15 @@ describe('staff user edit route', () => {
 		);
 	});
 
-	test('keeps the ticked profile checkbox and an enabled Save button when the identity update succeeds but the profile update 422s', async () => {
+	// users-auth-r1-F3: the OLD version of this test asserted
+	// `expect(mocks.invalidateQueries).not.toHaveBeenCalled()` here — it
+	// certified the exact data-integrity bug it should have caught (the
+	// identity write commits durably while the UI reports total failure and
+	// keeps showing stale cache). This version asserts the opposite: the
+	// committed identity IS reflected, the failure is attributed to the
+	// profile step specifically, and a retry never resends the already-saved
+	// identity write.
+	test('reflects a committed identity write and preserves the pending profile selection when the profile update 422s after the identity PATCH succeeds', async () => {
 		mocks.updateStaffUser.mockResolvedValue({
 			id: '11111111-1111-1111-1111-111111111111',
 		});
@@ -717,10 +746,21 @@ describe('staff user edit route', () => {
 			expect(mocks.updateStaffUserProfiles).toHaveBeenCalled(),
 		);
 		expect(mocks.navigate).not.toHaveBeenCalled();
-		// The identity mutation must not invalidate on its own — an
-		// invalidation between the two mutations would refetch and re-run the
-		// hydration effect, wiping this still-ticked checkbox (r3-F8).
-		expect(mocks.invalidateQueries).not.toHaveBeenCalled();
+
+		// The identity write already committed in the database — the UI must
+		// invalidate/refetch it rather than silently show stale cache while
+		// claiming nothing saved.
+		await waitFor(() => expect(mocks.invalidateQueries).toHaveBeenCalled());
+
+		// The failure message must say part of the save succeeded, not just
+		// a generic failure that implies nothing happened.
+		expect(
+			screen.getByText(
+				'Identity saved, but profile assignments failed to save.',
+			),
+		).toBeTruthy();
+
+		// The unsaved profile selection must survive the partial failure.
 		expect(
 			(screen.getByRole('checkbox', { name: 'Billing' }) as HTMLInputElement)
 				.checked,
@@ -732,6 +772,16 @@ describe('staff user edit route', () => {
 				}) as HTMLButtonElement
 			).disabled,
 		).toBe(false);
+
+		// A retry must not resend the already-committed identity write.
+		mocks.updateStaffUser.mockClear();
+		mocks.updateStaffUserProfiles.mockResolvedValue({ assignedProfiles: [] });
+		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+		await waitFor(() =>
+			expect(mocks.updateStaffUserProfiles).toHaveBeenCalledTimes(2),
+		);
+		expect(mocks.updateStaffUser).not.toHaveBeenCalled();
 	});
 
 	test('surfaces a failed save and stays on the edit route', async () => {
@@ -747,5 +797,87 @@ describe('staff user edit route', () => {
 			expect(screen.getByRole('alert').textContent).toBe('save failed'),
 		);
 		expect(mocks.navigate).not.toHaveBeenCalled();
+	});
+
+	// users-auth-r1-F4: this route computed and displayed `isDirty` but had
+	// no `useBlocker`, so Back/Cancel/route navigation discarded dirty edits
+	// with no confirmation.
+	test('the nav-guard shouldBlockFn blocks while dirty and stops blocking once the save completes', async () => {
+		mocks.updateStaffUser.mockResolvedValue({ id: USER_A });
+		renderPage();
+
+		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+
+		fireEvent.change(screen.getByLabelText('First name'), {
+			target: { value: 'Dirty Name' },
+		});
+		expect(mocks.capturedShouldBlockFn?.()).toBe(true);
+
+		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+		await waitFor(() => expect(mocks.navigate).toHaveBeenCalled());
+		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+	});
+
+	test('shows the unsaved-changes confirm dialog when the router blocks navigation, and Leave page proceeds', () => {
+		const proceed = vi.fn();
+		const reset = vi.fn();
+		mocks.blockerResolver.status = 'blocked';
+		mocks.blockerResolver.proceed = proceed;
+		mocks.blockerResolver.reset = reset;
+
+		renderPage();
+
+		expect(screen.getByText('Leave without saving?')).toBeTruthy();
+		fireEvent.click(screen.getByRole('button', { name: 'Leave page' }));
+		expect(proceed).toHaveBeenCalled();
+		expect(reset).not.toHaveBeenCalled();
+	});
+
+	test('cancelling the unsaved-changes confirm dialog calls reset, not proceed', () => {
+		const proceed = vi.fn();
+		const reset = vi.fn();
+		mocks.blockerResolver.status = 'blocked';
+		mocks.blockerResolver.proceed = proceed;
+		mocks.blockerResolver.reset = reset;
+
+		renderPage();
+
+		const dialog = screen.getByRole('alertdialog');
+		fireEvent.click(
+			dialog.querySelector('[aria-label="Close"]') as HTMLElement,
+		);
+		expect(reset).toHaveBeenCalled();
+		expect(proceed).not.toHaveBeenCalled();
+	});
+
+	test('a dirty change-email dialog blocks Escape/backdrop/Cancel close and discards only after confirming', () => {
+		renderPage();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Change email' }));
+		const dialog = within(screen.getByTestId('change-staff-user-email-dialog'));
+		fireEvent.change(dialog.getByLabelText('Email'), {
+			target: { value: 'alex-new@example.com' },
+		});
+
+		fireEvent.click(dialog.getByRole('button', { name: 'Cancel' }));
+
+		// The drawer must still be open — Cancel on a dirty email edit must
+		// not discard it silently.
+		expect(screen.getByTestId('change-staff-user-email-dialog')).toBeTruthy();
+		expect(screen.getByText('Leave without saving?')).toBeTruthy();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Leave page' }));
+		expect(screen.queryByTestId('change-staff-user-email-dialog')).toBeNull();
+	});
+
+	test('a pristine change-email dialog closes immediately on Cancel with no confirmation', () => {
+		renderPage();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Change email' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+		expect(screen.queryByTestId('change-staff-user-email-dialog')).toBeNull();
+		expect(screen.queryByText('Leave without saving?')).toBeNull();
 	});
 });

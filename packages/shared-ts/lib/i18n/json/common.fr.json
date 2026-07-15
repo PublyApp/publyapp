@@ -647,6 +647,7 @@
 	"staff-user-details-error-description": "Nous n'avons pas pu charger les détails du membre du personnel. Veuillez réessayer ou contacter le support si le problème persiste.",
 	"staff-user-profiles-error-title": "Échec du chargement des profils",
 	"staff-user-profiles-error-description": "Impossible de charger les profils attribués.",
+	"staff-user-identity-saved-profiles-failed": "Les modifications du nom et des accès ont été enregistrées, mais l'attribution des profils a échoué : {{reason}} Ajustez la sélection et réessayez.",
 	"tenant-user-not-found-title": "Utilisateur du locataire introuvable",
 	"tenant-user-not-found-description": "Cet utilisateur tenant n'existe pas, ou vous n'avez plus accès à cette identité tenant-user.",
 	"tenant-user-details-error-title": "Échec du chargement des données de l'utilisateur du locataire",
