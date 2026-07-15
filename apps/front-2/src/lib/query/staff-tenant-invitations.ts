@@ -1,3 +1,4 @@
+import type { QueryClient } from '@tanstack/react-query';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
@@ -11,6 +12,7 @@ import type {
 import {
 	buildStaffMutationOptions,
 	buildStaffQueryOptions,
+	scopedKey,
 } from '@org/shared-ts/lib/query/create-hooks';
 
 export type StaffTenantInvitationsQueryVariables = {
@@ -40,10 +42,17 @@ export type StaffTenantInvitationActionVariables = {
 	invitationId: string;
 };
 
+/** @internal Unscoped — `scopedKey('staff', …)` is the only way to build an
+ * invalidation key from this; use `invalidateStaffTenantInvitations`. */
 export const STAFF_TENANT_INVITATIONS_QUERY_KEY = [
 	'staff-tenants',
 	'invitations',
 ] as const;
+
+export const invalidateStaffTenantInvitations = (queryClient: QueryClient) =>
+	queryClient.invalidateQueries({
+		queryKey: scopedKey('staff', STAFF_TENANT_INVITATIONS_QUERY_KEY),
+	});
 
 const normalizeString = (
 	value: string | null | undefined,
@@ -96,18 +105,25 @@ export const toStaffTenantInvitationRows = (
 	const rows: StaffTenantInvitationRow[] = [];
 
 	for (const item of items ?? []) {
+		// Required identities a staff admin reads as real data — a malformed
+		// or forward-incompatible payload missing one is dropped rather than
+		// shown with a `'—'` placeholder a staff admin can't distinguish from
+		// a legitimate value (shell-r5-F3).
 		const id = normalizeString(item.id?.toString());
-		if (!id) {
+		const email = normalizeString(item.email);
+		const profileName = normalizeString(item.profileName);
+		const invitedByName = normalizeString(item.invitedByName);
+		if (!id || !email || !profileName || !invitedByName) {
 			continue;
 		}
 
 		rows.push({
 			id,
-			email: normalizeString(item.email) ?? '—',
+			email,
 			status: normalizeNullableString(item.status),
 			scope: normalizeNullableString(item.scope),
-			profileName: normalizeString(item.profileName) ?? '—',
-			invitedByName: normalizeString(item.invitedByName) ?? '—',
+			profileName,
+			invitedByName,
 			acceptedAt: item.acceptedAt ?? null,
 			createdAt: item.createdAt ?? null,
 			expiresAt: item.expiresAt ?? null,

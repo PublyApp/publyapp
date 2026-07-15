@@ -74,3 +74,16 @@ obj/
 *.user
 *.suo
 *.cache
+
+# Local agent/orchestration/workspace state — huge and never part of an image
+# build (the git worktrees alone are ~10GB and were inflating every BuildKit
+# `COPY . .` layer to ~2.2GB). NOTE: `.config/` must stay in the context — the
+# API Dockerfile COPYs it explicitly.
+.worktrees/
+.codegraph/
+.dump/
+.claude/
+.agents/
+.ai/
+.aidesigner/
+.superpowers/

@@ -1,3 +1,6 @@
+using Microsoft.Extensions.FileProviders;
+
+using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.Filters;
@@ -10,6 +13,7 @@ using PublyApp.Api.Modules.Permissions.Endpoints;
 using PublyApp.Api.Modules.Profiles.Endpoints;
 using PublyApp.Api.Modules.SystemNotices.Endpoints;
 using PublyApp.Api.Modules.Tenants.Endpoints;
+using PublyApp.Api.Modules.Uploads.Endpoints;
 using PublyApp.Api.Modules.Users.Endpoints;
 
 namespace PublyApp.Api;
@@ -46,6 +50,28 @@ public class Program {
 		app.UseCors();
 		app.UseOpenApi();
 
+		// Anonymous, read-only static file serving for staff-uploaded assets
+		// (e.g. tenant logos). PhysicalFileProvider + StaticFileMiddleware
+		// canonicalizes request paths and rejects ".." traversal by design.
+		// Security headers (incl. X-Content-Type-Options: nosniff) are applied
+		// to every response by app.UseSecurityHeaders() above, static files
+		// included, since that middleware hooks HttpResponse.OnStarting.
+		// The root is owned by the resolved IFileStorage (it already created the
+		// directory in its constructor), not recomputed here.
+		var fileStorage = app.Services.GetRequiredService<IFileStorage>();
+		app.UseStaticFiles(new StaticFileOptions {
+			FileProvider = new PhysicalFileProvider(fileStorage.RootPath),
+			RequestPath = "/files",
+			ServeUnknownFileTypes = false,
+			// Safe precisely because paths are server-generated UUID v7 file names
+			// (see LocalDiskFileStorage.SaveAsync): a replaced logo gets a new UUID,
+			// never a new body at the same URL, so the client can cache forever
+			// instead of round-tripping an If-None-Match revalidation per paint.
+			OnPrepareResponse = ctx => {
+				ctx.Context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
+			},
+		});
+
 		app.MapAuthEndpoints();
 		app.MapInvitationEndpointsAnonymous();
 		app.MapSystemNoticeEndpointsAnonymous();
@@ -73,6 +99,7 @@ public class Program {
 		staffGroup.MapTenantEndpointsForStaff();
 		staffGroup.MapSystemNoticeEndpointsForStaff();
 		staffGroup.MapAuditLogEndpointsForStaff();
+		staffGroup.MapUploadEndpointsForStaff();
 
 		// TODO: once we have a tenant endpoint, we can remove this
 		tenantGroup.MapGet("/test", () => "Hello, World!");

@@ -45,6 +45,7 @@ public sealed class SuspendTenantAsStaff {
 		[FromServices] ITenantAsStaffService tenantService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] IRequestAuthContext authContext,
+		[FromServices] ILogger<SuspendTenantAsStaff> logger,
 		CancellationToken cancellationToken = default
 	) {
 		if (!Guid.TryParse(tenantId, out var tenantIdGuid)) {
@@ -99,15 +100,27 @@ public sealed class SuspendTenantAsStaff {
 		}
 		var tenant = success.Tenant;
 
-		await auditLogService.LogAsync(
-			new CreateAuditLogArgs(
-				UserId: account.UserId,
-				Action: AuditActions.TenantSuspended,
-				TargetId: tenantIdGuid,
-				Details: new { TenantName = tenant.Name, Reason = reason }
-			),
-			cancellationToken
-		);
+		// The suspend already committed above; audit persistence is best-effort
+		// from here so it never turns an already-successful mutation into a 500
+		// (round-5 API F2 — sweep of every post-commit side effect).
+		try {
+			await auditLogService.LogAsync(
+				new CreateAuditLogArgs(
+					UserId: account.UserId,
+					Action: AuditActions.TenantSuspended,
+					TargetId: tenantIdGuid,
+					Details: new { TenantName = tenant.Name, Reason = reason }
+				),
+				cancellationToken
+			);
+		} catch (Exception ex) {
+			logger.LogWarning(
+				ex,
+				"Failed to write audit log for tenant suspend {TenantId} by staff user {UserId}",
+				tenantIdGuid,
+				account.UserId
+			);
+		}
 
 		return TypedResults.Ok(new TenantSuspendedResult {
 			TenantId = tenant.GetRequiredId(),

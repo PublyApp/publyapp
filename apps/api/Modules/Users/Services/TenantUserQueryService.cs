@@ -1,8 +1,11 @@
+using System.Runtime.CompilerServices;
+
 using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Users.Services;
@@ -23,7 +26,8 @@ public abstract record FindTenantUsersResult {
 
 public record FindTenantUsersAsStaffFilters(
 	string? Search,
-	IReadOnlySet<TenantUserStatus>? Status
+	IReadOnlySet<TenantUserStatus>? Status,
+	IReadOnlySet<AccountLevel>? Level
 );
 
 public record FindTenantUsersAsStaffArgs(
@@ -45,6 +49,22 @@ public class TenantUserDetailsData {
 	public required int CompanyCount { get; set; }
 }
 
+public record ExportTenantUsersArgs(
+	string? Search,
+	IReadOnlySet<TenantUserStatus>? Status,
+	IReadOnlySet<AccountLevel>? Level,
+	IReadOnlySet<Guid>? Ids
+);
+
+public record TenantUserExportItem {
+	public required string Email { get; init; }
+	public string? FirstName { get; init; }
+	public string? LastName { get; init; }
+	public required string Level { get; init; }
+	public required string Status { get; init; }
+	public required DateTime CreatedAt { get; init; }
+}
+
 public interface ITenantUserQueryService {
 	Task<FindTenantUsersResult> FindTenantUsersAsync(
 		Guid tenantId,
@@ -60,11 +80,23 @@ public interface ITenantUserQueryService {
 		Guid userId,
 		CancellationToken cancellationToken = default
 	);
+	// Bounded at TENANT_USER_EXPORT_MAX_ROWS + 1 (like ExportAsync's Take(limit)),
+	// so callers can both detect "exceeds limit" (result > limit) and log the exact
+	// row count about to be exported without a second, unbounded COUNT(*) query.
+	Task<int> CountForExportAsync(
+		Guid tenantId,
+		ExportTenantUsersArgs args,
+		CancellationToken cancellationToken = default
+	);
+	IAsyncEnumerable<TenantUserExportItem> ExportAsync(
+		Guid tenantId,
+		ExportTenantUsersArgs args,
+		CancellationToken cancellationToken = default
+	);
 }
 
 [Service(ServiceLifetime.Scoped)]
 public class TenantUserQueryService : ITenantUserQueryService {
-
 	private readonly AppDbContext _dbContext;
 
 	public TenantUserQueryService(AppDbContext dbContext) {
@@ -384,14 +416,16 @@ public class TenantUserQueryService : ITenantUserQueryService {
 		IQueryable<UserAccount> query = baseQuery;
 
 		// Apply search filter (by name or email)
-		// Search semantics: substring match (ILIKE %q%) for case-insensitive search
+		// Search semantics: substring match (ILIKE %q%) for case-insensitive search.
+		// The literal is escaped so a caller-supplied '%' or '_' cannot widen the match
+		// beyond an actual substring (see EscapeLikePattern).
 		if (args.Filters?.Search is { } search) {
 			var effectiveQ = search.Trim();
-			var pattern = $"%{effectiveQ}%";
+			var pattern = $"%{LikePatternUtils.EscapeLikePattern(effectiveQ)}%";
 			query = query.Where(ua =>
-				(ua.User.FirstName != null && EF.Functions.ILike(ua.User.FirstName, pattern)) ||
-				(ua.User.LastName != null && EF.Functions.ILike(ua.User.LastName, pattern)) ||
-				EF.Functions.ILike(ua.User.Email, pattern)
+				(ua.User.FirstName != null && EF.Functions.ILike(ua.User.FirstName, pattern, LikePatternUtils.LikeEscapeChar)) ||
+				(ua.User.LastName != null && EF.Functions.ILike(ua.User.LastName, pattern, LikePatternUtils.LikeEscapeChar)) ||
+				EF.Functions.ILike(ua.User.Email, pattern, LikePatternUtils.LikeEscapeChar)
 			);
 		}
 
@@ -414,6 +448,11 @@ public class TenantUserQueryService : ITenantUserQueryService {
 					&& ua.User.Status != UserStatus.Suspended
 					&& ua.Status != AccountStatus.Suspended)
 			);
+		}
+
+		// Apply level filter
+		if (args.Filters?.Level is { } levels && levels.Count > 0) {
+			query = query.Where(ua => levels.Contains(ua.Level));
 		}
 
 		if (args.Cursor != Guid.Empty) {
@@ -490,5 +529,99 @@ public class TenantUserQueryService : ITenantUserQueryService {
 			userId,
 			cancellationToken
 		);
+	}
+
+	public async Task<int> CountForExportAsync(
+		Guid tenantId,
+		ExportTenantUsersArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		var limit = AppEnvironment.Instance.TENANT_USER_EXPORT_MAX_ROWS;
+		var query = ApplyExportFilters(BuildExportBaseQuery(tenantId), args);
+
+		return await query.Take(limit + 1).CountAsync(cancellationToken);
+	}
+
+	public async IAsyncEnumerable<TenantUserExportItem> ExportAsync(
+		Guid tenantId,
+		ExportTenantUsersArgs args,
+		[EnumeratorCancellation] CancellationToken cancellationToken = default
+	) {
+		var limit = AppEnvironment.Instance.TENANT_USER_EXPORT_MAX_ROWS;
+		var query = ApplyExportFilters(BuildExportBaseQuery(tenantId), args);
+
+		var exportQuery = (
+			from ua in query
+			orderby ua.User.CreatedAt descending, ua.UserId descending
+			select new TenantUserExportItem {
+				Email = ua.User.Email,
+				FirstName = ua.User.FirstName,
+				LastName = ua.User.LastName,
+				Level = UserAccount.GetLevelDescription(ua.Level),
+				Status = UserAccount.GetStatusDescription(
+					UserAccount.GetTenantStatus(ua.User.Status, ua.Status)
+				),
+				CreatedAt = ua.User.CreatedAt,
+			}
+		).Take(limit);
+
+		await foreach (var item in exportQuery
+			.AsAsyncEnumerable()
+			.WithCancellation(cancellationToken)
+		) {
+			yield return item;
+		}
+	}
+
+	private IQueryable<UserAccount> BuildExportBaseQuery(Guid tenantId) {
+		return
+			from ua in _dbContext.UserAccount.AsNoTracking()
+			where ua.TenantId == tenantId
+				&& ua.Scope == AccountScope.Tenant
+				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted
+			select ua;
+	}
+
+	private static IQueryable<UserAccount> ApplyExportFilters(
+		IQueryable<UserAccount> query,
+		ExportTenantUsersArgs args
+	) {
+		if (args.Search is { } search) {
+			var pattern = $"%{LikePatternUtils.EscapeLikePattern(search)}%";
+			query = query.Where(ua =>
+				(ua.User.FirstName != null && EF.Functions.ILike(ua.User.FirstName, pattern, LikePatternUtils.LikeEscapeChar)) ||
+				(ua.User.LastName != null && EF.Functions.ILike(ua.User.LastName, pattern, LikePatternUtils.LikeEscapeChar)) ||
+				EF.Functions.ILike(ua.User.Email, pattern, LikePatternUtils.LikeEscapeChar)
+			);
+		}
+
+		if (args.Status is { Count: > 0 } statuses) {
+			var includesActive = statuses.Contains(TenantUserStatus.Active);
+			var includesSuspended = statuses.Contains(TenantUserStatus.Suspended);
+			var includesGloballySuspended = statuses.Contains(
+				TenantUserStatus.GloballySuspended
+			);
+
+			query = query.Where(ua =>
+				(includesGloballySuspended && ua.User.Status == UserStatus.Suspended)
+				|| (includesSuspended
+					&& ua.User.Status != UserStatus.Suspended
+					&& ua.Status == AccountStatus.Suspended)
+				|| (includesActive
+					&& ua.User.Status != UserStatus.Suspended
+					&& ua.Status != AccountStatus.Suspended)
+			);
+		}
+
+		if (args.Level is { Count: > 0 } levels) {
+			query = query.Where(ua => levels.Contains(ua.Level));
+		}
+
+		if (args.Ids is { Count: > 0 } ids) {
+			query = query.Where(ua => ids.Contains(ua.UserId));
+		}
+
+		return query;
 	}
 }

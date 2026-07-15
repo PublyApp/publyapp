@@ -8,6 +8,7 @@ import {
 	screen,
 	waitFor,
 } from '@testing-library/react';
+import * as React from 'react';
 import { createElement, type JSX, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -21,36 +22,108 @@ const mocks = vi.hoisted(() => ({
 	toStaffTenantDetails: vi.fn(),
 	toStaffTenantUserDetails: vi.fn(),
 	shouldLogoutForFailure: vi.fn<(error: unknown) => boolean>(() => false),
+	blockerResolver: {
+		status: 'idle' as 'idle' | 'blocked',
+		proceed: undefined as (() => void) | undefined,
+		reset: undefined as (() => void) | undefined,
+	},
+	capturedShouldBlockFn: undefined as (() => boolean) | undefined,
 }));
 
-vi.mock('@heroui/react', () => ({
-	Button: ({
+vi.mock('~/components/ui/select', () => {
+	const SelectContent = ({ children }: { children?: ReactNode }) =>
+		createElement('div', null, children);
+
+	const SelectItem = ({
 		children,
-		type,
-		onPress,
-		isDisabled,
-		...props
+		value,
 	}: {
 		children: ReactNode;
-		type?: 'button' | 'submit' | 'reset';
-		onPress?: () => void;
-		isDisabled?: boolean;
-	}) =>
-		createElement(
-			'button',
-			{
-				type: type ?? 'button',
-				onClick: onPress,
-				disabled: isDisabled,
-				...props,
-			},
+		value?: string;
+	}) => createElement('option', { value }, children);
+
+	// Forwards every prop (aria-labelledby, aria-invalid, onBlur, ...) so the
+	// mocked native control below can re-apply them — Field.Select puts the
+	// accessible-name wiring on SelectTrigger, not on the outer Select.
+	const SelectTrigger = ({
+		children,
+		...triggerProps
+	}: {
+		children?: ReactNode;
+		[key: string]: unknown;
+	}) => createElement('div', triggerProps, children);
+
+	const SelectValue = () => null;
+
+	const collectSelectContent = (
+		children: ReactNode,
+	): { options: ReactNode[]; triggerProps: Record<string, unknown> } => {
+		let triggerProps: Record<string, unknown> = {};
+		const options: ReactNode[] = [];
+
+		for (const child of React.Children.toArray(children)) {
+			if (!React.isValidElement(child)) {
+				continue;
+			}
+
+			if (child.type === SelectTrigger) {
+				triggerProps = { ...(child.props as Record<string, unknown>) };
+				delete triggerProps.children;
+				continue;
+			}
+
+			if (child.type === SelectContent) {
+				const nested = (child.props as { children?: ReactNode }).children;
+				if (nested) {
+					options.push(...React.Children.toArray(nested));
+				}
+				continue;
+			}
+
+			if (child.type === SelectValue) {
+				continue;
+			}
+
+			options.push(child);
+		}
+
+		return { options, triggerProps };
+	};
+
+	return {
+		Select: ({
 			children,
-		),
-	Card: ({ children, ...props }: { children: ReactNode }) =>
-		createElement('div', props, children),
-	Chip: ({ children, ...props }: { children: ReactNode }) =>
-		createElement('div', props, children),
-}));
+			value,
+			onValueChange,
+			disabled,
+			...props
+		}: {
+			children: ReactNode;
+			value?: string;
+			onValueChange?: (value: string) => void;
+			disabled?: boolean;
+		}) => {
+			const { options, triggerProps } = collectSelectContent(children);
+			return createElement(
+				'select',
+				{
+					value,
+					onChange: (e: React.ChangeEvent<HTMLSelectElement>) => {
+						onValueChange?.(e.target.value);
+					},
+					disabled,
+					...triggerProps,
+					...props,
+				},
+				options,
+			);
+		},
+		SelectContent,
+		SelectItem,
+		SelectTrigger,
+		SelectValue,
+	};
+});
 
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => ({
@@ -77,6 +150,10 @@ vi.mock('@tanstack/react-router', () => ({
 		}
 		return createElement('a', { href, ...props }, children);
 	},
+	useBlocker: (opts: { shouldBlockFn: () => boolean }) => {
+		mocks.capturedShouldBlockFn = opts.shouldBlockFn;
+		return mocks.blockerResolver;
+	},
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -97,6 +174,13 @@ vi.mock('react-i18next', () => ({
 				'account-level': 'Account level',
 				'save-changes': 'Save changes',
 				'tenant-user-update-failed': 'Unable to save tenant user.',
+				'avatar-url-invalid':
+					'Enter a valid avatar URL starting with http:// or https://.',
+				cancel: 'Cancel',
+				'leave-page': 'Leave page',
+				'unsaved-changes-dialog-title': 'Leave without saving?',
+				'unsaved-changes-dialog-description':
+					'You have unsaved changes that will be lost if you leave this page.',
 			};
 
 			return labels[key] ?? key;
@@ -135,8 +219,6 @@ vi.mock('~/components/error-views/View403', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenant-users', () => ({
-	STAFF_TENANT_USERS_QUERY_KEY: ['staff-tenants', 'users'],
-	STAFF_TENANT_USER_DETAILS_QUERY_KEY: ['staff-tenants', 'users', 'detail'],
 	useUpdateStaffTenantUserMutation: mocks.useUpdateStaffTenantUserMutation,
 	useStaffTenantUserDetailsQuery: mocks.useStaffTenantUserDetailsQuery,
 	toStaffTenantUserDetails: mocks.toStaffTenantUserDetails,
@@ -145,9 +227,15 @@ vi.mock('~/lib/query/staff-tenant-users', () => ({
 vi.mock('~/lib/query/staff-tenants', () => ({
 	toStaffTenantDetails: mocks.toStaffTenantDetails,
 	useStaffTenantDetailsQuery: mocks.useStaffTenantDetailsQuery,
+	invalidateAllStaffTenantScopes: (queryClient: {
+		invalidateQueries: (arg: unknown) => unknown;
+	}) =>
+		queryClient.invalidateQueries({
+			queryKey: ['staff', 'staff-tenants'],
+		}),
 }));
 
-vi.mock('~/routes/authed/layout', () => ({
+vi.mock('~/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 
@@ -163,19 +251,23 @@ const buildQueryResult = (overrides: Record<string, unknown> = {}) => ({
 	...overrides,
 });
 
-const renderPage = () => {
-	const Component = (
-		Route as unknown as {
-			component: () => JSX.Element;
-		}
-	).component;
+const RouteComponent = (
+	Route as unknown as {
+		component: () => JSX.Element;
+	}
+).component;
 
-	return render(<Component />);
+const renderPage = () => {
+	return render(<RouteComponent />);
 };
 
 describe('staff tenant user edit route', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mocks.blockerResolver.status = 'idle';
+		mocks.blockerResolver.proceed = undefined;
+		mocks.blockerResolver.reset = undefined;
+		mocks.capturedShouldBlockFn = undefined;
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
 		mocks.invalidateQueries.mockResolvedValue(undefined);
 		mocks.useUpdateStaffTenantUserMutation.mockReturnValue({
@@ -278,13 +370,8 @@ describe('staff tenant user edit route', () => {
 			}),
 		);
 		await waitFor(() =>
-			expect(mocks.invalidateQueries).toHaveBeenNthCalledWith(1, {
-				queryKey: ['staff', 'staff-tenants', 'users'],
-			}),
-		);
-		await waitFor(() =>
-			expect(mocks.invalidateQueries).toHaveBeenNthCalledWith(2, {
-				queryKey: ['staff', 'staff-tenants', 'users', 'detail'],
+			expect(mocks.invalidateQueries).toHaveBeenCalledWith({
+				queryKey: ['staff', 'staff-tenants'],
 			}),
 		);
 		await waitFor(() =>
@@ -296,6 +383,156 @@ describe('staff tenant user edit route', () => {
 				},
 			}),
 		);
+	});
+
+	test('keeps a dirty field but applies a genuine refetch change to other fields (r5-tenants-F2)', () => {
+		const renderResult = renderPage();
+		const firstNameInput = screen.getByLabelText(
+			'First name',
+		) as HTMLInputElement;
+
+		fireEvent.change(firstNameInput, { target: { value: 'Alex Edited' } });
+
+		// A real background refetch: another admin changed the account level
+		// while this tab was unfocused. This changes userFormValues' identity.
+		mocks.toStaffTenantUserDetails.mockReturnValue({
+			id: '22222222-2222-2222-2222-222222222222',
+			email: 'alex@example.com',
+			firstName: 'Alex',
+			lastName: 'User',
+			avatarUrl: 'https://example.com/avatar.png',
+			accountLevel: 'User',
+			status: 'Active',
+			tenantId: '11111111-1111-1111-1111-111111111111',
+			createdAt: new Date('2026-07-01T09:00:00Z'),
+			updatedAt: new Date('2026-07-02T10:00:00Z'),
+			displayName: 'Alex User',
+		});
+
+		renderResult.rerender(<RouteComponent />);
+
+		expect(
+			(screen.getByLabelText('First name') as HTMLInputElement).value,
+		).toBe('Alex Edited');
+		expect(
+			screen.getByRole('combobox', { name: 'Account level' }),
+		).toHaveProperty('value', 'User');
+	});
+
+	test('the nav-guard shouldBlockFn blocks while dirty and stops blocking once the save completes', async () => {
+		const mutateAsync = vi
+			.fn()
+			.mockResolvedValue({ id: '22222222-2222-2222-2222-222222222222' });
+		mocks.useUpdateStaffTenantUserMutation.mockReturnValue({
+			mutateAsync,
+			isPending: false,
+		});
+
+		renderPage();
+
+		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+
+		fireEvent.change(screen.getByLabelText('First name'), {
+			target: { value: 'Alex Edited' },
+		});
+		expect(mocks.capturedShouldBlockFn?.()).toBe(true);
+
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Save changes' }).closest('form')!,
+		);
+
+		await waitFor(() => expect(mocks.navigate).toHaveBeenCalled());
+		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+	});
+
+	test('shows the unsaved-changes confirm dialog when the router blocks navigation, and Leave page proceeds', () => {
+		const proceed = vi.fn();
+		const reset = vi.fn();
+		mocks.blockerResolver.status = 'blocked';
+		mocks.blockerResolver.proceed = proceed;
+		mocks.blockerResolver.reset = reset;
+
+		renderPage();
+
+		expect(screen.getByText('Leave without saving?')).toBeTruthy();
+		fireEvent.click(screen.getByRole('button', { name: 'Leave page' }));
+		expect(proceed).toHaveBeenCalled();
+		expect(reset).not.toHaveBeenCalled();
+	});
+
+	test('cancelling the unsaved-changes confirm dialog calls reset, not proceed', () => {
+		const proceed = vi.fn();
+		const reset = vi.fn();
+		mocks.blockerResolver.status = 'blocked';
+		mocks.blockerResolver.proceed = proceed;
+		mocks.blockerResolver.reset = reset;
+
+		renderPage();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+		expect(reset).toHaveBeenCalled();
+		expect(proceed).not.toHaveBeenCalled();
+	});
+
+	test('rejects an invalid avatar URL client-side without firing the mutation', async () => {
+		const mutateAsync = vi.fn();
+		mocks.useUpdateStaffTenantUserMutation.mockReturnValue({
+			mutateAsync,
+			isPending: false,
+		});
+
+		renderPage();
+
+		fireEvent.change(screen.getByLabelText('Avatar URL'), {
+			target: { value: 'not-a-url' },
+		});
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Save changes' }).closest('form')!,
+		);
+
+		await waitFor(() =>
+			expect(
+				screen.getByText(
+					'Enter a valid avatar URL starting with http:// or https://.',
+				),
+			).toBeTruthy(),
+		);
+		expect(mutateAsync).not.toHaveBeenCalled();
+	});
+
+	test('marks the avatar URL field invalid on a server 422 for avatarUrl, not the generic form error', async () => {
+		const mutateAsync = vi.fn().mockRejectedValue({
+			status: 422,
+			responseStatusCode: 422,
+			title: 'Validation failed',
+			detail: 'The avatar URL must be an absolute http(s) URL.',
+			errors: {
+				AvatarUrl: ['The avatar URL must be an absolute http(s) URL.'],
+			},
+		});
+		mocks.useUpdateStaffTenantUserMutation.mockReturnValue({
+			mutateAsync,
+			isPending: false,
+		});
+
+		renderPage();
+
+		fireEvent.change(screen.getByLabelText('Avatar URL'), {
+			target: { value: 'https://example.com/new-avatar.png' },
+		});
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Save changes' }).closest('form')!,
+		);
+
+		await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
+		await waitFor(() =>
+			expect(
+				screen.getByLabelText('Avatar URL').getAttribute('aria-invalid'),
+			).toBe('true'),
+		);
+		expect(
+			screen.queryByText('The avatar URL must be an absolute http(s) URL.'),
+		).toBeTruthy();
 	});
 
 	test('sends null for cleared nullable fields on success', async () => {
@@ -425,7 +662,7 @@ describe('staff tenant user edit route', () => {
 		expect(mocks.navigate).not.toHaveBeenCalled();
 	});
 
-	test('renders local malformed-id, forbidden, not-found, and 500 views for detail query failures', () => {
+	test('renders local not-found, forbidden, and 500 views for detail query failures', () => {
 		mocks.useStaffTenantUserDetailsQuery.mockReturnValue(
 			buildQueryResult({
 				error: {
@@ -440,7 +677,7 @@ describe('staff tenant user edit route', () => {
 		);
 
 		renderPage();
-		expect(screen.getByTestId('staff-tenant-user-edit-invalid')).toBeTruthy();
+		expect(screen.getByTestId('staff-tenant-user-edit-not-found')).toBeTruthy();
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 	});
 

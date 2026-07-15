@@ -30,6 +30,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey CannotSuspendLastAdmin = new("cannot-suspend-last-admin");
 
 	/// <summary>
+	/// This workspace code is already taken
+	/// </summary>
+	public static readonly TranslationKey CodeAlreadyTaken = new("code-already-taken");
+
+	/// <summary>
 	/// are you sure you want to delete this item?
 	/// </summary>
 	public static readonly TranslationKey ConfirmDeleteDialogText = new("confirm-delete-dialog-text");
@@ -138,6 +143,21 @@ public static partial class ResponseKeys {
 	/// Invitation revoked successfully
 	/// </summary>
 	public static readonly TranslationKey InvitationRevoked = new("invitation-revoked");
+
+	/// <summary>
+	/// This invitation has already been accepted
+	/// </summary>
+	public static readonly TranslationKey InvitationTokenAlreadyAccepted = new("invitation-token-already-accepted");
+
+	/// <summary>
+	/// This invitation has expired
+	/// </summary>
+	public static readonly TranslationKey InvitationTokenExpired = new("invitation-token-expired");
+
+	/// <summary>
+	/// This invitation has been revoked
+	/// </summary>
+	public static readonly TranslationKey InvitationTokenRevoked = new("invitation-token-revoked");
 
 	/// <summary>
 	/// Malformed ID
@@ -388,6 +408,21 @@ public static partial class ResponseKeys {
 	/// Unprocessable entity
 	/// </summary>
 	public static readonly TranslationKey UnprocessableEntity = new("unprocessable-entity");
+
+	/// <summary>
+	/// A file is required
+	/// </summary>
+	public static readonly TranslationKey UploadFileRequired = new("upload-file-required");
+
+	/// <summary>
+	/// File exceeds the maximum allowed size
+	/// </summary>
+	public static readonly TranslationKey UploadFileTooLarge = new("upload-file-too-large");
+
+	/// <summary>
+	/// File must be a PNG, JPEG, WEBP, or GIF image
+	/// </summary>
+	public static readonly TranslationKey UploadFileUnsupportedType = new("upload-file-unsupported-type");
 
 	/// <summary>
 	/// user accounts

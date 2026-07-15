@@ -63,6 +63,9 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	public DbSet<InvitationProfile> InvitationProfile {
 		get { return Set<InvitationProfile>(); }
 	}
+	public DbSet<InvitationEmailOutbox> InvitationEmailOutbox {
+		get { return Set<InvitationEmailOutbox>(); }
+	}
 
 	// Staff back-office entities
 	public DbSet<AuditLog> AuditLog {
@@ -395,6 +398,30 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 			.HasDatabaseName("ix_user_accounts_user_id_account_type_active")
 			// Covers active membership lookups. Status 1 is AccountStatus.Suspended.
 			.HasFilter("\"is_deleted\" = false AND \"status\" != 1");
+
+		// Membership uniqueness invariant, enforced per scope because a plain composite
+		// unique index treats TenantId/ProjectId NULLs as distinct in PostgreSQL and would
+		// silently allow duplicate active memberships (round-5 API F1).
+		modelBuilder.Entity<UserAccount>()
+			.HasIndex(u => u.UserId)
+			.IsUnique()
+			.HasDatabaseName("ux_user_accounts_staff_active")
+			// At most one active staff account per user.
+			.HasFilter("\"scope\" = 0 AND \"is_deleted\" = false");
+
+		modelBuilder.Entity<UserAccount>()
+			.HasIndex(u => new { u.UserId, u.TenantId })
+			.IsUnique()
+			.HasDatabaseName("ux_user_accounts_tenant_active")
+			// At most one active tenant account per user per tenant.
+			.HasFilter("\"scope\" = 1 AND \"project_id\" IS NULL AND \"is_deleted\" = false");
+
+		modelBuilder.Entity<UserAccount>()
+			.HasIndex(u => new { u.UserId, u.ProjectId })
+			.IsUnique()
+			.HasDatabaseName("ux_user_accounts_project_active")
+			// At most one active project account per user per project.
+			.HasFilter("\"scope\" = 2 AND \"is_deleted\" = false");
 
 		// Keyset pagination indexes for staff profiles
 		// Supports efficient sorting by Name with Id as tie-breaker

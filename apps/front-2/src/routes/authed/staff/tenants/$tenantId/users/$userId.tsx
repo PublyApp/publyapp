@@ -1,4 +1,8 @@
-import { Card } from '@heroui/react';
+import {
+	IconAlertCircle,
+	IconArrowLeft,
+	IconSearchOff,
+} from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState } from 'react';
@@ -6,20 +10,23 @@ import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
+import { Button } from '~/components/ui/button';
+import { Card } from '~/components/ui/card';
+import { ConfirmDialog } from '~/components/ui/confirm-dialog';
+import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import {
 	toStaffTenantUserDetails,
-	STAFF_TENANT_USER_DETAILS_QUERY_KEY,
-	STAFF_TENANT_USERS_QUERY_KEY,
 	useRemoveStaffTenantUserMutation,
 	useReactivateStaffTenantUserMutation,
 	useSuspendStaffTenantUserMutation,
 	useStaffTenantUserDetailsQuery,
 } from '~/lib/query/staff-tenant-users';
 import {
+	invalidateAllStaffTenantScopes,
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
-import { shouldLogoutForFailure } from '~/routes/authed/layout';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import {
 	getFailureMessage,
@@ -27,11 +34,15 @@ import {
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 import {
+	BackToTenantsLink,
 	DetailItem,
 	formatDateTime,
+	formatTenantUserLevelLabel,
+	formatTenantUserStatusLabel,
 	TenantDetailsError,
 	TenantDetailsLoading,
 	TenantDetailsPageShell,
+	TenantRetryActions,
 } from '../_tenant-details-shell';
 
 const MALFORMED_ID_TRANSLATION_KEY = 'malformed-id';
@@ -69,67 +80,71 @@ const getFailureDescription = (error: unknown, fallback: string): string => {
 	return fallback;
 };
 
-const InvalidTenantUserView = ({ error }: { error: unknown }) => (
-	<AppErrorView
-		icon="!"
-		code="400 — Bad Request"
-		title="Invalid tenant user link"
-		description={getFailureDescription(
-			error,
-			'This tenant user link is malformed or incomplete.',
-		)}
-		testId="staff-tenant-user-details-invalid"
-	/>
-);
+const MissingTenantUserView = ({ error }: { error: unknown }) => {
+	const { t } = useTranslation('common');
 
-const MissingTenantUserView = ({ error }: { error: unknown }) => (
-	<AppErrorView
-		icon="🔎"
-		code="404 — Not Found"
-		title="Tenant user not found"
-		description={getFailureDescription(
-			error,
-			'The requested tenant user does not exist or is no longer available.',
-		)}
-		testId="staff-tenant-user-details-not-found"
-	/>
-);
+	return (
+		<AppErrorView
+			icon={<IconSearchOff aria-hidden="true" className="size-7" />}
+			code={t('error-404-code')}
+			title={t('tenant-user-not-found-title')}
+			description={getFailureDescription(
+				error,
+				t('tenant-user-not-found-description'),
+			)}
+			testId="staff-tenant-user-details-not-found"
+			actions={<BackToTenantsLink />}
+		/>
+	);
+};
 
-const StaffTenantUserDetailsError = ({ error }: { error: unknown }) => {
-	if (isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)) {
-		return <InvalidTenantUserView error={error} />;
+const StaffTenantUserDetailsError = ({
+	error,
+	onRetry,
+}: {
+	error: unknown;
+	onRetry: () => void;
+}) => {
+	const { t } = useTranslation('common');
+
+	if (
+		isProblemStatus(error, 404) ||
+		isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)
+	) {
+		return <MissingTenantUserView error={error} />;
 	}
 
 	if (isProblemStatus(error, 403)) {
 		return <View403 />;
 	}
 
-	if (isProblemStatus(error, 404)) {
-		return <MissingTenantUserView error={error} />;
-	}
-
 	return (
 		<AppErrorView
-			icon="!"
-			code="500 — Server Error"
-			title="Unable to load this tenant user"
-			description="There was a problem loading the tenant user details."
+			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
+			code={t('error-500-code')}
+			title={t('unable-to-load-tenant-user')}
+			description={t('tenant-user-load-error-description')}
 			testId="staff-tenant-user-details-error"
+			actions={<TenantRetryActions onRetry={onRetry} />}
 		/>
 	);
 };
 
-const TenantUserDetailsLoading = () => (
-	<div
-		className="mx-auto flex min-h-[50vh] w-full max-w-5xl items-center justify-center px-4 py-12"
-		data-testid="staff-tenant-user-details-loading"
-	>
-		<div className="flex items-center gap-3 text-sm text-foreground-500">
-			<div className="h-2 w-2 rounded-full bg-primary" />
-			<span>Loading tenant user…</span>
+const TenantUserDetailsLoading = () => {
+	const { t } = useTranslation('common');
+
+	return (
+		<div
+			className="mx-auto flex min-h-[50vh] w-full max-w-5xl items-center justify-center px-4 py-12"
+			data-testid="staff-tenant-user-details-loading"
+		>
+			<div className="flex items-center gap-3 text-sm text-muted-foreground">
+				<LoadingSpinner />
+				<span>{t('loading-tenant-user')}</span>
+			</div>
 		</div>
-	</div>
-);
+	);
+};
 
 const getNormalizedTenantUserStatus = (
 	value: string | null | undefined,
@@ -158,11 +173,12 @@ export const Route = createFileRoute(
 function StaffTenantUserDetailsPage() {
 	const { tenantId, userId } = Route.useParams();
 	const navigate = Route.useNavigate();
-	const { i18n } = useTranslation('common');
+	const { t, i18n } = useTranslation('common');
 	const queryClient = useQueryClient();
 	const [membershipActionError, setMembershipActionError] = useState('');
 	const [removeActionError, setRemoveActionError] = useState('');
 	const [shouldLogout, setShouldLogout] = useState(false);
+	const [pendingRemove, setPendingRemove] = useState(false);
 	const suspendTenantUserMutation = useSuspendStaffTenantUserMutation();
 	const reactivateTenantUserMutation = useReactivateStaffTenantUserMutation();
 	const removeTenantUserMutation = useRemoveStaffTenantUserMutation();
@@ -191,7 +207,12 @@ function StaffTenantUserDetailsPage() {
 			return <LogoutRedirect />;
 		}
 
-		return <TenantDetailsError error={tenantQuery.error} />;
+		return (
+			<TenantDetailsError
+				error={tenantQuery.error}
+				onRetry={() => void tenantQuery.refetch()}
+			/>
+		);
 	}
 
 	if (detailsQuery.isError && shouldLogoutForFailure(detailsQuery.error)) {
@@ -206,28 +227,37 @@ function StaffTenantUserDetailsPage() {
 	if (!tenant) {
 		return (
 			<AppErrorView
-				icon="🔎"
-				code="404 — Not Found"
-				title="Tenant not found"
-				description="The tenant payload was incomplete."
+				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
+				code={t('error-500-code')}
+				title={t('tenant-details-error-title')}
+				description={t('tenant-response-incomplete')}
 				testId="staff-tenant-details-empty"
+				actions={
+					<TenantRetryActions onRetry={() => void tenantQuery.refetch()} />
+				}
 			/>
 		);
 	}
 
 	if (detailsQuery.isError) {
-		return <StaffTenantUserDetailsError error={detailsQuery.error} />;
+		return (
+			<StaffTenantUserDetailsError
+				error={detailsQuery.error}
+				onRetry={() => void detailsQuery.refetch()}
+			/>
+		);
 	}
 
 	const user = toStaffTenantUserDetails(detailsQuery.data);
 	if (!user) {
 		return (
 			<AppErrorView
-				icon="🔎"
-				code="404 — Not Found"
-				title="Tenant user not found"
-				description="The tenant user payload was empty."
+				icon={<IconSearchOff aria-hidden="true" className="size-7" />}
+				code={t('error-404-code')}
+				title={t('tenant-user-not-found-title')}
+				description={t('tenant-user-payload-empty')}
 				testId="staff-tenant-user-details-empty"
+				actions={<BackToTenantsLink />}
 			/>
 		);
 	}
@@ -250,19 +280,12 @@ function StaffTenantUserDetailsPage() {
 
 	const membershipAction = getMembershipActionLabel(normalizedStatus);
 	const membershipActionLabel =
-		membershipAction === 'suspend' ? 'Suspend' : 'Reactivate';
+		membershipAction === 'suspend' ? t('suspend') : t('reactivate');
 	const membershipActionDisabled =
 		isStatusActionPending || isGloballySuspended || !membershipAction;
 
 	const invalidateTenantUserQueries = async () => {
-		await Promise.all([
-			queryClient.invalidateQueries({
-				queryKey: ['staff', ...STAFF_TENANT_USERS_QUERY_KEY],
-			}),
-			queryClient.invalidateQueries({
-				queryKey: ['staff', ...STAFF_TENANT_USER_DETAILS_QUERY_KEY],
-			}),
-		]);
+		await invalidateAllStaffTenantScopes(queryClient);
 	};
 
 	const handleMembershipAction = async (action: 'suspend' | 'reactivate') => {
@@ -284,7 +307,7 @@ function StaffTenantUserDetailsPage() {
 
 			setMembershipActionError(
 				getFailureMessage(toApiFailure(error), {
-					fallback: 'Unable to update tenant user membership status.',
+					fallback: t('unable-to-update-tenant-user-membership'),
 				}),
 			);
 		}
@@ -292,13 +315,6 @@ function StaffTenantUserDetailsPage() {
 
 	const handleRemoveAction = async () => {
 		setRemoveActionError('');
-
-		if (
-			typeof globalThis.confirm === 'function' &&
-			!globalThis.confirm('Remove this tenant user from the tenant?')
-		) {
-			return;
-		}
 
 		try {
 			await removeTenantUserMutation.mutateAsync({ tenantId, userId });
@@ -317,9 +333,11 @@ function StaffTenantUserDetailsPage() {
 
 			setRemoveActionError(
 				getFailureMessage(toApiFailure(error), {
-					fallback: 'Unable to remove this tenant user from the tenant.',
+					fallback: t('unable-to-remove-tenant-user'),
 				}),
 			);
+		} finally {
+			setPendingRemove(false);
 		}
 	};
 
@@ -327,31 +345,31 @@ function StaffTenantUserDetailsPage() {
 		<TenantDetailsPageShell
 			tenant={tenant}
 			activeSection="users"
-			summary="Read-only tenant user details from the staff tenant users stack."
 			testId="staff-tenant-user-details-page"
 		>
 			<div className="space-y-2">
 				<Link
 					to="/staff/tenants/$tenantId/users"
 					params={{ tenantId }}
-					className="text-sm text-foreground-500 underline-offset-4 hover:text-foreground hover:underline"
+					className="publy-back-link"
 				>
-					Back to users
+					<IconArrowLeft aria-hidden="true" className="size-3" />
+					{t('back-to-users')}
 				</Link>
 				<Link
 					to="/staff/tenants/$tenantId/users/$userId/edit"
 					params={{ tenantId, userId }}
 					className="inline-flex text-sm font-medium text-foreground underline-offset-4 hover:text-foreground hover:underline"
 				>
-					Edit tenant user
+					{t('edit-tenant-user')}
 				</Link>
 
 				<div className="space-y-2">
 					<h1 className="text-2xl font-semibold tracking-tight text-foreground">
 						{user.displayName}
 					</h1>
-					<p className="max-w-3xl text-sm text-foreground-500">
-						{user.email || 'No email address available.'}
+					<p className="max-w-3xl text-sm text-muted-foreground">
+						{user.email || t('no-email-available')}
 					</p>
 				</div>
 			</div>
@@ -359,16 +377,19 @@ function StaffTenantUserDetailsPage() {
 			<Card className="space-y-4 p-4">
 				<div className="flex flex-wrap items-center justify-between gap-3">
 					<div className="space-y-1">
-						<p className="text-xs font-medium uppercase tracking-[0.2em] text-foreground-500">
-							Tenant membership status
+						<p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+							{t('tenant-membership-status')}
 						</p>
-						<p className="text-sm text-foreground">{user.status ?? '—'}</p>
+						<p className="text-sm text-foreground">
+							{formatTenantUserStatusLabel(user.status, t)}
+						</p>
 					</div>
 					<div className="flex items-center gap-2">
 						{canChangeStatus ? (
-							<button
+							<Button
 								type="button"
-								className="rounded-medium border border-divider bg-content2 px-3 py-2 text-sm text-foreground hover:bg-divider/30 disabled:cursor-not-allowed disabled:opacity-60"
+								variant="secondary"
+								size="sm"
 								onClick={() => {
 									if (!membershipAction) {
 										return;
@@ -380,86 +401,112 @@ function StaffTenantUserDetailsPage() {
 							>
 								{membershipActionLabel}
 								{isStatusActionPending ? '…' : ''}
-							</button>
+							</Button>
 						) : null}
 					</div>
 				</div>
 
 				{!canChangeStatus ? (
-					<p className="rounded-large border border-dashed border-divider bg-content1 p-2 text-xs text-foreground-500">
+					<p className="rounded-large border border-dashed border-border bg-card p-2 text-xs text-muted-foreground">
 						{isGloballySuspended
-							? 'Membership lifecycle actions are disabled for globally suspended users.'
-							: 'Membership lifecycle actions are unavailable for this status.'}
+							? t('membership-lifecycle-disabled-globally-suspended')
+							: t('membership-lifecycle-unavailable-status')}
 					</p>
 				) : null}
 
 				{membershipActionError ? (
-					<p className="text-sm text-danger-600">{membershipActionError}</p>
+					<p className="text-sm text-destructive">{membershipActionError}</p>
 				) : null}
 			</Card>
 
 			<Card className="space-y-4 p-4">
 				<div className="flex flex-wrap items-center justify-between gap-3">
 					<div className="space-y-1">
-						<p className="text-xs font-medium uppercase tracking-[0.2em] text-foreground-500">
-							Tenant user removal
+						<p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+							{t('tenant-user-removal')}
 						</p>
 						<p className="text-sm text-foreground">
-							Remove this user from this tenant.
+							{t('remove-user-from-tenant-description')}
 						</p>
 					</div>
-					<button
+					<Button
 						type="button"
-						className="rounded-medium border border-danger-500/40 bg-danger/10 px-3 py-2 text-sm text-danger-700 transition hover:bg-danger/15 disabled:cursor-not-allowed disabled:opacity-60"
-						onClick={() => {
-							void handleRemoveAction();
-						}}
+						variant="destructive"
+						size="sm"
+						onClick={() => setPendingRemove(true)}
 						disabled={isAnyActionPending}
 					>
-						Remove from tenant
+						{t('remove-from-tenant')}
 						{isRemoveActionPending ? '…' : ''}
-					</button>
+					</Button>
 				</div>
 
 				{removeActionError ? (
-					<p className="text-sm text-danger-600">{removeActionError}</p>
+					<p className="text-sm text-destructive">{removeActionError}</p>
 				) : null}
 			</Card>
 
+			<ConfirmDialog
+				isOpen={pendingRemove}
+				title={t('remove-tenant-user-confirm-title')}
+				description={t('remove-tenant-user-confirm-description')}
+				confirmLabel={t('remove')}
+				isPending={removeTenantUserMutation.isPending}
+				onConfirm={() => {
+					void handleRemoveAction();
+				}}
+				onOpenChange={setPendingRemove}
+			/>
+
 			<Card className="space-y-4 p-5">
 				<div className="grid gap-4 md:grid-cols-2">
-					<DetailItem label="Email" value={user.email || '—'} />
-					<DetailItem label="Account level" value={user.accountLevel ?? '—'} />
-					<DetailItem label="Status" value={user.status ?? '—'} />
-					<DetailItem label="User ID" value={user.id} />
-					<DetailItem label="Tenant ID" value={user.tenantId ?? '—'} />
-					<DetailItem label="Avatar URL" value={user.avatarUrl ?? '—'} />
+					<DetailItem label={t('email')} value={user.email} />
+					<DetailItem
+						label={t('account-level')}
+						value={formatTenantUserLevelLabel(user.accountLevel, t)}
+					/>
+					<DetailItem
+						label={t('status')}
+						value={formatTenantUserStatusLabel(user.status, t)}
+					/>
+					<DetailItem label={t('user-id')} value={user.id} />
+					{/* W6-GUARDS (tests F7 / users-auth F11): the API's own
+					`tenantId` is nullable in the response type, but this route is
+					already scoped to a validated tenant via `Route.useParams()` —
+					sourcing the display value from the ROUTE removes the fabricated
+					'—' placeholder for a required identity field entirely, instead
+					of tolerating a null API value. */}
+					<DetailItem label={t('tenant-id')} value={tenantId} />
+					{/* data-honesty-ignore: avatarUrl is a documented OPTIONAL field — a user with no uploaded avatar has none, this is not fabricated identity data */}
+					<DetailItem label={t('avatar-url')} value={user.avatarUrl ?? '—'} />
 				</div>
 			</Card>
 
 			<Card className="space-y-4 p-5">
 				<div className="space-y-1">
-					<p className="text-lg font-semibold text-foreground">Activity</p>
-					<p className="text-sm text-foreground-500">
-						Read-only activity timestamps for this tenant user.
+					<p className="text-lg font-semibold text-foreground">
+						{t('activity')}
+					</p>
+					<p className="text-sm text-muted-foreground">
+						{t('tenant-user-activity-description')}
 					</p>
 				</div>
 				<div className="grid gap-4">
 					{user.createdAt ? (
 						<DetailItem
-							label="Created"
+							label={t('created')}
 							value={formatDateTime(user.createdAt, i18n.language)}
 						/>
 					) : null}
 					{user.updatedAt ? (
 						<DetailItem
-							label="Updated"
+							label={t('updated')}
 							value={formatDateTime(user.updatedAt, i18n.language)}
 						/>
 					) : null}
 					{!user.createdAt && !user.updatedAt ? (
-						<div className="rounded-large border border-dashed border-divider bg-content1 p-4 text-sm text-foreground-500">
-							No timestamps are available for this tenant user yet.
+						<div className="rounded-large border border-dashed border-border bg-card p-4 text-sm text-muted-foreground">
+							{t('tenant-user-no-timestamps')}
 						</div>
 					) : null}
 				</div>

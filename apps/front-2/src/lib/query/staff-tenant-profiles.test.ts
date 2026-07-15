@@ -17,6 +17,8 @@ import {
 	assignStaffTenantProfilePermissionMutationOptions,
 	unassignStaffTenantProfilePermissionMutationOptions,
 	buildUpdateStaffTenantProfileBody,
+	invalidateStaffTenantProfiles,
+	STAFF_TENANT_PROFILES_QUERY_KEY,
 	toStaffTenantProfileDetails,
 	toStaffTenantProfilePermissionKeys,
 	toStaffTenantProfileRows,
@@ -31,6 +33,32 @@ import type {
 beforeEach(() => {
 	vi.clearAllMocks();
 });
+
+const unwrapUntyped = (value: unknown): unknown => {
+	if (
+		typeof value === 'object' &&
+		value !== null &&
+		'getValue' in value &&
+		typeof (value as { getValue?: unknown }).getValue === 'function'
+	) {
+		return unwrapUntyped((value as { value?: unknown }).value);
+	}
+
+	if (Array.isArray(value)) {
+		return value.map((item) => unwrapUntyped(item));
+	}
+
+	if (value && typeof value === 'object') {
+		return Object.fromEntries(
+			Object.entries(value as Record<string, unknown>).map(([key, nested]) => [
+				key,
+				unwrapUntyped(nested),
+			]),
+		);
+	}
+
+	return value;
+};
 
 describe('buildFindStaffTenantProfilesQueryParameters', () => {
 	test('trims supported values and stringifies page size', () => {
@@ -133,8 +161,8 @@ describe('buildCreateStaffTenantProfileBody', () => {
 			description: '  Can review approvals  ',
 		});
 
-		expect(body.name).toBeDefined();
-		expect(body.description).toBeDefined();
+		expect(unwrapUntyped(body.name)).toBe('Approvers');
+		expect(unwrapUntyped(body.description)).toBe('Can review approvals');
 		expect(body.permissionKeys).toBeUndefined();
 	});
 
@@ -144,9 +172,31 @@ describe('buildCreateStaffTenantProfileBody', () => {
 			description: '   ',
 		});
 
-		expect(body.name).toBeDefined();
+		expect(unwrapUntyped(body.name)).toBe('Approvers');
 		expect(body.description).toBeUndefined();
 		expect(body.permissionKeys).toBeUndefined();
+	});
+
+	test('serializes populated permission keys as an untyped string array', () => {
+		const body = buildCreateStaffTenantProfileBody({
+			name: 'Approvers',
+			permissionKeys: ['tenant.users.manage', 'tenant.users.read'],
+		});
+
+		expect(unwrapUntyped(body.permissionKeys)).toEqual([
+			'tenant.users.manage',
+			'tenant.users.read',
+		]);
+	});
+
+	// buildUpdateStaffTenantProfileBody trims `name` (below); create does not — pinning the
+	// current asymmetry rather than silently normalizing it away in the test.
+	test('does not trim the name (current asymmetry with the update body builder)', () => {
+		const body = buildCreateStaffTenantProfileBody({
+			name: '  Approvers  ',
+		});
+
+		expect(unwrapUntyped(body.name)).toBe('  Approvers  ');
 	});
 });
 
@@ -157,8 +207,8 @@ describe('buildUpdateStaffTenantProfileBody', () => {
 			description: '  Can review approvals  ',
 		});
 
-		expect(body.name).toBeDefined();
-		expect(body.description).toBeDefined();
+		expect(unwrapUntyped(body.name)).toBe('Approvers');
+		expect(unwrapUntyped(body.description)).toBe('Can review approvals');
 	});
 
 	test('clears description with null when the value is blank', () => {
@@ -167,7 +217,7 @@ describe('buildUpdateStaffTenantProfileBody', () => {
 			description: '   ',
 		});
 
-		expect(body.name).toBeDefined();
+		expect(unwrapUntyped(body.name)).toBe('Approvers');
 		expect(body.description).toBeNull();
 	});
 });
@@ -329,6 +379,7 @@ describe('toStaffTenantProfileRows', () => {
 				description: ' Can review approvals ',
 				isDefault: true,
 				userAccountCount: 7,
+				permissionsCount: 12,
 			},
 			{
 				id: '' as never,
@@ -336,13 +387,7 @@ describe('toStaffTenantProfileRows', () => {
 				description: 'Missing id',
 				isDefault: false,
 				userAccountCount: 1,
-			},
-			{
-				id: 'profile-2' as never,
-				name: null,
-				description: ' ',
-				isDefault: null,
-				userAccountCount: null,
+				permissionsCount: 1,
 			},
 		];
 
@@ -353,15 +398,35 @@ describe('toStaffTenantProfileRows', () => {
 				description: 'Can review approvals',
 				isDefault: true,
 				userAccountCount: 7,
+				permissionsCount: 12,
+			},
+		]);
+	});
+
+	// shell-r5-F3: a row missing its required `name` used to be kept with a
+	// `'—'` placeholder a staff admin can't distinguish from real data. It
+	// must be dropped instead.
+	test('drops a row with a blank/missing name rather than fabricating a placeholder', () => {
+		const items: TenantProfileItem[] = [
+			{
+				id: 'profile-2' as never,
+				name: null,
+				description: ' ',
+				isDefault: null,
+				userAccountCount: null,
+				permissionsCount: null,
 			},
 			{
-				id: 'profile-2',
-				name: '—',
+				id: 'profile-3' as never,
+				name: '   ',
 				description: null,
 				isDefault: false,
 				userAccountCount: 0,
+				permissionsCount: 0,
 			},
-		]);
+		];
+
+		expect(toStaffTenantProfileRows(items)).toEqual([]);
 	});
 });
 
@@ -396,6 +461,20 @@ describe('toStaffTenantProfileDetails', () => {
 			} as GetTenantProfileByIdResponse),
 		).toBeNull();
 	});
+
+	// shell-r5-F3: a payload missing its required `name` used to be treated
+	// as present-but-blank, fabricating a `'—'` placeholder. It must be
+	// treated the same as "not found" instead.
+	test('returns null when the payload has no usable name', () => {
+		expect(
+			toStaffTenantProfileDetails({
+				profile: {
+					id: 'profile-8' as never,
+					name: '   ',
+				},
+			} as GetTenantProfileByIdResponse),
+		).toBeNull();
+	});
 });
 
 describe('toStaffTenantProfilePermissionKeys', () => {
@@ -415,5 +494,25 @@ describe('toStaffTenantProfilePermissionKeys', () => {
 
 	test('returns an empty list when the payload is empty', () => {
 		expect(toStaffTenantProfilePermissionKeys(undefined)).toEqual([]);
+	});
+});
+
+describe('buildUpdateStaffTenantProfileBody description branch', () => {
+	test('omits description entirely when it was not provided', () => {
+		const body = buildUpdateStaffTenantProfileBody({ name: 'Approvers' });
+
+		expect('description' in body).toBe(false);
+	});
+});
+
+describe('invalidateStaffTenantProfiles', () => {
+	test('invalidates the shared staff-tenant-profiles scope prefix', () => {
+		const invalidateQueries = vi.fn();
+
+		void invalidateStaffTenantProfiles({ invalidateQueries } as never);
+
+		expect(invalidateQueries).toHaveBeenCalledWith({
+			queryKey: ['staff', ...STAFF_TENANT_PROFILES_QUERY_KEY],
+		});
 	});
 });

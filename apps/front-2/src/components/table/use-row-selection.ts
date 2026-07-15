@@ -1,6 +1,6 @@
-import type { Selection } from '@heroui/react';
 import { useCallback, useEffect, useState } from 'react';
 
+export type TableSelection = 'all' | Set<string>;
 export type RowSelectionMap = Record<string, boolean>;
 
 /** Drops selection entries for row ids that are no longer visible. */
@@ -19,31 +19,41 @@ export const pruneSelection = (
 export const countSelected = (selection: RowSelectionMap): number =>
 	Object.values(selection).filter(Boolean).length;
 
-export const toHeroSelection = (selection: RowSelectionMap): Selection =>
-	new Set(
-		Object.entries(selection)
-			.filter(([, checked]) => checked)
-			.map(([id]) => id),
-	);
+export const toTableSelection = (
+	selection: RowSelectionMap,
+): TableSelection => {
+	const selected = Object.entries(selection)
+		.filter(([, checked]) => checked)
+		.map(([id]) => id);
+	return new Set(selected);
+};
 
-/** HeroUI's `Selection` always describes the desired state of the currently rendered rows. */
-export const fromHeroSelection = (
-	next: Selection,
+/** Local `TableSelection` from table event payload → stored row map. */
+export const fromTableSelection = (
+	next: TableSelection,
 	visibleRowIds: readonly string[],
 ): RowSelectionMap => {
 	if (next === 'all') {
 		return Object.fromEntries(visibleRowIds.map((id) => [id, true]));
 	}
 
-	return Object.fromEntries(Array.from(next, (key) => [String(key), true]));
+	const visible = new Set(visibleRowIds);
+	const entries: Array<[string, true]> = [];
+	for (const key of next) {
+		if (visible.has(key)) {
+			entries.push([key, true]);
+		}
+	}
+
+	return Object.fromEntries(entries);
 };
 
 export type UseRowSelectionResult = {
 	rowSelection: RowSelectionMap;
-	selectedKeys: Selection;
+	selectedKeys: TableSelection;
 	selectedCount: number;
 	isSelectionMode: boolean;
-	onSelectionChange: (next: Selection) => void;
+	onSelectionChange: (next: TableSelection) => void;
 	clearSelection: () => void;
 };
 
@@ -65,8 +75,8 @@ export const useRowSelection = (
 	}, [visibleKey]);
 
 	const onSelectionChange = useCallback(
-		(next: Selection) => {
-			setSelection(fromHeroSelection(next, visibleRowIds));
+		(next: TableSelection) => {
+			setSelection(fromTableSelection(next, visibleRowIds));
 		},
 		// visibleKey is the stable, content-based dependency for visibleRowIds.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
@@ -78,7 +88,7 @@ export const useRowSelection = (
 
 	return {
 		rowSelection: selection,
-		selectedKeys: toHeroSelection(selection),
+		selectedKeys: toTableSelection(selection),
 		selectedCount,
 		isSelectionMode: selectedCount > 0,
 		onSelectionChange,

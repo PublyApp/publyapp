@@ -1,11 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Infrastructure.Messaging.Email;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Users.Entities;
 namespace PublyApp.Api.Modules.Invitations.Services;
 
 public record FindTenantInvitationsFilters {
@@ -37,7 +39,9 @@ public record CreateStaffInvitationArgs(
 public record CreateTenantInvitationArgs(
 	string Email,
 	Guid TenantId,
+	string TenantName,
 	List<Guid> ProfileIds,
+	AccountLevel AccountLevel,
 	Guid InvitedByUserId
 );
 
@@ -151,13 +155,16 @@ public record StaffInvitationDetailsResult {
 [Service(ServiceLifetime.Scoped)]
 public class InvitationService : IInvitationService {
 	private readonly AppDbContext _dbContext;
+	private readonly IInvitationEmailOutboxSignal _outboxSignal;
 	private readonly ILogger<InvitationService> _logger;
 
 	public InvitationService(
 		AppDbContext dbContext,
+		IInvitationEmailOutboxSignal outboxSignal,
 		ILogger<InvitationService> logger
 	) {
 		_dbContext = dbContext;
+		_outboxSignal = outboxSignal;
 		_logger = logger;
 	}
 
@@ -182,7 +189,21 @@ public class InvitationService : IInvitationService {
 		invitation.ValidateInvitationType();
 
 		await _dbContext.Invitation.AddAsync(invitation, cancellationToken);
+
+		// Written in the same SaveChanges call as the invitation so a committed
+		// invitation always has a durable delivery record (round-5 API F3).
+		// The Invitation navigation lets EF resolve invitation_id via the
+		// store-generated (uuidv7) key from this same SaveChanges batch,
+		// linking the outbox row for revoke/accept cancellation (round-6 F3).
+		var staffOutboxRow = InvitationEmailOutbox.CreateStaffInvitation(email, token);
+		staffOutboxRow.Invitation = invitation;
+		await _dbContext.InvitationEmailOutbox.AddAsync(
+			staffOutboxRow,
+			cancellationToken
+		);
+
 		await _dbContext.SaveChangesAsync(cancellationToken);
+		_outboxSignal.Notify();
 
 		if (_logger.IsEnabled(LogLevel.Information)) {
 			_logger.LogInformation(
@@ -215,11 +236,28 @@ public class InvitationService : IInvitationService {
 			expiresAt,
 			token
 		);
+		invitation.AccountLevel = args.AccountLevel;
 
 		invitation.ValidateInvitationType();
 
 		await _dbContext.Invitation.AddAsync(invitation, cancellationToken);
+
+		// Written in the same SaveChanges call as the invitation so a committed
+		// invitation always has a durable delivery record (round-5 API F3).
+		var tenantOutboxRow = InvitationEmailOutbox.CreateTenantInvitation(
+			email,
+			args.TenantName,
+			token,
+			args.AccountLevel
+		);
+		tenantOutboxRow.Invitation = invitation;
+		await _dbContext.InvitationEmailOutbox.AddAsync(
+			tenantOutboxRow,
+			cancellationToken
+		);
+
 		await _dbContext.SaveChangesAsync(cancellationToken);
+		_outboxSignal.Notify();
 
 		if (_logger.IsEnabled(LogLevel.Information)) {
 			_logger.LogInformation(
@@ -374,6 +412,12 @@ public class InvitationService : IInvitationService {
 				// Add invitation (EF Core will also track the InvitationProfile junction records)
 				_dbContext.Invitation.Add(invitation);
 
+				// Durable delivery record in the same transaction as the invitation
+				// (round-5 API F3).
+				var bulkStaffOutboxRow = InvitationEmailOutbox.CreateStaffInvitation(item.Email, token);
+				bulkStaffOutboxRow.Invitation = invitation;
+				_dbContext.InvitationEmailOutbox.Add(bulkStaffOutboxRow);
+
 				// Collect email and token for sending emails later
 				invitationTokens.Add((item.Email, token));
 			}
@@ -383,6 +427,7 @@ public class InvitationService : IInvitationService {
 
 			// Commit transaction
 			await tx.CommitAsync(cancellationToken);
+			_outboxSignal.Notify();
 
 			if (_logger.IsEnabled(LogLevel.Information)) {
 				_logger.LogInformation(

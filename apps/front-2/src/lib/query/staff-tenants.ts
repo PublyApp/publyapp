@@ -1,11 +1,17 @@
 import {
 	createUntypedArray,
+	createUntypedBoolean,
 	createUntypedNumber,
 	createUntypedObject,
 	createUntypedString,
 } from '@microsoft/kiota-abstractions';
+import type { QueryClient } from '@tanstack/react-query';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
+import {
+	normalizeNullableFileUrl,
+	toRootRelativeApiFileUrl,
+} from '~/lib/api-client/resolve-api-file-url';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/src/apiClient';
@@ -13,6 +19,9 @@ import type {
 	CreateTenantAsStaffBody,
 	CreateTenantAsStaffResult,
 	ApiResponse,
+	BulkDeleteTenantsResult,
+	BulkReactivateTenantsResult,
+	BulkSuspendTenantsResult,
 	FindTenantsAsStaffResponse,
 	GetTenantAsStaffResult,
 	TenantReactivatedResult,
@@ -23,6 +32,7 @@ import type {
 import {
 	buildStaffMutationOptions,
 	buildStaffQueryOptions,
+	scopedKey,
 } from '@org/shared-ts/lib/query/create-hooks';
 
 export type StaffTenantsQueryVariables = {
@@ -51,6 +61,14 @@ export type StaffTenantUpdateInput = {
 	name?: string;
 	maxUsers?: number;
 	logoUrl?: string | null;
+	legalName?: string | null;
+	description?: string | null;
+	websiteUrl?: string | null;
+	billingEmail?: string | null;
+	supportEmail?: string | null;
+	defaultLocale?: string | null;
+	timezone?: string | null;
+	notes?: string | null;
 };
 
 export type StaffTenantLifeCycleInput = {
@@ -64,7 +82,20 @@ export type StaffTenantDetails = {
 	status: string | null;
 	usersCount: number;
 	maxUsers: number;
+	ownersCount: number;
+	pendingInvitationsCount: number;
+	expiringSoonInvitationsCount: number;
+	profilesCount: number;
 	logoUrl: string | null;
+	legalName: string | null;
+	description: string | null;
+	websiteUrl: string | null;
+	billingEmail: string | null;
+	supportEmail: string | null;
+	defaultLocale: string | null;
+	timezone: string | null;
+	notes: string | null;
+	lastActivityAt: Date | null;
 	createdAt: Date | null;
 	updatedAt: Date | null;
 };
@@ -77,9 +108,22 @@ export type StaffTenantInitialUserInput = {
 export type CreateStaffTenantInput = {
 	name: string;
 	maxUsers: number;
+	code?: string;
+	seedDefaultProfile?: boolean;
 	initialUsers: StaffTenantInitialUserInput[];
+	logoUrl?: string;
+	legalName?: string;
+	description?: string;
+	websiteUrl?: string;
+	billingEmail?: string;
+	supportEmail?: string;
+	defaultLocale?: string;
+	timezone?: string;
+	notes?: string;
 };
 
+/** @internal Unscoped — `scopedKey('staff', …)` is the only way to build an
+ * invalidation key from this; use `invalidateAllStaffTenantScopes`. */
 export const STAFF_TENANTS_QUERY_KEY = ['staff-tenants'] as const;
 
 const normalizeString = (
@@ -119,10 +163,32 @@ const normalizeDate = (value: Date | null | undefined): Date | null => {
 const isPositiveSafeInteger = (value: number | undefined): value is number =>
 	typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
 
+/** @internal Unscoped — `scopedKey('staff', …)` is the only way to build an
+ * invalidation key from this; use `invalidateAllStaffTenantScopes`. */
 export const STAFF_TENANT_DETAILS_QUERY_KEY = [
 	'staff-tenants',
 	'detail',
 ] as const;
+
+/** Invalidates both the tenants list and every tenant's details entry —
+ * `STAFF_TENANT_DETAILS_QUERY_KEY` nests under `STAFF_TENANTS_QUERY_KEY`, so
+ * a single prefix invalidation covers both. Prefer this over hand-assembling
+ * `['staff', ...STAFF_TENANTS_QUERY_KEY]` at a call site (see F19/F16). */
+export const invalidateStaffTenants = (queryClient: QueryClient) =>
+	queryClient.invalidateQueries({
+		queryKey: scopedKey('staff', STAFF_TENANTS_QUERY_KEY),
+	});
+
+/** Same scope as {@link invalidateStaffTenants} (the prefix-match already
+ * covers the tenants list, every tenant's details, and every child resource
+ * scoped under a tenant — users/profiles/invitations) — named for the child
+ * resource call sites that pair a mutation with "and refresh the parent
+ * tenant too". A prior name (`invalidateStaffTenantDetails`) implied a
+ * narrow details-only scope it never had (r3-tenants-F9). */
+export const invalidateAllStaffTenantScopes = (queryClient: QueryClient) =>
+	queryClient.invalidateQueries({
+		queryKey: scopedKey('staff', STAFF_TENANTS_QUERY_KEY),
+	});
 
 export const buildFindStaffTenantsQueryParameters = (
 	variables: StaffTenantsQueryVariables,
@@ -150,14 +216,18 @@ export const toStaffTenantRows = (
 	const rows: StaffTenantRow[] = [];
 
 	for (const item of items ?? []) {
+		// A row with no readable name is malformed — dropped rather than shown
+		// with a `'—'` placeholder a staff admin can't distinguish from a
+		// legitimate value (shell-r5-F3).
 		const id = normalizeString(item.id ?? undefined);
-		if (!id) {
+		const name = normalizeString(item.name);
+		if (!id || !name) {
 			continue;
 		}
 
 		rows.push({
 			id,
-			name: normalizeString(item.name) ?? '—',
+			name,
 			status: normalizeNullableString(item.status),
 			usersCount: item.usersCount ?? 0,
 			maxUsers: item.maxUsers ?? 0,
@@ -171,18 +241,35 @@ export const toStaffTenantDetails = (
 	result: GetTenantAsStaffResult | null | undefined,
 ): StaffTenantDetails | null => {
 	const id = normalizeString(result?.tenantId?.toString() ?? undefined);
-	if (!id) {
+	const name = normalizeString(result?.name);
+	// A malformed payload (missing the required identity) is treated the same
+	// as "not found" — never rendered with a `'—'` placeholder a staff admin
+	// can't distinguish from a legitimate value (shell-r5-F3).
+	if (!id || !name) {
 		return null;
 	}
 
 	return {
 		id,
-		name: normalizeString(result?.name) ?? '—',
+		name,
 		code: normalizeNullableString(result?.code),
 		status: normalizeNullableString(result?.status),
 		usersCount: result?.usersCount ?? 0,
 		maxUsers: result?.maxUsers ?? 0,
-		logoUrl: normalizeNullableString(result?.logoUrl),
+		ownersCount: result?.ownersCount ?? 0,
+		pendingInvitationsCount: result?.pendingInvitationsCount ?? 0,
+		expiringSoonInvitationsCount: result?.expiringSoonInvitationsCount ?? 0,
+		profilesCount: result?.profilesCount ?? 0,
+		logoUrl: normalizeNullableFileUrl(result?.logoUrl),
+		legalName: normalizeNullableString(result?.legalName),
+		description: normalizeNullableString(result?.description),
+		websiteUrl: normalizeNullableString(result?.websiteUrl),
+		billingEmail: normalizeNullableString(result?.billingEmail),
+		supportEmail: normalizeNullableString(result?.supportEmail),
+		defaultLocale: normalizeNullableString(result?.defaultLocale),
+		timezone: normalizeNullableString(result?.timezone),
+		notes: normalizeNullableString(result?.notes),
+		lastActivityAt: normalizeDate(result?.lastActivityAt),
 		createdAt: normalizeDate(result?.createdAt),
 		updatedAt: normalizeDate(result?.updatedAt),
 	};
@@ -225,6 +312,72 @@ export const buildCreateStaffTenantBody = (
 		) as typeof body.initialUsers;
 	}
 
+	const code = normalizeString(input.code);
+	if (code) {
+		body.code = createUntypedString(code) as typeof body.code;
+	}
+
+	if (typeof input.seedDefaultProfile === 'boolean') {
+		body.seedDefaultProfile = createUntypedBoolean(
+			input.seedDefaultProfile,
+		) as typeof body.seedDefaultProfile;
+	}
+
+	const legalName = normalizeString(input.legalName);
+	if (legalName) {
+		body.legalName = createUntypedString(legalName) as typeof body.legalName;
+	}
+
+	const logoUrl = normalizeString(input.logoUrl);
+	if (logoUrl) {
+		body.logoUrl = createUntypedString(
+			toRootRelativeApiFileUrl(logoUrl),
+		) as typeof body.logoUrl;
+	}
+
+	const description = normalizeString(input.description);
+	if (description) {
+		body.description = createUntypedString(
+			description,
+		) as typeof body.description;
+	}
+
+	const websiteUrl = normalizeString(input.websiteUrl);
+	if (websiteUrl) {
+		body.websiteUrl = createUntypedString(websiteUrl) as typeof body.websiteUrl;
+	}
+
+	const billingEmail = normalizeString(input.billingEmail);
+	if (billingEmail) {
+		body.billingEmail = createUntypedString(
+			billingEmail,
+		) as typeof body.billingEmail;
+	}
+
+	const supportEmail = normalizeString(input.supportEmail);
+	if (supportEmail) {
+		body.supportEmail = createUntypedString(
+			supportEmail,
+		) as typeof body.supportEmail;
+	}
+
+	const defaultLocale = normalizeString(input.defaultLocale);
+	if (defaultLocale) {
+		body.defaultLocale = createUntypedString(
+			defaultLocale,
+		) as typeof body.defaultLocale;
+	}
+
+	const timezone = normalizeString(input.timezone);
+	if (timezone) {
+		body.timezone = createUntypedString(timezone) as typeof body.timezone;
+	}
+
+	const notes = normalizeString(input.notes);
+	if (notes) {
+		body.notes = createUntypedString(notes) as typeof body.notes;
+	}
+
 	return body;
 };
 
@@ -234,6 +387,14 @@ export const buildUpdateStaffTenantBody = (
 	const body: UpdateTenantAsStaffBody = {};
 	const name = normalizeString(input.name);
 	const logoUrl = normalizeOptionalUpdateString(input.logoUrl);
+	const legalName = normalizeOptionalUpdateString(input.legalName);
+	const description = normalizeOptionalUpdateString(input.description);
+	const websiteUrl = normalizeOptionalUpdateString(input.websiteUrl);
+	const billingEmail = normalizeOptionalUpdateString(input.billingEmail);
+	const supportEmail = normalizeOptionalUpdateString(input.supportEmail);
+	const defaultLocale = normalizeOptionalUpdateString(input.defaultLocale);
+	const timezone = normalizeOptionalUpdateString(input.timezone);
+	const notes = normalizeOptionalUpdateString(input.notes);
 
 	if (name) {
 		body.name = createUntypedString(name) as typeof body.name;
@@ -247,13 +408,69 @@ export const buildUpdateStaffTenantBody = (
 		body.logoUrl =
 			logoUrl === null
 				? null
-				: (createUntypedString(logoUrl) as typeof body.logoUrl);
+				: (createUntypedString(
+						toRootRelativeApiFileUrl(logoUrl),
+					) as typeof body.logoUrl);
+	}
+
+	if (legalName !== undefined) {
+		body.legalName =
+			legalName === null
+				? null
+				: (createUntypedString(legalName) as typeof body.legalName);
+	}
+
+	if (description !== undefined) {
+		body.description =
+			description === null
+				? null
+				: (createUntypedString(description) as typeof body.description);
+	}
+
+	if (websiteUrl !== undefined) {
+		body.websiteUrl =
+			websiteUrl === null
+				? null
+				: (createUntypedString(websiteUrl) as typeof body.websiteUrl);
+	}
+
+	if (billingEmail !== undefined) {
+		body.billingEmail =
+			billingEmail === null
+				? null
+				: (createUntypedString(billingEmail) as typeof body.billingEmail);
+	}
+
+	if (supportEmail !== undefined) {
+		body.supportEmail =
+			supportEmail === null
+				? null
+				: (createUntypedString(supportEmail) as typeof body.supportEmail);
+	}
+
+	if (defaultLocale !== undefined) {
+		body.defaultLocale =
+			defaultLocale === null
+				? null
+				: (createUntypedString(defaultLocale) as typeof body.defaultLocale);
+	}
+
+	if (timezone !== undefined) {
+		body.timezone =
+			timezone === null
+				? null
+				: (createUntypedString(timezone) as typeof body.timezone);
+	}
+
+	if (notes !== undefined) {
+		body.notes =
+			notes === null ? null : (createUntypedString(notes) as typeof body.notes);
 	}
 
 	return body;
 };
 
-const staffTenantsQueryOptions = buildStaffQueryOptions<
+export const staffTenantsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	FindTenantsAsStaffResponse,
 	StaffTenantsQueryVariables
@@ -341,6 +558,7 @@ export const useStaffTenantDetailsQuery = (
 		queryKey: staffTenantDetailsQueryOptions.queryKey(variables),
 		queryFn: () => staffTenantDetailsQueryOptions.fetcher(variables),
 		enabled: options?.enabled ?? true,
+		staleTime: 30_000,
 	});
 
 export const useCreateStaffTenantMutation = () =>
@@ -396,3 +614,66 @@ export const useReactivateStaffTenantMutation = () =>
 
 export const useDeleteStaffTenantMutation = () =>
 	useMutation(deleteStaffTenantMutationOptions);
+
+export type BulkStaffTenantActionInput = {
+	tenantIds: string[];
+};
+
+const buildBulkTenantIdsBody = (tenantIds: string[]) => ({
+	tenantIds: createUntypedArray(tenantIds.map((id) => createUntypedString(id))),
+});
+
+export const bulkSuspendStaffTenantsMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	BulkSuspendTenantsResult | undefined,
+	BulkStaffTenantActionInput
+>(
+	{
+		mutationKeyFn: () => [...STAFF_TENANTS_QUERY_KEY, 'bulk-suspend'],
+		mutationFn: (client, variables) =>
+			client.staff.tenants.bulkSuspend.post(
+				buildBulkTenantIdsBody(variables.tenantIds),
+			),
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+export const bulkReactivateStaffTenantsMutationOptions =
+	buildStaffMutationOptions<
+		ApiClient,
+		BulkReactivateTenantsResult | undefined,
+		BulkStaffTenantActionInput
+	>(
+		{
+			mutationKeyFn: () => [...STAFF_TENANTS_QUERY_KEY, 'bulk-reactivate'],
+			mutationFn: (client, variables) =>
+				client.staff.tenants.bulkReactivate.post(
+					buildBulkTenantIdsBody(variables.tenantIds),
+				),
+		},
+		{ clientAccessor: getClientManager() },
+	);
+
+export const bulkDeleteStaffTenantsMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	BulkDeleteTenantsResult | undefined,
+	BulkStaffTenantActionInput
+>(
+	{
+		mutationKeyFn: () => [...STAFF_TENANTS_QUERY_KEY, 'bulk-delete'],
+		mutationFn: (client, variables) =>
+			client.staff.tenants.bulkDelete.post(
+				buildBulkTenantIdsBody(variables.tenantIds),
+			),
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+export const useBulkSuspendStaffTenantsMutation = () =>
+	useMutation(bulkSuspendStaffTenantsMutationOptions);
+
+export const useBulkReactivateStaffTenantsMutation = () =>
+	useMutation(bulkReactivateStaffTenantsMutationOptions);
+
+export const useBulkDeleteStaffTenantsMutation = () =>
+	useMutation(bulkDeleteStaffTenantsMutationOptions);

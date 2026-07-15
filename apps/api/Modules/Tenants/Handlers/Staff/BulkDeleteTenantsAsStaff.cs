@@ -68,21 +68,31 @@ public sealed class BulkDeleteTenantsAsStaff {
 			failedCount
 		);
 
-		// Log audit for bulk delete
+		// The bulk delete already committed above; audit persistence is
+		// best-effort from here so it never turns an already-successful mutation
+		// into a 500 (round-5 API F2 — sweep of every post-commit side effect).
 		var account = authContext.AccountStaff;
 		if (account is not null) {
-			await auditLogService.LogAsync(
-				new CreateAuditLogArgs(
-					UserId: account.UserId,
-					Action: AuditActions.TenantBulkDeleted,
-					TargetId: account.UserId,
-					Details: new {
-						Count = result.SucceededCount,
-						FailedCount = result.FailedCount
-					}
-				),
-				cancellationToken
-			);
+			try {
+				await auditLogService.LogAsync(
+					new CreateAuditLogArgs(
+						UserId: account.UserId,
+						Action: AuditActions.TenantBulkDeleted,
+						TargetId: account.UserId,
+						Details: new {
+							Count = result.SucceededCount,
+							FailedCount = result.FailedCount
+						}
+					),
+					cancellationToken
+				);
+			} catch (Exception ex) {
+				logger.LogWarning(
+					ex,
+					"Failed to write audit log for tenant bulk delete by staff user {UserId}",
+					account.UserId
+				);
+			}
 		}
 
 		return TypedResults.Ok(new BulkDeleteTenantsResult {

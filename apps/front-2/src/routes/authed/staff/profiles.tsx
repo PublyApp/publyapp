@@ -1,18 +1,36 @@
-import { buttonVariants } from '@heroui/react';
-import { createFileRoute } from '@tanstack/react-router';
-import { Link } from '@tanstack/react-router';
+import {
+	IconBriefcase,
+	IconBuildingBank,
+	IconCalendar,
+	IconChartBar,
+	IconEye,
+	IconNews,
+	IconPlus,
+	IconSettings,
+	IconShield,
+	IconTextCaption,
+	IconUsers,
+	IconWorld,
+} from '@tabler/icons-react';
+import type { Icon } from '@tabler/icons-react';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
+import { DataTableRowActions } from '~/components/table/row-actions';
 import { useRowSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
+import { buttonVariants } from '~/components/ui/button';
+import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
+import { PageHeader } from '~/components/ui/product-page';
 import {
 	type StaffProfileRow,
 	toStaffProfileRows,
 	useStaffProfilesQuery,
 } from '~/lib/query/staff-profiles';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 import {
 	parseTableSearchParams,
 	serializeTableSearchParams,
@@ -21,58 +39,130 @@ import type {
 	TableSearchParamInput,
 	TableSearchParams,
 } from '~/lib/url-state/table-search-params';
-import { shouldLogoutForFailure } from '~/routes/authed/layout';
+import { StaffListExportSelectedAction } from '~/routes/authed/staff/staff-list-export-selected';
 
+// Default server ordering by creation date provides stable, deterministic pagination.
+// No column advertises this sort key: `Profile` is the only sortable column and it sorts
+// by `name`, so nothing in the UI misrepresents the default ordering.
+// TODO(contract): switch to `updated_at` once the API exposes that sort key.
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
 
-const columns: ColumnDef<StaffProfileRow>[] = [
+const PROFILE_ICON_MAP: Record<string, Icon> = {
+	news: IconNews,
+	calendar: IconCalendar,
+	shield: IconShield,
+	'building-bank': IconBuildingBank,
+	users: IconUsers,
+	settings: IconSettings,
+	'chart-bar': IconChartBar,
+	world: IconWorld,
+};
+
+export const buildColumns = (
+	t: (key: string, options?: Record<string, unknown>) => string,
+): ColumnDef<StaffProfileRow>[] => [
 	{
 		id: 'name',
-		header: 'Name',
+		header: () => (
+			<div className="inline-flex items-center gap-1.5">
+				<IconBriefcase className="size-3.5 text-muted-foreground" />
+				<span>{t('profile')}</span>
+			</div>
+		),
 		accessorKey: 'name',
-		cell: ({ row }) => (
-			<div className="space-y-1">
+		meta: { width: '240px', pinWidthAbove: 768 },
+		cell: ({ row }) => {
+			const IconComponent = PROFILE_ICON_MAP[row.original.icon];
+			const name = row.original.name;
+			return (
 				<Link
 					to={'/staff/profiles/$profileId' as never}
 					params={{ profileId: row.original.id } as never}
-					className="font-medium text-primary underline-offset-4 hover:underline"
+					className="flex items-center gap-[11px] min-w-0 no-underline"
 				>
-					{row.original.name || '—'}
+					<span
+						className="publy-profile-icon-tile"
+						data-tone={row.original.iconTone}
+					>
+						{IconComponent ? <IconComponent className="size-[17px]" /> : null}
+					</span>
+					<span
+						className="publy-record-link min-w-0 truncate text-[13px]"
+						title={name || undefined}
+					>
+						{name || t('profile')}
+					</span>
 				</Link>
-				<p className="text-xs text-foreground-500">
-					{row.original.description ?? 'No description provided.'}
-				</p>
-			</div>
-		),
+			);
+		},
 	},
 	{
 		id: 'description',
-		header: 'Description',
+		header: () => (
+			<div className="inline-flex items-center gap-1.5">
+				<IconTextCaption className="size-3.5 text-muted-foreground" />
+				<span>{t('description')}</span>
+			</div>
+		),
 		accessorKey: 'description',
 		enableSorting: false,
-		cell: ({ getValue }) => getValue<string | null>() ?? '—',
+		meta: { hideBelow: 768 },
+		cell: ({ getValue }) => {
+			const value = getValue<string | null>();
+			if (!value) {
+				return null;
+			}
+			return (
+				<span className="block truncate text-[13px]" title={value}>
+					{value}
+				</span>
+			);
+		},
 	},
 	{
-		id: 'user_account_count',
-		header: 'User accounts',
+		id: 'members',
+		header: () => (
+			<div className="inline-flex items-center gap-1.5">
+				<IconUsers className="size-3.5 text-muted-foreground" />
+				<span>{t('members')}</span>
+			</div>
+		),
 		accessorKey: 'userAccountCount',
-		cell: ({ getValue }) => String(getValue<number>()),
+		enableSorting: false,
+		meta: { width: '104px', hideBelow: 768 },
+		cell: ({ getValue }) => {
+			const value = getValue<number | null>();
+			if (value === null) {
+				return null;
+			}
+			return <span className="text-[13px] font-medium">{value}</span>;
+		},
 	},
 	{
 		id: 'actions',
-		header: 'Actions',
+		header: () => <span className="sr-only">{t('actions')}</span>,
 		enableSorting: false,
+		meta: { width: '40px', align: 'center' },
 		cell: ({ row }) => (
-			<div className="flex justify-end">
-				<Link
-					to={'/staff/profiles/$profileId' as never}
-					params={{ profileId: row.original.id } as never}
-					className={buttonVariants({ variant: 'secondary', size: 'sm' })}
+			<DataTableRowActions
+				ariaLabel={t('actions-for', {
+					name: row.original.name || t('profile'),
+				})}
+				testId={`staff-profile-actions-${row.original.id}`}
+			>
+				<DropdownMenuItem
+					render={
+						<Link
+							to={'/staff/profiles/$profileId' as never}
+							params={{ profileId: row.original.id } as never}
+						/>
+					}
 				>
-					View
-				</Link>
-			</div>
+					<IconEye className="size-[15px]" />
+					{t('view-profile')}
+				</DropdownMenuItem>
+			</DataTableRowActions>
 		),
 	},
 ];
@@ -110,6 +200,7 @@ function StaffProfilesPage() {
 	});
 	const rows = toStaffProfileRows(query.data?.data);
 	const selection = useRowSelection(rows.map((row) => row.id));
+	const columns = useMemo(() => buildColumns(t), [t]);
 
 	const { resetDraftToCommitted } = controller.search;
 	useEffect(() => {
@@ -123,19 +214,23 @@ function StaffProfilesPage() {
 	}
 
 	return (
-		<div className="space-y-4 p-4">
-			<div className="flex items-center justify-between gap-4">
-				<h1 className="text-xl font-semibold">Staff profiles</h1>
-				<Link
-					to={'/staff/profiles/new' as never}
-					className={buttonVariants({ variant: 'primary' })}
-				>
-					{t('new-item', { item: t('profile').toLowerCase() })}
-				</Link>
-			</div>
+		<div className="publy-page-fill">
+			<PageHeader
+				title={t('profiles')}
+				description={t('staff-profiles-page-description')}
+				actions={
+					<Link
+						to={'/staff/profiles/new' as never}
+						className={buttonVariants({ variant: 'default' })}
+					>
+						<IconPlus aria-hidden="true" className="size-[15px]" />
+						{t('new-profile')}
+					</Link>
+				}
+			/>
 			<DataTable
 				testId="staff-profiles-table"
-				ariaLabel="Staff profiles"
+				ariaLabel={t('profiles')}
 				columns={columns}
 				rows={rows}
 				isPending={query.isPending}
@@ -156,7 +251,25 @@ function StaffProfilesPage() {
 				onPreviousPage={controller.cursor.onPreviousPage}
 				searchDraft={controller.search.draft}
 				onSearchDraftChange={controller.search.onDraftChange}
+				searchPlaceholder={t('search-profiles')}
 				selection={selection}
+				rowHeight={56}
+			/>
+			<StaffListExportSelectedAction
+				rows={rows}
+				selection={selection}
+				fileNamePrefix="staff-profiles"
+				columns={[
+					{ header: t('profile'), getValue: (row) => row.name },
+					{
+						header: t('description'),
+						getValue: (row) => row.description ?? '',
+					},
+					{
+						header: t('members'),
+						getValue: (row) => String(row.userAccountCount ?? ''),
+					},
+				]}
 			/>
 		</div>
 	);

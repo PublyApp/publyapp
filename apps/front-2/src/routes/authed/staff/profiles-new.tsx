@@ -1,22 +1,26 @@
-import { Button, Card, Spinner } from '@heroui/react';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { IconArrowLeft } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
 import type { i18n as I18nInstance } from 'i18next';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { Field, Form } from '~/components/field';
+import { Button } from '~/components/ui/button';
+import { Card } from '~/components/ui/card';
+import { ConfirmDialog } from '~/components/ui/confirm-dialog';
+import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import { FALLBACK_LANGUAGE, isSupportedLanguage } from '~/lib/i18n.shared';
 import {
-	STAFF_PROFILES_QUERY_KEY,
+	invalidateStaffProfiles,
 	type StaffPermissionCatalogEntry,
 	useCreateStaffProfileMutation,
 	useStaffPermissionCatalogQuery,
 } from '~/lib/query/staff-profiles';
-import { shouldLogoutForFailure } from '~/routes/authed/layout';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import {
 	getFailureMessage,
@@ -150,6 +154,7 @@ function NewStaffProfileRoute() {
 	const { t, i18n } = useTranslation('common');
 	const [shouldLogout, setShouldLogout] = useState(false);
 	const [serverError, setServerError] = useState('');
+	const hasSavedRef = useRef(false);
 
 	const resolver = useMemo(
 		() => zodResolver(getNewStaffProfileSchema(getInterZodForI18n(i18n))),
@@ -159,6 +164,11 @@ function NewStaffProfileRoute() {
 	const methods = useForm<NewStaffProfileValues>({
 		resolver,
 		defaultValues: DEFAULT_VALUES,
+	});
+
+	const blocker = useBlocker({
+		shouldBlockFn: () => methods.formState.isDirty && !hasSavedRef.current,
+		withResolver: true,
 	});
 
 	const permissionsQuery = useStaffPermissionCatalogQuery({
@@ -188,9 +198,8 @@ function NewStaffProfileRoute() {
 				permissions: values.permissions,
 				emails: values.emails,
 			});
-			await queryClient.invalidateQueries({
-				queryKey: STAFF_PROFILES_QUERY_KEY,
-			});
+			await invalidateStaffProfiles(queryClient);
+			hasSavedRef.current = true;
 			void navigate({
 				to: '/staff/profiles',
 			});
@@ -210,14 +219,12 @@ function NewStaffProfileRoute() {
 
 	return (
 		<div
-			className="mx-auto w-full max-w-4xl space-y-4 p-4"
+			className="mx-auto w-full max-w-4xl space-y-4"
 			data-testid="staff-profile-create-page"
 		>
 			<div className="space-y-2">
-				<Link
-					to="/staff/profiles"
-					className="text-sm underline-offset-4 hover:underline"
-				>
+				<Link to="/staff/profiles" className="publy-back-link">
+					<IconArrowLeft aria-hidden="true" className="size-3" />
 					{t('back-to-staff-profiles')}
 				</Link>
 				<h1 className="text-xl font-semibold">
@@ -226,63 +233,87 @@ function NewStaffProfileRoute() {
 			</div>
 
 			<Card className="space-y-4 p-4">
-				{permissionsQuery.isPending ? (
-					<div className="flex items-center gap-3 py-8 text-sm text-foreground-500">
-						<Spinner size="sm" />
-						<span>Loading permissions...</span>
-					</div>
-				) : permissionsQuery.isError ? (
-					<div className="space-y-3">
-						<p className="text-sm text-danger-600">
-							{getFailureMessage(toApiFailure(permissionsQuery.error), {
-								fallback: t('unable-to-load-staff-permissions'),
-							})}
-						</p>
-						<Button
-							type="button"
-							variant="secondary"
-							onPress={() => void permissionsQuery.refetch()}
-						>
-							Retry
-						</Button>
-					</div>
-				) : (
-					<Form methods={methods} onSubmit={onSubmit}>
-						<Field.Text
-							name="name"
-							label={t('profile-name')}
-							placeholder="Platform admin"
-							disabled={createProfile.isPending}
-						/>
-						<Field.Text
-							name="description"
-							label={t('description')}
-							placeholder="Describe the responsibilities for this profile"
-							disabled={createProfile.isPending}
-						/>
-						<Field.CheckboxGroup
-							name="permissions"
-							label={t('permissions')}
-							options={permissionOptions}
-							isDisabled={createProfile.isPending}
-						/>
-						{serverError ? (
-							<p className="text-sm text-danger-600">{serverError}</p>
-						) : null}
-						<div className="flex justify-end">
-							<Button
-								type="submit"
-								variant="primary"
-								isDisabled={
-									createProfile.isPending || permissionsQuery.isPending
-								}
-							>
-								{t('create-profile')}
-							</Button>
-						</div>
-					</Form>
-				)}
+				{(() => {
+					if (permissionsQuery.isPending) {
+						return (
+							<div className="flex items-center gap-3 py-8 text-sm text-muted-foreground">
+								<LoadingSpinner />
+								<span>{t('loading-permissions')}</span>
+							</div>
+						);
+					}
+
+					if (permissionsQuery.isError) {
+						return (
+							<div className="space-y-3">
+								<p className="text-sm text-destructive">
+									{getFailureMessage(toApiFailure(permissionsQuery.error), {
+										fallback: t('unable-to-load-staff-permissions'),
+									})}
+								</p>
+								<Button
+									type="button"
+									variant="secondary"
+									onClick={() => void permissionsQuery.refetch()}
+								>
+									{t('retry')}
+								</Button>
+							</div>
+						);
+					}
+
+					return (
+						<Form methods={methods} onSubmit={onSubmit}>
+							<Field.Text
+								name="name"
+								label={t('profile-name')}
+								placeholder={t('profile-name-placeholder')}
+								disabled={createProfile.isPending}
+							/>
+							<Field.Text
+								name="description"
+								label={t('description')}
+								placeholder={t('profile-description-placeholder')}
+								disabled={createProfile.isPending}
+							/>
+							<Field.CheckboxGroup
+								name="permissions"
+								label={t('permissions')}
+								options={permissionOptions}
+								isDisabled={createProfile.isPending}
+							/>
+							{serverError ? (
+								<p className="text-sm text-destructive">{serverError}</p>
+							) : null}
+							<div className="flex justify-end">
+								<Button
+									type="submit"
+									variant="default"
+									disabled={
+										createProfile.isPending || permissionsQuery.isPending
+									}
+								>
+									{t('create-profile')}
+								</Button>
+							</div>
+						</Form>
+					);
+				})()}
 			</Card>
+			<ConfirmDialog
+				isOpen={blocker.status === 'blocked'}
+				title={t('unsaved-changes-dialog-title')}
+				description={t('unsaved-changes-dialog-description')}
+				confirmLabel={t('leave-page')}
+				cancelLabel={t('cancel')}
+				tone="danger"
+				onConfirm={() => blocker.proceed?.()}
+				onOpenChange={(isOpen) => {
+					if (!isOpen) {
+						blocker.reset?.();
+					}
+				}}
+			/>
 		</div>
 	);
 }

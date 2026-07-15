@@ -68,21 +68,31 @@ public sealed class BulkReactivateTenantsAsStaff {
 			failedCount
 		);
 
-		// Log audit for bulk reactivate
+		// The bulk reactivate already committed above; audit persistence is
+		// best-effort from here so it never turns an already-successful mutation
+		// into a 500 (round-5 API F2 — sweep of every post-commit side effect).
 		var account = authContext.AccountStaff;
 		if (account is not null) {
-			await auditLogService.LogAsync(
-				new CreateAuditLogArgs(
-					UserId: account.UserId,
-					Action: AuditActions.TenantBulkReactivated,
-					TargetId: account.UserId,
-					Details: new {
-						Count = result.SucceededCount,
-						FailedCount = result.FailedCount
-					}
-				),
-				cancellationToken
-			);
+			try {
+				await auditLogService.LogAsync(
+					new CreateAuditLogArgs(
+						UserId: account.UserId,
+						Action: AuditActions.TenantBulkReactivated,
+						TargetId: account.UserId,
+						Details: new {
+							Count = result.SucceededCount,
+							FailedCount = result.FailedCount
+						}
+					),
+					cancellationToken
+				);
+			} catch (Exception ex) {
+				logger.LogWarning(
+					ex,
+					"Failed to write audit log for tenant bulk reactivate by staff user {UserId}",
+					account.UserId
+				);
+			}
 		}
 
 		return TypedResults.Ok(new BulkReactivateTenantsResult {

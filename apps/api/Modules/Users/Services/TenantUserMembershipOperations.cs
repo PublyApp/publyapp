@@ -77,6 +77,116 @@ internal static class TenantUserMembershipOperations {
 		return new RemoveUserFromTenantResult.Success();
 	}
 
+	internal static async Task<BulkTenantUserActionResult> BulkRemoveUsersFromTenantAsync(
+		AppDbContext dbContext,
+		Guid tenantId,
+		IReadOnlyCollection<Guid> userIds,
+		CancellationToken cancellationToken = default
+	) {
+		var requestedUserIds = userIds.Distinct().ToList();
+		if (requestedUserIds.Count == 0) {
+			return new BulkTenantUserActionResult(0, 0, []);
+		}
+
+		// Wrap the batch in a single transaction so the admin-count invariant is
+		// checked against a consistent snapshot, mirroring the single-item path.
+		await using var transaction = await dbContext.Database.BeginTransactionAsync(
+			IsolationLevel.Serializable,
+			cancellationToken
+		);
+
+		try {
+			var accounts = await (
+				from ua in dbContext.UserAccount
+				join u in dbContext.User on ua.UserId equals u.Id
+				where ua.TenantId == tenantId
+					&& ua.Scope == AccountScope.Tenant
+					&& !ua.IsDeleted
+					&& requestedUserIds.Contains(ua.UserId)
+				select new { Account = ua, User = u }
+			).ToListAsync(cancellationToken);
+
+			// Grouped rather than a plain ToDictionary: historical rows created before
+			// the ux_user_accounts_tenant_active constraint was backfilled may still
+			// contain duplicate active memberships for a single user, and a bare
+			// ToDictionary throws on the second key. Deterministically picking the
+			// newest row to act on keeps this bulk operation from 500ing on legacy
+			// duplicate data; it does not itself repair the duplicate.
+			var accountByUserId = accounts
+				.GroupBy(row => row.Account.UserId)
+				.ToDictionary(
+					group => group.Key,
+					group => group.OrderByDescending(row => row.Account.CreatedAt).First()
+				);
+			var activeAdminCount = await CountActiveTenantAdminsAsync(
+				dbContext,
+				tenantId,
+				cancellationToken
+			);
+
+			var failedItems = new List<BulkTenantUserActionFailedItem>();
+			var succeededAccountIds = new List<Guid>();
+
+			foreach (var userId in requestedUserIds) {
+				if (!accountByUserId.TryGetValue(userId, out var row)) {
+					// Stable token, not prose — the handler's wire contract maps this
+					// straight through so the frontend can translate it, rather than
+					// an English string it would have to pattern-match.
+					failedItems.Add(
+						new BulkTenantUserActionFailedItem(userId, "not-found")
+					);
+					continue;
+				}
+
+				var account = row.Account;
+				var user = row.User;
+				var isActiveAdmin = account.Level == AccountLevel.Admin
+					&& account.Status != AccountStatus.Suspended
+					&& !user.IsDeleted
+					&& user.Status != UserStatus.Suspended;
+
+				if (isActiveAdmin) {
+					if (activeAdminCount <= 1) {
+						failedItems.Add(
+							new BulkTenantUserActionFailedItem(
+								userId,
+								"last-admin"
+							)
+						);
+						continue;
+					}
+
+					activeAdminCount--;
+				}
+
+				account.IsDeleted = true;
+				account.DeletedAt = DateTime.UtcNow;
+				succeededAccountIds.Add(account.GetRequiredId());
+			}
+
+			if (succeededAccountIds.Count > 0) {
+				var links = await (
+					from link in dbContext.UserAccountProfile
+					where succeededAccountIds.Contains(link.UserAccountId)
+					select link
+				).ToListAsync(cancellationToken);
+				dbContext.UserAccountProfile.RemoveRange(links);
+			}
+
+			await dbContext.SaveChangesAsync(cancellationToken);
+			await transaction.CommitAsync(cancellationToken);
+
+			return new BulkTenantUserActionResult(
+				SucceededCount: succeededAccountIds.Count,
+				FailedCount: failedItems.Count,
+				FailedItems: failedItems
+			);
+		} catch {
+			await transaction.RollbackAsync(cancellationToken);
+			throw;
+		}
+	}
+
 	internal static async Task<SuspendTenantUserResult> SuspendTenantUserAsync(
 		AppDbContext dbContext,
 		Guid tenantId,

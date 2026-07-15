@@ -1,36 +1,50 @@
-import { Button, Card, Spinner } from '@heroui/react';
 import { zodResolver } from '@hookform/resolvers/zod';
+import {
+	IconAlertCircle,
+	IconArrowLeft,
+	IconLock,
+	IconSearchOff,
+} from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { createFileRoute, Link } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
+import { Field, Form } from '~/components/field';
+import type { FieldSelectOption } from '~/components/field';
+import { Button } from '~/components/ui/button';
+import { Card } from '~/components/ui/card';
+import { ConfirmDialog } from '~/components/ui/confirm-dialog';
+import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import {
-	STAFF_TENANT_USER_DETAILS_QUERY_KEY,
-	STAFF_TENANT_USERS_QUERY_KEY,
 	toStaffTenantUserDetails,
 	useStaffTenantUserDetailsQuery,
 	useUpdateStaffTenantUserMutation,
 } from '~/lib/query/staff-tenant-users';
 import {
+	invalidateAllStaffTenantScopes,
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
-import { shouldLogoutForFailure } from '~/routes/authed/layout';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import {
 	getFailureMessage,
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
+import { isAbsoluteHttpUrl } from '../../tenant-organization-profile-fields';
 import {
+	BackToTenantsLink,
+	formatTenantUserLevelLabel,
 	MALFORMED_ID_TRANSLATION_KEY,
 	TenantDetailsError,
 	TenantDetailsLoading,
 	TenantDetailsPageShell,
+	TenantRetryActions,
 } from '../_tenant-details-shell';
 
 const EDIT_ACCOUNT_LEVEL_OPTIONS = ['Admin', 'User'] as const;
@@ -46,14 +60,32 @@ const normalizeOptionalUpdateString = (
 	return trimmed;
 };
 
-const tenantUserEditSchema = z.object({
-	firstName: z.string().trim().max(128).optional(),
-	lastName: z.string().trim().max(128).optional(),
-	avatarUrl: z.string().trim().max(1024).optional(),
-	accountLevel: z.enum(EDIT_ACCOUNT_LEVEL_OPTIONS),
-});
+const buildTenantUserEditSchema = (t: (key: string) => string) =>
+	z.object({
+		firstName: z
+			.string()
+			.trim()
+			.max(128, { message: t('firstname-too-long') })
+			.optional(),
+		lastName: z
+			.string()
+			.trim()
+			.max(128, { message: t('lastname-too-long') })
+			.optional(),
+		avatarUrl: z
+			.string()
+			.trim()
+			.max(1024, { message: t('avatar-url-too-long') })
+			.optional()
+			.refine((value) => !value || isAbsoluteHttpUrl(value), {
+				message: t('avatar-url-invalid'),
+			}),
+		accountLevel: z.enum(EDIT_ACCOUNT_LEVEL_OPTIONS),
+	});
 
-type TenantUserEditValues = z.infer<typeof tenantUserEditSchema>;
+type TenantUserEditValues = z.infer<
+	ReturnType<typeof buildTenantUserEditSchema>
+>;
 
 type TenantUserEditPayload = {
 	tenantId: string;
@@ -96,72 +128,76 @@ const normalizeAccountLevel = (
 	return value === 'Admin' ? 'Admin' : 'User';
 };
 
-const TenantUserEditLoading = () => (
-	<div
-		className="mx-auto flex min-h-[50vh] w-full max-w-3xl items-center justify-center px-4 py-12"
-		data-testid="staff-tenant-user-edit-loading"
-	>
-		<div className="flex items-center gap-3 text-sm text-foreground-500">
-			<Spinner size="sm" />
-			<span>Loading tenant user…</span>
+const TenantUserEditLoading = () => {
+	const { t } = useTranslation('common');
+
+	return (
+		<div
+			className="mx-auto flex min-h-[50vh] w-full max-w-3xl items-center justify-center px-4 py-12"
+			data-testid="staff-tenant-user-edit-loading"
+		>
+			<div className="flex items-center gap-3 text-sm text-muted-foreground">
+				<LoadingSpinner />
+				<span>{t('loading-tenant-user')}</span>
+			</div>
 		</div>
-	</div>
-);
+	);
+};
 
-const InvalidTenantUserView = ({ error }: { error: unknown }) => (
-	<AppErrorView
-		icon="!"
-		code="400 — Bad Request"
-		title="Invalid tenant user edit link"
-		description={getFailureDescription(
-			error,
-			'This tenant user edit link is malformed or incomplete.',
-		)}
-		testId="staff-tenant-user-edit-invalid"
-	/>
-);
+const MissingTenantUserView = ({ error }: { error: unknown }) => {
+	const { t } = useTranslation('common');
 
-const MissingTenantUserView = ({ error }: { error: unknown }) => (
-	<AppErrorView
-		icon="🔎"
-		code="404 — Not Found"
-		title="Tenant user not found"
-		description={getFailureDescription(
-			error,
-			'The requested tenant user does not exist or is no longer available.',
-		)}
-		testId="staff-tenant-user-edit-not-found"
-	/>
-);
+	return (
+		<AppErrorView
+			icon={<IconSearchOff aria-hidden="true" className="size-7" />}
+			code={t('error-404-code')}
+			title={t('tenant-user-not-found-title')}
+			description={getFailureDescription(
+				error,
+				t('tenant-user-not-found-description'),
+			)}
+			testId="staff-tenant-user-edit-not-found"
+			actions={<BackToTenantsLink />}
+		/>
+	);
+};
 
-const TenantUserEditError = ({ error }: { error: unknown }) => {
-	if (isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)) {
-		return <InvalidTenantUserView error={error} />;
+const TenantUserEditError = ({
+	error,
+	onRetry,
+}: {
+	error: unknown;
+	onRetry: () => void;
+}) => {
+	const { t } = useTranslation('common');
+
+	if (
+		isProblemStatus(error, 404) ||
+		isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)
+	) {
+		return <MissingTenantUserView error={error} />;
 	}
 
 	if (isProblemStatus(error, 403)) {
 		return (
 			<AppErrorView
-				icon="⛔"
-				code="403 — Forbidden"
-				title="You don't have access"
-				description="Your account does not have permission to edit this tenant user."
+				icon={<IconLock aria-hidden="true" className="size-7" />}
+				code={t('error-403-code')}
+				title={t('no-access-title')}
+				description={t('tenant-user-edit-forbidden-description')}
 				testId="forbidden-view"
 			/>
 		);
 	}
 
-	if (isProblemStatus(error, 404)) {
-		return <MissingTenantUserView error={error} />;
-	}
-
 	return (
 		<AppErrorView
-			icon="!"
-			code="500 — Server Error"
-			title="Unable to load this tenant user"
-			description="There was a problem loading the tenant user details."
+			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
+			code={t('error-500-code')}
+			title={t('unable-to-load-tenant-user')}
+			description={t('tenant-user-load-error-description')}
 			testId="staff-tenant-user-edit-error"
+			actions={<TenantRetryActions onRetry={onRetry} />}
 		/>
 	);
 };
@@ -175,10 +211,11 @@ export const Route = createFileRoute(
 function StaffTenantUserEditPage() {
 	const { tenantId, userId } = Route.useParams();
 	const navigate = Route.useNavigate();
-	const { t } = useTranslation('common');
+	const { t, i18n } = useTranslation('common');
 	const queryClient = useQueryClient();
 	const [shouldLogout, setShouldLogout] = useState(false);
 	const [serverError, setServerError] = useState('');
+	const hasSavedRef = useRef(false);
 
 	const tenantQuery = useStaffTenantDetailsQuery(
 		{ tenantId },
@@ -196,8 +233,21 @@ function StaffTenantUserEditPage() {
 	);
 	const updateTenantUser = useUpdateStaffTenantUserMutation();
 	const user = toStaffTenantUserDetails(detailsQuery.data);
+	const resolver = useMemo(
+		() => zodResolver(buildTenantUserEditSchema(t)),
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- rebuild on language change so messages stay localized
+		[i18n.language],
+	);
+	const accountLevelOptions: FieldSelectOption[] = useMemo(
+		() =>
+			EDIT_ACCOUNT_LEVEL_OPTIONS.map((option) => ({
+				value: option,
+				label: formatTenantUserLevelLabel(option, t),
+			})),
+		[t],
+	);
 	const methods = useForm<TenantUserEditValues>({
-		resolver: zodResolver(tenantUserEditSchema),
+		resolver,
 		defaultValues: {
 			firstName: '',
 			lastName: '',
@@ -205,22 +255,45 @@ function StaffTenantUserEditPage() {
 			accountLevel: 'User',
 		},
 	});
-	const { register, handleSubmit, reset, formState } = methods;
-	const { errors, isSubmitting } = formState;
+	const { handleSubmit, reset, formState } = methods;
+	const { isSubmitting, isDirty } = formState;
 	const tenant = toStaffTenantDetails(tenantQuery.data);
 
+	const blocker = useBlocker({
+		shouldBlockFn: () => isDirty && !hasSavedRef.current,
+		withResolver: true,
+	});
+
+	const userFormValues = useMemo<TenantUserEditValues | null>(
+		() =>
+			user === null
+				? null
+				: {
+						firstName: user.firstName ?? '',
+						lastName: user.lastName ?? '',
+						avatarUrl: user.avatarUrl ?? '',
+						accountLevel: normalizeAccountLevel(user.accountLevel),
+					},
+		[
+			user?.id,
+			user?.firstName,
+			user?.lastName,
+			user?.avatarUrl,
+			user?.accountLevel,
+		],
+	);
+
 	useEffect(() => {
-		if (!user) {
+		if (userFormValues === null) {
 			return;
 		}
 
-		reset({
-			firstName: user.firstName ?? '',
-			lastName: user.lastName ?? '',
-			avatarUrl: user.avatarUrl ?? '',
-			accountLevel: normalizeAccountLevel(user.accountLevel),
-		});
-	}, [reset, user]);
+		// keepDirtyValues preserves any field the user has already edited while
+		// still applying server changes to fields that are still pristine — a
+		// plain reset() would silently overwrite in-progress edits on every
+		// background refetch (r5-tenants-F2).
+		reset(userFormValues, { keepDirtyValues: true });
+	}, [reset, userFormValues]);
 
 	if (shouldLogout) {
 		return <LogoutRedirect />;
@@ -235,17 +308,25 @@ function StaffTenantUserEditPage() {
 			return <LogoutRedirect />;
 		}
 
-		return <TenantDetailsError error={tenantQuery.error} />;
+		return (
+			<TenantDetailsError
+				error={tenantQuery.error}
+				onRetry={() => void tenantQuery.refetch()}
+			/>
+		);
 	}
 
 	if (!tenant) {
 		return (
 			<AppErrorView
-				icon="!"
-				code="500 — Server Error"
-				title="Unable to load this tenant"
-				description="The tenant response was incomplete."
+				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
+				code={t('error-500-code')}
+				title={t('tenant-details-error-title')}
+				description={t('tenant-response-incomplete')}
 				testId="staff-tenant-details-error"
+				actions={
+					<TenantRetryActions onRetry={() => void tenantQuery.refetch()} />
+				}
 			/>
 		);
 	}
@@ -259,17 +340,23 @@ function StaffTenantUserEditPage() {
 	}
 
 	if (detailsQuery.isError) {
-		return <TenantUserEditError error={detailsQuery.error} />;
+		return (
+			<TenantUserEditError
+				error={detailsQuery.error}
+				onRetry={() => void detailsQuery.refetch()}
+			/>
+		);
 	}
 
 	if (!user) {
 		return (
 			<AppErrorView
-				icon="🔎"
-				code="404 — Not Found"
-				title="Tenant user not found"
-				description="The tenant user payload was empty."
+				icon={<IconSearchOff aria-hidden="true" className="size-7" />}
+				code={t('error-404-code')}
+				title={t('tenant-user-not-found-title')}
+				description={t('tenant-user-payload-empty')}
 				testId="staff-tenant-user-edit-not-found"
+				actions={<BackToTenantsLink />}
 			/>
 		);
 	}
@@ -299,14 +386,8 @@ function StaffTenantUserEditPage() {
 		try {
 			setServerError('');
 			await updateTenantUser.mutateAsync(payload);
-			await Promise.all([
-				queryClient.invalidateQueries({
-					queryKey: ['staff', ...STAFF_TENANT_USERS_QUERY_KEY],
-				}),
-				queryClient.invalidateQueries({
-					queryKey: ['staff', ...STAFF_TENANT_USER_DETAILS_QUERY_KEY],
-				}),
-			]);
+			await invalidateAllStaffTenantScopes(queryClient);
+			hasSavedRef.current = true;
 			void navigate({
 				to: '/staff/tenants/$tenantId/users/$userId',
 				params: { tenantId, userId },
@@ -317,8 +398,22 @@ function StaffTenantUserEditPage() {
 				return;
 			}
 
+			const failure = toApiFailure(error);
+			if (
+				failure.kind === 'validation' &&
+				(failure.fieldErrors.avatarUrl?.length ?? 0) > 0
+			) {
+				methods.setError('avatarUrl', {
+					type: 'server',
+					message: getFailureMessage(failure, {
+						fallback: t('tenant-user-update-failed'),
+					}),
+				});
+				return;
+			}
+
 			setServerError(
-				getFailureMessage(toApiFailure(error), {
+				getFailureMessage(failure, {
 					fallback: t('tenant-user-update-failed'),
 				}),
 			);
@@ -336,121 +431,81 @@ function StaffTenantUserEditPage() {
 		<TenantDetailsPageShell
 			tenant={tenant}
 			activeSection="users"
-			summary="Edit tenant user identity fields."
+			summary={t('edit-tenant-user-summary')}
 			testId="staff-tenant-user-edit-page"
 		>
 			<div className="space-y-2">
 				<div className="flex items-center justify-between gap-2">
 					<Link
-						to={'/staff/tenants/$tenantId/users/$userId' as never}
-						params={{ tenantId, userId } as never}
-						className="inline-flex text-sm font-medium text-foreground underline-offset-4 hover:underline"
+						to="/staff/tenants/$tenantId/users/$userId"
+						params={{ tenantId, userId }}
+						className="publy-back-link"
 					>
+						<IconArrowLeft aria-hidden="true" className="size-3" />
 						{t('back-to-user')}
 					</Link>
 					<h2 className="text-2xl font-semibold text-foreground">
 						{t('edit-tenant-user')}
 					</h2>
 				</div>
-				<p className="text-sm text-foreground-500">
-					Update this tenant user's identity fields.
+				<p className="text-sm text-muted-foreground">
+					{t('edit-tenant-user-description')}
 				</p>
 			</div>
 
 			<Card className="space-y-4 p-5">
-				<form className="space-y-4" onSubmit={onSubmit} noValidate>
-					<div className="space-y-2">
-						<label htmlFor="tenant-user-first-name" className="text-sm">
-							{t('first-name')}
-						</label>
-						<input
-							id="tenant-user-first-name"
-							type="text"
-							className="w-full rounded-medium border border-divider bg-content1 p-2"
-							aria-label={t('first-name')}
-							disabled={isSubmittingForm}
-							{...register('firstName')}
-						/>
-						{errors.firstName ? (
-							<p className="text-sm text-danger-600">
-								{errors.firstName.message}
-							</p>
-						) : null}
-					</div>
-
-					<div className="space-y-2">
-						<label htmlFor="tenant-user-last-name" className="text-sm">
-							{t('last-name')}
-						</label>
-						<input
-							id="tenant-user-last-name"
-							type="text"
-							className="w-full rounded-medium border border-divider bg-content1 p-2"
-							aria-label={t('last-name')}
-							disabled={isSubmittingForm}
-							{...register('lastName')}
-						/>
-						{errors.lastName ? (
-							<p className="text-sm text-danger-600">
-								{errors.lastName.message}
-							</p>
-						) : null}
-					</div>
-
-					<div className="space-y-2">
-						<label htmlFor="tenant-user-avatar-url" className="text-sm">
-							{t('avatar-url')}
-						</label>
-						<input
-							id="tenant-user-avatar-url"
-							type="text"
-							className="w-full rounded-medium border border-divider bg-content1 p-2"
-							aria-label={t('avatar-url')}
-							disabled={isSubmittingForm}
-							{...register('avatarUrl')}
-						/>
-						{errors.avatarUrl ? (
-							<p className="text-sm text-danger-600">
-								{errors.avatarUrl.message}
-							</p>
-						) : null}
-					</div>
-
-					<div className="space-y-2">
-						<label htmlFor="tenant-user-account-level" className="text-sm">
-							{t('account-level')}
-						</label>
-						<select
-							id="tenant-user-account-level"
-							className="w-full rounded-medium border border-divider bg-content1 p-2"
-							aria-label={t('account-level')}
-							disabled={isSubmittingForm}
-							{...register('accountLevel')}
-						>
-							{EDIT_ACCOUNT_LEVEL_OPTIONS.map((option) => (
-								<option key={option} value={option}>
-									{option}
-								</option>
-							))}
-						</select>
-						{errors.accountLevel ? (
-							<p className="text-sm text-danger-600">
-								{errors.accountLevel.message}
-							</p>
-						) : null}
-					</div>
+				<Form methods={methods} onSubmit={onSubmit}>
+					<Field.Text
+						name="firstName"
+						label={t('first-name')}
+						fullWidth
+						isDisabled={isSubmittingForm}
+					/>
+					<Field.Text
+						name="lastName"
+						label={t('last-name')}
+						fullWidth
+						isDisabled={isSubmittingForm}
+					/>
+					<Field.Text
+						name="avatarUrl"
+						label={t('avatar-url')}
+						fullWidth
+						isDisabled={isSubmittingForm}
+					/>
+					<Field.Select
+						name="accountLevel"
+						label={t('account-level')}
+						options={accountLevelOptions}
+						isDisabled={isSubmittingForm}
+					/>
 
 					{serverError ? (
-						<p className="text-sm text-danger-600">{serverError}</p>
+						<p className="text-sm text-destructive">{serverError}</p>
 					) : null}
 
 					<div className="flex justify-end">
-						<Button type="submit" variant="primary" isDisabled={saveDisabled}>
+						<Button type="submit" variant="default" disabled={saveDisabled}>
 							{t('save-changes')}
 						</Button>
 					</div>
-				</form>
+				</Form>
 			</Card>
+
+			<ConfirmDialog
+				isOpen={blocker.status === 'blocked'}
+				title={t('unsaved-changes-dialog-title')}
+				description={t('unsaved-changes-dialog-description')}
+				confirmLabel={t('leave-page')}
+				cancelLabel={t('cancel')}
+				tone="danger"
+				onConfirm={() => blocker.proceed?.()}
+				onOpenChange={(isOpen) => {
+					if (!isOpen) {
+						blocker.reset?.();
+					}
+				}}
+			/>
 		</TenantDetailsPageShell>
 	);
 }

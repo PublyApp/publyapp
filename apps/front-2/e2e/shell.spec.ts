@@ -1,10 +1,8 @@
 import { expect, type Page, test } from '@playwright/test';
 
-import { SESSION_TOKEN_COOKIE_KEY } from '@org/shared-ts/lib/constants';
-import { formatSessionCookie } from '@org/shared-ts/lib/session/parse';
-
 import { THEME_TOGGLE_TEST_ID } from '../src/components/app-shell/theme/theme-toggle';
 import { COLOR_SCHEME_STORAGE_KEY } from '../src/lib/store/ui-store';
+import { loginAsStaffAdmin } from './helpers/login';
 
 type ColorScheme = 'dark' | 'light';
 
@@ -91,32 +89,6 @@ const getThemeFromStorage = async (page: Page): Promise<string | null> => {
 	return null;
 };
 
-const STAFF_TOKEN_VALUE = formatSessionCookie({
-	staffToken: 'front2-demo-staff-token',
-});
-
-const setSessionCookie = async (page: Page) => {
-	await page.goto('/');
-	await page.evaluate(
-		({ cookieName, value }) => {
-			document.cookie = `${cookieName}=${value}; path=/`;
-		},
-		{ cookieName: SESSION_TOKEN_COOKIE_KEY, value: STAFF_TOKEN_VALUE },
-	);
-};
-
-const mockAuthRedirectCode = async (page: Page) => {
-	await page.route('**/auth/redirect-code*', async (route) => {
-		await route.fulfill({
-			body: JSON.stringify({ redirectCode: 'staff' }),
-			headers: {
-				'content-type': 'application/json',
-			},
-			status: 200,
-		});
-	});
-};
-
 const readThemeMode = async (page: Page): Promise<ColorScheme | null> => {
 	return page.evaluate(() => {
 		if (document.documentElement.classList.contains('dark')) {
@@ -138,6 +110,34 @@ const expectThemeMode = async (
 	await expect.poll(() => readThemeMode(page)).toBe(colorScheme);
 };
 
+/**
+ * A real, navigated-to detail path (never a hardcoded id) — a fabricated id
+ * like `t-1` is not a GUID, so the real API answers 400 malformed-id and the
+ * route renders the error view instead of the shell chrome under test, which
+ * would make every rail-only assertion pass for the wrong reason (see F4).
+ */
+const getRealTenantDetailPath = async (page: Page): Promise<string> => {
+	await page.goto('/staff/tenants');
+	await expect(page.getByTestId('staff-tenants-table-rows')).toBeVisible();
+	await page.getByTestId('staff-tenants-table-search').fill('Acme Corporation');
+	const acmeLink = page.getByRole('link', { name: 'Acme Corporation' }).first();
+	await expect(acmeLink).toBeVisible();
+	await acmeLink.click();
+	await page.waitForURL(/\/staff\/tenants\/[0-9a-f-]{36}$/);
+	return new URL(page.url()).pathname;
+};
+
+const getRealStaffUserDetailPath = async (page: Page): Promise<string> => {
+	await page.goto('/staff/staff-users');
+	await expect(page.getByTestId('staff-users-table')).toBeVisible();
+	await page
+		.getByRole('row', { name: /staff-user@example\.com/ })
+		.getByRole('link')
+		.click();
+	await page.waitForURL(/\/staff\/staff-users\/[0-9a-f-]{36}$/);
+	return new URL(page.url()).pathname;
+};
+
 test('renders the front-2 shell', async ({ page }) => {
 	const getHydrationConsoleErrors = trackHydrationConsoleErrors(page);
 
@@ -145,7 +145,7 @@ test('renders the front-2 shell', async ({ page }) => {
 	await page.goto('/');
 
 	await expect(
-		page.getByRole('heading', { name: /welcome to the front-2 shell/i }),
+		page.getByRole('heading', { name: /welcome to publyapp/i }),
 	).toBeVisible();
 	await expect(page.getByTestId('app-shell-shell')).toBeVisible();
 	await expect(page.getByTestId('app-shell-shell')).toHaveAttribute(
@@ -178,8 +178,7 @@ test('theme toggle persists across page reload', async ({ page }) => {
 
 test('renders the authed shell for /staff', async ({ page }) => {
 	await page.setViewportSize({ width: 1280, height: 900 });
-	await setSessionCookie(page);
-	await mockAuthRedirectCode(page);
+	await loginAsStaffAdmin(page);
 	await page.goto('/staff');
 
 	await expect(page).toHaveURL('/staff/staff-users');
@@ -187,18 +186,362 @@ test('renders the authed shell for /staff', async ({ page }) => {
 		'data-mode',
 		'authed',
 	);
-	await expect(page.getByTestId('app-shell-sidebar')).toBeVisible();
+	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
+	await expect(page.getByTestId('app-shell-topbar')).toBeVisible();
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
+
+	// Handoff shell dimensions
+	await expect(page.getByTestId('app-shell-rail')).toHaveCSS('width', '49px');
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCSS(
+		'width',
+		'272px',
+	);
+	await expect(page.getByTestId('app-shell-topbar')).toHaveCSS(
+		'height',
+		'64px',
+	);
+	await expect(page.getByTestId('app-shell-topbar')).toHaveCSS(
+		'border-bottom-width',
+		'0px',
+	);
+
 	await expect(
-		page.getByTestId('app-shell-sidebar').getByRole('link', { name: 'Staff' }),
+		page.getByTestId('app-shell-rail').getByRole('link', { name: 'Staff' }),
 	).toHaveAttribute('aria-current', 'page');
 });
 
 test('redirects /staff/ to /staff/staff-users', async ({ page }) => {
-	await setSessionCookie(page);
-	await mockAuthRedirectCode(page);
+	await loginAsStaffAdmin(page);
 	await page.goto('/staff/');
 
 	await expect(page).toHaveURL('/staff/staff-users');
+});
+
+test('renders the handoff staff rail and secondary panel', async ({ page }) => {
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await loginAsStaffAdmin(page);
+	await page.goto('/staff/staff-users');
+
+	const rail = page.getByTestId('app-shell-rail');
+	await expect(rail.getByRole('link', { name: 'Dashboard' })).toBeVisible();
+	await expect(rail.getByRole('link', { name: 'Tenants' })).toBeVisible();
+	await expect(rail.getByRole('link', { name: 'Staff' })).toBeVisible();
+
+	const panel = page.getByTestId('app-shell-secondary-panel');
+	await expect(panel).toBeVisible();
+	await expect(panel.getByRole('heading', { name: 'Staff' })).toBeVisible();
+	await expect(panel.getByRole('link', { name: 'All users' })).toBeVisible();
+	await expect(panel.getByRole('link', { name: 'Invitations' })).toBeVisible();
+	await expect(panel.getByRole('link', { name: 'Profiles' })).toBeVisible();
+});
+
+test('secondary panel collapses on detail routes (rail-only shell)', async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await loginAsStaffAdmin(page);
+	await getRealStaffUserDetailPath(page);
+
+	// A real shell anchor — the pending skeleton never carries this testid —
+	// proves the shell actually painted before asserting the panel's absence.
+	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+});
+
+test('tenants route shows tenants panel destinations', async ({ page }) => {
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await loginAsStaffAdmin(page);
+	await page.goto('/staff/tenants');
+
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
+	await expect(
+		page
+			.getByTestId('app-shell-secondary-panel')
+			.getByRole('heading', { name: 'Tenants' }),
+	).toBeVisible();
+	await expect(
+		page
+			.getByTestId('app-shell-secondary-panel')
+			.getByRole('link', { name: 'All tenants' }),
+	).toBeVisible();
+	await expect(
+		page
+			.getByTestId('app-shell-secondary-panel')
+			.getByRole('link', { name: 'Active' }),
+	).toBeVisible();
+	await expect(
+		page
+			.getByTestId('app-shell-secondary-panel')
+			.getByRole('link', { name: 'Suspended' }),
+	).toBeVisible();
+	await expect(
+		page
+			.getByTestId('app-shell-secondary-panel')
+			.getByRole('link', { name: 'Calendar' }),
+	).toHaveCount(0);
+});
+
+test('collapses secondary panel when below 1024px', async ({ page }) => {
+	await page.setViewportSize({ width: 900, height: 900 });
+	await loginAsStaffAdmin(page);
+	await page.goto('/staff/staff-users');
+
+	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+});
+
+test('rail navigation preserves collapsed sidebar preference', async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await loginAsStaffAdmin(page);
+	await page.goto('/staff/staff-users');
+
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
+	await expect(
+		page.getByRole('button', { name: 'Collapse navigation panel' }),
+	).toBeVisible();
+
+	await page.getByRole('button', { name: 'Collapse navigation panel' }).click();
+
+	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+
+	await page.goto('/staff/invitations');
+
+	await expect(page).toHaveURL('/staff/invitations');
+	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+});
+
+test('staff detail route is rail-only — panel closed by default but the toggle stays visible', async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await loginAsStaffAdmin(page);
+	await getRealTenantDetailPath(page);
+
+	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+	await expect(page.getByTestId('app-shell-sidebar-toggle')).toBeVisible();
+	await expect(page.getByTestId('app-shell-sidebar-toggle')).toHaveAttribute(
+		'aria-label',
+		'Expand navigation panel',
+	);
+});
+
+test('the rail-only toggle opens and closes the panel on a tenant detail route', async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await loginAsStaffAdmin(page);
+	await getRealTenantDetailPath(page);
+
+	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+	const toggle = page.getByTestId('app-shell-sidebar-toggle');
+	await expect(toggle).toBeVisible();
+	await expect(toggle).toHaveAttribute('aria-label', 'Expand navigation panel');
+
+	await toggle.click();
+
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
+	await expect(toggle).toHaveAttribute(
+		'aria-label',
+		'Collapse navigation panel',
+	);
+
+	await toggle.click();
+
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+	await expect(toggle).toHaveAttribute('aria-label', 'Expand navigation panel');
+});
+
+test('an explicit rail-only open choice carries over across other rail-only routes but not to list routes', async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await loginAsStaffAdmin(page);
+	const tenantDetailPath = await getRealTenantDetailPath(page);
+
+	await page.getByTestId('app-shell-sidebar-toggle').click();
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
+
+	// The explicit open choice is in-memory session state: it must survive
+	// CLIENT-SIDE navigation (a hard page.goto would reset the store by design).
+	// Leave via the rail to a list route — panel stays visible there through the
+	// persisted list preference (default open).
+	await page.locator('[data-rail-item="staff"]').click();
+	await expect(page).toHaveURL(/staff-users/);
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
+
+	// Client-side history back onto the rail-only route: the explicit choice
+	// still holds for this session.
+	await page.goBack();
+	await expect(page).toHaveURL(new RegExp(`${tenantDetailPath}$`));
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
+
+	// A fresh document load starts a new session: rail-only routes default
+	// closed again.
+	await page.reload();
+	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+});
+
+test('the collapsed-panel preference persists across list navigation but detail routes always collapse', async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await loginAsStaffAdmin(page);
+	await page.goto('/staff/staff-users');
+
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
+
+	// Detail routes are rail-only regardless of the sidebarOpen preference.
+	await getRealStaffUserDetailPath(page);
+	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+
+	// Back on a list route, the panel is visible again (preference untouched).
+	await page.goto('/staff/staff-users');
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
+
+	await page.getByRole('button', { name: 'Collapse navigation panel' }).click();
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+
+	// The collapsed preference carries to the next list route too.
+	await page.goto('/staff/tenants');
+	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+
+	// And detail routes stay rail-only either way — a different route tree
+	// (tenants) than the one visited above (staff-users).
+	await getRealTenantDetailPath(page);
+	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+});
+
+test('staff dashboard has a toggleable secondary panel that stays collapsed across navigation', async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await loginAsStaffAdmin(page);
+	await page.goto('/staff/dashboard');
+
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
+	await expect(
+		page.getByRole('button', { name: 'Collapse navigation panel' }),
+	).toBeVisible();
+
+	await page.getByRole('button', { name: 'Collapse navigation panel' }).click();
+	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+
+	await page.goto('/staff/staff-users');
+	await expect(page).toHaveURL('/staff/staff-users');
+	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+
+	await page.goto('/staff/dashboard');
+	await expect(page).toHaveURL('/staff/dashboard');
+	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+});
+
+test('detail grid sizes to the space left by the rail, not the raw viewport', async ({
+	page,
+}) => {
+	// Detail routes are rail-only (no secondary panel), so only the 49px rail
+	// eats into the viewport before .publy-detail-grid's container query sees
+	// it. At 800px that still leaves too little room for two columns — the
+	// grid must stay single-column here.
+	await page.setViewportSize({ width: 800, height: 900 });
+
+	// Reach a real seeded user by clicking through the list. A synthetic id
+	// like 'demo-user-id' is not a GUID, so the API answers 400 malformed-id
+	// and the route renders the error view — which has no detail grid at all.
+	await loginAsStaffAdmin(page);
+	await page
+		.getByRole('row', { name: /staff-user@example\.com/ })
+		.getByRole('link')
+		.click();
+
+	const grid = page
+		.getByTestId('staff-user-details-page')
+		.locator('.publy-detail-grid')
+		.first();
+	await expect(grid).toBeVisible();
+	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+
+	const tracksAt800 = await grid.evaluate((element) =>
+		getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/),
+	);
+	expect(tracksAt800).toHaveLength(1);
+
+	// At 1280px there's enough room for both columns; the main column must
+	// stay usable (>= 400px), not squeezed to a sliver next to a fixed
+	// 420px aside.
+	await page.setViewportSize({ width: 1280, height: 900 });
+	const tracksAt1280 = await grid.evaluate((element) =>
+		getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/),
+	);
+	expect(tracksAt1280).toHaveLength(2);
+
+	const [mainColumnWidth, asideColumnWidth] = tracksAt1280.map((track) =>
+		Number.parseFloat(track),
+	);
+	expect(mainColumnWidth).toBeGreaterThanOrEqual(400);
+	expect(asideColumnWidth).toBeCloseTo(420, 0);
+});
+
+test('detail heading stays flush with the body grid at wide viewports', async ({
+	page,
+}) => {
+	// Owner decision R2-4: the heading/action cluster/tab strip used to
+	// render at full width while only .publy-detail-grid was capped at
+	// 1440px, so on a wide monitor the heading overhung the grid on both
+	// sides. Both must now share the same measure and left offset.
+	await loginAsStaffAdmin(page);
+	await page
+		.getByRole('row', { name: /staff-user@example\.com/ })
+		.getByRole('link')
+		.click();
+
+	const heading = page.getByTestId('staff-user-details-heading');
+	const grid = page
+		.getByTestId('staff-user-details-page')
+		.locator('.publy-detail-grid')
+		.first();
+
+	for (const width of [1440, 2560]) {
+		await page.setViewportSize({ width, height: 900 });
+		await expect(heading).toBeVisible();
+		await expect(grid).toBeVisible();
+
+		const headingBox = await heading.evaluate((element) => {
+			const rect = element.getBoundingClientRect();
+			return { width: rect.width, left: rect.left };
+		});
+		const gridBox = await grid.evaluate((element) => {
+			const rect = element.getBoundingClientRect();
+			return { width: rect.width, left: rect.left };
+		});
+
+		expect(headingBox.width).toBeCloseTo(gridBox.width, 0);
+		expect(headingBox.left).toBeCloseTo(gridBox.left, 0);
+	}
+});
+
+test('no bottom rail on mobile and rail-hidden behavior is preserved', async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 390, height: 812 });
+	await loginAsStaffAdmin(page);
+	await page.goto('/staff/staff-users');
+
+	await expect(page.getByTestId('app-shell-rail')).not.toBeVisible();
+	await expect(page.getByTestId('app-shell-topbar')).toBeVisible();
 });
 
 test('mobile shell menu is keyboard and route-aware', async ({ page }) => {
@@ -217,26 +560,9 @@ test('mobile shell menu is keyboard and route-aware', async ({ page }) => {
 	await page.getByTestId('app-shell-mobile-menu-toggle').click();
 	await page.getByRole('link', { name: 'Login' }).click();
 
+	// The auth surface is a standalone split-brand layout, not the app shell
+	// (no rail/topbar/mobile menu) — see docs/guides/front-2/conventions.md.
 	await expect(page).toHaveURL('/login');
-	await expect(page.getByTestId('app-shell-shell')).toHaveAttribute(
-		'data-mode',
-		'auth',
-	);
-	await expect(
-		page.getByTestId('app-shell-mobile-menu-toggle'),
-	).toHaveAttribute('aria-expanded', 'false');
-	await expect(page.getByTestId('app-shell-mobile-links')).toBeHidden();
-
-	await page.getByRole('button', { name: 'Open navigation' }).click();
-	await expect(
-		page.getByRole('button', { name: 'Close navigation' }),
-	).toBeVisible();
-	const mobileLinks = page.getByTestId('app-shell-mobile-links');
-	await expect(mobileLinks).toBeVisible();
-	await expect(
-		mobileLinks.getByRole('link', { name: 'Sign in' }),
-	).toBeVisible();
-	await expect(
-		mobileLinks.getByRole('link', { name: 'Sign in' }),
-	).toHaveAttribute('aria-current', 'page');
+	await expect(page.getByTestId('auth-layout')).toBeVisible();
+	await expect(page.getByTestId('app-shell-shell')).toHaveCount(0);
 });

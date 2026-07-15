@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import {
+	act,
 	cleanup,
 	fireEvent,
 	render,
@@ -11,10 +12,9 @@ import {
 import type { JSX } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-const originalConfirm = globalThis.confirm;
-
 const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
+	search: {} as Record<string, unknown>,
 	queryClient: {
 		invalidateQueries: vi.fn().mockResolvedValue(undefined),
 	},
@@ -30,6 +30,14 @@ const mocks = vi.hoisted(() => ({
 	useAssignStaffTenantProfilePermissionMutation: vi.fn(),
 	useUnassignStaffTenantProfilePermissionMutation: vi.fn(),
 	shouldLogoutForFailure: vi.fn((_: unknown) => false),
+	blockerResolver: {
+		status: 'idle' as 'idle' | 'blocked',
+		proceed: undefined as (() => void) | undefined,
+		reset: undefined as (() => void) | undefined,
+	},
+	capturedShouldBlockFn: undefined as (() => boolean) | undefined,
+	capturedOnDirtyChange: undefined as ((isDirty: boolean) => void) | undefined,
+	capturedOnSaved: undefined as (() => void) | undefined,
 }));
 
 vi.mock('@tanstack/react-router', () => ({
@@ -40,6 +48,7 @@ vi.mock('@tanstack/react-router', () => ({
 			tenantId: '11111111-1111-1111-1111-111111111111',
 			profileId: '22222222-2222-2222-2222-222222222222',
 		}),
+		useSearch: () => mocks.search,
 	}),
 	Link: ({
 		children,
@@ -62,6 +71,10 @@ vi.mock('@tanstack/react-router', () => ({
 				{children}
 			</a>
 		);
+	},
+	useBlocker: (opts: { shouldBlockFn: () => boolean }) => {
+		mocks.capturedShouldBlockFn = opts.shouldBlockFn;
+		return mocks.blockerResolver;
 	},
 }));
 
@@ -87,6 +100,12 @@ vi.mock('~/components/error-views/View403', () => ({
 vi.mock('~/lib/query/staff-tenants', () => ({
 	useStaffTenantDetailsQuery: mocks.useStaffTenantDetailsQuery,
 	toStaffTenantDetails: mocks.toStaffTenantDetails,
+	invalidateAllStaffTenantScopes: (queryClient: {
+		invalidateQueries: (arg: unknown) => unknown;
+	}) =>
+		queryClient.invalidateQueries({
+			queryKey: ['staff', 'staff-tenants'],
+		}),
 }));
 
 vi.mock('~/lib/query/staff-tenant-profiles', () => ({
@@ -120,8 +139,107 @@ vi.mock('~/lib/query/staff-tenant-profiles', () => ({
 		mocks.useUnassignStaffTenantProfilePermissionMutation,
 }));
 
-vi.mock('~/routes/authed/layout', () => ({
+vi.mock('~/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
+}));
+
+vi.mock('./_profile-form-drawer', () => ({
+	ProfileFormDrawer: ({
+		isOpen,
+		onDirtyChange,
+		onSaved,
+	}: {
+		isOpen: boolean;
+		onDirtyChange?: (isDirty: boolean) => void;
+		onSaved?: () => void;
+	}) => {
+		mocks.capturedOnDirtyChange = onDirtyChange;
+		mocks.capturedOnSaved = onSaved;
+		return isOpen ? <div data-testid="profile-edit-drawer-open" /> : null;
+	},
+}));
+
+vi.mock('react-i18next', () => ({
+	useTranslation: () => ({
+		t: (key: string, options?: Record<string, unknown>) => {
+			const labels: Record<string, string> = {
+				basics: 'Basics',
+				profiles: 'Profiles',
+				invitations: 'Invitations',
+				users: 'Users',
+				assign: 'Assign',
+				assigned: 'Assigned',
+				'assign-permission': 'Assign {{name}}',
+				'assigned-permission-keys': 'Assigned permission keys',
+				'assigned-users': 'Assigned users',
+				available: 'Available',
+				'back-to-profiles': 'Back to profiles',
+				'confirm-delete-tenant-profile-description':
+					'This will permanently delete this tenant profile. Users assigned to this profile may be affected and the action cannot be undone.',
+				'danger-zone': 'Danger zone',
+				default: 'Default',
+				'default-profile': 'Default profile',
+				'default-profile-delete-disabled': "Default profiles can't be deleted.",
+				delete: 'Delete',
+				'delete-profile': 'Delete profile',
+				'delete-tenant-profile-confirm-title': 'Delete tenant profile',
+				description: 'Description',
+				'edit-profile': 'Edit profile',
+				'error-404-code': '404 — Not Found',
+				'error-500-code': '500 — Server Error',
+				loading: 'Loading',
+				'loading-available-permissions': 'Loading available permissions…',
+				'loading-tenant-profile': 'Loading tenant profile…',
+				'manage-permission-keys-description':
+					'Manage assigned and available permission keys for this profile.',
+				name: 'Name',
+				no: 'No',
+				'no-additional-permission-keys-available':
+					'No additional permission keys are available to assign.',
+				'no-description-provided': 'No description provided.',
+				'no-permissions-assigned-to-profile':
+					'No permissions are assigned to this profile.',
+				'no-permissions-available': 'No permission keys are available.',
+				'permission-keys': 'Permission keys',
+				'profile-details': 'Profile details',
+				retry: 'Retry',
+				'tenant-details-error-title': 'Unable to load this tenant',
+				'tenant-permission-catalog-load-failed':
+					'Unable to load the tenant permission catalog.',
+				'tenant-profile-details-description':
+					'Core information for this tenant profile.',
+				'tenant-profile-load-error-description':
+					'There was a problem loading the profile details.',
+				'tenant-profile-not-found-description':
+					'The requested tenant profile does not exist or is no longer available.',
+				'tenant-profile-not-found-title': 'Tenant profile not found',
+				'tenant-profile-payload-empty': 'The profile payload was empty.',
+				'tenant-response-incomplete': 'The tenant response was incomplete.',
+				'unable-to-delete-tenant-profile':
+					'Unable to delete this tenant profile.',
+				'unable-to-load-tenant-profile': 'Unable to load this tenant profile',
+				'unable-to-update-tenant-profile-permission':
+					'Unable to update this tenant profile permission.',
+				unassign: 'Unassign',
+				'unassign-permission': 'Unassign {{name}}',
+				yes: 'Yes',
+				'unsaved-changes-dialog-title': 'Leave without saving?',
+				'unsaved-changes-dialog-description':
+					'You have unsaved changes that will be lost if you leave this page.',
+				'leave-page': 'Leave page',
+				cancel: 'Cancel',
+			};
+
+			let text = labels[key] ?? key;
+			if (options) {
+				for (const [optionKey, value] of Object.entries(options)) {
+					text = text.replaceAll(`{{${optionKey}}}`, String(value));
+				}
+			}
+			return text;
+		},
+		i18n: { language: 'en' },
+	}),
 }));
 
 import { Route } from './$profileId';
@@ -136,6 +254,14 @@ const buildQueryResult = (overrides: Record<string, unknown> = {}) => ({
 	...overrides,
 });
 
+const nonDefaultProfile = {
+	id: '22222222-2222-2222-2222-222222222222',
+	name: 'Approvers',
+	description: 'Can review approvals',
+	isDefault: false,
+	userAccountCount: 7,
+};
+
 const renderPage = () => {
 	const Component = (
 		Route as unknown as {
@@ -149,7 +275,13 @@ const renderPage = () => {
 describe('staff tenant profile details route', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		globalThis.confirm = vi.fn(() => true);
+		mocks.search = {};
+		mocks.blockerResolver.status = 'idle';
+		mocks.blockerResolver.proceed = undefined;
+		mocks.blockerResolver.reset = undefined;
+		mocks.capturedShouldBlockFn = undefined;
+		mocks.capturedOnDirtyChange = undefined;
+		mocks.capturedOnSaved = undefined;
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
 		mocks.useDeleteStaffTenantProfileMutation.mockReturnValue({
 			isPending: false,
@@ -283,7 +415,6 @@ describe('staff tenant profile details route', () => {
 	});
 
 	afterEach(() => {
-		globalThis.confirm = originalConfirm;
 		cleanup();
 	});
 
@@ -336,6 +467,149 @@ describe('staff tenant profile details route', () => {
 		expect(mocks.useStaffTenantPermissionCatalogQuery).toHaveBeenCalledWith({});
 	});
 
+	test('moves the delete action into a labeled danger-zone section under permissions', () => {
+		mocks.toStaffTenantProfileDetails.mockReturnValue({
+			...nonDefaultProfile,
+		});
+
+		renderPage();
+
+		const editButton = screen.getByRole('button', { name: 'Edit profile' });
+		const deleteButton = screen.getByRole('button', {
+			name: 'Delete profile',
+		});
+		const dangerZoneHeading = screen.getByRole('heading', {
+			name: 'Danger zone',
+		});
+		const dangerZoneSection = dangerZoneHeading.closest('section');
+
+		expect(deleteButton).toBeTruthy();
+		expect(
+			editButton.closest('div')?.closest('div')?.contains(deleteButton),
+		).toBe(false);
+		expect(editButton.closest('section')).toBe(null);
+		expect(dangerZoneSection).not.toBeNull();
+		expect(dangerZoneSection?.contains(deleteButton)).toBe(true);
+		expect(
+			screen.getByText(
+				'This will permanently delete this tenant profile. Users assigned to this profile may be affected and the action cannot be undone.',
+			),
+		).toBeTruthy();
+	});
+
+	test('shows the danger-zone description and no delete button for default profiles', () => {
+		renderPage();
+
+		const dangerZoneHeading = screen.getByRole('heading', {
+			name: 'Danger zone',
+		});
+		const dangerZoneSection = dangerZoneHeading.closest('section');
+
+		expect(dangerZoneSection).not.toBeNull();
+		expect(
+			dangerZoneSection?.textContent?.includes(
+				"Default profiles can't be deleted.",
+			),
+		).toBe(true);
+		expect(screen.queryByRole('button', { name: 'Delete profile' })).toBeNull();
+	});
+
+	test('disables all permission action buttons while a mutation is in flight', async () => {
+		let resolveAssign: () => void = () => {};
+		const assignDeferred = new Promise<void>((resolve) => {
+			resolveAssign = resolve;
+		});
+		const assignPermission = vi.fn(() => assignDeferred);
+
+		mocks.useAssignStaffTenantProfilePermissionMutation.mockReturnValue({
+			isPending: false,
+			mutateAsync: assignPermission,
+		});
+
+		mocks.toStaffTenantProfileDetails.mockReturnValue({
+			...nonDefaultProfile,
+		});
+
+		renderPage();
+
+		const assignButton = screen.getByRole('button', {
+			name: /Assign tenant.users.write/,
+		});
+		const unassignButton = screen.getByRole('button', {
+			name: /Unassign tenant.approvals.review/,
+		});
+
+		expect(assignButton.hasAttribute('disabled')).toBe(false);
+		expect(unassignButton.hasAttribute('disabled')).toBe(false);
+
+		fireEvent.click(assignButton);
+
+		expect(assignPermission).toHaveBeenCalledTimes(1);
+		expect(assignButton).toHaveProperty('disabled', true);
+		expect(unassignButton).toHaveProperty('disabled', true);
+
+		fireEvent.click(assignButton);
+		fireEvent.click(unassignButton);
+
+		expect(assignPermission).toHaveBeenCalledTimes(1);
+
+		resolveAssign();
+		await waitFor(() => {
+			expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+				queryKey: ['staff', 'staff-tenants'],
+			});
+		});
+	});
+
+	test('omits the available permissions section when the permission catalog fails', async () => {
+		mocks.toStaffTenantProfileDetails.mockReturnValue({
+			...nonDefaultProfile,
+		});
+		mocks.useStaffTenantPermissionCatalogQuery.mockReturnValue(
+			buildQueryResult({
+				isError: true,
+				data: {
+					additionalData: {},
+				},
+				error: {
+					status: 503,
+					responseStatusCode: 503,
+					title: 'Service Unavailable',
+					detail: 'Temporary outage',
+				},
+			}),
+		);
+
+		renderPage();
+
+		expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
+		expect(screen.getByText('Temporary outage')).toBeTruthy();
+		expect(screen.queryByText('No permission keys are available.')).toBeNull();
+		expect(
+			screen.queryByText(
+				'No additional permission keys are available to assign.',
+			),
+		).toBeNull();
+	});
+
+	test('edit profile button navigates to open the edit drawer via search state', () => {
+		renderPage();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Edit profile' }));
+
+		expect(mocks.navigate).toHaveBeenCalledWith({
+			search: { edit: 1 },
+			replace: true,
+		});
+	});
+
+	test('renders the edit drawer open when the edit search param is set', () => {
+		mocks.search = { edit: 1 };
+		renderPage();
+
+		expect(screen.getByTestId('profile-edit-drawer-open')).toBeTruthy();
+	});
+
 	test('assigns a permission key and invalidates permission-backed queries', async () => {
 		const assignPermission = vi.fn().mockResolvedValue(undefined);
 		mocks.useAssignStaffTenantProfilePermissionMutation.mockReturnValue({
@@ -358,14 +632,8 @@ describe('staff tenant profile details route', () => {
 			});
 		});
 		await waitFor(() => {
-			expect(mocks.queryClient.invalidateQueries).toHaveBeenNthCalledWith(1, {
-				queryKey: ['staff', 'staff-tenants', 'profiles'],
-			});
-			expect(mocks.queryClient.invalidateQueries).toHaveBeenNthCalledWith(2, {
-				queryKey: ['staff', 'staff-tenants', 'profiles', 'detail'],
-			});
-			expect(mocks.queryClient.invalidateQueries).toHaveBeenNthCalledWith(3, {
-				queryKey: ['staff', 'staff-tenants', 'profiles', 'permission-keys'],
+			expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+				queryKey: ['staff', 'staff-tenants'],
 			});
 		});
 	});
@@ -392,14 +660,8 @@ describe('staff tenant profile details route', () => {
 			});
 		});
 		await waitFor(() => {
-			expect(mocks.queryClient.invalidateQueries).toHaveBeenNthCalledWith(1, {
-				queryKey: ['staff', 'staff-tenants', 'profiles'],
-			});
-			expect(mocks.queryClient.invalidateQueries).toHaveBeenNthCalledWith(2, {
-				queryKey: ['staff', 'staff-tenants', 'profiles', 'detail'],
-			});
-			expect(mocks.queryClient.invalidateQueries).toHaveBeenNthCalledWith(3, {
-				queryKey: ['staff', 'staff-tenants', 'profiles', 'permission-keys'],
+			expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+				queryKey: ['staff', 'staff-tenants'],
 			});
 		});
 	});
@@ -493,9 +755,13 @@ describe('staff tenant profile details route', () => {
 
 		fireEvent.click(screen.getByRole('button', { name: 'Delete profile' }));
 
-		expect(globalThis.confirm).toHaveBeenCalledWith(
-			'Delete this tenant profile?',
+		await waitFor(() =>
+			expect(screen.getByText('Delete tenant profile')).toBeTruthy(),
 		);
+		fireEvent.click(
+			screen.getAllByRole('button', { name: 'Delete' }).slice(-1)[0],
+		);
+
 		await waitFor(() => {
 			expect(mutateAsync).toHaveBeenCalledWith({
 				tenantId: '11111111-1111-1111-1111-111111111111',
@@ -503,14 +769,8 @@ describe('staff tenant profile details route', () => {
 			});
 		});
 		await waitFor(() => {
-			expect(mocks.queryClient.invalidateQueries).toHaveBeenNthCalledWith(1, {
-				queryKey: ['staff', 'staff-tenants', 'profiles'],
-			});
-			expect(mocks.queryClient.invalidateQueries).toHaveBeenNthCalledWith(2, {
-				queryKey: ['staff', 'staff-tenants', 'profiles', 'detail'],
-			});
-			expect(mocks.queryClient.invalidateQueries).toHaveBeenNthCalledWith(3, {
-				queryKey: ['staff', 'staff-tenants', 'profiles', 'permission-keys'],
+			expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+				queryKey: ['staff', 'staff-tenants'],
 			});
 			expect(mocks.navigate).toHaveBeenCalledWith({
 				to: '/staff/tenants/$tenantId/profiles',
@@ -544,6 +804,13 @@ describe('staff tenant profile details route', () => {
 
 		fireEvent.click(screen.getByRole('button', { name: 'Delete profile' }));
 
+		await waitFor(() =>
+			expect(screen.getByText('Delete tenant profile')).toBeTruthy(),
+		);
+		fireEvent.click(
+			screen.getAllByRole('button', { name: 'Delete' }).slice(-1)[0],
+		);
+
 		expect(
 			await screen.findByText('Default tenant profile cannot be deleted'),
 		).toBeTruthy();
@@ -554,13 +821,11 @@ describe('staff tenant profile details route', () => {
 	test('disables the delete path for default profiles', () => {
 		renderPage();
 
-		expect(
-			screen.getByText('Default profiles cannot be deleted.'),
-		).toBeTruthy();
+		expect(screen.getByText("Default profiles can't be deleted.")).toBeTruthy();
 		expect(screen.queryByRole('button', { name: 'Delete profile' })).toBeNull();
 	});
 
-	test('renders a local malformed id view without logging out', () => {
+	test('renders the not-found view without logging out for a malformed id', () => {
 		mocks.useStaffTenantProfileDetailsQuery.mockReturnValue(
 			buildQueryResult({
 				error: {
@@ -577,7 +842,7 @@ describe('staff tenant profile details route', () => {
 		renderPage();
 
 		expect(
-			screen.getByTestId('staff-tenant-profile-details-invalid'),
+			screen.getByTestId('staff-tenant-profile-details-not-found'),
 		).toBeTruthy();
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 	});
@@ -660,5 +925,75 @@ describe('staff tenant profile details route', () => {
 		renderPage();
 
 		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
+	});
+
+	// tenants-r1-F2: the edit drawer's open flag is URL-driven (`?edit=1`); a
+	// browser Back or sibling-route navigation changes/unmounts it without
+	// ever calling the drawer's own close guard, discarding a dirty edit
+	// draft with no confirmation.
+	test('the URL nav-guard only blocks navigation while the edit drawer is open AND dirty', () => {
+		mocks.search = { edit: 1 };
+		renderPage();
+
+		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+
+		act(() => mocks.capturedOnDirtyChange?.(true));
+		expect(mocks.capturedShouldBlockFn?.()).toBe(true);
+
+		act(() => mocks.capturedOnDirtyChange?.(false));
+		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+	});
+
+	test('the URL nav-guard never blocks when the edit drawer is closed, even if reported dirty', () => {
+		mocks.search = {};
+		renderPage();
+
+		act(() => mocks.capturedOnDirtyChange?.(true));
+		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+	});
+
+	// W8-DRAWER: `onDirtyChange(false)` is an async state update — a
+	// successful edit submit calls it and then `onSaved()` (which closes the
+	// drawer via setEditDrawerOpen(false)) synchronously in the same tick, so
+	// the guard's closure still sees the old (dirty) render.
+	test('a successful edit submit does not leave the nav guard blocking its own drawer close (W8-DRAWER)', () => {
+		mocks.search = { edit: 1 };
+		renderPage();
+
+		act(() => mocks.capturedOnDirtyChange?.(true));
+		expect(mocks.capturedShouldBlockFn?.()).toBe(true);
+
+		// React batches state updates across a single `act` callback and only
+		// applies them once it returns, so asserting *inside* this callback
+		// (before the flush) reproduces the real stale-closure race.
+		act(() => {
+			mocks.capturedOnDirtyChange?.(false);
+			mocks.capturedOnSaved?.();
+
+			expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+		});
+
+		expect(mocks.navigate).toHaveBeenCalledWith(
+			expect.objectContaining({
+				search: {},
+				replace: true,
+			}),
+		);
+	});
+
+	test('shows the unsaved-changes confirm dialog when the router blocks navigation away from a dirty edit drawer', () => {
+		const proceed = vi.fn();
+		const reset = vi.fn();
+		mocks.search = { edit: 1 };
+		mocks.blockerResolver.status = 'blocked';
+		mocks.blockerResolver.proceed = proceed;
+		mocks.blockerResolver.reset = reset;
+
+		renderPage();
+
+		expect(screen.getByText('Leave without saving?')).toBeTruthy();
+		fireEvent.click(screen.getByRole('button', { name: 'Leave page' }));
+		expect(proceed).toHaveBeenCalled();
+		expect(reset).not.toHaveBeenCalled();
 	});
 });

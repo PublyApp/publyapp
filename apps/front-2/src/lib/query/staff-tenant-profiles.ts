@@ -1,4 +1,8 @@
-import { createUntypedString } from '@microsoft/kiota-abstractions';
+import {
+	createUntypedArray,
+	createUntypedString,
+} from '@microsoft/kiota-abstractions';
+import type { QueryClient } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
 import { useMutation } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
@@ -7,6 +11,8 @@ import type { SortOrder } from '~/lib/url-state/table-search-params';
 import type { ApiClient } from '@org/client-ts/src/apiClient';
 import type {
 	ApiResponse,
+	BulkDeleteTenantProfilesBody,
+	BulkProfileActionResult,
 	CreateTenantProfileAsStaffBody,
 	FindTenantProfilePermissionsAsStaffResult,
 	FindTenantProfilesAsStaffResult,
@@ -18,6 +24,7 @@ import type { TenantGetResponse } from '@org/client-ts/src/staff/permissions/sco
 import {
 	buildStaffMutationOptions,
 	buildStaffQueryOptions,
+	scopedKey,
 } from '@org/shared-ts/lib/query/create-hooks';
 
 export type StaffTenantProfilesQueryVariables = {
@@ -27,12 +34,14 @@ export type StaffTenantProfilesQueryVariables = {
 	sortOrder?: SortOrder;
 	cursor?: string;
 	size?: number;
+	isDefault?: 'true' | 'false';
 };
 
 export type CreateStaffTenantProfileInput = {
 	tenantId: string;
 	name: string;
 	description?: string;
+	permissionKeys?: string[];
 };
 
 export type UpdateStaffTenantProfileInput = {
@@ -47,12 +56,29 @@ export type DeleteStaffTenantProfileInput = {
 	profileId: string;
 };
 
+export type BulkDeleteStaffTenantProfilesInput = {
+	tenantId: string;
+	profileIds: string[];
+};
+
+export type StaffTenantProfileBulkActionFailedItem = {
+	profileId: string | null;
+	error: string | null;
+};
+
+export type StaffTenantProfileBulkActionSummary = {
+	succeededCount: number;
+	failedCount: number;
+	failedItems: StaffTenantProfileBulkActionFailedItem[];
+};
+
 export type StaffTenantProfileRow = {
 	id: string;
 	name: string;
 	description: string | null;
 	isDefault: boolean;
 	userAccountCount: number;
+	permissionsCount: number;
 };
 
 export type StaffTenantProfileDetails = {
@@ -100,8 +126,22 @@ export type StaffTenantPermissionOption = {
 	description: string | null;
 };
 
+export type StaffTenantPermissionGroup = {
+	moduleKey: string;
+	moduleLabel: string;
+	options: StaffTenantPermissionOption[];
+};
+
+/**
+ * @internal Unscoped — `scopedKey('staff', …)` is the only way to build an
+ * invalidation key from this (review-r3-users-auth.md F11); use
+ * `invalidateStaffTenantProfiles`. Was previously scoped in-place, which
+ * forced every `queryKeyFn` below to `.slice(1)` it back off before handing
+ * it to `buildStaffQueryOptions` (which scopes again) — a second, easy-to-
+ * forget-in-a-new-call-site incompatible shape, same defect class as
+ * `staff-profiles.ts`'s `STAFF_PROFILES_QUERY_KEY`.
+ */
 export const STAFF_TENANT_PROFILES_QUERY_KEY = [
-	'staff',
 	'staff-tenants',
 	'profiles',
 ] as const;
@@ -113,11 +153,19 @@ export const STAFF_TENANT_PROFILE_PERMISSION_KEYS_QUERY_KEY = [
 	...STAFF_TENANT_PROFILES_QUERY_KEY,
 	'permission-keys',
 ] as const;
+/** @internal Unscoped — see `STAFF_TENANT_PROFILES_QUERY_KEY` above. */
 export const STAFF_TENANT_PERMISSION_CATALOG_QUERY_KEY = [
-	'staff',
 	'tenant-permissions',
 	'catalog',
 ] as const;
+
+/** Invalidates the tenant-profiles list, every profile's details entry, and
+ * its permission-keys entry — all nest under `STAFF_TENANT_PROFILES_QUERY_KEY`,
+ * so a single prefix invalidation covers all three. */
+export const invalidateStaffTenantProfiles = (queryClient: QueryClient) =>
+	queryClient.invalidateQueries({
+		queryKey: scopedKey('staff', STAFF_TENANT_PROFILES_QUERY_KEY),
+	});
 
 const normalizeString = (
 	value: string | null | undefined,
@@ -203,6 +251,63 @@ export const buildStaffTenantPermissionCatalogOptions = (
 	);
 };
 
+/** Groups the flat permission catalog by its module-key prefix (the
+ * top-level dictionary key the backend returns, e.g. `Users`/`Tenants`) so
+ * the create/edit-profile drawers can render a checklist per module. */
+export const buildStaffTenantPermissionCatalogGroups = (
+	catalog: unknown,
+): StaffTenantPermissionGroup[] => {
+	const groups: StaffTenantPermissionGroup[] = [];
+
+	if (!isRecord(catalog)) {
+		return groups;
+	}
+
+	for (const [moduleKey, permissions] of Object.entries(catalog)) {
+		if (!isRecord(permissions)) {
+			continue;
+		}
+
+		const options: StaffTenantPermissionOption[] = [];
+
+		for (const permission of Object.values(permissions)) {
+			if (!isRecord(permission)) {
+				continue;
+			}
+
+			const key = normalizeUnknownString(permission.key);
+			if (!key) {
+				continue;
+			}
+
+			const name = normalizeUnknownString(permission.name);
+			const description = normalizeUnknownString(permission.description);
+
+			options.push({
+				key,
+				label: name ?? key,
+				description: description ?? null,
+			});
+		}
+
+		if (options.length === 0) {
+			continue;
+		}
+
+		options.sort((left, right) => left.label.localeCompare(right.label));
+
+		groups.push({
+			moduleKey,
+			moduleLabel: formatModuleLabel(moduleKey),
+			options,
+		});
+	}
+
+	return groups.sort((left, right) =>
+		left.moduleLabel.localeCompare(right.moduleLabel),
+	);
+};
+
 export const buildFindStaffTenantProfilesQueryParameters = (
 	variables: Omit<StaffTenantProfilesQueryVariables, 'tenantId'>,
 ): {
@@ -211,6 +316,7 @@ export const buildFindStaffTenantProfilesQueryParameters = (
 	sortOrder?: SortOrder;
 	cursor?: string;
 	limit?: string;
+	isDefault?: string;
 } => ({
 	q: normalizeString(variables.q),
 	sortId: normalizeString(variables.sortId),
@@ -219,6 +325,26 @@ export const buildFindStaffTenantProfilesQueryParameters = (
 	limit: isPositiveSafeInteger(variables.size)
 		? String(variables.size)
 		: undefined,
+	isDefault: variables.isDefault,
+});
+
+export const buildBulkDeleteStaffTenantProfilesBody = (
+	profileIds: string[],
+): BulkDeleteTenantProfilesBody => ({
+	profileIds: createUntypedArray(
+		profileIds.map((profileId) => createUntypedString(profileId)),
+	) as BulkDeleteTenantProfilesBody['profileIds'],
+});
+
+export const toStaffTenantProfileBulkActionSummary = (
+	result: BulkProfileActionResult | null | undefined,
+): StaffTenantProfileBulkActionSummary => ({
+	succeededCount: result?.succeededCount ?? 0,
+	failedCount: result?.failedCount ?? 0,
+	failedItems: (result?.failedItems ?? []).map((item) => ({
+		profileId: normalizeString(item.profileId?.toString()) ?? null,
+		error: normalizeString(item.errorEscaped) ?? null,
+	})),
 });
 
 export const buildCreateStaffTenantProfileBody = (
@@ -235,6 +361,16 @@ export const buildCreateStaffTenantProfileBody = (
 		) as typeof body.description;
 	}
 
+	const permissionKeys = (input.permissionKeys ?? [])
+		.map((key) => normalizeString(key))
+		.filter((key): key is string => key !== undefined);
+
+	if (permissionKeys.length > 0) {
+		body.permissionKeys = createUntypedArray(
+			permissionKeys.map((key) => createUntypedString(key)),
+		) as typeof body.permissionKeys;
+	}
+
 	return body;
 };
 
@@ -245,12 +381,14 @@ export const buildUpdateStaffTenantProfileBody = (
 	const description = normalizeString(input.description);
 
 	body.name = createUntypedString(input.name.trim()) as typeof body.name;
-	body.description =
-		description === undefined
-			? input.description === undefined
-				? undefined
-				: null
-			: (createUntypedString(description) as typeof body.description);
+
+	if (description !== undefined) {
+		body.description = createUntypedString(
+			description,
+		) as typeof body.description;
+	} else if (input.description !== undefined) {
+		body.description = null;
+	}
 
 	return body;
 };
@@ -261,17 +399,22 @@ export const toStaffTenantProfileRows = (
 	const rows: StaffTenantProfileRow[] = [];
 
 	for (const item of items ?? []) {
+		// A row with no readable name is malformed — dropped rather than shown
+		// with a `'—'` placeholder a staff admin can't distinguish from a
+		// legitimate value (shell-r5-F3).
 		const id = normalizeString(item.id?.toString());
-		if (!id) {
+		const name = normalizeString(item.name);
+		if (!id || !name) {
 			continue;
 		}
 
 		rows.push({
 			id,
-			name: normalizeString(item.name) ?? '—',
+			name,
 			description: normalizeNullableString(item.description),
 			isDefault: item.isDefault === true,
 			userAccountCount: item.userAccountCount ?? 0,
+			permissionsCount: item.permissionsCount ?? 0,
 		});
 	}
 
@@ -283,14 +426,18 @@ export const toStaffTenantProfileDetails = (
 ): StaffTenantProfileDetails | null => {
 	const profile = result?.profile;
 	const id = normalizeString(profile?.id?.toString());
+	const name = normalizeString(profile?.name);
 
-	if (!id) {
+	// A malformed payload (missing the required identity) is treated the same
+	// as "not found" — never rendered with a `'—'` placeholder a staff admin
+	// can't distinguish from a legitimate value (shell-r5-F3).
+	if (!id || !name) {
 		return null;
 	}
 
 	return {
 		id,
-		name: normalizeString(profile?.name) ?? '—',
+		name,
 		description: normalizeNullableString(profile?.description),
 		isDefault: profile?.isDefault === true,
 		userAccountCount: profile?.userAccountCount ?? 0,
@@ -322,7 +469,7 @@ const staffTenantProfilesQueryOptions = buildStaffQueryOptions<
 	StaffTenantProfilesQueryVariables
 >(
 	{
-		queryKeyFn: () => [...STAFF_TENANT_PROFILES_QUERY_KEY.slice(1)],
+		queryKeyFn: () => [...STAFF_TENANT_PROFILES_QUERY_KEY],
 		fetcher: async (client, variables) => {
 			const result = await client.staff.tenants
 				.byTenantId(variables.tenantId)
@@ -389,13 +536,31 @@ export const deleteStaffTenantProfileMutationOptions =
 		{ clientAccessor: getClientManager() },
 	);
 
+export const bulkDeleteStaffTenantProfilesMutationOptions =
+	buildStaffMutationOptions<
+		ApiClient,
+		BulkProfileActionResult | undefined,
+		BulkDeleteStaffTenantProfilesInput
+	>(
+		{
+			mutationKeyFn: () => ['staff-tenants', 'profiles', 'bulk-delete'],
+			mutationFn: (client, variables) =>
+				client.staff.tenants
+					.byTenantId(variables.tenantId)
+					.profiles.bulkDelete.post(
+						buildBulkDeleteStaffTenantProfilesBody(variables.profileIds),
+					),
+		},
+		{ clientAccessor: getClientManager() },
+	);
+
 const staffTenantProfileDetailsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	GetTenantProfileByIdResponse,
 	StaffTenantProfileDetailsQueryVariables
 >(
 	{
-		queryKeyFn: () => [...STAFF_TENANT_PROFILE_DETAILS_QUERY_KEY.slice(1)],
+		queryKeyFn: () => [...STAFF_TENANT_PROFILE_DETAILS_QUERY_KEY],
 		fetcher: async (client, variables) => {
 			const result = await client.staff.tenants
 				.byTenantId(variables.tenantId)
@@ -418,9 +583,7 @@ const staffTenantProfilePermissionKeysQueryOptions = buildStaffQueryOptions<
 	StaffTenantProfilePermissionKeysQueryVariables
 >(
 	{
-		queryKeyFn: () => [
-			...STAFF_TENANT_PROFILE_PERMISSION_KEYS_QUERY_KEY.slice(1),
-		],
+		queryKeyFn: () => [...STAFF_TENANT_PROFILE_PERMISSION_KEYS_QUERY_KEY],
 		fetcher: async (client, variables) => {
 			const result = await client.staff.tenants
 				.byTenantId(variables.tenantId)
@@ -445,7 +608,7 @@ const staffTenantPermissionCatalogQueryOptions = buildStaffQueryOptions<
 	StaffTenantPermissionCatalogQueryVariables
 >(
 	{
-		queryKeyFn: () => [...STAFF_TENANT_PERMISSION_CATALOG_QUERY_KEY.slice(1)],
+		queryKeyFn: () => [...STAFF_TENANT_PERMISSION_CATALOG_QUERY_KEY],
 		fetcher: async (client, variables) => {
 			const result = await client.staff.permissions.scopes.tenant.get({
 				queryParameters: {
@@ -531,6 +694,9 @@ export const useUpdateStaffTenantProfileMutation = () =>
 
 export const useDeleteStaffTenantProfileMutation = () =>
 	useMutation(deleteStaffTenantProfileMutationOptions);
+
+export const useBulkDeleteStaffTenantProfilesMutation = () =>
+	useMutation(bulkDeleteStaffTenantProfilesMutationOptions);
 
 export const useStaffTenantProfileDetailsQuery = (
 	variables: StaffTenantProfileDetailsQueryVariables,

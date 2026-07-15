@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Profiles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
@@ -152,11 +153,11 @@ public class StaffProfileUserAssignmentAsStaffService : IStaffProfileUserAssignm
 		if (search is not null) {
 			// Search is intentionally simple (ILIKE wildcard) for UX. If this becomes hot,
 			// we can add trigram indexes or an external search later.
-			var wildcard = $"%{search}%";
+			var wildcard = $"%{LikePatternUtils.EscapeLikePattern(search)}%";
 			query = query.Where(x =>
-				EF.Functions.ILike(x.Email, wildcard)
-				|| EF.Functions.ILike(x.FirstName ?? "", wildcard)
-				|| EF.Functions.ILike(x.LastName ?? "", wildcard)
+				EF.Functions.ILike(x.Email, wildcard, LikePatternUtils.LikeEscapeChar)
+				|| EF.Functions.ILike(x.FirstName ?? "", wildcard, LikePatternUtils.LikeEscapeChar)
+				|| EF.Functions.ILike(x.LastName ?? "", wildcard, LikePatternUtils.LikeEscapeChar)
 			);
 		}
 

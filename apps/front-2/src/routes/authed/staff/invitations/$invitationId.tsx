@@ -1,19 +1,30 @@
-import { Button, Card } from '@heroui/react';
+import {
+	IconAlertCircle,
+	IconArrowLeft,
+	IconHelpCircle,
+} from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
 import QueryDisplay from '~/components/query-display';
+import { Badge } from '~/components/ui/badge';
+import { Button, buttonVariants } from '~/components/ui/button';
+import { Card } from '~/components/ui/card';
+import { ConfirmDialog } from '~/components/ui/confirm-dialog';
+import { Input } from '~/components/ui/input';
+import { formatDateTime } from '~/lib/format-date-time';
 import {
+	invalidateStaffInvitations,
 	useRevokeStaffInvitationMutation,
 	useResendStaffInvitationMutation,
 	useStaffInvitationDetailsQuery,
 	useStaffInvitationLinkMutation,
 } from '~/lib/query/staff-invitations';
-import { shouldLogoutForFailure } from '~/routes/authed/layout';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import type { StaffInvitationDetails } from '@org/client-ts/src/models/index.js';
 import {
@@ -22,7 +33,7 @@ import {
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 import {
-	formatInvitationStatusLabel,
+	getInvitationStatusLabelKey,
 	normalizeInvitationStatus,
 } from './list-helpers';
 
@@ -42,28 +53,14 @@ type InvitationDetailsCardProps = {
 const NOT_FOUND_TRANSLATION_KEY = 'malformed-id';
 const STAFF_INVITATIONS_LIST_PATH = '/staff/invitations';
 
-const formatDateTime = (
-	value: Date | null | undefined,
-	locale: string,
-): string => {
-	if (!(value instanceof Date) || Number.isNaN(value.valueOf())) {
-		return '—';
-	}
-
-	return new Intl.DateTimeFormat(locale, {
-		dateStyle: 'medium',
-		timeStyle: 'short',
-	}).format(value);
-};
-
 const getFeedbackClassName = (tone: ActionFeedbackTone): string => {
 	switch (tone) {
 		case 'success':
-			return 'border-success-200 bg-success-50 text-success-800';
+			return 'border-success/20 bg-success/10 text-success';
 		case 'info':
-			return 'border-primary-200 bg-primary-50 text-primary-800';
+			return 'border-primary/30 bg-primary/10 text-primary-active';
 		case 'error':
-			return 'border-danger-200 bg-danger-50 text-danger-800';
+			return 'border-destructive/20 bg-destructive/10 text-destructive';
 	}
 };
 
@@ -87,13 +84,13 @@ const isProblemStatus = (
 };
 
 const InvitationDetailsLoading = () => (
-	<div className="space-y-4 p-4" data-testid="staff-invitation-details-loading">
-		<div className="h-8 w-48 animate-pulse rounded bg-default-200" />
+	<div className="space-y-4" data-testid="staff-invitation-details-loading">
+		<div className="h-8 w-48 animate-pulse rounded bg-muted" />
 		<div className="grid gap-4 md:grid-cols-2">
-			<div className="h-32 animate-pulse rounded bg-default-100" />
-			<div className="h-32 animate-pulse rounded bg-default-100" />
-			<div className="h-32 animate-pulse rounded bg-default-100" />
-			<div className="h-32 animate-pulse rounded bg-default-100" />
+			<div className="h-32 animate-pulse rounded bg-muted" />
+			<div className="h-32 animate-pulse rounded bg-muted" />
+			<div className="h-32 animate-pulse rounded bg-muted" />
+			<div className="h-32 animate-pulse rounded bg-muted" />
 		</div>
 	</div>
 );
@@ -103,16 +100,30 @@ const InvitationDetailsEmpty = () => {
 
 	return (
 		<AppErrorView
-			icon="?"
-			code="404"
+			icon={<IconHelpCircle aria-hidden="true" className="size-7" />}
+			code={t('error-404-code')}
 			title={t('invitation-not-found')}
 			description={t('invitation-not-found-description')}
 			testId="staff-invitation-details-not-found"
+			actions={
+				<Link
+					to={STAFF_INVITATIONS_LIST_PATH}
+					className={buttonVariants({ variant: 'outline' })}
+				>
+					{t('staff-invitations')}
+				</Link>
+			}
 		/>
 	);
 };
 
-const InvitationDetailsError = ({ error }: { error: unknown }) => {
+const InvitationDetailsError = ({
+	error,
+	query,
+}: {
+	error: unknown;
+	query: { refetch: () => unknown };
+}) => {
 	const { t } = useTranslation('common');
 
 	if (
@@ -128,11 +139,28 @@ const InvitationDetailsError = ({ error }: { error: unknown }) => {
 
 	return (
 		<AppErrorView
-			icon="!"
-			code="500"
+			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
+			code={t('error-500-code')}
 			title={t('invitation-details-error-title')}
 			description={t('invitation-details-error-description')}
 			testId="staff-invitation-details-error"
+			actions={
+				<>
+					<Button
+						variant="default"
+						onClick={() => void query.refetch()}
+						type="button"
+					>
+						{t('try-again')}
+					</Button>
+					<Link
+						to={STAFF_INVITATIONS_LIST_PATH}
+						className={buttonVariants({ variant: 'outline' })}
+					>
+						{t('staff-invitations')}
+					</Link>
+				</>
+			}
 		/>
 	);
 };
@@ -144,8 +172,8 @@ const DetailField = ({
 	label: string;
 	value: string | ReactNode;
 }) => (
-	<div className="space-y-1 rounded-large border border-divider bg-content1 p-4">
-		<p className="text-xs font-medium uppercase tracking-wide text-foreground-500">
+	<div className="space-y-1 rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] p-4 shadow-[var(--publy-shadow-ring)]">
+		<p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
 			{label}
 		</p>
 		<div className="text-sm text-foreground">{value}</div>
@@ -163,6 +191,7 @@ const InvitationDetailsCard = ({
 	const queryClient = useQueryClient();
 	const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
 	const [inviteLink, setInviteLink] = useState<string>('');
+	const [pendingRevoke, setPendingRevoke] = useState(false);
 
 	const status = normalizeInvitationStatus(invitation.status);
 	const canManage = status === 'pending';
@@ -195,7 +224,7 @@ const InvitationDetailsCard = ({
 			if (!nextLink) {
 				setFeedback({
 					tone: 'error',
-					message: 'Invite link response was empty.',
+					message: t('invite-link-response-empty'),
 				});
 				return;
 			}
@@ -216,7 +245,7 @@ const InvitationDetailsCard = ({
 				message: t('copy-link-ready'),
 			});
 		} catch (error) {
-			handleActionError(error, 'Unable to copy the invite link.');
+			handleActionError(error, t('unable-to-copy-invite-link'));
 		}
 	};
 
@@ -230,35 +259,26 @@ const InvitationDetailsCard = ({
 				message: t('resend-invitation-success'),
 			});
 		} catch (error) {
-			handleActionError(error, 'Unable to resend the invitation.');
+			handleActionError(error, t('unable-to-resend-invitation'));
 		}
 	};
 
 	const handleRevoke = async () => {
 		setFeedback(null);
 
-		if (
-			typeof globalThis.confirm === 'function' &&
-			!globalThis.confirm('Revoke invitation?')
-		) {
-			return;
-		}
-
 		try {
 			await revoke.mutateAsync({ invitationId });
-			await Promise.all([
-				queryClient.invalidateQueries({
-					queryKey: ['staff', 'staff-invitations'],
-				}),
-				onRefresh(),
-			]);
+			await Promise.all([invalidateStaffInvitations(queryClient), onRefresh()]);
 			setInviteLink('');
+			setPendingRevoke(false);
 			setFeedback({
 				tone: 'success',
 				message: t('revoke-invitation-success'),
 			});
 		} catch (error) {
-			handleActionError(error, 'Unable to revoke the invitation.');
+			handleActionError(error, t('unable-to-revoke-invitation'));
+		} finally {
+			setPendingRevoke(false);
 		}
 	};
 
@@ -266,54 +286,56 @@ const InvitationDetailsCard = ({
 		<div className="space-y-4" data-testid="staff-invitation-details-page">
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<div className="space-y-1">
-					<a
-						href={STAFF_INVITATIONS_LIST_PATH}
-						className="text-sm font-medium text-primary underline-offset-4 hover:underline"
-					>
+					<Link to={STAFF_INVITATIONS_LIST_PATH} className="publy-back-link">
+						<IconArrowLeft aria-hidden="true" className="size-3" />
 						{t('staff-invitations')}
-					</a>
-					<h1 className="text-2xl font-semibold">{invitation.email || '—'}</h1>
+					</Link>
+					<h1 className="publy-type-page-title">
+						{invitation.email || t('invitation-details')}
+					</h1>
 				</div>
 
 				<div className="flex flex-wrap items-center gap-2">
 					<Button
 						type="button"
-						variant="secondary"
-						onPress={handleCopyLink}
-						isDisabled={!canManage || activeMutationPending}
+						variant="outline"
+						onClick={handleCopyLink}
+						disabled={!canManage || activeMutationPending}
 					>
 						{t('copy-link')}
 					</Button>
 					<Button
 						type="button"
-						variant="secondary"
-						onPress={handleResend}
-						isDisabled={!canManage || activeMutationPending}
+						variant="outline"
+						onClick={handleResend}
+						disabled={!canManage || activeMutationPending}
 					>
 						{t('resend')}
-					</Button>
-					<Button
-						type="button"
-						variant="danger-soft"
-						onPress={handleRevoke}
-						isDisabled={!canManage || activeMutationPending}
-					>
-						{t('staff-revoke')}
 					</Button>
 				</div>
 			</div>
 
+			<ConfirmDialog
+				isOpen={pendingRevoke}
+				title={t('revoke-invitation')}
+				description={t('invitation-removal-description')}
+				confirmLabel={t('revoke')}
+				isPending={revoke.isPending}
+				onConfirm={() => void handleRevoke()}
+				onOpenChange={setPendingRevoke}
+			/>
+
 			{feedback ? (
 				<div
 					className={`rounded-large border px-4 py-3 text-sm ${getFeedbackClassName(feedback.tone)}`}
-					role="status"
+					role={feedback.tone === 'error' ? 'alert' : 'status'}
 				>
 					{feedback.message}
 				</div>
 			) : null}
 
 			{!canManage ? (
-				<div className="rounded-large border border-default-200 bg-default-50 px-4 py-3 text-sm text-foreground-600">
+				<div className="rounded-large border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
 					{t('only-pending-invitations-can-be-managed')}
 				</div>
 			) : null}
@@ -322,11 +344,7 @@ const InvitationDetailsCard = ({
 				<Card className="p-4">
 					<div className="space-y-2">
 						<p className="text-sm font-medium">{t('invite-link')}</p>
-						<input
-							readOnly
-							value={inviteLink}
-							className="w-full rounded-large border border-divider bg-content1 px-3 py-2 text-sm"
-						/>
+						<Input readOnly value={inviteLink} className="w-full" />
 					</div>
 				</Card>
 			) : null}
@@ -334,35 +352,35 @@ const InvitationDetailsCard = ({
 			<div className="grid gap-4 md:grid-cols-2">
 				<DetailField
 					label={t('status')}
-					value={formatInvitationStatusLabel(status)}
+					value={t(getInvitationStatusLabelKey(status))}
 				/>
-				<DetailField
-					label={t('email')}
-					value={invitation.email?.trim() || '—'}
-				/>
-				<DetailField
-					label={t('profiles')}
-					value={
-						invitation.profiles && invitation.profiles.length > 0 ? (
+				{invitation.email?.trim() ? (
+					<DetailField label={t('email')} value={invitation.email.trim()} />
+				) : null}
+				{invitation.profiles && invitation.profiles.length > 0 ? (
+					<DetailField
+						label={t('profiles')}
+						value={
 							<div className="flex flex-wrap gap-2">
 								{invitation.profiles.map((profile) => (
-									<span
+									<Badge
+										variant="outline"
 										key={`${String(profile.id ?? '')}:${profile.name ?? ''}`}
-										className="inline-flex rounded-full bg-default-100 px-2 py-1 text-xs font-medium text-foreground"
+										className="h-auto rounded-[var(--publy-radius-chip)] border-none bg-muted px-2 py-0.5 text-xs font-medium text-foreground"
 									>
-										{profile.name?.trim() || '—'}
-									</span>
+										{profile.name?.trim() || t('unnamed-profile')}
+									</Badge>
 								))}
 							</div>
-						) : (
-							'—'
-						)
-					}
-				/>
-				<DetailField
-					label={t('staff-invited-by')}
-					value={invitation.invitedByName?.trim() || '—'}
-				/>
+						}
+					/>
+				) : null}
+				{invitation.invitedByName?.trim() ? (
+					<DetailField
+						label={t('staff-invited-by')}
+						value={invitation.invitedByName.trim()}
+					/>
+				) : null}
 				<DetailField
 					label={t('sent-date')}
 					value={formatDateTime(invitation.createdAt, locale)}
@@ -386,12 +404,34 @@ const InvitationDetailsCard = ({
 			</div>
 
 			<Card className="p-4">
-				<p className="text-xs font-medium uppercase tracking-wide text-foreground-500">
+				<p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
 					{t('invitation-id')}
 				</p>
-				<p className="mt-1 break-all font-mono text-sm text-foreground-600">
+				<p className="mt-1 break-all font-mono text-sm text-muted-foreground">
 					{invitation.id ? String(invitation.id) : invitationId}
 				</p>
+			</Card>
+
+			<Card className="space-y-4 p-4">
+				<div className="flex flex-wrap items-center justify-between gap-3">
+					<div className="space-y-1">
+						<p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+							{t('invitation-removal')}
+						</p>
+						<p className="text-sm text-foreground">
+							{t('invitation-removal-description')}
+						</p>
+					</div>
+					<Button
+						type="button"
+						variant="destructive"
+						size="sm"
+						onClick={() => setPendingRevoke(true)}
+						disabled={!canManage || activeMutationPending}
+					>
+						{t('staff-revoke')}
+					</Button>
+				</div>
 			</Card>
 		</div>
 	);
@@ -427,7 +467,7 @@ export function StaffInvitationDetailsPage({
 	}
 
 	return (
-		<div className="space-y-4 p-4">
+		<div className="space-y-4">
 			<QueryDisplay
 				query={detailQuery}
 				LoadingSlot={InvitationDetailsLoading}

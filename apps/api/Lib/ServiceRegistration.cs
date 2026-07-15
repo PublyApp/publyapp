@@ -8,8 +8,10 @@ using Microsoft.OpenApi;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Messaging.Email;
+using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Lib.Extensions;
+using PublyApp.Api.Modules.Uploads;
 
 using Resend;
 
@@ -92,6 +94,20 @@ public static class ServiceRegistration {
 			});
 		});
 
+		// Caps multipart form bodies (the upload endpoint) at a bound above
+		// RequestSizeLimitAttribute's threshold on that endpoint (UPLOAD_MAX_BYTES + 8192).
+		// Deliberately set higher, not equal: FormOptions' own limit is enforced by the
+		// multipart reader during form binding and throws a 400 InvalidDataException,
+		// which would otherwise race Kestrel's IHttpMaxRequestBodySizeFeature check (413)
+		// for a body sized right at the shared threshold — RequestSizeLimitAttribute must
+		// be the one that trips first so oversize uploads consistently get 413, not 400.
+		// This is purely defense-in-depth against non-upload multipart abuse; the
+		// endpoint-level RequestSizeLimitAttribute is the authoritative cap here.
+		builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options => {
+			options.MultipartBodyLengthLimit =
+				AppEnvironment.Instance.UPLOAD_MAX_BYTES + UploadLimits.FormOptionsHeadroomBytes;
+		});
+
 		return builder;
 	}
 
@@ -120,6 +136,15 @@ public static class ServiceRegistration {
 		});
 		builder.Services.AddSingleton<IEmailSender, ResendEmailAdapter>();
 		builder.Services.AddSingleton<IEmailService, EmailService>();
+		builder.Services.AddSingleton<IFileStorage>(
+			_ => new LocalDiskFileStorage(AppEnvironment.Instance.FILE_STORAGE_ROOT)
+		);
+
+		// Durable invitation email outbox: writers persist rows transactionally and
+		// signal this dispatcher, which delivers them on its own host-lifetime token
+		// (never a per-request token) with retry and restart recovery.
+		builder.Services.AddSingleton<IInvitationEmailOutboxSignal, InvitationEmailOutboxSignal>();
+		builder.Services.AddHostedService<InvitationEmailOutboxDispatcher>();
 
 		return builder;
 	}

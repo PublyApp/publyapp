@@ -1,16 +1,100 @@
-import { Card, Chip, Spinner } from '@heroui/react';
+import {
+	IconAlertCircle,
+	IconArrowLeft,
+	IconPencil,
+	IconSearchOff,
+} from '@tabler/icons-react';
+import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { View403 } from '~/components/error-views/View403';
+import { Button, buttonVariants } from '~/components/ui/button';
+import { CopyButton } from '~/components/ui/copy-button';
+import { BrandTile } from '~/components/ui/initials-avatar';
+import { LoadingSpinner } from '~/components/ui/loading-spinner';
+import { StatusPill } from '~/components/ui/product-page';
+import { statusPillTone } from '~/components/ui/status-tone';
 import type { StaffTenantDetails } from '~/lib/query/staff-tenants';
+import { cn } from '~/lib/utils';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 export const MALFORMED_ID_TRANSLATION_KEY = 'malformed-id';
 
+/** Formats the raw backend tenant status (e.g. `"Active"`) for display — the
+ * identity header must not render the unlocalized backend string directly. */
+export const formatTenantStatusLabel = (
+	status: string,
+	t: (key: string) => string,
+): string => {
+	const normalized = status.trim().toLowerCase();
+	if (normalized === 'active') {
+		return t('status-active');
+	}
+	if (normalized === 'suspended') {
+		return t('status-suspended');
+	}
+	if (normalized === 'pending') {
+		return t('status-pending');
+	}
+	return status;
+};
+
+/** Backend row status is PascalCase (`Active`/`Suspended`/`GloballySuspended`);
+ * the `t()` keys are the honest display labels for those three values only. */
+export const formatTenantUserStatusLabel = (
+	status: string | null,
+	t: (key: string) => string,
+): string => {
+	const normalized = status?.trim().toLowerCase() ?? '';
+	if (normalized === 'active') {
+		return t('status-active');
+	}
+	if (normalized === 'suspended') {
+		return t('status-suspended');
+	}
+	if (
+		normalized === 'globallysuspended' ||
+		normalized === 'globally_suspended'
+	) {
+		return t('status-globally-suspended');
+	}
+	return status ?? t('status-unknown');
+};
+
+export const tenantUserLevelChipClassName = (level: string | null): string =>
+	(level ?? '').trim().toLowerCase() === 'admin'
+		? 'publy-detail-chip publy-detail-chip--amber'
+		: 'publy-detail-chip publy-detail-chip--outline';
+
+export const formatTenantUserLevelLabel = (
+	level: string | null,
+	t: (key: string) => string,
+): string => {
+	const normalized = level?.trim().toLowerCase() ?? '';
+	if (normalized === 'admin') {
+		return t('admin');
+	}
+	if (normalized === 'user') {
+		return t('user');
+	}
+	// data-honesty-ignore: an unrecognized/absent account level is a genuine "no value" formatter case, not fabricated identity data
+	return level ?? '—';
+};
+
 const DATE_TIME_FORMAT_OPTIONS = {
 	dateStyle: 'medium',
 	timeStyle: 'short',
+} as const;
+
+const SHORT_DATE_FORMAT_OPTIONS = {
+	dateStyle: 'medium',
+} as const;
+
+const MONTH_YEAR_FORMAT_OPTIONS = {
+	month: 'short',
+	year: 'numeric',
 } as const;
 
 export const formatDateTime = (
@@ -22,6 +106,68 @@ export const formatDateTime = (
 	}
 
 	return value.toLocaleString(locale, DATE_TIME_FORMAT_OPTIONS);
+};
+
+export const formatShortDate = (
+	value: Date | null | undefined,
+	locale: string,
+): string => {
+	if (!(value instanceof Date) || Number.isNaN(value.valueOf())) {
+		return '—';
+	}
+
+	return value.toLocaleString(locale, SHORT_DATE_FORMAT_OPTIONS);
+};
+
+export const formatMonthYear = (
+	value: Date | null | undefined,
+	locale: string,
+): string => {
+	if (!(value instanceof Date) || Number.isNaN(value.valueOf())) {
+		return '—';
+	}
+
+	return value.toLocaleString(locale, MONTH_YEAR_FORMAT_OPTIONS);
+};
+
+export type RelativeTimeParts = {
+	key: 'minutes-ago' | 'hours-ago' | 'days-ago' | 'months-ago' | 'years-ago';
+	count: number;
+};
+
+/** Coarse "x ago" magnitude for stat-card secondary rows — a helper caption,
+ * not a billing-precision calculation, so 30-day months are fine. */
+export const getRelativeTimeParts = (
+	value: Date | null | undefined,
+	now: Date = new Date(),
+): RelativeTimeParts | null => {
+	if (!(value instanceof Date) || Number.isNaN(value.valueOf())) {
+		return null;
+	}
+
+	const diffMs = Math.max(now.getTime() - value.getTime(), 0);
+	const minutes = Math.floor(diffMs / 60_000);
+	if (minutes < 60) {
+		return { key: 'minutes-ago', count: Math.max(minutes, 1) };
+	}
+
+	const hours = Math.floor(minutes / 60);
+	if (hours < 24) {
+		return { key: 'hours-ago', count: hours };
+	}
+
+	const days = Math.floor(hours / 24);
+	if (days < 30) {
+		return { key: 'days-ago', count: days };
+	}
+
+	const months = Math.floor(days / 30);
+	if (months < 12) {
+		return { key: 'months-ago', count: months };
+	}
+
+	const years = Math.floor(months / 12);
+	return { key: 'years-ago', count: years };
 };
 
 const isProblemStatus = (
@@ -50,19 +196,6 @@ const getFailureDescription = (error: unknown, fallback: string): string => {
 	return fallback;
 };
 
-const getStatusColor = (status: string | null) => {
-	switch (status) {
-		case 'Active':
-			return 'success';
-		case 'Pending':
-			return 'warning';
-		case 'Suspended':
-			return 'danger';
-		default:
-			return 'default';
-	}
-};
-
 export const DetailItem = ({
 	label,
 	value,
@@ -70,28 +203,36 @@ export const DetailItem = ({
 	label: string;
 	value: string;
 }) => (
-	<div className="rounded-large border border-divider bg-content1 p-4">
-		<p className="text-xs font-medium uppercase tracking-[0.2em] text-foreground-500">
-			{label}
+	<div className="rounded-[14px] bg-card p-4 shadow-[var(--publy-shadow-ring)]">
+		<p className="publy-type-metadata-label">{label}</p>
+		<p className="mt-1.5 truncate text-[13px] font-medium text-foreground">
+			{value}
 		</p>
-		<p className="mt-2 text-sm font-medium text-foreground">{value}</p>
 	</div>
 );
 
+type TenantSectionTo =
+	| '/staff/tenants/$tenantId'
+	| '/staff/tenants/$tenantId/users'
+	| '/staff/tenants/$tenantId/profiles'
+	| '/staff/tenants/$tenantId/invitations';
+
 const SectionNavLink = ({
 	label,
-	href,
+	to,
+	tenantId,
 	isActive = false,
 }: {
 	label: string;
-	href: string;
+	to: TenantSectionTo;
+	tenantId: string;
 	isActive?: boolean;
 }) => {
 	if (isActive) {
 		return (
 			<span
 				aria-current="page"
-				className="inline-flex rounded-full border border-primary bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary"
+				className="inline-flex items-center border-b-2 border-primary px-3 pb-2.5 text-[13px] font-medium text-foreground"
 			>
 				{label}
 			</span>
@@ -99,73 +240,117 @@ const SectionNavLink = ({
 	}
 
 	return (
-		<a
-			href={href}
-			className="inline-flex rounded-full border border-divider px-3 py-1.5 text-sm font-medium text-foreground-600 transition hover:border-primary hover:text-primary"
+		<Link
+			to={to}
+			params={{ tenantId }}
+			className="inline-flex items-center border-b-2 border-transparent px-3 pb-2.5 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground"
 		>
 			{label}
-		</a>
+		</Link>
 	);
 };
 
-export const TenantDetailsLoading = () => (
-	<div
-		className="mx-auto flex min-h-[50vh] w-full max-w-5xl items-center justify-center px-4 py-12"
-		data-testid="staff-tenant-details-loading"
-	>
-		<div className="flex items-center gap-3 text-sm text-foreground-500">
-			<Spinner size="sm" />
-			<span>Loading tenant…</span>
+export const TenantDetailsLoading = () => {
+	const { t } = useTranslation('common');
+
+	return (
+		<div
+			className="mx-auto flex min-h-[50vh] w-full max-w-5xl items-center justify-center px-4 py-12"
+			data-testid="staff-tenant-details-loading"
+		>
+			<div className="flex items-center gap-3 text-sm text-muted-foreground">
+				<LoadingSpinner />
+				<span>{t('loading-tenant')}</span>
+			</div>
 		</div>
-	</div>
-);
+	);
+};
 
-const InvalidTenantView = ({ error }: { error: unknown }) => (
-	<AppErrorView
-		icon="!"
-		code="400 — Bad Request"
-		title="Invalid tenant link"
-		description={getFailureDescription(
-			error,
-			'This tenant link is malformed or incomplete.',
-		)}
-		testId="staff-tenant-details-invalid"
-	/>
-);
+export const BackToTenantsLink = () => {
+	const { t } = useTranslation('common');
 
-const MissingTenantView = ({ error }: { error: unknown }) => (
-	<AppErrorView
-		icon="🔎"
-		code="404 — Not Found"
-		title="Tenant not found"
-		description={getFailureDescription(
-			error,
-			'The requested tenant does not exist or is no longer available.',
-		)}
-		testId="staff-tenant-details-not-found"
-	/>
-);
+	return (
+		<Link
+			to="/staff/tenants"
+			className={buttonVariants({ variant: 'outline' })}
+		>
+			{t('back-to-tenants')}
+		</Link>
+	);
+};
 
-export const TenantDetailsError = ({ error }: { error: unknown }) => {
-	if (isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)) {
-		return <InvalidTenantView error={error} />;
+/** Retry + Back-to-tenants action pair shared by every tenant-scoped 500
+ * view (owner decision R3-4a, 2026-07-10 round 3). */
+export const TenantRetryActions = ({ onRetry }: { onRetry: () => void }) => {
+	const { t } = useTranslation('common');
+
+	return (
+		<>
+			<Button variant="default" onClick={onRetry} type="button">
+				{t('try-again')}
+			</Button>
+			<BackToTenantsLink />
+		</>
+	);
+};
+
+const MissingTenantView = ({ error }: { error: unknown }) => {
+	const { t } = useTranslation('common');
+
+	return (
+		<AppErrorView
+			icon={<IconSearchOff aria-hidden="true" className="size-7" />}
+			code={t('error-404-code')}
+			title={t('tenant-not-found-title')}
+			description={getFailureDescription(
+				error,
+				t('tenant-not-found-description'),
+			)}
+			testId="staff-tenant-details-not-found"
+			embedded
+			actions={<BackToTenantsLink />}
+		/>
+	);
+};
+
+export const TenantDetailsError = ({
+	error,
+	onRetry,
+}: {
+	error: unknown;
+	/** Refetches the tenant query that produced this error. Omit when no
+	 * retry target is available at the call site. */
+	onRetry?: () => void;
+}) => {
+	const { t } = useTranslation('common');
+
+	if (
+		isProblemStatus(error, 404) ||
+		isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)
+	) {
+		return <MissingTenantView error={error} />;
 	}
 
 	if (isProblemStatus(error, 403)) {
-		return <View403 />;
-	}
-
-	if (isProblemStatus(error, 404)) {
-		return <MissingTenantView error={error} />;
+		return <View403 embedded />;
 	}
 
 	return (
 		<AppErrorView
-			icon="!"
-			code="500 — Server Error"
-			title="Unable to load this tenant"
-			description="There was a problem loading the tenant details."
+			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
+			code={t('error-500-code')}
+			title={t('tenant-details-error-title')}
+			description={t('tenant-details-error-description')}
 			testId="staff-tenant-details-error"
+			tone="danger"
+			embedded
+			actions={
+				onRetry ? (
+					<TenantRetryActions onRetry={onRetry} />
+				) : (
+					<BackToTenantsLink />
+				)
+			}
 		/>
 	);
 };
@@ -173,83 +358,140 @@ export const TenantDetailsError = ({ error }: { error: unknown }) => {
 export const TenantDetailsPageShell = ({
 	tenant,
 	activeSection,
-	summary,
 	testId,
 	children,
+	summary,
+	bodyScroll = 'page',
 }: {
 	tenant: StaffTenantDetails;
 	activeSection: 'basics' | 'profiles' | 'users' | 'invitations';
-	summary: string;
 	testId: string;
 	children: ReactNode;
+	/**
+	 * Free-form description line rendered under the tabs. The redesigned
+	 * Basics/Profiles/Invitations/Users tab routes (handoff 2c/3b) get their
+	 * description from the identity header's meta line and omit this prop;
+	 * out-of-scope create/invite/edit routes for profiles/invitations/users
+	 * still pass it until their own packet restyles them.
+	 */
+	summary?: string;
+	/**
+	 * 'page' (default): the shell grows with its content and `.app-shell-main`
+	 * owns scrolling — correct for card grids and free-flowing content
+	 * (Basics, Profiles). 'contained': the shell is height-bound to
+	 * `.app-shell-main` and the tab body becomes a `min-h-0` flex column, so a
+	 * `DataTable` inside it owns its own scroll instead of the page (Users,
+	 * Invitations) — see docs/guides/front-2/conventions.md "tables own their
+	 * scroll".
+	 */
+	bodyScroll?: 'page' | 'contained';
 }) => {
-	const profilesHref = `/staff/tenants/${tenant.id}/profiles`;
-	const usersHref = `/staff/tenants/${tenant.id}/users`;
-	const invitationsHref = `/staff/tenants/${tenant.id}/invitations`;
+	const { t, i18n } = useTranslation('common');
 
 	return (
 		<div
-			className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-6"
+			className={cn(
+				'publy-detail-page flex w-full flex-col gap-5',
+				bodyScroll === 'contained' && 'h-full min-h-0',
+			)}
+			data-body-scroll={bodyScroll}
 			data-testid={testId}
 		>
-			<div className="flex flex-wrap items-center justify-between gap-3">
-				<a
-					href="/staff/tenants"
-					className="text-sm font-medium text-foreground underline-offset-4 hover:underline"
-				>
-					Back to tenants
-				</a>
+			<div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
+				<Link to="/staff/tenants" className="publy-back-link">
+					<IconArrowLeft aria-hidden="true" className="size-3" />
+					{t('back-to-staff-tenants')}
+				</Link>
 			</div>
 
-			<Card className="space-y-6 p-5">
-				<div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-					<div className="space-y-3">
-						<div className="flex flex-wrap items-center gap-3">
-							<h1 className="text-3xl font-semibold text-foreground">
-								{tenant.name}
-							</h1>
-							<Chip color={getStatusColor(tenant.status)} variant="soft">
-								{tenant.status ?? 'Unknown'}
-							</Chip>
+			<header className="flex shrink-0 flex-wrap items-start justify-between gap-4">
+				<div className="flex items-start gap-4">
+					<BrandTile name={tenant.name} logoUrl={tenant.logoUrl} />
+					<div className="min-w-0 space-y-1">
+						<div className="flex flex-wrap items-center gap-2">
+							<h1 className="publy-tenant-identity-name">{tenant.name}</h1>
+							<StatusPill tone={statusPillTone(tenant.status)}>
+								{tenant.status
+									? formatTenantStatusLabel(tenant.status, t)
+									: t('unknown')}
+							</StatusPill>
 						</div>
-						<p className="text-sm text-foreground-500">{summary}</p>
-					</div>
-
-					<div className="rounded-large border border-divider bg-content1 p-4">
-						<p className="text-xs font-medium uppercase tracking-[0.2em] text-foreground-500">
-							Users
-						</p>
-						<p className="mt-2 text-2xl font-semibold text-foreground">
-							{tenant.usersCount}
+						<p className="publy-tenant-identity-meta flex items-center gap-1">
+							<span className="publy-tenant-identity-meta-prefix">
+								publyapp.com/
+							</span>
+							<span className="publy-tenant-identity-meta-code">
+								{/* data-honesty-ignore: tenant code is a documented OPTIONAL field — a tenant without an assigned workspace slug has none, this is not fabricated identity data */}
+								{tenant.code ?? '—'}
+							</span>
+							{tenant.code ? (
+								<CopyButton
+									value={tenant.code}
+									label={t('copy-slug')}
+									testId="tenant-meta-code-copy"
+								/>
+							) : null}
+							<span>
+								{' '}
+								· {t('tenant-member-count', { count: tenant.usersCount })} ·{' '}
+								{t('tenant-owner-count', { count: tenant.ownersCount })} ·{' '}
+								{t('since-date', {
+									date: formatMonthYear(tenant.createdAt, i18n.language),
+								})}
+							</span>
 						</p>
 					</div>
 				</div>
 
-				<div className="flex flex-wrap gap-2">
-					<SectionNavLink
-						label="Basics"
-						href={`/staff/tenants/${tenant.id}`}
-						isActive={activeSection === 'basics'}
-					/>
-					<SectionNavLink
-						label="Profiles"
-						href={profilesHref}
-						isActive={activeSection === 'profiles'}
-					/>
-					<SectionNavLink
-						label="Invitations"
-						href={invitationsHref}
-						isActive={activeSection === 'invitations'}
-					/>
-					<SectionNavLink
-						label="Users"
-						href={usersHref}
-						isActive={activeSection === 'users'}
-					/>
-				</div>
+				<Link
+					to="/staff/tenants/$tenantId/edit"
+					params={{ tenantId: tenant.id }}
+					className={buttonVariants({ variant: 'outline', size: 'sm' })}
+				>
+					<IconPencil aria-hidden="true" className="size-4" />
+					{t('edit')}
+				</Link>
+			</header>
 
-				{children}
-			</Card>
+			<nav
+				aria-label={t('tenant-sections')}
+				className="flex shrink-0 flex-wrap gap-1 border-b border-border"
+			>
+				<SectionNavLink
+					label={t('basics')}
+					to="/staff/tenants/$tenantId"
+					tenantId={tenant.id}
+					isActive={activeSection === 'basics'}
+				/>
+				<SectionNavLink
+					label={t('profiles')}
+					to="/staff/tenants/$tenantId/profiles"
+					tenantId={tenant.id}
+					isActive={activeSection === 'profiles'}
+				/>
+				<SectionNavLink
+					label={t('invitations')}
+					to="/staff/tenants/$tenantId/invitations"
+					tenantId={tenant.id}
+					isActive={activeSection === 'invitations'}
+				/>
+				<SectionNavLink
+					label={t('users')}
+					to="/staff/tenants/$tenantId/users"
+					tenantId={tenant.id}
+					isActive={activeSection === 'users'}
+				/>
+			</nav>
+
+			{summary ? (
+				<p className="text-sm text-muted-foreground">{summary}</p>
+			) : null}
+
+			{bodyScroll === 'contained' ? (
+				<div className="publy-detail-tab-body">{children}</div>
+			) : (
+				children
+			)}
 		</div>
 	);
 };

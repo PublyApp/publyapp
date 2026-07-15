@@ -93,11 +93,7 @@ public static class JsonElementRules {
 	/// <summary>
 	/// Validates a nullable JsonElement? string field:
 	/// wrapper-null or JSON null OK, otherwise must be String.
-	///
-	/// RESERVED FOR FUTURE USE: Currently unused in production code.
 	/// For optional non-empty strings, use MustBeNullableNonEmptyString instead.
-	/// This validator is kept for completeness and will be needed when adding
-	/// optional string fields that accept empty/whitespace values.
 	/// </summary>
 	public static IRuleBuilderOptions<T, JsonElement?>
 		MustBeNullableString<T>(
@@ -189,6 +185,57 @@ public static class JsonElementRules {
 	}
 
 	/// <summary>
+	/// Validates a nullable JsonElement? URL field where blank/whitespace-only
+	/// input is treated as a clear (valid), for fields whose handler getter
+	/// normalizes blank to null before persisting (e.g. NormalizeClearableString).
+	/// Do not use this for fields whose getter does no such normalization —
+	/// use <see cref="MustBeNullableUrl{T}"/> there instead.
+	/// </summary>
+	public static IRuleBuilderOptions<T, JsonElement?>
+		MustBeNullableClearableUrl<T>(
+			this IRuleBuilder<T, JsonElement?> ruleBuilder,
+			string fieldName,
+			int? maxLength = null
+	) {
+		return ruleBuilder
+			.Must(e => {
+				if (e is null) {
+					return true;
+				}
+				var kind = e.Value.ValueKind;
+				if (kind is JsonValueKind.Null) {
+					return true;
+				}
+				if (kind != JsonValueKind.String) {
+					return false;
+				}
+				var url = e.Value.GetString();
+				if (string.IsNullOrWhiteSpace(url)) {
+					return true;
+				}
+				if (!Uri.TryCreate(
+					url, UriKind.Absolute, out var result
+				)) {
+					return false;
+				}
+				return result.Scheme == Uri.UriSchemeHttp
+					|| result.Scheme == Uri.UriSchemeHttps;
+			})
+			.WithMessage(
+				$"{fieldName} must be a valid URL"
+			)
+			.Must(e => {
+				if (maxLength is null || e is null || e.Value.ValueKind != JsonValueKind.String) {
+					return true;
+				}
+				return (e.Value.GetString()?.Length ?? 0) <= maxLength;
+			})
+			.WithMessage(
+				$"{fieldName} must be {maxLength} characters or less"
+			);
+	}
+
+	/// <summary>
 	/// Validates a non-nullable JsonElement URL field for PatchField pattern:
 	/// Undefined OK (omit), null OK (clear), otherwise must be valid http(s) URL.
 	/// </summary>
@@ -223,6 +270,57 @@ public static class JsonElementRules {
 			})
 			.WithMessage(
 				$"{fieldName} must be a string, null, or omitted"
+			);
+	}
+
+	/// <summary>
+	/// Validates a non-nullable JsonElement URL field for PatchField pattern where
+	/// blank/whitespace-only input is treated as a clear (valid), for fields whose
+	/// handler getter normalizes blank to null before persisting (e.g.
+	/// NormalizeClearableString). Do not use this for fields whose getter does no
+	/// such normalization — use <see cref="MustBePatchFieldUrl{T}"/> there instead.
+	/// </summary>
+	public static IRuleBuilderOptions<T, JsonElement>
+		MustBePatchFieldClearableUrl<T>(
+			this IRuleBuilder<T, JsonElement> ruleBuilder,
+			string fieldName,
+			int? maxLength = null
+	) {
+		return ruleBuilder
+			.Must(e => {
+				var kind = e.ValueKind;
+				if (kind is JsonValueKind.Undefined) {
+					return true;
+				}
+				if (kind is JsonValueKind.Null) {
+					return true;
+				}
+				if (kind is not JsonValueKind.String) {
+					return false;
+				}
+				var url = e.GetString();
+				if (string.IsNullOrWhiteSpace(url)) {
+					return true;
+				}
+				if (!Uri.TryCreate(
+					url, UriKind.Absolute, out var result
+				)) {
+					return false;
+				}
+				return result.Scheme == Uri.UriSchemeHttp
+					|| result.Scheme == Uri.UriSchemeHttps;
+			})
+			.WithMessage(
+				$"{fieldName} must be a string, null, or omitted"
+			)
+			.Must(e => {
+				if (maxLength is null || e.ValueKind != JsonValueKind.String) {
+					return true;
+				}
+				return (e.GetString()?.Length ?? 0) <= maxLength;
+			})
+			.WithMessage(
+				$"{fieldName} must be {maxLength} characters or less"
 			);
 	}
 
@@ -334,6 +432,95 @@ public static class JsonElementRules {
 			})
 			.WithMessage(
 				"Email must be a valid email address"
+			);
+	}
+
+	/// <summary>
+	/// Validates a nullable JsonElement? email field with a bounded length:
+	/// wrapper-null or JSON null OK; otherwise must be a valid email address whose
+	/// length is at most <paramref name="maxLength"/>.
+	/// </summary>
+	public static IRuleBuilderOptions<T, JsonElement?>
+		MustBeNullableEmailWithMaxLength<T>(
+			this IRuleBuilder<T, JsonElement?> ruleBuilder,
+			string fieldName,
+			int maxLength
+	) {
+		return ruleBuilder
+			.Must(e => {
+				if (e is null) {
+					return true;
+				}
+				var kind = e.Value.ValueKind;
+				if (kind is JsonValueKind.Null) {
+					return true;
+				}
+				if (kind != JsonValueKind.String) {
+					return false;
+				}
+				var email = e.Value.GetString();
+				// Whitespace-only is treated as a clear, matching the handler's
+				// NormalizeClearableString mapping to null — not a validation failure.
+				if (string.IsNullOrWhiteSpace(email)) {
+					return true;
+				}
+				return System.Net.Mail.MailAddress
+					.TryCreate(email, out _);
+			})
+			.WithMessage(
+				$"{fieldName} must be a valid email address"
+			)
+			.Must(e => {
+				if (e is null || e.Value.ValueKind != JsonValueKind.String) {
+					return true;
+				}
+				return (e.Value.GetString()?.Length ?? 0) <= maxLength;
+			})
+			.WithMessage(
+				$"{fieldName} must be at most {maxLength} characters long"
+			);
+	}
+
+	/// <summary>
+	/// Validates a non-nullable JsonElement email field for PatchField pattern with a
+	/// bounded length: Undefined OK (omit), null OK (clear), otherwise must be a valid
+	/// email address whose length is at most <paramref name="maxLength"/>.
+	/// </summary>
+	public static IRuleBuilderOptions<T, JsonElement>
+		MustBePatchFieldEmailWithMaxLength<T>(
+			this IRuleBuilder<T, JsonElement> ruleBuilder,
+			string fieldName,
+			int maxLength
+	) {
+		return ruleBuilder
+			.Must(e => {
+				var kind = e.ValueKind;
+				if (kind is JsonValueKind.Undefined or JsonValueKind.Null) {
+					return true;
+				}
+				if (kind is not JsonValueKind.String) {
+					return false;
+				}
+				var email = e.GetString();
+				// Whitespace-only is treated as a clear, matching the handler's
+				// NormalizeClearableString mapping to null — not a validation failure.
+				if (string.IsNullOrWhiteSpace(email)) {
+					return true;
+				}
+				return System.Net.Mail.MailAddress
+					.TryCreate(email, out _);
+			})
+			.WithMessage(
+				$"{fieldName} must be a valid email address, null, or omitted"
+			)
+			.Must(e => {
+				if (e.ValueKind != JsonValueKind.String) {
+					return true;
+				}
+				return (e.GetString()?.Length ?? 0) <= maxLength;
+			})
+			.WithMessage(
+				$"{fieldName} must be at most {maxLength} characters long"
 			);
 	}
 

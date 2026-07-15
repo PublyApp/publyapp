@@ -1,8 +1,11 @@
+using System.Text.Json;
+
 using FluentValidation;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
+using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Localization;
@@ -13,6 +16,16 @@ using PublyApp.Api.Modules.Users.Services;
 namespace PublyApp.Api.Modules.Auth.Handlers;
 
 public class PasswordRegisterBody : PasswordLoginBody {
+	public JsonElement FirstName { get; set; }
+	public JsonElement LastName { get; set; }
+
+	public string GetFirstName() {
+		return FirstName.GetValueAsString().Trim();
+	}
+
+	public string GetLastName() {
+		return LastName.GetValueAsString().Trim();
+	}
 }
 
 public class PasswordRegisterBodyValidator
@@ -23,6 +36,12 @@ public class PasswordRegisterBodyValidator
 
 		RuleFor(x => x.Password)
 			.MustBeRequiredPassword();
+
+		RuleFor(x => x.FirstName)
+			.MustBeRequiredStringWithLength("FirstName", 1, 100, trim: true);
+
+		RuleFor(x => x.LastName)
+			.MustBeRequiredStringWithLength("LastName", 1, 100, trim: true);
 	}
 }
 
@@ -51,6 +70,8 @@ public sealed class PasswordRegister {
 		var newUser = new User {
 			Email = email,
 			Password = password,
+			FirstName = body.GetFirstName(),
+			LastName = body.GetLastName(),
 			// Password registration owns credential setup, so it opts into activation
 			// instead of relying on the User entity's safe suspended default.
 			Status = UserStatus.Active,

@@ -115,6 +115,16 @@ public static partial class Routes {
 			public static string ReactivateFn(string tenantId, string userId) {
 				return $"{RootFn(tenantId)}/{userId}/reactivate";
 			}
+
+			public const string BulkRemove = "/bulk-remove";
+			public static string BulkRemoveFn(string tenantId) {
+				return $"{RootFn(tenantId)}/bulk-remove";
+			}
+
+			public const string Export = "/export";
+			public static string ExportFn(string tenantId) {
+				return $"{RootFn(tenantId)}/export";
+			}
 		}
 
 		/// <summary>First-class tenant-user routes (staff managing tenant-side identities)</summary>

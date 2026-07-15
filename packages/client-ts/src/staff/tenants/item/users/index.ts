@@ -4,6 +4,10 @@
 // @ts-ignore
 import { createAppProblemDetailsFromDiscriminatorValue, createFindTenantUsersAsStaffResultFromDiscriminatorValue, createValidationProblemDetailsFromDiscriminatorValue, type AppProblemDetails, type FindTenantUsersAsStaffResult, type ValidationProblemDetails } from '../../../../models/index.js';
 // @ts-ignore
+import { BulkRemoveRequestBuilderRequestsMetadata, type BulkRemoveRequestBuilder } from './bulkRemove/index.js';
+// @ts-ignore
+import { ExportRequestBuilderRequestsMetadata, type ExportRequestBuilder } from './exportEscaped/index.js';
+// @ts-ignore
 import { InvitationsRequestBuilderRequestsMetadata, type InvitationsRequestBuilder } from './invitations/index.js';
 // @ts-ignore
 import { type WithUserItemRequestBuilder, WithUserItemRequestBuilderNavigationMetadata, WithUserItemRequestBuilderRequestsMetadata } from './item/index.js';
@@ -14,6 +18,14 @@ import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type 
  * Builds and executes requests for operations under /staff/tenants/{tenantId}/users
  */
 export interface UsersRequestBuilder extends BaseRequestBuilder<UsersRequestBuilder> {
+    /**
+     * The bulkRemove property
+     */
+    get bulkRemove(): BulkRemoveRequestBuilder;
+    /**
+     * The export property
+     */
+    get exportEscaped(): ExportRequestBuilder;
     /**
      * The invitations property
      */
@@ -47,6 +59,7 @@ export interface UsersRequestBuilder extends BaseRequestBuilder<UsersRequestBuil
  */
 export interface UsersRequestBuilderGetQueryParameters {
     cursor?: string;
+    level?: string;
     limit?: string;
     q?: string;
     sortId?: string;
@@ -56,7 +69,7 @@ export interface UsersRequestBuilderGetQueryParameters {
 /**
  * Uri template for the request builder.
  */
-export const UsersRequestBuilderUriTemplate = "{+baseurl}/staff/tenants/{tenantId}/users{?cursor*,limit*,q*,sort_id*,sort_order*,status*}";
+export const UsersRequestBuilderUriTemplate = "{+baseurl}/staff/tenants/{tenantId}/users{?cursor*,level*,limit*,q*,sort_id*,sort_order*,status*}";
 /**
  * Mapper for query parameters from symbol name to serialization name represented as a constant.
  */
@@ -72,6 +85,12 @@ export const UsersRequestBuilderNavigationMetadata: Record<Exclude<keyof UsersRe
         requestsMetadata: WithUserItemRequestBuilderRequestsMetadata,
         navigationMetadata: WithUserItemRequestBuilderNavigationMetadata,
         pathParametersMappings: ["userId"],
+    },
+    bulkRemove: {
+        requestsMetadata: BulkRemoveRequestBuilderRequestsMetadata,
+    },
+    exportEscaped: {
+        requestsMetadata: ExportRequestBuilderRequestsMetadata,
     },
     invitations: {
         requestsMetadata: InvitationsRequestBuilderRequestsMetadata,

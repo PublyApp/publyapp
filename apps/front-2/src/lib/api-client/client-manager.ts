@@ -320,7 +320,9 @@ const getSessionTokensFromBrowser = (): ParsedSessionTokens =>
 class ClientManager implements ClientAccessor<ApiClient> {
 	private tenantClientMap = new Map<string, ApiClient>();
 	private staffClient: ApiClient | undefined;
+	private tenantScopeClient: ApiClient | undefined;
 	private anonymousClient: ApiClient | undefined;
+	private sessionClient: ApiClient | undefined;
 	private readonly sessionTokenProvider: SessionTokenProvider;
 
 	public constructor(options: ClientManagerOptions = {}) {
@@ -356,6 +358,17 @@ class ClientManager implements ClientAccessor<ApiClient> {
 		return this.staffClient;
 	}
 
+	getOrCreateTenantScopeClient(): ApiClient {
+		if (this.tenantScopeClient) {
+			return this.tenantScopeClient;
+		}
+
+		this.tenantScopeClient = buildClient({
+			getSessionToken: () => this.sessionTokenProvider('tenant'),
+		});
+		return this.tenantScopeClient;
+	}
+
 	getOrCreateAnonymousClient(): ApiClient {
 		if (this.anonymousClient) {
 			return this.anonymousClient;
@@ -367,10 +380,32 @@ class ClientManager implements ClientAccessor<ApiClient> {
 		return this.anonymousClient;
 	}
 
+	/**
+	 * For scope-agnostic session endpoints (e.g. `/auth/user-auth-data`) that
+	 * must authenticate whichever account is signed in — tenant or staff.
+	 * Staff/tenant mutual exclusivity (AGENTS.md) guarantees at most one of
+	 * the two tokens is ever set, so trying tenant then staff never masks one
+	 * scope's session with the other's.
+	 */
+	getOrCreateSessionClient(): ApiClient {
+		if (this.sessionClient) {
+			return this.sessionClient;
+		}
+
+		this.sessionClient = buildClient({
+			getSessionToken: () =>
+				this.sessionTokenProvider('tenant') ??
+				this.sessionTokenProvider('staff'),
+		});
+		return this.sessionClient;
+	}
+
 	clearClients(): void {
 		this.tenantClientMap.clear();
 		this.staffClient = undefined;
+		this.tenantScopeClient = undefined;
 		this.anonymousClient = undefined;
+		this.sessionClient = undefined;
 	}
 }
 
@@ -397,6 +432,7 @@ const resetClientManager = (): void => {
 
 export {
 	getSessionTokensFromBrowser,
+	resolveApiBaseUrl,
 	resolveSessionToken,
 	buildClient as createClient,
 	buildCustomFetch,

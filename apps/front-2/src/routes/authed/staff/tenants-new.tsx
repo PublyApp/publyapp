@@ -1,18 +1,40 @@
-import { Button, Card } from '@heroui/react';
 import { zodResolver } from '@hookform/resolvers/zod';
+import {
+	IconArrowLeft,
+	IconCircle,
+	IconCircleCheckFilled,
+	IconFileCheck,
+	IconFileSpreadsheet,
+	IconPlus,
+	IconX,
+} from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Link, createFileRoute } from '@tanstack/react-router';
-import { useMemo, useState } from 'react';
-import { useFieldArray, useForm, useWatch } from 'react-hook-form';
+import { Link, createFileRoute, useBlocker } from '@tanstack/react-router';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
-import { Field, Form } from '~/components/field';
+import { Field, Form, FormActionBar, FormPageLayout } from '~/components/field';
+import { Button } from '~/components/ui/button';
+import { Card } from '~/components/ui/card';
+import { ConfirmDialog } from '~/components/ui/confirm-dialog';
+import { BrandTile } from '~/components/ui/initials-avatar';
+import { StatusPill } from '~/components/ui/product-page';
 import {
-	STAFF_TENANTS_QUERY_KEY,
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+} from '~/components/ui/select';
+import { statusPillTone } from '~/components/ui/status-tone';
+import { downloadFile } from '~/lib/download-file';
+import {
+	invalidateStaffTenants,
 	useCreateStaffTenantMutation,
 } from '~/lib/query/staff-tenants';
-import { shouldLogoutForFailure } from '~/routes/authed/layout';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
+import { cn } from '~/lib/utils';
 
 import {
 	getFailureMessage,
@@ -23,27 +45,67 @@ import {
 	DEFAULT_MAX_USER_PER_TENANT,
 } from '@org/shared-ts/lib/constants';
 
-type TenantCreateFormValues = {
-	name: string;
-	maxUsers: number;
-	initialUsers: Array<{
-		email: string;
-		accountLevel: NewTenantAccountLevel;
-	}>;
-};
+import {
+	buildMemberImportOutcome,
+	buildTenantMemberCsvTemplate,
+	isValidTenantCode,
+	mergeInitialUsers,
+	parseCsv,
+	slugifyTenantNamePlaceholder,
+	type ImportedMember,
+} from './tenants-new-helpers';
+import {
+	getWebsiteHostname,
+	isAbsoluteHttpUrl,
+	isValidEmailAddress,
+} from './tenants/tenant-organization-profile-fields';
 
 type NewTenantAccountLevel =
 	(typeof ACCOUNT_LEVEL_ENUM)[keyof typeof ACCOUNT_LEVEL_ENUM];
 
+type OwnerSlotValues = {
+	email: string;
+};
+
+type ManualMemberSlotValues = {
+	email: string;
+	accountLevel: NewTenantAccountLevel;
+};
+
+type TenantCreateFormValues = {
+	name: string;
+	code: string;
+	maxUsers: number;
+	owners: OwnerSlotValues[];
+	manualMembers: ManualMemberSlotValues[];
+	seedDefaultProfile: boolean;
+	logoUrl: string;
+	legalName: string;
+	description: string;
+	websiteUrl: string;
+	billingEmail: string;
+	supportEmail: string;
+	defaultLocale: string;
+	timezone: string;
+	notes: string;
+};
+
 const DEFAULT_VALUES: TenantCreateFormValues = {
 	name: '',
+	code: '',
 	maxUsers: DEFAULT_MAX_USER_PER_TENANT,
-	initialUsers: [
-		{
-			email: '',
-			accountLevel: ACCOUNT_LEVEL_ENUM.ADMIN,
-		},
-	],
+	owners: [{ email: '' }],
+	manualMembers: [],
+	seedDefaultProfile: true,
+	logoUrl: '',
+	legalName: '',
+	description: '',
+	websiteUrl: '',
+	billingEmail: '',
+	supportEmail: '',
+	defaultLocale: '',
+	timezone: '',
+	notes: '',
 };
 
 const USER_ROLE_OPTIONS = [
@@ -51,53 +113,300 @@ const USER_ROLE_OPTIONS = [
 	ACCOUNT_LEVEL_ENUM.USER,
 ] as const;
 
-const createTenantSchema = z
-	.object({
-		name: z.string().trim().min(1),
-		maxUsers: z.coerce.number().int().min(1),
-		initialUsers: z
-			.array(
+/**
+ * Name length mirrors the backend rule (`MustBeRequiredStringWithLength`,
+ * min 5) so the client never accepts a name the server will reject. The
+ * `parsedMembersCount` closure lets the max-seats check account for members
+ * detected from an uploaded CSV/Excel file, which live outside RHF state.
+ */
+const buildCreateTenantSchema = (
+	t: (key: string) => string,
+	getParsedMembersCount: () => number,
+) =>
+	z
+		.object({
+			name: z
+				.string()
+				.trim()
+				.min(5, { message: t('tenant-name-too-short') })
+				.max(256, { message: t('tenant-name-too-long') }),
+			code: z
+				.string()
+				.trim()
+				.refine((value) => value.length === 0 || isValidTenantCode(value), {
+					message: t('workspace-slug-invalid'),
+				}),
+			maxUsers: z.coerce
+				.number({ invalid_type_error: t('seats-required') })
+				.int()
+				.min(1, { message: t('seats-required') }),
+			owners: z
+				.array(
+					z.object({
+						email: z
+							.string()
+							.trim()
+							.email({ message: t('invalid-email-address') }),
+					}),
+				)
+				.min(1, { message: t('at-least-one-owner-required') }),
+			manualMembers: z.array(
 				z.object({
-					email: z.string().trim().email(),
+					email: z
+						.string()
+						.trim()
+						.email({ message: t('invalid-email-address') }),
 					accountLevel: z.enum(USER_ROLE_OPTIONS),
 				}),
-			)
-			.min(1),
-	})
-	.superRefine((values, context) => {
-		if (values.initialUsers.length > values.maxUsers) {
-			context.addIssue({
-				code: 'custom',
-				path: ['initialUsers'],
-				message: 'Initial user count cannot exceed max users.',
-			});
-		}
+			),
+			seedDefaultProfile: z.boolean(),
+			logoUrl: z
+				.string()
+				.trim()
+				.max(2048, { message: t('logo-url-too-long') }),
+			legalName: z
+				.string()
+				.trim()
+				.max(256, { message: t('legal-name-too-long') }),
+			description: z
+				.string()
+				.trim()
+				.max(1024, { message: t('description-too-long') }),
+			websiteUrl: z
+				.string()
+				.trim()
+				.max(2048, { message: t('website-url-too-long') })
+				.refine((value) => !value || isAbsoluteHttpUrl(value), {
+					message: t('website-url-invalid'),
+				}),
+			billingEmail: z
+				.string()
+				.trim()
+				.max(320, { message: t('billing-email-too-long') })
+				.refine((value) => !value || isValidEmailAddress(value), {
+					message: t('invalid-email-address'),
+				}),
+			supportEmail: z
+				.string()
+				.trim()
+				.max(320, { message: t('support-email-too-long') })
+				.refine((value) => !value || isValidEmailAddress(value), {
+					message: t('invalid-email-address'),
+				}),
+			defaultLocale: z.string().trim(),
+			timezone: z.string().trim(),
+			notes: z
+				.string()
+				.trim()
+				.max(4000, { message: t('notes-too-long') }),
+		})
+		.superRefine((values, context) => {
+			const totalCount =
+				values.owners.length +
+				values.manualMembers.length +
+				getParsedMembersCount();
+			if (totalCount > values.maxUsers) {
+				context.addIssue({
+					code: 'custom',
+					path: ['owners'],
+					message: t('max-users-reached'),
+				});
+			}
 
-		const emails = values.initialUsers.map((user) => user.email);
-		if (new Set(emails).size !== emails.length) {
-			context.addIssue({
-				code: 'custom',
-				path: ['initialUsers'],
-				message: 'Each user email must be unique.',
-			});
-		}
-
-		const hasAdmin = values.initialUsers.some(
-			(user) => user.accountLevel === ACCOUNT_LEVEL_ENUM.ADMIN,
-		);
-		if (!hasAdmin) {
-			context.addIssue({
-				code: 'custom',
-				path: ['initialUsers'],
-				message: 'At least one admin user is required.',
-			});
-		}
-	});
+			const emails = [
+				...values.owners.map((owner) => owner.email.toLowerCase()),
+				...values.manualMembers.map((member) => member.email.toLowerCase()),
+			];
+			if (new Set(emails).size !== emails.length) {
+				context.addIssue({
+					code: 'custom',
+					path: ['owners'],
+					message: t('each-user-must-have-a-unique-email'),
+				});
+			}
+		});
 
 const getUserLevel = (value: string | undefined): NewTenantAccountLevel =>
 	value === ACCOUNT_LEVEL_ENUM.USER
 		? ACCOUNT_LEVEL_ENUM.USER
 		: ACCOUNT_LEVEL_ENUM.ADMIN;
+
+/** Compact select styled as the honesty-override "Admin → amber, User →
+ * neutral" chip (reuses the same tone classes as the Users-tab role chip). */
+const MemberLevelSelect = ({
+	name,
+	value,
+	onChange,
+	onBlur,
+	disabled,
+	ariaLabel,
+	t,
+}: {
+	name: string;
+	value: NewTenantAccountLevel;
+	onChange: (value: NewTenantAccountLevel) => void;
+	onBlur: () => void;
+	disabled?: boolean;
+	ariaLabel: string;
+	t: (key: string) => string;
+}) => (
+	<Select
+		id={name}
+		aria-label={ariaLabel}
+		value={value}
+		onValueChange={(nextValue) => {
+			if (typeof nextValue === 'string') {
+				onChange(getUserLevel(nextValue));
+			}
+		}}
+		disabled={disabled}
+	>
+		<SelectTrigger
+			onBlur={onBlur}
+			size="sm"
+			className={cn(
+				'w-full justify-center gap-1 border px-2 text-[11px] font-medium shadow-none',
+				value === ACCOUNT_LEVEL_ENUM.ADMIN
+					? 'border-(--publy-chip-pending-border) bg-(--publy-chip-pending-bg) text-(--publy-chip-pending-text)'
+					: 'border-border bg-background text-foreground',
+			)}
+		>
+			<span data-slot="select-value">
+				{value === ACCOUNT_LEVEL_ENUM.ADMIN ? t('admin') : t('user')}
+			</span>
+		</SelectTrigger>
+		<SelectContent>
+			{USER_ROLE_OPTIONS.map((option) => (
+				<SelectItem key={option} value={option}>
+					{option === ACCOUNT_LEVEL_ENUM.ADMIN ? t('admin') : t('user')}
+				</SelectItem>
+			))}
+		</SelectContent>
+	</Select>
+);
+
+const ChecklistRow = ({
+	checked,
+	tone = 'default',
+	children,
+	testId,
+}: {
+	checked: boolean;
+	tone?: 'default' | 'warning';
+	children: ReactNode;
+	testId: string;
+}) => (
+	<li
+		className="flex items-start gap-2 text-xs"
+		data-testid={testId}
+		data-checked={checked}
+	>
+		{checked ? (
+			<IconCircleCheckFilled
+				aria-hidden="true"
+				className="mt-px size-3.5 shrink-0 text-(--publy-success)"
+			/>
+		) : (
+			<IconCircle
+				aria-hidden="true"
+				className={cn(
+					'mt-px size-3.5 shrink-0',
+					tone === 'warning'
+						? 'text-(--publy-danger)'
+						: 'text-muted-foreground',
+				)}
+			/>
+		)}
+		<span
+			className={tone === 'warning' && !checked ? 'text-(--publy-danger)' : ''}
+		>
+			{children}
+		</span>
+	</li>
+);
+
+/** Workspace slug field: a muted `publyapp.com/` prefix + mono slug input
+ * inside a single bordered container, matching the design's path-segment
+ * treatment. Optional — an empty value lets the server generate a code. */
+const SlugField = ({
+	isDisabled,
+	label,
+	hint,
+	t,
+}: {
+	isDisabled?: boolean;
+	label: string;
+	hint: string;
+	t: (key: string) => string;
+}) => {
+	const fieldId = 'tenant-create-code';
+	const helperId = `${fieldId}-helper`;
+
+	return (
+		<Controller
+			name="code"
+			render={({ field, fieldState: { error } }) => (
+				<div className="space-y-1.5">
+					<label
+						htmlFor={fieldId}
+						className="flex items-center gap-2 text-[13px] leading-none font-medium"
+					>
+						{label}
+					</label>
+					<div
+						className={cn(
+							'flex h-9 items-center gap-0 rounded-[var(--publy-radius-input)] border border-border bg-input/35 px-3.5 shadow-[var(--publy-shadow-input)]',
+							error && 'border-destructive',
+						)}
+					>
+						<span className="shrink-0 font-mono text-[13px] text-muted-foreground">
+							publyapp.com/
+						</span>
+						<input
+							id={fieldId}
+							aria-label={label}
+							aria-invalid={Boolean(error) || undefined}
+							aria-describedby={helperId}
+							className="min-w-0 flex-1 bg-transparent font-mono text-[13px] outline-none placeholder:text-muted-foreground"
+							value={field.value}
+							onChange={(event) => {
+								field.onChange(event.target.value);
+							}}
+							onBlur={field.onBlur}
+							disabled={isDisabled}
+							autoComplete="off"
+							placeholder={t('assigned-after-creation')}
+						/>
+					</div>
+					<p
+						id={helperId}
+						data-slot={error ? 'field-error' : 'field-helper'}
+						className={error ? 'publy-field-error' : 'publy-field-helper'}
+					>
+						{error?.message ?? hint}
+					</p>
+				</div>
+			)}
+		/>
+	);
+};
+
+/** Mirrors the field-image-upload guard: an advisory `accept` attribute alone
+ * does not stop a drag-and-drop drop, which bypasses the file input entirely.
+ * CSV-only: `xlsx` (SheetJS) was dropped for known CVEs (round-1 review
+ * shell-F1) — the npm registry copy is frozen at a vulnerable version and the
+ * fixed release is only published on SheetJS's own CDN, which fails this
+ * repo's exact-pin supply-chain check. */
+const IMPORT_FILE_EXTENSION_PATTERN = /\.csv$/i;
+const MAX_IMPORT_FILE_BYTES = 2_000_000;
+
+const downloadTemplateCsv = () => {
+	downloadFile({
+		data: buildTenantMemberCsvTemplate(),
+		fileName: 'tenant-members-template.csv',
+		mimeType: 'text/csv;charset=utf-8',
+	});
+};
 
 export const Route = createFileRoute('/_authed-layout/staff/tenants/new')({
 	component: StaffTenantCreateRoute,
@@ -105,47 +414,211 @@ export const Route = createFileRoute('/_authed-layout/staff/tenants/new')({
 
 function StaffTenantCreateRoute() {
 	const navigate = Route.useNavigate();
-	const { t } = useTranslation('common');
+	const { t, i18n } = useTranslation('common');
 	const queryClient = useQueryClient();
 	const [shouldLogout, setShouldLogout] = useState(false);
 	const [serverError, setServerError] = useState('');
+	const [pendingCreateValues, setPendingCreateValues] =
+		useState<TenantCreateFormValues | null>(null);
+	const [parsedFile, setParsedFile] = useState<{
+		fileName: string;
+		rows: ReturnType<typeof parseCsv>;
+	} | null>(null);
+	const [importError, setImportError] = useState('');
+	const fileInputRef = useRef<HTMLInputElement>(null);
 	const createTenant = useCreateStaffTenantMutation();
+	const hasCreatedRef = useRef(false);
+
+	// Always-fresh ref so the memoized resolver's max-seats check can see the
+	// latest CSV/Excel import count without rebuilding on every parse.
+	const parsedMembersCountRef = useRef(0);
+
+	const resolver = useMemo(
+		() =>
+			zodResolver(
+				buildCreateTenantSchema(t, () => parsedMembersCountRef.current),
+			),
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- rebuild on language change so messages stay localized
+		[i18n.language],
+	);
 
 	const methods = useForm<TenantCreateFormValues>({
-		resolver: zodResolver(createTenantSchema),
+		resolver,
 		defaultValues: DEFAULT_VALUES,
 	});
-	const maxUsers =
-		useWatch({ control: methods.control, name: 'maxUsers' }) ?? 0;
 	const {
 		control,
-		formState: { isSubmitting },
+		formState: { isDirty, isSubmitting, errors },
 	} = methods;
-	const { fields, append, remove } = useFieldArray({
-		control,
-		name: 'initialUsers',
-	});
+	const isFormLocked = isSubmitting || createTenant.isPending;
 
-	const onSubmit = methods.handleSubmit(async (values) => {
-		setServerError('');
+	// tenants-r6-F3: `isDirty` only tracks RHF-registered fields — the CSV/
+	// Excel import populates `parsedFile`, state that lives OUTSIDE the form,
+	// so a populated import with an otherwise-pristine form used to leave
+	// silently through the blocker. `parsedFile !== null` closes that gap.
+	const blocker = useBlocker({
+		shouldBlockFn: () =>
+			(isDirty || parsedFile !== null) && !hasCreatedRef.current,
+		withResolver: true,
+	});
+	const name = useWatch({ control, name: 'name' }) ?? '';
+	const code = useWatch({ control, name: 'code' }) ?? '';
+	const maxUsers = useWatch({ control, name: 'maxUsers' }) ?? 0;
+	const owners = useWatch({ control, name: 'owners' }) ?? DEFAULT_VALUES.owners;
+	const manualMembers =
+		useWatch({ control, name: 'manualMembers' }) ??
+		DEFAULT_VALUES.manualMembers;
+	const seedDefaultProfile =
+		useWatch({ control, name: 'seedDefaultProfile' }) ?? true;
+	const websiteUrl = useWatch({ control, name: 'websiteUrl' }) ?? '';
+	const logoUrl = useWatch({ control, name: 'logoUrl' }) ?? '';
+
+	const localeOptions = useMemo(
+		() => [
+			{ value: '', label: t('not-set') },
+			{ value: 'en', label: 'English' },
+			{ value: 'fr', label: 'Français' },
+		],
+		[t],
+	);
+
+	const timezoneOptions = useMemo(() => {
+		const zones =
+			typeof Intl.supportedValuesOf === 'function'
+				? Intl.supportedValuesOf('timeZone')
+				: [];
+
+		return [
+			{ value: '', label: t('not-set') },
+			...zones.map((zone) => ({ value: zone, label: zone })),
+		];
+	}, [t]);
+
+	const {
+		fields: ownerFields,
+		append: appendOwner,
+		remove: removeOwner,
+	} = useFieldArray({ control, name: 'owners' });
+	const {
+		fields: manualMemberFields,
+		append: appendManualMember,
+		remove: removeManualMember,
+	} = useFieldArray({ control, name: 'manualMembers' });
+
+	const filledOwners = owners.filter((owner) => owner.email.trim().length > 0);
+	const filledManualMembers = manualMembers.filter(
+		(member) => member.email.trim().length > 0,
+	);
+
+	const existingEmails = useMemo(
+		() => [
+			...owners.map((owner) => owner.email),
+			...manualMembers.map((member) => member.email),
+		],
+		[owners, manualMembers],
+	);
+
+	const parsedOutcome = useMemo(() => {
+		if (!parsedFile) {
+			return null;
+		}
+
+		return buildMemberImportOutcome({
+			rows: parsedFile.rows,
+			existingEmails,
+		});
+	}, [parsedFile, existingEmails]);
+
+	const parsedValidMembers: ImportedMember[] = parsedOutcome?.valid ?? [];
+
+	useEffect(() => {
+		parsedMembersCountRef.current = parsedValidMembers.length;
+	}, [parsedValidMembers.length]);
+
+	const ownersCount = filledOwners.length;
+	const membersCount = filledManualMembers.length + parsedValidMembers.length;
+	const totalFilled = ownersCount + membersCount;
+
+	const slugPreview =
+		code.trim().length > 0 ? code.trim() : slugifyTenantNamePlaceholder(name);
+	const previewWebsiteHostname = getWebsiteHostname(websiteUrl);
+
+	const ownersRootError = errors.owners as
+		| { message?: string; root?: { message?: string } }
+		| undefined;
+	const ownersError =
+		ownersRootError?.root?.message ?? ownersRootError?.message;
+
+	const canAddOwner =
+		ownerFields.length + manualMemberFields.length + parsedValidMembers.length <
+		Math.max(1, maxUsers);
+	const canAddManualMember =
+		ownerFields.length + manualMemberFields.length + parsedValidMembers.length <
+		Math.max(1, maxUsers);
+
+	const handleFiles = async (fileList: FileList | null) => {
+		const file = fileList?.[0];
+		if (!file) {
+			return;
+		}
+
+		setImportError('');
+
+		if (!IMPORT_FILE_EXTENSION_PATTERN.test(file.name)) {
+			setImportError(t('import-file-invalid-type'));
+			return;
+		}
+
+		if (file.size > MAX_IMPORT_FILE_BYTES) {
+			setImportError(t('import-file-too-large'));
+			return;
+		}
 
 		try {
-			const trimmedInitialUsers = values.initialUsers
-				.map((user) => ({
-					email: user.email.trim(),
-					accountLevel: getUserLevel(user.accountLevel),
-				}))
-				.filter((user) => user.email.length > 0);
+			const rows = parseCsv(await file.text());
+			setParsedFile({ fileName: file.name, rows });
+		} catch {
+			setImportError(t('import-file-parse-failed'));
+		}
+	};
+
+	const performCreate = async (values: TenantCreateFormValues) => {
+		setServerError('');
+
+		const trimmedCode = values.code.trim();
+		const initialUsers = mergeInitialUsers({
+			owners: values.owners,
+			parsedMembers: parsedValidMembers,
+			manualMembers: values.manualMembers,
+		});
+		const optionalField = (value: string): string | undefined => {
+			const trimmed = value.trim();
+			return trimmed.length > 0 ? trimmed : undefined;
+		};
+
+		try {
 			const result = await createTenant.mutateAsync({
 				name: values.name.trim(),
 				maxUsers: values.maxUsers,
-				initialUsers: trimmedInitialUsers,
+				...(trimmedCode.length > 0 ? { code: trimmedCode } : {}),
+				seedDefaultProfile: values.seedDefaultProfile,
+				initialUsers,
+				logoUrl: optionalField(values.logoUrl),
+				legalName: optionalField(values.legalName),
+				description: optionalField(values.description),
+				websiteUrl: optionalField(values.websiteUrl),
+				billingEmail: optionalField(values.billingEmail),
+				supportEmail: optionalField(values.supportEmail),
+				defaultLocale: optionalField(values.defaultLocale),
+				timezone: optionalField(values.timezone),
+				notes: optionalField(values.notes),
 			});
 
 			const tenantId = result?.id?.toString().trim();
-			await queryClient.invalidateQueries({
-				queryKey: ['staff', ...STAFF_TENANTS_QUERY_KEY],
-			});
+
+			await invalidateStaffTenants(queryClient);
+			setPendingCreateValues(null);
+			hasCreatedRef.current = true;
 
 			if (tenantId) {
 				void navigate({
@@ -162,141 +635,643 @@ function StaffTenantCreateRoute() {
 				to: '/staff/tenants',
 			});
 		} catch (error) {
+			setPendingCreateValues(null);
+
 			if (shouldLogoutForFailure(error)) {
 				setShouldLogout(true);
 				return;
 			}
 
+			const failure = toApiFailure(error);
+			if (
+				failure.kind === 'validation' &&
+				(failure.fieldErrors.code?.length ?? 0) > 0
+			) {
+				methods.setError('code', {
+					type: 'server',
+					message: getFailureMessage(failure, {
+						fallback: t('tenant-create-failed'),
+					}),
+				});
+				return;
+			}
+
 			setServerError(
-				getFailureMessage(toApiFailure(error), {
+				getFailureMessage(failure, {
 					fallback: t('tenant-create-failed'),
 				}),
 			);
 		}
+	};
+
+	const onSubmit = methods.handleSubmit((values) => {
+		setPendingCreateValues(values);
 	});
 
-	const isPending = isSubmitting || createTenant.isPending;
-	const canAddRow = fields.length < Math.max(1, maxUsers);
-	const addUserRow = useMemo(() => {
-		return () => {
-			append({
-				email: '',
-				accountLevel: USER_ROLE_OPTIONS.includes(ACCOUNT_LEVEL_ENUM.USER)
-					? ACCOUNT_LEVEL_ENUM.USER
-					: ACCOUNT_LEVEL_ENUM.ADMIN,
-			});
-		};
-	}, [append]);
+	const pendingOwnersCount = pendingCreateValues
+		? pendingCreateValues.owners.filter(
+				(owner) => owner.email.trim().length > 0,
+			).length
+		: 0;
+	const pendingMembersCount = pendingCreateValues
+		? pendingCreateValues.manualMembers.filter(
+				(member) => member.email.trim().length > 0,
+			).length + parsedValidMembers.length
+		: 0;
+	const pendingSlugDisplay =
+		pendingCreateValues && pendingCreateValues.code.trim().length > 0
+			? pendingCreateValues.code.trim()
+			: t('assigned-after-creation');
 
 	if (shouldLogout) {
 		return <LogoutRedirect />;
 	}
 
 	return (
-		<div
-			className="mx-auto w-full max-w-4xl space-y-4 p-4"
-			data-testid="staff-tenant-create-page"
-		>
+		<FormPageLayout width={960} data-testid="staff-tenant-create-page">
 			<div className="space-y-2">
-				<Link
-					to="/staff/tenants"
-					className="text-sm underline-offset-4 hover:underline"
-				>
+				<Link to="/staff/tenants" className="publy-back-link">
+					<IconArrowLeft aria-hidden="true" className="size-3" />
 					{t('back-to-staff-tenants')}
 				</Link>
-				<h1 className="text-xl font-semibold">
-					{t('new-item', { item: t('tenant') })}
+				<h1 className="text-xl font-semibold tracking-[-0.01em]">
+					{t('create-tenant')}
 				</h1>
-				<p className="text-sm text-foreground-500">
-					{t('add-an-initial-tenant-user-set')}
+				<p className="text-sm text-muted-foreground">
+					{t('create-tenant-description')}
 				</p>
 			</div>
 
-			<Card className="space-y-4 p-4">
-				<Form methods={methods} onSubmit={onSubmit}>
-					<div className="space-y-2">
-						<Field.Text
-							name="name"
-							label={t('tenant-name')}
-							placeholder="Acme Corporation"
-							disabled={isPending}
-						/>
-						<Field.Text
-							name="maxUsers"
-							type="number"
-							label={t('max-users')}
-							placeholder={DEFAULT_MAX_USER_PER_TENANT.toString()}
-							disabled={isPending}
-						/>
-					</div>
-
-					<div className="space-y-3">
-						<div className="text-sm font-medium">Initial users</div>
-						{fields.map((field, index) => (
-							<div
-								key={field.id}
-								className="space-y-2 rounded-medium border border-divider p-3"
-							>
-								<Field.Text
-									name={`initialUsers.${index}.email`}
-									label={t('email')}
-									placeholder="user@example.com"
-									disabled={isPending}
+			<Form methods={methods} onSubmit={onSubmit}>
+				<div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_320px] lg:gap-9">
+					<div className="order-2 flex min-w-0 flex-col gap-8 lg:order-1">
+						<section className="flex flex-col gap-4">
+							<p className="publy-type-eyebrow">{t('organization')}</p>
+							<Field.Text
+								name="name"
+								label={t('organization-name')}
+								placeholder={t('organization-name-placeholder')}
+								fullWidth
+								isDisabled={isFormLocked}
+							/>
+							<div className="grid grid-cols-[1fr_128px] items-start gap-3">
+								<SlugField
+									label={t('workspace-slug')}
+									hint={t('workspace-slug-hint')}
+									isDisabled={isFormLocked}
+									t={t}
 								/>
-								<div className="space-y-1">
-									<label
-										htmlFor={`initialUsers.${index}.accountLevel`}
-										className="text-sm text-foreground"
-									>
-										{t('account-level')}
-									</label>
-									<select
-										id={`initialUsers.${index}.accountLevel`}
-										disabled={isPending}
-										className="w-full rounded-md border border-divider p-2"
-										{...methods.register(`initialUsers.${index}.accountLevel`)}
-									>
-										{USER_ROLE_OPTIONS.map((option) => (
-											<option key={option} value={option}>
-												{option}
-											</option>
-										))}
-									</select>
-								</div>
-								<Button
-									type="button"
-									variant="outline"
-									isDisabled={isPending || fields.length <= 1}
-									onPress={() => {
-										remove(index);
-									}}
-								>
-									{t('remove')}
-								</Button>
+								<Field.Text
+									name="maxUsers"
+									type="number"
+									min={1}
+									label={t('seats')}
+									isDisabled={isFormLocked}
+								/>
 							</div>
-						))}
+							<Field.ImageUpload
+								name="logoUrl"
+								label={t('logo')}
+								previewName={name || t('untitled-organization')}
+								isDisabled={isFormLocked}
+							/>
+						</section>
 
-						<Button
-							type="button"
-							variant="outline"
-							isDisabled={isPending || !canAddRow}
-							onPress={addUserRow}
+						<section className="flex flex-col gap-4">
+							<div className="flex flex-wrap items-center justify-between gap-2">
+								<p className="publy-type-eyebrow">
+									{t('organization-details')}
+								</p>
+								<p className="publy-type-helper">
+									{t('organization-details-optional-hint')}
+								</p>
+							</div>
+							<Field.Text
+								name="legalName"
+								label={t('legal-name')}
+								fullWidth
+								isDisabled={isFormLocked}
+							/>
+							<Field.Textarea
+								name="description"
+								label={t('description')}
+								rows={3}
+								isDisabled={isFormLocked}
+							/>
+							<Field.Text
+								name="websiteUrl"
+								label={t('website-url')}
+								placeholder="https://example.com"
+								fullWidth
+								isDisabled={isFormLocked}
+							/>
+							<div className="grid grid-cols-2 gap-3">
+								<Field.Email
+									name="billingEmail"
+									label={t('billing-email')}
+									isDisabled={isFormLocked}
+								/>
+								<Field.Email
+									name="supportEmail"
+									label={t('support-email')}
+									isDisabled={isFormLocked}
+								/>
+							</div>
+							<div className="grid grid-cols-2 gap-3">
+								<Field.Select
+									name="defaultLocale"
+									label={t('default-locale')}
+									options={localeOptions}
+									isDisabled={isFormLocked}
+								/>
+								<Field.Select
+									name="timezone"
+									label={t('timezone')}
+									options={timezoneOptions}
+									isDisabled={isFormLocked}
+								/>
+							</div>
+							<Field.Textarea
+								name="notes"
+								label={t('internal-notes')}
+								helperText={t('internal-notes-hint')}
+								rows={3}
+								isDisabled={isFormLocked}
+							/>
+						</section>
+
+						<section className="flex flex-col gap-4">
+							<div className="flex flex-wrap items-center justify-between gap-2">
+								<p className="publy-type-eyebrow">{t('owners')}</p>
+								<p className="publy-type-helper">{t('owners-hint')}</p>
+							</div>
+
+							<div className="flex flex-col gap-3">
+								{ownerFields.map((field, index) => (
+									<div
+										key={field.id}
+										className="grid grid-cols-[1fr_96px_32px] items-center gap-2"
+									>
+										<Field.Email
+											name={`owners.${index}.email`}
+											label={t('email')}
+											placeholder="user@example.com"
+											isDisabled={isFormLocked}
+										/>
+										<span
+											className={cn(
+												'publy-detail-chip justify-center',
+												index === 0
+													? 'publy-detail-chip--amber'
+													: 'publy-detail-chip--outline',
+											)}
+										>
+											{index === 0 ? t('primary') : t('owner-chip-label')}
+										</span>
+										<Button
+											type="button"
+											variant="ghost"
+											size="icon-sm"
+											disabled={isFormLocked || ownerFields.length <= 1}
+											onClick={() => {
+												removeOwner(index);
+											}}
+											aria-label={t('remove-owner')}
+										>
+											<IconX aria-hidden="true" className="size-4" />
+										</Button>
+									</div>
+								))}
+							</div>
+
+							{ownersError ? (
+								<p className="publy-field-error">{ownersError}</p>
+							) : null}
+
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								disabled={isFormLocked || !canAddOwner}
+								onClick={() => {
+									appendOwner({ email: '' });
+								}}
+								className="w-fit border-dashed border-(--publy-border-strong) bg-transparent"
+							>
+								<IconPlus aria-hidden="true" className="size-3.5" />
+								{t('add-owner')}
+							</Button>
+						</section>
+
+						<section className="flex flex-col gap-4">
+							<p className="publy-type-eyebrow">
+								{t('initial-members-optional')}
+							</p>
+
+							<div
+								className="flex flex-col items-center gap-1.5 rounded-[var(--publy-radius-medium-control)] border-[1.5px] border-dashed border-(--publy-border-strong) bg-(--publy-surface-muted) px-4 py-6 text-center"
+								data-testid="tenant-member-dropzone"
+								onDragOver={(event) => {
+									event.preventDefault();
+								}}
+								onDrop={(event) => {
+									event.preventDefault();
+									void handleFiles(event.dataTransfer.files);
+								}}
+							>
+								<IconFileSpreadsheet
+									aria-hidden="true"
+									className="size-6 text-muted-foreground"
+								/>
+								<label
+									htmlFor="tenant-member-file-input"
+									className="cursor-pointer text-[13px] font-medium text-foreground"
+								>
+									{t('drag-csv-file')}
+								</label>
+								<p className="publy-type-helper">
+									{t('csv-columns-hint')}
+									{' · '}
+									<Button
+										type="button"
+										variant="link"
+										size="xs"
+										className="h-auto p-0 align-baseline"
+										onClick={downloadTemplateCsv}
+									>
+										{t('download-template')}
+									</Button>
+								</p>
+								<input
+									ref={fileInputRef}
+									id="tenant-member-file-input"
+									type="file"
+									accept=".csv"
+									aria-label={t('drag-csv-file')}
+									className="sr-only"
+									onChange={(event) => {
+										void handleFiles(event.target.files);
+										event.target.value = '';
+									}}
+								/>
+							</div>
+
+							{importError ? (
+								<p className="publy-field-error">{importError}</p>
+							) : null}
+
+							{parsedFile && parsedOutcome ? (
+								<div
+									className="flex items-center justify-between gap-3 rounded-[var(--publy-radius-medium-control)] border border-(--publy-chip-active-border) bg-(--publy-chip-active-bg) px-3.5 py-2.5"
+									data-testid="tenant-member-parsed-summary"
+								>
+									<div className="flex min-w-0 items-center gap-2">
+										<IconFileCheck
+											aria-hidden="true"
+											className="size-4 shrink-0 text-(--publy-chip-active-text)"
+										/>
+										<div className="min-w-0 text-[13px]">
+											<p className="truncate font-medium text-foreground">
+												{parsedFile.fileName}
+											</p>
+											<p className="publy-type-helper">
+												{t('parsed-file-summary', {
+													detected: parsedOutcome.detectedCount,
+													valid: parsedOutcome.valid.length,
+												})}
+											</p>
+											{parsedOutcome.invalidCount > 0 ? (
+												<p className="publy-type-helper text-(--publy-danger)">
+													{t('parsed-file-invalid-rows', {
+														count: parsedOutcome.invalidCount,
+													})}
+												</p>
+											) : null}
+											{parsedOutcome.duplicateCount > 0 ? (
+												<p className="publy-type-helper">
+													{t('parsed-file-duplicate-rows', {
+														count: parsedOutcome.duplicateCount,
+													})}
+												</p>
+											) : null}
+										</div>
+									</div>
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										onClick={() => {
+											setParsedFile(null);
+										}}
+									>
+										{t('remove')}
+									</Button>
+								</div>
+							) : null}
+
+							<div className="flex items-center gap-3">
+								<span className="h-px flex-1 bg-(--publy-row-border)" />
+								<span className="publy-type-helper shrink-0">
+									{t('or-add-manually')}
+								</span>
+								<span className="h-px flex-1 bg-(--publy-row-border)" />
+							</div>
+
+							<div className="flex flex-col gap-3">
+								{manualMemberFields.map((field, index) => (
+									<div
+										key={field.id}
+										className="grid grid-cols-[1fr_96px_32px] items-center gap-2"
+									>
+										<Field.Email
+											name={`manualMembers.${index}.email`}
+											label={t('email')}
+											placeholder="user@example.com"
+											isDisabled={isFormLocked}
+										/>
+										<Controller
+											control={control}
+											name={`manualMembers.${index}.accountLevel`}
+											render={({ field: levelField }) => (
+												<MemberLevelSelect
+													name={`manualMembers.${index}.accountLevel`}
+													value={getUserLevel(levelField.value)}
+													onChange={levelField.onChange}
+													onBlur={levelField.onBlur}
+													disabled={isFormLocked}
+													ariaLabel={t('account-level')}
+													t={t}
+												/>
+											)}
+										/>
+										<Button
+											type="button"
+											variant="ghost"
+											size="icon-sm"
+											disabled={isFormLocked}
+											onClick={() => {
+												removeManualMember(index);
+											}}
+											aria-label={t('remove-member')}
+										>
+											<IconX aria-hidden="true" className="size-4" />
+										</Button>
+									</div>
+								))}
+							</div>
+
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								disabled={isFormLocked || !canAddManualMember}
+								onClick={() => {
+									appendManualMember({
+										email: '',
+										accountLevel: ACCOUNT_LEVEL_ENUM.USER,
+									});
+								}}
+								className="w-fit border-dashed border-(--publy-border-strong) bg-transparent"
+							>
+								<IconPlus aria-hidden="true" className="size-3.5" />
+								{t('add-member')}
+							</Button>
+						</section>
+
+						<section className="flex flex-col divide-y divide-(--publy-row-border)">
+							<p className="publy-type-eyebrow pb-3">{t('setup')}</p>
+							<Field.Switch
+								name="seedDefaultProfile"
+								label={t('seed-default-profiles')}
+								isDisabled={isFormLocked}
+							/>
+						</section>
+					</div>
+
+					<aside className="order-1 lg:order-2">
+						<div className="lg:sticky lg:top-5">
+							<Card
+								className="gap-0 py-0"
+								data-testid="staff-tenant-create-preview"
+							>
+								<div className="publy-card-header">
+									<span className="publy-type-eyebrow">{t('preview')}</span>
+								</div>
+
+								<div className="flex items-center gap-3 px-[18px] py-4">
+									<BrandTile
+										name={name || t('untitled-organization')}
+										logoUrl={logoUrl.trim().length > 0 ? logoUrl.trim() : null}
+										className="size-11 rounded-[12px] text-base"
+									/>
+									<div className="min-w-0">
+										<p className="truncate text-[15px] font-semibold text-foreground">
+											{name.trim().length > 0
+												? name
+												: t('untitled-organization')}
+										</p>
+										<p className="publy-tenant-identity-meta">
+											<span className="publy-tenant-identity-meta-prefix">
+												publyapp.com/
+											</span>
+											<span
+												className={cn(
+													'italic',
+													slugPreview.length > 0 && 'not-italic',
+												)}
+											>
+												{slugPreview.length > 0
+													? slugPreview
+													: t('assigned-after-creation')}
+											</span>
+										</p>
+										{previewWebsiteHostname ? (
+											<p className="truncate text-xs text-muted-foreground">
+												{previewWebsiteHostname}
+											</p>
+										) : null}
+									</div>
+								</div>
+
+								<div className="mx-[18px] h-px bg-(--publy-row-border)" />
+
+								<div className="flex flex-col divide-y divide-(--publy-row-border) px-[18px]">
+									<div className="flex items-center justify-between py-2.5 text-[13px]">
+										<span className="text-muted-foreground">{t('status')}</span>
+										<StatusPill tone={statusPillTone('Pending')}>
+											{t('pending')}
+										</StatusPill>
+									</div>
+									<div className="flex items-center justify-between py-2.5 text-[13px]">
+										<span className="text-muted-foreground">{t('seats')}</span>
+										<span
+											className="font-medium text-foreground"
+											data-testid="preview-seats"
+										>
+											{totalFilled} / {maxUsers}
+										</span>
+									</div>
+									<div className="flex items-center justify-between py-2.5 text-[13px]">
+										<span className="text-muted-foreground">{t('owners')}</span>
+										<span
+											className="font-medium text-foreground"
+											data-testid="preview-owners"
+										>
+											{ownersCount}
+										</span>
+									</div>
+									<div className="flex items-center justify-between py-2.5 text-[13px]">
+										<span className="text-muted-foreground">
+											{t('members')}
+										</span>
+										<span
+											className="font-medium text-foreground"
+											data-testid="preview-members"
+										>
+											{membersCount}
+										</span>
+									</div>
+								</div>
+
+								<div className="mx-[18px] h-px bg-(--publy-row-border)" />
+
+								<ul className="flex flex-col gap-2 px-[18px] py-4">
+									<ChecklistRow
+										checked={ownersCount > 0}
+										testId="preview-checklist-owners"
+									>
+										{t('preview-owners-checklist', { count: ownersCount })}
+									</ChecklistRow>
+									<ChecklistRow
+										checked={membersCount > 0}
+										testId="preview-checklist-members"
+									>
+										{t('preview-members-checklist-detailed', {
+											count: membersCount,
+											csv: parsedValidMembers.length,
+											manual: filledManualMembers.length,
+										})}
+									</ChecklistRow>
+									<ChecklistRow
+										checked={seedDefaultProfile}
+										testId="preview-checklist-profile"
+									>
+										{t('preview-default-profile-checklist')}
+									</ChecklistRow>
+								</ul>
+							</Card>
+						</div>
+					</aside>
+				</div>
+
+				{serverError ? (
+					<p className="text-sm text-destructive">{serverError}</p>
+				) : null}
+
+				<FormActionBar
+					status={
+						<span data-testid="create-tenant-summary">
+							{t('create-tenant-summary-owners', { count: ownersCount })}
+							{' · '}
+							{t('create-tenant-summary-members', { count: membersCount })}{' '}
+							{t('create-tenant-summary-suffix')}
+						</span>
+					}
+				>
+					<Button
+						type="button"
+						variant="ghost"
+						disabled={isFormLocked}
+						onClick={() => {
+							void navigate({ to: '/staff/tenants' });
+						}}
+					>
+						{t('cancel')}
+					</Button>
+					<Button type="submit" disabled={isFormLocked}>
+						{t('create-tenant')}
+					</Button>
+				</FormActionBar>
+			</Form>
+
+			<ConfirmDialog
+				isOpen={pendingCreateValues !== null}
+				title={t('confirm-create-tenant-title')}
+				description={t('confirm-create-tenant-description')}
+				confirmLabel={t('create-tenant')}
+				cancelLabel={t('cancel')}
+				tone="primary"
+				isPending={createTenant.isPending}
+				onConfirm={() => {
+					if (pendingCreateValues) {
+						void performCreate(pendingCreateValues);
+					}
+				}}
+				onOpenChange={(isOpen) => {
+					if (!isOpen) {
+						setPendingCreateValues(null);
+					}
+				}}
+			>
+				<div
+					className="flex flex-col divide-y divide-(--publy-row-border) text-[13px]"
+					data-testid="confirm-create-tenant-summary"
+				>
+					<div className="flex items-center justify-between py-2">
+						<span className="text-muted-foreground">{t('organization')}</span>
+						<span className="max-w-[220px] truncate font-medium text-foreground">
+							{pendingCreateValues?.name}
+						</span>
+					</div>
+					<div className="flex items-center justify-between py-2">
+						<span className="text-muted-foreground">{t('workspace-slug')}</span>
+						<span className="font-mono font-medium text-foreground">
+							{pendingSlugDisplay}
+						</span>
+					</div>
+					<div className="flex items-center justify-between py-2">
+						<span className="text-muted-foreground">{t('seats')}</span>
+						<span className="font-medium text-foreground">
+							{pendingCreateValues?.maxUsers}
+						</span>
+					</div>
+					<div className="flex items-center justify-between py-2">
+						<span className="text-muted-foreground">{t('owners')}</span>
+						<span
+							className="font-medium text-foreground"
+							data-testid="confirm-create-tenant-owners"
 						>
-							{t('add-user')}
-						</Button>
+							{pendingOwnersCount}
+						</span>
 					</div>
-
-					{serverError ? (
-						<p className="text-sm text-danger-600">{serverError}</p>
-					) : null}
-
-					<div className="flex justify-end">
-						<Button type="submit" variant="primary" isDisabled={isPending}>
-							{t('create-tenant')}
-						</Button>
+					<div className="flex items-center justify-between py-2">
+						<span className="text-muted-foreground">
+							{t('members-to-invite')}
+						</span>
+						<span
+							className="font-medium text-foreground"
+							data-testid="confirm-create-tenant-members"
+						>
+							{pendingMembersCount}
+						</span>
 					</div>
-				</Form>
-			</Card>
-		</div>
+				</div>
+			</ConfirmDialog>
+
+			<ConfirmDialog
+				isOpen={blocker.status === 'blocked'}
+				title={t('unsaved-changes-dialog-title')}
+				description={t('unsaved-changes-dialog-description')}
+				confirmLabel={t('leave-page')}
+				cancelLabel={t('cancel')}
+				tone="danger"
+				onConfirm={() => blocker.proceed?.()}
+				onOpenChange={(isOpen) => {
+					if (!isOpen) {
+						blocker.reset?.();
+					}
+				}}
+			/>
+		</FormPageLayout>
 	);
 }

@@ -52,14 +52,16 @@ public sealed class CheckInvitationToken {
 		}
 
 		// Query invitation by token
-		var invitation = await invitationQueryService.GetInvitationByTokenAsync(token, cancellationToken);
+		var lookup = await invitationQueryService.GetInvitationTokenStatusAsync(token, cancellationToken);
 
-		if (invitation is null) {
+		if (lookup.Status == InvitationTokenStatus.NotFound || lookup.Invitation is null) {
 			return TypedProblems.BadRequest(
 				"Invalid or expired invitation token",
 				ResponseKeys.InvalidInvitationToken
 			);
 		}
+
+		var invitation = lookup.Invitation;
 
 		// check if invitation is for the given email
 		if (!string.Equals(invitation.Email, email, StringComparison.OrdinalIgnoreCase)) {
@@ -72,6 +74,27 @@ public sealed class CheckInvitationToken {
 			return TypedProblems.BadRequest(
 				"Invalid or expired invitation token",
 				ResponseKeys.InvalidInvitationToken
+			);
+		}
+
+		if (lookup.Status == InvitationTokenStatus.AlreadyAccepted) {
+			return TypedProblems.BadRequest(
+				"This invitation has already been accepted",
+				ResponseKeys.InvitationTokenAlreadyAccepted
+			);
+		}
+
+		if (lookup.Status == InvitationTokenStatus.Expired) {
+			return TypedProblems.BadRequest(
+				"This invitation has expired",
+				ResponseKeys.InvitationTokenExpired
+			);
+		}
+
+		if (lookup.Status == InvitationTokenStatus.Revoked) {
+			return TypedProblems.BadRequest(
+				"This invitation has been revoked",
+				ResponseKeys.InvitationTokenRevoked
 			);
 		}
 

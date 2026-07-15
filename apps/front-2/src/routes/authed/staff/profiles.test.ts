@@ -11,8 +11,40 @@ import type {
 	StaffProfileItem,
 } from '@org/client-ts/src/models/index.js';
 
+const unwrapUntyped = (value: unknown): unknown => {
+	if (
+		typeof value === 'object' &&
+		value !== null &&
+		'getValue' in value &&
+		typeof (value as { getValue?: unknown }).getValue === 'function'
+	) {
+		return unwrapUntyped((value as { value?: unknown }).value);
+	}
+
+	if (Array.isArray(value)) {
+		return value.map((item) => unwrapUntyped(item));
+	}
+
+	if (value && typeof value === 'object') {
+		return Object.fromEntries(
+			Object.entries(value as Record<string, unknown>).map(([key, nested]) => [
+				key,
+				unwrapUntyped(nested),
+			]),
+		);
+	}
+
+	return value;
+};
+
 describe('toStaffProfileRows', () => {
-	test('normalizes API items and skips rows without ids', () => {
+	// shell-r5-F3: a row with no readable name is malformed and is now
+	// dropped rather than rendered with a fabricated `'—'` placeholder a
+	// staff admin can't distinguish from a legitimate value — this test
+	// previously pinned that forbidden `'—'` outcome (duplicating, and
+	// drifting from, the dedicated mapper coverage added in
+	// src/lib/query/staff-profiles.test.ts for the same fix).
+	test('normalizes API items and skips rows without ids or a usable name', () => {
 		const items: StaffProfileItem[] = [
 			{
 				id: 'profile-admin',
@@ -40,12 +72,8 @@ describe('toStaffProfileRows', () => {
 				name: 'Admin',
 				description: 'Administrators',
 				userAccountCount: 3,
-			},
-			{
-				id: 'profile-empty',
-				name: '—',
-				description: null,
-				userAccountCount: 0,
+				icon: expect.any(String) as string,
+				iconTone: expect.any(String) as string,
 			},
 		]);
 	});
@@ -66,7 +94,9 @@ describe('toStaffProfileDetails', () => {
 			id: 'profile-admin',
 			name: 'Platform admin',
 			description: null,
-			userAccountCount: 0,
+			userAccountCount: null,
+			icon: expect.any(String) as string,
+			iconTone: expect.any(String) as string,
 		});
 	});
 
@@ -169,10 +199,26 @@ describe('buildCreateStaffProfileBody', () => {
 			emails: [],
 		});
 
-		expect(body.name).toBeDefined();
-		expect(body.description).toBeDefined();
-		expect(body.permissions).toBeDefined();
+		expect(unwrapUntyped(body.name)).toBe('Platform admin');
+		expect(unwrapUntyped(body.description)).toBe('Full staff access');
+		expect(unwrapUntyped(body.permissions)).toEqual([
+			'staff.users.read',
+			'staff.users.write',
+		]);
 		expect(body.emails).toBeUndefined();
+	});
+
+	test('serializes populated emails as an untyped string array', () => {
+		const body = buildCreateStaffProfileBody({
+			name: 'Auditor',
+			permissions: [],
+			emails: ['jamie@example.com', 'morgan@example.com'],
+		});
+
+		expect(unwrapUntyped(body.emails)).toEqual([
+			'jamie@example.com',
+			'morgan@example.com',
+		]);
 	});
 
 	test('omits optional description, permissions, and emails when empty', () => {
@@ -183,7 +229,7 @@ describe('buildCreateStaffProfileBody', () => {
 			emails: [],
 		});
 
-		expect(body.name).toBeDefined();
+		expect(unwrapUntyped(body.name)).toBe('Auditor');
 		expect(body.description).toBeUndefined();
 		expect(body.permissions).toBeUndefined();
 		expect(body.emails).toBeUndefined();

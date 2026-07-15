@@ -1,12 +1,22 @@
-import { createUntypedString } from '@microsoft/kiota-abstractions';
+import {
+	createUntypedArray,
+	createUntypedString,
+} from '@microsoft/kiota-abstractions';
+import type { QueryClient } from '@tanstack/react-query';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
+import {
+	normalizeNullableFileUrl,
+	toRootRelativeApiFileUrl,
+} from '~/lib/api-client/resolve-api-file-url';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/src/apiClient';
 import type {
 	CreateInvitationForTenantAsStaffBody,
 	ApiResponse,
+	BulkRemoveTenantUsersBody,
+	BulkRemoveTenantUsersResult,
 	FindTenantUsersAsStaffResult,
 	InvitationCreatedForTenant,
 	ReactivateTenantUserResult,
@@ -18,6 +28,7 @@ import type {
 import {
 	buildStaffMutationOptions,
 	buildStaffQueryOptions,
+	scopedKey,
 } from '@org/shared-ts/lib/query/create-hooks';
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
@@ -25,6 +36,7 @@ export type StaffTenantUsersQueryVariables = {
 	tenantId: string;
 	q?: string;
 	status?: string;
+	level?: string;
 	sortId?: string;
 	sortOrder?: SortOrder;
 	cursor?: string;
@@ -74,6 +86,30 @@ export type StaffTenantUserRemoveInput = {
 	userId: string;
 };
 
+export type StaffTenantUserBulkRemoveInput = {
+	tenantId: string;
+	userIds: string[];
+};
+
+export type StaffTenantUserBulkActionFailedItem = {
+	userId: string | null;
+	error: string | null;
+};
+
+export type StaffTenantUserBulkActionSummary = {
+	succeededCount: number;
+	failedCount: number;
+	failedItems: StaffTenantUserBulkActionFailedItem[];
+};
+
+export type StaffTenantUserExportInput = {
+	tenantId: string;
+	q?: string;
+	status?: string;
+	level?: string;
+	ids?: string[];
+};
+
 export type StaffTenantUserDetails = {
 	id: string;
 	email: string;
@@ -88,11 +124,22 @@ export type StaffTenantUserDetails = {
 	displayName: string;
 };
 
+/** @internal Unscoped — `scopedKey('staff', …)` is the only way to build an
+ * invalidation key from this; use `invalidateStaffTenantUsers`. */
 export const STAFF_TENANT_USERS_QUERY_KEY = ['staff-tenants', 'users'] as const;
 export const STAFF_TENANT_USER_DETAILS_QUERY_KEY = [
 	...STAFF_TENANT_USERS_QUERY_KEY,
 	'detail',
 ] as const;
+
+/** Invalidates both the tenant-users list and every user's details entry —
+ * `STAFF_TENANT_USER_DETAILS_QUERY_KEY` nests under
+ * `STAFF_TENANT_USERS_QUERY_KEY`, so a single prefix invalidation covers
+ * both (see F19/F16). */
+export const invalidateStaffTenantUsers = (queryClient: QueryClient) =>
+	queryClient.invalidateQueries({
+		queryKey: scopedKey('staff', STAFF_TENANT_USERS_QUERY_KEY),
+	});
 
 const normalizeString = (
 	value: string | null | undefined,
@@ -141,7 +188,7 @@ const getDisplayName = ({
 	email,
 }: Pick<StaffTenantUserRow, 'firstName' | 'lastName' | 'email'>): string => {
 	const fullName = getUserFullName({ firstName, lastName });
-	return fullName || email || '—';
+	return fullName || email;
 };
 
 export const buildFindStaffTenantUsersQueryParameters = (
@@ -149,6 +196,7 @@ export const buildFindStaffTenantUsersQueryParameters = (
 ): {
 	q?: string;
 	status?: string;
+	level?: string;
 	sortId?: string;
 	sortOrder?: SortOrder;
 	cursor?: string;
@@ -156,6 +204,7 @@ export const buildFindStaffTenantUsersQueryParameters = (
 } => ({
 	q: normalizeString(variables.q),
 	status: normalizeString(variables.status),
+	level: normalizeString(variables.level),
 	sortId: normalizeString(variables.sortId),
 	sortOrder: variables.sortOrder,
 	cursor: normalizeString(variables.cursor),
@@ -211,7 +260,9 @@ export const buildUpdateStaffTenantUserBody = (
 		body.avatarUrl =
 			avatarUrl === null
 				? null
-				: (createUntypedString(avatarUrl) as typeof body.avatarUrl);
+				: (createUntypedString(
+						toRootRelativeApiFileUrl(avatarUrl),
+					) as typeof body.avatarUrl);
 	}
 
 	if (accountLevel !== undefined) {
@@ -224,18 +275,58 @@ export const buildUpdateStaffTenantUserBody = (
 	return body;
 };
 
+export const buildBulkRemoveStaffTenantUsersBody = (
+	userIds: string[],
+): BulkRemoveTenantUsersBody => ({
+	userIds: createUntypedArray(
+		userIds.map((userId) => createUntypedString(userId)),
+	) as BulkRemoveTenantUsersBody['userIds'],
+});
+
+export const buildExportStaffTenantUsersQueryParameters = (
+	variables: Omit<StaffTenantUserExportInput, 'tenantId'>,
+): {
+	q?: string;
+	status?: string;
+	level?: string;
+	ids?: string;
+} => ({
+	q: normalizeString(variables.q),
+	status: normalizeString(variables.status),
+	level: normalizeString(variables.level),
+	ids:
+		variables.ids && variables.ids.length > 0
+			? variables.ids.join(',')
+			: undefined,
+});
+
+export const toStaffTenantUserBulkActionSummary = (
+	result: BulkRemoveTenantUsersResult | null | undefined,
+): StaffTenantUserBulkActionSummary => ({
+	succeededCount: result?.succeededCount ?? 0,
+	failedCount: result?.failedCount ?? 0,
+	failedItems: (result?.failedItems ?? []).map((item) => ({
+		userId: normalizeNullableString(item.userId?.toString()),
+		error: normalizeNullableString(item.errorEscaped),
+	})),
+});
+
 export const toStaffTenantUserRows = (
 	items: TenantUserItem[] | null | undefined,
 ): StaffTenantUserRow[] => {
 	const rows: StaffTenantUserRow[] = [];
 
 	for (const item of items ?? []) {
+		// Email is the required fallback identity `getDisplayName` reads when
+		// no name is set — dropped rather than shown with a `'—'` placeholder
+		// a staff admin can't distinguish from a legitimate value
+		// (shell-r5-F3).
 		const id = normalizeString(item.id?.toString());
-		if (!id) {
+		const email = normalizeString(item.email);
+		if (!id || !email) {
 			continue;
 		}
 
-		const email = normalizeString(item.email) ?? '';
 		const firstName = normalizeNullableString(item.firstName);
 		const lastName = normalizeNullableString(item.lastName);
 
@@ -246,7 +337,7 @@ export const toStaffTenantUserRows = (
 			email,
 			level: normalizeNullableString(item.level),
 			status: normalizeNullableString(item.status),
-			avatarUrl: normalizeNullableString(item.avatarUrl),
+			avatarUrl: normalizeNullableFileUrl(item.avatarUrl),
 			displayName: getDisplayName({ firstName, lastName, email }),
 		});
 	}
@@ -258,27 +349,30 @@ export const toStaffTenantUserDetails = (
 	result: TenantUserDetailsResult | null | undefined,
 ): StaffTenantUserDetails | null => {
 	const id = normalizeString(result?.id?.toString());
-	if (!id) {
+	const email = normalizeString(result?.email);
+
+	// A malformed payload (missing the required identity) is treated the same
+	// as "not found" — never rendered with a `'—'` placeholder a staff admin
+	// can't distinguish from a legitimate value (shell-r5-F3).
+	if (!id || !email) {
 		return null;
 	}
 
-	const email = normalizeString(result?.email);
-
 	return {
 		id,
-		email: email ?? '',
+		email,
 		firstName: normalizeNullableString(result?.firstName),
 		lastName: normalizeNullableString(result?.lastName),
 		accountLevel: normalizeNullableString(result?.level),
 		status: normalizeNullableString(result?.status),
-		avatarUrl: normalizeNullableString(result?.avatarUrl),
+		avatarUrl: normalizeNullableFileUrl(result?.avatarUrl),
 		tenantId: normalizeNullableString(result?.tenantId?.toString()),
 		createdAt: normalizeDate(result?.createdAt),
 		updatedAt: normalizeDate(result?.updatedAt),
 		displayName: getDisplayName({
 			firstName: normalizeNullableString(result?.firstName),
 			lastName: normalizeNullableString(result?.lastName),
-			email: email ?? '',
+			email,
 		}),
 	};
 };
@@ -420,6 +514,48 @@ export const removeStaffTenantUserMutationOptions = buildStaffMutationOptions<
 	},
 	{ clientAccessor: getClientManager() },
 );
+
+export const bulkRemoveStaffTenantUsersMutationOptions =
+	buildStaffMutationOptions<
+		ApiClient,
+		BulkRemoveTenantUsersResult | undefined,
+		StaffTenantUserBulkRemoveInput
+	>(
+		{
+			mutationKeyFn: () => [...STAFF_TENANT_USERS_QUERY_KEY, 'bulk-remove'],
+			mutationFn: (client, variables) =>
+				client.staff.tenants
+					.byTenantId(variables.tenantId)
+					.users.bulkRemove.post(
+						buildBulkRemoveStaffTenantUsersBody(variables.userIds),
+					),
+		},
+		{ clientAccessor: getClientManager() },
+	);
+
+export const exportStaffTenantUsersMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	ArrayBuffer | undefined,
+	StaffTenantUserExportInput
+>(
+	{
+		mutationKeyFn: () => [...STAFF_TENANT_USERS_QUERY_KEY, 'export'],
+		mutationFn: (client, variables) =>
+			client.staff.tenants
+				.byTenantId(variables.tenantId)
+				.users.exportEscaped.get({
+					queryParameters:
+						buildExportStaffTenantUsersQueryParameters(variables),
+				}),
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+export const useBulkRemoveStaffTenantUsersMutation = () =>
+	useMutation(bulkRemoveStaffTenantUsersMutationOptions);
+
+export const useExportStaffTenantUsersMutation = () =>
+	useMutation(exportStaffTenantUsersMutationOptions);
 
 export const useStaffTenantUsersQuery = (
 	variables: StaffTenantUsersQueryVariables,

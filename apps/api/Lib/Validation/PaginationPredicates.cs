@@ -40,4 +40,16 @@ public static class PaginationPredicates {
 		return int.TryParse(value, out var num)
 			&& num >= 1;
 	}
+
+	public static bool BeValidNullableLimit(
+		string? value
+	) {
+		if (value is null) {
+			return true;
+		}
+
+		return int.TryParse(value, out var num)
+			&& num >= 1
+			&& num <= AppEnvironment.Instance.PAGINATION_MAX_LIMIT;
+	}
 }

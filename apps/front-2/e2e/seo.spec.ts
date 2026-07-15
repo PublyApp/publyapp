@@ -1,5 +1,15 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
 
+// The `chromium` project supplies a pre-authenticated staff-admin
+// `storageState` (playwright.config.ts, review-r1-tests.md F29), which the
+// `request` fixture inherits too. With that session cookie attached, a raw
+// GET to `/login` gets redirected server-side (an already-authenticated
+// visitor is bounced to their workspace before the SEO markup is injected —
+// see `injectSeoMarkup`'s `isIndexableSeoRoute`, which requires a 2xx
+// status), so the description/OG assertions below would silently see no
+// meta tags. Every route this file inspects is meant to be read anonymously.
+test.use({ storageState: { cookies: [], origins: [] } });
+
 const BASE_URL = 'https://front-2.localhost:8443';
 
 const extractAttribute = (tag: string, attribute: string): string | null => {
@@ -75,10 +85,14 @@ const hasLinkTag = (
 	});
 };
 
+// Round-6 shell F1 replaced the internal front-2 scaffold copy with real,
+// localized product copy (seo-*-description keys in common.en.json). These
+// assertions track that copy; the gate must verify the shipped description,
+// not the migration-era placeholder it used to leak.
 const expectedDescription = (path: string): string =>
 	path === '/login'
-		? 'Sign in to front-2.'
-		: 'front-2 foundations: i18n, CSP, SEO, analytics.';
+		? 'Sign in to your PublyApp workspace to get started.'
+		: 'PublyApp keeps your whole team and every channel moving together — from first draft to published.';
 
 const assertMetaFromHtml = async (request: APIRequestContext, path: string) => {
 	const response = await request.get(path);

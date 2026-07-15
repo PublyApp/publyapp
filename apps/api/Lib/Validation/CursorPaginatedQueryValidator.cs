@@ -15,10 +15,11 @@ public class CursorPaginatedQueryValidator<T>
 
 		RuleFor(x => x.Limit)
 			.Must(PaginationPredicates
-				.BeValidNullableNumber)
+				.BeValidNullableLimit)
 			.WithMessage(
 				"limit must be a valid number "
-				+ "greater than or equal to 1"
+				+ "between 1 and "
+				+ AppEnvironment.Instance.PAGINATION_MAX_LIMIT
 			);
 
 		RuleFor(x => x.SortId)

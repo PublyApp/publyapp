@@ -246,6 +246,19 @@ const buildScopedQueryKey = (
 	return key;
 };
 
+/**
+ * Prepends the scope prefix `buildScopedQueryKey` bakes into every generated
+ * query/mutation key — the one place that prefix is defined. Use this at
+ * invalidation call sites instead of hand-writing `['staff', ...KEY]`, so a
+ * future change to the prefix can never silently desync a hand-assembled key
+ * from what the factory actually produced (a no-op `invalidateQueries` that
+ * fails without an error).
+ */
+export const scopedKey = (
+	scope: QueryScope,
+	queryKey: readonly QueryKeySegment[],
+): QueryKeySegment[] => [scope, ...queryKey];
+
 export const buildTenantQueryOptions = <
 	TApiClient,
 	TData,

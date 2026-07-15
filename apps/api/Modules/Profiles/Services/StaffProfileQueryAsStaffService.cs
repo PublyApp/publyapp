@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Permissions.Entities;
 using PublyApp.Api.Modules.Profiles.Entities;
 
@@ -320,10 +321,10 @@ public sealed class StaffProfileQueryAsStaffService : IStaffProfileQueryAsStaffS
 		// Apply search filter (by name/description)
 		// Search semantics: substring match (ILIKE %q%) for case-insensitive search
 		if (search is { } q) {
-			var pattern = $"%{q}%";
+			var pattern = $"%{LikePatternUtils.EscapeLikePattern(q)}%";
 			query = query.Where(p =>
-				EF.Functions.ILike(p.Name, pattern)
-				|| (p.Description != null && EF.Functions.ILike(p.Description, pattern))
+				EF.Functions.ILike(p.Name, pattern, LikePatternUtils.LikeEscapeChar)
+				|| (p.Description != null && EF.Functions.ILike(p.Description, pattern, LikePatternUtils.LikeEscapeChar))
 			);
 		}
 

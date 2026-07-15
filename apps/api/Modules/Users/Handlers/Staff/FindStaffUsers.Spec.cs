@@ -105,6 +105,44 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldTreatABarePercentSearchAsALiteralCharacterNotAWildcard() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var marker = Guid.NewGuid().ToString("N")[..8];
+
+		var withPercentId = await StaffUserTestHelper.SeedStaffUserAsync(
+			_fixture,
+			$"has-percent-{marker}@example.com",
+			firstName: $"Has%Percent{marker}",
+			lastName: "Staff"
+		);
+		var withoutPercentId = await StaffUserTestHelper.SeedStaffUserAsync(
+			_fixture,
+			$"no-percent-{marker}@example.com",
+			firstName: $"NoPercentAtAll{marker}",
+			lastName: "Staff"
+		);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetFindUrl(limit: 100, q: "%")
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+
+		// If '%' were interpolated unescaped into the ILIKE pattern, "%%%"
+		// collapses to a bare wildcard matching every row. Escaped, only the
+		// user whose name literally contains '%' may match.
+		result.Data.Should().Contain(user => user.Id == withPercentId);
+		result.Data.Should().NotContain(user => user.Id == withoutPercentId);
+	}
+
+	[Fact]
 	public async Task ItShouldFilterStaffUsersByStatusQuery() {
 		var token = await _authClient.LoginAsStaffAdminAsync();
 		var activeId = await CreateStaffUserAsync(
@@ -380,6 +418,62 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		result.Data.Should().NotContain(user =>
 			string.Equals(user.Email, deletedAccountEmail, StringComparison.OrdinalIgnoreCase)
 		);
+	}
+
+	[Fact]
+	public async Task ItShouldReturn422WhenLimitExceedsTheMaximum() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+
+		var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetFindUrl(limit: 101)
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		if (problem is null) {
+			return;
+		}
+		problem.Errors.Should().ContainKey("limit");
+	}
+
+	[Fact]
+	public async Task ItShouldReturn422WhenLimitIsWellAboveTheMaximum() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+
+		var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetFindUrl(limit: 1_000_000)
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		if (problem is null) {
+			return;
+		}
+		problem.Errors.Should().ContainKey("limit");
+	}
+
+	[Fact]
+	public async Task ItShouldReturnOkWhenLimitEqualsTheMaximum() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+
+		var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetFindUrl(limit: 100)
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
 	private static string GetFindUrl(

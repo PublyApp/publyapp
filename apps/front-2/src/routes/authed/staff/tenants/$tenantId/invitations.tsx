@@ -1,26 +1,49 @@
-import { Button } from '@heroui/react';
+import {
+	IconAlertCircle,
+	IconChevronDown,
+	IconCircleDot,
+	IconClock,
+	IconId,
+	IconMail,
+	IconPlus,
+	IconUser,
+} from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
+import { DataTableRowActions } from '~/components/table/row-actions';
 import { useTableController } from '~/components/table/use-table-controller';
+import { Button, buttonVariants } from '~/components/ui/button';
+import { ConfirmDialog } from '~/components/ui/confirm-dialog';
+import {
+	DropdownMenu,
+	DropdownMenuCheckboxItem,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from '~/components/ui/dropdown-menu';
+import { InitialsAvatar } from '~/components/ui/initials-avatar';
+import { StatusPill } from '~/components/ui/product-page';
+import { statusPillTone } from '~/components/ui/status-tone';
 import {
 	isStaffTenantInvitationRevocable,
-	STAFF_TENANT_INVITATIONS_QUERY_KEY,
 	type StaffTenantInvitationRow,
 	toStaffTenantInvitationRows,
 	useRevokeStaffTenantInvitationMutation,
 	useStaffTenantInvitationsQuery,
 } from '~/lib/query/staff-tenant-invitations';
 import {
+	invalidateAllStaffTenantScopes,
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
-import { shouldLogoutForFailure } from '~/routes/authed/layout';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import {
 	getFailureMessage,
@@ -28,8 +51,7 @@ import {
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 import {
-	filterInvitationRows,
-	formatInvitationStatusLabel,
+	type InvitationDisplayStatus,
 	type InvitationListSearchParamInput,
 	type InvitationListSearchParams,
 	type KnownInvitationStatus,
@@ -45,10 +67,12 @@ import {
 	TenantDetailsError,
 	TenantDetailsLoading,
 	TenantDetailsPageShell,
+	TenantRetryActions,
 } from './_tenant-details-shell';
 
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
+const EXPIRES_SOON_MS = 48 * 60 * 60 * 1000;
 
 type ActionFeedback = {
 	message: string;
@@ -57,17 +81,42 @@ type ActionFeedback = {
 
 type CreateColumnsArgs = {
 	locale: string;
-	t: (key: string) => string;
+	t: (key: string, options?: Record<string, unknown>) => string;
 	isRevokePending: boolean;
 	onRevoke: (row: StaffTenantInvitationRow) => void;
 };
 
 const getFeedbackClassName = (tone: ActionFeedback['tone']): string =>
 	tone === 'success'
-		? 'border-success-200 bg-success-50 text-success-800'
-		: 'border-danger-200 bg-danger-50 text-danger-800';
+		? 'border-success/20 bg-success/10 text-success'
+		: 'border-destructive/20 bg-destructive/10 text-destructive';
 
-const createColumns = ({
+/** `list-helpers.ts`'s own `formatInvitationStatusLabel` capitalizes the raw
+ * token instead of translating it; its `getInvitationStatusLabelKey` points
+ * at `invitation-status-*` keys that don't exist in the locale bundle. Both
+ * are shared with the staff invitations list (owned by a different slice),
+ * so this route resolves the label locally against the real `pending` /
+ * `accepted` / `expired` / `revoked` / `status-unknown` keys instead. */
+const formatTenantInvitationStatusLabel = (
+	status: InvitationDisplayStatus,
+	t: (key: string) => string,
+): string => (status === 'unknown' ? t('status-unknown') : t(status));
+
+/** Honest "amber emphasis" for a near expiry — computed from the real
+ * `expiresAt` value, never a fabricated "Expiring" status. */
+export const isInvitationExpiringSoon = (
+	expiresAt: Date | null,
+	now: Date,
+): boolean => {
+	if (!(expiresAt instanceof Date) || Number.isNaN(expiresAt.valueOf())) {
+		return false;
+	}
+
+	const diffMs = expiresAt.getTime() - now.getTime();
+	return diffMs > 0 && diffMs < EXPIRES_SOON_MS;
+};
+
+export const createColumns = ({
 	locale,
 	t,
 	isRevokePending,
@@ -75,68 +124,130 @@ const createColumns = ({
 }: CreateColumnsArgs): ColumnDef<StaffTenantInvitationRow>[] => [
 	{
 		id: 'email',
-		header: 'Email',
+		header: () => (
+			<div className="inline-flex items-center gap-1.5">
+				<IconMail className="size-3.5 text-muted-foreground" />
+				<span>{t('invitee')}</span>
+			</div>
+		),
 		accessorKey: 'email',
+		cell: ({ row }) => {
+			const email = row.original.email;
+			return (
+				<div className="flex min-w-0 items-center gap-2.5">
+					<InitialsAvatar name={row.original.email} />
+					<span className="min-w-0 truncate text-[13px]" title={email}>
+						{email}
+					</span>
+				</div>
+			);
+		},
 	},
 	{
-		id: 'status',
-		header: 'Status',
+		id: 'profile_name',
+		header: () => (
+			<div className="inline-flex items-center gap-1.5">
+				<IconId className="size-3.5 text-muted-foreground" />
+				<span>{t('profiles')}</span>
+			</div>
+		),
+		accessorKey: 'profileName',
 		enableSorting: false,
+		meta: { width: '160px', hideBelow: 768 },
 		cell: ({ row }) => (
-			<span className="inline-flex rounded-full bg-default-100 px-2 py-1 text-xs font-medium text-foreground">
-				{formatInvitationStatusLabel(
-					normalizeInvitationStatus(row.original.status),
-				)}
+			<span className="publy-detail-chip publy-detail-chip--outline">
+				{row.original.profileName}
 			</span>
 		),
 	},
 	{
-		id: 'profile_name',
-		header: 'Profile',
-		accessorKey: 'profileName',
-		enableSorting: false,
-	},
-	{
 		id: 'invited_by',
-		header: 'Invited by',
+		header: () => (
+			<div className="inline-flex items-center gap-1.5">
+				<IconUser className="size-3.5 text-muted-foreground" />
+				<span>{t('invited-by')}</span>
+			</div>
+		),
 		accessorKey: 'invitedByName',
 		enableSorting: false,
-	},
-	{
-		id: 'created_at',
-		header: 'Created',
-		accessorFn: (row) => row.createdAt,
-		cell: ({ row }) => formatDateTime(row.original.createdAt, locale),
+		meta: { width: '150px', hideBelow: 768 },
+		cell: ({ getValue }) => (
+			<span className="text-[13px] text-muted-foreground">
+				{getValue<string>()}
+			</span>
+		),
 	},
 	{
 		id: 'expires_at',
-		header: 'Expires',
+		header: () => (
+			<div className="inline-flex items-center gap-1.5">
+				<IconClock className="size-3.5 text-muted-foreground" />
+				<span>{t('expires')}</span>
+			</div>
+		),
 		accessorFn: (row) => row.expiresAt,
-		cell: ({ row }) => formatDateTime(row.original.expiresAt, locale),
+		meta: { width: '150px', hideBelow: 768 },
+		cell: ({ row }) => {
+			const expiresAt = row.original.expiresAt;
+			const isExpiringSoon = isInvitationExpiringSoon(expiresAt, new Date());
+			return (
+				<span
+					className={
+						isExpiringSoon
+							? 'text-[13px] font-medium text-[var(--publy-warning)]'
+							: 'text-[13px] text-muted-foreground'
+					}
+				>
+					{formatDateTime(expiresAt, locale)}
+				</span>
+			);
+		},
 	},
 	{
-		id: 'accepted_at',
-		header: 'Accepted',
-		accessorFn: (row) => row.acceptedAt,
-		cell: ({ row }) => formatDateTime(row.original.acceptedAt, locale),
+		id: 'status',
+		header: () => (
+			<div className="inline-flex items-center gap-1.5">
+				<IconCircleDot className="size-3.5 text-muted-foreground" />
+				<span>{t('status')}</span>
+			</div>
+		),
+		enableSorting: false,
+		meta: { width: '128px' },
+		cell: ({ row }) => {
+			const status = normalizeInvitationStatus(row.original.status);
+			return (
+				<StatusPill tone={statusPillTone(status)}>
+					{formatTenantInvitationStatusLabel(status, t)}
+				</StatusPill>
+			);
+		},
 	},
 	{
 		id: 'actions',
-		header: 'Actions',
+		header: () => <span className="sr-only">{t('actions')}</span>,
 		enableSorting: false,
+		meta: { width: '40px', align: 'center' },
 		cell: ({ row }) =>
 			isStaffTenantInvitationRevocable(row.original) ? (
-				<Button
-					type="button"
-					size="sm"
-					variant="danger-soft"
-					isDisabled={isRevokePending}
-					onPress={() => onRevoke(row.original)}
+				<DataTableRowActions
+					ariaLabel={t('actions-for', {
+						name: row.original.email || t('invitation'),
+					})}
+					testId={`staff-tenant-invitation-actions-${row.original.id}`}
 				>
-					{t('staff-revoke')}
-				</Button>
+					<DropdownMenuItem
+						variant="destructive"
+						disabled={isRevokePending}
+						onClick={() => onRevoke(row.original)}
+					>
+						{t('revoke')}
+					</DropdownMenuItem>
+				</DataTableRowActions>
 			) : (
-				<span className="text-foreground-300">—</span>
+				<span className="flex justify-center text-muted-foreground">
+					<span aria-hidden="true">—</span>
+					<span className="sr-only">{t('no-actions-available')}</span>
+				</span>
 			),
 	},
 ];
@@ -145,28 +256,31 @@ export const Route = createFileRoute(
 	'/_authed-layout/staff/tenants/$tenantId/invitations',
 )({
 	validateSearch: (search) =>
-		parseInvitationListSearchParams(search as InvitationListSearchParamInput),
+		serializeInvitationListSearchParams(
+			parseInvitationListSearchParams(search as InvitationListSearchParamInput),
+		),
 	component: StaffTenantInvitationsPage,
 });
 
 function StaffTenantInvitationsPage() {
 	const { tenantId } = Route.useParams();
 	const navigate = Route.useNavigate();
-	const search = Route.useSearch() as InvitationListSearchParams;
+	const search = parseInvitationListSearchParams(
+		Route.useSearch() as InvitationListSearchParamInput,
+	);
 	const queryClient = useQueryClient();
 	const { i18n, t } = useTranslation('common');
 	const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
 	const [shouldRedirectToLogout, setShouldRedirectToLogout] = useState(false);
+	const [pendingRevokeRowId, setPendingRevokeRowId] = useState<string | null>(
+		null,
+	);
 
 	const selectedStatuses = parseInvitationStatusFilter(search.status);
 
 	const onSearchChange = (next: InvitationListSearchParams): void => {
 		void navigate({
-			search: serializeInvitationListSearchParams({
-				...search,
-				...next,
-				status: search.status,
-			}) as unknown as InvitationListSearchParams,
+			search: serializeInvitationListSearchParams(next),
 			replace: true,
 		});
 	};
@@ -194,8 +308,7 @@ function StaffTenantInvitationsPage() {
 			size: controller.apiVariables.size,
 		},
 		{
-			enabled:
-				tenantId.length > 0 && !detailsQuery.isPending && !detailsQuery.isError,
+			enabled: tenantId.length > 0,
 		},
 	);
 
@@ -203,21 +316,12 @@ function StaffTenantInvitationsPage() {
 		async (row: StaffTenantInvitationRow) => {
 			setFeedback(null);
 
-			if (
-				typeof globalThis.confirm === 'function' &&
-				!globalThis.confirm('Revoke invitation?')
-			) {
-				return;
-			}
-
 			try {
 				await revokeInvitation.mutateAsync({
 					tenantId,
 					invitationId: row.id,
 				});
-				await queryClient.invalidateQueries({
-					queryKey: ['staff', ...STAFF_TENANT_INVITATIONS_QUERY_KEY],
-				});
+				await invalidateAllStaffTenantScopes(queryClient);
 				setFeedback({
 					tone: 'success',
 					message: t('revoke-invitation-success'),
@@ -231,22 +335,30 @@ function StaffTenantInvitationsPage() {
 				setFeedback({
 					tone: 'error',
 					message: getFailureMessage(toApiFailure(error), {
-						fallback: 'Unable to revoke the invitation.',
+						fallback: t('unable-to-revoke-invitation'),
 					}),
 				});
+			} finally {
+				setPendingRevokeRowId(null);
 			}
 		},
 		[queryClient, revokeInvitation, t, tenantId],
 	);
 
-	const columns = createColumns({
-		locale: i18n.language,
-		t,
-		isRevokePending: revokeInvitation.isPending,
-		onRevoke: (row) => {
-			void handleRevoke(row);
-		},
-	});
+	const promptRevoke = useCallback((row: StaffTenantInvitationRow) => {
+		setPendingRevokeRowId(row.id);
+	}, []);
+
+	const columns = useMemo(
+		() =>
+			createColumns({
+				locale: i18n.language,
+				t,
+				isRevokePending: revokeInvitation.isPending,
+				onRevoke: promptRevoke,
+			}),
+		[i18n.language, t, revokeInvitation.isPending, promptRevoke],
+	);
 
 	if (detailsQuery.isPending) {
 		return <TenantDetailsLoading />;
@@ -257,18 +369,26 @@ function StaffTenantInvitationsPage() {
 			return <LogoutRedirect />;
 		}
 
-		return <TenantDetailsError error={detailsQuery.error} />;
+		return (
+			<TenantDetailsError
+				error={detailsQuery.error}
+				onRetry={() => void detailsQuery.refetch()}
+			/>
+		);
 	}
 
 	const tenant = toStaffTenantDetails(detailsQuery.data);
 	if (!tenant) {
 		return (
 			<AppErrorView
-				icon="!"
-				code="500 — Server Error"
-				title="Unable to load this tenant"
-				description="The tenant response was incomplete."
+				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
+				code={t('error-500-code')}
+				title={t('tenant-details-error-title')}
+				description={t('tenant-response-incomplete')}
 				testId="staff-tenant-details-error"
+				actions={
+					<TenantRetryActions onRetry={() => void detailsQuery.refetch()} />
+				}
 			/>
 		);
 	}
@@ -285,7 +405,6 @@ function StaffTenantInvitationsPage() {
 	}
 
 	const rows = toStaffTenantInvitationRows(invitationsQuery.data?.data);
-	const filteredRows = filterInvitationRows(rows, controller.search.committed);
 
 	const setStatuses = (nextStatuses: KnownInvitationStatus[]): void => {
 		void navigate({
@@ -293,7 +412,7 @@ function StaffTenantInvitationsPage() {
 				...search,
 				status: serializeInvitationStatusFilter(nextStatuses),
 				cursor: undefined,
-			}) as unknown as InvitationListSearchParams,
+			}),
 			replace: true,
 		});
 	};
@@ -307,19 +426,45 @@ function StaffTenantInvitationsPage() {
 		setStatuses([...selectedStatuses, status]);
 	};
 
+	const statusFilterLabel =
+		selectedStatuses.length === 0
+			? t('all-statuses')
+			: selectedStatuses
+					.map((status) => formatTenantInvitationStatusLabel(status, t))
+					.join(', ');
+
 	return (
 		<TenantDetailsPageShell
 			tenant={tenant}
 			activeSection="invitations"
-			summary="Read-only tenant invitations carried forward in the front-2 migration shell."
 			testId="staff-tenant-invitations-page"
+			bodyScroll="contained"
 		>
-			<div className="space-y-2">
-				<h2 className="text-lg font-semibold text-foreground">Invitations</h2>
-				<p className="text-sm text-foreground-500">
-					Tenant invitations with search, status filters, sorting, cursor
-					pagination, and pending-row revoke.
-				</p>
+			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+				<div className="space-y-1">
+					<h2 className="publy-type-page-title">
+						{t('invitations')}
+						{tenant.pendingInvitationsCount != null ? (
+							<span className="ml-2 publy-profile-count-badge align-middle">
+								{t('invitations-pending-count-chip', {
+									count: tenant.pendingInvitationsCount,
+								})}
+							</span>
+						) : null}
+					</h2>
+					<p className="publy-type-helper">
+						{t('tenant-invitations-tab-description')}
+					</p>
+				</div>
+				<Link
+					to="/staff/tenants/$tenantId/users"
+					params={{ tenantId }}
+					search={{ invite: 1 }}
+					className={buttonVariants({ size: 'sm', variant: 'default' })}
+				>
+					<IconPlus aria-hidden="true" className="size-[15px]" />
+					{t('invite-people')}
+				</Link>
 			</div>
 
 			{feedback ? (
@@ -331,42 +476,47 @@ function StaffTenantInvitationsPage() {
 				</div>
 			) : null}
 
-			<div className="flex flex-wrap items-center gap-2">
-				{KNOWN_INVITATION_STATUSES.map((status) => {
-					const isSelected = selectedStatuses.includes(status);
-
-					return (
-						<Button
-							key={status}
-							size="sm"
-							type="button"
-							variant={isSelected ? 'primary' : 'secondary'}
-							onPress={() => toggleStatus(status)}
-						>
-							{formatInvitationStatusLabel(status)}
-						</Button>
-					);
-				})}
-				<Button
-					size="sm"
-					type="button"
-					variant="ghost"
-					onPress={() => setStatuses([])}
-				>
-					Clear
-				</Button>
-			</div>
+			<ConfirmDialog
+				isOpen={pendingRevokeRowId !== null}
+				title={t('revoke-invitation')}
+				description={t('revoke-invitation-confirm-description')}
+				confirmLabel={t('revoke')}
+				isPending={revokeInvitation.isPending}
+				onConfirm={() => {
+					const row = rows.find((r) => r.id === pendingRevokeRowId);
+					if (row) {
+						void handleRevoke(row);
+					}
+				}}
+				onOpenChange={(isOpen) => {
+					if (!isOpen) setPendingRevokeRowId(null);
+				}}
+			/>
 
 			<DataTable
 				testId="staff-tenant-invitations-table"
-				ariaLabel="Tenant invitations"
+				ariaLabel={t('tenant-invitations-table-aria-label')}
 				columns={columns}
-				rows={filteredRows}
+				rows={rows}
 				isPending={invitationsQuery.isPending}
 				isError={invitationsQuery.isError}
 				onRetry={() => void invitationsQuery.refetch()}
-				emptyContent="No tenant invitations found."
-				noMatchContent="No tenant invitations match your search."
+				emptyIcon={IconMail}
+				emptyTitle={t('tenant-invitations-empty-title')}
+				emptyContent={t('tenant-invitations-empty-description')}
+				emptyActions={
+					<Link
+						to="/staff/tenants/$tenantId/users"
+						params={{ tenantId }}
+						search={{ invite: 1 }}
+						className={buttonVariants({ size: 'sm', variant: 'outline' })}
+					>
+						<IconPlus aria-hidden="true" className="size-[15px]" />
+						{t('invite-people')}
+					</Link>
+				}
+				noMatchTitle={t('tenant-invitations-no-match-title')}
+				noMatchContent={t('tenant-invitations-no-match-description')}
 				hasActiveSearch={Boolean(controller.search.committed || search.status)}
 				sort={controller.sort}
 				onSortChange={controller.onSortChange}
@@ -384,6 +534,51 @@ function StaffTenantInvitationsPage() {
 				onPreviousPage={controller.cursor.onPreviousPage}
 				searchDraft={controller.search.draft}
 				onSearchDraftChange={controller.search.onDraftChange}
+				searchPlaceholder={t('search-invitations')}
+				toolbarEnd={
+					<DropdownMenu>
+						<DropdownMenuTrigger
+							render={
+								<Button
+									type="button"
+									variant="outline"
+									className="publy-data-table-filter-button max-w-64 text-[13px]"
+								/>
+							}
+						>
+							<IconCircleDot
+								aria-hidden="true"
+								className="size-[15px] text-[var(--publy-foreground-secondary)]"
+							/>
+							<span className="truncate">{statusFilterLabel}</span>
+							<IconChevronDown aria-hidden="true" className="size-3" />
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end" sideOffset={6}>
+							<DropdownMenuCheckboxItem
+								checked={selectedStatuses.length === 0}
+								closeOnClick
+								onCheckedChange={() => setStatuses([])}
+							>
+								{t('all-statuses')}
+							</DropdownMenuCheckboxItem>
+							{KNOWN_INVITATION_STATUSES.map((status) => (
+								<DropdownMenuCheckboxItem
+									key={status}
+									checked={selectedStatuses.includes(status)}
+									closeOnClick={false}
+									showCheckbox
+									onCheckedChange={() => toggleStatus(status)}
+								>
+									{formatTenantInvitationStatusLabel(status, t)}
+								</DropdownMenuCheckboxItem>
+							))}
+							<DropdownMenuSeparator />
+							<DropdownMenuItem onClick={() => setStatuses([])}>
+								{t('clear')}
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
+				}
 			/>
 		</TenantDetailsPageShell>
 	);

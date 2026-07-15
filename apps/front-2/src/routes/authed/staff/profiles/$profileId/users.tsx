@@ -1,12 +1,23 @@
-import { Card, Spinner } from '@heroui/react';
+import {
+	IconAlertCircle,
+	IconArrowLeft,
+	IconSearchOff,
+} from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
 import { DataTable } from '~/components/table/data-table';
 import { useTableController } from '~/components/table/use-table-controller';
+import { Button, buttonVariants } from '~/components/ui/button';
+import { Card } from '~/components/ui/card';
+import { LoadingSpinner } from '~/components/ui/loading-spinner';
+import { StatusPill } from '~/components/ui/product-page';
+import { statusPillTone } from '~/components/ui/status-tone';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import {
 	toStaffProfileUserRows,
 	useStaffProfileUsersQuery,
@@ -15,6 +26,7 @@ import {
 	toStaffProfileDetails,
 	useStaffProfileDetailsQuery,
 } from '~/lib/query/staff-profiles';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 import {
 	parseTableSearchParams,
 	serializeTableSearchParams,
@@ -23,22 +35,29 @@ import type {
 	TableSearchParamInput,
 	TableSearchParams,
 } from '~/lib/url-state/table-search-params';
-import { shouldLogoutForFailure } from '~/routes/authed/layout';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
+
+import { formatStaffStatusLabel } from '../../staff-users/status-labels';
 
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
 const MALFORMED_ID_TRANSLATION_KEY = 'malformed-id';
 
-const columns: ColumnDef<ReturnType<typeof toStaffProfileUserRows>[number]>[] =
-	[
-		{
-			id: 'name',
-			header: 'Name',
-			enableSorting: false,
-			cell: ({ row }) => (
+export const buildColumns = (
+	t: (key: string, options?: Record<string, unknown>) => string,
+): ColumnDef<ReturnType<typeof toStaffProfileUserRows>[number]>[] => [
+	{
+		id: 'name',
+		header: t('name'),
+		enableSorting: false,
+		cell: ({ row }) => (
+			<Link
+				to="/staff/staff-users/$userId"
+				params={{ userId: row.original.id }}
+				className="publy-record-link"
+			>
 				<div className="space-y-1">
 					<p className="font-medium text-foreground">
 						{getUserFullName({
@@ -46,21 +65,31 @@ const columns: ColumnDef<ReturnType<typeof toStaffProfileUserRows>[number]>[] =
 							lastName: row.original.lastName,
 						}) ||
 							row.original.email ||
-							'—'}
+							t('no-email-address')}
 					</p>
-					<p className="text-xs text-foreground-500">
-						{row.original.email || 'No email address'}
+					<p className="text-xs text-muted-foreground">
+						{row.original.email || t('no-email-address')}
 					</p>
 				</div>
-			),
+			</Link>
+		),
+	},
+	{
+		id: 'status',
+		header: t('status'),
+		accessorKey: 'status',
+		meta: { width: '122px' },
+		cell: ({ getValue }) => {
+			const status = getValue<string | null>();
+
+			return (
+				<StatusPill tone={statusPillTone(status)}>
+					{formatStaffStatusLabel(status, t)}
+				</StatusPill>
+			);
 		},
-		{
-			id: 'status',
-			header: 'Status',
-			accessorKey: 'status',
-			cell: ({ getValue }) => getValue<string | null>() ?? '—',
-		},
-	];
+	},
+];
 
 const isProblemStatus = (
 	error: unknown,
@@ -89,72 +118,88 @@ const getFailureDescription = (
 	return fallback;
 };
 
-const ProfileDetailsLoading = () => (
-	<div
-		className="mx-auto flex min-h-[50vh] w-full max-w-5xl items-center justify-center px-4 py-12"
-		data-testid="staff-profile-users-loading"
-	>
-		<div className="flex items-center gap-3 text-sm text-foreground-500">
-			<Spinner size="sm" />
-			<span>Loading staff profile…</span>
-		</div>
-	</div>
-);
-
-const InvalidProfileView = ({ error }: { error: unknown }) => {
-	const failure = toApiFailure(error);
+const ProfileDetailsLoading = () => {
+	const { t } = useTranslation('common');
 
 	return (
-		<AppErrorView
-			icon="!"
-			code="400 — Bad Request"
-			title="Invalid profile link"
-			description={getFailureDescription(
-				failure,
-				'This staff profile link is malformed or incomplete.',
-			)}
-			testId="staff-profile-users-invalid"
-		/>
+		<div
+			className="mx-auto flex min-h-[50vh] w-full max-w-5xl items-center justify-center px-4 py-12"
+			data-testid="staff-profile-users-loading"
+		>
+			<div className="flex items-center gap-3 text-sm text-muted-foreground">
+				<LoadingSpinner />
+				<span>{t('loading-staff-profile')}</span>
+			</div>
+		</div>
 	);
 };
 
 const MissingProfileView = ({ error }: { error: unknown }) => {
+	const { t } = useTranslation('common');
 	const failure = toApiFailure(error);
 
 	return (
 		<AppErrorView
-			icon="🔎"
-			code="404 — Not Found"
-			title="Staff profile not found"
+			icon={<IconSearchOff aria-hidden="true" className="size-7" />}
+			code={t('error-404-code')}
+			title={t('staff-profile-not-found')}
 			description={getFailureDescription(
 				failure,
-				'The requested staff profile does not exist or is no longer available.',
+				t('staff-profile-not-found-description'),
 			)}
 			testId="staff-profile-users-not-found"
+			actions={
+				<Link
+					to="/staff/profiles"
+					className={buttonVariants({ variant: 'outline' })}
+				>
+					{t('back-to-staff-profiles')}
+				</Link>
+			}
 		/>
 	);
 };
 
-const ProfileDetailsError = ({ error }: { error: unknown }) => {
-	if (isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)) {
-		return <InvalidProfileView error={error} />;
+const ProfileDetailsError = ({
+	error,
+	onRetry,
+}: {
+	error: unknown;
+	onRetry: () => void;
+}) => {
+	const { t } = useTranslation('common');
+
+	if (
+		isProblemStatus(error, 404) ||
+		isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)
+	) {
+		return <MissingProfileView error={error} />;
 	}
 
 	if (isProblemStatus(error, 403)) {
 		return <View403 />;
 	}
 
-	if (isProblemStatus(error, 404)) {
-		return <MissingProfileView error={error} />;
-	}
-
 	return (
 		<AppErrorView
-			icon="!"
-			code="500 — Server Error"
-			title="Unable to load this staff profile"
-			description="There was a problem loading the profile details."
+			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
+			code={t('error-500-code')}
+			title={t('unable-to-load-staff-profile')}
+			description={t('problem-loading-staff-profile-details')}
 			testId="staff-profile-users-error"
+			actions={
+				<>
+					<Button variant="default" onClick={onRetry} type="button">
+						{t('try-again')}
+					</Button>
+					<Link
+						to="/staff/profiles"
+						className={buttonVariants({ variant: 'outline' })}
+					>
+						{t('back-to-staff-profiles')}
+					</Link>
+				</>
+			}
 		/>
 	);
 };
@@ -171,6 +216,7 @@ function StaffProfileUsersPage() {
 	const navigate = Route.useNavigate();
 	const { profileId } = Route.useParams();
 	const search = Route.useSearch();
+	const { t } = useTranslation('common');
 	const [pageIndex, setPageIndex] = useState(0);
 	const onSearchChange = (next: TableSearchParams): void => {
 		void navigate({
@@ -197,6 +243,7 @@ function StaffProfileUsersPage() {
 		{ enabled: profileId.length > 0 },
 	);
 	const rows = toStaffProfileUserRows(usersQuery.data?.users);
+	const columns = useMemo(() => buildColumns(t), [t]);
 	const details = toStaffProfileDetails(detailQuery.data);
 
 	useEffect(() => {
@@ -233,17 +280,30 @@ function StaffProfileUsersPage() {
 	}
 
 	if (detailQuery.isError) {
-		return <ProfileDetailsError error={detailQuery.error} />;
+		return (
+			<ProfileDetailsError
+				error={detailQuery.error}
+				onRetry={() => void detailQuery.refetch()}
+			/>
+		);
 	}
 
 	if (!details) {
 		return (
 			<AppErrorView
-				icon="🔎"
-				code="404 — Not Found"
-				title="Staff profile not found"
-				description="The profile payload was empty."
+				icon={<IconSearchOff aria-hidden="true" className="size-7" />}
+				code={t('error-404-code')}
+				title={t('staff-profile-not-found')}
+				description={t('staff-profile-payload-empty')}
 				testId="staff-profile-users-empty"
+				actions={
+					<Link
+						to="/staff/profiles"
+						className={buttonVariants({ variant: 'outline' })}
+					>
+						{t('back-to-staff-profiles')}
+					</Link>
+				}
 			/>
 		);
 	}
@@ -257,32 +317,30 @@ function StaffProfileUsersPage() {
 
 	return (
 		<div
-			className="mx-auto w-full max-w-5xl space-y-6 p-4"
+			className="mx-auto flex h-full w-full max-w-5xl min-h-0 flex-col gap-6"
 			data-testid="staff-profile-users-page"
 		>
-			<div className="space-y-4">
+			<div className="shrink-0 space-y-4">
 				<div className="space-y-2">
-					<Link
-						to="/staff/profiles"
-						className="text-sm text-foreground-500 underline-offset-4 hover:text-foreground hover:underline"
-					>
-						Back to staff profiles
+					<Link to="/staff/profiles" className="publy-back-link">
+						<IconArrowLeft aria-hidden="true" className="size-3" />
+						{t('back-to-staff-profiles')}
 					</Link>
 					<div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
 						<div className="space-y-2">
-							<p className="text-xs font-medium uppercase tracking-[0.2em] text-foreground-500">
-								Staff profile
+							<p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+								{t('staff-profile')}
 							</p>
 							<h1 className="text-3xl font-semibold tracking-tight text-foreground">
 								{details.name}
 							</h1>
-							<p className="max-w-2xl text-sm text-foreground-500">
-								Assigned users for this staff profile.
+							<p className="max-w-2xl text-sm text-muted-foreground">
+								{t('assigned-users-for-this-staff-profile')}
 							</p>
 						</div>
-						<div className="rounded-large border border-divider bg-content1 p-4">
-							<p className="text-xs font-medium uppercase tracking-[0.2em] text-foreground-500">
-								Assigned users
+						<div className="rounded-large border border-border bg-card p-4">
+							<p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+								{t('assigned-users')}
 							</p>
 							<p className="mt-2 text-2xl font-semibold text-foreground">
 								{details.userAccountCount}
@@ -290,74 +348,81 @@ function StaffProfileUsersPage() {
 						</div>
 					</div>
 				</div>
-
-				<nav
-					aria-label="Staff profile sections"
-					className="flex flex-wrap gap-2 border-b border-divider pb-2"
-				>
-					<Link
-						to="/staff/profiles/$profileId"
-						params={{ profileId }}
-						className="rounded-full border border-divider px-4 py-2 text-sm text-foreground-500 transition hover:border-default-400 hover:text-foreground"
-					>
-						Basics
-					</Link>
-					<span className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
-						Users
-					</span>
-				</nav>
 			</div>
 
-			<Card className="space-y-4 p-5">
-				<div className="space-y-1">
-					<p className="text-lg font-semibold text-foreground">
-						Assigned users
-					</p>
-					<p className="text-sm text-foreground-500">
-						Read-only migration for the current profile users tab.
-					</p>
-				</div>
+			<Tabs value="users" className="min-h-0 flex-1">
+				<TabsList
+					variant="line"
+					aria-label={t('staff-profile-sections')}
+					className="shrink-0"
+				>
+					<TabsTrigger
+						value="basics"
+						render={
+							<Link to="/staff/profiles/$profileId" params={{ profileId }} />
+						}
+					>
+						{t('basics')}
+					</TabsTrigger>
+					<TabsTrigger value="users">{t('users')}</TabsTrigger>
+				</TabsList>
 
-				<DataTable
-					testId="staff-profile-users-table"
-					ariaLabel="Assigned staff profile users"
-					columns={columns}
-					rows={rows}
-					isPending={usersQuery.isPending}
-					isError={usersQuery.isError}
-					onRetry={() => void usersQuery.refetch()}
-					errorContent={
-						usersFailure?.kind === 'problem' && usersFailure.status === 403 ? (
-							<p className="text-sm text-muted">
-								You do not have permission to view assigned users.
+				<TabsContent value="users" className="publy-detail-tab-body min-h-0">
+					<Card className="min-h-0 flex-1 gap-4 p-5">
+						<div className="shrink-0 space-y-1">
+							<p className="text-lg font-semibold text-foreground">
+								{t('assigned-users')}
 							</p>
-						) : undefined
-					}
-					emptyContent="No users are assigned to this profile."
-					noMatchContent="No assigned users match your search."
-					hasActiveSearch={Boolean(controller.search.committed)}
-					sort={controller.sort}
-					onSortChange={controller.onSortChange}
-					size={controller.size}
-					onSizeChange={controller.onSizeChange}
-					pageIndex={pageIndex}
-					hasPreviousPage={hasPreviousPage}
-					hasNextPage={hasNextPage}
-					isPaginationPending={usersQuery.isFetching && !usersQuery.isPending}
-					onNextPage={() => {
-						if (hasNextPage) {
-							setPageIndex((current) => current + 1);
-						}
-					}}
-					onPreviousPage={() => {
-						if (hasPreviousPage) {
-							setPageIndex((current) => Math.max(current - 1, 0));
-						}
-					}}
-					searchDraft={controller.search.draft}
-					onSearchDraftChange={controller.search.onDraftChange}
-				/>
-			</Card>
+							<p className="text-sm text-muted-foreground">
+								{t('staff-profile-users-description')}
+							</p>
+						</div>
+
+						<DataTable
+							testId="staff-profile-users-table"
+							ariaLabel={t('assigned-staff-profile-users')}
+							columns={columns}
+							rows={rows}
+							isPending={usersQuery.isPending}
+							isError={usersQuery.isError}
+							onRetry={() => void usersQuery.refetch()}
+							errorContent={
+								usersFailure?.kind === 'problem' &&
+								usersFailure.status === 403 ? (
+									<p className="text-sm text-muted-foreground">
+										{t('no-permission-to-view-assigned-users')}
+									</p>
+								) : undefined
+							}
+							emptyContent={t('no-users-assigned-to-profile')}
+							noMatchContent={t('no-assigned-users-match-search')}
+							hasActiveSearch={Boolean(controller.search.committed)}
+							sort={controller.sort}
+							onSortChange={controller.onSortChange}
+							size={controller.size}
+							onSizeChange={controller.onSizeChange}
+							pageIndex={pageIndex}
+							hasPreviousPage={hasPreviousPage}
+							hasNextPage={hasNextPage}
+							isPaginationPending={
+								usersQuery.isFetching && !usersQuery.isPending
+							}
+							onNextPage={() => {
+								if (hasNextPage) {
+									setPageIndex((current) => current + 1);
+								}
+							}}
+							onPreviousPage={() => {
+								if (hasPreviousPage) {
+									setPageIndex((current) => Math.max(current - 1, 0));
+								}
+							}}
+							searchDraft={controller.search.draft}
+							onSearchDraftChange={controller.search.onDraftChange}
+						/>
+					</Card>
+				</TabsContent>
+			</Tabs>
 		</div>
 	);
 }

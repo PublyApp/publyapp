@@ -3,11 +3,36 @@ import { index, layout, rootRoute, route } from '@tanstack/virtual-file-routes';
 export const routes = rootRoute('__root.tsx', [
 	index('index.tsx'),
 	route('/login', 'login.tsx'),
+	route('/signup', 'signup.tsx'),
+	route('/verify-email', 'verify-email.tsx'),
+	route('/reset-password', 'reset-password.tsx'),
+	route('/accept-invitation', 'accept-invitation.tsx'),
 	route('/field-validation', 'field-validation.tsx'),
 	layout('authed-layout', 'authed/layout.tsx', [
 		route('/staff', 'authed/staff.tsx'),
+		route('/staff/dashboard', 'authed/staff/dashboard.tsx', [
+			index('authed/staff/dashboard/index.tsx'),
+			route('/activity', 'authed/staff/dashboard/activity.tsx'),
+			route('/reports', 'authed/staff/dashboard/reports.tsx'),
+		]),
 		route('/staff/staff-users', 'authed/staff/staff-users.tsx'),
-		route('/staff/staff-users/$userId', 'authed/staff/staff-users/$userId.tsx'),
+		route(
+			'/staff/staff-users/$userId',
+			'authed/staff/staff-users/$userId.tsx',
+			[
+				index('authed/staff/staff-users/$userId/index.tsx'),
+				route(
+					'/permissions',
+					'authed/staff/staff-users/$userId/permissions.tsx',
+				),
+				route('/activity', 'authed/staff/staff-users/$userId/activity.tsx'),
+				route('/settings', 'authed/staff/staff-users/$userId/settings.tsx'),
+			],
+		),
+		route(
+			'/staff/staff-users/$userId/edit',
+			'authed/staff/staff-users/$userId-edit.tsx',
+		),
 		route('/staff/tenants', 'authed/staff/tenants.tsx'),
 		route('/staff/tenants/new', 'authed/staff/tenants-new.tsx'),
 		route('/staff/tenants/$tenantId', 'authed/staff/tenants/$tenantId.tsx'),

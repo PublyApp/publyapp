@@ -91,4 +91,24 @@ public static class QueryPredicates {
 		}
 		return null;
 	}
+
+	// Wire contract: lowercase "true"/"false" tokens, absent/whitespace = no filter.
+	public static bool BeValidNullableBoolean(
+		string? value
+	) {
+		if (string.IsNullOrWhiteSpace(value)) {
+			return true;
+		}
+		return value.Trim() is "true" or "false";
+	}
+
+	public static bool? ParseNullableBoolean(
+		string? value
+	) {
+		return value?.Trim() switch {
+			"true" => true,
+			"false" => false,
+			_ => null,
+		};
+	}
 }

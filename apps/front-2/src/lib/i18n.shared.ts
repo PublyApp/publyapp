@@ -13,6 +13,13 @@ export const isSupportedLanguage = (
 	value: string | undefined | null,
 ): value is SupportedLanguage => value === 'en' || value === 'fr';
 
+// Language names are displayed in their own tongue, not translated per-locale
+// (matching apps/front's `allLangs`).
+export const LOCALE_LABELS: Record<SupportedLanguage, string> = {
+	en: 'English',
+	fr: 'Français',
+};
+
 export const dirForLocale = (lng: string): 'ltr' | 'rtl' =>
 	lng === 'ar' ? 'rtl' : 'ltr';
 
@@ -26,6 +33,10 @@ export type I18nResources = Record<string, LocaleLanguageBundle>;
 const LOCALE_RESOURCES: Record<SupportedLanguage, LocaleLanguageBundle> = {
 	en: enResource as LocaleLanguageBundle,
 	fr: frResource as LocaleLanguageBundle,
+};
+
+export const FALLBACK_I18N_RESOURCES: I18nResources = {
+	[FALLBACK_LANGUAGE]: LOCALE_RESOURCES[FALLBACK_LANGUAGE],
 };
 
 export const createI18nFromResources = (

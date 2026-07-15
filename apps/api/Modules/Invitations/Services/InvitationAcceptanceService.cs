@@ -105,6 +105,9 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 			// Mark invitation as accepted
 			invitation.Status = InvitationStatus.Accepted;
 			invitation.AcceptedAt = DateTime.UtcNow;
+			await InvitationEmailOutbox.CancelPendingForInvitationAsync(
+				_dbContext, invitation.GetRequiredId(), cancellationToken
+			);
 			await _dbContext.SaveChangesAsync(cancellationToken);
 
 			await tx.CommitAsync(cancellationToken);
@@ -205,6 +208,9 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 			// Mark invitation as accepted
 			invitation.Status = InvitationStatus.Accepted;
 			invitation.AcceptedAt = DateTime.UtcNow;
+			await InvitationEmailOutbox.CancelPendingForInvitationAsync(
+				_dbContext, invitation.GetRequiredId(), cancellationToken
+			);
 			await _dbContext.SaveChangesAsync(cancellationToken);
 
 			await tx.CommitAsync(cancellationToken);
@@ -290,8 +296,19 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 				tenantId,
 				accountLevel
 			);
-			await _dbContext.UserAccount.AddAsync(account, cancellationToken);
-			await _dbContext.SaveChangesAsync(cancellationToken);
+			var addedAccount = await _dbContext.UserAccount.AddAsync(account, cancellationToken);
+
+			try {
+				await _dbContext.SaveChangesAsync(cancellationToken);
+			} catch (DbUpdateException ex) when (IsUserAccountUniqueViolation(ex)) {
+				// Race condition: a concurrent request accepted the same tenant
+				// invitation between our existence check and this insert. The
+				// database-enforced membership invariant (ux_user_accounts_tenant_active)
+				// rejected the duplicate row; treat this as the same
+				// already-member outcome the synchronous check above returns.
+				_dbContext.Entry(addedAccount.Entity).State = EntityState.Detached;
+				throw new InvalidOperationException("User is already member of tenant");
+			}
 
 			var invitationProfiles = await (
 				from ip in _dbContext.InvitationProfile
@@ -328,6 +345,9 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 
 			invitation.Status = InvitationStatus.Accepted;
 			invitation.AcceptedAt = DateTime.UtcNow;
+			await InvitationEmailOutbox.CancelPendingForInvitationAsync(
+				_dbContext, invitation.GetRequiredId(), cancellationToken
+			);
 			await _dbContext.SaveChangesAsync(cancellationToken);
 
 			await tx.CommitAsync(cancellationToken);
@@ -380,10 +400,28 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 		invitation.Status = InvitationStatus.Accepted;
 		invitation.AcceptedAt = DateTime.UtcNow;
 
+		await InvitationEmailOutbox.CancelPendingForInvitationAsync(
+			_dbContext, invitationId, cancellationToken
+		);
+
 		await _dbContext.SaveChangesAsync(cancellationToken);
 
 		if (_logger.IsEnabled(LogLevel.Information)) {
 			_logger.LogInformation("Marked invitation {InvitationId} as accepted", invitationId);
 		}
+	}
+
+	/// <summary>
+	/// Detects unique constraint violations on user_accounts table.
+	/// PostgreSQL error code 23505 = unique_violation.
+	/// Checks table name to avoid masking unrelated unique violations.
+	/// </summary>
+	private static bool IsUserAccountUniqueViolation(DbUpdateException ex) {
+		if (ex.InnerException is Npgsql.PostgresException pgEx) {
+			return pgEx.SqlState == "23505"
+				&& pgEx.TableName is not null
+				&& pgEx.TableName.Equals("user_accounts", StringComparison.OrdinalIgnoreCase);
+		}
+		return false;
 	}
 }

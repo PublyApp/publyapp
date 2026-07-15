@@ -19,36 +19,6 @@ const getPublicApiOrigin = (): string | undefined => {
 	}
 };
 
-const appendConnectSrcOrigin = (
-	policy: string,
-	origin: string | undefined,
-): string => {
-	if (!origin) {
-		return policy;
-	}
-
-	const directives = policy
-		.split(';')
-		.map((directive) => directive.trim())
-		.filter(Boolean);
-
-	for (let index = 0; index < directives.length; index += 1) {
-		const parts = directives[index].split(/\s+/);
-
-		if (parts[0] !== 'connect-src') {
-			continue;
-		}
-
-		if (!parts.includes(origin)) {
-			directives[index] = `${directives[index]} ${origin}`;
-		}
-
-		return directives.join('; ');
-	}
-
-	return [...directives, `connect-src 'self' ${origin}`].join('; ');
-};
-
 export const mintCspNonce = (): string => randomBytes(16).toString('base64url');
 
 export const applyCspHeaders = (
@@ -56,11 +26,12 @@ export const applyCspHeaders = (
 	nonce: string,
 	isDevelopment: boolean,
 ): void => {
-	const cspPolicy = appendConnectSrcOrigin(
-		createCSPHeader({ isDevelopment, nonce }),
-		getPublicApiOrigin(),
-	);
+	const apiOrigin = getPublicApiOrigin();
+	const cspPolicy = createCSPHeader({
+		isDevelopment,
+		nonce,
+		additionalConnectSrc: apiOrigin ? [apiOrigin] : [],
+	});
 
 	headers.set('Content-Security-Policy', cspPolicy);
-	headers.set('Content-Security-Policy-Report-Only', cspPolicy);
 };

@@ -47,6 +47,14 @@ RUN apt-get update \
 
 COPY --from=build /publish ./
 
+# FILE_STORAGE_ROOT defaults to ".artifacts/storage" (relative to CWD, same
+# convention as the Serilog file sink's ".artifacts/logs"). /app is root-owned
+# after COPY, so the non-root $APP_UID below cannot create it at runtime —
+# pre-create and chown it here. In production, mount a persistent volume at
+# this same path (or point FILE_STORAGE_ROOT at the mount) so uploads survive
+# container replacement.
+RUN mkdir -p .artifacts/storage && chown -R $APP_UID:$APP_UID .artifacts
+
 EXPOSE 5000
 ENV ASPNETCORE_URLS=http://+:5000
 

@@ -1,13 +1,10 @@
-using FluentValidation;
-
 using System.Text.Json;
+
+using FluentValidation;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-using Polly;
-
-using PublyApp.Api.Infrastructure.Messaging.Email;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.ProblemResults;
@@ -61,8 +58,6 @@ public sealed class CreateInvitationForTenantAsStaff {
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] ITenantProfileAsStaffService tenantProfileService,
 		[FromServices] ITenantService tenantService,
-		[FromServices] IEmailService emailService,
-		[FromServices] ILogger<CreateInvitationForTenantAsStaff> logger,
 		CancellationToken cancellationToken = default
 	) {
 		// Validate tenantId
@@ -150,34 +145,22 @@ public sealed class CreateInvitationForTenantAsStaff {
 			profileIds = [defaultProfile.GetRequiredId()];
 		}
 
-		// Create the invitation
+		// Create the invitation. Persists a durable email outbox row in the same
+		// transaction as the invitation (round-5 API F3); InvitationEmailOutboxDispatcher
+		// delivers it out-of-band, so there is nothing to schedule here.
 		var createArgs = new CreateTenantInvitationArgs(
 			Email: email,
 			TenantId: tenantIdGuid,
+			TenantName: tenant.Name,
 			ProfileIds: profileIds,
+			AccountLevel: accountLevel,
 			InvitedByUserId: account.UserId
 		);
-		var (invitation, token) = await invitationService.CreateTenantInvitationAsync(
+		var (invitation, _) = await invitationService.CreateTenantInvitationAsync(
 			createArgs,
 			cancellationToken
 		);
 		var createdInvitation = invitation;
-
-		// Store account level on the invitation
-		createdInvitation.AccountLevel = accountLevel;
-
-		// Keep tenant invitations consistent with staff invitations:
-		// fire-and-forget the email so API success is not blocked by provider latency.
-		_ = Task.Run(async () => {
-			await SendInvitationEmailWithRetryAsync(
-				emailService,
-				logger,
-				email,
-				tenant.Name,
-				token,
-				accountLevel
-			);
-		}, cancellationToken);
 
 		// Audit log
 		await auditLogService.LogAsync(
@@ -202,59 +185,5 @@ public sealed class CreateInvitationForTenantAsStaff {
 				ExpiresAt = createdInvitation.ExpiresAt
 			}
 		);
-	}
-
-	private static async Task SendInvitationEmailWithRetryAsync(
-		IEmailService emailService,
-		ILogger logger,
-		string email,
-		string tenantName,
-		string token,
-		AccountLevel accountLevel
-	) {
-		var context = new Context {
-			["logger"] = logger,
-			["email"] = email
-		};
-
-		var retryPolicy = Policy
-			.Handle<Exception>()
-			.WaitAndRetryAsync(
-				retryCount: 3,
-				sleepDurationProvider: retryAttempt =>
-					TimeSpan.FromSeconds(Math.Pow(2, retryAttempt - 1)),
-				onRetry: (exception, timeSpan, retryCount, ctx) => {
-					var log = (ILogger)ctx["logger"];
-					var emailAddr = (string)ctx["email"];
-
-					if (log.IsEnabled(LogLevel.Warning)) {
-						log.LogWarning(
-							exception,
-							"Failed to send tenant invitation email to {Email} (attempt {Attempt}/3), " +
-							"retrying in {Delay}ms",
-							emailAddr,
-							retryCount,
-							timeSpan.TotalMilliseconds
-						);
-					}
-				}
-			);
-
-		try {
-			await retryPolicy.ExecuteAsync(async () => {
-				await emailService.SendTenantInvitationEmailAsync(
-					email,
-					tenantName,
-					token,
-					accountLevel
-				);
-			});
-		} catch (Exception ex) {
-			logger.LogError(
-				ex,
-				"Failed to send tenant invitation email to {Email} after 3 attempts",
-				email
-			);
-		}
 	}
 }

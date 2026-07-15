@@ -18,6 +18,7 @@ public static partial class Routes {
 		public const string GetRedirectCode = $"{Root}/redirect-code";
 		public const string CheckEmailVerificationToken = $"{Root}/check-email-verification-token";
 		public const string CheckResetPasswordToken = $"{Root}/check-reset-password-token";
+		public const string RequestPasswordReset = $"{Root}/request-password-reset";
 		public const string ResetPassword = $"{Root}/reset-password";
 		public const string GetUserTenantsForPicker = $"{Root}/tenants-for-picker";
 	}

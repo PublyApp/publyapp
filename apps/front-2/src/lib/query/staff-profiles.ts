@@ -2,6 +2,7 @@ import {
 	createUntypedArray,
 	createUntypedString,
 } from '@microsoft/kiota-abstractions';
+import type { QueryClient } from '@tanstack/react-query';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
@@ -19,6 +20,7 @@ import type { StaffGetResponse } from '@org/client-ts/src/staff/permissions/scop
 import {
 	buildStaffMutationOptions,
 	buildStaffQueryOptions,
+	scopedKey,
 } from '@org/shared-ts/lib/query/create-hooks';
 
 export type StaffProfilesQueryVariables = {
@@ -55,14 +57,18 @@ export type StaffProfileRow = {
 	id: string;
 	name: string;
 	description: string | null;
-	userAccountCount: number;
+	userAccountCount: number | null;
+	icon: string;
+	iconTone: string;
 };
 
 export type StaffProfileDetails = {
 	id: string;
 	name: string;
 	description: string | null;
-	userAccountCount: number;
+	userAccountCount: number | null;
+	icon: string;
+	iconTone: string;
 };
 
 export type StaffProfileDetailsQueryVariables = {
@@ -85,7 +91,20 @@ export type StaffAssignedPermissionGroup = {
 	permissions: StaffAssignedPermission[];
 };
 
-export const STAFF_PROFILES_QUERY_KEY = ['staff', 'staff-profiles'] as const;
+/**
+ * @internal Unscoped — `scopedKey('staff', …)` is the only way to build an
+ * invalidation/removal key from this. Don't hand-assemble a prefixed key at
+ * a call site (review-r3-users-auth.md F11); use `invalidateStaffProfiles`.
+ */
+export const STAFF_PROFILES_QUERY_KEY = ['staff-profiles'] as const;
+
+/** Invalidates the staff-profiles list and every profile's details +
+ * permission-keys entries — all nest under `STAFF_PROFILES_QUERY_KEY` (see
+ * F16/F19). */
+export const invalidateStaffProfiles = (queryClient: QueryClient) =>
+	queryClient.invalidateQueries({
+		queryKey: scopedKey('staff', STAFF_PROFILES_QUERY_KEY),
+	});
 
 const normalizeString = (value: string | undefined): string | undefined => {
 	if (typeof value !== 'string') {
@@ -103,6 +122,35 @@ const normalizeOptionalString = (value: unknown): string | undefined => {
 
 	const trimmed = value.trim();
 	return trimmed.length > 0 ? trimmed : undefined;
+};
+
+const PROFILE_ICONS = [
+	'news',
+	'calendar',
+	'shield',
+	'building-bank',
+	'users',
+	'settings',
+	'chart-bar',
+	'world',
+] as const;
+
+const PROFILE_ICON_TONES = ['0', '1', '2', '3', '4', '5', '6', '7'] as const;
+
+const deriveProfileIcon = (
+	name: string,
+): { icon: string; iconTone: string } => {
+	let sum = 0;
+	for (const c of name) {
+		sum += c.charCodeAt(0);
+	}
+
+	const iconIdx = sum % PROFILE_ICONS.length;
+	const toneIdx = sum % PROFILE_ICON_TONES.length;
+	return {
+		icon: PROFILE_ICONS[iconIdx],
+		iconTone: PROFILE_ICON_TONES[toneIdx],
+	};
 };
 
 const formatModuleLabel = (moduleKey: string): string =>
@@ -129,15 +177,21 @@ export const toStaffProfileRows = (
 	const rows: StaffProfileRow[] = [];
 
 	for (const item of list) {
-		if (typeof item.id !== 'string' || item.id.length === 0) {
+		// A row with no readable name is malformed — dropped rather than shown
+		// with a `'—'` placeholder (and its icon derived from a fabricated
+		// `'profile'` fallback) that a staff admin can't distinguish from a
+		// legitimate value (shell-r5-F3).
+		const name = item.name?.trim();
+		if (typeof item.id !== 'string' || item.id.length === 0 || !name) {
 			continue;
 		}
 
 		rows.push({
 			id: item.id,
-			name: item.name?.trim() || '—',
+			name,
 			description: item.description ?? null,
-			userAccountCount: item.userAccountCount ?? 0,
+			userAccountCount: item.userAccountCount ?? null,
+			...deriveProfileIcon(name),
 		});
 	}
 
@@ -149,16 +203,21 @@ export const toStaffProfileDetails = (
 ): StaffProfileDetails | null => {
 	const profile = result?.profile;
 	const id = normalizeString(profile?.id ?? undefined);
+	const name = normalizeString(profile?.name ?? undefined);
 
-	if (!id) {
+	// A malformed payload (missing the required identity) is treated the same
+	// as "not found" — never rendered with a `'—'` placeholder or an icon
+	// derived from a fabricated `'profile'` fallback (shell-r5-F3).
+	if (!id || !name) {
 		return null;
 	}
 
 	return {
 		id,
-		name: normalizeString(profile?.name ?? undefined) ?? '—',
+		name,
 		description: profile?.description ?? null,
-		userAccountCount: profile?.userAccountCount ?? 0,
+		userAccountCount: profile?.userAccountCount ?? null,
+		...deriveProfileIcon(name),
 	};
 };
 
@@ -302,7 +361,7 @@ const staffProfilesQueryOptions = buildStaffQueryOptions<
 	StaffProfilesQueryVariables
 >(
 	{
-		queryKeyFn: () => ['staff-profiles'],
+		queryKeyFn: () => [...STAFF_PROFILES_QUERY_KEY],
 		fetcher: async (client, vars) => {
 			const result = await client.staff.profiles.get({
 				queryParameters: {

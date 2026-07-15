@@ -15,6 +15,22 @@ public abstract record RemoveUserFromTenantResult {
 	public sealed record CannotRemoveLastAdmin() : RemoveUserFromTenantResult;
 }
 
+public sealed record BulkRemoveUsersFromTenantArgs(
+	Guid TenantId,
+	IReadOnlyCollection<Guid> UserIds
+);
+
+public sealed record BulkTenantUserActionFailedItem(
+	Guid UserId,
+	string Error
+);
+
+public sealed record BulkTenantUserActionResult(
+	int SucceededCount,
+	int FailedCount,
+	List<BulkTenantUserActionFailedItem> FailedItems
+);
+
 public class UpdateTenantUserDocument {
 	public PatchField<string?> FirstName { get; set; } = PatchField<string?>.Absent();
 	public PatchField<string?> LastName { get; set; } = PatchField<string?>.Absent();
@@ -47,6 +63,10 @@ public interface ITenantUserMembershipService {
 	Task<RemoveUserFromTenantResult> RemoveUserFromTenantAsync(
 		Guid tenantId,
 		Guid userId,
+		CancellationToken cancellationToken = default
+	);
+	Task<BulkTenantUserActionResult> BulkRemoveUsersFromTenantAsync(
+		BulkRemoveUsersFromTenantArgs args,
 		CancellationToken cancellationToken = default
 	);
 	Task<UpdateTenantUserResult> UpdateTenantUserAsync(
@@ -89,6 +109,18 @@ public class TenantUserMembershipService : ITenantUserMembershipService {
 			_dbContext,
 			tenantId,
 			userId,
+			cancellationToken
+		);
+	}
+
+	public async Task<BulkTenantUserActionResult> BulkRemoveUsersFromTenantAsync(
+		BulkRemoveUsersFromTenantArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		return await TenantUserMembershipOperations.BulkRemoveUsersFromTenantAsync(
+			_dbContext,
+			args.TenantId,
+			args.UserIds,
 			cancellationToken
 		);
 	}

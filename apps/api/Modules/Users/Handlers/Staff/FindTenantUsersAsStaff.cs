@@ -1,5 +1,3 @@
-using System.Text.RegularExpressions;
-
 using FluentValidation;
 
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -35,79 +33,33 @@ public class FindTenantUsersAsStaffQuery
 	[FromQuery(Name = "status")]
 	public string? Status { get; set; }
 
-	public string? GetSearchNormalized() {
-		if (Search is null) {
-			return null;
-		}
+	[FromQuery(Name = "level")]
+	public string? Level { get; set; }
 
-		var trimmed = Search.Trim();
-		return trimmed.Length == 0 ? null : trimmed;
+	public string? GetSearchNormalized() {
+		return TenantUserFilterQuery.NormalizeSearch(Search);
 	}
 
 	public IReadOnlySet<TenantUserStatus>? GetStatusesOrNull() {
-		if (Status is null) {
-			return null;
-		}
+		return TenantUserFilterQuery.ParseStatuses(Status);
+	}
 
-		var trimmed = Status.Trim();
-		if (trimmed.Length == 0) {
-			return null;
-		}
-
-		var parts = trimmed
-			.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-		if (parts.Length == 0) {
-			return null;
-		}
-
-		var statuses = new HashSet<TenantUserStatus>();
-		foreach (var part in parts) {
-			TenantUserStatus? parsed = UserAccount.ParseTenantStatus(part);
-			if (parsed is { } status) {
-				statuses.Add(status);
-			}
-		}
-
-		return statuses.Count > 0 ? statuses : null;
+	public IReadOnlySet<AccountLevel>? GetLevelsOrNull() {
+		return TenantUserFilterQuery.ParseLevels(Level);
 	}
 }
 
-public partial class FindTenantUsersAsStaffQueryValidator
+public class FindTenantUsersAsStaffQueryValidator
 	: CursorPaginatedQueryValidator<
 		FindTenantUsersAsStaffQuery
 	> {
-	// Source of truth: nameof() - rename-safe, no hardcoded strings to maintain.
-	private static readonly string[] AllowedStatuses = [
-		nameof(TenantUserStatus.Active),
-		nameof(TenantUserStatus.Suspended),
-		nameof(TenantUserStatus.GloballySuspended),
-	];
-
-	// Snake-case the PascalCase enum member names once at type init. The wire
-	// contract uses snake_case tokens (e.g. "globally_suspended"); collapsing to
-	// lowercase via .ToLowerInvariant() would yield "globallysuspended" and
-	// break the existing wire format. Both the comparison set and the display
-	// string derive from the same conversion so they stay in sync.
-	[GeneratedRegex("(?<!^)([A-Z])")]
-	private static partial Regex SnakeCaseBoundaryRegex();
-
-	private static string ToSnakeCase(string value) {
-		return SnakeCaseBoundaryRegex().Replace(value, "_$1").ToLowerInvariant();
-	}
-
-	private static readonly HashSet<string> AllowedStatusSet =
-		new(AllowedStatuses.Select(ToSnakeCase), StringComparer.OrdinalIgnoreCase);
-
-	private static readonly string AllowedStatusesDisplay =
-		string.Join(", ", AllowedStatuses.Select(ToSnakeCase).Order());
-
 	public FindTenantUsersAsStaffQueryValidator() {
 		RuleFor(x => x.Search)
 			.MaximumLength(200)
 			.WithMessage("q must be at most 200 characters");
 		RuleFor(x => x.Status)
 			.Must(raw => {
-				if (string.IsNullOrEmpty(raw)) {
+				if (string.IsNullOrWhiteSpace(raw)) {
 					return true;
 				}
 
@@ -117,9 +69,22 @@ public partial class FindTenantUsersAsStaffQueryValidator
 				if (parts.Length == 0) {
 					return false;
 				}
-				return parts.All(p => p.Length > 0 && AllowedStatusSet.Contains(p));
+				return parts.All(p => p.Length > 0 && TenantUserFilterQuery.AllowedStatusSet.Contains(p));
 			})
-			.WithMessage($"status must be one of: {AllowedStatusesDisplay}");
+			.WithMessage($"status must be one of: {TenantUserFilterQuery.AllowedStatusesDisplay}");
+		RuleFor(x => x.Level)
+			.Must(raw => {
+				if (string.IsNullOrWhiteSpace(raw)) {
+					return true;
+				}
+
+				var parts = raw.Split(',', StringSplitOptions.TrimEntries);
+				if (parts.Length == 0) {
+					return false;
+				}
+				return parts.All(p => p.Length > 0 && TenantUserFilterQuery.AllowedLevelSet.Contains(p));
+			})
+			.WithMessage($"level must be one of: {TenantUserFilterQuery.AllowedLevelsDisplay}");
 	}
 }
 
@@ -175,7 +140,8 @@ public sealed class FindTenantUsersAsStaff {
 			SortOrder: sortOrder,
 			Filters: new FindTenantUsersAsStaffFilters(
 				Search: query.GetSearchNormalized(),
-				Status: query.GetStatusesOrNull()
+				Status: query.GetStatusesOrNull(),
+				Level: query.GetLevelsOrNull()
 			)
 		);
 

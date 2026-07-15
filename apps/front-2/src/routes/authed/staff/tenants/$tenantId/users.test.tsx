@@ -1,18 +1,52 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, render, screen } from '@testing-library/react';
+import {
+	act,
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from '@testing-library/react';
 import type { JSX } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
 	search: {} as Record<string, unknown>,
 	navigate: vi.fn(),
+	invalidateQueries: vi.fn(),
 	toStaffTenantDetails: vi.fn(),
 	useStaffTenantDetailsQuery: vi.fn(),
 	toStaffTenantUserRows: vi.fn(),
 	useStaffTenantUsersQuery: vi.fn(),
+	suspendMutation: vi.fn(),
+	reactivateMutation: vi.fn(),
+	removeMutation: vi.fn(),
+	bulkRemoveMutation: vi.fn(),
+	exportMutation: vi.fn(),
+	useSuspendStaffTenantUserMutation: vi.fn(),
+	useReactivateStaffTenantUserMutation: vi.fn(),
+	useRemoveStaffTenantUserMutation: vi.fn(),
+	useBulkRemoveStaffTenantUsersMutation: vi.fn(),
+	useExportStaffTenantUsersMutation: vi.fn(),
+	downloadFile: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
+	invalidateAllStaffTenantScopes: vi.fn().mockResolvedValue(undefined),
+	blockerResolver: {
+		status: 'idle' as 'idle' | 'blocked',
+		proceed: undefined as (() => void) | undefined,
+		reset: undefined as (() => void) | undefined,
+	},
+	capturedShouldBlockFn: undefined as (() => boolean) | undefined,
+	capturedOnDirtyChange: undefined as ((isDirty: boolean) => void) | undefined,
+	capturedOnInvited: undefined as (() => void) | undefined,
+}));
+
+vi.mock('@tanstack/react-query', () => ({
+	useQueryClient: () => ({
+		invalidateQueries: mocks.invalidateQueries,
+	}),
 }));
 
 vi.mock('@tanstack/react-router', () => ({
@@ -46,11 +80,97 @@ vi.mock('@tanstack/react-router', () => ({
 			</a>
 		);
 	},
+	useBlocker: (opts: { shouldBlockFn: () => boolean }) => {
+		mocks.capturedShouldBlockFn = opts.shouldBlockFn;
+		return mocks.blockerResolver;
+	},
 }));
+
+const TRANSLATIONS: Record<string, string> = {
+	basics: 'Basics',
+	profiles: 'Profiles',
+	invitations: 'Invitations',
+	users: 'Users',
+	members: 'Members',
+	level: 'Level',
+	status: 'Status',
+	actions: 'Actions',
+	'view-details': 'View details',
+	edit: 'Edit',
+	reactivate: 'Reactivate',
+	suspend: 'Suspend',
+	'remove-user-from-tenant': 'Remove from tenant',
+	'all-statuses': 'All statuses',
+	'all-levels': 'All levels',
+	'status-active': 'Active',
+	'status-suspended': 'Suspended',
+	'status-globally-suspended': 'Globally suspended',
+	admin: 'Admin',
+	user: 'User',
+	'search-tenant-members': 'Search members by name or email…',
+	'invite-people': 'Invite people',
+	'tenant-users-tab-description': 'Everyone with access to this workspace.',
+	clear: 'Clear',
+	'suspend-tenant-user-description':
+		'This user will lose access to this tenant. Are you sure you want to proceed?',
+	'reactivate-tenant-user-description':
+		'Access to this tenant will be restored. Are you sure you want to proceed?',
+	'confirm-remove-user-from-tenant-details':
+		'Are you sure you want to remove this user from this tenant? They will lose access to this tenant.',
+	'tenant-users-empty-title': 'No members yet',
+	'tenant-users-empty-description':
+		'Invite people to give them access to this workspace.',
+	'tenant-users-no-match-title': 'No members match your search',
+	'tenant-users-no-match-description':
+		'Try a different name, email, or filter.',
+	'selected-count': '{{count}} selected',
+	'clear-selection': 'Clear selection',
+	'more-actions': 'More actions',
+	'bulk-actions': 'Bulk actions',
+	'bulk-action-max-count-exceeded':
+		'Reduce your selection to at most {{max}} items ({{count}} selected).',
+	'export-selected-users': 'Export selected users',
+	'export-failed': 'Export failed',
+	'remove-selected-from-tenant': 'Remove selected from tenant',
+	'confirm-bulk-remove-tenant-users':
+		'Are you sure you want to remove {{count}} selected user(s) from this tenant?',
+	remove: 'Remove',
+	'tenant-user-bulk-remove-success':
+		'Successfully removed {{count}} user(s) from this tenant.',
+	'tenant-user-bulk-remove-partial-success':
+		'Removed {{succeeded}} user(s), {{failed}} failed.',
+	'tenant-user-bulk-remove-failure':
+		'Failed to remove selected users from this tenant.',
+	'actions-for': 'Actions for {{name}}',
+	'tenant-users-table-aria-label': 'Tenant users',
+	'error-500-code': '500 — Server Error',
+	'tenant-details-error-title': 'Unable to load this tenant',
+	'tenant-response-incomplete': 'The tenant response was incomplete.',
+	close: 'Close',
+	'unsaved-changes-dialog-title': 'Leave without saving?',
+	'unsaved-changes-dialog-description':
+		'You have unsaved changes that will be lost if you leave this page.',
+	'leave-page': 'Leave page',
+	'select-row-named': 'Select {{name}}',
+	'select-all-rows': 'Select all rows',
+	'page-n': 'Page {{page}}',
+	'previous-page': 'Previous page',
+	'next-page': 'Next page',
+};
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string) => key,
+		t: (key: string, options?: Record<string, unknown>) => {
+			let text = TRANSLATIONS[key] ?? key;
+			if (!options) {
+				return text;
+			}
+
+			for (const [optionKey, value] of Object.entries(options)) {
+				text = text.replaceAll(`{{${optionKey}}}`, String(value));
+			}
+			return text;
+		},
 		i18n: {
 			language: 'en',
 		},
@@ -68,18 +188,68 @@ vi.mock('~/components/error-views/View403', () => ({
 vi.mock('~/lib/query/staff-tenant-users', () => ({
 	toStaffTenantUserRows: mocks.toStaffTenantUserRows,
 	useStaffTenantUsersQuery: mocks.useStaffTenantUsersQuery,
+	useSuspendStaffTenantUserMutation: mocks.useSuspendStaffTenantUserMutation,
+	useReactivateStaffTenantUserMutation:
+		mocks.useReactivateStaffTenantUserMutation,
+	useRemoveStaffTenantUserMutation: mocks.useRemoveStaffTenantUserMutation,
+	useBulkRemoveStaffTenantUsersMutation:
+		mocks.useBulkRemoveStaffTenantUsersMutation,
+	useExportStaffTenantUsersMutation: mocks.useExportStaffTenantUsersMutation,
+	toStaffTenantUserBulkActionSummary: (result: {
+		succeededCount?: number;
+		failedCount?: number;
+		failedItems?: unknown[];
+	}) => ({
+		succeededCount: result?.succeededCount ?? 0,
+		failedCount: result?.failedCount ?? 0,
+		failedItems: result?.failedItems ?? [],
+	}),
+	useInviteTenantUserMutation: vi.fn(() => ({
+		mutateAsync: vi.fn(),
+		isPending: false,
+	})),
 }));
 
 vi.mock('~/lib/query/staff-tenants', () => ({
+	invalidateAllStaffTenantScopes: mocks.invalidateAllStaffTenantScopes,
 	toStaffTenantDetails: mocks.toStaffTenantDetails,
 	useStaffTenantDetailsQuery: mocks.useStaffTenantDetailsQuery,
 }));
 
-vi.mock('~/routes/authed/layout', () => ({
+vi.mock('~/lib/download-file', () => ({
+	downloadFile: mocks.downloadFile,
+	formatExportDateStamp: () => '2026-07-12',
+}));
+
+vi.mock('~/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 
-import { Route } from './users';
+vi.mock('./_invite-user-drawer', () => ({
+	InviteTenantUserDrawer: ({
+		isOpen,
+		onDirtyChange,
+		onInvited,
+	}: {
+		isOpen: boolean;
+		onDirtyChange?: (isDirty: boolean) => void;
+		onInvited?: () => void;
+	}) => {
+		mocks.capturedOnDirtyChange = onDirtyChange;
+		mocks.capturedOnInvited = onInvited;
+		return isOpen ? <div data-testid="invite-drawer-open" /> : null;
+	},
+}));
+
+import {
+	formatTenantUserLevelLabel,
+	formatTenantUserStatusLabel,
+	makeTenantUserColumns,
+	parseTenantUserLevelFilter,
+	parseTenantUserStatusFilter,
+	Route,
+	tenantUserLevelChipClassName,
+} from './users';
 
 const buildQueryResult = (overrides: Record<string, unknown> = {}) => ({
 	data: undefined,
@@ -101,11 +271,40 @@ const renderPage = () => {
 	return render(<Component />);
 };
 
+const identityT = (key: string) => TRANSLATIONS[key] ?? key;
+
 describe('staff tenant users route', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mocks.search = {};
+		mocks.blockerResolver.status = 'idle';
+		mocks.blockerResolver.proceed = undefined;
+		mocks.blockerResolver.reset = undefined;
+		mocks.capturedShouldBlockFn = undefined;
+		mocks.capturedOnDirtyChange = undefined;
+		mocks.capturedOnInvited = undefined;
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
+		mocks.invalidateQueries.mockResolvedValue(undefined);
+		mocks.useSuspendStaffTenantUserMutation.mockReturnValue({
+			mutateAsync: mocks.suspendMutation,
+			isPending: false,
+		});
+		mocks.useReactivateStaffTenantUserMutation.mockReturnValue({
+			mutateAsync: mocks.reactivateMutation,
+			isPending: false,
+		});
+		mocks.useRemoveStaffTenantUserMutation.mockReturnValue({
+			mutateAsync: mocks.removeMutation,
+			isPending: false,
+		});
+		mocks.useBulkRemoveStaffTenantUsersMutation.mockReturnValue({
+			mutateAsync: mocks.bulkRemoveMutation,
+			isPending: false,
+		});
+		mocks.useExportStaffTenantUsersMutation.mockReturnValue({
+			mutateAsync: mocks.exportMutation,
+			isPending: false,
+		});
 		mocks.toStaffTenantDetails.mockReturnValue({
 			id: '11111111-1111-1111-1111-111111111111',
 			name: 'Acme Corporation',
@@ -159,17 +358,21 @@ describe('staff tenant users route', () => {
 		cleanup();
 	});
 
-	test('renders the shared tenant shell with users active and the default list query state', () => {
+	test('renders the shared tenant shell with users active, the members title, and the default list query state', () => {
 		renderPage();
 
 		expect(screen.getByTestId('staff-tenant-users-page')).toBeTruthy();
 		expect(screen.getByText('Acme Corporation')).toBeTruthy();
 		expect(
-			screen.getByRole('link', { name: 'Alex Johnson' }).getAttribute('href'),
+			screen.getByRole('link', { name: /Alex Johnson/ }).getAttribute('href'),
 		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/users/user-1');
 		expect(
 			screen.getByText('Users', { selector: 'span[aria-current="page"]' }),
 		).toBeTruthy();
+		const title = screen.getByRole('heading', { name: /Members/ });
+		expect(title).toBeTruthy();
+		// The Users tab MAY show the honest usersCount field from tenant details.
+		expect(title.textContent).toContain('12');
 		expect(screen.getByText('Alex Johnson')).toBeTruthy();
 		expect(screen.getByText('alex@example.com')).toBeTruthy();
 		expect(screen.getByText('Admin')).toBeTruthy();
@@ -177,10 +380,12 @@ describe('staff tenant users route', () => {
 		expect(
 			screen.getByRole('link', { name: 'Profiles' }).getAttribute('href'),
 		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/profiles');
+		expect(screen.getByRole('button', { name: 'Invite people' })).toBeTruthy();
 		expect(mocks.useStaffTenantUsersQuery).toHaveBeenCalledWith(
 			{
 				tenantId: '11111111-1111-1111-1111-111111111111',
 				q: undefined,
+				status: undefined,
 				sortId: 'created_at',
 				sortOrder: 'desc',
 				cursor: undefined,
@@ -188,6 +393,176 @@ describe('staff tenant users route', () => {
 			},
 			{ enabled: true },
 		);
+	});
+
+	test('invite people button navigates to open the invite drawer via search state', () => {
+		renderPage();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Invite people' }));
+
+		expect(mocks.navigate).toHaveBeenCalledWith(
+			expect.objectContaining({
+				search: expect.objectContaining({ invite: 1 }),
+				replace: true,
+			}),
+		);
+	});
+
+	test('renders the invite drawer open when the invite search param is set', () => {
+		mocks.search = { invite: 1 };
+		renderPage();
+
+		expect(screen.getByTestId('invite-drawer-open')).toBeTruthy();
+	});
+
+	test('a debounced search commit does not close a drawer opened within the debounce window (F1)', async () => {
+		const Component = (Route as unknown as { component: () => JSX.Element })
+			.component;
+		const renderResult = render(<Component />);
+
+		fireEvent.change(screen.getByTestId('staff-tenant-users-table-search'), {
+			target: { value: 'an' },
+		});
+
+		// Simulate opening the invite drawer within the 300ms debounce window:
+		// the route re-renders with the new URL search state, same as a real
+		// navigation would, before the debounced commit fires.
+		mocks.search = { invite: 1 };
+		renderResult.rerender(<Component />);
+
+		await new Promise((resolve) => setTimeout(resolve, 350));
+
+		const lastCall = mocks.navigate.mock.calls.at(-1)?.[0] as {
+			search?: Record<string, unknown>;
+		};
+		expect(lastCall?.search).toMatchObject({ invite: 1, q: 'an' });
+	});
+
+	test('a debounced search commit does not reopen a drawer closed within the debounce window (r3-F1)', async () => {
+		mocks.search = { invite: 1 };
+		const Component = (Route as unknown as { component: () => JSX.Element })
+			.component;
+		const renderResult = render(<Component />);
+
+		fireEvent.change(screen.getByTestId('staff-tenant-users-table-search'), {
+			target: { value: 'an' },
+		});
+
+		// Simulate closing the invite drawer within the 300ms debounce window.
+		// canonicalized parsing stores explicit `invite: undefined` so the
+		// re-rendered route search keeps the canonical key shape.
+		mocks.search = {};
+		renderResult.rerender(<Component />);
+
+		await new Promise((resolve) => setTimeout(resolve, 350));
+
+		const lastCall = mocks.navigate.mock.calls.at(-1)?.[0] as {
+			search?: Record<string, unknown>;
+		};
+		expect(
+			Object.prototype.hasOwnProperty.call(lastCall?.search, 'invite'),
+		).toBe(true);
+		expect(lastCall?.search?.invite).toBeUndefined();
+		expect(lastCall?.search).toMatchObject({ q: 'an' });
+	});
+
+	// tenants-r6-F2: entering selection mode must freeze the query that
+	// defines the destructive bulk-action target set — a still-pending
+	// search debounce or a still-clickable level/status filter can silently
+	// change which rows a bulk action would hit right after selection.
+	test('selecting a row while a search commit is pending cancels the pending debounce (tenants-r6-F2)', async () => {
+		renderPage();
+
+		fireEvent.change(screen.getByTestId('staff-tenant-users-table-search'), {
+			target: { value: 'an' },
+		});
+		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
+
+		await new Promise((resolve) => setTimeout(resolve, 350));
+
+		expect(mocks.navigate).not.toHaveBeenCalledWith(
+			expect.objectContaining({
+				search: expect.objectContaining({ q: 'an' }),
+			}),
+		);
+	});
+
+	test('disables the level and status filter triggers while a row is selected (tenants-r6-F2)', () => {
+		renderPage();
+
+		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
+
+		expect(
+			(
+				screen.getByTestId(
+					'staff-tenant-users-level-filter-trigger',
+				) as HTMLButtonElement
+			).disabled,
+		).toBe(true);
+		expect(
+			(
+				screen.getByTestId(
+					'staff-tenant-users-status-filter-trigger',
+				) as HTMLButtonElement
+			).disabled,
+		).toBe(true);
+	});
+
+	test('renders default filter controls when handed an already-canonicalized search (URL-level proof: deep-link-canonicalization.test.tsx)', () => {
+		const validateSearch = (
+			Route as unknown as {
+				validateSearch: (
+					search: Record<string, unknown>,
+				) => Record<string, unknown>;
+			}
+		).validateSearch;
+		const canonicalSearch = validateSearch({
+			status: 'bogus',
+			level: 'bogus',
+			invite: 'bogus',
+		});
+
+		expect(
+			Object.prototype.hasOwnProperty.call(canonicalSearch, 'status'),
+		).toBe(true);
+		expect(Object.prototype.hasOwnProperty.call(canonicalSearch, 'level')).toBe(
+			true,
+		);
+		expect(
+			Object.prototype.hasOwnProperty.call(canonicalSearch, 'invite'),
+		).toBe(true);
+		expect(canonicalSearch).toMatchObject({
+			status: undefined,
+			level: undefined,
+			invite: undefined,
+		});
+
+		mocks.search = canonicalSearch;
+		renderPage();
+
+		expect(
+			screen.getByTestId('staff-tenant-users-level-filter-trigger').textContent,
+		).toContain('All levels');
+		expect(
+			screen.getByTestId('staff-tenant-users-status-filter-trigger')
+				.textContent,
+		).toContain('All statuses');
+		expect(screen.queryByTestId('invite-drawer-open')).toBeNull();
+		expect(mocks.useStaffTenantUsersQuery).toHaveBeenCalledWith(
+			expect.objectContaining({
+				tenantId: '11111111-1111-1111-1111-111111111111',
+				status: undefined,
+				level: undefined,
+			}),
+			{ enabled: true },
+		);
+	});
+
+	test('renders a checkbox selection column but no Last active column', () => {
+		renderPage();
+
+		expect(screen.queryByLabelText('Select all rows')).toBeTruthy();
+		expect(screen.queryByText('Last active')).toBeNull();
 	});
 
 	test('renders the no-match state when search is active and no rows match', () => {
@@ -207,10 +582,172 @@ describe('staff tenant users route', () => {
 		expect(
 			screen.getByTestId('staff-tenant-users-table-no-match'),
 		).toBeTruthy();
-		expect(screen.getByText('No tenant users match your search.')).toBeTruthy();
+		expect(screen.getByText('No members match your search')).toBeTruthy();
 	});
 
-	test('renders a local malformed id view without logging out', () => {
+	// The gate is structurally hard to reach through normal navigation (row
+	// selection is pruned to the visible page every fetch, and page size tops
+	// out at BULK_ACTION_MAX_COUNT — see review-r2-tests.md F3/F4), but the
+	// branch is real production code and must render correctly whenever the
+	// selection count does exceed the limit.
+	test('disables the bulk actions trigger and shows the max-count message once selection exceeds BULK_ACTION_MAX_COUNT', async () => {
+		const manyRows = Array.from({ length: 101 }, (_, index) => ({
+			id: `user-${index}`,
+			displayName: `User ${index}`,
+			email: `user-${index}@example.com`,
+			level: 'Member' as const,
+			status: 'Active' as const,
+			firstName: `User`,
+			lastName: `${index}`,
+			avatarUrl: null,
+		}));
+		mocks.toStaffTenantUserRows.mockReturnValue(manyRows);
+		mocks.useStaffTenantUsersQuery.mockReturnValue(
+			buildQueryResult({
+				data: {
+					data: manyRows,
+					nextCursor: null,
+				},
+			}),
+		);
+
+		renderPage();
+
+		fireEvent.click(screen.getByRole('checkbox', { name: 'Select all rows' }));
+
+		const moreActionsButton = await screen.findByRole('button', {
+			name: 'More actions',
+		});
+		expect(moreActionsButton.hasAttribute('disabled')).toBe(true);
+		expect(moreActionsButton.getAttribute('title')).toBe(
+			'Reduce your selection to at most 100 items (101 selected).',
+		);
+	});
+
+	test('shows a reactivate action for a suspended user and a suspend action for an active one', async () => {
+		mocks.toStaffTenantUserRows.mockReturnValue([
+			{
+				id: 'user-1',
+				displayName: 'Alex Johnson',
+				email: 'alex@example.com',
+				level: 'Admin',
+				status: 'Active',
+				firstName: 'Alex',
+				lastName: 'Johnson',
+				avatarUrl: null,
+			},
+			{
+				id: 'user-2',
+				displayName: 'Jamie Lee',
+				email: 'jamie@example.com',
+				level: 'User',
+				status: 'Suspended',
+				firstName: 'Jamie',
+				lastName: 'Lee',
+				avatarUrl: null,
+			},
+		]);
+
+		renderPage();
+
+		const triggers = screen.getAllByRole('button', { name: /^Actions for/ });
+		fireEvent.click(triggers[0]);
+		expect(
+			await screen.findByRole('menuitem', { name: 'Suspend' }),
+		).toBeTruthy();
+		expect(screen.queryByRole('menuitem', { name: 'Reactivate' })).toBeNull();
+
+		fireEvent.click(triggers[0]);
+		fireEvent.click(triggers[1]);
+		expect(
+			await screen.findByRole('menuitem', { name: 'Reactivate' }),
+		).toBeTruthy();
+		expect(screen.queryByRole('menuitem', { name: 'Suspend' })).toBeNull();
+	});
+
+	test('suspends a user after explicit confirmation and invalidates tenant user and tenant details queries', async () => {
+		mocks.suspendMutation.mockResolvedValue({});
+
+		renderPage();
+
+		fireEvent.click(screen.getByRole('button', { name: /^Actions for/ }));
+		fireEvent.click(await screen.findByRole('menuitem', { name: 'Suspend' }));
+
+		await waitFor(() =>
+			expect(screen.getByRole('heading', { name: 'Suspend' })).toBeTruthy(),
+		);
+		fireEvent.click(
+			screen.getAllByRole('button', { name: 'Suspend' }).slice(-1)[0],
+		);
+
+		await waitFor(() =>
+			expect(mocks.suspendMutation).toHaveBeenCalledWith({
+				tenantId: '11111111-1111-1111-1111-111111111111',
+				userId: 'user-1',
+			}),
+		);
+		await waitFor(() =>
+			expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled(),
+		);
+	});
+
+	test('shows a failed row action in the top feedback bar, not inside the actions cell (r3-tenants-F11)', async () => {
+		mocks.suspendMutation.mockRejectedValue({
+			kind: 'problem',
+			status: 400,
+			responseStatusCode: 400,
+			title: 'Invalid tenant user',
+			detail: 'Invalid tenant user',
+		});
+
+		renderPage();
+
+		fireEvent.click(screen.getByRole('button', { name: /^Actions for/ }));
+		fireEvent.click(await screen.findByRole('menuitem', { name: 'Suspend' }));
+
+		await waitFor(() =>
+			expect(screen.getByRole('heading', { name: 'Suspend' })).toBeTruthy(),
+		);
+		fireEvent.click(
+			screen.getAllByRole('button', { name: 'Suspend' }).slice(-1)[0],
+		);
+
+		await waitFor(() =>
+			expect(screen.getByText('Invalid tenant user')).toBeTruthy(),
+		);
+		expect(screen.queryByTestId('logout-redirect')).toBeNull();
+	});
+
+	test('removes a user from the tenant after explicit confirmation', async () => {
+		mocks.removeMutation.mockResolvedValue({});
+
+		renderPage();
+
+		fireEvent.click(screen.getByRole('button', { name: /^Actions for/ }));
+		fireEvent.click(
+			await screen.findByRole('menuitem', { name: 'Remove from tenant' }),
+		);
+
+		await waitFor(() =>
+			expect(
+				screen.getByRole('heading', { name: 'Remove from tenant' }),
+			).toBeTruthy(),
+		);
+		fireEvent.click(
+			screen
+				.getAllByRole('button', { name: 'Remove from tenant' })
+				.slice(-1)[0],
+		);
+
+		await waitFor(() =>
+			expect(mocks.removeMutation).toHaveBeenCalledWith({
+				tenantId: '11111111-1111-1111-1111-111111111111',
+				userId: 'user-1',
+			}),
+		);
+	});
+
+	test('renders the not-found view without logging out for a malformed id', () => {
 		mocks.useStaffTenantDetailsQuery.mockReturnValue(
 			buildQueryResult({
 				error: {
@@ -226,7 +763,7 @@ describe('staff tenant users route', () => {
 
 		renderPage();
 
-		expect(screen.getByTestId('staff-tenant-details-invalid')).toBeTruthy();
+		expect(screen.getByTestId('staff-tenant-details-not-found')).toBeTruthy();
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 	});
 
@@ -287,5 +824,411 @@ describe('staff tenant users route', () => {
 		renderPage();
 
 		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
+	});
+
+	test('selecting a row reveals the floating selection bar; the level/status filters stay visible', async () => {
+		renderPage();
+
+		expect(screen.queryByText('Bulk actions')).toBeNull();
+		expect(screen.getByText('All levels')).toBeTruthy();
+
+		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
+
+		expect(await screen.findByText('1 selected')).toBeTruthy();
+		expect(screen.getByText('Bulk actions')).toBeTruthy();
+		expect(screen.getByTestId('floating-selection-bar')).toBeTruthy();
+		// Toolbar no longer swaps — filters remain visible during selection.
+		expect(screen.getByText('All levels')).toBeTruthy();
+	});
+
+	test('the level filter offers an "All levels" entry that clears the filter and closes the menu', async () => {
+		mocks.search = { level: 'admin' };
+		renderPage();
+
+		fireEvent.click(
+			screen.getByTestId('staff-tenant-users-level-filter-trigger'),
+		);
+
+		expect(
+			await screen.findByTestId('staff-tenant-users-level-filter-all'),
+		).toBeTruthy();
+		fireEvent.click(screen.getByTestId('staff-tenant-users-level-filter-all'));
+
+		expect(mocks.navigate).toHaveBeenCalledWith(
+			expect.objectContaining({ replace: true }),
+		);
+		const [[navigatedArgs]] = mocks.navigate.mock.calls;
+		const navigatedSearch = (
+			navigatedArgs as { search: Record<string, unknown> }
+		).search;
+		expect(navigatedSearch.level).toBeUndefined();
+
+		// The menu closes on selecting the exclusive "All levels" entry.
+		await waitFor(() =>
+			expect(
+				screen.queryByTestId('staff-tenant-users-level-filter-all'),
+			).toBeNull(),
+		);
+	});
+
+	test('the status filter offers an "All statuses" entry that clears the filter and closes the menu', async () => {
+		mocks.search = { status: 'active' };
+		renderPage();
+
+		fireEvent.click(
+			screen.getByTestId('staff-tenant-users-status-filter-trigger'),
+		);
+
+		expect(
+			await screen.findByTestId('staff-tenant-users-status-filter-all'),
+		).toBeTruthy();
+		fireEvent.click(screen.getByTestId('staff-tenant-users-status-filter-all'));
+
+		expect(mocks.navigate).toHaveBeenCalledWith(
+			expect.objectContaining({ replace: true }),
+		);
+		const [[navigatedArgs]] = mocks.navigate.mock.calls;
+		const navigatedSearch = (
+			navigatedArgs as { search: Record<string, unknown> }
+		).search;
+		expect(navigatedSearch.status).toBeUndefined();
+
+		// The menu closes on selecting the exclusive "All statuses" entry.
+		await waitFor(() =>
+			expect(
+				screen.queryByTestId('staff-tenant-users-status-filter-all'),
+			).toBeNull(),
+		);
+	});
+
+	test('toggling an individual level keeps the menu open (multi-select)', async () => {
+		renderPage();
+
+		fireEvent.click(
+			screen.getByTestId('staff-tenant-users-level-filter-trigger'),
+		);
+		fireEvent.click(
+			await screen.findByTestId('staff-tenant-users-level-filter-admin'),
+		);
+
+		expect(mocks.navigate).toHaveBeenCalledWith(
+			expect.objectContaining({
+				search: expect.objectContaining({ level: 'admin' }),
+				replace: true,
+			}),
+		);
+		// closeOnClick={false} on individual levels — the menu stays open.
+		expect(
+			screen.getByTestId('staff-tenant-users-level-filter-admin'),
+		).toBeTruthy();
+	});
+
+	test('exports the selected users as a csv download', async () => {
+		const buffer = new ArrayBuffer(4);
+		mocks.exportMutation.mockResolvedValue(buffer);
+
+		renderPage();
+
+		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
+		fireEvent.click(
+			await screen.findByRole('button', { name: 'More actions' }),
+		);
+		fireEvent.click(
+			await screen.findByRole('menuitem', { name: 'Export selected users' }),
+		);
+
+		await waitFor(() =>
+			expect(mocks.exportMutation).toHaveBeenCalledWith({
+				tenantId: '11111111-1111-1111-1111-111111111111',
+				ids: ['user-1'],
+			}),
+		);
+		await waitFor(() =>
+			expect(mocks.downloadFile).toHaveBeenCalledWith({
+				data: buffer,
+				fileName: 'ACME-members-2026-07-12.csv',
+				mimeType: 'text/csv',
+			}),
+		);
+	});
+
+	test('removes selected users after explicit confirmation and shows a success summary', async () => {
+		mocks.bulkRemoveMutation.mockResolvedValue({
+			succeededCount: 1,
+			failedCount: 0,
+			failedItems: [],
+		});
+
+		renderPage();
+
+		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
+		fireEvent.click(
+			await screen.findByRole('button', { name: 'More actions' }),
+		);
+		fireEvent.click(
+			await screen.findByRole('menuitem', {
+				name: 'Remove selected from tenant',
+			}),
+		);
+
+		await waitFor(() =>
+			expect(
+				screen.getByRole('heading', { name: 'Remove selected from tenant' }),
+			).toBeTruthy(),
+		);
+		fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+
+		await waitFor(() =>
+			expect(mocks.bulkRemoveMutation).toHaveBeenCalledWith({
+				tenantId: '11111111-1111-1111-1111-111111111111',
+				userIds: ['user-1'],
+			}),
+		);
+		await waitFor(() =>
+			expect(
+				screen.getByText('Successfully removed 1 user(s) from this tenant.'),
+			).toBeTruthy(),
+		);
+		expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled();
+	});
+
+	test('reports a partial-success message when some bulk-removed users fail', async () => {
+		mocks.bulkRemoveMutation.mockResolvedValue({
+			succeededCount: 1,
+			failedCount: 1,
+			failedItems: [],
+		});
+
+		renderPage();
+
+		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
+		fireEvent.click(
+			await screen.findByRole('button', { name: 'More actions' }),
+		);
+		fireEvent.click(
+			await screen.findByRole('menuitem', {
+				name: 'Remove selected from tenant',
+			}),
+		);
+
+		await waitFor(() =>
+			expect(
+				screen.getByRole('heading', { name: 'Remove selected from tenant' }),
+			).toBeTruthy(),
+		);
+		fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+
+		await waitFor(() =>
+			expect(screen.getByText('Removed 1 user(s), 1 failed.')).toBeTruthy(),
+		);
+		expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled();
+	});
+
+	test('reports a failure message when every bulk-removed user fails', async () => {
+		mocks.bulkRemoveMutation.mockResolvedValue({
+			succeededCount: 0,
+			failedCount: 1,
+			failedItems: [],
+		});
+
+		renderPage();
+
+		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
+		fireEvent.click(
+			await screen.findByRole('button', { name: 'More actions' }),
+		);
+		fireEvent.click(
+			await screen.findByRole('menuitem', {
+				name: 'Remove selected from tenant',
+			}),
+		);
+
+		await waitFor(() =>
+			expect(
+				screen.getByRole('heading', { name: 'Remove selected from tenant' }),
+			).toBeTruthy(),
+		);
+		fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+
+		await waitFor(() =>
+			expect(screen.getByText('Removed 0 user(s), 1 failed.')).toBeTruthy(),
+		);
+		expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled();
+	});
+
+	// tenants-r1-F2: the invite drawer's open flag is URL-driven (`?invite=1`);
+	// a browser Back or sibling-route navigation changes/unmounts it without
+	// ever calling the drawer's own close guard, discarding a dirty invite
+	// draft with no confirmation.
+	test('the URL nav-guard only blocks navigation while the invite drawer is open AND dirty', () => {
+		mocks.search = { invite: 1 };
+		renderPage();
+
+		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+
+		act(() => mocks.capturedOnDirtyChange?.(true));
+		expect(mocks.capturedShouldBlockFn?.()).toBe(true);
+
+		act(() => mocks.capturedOnDirtyChange?.(false));
+		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+	});
+
+	test('the URL nav-guard never blocks when the invite drawer is closed, even if reported dirty', () => {
+		mocks.search = {};
+		renderPage();
+
+		act(() => mocks.capturedOnDirtyChange?.(true));
+		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+	});
+
+	// W8-DRAWER: `onDirtyChange(false)` is an async state update — a
+	// successful submit calls it and then `onInvited()` synchronously in the
+	// same tick, so the guard's closure still sees the old (dirty) render.
+	// Without a synchronous bypass, this leaves the invite-people navigation
+	// permanently blocked after a successful submit.
+	test('a successful invite submit does not leave the nav guard blocking its own navigation (W8-DRAWER)', () => {
+		mocks.search = { invite: 1 };
+		renderPage();
+
+		// The drawer reports dirty while the user fills the form.
+		act(() => mocks.capturedOnDirtyChange?.(true));
+		expect(mocks.capturedShouldBlockFn?.()).toBe(true);
+
+		// Simulate the drawer's real onSubmit sequence: it calls
+		// `onDirtyChange(false)` (state update, not yet flushed) and then
+		// `onInvited()` synchronously in the same tick — exactly like
+		// _invite-user-drawer.tsx's onSubmit does. React batches state updates
+		// across a single `act` callback and only applies them once it
+		// returns, so asserting *inside* this callback (before the flush)
+		// reproduces the real stale-closure race; asserting after the act()
+		// block returns would see the already-flushed (non-dirty) state and
+		// pass even without the fix.
+		act(() => {
+			mocks.capturedOnDirtyChange?.(false);
+			mocks.capturedOnInvited?.();
+
+			expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+		});
+
+		expect(mocks.navigate).toHaveBeenCalledWith(
+			expect.objectContaining({
+				to: '/staff/tenants/$tenantId/invitations',
+				params: { tenantId: '11111111-1111-1111-1111-111111111111' },
+			}),
+		);
+	});
+
+	test('shows the unsaved-changes confirm dialog when the router blocks navigation away from a dirty invite drawer', () => {
+		const proceed = vi.fn();
+		const reset = vi.fn();
+		mocks.search = { invite: 1 };
+		mocks.blockerResolver.status = 'blocked';
+		mocks.blockerResolver.proceed = proceed;
+		mocks.blockerResolver.reset = reset;
+
+		renderPage();
+
+		expect(screen.getByText('Leave without saving?')).toBeTruthy();
+		fireEvent.click(screen.getByRole('button', { name: 'Leave page' }));
+		expect(proceed).toHaveBeenCalled();
+		expect(reset).not.toHaveBeenCalled();
+	});
+});
+
+describe('makeTenantUserColumns column widths', () => {
+	test('applies a fixed width to every column except the fluid name column', () => {
+		const columns = makeTenantUserColumns(
+			'11111111-1111-1111-1111-111111111111',
+			identityT,
+			() => undefined,
+			() => undefined,
+		);
+		const widthById = Object.fromEntries(
+			columns.map((column) => [column.id, column.meta?.width]),
+		);
+
+		expect(widthById).toEqual({
+			name: undefined,
+			level: '150px',
+			status: '130px',
+			actions: '40px',
+		});
+	});
+
+	test('hides the level column below the 768px mobile breakpoint, keeping name/status/actions', () => {
+		const columns = makeTenantUserColumns(
+			'11111111-1111-1111-1111-111111111111',
+			identityT,
+			() => undefined,
+			() => undefined,
+		);
+		const hideBelowById = Object.fromEntries(
+			columns.map((column) => [column.id, column.meta?.hideBelow]),
+		);
+
+		expect(hideBelowById).toEqual({
+			name: undefined,
+			level: 768,
+			status: undefined,
+			actions: undefined,
+		});
+	});
+});
+
+describe('tenant user level chip mapping', () => {
+	test('maps Admin to the amber chip and User to the neutral chip', () => {
+		expect(tenantUserLevelChipClassName('Admin')).toContain('--amber');
+		expect(tenantUserLevelChipClassName('User')).toContain('--outline');
+		expect(tenantUserLevelChipClassName(null)).toContain('--outline');
+	});
+
+	test('formats level labels through i18n', () => {
+		expect(formatTenantUserLevelLabel('Admin', identityT)).toBe('Admin');
+		expect(formatTenantUserLevelLabel('User', identityT)).toBe('User');
+	});
+});
+
+describe('tenant user status label mapping', () => {
+	test('maps the three real tenant-user statuses honestly', () => {
+		expect(formatTenantUserStatusLabel('Active', identityT)).toBe('Active');
+		expect(formatTenantUserStatusLabel('Suspended', identityT)).toBe(
+			'Suspended',
+		);
+		expect(formatTenantUserStatusLabel('GloballySuspended', identityT)).toBe(
+			'Globally suspended',
+		);
+	});
+});
+
+describe('parseTenantUserStatusFilter', () => {
+	test('parses known comma-separated statuses and drops unknown tokens', () => {
+		expect(parseTenantUserStatusFilter('active,bogus,suspended')).toEqual([
+			'active',
+			'suspended',
+		]);
+		expect(parseTenantUserStatusFilter(undefined)).toEqual([]);
+	});
+});
+
+describe('parseTenantUserLevelFilter', () => {
+	test('parses known comma-separated levels, drops unknown tokens, and dedupes', () => {
+		expect(parseTenantUserLevelFilter('admin,bogus,user,admin')).toEqual([
+			'admin',
+			'user',
+		]);
+		expect(parseTenantUserLevelFilter(undefined)).toEqual([]);
+	});
+});
+
+describe('level filter wiring on the users list query', () => {
+	test('passes the level search param through to the tenant users query', () => {
+		mocks.search = { level: 'admin' };
+
+		renderPage();
+
+		expect(mocks.useStaffTenantUsersQuery).toHaveBeenCalledWith(
+			expect.objectContaining({ level: 'admin' }),
+			{ enabled: true },
+		);
 	});
 });

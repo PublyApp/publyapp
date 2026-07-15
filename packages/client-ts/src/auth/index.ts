@@ -12,6 +12,8 @@ import { RedirectCodeRequestBuilderRequestsMetadata, type RedirectCodeRequestBui
 // @ts-ignore
 import { RegisterRequestBuilderRequestsMetadata, type RegisterRequestBuilder } from './register/index.js';
 // @ts-ignore
+import { RequestPasswordResetRequestBuilderRequestsMetadata, type RequestPasswordResetRequestBuilder } from './requestPasswordReset/index.js';
+// @ts-ignore
 import { ResetPasswordRequestBuilderRequestsMetadata, type ResetPasswordRequestBuilder } from './resetPassword/index.js';
 // @ts-ignore
 import { ScopeAuthDataRequestBuilderRequestsMetadata, type ScopeAuthDataRequestBuilder } from './scopeAuthData/index.js';
@@ -52,6 +54,10 @@ export interface AuthRequestBuilder extends BaseRequestBuilder<AuthRequestBuilde
      * The register property
      */
     get register(): RegisterRequestBuilder;
+    /**
+     * The requestPasswordReset property
+     */
+    get requestPasswordReset(): RequestPasswordResetRequestBuilder;
     /**
      * The resetPassword property
      */
@@ -103,6 +109,9 @@ export const AuthRequestBuilderNavigationMetadata: Record<Exclude<keyof AuthRequ
     },
     register: {
         requestsMetadata: RegisterRequestBuilderRequestsMetadata,
+    },
+    requestPasswordReset: {
+        requestsMetadata: RequestPasswordResetRequestBuilderRequestsMetadata,
     },
     resetPassword: {
         requestsMetadata: ResetPasswordRequestBuilderRequestsMetadata,

@@ -1,10 +1,12 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 
 import type { InvitationListItem } from '@org/client-ts/src/models/index.js';
 
 import {
 	buildFindStaffTenantInvitationsQueryParameters,
+	invalidateStaffTenantInvitations,
 	isStaffTenantInvitationRevocable,
+	STAFF_TENANT_INVITATIONS_QUERY_KEY,
 	toStaffTenantInvitationRows,
 } from './staff-tenant-invitations';
 
@@ -66,17 +68,6 @@ describe('toStaffTenantInvitationRows', () => {
 				email: 'skip@example.com',
 				status: 'Accepted',
 			},
-			{
-				id: 'invite-2' as never,
-				email: ' ',
-				status: ' ',
-				scope: null,
-				profileName: ' ',
-				invitedByName: null,
-				acceptedAt: null,
-				createdAt: null,
-				expiresAt: null,
-			},
 		];
 
 		expect(toStaffTenantInvitationRows(items)).toEqual([
@@ -91,18 +82,43 @@ describe('toStaffTenantInvitationRows', () => {
 				createdAt,
 				expiresAt,
 			},
-			{
-				id: 'invite-2',
-				email: '—',
-				status: null,
-				scope: null,
-				profileName: '—',
-				invitedByName: '—',
-				acceptedAt: null,
-				createdAt: null,
-				expiresAt: null,
-			},
 		]);
+	});
+
+	// shell-r5-F3: a row missing a required identity (email/profileName/
+	// invitedByName) used to be kept with a `'—'` placeholder a staff admin
+	// can't distinguish from real data. It must be dropped instead — for
+	// EACH required field independently, not just "all blank" at once.
+	test.each([
+		['email', { email: ' ' }],
+		['profileName', { profileName: null }],
+		['invitedByName', { invitedByName: '' }],
+	] satisfies [string, Partial<InvitationListItem>][])(
+		'drops a row missing only %s rather than fabricating a placeholder',
+		(_label, overrides) => {
+			const items: InvitationListItem[] = [
+				{
+					id: 'invite-2' as never,
+					email: 'invitee@example.com',
+					status: 'Pending',
+					scope: 'Tenant',
+					profileName: 'Owners',
+					invitedByName: 'Alex Johnson',
+					acceptedAt: null,
+					createdAt: null,
+					expiresAt: null,
+					...overrides,
+				},
+			];
+
+			expect(toStaffTenantInvitationRows(items)).toEqual([]);
+		},
+	);
+
+	test('an empty list stays empty (no fabricated rows)', () => {
+		expect(toStaffTenantInvitationRows([])).toEqual([]);
+		expect(toStaffTenantInvitationRows(null)).toEqual([]);
+		expect(toStaffTenantInvitationRows(undefined)).toEqual([]);
 	});
 });
 
@@ -125,5 +141,17 @@ describe('isStaffTenantInvitationRevocable', () => {
 				status: ' ',
 			}),
 		).toBe(false);
+	});
+});
+
+describe('invalidateStaffTenantInvitations', () => {
+	test('invalidates the shared staff-tenant-invitations scope prefix', () => {
+		const invalidateQueries = vi.fn();
+
+		void invalidateStaffTenantInvitations({ invalidateQueries } as never);
+
+		expect(invalidateQueries).toHaveBeenCalledWith({
+			queryKey: ['staff', ...STAFF_TENANT_INVITATIONS_QUERY_KEY],
+		});
 	});
 });

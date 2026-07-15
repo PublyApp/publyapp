@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Permissions.Entities;
 using PublyApp.Api.Modules.Profiles.Entities;
 
@@ -14,6 +15,7 @@ public class TenantProfileItem {
 	public string? Description { get; set; }
 	public bool IsDefault { get; set; }
 	public int UserAccountCount { get; set; }
+	public int PermissionsCount { get; set; }
 }
 
 public abstract record FindTenantProfilesResult {
@@ -31,7 +33,8 @@ public sealed record FindTenantProfilesArgs(
 	int? Limit,
 	string? SortId,
 	SortOrder? SortOrder,
-	string? Search
+	string? Search,
+	bool? IsDefault
 );
 
 public sealed record GetTenantProfileByIdArgs(
@@ -71,6 +74,12 @@ public interface ITenantProfileQueryAsStaffService {
 
 	Task<FindTenantProfilePermissionKeysResult> FindTenantProfilePermissionKeysAsync(
 		FindTenantProfilePermissionKeysArgs args,
+		CancellationToken cancellationToken = default
+	);
+
+	// Count for the tenant detail page: active (non-deleted) tenant-scoped profiles.
+	Task<int> CountTenantProfilesAsync(
+		Guid tenantId,
 		CancellationToken cancellationToken = default
 	);
 }
@@ -219,11 +228,15 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 		IQueryable<Profile> query = baseQuery;
 
 		if (search is { } q) {
-			var pattern = $"%{q}%";
+			var pattern = $"%{LikePatternUtils.EscapeLikePattern(q)}%";
 			query = query.Where(p =>
-				EF.Functions.ILike(p.Name, pattern)
-				|| (p.Description != null && EF.Functions.ILike(p.Description, pattern))
+				EF.Functions.ILike(p.Name, pattern, LikePatternUtils.LikeEscapeChar)
+				|| (p.Description != null && EF.Functions.ILike(p.Description, pattern, LikePatternUtils.LikeEscapeChar))
 			);
+		}
+
+		if (args.IsDefault is { } isDefault) {
+			query = query.Where(p => p.IsDefault == isDefault);
 		}
 
 		if (args.Cursor != Guid.Empty) {
@@ -263,6 +276,20 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 			userAccountCountByProfileId[row.ProfileId] = row.Count;
 		}
 
+		// Batched grouped-count query mirrors the userAccountCounts pattern above:
+		// one query for the page's profile IDs, not a per-row lookup.
+		var permissionCounts = await (
+			from pp in _dbContext.ProfilePermission.AsNoTracking()
+			where profileIds.Contains(pp.ProfileId)
+			group pp by pp.ProfileId into g
+			select new { ProfileId = g.Key, Count = g.Count() }
+		).ToListAsync(cancellationToken);
+
+		var permissionCountByProfileId = new Dictionary<Guid, int>();
+		foreach (var row in permissionCounts) {
+			permissionCountByProfileId[row.ProfileId] = row.Count;
+		}
+
 		var items = profiles.Select(p => {
 			var profileId = p.GetRequiredId();
 			return new TenantProfileItem {
@@ -271,6 +298,7 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 				Description = p.Description,
 				IsDefault = p.IsDefault,
 				UserAccountCount = userAccountCountByProfileId.GetValueOrDefault(profileId, 0),
+				PermissionsCount = permissionCountByProfileId.GetValueOrDefault(profileId, 0),
 			};
 		}).ToList();
 
@@ -298,6 +326,7 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 				Description = p.Description,
 				IsDefault = p.IsDefault,
 				UserAccountCount = p.UserAccountProfiles.Count,
+				PermissionsCount = p.ProfilePermissions.Count,
 			}
 		).FirstOrDefaultAsync(cancellationToken);
 
@@ -338,6 +367,20 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 			.ToListAsync(cancellationToken);
 
 		return new FindTenantProfilePermissionKeysResult.Success(permissionKeys);
+	}
+
+	public async Task<int> CountTenantProfilesAsync(
+		Guid tenantId,
+		CancellationToken cancellationToken = default
+	) {
+		var count =
+			from p in _dbContext.Profile
+			where p.Scope == ProfileScope.Tenant
+				&& p.TenantId == tenantId
+				&& !p.IsDeleted
+			select p;
+
+		return await count.CountAsync(cancellationToken);
 	}
 
 }

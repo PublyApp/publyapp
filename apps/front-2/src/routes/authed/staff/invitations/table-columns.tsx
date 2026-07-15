@@ -1,8 +1,37 @@
+import {
+	IconCircleDot,
+	IconClock,
+	IconId,
+	IconMail,
+	IconRefresh,
+	IconUser,
+	IconX,
+} from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { DataTableRowActions } from '~/components/table/row-actions';
+import { ConfirmDialog } from '~/components/ui/confirm-dialog';
+import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
+import { InitialsAvatar } from '~/components/ui/initials-avatar';
+import { StatusPill } from '~/components/ui/product-page';
+import { statusPillTone } from '~/components/ui/status-tone';
+import { formatDateTime } from '~/lib/format-date-time';
+import {
+	invalidateStaffInvitations,
+	useResendStaffInvitationMutation,
+	useRevokeStaffInvitationMutation,
+} from '~/lib/query/staff-invitations';
 
 import {
-	formatInvitationStatusLabel,
+	getFailureMessage,
+	toApiFailure,
+} from '@org/shared-ts/lib/api-failure/to-api-failure';
+
+import {
+	getInvitationStatusLabelKey,
 	type InvitationDisplayStatus,
 } from './list-helpers';
 
@@ -18,77 +47,255 @@ export type InvitationRow = {
 };
 
 type CreateInvitationColumnsArgs = {
-	t: (key: string) => string;
+	t: (key: string, options?: Record<string, unknown>) => string;
 	locale: string;
+	onActionSuccess: () => void;
+	onActionError: (message: string) => void;
 };
 
-const formatDateTime = (value: Date | null, locale: string): string => {
-	if (!value) {
-		return '-';
-	}
+const InvitationRowActions = ({
+	row,
+	onSuccess,
+	onError,
+}: {
+	row: InvitationRow;
+	onSuccess: () => void;
+	onError: (message: string) => void;
+}) => {
+	const { t } = useTranslation('common');
+	const queryClient = useQueryClient();
+	const [isConfirmOpen, setConfirmOpen] = useState(false);
+	const resendMutation = useResendStaffInvitationMutation();
+	const revokeMutation = useRevokeStaffInvitationMutation();
+	const isActionPending = resendMutation.isPending || revokeMutation.isPending;
+	const canManage = row.status === 'pending';
 
-	return new Intl.DateTimeFormat(locale, {
-		dateStyle: 'medium',
-		timeStyle: 'short',
-	}).format(value);
+	const handleIneligibleAction = () => {
+		onError(t('only-pending-invitations-can-be-managed'));
+	};
+
+	const handleResend = async () => {
+		if (!canManage) {
+			handleIneligibleAction();
+			return;
+		}
+
+		try {
+			await resendMutation.mutateAsync({ invitationId: row.id });
+			onSuccess();
+		} catch (error) {
+			onError(
+				getFailureMessage(toApiFailure(error), {
+					fallback: t('unable-to-resend-invitation'),
+				}),
+			);
+		}
+	};
+
+	const handleRevoke = async () => {
+		if (!canManage) {
+			handleIneligibleAction();
+			setConfirmOpen(false);
+			return;
+		}
+
+		try {
+			await revokeMutation.mutateAsync({ invitationId: row.id });
+			await invalidateStaffInvitations(queryClient);
+			setConfirmOpen(false);
+			onSuccess();
+		} catch (error) {
+			setConfirmOpen(false);
+			onError(
+				getFailureMessage(toApiFailure(error), {
+					fallback: t('unable-to-revoke-invitation'),
+				}),
+			);
+		}
+	};
+
+	return (
+		<>
+			<DataTableRowActions
+				ariaLabel={t('actions-for', { name: row.email || t('invitation') })}
+				testId={`staff-invitation-actions-${row.id}`}
+			>
+				<DropdownMenuItem
+					onClick={() => void handleResend()}
+					disabled={isActionPending}
+				>
+					<IconRefresh className="size-[15px]" />
+					{t('send-reminder')}
+				</DropdownMenuItem>
+				<DropdownMenuItem
+					onClick={() =>
+						void (canManage ? setConfirmOpen(true) : handleRevoke())
+					}
+					disabled={isActionPending}
+				>
+					<IconX className="size-[15px]" />
+					{t('revoke-invitation')}
+				</DropdownMenuItem>
+			</DataTableRowActions>
+			<ConfirmDialog
+				isOpen={isConfirmOpen}
+				title={t('revoke-invitation')}
+				description={t('invitation-removal-description')}
+				confirmLabel={t('revoke')}
+				isPending={revokeMutation.isPending}
+				onConfirm={() => void handleRevoke()}
+				onOpenChange={setConfirmOpen}
+			/>
+		</>
+	);
 };
 
 export const createInvitationColumns = ({
 	t,
 	locale,
+	onActionSuccess,
+	onActionError,
 }: CreateInvitationColumnsArgs): ColumnDef<InvitationRow>[] => [
 	{
 		id: 'email',
-		header: t('email'),
+		header: () => (
+			<div className="inline-flex items-center gap-1.5">
+				<IconMail className="size-3.5 text-muted-foreground" />
+				<span>{t('invitee')}</span>
+			</div>
+		),
 		accessorKey: 'email',
-		cell: ({ row }) => (
-			<div>
+		meta: { width: '300px' },
+		cell: ({ row }) => {
+			const email = row.original.email;
+			// `email` is the invitation's required identity field, never a
+			// genuinely-optional lookup — a blank value is a data-integrity
+			// problem, not "no data yet", so it must never be silently rendered
+			// as a neutral em-dash that looks like real data (r5-F5).
+			if (!email) {
+				return (
+					<span
+						className="flex min-w-0 items-center text-[13px] text-destructive"
+						title={t('invitation-missing-email')}
+					>
+						{t('invitation-missing-email')}
+					</span>
+				);
+			}
+
+			return (
 				<Link
 					to="/staff/invitations/$invitationId"
 					params={{ invitationId: row.original.id }}
-					className="font-medium text-primary underline-offset-4 hover:underline"
+					className="flex min-w-0 items-center gap-2.5 no-underline"
 				>
-					{row.original.email || '-'}
+					<InitialsAvatar name={row.original.email} />
+					<span
+						className="publy-record-link min-w-0 truncate text-[13px]"
+						title={email}
+					>
+						{email}
+					</span>
 				</Link>
-				<div className="text-xs text-muted">
-					{t('staff-invited-by')}: {row.original.invitedByName}
-				</div>
-			</div>
-		),
+			);
+		},
 	},
 	{
 		id: 'profile_name',
-		header: t('profiles'),
+		header: () => (
+			<div className="inline-flex items-center gap-1.5">
+				<IconId className="size-3.5 text-muted-foreground" />
+				<span>{t('profiles')}</span>
+			</div>
+		),
 		accessorKey: 'profileName',
-		// Staff invitations only supports created_at, expires_at, email, and accepted_at.
 		enableSorting: false,
+		cell: ({ row }) => {
+			// A missing profile lookup is a genuinely legitimate related-data
+			// gap (the profile can be deleted after the invitation was sent) —
+			// unlike `email`, this isn't a data-integrity error, so it gets a
+			// semantic "unknown" label rather than a plain dash that would look
+			// like the same kind of missing-data as the required-field case.
+			const profileName = row.original.profileName || t('unknown-profile');
+			return (
+				<span
+					className="block truncate text-[12px] text-[var(--publy-foreground-secondary)]"
+					title={profileName}
+				>
+					{profileName}
+				</span>
+			);
+		},
 	},
 	{
-		id: 'status',
-		header: t('status'),
+		id: 'invited_by_name',
+		header: () => (
+			<div className="inline-flex items-center gap-1.5">
+				<IconUser className="size-3.5 text-muted-foreground" />
+				<span>{t('invited-by')}</span>
+			</div>
+		),
+		accessorKey: 'invitedByName',
 		enableSorting: false,
+		meta: { width: '150px' },
+		cell: ({ row }) => {
+			// Same reasoning as `profileName`: the inviting account can be
+			// deleted after the invitation was sent, so a missing name here is
+			// a legitimate related-data gap, not a data-integrity error.
+			const invitedByName = row.original.invitedByName || t('unknown-inviter');
+			return (
+				<span
+					className="block truncate text-[13px] text-[var(--publy-foreground-secondary)]"
+					title={invitedByName}
+				>
+					{invitedByName}
+				</span>
+			);
+		},
+	},
+	{
+		id: 'expires_at',
+		header: () => (
+			<div className="inline-flex items-center gap-1.5">
+				<IconClock className="size-3.5 text-muted-foreground" />
+				<span>{t('expires')}</span>
+			</div>
+		),
+		accessorFn: (row) => row.expiresAt,
+		meta: { width: '120px' },
 		cell: ({ row }) => (
-			<span className="inline-flex rounded-full bg-default-100 px-2 py-1 text-xs font-medium text-foreground">
-				{formatInvitationStatusLabel(row.original.status)}
+			<span className="text-[13px] text-[var(--publy-foreground-secondary)]">
+				{formatDateTime(row.original.expiresAt, locale)}
 			</span>
 		),
 	},
 	{
-		id: 'expires_at',
-		header: t('expiry-date'),
-		accessorFn: (row) => row.expiresAt,
-		cell: ({ row }) => formatDateTime(row.original.expiresAt, locale),
+		id: 'status',
+		header: () => (
+			<div className="inline-flex items-center gap-1.5">
+				<IconCircleDot className="size-3.5 text-muted-foreground" />
+				<span>{t('status')}</span>
+			</div>
+		),
+		enableSorting: false,
+		meta: { width: '128px' },
+		cell: ({ row }) => (
+			<StatusPill tone={statusPillTone(row.original.status)}>
+				{t(getInvitationStatusLabelKey(row.original.status))}
+			</StatusPill>
+		),
 	},
 	{
-		id: 'accepted_at',
-		header: t('accepted-at'),
-		accessorFn: (row) => row.acceptedAt,
-		cell: ({ row }) => formatDateTime(row.original.acceptedAt, locale),
-	},
-	{
-		id: 'created_at',
-		header: t('created-at'),
-		accessorFn: (row) => row.createdAt,
-		cell: ({ row }) => formatDateTime(row.original.createdAt, locale),
+		id: 'actions',
+		header: () => <span className="sr-only">{t('actions')}</span>,
+		enableSorting: false,
+		meta: { width: '40px', align: 'center' },
+		cell: ({ row }) => (
+			<InvitationRowActions
+				row={row.original}
+				onSuccess={onActionSuccess}
+				onError={onActionError}
+			/>
+		),
 	},
 ];

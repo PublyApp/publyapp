@@ -1,29 +1,40 @@
-import { Button } from '@heroui/react';
+import { IconMoon, IconSun } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
+import { Button } from '~/components/ui/button';
 
-import { useUiStore } from '../../../lib/store/ui-store';
+import {
+	useUiStore,
+	withThemeTransitionSuppressed,
+} from '../../../lib/store/ui-store';
 
 export const THEME_TOGGLE_TEST_ID = 'theme-toggle';
 
-export const ThemeToggle = () => {
-	const { colorScheme, toggleColorScheme } = useUiStore((state) => ({
-		colorScheme: state.colorScheme,
-		toggleColorScheme: state.toggleColorScheme,
-	}));
+export const ThemeToggle = ({ className }: { className?: string }) => {
+	const { t } = useTranslation('common');
+	const colorScheme = useUiStore((state) => state.colorScheme);
+	const toggleColorScheme = useUiStore((state) => state.toggleColorScheme);
 	const isDarkMode = colorScheme === 'dark';
-	const label = isDarkMode ? 'Switch to light mode' : 'Switch to dark mode';
-	const iconLabel = isDarkMode ? '☀︎' : '🌙';
+	const label = isDarkMode
+		? t('switch-to-light-mode')
+		: t('switch-to-dark-mode');
+	const Icon = isDarkMode ? IconSun : IconMoon;
 	const ariaPressed = isDarkMode;
+
+	const handleClick = () => {
+		withThemeTransitionSuppressed(toggleColorScheme);
+	};
 
 	return (
 		<Button
 			data-testid={THEME_TOGGLE_TEST_ID}
 			variant="outline"
-			isIconOnly
+			size="icon"
+			className={className}
 			aria-label={label}
 			aria-pressed={ariaPressed}
-			onPress={toggleColorScheme}
+			onClick={handleClick}
 		>
-			{iconLabel}
+			<Icon aria-hidden="true" className="size-4" />
 		</Button>
 	);
 };

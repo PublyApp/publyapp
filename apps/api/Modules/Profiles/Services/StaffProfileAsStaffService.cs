@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Infrastructure.Messaging.Email;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Lib.Utils;
@@ -129,12 +130,15 @@ public interface IStaffProfileAsStaffService {
 public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 	private readonly AppDbContext _dbContext;
 	private readonly ILogger<StaffProfileAsStaffService> _logger;
+	private readonly IInvitationEmailOutboxSignal _outboxSignal;
 	public StaffProfileAsStaffService(
 		AppDbContext dbContext,
-		ILogger<StaffProfileAsStaffService> logger
+		ILogger<StaffProfileAsStaffService> logger,
+		IInvitationEmailOutboxSignal outboxSignal
 	) {
 		_dbContext = dbContext;
 		_logger = logger;
+		_outboxSignal = outboxSignal;
 	}
 
 	public async Task<UpdateStaffProfileResult> UpdateStaffProfileAsync(
@@ -548,6 +552,17 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 				invitation.ValidateInvitationType();
 				newInvitations.Add(invitation);
 				invitationTokens.Add((email, token));
+
+				// Durable delivery record written in the same SaveChanges/transaction
+				// as the invitation, delivered out-of-band by
+				// InvitationEmailOutboxDispatcher — this path previously sent via a
+				// request-scoped Task.Run with no durable record, so an aborted
+				// request or process restart silently lost the invitation email
+				// while the profile-creation response still claimed it was sent
+				// (round-6 API F4).
+				var outboxRow = InvitationEmailOutbox.CreateStaffInvitation(email, token);
+				outboxRow.Invitation = invitation;
+				await _dbContext.InvitationEmailOutbox.AddAsync(outboxRow, cancellationToken);
 			}
 
 			if (newInvitations.Count > 0) {
@@ -558,6 +573,7 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 			// Save all changes
 			await _dbContext.SaveChangesAsync(cancellationToken);
 			await transaction.CommitAsync(cancellationToken);
+			_outboxSignal.Notify();
 
 			if (_logger.IsEnabled(LogLevel.Information)) {
 				_logger.LogInformation(

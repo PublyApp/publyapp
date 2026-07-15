@@ -289,6 +289,36 @@ export interface BulkReactivateTenantsResult extends AdditionalDataHolder, Parsa
      */
     succeededCount?: number | null;
 }
+export interface BulkRemoveTenantUsersBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The userIds property
+     */
+    userIds?: UntypedNode | null;
+}
+export interface BulkRemoveTenantUsersFailedItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The error property
+     */
+    errorEscaped?: string | null;
+    /**
+     * The userId property
+     */
+    userId?: Guid | null;
+}
+export interface BulkRemoveTenantUsersResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The failedCount property
+     */
+    failedCount?: number | null;
+    /**
+     * The failedItems property
+     */
+    failedItems?: BulkRemoveTenantUsersFailedItem[] | null;
+    /**
+     * The succeededCount property
+     */
+    succeededCount?: number | null;
+}
 export interface BulkRevokeStaffInvitationsBody extends AdditionalDataHolder, Parsable {
     /**
      * The invitationIds property
@@ -627,6 +657,33 @@ export function createBulkReactivateTenantsResultFromDiscriminatorValue(parseNod
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {BulkRemoveTenantUsersBody}
+ */
+// @ts-ignore
+export function createBulkRemoveTenantUsersBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoBulkRemoveTenantUsersBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {BulkRemoveTenantUsersFailedItem}
+ */
+// @ts-ignore
+export function createBulkRemoveTenantUsersFailedItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoBulkRemoveTenantUsersFailedItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {BulkRemoveTenantUsersResult}
+ */
+// @ts-ignore
+export function createBulkRemoveTenantUsersResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoBulkRemoveTenantUsersResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {BulkRevokeStaffInvitationsBody}
  */
 // @ts-ignore
@@ -884,6 +941,204 @@ export function createCreateSystemNoticeBody_expiresAtMember1FromDiscriminatorVa
 // @ts-ignore
 export function createCreateSystemNoticeBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoCreateSystemNoticeBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {CreateTenantAsStaffBody_billingEmailMember1 | JsonElement}
+ */
+// @ts-ignore
+export function createCreateTenantAsStaffBody_billingEmailFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCreateTenantAsStaffBody_billingEmail;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {CreateTenantAsStaffBody_billingEmailMember1}
+ */
+// @ts-ignore
+export function createCreateTenantAsStaffBody_billingEmailMember1FromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCreateTenantAsStaffBody_billingEmailMember1;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {CreateTenantAsStaffBody_codeMember1 | JsonElement}
+ */
+// @ts-ignore
+export function createCreateTenantAsStaffBody_codeFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCreateTenantAsStaffBody_code;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {CreateTenantAsStaffBody_codeMember1}
+ */
+// @ts-ignore
+export function createCreateTenantAsStaffBody_codeMember1FromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCreateTenantAsStaffBody_codeMember1;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {CreateTenantAsStaffBody_defaultLocaleMember1 | JsonElement}
+ */
+// @ts-ignore
+export function createCreateTenantAsStaffBody_defaultLocaleFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCreateTenantAsStaffBody_defaultLocale;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {CreateTenantAsStaffBody_defaultLocaleMember1}
+ */
+// @ts-ignore
+export function createCreateTenantAsStaffBody_defaultLocaleMember1FromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCreateTenantAsStaffBody_defaultLocaleMember1;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {CreateTenantAsStaffBody_descriptionMember1 | JsonElement}
+ */
+// @ts-ignore
+export function createCreateTenantAsStaffBody_descriptionFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCreateTenantAsStaffBody_description;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {CreateTenantAsStaffBody_descriptionMember1}
+ */
+// @ts-ignore
+export function createCreateTenantAsStaffBody_descriptionMember1FromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCreateTenantAsStaffBody_descriptionMember1;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {CreateTenantAsStaffBody_legalNameMember1 | JsonElement}
+ */
+// @ts-ignore
+export function createCreateTenantAsStaffBody_legalNameFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCreateTenantAsStaffBody_legalName;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {CreateTenantAsStaffBody_legalNameMember1}
+ */
+// @ts-ignore
+export function createCreateTenantAsStaffBody_legalNameMember1FromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCreateTenantAsStaffBody_legalNameMember1;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {CreateTenantAsStaffBody_logoUrlMember1 | JsonElement}
+ */
+// @ts-ignore
+export function createCreateTenantAsStaffBody_logoUrlFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCreateTenantAsStaffBody_logoUrl;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {CreateTenantAsStaffBody_logoUrlMember1}
+ */
+// @ts-ignore
+export function createCreateTenantAsStaffBody_logoUrlMember1FromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCreateTenantAsStaffBody_logoUrlMember1;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {CreateTenantAsStaffBody_notesMember1 | JsonElement}
+ */
+// @ts-ignore
+export function createCreateTenantAsStaffBody_notesFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCreateTenantAsStaffBody_notes;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {CreateTenantAsStaffBody_notesMember1}
+ */
+// @ts-ignore
+export function createCreateTenantAsStaffBody_notesMember1FromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCreateTenantAsStaffBody_notesMember1;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {CreateTenantAsStaffBody_seedDefaultProfileMember1 | JsonElement}
+ */
+// @ts-ignore
+export function createCreateTenantAsStaffBody_seedDefaultProfileFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCreateTenantAsStaffBody_seedDefaultProfile;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {CreateTenantAsStaffBody_seedDefaultProfileMember1}
+ */
+// @ts-ignore
+export function createCreateTenantAsStaffBody_seedDefaultProfileMember1FromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCreateTenantAsStaffBody_seedDefaultProfileMember1;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {CreateTenantAsStaffBody_supportEmailMember1 | JsonElement}
+ */
+// @ts-ignore
+export function createCreateTenantAsStaffBody_supportEmailFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCreateTenantAsStaffBody_supportEmail;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {CreateTenantAsStaffBody_supportEmailMember1}
+ */
+// @ts-ignore
+export function createCreateTenantAsStaffBody_supportEmailMember1FromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCreateTenantAsStaffBody_supportEmailMember1;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {CreateTenantAsStaffBody_timezoneMember1 | JsonElement}
+ */
+// @ts-ignore
+export function createCreateTenantAsStaffBody_timezoneFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCreateTenantAsStaffBody_timezone;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {CreateTenantAsStaffBody_timezoneMember1}
+ */
+// @ts-ignore
+export function createCreateTenantAsStaffBody_timezoneMember1FromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCreateTenantAsStaffBody_timezoneMember1;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {CreateTenantAsStaffBody_websiteUrlMember1 | JsonElement}
+ */
+// @ts-ignore
+export function createCreateTenantAsStaffBody_websiteUrlFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCreateTenantAsStaffBody_websiteUrl;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {CreateTenantAsStaffBody_websiteUrlMember1}
+ */
+// @ts-ignore
+export function createCreateTenantAsStaffBody_websiteUrlMember1FromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCreateTenantAsStaffBody_websiteUrlMember1;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -1267,6 +1522,24 @@ export function createReactivateTenantUserResultFromDiscriminatorValue(parseNode
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {RequestPasswordResetBody}
+ */
+// @ts-ignore
+export function createRequestPasswordResetBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoRequestPasswordResetBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {RequestPasswordResetResult}
+ */
+// @ts-ignore
+export function createRequestPasswordResetResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoRequestPasswordResetResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {ResetPasswordBody}
  */
 // @ts-ignore
@@ -1393,6 +1666,15 @@ export function createStaffProfileItemFromDiscriminatorValue(parseNode: ParseNod
 // @ts-ignore
 export function createStaffProfileUserItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoStaffProfileUserItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {StaffUploadCreated}
+ */
+// @ts-ignore
+export function createStaffUploadCreatedFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoStaffUploadCreated;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -1529,9 +1811,33 @@ export function createSystemNoticeUpdatedFromDiscriminatorValue(parseNode: Parse
 }
 export interface CreateTenantAsStaffBody extends AdditionalDataHolder, Parsable {
     /**
+     * The billingEmail property
+     */
+    billingEmail?: CreateTenantAsStaffBody_billingEmailMember1 | JsonElement | null;
+    /**
+     * The code property
+     */
+    code?: CreateTenantAsStaffBody_codeMember1 | JsonElement | null;
+    /**
+     * The defaultLocale property
+     */
+    defaultLocale?: CreateTenantAsStaffBody_defaultLocaleMember1 | JsonElement | null;
+    /**
+     * The description property
+     */
+    description?: CreateTenantAsStaffBody_descriptionMember1 | JsonElement | null;
+    /**
      * The initialUsers property
      */
     initialUsers?: UntypedNode | null;
+    /**
+     * The legalName property
+     */
+    legalName?: CreateTenantAsStaffBody_legalNameMember1 | JsonElement | null;
+    /**
+     * The logoUrl property
+     */
+    logoUrl?: CreateTenantAsStaffBody_logoUrlMember1 | JsonElement | null;
     /**
      * The maxUsers property
      */
@@ -1540,6 +1846,59 @@ export interface CreateTenantAsStaffBody extends AdditionalDataHolder, Parsable 
      * The name property
      */
     name?: UntypedNode | null;
+    /**
+     * The notes property
+     */
+    notes?: CreateTenantAsStaffBody_notesMember1 | JsonElement | null;
+    /**
+     * The seedDefaultProfile property
+     */
+    seedDefaultProfile?: CreateTenantAsStaffBody_seedDefaultProfileMember1 | JsonElement | null;
+    /**
+     * The supportEmail property
+     */
+    supportEmail?: CreateTenantAsStaffBody_supportEmailMember1 | JsonElement | null;
+    /**
+     * The timezone property
+     */
+    timezone?: CreateTenantAsStaffBody_timezoneMember1 | JsonElement | null;
+    /**
+     * The websiteUrl property
+     */
+    websiteUrl?: CreateTenantAsStaffBody_websiteUrlMember1 | JsonElement | null;
+}
+export type CreateTenantAsStaffBody_billingEmail = CreateTenantAsStaffBody_billingEmailMember1 | JsonElement;
+export interface CreateTenantAsStaffBody_billingEmailMember1 extends AdditionalDataHolder, Parsable {
+}
+export type CreateTenantAsStaffBody_code = CreateTenantAsStaffBody_codeMember1 | JsonElement;
+export interface CreateTenantAsStaffBody_codeMember1 extends AdditionalDataHolder, Parsable {
+}
+export type CreateTenantAsStaffBody_defaultLocale = CreateTenantAsStaffBody_defaultLocaleMember1 | JsonElement;
+export interface CreateTenantAsStaffBody_defaultLocaleMember1 extends AdditionalDataHolder, Parsable {
+}
+export type CreateTenantAsStaffBody_description = CreateTenantAsStaffBody_descriptionMember1 | JsonElement;
+export interface CreateTenantAsStaffBody_descriptionMember1 extends AdditionalDataHolder, Parsable {
+}
+export type CreateTenantAsStaffBody_legalName = CreateTenantAsStaffBody_legalNameMember1 | JsonElement;
+export interface CreateTenantAsStaffBody_legalNameMember1 extends AdditionalDataHolder, Parsable {
+}
+export type CreateTenantAsStaffBody_logoUrl = CreateTenantAsStaffBody_logoUrlMember1 | JsonElement;
+export interface CreateTenantAsStaffBody_logoUrlMember1 extends AdditionalDataHolder, Parsable {
+}
+export type CreateTenantAsStaffBody_notes = CreateTenantAsStaffBody_notesMember1 | JsonElement;
+export interface CreateTenantAsStaffBody_notesMember1 extends AdditionalDataHolder, Parsable {
+}
+export type CreateTenantAsStaffBody_seedDefaultProfile = CreateTenantAsStaffBody_seedDefaultProfileMember1 | JsonElement;
+export interface CreateTenantAsStaffBody_seedDefaultProfileMember1 extends AdditionalDataHolder, Parsable {
+}
+export type CreateTenantAsStaffBody_supportEmail = CreateTenantAsStaffBody_supportEmailMember1 | JsonElement;
+export interface CreateTenantAsStaffBody_supportEmailMember1 extends AdditionalDataHolder, Parsable {
+}
+export type CreateTenantAsStaffBody_timezone = CreateTenantAsStaffBody_timezoneMember1 | JsonElement;
+export interface CreateTenantAsStaffBody_timezoneMember1 extends AdditionalDataHolder, Parsable {
+}
+export type CreateTenantAsStaffBody_websiteUrl = CreateTenantAsStaffBody_websiteUrlMember1 | JsonElement;
+export interface CreateTenantAsStaffBody_websiteUrlMember1 extends AdditionalDataHolder, Parsable {
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -2235,6 +2594,42 @@ export function deserializeIntoBulkReactivateTenantsResult(bulkReactivateTenants
 }
 /**
  * The deserialization information for the current model
+ * @param BulkRemoveTenantUsersBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoBulkRemoveTenantUsersBody(bulkRemoveTenantUsersBody: Partial<BulkRemoveTenantUsersBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "userIds": n => { bulkRemoveTenantUsersBody.userIds = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param BulkRemoveTenantUsersFailedItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoBulkRemoveTenantUsersFailedItem(bulkRemoveTenantUsersFailedItem: Partial<BulkRemoveTenantUsersFailedItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "error": n => { bulkRemoveTenantUsersFailedItem.errorEscaped = n.getStringValue(); },
+        "userId": n => { bulkRemoveTenantUsersFailedItem.userId = n.getGuidValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param BulkRemoveTenantUsersResult The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoBulkRemoveTenantUsersResult(bulkRemoveTenantUsersResult: Partial<BulkRemoveTenantUsersResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "failedCount": n => { bulkRemoveTenantUsersResult.failedCount = n.getNumberValue(); },
+        "failedItems": n => { bulkRemoveTenantUsersResult.failedItems = n.getCollectionOfObjectValues<BulkRemoveTenantUsersFailedItem>(createBulkRemoveTenantUsersFailedItemFromDiscriminatorValue); },
+        "succeededCount": n => { bulkRemoveTenantUsersResult.succeededCount = n.getNumberValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param BulkRevokeStaffInvitationsBody The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -2583,9 +2978,262 @@ export function deserializeIntoCreateSystemNoticeBody_expiresAtMember1(createSys
 // @ts-ignore
 export function deserializeIntoCreateTenantAsStaffBody(createTenantAsStaffBody: Partial<CreateTenantAsStaffBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
+        "billingEmail": n => { createTenantAsStaffBody.billingEmail = n.getObjectValue<CreateTenantAsStaffBody_billingEmailMember1>(createCreateTenantAsStaffBody_billingEmailMember1FromDiscriminatorValue) ?? n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue); },
+        "code": n => { createTenantAsStaffBody.code = n.getObjectValue<CreateTenantAsStaffBody_codeMember1>(createCreateTenantAsStaffBody_codeMember1FromDiscriminatorValue) ?? n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue); },
+        "defaultLocale": n => { createTenantAsStaffBody.defaultLocale = n.getObjectValue<CreateTenantAsStaffBody_defaultLocaleMember1>(createCreateTenantAsStaffBody_defaultLocaleMember1FromDiscriminatorValue) ?? n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue); },
+        "description": n => { createTenantAsStaffBody.description = n.getObjectValue<CreateTenantAsStaffBody_descriptionMember1>(createCreateTenantAsStaffBody_descriptionMember1FromDiscriminatorValue) ?? n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue); },
         "initialUsers": n => { createTenantAsStaffBody.initialUsers = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "legalName": n => { createTenantAsStaffBody.legalName = n.getObjectValue<CreateTenantAsStaffBody_legalNameMember1>(createCreateTenantAsStaffBody_legalNameMember1FromDiscriminatorValue) ?? n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue); },
+        "logoUrl": n => { createTenantAsStaffBody.logoUrl = n.getObjectValue<CreateTenantAsStaffBody_logoUrlMember1>(createCreateTenantAsStaffBody_logoUrlMember1FromDiscriminatorValue) ?? n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue); },
         "maxUsers": n => { createTenantAsStaffBody.maxUsers = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "name": n => { createTenantAsStaffBody.name = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "notes": n => { createTenantAsStaffBody.notes = n.getObjectValue<CreateTenantAsStaffBody_notesMember1>(createCreateTenantAsStaffBody_notesMember1FromDiscriminatorValue) ?? n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue); },
+        "seedDefaultProfile": n => { createTenantAsStaffBody.seedDefaultProfile = n.getObjectValue<CreateTenantAsStaffBody_seedDefaultProfileMember1>(createCreateTenantAsStaffBody_seedDefaultProfileMember1FromDiscriminatorValue) ?? n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue); },
+        "supportEmail": n => { createTenantAsStaffBody.supportEmail = n.getObjectValue<CreateTenantAsStaffBody_supportEmailMember1>(createCreateTenantAsStaffBody_supportEmailMember1FromDiscriminatorValue) ?? n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue); },
+        "timezone": n => { createTenantAsStaffBody.timezone = n.getObjectValue<CreateTenantAsStaffBody_timezoneMember1>(createCreateTenantAsStaffBody_timezoneMember1FromDiscriminatorValue) ?? n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue); },
+        "websiteUrl": n => { createTenantAsStaffBody.websiteUrl = n.getObjectValue<CreateTenantAsStaffBody_websiteUrlMember1>(createCreateTenantAsStaffBody_websiteUrlMember1FromDiscriminatorValue) ?? n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param CreateTenantAsStaffBody_billingEmail The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoCreateTenantAsStaffBody_billingEmail(createTenantAsStaffBody_billingEmail: Partial<CreateTenantAsStaffBody_billingEmailMember1 | JsonElement> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        ...deserializeIntoCreateTenantAsStaffBody_billingEmailMember1(createTenantAsStaffBody_billingEmail as CreateTenantAsStaffBody_billingEmailMember1),
+        ...deserializeIntoJsonElement(createTenantAsStaffBody_billingEmail as JsonElement),
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param CreateTenantAsStaffBody_billingEmailMember1 The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoCreateTenantAsStaffBody_billingEmailMember1(createTenantAsStaffBody_billingEmailMember1: Partial<CreateTenantAsStaffBody_billingEmailMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param CreateTenantAsStaffBody_code The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoCreateTenantAsStaffBody_code(createTenantAsStaffBody_code: Partial<CreateTenantAsStaffBody_codeMember1 | JsonElement> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        ...deserializeIntoCreateTenantAsStaffBody_codeMember1(createTenantAsStaffBody_code as CreateTenantAsStaffBody_codeMember1),
+        ...deserializeIntoJsonElement(createTenantAsStaffBody_code as JsonElement),
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param CreateTenantAsStaffBody_codeMember1 The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoCreateTenantAsStaffBody_codeMember1(createTenantAsStaffBody_codeMember1: Partial<CreateTenantAsStaffBody_codeMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param CreateTenantAsStaffBody_defaultLocale The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoCreateTenantAsStaffBody_defaultLocale(createTenantAsStaffBody_defaultLocale: Partial<CreateTenantAsStaffBody_defaultLocaleMember1 | JsonElement> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        ...deserializeIntoCreateTenantAsStaffBody_defaultLocaleMember1(createTenantAsStaffBody_defaultLocale as CreateTenantAsStaffBody_defaultLocaleMember1),
+        ...deserializeIntoJsonElement(createTenantAsStaffBody_defaultLocale as JsonElement),
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param CreateTenantAsStaffBody_defaultLocaleMember1 The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoCreateTenantAsStaffBody_defaultLocaleMember1(createTenantAsStaffBody_defaultLocaleMember1: Partial<CreateTenantAsStaffBody_defaultLocaleMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param CreateTenantAsStaffBody_description The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoCreateTenantAsStaffBody_description(createTenantAsStaffBody_description: Partial<CreateTenantAsStaffBody_descriptionMember1 | JsonElement> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        ...deserializeIntoCreateTenantAsStaffBody_descriptionMember1(createTenantAsStaffBody_description as CreateTenantAsStaffBody_descriptionMember1),
+        ...deserializeIntoJsonElement(createTenantAsStaffBody_description as JsonElement),
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param CreateTenantAsStaffBody_descriptionMember1 The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoCreateTenantAsStaffBody_descriptionMember1(createTenantAsStaffBody_descriptionMember1: Partial<CreateTenantAsStaffBody_descriptionMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param CreateTenantAsStaffBody_legalName The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoCreateTenantAsStaffBody_legalName(createTenantAsStaffBody_legalName: Partial<CreateTenantAsStaffBody_legalNameMember1 | JsonElement> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        ...deserializeIntoCreateTenantAsStaffBody_legalNameMember1(createTenantAsStaffBody_legalName as CreateTenantAsStaffBody_legalNameMember1),
+        ...deserializeIntoJsonElement(createTenantAsStaffBody_legalName as JsonElement),
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param CreateTenantAsStaffBody_legalNameMember1 The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoCreateTenantAsStaffBody_legalNameMember1(createTenantAsStaffBody_legalNameMember1: Partial<CreateTenantAsStaffBody_legalNameMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param CreateTenantAsStaffBody_logoUrl The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoCreateTenantAsStaffBody_logoUrl(createTenantAsStaffBody_logoUrl: Partial<CreateTenantAsStaffBody_logoUrlMember1 | JsonElement> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        ...deserializeIntoCreateTenantAsStaffBody_logoUrlMember1(createTenantAsStaffBody_logoUrl as CreateTenantAsStaffBody_logoUrlMember1),
+        ...deserializeIntoJsonElement(createTenantAsStaffBody_logoUrl as JsonElement),
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param CreateTenantAsStaffBody_logoUrlMember1 The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoCreateTenantAsStaffBody_logoUrlMember1(createTenantAsStaffBody_logoUrlMember1: Partial<CreateTenantAsStaffBody_logoUrlMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param CreateTenantAsStaffBody_notes The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoCreateTenantAsStaffBody_notes(createTenantAsStaffBody_notes: Partial<CreateTenantAsStaffBody_notesMember1 | JsonElement> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        ...deserializeIntoCreateTenantAsStaffBody_notesMember1(createTenantAsStaffBody_notes as CreateTenantAsStaffBody_notesMember1),
+        ...deserializeIntoJsonElement(createTenantAsStaffBody_notes as JsonElement),
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param CreateTenantAsStaffBody_notesMember1 The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoCreateTenantAsStaffBody_notesMember1(createTenantAsStaffBody_notesMember1: Partial<CreateTenantAsStaffBody_notesMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param CreateTenantAsStaffBody_seedDefaultProfile The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoCreateTenantAsStaffBody_seedDefaultProfile(createTenantAsStaffBody_seedDefaultProfile: Partial<CreateTenantAsStaffBody_seedDefaultProfileMember1 | JsonElement> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        ...deserializeIntoCreateTenantAsStaffBody_seedDefaultProfileMember1(createTenantAsStaffBody_seedDefaultProfile as CreateTenantAsStaffBody_seedDefaultProfileMember1),
+        ...deserializeIntoJsonElement(createTenantAsStaffBody_seedDefaultProfile as JsonElement),
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param CreateTenantAsStaffBody_seedDefaultProfileMember1 The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoCreateTenantAsStaffBody_seedDefaultProfileMember1(createTenantAsStaffBody_seedDefaultProfileMember1: Partial<CreateTenantAsStaffBody_seedDefaultProfileMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param CreateTenantAsStaffBody_supportEmail The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoCreateTenantAsStaffBody_supportEmail(createTenantAsStaffBody_supportEmail: Partial<CreateTenantAsStaffBody_supportEmailMember1 | JsonElement> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        ...deserializeIntoCreateTenantAsStaffBody_supportEmailMember1(createTenantAsStaffBody_supportEmail as CreateTenantAsStaffBody_supportEmailMember1),
+        ...deserializeIntoJsonElement(createTenantAsStaffBody_supportEmail as JsonElement),
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param CreateTenantAsStaffBody_supportEmailMember1 The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoCreateTenantAsStaffBody_supportEmailMember1(createTenantAsStaffBody_supportEmailMember1: Partial<CreateTenantAsStaffBody_supportEmailMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param CreateTenantAsStaffBody_timezone The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoCreateTenantAsStaffBody_timezone(createTenantAsStaffBody_timezone: Partial<CreateTenantAsStaffBody_timezoneMember1 | JsonElement> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        ...deserializeIntoCreateTenantAsStaffBody_timezoneMember1(createTenantAsStaffBody_timezone as CreateTenantAsStaffBody_timezoneMember1),
+        ...deserializeIntoJsonElement(createTenantAsStaffBody_timezone as JsonElement),
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param CreateTenantAsStaffBody_timezoneMember1 The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoCreateTenantAsStaffBody_timezoneMember1(createTenantAsStaffBody_timezoneMember1: Partial<CreateTenantAsStaffBody_timezoneMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param CreateTenantAsStaffBody_websiteUrl The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoCreateTenantAsStaffBody_websiteUrl(createTenantAsStaffBody_websiteUrl: Partial<CreateTenantAsStaffBody_websiteUrlMember1 | JsonElement> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        ...deserializeIntoCreateTenantAsStaffBody_websiteUrlMember1(createTenantAsStaffBody_websiteUrl as CreateTenantAsStaffBody_websiteUrlMember1),
+        ...deserializeIntoJsonElement(createTenantAsStaffBody_websiteUrl as JsonElement),
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param CreateTenantAsStaffBody_websiteUrlMember1 The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoCreateTenantAsStaffBody_websiteUrlMember1(createTenantAsStaffBody_websiteUrlMember1: Partial<CreateTenantAsStaffBody_websiteUrlMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
     }
 }
 /**
@@ -2868,15 +3516,28 @@ export function deserializeIntoGetStaffUserProfilesResult(getStaffUserProfilesRe
 // @ts-ignore
 export function deserializeIntoGetTenantAsStaffResult(getTenantAsStaffResult: Partial<GetTenantAsStaffResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
+        "billingEmail": n => { getTenantAsStaffResult.billingEmail = n.getStringValue(); },
         "code": n => { getTenantAsStaffResult.code = n.getStringValue(); },
         "createdAt": n => { getTenantAsStaffResult.createdAt = n.getDateValue(); },
+        "defaultLocale": n => { getTenantAsStaffResult.defaultLocale = n.getStringValue(); },
+        "description": n => { getTenantAsStaffResult.description = n.getStringValue(); },
+        "expiringSoonInvitationsCount": n => { getTenantAsStaffResult.expiringSoonInvitationsCount = n.getNumberValue(); },
+        "lastActivityAt": n => { getTenantAsStaffResult.lastActivityAt = n.getDateValue(); },
+        "legalName": n => { getTenantAsStaffResult.legalName = n.getStringValue(); },
         "logoUrl": n => { getTenantAsStaffResult.logoUrl = n.getStringValue(); },
         "maxUsers": n => { getTenantAsStaffResult.maxUsers = n.getNumberValue(); },
         "name": n => { getTenantAsStaffResult.name = n.getStringValue(); },
+        "notes": n => { getTenantAsStaffResult.notes = n.getStringValue(); },
+        "ownersCount": n => { getTenantAsStaffResult.ownersCount = n.getNumberValue(); },
+        "pendingInvitationsCount": n => { getTenantAsStaffResult.pendingInvitationsCount = n.getNumberValue(); },
+        "profilesCount": n => { getTenantAsStaffResult.profilesCount = n.getNumberValue(); },
         "status": n => { getTenantAsStaffResult.status = n.getStringValue(); },
+        "supportEmail": n => { getTenantAsStaffResult.supportEmail = n.getStringValue(); },
         "tenantId": n => { getTenantAsStaffResult.tenantId = n.getGuidValue(); },
+        "timezone": n => { getTenantAsStaffResult.timezone = n.getStringValue(); },
         "updatedAt": n => { getTenantAsStaffResult.updatedAt = n.getDateValue(); },
         "usersCount": n => { getTenantAsStaffResult.usersCount = n.getNumberValue(); },
+        "websiteUrl": n => { getTenantAsStaffResult.websiteUrl = n.getStringValue(); },
     }
 }
 /**
@@ -3059,6 +3720,8 @@ export function deserializeIntoPasswordLoginResult(passwordLoginResult: Partial<
 export function deserializeIntoPasswordRegisterBody(passwordRegisterBody: Partial<PasswordRegisterBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "email": n => { passwordRegisterBody.email = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "firstName": n => { passwordRegisterBody.firstName = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "lastName": n => { passwordRegisterBody.lastName = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "password": n => { passwordRegisterBody.password = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
@@ -3105,6 +3768,28 @@ export function deserializeIntoReactivateTenantUserResult(reactivateTenantUserRe
         "level": n => { reactivateTenantUserResult.level = n.getStringValue(); },
         "status": n => { reactivateTenantUserResult.status = n.getStringValue(); },
         "tenantId": n => { reactivateTenantUserResult.tenantId = n.getGuidValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param RequestPasswordResetBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoRequestPasswordResetBody(requestPasswordResetBody: Partial<RequestPasswordResetBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "email": n => { requestPasswordResetBody.email = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param RequestPasswordResetResult The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoRequestPasswordResetResult(requestPasswordResetResult: Partial<RequestPasswordResetResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "status": n => { requestPasswordResetResult.status = n.getStringValue(); },
     }
 }
 /**
@@ -3242,6 +3927,20 @@ export function deserializeIntoStaffProfileUserItem(staffProfileUserItem: Partia
         "id": n => { staffProfileUserItem.id = n.getGuidValue(); },
         "lastName": n => { staffProfileUserItem.lastName = n.getStringValue(); },
         "status": n => { staffProfileUserItem.status = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param StaffUploadCreated The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoStaffUploadCreated(staffUploadCreated: Partial<StaffUploadCreated> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "contentType": n => { staffUploadCreated.contentType = n.getStringValue(); },
+        "path": n => { staffUploadCreated.path = n.getStringValue(); },
+        "sizeBytes": n => { staffUploadCreated.sizeBytes = n.getNumberValue(); },
+        "url": n => { staffUploadCreated.url = n.getStringValue(); },
     }
 }
 /**
@@ -3426,6 +4125,7 @@ export function deserializeIntoSystemNoticeUpdated(systemNoticeUpdated: Partial<
 export function deserializeIntoTenantAsStaffListItem(tenantAsStaffListItem: Partial<TenantAsStaffListItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "id": n => { tenantAsStaffListItem.id = n.getGuidValue(); },
+        "lastActivityAt": n => { tenantAsStaffListItem.lastActivityAt = n.getDateValue(); },
         "logoUrl": n => { tenantAsStaffListItem.logoUrl = n.getStringValue(); },
         "maxUsers": n => { tenantAsStaffListItem.maxUsers = n.getNumberValue(); },
         "name": n => { tenantAsStaffListItem.name = n.getStringValue(); },
@@ -3473,6 +4173,7 @@ export function deserializeIntoTenantProfileItem(tenantProfileItem: Partial<Tena
         "id": n => { tenantProfileItem.id = n.getGuidValue(); },
         "isDefault": n => { tenantProfileItem.isDefault = n.getBooleanValue(); },
         "name": n => { tenantProfileItem.name = n.getStringValue(); },
+        "permissionsCount": n => { tenantProfileItem.permissionsCount = n.getNumberValue(); },
         "userAccountCount": n => { tenantProfileItem.userAccountCount = n.getNumberValue(); },
     }
 }
@@ -3814,9 +4515,17 @@ export function deserializeIntoUpdateSystemNoticeBody_titleMember1(updateSystemN
 // @ts-ignore
 export function deserializeIntoUpdateTenantAsStaffBody(updateTenantAsStaffBody: Partial<UpdateTenantAsStaffBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
+        "billingEmail": n => { updateTenantAsStaffBody.billingEmail = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "defaultLocale": n => { updateTenantAsStaffBody.defaultLocale = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "description": n => { updateTenantAsStaffBody.description = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "legalName": n => { updateTenantAsStaffBody.legalName = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "logoUrl": n => { updateTenantAsStaffBody.logoUrl = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "maxUsers": n => { updateTenantAsStaffBody.maxUsers = n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue) ?? n.getObjectValue<UpdateTenantAsStaffBody_maxUsersMember1>(createUpdateTenantAsStaffBody_maxUsersMember1FromDiscriminatorValue); },
         "name": n => { updateTenantAsStaffBody.name = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "notes": n => { updateTenantAsStaffBody.notes = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "supportEmail": n => { updateTenantAsStaffBody.supportEmail = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "timezone": n => { updateTenantAsStaffBody.timezone = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "websiteUrl": n => { updateTenantAsStaffBody.websiteUrl = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
 /**
@@ -4192,6 +4901,10 @@ export interface GetStaffUserProfilesResult extends AdditionalDataHolder, Parsab
 }
 export interface GetTenantAsStaffResult extends AdditionalDataHolder, Parsable {
     /**
+     * The billingEmail property
+     */
+    billingEmail?: string | null;
+    /**
      * The code property
      */
     code?: string | null;
@@ -4199,6 +4912,26 @@ export interface GetTenantAsStaffResult extends AdditionalDataHolder, Parsable {
      * The createdAt property
      */
     createdAt?: Date | null;
+    /**
+     * The defaultLocale property
+     */
+    defaultLocale?: string | null;
+    /**
+     * The description property
+     */
+    description?: string | null;
+    /**
+     * The expiringSoonInvitationsCount property
+     */
+    expiringSoonInvitationsCount?: number | null;
+    /**
+     * The lastActivityAt property
+     */
+    lastActivityAt?: Date | null;
+    /**
+     * The legalName property
+     */
+    legalName?: string | null;
     /**
      * The logoUrl property
      */
@@ -4212,13 +4945,37 @@ export interface GetTenantAsStaffResult extends AdditionalDataHolder, Parsable {
      */
     name?: string | null;
     /**
+     * The notes property
+     */
+    notes?: string | null;
+    /**
+     * The ownersCount property
+     */
+    ownersCount?: number | null;
+    /**
+     * The pendingInvitationsCount property
+     */
+    pendingInvitationsCount?: number | null;
+    /**
+     * The profilesCount property
+     */
+    profilesCount?: number | null;
+    /**
      * The status property
      */
     status?: string | null;
     /**
+     * The supportEmail property
+     */
+    supportEmail?: string | null;
+    /**
      * The tenantId property
      */
     tenantId?: Guid | null;
+    /**
+     * The timezone property
+     */
+    timezone?: string | null;
     /**
      * The updatedAt property
      */
@@ -4227,6 +4984,10 @@ export interface GetTenantAsStaffResult extends AdditionalDataHolder, Parsable {
      * The usersCount property
      */
     usersCount?: number | null;
+    /**
+     * The websiteUrl property
+     */
+    websiteUrl?: string | null;
 }
 export interface GetTenantProfileByIdResponse extends AdditionalDataHolder, Parsable {
     /**
@@ -4424,6 +5185,14 @@ export interface PasswordRegisterBody extends AdditionalDataHolder, Parsable {
      */
     email?: UntypedNode | null;
     /**
+     * The firstName property
+     */
+    firstName?: UntypedNode | null;
+    /**
+     * The lastName property
+     */
+    lastName?: UntypedNode | null;
+    /**
      * The password property
      */
     password?: UntypedNode | null;
@@ -4496,6 +5265,18 @@ export interface ReactivateTenantUserResult extends AdditionalDataHolder, Parsab
      * The tenantId property
      */
     tenantId?: Guid | null;
+}
+export interface RequestPasswordResetBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The email property
+     */
+    email?: UntypedNode | null;
+}
+export interface RequestPasswordResetResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The status property
+     */
+    status?: string | null;
 }
 export interface ResetPasswordBody extends AdditionalDataHolder, Parsable {
     /**
@@ -4843,6 +5624,45 @@ export function serializeBulkReactivateTenantsResult(writer: SerializationWriter
     writer.writeCollectionOfObjectValues<BulkReactivateFailedItem>("failedItems", bulkReactivateTenantsResult.failedItems, serializeBulkReactivateFailedItem);
     writer.writeNumberValue("succeededCount", bulkReactivateTenantsResult.succeededCount);
     writer.writeAdditionalData(bulkReactivateTenantsResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param BulkRemoveTenantUsersBody The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeBulkRemoveTenantUsersBody(writer: SerializationWriter, bulkRemoveTenantUsersBody: Partial<BulkRemoveTenantUsersBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!bulkRemoveTenantUsersBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("userIds", bulkRemoveTenantUsersBody.userIds);
+    writer.writeAdditionalData(bulkRemoveTenantUsersBody.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param BulkRemoveTenantUsersFailedItem The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeBulkRemoveTenantUsersFailedItem(writer: SerializationWriter, bulkRemoveTenantUsersFailedItem: Partial<BulkRemoveTenantUsersFailedItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!bulkRemoveTenantUsersFailedItem || isSerializingDerivedType) { return; }
+    writer.writeStringValue("error", bulkRemoveTenantUsersFailedItem.errorEscaped);
+    writer.writeGuidValue("userId", bulkRemoveTenantUsersFailedItem.userId);
+    writer.writeAdditionalData(bulkRemoveTenantUsersFailedItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param BulkRemoveTenantUsersResult The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeBulkRemoveTenantUsersResult(writer: SerializationWriter, bulkRemoveTenantUsersResult: Partial<BulkRemoveTenantUsersResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!bulkRemoveTenantUsersResult || isSerializingDerivedType) { return; }
+    writer.writeNumberValue("failedCount", bulkRemoveTenantUsersResult.failedCount);
+    writer.writeCollectionOfObjectValues<BulkRemoveTenantUsersFailedItem>("failedItems", bulkRemoveTenantUsersResult.failedItems, serializeBulkRemoveTenantUsersFailedItem);
+    writer.writeNumberValue("succeededCount", bulkRemoveTenantUsersResult.succeededCount);
+    writer.writeAdditionalData(bulkRemoveTenantUsersResult.additionalData);
 }
 /**
  * Serializes information the current object
@@ -5212,10 +6032,263 @@ export function serializeCreateSystemNoticeBody_expiresAtMember1(writer: Seriali
 // @ts-ignore
 export function serializeCreateTenantAsStaffBody(writer: SerializationWriter, createTenantAsStaffBody: Partial<CreateTenantAsStaffBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!createTenantAsStaffBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue<CreateTenantAsStaffBody_billingEmailMember1 | JsonElement>("billingEmail", createTenantAsStaffBody.billingEmail, serializeCreateTenantAsStaffBody_billingEmail);
+    writer.writeObjectValue<CreateTenantAsStaffBody_codeMember1 | JsonElement>("code", createTenantAsStaffBody.code, serializeCreateTenantAsStaffBody_code);
+    writer.writeObjectValue<CreateTenantAsStaffBody_defaultLocaleMember1 | JsonElement>("defaultLocale", createTenantAsStaffBody.defaultLocale, serializeCreateTenantAsStaffBody_defaultLocale);
+    writer.writeObjectValue<CreateTenantAsStaffBody_descriptionMember1 | JsonElement>("description", createTenantAsStaffBody.description, serializeCreateTenantAsStaffBody_description);
     writer.writeObjectValue("initialUsers", createTenantAsStaffBody.initialUsers);
+    writer.writeObjectValue<CreateTenantAsStaffBody_legalNameMember1 | JsonElement>("legalName", createTenantAsStaffBody.legalName, serializeCreateTenantAsStaffBody_legalName);
+    writer.writeObjectValue<CreateTenantAsStaffBody_logoUrlMember1 | JsonElement>("logoUrl", createTenantAsStaffBody.logoUrl, serializeCreateTenantAsStaffBody_logoUrl);
     writer.writeObjectValue("maxUsers", createTenantAsStaffBody.maxUsers);
     writer.writeObjectValue("name", createTenantAsStaffBody.name);
+    writer.writeObjectValue<CreateTenantAsStaffBody_notesMember1 | JsonElement>("notes", createTenantAsStaffBody.notes, serializeCreateTenantAsStaffBody_notes);
+    writer.writeObjectValue<CreateTenantAsStaffBody_seedDefaultProfileMember1 | JsonElement>("seedDefaultProfile", createTenantAsStaffBody.seedDefaultProfile, serializeCreateTenantAsStaffBody_seedDefaultProfile);
+    writer.writeObjectValue<CreateTenantAsStaffBody_supportEmailMember1 | JsonElement>("supportEmail", createTenantAsStaffBody.supportEmail, serializeCreateTenantAsStaffBody_supportEmail);
+    writer.writeObjectValue<CreateTenantAsStaffBody_timezoneMember1 | JsonElement>("timezone", createTenantAsStaffBody.timezone, serializeCreateTenantAsStaffBody_timezone);
+    writer.writeObjectValue<CreateTenantAsStaffBody_websiteUrlMember1 | JsonElement>("websiteUrl", createTenantAsStaffBody.websiteUrl, serializeCreateTenantAsStaffBody_websiteUrl);
     writer.writeAdditionalData(createTenantAsStaffBody.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param CreateTenantAsStaffBody_billingEmail The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeCreateTenantAsStaffBody_billingEmail(writer: SerializationWriter, createTenantAsStaffBody_billingEmail: Partial<CreateTenantAsStaffBody_billingEmailMember1 | JsonElement> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    serializeCreateTenantAsStaffBody_billingEmailMember1(writer, createTenantAsStaffBody_billingEmail as CreateTenantAsStaffBody_billingEmailMember1);
+    serializeJsonElement(writer, createTenantAsStaffBody_billingEmail as JsonElement);
+}
+/**
+ * Serializes information the current object
+ * @param CreateTenantAsStaffBody_billingEmailMember1 The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeCreateTenantAsStaffBody_billingEmailMember1(writer: SerializationWriter, createTenantAsStaffBody_billingEmailMember1: Partial<CreateTenantAsStaffBody_billingEmailMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!createTenantAsStaffBody_billingEmailMember1 || isSerializingDerivedType) { return; }
+    writer.writeAdditionalData(createTenantAsStaffBody_billingEmailMember1.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param CreateTenantAsStaffBody_code The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeCreateTenantAsStaffBody_code(writer: SerializationWriter, createTenantAsStaffBody_code: Partial<CreateTenantAsStaffBody_codeMember1 | JsonElement> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    serializeCreateTenantAsStaffBody_codeMember1(writer, createTenantAsStaffBody_code as CreateTenantAsStaffBody_codeMember1);
+    serializeJsonElement(writer, createTenantAsStaffBody_code as JsonElement);
+}
+/**
+ * Serializes information the current object
+ * @param CreateTenantAsStaffBody_codeMember1 The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeCreateTenantAsStaffBody_codeMember1(writer: SerializationWriter, createTenantAsStaffBody_codeMember1: Partial<CreateTenantAsStaffBody_codeMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!createTenantAsStaffBody_codeMember1 || isSerializingDerivedType) { return; }
+    writer.writeAdditionalData(createTenantAsStaffBody_codeMember1.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param CreateTenantAsStaffBody_defaultLocale The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeCreateTenantAsStaffBody_defaultLocale(writer: SerializationWriter, createTenantAsStaffBody_defaultLocale: Partial<CreateTenantAsStaffBody_defaultLocaleMember1 | JsonElement> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    serializeCreateTenantAsStaffBody_defaultLocaleMember1(writer, createTenantAsStaffBody_defaultLocale as CreateTenantAsStaffBody_defaultLocaleMember1);
+    serializeJsonElement(writer, createTenantAsStaffBody_defaultLocale as JsonElement);
+}
+/**
+ * Serializes information the current object
+ * @param CreateTenantAsStaffBody_defaultLocaleMember1 The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeCreateTenantAsStaffBody_defaultLocaleMember1(writer: SerializationWriter, createTenantAsStaffBody_defaultLocaleMember1: Partial<CreateTenantAsStaffBody_defaultLocaleMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!createTenantAsStaffBody_defaultLocaleMember1 || isSerializingDerivedType) { return; }
+    writer.writeAdditionalData(createTenantAsStaffBody_defaultLocaleMember1.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param CreateTenantAsStaffBody_description The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeCreateTenantAsStaffBody_description(writer: SerializationWriter, createTenantAsStaffBody_description: Partial<CreateTenantAsStaffBody_descriptionMember1 | JsonElement> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    serializeCreateTenantAsStaffBody_descriptionMember1(writer, createTenantAsStaffBody_description as CreateTenantAsStaffBody_descriptionMember1);
+    serializeJsonElement(writer, createTenantAsStaffBody_description as JsonElement);
+}
+/**
+ * Serializes information the current object
+ * @param CreateTenantAsStaffBody_descriptionMember1 The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeCreateTenantAsStaffBody_descriptionMember1(writer: SerializationWriter, createTenantAsStaffBody_descriptionMember1: Partial<CreateTenantAsStaffBody_descriptionMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!createTenantAsStaffBody_descriptionMember1 || isSerializingDerivedType) { return; }
+    writer.writeAdditionalData(createTenantAsStaffBody_descriptionMember1.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param CreateTenantAsStaffBody_legalName The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeCreateTenantAsStaffBody_legalName(writer: SerializationWriter, createTenantAsStaffBody_legalName: Partial<CreateTenantAsStaffBody_legalNameMember1 | JsonElement> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    serializeCreateTenantAsStaffBody_legalNameMember1(writer, createTenantAsStaffBody_legalName as CreateTenantAsStaffBody_legalNameMember1);
+    serializeJsonElement(writer, createTenantAsStaffBody_legalName as JsonElement);
+}
+/**
+ * Serializes information the current object
+ * @param CreateTenantAsStaffBody_legalNameMember1 The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeCreateTenantAsStaffBody_legalNameMember1(writer: SerializationWriter, createTenantAsStaffBody_legalNameMember1: Partial<CreateTenantAsStaffBody_legalNameMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!createTenantAsStaffBody_legalNameMember1 || isSerializingDerivedType) { return; }
+    writer.writeAdditionalData(createTenantAsStaffBody_legalNameMember1.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param CreateTenantAsStaffBody_logoUrl The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeCreateTenantAsStaffBody_logoUrl(writer: SerializationWriter, createTenantAsStaffBody_logoUrl: Partial<CreateTenantAsStaffBody_logoUrlMember1 | JsonElement> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    serializeCreateTenantAsStaffBody_logoUrlMember1(writer, createTenantAsStaffBody_logoUrl as CreateTenantAsStaffBody_logoUrlMember1);
+    serializeJsonElement(writer, createTenantAsStaffBody_logoUrl as JsonElement);
+}
+/**
+ * Serializes information the current object
+ * @param CreateTenantAsStaffBody_logoUrlMember1 The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeCreateTenantAsStaffBody_logoUrlMember1(writer: SerializationWriter, createTenantAsStaffBody_logoUrlMember1: Partial<CreateTenantAsStaffBody_logoUrlMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!createTenantAsStaffBody_logoUrlMember1 || isSerializingDerivedType) { return; }
+    writer.writeAdditionalData(createTenantAsStaffBody_logoUrlMember1.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param CreateTenantAsStaffBody_notes The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeCreateTenantAsStaffBody_notes(writer: SerializationWriter, createTenantAsStaffBody_notes: Partial<CreateTenantAsStaffBody_notesMember1 | JsonElement> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    serializeCreateTenantAsStaffBody_notesMember1(writer, createTenantAsStaffBody_notes as CreateTenantAsStaffBody_notesMember1);
+    serializeJsonElement(writer, createTenantAsStaffBody_notes as JsonElement);
+}
+/**
+ * Serializes information the current object
+ * @param CreateTenantAsStaffBody_notesMember1 The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeCreateTenantAsStaffBody_notesMember1(writer: SerializationWriter, createTenantAsStaffBody_notesMember1: Partial<CreateTenantAsStaffBody_notesMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!createTenantAsStaffBody_notesMember1 || isSerializingDerivedType) { return; }
+    writer.writeAdditionalData(createTenantAsStaffBody_notesMember1.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param CreateTenantAsStaffBody_seedDefaultProfile The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeCreateTenantAsStaffBody_seedDefaultProfile(writer: SerializationWriter, createTenantAsStaffBody_seedDefaultProfile: Partial<CreateTenantAsStaffBody_seedDefaultProfileMember1 | JsonElement> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    serializeCreateTenantAsStaffBody_seedDefaultProfileMember1(writer, createTenantAsStaffBody_seedDefaultProfile as CreateTenantAsStaffBody_seedDefaultProfileMember1);
+    serializeJsonElement(writer, createTenantAsStaffBody_seedDefaultProfile as JsonElement);
+}
+/**
+ * Serializes information the current object
+ * @param CreateTenantAsStaffBody_seedDefaultProfileMember1 The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeCreateTenantAsStaffBody_seedDefaultProfileMember1(writer: SerializationWriter, createTenantAsStaffBody_seedDefaultProfileMember1: Partial<CreateTenantAsStaffBody_seedDefaultProfileMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!createTenantAsStaffBody_seedDefaultProfileMember1 || isSerializingDerivedType) { return; }
+    writer.writeAdditionalData(createTenantAsStaffBody_seedDefaultProfileMember1.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param CreateTenantAsStaffBody_supportEmail The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeCreateTenantAsStaffBody_supportEmail(writer: SerializationWriter, createTenantAsStaffBody_supportEmail: Partial<CreateTenantAsStaffBody_supportEmailMember1 | JsonElement> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    serializeCreateTenantAsStaffBody_supportEmailMember1(writer, createTenantAsStaffBody_supportEmail as CreateTenantAsStaffBody_supportEmailMember1);
+    serializeJsonElement(writer, createTenantAsStaffBody_supportEmail as JsonElement);
+}
+/**
+ * Serializes information the current object
+ * @param CreateTenantAsStaffBody_supportEmailMember1 The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeCreateTenantAsStaffBody_supportEmailMember1(writer: SerializationWriter, createTenantAsStaffBody_supportEmailMember1: Partial<CreateTenantAsStaffBody_supportEmailMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!createTenantAsStaffBody_supportEmailMember1 || isSerializingDerivedType) { return; }
+    writer.writeAdditionalData(createTenantAsStaffBody_supportEmailMember1.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param CreateTenantAsStaffBody_timezone The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeCreateTenantAsStaffBody_timezone(writer: SerializationWriter, createTenantAsStaffBody_timezone: Partial<CreateTenantAsStaffBody_timezoneMember1 | JsonElement> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    serializeCreateTenantAsStaffBody_timezoneMember1(writer, createTenantAsStaffBody_timezone as CreateTenantAsStaffBody_timezoneMember1);
+    serializeJsonElement(writer, createTenantAsStaffBody_timezone as JsonElement);
+}
+/**
+ * Serializes information the current object
+ * @param CreateTenantAsStaffBody_timezoneMember1 The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeCreateTenantAsStaffBody_timezoneMember1(writer: SerializationWriter, createTenantAsStaffBody_timezoneMember1: Partial<CreateTenantAsStaffBody_timezoneMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!createTenantAsStaffBody_timezoneMember1 || isSerializingDerivedType) { return; }
+    writer.writeAdditionalData(createTenantAsStaffBody_timezoneMember1.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param CreateTenantAsStaffBody_websiteUrl The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeCreateTenantAsStaffBody_websiteUrl(writer: SerializationWriter, createTenantAsStaffBody_websiteUrl: Partial<CreateTenantAsStaffBody_websiteUrlMember1 | JsonElement> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    serializeCreateTenantAsStaffBody_websiteUrlMember1(writer, createTenantAsStaffBody_websiteUrl as CreateTenantAsStaffBody_websiteUrlMember1);
+    serializeJsonElement(writer, createTenantAsStaffBody_websiteUrl as JsonElement);
+}
+/**
+ * Serializes information the current object
+ * @param CreateTenantAsStaffBody_websiteUrlMember1 The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeCreateTenantAsStaffBody_websiteUrlMember1(writer: SerializationWriter, createTenantAsStaffBody_websiteUrlMember1: Partial<CreateTenantAsStaffBody_websiteUrlMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!createTenantAsStaffBody_websiteUrlMember1 || isSerializingDerivedType) { return; }
+    writer.writeAdditionalData(createTenantAsStaffBody_websiteUrlMember1.additionalData);
 }
 /**
  * Serializes information the current object
@@ -5520,15 +6593,28 @@ export function serializeGetStaffUserProfilesResult(writer: SerializationWriter,
 // @ts-ignore
 export function serializeGetTenantAsStaffResult(writer: SerializationWriter, getTenantAsStaffResult: Partial<GetTenantAsStaffResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!getTenantAsStaffResult || isSerializingDerivedType) { return; }
+    writer.writeStringValue("billingEmail", getTenantAsStaffResult.billingEmail);
     writer.writeStringValue("code", getTenantAsStaffResult.code);
     writer.writeDateValue("createdAt", getTenantAsStaffResult.createdAt);
+    writer.writeStringValue("defaultLocale", getTenantAsStaffResult.defaultLocale);
+    writer.writeStringValue("description", getTenantAsStaffResult.description);
+    writer.writeNumberValue("expiringSoonInvitationsCount", getTenantAsStaffResult.expiringSoonInvitationsCount);
+    writer.writeDateValue("lastActivityAt", getTenantAsStaffResult.lastActivityAt);
+    writer.writeStringValue("legalName", getTenantAsStaffResult.legalName);
     writer.writeStringValue("logoUrl", getTenantAsStaffResult.logoUrl);
     writer.writeNumberValue("maxUsers", getTenantAsStaffResult.maxUsers);
     writer.writeStringValue("name", getTenantAsStaffResult.name);
+    writer.writeStringValue("notes", getTenantAsStaffResult.notes);
+    writer.writeNumberValue("ownersCount", getTenantAsStaffResult.ownersCount);
+    writer.writeNumberValue("pendingInvitationsCount", getTenantAsStaffResult.pendingInvitationsCount);
+    writer.writeNumberValue("profilesCount", getTenantAsStaffResult.profilesCount);
     writer.writeStringValue("status", getTenantAsStaffResult.status);
+    writer.writeStringValue("supportEmail", getTenantAsStaffResult.supportEmail);
     writer.writeGuidValue("tenantId", getTenantAsStaffResult.tenantId);
+    writer.writeStringValue("timezone", getTenantAsStaffResult.timezone);
     writer.writeDateValue("updatedAt", getTenantAsStaffResult.updatedAt);
     writer.writeNumberValue("usersCount", getTenantAsStaffResult.usersCount);
+    writer.writeStringValue("websiteUrl", getTenantAsStaffResult.websiteUrl);
     writer.writeAdditionalData(getTenantAsStaffResult.additionalData);
 }
 /**
@@ -5725,6 +6811,8 @@ export function serializePasswordLoginResult(writer: SerializationWriter, passwo
 export function serializePasswordRegisterBody(writer: SerializationWriter, passwordRegisterBody: Partial<PasswordRegisterBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!passwordRegisterBody || isSerializingDerivedType) { return; }
     writer.writeObjectValue("email", passwordRegisterBody.email);
+    writer.writeObjectValue("firstName", passwordRegisterBody.firstName);
+    writer.writeObjectValue("lastName", passwordRegisterBody.lastName);
     writer.writeObjectValue("password", passwordRegisterBody.password);
     writer.writeAdditionalData(passwordRegisterBody.additionalData);
 }
@@ -5775,6 +6863,30 @@ export function serializeReactivateTenantUserResult(writer: SerializationWriter,
     writer.writeStringValue("status", reactivateTenantUserResult.status);
     writer.writeGuidValue("tenantId", reactivateTenantUserResult.tenantId);
     writer.writeAdditionalData(reactivateTenantUserResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param RequestPasswordResetBody The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeRequestPasswordResetBody(writer: SerializationWriter, requestPasswordResetBody: Partial<RequestPasswordResetBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!requestPasswordResetBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("email", requestPasswordResetBody.email);
+    writer.writeAdditionalData(requestPasswordResetBody.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param RequestPasswordResetResult The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeRequestPasswordResetResult(writer: SerializationWriter, requestPasswordResetResult: Partial<RequestPasswordResetResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!requestPasswordResetResult || isSerializingDerivedType) { return; }
+    writer.writeStringValue("status", requestPasswordResetResult.status);
+    writer.writeAdditionalData(requestPasswordResetResult.additionalData);
 }
 /**
  * Serializes information the current object
@@ -5922,6 +7034,21 @@ export function serializeStaffProfileUserItem(writer: SerializationWriter, staff
     writer.writeStringValue("lastName", staffProfileUserItem.lastName);
     writer.writeStringValue("status", staffProfileUserItem.status);
     writer.writeAdditionalData(staffProfileUserItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param StaffUploadCreated The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeStaffUploadCreated(writer: SerializationWriter, staffUploadCreated: Partial<StaffUploadCreated> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!staffUploadCreated || isSerializingDerivedType) { return; }
+    writer.writeStringValue("contentType", staffUploadCreated.contentType);
+    writer.writeStringValue("path", staffUploadCreated.path);
+    writer.writeNumberValue("sizeBytes", staffUploadCreated.sizeBytes);
+    writer.writeStringValue("url", staffUploadCreated.url);
+    writer.writeAdditionalData(staffUploadCreated.additionalData);
 }
 /**
  * Serializes information the current object
@@ -6116,6 +7243,7 @@ export function serializeSystemNoticeUpdated(writer: SerializationWriter, system
 export function serializeTenantAsStaffListItem(writer: SerializationWriter, tenantAsStaffListItem: Partial<TenantAsStaffListItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!tenantAsStaffListItem || isSerializingDerivedType) { return; }
     writer.writeGuidValue("id", tenantAsStaffListItem.id);
+    writer.writeDateValue("lastActivityAt", tenantAsStaffListItem.lastActivityAt);
     writer.writeStringValue("logoUrl", tenantAsStaffListItem.logoUrl);
     writer.writeNumberValue("maxUsers", tenantAsStaffListItem.maxUsers);
     writer.writeStringValue("name", tenantAsStaffListItem.name);
@@ -6166,6 +7294,7 @@ export function serializeTenantProfileItem(writer: SerializationWriter, tenantPr
     writer.writeGuidValue("id", tenantProfileItem.id);
     writer.writeBooleanValue("isDefault", tenantProfileItem.isDefault);
     writer.writeStringValue("name", tenantProfileItem.name);
+    writer.writeNumberValue("permissionsCount", tenantProfileItem.permissionsCount);
     writer.writeNumberValue("userAccountCount", tenantProfileItem.userAccountCount);
     writer.writeAdditionalData(tenantProfileItem.additionalData);
 }
@@ -6524,9 +7653,17 @@ export function serializeUpdateSystemNoticeBody_titleMember1(writer: Serializati
 // @ts-ignore
 export function serializeUpdateTenantAsStaffBody(writer: SerializationWriter, updateTenantAsStaffBody: Partial<UpdateTenantAsStaffBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!updateTenantAsStaffBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("billingEmail", updateTenantAsStaffBody.billingEmail);
+    writer.writeObjectValue("defaultLocale", updateTenantAsStaffBody.defaultLocale);
+    writer.writeObjectValue("description", updateTenantAsStaffBody.description);
+    writer.writeObjectValue("legalName", updateTenantAsStaffBody.legalName);
     writer.writeObjectValue("logoUrl", updateTenantAsStaffBody.logoUrl);
     writer.writeObjectValue<JsonElement | UpdateTenantAsStaffBody_maxUsersMember1>("maxUsers", updateTenantAsStaffBody.maxUsers, serializeUpdateTenantAsStaffBody_maxUsers);
     writer.writeObjectValue("name", updateTenantAsStaffBody.name);
+    writer.writeObjectValue("notes", updateTenantAsStaffBody.notes);
+    writer.writeObjectValue("supportEmail", updateTenantAsStaffBody.supportEmail);
+    writer.writeObjectValue("timezone", updateTenantAsStaffBody.timezone);
+    writer.writeObjectValue("websiteUrl", updateTenantAsStaffBody.websiteUrl);
     writer.writeAdditionalData(updateTenantAsStaffBody.additionalData);
 }
 /**
@@ -6802,6 +7939,24 @@ export interface StaffProfileUserItem extends AdditionalDataHolder, Parsable {
      */
     status?: string | null;
 }
+export interface StaffUploadCreated extends AdditionalDataHolder, Parsable {
+    /**
+     * The contentType property
+     */
+    contentType?: string | null;
+    /**
+     * The path property
+     */
+    path?: string | null;
+    /**
+     * The sizeBytes property
+     */
+    sizeBytes?: number | null;
+    /**
+     * The url property
+     */
+    url?: string | null;
+}
 export interface StaffUserItem extends AdditionalDataHolder, Parsable {
     /**
      * The avatarUrl property
@@ -7038,6 +8193,10 @@ export interface TenantAsStaffListItem extends AdditionalDataHolder, Parsable {
      */
     id?: Guid | null;
     /**
+     * The lastActivityAt property
+     */
+    lastActivityAt?: Date | null;
+    /**
      * The logoUrl property
      */
     logoUrl?: string | null;
@@ -7111,6 +8270,10 @@ export interface TenantProfileItem extends AdditionalDataHolder, Parsable {
      * The name property
      */
     name?: string | null;
+    /**
+     * The permissionsCount property
+     */
+    permissionsCount?: number | null;
     /**
      * The userAccountCount property
      */
@@ -7408,6 +8571,22 @@ export interface UpdateSystemNoticeBody_titleMember1 extends AdditionalDataHolde
 }
 export interface UpdateTenantAsStaffBody extends AdditionalDataHolder, Parsable {
     /**
+     * The billingEmail property
+     */
+    billingEmail?: UntypedNode | null;
+    /**
+     * The defaultLocale property
+     */
+    defaultLocale?: UntypedNode | null;
+    /**
+     * The description property
+     */
+    description?: UntypedNode | null;
+    /**
+     * The legalName property
+     */
+    legalName?: UntypedNode | null;
+    /**
      * The logoUrl property
      */
     logoUrl?: UntypedNode | null;
@@ -7419,6 +8598,22 @@ export interface UpdateTenantAsStaffBody extends AdditionalDataHolder, Parsable 
      * The name property
      */
     name?: UntypedNode | null;
+    /**
+     * The notes property
+     */
+    notes?: UntypedNode | null;
+    /**
+     * The supportEmail property
+     */
+    supportEmail?: UntypedNode | null;
+    /**
+     * The timezone property
+     */
+    timezone?: UntypedNode | null;
+    /**
+     * The websiteUrl property
+     */
+    websiteUrl?: UntypedNode | null;
 }
 export type UpdateTenantAsStaffBody_maxUsers = JsonElement | UpdateTenantAsStaffBody_maxUsersMember1;
 export interface UpdateTenantAsStaffBody_maxUsersMember1 extends AdditionalDataHolder, Parsable {

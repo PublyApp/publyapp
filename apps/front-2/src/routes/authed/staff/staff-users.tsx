@@ -1,17 +1,31 @@
-import { buttonVariants } from '@heroui/react';
+import {
+	IconCircleDot,
+	IconEye,
+	IconIdBadge2,
+	IconMail,
+	IconUser,
+	IconUserPlus,
+} from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
+import { DataTableRowActions } from '~/components/table/row-actions';
 import { useRowSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
+import { buttonVariants } from '~/components/ui/button';
+import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
+import { InitialsAvatar } from '~/components/ui/initials-avatar';
+import { PageHeader, StatusPill } from '~/components/ui/product-page';
+import { statusPillTone } from '~/components/ui/status-tone';
 import {
 	toStaffUserRows,
 	type StaffUserRow,
 	useStaffUsersQuery,
 } from '~/lib/query/staff-users';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 import {
 	parseTableSearchParams,
 	serializeTableSearchParams,
@@ -20,59 +34,105 @@ import type {
 	TableSearchParamInput,
 	TableSearchParams,
 } from '~/lib/url-state/table-search-params';
-import { shouldLogoutForFailure } from '~/routes/authed/layout';
+import { StaffListExportSelectedAction } from '~/routes/authed/staff/staff-list-export-selected';
+import {
+	formatAccountLevelLabel,
+	formatStaffStatusLabel,
+} from '~/routes/authed/staff/staff-users/status-labels';
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 // Locked contract default (docs/front-2-migration/parity-contract.md): 100,
 // matching the current app and the selectable page-size options.
 const DEFAULT_SIZE = 100;
 
 // Name is not backend-sortable (parity contract); Level/Status map 1:1 to sort_id values.
-const columns: ColumnDef<StaffUserRow>[] = [
+const buildColumns = (
+	t: (key: string, options?: Record<string, unknown>) => string,
+): ColumnDef<StaffUserRow>[] => [
 	{
 		id: 'name',
-		header: 'Name',
+		header: t('name'),
 		enableSorting: false,
+		meta: { headerIcon: <IconUser />, width: '200px', pinWidthAbove: 768 },
 		cell: ({ row }) => (
-			<div className="space-y-1">
-				<Link
-					to={'/staff/staff-users/$userId' as never}
-					params={{ userId: row.original.id } as never}
-					className="font-medium text-primary underline-offset-4 hover:underline"
+			<Link
+				to="/staff/staff-users/$userId"
+				params={{ userId: row.original.id }}
+				className="flex min-w-0 items-center gap-2.5 no-underline"
+			>
+				<InitialsAvatar name={row.original.displayName} />
+				<span
+					className="publy-record-link min-w-0 truncate"
+					title={row.original.displayName}
 				>
 					{row.original.displayName}
-				</Link>
-				<div className="text-xs text-muted">
-					{row.original.email || 'No email address'}
-				</div>
-			</div>
+				</span>
+			</Link>
 		),
 	},
 	{
+		id: 'email',
+		header: t('email'),
+		accessorKey: 'email',
+		enableSorting: false,
+		meta: { headerIcon: <IconMail />, hideBelow: 768 },
+		cell: ({ getValue }) => {
+			const email = getValue<string>() || t('no-email-address');
+			return (
+				<span className="block truncate font-normal" title={email}>
+					{email}
+				</span>
+			);
+		},
+	},
+	{
 		id: 'level',
-		header: 'Level',
+		header: t('level'),
 		accessorKey: 'level',
-		cell: ({ getValue }) => getValue<string | null>() ?? '—',
+		meta: { headerIcon: <IconIdBadge2 />, width: '104px', hideBelow: 768 },
+		cell: ({ getValue }) => (
+			<StatusPill tone="neutral">
+				{formatAccountLevelLabel(getValue<string | null>(), t)}
+			</StatusPill>
+		),
 	},
 	{
 		id: 'status',
-		header: 'Status',
+		header: t('status'),
 		accessorKey: 'status',
-		cell: ({ getValue }) => getValue<string | null>() ?? '—',
+		meta: { headerIcon: <IconCircleDot />, width: '122px' },
+		cell: ({ getValue }) => {
+			const status = getValue<string | null>();
+			return (
+				<StatusPill tone={statusPillTone(status)}>
+					{formatStaffStatusLabel(status, t)}
+				</StatusPill>
+			);
+		},
 	},
 	{
 		id: 'actions',
-		header: 'Actions',
+		// Visually chromeless per the handoff, but the columnheader needs an
+		// accessible name (axe empty-table-header, parity contract).
+		header: () => <span className="sr-only">{t('actions')}</span>,
 		enableSorting: false,
+		meta: { width: '40px', align: 'center' },
 		cell: ({ row }) => (
-			<div className="flex justify-end">
-				<Link
-					to={'/staff/staff-users/$userId' as never}
-					params={{ userId: row.original.id } as never}
-					className={buttonVariants({ variant: 'secondary', size: 'sm' })}
+			<DataTableRowActions
+				ariaLabel={t('actions-for', { name: row.original.displayName })}
+				testId={`staff-user-actions-${row.original.id}`}
+			>
+				<DropdownMenuItem
+					render={
+						<Link
+							to="/staff/staff-users/$userId"
+							params={{ userId: row.original.id }}
+						/>
+					}
 				>
-					View
-				</Link>
-			</div>
+					<IconEye />
+					{t('view-profile')}
+				</DropdownMenuItem>
+			</DataTableRowActions>
 		),
 	},
 ];
@@ -110,6 +170,7 @@ function StaffUsersPage() {
 	const query = useStaffUsersQuery(controller.apiVariables);
 	const rows = toStaffUserRows(query.data?.data);
 	const selection = useRowSelection(rows.map((row) => row.id));
+	const columns = useMemo(() => buildColumns(t), [t]);
 
 	const { resetDraftToCommitted } = controller.search;
 	useEffect(() => {
@@ -125,19 +186,23 @@ function StaffUsersPage() {
 	const hasNextPage = query.data?.nextCursor != null;
 
 	return (
-		<div className="space-y-4 p-4">
-			<div className="flex items-center justify-between gap-4">
-				<h1 className="text-xl font-semibold">Staff users</h1>
-				<Link
-					to={'/staff/invitations/new' as never} // Route is not yet migrated for typed route checks; parity contract keeps this external path.
-					className={buttonVariants({ variant: 'primary' })}
-				>
-					{t('invite-users')}
-				</Link>
-			</div>
+		<div className="publy-page-fill">
+			<PageHeader
+				title={t('staff-users-page-title')}
+				description={t('staff-users-page-description')}
+				actions={
+					<Link
+						to={'/staff/invitations/new' as never} // Route is not yet migrated for typed route checks; parity contract keeps this external path.
+						className={buttonVariants({ variant: 'default' })}
+					>
+						<IconUserPlus aria-hidden="true" className="size-4" />
+						{t('invite-users')}
+					</Link>
+				}
+			/>
 			<DataTable
 				testId="staff-users-table"
-				ariaLabel="Staff users"
+				ariaLabel={t('staff-users-page-title')}
 				columns={columns}
 				rows={rows}
 				isPending={query.isPending}
@@ -159,6 +224,24 @@ function StaffUsersPage() {
 				searchDraft={controller.search.draft}
 				onSearchDraftChange={controller.search.onDraftChange}
 				selection={selection}
+				searchPlaceholder={t('search-staff-users')}
+			/>
+			<StaffListExportSelectedAction
+				rows={rows}
+				selection={selection}
+				fileNamePrefix="staff-users"
+				columns={[
+					{ header: t('name'), getValue: (row) => row.displayName },
+					{ header: t('email'), getValue: (row) => row.email },
+					{
+						header: t('level'),
+						getValue: (row) => formatAccountLevelLabel(row.level, t),
+					},
+					{
+						header: t('status'),
+						getValue: (row) => formatStaffStatusLabel(row.status, t),
+					},
+				]}
 			/>
 		</div>
 	);

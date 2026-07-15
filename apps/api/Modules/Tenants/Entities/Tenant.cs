@@ -32,6 +32,34 @@ public class Tenant : BaseAttributes, INoTenantEntity {
 	[Column("max_users")]
 	public required int MaxUsers { get; set; }
 
+	[Column("legal_name")]
+	public string? LegalName { get; set; }
+
+	[Column("description")]
+	public string? Description { get; set; }
+
+	[Column("website_url")]
+	public string? WebsiteUrl { get; set; }
+
+	[Column("billing_email")]
+	public string? BillingEmail { get; set; }
+
+	[Column("support_email")]
+	public string? SupportEmail { get; set; }
+
+	[Column("default_locale")]
+	public string? DefaultLocale { get; set; }
+
+	[Column("timezone")]
+	public string? Timezone { get; set; }
+
+	// Staff-internal operator notes. NEVER expose on tenant-scope responses.
+	[Column("notes")]
+	public string? Notes { get; set; }
+
+	[Column("last_activity_at")]
+	public DateTime? LastActivityAt { get; set; }
+
 	// navigation properties
 	[JsonIgnore]
 	public ICollection<UserAccount> UserAccounts { get; set; } = [];

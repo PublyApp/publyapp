@@ -1,0 +1,84 @@
+import { expect, test, type Page } from '@playwright/test';
+
+import { API_BASE_URL } from './helpers/api';
+import { loginAsStaffAdmin } from './helpers/login';
+
+const COUNTER_BASE_URL = 'http://127.0.0.1:8800';
+const STAFF_INVITATIONS_PATH = '/staff/invitations';
+
+const isApiPath = (url: string, path: string): boolean => {
+	const parsed = new URL(url);
+	return parsed.origin === API_BASE_URL && parsed.pathname === path;
+};
+
+const waitForStaffInvitationsGetResponse = (page: Page) =>
+	page.waitForResponse(
+		(response) =>
+			isApiPath(response.url(), STAFF_INVITATIONS_PATH) &&
+			response.request().method() === 'GET' &&
+			response.status() === 200,
+	);
+
+const resetCounter = async (page: Page) => {
+	const response = await page.request.post(
+		`${COUNTER_BASE_URL}/__counter/reset`,
+	);
+	expect(response.ok()).toBe(true);
+};
+
+const getCounter = async (page: Page, path: string): Promise<number> => {
+	const response = await page.request.get(`${COUNTER_BASE_URL}/__counter`, {
+		params: {
+			path,
+			method: 'GET',
+		},
+	});
+	expect(response.ok()).toBe(true);
+
+	const body = (await response.json()) as {
+		count?: unknown;
+	};
+	return typeof body.count === 'number' ? body.count : -1;
+};
+
+/**
+ * Moved out of staff-invitations.spec.ts into its own file and its own
+ * dependency-ordered playwright project (see playwright.config.ts, project
+ * `chromium-hermetic-counter`). The request-counter sidecar
+ * (deploy/request-counter/server.mjs) counts traffic from EVERY worker and
+ * browser globally — it has no per-test/per-header bucketing — so running
+ * this test concurrently with anything else that unmocked-GETs the same path
+ * (e.g. parity-happy-path.spec.ts navigating to /staff/invitations) can red
+ * the build with no product defect (review-r1-tests.md F11). The
+ * `dependencies` ordering in playwright.config.ts guarantees every other
+ * project has fully finished before this one starts, which is what actually
+ * makes this test hermetic today.
+ *
+ * The X-E2E-Test-Marker header below is a forward-compatible hook, NOT the
+ * current isolation mechanism: `deploy/request-counter` does not read it yet
+ * (see PKT-H's report, Handoffs). Once the sidecar buckets counts by that
+ * header (and accepts a matching `marker` query param on `/__counter`), this
+ * test — and any future counter-based test — can drop the project-ordering
+ * requirement and run fully in parallel instead.
+ */
+test.describe('staff invitations request counter (hermetic project)', () => {
+	test('clean load issues exactly one GET /staff/invitations request', async ({
+		page,
+	}) => {
+		// Deliberately NO X-E2E-Test-Marker header (yet): the sidecar does not
+		// read it, and the API's CORS policy does not allowlist it — a
+		// non-simple custom header on every request turns each API call into a
+		// blocked preflight and kills the login flow outright (captain-verified
+		// against the live stack: allow-headers = Content-Type, Accept,
+		// X-Session-Token, X-PublyApp-TenantId). When the sidecar buckets by
+		// marker, add the header AND extend the API CORS allowlist together.
+		await loginAsStaffAdmin(page);
+		await resetCounter(page);
+
+		const response = waitForStaffInvitationsGetResponse(page);
+		await page.goto('/staff/invitations');
+		await response;
+
+		expect(await getCounter(page, STAFF_INVITATIONS_PATH)).toBe(1);
+	});
+});

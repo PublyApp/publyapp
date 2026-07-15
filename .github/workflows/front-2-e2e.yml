@@ -1,6 +1,12 @@
 name: front-2 e2e
 
 on:
+  pull_request:
+    paths:
+      - 'apps/front-2/**'
+      - 'packages/shared-ts/**'
+      - 'packages/client-ts/**'
+      - '.github/workflows/front-2-e2e.yml'
   push:
     branches:
       - develop

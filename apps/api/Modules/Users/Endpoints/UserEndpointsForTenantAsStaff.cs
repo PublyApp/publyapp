@@ -1,4 +1,5 @@
 using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.Filters;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Modules.Users.Handlers.Staff;
@@ -45,6 +46,28 @@ public static class UserEndpointsForTenantAsStaff {
 			.WithName("RemoveUserFromTenantAsStaff")
 			.WithSummary("Remove a user from a tenant")
 			.WithPermission([AppPermissions.Staff.Users.DELETE_FOR_TENANT]);
+
+		group.MapPost(
+			Routes.Users.ForTenantAsStaff.BulkRemove,
+			BulkRemoveTenantUsersAsStaff.Handle
+		)
+			.WithName("BulkRemoveTenantUsersAsStaff")
+			.WithSummary("Remove multiple users from a tenant")
+			.WithPermission([AppPermissions.Staff.Users.DELETE_FOR_TENANT])
+			.WithReqBodyValidation<BulkRemoveTenantUsersBody>();
+
+		group.MapGet(
+			Routes.Users.ForTenantAsStaff.Export,
+			ExportTenantUsersAsStaff.Handle
+		)
+			.WithName("ExportTenantUsersAsStaff")
+			.WithSummary("Export tenant users as CSV")
+			// The handler streams CSV directly to Response.Body; this metadata
+			// exists only to document the response shape in OpenAPI.
+			.Produces<byte[]>(StatusCodes.Status200OK, "text/csv")
+			.ProducesAppProblem(StatusCodes.Status400BadRequest)
+			.WithPermission([AppPermissions.Staff.Users.LIST_FOR_TENANT])
+			.WithReqQueryValidation<ExportTenantUsersAsStaffQuery>();
 
 		group.MapPatch(
 			Routes.Users.ForTenantAsStaff.Update,

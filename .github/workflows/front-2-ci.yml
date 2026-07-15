@@ -52,7 +52,13 @@ jobs:
       - name: Verify front-2 production build emits a CSS asset
         run: node apps/front-2/scripts/verify-build-css-link.mjs
 
+      - name: Check front-2 client-bundle context isolation
+        run: pnpm --filter front-2 check:context-chunk-isolation
+
       - name: Smoke start front-2 server and verify stylesheet tag
+        env:
+          PUBLIC_API_BASE_URL: 'http://127.0.0.1:5000'
+          SERVER_API_BASE_URL: 'http://127.0.0.1:5000'
         run: |
           pnpm --filter front-2 start > /tmp/front-2-ci-server.log 2>&1 &
           FRONT_2_SERVER_PID=$!
@@ -79,6 +85,15 @@ jobs:
 
       - name: Typecheck front-2
         run: pnpm --filter front-2 typecheck
+
+      - name: Lint front-2
+        run: |
+          npx oxlint --quiet apps/front-2 packages/shared-ts
+          pnpm lint:disables
+          pnpm check:frontend-barrels
+
+      - name: Check front-2 design system
+        run: pnpm --filter front-2 check:design-system
 
       - name: Test front-2
         run: pnpm --filter front-2 test

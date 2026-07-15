@@ -128,6 +128,25 @@ public static class TypedProblems {
 	}
 
 	/// <summary>
+	/// Creates a 413 Payload Too Large response with ProblemDetails
+	/// </summary>
+	/// <param name="detail">Detailed explanation of the error</param>
+	/// <param name="translationKey">Translation key for frontend i18n</param>
+	/// <param name="title">Short summary (defaults to "Payload Too Large")</param>
+	public static AppPayloadTooLargeHttpResult PayloadTooLarge(
+		string detail,
+		TranslationKey translationKey,
+		string title = "Payload Too Large"
+	) {
+		return new(AppProblemDetails.Create(
+		StatusCodes.Status413PayloadTooLarge,
+		title,
+		detail,
+		translationKey
+	));
+	}
+
+	/// <summary>
 	/// Creates a 422 Unprocessable Entity response with validation errors
 	/// </summary>
 	/// <param name="detail">Detailed explanation of the error</param>

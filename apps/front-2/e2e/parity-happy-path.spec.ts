@@ -1,12 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import { API_BASE_URL } from './helpers/api';
 import {
 	getInviteStaffUserButton,
 	loginAsStaffAdmin,
 	setLocaleCookie,
 } from './helpers/login';
 
-const API_BASE_URL = 'https://api.front-2.localhost:8443';
 const AUTHED_STAFF_USERS_PATH = '/staff/users';
 const STAFF_INVITATIONS_NEW_PATH = '/staff/invitations/new';
 const STAFF_INVITATIONS_BULK_PATH = '/staff/invitations/bulk';
@@ -193,7 +193,13 @@ const assertColumnShape = (page: Page) =>
 				name: /^Actions$/,
 			}),
 		).toBeVisible(),
-		expect(page.getByRole('columnheader', { name: /^Email$/ })).toHaveCount(0),
+		// Owner-approved two-column split (2026-07-09): Email is its own column
+		// like the gray-ui template's /customers, superseding email-in-name-cell.
+		expect(
+			page.getByRole('columnheader', {
+				name: /^Email$/,
+			}),
+		).toBeVisible(),
 	]);
 
 function escapeRegExp(value: string): string {

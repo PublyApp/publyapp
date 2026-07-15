@@ -1,4 +1,8 @@
 import { create } from 'zustand';
+import {
+	postBroadcast,
+	THEME_SYNC_CHANNEL,
+} from '~/lib/tab-sync/broadcast-sync';
 
 export const COLOR_SCHEME_STORAGE_KEY = 'publyapp:color-scheme';
 export const SIDEBAR_OPEN_STORAGE_KEY = 'publyapp:sidebar-open';
@@ -11,6 +15,14 @@ export type ColorScheme = 'dark' | 'light';
 type UiState = {
 	colorScheme: ColorScheme;
 	sidebarOpen: boolean;
+	/**
+	 * Explicit user choice to show the secondary panel on rail-only
+	 * (detail/form) routes. Unlike `sidebarOpen`, this is in-memory only
+	 * (never persisted) — rail-only routes default to closed on every fresh
+	 * session/reload, but an explicit toggle during the session carries over
+	 * as the user navigates between other rail-only routes.
+	 */
+	railOnlyPanelOpen: boolean;
 };
 
 type PersistedColorState = {
@@ -31,6 +43,7 @@ const isBrowser = typeof window !== 'undefined';
 const DEFAULT_UI_STATE: UiState = {
 	colorScheme: DEFAULT_COLOR_SCHEME,
 	sidebarOpen: DEFAULT_SIDEBAR_OPEN,
+	railOnlyPanelOpen: false,
 };
 
 const readLocalStorageValue = (key: string): string | null => {
@@ -178,7 +191,33 @@ const applyThemeToDocument = (colorScheme: ColorScheme) => {
 	document.documentElement.dataset.theme = colorScheme;
 };
 
-const readPersistedUiState = (): UiState => {
+/**
+ * Suppresses the CSS transition on every element for the duration of `apply`
+ * (via the `data-theme-changing` attribute the stylesheet keys off) so a
+ * color-scheme change never animates — only interactions afterward do. Used
+ * both by the local toggle and by a remote tab applying a broadcast theme
+ * change.
+ */
+export const withThemeTransitionSuppressed = (apply: () => void): void => {
+	if (!isBrowser) {
+		apply();
+		return;
+	}
+
+	const root = document.documentElement;
+	root.setAttribute('data-theme-changing', 'true');
+	apply();
+	requestAnimationFrame(() => {
+		requestAnimationFrame(() => {
+			root.removeAttribute('data-theme-changing');
+		});
+	});
+};
+
+const readPersistedUiState = (): Pick<
+	UiState,
+	'colorScheme' | 'sidebarOpen'
+> => {
 	if (!isBrowser) {
 		return DEFAULT_UI_STATE;
 	}
@@ -197,8 +236,11 @@ const readPersistedUiState = (): UiState => {
 type UiStore = UiState & {
 	setColorScheme: (colorScheme: ColorScheme) => void;
 	toggleColorScheme: () => void;
+	applyRemoteColorScheme: (colorScheme: ColorScheme) => void;
 	setSidebarOpen: (sidebarOpen: boolean) => void;
 	toggleSidebarOpen: () => void;
+	setRailOnlyPanelOpen: (railOnlyPanelOpen: boolean) => void;
+	toggleRailOnlyPanelOpen: () => void;
 	hydrateFromStorage: () => void;
 };
 
@@ -217,6 +259,7 @@ export const useUiStore = create<UiStore>((set, get) => ({
 		applyThemeToDocument(normalizedColorScheme);
 		writeColorScheme(normalizedColorScheme);
 		set({ colorScheme: normalizedColorScheme });
+		postBroadcast(THEME_SYNC_CHANNEL, { colorScheme: normalizedColorScheme });
 	},
 	toggleColorScheme: () => {
 		const currentColorScheme =
@@ -226,11 +269,27 @@ export const useUiStore = create<UiStore>((set, get) => ({
 		const nextColorScheme = currentColorScheme === 'light' ? 'dark' : 'light';
 		get().setColorScheme(nextColorScheme);
 	},
+	applyRemoteColorScheme: (colorScheme) => {
+		// Applied from another tab's broadcast: DOM + state only, no
+		// re-broadcast (would echo back and forth between tabs) and no
+		// re-persist (the origin tab already wrote this value to
+		// localStorage — writing it again here would be harmless but
+		// redundant).
+		const normalizedColorScheme = parseColorScheme(colorScheme);
+		applyThemeToDocument(normalizedColorScheme);
+		set({ colorScheme: normalizedColorScheme });
+	},
 	setSidebarOpen: (sidebarOpen) => {
 		writeSidebarOpen(sidebarOpen);
 		set({ sidebarOpen });
 	},
 	toggleSidebarOpen: () => {
 		get().setSidebarOpen(!get().sidebarOpen);
+	},
+	setRailOnlyPanelOpen: (railOnlyPanelOpen) => {
+		set({ railOnlyPanelOpen });
+	},
+	toggleRailOnlyPanelOpen: () => {
+		get().setRailOnlyPanelOpen(!get().railOnlyPanelOpen);
 	},
 }));

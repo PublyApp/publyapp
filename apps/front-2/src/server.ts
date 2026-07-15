@@ -8,8 +8,9 @@ import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 import { captureBadRequest } from './lib/analytics';
 import { getOptionalPublicApiBaseUrl, isDevelopmentRuntime } from './lib/env';
-import { resolveLocaleFromCookie } from './lib/i18n.server';
-import { dirForLocale, type SupportedLanguage } from './lib/i18n.shared';
+import { buildI18nResources, resolveLocaleFromCookie } from './lib/i18n.server';
+import { createI18nFromResources } from './lib/i18n.shared';
+import type { SupportedLanguage } from './lib/i18n.shared';
 import { mintCspNonce, applyCspHeaders } from './server/csp';
 import { seo } from './utils/seo';
 
@@ -34,7 +35,7 @@ const resolveLocaleFromRequest = (request: Request): SupportedLanguage => {
 	return resolveLocaleFromCookie(request.headers.get('cookie') ?? undefined);
 };
 
-const escapeHtml = (value: string): string =>
+export const escapeHtml = (value: string): string =>
 	value
 		.replace(/&/g, '&amp;')
 		.replace(/</g, '&lt;')
@@ -42,7 +43,7 @@ const escapeHtml = (value: string): string =>
 		.replace(/"/g, '&quot;')
 		.replace(/'/g, '&#39;');
 
-const resolvePublicApiBaseUrlEnv = (): string | undefined => {
+export const resolvePublicApiBaseUrlEnv = (): string | undefined => {
 	const value = getOptionalPublicApiBaseUrl();
 	if (!value) {
 		return undefined;
@@ -62,23 +63,6 @@ const setRouterNonce = (ctx: StreamHandlerContext, nonce: string): void => {
 			nonce,
 		},
 	};
-};
-
-const replaceHtmlLanguage = (
-	html: string,
-	locale: SupportedLanguage,
-): string => {
-	const language = escapeHtml(locale);
-	const direction = escapeHtml(dirForLocale(locale));
-
-	return html.replace(/<html\b([^>]*)>/i, (_match, attrs: string) => {
-		const cleaned = String(attrs)
-			.replace(/\s*lang=(?:"[^"]*"|'[^']*'|[^\s>]+)/i, '')
-			.replace(/\s*dir=(?:"[^"]*"|'[^']*'|[^\s>]+)/i, '')
-			.trim();
-
-		return `<html${cleaned ? ` ${cleaned}` : ''} lang="${language}" dir="${direction}">`;
-	});
 };
 
 const renderMetaTag = (tag: {
@@ -109,12 +93,15 @@ const renderLinkTag = (link: {
 const renderTitleTag = (title: string): string =>
 	`<title>${escapeHtml(title)}</title>`;
 
-const renderPublicEnvScript = (payload: string, nonce: string): string =>
+export const renderPublicEnvScript = (payload: string, nonce: string): string =>
 	`<script nonce="${escapeHtml(nonce)}">` +
 	`window.__ENV__ = Object.assign({}, window.__ENV__, ${payload});` +
 	`</script>`;
 
-const isIndexableSeoRoute = (requestPath: string, status: number): boolean => {
+export const isIndexableSeoRoute = (
+	requestPath: string,
+	status: number,
+): boolean => {
 	return (
 		status >= 200 &&
 		status < 300 &&
@@ -122,17 +109,36 @@ const isIndexableSeoRoute = (requestPath: string, status: number): boolean => {
 	);
 };
 
-const injectSeoMarkup = (
+export type SeoTranslator = (key: string) => string;
+
+export const resolveSeoTranslator = async (
+	locale: SupportedLanguage,
+): Promise<SeoTranslator> => {
+	const resources = await buildI18nResources(locale);
+	const instance = createI18nFromResources(locale, resources);
+	return (key: string) => instance.t(key);
+};
+
+const resolveFallbackTitle = (t: SeoTranslator, isLogin: boolean): string => {
+	if (isLogin) {
+		return t('seo-login-title');
+	}
+
+	return t('seo-default-title');
+};
+
+export const injectSeoMarkup = (
 	html: string,
 	request: Request,
 	locale: SupportedLanguage,
 	nonce: string,
 	seoAllowed: boolean,
+	t: SeoTranslator,
 ): string => {
 	const requestUrl = new URL(request.url);
 	const requestPath = requestUrl.pathname;
 	const isLogin = requestPath === '/login';
-	let output = replaceHtmlLanguage(html, locale);
+	const output = html;
 
 	if (!output.includes('</head>')) {
 		return output;
@@ -144,10 +150,10 @@ const injectSeoMarkup = (
 
 	if (seoAllowed) {
 		const payload = seo({
-			title: isLogin ? 'front-2 | Login' : 'front-2 | Foundation',
+			title: isLogin ? t('seo-login-title') : t('seo-default-title'),
 			description: isLogin
-				? 'Sign in to front-2.'
-				: 'front-2 foundations: i18n, CSP, SEO, analytics.',
+				? t('seo-login-description')
+				: t('seo-home-description'),
 			canonical,
 			sitemap: `${origin}/sitemap.xml`,
 			locale,
@@ -167,18 +173,13 @@ const injectSeoMarkup = (
 	}
 
 	if (!output.includes('<title')) {
-		const title = isLogin
-			? 'front-2 | Login'
-			: seoAllowed
-				? 'front-2 | Foundation'
-				: 'front-2';
-		metaTags.unshift(renderTitleTag(title));
+		metaTags.unshift(renderTitleTag(resolveFallbackTitle(t, isLogin)));
 	}
 
 	return output.replace('</head>', `${metaTags.join('\n')}\n</head>`);
 };
 
-const injectPublicRuntimeEnv = (
+export const injectPublicRuntimeEnv = (
 	html: string,
 	payload: string | undefined,
 	nonce: string,
@@ -236,12 +237,14 @@ export default {
 			const html = await response.text();
 			const requestPath = new URL(ctx.request.url).pathname;
 			const shouldInjectSeo = isIndexableSeoRoute(requestPath, response.status);
+			const seoTranslator = await resolveSeoTranslator(locale);
 			const updatedHtml = injectSeoMarkup(
 				html,
 				ctx.request,
 				locale,
 				nonce,
 				shouldInjectSeo,
+				seoTranslator,
 			);
 			const withPublicRuntimeEnv = injectPublicRuntimeEnv(
 				updatedHtml,

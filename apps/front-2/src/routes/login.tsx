@@ -1,18 +1,42 @@
-import { Button, Input, Spinner } from '@heroui/react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
+	IconAlertCircle,
+	IconCircleCheck,
+	IconClockExclamation,
+	IconLoader2,
+	IconLock,
+} from '@tabler/icons-react';
+import {
+	Link,
 	useLocation,
 	useNavigate,
+	useRouter,
 	createFileRoute,
 } from '@tanstack/react-router';
 import { useServerFn } from '@tanstack/react-start';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
+import { AuthAlert } from '~/components/auth/auth-alert';
+import { AuthFormHeader } from '~/components/auth/auth-form-header';
+import { PasswordField } from '~/components/auth/password-field';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { View403 } from '~/components/error-views/View403';
 import { View404 } from '~/components/error-views/View404';
+import { Button, buttonVariants } from '~/components/ui/button';
+import { Input } from '~/components/ui/input';
+import { redirectAuthenticatedUserAwayFromAuthPage } from '~/lib/auth-route-guard';
+import {
+	getSafeSearchRedirect,
+	isSafeRelativePath,
+	resolveRouteRedirect,
+} from '~/lib/safe-redirect-path';
 import { completeLoginRedirect, login } from '~/lib/server/session-actions';
+import {
+	AUTH_SYNC_CHANNEL,
+	postBroadcast,
+} from '~/lib/tab-sync/broadcast-sync';
 
 import {
 	getFailureMessage,
@@ -20,51 +44,54 @@ import {
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { queryParamKey, queryParamValue } from '@org/shared-ts/lib/constants';
 
+// Re-exported for `login.test.tsx` and `~/lib/hooks/use-logout.ts` — the
+// implementation lives in `~/lib/safe-redirect-path` (shared, not
+// login-specific), but these remain part of this route's tested public
+// surface.
+export { getSafeSearchRedirect, resolveRouteRedirect };
+
 type LoginFormValues = {
 	email: string;
 	password: string;
 };
 
-const LoginFormSchema = z.object({
-	email: z.string().max(120).email('Enter a valid email address.'),
-	password: z.string().min(1, 'Password is required.'),
-});
+type Translate = (key: string) => string;
 
-const resolveRouteRedirect = (path: string | null): string => {
-	if (!path) {
-		return '/';
-	}
+const getLoginFormSchema = (t: Translate) =>
+	z.object({
+		email: z.string().max(120).email(t('enter-valid-email-address')),
+		password: z.string().min(1, t('password-is-required')),
+	});
 
-	if (!path.startsWith('/') || path.startsWith('//')) {
-		return '/';
-	}
+/**
+ * Auth-surface routes that a redirect_to may legitimately point back at even
+ * though they aren't under the resolved workspace surface — e.g. an
+ * invitation link's `/accept-invitation?id=…&token=…`, which the user must
+ * return to after signing in for the invitation to actually get accepted
+ * (see F4). Compared against the path only; the query string is stripped
+ * before matching.
+ */
+const RETURNABLE_AUTH_PATHS = ['/accept-invitation'];
 
-	return path;
-};
-
-const getSafeSearchRedirect = (search: string): string => {
-	const params = new URLSearchParams(search);
-	return resolveRouteRedirect(params.get(queryParamKey.login_page.redirect_to));
-};
-
-const isAllowedRedirectPath = (
+export const isAllowedRedirectPath = (
 	requested: string,
 	surfacePath: string,
 ): boolean => {
-	if (!requested || !requested.startsWith('/')) {
+	if (!requested || !isSafeRelativePath(requested)) {
 		return false;
 	}
 
+	const requestedPath = requested.split('?')[0] ?? requested;
+	if (RETURNABLE_AUTH_PATHS.includes(requestedPath)) {
+		return true;
+	}
+
 	const normalizedSurface = surfacePath.replace(/\/$/, '');
-	if (requested === normalizedSurface) {
+	if (requestedPath === normalizedSurface) {
 		return true;
 	}
 
-	if (normalizedSurface === '/') {
-		return true;
-	}
-
-	return requested.startsWith(`${normalizedSurface}/`);
+	return requestedPath.startsWith(`${normalizedSurface}/`);
 };
 
 const isSessionExpiredFromSearch = (search: string): boolean => {
@@ -73,6 +100,22 @@ const isSessionExpiredFromSearch = (search: string): boolean => {
 		params.get(queryParamKey.login_page.redirect_cause) ===
 		queryParamValue.login_page.redirect_cause.invalid_session
 	);
+};
+
+const isPasswordResetSuccessFromSearch = (search: string): boolean => {
+	const params = new URLSearchParams(search);
+	return (
+		params.get(queryParamKey.login_page.redirect_cause) ===
+		queryParamValue.login_page.redirect_cause.password_reset_success
+	);
+};
+
+/** An invitation link's "Sign in to continue" CTA hands the invited email
+ * through so the user doesn't have to retype an address the app already
+ * knows (see F4). */
+const getPrefilledEmailFromSearch = (search: string): string => {
+	const params = new URLSearchParams(search);
+	return params.get(queryParamKey.login_page.email) ?? '';
 };
 
 const getFailureStatus = (error: unknown): number | undefined => {
@@ -87,12 +130,24 @@ const getFailureStatus = (error: unknown): number | undefined => {
 const LoginRoute = () => {
 	const navigate = useNavigate();
 	const location = useLocation();
+	const { t } = useTranslation('common');
 	const [showForbidden, setShowForbidden] = useState(false);
 	const [errorMessage, setErrorMessage] = useState('');
+	const [invalidCredentialsMessage, setInvalidCredentialsMessage] =
+		useState('');
+	const [isMounted, setIsMounted] = useState(false);
+
+	useEffect(() => {
+		setIsMounted(true);
+	}, []);
+
 	const loginAction = useServerFn(login);
 	const completeRedirect = useServerFn(completeLoginRedirect);
 	const search = location.searchStr ?? '';
 	const isSessionExpired = isSessionExpiredFromSearch(search);
+	const isPasswordResetSuccess = isPasswordResetSuccessFromSearch(search);
+
+	const loginFormSchema = useMemo(() => getLoginFormSchema(t), [t]);
 
 	const {
 		register,
@@ -100,9 +155,9 @@ const LoginRoute = () => {
 		setError,
 		formState: { isSubmitting, errors },
 	} = useForm<LoginFormValues>({
-		resolver: zodResolver(LoginFormSchema),
+		resolver: zodResolver(loginFormSchema),
 		defaultValues: {
-			email: '',
+			email: getPrefilledEmailFromSearch(search),
 			password: '',
 		},
 	});
@@ -110,6 +165,7 @@ const LoginRoute = () => {
 	const onSubmit = async (values: LoginFormValues) => {
 		setShowForbidden(false);
 		setErrorMessage('');
+		setInvalidCredentialsMessage('');
 
 		try {
 			const { sessionExpiresAt } = await loginAction({
@@ -128,6 +184,7 @@ const LoginRoute = () => {
 				: redirect.targetPath;
 			const resolvedTarget = resolveRouteRedirect(finalTarget);
 
+			postBroadcast(AUTH_SYNC_CHANNEL, { type: 'login' });
 			await navigate({
 				to: resolvedTarget,
 				replace: true,
@@ -136,12 +193,11 @@ const LoginRoute = () => {
 			const failure = toApiFailure(error);
 
 			if (failure.kind === 'problem' && failure.status === 401) {
-				setError('password', {
-					message: getFailureMessage(failure, {
-						fallback:
-							'Invalid credentials. Please check your email and password.',
+				setInvalidCredentialsMessage(
+					getFailureMessage(failure, {
+						fallback: t('invalid-credentials-description'),
 					}),
-				});
+				);
 				return;
 			}
 
@@ -151,111 +207,194 @@ const LoginRoute = () => {
 			}
 
 			if (failure.kind === 'validation') {
-				setError('email', {
-					message:
-						failure.fieldErrors.email?.[0] ??
-						getFailureMessage(failure, {
-							fallback: 'Enter a valid email and password.',
+				const formFields: Array<keyof LoginFormValues> = ['email', 'password'];
+				let mappedToField = false;
+				for (const field of formFields) {
+					const message = failure.fieldErrors[field]?.[0];
+					if (message) {
+						setError(field, { message });
+						mappedToField = true;
+					}
+				}
+				if (!mappedToField) {
+					setError('email', {
+						message: getFailureMessage(failure, {
+							fallback: t('enter-valid-email-and-password'),
 						}),
-				});
+					});
+				}
 				return;
 			}
 
 			const message = getFailureMessage(failure, {
-				fallback: 'Sign in failed. Please check your credentials.',
+				fallback: t('sign-in-failed-check-credentials'),
 			});
 			setErrorMessage(message);
 		}
 	};
 
+	if (showForbidden) {
+		return <View403 />;
+	}
+
+	const isDisabled = !isMounted || isSubmitting;
+	const passwordFieldErrorMessage = errors.password?.message;
+	const isPasswordInvalid = Boolean(
+		passwordFieldErrorMessage || invalidCredentialsMessage,
+	);
+
 	return (
-		<div className="mx-auto w-full max-w-md space-y-4 px-4">
+		<div className="space-y-6">
 			{isSessionExpired ? (
-				<p className="rounded border border-warning bg-warning-100 px-3 py-2 text-sm text-warning-900">
-					Your session expired. Please sign in again.
-				</p>
+				<AuthAlert
+					tone="amber"
+					icon={<IconClockExclamation aria-hidden="true" />}
+					testId="auth-session-expired-alert"
+				>
+					{t('session-expired-notice')}
+				</AuthAlert>
 			) : null}
 
-			{showForbidden ? (
-				<View403 />
-			) : (
-				<form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-					<div className="space-y-1">
-						<label
-							className="text-sm font-medium text-foreground-700"
-							htmlFor="login-email"
+			{isPasswordResetSuccess ? (
+				<AuthAlert
+					tone="success"
+					icon={<IconCircleCheck aria-hidden="true" />}
+					testId="auth-password-reset-success-alert"
+				>
+					{t('password-reset-success')}
+				</AuthAlert>
+			) : null}
+
+			<AuthFormHeader
+				title={isSessionExpired ? t('welcome-back') : t('sign-in')}
+				secondary={
+					isSessionExpired ? (
+						t('sign-in-to-pick-up-where-you-left-off')
+					) : (
+						<>
+							{t('no-account-yet')}{' '}
+							<Link
+								to="/signup"
+								className="font-medium text-foreground underline underline-offset-2 transition-colors hover:text-(--publy-primary-foreground)"
+							>
+								{t('create-one')}
+							</Link>
+						</>
+					)
+				}
+			/>
+
+			<form
+				onSubmit={handleSubmit(onSubmit)}
+				className="space-y-4"
+				data-testid="auth-login-form"
+			>
+				<fieldset disabled={isDisabled} className="m-0 space-y-4 border-0 p-0">
+					{invalidCredentialsMessage ? (
+						<AuthAlert
+							tone="danger"
+							icon={<IconAlertCircle aria-hidden="true" />}
+							testId="auth-invalid-credentials-alert"
 						>
-							Email
+							{invalidCredentialsMessage}
+						</AuthAlert>
+					) : null}
+
+					<div className="space-y-1.5">
+						<label
+							htmlFor="login-email"
+							className="text-[13px] font-medium text-foreground"
+						>
+							{t('email-address')}
 						</label>
 						<Input
 							{...register('email')}
 							id="login-email"
 							required
-							placeholder="name@company.com"
 							type="email"
+							placeholder={t('email-placeholder')}
+							aria-invalid={Boolean(errors.email?.message) || undefined}
+							autoComplete="email"
+							className="h-11 text-sm lg:h-10 lg:text-[13px]"
 						/>
 						{errors.email?.message ? (
-							<p className="text-sm text-danger-500">{errors.email?.message}</p>
+							<p className="text-xs text-destructive">{errors.email.message}</p>
 						) : null}
 					</div>
-					<div className="space-y-1">
-						<label
-							className="text-sm font-medium text-foreground-700"
-							htmlFor="login-password"
-						>
-							Password
-						</label>
-						<Input
-							{...register('password')}
-							id="login-password"
-							required
-							type="password"
-							placeholder="••••••••"
-						/>
-						{errors.password?.message ? (
-							<p className="text-sm text-danger-500">
-								{errors.password?.message}
-							</p>
-						) : null}
-					</div>
-					{errorMessage ? (
-						<div className="text-sm text-danger-500">{errorMessage}</div>
+
+					<PasswordField
+						id="login-password"
+						label={t('password')}
+						register={register('password')}
+						placeholder={t('enter-your-password')}
+						required
+						invalid={isPasswordInvalid}
+						autoComplete="current-password"
+						labelAdornment={
+							<Link
+								to="/reset-password"
+								className="text-xs text-muted-foreground underline underline-offset-2 transition-colors hover:text-foreground"
+							>
+								{t('forgot-password')}?
+							</Link>
+						}
+					/>
+					{passwordFieldErrorMessage ? (
+						<p className="text-xs text-destructive">
+							{passwordFieldErrorMessage}
+						</p>
 					) : null}
+
+					{errorMessage ? (
+						<AuthAlert
+							tone="danger"
+							icon={<IconAlertCircle aria-hidden="true" />}
+							testId="auth-login-error-alert"
+						>
+							{errorMessage}
+						</AuthAlert>
+					) : null}
+
 					<Button
 						type="submit"
-						variant="primary"
-						isDisabled={isSubmitting}
-						className="w-full"
+						variant="default"
+						disabled={isDisabled}
+						className="h-12 w-full text-sm lg:h-11"
 					>
-						{isSubmitting ? <Spinner size="sm" /> : null}
-						Sign in
+						{isSubmitting ? (
+							<IconLoader2 aria-hidden="true" className="size-4 animate-spin" />
+						) : null}
+						{isSubmitting ? t('signing-in') : t('sign-in')}
 					</Button>
-				</form>
-			)}
+				</fieldset>
+			</form>
 		</div>
 	);
 };
 
-const LoginErrorBoundary = ({ error }: { error: unknown }) => {
+const LoginErrorBoundary = ({
+	error,
+	reset,
+}: {
+	error: unknown;
+	reset: () => void;
+}) => {
+	const router = useRouter();
+	const { t } = useTranslation('common');
 	const routeStatus = getFailureStatus(error);
 
 	if (routeStatus === 401) {
 		return (
 			<AppErrorView
-				icon="401"
-				code="401 — Unauthorized"
-				title="Authentication required"
-				description="Your login request could not be authorized. Please verify your credentials and try again."
+				icon={<IconLock aria-hidden="true" className="size-7" />}
+				code={t('error-401-code')}
+				title={t('authentication-required')}
+				description={t('login-request-unauthorized-description')}
 				testId="auth-401-view"
 				actions={
-					<Button
-						variant="primary"
-						onPress={() => {
-							window.location.assign('/login');
-						}}
-					>
-						Back to login
-					</Button>
+					<Link to="/login" className={buttonVariants({ variant: 'default' })}>
+						{t('back-to-login')}
+					</Link>
 				}
 			/>
 		);
@@ -269,17 +408,33 @@ const LoginErrorBoundary = ({ error }: { error: unknown }) => {
 		return <View404 />;
 	}
 
+	const retry = () => {
+		reset();
+		void router.invalidate();
+	};
+
 	return (
 		<AppErrorView
-			icon="!"
-			code="500 — Server Error"
-			title="Something went wrong"
-			description="Sign-in could not be completed."
+			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
+			code={t('error-500-code')}
+			title={t('something-went-wrong')}
+			description={t('sign-in-could-not-be-completed')}
+			actions={
+				<>
+					<Button variant="default" onClick={retry} type="button">
+						{t('retry')}
+					</Button>
+					<Link to="/" className={buttonVariants({ variant: 'outline' })}>
+						{t('go-to-home')}
+					</Link>
+				</>
+			}
 		/>
 	);
 };
 
 export const Route = createFileRoute('/login')({
+	beforeLoad: redirectAuthenticatedUserAwayFromAuthPage,
 	component: LoginRoute,
 	errorComponent: LoginErrorBoundary,
 });

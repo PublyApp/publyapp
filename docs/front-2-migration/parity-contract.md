@@ -58,7 +58,9 @@ Results:
   `staff-admin@example.com`.
 - Source verified current staff-users table shape: email is rendered as
   secondary text inside the first name/user cell, not as a standalone email
-  column.
+  column. **Superseded 2026-07-09 (owner-approved):** front-2 splits Name and
+  Email into separate columns, matching the gray-ui template's `/customers`;
+  the parity e2e asserts the Email columnheader is visible.
 - Source verified invite affordance divergence: staff-users "Invite users" links
   to `/staff/invitations/new`; it does not open an on-page dialog. The new
   invitation route uses RHF + Zod/InterZod.
@@ -227,3 +229,238 @@ is set after the settings interaction), the locale switch, and the invite flow.
   OSI-permissive, neither blocks closed-source SaaS use, so Phase 1 token/design work is
   **not** blocked. Carry-forward is attribution/NOTICE hygiene only. See the Phase 0
   findings "License gate → Resolution (2026-06-20)".
+- Detail-page body grid width: SPEC 2c/2h describe a `1fr / 372px` body grid
+  with no max-width (the JSON-backed assertion coverage for this same grid is
+  keyed under artboard IDs `2a`, `2h`, and `3b` in `artboard-assertions.ts`),
+  which stretches edge-to-edge on large monitors. **Superseded 2026-07-10
+  (owner-approved):** the detail content column is capped at
+  `max-width: 1440px` (centered) and the aside widens `372px → 420px`. This is
+  a deliberate deviation from the canvas, not a parity gap —
+  `artboard-assertions.ts` ('2a', '2h', '3b') and `detail-layout.tsx`/its test
+  were updated to assert `1fr 420px` accordingly.
+- Card surface treatment: SPEC `:60`/`:67`/`:75` describe cards as ring-only
+  (`box-shadow: 0 0 0 1px rgba(24,24,27,0.06)`), matching the canvas's most
+  common card ring. **Superseded 2026-07-10 (owner-approved):** the
+  `gray-ui-csm` template wins over the canvas here — `components/ui/card.tsx`
+  now composes the ring with a `shadow-md`-equivalent elevation
+  (`--publy-shadow-elevated`), matching the template's
+  `shadow-md ring-1 ring-foreground/5 dark:ring-foreground/10`. This also
+  surfaced a real bug: `--publy-shadow-ring`/`--publy-shadow-card` had no
+  `html.dark` override, so on the new `#18181b` dark base the ring
+  composited to `#18181b` exactly — every dark-mode card outline was
+  invisible. Light ring retuned to `rgba(9,9,11,0.05)` (was
+  `rgba(24,24,27,0.06)`, near-identical, now traces to the template's
+  `--foreground` token); dark ring added at `rgba(250,250,250,0.10)`
+  (composites to `#2f2f31` on `#18181b` — visible).
+  `artboard-assertions.ts` ('5f', `settings.card` box-shadow) updated to the
+  retuned light ring value. Only `components/ui/card.tsx` (the base Card
+  primitive) adopts the new elevated token; other ring consumers
+  (`.publy-metric-tile`, `.publy-metadata-card`, `.publy-state-surface`,
+  `.publy-table-card`, and the ad-hoc `shadow-[var(--publy-shadow-ring)]`
+  panels in the staff-user/tenant detail routes) keep the bare ring — they
+  read as flat page chrome, not raised cards, and `.publy-table-card` is
+  explicitly commented as a "ring card" by design. They still pick up the
+  dark-mode visibility fix and the light retune via the shared token.
+- Card surface treatment, round 2: the elevation adopted above (2026-07-10,
+  "owner-approved") **is itself superseded 2026-07-10 (owner decision R2-1)**.
+  Having seen the `shadow-md + ring` result, the owner judged elevation was
+  not the problem and asked for it removed: `components/ui/card.tsx` drops
+  `--publy-shadow-elevated` and goes back to `shadow-[var(--publy-shadow-ring)]`,
+  restoring SPEC's original ring-only card treatment. Only the alpha changes
+  from SPEC's `0.05`/`0.06` mix to a flat `0.06` in both themes —
+  `--publy-shadow-ring`/`--publy-shadow-card` are now
+  `rgba(9, 9, 11, 0.06)` (light) and `rgba(250, 250, 250, 0.06)` (dark,
+  composites to `#262628` on `#18181b`). The owner explicitly accepted that
+  this dark value is fainter than the `0.10` that fixed the invisible-ring
+  bug in round 1, but still visible. `--publy-shadow-elevated` stays declared
+  — its only remaining consumer is `.publy-state-icon` in `app.css`, which
+  goes flat under a separate packet (R2-2); the token is deleted then, not
+  before. `artboard-assertions.ts` ('5f', `settings.card` box-shadow) updated
+  to `rgba(9,9,11,0.06)`.
+- Table column geometry: SPEC's list grids assume columns that do not exist in
+  the current data model. **Adapted 2026-07-10 (captain-approved deviation):**
+  `2g` profiles (`40/240/1fr/104/140/120/40`) and `2i` invitations
+  (`40/300/116/1fr/150/120/128/40`) map 1:1 to implemented columns and use the
+  literal SPEC pixel values. `2b` staff-users and `3a` tenants do not: SPEC 2b
+  assumes Role/Profiles/2FA/Last-active and SPEC 3a assumes Plan/Owner/Created,
+  none of which the API returns (see BACKLOG "Deferred contract work"). For
+  those two, columns with a direct SPEC counterpart keep their literal widths
+  (staff-users Name 200, Level 104, Status 122; tenants Status 124, Users 92,
+  Created 132) and the longest free-text field absorbs the remainder as the
+  fluid column (staff-users Email; tenants Name). Revisit both grids when the
+  missing columns land — the SPEC values are not wrong, they are unreachable.
+  Enforcement is `<colgroup>` + `table-layout: fixed` on `.publy-data-table`;
+  a column with no `width` meta is the fluid one. e2e asserts computed pixel
+  widths and that `table.scrollWidth <= card.clientWidth` (owner item 15a).
+- Empty/no-match/error state composition: SPEC 2f describes the shared list
+  states as flat icon tiles — empty `48px r14 #f4f4f5` tile, error
+  `52px r16` rose tile. **Superseded 2026-07-10 (owner-approved, P5 items
+  4+14):** the owner rejected both the error views and the list empty states
+  outright ("bump the creativity"); this was a build-one-strong-direction
+  task with no mockup round. Both surfaces now share one composition: a
+  `.publy-state-icon-cluster` (96px) layering a tone-tinted radial wash
+  (`.publy-state-icon-wash`), two concentric rings (`.publy-state-icon-ring
+  --outer`/`--inner`), and the glyph tile on top — tile size/radius unified
+  at `56px` / `16px` (`--publy-radius-frame`) across tones, differing only by
+  color (neutral gray "empty" / primary gold "no-match, an escape hatch" /
+  danger rose "error"). `NoMatchStateSurface` moved from `tone="neutral"` to
+  `tone="primary"` so empty and no-match no longer read as the same state
+  with a different icon. `AppErrorView` gained a ghosted numeral (parsed from
+  the leading digits of the `code` prop) behind the cluster, clipped to the
+  hero row, plus `tone`/`embedded` props — `embedded` drops the forced
+  `min-h-screen` when the view renders inside an existing route shell (the
+  tenant details shell). New tokens: `--publy-state-wash-{neutral,danger,
+  primary}` / `--publy-state-ring-{neutral,danger,primary}`, declared in both
+  the light and dark blocks as `color-mix()` derivations of already-themed
+  tokens. `design-handoff-foundation.spec.ts` and `artboard-assertions.ts`
+  (`2f`, `empty.iconTile` radius) were rewritten to the new values, not
+  loosened. `View404`/`View403` also stopped doing a full-document
+  `window.location.assign('/')` on "Return home" (a TanStack `Link` now) and
+  had every string routed through `t()`.
+- Empty/no-match/error state composition, round 2: the layered glyph-cluster
+  composition adopted above (2026-07-10, "owner-approved, P5 items 4+14"),
+  and the P5 `AppErrorView` change that wrapped the whole view in `<Card>`,
+  are both **superseded 2026-07-10 (owner-approved, round 2 — decision
+  R2-2)**. The owner rejected the boxed card container a second time and
+  asked for something flat. `AppErrorView` no longer renders a `<Card>` —
+  `<main>` carries `data-testid` directly and contains the content at page
+  background, with a hairline `border-t` (no box, no fill) separating the
+  actions row and the diagnostic-id row instead of a bordered footer panel.
+  `.publy-state-surface` (the `DataTable` empty/error/no-match states) drops
+  its `background`/`border-radius`/`box-shadow: var(--publy-shadow-ring)` —
+  it now sits directly on the page background with no card treatment at all.
+  The layered glyph cluster (wash + two rings + a shadowed, background-filled
+  tile) is retired for a bare, un-boxed icon: `.publy-state-icon-cluster`
+  shrinks from a fixed `96px` layered composition to a plain sizing wrapper
+  (`40px` in list states via `.publy-state-surface`, `64px` in the
+  `AppErrorView` hero via a `.publy-error-hero .publy-state-icon-cluster`
+  override), and `.publy-state-icon` is now `color`-only per tone (neutral
+  `--publy-foreground-muted`, danger `--publy-danger`, primary
+  `--publy-primary`) with no background, shadow, or radius. The ghost numeral
+  behind the error-view icon stays (a large tonal display numeral reads as
+  "designed" without a container) and grows slightly (`96px → 112px`,
+  `opacity 0.06/0.09 → 0.05/0.08`) now that nothing else fills the page.
+  Deleted, not orphaned: `--publy-shadow-elevated` (light + dark; its last
+  consumer, `.publy-state-icon`'s box-shadow, is gone), `--publy-state-wash-
+  {neutral,danger,primary}` / `--publy-state-ring-{neutral,danger,primary}`
+  (light + dark, the wash/ring layers are gone), and `--publy-radius-frame`
+  (the tile radius is gone). `design-handoff-foundation.spec.ts` (the
+  no-match glyph-cluster test) and `artboard-assertions.ts`/
+  `artboard-assertions.test.ts` (`2f`, `empty.iconTile`/`error.iconTile` →
+  `empty.icon`/`error.icon`) were rewritten to the new flat geometry, not
+  loosened — the no-match e2e test now also asserts `background-color:
+  rgba(0,0,0,0)` and `box-shadow: none` on both the state surface and the
+  icon, to pin the "no box" claim as a computed value rather than a
+  structural absence. `state-surface.test.tsx` gained a test asserting the
+  wash/ring elements are gone from the DOM. Text colors were re-verified
+  against `--publy-background` rather than `--publy-card`: the two tokens
+  are identical in both themes (`#ffffff` / `#18181b`), so the existing
+  `text-foreground`/`text-muted-foreground` contrast ratios (title ~16:1,
+  description/code `~4.82:1` light, `~6.91:1` dark) carry over unchanged —
+  removing the card did not change any background a reader sees text
+  against. `AppErrorView`'s `embedded` prop, `View404`/`View403`, every
+  `data-testid`, and `StateSurface`/`ErrorStateSurface`/`NoMatchStateSurface`'s
+  public props are unchanged by this pass.
+- Empty/no-match/error state composition, round 3 (2026-07-10, owner-approved
+  — decisions R3-1 through R3-4b): the flat direction from round 2 is
+  approved ("fits better my taste") and not reopened; four concrete issues
+  were fixed. **R3-1 (valorize the icon):** the glyph grows from a bare
+  `22px` to `40px` at inline scale (`StateSurface`) and `48px` at page scale
+  (`AppErrorView`) — still no disc/ring/box, presence comes from size, tone
+  colour, and the stroke weight that scales up with it.
+  `.publy-state-icon-cluster` takes a `data-scale="inline"|"page"` attribute
+  driving its box size, and `.publy-state-icon svg { width/height: 100% }`
+  sizes the glyph off that box regardless of any `size-*` utility class a
+  call site puts on its own icon element — so none of the ~30 `AppErrorView`
+  call sites needed touching. Tone colours are unchanged
+  (`--publy-foreground-muted` / `--publy-danger` / `--publy-primary`, all
+  declared in `:root`). **R3-2 (remove the ghost numeral):** the round-2
+  ghost numeral read as a smudge and duplicated the eyebrow `code` line, so
+  `.publy-error-ghost-numeral`, `.publy-error-hero` (base + the
+  `.publy-error-hero .publy-state-icon-cluster` 64px override), and
+  `html.dark .publy-error-ghost-numeral` are deleted from `app.css`, and the
+  `ghostNumeral` const/JSX are gone from `AppErrorView.tsx`. **R3-3 (remove
+  the separator):** the `border-t border-border pt-6`/`pt-3` hairlines above
+  the actions row and the diagnostic-id row are gone; both sit below the
+  description with plain vertical spacing. **R3-4a (500 gets actions):**
+  `__root.tsx`'s `RootErrorBoundary`, `authed/layout.tsx`'s
+  `AuthedLayoutErrorBoundary` (extracted from an inline `errorComponent` so
+  it could legally call `useRouter()`/`useTranslation()`) and its
+  `AuthedRouteLayout` query-error branch, and `login.tsx`'s
+  `LoginErrorBoundary` now render a primary "Try again" (`t('retry')`) that
+  calls `reset()` + `router.invalidate()` on route boundaries or
+  `query.refetch()` on query-driven 500s, plus a secondary "Go to home"
+  `Link`. Every other 500 renderer found in the tenant/profile/staff-user
+  detail and edit routes (17 files) was extended the same way, wired to
+  whichever query actually produced the error — `TenantDetailsError` in
+  `_tenant-details-shell.tsx` gained an optional `onRetry` and a shared
+  `TenantRetryActions` (Try again + Back to tenants) reused by its 10
+  callers; the 400/404 tenant views there gained a "Back to tenants" link
+  they previously lacked entirely. No 500 renderer was left without a retry
+  path. **R3-4b (unify empty/error primitives):** `AppErrorView` and
+  `StateSurface` now both render a new `~/components/ui/state-view.tsx`
+  (`StateView`) — icon-cluster, optional eyebrow, title, optional
+  description, and actions, with a `scale: 'page' | 'inline'` prop driving
+  typography (page: `<h1>` + `text-3xl`; inline: `.publy-type-section-title`)
+  and the icon-cluster's size. `AppErrorView`'s `errorDetails`/`diagnosticId`
+  and `StateSurface`'s `technicalIdentifier` — none of which are structural
+  to the shared shape — pass through as generic `beforeActions`/
+  `afterActions`/`belowTitle` slots so both components' full public prop
+  surfaces compile untouched. Every `data-testid` (`view-404`, `view-403`,
+  `${testId}-empty/-no-match/-error/-loading`,
+  `staff-tenant-details-invalid/-not-found/-error`) is unchanged, and
+  `AppErrorView` still renders correctly `embedded` inside
+  `tenants/$tenantId/_tenant-details-shell.tsx`.
+  `design-handoff-foundation.spec.ts` (`2f`, `error.icon` width `64px →
+  48px`) and `artboard-assertions.ts`/`artboard-assertions.test.ts` were
+  updated to the new sizes, not loosened; `state-surface.test.tsx` gained
+  tests for the `data-scale` attribute, the shared `AppErrorView`/
+  `StateSurface` primitive, and the absence of the ghost numeral/separator.
+- Malformed-id → not-found parity, and empty/error scale unification
+  (2026-07-11, owner-approved, packet P14): two follow-ups on top of round 3.
+  **Malformed ids render not-found, not a distinct 400 view:** the backend
+  returns `400` for a malformed id and `404` for a missing entity, but the 9
+  staff detail/edit routes each rendered a separate "Invalid ... link" view
+  (`…-invalid` testId) for the 400 case. The `…-invalid` branches and views
+  are deleted from all 9 routes; their condition is folded into the existing
+  `…-not-found` branch (`isProblemStatus(error, 404) ||
+  isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)`), matching the
+  precedent already in `invitations/$invitationId.tsx`. The `…-invalid`
+  testId no longer exists anywhere in the app; every spec that asserted it
+  was flipped to assert the corresponding `…-not-found` view rather than
+  deleted or loosened. **Empty state now matches error scale exactly
+  (owner-approved 2026-07-11, reaffirming/superseding R3-4b's "inline stays
+  smaller"):** `StateView`'s `scale="inline"` and `scale="page"` branches now
+  render identical title (`text-3xl font-semibold leading-tight`),
+  description (`text-sm text-muted-foreground`), and actions-cluster
+  (`mt-8 flex w-full flex-wrap justify-center gap-2`) classes, and
+  `.publy-state-icon-cluster` collapses to a single 48px size (the
+  `data-scale="inline"|"page"` attribute is still emitted for tests but no
+  longer drives different CSS). The now-dead `.publy-state-surface
+  .publy-type-section-title`/`.publy-type-helper` shrink overrides are
+  deleted from `app.css` since nothing routes inline text through those
+  classes anymore. `design-handoff-foundation.spec.ts`'s no-match geometry
+  test and `artboard-assertions.ts`'s `2f`/`empty.icon` entry (`40px →
+  48px`) were re-pinned to the new value, not loosened. Back-links
+  (`.publy-back-link`) also switched from `IconChevronLeft` to
+  `IconArrowLeft` across the 5 files that render one; `data-table.tsx`'s
+  pagination chevron is unrelated and untouched.
+- Dashboard secondary panel, round 2 (2026-07-10, owner decision R2-3):
+  SPEC `:49` and artboard 2a describe the dashboard module as rail-only, with
+  no secondary panel and therefore no sidebar toggle available there — the
+  first deviation on this axis was round-1 decision 7 (sidebar toggle always
+  in the topbar, open/closed state is user intent and persists across
+  navigation). Round 2 goes further: the owner wants the toggle available on
+  `/staff/dashboard` specifically, which requires the module to actually have
+  panel content (`shouldShowSecondaryPanel`/`canToggleSecondaryPanel` both
+  gate on `secondaryItems.length >= 2`). `/staff/dashboard` previously had no
+  route at all (`routes.ts` declared nothing for it, so it rendered the
+  not-found view); this packet adds the route plus three nested children —
+  Overview (`/staff/dashboard`, index), Activity (`/staff/dashboard/activity`),
+  Reports (`/staff/dashboard/reports`) — and gives the `dashboard` rail item's
+  `secondaryItems` three real `DASHBOARD_MODULE_ITEMS` entries in
+  `route-metadata.tsx` instead of `[]`. Page content is deliberately minimal
+  placeholder text (no fabricated metrics/charts) — the 2a visual build is a
+  separate packet. The `>= 2` panel-visibility threshold itself was not
+  touched; three destinations simply now satisfies it the same way every
+  other module does.

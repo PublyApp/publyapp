@@ -1,15 +1,33 @@
-import { useQuery } from '@tanstack/react-query';
+import {
+	createUntypedArray,
+	createUntypedString,
+} from '@microsoft/kiota-abstractions';
+import type { QueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
+import {
+	normalizeNullableFileUrl,
+	toRootRelativeApiFileUrl,
+} from '~/lib/api-client/resolve-api-file-url';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/src/apiClient';
 import type {
+	ApiResponse,
 	FindStaffUsersResponse,
 	GetStaffUserByIdResult,
 	GetStaffUserProfilesResult,
 	StaffUserItem,
+	UpdateStaffUserBody,
+	UpdateStaffUserEmailBody,
+	UpdateStaffUserProfilesBody,
 } from '@org/client-ts/src/models/index.js';
-import { buildStaffQueryOptions } from '@org/shared-ts/lib/query/create-hooks';
+import {
+	buildStaffMutationOptions,
+	buildStaffQueryOptions,
+	scopedKey,
+} from '@org/shared-ts/lib/query/create-hooks';
+import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
 export type StaffUsersQueryVariables = {
 	q?: string;
@@ -39,7 +57,7 @@ export type StaffUserRow = {
 
 export type AssignedStaffProfile = {
 	id: string;
-	name: string;
+	name: string | undefined;
 	description: string | null;
 };
 
@@ -55,6 +73,54 @@ export type StaffUserDetails = {
 	updatedAt: Date | null;
 	displayName: string;
 };
+
+export type StaffUserUpdateInput = {
+	userId: string;
+	firstName?: string | null;
+	lastName?: string | null;
+	avatarUrl?: string | null;
+	accountLevel?: string | null;
+};
+
+export type StaffUserEmailUpdateInput = {
+	userId: string;
+	email?: string | null;
+};
+
+export type StaffUserProfilesUpdateInput = {
+	userId: string;
+	profileIds: string[];
+};
+
+/** @internal Unscoped — `scopedKey('staff', …)` is the only way to build an
+ * invalidation/removal key from this (review-r3-users-auth.md F11); use
+ * `invalidateStaffUsers` / `removeStaffUserDetails`, never hand-assemble a
+ * prefixed key at a call site. */
+export const STAFF_USERS_QUERY_KEY = ['staff-users'] as const;
+export const STAFF_USER_DETAILS_QUERY_KEY = [
+	...STAFF_USERS_QUERY_KEY,
+	'detail',
+] as const;
+export const STAFF_USER_PROFILES_QUERY_KEY = [
+	...STAFF_USER_DETAILS_QUERY_KEY,
+	'profiles',
+] as const;
+
+/** Invalidates the staff-users list, every user's details entry, and its
+ * assigned-profiles entry — both nest under `STAFF_USERS_QUERY_KEY`, so a
+ * single prefix invalidation covers all three (see F19/F16). */
+export const invalidateStaffUsers = (queryClient: QueryClient) =>
+	queryClient.invalidateQueries({
+		queryKey: scopedKey('staff', STAFF_USERS_QUERY_KEY),
+	});
+
+/** Removes a single deleted user's details entry from the cache outright
+ * (rather than just invalidating it) so a stale details fetch can't race the
+ * navigation away from its now-404 route (review-r3-users-auth.md F11). */
+export const removeStaffUserDetails = (queryClient: QueryClient) =>
+	queryClient.removeQueries({
+		queryKey: scopedKey('staff', STAFF_USER_DETAILS_QUERY_KEY),
+	});
 
 const normalizeString = (
 	value: string | null | undefined,
@@ -91,8 +157,11 @@ const getDisplayName = ({
 	lastName: string | null;
 	email: string;
 }): string => {
-	const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
-	return fullName || email || '—';
+	const fullName = getUserFullName({
+		firstName,
+		lastName,
+	});
+	return fullName || email;
 };
 
 export const buildFindStaffUsersQueryParameters = (
@@ -121,12 +190,16 @@ export const toStaffUserRows = (
 	const rows: StaffUserRow[] = [];
 
 	for (const item of items ?? []) {
+		// Email is the required fallback identity `getDisplayName` reads when
+		// no name is set — dropped rather than shown with a `'—'` placeholder
+		// a staff admin can't distinguish from a legitimate value
+		// (shell-r5-F3).
 		const id = normalizeString(item.id ?? undefined);
-		if (!id) {
+		const email = normalizeString(item.email);
+		if (!id || !email) {
 			continue;
 		}
 
-		const email = normalizeString(item.email) ?? '';
 		const firstName = normalizeNullableString(item.firstName);
 		const lastName = normalizeNullableString(item.lastName);
 
@@ -148,11 +221,15 @@ export const toStaffUserDetails = (
 	result: GetStaffUserByIdResult | null | undefined,
 ): StaffUserDetails | null => {
 	const id = normalizeString(result?.id ?? undefined);
-	if (!id) {
+	const email = normalizeString(result?.email);
+
+	// A malformed payload (missing the required identity) is treated the same
+	// as "not found" — never rendered with a `'—'` placeholder a staff admin
+	// can't distinguish from a legitimate value (shell-r5-F3).
+	if (!id || !email) {
 		return null;
 	}
 
-	const email = normalizeString(result?.email) ?? '';
 	const firstName = normalizeNullableString(result?.firstName);
 	const lastName = normalizeNullableString(result?.lastName);
 
@@ -161,7 +238,7 @@ export const toStaffUserDetails = (
 		email,
 		firstName,
 		lastName,
-		avatarUrl: normalizeNullableString(result?.avatarUrl),
+		avatarUrl: normalizeNullableFileUrl(result?.avatarUrl),
 		accountLevel: normalizeNullableString(result?.accountLevel),
 		status: normalizeNullableString(result?.status),
 		createdAt: normalizeDate(result?.createdAt),
@@ -186,7 +263,7 @@ export const toAssignedStaffProfiles = (
 
 		profiles.push({
 			id,
-			name: normalizeString(item.name) ?? 'Unnamed profile',
+			name: normalizeString(item.name),
 			description: normalizeNullableString(item.description),
 		});
 	}
@@ -194,13 +271,78 @@ export const toAssignedStaffProfiles = (
 	return profiles;
 };
 
+const normalizeUpdateStringField = (
+	value: string | null | undefined,
+): string | null | undefined => {
+	if (value === undefined) {
+		return undefined;
+	}
+
+	if (value === null) {
+		return null;
+	}
+
+	const trimmed = value.trim();
+	return trimmed.length > 0 ? trimmed : null;
+};
+
+const buildUpdateStaffUserBody = (
+	input: StaffUserUpdateInput,
+): Partial<UpdateStaffUserBody> => {
+	const body: Partial<UpdateStaffUserBody> = {};
+	const firstName = normalizeUpdateStringField(input.firstName);
+	const lastName = normalizeUpdateStringField(input.lastName);
+	const avatarUrl = normalizeUpdateStringField(input.avatarUrl);
+	const accountLevel = normalizeUpdateStringField(input.accountLevel);
+
+	if (firstName !== undefined) {
+		body.firstName = firstName === null ? null : createUntypedString(firstName);
+	}
+
+	if (lastName !== undefined) {
+		body.lastName = lastName === null ? null : createUntypedString(lastName);
+	}
+
+	if (avatarUrl !== undefined) {
+		body.avatarUrl =
+			avatarUrl === null
+				? null
+				: createUntypedString(toRootRelativeApiFileUrl(avatarUrl));
+	}
+
+	if (accountLevel !== undefined) {
+		body.accountLevel =
+			accountLevel === null
+				? null
+				: (createUntypedString(
+						accountLevel,
+					) as UpdateStaffUserBody['accountLevel']);
+	}
+
+	return body;
+};
+
+const buildUpdateStaffUserEmailBody = (
+	email: string | null,
+): UpdateStaffUserEmailBody => ({
+	email: email === null ? null : createUntypedString(email),
+});
+
+const buildUpdateStaffUserProfilesBody = (
+	input: StaffUserProfilesUpdateInput,
+): UpdateStaffUserProfilesBody => ({
+	profileIds: createUntypedArray(
+		input.profileIds.map((profileId) => createUntypedString(profileId)),
+	),
+});
+
 const staffUsersQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	FindStaffUsersResponse,
 	StaffUsersQueryVariables
 >(
 	{
-		queryKeyFn: () => ['staff-users'],
+		queryKeyFn: () => [...STAFF_USERS_QUERY_KEY],
 		fetcher: async (client, vars) => {
 			const result = await client.staff.users.get({
 				queryParameters: buildFindStaffUsersQueryParameters(vars),
@@ -216,19 +358,13 @@ const staffUsersQueryOptions = buildStaffQueryOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-export const useStaffUsersQuery = (variables: StaffUsersQueryVariables) =>
-	useQuery({
-		queryKey: staffUsersQueryOptions.queryKey(variables),
-		queryFn: () => staffUsersQueryOptions.fetcher(variables),
-	});
-
 const staffUserDetailsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	GetStaffUserByIdResult,
 	StaffUserDetailsQueryVariables
 >(
 	{
-		queryKeyFn: () => ['staff-users', 'detail'],
+		queryKeyFn: () => [...STAFF_USER_DETAILS_QUERY_KEY],
 		fetcher: async (client, variables) => {
 			const result = await client.staff.users.byUserId(variables.userId).get();
 
@@ -242,25 +378,13 @@ const staffUserDetailsQueryOptions = buildStaffQueryOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-export const useStaffUserDetailsQuery = (
-	variables: StaffUserDetailsQueryVariables,
-	options?: {
-		enabled?: boolean;
-	},
-) =>
-	useQuery({
-		queryKey: staffUserDetailsQueryOptions.queryKey(variables),
-		queryFn: () => staffUserDetailsQueryOptions.fetcher(variables),
-		enabled: options?.enabled ?? true,
-	});
-
 const staffUserProfilesQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	GetStaffUserProfilesResult,
 	StaffUserProfilesQueryVariables
 >(
 	{
-		queryKeyFn: () => ['staff-users', 'detail', 'profiles'],
+		queryKeyFn: () => [...STAFF_USER_PROFILES_QUERY_KEY],
 		fetcher: async (client, variables) => {
 			const result = await client.staff.users
 				.byUserId(variables.userId)
@@ -276,6 +400,112 @@ const staffUserProfilesQueryOptions = buildStaffQueryOptions<
 	{ clientAccessor: getClientManager() },
 );
 
+const updateStaffUserMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	GetStaffUserByIdResult | undefined,
+	StaffUserUpdateInput
+>(
+	{
+		mutationKeyFn: () => ['staff-users', 'update'],
+		mutationFn: (client, variables) =>
+			client.staff.users
+				.byUserId(variables.userId)
+				.patch(buildUpdateStaffUserBody(variables)),
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+const updateStaffUserEmailMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	GetStaffUserByIdResult | undefined,
+	StaffUserEmailUpdateInput
+>(
+	{
+		mutationKeyFn: () => ['staff-users', 'update-email'],
+		mutationFn: (client, variables) =>
+			client.staff.users
+				.byUserId(variables.userId)
+				.email.patch(
+					buildUpdateStaffUserEmailBody(
+						normalizeUpdateStringField(variables.email) ?? null,
+					),
+				),
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+const updateStaffUserProfilesMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	GetStaffUserByIdResult | undefined,
+	StaffUserProfilesUpdateInput
+>(
+	{
+		mutationKeyFn: () => ['staff-users', 'update-profiles'],
+		mutationFn: (client, variables) =>
+			client.staff.users
+				.byUserId(variables.userId)
+				.profiles.put(buildUpdateStaffUserProfilesBody(variables)),
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+const suspendStaffUserMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	GetStaffUserByIdResult | undefined,
+	StaffUserDetailsQueryVariables
+>(
+	{
+		mutationKeyFn: () => ['staff-users', 'suspend'],
+		mutationFn: (client, variables) =>
+			client.staff.users.byUserId(variables.userId).suspend.post(),
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+const reactivateStaffUserMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	GetStaffUserByIdResult | undefined,
+	StaffUserDetailsQueryVariables
+>(
+	{
+		mutationKeyFn: () => ['staff-users', 'reactivate'],
+		mutationFn: (client, variables) =>
+			client.staff.users.byUserId(variables.userId).reactivate.post(),
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+const deleteStaffUserMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	ApiResponse | undefined,
+	StaffUserDetailsQueryVariables
+>(
+	{
+		mutationKeyFn: () => ['staff-users', 'delete'],
+		mutationFn: (client, variables) =>
+			client.staff.users.byUserId(variables.userId).delete(),
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+export const useStaffUsersQuery = (variables: StaffUsersQueryVariables) =>
+	useQuery({
+		queryKey: staffUsersQueryOptions.queryKey(variables),
+		queryFn: () => staffUsersQueryOptions.fetcher(variables),
+	});
+
+export const useStaffUserDetailsQuery = (
+	variables: StaffUserDetailsQueryVariables,
+	options?: {
+		enabled?: boolean;
+	},
+) =>
+	useQuery({
+		queryKey: staffUserDetailsQueryOptions.queryKey(variables),
+		queryFn: () => staffUserDetailsQueryOptions.fetcher(variables),
+		enabled: options?.enabled ?? true,
+	});
+
 export const useStaffUserProfilesQuery = (
 	variables: StaffUserProfilesQueryVariables,
 	options?: {
@@ -287,3 +517,21 @@ export const useStaffUserProfilesQuery = (
 		queryFn: () => staffUserProfilesQueryOptions.fetcher(variables),
 		enabled: options?.enabled ?? true,
 	});
+
+export const useUpdateStaffUserMutation = () =>
+	useMutation(updateStaffUserMutationOptions);
+
+export const useUpdateStaffUserEmailMutation = () =>
+	useMutation(updateStaffUserEmailMutationOptions);
+
+export const useUpdateStaffUserProfilesMutation = () =>
+	useMutation(updateStaffUserProfilesMutationOptions);
+
+export const useSuspendStaffUserMutation = () =>
+	useMutation(suspendStaffUserMutationOptions);
+
+export const useReactivateStaffUserMutation = () =>
+	useMutation(reactivateStaffUserMutationOptions);
+
+export const useDeleteStaffUserMutation = () =>
+	useMutation(deleteStaffUserMutationOptions);

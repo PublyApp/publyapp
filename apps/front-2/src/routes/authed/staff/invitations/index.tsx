@@ -1,19 +1,30 @@
-import { buttonVariants, Button } from '@heroui/react';
+import { IconChevronDown, IconCircleDot, IconPlus } from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { useEffect } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
 import { useRowSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
+import { Button, buttonVariants } from '~/components/ui/button';
+import {
+	DropdownMenu,
+	DropdownMenuCheckboxItem,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from '~/components/ui/dropdown-menu';
+import { PageHeader } from '~/components/ui/product-page';
+import { formatDateTime } from '~/lib/format-date-time';
 import { useStaffInvitationsQuery } from '~/lib/query/staff-invitations';
-import { shouldLogoutForFailure } from '~/routes/authed/layout';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
+import { StaffListExportSelectedAction } from '~/routes/authed/staff/staff-list-export-selected';
 
 import type { InvitationListItem } from '@org/client-ts/src/models/index.js';
 
 import {
-	filterInvitationRows,
-	formatInvitationStatusLabel,
+	getInvitationStatusLabelKey,
 	type InvitationListSearchParamInput,
 	type InvitationListSearchParams,
 	type KnownInvitationStatus,
@@ -43,8 +54,8 @@ const toRows = (
 		rows.push({
 			id: item.id,
 			email: item.email ?? '',
-			profileName: item.profileName?.trim() || '-',
-			invitedByName: item.invitedByName?.trim() || '-',
+			profileName: item.profileName?.trim() ?? '',
+			invitedByName: item.invitedByName?.trim() ?? '',
 			status: normalizeInvitationStatus(item.status),
 			acceptedAt: item.acceptedAt ?? null,
 			createdAt: item.createdAt ?? null,
@@ -86,25 +97,31 @@ function StaffInvitationsPage() {
 		defaultSize: DEFAULT_SIZE,
 		cursorResetKey: search.status ?? '',
 	});
+	// users-auth-r6-F2: the API's FindStaffInvitations contract has no search
+	// parameter (see apps/api/Modules/Invitations/Handlers/Staff/
+	// FindStaffInvitations.cs) — `q` is never sent here, and the search input
+	// is removed from the toolbar below, rather than rendering a text box
+	// that silently filters nothing.
 	const query = useStaffInvitationsQuery({
 		...controller.apiVariables,
-		q: controller.search.committed,
 		status: search.status,
 	});
+
+	const [actionError, setActionError] = useState('');
+
+	const onRefetch = useCallback(() => {
+		setActionError('');
+		void query.refetch();
+	}, [query]);
+
 	const columns = createInvitationColumns({
-		t: (key) => t(key),
+		t: (key, options) => t(key, options),
 		locale: i18n.language,
+		onActionSuccess: onRefetch,
+		onActionError: setActionError,
 	});
 	const rows = toRows(query.data?.data);
-	const filteredRows = filterInvitationRows(rows, controller.search.committed);
-	const selection = useRowSelection(filteredRows.map((row) => row.id));
-
-	const { resetDraftToCommitted } = controller.search;
-	useEffect(() => {
-		if (selection.isSelectionMode) {
-			resetDraftToCommitted();
-		}
-	}, [selection.isSelectionMode, resetDraftToCommitted]);
+	const selection = useRowSelection(rows.map((row) => row.id));
 
 	if (query.isError && shouldLogoutForFailure(query.error)) {
 		return <LogoutRedirect />;
@@ -130,54 +147,86 @@ function StaffInvitationsPage() {
 		setStatuses([...selectedStatuses, status]);
 	};
 
-	return (
-		<div className="space-y-4 p-4" data-testid="staff-invitations-list-page">
-			<div className="flex items-center justify-between gap-4">
-				<h1 className="text-xl font-semibold">{t('staff-invitations')}</h1>
-				<Link
-					to="/staff/invitations/new"
-					className={buttonVariants({ variant: 'primary' })}
-				>
-					{t('invite-users')}
-				</Link>
-			</div>
+	const statusFilterLabel =
+		selectedStatuses.length === 0
+			? t('all-statuses')
+			: selectedStatuses
+					.map((status) => t(getInvitationStatusLabelKey(status)))
+					.join(', ');
 
-			<div className="flex flex-wrap items-center gap-2">
-				{KNOWN_INVITATION_STATUSES.map((status) => {
-					const isSelected = selectedStatuses.includes(status);
-					return (
-						<Button
-							key={status}
-							size="sm"
-							type="button"
-							variant={isSelected ? 'primary' : 'secondary'}
-							onPress={() => toggleStatus(status)}
-						>
-							{formatInvitationStatusLabel(status)}
-						</Button>
-					);
-				})}
-				<Button
-					size="sm"
-					type="button"
-					variant="ghost"
-					onPress={() => setStatuses([])}
+	return (
+		<div className="publy-page-fill" data-testid="staff-invitations-list-page">
+			<PageHeader
+				title={t('staff-invitations')}
+				description={t('invite-staff-users-to-the-platform')}
+				actions={
+					<Link
+						to="/staff/invitations/new"
+						className={buttonVariants({ variant: 'default' })}
+					>
+						<IconPlus aria-hidden="true" className="size-[15px]" />
+						{t('invite-user')}
+					</Link>
+				}
+			/>
+
+			{actionError ? (
+				<div
+					className="mb-4 rounded-large border border-destructive/30 bg-destructive/8 px-4 py-3 text-sm text-destructive"
+					role="alert"
 				>
-					{t('clear')}
-				</Button>
-			</div>
+					{actionError}
+				</div>
+			) : null}
 
 			<DataTable
+				toolbarEnd={
+					<DropdownMenu>
+						<DropdownMenuTrigger
+							render={
+								<Button
+									type="button"
+									variant="outline"
+									className="publy-data-table-filter-button max-w-64 text-[13px]"
+								/>
+							}
+						>
+							<IconCircleDot
+								aria-hidden="true"
+								className="size-[15px] text-[var(--publy-foreground-secondary)]"
+							/>
+							<span className="truncate">{statusFilterLabel}</span>
+							<IconChevronDown aria-hidden="true" className="size-3" />
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end" sideOffset={6}>
+							{KNOWN_INVITATION_STATUSES.map((status) => (
+								<DropdownMenuCheckboxItem
+									key={status}
+									checked={selectedStatuses.includes(status)}
+									closeOnClick={false}
+									showCheckbox
+									onCheckedChange={() => toggleStatus(status)}
+								>
+									{t(getInvitationStatusLabelKey(status))}
+								</DropdownMenuCheckboxItem>
+							))}
+							<DropdownMenuSeparator />
+							<DropdownMenuItem onClick={() => setStatuses([])}>
+								{t('clear')}
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
+				}
 				testId="staff-invitations-table"
-				ariaLabel="Staff invitations"
+				ariaLabel={t('staff-invitations')}
 				columns={columns}
-				rows={filteredRows}
+				rows={rows}
 				isPending={query.isPending}
 				isError={query.isError}
 				onRetry={() => void query.refetch()}
-				emptyContent="No invitations found."
-				noMatchContent="No invitations match your search."
-				hasActiveSearch={Boolean(controller.search.committed)}
+				emptyContent={t('no-invitations-found')}
+				noMatchContent={t('no-invitations-match-your-search')}
+				hasActiveSearch={selectedStatuses.length > 0}
 				sort={controller.sort}
 				onSortChange={controller.onSortChange}
 				size={controller.size}
@@ -190,9 +239,25 @@ function StaffInvitationsPage() {
 					controller.cursor.onNextPage(query.data?.nextCursor ?? undefined)
 				}
 				onPreviousPage={controller.cursor.onPreviousPage}
-				searchDraft={controller.search.draft}
-				onSearchDraftChange={controller.search.onDraftChange}
 				selection={selection}
+			/>
+			<StaffListExportSelectedAction
+				rows={rows}
+				selection={selection}
+				fileNamePrefix="staff-invitations"
+				columns={[
+					{ header: t('invitee'), getValue: (row) => row.email },
+					{ header: t('profiles'), getValue: (row) => row.profileName },
+					{ header: t('invited-by'), getValue: (row) => row.invitedByName },
+					{
+						header: t('status'),
+						getValue: (row) => t(getInvitationStatusLabelKey(row.status)),
+					},
+					{
+						header: t('expires'),
+						getValue: (row) => formatDateTime(row.expiresAt, i18n.language),
+					},
+				]}
 			/>
 		</div>
 	);

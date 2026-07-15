@@ -18,6 +18,9 @@ using Xunit;
 
 namespace PublyApp.Api.Modules.Auth.Handlers;
 
+// See TenantAuthFilterSpec (Lib/Filters) for why this joins the shared
+// "AcmeTenantMutation" DisableParallelization collection.
+[Collection("AcmeTenantMutation")]
 public sealed class GetUserTenantsForPickerSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
@@ -226,6 +229,61 @@ public sealed class GetUserTenantsForPickerSpec
 		result.TotalCount.Should().Be(1);
 		result.ActiveCount.Should().Be(1);
 		result.HasSuspendedTenants.Should().BeFalse();
+	}
+
+	[Fact]
+	public async Task
+	ItShouldNotLeakStaffInternalNotesToTenantScope() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var acmeId =
+			await TenantTestHelper.GetTenantIdByNameAsync(
+				_http,
+				staffToken,
+				SeedConstants.Tenants.AcmeName
+			);
+
+		using var setNotes =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				acmeId,
+				new { notes = "staff-internal-secret-note" }
+			);
+		setNotes.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		try {
+			var aliceToken = await _authClient.LoginAsync(
+				TestConstants.AliceEmail,
+				TestConstants.SeedPassword
+			);
+
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				Routes.Auth.GetUserTenantsForPicker
+			).WithSessionToken(aliceToken);
+
+			using var response =
+				await _http.SendAsync(request);
+
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var rawBody = await response.Content
+				.ReadAsStringAsync();
+			rawBody.Should().NotContain(
+				"staff-internal-secret-note"
+			);
+			rawBody.ToLowerInvariant().Should()
+				.NotContain("\"notes\"");
+		} finally {
+			using var clearNotes =
+				await TenantTestHelper.UpdateTenantAsync(
+					_http,
+					staffToken,
+					acmeId,
+					new { notes = (string?)null }
+				);
+		}
 	}
 
 	[Fact]

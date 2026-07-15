@@ -105,6 +105,15 @@ public static class AuthEndpoints {
 			.ProducesAppProblem(StatusCodes.Status500InternalServerError);
 
 		group.MapPost(
+			PathUtils.GetLastSegment(Routes.Auth.RequestPasswordReset),
+			RequestPasswordReset.Handle
+		)
+			.WithName("RequestPasswordReset")
+			.WithSummary("Request Password Reset")
+			.WithReqBodyValidation<RequestPasswordResetBody>()
+			.ProducesAppProblem(StatusCodes.Status500InternalServerError);
+
+		group.MapPost(
 			PathUtils.GetLastSegment(Routes.Auth.ResetPassword),
 			ResetPassword.Handle
 		)

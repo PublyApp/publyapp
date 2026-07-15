@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
 	useStaffTenantInvitationsQuery: vi.fn(),
 	useRevokeStaffTenantInvitationMutation: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
+	invalidateAllStaffTenantScopes: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -43,16 +44,23 @@ vi.mock('@tanstack/react-router', () => ({
 		children,
 		to,
 		params,
+		search,
 		...props
 	}: {
 		children: React.ReactNode;
 		to: string;
 		params?: Record<string, string>;
+		search?: Record<string, string>;
 	}) => {
 		let href = to;
 
 		for (const [key, value] of Object.entries(params ?? {})) {
 			href = href.replace(`$${key}`, value);
+		}
+
+		const query = new URLSearchParams(search ?? {}).toString();
+		if (query.length > 0) {
+			href = `${href}?${query}`;
 		}
 
 		return (
@@ -63,15 +71,61 @@ vi.mock('@tanstack/react-router', () => ({
 	},
 }));
 
+const TRANSLATIONS: Record<string, string> = {
+	basics: 'Basics',
+	profiles: 'Profiles',
+	invitations: 'Invitations',
+	users: 'Users',
+	'pending-invitations': 'Pending invitations',
+	'tenant-invitations-tab-description':
+		"People invited to this workspace who haven't joined yet.",
+	'invite-people': 'Invite people',
+	invitee: 'Invitee',
+	'invited-by': 'Invited by',
+	expires: 'Expires',
+	status: 'Status',
+	actions: 'Actions',
+	revoke: 'Revoke',
+	'revoke-invitation': 'Revoke invitation',
+	'revoke-invitation-confirm-description':
+		'This will revoke the invitation. The invited user will no longer be able to accept it.',
+	'actions-for': 'Actions for {{name}}',
+	invitation: 'Invitation',
+	'tenant-invitations-table-aria-label': 'Tenant invitations',
+	'error-500-code': '500 — Server Error',
+	'tenant-details-error-title': 'Unable to load this tenant',
+	'tenant-response-incomplete': 'The tenant response was incomplete.',
+	'staff-revoke': 'Revoke',
+	'revoke-invitation-success': 'Invitation revoked.',
+	'all-statuses': 'All statuses',
+	pending: 'Pending',
+	accepted: 'Accepted',
+	expired: 'Expired',
+	revoked: 'Revoked',
+	'status-unknown': 'Unknown',
+	clear: 'Clear',
+	'search-invitations': 'Search invitations',
+	'tenant-invitations-empty-title': 'No pending invitations',
+	'tenant-invitations-empty-description':
+		'Invite people to this workspace and track their invitations here.',
+	'tenant-invitations-no-match-title': 'No invitations match your search',
+	'tenant-invitations-no-match-description':
+		'Try a different name, email, or filter.',
+	'invitations-pending-count-chip': '{{count}} pending',
+};
+
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string) => {
-			const labels: Record<string, string> = {
-				'staff-revoke': 'Revoke',
-				'revoke-invitation-success': 'Invitation revoked.',
-			};
+		t: (key: string, options?: Record<string, unknown>) => {
+			let text = TRANSLATIONS[key] ?? key;
+			if (!options) {
+				return text;
+			}
 
-			return labels[key] ?? key;
+			for (const [optionKey, value] of Object.entries(options)) {
+				text = text.replaceAll(`{{${optionKey}}}`, String(value));
+			}
+			return text;
 		},
 		i18n: {
 			language: 'en',
@@ -88,7 +142,6 @@ vi.mock('~/components/error-views/View403', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenant-invitations', () => ({
-	STAFF_TENANT_INVITATIONS_QUERY_KEY: ['staff-tenants', 'invitations'],
 	isStaffTenantInvitationRevocable: (row: { status: string | null }) =>
 		row.status?.trim().toLowerCase() === 'pending',
 	toStaffTenantInvitationRows: mocks.toStaffTenantInvitationRows,
@@ -98,15 +151,16 @@ vi.mock('~/lib/query/staff-tenant-invitations', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenants', () => ({
+	invalidateAllStaffTenantScopes: mocks.invalidateAllStaffTenantScopes,
 	toStaffTenantDetails: mocks.toStaffTenantDetails,
 	useStaffTenantDetailsQuery: mocks.useStaffTenantDetailsQuery,
 }));
 
-vi.mock('~/routes/authed/layout', () => ({
+vi.mock('~/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 
-import { Route } from './invitations';
+import { createColumns, isInvitationExpiringSoon, Route } from './invitations';
 
 const buildQueryResult = (overrides: Record<string, unknown> = {}) => ({
 	data: undefined,
@@ -141,7 +195,6 @@ describe('staff tenant invitations route', () => {
 			mutateAsync: vi.fn().mockResolvedValue({}),
 			isPending: false,
 		});
-		globalThis.confirm = vi.fn(() => true);
 		mocks.toStaffTenantDetails.mockReturnValue({
 			id: '11111111-1111-1111-1111-111111111111',
 			name: 'Acme Corporation',
@@ -149,6 +202,7 @@ describe('staff tenant invitations route', () => {
 			status: 'Active',
 			usersCount: 12,
 			maxUsers: 50,
+			pendingInvitationsCount: 3,
 			logoUrl: null,
 			createdAt: new Date('2026-07-01T09:00:00Z'),
 			updatedAt: new Date('2026-07-02T10:00:00Z'),
@@ -203,6 +257,7 @@ describe('staff tenant invitations route', () => {
 				selector: 'span[aria-current="page"]',
 			}),
 		).toBeTruthy();
+		expect(screen.getByRole('heading', { name: /^Invitations/ })).toBeTruthy();
 		expect(
 			screen.getByRole('link', { name: 'Basics' }).getAttribute('href'),
 		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111');
@@ -212,6 +267,11 @@ describe('staff tenant invitations route', () => {
 		expect(
 			screen.getByRole('link', { name: 'Users' }).getAttribute('href'),
 		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/users');
+		expect(
+			screen.getByRole('link', { name: 'Invite people' }).getAttribute('href'),
+		).toBe(
+			'/staff/tenants/11111111-1111-1111-1111-111111111111/users?invite=1',
+		);
 		expect(screen.getByText('alex@example.com')).toBeTruthy();
 		expect(screen.getByText('Approvers')).toBeTruthy();
 		expect(screen.getByText('Taylor Smith')).toBeTruthy();
@@ -230,7 +290,51 @@ describe('staff tenant invitations route', () => {
 		);
 	});
 
-	test('shows a revoke action only for pending invitations', () => {
+	test('shows the honest pending-invitations count next to the tab title, labelled as pending', () => {
+		renderPage();
+
+		const title = screen.getByRole('heading', { name: /^Invitations/ });
+		expect(title.textContent).toContain('3 pending');
+	});
+
+	test('renders the invite CTA in the empty state when there are no invitations', () => {
+		mocks.toStaffTenantInvitationRows.mockReturnValue([]);
+		mocks.useStaffTenantInvitationsQuery.mockReturnValue(
+			buildQueryResult({
+				data: {
+					data: [],
+					nextCursor: null,
+				},
+			}),
+		);
+
+		renderPage();
+
+		expect(
+			screen.getByTestId('staff-tenant-invitations-table-empty'),
+		).toBeTruthy();
+		expect(screen.getByText('No pending invitations')).toBeTruthy();
+		expect(
+			screen
+				.getAllByRole('link', { name: 'Invite people' })
+				.some((link) =>
+					link
+						.getAttribute('href')
+						?.endsWith(
+							'/staff/tenants/11111111-1111-1111-1111-111111111111/users?invite=1',
+						),
+				),
+		).toBe(true);
+	});
+
+	test('does not render created/accepted columns not in the approved column list', () => {
+		renderPage();
+
+		expect(screen.queryByText('Created')).toBeNull();
+		expect(screen.queryByText('Accepted')).toBeNull();
+	});
+
+	test('shows a revoke action only for pending invitations', async () => {
 		mocks.toStaffTenantInvitationRows.mockReturnValue([
 			{
 				id: 'invite-pending',
@@ -258,7 +362,9 @@ describe('staff tenant invitations route', () => {
 
 		renderPage();
 
-		expect(screen.getAllByRole('button', { name: 'Revoke' })).toHaveLength(1);
+		expect(
+			screen.getAllByRole('button', { name: /^Actions for/ }),
+		).toHaveLength(1);
 		expect(screen.getByText('accepted@example.com')).toBeTruthy();
 	});
 
@@ -270,7 +376,15 @@ describe('staff tenant invitations route', () => {
 		});
 
 		renderPage();
-		fireEvent.click(screen.getByRole('button', { name: 'Revoke' }));
+		fireEvent.click(screen.getByRole('button', { name: /^Actions for/ }));
+		fireEvent.click(await screen.findByRole('menuitem', { name: 'Revoke' }));
+
+		await waitFor(() =>
+			expect(screen.getByText('Revoke invitation')).toBeTruthy(),
+		);
+		fireEvent.click(
+			screen.getAllByRole('button', { name: 'Revoke' }).slice(-1)[0],
+		);
 
 		await waitFor(() =>
 			expect(revoke).toHaveBeenCalledWith({
@@ -279,11 +393,8 @@ describe('staff tenant invitations route', () => {
 			}),
 		);
 		await waitFor(() =>
-			expect(mocks.invalidateQueries).toHaveBeenCalledWith({
-				queryKey: ['staff', 'staff-tenants', 'invitations'],
-			}),
+			expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled(),
 		);
-		expect(globalThis.confirm).toHaveBeenCalledWith('Revoke invitation?');
 		expect(screen.getByText('Invitation revoked.')).toBeTruthy();
 	});
 
@@ -300,7 +411,15 @@ describe('staff tenant invitations route', () => {
 		});
 
 		renderPage();
-		fireEvent.click(screen.getByRole('button', { name: 'Revoke' }));
+		fireEvent.click(screen.getByRole('button', { name: /^Actions for/ }));
+		fireEvent.click(await screen.findByRole('menuitem', { name: 'Revoke' }));
+
+		await waitFor(() =>
+			expect(screen.getByText('Revoke invitation')).toBeTruthy(),
+		);
+		fireEvent.click(
+			screen.getAllByRole('button', { name: 'Revoke' }).slice(-1)[0],
+		);
 
 		await waitFor(() => expect(revoke).toHaveBeenCalledTimes(1));
 		await waitFor(() => expect(screen.getByText('Forbidden')).toBeTruthy());
@@ -321,11 +440,100 @@ describe('staff tenant invitations route', () => {
 		});
 
 		renderPage();
-		fireEvent.click(screen.getByRole('button', { name: 'Revoke' }));
+		fireEvent.click(screen.getByRole('button', { name: /^Actions for/ }));
+		fireEvent.click(await screen.findByRole('menuitem', { name: 'Revoke' }));
+
+		await waitFor(() =>
+			expect(screen.getByText('Revoke invitation')).toBeTruthy(),
+		);
+		fireEvent.click(
+			screen.getAllByRole('button', { name: 'Revoke' }).slice(-1)[0],
+		);
 
 		await waitFor(() => expect(revoke).toHaveBeenCalledTimes(1));
 		await waitFor(() =>
 			expect(screen.getByTestId('logout-redirect')).toBeTruthy(),
+		);
+	});
+
+	test('a debounced search commit does not revert a status filter chosen within the debounce window (F1)', async () => {
+		const Component = getRouteComponent();
+		const renderResult = render(<Component />);
+
+		fireEvent.change(
+			screen.getByTestId('staff-tenant-invitations-table-search'),
+			{ target: { value: 'an' } },
+		);
+
+		// Simulate choosing a status filter within the 300ms debounce window:
+		// the route re-renders with the new URL search state, same as a real
+		// navigation would, before the debounced commit fires.
+		mocks.search = { status: 'pending' };
+		renderResult.rerender(<Component />);
+
+		await new Promise((resolve) => setTimeout(resolve, 350));
+
+		const lastCall = mocks.navigate.mock.calls.at(-1)?.[0] as {
+			search?: Record<string, unknown>;
+		};
+		expect(lastCall?.search).toMatchObject({ status: 'pending', q: 'an' });
+	});
+
+	test('a debounced search commit does not revert a status filter cleared within the debounce window (r3-F1)', async () => {
+		mocks.search = { status: 'pending' };
+		const Component = getRouteComponent();
+		const renderResult = render(<Component />);
+
+		fireEvent.change(
+			screen.getByTestId('staff-tenant-invitations-table-search'),
+			{ target: { value: 'an' } },
+		);
+
+		// Simulate clearing the status filter within the 300ms debounce window.
+		// canonicalized parsing stores explicit `status: undefined` so the
+		// rerendered route search keeps the canonical key shape.
+		mocks.search = {};
+		renderResult.rerender(<Component />);
+
+		await new Promise((resolve) => setTimeout(resolve, 350));
+
+		const lastCall = mocks.navigate.mock.calls.at(-1)?.[0] as {
+			search?: Record<string, unknown>;
+		};
+		expect(
+			Object.prototype.hasOwnProperty.call(lastCall?.search, 'status'),
+		).toBe(true);
+		expect(lastCall?.search?.status).toBeUndefined();
+		expect(lastCall?.search).toMatchObject({ q: 'an' });
+	});
+
+	test('renders default status control when handed an already-canonicalized search (URL-level proof: deep-link-canonicalization.test.tsx)', () => {
+		const validateSearch = (
+			Route as unknown as {
+				validateSearch: (
+					search: Record<string, unknown>,
+				) => Record<string, unknown>;
+			}
+		).validateSearch;
+		const canonicalSearch = validateSearch({ status: 'bogus' });
+
+		expect(
+			Object.prototype.hasOwnProperty.call(canonicalSearch, 'status'),
+		).toBe(true);
+		expect(canonicalSearch.status).toBeUndefined();
+
+		mocks.search = canonicalSearch;
+		renderPage();
+
+		expect(
+			screen.getByRole('button', { name: /All statuses/ }).textContent,
+		).toContain('All statuses');
+		expect(mocks.useStaffTenantInvitationsQuery).toHaveBeenCalledWith(
+			expect.objectContaining({
+				tenantId: '11111111-1111-1111-1111-111111111111',
+				status: undefined,
+			}),
+			{ enabled: true },
 		);
 	});
 
@@ -346,9 +554,7 @@ describe('staff tenant invitations route', () => {
 		expect(
 			screen.getByTestId('staff-tenant-invitations-table-no-match'),
 		).toBeTruthy();
-		expect(
-			screen.getByText('No tenant invitations match your search.'),
-		).toBeTruthy();
+		expect(screen.getByText('No invitations match your search')).toBeTruthy();
 		expect(mocks.useStaffTenantInvitationsQuery).toHaveBeenCalledWith(
 			expect.objectContaining({
 				q: 'alex',
@@ -358,7 +564,7 @@ describe('staff tenant invitations route', () => {
 		);
 	});
 
-	test('renders a local malformed id view without logging out', () => {
+	test('renders the not-found view without logging out for a malformed id', () => {
 		mocks.useStaffTenantDetailsQuery.mockReturnValue(
 			buildQueryResult({
 				error: {
@@ -374,7 +580,7 @@ describe('staff tenant invitations route', () => {
 
 		renderPage();
 
-		expect(screen.getByTestId('staff-tenant-details-invalid')).toBeTruthy();
+		expect(screen.getByTestId('staff-tenant-details-not-found')).toBeTruthy();
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 	});
 
@@ -455,5 +661,75 @@ describe('staff tenant invitations route', () => {
 		renderPage();
 
 		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
+	});
+});
+
+describe('createColumns column widths', () => {
+	test('applies a fixed width to every column except the fluid email column', () => {
+		const columns = createColumns({
+			locale: 'en',
+			t: (key: string) => key,
+			isRevokePending: false,
+			onRevoke: () => undefined,
+		});
+		const widthById = Object.fromEntries(
+			columns.map((column) => [column.id, column.meta?.width]),
+		);
+
+		expect(widthById).toEqual({
+			email: undefined,
+			profile_name: '160px',
+			invited_by: '150px',
+			expires_at: '150px',
+			status: '128px',
+			actions: '40px',
+		});
+	});
+
+	test('hides secondary metadata columns below the 768px mobile breakpoint, keeping email/status/actions', () => {
+		const columns = createColumns({
+			locale: 'en',
+			t: (key: string) => key,
+			isRevokePending: false,
+			onRevoke: () => undefined,
+		});
+		const hideBelowById = Object.fromEntries(
+			columns.map((column) => [column.id, column.meta?.hideBelow]),
+		);
+
+		expect(hideBelowById).toEqual({
+			email: undefined,
+			profile_name: 768,
+			invited_by: 768,
+			expires_at: 768,
+			status: undefined,
+			actions: undefined,
+		});
+	});
+});
+
+describe('isInvitationExpiringSoon', () => {
+	const now = new Date('2026-07-01T00:00:00Z');
+
+	test('is true when expiry is within 48 hours in the future', () => {
+		expect(
+			isInvitationExpiringSoon(new Date('2026-07-02T12:00:00Z'), now),
+		).toBe(true);
+	});
+
+	test('is false when expiry is more than 48 hours away', () => {
+		expect(
+			isInvitationExpiringSoon(new Date('2026-07-10T00:00:00Z'), now),
+		).toBe(false);
+	});
+
+	test('is false when already expired', () => {
+		expect(
+			isInvitationExpiringSoon(new Date('2026-06-30T00:00:00Z'), now),
+		).toBe(false);
+	});
+
+	test('is false for a null expiry', () => {
+		expect(isInvitationExpiringSoon(null, now)).toBe(false);
 	});
 });

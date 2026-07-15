@@ -1,23 +1,25 @@
-import { Button } from '@heroui/react';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
+import { buttonVariants } from '~/components/ui/button';
 
 export const IndexRoute = () => {
 	const { t } = useTranslation('common');
 
 	return (
 		<div className="space-y-4">
-			<h1 className="text-2xl font-semibold">Welcome to the front-2 shell</h1>
-			<p className="text-sm text-slate-700 dark:text-slate-300">
-				Explore navigation, theme, and auth surface foundations from here.
+			<h1 className="text-2xl font-semibold">{t('welcome-title')}</h1>
+			<p className="text-sm text-[var(--publy-foreground-secondary)]">
+				{t('welcome-description')}
 			</p>
 			<p
-				className="text-sm text-slate-700 dark:text-slate-300"
+				className="text-sm text-[var(--publy-foreground-secondary)]"
 				data-testid="i18n-greeting"
 			>
 				{t('hello')}
 			</p>
-			<Button variant="primary">HeroUI shell is active</Button>
+			<Link to="/login" className={buttonVariants({ variant: 'default' })}>
+				{t('sign-in')}
+			</Link>
 		</div>
 	);
 };

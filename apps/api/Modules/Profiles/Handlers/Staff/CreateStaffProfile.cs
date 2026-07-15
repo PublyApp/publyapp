@@ -239,15 +239,13 @@ public sealed class CreateStaffProfile {
 	) {
 		var profileId = success.Profile.GetRequiredId();
 
-		// Send invitation emails to NEW users (fire and forget - don't block response)
-		_ = Task.Run(async () => {
-			await SendInvitationEmailsAsync(
-				emailService,
-				logger,
-				success.InvitationTokens,
-				cancellationToken
-			);
-		}, cancellationToken);
+		// Invitation emails for NEW users are no longer sent here: the service
+		// layer now writes a durable InvitationEmailOutbox row in the same
+		// transaction as the invitation, and InvitationEmailOutboxDispatcher
+		// delivers it out-of-band — a request-scoped Task.Run had no durable
+		// record, so an aborted request or process restart could silently lose
+		// the invitation while this response still claimed it was sent
+		// (round-6 API F4).
 
 		// Send notification emails to EXISTING users (fire and forget)
 		_ = Task.Run(async () => {
@@ -290,45 +288,6 @@ public sealed class CreateStaffProfile {
 					.InvitationsSent
 			}
 		);
-	}
-
-	/// <summary>
-	/// Sends invitation emails with controlled concurrency and retry logic.
-	/// </summary>
-	private static async Task SendInvitationEmailsAsync(
-		IEmailService emailService,
-		ILogger logger,
-		List<(string Email, string Token)> invitationTokens,
-		CancellationToken cancellationToken
-	) {
-		if (invitationTokens.Count == 0) {
-			return;
-		}
-
-		const int maxConcurrency = 5;
-		using var semaphore = new SemaphoreSlim(maxConcurrency);
-
-		var tasks = invitationTokens.Select(async (invitation) => {
-			await semaphore.WaitAsync(cancellationToken);
-			try {
-				await SendEmailWithRetryAsync(
-					async () => {
-						await emailService.SendInvitationToJoinStaffEmailAsync(
-							invitation.Email,
-							invitation.Token
-						);
-					},
-					logger,
-					invitation.Email,
-					"invitation",
-					cancellationToken
-				);
-			} finally {
-				semaphore.Release();
-			}
-		});
-
-		await Task.WhenAll(tasks);
 	}
 
 	/// <summary>

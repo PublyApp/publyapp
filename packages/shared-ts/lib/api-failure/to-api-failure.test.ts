@@ -242,3 +242,27 @@ test('falls back to 500 for out-of-range response status', () => {
 	expect(failure.kind).toBe('problem');
 	expect(failure.status).toBe(500);
 });
+
+test('lower-camels the PascalCase field-error keys FluentValidation.ToDictionary() actually sends', () => {
+	// A real API 422 body shape (ReqBodyValidationFilter.cs -> ValidationResult.ToDictionary()):
+	// keys are the rule's PropertyName verbatim, not the wire's camelCase convention.
+	const payload = {
+		body: {
+			status: 422,
+			responseStatusCode: 422,
+			errors: {
+				Email: ['Email is required'],
+				NewPassword: ['Password must be at least 12 characters'],
+				ID: ['must be a valid id'],
+			},
+		},
+	};
+
+	const failure = toApiFailure(payload);
+	expect(failure.kind).toBe('validation');
+	expect(failure.fieldErrors).toEqual({
+		email: ['Email is required'],
+		newPassword: ['Password must be at least 12 characters'],
+		id: ['must be a valid id'],
+	});
+});

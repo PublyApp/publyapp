@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
@@ -385,11 +386,11 @@ public class TenantUserCompanyQueryService : ITenantUserCompanyQueryService {
 		IQueryable<TenantUserCompanyQueryRow> query = baseQuery;
 		var search = args.Filters?.Search?.Trim();
 		if (!string.IsNullOrEmpty(search)) {
-			var searchPattern = $"%{search}%";
+			var searchPattern = $"%{LikePatternUtils.EscapeLikePattern(search)}%";
 			query =
 				from row in query
-				where EF.Functions.ILike(row.Tenant.Name, searchPattern)
-					|| EF.Functions.ILike(row.Tenant.Code, searchPattern)
+				where EF.Functions.ILike(row.Tenant.Name, searchPattern, LikePatternUtils.LikeEscapeChar)
+					|| EF.Functions.ILike(row.Tenant.Code, searchPattern, LikePatternUtils.LikeEscapeChar)
 				select row;
 		}
 

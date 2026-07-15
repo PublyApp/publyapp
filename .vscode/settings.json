@@ -30,7 +30,52 @@
 		"justfile": "makefile"
 	},
 	"files.exclude": {
-		"apps/api/.artifacts": true
+		"apps/api/.artifacts": true,
+		"**/node_modules": true,
+		".codegraph": true,
+		"**/bin": true,
+		"**/obj": true,
+		"**/.turbo": true,
+		"out": true,
+		"build": true,
+		"apps/*/dist": true,
+		"packages/*/dist": true,
+		"apps/*/.artifacts": true,
+		"packages/*/.artifacts": true
+	},
+	"files.watcherExclude": {
+		"**/.git/objects/**": true,
+		"**/.git/subtree-cache/**": true,
+		"**/node_modules/**": true,
+		"**/.worktrees/**": true,
+		"**/.dump/**": true,
+		"**/.codegraph/**": true,
+		"**/bin/**": true,
+		"**/obj/**": true,
+		"**/.turbo/**": true,
+		"**/pnpm-lock.yaml": true,
+		"**/out/**": true,
+		"**/build/**": true,
+		"apps/*/dist/**": true,
+		"packages/*/dist/**": true,
+		"apps/*/.artifacts/**": true,
+		"packages/*/.artifacts/**": true
+	},
+	"search.exclude": {
+		"**/node_modules": true,
+		".worktrees": true,
+		".dump": true,
+		".codegraph": true,
+		"**/bin": true,
+		"**/obj": true,
+		"**/.turbo": true,
+		"pnpm-lock.yaml": true,
+		"out": true,
+		"build": true,
+		"apps/*/dist": true,
+		"packages/*/dist": true,
+		"apps/*/.artifacts": true,
+		"packages/*/.artifacts": true
 	},
 	"[jsonc]": {
 		"editor.defaultFormatter": "vscode.json-language-features"
@@ -40,6 +85,7 @@
 		"editor.formatOnSave": true
 	},
 	"dotnet.server.useOmnisharp": false,
+	"dotnet.preferVisualStudioCodeFileSystemWatcher": true,
 	"dotnet.backgroundAnalysis.analyzerDiagnosticsScope": "openFiles",
 	"dotnet.backgroundAnalysis.compilerDiagnosticsScope": "openFiles",
 	"rest-client.environmentVariables": {

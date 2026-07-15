@@ -7,11 +7,14 @@ import {
 	reactivateStaffTenantMutationOptions,
 	deleteStaffTenantMutationOptions,
 	createStaffTenantMutationOptions,
+	staffTenantsQueryOptions,
 	STAFF_TENANTS_QUERY_KEY,
 	STAFF_TENANT_DETAILS_QUERY_KEY,
 	updateStaffTenantMutationOptions,
 	toStaffTenantDetails,
 	toStaffTenantRows,
+	invalidateStaffTenants,
+	invalidateAllStaffTenantScopes,
 } from '~/lib/query/staff-tenants';
 
 import type {
@@ -24,6 +27,8 @@ import type {
 	UpdateTenantAsStaffBody,
 } from '@org/client-ts/src/models/index.js';
 
+const API_BASE_URL = 'https://api.example.test';
+
 const mocks = vi.hoisted(() => ({
 	getOrCreateStaffClient: vi.fn(),
 }));
@@ -32,6 +37,7 @@ vi.mock('~/lib/api-client/client-manager', () => ({
 	getClientManager: () => ({
 		getOrCreateStaffClient: mocks.getOrCreateStaffClient,
 	}),
+	resolveApiBaseUrl: () => 'https://api.example.test',
 }));
 
 beforeEach(() => {
@@ -132,6 +138,108 @@ describe('buildCreateStaffTenantBody', () => {
 			},
 		]);
 	});
+
+	test('includes a trimmed code and the seedDefaultProfile flag when provided', () => {
+		const body = buildCreateStaffTenantBody({
+			name: 'Acme Tenant',
+			maxUsers: 5,
+			code: '  acme-corp  ',
+			seedDefaultProfile: false,
+			initialUsers: [{ email: 'user@example.com', accountLevel: 'Admin' }],
+		});
+
+		expect(unwrapUntyped(body.code)).toBe('acme-corp');
+		expect(unwrapUntyped(body.seedDefaultProfile)).toBe(false);
+	});
+
+	test('omits code and seedDefaultProfile when not provided', () => {
+		const body = buildCreateStaffTenantBody({
+			name: 'Acme Tenant',
+			maxUsers: 5,
+			initialUsers: [{ email: 'user@example.com', accountLevel: 'Admin' }],
+		});
+
+		expect(body.code).toBeUndefined();
+		expect(body.seedDefaultProfile).toBeUndefined();
+	});
+
+	test('omits a blank code rather than sending an empty string', () => {
+		const body = buildCreateStaffTenantBody({
+			name: 'Acme Tenant',
+			maxUsers: 5,
+			code: '   ',
+			initialUsers: [{ email: 'user@example.com', accountLevel: 'Admin' }],
+		});
+
+		expect(body.code).toBeUndefined();
+	});
+
+	test('trims and wraps the organization profile fields when provided', () => {
+		const body = buildCreateStaffTenantBody({
+			name: 'Acme Tenant',
+			maxUsers: 5,
+			initialUsers: [{ email: 'user@example.com', accountLevel: 'Admin' }],
+			legalName: ' Acme Tenant Ltd ',
+			description: ' A social platform ',
+			websiteUrl: ' https://acme.com ',
+			billingEmail: ' billing@acme.com ',
+			supportEmail: ' support@acme.com ',
+			defaultLocale: ' en ',
+			timezone: ' Europe/Paris ',
+			notes: ' staff-only note ',
+		});
+
+		expect(unwrapUntyped(body.legalName)).toBe('Acme Tenant Ltd');
+		expect(unwrapUntyped(body.description)).toBe('A social platform');
+		expect(unwrapUntyped(body.websiteUrl)).toBe('https://acme.com');
+		expect(unwrapUntyped(body.billingEmail)).toBe('billing@acme.com');
+		expect(unwrapUntyped(body.supportEmail)).toBe('support@acme.com');
+		expect(unwrapUntyped(body.defaultLocale)).toBe('en');
+		expect(unwrapUntyped(body.timezone)).toBe('Europe/Paris');
+		expect(unwrapUntyped(body.notes)).toBe('staff-only note');
+	});
+
+	test('omits the organization profile fields when absent or blank', () => {
+		const body = buildCreateStaffTenantBody({
+			name: 'Acme Tenant',
+			maxUsers: 5,
+			initialUsers: [{ email: 'user@example.com', accountLevel: 'Admin' }],
+			legalName: '   ',
+		});
+
+		expect(body.legalName).toBeUndefined();
+		expect(body.description).toBeUndefined();
+		expect(body.websiteUrl).toBeUndefined();
+		expect(body.billingEmail).toBeUndefined();
+		expect(body.supportEmail).toBeUndefined();
+		expect(body.defaultLocale).toBeUndefined();
+		expect(body.timezone).toBeUndefined();
+		expect(body.notes).toBeUndefined();
+	});
+
+	test('strips the API origin off a same-origin logoUrl before persisting', () => {
+		const body = buildCreateStaffTenantBody({
+			name: 'Acme Tenant',
+			maxUsers: 5,
+			initialUsers: [{ email: 'user@example.com', accountLevel: 'Admin' }],
+			logoUrl: `${API_BASE_URL}/files/uploads/2026/07/logo.png`,
+		});
+
+		expect(unwrapUntyped(body.logoUrl)).toBe('/files/uploads/2026/07/logo.png');
+	});
+
+	test('leaves an externally hosted logoUrl untouched', () => {
+		const body = buildCreateStaffTenantBody({
+			name: 'Acme Tenant',
+			maxUsers: 5,
+			initialUsers: [{ email: 'user@example.com', accountLevel: 'Admin' }],
+			logoUrl: 'https://cdn.example.com/acme-logo.png',
+		});
+
+		expect(unwrapUntyped(body.logoUrl)).toBe(
+			'https://cdn.example.com/acme-logo.png',
+		);
+	});
 });
 
 describe('buildUpdateStaffTenantBody', () => {
@@ -155,6 +263,73 @@ describe('buildUpdateStaffTenantBody', () => {
 		});
 
 		expect((body as UpdateTenantAsStaffBody).logoUrl).toBeNull();
+	});
+
+	test('strips the API origin off a same-origin logoUrl before persisting', () => {
+		const body = buildUpdateStaffTenantBody({
+			logoUrl: `${API_BASE_URL}/files/uploads/2026/07/logo.png`,
+		});
+
+		expect(unwrapUntyped(body.logoUrl)).toBe('/files/uploads/2026/07/logo.png');
+	});
+
+	test('trims and wraps the organization profile fields when set', () => {
+		const body = buildUpdateStaffTenantBody({
+			legalName: ' Acme Tenant Ltd ',
+			description: ' A social platform ',
+			websiteUrl: ' https://acme.com ',
+			billingEmail: ' billing@acme.com ',
+			supportEmail: ' support@acme.com ',
+			defaultLocale: ' en ',
+			timezone: ' Europe/Paris ',
+			notes: ' staff-only note ',
+		});
+
+		expect(unwrapUntyped(body.legalName)).toBe('Acme Tenant Ltd');
+		expect(unwrapUntyped(body.description)).toBe('A social platform');
+		expect(unwrapUntyped(body.websiteUrl)).toBe('https://acme.com');
+		expect(unwrapUntyped(body.billingEmail)).toBe('billing@acme.com');
+		expect(unwrapUntyped(body.supportEmail)).toBe('support@acme.com');
+		expect(unwrapUntyped(body.defaultLocale)).toBe('en');
+		expect(unwrapUntyped(body.timezone)).toBe('Europe/Paris');
+		expect(unwrapUntyped(body.notes)).toBe('staff-only note');
+	});
+
+	test('sends explicit null for each organization profile field cleared to blank', () => {
+		const body = buildUpdateStaffTenantBody({
+			legalName: '   ',
+			description: '   ',
+			websiteUrl: '   ',
+			billingEmail: '   ',
+			supportEmail: '   ',
+			defaultLocale: '   ',
+			timezone: '   ',
+			notes: '   ',
+		});
+
+		expect(body.legalName).toBeNull();
+		expect(body.description).toBeNull();
+		expect(body.websiteUrl).toBeNull();
+		expect(body.billingEmail).toBeNull();
+		expect(body.supportEmail).toBeNull();
+		expect(body.defaultLocale).toBeNull();
+		expect(body.timezone).toBeNull();
+		expect(body.notes).toBeNull();
+	});
+
+	test('omits the organization profile fields when not provided', () => {
+		const body = buildUpdateStaffTenantBody({
+			name: 'Acme Tenant',
+		});
+
+		expect(body.legalName).toBeUndefined();
+		expect(body.description).toBeUndefined();
+		expect(body.websiteUrl).toBeUndefined();
+		expect(body.billingEmail).toBeUndefined();
+		expect(body.supportEmail).toBeUndefined();
+		expect(body.defaultLocale).toBeUndefined();
+		expect(body.timezone).toBeUndefined();
+		expect(body.notes).toBeUndefined();
 	});
 });
 
@@ -387,6 +562,31 @@ describe('buildFindStaffTenantsQueryParameters', () => {
 	});
 });
 
+describe('staffTenantsQueryOptions.queryKey', () => {
+	test('changes when the status filter changes, so switching filters never serves stale cached rows', () => {
+		const noFilter = staffTenantsQueryOptions.queryKey({});
+		const active = staffTenantsQueryOptions.queryKey({ status: 'active' });
+		const suspended = staffTenantsQueryOptions.queryKey({
+			status: 'suspended',
+		});
+
+		expect(active).not.toEqual(suspended);
+		expect(active).not.toEqual(noFilter);
+		expect(suspended).not.toEqual(noFilter);
+		expect(active).toEqual([
+			'staff',
+			...STAFF_TENANTS_QUERY_KEY,
+			{ status: 'active' },
+		]);
+		expect(suspended).toEqual([
+			'staff',
+			...STAFF_TENANTS_QUERY_KEY,
+			{ status: 'suspended' },
+		]);
+		expect(noFilter).toEqual(['staff', ...STAFF_TENANTS_QUERY_KEY]);
+	});
+});
+
 describe('toStaffTenantRows', () => {
 	test('normalizes API items and skips rows without usable ids', () => {
 		const items: TenantAsStaffListItem[] = [
@@ -404,13 +604,6 @@ describe('toStaffTenantRows', () => {
 				usersCount: 1,
 				maxUsers: 10,
 			},
-			{
-				id: 'tenant-2',
-				name: null,
-				status: null,
-				usersCount: null,
-				maxUsers: null,
-			},
 		];
 
 		expect(toStaffTenantRows(items)).toEqual([
@@ -421,20 +614,38 @@ describe('toStaffTenantRows', () => {
 				usersCount: 12,
 				maxUsers: 50,
 			},
+		]);
+	});
+
+	// shell-r5-F3: a row missing its required `name` used to be kept with a
+	// `'—'` placeholder a staff admin can't distinguish from real data. It
+	// must be dropped instead.
+	test('drops a row with a blank/missing name rather than fabricating a placeholder', () => {
+		const items: TenantAsStaffListItem[] = [
 			{
 				id: 'tenant-2',
-				name: '—',
+				name: null,
 				status: null,
+				usersCount: null,
+				maxUsers: null,
+			},
+			{
+				id: 'tenant-3',
+				name: '   ',
+				status: 'Active',
 				usersCount: 0,
 				maxUsers: 0,
 			},
-		]);
+		];
+
+		expect(toStaffTenantRows(items)).toEqual([]);
 	});
 });
 
 describe('toStaffTenantDetails', () => {
 	test('normalizes a detail payload and preserves optional values', () => {
 		const createdAt = new Date('2026-07-01T08:30:00Z');
+		const lastActivityAt = new Date('2026-07-05T12:00:00Z');
 
 		const result = toStaffTenantDetails({
 			tenantId: 'tenant-7',
@@ -443,7 +654,20 @@ describe('toStaffTenantDetails', () => {
 			status: ' Active ',
 			usersCount: 12,
 			maxUsers: 50,
+			ownersCount: 4,
+			pendingInvitationsCount: 3,
+			expiringSoonInvitationsCount: 1,
+			profilesCount: 6,
 			logoUrl: ' https://cdn.example.com/acme.png ',
+			legalName: ' Acme Corporation Ltd ',
+			description: ' A social media platform ',
+			websiteUrl: ' https://acme.com ',
+			billingEmail: ' billing@acme.com ',
+			supportEmail: ' support@acme.com ',
+			defaultLocale: ' en ',
+			timezone: ' Europe/Paris ',
+			notes: ' internal-only note ',
+			lastActivityAt,
 			createdAt,
 			updatedAt: new Date('invalid'),
 		} as GetTenantAsStaffResult);
@@ -455,10 +679,58 @@ describe('toStaffTenantDetails', () => {
 			status: 'Active',
 			usersCount: 12,
 			maxUsers: 50,
+			ownersCount: 4,
+			pendingInvitationsCount: 3,
+			expiringSoonInvitationsCount: 1,
+			profilesCount: 6,
 			logoUrl: 'https://cdn.example.com/acme.png',
+			legalName: 'Acme Corporation Ltd',
+			description: 'A social media platform',
+			websiteUrl: 'https://acme.com',
+			billingEmail: 'billing@acme.com',
+			supportEmail: 'support@acme.com',
+			defaultLocale: 'en',
+			timezone: 'Europe/Paris',
+			notes: 'internal-only note',
+			lastActivityAt,
 			createdAt,
 			updatedAt: null,
 		});
+	});
+
+	test('defaults the new detail counts to zero and the organization profile fields to null when the payload omits them', () => {
+		const result = toStaffTenantDetails({
+			tenantId: 'tenant-8',
+			name: 'Acme Corporation',
+		} as GetTenantAsStaffResult);
+
+		expect(result).toMatchObject({
+			ownersCount: 0,
+			pendingInvitationsCount: 0,
+			expiringSoonInvitationsCount: 0,
+			profilesCount: 0,
+			legalName: null,
+			description: null,
+			websiteUrl: null,
+			billingEmail: null,
+			supportEmail: null,
+			defaultLocale: null,
+			timezone: null,
+			notes: null,
+			lastActivityAt: null,
+		});
+	});
+
+	test('resolves a root-relative /files/ logoUrl against the API origin', () => {
+		const result = toStaffTenantDetails({
+			tenantId: 'tenant-9',
+			name: 'Acme Corporation',
+			logoUrl: '/files/uploads/2026/07/logo.png',
+		} as GetTenantAsStaffResult);
+
+		expect(result?.logoUrl).toBe(
+			`${API_BASE_URL}/files/uploads/2026/07/logo.png`,
+		);
 	});
 
 	test('returns null when the payload has no usable tenant id', () => {
@@ -468,5 +740,32 @@ describe('toStaffTenantDetails', () => {
 				name: 'Acme Corporation',
 			} as GetTenantAsStaffResult),
 		).toBeNull();
+	});
+
+	// shell-r5-F3: a payload missing its required `name` used to be treated
+	// as present-but-blank, fabricating a `'—'` placeholder. It must be
+	// treated the same as "not found" instead.
+	test('returns null when the payload has no usable name', () => {
+		expect(
+			toStaffTenantDetails({
+				tenantId: 'tenant-10',
+				name: '   ',
+			} as GetTenantAsStaffResult),
+		).toBeNull();
+	});
+});
+
+describe('invalidateStaffTenants / invalidateAllStaffTenantScopes', () => {
+	test('both invalidate the shared staff-tenants scope prefix', () => {
+		const invalidateQueries = vi.fn();
+		const queryClient = { invalidateQueries } as never;
+
+		void invalidateStaffTenants(queryClient);
+		void invalidateAllStaffTenantScopes(queryClient);
+
+		expect(invalidateQueries).toHaveBeenCalledTimes(2);
+		expect(invalidateQueries).toHaveBeenCalledWith({
+			queryKey: ['staff', ...STAFF_TENANTS_QUERY_KEY],
+		});
 	});
 });

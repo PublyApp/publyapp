@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 
 import {
-	filterInvitationRows,
+	getInvitationStatusLabelKey,
 	parseInvitationListSearchParams,
 	serializeInvitationListSearchParams,
 } from './list-helpers';
@@ -32,7 +32,7 @@ describe('parseInvitationListSearchParams', () => {
 			parseInvitationListSearchParams({
 				status: '  ',
 			}),
-		).toEqual({});
+		).toEqual({ status: undefined });
 	});
 });
 
@@ -58,30 +58,20 @@ describe('serializeInvitationListSearchParams', () => {
 	});
 });
 
-describe('filterInvitationRows', () => {
-	test('matches email, profile name, inviter, and status text case-insensitively', () => {
-		const rows = [
-			{
-				id: 'one',
-				email: 'pending@example.com',
-				profileName: 'Admins',
-				invitedByName: 'Owner User',
-				status: 'pending',
-			},
-			{
-				id: 'two',
-				email: 'accepted@example.com',
-				profileName: 'Editors',
-				invitedByName: 'Staff Admin',
-				status: 'accepted',
-			},
-		];
-
-		expect(filterInvitationRows(rows, 'admins')).toEqual([rows[0]]);
-		expect(filterInvitationRows(rows, 'staff admin')).toEqual([rows[1]]);
-		expect(filterInvitationRows(rows, 'PENDING')).toEqual([rows[0]]);
-		expect(filterInvitationRows(rows, 'accepted@example.com')).toEqual([
-			rows[1],
-		]);
+describe('getInvitationStatusLabelKey', () => {
+	test('maps every known status to a translation key', () => {
+		expect(getInvitationStatusLabelKey('pending')).toBe(
+			'invitation-status-pending',
+		);
+		expect(getInvitationStatusLabelKey('accepted')).toBe(
+			'invitation-status-accepted',
+		);
+		expect(getInvitationStatusLabelKey('expired')).toBe(
+			'invitation-status-expired',
+		);
+		expect(getInvitationStatusLabelKey('revoked')).toBe(
+			'invitation-status-revoked',
+		);
+		expect(getInvitationStatusLabelKey('unknown')).toBe('unknown');
 	});
 });

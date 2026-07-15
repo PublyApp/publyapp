@@ -11,6 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
+using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -20,12 +21,17 @@ using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Tenants.Entities;
+using PublyApp.Api.Modules.Tenants.Validation;
+using PublyApp.Api.Modules.Uploads.Handlers.Staff;
 using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
 
 namespace PublyApp.Api.Modules.Tenants.Handlers.Staff;
 
+// See TenantAuthFilterSpec for why this joins the shared
+// "AcmeTenantMutation" DisableParallelization collection.
+[Collection("AcmeTenantMutation")]
 public sealed class UpdateTenantAsStaffSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
@@ -157,6 +163,43 @@ public sealed class UpdateTenantAsStaffSpec
 
 	[Fact]
 	public async Task
+	ItShouldClearLogoUrlWhenSetToEmptyString() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantAsync("Tenant Logo Empty String Clear");
+
+		using var setResponse =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				seededTenant.TenantId,
+				new { logoUrl = "https://example.com/logo.png" }
+			);
+		setResponse.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+
+		// Empty string must clear logoUrl the same way it clears websiteUrl/
+		// billingEmail/legalName — not 422, and not persisted as a literal "".
+		using var clearResponse =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				seededTenant.TenantId,
+				new { logoUrl = "" }
+			);
+
+		clearResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await clearResponse.Content
+			.ReadFromJsonAsync<GetTenantAsStaffResult>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+		result.LogoUrl.Should().BeNull();
+	}
+
+	[Fact]
+	public async Task
 	ItShouldSetLogoUrlWhenStringProvided() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
@@ -189,6 +232,151 @@ public sealed class UpdateTenantAsStaffSpec
 			.Be(seededTenant.TenantId);
 		result.LogoUrl.Should()
 			.Be(logoUrl);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldDeleteThePreviousUploadedLogoBlobWhenLogoUrlIsReplaced() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantAsync("Tenant Logo Blob Replace");
+		var uploaded = await UploadPngLogoAsync(staffToken);
+
+		using var setResponse =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				seededTenant.TenantId,
+				new { logoUrl = uploaded.Url }
+			);
+		setResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+		File.Exists(GetStorageFilePath(uploaded.Path)).Should().BeTrue();
+
+		using var replaceResponse =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				seededTenant.TenantId,
+				new { logoUrl = "https://cdn.example.com/replacement-logo.png" }
+			);
+		replaceResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		File.Exists(GetStorageFilePath(uploaded.Path)).Should().BeFalse(
+			"replacing a served-upload logoUrl must delete the blob it pointed at"
+		);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldDeleteThePreviousUploadedLogoBlobWhenLogoUrlIsCleared() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantAsync("Tenant Logo Blob Clear");
+		var uploaded = await UploadPngLogoAsync(staffToken);
+
+		using var setResponse =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				seededTenant.TenantId,
+				new { logoUrl = uploaded.Url }
+			);
+		setResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		using var clearRequest = new HttpRequestMessage(
+			HttpMethod.Patch, GetUrl(seededTenant.TenantId.ToString())
+		).WithSessionToken(staffToken);
+		clearRequest.Content = new StringContent(
+			"""{"logoUrl": null}""",
+			Encoding.UTF8,
+			"application/json"
+		);
+		using var clearResponse = await _http.SendAsync(clearRequest);
+		clearResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		File.Exists(GetStorageFilePath(uploaded.Path)).Should().BeFalse(
+			"clearing a served-upload logoUrl must delete the blob it pointed at"
+		);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldNotDeleteAnythingWhenThePreviousLogoUrlIsNotAServedUpload() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantAsync("Tenant Logo External No Delete");
+
+		using var setResponse =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				seededTenant.TenantId,
+				new { logoUrl = "https://cdn.example.com/external-logo.png" }
+			);
+		setResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		// No blob is server-owned here, so replacing it a second time must not
+		// throw or attempt to touch the filesystem for an external URL.
+		using var replaceResponse =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				seededTenant.TenantId,
+				new { logoUrl = "https://cdn.example.com/another-external-logo.png" }
+			);
+		replaceResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldNotDeleteTheLogoBlobWhenAnotherTenantStillReferencesIt() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tenantA =
+			await SeedTenantAsync("Tenant Logo Shared A");
+		var tenantB =
+			await SeedTenantAsync("Tenant Logo Shared B");
+		var uploaded = await UploadPngLogoAsync(staffToken);
+
+		using var setAResponse =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				tenantA.TenantId,
+				new { logoUrl = uploaded.Url }
+			);
+		setAResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		using var setBResponse =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				tenantB.TenantId,
+				new { logoUrl = uploaded.Url }
+			);
+		setBResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		using var replaceAResponse =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				tenantA.TenantId,
+				new { logoUrl = "https://cdn.example.com/replacement-logo.png" }
+			);
+		replaceAResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		File.Exists(GetStorageFilePath(uploaded.Path)).Should().BeTrue(
+			"the blob must survive while tenant B's logoUrl still points at it"
+		);
+
+		using var fileResponse = await _http.GetAsync(uploaded.Url);
+		fileResponse.StatusCode.Should().Be(
+			HttpStatusCode.OK,
+			"tenant B must still be able to serve the shared logo after tenant A's replace"
+		);
 	}
 
 	[Fact]
@@ -292,6 +480,400 @@ public sealed class UpdateTenantAsStaffSpec
 			expectedLogoUrl: newLogoUrl,
 			expectedMaxUsers: newMaxUsers
 		);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldStoreWhitespaceOnlyLegalNameAsNullNotAsAnEmptyishString() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantAsync("Tenant Org Fields Whitespace");
+
+		using var response =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				seededTenant.TenantId,
+				new { legalName = "  " }
+			);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<GetTenantAsStaffResult>();
+		result.Should().NotBeNull();
+		if (result is null) {
+			throw new InvalidOperationException(
+				"PATCH tenant response was empty."
+			);
+		}
+
+		// A whitespace-only value must collapse to the SAME "cleared" representation
+		// as an explicit null — never a second, undocumented "empty" representation.
+		result.LegalName.Should().BeNull();
+	}
+
+	[Fact]
+	public async Task
+	ItShouldClearWebsiteUrlAndBillingEmailWhenSetToEmptyString() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantAsync("Tenant Org Fields Empty String Clear");
+
+		using var setResponse =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				seededTenant.TenantId,
+				new {
+					websiteUrl = "https://example.com",
+					billingEmail = "billing@example.com",
+				}
+			);
+		setResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		// Empty string must clear the same way whitespace-only/null clear
+		// legalName — not 422, and not persisted as a literal empty string.
+		using var clearResponse =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				seededTenant.TenantId,
+				new {
+					websiteUrl = "",
+					billingEmail = "",
+				}
+			);
+
+		clearResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await clearResponse.Content
+			.ReadFromJsonAsync<GetTenantAsStaffResult>();
+		result.Should().NotBeNull();
+		if (result is null) {
+			throw new InvalidOperationException(
+				"PATCH tenant response was empty."
+			);
+		}
+
+		result.WebsiteUrl.Should().BeNull();
+		result.BillingEmail.Should().BeNull();
+	}
+
+	[Fact]
+	public async Task
+	ItShouldSetOrganizationProfileFieldsWhenProvided() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantAsync("Tenant Org Fields Set");
+
+		using var response =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				seededTenant.TenantId,
+				new {
+					legalName = "Acme Legal Name LLC",
+					description = "A short org description",
+					websiteUrl = "https://example.com",
+					billingEmail = "billing@example.com",
+					supportEmail = "support@example.com",
+					defaultLocale = "fr",
+					timezone = "Europe/Paris",
+					notes = "staff-only note",
+				}
+			);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<GetTenantAsStaffResult>();
+		result.Should().NotBeNull();
+		if (result is null) {
+			throw new InvalidOperationException(
+				"PATCH tenant response was empty."
+			);
+		}
+
+		result.LegalName.Should().Be("Acme Legal Name LLC");
+		result.Description.Should().Be("A short org description");
+		result.WebsiteUrl.Should().Be("https://example.com");
+		result.BillingEmail.Should().Be("billing@example.com");
+		result.SupportEmail.Should().Be("support@example.com");
+		result.DefaultLocale.Should().Be("fr");
+		result.Timezone.Should().Be("Europe/Paris");
+		result.Notes.Should().Be("staff-only note");
+
+		// The response body is built from the in-memory tracked entity, which
+		// would look updated even if the service never called SaveChanges (or
+		// wrote to the wrong column). Re-read from a fresh scope to prove it
+		// actually persisted.
+		var persisted = await GetTenantIgnoringFiltersAsync(seededTenant.TenantId);
+		persisted.LegalName.Should().Be("Acme Legal Name LLC");
+		persisted.Description.Should().Be("A short org description");
+		persisted.WebsiteUrl.Should().Be("https://example.com");
+		persisted.BillingEmail.Should().Be("billing@example.com");
+		persisted.SupportEmail.Should().Be("support@example.com");
+		persisted.DefaultLocale.Should().Be("fr");
+		persisted.Timezone.Should().Be("Europe/Paris");
+		persisted.Notes.Should().Be("staff-only note");
+	}
+
+	[Fact]
+	public async Task
+	ItShouldClearOrganizationProfileFieldsWhenSetToNull() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantAsync("Tenant Org Fields Clear");
+
+		using var setResponse =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				seededTenant.TenantId,
+				new {
+					legalName = "Acme Legal Name LLC",
+					description = "A short org description",
+					websiteUrl = "https://example.com",
+					billingEmail = "billing@example.com",
+					supportEmail = "support@example.com",
+					defaultLocale = "fr",
+					timezone = "Europe/Paris",
+					notes = "staff-only note",
+				}
+			);
+		setResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var url = GetUrl(seededTenant.TenantId.ToString());
+		var clearRequest = new HttpRequestMessage(
+			HttpMethod.Patch, url
+		).WithSessionToken(staffToken);
+		clearRequest.Content = new StringContent(
+			"""
+			{
+				"legalName": null,
+				"description": null,
+				"websiteUrl": null,
+				"billingEmail": null,
+				"supportEmail": null,
+				"defaultLocale": null,
+				"timezone": null,
+				"notes": null
+			}
+			""",
+			Encoding.UTF8,
+			"application/json"
+		);
+
+		using var clearResponse =
+			await _http.SendAsync(clearRequest);
+
+		clearResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await clearResponse.Content
+			.ReadFromJsonAsync<GetTenantAsStaffResult>();
+		result.Should().NotBeNull();
+		if (result is null) {
+			throw new InvalidOperationException(
+				"PATCH tenant response was empty."
+			);
+		}
+
+		result.LegalName.Should().BeNull();
+		result.Description.Should().BeNull();
+		result.WebsiteUrl.Should().BeNull();
+		result.BillingEmail.Should().BeNull();
+		result.SupportEmail.Should().BeNull();
+		result.DefaultLocale.Should().BeNull();
+		result.Timezone.Should().BeNull();
+		result.Notes.Should().BeNull();
+
+		// Prove the PatchField<T> clear-to-null semantics actually persisted,
+		// not just that the response echoed the in-memory tracked entity.
+		var persisted = await GetTenantIgnoringFiltersAsync(seededTenant.TenantId);
+		persisted.LegalName.Should().BeNull();
+		persisted.Description.Should().BeNull();
+		persisted.WebsiteUrl.Should().BeNull();
+		persisted.BillingEmail.Should().BeNull();
+		persisted.SupportEmail.Should().BeNull();
+		persisted.DefaultLocale.Should().BeNull();
+		persisted.Timezone.Should().BeNull();
+		persisted.Notes.Should().BeNull();
+	}
+
+	[Fact]
+	public async Task
+	ItShouldLeaveOrganizationProfileFieldsUntouchedWhenAbsent() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantAsync("Tenant Org Fields Absent");
+
+		using var setResponse =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				seededTenant.TenantId,
+				new {
+					legalName = "Acme Legal Name LLC",
+					notes = "staff-only note",
+				}
+			);
+		setResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		// Only touch Name; org fields are absent and must be left alone.
+		using var response =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				seededTenant.TenantId,
+				new { name = $"Renamed {Guid.NewGuid():N}" }
+			);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<GetTenantAsStaffResult>();
+		result.Should().NotBeNull();
+		if (result is null) {
+			throw new InvalidOperationException(
+				"PATCH tenant response was empty."
+			);
+		}
+
+		result.LegalName.Should().Be("Acme Legal Name LLC");
+		result.Notes.Should().Be("staff-only note");
+
+		// Confirm the leave-untouched fields are genuinely unchanged in the
+		// database, not merely absent from a response the handler could have
+		// built from stale in-memory state either way.
+		var persisted = await GetTenantIgnoringFiltersAsync(seededTenant.TenantId);
+		persisted.LegalName.Should().Be("Acme Legal Name LLC");
+		persisted.Notes.Should().Be("staff-only note");
+	}
+
+	[Theory]
+	[InlineData("billingEmail", "not-an-email")]
+	[InlineData("supportEmail", "not-an-email")]
+	[InlineData("websiteUrl", "not-a-url")]
+	[InlineData("defaultLocale", "de")]
+	[InlineData("defaultLocale", "FR")]
+	[InlineData("defaultLocale", "En")]
+	[InlineData("timezone", "Not/A_Real_Zone")]
+	public async Task
+	ItShouldReturnUnprocessableEntityForInvalidOrganizationFieldValues(
+		string field,
+		string invalidValue
+) {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantAsync("Tenant Org Fields Invalid");
+
+		var body = $$"""{ "{{field}}": "{{invalidValue}}" }""";
+
+		using var response = await _http.SendAsync(
+			CreateRawUpdateRequest(
+				staffToken,
+				seededTenant.TenantId,
+				body
+			)
+		);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.UnprocessableEntity);
+	}
+
+	[Theory]
+	[InlineData("legalName", 257)]
+	[InlineData("description", 1025)]
+	[InlineData("notes", 4001)]
+	[InlineData("name", 257)]
+	public async Task
+	ItShouldReturnUnprocessableEntityWhenOrganizationFieldExceedsMaxLength(
+		string field,
+		int length
+	) {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantAsync("Tenant Org Fields Too Long");
+
+		var value = new string('a', length);
+		var body = $$"""{ "{{field}}": "{{value}}" }""";
+
+		using var response = await _http.SendAsync(
+			CreateRawUpdateRequest(
+				staffToken,
+				seededTenant.TenantId,
+				body
+			)
+		);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.UnprocessableEntity);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldUpdateTenantWhenNameIsExactlyAtMaxLength() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantAsync("Tenant Name Exact Length");
+
+		// Prefixed with a unique marker (well under the limit) so the name stays
+		// unique across test runs while the total length still lands exactly at
+		// NameMaxLength.
+		var prefix = $"Tenant Exact {Guid.NewGuid():N} ";
+		var name = prefix + new string(
+			'a', TenantValidationRules.NameMaxLength - prefix.Length
+		);
+		name.Length.Should().Be(TenantValidationRules.NameMaxLength);
+
+		using var response = await TenantTestHelper.UpdateTenantAsync(
+			_http,
+			staffToken,
+			seededTenant.TenantId,
+			new { name }
+		);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+		var persisted = await dbContext.Tenant
+			.Where(t => t.Id == seededTenant.TenantId)
+			.SingleAsync();
+		persisted.Name.Should().Be(name);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnUnprocessableEntityWhenWebsiteUrlExceedsMaxLength() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantAsync("Tenant WebsiteUrl Too Long");
+
+		var oversizedWebsiteUrl =
+			"https://example.com/" + new string('a', TenantValidationRules.WebsiteUrlMaxLength);
+
+		using var response = await TenantTestHelper.UpdateTenantAsync(
+			_http,
+			staffToken,
+			seededTenant.TenantId,
+			new { websiteUrl = oversizedWebsiteUrl }
+		);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.UnprocessableEntity);
 	}
 
 	[Fact]
@@ -546,7 +1128,10 @@ public sealed class UpdateTenantAsStaffSpec
 
 	public static TheoryData<string, string>
 	InvalidUpdateTenantBodies() {
-		return new TheoryData<string, string> {
+		var oversizedLogoUrl =
+			"https://cdn.example.com/" + new string('a', 2048) + ".png";
+
+		var data = new TheoryData<string, string> {
 			{
 			"""
 			{ "name": 123 }
@@ -568,6 +1153,24 @@ public sealed class UpdateTenantAsStaffSpec
 			{
 			"""
 			{ "logoUrl": 123 }
+			""",
+			"LogoUrl"
+			},
+			{
+			"""
+			{ "logoUrl": "javascript:alert(document.cookie)" }
+			""",
+			"LogoUrl"
+			},
+			{
+			"""
+			{ "logoUrl": "data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==" }
+			""",
+			"LogoUrl"
+			},
+			{
+			"""
+			{ "logoUrl": "not-a-url-or-served-upload-path" }
 			""",
 			"LogoUrl"
 			},
@@ -596,6 +1199,13 @@ public sealed class UpdateTenantAsStaffSpec
 			"MaxUsers"
 			},
 		};
+
+		data.Add(
+			$$"""{ "logoUrl": "{{oversizedLogoUrl}}" }""",
+			"LogoUrl"
+		);
+
+		return data;
 	}
 
 	private static HttpRequestMessage
@@ -691,6 +1301,47 @@ public sealed class UpdateTenantAsStaffSpec
 		return seededTenant;
 	}
 
+	private static readonly byte[] PngBytes = [
+		0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+		0x00, 0x00, 0x00, 0x0D, 0x00, 0x00
+	];
+
+	private async Task<StaffUploadCreated> UploadPngLogoAsync(string staffToken) {
+		var uploadUrl = PathUtils.Join(
+			Routes.Staff.Root,
+			Routes.Uploads.ForStaff.Root,
+			Routes.Uploads.ForStaff.Create
+		);
+
+		using var content = new MultipartFormDataContent();
+		var fileContent = new ByteArrayContent(PngBytes);
+		fileContent.Headers.ContentType =
+			new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
+		content.Add(fileContent, "file", "logo.png");
+
+		using var request = new HttpRequestMessage(HttpMethod.Post, uploadUrl) {
+			Content = content
+		}.WithSessionToken(staffToken);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+		var result = await response.Content.ReadFromJsonAsync<StaffUploadCreated>();
+		result.Should().NotBeNull();
+		if (result is null) {
+			throw new InvalidOperationException("Upload response was empty.");
+		}
+		return result;
+	}
+
+	private string GetStorageFilePath(string relativePath) {
+		var fileStorage = _fixture.Factory.Services.GetRequiredService<IFileStorage>();
+		return Path.Combine(
+			fileStorage.RootPath,
+			relativePath.Replace('/', Path.DirectorySeparatorChar)
+		);
+	}
+
 	private async Task<AuditLog?> GetLatestAuditLogAsync(
 		string action,
 		Guid targetId
@@ -708,6 +1359,29 @@ public sealed class UpdateTenantAsStaffSpec
 			select log;
 
 		return await query.FirstOrDefaultAsync();
+	}
+
+	// IgnoreQueryFilters mirrors BulkRemoveTenantUsersAsStaff.Spec.cs's
+	// re-read pattern: fetch from a brand-new scope/DbContext so the result
+	// can only reflect what was actually persisted, never the request-scoped
+	// tracked entity the handler returned in its response body.
+	private async Task<Tenant> GetTenantIgnoringFiltersAsync(Guid tenantId) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var tenant = await dbContext.Tenant
+			.IgnoreQueryFilters()
+			.FirstOrDefaultAsync(t => t.Id == tenantId);
+
+		if (tenant is null) {
+			throw new InvalidOperationException(
+				$"Tenant {tenantId} could not be re-read from a fresh scope."
+			);
+		}
+
+		return tenant;
 	}
 
 	private static void AssertUpdateAuditDetails(

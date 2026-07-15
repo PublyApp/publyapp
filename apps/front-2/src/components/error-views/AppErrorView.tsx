@@ -1,8 +1,9 @@
-import { Card } from '@heroui/react';
 import type { ReactNode } from 'react';
+import { StateView } from '~/components/ui/state-view';
+import { cn } from '~/lib/utils';
 
 type AppErrorViewProps = {
-	icon: string;
+	icon: ReactNode;
 	title: string;
 	code?: string;
 	description?: string;
@@ -10,6 +11,17 @@ type AppErrorViewProps = {
 	errorDetails?: ReactNode;
 	diagnosticId?: string;
 	testId?: string;
+	/** Icon tint. Defaults to 'neutral' (e.g. 404/not-found). */
+	tone?: 'neutral' | 'danger';
+	/**
+	 * Renders inside an existing page shell (a `<div>`, no `min-h-screen`)
+	 * instead of a full-viewport `<main>`. Defaults to `true` — almost every
+	 * call site lives inside the authed `<Outlet>`, which is already a
+	 * `<main>` landmark of its own. Pass `embedded={false}` only for the
+	 * genuine full-page uses: the root error boundary, the not-found route,
+	 * and the auth surface.
+	 */
+	embedded?: boolean;
 };
 
 export const AppErrorView = ({
@@ -21,43 +33,44 @@ export const AppErrorView = ({
 	errorDetails,
 	diagnosticId,
 	testId,
+	tone = 'neutral',
+	embedded = true,
 }: AppErrorViewProps) => {
+	const Wrapper = embedded ? 'div' : 'main';
+
 	return (
-		<main className="mx-auto flex min-h-screen w-full max-w-4xl items-center justify-center px-4 py-12">
-			<Card className="w-full max-w-lg" data-testid={testId}>
-				<div className="space-y-3 p-6 text-center">
-					<div
-						className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-divider bg-content1 text-3xl"
-						aria-hidden="true"
-					>
-						{icon}
-					</div>
-					{code ? (
-						<p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">
-							{code}
-						</p>
-					) : null}
-					<h1 className="text-3xl font-semibold leading-tight">{title}</h1>
-					{description ? (
-						<p className="text-sm text-foreground-500">{description}</p>
-					) : null}
-					{errorDetails ? (
-						<div className="text-left text-sm text-foreground-500">
+		<Wrapper
+			className={cn(
+				'mx-auto flex w-full max-w-lg flex-col items-center px-4 text-center',
+				embedded
+					? 'min-h-[50vh] justify-center py-8'
+					: 'min-h-screen justify-center py-16',
+			)}
+			data-testid={testId}
+		>
+			<StateView
+				icon={icon}
+				tone={tone}
+				scale="page"
+				eyebrow={code}
+				title={title}
+				description={description}
+				beforeActions={
+					errorDetails ? (
+						<div className="mt-3 w-full text-left text-sm text-muted-foreground">
 							{errorDetails}
 						</div>
-					) : null}
-				</div>
-				{actions ? (
-					<div className="w-full border-t border-divider px-6 py-4">
-						<div className="flex w-full justify-center gap-2">{actions}</div>
-					</div>
-				) : null}
-				{diagnosticId ? (
-					<div className="border-t border-divider px-6 pb-5 pt-2 text-left text-xs text-foreground-400">
-						{diagnosticId}
-					</div>
-				) : null}
-			</Card>
-		</main>
+					) : null
+				}
+				actions={actions}
+				afterActions={
+					diagnosticId ? (
+						<div className="mt-3 w-full text-left text-xs text-muted-foreground">
+							{diagnosticId}
+						</div>
+					) : null
+				}
+			/>
+		</Wrapper>
 	);
 };

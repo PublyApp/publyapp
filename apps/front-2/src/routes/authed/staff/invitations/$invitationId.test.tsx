@@ -9,6 +9,7 @@ import {
 	screen,
 	waitFor,
 } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -17,6 +18,15 @@ const mocks = vi.hoisted(() => ({
 	useResendStaffInvitationMutation: vi.fn(),
 	useRevokeStaffInvitationMutation: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
+}));
+
+vi.mock('@tanstack/react-router', () => ({
+	createFileRoute: () => (options: Record<string, unknown>) => options,
+	Link: ({ children, to, ...props }: { children: ReactNode; to: string }) => (
+		<a href={to} {...props}>
+			{children}
+		</a>
+	),
 }));
 
 vi.mock('react-i18next', () => ({
@@ -36,6 +46,9 @@ vi.mock('react-i18next', () => ({
 				'sent-date': 'Sent date',
 				'staff-invited-by': 'Invited by',
 				'invitation-id': 'Invitation ID',
+				'invitation-removal': 'Invitation removal',
+				'invitation-removal-description':
+					'Revoke this invitation. The invited user will no longer be able to accept it.',
 				'manage-invitation': 'Manage invitation',
 				'invite-link': 'Invite link',
 				'copy-link-success': 'Invite link copied.',
@@ -50,6 +63,8 @@ vi.mock('react-i18next', () => ({
 				'invitation-details-error-title': 'Unable to load invitation',
 				'invitation-details-error-description':
 					'Try again or return to the invitations list.',
+				'invitation-status-pending': 'Pending',
+				'try-again': 'Try again',
 			};
 
 			return labels[key] ?? key;
@@ -62,9 +77,10 @@ vi.mock('~/lib/query/staff-invitations', () => ({
 	useStaffInvitationLinkMutation: mocks.useStaffInvitationLinkMutation,
 	useResendStaffInvitationMutation: mocks.useResendStaffInvitationMutation,
 	useRevokeStaffInvitationMutation: mocks.useRevokeStaffInvitationMutation,
+	invalidateStaffInvitations: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock('~/routes/authed/layout', () => ({
+vi.mock('~/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 
@@ -103,7 +119,6 @@ describe('StaffInvitationDetailsPage', () => {
 				writeText: vi.fn().mockResolvedValue(undefined),
 			},
 		});
-		globalThis.confirm = vi.fn(() => true);
 
 		mocks.useStaffInvitationLinkMutation.mockReturnValue({
 			mutateAsync: vi.fn().mockResolvedValue({
@@ -165,6 +180,32 @@ describe('StaffInvitationDetailsPage', () => {
 			(screen.getByRole('button', { name: 'Revoke' }) as HTMLButtonElement)
 				.disabled,
 		).toBe(false);
+	});
+
+	test('renders a router Link back to the invitations list, not a raw anchor', () => {
+		mocks.useStaffInvitationDetailsQuery.mockReturnValue(
+			buildQueryResult({
+				data: {
+					id: '11111111-1111-1111-1111-111111111111',
+					email: 'pending-staff@example.com',
+					status: 'Pending',
+					invitedByName: 'Owner User',
+					createdAt: new Date('2026-07-01T09:00:00Z'),
+					expiresAt: new Date('2026-07-10T12:00:00Z'),
+					acceptedAt: null,
+					revokedAt: null,
+					profiles: [],
+				},
+			}),
+		);
+
+		renderPage();
+
+		const backLink = screen.getByRole('link', {
+			name: /Staff invitations/,
+		}) as HTMLAnchorElement;
+		expect(backLink.getAttribute('href')).toBe('/staff/invitations');
+		expect(backLink.className).toContain('publy-back-link');
 	});
 
 	test('renders the logout redirect for a 401 query failure', () => {
