@@ -119,6 +119,10 @@ const bulkCreateStaffInvitationsMutationOptions = buildStaffMutationOptions<
 			client.staff.invitations.bulk.post(
 				buildBulkCreateStaffInvitationsBody(variables),
 			),
+		meta: {
+			successMessage: 'invitations-sent-successfully',
+			validationHandledByForm: true,
+		},
 	},
 	{ clientAccessor: getClientManager() },
 );
@@ -185,6 +189,7 @@ const staffInvitationLinkMutationOptions = buildStaffMutationOptions<
 
 			return result;
 		},
+		meta: { silentSuccess: true, skipGlobalErrorHandler: true },
 	},
 	{ clientAccessor: getClientManager() },
 );
@@ -200,6 +205,7 @@ const resendStaffInvitationMutationOptions = buildStaffMutationOptions<
 			client.staff.invitations
 				.byInvitationId(variables.invitationId)
 				.resend.post(),
+		meta: { successMessage: 'resend-invitation-success' },
 	},
 	{ clientAccessor: getClientManager() },
 );
@@ -213,6 +219,7 @@ const revokeStaffInvitationMutationOptions = buildStaffMutationOptions<
 		mutationKeyFn: () => ['staff-invitations', 'revoke'],
 		mutationFn: (client, variables) =>
 			client.staff.invitations.byInvitationId(variables.invitationId).delete(),
+		meta: { successMessage: 'revoke-invitation-success' },
 	},
 	{ clientAccessor: getClientManager() },
 );

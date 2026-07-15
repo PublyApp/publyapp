@@ -21,6 +21,7 @@ import type {
 	UpdateTenantProfileAsStaffBody,
 } from '@org/client-ts/src/models/index.js';
 import type { TenantGetResponse } from '@org/client-ts/src/staff/permissions/scopes/tenant/index.js';
+import type { MutationFeedbackMeta } from '@org/shared-ts/lib/mutation-feedback/types';
 import {
 	buildStaffMutationOptions,
 	buildStaffQueryOptions,
@@ -499,6 +500,11 @@ const createStaffTenantProfileMutationOptions = buildStaffMutationOptions<
 			client.staff.tenants
 				.byTenantId(variables.tenantId)
 				.profiles.post(buildCreateStaffTenantProfileBody(variables)),
+		meta: {
+			silentSuccess: true,
+			skipGlobalErrorHandler: true,
+			validationHandledByForm: true,
+		},
 	},
 	{ clientAccessor: getClientManager() },
 );
@@ -515,6 +521,11 @@ const updateStaffTenantProfileMutationOptions = buildStaffMutationOptions<
 				.byTenantId(variables.tenantId)
 				.profiles.byProfileId(variables.profileId)
 				.patch(buildUpdateStaffTenantProfileBody(variables)),
+		meta: {
+			silentSuccess: true,
+			skipGlobalErrorHandler: true,
+			validationHandledByForm: true,
+		},
 	},
 	{ clientAccessor: getClientManager() },
 );
@@ -532,6 +543,7 @@ export const deleteStaffTenantProfileMutationOptions =
 					.byTenantId(variables.tenantId)
 					.profiles.byProfileId(variables.profileId)
 					.delete(),
+			meta: { successMessage: 'profile-deleted-successfully' },
 		},
 		{ clientAccessor: getClientManager() },
 	);
@@ -550,6 +562,7 @@ export const bulkDeleteStaffTenantProfilesMutationOptions =
 					.profiles.bulkDelete.post(
 						buildBulkDeleteStaffTenantProfilesBody(variables.profileIds),
 					),
+			meta: { silentSuccess: true, skipGlobalErrorHandler: true },
 		},
 		{ clientAccessor: getClientManager() },
 	);
@@ -646,6 +659,7 @@ const assignStaffTenantProfilePermissionMutationOptions =
 					.profiles.byProfileId(variables.profileId)
 					.permissions.byPermissionKey(variables.permissionKey)
 					.post(),
+			meta: { successMessage: 'permission-assigned-success' },
 		},
 		{ clientAccessor: getClientManager() },
 	);
@@ -670,6 +684,7 @@ const unassignStaffTenantProfilePermissionMutationOptions =
 					.profiles.byProfileId(variables.profileId)
 					.permissions.byPermissionKey(variables.permissionKey)
 					.delete(),
+			meta: { successMessage: 'permission-unassigned-success' },
 		},
 		{ clientAccessor: getClientManager() },
 	);
@@ -734,11 +749,19 @@ export const useStaffTenantPermissionCatalogQuery = (
 			staffTenantPermissionCatalogQueryOptions.fetcher(variables ?? {}),
 	});
 
-export const useAssignStaffTenantProfilePermissionMutation = () =>
-	useMutation(assignStaffTenantProfilePermissionMutationOptions);
+export const useAssignStaffTenantProfilePermissionMutation = (
+	meta: MutationFeedbackMeta = {
+		successMessage: 'permission-assigned-success',
+	},
+) =>
+	useMutation({ ...assignStaffTenantProfilePermissionMutationOptions, meta });
 
-export const useUnassignStaffTenantProfilePermissionMutation = () =>
-	useMutation(unassignStaffTenantProfilePermissionMutationOptions);
+export const useUnassignStaffTenantProfilePermissionMutation = (
+	meta: MutationFeedbackMeta = {
+		successMessage: 'permission-unassigned-success',
+	},
+) =>
+	useMutation({ ...unassignStaffTenantProfilePermissionMutationOptions, meta });
 
 export {
 	assignStaffTenantProfilePermissionMutationOptions,

@@ -1298,5 +1298,20 @@
 	"seo-login-title": "Sign in to PublyApp",
 	"seo-login-description": "Sign in to your PublyApp workspace to get started.",
 	"auth-precheck-unavailable-title": "We couldn't check this link",
-	"auth-precheck-unavailable-description": "This looks like a temporary connection problem, not an invalid link. Please try again."
+	"auth-precheck-unavailable-description": "This looks like a temporary connection problem, not an invalid link. Please try again.",
+	"tenant-created-success": "Tenant created successfully.",
+	"tenant-updated-success": "Tenant updated successfully.",
+	"tenant-deleted-success": "Tenant deleted successfully.",
+	"tenant-suspended-success": "Tenant suspended successfully.",
+	"tenant-reactivated-success": "Tenant reactivated successfully.",
+	"profile-updated-successfully": "Profile updated successfully.",
+	"profile-deleted-successfully": "Profile deleted successfully.",
+	"staff-user-updated-success": "Staff user updated successfully.",
+	"staff-user-deleted-success": "Staff user deleted successfully.",
+	"tenant-user-updated-success": "Tenant user updated successfully.",
+	"tenant-user-removed-success": "Tenant user removed successfully.",
+	"permission-assigned-success": "Permission assigned successfully.",
+	"permission-unassigned-success": "Permission removed successfully.",
+	"image-uploaded-success": "Image uploaded successfully.",
+	"export-completed-success": "Export downloaded successfully."
 }

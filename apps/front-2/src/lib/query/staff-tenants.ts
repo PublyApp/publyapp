@@ -501,6 +501,10 @@ export const createStaffTenantMutationOptions = buildStaffMutationOptions<
 		mutationKeyFn: () => [...STAFF_TENANTS_QUERY_KEY, 'create'],
 		mutationFn: (client, variables) =>
 			client.staff.tenants.post(buildCreateStaffTenantBody(variables)),
+		meta: {
+			successMessage: 'tenant-created-success',
+			validationHandledByForm: true,
+		},
 	},
 	{ clientAccessor: getClientManager() },
 );
@@ -522,6 +526,10 @@ export const updateStaffTenantMutationOptions = buildStaffMutationOptions<
 			client.staff.tenants
 				.byTenantId(variables.tenantId)
 				.patch(buildUpdateStaffTenantBody(variables)),
+		meta: {
+			successMessage: 'tenant-updated-success',
+			validationHandledByForm: true,
+		},
 	},
 	{ clientAccessor: getClientManager() },
 );
@@ -576,6 +584,7 @@ export const suspendStaffTenantMutationOptions = buildStaffMutationOptions<
 		mutationKeyFn: () => [...STAFF_TENANTS_QUERY_KEY, 'suspend'],
 		mutationFn: (client, variables) =>
 			client.staff.tenants.byTenantId(variables.tenantId).suspend.post({}),
+		meta: { successMessage: 'tenant-suspended-success' },
 	},
 	{ clientAccessor: getClientManager() },
 );
@@ -589,6 +598,7 @@ export const reactivateStaffTenantMutationOptions = buildStaffMutationOptions<
 		mutationKeyFn: () => [...STAFF_TENANTS_QUERY_KEY, 'reactivate'],
 		mutationFn: (client, variables) =>
 			client.staff.tenants.byTenantId(variables.tenantId).reactivate.post(),
+		meta: { successMessage: 'tenant-reactivated-success' },
 	},
 	{ clientAccessor: getClientManager() },
 );
@@ -602,6 +612,7 @@ export const deleteStaffTenantMutationOptions = buildStaffMutationOptions<
 		mutationKeyFn: () => [...STAFF_TENANTS_QUERY_KEY, 'delete'],
 		mutationFn: (client, variables) =>
 			client.staff.tenants.byTenantId(variables.tenantId).delete(),
+		meta: { successMessage: 'tenant-deleted-success' },
 	},
 	{ clientAccessor: getClientManager() },
 );
@@ -634,6 +645,7 @@ export const bulkSuspendStaffTenantsMutationOptions = buildStaffMutationOptions<
 			client.staff.tenants.bulkSuspend.post(
 				buildBulkTenantIdsBody(variables.tenantIds),
 			),
+		meta: { silentSuccess: true, skipGlobalErrorHandler: true },
 	},
 	{ clientAccessor: getClientManager() },
 );
@@ -650,6 +662,7 @@ export const bulkReactivateStaffTenantsMutationOptions =
 				client.staff.tenants.bulkReactivate.post(
 					buildBulkTenantIdsBody(variables.tenantIds),
 				),
+			meta: { silentSuccess: true, skipGlobalErrorHandler: true },
 		},
 		{ clientAccessor: getClientManager() },
 	);
@@ -665,6 +678,7 @@ export const bulkDeleteStaffTenantsMutationOptions = buildStaffMutationOptions<
 			client.staff.tenants.bulkDelete.post(
 				buildBulkTenantIdsBody(variables.tenantIds),
 			),
+		meta: { silentSuccess: true, skipGlobalErrorHandler: true },
 	},
 	{ clientAccessor: getClientManager() },
 );

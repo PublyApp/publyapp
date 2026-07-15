@@ -178,6 +178,7 @@ const revokeStaffTenantInvitationMutationOptions = buildStaffMutationOptions<
 				.byTenantId(variables.tenantId)
 				.invitations.byInvitationId(variables.invitationId)
 				.delete(),
+		meta: { successMessage: 'revoke-invitation-success' },
 	},
 	{ clientAccessor: getClientManager() },
 );

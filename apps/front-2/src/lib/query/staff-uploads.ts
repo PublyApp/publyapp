@@ -33,6 +33,7 @@ export const uploadStaffImageMutationOptions = buildStaffMutationOptions<
 		mutationKeyFn: () => ['staff-uploads', 'create'],
 		mutationFn: async (client, variables) =>
 			client.staff.uploads.post(await buildUploadImageBody(variables.file)),
+		meta: { silentSuccess: true, skipGlobalErrorHandler: true },
 	},
 	{ clientAccessor: getClientManager() },
 );

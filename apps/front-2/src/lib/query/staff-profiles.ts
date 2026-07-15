@@ -392,6 +392,10 @@ const createStaffProfileMutationOptions = buildStaffMutationOptions<
 		mutationKeyFn: () => ['staff-profiles', 'create'],
 		mutationFn: (client, variables) =>
 			client.staff.profiles.post(buildCreateStaffProfileBody(variables)),
+		meta: {
+			successMessage: 'profile-created-successfully',
+			validationHandledByForm: true,
+		},
 	},
 	{ clientAccessor: getClientManager() },
 );
