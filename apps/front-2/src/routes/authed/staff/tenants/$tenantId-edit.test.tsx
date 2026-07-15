@@ -960,6 +960,47 @@ describe('staff tenant edit route', () => {
 		expect(mocks.shouldLogoutForFailure).toHaveBeenCalled();
 	});
 
+	test('promotes unmapped and root validation messages to a summary while preserving mapped field messages', async () => {
+		const updateError = {
+			status: 422,
+			responseStatusCode: 422,
+			title: 'Validation failed',
+			detail: 'The tenant payload is invalid.',
+			errors: {
+				maxUsers: [
+					'Seats must be at least the current user count.',
+					'Seats must be greater than zero.',
+				],
+				TenantId: ['Tenant is no longer active.'],
+				'': ['The request was rejected by a tenant policy.'],
+			},
+		};
+		mocks.updateTenantMutation.mockRejectedValue(updateError);
+
+		renderPage();
+
+		fireEvent.change(screen.getByLabelText('Seats'), {
+			target: { value: '25' },
+		});
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Save changes' }).closest('form')!,
+		);
+
+		await waitFor(() =>
+			expect(
+				screen.getByText(
+					'Seats must be at least the current user count. Seats must be greater than zero.',
+				),
+			).toBeTruthy(),
+		);
+		const summary = screen.getByRole('alert');
+		expect(summary.textContent).toContain(
+			'Tenant is no longer active. The request was rejected by a tenant policy.',
+		);
+		expect(screen.queryByText('The tenant payload is invalid.')).toBeNull();
+		expect(screen.queryByTestId('logout-redirect')).toBeNull();
+	});
+
 	test('leaves ordinary update failures to the central toast owner', async () => {
 		mocks.updateTenantMutation.mockRejectedValue({
 			status: 500,

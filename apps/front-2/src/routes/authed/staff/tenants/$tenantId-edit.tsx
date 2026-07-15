@@ -30,7 +30,10 @@ import {
 } from '~/lib/query/staff-tenants';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
-import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
+import {
+	getFailureMessage,
+	toApiFailure,
+} from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 import {
 	formatShortDate,
@@ -121,6 +124,25 @@ const EMPTY_FORM_VALUES: EditTenantFormValues = {
 	timezone: '',
 	notes: '',
 };
+
+const TENANT_EDIT_FORM_FIELDS = new Set<keyof EditTenantFormValues>([
+	'name',
+	'maxUsers',
+	'logoUrl',
+	'legalName',
+	'description',
+	'websiteUrl',
+	'billingEmail',
+	'supportEmail',
+	'defaultLocale',
+	'timezone',
+	'notes',
+]);
+
+const isTenantEditFormField = (
+	field: string,
+): field is keyof EditTenantFormValues =>
+	TENANT_EDIT_FORM_FIELDS.has(field as keyof EditTenantFormValues);
 
 const normalizeOptionalUpdateString = (
 	value: string | undefined,
@@ -366,6 +388,7 @@ function StaffTenantEditRoute() {
 		}
 
 		try {
+			methods.clearErrors('root.server');
 			await updateTenant.mutateAsync(payload);
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
@@ -375,15 +398,35 @@ function StaffTenantEditRoute() {
 
 			const failure = toApiFailure(error);
 			if (failure.kind === 'validation') {
-				const fieldNames = Object.keys(
-					EMPTY_FORM_VALUES,
-				) as (keyof EditTenantFormValues)[];
+				const rootMessages: string[] = [];
+				let mappedFieldCount = 0;
 
-				for (const fieldName of fieldNames) {
-					const message = failure.fieldErrors[fieldName]?.[0];
-					if (message) {
-						methods.setError(fieldName, { type: 'server', message });
+				for (const [field, messages] of Object.entries(failure.fieldErrors)) {
+					if (isTenantEditFormField(field) && messages.length > 0) {
+						mappedFieldCount += 1;
+						methods.setError(field, {
+							type: 'server',
+							message: messages.join(' '),
+						});
+						continue;
 					}
+
+					rootMessages.push(...messages);
+				}
+
+				if (mappedFieldCount === 0 && rootMessages.length === 0) {
+					rootMessages.push(
+						getFailureMessage(failure, {
+							fallback: t('tenant-update-failed'),
+						}),
+					);
+				}
+
+				if (rootMessages.length > 0) {
+					methods.setError('root.server', {
+						type: 'server',
+						message: Array.from(new Set(rootMessages)).join(' '),
+					});
 				}
 			}
 			return;
@@ -439,6 +482,11 @@ function StaffTenantEditRoute() {
 			</div>
 
 			<Form methods={methods} onSubmit={onSubmit}>
+				{methods.formState.errors.root?.server?.message ? (
+					<p className="text-sm text-destructive" role="alert">
+						{methods.formState.errors.root.server.message}
+					</p>
+				) : null}
 				<div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_320px] lg:gap-9">
 					<div className="order-2 flex min-w-0 flex-col gap-8 lg:order-1">
 						<section className="flex flex-col gap-4">

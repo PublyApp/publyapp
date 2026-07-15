@@ -6,11 +6,12 @@ import { loginAsStaffAdmin } from './helpers/login';
 const STAFF_INVITATIONS_PATH = '/staff/invitations';
 const STAFF_PROFILES_PATH = '/staff/profiles';
 const TABLE = 'staff-invitations-table';
+const PENDING_INVITATION_ID = '11111111-1111-1111-1111-111111111111';
 
 const seededInvitationsPayload = {
 	data: [
 		{
-			id: '11111111-1111-1111-1111-111111111111',
+			id: PENDING_INVITATION_ID,
 			email: 'pending-staff@example.com',
 			profileName: 'Admins',
 			status: 'Pending',
@@ -184,6 +185,51 @@ test.describe('staff invitations list', () => {
 		await expect(
 			page.getByTestId('staff-invitations-create-page'),
 		).toBeVisible();
+	});
+
+	test('a failed revoke shows one deterministic error toast', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await mockStaffInvitations(page, seededInvitationsPayload);
+		await page.route(
+			`**/staff/invitations/${PENDING_INVITATION_ID}`,
+			async (route) => {
+				if (route.request().method() !== 'DELETE') {
+					await route.fallback();
+					return;
+				}
+
+				await route.fulfill({
+					status: 400,
+					contentType: 'application/problem+json',
+					body: JSON.stringify({
+						status: 400,
+						title: 'Invitation can no longer be revoked',
+						detail: 'The invitation was accepted before it could be revoked.',
+						translationKey: 'invitation-already-accepted',
+					}),
+				});
+			},
+		);
+
+		await page.goto('/staff/invitations');
+		await expect(page.getByTestId(`${TABLE}-rows`)).toBeVisible();
+
+		await page
+			.getByTestId(`staff-invitation-actions-${PENDING_INVITATION_ID}`)
+			.click();
+		await page.getByRole('menuitem', { name: 'Revoke invitation' }).click();
+		await expect(
+			page.getByRole('heading', { name: 'Revoke invitation' }),
+		).toBeVisible();
+		await page.getByRole('button', { name: 'Revoke', exact: true }).click();
+
+		const errorToasts = page.locator('[data-sonner-toast][data-type="error"]');
+		await expect(
+			page.getByText('Accepted invitations cannot be revoked', { exact: true }),
+		).toBeVisible();
+		await expect(errorToasts).toHaveCount(1);
 	});
 
 	// The request-counter test that used to live here moved to its own file

@@ -5,6 +5,7 @@ import { loginAsStaffAdmin } from './helpers/login';
 import { expectTableFitsCard } from './helpers/table-fits-card';
 
 const TENANT_ID = '0197b8f0-3333-7ccc-8ccc-cccccccccccc';
+const PENDING_INVITATION_ID = '0197b8f0-6666-7ccc-8ccc-ffffffffffff';
 // The seeded user row in mockTenantDetails's /users fixture selected via
 // `getByRole('checkbox', { name: 'Select Jamie Lee' })`.
 const JAMIE_USER_ID = '0197b8f0-4444-7ccc-8ccc-dddddddddddd';
@@ -42,6 +43,24 @@ const mockTenantDetails = async (page: Page) => {
 	await page.route(`**/staff/tenants/**`, async (route) => {
 		const request = route.request();
 		const url = request.url();
+
+		if (
+			request.method() === 'DELETE' &&
+			isApiPath(
+				url,
+				`/staff/tenants/${TENANT_ID}/invitations/${PENDING_INVITATION_ID}`,
+			)
+		) {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					message: 'Invitation revoked.',
+					translationKey: 'revoke-invitation-success',
+				}),
+			});
+			return;
+		}
 
 		if (
 			request.method() === 'GET' &&
@@ -166,7 +185,7 @@ const mockTenantDetails = async (page: Page) => {
 				body: JSON.stringify({
 					data: [
 						{
-							id: '0197b8f0-6666-7ccc-8ccc-ffffffffffff',
+							id: PENDING_INVITATION_ID,
 							email: 'sam@example.com',
 							status: 'Pending',
 							profileName: 'Approvers',
@@ -464,6 +483,38 @@ test.describe('staff tenant Profiles/Invitations/Users tab bodies', () => {
 		).toContainText('4 pending');
 	});
 
+	test('revoking a pending invitation shows one global success toast without inline status feedback', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await mockTenantDetails(page);
+
+		await page.goto(`/staff/tenants/${TENANT_ID}/invitations`);
+		await expect(
+			page.getByTestId('staff-tenant-invitations-page'),
+		).toBeVisible();
+
+		await page
+			.getByTestId(`staff-tenant-invitation-actions-${PENDING_INVITATION_ID}`)
+			.click();
+		await page.getByRole('menuitem', { name: 'Revoke', exact: true }).click();
+		await expect(
+			page.getByRole('heading', { name: 'Revoke invitation' }),
+		).toBeVisible();
+		await page.getByRole('button', { name: 'Revoke', exact: true }).click();
+
+		const successToasts = page.locator(
+			'[data-sonner-toast][data-type="success"]',
+		);
+		await expect(
+			page.getByText('Invitation revoked.', { exact: true }),
+		).toBeVisible();
+		await expect(successToasts).toHaveCount(1);
+		await expect(
+			page.locator('.publy-detail-tab-body').getByRole('status'),
+		).toHaveCount(0);
+	});
+
 	test('Users tab renders the toolbar, the table, the cursor footer, and a checkbox selection column', async ({
 		page,
 	}) => {
@@ -647,6 +698,7 @@ test.describe('staff tenant invite-user drawer', () => {
 	test('opens from the Users tab, validates, and submits via the invitations endpoint', async ({
 		page,
 	}) => {
+		await page.setViewportSize({ width: 390, height: 844 });
 		await loginAsStaffAdmin(page);
 		await mockTenantDetails(page);
 		await page.route(
@@ -708,6 +760,26 @@ test.describe('staff tenant invite-user drawer', () => {
 		await expect(
 			page.locator('span[aria-current="page"]', { hasText: 'Users' }),
 		).toHaveText('Users');
+
+		const successToasts = page.locator(
+			'[data-sonner-toast][data-type="success"]',
+		);
+		await expect(
+			page.getByText('Invitation sent successfully', { exact: true }),
+		).toBeVisible();
+		await expect(successToasts).toHaveCount(1);
+		await expect(successToasts).toBeInViewport({ ratio: 1 });
+
+		const toastBox = await successToasts.boundingBox();
+		const viewport = page.viewportSize();
+		expect(toastBox).not.toBeNull();
+		expect(viewport).not.toBeNull();
+		if (toastBox && viewport) {
+			expect(toastBox.x).toBeGreaterThanOrEqual(0);
+			expect(toastBox.y).toBeGreaterThanOrEqual(0);
+			expect(toastBox.x + toastBox.width).toBeLessThanOrEqual(viewport.width);
+			expect(toastBox.y + toastBox.height).toBeLessThanOrEqual(viewport.height);
+		}
 	});
 
 	test('opens from the Invitations tab, validates, and submits via the invitations endpoint', async ({

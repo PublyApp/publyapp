@@ -5,6 +5,9 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, test } from 'vitest';
 
+import enResource from '@org/shared-ts/lib/i18n/locales/en';
+import frResource from '@org/shared-ts/lib/i18n/locales/fr';
+
 const srcDir = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const TEXT_EXTENSIONS = new Set(['.ts', '.tsx']);
 const ALLOWED_SONNER_IMPORTERS = new Set([
@@ -267,6 +270,52 @@ export const hasQueryFactoryOnToast = (source: string): boolean => {
 	return found;
 };
 
+const extractSuccessMessageKeys = (source: string): string[] => {
+	const sourceFile = parseSource(source);
+	const keys: string[] = [];
+
+	const visit = (node: ts.Node): void => {
+		if (
+			ts.isPropertyAssignment(node) &&
+			getPropertyName(node.name) === 'meta' &&
+			ts.isObjectLiteralExpression(node.initializer)
+		) {
+			const successMessage = getObjectProperty(
+				node.initializer,
+				'successMessage',
+			);
+			if (
+				successMessage &&
+				ts.isPropertyAssignment(successMessage) &&
+				ts.isStringLiteralLike(successMessage.initializer)
+			) {
+				keys.push(successMessage.initializer.text);
+			}
+		}
+		ts.forEachChild(node, visit);
+	};
+	visit(sourceFile);
+	return keys;
+};
+
+const collectQuerySuccessMessageKeys = async (): Promise<string[]> => {
+	const files = await getProductionSourceFiles();
+	return Array.from(
+		new Set(
+			files
+				.filter(({ relativePath }) => relativePath.startsWith('lib/query/'))
+				.flatMap(({ source }) => extractSuccessMessageKeys(source)),
+		),
+	);
+};
+
+const getMissingSuccessMessageKeys = (keys: string[]): string[] =>
+	keys.filter(
+		(key) =>
+			!Object.hasOwn(enResource.common, key) ||
+			!Object.hasOwn(frResource.common, key),
+	);
+
 describe('mutation feedback architecture classifiers', () => {
 	test('finds static and dynamic Sonner imports without matching ordinary text', () => {
 		expect(findSonnerImports("import { toast } from 'sonner';")).toEqual([
@@ -401,5 +450,33 @@ describe('front-2 mutation feedback architecture', () => {
 			offenders,
 			`Front-2 query factories must not configure handlers.onToast because that seam also handles query failures. Offending files: ${offenders.join(', ')}`,
 		).toEqual([]);
+	});
+});
+
+describe('front-2 query factory success message i18n', () => {
+	test('all literal successMessage keys resolve in common EN and FR locale bundles', async () => {
+		const keys = await collectQuerySuccessMessageKeys();
+		const missingKeys = getMissingSuccessMessageKeys(keys);
+
+		expect(keys.length).toBeGreaterThan(0);
+		expect(
+			missingKeys,
+			`Query successMessage keys must resolve in both common EN and FR bundles. Missing: ${missingKeys.join(', ')}`,
+		).toEqual([]);
+	});
+
+	test('synthetic missing successMessage keys are detected', () => {
+		const fixture = `
+			const fixture = {
+				meta: {
+					successMessage: 'mutation-feedback-synthetic-missing',
+				},
+			};
+		`;
+		const missingKeys = getMissingSuccessMessageKeys(
+			extractSuccessMessageKeys(fixture),
+		);
+
+		expect(missingKeys).toEqual(['mutation-feedback-synthetic-missing']);
 	});
 });
