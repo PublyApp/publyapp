@@ -42,6 +42,18 @@ type StaffPermissionOption = {
 type InterZodOptions = ConstructorParameters<typeof InterZod>[0];
 type InterZodI18nLike = InterZodOptions['i18n'];
 
+const STAFF_PROFILE_FORM_FIELDS = [
+	'name',
+	'description',
+	'permissions',
+	'emails',
+] as const satisfies readonly (keyof NewStaffProfileValues)[];
+
+const isStaffProfileFormField = (
+	field: string,
+): field is (typeof STAFF_PROFILE_FORM_FIELDS)[number] =>
+	STAFF_PROFILE_FORM_FIELDS.some((candidate) => candidate === field);
+
 const DEFAULT_VALUES: NewStaffProfileValues = {
 	name: '',
 	description: '',
@@ -153,7 +165,6 @@ function NewStaffProfileRoute() {
 	const queryClient = useQueryClient();
 	const { t, i18n } = useTranslation('common');
 	const [shouldLogout, setShouldLogout] = useState(false);
-	const [serverError, setServerError] = useState('');
 	const hasSavedRef = useRef(false);
 
 	const resolver = useMemo(
@@ -189,7 +200,7 @@ function NewStaffProfileRoute() {
 	}
 
 	const onSubmit = methods.handleSubmit(async (values) => {
-		setServerError('');
+		methods.clearErrors('root');
 
 		try {
 			await createProfile.mutateAsync({
@@ -198,23 +209,50 @@ function NewStaffProfileRoute() {
 				permissions: values.permissions,
 				emails: values.emails,
 			});
-			await invalidateStaffProfiles(queryClient);
-			hasSavedRef.current = true;
-			void navigate({
-				to: '/staff/profiles',
-			});
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
 				setShouldLogout(true);
 				return;
 			}
 
-			setServerError(
-				getFailureMessage(toApiFailure(error), {
-					fallback: t('profile-save-failed'),
-				}),
-			);
+			const failure = toApiFailure(error);
+			if (failure.kind === 'validation') {
+				const rootMessages: string[] = [];
+
+				for (const [field, messages] of Object.entries(failure.fieldErrors)) {
+					if (isStaffProfileFormField(field)) {
+						methods.setError(field, {
+							type: 'server',
+							message: messages.join(' '),
+						});
+					} else {
+						rootMessages.push(...messages);
+					}
+				}
+
+				if (Object.keys(failure.fieldErrors).length === 0) {
+					rootMessages.push(
+						getFailureMessage(failure, {
+							fallback: t('profile-save-failed'),
+						}),
+					);
+				}
+
+				if (rootMessages.length > 0) {
+					methods.setError('root.server', {
+						type: 'server',
+						message: Array.from(new Set(rootMessages)).join(' '),
+					});
+				}
+			}
+			return;
 		}
+
+		await invalidateStaffProfiles(queryClient);
+		hasSavedRef.current = true;
+		void navigate({
+			to: '/staff/profiles',
+		});
 	});
 
 	return (
@@ -282,8 +320,10 @@ function NewStaffProfileRoute() {
 								options={permissionOptions}
 								isDisabled={createProfile.isPending}
 							/>
-							{serverError ? (
-								<p className="text-sm text-destructive">{serverError}</p>
+							{methods.formState.errors.root?.server?.message ? (
+								<p className="text-sm text-destructive" role="alert">
+									{methods.formState.errors.root.server.message}
+								</p>
 							) : null}
 							<div className="flex justify-end">
 								<Button

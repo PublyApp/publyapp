@@ -617,6 +617,9 @@ describe('staff tenant profile details route', () => {
 			mutateAsync: assignPermission,
 		});
 		renderPage();
+		expect(
+			mocks.useAssignStaffTenantProfilePermissionMutation,
+		).toHaveBeenCalledWith();
 
 		fireEvent.click(
 			screen.getByRole('button', {
@@ -645,6 +648,9 @@ describe('staff tenant profile details route', () => {
 			mutateAsync: unassignPermission,
 		});
 		renderPage();
+		expect(
+			mocks.useUnassignStaffTenantProfilePermissionMutation,
+		).toHaveBeenCalledWith();
 
 		fireEvent.click(
 			screen.getByRole('button', {
@@ -666,7 +672,7 @@ describe('staff tenant profile details route', () => {
 		});
 	});
 
-	test('renders permission operation failures locally without logging out', async () => {
+	test('leaves permission operation failures to central feedback without logging out', async () => {
 		const assignPermission = vi.fn().mockRejectedValue({
 			status: 400,
 			responseStatusCode: 400,
@@ -686,9 +692,11 @@ describe('staff tenant profile details route', () => {
 			}),
 		);
 
+		await waitFor(() => expect(assignPermission).toHaveBeenCalledTimes(1));
+		expect(screen.queryByText('Unable to add this permission')).toBeNull();
 		expect(
-			await screen.findByText('Unable to add this permission'),
-		).toBeTruthy();
+			screen.queryByText('Unable to update this tenant profile permission.'),
+		).toBeNull();
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 	});
 
@@ -781,7 +789,7 @@ describe('staff tenant profile details route', () => {
 		});
 	});
 
-	test('surfaces default profile delete failures locally without logging out', async () => {
+	test('leaves profile delete failures to central feedback without logging out', async () => {
 		mocks.toStaffTenantProfileDetails.mockReturnValue({
 			id: '22222222-2222-2222-2222-222222222222',
 			name: 'Approvers',
@@ -789,15 +797,16 @@ describe('staff tenant profile details route', () => {
 			isDefault: false,
 			userAccountCount: 7,
 		});
+		const mutateAsync = vi.fn().mockRejectedValue({
+			status: 400,
+			responseStatusCode: 400,
+			title: 'Bad Request',
+			detail: 'Default tenant profile cannot be deleted',
+			translationKey: 'tenant-profile-default-delete-not-allowed',
+		});
 		mocks.useDeleteStaffTenantProfileMutation.mockReturnValue({
 			isPending: false,
-			mutateAsync: vi.fn().mockRejectedValue({
-				status: 400,
-				responseStatusCode: 400,
-				title: 'Bad Request',
-				detail: 'Default tenant profile cannot be deleted',
-				translationKey: 'tenant-profile-default-delete-not-allowed',
-			}),
+			mutateAsync,
 		});
 
 		renderPage();
@@ -811,9 +820,13 @@ describe('staff tenant profile details route', () => {
 			screen.getAllByRole('button', { name: 'Delete' }).slice(-1)[0],
 		);
 
+		await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
 		expect(
-			await screen.findByText('Default tenant profile cannot be deleted'),
-		).toBeTruthy();
+			screen.queryByText('Default tenant profile cannot be deleted'),
+		).toBeNull();
+		expect(
+			screen.queryByText('Unable to delete this tenant profile.'),
+		).toBeNull();
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 		expect(mocks.navigate).not.toHaveBeenCalled();
 	});

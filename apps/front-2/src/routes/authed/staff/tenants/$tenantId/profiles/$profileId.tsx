@@ -174,8 +174,6 @@ function StaffTenantProfileDetailsPage() {
 	const search = Route.useSearch();
 	const { t } = useTranslation('common');
 	const queryClient = useQueryClient();
-	const [actionError, setActionError] = useState('');
-	const [permissionActionError, setPermissionActionError] = useState('');
 	const [pendingDelete, setPendingDelete] = useState(false);
 	const [busyPermissionKey, setBusyPermissionKey] = useState('');
 	const [shouldRedirectToLogout, setShouldRedirectToLogout] = useState(false);
@@ -372,7 +370,6 @@ function StaffTenantProfileDetailsPage() {
 	}
 
 	const handleAssignPermission = async (permissionKey: string) => {
-		setPermissionActionError('');
 		setBusyPermissionKey(permissionKey);
 
 		try {
@@ -381,24 +378,21 @@ function StaffTenantProfileDetailsPage() {
 				profileId,
 				permissionKey,
 			});
-			await invalidatePermissionQueries();
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
 				setShouldRedirectToLogout(true);
-				return;
 			}
+			setBusyPermissionKey('');
+			return;
+		}
 
-			setPermissionActionError(
-				getFailureMessage(toApiFailure(error), {
-					fallback: t('unable-to-update-tenant-profile-permission'),
-				}),
-			);
+		try {
+			await invalidatePermissionQueries();
 		} finally {
 			setBusyPermissionKey('');
 		}
 	};
 	const handleUnassignPermission = async (permissionKey: string) => {
-		setPermissionActionError('');
 		setBusyPermissionKey(permissionKey);
 
 		try {
@@ -407,50 +401,41 @@ function StaffTenantProfileDetailsPage() {
 				profileId,
 				permissionKey,
 			});
-			await invalidatePermissionQueries();
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
 				setShouldRedirectToLogout(true);
-				return;
 			}
+			setBusyPermissionKey('');
+			return;
+		}
 
-			setPermissionActionError(
-				getFailureMessage(toApiFailure(error), {
-					fallback: t('unable-to-update-tenant-profile-permission'),
-				}),
-			);
+		try {
+			await invalidatePermissionQueries();
 		} finally {
 			setBusyPermissionKey('');
 		}
 	};
 	const handleDelete = async () => {
-		setActionError('');
-
 		if (profile.isDefault) {
 			return;
 		}
 
 		try {
 			await deleteProfile.mutateAsync({ tenantId, profileId });
-			await invalidatePermissionQueries();
-			void navigate({
-				to: '/staff/tenants/$tenantId/profiles',
-				params: { tenantId },
-			});
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
 				setShouldRedirectToLogout(true);
-				return;
 			}
-
-			setActionError(
-				getFailureMessage(toApiFailure(error), {
-					fallback: t('unable-to-delete-tenant-profile'),
-				}),
-			);
-		} finally {
 			setPendingDelete(false);
+			return;
 		}
+
+		setPendingDelete(false);
+		await invalidatePermissionQueries();
+		void navigate({
+			to: '/staff/tenants/$tenantId/profiles',
+			params: { tenantId },
+		});
 	};
 
 	return (
@@ -721,21 +706,6 @@ function StaffTenantProfileDetailsPage() {
 									}
 								/>
 							</DangerZoneCard>
-
-							{actionError ? (
-								<div
-									className="rounded-large border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-									role="status"
-								>
-									{actionError}
-								</div>
-							) : null}
-
-							{permissionActionError ? (
-								<p className="text-sm text-destructive">
-									{permissionActionError}
-								</p>
-							) : null}
 						</div>
 					</Card>
 				</div>

@@ -113,7 +113,8 @@ vi.mock('~/components/field', () => ({
 			placeholder?: string;
 			disabled?: boolean;
 		}) => {
-			const { register } = useFormContext();
+			const { register, getFieldState, formState } = useFormContext();
+			const error = getFieldState(name, formState).error;
 
 			return createElement(
 				'label',
@@ -125,6 +126,9 @@ vi.mock('~/components/field', () => ({
 					disabled,
 					...register(name),
 				}),
+				error?.message
+					? createElement('span', { role: 'alert' }, error.message)
+					: null,
 			);
 		},
 		CheckboxGroup: ({
@@ -398,7 +402,7 @@ describe('staff profile create route', () => {
 		);
 	});
 
-	test('shows an inline error and stays on the page for submit 403 failures', async () => {
+	test('leaves general submit failures to central feedback and stays on the page', async () => {
 		const mutateAsync = vi
 			.fn()
 			.mockRejectedValue(new Response(null, { status: 403 }));
@@ -422,10 +426,64 @@ describe('staff profile create route', () => {
 		);
 
 		await waitFor(() => expect(mutateAsync).toHaveBeenCalled());
-		await waitFor(() =>
-			expect(screen.getByText('Unable to save the profile.')).toBeTruthy(),
-		);
+		expect(screen.queryByText('Unable to save the profile.')).toBeNull();
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
+		expect(mocks.navigate).not.toHaveBeenCalled();
+	});
+
+	test('maps known server validation fields inline without a general banner', async () => {
+		const mutateAsync = vi.fn().mockRejectedValue({
+			status: 422,
+			responseStatusCode: 422,
+			title: 'Validation failed',
+			errors: { Name: ['This profile name is unavailable.'] },
+		});
+		mocks.useCreateStaffProfileMutation.mockReturnValue({
+			mutateAsync,
+			isPending: false,
+		});
+
+		renderPage();
+		fireEvent.change(screen.getByRole('textbox', { name: 'Profile name' }), {
+			target: { value: 'Platform admin' },
+		});
+		fireEvent.click(screen.getByRole('checkbox', { name: 'staff.users.read' }));
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Create profile' }).closest('form')!,
+		);
+
+		expect(
+			await screen.findByText('This profile name is unavailable.'),
+		).toBeTruthy();
+		expect(screen.queryByText('Unable to save the profile.')).toBeNull();
+		expect(mocks.navigate).not.toHaveBeenCalled();
+	});
+
+	test('shows unmappable server validation in an inline form summary', async () => {
+		const mutateAsync = vi.fn().mockRejectedValue({
+			status: 422,
+			responseStatusCode: 422,
+			title: 'Validation failed',
+			errors: { UnknownField: ['The profile payload is invalid.'] },
+		});
+		mocks.useCreateStaffProfileMutation.mockReturnValue({
+			mutateAsync,
+			isPending: false,
+		});
+
+		renderPage();
+		fireEvent.change(screen.getByRole('textbox', { name: 'Profile name' }), {
+			target: { value: 'Platform admin' },
+		});
+		fireEvent.click(screen.getByRole('checkbox', { name: 'staff.users.read' }));
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Create profile' }).closest('form')!,
+		);
+
+		expect(
+			await screen.findByText('The profile payload is invalid.'),
+		).toBeTruthy();
+		expect(mocks.navigate).not.toHaveBeenCalled();
 	});
 
 	// users-auth-r1-F4: this Back-link-only create route had no `useBlocker`,

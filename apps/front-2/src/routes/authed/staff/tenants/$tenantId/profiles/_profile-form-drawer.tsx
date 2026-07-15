@@ -18,6 +18,10 @@ import {
 	DrawerTitle,
 } from '~/components/ui/drawer';
 import {
+	displayLocalMutationFailure,
+	toastLocalMutationResult,
+} from '~/lib/mutation-toast';
+import {
 	buildStaffTenantPermissionCatalogGroups,
 	type StaffTenantPermissionGroup,
 	useAssignStaffTenantProfilePermissionMutation,
@@ -50,6 +54,22 @@ const buildProfileFormSchema = (t: (key: string) => string) =>
 	});
 
 type ProfileFormValues = z.infer<ReturnType<typeof buildProfileFormSchema>>;
+
+const PROFILE_FORM_FIELDS = [
+	'name',
+	'description',
+	'permissionKeys',
+] as const satisfies readonly (keyof ProfileFormValues)[];
+
+const isProfileFormField = (
+	field: string,
+): field is (typeof PROFILE_FORM_FIELDS)[number] =>
+	PROFILE_FORM_FIELDS.some((candidate) => candidate === field);
+
+const LOCAL_PERMISSION_META = {
+	silentSuccess: true,
+	skipGlobalErrorHandler: true,
+} as const;
 
 const EMPTY_VALUES: ProfileFormValues = {
 	name: '',
@@ -155,13 +175,16 @@ export const ProfileFormDrawer = ({
 }) => {
 	const { t, i18n } = useTranslation('common');
 	const queryClient = useQueryClient();
-	const [serverError, setServerError] = useState('');
 
 	const catalogQuery = useStaffTenantPermissionCatalogQuery({});
 	const createProfile = useCreateStaffTenantProfileMutation();
 	const updateProfile = useUpdateStaffTenantProfileMutation();
-	const assignPermission = useAssignStaffTenantProfilePermissionMutation();
-	const unassignPermission = useUnassignStaffTenantProfilePermissionMutation();
+	const assignPermission = useAssignStaffTenantProfilePermissionMutation(
+		LOCAL_PERMISSION_META,
+	);
+	const unassignPermission = useUnassignStaffTenantProfilePermissionMutation(
+		LOCAL_PERMISSION_META,
+	);
 
 	const groups = buildStaffTenantPermissionCatalogGroups(
 		catalogQuery.data?.additionalData,
@@ -188,7 +211,6 @@ export const ProfileFormDrawer = ({
 			return;
 		}
 
-		setServerError('');
 		setIsDiscardConfirmOpen(false);
 		reset(
 			mode === 'edit' && profile
@@ -226,94 +248,152 @@ export const ProfileFormDrawer = ({
 
 	const invalidateProfileQueries = () =>
 		invalidateAllStaffTenantScopes(queryClient);
+	const handleProfileSaveFailure = async (error: unknown): Promise<void> => {
+		if (shouldLogoutForFailure(error)) {
+			onSessionExpired();
+			return;
+		}
+
+		const failure = toApiFailure(error);
+		if (failure.kind === 'validation') {
+			const rootMessages: string[] = [];
+
+			for (const [field, messages] of Object.entries(failure.fieldErrors)) {
+				if (isProfileFormField(field)) {
+					methods.setError(field, {
+						type: 'server',
+						message: messages.join(' '),
+					});
+				} else {
+					rootMessages.push(...messages);
+				}
+			}
+
+			if (Object.keys(failure.fieldErrors).length === 0) {
+				rootMessages.push(
+					getFailureMessage(failure, {
+						fallback: t('profile-save-failed'),
+					}),
+				);
+			}
+
+			if (rootMessages.length > 0) {
+				methods.setError('root.server', {
+					type: 'server',
+					message: Array.from(new Set(rootMessages)).join(' '),
+				});
+			}
+			return;
+		}
+
+		await displayLocalMutationFailure(error, t('profile-save-failed'));
+	};
 
 	const onSubmit = methods.handleSubmit(async (values) => {
-		setServerError('');
+		methods.clearErrors('root');
 
-		try {
-			if (mode === 'create') {
-				const result = await createProfile.mutateAsync({
+		if (mode === 'create') {
+			let result;
+			try {
+				result = await createProfile.mutateAsync({
 					tenantId,
 					name: values.name,
 					description: values.description,
 					permissionKeys: values.permissionKeys,
 				});
-				await invalidateProfileQueries();
-
-				const profileId = result?.profile?.id?.toString().trim();
-				// A successful submit must never trip the parent's nav guard on
-				// the navigation `onSaved` performs next.
-				onDirtyChange?.(false);
-				onSaved(profileId ?? '');
+			} catch (error) {
+				await handleProfileSaveFailure(error);
 				return;
 			}
 
-			if (!profile) {
-				return;
-			}
+			await invalidateProfileQueries();
+			toastLocalMutationResult.success(t('profile-created-successfully'));
 
+			const profileId = result?.profile?.id?.toString().trim();
+			// A successful submit must never trip the parent's nav guard on
+			// the navigation `onSaved` performs next.
+			onDirtyChange?.(false);
+			onSaved(profileId ?? '');
+			return;
+		}
+
+		if (!profile) {
+			return;
+		}
+
+		try {
 			await updateProfile.mutateAsync({
 				tenantId,
 				profileId: profile.id,
 				name: values.name,
 				description: values.description,
 			});
-
-			const initialKeys = new Set(profile.permissionKeys);
-			const nextKeys = new Set(values.permissionKeys);
-			const keysToAssign = values.permissionKeys.filter(
-				(key) => !initialKeys.has(key),
-			);
-			const keysToUnassign = profile.permissionKeys.filter(
-				(key) => !nextKeys.has(key),
-			);
-
-			const permissionResults = await Promise.allSettled([
-				...keysToAssign.map((permissionKey) =>
-					assignPermission.mutateAsync({
-						tenantId,
-						profileId: profile.id,
-						permissionKey,
-					}),
-				),
-				...keysToUnassign.map((permissionKey) =>
-					unassignPermission.mutateAsync({
-						tenantId,
-						profileId: profile.id,
-						permissionKey,
-					}),
-				),
-			]);
-
-			await invalidateProfileQueries();
-
-			const failedCount = permissionResults.filter(
-				(result) => result.status === 'rejected',
-			).length;
-			if (failedCount > 0) {
-				setServerError(
-					t('tenant-profile-permission-update-partial-success', {
-						succeeded: permissionResults.length - failedCount,
-						failed: failedCount,
-					}),
-				);
-				return;
-			}
-
-			onDirtyChange?.(false);
-			onSaved(profile.id);
 		} catch (error) {
-			if (shouldLogoutForFailure(error)) {
-				onSessionExpired();
-				return;
-			}
-
-			setServerError(
-				getFailureMessage(toApiFailure(error), {
-					fallback: t('profile-save-failed'),
-				}),
-			);
+			await handleProfileSaveFailure(error);
+			return;
 		}
+
+		const initialKeys = new Set(profile.permissionKeys);
+		const nextKeys = new Set(values.permissionKeys);
+		const keysToAssign = values.permissionKeys.filter(
+			(key) => !initialKeys.has(key),
+		);
+		const keysToUnassign = profile.permissionKeys.filter(
+			(key) => !nextKeys.has(key),
+		);
+
+		const permissionResults = await Promise.allSettled([
+			...keysToAssign.map((permissionKey) =>
+				assignPermission.mutateAsync({
+					tenantId,
+					profileId: profile.id,
+					permissionKey,
+				}),
+			),
+			...keysToUnassign.map((permissionKey) =>
+				unassignPermission.mutateAsync({
+					tenantId,
+					profileId: profile.id,
+					permissionKey,
+				}),
+			),
+		]);
+		const rejectedResults = permissionResults.filter(
+			(result): result is PromiseRejectedResult => result.status === 'rejected',
+		);
+
+		if (
+			rejectedResults.some((result) => shouldLogoutForFailure(result.reason))
+		) {
+			onSessionExpired();
+			return;
+		}
+
+		const visibleFailures = rejectedResults.filter(
+			(result) => toApiFailure(result.reason).kind !== 'abort',
+		);
+		await invalidateProfileQueries();
+
+		if (visibleFailures.length > 0) {
+			methods.setError('root.server', {
+				type: 'server',
+				message: t('tenant-profile-permission-update-partial-success', {
+					succeeded: permissionResults.filter(
+						(result) => result.status === 'fulfilled',
+					).length,
+					failed: visibleFailures.length,
+				}),
+			});
+			return;
+		}
+
+		if (rejectedResults.length > 0) {
+			return;
+		}
+
+		toastLocalMutationResult.success(t('profile-updated-successfully'));
+		onDirtyChange?.(false);
+		onSaved(profile.id);
 	});
 
 	const title = mode === 'create' ? t('new-profile') : t('edit-profile');
@@ -389,8 +469,10 @@ export const ProfileFormDrawer = ({
 							</p>
 						) : null}
 
-						{serverError ? (
-							<p className="text-sm text-destructive">{serverError}</p>
+						{methods.formState.errors.root?.server?.message ? (
+							<p className="text-sm text-destructive" role="alert">
+								{methods.formState.errors.root.server.message}
+							</p>
 						) : null}
 					</DrawerBody>
 					<DrawerFooter>
