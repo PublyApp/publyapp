@@ -319,6 +319,41 @@ const parseRingTokens = (
 	return tokens;
 };
 
+const parseFocusBorderTokens = (
+	mergedClassName: string,
+	knownColorNames: ReadonlySet<string>,
+): RingToken[] => {
+	const pattern = new RegExp(
+		`${CLASS_TOKEN_BOUNDARY_START}((?:[\\w-]+:)*)border-(\\[[^\\]]+\\]|\\((--[\\w-]+)\\)|[\\w-]+?)(?:/(\\d+))?${CLASS_TOKEN_BOUNDARY_END}`,
+		'g',
+	);
+	const tokens: RingToken[] = [];
+	let match: RegExpExecArray | null;
+	while ((match = pattern.exec(mergedClassName))) {
+		const [, chain, rawColorGroup, cssVarName, alphaText] = match;
+		const variants = chain.split(':').filter(Boolean);
+		if (!variants.includes('focus-visible')) {
+			continue;
+		}
+		const alpha = alphaText ? Number.parseInt(alphaText, 10) / 100 : 1;
+
+		if (cssVarName) {
+			tokens.push({ variants, rawValue: `var(${cssVarName})`, alpha });
+		} else if (rawColorGroup.startsWith('[') && rawColorGroup.endsWith(']')) {
+			const bracketValue = rawColorGroup.slice(1, -1);
+			if (!ARBITRARY_RING_COLOR_VALUE_PATTERN.test(bracketValue)) {
+				throw new Error(`Unsupported focused border colour: ${bracketValue}`);
+			}
+			tokens.push({ variants, rawValue: bracketValue, alpha });
+		} else if (knownColorNames.has(rawColorGroup)) {
+			tokens.push({ variants, color: rawColorGroup, alpha });
+		} else {
+			throw new Error(`Unknown focused border colour token: ${rawColorGroup}`);
+		}
+	}
+	return tokens;
+};
+
 // W5-HARDEN2 item 2B: `ring-offset-<color>` sets the colour of the gap
 // between the element edge and the ring — visually the innermost visible
 // boundary when a ring is present, and the ONLY visible focus boundary when
@@ -400,7 +435,10 @@ const THEMES = [
 ] as const;
 
 const srcRootDir = path.resolve(rootDir, '..');
-const FOCUS_RING_UTILITY_MARKER = 'focus-visible:ring';
+const FOCUS_INDICATOR_UTILITY_MARKERS = [
+	'focus-visible:ring',
+	'focus-visible:border',
+] as const;
 
 // W6-GUARDS (round-6: shell F4, tests F2, ui F2, users-auth F10 — four
 // independent lanes): the previous version of this suite read consumer
@@ -418,13 +456,16 @@ type ClassLiteral = { line: number; text: string };
 
 const STRING_LITERAL_PATTERN = /(["'`])((?:\\.|(?!\1)[\s\S])*?)\1/g;
 
-const extractRingClassLiterals = (source: string): ClassLiteral[] => {
+const containsFocusIndicatorUtility = (source: string): boolean =>
+	FOCUS_INDICATOR_UTILITY_MARKERS.some((marker) => source.includes(marker));
+
+const extractFocusClassLiterals = (source: string): ClassLiteral[] => {
 	const literals: ClassLiteral[] = [];
 	let match: RegExpExecArray | null;
 	STRING_LITERAL_PATTERN.lastIndex = 0;
 	while ((match = STRING_LITERAL_PATTERN.exec(source))) {
 		const text = match[2];
-		if (!text.includes(FOCUS_RING_UTILITY_MARKER)) {
+		if (!containsFocusIndicatorUtility(text)) {
 			continue;
 		}
 		const line = source.slice(0, match.index).split('\n').length;
@@ -520,7 +561,7 @@ const STATIC_CONSUMER_EXCLUSIONS = new Set([
 const discoveredConsumerPaths = collectSourceFiles(srcRootDir).filter(
 	(absolutePath) =>
 		!STATIC_CONSUMER_EXCLUSIONS.has(absolutePath) &&
-		readFileSync(absolutePath, 'utf8').includes(FOCUS_RING_UTILITY_MARKER),
+		containsFocusIndicatorUtility(readFileSync(absolutePath, 'utf8')),
 );
 
 describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
@@ -632,30 +673,35 @@ describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 	// the whole suite if that shape is ever used anywhere in scope — the same
 	// fail-closed contract the inline-style check above already applies to
 	// its own unverifiable shape.
-	test('no focus-visible ring/ring-offset utility is composed via runtime string concatenation or interpolation (unverifiable by this guard — must fail closed)', () => {
+	test('no focus-visible ring/border utility is composed via runtime string concatenation or interpolation (unverifiable by this guard — must fail closed)', () => {
 		const allProductFiles = collectSourceFiles(srcRootDir);
-		const dynamicRingCompositionPattern =
-			/focus-visible:ring(?:-offset)?[\w-]*\$\{|\+\s*['"`][\w-]*ring(?:-offset)?[\w-]*['"`]|['"`][\w-]*ring(?:-offset)?[\w-]*['"`]\s*\+/;
+		const dynamicFocusCompositionPattern =
+			/focus-visible:(?:ring|border)(?:-offset)?[\w-]*\$\{|\+\s*['"`][\w-]*(?:ring|border)(?:-offset)?[\w-]*['"`]|['"`][\w-]*(?:ring|border)(?:-offset)?[\w-]*['"`]\s*\+/;
 		const offenders = allProductFiles
 			.filter((filePath) =>
-				dynamicRingCompositionPattern.test(readFileSync(filePath, 'utf8')),
+				dynamicFocusCompositionPattern.test(readFileSync(filePath, 'utf8')),
 			)
 			.map((filePath) => path.relative(srcRootDir, filePath));
 
 		expect(offenders).toEqual([]);
 	});
 
-	test('the dynamic-ring-composition fail-closed check itself catches a planted template-literal interpolation and a planted string concatenation (evasion proof)', () => {
-		const dynamicRingCompositionPattern =
-			/focus-visible:ring(?:-offset)?[\w-]*\$\{|\+\s*['"`][\w-]*ring(?:-offset)?[\w-]*['"`]|['"`][\w-]*ring(?:-offset)?[\w-]*['"`]\s*\+/;
+	test('the dynamic focus-visible ring/border utility fail-closed check catches planted interpolation and concatenation (evasion proof)', () => {
+		const dynamicFocusCompositionPattern =
+			/focus-visible:(?:ring|border)(?:-offset)?[\w-]*\$\{|\+\s*['"`][\w-]*(?:ring|border)(?:-offset)?[\w-]*['"`]|['"`][\w-]*(?:ring|border)(?:-offset)?[\w-]*['"`]\s*\+/;
 		expect(
-			dynamicRingCompositionPattern.test(
+			dynamicFocusCompositionPattern.test(
 				'const cls = `focus-visible:ring-${variant}`;',
 			),
 		).toBe(true);
 		expect(
-			dynamicRingCompositionPattern.test(
+			dynamicFocusCompositionPattern.test(
 				"const cls = 'focus-visible:' + 'ring-primary';",
+			),
+		).toBe(true);
+		expect(
+			dynamicFocusCompositionPattern.test(
+				'const cls = `focus-visible:border-${color}`;',
 			),
 		).toBe(true);
 	});
@@ -709,36 +755,30 @@ describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 		 * by both checks in `assertStateCompliant` below so the offset colour
 		 * is verified through the exact same fail-closed resolution path as
 		 * the main ring colour, not a parallel, potentially-looser one. */
+		const measureWinnerContrast = (winner: RingToken | undefined) => {
+			if (!winner) {
+				return undefined;
+			}
+			const winnerRgb = winner.color
+				? resolveKnownColorRgb(winner.color)
+				: resolveColor(winner.rawValue as string, declarations, surfaceHex);
+			const renderedRgb = composite(
+				{ ...winnerRgb, a: winner.alpha },
+				surfaceRgb,
+			);
+			return contrastRatio(renderedRgb, surfaceRgb);
+		};
+
 		const assertWinnerCompliant = (
 			winner: RingToken | undefined,
 			utilityPrefix: string,
 			consumerLabel: string,
 			stateName: string,
 		) => {
-			if (!winner) {
-				// No such utility applies while focus-visible is active in this
-				// state (e.g. a consumer with no aria-invalid styling at all, or
-				// no ring-offset utility at all) -- nothing to assert.
+			const ratio = measureWinnerContrast(winner);
+			if (ratio === undefined || !winner) {
 				return;
 			}
-			// W5-HARDEN: fail closed, not open. `winner.color` (a known semantic
-			// token) always resolves; `winner.rawValue` (an arbitrary bracket
-			// value or CSS-variable shorthand) is resolved through the SAME
-			// `resolveColor` every other token value goes through — hex and
-			// var() references succeed, anything else (a raw oklch colour
-			// function, an unresolved custom property) THROWS, and that throw
-			// fails this test
-			// instead of the token silently being skipped. A guard that quietly
-			// can't parse a shape and treats that as "no violation" is the guard
-			// this class of finding keeps re-breaking.
-			const winnerRgb = winner.color
-				? resolveKnownColorRgb(winner.color)
-				: resolveColor(winner.rawValue as string, declarations, surfaceHex);
-			const renderedRingRgb = composite(
-				{ ...winnerRgb, a: winner.alpha },
-				surfaceRgb,
-			);
-			const ratio = contrastRatio(renderedRingRgb, surfaceRgb);
 			const winnerLabel = winner.color
 				? `${utilityPrefix}-${winner.color}`
 				: `${utilityPrefix}-[${winner.rawValue}]`;
@@ -764,10 +804,38 @@ describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 			activeVariants: Set<string>,
 			stateName: string,
 		) => {
-			const tokens = parseRingTokens(mergedClassName, knownColorNames);
-			assertNoUnmodelledVariants(tokens, consumerLabel);
-			const winner = resolveWinningRingToken(tokens, activeVariants);
-			assertWinnerCompliant(winner, 'ring', consumerLabel, stateName);
+			const ringTokens = parseRingTokens(mergedClassName, knownColorNames);
+			assertNoUnmodelledVariants(ringTokens, consumerLabel);
+			const ringWinner = resolveWinningRingToken(ringTokens, activeVariants);
+
+			const borderTokens = parseFocusBorderTokens(
+				mergedClassName,
+				knownColorNames,
+			);
+			assertNoUnmodelledVariants(borderTokens, consumerLabel);
+			const borderWinner = resolveWinningRingToken(
+				borderTokens,
+				activeVariants,
+			);
+
+			const indicatorRatios = [
+				{ kind: 'ring', ratio: measureWinnerContrast(ringWinner) },
+				{ kind: 'border', ratio: measureWinnerContrast(borderWinner) },
+			].filter(
+				(entry): entry is { kind: string; ratio: number } =>
+					entry.ratio !== undefined,
+			);
+			expect(
+				indicatorRatios.length,
+				`${consumerLabel} (${theme.name}, ${stateName}) has no resolvable authored focus indicator`,
+			).toBeGreaterThan(0);
+			expect(
+				Math.max(...indicatorRatios.map((entry) => entry.ratio)),
+				`${consumerLabel} (${theme.name}, ${stateName}): ` +
+					indicatorRatios
+						.map((entry) => `${entry.kind}=${entry.ratio.toFixed(2)}:1`)
+						.join(', '),
+			).toBeGreaterThanOrEqual(CONTRAST_FLOOR);
 
 			const offsetTokens = parseRingOffsetTokens(
 				mergedClassName,
@@ -795,10 +863,73 @@ describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 				? new Set(['focus-visible', 'aria-invalid', 'dark'])
 				: new Set(['focus-visible', 'aria-invalid']);
 
+		test(`parseFocusBorderTokens resolves semantic, opacity, and combined-state borders in ${theme.name} mode`, () => {
+			expect(
+				parseFocusBorderTokens(
+					'border-border focus-visible:border-ring aria-invalid:focus-visible:border-destructive dark:aria-invalid:focus-visible:border-destructive/40',
+					knownColorNames,
+				),
+			).toEqual([
+				{ variants: ['focus-visible'], color: 'ring', alpha: 1 },
+				{
+					variants: ['aria-invalid', 'focus-visible'],
+					color: 'destructive',
+					alpha: 1,
+				},
+				{
+					variants: ['dark', 'aria-invalid', 'focus-visible'],
+					color: 'destructive',
+					alpha: 0.4,
+				},
+			]);
+		});
+
+		test(`an unknown focused border colour fails closed in ${theme.name} mode`, () => {
+			expect(() =>
+				parseFocusBorderTokens(
+					'focus-visible:border-unresolvable',
+					knownColorNames,
+				),
+			).toThrow(/Unknown focused border colour token/);
+		});
+
+		test(`a ring-ring/30 halo without a compliant border fails in ${theme.name} mode`, () => {
+			expect(() =>
+				assertStateCompliant(
+					'low-opacity-halo-fixture',
+					'focus-visible:ring-3 focus-visible:ring-ring/30',
+					FOCUS_ONLY,
+					'focused only',
+				),
+			).toThrow();
+		});
+
+		test(`an opaque focus border plus ring-ring/30 halo passes in ${theme.name} mode`, () => {
+			expect(() =>
+				assertStateCompliant(
+					'combined-focus-fixture',
+					'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30',
+					FOCUS_ONLY,
+					'focused only',
+				),
+			).not.toThrow();
+		});
+
+		test(`a full destructive border keeps the invalid-focus treatment compliant in ${theme.name} mode`, () => {
+			expect(() =>
+				assertStateCompliant(
+					'invalid-focus-fixture',
+					'focus-visible:border-ring focus-visible:ring-ring/30 aria-invalid:focus-visible:border-destructive aria-invalid:focus-visible:ring-destructive/20 dark:aria-invalid:focus-visible:border-destructive dark:aria-invalid:focus-visible:ring-destructive/40',
+					FOCUS_AND_INVALID,
+					'focused + aria-invalid',
+				),
+			).not.toThrow();
+		});
+
 		for (const consumerPath of discoveredConsumerPaths) {
 			const consumerLabel = path.relative(srcRootDir, consumerPath);
 			const consumerSource = readFileSync(consumerPath, 'utf8');
-			const classLiterals = extractRingClassLiterals(consumerSource);
+			const classLiterals = extractFocusClassLiterals(consumerSource);
 
 			// W6-GUARDS: one test per DISCOVERED CLASS EXPRESSION, not one per
 			// file — see the extractRingClassLiterals comment above. A file
@@ -808,9 +939,8 @@ describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 			// empty for a genuinely discovered file.
 			expect(
 				classLiterals.length,
-				`${consumerLabel}: discovered via the '${FOCUS_RING_UTILITY_MARKER}' ` +
-					'raw-substring scan but no string-literal class expression ' +
-					'actually contains the marker — investigate the source shape.',
+				`${consumerLabel}: discovered via a focus-visible ring/border raw-substring scan ` +
+					'but no string-literal class expression contains either marker.',
 			).toBeGreaterThan(0);
 
 			for (const literal of classLiterals) {
@@ -1071,7 +1201,7 @@ describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 				`const first = "focus-visible:ring-[${surfaceHex}]";`,
 				`const second = "focus-visible:ring-ring";`,
 			].join('\n');
-			const literals = extractRingClassLiterals(twoElementSource);
+			const literals = extractFocusClassLiterals(twoElementSource);
 			expect(literals).toHaveLength(2);
 
 			// Old (file-wide) behaviour: pooling literals[0] + literals[1] into
