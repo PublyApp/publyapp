@@ -127,7 +127,7 @@ test.describe('Gray UI screenshot capture (no visual assertions — see NOTE abo
 		// Detail routes are rail-only — the real invariant under test, not
 		// just "some page rendered".
 		await expect(page.getByTestId('app-shell-rail')).toBeVisible();
-		await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+		await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
 
 		await page.screenshot({
 			path: 'test-results/gray-ui/staff-user-detail.png',

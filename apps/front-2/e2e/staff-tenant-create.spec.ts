@@ -175,10 +175,8 @@ test.describe('staff create-tenant shell (rail-only) and two-pane layout', () =>
 		await page.goto('/staff/tenants/new');
 		await expect(page.getByTestId('staff-tenant-create-page')).toBeVisible();
 
-		// Rail-only: no secondary panel on the create-tenant form route,
-		// regardless of the sidebarOpen preference (route-metadata.ts
-		// isCreatePath/isRailOnlyPath).
-		await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+		// Create routes now follow the persisted sidebarOpen preference.
+		await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
 
 		const formNameField = page.getByRole('textbox', { name: /organization/i });
 		const previewCard = page.getByTestId('staff-tenant-create-preview');

@@ -194,11 +194,10 @@ const AuthedRoutePendingSkeleton = () => {
 	// r4-shell-F4: `.app-shell-workspace:has(.app-shell-secondary-panel)`
 	// (app.css) widens the grid purely off DOM presence — no store/JS
 	// conditional needed here. `shouldShowSecondaryPanel(pathname)` with no
-	// options uses the exact same defaults the real shell falls back to
-	// before `sidebarOpen` hydrates (list routes open, rail-only/detail
-	// routes closed — see route-metadata.tsx), so this store-free skeleton
-	// still reserves the right grid track and the real first frame doesn't
-	// pop the layout when it mounts.
+	// options uses the same fallback defaults the real shell uses before
+	// `sidebarOpen` hydrates (open + desktop + >=2 items), so this store-free
+	// skeleton still reserves the right grid track and the real first frame
+	// doesn't pop the layout when it mounts.
 	const showSecondaryPanel = shouldShowSecondaryPanel(pathname);
 
 	return (

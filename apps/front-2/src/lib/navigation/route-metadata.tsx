@@ -270,50 +270,30 @@ export function isSecondaryPanelItemActive(
 	return matchesPath && itemStatus === currentStatus;
 }
 
-function isDetailPath(pathname: string): boolean {
-	if (isCreatePath(pathname)) {
-		return false;
-	}
-
+/**
+ * A rail detail route is a route under an active rail item (excluding create
+ * paths) that includes extra segments.
+ */
+const isDetailPath = (pathname: string): boolean => {
 	const activeRoute = getActiveRailItem(pathname);
-	if (!activeRoute) {
+	if (!activeRoute || isCreatePath(pathname)) {
 		return false;
 	}
 
 	const matchedPrefix = getMatchedPrefix(pathname, activeRoute);
 	return matchedPrefix !== undefined && matchedPrefix !== pathname;
-}
+};
 
-/**
- * Detail routes (e.g. `/staff/tenants/$tenantId`, nested tabs, `-edit`) and
- * form routes (e.g. `/staff/tenants/new`) are rail-only: the secondary panel
- * never shows on them, independent of `sidebarOpen`. This is a global shell
- * rule, not tenants-specific — it applies wherever `isDetailPath`/
- * `isCreatePath` matches (staff-users, invitations, profiles, tenants, …).
- */
-export function isRailOnlyPath(pathname: string): boolean {
-	return isCreatePath(pathname) || isDetailPath(pathname);
-}
-
-/**
- * Rail-only routes (detail/form) have no persisted `sidebarOpen` default —
- * they use `railOnlyPanelOpen` instead, which defaults to closed and only
- * flips via an explicit topbar-toggle click during the session (see
- * app-shell.tsx). List routes keep using `sidebarOpen`, defaulting to open.
- */
 export function shouldShowSecondaryPanel(
 	pathname: string,
 	options?: {
 		sidebarOpen?: boolean;
-		railOnlyPanelOpen?: boolean;
 		viewportWidth?: number;
 	},
 ): boolean {
 	const activeItems = getSecondaryPanelItems(pathname);
 	const viewportWidth = options?.viewportWidth ?? Number.POSITIVE_INFINITY;
-	const panelOpen = isRailOnlyPath(pathname)
-		? (options?.railOnlyPanelOpen ?? false)
-		: (options?.sidebarOpen ?? true);
+	const panelOpen = options?.sidebarOpen ?? true;
 
 	return panelOpen && viewportWidth >= 1024 && activeItems.length >= 2;
 }

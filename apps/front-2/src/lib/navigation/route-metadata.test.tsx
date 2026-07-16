@@ -84,89 +84,73 @@ describe('front-2 route metadata', () => {
 		).toBe(true);
 	});
 
-	test('secondary panel collapses on detail routes regardless of sidebarOpen (rail-only)', () => {
+	test('detail routes follow the same sidebarOpen preference as list routes', () => {
 		expect(
 			shouldShowSecondaryPanel('/staff/staff-users/u-1', {
 				sidebarOpen: true,
 				viewportWidth: 1280,
 			}),
-		).toBe(false);
+		).toBe(true);
 		expect(
 			shouldShowSecondaryPanel('/staff/invitations/i-1', {
 				sidebarOpen: true,
 				viewportWidth: 1280,
 			}),
-		).toBe(false);
+		).toBe(true);
 		expect(
 			shouldShowSecondaryPanel('/staff/profiles/p-1', {
 				sidebarOpen: true,
 				viewportWidth: 1280,
 			}),
-		).toBe(false);
+		).toBe(true);
 		expect(
 			shouldShowSecondaryPanel('/staff/tenants/t-1', {
 				sidebarOpen: true,
 				viewportWidth: 1280,
 			}),
-		).toBe(false);
+		).toBe(true);
 		expect(
 			shouldShowSecondaryPanel('/staff/tenants/t-1/edit', {
 				sidebarOpen: true,
 				viewportWidth: 1280,
 			}),
-		).toBe(false);
+		).toBe(true);
 		expect(
 			shouldShowSecondaryPanel('/staff/tenants/t-1/users/invite', {
 				sidebarOpen: true,
 				viewportWidth: 1280,
 			}),
-		).toBe(false);
+		).toBe(true);
 	});
 
-	test('secondary panel opens on rail-only routes when railOnlyPanelOpen is explicitly set', () => {
+	test('closed sidebar preference still collapses detail routes', () => {
 		expect(
 			shouldShowSecondaryPanel('/staff/staff-users/u-1', {
-				sidebarOpen: true,
-				railOnlyPanelOpen: true,
-				viewportWidth: 1280,
-			}),
-		).toBe(true);
-		expect(
-			shouldShowSecondaryPanel('/staff/tenants/t-1', {
 				sidebarOpen: false,
-				railOnlyPanelOpen: true,
-				viewportWidth: 1280,
-			}),
-		).toBe(true);
-	});
-
-	test('rail-only routes stay closed at the default (no railOnlyPanelOpen passed)', () => {
-		expect(
-			shouldShowSecondaryPanel('/staff/staff-users/u-1', {
 				viewportWidth: 1280,
 			}),
 		).toBe(false);
 	});
 
-	test('form (create) routes are also rail-only — the secondary panel collapses', () => {
+	test('form (create) routes follow sidebarOpen preference', () => {
 		expect(
 			shouldShowSecondaryPanel('/staff/tenants/new', {
 				sidebarOpen: true,
 				viewportWidth: 1280,
 			}),
-		).toBe(false);
+		).toBe(true);
 		expect(
 			shouldShowSecondaryPanel('/staff/profiles/new', {
 				sidebarOpen: true,
 				viewportWidth: 1280,
 			}),
-		).toBe(false);
+		).toBe(true);
 		expect(
 			shouldShowSecondaryPanel('/staff/invitations/new', {
 				sidebarOpen: true,
 				viewportWidth: 1280,
 			}),
-		).toBe(false);
+		).toBe(true);
 	});
 
 	test('list routes (non-detail) keep the secondary panel visible when open', () => {

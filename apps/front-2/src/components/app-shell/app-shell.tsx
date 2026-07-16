@@ -24,7 +24,6 @@ import {
 	getBreadcrumbsForPath,
 	getRailItemsForPath,
 	getSecondaryPanelItems,
-	isRailOnlyPath,
 	isSecondaryPanelItemActive,
 	shouldShowSecondaryPanel,
 } from '../../lib/navigation/route-metadata';
@@ -327,39 +326,25 @@ const AuthedWorkspaceShell = ({
 	const { t } = useTranslation('common');
 	const sidebarOpen = useUiStore((state) => state.sidebarOpen);
 	const toggleSidebarOpen = useUiStore((state) => state.toggleSidebarOpen);
-	const railOnlyPanelOpen = useUiStore((state) => state.railOnlyPanelOpen);
-	const toggleRailOnlyPanelOpen = useUiStore(
-		(state) => state.toggleRailOnlyPanelOpen,
-	);
 	const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 	const activeRoute = getActiveRailItem(pathname);
 	const railItems = getRailItemsForPath(pathname);
 	const secondaryItems = getSecondaryPanelItems(pathname);
 	const breadcrumbs = getBreadcrumbsForPath(pathname);
 	const isDesktop = useMediaQuery('(min-width: 1024px)');
-	const isRailOnly = isRailOnlyPath(pathname);
 	const showSecondaryPanel = shouldShowSecondaryPanel(pathname, {
 		sidebarOpen,
-		railOnlyPanelOpen,
 		viewportWidth: isDesktop ? 1024 : 0,
 	});
 	// The secondary panel can only ever show at desktop width (see
 	// shouldShowSecondaryPanel's viewportWidth >= 1024 requirement) — below
 	// that, toggling the panel changes nothing visible. Gate the toggle button
 	// on the same condition so it isn't rendered lying about its own effect
-	// between 768px and 1023px. Rail-only routes (detail/form) have a panel
-	// too — it's just closed by default (`railOnlyPanelOpen`, in-memory only)
-	// — so the toggle stays visible there and opens/closes it; that explicit
-	// choice carries over across other rail-only routes for the session but
-	// is not persisted, so a fresh session always starts closed. List routes
-	// keep using the persisted `sidebarOpen`, defaulting to open.
+	// between 768px and 1023px. Panel state is driven by `sidebarOpen` for all
+	// route classes, and route-type state switching is intentionally gone.
 	const canToggleSecondaryPanel = isDesktop && secondaryItems.length >= 2;
-	const isSecondaryPanelOpenForToggle = isRailOnly
-		? railOnlyPanelOpen
-		: sidebarOpen;
-	const handleToggleSecondaryPanel = isRailOnly
-		? toggleRailOnlyPanelOpen
-		: toggleSidebarOpen;
+	const isSecondaryPanelOpenForToggle = sidebarOpen;
+	const handleToggleSecondaryPanel = toggleSidebarOpen;
 
 	useEffect(() => {
 		setIsMobileNavOpen(false);
