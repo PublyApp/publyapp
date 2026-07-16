@@ -15,9 +15,9 @@ import {
 	IconX,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -79,7 +79,13 @@ import {
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { BULK_ACTION_MAX_COUNT } from '@org/shared-ts/lib/constants';
 
-import { InviteTenantUserDrawer } from './_invite-user-drawer';
+import { InviteTenantUserDrawerHost } from './_invite-user-drawer-host';
+import {
+	type InviteUserSearchState,
+	type InviteUserSearchStateInput,
+	parseInviteUserSearchParams,
+	serializeInviteUserSearchParams,
+} from './_invite-user-search-state';
 import {
 	formatTenantUserLevelLabel,
 	formatTenantUserStatusLabel,
@@ -120,14 +126,12 @@ const KNOWN_TENANT_USER_LEVEL_SET = new Set<string>(KNOWN_TENANT_USER_LEVELS);
 export type TenantUsersListSearchParams = TableSearchParams & {
 	status?: string;
 	level?: string;
-	invite?: 1;
-};
+} & InviteUserSearchState;
 
 export type TenantUsersListSearchParamInput = TableSearchParamInput & {
 	status?: unknown;
 	level?: unknown;
-	invite?: unknown;
-};
+} & InviteUserSearchStateInput;
 
 const normalizeString = (value: unknown): string | undefined => {
 	if (typeof value !== 'string') {
@@ -204,11 +208,6 @@ export const serializeTenantUserLevelFilter = (
 	levels: KnownTenantUserLevel[],
 ): string | undefined => (levels.length > 0 ? levels.join(',') : undefined);
 
-/** The flag round-trips as the NUMBER 1 — a string '1' would be JSON-quoted
- * in the URL (`?invite=%221%22`) by the router's search serializer. */
-export const parseTenantUserInviteFlag = (value: unknown): 1 | undefined =>
-	value === 1 || normalizeString(value) === '1' ? 1 : undefined;
-
 export const parseTenantUsersListSearchParams = (
 	search: TenantUsersListSearchParamInput,
 ): TenantUsersListSearchParams => {
@@ -219,13 +218,13 @@ export const parseTenantUsersListSearchParams = (
 	const level = serializeTenantUserLevelFilter(
 		parseTenantUserLevelFilter(search.level),
 	);
-	const invite = parseTenantUserInviteFlag(search.invite);
+	const invite = parseInviteUserSearchParams(search);
 
 	return {
 		...base,
 		status,
 		level,
-		invite,
+		...invite,
 	};
 };
 
@@ -239,13 +238,13 @@ export const serializeTenantUsersListSearchParams = (
 	const level = serializeTenantUserLevelFilter(
 		parseTenantUserLevelFilter(params.level),
 	);
-	const invite = parseTenantUserInviteFlag(params.invite);
+	const invite = serializeInviteUserSearchParams(params);
 
 	return {
 		...next,
 		status: status || undefined,
 		level: level || undefined,
-		invite,
+		invite: invite.invite,
 	};
 };
 
@@ -512,32 +511,10 @@ function StaffTenantUsersPage() {
 	const [shouldLogout, setShouldLogout] = useState(false);
 	const [bulkFeedback, setBulkFeedback] =
 		useState<TenantUserBulkFeedback | null>(null);
-	const [isInviteFormDirty, setIsInviteFormDirty] = useState(false);
 
 	const selectedStatuses = parseTenantUserStatusFilter(search.status);
 	const selectedLevels = parseTenantUserLevelFilter(search.level);
 	const isInviteDrawerOpen = search.invite === 1;
-
-	// `onDirtyChange(false)` (called by the drawer right before an
-	// app-initiated close/submit navigation) is an async React state update —
-	// a `navigate()` fired synchronously right after it still sees the old
-	// (dirty) render's `shouldBlockFn` closure. This ref is set synchronously
-	// by every app-initiated close/navigate path below so the guard never
-	// blocks its own transition (W8-DRAWER; only a real browser Back or
-	// sibling-route nav should ever trip it).
-	const inviteDrawerNavBypassRef = useRef(false);
-
-	// The invite drawer's open flag lives in the URL (`?invite=1`); a browser
-	// Back or a sibling-route navigation changes/unmounts it without ever
-	// calling the drawer's own `onOpenChange` close guard, discarding a dirty
-	// invite draft silently (tenants-r1-F2).
-	const inviteDrawerBlocker = useBlocker({
-		shouldBlockFn: () =>
-			isInviteDrawerOpen &&
-			isInviteFormDirty &&
-			!inviteDrawerNavBypassRef.current,
-		withResolver: true,
-	});
 
 	const onSearchChange = (next: TenantUsersListSearchParams): void => {
 		void navigate({
@@ -547,9 +524,6 @@ function StaffTenantUsersPage() {
 	};
 
 	const setInviteDrawerOpen = (isOpen: boolean): void => {
-		// Opening re-arms the guard for the new draft; every close here is
-		// either a not-dirty close or a discard the drawer already confirmed.
-		inviteDrawerNavBypassRef.current = !isOpen;
 		void navigate({
 			search: serializeTenantUsersListSearchParams({
 				...search,
@@ -925,35 +899,11 @@ function StaffTenantUsersPage() {
 				/>
 			</FloatingSelectionBar>
 
-			<InviteTenantUserDrawer
+			<InviteTenantUserDrawerHost
 				tenantId={tenantId}
 				isOpen={isInviteDrawerOpen}
 				onOpenChange={setInviteDrawerOpen}
 				onSessionExpired={() => setShouldLogout(true)}
-				onDirtyChange={setIsInviteFormDirty}
-				onInvited={() => {
-					// A successful submit must never be blocked by the parent's own
-					// nav guard reading a not-yet-flushed dirty flag (W8-DRAWER).
-					inviteDrawerNavBypassRef.current = true;
-					void navigate({
-						to: '/staff/tenants/$tenantId/invitations',
-						params: { tenantId },
-					});
-				}}
-			/>
-			<ConfirmDialog
-				isOpen={inviteDrawerBlocker.status === 'blocked'}
-				title={t('unsaved-changes-dialog-title')}
-				description={t('unsaved-changes-dialog-description')}
-				confirmLabel={t('leave-page')}
-				cancelLabel={t('cancel')}
-				tone="danger"
-				onConfirm={() => inviteDrawerBlocker.proceed?.()}
-				onOpenChange={(isOpen) => {
-					if (!isOpen) {
-						inviteDrawerBlocker.reset?.();
-					}
-				}}
 			/>
 		</TenantDetailsPageShell>
 	);

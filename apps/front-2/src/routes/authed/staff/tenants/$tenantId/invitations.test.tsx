@@ -23,6 +23,9 @@ const mocks = vi.hoisted(() => ({
 	useRevokeStaffTenantInvitationMutation: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
 	invalidateAllStaffTenantScopes: vi.fn().mockResolvedValue(undefined),
+	inviteHostIsOpen: false,
+	inviteHostOnOpenChange: (_isOpen: boolean) => {},
+	inviteHostOnInvited: () => {},
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -160,6 +163,24 @@ vi.mock('~/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 
+vi.mock('./_invite-user-drawer-host', () => ({
+	InviteTenantUserDrawerHost: ({
+		isOpen,
+		onOpenChange,
+		onInvited,
+	}: {
+		isOpen: boolean;
+		onOpenChange: (isOpen: boolean) => void;
+		onInvited?: () => void;
+	}) => {
+		mocks.inviteHostIsOpen = isOpen;
+		mocks.inviteHostOnOpenChange = onOpenChange;
+		mocks.inviteHostOnInvited = onInvited ?? (() => undefined);
+
+		return isOpen ? <div data-testid="invite-drawer-open" /> : null;
+	},
+}));
+
 import { createColumns, isInvitationExpiringSoon, Route } from './invitations';
 
 const buildQueryResult = (overrides: Record<string, unknown> = {}) => ({
@@ -191,6 +212,9 @@ describe('staff tenant invitations route', () => {
 		mocks.tenantId = '11111111-1111-1111-1111-111111111111';
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
 		mocks.invalidateQueries.mockResolvedValue(undefined);
+		mocks.inviteHostIsOpen = false;
+		mocks.inviteHostOnOpenChange = vi.fn();
+		mocks.inviteHostOnInvited = vi.fn();
 		mocks.useRevokeStaffTenantInvitationMutation.mockReturnValue({
 			mutateAsync: vi.fn().mockResolvedValue({}),
 			isPending: false,
@@ -267,11 +291,7 @@ describe('staff tenant invitations route', () => {
 		expect(
 			screen.getByRole('link', { name: 'Users' }).getAttribute('href'),
 		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/users');
-		expect(
-			screen.getByRole('link', { name: 'Invite people' }).getAttribute('href'),
-		).toBe(
-			'/staff/tenants/11111111-1111-1111-1111-111111111111/users?invite=1',
-		);
+		expect(screen.getByRole('button', { name: 'Invite people' })).toBeTruthy();
 		expect(screen.getByText('alex@example.com')).toBeTruthy();
 		expect(screen.getByText('Approvers')).toBeTruthy();
 		expect(screen.getByText('Taylor Smith')).toBeTruthy();
@@ -287,6 +307,24 @@ describe('staff tenant invitations route', () => {
 				size: 100,
 			},
 			{ enabled: true },
+		);
+	});
+
+	test('invite people button opens the same-route drawer and keeps current invitation filters', () => {
+		mocks.search = { q: 'sam', status: 'pending' };
+		renderPage();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Invite people' }));
+
+		expect(mocks.navigate).toHaveBeenCalledWith(
+			expect.objectContaining({
+				search: expect.objectContaining({
+					invite: 1,
+					q: 'sam',
+					status: 'pending',
+				}),
+				replace: true,
+			}),
 		);
 	});
 
@@ -316,15 +354,39 @@ describe('staff tenant invitations route', () => {
 		expect(screen.getByText('No pending invitations')).toBeTruthy();
 		expect(
 			screen
-				.getAllByRole('link', { name: 'Invite people' })
-				.some((link) =>
-					link
-						.getAttribute('href')
-						?.endsWith(
-							'/staff/tenants/11111111-1111-1111-1111-111111111111/users?invite=1',
-						),
+				.getAllByRole('button', { name: 'Invite people' })
+				.some(
+					(button) => (button.textContent?.trim() ?? '') === 'Invite people',
 				),
 		).toBe(true);
+	});
+
+	test('opens with query filters intact when arriving via deep-link invite state', () => {
+		mocks.search = { invite: 1, q: 'sam', status: 'pending' };
+		renderPage();
+
+		expect(screen.getByTestId('staff-tenant-invitations-page')).toBeTruthy();
+		expect(screen.getByTestId('invite-drawer-open')).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'Invite people' })).toBeTruthy();
+	});
+
+	test('closing the invite drawer from Invitations removes only invite and preserves list state', () => {
+		mocks.search = { invite: 1, q: 'sam', status: 'pending' };
+		renderPage();
+
+		mocks.navigate.mockClear();
+		mocks.inviteHostOnOpenChange(false);
+
+		expect(mocks.navigate).toHaveBeenCalledWith(
+			expect.objectContaining({
+				search: expect.objectContaining({
+					invite: undefined,
+					q: 'sam',
+					status: 'pending',
+				}),
+				replace: true,
+			}),
+		);
 	});
 
 	test('does not render created/accepted columns not in the approved column list', () => {

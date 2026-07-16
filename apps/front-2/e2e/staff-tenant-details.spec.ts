@@ -675,6 +675,13 @@ test.describe('staff tenant invite-user drawer', () => {
 		const drawer = page.getByTestId('invite-tenant-user-drawer');
 		await expect(drawer).toBeVisible();
 
+		const usersOpenUrl = new URL(page.url());
+		expect(usersOpenUrl.pathname).toBe(`/staff/tenants/${TENANT_ID}/users`);
+		expect(usersOpenUrl.searchParams.get('invite')).toBe('1');
+		await expect(
+			page.locator('span[aria-current="page"]', { hasText: 'Users' }),
+		).toHaveText('Users');
+
 		await drawer.getByRole('button', { name: 'Invite people' }).click();
 		await expect(page.getByText('Invalid email address')).toBeVisible();
 
@@ -690,9 +697,136 @@ test.describe('staff tenant invite-user drawer', () => {
 		await drawer.getByRole('button', { name: 'Invite people' }).click();
 		await inviteRequest;
 
+		await expect(page.getByTestId('staff-tenant-users-page')).toBeVisible();
+		await expect(drawer).toHaveCount(0);
+		await expect
+			.poll(() => new URL(page.url()).searchParams.has('invite'))
+			.toBe(false);
+		const usersAfterSubmit = new URL(page.url());
+		expect(usersAfterSubmit.pathname).toBe(`/staff/tenants/${TENANT_ID}/users`);
+		expect(usersAfterSubmit.searchParams.has('invite')).toBe(false);
+		await expect(
+			page.locator('span[aria-current="page"]', { hasText: 'Users' }),
+		).toHaveText('Users');
+	});
+
+	test('opens from the Invitations tab, validates, and submits via the invitations endpoint', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await mockTenantDetails(page);
+		await page.route(
+			`**/staff/tenants/${TENANT_ID}/users/invitations`,
+			async (route) => {
+				if (route.request().method() !== 'POST') {
+					await route.fallback();
+					return;
+				}
+
+				await route.fulfill({
+					status: 201,
+					contentType: 'application/json',
+					body: JSON.stringify({
+						id: '0197b8f0-7777-7ccc-8ccc-2222aaaaaaaa',
+						email: 'new-user@example.com',
+					}),
+				});
+			},
+		);
+
+		await page.goto(`/staff/tenants/${TENANT_ID}/invitations?status=pending`);
 		await expect(
 			page.getByTestId('staff-tenant-invitations-page'),
 		).toBeVisible();
+
+		await page.getByRole('button', { name: 'Invite people' }).click();
+		const drawer = page.getByTestId('invite-tenant-user-drawer');
+		await expect(drawer).toBeVisible();
+
+		const invitationsOpenUrl = new URL(page.url());
+		expect(invitationsOpenUrl.pathname).toBe(
+			`/staff/tenants/${TENANT_ID}/invitations`,
+		);
+		expect(invitationsOpenUrl.searchParams.get('invite')).toBe('1');
+		expect(invitationsOpenUrl.searchParams.get('status')).toBe('pending');
+		await expect(
+			page.locator('span[aria-current="page"]', { hasText: 'Invitations' }),
+		).toHaveText('Invitations');
+
+		await drawer
+			.getByRole('textbox', { name: 'Email' })
+			.fill('new-user@example.com');
+		const inviteRequest = page.waitForRequest(
+			(request) =>
+				request.method() === 'POST' &&
+				request.url().includes(`/staff/tenants/${TENANT_ID}/users/invitations`),
+		);
+		await drawer.getByRole('button', { name: 'Invite people' }).click();
+		await inviteRequest;
+
+		await expect(
+			page.getByTestId('staff-tenant-invitations-page'),
+		).toBeVisible();
+		await expect(drawer).toHaveCount(0);
+		await expect
+			.poll(() => new URL(page.url()).searchParams.has('invite'))
+			.toBe(false);
+		const invitationsAfterSubmit = new URL(page.url());
+		expect(invitationsAfterSubmit.pathname).toBe(
+			`/staff/tenants/${TENANT_ID}/invitations`,
+		);
+		expect(invitationsAfterSubmit.searchParams.get('invite')).toBeNull();
+		expect(invitationsAfterSubmit.searchParams.get('status')).toBe('pending');
+		await expect(
+			page.locator('span[aria-current="page"]', { hasText: 'Invitations' }),
+		).toHaveText('Invitations');
+	});
+
+	test('fails invite submit and keeps the drawer open on the same route', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await mockTenantDetails(page);
+		await page.route(
+			`**/staff/tenants/${TENANT_ID}/users/invitations`,
+			async (route) => {
+				if (route.request().method() !== 'POST') {
+					await route.fallback();
+					return;
+				}
+
+				await route.fulfill({
+					status: 500,
+					contentType: 'application/json',
+					body: JSON.stringify({
+						title: 'Failed to send invite',
+					}),
+				});
+			},
+		);
+
+		await page.goto(`/staff/tenants/${TENANT_ID}/users?invite=1&status=active`);
+		await expect(page.getByTestId('staff-tenant-users-page')).toBeVisible();
+
+		const drawer = page.getByTestId('invite-tenant-user-drawer');
+		await expect(drawer).toBeVisible();
+
+		await drawer
+			.getByRole('textbox', { name: 'Email' })
+			.fill('new-user@example.com');
+		await drawer.getByRole('button', { name: 'Invite people' }).click();
+
+		await expect(
+			drawer.getByRole('button', { name: 'Invite people' }),
+		).toBeVisible();
+		const failedSubmitUrl = new URL(page.url());
+		expect(failedSubmitUrl.pathname).toBe(`/staff/tenants/${TENANT_ID}/users`);
+		expect(failedSubmitUrl.searchParams.get('invite')).toBe('1');
+		expect(failedSubmitUrl.searchParams.get('status')).toBe('active');
+		await expect(page.getByTestId('staff-tenant-users-page')).toBeVisible();
+		await expect(
+			page.locator('span[aria-current="page"]', { hasText: 'Users' }),
+		).toHaveText('Users');
 	});
 
 	test('the legacy users/invite URL redirects to the users tab with the drawer open', async ({
@@ -700,6 +834,24 @@ test.describe('staff tenant invite-user drawer', () => {
 	}) => {
 		await loginAsStaffAdmin(page);
 		await mockTenantDetails(page);
+		await page.route(
+			`**/staff/tenants/${TENANT_ID}/users/invitations`,
+			async (route) => {
+				if (route.request().method() !== 'POST') {
+					await route.fallback();
+					return;
+				}
+
+				await route.fulfill({
+					status: 201,
+					contentType: 'application/json',
+					body: JSON.stringify({
+						id: '0197b8f0-7777-7ccc-8ccc-3333aaaaaaaa',
+						email: 'new-user@example.com',
+					}),
+				});
+			},
+		);
 
 		await page.goto(`/staff/tenants/${TENANT_ID}/users/invite`);
 
@@ -707,6 +859,41 @@ test.describe('staff tenant invite-user drawer', () => {
 			new RegExp(`/staff/tenants/${TENANT_ID}/users\\?invite=1$`),
 		);
 		await expect(page.getByTestId('invite-tenant-user-drawer')).toBeVisible();
+
+		const legacyOpenUrl = new URL(page.url());
+		expect(legacyOpenUrl.pathname).toBe(`/staff/tenants/${TENANT_ID}/users`);
+		expect(legacyOpenUrl.searchParams.get('invite')).toBe('1');
+		await expect(
+			page.locator('span[aria-current="page"]', { hasText: 'Users' }),
+		).toHaveText('Users');
+
+		const drawer = page.getByTestId('invite-tenant-user-drawer');
+		await expect(drawer).toBeVisible();
+
+		await drawer
+			.getByRole('textbox', { name: 'Email' })
+			.fill('new-user@example.com');
+		const inviteRequest = page.waitForRequest(
+			(request) =>
+				request.method() === 'POST' &&
+				request.url().includes(`/staff/tenants/${TENANT_ID}/users/invitations`),
+		);
+		await drawer.getByRole('button', { name: 'Invite people' }).click();
+		await inviteRequest;
+
+		await expect(page.getByTestId('staff-tenant-users-page')).toBeVisible();
+		await expect(drawer).toHaveCount(0);
+		await expect
+			.poll(() => new URL(page.url()).searchParams.has('invite'))
+			.toBe(false);
+		const legacyAfterSubmit = new URL(page.url());
+		expect(legacyAfterSubmit.pathname).toBe(
+			`/staff/tenants/${TENANT_ID}/users`,
+		);
+		expect(legacyAfterSubmit.searchParams.has('invite')).toBe(false);
+		await expect(
+			page.locator('span[aria-current="page"]', { hasText: 'Users' }),
+		).toHaveText('Users');
 	});
 });
 

@@ -2,7 +2,6 @@
  * @vitest-environment jsdom
  */
 import {
-	act,
 	cleanup,
 	fireEvent,
 	render,
@@ -33,14 +32,12 @@ const mocks = vi.hoisted(() => ({
 	downloadFile: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
 	invalidateAllStaffTenantScopes: vi.fn().mockResolvedValue(undefined),
-	blockerResolver: {
-		status: 'idle' as 'idle' | 'blocked',
-		proceed: undefined as (() => void) | undefined,
-		reset: undefined as (() => void) | undefined,
-	},
-	capturedShouldBlockFn: undefined as (() => boolean) | undefined,
-	capturedOnDirtyChange: undefined as ((isDirty: boolean) => void) | undefined,
-	capturedOnInvited: undefined as (() => void) | undefined,
+	inviteHostIsOpen: false,
+	inviteHostOnOpenChange: (_isOpen: boolean) => {},
+	inviteHostOnInvited: () => {},
+	inviteHostOnDirtyChange: undefined as
+		| undefined
+		| ((isDirty: boolean) => void),
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -79,10 +76,6 @@ vi.mock('@tanstack/react-router', () => ({
 				{children}
 			</a>
 		);
-	},
-	useBlocker: (opts: { shouldBlockFn: () => boolean }) => {
-		mocks.capturedShouldBlockFn = opts.shouldBlockFn;
-		return mocks.blockerResolver;
 	},
 }));
 
@@ -225,18 +218,21 @@ vi.mock('~/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 
-vi.mock('./_invite-user-drawer', () => ({
-	InviteTenantUserDrawer: ({
+vi.mock('./_invite-user-drawer-host', () => ({
+	InviteTenantUserDrawerHost: ({
 		isOpen,
-		onDirtyChange,
+		onOpenChange,
 		onInvited,
 	}: {
 		isOpen: boolean;
-		onDirtyChange?: (isDirty: boolean) => void;
+		onOpenChange: (isOpen: boolean) => void;
 		onInvited?: () => void;
 	}) => {
-		mocks.capturedOnDirtyChange = onDirtyChange;
-		mocks.capturedOnInvited = onInvited;
+		mocks.inviteHostIsOpen = isOpen;
+		mocks.inviteHostOnOpenChange = onOpenChange;
+		mocks.inviteHostOnInvited = onInvited ?? (() => undefined);
+		mocks.inviteHostOnDirtyChange = undefined;
+
 		return isOpen ? <div data-testid="invite-drawer-open" /> : null;
 	},
 }));
@@ -277,12 +273,10 @@ describe('staff tenant users route', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mocks.search = {};
-		mocks.blockerResolver.status = 'idle';
-		mocks.blockerResolver.proceed = undefined;
-		mocks.blockerResolver.reset = undefined;
-		mocks.capturedShouldBlockFn = undefined;
-		mocks.capturedOnDirtyChange = undefined;
-		mocks.capturedOnInvited = undefined;
+		mocks.inviteHostIsOpen = false;
+		mocks.inviteHostOnOpenChange = vi.fn();
+		mocks.inviteHostOnInvited = vi.fn();
+		mocks.inviteHostOnDirtyChange = undefined;
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
 		mocks.invalidateQueries.mockResolvedValue(undefined);
 		mocks.useSuspendStaffTenantUserMutation.mockReturnValue({
@@ -413,6 +407,27 @@ describe('staff tenant users route', () => {
 		renderPage();
 
 		expect(screen.getByTestId('invite-drawer-open')).toBeTruthy();
+	});
+
+	test('closes the invite drawer from Users while preserving non-invite search state', () => {
+		mocks.search = { invite: 1, q: 'alex', status: 'active', level: 'admin' };
+		renderPage();
+
+		mocks.navigate.mockClear();
+		mocks.inviteHostOnOpenChange(false);
+
+		const lastCall = mocks.navigate.mock.calls.at(-1)?.[0] as {
+			search?: Record<string, string | 1 | undefined>;
+		};
+
+		expect(lastCall?.search).toEqual(
+			expect.objectContaining({
+				invite: undefined,
+				q: 'alex',
+				status: 'active',
+				level: 'admin',
+			}),
+		);
 	});
 
 	test('a debounced search commit does not close a drawer opened within the debounce window (F1)', async () => {
@@ -1054,84 +1069,6 @@ describe('staff tenant users route', () => {
 			expect(screen.getByText('Removed 0 user(s), 1 failed.')).toBeTruthy(),
 		);
 		expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled();
-	});
-
-	// tenants-r1-F2: the invite drawer's open flag is URL-driven (`?invite=1`);
-	// a browser Back or sibling-route navigation changes/unmounts it without
-	// ever calling the drawer's own close guard, discarding a dirty invite
-	// draft with no confirmation.
-	test('the URL nav-guard only blocks navigation while the invite drawer is open AND dirty', () => {
-		mocks.search = { invite: 1 };
-		renderPage();
-
-		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
-
-		act(() => mocks.capturedOnDirtyChange?.(true));
-		expect(mocks.capturedShouldBlockFn?.()).toBe(true);
-
-		act(() => mocks.capturedOnDirtyChange?.(false));
-		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
-	});
-
-	test('the URL nav-guard never blocks when the invite drawer is closed, even if reported dirty', () => {
-		mocks.search = {};
-		renderPage();
-
-		act(() => mocks.capturedOnDirtyChange?.(true));
-		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
-	});
-
-	// W8-DRAWER: `onDirtyChange(false)` is an async state update — a
-	// successful submit calls it and then `onInvited()` synchronously in the
-	// same tick, so the guard's closure still sees the old (dirty) render.
-	// Without a synchronous bypass, this leaves the invite-people navigation
-	// permanently blocked after a successful submit.
-	test('a successful invite submit does not leave the nav guard blocking its own navigation (W8-DRAWER)', () => {
-		mocks.search = { invite: 1 };
-		renderPage();
-
-		// The drawer reports dirty while the user fills the form.
-		act(() => mocks.capturedOnDirtyChange?.(true));
-		expect(mocks.capturedShouldBlockFn?.()).toBe(true);
-
-		// Simulate the drawer's real onSubmit sequence: it calls
-		// `onDirtyChange(false)` (state update, not yet flushed) and then
-		// `onInvited()` synchronously in the same tick — exactly like
-		// _invite-user-drawer.tsx's onSubmit does. React batches state updates
-		// across a single `act` callback and only applies them once it
-		// returns, so asserting *inside* this callback (before the flush)
-		// reproduces the real stale-closure race; asserting after the act()
-		// block returns would see the already-flushed (non-dirty) state and
-		// pass even without the fix.
-		act(() => {
-			mocks.capturedOnDirtyChange?.(false);
-			mocks.capturedOnInvited?.();
-
-			expect(mocks.capturedShouldBlockFn?.()).toBe(false);
-		});
-
-		expect(mocks.navigate).toHaveBeenCalledWith(
-			expect.objectContaining({
-				to: '/staff/tenants/$tenantId/invitations',
-				params: { tenantId: '11111111-1111-1111-1111-111111111111' },
-			}),
-		);
-	});
-
-	test('shows the unsaved-changes confirm dialog when the router blocks navigation away from a dirty invite drawer', () => {
-		const proceed = vi.fn();
-		const reset = vi.fn();
-		mocks.search = { invite: 1 };
-		mocks.blockerResolver.status = 'blocked';
-		mocks.blockerResolver.proceed = proceed;
-		mocks.blockerResolver.reset = reset;
-
-		renderPage();
-
-		expect(screen.getByText('Leave without saving?')).toBeTruthy();
-		fireEvent.click(screen.getByRole('button', { name: 'Leave page' }));
-		expect(proceed).toHaveBeenCalled();
-		expect(reset).not.toHaveBeenCalled();
 	});
 });
 
