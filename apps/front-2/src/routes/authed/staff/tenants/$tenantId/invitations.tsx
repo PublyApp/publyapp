@@ -9,7 +9,7 @@ import {
 	IconUser,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -18,7 +18,7 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
 import { DataTableRowActions } from '~/components/table/row-actions';
 import { useTableController } from '~/components/table/use-table-controller';
-import { Button, buttonVariants } from '~/components/ui/button';
+import { Button } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
 	DropdownMenu,
@@ -62,6 +62,13 @@ import {
 	serializeInvitationListSearchParams,
 	serializeInvitationStatusFilter,
 } from '../../invitations/list-helpers';
+import { InviteTenantUserDrawerHost } from './_invite-user-drawer-host';
+import {
+	type InviteUserSearchState,
+	type InviteUserSearchStateInput,
+	parseInviteUserSearchParams,
+	serializeInviteUserSearchParams,
+} from './_invite-user-search-state';
 import {
 	formatDateTime,
 	TenantDetailsError,
@@ -73,6 +80,26 @@ import {
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
 const EXPIRES_SOON_MS = 48 * 60 * 60 * 1000;
+
+type InvitationRouteSearchParams = InvitationListSearchParams &
+	InviteUserSearchState;
+
+type InvitationRouteSearchParamInput = InvitationListSearchParamInput &
+	InviteUserSearchStateInput;
+
+const parseInvitationRouteSearchParams = (
+	search: InvitationRouteSearchParamInput,
+): InvitationRouteSearchParams => ({
+	...parseInvitationListSearchParams(search),
+	...parseInviteUserSearchParams(search),
+});
+
+const serializeInvitationRouteSearchParams = (
+	search: InvitationRouteSearchParams,
+): Record<string, string | 1 | undefined> => ({
+	...serializeInvitationListSearchParams(search),
+	...serializeInviteUserSearchParams(search),
+});
 
 type ActionFeedback = {
 	message: string;
@@ -256,8 +283,10 @@ export const Route = createFileRoute(
 	'/_authed-layout/staff/tenants/$tenantId/invitations',
 )({
 	validateSearch: (search) =>
-		serializeInvitationListSearchParams(
-			parseInvitationListSearchParams(search as InvitationListSearchParamInput),
+		serializeInvitationRouteSearchParams(
+			parseInvitationRouteSearchParams(
+				search as InvitationRouteSearchParamInput,
+			),
 		),
 	component: StaffTenantInvitationsPage,
 });
@@ -265,9 +294,9 @@ export const Route = createFileRoute(
 function StaffTenantInvitationsPage() {
 	const { tenantId } = Route.useParams();
 	const navigate = Route.useNavigate();
-	const search = parseInvitationListSearchParams(
-		Route.useSearch() as InvitationListSearchParamInput,
-	);
+	const search = parseInvitationRouteSearchParams(
+		Route.useSearch() as InvitationRouteSearchParamInput,
+	) satisfies InvitationRouteSearchParams;
 	const queryClient = useQueryClient();
 	const { i18n, t } = useTranslation('common');
 	const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
@@ -275,12 +304,26 @@ function StaffTenantInvitationsPage() {
 	const [pendingRevokeRowId, setPendingRevokeRowId] = useState<string | null>(
 		null,
 	);
+	const isInviteDrawerOpen = search.invite === 1;
 
 	const selectedStatuses = parseInvitationStatusFilter(search.status);
 
 	const onSearchChange = (next: InvitationListSearchParams): void => {
 		void navigate({
-			search: serializeInvitationListSearchParams(next),
+			search: serializeInvitationRouteSearchParams({
+				...next,
+				invite: search.invite,
+			}),
+			replace: true,
+		});
+	};
+
+	const setInviteDrawerOpen = (isOpen: boolean): void => {
+		void navigate({
+			search: serializeInvitationRouteSearchParams({
+				...search,
+				invite: isOpen ? 1 : undefined,
+			}),
 			replace: true,
 		});
 	};
@@ -408,7 +451,7 @@ function StaffTenantInvitationsPage() {
 
 	const setStatuses = (nextStatuses: KnownInvitationStatus[]): void => {
 		void navigate({
-			search: serializeInvitationListSearchParams({
+			search: serializeInvitationRouteSearchParams({
 				...search,
 				status: serializeInvitationStatusFilter(nextStatuses),
 				cursor: undefined,
@@ -456,15 +499,15 @@ function StaffTenantInvitationsPage() {
 						{t('tenant-invitations-tab-description')}
 					</p>
 				</div>
-				<Link
-					to="/staff/tenants/$tenantId/users"
-					params={{ tenantId }}
-					search={{ invite: 1 }}
-					className={buttonVariants({ size: 'sm', variant: 'default' })}
+				<Button
+					type="button"
+					size="sm"
+					variant="default"
+					onClick={() => setInviteDrawerOpen(true)}
 				>
 					<IconPlus aria-hidden="true" className="size-[15px]" />
 					{t('invite-people')}
-				</Link>
+				</Button>
 			</div>
 
 			{feedback ? (
@@ -505,15 +548,15 @@ function StaffTenantInvitationsPage() {
 				emptyTitle={t('tenant-invitations-empty-title')}
 				emptyContent={t('tenant-invitations-empty-description')}
 				emptyActions={
-					<Link
-						to="/staff/tenants/$tenantId/users"
-						params={{ tenantId }}
-						search={{ invite: 1 }}
-						className={buttonVariants({ size: 'sm', variant: 'outline' })}
+					<Button
+						type="button"
+						size="sm"
+						variant="outline"
+						onClick={() => setInviteDrawerOpen(true)}
 					>
 						<IconPlus aria-hidden="true" className="size-[15px]" />
 						{t('invite-people')}
-					</Link>
+					</Button>
 				}
 				noMatchTitle={t('tenant-invitations-no-match-title')}
 				noMatchContent={t('tenant-invitations-no-match-description')}
@@ -579,6 +622,13 @@ function StaffTenantInvitationsPage() {
 						</DropdownMenuContent>
 					</DropdownMenu>
 				}
+			/>
+
+			<InviteTenantUserDrawerHost
+				tenantId={tenantId}
+				isOpen={isInviteDrawerOpen}
+				onOpenChange={setInviteDrawerOpen}
+				onSessionExpired={() => setShouldRedirectToLogout(true)}
 			/>
 		</TenantDetailsPageShell>
 	);
