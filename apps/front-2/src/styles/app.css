@@ -206,6 +206,7 @@
 		0 20px 25px -5px rgb(0 0 0 / 0.15), 0 8px 10px -6px rgb(0 0 0 / 0.15);
 	--publy-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
 	--publy-motion-fast: 120ms;
+	--publy-motion-medium: 240ms;
 	--accent: var(--publy-primary);
 	--accent-foreground: var(--publy-primary-foreground);
 	/* Profile icon-tile tone palette (F13/F3): named so the per-`data-tone`
@@ -526,11 +527,23 @@ html.dark {
 		color: var(--publy-foreground);
 	}
 
-	.app-shell-workspace:has(.app-shell-secondary-panel) {
+	.app-shell-workspace[data-has-secondary-panel='true'] {
+		grid-template-columns:
+			var(--publy-shell-rail-width)
+			0px
+			minmax(0, 1fr);
+	}
+
+	.app-shell-workspace[data-has-secondary-panel='true'][data-panel-open='true'] {
 		grid-template-columns:
 			var(--publy-shell-rail-width)
 			var(--publy-shell-panel-width)
 			minmax(0, 1fr);
+	}
+
+	.app-shell-workspace[data-has-secondary-panel='true'][data-motion-ready='true'] {
+		transition: grid-template-columns var(--publy-motion-medium)
+			var(--publy-motion-ease);
 	}
 
 	/* ---- Rail ---- */
@@ -610,10 +623,40 @@ html.dark {
 	   track instead; the nav list below (not this flex container) owns the
 	   vertical scroll so the fixed header never gets pushed off-screen. */
 	.app-shell-secondary-panel {
-		@apply hidden h-full min-h-0 min-w-0 flex-col border-r lg:flex;
+		@apply hidden h-full min-h-0 min-w-0 overflow-hidden lg:block;
 		background: var(--publy-surface-raised);
+		visibility: hidden;
+		width: 100%;
+	}
+
+	.app-shell-workspace[data-panel-open='true'] > .app-shell-secondary-panel {
+		visibility: visible;
+	}
+
+	.app-shell-workspace[data-motion-ready='true'][data-panel-open='false']
+		> .app-shell-secondary-panel {
+		transition: visibility 0s var(--publy-motion-medium);
+	}
+
+	.app-shell-secondary-panel-inner {
+		@apply flex h-full min-h-0 flex-col border-r;
 		border-color: var(--publy-border);
 		width: var(--publy-shell-panel-width);
+		opacity: 0;
+		transform: translateX(-8px);
+	}
+
+	.app-shell-workspace[data-panel-open='true']
+		.app-shell-secondary-panel-inner {
+		opacity: 1;
+		transform: translateX(0);
+	}
+
+	.app-shell-workspace[data-motion-ready='true']
+		.app-shell-secondary-panel-inner {
+		transition:
+			opacity var(--publy-motion-fast) var(--publy-motion-ease),
+			transform var(--publy-motion-medium) var(--publy-motion-ease);
 	}
 
 	.app-shell-secondary-header {
@@ -881,7 +924,7 @@ html.dark {
 	/* ---- Tablet < 1024px: rail-only shell (design 1h) ---- */
 
 	@media (max-width: 1023px) {
-		.app-shell-workspace:has(.app-shell-secondary-panel) {
+		.app-shell-workspace[data-has-secondary-panel='true'] {
 			grid-template-columns: var(--publy-shell-rail-width) minmax(0, 1fr);
 		}
 	}
@@ -890,7 +933,7 @@ html.dark {
 
 	@media (max-width: 767px) {
 		.app-shell-workspace,
-		.app-shell-workspace:has(.app-shell-secondary-panel) {
+		.app-shell-workspace[data-has-secondary-panel='true'] {
 			grid-template-columns: 1fr;
 		}
 
