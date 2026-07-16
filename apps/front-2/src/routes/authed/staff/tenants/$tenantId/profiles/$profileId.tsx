@@ -258,16 +258,6 @@ function StaffTenantProfileDetailsPage() {
 	const setBreadcrumbOverride = useUiStore(
 		(state) => state.setBreadcrumbOverride,
 	);
-	const clearBreadcrumbOverride = useUiStore(
-		(state) => state.clearBreadcrumbOverride,
-	);
-	// Per-mount ownership token. Publish and clear are paired in the single
-	// layout effect below and both carry this token, so this page can only ever
-	// clear its own override — a late cleanup after another page has adopted the
-	// crumbs is a no-op (owner mismatch) rather than a stale wipe.
-	const breadcrumbOwnerRef = useRef<symbol>(
-		Symbol('staff-tenant-profile-breadcrumbs'),
-	);
 
 	// Publish the 4-crumb trail in a layout effect (not `useEffect`) so the
 	// override is committed before the browser paints the first frame. With a
@@ -277,38 +267,23 @@ function StaffTenantProfileDetailsPage() {
 	// changing the crumb count). The authed shell is client-only, so there is
 	// no SSR `useLayoutEffect` warning to worry about. Publish and cleanup live
 	// in ONE layout effect so there is never a passive-cleanup gap during route
-	// handoff, and the cleanup is owner-scoped so a superseded page cannot erase
-	// the next page's freshly published trail.
+	// handoff, and the dispose returned by `setBreadcrumbOverride` is
+	// owner-scoped, so a superseded page cannot erase the next page's freshly
+	// published trail.
 	useLayoutEffect(() => {
-		const owner = breadcrumbOwnerRef.current;
-
-		setBreadcrumbOverride(
-			[
-				{ label: t('tenants'), to: '/staff/tenants' },
-				{
-					label: tenant?.name ?? t('tenant'),
-					to: '/staff/tenants/' + tenantId,
-				},
-				{
-					label: t('profiles'),
-					to: '/staff/tenants/' + tenantId + '/profiles',
-				},
-				{ label: profile?.name ?? t('profile') },
-			],
-			owner,
-		);
-
-		return () => {
-			clearBreadcrumbOverride(owner);
-		};
-	}, [
-		clearBreadcrumbOverride,
-		profile?.name,
-		setBreadcrumbOverride,
-		t,
-		tenant?.name,
-		tenantId,
-	]);
+		return setBreadcrumbOverride([
+			{ label: t('tenants'), to: '/staff/tenants' },
+			{
+				label: tenant?.name ?? t('tenant'),
+				to: '/staff/tenants/' + tenantId,
+			},
+			{
+				label: t('profiles'),
+				to: '/staff/tenants/' + tenantId + '/profiles',
+			},
+			{ label: profile?.name ?? t('profile') },
+		]);
+	}, [profile?.name, setBreadcrumbOverride, t, tenant?.name, tenantId]);
 	// Stable identity across refetch re-renders — the drawer resets its form
 	// whenever this prop's reference changes, so a new object literal here
 	// would silently discard unsaved edits (see _profile-form-drawer.tsx).

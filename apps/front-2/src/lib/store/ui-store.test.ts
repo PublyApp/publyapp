@@ -4,10 +4,13 @@ import { useUiStore } from './ui-store';
 
 describe('ui-store breadcrumb override', () => {
 	afterEach(() => {
-		useUiStore.getState().clearBreadcrumbOverride();
+		useUiStore.setState({
+			breadcrumbOverride: null,
+			breadcrumbOverrideOwner: null,
+		});
 	});
 
-	test('publishes and clears a generic breadcrumb trail', () => {
+	test('publishes a trail and clears it via the returned dispose', () => {
 		const trail = [
 			{ label: 'Tenants', to: '/staff/tenants' },
 			{ label: 'Acme Corporation', to: '/staff/tenants/acme' },
@@ -17,34 +20,32 @@ describe('ui-store breadcrumb override', () => {
 
 		expect(useUiStore.getState().breadcrumbOverride).toBeNull();
 
-		useUiStore.getState().setBreadcrumbOverride(trail);
+		const dispose = useUiStore.getState().setBreadcrumbOverride(trail);
 
 		expect(useUiStore.getState().breadcrumbOverride).toEqual(trail);
 
-		useUiStore.getState().clearBreadcrumbOverride();
+		dispose();
 
 		expect(useUiStore.getState().breadcrumbOverride).toBeNull();
 	});
 
-	test('an owner-scoped clear from a superseded page does not erase page B’s override', () => {
-		const ownerA = Symbol('page-a');
-		const ownerB = Symbol('page-b');
+	test('a dispose from a superseded page does not erase page B’s override', () => {
 		const trailA = [{ label: 'A' }];
 		const trailB = [{ label: 'B' }];
 
 		// Page A publishes, then page B publishes (adopting ownership) before
 		// page A's cleanup runs.
-		useUiStore.getState().setBreadcrumbOverride(trailA, ownerA);
-		useUiStore.getState().setBreadcrumbOverride(trailB, ownerB);
+		const disposeA = useUiStore.getState().setBreadcrumbOverride(trailA);
+		const disposeB = useUiStore.getState().setBreadcrumbOverride(trailB);
 
-		// Page A's late cleanup fires with its own (now stale) token.
-		useUiStore.getState().clearBreadcrumbOverride(ownerA);
+		// Page A's late cleanup fires with its own (now stale) dispose.
+		disposeA();
 
 		// Page B's override survives — A no longer owns it.
 		expect(useUiStore.getState().breadcrumbOverride).toEqual(trailB);
 
 		// Page B's own cleanup, still the owner, clears successfully.
-		useUiStore.getState().clearBreadcrumbOverride(ownerB);
+		disposeB();
 
 		expect(useUiStore.getState().breadcrumbOverride).toBeNull();
 	});

@@ -19,11 +19,12 @@ export type BreadcrumbOverrideItem = {
 
 /**
  * Opaque token identifying the publisher that currently owns the breadcrumb
- * override. Each page mints its own (a `Symbol` or its pathname) so a late
- * cleanup from a page that has already been superseded cannot erase the
- * override a newly mounted page just published.
+ * override. Minted internally by `setBreadcrumbOverride` on every publish and
+ * captured by the dispose function it returns, so a late cleanup from a page
+ * that has already been superseded (its token is no longer the current owner)
+ * cannot erase the override a newly mounted page just published.
  */
-export type BreadcrumbOverrideOwner = string | symbol;
+type BreadcrumbOverrideOwner = symbol;
 
 type UiState = {
 	breadcrumbOverride: BreadcrumbOverrideItem[] | null;
@@ -242,11 +243,15 @@ const readPersistedUiState = (): Pick<
 };
 
 type UiStore = UiState & {
-	setBreadcrumbOverride: (
-		items: BreadcrumbOverrideItem[],
-		owner?: BreadcrumbOverrideOwner,
-	) => void;
-	clearBreadcrumbOverride: (owner?: BreadcrumbOverrideOwner) => void;
+	/**
+	 * Publishes a breadcrumb override and returns an owner-scoped dispose
+	 * function. Calling dispose clears the override only while this publish is
+	 * still the current owner, so a superseded page's late cleanup is a no-op
+	 * rather than a stale wipe. Ownership is mandatory and enforced by
+	 * construction — there is no tokenless public clear to erase another page's
+	 * owned override.
+	 */
+	setBreadcrumbOverride: (items: BreadcrumbOverrideItem[]) => () => void;
 	setColorScheme: (colorScheme: ColorScheme) => void;
 	toggleColorScheme: () => void;
 	applyRemoteColorScheme: (colorScheme: ColorScheme) => void;
@@ -257,21 +262,21 @@ type UiStore = UiState & {
 
 export const useUiStore = create<UiStore>((set, get) => ({
 	...DEFAULT_UI_STATE,
-	setBreadcrumbOverride: (items, owner) =>
-		set({ breadcrumbOverride: items, breadcrumbOverrideOwner: owner ?? null }),
-	clearBreadcrumbOverride: (owner) =>
-		set((state) => {
-			// Owner-aware clear: a publisher that passes its token may only clear
-			// the override while it still owns it. This prevents page A's late
-			// (post-unmount) cleanup from erasing the override page B just
-			// published once B has adopted ownership. A tokenless clear (legacy
-			// callers) always clears.
-			if (owner !== undefined && state.breadcrumbOverrideOwner !== owner) {
-				return state;
-			}
+	setBreadcrumbOverride: (items) => {
+		const owner: BreadcrumbOverrideOwner = Symbol('breadcrumb-override');
+		set({ breadcrumbOverride: items, breadcrumbOverrideOwner: owner });
 
-			return { breadcrumbOverride: null, breadcrumbOverrideOwner: null };
-		}),
+		return () =>
+			set((state) =>
+				// Owner-scoped dispose: only the publish that still owns the override
+				// may clear it. This prevents page A's late (post-unmount) cleanup
+				// from erasing the override page B just published once B has adopted
+				// ownership.
+				state.breadcrumbOverrideOwner === owner
+					? { breadcrumbOverride: null, breadcrumbOverrideOwner: null }
+					: state,
+			);
+	},
 	hydrateFromStorage: () => {
 		const { colorScheme, sidebarOpen } = readPersistedUiState();
 		applyThemeToDocument(colorScheme);
