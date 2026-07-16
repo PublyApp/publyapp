@@ -356,9 +356,11 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 		});
 
 		// Generic job queue (Infrastructure/Jobs). Not a BaseAttributes entity by
-		// design (§4.0): success is a hard delete and claim/complete run through raw
-		// SQL, so the uuidv7 id + manual timestamps are configured explicitly here
-		// rather than via the BaseAttributes auto-config loop below.
+		// design (§4.0): success is a hard delete and every engine transition runs
+		// through raw SQL, so the uuidv7 id is configured explicitly here rather than
+		// via the BaseAttributes auto-config loop below. All safety-relevant
+		// timestamps are database-generated (F11) — the entity carries no C#
+		// initializers and EF falls back to the SQL defaults on insert.
 		modelBuilder.Entity<JobQueueItem>(entity => {
 			// Explicit snake_case PK constraint name (design §4.1); EF's convention
 			// would generate PK_job_queue.
@@ -368,26 +370,39 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 			entity.Property(e => e.Status).HasDefaultValue(JobQueueStatus.Pending);
 			entity.Property(e => e.Priority).HasDefaultValue(0);
 			entity.Property(e => e.Attempts).HasDefaultValue(0);
-			entity.Property(e => e.MaxAttempts).HasDefaultValue(8);
+			entity.Property(e => e.MaxAttempts).HasDefaultValue(10);
 			entity.Property(e => e.NextAttemptAt).HasDefaultValueSql("now()");
 			entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
 			entity.Property(e => e.UpdatedAt).HasDefaultValueSql("now()");
 
-			// Claim hot path: pending-and-due, ordered by priority then schedule.
-			entity.HasIndex(e => new { e.Priority, e.NextAttemptAt, e.CreatedAt })
+			// Envelope bounds (§4.1, F15): no unbounded retries, sane priorities.
+			entity.ToTable(t => {
+				t.HasCheckConstraint(
+					"ck_job_queue_max_attempts",
+					"max_attempts BETWEEN 1 AND 50"
+				);
+				t.HasCheckConstraint(
+					"ck_job_queue_priority",
+					"priority BETWEEN 0 AND 1000"
+				);
+			});
+
+			// Claim hot path (F22): PENDING-ONLY partial index the claim query can
+			// use as one ordered scan, with id as the total tie-break.
+			entity.HasIndex(e => new { e.Priority, e.NextAttemptAt, e.CreatedAt, e.Id })
 				.HasDatabaseName("ix_job_queue_claim")
-				.IsDescending(true, false, false)
+				.IsDescending(true, false, false, false)
 				.HasFilter("status = 0");
 
-			// Stale-lease reclaim path.
+			// Stale-lease reset path.
 			entity.HasIndex(e => e.LockedUntil)
 				.HasDatabaseName("ix_job_queue_reclaim")
 				.HasFilter("status = 1");
 
-			// Idempotent enqueue (dedup on optional idempotency_key).
-			entity.HasIndex(e => e.IdempotencyKey)
+			// In-flight dedup, scoped so unrelated job types can never collide (F13).
+			entity.HasIndex(e => new { e.JobType, e.IdempotencyKey })
 				.IsUnique()
-				.HasDatabaseName("ux_job_queue_idempotency")
+				.HasDatabaseName("ux_job_queue_type_idempotency")
 				.HasFilter("idempotency_key IS NOT NULL");
 		});
 
