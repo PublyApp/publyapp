@@ -1,31 +1,26 @@
 namespace PublyApp.Api.Infrastructure.Jobs;
 
 /// <summary>
-/// The single source of truth for retry backoff, shared by both lanes (the generic
-/// job queue and, from Phase 2C, the email outbox) so they can never drift apart.
-/// Exponential (2^attempts seconds) capped at <see cref="MaxBackoffSeconds"/>,
-/// mirroring the shipped InvitationEmailOutboxDispatcher constants
-/// (MaxAttempts = 8, MaxBackoffSeconds = 900).
+/// The single source of truth for retry backoff (design §5.1/§6, F11/F12). Computes
+/// DURATIONS only, never absolute timestamps: the engine applies the delay in SQL as
+/// an interval added to database now(), so an app clock can never influence
+/// scheduling. Schedule: d = min(15 s × 2^(n−1), 3600 s) with equal jitter
+/// (d/2 + U(0, d/2)); the default 10-attempt ceiling spans ≈ 2 h before terminal.
 /// </summary>
 public static class JobBackoff {
-	public const int MaxAttempts = 8;
-	public const int MaxBackoffSeconds = 900;
+	public const int DefaultMaxAttempts = 10;
+	public const int BaseDelaySeconds = 15;
+	public const int MaxDelaySeconds = 3600;
 
-	// The wait before the next attempt: min(2^attempts, cap) seconds.
-	public static TimeSpan Delay(int attempts) {
-		var seconds = Math.Min(Math.Pow(2, attempts), MaxBackoffSeconds);
-		return TimeSpan.FromSeconds(seconds);
-	}
+	/// <summary>
+	/// Jittered delay (seconds) before the next try after the n-th failed attempt
+	/// (1-based). Equal jitter — half deterministic, half uniform — spreads a burst
+	/// of same-tick failures without ever dropping below d/2.
+	/// </summary>
+	public static double DelaySeconds(int failedAttemptNumber) {
+		var attempt = Math.Max(1, failedAttemptNumber);
+		var full = Math.Min(BaseDelaySeconds * Math.Pow(2, attempt - 1), MaxDelaySeconds);
 
-	// The absolute next_attempt_at, computed from a caller-supplied "now" so specs
-	// can pin the reference instant. Application-side arithmetic is fine here because
-	// next_attempt_at only gates re-CLAIM eligibility, which is re-evaluated against
-	// database now() in the claim SQL (design §6 clock-skew stance).
-	public static DateTime NextAttempt(int attempts, DateTime from) {
-		return from + Delay(attempts);
-	}
-
-	public static DateTime NextAttempt(int attempts) {
-		return NextAttempt(attempts, DateTime.UtcNow);
+		return (full / 2) + (Random.Shared.NextDouble() * (full / 2));
 	}
 }
