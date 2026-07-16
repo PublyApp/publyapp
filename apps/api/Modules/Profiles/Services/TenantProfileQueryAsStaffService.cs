@@ -575,6 +575,14 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 	/// composite PK, so an account holds a profile at most once). Sort branches
 	/// mirror the tenant-users keyset handlers.
 	/// </summary>
+	/// <remarks>
+	/// PERF NOTE (step 4): only the `id` sort path is index-backed today
+	/// (ix_user_account_profiles_profile_id_user_account_id). The `joined_at`,
+	/// `email`, `level`, and `status` sort paths order on columns reached through
+	/// joins and are UNMEASURED — no speculative indexes were added for them.
+	/// EXPLAIN ANALYZE measurement (and any indexes it justifies) is scheduled
+	/// into step 4, the full Members table step.
+	/// </remarks>
 	private Dictionary<string, CursorSortFieldHandler<UserAccountProfile>>
 		BuildTenantProfileUserSortHandlers(
 			FindTenantProfileUsersArgs args,

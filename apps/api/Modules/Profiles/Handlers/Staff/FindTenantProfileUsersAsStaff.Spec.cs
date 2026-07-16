@@ -9,12 +9,14 @@ using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
+using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Profiles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
@@ -85,6 +87,69 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 
 		using var response = await _http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+	}
+
+	[Fact]
+	public async Task ItShouldReturnForbiddenForStaffWithOnlyProfileReadPermission() {
+		var adminToken = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var profileId = await CreateTenantProfileAsync(adminToken, tenantId);
+
+		// The members list exposes tenant-user PII, so profile-read alone must
+		// not unlock it — the route requires the tenant-users list permission too.
+		var token = await CreateStaffUserTokenWithPermissionsAsync(
+			"profile-members-profile-read-only",
+			AppPermissions.Staff.Profiles.GET_FOR_TENANT.Key
+		);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetUrl(tenantId.ToString(), profileId.ToString())
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+	}
+
+	[Fact]
+	public async Task ItShouldReturnForbiddenForStaffWithOnlyTenantUsersListPermission() {
+		var adminToken = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var profileId = await CreateTenantProfileAsync(adminToken, tenantId);
+
+		var token = await CreateStaffUserTokenWithPermissionsAsync(
+			"profile-members-users-list-only",
+			AppPermissions.Staff.Users.LIST_FOR_TENANT.Key
+		);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetUrl(tenantId.ToString(), profileId.ToString())
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+	}
+
+	[Fact]
+	public async Task ItShouldReturnOkForStaffWithBothProfileReadAndUsersListPermissions() {
+		var adminToken = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var profileId = await CreateTenantProfileAsync(adminToken, tenantId);
+
+		var token = await CreateStaffUserTokenWithPermissionsAsync(
+			"profile-members-both-permissions",
+			AppPermissions.Staff.Profiles.GET_FOR_TENANT.Key,
+			AppPermissions.Staff.Users.LIST_FOR_TENANT.Key
+		);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetUrl(tenantId.ToString(), profileId.ToString())
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
 	[Fact]
@@ -192,21 +257,26 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 		var tenantId = await GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
 
 		var profileA = await CreateTenantProfileAsync(token, tenantId);
-		var profileBName = "Other Profile " + Guid.NewGuid().ToString("N")[..8];
+		var profileBName = "Other Profile B " + Guid.NewGuid().ToString("N")[..8];
 		var profileB = await CreateTenantProfileAsync(token, tenantId, profileBName);
+		var profileCName = "Other Profile C " + Guid.NewGuid().ToString("N")[..8];
+		var profileC = await CreateTenantProfileAsync(token, tenantId, profileCName);
 
 		var adminAccountId =
 			await GetTenantAccountIdAsync(tenantId, SeedConstants.Tenants.AcmeAdminEmail);
 		var userAccountId =
 			await GetTenantAccountIdAsync(tenantId, SeedConstants.Tenants.AcmeUserEmail);
+		// A fresh third member so two members carry DISTINCT other profiles:
+		// user → B, third → C. A grouping regression that swaps per-member
+		// assignments cannot pass both exact single-element assertions below.
+		var thirdAccountId =
+			(await SeedTiedProfileMembersAsync(tenantId, profileA, count: 1)).Single();
 
-		// The regular user holds BOTH A and B; the admin holds only A. So on A's
-		// member list, the user must surface B under otherProfiles and the admin
-		// must not surface A.
 		await AssignTenantProfilesAsync([
 			(adminAccountId, profileA),
 			(userAccountId, profileA),
 			(userAccountId, profileB),
+			(thirdAccountId, profileC),
 		]);
 
 		using var request = new HttpRequestMessage(
@@ -220,14 +290,18 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 		var result = await response.Content.ReadFromJsonAsync<MemberResponse>();
 		Assert.NotNull(result);
 
-		result.Data.Should().Contain(m =>
+		// The admin holds ONLY the viewed profile: otherProfiles must be exactly
+		// empty (not merely "not containing A").
+		var adminMember = result.Data.Single(m =>
 			string.Equals(
 				m.Email,
 				SeedConstants.Tenants.AcmeAdminEmail,
 				StringComparison.OrdinalIgnoreCase
 			)
 		);
+		adminMember.OtherProfiles.Should().BeEmpty();
 
+		// The regular user holds A+B: exactly one other profile, and it is B.
 		var userMember = result.Data.Single(m =>
 			string.Equals(
 				m.Email,
@@ -236,11 +310,16 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 			)
 		);
 		userMember.UserAccountId.Should().Be(userAccountId);
-		userMember.OtherProfiles.Should().Contain(p =>
+		userMember.OtherProfiles.Should().ContainSingle(p =>
 			p.Id == profileB && p.Name == profileBName
 		);
-		// The profile being viewed must never appear in otherProfiles.
-		userMember.OtherProfiles.Should().NotContain(p => p.Id == profileA);
+
+		// The third member holds A+C: exactly one other profile, and it is C —
+		// distinct from the user's, so swapped groupings fail here.
+		var thirdMember = result.Data.Single(m => m.UserAccountId == thirdAccountId);
+		thirdMember.OtherProfiles.Should().ContainSingle(p =>
+			p.Id == profileC && p.Name == profileCName
+		);
 	}
 
 	[Fact]
@@ -435,6 +514,53 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 		}
 
 		await dbContext.SaveChangesAsync();
+	}
+
+	/// <summary>
+	/// Seeds a fresh non-admin staff user holding exactly the given permission
+	/// keys (via a test-only staff profile), and returns a session token.
+	/// Mirrors TenantBulkActionSpecSupport.CreateStaffUserTokenWithPermissionAsync
+	/// but accepts multiple keys, for this route's two-permission (AND) matrix.
+	/// </summary>
+	private async Task<string> CreateStaffUserTokenWithPermissionsAsync(
+		string emailPrefix,
+		params string[] permissionKeys
+	) {
+		var email = $"{emailPrefix}-{Guid.NewGuid():N}@example.com";
+		var userId = await StaffUserTestHelper.SeedStaffUserAsync(_fixture, email);
+
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var staffAccount = await (
+			from account in dbContext.UserAccount
+			where account.UserId == userId
+				&& account.Scope == AccountScope.Staff
+				&& !account.IsDeleted
+			select account
+		).FirstAsync();
+
+		var profile = Profile.CreateStaffProfile(
+			$"{emailPrefix}-permissions-{Guid.NewGuid():N}",
+			"Test-only staff profile for the members-list permission matrix"
+		);
+		await dbContext.Profile.AddAsync(profile);
+		await dbContext.SaveChangesAsync();
+
+		foreach (var permissionKey in permissionKeys) {
+			await dbContext.ProfilePermission.AddAsync(new ProfilePermission {
+				ProfileId = profile.GetRequiredId(),
+				PermissionKey = permissionKey,
+			});
+		}
+
+		await dbContext.UserAccountProfile.AddAsync(new UserAccountProfile {
+			UserAccountId = staffAccount.GetRequiredId(),
+			ProfileId = profile.GetRequiredId(),
+		});
+		await dbContext.SaveChangesAsync();
+
+		return await _authClient.LoginAsync(email, TestConstants.SeedPassword);
 	}
 
 	/// <summary>
