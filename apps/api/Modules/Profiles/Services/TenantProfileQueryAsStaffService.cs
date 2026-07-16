@@ -494,14 +494,96 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 		var effectiveSortId = args.SortId ?? "joined_at";
 		var isAsc = effectiveSortOrder == SortOrder.Asc;
 
-		// The cursor is always the member's UserAccountId (unique within one
-		// profile: the junction has a composite PK, so an account holds a profile
-		// at most once). Sort branches mirror the tenant-users keyset handlers.
 		var sortFieldHandlers =
-			new Dictionary<string, CursorSortFieldHandler<UserAccountProfile>>(
-				StringComparer.OrdinalIgnoreCase
-			) {
-				["id"] = new CursorSortFieldHandler<UserAccountProfile>(
+			BuildTenantProfileUserSortHandlers(args, cancellationToken);
+
+		if (!sortFieldHandlers.TryGetValue(effectiveSortId, out var handler)) {
+			return new FindTenantProfileUsersResult.InvalidSortId(effectiveSortId);
+		}
+
+		var query = BuildTenantProfileUsersQuery(args);
+
+		if (args.Cursor != Guid.Empty) {
+			var cursorValue = await handler.GetCursorValue(args.Cursor);
+			if (cursorValue is null) {
+				return new FindTenantProfileUsersResult.CursorNotFound(
+					args.Cursor.ToString()
+				);
+			}
+
+			query = handler.ApplyFilter(query, cursorValue, isAsc);
+		}
+
+		var orderedQuery = handler.ApplyOrdering(query, isAsc);
+
+		var rows = await orderedQuery
+			.Select(uap => new TenantProfileMemberRow {
+				UserAccountId = uap.UserAccountId,
+				UserId = uap.UserAccount.UserId,
+				FirstName = uap.UserAccount.User.FirstName,
+				LastName = uap.UserAccount.User.LastName,
+				Email = uap.UserAccount.User.Email,
+				Level = uap.UserAccount.Level,
+				MembershipStatus = uap.UserAccount.Status,
+				UserStatus = uap.UserAccount.User.Status,
+				JoinedAt = uap.UserAccount.CreatedAt,
+			})
+			.Take(effectiveLimit + 1)
+			.ToListAsync(cancellationToken);
+
+		string? nextCursor = null;
+		if (rows.Count > effectiveLimit) {
+			rows.RemoveAt(rows.Count - 1);
+			nextCursor = rows[^1].UserAccountId.ToString();
+		}
+
+		var otherProfilesByUserAccountId = await LoadOtherProfilesByAccountAsync(
+			args,
+			rows.Select(r => r.UserAccountId).ToList(),
+			cancellationToken
+		);
+
+		var items = rows
+			.Select(r => ToTenantProfileMemberItem(r, otherProfilesByUserAccountId))
+			.ToList();
+
+		return new FindTenantProfileUsersResult.Success(
+			new CursorPaginatedResult<TenantProfileMemberItem> {
+				Data = items,
+				NextCursor = nextCursor,
+			}
+		);
+	}
+
+	// DB-level projection for one page row of the members list; hydrated into
+	// TenantProfileMemberItem after the batched other-profiles lookup.
+	private sealed class TenantProfileMemberRow {
+		public Guid UserAccountId { get; init; }
+		public Guid UserId { get; init; }
+		public string? FirstName { get; init; }
+		public string? LastName { get; init; }
+		public string Email { get; init; } = string.Empty;
+		public AccountLevel Level { get; init; }
+		public AccountStatus MembershipStatus { get; init; }
+		public UserStatus UserStatus { get; init; }
+		public DateTime JoinedAt { get; init; }
+	}
+
+	/// <summary>
+	/// Keyset sort handlers for the members list. The cursor is always the
+	/// member's UserAccountId (unique within one profile: the junction has a
+	/// composite PK, so an account holds a profile at most once). Sort branches
+	/// mirror the tenant-users keyset handlers.
+	/// </summary>
+	private Dictionary<string, CursorSortFieldHandler<UserAccountProfile>>
+		BuildTenantProfileUserSortHandlers(
+			FindTenantProfileUsersArgs args,
+			CancellationToken cancellationToken
+		) {
+		return new Dictionary<string, CursorSortFieldHandler<UserAccountProfile>>(
+			StringComparer.OrdinalIgnoreCase
+		) {
+			["id"] = new CursorSortFieldHandler<UserAccountProfile>(
 					getCursorValue: async (guid) => {
 						var accountId = await (
 							from uap in _dbContext.UserAccountProfile.AsNoTracking()
@@ -525,7 +607,7 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 						? q.OrderBy(uap => uap.UserAccountId)
 						: q.OrderByDescending(uap => uap.UserAccountId)
 				),
-				["joined_at"] = new CursorSortFieldHandler<UserAccountProfile>(
+			["joined_at"] = new CursorSortFieldHandler<UserAccountProfile>(
 					getCursorValue: async (guid) => {
 						var item = await (
 							from uap in _dbContext.UserAccountProfile.AsNoTracking()
@@ -559,7 +641,7 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 						: q.OrderByDescending(uap => uap.UserAccount.CreatedAt)
 							.ThenByDescending(uap => uap.UserAccountId)
 				),
-				["email"] = new CursorSortFieldHandler<UserAccountProfile>(
+			["email"] = new CursorSortFieldHandler<UserAccountProfile>(
 					getCursorValue: async (guid) => {
 						var item = await (
 							from uap in _dbContext.UserAccountProfile.AsNoTracking()
@@ -593,7 +675,7 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 						: q.OrderByDescending(uap => uap.UserAccount.User.Email)
 							.ThenByDescending(uap => uap.UserAccountId)
 				),
-				["level"] = new CursorSortFieldHandler<UserAccountProfile>(
+			["level"] = new CursorSortFieldHandler<UserAccountProfile>(
 					getCursorValue: async (guid) => {
 						var item = await (
 							from uap in _dbContext.UserAccountProfile.AsNoTracking()
@@ -627,7 +709,7 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 						: q.OrderByDescending(uap => uap.UserAccount.Level)
 							.ThenByDescending(uap => uap.UserAccountId)
 				),
-				["status"] = new CursorSortFieldHandler<UserAccountProfile>(
+			["status"] = new CursorSortFieldHandler<UserAccountProfile>(
 					getCursorValue: async (guid) => {
 						var item = await (
 							from uap in _dbContext.UserAccountProfile.AsNoTracking()
@@ -701,12 +783,16 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 									: 0
 						).ThenByDescending(uap => uap.UserAccountId)
 				),
-			};
+		};
+	}
 
-		if (!sortFieldHandlers.TryGetValue(effectiveSortId, out var handler)) {
-			return new FindTenantProfileUsersResult.InvalidSortId(effectiveSortId);
-		}
-
+	/// <summary>
+	/// Base members query: active (non-deleted) tenant accounts holding the
+	/// profile, with the optional name/email search filter applied.
+	/// </summary>
+	private IQueryable<UserAccountProfile> BuildTenantProfileUsersQuery(
+		FindTenantProfileUsersArgs args
+	) {
 		var baseQuery =
 			from uap in _dbContext.UserAccountProfile.AsNoTracking()
 			where uap.ProfileId == args.ProfileId
@@ -741,44 +827,20 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 			);
 		}
 
-		if (args.Cursor != Guid.Empty) {
-			var cursorValue = await handler.GetCursorValue(args.Cursor);
-			if (cursorValue is null) {
-				return new FindTenantProfileUsersResult.CursorNotFound(
-					args.Cursor.ToString()
-				);
-			}
+		return query;
+	}
 
-			query = handler.ApplyFilter(query, cursorValue, isAsc);
-		}
-
-		var orderedQuery = handler.ApplyOrdering(query, isAsc);
-
-		var rows = await orderedQuery
-			.Select(uap => new {
-				uap.UserAccountId,
-				uap.UserAccount.UserId,
-				uap.UserAccount.User.FirstName,
-				uap.UserAccount.User.LastName,
-				uap.UserAccount.User.Email,
-				Level = uap.UserAccount.Level,
-				MembershipStatus = uap.UserAccount.Status,
-				UserStatus = uap.UserAccount.User.Status,
-				JoinedAt = uap.UserAccount.CreatedAt,
-			})
-			.Take(effectiveLimit + 1)
-			.ToListAsync(cancellationToken);
-
-		string? nextCursor = null;
-		if (rows.Count > effectiveLimit) {
-			rows.RemoveAt(rows.Count - 1);
-			nextCursor = rows[^1].UserAccountId.ToString();
-		}
-
-		var userAccountIds = rows.Select(r => r.UserAccountId).ToList();
-
-		// Batched: every OTHER tenant profile held by the page's accounts in one
-		// query (no per-member lookup), excluding the profile being viewed.
+	/// <summary>
+	/// Batched lookup of every OTHER tenant profile held by the page's accounts
+	/// (one query, no per-member lookup), excluding the profile being viewed.
+	/// Per-member lists are name-sorted (ordinal) for stable output.
+	/// </summary>
+	private async Task<Dictionary<Guid, List<TenantProfileMemberProfileRef>>>
+		LoadOtherProfilesByAccountAsync(
+			FindTenantProfileUsersArgs args,
+			List<Guid> userAccountIds,
+			CancellationToken cancellationToken
+		) {
 		var otherProfileRows = await (
 			from uap in _dbContext.UserAccountProfile.AsNoTracking()
 			where userAccountIds.Contains(uap.UserAccountId)
@@ -807,39 +869,38 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 			});
 		}
 
-		var items = rows.Select(r => {
-			var nameParts = new List<string>();
-			if (!string.IsNullOrWhiteSpace(r.FirstName)) {
-				nameParts.Add(r.FirstName.Trim());
-			}
+		return otherProfilesByUserAccountId;
+	}
 
-			if (!string.IsNullOrWhiteSpace(r.LastName)) {
-				nameParts.Add(r.LastName.Trim());
-			}
+	// Maps one DB page row + the batched other-profiles lookup into the wire item.
+	private static TenantProfileMemberItem ToTenantProfileMemberItem(
+		TenantProfileMemberRow row,
+		Dictionary<Guid, List<TenantProfileMemberProfileRef>> otherProfilesByUserAccountId
+	) {
+		var nameParts = new List<string>();
+		if (!string.IsNullOrWhiteSpace(row.FirstName)) {
+			nameParts.Add(row.FirstName.Trim());
+		}
 
-			return new TenantProfileMemberItem {
-				UserAccountId = r.UserAccountId,
-				UserId = r.UserId,
-				Name = string.Join(" ", nameParts),
-				Email = r.Email,
-				Level = UserAccount.GetLevelDescription(r.Level),
-				Status = UserAccount.GetStatusDescription(
-					UserAccount.GetTenantStatus(r.UserStatus, r.MembershipStatus)
-				),
-				JoinedAt = r.JoinedAt,
-				OtherProfiles = otherProfilesByUserAccountId.GetValueOrDefault(
-					r.UserAccountId,
-					[]
-				),
-			};
-		}).ToList();
+		if (!string.IsNullOrWhiteSpace(row.LastName)) {
+			nameParts.Add(row.LastName.Trim());
+		}
 
-		return new FindTenantProfileUsersResult.Success(
-			new CursorPaginatedResult<TenantProfileMemberItem> {
-				Data = items,
-				NextCursor = nextCursor,
-			}
-		);
+		return new TenantProfileMemberItem {
+			UserAccountId = row.UserAccountId,
+			UserId = row.UserId,
+			Name = string.Join(" ", nameParts),
+			Email = row.Email,
+			Level = UserAccount.GetLevelDescription(row.Level),
+			Status = UserAccount.GetStatusDescription(
+				UserAccount.GetTenantStatus(row.UserStatus, row.MembershipStatus)
+			),
+			JoinedAt = row.JoinedAt,
+			OtherProfiles = otherProfilesByUserAccountId.GetValueOrDefault(
+				row.UserAccountId,
+				[]
+			),
+		};
 	}
 
 	// Effective tenant-user status rank for keyset ordering:

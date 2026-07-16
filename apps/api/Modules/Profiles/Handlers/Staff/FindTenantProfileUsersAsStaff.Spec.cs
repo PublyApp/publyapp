@@ -288,6 +288,70 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 		secondPage.Data[0].UserAccountId.Should().NotBe(firstPage.Data[0].UserAccountId);
 	}
 
+	[Theory]
+	[InlineData("id", "asc")]
+	[InlineData("id", "desc")]
+	[InlineData("joined_at", "asc")]
+	[InlineData("joined_at", "desc")]
+	[InlineData("email", "asc")]
+	[InlineData("email", "desc")]
+	[InlineData("level", "asc")]
+	[InlineData("level", "desc")]
+	[InlineData("status", "asc")]
+	[InlineData("status", "desc")]
+	public async Task ItShouldPaginateWithCursorForEverySortId(
+		string sortId,
+		string sortOrder
+	) {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var profileId = await CreateTenantProfileAsync(token, tenantId);
+
+		// Three members with TIED primary sort values wherever the field allows
+		// it (identical joinedAt, level, and status), so walking pages must fall
+		// through to the UserAccountId tie-breaker — the exact keyset path the
+		// page-two boxed-tuple 500 regression lived in.
+		var memberAccountIds =
+			await SeedTiedProfileMembersAsync(tenantId, profileId, count: 3);
+
+		var collected = new List<Guid>();
+		string? cursor = null;
+
+		for (var page = 0; page < memberAccountIds.Count; page++) {
+			var url = GetUrl(tenantId.ToString(), profileId.ToString())
+				+ $"?limit=1&sort_id={sortId}&sort_order={sortOrder}"
+				+ (cursor is null ? string.Empty : $"&cursor={cursor}");
+
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				url
+			).WithSessionToken(token);
+
+			using var response = await _http.SendAsync(request);
+			response.StatusCode.Should().Be(
+				HttpStatusCode.OK,
+				$"page {page + 1} with sort_id={sortId} sort_order={sortOrder} "
+					+ "must not fail"
+			);
+
+			var result = await response.Content.ReadFromJsonAsync<MemberResponse>();
+			Assert.NotNull(result);
+			result.Data.Should().HaveCount(1);
+			collected.Add(result.Data[0].UserAccountId);
+
+			cursor = result.NextCursor;
+			if (page < memberAccountIds.Count - 1) {
+				cursor.Should().NotBeNullOrEmpty();
+			}
+		}
+
+		// Last page is terminal, and the walk visited every member exactly once
+		// (no duplicates or gaps across cursor boundaries).
+		cursor.Should().BeNull();
+		collected.Should().OnlyHaveUniqueItems();
+		collected.Should().BeEquivalentTo(memberAccountIds);
+	}
+
 	[Fact]
 	public async Task ItShouldReturnEmptyDataForAProfileWithNoMembers() {
 		var token = await _authClient.LoginAsStaffAdminAsync();
@@ -371,6 +435,65 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 		}
 
 		await dbContext.SaveChangesAsync();
+	}
+
+	/// <summary>
+	/// Seeds <paramref name="count"/> fresh tenant members holding the profile,
+	/// with TIED primary sort values wherever the schema allows: identical
+	/// account CreatedAt (joined_at), identical Level (User) and identical
+	/// Status (Active). Emails/ids stay unique by nature. Returns the member
+	/// UserAccountIds.
+	/// </summary>
+	private async Task<List<Guid>> SeedTiedProfileMembersAsync(
+		Guid tenantId,
+		Guid profileId,
+		int count
+	) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var accounts = new List<UserAccount>();
+
+		foreach (var index in Enumerable.Range(0, count)) {
+			var user = new User {
+				Email = $"tied-member-{index}-{Guid.NewGuid():N}@example.com",
+				Password = "unused",
+				FirstName = $"Tied{index}",
+				LastName = "Member",
+				Status = UserStatus.Active,
+				IsVerified = true,
+			};
+			await dbContext.User.AddAsync(user);
+			await dbContext.SaveChangesAsync();
+
+			var account = UserAccount.CreateTenantAccount(
+				user.GetRequiredId(),
+				tenantId
+			);
+			await dbContext.UserAccount.AddAsync(account);
+			await dbContext.SaveChangesAsync();
+
+			accounts.Add(account);
+
+			await dbContext.UserAccountProfile.AddAsync(new UserAccountProfile {
+				UserAccountId = account.GetRequiredId(),
+				ProfileId = profileId,
+			});
+		}
+
+		await dbContext.SaveChangesAsync();
+
+		// Tie the joined_at primary value AFTER insert: SaveChanges only rewrites
+		// CreatedAt on Added entities (Modified touches UpdatedAt alone), so this
+		// post-insert update sticks and every member shares one joined_at.
+		var tiedJoinedAt = new DateTime(2026, 1, 15, 12, 0, 0, DateTimeKind.Utc);
+		foreach (var account in accounts) {
+			account.CreatedAt = tiedJoinedAt;
+		}
+
+		await dbContext.SaveChangesAsync();
+
+		return accounts.Select(a => a.GetRequiredId()).ToList();
 	}
 
 	// -- Response DTOs --
