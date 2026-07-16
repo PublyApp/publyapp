@@ -348,16 +348,16 @@ test('detail-route toggle controls the panel on a tenant detail route', async ({
 
 	await toggle.click();
 
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+	await expect(toggle).toHaveAttribute('aria-label', 'Expand navigation panel');
+
+	await toggle.click();
+
 	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
 	await expect(toggle).toHaveAttribute(
 		'aria-label',
 		'Collapse navigation panel',
 	);
-
-	await toggle.click();
-
-	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
-	await expect(toggle).toHaveAttribute('aria-label', 'Expand navigation panel');
 });
 
 test('an explicit open choice carries over across detail and list routes', async ({
@@ -367,8 +367,16 @@ test('an explicit open choice carries over across detail and list routes', async
 	await loginAsStaffAdmin(page);
 	const tenantDetailPath = await getRealTenantDetailPath(page);
 
-	await page.getByTestId('app-shell-sidebar-toggle').click();
+	const toggle = page.getByTestId('app-shell-sidebar-toggle');
+	await toggle.click();
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+	await expect(toggle).toHaveAttribute('aria-label', 'Expand navigation panel');
+	await toggle.click();
 	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
+	await expect(toggle).toHaveAttribute(
+		'aria-label',
+		'Collapse navigation panel',
+	);
 
 	// The explicit open choice is in-memory session state: it must survive
 	// CLIENT-SIDE navigation (a hard page.goto would reset the store by design).
