@@ -161,6 +161,33 @@ describe('AuthedRouteLayout surface-redirect-code query', () => {
 });
 
 describe('AuthedRouteLayout render gating', () => {
+	test('keeps the app shell mounted with a content skeleton while the surface query loads', () => {
+		mocks.queryResult = {
+			data: undefined,
+			error: undefined,
+			isError: false,
+			isLoading: true,
+			refetch: vi.fn(),
+		};
+		const { rerender } = render(<AuthedRouteLayout />);
+
+		const loadingShell = screen.getByTestId('authed-layout-stub');
+		expect(screen.getByTestId('authed-route-content-skeleton')).toBeTruthy();
+		expect(screen.queryByText('loading')).toBeNull();
+
+		mocks.queryResult = {
+			data: 'staff',
+			error: undefined,
+			isError: false,
+			isLoading: false,
+			refetch: vi.fn(),
+		};
+		rerender(<AuthedRouteLayout />);
+
+		expect(screen.getByTestId('authed-layout-stub')).toBe(loadingShell);
+		expect(screen.getByTestId('outlet-stub')).toBeTruthy();
+	});
+
 	test('renders the outlet through the authed shell once the query has settled', () => {
 		mocks.queryResult = {
 			data: 'staff',
@@ -192,6 +219,7 @@ describe('BUG-2: pendingComponent closes the cold-boot blank window', () => {
 
 		expect(screen.getByTestId('app-shell-pending-rail')).toBeTruthy();
 		expect(screen.getByTestId('app-shell-pending-topbar')).toBeTruthy();
+		expect(screen.getByTestId('authed-route-content-skeleton')).toBeTruthy();
 		// No AuthedLayout/AppShell stub here on purpose — this must stay a
 		// store-free static skeleton (see the comment on
 		// AuthedRoutePendingSkeleton for why reusing the stateful shell
