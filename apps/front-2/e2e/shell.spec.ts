@@ -462,10 +462,11 @@ test('staff dashboard has a toggleable secondary panel that stays collapsed acro
 test('detail grid sizes to the space left by the rail, not the raw viewport', async ({
 	page,
 }) => {
-	// Detail routes now keep the secondary panel when sidebarOpen is true, so
-	// the rail plus panel consume left-chrome space before the detail grid's
-	// container query sees the remaining width. At 800px that still leaves too
-	// little room for two columns — the grid must stay single-column here.
+	// Below the lg breakpoint (1024px) the shell hides the secondary panel
+	// entirely regardless of sidebarOpen, so at 800px only the rail consumes
+	// left-chrome space before the detail grid's container query sees the
+	// remaining width. That still leaves too little room for two columns —
+	// the grid must stay single-column here.
 	await page.setViewportSize({ width: 800, height: 900 });
 
 	// Reach a real seeded user by clicking through the list. A synthetic id
@@ -483,7 +484,7 @@ test('detail grid sizes to the space left by the rail, not the raw viewport', as
 		.first();
 	await expect(grid).toBeVisible();
 	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
-	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
 
 	const tracksAt800 = await grid.evaluate((element) =>
 		getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/),
