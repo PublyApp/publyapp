@@ -9782,7 +9782,7 @@
           "data": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/InvitationListItem"
+              "$ref": "#/components/schemas/StaffTenantInvitationListItem"
             }
           },
           "nextCursor": {
@@ -10879,6 +10879,63 @@
             ]
           },
           "status": {
+            "type": "string"
+          }
+        }
+      },
+      "StaffTenantInvitationListItem": {
+        "required": [
+          "id",
+          "email",
+          "scope",
+          "status",
+          "expiresAt",
+          "createdAt",
+          "accountLevel"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "profileName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "acceptedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "invitedByName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "accountLevel": {
             "type": "string"
           }
         }

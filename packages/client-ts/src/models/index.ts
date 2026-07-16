@@ -1670,6 +1670,15 @@ export function createStaffProfileUserItemFromDiscriminatorValue(parseNode: Pars
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {StaffTenantInvitationListItem}
+ */
+// @ts-ignore
+export function createStaffTenantInvitationListItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoStaffTenantInvitationListItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {StaffUploadCreated}
  */
 // @ts-ignore
@@ -3281,7 +3290,7 @@ export function deserializeIntoFindAuditLogsResponse(findAuditLogsResponse: Part
 // @ts-ignore
 export function deserializeIntoFindInvitationsForTenantAsStaffResult(findInvitationsForTenantAsStaffResult: Partial<FindInvitationsForTenantAsStaffResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "data": n => { findInvitationsForTenantAsStaffResult.data = n.getCollectionOfObjectValues<InvitationListItem>(createInvitationListItemFromDiscriminatorValue); },
+        "data": n => { findInvitationsForTenantAsStaffResult.data = n.getCollectionOfObjectValues<StaffTenantInvitationListItem>(createStaffTenantInvitationListItemFromDiscriminatorValue); },
         "nextCursor": n => { findInvitationsForTenantAsStaffResult.nextCursor = n.getStringValue(); },
     }
 }
@@ -3927,6 +3936,26 @@ export function deserializeIntoStaffProfileUserItem(staffProfileUserItem: Partia
         "id": n => { staffProfileUserItem.id = n.getGuidValue(); },
         "lastName": n => { staffProfileUserItem.lastName = n.getStringValue(); },
         "status": n => { staffProfileUserItem.status = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param StaffTenantInvitationListItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoStaffTenantInvitationListItem(staffTenantInvitationListItem: Partial<StaffTenantInvitationListItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "acceptedAt": n => { staffTenantInvitationListItem.acceptedAt = n.getDateValue(); },
+        "accountLevel": n => { staffTenantInvitationListItem.accountLevel = n.getStringValue(); },
+        "createdAt": n => { staffTenantInvitationListItem.createdAt = n.getDateValue(); },
+        "email": n => { staffTenantInvitationListItem.email = n.getStringValue(); },
+        "expiresAt": n => { staffTenantInvitationListItem.expiresAt = n.getDateValue(); },
+        "id": n => { staffTenantInvitationListItem.id = n.getGuidValue(); },
+        "invitedByName": n => { staffTenantInvitationListItem.invitedByName = n.getStringValue(); },
+        "profileName": n => { staffTenantInvitationListItem.profileName = n.getStringValue(); },
+        "scope": n => { staffTenantInvitationListItem.scope = n.getStringValue(); },
+        "status": n => { staffTenantInvitationListItem.status = n.getStringValue(); },
     }
 }
 /**
@@ -4685,7 +4714,7 @@ export interface FindInvitationsForTenantAsStaffResult extends AdditionalDataHol
     /**
      * The data property
      */
-    data?: InvitationListItem[] | null;
+    data?: StaffTenantInvitationListItem[] | null;
     /**
      * The nextCursor property
      */
@@ -6339,7 +6368,7 @@ export function serializeFindAuditLogsResponse(writer: SerializationWriter, find
 // @ts-ignore
 export function serializeFindInvitationsForTenantAsStaffResult(writer: SerializationWriter, findInvitationsForTenantAsStaffResult: Partial<FindInvitationsForTenantAsStaffResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!findInvitationsForTenantAsStaffResult || isSerializingDerivedType) { return; }
-    writer.writeCollectionOfObjectValues<InvitationListItem>("data", findInvitationsForTenantAsStaffResult.data, serializeInvitationListItem);
+    writer.writeCollectionOfObjectValues<StaffTenantInvitationListItem>("data", findInvitationsForTenantAsStaffResult.data, serializeStaffTenantInvitationListItem);
     writer.writeStringValue("nextCursor", findInvitationsForTenantAsStaffResult.nextCursor);
     writer.writeAdditionalData(findInvitationsForTenantAsStaffResult.additionalData);
 }
@@ -7034,6 +7063,27 @@ export function serializeStaffProfileUserItem(writer: SerializationWriter, staff
     writer.writeStringValue("lastName", staffProfileUserItem.lastName);
     writer.writeStringValue("status", staffProfileUserItem.status);
     writer.writeAdditionalData(staffProfileUserItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param StaffTenantInvitationListItem The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeStaffTenantInvitationListItem(writer: SerializationWriter, staffTenantInvitationListItem: Partial<StaffTenantInvitationListItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!staffTenantInvitationListItem || isSerializingDerivedType) { return; }
+    writer.writeDateValue("acceptedAt", staffTenantInvitationListItem.acceptedAt);
+    writer.writeStringValue("accountLevel", staffTenantInvitationListItem.accountLevel);
+    writer.writeDateValue("createdAt", staffTenantInvitationListItem.createdAt);
+    writer.writeStringValue("email", staffTenantInvitationListItem.email);
+    writer.writeDateValue("expiresAt", staffTenantInvitationListItem.expiresAt);
+    writer.writeGuidValue("id", staffTenantInvitationListItem.id);
+    writer.writeStringValue("invitedByName", staffTenantInvitationListItem.invitedByName);
+    writer.writeStringValue("profileName", staffTenantInvitationListItem.profileName);
+    writer.writeStringValue("scope", staffTenantInvitationListItem.scope);
+    writer.writeStringValue("status", staffTenantInvitationListItem.status);
+    writer.writeAdditionalData(staffTenantInvitationListItem.additionalData);
 }
 /**
  * Serializes information the current object
@@ -7934,6 +7984,48 @@ export interface StaffProfileUserItem extends AdditionalDataHolder, Parsable {
      * The lastName property
      */
     lastName?: string | null;
+    /**
+     * The status property
+     */
+    status?: string | null;
+}
+export interface StaffTenantInvitationListItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The acceptedAt property
+     */
+    acceptedAt?: Date | null;
+    /**
+     * The accountLevel property
+     */
+    accountLevel?: string | null;
+    /**
+     * The createdAt property
+     */
+    createdAt?: Date | null;
+    /**
+     * The email property
+     */
+    email?: string | null;
+    /**
+     * The expiresAt property
+     */
+    expiresAt?: Date | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The invitedByName property
+     */
+    invitedByName?: string | null;
+    /**
+     * The profileName property
+     */
+    profileName?: string | null;
+    /**
+     * The scope property
+     */
+    scope?: string | null;
     /**
      * The status property
      */

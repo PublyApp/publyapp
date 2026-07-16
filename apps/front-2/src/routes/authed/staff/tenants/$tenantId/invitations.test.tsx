@@ -25,6 +25,21 @@ const mocks = vi.hoisted(() => ({
 	invalidateAllStaffTenantScopes: vi.fn().mockResolvedValue(undefined),
 }));
 
+let currentLanguage = 'en';
+
+const translationsByLanguage: Record<string, Record<string, string>> = {
+	en: {
+		admin: 'Admin',
+		access: 'Access',
+		user: 'User',
+	},
+	fr: {
+		admin: 'Administrateur',
+		access: 'Accès',
+		user: 'Utilisateur',
+	},
+};
+
 vi.mock('@tanstack/react-query', () => ({
 	useQueryClient: () => ({
 		invalidateQueries: mocks.invalidateQueries,
@@ -72,6 +87,7 @@ vi.mock('@tanstack/react-router', () => ({
 }));
 
 const TRANSLATIONS: Record<string, string> = {
+	access: 'Access',
 	basics: 'Basics',
 	profiles: 'Profiles',
 	invitations: 'Invitations',
@@ -117,7 +133,10 @@ const TRANSLATIONS: Record<string, string> = {
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string, options?: Record<string, unknown>) => {
-			let text = TRANSLATIONS[key] ?? key;
+			let text =
+				translationsByLanguage[currentLanguage]?.[key] ??
+				TRANSLATIONS[key] ??
+				key;
 			if (!options) {
 				return text;
 			}
@@ -128,7 +147,7 @@ vi.mock('react-i18next', () => ({
 			return text;
 		},
 		i18n: {
-			language: 'en',
+			language: currentLanguage,
 		},
 	}),
 }));
@@ -186,6 +205,7 @@ const renderPage = () => {
 
 describe('staff tenant invitations route', () => {
 	beforeEach(() => {
+		currentLanguage = 'en';
 		vi.clearAllMocks();
 		mocks.search = {};
 		mocks.tenantId = '11111111-1111-1111-1111-111111111111';
@@ -295,6 +315,29 @@ describe('staff tenant invitations route', () => {
 
 		const title = screen.getByRole('heading', { name: /^Invitations/ });
 		expect(title.textContent).toContain('3 pending');
+	});
+
+	test('derives admin access from row account level with translation', () => {
+		currentLanguage = 'fr';
+		mocks.toStaffTenantInvitationRows.mockReturnValue([
+			{
+				id: 'invite-admin-mapped',
+				email: 'admin@example.com',
+				status: 'Pending',
+				scope: 'Tenant',
+				profileName: null,
+				accountLevel: 'Admin',
+				invitedByName: 'Taylor Smith',
+				acceptedAt: null,
+				createdAt: new Date('2026-07-01T09:00:00Z'),
+				expiresAt: new Date('2026-07-07T09:00:00Z'),
+			},
+		]);
+
+		renderPage();
+
+		expect(screen.getByText('Administrateur')).toBeTruthy();
+		expect(screen.queryByText('Admin')).toBeNull();
 	});
 
 	test('renders the invite CTA in the empty state when there are no invitations', () => {

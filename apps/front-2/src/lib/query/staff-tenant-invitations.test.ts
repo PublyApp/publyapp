@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from 'vitest';
 
-import type { InvitationListItem } from '@org/client-ts/src/models/index.js';
+import type { StaffTenantInvitationListItem } from '@org/client-ts/src/models/index.js';
 
 import {
 	buildFindStaffTenantInvitationsQueryParameters,
@@ -51,13 +51,14 @@ describe('toStaffTenantInvitationRows', () => {
 		const createdAt = new Date('2026-06-30T08:00:00Z');
 		const expiresAt = new Date('2026-07-07T18:00:00Z');
 
-		const items: InvitationListItem[] = [
+		const items: StaffTenantInvitationListItem[] = [
 			{
 				id: 'invite-1' as never,
 				email: ' invitee@example.com ',
 				status: ' Pending ',
 				scope: ' Tenant ',
 				profileName: ' Owners ',
+				accountLevel: 'User' as never,
 				invitedByName: ' Alex Johnson ',
 				acceptedAt,
 				createdAt,
@@ -77,6 +78,7 @@ describe('toStaffTenantInvitationRows', () => {
 				status: 'Pending',
 				scope: 'Tenant',
 				profileName: 'Owners',
+				accountLevel: 'User',
 				invitedByName: 'Alex Johnson',
 				acceptedAt,
 				createdAt,
@@ -85,24 +87,24 @@ describe('toStaffTenantInvitationRows', () => {
 		]);
 	});
 
-	// shell-r5-F3: a row missing a required identity (email/profileName/
-	// invitedByName) used to be kept with a `'—'` placeholder a staff admin
-	// can't distinguish from real data. It must be dropped instead — for
-	// EACH required field independently, not just "all blank" at once.
+	// shell-r5-F3: a row missing a required identity (email/id/invitedByName)
+	// used to be kept with a `'—'` placeholder a staff admin can't distinguish
+	// from real data. It must be dropped instead — for EACH required field
+	// independently, not just "all blank" at once.
 	test.each([
 		['email', { email: ' ' }],
-		['profileName', { profileName: null }],
 		['invitedByName', { invitedByName: '' }],
-	] satisfies [string, Partial<InvitationListItem>][])(
+	] satisfies [string, Partial<StaffTenantInvitationListItem>][])(
 		'drops a row missing only %s rather than fabricating a placeholder',
 		(_label, overrides) => {
-			const items: InvitationListItem[] = [
+			const items: StaffTenantInvitationListItem[] = [
 				{
 					id: 'invite-2' as never,
 					email: 'invitee@example.com',
 					status: 'Pending',
 					scope: 'Tenant',
 					profileName: 'Owners',
+					accountLevel: 'User' as never,
 					invitedByName: 'Alex Johnson',
 					acceptedAt: null,
 					createdAt: null,
@@ -114,6 +116,100 @@ describe('toStaffTenantInvitationRows', () => {
 			expect(toStaffTenantInvitationRows(items)).toEqual([]);
 		},
 	);
+
+	test('keeps profile-less tenant User invites with null profileName', () => {
+		expect(
+			toStaffTenantInvitationRows([
+				{
+					id: 'invite-user-no-profile' as never,
+					email: 'user-no-profile@example.com',
+					status: ' Pending ',
+					scope: ' Tenant ',
+					accountLevel: 'User' as never,
+					invitedByName: 'Alex Johnson',
+					acceptedAt: null,
+					createdAt: null,
+					expiresAt: null,
+				},
+			]),
+		).toEqual([
+			{
+				id: 'invite-user-no-profile',
+				email: 'user-no-profile@example.com',
+				status: 'Pending',
+				scope: 'Tenant',
+				profileName: null,
+				accountLevel: 'User',
+				invitedByName: 'Alex Johnson',
+				acceptedAt: null,
+				createdAt: null,
+				expiresAt: null,
+			},
+		]);
+	});
+
+	test('keeps profile-less tenant Admin invites with null profileName', () => {
+		expect(
+			toStaffTenantInvitationRows([
+				{
+					id: 'invite-admin-no-profile' as never,
+					email: 'admin-no-profile@example.com',
+					status: ' Pending ',
+					scope: ' Tenant ',
+					accountLevel: 'Admin' as never,
+					invitedByName: 'Alex Johnson',
+					acceptedAt: null,
+					createdAt: null,
+					expiresAt: null,
+				},
+			]),
+		).toEqual([
+			{
+				id: 'invite-admin-no-profile',
+				email: 'admin-no-profile@example.com',
+				status: 'Pending',
+				scope: 'Tenant',
+				profileName: null,
+				accountLevel: 'Admin',
+				acceptedAt: null,
+				invitedByName: 'Alex Johnson',
+				createdAt: null,
+				expiresAt: null,
+			},
+		]);
+	});
+
+	test('keeps profile-based invites unchanged', () => {
+		expect(
+			toStaffTenantInvitationRows([
+				{
+					id: 'invite-profile-based' as never,
+					email: 'profile-based@example.com',
+					status: 'Accepted',
+					scope: 'Tenant',
+					profileName: 'Owners',
+					accountLevel: 'User' as never,
+					invitedByName: 'Alex Johnson',
+					acceptedAt: null,
+					createdAt: null,
+					expiresAt: null,
+				},
+			]),
+		).toEqual([
+			{
+				id: 'invite-profile-based',
+				email: 'profile-based@example.com',
+				status: 'Accepted',
+				scope: 'Tenant',
+				profileName: 'Owners',
+				accountLevel: 'User',
+				invitedByName: 'Alex Johnson',
+				acceptedAt: null,
+				createdAt: null,
+				expiresAt: null,
+			},
+		]);
+	});
 
 	test('an empty list stays empty (no fabricated rows)', () => {
 		expect(toStaffTenantInvitationRows([])).toEqual([]);

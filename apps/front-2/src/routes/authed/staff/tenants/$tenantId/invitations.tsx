@@ -64,6 +64,7 @@ import {
 } from '../../invitations/list-helpers';
 import {
 	formatDateTime,
+	formatTenantUserLevelLabel,
 	TenantDetailsError,
 	TenantDetailsLoading,
 	TenantDetailsPageShell,
@@ -148,17 +149,24 @@ export const createColumns = ({
 		header: () => (
 			<div className="inline-flex items-center gap-1.5">
 				<IconId className="size-3.5 text-muted-foreground" />
-				<span>{t('profiles')}</span>
+				<span>{t('access')}</span>
 			</div>
 		),
 		accessorKey: 'profileName',
 		enableSorting: false,
 		meta: { width: '160px', hideBelow: 768 },
-		cell: ({ row }) => (
-			<span className="publy-detail-chip publy-detail-chip--outline">
-				{row.original.profileName}
-			</span>
-		),
+		cell: ({ row }) => {
+			const profileName = row.original.profileName;
+			const access = profileName?.trim().length
+				? profileName
+				: formatTenantUserLevelLabel(row.original.accountLevel, t);
+
+			return (
+				<span className="publy-detail-chip publy-detail-chip--outline">
+					{access}
+				</span>
+			);
+		},
 	},
 	{
 		id: 'invited_by',

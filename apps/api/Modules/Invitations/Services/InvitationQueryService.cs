@@ -5,6 +5,7 @@ using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Invitations.Entities;
+using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Invitations.Services;
 
@@ -390,7 +391,9 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 
 		var invitationItems = results.Select(r => {
 			var invitationId = r.Invitation.GetRequiredId();
-			var profileName = profileNamesByInvitation.TryGetValue(invitationId, out var name) ? name : "";
+			var profileName = profileNamesByInvitation.TryGetValue(invitationId, out var name)
+				? name
+				: string.Empty;
 			return new InvitationListItem {
 				Id = invitationId,
 				Email = r.Invitation.Email,
@@ -611,8 +614,11 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 
 		var invitationItems = results.Select(r => {
 			var invitationId = r.Invitation.GetRequiredId();
-			var profileName = profileNamesByInvitation.TryGetValue(invitationId, out var name) ? name : "";
-			return new InvitationListItem {
+			var profileName = profileNamesByInvitation.TryGetValue(invitationId, out var name)
+				? name
+				: null;
+			var accountLevel = r.Invitation.AccountLevel ?? AccountLevel.User;
+			return new StaffTenantInvitationListItem {
 				Id = invitationId,
 				Email = r.Invitation.Email,
 				Scope = "Tenant",
@@ -624,6 +630,7 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 						DateTime.UtcNow
 					)
 				),
+				AccountLevel = accountLevel.ToString(),
 				ExpiresAt = r.Invitation.ExpiresAt,
 				AcceptedAt = r.Invitation.AcceptedAt,
 				CreatedAt = r.Invitation.CreatedAt,
@@ -632,7 +639,7 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 		}).ToList();
 
 		return new FindTenantInvitationsResult.Success(
-			new CursorPaginatedResult<InvitationListItem> {
+			new CursorPaginatedResult<StaffTenantInvitationListItem> {
 				Data = invitationItems,
 				NextCursor = nextCursor,
 			}

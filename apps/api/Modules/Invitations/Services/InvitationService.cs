@@ -109,6 +109,19 @@ public record InvitationListItem {
 	public string? InvitedByName { get; init; }
 }
 
+public record StaffTenantInvitationListItem {
+	public required Guid Id { get; init; }
+	public required string Email { get; init; }
+	public required string Scope { get; init; }
+	public string? ProfileName { get; init; }
+	public required string Status { get; init; }
+	public required DateTime ExpiresAt { get; init; }
+	public DateTime? AcceptedAt { get; init; }
+	public required DateTime CreatedAt { get; init; }
+	public string? InvitedByName { get; init; }
+	public required string AccountLevel { get; init; }
+}
+
 public abstract record FindStaffInvitationsResult {
 	public sealed record Success(
 		CursorPaginatedResult<InvitationListItem> Data
@@ -121,7 +134,7 @@ public abstract record FindStaffInvitationsResult {
 
 public abstract record FindTenantInvitationsResult {
 	public sealed record Success(
-		CursorPaginatedResult<InvitationListItem> Data
+		CursorPaginatedResult<StaffTenantInvitationListItem> Data
 	) : FindTenantInvitationsResult;
 
 	public sealed record CursorNotFound(string Cursor) : FindTenantInvitationsResult;
