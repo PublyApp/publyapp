@@ -1349,7 +1349,8 @@
 	"view-all-count": "View all {{total}}",
 	"about-this-profile": "About this profile",
 	"permissions-at-a-glance": "Permissions at a glance",
-	"profile-glance-summary": "{{granted}} of {{total}} granted across {{modules}} modules",
+	"profile-glance-summary_one": "{{granted}} of {{total}} granted across {{count}} module",
+	"profile-glance-summary_other": "{{granted}} of {{total}} granted across {{count}} modules",
 	"profile-glance-no-access": "No access to {{modules}}",
 	"profile-created-month": "Created {{date}}",
 	"profile-updated-relative": "Updated {{time}}"

@@ -67,8 +67,10 @@ vi.mock('react-i18next', () => ({
 				'view-all-count': 'View all {{total}}',
 				'about-this-profile': 'About this profile',
 				'permissions-at-a-glance': 'Permissions at a glance',
-				'profile-glance-summary':
-					'{{granted}} of {{total}} granted across {{modules}} modules',
+				'profile-glance-summary_one':
+					'{{granted}} of {{total}} granted across {{count}} module',
+				'profile-glance-summary_other':
+					'{{granted}} of {{total}} granted across {{count}} modules',
 				'profile-glance-no-access': 'No access to {{modules}}',
 				'profile-created-month': 'Created {{date}}',
 				'system-profile': 'System profile',
@@ -88,7 +90,16 @@ vi.mock('react-i18next', () => ({
 				'members-load-error': 'Unable to load members.',
 				'members-more-count': '+{{count}} more',
 			};
-			let text = labels[key] ?? key;
+			// Mirror i18next plural resolution: a numeric `count` selects the
+			// `_one`/`_other` suffixed key when the dictionary provides it.
+			const pluralKey =
+				typeof options?.count === 'number'
+					? `${key}_${options.count === 1 ? 'one' : 'other'}`
+					: undefined;
+			let text =
+				(pluralKey === undefined ? undefined : labels[pluralKey]) ??
+				labels[key] ??
+				key;
 			if (options) {
 				for (const [optionKey, value] of Object.entries(options)) {
 					text = text.replaceAll(`{{${optionKey}}}`, String(value));
@@ -212,10 +223,11 @@ describe('ProfileOverviewTab', () => {
 		expect(screen.queryByText('About this profile')).toBeNull();
 	});
 
-	test('renders the glance summary, granted names, and zero-access footer', () => {
+	test('renders the glance summary (singular module), granted names, and zero-access footer', () => {
 		renderTab();
 
-		expect(screen.getByText('1 of 3 granted across 1 modules')).toBeTruthy();
+		// One module with access → singular "module", not "1 modules".
+		expect(screen.getByText('1 of 3 granted across 1 module')).toBeTruthy();
 		expect(screen.getByText('Read users')).toBeTruthy();
 		expect(screen.getByText('Write users')).toBeTruthy();
 		// Billing has no granted key → it appears in the no-access footer.
@@ -227,6 +239,8 @@ describe('ProfileOverviewTab', () => {
 			permissionKeys: ['tenant.users.read', 'tenant.billing.view'],
 		});
 
+		// Two modules with access → plural "modules".
+		expect(screen.getByText('2 of 3 granted across 2 modules')).toBeTruthy();
 		expect(screen.queryByText(/No access to/)).toBeNull();
 	});
 

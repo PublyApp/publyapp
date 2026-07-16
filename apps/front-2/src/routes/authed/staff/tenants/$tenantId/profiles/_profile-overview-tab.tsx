@@ -31,6 +31,7 @@ import type {
 
 import { formatMonthYear } from '../_tenant-details-shell';
 import type { ProfileDetailsSearchParams } from './_profile-details-search';
+import type { ProfilePermissionGlance } from './_profile-overview-data';
 import { buildProfilePermissionGlance } from './_profile-overview-data';
 
 const meterPercent = (granted: number, total: number): number => {
@@ -139,13 +140,11 @@ const ProfileTabLink = ({
 );
 
 const PermissionGlanceBody = ({
-	permissionGroups,
-	permissionKeys,
+	glance,
 	isCatalogPending,
 	isCatalogError,
 }: {
-	permissionGroups: StaffTenantPermissionGroup[];
-	permissionKeys: string[];
+	glance: ProfilePermissionGlance;
 	isCatalogPending: boolean;
 	isCatalogError: boolean;
 }) => {
@@ -167,8 +166,6 @@ const PermissionGlanceBody = ({
 			</p>
 		);
 	}
-
-	const glance = buildProfilePermissionGlance(permissionGroups, permissionKeys);
 
 	if (glance.modules.length === 0) {
 		return (
@@ -408,7 +405,7 @@ export const ProfileOverviewTab = ({
 										{t('profile-glance-summary', {
 											granted: glance.grantedTotal,
 											total: glance.catalogTotal,
-											modules: glance.modulesWithAccess,
+											count: glance.modulesWithAccess,
 										})}
 									</p>
 								) : null}
@@ -424,8 +421,7 @@ export const ProfileOverviewTab = ({
 							</ProfileTabLink>
 						</div>
 						<PermissionGlanceBody
-							permissionGroups={permissionGroups}
-							permissionKeys={permissionKeys}
+							glance={glance}
 							isCatalogPending={isCatalogPending}
 							isCatalogError={isCatalogError}
 						/>

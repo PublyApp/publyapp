@@ -391,8 +391,10 @@ vi.mock('react-i18next', () => ({
 				'view-all-count': 'View all {{total}}',
 				'about-this-profile': 'About this profile',
 				'permissions-at-a-glance': 'Permissions at a glance',
-				'profile-glance-summary':
-					'{{granted}} of {{total}} granted across {{modules}} modules',
+				'profile-glance-summary_one':
+					'{{granted}} of {{total}} granted across {{count}} module',
+				'profile-glance-summary_other':
+					'{{granted}} of {{total}} granted across {{count}} modules',
 				'profile-glance-no-access': 'No access to {{modules}}',
 				'profile-created-month': 'Created {{date}}',
 				'profile-updated-relative': 'Updated {{time}}',
@@ -407,7 +409,16 @@ vi.mock('react-i18next', () => ({
 				'years-ago': '{{count}} years ago',
 			};
 
-			let text = labels[key] ?? key;
+			// Mirror i18next plural resolution: a numeric `count` selects the
+			// `_one`/`_other` suffixed key when the dictionary provides it.
+			const pluralKey =
+				typeof options?.count === 'number'
+					? `${key}_${options.count === 1 ? 'one' : 'other'}`
+					: undefined;
+			let text =
+				(pluralKey === undefined ? undefined : labels[pluralKey]) ??
+				labels[key] ??
+				key;
 			if (options) {
 				for (const [optionKey, value] of Object.entries(options)) {
 					text = text.replaceAll(`{{${optionKey}}}`, String(value));
@@ -661,7 +672,8 @@ describe('staff tenant profile details route', () => {
 		expect(screen.getByText('Review approvals')).toBeTruthy();
 		expect(screen.getByText('Read users')).toBeTruthy();
 		expect(screen.getByText('Write users')).toBeTruthy();
-		expect(screen.getByText('2 of 3 granted across 1 modules')).toBeTruthy();
+		// One module with access → singular "module" (plural-key resolution).
+		expect(screen.getByText('2 of 3 granted across 1 module')).toBeTruthy();
 		// The assign/unassign editing UI has moved off Overview (step 3).
 		expect(screen.queryByRole('button', { name: /^Assign / })).toBeNull();
 		expect(screen.queryByRole('button', { name: /^Unassign / })).toBeNull();
@@ -1105,6 +1117,29 @@ describe('staff tenant profile details route', () => {
 		renderPage();
 
 		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
+	});
+
+	test('redirects to logout when only the members query fails with a session-expiring error', () => {
+		// Details/permissions succeed (already cached); ONLY the members query
+		// 401s. The session guard must still trigger — not fall through to the
+		// members-preview inline error state.
+		const membersError = {
+			status: 401,
+			responseStatusCode: 401,
+			title: 'Unauthorized',
+			detail: 'Session expired',
+		};
+		mocks.useStaffTenantProfileUsersQuery.mockReturnValue(
+			buildQueryResult({ error: membersError, isError: true }),
+		);
+		mocks.shouldLogoutForFailure.mockImplementation(
+			(error: unknown) => error === membersError,
+		);
+
+		renderPage();
+
+		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
+		expect(screen.queryByText('Unable to load members.')).toBeNull();
 	});
 
 	// tenants-r1-F2: the edit drawer's open flag is URL-driven (`?edit=1`); a

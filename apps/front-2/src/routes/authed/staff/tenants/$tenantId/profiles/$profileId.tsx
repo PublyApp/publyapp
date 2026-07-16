@@ -354,6 +354,7 @@ function StaffTenantProfileDetailsPage() {
 		(detailQuery.isError && shouldLogoutForFailure(detailQuery.error)) ||
 		(permissionKeysQuery.isError &&
 			shouldLogoutForFailure(permissionKeysQuery.error)) ||
+		(membersQuery.isError && shouldLogoutForFailure(membersQuery.error)) ||
 		(permissionCatalogQuery.isError &&
 			shouldLogoutForFailure(permissionCatalogQuery.error))
 	) {
