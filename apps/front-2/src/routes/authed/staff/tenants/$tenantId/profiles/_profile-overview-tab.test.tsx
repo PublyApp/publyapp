@@ -85,6 +85,8 @@ vi.mock('react-i18next', () => ({
 				'tenant-permission-catalog-load-failed':
 					'Unable to load the tenant permission catalog.',
 				'no-permissions-available': 'No permission keys are available.',
+				'permission-state-granted': 'granted',
+				'permission-state-not-granted': 'not granted',
 				'no-members-yet': 'No members yet.',
 				'loading-members': 'Loading members…',
 				'members-load-error': 'Unable to load members.',
@@ -234,6 +236,20 @@ describe('ProfileOverviewTab', () => {
 		expect(screen.getByText('No access to Billing')).toBeTruthy();
 	});
 
+	test('announces each permission state to screen readers', () => {
+		renderTab();
+
+		// The state icons are aria-hidden and color is invisible to AT — each
+		// option carries visually-hidden state text.
+		const grantedItem = screen.getByText('Read users').closest('li');
+		expect(grantedItem?.querySelector('.sr-only')?.textContent).toBe('granted');
+
+		const ungrantedItem = screen.getByText('Write users').closest('li');
+		expect(ungrantedItem?.querySelector('.sr-only')?.textContent).toBe(
+			'not granted',
+		);
+	});
+
 	test('omits the no-access footer when every module has a grant', () => {
 		renderTab({
 			permissionKeys: ['tenant.users.read', 'tenant.billing.view'],
@@ -285,6 +301,23 @@ describe('ProfileOverviewTab', () => {
 
 		expect(screen.getByTestId('profile-stat-members-stack')).toBeTruthy();
 		expect(screen.queryByText(/more/)).toBeNull();
+	});
+
+	test('renders the email only once when the display name fell back to it', () => {
+		const base = buildMembers(1);
+		const noNameMember = { ...base[0], name: '' } as StaffTenantProfileMember;
+		renderTab({ members: [noNameMember] });
+
+		// Primary line shows the email fallback; the secondary email line is
+		// omitted instead of repeating the identical text.
+		expect(screen.getAllByText('member0@example.com')).toHaveLength(1);
+	});
+
+	test('keeps the secondary email line for members with a real name', () => {
+		renderTab({ members: buildMembers(1) });
+
+		expect(screen.getByText('Member 0')).toBeTruthy();
+		expect(screen.getAllByText('member0@example.com')).toHaveLength(1);
 	});
 
 	test('shows a loading state while members are pending', () => {

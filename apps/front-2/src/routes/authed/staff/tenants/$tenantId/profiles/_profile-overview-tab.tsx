@@ -101,9 +101,13 @@ const MembersPreviewBody = ({
 						<p className="truncate text-sm font-medium text-foreground">
 							{memberDisplayName(member)}
 						</p>
-						<p className="truncate text-xs text-muted-foreground">
-							{member.email}
-						</p>
+						{/* When the display name fell back to the email, a secondary
+						    email line would repeat the exact same text — omit it. */}
+						{member.name.length > 0 ? (
+							<p className="truncate text-xs text-muted-foreground">
+								{member.email}
+							</p>
+						) : null}
 					</div>
 				</li>
 			))}
@@ -214,6 +218,13 @@ const PermissionGlanceBody = ({
 										}
 									>
 										{option.label}
+									</span>
+									{/* The icons are aria-hidden and the color split is
+									    invisible to screen readers — announce the state. */}
+									<span className="sr-only">
+										{option.granted
+											? t('permission-state-granted')
+											: t('permission-state-not-granted')}
 									</span>
 								</li>
 							))}

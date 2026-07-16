@@ -350,6 +350,8 @@ vi.mock('react-i18next', () => ({
 					'No permissions are assigned to this profile.',
 				'no-permissions-available': 'No permission keys are available.',
 				'permission-keys': 'Permission keys',
+				'permission-state-granted': 'granted',
+				'permission-state-not-granted': 'not granted',
 				'profile-details': 'Profile details',
 				'profile-sections': 'Profile sections',
 				retry: 'Retry',

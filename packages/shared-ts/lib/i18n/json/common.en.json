@@ -1335,6 +1335,8 @@
 	"tenant-user-updated-success": "Tenant user updated successfully.",
 	"tenant-user-removed-success": "Tenant user removed successfully.",
 	"permission-assigned-success": "Permission assigned successfully.",
+	"permission-state-granted": "granted",
+	"permission-state-not-granted": "not granted",
 	"permission-unassigned-success": "Permission removed successfully.",
 	"profile-member-assigned-success": "Member assigned successfully.",
 	"profile-member-unassigned-success": "Member removed successfully.",
