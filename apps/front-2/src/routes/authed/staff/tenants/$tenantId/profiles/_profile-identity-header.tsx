@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
 import type { StaffTenantProfileDetails } from '~/lib/query/staff-tenant-profiles';
 
+import { getRelativeTimeParts } from '../_tenant-details-shell';
 import {
 	deriveTenantProfileCardStyle,
 	tenantProfileTypeChipClassName,
@@ -20,6 +21,7 @@ export const ProfileIdentityHeader = ({
 	const { Icon: ProfileIcon, tone: profileTone } = deriveTenantProfileCardStyle(
 		profile.name,
 	);
+	const updatedRelativeParts = getRelativeTimeParts(profile.updatedAt);
 
 	return (
 		<header
@@ -50,6 +52,16 @@ export const ProfileIdentityHeader = ({
 						{t('tenant-permission-count', {
 							count: permissionCount,
 						})}
+						{updatedRelativeParts ? (
+							<>
+								{' · '}
+								{t('profile-updated-relative', {
+									time: t(updatedRelativeParts.key, {
+										count: updatedRelativeParts.count,
+									}),
+								})}
+							</>
+						) : null}
 					</p>
 				</div>
 			</div>

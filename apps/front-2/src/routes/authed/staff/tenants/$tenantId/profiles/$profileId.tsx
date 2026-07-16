@@ -12,22 +12,17 @@ import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
-import { Button } from '~/components/ui/button';
-import { Card } from '~/components/ui/card';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
-import { DangerZoneCard, DangerZoneRow } from '~/components/ui/detail-layout';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import { StateView } from '~/components/ui/state-view';
 import {
-	buildStaffTenantPermissionCatalogOptions,
-	useAssignStaffTenantProfilePermissionMutation,
+	buildStaffTenantPermissionCatalogGroups,
 	toStaffTenantProfileDetails,
 	toStaffTenantProfilePermissionKeys,
 	useDeleteStaffTenantProfileMutation,
 	useStaffTenantPermissionCatalogQuery,
 	useStaffTenantProfileDetailsQuery,
 	useStaffTenantProfilePermissionKeysQuery,
-	useUnassignStaffTenantProfilePermissionMutation,
 } from '~/lib/query/staff-tenant-profiles';
 import {
 	invalidateAllStaffTenantScopes,
@@ -37,14 +32,10 @@ import {
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 import { useUiStore } from '~/lib/store/ui-store';
 
-import {
-	getFailureMessage,
-	toApiFailure,
-} from '@org/shared-ts/lib/api-failure/to-api-failure';
+import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 import {
 	BackToTenantsLink,
-	DetailItem,
 	MALFORMED_ID_TRANSLATION_KEY,
 	TenantDetailsError,
 	TenantDetailsLoading,
@@ -57,6 +48,7 @@ import {
 } from './_profile-details-search';
 import { ProfileFormDrawer } from './_profile-form-drawer';
 import { ProfileIdentityHeader } from './_profile-identity-header';
+import { ProfileOverviewTab } from './_profile-overview-tab';
 import { ProfileSectionNavLink } from './_profile-section-nav-link';
 import { ProfileTenantBand } from './_profile-tenant-band';
 
@@ -164,10 +156,9 @@ function StaffTenantProfileDetailsPage() {
 	const { tenantId, profileId } = Route.useParams();
 	const navigate = Route.useNavigate();
 	const search = Route.useSearch();
-	const { t } = useTranslation('common');
+	const { t, i18n } = useTranslation('common');
 	const queryClient = useQueryClient();
 	const [pendingDelete, setPendingDelete] = useState(false);
-	const [busyPermissionKey, setBusyPermissionKey] = useState('');
 	const [shouldRedirectToLogout, setShouldRedirectToLogout] = useState(false);
 	const isEditDrawerOpen = search.edit === 1;
 	const activeTab = search.tab ?? 'overview';
@@ -248,8 +239,6 @@ function StaffTenantProfileDetailsPage() {
 	);
 	const permissionCatalogQuery = useStaffTenantPermissionCatalogQuery({});
 	const deleteProfile = useDeleteStaffTenantProfileMutation();
-	const assignPermission = useAssignStaffTenantProfilePermissionMutation();
-	const unassignPermission = useUnassignStaffTenantProfilePermissionMutation();
 	const tenant = toStaffTenantDetails(tenantQuery.data);
 	const profile = toStaffTenantProfileDetails(detailQuery.data);
 	const permissionKeys = toStaffTenantProfilePermissionKeys(
@@ -301,33 +290,9 @@ function StaffTenantProfileDetailsPage() {
 		// eslint-disable-next-line react-hooks/exhaustive-deps -- permissionKeysCacheKey is the stable key, not the array identity
 		[profile?.id, profile?.name, profile?.description, permissionKeysCacheKey],
 	);
-	const permissionCatalogOptions = buildStaffTenantPermissionCatalogOptions(
+	const permissionGroups = buildStaffTenantPermissionCatalogGroups(
 		permissionCatalogQuery.data?.additionalData,
 	);
-	const permissionDescriptionsByKey = new Map<string, string | null>();
-
-	for (const option of permissionCatalogOptions) {
-		permissionDescriptionsByKey.set(option.key, option.description ?? null);
-	}
-	const assignedPermissionEntries = permissionKeys.map((permissionKey) => {
-		const catalogItem = permissionCatalogOptions.find(
-			(option) => option.key === permissionKey,
-		);
-
-		return {
-			key: permissionKey,
-			label: catalogItem?.label ?? permissionKey,
-			description: permissionDescriptionsByKey.get(permissionKey) ?? null,
-		};
-	});
-	const assignedPermissionKeySet = new Set(
-		assignedPermissionEntries.map((permission) => permission.key),
-	);
-	const availablePermissionEntries = permissionCatalogOptions.filter(
-		(option) => !assignedPermissionKeySet.has(option.key),
-	);
-
-	const isPermissionBusy = busyPermissionKey.length > 0;
 	const invalidatePermissionQueries = () =>
 		invalidateAllStaffTenantScopes(queryClient);
 
@@ -412,52 +377,6 @@ function StaffTenantProfileDetailsPage() {
 		);
 	}
 
-	const handleAssignPermission = async (permissionKey: string) => {
-		setBusyPermissionKey(permissionKey);
-
-		try {
-			await assignPermission.mutateAsync({
-				tenantId,
-				profileId,
-				permissionKey,
-			});
-		} catch (error) {
-			if (shouldLogoutForFailure(error)) {
-				setShouldRedirectToLogout(true);
-			}
-			setBusyPermissionKey('');
-			return;
-		}
-
-		try {
-			await invalidatePermissionQueries();
-		} finally {
-			setBusyPermissionKey('');
-		}
-	};
-	const handleUnassignPermission = async (permissionKey: string) => {
-		setBusyPermissionKey(permissionKey);
-
-		try {
-			await unassignPermission.mutateAsync({
-				tenantId,
-				profileId,
-				permissionKey,
-			});
-		} catch (error) {
-			if (shouldLogoutForFailure(error)) {
-				setShouldRedirectToLogout(true);
-			}
-			setBusyPermissionKey('');
-			return;
-		}
-
-		try {
-			await invalidatePermissionQueries();
-		} finally {
-			setBusyPermissionKey('');
-		}
-	};
 	const handleDelete = async () => {
 		if (profile.isDefault) {
 			return;
@@ -545,258 +464,17 @@ function StaffTenantProfileDetailsPage() {
 			/>
 
 			{activeTab === 'overview' ? (
-				<div
-					className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)]"
-					data-testid="staff-tenant-profile-overview-content"
-				>
-					<Card className="space-y-4 p-5">
-						<div className="space-y-1">
-							<p className="text-lg font-semibold text-foreground">
-								{t('profile-details')}
-							</p>
-							<p className="text-sm text-muted-foreground">
-								{t('tenant-profile-details-description')}
-							</p>
-						</div>
-
-						<div className="grid gap-4 md:grid-cols-2">
-							<div className="md:col-span-2">
-								<DetailItem label={t('name')} value={profile.name} />
-							</div>
-							<div className="md:col-span-2">
-								<DetailItem
-									label={t('description')}
-									value={profile.description ?? t('no-description-provided')}
-								/>
-							}
-						>
-							{t('members')}
-							<span className="publy-detail-chip publy-detail-chip--outline">
-								{profile.userAccountCount}
-							</span>
-						</TabsTrigger>
-					</TabsList>
-
-					<TabsContent value="profile" className="mt-5">
-						<div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)]">
-							<Card className="space-y-4 p-5">
-								<div className="space-y-1">
-									<p className="text-lg font-semibold text-foreground">
-										{t('profile-details')}
-									</p>
-									<p className="text-sm text-muted-foreground">
-										{t('tenant-profile-details-description')}
-									</p>
-								</div>
-
-								<div className="grid gap-4 md:grid-cols-2">
-									<div className="md:col-span-2">
-										<DetailItem label={t('name')} value={profile.name} />
-									</div>
-									<div className="md:col-span-2">
-										<DetailItem
-											label={t('description')}
-											value={
-												profile.description ?? t('no-description-provided')
-											}
-										/>
-									</div>
-									<DetailItem
-										label={t('default-profile')}
-										value={profile.isDefault ? t('yes') : t('no')}
-									/>
-									<DetailItem
-										label={t('assigned-permission-keys')}
-										value={String(permissionKeys.length)}
-									/>
-								</div>
-							</Card>
-
-							<Card className="space-y-4 p-5">
-								<div className="space-y-1">
-									<p className="text-lg font-semibold text-foreground">
-										{t('permission-keys')}
-									</p>
-									<p className="text-sm text-muted-foreground">
-										{t('manage-permission-keys-description')}
-									</p>
-								</div>
-
-								<div className="space-y-4">
-									{permissionCatalogQuery.isPending ? (
-										<div className="rounded-large border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
-											<div className="flex items-center gap-2">
-												<LoadingSpinner />
-												<span>{t('loading-available-permissions')}</span>
-											</div>
-										</div>
-									) : null}
-
-									{permissionCatalogQuery.isError ? (
-										<div className="rounded-large border border-dashed border-destructive bg-destructive/10 px-4 py-4 text-sm text-destructive">
-											<p>
-												{getFailureMessage(
-													toApiFailure(permissionCatalogQuery.error),
-													{
-														fallback: t(
-															'tenant-permission-catalog-load-failed',
-														),
-													},
-												)}
-											</p>
-											<Button
-												type="button"
-												variant="outline"
-												size="sm"
-												onClick={() => {
-													void permissionCatalogQuery.refetch();
-												}}
-												className="mt-3"
-											>
-												{t('retry')}
-											</Button>
-										</div>
-									) : null}
-
-									<section className="space-y-3">
-										<div className="flex items-center justify-between">
-											<p className="font-medium text-foreground">
-												{t('assigned')}
-											</p>
-											<span className="publy-detail-chip publy-detail-chip--outline">
-												{assignedPermissionEntries.length}
-											</span>
-										</div>
-
-										{assignedPermissionEntries.length === 0 ? (
-											<div className="rounded-large border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
-												{t('no-permissions-assigned-to-profile')}
-											</div>
-										) : (
-											<ul className="space-y-2">
-												{assignedPermissionEntries.map((permission) => (
-													<li
-														key={permission.key}
-														className="rounded-large border border-border bg-card px-3 py-3"
-													>
-														<div className="flex items-start justify-between gap-3">
-															<div>
-																<p className="font-mono text-sm text-foreground">
-																	{permission.label}
-																</p>
-																{permission.description ? (
-																	<p className="mt-1 max-w-xl text-xs text-muted-foreground">
-																		{permission.description}
-																	</p>
-																) : null}
-															</div>
-															<Button
-																type="button"
-																size="sm"
-																variant="outline"
-																disabled={isPermissionBusy}
-																onClick={() => {
-																	void handleUnassignPermission(permission.key);
-																}}
-																aria-label={t('unassign-permission', {
-																	name: permission.label,
-																})}
-															>
-																{t('unassign')}
-															</Button>
-														</div>
-													</li>
-												))}
-											</ul>
-										)}
-									</section>
-
-									{permissionCatalogQuery.isPending ||
-									permissionCatalogQuery.isError ? null : (
-										<section className="space-y-3">
-											<div className="flex items-center justify-between">
-												<p className="font-medium text-foreground">
-													{t('available')}
-												</p>
-												<span className="publy-detail-chip publy-detail-chip--outline">
-													{availablePermissionEntries.length}
-												</span>
-											</div>
-
-											{availablePermissionEntries.length === 0 ? (
-												<div className="rounded-large border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
-													{assignedPermissionEntries.length === 0
-														? t('no-permissions-available')
-														: t('no-additional-permission-keys-available')}
-												</div>
-											) : (
-												<ul className="space-y-2">
-													{availablePermissionEntries.map((permission) => (
-														<li
-															key={permission.key}
-															className="rounded-large border border-border bg-card px-3 py-3"
-														>
-															<div className="flex items-start justify-between gap-3">
-																<div>
-																	<p className="font-mono text-sm text-foreground">
-																		{permission.label}
-																	</p>
-																	{permission.description ? (
-																		<p className="mt-1 max-w-xl text-xs text-muted-foreground">
-																			{permission.description}
-																		</p>
-																	) : null}
-																</div>
-																<Button
-																	type="button"
-																	size="sm"
-																	variant="outline"
-																	disabled={isPermissionBusy}
-																	onClick={() => {
-																		void handleAssignPermission(permission.key);
-																	}}
-																	aria-label={t('assign-permission', {
-																		name: permission.label,
-																	})}
-																>
-																	{t('assign')}
-																</Button>
-															</div>
-														</li>
-													))}
-												</ul>
-											)}
-										</section>
-									)}
-
-									<DangerZoneCard title={t('danger-zone')}>
-										<DangerZoneRow
-											title={t('delete-profile')}
-											description={
-												profile.isDefault
-													? t('default-profile-delete-disabled')
-													: t('confirm-delete-tenant-profile-description')
-											}
-											action={
-												profile.isDefault ? null : (
-													<Button
-														type="button"
-														variant="destructive"
-														size="sm"
-														onClick={() => setPendingDelete(true)}
-														disabled={deleteProfile.isPending}
-													>
-														{t('delete-profile')}
-													</Button>
-												)
-											}
-										/>
-									</DangerZoneCard>
-								</div>
-							</Card>
-						</div>
-					</Card>
-				</div>
+				<ProfileOverviewTab
+					tenantId={tenantId}
+					profile={profile}
+					permissionKeys={permissionKeys}
+					permissionGroups={permissionGroups}
+					isCatalogPending={permissionCatalogQuery.isPending}
+					isCatalogError={permissionCatalogQuery.isError}
+					locale={i18n.language}
+					onDeleteRequest={() => setPendingDelete(true)}
+					isDeletePending={deleteProfile.isPending}
+				/>
 			) : (
 				<StateView
 					icon={

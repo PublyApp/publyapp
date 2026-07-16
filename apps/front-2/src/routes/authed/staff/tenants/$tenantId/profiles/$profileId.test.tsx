@@ -186,6 +186,69 @@ vi.mock('~/lib/query/staff-tenant-profiles', () => ({
 	],
 	buildStaffTenantPermissionCatalogOptions:
 		mocks.buildStaffTenantPermissionCatalogOptions,
+	buildStaffTenantPermissionCatalogGroups: (
+		additionalData: Record<
+			string,
+			Record<
+				string,
+				{ key?: string; name?: string; description?: string | null }
+			>
+		>,
+	) => {
+		const groups: Array<{
+			moduleKey: string;
+			moduleLabel: string;
+			options: Array<{
+				key: string;
+				label: string;
+				description: string | null;
+			}>;
+		}> = [];
+
+		for (const [moduleKey, modulePermissions] of Object.entries(
+			additionalData ?? {},
+		)) {
+			if (typeof modulePermissions !== 'object' || !modulePermissions) {
+				continue;
+			}
+
+			const options: Array<{
+				key: string;
+				label: string;
+				description: string | null;
+			}> = [];
+
+			for (const permission of Object.values(modulePermissions)) {
+				const key = permission?.key?.trim() ?? '';
+				if (!key) {
+					continue;
+				}
+
+				options.push({
+					key,
+					label: permission.name?.trim() || key,
+					description: permission.description ?? null,
+				});
+			}
+
+			if (options.length === 0) {
+				continue;
+			}
+
+			options.sort((left, right) => left.label.localeCompare(right.label));
+			groups.push({
+				moduleKey,
+				moduleLabel: moduleKey
+					.replace(/[_-]+/g, ' ')
+					.replace(/\b\w/g, (character) => character.toUpperCase()),
+				options,
+			});
+		}
+
+		return groups.sort((left, right) =>
+			left.moduleLabel.localeCompare(right.moduleLabel),
+		);
+	},
 	useStaffTenantProfileDetailsQuery: mocks.useStaffTenantProfileDetailsQuery,
 	toStaffTenantProfileDetails: mocks.toStaffTenantProfileDetails,
 	useStaffTenantProfilePermissionKeysQuery:
@@ -315,6 +378,28 @@ vi.mock('react-i18next', () => ({
 					'You have unsaved changes that will be lost if you leave this page.',
 				'leave-page': 'Leave page',
 				cancel: 'Cancel',
+				modules: 'Modules',
+				type: 'Type',
+				granted: 'Granted',
+				manage: 'Manage',
+				'with-access': 'with access',
+				'view-members': 'View members',
+				'view-all-count': 'View all {{total}}',
+				'about-this-profile': 'About this profile',
+				'permissions-at-a-glance': 'Permissions at a glance',
+				'profile-glance-summary':
+					'{{granted}} of {{total}} granted across {{modules}} modules',
+				'profile-glance-no-access': 'No access to {{modules}}',
+				'profile-created-month': 'Created {{date}}',
+				'profile-updated-relative': 'Updated {{time}}',
+				'profile-members-preview-coming-soon':
+					'Member details are coming soon.',
+				'no-members-yet': 'No members yet.',
+				'minutes-ago': '{{count}} minutes ago',
+				'hours-ago': '{{count}} hours ago',
+				'days-ago': '{{count}} days ago',
+				'months-ago': '{{count}} months ago',
+				'years-ago': '{{count}} years ago',
 			};
 
 			let text = labels[key] ?? key;
@@ -350,6 +435,8 @@ const nonDefaultProfile = {
 	description: 'Can review approvals',
 	isDefault: false,
 	userAccountCount: 7,
+	createdAt: new Date('2026-05-10T09:00:00Z'),
+	updatedAt: new Date('2026-07-14T10:00:00Z'),
 };
 
 const renderPage = () => {
@@ -405,6 +492,8 @@ describe('staff tenant profile details route', () => {
 			description: 'Can review approvals',
 			isDefault: true,
 			userAccountCount: 7,
+			createdAt: new Date('2026-05-10T09:00:00Z'),
+			updatedAt: new Date('2026-07-14T10:00:00Z'),
 		});
 		mocks.useStaffTenantProfileDetailsQuery.mockReturnValue(
 			buildQueryResult({
@@ -546,17 +635,27 @@ describe('staff tenant profile details route', () => {
 				.getByRole('link', { name: 'Back to Acme Corporation profiles' })
 				.getAttribute('href'),
 		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/profiles');
-		expect(screen.getByText('tenant.approvals.review')).toBeTruthy();
-		expect(screen.getByText('tenant.users.read')).toBeTruthy();
-		expect(screen.getByText('tenant.users.write')).toBeTruthy();
-		expect(screen.getByText('Assigned')).toBeTruthy();
-		expect(screen.getByText('Available')).toBeTruthy();
+		// Overview stat cards (computed from the granted keys + catalog).
+		expect(screen.getByTestId('profile-stat-members').textContent).toContain(
+			'7',
+		);
 		expect(
-			screen.getByRole('button', { name: /Unassign tenant.approvals.review/ }),
-		).toBeTruthy();
-		expect(
-			screen.getByRole('button', { name: /Assign tenant.users.write/ }),
-		).toBeTruthy();
+			screen.getByTestId('profile-stat-permissions').textContent,
+		).toContain('/ 3');
+		expect(screen.getByTestId('profile-stat-modules').textContent).toContain(
+			'with access',
+		);
+		expect(screen.getByTestId('profile-stat-type').textContent).toContain(
+			'System profile',
+		);
+		// The glance renders human permission names, not raw keys.
+		expect(screen.getByText('Review approvals')).toBeTruthy();
+		expect(screen.getByText('Read users')).toBeTruthy();
+		expect(screen.getByText('Write users')).toBeTruthy();
+		expect(screen.getByText('2 of 3 granted across 1 modules')).toBeTruthy();
+		// The assign/unassign editing UI has moved off Overview (step 3).
+		expect(screen.queryByRole('button', { name: /^Assign / })).toBeNull();
+		expect(screen.queryByRole('button', { name: /^Unassign / })).toBeNull();
 		expect(mocks.useStaffTenantProfileDetailsQuery).toHaveBeenCalledWith(
 			{
 				tenantId: '11111111-1111-1111-1111-111111111111',
@@ -572,6 +671,28 @@ describe('staff tenant profile details route', () => {
 			{ enabled: true },
 		);
 		expect(mocks.useStaffTenantPermissionCatalogQuery).toHaveBeenCalledWith({});
+	});
+
+	test('shows an "Updated" relative timestamp in the identity meta, omitting it when absent', () => {
+		const withTimestamp = renderPage();
+		expect(
+			screen.getByTestId('staff-tenant-profile-identity').textContent,
+		).toContain('Updated');
+		withTimestamp.unmount();
+
+		mocks.toStaffTenantProfileDetails.mockReturnValue({
+			id: '22222222-2222-2222-2222-222222222222',
+			name: 'Approvers',
+			description: 'Can review approvals',
+			isDefault: true,
+			userAccountCount: 7,
+			createdAt: null,
+			updatedAt: null,
+		});
+		renderPage();
+		expect(
+			screen.getByTestId('staff-tenant-profile-identity').textContent,
+		).not.toContain('Updated');
 	});
 
 	test('renders an em-dash workspace-code placeholder when the tenant has no code', () => {
@@ -756,84 +877,6 @@ describe('staff tenant profile details route', () => {
 		expect(screen.queryByRole('button', { name: 'Delete profile' })).toBeNull();
 	});
 
-	test('disables all permission action buttons while a mutation is in flight', async () => {
-		let resolveAssign: () => void = () => {};
-		const assignDeferred = new Promise<void>((resolve) => {
-			resolveAssign = resolve;
-		});
-		const assignPermission = vi.fn(() => assignDeferred);
-
-		mocks.useAssignStaffTenantProfilePermissionMutation.mockReturnValue({
-			isPending: false,
-			mutateAsync: assignPermission,
-		});
-
-		mocks.toStaffTenantProfileDetails.mockReturnValue({
-			...nonDefaultProfile,
-		});
-
-		renderPage();
-
-		const assignButton = screen.getByRole('button', {
-			name: /Assign tenant.users.write/,
-		});
-		const unassignButton = screen.getByRole('button', {
-			name: /Unassign tenant.approvals.review/,
-		});
-
-		expect(assignButton.hasAttribute('disabled')).toBe(false);
-		expect(unassignButton.hasAttribute('disabled')).toBe(false);
-
-		fireEvent.click(assignButton);
-
-		expect(assignPermission).toHaveBeenCalledTimes(1);
-		expect(assignButton).toHaveProperty('disabled', true);
-		expect(unassignButton).toHaveProperty('disabled', true);
-
-		fireEvent.click(assignButton);
-		fireEvent.click(unassignButton);
-
-		expect(assignPermission).toHaveBeenCalledTimes(1);
-
-		resolveAssign();
-		await waitFor(() => {
-			expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
-				queryKey: ['staff', 'staff-tenants'],
-			});
-		});
-	});
-
-	test('omits the available permissions section when the permission catalog fails', async () => {
-		mocks.toStaffTenantProfileDetails.mockReturnValue({
-			...nonDefaultProfile,
-		});
-		mocks.useStaffTenantPermissionCatalogQuery.mockReturnValue(
-			buildQueryResult({
-				isError: true,
-				data: {
-					additionalData: {},
-				},
-				error: {
-					status: 503,
-					responseStatusCode: 503,
-					title: 'Service Unavailable',
-					detail: 'Temporary outage',
-				},
-			}),
-		);
-
-		renderPage();
-
-		expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
-		expect(screen.getByText('Temporary outage')).toBeTruthy();
-		expect(screen.queryByText('No permission keys are available.')).toBeNull();
-		expect(
-			screen.queryByText(
-				'No additional permission keys are available to assign.',
-			),
-		).toBeNull();
-	});
-
 	test('edit profile button navigates to open the edit drawer via search state', () => {
 		renderPage();
 
@@ -855,138 +898,6 @@ describe('staff tenant profile details route', () => {
 		renderPage();
 
 		expect(screen.getByTestId('profile-edit-drawer-open')).toBeTruthy();
-	});
-
-	test('assigns a permission key and invalidates permission-backed queries', async () => {
-		const assignPermission = vi.fn().mockResolvedValue(undefined);
-		mocks.useAssignStaffTenantProfilePermissionMutation.mockReturnValue({
-			isPending: false,
-			mutateAsync: assignPermission,
-		});
-		renderPage();
-		expect(
-			mocks.useAssignStaffTenantProfilePermissionMutation,
-		).toHaveBeenCalledWith();
-
-		fireEvent.click(
-			screen.getByRole('button', {
-				name: /Assign tenant.users.write/,
-			}),
-		);
-
-		await waitFor(() => {
-			expect(assignPermission).toHaveBeenCalledWith({
-				tenantId: '11111111-1111-1111-1111-111111111111',
-				profileId: '22222222-2222-2222-2222-222222222222',
-				permissionKey: 'tenant.users.write',
-			});
-		});
-		await waitFor(() => {
-			expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
-				queryKey: ['staff', 'staff-tenants'],
-			});
-		});
-	});
-
-	test('unassigns a permission key and invalidates permission-backed queries', async () => {
-		const unassignPermission = vi.fn().mockResolvedValue(undefined);
-		mocks.useUnassignStaffTenantProfilePermissionMutation.mockReturnValue({
-			isPending: false,
-			mutateAsync: unassignPermission,
-		});
-		renderPage();
-		expect(
-			mocks.useUnassignStaffTenantProfilePermissionMutation,
-		).toHaveBeenCalledWith();
-
-		fireEvent.click(
-			screen.getByRole('button', {
-				name: /Unassign tenant.approvals.review/,
-			}),
-		);
-
-		await waitFor(() => {
-			expect(unassignPermission).toHaveBeenCalledWith({
-				tenantId: '11111111-1111-1111-1111-111111111111',
-				profileId: '22222222-2222-2222-2222-222222222222',
-				permissionKey: 'tenant.approvals.review',
-			});
-		});
-		await waitFor(() => {
-			expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
-				queryKey: ['staff', 'staff-tenants'],
-			});
-		});
-	});
-
-	test('leaves permission operation failures to central feedback without logging out', async () => {
-		const assignPermission = vi.fn().mockRejectedValue({
-			status: 400,
-			responseStatusCode: 400,
-			title: 'Bad Request',
-			detail: 'Unable to add this permission',
-		});
-		mocks.useAssignStaffTenantProfilePermissionMutation.mockReturnValue({
-			isPending: false,
-			mutateAsync: assignPermission,
-		});
-
-		renderPage();
-
-		fireEvent.click(
-			screen.getByRole('button', {
-				name: /Assign tenant.users.write/,
-			}),
-		);
-
-		await waitFor(() => expect(assignPermission).toHaveBeenCalledTimes(1));
-		expect(screen.queryByText('Unable to add this permission')).toBeNull();
-		expect(
-			screen.queryByText('Unable to update this tenant profile permission.'),
-		).toBeNull();
-		expect(screen.queryByTestId('logout-redirect')).toBeNull();
-	});
-
-	test('redirects to logout for permission assignment session errors', async () => {
-		const assignPermission = vi.fn().mockRejectedValue({
-			status: 401,
-			responseStatusCode: 401,
-			title: 'Unauthorized',
-			detail: 'Session expired',
-		});
-		mocks.useAssignStaffTenantProfilePermissionMutation.mockReturnValue({
-			isPending: false,
-			mutateAsync: assignPermission,
-		});
-		mocks.shouldLogoutForFailure.mockImplementation((error: unknown) => {
-			if (typeof error !== 'object' || error === null) {
-				return false;
-			}
-
-			const responseStatusCode =
-				typeof (error as { status?: unknown }).status === 'number'
-					? (error as { status?: number }).status
-					: undefined;
-			const statusCode =
-				typeof (error as { responseStatusCode?: unknown })
-					.responseStatusCode === 'number'
-					? (error as { responseStatusCode?: number }).responseStatusCode
-					: undefined;
-
-			return (responseStatusCode ?? statusCode) === 401;
-		});
-
-		renderPage();
-
-		fireEvent.click(
-			screen.getByRole('button', {
-				name: /Assign tenant.users.write/,
-			}),
-		);
-
-		await waitFor(() => {
-			expect(screen.getByTestId('logout-redirect')).toBeTruthy();
-		});
 	});
 
 	test('confirms deletion, invalidates tenant profile queries, and navigates back to the list', async () => {
