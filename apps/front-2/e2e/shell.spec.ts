@@ -305,13 +305,13 @@ test('rail navigation preserves collapsed sidebar preference', async ({
 	await page.getByRole('button', { name: 'Collapse navigation panel' }).click();
 
 	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
-	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeHidden();
 
 	await page.goto('/staff/invitations');
 
 	await expect(page).toHaveURL('/staff/invitations');
 	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
-	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeHidden();
 });
 
 test('staff detail route follows persisted sidebar preference', async ({
@@ -348,7 +348,7 @@ test('detail-route toggle controls the panel on a tenant detail route', async ({
 
 	await toggle.click();
 
-	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeHidden();
 	await expect(toggle).toHaveAttribute('aria-label', 'Expand navigation panel');
 
 	await toggle.click();
@@ -369,7 +369,7 @@ test('an explicit open choice carries over across detail and list routes', async
 
 	const toggle = page.getByTestId('app-shell-sidebar-toggle');
 	await toggle.click();
-	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeHidden();
 	await expect(toggle).toHaveAttribute('aria-label', 'Expand navigation panel');
 	await toggle.click();
 	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
@@ -378,8 +378,8 @@ test('an explicit open choice carries over across detail and list routes', async
 		'Collapse navigation panel',
 	);
 
-	// The explicit open choice is in-memory session state: it must survive
-	// CLIENT-SIDE navigation (a hard page.goto would reset the store by design).
+	// The explicit open choice uses the persisted sidebarOpen state and must
+	// survive client-side navigation.
 	// Leave via the rail to a list route — panel stays visible there through the
 	// persisted list preference (default open).
 	await page.locator('[data-rail-item="staff"]').click();
@@ -392,8 +392,7 @@ test('an explicit open choice carries over across detail and list routes', async
 	await expect(page).toHaveURL(new RegExp(`${tenantDetailPath}$`));
 	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
 
-	// A fresh document load starts a new session with persisted default-open
-	// preference.
+	// A fresh document load retains the persisted open preference.
 	await page.reload();
 	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
 	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
@@ -418,18 +417,18 @@ test('the collapsed-panel preference persists across list and detail navigation'
 	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
 
 	await page.getByRole('button', { name: 'Collapse navigation panel' }).click();
-	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeHidden();
 
 	// The collapsed preference carries to the next list route too.
 	await page.goto('/staff/tenants');
 	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
-	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeHidden();
 
 	// And detail routes on another module still follow the same preference —
 	// (tenants) than the one visited above (staff-users).
 	await getRealTenantDetailPath(page);
 	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
-	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeHidden();
 });
 
 test('staff dashboard has a toggleable secondary panel that stays collapsed across navigation', async ({
@@ -446,17 +445,17 @@ test('staff dashboard has a toggleable secondary panel that stays collapsed acro
 
 	await page.getByRole('button', { name: 'Collapse navigation panel' }).click();
 	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
-	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeHidden();
 
 	await page.goto('/staff/staff-users');
 	await expect(page).toHaveURL('/staff/staff-users');
 	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
-	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeHidden();
 
 	await page.goto('/staff/dashboard');
 	await expect(page).toHaveURL('/staff/dashboard');
 	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
-	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeHidden();
 });
 
 test('detail grid sizes to the space left by the rail, not the raw viewport', async ({

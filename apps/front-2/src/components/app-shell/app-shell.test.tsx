@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import {
+	act,
 	cleanup,
 	fireEvent,
 	render,
@@ -106,6 +107,33 @@ describe('AppShell secondary-panel toggle', () => {
 
 	afterEach(() => {
 		cleanup();
+		vi.restoreAllMocks();
+	});
+
+	test('enables panel motion only after two post-hydration frames', () => {
+		const frameCallbacks: FrameRequestCallback[] = [];
+		vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+			frameCallbacks.push(callback);
+			return frameCallbacks.length;
+		});
+		vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(
+			() => undefined,
+		);
+
+		render(
+			<AppShell mode="authed" pathname={LIST_ROUTE}>
+				content
+			</AppShell>,
+		);
+
+		const workspace = screen.getByTestId('app-shell-shell');
+		expect(workspace.hasAttribute('data-motion-ready')).toBe(false);
+
+		act(() => frameCallbacks.shift()?.(0));
+		expect(workspace.hasAttribute('data-motion-ready')).toBe(false);
+
+		act(() => frameCallbacks.shift()?.(16));
+		expect(workspace.getAttribute('data-motion-ready')).toBe('true');
 	});
 
 	test('list route: toggle is visible and open by default on desktop', () => {
@@ -115,10 +143,18 @@ describe('AppShell secondary-panel toggle', () => {
 			</AppShell>,
 		);
 
+		const workspace = screen.getByTestId('app-shell-shell');
+		const panel = screen.getByTestId('app-shell-secondary-panel');
 		expect(
 			screen.getByRole('button', { name: 'collapse-navigation-panel' }),
 		).toBeTruthy();
-		expect(screen.getByTestId('app-shell-secondary-panel')).toBeTruthy();
+		expect(workspace.getAttribute('data-has-secondary-panel')).toBe('true');
+		expect(workspace.getAttribute('data-panel-open')).toBe('true');
+		expect(
+			panel.querySelector('.app-shell-secondary-panel-inner'),
+		).toBeTruthy();
+		expect(panel.hasAttribute('inert')).toBe(false);
+		expect(panel.hasAttribute('aria-hidden')).toBe(false);
 	});
 
 	test('list route to detail route preserves sidebarOpen without flipping', () => {
@@ -169,7 +205,11 @@ describe('AppShell secondary-panel toggle', () => {
 			screen.getByRole('button', { name: 'collapse-navigation-panel' }),
 		);
 
-		expect(screen.queryByTestId('app-shell-secondary-panel')).toBeNull();
+		const workspace = screen.getByTestId('app-shell-shell');
+		const panel = screen.getByTestId('app-shell-secondary-panel');
+		expect(workspace.getAttribute('data-panel-open')).toBe('false');
+		expect(panel.hasAttribute('inert')).toBe(true);
+		expect(panel.getAttribute('aria-hidden')).toBe('true');
 		expect(
 			screen.getByRole('button', { name: 'expand-navigation-panel' }),
 		).toBeTruthy();
@@ -185,7 +225,9 @@ describe('AppShell secondary-panel toggle', () => {
 		fireEvent.click(
 			screen.getByRole('button', { name: 'collapse-navigation-panel' }),
 		);
-		expect(screen.queryByTestId('app-shell-secondary-panel')).toBeNull();
+		expect(
+			screen.getByTestId('app-shell-secondary-panel').hasAttribute('inert'),
+		).toBe(true);
 
 		rerender(
 			<AppShell mode="authed" pathname={DETAIL_ROUTE_OTHER}>
@@ -193,7 +235,9 @@ describe('AppShell secondary-panel toggle', () => {
 			</AppShell>,
 		);
 
-		expect(screen.queryByTestId('app-shell-secondary-panel')).toBeNull();
+		expect(
+			screen.getByTestId('app-shell-secondary-panel').hasAttribute('inert'),
+		).toBe(true);
 		expect(
 			screen.getByRole('button', { name: 'expand-navigation-panel' }),
 		).toBeTruthy();
@@ -211,7 +255,9 @@ describe('AppShell secondary-panel toggle', () => {
 		expect(
 			screen.getByRole('button', { name: 'expand-navigation-panel' }),
 		).toBeTruthy();
-		expect(screen.queryByTestId('app-shell-secondary-panel')).toBeNull();
+		const panel = screen.getByTestId('app-shell-secondary-panel');
+		expect(panel.hasAttribute('inert')).toBe(true);
+		expect(panel.getAttribute('aria-hidden')).toBe('true');
 	});
 
 	test('below desktop width: toggle is hidden on both list and rail-only routes', () => {
@@ -228,6 +274,7 @@ describe('AppShell secondary-panel toggle', () => {
 		expect(
 			screen.queryByRole('button', { name: 'expand-navigation-panel' }),
 		).toBeNull();
+		expect(screen.queryByTestId('app-shell-secondary-panel')).toBeNull();
 
 		rerender(
 			<AppShell mode="authed" pathname={DETAIL_ROUTE}>
@@ -240,6 +287,7 @@ describe('AppShell secondary-panel toggle', () => {
 		expect(
 			screen.queryByRole('button', { name: 'expand-navigation-panel' }),
 		).toBeNull();
+		expect(screen.queryByTestId('app-shell-secondary-panel')).toBeNull();
 	});
 });
 

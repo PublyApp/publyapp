@@ -327,6 +327,7 @@ const AuthedWorkspaceShell = ({
 	const sidebarOpen = useUiStore((state) => state.sidebarOpen);
 	const toggleSidebarOpen = useUiStore((state) => state.toggleSidebarOpen);
 	const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+	const [isPanelMotionReady, setIsPanelMotionReady] = useState(false);
 	const activeRoute = getActiveRailItem(pathname);
 	const railItems = getRailItemsForPath(pathname);
 	const secondaryItems = getSecondaryPanelItems(pathname);
@@ -342,13 +343,29 @@ const AuthedWorkspaceShell = ({
 	// on the same condition so it isn't rendered lying about its own effect
 	// between 768px and 1023px. Panel state is driven by `sidebarOpen` for all
 	// route classes, and route-type state switching is intentionally gone.
-	const canToggleSecondaryPanel = isDesktop && secondaryItems.length >= 2;
+	const hasSecondaryPanel = isDesktop && secondaryItems.length >= 2;
 	const isSecondaryPanelOpenForToggle = sidebarOpen;
 	const handleToggleSecondaryPanel = toggleSidebarOpen;
 
 	useEffect(() => {
 		setIsMobileNavOpen(false);
 	}, [pathname]);
+
+	useEffect(() => {
+		let readyFrameId: number | null = null;
+		const hydrationFrameId = window.requestAnimationFrame(() => {
+			readyFrameId = window.requestAnimationFrame(() => {
+				setIsPanelMotionReady(true);
+			});
+		});
+
+		return () => {
+			window.cancelAnimationFrame(hydrationFrameId);
+			if (readyFrameId !== null) {
+				window.cancelAnimationFrame(readyFrameId);
+			}
+		};
+	}, []);
 
 	const closeMobileNav = () => setIsMobileNavOpen(false);
 
@@ -357,6 +374,9 @@ const AuthedWorkspaceShell = ({
 			className="app-shell-workspace"
 			data-testid="app-shell-shell"
 			data-mode="authed"
+			data-has-secondary-panel={hasSecondaryPanel ? 'true' : undefined}
+			data-panel-open={showSecondaryPanel ? 'true' : 'false'}
+			data-motion-ready={isPanelMotionReady ? 'true' : undefined}
 		>
 			<nav
 				className="app-shell-rail"
@@ -379,36 +399,40 @@ const AuthedWorkspaceShell = ({
 				</div>
 				<div className="app-shell-rail-spacer" />
 			</nav>
-			{showSecondaryPanel ? (
+			{hasSecondaryPanel ? (
 				<aside
 					className="app-shell-secondary-panel"
 					data-testid="app-shell-secondary-panel"
 					aria-labelledby="app-shell-secondary-heading"
+					aria-hidden={showSecondaryPanel ? undefined : true}
+					inert={showSecondaryPanel ? undefined : true}
 				>
-					<div className="app-shell-secondary-header">
-						<h2
-							className="app-shell-secondary-title"
-							id="app-shell-secondary-heading"
+					<div className="app-shell-secondary-panel-inner">
+						<div className="app-shell-secondary-header">
+							<h2
+								className="app-shell-secondary-title"
+								id="app-shell-secondary-heading"
+							>
+								{activeRoute ? t(activeRoute.labelKey) : null}
+							</h2>
+							<Badge variant="outline" className="app-shell-workspace-pill">
+								{t('nav-root-workspace')}
+							</Badge>
+						</div>
+						<nav
+							className="app-shell-secondary-nav"
+							aria-label={t('nav-secondary')}
 						>
-							{activeRoute ? t(activeRoute.labelKey) : null}
-						</h2>
-						<Badge variant="outline" className="app-shell-workspace-pill">
-							{t('nav-root-workspace')}
-						</Badge>
+							{secondaryItems.map((item) => (
+								<SecondaryPanelNavItem
+									key={item.id}
+									item={item}
+									pathname={pathname}
+									search={search}
+								/>
+							))}
+						</nav>
 					</div>
-					<nav
-						className="app-shell-secondary-nav"
-						aria-label={t('nav-secondary')}
-					>
-						{secondaryItems.map((item) => (
-							<SecondaryPanelNavItem
-								key={item.id}
-								item={item}
-								pathname={pathname}
-								search={search}
-							/>
-						))}
-					</nav>
 				</aside>
 			) : null}
 			<div className="app-shell-body">
@@ -427,7 +451,7 @@ const AuthedWorkspaceShell = ({
 						>
 							<IconMenu2 aria-hidden="true" className="size-[18px]" />
 						</Button>
-						{canToggleSecondaryPanel ? (
+						{hasSecondaryPanel ? (
 							<>
 								<Button
 									size="icon-sm"

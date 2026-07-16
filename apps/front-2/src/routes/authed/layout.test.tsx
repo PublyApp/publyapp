@@ -213,8 +213,8 @@ describe('BUG-2: pendingComponent closes the cold-boot blank window', () => {
 	// r4-shell-F4: the pending skeleton previously always omitted the
 	// secondary-panel track (only rail + body/topbar/main), while the real
 	// shell defaults `sidebarOpen` to open on a default-open list route and
-	// inserts a 256px secondary-panel grid track
-	// (`.app-shell-workspace:has(.app-shell-secondary-panel)` in app.css) —
+	// inserts a secondary-panel grid track
+	// (`data-has-secondary-panel` / `data-panel-open` in app.css) —
 	// producing a geometry pop the instant the real shell mounts.
 	test('reserves the secondary-panel grid track for a default-open list route', () => {
 		mocks.location = { pathname: '/staff/tenants', search: {} };

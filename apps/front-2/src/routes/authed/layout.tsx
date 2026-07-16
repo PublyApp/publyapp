@@ -191,13 +191,13 @@ const AuthedRoutePendingSkeleton = () => {
 		);
 	}
 
-	// r4-shell-F4: `.app-shell-workspace:has(.app-shell-secondary-panel)`
-	// (app.css) widens the grid purely off DOM presence — no store/JS
-	// conditional needed here. `shouldShowSecondaryPanel(pathname)` with no
-	// options uses the same fallback defaults the real shell uses before
-	// `sidebarOpen` hydrates (open + desktop + >=2 items), so this store-free
-	// skeleton still reserves the right grid track and the real first frame
-	// doesn't pop the layout when it mounts.
+	// r4-shell-F4: the pending skeleton reserves the secondary-panel grid
+	// track from the same store-free default that controls its panel markup.
+	// `shouldShowSecondaryPanel(pathname)` with no options uses the same
+	// fallback defaults the real shell uses before `sidebarOpen` hydrates
+	// (open + desktop + >=2 items), so this store-free skeleton
+	// still reserves the right grid track and the real first frame doesn't
+	// pop the layout when it mounts.
 	const showSecondaryPanel = shouldShowSecondaryPanel(pathname);
 
 	return (
@@ -205,6 +205,8 @@ const AuthedRoutePendingSkeleton = () => {
 			className="app-shell-workspace"
 			data-testid="app-shell-pending-skeleton"
 			data-mode="authed"
+			data-has-secondary-panel={showSecondaryPanel ? 'true' : undefined}
+			data-panel-open={showSecondaryPanel ? 'true' : 'false'}
 		>
 			<nav
 				className="app-shell-rail"
@@ -215,7 +217,9 @@ const AuthedRoutePendingSkeleton = () => {
 				<aside
 					className="app-shell-secondary-panel"
 					data-testid="app-shell-pending-secondary-panel"
-				/>
+				>
+					<div className="app-shell-secondary-panel-inner" />
+				</aside>
 			) : null}
 			<div className="app-shell-body">
 				<header

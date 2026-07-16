@@ -18,13 +18,14 @@ const appCssPath = path.join(
 );
 
 const extractRuleBlock = (source: string, selector: string): string => {
-	const headerIndex = source.indexOf(`${selector} {`);
+	const normalizedSource = source.replace(/\s+/g, ' ');
+	const headerIndex = normalizedSource.indexOf(`${selector} {`);
 	if (headerIndex === -1) {
 		throw new Error(`Rule not found: ${selector}`);
 	}
-	const bodyStart = source.indexOf('{', headerIndex);
-	const bodyEnd = source.indexOf('}', bodyStart);
-	return source.slice(bodyStart, bodyEnd + 1);
+	const bodyStart = normalizedSource.indexOf('{', headerIndex);
+	const bodyEnd = normalizedSource.indexOf('}', bodyStart);
+	return normalizedSource.slice(bodyStart, bodyEnd + 1);
 };
 
 describe('app-shell secondary panel viewport units (W4-GUARDS shell-F5)', () => {
@@ -41,5 +42,58 @@ describe('app-shell secondary panel viewport units (W4-GUARDS shell-F5)', () => 
 		const rule = extractRuleBlock(appCssSource, '.app-shell-secondary-nav');
 		expect(rule).toMatch(/\boverflow-y-auto\b/);
 		expect(rule).toMatch(/\bmin-h-0\b/);
+	});
+});
+
+describe('app-shell secondary panel motion', () => {
+	const appCssSource = readFileSync(appCssPath, 'utf8');
+
+	test('uses a medium motion token and constant desktop grid track count', () => {
+		expect(appCssSource).toContain('--publy-motion-medium: 240ms;');
+
+		const closedRule = extractRuleBlock(
+			appCssSource,
+			".app-shell-workspace[data-has-secondary-panel='true']",
+		);
+		expect(closedRule).toMatch(/var\(--publy-shell-rail-width\)[\s\S]*0px/);
+
+		const openRule = extractRuleBlock(
+			appCssSource,
+			".app-shell-workspace[data-has-secondary-panel='true'][data-panel-open='true']",
+		);
+		expect(openRule).toContain('var(--publy-shell-panel-width)');
+	});
+
+	test('enables the grid transition only after hydration motion is ready', () => {
+		const motionRule = extractRuleBlock(
+			appCssSource,
+			".app-shell-workspace[data-has-secondary-panel='true'][data-motion-ready='true']",
+		);
+		expect(motionRule).toMatch(
+			/transition:\s*grid-template-columns var\(--publy-motion-medium\) var\(--publy-motion-ease\)/,
+		);
+	});
+
+	test('clips a fixed-width inner panel and delays hidden visibility on close', () => {
+		const panelRule = extractRuleBlock(
+			appCssSource,
+			'.app-shell-secondary-panel',
+		);
+		expect(panelRule).toMatch(/\boverflow-hidden\b/);
+		expect(panelRule).toContain('visibility: hidden');
+
+		const innerRule = extractRuleBlock(
+			appCssSource,
+			'.app-shell-secondary-panel-inner',
+		);
+		expect(innerRule).toContain('width: var(--publy-shell-panel-width)');
+
+		const closingRule = extractRuleBlock(
+			appCssSource,
+			".app-shell-workspace[data-motion-ready='true'][data-panel-open='false'] > .app-shell-secondary-panel",
+		);
+		expect(closingRule).toContain(
+			'transition: visibility 0s var(--publy-motion-medium)',
+		);
 	});
 });
