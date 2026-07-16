@@ -189,6 +189,7 @@
 	--publy-z-drawer-surface: 80;
 	--publy-z-menu: 100;
 	--publy-z-select: 110;
+	--publy-z-toast: 120;
 	--publy-shadow-ring: 0 0 0 1px var(--publy-border);
 	--publy-shadow-menu:
 		0 12px 32px rgba(24, 24, 27, 0.14), 0 2px 6px rgba(24, 24, 27, 0.06);
@@ -349,6 +350,88 @@ html.dark {
    default utility classes (Badge/Button) that must keep losing — see each
    rule's comment. */
 @layer components {
+	.publy-toast {
+		box-sizing: border-box;
+		width: 100%;
+		max-width: 100%;
+		min-width: 0;
+		min-height: 56px;
+		padding: 12px 42px 12px 14px;
+		gap: 10px;
+		border: 1px solid var(--publy-border);
+		border-radius: var(--publy-radius-control);
+		background: var(--publy-surface-raised);
+		color: var(--publy-foreground);
+		box-shadow: var(--publy-shadow-menu);
+		overflow-wrap: anywhere;
+	}
+
+	.publy-toast-content {
+		min-width: 0;
+		flex: 1 1 auto;
+		overflow-wrap: anywhere;
+	}
+
+	.publy-toast-title,
+	.publy-toast-description {
+		overflow-wrap: anywhere;
+	}
+
+	.publy-toast-icon {
+		flex: 0 0 auto;
+	}
+
+	.publy-toast-success .publy-toast-icon {
+		color: var(--publy-success);
+	}
+
+	.publy-toast-error .publy-toast-icon {
+		color: var(--publy-danger);
+	}
+
+	.publy-toast-warning .publy-toast-icon {
+		color: var(--publy-warning);
+	}
+
+	.publy-toast-info .publy-toast-icon,
+	.publy-toast-default .publy-toast-icon,
+	.publy-toast-loading .publy-toast-icon {
+		color: var(--publy-foreground-muted);
+	}
+
+	.publy-toast-close-button {
+		top: 8px;
+		right: 8px;
+		width: 24px;
+		height: 24px;
+		padding: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border: 1px solid var(--publy-border);
+		border-radius: var(--publy-radius-sm);
+		background: var(--publy-surface);
+		color: var(--publy-foreground-muted);
+		cursor: pointer;
+	}
+
+	.publy-toast-close-button:hover {
+		border-color: var(--publy-border-strong);
+		background: var(--publy-surface-hover);
+		color: var(--publy-foreground);
+	}
+
+	.publy-toast-action-button,
+	.publy-toast-cancel-button {
+		min-width: 0;
+		max-width: 100%;
+		border: 1px solid var(--publy-border);
+		border-radius: var(--publy-radius-sm);
+		background: var(--publy-surface-muted);
+		color: var(--publy-foreground);
+		overflow-wrap: anywhere;
+	}
+
 	html {
 		font-family: var(--publy-font-sans);
 		background: var(--publy-background);

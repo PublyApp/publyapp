@@ -12,7 +12,6 @@ import {
 	IconUserMinus,
 	IconUsers,
 	IconUserX,
-	IconX,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
@@ -50,6 +49,10 @@ import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import { downloadFile, formatExportDateStamp } from '~/lib/download-file';
 import {
+	displayLocalMutationFailure,
+	toastLocalMutationResult,
+} from '~/lib/mutation-toast';
+import {
 	toStaffTenantUserBulkActionSummary,
 	toStaffTenantUserRows,
 	useBulkRemoveStaffTenantUsersMutation,
@@ -73,10 +76,6 @@ import {
 	type TableSearchParams,
 } from '~/lib/url-state/table-search-params';
 
-import {
-	getFailureMessage,
-	toApiFailure,
-} from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { BULK_ACTION_MAX_COUNT } from '@org/shared-ts/lib/constants';
 
 import { InviteTenantUserDrawerHost } from './_invite-user-drawer-host';
@@ -258,12 +257,10 @@ const TenantUserRowActions = ({
 	tenantId,
 	user,
 	onSessionExpired,
-	onFeedback,
 }: {
 	tenantId: string;
 	user: StaffTenantUserRow;
 	onSessionExpired: () => void;
-	onFeedback: (feedback: TenantUserBulkFeedback) => void;
 }) => {
 	const { t } = useTranslation('common');
 	const queryClient = useQueryClient();
@@ -293,23 +290,17 @@ const TenantUserRowActions = ({
 			} else {
 				await removeMutation.mutateAsync({ tenantId, userId: user.id });
 			}
-
-			await invalidateTenantUserQueries();
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
 				onSessionExpired();
 				return;
 			}
-
-			onFeedback({
-				tone: 'error',
-				message: getFailureMessage(toApiFailure(error), {
-					fallback: t('unable-to-update-tenant-user'),
-				}),
-			});
+			return;
 		} finally {
 			setPendingAction(null);
 		}
+
+		await invalidateTenantUserQueries();
 	};
 
 	const dialogConfig = (() => {
@@ -415,7 +406,6 @@ export const makeTenantUserColumns = (
 	tenantId: string,
 	t: (key: string) => string,
 	onSessionExpired: () => void,
-	onFeedback: (feedback: TenantUserBulkFeedback) => void,
 ): ColumnDef<StaffTenantUserRow>[] => [
 	{
 		id: 'name',
@@ -483,7 +473,6 @@ export const makeTenantUserColumns = (
 				tenantId={tenantId}
 				user={row.original}
 				onSessionExpired={onSessionExpired}
-				onFeedback={onFeedback}
 			/>
 		),
 	},
@@ -509,8 +498,6 @@ function StaffTenantUsersPage() {
 	);
 	const { t } = useTranslation('common');
 	const [shouldLogout, setShouldLogout] = useState(false);
-	const [bulkFeedback, setBulkFeedback] =
-		useState<TenantUserBulkFeedback | null>(null);
 
 	const selectedStatuses = parseTenantUserStatusFilter(search.status);
 	const selectedLevels = parseTenantUserLevelFilter(search.level);
@@ -576,8 +563,7 @@ function StaffTenantUsersPage() {
 
 	const onUserSessionExpired = useCallback(() => setShouldLogout(true), []);
 	const columns = useMemo(
-		() =>
-			makeTenantUserColumns(tenantId, t, onUserSessionExpired, setBulkFeedback),
+		() => makeTenantUserColumns(tenantId, t, onUserSessionExpired),
 		[tenantId, t, onUserSessionExpired],
 	);
 
@@ -707,26 +693,6 @@ function StaffTenantUsersPage() {
 					{t('invite-people')}
 				</Button>
 			</div>
-
-			{bulkFeedback ? (
-				<div
-					className="flex items-center gap-1.5 text-xs"
-					data-tone={bulkFeedback.tone}
-					role="status"
-				>
-					<span className={bulkFeedbackToneClassName(bulkFeedback.tone)}>
-						{bulkFeedback.message}
-					</span>
-					<button
-						type="button"
-						aria-label={t('close')}
-						onClick={() => setBulkFeedback(null)}
-						className="text-muted-foreground"
-					>
-						<IconX className="size-3.5" />
-					</button>
-				</div>
-			) : null}
 
 			<DataTable<StaffTenantUserRow>
 				testId="staff-tenant-users-table"
@@ -895,7 +861,6 @@ function StaffTenantUsersPage() {
 					rows={rows}
 					selection={selection}
 					onSessionExpired={() => setShouldLogout(true)}
-					onFeedback={setBulkFeedback}
 				/>
 			</FloatingSelectionBar>
 
@@ -909,30 +874,18 @@ function StaffTenantUsersPage() {
 	);
 }
 
-type TenantUserBulkFeedback = {
-	tone: 'success' | 'error';
-	message: string;
-};
-
-const bulkFeedbackToneClassName = (
-	tone: TenantUserBulkFeedback['tone'],
-): string =>
-	tone === 'error' ? 'text-destructive' : 'text-[var(--publy-success)]';
-
 const TenantUserBulkActions = ({
 	tenantId,
 	tenantCode,
 	rows,
 	selection,
 	onSessionExpired,
-	onFeedback,
 }: {
 	tenantId: string;
 	tenantCode: string | null;
 	rows: StaffTenantUserRow[];
 	selection: UseRowSelectionResult;
 	onSessionExpired: () => void;
-	onFeedback: (feedback: TenantUserBulkFeedback | null) => void;
 }) => {
 	const { t } = useTranslation('common');
 	const queryClient = useQueryClient();
@@ -949,7 +902,10 @@ const TenantUserBulkActions = ({
 		bulkRemoveMutation.isPending || exportMutation.isPending;
 
 	const performExport = async () => {
-		onFeedback(null);
+		if (selectedIds.length === 0 || isOverLimit) {
+			toastLocalMutationResult.error(t('export-failed'));
+			return;
+		}
 
 		let data: ArrayBuffer | undefined;
 		try {
@@ -960,28 +916,34 @@ const TenantUserBulkActions = ({
 				return;
 			}
 
-			onFeedback({
-				tone: 'error',
-				message: getFailureMessage(toApiFailure(error), {
-					fallback: t('export-failed'),
-				}),
-			});
+			await displayLocalMutationFailure(error, t('export-failed'));
 			return;
 		}
 
 		if (!data) {
+			toastLocalMutationResult.error(t('export-failed'));
 			return;
 		}
 
-		downloadFile({
-			data,
-			fileName: `${tenantCode ?? tenantId}-members-${formatExportDateStamp(new Date())}.csv`,
-			mimeType: 'text/csv',
-		});
+		try {
+			downloadFile({
+				data,
+				fileName: `${tenantCode ?? tenantId}-members-${formatExportDateStamp(new Date())}.csv`,
+				mimeType: 'text/csv',
+			});
+		} catch {
+			toastLocalMutationResult.error(t('export-failed'));
+			return;
+		}
+
+		toastLocalMutationResult.success(t('export-completed-success'));
 	};
 
 	const performBulkRemove = async () => {
-		onFeedback(null);
+		if (selectedIds.length === 0 || isOverLimit) {
+			toastLocalMutationResult.error(t('tenant-user-bulk-remove-failure'));
+			return;
+		}
 
 		let result;
 		try {
@@ -996,12 +958,10 @@ const TenantUserBulkActions = ({
 				return;
 			}
 
-			onFeedback({
-				tone: 'error',
-				message: getFailureMessage(toApiFailure(error), {
-					fallback: t('tenant-user-bulk-remove-failure'),
-				}),
-			});
+			await displayLocalMutationFailure(
+				error,
+				t('tenant-user-bulk-remove-failure'),
+			);
 			return;
 		}
 
@@ -1010,18 +970,23 @@ const TenantUserBulkActions = ({
 		await invalidateAllStaffTenantScopes(queryClient);
 
 		const summary = toStaffTenantUserBulkActionSummary(result);
-		onFeedback({
-			tone: summary.failedCount > 0 ? 'error' : 'success',
-			message:
-				summary.failedCount > 0
-					? t('tenant-user-bulk-remove-partial-success', {
-							succeeded: summary.succeededCount,
-							failed: summary.failedCount,
-						})
-					: t('tenant-user-bulk-remove-success', {
-							count: summary.succeededCount,
-						}),
-		});
+		if (summary.failedCount === 0) {
+			toastLocalMutationResult.success(
+				t('tenant-user-bulk-remove-success', {
+					count: summary.succeededCount,
+				}),
+			);
+			return;
+		}
+
+		toastLocalMutationResult.error(
+			summary.succeededCount === 0
+				? t('tenant-user-bulk-remove-failure')
+				: t('tenant-user-bulk-remove-partial-success', {
+						succeeded: summary.succeededCount,
+						failed: summary.failedCount,
+					}),
+		);
 	};
 
 	return (

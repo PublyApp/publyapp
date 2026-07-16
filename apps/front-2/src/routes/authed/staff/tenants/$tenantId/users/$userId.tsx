@@ -28,10 +28,7 @@ import {
 } from '~/lib/query/staff-tenants';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
-import {
-	getFailureMessage,
-	toApiFailure,
-} from '@org/shared-ts/lib/api-failure/to-api-failure';
+import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 import {
 	BackToTenantsLink,
@@ -175,8 +172,6 @@ function StaffTenantUserDetailsPage() {
 	const navigate = Route.useNavigate();
 	const { t, i18n } = useTranslation('common');
 	const queryClient = useQueryClient();
-	const [membershipActionError, setMembershipActionError] = useState('');
-	const [removeActionError, setRemoveActionError] = useState('');
 	const [shouldLogout, setShouldLogout] = useState(false);
 	const [pendingRemove, setPendingRemove] = useState(false);
 	const suspendTenantUserMutation = useSuspendStaffTenantUserMutation();
@@ -290,55 +285,42 @@ function StaffTenantUserDetailsPage() {
 
 	const handleMembershipAction = async (action: 'suspend' | 'reactivate') => {
 		try {
-			setMembershipActionError('');
-
 			if (action === 'suspend') {
 				await suspendTenantUserMutation.mutateAsync({ tenantId, userId });
 			} else {
 				await reactivateTenantUserMutation.mutateAsync({ tenantId, userId });
 			}
-
-			await invalidateTenantUserQueries();
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
 				setShouldLogout(true);
 				return;
 			}
-
-			setMembershipActionError(
-				getFailureMessage(toApiFailure(error), {
-					fallback: t('unable-to-update-tenant-user-membership'),
-				}),
-			);
+			return;
 		}
+
+		await invalidateTenantUserQueries();
 	};
 
 	const handleRemoveAction = async () => {
-		setRemoveActionError('');
-
 		try {
 			await removeTenantUserMutation.mutateAsync({ tenantId, userId });
-			await invalidateTenantUserQueries();
-			void navigate({
-				to: '/staff/tenants/$tenantId/users',
-				params: {
-					tenantId,
-				},
-			});
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
 				setShouldLogout(true);
 				return;
 			}
-
-			setRemoveActionError(
-				getFailureMessage(toApiFailure(error), {
-					fallback: t('unable-to-remove-tenant-user'),
-				}),
-			);
+			return;
 		} finally {
 			setPendingRemove(false);
 		}
+
+		await invalidateTenantUserQueries();
+		void navigate({
+			to: '/staff/tenants/$tenantId/users',
+			params: {
+				tenantId,
+			},
+		});
 	};
 
 	return (
@@ -413,10 +395,6 @@ function StaffTenantUserDetailsPage() {
 							: t('membership-lifecycle-unavailable-status')}
 					</p>
 				) : null}
-
-				{membershipActionError ? (
-					<p className="text-sm text-destructive">{membershipActionError}</p>
-				) : null}
 			</Card>
 
 			<Card className="space-y-4 p-4">
@@ -440,10 +418,6 @@ function StaffTenantUserDetailsPage() {
 						{isRemoveActionPending ? '…' : ''}
 					</Button>
 				</div>
-
-				{removeActionError ? (
-					<p className="text-sm text-destructive">{removeActionError}</p>
-				) : null}
 			</Card>
 
 			<ConfirmDialog

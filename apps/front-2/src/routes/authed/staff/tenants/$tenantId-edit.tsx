@@ -125,6 +125,25 @@ const EMPTY_FORM_VALUES: EditTenantFormValues = {
 	notes: '',
 };
 
+const TENANT_EDIT_FORM_FIELDS = new Set<keyof EditTenantFormValues>([
+	'name',
+	'maxUsers',
+	'logoUrl',
+	'legalName',
+	'description',
+	'websiteUrl',
+	'billingEmail',
+	'supportEmail',
+	'defaultLocale',
+	'timezone',
+	'notes',
+]);
+
+const isTenantEditFormField = (
+	field: string,
+): field is keyof EditTenantFormValues =>
+	TENANT_EDIT_FORM_FIELDS.has(field as keyof EditTenantFormValues);
+
 const normalizeOptionalUpdateString = (
 	value: string | undefined,
 ): string | null | undefined => {
@@ -180,7 +199,6 @@ function StaffTenantEditRoute() {
 	const navigate = Route.useNavigate();
 	const queryClient = useQueryClient();
 	const [shouldLogout, setShouldLogout] = useState(false);
-	const [serverError, setServerError] = useState('');
 	const hasSavedRef = useRef(false);
 	const detailsQuery = useStaffTenantDetailsQuery(
 		{ tenantId },
@@ -318,7 +336,6 @@ function StaffTenantEditRoute() {
 	}
 
 	const onSubmit = handleSubmit(async (values) => {
-		setServerError('');
 		const payload: StaffTenantUpdateInput = { tenantId };
 
 		if (dirtyFields.name && values.name !== undefined) {
@@ -371,25 +388,56 @@ function StaffTenantEditRoute() {
 		}
 
 		try {
+			methods.clearErrors('root.server');
 			await updateTenant.mutateAsync(payload);
-			await invalidateStaffTenants(queryClient);
-			hasSavedRef.current = true;
-			void navigate({
-				to: '/staff/tenants/$tenantId',
-				params: { tenantId },
-			});
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
 				setShouldLogout(true);
 				return;
 			}
 
-			setServerError(
-				getFailureMessage(toApiFailure(error), {
-					fallback: t('tenant-update-failed'),
-				}),
-			);
+			const failure = toApiFailure(error);
+			if (failure.kind === 'validation') {
+				const rootMessages: string[] = [];
+				let mappedFieldCount = 0;
+
+				for (const [field, messages] of Object.entries(failure.fieldErrors)) {
+					if (isTenantEditFormField(field) && messages.length > 0) {
+						mappedFieldCount += 1;
+						methods.setError(field, {
+							type: 'server',
+							message: messages.join(' '),
+						});
+						continue;
+					}
+
+					rootMessages.push(...messages);
+				}
+
+				if (mappedFieldCount === 0 && rootMessages.length === 0) {
+					rootMessages.push(
+						getFailureMessage(failure, {
+							fallback: t('tenant-update-failed'),
+						}),
+					);
+				}
+
+				if (rootMessages.length > 0) {
+					methods.setError('root.server', {
+						type: 'server',
+						message: Array.from(new Set(rootMessages)).join(' '),
+					});
+				}
+			}
+			return;
 		}
+
+		await invalidateStaffTenants(queryClient);
+		hasSavedRef.current = true;
+		void navigate({
+			to: '/staff/tenants/$tenantId',
+			params: { tenantId },
+		});
 	});
 
 	const previewName = watchedName.trim().length > 0 ? watchedName : tenant.name;
@@ -434,6 +482,11 @@ function StaffTenantEditRoute() {
 			</div>
 
 			<Form methods={methods} onSubmit={onSubmit}>
+				{methods.formState.errors.root?.server?.message ? (
+					<p className="text-sm text-destructive" role="alert">
+						{methods.formState.errors.root.server.message}
+					</p>
+				) : null}
 				<div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_320px] lg:gap-9">
 					<div className="order-2 flex min-w-0 flex-col gap-8 lg:order-1">
 						<section className="flex flex-col gap-4">
@@ -650,10 +703,6 @@ function StaffTenantEditRoute() {
 						</div>
 					</aside>
 				</div>
-
-				{serverError ? (
-					<p className="text-sm text-destructive">{serverError}</p>
-				) : null}
 
 				<FormActionBar
 					status={

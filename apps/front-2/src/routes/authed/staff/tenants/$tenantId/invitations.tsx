@@ -46,11 +46,6 @@ import {
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import {
-	getFailureMessage,
-	toApiFailure,
-} from '@org/shared-ts/lib/api-failure/to-api-failure';
-
-import {
 	type InvitationDisplayStatus,
 	type InvitationListSearchParamInput,
 	type InvitationListSearchParams,
@@ -102,22 +97,12 @@ const serializeInvitationRouteSearchParams = (
 	...serializeInviteUserSearchParams(search),
 });
 
-type ActionFeedback = {
-	message: string;
-	tone: 'success' | 'error';
-};
-
 type CreateColumnsArgs = {
 	locale: string;
 	t: (key: string, options?: Record<string, unknown>) => string;
 	isRevokePending: boolean;
 	onRevoke: (row: StaffTenantInvitationRow) => void;
 };
-
-const getFeedbackClassName = (tone: ActionFeedback['tone']): string =>
-	tone === 'success'
-		? 'border-success/20 bg-success/10 text-success'
-		: 'border-destructive/20 bg-destructive/10 text-destructive';
 
 /** `list-helpers.ts`'s own `formatInvitationStatusLabel` capitalizes the raw
  * token instead of translating it; its `getInvitationStatusLabelKey` points
@@ -307,7 +292,6 @@ function StaffTenantInvitationsPage() {
 	) satisfies InvitationRouteSearchParams;
 	const queryClient = useQueryClient();
 	const { i18n, t } = useTranslation('common');
-	const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
 	const [shouldRedirectToLogout, setShouldRedirectToLogout] = useState(false);
 	const [pendingRevokeRowId, setPendingRevokeRowId] = useState<string | null>(
 		null,
@@ -365,35 +349,22 @@ function StaffTenantInvitationsPage() {
 
 	const handleRevoke = useCallback(
 		async (row: StaffTenantInvitationRow) => {
-			setFeedback(null);
-
 			try {
 				await revokeInvitation.mutateAsync({
 					tenantId,
 					invitationId: row.id,
 				});
 				await invalidateAllStaffTenantScopes(queryClient);
-				setFeedback({
-					tone: 'success',
-					message: t('revoke-invitation-success'),
-				});
 			} catch (error) {
 				if (shouldLogoutForFailure(error)) {
 					setShouldRedirectToLogout(true);
 					return;
 				}
-
-				setFeedback({
-					tone: 'error',
-					message: getFailureMessage(toApiFailure(error), {
-						fallback: t('unable-to-revoke-invitation'),
-					}),
-				});
 			} finally {
 				setPendingRevokeRowId(null);
 			}
 		},
-		[queryClient, revokeInvitation, t, tenantId],
+		[queryClient, revokeInvitation, tenantId],
 	);
 
 	const promptRevoke = useCallback((row: StaffTenantInvitationRow) => {
@@ -517,15 +488,6 @@ function StaffTenantInvitationsPage() {
 					{t('invite-people')}
 				</Button>
 			</div>
-
-			{feedback ? (
-				<div
-					className={`rounded-large border px-4 py-3 text-sm ${getFeedbackClassName(feedback.tone)}`}
-					role="status"
-				>
-					{feedback.message}
-				</div>
-			) : null}
 
 			<ConfirmDialog
 				isOpen={pendingRevokeRowId !== null}

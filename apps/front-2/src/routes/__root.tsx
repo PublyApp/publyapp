@@ -14,6 +14,7 @@ import type { i18n as I18nInstance } from 'i18next';
 import * as React from 'react';
 import { I18nextProvider, useTranslation } from 'react-i18next';
 import { Button, buttonVariants } from '~/components/ui/button';
+import { AppToaster } from '~/components/ui/toaster';
 import { AuthBrandProvider } from '~/lib/auth-brand-context';
 import { isAuthPath, isPathForSurface } from '~/lib/auth-paths';
 import { useLogout } from '~/lib/hooks/use-logout';
@@ -25,6 +26,7 @@ import {
 	type I18nResources,
 	type SupportedLanguage,
 } from '~/lib/i18n.shared';
+import { registerMutationToastI18n } from '~/lib/mutation-toast';
 import { subscribeToSessionInvalidated } from '~/lib/session-invalidation-channel';
 import { COLOR_SCHEME_STORAGE_KEY, useUiStore } from '~/lib/store/ui-store';
 import { TabSyncListener } from '~/lib/tab-sync/tab-sync-listener';
@@ -340,7 +342,12 @@ function RootShell({ children }: { children: React.ReactNode }) {
 	const cspNonce = router.options.ssr?.nonce ?? '';
 
 	React.useEffect(() => {
+		registerMutationToastI18n(i18n);
 		void initI18nOnClient(i18n);
+
+		return () => {
+			registerMutationToastI18n(undefined);
+		};
 	}, [i18n]);
 
 	return (
@@ -372,6 +379,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
 					<TabSyncListener />
 					<SessionInvalidationListener />
 					<ThemeHydrationListener />
+					<AppToaster />
 					{children}
 				</I18nextProvider>
 				<Scripts />

@@ -411,6 +411,7 @@ const updateStaffUserMutationOptions = buildStaffMutationOptions<
 			client.staff.users
 				.byUserId(variables.userId)
 				.patch(buildUpdateStaffUserBody(variables)),
+		meta: { silentSuccess: true, skipGlobalErrorHandler: true },
 	},
 	{ clientAccessor: getClientManager() },
 );
@@ -430,6 +431,10 @@ const updateStaffUserEmailMutationOptions = buildStaffMutationOptions<
 						normalizeUpdateStringField(variables.email) ?? null,
 					),
 				),
+		meta: {
+			successMessage: 'staff-user-email-updated-success',
+			validationHandledByForm: true,
+		},
 	},
 	{ clientAccessor: getClientManager() },
 );
@@ -445,6 +450,7 @@ const updateStaffUserProfilesMutationOptions = buildStaffMutationOptions<
 			client.staff.users
 				.byUserId(variables.userId)
 				.profiles.put(buildUpdateStaffUserProfilesBody(variables)),
+		meta: { silentSuccess: true, skipGlobalErrorHandler: true },
 	},
 	{ clientAccessor: getClientManager() },
 );
@@ -458,6 +464,7 @@ const suspendStaffUserMutationOptions = buildStaffMutationOptions<
 		mutationKeyFn: () => ['staff-users', 'suspend'],
 		mutationFn: (client, variables) =>
 			client.staff.users.byUserId(variables.userId).suspend.post(),
+		meta: { successMessage: 'staff-user-suspended-success' },
 	},
 	{ clientAccessor: getClientManager() },
 );
@@ -471,6 +478,7 @@ const reactivateStaffUserMutationOptions = buildStaffMutationOptions<
 		mutationKeyFn: () => ['staff-users', 'reactivate'],
 		mutationFn: (client, variables) =>
 			client.staff.users.byUserId(variables.userId).reactivate.post(),
+		meta: { successMessage: 'staff-user-reactivated-success' },
 	},
 	{ clientAccessor: getClientManager() },
 );
@@ -484,6 +492,7 @@ const deleteStaffUserMutationOptions = buildStaffMutationOptions<
 		mutationKeyFn: () => ['staff-users', 'delete'],
 		mutationFn: (client, variables) =>
 			client.staff.users.byUserId(variables.userId).delete(),
+		meta: { successMessage: 'staff-user-deleted-success' },
 	},
 	{ clientAccessor: getClientManager() },
 );

@@ -18,6 +18,13 @@ const mocks = vi.hoisted(() => ({
 	useUpdateStaffUserEmailMutation: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
 	invalidateStaffUsers: vi.fn().mockResolvedValue(undefined),
+	displayLocalMutationFailure: vi.fn(),
+	toastSuccess: vi.fn(),
+}));
+
+vi.mock('~/lib/mutation-toast', () => ({
+	displayLocalMutationFailure: mocks.displayLocalMutationFailure,
+	toastLocalMutationResult: { success: mocks.toastSuccess },
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -285,6 +292,113 @@ describe('ChangeStaffUserEmailDialog', () => {
 			).toBeTruthy(),
 		);
 		expect(screen.queryByText('That email is already in use.')).toBeNull();
+		expect(screen.queryByRole('alert')).toBeNull();
+		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+	});
+
+	test('shows both the email error and root summary for mixed validation fields', async () => {
+		mocks.updateEmailMutation.mockRejectedValue({
+			status: 422,
+			responseStatusCode: 422,
+			errors: {
+				Email: ['That email is already in use.'],
+				UserId: ['User is invalid.'],
+			},
+		});
+
+		render(
+			<ChangeStaffUserEmailDialog
+				userId="user-1"
+				currentEmail="rui@latticecloud.com"
+				isOpen
+				onOpenChange={vi.fn()}
+				onUpdated={vi.fn()}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		fireEvent.change(screen.getByLabelText('Email'), {
+			target: { value: 'taken@latticecloud.com' },
+		});
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Save changes' }).closest('form')!,
+		);
+
+		await waitFor(() =>
+			expect(
+				screen.getAllByText("Unable to update this user's email."),
+			).toHaveLength(2),
+		);
+		expect(screen.getByRole('alert').textContent).toBe(
+			"Unable to update this user's email.",
+		);
+		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+	});
+
+	test('leaves general failures to central feedback without a persistent result block', async () => {
+		mocks.updateEmailMutation.mockRejectedValue({
+			status: 500,
+			detail: 'Email update failed',
+		});
+
+		render(
+			<ChangeStaffUserEmailDialog
+				userId="user-1"
+				currentEmail="rui@latticecloud.com"
+				isOpen
+				onOpenChange={vi.fn()}
+				onUpdated={vi.fn()}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		fireEvent.change(screen.getByLabelText('Email'), {
+			target: { value: 'new-email@latticecloud.com' },
+		});
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Save changes' }).closest('form')!,
+		);
+
+		await waitFor(() =>
+			expect(mocks.updateEmailMutation).toHaveBeenCalledOnce(),
+		);
+		expect(screen.queryByRole('alert')).toBeNull();
+		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
+	});
+
+	test('shows an inline root fallback for validation fields outside the email control', async () => {
+		mocks.updateEmailMutation.mockRejectedValue({
+			status: 422,
+			errors: { UserId: ['User is invalid'] },
+		});
+
+		render(
+			<ChangeStaffUserEmailDialog
+				userId="user-1"
+				currentEmail="rui@latticecloud.com"
+				isOpen
+				onOpenChange={vi.fn()}
+				onUpdated={vi.fn()}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		fireEvent.change(screen.getByLabelText('Email'), {
+			target: { value: 'new-email@latticecloud.com' },
+		});
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Save changes' }).closest('form')!,
+		);
+
+		await waitFor(() =>
+			expect(
+				screen.getByText("Unable to update this user's email."),
+			).toBeTruthy(),
+		);
+		expect(screen.getByRole('alert')).toBeTruthy();
+		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
 	});
 
 	test('redirects to logout when the update should end the session', async () => {

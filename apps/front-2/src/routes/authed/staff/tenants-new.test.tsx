@@ -19,6 +19,8 @@ const mocks = vi.hoisted(() => ({
 	useCreateStaffTenantMutation: vi.fn(),
 	useUpdateStaffTenantMutation: vi.fn(),
 	shouldLogoutForFailure: vi.fn((_: unknown) => false),
+	toastSuccess: vi.fn(),
+	toastError: vi.fn(),
 	blockerResolver: {
 		status: 'idle' as 'idle' | 'blocked',
 		proceed: undefined as (() => void) | undefined,
@@ -280,7 +282,12 @@ vi.mock('~/components/field', () => ({
 			isDisabled?: boolean;
 			type?: string;
 		}) => {
-			const { register } = useFormContext();
+			const {
+				register,
+				formState: { errors },
+			} = useFormContext();
+			const message = (errors[name] as { message?: string } | undefined)
+				?.message;
 
 			return createElement(
 				'label',
@@ -293,6 +300,7 @@ vi.mock('~/components/field', () => ({
 					type: type ?? 'text',
 					...register(name),
 				}),
+				message ? createElement('span', undefined, message) : null,
 			);
 		},
 		Email: ({
@@ -446,6 +454,13 @@ vi.mock('~/lib/query/staff-tenants', () => ({
 
 vi.mock('~/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
+}));
+
+vi.mock('~/lib/mutation-toast', () => ({
+	toastLocalMutationResult: {
+		success: mocks.toastSuccess,
+		error: mocks.toastError,
+	},
 }));
 
 import { Route } from './tenants-new';
@@ -1163,7 +1178,7 @@ describe('staff tenant create route', () => {
 		);
 	});
 
-	test('shows an inline error for ordinary non-401 failures and stays on the page', async () => {
+	test('leaves ordinary non-401 failure feedback to the central toast owner', async () => {
 		mocks.mutateAsync.mockRejectedValue({
 			status: 400,
 			responseStatusCode: 400,
@@ -1183,9 +1198,7 @@ describe('staff tenant create route', () => {
 		await confirmCreate();
 
 		await waitFor(() => expect(mocks.mutateAsync).toHaveBeenCalled());
-		await waitFor(() =>
-			expect(screen.getByText('Tenant name is already used.')).toBeTruthy(),
-		);
+		expect(screen.queryByText('Tenant name is already used.')).toBeNull();
 
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 		expect(mocks.navigate).not.toHaveBeenCalled();
@@ -1222,6 +1235,66 @@ describe('staff tenant create route', () => {
 			).toBeTruthy(),
 		);
 		expect(mocks.navigate).not.toHaveBeenCalled();
+	});
+
+	test('maps a server validation error for a known create field inline', async () => {
+		mocks.mutateAsync.mockRejectedValue({
+			status: 422,
+			responseStatusCode: 422,
+			title: 'Validation failed',
+			detail: 'The tenant payload is invalid.',
+			errors: { Name: ['This organization name is unavailable.'] },
+		});
+
+		renderPage();
+
+		fillOrganizationName('Acme Corporation');
+		fireEvent.change(getEmailInputs()[0]!, {
+			target: { value: 'owner@acme.com' },
+		});
+		submitForm();
+		await confirmCreate();
+
+		await waitFor(() =>
+			expect(
+				screen.getByText('This organization name is unavailable.'),
+			).toBeTruthy(),
+		);
+		expect(mocks.navigate).not.toHaveBeenCalled();
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+		expect(mocks.toastError).not.toHaveBeenCalled();
+	});
+
+	test('shows unmappable initial-user validation in an inline form summary', async () => {
+		mocks.mutateAsync.mockRejectedValue({
+			status: 422,
+			responseStatusCode: 422,
+			title: 'Validation failed',
+			detail: 'The tenant payload is invalid.',
+			errors: {
+				InitialUsers: ['One or more initial users cannot be invited.'],
+			},
+		});
+
+		renderPage();
+
+		fillOrganizationName('Acme Corporation');
+		fireEvent.change(getEmailInputs()[0]!, {
+			target: { value: 'owner@acme.com' },
+		});
+		submitForm();
+		await confirmCreate();
+
+		await waitFor(() =>
+			expect(
+				screen.getByRole('alert', {
+					name: 'One or more initial users cannot be invited.',
+				}),
+			).toBeTruthy(),
+		);
+		expect(mocks.navigate).not.toHaveBeenCalled();
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+		expect(mocks.toastError).not.toHaveBeenCalled();
 	});
 
 	test('parses an uploaded CSV file and merges the valid rows into the submitted initialUsers', async () => {

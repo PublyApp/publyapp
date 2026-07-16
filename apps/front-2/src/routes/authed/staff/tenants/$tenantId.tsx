@@ -42,11 +42,6 @@ import {
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import {
-	getFailureMessage,
-	toApiFailure,
-} from '@org/shared-ts/lib/api-failure/to-api-failure';
-
-import {
 	formatShortDate,
 	formatTenantStatusLabel,
 	formatTenantUserLevelLabel,
@@ -432,7 +427,6 @@ function StaffTenantDetailsPage() {
 	const queryClient = useQueryClient();
 	const [pendingAction, setPendingAction] =
 		useState<PendingLifecycleAction>(null);
-	const [actionError, setActionError] = useState('');
 	const [shouldLogout, setShouldLogout] = useState(false);
 
 	const suspendMutation = useSuspendStaffTenantMutation();
@@ -509,7 +503,6 @@ function StaffTenantDetailsPage() {
 		}
 
 		const action = pendingAction;
-		setActionError('');
 
 		try {
 			if (action === 'suspend') {
@@ -517,31 +510,19 @@ function StaffTenantDetailsPage() {
 			} else {
 				await reactivateMutation.mutateAsync({ tenantId: tenant.id });
 			}
-
-			await invalidateTenantQueries();
 		} catch (error) {
+			setPendingAction(null);
 			if (shouldLogoutForFailure(error)) {
 				setShouldLogout(true);
-				return;
 			}
-
-			setActionError(
-				getFailureMessage(toApiFailure(error), {
-					fallback: t(
-						action === 'suspend'
-							? 'unable-to-suspend-tenant'
-							: 'unable-to-reactivate-tenant',
-					),
-				}),
-			);
-		} finally {
-			setPendingAction(null);
+			return;
 		}
+
+		setPendingAction(null);
+		await invalidateTenantQueries();
 	};
 
 	const handleDeleteConfirm = async () => {
-		setActionError('');
-
 		try {
 			await deleteMutation.mutateAsync({ tenantId: tenant.id });
 		} catch (error) {
@@ -550,12 +531,6 @@ function StaffTenantDetailsPage() {
 				setShouldLogout(true);
 				return;
 			}
-
-			setActionError(
-				getFailureMessage(toApiFailure(error), {
-					fallback: t('unable-to-delete-tenant'),
-				}),
-			);
 			return;
 		}
 
@@ -714,11 +689,6 @@ function StaffTenantDetailsPage() {
 							}
 						/>
 					</DangerZoneCard>
-					{actionError ? (
-						<p className="text-xs text-destructive" role="alert">
-							{actionError}
-						</p>
-					) : null}
 				</DetailAside>
 			</DetailGrid>
 

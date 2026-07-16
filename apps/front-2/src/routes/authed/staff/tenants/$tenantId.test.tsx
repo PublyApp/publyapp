@@ -474,6 +474,26 @@ describe('staff tenant details route', () => {
 			});
 		});
 		expect(mocks.invalidateQueries).toHaveBeenCalled();
+		expect(screen.queryByRole('alert')).toBeNull();
+	});
+
+	test('leaves lifecycle failures to central mutation feedback without a local alert', async () => {
+		mocks.suspendTenantMutation.mockRejectedValue({
+			status: 400,
+			responseStatusCode: 400,
+			title: 'Invalid tenant',
+			detail: 'This tenant cannot be suspended.',
+		});
+		renderPage();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Suspend' }));
+		const dialog = await screen.findByRole('alertdialog');
+		fireEvent.click(within(dialog).getByRole('button', { name: 'Suspend' }));
+
+		await waitFor(() => expect(mocks.suspendTenantMutation).toHaveBeenCalled());
+		expect(screen.queryByRole('alert')).toBeNull();
+		expect(screen.queryByText('This tenant cannot be suspended.')).toBeNull();
+		expect(mocks.invalidateQueries).not.toHaveBeenCalled();
 	});
 
 	test('confirming Delete calls the delete mutation and navigates back to the tenants list', async () => {

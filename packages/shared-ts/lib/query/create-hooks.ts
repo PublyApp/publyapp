@@ -1,5 +1,6 @@
 import { toApiFailure } from '../api-failure/to-api-failure';
 import type { ApiFailure } from '../api-failure/types';
+import type { MutationFeedbackMeta } from '../mutation-feedback/types';
 import type { QueryKeySegment } from './keys';
 import type {
 	QueryScope,
@@ -34,7 +35,9 @@ type BaseQueryOptions<TError = Error> = QueryBaseOptions<TError>;
 
 type BaseSuspenseQueryOptions<TError = Error> = QueryBaseOptions<TError>;
 
-type BaseMutationOptions<TError = Error> = QueryBaseOptions<TError>;
+type BaseMutationOptions<TError = Error> = QueryBaseOptions<TError> & {
+	meta: MutationFeedbackMeta;
+};
 
 type TenantQueryConfig<
 	TApiClient,

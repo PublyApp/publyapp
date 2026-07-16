@@ -1,10 +1,20 @@
 import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query';
 import { createRouter } from '@tanstack/react-router';
 import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query';
+import { displayMutationFeedback } from '~/lib/mutation-toast';
 import { triggerSessionInvalidated } from '~/lib/session-invalidation-channel';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import {
+	resolveMutationFailureIntent,
+	resolveMutationSuccessIntent,
+} from '@org/shared-ts/lib/mutation-feedback/policy';
+import type {
+	MutationFailureFeedback,
+	MutationSuccessFeedback,
+} from '@org/shared-ts/lib/mutation-feedback/types';
 
 import { routeTree } from './routeTree.gen';
 
@@ -49,8 +59,28 @@ export const shouldRetryQuery = (
  * Backstop source shape shared by `Query`/`Mutation` — both expose a `.meta`
  * getter that mirrors their options' `meta`.
  */
-type AuthedErrorBackstopSource = {
-	meta?: { skipAuthedErrorBackstop?: boolean };
+type MutationHandlerMeta = MutationFailureFeedback & {
+	successMessage?: string;
+	showSuccessToast?: boolean;
+	silentSuccess?: boolean;
+};
+
+type MutationHandlerSource = {
+	meta?: MutationHandlerMeta;
+};
+
+type AuthedErrorBackstopSource = Pick<MutationHandlerSource, 'meta'>;
+
+const displayNonSilentMutationIntent = (
+	intent: Parameters<typeof displayMutationFeedback>[0],
+): void => {
+	if (intent.kind === 'silent') {
+		return;
+	}
+
+	void displayMutationFeedback(intent).catch((error: unknown) => {
+		logger.error('[Mutation Toast Handler Error]', { error });
+	});
 };
 
 /**
@@ -92,6 +122,38 @@ export const handleAuthedQueryError = (
 	}
 };
 
+export const handleMutationError = (
+	error: unknown,
+	source: MutationHandlerSource = {},
+): void => {
+	handleAuthedQueryError(error, source);
+
+	const intent = resolveMutationFailureIntent(
+		toApiFailure(error),
+		source.meta ?? {},
+	);
+	displayNonSilentMutationIntent(intent);
+};
+
+const hasSuccessMetadata = (
+	meta: MutationHandlerMeta | undefined,
+): meta is MutationSuccessFeedback =>
+	meta?.successMessage !== undefined ||
+	meta?.showSuccessToast === true ||
+	meta?.silentSuccess === true;
+
+export const handleMutationSuccess = (
+	data: unknown,
+	source: MutationHandlerSource = {},
+): void => {
+	if (!hasSuccessMetadata(source.meta)) {
+		return;
+	}
+
+	const intent = resolveMutationSuccessIntent(data, source.meta);
+	displayNonSilentMutationIntent(intent);
+};
+
 export function getRouter() {
 	const queryClient = new QueryClient({
 		defaultOptions: {
@@ -103,7 +165,9 @@ export function getRouter() {
 		queryCache: new QueryCache({ onError: handleAuthedQueryError }),
 		mutationCache: new MutationCache({
 			onError: (error, _variables, _onMutateResult, mutation) =>
-				handleAuthedQueryError(error, mutation),
+				handleMutationError(error, mutation),
+			onSuccess: (data, _variables, _onMutateResult, mutation) =>
+				handleMutationSuccess(data, mutation),
 		}),
 	});
 	const router = createRouter({

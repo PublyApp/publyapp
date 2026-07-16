@@ -418,6 +418,10 @@ const createStaffTenantUserInvitationMutationOptions =
 							accountLevel: variables.accountLevel,
 						}),
 					),
+			meta: {
+				successMessage: 'invitation-sent-success',
+				validationHandledByForm: true,
+			},
 		},
 		{ clientAccessor: getClientManager() },
 	);
@@ -457,6 +461,10 @@ const updateStaffTenantUserMutationOptions = buildStaffMutationOptions<
 				.byTenantId(variables.tenantId)
 				.users.byUserId(variables.userId)
 				.patch(buildUpdateStaffTenantUserBody(variables)),
+		meta: {
+			successMessage: 'tenant-user-updated-success',
+			validationHandledByForm: true,
+		},
 	},
 	{ clientAccessor: getClientManager() },
 );
@@ -476,6 +484,7 @@ const suspendTenantUserMutationOptions = buildStaffMutationOptions<
 				.byTenantId(variables.tenantId)
 				.users.byUserId(variables.userId)
 				.suspend.post(),
+		meta: { successMessage: 'tenant-user-suspended-success' },
 	},
 	{ clientAccessor: getClientManager() },
 );
@@ -495,6 +504,7 @@ const reactivateTenantUserMutationOptions = buildStaffMutationOptions<
 				.byTenantId(variables.tenantId)
 				.users.byUserId(variables.userId)
 				.reactivate.post(),
+		meta: { successMessage: 'tenant-user-reactivated-success' },
 	},
 	{ clientAccessor: getClientManager() },
 );
@@ -511,6 +521,7 @@ export const removeStaffTenantUserMutationOptions = buildStaffMutationOptions<
 				.byTenantId(variables.tenantId)
 				.users.byUserId(variables.userId)
 				.delete(),
+		meta: { successMessage: 'tenant-user-removed-success' },
 	},
 	{ clientAccessor: getClientManager() },
 );
@@ -529,6 +540,7 @@ export const bulkRemoveStaffTenantUsersMutationOptions =
 					.users.bulkRemove.post(
 						buildBulkRemoveStaffTenantUsersBody(variables.userIds),
 					),
+			meta: { silentSuccess: true, skipGlobalErrorHandler: true },
 		},
 		{ clientAccessor: getClientManager() },
 	);
@@ -547,6 +559,7 @@ export const exportStaffTenantUsersMutationOptions = buildStaffMutationOptions<
 					queryParameters:
 						buildExportStaffTenantUsersQueryParameters(variables),
 				}),
+		meta: { silentSuccess: true, skipGlobalErrorHandler: true },
 	},
 	{ clientAccessor: getClientManager() },
 );

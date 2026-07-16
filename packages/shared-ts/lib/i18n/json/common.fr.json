@@ -1298,5 +1298,20 @@
 	"seo-login-title": "Connexion à PublyApp",
 	"seo-login-description": "Connectez-vous à votre espace de travail PublyApp pour commencer.",
 	"auth-precheck-unavailable-title": "Impossible de vérifier ce lien",
-	"auth-precheck-unavailable-description": "Cela ressemble à un problème de connexion temporaire, pas à un lien invalide. Veuillez réessayer."
+	"auth-precheck-unavailable-description": "Cela ressemble à un problème de connexion temporaire, pas à un lien invalide. Veuillez réessayer.",
+	"tenant-created-success": "Locataire créé avec succès.",
+	"tenant-updated-success": "Locataire mis à jour avec succès.",
+	"tenant-deleted-success": "Locataire supprimé avec succès.",
+	"tenant-suspended-success": "Locataire suspendu avec succès.",
+	"tenant-reactivated-success": "Locataire réactivé avec succès.",
+	"profile-updated-successfully": "Profil mis à jour avec succès.",
+	"profile-deleted-successfully": "Profil supprimé avec succès.",
+	"staff-user-updated-success": "Utilisateur du personnel mis à jour avec succès.",
+	"staff-user-deleted-success": "Utilisateur du personnel supprimé avec succès.",
+	"tenant-user-updated-success": "Utilisateur du locataire mis à jour avec succès.",
+	"tenant-user-removed-success": "Utilisateur retiré du locataire avec succès.",
+	"permission-assigned-success": "Autorisation attribuée avec succès.",
+	"permission-unassigned-success": "Autorisation retirée avec succès.",
+	"image-uploaded-success": "Image importée avec succès.",
+	"export-completed-success": "Export téléchargé avec succès."
 }

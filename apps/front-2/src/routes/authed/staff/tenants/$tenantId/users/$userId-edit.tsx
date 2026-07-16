@@ -214,7 +214,7 @@ function StaffTenantUserEditPage() {
 	const { t, i18n } = useTranslation('common');
 	const queryClient = useQueryClient();
 	const [shouldLogout, setShouldLogout] = useState(false);
-	const [serverError, setServerError] = useState('');
+	const [rootValidationError, setRootValidationError] = useState('');
 	const hasSavedRef = useRef(false);
 
 	const tenantQuery = useStaffTenantDetailsQuery(
@@ -384,14 +384,8 @@ function StaffTenantUserEditPage() {
 		}
 
 		try {
-			setServerError('');
+			setRootValidationError('');
 			await updateTenantUser.mutateAsync(payload);
-			await invalidateAllStaffTenantScopes(queryClient);
-			hasSavedRef.current = true;
-			void navigate({
-				to: '/staff/tenants/$tenantId/users/$userId',
-				params: { tenantId, userId },
-			});
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
 				setShouldLogout(true);
@@ -399,25 +393,38 @@ function StaffTenantUserEditPage() {
 			}
 
 			const failure = toApiFailure(error);
-			if (
-				failure.kind === 'validation' &&
-				(failure.fieldErrors.avatarUrl?.length ?? 0) > 0
-			) {
-				methods.setError('avatarUrl', {
-					type: 'server',
-					message: getFailureMessage(failure, {
-						fallback: t('tenant-user-update-failed'),
-					}),
-				});
-				return;
-			}
+			if (failure.kind === 'validation') {
+				const hasAvatarUrlError =
+					(failure.fieldErrors.avatarUrl?.length ?? 0) > 0;
+				if (hasAvatarUrlError) {
+					methods.setError('avatarUrl', {
+						type: 'server',
+						message: getFailureMessage(failure, {
+							fallback: t('tenant-user-update-failed'),
+						}),
+					});
+				}
 
-			setServerError(
-				getFailureMessage(failure, {
-					fallback: t('tenant-user-update-failed'),
-				}),
-			);
+				const hasUnmappedError = Object.keys(failure.fieldErrors).some(
+					(field) => field !== 'avatarUrl',
+				);
+				if (!hasAvatarUrlError || hasUnmappedError) {
+					setRootValidationError(
+						getFailureMessage(failure, {
+							fallback: t('tenant-user-update-failed'),
+						}),
+					);
+				}
+			}
+			return;
 		}
+
+		await invalidateAllStaffTenantScopes(queryClient);
+		hasSavedRef.current = true;
+		void navigate({
+			to: '/staff/tenants/$tenantId/users/$userId',
+			params: { tenantId, userId },
+		});
 	});
 
 	const isSubmittingForm = isSubmitting || updateTenantUser.isPending;
@@ -480,8 +487,10 @@ function StaffTenantUserEditPage() {
 						isDisabled={isSubmittingForm}
 					/>
 
-					{serverError ? (
-						<p className="text-sm text-destructive">{serverError}</p>
+					{rootValidationError ? (
+						<p className="text-sm text-destructive" role="alert">
+							{rootValidationError}
+						</p>
 					) : null}
 
 					<div className="flex justify-end">

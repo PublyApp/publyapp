@@ -155,6 +155,29 @@ Front-2 preserves the hard RFC 7807 logout split:
 Keep this split in layout error boundaries, TanStack Query error handling, and any future
 `AppErrorView` wrappers.
 
+## Mutation Feedback Ownership
+
+User-command mutation successes and general mutation failures produce one
+toast. Handled 422 field validation stays inline without a duplicate toast,
+but its form must map every field error or show an exhaustive visible
+root/summary fallback. Query failures remain persistent. Aborts and mutation
+401s are silent; the 401 backstop still expires the session.
+
+The global owner is `router.tsx`'s `MutationCache`; `QueryCache` remains
+query/auth-only. Direct `useMutation(...)` construction belongs in
+`src/lib/query`. Compound, bulk, export, and upload flows must name exactly one
+global or local feedback owner. Use the current `MutationFeedbackMeta` fields:
+`successMessage` for a translated global success, `silentSuccess` for locally
+owned success, `validationHandledByForm` for exhaustively rendered inline
+validation, and `skipGlobalErrorHandler` for a named local failure owner. Do
+not configure front-2 factories with `handlers.onToast`, because that shared
+seam also handles query failures.
+
+Pure mutation-feedback policy stays in `@org/shared-ts`. Sonner presentation
+stays local to `components/ui/toaster.tsx` and `lib/mutation-toast.ts`. The
+executable guard is
+`apps/front-2/src/lib/mutation-feedback-architecture.test.ts`.
+
 ## Product UI Design Preferences (owner-ratified)
 
 These are standing design decisions Radan has ratified across the front-2 parity review

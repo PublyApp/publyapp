@@ -18,6 +18,10 @@ const mocks = vi.hoisted(() => ({
 	useResendStaffInvitationMutation: vi.fn(),
 	useRevokeStaffInvitationMutation: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
+	displayLocalMutationFailure: vi.fn().mockResolvedValue(undefined),
+	toastSuccess: vi.fn(),
+	toastInfo: vi.fn(),
+	invalidateStaffInvitations: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@tanstack/react-router', () => ({
@@ -77,11 +81,19 @@ vi.mock('~/lib/query/staff-invitations', () => ({
 	useStaffInvitationLinkMutation: mocks.useStaffInvitationLinkMutation,
 	useResendStaffInvitationMutation: mocks.useResendStaffInvitationMutation,
 	useRevokeStaffInvitationMutation: mocks.useRevokeStaffInvitationMutation,
-	invalidateStaffInvitations: vi.fn().mockResolvedValue(undefined),
+	invalidateStaffInvitations: mocks.invalidateStaffInvitations,
 }));
 
 vi.mock('~/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
+}));
+
+vi.mock('~/lib/mutation-toast', () => ({
+	displayLocalMutationFailure: mocks.displayLocalMutationFailure,
+	toastLocalMutationResult: {
+		success: mocks.toastSuccess,
+		info: mocks.toastInfo,
+	},
 }));
 
 vi.mock('~/components/error-views/LogoutRedirect', () => ({
@@ -99,6 +111,18 @@ const buildQueryResult = (overrides: Record<string, unknown> = {}) => ({
 	refetch: vi.fn().mockResolvedValue(undefined),
 	...overrides,
 });
+
+const pendingInvitation = {
+	id: '11111111-1111-1111-1111-111111111111',
+	email: 'pending-staff@example.com',
+	status: 'Pending',
+	invitedByName: 'Owner User',
+	createdAt: new Date('2026-07-01T09:00:00Z'),
+	expiresAt: new Date('2026-07-10T12:00:00Z'),
+	acceptedAt: null,
+	revokedAt: null,
+	profiles: [],
+};
 
 const renderPage = () => {
 	const queryClient = new QueryClient();
@@ -258,9 +282,10 @@ describe('StaffInvitationDetailsPage', () => {
 		await waitFor(() =>
 			expect(screen.getByTestId('logout-redirect')).toBeTruthy(),
 		);
+		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
 	});
 
-	test('shows an inline resend error for a forbidden action without logging out', async () => {
+	test('relies on central feedback for a forbidden resend without rendering an alert', async () => {
 		const resend = vi.fn().mockRejectedValue({
 			status: 403,
 			responseStatusCode: 403,
@@ -292,7 +317,156 @@ describe('StaffInvitationDetailsPage', () => {
 		fireEvent.click(screen.getByRole('button', { name: 'Resend' }));
 
 		await waitFor(() => expect(resend).toHaveBeenCalledTimes(1));
-		await waitFor(() => expect(screen.getByText('Forbidden')).toBeTruthy());
+		expect(screen.queryByRole('alert')).toBeNull();
+		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
+	});
+
+	test('toasts copy success only after the clipboard write completes', async () => {
+		let finishWrite: (() => void) | undefined;
+		const writeText = vi.fn(
+			() =>
+				new Promise<void>((resolve) => {
+					finishWrite = resolve;
+				}),
+		);
+		Object.assign(globalThis.navigator, { clipboard: { writeText } });
+		mocks.useStaffInvitationDetailsQuery.mockReturnValue(
+			buildQueryResult({ data: pendingInvitation }),
+		);
+
+		renderPage();
+		fireEvent.click(screen.getByRole('button', { name: 'Copy link' }));
+
+		await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+		finishWrite?.();
+		await waitFor(() =>
+			expect(mocks.toastSuccess).toHaveBeenCalledWith('Invite link copied.'),
+		);
+		expect(screen.queryByRole('status')).toBeNull();
+	});
+
+	test('retains the link and emits info when the Clipboard API is unavailable', async () => {
+		Object.assign(globalThis.navigator, { clipboard: undefined });
+		mocks.useStaffInvitationDetailsQuery.mockReturnValue(
+			buildQueryResult({ data: pendingInvitation }),
+		);
+
+		renderPage();
+		fireEvent.click(screen.getByRole('button', { name: 'Copy link' }));
+
+		await waitFor(() =>
+			expect(mocks.toastInfo).toHaveBeenCalledWith(
+				'Invite link is ready below.',
+			),
+		);
+		expect(
+			(
+				screen.getByDisplayValue(
+					'https://front-2.localhost/invitations/accept/token',
+				) as HTMLInputElement
+			).value,
+		).toContain('/invitations/accept/token');
+		expect(screen.queryByRole('status')).toBeNull();
+	});
+
+	test('delegates a copy failure to the local mutation failure adapter once', async () => {
+		const error = new Error('clipboard failed');
+		Object.assign(globalThis.navigator, {
+			clipboard: { writeText: vi.fn().mockRejectedValue(error) },
+		});
+		mocks.useStaffInvitationDetailsQuery.mockReturnValue(
+			buildQueryResult({ data: pendingInvitation }),
+		);
+
+		renderPage();
+		fireEvent.click(screen.getByRole('button', { name: 'Copy link' }));
+
+		await waitFor(() =>
+			expect(mocks.displayLocalMutationFailure).toHaveBeenCalledWith(
+				error,
+				'unable-to-copy-invite-link',
+			),
+		);
+		expect(mocks.displayLocalMutationFailure).toHaveBeenCalledTimes(1);
+	});
+
+	test('keeps a 401 copy failure toast-silent and redirects to logout', async () => {
+		const error = {
+			status: 401,
+			responseStatusCode: 401,
+			title: 'Unauthorized',
+			detail: 'Unauthorized',
+		};
+		mocks.shouldLogoutForFailure.mockReturnValue(true);
+		mocks.useStaffInvitationLinkMutation.mockReturnValue({
+			mutateAsync: vi.fn().mockRejectedValue(error),
+			isPending: false,
+		});
+		mocks.useStaffInvitationDetailsQuery.mockReturnValue(
+			buildQueryResult({ data: pendingInvitation }),
+		);
+
+		renderPage();
+		fireEvent.click(screen.getByRole('button', { name: 'Copy link' }));
+
+		await waitFor(() =>
+			expect(screen.getByTestId('logout-redirect')).toBeTruthy(),
+		);
+		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+		expect(mocks.toastInfo).not.toHaveBeenCalled();
+	});
+
+	test('keeps an aborted copy toast-silent through the local policy adapter', async () => {
+		const error = new DOMException('Aborted', 'AbortError');
+		mocks.useStaffInvitationLinkMutation.mockReturnValue({
+			mutateAsync: vi.fn().mockRejectedValue(error),
+			isPending: false,
+		});
+		mocks.useStaffInvitationDetailsQuery.mockReturnValue(
+			buildQueryResult({ data: pendingInvitation }),
+		);
+
+		renderPage();
+		fireEvent.click(screen.getByRole('button', { name: 'Copy link' }));
+
+		await waitFor(() =>
+			expect(mocks.displayLocalMutationFailure).toHaveBeenCalledWith(
+				error,
+				'unable-to-copy-invite-link',
+			),
+		);
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+		expect(mocks.toastInfo).not.toHaveBeenCalled();
+	});
+
+	test('revokes with central feedback ownership while retaining refresh and dialog closure', async () => {
+		const revoke = vi.fn().mockResolvedValue({});
+		const refetch = vi.fn().mockResolvedValue(undefined);
+		mocks.useRevokeStaffInvitationMutation.mockReturnValue({
+			mutateAsync: revoke,
+			isPending: false,
+		});
+		mocks.useStaffInvitationDetailsQuery.mockReturnValue(
+			buildQueryResult({ data: pendingInvitation, refetch }),
+		);
+
+		renderPage();
+		fireEvent.click(screen.getByRole('button', { name: 'Revoke' }));
+		await waitFor(() =>
+			expect(screen.getByText('revoke-invitation')).toBeTruthy(),
+		);
+		fireEvent.click(
+			screen.getAllByRole('button', { name: 'revoke' }).slice(-1)[0],
+		);
+
+		await waitFor(() => expect(revoke).toHaveBeenCalledTimes(1));
+		await waitFor(() => expect(refetch).toHaveBeenCalledTimes(1));
+		expect(mocks.invalidateStaffInvitations).toHaveBeenCalledTimes(1);
+		expect(screen.queryByText('revoke')).toBeNull();
+		expect(screen.queryByRole('status')).toBeNull();
+		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
 	});
 });

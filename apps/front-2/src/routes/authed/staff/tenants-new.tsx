@@ -108,6 +108,27 @@ const DEFAULT_VALUES: TenantCreateFormValues = {
 	notes: '',
 };
 
+const CREATE_TENANT_API_FORM_FIELDS = new Set<keyof TenantCreateFormValues>([
+	'name',
+	'code',
+	'maxUsers',
+	'seedDefaultProfile',
+	'logoUrl',
+	'legalName',
+	'description',
+	'websiteUrl',
+	'billingEmail',
+	'supportEmail',
+	'defaultLocale',
+	'timezone',
+	'notes',
+]);
+
+const isCreateTenantFormField = (
+	field: string,
+): field is keyof TenantCreateFormValues =>
+	CREATE_TENANT_API_FORM_FIELDS.has(field as keyof TenantCreateFormValues);
+
 const USER_ROLE_OPTIONS = [
 	ACCOUNT_LEVEL_ENUM.ADMIN,
 	ACCOUNT_LEVEL_ENUM.USER,
@@ -417,7 +438,6 @@ function StaffTenantCreateRoute() {
 	const { t, i18n } = useTranslation('common');
 	const queryClient = useQueryClient();
 	const [shouldLogout, setShouldLogout] = useState(false);
-	const [serverError, setServerError] = useState('');
 	const [pendingCreateValues, setPendingCreateValues] =
 		useState<TenantCreateFormValues | null>(null);
 	const [parsedFile, setParsedFile] = useState<{
@@ -548,6 +568,8 @@ function StaffTenantCreateRoute() {
 		| undefined;
 	const ownersError =
 		ownersRootError?.root?.message ?? ownersRootError?.message;
+	const seedDefaultProfileError = errors.seedDefaultProfile?.message;
+	const rootServerValidationError = errors.root?.server?.message;
 
 	const canAddOwner =
 		ownerFields.length + manualMemberFields.length + parsedValidMembers.length <
@@ -583,8 +605,6 @@ function StaffTenantCreateRoute() {
 	};
 
 	const performCreate = async (values: TenantCreateFormValues) => {
-		setServerError('');
-
 		const trimmedCode = values.code.trim();
 		const initialUsers = mergeInitialUsers({
 			owners: values.owners,
@@ -596,8 +616,9 @@ function StaffTenantCreateRoute() {
 			return trimmed.length > 0 ? trimmed : undefined;
 		};
 
+		let result;
 		try {
-			const result = await createTenant.mutateAsync({
+			result = await createTenant.mutateAsync({
 				name: values.name.trim(),
 				maxUsers: values.maxUsers,
 				...(trimmedCode.length > 0 ? { code: trimmedCode } : {}),
@@ -613,27 +634,6 @@ function StaffTenantCreateRoute() {
 				timezone: optionalField(values.timezone),
 				notes: optionalField(values.notes),
 			});
-
-			const tenantId = result?.id?.toString().trim();
-
-			await invalidateStaffTenants(queryClient);
-			setPendingCreateValues(null);
-			hasCreatedRef.current = true;
-
-			if (tenantId) {
-				void navigate({
-					to: '/staff/tenants/$tenantId',
-					params: {
-						tenantId,
-					},
-				});
-
-				return;
-			}
-
-			void navigate({
-				to: '/staff/tenants',
-			});
 		} catch (error) {
 			setPendingCreateValues(null);
 
@@ -643,28 +643,65 @@ function StaffTenantCreateRoute() {
 			}
 
 			const failure = toApiFailure(error);
-			if (
-				failure.kind === 'validation' &&
-				(failure.fieldErrors.code?.length ?? 0) > 0
-			) {
-				methods.setError('code', {
-					type: 'server',
-					message: getFailureMessage(failure, {
-						fallback: t('tenant-create-failed'),
-					}),
-				});
+			if (failure.kind === 'validation') {
+				const rootMessages: string[] = [];
+				let mappedFieldCount = 0;
+
+				for (const [field, messages] of Object.entries(failure.fieldErrors)) {
+					if (isCreateTenantFormField(field)) {
+						methods.setError(field, {
+							type: 'server',
+							message: messages.join(' '),
+						});
+						mappedFieldCount += 1;
+					} else {
+						rootMessages.push(...messages);
+					}
+				}
+
+				if (mappedFieldCount === 0 && rootMessages.length === 0) {
+					rootMessages.push(
+						getFailureMessage(failure, {
+							fallback: t('tenant-create-failed'),
+						}),
+					);
+				}
+
+				if (rootMessages.length > 0) {
+					methods.setError('root.server', {
+						type: 'server',
+						message: Array.from(new Set(rootMessages)).join(' '),
+					});
+				}
 				return;
 			}
-
-			setServerError(
-				getFailureMessage(failure, {
-					fallback: t('tenant-create-failed'),
-				}),
-			);
+			return;
 		}
+
+		const tenantId = result?.id?.toString().trim();
+
+		await invalidateStaffTenants(queryClient);
+		setPendingCreateValues(null);
+		hasCreatedRef.current = true;
+
+		if (tenantId) {
+			void navigate({
+				to: '/staff/tenants/$tenantId',
+				params: {
+					tenantId,
+				},
+			});
+
+			return;
+		}
+
+		void navigate({
+			to: '/staff/tenants',
+		});
 	};
 
 	const onSubmit = methods.handleSubmit((values) => {
+		methods.clearErrors('root.server');
 		setPendingCreateValues(values);
 	});
 
@@ -1045,6 +1082,9 @@ function StaffTenantCreateRoute() {
 								label={t('seed-default-profiles')}
 								isDisabled={isFormLocked}
 							/>
+							{seedDefaultProfileError ? (
+								<p className="publy-field-error">{seedDefaultProfileError}</p>
+							) : null}
 						</section>
 					</div>
 
@@ -1164,8 +1204,14 @@ function StaffTenantCreateRoute() {
 					</aside>
 				</div>
 
-				{serverError ? (
-					<p className="text-sm text-destructive">{serverError}</p>
+				{rootServerValidationError ? (
+					<p
+						className="publy-field-error"
+						role="alert"
+						aria-label={rootServerValidationError}
+					>
+						{rootServerValidationError}
+					</p>
 				) : null}
 
 				<FormActionBar

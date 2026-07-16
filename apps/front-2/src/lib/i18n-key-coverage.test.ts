@@ -738,6 +738,7 @@ const findHardcodedUiLiterals = (
 		} else if (
 			ts.isPropertyAssignment(node) &&
 			(ts.isIdentifier(node.name) || ts.isStringLiteral(node.name)) &&
+			!node.name.text.startsWith('--') &&
 			// W5-HARDEN (W5-VERIFY2): `{ title: 'Delete' }` sailed through — only
 			// an object-literal property literally named `label` was checked.
 			// Widened to the same definite-copy name set JSX attributes use
@@ -942,6 +943,20 @@ describe('i18n key coverage', () => {
 		);
 		expect(findings).toContainEqual(
 			expect.stringContaining('placeholder="Save"'),
+		);
+	});
+
+	test('findHardcodedUiLiterals ignores CSS custom properties but flags ordinary titles', () => {
+		const findings = findHardcodedUiLiterals(
+			"const toast = { '--normal-text': 'var(--publy-foreground)', title: 'Delete account' };",
+			'canary.tsx',
+		);
+
+		expect(findings).not.toContainEqual(
+			expect.stringContaining('--normal-text'),
+		);
+		expect(findings).toContainEqual(
+			expect.stringContaining('title: "Delete account"'),
 		);
 	});
 

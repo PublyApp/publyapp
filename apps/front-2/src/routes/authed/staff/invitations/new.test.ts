@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => ({
 	shouldLogoutForFailure: vi.fn(() => false),
 	invalidateStaffInvitations: vi.fn().mockResolvedValue(undefined),
 	queryClient: { fake: 'query-client' },
+	displayMutationFeedback: vi.fn().mockResolvedValue(undefined),
 	blockerResolver: {
 		status: 'idle' as 'idle' | 'blocked',
 		proceed: undefined as (() => void) | undefined,
@@ -197,6 +198,10 @@ vi.mock('~/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 
+vi.mock('~/lib/mutation-toast', () => ({
+	displayMutationFeedback: mocks.displayMutationFeedback,
+}));
+
 import { Route, buildProfileOptions } from './new';
 
 const ADMIN_PROFILE_ID = '11111111-1111-1111-1111-111111111111';
@@ -303,6 +308,59 @@ describe('staff invitation create route', () => {
 				to: '/staff/invitations',
 			}),
 		);
+		expect(screen.queryByText('Sent 1')).toBeNull();
+	});
+
+	test('keeps server validation inline', async () => {
+		const mutateAsync = vi.fn().mockRejectedValue({
+			status: 422,
+			responseStatusCode: 422,
+			title: 'Validation failed',
+			errors: { email: ['Pending invitation already exists'] },
+		});
+		mocks.useBulkCreateStaffInvitationsMutation.mockReturnValue({
+			mutateAsync,
+			isPending: false,
+		});
+		renderPage();
+		fireEvent.change(screen.getByRole('textbox', { name: 'Email address' }), {
+			target: { value: 'new-staff@example.com' },
+		});
+		fireEvent.click(screen.getByRole('checkbox', { name: 'Admin' }));
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Send invitations' }).closest('form')!,
+		);
+
+		await waitFor(() =>
+			expect(
+				screen.getByText('Pending invitation already exists'),
+			).toBeTruthy(),
+		);
+	});
+
+	test('relies on central feedback for ordinary failures without rendering a general error block', async () => {
+		const mutateAsync = vi.fn().mockRejectedValue({
+			status: 500,
+			responseStatusCode: 500,
+			title: 'Server error',
+			detail: 'Could not send invitations',
+		});
+		mocks.useBulkCreateStaffInvitationsMutation.mockReturnValue({
+			mutateAsync,
+			isPending: false,
+		});
+		renderPage();
+		fireEvent.change(screen.getByRole('textbox', { name: 'Email address' }), {
+			target: { value: 'new-staff@example.com' },
+		});
+		fireEvent.click(screen.getByRole('checkbox', { name: 'Admin' }));
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Send invitations' }).closest('form')!,
+		);
+
+		await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
+		expect(screen.queryByText('Could not send invitations')).toBeNull();
+		expect(screen.queryByText('invitations-could-not-be-sent')).toBeNull();
 	});
 
 	test('invalidates the staff invitations list query so the sent invitations are not hidden by a fresh cache entry', async () => {

@@ -16,7 +16,6 @@ import {
 	IconTable,
 	IconTrash,
 	IconUsers,
-	IconX,
 } from '@tabler/icons-react';
 import type { Icon } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -62,6 +61,10 @@ import {
 	StateSurface,
 } from '~/components/ui/state-surface';
 import {
+	displayLocalMutationFailure,
+	toastLocalMutationResult,
+} from '~/lib/mutation-toast';
+import {
 	toStaffTenantProfileBulkActionSummary,
 	toStaffTenantProfileRows,
 	useBulkDeleteStaffTenantProfilesMutation,
@@ -83,10 +86,6 @@ import {
 } from '~/lib/url-state/table-search-params';
 import { cn } from '~/lib/utils';
 
-import {
-	getFailureMessage,
-	toApiFailure,
-} from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { BULK_ACTION_MAX_COUNT } from '@org/shared-ts/lib/constants';
 
 import {
@@ -497,28 +496,16 @@ export const makeTenantProfileColumns = (
 	},
 ];
 
-type ProfileBulkFeedback = {
-	tone: 'success' | 'error';
-	message: string;
-};
-
-const profileBulkFeedbackToneClassName = (
-	tone: ProfileBulkFeedback['tone'],
-): string =>
-	tone === 'error' ? 'text-destructive' : 'text-[var(--publy-success)]';
-
 const ProfileBulkActions = ({
 	tenantId,
 	rows,
 	selection,
 	onSessionExpired,
-	onFeedback,
 }: {
 	tenantId: string;
 	rows: StaffTenantProfileRow[];
 	selection: UseRowSelectionResult;
 	onSessionExpired: () => void;
-	onFeedback: (feedback: ProfileBulkFeedback | null) => void;
 }) => {
 	const { t } = useTranslation('common');
 	const queryClient = useQueryClient();
@@ -533,8 +520,6 @@ const ProfileBulkActions = ({
 	const isOverLimit = selectedCount > BULK_ACTION_MAX_COUNT;
 
 	const performBulkDelete = async () => {
-		onFeedback(null);
-
 		let result;
 		try {
 			result = await bulkDeleteMutation.mutateAsync({
@@ -548,32 +533,33 @@ const ProfileBulkActions = ({
 				return;
 			}
 
-			onFeedback({
-				tone: 'error',
-				message: getFailureMessage(toApiFailure(error), {
-					fallback: t('tenant-profile-bulk-delete-failure'),
-				}),
-			});
+			await displayLocalMutationFailure(
+				error,
+				t('tenant-profile-bulk-delete-failure'),
+			);
 			return;
 		}
 
 		setIsDeleteDialogOpen(false);
 		selection.clearSelection();
-		await invalidateAllStaffTenantScopes(queryClient);
 
 		const summary = toStaffTenantProfileBulkActionSummary(result);
-		onFeedback({
-			tone: summary.failedCount > 0 ? 'error' : 'success',
-			message:
-				summary.failedCount > 0
-					? t('tenant-profile-bulk-delete-partial-success', {
-							succeeded: summary.succeededCount,
-							failed: summary.failedCount,
-						})
-					: t('tenant-profile-bulk-delete-success', {
-							count: summary.succeededCount,
-						}),
-		});
+		if (summary.failedCount > 0) {
+			toastLocalMutationResult.error(
+				t('tenant-profile-bulk-delete-partial-success', {
+					succeeded: summary.succeededCount,
+					failed: summary.failedCount,
+				}),
+			);
+		} else {
+			toastLocalMutationResult.success(
+				t('tenant-profile-bulk-delete-success', {
+					count: summary.succeededCount,
+				}),
+			);
+		}
+
+		await invalidateAllStaffTenantScopes(queryClient);
 	};
 
 	return (
@@ -593,12 +579,10 @@ const ProfileBulkActions = ({
 				}
 				className={FLOATING_SELECTION_BAR_ACTION_BUTTON_CLASS_NAME}
 				onClick={() => {
-					onFeedback(null);
 					if (eligibleIds.length === 0) {
-						onFeedback({
-							tone: 'error',
-							message: t('bulk-delete-disabled-only-default-profiles'),
-						});
+						toastLocalMutationResult.warning(
+							t('bulk-delete-disabled-only-default-profiles'),
+						);
 						return;
 					}
 					setIsDeleteDialogOpen(true);
@@ -773,9 +757,6 @@ function StaffTenantProfilesPage() {
 	const [deleteTarget, setDeleteTarget] =
 		useState<StaffTenantProfileRow | null>(null);
 	const [shouldRedirectToLogout, setShouldRedirectToLogout] = useState(false);
-	const [bulkFeedback, setBulkFeedback] = useState<ProfileBulkFeedback | null>(
-		null,
-	);
 	const deleteProfile = useDeleteStaffTenantProfileMutation();
 	const [isCreateFormDirty, setIsCreateFormDirty] = useState(false);
 
@@ -970,23 +951,16 @@ function StaffTenantProfilesPage() {
 				tenantId,
 				profileId: deleteTarget.id,
 			});
-			await invalidateAllStaffTenantScopes(queryClient);
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
 				setShouldRedirectToLogout(true);
-				return;
 			}
-
-			setBulkFeedback({
-				tone: 'error',
-				message: getFailureMessage(toApiFailure(error), {
-					fallback: t('unable-to-delete-tenant-profile'),
-				}),
-			});
-			return;
-		} finally {
 			setDeleteTarget(null);
+			return;
 		}
+
+		setDeleteTarget(null);
+		await invalidateAllStaffTenantScopes(queryClient);
 	};
 
 	const toolbarEnd = (
@@ -1031,26 +1005,6 @@ function StaffTenantProfilesPage() {
 					{t('new-profile')}
 				</Button>
 			</div>
-
-			{bulkFeedback ? (
-				<div
-					className="flex items-center gap-1.5 text-xs"
-					data-tone={bulkFeedback.tone}
-					role="status"
-				>
-					<span className={profileBulkFeedbackToneClassName(bulkFeedback.tone)}>
-						{bulkFeedback.message}
-					</span>
-					<button
-						type="button"
-						aria-label={t('close')}
-						onClick={() => setBulkFeedback(null)}
-						className="text-muted-foreground"
-					>
-						<IconX className="size-3.5" />
-					</button>
-				</div>
-			) : null}
 
 			{view === 'table' ? (
 				<DataTable<StaffTenantProfileRow>
@@ -1192,7 +1146,6 @@ function StaffTenantProfilesPage() {
 					rows={rows}
 					selection={selection}
 					onSessionExpired={() => setShouldRedirectToLogout(true)}
-					onFeedback={setBulkFeedback}
 				/>
 			</FloatingSelectionBar>
 

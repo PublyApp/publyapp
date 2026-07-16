@@ -25,6 +25,10 @@ const mocks = vi.hoisted(() => ({
 	bulkDeleteProfileMutation: vi.fn(),
 	useBulkDeleteStaffTenantProfilesMutation: vi.fn(),
 	toStaffTenantProfileBulkActionSummary: vi.fn(),
+	displayLocalMutationFailure: vi.fn().mockResolvedValue(undefined),
+	toastSuccess: vi.fn(),
+	toastError: vi.fn(),
+	toastWarning: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
 	invalidateAllStaffTenantScopes: vi.fn().mockResolvedValue(undefined),
 	blockerResolver: {
@@ -194,6 +198,15 @@ vi.mock('~/lib/query/staff-tenants', () => ({
 
 vi.mock('~/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
+}));
+
+vi.mock('~/lib/mutation-toast', () => ({
+	displayLocalMutationFailure: mocks.displayLocalMutationFailure,
+	toastLocalMutationResult: {
+		success: mocks.toastSuccess,
+		error: mocks.toastError,
+		warning: mocks.toastWarning,
+	},
 }));
 
 vi.mock('./profiles/_profile-form-drawer', () => ({
@@ -535,7 +548,7 @@ describe('staff tenant profiles route', () => {
 		);
 	});
 
-	test('shows a failed profile delete in the top feedback bar, not silently at the page bottom (r3-tenants-F12)', async () => {
+	test('leaves a failed row delete to the central feedback owner', async () => {
 		mocks.deleteProfileMutation.mockRejectedValue({
 			kind: 'problem',
 			status: 409,
@@ -558,10 +571,12 @@ describe('staff tenant profiles route', () => {
 		);
 
 		await waitFor(() =>
-			expect(
-				screen.getByText('This profile is still assigned to a user.'),
-			).toBeTruthy(),
+			expect(mocks.deleteProfileMutation).toHaveBeenCalledTimes(1),
 		);
+		expect(
+			screen.queryByText('This profile is still assigned to a user.'),
+		).toBeNull();
+		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
 	});
 
 	test('the type filter maps System/Custom to the is_default URL param and resets the cursor', async () => {
@@ -728,11 +743,11 @@ describe('staff tenant profiles route', () => {
 		await waitFor(() =>
 			expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled(),
 		);
-		await waitFor(() =>
-			expect(
-				screen.getByText('Successfully deleted 1 profile(s).'),
-			).toBeTruthy(),
+		expect(mocks.toastSuccess).toHaveBeenCalledWith(
+			'Successfully deleted 1 profile(s).',
 		);
+		expect(mocks.toastSuccess).toHaveBeenCalledTimes(1);
+		expect(screen.queryByText('Successfully deleted 1 profile(s).')).toBeNull();
 	});
 
 	test('reports a partial-success message when some bulk-deleted profiles fail', async () => {
@@ -769,9 +784,11 @@ describe('staff tenant profiles route', () => {
 				profileIds: ['profile-2'],
 			}),
 		);
-		await waitFor(() =>
-			expect(screen.getByText('Deleted 1 profile(s), 1 failed.')).toBeTruthy(),
+		expect(mocks.toastError).toHaveBeenCalledWith(
+			'Deleted 1 profile(s), 1 failed.',
 		);
+		expect(mocks.toastError).toHaveBeenCalledTimes(1);
+		expect(screen.queryByText('Deleted 1 profile(s), 1 failed.')).toBeNull();
 	});
 
 	test('reports a failure message when every bulk-deleted profile fails', async () => {
@@ -808,9 +825,46 @@ describe('staff tenant profiles route', () => {
 				profileIds: ['profile-2'],
 			}),
 		);
-		await waitFor(() =>
-			expect(screen.getByText('Deleted 0 profile(s), 1 failed.')).toBeTruthy(),
+		expect(mocks.toastError).toHaveBeenCalledWith(
+			'Deleted 0 profile(s), 1 failed.',
 		);
+		expect(mocks.toastError).toHaveBeenCalledTimes(1);
+		expect(screen.queryByText('Deleted 0 profile(s), 1 failed.')).toBeNull();
+	});
+
+	test('reports a rejected bulk delete through one local failure toast owner', async () => {
+		const error = {
+			status: 409,
+			responseStatusCode: 409,
+			title: 'Conflict',
+			detail: 'Selected profiles cannot be deleted.',
+		};
+		mocks.bulkDeleteProfileMutation.mockRejectedValue(error);
+
+		renderPage();
+		fireEvent.click(
+			screen.getByTestId('staff-tenant-profile-card-select-profile-2'),
+		);
+		fireEvent.click(
+			await screen.findByRole('button', { name: 'Delete selected' }),
+		);
+		await waitFor(() =>
+			expect(
+				screen.getByRole('heading', { name: 'Delete selected' }),
+			).toBeTruthy(),
+		);
+		fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[0]);
+
+		await waitFor(() =>
+			expect(mocks.displayLocalMutationFailure).toHaveBeenCalledWith(
+				error,
+				'Failed to delete selected profiles.',
+			),
+		);
+		expect(mocks.displayLocalMutationFailure).toHaveBeenCalledTimes(1);
+		expect(
+			screen.queryByText('Selected profiles cannot be deleted.'),
+		).toBeNull();
 	});
 
 	test('warns and fires no mutation when only the default profile is selected for bulk delete', async () => {
@@ -824,11 +878,10 @@ describe('staff tenant profiles route', () => {
 			await screen.findByRole('button', { name: 'Delete selected' }),
 		);
 
-		await waitFor(() =>
-			expect(
-				screen.getByText('Default profiles cannot be bulk-deleted.'),
-			).toBeTruthy(),
+		expect(mocks.toastWarning).toHaveBeenCalledWith(
+			'Default profiles cannot be bulk-deleted.',
 		);
+		expect(mocks.toastWarning).toHaveBeenCalledTimes(1);
 		expect(
 			screen.queryByRole('heading', { name: 'Delete selected' }),
 		).toBeNull();

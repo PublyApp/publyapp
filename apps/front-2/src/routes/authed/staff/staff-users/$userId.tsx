@@ -36,10 +36,7 @@ import {
 } from '~/lib/query/staff-users';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
-import {
-	getFailureMessage,
-	toApiFailure,
-} from '@org/shared-ts/lib/api-failure/to-api-failure';
+import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 import {
@@ -177,12 +174,10 @@ function StaffUserDetailsPage() {
 	const { t, i18n } = useTranslation('common');
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
-	const [detailActionError, setDetailActionError] = useState('');
 	const [deleteConfirmText, setDeleteConfirmText] = useState('');
 	const [isSuspendDialogOpen, setSuspendDialogOpen] = useState(false);
 	const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
 	const [shouldLogout, setShouldLogout] = useState(false);
-	const [detailActionSuccess, setDetailActionSuccess] = useState('');
 	const suspendUser = useSuspendStaffUserMutation();
 	const reactivateUser = useReactivateStaffUserMutation();
 	const deleteUser = useDeleteStaffUserMutation();
@@ -318,54 +313,36 @@ function StaffUserDetailsPage() {
 		}
 
 		try {
-			setDetailActionError('');
-			setDetailActionSuccess('');
 			if (canSuspend) {
 				await suspendUser.mutateAsync({ userId });
 			} else if (canReactivate) {
 				await reactivateUser.mutateAsync({ userId });
 			}
-
-			await invalidateStaffUsers(queryClient);
-			setDetailActionSuccess(
-				canSuspend
-					? t('staff-user-suspended-success')
-					: t('staff-user-reactivated-success'),
-			);
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
 				setShouldLogout(true);
 				return;
 			}
-
-			setDetailActionError(
-				getFailureMessage(toApiFailure(error), {
-					fallback: canSuspend
-						? t('unable-to-suspend-staff-user')
-						: t('unable-to-reactivate-staff-user'),
-				}),
-			);
+			return;
 		} finally {
 			setSuspendDialogOpen(false);
+		}
+
+		try {
+			await invalidateStaffUsers(queryClient);
+		} catch (error) {
+			logger.warn('Staff user lifecycle invalidation failed', error);
 		}
 	};
 
 	const handleDeleteAction = async () => {
 		try {
-			setDetailActionError('');
-			setDetailActionSuccess('');
 			await deleteUser.mutateAsync({ userId });
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
 				setShouldLogout(true);
 				return;
 			}
-
-			setDetailActionError(
-				getFailureMessage(toApiFailure(error), {
-					fallback: t('unable-to-delete-staff-user'),
-				}),
-			);
 			return;
 		} finally {
 			setDeleteDialogOpen(false);
@@ -534,17 +511,6 @@ function StaffUserDetailsPage() {
 						<StaffUserOverviewContext.Provider value={overviewContextValue}>
 							<Outlet />
 						</StaffUserOverviewContext.Provider>
-
-						{detailActionSuccess ? (
-							<div className="mt-2 text-sm text-success" role="status">
-								{detailActionSuccess}
-							</div>
-						) : null}
-						{detailActionError ? (
-							<div className="mt-2 text-sm text-destructive" role="alert">
-								{detailActionError}
-							</div>
-						) : null}
 					</TabsContent>
 				</Tabs>
 			</div>

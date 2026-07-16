@@ -3,6 +3,7 @@ import { beforeEach, expect, test, vi } from 'vitest';
 import {
 	buildAnonymousQueryOptions,
 	buildAuthQueryOptions,
+	buildStaffMutationOptions,
 	buildStaffQueryOptions,
 	buildTenantMutationOptions,
 	buildTenantQueryOptions,
@@ -65,6 +66,7 @@ test('tenant mutation resolves tenantId from handler fallback when variable is a
 			mutationKeyFn: () => ['tenant-mutation:tenant'],
 			mutationFn: async (client, vars) =>
 				`${client.scope}-${vars.tenantId}-mutate`,
+			meta: { silentSuccess: true },
 			handlers: {
 				resolveTenant: () => 'tenant-fallback',
 			},
@@ -142,6 +144,7 @@ test('tenant mutation key does not include fallback tenant at build time', () =>
 			mutationKeyFn: () => ['tenant-mutation:tenant'],
 			mutationFn: async (client, vars) =>
 				`${client.scope}-${vars.tenantId}-mutate`,
+			meta: { silentSuccess: true },
 			handlers: {
 				resolveTenant: () => 'tenant-fallback',
 			},
@@ -373,4 +376,30 @@ test('auth query errors follow anonymous-style 401 handling (no onLogout)', asyn
 	});
 	expect(onLogout).not.toHaveBeenCalled();
 	expect(onToast).toHaveBeenCalledTimes(1);
+});
+
+test('staff mutation preserves explicit feedback metadata', () => {
+	const options = buildStaffMutationOptions(
+		{
+			mutationKeyFn: () => ['staff-mutation:staff'],
+			mutationFn: async (client) => client.scope,
+			meta: { successMessage: 'staff-user-updated-success' },
+		},
+		createScopeOptions(accessor),
+	);
+
+	expect(options.meta).toEqual({
+		successMessage: 'staff-user-updated-success',
+	});
+});
+
+test('staff mutation requires feedback metadata', () => {
+	buildStaffMutationOptions(
+		// @ts-expect-error Mutation factories require explicit feedback metadata.
+		{
+			mutationKeyFn: () => ['staff-mutation:staff'],
+			mutationFn: async (client) => client.scope,
+		},
+		createScopeOptions(accessor),
+	);
 });
