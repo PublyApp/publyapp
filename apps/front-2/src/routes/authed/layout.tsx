@@ -33,6 +33,7 @@ import {
 } from '@org/shared-ts/lib/session/parse';
 
 import { AuthedLayout } from '../../layouts/authed-layout';
+import { AuthedRouteContentSkeleton } from './_route-content-skeleton';
 
 const STAFF_PATH = '/staff';
 const TENANT_PATH = '/tenant';
@@ -113,34 +114,6 @@ const parseRedirectCode = async (token: string): Promise<string | null> => {
 	}
 };
 
-const AuthedRouteLoadingShell = ({
-	pathname,
-	search,
-}: {
-	pathname: string;
-	search: Record<string, unknown>;
-}) => {
-	const { t } = useTranslation('common');
-	const isTenantPortalRoot = pathname.replace(/\/+$/, '') === TENANT_PATH;
-
-	if (isTenantPortalRoot) {
-		return (
-			<div className="flex min-h-svh items-center justify-center">
-				<IconLoader2
-					aria-hidden="true"
-					className="size-8 animate-spin text-muted-foreground"
-				/>
-			</div>
-		);
-	}
-
-	return (
-		<AuthedLayout pathname={pathname} search={search}>
-			{t('loading')}
-		</AuthedLayout>
-	);
-};
-
 // TanStack Start renders this as the route's SSR fallback AND its
 // pre-hydration ClientOnly fallback (see Match.js: `resolvedNoSsr` routes
 // wrap MatchInner in `<ClientOnly fallback={pendingElement}>`). Without a
@@ -149,7 +122,8 @@ const AuthedRouteLoadingShell = ({
 // reload).
 //
 // This must stay a STATIC skeleton, not the real (Zustand-backed)
-// AuthedRouteLoadingShell above: that shell's secondary-panel visibility
+// AuthedLayout rendered by the route component below: that shell's
+// secondary-panel visibility
 // depends on `useUiStore`, whose persisted sidebarOpen/colorScheme are only
 // read from localStorage in a `useEffect` (`hydrateFromStorage`) — deferred
 // on purpose so the store's SSR-safe default doesn't cause a hydration
@@ -226,7 +200,9 @@ const AuthedRoutePendingSkeleton = () => {
 					className="app-shell-topbar"
 					data-testid="app-shell-pending-topbar"
 				/>
-				<main className="app-shell-main" />
+				<main className="app-shell-main">
+					<AuthedRouteContentSkeleton />
+				</main>
 			</div>
 		</div>
 	);
@@ -430,14 +406,29 @@ function AuthedRouteLayout() {
 	}
 
 	if (query.isLoading) {
-		return <AuthedRouteLoadingShell pathname={pathname} search={search} />;
+		if (isTenantPortalRoot) {
+			return (
+				<div className="flex min-h-svh items-center justify-center">
+					<IconLoader2
+						aria-hidden="true"
+						className="size-8 animate-spin text-muted-foreground"
+					/>
+				</div>
+			);
+		}
+
+		return (
+			<AuthedLayout pathname={pathname} search={search}>
+				<AuthedRouteContentSkeleton />
+			</AuthedLayout>
+		);
 	}
 
 	if (isSurfaceMismatch) {
-		// A neutral, pathname-agnostic skeleton — the pathname-bound
-		// AuthedRouteLoadingShell would flash the wrong surface's nav rail
-		// for the duration of the navigate({ to: TENANT_PATH | STAFF_PATH })
-		// round trip triggered by the effect above.
+		// A neutral, pathname-agnostic skeleton — the stateful AuthedLayout
+		// would flash the wrong surface's nav rail for the duration of the
+		// navigate({ to: TENANT_PATH | STAFF_PATH }) round trip triggered by
+		// the effect above.
 		return <AuthedRoutePendingSkeleton />;
 	}
 
