@@ -120,6 +120,11 @@ const getRealTenantDetailPath = async (page: Page): Promise<string> => {
 	await page.goto('/staff/tenants');
 	await expect(page.getByTestId('staff-tenants-table-rows')).toBeVisible();
 	await page.getByTestId('staff-tenants-table-search').fill('Acme Corporation');
+	// Anchor on the debounced `?q=` URL write BEFORE navigating away: the row
+	// link can be visible before the URL state commits, and a late history
+	// write racing the detail navigation makes the history stack (and any
+	// later goBack()) nondeterministic.
+	await expect(page).toHaveURL(/q=Acme\+Corporation/);
 	const acmeLink = page.getByRole('link', { name: 'Acme Corporation' }).first();
 	await expect(acmeLink).toBeVisible();
 	await acmeLink.click();
