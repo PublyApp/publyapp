@@ -235,7 +235,7 @@ test('renders the handoff staff rail and secondary panel', async ({ page }) => {
 	await expect(panel.getByRole('link', { name: 'Profiles' })).toBeVisible();
 });
 
-test('secondary panel collapses on detail routes (rail-only shell)', async ({
+test('secondary panel follows persisted preference on detail routes', async ({
 	page,
 }) => {
 	await page.setViewportSize({ width: 1280, height: 900 });
@@ -245,7 +245,7 @@ test('secondary panel collapses on detail routes (rail-only shell)', async ({
 	// A real shell anchor — the pending skeleton never carries this testid —
 	// proves the shell actually painted before asserting the panel's absence.
 	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
-	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
 });
 
 test('tenants route shows tenants panel destinations', async ({ page }) => {
@@ -314,7 +314,7 @@ test('rail navigation preserves collapsed sidebar preference', async ({
 	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
 });
 
-test('staff detail route is rail-only — panel closed by default but the toggle stays visible', async ({
+test('staff detail route follows persisted sidebar preference', async ({
 	page,
 }) => {
 	await page.setViewportSize({ width: 1280, height: 900 });
@@ -322,15 +322,15 @@ test('staff detail route is rail-only — panel closed by default but the toggle
 	await getRealTenantDetailPath(page);
 
 	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
-	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
 	await expect(page.getByTestId('app-shell-sidebar-toggle')).toBeVisible();
 	await expect(page.getByTestId('app-shell-sidebar-toggle')).toHaveAttribute(
 		'aria-label',
-		'Expand navigation panel',
+		'Collapse navigation panel',
 	);
 });
 
-test('the rail-only toggle opens and closes the panel on a tenant detail route', async ({
+test('detail-route toggle controls the panel on a tenant detail route', async ({
 	page,
 }) => {
 	await page.setViewportSize({ width: 1280, height: 900 });
@@ -338,10 +338,13 @@ test('the rail-only toggle opens and closes the panel on a tenant detail route',
 	await getRealTenantDetailPath(page);
 
 	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
-	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
 	const toggle = page.getByTestId('app-shell-sidebar-toggle');
 	await expect(toggle).toBeVisible();
-	await expect(toggle).toHaveAttribute('aria-label', 'Expand navigation panel');
+	await expect(toggle).toHaveAttribute(
+		'aria-label',
+		'Collapse navigation panel',
+	);
 
 	await toggle.click();
 
@@ -357,7 +360,7 @@ test('the rail-only toggle opens and closes the panel on a tenant detail route',
 	await expect(toggle).toHaveAttribute('aria-label', 'Expand navigation panel');
 });
 
-test('an explicit rail-only open choice carries over across other rail-only routes but not to list routes', async ({
+test('an explicit open choice carries over across detail and list routes', async ({
 	page,
 }) => {
 	await page.setViewportSize({ width: 1280, height: 900 });
@@ -381,14 +384,14 @@ test('an explicit rail-only open choice carries over across other rail-only rout
 	await expect(page).toHaveURL(new RegExp(`${tenantDetailPath}$`));
 	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
 
-	// A fresh document load starts a new session: rail-only routes default
-	// closed again.
+	// A fresh document load starts a new session with persisted default-open
+	// preference.
 	await page.reload();
 	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
-	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
 });
 
-test('the collapsed-panel preference persists across list navigation but detail routes always collapse', async ({
+test('the collapsed-panel preference persists across list and detail navigation', async ({
 	page,
 }) => {
 	await page.setViewportSize({ width: 1280, height: 900 });
@@ -397,10 +400,10 @@ test('the collapsed-panel preference persists across list navigation but detail 
 
 	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
 
-	// Detail routes are rail-only regardless of the sidebarOpen preference.
+	// Detail routes follow the same sidebarOpen preference as list routes.
 	await getRealStaffUserDetailPath(page);
 	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
-	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
 
 	// Back on a list route, the panel is visible again (preference untouched).
 	await page.goto('/staff/staff-users');
@@ -414,7 +417,7 @@ test('the collapsed-panel preference persists across list navigation but detail 
 	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
 	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
 
-	// And detail routes stay rail-only either way — a different route tree
+	// And detail routes on another module still follow the same preference —
 	// (tenants) than the one visited above (staff-users).
 	await getRealTenantDetailPath(page);
 	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
@@ -451,10 +454,10 @@ test('staff dashboard has a toggleable secondary panel that stays collapsed acro
 test('detail grid sizes to the space left by the rail, not the raw viewport', async ({
 	page,
 }) => {
-	// Detail routes are rail-only (no secondary panel), so only the 49px rail
-	// eats into the viewport before .publy-detail-grid's container query sees
-	// it. At 800px that still leaves too little room for two columns — the
-	// grid must stay single-column here.
+	// Detail routes now keep the secondary panel when sidebarOpen is true, so
+	// the rail plus panel consume left-chrome space before the detail grid's
+	// container query sees the remaining width. At 800px that still leaves too
+	// little room for two columns — the grid must stay single-column here.
 	await page.setViewportSize({ width: 800, height: 900 });
 
 	// Reach a real seeded user by clicking through the list. A synthetic id
@@ -472,7 +475,7 @@ test('detail grid sizes to the space left by the rail, not the raw viewport', as
 		.first();
 	await expect(grid).toBeVisible();
 	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
-	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
 
 	const tracksAt800 = await grid.evaluate((element) =>
 		getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/),

@@ -121,7 +121,31 @@ describe('AppShell secondary-panel toggle', () => {
 		expect(screen.getByTestId('app-shell-secondary-panel')).toBeTruthy();
 	});
 
-	test('detail route uses the same stored open preference as list routes', () => {
+	test('list route to detail route preserves sidebarOpen without flipping', () => {
+		const { rerender } = render(
+			<AppShell mode="authed" pathname={LIST_ROUTE}>
+				content
+			</AppShell>,
+		);
+
+		expect(
+			screen.getByRole('button', { name: 'collapse-navigation-panel' }),
+		).toBeTruthy();
+		expect(screen.getByTestId('app-shell-secondary-panel')).toBeTruthy();
+
+		rerender(
+			<AppShell mode="authed" pathname={DETAIL_ROUTE}>
+				content
+			</AppShell>,
+		);
+
+		expect(
+			screen.getByRole('button', { name: 'collapse-navigation-panel' }),
+		).toBeTruthy();
+		expect(screen.getByTestId('app-shell-secondary-panel')).toBeTruthy();
+	});
+
+	test('detail route still reflects a persisted open preference', () => {
 		render(
 			<AppShell mode="authed" pathname={DETAIL_ROUTE}>
 				content
@@ -175,7 +199,7 @@ describe('AppShell secondary-panel toggle', () => {
 		).toBeTruthy();
 	});
 
-	test('list routes still reflect a persisted closed preference', () => {
+	test('detail route still reflects a persisted closed preference', () => {
 		useUiStore.setState({ sidebarOpen: false });
 
 		render(

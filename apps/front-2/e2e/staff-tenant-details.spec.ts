@@ -244,9 +244,8 @@ test.describe('staff tenant details shell (rail-only) and Basics danger zone', (
 		await page.goto(`/staff/tenants/${TENANT_ID}`);
 		await expect(page.getByTestId('staff-tenant-details-page')).toBeVisible();
 
-		// Rail-only: no secondary panel on the detail route, regardless of the
-		// sidebarOpen preference (route-metadata.ts isRailOnlyPath).
-		await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+		// Secondary panel follows the persisted sidebarOpen preference; default open.
+		await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
 
 		const nav = page.getByRole('navigation', { name: 'Tenant sections' });
 		await expect(nav.getByText('Basics')).toBeVisible();
