@@ -7,7 +7,7 @@ import {
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -257,7 +257,14 @@ function StaffTenantProfileDetailsPage() {
 		[clearBreadcrumbOverride],
 	);
 
-	useEffect(() => {
+	// Publish the 4-crumb trail in a layout effect (not `useEffect`) so the
+	// override is committed before the browser paints the first frame. With a
+	// passive effect the app-shell paints its 3-crumb path fallback first and
+	// then jumps to 4 crumbs; a layout effect gives the shell the full trail
+	// from frame one (generic labels swap to entity names later without ever
+	// changing the crumb count). The authed shell is client-only, so there is
+	// no SSR `useLayoutEffect` warning to worry about.
+	useLayoutEffect(() => {
 		setBreadcrumbOverride([
 			{ label: t('tenants'), to: '/staff/tenants' },
 			{
@@ -498,12 +505,11 @@ function StaffTenantProfileDetailsPage() {
 					<p className="truncate text-sm font-semibold text-foreground">
 						{tenant.name}
 					</p>
-					{tenant.code ? (
-						<p className="font-mono text-xs text-muted-foreground">
-							<span className="text-muted-foreground">publyapp.com/</span>
-							{tenant.code}
-						</p>
-					) : null}
+					<p className="font-mono text-xs text-muted-foreground">
+						<span className="text-muted-foreground">publyapp.com/</span>
+						{/* data-honesty-ignore: tenant code is a documented OPTIONAL field — a tenant without an assigned workspace slug has none, this is not fabricated identity data */}
+						{tenant.code ?? '—'}
+					</p>
 				</div>
 				<StatusPill tone={statusPillTone(tenant.status)}>
 					{tenant.status

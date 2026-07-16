@@ -529,6 +529,25 @@ describe('staff tenant profile details route', () => {
 		expect(mocks.useStaffTenantPermissionCatalogQuery).toHaveBeenCalledWith({});
 	});
 
+	test('renders an em-dash workspace-code placeholder when the tenant has no code', () => {
+		mocks.toStaffTenantDetails.mockReturnValue({
+			id: '11111111-1111-1111-1111-111111111111',
+			name: 'Acme Corporation',
+			code: null,
+			status: 'Active',
+			usersCount: 12,
+			maxUsers: 50,
+			logoUrl: null,
+			createdAt: new Date('2026-07-01T09:00:00Z'),
+			updatedAt: new Date('2026-07-02T10:00:00Z'),
+		});
+
+		renderPage();
+
+		const tenantBand = screen.getByTestId('staff-tenant-profile-tenant-band');
+		expect(tenantBand.textContent).toContain('publyapp.com/—');
+	});
+
 	test('renders URL-selected permissions and members placeholders with counted tabs', () => {
 		mocks.search = { tab: 'permissions' };
 		const view = renderPage();
@@ -613,6 +632,34 @@ describe('staff tenant profile details route', () => {
 				useUiStore.getState().breadcrumbOverride?.map(({ label }) => label),
 			).toEqual(['Tenants', 'Tenant', 'Profiles', 'Profile']);
 		});
+	});
+
+	// First-paint guard: the override is published in a layout effect, so the
+	// full 4-crumb trail is committed to the store synchronously (before the
+	// browser paints) — the app-shell never renders its 3-crumb path fallback
+	// first and then jumps to 4. Asserted with no `waitFor`: the trail must
+	// already be present the instant the first render commits, even while both
+	// entity queries are still loading (generic labels, four crumbs).
+	test('publishes the four-crumb trail before first paint without a fallback jump', () => {
+		mocks.useStaffTenantDetailsQuery.mockReturnValue(
+			buildQueryResult({ isPending: true }),
+		);
+		mocks.toStaffTenantDetails.mockReturnValue(null);
+		mocks.useStaffTenantProfileDetailsQuery.mockReturnValue(
+			buildQueryResult({ isPending: true }),
+		);
+		mocks.toStaffTenantProfileDetails.mockReturnValue(null);
+
+		renderPage();
+
+		const trail = useUiStore.getState().breadcrumbOverride;
+		expect(trail).toHaveLength(4);
+		expect(trail?.map(({ label }) => label)).toEqual([
+			'Tenants',
+			'Tenant',
+			'Profiles',
+			'Profile',
+		]);
 	});
 
 	test('moves the delete action into a labeled danger-zone section under permissions', () => {
