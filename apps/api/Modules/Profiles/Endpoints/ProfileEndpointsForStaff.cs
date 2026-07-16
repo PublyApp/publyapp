@@ -235,6 +235,19 @@ public static class ProfileEndpointsForStaff {
 			.WithSummary("List permission keys assigned to a tenant profile")
 			.WithPermission([AppPermissions.Staff.Profiles.GET_FOR_TENANT]);
 
+		tenantGroup.MapGet(
+			Routes.Profiles.ForTenantAsStaff.Users.Find,
+			FindTenantProfileUsersAsStaff.Handle
+		)
+			.WithName("FindTenantProfileUsersAsStaff")
+			.WithSummary("Find members (users) that hold a tenant profile")
+			// Reuse GET_FOR_TENANT: reading a tenant profile's members is a read of
+			// the profile, mirroring FindTenantProfilePermissionsAsStaff (its other
+			// sub-resource list). No dedicated LIST_USERS permission exists on the
+			// tenant side, unlike the staff-profile split.
+			.WithPermission([AppPermissions.Staff.Profiles.GET_FOR_TENANT])
+			.WithReqQueryValidation<FindTenantProfileUsersAsStaffQuery>();
+
 		tenantGroup.MapPost(
 			Routes.Profiles.ForTenantAsStaff.Permissions.Upsert,
 			AssignTenantProfilePermissionAsStaff.Handle

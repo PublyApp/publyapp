@@ -21,6 +21,30 @@ public class TenantProfileItem {
 	public DateTime UpdatedAt { get; set; }
 }
 
+// One of the OTHER tenant profiles held by the same account (excludes the profile
+// currently being viewed). Batched, so the member list never issues an N+1 query.
+public class TenantProfileMemberProfileRef {
+	public Guid Id { get; set; }
+	public string Name { get; set; } = string.Empty;
+}
+
+// A tenant user account that holds a given tenant profile. Serves both the profile
+// Overview members preview and the (later) full Members data table.
+public class TenantProfileMemberItem {
+	public Guid UserAccountId { get; set; }
+	public Guid UserId { get; set; }
+	// Composed "First Last" (may be empty when the account has no name — the client
+	// falls back to the email in that case).
+	public string Name { get; set; } = string.Empty;
+	public string Email { get; set; } = string.Empty;
+	// Descriptions, not raw enums (Admin/User, Active/Suspended/GloballySuspended).
+	public string Level { get; set; } = string.Empty;
+	public string Status { get; set; } = string.Empty;
+	// When the account joined the tenant (its membership creation time).
+	public DateTime JoinedAt { get; set; }
+	public List<TenantProfileMemberProfileRef> OtherProfiles { get; set; } = [];
+}
+
 public abstract record FindTenantProfilesResult {
 	public sealed record Success(CursorPaginatedResult<TenantProfileItem> Data)
 		: FindTenantProfilesResult;
@@ -44,6 +68,27 @@ public sealed record GetTenantProfileByIdArgs(
 	Guid TenantId,
 	Guid ProfileId
 );
+
+public sealed record FindTenantProfileUsersArgs(
+	Guid TenantId,
+	Guid ProfileId,
+	Guid Cursor,
+	int? Limit,
+	string? SortId,
+	SortOrder? SortOrder,
+	string? Search
+);
+
+public abstract record FindTenantProfileUsersResult {
+	public sealed record Success(CursorPaginatedResult<TenantProfileMemberItem> Data)
+		: FindTenantProfileUsersResult;
+
+	public sealed record ProfileNotFound : FindTenantProfileUsersResult;
+
+	public sealed record CursorNotFound(string Cursor) : FindTenantProfileUsersResult;
+
+	public sealed record InvalidSortId(string SortId) : FindTenantProfileUsersResult;
+}
 
 public abstract record GetTenantProfileByIdResult {
 	public sealed record Success(TenantProfileItem Profile)
@@ -135,6 +180,11 @@ public interface ITenantProfileQueryAsStaffService {
 
 	Task<GetTenantProfileByIdResult> GetTenantProfileByIdAsync(
 		GetTenantProfileByIdArgs args,
+		CancellationToken cancellationToken = default
+	);
+
+	Task<FindTenantProfileUsersResult> FindTenantProfileUsersAsync(
+		FindTenantProfileUsersArgs args,
 		CancellationToken cancellationToken = default
 	);
 
@@ -415,6 +465,399 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 		}
 
 		return new GetTenantProfileByIdResult.Success(profile);
+	}
+
+	public async Task<FindTenantProfileUsersResult> FindTenantProfileUsersAsync(
+		FindTenantProfileUsersArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		// Missing/other-tenant profile is a 404 — same tenant-scoped guard the
+		// sibling profile reads use.
+		var profileExists = await (
+			from p in _dbContext.Profile.AsNoTracking()
+			where p.Id == args.ProfileId
+				&& p.Scope == ProfileScope.Tenant
+				&& p.TenantId == args.TenantId
+				&& !p.IsDeleted
+			select p.Id
+		).AnyAsync(cancellationToken);
+
+		if (!profileExists) {
+			return new FindTenantProfileUsersResult.ProfileNotFound();
+		}
+
+		var effectiveLimit =
+			args.Limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
+		var effectiveSortOrder = args.SortOrder ?? SortOrder.Desc;
+		// Members default to most-recently-joined first, so the Overview preview
+		// leads with the newest additions.
+		var effectiveSortId = args.SortId ?? "joined_at";
+		var isAsc = effectiveSortOrder == SortOrder.Asc;
+
+		// The cursor is always the member's UserAccountId (unique within one
+		// profile: the junction has a composite PK, so an account holds a profile
+		// at most once). Sort branches mirror the tenant-users keyset handlers.
+		var sortFieldHandlers =
+			new Dictionary<string, CursorSortFieldHandler<UserAccountProfile>>(
+				StringComparer.OrdinalIgnoreCase
+			) {
+				["id"] = new CursorSortFieldHandler<UserAccountProfile>(
+					getCursorValue: async (guid) => {
+						var accountId = await (
+							from uap in _dbContext.UserAccountProfile.AsNoTracking()
+							where uap.ProfileId == args.ProfileId
+								&& uap.UserAccountId == guid
+							select (Guid?)uap.UserAccountId
+						).FirstOrDefaultAsync(cancellationToken);
+						return accountId;
+					},
+					applyFilter: (q, cursorValue, isAscLocal) => {
+						var cursorGuid = (Guid?)cursorValue;
+						if (cursorGuid is null) {
+							return q;
+						}
+
+						return isAscLocal
+							? q.Where(uap => uap.UserAccountId > cursorGuid)
+							: q.Where(uap => uap.UserAccountId < cursorGuid);
+					},
+					applyOrdering: (q, isAscLocal) => isAscLocal
+						? q.OrderBy(uap => uap.UserAccountId)
+						: q.OrderByDescending(uap => uap.UserAccountId)
+				),
+				["joined_at"] = new CursorSortFieldHandler<UserAccountProfile>(
+					getCursorValue: async (guid) => {
+						var item = await (
+							from uap in _dbContext.UserAccountProfile.AsNoTracking()
+							where uap.ProfileId == args.ProfileId
+								&& uap.UserAccountId == guid
+							select new { uap.UserAccount.CreatedAt, uap.UserAccountId }
+						).FirstOrDefaultAsync(cancellationToken);
+						return item is not null
+							? (item.CreatedAt, (Guid?)item.UserAccountId)
+							: null;
+					},
+					applyFilter: (q, cursorValue, isAscLocal) => {
+						if (cursorValue is null) {
+							return q;
+						}
+
+						var (cursorJoinedAt, cursorId) = ((DateTime, Guid?))cursorValue;
+						return isAscLocal
+							? q.Where(uap =>
+								uap.UserAccount.CreatedAt > cursorJoinedAt
+								|| (uap.UserAccount.CreatedAt == cursorJoinedAt
+									&& uap.UserAccountId > cursorId))
+							: q.Where(uap =>
+								uap.UserAccount.CreatedAt < cursorJoinedAt
+								|| (uap.UserAccount.CreatedAt == cursorJoinedAt
+									&& uap.UserAccountId < cursorId));
+					},
+					applyOrdering: (q, isAscLocal) => isAscLocal
+						? q.OrderBy(uap => uap.UserAccount.CreatedAt)
+							.ThenBy(uap => uap.UserAccountId)
+						: q.OrderByDescending(uap => uap.UserAccount.CreatedAt)
+							.ThenByDescending(uap => uap.UserAccountId)
+				),
+				["email"] = new CursorSortFieldHandler<UserAccountProfile>(
+					getCursorValue: async (guid) => {
+						var item = await (
+							from uap in _dbContext.UserAccountProfile.AsNoTracking()
+							where uap.ProfileId == args.ProfileId
+								&& uap.UserAccountId == guid
+							select new { uap.UserAccount.User.Email, uap.UserAccountId }
+						).FirstOrDefaultAsync(cancellationToken);
+						return item is not null
+							? (item.Email, (Guid?)item.UserAccountId)
+							: null;
+					},
+					applyFilter: (q, cursorValue, isAscLocal) => {
+						if (cursorValue is null) {
+							return q;
+						}
+
+						var (cursorEmail, cursorId) = ((string, Guid?))cursorValue;
+						return isAscLocal
+							? q.Where(uap =>
+								uap.UserAccount.User.Email.CompareTo(cursorEmail) > 0
+								|| (uap.UserAccount.User.Email == cursorEmail
+									&& uap.UserAccountId > cursorId))
+							: q.Where(uap =>
+								uap.UserAccount.User.Email.CompareTo(cursorEmail) < 0
+								|| (uap.UserAccount.User.Email == cursorEmail
+									&& uap.UserAccountId < cursorId));
+					},
+					applyOrdering: (q, isAscLocal) => isAscLocal
+						? q.OrderBy(uap => uap.UserAccount.User.Email)
+							.ThenBy(uap => uap.UserAccountId)
+						: q.OrderByDescending(uap => uap.UserAccount.User.Email)
+							.ThenByDescending(uap => uap.UserAccountId)
+				),
+				["level"] = new CursorSortFieldHandler<UserAccountProfile>(
+					getCursorValue: async (guid) => {
+						var item = await (
+							from uap in _dbContext.UserAccountProfile.AsNoTracking()
+							where uap.ProfileId == args.ProfileId
+								&& uap.UserAccountId == guid
+							select new { uap.UserAccount.Level, uap.UserAccountId }
+						).FirstOrDefaultAsync(cancellationToken);
+						return item is not null
+							? (item.Level, (Guid?)item.UserAccountId)
+							: null;
+					},
+					applyFilter: (q, cursorValue, isAscLocal) => {
+						if (cursorValue is null) {
+							return q;
+						}
+
+						var (cursorLevel, cursorId) = ((AccountLevel, Guid?))cursorValue;
+						return isAscLocal
+							? q.Where(uap =>
+								uap.UserAccount.Level > cursorLevel
+								|| (uap.UserAccount.Level == cursorLevel
+									&& uap.UserAccountId > cursorId))
+							: q.Where(uap =>
+								uap.UserAccount.Level < cursorLevel
+								|| (uap.UserAccount.Level == cursorLevel
+									&& uap.UserAccountId < cursorId));
+					},
+					applyOrdering: (q, isAscLocal) => isAscLocal
+						? q.OrderBy(uap => uap.UserAccount.Level)
+							.ThenBy(uap => uap.UserAccountId)
+						: q.OrderByDescending(uap => uap.UserAccount.Level)
+							.ThenByDescending(uap => uap.UserAccountId)
+				),
+				["status"] = new CursorSortFieldHandler<UserAccountProfile>(
+					getCursorValue: async (guid) => {
+						var item = await (
+							from uap in _dbContext.UserAccountProfile.AsNoTracking()
+							where uap.ProfileId == args.ProfileId
+								&& uap.UserAccountId == guid
+							select new {
+								IsUserGloballySuspended =
+									uap.UserAccount.User.Status == UserStatus.Suspended,
+								IsMembershipSuspended =
+									uap.UserAccount.Status == AccountStatus.Suspended,
+								uap.UserAccountId,
+							}
+						).FirstOrDefaultAsync(cancellationToken);
+						return item is not null
+							? (
+								GetTenantUserStatusRank(
+									item.IsUserGloballySuspended,
+									item.IsMembershipSuspended
+								),
+								(Guid?)item.UserAccountId
+							)
+							: null;
+					},
+					applyFilter: (q, cursorValue, isAscLocal) => {
+						if (cursorValue is null) {
+							return q;
+						}
+
+						var (statusRank, cursorId) = ((int, Guid?))cursorValue;
+						// Inline, EF-translatable rank (matches applyOrdering below);
+						// GetTenantStatus() cannot be translated to SQL here.
+						return isAscLocal
+							? q.Where(uap =>
+								(uap.UserAccount.User.Status == UserStatus.Suspended
+									? 2
+									: uap.UserAccount.Status == AccountStatus.Suspended
+										? 1
+										: 0) > statusRank
+								|| ((uap.UserAccount.User.Status == UserStatus.Suspended
+										? 2
+										: uap.UserAccount.Status == AccountStatus.Suspended
+											? 1
+											: 0) == statusRank
+									&& uap.UserAccountId > cursorId))
+							: q.Where(uap =>
+								(uap.UserAccount.User.Status == UserStatus.Suspended
+									? 2
+									: uap.UserAccount.Status == AccountStatus.Suspended
+										? 1
+										: 0) < statusRank
+								|| ((uap.UserAccount.User.Status == UserStatus.Suspended
+										? 2
+										: uap.UserAccount.Status == AccountStatus.Suspended
+											? 1
+											: 0) == statusRank
+									&& uap.UserAccountId < cursorId));
+					},
+					applyOrdering: (q, isAscLocal) => isAscLocal
+						? q.OrderBy(uap =>
+							uap.UserAccount.User.Status == UserStatus.Suspended
+								? 2
+								: uap.UserAccount.Status == AccountStatus.Suspended
+									? 1
+									: 0
+						).ThenBy(uap => uap.UserAccountId)
+						: q.OrderByDescending(uap =>
+							uap.UserAccount.User.Status == UserStatus.Suspended
+								? 2
+								: uap.UserAccount.Status == AccountStatus.Suspended
+									? 1
+									: 0
+						).ThenByDescending(uap => uap.UserAccountId)
+				),
+			};
+
+		if (!sortFieldHandlers.TryGetValue(effectiveSortId, out var handler)) {
+			return new FindTenantProfileUsersResult.InvalidSortId(effectiveSortId);
+		}
+
+		var baseQuery =
+			from uap in _dbContext.UserAccountProfile.AsNoTracking()
+			where uap.ProfileId == args.ProfileId
+				&& uap.UserAccount.TenantId == args.TenantId
+				&& uap.UserAccount.Scope == AccountScope.Tenant
+				&& !uap.UserAccount.IsDeleted
+				&& !uap.UserAccount.User.IsDeleted
+			select uap;
+
+		IQueryable<UserAccountProfile> query = baseQuery;
+
+		if (args.Search is { } search) {
+			var pattern = $"%{LikePatternUtils.EscapeLikePattern(search)}%";
+			query = query.Where(uap =>
+				(uap.UserAccount.User.FirstName != null
+					&& EF.Functions.ILike(
+						uap.UserAccount.User.FirstName,
+						pattern,
+						LikePatternUtils.LikeEscapeChar
+					))
+				|| (uap.UserAccount.User.LastName != null
+					&& EF.Functions.ILike(
+						uap.UserAccount.User.LastName,
+						pattern,
+						LikePatternUtils.LikeEscapeChar
+					))
+				|| EF.Functions.ILike(
+					uap.UserAccount.User.Email,
+					pattern,
+					LikePatternUtils.LikeEscapeChar
+				)
+			);
+		}
+
+		if (args.Cursor != Guid.Empty) {
+			var cursorValue = await handler.GetCursorValue(args.Cursor);
+			if (cursorValue is null) {
+				return new FindTenantProfileUsersResult.CursorNotFound(
+					args.Cursor.ToString()
+				);
+			}
+
+			query = handler.ApplyFilter(query, cursorValue, isAsc);
+		}
+
+		var orderedQuery = handler.ApplyOrdering(query, isAsc);
+
+		var rows = await orderedQuery
+			.Select(uap => new {
+				uap.UserAccountId,
+				uap.UserAccount.UserId,
+				uap.UserAccount.User.FirstName,
+				uap.UserAccount.User.LastName,
+				uap.UserAccount.User.Email,
+				Level = uap.UserAccount.Level,
+				MembershipStatus = uap.UserAccount.Status,
+				UserStatus = uap.UserAccount.User.Status,
+				JoinedAt = uap.UserAccount.CreatedAt,
+			})
+			.Take(effectiveLimit + 1)
+			.ToListAsync(cancellationToken);
+
+		string? nextCursor = null;
+		if (rows.Count > effectiveLimit) {
+			rows.RemoveAt(rows.Count - 1);
+			nextCursor = rows[^1].UserAccountId.ToString();
+		}
+
+		var userAccountIds = rows.Select(r => r.UserAccountId).ToList();
+
+		// Batched: every OTHER tenant profile held by the page's accounts in one
+		// query (no per-member lookup), excluding the profile being viewed.
+		var otherProfileRows = await (
+			from uap in _dbContext.UserAccountProfile.AsNoTracking()
+			where userAccountIds.Contains(uap.UserAccountId)
+				&& uap.ProfileId != args.ProfileId
+				&& !uap.Profile.IsDeleted
+				&& uap.Profile.Scope == ProfileScope.Tenant
+				&& uap.Profile.TenantId == args.TenantId
+			select new {
+				uap.UserAccountId,
+				uap.ProfileId,
+				uap.Profile.Name,
+			}
+		).ToListAsync(cancellationToken);
+
+		var otherProfilesByUserAccountId =
+			new Dictionary<Guid, List<TenantProfileMemberProfileRef>>();
+		foreach (var row in otherProfileRows.OrderBy(r => r.Name, StringComparer.Ordinal)) {
+			if (!otherProfilesByUserAccountId.TryGetValue(row.UserAccountId, out var list)) {
+				list = [];
+				otherProfilesByUserAccountId[row.UserAccountId] = list;
+			}
+
+			list.Add(new TenantProfileMemberProfileRef {
+				Id = row.ProfileId,
+				Name = row.Name,
+			});
+		}
+
+		var items = rows.Select(r => {
+			var nameParts = new List<string>();
+			if (!string.IsNullOrWhiteSpace(r.FirstName)) {
+				nameParts.Add(r.FirstName.Trim());
+			}
+
+			if (!string.IsNullOrWhiteSpace(r.LastName)) {
+				nameParts.Add(r.LastName.Trim());
+			}
+
+			return new TenantProfileMemberItem {
+				UserAccountId = r.UserAccountId,
+				UserId = r.UserId,
+				Name = string.Join(" ", nameParts),
+				Email = r.Email,
+				Level = UserAccount.GetLevelDescription(r.Level),
+				Status = UserAccount.GetStatusDescription(
+					UserAccount.GetTenantStatus(r.UserStatus, r.MembershipStatus)
+				),
+				JoinedAt = r.JoinedAt,
+				OtherProfiles = otherProfilesByUserAccountId.GetValueOrDefault(
+					r.UserAccountId,
+					[]
+				),
+			};
+		}).ToList();
+
+		return new FindTenantProfileUsersResult.Success(
+			new CursorPaginatedResult<TenantProfileMemberItem> {
+				Data = items,
+				NextCursor = nextCursor,
+			}
+		);
+	}
+
+	// Effective tenant-user status rank for keyset ordering:
+	// Active = 0, Suspended = 1, GloballySuspended = 2 (matches the tenant-users
+	// list so a member's status sorts identically across surfaces).
+	private static int GetTenantUserStatusRank(
+		bool isUserGloballySuspended,
+		bool isMembershipSuspended
+	) {
+		if (isUserGloballySuspended) {
+			return 2;
+		}
+
+		if (isMembershipSuspended) {
+			return 1;
+		}
+
+		return 0;
 	}
 
 	public async Task<FindTenantProfilePermissionKeysResult>

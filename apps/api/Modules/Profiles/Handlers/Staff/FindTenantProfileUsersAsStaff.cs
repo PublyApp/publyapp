@@ -8,32 +8,13 @@ using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Profiles.Services;
-using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Profiles.Handlers.Staff;
 
-public class TenantProfileUserItem {
-	// The tenant membership (UserAccount) id — matches the sibling assign/unassign toggle
-	// route's {user_account_id} placeholder, not the global user id.
-	public Guid Id { get; set; }
-	// The global User id — distinct from Id above. Callers that need to LINK to a user's
-	// own detail page (e.g. GET /staff/tenants/{tenantId}/users/{userId}, which resolves the
-	// global user id) MUST use this field, never Id.
-	public Guid UserId { get; set; }
-	public string Email { get; set; } = string.Empty;
-	public string? LastName { get; set; }
-	public string? FirstName { get; set; }
-	public string? AvatarUrl { get; set; }
-	public string Status { get; set; } = string.Empty;
-	public string Level { get; set; } = string.Empty;
-}
+public class FindTenantProfileUsersAsStaffResult
+	: CursorPaginatedResult<TenantProfileMemberItem> { }
 
-public class FindTenantProfileUsersAsStaffResult {
-	public required List<TenantProfileUserItem> Users { get; set; }
-	public required int Count { get; set; }
-}
-
-public class FindTenantProfileUsersAsStaffQuery : OffsetPaginatedQuery {
+public class FindTenantProfileUsersAsStaffQuery : CursorPaginatedQuery {
 	[FromQuery(Name = "q")]
 	public string? Search { get; set; }
 
@@ -42,42 +23,39 @@ public class FindTenantProfileUsersAsStaffQuery : OffsetPaginatedQuery {
 			return null;
 		}
 
-		// Keep "blank" searches out of the DB query for consistency with other list endpoints.
+		// Keep "blank" searches out of the DB query, consistent with the other
+		// tenant list endpoints.
 		var trimmed = Search.Trim();
 		return trimmed.Length == 0 ? null : trimmed;
 	}
 }
 
 public class FindTenantProfileUsersAsStaffQueryValidator
-	: OffsetPaginatedQueryValidator<FindTenantProfileUsersAsStaffQuery> {
+	: CursorPaginatedQueryValidator<FindTenantProfileUsersAsStaffQuery> {
 	public FindTenantProfileUsersAsStaffQueryValidator() {
-		RuleFor(x => x.Search).MaximumLength(200);
+		RuleFor(x => x.Search)
+			.MaximumLength(200)
+			.WithMessage("q must be at most 200 characters");
 	}
 }
 
-/// <summary>
-/// Lists the tenant members assigned to a tenant profile. Mirrors
-/// <c>FindStaffProfileUsers</c> (the staff-profiles precedent) — same offset
-/// pagination/search/response shape — but scoped to a tenant profile and keyed by
-/// <c>user_account_id</c> to match the sibling assign/unassign endpoints on this route group.
-/// </summary>
 public sealed class FindTenantProfileUsersAsStaff {
 	public static async Task<
 		Results<
 			Ok<FindTenantProfileUsersAsStaffResult>,
-			AppNotFoundHttpResult,
-			AppBadRequestHttpResult
+			AppBadRequestHttpResult,
+			AppNotFoundHttpResult
 		>
 	> Handle(
 		[FromRoute] string tenantId,
 		[FromRoute] string profileId,
 		[AsParameters] FindTenantProfileUsersAsStaffQuery query,
-		[FromServices] ITenantProfileQueryAsStaffService tenantProfileQueryService,
+		[FromServices] ITenantProfileQueryAsStaffService tenantProfileService,
 		CancellationToken cancellationToken
 	) {
 		if (!Guid.TryParse(tenantId, out var tenantIdGuid)) {
 			return TypedProblems.BadRequest(
-				"Invalid tenant ID",
+				"Invalid tenantId",
 				ResponseKeys.MalformedId
 			);
 		}
@@ -89,27 +67,31 @@ public sealed class FindTenantProfileUsersAsStaff {
 			);
 		}
 
-		// NOTE: This uses offset pagination because the sibling staff-profiles Members tab
-		// already uses page/limit table state (see FindStaffProfileUsersQuery). We can migrate
-		// to cursor later if the UX demands it.
-		var page = query.GetPage();
-		var limit = query.GetLimit();
-		var sortId = query.GetSortId();
-		var sortOrder = query.GetSortOrder();
+		var cursor = query.GetCursor();
+		var cursorGuid = Guid.Empty;
+
+		if (!string.IsNullOrEmpty(cursor)) {
+			if (!Guid.TryParse(cursor, out cursorGuid)) {
+				return TypedProblems.BadRequest(
+					"Invalid cursor",
+					ResponseKeys.BadRequest
+				);
+			}
+		}
 
 		var args = new FindTenantProfileUsersArgs(
 			TenantId: tenantIdGuid,
 			ProfileId: profileIdGuid,
-			Page: page,
-			Limit: limit,
-			SortId: sortId,
-			SortOrder: sortOrder,
+			Cursor: cursorGuid,
+			Limit: query.GetLimit(),
+			SortId: query.GetSortId(),
+			SortOrder: query.GetSortOrder(),
 			Search: query.GetSearchNormalized()
 		);
 
-		var serviceResult = await tenantProfileQueryService.FindTenantProfileUsersAsync(
-			args: args,
-			cancellationToken: cancellationToken
+		var serviceResult = await tenantProfileService.FindTenantProfileUsersAsync(
+			args,
+			cancellationToken
 		);
 
 		if (serviceResult is FindTenantProfileUsersResult.ProfileNotFound) {
@@ -120,10 +102,20 @@ public sealed class FindTenantProfileUsersAsStaff {
 		}
 
 		if (
+			serviceResult is FindTenantProfileUsersResult.CursorNotFound cursorError
+		) {
+			return TypedProblems.BadRequest(
+				$"Cursor record not found: {cursorError.Cursor}.",
+				ResponseKeys.BadRequest
+			);
+		}
+
+		if (
 			serviceResult is FindTenantProfileUsersResult.InvalidSortId sortIdError
 		) {
 			return TypedProblems.BadRequest(
-				$"Invalid sort_id: {sortIdError.SortId}.",
+				$"Invalid sort_id: {sortIdError.SortId}. "
+					+ "Allowed values: id, joined_at, email, level, status.",
 				ResponseKeys.BadRequest
 			);
 		}
@@ -131,23 +123,8 @@ public sealed class FindTenantProfileUsersAsStaff {
 		if (serviceResult is FindTenantProfileUsersResult.Success success) {
 			return TypedResults.Ok(
 				new FindTenantProfileUsersAsStaffResult {
-					Users = success.Users
-						.Select(u => new TenantProfileUserItem {
-							// The item id is the user_account_id, matching the toggle route's
-							// {user_account_id} placeholder — not the global user id.
-							Id = u.UserAccountId,
-							UserId = u.UserId,
-							Email = u.Email,
-							LastName = u.LastName,
-							FirstName = u.FirstName,
-							AvatarUrl = u.AvatarUrl,
-							Status = UserAccount.GetStatusDescription(
-								UserAccount.GetTenantStatus(u.UserStatus, u.AccountStatus)
-							),
-							Level = UserAccount.GetLevelDescription(u.Level),
-						})
-						.ToList(),
-					Count = success.Count,
+					Data = success.Data.Data,
+					NextCursor = success.Data.NextCursor,
 				}
 			);
 		}

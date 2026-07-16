@@ -140,43 +140,20 @@ public static partial class Routes {
 			}
 
 			/// <summary>
-			/// Tenant profile users routes (staff managing the members assigned to a
-			/// tenant profile).
+			/// Tenant profile members routes (staff viewing the tenant user accounts
+			/// that hold a tenant profile).
 			/// </summary>
 			public static class Users {
-				// NOTE: This is relative to "/staff" and "/tenants/{tenantId}/profiles"
-				// route grouping.
+				// NOTE: This is relative to "/staff" and "/tenants/{tenantId}/profiles".
 				public const string Root = "/{profileId}/users";
 				public static string RootFn(string profileId) {
 					return $"/{profileId}/users";
 				}
 
-				/// <summary>Find tenant members assigned to a tenant profile</summary>
+				/// <summary>Find the members (users) that hold a tenant profile.</summary>
 				public const string Find = Root;
 				public static string FindFn(string profileId) {
 					return RootFn(profileId);
-				}
-
-				/// <summary>
-				/// Batch-resolve whether a set of tenant member accounts is assigned to a
-				/// tenant profile. Mirrors Users.ResolveAssignment on the staff-profiles axis;
-				/// this exists to avoid N+1 per-row profile requests in list UIs (assignment
-				/// drawers).
-				/// </summary>
-				public const string ResolveAssignment = Root + "/assignment-resolution";
-				public static string ResolveAssignmentFn(string profileId) {
-					return $"{RootFn(profileId)}/assignment-resolution";
-				}
-
-				// Membership is exposed as an idempotent per-member "upsert" toggle keyed by
-				// the member's account id, mirroring Permissions.Upsert in this same group:
-				// POST assigns, DELETE unassigns. This is what lets the members UI toggle a
-				// single row without a batch confirm step.
-				// The placeholder is snake_case per the URL-parameter convention; handlers bind
-				// it explicitly to an idiomatic C# `userAccountId`.
-				public const string Upsert = Root + "/{user_account_id}";
-				public static string UpsertFn(string profileId, string userAccountId) {
-					return $"{RootFn(profileId)}/{userAccountId}";
 				}
 			}
 		}
