@@ -26,7 +26,7 @@ namespace PublyApp.Api.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_job_dead_letter", x => x.id);
+                    table.PrimaryKey("pk_job_dead_letter", x => x.id);
                 });
 
             migrationBuilder.CreateTable(
@@ -50,7 +50,7 @@ namespace PublyApp.Api.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_job_queue", x => x.id);
+                    table.PrimaryKey("pk_job_queue", x => x.id);
                 });
 
             migrationBuilder.CreateIndex(

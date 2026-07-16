@@ -224,6 +224,36 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 		queueRow.Should().BeNull();
 	}
 
+	// --- batch execution order ---------------------------------------------------
+
+	// Design §4.1/§5.1: priority DESC, then next_attempt_at, then created_at is the
+	// EXECUTION order within a claimed batch, not just the claim-selection order.
+	// Seeds priorities in an order (1, 5, 3) that both ascending-priority and
+	// insertion-order execution would get wrong, so a regression fails loudly.
+	[Fact]
+	public async Task ItShouldExecuteAClaimedBatchHighestPriorityFirst() {
+		await using var seedContext = await CreateDbContextAsync();
+		await ClearJobsAsync(seedContext);
+
+		var due = DateTime.UtcNow.AddSeconds(-1);
+		var ids = new Dictionary<int, Guid>();
+
+		foreach (var priority in new[] { 1, 5, 3 }) {
+			var row = JobQueueItem.Create(SucceedType, priority: priority);
+			row.NextAttemptAt = due;
+			await seedContext.JobQueue.AddAsync(row);
+			await seedContext.SaveChangesAsync();
+			ids[priority] = row.Id.GetValueOrDefault();
+		}
+
+		var handler = new RecordingJobHandler(SucceedType, shouldThrow: false);
+		var processor = CreateProcessor(handler);
+
+		await processor.ProcessBatchAsync(CancellationToken.None);
+
+		handler.Handled.Should().Equal(ids[5], ids[3], ids[1]);
+	}
+
 	// --- helpers ----------------------------------------------------------------
 
 	private JobQueueProcessor CreateProcessor(params IJobHandler[] handlers) {

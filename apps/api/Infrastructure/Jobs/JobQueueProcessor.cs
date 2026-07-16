@@ -74,9 +74,13 @@ public sealed class JobQueueProcessor : BackgroundService {
 			return;
 		}
 
+		// Execute in the same order the claim selected: priority DESC, then schedule,
+		// then insertion (design §4.1/§5.1) — higher-priority jobs run first within
+		// the batch, not just get claimed first.
 		var batch = await dbContext.JobQueue
 			.Where(j => j.Id != null && claimedIds.Contains(j.Id.Value))
-			.OrderBy(j => j.Priority)
+			.OrderByDescending(j => j.Priority)
+			.ThenBy(j => j.NextAttemptAt)
 			.ThenBy(j => j.CreatedAt)
 			.ToListAsync(stoppingToken);
 

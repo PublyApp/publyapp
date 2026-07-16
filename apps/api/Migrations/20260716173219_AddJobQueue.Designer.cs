@@ -12,7 +12,7 @@ using PublyApp.Api.Data.DbContext;
 namespace PublyApp.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260716171954_AddJobQueue")]
+    [Migration("20260716173219_AddJobQueue")]
     partial class AddJobQueue
     {
         /// <inheritdoc />
@@ -392,7 +392,8 @@ namespace PublyApp.Api.Migrations
                         .HasColumnType("jsonb")
                         .HasColumnName("payload");
 
-                    b.HasKey("Id");
+                    b.HasKey("Id")
+                        .HasName("pk_job_dead_letter");
 
                     b.HasIndex("JobType", "FailedAt")
                         .HasDatabaseName("ix_job_dead_letter_job_type");
@@ -478,7 +479,8 @@ namespace PublyApp.Api.Migrations
                         .HasColumnName("updated_at")
                         .HasDefaultValueSql("now()");
 
-                    b.HasKey("Id");
+                    b.HasKey("Id")
+                        .HasName("pk_job_queue");
 
                     b.HasIndex("IdempotencyKey")
                         .IsUnique()

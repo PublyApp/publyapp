@@ -389,7 +389,8 @@ namespace PublyApp.Api.Migrations
                         .HasColumnType("jsonb")
                         .HasColumnName("payload");
 
-                    b.HasKey("Id");
+                    b.HasKey("Id")
+                        .HasName("pk_job_dead_letter");
 
                     b.HasIndex("JobType", "FailedAt")
                         .HasDatabaseName("ix_job_dead_letter_job_type");
@@ -475,7 +476,8 @@ namespace PublyApp.Api.Migrations
                         .HasColumnName("updated_at")
                         .HasDefaultValueSql("now()");
 
-                    b.HasKey("Id");
+                    b.HasKey("Id")
+                        .HasName("pk_job_queue");
 
                     b.HasIndex("IdempotencyKey")
                         .IsUnique()

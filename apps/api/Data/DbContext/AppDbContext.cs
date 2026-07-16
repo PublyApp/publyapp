@@ -360,6 +360,9 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 		// SQL, so the uuidv7 id + manual timestamps are configured explicitly here
 		// rather than via the BaseAttributes auto-config loop below.
 		modelBuilder.Entity<JobQueueItem>(entity => {
+			// Explicit snake_case PK constraint name (design §4.1); EF's convention
+			// would generate PK_job_queue.
+			entity.HasKey(e => e.Id).HasName("pk_job_queue");
 			entity.Property(e => e.Id).HasDefaultValueSql("uuidv7()");
 			entity.Property(e => e.Payload).HasDefaultValueSql("'{}'");
 			entity.Property(e => e.Status).HasDefaultValue(JobQueueStatus.Pending);
@@ -389,6 +392,8 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 		});
 
 		modelBuilder.Entity<JobDeadLetter>(entity => {
+			// Explicit snake_case PK constraint name (design §4.2).
+			entity.HasKey(e => e.Id).HasName("pk_job_dead_letter");
 			entity.Property(e => e.Id).HasDefaultValueSql("uuidv7()");
 			entity.Property(e => e.FailedAt).HasDefaultValueSql("now()");
 			entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
