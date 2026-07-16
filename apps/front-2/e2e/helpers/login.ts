@@ -76,8 +76,7 @@ export const loginAsStaffAdmin = async (page: Page): Promise<void> => {
 			.waitFor({ state: 'visible' })
 			.then(() => 'table'),
 		page
-			.getByTestId('auth-login-form')
-			.or(page.locator('input[name="email"]'))
+			.locator('input[name="email"]')
 			.waitFor({ state: 'visible' })
 			.then(() => 'login'),
 	]);
