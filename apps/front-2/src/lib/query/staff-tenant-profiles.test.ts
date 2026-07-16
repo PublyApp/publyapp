@@ -537,6 +537,9 @@ describe('toStaffTenantProfileRows', () => {
 
 describe('toStaffTenantProfileDetails', () => {
 	test('normalizes a detail payload and preserves optional values', () => {
+		const createdAt = new Date('2026-05-10T09:00:00Z');
+		const updatedAt = new Date('2026-07-14T10:00:00Z');
+
 		expect(
 			toStaffTenantProfileDetails({
 				profile: {
@@ -545,6 +548,8 @@ describe('toStaffTenantProfileDetails', () => {
 					description: ' Can review approvals ',
 					isDefault: true,
 					userAccountCount: 7,
+					createdAt,
+					updatedAt,
 				},
 			} as GetTenantProfileByIdResponse),
 		).toEqual({
@@ -553,7 +558,22 @@ describe('toStaffTenantProfileDetails', () => {
 			description: 'Can review approvals',
 			isDefault: true,
 			userAccountCount: 7,
+			createdAt,
+			updatedAt,
 		});
+	});
+
+	test('nulls out missing or invalid timestamps', () => {
+		const result = toStaffTenantProfileDetails({
+			profile: {
+				id: 'profile-9' as never,
+				name: 'Approvers',
+				createdAt: new Date('invalid') as never,
+			},
+		} as GetTenantProfileByIdResponse);
+
+		expect(result?.createdAt).toBeNull();
+		expect(result?.updatedAt).toBeNull();
 	});
 
 	test('returns null when the payload has no usable profile id', () => {

@@ -93,6 +93,8 @@ export type StaffTenantProfileDetails = {
 	description: string | null;
 	isDefault: boolean;
 	userAccountCount: number;
+	createdAt: Date | null;
+	updatedAt: Date | null;
 };
 
 export type StaffTenantProfileDetailsQueryVariables = {
@@ -252,6 +254,14 @@ const normalizeString = (
 const normalizeNullableString = (
 	value: string | null | undefined,
 ): string | null => normalizeString(value) ?? null;
+
+const normalizeDate = (value: Date | null | undefined): Date | null => {
+	if (!(value instanceof Date) || Number.isNaN(value.valueOf())) {
+		return null;
+	}
+
+	return value;
+};
 
 const normalizeUnknownString = (value: unknown): string | undefined => {
 	if (typeof value !== 'string') {
@@ -517,6 +527,8 @@ export const toStaffTenantProfileDetails = (
 		description: normalizeNullableString(profile?.description),
 		isDefault: profile?.isDefault === true,
 		userAccountCount: profile?.userAccountCount ?? 0,
+		createdAt: normalizeDate(profile?.createdAt),
+		updatedAt: normalizeDate(profile?.updatedAt),
 	};
 };
 

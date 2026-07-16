@@ -17,6 +17,8 @@ public class TenantProfileItem {
 	public bool IsDefault { get; set; }
 	public int UserAccountCount { get; set; }
 	public int PermissionsCount { get; set; }
+	public DateTime CreatedAt { get; set; }
+	public DateTime UpdatedAt { get; set; }
 }
 
 public abstract record FindTenantProfilesResult {
@@ -373,6 +375,8 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 				IsDefault = p.IsDefault,
 				UserAccountCount = userAccountCountByProfileId.GetValueOrDefault(profileId, 0),
 				PermissionsCount = permissionCountByProfileId.GetValueOrDefault(profileId, 0),
+				CreatedAt = p.CreatedAt,
+				UpdatedAt = p.UpdatedAt,
 			};
 		}).ToList();
 
@@ -401,6 +405,8 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 				IsDefault = p.IsDefault,
 				UserAccountCount = p.UserAccountProfiles.Count,
 				PermissionsCount = p.ProfilePermissions.Count,
+				CreatedAt = p.CreatedAt,
+				UpdatedAt = p.UpdatedAt,
 			}
 		).FirstOrDefaultAsync(cancellationToken);
 

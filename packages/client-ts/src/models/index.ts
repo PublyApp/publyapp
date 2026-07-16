@@ -4419,11 +4419,13 @@ export function deserializeIntoTenantListItem(tenantListItem: Partial<TenantList
 // @ts-ignore
 export function deserializeIntoTenantProfileItem(tenantProfileItem: Partial<TenantProfileItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
+        "createdAt": n => { tenantProfileItem.createdAt = n.getDateValue(); },
         "description": n => { tenantProfileItem.description = n.getStringValue(); },
         "id": n => { tenantProfileItem.id = n.getGuidValue(); },
         "isDefault": n => { tenantProfileItem.isDefault = n.getBooleanValue(); },
         "name": n => { tenantProfileItem.name = n.getStringValue(); },
         "permissionsCount": n => { tenantProfileItem.permissionsCount = n.getNumberValue(); },
+        "updatedAt": n => { tenantProfileItem.updatedAt = n.getDateValue(); },
         "userAccountCount": n => { tenantProfileItem.userAccountCount = n.getNumberValue(); },
     }
 }
@@ -7718,11 +7720,13 @@ export function serializeTenantListItem(writer: SerializationWriter, tenantListI
 // @ts-ignore
 export function serializeTenantProfileItem(writer: SerializationWriter, tenantProfileItem: Partial<TenantProfileItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!tenantProfileItem || isSerializingDerivedType) { return; }
+    writer.writeDateValue("createdAt", tenantProfileItem.createdAt);
     writer.writeStringValue("description", tenantProfileItem.description);
     writer.writeGuidValue("id", tenantProfileItem.id);
     writer.writeBooleanValue("isDefault", tenantProfileItem.isDefault);
     writer.writeStringValue("name", tenantProfileItem.name);
     writer.writeNumberValue("permissionsCount", tenantProfileItem.permissionsCount);
+    writer.writeDateValue("updatedAt", tenantProfileItem.updatedAt);
     writer.writeNumberValue("userAccountCount", tenantProfileItem.userAccountCount);
     writer.writeAdditionalData(tenantProfileItem.additionalData);
 }
@@ -8759,6 +8763,10 @@ export interface TenantListItem extends AdditionalDataHolder, Parsable {
 }
 export interface TenantProfileItem extends AdditionalDataHolder, Parsable {
     /**
+     * The createdAt property
+     */
+    createdAt?: Date | null;
+    /**
      * The description property
      */
     description?: string | null;
@@ -8778,6 +8786,10 @@ export interface TenantProfileItem extends AdditionalDataHolder, Parsable {
      * The permissionsCount property
      */
     permissionsCount?: number | null;
+    /**
+     * The updatedAt property
+     */
+    updatedAt?: Date | null;
     /**
      * The userAccountCount property
      */

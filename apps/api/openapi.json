@@ -13126,6 +13126,14 @@
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": "integer",
             "format": "int32"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
