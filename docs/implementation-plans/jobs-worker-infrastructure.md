@@ -835,3 +835,7 @@ Kept short; everything else is decided above.
   invitations), dispatcher staying in `Infrastructure/`. *Recommendation:
   approve;* the alternative (leave it in `Modules/Invitations`) is wrong now that
   auth writes to it.
+
+### Ratification record
+
+**2026-07-16 (owner, night session):** O1–O5 all approved as recommended — rename+extend migration, `LISTEN`/`NOTIFY` + poll fallback, file-heartbeat `--worker-health` probe, password-reset on typed `EmailOutbox`, new `Modules/Messaging/` home. This design is authoritative for Epic A implementation.
