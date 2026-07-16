@@ -498,8 +498,6 @@ function StaffTenantUsersPage() {
 	);
 	const { t } = useTranslation('common');
 	const [shouldLogout, setShouldLogout] = useState(false);
-	const [bulkFeedback, setBulkFeedback] =
-		useState<TenantUserBulkFeedback | null>(null);
 
 	const selectedStatuses = parseTenantUserStatusFilter(search.status);
 	const selectedLevels = parseTenantUserLevelFilter(search.level);
