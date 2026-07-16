@@ -396,8 +396,6 @@ vi.mock('react-i18next', () => ({
 				'profile-glance-no-access': 'No access to {{modules}}',
 				'profile-created-month': 'Created {{date}}',
 				'profile-updated-relative': 'Updated {{time}}',
-				'profile-members-preview-coming-soon':
-					'Member details are coming soon.',
 				'no-members-yet': 'No members yet.',
 				'loading-members': 'Loading members…',
 				'members-load-error': 'Unable to load members.',

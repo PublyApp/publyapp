@@ -84,8 +84,6 @@ vi.mock('react-i18next', () => ({
 					'Unable to load the tenant permission catalog.',
 				'no-permissions-available': 'No permission keys are available.',
 				'no-members-yet': 'No members yet.',
-				'profile-members-preview-coming-soon':
-					'Member details are coming soon.',
 				'loading-members': 'Loading members…',
 				'members-load-error': 'Unable to load members.',
 				'members-more-count': '+{{count}} more',

@@ -1352,6 +1352,5 @@
 	"profile-glance-summary": "{{granted}} of {{total}} granted across {{modules}} modules",
 	"profile-glance-no-access": "No access to {{modules}}",
 	"profile-created-month": "Created {{date}}",
-	"profile-updated-relative": "Updated {{time}}",
-	"profile-members-preview-coming-soon": "Member details are coming soon."
+	"profile-updated-relative": "Updated {{time}}"
 }
