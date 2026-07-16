@@ -1,22 +1,26 @@
 import {
 	IconAlertCircle,
 	IconArrowLeft,
+	IconKey,
 	IconSearchOff,
+	IconUsers,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
-import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { DangerZoneCard, DangerZoneRow } from '~/components/ui/detail-layout';
+import { BrandTile } from '~/components/ui/initials-avatar';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
+import { StatusPill } from '~/components/ui/product-page';
+import { StateView } from '~/components/ui/state-view';
+import { statusPillTone } from '~/components/ui/status-tone';
 import {
 	buildStaffTenantPermissionCatalogOptions,
 	useAssignStaffTenantProfilePermissionMutation,
@@ -34,6 +38,7 @@ import {
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
+import { useUiStore } from '~/lib/store/ui-store';
 
 import {
 	getFailureMessage,
@@ -43,13 +48,23 @@ import {
 import {
 	BackToTenantsLink,
 	DetailItem,
+	formatTenantStatusLabel,
 	MALFORMED_ID_TRANSLATION_KEY,
 	TenantDetailsError,
 	TenantDetailsLoading,
-	TenantDetailsPageShell,
 	TenantRetryActions,
 } from '../_tenant-details-shell';
+import {
+	deriveTenantProfileCardStyle,
+	tenantProfileTypeChipClassName,
+} from '../profiles';
+import {
+	parseProfileDetailsSearchParams,
+	type ProfileDetailsSearchParamInput,
+	type ProfileDetailsSearchParams,
+} from './_profile-details-search';
 import { ProfileFormDrawer } from './_profile-form-drawer';
+import { ProfileSectionNavLink } from './_profile-section-nav-link';
 
 const isProblemStatus = (
 	error: unknown,
@@ -143,24 +158,6 @@ const TenantProfileDetailsError = ({
 	);
 };
 
-export type ProfileDetailsSearchParams = { edit?: 1 };
-export type ProfileDetailsSearchParamInput = { edit?: unknown };
-
-/** The flag round-trips as the NUMBER 1 — a string '1' would be JSON-quoted
- * in the URL (`?edit=%221%22`) by the router's search serializer. Malformed
- * values return `edit: undefined` explicitly (not an omitted key) because
- * TanStack Router merges validated search over the raw parsed search, so an
- * omitted key would leave a malformed raw value in the final URL (r5-tenants-F5). */
-export const parseProfileDetailsSearchParams = (
-	search: ProfileDetailsSearchParamInput,
-): ProfileDetailsSearchParams => {
-	const isEditOpen =
-		search.edit === 1 ||
-		(typeof search.edit === 'string' && search.edit.trim() === '1');
-
-	return { edit: isEditOpen ? 1 : undefined };
-};
-
 export const Route = createFileRoute(
 	'/_authed-layout/staff/tenants/$tenantId/profiles/$profileId',
 )({
@@ -179,6 +176,7 @@ function StaffTenantProfileDetailsPage() {
 	const [busyPermissionKey, setBusyPermissionKey] = useState('');
 	const [shouldRedirectToLogout, setShouldRedirectToLogout] = useState(false);
 	const isEditDrawerOpen = search.edit === 1;
+	const activeTab = search.tab ?? 'overview';
 	const [isEditFormDirty, setIsEditFormDirty] = useState(false);
 	// `onDirtyChange(false)` (called by the drawer right before an
 	// app-initiated close/submit navigation) is an async React state update —
@@ -194,7 +192,10 @@ function StaffTenantProfileDetailsPage() {
 		// (including the successful-save close via `onSaved`).
 		editDrawerNavBypassRef.current = !isOpen;
 		void navigate({
-			search: isOpen ? { edit: 1 } : {},
+			search: (previous: ProfileDetailsSearchParams) => ({
+				...previous,
+				edit: isOpen ? 1 : undefined,
+			}),
 			replace: true,
 		});
 	};
@@ -237,10 +238,39 @@ function StaffTenantProfileDetailsPage() {
 	const deleteProfile = useDeleteStaffTenantProfileMutation();
 	const assignPermission = useAssignStaffTenantProfilePermissionMutation();
 	const unassignPermission = useUnassignStaffTenantProfilePermissionMutation();
+	const tenant = toStaffTenantDetails(tenantQuery.data);
 	const profile = toStaffTenantProfileDetails(detailQuery.data);
 	const permissionKeys = toStaffTenantProfilePermissionKeys(
 		permissionKeysQuery.data,
 	);
+	const setBreadcrumbOverride = useUiStore(
+		(state) => state.setBreadcrumbOverride,
+	);
+	const clearBreadcrumbOverride = useUiStore(
+		(state) => state.clearBreadcrumbOverride,
+	);
+
+	useEffect(
+		() => () => {
+			clearBreadcrumbOverride();
+		},
+		[clearBreadcrumbOverride],
+	);
+
+	useEffect(() => {
+		setBreadcrumbOverride([
+			{ label: t('tenants'), to: '/staff/tenants' },
+			{
+				label: tenant?.name ?? t('tenant'),
+				to: '/staff/tenants/' + tenantId,
+			},
+			{
+				label: t('profiles'),
+				to: '/staff/tenants/' + tenantId + '/profiles',
+			},
+			{ label: profile?.name ?? t('profile') },
+		]);
+	}, [profile?.name, setBreadcrumbOverride, t, tenant?.name, tenantId]);
 	// Stable identity across refetch re-renders — the drawer resets its form
 	// whenever this prop's reference changes, so a new object literal here
 	// would silently discard unsaved edits (see _profile-form-drawer.tsx).
@@ -309,7 +339,6 @@ function StaffTenantProfileDetailsPage() {
 		);
 	}
 
-	const tenant = toStaffTenantDetails(tenantQuery.data);
 	if (!tenant) {
 		return (
 			<AppErrorView
@@ -438,76 +467,166 @@ function StaffTenantProfileDetailsPage() {
 			params: { tenantId },
 		});
 	};
+	const { Icon: ProfileIcon, tone: profileTone } = deriveTenantProfileCardStyle(
+		profile.name,
+	);
 
 	return (
-		<TenantDetailsPageShell
-			tenant={tenant}
-			activeSection="profiles"
-			testId="staff-tenant-profile-details-page"
+		<div
+			className="publy-detail-page flex w-full flex-col gap-5"
+			data-testid="staff-tenant-profile-details-page"
 		>
-			<div className="space-y-6">
-				<div className="space-y-4">
-					<Link
-						to="/staff/tenants/$tenantId/profiles"
-						params={{ tenantId }}
-						className="publy-back-link"
-					>
-						<IconArrowLeft aria-hidden="true" className="size-3" />
-						{t('back-to-profiles')}
-					</Link>
+			<Link
+				to="/staff/tenants/$tenantId/profiles"
+				params={{ tenantId }}
+				className="publy-back-link"
+			>
+				<IconArrowLeft aria-hidden="true" className="size-3" />
+				{t('back-to-tenant-profiles', { name: tenant.name })}
+			</Link>
 
-					<div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-						<div className="space-y-3">
-							<div className="flex flex-wrap items-center gap-3">
-								<h2 className="text-2xl font-semibold text-foreground">
-									{profile.name}
-								</h2>
-								{profile.isDefault ? (
-									<Badge variant="secondary">{t('default')}</Badge>
-								) : null}
-							</div>
-							<p className="max-w-3xl text-sm text-muted-foreground">
-								{profile.description ?? t('no-description-provided')}
-							</p>
-						</div>
+			<section
+				className="flex flex-wrap items-center gap-3 rounded-[var(--publy-radius-control)] bg-card px-4 py-3 shadow-[var(--publy-shadow-ring)]"
+				data-testid="staff-tenant-profile-tenant-band"
+			>
+				<BrandTile
+					name={tenant.name}
+					logoUrl={tenant.logoUrl}
+					className="size-8 rounded-[var(--publy-radius-small-control)] text-xs"
+				/>
+				<div className="min-w-0">
+					<p className="truncate text-sm font-semibold text-foreground">
+						{tenant.name}
+					</p>
+					{tenant.code ? (
+						<p className="font-mono text-xs text-muted-foreground">
+							<span className="text-muted-foreground">publyapp.com/</span>
+							{tenant.code}
+						</p>
+					) : null}
+				</div>
+				<StatusPill tone={statusPillTone(tenant.status)}>
+					{tenant.status
+						? formatTenantStatusLabel(tenant.status, t)
+						: t('status-unknown')}
+				</StatusPill>
+				<Link
+					to="/staff/tenants/$tenantId"
+					params={{ tenantId }}
+					className="publy-record-link ml-auto text-sm"
+				>
+					{t('open-tenant')}
+				</Link>
+			</section>
 
-						<div className="flex w-full max-w-xs flex-col gap-3">
-							<DetailItem
-								label={t('assigned-users')}
-								value={String(profile.userAccountCount)}
-							/>
-							<Button
-								type="button"
-								variant="outline"
-								onClick={() => setEditDrawerOpen(true)}
+			<header
+				className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"
+				data-testid="staff-tenant-profile-identity"
+			>
+				<div className="flex min-w-0 items-start gap-4">
+					<span className="publy-profile-detail-tile" data-tone={profileTone}>
+						<ProfileIcon aria-hidden="true" />
+					</span>
+					<div className="min-w-0 space-y-1.5">
+						<div className="flex flex-wrap items-center gap-2">
+							<h1 className="text-2xl font-semibold text-foreground">
+								{profile.name}
+							</h1>
+							<span
+								className={tenantProfileTypeChipClassName(profile.isDefault)}
 							>
-								{t('edit-profile')}
-							</Button>
+								{profile.isDefault ? t('system-profile') : t('custom-profile')}
+							</span>
 						</div>
+						<p className="max-w-3xl text-sm text-muted-foreground">
+							{profile.description ?? t('no-description-provided')}
+						</p>
+						<p className="text-xs text-muted-foreground">
+							{t('tenant-member-count', {
+								count: profile.userAccountCount,
+							})}
+							{' · '}
+							{t('tenant-permission-count', {
+								count: permissionKeys.length,
+							})}
+						</p>
 					</div>
 				</div>
 
-				<ConfirmDialog
-					isOpen={pendingDelete}
-					title={t('delete-tenant-profile-confirm-title')}
-					description={t('confirm-delete-tenant-profile-description')}
-					confirmLabel={t('delete')}
-					isPending={deleteProfile.isPending}
-					onConfirm={() => {
-						void handleDelete();
-					}}
-					onOpenChange={setPendingDelete}
-				/>
+				<Button
+					type="button"
+					variant="outline"
+					onClick={() => setEditDrawerOpen(true)}
+				>
+					{t('edit-details')}
+				</Button>
+			</header>
 
-				<Tabs value="profile">
-					<TabsList variant="line" aria-label={t('profile-sections')}>
-						<TabsTrigger value="profile">{t('profile')}</TabsTrigger>
-						<TabsTrigger
-							value="members"
-							render={
-								<Link
-									to="/staff/tenants/$tenantId/profiles/$profileId/users"
-									params={{ tenantId, profileId }}
+			<nav
+				aria-label={t('profile-sections')}
+				className="flex flex-wrap gap-1 border-b border-border"
+				data-testid="staff-tenant-profile-tabs"
+			>
+				<ProfileSectionNavLink
+					activeTab={activeTab}
+					label={t('overview')}
+					tab="overview"
+					tenantId={tenantId}
+					profileId={profileId}
+				/>
+				<ProfileSectionNavLink
+					activeTab={activeTab}
+					count={permissionKeys.length}
+					label={t('permissions')}
+					tab="permissions"
+					tenantId={tenantId}
+					profileId={profileId}
+				/>
+				<ProfileSectionNavLink
+					activeTab={activeTab}
+					count={profile.userAccountCount}
+					label={t('members')}
+					tab="members"
+					tenantId={tenantId}
+					profileId={profileId}
+				/>
+			</nav>
+
+			<ConfirmDialog
+				isOpen={pendingDelete}
+				title={t('delete-tenant-profile-confirm-title')}
+				description={t('confirm-delete-tenant-profile-description')}
+				confirmLabel={t('delete')}
+				isPending={deleteProfile.isPending}
+				onConfirm={() => {
+					void handleDelete();
+				}}
+				onOpenChange={setPendingDelete}
+			/>
+
+			{activeTab === 'overview' ? (
+				<div
+					className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)]"
+					data-testid="staff-tenant-profile-overview-content"
+				>
+					<Card className="space-y-4 p-5">
+						<div className="space-y-1">
+							<p className="text-lg font-semibold text-foreground">
+								{t('profile-details')}
+							</p>
+							<p className="text-sm text-muted-foreground">
+								{t('tenant-profile-details-description')}
+							</p>
+						</div>
+
+						<div className="grid gap-4 md:grid-cols-2">
+							<div className="md:col-span-2">
+								<DetailItem label={t('name')} value={profile.name} />
+							</div>
+							<div className="md:col-span-2">
+								<DetailItem
+									label={t('description')}
+									value={profile.description ?? t('no-description-provided')}
 								/>
 							}
 						>
@@ -736,9 +855,32 @@ function StaffTenantProfileDetailsPage() {
 								</div>
 							</Card>
 						</div>
-					</TabsContent>
-				</Tabs>
-			</div>
+					</Card>
+				</div>
+			) : (
+				<StateView
+					icon={
+						activeTab === 'permissions' ? (
+							<IconKey aria-hidden="true" />
+						) : (
+							<IconUsers aria-hidden="true" />
+						)
+					}
+					scale="inline"
+					title={
+						activeTab === 'permissions'
+							? t('profile-permissions-placeholder-title')
+							: t('profile-members-placeholder-title')
+					}
+					description={
+						activeTab === 'permissions'
+							? t('profile-permissions-placeholder-description')
+							: t('profile-members-placeholder-description')
+					}
+					testId={'staff-tenant-profile-' + activeTab + '-placeholder'}
+					className="py-12"
+				/>
+			)}
 
 			<ProfileFormDrawer
 				tenantId={tenantId}
@@ -764,6 +906,6 @@ function StaffTenantProfileDetailsPage() {
 					}
 				}}
 			/>
-		</TenantDetailsPageShell>
+		</div>
 	);
 }

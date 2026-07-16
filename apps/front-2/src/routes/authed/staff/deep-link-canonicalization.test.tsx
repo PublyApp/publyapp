@@ -36,11 +36,11 @@ import {
 	Route as TenantProfilesRoute,
 	type StaffTenantProfilesSearchParamInput,
 } from '~/routes/authed/staff/tenants/$tenantId/profiles';
+import { Route as TenantProfileDetailsRoute } from '~/routes/authed/staff/tenants/$tenantId/profiles/$profileId';
 import {
 	parseProfileDetailsSearchParams,
-	Route as TenantProfileDetailsRoute,
 	type ProfileDetailsSearchParamInput,
-} from '~/routes/authed/staff/tenants/$tenantId/profiles/$profileId';
+} from '~/routes/authed/staff/tenants/$tenantId/profiles/_profile-details-search';
 import {
 	parseTenantUsersListSearchParams,
 	Route as TenantUsersRoute,
@@ -234,6 +234,26 @@ describe('malformed deep links are canonicalized at the router boundary (r4-tena
 
 		expect(screen.getByTestId('field-edit').textContent).toBe('closed');
 		expect(history.location.href).not.toContain('edit=yes');
+	});
+
+	test('tenant profile details: an invalid tab resolves to overview without persisting the default', async () => {
+		const { router, history } = buildHarness(
+			'/staff/tenants/$tenantId/profiles/$profileId',
+			asValidateSearch(TenantProfileDetailsRoute),
+			(search) => {
+				const parsed = parseProfileDetailsSearchParams(
+					search as ProfileDetailsSearchParamInput,
+				);
+				return { tab: parsed.tab ?? 'overview' };
+			},
+			'/staff/tenants/t1/profiles/p1?tab=unsupported',
+		);
+
+		render(<RouterProvider router={router} />);
+		await waitFor(() => screen.getByTestId('resolved-search'));
+
+		expect(screen.getByTestId('field-tab').textContent).toBe('overview');
+		expect(history.location.href).not.toContain('tab=');
 	});
 
 	test('tenant invitations: an unrecognized status key is dropped from the URL', async () => {

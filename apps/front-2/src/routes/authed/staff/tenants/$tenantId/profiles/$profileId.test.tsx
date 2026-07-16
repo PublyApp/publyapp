@@ -54,11 +54,13 @@ vi.mock('@tanstack/react-router', () => ({
 		children,
 		to,
 		params,
+		search,
 		...props
 	}: {
 		children: React.ReactNode;
 		to: string;
 		params?: Record<string, string>;
+		search?: unknown;
 	}) => {
 		let href = to;
 
@@ -66,8 +68,23 @@ vi.mock('@tanstack/react-router', () => ({
 			href = href.replace(`$${key}`, value);
 		}
 
+		const resolvedSearch =
+			typeof search === 'function'
+				? (search as (previous: Record<string, unknown>) => unknown)(
+						mocks.search,
+					)
+				: search;
+
 		return (
-			<a href={href} {...props}>
+			<a
+				href={href}
+				data-search={
+					resolvedSearch === undefined
+						? undefined
+						: JSON.stringify(resolvedSearch)
+				}
+				{...props}
+			>
 				{children}
 			</a>
 		);
@@ -164,9 +181,28 @@ vi.mock('react-i18next', () => ({
 		t: (key: string, options?: Record<string, unknown>) => {
 			const labels: Record<string, string> = {
 				basics: 'Basics',
+				custom: 'Custom',
+				'custom-profile': 'Custom profile',
 				profiles: 'Profiles',
 				invitations: 'Invitations',
 				users: 'Users',
+				tenants: 'Tenants',
+				tenant: 'Tenant',
+				profile: 'Profile',
+				overview: 'Overview',
+				permissions: 'Permissions',
+				members: 'Members',
+				system: 'System',
+				'system-profile': 'System profile',
+				'open-tenant': 'Open tenant',
+				'back-to-tenant-profiles': 'Back to {{name}} profiles',
+				'profile-members-placeholder-title': 'Members are coming soon',
+				'profile-members-placeholder-description':
+					'Member management will be added in a later refinement step.',
+				'profile-permissions-placeholder-title':
+					'Permission management is moving here',
+				'profile-permissions-placeholder-description':
+					'The dedicated permissions view will be added in a later refinement step.',
 				assign: 'Assign',
 				assigned: 'Assigned',
 				'assign-permission': 'Assign {{name}}',
@@ -184,6 +220,7 @@ vi.mock('react-i18next', () => ({
 				'delete-profile': 'Delete profile',
 				'delete-tenant-profile-confirm-title': 'Delete tenant profile',
 				description: 'Description',
+				'edit-details': 'Edit details',
 				'edit-profile': 'Edit profile',
 				'error-404-code': '404 — Not Found',
 				'error-500-code': '500 — Server Error',
@@ -202,7 +239,10 @@ vi.mock('react-i18next', () => ({
 				'no-permissions-available': 'No permission keys are available.',
 				'permission-keys': 'Permission keys',
 				'profile-details': 'Profile details',
+				'profile-sections': 'Profile sections',
 				retry: 'Retry',
+				'status-active': 'Active',
+				'status-unknown': 'Unknown',
 				'tenant-details-error-title': 'Unable to load this tenant',
 				'tenant-permission-catalog-load-failed':
 					'Unable to load the tenant permission catalog.',
@@ -214,6 +254,8 @@ vi.mock('react-i18next', () => ({
 					'The requested tenant profile does not exist or is no longer available.',
 				'tenant-profile-not-found-title': 'Tenant profile not found',
 				'tenant-profile-payload-empty': 'The profile payload was empty.',
+				'tenant-member-count': '{{count}} members',
+				'tenant-permission-count': '{{count}} permissions',
 				'tenant-response-incomplete': 'The tenant response was incomplete.',
 				'unable-to-delete-tenant-profile':
 					'Unable to delete this tenant profile.',
@@ -242,7 +284,10 @@ vi.mock('react-i18next', () => ({
 	}),
 }));
 
+import { useUiStore } from '~/lib/store/ui-store';
+
 import { Route } from './$profileId';
+import { parseProfileDetailsSearchParams } from './_profile-details-search';
 
 const buildQueryResult = (overrides: Record<string, unknown> = {}) => ({
 	data: undefined,
@@ -275,6 +320,7 @@ const renderPage = () => {
 describe('staff tenant profile details route', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		useUiStore.setState({ breadcrumbOverride: null });
 		mocks.search = {};
 		mocks.blockerResolver.status = 'idle';
 		mocks.blockerResolver.proceed = undefined;
@@ -418,24 +464,43 @@ describe('staff tenant profile details route', () => {
 		cleanup();
 	});
 
-	test('renders the tenant shell, profile details, and permission keys', () => {
+	test('renders standalone tenant and profile chrome above the overview content', () => {
 		renderPage();
 
 		expect(
 			screen.getByTestId('staff-tenant-profile-details-page'),
 		).toBeTruthy();
-		expect(screen.getByText('Acme Corporation')).toBeTruthy();
+		const tenantBand = screen.getByTestId('staff-tenant-profile-tenant-band');
+		const identity = screen.getByTestId('staff-tenant-profile-identity');
+		const tabs = screen.getByTestId('staff-tenant-profile-tabs');
+
+		expect(tenantBand.textContent).toContain('Acme Corporation');
+		expect(tenantBand.textContent).toContain('publyapp.com/ACME');
+		expect(tenantBand.textContent).toContain('Active');
 		expect(
-			screen.getByText('Profiles', { selector: 'span[aria-current=\"page\"]' }),
-		).toBeTruthy();
-		expect(screen.getAllByText('Approvers').length).toBeGreaterThan(0);
-		expect(screen.getAllByText('Can review approvals').length).toBeGreaterThan(
-			0,
+			screen.getByRole('link', { name: 'Open tenant' }).getAttribute('href'),
+		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111');
+		expect(identity.querySelector('.publy-profile-detail-tile')).toBeTruthy();
+		expect(identity.textContent).toContain('Approvers');
+		expect(identity.textContent).toContain('System profile');
+		expect(identity.textContent).toContain('Can review approvals');
+		expect(identity.textContent).toContain('7 members · 2 permissions');
+		expect(screen.getByRole('button', { name: 'Edit details' })).toBeTruthy();
+		expect(tabs.textContent).toContain('Overview');
+		expect(tabs.textContent).toContain('Permissions2');
+		expect(tabs.textContent).toContain('Members7');
+		expect(tabs.querySelector('[aria-current="page"]')?.textContent).toContain(
+			'Overview',
 		);
-		expect(screen.getAllByText('Default').length).toBeGreaterThan(0);
-		// '7' now renders twice — the sidebar "Assigned users" DetailItem and the
-		// new Members tab trigger's count badge both show `userAccountCount`.
-		expect(screen.getAllByText('7').length).toBeGreaterThan(0);
+		expect(
+			screen.getByTestId('staff-tenant-profile-overview-content'),
+		).toBeTruthy();
+		expect(screen.queryByText('Basics')).toBeNull();
+		expect(
+			screen
+				.getByRole('link', { name: 'Back to Acme Corporation profiles' })
+				.getAttribute('href'),
+		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/profiles');
 		expect(screen.getByText('tenant.approvals.review')).toBeTruthy();
 		expect(screen.getByText('tenant.users.read')).toBeTruthy();
 		expect(screen.getByText('tenant.users.write')).toBeTruthy();
@@ -447,11 +512,6 @@ describe('staff tenant profile details route', () => {
 		expect(
 			screen.getByRole('button', { name: /Assign tenant.users.write/ }),
 		).toBeTruthy();
-		expect(
-			screen
-				.getByRole('link', { name: 'Back to profiles' })
-				.getAttribute('href'),
-		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/profiles');
 		expect(mocks.useStaffTenantProfileDetailsQuery).toHaveBeenCalledWith(
 			{
 				tenantId: '11111111-1111-1111-1111-111111111111',
@@ -469,6 +529,92 @@ describe('staff tenant profile details route', () => {
 		expect(mocks.useStaffTenantPermissionCatalogQuery).toHaveBeenCalledWith({});
 	});
 
+	test('renders URL-selected permissions and members placeholders with counted tabs', () => {
+		mocks.search = { tab: 'permissions' };
+		const view = renderPage();
+
+		expect(
+			screen
+				.getByTestId('staff-tenant-profile-tabs')
+				.querySelector('[aria-current="page"]')?.textContent,
+		).toContain('Permissions2');
+		expect(
+			screen.getByText('Permission management is moving here'),
+		).toBeTruthy();
+		expect(
+			screen.queryByTestId('staff-tenant-profile-overview-content'),
+		).toBeNull();
+
+		view.unmount();
+		mocks.search = { tab: 'members' };
+		renderPage();
+
+		expect(
+			screen
+				.getByTestId('staff-tenant-profile-tabs')
+				.querySelector('[aria-current="page"]')?.textContent,
+		).toContain('Members7');
+		expect(screen.getByText('Members are coming soon')).toBeTruthy();
+	});
+
+	test('validates profile tab search state and keeps the numeric edit flag', () => {
+		expect(parseProfileDetailsSearchParams({})).toEqual({
+			edit: undefined,
+			tab: undefined,
+		});
+		expect(
+			parseProfileDetailsSearchParams({ edit: '1', tab: 'permissions' }),
+		).toEqual({ edit: 1, tab: 'permissions' });
+		expect(
+			parseProfileDetailsSearchParams({ edit: 2, tab: 'unsupported' }),
+		).toEqual({ edit: undefined, tab: undefined });
+		expect(parseProfileDetailsSearchParams({ tab: 'overview' })).toEqual({
+			edit: undefined,
+			tab: undefined,
+		});
+	});
+
+	test('publishes named breadcrumbs and clears them when the page unmounts', async () => {
+		const view = renderPage();
+
+		await waitFor(() => {
+			expect(useUiStore.getState().breadcrumbOverride).toEqual([
+				{ label: 'Tenants', to: '/staff/tenants' },
+				{
+					label: 'Acme Corporation',
+					to: '/staff/tenants/11111111-1111-1111-1111-111111111111',
+				},
+				{
+					label: 'Profiles',
+					to: '/staff/tenants/11111111-1111-1111-1111-111111111111/profiles',
+				},
+				{ label: 'Approvers' },
+			]);
+		});
+
+		view.unmount();
+		expect(useUiStore.getState().breadcrumbOverride).toBeNull();
+	});
+
+	test('publishes a stable four-item generic trail while entity names load', async () => {
+		mocks.useStaffTenantDetailsQuery.mockReturnValue(
+			buildQueryResult({ isPending: true }),
+		);
+		mocks.toStaffTenantDetails.mockReturnValue(null);
+		mocks.useStaffTenantProfileDetailsQuery.mockReturnValue(
+			buildQueryResult({ isPending: true }),
+		);
+		mocks.toStaffTenantProfileDetails.mockReturnValue(null);
+
+		renderPage();
+
+		await waitFor(() => {
+			expect(
+				useUiStore.getState().breadcrumbOverride?.map(({ label }) => label),
+			).toEqual(['Tenants', 'Tenant', 'Profiles', 'Profile']);
+		});
+	});
+
 	test('moves the delete action into a labeled danger-zone section under permissions', () => {
 		mocks.toStaffTenantProfileDetails.mockReturnValue({
 			...nonDefaultProfile,
@@ -476,7 +622,7 @@ describe('staff tenant profile details route', () => {
 
 		renderPage();
 
-		const editButton = screen.getByRole('button', { name: 'Edit profile' });
+		const editButton = screen.getByRole('button', { name: 'Edit details' });
 		const deleteButton = screen.getByRole('button', {
 			name: 'Delete profile',
 		});
@@ -487,7 +633,9 @@ describe('staff tenant profile details route', () => {
 
 		expect(deleteButton).toBeTruthy();
 		expect(
-			editButton.closest('div')?.closest('div')?.contains(deleteButton),
+			screen
+				.getByTestId('staff-tenant-profile-identity')
+				.contains(deleteButton),
 		).toBe(false);
 		expect(editButton.closest('section')).toBe(null);
 		expect(dangerZoneSection).not.toBeNull();
@@ -597,11 +745,16 @@ describe('staff tenant profile details route', () => {
 	test('edit profile button navigates to open the edit drawer via search state', () => {
 		renderPage();
 
-		fireEvent.click(screen.getByRole('button', { name: 'Edit profile' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Edit details' }));
 
-		expect(mocks.navigate).toHaveBeenCalledWith({
-			search: { edit: 1 },
-			replace: true,
+		const navigation = mocks.navigate.mock.calls[0]?.[0] as {
+			replace?: boolean;
+			search?: (previous: Record<string, unknown>) => Record<string, unknown>;
+		};
+		expect(navigation.replace).toBe(true);
+		expect(navigation.search?.({ tab: 'permissions' })).toEqual({
+			edit: 1,
+			tab: 'permissions',
 		});
 	});
 
@@ -990,10 +1143,17 @@ describe('staff tenant profile details route', () => {
 
 		expect(mocks.navigate).toHaveBeenCalledWith(
 			expect.objectContaining({
-				search: {},
+				search: expect.any(Function),
 				replace: true,
 			}),
 		);
+		const navigation = mocks.navigate.mock.calls.at(-1)?.[0] as {
+			search?: (previous: Record<string, unknown>) => Record<string, unknown>;
+		};
+		expect(navigation.search?.({ edit: 1, tab: 'members' })).toEqual({
+			edit: undefined,
+			tab: 'members',
+		});
 	});
 
 	test('shows the unsaved-changes confirm dialog when the router blocks navigation away from a dirty edit drawer', () => {

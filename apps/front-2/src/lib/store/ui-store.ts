@@ -12,7 +12,13 @@ const DEFAULT_SIDEBAR_OPEN = true;
 
 export type ColorScheme = 'dark' | 'light';
 
+export type BreadcrumbOverrideItem = {
+	label: string;
+	to?: string;
+};
+
 type UiState = {
+	breadcrumbOverride: BreadcrumbOverrideItem[] | null;
 	colorScheme: ColorScheme;
 	sidebarOpen: boolean;
 };
@@ -33,6 +39,7 @@ type PersistedColorValue = {
 const isBrowser = typeof window !== 'undefined';
 
 const DEFAULT_UI_STATE: UiState = {
+	breadcrumbOverride: null,
 	colorScheme: DEFAULT_COLOR_SCHEME,
 	sidebarOpen: DEFAULT_SIDEBAR_OPEN,
 };
@@ -225,6 +232,8 @@ const readPersistedUiState = (): Pick<
 };
 
 type UiStore = UiState & {
+	setBreadcrumbOverride: (items: BreadcrumbOverrideItem[]) => void;
+	clearBreadcrumbOverride: () => void;
 	setColorScheme: (colorScheme: ColorScheme) => void;
 	toggleColorScheme: () => void;
 	applyRemoteColorScheme: (colorScheme: ColorScheme) => void;
@@ -235,6 +244,8 @@ type UiStore = UiState & {
 
 export const useUiStore = create<UiStore>((set, get) => ({
 	...DEFAULT_UI_STATE,
+	setBreadcrumbOverride: (items) => set({ breadcrumbOverride: items }),
+	clearBreadcrumbOverride: () => set({ breadcrumbOverride: null }),
 	hydrateFromStorage: () => {
 		const { colorScheme, sidebarOpen } = readPersistedUiState();
 		applyThemeToDocument(colorScheme);

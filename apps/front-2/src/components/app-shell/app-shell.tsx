@@ -326,12 +326,13 @@ const AuthedWorkspaceShell = ({
 	const { t } = useTranslation('common');
 	const sidebarOpen = useUiStore((state) => state.sidebarOpen);
 	const toggleSidebarOpen = useUiStore((state) => state.toggleSidebarOpen);
+	const breadcrumbOverride = useUiStore((state) => state.breadcrumbOverride);
 	const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 	const [isPanelMotionReady, setIsPanelMotionReady] = useState(false);
 	const activeRoute = getActiveRailItem(pathname);
 	const railItems = getRailItemsForPath(pathname);
 	const secondaryItems = getSecondaryPanelItems(pathname);
-	const breadcrumbs = getBreadcrumbsForPath(pathname);
+	const breadcrumbs = breadcrumbOverride ?? getBreadcrumbsForPath(pathname);
 	const isDesktop = useMediaQuery('(min-width: 1024px)');
 	const showSecondaryPanel = shouldShowSecondaryPanel(pathname, {
 		sidebarOpen,
@@ -479,6 +480,8 @@ const AuthedWorkspaceShell = ({
 						>
 							{breadcrumbs.map((item, index) => {
 								const isLast = index === breadcrumbs.length - 1;
+								const label = 'label' in item ? item.label : t(item.labelKey);
+								const path = 'label' in item ? item.to : item.path;
 								let content: ReactNode;
 								if (isLast) {
 									content = (
@@ -486,24 +489,22 @@ const AuthedWorkspaceShell = ({
 											aria-current="page"
 											className="app-shell-breadcrumb-current"
 										>
-											{t(item.labelKey)}
+											{label}
 										</span>
 									);
-								} else if (item.path) {
+								} else if (path) {
 									content = (
-										<Link to={item.path} className="app-shell-breadcrumb-link">
-											{t(item.labelKey)}
+										<Link to={path} className="app-shell-breadcrumb-link">
+											{label}
 										</Link>
 									);
 								} else {
 									content = (
-										<span className="app-shell-breadcrumb-muted">
-											{t(item.labelKey)}
-										</span>
+										<span className="app-shell-breadcrumb-muted">{label}</span>
 									);
 								}
 								return (
-									<Fragment key={`${item.labelKey}-${index}`}>
+									<Fragment key={path ?? label}>
 										{index > 0 ? (
 											<IconChevronRight
 												aria-hidden="true"
