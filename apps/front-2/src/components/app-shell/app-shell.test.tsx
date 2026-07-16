@@ -87,14 +87,13 @@ import { useUiStore } from '~/lib/store/ui-store';
 import { AppShell } from './app-shell';
 
 const LIST_ROUTE = '/staff/staff-users';
-const RAIL_ONLY_DETAIL_ROUTE = '/staff/staff-users/u-1';
-const RAIL_ONLY_DETAIL_ROUTE_OTHER = '/staff/invitations/i-1';
+const DETAIL_ROUTE = '/staff/staff-users/u-1';
+const DETAIL_ROUTE_OTHER = '/staff/invitations/i-1';
 
 const resetUiStore = () => {
 	useUiStore.setState({
 		colorScheme: 'light',
 		sidebarOpen: true,
-		railOnlyPanelOpen: false,
 	});
 };
 
@@ -122,83 +121,73 @@ describe('AppShell secondary-panel toggle', () => {
 		expect(screen.getByTestId('app-shell-secondary-panel')).toBeTruthy();
 	});
 
-	test('rail-only detail route: toggle is visible but the panel is closed by default', () => {
+	test('detail route uses the same stored open preference as list routes', () => {
 		render(
-			<AppShell mode="authed" pathname={RAIL_ONLY_DETAIL_ROUTE}>
+			<AppShell mode="authed" pathname={DETAIL_ROUTE}>
 				content
 			</AppShell>,
 		);
 
-		expect(
-			screen.getByRole('button', { name: 'expand-navigation-panel' }),
-		).toBeTruthy();
-		expect(screen.queryByTestId('app-shell-secondary-panel')).toBeNull();
-	});
-
-	test('clicking the toggle on a rail-only route opens the panel', () => {
-		render(
-			<AppShell mode="authed" pathname={RAIL_ONLY_DETAIL_ROUTE}>
-				content
-			</AppShell>,
-		);
-
-		fireEvent.click(
-			screen.getByRole('button', { name: 'expand-navigation-panel' }),
-		);
-
-		expect(screen.getByTestId('app-shell-secondary-panel')).toBeTruthy();
 		expect(
 			screen.getByRole('button', { name: 'collapse-navigation-panel' }),
 		).toBeTruthy();
+		expect(screen.getByTestId('app-shell-secondary-panel')).toBeTruthy();
 	});
 
-	test('an explicit rail-only open choice carries over when navigating to another rail-only route', () => {
-		const { rerender } = render(
-			<AppShell mode="authed" pathname={RAIL_ONLY_DETAIL_ROUTE}>
+	test('clicking the toggle on a detail route closes the panel', () => {
+		render(
+			<AppShell mode="authed" pathname={DETAIL_ROUTE}>
 				content
 			</AppShell>,
 		);
 
 		fireEvent.click(
-			screen.getByRole('button', { name: 'expand-navigation-panel' }),
+			screen.getByRole('button', { name: 'collapse-navigation-panel' }),
 		);
-		expect(screen.getByTestId('app-shell-secondary-panel')).toBeTruthy();
+
+		expect(screen.queryByTestId('app-shell-secondary-panel')).toBeNull();
+		expect(
+			screen.getByRole('button', { name: 'expand-navigation-panel' }),
+		).toBeTruthy();
+	});
+
+	test('detail-route choice carries over when navigating between detail routes', () => {
+		const { rerender } = render(
+			<AppShell mode="authed" pathname={DETAIL_ROUTE}>
+				content
+			</AppShell>,
+		);
+
+		fireEvent.click(
+			screen.getByRole('button', { name: 'collapse-navigation-panel' }),
+		);
+		expect(screen.queryByTestId('app-shell-secondary-panel')).toBeNull();
 
 		rerender(
-			<AppShell mode="authed" pathname={RAIL_ONLY_DETAIL_ROUTE_OTHER}>
-				content
-			</AppShell>,
-		);
-
-		expect(screen.getByTestId('app-shell-secondary-panel')).toBeTruthy();
-		expect(
-			screen.getByRole('button', { name: 'collapse-navigation-panel' }),
-		).toBeTruthy();
-	});
-
-	test('a fresh session (no explicit choice) always starts closed on a rail-only route', () => {
-		render(
-			<AppShell mode="authed" pathname={RAIL_ONLY_DETAIL_ROUTE}>
+			<AppShell mode="authed" pathname={DETAIL_ROUTE_OTHER}>
 				content
 			</AppShell>,
 		);
 
 		expect(screen.queryByTestId('app-shell-secondary-panel')).toBeNull();
+		expect(
+			screen.getByRole('button', { name: 'expand-navigation-panel' }),
+		).toBeTruthy();
 	});
 
-	test('list-route default-open behavior is unaffected by the rail-only flag', () => {
-		useUiStore.setState({ railOnlyPanelOpen: true });
+	test('list routes still reflect a persisted closed preference', () => {
+		useUiStore.setState({ sidebarOpen: false });
 
 		render(
-			<AppShell mode="authed" pathname={LIST_ROUTE}>
+			<AppShell mode="authed" pathname={DETAIL_ROUTE}>
 				content
 			</AppShell>,
 		);
 
-		expect(screen.getByTestId('app-shell-secondary-panel')).toBeTruthy();
 		expect(
-			screen.getByRole('button', { name: 'collapse-navigation-panel' }),
+			screen.getByRole('button', { name: 'expand-navigation-panel' }),
 		).toBeTruthy();
+		expect(screen.queryByTestId('app-shell-secondary-panel')).toBeNull();
 	});
 
 	test('below desktop width: toggle is hidden on both list and rail-only routes', () => {
@@ -217,7 +206,7 @@ describe('AppShell secondary-panel toggle', () => {
 		).toBeNull();
 
 		rerender(
-			<AppShell mode="authed" pathname={RAIL_ONLY_DETAIL_ROUTE}>
+			<AppShell mode="authed" pathname={DETAIL_ROUTE}>
 				content
 			</AppShell>,
 		);

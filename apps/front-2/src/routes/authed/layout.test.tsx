@@ -225,7 +225,7 @@ describe('BUG-2: pendingComponent closes the cold-boot blank window', () => {
 		).toBeTruthy();
 	});
 
-	test('does not reserve the secondary-panel grid track for a rail-only detail route', () => {
+	test('reserves the secondary-panel grid track for a detail route using the same defaults', () => {
 		mocks.location = {
 			pathname: '/staff/tenants/11111111-1111-1111-1111-111111111111',
 			search: {},
@@ -233,7 +233,7 @@ describe('BUG-2: pendingComponent closes the cold-boot blank window', () => {
 		render(<AuthedRoutePendingSkeleton />);
 
 		expect(
-			screen.queryByTestId('app-shell-pending-secondary-panel'),
-		).toBeNull();
+			screen.getByTestId('app-shell-pending-secondary-panel'),
+		).toBeTruthy();
 	});
 });

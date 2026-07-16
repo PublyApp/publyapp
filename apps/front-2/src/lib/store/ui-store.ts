@@ -15,14 +15,6 @@ export type ColorScheme = 'dark' | 'light';
 type UiState = {
 	colorScheme: ColorScheme;
 	sidebarOpen: boolean;
-	/**
-	 * Explicit user choice to show the secondary panel on rail-only
-	 * (detail/form) routes. Unlike `sidebarOpen`, this is in-memory only
-	 * (never persisted) — rail-only routes default to closed on every fresh
-	 * session/reload, but an explicit toggle during the session carries over
-	 * as the user navigates between other rail-only routes.
-	 */
-	railOnlyPanelOpen: boolean;
 };
 
 type PersistedColorState = {
@@ -43,7 +35,6 @@ const isBrowser = typeof window !== 'undefined';
 const DEFAULT_UI_STATE: UiState = {
 	colorScheme: DEFAULT_COLOR_SCHEME,
 	sidebarOpen: DEFAULT_SIDEBAR_OPEN,
-	railOnlyPanelOpen: false,
 };
 
 const readLocalStorageValue = (key: string): string | null => {
@@ -239,8 +230,6 @@ type UiStore = UiState & {
 	applyRemoteColorScheme: (colorScheme: ColorScheme) => void;
 	setSidebarOpen: (sidebarOpen: boolean) => void;
 	toggleSidebarOpen: () => void;
-	setRailOnlyPanelOpen: (railOnlyPanelOpen: boolean) => void;
-	toggleRailOnlyPanelOpen: () => void;
 	hydrateFromStorage: () => void;
 };
 
@@ -285,11 +274,5 @@ export const useUiStore = create<UiStore>((set, get) => ({
 	},
 	toggleSidebarOpen: () => {
 		get().setSidebarOpen(!get().sidebarOpen);
-	},
-	setRailOnlyPanelOpen: (railOnlyPanelOpen) => {
-		set({ railOnlyPanelOpen });
-	},
-	toggleRailOnlyPanelOpen: () => {
-		get().setRailOnlyPanelOpen(!get().railOnlyPanelOpen);
 	},
 }));
