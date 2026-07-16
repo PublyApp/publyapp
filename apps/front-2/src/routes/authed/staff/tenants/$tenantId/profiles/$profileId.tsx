@@ -18,11 +18,13 @@ import { StateView } from '~/components/ui/state-view';
 import {
 	buildStaffTenantPermissionCatalogGroups,
 	toStaffTenantProfileDetails,
+	toStaffTenantProfileMembers,
 	toStaffTenantProfilePermissionKeys,
 	useDeleteStaffTenantProfileMutation,
 	useStaffTenantPermissionCatalogQuery,
 	useStaffTenantProfileDetailsQuery,
 	useStaffTenantProfilePermissionKeysQuery,
+	useStaffTenantProfileUsersQuery,
 } from '~/lib/query/staff-tenant-profiles';
 import {
 	invalidateAllStaffTenantScopes,
@@ -51,6 +53,9 @@ import { ProfileIdentityHeader } from './_profile-identity-header';
 import { ProfileOverviewTab } from './_profile-overview-tab';
 import { ProfileSectionNavLink } from './_profile-section-nav-link';
 import { ProfileTenantBand } from './_profile-tenant-band';
+
+// Members shown in the Overview avatar stack / preview before "View all".
+const MEMBERS_PREVIEW_LIMIT = 5;
 
 const isProblemStatus = (
 	error: unknown,
@@ -237,6 +242,18 @@ function StaffTenantProfileDetailsPage() {
 				!tenantQuery.isError,
 		},
 	);
+	// Overview only needs the leading members (avatar stack + first-4 preview);
+	// the full Members table (step 4) will page through the same endpoint.
+	const membersQuery = useStaffTenantProfileUsersQuery(
+		{ tenantId, profileId, limit: MEMBERS_PREVIEW_LIMIT },
+		{
+			enabled:
+				tenantId.length > 0 &&
+				profileId.length > 0 &&
+				!tenantQuery.isPending &&
+				!tenantQuery.isError,
+		},
+	);
 	const permissionCatalogQuery = useStaffTenantPermissionCatalogQuery({});
 	const deleteProfile = useDeleteStaffTenantProfileMutation();
 	const tenant = toStaffTenantDetails(tenantQuery.data);
@@ -244,6 +261,7 @@ function StaffTenantProfileDetailsPage() {
 	const permissionKeys = toStaffTenantProfilePermissionKeys(
 		permissionKeysQuery.data,
 	);
+	const members = toStaffTenantProfileMembers(membersQuery.data);
 	const setBreadcrumbOverride = useUiStore(
 		(state) => state.setBreadcrumbOverride,
 	);
@@ -471,6 +489,9 @@ function StaffTenantProfileDetailsPage() {
 					permissionGroups={permissionGroups}
 					isCatalogPending={permissionCatalogQuery.isPending}
 					isCatalogError={permissionCatalogQuery.isError}
+					members={members}
+					membersPending={membersQuery.isPending}
+					membersError={membersQuery.isError}
 					locale={i18n.language}
 					onDeleteRequest={() => setPendingDelete(true)}
 					isDeletePending={deleteProfile.isPending}

@@ -64,6 +64,8 @@ const mocks = vi.hoisted(() => ({
 	toStaffTenantProfileDetails: vi.fn(),
 	useStaffTenantProfilePermissionKeysQuery: vi.fn(),
 	toStaffTenantProfilePermissionKeys: vi.fn(),
+	useStaffTenantProfileUsersQuery: vi.fn(),
+	toStaffTenantProfileMembers: vi.fn(),
 	useStaffTenantPermissionCatalogQuery: vi.fn(),
 	useDeleteStaffTenantProfileMutation: vi.fn(),
 	useAssignStaffTenantProfilePermissionMutation: vi.fn(),
@@ -254,6 +256,8 @@ vi.mock('~/lib/query/staff-tenant-profiles', () => ({
 	useStaffTenantProfilePermissionKeysQuery:
 		mocks.useStaffTenantProfilePermissionKeysQuery,
 	toStaffTenantProfilePermissionKeys: mocks.toStaffTenantProfilePermissionKeys,
+	useStaffTenantProfileUsersQuery: mocks.useStaffTenantProfileUsersQuery,
+	toStaffTenantProfileMembers: mocks.toStaffTenantProfileMembers,
 	useDeleteStaffTenantProfileMutation:
 		mocks.useDeleteStaffTenantProfileMutation,
 	useStaffTenantPermissionCatalogQuery:
@@ -395,6 +399,9 @@ vi.mock('react-i18next', () => ({
 				'profile-members-preview-coming-soon':
 					'Member details are coming soon.',
 				'no-members-yet': 'No members yet.',
+				'loading-members': 'Loading members…',
+				'members-load-error': 'Unable to load members.',
+				'members-more-count': '+{{count}} more',
 				'minutes-ago': '{{count}} minutes ago',
 				'hours-ago': '{{count}} hours ago',
 				'days-ago': '{{count}} days ago',
@@ -514,6 +521,10 @@ describe('staff tenant profile details route', () => {
 					permissionKeys: ['tenant.approvals.review', 'tenant.users.read'],
 				},
 			}),
+		);
+		mocks.toStaffTenantProfileMembers.mockReturnValue([]);
+		mocks.useStaffTenantProfileUsersQuery.mockReturnValue(
+			buildQueryResult({ data: { data: [] } }),
 		);
 		mocks.useStaffTenantPermissionCatalogQuery.mockReturnValue(
 			buildQueryResult({

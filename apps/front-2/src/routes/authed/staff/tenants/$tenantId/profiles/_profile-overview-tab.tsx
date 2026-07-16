@@ -19,12 +19,14 @@ import {
 	DetailGrid,
 	DetailMain,
 } from '~/components/ui/detail-layout';
+import { AvatarStack, InitialsAvatar } from '~/components/ui/initials-avatar';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import { StatusPill } from '~/components/ui/product-page';
 import { StatCard } from '~/components/ui/stat-card';
 import type {
 	StaffTenantPermissionGroup,
 	StaffTenantProfileDetails,
+	StaffTenantProfileMember,
 } from '~/lib/query/staff-tenant-profiles';
 
 import { formatMonthYear } from '../_tenant-details-shell';
@@ -37,6 +39,75 @@ const meterPercent = (granted: number, total: number): number => {
 	}
 
 	return Math.min(100, Math.round((granted / total) * 100));
+};
+
+/** A member's display label — the composed name when present, else the email
+ * (the backend leaves `name` empty for accounts with no first/last name). */
+const memberDisplayName = (member: StaffTenantProfileMember): string =>
+	member.name.length > 0 ? member.name : member.email;
+
+/** Honest members preview: distinct loading / error / empty / loaded branches,
+ * mirroring the QueryDisplay contract used elsewhere in this slice. */
+const MembersPreviewBody = ({
+	members,
+	isPending,
+	isError,
+	totalCount,
+}: {
+	members: StaffTenantProfileMember[];
+	isPending: boolean;
+	isError: boolean;
+	totalCount: number;
+}) => {
+	const { t } = useTranslation('common');
+
+	if (isPending) {
+		return (
+			<div className="flex items-center gap-2 px-4 pb-4 pt-3 text-sm text-muted-foreground">
+				<LoadingSpinner />
+				<span>{t('loading-members')}</span>
+			</div>
+		);
+	}
+
+	if (isError) {
+		return (
+			<p className="px-4 pb-4 pt-3 text-sm text-muted-foreground">
+				{t('members-load-error')}
+			</p>
+		);
+	}
+
+	const previewMembers = members.slice(0, 4);
+
+	if (totalCount === 0 || previewMembers.length === 0) {
+		return (
+			<p className="px-4 pb-4 pt-3 text-sm text-muted-foreground">
+				{t('no-members-yet')}
+			</p>
+		);
+	}
+
+	return (
+		<ul className="flex flex-col divide-y divide-border">
+			{previewMembers.map((member) => (
+				<li
+					key={member.userAccountId}
+					className="flex items-center gap-3 px-4 py-2.5"
+				>
+					<InitialsAvatar name={memberDisplayName(member)} size="sm" />
+					<div className="min-w-0">
+						<p className="truncate text-sm font-medium text-foreground">
+							{memberDisplayName(member)}
+						</p>
+						<p className="truncate text-xs text-muted-foreground">
+							{member.email}
+						</p>
+					</div>
+				</li>
+			))}
+		</ul>
+	);
 };
 
 /** Tab-switch link that preserves the rest of the URL search state, mirroring
@@ -175,6 +246,9 @@ export const ProfileOverviewTab = ({
 	permissionGroups,
 	isCatalogPending,
 	isCatalogError,
+	members,
+	membersPending,
+	membersError,
 	locale,
 	onDeleteRequest,
 	isDeletePending,
@@ -185,6 +259,9 @@ export const ProfileOverviewTab = ({
 	permissionGroups: StaffTenantPermissionGroup[];
 	isCatalogPending: boolean;
 	isCatalogError: boolean;
+	members: StaffTenantProfileMember[];
+	membersPending: boolean;
+	membersError: boolean;
 	locale: string;
 	onDeleteRequest: () => void;
 	isDeletePending: boolean;
@@ -193,6 +270,13 @@ export const ProfileOverviewTab = ({
 	const glance = buildProfilePermissionGlance(permissionGroups, permissionKeys);
 	const catalogReady =
 		!isCatalogPending && !isCatalogError && glance.catalogTotal > 0;
+	// The stack shows up to 5 leading members; the overflow badge counts the rest
+	// against the profile's true member total (the query only fetches the lead).
+	const stackNames = members.slice(0, 5).map(memberDisplayName);
+	const membersOverflow = Math.max(
+		profile.userAccountCount - stackNames.length,
+		0,
+	);
 
 	return (
 		<div
@@ -205,14 +289,28 @@ export const ProfileOverviewTab = ({
 					label={t('members')}
 					icon={<IconUsers aria-hidden="true" className="size-[14px]" />}
 					secondary={
-						<ProfileTabLink
-							tenantId={tenantId}
-							profileId={profile.id}
-							tab="members"
-							className="publy-stat-card-link"
-						>
-							{t('view-members')}
-						</ProfileTabLink>
+						stackNames.length > 0 ? (
+							<div
+								className="flex items-center gap-2"
+								data-testid="profile-stat-members-stack"
+							>
+								<AvatarStack names={stackNames} />
+								{membersOverflow > 0 ? (
+									<span className="publy-stat-card-link">
+										{t('members-more-count', { count: membersOverflow })}
+									</span>
+								) : null}
+							</div>
+						) : (
+							<ProfileTabLink
+								tenantId={tenantId}
+								profileId={profile.id}
+								tab="members"
+								className="publy-stat-card-link"
+							>
+								{t('view-members')}
+							</ProfileTabLink>
+						)
 					}
 				>
 					{profile.userAccountCount}
@@ -354,11 +452,12 @@ export const ProfileOverviewTab = ({
 								</ProfileTabLink>
 							) : null}
 						</div>
-						<p className="px-4 pb-4 pt-3 text-sm text-muted-foreground">
-							{profile.userAccountCount > 0
-								? t('profile-members-preview-coming-soon')
-								: t('no-members-yet')}
-						</p>
+						<MembersPreviewBody
+							members={members}
+							isPending={membersPending}
+							isError={membersError}
+							totalCount={profile.userAccountCount}
+						/>
 					</section>
 
 					<DangerZoneCard title={t('danger-zone')}>

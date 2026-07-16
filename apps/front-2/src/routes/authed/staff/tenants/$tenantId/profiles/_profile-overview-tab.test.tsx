@@ -6,6 +6,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import type {
 	StaffTenantPermissionGroup,
 	StaffTenantProfileDetails,
+	StaffTenantProfileMember,
 } from '~/lib/query/staff-tenant-profiles';
 
 vi.mock('@tanstack/react-router', () => ({
@@ -85,6 +86,9 @@ vi.mock('react-i18next', () => ({
 				'no-members-yet': 'No members yet.',
 				'profile-members-preview-coming-soon':
 					'Member details are coming soon.',
+				'loading-members': 'Loading members…',
+				'members-load-error': 'Unable to load members.',
+				'members-more-count': '+{{count}} more',
 			};
 			let text = labels[key] ?? key;
 			if (options) {
@@ -134,6 +138,18 @@ const baseProfile: StaffTenantProfileDetails = {
 	updatedAt: new Date('2026-07-14T10:00:00Z'),
 };
 
+const buildMembers = (count: number): StaffTenantProfileMember[] =>
+	Array.from({ length: count }, (_, index) => ({
+		userAccountId: `acc-${index}`,
+		userId: `usr-${index}`,
+		name: `Member ${index}`,
+		email: `member${index}@example.com`,
+		level: 'User',
+		status: 'Active',
+		joinedAt: new Date('2026-06-01T00:00:00Z'),
+		otherProfiles: [],
+	}));
+
 const renderTab = (
 	overrides: Partial<Parameters<typeof ProfileOverviewTab>[0]> = {},
 ) =>
@@ -145,6 +161,9 @@ const renderTab = (
 			permissionGroups={catalog}
 			isCatalogPending={false}
 			isCatalogError={false}
+			members={[]}
+			membersPending={false}
+			membersError={false}
 			locale="en"
 			onDeleteRequest={vi.fn()}
 			isDeletePending={false}
@@ -223,15 +242,56 @@ describe('ProfileOverviewTab', () => {
 		expect(viewAll.getAttribute('data-search')).toContain('"members"');
 	});
 
-	test('shows the honest members-preview fallback with a real count', () => {
-		renderTab();
+	test('renders the first four members in the preview when loaded', () => {
+		renderTab({ members: buildMembers(5) });
 
 		expect(screen.getByRole('link', { name: 'View all 4' })).toBeTruthy();
-		expect(screen.getByText('Member details are coming soon.')).toBeTruthy();
+		// First four members render; the fifth is held back for "View all".
+		expect(screen.getByText('Member 0')).toBeTruthy();
+		expect(screen.getByText('member0@example.com')).toBeTruthy();
+		expect(screen.getByText('Member 3')).toBeTruthy();
+		expect(screen.queryByText('Member 4')).toBeNull();
+	});
+
+	test('shows the avatar stack with a +N more overflow badge', () => {
+		renderTab({
+			profile: { ...baseProfile, userAccountCount: 12 },
+			members: buildMembers(5),
+		});
+
+		const stack = screen.getByTestId('profile-stat-members-stack');
+		expect(stack.querySelectorAll('.publy-avatar-initials')).toHaveLength(5);
+		// Overflow = total (12) − shown (5) = 7.
+		expect(screen.getByText('+7 more')).toBeTruthy();
+	});
+
+	test('omits the overflow badge when the stack covers every member', () => {
+		renderTab({
+			profile: { ...baseProfile, userAccountCount: 3 },
+			members: buildMembers(3),
+		});
+
+		expect(screen.getByTestId('profile-stat-members-stack')).toBeTruthy();
+		expect(screen.queryByText(/more/)).toBeNull();
+	});
+
+	test('shows a loading state while members are pending', () => {
+		renderTab({ membersPending: true });
+
+		expect(screen.getByText('Loading members…')).toBeTruthy();
+	});
+
+	test('shows an error state when members fail to load', () => {
+		renderTab({ membersError: true });
+
+		expect(screen.getByText('Unable to load members.')).toBeTruthy();
 	});
 
 	test('shows the empty members state when the profile has no members', () => {
-		renderTab({ profile: { ...baseProfile, userAccountCount: 0 } });
+		renderTab({
+			profile: { ...baseProfile, userAccountCount: 0 },
+			members: [],
+		});
 
 		expect(screen.queryByRole('link', { name: /View all/ })).toBeNull();
 		expect(screen.getByText('No members yet.')).toBeTruthy();
