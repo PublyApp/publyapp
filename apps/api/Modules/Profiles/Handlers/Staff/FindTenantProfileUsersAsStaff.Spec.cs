@@ -310,16 +310,19 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 			)
 		);
 		userMember.UserAccountId.Should().Be(userAccountId);
-		userMember.OtherProfiles.Should().ContainSingle(p =>
-			p.Id == profileB && p.Name == profileBName
-		);
+		// ContainSingle() (no predicate) asserts the list has exactly ONE item
+		// total — any extra profile fails — and .Which pins its exact identity.
+		var userOtherProfile = userMember.OtherProfiles.Should().ContainSingle().Which;
+		userOtherProfile.Id.Should().Be(profileB);
+		userOtherProfile.Name.Should().Be(profileBName);
 
 		// The third member holds A+C: exactly one other profile, and it is C —
 		// distinct from the user's, so swapped groupings fail here.
 		var thirdMember = result.Data.Single(m => m.UserAccountId == thirdAccountId);
-		thirdMember.OtherProfiles.Should().ContainSingle(p =>
-			p.Id == profileC && p.Name == profileCName
-		);
+		var thirdOtherProfile =
+			thirdMember.OtherProfiles.Should().ContainSingle().Which;
+		thirdOtherProfile.Id.Should().Be(profileC);
+		thirdOtherProfile.Name.Should().Be(profileCName);
 	}
 
 	[Fact]
