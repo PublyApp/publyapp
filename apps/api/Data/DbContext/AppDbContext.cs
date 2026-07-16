@@ -7,6 +7,7 @@ using PublyApp.Api.Lib;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.Auth.Entities;
 using PublyApp.Api.Modules.Invitations.Entities;
+using PublyApp.Api.Modules.Jobs.Entities;
 using PublyApp.Api.Modules.Permissions.Entities;
 using PublyApp.Api.Modules.Profiles.Entities;
 using PublyApp.Api.Modules.Projects.Entities;
@@ -65,6 +66,15 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	}
 	public DbSet<InvitationEmailOutbox> InvitationEmailOutbox {
 		get { return Set<InvitationEmailOutbox>(); }
+	}
+
+	// Generic background job engine (Infrastructure/Jobs). Entities live in
+	// Modules/Jobs by convention; behavior lives in Infrastructure/Jobs.
+	public DbSet<JobQueueItem> JobQueue {
+		get { return Set<JobQueueItem>(); }
+	}
+	public DbSet<JobDeadLetter> JobDeadLetter {
+		get { return Set<JobDeadLetter>(); }
 	}
 
 	// Staff back-office entities
@@ -343,6 +353,48 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 				.WithMany()
 				.HasForeignKey(e => e.ProfileId)
 				.OnDelete(DeleteBehavior.Restrict);
+		});
+
+		// Generic job queue (Infrastructure/Jobs). Not a BaseAttributes entity by
+		// design (§4.0): success is a hard delete and claim/complete run through raw
+		// SQL, so the uuidv7 id + manual timestamps are configured explicitly here
+		// rather than via the BaseAttributes auto-config loop below.
+		modelBuilder.Entity<JobQueueItem>(entity => {
+			entity.Property(e => e.Id).HasDefaultValueSql("uuidv7()");
+			entity.Property(e => e.Payload).HasDefaultValueSql("'{}'");
+			entity.Property(e => e.Status).HasDefaultValue(JobQueueStatus.Pending);
+			entity.Property(e => e.Priority).HasDefaultValue(0);
+			entity.Property(e => e.Attempts).HasDefaultValue(0);
+			entity.Property(e => e.MaxAttempts).HasDefaultValue(8);
+			entity.Property(e => e.NextAttemptAt).HasDefaultValueSql("now()");
+			entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+			entity.Property(e => e.UpdatedAt).HasDefaultValueSql("now()");
+
+			// Claim hot path: pending-and-due, ordered by priority then schedule.
+			entity.HasIndex(e => new { e.Priority, e.NextAttemptAt, e.CreatedAt })
+				.HasDatabaseName("ix_job_queue_claim")
+				.IsDescending(true, false, false)
+				.HasFilter("status = 0");
+
+			// Stale-lease reclaim path.
+			entity.HasIndex(e => e.LockedUntil)
+				.HasDatabaseName("ix_job_queue_reclaim")
+				.HasFilter("status = 1");
+
+			// Idempotent enqueue (dedup on optional idempotency_key).
+			entity.HasIndex(e => e.IdempotencyKey)
+				.IsUnique()
+				.HasDatabaseName("ux_job_queue_idempotency")
+				.HasFilter("idempotency_key IS NOT NULL");
+		});
+
+		modelBuilder.Entity<JobDeadLetter>(entity => {
+			entity.Property(e => e.Id).HasDefaultValueSql("uuidv7()");
+			entity.Property(e => e.FailedAt).HasDefaultValueSql("now()");
+			entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+
+			entity.HasIndex(e => new { e.JobType, e.FailedAt })
+				.HasDatabaseName("ix_job_dead_letter_job_type");
 		});
 
 		// Partial indexes to favor active rows without enforcing global filters
