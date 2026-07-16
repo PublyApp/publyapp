@@ -61,16 +61,27 @@ export const setLocaleCookie = async (page: Page, locale: 'fr') => {
  * Fast-path aware: projects that supply a pre-authenticated `storageState`
  * (see playwright.config.ts's `setup` project) land straight on
  * `/staff/staff-users` without ever hitting the login form. Projects with no
- * (or an expired) session get redirected to `/login` by
- * `redirectAuthenticatedUserAwayFromAuthPage`'s inverse — the authed layout's
- * own guard — at which point this falls back to a real form login. Either
- * way, every existing call site keeps working unchanged (review-r1-tests.md
- * F29).
+ * (or an expired) session get redirected to `/login` by the authed layout's
+ * own guard, then this helper fills the form. To avoid races, it now waits for
+ * whichever appears first: the `staff-users-table` (fast path) or the login form
+ * (fallback) using a deterministic race. Every existing call site keeps working
+ * unchanged (review-r1-tests.md F29).
  */
 export const loginAsStaffAdmin = async (page: Page): Promise<void> => {
 	await page.goto('/staff/staff-users');
 
-	if (new URL(page.url()).pathname.startsWith('/login')) {
+	const firstVisible = await Promise.race([
+		page
+			.getByTestId('staff-users-table')
+			.waitFor({ state: 'visible' })
+			.then(() => 'table'),
+		page
+			.locator('input[name="email"]')
+			.waitFor({ state: 'visible' })
+			.then(() => 'login'),
+	]);
+
+	if (firstVisible === 'login') {
 		await expect(page.locator('input[name="email"]')).toBeVisible();
 		await page
 			.locator('input[name="email"]')

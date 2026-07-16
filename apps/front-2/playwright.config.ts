@@ -31,6 +31,7 @@ export default defineConfig({
 		baseURL: 'https://front-2.localhost:8443',
 		headless: true,
 		ignoreHTTPSErrors: true,
+		trace: 'retain-on-failure',
 	},
 	projects: [
 		{
