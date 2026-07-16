@@ -17,8 +17,17 @@ export type BreadcrumbOverrideItem = {
 	to?: string;
 };
 
+/**
+ * Opaque token identifying the publisher that currently owns the breadcrumb
+ * override. Each page mints its own (a `Symbol` or its pathname) so a late
+ * cleanup from a page that has already been superseded cannot erase the
+ * override a newly mounted page just published.
+ */
+export type BreadcrumbOverrideOwner = string | symbol;
+
 type UiState = {
 	breadcrumbOverride: BreadcrumbOverrideItem[] | null;
+	breadcrumbOverrideOwner: BreadcrumbOverrideOwner | null;
 	colorScheme: ColorScheme;
 	sidebarOpen: boolean;
 };
@@ -40,6 +49,7 @@ const isBrowser = typeof window !== 'undefined';
 
 const DEFAULT_UI_STATE: UiState = {
 	breadcrumbOverride: null,
+	breadcrumbOverrideOwner: null,
 	colorScheme: DEFAULT_COLOR_SCHEME,
 	sidebarOpen: DEFAULT_SIDEBAR_OPEN,
 };
@@ -232,8 +242,11 @@ const readPersistedUiState = (): Pick<
 };
 
 type UiStore = UiState & {
-	setBreadcrumbOverride: (items: BreadcrumbOverrideItem[]) => void;
-	clearBreadcrumbOverride: () => void;
+	setBreadcrumbOverride: (
+		items: BreadcrumbOverrideItem[],
+		owner?: BreadcrumbOverrideOwner,
+	) => void;
+	clearBreadcrumbOverride: (owner?: BreadcrumbOverrideOwner) => void;
 	setColorScheme: (colorScheme: ColorScheme) => void;
 	toggleColorScheme: () => void;
 	applyRemoteColorScheme: (colorScheme: ColorScheme) => void;
@@ -244,8 +257,21 @@ type UiStore = UiState & {
 
 export const useUiStore = create<UiStore>((set, get) => ({
 	...DEFAULT_UI_STATE,
-	setBreadcrumbOverride: (items) => set({ breadcrumbOverride: items }),
-	clearBreadcrumbOverride: () => set({ breadcrumbOverride: null }),
+	setBreadcrumbOverride: (items, owner) =>
+		set({ breadcrumbOverride: items, breadcrumbOverrideOwner: owner ?? null }),
+	clearBreadcrumbOverride: (owner) =>
+		set((state) => {
+			// Owner-aware clear: a publisher that passes its token may only clear
+			// the override while it still owns it. This prevents page A's late
+			// (post-unmount) cleanup from erasing the override page B just
+			// published once B has adopted ownership. A tokenless clear (legacy
+			// callers) always clears.
+			if (owner !== undefined && state.breadcrumbOverrideOwner !== owner) {
+				return state;
+			}
+
+			return { breadcrumbOverride: null, breadcrumbOverrideOwner: null };
+		}),
 	hydrateFromStorage: () => {
 		const { colorScheme, sidebarOpen } = readPersistedUiState();
 		applyThemeToDocument(colorScheme);

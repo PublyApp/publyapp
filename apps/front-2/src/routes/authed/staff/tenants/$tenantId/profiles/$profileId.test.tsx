@@ -12,6 +12,45 @@ import {
 import type { JSX } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
+type BlockerLocationSnapshot = {
+	pathname: string;
+	search: Record<string, unknown>;
+};
+type BlockerArgs = {
+	current: BlockerLocationSnapshot;
+	next: BlockerLocationSnapshot;
+	action: string;
+};
+
+const PROFILE_PATHNAME =
+	'/staff/tenants/11111111-1111-1111-1111-111111111111/profiles/22222222-2222-2222-2222-222222222222';
+
+// A navigation that leaves this exact profile route (sibling route / browser
+// Back). Used as the default args for the bare `capturedShouldBlockFn()` calls
+// that only exercise the open+dirty gate.
+const realNavigationBlockerArgs: BlockerArgs = {
+	current: { pathname: PROFILE_PATHNAME, search: { edit: 1 } },
+	next: {
+		pathname: '/staff/tenants/11111111-1111-1111-1111-111111111111/profiles',
+		search: {},
+	},
+	action: 'PUSH',
+};
+
+// A tab switch: same pathname, `edit=1` preserved so the drawer stays open and
+// the draft is intact.
+const tabSwitchBlockerArgs: BlockerArgs = {
+	current: {
+		pathname: PROFILE_PATHNAME,
+		search: { edit: 1, tab: 'overview' },
+	},
+	next: {
+		pathname: PROFILE_PATHNAME,
+		search: { edit: 1, tab: 'permissions' },
+	},
+	action: 'PUSH',
+};
+
 const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
 	search: {} as Record<string, unknown>,
@@ -35,7 +74,9 @@ const mocks = vi.hoisted(() => ({
 		proceed: undefined as (() => void) | undefined,
 		reset: undefined as (() => void) | undefined,
 	},
-	capturedShouldBlockFn: undefined as (() => boolean) | undefined,
+	capturedShouldBlockFn: undefined as
+		| ((args?: BlockerArgs) => boolean)
+		| undefined,
 	capturedOnDirtyChange: undefined as ((isDirty: boolean) => void) | undefined,
 	capturedOnSaved: undefined as (() => void) | undefined,
 }));
@@ -89,8 +130,12 @@ vi.mock('@tanstack/react-router', () => ({
 			</a>
 		);
 	},
-	useBlocker: (opts: { shouldBlockFn: () => boolean }) => {
-		mocks.capturedShouldBlockFn = opts.shouldBlockFn;
+	useBlocker: (opts: { shouldBlockFn: (args: BlockerArgs) => boolean }) => {
+		const rawShouldBlockFn = opts.shouldBlockFn;
+		// Bare `capturedShouldBlockFn()` calls (which only exercise the
+		// open+dirty gate) default to a real cross-route navigation.
+		mocks.capturedShouldBlockFn = (args?: BlockerArgs) =>
+			rawShouldBlockFn(args ?? realNavigationBlockerArgs);
 		return mocks.blockerResolver;
 	},
 }));
@@ -1201,6 +1246,23 @@ describe('staff tenant profile details route', () => {
 			edit: undefined,
 			tab: 'members',
 		});
+	});
+
+	// A tab switch stays on this exact profile route and preserves `edit=1`, so
+	// the drawer stays open and the draft is intact — the guard must not fire a
+	// misleading discard prompt. A real navigation away (sibling route / Back)
+	// still blocks the dirty draft.
+	test('the nav-guard allows dirty tab switches but still blocks real navigation away', () => {
+		mocks.search = { edit: 1 };
+		renderPage();
+
+		act(() => mocks.capturedOnDirtyChange?.(true));
+
+		// Tab switch (same pathname, edit preserved) → no block.
+		expect(mocks.capturedShouldBlockFn?.(tabSwitchBlockerArgs)).toBe(false);
+
+		// Real navigation off the profile route → still blocks.
+		expect(mocks.capturedShouldBlockFn?.(realNavigationBlockerArgs)).toBe(true);
 	});
 
 	test('shows the unsaved-changes confirm dialog when the router blocks navigation away from a dirty edit drawer', () => {

@@ -41,7 +41,7 @@
 	},
 	{
 		"convention": "data-honesty-ignore",
-		"file": "src/routes/authed/staff/tenants/$tenantId/profiles/$profileId.tsx",
+		"file": "src/routes/authed/staff/tenants/$tenantId/profiles/_profile-tenant-band.tsx",
 		"reason": "tenant code is a documented OPTIONAL field — a tenant without an assigned workspace slug has none, this is not fabricated identity data"
 	},
 	{

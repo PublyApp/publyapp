@@ -7,7 +7,7 @@ import {
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -16,11 +16,8 @@ import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { DangerZoneCard, DangerZoneRow } from '~/components/ui/detail-layout';
-import { BrandTile } from '~/components/ui/initials-avatar';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
-import { StatusPill } from '~/components/ui/product-page';
 import { StateView } from '~/components/ui/state-view';
-import { statusPillTone } from '~/components/ui/status-tone';
 import {
 	buildStaffTenantPermissionCatalogOptions,
 	useAssignStaffTenantProfilePermissionMutation,
@@ -48,23 +45,20 @@ import {
 import {
 	BackToTenantsLink,
 	DetailItem,
-	formatTenantStatusLabel,
 	MALFORMED_ID_TRANSLATION_KEY,
 	TenantDetailsError,
 	TenantDetailsLoading,
 	TenantRetryActions,
 } from '../_tenant-details-shell';
 import {
-	deriveTenantProfileCardStyle,
-	tenantProfileTypeChipClassName,
-} from '../profiles';
-import {
 	parseProfileDetailsSearchParams,
 	type ProfileDetailsSearchParamInput,
 	type ProfileDetailsSearchParams,
 } from './_profile-details-search';
 import { ProfileFormDrawer } from './_profile-form-drawer';
+import { ProfileIdentityHeader } from './_profile-identity-header';
 import { ProfileSectionNavLink } from './_profile-section-nav-link';
+import { ProfileTenantBand } from './_profile-tenant-band';
 
 const isProblemStatus = (
 	error: unknown,
@@ -205,8 +199,26 @@ function StaffTenantProfileDetailsPage() {
 	// calling the drawer's own `onOpenChange` close guard, discarding a dirty
 	// edit draft silently (tenants-r1-F2).
 	const editDrawerBlocker = useBlocker({
-		shouldBlockFn: () =>
-			isEditDrawerOpen && isEditFormDirty && !editDrawerNavBypassRef.current,
+		shouldBlockFn: ({ current, next }) => {
+			if (
+				!isEditDrawerOpen ||
+				!isEditFormDirty ||
+				editDrawerNavBypassRef.current
+			) {
+				return false;
+			}
+
+			// A tab switch stays on this exact profile route (same pathname) and
+			// preserves `edit=1`, so the drawer stays open and the draft is
+			// intact — a discard prompt there would be misleading. Only block
+			// transitions that actually leave the open drawer (a browser Back, a
+			// sibling route, or dropping `edit`).
+			const staysOnOpenDrawer =
+				next.pathname === current.pathname &&
+				(next.search as ProfileDetailsSearchParams).edit === 1;
+
+			return !staysOnOpenDrawer;
+		},
 		withResolver: true,
 	});
 
@@ -249,12 +261,12 @@ function StaffTenantProfileDetailsPage() {
 	const clearBreadcrumbOverride = useUiStore(
 		(state) => state.clearBreadcrumbOverride,
 	);
-
-	useEffect(
-		() => () => {
-			clearBreadcrumbOverride();
-		},
-		[clearBreadcrumbOverride],
+	// Per-mount ownership token. Publish and clear are paired in the single
+	// layout effect below and both carry this token, so this page can only ever
+	// clear its own override — a late cleanup after another page has adopted the
+	// crumbs is a no-op (owner mismatch) rather than a stale wipe.
+	const breadcrumbOwnerRef = useRef<symbol>(
+		Symbol('staff-tenant-profile-breadcrumbs'),
 	);
 
 	// Publish the 4-crumb trail in a layout effect (not `useEffect`) so the
@@ -263,21 +275,40 @@ function StaffTenantProfileDetailsPage() {
 	// then jumps to 4 crumbs; a layout effect gives the shell the full trail
 	// from frame one (generic labels swap to entity names later without ever
 	// changing the crumb count). The authed shell is client-only, so there is
-	// no SSR `useLayoutEffect` warning to worry about.
+	// no SSR `useLayoutEffect` warning to worry about. Publish and cleanup live
+	// in ONE layout effect so there is never a passive-cleanup gap during route
+	// handoff, and the cleanup is owner-scoped so a superseded page cannot erase
+	// the next page's freshly published trail.
 	useLayoutEffect(() => {
-		setBreadcrumbOverride([
-			{ label: t('tenants'), to: '/staff/tenants' },
-			{
-				label: tenant?.name ?? t('tenant'),
-				to: '/staff/tenants/' + tenantId,
-			},
-			{
-				label: t('profiles'),
-				to: '/staff/tenants/' + tenantId + '/profiles',
-			},
-			{ label: profile?.name ?? t('profile') },
-		]);
-	}, [profile?.name, setBreadcrumbOverride, t, tenant?.name, tenantId]);
+		const owner = breadcrumbOwnerRef.current;
+
+		setBreadcrumbOverride(
+			[
+				{ label: t('tenants'), to: '/staff/tenants' },
+				{
+					label: tenant?.name ?? t('tenant'),
+					to: '/staff/tenants/' + tenantId,
+				},
+				{
+					label: t('profiles'),
+					to: '/staff/tenants/' + tenantId + '/profiles',
+				},
+				{ label: profile?.name ?? t('profile') },
+			],
+			owner,
+		);
+
+		return () => {
+			clearBreadcrumbOverride(owner);
+		};
+	}, [
+		clearBreadcrumbOverride,
+		profile?.name,
+		setBreadcrumbOverride,
+		t,
+		tenant?.name,
+		tenantId,
+	]);
 	// Stable identity across refetch re-renders — the drawer resets its form
 	// whenever this prop's reference changes, so a new object literal here
 	// would silently discard unsaved edits (see _profile-form-drawer.tsx).
@@ -474,10 +505,6 @@ function StaffTenantProfileDetailsPage() {
 			params: { tenantId },
 		});
 	};
-	const { Icon: ProfileIcon, tone: profileTone } = deriveTenantProfileCardStyle(
-		profile.name,
-	);
-
 	return (
 		<div
 			className="publy-detail-page flex w-full flex-col gap-5"
@@ -492,81 +519,13 @@ function StaffTenantProfileDetailsPage() {
 				{t('back-to-tenant-profiles', { name: tenant.name })}
 			</Link>
 
-			<section
-				className="flex flex-wrap items-center gap-3 rounded-[var(--publy-radius-control)] bg-card px-4 py-3 shadow-[var(--publy-shadow-ring)]"
-				data-testid="staff-tenant-profile-tenant-band"
-			>
-				<BrandTile
-					name={tenant.name}
-					logoUrl={tenant.logoUrl}
-					className="size-8 rounded-[var(--publy-radius-small-control)] text-xs"
-				/>
-				<div className="min-w-0">
-					<p className="truncate text-sm font-semibold text-foreground">
-						{tenant.name}
-					</p>
-					<p className="font-mono text-xs text-muted-foreground">
-						<span className="text-muted-foreground">publyapp.com/</span>
-						{/* data-honesty-ignore: tenant code is a documented OPTIONAL field — a tenant without an assigned workspace slug has none, this is not fabricated identity data */}
-						{tenant.code ?? '—'}
-					</p>
-				</div>
-				<StatusPill tone={statusPillTone(tenant.status)}>
-					{tenant.status
-						? formatTenantStatusLabel(tenant.status, t)
-						: t('status-unknown')}
-				</StatusPill>
-				<Link
-					to="/staff/tenants/$tenantId"
-					params={{ tenantId }}
-					className="publy-record-link ml-auto text-sm"
-				>
-					{t('open-tenant')}
-				</Link>
-			</section>
+			<ProfileTenantBand tenant={tenant} tenantId={tenantId} />
 
-			<header
-				className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"
-				data-testid="staff-tenant-profile-identity"
-			>
-				<div className="flex min-w-0 items-start gap-4">
-					<span className="publy-profile-detail-tile" data-tone={profileTone}>
-						<ProfileIcon aria-hidden="true" />
-					</span>
-					<div className="min-w-0 space-y-1.5">
-						<div className="flex flex-wrap items-center gap-2">
-							<h1 className="text-2xl font-semibold text-foreground">
-								{profile.name}
-							</h1>
-							<span
-								className={tenantProfileTypeChipClassName(profile.isDefault)}
-							>
-								{profile.isDefault ? t('system-profile') : t('custom-profile')}
-							</span>
-						</div>
-						<p className="max-w-3xl text-sm text-muted-foreground">
-							{profile.description ?? t('no-description-provided')}
-						</p>
-						<p className="text-xs text-muted-foreground">
-							{t('tenant-member-count', {
-								count: profile.userAccountCount,
-							})}
-							{' · '}
-							{t('tenant-permission-count', {
-								count: permissionKeys.length,
-							})}
-						</p>
-					</div>
-				</div>
-
-				<Button
-					type="button"
-					variant="outline"
-					onClick={() => setEditDrawerOpen(true)}
-				>
-					{t('edit-details')}
-				</Button>
-			</header>
+			<ProfileIdentityHeader
+				profile={profile}
+				permissionCount={permissionKeys.length}
+				onEdit={() => setEditDrawerOpen(true)}
+			/>
 
 			<nav
 				aria-label={t('profile-sections')}
