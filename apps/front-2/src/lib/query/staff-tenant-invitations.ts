@@ -7,7 +7,7 @@ import type { ApiClient } from '@org/client-ts/src/apiClient';
 import type {
 	ApiResponse,
 	FindInvitationsForTenantAsStaffResult,
-	InvitationListItem,
+	StaffTenantInvitationListItem,
 } from '@org/client-ts/src/models/index.js';
 import {
 	buildStaffMutationOptions,
@@ -30,7 +30,8 @@ export type StaffTenantInvitationRow = {
 	email: string;
 	status: string | null;
 	scope: string | null;
-	profileName: string;
+	profileName: string | null;
+	accountLevel: string | null;
 	invitedByName: string;
 	acceptedAt: Date | null;
 	createdAt: Date | null;
@@ -100,7 +101,7 @@ export const buildFindStaffTenantInvitationsQueryParameters = (
 });
 
 export const toStaffTenantInvitationRows = (
-	items: InvitationListItem[] | null | undefined,
+	items: StaffTenantInvitationListItem[] | null | undefined,
 ): StaffTenantInvitationRow[] => {
 	const rows: StaffTenantInvitationRow[] = [];
 
@@ -111,9 +112,10 @@ export const toStaffTenantInvitationRows = (
 		// a legitimate value (shell-r5-F3).
 		const id = normalizeString(item.id?.toString());
 		const email = normalizeString(item.email);
-		const profileName = normalizeString(item.profileName);
+		const profileName = normalizeNullableString(item.profileName);
+		const accountLevel = normalizeString(item.accountLevel);
 		const invitedByName = normalizeString(item.invitedByName);
-		if (!id || !email || !profileName || !invitedByName) {
+		if (!id || !email || !invitedByName) {
 			continue;
 		}
 
@@ -123,6 +125,7 @@ export const toStaffTenantInvitationRows = (
 			status: normalizeNullableString(item.status),
 			scope: normalizeNullableString(item.scope),
 			profileName,
+			accountLevel: accountLevel ?? null,
 			invitedByName,
 			acceptedAt: item.acceptedAt ?? null,
 			createdAt: item.createdAt ?? null,

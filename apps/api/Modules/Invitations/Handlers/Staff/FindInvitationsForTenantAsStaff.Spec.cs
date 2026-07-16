@@ -15,6 +15,7 @@ using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
 
@@ -113,10 +114,57 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			_ = invitation.Email.Should().NotBeNullOrEmpty();
 			_ = invitation.Scope.Should().Be("Tenant");
 			_ = invitation.ProfileName.Should().NotBeNull();
+			_ = invitation.AccountLevel.Should().Be("User");
 			_ = invitation.Status.Should().Be("Pending");
 			_ = invitation.ExpiresAt.Should().BeAfter(DateTime.UtcNow);
 			_ = invitation.CreatedAt.Should().BeBefore(DateTime.UtcNow.AddMinutes(1));
 			_ = invitation.InvitedByName.Should().NotBeNullOrEmpty();
+		}
+
+		[Fact]
+		public async Task
+		ItShouldReturnAccountLevelForTenantAdminInviteWithoutProfiles() {
+			string staffToken =
+				await _authClient.LoginAsStaffAdminAsync();
+			Guid tenantId =
+				await TenantTestHelper
+					.GetTenantIdByNameAsync(
+						_http,
+						staffToken,
+						SeedConstants.Tenants.AcmeName
+					);
+
+			string inviteeEmail =
+				$"admin-no-profile-{Guid.NewGuid():N}@example.com";
+			_ = await CreateTenantInvitationAsync(
+				staffToken,
+				tenantId,
+				inviteeEmail,
+				"Admin"
+			);
+
+			string url = GetFindUrl(tenantId, limit: 50);
+			HttpRequestMessage request = new HttpRequestMessage(
+				HttpMethod.Get, url
+			).WithSessionToken(staffToken);
+
+			using HttpResponseMessage response =
+				await _http.SendAsync(request);
+
+			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			FindResponse? result = await response.Content
+				.ReadFromJsonAsync<FindResponse>();
+			_ = result.Should().NotBeNull();
+			Assert.NotNull(result);
+			InvitationListItemDto? invitation = result.Data
+				.FirstOrDefault(i =>
+					i.Email.Equals(inviteeEmail, StringComparison.OrdinalIgnoreCase)
+				);
+			_ = invitation.Should().NotBeNull();
+			Assert.NotNull(invitation);
+			_ = invitation.ProfileName.Should().BeNull();
+			_ = invitation.AccountLevel.Should().Be("Admin");
 		}
 
 		#endregion
@@ -1328,6 +1376,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 					Scope = InvitationScope.Tenant,
 					TenantId = tenantId,
 					Token = Guid.NewGuid().ToString("N")[..32],
+					AccountLevel = AccountLevel.User,
 					ExpiresAt = DateTime.UtcNow.AddDays(7),
 					InvitedByUserId = staffUser.GetRequiredId()
 				};
@@ -1358,7 +1407,73 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 							);
 			_ = foundInvitation.Should().NotBeNull();
 			Assert.NotNull(foundInvitation);
-			_ = foundInvitation.ProfileName.Should().BeEmpty();
+			_ = foundInvitation.ProfileName.Should().BeNull();
+			_ = foundInvitation.AccountLevel.Should().Be("User");
+		}
+
+		[Fact]
+		public async Task
+		ItShouldKeepProfileNameForProfileBasedInvitations() {
+			string staffToken =
+				await _authClient.LoginAsStaffAdminAsync();
+			Guid tenantId =
+				await TenantTestHelper
+					.GetTenantIdByNameAsync(
+						_http,
+						staffToken,
+						SeedConstants.Tenants.AcmeName
+					);
+
+			string profileBasedEmail =
+				$"profile-based-{Guid.NewGuid():N}@example.com";
+
+			using (IServiceScope scope =
+				_fixture.Factory.Services.CreateScope()) {
+				AppDbContext dbContext = scope.ServiceProvider
+					.GetRequiredService<AppDbContext>();
+
+				Users.Entities.User staffUser = await dbContext.User
+					.FirstAsync(u => u.Email == SeedConstants.Staff.AdminEmail);
+
+				Profile defaultProfile =
+					await GetOrCreateDefaultTenantProfileAsync(dbContext, tenantId);
+				Invitation invitation = Invitation.CreateTenantInvitationWithProfiles(
+					profileBasedEmail,
+					tenantId,
+					new List<Guid> { defaultProfile.GetRequiredId() },
+					staffUser.GetRequiredId(),
+					DateTime.UtcNow.AddDays(7),
+					Guid.NewGuid().ToString("N")[..32]
+				);
+				invitation.AccountLevel = AccountLevel.User;
+
+				_ = await dbContext.Invitation.AddAsync(invitation);
+				_ = await dbContext.SaveChangesAsync();
+			}
+
+			string url = GetFindUrl(tenantId, limit: 50);
+			HttpRequestMessage request = new HttpRequestMessage(
+				HttpMethod.Get, url
+			).WithSessionToken(staffToken);
+
+			using HttpResponseMessage response =
+				await _http.SendAsync(request);
+
+			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			FindResponse? result = await response.Content
+				.ReadFromJsonAsync<FindResponse>();
+			_ = result.Should().NotBeNull();
+			Assert.NotNull(result);
+
+			InvitationListItemDto? foundInvitation = result.Data
+				.FirstOrDefault(i =>
+					i.Email.Equals(profileBasedEmail, StringComparison.OrdinalIgnoreCase)
+				);
+			_ = foundInvitation.Should().NotBeNull();
+			Assert.NotNull(foundInvitation);
+			_ = foundInvitation.ProfileName.Should().NotBeEmpty();
+			_ = foundInvitation.AccountLevel.Should().Be("User");
 		}
 
 		[Fact]
@@ -1496,7 +1611,8 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		private async Task<Guid> CreateTenantInvitationAsync(
 			string staffToken,
 			Guid tenantId,
-			string email
+			string email,
+			string accountLevel = "User"
 		) {
 			string url = PathUtils.Join(
 				Routes.Staff.Root,
@@ -1511,7 +1627,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			request.Content = JsonContent.Create(
 				new {
 					email = email,
-					accountLevel = "User"
+					accountLevel
 				}
 			);
 
@@ -1591,6 +1707,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			public string Email { get; init; } = string.Empty;
 			public string Scope { get; init; } = string.Empty;
 			public string ProfileName { get; init; } = string.Empty;
+			public string AccountLevel { get; init; } = string.Empty;
 			public string Status { get; init; } = string.Empty;
 			public DateTime ExpiresAt { get; init; }
 			public DateTime? AcceptedAt { get; init; }

@@ -12,7 +12,8 @@ using PublyApp.Api.Modules.Invitations.Services;
 
 namespace PublyApp.Api.Modules.Invitations.Handlers.Staff;
 
-public class FindInvitationsForTenantAsStaffResult : CursorPaginatedResult<InvitationListItem> { }
+public class FindInvitationsForTenantAsStaffResult : CursorPaginatedResult<StaffTenantInvitationListItem> {
+}
 
 public class FindInvitationsForTenantAsStaffQuery : CursorPaginatedQuery {
 	[FromQuery(Name = "q")]
