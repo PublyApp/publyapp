@@ -1214,6 +1214,107 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 		}
 	}
 
+	// --- late renewal must not re-extend an abandoned lease (review R2, finding 1) ----
+
+	// The exact interleaving the review named. A renewal UPDATE is IN FLIGHT and blocked
+	// on the job row when the safe deadline fires. On the old code the renewal held only
+	// stopRenewal — never leaseLostSource.Token — so it kept running past the deadline,
+	// committed a later locked_until after the engine had already abandoned ownership,
+	// and left the row Processing for roughly another whole lease window of postponed
+	// reclaim. The blocking transaction stands in for any slow/contended renewal
+	// statement; §5.1 permits a non-cooperative handler, so the loop cannot rely on the
+	// handler stopping to end the command.
+	//
+	// Deterministic, not timing-luck: the handler is deliberately non-cooperative (it
+	// ignores its token and waits on a barrier), a second connection row-locks the job
+	// so the renewal statement blocks ACROSS the deadline, the ~4 s deadline (6 s lease,
+	// 2 s margin) fires while it is blocked, and only THEN is the lock released. The
+	// lease the row carries when the deadline wins must never be advanced afterwards.
+	//
+	// Red control: on the pre-fix loop finalLease jumps ~a full lease window past
+	// deadlineLease ("Expected finalLease to be on or before <deadlineLease>, but it was
+	// <deadlineLease + ~6s>"); the fix cancels the in-flight command at the deadline (or
+	// compensates a late commit under the lock_token fence), so locked_until never
+	// advances.
+	[Fact]
+	public async Task ItShouldNotReExtendAnAbandonedLeaseWhenARenewalCompletesAfterTheDeadline() {
+		var jobType = UniqueType("late-renewal");
+		await using var dbContext = await CreateDbContextAsync();
+
+		try {
+			var claimed = await SeedAndClaimOneAsync(dbContext, jobType, "worker-a");
+			var item = await dbContext.JobQueue.SingleAsync(j => j.Id == claimed.Id);
+
+			var started = new TaskCompletionSource(
+				TaskCreationOptions.RunContinuationsAsynchronously
+			);
+			var release = new TaskCompletionSource(
+				TaskCreationOptions.RunContinuationsAsynchronously
+			);
+			var handler = new RecordingJobHandler(jobType) {
+				OnHandle = async _ => {
+					started.TrySetResult();
+					// Non-cooperative: does NOT observe the cancellation token, so the
+					// renewal command is the only thing the deadline can act on.
+					await release.Task;
+				}
+			};
+			var processor = CreateProcessor(
+				new JobQueueProcessorOptions { LeaseSeconds = 6 },
+				handler
+			);
+
+			var processing = processor.ProcessOneAsync(
+				item, claimed.LockToken, CancellationToken.None
+			);
+			await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+			// Row-lock the job on a second connection so the renewal UPDATE (fired at
+			// lease/2 ≈ 3 s) blocks and is still in flight when the deadline fires (≈4 s).
+			await using var lockContext = await CreateDbContextAsync();
+			await using var lockTx = await lockContext.Database.BeginTransactionAsync();
+			await lockContext.Database.SqlQuery<Guid>(
+				$"""SELECT id AS "Value" FROM job_queue WHERE id = {claimed.Id} FOR UPDATE"""
+			).ToListAsync();
+
+			// Past both the renewal attempt (≈3 s) and the safe deadline (≈4 s): the
+			// renewal is now blocked on the row lock with the deadline already fired.
+			await Task.Delay(TimeSpan.FromSeconds(5));
+
+			// The lease the row carries at the moment the deadline has won — read on a
+			// third connection (a plain SELECT does not block on FOR UPDATE). Nothing may
+			// push locked_until beyond this after the deadline.
+			var deadlineLease = await ReadLockedUntilAsync(claimed.Id);
+
+			// Release the row lock: on the old code the still-running renewal now commits
+			// a full fresh window; on the fixed code the command was cancelled at the
+			// deadline, so nothing is left to commit.
+			await lockTx.RollbackAsync();
+
+			// Give the old code's unblocked renewal time to commit before the handler
+			// returns and stopRenewal tears the loop down; a harmless no-op on the fix.
+			await Task.Delay(TimeSpan.FromSeconds(1));
+
+			release.TrySetResult();
+			var result = await processing.WaitAsync(TimeSpan.FromSeconds(15));
+
+			result.Should().Be(
+				JobQueueProcessor.JobExecutionResult.LeaseLost,
+				"the deadline won, so the abandoned run's outcome is discarded"
+			);
+
+			var finalLease = await ReadLockedUntilAsync(claimed.Id);
+			finalLease.Should().BeOnOrBefore(
+				deadlineLease,
+				"a renewal that completes after the safe deadline must neither re-arm nor "
+				+ "extend the abandoned lease — locked_until cannot advance once the "
+				+ "deadline has won, or the row is stranded Processing for another window"
+			);
+		} finally {
+			await DeleteJobsByTypeAsync(jobType);
+		}
+	}
+
 	// --- requeue lineage columns (F16/C9, §4.1/§4.2) ---------------------------------
 
 	// The columns and the FromJob copy land with the engine so Phase 4's
@@ -1561,6 +1662,18 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 		).ToListAsync();
 
 		return leased.Single();
+	}
+
+	// The row's locked_until as the database holds it, read on its own fresh connection
+	// so it never blocks on a concurrent FOR UPDATE (F11): a plain SELECT is an MVCC
+	// reader and sees the last committed value.
+	private async Task<DateTime> ReadLockedUntilAsync(Guid jobId) {
+		await using var dbContext = await CreateDbContextAsync();
+		var values = await dbContext.Database.SqlQuery<DateTime>(
+			$"""SELECT locked_until AS "Value" FROM job_queue WHERE id = {jobId}"""
+		).ToListAsync();
+
+		return values.Single();
 	}
 
 	private static async Task ExpireLeaseAsync(AppDbContext dbContext, Guid jobId) {

@@ -1050,8 +1050,20 @@ public sealed class JobQueueProcessor : BackgroundService {
 				var renewalContext =
 					scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
+				// R2-finding-1: the renewal command is cancelled by the deadline as well
+				// as by stopRenewal. Linking leaseLostSource.Token here is what makes a
+				// deadline victory terminal for an IN-FLIGHT renewal — a statement blocked
+				// past the safe deadline (a contended row, a slow server; §5.1 permits a
+				// non-cooperative handler, so the loop cannot wait for the handler to end
+				// the command) is aborted at the deadline instead of committing a later
+				// locked_until into a lease the engine has already abandoned.
+				using var renewalCommandStop = CancellationTokenSource.CreateLinkedTokenSource(
+					stopRenewal, leaseLostSource.Token
+				);
+
 				var stamp = await TryRenewLeaseAsync(
-					renewalContext, jobId, lockToken, _options.LeaseSeconds, stopRenewal
+					renewalContext, jobId, lockToken, _options.LeaseSeconds,
+					renewalCommandStop.Token
 				);
 				if (stamp is null) {
 					await leaseLostSource.CancelAsync();
@@ -1059,7 +1071,17 @@ public sealed class JobQueueProcessor : BackgroundService {
 				}
 
 				confirmed = ConfirmedLease.From(stamp, anchor, SafetyMargin());
-				if (!await ArmDeadlineAsync(leaseLostSource, confirmed, jobId)) {
+				var armed = await ArmDeadlineAsync(leaseLostSource, confirmed, jobId);
+
+				// ArmDeadlineAsync's CancelAfter is the serialization point against the
+				// pending deadline timer: a deadline that had ALREADY fired — while the
+				// UPDATE was in flight, or in the gap before the re-arm — cannot be
+				// un-cancelled, so it is observable here. A stamp that committed after the
+				// deadline won extended an ABANDONED lease; it must neither re-arm nor be
+				// kept. Expire it under the SAME lock_token fence so the row cannot stay
+				// Processing on a stamp the engine will never honour, then leave.
+				if (!armed || leaseLostSource.IsCancellationRequested) {
+					await ExpireAbandonedLeaseAsync(renewalContext, jobId, lockToken);
 					return;
 				}
 
@@ -1117,6 +1139,28 @@ public sealed class JobQueueProcessor : BackgroundService {
 		}
 
 		await leaseLostSource.CancelAsync();
+	}
+
+	// R2-finding-1 compensation. A renewal that committed a later locked_until AFTER the
+	// safe deadline had already won extended a lease the engine has abandoned. Pull it
+	// back to now() under the SAME lock_token fence so the row is reclaimable at once
+	// rather than stranded Processing for the errant stamp's whole window. Fenced: a
+	// no-op if another claimant already holds the row. CancellationToken.None, because
+	// the abandonment is exactly why the ambient tokens are cancelled — the compensation
+	// must still run.
+	private static async Task ExpireAbandonedLeaseAsync(
+		AppDbContext dbContext,
+		Guid jobId,
+		Guid lockToken
+	) {
+		await dbContext.Database.ExecuteSqlAsync(
+			$"""
+			UPDATE job_queue
+			SET locked_until = now(), updated_at = now()
+			WHERE id = {jobId} AND lock_token = {lockToken}
+			""",
+			CancellationToken.None
+		);
 	}
 
 	// --- helpers ---------------------------------------------------------------------
