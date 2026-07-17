@@ -289,18 +289,22 @@ namespace PublyApp.Api.Migrations
 
             // The old index was GLOBALLY unique on idempotency_key; keys legally
             // shared across job types under the new (job_type, key) scoping must be
-            // disambiguated deterministically before it can be recreated: the row
-            // with the lowest id keeps its key, every other collision is suffixed
-            // with its job_type (unique within the group because (job_type, key) is
-            // unique). Residual risk — a suffixed value colliding with an unrelated
-            // pre-existing key — is accepted as astronomically unlikely.
+            // disambiguated deterministically before it can be recreated. Winner
+            // selection is ORDER BY id LIMIT 1 per key group (no min(uuid)
+            // aggregate exists); every loser is suffixed with its OWN row id, which
+            // is unique by construction — the rewritten keys can collide neither
+            // with each other nor with any pre-existing key (a pre-existing key
+            // already containing this row's uuid cannot occur: the uuid did not
+            // exist before this row).
             migrationBuilder.Sql("""
                 UPDATE job_queue q
-                SET idempotency_key = q.idempotency_key || ':' || q.job_type
+                SET idempotency_key = q.idempotency_key || ':' || q.id::text
                 WHERE q.idempotency_key IS NOT NULL
                   AND q.id <> (
-                      SELECT min(o.id) FROM job_queue o
+                      SELECT o.id FROM job_queue o
                       WHERE o.idempotency_key = q.idempotency_key
+                      ORDER BY o.id
+                      LIMIT 1
                   );
                 """);
 
