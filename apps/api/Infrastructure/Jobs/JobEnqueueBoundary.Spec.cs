@@ -141,7 +141,15 @@ public sealed partial class JobEnqueueBoundarySpec {
 			"var s = $\"{/* } */ db.JobQueue.Add(row)}\";",
 			// Round-7: masking an inactive branch must not consume active code
 			// immediately following its closing directive.
-			"#if false\ndb.JobQueue.Add(inactive);\n#endif\ndb.JobQueue.Add(active);"
+			"#if false\ndb.JobQueue.Add(inactive);\n#endif\ndb.JobQueue.Add(active);",
+			// Round-8: all preprocessor branches are conservatively scanned,
+			// including permanently disabled and configuration-specific code.
+			"#if false\ndbContext.JobQueue.Add(row);\n#endif",
+			"#if DEBUG\ndbContext.JobQueue.Add(row);\n#endif",
+			"#if NET10_0_OR_GREATER\ndbContext.JobQueue.Add(row);\n#endif",
+			"#if true\nvar value = 1;\n#else\ndbContext.JobQueue.Add(row);\n#endif",
+			"#if true\nvar value = 1;\n#elif DEBUG\ndbContext.JobQueue.Add(row);\n#endif",
+			"#if DEBUG\ncmd.CommandText = \"DELETE FROM job_queue WHERE id = 1\";\n#endif"
 		];
 
 		string[] knownGood = [
@@ -169,10 +177,9 @@ public sealed partial class JobEnqueueBoundarySpec {
 			// Round-5: a format clause is literal text per the C# grammar, not
 			// executable code.
 			"var s = $\"{value:JobQueue.Add(row)}\";",
-			// Round-7: inactive code cannot enqueue, and its comments/SQL must not
-			// leak into either detector view.
-			"#if false\ndbContext.JobQueue.Add(row);\n"
-				+ "// INSERT INTO job_queue (id) VALUES (1)\n#endif",
+			// Comments inside disabled text are still comments after recursive
+			// rendering, so SQL-looking prose must not leak into either view.
+			"#if false\n// INSERT INTO job_queue (id) VALUES (1)\n#endif",
 			// Directive message text is metadata, not executable source.
 			"#region JobQueue.Add(row)\nvar value = 1;\n#endregion"
 		];
@@ -257,11 +264,19 @@ public sealed partial class JobEnqueueBoundarySpec {
 		SyntaxTriviaList triviaList
 	) {
 		foreach (var trivia in triviaList) {
-			// Inactive code cannot enqueue at runtime, so blank disabled text rather
-			// than scanning platform-conditional branches. Directive conditions and
-			// messages are metadata too. Preserve their exact lengths in both views
-			// so masking cannot shift or consume neighboring active code.
-			if (trivia.IsKind(SyntaxKind.DisabledTextTrivia) || trivia.IsDirective) {
+			// Disabled text is plain C# source from a non-selected preprocessor
+			// branch. Render it recursively so every build configuration (including
+			// #if false) is covered by the same literal/comment masking rules.
+			if (trivia.IsKind(SyntaxKind.DisabledTextTrivia)) {
+				var disabledText = trivia.ToFullString();
+				var (disabledCodeOnly, disabledWithStrings) = RenderViews(disabledText);
+				AppendRenderedSegment(masked, disabledCodeOnly, trivia.FullSpan.Length);
+				AppendRenderedSegment(unmasked, disabledWithStrings, trivia.FullSpan.Length);
+				continue;
+			}
+
+			// Directive conditions and messages are metadata, not executable source.
+			if (trivia.IsDirective) {
 				var blank = new string(' ', trivia.FullSpan.Length);
 				masked.Append(blank);
 				unmasked.Append(blank);
@@ -281,6 +296,21 @@ public sealed partial class JobEnqueueBoundarySpec {
 			masked.Append(text);
 			unmasked.Append(text);
 		}
+	}
+
+	private static void AppendRenderedSegment(
+		StringBuilder builder,
+		string rendered,
+		int originalLength
+	) {
+		// Comment trivia is intentionally contracted to one space by RenderViews.
+		// Copy at most the original span and pad any shortfall so recursively
+		// splicing a disabled branch cannot shift the source that follows it. The
+		// detector reports pattern names, not source offsets, so internal offsets
+		// within a contracted comment are not consumed.
+		var copyLength = Math.Min(rendered.Length, originalLength);
+		builder.Append(rendered.AsSpan(0, copyLength));
+		builder.Append(' ', originalLength - copyLength);
 	}
 
 	// The test assembly runs from apps/api/.artifacts/bin/...; walk up until the
