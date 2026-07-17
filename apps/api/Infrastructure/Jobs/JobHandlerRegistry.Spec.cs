@@ -8,8 +8,8 @@ public sealed class JobHandlerRegistrySpec {
 	[Fact]
 	public void ItShouldRejectDuplicateJobTypes() {
 		var act = () => new JobHandlerRegistry([
-			new StubHandler("email.tenant-invitation.v1"),
-			new StubHandler("email.tenant-invitation.v1")
+			new JobHandlerRegistration("email.tenant-invitation.v1", _ => new StubHandler()),
+			new JobHandlerRegistration("email.tenant-invitation.v1", _ => new StubHandler())
 		]);
 
 		act.Should().Throw<InvalidOperationException>()
@@ -18,21 +18,21 @@ public sealed class JobHandlerRegistrySpec {
 
 	[Fact]
 	public void ItShouldResolveARegisteredJobTypeAndRejectAnUnknownOne() {
-		var handler = new StubHandler("email.staff-invitation.v1");
-		var registry = new JobHandlerRegistry([handler]);
+		var registration = new JobHandlerRegistration(
+			"email.staff-invitation.v1", _ => new StubHandler()
+		);
+		var registry = new JobHandlerRegistry([registration]);
 
 		registry.TryResolve("email.staff-invitation.v1", out var resolved).Should().BeTrue();
-		resolved.Should().BeSameAs(handler);
+		resolved.Should().BeSameAs(registration);
 
 		registry.TryResolve("email.staff-invitation.v2", out _).Should().BeFalse();
 		registry.RegisteredJobTypes.Should().BeEquivalentTo(["email.staff-invitation.v1"]);
 	}
 
 	private sealed class StubHandler : IJobHandler {
-		public string JobType { get; }
-
-		public StubHandler(string jobType) {
-			JobType = jobType;
+		public string JobType {
+			get { return "email.staff-invitation.v1"; }
 		}
 
 		public Task<JobOutcome> HandleAsync(

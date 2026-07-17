@@ -34,21 +34,26 @@ public sealed record JobQueueProcessorOptions {
 /// - every transition (complete, requeue, dead-letter, renewal, shutdown release) is
 ///   raw SQL conditioned on the claim's lock_token with an affected-row-count check —
 ///   zero rows means the lease was lost and the outcome is discarded (F1);
-/// - each row's lease is re-stamped immediately before dispatch and renewed at
-///   lease/2 while its handler runs (F1);
+/// - each job runs in a FRESH DI scope: the handler and the engine's transition
+///   AppDbContext resolve from the same scope, so a scoped handler's injected context
+///   shares the terminal-failure transaction (F5) and DI scope validation holds;
+/// - claimed ownership is tracked and settled on EVERY exit path — rows the loop
+///   never reaches (shutdown, mid-flight cancellation) are proactively released;
 /// - handlers return a typed JobOutcome; thrown exceptions are classified — only the
-///   host's own token (or a lease-lost cancellation) means shutdown (F12);
+///   host's own token (or a lease-lost cancellation) means shutdown (F12); once a
+///   handler HAS returned, its outcome is applied with CancellationToken.None so a
+///   completed run is never discarded by shutdown (§3.6);
 /// - retry backoff is applied as a SQL interval on now() with equal jitter (F11);
+/// - handler-supplied strings pass through JobErrorSanitizer before any durable
+///   write or log template; original exceptions go to the structured logger (F20);
 /// - after a full batch the loop claims again immediately, bounded by a drain budget
-///   (F10).
+///   (F10) — budget expiry resumes draining without waiting for signal/poll.
 /// Public ClaimBatchAsync / ProcessBatchAsync / ProcessOneAsync / Try*Async keep the
 /// shipped dispatcher's public-methods-for-determinism discipline. Registered only
 /// inside JobsServiceRegistration, which nothing invokes until 2B — the hosted loop
 /// is inert at runtime and specs drive the public methods directly.
 /// </summary>
 public sealed class JobQueueProcessor : BackgroundService {
-	private const int MaxErrorLength = 2048;
-
 	private readonly IServiceScopeFactory _scopeFactory;
 	private readonly JobHandlerRegistry _registry;
 	private readonly JobsMetrics _metrics;
@@ -73,11 +78,28 @@ public sealed class JobQueueProcessor : BackgroundService {
 		_options = options ?? new JobQueueProcessorOptions();
 	}
 
-	/// <summary>A claimed row: its id plus the fencing token stamped by the claim.</summary>
+	/// <summary>A claimed row: id, fencing token, and job type (for metrics at claim).</summary>
 	public sealed class ClaimedJob {
 		public Guid Id { get; set; }
 		public Guid LockToken { get; set; }
+		public string JobType { get; set; } = string.Empty;
 	}
+
+	/// <summary>How one dispatched job's claimed ownership was settled.</summary>
+	public enum JobExecutionResult {
+		// An outcome (Success/Cancelled/Retry/PermanentFailure) was applied.
+		Completed = 0,
+		// Host shutdown: the row was proactively released back to Pending.
+		Released = 1,
+		// The lease was lost to another claimant; the outcome was discarded.
+		LeaseLost = 2
+	}
+
+	/// <summary>
+	/// One batch's accounting (F21): Claimed counts ownership acquisition, Dispatched
+	/// counts handlers started, Completed counts outcomes applied.
+	/// </summary>
+	public sealed record BatchResult(int Claimed, int Dispatched, int Completed, bool WasFull);
 
 	/// <summary>Why a drain pass ended (design §5.1, F10).</summary>
 	public enum DrainExitReason {
@@ -89,7 +111,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 		BudgetExpired = 1
 	}
 
-	public sealed record DrainResult(int Processed, DrainExitReason Reason);
+	public sealed record DrainResult(int Claimed, int Dispatched, DrainExitReason Reason);
 
 	protected override async Task ExecuteAsync(CancellationToken stoppingToken) {
 		await LogDeadLetterOrphansAsync(stoppingToken);
@@ -128,80 +150,116 @@ public sealed class JobQueueProcessor : BackgroundService {
 	// queue is quiet (Drained). Public: lets specs prove both deterministically.
 	public async Task<DrainResult> DrainAsync(CancellationToken stoppingToken) {
 		var budget = Stopwatch.StartNew();
-		var totalProcessed = 0;
+		var totalClaimed = 0;
+		var totalDispatched = 0;
 
 		while (!stoppingToken.IsCancellationRequested) {
-			var processed = await ProcessBatchAsync(stoppingToken);
-			totalProcessed += processed;
+			var batch = await ProcessBatchAsync(stoppingToken);
+			totalClaimed += batch.Claimed;
+			totalDispatched += batch.Dispatched;
 
-			if (processed < _options.BatchSize) {
-				return new DrainResult(totalProcessed, DrainExitReason.Drained);
+			if (!batch.WasFull) {
+				return new DrainResult(
+					totalClaimed, totalDispatched, DrainExitReason.Drained
+				);
 			}
 
 			if (budget.Elapsed.TotalSeconds >= _options.DrainBudgetSeconds) {
 				if (_logger.IsEnabled(LogLevel.Information)) {
 					_logger.LogInformation(
-						"Job queue drain budget exhausted after {Processed} jobs; yielding",
-						totalProcessed
+						"Job queue drain budget exhausted after {Dispatched} jobs; yielding",
+						totalDispatched
 					);
 				}
-				return new DrainResult(totalProcessed, DrainExitReason.BudgetExpired);
+				return new DrainResult(
+					totalClaimed, totalDispatched, DrainExitReason.BudgetExpired
+				);
 			}
 		}
 
-		return new DrainResult(totalProcessed, DrainExitReason.Drained);
+		return new DrainResult(totalClaimed, totalDispatched, DrainExitReason.Drained);
 	}
 
 	// Public: lets specs drive a single batch deterministically instead of racing
-	// ExecuteAsync's poll loop. Returns the number of rows claimed.
-	public async Task<int> ProcessBatchAsync(CancellationToken stoppingToken) {
-		using var scope = _scopeFactory.CreateScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+	// ExecuteAsync's poll loop. Claimed ownership is settled on every exit path: rows
+	// never dispatched (shutdown, mid-flight cancellation, load failure) are released
+	// in the finally with CancellationToken.None, so no row is ever left leased for
+	// the full window by a cancelled batch.
+	public async Task<BatchResult> ProcessBatchAsync(CancellationToken stoppingToken) {
+		var unsettled = new Dictionary<Guid, ClaimedJob>();
+		var claimedCount = 0;
+		var dispatched = 0;
+		var completed = 0;
 
-		await ResetExpiredLeasesAsync(dbContext, stoppingToken);
+		try {
+			List<JobQueueItem> batch;
 
-		var claimed = await ClaimBatchAsync(
-			dbContext,
-			_workerId,
-			_options.LeaseSeconds,
-			_options.BatchSize,
-			stoppingToken
-		);
-		if (claimed.Count == 0) {
-			return 0;
-		}
+			using (var scope = _scopeFactory.CreateScope()) {
+				var claimContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-		var tokensById = claimed.ToDictionary(c => c.Id, c => c.LockToken);
-		var claimedIds = tokensById.Keys.ToList();
+				await ResetExpiredLeasesAsync(claimContext, stoppingToken);
 
-		// Execute in the same order the claim selected: priority DESC with the same
-		// deterministic tie-breakers (design §5.1, F9 regression guard).
-		var batch = await dbContext.JobQueue
-			.Where(j => j.Id != null && claimedIds.Contains(j.Id.Value))
-			.OrderByDescending(j => j.Priority)
-			.ThenBy(j => j.NextAttemptAt)
-			.ThenBy(j => j.CreatedAt)
-			.ThenBy(j => j.Id)
-			.ToListAsync(stoppingToken);
-
-		foreach (var item in batch) {
-			var itemId = item.Id.GetValueOrDefault();
-
-			// Checked between every job (F10/§3.6): on host shutdown, proactively
-			// release everything not yet dispatched so a restart resumes immediately
-			// instead of waiting out the lease.
-			if (stoppingToken.IsCancellationRequested) {
-				await TryReleaseAsync(
-					dbContext, itemId, tokensById[itemId], CancellationToken.None
+				var claimed = await ClaimBatchAsync(
+					claimContext,
+					_workerId,
+					_options.LeaseSeconds,
+					_options.BatchSize,
+					stoppingToken
 				);
-				continue;
+				claimedCount = claimed.Count;
+				if (claimedCount == 0) {
+					return new BatchResult(0, 0, 0, false);
+				}
+
+				// Ownership acquisition is the claim itself — count it here, not at
+				// dispatch (F21 accounting).
+				foreach (var claim in claimed) {
+					_metrics.Claimed(claim.JobType);
+					unsettled[claim.Id] = claim;
+				}
+
+				var claimedIds = unsettled.Keys.ToList();
+
+				// Execute in the same order the claim selected: priority DESC with
+				// the same deterministic tie-breakers (design §5.1, F9 guard).
+				batch = await (
+					from job in claimContext.JobQueue
+					where job.Id != null && claimedIds.Contains(job.Id.Value)
+					orderby job.Priority descending, job.NextAttemptAt, job.CreatedAt, job.Id
+					select job
+				).ToListAsync(stoppingToken);
 			}
 
-			_metrics.Claimed(item.JobType);
-			await ProcessOneAsync(dbContext, item, tokensById[itemId], stoppingToken);
-		}
+			foreach (var item in batch) {
+				var itemId = item.Id.GetValueOrDefault();
 
-		return claimed.Count;
+				// Checked between every job (F10/§3.6): on host shutdown the finally
+				// below proactively releases everything not yet dispatched, so a
+				// restart resumes immediately instead of waiting out leases.
+				if (stoppingToken.IsCancellationRequested) {
+					break;
+				}
+
+				dispatched++;
+				var claim = unsettled[itemId];
+				var result = await ProcessOneAsync(item, claim.LockToken, stoppingToken);
+
+				// ProcessOneAsync settles ownership on all of its return paths.
+				unsettled.Remove(itemId);
+
+				if (result == JobExecutionResult.Completed) {
+					completed++;
+				}
+			}
+
+			return new BatchResult(
+				claimedCount, dispatched, completed, claimedCount == _options.BatchSize
+			);
+		} finally {
+			if (unsettled.Count > 0) {
+				await ReleaseUnsettledAsync(unsettled.Values);
+			}
+		}
 	}
 
 	// Statement 1 of the claim cycle (F22): release expired leases separately so the
@@ -256,20 +314,26 @@ public sealed class JobQueueProcessor : BackgroundService {
 				LIMIT {batchSize}
 				FOR UPDATE SKIP LOCKED
 			)
-			RETURNING id AS "Id", lock_token AS "LockToken"
+			RETURNING id AS "Id", lock_token AS "LockToken", job_type AS "JobType"
 			"""
 		).ToListAsync(cancellationToken);
 	}
 
 	// Public: lets specs exercise success / retry / dead-letter / classification on a
-	// single claimed row directly, without racing a live background loop.
-	public async Task ProcessOneAsync(
-		AppDbContext dbContext,
+	// single claimed row directly, without racing a live background loop. Creates a
+	// FRESH DI scope for the job: the handler and the engine's transition
+	// AppDbContext resolve from the same scope, so a scoped handler's injected
+	// context shares the terminal transaction (F5). Settles ownership on every
+	// return path.
+	public async Task<JobExecutionResult> ProcessOneAsync(
 		JobQueueItem item,
 		Guid lockToken,
 		CancellationToken stoppingToken
 	) {
 		var itemId = RequireId(item);
+
+		await using var scope = _scopeFactory.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		// Per-dispatch re-stamp (F1): job #20 of a slow serial batch must not start
 		// on an almost-expired lease. Zero rows = someone else owns it now.
@@ -278,7 +342,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 		);
 		if (!restamped) {
 			_metrics.LeaseLost(item.JobType);
-			return;
+			return JobExecutionResult.LeaseLost;
 		}
 
 		using var leaseLostSource = new CancellationTokenSource();
@@ -293,10 +357,21 @@ public sealed class JobQueueProcessor : BackgroundService {
 
 		var context = BuildContext(item, lastError: null);
 		var stopwatch = Stopwatch.StartNew();
+		IJobHandler? handler = null;
 		JobOutcome outcome;
+		Exception? failure = null;
 
 		try {
-			if (_registry.TryResolve(item.JobType, out var handler)) {
+			if (_registry.TryResolve(item.JobType, out var registration)) {
+				handler = registration.Factory(scope.ServiceProvider);
+
+				if (!string.Equals(handler.JobType, item.JobType, StringComparison.Ordinal)) {
+					throw new InvalidOperationException(
+						$"Handler {handler.GetType().Name} declares JobType "
+						+ $"'{handler.JobType}' but was registered for '{item.JobType}'."
+					);
+				}
+
 				outcome = await handler.HandleAsync(context, linkedSource.Token);
 			} else {
 				outcome = new JobOutcome.PermanentFailure(
@@ -306,23 +381,38 @@ public sealed class JobQueueProcessor : BackgroundService {
 		} catch (OperationCanceledException) when (leaseLostSource.IsCancellationRequested) {
 			// Renewal detected a lost lease: the row belongs to a new claimant. The
 			// outcome is discarded; nothing is written (F1).
+			stopwatch.Stop();
+			_metrics.HandlerDuration(item.JobType, "LeaseLost", stopwatch.Elapsed.TotalSeconds);
 			_metrics.LeaseLost(item.JobType);
-			return;
+			return JobExecutionResult.LeaseLost;
 		} catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) {
 			// Host shutdown (F12/§3.6): abandon cleanly — no attempt burned, no DLQ.
 			// Proactively release so a restart resumes immediately.
-			await TryReleaseAsync(dbContext, itemId, lockToken, CancellationToken.None);
-			return;
+			stopwatch.Stop();
+			_metrics.HandlerDuration(
+				item.JobType, "ShutdownAbandoned", stopwatch.Elapsed.TotalSeconds
+			);
+			var released = await TryReleaseAsync(
+				dbContext, itemId, lockToken, CancellationToken.None
+			);
+			if (!released) {
+				LogReleaseLost(itemId, item.JobType);
+				return JobExecutionResult.LeaseLost;
+			}
+			return JobExecutionResult.Released;
 		} catch (JsonException ex) {
 			// A payload that can never parse gains nothing from retries (F2/F12).
-			outcome = new JobOutcome.PermanentFailure(BoundError(ex));
+			failure = ex;
+			outcome = new JobOutcome.PermanentFailure(JobErrorSanitizer.Describe(ex));
 		} catch (OperationCanceledException ex) {
 			// A cancellation NOT sourced from the host token or the lease fence is a
 			// job failure (e.g. a provider HTTP timeout's TaskCanceledException) —
 			// it must never look like shutdown or abandon its batchmates (F12).
-			outcome = new JobOutcome.Retry(Error: BoundError(ex));
+			failure = ex;
+			outcome = new JobOutcome.Retry(Error: JobErrorSanitizer.Describe(ex));
 		} catch (Exception ex) {
-			outcome = new JobOutcome.Retry(Error: BoundError(ex));
+			failure = ex;
+			outcome = new JobOutcome.Retry(Error: JobErrorSanitizer.Describe(ex));
 		} finally {
 			stopwatch.Stop();
 			await renewalStop.CancelAsync();
@@ -338,15 +428,21 @@ public sealed class JobQueueProcessor : BackgroundService {
 		// normally; the conditioned transitions below would no-op, but check first so
 		// the discard is explicit and counted.
 		if (leaseLostSource.IsCancellationRequested) {
+			_metrics.HandlerDuration(item.JobType, "LeaseLost", stopwatch.Elapsed.TotalSeconds);
 			_metrics.LeaseLost(item.JobType);
-			return;
+			return JobExecutionResult.LeaseLost;
 		}
 
 		_metrics.HandlerDuration(
 			item.JobType, outcome.GetType().Name, stopwatch.Elapsed.TotalSeconds
 		);
 
-		await ApplyOutcomeAsync(dbContext, item, lockToken, outcome, stoppingToken);
+		// Once a handler has returned, its outcome is applied with
+		// CancellationToken.None: bookkeeping is quick and bounded, and a completed
+		// run must never be discarded — or its row leaked as leased — by a shutdown
+		// arriving between handler return and the transition SQL (§3.6).
+		await ApplyOutcomeAsync(dbContext, handler, item, lockToken, outcome, failure);
+		return JobExecutionResult.Completed;
 	}
 
 	// --- fencing-conditioned transitions (F1) ------------------------------------
@@ -443,19 +539,32 @@ public sealed class JobQueueProcessor : BackgroundService {
 
 	// --- outcome application ------------------------------------------------------
 
+	// Runs entirely on CancellationToken.None (see ProcessOneAsync): once a handler
+	// has produced an outcome, the quick bookkeeping completes even under shutdown.
 	private async Task ApplyOutcomeAsync(
 		AppDbContext dbContext,
+		IJobHandler? handler,
 		JobQueueItem item,
 		Guid lockToken,
 		JobOutcome outcome,
-		CancellationToken stoppingToken
+		Exception? failure
 	) {
 		var itemId = RequireId(item);
 
 		if (outcome is JobOutcome.Success) {
-			if (await TryCompleteAsync(dbContext, itemId, lockToken, stoppingToken)) {
+			var deleted = await TryCompleteAsync(
+				dbContext, itemId, lockToken, CancellationToken.None
+			);
+			if (deleted) {
 				_metrics.Succeeded(item.JobType);
-				LogCompleted(item);
+
+				if (_logger.IsEnabled(LogLevel.Information)) {
+					_logger.LogInformation(
+						"Completed job {JobId} of type {JobType}",
+						itemId,
+						item.JobType
+					);
+				}
 			} else {
 				_metrics.LeaseLost(item.JobType);
 			}
@@ -463,7 +572,10 @@ public sealed class JobQueueProcessor : BackgroundService {
 		}
 
 		if (outcome is JobOutcome.Cancelled cancelled) {
-			if (await TryCompleteAsync(dbContext, itemId, lockToken, stoppingToken)) {
+			var deleted = await TryCompleteAsync(
+				dbContext, itemId, lockToken, CancellationToken.None
+			);
+			if (deleted) {
 				_metrics.Cancelled(item.JobType);
 
 				if (_logger.IsEnabled(LogLevel.Information)) {
@@ -471,7 +583,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 						"Cancelled job {JobId} of type {JobType}: {Reason}",
 						itemId,
 						item.JobType,
-						cancelled.Reason
+						JobErrorSanitizer.Sanitize(cancelled.Reason)
 					);
 				}
 			} else {
@@ -482,19 +594,19 @@ public sealed class JobQueueProcessor : BackgroundService {
 
 		if (outcome is JobOutcome.PermanentFailure permanent) {
 			await DeadLetterAsync(
-				dbContext, item, lockToken,
-				item.Attempts + 1, Bound(permanent.Reason), stoppingToken
+				dbContext, handler, item, lockToken,
+				item.Attempts + 1, JobErrorSanitizer.Sanitize(permanent.Reason), failure
 			);
 			return;
 		}
 
 		if (outcome is JobOutcome.Retry retry) {
 			var failedAttempts = item.Attempts + 1;
+			var safeError = JobErrorSanitizer.Sanitize(retry.Error);
 
 			if (failedAttempts >= item.MaxAttempts) {
 				await DeadLetterAsync(
-					dbContext, item, lockToken,
-					failedAttempts, Bound(retry.Error), stoppingToken
+					dbContext, handler, item, lockToken, failedAttempts, safeError, failure
 				);
 				return;
 			}
@@ -508,14 +620,17 @@ public sealed class JobQueueProcessor : BackgroundService {
 			}
 
 			var requeued = await TryRequeueAsync(
-				dbContext, itemId, lockToken, delaySeconds, Bound(retry.Error),
-				stoppingToken
+				dbContext, itemId, lockToken, delaySeconds, safeError,
+				CancellationToken.None
 			);
 			if (requeued) {
 				_metrics.Retried(item.JobType);
 
 				if (_logger.IsEnabled(LogLevel.Warning)) {
+					// The original exception (with stack trace) goes to the
+					// structured logger; the template only carries sanitized text.
 					_logger.LogWarning(
+						failure,
 						"Job {JobId} of type {JobType} failed (attempt "
 						+ "{Attempt}/{MaxAttempts}); requeued with {DelaySeconds:F0}s "
 						+ "backoff: {Error}",
@@ -524,7 +639,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 						failedAttempts,
 						item.MaxAttempts,
 						delaySeconds,
-						retry.Error
+						safeError
 					);
 				}
 			} else {
@@ -540,32 +655,37 @@ public sealed class JobQueueProcessor : BackgroundService {
 
 	// Terminal path (F5/F16): the handler's OnTerminalFailureAsync hook, the
 	// full-envelope DLQ insert, and the fencing-conditioned queue delete run in ONE
-	// transaction — a hook throw rolls everything back and the still-leased row is
-	// retried whole after lease expiry.
+	// transaction on the per-job scope's AppDbContext — a scoped handler's injected
+	// context is the SAME instance, so hook writes commit and roll back with the
+	// engine's terminal step. A hook throw rolls everything back and the still-leased
+	// row is retried whole after lease expiry.
 	private async Task DeadLetterAsync(
 		AppDbContext dbContext,
+		IJobHandler? handler,
 		JobQueueItem item,
 		Guid lockToken,
 		int attempts,
 		string? lastError,
-		CancellationToken stoppingToken
+		Exception? failure
 	) {
 		var itemId = RequireId(item);
 		var deadLetter = JobDeadLetter.FromJob(item, attempts, lastError);
 
 		await using var transaction =
-			await dbContext.Database.BeginTransactionAsync(stoppingToken);
+			await dbContext.Database.BeginTransactionAsync(CancellationToken.None);
 
 		try {
-			if (_registry.TryResolve(item.JobType, out var handler)) {
+			if (handler is not null) {
 				var terminalContext = BuildContext(item, lastError);
-				await handler.OnTerminalFailureAsync(terminalContext, stoppingToken);
+				await handler.OnTerminalFailureAsync(terminalContext, CancellationToken.None);
 			}
 
-			await dbContext.JobDeadLetter.AddAsync(deadLetter, stoppingToken);
-			await dbContext.SaveChangesAsync(stoppingToken);
+			await dbContext.JobDeadLetter.AddAsync(deadLetter, CancellationToken.None);
+			await dbContext.SaveChangesAsync(CancellationToken.None);
 
-			var deleted = await TryCompleteAsync(dbContext, itemId, lockToken, stoppingToken);
+			var deleted = await TryCompleteAsync(
+				dbContext, itemId, lockToken, CancellationToken.None
+			);
 			if (!deleted) {
 				// The lease was lost while going terminal: the new claimant owns the
 				// row now. Roll back the DLQ copy — the job is not terminal for us.
@@ -575,8 +695,8 @@ public sealed class JobQueueProcessor : BackgroundService {
 				return;
 			}
 
-			await transaction.CommitAsync(stoppingToken);
-		} catch (Exception ex) when (ex is not OperationCanceledException) {
+			await transaction.CommitAsync(CancellationToken.None);
+		} catch (Exception ex) {
 			await transaction.RollbackAsync(CancellationToken.None);
 			dbContext.Entry(deadLetter).State = EntityState.Detached;
 
@@ -594,7 +714,10 @@ public sealed class JobQueueProcessor : BackgroundService {
 		_metrics.DeadLettered(item.JobType);
 		_metrics.AttemptsAtTerminal(item.JobType, attempts);
 
+		// The original exception (if any) carries the stack trace for structured
+		// logging; the durable last_error was sanitized before this call.
 		_logger.LogError(
+			failure,
 			"Job {JobId} of type {JobType} dead-lettered after {Attempts} attempts: "
 			+ "{Error}",
 			itemId,
@@ -607,19 +730,29 @@ public sealed class JobQueueProcessor : BackgroundService {
 	// --- renewal loop (F1) ---------------------------------------------------------
 
 	// Re-stamps the lease at lease/2 cadence while the handler runs, on its OWN scope
-	// and connection (the batch DbContext is busy with the handler's work). Renewal
-	// failure means the lease was lost: cancel the handler via the linked source.
+	// and connection (the job scope's DbContext is busy with the handler's work).
+	// A renewal that returns zero rows is a definitively lost lease → cancel the
+	// handler. A renewal that FAILS transiently (DB hiccup) is retried on a short
+	// interval within the remaining lease window; if a FULL lease window elapses
+	// without one confirmed stamp, ownership is uncertain and the handler is
+	// cancelled — the fence still protects every transition either way (§6).
 	private async Task RenewLeaseLoopAsync(
 		Guid jobId,
 		Guid lockToken,
 		CancellationTokenSource leaseLostSource,
 		CancellationToken stopRenewal
 	) {
-		var interval = TimeSpan.FromSeconds(_options.LeaseSeconds / 2.0);
+		var leaseWindow = TimeSpan.FromSeconds(_options.LeaseSeconds);
+		var renewInterval = TimeSpan.FromSeconds(_options.LeaseSeconds / 2.0);
+		var retryInterval = TimeSpan.FromSeconds(Math.Max(0.25, _options.LeaseSeconds / 8.0));
+
+		// The pre-dispatch re-stamp in ProcessOneAsync is the loop's time zero.
+		var sinceConfirmedStamp = Stopwatch.StartNew();
+		var wait = renewInterval;
 
 		while (!stopRenewal.IsCancellationRequested) {
 			try {
-				await Task.Delay(interval, stopRenewal);
+				await Task.Delay(wait, stopRenewal);
 			} catch (OperationCanceledException) {
 				return;
 			}
@@ -636,19 +769,72 @@ public sealed class JobQueueProcessor : BackgroundService {
 					await leaseLostSource.CancelAsync();
 					return;
 				}
+
+				sinceConfirmedStamp.Restart();
+				wait = renewInterval;
 			} catch (OperationCanceledException) {
 				return;
 			} catch (Exception ex) {
-				// A transient renewal error is not proof of a lost lease; the next
-				// tick retries. The fence still protects every transition.
+				if (sinceConfirmedStamp.Elapsed >= leaseWindow) {
+					// No confirmed stamp for a full lease window: the lease may have
+					// expired and been reclaimed — ownership is uncertain, so stop
+					// the handler rather than risk racing a new claimant's work.
+					_logger.LogWarning(
+						ex,
+						"Lease renewal for job {JobId} failed for a full lease "
+						+ "window; treating ownership as lost and cancelling the "
+						+ "handler",
+						jobId
+					);
+					await leaseLostSource.CancelAsync();
+					return;
+				}
+
 				_logger.LogWarning(
-					ex, "Lease renewal attempt failed for job {JobId}", jobId
+					ex,
+					"Lease renewal attempt failed for job {JobId}; retrying within "
+					+ "the lease window",
+					jobId
 				);
+				wait = retryInterval;
 			}
 		}
 	}
 
 	// --- helpers ---------------------------------------------------------------------
+
+	// Releases claims the batch loop never settled (shutdown, mid-flight
+	// cancellation, load failure) so no row is left leased for the full window.
+	private async Task ReleaseUnsettledAsync(IEnumerable<ClaimedJob> claims) {
+		try {
+			using var scope = _scopeFactory.CreateScope();
+			var releaseContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+			foreach (var claim in claims) {
+				var released = await TryReleaseAsync(
+					releaseContext, claim.Id, claim.LockToken, CancellationToken.None
+				);
+				if (!released) {
+					LogReleaseLost(claim.Id, claim.JobType);
+				}
+			}
+		} catch (Exception ex) {
+			// Release is best-effort: the lease + fence still guarantee safe reclaim
+			// after expiry even if this cleanup itself fails (§6).
+			_logger.LogWarning(ex, "Releasing unsettled claimed jobs failed");
+		}
+	}
+
+	private void LogReleaseLost(Guid jobId, string jobType) {
+		if (_logger.IsEnabled(LogLevel.Warning)) {
+			_logger.LogWarning(
+				"Release of job {JobId} of type {JobType} affected no rows — lease "
+				+ "lost to another claimant (or already transitioned)",
+				jobId,
+				jobType
+			);
+		}
+	}
 
 	private async Task LogDeadLetterOrphansAsync(CancellationToken stoppingToken) {
 		try {
@@ -684,30 +870,5 @@ public sealed class JobQueueProcessor : BackgroundService {
 		}
 
 		return item.Id.Value;
-	}
-
-	// Bounded + sanitized error strings (F20): exception type + message, ≤ 2 KB,
-	// never payload JSON or token echo.
-	private static string BoundError(Exception ex) {
-		var bounded = Bound($"{ex.GetType().Name}: {ex.Message}");
-		return bounded ?? string.Empty;
-	}
-
-	private static string? Bound(string? error) {
-		if (error is null) {
-			return null;
-		}
-
-		return error.Length <= MaxErrorLength ? error : error[..MaxErrorLength];
-	}
-
-	private void LogCompleted(JobQueueItem item) {
-		if (_logger.IsEnabled(LogLevel.Information)) {
-			_logger.LogInformation(
-				"Completed job {JobId} of type {JobType}",
-				item.Id,
-				item.JobType
-			);
-		}
 	}
 }

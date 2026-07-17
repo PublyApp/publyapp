@@ -19,8 +19,10 @@ public static class JobsServiceRegistration {
 	/// 2B gates the call site on APP_ROLE (Worker/All).
 	/// </summary>
 	public static IHostApplicationBuilder AddWorkerServices(this IHostApplicationBuilder builder) {
-		// Singletons: the registry's fail-fast duplicate check runs once at startup;
-		// the metrics wrapper owns process-wide Meter instruments.
+		// Singletons: the registry's fail-fast duplicate check runs once at startup
+		// over the JobHandlerRegistration descriptors (it holds types + factories,
+		// never handler instances); the metrics wrapper owns process-wide Meter
+		// instruments.
 		builder.Services.AddSingleton<JobsMetrics>();
 		builder.Services.AddSingleton<JobHandlerRegistry>();
 		builder.Services.AddHostedService<JobQueueProcessor>();
@@ -37,6 +39,26 @@ public static class JobsServiceRegistration {
 		this IHostApplicationBuilder builder
 	) {
 		builder.Services.AddScoped<IJobEnqueuer, JobEnqueuer>();
+
+		return builder;
+	}
+
+	/// <summary>
+	/// Registers one domain job handler: SCOPED (so it can inject AppDbContext and
+	/// share the engine's per-job scope — its injected context IS the context the
+	/// terminal-failure transaction runs on), plus its registry descriptor.
+	/// <paramref name="jobType"/> should come from the handler's JobDefinition
+	/// catalog; the engine verifies it matches the resolved handler's own JobType at
+	/// dispatch and fails the job loudly on drift.
+	/// </summary>
+	public static IHostApplicationBuilder AddJobHandler<THandler>(
+		this IHostApplicationBuilder builder,
+		string jobType
+	) where THandler : class, IJobHandler {
+		builder.Services.AddScoped<THandler>();
+		builder.Services.AddSingleton(
+			new JobHandlerRegistration(jobType, sp => sp.GetRequiredService<THandler>())
+		);
 
 		return builder;
 	}
