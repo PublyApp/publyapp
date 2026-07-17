@@ -233,6 +233,8 @@ new config):
 | `JOB_QUEUE_DRAIN_BUDGET_SECONDS` | 60 | max continuous drain per wake before yielding one loop iteration (F10) |
 | `EMAIL_LOG_RETENTION_DAYS` | 180 | retention sweep window for `email_log` (F20; O7) |
 | `JOB_DEAD_LETTER_RETENTION_DAYS` | 90 | retention sweep window for `job_dead_letter` (F20; O7) |
+| `EMAIL_PREPARED_SEND_RETENTION_DAYS` | 7 | orphan-floor age for `email_prepared_sends` behind the live-state anti-join (§4.5/§7.3; O7; R2-11) — validated ≥ 1 |
+| `SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS` | 30 | prune window for the `system_job_occurrences` ledger (§4.3/§7.3; O9) — validated ≥ 1 |
 | `SCHEDULER_LEADER_LOCK_KEY` | (constant, not env) | see §5.2 |
 
 ### 3.2 Composition — exactly what each role wires
@@ -283,10 +285,17 @@ service** — so it must obey the same rule as the new engine: registered **only
 worker-only composition** (`JobsServiceRegistration.AddWorkerServices`), **never**
 in the shared `AddInfraServices`. Registering it in shared infra would run it in
 the **`api`** role too, violating D1 ("api registers no job hosted-services") and
-double-claiming the outbox from both roles. Phase 2C-R1's move of the dispatcher
-registration into `AddWorkerServices` is an explicit build step; R2 deletes it
-entirely. This is the one bounded transitional exception to "no legacy engine in
-`api`," and it is scoped to R1.
+double-claiming the outbox from both roles. **The move belongs to Phase 2B, not
+2C-R1 (R2-6).** Phase 2B is the release that *introduces the role split* and the
+`AddWorkerServices`/`AddInfraServices` restructure — so **2B itself** relocates
+the legacy dispatcher's registration from shared infra into `AddWorkerServices`.
+That way 2B can ship independently and still satisfy D1 (api has zero job hosted
+services the instant the role split exists); 2C-R1 merely **retains** the
+already-worker-only dispatcher and adds the new email jobs; R2 deletes it
+entirely. Assigning the move to the parallel 2C-R1 packet (the round-1 placement)
+would let 2B ship with the dispatcher still in shared infra — exactly the D1
+violation the current 634 tip demonstrates. This is the one bounded transitional
+exception to "no legacy engine in `api`," and it is closed by 2B.
 
 **The composition spec inspects *every* `IHostedService`, not one namespace
 (C5).** `AppRoleComposition.Spec.cs` (§9) enumerates **all** registered
@@ -623,23 +632,40 @@ Task<Guid> RequeueDeadLetterAsync(Guid deadLetterId, RequeueContext ctx, Cancell
 Its contract, all in **one transaction**:
 
 - **Load** the `job_dead_letter` row by id.
-- **Validate dispatchability** — its `job_type` must be a currently-registered
-  handler (the §5.1/F14 registry). An unregistered/retired version **fails with
-  a clear error** instead of enqueueing an undispatchable job.
-- **Validate the stored payload** against the registered definition (canonical
-  `JobJson` deserialize + the F2 required-member/empty-ID checks) so a corrupt
-  DLQ payload is rejected, not resurrected.
+- **Single-use guard, atomic (R2-7).** Requeue is conditioned on the DLQ row not
+  already having been requeued: the stamp is
+  `UPDATE job_dead_letter SET requeued_as_job_id = {newId}, requeued_at = now()
+  WHERE id = {deadLetterId} AND requeued_as_job_id IS NULL` with an
+  affected-row-count check. **Zero rows ⇒ already requeued ⇒ the whole operation
+  aborts** (clear error, no new job). Without this, once the first requeued job
+  completes and releases its `(job_type, idempotency_key)` in-flight key, the same
+  ancestor DLQ row could mint a *second* job and overwrite its own
+  `requeued_as_job_id` — the guard makes an ancestor requeueable **exactly once**.
+- **Re-failures requeue from their own new DLQ row, never the ancestor (R2-7).**
+  If a requeued job fails again it dead-letters into a **new** DLQ row carrying
+  `requeued_from_dead_letter_id = {ancestor}`; a further requeue operates on
+  *that* new row (again once), walking the chain forward — the ancestor is never
+  requeued repeatedly.
+- **Validate dispatchability + payload through a type-erased registration
+  (R2-7).** `RequeueDeadLetterAsync` handles an *arbitrary stored `job_type` +
+  JSON string*; it cannot call the generic `JobDefinition<TPayload>` directly. It
+  resolves the `job_type` in the unified **`JobRegistration`** registry (§5.1),
+  whose entry exposes a **non-generic `ValidatePayloadJson(string json)`** (a
+  closure bound to the concrete `TPayload` that runs the canonical `JobJson`
+  deserialize + the F2 required-member/empty-ID checks) alongside the handler
+  factory. An unregistered/retired `job_type` **fails with a clear error** (no
+  undispatchable enqueue); a payload that fails `ValidatePayloadJson` is
+  **rejected, not resurrected**.
 - **Restore the approved envelope verbatim** into a new `job_queue` row —
   `payload`, `job_type`, `priority`, `max_attempts`, `idempotency_key`,
   `tenant_id`, `actor_user_id`, `correlation_id` all copied from the DLQ row
   (**nothing client-supplied, no re-stamp from the staff requester**), with
   `attempts = 0`, `status = Pending`, `next_attempt_at = now()`.
 - **Chain the lineage (C9):** the new row's `requeued_from_dead_letter_id` is
-  set to `deadLetterId`; the DLQ row's `requeued_as_job_id` / `requeued_at` are
-  stamped. `JobDeadLetter.FromJob` **copies `requeued_from_dead_letter_id`
-  forward**, so a requeued job that dead-letters again preserves the full chain
-  back to the original failure (the `ix_job_dead_letter_requeued_from` index
-  walks it).
+  set to `deadLetterId`. `JobDeadLetter.FromJob` **copies
+  `requeued_from_dead_letter_id` forward**, so a requeued job that dead-letters
+  again preserves the full chain back to the original failure (the
+  `ix_job_dead_letter_requeued_from` index walks it).
 - **Audit atomically** — an immutable `AuditLog` entry (existing machinery)
   recording actor, DLQ id, and new job id commits in the same transaction as
   the insert; a failed enqueue rolls the audit back and vice-versa.
@@ -693,6 +719,36 @@ can never schedule an undispatchable job. This is why the schema stores only
 `job_key`/`cron_expression`/`is_enabled` and no payload or `job_type` column — the
 catalog owns that mapping in code, versioned with the handlers.
 
+**`system_job_occurrences` — durable occurrence identity (R2-1).** Recurring
+dedup **cannot** live in `job_queue.idempotency_key`: success *deletes* the queue
+row, so a delayed duplicate firing of the same scheduled tick after the first job
+completed would see no row and enqueue again. The occurrence identity therefore
+lives in its **own durable table that outlives queue deletion**:
+
+```sql
+CREATE TABLE system_job_occurrences (
+    job_key           text        NOT NULL,   -- system_job_definitions.job_key
+    scheduled_fire_at timestamptz NOT NULL,   -- the trigger's SCHEDULED fire time (UTC), quantized to cron granularity
+    enqueued_job_id   uuid        NULL,       -- the job_queue.id enqueued for this occurrence (informational)
+    enqueued_at       timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT pk_system_job_occurrences PRIMARY KEY (job_key, scheduled_fire_at)
+);
+
+-- Retention prune walks past occurrences by time (R2-1; O9).
+CREATE INDEX ix_system_job_occurrences_scheduled_fire_at
+    ON system_job_occurrences (scheduled_fire_at);
+```
+
+The `(job_key, scheduled_fire_at)` **primary key** is the permanent occurrence
+identity. `EnqueueSystemJobJob` writes this row **in the same transaction** as the
+`IJobEnqueuer` enqueue (§5.3): `INSERT … ON CONFLICT (job_key, scheduled_fire_at)
+DO NOTHING` — **zero rows inserted ⇒ this occurrence was already enqueued** (even
+if that earlier job has since completed and been deleted), so the transaction
+enqueues nothing and commits a no-op. This is durable, restart-surviving dedup the
+queue key cannot provide. The table is pruned to a bounded window by a retention
+sweep (§7.3; default 30 days — long enough to dedup any re-fire, short enough not
+to accumulate — O9).
+
 ### 4.4 `email_log` (append-only delivery record — day one)
 
 Written by email job handlers (and the engine's terminal-failure hook, §5.4) on
@@ -706,11 +762,11 @@ CREATE TABLE email_log (
     legacy_outbox_id    uuid        NULL,       -- fold lineage: source invitation_email_outbox.id (§4.6)
     kind                integer     NOT NULL,   -- EmailKind: 0 TenantInvitation, 1 StaffInvitation, 2 PasswordReset, …
     recipient           text        NOT NULL,
-    outcome             integer     NOT NULL,   -- 0 Submitted, 1 CancelledIneligible, 2 PermanentlyFailed
+    outcome             integer     NOT NULL,   -- EmailLogOutcome: 0 Submitted, 1 CancelledIneligible, 2 PermanentlyFailed, 3 LegacySubmissionUnverified (R2-3)
     invitation_id       uuid        NULL,       -- related entity ids; no FK constraints (see below)
     user_id             uuid        NULL,
     provider_message_id text        NULL,       -- provider correlation (F3/F20)
-    envelope_sha256     text        NULL,       -- fingerprint of the prepared envelope actually sent (F7)
+    request_sha256     text        NULL,       -- sha256 of the exact provider request bytes sent (F7/R2-2)
     attempts            integer     NOT NULL DEFAULT 0,
     last_error          text        NULL,       -- bounded + sanitized (F20)
     occurred_at         timestamptz NOT NULL DEFAULT now(),
@@ -743,6 +799,19 @@ Design notes:
   Delivered/bounced/complaint tracking requires provider webhooks and is a
   designed follow-up (§10), not implied by this table. UI copy must say
   "submitted to provider".
+- **`LegacySubmissionUnverified` (outcome 3), never `Submitted`, for folded
+  legacy `Sent` rows (R2-3).** The old outbox's `Sent` status is **not evidence
+  of provider acceptance**: F3 records that `ResendEmailAdapter` returned
+  `Success = false` on rejection, `EmailService` discarded that result, and the
+  dispatcher marked the row `Sent` regardless — so a legacy `Sent` row may in
+  fact be a *rejected* send. Mapping it to `Submitted` ("provider accepted")
+  would manufacture authoritative success history from rows known not to support
+  it. The fold therefore migrates legacy `Sent` → **`LegacySubmissionUnverified`**
+  (§4.6), a distinct outcome the dashboard renders as "legacy — delivery
+  unverified" and that no metric counts as a confirmed submission. Provider-side
+  reconciliation (if Resend logs are ever imported) may later upgrade specific
+  rows; absent evidence they stay unverified. Only handlers running the *corrected*
+  F3 contract (§5.4) ever write `Submitted`.
 - **No FK constraints** on `invitation_id`/`user_id` (plain indexed uuid
   columns): an audit-trail table must outlive — and never block — the lifecycle
   of the rows it references (hard-delete sweeps, future data-erasure flows).
@@ -751,7 +820,7 @@ Design notes:
   hard-deleted by the retention sweep system job (§7.3). `last_error` is
   bounded (exception type + message, ≤2 KB) and must never echo tokens, payload
   JSON, or full provider responses. Dashboard access (Phase 4) sits behind its
-  own staff permission; the table never stores email bodies — `envelope_sha256`
+  own staff permission; the table never stores email bodies — `request_sha256`
   is a fingerprint, the token lives only in the short-lived scratch (§4.5).
 - `kind` values **preserve the shipped enum**: `InvitationEmailKind
   { TenantInvitation = 0, StaffInvitation = 1 }` extends to `EmailKind
@@ -773,40 +842,72 @@ persisted exactly once per job**, and retries resend those stored bytes.
 ```sql
 CREATE TABLE email_prepared_sends (
     job_id                   uuid        NOT NULL,   -- the email job this envelope belongs to
-    request_bytes            text        NOT NULL,   -- the EXACT canonical provider request body sent on the wire (C1)
-    envelope_sha256          text        NOT NULL,   -- sha256(request_bytes) — the fingerprint carried into email_log
+    request_body             bytea       NOT NULL,   -- the EXACT UTF-8 provider request body sent on the wire (C1/R2-2)
+    request_sha256           text        NOT NULL,   -- sha256(request_body) — the fingerprint carried into email_log
     provider_idempotency_key text        NOT NULL,   -- stable per job (derived from job_id)
-    prepared_committed       boolean     NOT NULL DEFAULT false, -- true once the PREPARE txn committed (C1 two-phase)
-    created_at               timestamptz NOT NULL DEFAULT now(),
+    prepared_at              timestamptz NOT NULL DEFAULT now(), -- when PREPARE committed (row existence = commit proof; R2-12)
     CONSTRAINT pk_email_prepared_sends PRIMARY KEY (job_id)
 );
 ```
 
-**Why `text`, not `jsonb` (C1):** `jsonb` normalizes key order and whitespace, so
-it does **not** preserve "persisted bytes" — two logically-equal envelopes can
-round-trip to different serializations, defeating the provider's byte-identical
-dedup requirement. The prepared request is serialized **once** through the
-canonical `JobJson` options (stable, deterministic member order) into a **`text`
-blob that is exactly what is written to the provider HTTP body**, and every
-retry sends that stored string verbatim. `envelope_sha256 = sha256(request_bytes)`
-is the fingerprint copied into `email_log` for investigation.
+**Row existence *is* the PREPARE-committed proof (R2-12).** There is **no
+`prepared_committed` flag** — another transaction cannot see an uncommitted
+insert, and every insert would set it true, so the column could never distinguish
+the two lifecycle states. The presence of a committed `email_prepared_sends` row
+for a `job_id` means PREPARE committed; its absence means it did not. `prepared_at`
+is retained only because it is operationally useful (the orphan-floor age, §7.3).
+
+**Why `bytea`, and a *transport* serializer — not `JobJson` (R2-2/C1).** The
+prepared body must be the **exact bytes written to the provider HTTP request**;
+`jsonb` normalizes key order/whitespace and could not preserve them. Critically,
+`JobJson` is the **job-payload** serializer (it serializes `{"invitationId":…}`
+queue payloads) — it is **not** the Resend request serializer, so it cannot
+produce the provider's request body. The design therefore adds a dedicated
+**provider-request transport boundary**:
+
+```csharp
+// Infrastructure/Messaging/Email — the byte-faithful send path (R2-2).
+Task<EmailSendReceipt> SendPreparedAsync(
+    ReadOnlyMemory<byte> requestBody,   // the persisted email_prepared_sends.request_body, verbatim
+    string idempotencyKey,              // the job-stable provider idempotency key
+    CancellationToken ct);
+```
+
+`SendPreparedAsync` writes `requestBody` **directly to the provider POST body**
+(`Content-Type: application/json`, `Idempotency-Key: {idempotencyKey}`) — it does
+**not** re-serialize a semantic object, so the persisted bytes *are* the wire
+bytes, and `request_sha256` provably fingerprints what was sent. `request_body`
+is produced **once** at PREPARE by a small transport serializer
+(`ResendEmailRequest.SerializeCanonical(...)` in the email adapter, deterministic
+member order) — the same code path `SendPreparedAsync` consumes.
+
+> **Honest fallback if the SDK cannot be bypassed (R2-2).** If the Resend .NET SDK
+> genuinely cannot accept a raw body, the design **weakens the claim honestly**:
+> `request_body` stores the SDK's own canonical serialization of a *frozen*
+> request object (all fields fixed at PREPARE), retries reconstruct that identical
+> object, and the guarantee is stated as "provider-supported canonical request,
+> byte-stable under the SDK's serializer" rather than "raw wire bytes." Either way
+> the retry never re-renders mutated domain state. `SendPreparedAsync` is the
+> preferred, provable form; Phase 2C picks one and the spec asserts byte/field
+> stability across a simulated domain mutation.
 
 **Two-phase lifecycle (C1) — a committed PREPARE, then a locked SEND:**
 
 1. **PREPARE transaction (commits before any provider call).** On the first
    attempt the handler renders the request from fresh domain state, serializes it
-   to `request_bytes`, and `INSERT … ON CONFLICT (job_id) DO NOTHING` with
-   `prepared_committed = true`, then **commits**. Because this commit precedes
-   the network call, a crash *after* the provider accepts but *before* the send
-   transaction commits leaves the prepared bytes durably on disk — the retry
-   re-sends the **same** bytes rather than re-rendering mutated state (the exact
-   failure C1 flags). A subsequent attempt that finds `prepared_committed = true`
-   skips rendering entirely and reads the stored bytes back.
+   to `request_body`, and `INSERT … ON CONFLICT (job_id) DO NOTHING`, then
+   **commits**. Because this commit precedes the network call, a crash *after*
+   the provider accepts but *before* the send transaction commits leaves the
+   prepared bytes durably on disk — the retry re-sends the **same** bytes rather
+   than re-rendering mutated state (the exact failure C1 flags). A subsequent
+   attempt that **finds a committed row** skips rendering entirely and reads the
+   stored bytes back.
 2. **SEND transaction (separate, locked).** A second transaction takes the domain
-   row lock, does the eligibility recheck (§5.4), calls the provider with the
-   stored bytes, and on acceptance writes `email_log(Submitted)` + deletes the
-   scratch row. **On a *transient* provider failure the scratch row is left
-   committed** (it was committed in phase 1) so the retry reuses it; only a
+   row lock, does the eligibility recheck **and re-checks `email_log(job_id)`
+   immediately before network I/O** (R2-2 local-race close, §5.4), calls
+   `SendPreparedAsync` with the stored bytes, and on acceptance writes
+   `email_log(Submitted)` + deletes the scratch row. **On a *transient* provider
+   failure the scratch row is left committed** so the retry reuses it; only a
    terminal outcome deletes it.
 
 **Cleanup is a live-state anti-join, never age alone (C1).** "Orphan" is defined,
@@ -825,7 +926,7 @@ beyond 24 h (a job stuck in retry that long has hit the DLQ under the default
 schedule anyway), or if the provider's dedup fails, a duplicate is possible.
 `email_log`'s unique `job_id` additionally guarantees this system never
 *accounts* a job as submitted twice, and `provider_message_id` +
-`envelope_sha256` make any duplicate investigable. Unconditional exactly-once
+`request_sha256` make any duplicate investigable. Unconditional exactly-once
 is not claimed anywhere.
 
 ### 4.6 Migration path — expand/contract fold of `invitation_email_outbox` (F4)
@@ -860,22 +961,31 @@ expand/contract across **two releases**:
      '__folded_to_job_queue__'` so (a) the old dispatcher can never also send it
      and (b) the back-copy below can recognize and **exclude** it. This sentinel
      is a bridge marker, **not** a delivery outcome.
-   - **Back-copy GENUINE terminal history only (C3/O6).** `INSERT INTO email_log
-     … SELECT` every outbox row that is a *real* delivery outcome —
-     `Sent` (→ `Submitted`, `occurred_at = sent_at`), `Failed`
-     (→ `PermanentlyFailed`, `occurred_at = updated_at`, carrying
-     `attempt_count`), or a genuinely-`Cancelled` row **whose `last_error` is
-     not the fold sentinel** (→ `CancelledIneligible`, `occurred_at =
-     updated_at`). Rows carrying `'__folded_to_job_queue__'` are **excluded** —
-     their outcome is the new `job_queue` job, not a cancellation. Explicit
-     **legacy timestamp mapping**: `Sent → sent_at`; `Failed`/`Cancelled →
-     updated_at`. Historical `last_error` values are passed through
-     `JobErrorSanitizer` (email/token redaction + 2 KB bound — §5.1/F20) before
-     insertion, never copied raw. `legacy_outbox_id` is stamped on every copied
-     row; the `ux_email_log_legacy_outbox_id` unique index (§4.4) makes the
-     copy idempotent and re-run-safe (`ON CONFLICT (legacy_outbox_id) DO
-     NOTHING`). *(Recommendation — O6; the alternative is dropping history with
-     the table.)*
+   - **Back-copy GENUINE terminal history only (C3/O6/R2-3).** `INSERT INTO
+     email_log … SELECT` every outbox row that is a *real* delivery outcome —
+     `Sent` (→ **`LegacySubmissionUnverified`**, never `Submitted` — R2-3;
+     `occurred_at = sent_at`), `Failed` (→ `PermanentlyFailed`,
+     `occurred_at = updated_at`, carrying `attempt_count`), or a
+     genuinely-`Cancelled` row **whose `last_error` is not the fold sentinel**
+     (→ `CancelledIneligible`, `occurred_at = updated_at`). Rows carrying
+     `'__folded_to_job_queue__'` are **excluded** — their outcome is the new
+     `job_queue` job, not a cancellation. Explicit **legacy timestamp mapping**:
+     `Sent → sent_at`; `Failed`/`Cancelled → updated_at`.
+   - **Historical errors: a SQL-side stable code, never a C#-sanitized copy
+     (R2-8).** An `INSERT … SELECT` migration cannot call the C# static
+     `JobErrorSanitizer`, so the R1 round-1 wording ("passed through
+     `JobErrorSanitizer`") was not executable. The fold instead writes a **stable
+     migration code** into `email_log.last_error` — a fixed literal per source
+     status (`'legacy-import:failed'` for `Failed`, `NULL` otherwise) — and does
+     **not** copy the raw legacy `last_error` at all (its diagnostic value is low
+     and it may hold unsanitizable PII/tokens). If an operator later decides the
+     raw text must be preserved, the migration may instead apply an **explicitly
+     defined SQL redaction function** (`regexp_replace` for email/token shapes +
+     `left(…, 2048)`) — named and reviewed in the migration — but the default is
+     the stable code. `legacy_outbox_id` is stamped on every copied row; the
+     `ux_email_log_legacy_outbox_id` unique index (§4.4) makes the copy idempotent
+     and re-run-safe (`ON CONFLICT (legacy_outbox_id) DO NOTHING`).
+     *(Recommendation — O6; the alternative is dropping history with the table.)*
    - **`Processing` rows are NOT touched** — they may be inside a live
      old-dispatcher send. They drain via step 2.
    - A `Pending` row with `invitation_id IS NULL` (pre-linkage legacy shape;
@@ -893,6 +1003,22 @@ expand/contract across **two releases**:
 **Release R2 (small follow-up, same night or next deploy):**
 
 3. Migration `DropInvitationEmailOutbox`:
+   - **Precondition — prove producer quiescence, not just data drain (R2-5).**
+     Zero `Pending`/`Processing` rows proves the *table is drained*; it does
+     **not** prove that no old (pre-R1) API or worker binary is still capable of
+     *inserting* into or *claiming* the table. R2 is gated on an **explicit,
+     inspectable fleet precondition first**: *every running API and worker replica
+     is on an R1-or-newer immutable image tag, and every pre-R1 binary is gone* —
+     verified from the deployment's image-tag/rollout state (§3.4 immutable tags),
+     recorded in the release checklist. Only once the fleet is confirmed
+     R1-or-newer does the migration proceed to the row-level lock/check below.
+   - **Blocked-old-producer analysis (R2-5).** If — against the precondition — a
+     pre-R1 producer is still live, it blocks behind the `ACCESS EXCLUSIVE` lock,
+     then its `INSERT` fails when the table is dropped, **rolling back the whole
+     invitation request** (the caller gets an error, no half-written state). That
+     is *not* silent data loss, but it *is* a visible failed request — which is
+     why the fleet precondition above (not the lock alone) is the real gate: the
+     lock prevents corruption, the precondition prevents the failed request.
    - **Take an exclusive table lock, then verify total quiescence regardless of
      age (C2).** `LOCK TABLE invitation_email_outbox IN ACCESS EXCLUSIVE MODE`
      first — this blocks the drainer from claiming/transitioning a row during the
@@ -904,9 +1030,10 @@ expand/contract across **two releases**:
      Only `count(Pending) = 0 AND count(Processing) = 0` proves the drain is
      complete; anything else means the operator must wait, not drop.
    - Under the same lock, back-copy any **genuine** terminal rows created during
-     the R1 window — the identical genuine-outcome `SELECT` as R1 step 1 (fold
-     sentinel `'__folded_to_job_queue__'` excluded; `last_error` sanitized;
-     idempotent via the `legacy_outbox_id` unique index) — then
+     the R1 window — the identical genuine-outcome `SELECT` as R1 step 1 (`Sent`
+     → `LegacySubmissionUnverified`; fold sentinel `'__folded_to_job_queue__'`
+     excluded; `last_error` = SQL-side stable code, never raw — R2-8; idempotent
+     via the `legacy_outbox_id` unique index) — then
      `DROP TABLE invitation_email_outbox`. Because the fold sentinel is excluded
      in both R1 and R2, a folded email acquires **exactly one** record: its new
      `job_queue` outcome, never a spurious `CancelledIneligible` (C3).
@@ -1001,7 +1128,8 @@ public-method-for-determinism discipline.
   -- renewal (while the handler runs, at lease/2 cadence):
   UPDATE job_queue
   SET locked_until = now() + make_interval(secs => {leaseSeconds}), updated_at = now()
-  WHERE id = {id} AND lock_token = {token};
+  WHERE id = {id} AND lock_token = {token}
+  RETURNING locked_until, now();   -- DB-computed deadline + DB clock drive the safety margin (R2-4)
   ```
 
   **Zero affected rows = the lease was lost** (another worker reclaimed after
@@ -1013,33 +1141,47 @@ public-method-for-determinism discipline.
   an almost-expired lease), and a renewal loop re-stamps at `lease/2` intervals
   while a handler runs.
 
-  **Renewal-failure semantics — confirmed loss vs. transient error (C7).** A
-  renewal outcome is *not* binary; the loop distinguishes two failure kinds and
-  tracks the **last confirmed database lease deadline** (a stopwatch reset on
-  every renewal that affected a row):
-  - **Confirmed loss** — the renewal `UPDATE … WHERE id = … AND lock_token = …`
-    **returns zero affected rows**. Ownership definitively belongs to a new
-    claimant; the handler is cancelled at once (`leaseLostSource`) and the
-    outcome discarded. This is the only *certain* signal, and it acts
-    immediately.
+  **Renewal-failure semantics — confirmed loss vs. transient error, with a DB
+  safety margin (C7/R2-4).** A renewal outcome is *not* binary; the loop
+  distinguishes two failure kinds and tracks the **last confirmed *database*
+  lease deadline** — not a local stopwatch. Each successful renewal
+  `UPDATE … RETURNING locked_until, now()` returns the **DB-computed** new
+  deadline and the **DB clock**; the loop stores `confirmedDbDeadline =
+  locked_until` and the observed DB↔app skew. Abandonment is judged against that
+  DB deadline, minus a margin — never against a local "full lease window" timer:
+  - **Confirmed loss** — the renewal returns **zero affected rows**. Ownership
+    definitively belongs to a new claimant; the handler is cancelled at once
+    (`leaseLostSource`) and the outcome discarded. This is the only *certain*
+    signal, and it acts immediately.
   - **Transient error** — the renewal statement *threw* (a DB hiccup, a dropped
-    connection): ownership is **unknown**, not lost. Cancelling here would be a
-    needless abandon/retry. Instead the loop **retries on a short bounded
-    interval (`lease/8`, floor 0.25 s) inside the remaining lease window**, on a
-    fresh scope/connection. It abandons **only** when a **full lease window
-    elapses with no confirmed stamp** — at which point the lease may genuinely
-    have expired and been reclaimed, so ownership is treated as lost and the
-    handler cancelled. Until that margin is exhausted the handler keeps running;
-    the fencing token still protects every transition regardless of the outcome
-    of this race.
+    connection): ownership is **unknown**, not lost. The loop **retries on a
+    short bounded interval (`lease/8`, floor 0.25 s)** on a fresh
+    scope/connection — but only **while there is still a safe margin left before
+    the confirmed DB deadline**. It **abandons (cancels the handler) *before*
+    `confirmedDbDeadline − safetyMargin` is reached**, where `safetyMargin`
+    covers the expected DB round-trip plus a buffer (design default:
+    `max(2 s, lease/20)`, tunable). It does **not** wait until at or after the
+    lease actually expires — because at that point the DB lease may already have
+    been reclaimed and another worker may already be executing, and fencing
+    protects only *settlement*, not a **concurrent external side effect** already
+    in flight in this handler. Abandoning early trades a rare redundant re-run
+    (safe, at-least-once) for never overlapping two live executions.
 
-  A connection exception therefore never triggers an instant cancel, and a
-  renewal cadence hiccup can never overrun the original lease unnoticed. This
-  closes both F1 failure modes — expired-mid-run clobber and serial-batch lease
-  exhaustion — *and* the C7 renewal-margin gap. `RenewLeaseLoopAsync`'s
-  `sinceConfirmedStamp` window and `lease/8` retry are the exact implemented
-  mechanism; the "full-batch lease expiry / renewal-disabled fence" spec (§9)
-  proves the fence — not renewal luck — is what protects reclaimed rows.
+  A connection exception therefore never triggers an instant cancel, yet the
+  handler is always cancelled with margin to spare before the real lease
+  boundary. This closes both F1 failure modes — expired-mid-run clobber and
+  serial-batch lease exhaustion — *and* the C7/R2-4 renewal-margin gap. The §9
+  spec adds a case: **a transient renewal outage spanning the safety deadline
+  while a second worker reclaims the row → the first handler is cancelled before
+  the reclaim's lease begins, and its settlement no-ops on the fence.**
+
+  > **Known code-alignment item (R2-4, captain's reconciliation round).** The
+  > `feat/633-job-queue-core` tip's `RenewLeaseLoopAsync` currently uses a local
+  > `sinceConfirmedStamp` stopwatch and cancels only after a *full* lease window,
+  > and does not `RETURNING` the DB deadline. **This document specifies the
+  > correct contract** (DB-returned deadline + `safetyMargin`, abandon-before-
+  > expiry); the 633 implementation is a **known gap to reconcile** — not a doc
+  > defect. It is listed for the captain's code-reconciliation round.
 
 - **Drain loop (F10).** After processing a batch, the processor claims again
   **immediately while the previous batch was full**, and only waits on
@@ -1083,11 +1225,26 @@ public-method-for-determinism discipline.
     missing field throws on deserialization instead of materializing
     `Guid.Empty`; handlers additionally reject empty IDs as a
     `PermanentFailure`. A spec asserts the exact wire JSON round-trips (§9).
-  - **Execute side:** `JobHandlerRegistry` maps `job_type` → `IJobHandler`;
-    registration is explicit and fail-fast (every registered `job_type` maps to
-    exactly one handler and vice-versa). Handlers are resolved from a fresh DI
-    scope per job. An **unknown `job_type`** encountered at dispatch is a
-    `PermanentFailure` straight to the DLQ (no pointless retries).
+  - **Execute side — a unified `JobRegistration` registry (F14/F15/R2-7).** One
+    registry maps `job_type` → a **`JobRegistration`** that pairs, for the same
+    versioned type, **both** capabilities the engine needs:
+    - a **handler factory** `Func<IServiceProvider, IJobHandler>` (resolved from a
+      fresh DI scope per job), and
+    - a **type-erased payload validator** `Action<string> ValidatePayloadJson`
+      (a closure captured over the concrete `TPayload`, running the canonical
+      `JobJson` deserialize + F2 required-member/empty-ID checks on arbitrary
+      stored JSON).
+
+    Registration is explicit and fail-fast (each `job_type` maps to exactly one
+    registration). Pairing the validator with the factory is what lets
+    `RequeueDeadLetterAsync` (§4.2) validate a *stored* DLQ payload without a
+    compile-time `TPayload`, and lets the enqueue side and the requeue side share
+    one validation definition instead of two drifting copies. An **unknown
+    `job_type`** encountered at dispatch is a `PermanentFailure` straight to the
+    DLQ (no pointless retries). (`AddJobHandler<T>` registers the handler factory;
+    the paired `JobDefinition<TPayload>` supplies `ValidatePayloadJson`, so a
+    handler registered without its definition — or vice-versa — fails the
+    fail-fast check.)
   - **Version-compatibility gate — fail closed at startup, not a post-damage
     warning (C14/F14).** The registry's DLQ-orphan *log warning* is retained
     only as the **observability twin**; the enforcement is a
@@ -1103,10 +1260,23 @@ public-method-for-determinism discipline.
       a queued old-version row and permanently dead-letter it, and a DLQ row
       whose handler was dropped can never become un-requeueable unnoticed —
       both are caught *before* the loop processes anything.
-    - A single `JOB_REGISTRY_ALLOW_UNREGISTERED` escape hatch (default off,
-      audit-logged when set) exists only for the deliberate, operator-driven
-      "drain a retired version" window; the mixed-version rule below makes it
-      normally unnecessary.
+    - **No global bypass (R2-9).** There is **no** `JOB_REGISTRY_ALLOW_UNREGISTERED`
+      boolean — a flag that lets the worker start with *any* unsupported live
+      `job_queue` type would only guarantee that type is then permanently
+      dead-lettered, disabling the very guarantee the gate exists to enforce; and
+      "drain a retired version" is impossible without that version's handler
+      anyway (so with the handler present the bypass is unnecessary, and without
+      it the bypass is harmful). **Unregistered `job_queue` types are never
+      tolerated — full stop, fail closed.**
+    - **DLQ-only, exact-type audited allowlist (R2-9), the sole escape.** The one
+      permitted relaxation is for *historical DLQ orphans only* — DLQ rows of a
+      version whose handler is legitimately gone and which will never be requeued.
+      An explicit `JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST` names **exact `job_type`
+      strings** (no wildcards) that may exist **in `job_dead_letter` only**; it
+      never permits an unregistered type in `job_queue`, and each entry is
+      audit-logged at boot. The clean alternative — deploy the old handler image
+      to drain those DLQ rows — remains preferred; the allowlist is for when that
+      image is retired and the orphans are accepted as permanently un-requeueable.
   - **Payload versioning (F14):** `job_type` strings are versioned from day
     one (`email.tenant-invitation.v1`). A breaking payload change introduces
     `…v2` + its handler while the `v1` handler (or an upcaster registered for
@@ -1190,18 +1360,33 @@ public-method-for-determinism discipline.
     email addresses → `[redacted-email]`; (c) redacts token-shaped runs — any
     unbroken base64/hex/url-safe run ≥ 24 chars (reset tokens, API keys, signed
     fragments) → `[redacted-token]`; (d) **hard-bounds length at 2 KB**.
-  - **The original exception is preserved only in protected structured logs.**
-    The un-sanitized `Exception` object (with message + stack trace) is passed to
-    Serilog as the *exception argument* — never interpolated into the message
-    template — so full diagnostics live in the logs (access-controlled like all
-    app logs) while the durable columns carry only the redacted, bounded,
-    type-coded form. Payload JSON, tokens, and provider response bodies therefore
-    cannot reach `last_error` even when a handler naïvely stuffs them into a
-    reason string.
+  - **Logs are redacted too — "protected" is not a substitute for redaction
+    (R2-8).** The engine does **not** hand the raw `Exception` (whose `.Message`
+    Serilog would render into a sink) to the logger for provider/handler failures.
+    Instead it logs the **sanitized `Describe(ex)` (type + redacted, bounded
+    message)** plus **safe stack metadata** — the exception *type* and its stack
+    **frames** (method/type/file/line), which do not carry untrusted payload
+    values — and omits the raw message. So a Resend 4xx body, a token, or a
+    recipient address inside `ex.Message` never reaches a log sink either.
+  - **Backstop: a global Serilog exception-redaction destructuring policy
+    (R2-8).** Because a raw exception could be logged from *anywhere* (not just the
+    engine), an `IExceptionDestructurer` / destructuring policy is registered on
+    the logger pipeline that runs every logged exception's `Message` through
+    `JobErrorSanitizer.Sanitize` before it is written. This makes redaction a
+    property of the logging boundary, not of each call site's discipline.
 
-  This is the mechanism every "bounded + sanitized (F20)" schema comment refers
-  to; a spec (`JobErrorSanitizer.Spec.cs`, §9) asserts email/token redaction and
-  the 2 KB bound on adversarial inputs.
+  Between the durable-column boundary and the logging boundary, payload JSON,
+  tokens, and provider response bodies cannot reach `last_error` **or** a log sink
+  even when a handler naïvely stuffs them into a reason string or throws them in an
+  exception message. A spec (`JobErrorSanitizer.Spec.cs`, §9) asserts email/token
+  redaction and the 2 KB bound on adversarial inputs, plus that a logged exception
+  carrying an email/token is redacted at the sink.
+
+  > **Known code-alignment item (R2-8, captain's reconciliation round).** The 633
+  > processor currently passes the raw `failure` exception to `LogWarning`/
+  > `LogError`. This document specifies the redacted-logging contract above (safe
+  > `Describe` + stack metadata + destructuring backstop); aligning the 633 log
+  > calls is a code-reconciliation item, not a doc defect.
 
 ### 5.2 `SchedulerLeaderService` (`Infrastructure/Jobs/SchedulerLeaderService.cs`)
 
@@ -1253,41 +1438,68 @@ hole). The contract:
     parameterless sweeps; the catalog is where a future parameterized job supplies
     one);
   - **cron policy**: the trigger **time zone** (default UTC, explicit per entry)
-    and **misfire policy** (default: fire-once-then-resume — a missed tick from a
-    leader gap enqueues one occurrence, never a thundering catch-up burst).
+    and a **gap policy** (see below).
 - **`EnqueueSystemJobJob`** is the single Quartz job type every dynamic trigger
   fires (wired by `SyncSystemJobsJob`, which stamps the `job_key` into the
-  trigger's `JobDataMap`). On fire it: resolves the `job_key` → catalog entry
-  (missing → warn + no-op, matching the sync-time skip), then calls
-  `IJobEnqueuer.EnqueueAsync(entry.Definition, entry.PayloadFactory(fireTime), …)`
-  and stamps `last_enqueued_at` **in the same transaction** the enqueuer joins.
-  It never constructs `JobQueueItem` directly — the `JobEnqueueBoundary` spec
-  (§9) asserts `Infrastructure/Jobs/Quartz` holds no direct-write of the entity.
-- **Scheduled-occurrence idempotency (C4/F13).** The enqueue passes
-  `IdempotencyKey = $"{job_key}:{quantizedFireTime:o}"` (the trigger's scheduled
-  fire time, quantized to the cron granularity). Under the
-  `(job_type, idempotency_key)` unique index (§4.1), a leader flap that
-  double-fires the same scheduled tick — or an `EnqueueSystemJobJob` retry —
-  **cannot enqueue that occurrence twice**. This is the *in-flight* dedup; a
-  recurring sweep whose logical work must never double-execute additionally
-  relies on its handler's natural idempotency or a domain outcome marker
-  (§4.1/F13), stated as an obligation on each system job.
+  trigger's `JobDataMap`). On fire it, **in one transaction**: computes
+  `scheduled_fire_at` (the trigger's *scheduled* fire time, quantized to cron
+  granularity — Quartz exposes this on the fire context, distinct from "now"),
+  `INSERT INTO system_job_occurrences (job_key, scheduled_fire_at) … ON CONFLICT
+  DO NOTHING`, and **only if that inserted a row** calls
+  `IJobEnqueuer.EnqueueAsync(entry.Definition, entry.PayloadFactory(scheduled_fire_at), …)`,
+  records `enqueued_job_id`, and stamps `last_enqueued_at`; then commits. It never
+  constructs `JobQueueItem` directly — the `JobEnqueueBoundary` spec (§9) asserts
+  `Infrastructure/Jobs/Quartz` holds no direct-write of the entity.
+- **Scheduled-occurrence idempotency is DURABLE (C4/F13/R2-1).** The permanent
+  dedup is the `system_job_occurrences (job_key, scheduled_fire_at)` primary key
+  (§4.3), **not** the queue's `idempotency_key`. Because the occurrence row
+  outlives queue deletion, a delayed duplicate firing of the same scheduled tick
+  — *after* the first job already completed and its queue row was deleted —
+  `ON CONFLICT DO NOTHING`s and enqueues nothing. (The enqueue still also carries
+  `IdempotencyKey = $"{job_key}:{scheduled_fire_at:o}"` as the *in-flight* guard
+  against a same-tick double-fire while the first job is still queued, but that is
+  the belt to the ledger's braces.) A recurring sweep whose logical work must
+  never double-execute additionally relies on its handler's natural idempotency or
+  a domain outcome marker (§4.1/F13).
+- **Missed-occurrence semantics — durable-derived, explicit drop-on-gap default
+  (R2-1).** The round-1 "fire-once-then-resume" phrasing was wrong: a RAM job
+  store has **no memory of ticks missed while no scheduler existed**, so it cannot
+  provide catch-up. The durable ledger *is* the memory. On leader acquisition (and
+  each `SyncSystemJobsJob` pass) reconciliation may derive missed occurrences by
+  comparing each catalog cron's expected fire times against
+  `system_job_occurrences`. The **default gap policy is DROP-ON-GAP**: missed
+  ticks are **not** back-filled — recurring sweeps are idempotent and
+  state-reconciling (a `session-cleanup` that missed three ticks needs one run on
+  current state, not three), so the next scheduled fire covers reality. An entry
+  may **opt into bounded catch-up** (`CatchUp = AtMost(n)`): reconciliation
+  enqueues at most the `n` most-recent missed occurrences (each idempotent via the
+  ledger), never an unbounded burst. The policy is a per-catalog-entry field, so
+  the choice is explicit and inspectable, never implicit RAM-store behavior.
+- **Catalog→definition→handler closure, validated at startup (R2-1).** A
+  `SystemJobCatalog` self-check runs in the same worker-startup gate as the
+  registry check (§5.1): **every** catalog entry's `JobDefinition.JobType` must
+  resolve to a **registered `IJobHandler`**, or the worker **fails closed**. This
+  makes it impossible to ship a seeded/scheduled system job whose enqueued jobs
+  would dead-letter for want of a handler.
 - **Seeder.** `SystemJobSeeder` (`Modules/Jobs/Seeders/`, run with the other
   seeders) inserts one `system_job_definitions` row per catalog entry that should
   ship enabled (idempotent on `job_key`), so a fresh environment has the baseline
   recurring jobs without a manual dashboard step. Operators then edit cron /
   enable-disable from the dashboard (#636).
 - **Specs (§9):** catalog-unknown `job_key` is skipped (not scheduled); a
-  double-fired scheduled occurrence enqueues exactly one row; `EnqueueSystemJobJob`
-  routes only through `IJobEnqueuer`.
+  delayed duplicate occurrence enqueues nothing (ledger PK); catalog→handler
+  closure fails the startup gate when a definition has no handler;
+  `EnqueueSystemJobJob` routes only through `IJobEnqueuer`.
 
 **Why no `qrtz_*` tables (deviation from #194's table list):** durability lives
-in `job_queue`, leadership lives in the advisory lock, and the
-system-job catalog lives in `system_job_definitions` (reconciled every 60 s).
-Quartz here only needs to *fire cron triggers on the leader* — it holds no
-durable state of its own, so a persistent Quartz store would be redundant
-complexity. If a durable Quartz store is ever wanted (e.g. misfire policies
-across restarts), it is an additive follow-up, not a Phase-A dependency.
+in `job_queue` (work) and `system_job_occurrences` (recurring identity),
+leadership lives in the advisory lock, and the system-job catalog lives in
+`system_job_definitions` (reconciled every 60 s). Quartz here only needs to *fire
+cron triggers on the leader* — occurrence durability and gap policy are provided
+by the ledger + reconciliation above, **not** by a Quartz job store — so a
+persistent `qrtz_*` store would be redundant complexity. If Quartz-native misfire
+handling across restarts is ever wanted, it is an additive follow-up, not a
+Phase-A dependency.
 
 ### 5.4 Email job handlers (replaces the typed-outbox dispatcher)
 
@@ -1356,15 +1568,16 @@ Emails are ordinary jobs; the shipped `InvitationEmailOutboxDispatcher`, the
      reclaimed job whose Submitted (or terminal) outcome is already recorded
      never re-sends.
   1. **PREPARE transaction (first attempt only; commits before any network I/O).**
-     If no `prepared_committed = true` scratch row exists yet: open transaction A,
-     take the domain row lock (`SELECT … FOR UPDATE`), do a fresh eligibility read
-     (ineligible → the CancelledIneligible path in step 3, in this same
-     transaction), **render the request from the locked-fresh state**, serialize
-     it to canonical `request_bytes` (§4.5), `INSERT … ON CONFLICT (job_id) DO
-     NOTHING` with `prepared_committed = true`, and **commit A**. The bytes are
-     now durable *before* the provider is ever called, so any later crash resends
-     stored bytes, never re-rendered ones. A retry that finds the committed
-     scratch row skips this step entirely.
+     If no committed `email_prepared_sends` row exists yet (row existence is the
+     commit proof — §4.5): open transaction A, take the domain row lock
+     (`SELECT … FOR UPDATE`), do a fresh eligibility read (ineligible → the
+     CancelledIneligible path in step 3, in this same transaction), **render the
+     request from the locked-fresh state**, serialize it to `request_body` via the
+     provider **transport** serializer (§4.5 — *not* `JobJson`), `INSERT … ON
+     CONFLICT (job_id) DO NOTHING`, and **commit A**. The bytes are now durable
+     *before* the provider is ever called, so any later crash resends stored
+     bytes, never re-rendered ones. A retry that finds the committed scratch row
+     skips this step entirely.
   2. **SEND transaction opens** and takes the domain row lock again
      (`SELECT … FOR UPDATE`).
   3. **Fresh eligibility read under the SEND lock** — *this locked read is the
@@ -1377,12 +1590,22 @@ Emails are ordinary jobs; the shipped `InvitationEmailOutboxDispatcher`, the
      after) and does **not** recall the send: revoke cannot preempt in-flight
      provider I/O, and no lock design over a network call can make it. That is
      the chosen serialization order, stated plainly.
-  4. **Send the stored bytes.** Read `request_bytes` back and call the provider
-     with those exact bytes + the job-stable idempotency key, inside the lock
-     window **bounded by an explicit provider HTTP timeout (30 s)** (so a blocked
-     revoke waits bounded time).
+  3a. **Local send-once recheck inside the SEND lock, immediately before network
+     I/O (R2-2).** Two workers can both pass step 0's `email_log` check before
+     either takes the SEND lock; the fencing token settles the *queue row* but not
+     an *external* double-send. So — still holding the domain lock, as the last
+     thing before the provider call — re-`SELECT email_log WHERE job_id = …`. If a
+     `Submitted` row now exists, **do not send**: delete the scratch, commit,
+     return `Success`. The domain row lock serializes the two SEND transactions, so
+     the second one observes the first's committed `email_log` row here and skips
+     the provider. (This is a local optimization; the provider idempotency key
+     remains the cross-process backstop for the crash-after-send window.)
+  4. **Send the stored bytes.** Call `SendPreparedAsync(request_body,
+     idempotencyKey, ct)` (§4.5) — the persisted bytes go straight to the provider
+     POST body — inside the lock window **bounded by an explicit provider HTTP
+     timeout (30 s)** (so a blocked revoke waits bounded time).
   5. **On provider acceptance:** insert `email_log(Submitted)` with
-     `provider_message_id` + `envelope_sha256`, delete the prepared-send row,
+     `provider_message_id` + `request_sha256`, delete the prepared-send row,
      commit the SEND transaction, return `Success`. Within the provider's 24 h
      window the stable idempotency key closes the crash-after-send window
      remotely (§4.5's bounded guarantee); the `email_log` unique `job_id` closes
@@ -1554,24 +1777,23 @@ the `IJobQueueSignal` interface seam so tests can inject a deterministic fake.
 Liveness (§3.5) says "the process and DB are up"; this section is how anyone
 knows the **queue is healthy**.
 
-**Honest v1 posture — telemetry, not alerting (C12/F21).** The existing stack is
+**One release sequence, stated once (C12/F21/R2-10).** The existing stack is
 Serilog with **console + file sinks only**, and the `Meter` instruments below have
-**no exporter** wired yet. So v1 emits **telemetry, not alerts**: warning-level
-structured events and `System.Diagnostics.Metrics` instruments are *produced*, but
-nothing *routes* them to a pager. This document does **not** claim v1 alerts. Two
-honest options, and the ratified choice:
-- **v1 (ships with Phase 3):** telemetry-only. All signals go through
-  `System.Diagnostics.Metrics` and structured Serilog from day one, so the
-  threshold breaches below are queryable/greppable — but turning them into
-  paging requires the wiring in the next bullet, which is **explicitly out of v1
-  scope and must not be described as if present**.
-- **Alert route (Phase 3 decision, author-ratified — see O8/Ratification):** wire
-  **one** real destination — either an **OTel/Prometheus exporter** on the
-  `PublyApp.Jobs` meter feeding Alertmanager, **or** a Serilog sink that forwards
-  warning+ events to the operator's existing notification channel (e.g. a
-  webhook/email sink). This is a wiring change, not a redesign (the instruments
-  already exist); it is named here so "observability" is not silently equated with
-  "alerting."
+**no exporter** yet. There is no contradiction between "telemetry-only" and
+"wire an alert route" — they are **two different phases**:
+- **Phase 2A-R (and 2B): instruments only — telemetry.** The engine emits the
+  §7.1 `System.Diagnostics.Metrics` instruments and their structured-log twins
+  from day one. Nothing routes them to a pager yet; this is *telemetry*, and the
+  document does **not** claim these alert.
+- **Phase 3: the sampler + exactly one wired alert route.** Phase 3 adds the
+  §7.2 sampler **and** wires **one** real destination — a Serilog **warning+
+  webhook sink** to the operator's existing notification channel (the ratified
+  default, O8), with an OTel/Prometheus-exporter→Alertmanager path as the
+  alternative if a metrics backend is later stood up. Wiring, not redesign (the
+  instruments already exist).
+
+So: telemetry in 2A-R, alerting in Phase 3 — never "telemetry-only" and "wired
+route" claimed of the same phase.
 
 ### 7.1 Instruments (Meter `PublyApp.Jobs`) — emitted by the engine (Phase 2A-R)
 
@@ -1585,42 +1807,48 @@ honest options, and the ratified choice:
 | `jobs.listener_reconnects` | counter | — | per-replica |
 | `jobs.listener_last_catchup_at` | gauge (unix ts) | — | per-replica |
 | `email.submit_failures` | counter | `kind`, `transient\|permanent` | per-replica |
-| `scheduler.is_leader` | gauge (0/1) | — | per-replica (only leader = 1) |
-| `scheduler.last_sync_at` | gauge (unix ts) | — | **leader-only** (SyncSystemJobsJob) |
-| `scheduler.sync_failures` | counter | — | **leader-only** |
-| `scheduler.last_trigger_fire_at` | gauge (unix ts) | `job_key` | **leader-only** |
+| `scheduler.is_leader` | gauge (0/1) | `instance` | per-replica (only leader = 1) |
+| `scheduler.leader_present` | gauge (0/1) | — | per-replica; **1 iff this replica sees a live leader** (advisory-lock probe) — the leader-absence alert (R2-10) |
+| `scheduler.last_sync_at` | gauge (unix ts) | `instance` | leader emits; **staleness alert** if no update within 2× sync interval (R2-10) |
+| `scheduler.sync_failures` | counter | — | leader emits |
+| `scheduler.last_trigger_fire_at` | gauge (unix ts) | `job_key` | leader emits |
 
-**Per-replica vs. leader-only, and why (C12).** Per-replica instruments are
-correct to emit from every worker (each has its own claim/handler/listener
-activity). **Leader-only** instruments (scheduler health) are emitted **only by
-the replica currently holding leadership** (`SchedulerLeaderService.IsLeader` /
-`IsSchedulerRunning` gate them), because Quartz runs on one replica — a follower
-emitting `scheduler.last_sync_at` would report a scheduler it does not run. The
-**global-queue gauges** in §7.2 are likewise leader-gated (see there) so N
-replicas do not each emit a duplicate `due_depth` and fire N duplicate warnings
-for one condition. Every counter increment and threshold breach has a
-structured-log twin (event name + same tags) so the signal survives even before a
-metrics exporter exists — but per the §7 posture that is telemetry, and paging
-requires the ratified alert route.
+**Per-replica emission with instance tags — no signal dies with leadership
+(R2-10).** Every instrument is emitted per-replica and **instance-tagged**; the
+alert layer aggregates. The round-1 design leader-gated the global-queue gauges
+to avoid N duplicate emissions — but that meant that **when there is no leader
+(the failure most needing detection) nothing sampled the queue and no threshold
+warning fired**: silence became the symptom. Round-2 fix: the §7.2 sampler runs on
+**every replica, instance-tagged**, and the alerting layer de-duplicates by
+*condition* (not by instance) so one breach is one alert regardless of replica
+count. Additionally, `scheduler.leader_present` lets **every** replica assert
+"there is a live leader" (a cheap advisory-lock presence probe), so **leader
+absence itself is an alertable condition** — and `scheduler.last_sync_at`
+staleness beyond 2× the sync interval alerts on a wedged-but-present leader. Every
+counter increment and threshold breach has a structured-log twin; per the §7
+sequence that is telemetry in 2A-R and paging via the Phase-3 route.
 
 ### 7.2 Sampled gauges — `JobQueueMonitorService` (Phase 3)
 
-A cheap **leader-gated** sampler (`JobQueueMonitorService`, 60 s — runs the
-global sample **only when this replica holds scheduler leadership**, so one
-fleet emits one set of global gauges and one warning per condition, not N —
-C12): `due_depth` (pending & due, split by priority class),
-`oldest_due_age_seconds` (per priority class — the F22 fairness tripwire),
-`processing_over_lease_count` (should be ~0; sustained >0 means reclaim is
-broken), `dlq_size` + `dlq_growth_1h`, `email_log_failures_1h`, and `job_queue`
+A cheap **per-replica, instance-tagged** sampler (`JobQueueMonitorService`, 60 s
+— runs on **every** worker, **not** leader-gated, so queue health is still
+sampled when no leader exists — R2-10): `due_depth` (pending & due, split by
+priority class), `oldest_due_age_seconds` (per priority class — the F22 fairness
+tripwire), `processing_over_lease_count` (should be ~0; sustained >0 means reclaim
+is broken), `dlq_size` + `dlq_growth_1h`, `email_log_failures_1h`, and `job_queue`
 dead-tuple count from `pg_stat_user_tables` (autovacuum health, F21). These are
-whole-queue facts, identical from any replica, which is why sampling them once on
-the leader is both sufficient and non-duplicative. (Per-replica signals —
-listener connectivity, handler durations, reconnects — stay per-replica, §7.1.)
-Each sample logs at information; threshold breaches (defaults: due_depth > 500,
-oldest age > 10 min for priority 100 / > 60 min for priority 0,
-processing-over-lease > 0 for 3 consecutive samples, DLQ growth > 0 in an hour)
-log at **warning** and increment a metric — telemetry that the ratified alert
-route (§7) consumes; the warning log is **not itself** a pager.
+whole-queue facts identical from any replica, so each sample is tagged with
+`instance` and the **alert layer aggregates by condition** — one breach is one
+alert regardless of how many replicas observed it (the round-1 leader-gating that
+blinded the fleet on leader loss is removed). The read is cheap (a few indexed
+counts) so N replicas sampling is not a load concern. (Per-replica signals —
+listener connectivity, handler durations, reconnects — are inherently per-replica,
+§7.1.) Each sample logs at information; threshold breaches (defaults: due_depth >
+500, oldest age > 10 min for priority 100 / > 60 min for priority 0,
+processing-over-lease > 0 for 3 consecutive samples, DLQ growth > 0 in an hour,
+**plus `scheduler.leader_present = 0` fleet-wide and `last_sync_at` staleness >
+2× interval** — R2-10) log at **warning** and increment a metric — telemetry the
+Phase-3 alert route (§7) consumes; the warning log is **not itself** a pager.
 
 ### 7.3 Operational jobs (Phase 3)
 
@@ -1628,10 +1856,13 @@ Retention sweeps run as ordinary system jobs (dashboard-visible, #636):
 `email-log-retention` (delete rows older than `EMAIL_LOG_RETENTION_DAYS`,
 batched), `job-dead-letter-retention` (`JOB_DEAD_LETTER_RETENTION_DAYS`),
 `email-prepared-sends-retention` (**live-state anti-join, C1: delete only when
-`job_id` is absent from both `job_queue` and `job_dead_letter` AND older than the
-7-day floor** — age alone never deletes). Autovacuum storage parameters for
-`job_queue` ship in the Phase 2A-R migration (§4.1); the sampler watches dead
-tuples so a mis-tuned autovacuum is visible, not silent.
+`job_id` is absent from both `job_queue` and `job_dead_letter` AND older than
+`EMAIL_PREPARED_SEND_RETENTION_DAYS`** — default 7; the env var, not a hardcoded
+floor — R2-11; age alone never deletes), and `system-job-occurrence-retention`
+(prune `system_job_occurrences` older than `SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS`
+— default 30; R2-1/O9). Autovacuum storage parameters for `job_queue` ship in the
+Phase 2A-R migration (§4.1); the sampler watches dead tuples so a mis-tuned
+autovacuum is visible, not silent.
 
 ---
 
@@ -1660,12 +1891,16 @@ top-level source area needs its own `Compile Include` line in the test shell).
   entities under `Modules/`. Create a small **`Modules/Jobs/Entities/`**
   (`JobQueueItem.cs`, `JobDeadLetter.cs`, `SystemJobDefinition.cs`) as the domain
   home for the engine's persisted types, with `DbSet`s added to `AppDbContext`.
-  (Rationale: entities live in modules by convention; the *behavior* lives in
-  `Infrastructure/Jobs/`. `Modules/Jobs` is the entity/enum home, plus
-  `Modules/Jobs/Seeders/SystemJobSeeder.cs` — C4 — which seeds one
+  `Modules/Jobs/Entities/` also holds **`SystemJobOccurrence.cs`** (the durable
+  occurrence ledger — R2-1). (Rationale: entities live in modules by convention;
+  the *behavior* lives in `Infrastructure/Jobs/`. `Modules/Jobs` is the entity/enum
+  home, plus `Modules/Jobs/Seeders/SystemJobSeeder.cs` — C4 — which seeds one
   `system_job_definitions` row per shipped `SystemJobCatalog` entry.) Writes to
   `JobQueueItem` outside `Infrastructure/Jobs` are forbidden and spec-guarded
-  (F15, §9).
+  (F15, §9). The unified **`JobRegistration`** (handler factory + type-erased
+  `ValidatePayloadJson` — R2-7) and the byte-faithful `SendPreparedAsync` transport
+  (R2-2, in `Infrastructure/Messaging/Email`) are behavior, so they live in
+  `Infrastructure/`, not here.
 - **`EmailLog` home — `Modules/Messaging/` (O5's module, repurposed).** The
   single-lane ruling removes the `EmailOutbox` entity O5 created this module
   for, but the *reason* for a neutral messaging module survives: `email_log` is
@@ -1739,11 +1974,11 @@ Engine (`JobQueueProcessor.Spec.cs` and siblings):
 | idempotent enqueue scoping (F13) | same `(job_type, key)` dedups; same key across different job types does not collide |
 | **signal coalescing + backlog drain (F10/F23)** | enqueue 3× batch size with a single NOTIFY → all rows processed in one wake (drain loop), no poll-tick waits |
 | **listener disconnect/catch-up + backoff (F23/C17)** | kill the listener connection; rows committed while down are processed after reconnect's catch-up poll; reconnect uses bounded jittered backoff |
-| **renewal transient vs. confirmed-loss (C7)** | a renewal that *throws* (transient) retries at `lease/8` and the handler keeps running; a renewal returning **0 rows** cancels the handler at once; no confirmed stamp for a full lease window → cancel |
-| **error sanitization (`JobErrorSanitizer.Spec.cs`, C11/F20)** | an exception message carrying an email + a token blob → stored `last_error` is type-coded, redacted (`[redacted-email]`/`[redacted-token]`), ≤ 2 KB; the raw exception reaches only the structured logger |
-| **version-compat startup gate (C14/F14)** | a `job_queue` **or** `job_dead_letter` row of an unregistered `job_type` → worker composition **fails to start**; all-registered → starts clean |
-| **DLQ requeue lineage (C9/F16)** | `RequeueDeadLetterAsync` restores the stored envelope verbatim (priority/max_attempts/provenance), sets `requeued_from_dead_letter_id` + `requeued_as_job_id`, writes the audit row atomically; unregistered `job_type` → clear error, no enqueue; a re-dead-lettered requeue preserves the chain |
-| **system-job dispatch (C4/F15, `SystemJobCatalog`/`EnqueueSystemJobJob` specs)** | a catalog-unknown `job_key` is skipped (not scheduled); a double-fired scheduled occurrence enqueues **exactly one** row (occurrence idempotency key); dispatch routes only through `IJobEnqueuer` (no direct `JobQueueItem` write) |
+| **renewal transient vs. confirmed-loss + safety margin (C7/R2-4)** | a renewal that *throws* (transient) retries at `lease/8` while margin remains; a renewal returning **0 rows** cancels the handler at once; **a transient outage spanning `confirmedDbDeadline − safetyMargin` cancels the handler BEFORE the lease boundary while a second worker reclaims — the first's settlement no-ops on the fence** |
+| **error sanitization (`JobErrorSanitizer.Spec.cs`, C11/F20/R2-8)** | an exception message carrying an email + a token blob → stored `last_error` is type-coded, redacted (`[redacted-email]`/`[redacted-token]`), ≤ 2 KB; **a logged exception carrying an email/token is redacted at the sink** (destructuring policy), and the engine logs `Describe` + stack metadata, never the raw message |
+| **version-compat startup gate (C14/F14/R2-9)** | a `job_queue` **or** `job_dead_letter` row of an unregistered `job_type` → worker composition **fails to start**; **there is no bypass for a `job_queue` orphan**; a DLQ-only orphan in `JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST` (exact type) boots; all-registered → starts clean |
+| **DLQ requeue lineage + single-use (C9/F16/R2-7)** | `RequeueDeadLetterAsync` restores the stored envelope verbatim, validates the stored JSON via the type-erased `JobRegistration.ValidatePayloadJson`, sets `requeued_from_dead_letter_id` + `requeued_as_job_id`, writes the audit row atomically; unregistered/invalid → clear error, no enqueue; **a second requeue of the same DLQ row (its `requeued_as_job_id` already set) is rejected**; a re-failure requeues from its new DLQ row, chain preserved |
+| **system-job durable occurrence dedup (C4/F13/R2-1)** | an occurrence enqueues its `(job_key, scheduled_fire_at)` ledger row atomically with the queue insert; a **delayed duplicate firing of the same occurrence after the first job already completed and its queue row was deleted enqueues nothing** (ledger PK conflict); catalog-unknown `job_key` skipped; dispatch routes only through `IJobEnqueuer`; startup asserts catalog→definition→handler closure |
 | leader election (`SchedulerLeaderService.Spec.cs`) | two hosts contend the advisory lock; exactly one starts Quartz; release migrates leadership; **standby is confirmed before the lock releases**, and an unconfirmed standby fails closed (lock retained) |
 | `AppRoleComposition.Spec.cs` (F17/C5) | `Worker` builds a Generic Host — **no server/endpoints exist**, and the full DI graph resolves without web registrations; the spec enumerates **every registered `IHostedService`** (not one namespace) and asserts `Api` registers **zero** job/worker hosted-services — including the transitional legacy outbox dispatcher |
 
@@ -1753,8 +1988,9 @@ Email handlers + fold:
 | --- | --- |
 | kind routing | each email `job_type` resolves its registered handler, which calls the right `IEmailService` method |
 | **eligibility race, both lock orders (F8/#811)** | order 1: revoke commits before the handler's locked read → no send, `CancelledIneligible` logged. order 2: handler holds the lock paused at the fake-sender barrier → the concurrent revoke **blocks** (does not complete), the send proceeds, revoke commits after — asserting the documented linearization semantic, not a preemption the design does not provide |
-| `email_log` terminal writes | `Submitted` / `CancelledIneligible` / `PermanentlyFailed` each produce exactly one row with kind/recipient/entity ids/`provider_message_id`/`envelope_sha256` |
-| send idempotency + two-phase prepare (F7/C1) | re-running a job whose `Submitted` row exists sends **nothing**; the PREPARE transaction commits the `request_bytes` **before** the provider call, so a crash after provider-accept/before send-commit resends the **stored bytes byte-identically** even after the domain row mutates; a transient failure leaves the committed scratch for the retry |
+| `email_log` terminal writes | `Submitted` / `CancelledIneligible` / `PermanentlyFailed` each produce exactly one row with kind/recipient/entity ids/`provider_message_id`/`request_sha256` |
+| send idempotency + two-phase prepare + local recheck (F7/C1/R2-2) | re-running a job whose `Submitted` row exists sends **nothing**; the PREPARE transaction commits `request_body` **before** the provider call, and `SendPreparedAsync` sends those **exact bytes**, so a crash after provider-accept/before send-commit resends byte-identically even after the domain row mutates; a transient failure leaves the committed scratch; **two reclaimed handlers racing past step 0 — the second re-checks `email_log` under the SEND lock and does not call the provider** |
+| legacy `Sent` mapped honestly (R2-3) | a folded legacy `Sent` row becomes `LegacySubmissionUnverified`, **never `Submitted`**; no metric counts it as a confirmed submission |
 | prepared-send cleanup anti-join (C1) | the retention sweep deletes a prepared-send row **only** when its `job_id` is absent from both `job_queue` and `job_dead_letter`; a live job's envelope is never swept regardless of age |
 | **non-throw provider failure (F3/F23)** | an unsuccessful provider response (no exception thrown by the SDK) surfaces as a classified exception → `Retry`/`PermanentFailure`; it can never yield `Submitted` |
 | #809 durability + rollback (F6) | the committed reset job survives request cancellation/restart and is deliverable; a failed enqueue rolls back token issuance and vice versa (both directions) |
@@ -1793,18 +2029,23 @@ specs. The audit found it incomplete; 2A-R below is its remediation packet.
 - **Touch:** `JobQueueProcessor.cs` (split stale-reset from pending-only claim;
   **ordered post-claim re-query for dispatch — not `RETURNING` order** (C16);
   fencing-conditioned transitions + rowcount checks; per-dispatch lease
-  re-stamp + `lease/2` renewal with **confirmed-loss vs. transient
-  distinction — `lease/8` retry inside the window, cancel-on-uncertainty after a
-  full unconfirmed lease window** (C7); drain loop with budget; outcome taxonomy +
-  exception classification; all durable error strings via `JobErrorSanitizer`
-  (C11); SQL-time backoff with equal jitter + `Retry-After`); `IJobHandler.cs`
-  (`JobOutcome` return +
+  re-stamp + `lease/2` renewal with **confirmed-loss vs. transient distinction —
+  `lease/8` retry, renewal `RETURNING locked_until, now()`, abandon *before*
+  `confirmedDbDeadline − safetyMargin`** (C7/R2-4; **known 633 code-gap: current
+  tip cancels only after a full local window — reconcile**); drain loop with
+  budget; outcome taxonomy + exception classification; all durable error strings
+  via `JobErrorSanitizer` and **redacted-exception logging** — `Describe` + safe
+  stack metadata, never the raw message (C11/R2-8; **known 633 code-gap: current
+  tip logs the raw exception — reconcile**)); a Serilog exception-redaction
+  destructuring policy registered on the logger (R2-8); SQL-time backoff with
+  equal jitter + `Retry-After`); `IJobHandler.cs` (`JobOutcome` return +
   `OnTerminalFailureAsync` — F5); `JobBackoff.cs` (computes delay
   **durations** only, never timestamps — F11); `JobQueueItem.cs` /
   `JobDeadLetter.cs` (new columns; **remove all timestamp initializers** —
-  F11); `JobHandlerRegistry.cs` (versioned types, unknown-type → DLQ, startup
-  DLQ-orphan warning). The drain-budget/lease knobs use code constants until
-  2B's `AppEnvironment` edit lands (call-out below).
+  F11); `JobHandlerRegistry.cs` → **unified `JobRegistration`** (pairs handler
+  factory **and** type-erased `ValidatePayloadJson` for the requeue path —
+  R2-7; versioned types, unknown-type → DLQ). The drain-budget/lease knobs use
+  code constants until 2B's `AppEnvironment` edit lands (call-out below).
 - **Gate:** all engine specs in §9 green, including old-owner-after-reclaim,
   full-batch lease expiry, cancellation classification, exact wire JSON,
   enqueue-boundary guard, drain, taxonomy; `EXPLAIN (ANALYZE, BUFFERS)` on the
@@ -1818,19 +2059,26 @@ specs. The audit found it incomplete; 2A-R below is its remediation packet.
   (**`SystemJobCatalog` + catalog-driven `EnqueueSystemJobJob` enqueuing through
   `IJobEnqueuer`** — C4/F15); `Modules/Jobs/Seeders/SystemJobSeeder.cs`;
   `Infrastructure/Jobs/JobRegistryStartupGate.cs` (**fail-closed version-compat
-  gate over `job_queue` + `job_dead_letter`** — C14/F14);
-  `Modules/Jobs/Entities/SystemJobDefinition.cs`; migration
-  `AddSystemJobDefinitions`; `Infrastructure/Jobs/WorkerHeartbeatService.cs`;
+  gate over `job_queue` + `job_dead_letter`, no `job_queue` bypass, DLQ-only exact
+  allowlist** — C14/F14/R2-9; **+ catalog→definition→handler closure check** —
+  R2-1); `Modules/Jobs/Entities/{SystemJobDefinition,SystemJobOccurrence}.cs`
+  (**occurrence ledger** — R2-1); migration `AddSystemJobDefinitions`
+  (**+ `system_job_occurrences`** — R2-1); `Infrastructure/Jobs/WorkerHeartbeatService.cs`;
   `SchedulerLeaderService.Spec.cs`, `AppRoleComposition.Spec.cs`,
-  `SystemJobCatalog`/`EnqueueSystemJobJob` specs.
+  `SystemJobCatalog`/`EnqueueSystemJobJob`/occurrence-dedup specs.
 - **Touch:** `AppEnvironment.cs` (`APP_ROLE` + validator + **env-gated default:
   `All` only under `Development`/`Testing`, fail-fast when a production-like
   environment omits it** — C6/F24; tuning vars incl. drain budget + retention
-  windows; `JOB_REGISTRY_ALLOW_UNREGISTERED` escape hatch); `Program.cs`
-  (**Generic Host for `Worker`** — F17; role branching; `--worker-health`; run
-  `JobRegistryStartupGate` before the worker loop); `ServiceRegistration.cs`
-  (retarget shared registrations to `IHostApplicationBuilder`; move
-  `AddHttpContextAccessor` into shared infra — F17); `Dockerfile`
+  windows incl. `EMAIL_PREPARED_SEND_RETENTION_DAYS` + `SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS`
+  — R2-11/R2-1; **`JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST` (DLQ-only exact types) — no
+  global bypass boolean** — R2-9); **move the legacy `InvitationEmailOutboxDispatcher`
+  registration from shared `AddInfraServices` into worker-only `AddWorkerServices`
+  here in 2B** (R2-6 — so 2B alone satisfies D1; 2C-R1 merely retains it);
+  `Program.cs` (**Generic Host for `Worker`** — F17; role branching;
+  `--worker-health`; run `JobRegistryStartupGate` **+ catalog closure check**
+  before the worker loop); `ServiceRegistration.cs` (retarget shared registrations
+  to `IHostApplicationBuilder`; move `AddHttpContextAccessor` into shared infra —
+  F17); `Dockerfile`
   (**`APP_ROLE=api` in the build-time OpenAPI env block** — C6/F24);
   `apps/front-2/docker-compose.test.yml` (`APP_ROLE=api` — C6/F24);
   **the OpenAPI-drift / `generate-client` CI workflow (`APP_ROLE=api`)** and any
@@ -1839,7 +2087,7 @@ specs. The audit found it incomplete; 2A-R below is its remediation packet.
   `container_name`, `stop_grace_period: 45s` on both services — F19; immutable
   `${RELEASE_TAG}` images — F14); Quartz packages in
   `Directory.Packages.props` + `PublyApp.Api.csproj`; `AppDbContext.cs`
-  (`SystemJobDefinition` DbSet).
+  (`SystemJobDefinition` + `SystemJobOccurrence` DbSets).
 - **Gate:** leader-election spec green (incl. standby-confirmed release);
   `AppRoleComposition` proves the worker host has **no HTTP server** and a
   resolvable DI graph, and — enumerating **every `IHostedService`** — that api
@@ -1862,18 +2110,19 @@ specs. The audit found it incomplete; 2A-R below is its remediation packet.
   `IJobQueueSignal.cs`; migration `AddEmailLogAndFoldEmailOutbox` (§4.6 R1).
 - **Touch:** `ResendEmailAdapter.cs` + `EmailService.cs` (**F3 contract:
   classified throws + `EmailSendReceipt` — fixes the live result-swallowing
-  bug**); producers `InvitationService.cs`, `TenantAsStaffService.cs`,
-  `StaffProfileAsStaffService.cs` (→ `IJobEnqueuer` + NOTIFY);
-  `RequestPasswordReset.cs` (→ `IPasswordResetService`); revoke/accept services
-  (remove `CancelPendingForInvitationAsync` calls); `AppDbContext.cs`
-  (`EmailLog`/`EmailPreparedSend` DbSets); **move the legacy
-  `InvitationEmailOutboxDispatcher` registration from shared `AddInfraServices`
-  into worker-only `AddWorkerServices`** (C5 — it is a job hosted service and must
-  not run in the `api` role). **The old dispatcher/entity ship in R1 as
-  worker-only drainers** (§4.6). The `email_prepared_sends` scratch persists the
-  canonical request as **`text` with a committed-PREPARE phase** (C1); the fold
-  migration marks folded rows with the reserved sentinel and back-copies **genuine
-  outcomes only** (C3).
+  bug**; **+ `SendPreparedAsync(ReadOnlyMemory<byte>, idempotencyKey)`** — the
+  byte-faithful transport, R2-2); producers `InvitationService.cs`,
+  `TenantAsStaffService.cs`, `StaffProfileAsStaffService.cs` (→ `IJobEnqueuer` +
+  NOTIFY); `RequestPasswordReset.cs` (→ `IPasswordResetService`); revoke/accept
+  services (remove `CancelPendingForInvitationAsync` calls); `AppDbContext.cs`
+  (`EmailLog`/`EmailPreparedSend` DbSets). **The legacy dispatcher is already
+  worker-only from 2B (R2-6); R1 merely retains it as a drainer** (§4.6). The
+  `email_prepared_sends` scratch persists the request as **`bytea` (`request_body`)
+  with a committed-PREPARE phase — no `prepared_committed` flag, row existence is
+  the proof** (C1/R2-12); `EmailLogOutcome` includes **`LegacySubmissionUnverified`**
+  (R2-3); the fold migration marks folded rows with the reserved sentinel,
+  back-copies **genuine outcomes only** with `Sent → LegacySubmissionUnverified`
+  and a **SQL-side stable error code** (C3/R2-3/R2-8).
 - **Gate:** §9 email-handler specs green (both lock orders, prepared-envelope
   idempotency, non-throw provider failure, terminal `email_log` writes, #809
   rollback both directions); fold idempotency spec green; `just test-api`
@@ -1922,10 +2171,15 @@ specs. The audit found it incomplete; 2A-R below is its remediation packet.
 `RecoverStaleJobsJob` + `SyncSystemJobsJob` seed rows; first recurring
 handlers: session cleanup (#389, `Modules/Auth/Jobs/`) and expired-invitation
 status (#425, `Modules/Invitations/Jobs/`), each with an idempotency spec and a
-domain outcome marker where applicable (F13); `JobQueueMonitorService` (§7.2)
-with threshold warnings; retention sweep jobs (§7.3 — email_log, DLQ,
-prepared-sends). Gate: jobs run on schedule under `worker`; sampler emits gauges
-and threshold warnings; retention deletes only out-of-window rows.
+domain outcome marker where applicable (F13); `JobQueueMonitorService` (§7.2 —
+**per-replica, instance-tagged, not leader-gated**, + `scheduler.leader_present`
+and sync-staleness alerts — R2-10); **the one wired alert route** (Serilog
+warning+ webhook sink — O8/R2-10); retention sweep jobs (§7.3 — email_log, DLQ,
+prepared-sends via `EMAIL_PREPARED_SEND_RETENTION_DAYS`, and
+`system_job_occurrences` via `SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS` — R2-11/R2-1).
+Gate: jobs run on schedule under `worker`; sampler emits gauges and threshold
+warnings **from a follower with no leader present**; the alert route fires on a
+seeded breach; retention deletes only out-of-window rows.
 
 ### Phase 4 — #636: staff job-visibility dashboard (sketch only)
 
@@ -1988,12 +2242,21 @@ the same-night D2 revision and retained only for the record.
   it; it transforms production data (not just schema), so an explicit owner
   **no** is the only thing that would reverse it.
 - **O7 — Retention windows (F20). — AUTHOR-DECIDED: adopt defaults (pending owner
-  objection).** `email_log` 180 days, `job_dead_letter` 90 days,
-  `email_prepared_sends` orphans 7 days (behind the live-state anti-join, C1) —
-  enforced by Phase-3 sweep jobs (§7.3), env-overridable. **Decided: adopt these
-  defaults.** Flagged because retention of recipient personal data is policy
-  territory; the owner may override any window without a design change (all three
-  are env vars, §3.1).
+  objection).** `email_log` 180 days (`EMAIL_LOG_RETENTION_DAYS`),
+  `job_dead_letter` 90 days (`JOB_DEAD_LETTER_RETENTION_DAYS`),
+  `email_prepared_sends` orphans 7 days behind the live-state anti-join
+  (`EMAIL_PREPARED_SEND_RETENTION_DAYS` — a real env var now, R2-11) — enforced by
+  Phase-3 sweep jobs (§7.3), env-overridable. **Decided: adopt these defaults.**
+  Flagged because retention of recipient personal data is policy territory; the
+  owner may override any window without a design change (all are env vars, §3.1).
+- **O9 — System-job occurrence ledger: retention + gap policy (R2-1). —
+  AUTHOR-DECIDED (pending owner objection).** The `system_job_occurrences` durable
+  dedup table (§4.3) is pruned to `SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS` (default
+  30 — long enough to dedup any realistic re-fire, short enough to stay small),
+  and the default missed-occurrence policy is **drop-on-gap** (idempotent
+  recurring sweeps don't back-fill; per-entry bounded catch-up is opt-in — §5.3).
+  **Decided: 30-day prune, drop-on-gap default.** Flagged because both are
+  operational tuning the owner may adjust.
 - **O8 — Alert route (F21/C12). — AUTHOR-DECIDED: telemetry-only v1 + one wired
   route in Phase 3 (pending owner objection).** v1 is telemetry-only (§7); Phase 3
   wires exactly one real destination — **default recommendation: a Serilog
@@ -2117,3 +2380,58 @@ alert route in Phase 3). One reasoned dispute recorded: **C8**'s specific
 two-token remedy is declined in favor of the coherent implemented immediate-cancel
 + release semantics; the finding's actual defect (the doc's phantom grace budget)
 is fixed. New open question **O8** (alert route).
+
+**2026-07-17 — PR #852 merge-challenge round 2 remediated (3 merge-blockers /
+7 majors / 1 minor / 1 editorial; `.dump/exec/jobs-infra/doc-challenge-r2-findings.md`).**
+Round 2 accepted the C8 dispute verbatim and graded 9/17 C-fixes Absorbed; the
+12 remaining findings are resolved as mechanisms:
+- **R2-1 (occurrence identity, MB):** durable **`system_job_occurrences`** table
+  with a `(job_key, scheduled_fire_at)` PK written atomically with enqueue and
+  surviving queue deletion; **drop-on-gap** default with per-entry bounded
+  catch-up (RAMJobStore cannot back-fill — the ledger is the memory);
+  catalog→definition→handler closure validated at the startup gate (§4.3/§5.3).
+- **R2-2 (byte-faithful transport, MB):** `SendPreparedAsync(ReadOnlyMemory<byte>,
+  idempotencyKey)` writes the persisted `request_body` (a dedicated *transport*
+  serializer, **not** `JobJson`) straight to the provider POST body; honest
+  SDK-canonical fallback documented; **post-lock `email_log` recheck inside the
+  SEND transaction** closes the local double-send race (§4.5/§5.4).
+- **R2-3 (legacy `Sent`, MB):** folded legacy `Sent` → **`LegacySubmissionUnverified`**,
+  never `Submitted` (which means "provider accepted") — F3 proves the old status
+  is not evidence of acceptance (§4.4/§4.6).
+- **R2-4 (renewal margin, major):** renewal `RETURNING locked_until, now()`;
+  abandon **before `confirmedDbDeadline − safetyMargin`**, never at/after the
+  lease boundary (633 code-gap flagged for reconciliation) (§5.1).
+- **R2-5 (R2 producer quiescence, major):** explicit inspectable fleet
+  precondition (all API/worker on R1-or-newer immutable tags) *before* the
+  row-lock/check; blocked-old-producer case added to the rollout analysis (§4.6).
+- **R2-6 (legacy dispatcher packet, major):** the worker-only registration move is
+  reassigned to **Phase 2B** (2C-R1 merely retains it) so 2B alone satisfies D1
+  (§3.2/§10).
+- **R2-7 (requeue registry + single-use, major):** unified **`JobRegistration`**
+  (handler factory + type-erased `ValidatePayloadJson`); requeue conditioned
+  atomically on `requeued_as_job_id IS NULL`; re-failures requeue from their new
+  DLQ row, never the ancestor (§4.2/§5.1).
+- **R2-8 (sanitization bypasses, major):** migration errors → **SQL-side stable
+  code** (no C# sanitizer call, raw legacy text not copied); live path logs
+  `Describe` + safe stack metadata, **never the raw exception message**, with a
+  Serilog exception-redaction destructuring backstop (§4.6/§5.1; 633 log-call gap
+  flagged).
+- **R2-9 (registry escape hatch, major):** the global
+  `JOB_REGISTRY_ALLOW_UNREGISTERED` boolean is **removed** — unregistered
+  `job_queue` types never boot; the only relaxation is a **DLQ-only exact-type
+  allowlist** (§5.1).
+- **R2-10 (observability, major):** one release sequence (2A-R telemetry → Phase 3
+  alert route); the queue sampler is **per-replica, instance-tagged, not
+  leader-gated**, aggregated by condition; **`scheduler.leader_present`** +
+  sync-staleness alerts make leader-absence itself alertable (§7).
+- **R2-11 (prepared-send retention var, minor):** `EMAIL_PREPARED_SEND_RETENTION_DAYS`
+  added to the config surface + sweep wiring (§3.1/§7.3).
+- **R2-12 (`prepared_committed`, editorial):** column **removed** — row existence
+  is the PREPARE-committed proof; `prepared_at` retained for the orphan floor
+  (§4.5).
+
+New author-decided item: **O9** (occurrence-ledger 30-day prune + drop-on-gap
+default). Two 633-tip code-alignment items are flagged for the captain's
+reconciliation round (do not touch code branches): **R2-4** renewal margin and
+**R2-8** raw-exception logging — the document specifies the correct contract; the
+code lags. No disputes this round.
