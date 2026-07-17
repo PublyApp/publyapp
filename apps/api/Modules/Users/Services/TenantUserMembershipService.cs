@@ -159,40 +159,59 @@ public class TenantUserMembershipService : ITenantUserMembershipService {
 			}
 		}
 
-		// Determine if we need a transaction for the last-admin invariant check
-		var needsAdminInvariantTransaction =
-			document.Level is not null
-			&& account.Level == AccountLevel.Admin
-			&& newLevel != AccountLevel.Admin;
-
-		// READ COMMITTED, not SERIALIZABLE: demotion shares the last-admin invariant with the
-		// removal paths, so it must share their protocol. SSI could only protect this invariant
-		// while every participant was SERIALIZABLE; those paths now take the tenant row lock
-		// under READ COMMITTED (see TenantMembershipLockOrder), and a lock protocol only works
-		// if every participant honours it.
+		// This method ALWAYS writes BOTH user_accounts and users (their UpdatedAt below), so it
+		// always participates in the canonical lock order — not only on demotions. EF Core 10
+		// finds no FK dependency edge between those two independent updates (neither a principal
+		// key nor a dependent FK changes), so its ModificationCommandComparer orders them by
+		// table name — user_accounts BEFORE users — the exact inverse of this order. Without
+		// holding users(U) first, a non-demoting PATCH (which locks user_accounts inside its
+		// SaveChanges, then waits for users) and a demotion of the same member (which holds
+		// users, then waits for user_accounts) deadlock: 40P01 -> 500. See
+		// TenantMembershipLockOrder, "a write is a lock". READ COMMITTED so the post-lock
+		// revalidation and demotion guard read a fresh snapshot after the mutex wait.
 		await using var transaction =
-			needsAdminInvariantTransaction
-				? await _dbContext.Database.BeginTransactionAsync(cancellationToken)
-				: null;
+			await _dbContext.Database.BeginTransactionAsync(cancellationToken);
 
 		try {
-			// Check last-admin invariant if demoting from admin
-			if (needsAdminInvariantTransaction) {
-				// TenantMembershipLockOrder step 1, BEFORE the tenant mutex. This path always
-				// writes the users row (user.UpdatedAt below), so its SaveChanges needs a lock
-				// on users(U) at the end. Taking the tenant mutex first would create the
-				// tenants -> users edge the canonical order forbids, and deadlock against
-				// global suspension, which holds users(U) and then wants tenants(T).
-				await TenantMembershipLockOrder.LockUserIdentityRowsAsync(
-					_dbContext,
-					[userId],
-					cancellationToken
-				);
+			// TenantMembershipLockOrder step 1 — the identity mutex — taken BEFORE any save so
+			// that SaveChanges' own row locks (user_accounts then users) are always acquired
+			// while we already hold users(U). Every path that writes a member's user_accounts
+			// row (this method, demotion, company create/restore, global suspension) takes
+			// users(U) first, so no two of them can hold users and user_accounts in opposite
+			// orders.
+			await TenantMembershipLockOrder.LockUserIdentityRowsAsync(
+				_dbContext,
+				[userId],
+				cancellationToken
+			);
 
+			// Revalidate the tracked target after the mutex wait. While we blocked on users(U),
+			// a concurrent holder of it (another PATCH, company create/restore, global
+			// suspension) may have soft-deleted the account/user or changed the account level.
+			// The demotion decision below MUST be made from this fresh post-lock state: a
+			// concurrent promotion to Admin would otherwise turn our "set to User" into an
+			// unguarded demotion and could strand the tenant at zero admins.
+			await _dbContext.Entry(account).ReloadAsync(cancellationToken);
+			await _dbContext.Entry(user).ReloadAsync(cancellationToken);
+
+			if (account.IsDeleted || user.IsDeleted) {
+				await transaction.RollbackAsync(cancellationToken);
+				return new UpdateTenantUserResult.NotFound();
+			}
+
+			// A real demotion (Admin -> non-Admin) is the only branch that can reduce a
+			// tenant's active-admin count, so it is the only one that needs the tenant mutex
+			// and the last-admin guard.
+			var isDemotion =
+				newLevel is not null
+				&& account.Level == AccountLevel.Admin
+				&& newLevel != AccountLevel.Admin;
+
+			if (isDemotion) {
 				// Step 2: the tenant's active-admin mutex, taken before the counts below so
-				// they include concurrent admin removals. Both guard reads below run after
-				// both locks, so they are fresh under READ COMMITTED — nothing read before
-				// this point is trusted for the invariant decision.
+				// they include concurrent admin removals. Both guard reads run after both
+				// locks, so they are fresh under READ COMMITTED — nothing read before this
+				// point is trusted for the invariant decision.
 				await TenantMembershipLockOrder.LockTenantRowsAsync(
 					_dbContext,
 					[tenantId],
@@ -216,12 +235,8 @@ public class TenantUserMembershipService : ITenantUserMembershipService {
 					);
 
 				if (isDemotingActiveAdmin && !hasAnotherActiveAdmin) {
-					// Explicit rollback: this exit holds the tenant row lock when the
-					// invariant transaction is in play.
-					if (transaction is not null) {
-						await transaction.RollbackAsync(cancellationToken);
-					}
-
+					// Explicit rollback: this exit holds users(U) and tenants(T).
+					await transaction.RollbackAsync(cancellationToken);
 					return new UpdateTenantUserResult.CannotDemoteLastAdmin();
 				}
 			}
@@ -244,14 +259,9 @@ public class TenantUserMembershipService : ITenantUserMembershipService {
 			user.UpdatedAt = DateTime.UtcNow;
 
 			await _dbContext.SaveChangesAsync(cancellationToken);
-
-			if (transaction is not null) {
-				await transaction.CommitAsync(cancellationToken);
-			}
+			await transaction.CommitAsync(cancellationToken);
 		} catch {
-			if (transaction is not null) {
-				await transaction.RollbackAsync(cancellationToken);
-			}
+			await transaction.RollbackAsync(cancellationToken);
 			throw;
 		}
 

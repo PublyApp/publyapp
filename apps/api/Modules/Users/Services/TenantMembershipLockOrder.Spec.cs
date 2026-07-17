@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Profiles.Entities;
@@ -422,20 +423,25 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 	/// U.
 	/// </para>
 	/// <para>
-	/// <b>What this spec does and does not prove.</b> It goes red when the identity mutex is
-	/// removed from <i>both</i> sides — the pre-fix state — and that is the extent of it. It does
-	/// <b>not</b> isolate either half, and earlier revisions of this comment wrongly claimed it
-	/// did:
+	/// <b>What this spec does and does not prove.</b> Its result mix detects removal of the
+	/// company mutex, and it goes red when the mutex is removed from <i>both</i> sides (the
+	/// pre-fix state); what it cannot do is isolate A's own mutex. An earlier revision of this
+	/// comment wrongly claimed it detected only the both-sides state:
 	/// </para>
 	/// <list type="bullet">
 	/// <item>
-	/// Drop only the company mutex and B still creates a <i>new</i> <c>user_accounts</c> row,
-	/// which takes a foreign-key <c>FOR KEY SHARE</c> on U for free. A has not acquired U yet in
-	/// this schedule, so after release A re-enumerates, sees T, and correctly refuses. Green.
+	/// Drop only the company mutex and B's <i>new</i> <c>user_accounts</c> row takes only a
+	/// foreign-key <c>FOR KEY SHARE</c> on U, which the barrier's <c>FOR NO KEY UPDATE</c> does
+	/// not block — so B commits U as T's Admin before C runs. C then counts U plus X, removes X
+	/// and succeeds; A re-enumerates T after release and returns
+	/// <c>CannotSuspendLastAdmin</c>. Both diverge from the checked-in expectations (C refused,
+	/// A succeeded), so the spec is deterministically <b>red</b>. The direct parking proof for
+	/// the company mutex is <see cref="ItShouldParkCompanyRestoreBehindTheIdentityMutex"/>;
+	/// this result mix corroborates it.
 	/// </item>
 	/// <item>
 	/// Drop only A's mutex and B stays parked on the barrier, so C still counts one admin and
-	/// refuses to remove X. Green.
+	/// refuses to remove X. Green — this barrier cannot isolate A's mutex.
 	/// </item>
 	/// </list>
 	/// <para>
@@ -529,7 +535,9 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 
 		// C ran while both A and B were parked on the identity mutex, so U was not yet an admin
 		// of T and X was still its only one: the removal must have been refused. This is the
-		// discriminator — unprotected, B commits before C, C counts two admins, and C succeeds.
+		// discriminator that detects a missing company mutex (or both mutexes): without it, B
+		// commits U as T's Admin before C runs, C then counts two admins and succeeds, and A
+		// finally returns CannotSuspendLastAdmin — each diverging from the expectations below.
 		removalResult.Should().BeOfType<RemoveUserFromTenantResult.CannotRemoveLastAdmin>(
 			"the last admin of T must not be removable while U's admin membership does not yet "
 			+ "exist"
@@ -736,6 +744,155 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 	}
 
 	/// <summary>
+	/// A non-demoting PATCH always writes both <c>user_accounts</c> and <c>users</c>
+	/// (their <c>UpdatedAt</c>). EF Core 10 finds no FK edge between those updates and orders
+	/// them <c>user_accounts</c> before <c>users</c> by table name. So the non-demoting path
+	/// must take the identity mutex (<c>users(U)</c>) before its <c>SaveChanges</c> locks
+	/// <c>user_accounts</c>, or it inverts the canonical order and deadlocks a concurrent
+	/// demotion of the same member — which holds <c>users(U)</c> and then wants
+	/// <c>user_accounts</c>.
+	/// <para>
+	/// The NOWAIT probe makes this deterministic: while the update is parked on the identity
+	/// mutex, its <c>user_accounts</c> row must still be lockable — proving it has not written
+	/// that row yet. Without the mutex the update's <c>SaveChanges</c> locks <c>user_accounts</c>
+	/// first and only then blocks on <c>users(U)</c>, so the probe fails with 55P03.
+	/// </para>
+	/// </summary>
+	[Fact]
+	public async Task ItShouldTakeTheIdentityMutexBeforeWritingWhenUpdatingNonDemoting() {
+		var tenantId = await CreateTenantAsync();
+		_ = await SeedMemberAsync(tenantId, AccountLevel.Admin);
+		var (memberUserId, memberAccountId) = await SeedMemberAsync(tenantId, AccountLevel.User);
+
+		await using var barrierScope = _fixture.Factory.Services.CreateAsyncScope();
+		var barrierDb = barrierScope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var barrierTx = await barrierDb.Database.BeginTransactionAsync();
+
+		// FOR UPDATE conflicts with both the fix's explicit FOR UPDATE identity lock and the
+		// FOR NO KEY UPDATE that a bare users-row write takes — so it parks the update either way.
+		_ = await barrierDb.Database.ExecuteSqlAsync(
+			$"SELECT 1 FROM users WHERE id = {memberUserId} FOR UPDATE"
+		);
+		var barrierPid = await PostgresLockBarrier.GetBackendPidAsync(barrierDb);
+
+		var updateTask = Task.Run(async () => {
+			await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+			var service = scope.ServiceProvider
+				.GetRequiredService<ITenantUserMembershipService>();
+			return await service.UpdateTenantUserAsync(
+				tenantId,
+				memberUserId,
+				new UpdateTenantUserDocument {
+					FirstName = PatchField<string?>.Set("Renamed")
+				}
+			);
+		});
+
+		await PostgresLockBarrier.WaitUntilBlockedAsync(
+			_fixture.Factory.Services,
+			1,
+			barrierPid
+		);
+
+		(await IsUserAccountRowLockableAsync(memberAccountId)).Should().BeTrue(
+			"a non-demoting update must take users(U) before its SaveChanges locks "
+			+ "user_accounts; the reverse order deadlocks against a demotion holding users(U) "
+			+ "and wanting user_accounts"
+		);
+
+		await barrierTx.RollbackAsync();
+
+		(await updateTask).Should().BeOfType<UpdateTenantUserResult.Success>();
+	}
+
+	/// <summary>
+	/// The end-to-end pairing the identity mutex on the non-demoting path exists for: an ordinary
+	/// PATCH of a member races a demotion of the <i>same</i> member. Both must terminate — no
+	/// <c>40P01</c> — and the tenant must keep an active admin.
+	/// <para>
+	/// This red is deterministic, not probabilistic. The demotion is parked on the tenant row
+	/// while holding <c>users(U)</c>; the non-demoting PATCH then locks <c>user_accounts</c>
+	/// (nothing else holds it) and blocks on <c>users(U)</c>. On release the demotion's
+	/// <c>SaveChanges</c> wants <c>user_accounts</c>, forming the cycle. With the fix the PATCH
+	/// takes <c>users(U)</c> first, so it queues behind the demotion instead of grabbing
+	/// <c>user_accounts</c>.
+	/// </para>
+	/// </summary>
+	[Fact]
+	public async Task ItShouldNotDeadlockWhenNonDemotingUpdateRacesDemotion() {
+		var tenantId = await CreateTenantAsync();
+		var (memberUserId, _) = await SeedMemberAsync(tenantId, AccountLevel.Admin);
+		// A second admin so the demotion is permitted to succeed.
+		_ = await SeedMemberAsync(tenantId, AccountLevel.Admin);
+
+		await using var barrierScope = _fixture.Factory.Services.CreateAsyncScope();
+		var barrierDb = barrierScope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var barrierTx = await barrierDb.Database.BeginTransactionAsync();
+
+		// Park the demotion on the tenant row: it reaches this point holding users(U).
+		_ = await barrierDb.Database.ExecuteSqlAsync(
+			$"SELECT 1 FROM tenants WHERE id = {tenantId} FOR UPDATE"
+		);
+		var barrierPid = await PostgresLockBarrier.GetBackendPidAsync(barrierDb);
+
+		// B — demotion. Takes users(U), then parks on the tenant row the barrier holds.
+		var demotionTask = Task.Run(async () => {
+			await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+			var service = scope.ServiceProvider
+				.GetRequiredService<ITenantUserMembershipService>();
+			return await service.UpdateTenantUserAsync(
+				tenantId,
+				memberUserId,
+				new UpdateTenantUserDocument {
+					Level = UserAccount.GetLevelDescription(AccountLevel.User)
+				}
+			);
+		});
+
+		await PostgresLockBarrier.WaitUntilBlockedAsync(
+			_fixture.Factory.Services,
+			1,
+			barrierPid
+		);
+
+		// A — an ordinary non-demoting PATCH of the SAME member.
+		var updateTask = Task.Run(async () => {
+			await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+			var service = scope.ServiceProvider
+				.GetRequiredService<ITenantUserMembershipService>();
+			return await service.UpdateTenantUserAsync(
+				tenantId,
+				memberUserId,
+				new UpdateTenantUserDocument {
+					FirstName = PatchField<string?>.Set("Renamed")
+				}
+			);
+		});
+
+		// A is now blocked on users(U) — transitively behind the barrier through the demotion.
+		await PostgresLockBarrier.WaitUntilBlockedAsync(
+			_fixture.Factory.Services,
+			2,
+			barrierPid
+		);
+
+		await barrierTx.RollbackAsync();
+
+		// Task.WhenAll rethrows PostgresException 40P01 if the two SaveChanges deadlocked. With
+		// the identity mutex on both paths they serialize on users(U) and both terminate.
+		var demotionResult = await demotionTask;
+		var updateResult = await updateTask;
+
+		demotionResult.Should().BeOfType<UpdateTenantUserResult.Success>();
+		updateResult.Should().BeOfType<UpdateTenantUserResult.Success>();
+
+		(await CountActiveAdminsAsync(tenantId)).Should().BeGreaterThan(
+			0,
+			"the tenant keeps its second admin, and neither request may 40P01 into a 500"
+		);
+	}
+
+	/// <summary>
 	/// Bulk versus single removal for an overlapping account set. Both take
 	/// <c>tenants → user_accounts → user_account_profiles</c>, all id-ordered, so they serialize
 	/// on the tenant row and neither can hold a row the other needs earlier.
@@ -810,6 +967,27 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 		try {
 			_ = await dbContext.Database.ExecuteSqlAsync(
 				$"SELECT 1 FROM tenants WHERE id = {tenantId} FOR UPDATE NOWAIT"
+			);
+			return true;
+		} catch (Npgsql.PostgresException ex) when (ex.SqlState == "55P03") {
+			return false;
+		} finally {
+			await transaction.RollbackAsync();
+		}
+	}
+
+	/// <summary>
+	/// NOWAIT probe for a <c>user_accounts</c> row: same deterministic 55P03 semantics as
+	/// <see cref="IsTenantRowLockableAsync"/>. Reports whether the row is currently unlocked.
+	/// </summary>
+	private async Task<bool> IsUserAccountRowLockableAsync(Guid userAccountId) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var transaction = await dbContext.Database.BeginTransactionAsync();
+
+		try {
+			_ = await dbContext.Database.ExecuteSqlAsync(
+				$"SELECT 1 FROM user_accounts WHERE id = {userAccountId} FOR UPDATE NOWAIT"
 			);
 			return true;
 		} catch (Npgsql.PostgresException ex) when (ex.SqlState == "55P03") {

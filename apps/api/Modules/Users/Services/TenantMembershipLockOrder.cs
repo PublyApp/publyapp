@@ -96,8 +96,10 @@ namespace PublyApp.Api.Modules.Users.Services;
 /// (account, links)
 /// </item>
 /// <item>
-/// Users → <c>TenantUserMembershipService.UpdateTenantUserAsync</c> (user, then tenant, when
-/// demoting — it always writes the users row, so it must hold that lock before the tenant one)
+/// Users → <c>TenantUserMembershipService.UpdateTenantUserAsync</c> (user always, then tenant
+/// only when demoting — it always writes both the users and user_accounts rows, so it must
+/// hold users(U) before either its own SaveChanges locks user_accounts or it takes the tenant
+/// lock)
 /// </item>
 /// <item>
 /// Users → <c>TenantUserIdentityService.SuspendTenantUserIdentityForStaffAsync</c>
@@ -129,8 +131,16 @@ namespace PublyApp.Api.Modules.Users.Services;
 /// </para>
 /// <para>
 /// Audit-log inserts take a foreign-key <c>FOR KEY SHARE</c> on the actor's <c>users</c> row.
-/// That conflicts only with <c>FOR UPDATE</c>, and no participant that holds an identity mutex
-/// ever waits on a profile, account or junction row, so it closes no cycle.
+/// That conflicts only with <c>FOR UPDATE</c>. It is <b>not</b> true that no identity-mutex
+/// holder ever waits on a profile, account or junction row — company assignment holds
+/// <c>users(U)</c> while it writes <c>user_accounts</c>, purges junction rows and may insert a
+/// default-profile link, and existing-user invitation acceptance holds <c>users(U)</c> while it
+/// creates an account and profile links. No audit cycle forms all the same, but for a narrower
+/// reason: the only audited path here, <c>SetTenantProfileUserAsync</c>, takes its
+/// <c>FOR KEY SHARE</c> on the <b>staff</b> actor's <c>users</c> row, while these mutex
+/// participants target <b>tenant</b> identities, and staff/tenant scope exclusivity means those
+/// two <c>users</c> rows are never the same row. Do not restate the broad claim: it teaches the
+/// exact auditing mistake this order exists to prevent.
 /// </para>
 /// <para>
 /// <b>Known gap, pre-existing and not introduced here:</b>
