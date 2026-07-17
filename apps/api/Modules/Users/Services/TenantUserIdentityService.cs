@@ -191,13 +191,39 @@ public sealed class TenantUserIdentityService : ITenantUserIdentityService {
 			return new SuspendTenantUserIdentityResult.AlreadySuspended();
 		}
 
+		// READ COMMITTED, not SERIALIZABLE: this guard shares the last-admin invariant with the
+		// tenant removal/demotion paths, which now protect it with the tenant row lock under
+		// READ COMMITTED (see TenantMembershipLockOrder). SSI protected this only while every
+		// participant was SERIALIZABLE.
 		await using var transaction =
-			await _dbContext.Database.BeginTransactionAsync(
-				IsolationLevel.Serializable,
+			await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+		try {
+			// TenantMembershipLockOrder step 1, across every tenant this user belongs to: those
+			// are exactly the tenants whose active-admin count this suspension can reduce. Taken
+			// before the scan below so it sees concurrently committed admin changes, and in id
+			// order so it cannot deadlock against a single-tenant path.
+			var affectedTenantIds = (
+				await (
+					from ua in _dbContext.UserAccount
+					where ua.UserId == userId
+						&& ua.Scope == AccountScope.Tenant
+						&& ua.TenantId != null
+						&& !ua.IsDeleted
+					select ua.TenantId
+				).Distinct().ToListAsync(cancellationToken)
+			)
+				// OfType drops the nullable wrapper without a null-forgiving operator; the
+				// query already excludes null tenant ids.
+				.OfType<Guid>()
+				.ToList();
+
+			await TenantMembershipLockOrder.LockTenantRowsAsync(
+				_dbContext,
+				affectedTenantIds,
 				cancellationToken
 			);
 
-		try {
 			// Global suspension disables this user in every tenant. The last-admin
 			// guard must therefore scan all active admin memberships atomically.
 			var hasTenantWithoutAnotherActiveAdmin = await (

@@ -609,7 +609,7 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	/// <para>
 	/// The barrier is its own red control: with the service's row lock removed the contenders
 	/// never touch the account row, never park, and
-	/// <see cref="WaitUntilBlockedOnLocksAsync"/> times out — the spec fails rather than
+	/// <see cref="PostgresLockBarrier.WaitUntilBlockedAsync"/> times out — the spec fails
 	/// passing on a lucky schedule.
 	/// </para>
 	/// </summary>
@@ -637,7 +637,7 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		_ = await barrierDb.Database.ExecuteSqlAsync(
 			$"SELECT 1 FROM user_accounts WHERE id = {userAccountId} FOR UPDATE"
 		);
-		var barrierPid = await GetBackendPidAsync(barrierDb);
+		var barrierPid = await PostgresLockBarrier.GetBackendPidAsync(barrierDb);
 
 		var responseTask = Task.WhenAll(
 			contendedProfileIds.Select(async contendedProfileId => {
@@ -655,7 +655,11 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 			})
 		);
 
-		await WaitUntilBlockedOnLocksAsync(ContenderCount, barrierPid);
+		await PostgresLockBarrier.WaitUntilBlockedAsync(
+			_fixture.Factory.Services,
+			ContenderCount,
+			barrierPid
+		);
 
 		await barrierTx.CommitAsync();
 		var responses = await responseTask;
@@ -687,7 +691,7 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		_ = await barrierDb.Database.ExecuteSqlAsync(
 			$"SELECT 1 FROM profiles WHERE id = {profileId} FOR UPDATE"
 		);
-		var barrierPid = await GetBackendPidAsync(barrierDb);
+		var barrierPid = await PostgresLockBarrier.GetBackendPidAsync(barrierDb);
 
 		var responseTask = Task.Run(async () => {
 			using var request = new HttpRequestMessage(
@@ -699,7 +703,7 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 			return response.StatusCode;
 		});
 
-		await WaitUntilBlockedOnLocksAsync(1, barrierPid);
+		await PostgresLockBarrier.WaitUntilBlockedAsync(_fixture.Factory.Services, 1, barrierPid);
 
 		// Complete the delete the assign is racing, exactly as the delete path does it.
 		_ = await barrierDb.Database.ExecuteSqlAsync(
@@ -740,7 +744,7 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		_ = await barrierDb.Database.ExecuteSqlAsync(
 			$"SELECT 1 FROM user_accounts WHERE id = {userAccountId} FOR UPDATE"
 		);
-		var barrierPid = await GetBackendPidAsync(barrierDb);
+		var barrierPid = await PostgresLockBarrier.GetBackendPidAsync(barrierDb);
 
 		var responseTask = Task.Run(async () => {
 			using var request = new HttpRequestMessage(
@@ -752,7 +756,7 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 			return response.StatusCode;
 		});
 
-		await WaitUntilBlockedOnLocksAsync(1, barrierPid);
+		await PostgresLockBarrier.WaitUntilBlockedAsync(_fixture.Factory.Services, 1, barrierPid);
 
 		_ = await barrierDb.Database.ExecuteSqlAsync(
 			$"""
@@ -776,69 +780,6 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	// ---------------------------------------------------------------------------------------
 	// Helpers
 	// ---------------------------------------------------------------------------------------
-
-	/// <summary>
-	/// Blocks until <paramref name="expectedCount"/> backends are parked waiting specifically on
-	/// the barrier transaction identified by <paramref name="barrierPid"/>. This is the barrier:
-	/// it turns "we started some tasks" into "every contender has provably reached the contended
-	/// lock and none has passed it".
-	/// <para>
-	/// Scoped through <c>pg_blocking_pids</c> rather than a global count of lock waiters: test
-	/// classes run in parallel against the same database, so an unrelated spec's lock wait must
-	/// never be mistaken for one of our contenders and release the barrier early.
-	/// </para>
-	/// </summary>
-	private async Task WaitUntilBlockedOnLocksAsync(int expectedCount, int barrierPid) {
-		var deadline = DateTime.UtcNow.AddSeconds(30);
-
-		while (DateTime.UtcNow < deadline) {
-			await using var scope = _fixture.Factory.Services.CreateAsyncScope();
-			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-			// Recursive because PostgreSQL serialises row-lock waiters through tuple locks:
-			// only the first contender waits directly on the barrier, and the rest queue behind
-			// that contender. Counting just the direct waiters would never reach the expected
-			// number. Walking the wait tree rooted at the barrier counts the whole queue while
-			// still ignoring lock waits from test classes running in parallel.
-			var blocked = await dbContext.Database
-				.SqlQuery<int>($"""
-					WITH RECURSIVE waiters AS (
-						SELECT pid FROM pg_stat_activity
-						WHERE datname = current_database()
-							AND {barrierPid} = ANY(pg_blocking_pids(pid))
-						UNION
-						SELECT sa.pid FROM pg_stat_activity sa, waiters w
-						WHERE sa.datname = current_database()
-							AND w.pid = ANY(pg_blocking_pids(sa.pid))
-					)
-					SELECT count(*)::int AS "Value" FROM waiters
-					""")
-				.FirstAsync();
-
-			if (blocked >= expectedCount) {
-				return;
-			}
-
-			await Task.Delay(50);
-		}
-
-		throw new InvalidOperationException(
-			$"Timed out waiting for {expectedCount} request(s) to park on the row lock held by "
-			+ "the barrier transaction. Either the lock is no longer taken before the guarded "
-			+ "read, or the lock order changed — both defeat the protection this spec exists "
-			+ "to prove."
-		);
-	}
-
-	/// <summary>
-	/// Backend pid of the connection behind <paramref name="dbContext"/>, used to scope the
-	/// barrier wait to exactly the contenders this spec blocked.
-	/// </summary>
-	private static async Task<int> GetBackendPidAsync(AppDbContext dbContext) {
-		return await dbContext.Database
-			.SqlQuery<int>($"""SELECT pg_backend_pid()::int AS "Value" """)
-			.FirstAsync();
-	}
 
 	private async Task<(Guid ProfileId, Guid UserAccountId)> BuildGuardCaseAsync(
 		Guid tenantId,

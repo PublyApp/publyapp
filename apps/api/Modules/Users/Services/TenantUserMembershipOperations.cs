@@ -29,14 +29,23 @@ internal static class TenantUserMembershipOperations {
 			return new RemoveUserFromTenantResult.NotFound();
 		}
 
-		// Wrap admin check and soft delete in a transaction to prevent race conditions
+		// Wrap admin check and soft delete in a transaction to prevent race conditions.
+		// READ COMMITTED (not SERIALIZABLE) is required by TenantMembershipLockOrder: this
+		// transaction blocks on row locks and must then read what the winner committed, which
+		// only a per-statement snapshot gives. The last-admin invariant is protected by the
+		// tenant row lock below instead of by SSI.
 		await using var transaction =
-			await dbContext.Database.BeginTransactionAsync(
-				IsolationLevel.Serializable,
+			await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+		try {
+			// TenantMembershipLockOrder step 1: serialize every admin-reducing path for this
+			// tenant before counting admins, so the count includes concurrent removals.
+			await TenantMembershipLockOrder.LockTenantRowsAsync(
+				dbContext,
+				[tenantId],
 				cancellationToken
 			);
 
-		try {
 			// Check if this user is the last admin
 			if (userAccount.Level == AccountLevel.Admin) {
 				var isRemovingActiveAdmin = await IsActiveTenantAdminAsync(
@@ -88,14 +97,21 @@ internal static class TenantUserMembershipOperations {
 			return new BulkTenantUserActionResult(0, 0, []);
 		}
 
-		// Wrap the batch in a single transaction so the admin-count invariant is
-		// checked against a consistent snapshot, mirroring the single-item path.
+		// Wrap the batch in a single transaction so the admin-count invariant is checked as one
+		// unit, mirroring the single-item path. READ COMMITTED for the same reason as that path:
+		// see TenantMembershipLockOrder.
 		await using var transaction = await dbContext.Database.BeginTransactionAsync(
-			IsolationLevel.Serializable,
 			cancellationToken
 		);
 
 		try {
+			// TenantMembershipLockOrder step 1, before the admin count below.
+			await TenantMembershipLockOrder.LockTenantRowsAsync(
+				dbContext,
+				[tenantId],
+				cancellationToken
+			);
+
 			var accounts = await (
 				from ua in dbContext.UserAccount
 				join u in dbContext.User on ua.UserId equals u.Id
@@ -165,21 +181,26 @@ internal static class TenantUserMembershipOperations {
 			}
 
 			if (succeededAccountIds.Count > 0) {
-				// UserAccountProfileLockOrder step 2, batched: pin every account being removed
-				// (in a deterministic id order) before enumerating their junction rows, so a
+				// TenantMembershipLockOrder step 3, batched: pin every account being removed
+				// (in a deterministic id order) before touching their junction rows, so a
 				// concurrent tenant-profile assign cannot leave a link behind a removed
 				// membership.
-				await UserAccountProfileLockOrder.LockUserAccountRowsAsync(
+				await TenantMembershipLockOrder.LockUserAccountRowsAsync(
 					dbContext,
 					succeededAccountIds,
 					cancellationToken
 				);
 
-				var links = await (
-					from link in dbContext.UserAccountProfile
-					where succeededAccountIds.Contains(link.UserAccountId)
-					select link
-				).ToListAsync(cancellationToken);
+				// Step 4: lock and materialize in one statement. This is what makes the batch
+				// see links committed while it waited, and hands back only survivors so a
+				// concurrent profile-delete cleanup cannot turn this into a tracked delete of
+				// an already-deleted row.
+				var links = await TenantMembershipLockOrder
+					.LockAndMaterializeLinksForAccountsAsync(
+						dbContext,
+						succeededAccountIds,
+						cancellationToken
+					);
 				dbContext.UserAccountProfile.RemoveRange(links);
 			}
 
@@ -396,22 +417,24 @@ internal static class TenantUserMembershipOperations {
 		Guid userAccountId,
 		CancellationToken cancellationToken
 	) {
-		// UserAccountProfileLockOrder step 2: pin the account row before enumerating its
-		// junction rows. Without this, a concurrent tenant-profile assign could insert a link
-		// after this enumeration and leave a live link behind a removed membership.
-		await UserAccountProfileLockOrder.LockUserAccountRowsAsync(
+		// TenantMembershipLockOrder step 3: pin the account row before touching its junction
+		// rows. Without this, a concurrent tenant-profile assign could insert a link after this
+		// enumeration and leave a live link behind a removed membership.
+		await TenantMembershipLockOrder.LockUserAccountRowsAsync(
 			dbContext,
 			[userAccountId],
 			cancellationToken
 		);
 
-		// UserAccountProfile is current membership state. Hard-delete links when
-		// membership is removed or restored so stale permissions cannot return.
-		var links = await (
-			from link in dbContext.UserAccountProfile
-			where link.UserAccountId == userAccountId
-			select link
-		).ToListAsync(cancellationToken);
+		// Step 4: lock and materialize in one statement. UserAccountProfile is current
+		// membership state — hard-delete links when membership is removed or restored so stale
+		// permissions cannot return. Locking here also means a concurrent profile-delete cleanup
+		// hands us only survivors instead of a row it already deleted.
+		var links = await TenantMembershipLockOrder.LockAndMaterializeLinksForAccountsAsync(
+			dbContext,
+			[userAccountId],
+			cancellationToken
+		);
 
 		dbContext.UserAccountProfile.RemoveRange(links);
 	}

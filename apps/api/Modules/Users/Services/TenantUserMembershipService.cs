@@ -165,17 +165,27 @@ public class TenantUserMembershipService : ITenantUserMembershipService {
 			&& account.Level == AccountLevel.Admin
 			&& newLevel != AccountLevel.Admin;
 
+		// READ COMMITTED, not SERIALIZABLE: demotion shares the last-admin invariant with the
+		// removal paths, so it must share their protocol. SSI could only protect this invariant
+		// while every participant was SERIALIZABLE; those paths now take the tenant row lock
+		// under READ COMMITTED (see TenantMembershipLockOrder), and a lock protocol only works
+		// if every participant honours it.
 		await using var transaction =
 			needsAdminInvariantTransaction
-				? await _dbContext.Database.BeginTransactionAsync(
-					IsolationLevel.Serializable,
-					cancellationToken
-				)
+				? await _dbContext.Database.BeginTransactionAsync(cancellationToken)
 				: null;
 
 		try {
 			// Check last-admin invariant if demoting from admin
 			if (needsAdminInvariantTransaction) {
+				// TenantMembershipLockOrder step 1: the tenant's active-admin mutex, taken
+				// before the counts below so they include concurrent admin removals.
+				await TenantMembershipLockOrder.LockTenantRowsAsync(
+					_dbContext,
+					[tenantId],
+					cancellationToken
+				);
+
 				var isDemotingActiveAdmin = await TenantUserMembershipOperations
 					.IsActiveTenantAdminAsync(
 					_dbContext,

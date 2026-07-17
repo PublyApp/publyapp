@@ -451,9 +451,9 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 		DeleteTenantProfileArgs args,
 		CancellationToken cancellationToken
 	) {
-		// UserAccountProfileLockOrder step 1: pin the profile before enumerating its junction
+		// TenantMembershipLockOrder step 1: pin the profile before enumerating its junction
 		// rows, so a concurrent assign cannot slip a new link in behind this cleanup.
-		var profile = await UserAccountProfileLockOrder.LockLiveTenantProfileAsync(
+		var profile = await TenantMembershipLockOrder.LockLiveTenantProfileAsync(
 			_dbContext,
 			args.TenantId,
 			args.ProfileId,
@@ -477,11 +477,14 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 
 		var profileIdValue = profile.GetRequiredId();
 
-		var links = await (
-			from uap in _dbContext.UserAccountProfile
-			where uap.ProfileId == profileIdValue
-			select uap
-		).ToListAsync(cancellationToken);
+		// TenantMembershipLockOrder step 4: lock and materialize the junction rows in one
+		// statement. A concurrent member-removal cleanup targeting the same link hands us only
+		// survivors, so we never issue a tracked delete for a row it already removed.
+		var links = await TenantMembershipLockOrder.LockAndMaterializeLinksForProfilesAsync(
+			_dbContext,
+			[profileIdValue],
+			cancellationToken
+		);
 
 		if (links.Count > 0) {
 			// A deleted tenant profile must stop contributing memberships immediately, so we remove
@@ -553,11 +556,11 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 	) {
 		var args = new BulkDeleteTenantProfilesArgs(tenantId, requestedProfileIds);
 
-		// UserAccountProfileLockOrder step 1, batched: pin every candidate profile in a
+		// TenantMembershipLockOrder step 1, batched: pin every candidate profile in a
 		// deterministic id order before reading them or their junction rows, so concurrent
 		// assigns cannot re-link a profile this batch is about to purge, and two concurrent
 		// bulk deletes cannot deadlock.
-		await UserAccountProfileLockOrder.LockProfileRowsAsync(
+		await TenantMembershipLockOrder.LockProfileRowsAsync(
 			_dbContext,
 			requestedProfileIds,
 			cancellationToken
@@ -614,11 +617,12 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 			);
 		}
 
-		var links = await (
-			from uap in _dbContext.UserAccountProfile
-			where deletableProfileIds.Contains(uap.ProfileId)
-			select uap
-		).ToListAsync(cancellationToken);
+		// TenantMembershipLockOrder step 4, batched — same rationale as the single-profile path.
+		var links = await TenantMembershipLockOrder.LockAndMaterializeLinksForProfilesAsync(
+			_dbContext,
+			deletableProfileIds,
+			cancellationToken
+		);
 
 		if (links.Count > 0) {
 			_dbContext.ForceHardDeleteRange(links);
@@ -780,7 +784,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 
 	/// <summary>
 	/// Transactional body of <see cref="SetTenantProfileUserAsync"/>. Follows
-	/// <see cref="UserAccountProfileLockOrder"/>: lock the live profile, then the live account,
+	/// <see cref="TenantMembershipLockOrder"/>: lock the live profile, then the live account,
 	/// then read junction state. Returns the caller-visible result plus whether the transaction
 	/// may be committed — the duplicate-race backstop reports success but must roll back,
 	/// because PostgreSQL has already aborted the transaction.
@@ -797,7 +801,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 		// A staff-scope profile, another tenant's profile and a deleted profile are all
 		// indistinguishable "not found", mirroring SetTenantProfilePermissionAsync and avoiding
 		// leaks about profiles outside this tenant.
-		var profile = await UserAccountProfileLockOrder.LockLiveTenantProfileAsync(
+		var profile = await TenantMembershipLockOrder.LockLiveTenantProfileAsync(
 			_dbContext,
 			args.TenantId,
 			args.ProfileId,
@@ -810,7 +814,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 
 		// Lock order step 2. Blocks cross-tenant assignment, and a membership removed while we
 		// waited yields no row instead of a lock on a soft-deleted account.
-		var member = await UserAccountProfileLockOrder.LockLiveTenantAccountAsync(
+		var member = await TenantMembershipLockOrder.LockLiveTenantAccountAsync(
 			_dbContext,
 			args.TenantId,
 			args.UserAccountId,
