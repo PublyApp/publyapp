@@ -13,6 +13,13 @@ permissions:
   issues: read
   pull-requests: read
 
+# Supersede in-flight runs for the same PR. This job is cheap, but it retriggers
+# on every body edit, so a burst of edits would otherwise queue a run each and
+# only the last one's verdict is meaningful.
+concurrency:
+  group: require-linked-issue-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   require-linked-issue:
     runs-on: ubuntu-latest

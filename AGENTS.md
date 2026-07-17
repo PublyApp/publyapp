@@ -79,6 +79,20 @@ just test-api          # Run API integration tests (requires Docker)
 
 **Prerequisites:** Docker must be running (Testcontainers spins up Postgres automatically).
 
+### Pre-push gate
+
+```bash
+just ci                # Mirror of CI (no e2e) + the full API suite — run before pushing
+just ci-full           # just ci + both e2e suites
+```
+
+**CI never runs the API suite** (the only `dotnet test` in a workflow is the
+`OpenApiContractSpec` filter), so `just ci` is a stronger backend signal than CI is.
+`just ci-drift` fails if a workflow gains or changes a step the local gate has not been
+reconciled against — never bump a hash in `scripts/ci-gate-manifest.json` without reading
+the step it points at. Full details, exemptions, and known gaps:
+[`docs/guides/local-ci-gate.md`](docs/guides/local-ci-gate.md)
+
 ```bash
 # Run a specific test class
 cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter "FullyQualifiedName~PasswordLoginSpec"
