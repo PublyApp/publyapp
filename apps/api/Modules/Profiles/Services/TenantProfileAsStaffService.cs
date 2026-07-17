@@ -5,6 +5,7 @@ using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Modules.Permissions.Entities;
 using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Profiles.Services;
 
@@ -100,6 +101,37 @@ public abstract record SetTenantProfilePermissionResult {
 	public sealed record PermissionNotFound : SetTenantProfilePermissionResult;
 }
 
+/// <summary>
+/// Identity of the tenant member a profile assignment was toggled for, captured for audit.
+/// </summary>
+public sealed record TenantProfileMemberAuditData(
+	Guid UserAccountId,
+	Guid UserId,
+	AccountLevel Level
+);
+
+public sealed record SetTenantProfileUserArgs(
+	Guid TenantId,
+	Guid ProfileId,
+	Guid UserAccountId,
+	bool IsAssigned
+);
+
+public abstract record SetTenantProfileUserResult {
+	public sealed record Success(
+		TenantProfileAuditData Profile,
+		TenantProfileMemberAuditData Member,
+		bool Changed
+	) : SetTenantProfileUserResult;
+
+	public sealed record ProfileNotFound : SetTenantProfileUserResult;
+
+	public sealed record MemberNotFound : SetTenantProfileUserResult;
+
+	public sealed record MaxProfilesPerUserExceeded(int MaxProfilesPerUser)
+		: SetTenantProfileUserResult;
+}
+
 
 public interface ITenantProfileAsStaffService {
 	Task<Profile> GetOrCreateDefaultTenantProfileAsync(
@@ -129,6 +161,11 @@ public interface ITenantProfileAsStaffService {
 
 	Task<SetTenantProfilePermissionResult> SetTenantProfilePermissionAsync(
 		SetTenantProfilePermissionArgs args,
+		CancellationToken cancellationToken = default
+	);
+
+	Task<SetTenantProfileUserResult> SetTenantProfileUserAsync(
+		SetTenantProfileUserArgs args,
 		CancellationToken cancellationToken = default
 	);
 }
@@ -642,6 +679,174 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 			profileAudit,
 			Changed: true
 		);
+	}
+
+	public async Task<SetTenantProfileUserResult> SetTenantProfileUserAsync(
+		SetTenantProfileUserArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		// The cap below is a COUNT invariant, which no table constraint can express. We take a
+		// pessimistic row lock on the member's user_accounts row for the whole transaction, so
+		// concurrent assigns for the same member serialize and cannot both observe a
+		// below-cap count and then insert past it.
+		await using var transaction = await _dbContext.Database
+			.BeginTransactionAsync(cancellationToken);
+
+		// Scope guard: resolving the profile through tenant + Tenant scope means a staff-scope
+		// profile, another tenant's profile, and a deleted profile are all indistinguishable
+		// "not found" here. That mirrors SetTenantProfilePermissionAsync and avoids leaking
+		// the existence of profiles outside this tenant.
+		var profile = await (
+			from p in _dbContext.Profile
+			where p.Id == args.ProfileId
+				&& p.Scope == ProfileScope.Tenant
+				&& p.TenantId == args.TenantId
+				&& !p.IsDeleted
+			select p
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (profile is null) {
+			return new SetTenantProfileUserResult.ProfileNotFound();
+		}
+
+		// Membership guard: the account must be a tenant-scope account of THIS tenant, which
+		// is what blocks cross-tenant assignment. Suspended members stay assignable because
+		// this is a staff-side management path (PUBLY0007) and permission resolution already
+		// ignores suspended accounts at read time.
+		var member = await (
+			from ua in _dbContext.UserAccount
+			where ua.Id == args.UserAccountId
+				&& ua.Scope == AccountScope.Tenant
+				&& ua.TenantId == args.TenantId
+				&& !ua.IsDeleted
+			select ua
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (member is null) {
+			return new SetTenantProfileUserResult.MemberNotFound();
+		}
+
+		var profileAudit = new TenantProfileAuditData(
+			profile.GetRequiredId(),
+			profile.Name,
+			profile.Description,
+			profile.IsDefault
+		);
+
+		var memberAudit = new TenantProfileMemberAuditData(
+			member.GetRequiredId(),
+			member.UserId,
+			member.Level
+		);
+
+		await _dbContext.Database.ExecuteSqlAsync(
+			$"SELECT 1 FROM user_accounts WHERE id = {args.UserAccountId} FOR UPDATE",
+			cancellationToken
+		);
+
+		var existing = await (
+			from uap in _dbContext.UserAccountProfile
+			where uap.UserAccountId == args.UserAccountId
+				&& uap.ProfileId == args.ProfileId
+			select uap
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (!args.IsAssigned) {
+			if (existing is null) {
+				// Unassigning something that is not assigned is a no-op success.
+				await transaction.CommitAsync(cancellationToken);
+				return new SetTenantProfileUserResult.Success(
+					profileAudit,
+					memberAudit,
+					Changed: false
+				);
+			}
+
+			// Junction rows carry no soft-delete state; membership history lives in audit logs.
+			_dbContext.ForceHardDelete(existing);
+			await _dbContext.SaveChangesAsync(cancellationToken);
+			await transaction.CommitAsync(cancellationToken);
+
+			return new SetTenantProfileUserResult.Success(
+				profileAudit,
+				memberAudit,
+				Changed: true
+			);
+		}
+
+		if (existing is not null) {
+			// Already assigned: repeated POST is idempotent. This is checked before the cap so
+			// that re-asserting an existing assignment never fails, even for a member who is
+			// already at the cap.
+			await transaction.CommitAsync(cancellationToken);
+			return new SetTenantProfileUserResult.Success(
+				profileAudit,
+				memberAudit,
+				Changed: false
+			);
+		}
+
+		// Count only live assignments: a junction row pointing at a soft-deleted profile grants
+		// nothing, so it must not consume the member's quota.
+		var liveProfileCount = await (
+			from uap in _dbContext.UserAccountProfile
+			from p in _dbContext.Profile
+			where p.Id == uap.ProfileId
+				&& uap.UserAccountId == args.UserAccountId
+				&& !p.IsDeleted
+			select uap.ProfileId
+		).CountAsync(cancellationToken);
+
+		var maxProfilesPerUser = AppEnvironment.Instance.MAX_PROFILES_PER_USER;
+		if (liveProfileCount >= maxProfilesPerUser) {
+			return new SetTenantProfileUserResult.MaxProfilesPerUserExceeded(maxProfilesPerUser);
+		}
+
+		var assignment = new UserAccountProfile {
+			UserAccountId = args.UserAccountId,
+			ProfileId = args.ProfileId,
+		};
+
+		try {
+			await _dbContext.UserAccountProfile.AddAsync(assignment, cancellationToken);
+			await _dbContext.SaveChangesAsync(cancellationToken);
+		} catch (DbUpdateException ex) when (IsUserAccountProfileDuplicateViolation(ex)) {
+			// Defense in depth behind the row lock: the composite primary key is the final
+			// authority on "assigned at most once", so a lost insert race is still idempotent.
+			await transaction.RollbackAsync(cancellationToken);
+			_dbContext.Entry(assignment).State = EntityState.Detached;
+
+			return new SetTenantProfileUserResult.Success(
+				profileAudit,
+				memberAudit,
+				Changed: false
+			);
+		}
+
+		await transaction.CommitAsync(cancellationToken);
+
+		return new SetTenantProfileUserResult.Success(
+			profileAudit,
+			memberAudit,
+			Changed: true
+		);
+	}
+
+	/// <summary>
+	/// Detects a duplicate user_account_profiles row (composite primary key violation).
+	/// PostgreSQL error code 23505 = unique_violation.
+	/// </summary>
+	private static bool IsUserAccountProfileDuplicateViolation(DbUpdateException ex) {
+		if (ex.InnerException is Npgsql.PostgresException pgEx) {
+			return pgEx.SqlState == "23505"
+				&& pgEx.TableName is not null
+				&& pgEx.TableName.Equals(
+					"user_account_profiles",
+					StringComparison.OrdinalIgnoreCase
+				);
+		}
+
+		return false;
 	}
 
 	/// <summary>

@@ -66,6 +66,11 @@ public static class AuditActions {
 	public const string TenantProfileDeleted = "tenant.profile.deleted";
 	public const string TenantProfilePermissionsAssigned = "tenant.profile.permissions.assigned";
 	public const string TenantProfilePermissionsUnassigned = "tenant.profile.permissions.unassigned";
+	// Membership changes are the only history for user_account_profiles rows, which are
+	// hard-deleted on unassign. Keep assign and unassign as distinct actions so the audit
+	// trail reconstructs a member's profile timeline without inspecting row existence.
+	public const string TenantProfileUserAssigned = "tenant.profile.user.assigned";
+	public const string TenantProfileUserUnassigned = "tenant.profile.user.unassigned";
 	public const string TenantProfileBulkDeleted = "tenant.profile.bulk.deleted";
 	public const string TenantInvitationAccepted = "tenant.invitation.accepted";
 	public const string TenantUpdated = "tenant.updated";

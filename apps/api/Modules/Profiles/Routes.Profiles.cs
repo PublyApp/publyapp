@@ -138,6 +138,28 @@ public static partial class Routes {
 					return $"{RootFn(profileId)}/{permissionKey}";
 				}
 			}
+
+			/// <summary>
+			/// Tenant profile users routes (staff managing the members assigned to a
+			/// tenant profile).
+			/// </summary>
+			public static class Users {
+				// NOTE: This is relative to "/staff" and "/tenants/{tenantId}/profiles"
+				// route grouping.
+				public const string Root = "/{profileId}/users";
+				public static string RootFn(string profileId) {
+					return $"/{profileId}/users";
+				}
+
+				// Membership is exposed as an idempotent per-member "upsert" toggle keyed by
+				// userAccountId, mirroring Permissions.Upsert in this same group:
+				// POST assigns, DELETE unassigns. This is what lets the members UI toggle a
+				// single row without a batch confirm step.
+				public const string Upsert = Root + "/{userAccountId}";
+				public static string UpsertFn(string profileId, string userAccountId) {
+					return $"{RootFn(profileId)}/{userAccountId}";
+				}
+			}
 		}
 	}
 }
