@@ -85,6 +85,18 @@ public sealed class JobQueueProcessor : BackgroundService {
 		_options = options ?? new JobQueueProcessorOptions();
 	}
 
+	/// <summary>
+	/// Spec-only seam (R3-F3), null in production — the hosted loop never sets it.
+	/// Reproduces the ONE renewal interleaving wall-clock timing cannot make
+	/// deterministic: an Npgsql renewal whose UPDATE commits a later locked_until
+	/// server-side while the client observes cancellation, because Npgsql cancellation
+	/// is best-effort (F1). When set, the renewal loop invokes it exactly once, AFTER a
+	/// real committed stamp is in hand, passing that stamp and an action that forces the
+	/// safe-deadline to win; the spec uses it to raise the ambiguous
+	/// OperationCanceledException the catch must now route through compensation.
+	/// </summary>
+	public Func<LeaseStamp, Action, Task>? RenewalCommitProbe { get; set; }
+
 	/// <summary>A claimed row: id, fencing token, and job type (for metrics at claim).</summary>
 	public sealed class ClaimedJob {
 		public Guid Id { get; set; }
@@ -1016,14 +1028,27 @@ public sealed class JobQueueProcessor : BackgroundService {
 		var confirmed = initial;
 		var proposedDelay = renewInterval;
 
-		if (!await ArmDeadlineAsync(leaseLostSource, confirmed, jobId)) {
+		// R3-F2: the safe deadline is arbitrated by an explicit ONE-WINNER state
+		// transition rather than a CancelAfter/IsCancellationRequested pair. The pair is
+		// not a serialization point — .NET's own Timer.TryReset requires BOTH
+		// Timer.Change AND !_everQueued precisely because changing a timer cannot prove
+		// that a previous-generation callback, already dequeued, will not still run. Here
+		// every confirmed stamp arms a NEW generation; the timer callback and stamp
+		// acceptance contend under the arbiter's single lock for one terminal decision,
+		// so exactly one acts: if the deadline wins the handler is abandoned (and the
+		// caller compensates any late commit); if stamp acceptance wins it rotates the
+		// generation, so the prior generation's pending callback loses its generation
+		// check and becomes a no-op — it can no longer abandon the freshly stamped lease.
+		using var deadline = new LeaseDeadlineArbiter(() => leaseLostSource.Cancel());
+
+		if (!await ArmDeadlineAsync(deadline, leaseLostSource, confirmed, jobId)) {
 			return;
 		}
 
 		while (!stopRenewal.IsCancellationRequested) {
 			var remaining = confirmed.RemainingSafeInterval();
 			if (remaining <= TimeSpan.Zero) {
-				await AbandonAtDeadlineAsync(leaseLostSource, jobId);
+				await AbandonAtDeadlineAsync(deadline, leaseLostSource, jobId);
 				return;
 			}
 
@@ -1039,7 +1064,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 			// The sleep was capped to the deadline, so arriving here with nothing left
 			// means the margin is spent and no further command may be started.
 			if (confirmed.RemainingSafeInterval() <= TimeSpan.Zero) {
-				await AbandonAtDeadlineAsync(leaseLostSource, jobId);
+				await AbandonAtDeadlineAsync(deadline, leaseLostSource, jobId);
 				return;
 			}
 
@@ -1066,32 +1091,58 @@ public sealed class JobQueueProcessor : BackgroundService {
 					renewalCommandStop.Token
 				);
 				if (stamp is null) {
-					await leaseLostSource.CancelAsync();
+					// Definitively lost (the fence matched nothing): a new claimant holds
+					// the row. Route the abandonment through the arbiter so the deadline
+					// generation is disarmed and only one path cancels.
+					if (deadline.TryClaimAbandon()) {
+						await leaseLostSource.CancelAsync();
+					}
 					return;
 				}
 
-				confirmed = ConfirmedLease.From(stamp, anchor, SafetyMargin());
-				var armed = await ArmDeadlineAsync(leaseLostSource, confirmed, jobId);
+				// R3-F3 spec seam (null in production): injects finding F1's ambiguous
+				// cancelled-commit deterministically — a real later stamp is now committed,
+				// and the probe forces the deadline to win and raises the cancellation the
+				// client would observe. It exercises the SAME catch as a real Npgsql
+				// best-effort cancellation.
+				if (RenewalCommitProbe is { } probe) {
+					await probe(stamp, () => leaseLostSource.Cancel());
+				}
 
-				// ArmDeadlineAsync's CancelAfter is the serialization point against the
-				// pending deadline timer: a deadline that had ALREADY fired — while the
-				// UPDATE was in flight, or in the gap before the re-arm — cannot be
-				// un-cancelled, so it is observable here. A stamp that committed after the
-				// deadline won extended an ABANDONED lease; it must neither re-arm nor be
-				// kept. Expire it under the SAME lock_token fence so the row cannot stay
-				// Processing on a stamp the engine will never honour, then leave.
-				if (!armed || leaseLostSource.IsCancellationRequested) {
+				confirmed = ConfirmedLease.From(stamp, anchor, SafetyMargin());
+
+				// Stamp acceptance contends with the deadline for the generation. A false
+				// return is the one-winner transition reporting that the deadline ALREADY
+				// won (during the UPDATE or the gap before the re-arm) or that the margin
+				// is now spent: either way this stamp extended an ABANDONED lease and must
+				// neither re-arm nor be kept. Expire it under the SAME lock_token fence so
+				// the row cannot stay Processing on a stamp the engine will never honour.
+				if (!await ArmDeadlineAsync(deadline, leaseLostSource, confirmed, jobId)) {
 					await ExpireAbandonedLeaseAsync(renewalContext, jobId, lockToken);
 					return;
 				}
 
 				proposedDelay = renewInterval;
+			} catch (OperationCanceledException) when (leaseLostSource.IsCancellationRequested) {
+				// R3-F1: an in-flight renewal cancelled by the deadline is an AMBIGUOUS
+				// commit — Npgsql cancellation is best-effort, so the UPDATE may have
+				// COMMITTED a later locked_until server-side even though the client
+				// observed cancellation while reading the result. The deadline has already
+				// abandoned this token's lease, so run the same fenced expiry on a FRESH
+				// context with CancellationToken.None before returning. Safe even if the
+				// statement really rolled back: it is a lock_token-fenced no-op if nothing
+				// committed or if a new claimant already rotated the token. This is the
+				// path a construction-only argument cannot cover, so it must be explicit.
+				await CompensateAbandonedLeaseAsync(jobId, lockToken);
+				return;
 			} catch (OperationCanceledException) {
+				// stopRenewal (host shutdown or the handler returned): the lease was not
+				// abandoned by a deadline, so there is nothing to compensate.
 				return;
 			} catch (Exception ex) {
 				// Transient: ownership is unknown, not lost. Keep trying until the
-				// confirmed deadline says otherwise — the timer, not this loop, is
-				// what guarantees the handler stops.
+				// confirmed deadline says otherwise — the arbiter's timer, not this loop,
+				// is what guarantees the handler stops.
 				_logger.LogWarning(
 					"Lease renewal attempt failed for job {JobId}; retrying within the "
 					+ "confirmed lease deadline: {FailureDescription} {FailureStack}",
@@ -1104,12 +1155,15 @@ public sealed class JobQueueProcessor : BackgroundService {
 		}
 	}
 
-	// The dedicated deadline timer (§5.1, R2-4). The CancellationTokenSource's own
-	// timer fires independently of the renewal task, so the handler is cancelled at
-	// the safe deadline EVEN IF that task is blocked — which is the case the spec's
-	// "even if the retry task is blocked" clause exists for. Each confirmed stamp
-	// re-arms it; CancelAfter replaces the pending fire rather than adding one.
+	// The dedicated deadline (§5.1, R2-4), now arbitrated so it fires against a
+	// generation rather than a bare timer. The arbiter's timer fires independently of
+	// the renewal task, so the handler is cancelled at the safe deadline EVEN IF that
+	// task is blocked — the case the spec's "even if the retry task is blocked" clause
+	// exists for. Each confirmed stamp arms a NEW generation; TryArm returns false only
+	// when a deadline has already won, which the caller treats as a late commit to
+	// compensate. A spent margin (remaining <= 0) abandons synchronously instead.
 	private async Task<bool> ArmDeadlineAsync(
+		LeaseDeadlineArbiter deadline,
 		CancellationTokenSource leaseLostSource,
 		ConfirmedLease confirmed,
 		Guid jobId
@@ -1117,18 +1171,25 @@ public sealed class JobQueueProcessor : BackgroundService {
 		var remaining = confirmed.RemainingSafeInterval();
 
 		if (remaining <= TimeSpan.Zero) {
-			await AbandonAtDeadlineAsync(leaseLostSource, jobId);
+			await AbandonAtDeadlineAsync(deadline, leaseLostSource, jobId);
 			return false;
 		}
 
-		leaseLostSource.CancelAfter(remaining);
-		return true;
+		return deadline.TryArm(remaining);
 	}
 
 	private async Task AbandonAtDeadlineAsync(
+		LeaseDeadlineArbiter deadline,
 		CancellationTokenSource leaseLostSource,
 		Guid jobId
 	) {
+		// The synchronous abandon paths and the arbiter's own timer both settle through
+		// TryClaimAbandon / the timer callback, so the cancellation happens exactly once.
+		// If the timer already won, this is a no-op and it owns the cancellation.
+		if (!deadline.TryClaimAbandon()) {
+			return;
+		}
+
 		if (_logger.IsEnabled(LogLevel.Warning)) {
 			_logger.LogWarning(
 				"Lease renewal for job {JobId} reached its confirmed safe deadline "
@@ -1161,6 +1222,107 @@ public sealed class JobQueueProcessor : BackgroundService {
 			""",
 			CancellationToken.None
 		);
+	}
+
+	// R3-F1 compensation entry point for the ambiguous cancelled-commit. The renewal
+	// scope/context is already unwound by the time its OperationCanceledException reaches
+	// the catch, so the fenced expiry runs on a FRESH scope and context — the abandonment
+	// is exactly why the ambient tokens are cancelled, so this must not be governed by
+	// them (CancellationToken.None inside ExpireAbandonedLeaseAsync).
+	private async Task CompensateAbandonedLeaseAsync(Guid jobId, Guid lockToken) {
+		using var scope = _scopeFactory.CreateScope();
+		var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await ExpireAbandonedLeaseAsync(context, jobId, lockToken);
+	}
+
+	// R3-F2: the one-winner arbiter for the lease deadline. It replaces the
+	// CancelAfter + IsCancellationRequested pair, which cannot serialize a re-arm
+	// against a previous-generation timer callback that has already been dequeued. Every
+	// armed deadline carries a generation captured by its timer callback; the callback
+	// and stamp acceptance contend under one lock for a single terminal decision, so
+	// EXACTLY ONE of them acts on any given generation:
+	//   - the deadline wins  -> _decided is set once, and leaseLostSource is cancelled;
+	//   - stamp acceptance wins -> the generation is rotated by TryArm, so the prior
+	//                              generation's pending callback fails its generation
+	//                              check and no-ops — it cannot abandon the new stamp.
+	// Cancellation of leaseLostSource happens outside the lock (as CancelAfter already
+	// did from a timer thread) and tolerates a disposed source: the lease is torn down.
+	private sealed class LeaseDeadlineArbiter : IDisposable {
+		private readonly Action _cancelLeaseLost;
+		private readonly object _gate = new();
+		private Timer? _timer;
+		private long _generation;
+		private bool _decided;
+		private bool _disposed;
+
+		public LeaseDeadlineArbiter(Action cancelLeaseLost) {
+			_cancelLeaseLost = cancelLeaseLost;
+		}
+
+		// Arm/re-arm for a freshly confirmed stamp. Rotates the generation FIRST (so any
+		// pending previous-generation callback is disarmed by construction — its captured
+		// generation is now stale), then schedules a fresh timer for it. Returns false if
+		// a deadline has already won: the stamp is late and the caller must compensate.
+		public bool TryArm(TimeSpan remaining) {
+			lock (_gate) {
+				if (_decided || _disposed) {
+					return false;
+				}
+
+				var generation = ++_generation;
+				_timer?.Dispose();
+				_timer = new Timer(
+					_ => OnDeadline(generation), null, remaining, Timeout.InfiniteTimeSpan
+				);
+				return true;
+			}
+		}
+
+		// Synchronous abandon (the margin is spent, or the lease was definitively lost).
+		// Ungated by generation because the caller decided it for the CURRENT confirmed
+		// lease on the single loop thread. Returns whether THIS call is the one that
+		// transitioned the lease to abandoned; the caller performs the cancellation.
+		public bool TryClaimAbandon() {
+			return Claim(requiredGeneration: null);
+		}
+
+		private void OnDeadline(long generation) {
+			if (!Claim(generation)) {
+				return;
+			}
+
+			try {
+				_cancelLeaseLost();
+			} catch (ObjectDisposedException) {
+				// The lease is already being torn down; nothing left to abandon.
+			}
+		}
+
+		private bool Claim(long? requiredGeneration) {
+			lock (_gate) {
+				if (_decided || _disposed) {
+					return false;
+				}
+
+				if (requiredGeneration is { } generation && generation != _generation) {
+					// Superseded by a newer accepted stamp — this stale callback no-ops.
+					return false;
+				}
+
+				_decided = true;
+				_timer?.Dispose();
+				_timer = null;
+				return true;
+			}
+		}
+
+		public void Dispose() {
+			lock (_gate) {
+				_disposed = true;
+				_timer?.Dispose();
+				_timer = null;
+			}
+		}
 	}
 
 	// --- helpers ---------------------------------------------------------------------

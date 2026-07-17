@@ -1214,28 +1214,32 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 		}
 	}
 
-	// --- late renewal must not re-extend an abandoned lease (review R2, finding 1) ----
+	// --- late renewal must not re-extend an abandoned lease (review R2-F1, R3-F1/F3) --
 
-	// The exact interleaving the review named. A renewal UPDATE is IN FLIGHT and blocked
-	// on the job row when the safe deadline fires. On the old code the renewal held only
-	// stopRenewal — never leaseLostSource.Token — so it kept running past the deadline,
-	// committed a later locked_until after the engine had already abandoned ownership,
-	// and left the row Processing for roughly another whole lease window of postponed
-	// reclaim. The blocking transaction stands in for any slow/contended renewal
-	// statement; §5.1 permits a non-cooperative handler, so the loop cannot rely on the
-	// handler stopping to end the command.
+	// Finding F1's exact interleaving, made DETERMINISTIC per R3-F3. Npgsql cancellation
+	// is best-effort: a renewal UPDATE can COMMIT a later locked_until server-side while
+	// the client still observes cancellation. Wall-clock timing cannot force that
+	// ambiguous outcome — a blocked command cancelled at the deadline simply rolls back,
+	// it never reproduces the committed-then-cancelled race — and the review proved the
+	// old timing-based control false-greens on BOTH old and fixed code, because the
+	// scheduler can delay the renewal continuation so the vulnerable command never runs
+	// (finalLease <= deadlineLease then passes without exercising the defect).
 	//
-	// Deterministic, not timing-luck: the handler is deliberately non-cooperative (it
-	// ignores its token and waits on a barrier), a second connection row-locks the job
-	// so the renewal statement blocks ACROSS the deadline, the ~4 s deadline (6 s lease,
-	// 2 s margin) fires while it is blocked, and only THEN is the lock released. The
-	// lease the row carries when the deadline wins must never be advanced afterwards.
+	// So a NARROW spec seam (RenewalCommitProbe, null in production) injects the one
+	// interleaving directly and reproducibly: after a real renewal has committed a later
+	// stamp, it forces the safe deadline to win and raises the ambiguous
+	// OperationCanceledException the client would observe. There is no row lock, no
+	// scheduler race, and no reliance on the deadline firing at a particular wall-clock
+	// instant — the seam IS the serialization point, so the test either exercises the
+	// vulnerable committed-late-commit path or does not run at all.
 	//
-	// Red control: on the pre-fix loop finalLease jumps ~a full lease window past
-	// deadlineLease ("Expected finalLease to be on or before <deadlineLease>, but it was
-	// <deadlineLease + ~6s>"); the fix cancels the in-flight command at the deadline (or
-	// compensates a late commit under the lock_token fence), so locked_until never
-	// advances.
+	// Red control: on the pre-fix loop the OperationCanceledException catch returned
+	// without compensating, so the committed later locked_until stood and the row stayed
+	// leased for another window — finalLease lands a renewal-cadence past the legitimate
+	// pre-abandon lease ("Expected finalLease ... to be on or before <deadlineLease>, but
+	// found <deadlineLease + ~lease/2>"). The fix routes this exact catch through the
+	// lock_token-fenced compensation on a fresh CancellationToken.None context, pulling
+	// locked_until back to now(), so it can never advance past the abandoned lease.
 	[Fact]
 	public async Task ItShouldNotReExtendAnAbandonedLeaseWhenARenewalCompletesAfterTheDeadline() {
 		var jobType = UniqueType("late-renewal");
@@ -1254,8 +1258,9 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			var handler = new RecordingJobHandler(jobType) {
 				OnHandle = async _ => {
 					started.TrySetResult();
-					// Non-cooperative: does NOT observe the cancellation token, so the
-					// renewal command is the only thing the deadline can act on.
+					// Non-cooperative: ignores its token, so the run settles only when the
+					// deadline (via the seam) abandons it — never by the handler observing
+					// cancellation.
 					await release.Task;
 				}
 			};
@@ -1264,37 +1269,34 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 				handler
 			);
 
+			// The seam: on the first renewal a REAL later stamp has just committed to the
+			// row. Force the safe deadline to win (as if it fired while the client was
+			// reading the result) and raise the ambiguous cancellation — finding F1's
+			// committed-late-commit-into-an-abandoned-lease state, injected deterministically.
+			var probeFired = new TaskCompletionSource(
+				TaskCreationOptions.RunContinuationsAsynchronously
+			);
+			processor.RenewalCommitProbe = (_, forceDeadlineWin) => {
+				forceDeadlineWin();
+				probeFired.TrySetResult();
+				throw new OperationCanceledException();
+			};
+
 			var processing = processor.ProcessOneAsync(
 				item, claimed.LockToken, CancellationToken.None
 			);
 			await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
 
-			// Row-lock the job on a second connection so the renewal UPDATE (fired at
-			// lease/2 ≈ 3 s) blocks and is still in flight when the deadline fires (≈4 s).
-			await using var lockContext = await CreateDbContextAsync();
-			await using var lockTx = await lockContext.Database.BeginTransactionAsync();
-			await lockContext.Database.SqlQuery<Guid>(
-				$"""SELECT id AS "Value" FROM job_queue WHERE id = {claimed.Id} FOR UPDATE"""
-			).ToListAsync();
-
-			// Past both the renewal attempt (≈3 s) and the safe deadline (≈4 s): the
-			// renewal is now blocked on the row lock with the deadline already fired.
-			await Task.Delay(TimeSpan.FromSeconds(5));
-
-			// The lease the row carries at the moment the deadline has won — read on a
-			// third connection (a plain SELECT does not block on FOR UPDATE). Nothing may
-			// push locked_until beyond this after the deadline.
+			// The lease the row legitimately carries BEFORE the abandoned renewal, read on
+			// its own connection. Nothing may push locked_until beyond this once the lease
+			// is abandoned.
 			var deadlineLease = await ReadLockedUntilAsync(claimed.Id);
 
-			// Release the row lock: on the old code the still-running renewal now commits
-			// a full fresh window; on the fixed code the command was cancelled at the
-			// deadline, so nothing is left to commit.
-			await lockTx.RollbackAsync();
+			// The first renewal (lease/2 ≈ 3 s) commits the later stamp, then the seam
+			// forces the deadline win and the ambiguous cancellation.
+			await probeFired.Task.WaitAsync(TimeSpan.FromSeconds(10));
 
-			// Give the old code's unblocked renewal time to commit before the handler
-			// returns and stopRenewal tears the loop down; a harmless no-op on the fix.
-			await Task.Delay(TimeSpan.FromSeconds(1));
-
+			// Let the non-cooperative handler return so the abandoned run settles.
 			release.TrySetResult();
 			var result = await processing.WaitAsync(TimeSpan.FromSeconds(15));
 
@@ -1306,9 +1308,10 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			var finalLease = await ReadLockedUntilAsync(claimed.Id);
 			finalLease.Should().BeOnOrBefore(
 				deadlineLease,
-				"a renewal that completes after the safe deadline must neither re-arm nor "
-				+ "extend the abandoned lease — locked_until cannot advance once the "
-				+ "deadline has won, or the row is stranded Processing for another window"
+				"an ambiguous renewal that committed a later locked_until after the safe "
+				+ "deadline won must be compensated back to now() under the lock_token "
+				+ "fence — locked_until cannot advance once the lease is abandoned, or the "
+				+ "row is stranded Processing for another whole window"
 			);
 		} finally {
 			await DeleteJobsByTypeAsync(jobType);
