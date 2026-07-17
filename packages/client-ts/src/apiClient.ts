@@ -12,8 +12,6 @@ import { StaffRequestBuilderNavigationMetadata, type StaffRequestBuilder } from 
 // @ts-ignore
 import { TestRequestBuilderRequestsMetadata, type TestRequestBuilder } from './test/index.js';
 // @ts-ignore
-import { TestPermissionRequestBuilderRequestsMetadata, type TestPermissionRequestBuilder } from './testPermission/index.js';
-// @ts-ignore
 import { apiClientProxifier, ParseNodeFactoryRegistry, SerializationWriterFactoryRegistry, type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type RequestAdapter } from '@microsoft/kiota-abstractions';
 // @ts-ignore
 import { FormParseNodeFactory, FormSerializationWriterFactory } from '@microsoft/kiota-serialization-form';
@@ -48,10 +46,6 @@ export interface ApiClient extends BaseRequestBuilder<ApiClient> {
      * The test property
      */
     get test(): TestRequestBuilder;
-    /**
-     * The testPermission property
-     */
-    get testPermission(): TestPermissionRequestBuilder;
 }
 /**
  * Instantiates a new {@link ApiClient} and sets the default values.
@@ -106,9 +100,6 @@ export const ApiClientNavigationMetadata: Record<Exclude<keyof ApiClient, KeysTo
     },
     test: {
         requestsMetadata: TestRequestBuilderRequestsMetadata,
-    },
-    testPermission: {
-        requestsMetadata: TestPermissionRequestBuilderRequestsMetadata,
     },
 };
 /* tslint:enable */
