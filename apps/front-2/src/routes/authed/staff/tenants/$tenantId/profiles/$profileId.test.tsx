@@ -84,6 +84,8 @@ const mocks = vi.hoisted(() => ({
 	capturedMatrixDirtyChange: undefined as
 		| ((isDirty: boolean) => void)
 		| undefined,
+	permissionKeysCacheRevision: 1,
+	capturedGrantedRevision: undefined as number | undefined,
 }));
 
 vi.mock('@tanstack/react-router', () => ({
@@ -258,6 +260,10 @@ vi.mock('~/lib/query/staff-tenant-profiles', () => ({
 	toStaffTenantProfileDetails: mocks.toStaffTenantProfileDetails,
 	useStaffTenantProfilePermissionKeysQuery:
 		mocks.useStaffTenantProfilePermissionKeysQuery,
+	getStaffTenantProfilePermissionKeysCacheSnapshot: () => ({
+		permissionKeys: [],
+		revision: mocks.permissionKeysCacheRevision,
+	}),
 	toStaffTenantProfilePermissionKeys: mocks.toStaffTenantProfilePermissionKeys,
 	useStaffTenantProfileUsersQuery: mocks.useStaffTenantProfileUsersQuery,
 	toStaffTenantProfileMembers: mocks.toStaffTenantProfileMembers,
@@ -278,10 +284,13 @@ vi.mock('~/lib/should-logout-for-failure', () => ({
 vi.mock('./_profile-permissions-tab', () => ({
 	ProfilePermissionsTab: ({
 		onDirtyChange,
+		grantedRevision,
 	}: {
 		onDirtyChange: (isDirty: boolean) => void;
+		grantedRevision: number;
 	}) => {
 		mocks.capturedMatrixDirtyChange = onDirtyChange;
+		mocks.capturedGrantedRevision = grantedRevision;
 		return <div data-testid="staff-tenant-profile-permissions-content" />;
 	},
 }));
@@ -493,6 +502,8 @@ describe('staff tenant profile details route', () => {
 		mocks.capturedOnDirtyChange = undefined;
 		mocks.capturedOnSaved = undefined;
 		mocks.capturedMatrixDirtyChange = undefined;
+		mocks.permissionKeysCacheRevision = 1;
+		mocks.capturedGrantedRevision = undefined;
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
 		mocks.useDeleteStaffTenantProfileMutation.mockReturnValue({
 			isPending: false,
@@ -754,6 +765,7 @@ describe('staff tenant profile details route', () => {
 
 	test('renders the URL-selected permissions tab and members placeholder with counted tabs', () => {
 		mocks.search = { tab: 'permissions' };
+		mocks.permissionKeysCacheRevision = 7;
 		const view = renderPage();
 
 		expect(
@@ -764,6 +776,7 @@ describe('staff tenant profile details route', () => {
 		expect(
 			screen.getByTestId('staff-tenant-profile-permissions-content'),
 		).toBeTruthy();
+		expect(mocks.capturedGrantedRevision).toBe(7);
 		expect(
 			screen.queryByTestId('staff-tenant-profile-overview-content'),
 		).toBeNull();

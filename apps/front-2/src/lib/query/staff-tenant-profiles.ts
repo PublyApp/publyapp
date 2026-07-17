@@ -1040,13 +1040,13 @@ export const getStaffTenantProfilePermissionKeysCacheSnapshot = (
 			getStaffTenantProfilePermissionKeysQueryKey(variables),
 		);
 
-	if (!queryState?.data || queryState.dataUpdatedAt <= 0) {
+	if (!queryState?.data) {
 		return null;
 	}
 
 	return {
 		permissionKeys: toStaffTenantProfilePermissionKeys(queryState.data),
-		revision: queryState.dataUpdatedAt,
+		revision: queryState.dataUpdateCount,
 	};
 };
 

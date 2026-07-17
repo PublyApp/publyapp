@@ -22,6 +22,7 @@ import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import { StateView } from '~/components/ui/state-view';
 import {
 	buildStaffTenantPermissionCatalogGroups,
+	getStaffTenantProfilePermissionKeysCacheSnapshot,
 	toStaffTenantProfileDetails,
 	toStaffTenantProfileMembers,
 	toStaffTenantProfilePermissionKeys,
@@ -289,6 +290,11 @@ function StaffTenantProfileDetailsPage() {
 	const permissionKeys = toStaffTenantProfilePermissionKeys(
 		permissionKeysQuery.data,
 	);
+	const permissionKeysCacheSnapshot =
+		getStaffTenantProfilePermissionKeysCacheSnapshot(queryClient, {
+			tenantId,
+			profileId,
+		});
 	const members = toStaffTenantProfileMembers(membersQuery.data);
 	const setBreadcrumbOverride = useUiStore(
 		(state) => state.setBreadcrumbOverride,
@@ -471,7 +477,7 @@ function StaffTenantProfileDetailsPage() {
 				tenantId={tenantId}
 				profileId={profileId}
 				grantedKeys={permissionKeys}
-				grantedRevision={permissionKeysQuery.dataUpdatedAt}
+				grantedRevision={permissionKeysCacheSnapshot?.revision ?? 0}
 				permissionGroups={permissionGroups}
 				isCatalogPending={permissionCatalogQuery.isPending}
 				isCatalogError={permissionCatalogQuery.isError}

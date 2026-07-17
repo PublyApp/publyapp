@@ -23,14 +23,16 @@ const mocks = vi.hoisted(() => ({
 	toastSuccess: vi.fn(),
 	displayLocalMutationFailure: vi.fn().mockResolvedValue(undefined),
 	permissionKeysQueryData: { permissionKeys: ['posts.view'] },
-	permissionKeysQueryRevision: 1,
+	permissionKeysQueryUpdatedAt: 1,
+	permissionKeysQueryUpdateCount: 1,
 }));
 
 vi.mock('@tanstack/react-query', () => ({
 	useQueryClient: () => ({
 		getQueryData: () => mocks.permissionKeysQueryData,
 		getQueryState: () => ({
-			dataUpdatedAt: mocks.permissionKeysQueryRevision,
+			dataUpdatedAt: mocks.permissionKeysQueryUpdatedAt,
+			dataUpdateCount: mocks.permissionKeysQueryUpdateCount,
 		}),
 		invalidateQueries: vi.fn(),
 	}),
@@ -180,10 +182,10 @@ vi.mock('~/lib/query/staff-tenant-profiles', () => ({
 	},
 	getStaffTenantProfilePermissionKeysCacheSnapshot: (queryClient: {
 		getQueryData: () => { permissionKeys: string[] };
-		getQueryState: () => { dataUpdatedAt: number };
+		getQueryState: () => { dataUpdateCount: number };
 	}) => ({
 		permissionKeys: queryClient.getQueryData().permissionKeys,
-		revision: queryClient.getQueryState().dataUpdatedAt,
+		revision: queryClient.getQueryState().dataUpdateCount,
 	}),
 	useAssignStaffTenantProfilePermissionMutation:
 		mocks.useAssignStaffTenantProfilePermissionMutation,
@@ -242,7 +244,8 @@ describe('ProfilePermissionsTab', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mocks.permissionKeysQueryData = { permissionKeys: ['posts.view'] };
-		mocks.permissionKeysQueryRevision = 1;
+		mocks.permissionKeysQueryUpdatedAt = 1;
+		mocks.permissionKeysQueryUpdateCount = 1;
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
 		mocks.assignMutateAsync.mockResolvedValue(undefined);
 		mocks.unassignMutateAsync.mockResolvedValue(undefined);
@@ -740,7 +743,7 @@ describe('ProfilePermissionsTab', () => {
 		// A background result arrives before the write settles. It is newer than the
 		// locally adopted baseline, but cannot yet be known to follow the write.
 		mocks.permissionKeysQueryData = { permissionKeys: ['channels.view'] };
-		mocks.permissionKeysQueryRevision = 2;
+		mocks.permissionKeysQueryUpdateCount = 2;
 		rerender(
 			<ProfilePermissionsTab
 				{...props}
@@ -767,7 +770,7 @@ describe('ProfilePermissionsTab', () => {
 
 		// The same server signature is observed again after the save generation.
 		// A revision guard must adopt it instead of suppressing it forever.
-		mocks.permissionKeysQueryRevision = 3;
+		mocks.permissionKeysQueryUpdateCount = 3;
 		rerender(
 			<ProfilePermissionsTab
 				{...props}
@@ -817,7 +820,7 @@ describe('ProfilePermissionsTab', () => {
 		// committed its observer render yet. The save generation must still see
 		// this revision directly in the cache when the write settles.
 		mocks.permissionKeysQueryData = { permissionKeys: ['channels.view'] };
-		mocks.permissionKeysQueryRevision = 2;
+		mocks.permissionKeysQueryUpdateCount = 2;
 		act(() => resolveAssign?.());
 
 		await waitFor(() =>
@@ -846,7 +849,7 @@ describe('ProfilePermissionsTab', () => {
 
 		// A genuinely later server revision remains eligible for normal adoption.
 		mocks.permissionKeysQueryData = { permissionKeys: ['channels.view'] };
-		mocks.permissionKeysQueryRevision = 3;
+		mocks.permissionKeysQueryUpdateCount = 3;
 		rerender(
 			<ProfilePermissionsTab
 				{...props}
@@ -893,7 +896,7 @@ describe('ProfilePermissionsTab', () => {
 		// awaited invalidation then refreshes the exact scoped cache entry with
 		// authoritative truth, while its observer render remains queued.
 		mocks.permissionKeysQueryData = { permissionKeys: ['channels.view'] };
-		mocks.permissionKeysQueryRevision = 2;
+		mocks.permissionKeysQueryUpdateCount = 2;
 		act(() => resolveInvalidation?.());
 		await waitFor(() =>
 			expect(screen.queryByTestId('permissions-change-status')).toBeNull(),
@@ -917,6 +920,58 @@ describe('ProfilePermissionsTab', () => {
 				).checked,
 			).toBe(true),
 		);
+		expect(
+			(screen.getByRole('checkbox', { name: 'View posts' }) as HTMLInputElement)
+				.checked,
+		).toBe(false);
+	});
+
+	test('adopts refreshed truth when the timestamp is unchanged but the update count advances', async () => {
+		let resolveInvalidation: (() => void) | undefined;
+		mocks.invalidateAllStaffTenantScopes.mockImplementationOnce(
+			() =>
+				new Promise<void>((resolve) => {
+					resolveInvalidation = resolve;
+				}),
+		);
+		mocks.permissionKeysQueryData = { permissionKeys: [] };
+		mocks.permissionKeysQueryUpdatedAt = 42;
+		mocks.permissionKeysQueryUpdateCount = 1;
+		const { props, rerender } = renderTab({
+			grantedKeys: [],
+			grantedRevision: 1,
+		});
+
+		fireEvent.click(screen.getByRole('checkbox', { name: 'View posts' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+		await waitFor(() =>
+			expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalledTimes(1),
+		);
+
+		mocks.permissionKeysQueryData = { permissionKeys: ['channels.view'] };
+		mocks.permissionKeysQueryUpdateCount = 2;
+		act(() => resolveInvalidation?.());
+		await waitFor(() =>
+			expect(screen.queryByTestId('permissions-change-status')).toBeNull(),
+		);
+
+		rerender(
+			<ProfilePermissionsTab
+				{...props}
+				grantedKeys={['channels.view']}
+				grantedRevision={2}
+			/>,
+		);
+		await waitFor(() =>
+			expect(
+				(
+					screen.getByRole('checkbox', {
+						name: 'View channels',
+					}) as HTMLInputElement
+				).checked,
+			).toBe(true),
+		);
+		expect(mocks.permissionKeysQueryUpdatedAt).toBe(42);
 		expect(
 			(screen.getByRole('checkbox', { name: 'View posts' }) as HTMLInputElement)
 				.checked,

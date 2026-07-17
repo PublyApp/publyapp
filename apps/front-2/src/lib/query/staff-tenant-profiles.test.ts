@@ -368,7 +368,31 @@ describe('staff tenant profile permission-key cache snapshot', () => {
 			getStaffTenantProfilePermissionKeysCacheSnapshot(queryClient, variables),
 		).toEqual({
 			permissionKeys: ['channels.view', 'posts.view'],
-			revision: 42,
+			revision: 1,
+		});
+	});
+
+	test('advances the revision when data updates within the same millisecond', () => {
+		const queryClient = new QueryClient();
+		const variables = { tenantId: 'tenant-1', profileId: 'profile-1' };
+		const queryKey = getStaffTenantProfilePermissionKeysQueryKey(variables);
+		queryClient.setQueryData(
+			queryKey,
+			{ permissionKeys: ['posts.view'] },
+			{ updatedAt: 42 },
+		);
+		queryClient.setQueryData(
+			queryKey,
+			{ permissionKeys: ['channels.view'] },
+			{ updatedAt: 42 },
+		);
+
+		expect(queryClient.getQueryState(queryKey)?.dataUpdatedAt).toBe(42);
+		expect(
+			getStaffTenantProfilePermissionKeysCacheSnapshot(queryClient, variables),
+		).toEqual({
+			permissionKeys: ['channels.view'],
+			revision: 2,
 		});
 	});
 });
