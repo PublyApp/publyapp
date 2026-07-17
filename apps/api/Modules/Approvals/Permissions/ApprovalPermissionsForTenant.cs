@@ -11,13 +11,41 @@ public class ApprovalPermissionsForTenant : ISlicePermissions {
 
 	public ApprovalPermissionsForTenant() {
 		REQUEST = Permission
-			.CreateTenantPermission(string.Join(Permission.KeySeparator, new[] { KeyPrefix, "request" }))
-			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "Request approval", Description = "Submit posts for approval" })
-			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Demander une approbation", Description = "Soumettre des publications à l'approbation" });
+			.CreateTenantPermission(
+				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "request" })
+			)
+			.SetTranslation(
+				SupportedLanguage.English,
+				new PermissionTranslation {
+					Name = "Request approval",
+					Description = "Submit draft posts to the approval workflow before publishing"
+				}
+			)
+			.SetTranslation(
+				SupportedLanguage.French,
+				new PermissionTranslation {
+					Name = "Demander une approbation",
+					Description = "Soumettre des brouillons au circuit d'approbation avant diffusion"
+				}
+			);
 
 		REVIEW = Permission
-			.CreateTenantPermission(string.Join(Permission.KeySeparator, new[] { KeyPrefix, "review" }))
-			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "Review & approve", Description = "Review and approve or reject submitted posts" })
-			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Réviser et approuver", Description = "Réviser et approuver ou rejeter les publications soumises" });
+			.CreateTenantPermission(
+				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "review" })
+			)
+			.SetTranslation(
+				SupportedLanguage.English,
+				new PermissionTranslation {
+					Name = "Review & approve",
+					Description = "Approve or reject posts submitted to the approval workflow"
+				}
+			)
+			.SetTranslation(
+				SupportedLanguage.French,
+				new PermissionTranslation {
+					Name = "Examiner et approuver",
+					Description = "Approuver ou rejeter les contenus soumis au circuit de validation"
+				}
+			);
 	}
 }
