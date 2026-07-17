@@ -774,15 +774,99 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 
 			// One wake: DrainAsync keeps claiming while batches come back full —
 			// 3× batch size drains completely with no poll-tick waits between.
-			var processed = await processor.DrainAsync(CancellationToken.None);
+			var result = await processor.DrainAsync(CancellationToken.None);
 
-			processed.Should().Be(15);
+			result.Processed.Should().Be(15);
+			result.Reason.Should().Be(JobQueueProcessor.DrainExitReason.Drained);
 			handler.Handled.Should().BeEquivalentTo(seededIds);
 
 			await using var verifyContext = await CreateDbContextAsync();
 			var remaining = await verifyContext.JobQueue
 				.CountAsync(j => j.JobType == jobType);
 			remaining.Should().Be(0);
+		} finally {
+			await DeleteJobsByTypeAsync(jobType);
+		}
+	}
+
+	// A zero-second budget expires after the first full batch: DrainAsync must
+	// report BudgetExpired (backlog remains) rather than Drained, and repeated
+	// passes — exactly what ExecuteAsync does on BudgetExpired — must finish the
+	// backlog without any signal/poll wait in between.
+	[Fact]
+	public async Task ItShouldReportBudgetExpiryWhileBacklogRemainsAndFinishOnResume() {
+		var jobType = UniqueType("budget-plumbing");
+		await using var seedContext = await CreateDbContextAsync();
+		var seededIds = await SeedDueJobsAsync(seedContext, jobType, count: 15);
+
+		try {
+			var handler = new RecordingJobHandler(jobType);
+			var processor = CreateProcessor(
+				new JobQueueProcessorOptions { BatchSize = 5, DrainBudgetSeconds = 0 },
+				handler
+			);
+
+			var first = await processor.DrainAsync(CancellationToken.None);
+			first.Processed.Should().Be(5, "the zero budget expires after one full batch");
+			first.Reason.Should().Be(JobQueueProcessor.DrainExitReason.BudgetExpired);
+
+			var second = await processor.DrainAsync(CancellationToken.None);
+			second.Processed.Should().Be(5);
+			second.Reason.Should().Be(JobQueueProcessor.DrainExitReason.BudgetExpired);
+
+			// The third full batch empties the queue, but a full batch at budget
+			// expiry can't KNOW that — it must still report BudgetExpired so the
+			// loop comes straight back...
+			var third = await processor.DrainAsync(CancellationToken.None);
+			third.Processed.Should().Be(5);
+			third.Reason.Should().Be(JobQueueProcessor.DrainExitReason.BudgetExpired);
+
+			// ...and only the confirming empty claim reports the queue quiet.
+			var fourth = await processor.DrainAsync(CancellationToken.None);
+			fourth.Processed.Should().Be(0);
+			fourth.Reason.Should().Be(JobQueueProcessor.DrainExitReason.Drained);
+
+			handler.Handled.Should().BeEquivalentTo(seededIds);
+		} finally {
+			await DeleteJobsByTypeAsync(jobType);
+		}
+	}
+
+	// End-to-end through the hosted loop: with a prohibitively long poll interval
+	// (1 h) and a zero drain budget, a 3×-batch backlog can only complete if the
+	// loop resumes draining immediately on BudgetExpired instead of waiting out the
+	// poll. Under the old behavior this would process exactly one batch and stall.
+	[Fact]
+	public async Task ItShouldResumeDrainingImmediatelyAfterBudgetExpiryWithoutWaitingForThePoll() {
+		var jobType = UniqueType("budget-resume");
+		await using var seedContext = await CreateDbContextAsync();
+		var seededIds = await SeedDueJobsAsync(seedContext, jobType, count: 15);
+
+		try {
+			var handler = new RecordingJobHandler(jobType);
+			var processor = CreateProcessor(
+				new JobQueueProcessorOptions {
+					BatchSize = 5,
+					DrainBudgetSeconds = 0,
+					PollSeconds = 3600
+				},
+				handler
+			);
+
+			await processor.StartAsync(CancellationToken.None);
+			try {
+				var deadline = DateTime.UtcNow.AddSeconds(30);
+				while (handler.Handled.Count < 15 && DateTime.UtcNow < deadline) {
+					await Task.Delay(100);
+				}
+			} finally {
+				await processor.StopAsync(CancellationToken.None);
+			}
+
+			handler.Handled.Should().BeEquivalentTo(
+				seededIds,
+				"budget expiry must yield and resume, never strand due work on the poll"
+			);
 		} finally {
 			await DeleteJobsByTypeAsync(jobType);
 		}

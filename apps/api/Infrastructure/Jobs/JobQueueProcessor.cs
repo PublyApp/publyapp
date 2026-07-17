@@ -79,14 +79,36 @@ public sealed class JobQueueProcessor : BackgroundService {
 		public Guid LockToken { get; set; }
 	}
 
+	/// <summary>Why a drain pass ended (design §5.1, F10).</summary>
+	public enum DrainExitReason {
+		// A short/empty batch: the backlog is gone — wait for signal/poll.
+		Drained = 0,
+		// The drain budget expired with the last batch still FULL: backlog remains —
+		// yield one loop iteration (fairness point) and resume immediately, never
+		// waiting out the poll interval on known-pending work.
+		BudgetExpired = 1
+	}
+
+	public sealed record DrainResult(int Processed, DrainExitReason Reason);
+
 	protected override async Task ExecuteAsync(CancellationToken stoppingToken) {
 		await LogDeadLetterOrphansAsync(stoppingToken);
 
 		while (!stoppingToken.IsCancellationRequested) {
+			var exitReason = DrainExitReason.Drained;
+
 			try {
-				await DrainAsync(stoppingToken);
+				var result = await DrainAsync(stoppingToken);
+				exitReason = result.Reason;
 			} catch (Exception ex) when (ex is not OperationCanceledException) {
 				_logger.LogError(ex, "Job queue processing loop failed");
+			}
+
+			// Budget expiry means the backlog is NOT drained: the yield above (one
+			// loop iteration, stoppingToken re-checked) is the whole fairness point —
+			// resume draining immediately instead of stranding due work on the poll.
+			if (exitReason == DrainExitReason.BudgetExpired) {
+				continue;
 			}
 
 			try {
@@ -101,9 +123,10 @@ public sealed class JobQueueProcessor : BackgroundService {
 
 	// Drain loop (F10): keeps claiming while batches come back full, so one wake
 	// empties a backlog instead of one-batch-per-poll-tick. Bounded by the drain
-	// budget so a full queue can never starve shutdown or the loop's own heartbeat.
-	// Public: lets specs prove backlog draining deterministically.
-	public async Task<int> DrainAsync(CancellationToken stoppingToken) {
+	// budget so a full queue can never starve shutdown or the loop's own heartbeat;
+	// the exit reason tells the caller whether backlog remains (BudgetExpired) or the
+	// queue is quiet (Drained). Public: lets specs prove both deterministically.
+	public async Task<DrainResult> DrainAsync(CancellationToken stoppingToken) {
 		var budget = Stopwatch.StartNew();
 		var totalProcessed = 0;
 
@@ -112,7 +135,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 			totalProcessed += processed;
 
 			if (processed < _options.BatchSize) {
-				break;
+				return new DrainResult(totalProcessed, DrainExitReason.Drained);
 			}
 
 			if (budget.Elapsed.TotalSeconds >= _options.DrainBudgetSeconds) {
@@ -122,11 +145,11 @@ public sealed class JobQueueProcessor : BackgroundService {
 						totalProcessed
 					);
 				}
-				break;
+				return new DrainResult(totalProcessed, DrainExitReason.BudgetExpired);
 			}
 		}
 
-		return totalProcessed;
+		return new DrainResult(totalProcessed, DrainExitReason.Drained);
 	}
 
 	// Public: lets specs drive a single batch deterministically instead of racing
