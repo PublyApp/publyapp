@@ -16,6 +16,8 @@ import {
 	buildFindStaffTenantProfilesQueryParameters,
 	assignStaffTenantProfilePermissionMutationOptions,
 	unassignStaffTenantProfilePermissionMutationOptions,
+	assignStaffTenantProfileUserMutationOptions,
+	unassignStaffTenantProfileUserMutationOptions,
 	buildUpdateStaffTenantProfileBody,
 	invalidateStaffTenantProfiles,
 	STAFF_TENANT_PROFILES_QUERY_KEY,
@@ -366,6 +368,103 @@ describe('unassignStaffTenantProfilePermissionMutationOptions', () => {
 		expect(byProfileId).toHaveBeenCalledWith('profile-456');
 		expect(byPermissionKey).toHaveBeenCalledWith('tenant.users.read');
 		expect(deletePermission).toHaveBeenCalledTimes(1);
+		expect(result).toBeUndefined();
+	});
+});
+
+describe('assignStaffTenantProfileUserMutationOptions', () => {
+	test('calls the per-member tenant profile assignment (toggle) path', async () => {
+		const post = vi.fn().mockResolvedValue(undefined);
+		const byUser_account_id = vi.fn((userAccountId: string) => ({
+			post,
+			userAccountId,
+		}));
+		const users = vi.fn(() => ({ byUser_account_id }));
+		const byProfileId = vi.fn(() => ({
+			users: users(),
+		}));
+		const byTenantId = vi.fn((tenantId: string) => ({
+			profiles: {
+				byProfileId,
+			},
+			tenantId,
+		}));
+
+		mocks.getOrCreateStaffClient.mockReturnValue({
+			staff: {
+				tenants: {
+					byTenantId,
+				},
+			},
+		});
+
+		const result = await assignStaffTenantProfileUserMutationOptions.mutationFn(
+			{
+				tenantId: 'tenant-123',
+				profileId: 'profile-456',
+				userAccountId: 'user-account-789',
+			},
+		);
+
+		expect(assignStaffTenantProfileUserMutationOptions.mutationKey).toEqual([
+			'staff',
+			'staff-tenants',
+			'profiles',
+			'users',
+			'assign',
+		]);
+		expect(byTenantId).toHaveBeenCalledWith('tenant-123');
+		expect(byProfileId).toHaveBeenCalledWith('profile-456');
+		expect(byUser_account_id).toHaveBeenCalledWith('user-account-789');
+		expect(post).toHaveBeenCalledTimes(1);
+		expect(result).toBeUndefined();
+	});
+});
+
+describe('unassignStaffTenantProfileUserMutationOptions', () => {
+	test('calls the per-member tenant profile unassignment (toggle) path', async () => {
+		const deleteMember = vi.fn().mockResolvedValue(undefined);
+		const byUser_account_id = vi.fn((userAccountId: string) => ({
+			delete: deleteMember,
+			userAccountId,
+		}));
+		const users = vi.fn(() => ({ byUser_account_id }));
+		const byProfileId = vi.fn(() => ({
+			users: users(),
+		}));
+		const byTenantId = vi.fn((tenantId: string) => ({
+			profiles: {
+				byProfileId,
+			},
+			tenantId,
+		}));
+
+		mocks.getOrCreateStaffClient.mockReturnValue({
+			staff: {
+				tenants: {
+					byTenantId,
+				},
+			},
+		});
+
+		const result =
+			await unassignStaffTenantProfileUserMutationOptions.mutationFn({
+				tenantId: 'tenant-123',
+				profileId: 'profile-456',
+				userAccountId: 'user-account-789',
+			});
+
+		expect(unassignStaffTenantProfileUserMutationOptions.mutationKey).toEqual([
+			'staff',
+			'staff-tenants',
+			'profiles',
+			'users',
+			'unassign',
+		]);
+		expect(byTenantId).toHaveBeenCalledWith('tenant-123');
+		expect(byProfileId).toHaveBeenCalledWith('profile-456');
+		expect(byUser_account_id).toHaveBeenCalledWith('user-account-789');
+		expect(deleteMember).toHaveBeenCalledTimes(1);
 		expect(result).toBeUndefined();
 	});
 });

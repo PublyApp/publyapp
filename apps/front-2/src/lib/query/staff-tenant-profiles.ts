@@ -110,6 +110,12 @@ export type StaffTenantProfilePermissionMutationVariables = {
 	permissionKey: string;
 };
 
+export type StaffTenantProfileMemberMutationVariables = {
+	tenantId: string;
+	profileId: string;
+	userAccountId: string;
+};
+
 export type TenantPermissionCatalogItem = {
 	key?: string | null;
 	name?: string | null;
@@ -749,6 +755,52 @@ export const useStaffTenantPermissionCatalogQuery = (
 			staffTenantPermissionCatalogQueryOptions.fetcher(variables ?? {}),
 	});
 
+/**
+ * Idempotent per-member profile toggle (owner-confirmed UX, step 4b): POST
+ * assigns, DELETE unassigns at
+ * `/staff/tenants/{tenantId}/profiles/{profileId}/users/{user_account_id}`.
+ * Mirrors the permission-key upsert pair above. There is currently no
+ * "find/list members" or batch "resolve assignment" endpoint for TENANT
+ * profiles on the backend (unlike the analogous STAFF-profile users routes,
+ * which do expose both) — see the Members-tab route for how callers work
+ * around that gap honestly instead of fabricating list/assignment data.
+ */
+const assignStaffTenantProfileUserMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	void,
+	StaffTenantProfileMemberMutationVariables
+>(
+	{
+		mutationKeyFn: () => ['staff-tenants', 'profiles', 'users', 'assign'],
+		mutationFn: (client, variables) =>
+			client.staff.tenants
+				.byTenantId(variables.tenantId)
+				.profiles.byProfileId(variables.profileId)
+				.users.byUser_account_id(variables.userAccountId)
+				.post(),
+		meta: { successMessage: 'profile-member-assigned-success' },
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+const unassignStaffTenantProfileUserMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	void,
+	StaffTenantProfileMemberMutationVariables
+>(
+	{
+		mutationKeyFn: () => ['staff-tenants', 'profiles', 'users', 'unassign'],
+		mutationFn: (client, variables) =>
+			client.staff.tenants
+				.byTenantId(variables.tenantId)
+				.profiles.byProfileId(variables.profileId)
+				.users.byUser_account_id(variables.userAccountId)
+				.delete(),
+		meta: { successMessage: 'profile-member-unassigned-success' },
+	},
+	{ clientAccessor: getClientManager() },
+);
+
 export const useAssignStaffTenantProfilePermissionMutation = (
 	meta: MutationFeedbackMeta = {
 		successMessage: 'permission-assigned-success',
@@ -763,7 +815,21 @@ export const useUnassignStaffTenantProfilePermissionMutation = (
 ) =>
 	useMutation({ ...unassignStaffTenantProfilePermissionMutationOptions, meta });
 
+export const useAssignStaffTenantProfileUserMutation = (
+	meta: MutationFeedbackMeta = {
+		successMessage: 'profile-member-assigned-success',
+	},
+) => useMutation({ ...assignStaffTenantProfileUserMutationOptions, meta });
+
+export const useUnassignStaffTenantProfileUserMutation = (
+	meta: MutationFeedbackMeta = {
+		successMessage: 'profile-member-unassigned-success',
+	},
+) => useMutation({ ...unassignStaffTenantProfileUserMutationOptions, meta });
+
 export {
 	assignStaffTenantProfilePermissionMutationOptions,
 	unassignStaffTenantProfilePermissionMutationOptions,
+	assignStaffTenantProfileUserMutationOptions,
+	unassignStaffTenantProfileUserMutationOptions,
 };

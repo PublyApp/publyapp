@@ -16,6 +16,7 @@ import { Card } from '~/components/ui/card';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { DangerZoneCard, DangerZoneRow } from '~/components/ui/detail-layout';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import {
 	buildStaffTenantPermissionCatalogOptions,
 	useAssignStaffTenantProfilePermissionMutation,
@@ -498,217 +499,245 @@ function StaffTenantProfileDetailsPage() {
 					onOpenChange={setPendingDelete}
 				/>
 
-				<div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)]">
-					<Card className="space-y-4 p-5">
-						<div className="space-y-1">
-							<p className="text-lg font-semibold text-foreground">
-								{t('profile-details')}
-							</p>
-							<p className="text-sm text-muted-foreground">
-								{t('tenant-profile-details-description')}
-							</p>
-						</div>
-
-						<div className="grid gap-4 md:grid-cols-2">
-							<div className="md:col-span-2">
-								<DetailItem label={t('name')} value={profile.name} />
-							</div>
-							<div className="md:col-span-2">
-								<DetailItem
-									label={t('description')}
-									value={profile.description ?? t('no-description-provided')}
+				<Tabs value="profile">
+					<TabsList variant="line" aria-label={t('profile-sections')}>
+						<TabsTrigger value="profile">{t('profile')}</TabsTrigger>
+						<TabsTrigger
+							value="members"
+							render={
+								<Link
+									to="/staff/tenants/$tenantId/profiles/$profileId/users"
+									params={{ tenantId, profileId }}
 								/>
-							</div>
-							<DetailItem
-								label={t('default-profile')}
-								value={profile.isDefault ? t('yes') : t('no')}
-							/>
-							<DetailItem
-								label={t('assigned-permission-keys')}
-								value={String(permissionKeys.length)}
-							/>
-						</div>
-					</Card>
+							}
+						>
+							{t('members')}
+							<span className="publy-detail-chip publy-detail-chip--outline">
+								{profile.userAccountCount}
+							</span>
+						</TabsTrigger>
+					</TabsList>
 
-					<Card className="space-y-4 p-5">
-						<div className="space-y-1">
-							<p className="text-lg font-semibold text-foreground">
-								{t('permission-keys')}
-							</p>
-							<p className="text-sm text-muted-foreground">
-								{t('manage-permission-keys-description')}
-							</p>
-						</div>
-
-						<div className="space-y-4">
-							{permissionCatalogQuery.isPending ? (
-								<div className="rounded-large border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
-									<div className="flex items-center gap-2">
-										<LoadingSpinner />
-										<span>{t('loading-available-permissions')}</span>
-									</div>
-								</div>
-							) : null}
-
-							{permissionCatalogQuery.isError ? (
-								<div className="rounded-large border border-dashed border-destructive bg-destructive/10 px-4 py-4 text-sm text-destructive">
-									<p>
-										{getFailureMessage(
-											toApiFailure(permissionCatalogQuery.error),
-											{
-												fallback: t('tenant-permission-catalog-load-failed'),
-											},
-										)}
+					<TabsContent value="profile" className="mt-5">
+						<div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)]">
+							<Card className="space-y-4 p-5">
+								<div className="space-y-1">
+									<p className="text-lg font-semibold text-foreground">
+										{t('profile-details')}
 									</p>
-									<Button
-										type="button"
-										variant="outline"
-										size="sm"
-										onClick={() => {
-											void permissionCatalogQuery.refetch();
-										}}
-										className="mt-3"
-									>
-										{t('retry')}
-									</Button>
-								</div>
-							) : null}
-
-							<section className="space-y-3">
-								<div className="flex items-center justify-between">
-									<p className="font-medium text-foreground">{t('assigned')}</p>
-									<span className="publy-detail-chip publy-detail-chip--outline">
-										{assignedPermissionEntries.length}
-									</span>
+									<p className="text-sm text-muted-foreground">
+										{t('tenant-profile-details-description')}
+									</p>
 								</div>
 
-								{assignedPermissionEntries.length === 0 ? (
-									<div className="rounded-large border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
-										{t('no-permissions-assigned-to-profile')}
+								<div className="grid gap-4 md:grid-cols-2">
+									<div className="md:col-span-2">
+										<DetailItem label={t('name')} value={profile.name} />
 									</div>
-								) : (
-									<ul className="space-y-2">
-										{assignedPermissionEntries.map((permission) => (
-											<li
-												key={permission.key}
-												className="rounded-large border border-border bg-card px-3 py-3"
-											>
-												<div className="flex items-start justify-between gap-3">
-													<div>
-														<p className="font-mono text-sm text-foreground">
-															{permission.label}
-														</p>
-														{permission.description ? (
-															<p className="mt-1 max-w-xl text-xs text-muted-foreground">
-																{permission.description}
-															</p>
-														) : null}
-													</div>
-													<Button
-														type="button"
-														size="sm"
-														variant="outline"
-														disabled={isPermissionBusy}
-														onClick={() => {
-															void handleUnassignPermission(permission.key);
-														}}
-														aria-label={t('unassign-permission', {
-															name: permission.label,
-														})}
-													>
-														{t('unassign')}
-													</Button>
-												</div>
-											</li>
-										))}
-									</ul>
-								)}
-							</section>
-
-							{permissionCatalogQuery.isPending ||
-							permissionCatalogQuery.isError ? null : (
-								<section className="space-y-3">
-									<div className="flex items-center justify-between">
-										<p className="font-medium text-foreground">
-											{t('available')}
-										</p>
-										<span className="publy-detail-chip publy-detail-chip--outline">
-											{availablePermissionEntries.length}
-										</span>
+									<div className="md:col-span-2">
+										<DetailItem
+											label={t('description')}
+											value={
+												profile.description ?? t('no-description-provided')
+											}
+										/>
 									</div>
+									<DetailItem
+										label={t('default-profile')}
+										value={profile.isDefault ? t('yes') : t('no')}
+									/>
+									<DetailItem
+										label={t('assigned-permission-keys')}
+										value={String(permissionKeys.length)}
+									/>
+								</div>
+							</Card>
 
-									{availablePermissionEntries.length === 0 ? (
-										<div className="rounded-large border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
-											{assignedPermissionEntries.length === 0
-												? t('no-permissions-available')
-												: t('no-additional-permission-keys-available')}
+							<Card className="space-y-4 p-5">
+								<div className="space-y-1">
+									<p className="text-lg font-semibold text-foreground">
+										{t('permission-keys')}
+									</p>
+									<p className="text-sm text-muted-foreground">
+										{t('manage-permission-keys-description')}
+									</p>
+								</div>
+
+								<div className="space-y-4">
+									{permissionCatalogQuery.isPending ? (
+										<div className="rounded-large border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
+											<div className="flex items-center gap-2">
+												<LoadingSpinner />
+												<span>{t('loading-available-permissions')}</span>
+											</div>
 										</div>
-									) : (
-										<ul className="space-y-2">
-											{availablePermissionEntries.map((permission) => (
-												<li
-													key={permission.key}
-													className="rounded-large border border-border bg-card px-3 py-3"
-												>
-													<div className="flex items-start justify-between gap-3">
-														<div>
-															<p className="font-mono text-sm text-foreground">
-																{permission.label}
-															</p>
-															{permission.description ? (
-																<p className="mt-1 max-w-xl text-xs text-muted-foreground">
-																	{permission.description}
-																</p>
-															) : null}
-														</div>
-														<Button
-															type="button"
-															size="sm"
-															variant="outline"
-															disabled={isPermissionBusy}
-															onClick={() => {
-																void handleAssignPermission(permission.key);
-															}}
-															aria-label={t('assign-permission', {
-																name: permission.label,
-															})}
-														>
-															{t('assign')}
-														</Button>
-													</div>
-												</li>
-											))}
-										</ul>
-									)}
-								</section>
-							)}
+									) : null}
 
-							<DangerZoneCard title={t('danger-zone')}>
-								<DangerZoneRow
-									title={t('delete-profile')}
-									description={
-										profile.isDefault
-											? t('default-profile-delete-disabled')
-											: t('confirm-delete-tenant-profile-description')
-									}
-									action={
-										profile.isDefault ? null : (
+									{permissionCatalogQuery.isError ? (
+										<div className="rounded-large border border-dashed border-destructive bg-destructive/10 px-4 py-4 text-sm text-destructive">
+											<p>
+												{getFailureMessage(
+													toApiFailure(permissionCatalogQuery.error),
+													{
+														fallback: t(
+															'tenant-permission-catalog-load-failed',
+														),
+													},
+												)}
+											</p>
 											<Button
 												type="button"
-												variant="destructive"
+												variant="outline"
 												size="sm"
-												onClick={() => setPendingDelete(true)}
-												disabled={deleteProfile.isPending}
+												onClick={() => {
+													void permissionCatalogQuery.refetch();
+												}}
+												className="mt-3"
 											>
-												{t('delete-profile')}
+												{t('retry')}
 											</Button>
-										)
-									}
-								/>
-							</DangerZoneCard>
+										</div>
+									) : null}
+
+									<section className="space-y-3">
+										<div className="flex items-center justify-between">
+											<p className="font-medium text-foreground">
+												{t('assigned')}
+											</p>
+											<span className="publy-detail-chip publy-detail-chip--outline">
+												{assignedPermissionEntries.length}
+											</span>
+										</div>
+
+										{assignedPermissionEntries.length === 0 ? (
+											<div className="rounded-large border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
+												{t('no-permissions-assigned-to-profile')}
+											</div>
+										) : (
+											<ul className="space-y-2">
+												{assignedPermissionEntries.map((permission) => (
+													<li
+														key={permission.key}
+														className="rounded-large border border-border bg-card px-3 py-3"
+													>
+														<div className="flex items-start justify-between gap-3">
+															<div>
+																<p className="font-mono text-sm text-foreground">
+																	{permission.label}
+																</p>
+																{permission.description ? (
+																	<p className="mt-1 max-w-xl text-xs text-muted-foreground">
+																		{permission.description}
+																	</p>
+																) : null}
+															</div>
+															<Button
+																type="button"
+																size="sm"
+																variant="outline"
+																disabled={isPermissionBusy}
+																onClick={() => {
+																	void handleUnassignPermission(permission.key);
+																}}
+																aria-label={t('unassign-permission', {
+																	name: permission.label,
+																})}
+															>
+																{t('unassign')}
+															</Button>
+														</div>
+													</li>
+												))}
+											</ul>
+										)}
+									</section>
+
+									{permissionCatalogQuery.isPending ||
+									permissionCatalogQuery.isError ? null : (
+										<section className="space-y-3">
+											<div className="flex items-center justify-between">
+												<p className="font-medium text-foreground">
+													{t('available')}
+												</p>
+												<span className="publy-detail-chip publy-detail-chip--outline">
+													{availablePermissionEntries.length}
+												</span>
+											</div>
+
+											{availablePermissionEntries.length === 0 ? (
+												<div className="rounded-large border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
+													{assignedPermissionEntries.length === 0
+														? t('no-permissions-available')
+														: t('no-additional-permission-keys-available')}
+												</div>
+											) : (
+												<ul className="space-y-2">
+													{availablePermissionEntries.map((permission) => (
+														<li
+															key={permission.key}
+															className="rounded-large border border-border bg-card px-3 py-3"
+														>
+															<div className="flex items-start justify-between gap-3">
+																<div>
+																	<p className="font-mono text-sm text-foreground">
+																		{permission.label}
+																	</p>
+																	{permission.description ? (
+																		<p className="mt-1 max-w-xl text-xs text-muted-foreground">
+																			{permission.description}
+																		</p>
+																	) : null}
+																</div>
+																<Button
+																	type="button"
+																	size="sm"
+																	variant="outline"
+																	disabled={isPermissionBusy}
+																	onClick={() => {
+																		void handleAssignPermission(permission.key);
+																	}}
+																	aria-label={t('assign-permission', {
+																		name: permission.label,
+																	})}
+																>
+																	{t('assign')}
+																</Button>
+															</div>
+														</li>
+													))}
+												</ul>
+											)}
+										</section>
+									)}
+
+									<DangerZoneCard title={t('danger-zone')}>
+										<DangerZoneRow
+											title={t('delete-profile')}
+											description={
+												profile.isDefault
+													? t('default-profile-delete-disabled')
+													: t('confirm-delete-tenant-profile-description')
+											}
+											action={
+												profile.isDefault ? null : (
+													<Button
+														type="button"
+														variant="destructive"
+														size="sm"
+														onClick={() => setPendingDelete(true)}
+														disabled={deleteProfile.isPending}
+													>
+														{t('delete-profile')}
+													</Button>
+												)
+											}
+										/>
+									</DangerZoneCard>
+								</div>
+							</Card>
 						</div>
-					</Card>
-				</div>
+					</TabsContent>
+				</Tabs>
 			</div>
 
 			<ProfileFormDrawer
