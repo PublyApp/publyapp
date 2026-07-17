@@ -1809,3 +1809,204 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 		}
 	}
 }
+
+// R4-F2: a deterministic, database-free control for the LeaseDeadlineArbiter. The
+// exhaustive interleaving review is a point-in-time proof; this converts it into a
+// durable test by injecting a manual scheduler that RETAINS each generation's timer
+// callback, so the test drives the deadline / stamp / stop orderings directly instead
+// of racing wall-clock timers. Four cases:
+//   1. a stale-generation callback that fires AFTER a re-arm must not cancel;
+//   2. its converse — a re-arm after the current generation has already claimed is
+//      rejected and cancellation ownership is exactly once;
+//   3. at most one decision across deadline / stamp / synchronous abandon;
+//   4. THE BLOCKER CONTROL — a deadline that has decided (_decided under _gate) but has
+//      NOT yet published its CTS cancellation must be classified Abandoned (compensate),
+//      never as a clean stop. Case 4 is RED on the pre-fix two-domain classifier (which
+//      read leaseLostSource.IsCancellationRequested outside the lock) and GREEN once
+//      classification participates in the arbiter lock.
+public sealed class LeaseDeadlineArbiterSpec {
+	// A scheduler that never actually fires on a timer: it stores each armed generation's
+	// callback so the test can invoke it on demand — including a callback whose handle was
+	// "disposed" by a re-arm, modelling .NET's non-joining Timer.Dispose (a dequeued
+	// callback can still run).
+	private sealed class ManualDeadlineScheduler
+		: JobQueueProcessor.LeaseDeadlineArbiter.ILeaseDeadlineScheduler {
+		private readonly object _lock = new();
+		private readonly List<Action> _callbacks = new();
+
+		public int ArmedCount {
+			get {
+				lock (_lock) {
+					return _callbacks.Count;
+				}
+			}
+		}
+
+		public IDisposable Schedule(TimeSpan delay, Action callback) {
+			lock (_lock) {
+				_callbacks.Add(callback);
+			}
+
+			return new NoOpHandle();
+		}
+
+		// Invoke the callback armed at the given 0-based generation order. A disposed
+		// handle does not remove it, so a stale-generation callback stays fireable.
+		public void Fire(int generationIndex) {
+			Action callback;
+			lock (_lock) {
+				callback = _callbacks[generationIndex];
+			}
+
+			callback();
+		}
+
+		private sealed class NoOpHandle : IDisposable {
+			public void Dispose() { }
+		}
+	}
+
+	// Case 1: arm gen 1 (retain its callback), re-arm gen 2, THEN fire the stale gen-1
+	// callback. It must lose its generation check and not cancel; gen 2 can still claim
+	// exactly once.
+	[Fact]
+	public void ItShouldNotCancelWhenAStaleGenerationCallbackFiresAfterAReArm() {
+		var scheduler = new ManualDeadlineScheduler();
+		var cancelCount = 0;
+		using var arbiter = new JobQueueProcessor.LeaseDeadlineArbiter(
+			() => Interlocked.Increment(ref cancelCount), scheduler
+		);
+
+		arbiter.TryArm(TimeSpan.FromMinutes(5)).Should().BeTrue("gen 1 arms");
+		arbiter.TryArm(TimeSpan.FromMinutes(5)).Should().BeTrue(
+			"gen 2 re-arms while gen 1 is still undecided"
+		);
+		scheduler.ArmedCount.Should().Be(2, "each confirmed stamp arms a new generation");
+
+		// The retained gen-1 callback fires after the re-arm (the dequeued-but-late hazard).
+		scheduler.Fire(0);
+		cancelCount.Should().Be(
+			0, "a stale-generation deadline callback must not abandon the freshly stamped lease"
+		);
+
+		// Gen 2 still owns exactly one cancellation.
+		scheduler.Fire(1);
+		cancelCount.Should().Be(1, "the current generation's deadline claims exactly once");
+		scheduler.Fire(1);
+		cancelCount.Should().Be(1, "a second firing is a no-op once decided");
+	}
+
+	// Case 2 (converse of case 1): the current generation's deadline claims BEFORE any
+	// re-arm; the re-arm must be rejected and cancellation ownership stays exactly once.
+	[Fact]
+	public void ItShouldRejectAReArmAfterTheCurrentGenerationDeadlineHasClaimed() {
+		var scheduler = new ManualDeadlineScheduler();
+		var cancelCount = 0;
+		using var arbiter = new JobQueueProcessor.LeaseDeadlineArbiter(
+			() => Interlocked.Increment(ref cancelCount), scheduler
+		);
+
+		arbiter.TryArm(TimeSpan.FromMinutes(5)).Should().BeTrue("gen 1 arms");
+		scheduler.Fire(0);
+		cancelCount.Should().Be(1, "the deadline claimed and cancelled exactly once");
+
+		arbiter.TryArm(TimeSpan.FromMinutes(5)).Should().BeFalse(
+			"a re-arm after a deadline has already won must be rejected as a late stamp"
+		);
+		scheduler.Fire(0);
+		cancelCount.Should().Be(1, "a decided arbiter never cancels twice");
+	}
+
+	// Case 3: at most one decision across the deadline, stamp acceptance, and synchronous
+	// abandon. The synchronous abandon wins; the stale deadline callback and a re-arm both
+	// yield to it.
+	[Fact]
+	public void ItShouldAllowAtMostOneDecisionAcrossDeadlineStampAndAbandon() {
+		var scheduler = new ManualDeadlineScheduler();
+		var cancelCount = 0;
+		using var arbiter = new JobQueueProcessor.LeaseDeadlineArbiter(
+			() => Interlocked.Increment(ref cancelCount), scheduler
+		);
+
+		arbiter.TryArm(TimeSpan.FromMinutes(5)).Should().BeTrue("gen 1 arms");
+
+		arbiter.TryClaimAbandon().Should().BeTrue(
+			"the synchronous abandon claims the sole decision"
+		);
+		arbiter.TryClaimAbandon().Should().BeFalse("no second decision is permitted");
+		arbiter.TryArm(TimeSpan.FromMinutes(5)).Should().BeFalse(
+			"a stamp cannot arm after the lease was abandoned"
+		);
+
+		// TryClaimAbandon returns ownership to the CALLER, which performs the cancellation;
+		// the arbiter's own cancel action only fires from the deadline callback. So the
+		// stale deadline callback firing now must add nothing.
+		scheduler.Fire(0);
+		cancelCount.Should().Be(
+			0, "the deadline callback yields to the synchronous winner and never cancels"
+		);
+	}
+
+	// Case 4 — THE BLOCKER CONTROL. Pause the winning deadline AFTER _decided is written
+	// but BEFORE its CTS cancellation is published, then race the stop-renewal / OCE
+	// classification. Because OnDeadline calls the cancel action OUTSIDE _gate (exactly as
+	// production publishes leaseLostSource only after releasing the lock), the classifier
+	// can run while the arbiter has decided yet the CTS flag is still false. It MUST return
+	// Abandoned so the caller compensates the ambiguous late commit; the pre-fix classifier
+	// read the still-false CTS flag and returned the non-compensating branch, stranding the
+	// row Processing under a later committed stamp (#810's infinite-lease class).
+	[Fact]
+	public async Task ItShouldClassifyADecidedButNotYetPublishedDeadlineAsAbandoned() {
+		var scheduler = new ManualDeadlineScheduler();
+		var enteredCancel = new TaskCompletionSource(
+			TaskCreationOptions.RunContinuationsAsynchronously
+		);
+		var releaseCancel = new TaskCompletionSource(
+			TaskCreationOptions.RunContinuationsAsynchronously
+		);
+		var ctsCancelled = 0;
+
+		using var arbiter = new JobQueueProcessor.LeaseDeadlineArbiter(
+			() => {
+				// Claim() has already set _decided under _gate and released the lock before
+				// OnDeadline reaches this action. Pause HERE: decided, but the CTS
+				// cancellation not yet published — the exact window the outside-lock
+				// classifier misread.
+				enteredCancel.TrySetResult();
+				releaseCancel.Task.GetAwaiter().GetResult();
+				Interlocked.Increment(ref ctsCancelled);
+			},
+			scheduler
+		);
+
+		arbiter.TryArm(TimeSpan.FromMinutes(5)).Should().BeTrue("gen 1 arms");
+
+		// Fire the winning deadline on a background thread; it blocks mid-cancellation.
+		var deadlineFiring = Task.Run(() => scheduler.Fire(0));
+		await enteredCancel.Task.WaitAsync(TimeSpan.FromSeconds(5));
+		Volatile.Read(ref ctsCancelled).Should().Be(
+			0, "precondition: the CTS cancellation is decided but not yet published"
+		);
+
+		// The stop-renewal / OCE classification races the paused deadline. Under the arbiter
+		// lock it must see the decision and return Abandoned.
+		var outcome = arbiter.ClassifyRenewalCancellation();
+
+		outcome.Should().Be(
+			JobQueueProcessor.LeaseDeadlineArbiter.LeaseCancellationOutcome.Abandoned,
+			"a deadline that has decided under the lock is an abandonment even before its "
+			+ "CTS cancellation is visible; the renewal's ambiguous late commit must be "
+			+ "compensated, not dropped as a clean stop"
+		);
+
+		// The caller's contract: compensation runs iff Abandoned.
+		var compensationRan = outcome
+			== JobQueueProcessor.LeaseDeadlineArbiter.LeaseCancellationOutcome.Abandoned;
+		compensationRan.Should().BeTrue(
+			"the decided-but-not-yet-published deadline must trigger compensation"
+		);
+
+		releaseCancel.TrySetResult();
+		await deadlineFiring.WaitAsync(TimeSpan.FromSeconds(5));
+	}
+}

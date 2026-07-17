@@ -1106,7 +1106,18 @@ public sealed class JobQueueProcessor : BackgroundService {
 				// client would observe. It exercises the SAME catch as a real Npgsql
 				// best-effort cancellation.
 				if (RenewalCommitProbe is { } probe) {
-					await probe(stamp, () => leaseLostSource.Cancel());
+					// The seam's "force the deadline to win" action drives the ARBITER to a
+					// real decision, exactly as a timer firing would (TryClaimAbandon sets
+					// _decided and disarms the timer, then the CTS is cancelled), not the CTS
+					// alone. The renewal-cancellation classifier reads _decided under _gate,
+					// so the seam MUST make the arbiter win for the compensating branch to
+					// run; the old action cancelled only the CTS and bypassed the arbiter
+					// (closes the R4 review gap).
+					await probe(stamp, () => {
+						if (deadline.TryClaimAbandon()) {
+							leaseLostSource.Cancel();
+						}
+					});
 				}
 
 				confirmed = ConfirmedLease.From(stamp, anchor, SafetyMargin());
@@ -1123,21 +1134,36 @@ public sealed class JobQueueProcessor : BackgroundService {
 				}
 
 				proposedDelay = renewInterval;
-			} catch (OperationCanceledException) when (leaseLostSource.IsCancellationRequested) {
-				// R3-F1: an in-flight renewal cancelled by the deadline is an AMBIGUOUS
+			} catch (OperationCanceledException) {
+				// R4-F1: classify the OCE INSIDE the arbiter lock (see
+				// ClassifyRenewalCancellation below) so the winning decision and the
+				// compensation it triggers are ONE atomic transition, never the two
+				// synchronization domains that let a decided-but-not-yet-published deadline
+				// be misread as a clean stop. The catch no longer filters on
+				// leaseLostSource.IsCancellationRequested: that flag is published only after
+				// OnDeadline releases the lock, so it can still be false here even though the
+				// deadline has already won.
+				//
+				// An in-flight renewal cancelled by the deadline is an AMBIGUOUS
 				// commit — Npgsql cancellation is best-effort, so the UPDATE may have
 				// COMMITTED a later locked_until server-side even though the client
 				// observed cancellation while reading the result. The deadline has already
 				// abandoned this token's lease, so run the same fenced expiry on a FRESH
-				// context with CancellationToken.None before returning. Safe even if the
-				// statement really rolled back: it is a lock_token-fenced no-op if nothing
-				// committed or if a new claimant already rotated the token. This is the
-				// path a construction-only argument cannot cover, so it must be explicit.
-				await CompensateAbandonedLeaseAsync(jobId, lockToken);
-				return;
-			} catch (OperationCanceledException) {
-				// stopRenewal (host shutdown or the handler returned): the lease was not
-				// abandoned by a deadline, so there is nothing to compensate.
+				// context with CancellationToken.None. The fenced expiry is correct
+				// whatever the statement actually did: if it rolled back while the original
+				// lock_token still exists it expires the abandoned lease to now() (safe and
+				// desirable, the row becomes reclaimable at once) and is NOT a no-op; it is
+				// a genuine no-op only when a new claimant has already rotated or cleared
+				// the token.
+				//
+				// Stopped means stop-renewal (host shutdown or the handler returned) won
+				// the race, and the SAME classification retired the arbiter so a
+				// still-pending deadline callback can no longer claim abandonment; there is
+				// nothing to compensate.
+				if (deadline.ClassifyRenewalCancellation()
+					== LeaseDeadlineArbiter.LeaseCancellationOutcome.Abandoned) {
+					await CompensateAbandonedLeaseAsync(jobId, lockToken);
+				}
 				return;
 			} catch (Exception ex) {
 				// Transient: ownership is unknown, not lost. Keep trying until the
@@ -1205,10 +1231,12 @@ public sealed class JobQueueProcessor : BackgroundService {
 	// R2-finding-1 compensation. A renewal that committed a later locked_until AFTER the
 	// safe deadline had already won extended a lease the engine has abandoned. Pull it
 	// back to now() under the SAME lock_token fence so the row is reclaimable at once
-	// rather than stranded Processing for the errant stamp's whole window. Fenced: a
-	// no-op if another claimant already holds the row. CancellationToken.None, because
-	// the abandonment is exactly why the ambient tokens are cancelled — the compensation
-	// must still run.
+	// rather than stranded Processing for the errant stamp's whole window. The fence makes
+	// this a genuine no-op ONLY when a new claimant has already rotated or cleared the
+	// lock_token; when the original token still exists — including the case where the
+	// ambiguous renewal actually rolled back — it is not a no-op, it expires the abandoned
+	// lease to now() (safe and desirable). CancellationToken.None, because the abandonment
+	// is exactly why the ambient tokens are cancelled — the compensation must still run.
 	private static async Task ExpireAbandonedLeaseAsync(
 		AppDbContext dbContext,
 		Guid jobId,
@@ -1247,16 +1275,57 @@ public sealed class JobQueueProcessor : BackgroundService {
 	//                              check and no-ops — it cannot abandon the new stamp.
 	// Cancellation of leaseLostSource happens outside the lock (as CancelAfter already
 	// did from a timer thread) and tolerates a disposed source: the lease is torn down.
-	private sealed class LeaseDeadlineArbiter : IDisposable {
+	public sealed class LeaseDeadlineArbiter : IDisposable {
+		// The scheduler seam (R4-F2): production arms a real System.Threading.Timer; a
+		// spec substitutes a manual scheduler that RETAINS each generation's callback so
+		// an arbiter unit test can drive the deadline / stamp / stop orderings directly —
+		// including firing a dequeued stale-generation callback — instead of racing
+		// wall-clock timers. This is what turns the point-in-time interleaving proof into
+		// a durable, deterministic control.
+		public interface ILeaseDeadlineScheduler {
+			IDisposable Schedule(TimeSpan delay, Action callback);
+		}
+
+		// How a renewal-loop OperationCanceledException is classified UNDER the arbiter
+		// lock (R4-F1). Collapsing the winning decision and the compensation it triggers
+		// into ONE atomic transition is the whole point: the decision (_decided under
+		// _gate) and the CTS flag OnDeadline later publishes are different
+		// synchronization domains, so the caller must not classify the OCE by reading
+		// that flag outside the lock.
+		public enum LeaseCancellationOutcome {
+			// The arbiter had already decided (the deadline won) — even if that decision
+			// is not yet published to the CTS. Any renewal that committed a later
+			// locked_until extended an abandoned lease and must be compensated.
+			Abandoned = 0,
+			// Stop-renewal (host shutdown or the handler returned) won the race. This
+			// classification retires the arbiter so a still-pending deadline callback can
+			// no longer claim abandonment; there is nothing to compensate.
+			Stopped = 1
+		}
+
+		// Production default: one non-repeating System.Threading.Timer per armed
+		// generation. Timer.Dispose is non-joining, which is exactly why the arbiter
+		// serializes decisions by generation rather than trusting a timer to be silenced.
+		private sealed class TimerDeadlineScheduler : ILeaseDeadlineScheduler {
+			public IDisposable Schedule(TimeSpan delay, Action callback) {
+				return new Timer(_ => callback(), null, delay, Timeout.InfiniteTimeSpan);
+			}
+		}
+
 		private readonly Action _cancelLeaseLost;
+		private readonly ILeaseDeadlineScheduler _scheduler;
 		private readonly object _gate = new();
-		private Timer? _timer;
+		private IDisposable? _scheduled;
 		private long _generation;
 		private bool _decided;
 		private bool _disposed;
 
-		public LeaseDeadlineArbiter(Action cancelLeaseLost) {
+		public LeaseDeadlineArbiter(
+			Action cancelLeaseLost,
+			ILeaseDeadlineScheduler? scheduler = null
+		) {
 			_cancelLeaseLost = cancelLeaseLost;
+			_scheduler = scheduler ?? new TimerDeadlineScheduler();
 		}
 
 		// Arm/re-arm for a freshly confirmed stamp. Rotates the generation FIRST (so any
@@ -1270,10 +1339,8 @@ public sealed class JobQueueProcessor : BackgroundService {
 				}
 
 				var generation = ++_generation;
-				_timer?.Dispose();
-				_timer = new Timer(
-					_ => OnDeadline(generation), null, remaining, Timeout.InfiniteTimeSpan
-				);
+				_scheduled?.Dispose();
+				_scheduled = _scheduler.Schedule(remaining, () => OnDeadline(generation));
 				return true;
 			}
 		}
@@ -1284,6 +1351,28 @@ public sealed class JobQueueProcessor : BackgroundService {
 		// transitioned the lease to abandoned; the caller performs the cancellation.
 		public bool TryClaimAbandon() {
 			return Claim(requiredGeneration: null);
+		}
+
+		// R4-F1: classify a renewal-loop OperationCanceledException UNDER the same lock
+		// that serializes the deadline decision, so classification and the winning
+		// decision are ONE atomic transition rather than two synchronization domains. If
+		// the deadline has already decided (_decided) the OCE is a deadline-won
+		// abandonment EVEN WHEN the CTS cancellation is not yet visible — the caller
+		// compensates any ambiguous late commit. Otherwise stop-renewal won: retire the
+		// arbiter (mark it decided-done and disarm the timer) so a still-pending deadline
+		// callback fails its guard and can never subsequently claim abandonment, and
+		// report Stopped so the caller does not compensate a lease it still owns.
+		public LeaseCancellationOutcome ClassifyRenewalCancellation() {
+			lock (_gate) {
+				if (_decided) {
+					return LeaseCancellationOutcome.Abandoned;
+				}
+
+				_disposed = true;
+				_scheduled?.Dispose();
+				_scheduled = null;
+				return LeaseCancellationOutcome.Stopped;
+			}
 		}
 
 		private void OnDeadline(long generation) {
@@ -1310,8 +1399,8 @@ public sealed class JobQueueProcessor : BackgroundService {
 				}
 
 				_decided = true;
-				_timer?.Dispose();
-				_timer = null;
+				_scheduled?.Dispose();
+				_scheduled = null;
 				return true;
 			}
 		}
@@ -1319,8 +1408,8 @@ public sealed class JobQueueProcessor : BackgroundService {
 		public void Dispose() {
 			lock (_gate) {
 				_disposed = true;
-				_timer?.Dispose();
-				_timer = null;
+				_scheduled?.Dispose();
+				_scheduled = null;
 			}
 		}
 	}
