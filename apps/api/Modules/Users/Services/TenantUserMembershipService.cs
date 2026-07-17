@@ -178,8 +178,21 @@ public class TenantUserMembershipService : ITenantUserMembershipService {
 		try {
 			// Check last-admin invariant if demoting from admin
 			if (needsAdminInvariantTransaction) {
-				// TenantMembershipLockOrder step 2: the tenant's active-admin mutex, taken
-				// before the counts below so they include concurrent admin removals.
+				// TenantMembershipLockOrder step 1, BEFORE the tenant mutex. This path always
+				// writes the users row (user.UpdatedAt below), so its SaveChanges needs a lock
+				// on users(U) at the end. Taking the tenant mutex first would create the
+				// tenants -> users edge the canonical order forbids, and deadlock against
+				// global suspension, which holds users(U) and then wants tenants(T).
+				await TenantMembershipLockOrder.LockUserIdentityRowsAsync(
+					_dbContext,
+					[userId],
+					cancellationToken
+				);
+
+				// Step 2: the tenant's active-admin mutex, taken before the counts below so
+				// they include concurrent admin removals. Both guard reads below run after
+				// both locks, so they are fresh under READ COMMITTED — nothing read before
+				// this point is trusted for the invariant decision.
 				await TenantMembershipLockOrder.LockTenantRowsAsync(
 					_dbContext,
 					[tenantId],

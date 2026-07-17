@@ -96,7 +96,8 @@ namespace PublyApp.Api.Modules.Users.Services;
 /// (account, links)
 /// </item>
 /// <item>
-/// Users → <c>TenantUserMembershipService.UpdateTenantUserAsync</c> (tenant, when demoting)
+/// Users → <c>TenantUserMembershipService.UpdateTenantUserAsync</c> (user, then tenant, when
+/// demoting — it always writes the users row, so it must hold that lock before the tenant one)
 /// </item>
 /// <item>
 /// Users → <c>TenantUserIdentityService.SuspendTenantUserIdentityForStaffAsync</c>
@@ -117,6 +118,19 @@ namespace PublyApp.Api.Modules.Users.Services;
 /// mutex: it creates the user inside its own transaction, so no concurrent operation can be
 /// guarding that identity yet. <c>AccountService.CreateTenantAccountAsync</c> would need one, but
 /// it has no production caller.
+/// </para>
+/// <para>
+/// <b>A write is a lock.</b> When checking a path against this order, count the rows it
+/// <i>writes</i>, not only the ones it locks explicitly: <c>SaveChanges</c> takes a row lock on
+/// everything it updates, at the end, which is the easiest way to acquire a step out of order.
+/// Demotion is the worked example — it takes no explicit user lock but always writes
+/// <c>user.UpdatedAt</c>, so before this was corrected it held <c>tenants</c> and then wanted
+/// <c>users</c>, deadlocking against global suspension in the opposite order.
+/// </para>
+/// <para>
+/// Audit-log inserts take a foreign-key <c>FOR KEY SHARE</c> on the actor's <c>users</c> row.
+/// That conflicts only with <c>FOR UPDATE</c>, and no participant that holds an identity mutex
+/// ever waits on a profile, account or junction row, so it closes no cycle.
 /// </para>
 /// <para>
 /// <b>Known gap, pre-existing and not introduced here:</b>
