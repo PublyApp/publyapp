@@ -1,8 +1,16 @@
+using PublyApp.Api.Modules.Analytics.Permissions;
+using PublyApp.Api.Modules.Approvals.Permissions;
 using PublyApp.Api.Modules.AuditLogs.Permissions;
+using PublyApp.Api.Modules.Billing.Permissions;
+using PublyApp.Api.Modules.Calendar.Permissions;
+using PublyApp.Api.Modules.Channels.Permissions;
 using PublyApp.Api.Modules.Invitations.Permissions;
+using PublyApp.Api.Modules.Media.Permissions;
 using PublyApp.Api.Modules.Permissions.Entities;
 using PublyApp.Api.Modules.Permissions.Permissions;
+using PublyApp.Api.Modules.Posts.Permissions;
 using PublyApp.Api.Modules.Profiles.Permissions;
+using PublyApp.Api.Modules.Settings.Permissions;
 using PublyApp.Api.Modules.SystemNotices.Permissions;
 using PublyApp.Api.Modules.Tenants.Permissions;
 using PublyApp.Api.Modules.Uploads.Permissions;
@@ -32,9 +40,28 @@ public class StaffScopePermissions : IScopePermissions {
 
 public class TenantScopePermissions : IScopePermissions {
 	public string KeyPrefix { get; } = Permission.ScopeKeyPrefix.Tenant;
-	// Tenant module permissions are intentionally coarse-grained for now.
-	// They drive both the backend catalog endpoint and the tenant auth payload used by the UI.
+	// Coarse-grained module-access gates (dashboard/billing/settings/users). These
+	// drive the tenant auth payload used by the UI and are kept intact.
 	public TenantModulePermissionsForTenant Modules { get; } = new TenantModulePermissionsForTenant();
+
+	// Fine-grained, domain-first tenant capability catalog. Seeded data only; the
+	// staff tenant-profile permission matrix renders one group per slice KeyPrefix.
+	// Several slices live in permissions-only module folders whose feature code is
+	// not yet built (Posts, Media, Calendar, Channels, Approvals, Analytics,
+	// Settings, Billing) — the keys exist so profiles can be configured ahead of
+	// the features shipping.
+	public PostPermissionsForTenant Posts { get; } = new PostPermissionsForTenant();
+	public MediaPermissionsForTenant Media { get; } = new MediaPermissionsForTenant();
+	public CalendarPermissionsForTenant Calendar { get; } = new CalendarPermissionsForTenant();
+	public ChannelPermissionsForTenant Channels { get; } = new ChannelPermissionsForTenant();
+	public ApprovalPermissionsForTenant Approvals { get; } = new ApprovalPermissionsForTenant();
+	public AnalyticsPermissionsForTenant Analytics { get; } = new AnalyticsPermissionsForTenant();
+	public MemberPermissionsForTenant Members { get; } = new MemberPermissionsForTenant();
+	public InvitationPermissionsForTenant Invitations { get; } = new InvitationPermissionsForTenant();
+	public ProfilePermissionsForTenant Profiles { get; } = new ProfilePermissionsForTenant();
+	public SettingsPermissionsForTenant Settings { get; } = new SettingsPermissionsForTenant();
+	public BillingPermissionsForTenant Billing { get; } = new BillingPermissionsForTenant();
+	public AuditLogPermissionsForTenant AuditLogs { get; } = new AuditLogPermissionsForTenant();
 }
 
 public static class AppPermissions {
