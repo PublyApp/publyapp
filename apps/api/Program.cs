@@ -104,9 +104,26 @@ public class Program {
 		// TODO: once we have a tenant endpoint, we can remove this
 		tenantGroup.MapGet("/test", () => "Hello, World!");
 
+		// Testing-only scaffold: never registered outside the Testing environment,
+		// so it never reaches openapi.json / the production Kiota client. Use host
+		// environment here (not AppEnvironment) for the same reason as the
+		// HTTPS-redirection check above.
+		if (app.Environment.IsEnvironment(EnvironmentNames.Testing)) {
+			MapTenantTestingScaffoldEndpoints(tenantGroup);
+		}
+
 		app.MapHealthChecks("/health");
 		app.MapNotFoundRoute();
 
 		app.Run();
+	}
+
+	// Test-only scaffold proving TenantPermissionFilter's AccountLevel.Admin bypass
+	// end to end (see TenantPermissionFilter.Spec.cs). Remove once a real tenant
+	// endpoint adopts WithTenantPermission(...). Only ever mapped under the Testing
+	// environment (see call site above) — must not ship into production artifacts.
+	private static void MapTenantTestingScaffoldEndpoints(RouteGroupBuilder tenantGroup) {
+		tenantGroup.MapGet("/test-permission", () => "Hello, Permission!")
+			.WithTenantPermission([AppPermissions.Tenant.Modules.ACCESS_DASHBOARD]);
 	}
 }

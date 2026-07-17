@@ -10,6 +10,7 @@ namespace PublyApp.Api.Modules.Permissions.Services;
 public interface IPermissionService {
 	Task<HashSet<string>> GetEffectivePermissionsAsync(Guid userId, Guid? tenantId = null, Guid? projectId = null);
 	Task<HashSet<string>> GetPermissionsAsync(Guid userId);
+	Task<HashSet<string>> GetTenantPermissionsAsync(Guid userId, Guid tenantId);
 	Task<HashSet<string>> GetPermissionsForProfilesAsync(List<Guid> profileIds);
 }
 

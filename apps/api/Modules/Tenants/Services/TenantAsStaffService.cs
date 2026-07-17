@@ -553,15 +553,17 @@ public class TenantAsStaffService : ITenantAsStaffService {
 					// Determine profile IDs based on account level
 					List<Guid> profileIds;
 					if (accountLevel == AccountLevel.Admin) {
-						// Admin users don't need profiles (they have all rights)
+						// Admin users don't need profiles: TenantPermissionFilter short-circuits
+						// on AccountLevel.Admin (apps/api/Lib/Filters/TenantPermissionFilter.cs),
+						// granting full access regardless of profile-derived permissions. See #861.
 						profileIds = new List<Guid>();
 					} else if (defaultProfileId is { } profileId) {
 						// Non-admin users get the default profile when one was seeded.
 						profileIds = new List<Guid> { profileId };
 					} else {
-						// No default profile was seeded; the user starts with no profiles and
-						// can be assigned one post-hoc (admins already bypass profile checks,
-						// so this only affects non-admin invitees).
+						// No default profile was seeded; the user starts with no profiles and can
+						// be assigned one post-hoc. The Admin bypass above is the only branch that
+						// doesn't need profiles — this branch is strictly for non-admin invitees.
 						profileIds = new List<Guid>();
 					}
 
