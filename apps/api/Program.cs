@@ -104,6 +104,12 @@ public class Program {
 		// TODO: once we have a tenant endpoint, we can remove this
 		tenantGroup.MapGet("/test", () => "Hello, World!");
 
+		// Test-only scaffold proving TenantPermissionFilter's AccountLevel.Admin bypass
+		// end to end (see TenantPermissionFilter.Spec.cs). Remove once a real tenant
+		// endpoint adopts WithTenantPermission(...).
+		tenantGroup.MapGet("/test-permission", () => "Hello, Permission!")
+			.WithTenantPermission([AppPermissions.Tenant.Modules.ACCESS_DASHBOARD]);
+
 		app.MapHealthChecks("/health");
 		app.MapNotFoundRoute();
 

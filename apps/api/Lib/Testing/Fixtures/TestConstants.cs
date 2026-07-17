@@ -38,6 +38,8 @@ internal static class TestConstants {
 		SeedConstants.CrossTenant.AliceEmail;
 	public const string BobEmail =
 		SeedConstants.CrossTenant.BobEmail;
+	public const string CharlieEmail =
+		SeedConstants.CrossTenant.CharlieEmail;
 
 	// Headers (test infrastructure — not seed data)
 	public const string SessionTokenHeader =
