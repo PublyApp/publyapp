@@ -15,9 +15,8 @@ const normalizeInviteFlag = (value: unknown): string | undefined => {
 	return trimmed.length > 0 ? trimmed : undefined;
 };
 
-export const parseInviteUserSearchFlag = (
-	value: unknown,
-): 1 | undefined => (value === 1 || normalizeInviteFlag(value) === '1' ? 1 : undefined);
+export const parseInviteUserSearchFlag = (value: unknown): 1 | undefined =>
+	value === 1 || normalizeInviteFlag(value) === '1' ? 1 : undefined;
 
 export const parseInviteUserSearchParams = (
 	search: InviteUserSearchStateInput,
