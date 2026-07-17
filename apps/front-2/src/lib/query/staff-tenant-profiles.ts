@@ -317,6 +317,68 @@ const TENANT_PERMISSION_MODULE_ORDER: readonly string[] = [
 	'modules',
 ];
 
+// Canonical two-column flow from design 02-standalone-permissions. The three
+// content groups lead the left column, while Channels/Approvals/Analytics lead
+// the right. Administrative groups then trail the column shown in the design.
+export const TENANT_PERMISSION_LEFT_COLUMN_FLOW: readonly string[] = [
+	'posts',
+	'media',
+	'calendar',
+	'invitations',
+	'audit_logs',
+	'modules',
+];
+
+export const TENANT_PERMISSION_RIGHT_COLUMN_FLOW: readonly string[] = [
+	'channels',
+	'approvals',
+	'analytics',
+	'members',
+	'settings',
+	'billing',
+	'profiles',
+];
+
+const TENANT_PERMISSION_CANONICAL_COLUMN_MODULES = new Set([
+	...TENANT_PERMISSION_LEFT_COLUMN_FLOW,
+	...TENANT_PERMISSION_RIGHT_COLUMN_FLOW,
+]);
+
+/** Preserves the design's explicit canonical flow. Unknown/future modules
+ * keep their catalog order and append one-by-one to the currently shorter
+ * column (left wins ties), keeping growth deterministic and balanced. */
+export const buildStaffTenantPermissionGroupColumns = (
+	groups: StaffTenantPermissionGroup[],
+): readonly [StaffTenantPermissionGroup[], StaffTenantPermissionGroup[]] => {
+	const groupByModuleKey = new Map(
+		groups.map((group) => [group.moduleKey, group] as const),
+	);
+	const leftGroups = TENANT_PERMISSION_LEFT_COLUMN_FLOW.flatMap((moduleKey) => {
+		const group = groupByModuleKey.get(moduleKey);
+		return group ? [group] : [];
+	});
+	const rightGroups = TENANT_PERMISSION_RIGHT_COLUMN_FLOW.flatMap(
+		(moduleKey) => {
+			const group = groupByModuleKey.get(moduleKey);
+			return group ? [group] : [];
+		},
+	);
+
+	for (const group of groups) {
+		if (TENANT_PERMISSION_CANONICAL_COLUMN_MODULES.has(group.moduleKey)) {
+			continue;
+		}
+
+		if (leftGroups.length <= rightGroups.length) {
+			leftGroups.push(group);
+		} else {
+			rightGroups.push(group);
+		}
+	}
+
+	return [leftGroups, rightGroups];
+};
+
 const TENANT_PERMISSION_ACTION_ORDER: Record<string, readonly string[]> = {
 	posts: ['view', 'create', 'edit', 'publish', 'schedule', 'delete'],
 	media: ['view', 'upload', 'edit', 'delete'],
@@ -964,6 +1026,29 @@ const staffTenantProfilePermissionKeysQueryOptions = buildStaffQueryOptions<
 	},
 	{ clientAccessor: getClientManager() },
 );
+
+export const getStaffTenantProfilePermissionKeysQueryKey = (
+	variables: StaffTenantProfilePermissionKeysQueryVariables,
+) => staffTenantProfilePermissionKeysQueryOptions.queryKey(variables);
+
+export const getStaffTenantProfilePermissionKeysCacheSnapshot = (
+	queryClient: QueryClient,
+	variables: StaffTenantProfilePermissionKeysQueryVariables,
+): { permissionKeys: string[]; revision: number } | null => {
+	const queryState =
+		queryClient.getQueryState<FindTenantProfilePermissionsAsStaffResult>(
+			getStaffTenantProfilePermissionKeysQueryKey(variables),
+		);
+
+	if (!queryState?.data || queryState.dataUpdatedAt <= 0) {
+		return null;
+	}
+
+	return {
+		permissionKeys: toStaffTenantProfilePermissionKeys(queryState.data),
+		revision: queryState.dataUpdatedAt,
+	};
+};
 
 const staffTenantPermissionCatalogQueryOptions = buildStaffQueryOptions<
 	ApiClient,

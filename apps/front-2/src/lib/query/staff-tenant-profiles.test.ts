@@ -1,3 +1,4 @@
+import { QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -12,6 +13,7 @@ vi.mock('~/lib/api-client/client-manager', () => ({
 import {
 	buildStaffTenantPermissionCatalogOptions,
 	buildStaffTenantPermissionCatalogGroups,
+	buildStaffTenantPermissionGroupColumns,
 	buildCreateStaffTenantProfileBody,
 	buildFindStaffTenantProfileMembersQueryParameters,
 	buildResolveStaffTenantProfileMemberAssignmentsBody,
@@ -23,6 +25,8 @@ import {
 	unassignStaffTenantProfileUserMutationOptions,
 	buildUpdateStaffTenantProfileBody,
 	invalidateStaffTenantProfiles,
+	getStaffTenantProfilePermissionKeysCacheSnapshot,
+	getStaffTenantProfilePermissionKeysQueryKey,
 	STAFF_TENANT_PROFILES_QUERY_KEY,
 	toStaffTenantProfileDetails,
 	toStaffTenantProfileMembers,
@@ -164,6 +168,72 @@ describe('buildStaffTenantPermissionCatalogOptions', () => {
 });
 
 describe('buildStaffTenantPermissionCatalogGroups', () => {
+	test('assigns all 13 canonical modules to the design column flows', () => {
+		const moduleKeys = [
+			'posts',
+			'media',
+			'calendar',
+			'channels',
+			'approvals',
+			'analytics',
+			'members',
+			'invitations',
+			'profiles',
+			'settings',
+			'billing',
+			'audit_logs',
+			'modules',
+		];
+		const groups = moduleKeys.map((moduleKey) => ({
+			moduleKey,
+			moduleLabel: moduleKey,
+			options: [],
+		}));
+
+		const [leftGroups, rightGroups] =
+			buildStaffTenantPermissionGroupColumns(groups);
+
+		expect(leftGroups.map((group) => group.moduleKey)).toEqual([
+			'posts',
+			'media',
+			'calendar',
+			'invitations',
+			'audit_logs',
+			'modules',
+		]);
+		expect(rightGroups.map((group) => group.moduleKey)).toEqual([
+			'channels',
+			'approvals',
+			'analytics',
+			'members',
+			'settings',
+			'billing',
+			'profiles',
+		]);
+	});
+
+	test('appends future modules in catalog order to the shorter column', () => {
+		const groups = ['posts', 'channels', 'future_a', 'future_b'].map(
+			(moduleKey) => ({
+				moduleKey,
+				moduleLabel: moduleKey,
+				options: [],
+			}),
+		);
+
+		const [leftGroups, rightGroups] =
+			buildStaffTenantPermissionGroupColumns(groups);
+
+		expect(leftGroups.map((group) => group.moduleKey)).toEqual([
+			'posts',
+			'future_a',
+		]);
+		expect(rightGroups.map((group) => group.moduleKey)).toEqual([
+			'channels',
+			'future_b',
+		]);
+	});
+
 	test('orders every known module in the canonical matrix sequence', () => {
 		const shuffledModuleKeys = [
 			'modules',
@@ -280,6 +350,26 @@ describe('buildStaffTenantPermissionCatalogGroups', () => {
 			'tenant.modules.access_dashboard',
 			'tenant.modules.access_users',
 		]);
+	});
+});
+
+describe('staff tenant profile permission-key cache snapshot', () => {
+	test('reads normalized data and revision from the exact scoped query entry', () => {
+		const queryClient = new QueryClient();
+		const variables = { tenantId: 'tenant-1', profileId: 'profile-1' };
+		const queryKey = getStaffTenantProfilePermissionKeysQueryKey(variables);
+		queryClient.setQueryData(
+			queryKey,
+			{ permissionKeys: [' channels.view ', 'posts.view', 'posts.view'] },
+			{ updatedAt: 42 },
+		);
+
+		expect(
+			getStaffTenantProfilePermissionKeysCacheSnapshot(queryClient, variables),
+		).toEqual({
+			permissionKeys: ['channels.view', 'posts.view'],
+			revision: 42,
+		});
 	});
 });
 

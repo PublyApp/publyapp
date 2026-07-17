@@ -22,10 +22,18 @@ const mocks = vi.hoisted(() => ({
 	shouldLogoutForFailure: vi.fn((_: unknown) => false),
 	toastSuccess: vi.fn(),
 	displayLocalMutationFailure: vi.fn().mockResolvedValue(undefined),
+	permissionKeysQueryData: { permissionKeys: ['posts.view'] },
+	permissionKeysQueryRevision: 1,
 }));
 
 vi.mock('@tanstack/react-query', () => ({
-	useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+	useQueryClient: () => ({
+		getQueryData: () => mocks.permissionKeysQueryData,
+		getQueryState: () => ({
+			dataUpdatedAt: mocks.permissionKeysQueryRevision,
+		}),
+		invalidateQueries: vi.fn(),
+	}),
 }));
 
 vi.mock('react-i18next', () => ({
@@ -136,6 +144,47 @@ vi.mock('~/lib/mutation-toast', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenant-profiles', () => ({
+	buildStaffTenantPermissionGroupColumns: (
+		groups: typeof PERMISSION_GROUPS,
+	) => {
+		const leftFlow = [
+			'posts',
+			'media',
+			'calendar',
+			'invitations',
+			'audit_logs',
+			'modules',
+		];
+		const rightFlow = [
+			'channels',
+			'approvals',
+			'analytics',
+			'members',
+			'settings',
+			'billing',
+			'profiles',
+		];
+		const groupByModuleKey = new Map(
+			groups.map((group) => [group.moduleKey, group]),
+		);
+		return [
+			leftFlow.flatMap((moduleKey) => {
+				const group = groupByModuleKey.get(moduleKey);
+				return group ? [group] : [];
+			}),
+			rightFlow.flatMap((moduleKey) => {
+				const group = groupByModuleKey.get(moduleKey);
+				return group ? [group] : [];
+			}),
+		];
+	},
+	getStaffTenantProfilePermissionKeysCacheSnapshot: (queryClient: {
+		getQueryData: () => { permissionKeys: string[] };
+		getQueryState: () => { dataUpdatedAt: number };
+	}) => ({
+		permissionKeys: queryClient.getQueryData().permissionKeys,
+		revision: queryClient.getQueryState().dataUpdatedAt,
+	}),
 	useAssignStaffTenantProfilePermissionMutation:
 		mocks.useAssignStaffTenantProfilePermissionMutation,
 	useUnassignStaffTenantProfilePermissionMutation:
@@ -192,6 +241,8 @@ const renderTab = (
 describe('ProfilePermissionsTab', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mocks.permissionKeysQueryData = { permissionKeys: ['posts.view'] };
+		mocks.permissionKeysQueryRevision = 1;
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
 		mocks.assignMutateAsync.mockResolvedValue(undefined);
 		mocks.unassignMutateAsync.mockResolvedValue(undefined);
@@ -239,7 +290,7 @@ describe('ProfilePermissionsTab', () => {
 		expect(screen.queryByTestId('permissions-change-status')).toBeNull();
 	});
 
-	test('splits canonical modules into contiguous columns like the reference matrix', () => {
+	test('assigns all canonical modules to the reference matrix column flows', () => {
 		const moduleKeys = [
 			'posts',
 			'media',
@@ -247,6 +298,13 @@ describe('ProfilePermissionsTab', () => {
 			'channels',
 			'approvals',
 			'analytics',
+			'members',
+			'invitations',
+			'profiles',
+			'settings',
+			'billing',
+			'audit_logs',
+			'modules',
 		];
 		renderTab({
 			permissionGroups: moduleKeys.map((moduleKey) => ({
@@ -279,6 +337,9 @@ describe('ProfilePermissionsTab', () => {
 			'permission-module-posts',
 			'permission-module-media',
 			'permission-module-calendar',
+			'permission-module-invitations',
+			'permission-module-audit_logs',
+			'permission-module-modules',
 		]);
 		expect(
 			Array.from(rightColumn?.children ?? []).map((node) =>
@@ -288,6 +349,10 @@ describe('ProfilePermissionsTab', () => {
 			'permission-module-channels',
 			'permission-module-approvals',
 			'permission-module-analytics',
+			'permission-module-members',
+			'permission-module-settings',
+			'permission-module-billing',
+			'permission-module-profiles',
 		]);
 	});
 
@@ -674,6 +739,8 @@ describe('ProfilePermissionsTab', () => {
 
 		// A background result arrives before the write settles. It is newer than the
 		// locally adopted baseline, but cannot yet be known to follow the write.
+		mocks.permissionKeysQueryData = { permissionKeys: ['channels.view'] };
+		mocks.permissionKeysQueryRevision = 2;
 		rerender(
 			<ProfilePermissionsTab
 				{...props}
@@ -700,6 +767,86 @@ describe('ProfilePermissionsTab', () => {
 
 		// The same server signature is observed again after the save generation.
 		// A revision guard must adopt it instead of suppressing it forever.
+		mocks.permissionKeysQueryRevision = 3;
+		rerender(
+			<ProfilePermissionsTab
+				{...props}
+				grantedKeys={['channels.view']}
+				grantedRevision={3}
+			/>,
+		);
+		await waitFor(() =>
+			expect(
+				(
+					screen.getByRole('checkbox', {
+						name: 'View channels',
+					}) as HTMLInputElement
+				).checked,
+			).toBe(true),
+		);
+		expect(
+			(screen.getByRole('checkbox', { name: 'View posts' }) as HTMLInputElement)
+				.checked,
+		).toBe(false);
+	});
+
+	test('guards a cache update whose render is delayed until after save settlement', async () => {
+		let resolveAssign: (() => void) | undefined;
+		mocks.assignMutateAsync.mockImplementationOnce(
+			() =>
+				new Promise<void>((resolve) => {
+					resolveAssign = resolve;
+				}),
+		);
+		mocks.invalidateAllStaffTenantScopes.mockRejectedValueOnce(
+			new Error('refresh boom'),
+		);
+		mocks.permissionKeysQueryData = { permissionKeys: [] };
+		const { props, rerender } = renderTab({
+			grantedKeys: [],
+			grantedRevision: 1,
+		});
+
+		fireEvent.click(screen.getByRole('checkbox', { name: 'View posts' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+		await waitFor(() =>
+			expect(mocks.assignMutateAsync).toHaveBeenCalledTimes(1),
+		);
+
+		// The stale pre-write request reaches the query cache, but React has not
+		// committed its observer render yet. The save generation must still see
+		// this revision directly in the cache when the write settles.
+		mocks.permissionKeysQueryData = { permissionKeys: ['channels.view'] };
+		mocks.permissionKeysQueryRevision = 2;
+		act(() => resolveAssign?.());
+
+		await waitFor(() =>
+			expect(screen.queryByTestId('permissions-change-status')).toBeNull(),
+		);
+
+		// Flush the delayed observer render only after settlement/invalidation.
+		rerender(
+			<ProfilePermissionsTab
+				{...props}
+				grantedKeys={['channels.view']}
+				grantedRevision={2}
+			/>,
+		);
+		expect(
+			(screen.getByRole('checkbox', { name: 'View posts' }) as HTMLInputElement)
+				.checked,
+		).toBe(true);
+		expect(
+			(
+				screen.getByRole('checkbox', {
+					name: 'View channels',
+				}) as HTMLInputElement
+			).checked,
+		).toBe(false);
+
+		// A genuinely later server revision remains eligible for normal adoption.
+		mocks.permissionKeysQueryData = { permissionKeys: ['channels.view'] };
+		mocks.permissionKeysQueryRevision = 3;
 		rerender(
 			<ProfilePermissionsTab
 				{...props}

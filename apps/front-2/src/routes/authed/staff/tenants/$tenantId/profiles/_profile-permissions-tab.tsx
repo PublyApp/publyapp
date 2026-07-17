@@ -1,6 +1,6 @@
 import { IconChevronDown, IconSearch } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FormActionBar } from '~/components/field/form-layout';
 import { Button } from '~/components/ui/button';
@@ -11,6 +11,8 @@ import {
 	toastLocalMutationResult,
 } from '~/lib/mutation-toast';
 import {
+	buildStaffTenantPermissionGroupColumns,
+	getStaffTenantProfilePermissionKeysCacheSnapshot,
 	type StaffTenantPermissionGroup,
 	useAssignStaffTenantProfilePermissionMutation,
 	useUnassignStaffTenantProfilePermissionMutation,
@@ -255,14 +257,16 @@ export const ProfilePermissionsTab = ({
 	// with the same keys. Signature equality cannot do that: legitimate server
 	// truth may repeat a pre-save signature after the save generation completes.
 	const appliedGrantedRevisionRef = useRef(grantedRevision);
-	const latestGrantedRevisionRef = useRef(grantedRevision);
-	const ignoredThroughGrantedRevisionRef = useRef<number | null>(null);
-	useLayoutEffect(() => {
-		latestGrantedRevisionRef.current = Math.max(
-			latestGrantedRevisionRef.current,
-			grantedRevision,
-		);
-	}, [grantedRevision]);
+	const ignoredGrantedCacheSnapshotRef = useRef<{
+		permissionKeys: string[];
+		revision: number;
+	} | null>(null);
+	// A ref-backed generation opens synchronously before writes start. Adoption
+	// stays disabled until that generation's invalidation attempt finishes, so a
+	// cache notification whose React render is queued cannot slip through the
+	// dirty→clean edge.
+	const nextSaveGenerationRef = useRef(0);
+	const openSaveGenerationRef = useRef<number | null>(null);
 	// The tab heading — focus lands here when the action bar (which held focus)
 	// unmounts after Save/Discard, so focus never falls to <body>.
 	const headingRef = useRef<HTMLHeadingElement>(null);
@@ -275,13 +279,16 @@ export const ProfilePermissionsTab = ({
 		if (isDirty) {
 			return;
 		}
+		if (openSaveGenerationRef.current !== null) {
+			return;
+		}
 		if (grantedRevision <= appliedGrantedRevisionRef.current) {
 			return;
 		}
-		const ignoredThroughRevision = ignoredThroughGrantedRevisionRef.current;
+		const ignoredSnapshot = ignoredGrantedCacheSnapshotRef.current;
 		if (
-			ignoredThroughRevision !== null &&
-			grantedRevision <= ignoredThroughRevision
+			ignoredSnapshot !== null &&
+			grantedRevision <= ignoredSnapshot.revision
 		) {
 			return;
 		}
@@ -290,7 +297,7 @@ export const ProfilePermissionsTab = ({
 		setBaselineKeys(next);
 		setStagedKeys(next);
 		appliedGrantedRevisionRef.current = grantedRevision;
-		ignoredThroughGrantedRevisionRef.current = null;
+		ignoredGrantedCacheSnapshotRef.current = null;
 		// eslint-disable-next-line react-hooks/exhaustive-deps -- grantedSignature is the stable key for the granted-keys array
 	}, [grantedRevision, grantedSignature, isDirty]);
 
@@ -326,9 +333,8 @@ export const ProfilePermissionsTab = ({
 	const visibleGroups = permissionGroups.filter((group) =>
 		group.options.some((option) => matchesFilter(option, filterNeedle)),
 	);
-	const leftColumnCount = Math.ceil(visibleGroups.length / 2);
-	const leftGroups = visibleGroups.slice(0, leftColumnCount);
-	const rightGroups = visibleGroups.slice(leftColumnCount);
+	const [leftGroups, rightGroups] =
+		buildStaffTenantPermissionGroupColumns(visibleGroups);
 
 	const anyCollapsed = permissionGroups.some((group) =>
 		collapsedModules.has(group.moduleKey),
@@ -406,6 +412,9 @@ export const ProfilePermissionsTab = ({
 
 		setSaveErrorText(null);
 		setIsSaving(true);
+		const saveGeneration = nextSaveGenerationRef.current + 1;
+		nextSaveGenerationRef.current = saveGeneration;
+		openSaveGenerationRef.current = saveGeneration;
 
 		// Keep each settled result correlated with the exact operation that
 		// produced it, so the baseline can be advanced per key that actually
@@ -441,9 +450,10 @@ export const ProfilePermissionsTab = ({
 		const rejected = results.filter(
 			(result): result is PromiseRejectedResult => result.status === 'rejected',
 		);
-		const observedRevisionAtWriteSettlement = latestGrantedRevisionRef.current;
-
 		if (rejected.some((result) => shouldLogoutForFailure(result.reason))) {
+			if (openSaveGenerationRef.current === saveGeneration) {
+				openSaveGenerationRef.current = null;
+			}
 			setIsSaving(false);
 			onSessionExpired();
 			return;
@@ -468,16 +478,6 @@ export const ProfilePermissionsTab = ({
 			}
 		}
 		setBaselineKeys(nextBaseline);
-		if (fulfilledCount > 0) {
-			// Ignore every query result observed before the writes settled. A later
-			// revision — even with identical keys — remains eligible for adoption.
-			ignoredThroughGrantedRevisionRef.current =
-				observedRevisionAtWriteSettlement;
-			appliedGrantedRevisionRef.current = Math.max(
-				appliedGrantedRevisionRef.current,
-				observedRevisionAtWriteSettlement,
-			);
-		}
 
 		// Whatever succeeded is now server truth — refetch so the granted keys,
 		// glance and stat cards reflect it. A refresh failure must NOT be reported
@@ -488,6 +488,26 @@ export const ProfilePermissionsTab = ({
 		} catch {
 			// Persistence succeeded; only the cache refresh failed. Swallow so the
 			// success/partial reporting below reflects the actual write outcome.
+		}
+
+		if (openSaveGenerationRef.current === saveGeneration) {
+			if (fulfilledCount > 0) {
+				const cacheSnapshot = getStaffTenantProfilePermissionKeysCacheSnapshot(
+					queryClient,
+					{
+						tenantId,
+						profileId,
+					},
+				);
+				if (cacheSnapshot !== null) {
+					ignoredGrantedCacheSnapshotRef.current = cacheSnapshot;
+					appliedGrantedRevisionRef.current = Math.max(
+						appliedGrantedRevisionRef.current,
+						cacheSnapshot.revision,
+					);
+				}
+			}
+			openSaveGenerationRef.current = null;
 		}
 
 		const visibleFailures = rejected.filter(
@@ -520,8 +540,9 @@ export const ProfilePermissionsTab = ({
 
 	const handleUnexpectedSaveError = (error: unknown): void => {
 		// Belt-and-braces: the batch above already settles every mutation, so
-		// this only fires for a pathological throw (e.g. the invalidation
-		// rejecting). Re-enable the bar so the user can retry.
+		// this only fires for a pathological synchronous throw. Close any open
+		// generation and re-enable the bar so the user can retry.
+		openSaveGenerationRef.current = null;
 		setIsSaving(false);
 		void displayLocalMutationFailure(error, t('permissions-save-failed'));
 	};
