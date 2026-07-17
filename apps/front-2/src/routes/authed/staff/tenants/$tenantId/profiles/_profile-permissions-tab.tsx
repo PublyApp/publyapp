@@ -1,6 +1,6 @@
 import { IconChevronDown, IconSearch } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FormActionBar } from '~/components/field/form-layout';
 import { Button } from '~/components/ui/button';
@@ -60,7 +60,7 @@ const matchesFilter = (
 	);
 };
 
-type PermissionModuleCardProps = {
+type PermissionModuleGroupProps = {
 	group: StaffTenantPermissionGroup;
 	stagedKeys: Set<string>;
 	baselineKeys: Set<string>;
@@ -72,7 +72,10 @@ type PermissionModuleCardProps = {
 	onToggleCollapsed: (moduleKey: string) => void;
 };
 
-const PermissionModuleCard = ({
+// Matches design 02-standalone-permissions: no card chrome. Each module is a
+// light-gray full-width header band (name + granted count) followed by flat,
+// borderless rows on the page background.
+const PermissionModuleGroup = ({
 	group,
 	stagedKeys,
 	baselineKeys,
@@ -82,7 +85,7 @@ const PermissionModuleCard = ({
 	onToggleKey,
 	onToggleModule,
 	onToggleCollapsed,
-}: PermissionModuleCardProps) => {
+}: PermissionModuleGroupProps) => {
 	const { t } = useTranslation('common');
 	const allKeys = group.options.map((option) => option.key);
 	const grantedCount = allKeys.filter((key) => stagedKeys.has(key)).length;
@@ -99,10 +102,10 @@ const PermissionModuleCard = ({
 
 	return (
 		<section
-			className="rounded-[var(--publy-radius-card)] bg-card shadow-[var(--publy-shadow-ring)]"
+			className="flex flex-col gap-0.5"
 			data-testid={`permission-module-${group.moduleKey}`}
 		>
-			<div className="publy-card-header gap-3">
+			<div className="flex items-center justify-between gap-3 rounded-[var(--publy-radius-sm)] bg-muted px-3 py-2">
 				<div className="flex min-w-0 items-center gap-2.5">
 					<Checkbox
 						checked={allChecked}
@@ -133,16 +136,17 @@ const PermissionModuleCard = ({
 						</span>
 					</button>
 				</div>
-				<span className="publy-detail-chip publy-detail-chip--outline shrink-0">
-					{grantedCount}/{totalCount}
+				<span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+					{grantedCount} / {totalCount}
 				</span>
 			</div>
 
 			{expanded ? (
-				<ul className="flex flex-col divide-y divide-border">
+				<ul className="flex flex-col">
 					{visibleOptions.map((option) => {
 						const checked = stagedKeys.has(option.key);
 						const isChanged = checked !== baselineKeys.has(option.key);
+						const changedDescriptionId = `permission-changed-${option.key}`;
 
 						return (
 							<li
@@ -150,7 +154,7 @@ const PermissionModuleCard = ({
 								data-testid={`permission-row-${option.key}`}
 								data-changed={isChanged ? 'true' : undefined}
 								className={cn(
-									'px-4 py-2',
+									'rounded-[var(--publy-radius-sm)] px-3 py-1.5',
 									isChanged
 										? 'bg-[color:var(--publy-primary-soft)]'
 										: undefined,
@@ -161,6 +165,9 @@ const PermissionModuleCard = ({
 										checked={checked}
 										disabled={isSaving}
 										aria-label={option.label}
+										aria-describedby={
+											isChanged ? changedDescriptionId : undefined
+										}
 										onCheckedChange={(next) =>
 											onToggleKey(option.key, Boolean(next))
 										}
@@ -171,7 +178,7 @@ const PermissionModuleCard = ({
 											<span aria-hidden="true" className="text-primary">
 												•
 											</span>
-											<span className="sr-only">
+											<span id={changedDescriptionId} className="sr-only">
 												{t('permission-changed-indicator')}
 											</span>
 										</>
@@ -241,24 +248,45 @@ export const ProfilePermissionsTab = ({
 	const isDirty = !areKeySetsEqual(stagedKeys, baselineKeys);
 	const grantedSignature = [...grantedKeys].sort().join(',');
 
-	// Adopt fresh server truth (e.g. after our own save invalidation, or a
-	// background refetch) only while the user has nothing staged, so an
-	// in-flight edit is never silently discarded — the same protection the
-	// edit drawer gets by re-seeding on open/profile-id only.
+	// Signature of the granted-keys array we have already folded into the
+	// baseline. Kept in a ref (not a dep) so the adoption effect can re-fire on
+	// the dirty→clean transition and still tell whether a newer server truth is
+	// pending — the previous `deps: [grantedSignature]` version missed a fresh
+	// value that arrived *while dirty* and then never re-ran on discard/revert.
+	const appliedGrantedSignatureRef = useRef(grantedSignature);
+	// After a save advances the baseline optimistically, a refetch that was
+	// already in flight can echo the pre-save server truth. Guard that exact
+	// signature so it can't roll the just-saved baseline back.
+	const savedRollbackGuardRef = useRef<string | null>(null);
+	// The tab heading — focus lands here when the action bar (which held focus)
+	// unmounts after Save/Discard, so focus never falls to <body>.
+	const headingRef = useRef<HTMLHeadingElement>(null);
+
+	// Adopt fresh server truth (after our own save invalidation, or a background
+	// refetch) only while the user has nothing staged, so an in-flight edit is
+	// never silently discarded. Re-running on the dirty→clean edge lets a value
+	// that landed mid-edit rebase the baseline once the user discards or reverts.
 	useEffect(() => {
 		if (isDirty) {
 			return;
 		}
+		if (grantedSignature === appliedGrantedSignatureRef.current) {
+			return;
+		}
+		if (grantedSignature === savedRollbackGuardRef.current) {
+			// A pre-invalidation refetch echoing the previous server truth — ignore
+			// it so it can't undo the baseline we just saved; the post-save refetch
+			// carries the new truth and clears the guard below.
+			return;
+		}
 
 		const next = new Set(grantedKeys);
-		setBaselineKeys((current) =>
-			areKeySetsEqual(current, next) ? current : next,
-		);
-		setStagedKeys((current) =>
-			areKeySetsEqual(current, next) ? current : next,
-		);
+		setBaselineKeys(next);
+		setStagedKeys(next);
+		appliedGrantedSignatureRef.current = grantedSignature;
+		savedRollbackGuardRef.current = null;
 		// eslint-disable-next-line react-hooks/exhaustive-deps -- grantedSignature is the stable key for the granted-keys array
-	}, [grantedSignature]);
+	}, [grantedSignature, isDirty]);
 
 	useEffect(() => {
 		onDirtyChange(isDirty);
@@ -352,9 +380,16 @@ export const ProfilePermissionsTab = ({
 		setStagedKeys(new Set());
 	};
 
+	// The action bar closes when the matrix returns to a clean state; it held
+	// focus, so hand focus to the tab heading rather than letting it drop to body.
+	const focusOnActionBarClose = (): void => {
+		headingRef.current?.focus();
+	};
+
 	const handleDiscard = (): void => {
 		setSaveErrorText(null);
 		setStagedKeys(new Set(baselineKeys));
+		focusOnActionBarClose();
 	};
 
 	const handleSave = async (): Promise<void> => {
@@ -409,6 +444,7 @@ export const ProfilePermissionsTab = ({
 		// Advance the baseline only for operations that actually persisted:
 		// their keys stop counting as unsaved (and are never retried on the next
 		// Save), while failed/aborted operations stay dirty for retry.
+		const preSaveSignature = [...baselineKeys].sort().join(',');
 		const nextBaseline = new Set(baselineKeys);
 		let fulfilledCount = 0;
 		for (const [index, result] of results.entries()) {
@@ -425,10 +461,20 @@ export const ProfilePermissionsTab = ({
 			}
 		}
 		setBaselineKeys(nextBaseline);
+		// Arm the rollback guard: an in-flight refetch may still deliver the
+		// pre-save server truth after this optimistic advance.
+		savedRollbackGuardRef.current = preSaveSignature;
 
 		// Whatever succeeded is now server truth — refetch so the granted keys,
-		// glance and stat cards reflect it.
-		await invalidateAllStaffTenantScopes(queryClient);
+		// glance and stat cards reflect it. A refresh failure must NOT be reported
+		// as a save failure: the writes already persisted, so let query-level
+		// retry/refetch own surfacing any staleness.
+		try {
+			await invalidateAllStaffTenantScopes(queryClient);
+		} catch {
+			// Persistence succeeded; only the cache refresh failed. Swallow so the
+			// success/partial reporting below reflects the actual write outcome.
+		}
 
 		const visibleFailures = rejected.filter(
 			(result) => toApiFailure(result.reason).kind !== 'abort',
@@ -455,6 +501,7 @@ export const ProfilePermissionsTab = ({
 
 		setIsSaving(false);
 		toastLocalMutationResult.success(t('profile-updated-successfully'));
+		focusOnActionBarClose();
 	};
 
 	const handleUnexpectedSaveError = (error: unknown): void => {
@@ -471,7 +518,13 @@ export const ProfilePermissionsTab = ({
 			data-testid="staff-tenant-profile-permissions-content"
 		>
 			<div className="flex flex-col gap-1">
-				<h2 className="publy-type-page-title">{t('permissions')}</h2>
+				<h2
+					ref={headingRef}
+					tabIndex={-1}
+					className="publy-type-page-title outline-none"
+				>
+					{t('permissions')}
+				</h2>
 				<p className="publy-type-helper">{t('profile-permissions-subtitle')}</p>
 			</div>
 
@@ -534,7 +587,7 @@ export const ProfilePermissionsTab = ({
 					{[leftGroups, rightGroups].map((columnGroups, columnIndex) => (
 						<div key={columnIndex} className="flex flex-col gap-4">
 							{columnGroups.map((group) => (
-								<PermissionModuleCard
+								<PermissionModuleGroup
 									key={group.moduleKey}
 									group={group}
 									stagedKeys={stagedKeys}

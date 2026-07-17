@@ -213,7 +213,7 @@ describe('ProfilePermissionsTab', () => {
 
 		const postsModule = screen.getByTestId('permission-module-posts');
 		// Header count reflects staged-granted / total for the whole module.
-		expect(within(postsModule).getByText('1/2')).toBeTruthy();
+		expect(within(postsModule).getByText('1 / 2')).toBeTruthy();
 
 		const viewPostsRow = screen.getByTestId('permission-row-posts.view');
 		// Each per-permission toggle is queryable by its accessible name (the
@@ -250,15 +250,24 @@ describe('ProfilePermissionsTab', () => {
 		expect(screen.getByTestId('permissions-change-status').textContent).toBe(
 			'1 unsaved change · +Create posts',
 		);
-		// Changed row is flagged visually and for screen readers: the visible
-		// dot is aria-hidden, and the state is announced via an sr-only node.
+		// Changed row is flagged visually and for screen readers: the visible dot
+		// is aria-hidden, and the change is announced as the checkbox's accessible
+		// DESCRIPTION (aria-describedby) so it survives the explicit aria-label
+		// name — asserted via the accessible description, not a CSS class.
 		const changedRow = screen.getByTestId('permission-row-posts.create');
 		expect(changedRow.getAttribute('data-changed')).toBe('true');
 		expect(within(changedRow).getByText('•').getAttribute('aria-hidden')).toBe(
 			'true',
 		);
-		const changedIndicator = within(changedRow).getByText('changed');
-		expect(changedIndicator.className).toContain('sr-only');
+		const changedCheckbox = within(changedRow).getByRole('checkbox', {
+			name: 'Create posts',
+		});
+		const describedById = changedCheckbox.getAttribute('aria-describedby');
+		expect(describedById).toBeTruthy();
+		const describedByNode = describedById
+			? changedRow.ownerDocument.getElementById(describedById)
+			: null;
+		expect(describedByNode?.textContent).toBe('changed');
 		expect(props.onDirtyChange).toHaveBeenCalledWith(true);
 	});
 
@@ -322,6 +331,10 @@ describe('ProfilePermissionsTab', () => {
 			expect(screen.queryByTestId('permissions-change-status')).toBeNull(),
 		);
 		expect(props.onDirtyChange).toHaveBeenLastCalledWith(false);
+		// Focus moves to the tab heading when the action bar closes on save.
+		expect(document.activeElement).toBe(
+			screen.getByRole('heading', { name: 'Permissions' }),
+		);
 	});
 
 	test('discards staged changes and reverts to the granted baseline', () => {
@@ -344,6 +357,11 @@ describe('ProfilePermissionsTab', () => {
 				) as HTMLInputElement
 			).checked,
 		).toBe(false);
+		// The action bar (which held focus) unmounts — focus moves to the tab
+		// heading, never falling to <body>.
+		expect(document.activeElement).toBe(
+			screen.getByRole('heading', { name: 'Permissions' }),
+		);
 	});
 
 	test('a module select-all toggles every permission in that module', () => {
@@ -502,5 +520,181 @@ describe('ProfilePermissionsTab', () => {
 
 		act(() => unmount());
 		expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+	});
+
+	test('rebases to server truth that arrived while dirty when the user discards', () => {
+		const { props, rerender } = renderTab({ grantedKeys: ['posts.view'] });
+
+		// Stage an edit → dirty.
+		fireEvent.click(
+			within(screen.getByTestId('permission-row-posts.create')).getByRole(
+				'checkbox',
+			),
+		);
+		expect(screen.getByTestId('permissions-change-status')).toBeTruthy();
+
+		// A background refetch delivers newer server truth WHILE dirty. It must be
+		// deferred, not applied mid-edit.
+		rerender(
+			<ProfilePermissionsTab
+				{...props}
+				grantedKeys={['posts.view', 'channels.view']}
+			/>,
+		);
+		expect(screen.getByTestId('permissions-change-status')).toBeTruthy();
+
+		// Discarding returns to a clean state → the deferred server truth is now
+		// adopted as the new baseline (channels.view granted, nothing dirty).
+		fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
+		expect(screen.queryByTestId('permissions-change-status')).toBeNull();
+		expect(
+			(
+				within(screen.getByTestId('permission-row-channels.view')).getByRole(
+					'checkbox',
+				) as HTMLInputElement
+			).checked,
+		).toBe(true);
+		expect(
+			screen
+				.getByTestId('permission-row-channels.view')
+				.getAttribute('data-changed'),
+		).toBeNull();
+	});
+
+	test('rebases to server truth that arrived while dirty when the user manually reverts', () => {
+		const { props, rerender } = renderTab({ grantedKeys: ['posts.view'] });
+
+		fireEvent.click(
+			within(screen.getByTestId('permission-row-posts.create')).getByRole(
+				'checkbox',
+			),
+		);
+		rerender(
+			<ProfilePermissionsTab
+				{...props}
+				grantedKeys={['posts.view', 'channels.view']}
+			/>,
+		);
+		expect(screen.getByTestId('permissions-change-status')).toBeTruthy();
+
+		// Manually toggle the staged change back off → returns to the (old)
+		// baseline and becomes clean, which rebases onto the deferred truth.
+		fireEvent.click(
+			within(screen.getByTestId('permission-row-posts.create')).getByRole(
+				'checkbox',
+			),
+		);
+
+		expect(screen.queryByTestId('permissions-change-status')).toBeNull();
+		expect(
+			(
+				within(screen.getByTestId('permission-row-channels.view')).getByRole(
+					'checkbox',
+				) as HTMLInputElement
+			).checked,
+		).toBe(true);
+	});
+
+	test('a refresh failure after a successful save is not reported as a save failure', async () => {
+		mocks.invalidateAllStaffTenantScopes.mockRejectedValueOnce(
+			new Error('refresh boom'),
+		);
+		const { props } = renderTab({ grantedKeys: [] });
+
+		fireEvent.click(screen.getByRole('checkbox', { name: 'View posts' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+		// The write persisted → success is preserved despite the refresh rejecting.
+		await waitFor(() =>
+			expect(mocks.toastSuccess).toHaveBeenCalledWith(
+				'Profile updated successfully.',
+			),
+		);
+		expect(screen.queryByText('0 changes saved, 1 change failed.')).toBeNull();
+		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
+		await waitFor(() =>
+			expect(screen.queryByTestId('permissions-change-status')).toBeNull(),
+		);
+		expect(props.onDirtyChange).toHaveBeenLastCalledWith(false);
+	});
+
+	test('a filtered module keeps whole-module select-all + indeterminate semantics', () => {
+		renderTab({ grantedKeys: ['posts.view'] });
+
+		// Filter so only posts.create is visible; posts.view (granted) is hidden.
+		fireEvent.change(screen.getByTestId('permissions-filter'), {
+			target: { value: 'create' },
+		});
+		expect(screen.queryByTestId('permission-row-posts.view')).toBeNull();
+		expect(screen.getByTestId('permission-row-posts.create')).toBeTruthy();
+
+		const postsModule = screen.getByTestId('permission-module-posts');
+		// Mixed staged state across the WHOLE module (1 of 2 granted) →
+		// indeterminate, even though the granted row is filtered out of view.
+		expect(
+			within(postsModule)
+				.getByRole('checkbox', { name: 'Toggle all Posts permissions' })
+				.getAttribute('data-indeterminate'),
+		).toBe('true');
+
+		// Select-all acts on the whole module per its a11y label — visible AND
+		// hidden — completing the module.
+		fireEvent.click(
+			within(postsModule).getByRole('checkbox', {
+				name: 'Toggle all Posts permissions',
+			}),
+		);
+		expect(
+			screen.getByTestId('permissions-change-status').textContent,
+		).toContain('1 unsaved change');
+
+		// Clear the filter: the whole module is granted, incl. the row hidden
+		// during select-all — its domain was the full module, not visible-only.
+		fireEvent.change(screen.getByTestId('permissions-filter'), {
+			target: { value: '' },
+		});
+		expect(
+			(
+				within(screen.getByTestId('permission-row-posts.view')).getByRole(
+					'checkbox',
+				) as HTMLInputElement
+			).checked,
+		).toBe(true);
+		expect(
+			(
+				within(screen.getByTestId('permission-row-posts.create')).getByRole(
+					'checkbox',
+				) as HTMLInputElement
+			).checked,
+		).toBe(true);
+
+		// Deselect-all while filtered removes BOTH visible and hidden permissions —
+		// whole-module semantics in the reverse direction.
+		fireEvent.change(screen.getByTestId('permissions-filter'), {
+			target: { value: 'create' },
+		});
+		fireEvent.click(
+			within(screen.getByTestId('permission-module-posts')).getByRole(
+				'checkbox',
+				{ name: 'Toggle all Posts permissions' },
+			),
+		);
+		fireEvent.change(screen.getByTestId('permissions-filter'), {
+			target: { value: '' },
+		});
+		expect(
+			(
+				within(screen.getByTestId('permission-row-posts.view')).getByRole(
+					'checkbox',
+				) as HTMLInputElement
+			).checked,
+		).toBe(false);
+		expect(
+			(
+				within(screen.getByTestId('permission-row-posts.create')).getByRole(
+					'checkbox',
+				) as HTMLInputElement
+			).checked,
+		).toBe(false);
 	});
 });
