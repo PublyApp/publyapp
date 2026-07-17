@@ -6,6 +6,8 @@ import { createApiResponseFromDiscriminatorValue, createAppProblemDetailsFromDis
 // @ts-ignore
 import { PermissionsRequestBuilderNavigationMetadata, PermissionsRequestBuilderRequestsMetadata, type PermissionsRequestBuilder } from './permissions/index.js';
 // @ts-ignore
+import { type UsersRequestBuilder, UsersRequestBuilderNavigationMetadata } from './users/index.js';
+// @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
@@ -16,6 +18,10 @@ export interface WithProfileItemRequestBuilder extends BaseRequestBuilder<WithPr
      * The permissions property
      */
     get permissions(): PermissionsRequestBuilder;
+    /**
+     * The users property
+     */
+    get users(): UsersRequestBuilder;
     /**
      * Delete a tenant profile
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
@@ -82,6 +88,9 @@ export const WithProfileItemRequestBuilderNavigationMetadata: Record<Exclude<key
     permissions: {
         requestsMetadata: PermissionsRequestBuilderRequestsMetadata,
         navigationMetadata: PermissionsRequestBuilderNavigationMetadata,
+    },
+    users: {
+        navigationMetadata: UsersRequestBuilderNavigationMetadata,
     },
 };
 /**

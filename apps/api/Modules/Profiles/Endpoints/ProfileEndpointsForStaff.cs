@@ -208,6 +208,35 @@ public static class ProfileEndpointsForStaff {
 			.WithSummary("Unassign a permission key from a tenant profile")
 			.WithPermission([AppPermissions.Staff.Profiles.UPDATE_FOR_TENANT]);
 
+		tenantGroup.MapPost(
+			Routes.Profiles.ForTenantAsStaff.Users.Upsert,
+			AssignTenantProfileUserAsStaff.Handle
+		)
+			.WithName("AssignTenantProfileUserAsStaff")
+			.WithSummary("Assign a tenant profile to a tenant member")
+			// AND of both permissions (PermissionFilter default). Membership is a write on the
+			// profile (UPDATE_FOR_TENANT, as for permission assignment), but it also changes
+			// what a specific user can do, so it additionally requires the tenant-user update
+			// permission. Requiring both is strictly narrower than either alone, so this
+			// cannot widen access for any existing profile holder.
+			.WithPermission([
+				AppPermissions.Staff.Profiles.UPDATE_FOR_TENANT,
+				AppPermissions.Staff.Users.UPDATE_FOR_TENANT
+			]);
+
+		tenantGroup.MapDelete(
+			Routes.Profiles.ForTenantAsStaff.Users.Upsert,
+			UnassignTenantProfileUserAsStaff.Handle
+		)
+			.WithName("UnassignTenantProfileUserAsStaff")
+			.WithSummary("Unassign a tenant profile from a tenant member")
+			// Same permission pair as assign: revoking a member's profile is as
+			// security-relevant as granting it.
+			.WithPermission([
+				AppPermissions.Staff.Profiles.UPDATE_FOR_TENANT,
+				AppPermissions.Staff.Users.UPDATE_FOR_TENANT
+			]);
+
 		return routes;
 	}
 }

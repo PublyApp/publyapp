@@ -191,13 +191,50 @@ public sealed class TenantUserIdentityService : ITenantUserIdentityService {
 			return new SuspendTenantUserIdentityResult.AlreadySuspended();
 		}
 
+		// READ COMMITTED, not SERIALIZABLE: this guard shares the last-admin invariant with the
+		// tenant removal/demotion paths, which now protect it with the tenant row lock under
+		// READ COMMITTED (see TenantMembershipLockOrder). SSI protected this only while every
+		// participant was SERIALIZABLE.
 		await using var transaction =
-			await _dbContext.Database.BeginTransactionAsync(
-				IsolationLevel.Serializable,
+			await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+		try {
+			// TenantMembershipLockOrder step 1: freeze this identity's membership set BEFORE
+			// enumerating it. Without this the enumeration below is only a snapshot — a
+			// concurrent create/restore could add an Admin membership in a tenant this
+			// operation never locked, never guarded, and then stranded at zero active admins
+			// when the status update lands. A set discovered before it is frozen is not a set.
+			await TenantMembershipLockOrder.LockUserIdentityRowsAsync(
+				_dbContext,
+				[userId],
 				cancellationToken
 			);
 
-		try {
+			// Step 2, across every tenant this user belongs to. The identity mutex above is
+			// what makes this enumeration complete for the rest of the transaction: no new
+			// membership can appear behind it. Locked in id order so it cannot deadlock
+			// against a single-tenant path.
+			var affectedTenantIds = (
+				await (
+					from ua in _dbContext.UserAccount
+					where ua.UserId == userId
+						&& ua.Scope == AccountScope.Tenant
+						&& ua.TenantId != null
+						&& !ua.IsDeleted
+					select ua.TenantId
+				).Distinct().ToListAsync(cancellationToken)
+			)
+				// OfType drops the nullable wrapper without a null-forgiving operator; the
+				// query already excludes null tenant ids.
+				.OfType<Guid>()
+				.ToList();
+
+			await TenantMembershipLockOrder.LockTenantRowsAsync(
+				_dbContext,
+				affectedTenantIds,
+				cancellationToken
+			);
+
 			// Global suspension disables this user in every tenant. The last-admin
 			// guard must therefore scan all active admin memberships atomically.
 			var hasTenantWithoutAnotherActiveAdmin = await (

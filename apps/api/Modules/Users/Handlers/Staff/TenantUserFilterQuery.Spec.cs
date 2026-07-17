@@ -1,10 +1,21 @@
 using FluentAssertions;
 
+using PublyApp.Api.Lib;
+
 using Xunit;
 
 namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
 public sealed class TenantUserFilterQuerySpec {
+	// These validators inherit the pagination validators, which read AppEnvironment. This class
+	// uses no database fixture, so nothing else guarantees the environment is initialized: when
+	// the parallel scheduler happened to start this class before any fixture-backed class, it
+	// failed with "AppEnvironment not initialized". Same pattern as
+	// ServiceArgsRecordConventionSpec, which already does this for the same reason.
+	static TenantUserFilterQuerySpec() {
+		AppEnvironment.Initialize();
+	}
+
 	[Fact]
 	public void ItShouldAcceptTheSameStatusTokensOnFindAndExportValidators() {
 		var findValidator = new FindTenantUsersAsStaffQueryValidator();

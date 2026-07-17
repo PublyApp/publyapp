@@ -1,5 +1,3 @@
-using System.Text.Json;
-
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Modules.AuditLogs.Entities;
@@ -82,15 +80,13 @@ public class AuditLogService : IAuditLogService {
 	private AuditLog BuildAuditLog(CreateAuditLogArgs args) {
 		var httpContext = _httpContextAccessor.HttpContext;
 
-		return new AuditLog {
-			UserId = args.UserId,
-			Action = args.Action,
-			TargetId = args.TargetId,
-			Details = args.Details is not null
-				? JsonSerializer.Serialize(args.Details)
-				: null,
-			IpAddress = httpContext?.Connection.RemoteIpAddress?.ToString(),
-			UserAgent = httpContext?.Request.Headers.UserAgent.ToString()
-		};
+		return AuditLog.CreateEntry(
+			args.UserId,
+			args.Action,
+			args.TargetId,
+			args.Details,
+			httpContext?.Connection.RemoteIpAddress?.ToString(),
+			httpContext?.Request.Headers.UserAgent.ToString()
+		);
 	}
 }

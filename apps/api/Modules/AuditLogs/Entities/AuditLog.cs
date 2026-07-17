@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 using Microsoft.EntityFrameworkCore;
@@ -38,6 +39,31 @@ public class AuditLog : BaseAttributes, INoTenantEntity {
 
 	[Column("user_agent")]
 	public string? UserAgent { get; set; }
+
+	/// <summary>
+	/// Single construction path for audit entries, shared by <c>AuditLogService</c> (which
+	/// commits the entry on its own) and by domain services that must add the entry to the
+	/// same transaction as the state change it records.
+	/// </summary>
+	public static AuditLog CreateEntry(
+		Guid userId,
+		string action,
+		Guid? targetId,
+		object? details,
+		string? ipAddress,
+		string? userAgent
+	) {
+		return new AuditLog {
+			UserId = userId,
+			Action = action,
+			TargetId = targetId,
+			Details = details is not null
+				? JsonSerializer.Serialize(details)
+				: null,
+			IpAddress = ipAddress,
+			UserAgent = userAgent
+		};
+	}
 }
 
 public static class AuditActions {
@@ -66,6 +92,11 @@ public static class AuditActions {
 	public const string TenantProfileDeleted = "tenant.profile.deleted";
 	public const string TenantProfilePermissionsAssigned = "tenant.profile.permissions.assigned";
 	public const string TenantProfilePermissionsUnassigned = "tenant.profile.permissions.unassigned";
+	// Membership changes are the only history for user_account_profiles rows, which are
+	// hard-deleted on unassign. Keep assign and unassign as distinct actions so the audit
+	// trail reconstructs a member's profile timeline without inspecting row existence.
+	public const string TenantProfileUserAssigned = "tenant.profile.user.assigned";
+	public const string TenantProfileUserUnassigned = "tenant.profile.user.unassigned";
 	public const string TenantProfileBulkDeleted = "tenant.profile.bulk.deleted";
 	public const string TenantInvitationAccepted = "tenant.invitation.accepted";
 	public const string TenantUpdated = "tenant.updated";
