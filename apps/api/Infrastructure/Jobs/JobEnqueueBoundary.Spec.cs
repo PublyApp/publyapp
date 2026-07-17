@@ -138,7 +138,10 @@ public sealed partial class JobEnqueueBoundarySpec {
 			"var s = \"prefix\" + db.JobQueue.Add(row) + \"suffix\";",
 			// Round-5: a comment inside the hole must not end the hole early and
 			// hide the mutation that follows it.
-			"var s = $\"{/* } */ db.JobQueue.Add(row)}\";"
+			"var s = $\"{/* } */ db.JobQueue.Add(row)}\";",
+			// Round-7: masking an inactive branch must not consume active code
+			// immediately following its closing directive.
+			"#if false\ndb.JobQueue.Add(inactive);\n#endif\ndb.JobQueue.Add(active);"
 		];
 
 		string[] knownGood = [
@@ -165,7 +168,13 @@ public sealed partial class JobEnqueueBoundarySpec {
 			"var s = \"JobQueue\" + \".Add\";",
 			// Round-5: a format clause is literal text per the C# grammar, not
 			// executable code.
-			"var s = $\"{value:JobQueue.Add(row)}\";"
+			"var s = $\"{value:JobQueue.Add(row)}\";",
+			// Round-7: inactive code cannot enqueue, and its comments/SQL must not
+			// leak into either detector view.
+			"#if false\ndbContext.JobQueue.Add(row);\n"
+				+ "// INSERT INTO job_queue (id) VALUES (1)\n#endif",
+			// Directive message text is metadata, not executable source.
+			"#region JobQueue.Add(row)\nvar value = 1;\n#endregion"
 		];
 
 		foreach (var snippet in knownBad) {
@@ -248,6 +257,17 @@ public sealed partial class JobEnqueueBoundarySpec {
 		SyntaxTriviaList triviaList
 	) {
 		foreach (var trivia in triviaList) {
+			// Inactive code cannot enqueue at runtime, so blank disabled text rather
+			// than scanning platform-conditional branches. Directive conditions and
+			// messages are metadata too. Preserve their exact lengths in both views
+			// so masking cannot shift or consume neighboring active code.
+			if (trivia.IsKind(SyntaxKind.DisabledTextTrivia) || trivia.IsDirective) {
+				var blank = new string(' ', trivia.FullSpan.Length);
+				masked.Append(blank);
+				unmasked.Append(blank);
+				continue;
+			}
+
 			if (trivia.IsKind(SyntaxKind.SingleLineCommentTrivia)
 				|| trivia.IsKind(SyntaxKind.MultiLineCommentTrivia)
 				|| trivia.IsKind(SyntaxKind.SingleLineDocumentationCommentTrivia)
