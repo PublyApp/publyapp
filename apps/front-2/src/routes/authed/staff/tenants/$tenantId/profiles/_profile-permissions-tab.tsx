@@ -156,10 +156,11 @@ const PermissionModuleCard = ({
 										: undefined,
 								)}
 							>
-								<label className="flex items-center gap-2.5 text-[13px]">
+								<label className="flex items-center gap-2.5 text-sm">
 									<Checkbox
 										checked={checked}
 										disabled={isSaving}
+										aria-label={option.label}
 										onCheckedChange={(next) =>
 											onToggleKey(option.key, Boolean(next))
 										}
@@ -364,14 +365,36 @@ export const ProfilePermissionsTab = ({
 		setSaveErrorText(null);
 		setIsSaving(true);
 
-		const results = await Promise.allSettled([
-			...addedKeys.map((permissionKey) =>
-				assignPermission.mutateAsync({ tenantId, profileId, permissionKey }),
+		// Keep each settled result correlated with the exact operation that
+		// produced it, so the baseline can be advanced per key that actually
+		// persisted — a partial save must not re-count (or retry) keys the
+		// server already accepted.
+		const operations = [
+			...addedKeys.map((permissionKey) => ({
+				permissionKey,
+				kind: 'assign' as const,
+			})),
+			...removedKeys.map((permissionKey) => ({
+				permissionKey,
+				kind: 'unassign' as const,
+			})),
+		];
+
+		const results = await Promise.allSettled(
+			operations.map((operation) =>
+				operation.kind === 'assign'
+					? assignPermission.mutateAsync({
+							tenantId,
+							profileId,
+							permissionKey: operation.permissionKey,
+						})
+					: unassignPermission.mutateAsync({
+							tenantId,
+							profileId,
+							permissionKey: operation.permissionKey,
+						}),
 			),
-			...removedKeys.map((permissionKey) =>
-				unassignPermission.mutateAsync({ tenantId, profileId, permissionKey }),
-			),
-		]);
+		);
 
 		const rejected = results.filter(
 			(result): result is PromiseRejectedResult => result.status === 'rejected',
@@ -382,6 +405,26 @@ export const ProfilePermissionsTab = ({
 			onSessionExpired();
 			return;
 		}
+
+		// Advance the baseline only for operations that actually persisted:
+		// their keys stop counting as unsaved (and are never retried on the next
+		// Save), while failed/aborted operations stay dirty for retry.
+		const nextBaseline = new Set(baselineKeys);
+		let fulfilledCount = 0;
+		for (const [index, result] of results.entries()) {
+			if (result.status !== 'fulfilled') {
+				continue;
+			}
+
+			fulfilledCount += 1;
+			const operation = operations[index];
+			if (operation.kind === 'assign') {
+				nextBaseline.add(operation.permissionKey);
+			} else {
+				nextBaseline.delete(operation.permissionKey);
+			}
+		}
+		setBaselineKeys(nextBaseline);
 
 		// Whatever succeeded is now server truth — refetch so the granted keys,
 		// glance and stat cards reflect it.
@@ -394,23 +437,22 @@ export const ProfilePermissionsTab = ({
 		if (visibleFailures.length > 0) {
 			setIsSaving(false);
 			setSaveErrorText(
-				t('tenant-profile-permission-update-partial-success', {
-					succeeded: results.length - visibleFailures.length,
-					failed: visibleFailures.length,
+				t('permissions-save-partial', {
+					saved: t('permissions-saved-count', { count: fulfilledCount }),
+					failed: t('permissions-failed-count', {
+						count: visibleFailures.length,
+					}),
 				}),
 			);
 			return;
 		}
 
 		if (rejected.length > 0) {
-			// Only aborted requests remain; leave the staged state intact for retry.
+			// Only aborted requests remain; their keys stayed dirty for retry.
 			setIsSaving(false);
 			return;
 		}
 
-		// Full success: the staged set becomes the new baseline so the bar
-		// clears immediately, without waiting for the refetch to land.
-		setBaselineKeys(new Set(stagedKeys));
 		setIsSaving(false);
 		toastLocalMutationResult.success(t('profile-updated-successfully'));
 	};
