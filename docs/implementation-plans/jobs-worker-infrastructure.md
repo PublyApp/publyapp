@@ -1,8 +1,8 @@
 # Background Jobs & Worker Infrastructure — Design
 
 > Status: **design, owner-ratified core decisions 2026-07-16; revised same
-> night; merge-challenge rounds 1–3 remediated 2026-07-17** (single-lane ruling,
-> adversarial-audit absorption, and three challenge rounds — see the Ratification
+> night; merge-challenge rounds 1–4 remediated 2026-07-17** (single-lane ruling,
+> adversarial-audit absorption, and four challenge rounds — see the Ratification
 > record, §11). Closes
 > the #632 gap (the #194 design was referenced but never committed).
 >
@@ -25,8 +25,9 @@
 > numbers (F1–F24) are summarized in the ratification record below. The durable
 > challenge records are committed at
 > `docs/reviews/jobs-infra-design-challenge/doc-challenge-r1-findings.md`,
-> `doc-challenge-r2-findings.md`, and `doc-challenge-r3-findings.md`; their C1–C17,
-> R2-1–R2-12, and R3-1–R3-9 identifiers are cited inline where absorbed.
+> `doc-challenge-r2-findings.md`, `doc-challenge-r3-findings.md`, and
+> `doc-challenge-r4-findings.md`; their C1–C17, R2-1–R2-12, R3-1–R3-9, and
+> R4-1–R4-7 identifiers are cited inline where absorbed.
 
 ---
 
@@ -72,6 +73,13 @@ still send). The audit additionally surfaced a **live pre-existing bug (F3)**:
 and every `EmailService` method **discards that result** — a rejected send is
 indistinguishable from a delivered one today. §5.4 specifies the corrected
 contract; it lands in Phase 2C.
+
+The #811 locked-eligibility guarantee begins only at **R2 quiescence**, after
+the legacy drainer and all pre-R1 producers are gone (R4-7). During R1, remaining
+`Processing` rows and any bounded rollout stragglers still drain under the old
+eligibility-check/send semantics and retain their residual race window. That is
+an accepted, bounded rollout condition; the drainer is retired at R2 rather than
+hardened for its short final lifetime (§4.6).
 
 The outbox's *claim pattern, host-lifetime discipline, and spec discipline* are
 the template for this design's engine. Its *table and dispatcher* are retired by
@@ -219,7 +227,13 @@ Add to `AppEnvironment` (`apps/api/Lib/AppEnvironment.cs`):
      `just generate-client`, and its CI job) — `dotnet build` runs the app to
      emit the OpenAPI document, so the build env must export `APP_ROLE=api`;
   4. any CI job that boots the app for a purpose other than the worker
-     integration fixtures (which run `all` deliberately, §3.3).
+     integration fixtures (which run `all` deliberately, §3.3);
+  5. the Docker production migration entrypoint — the `migrate` stage in
+     `apps/api/Dockerfile` — and every staging/production migration service or
+     job that invokes it, including the staging `migrate` service documented in
+     `docs/front-2-migration/staging-deploy.md` and the Dokploy migrate job. Each
+     pins `APP_ROLE=api`; migration/model creation is an API-role tooling path,
+     never an implicit `all` or worker host (R4-4).
   Because these run under `Development`/`Testing` host environments, the pin is
   belt-and-braces there (the env-gated default would give `All`, but these
   callers want `api`); under any production-like environment the fail-fast rule
@@ -236,7 +250,7 @@ new config):
 | `JOB_QUEUE_DRAIN_BUDGET_SECONDS` | 60 | max continuous drain per wake before yielding one loop iteration (F10) |
 | `EMAIL_LOG_RETENTION_DAYS` | 180 | retention sweep window for `email_log` (F20; O7) |
 | `JOB_DEAD_LETTER_RETENTION_DAYS` | 90 | retention sweep window for `job_dead_letter` (F20; O7) |
-| `EMAIL_PREPARED_SEND_RETENTION_DAYS` | 7 | orphan-floor age for `email_prepared_sends` behind the live-state anti-join (§4.5/§7.3; O7; R2-11) — validated ≥ 1 |
+| `EMAIL_PREPARED_SEND_RETENTION_DAYS` | 7 | sensitive prepared-byte lifetime and email-DLQ requeue window (§4.2/§4.5/§7.3; O7/O16; R2-11/R4-3) — validated ≥ 1 |
 | `SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS` | 30 | prune window for the `system_job_occurrences` ledger (§4.3/§7.3; O9) — validated ≥ 1 |
 | `SCHEDULER_LEADER_LOCK_KEY` | (constant, not env) | see §5.2 |
 
@@ -331,11 +345,13 @@ workflow. Testcontainers integration tests run under `all` too, under the
 started the shipped outbox dispatcher before the fold-in) — these are the
 "worker-specific integration fixtures" the `all` default exists for.
 **Everything that is not local dev or a worker fixture pins `APP_ROLE=api`
-explicitly (C6/F24)** — the full enumerated list is in §3.1: the Dockerfile
+explicitly (C6/F24/R4-4)** — the full enumerated list is in §3.1: the Dockerfile
 build-time OpenAPI env block, `apps/front-2/docker-compose.test.yml`, the
-`just build-api`/`generate-client` OpenAPI-drift workflow and its CI job, and
-any other CI app-boot. Under production-like environments an unset `APP_ROLE`
-fails fast (§3.1), so nothing can silently inherit `all`.
+`just build-api`/`generate-client` OpenAPI-drift workflow and its CI job, every
+other CI app-boot, and every production-like migration invocation (the
+Dockerfile `migrate` stage, the staging migrate service, and the Dokploy migrate
+job). Under production-like environments an unset `APP_ROLE` fails fast (§3.1),
+so nothing can silently inherit `all`.
 
 ### 3.4 Dokploy deployment sketch
 
@@ -376,7 +392,17 @@ The existing `publyapp-api` service adds `APP_ROLE=api` and the same
 object storage with durable metadata is the designed escalation if/when the
 fleet spans hosts (§10 Follow-ups). Migrations continue to run via the existing
 `migrate` image stage (§4) — **only one migration runner**, unchanged; neither
-role runs `database update` at boot.
+runtime role runs `database update` at boot. The migrate container/job itself
+explicitly supplies `APP_ROLE=api`, including the staging and Dokploy shapes
+enumerated in §3.1 (R4-4).
+
+> **Known code-alignment item (R4-4, captain's reconciliation round).** The
+> production migration entrypoint is the `migrate` stage in
+> `apps/api/Dockerfile`; the staging service shape is documented in
+> `docs/front-2-migration/staging-deploy.md`. The current staging shape omits
+> `APP_ROLE`, and any Dokploy migration job must be audited likewise. Pinning
+> `APP_ROLE=api` in those exact entrypoints is a Phase-2B code/deploy-doc
+> alignment item; this design document does not edit those branches.
 
 ### 3.5 Worker health / liveness (no HTTP)
 
@@ -483,7 +509,7 @@ force-hard-delete is requested.
 | `job_dead_letter` | **No** | Append-only audit trail; never soft-deleted. Explicit `id` + `created_at`/`failed_at`, DB defaults. |
 | `system_job_definitions` | **Yes** | Low-churn config edited from the dashboard; `updated_at` tracking is wanted, and operational disable uses an explicit `is_enabled` flag (not deletion), so the soft-delete default is harmless. |
 | `email_log` | **No** | Auditable delivery lifecycle record. Inserted once for the local terminal submission outcome; later evidence may make only the state-machine transitions in §4.4, with an atomic `AuditLog` entry. Retention hard-deletes; soft-delete remains meaningless. |
-| `email_prepared_sends` | **No** | Short-lived scratch keyed by job id (F7); inserted once, deleted on resolved success/cancellation, retained through email DLQ for faithful requeue, or deleted by the live-state retention sweep. |
+| `email_prepared_sends` | **No** | Short-lived sensitive scratch keyed by job id (F7); inserted once, deleted on resolved success/cancellation, retained through email DLQ only within the prepared-send window for faithful requeue, then swept even while the longer-lived DLQ audit row remains (R4-3). |
 
 ### 4.1 `job_queue`
 
@@ -675,9 +701,12 @@ Its contract, all in **one transaction**:
   standard requeue. For email types the hook atomically **moves** the surviving
   `email_prepared_sends` row from `original_job_id` to `newJobId`, changing only
   `job_id`: `request_body`, `request_sha256`, and
-  `provider_idempotency_key` are copied byte-for-byte. A missing prepared row is
-  a clear, audited requeue rejection because faithful restoration is impossible;
-  the DLQ stamp and new queue insert roll back. Future webhook/publishing types
+  `provider_idempotency_key` are copied byte-for-byte. The operation first
+  requires `prepared_at >= (database now() - EMAIL_PREPARED_SEND_RETENTION_DAYS)`;
+  an older or missing prepared row is a
+  clear, audited `PreparedStateExpired`/`MissingPreparedState` requeue rejection
+  because faithful restoration is impossible; the DLQ stamp and new queue insert
+  roll back. Future webhook/publishing types
   must provide the equivalent prepared-request/provider-identity transfer hook.
 - **Restore the approved envelope verbatim** into a new `job_queue` row —
   `payload`, `job_type`, `priority`, `max_attempts`, `idempotency_key`,
@@ -701,14 +730,19 @@ payload would be an arbitrary-work execution primitive). Raw payloads are
 payloads may reference tenant data (F20). A `NOTIFY job_queue` fires at commit
 so the requeued row is picked up immediately (§5.5).
 
-For email, terminal failure therefore **retains** the prepared-send row while
-its DLQ row exists; DLQ requeue transfers it to the new job before commit. The
-new handler finds committed prepared state, skips rendering, and calls the
-provider with the **original bytes and original key**. This preserves the
-provider's interpretation of the same logical send even after an ambiguous
-acceptance-without-local-receipt failure. The §9 test drives provider acceptance
-without a local receipt → attempt exhaustion/DLQ → requeue and asserts identical
-bytes/key plus one provider effect.
+For email, terminal failure therefore retains the prepared-send row for **at
+most `EMAIL_PREPARED_SEND_RETENTION_DAYS` (default seven)** while a matching DLQ
+row exists, using the exact lineage predicate
+`job_dead_letter.original_job_id = email_prepared_sends.job_id` (R4-3/R4-6).
+Within that window, DLQ requeue transfers the row to the new job before commit;
+the new handler skips rendering and calls the provider with the **original bytes
+and original key**. Once the window expires, the sweep deletes those sensitive
+bytes even though the DLQ audit row remains, and the old logical send becomes
+non-requeueable. Staff must use the explicit **new-logical-send** operation to
+re-render current domain state under a new job id/provider key (with its own
+permission and audit entry) rather than resurrecting stale token-bearing bytes.
+The §9 lineage test covers first DLQ → requeue transfer → re-dead-letter using
+the exact predicate at every hop.
 
 > **Known code-alignment item (R3-2, captain's reconciliation round).** The
 > current 633/809 branch tips expose generic envelope requeue, derive the email
@@ -717,8 +751,12 @@ bytes/key plus one provider effect.
 > retained scratch, atomic transfer, and ambiguous-acceptance regression are
 > captain reconciliation items.
 
-**Retention (F20):** DLQ rows older than `JOB_DEAD_LETTER_RETENTION_DAYS`
-(default 90; O7) are hard-deleted by the retention sweep system job (§7.3).
+**Retention (F20/R4-3):** DLQ rows older than
+`JOB_DEAD_LETTER_RETENTION_DAYS` (default 90; O7) are hard-deleted by the
+retention sweep system job (§7.3), but an email DLQ row is requeueable only while
+its matching prepared state is within the shorter prepared-send window (default
+seven days; O16). The DLQ row remains inspectable after that window without
+retaining recipient/body/token request bytes.
 
 ### 4.3 `system_job_definitions`
 
@@ -731,6 +769,7 @@ CREATE TABLE system_job_definitions (
     description      text        NULL,
     last_enqueued_at timestamptz NULL,
     reconciled_through timestamptz NOT NULL DEFAULT now(), -- durable exclusive lower bound for gap reconciliation (R3-1)
+    schedule_policy_fingerprint text NOT NULL, -- hash/version of cron + timezone + gap policy (R4-1)
     created_at       timestamptz NOT NULL DEFAULT now(),
     updated_at       timestamptz NOT NULL DEFAULT now(),
     is_deleted       boolean     NOT NULL DEFAULT false,   -- BaseAttributes
@@ -789,14 +828,17 @@ if that earlier job has since completed and been deleted), so the transaction
 enqueues nothing and commits a no-op. This is durable, restart-surviving dedup the
 queue key cannot provide.
 
-**Prune-safe reconciliation high-watermark (R3-1/O10).** Retention means the
+**Prune-safe, revision-aware reconciliation high-watermark
+(R3-1/R4-1/O10/O15).** Retention means the
 ledger identity is not literally permanent, so catch-up must never infer an old
 missing occurrence merely because its ledger row was pruned. The durable lower
 bound is `system_job_definitions.reconciled_through`, updated under a row lock:
 
 1. Reconciliation starts one transaction and locks the definition row `FOR
    UPDATE`. Its exclusive scan interval is `(reconciled_through, cutoff]`, where
-   `cutoff` is the latest expected cron fire at or before database `now()`.
+   `cutoff` is the latest expected cron fire at or before database `now()`. If a
+   sparse cron has no expected fire after the current watermark, the interval is
+   empty; `cutoff` is never allowed to move the watermark backward.
    On first deployment, the migration initializes `reconciled_through = now()`
    for existing definitions; the seeder initializes new definitions to database
    `now()`. Neither bootstrap path backfills pre-feature history.
@@ -804,10 +846,11 @@ bound is `system_job_definitions.reconciled_through`, updated under a row lock:
    most the `n` most-recent expected fires in that interval and inserts their
    ledger + queue rows through the atomic path below. Older fires in the interval
    are deliberately dropped, not deferred.
-3. After all selected enqueues (possibly zero) succeed, the same transaction advances
-   `reconciled_through = cutoff` using database time and commits. Any enqueue
-   failure rolls back both the jobs and the watermark. A concurrent reconciler
-   blocks on the row lock and then observes the advanced bound.
+3. After all selected enqueues (possibly zero) succeed, the same transaction
+   advances
+   `reconciled_through = GREATEST(reconciled_through, cutoff)` and commits. Any
+   enqueue failure rolls back both the jobs and the watermark. A concurrent
+   reconciler blocks on the row lock and then observes the monotonic bound.
 4. Reconciliation **never enumerates a fire at or before
    `reconciled_through`**, even when its occurrence row has been pruned. The
    ledger may therefore be retained for 30 days without resurrecting older work.
@@ -819,11 +862,31 @@ then advances through one cutoff. This prevents a live fire racing ahead from
 silently skipping a bounded-catch-up gap. The §9 regression prunes an old
 occurrence, reconciles twice, and proves that neither pass resurrects it.
 
-> **Known code-alignment item (R3-1, captain's reconciliation round).** The
+**Schedule-revision semantic: edits start “from now”; they never back-fill
+(R4-1/O15).** The stored `schedule_policy_fingerprint` is a deterministic
+version/hash of the effective cron expression, catalog timezone, and catalog gap
+policy. Every schedule mutation uses one of two transactionally complete paths:
+
+- the dashboard/service path locks the definition and, on a cron change or a
+  `disabled → enabled` transition, writes the new values/fingerprint and resets
+  `reconciled_through = database now()` in the same transaction; and
+- `SyncSystemJobsJob` compares the current catalog-derived fingerprint under the
+  same definition-row lock. A timezone or gap-policy code change that causes a
+  mismatch atomically writes the new fingerprint and resets
+  `reconciled_through = database now()` **before** registering the revised live
+  trigger.
+
+That reset is the new schedule's exclusive effective lower bound: time before it
+is never interpreted under the new cron/timezone/gap policy, and time spent
+disabled is never caught up when re-enabled. This deliberately trades historical
+back-fill for an honest, simple edit contract. The §9 sparse-cron, cron-edit, and
+disable-past-retention specs prove monotonicity and the no-back-fill boundary.
+
+> **Known code-alignment item (R3-1/R4-1, captain's reconciliation round).** The
 > current `feat/634-app-role-quartz` line has no durable reconciliation
 > high-watermark. This document specifies the correct contract; adding the
-> column, migration initialization, row-lock/update semantics, and spec belongs
-> to the captain's reconciliation round.
+> columns, migration initialization, `GREATEST` update, schedule-fingerprint
+> reset paths, and specs belongs to the captain's reconciliation round.
 
 ### 4.4 `email_log` (auditable delivery lifecycle record — day one)
 
@@ -956,7 +1019,8 @@ CREATE TABLE email_prepared_sends (
 insert, and every insert would set it true, so the column could never distinguish
 the two lifecycle states. The presence of a committed `email_prepared_sends` row
 for a `job_id` means PREPARE committed; its absence means it did not. `prepared_at`
-is retained only because it is operationally useful (the orphan-floor age, §7.3).
+is retained because it is operationally useful and is the authoritative start
+of the sensitive-byte/DLQ-requeue window (§4.2/§7.3; R4-3).
 
 **Why `bytea`, and a *transport* serializer — not `JobJson` (R2-2/C1).** The
 prepared body must be the **exact bytes written to the provider HTTP request**;
@@ -1011,16 +1075,21 @@ member order) — the same code path `SendPreparedAsync` consumes.
    failure the scratch row is left committed** so the retry reuses it; only a
    resolved `Submitted`/`CancelledIneligible` outcome deletes it. A permanent
    failure leaves the row attached to the DLQ lineage so §4.2 can transfer the
-   original bytes and provider identity during requeue (R3-2).
+   original bytes and provider identity during requeue **within the prepared-send
+   window** (R3-2/R4-3).
 
-**Cleanup is a live-state anti-join, never age alone (C1).** "Orphan" is defined,
-not assumed: the `email-prepared-sends-retention` sweep (§7.3) may delete a row
-**only when its `job_id` exists in neither `job_queue` nor `job_dead_letter`**
-(the job is fully resolved and gone) **and** the row is older than a safety floor
-(7 days). A live job's envelope can never be swept out from under it regardless
-of age — the anti-join is the gate, the age is only a secondary backstop against
-truly-leaked rows. Because the bytes contain a live token, the floor is kept
-short, but correctness rests on the anti-join.
+**Cleanup preserves live queue work but caps email-DLQ state at seven days
+(C1/R4-3/R4-6).** The `email-prepared-sends-retention` sweep (§7.3) uses exact
+relationships: `job_queue.id = email_prepared_sends.job_id` and
+`job_dead_letter.original_job_id = email_prepared_sends.job_id`. A live
+`job_queue` row protects its prepared envelope regardless of age. A matching
+email DLQ row protects it only until
+`prepared_at + EMAIL_PREPARED_SEND_RETENTION_DAYS`; after that cutoff the sweep
+deletes the prepared bytes while retaining the DLQ audit row. A row matching
+neither relation is an orphan and is deleted after the same age floor. Thus age
+alone never deletes active queued work, but it deliberately ends requeueability
+for failed email sends so token-bearing recipient/body bytes do not inherit the
+90-day DLQ retention window (O16).
 
 **The honest delivery guarantee (F7):** email delivery is **at-least-once with
 a bounded no-duplicate window** — within 24 h of first provider acceptance,
@@ -1104,6 +1173,14 @@ expand/contract across **two releases**:
    `Processing` rows with the old semantics. No
    row is ever owned by both systems: folded rows are `Cancelled` to the old
    dispatcher, unfolded `Processing` rows are invisible to the new one.
+   **Accepted bounded rollout condition (R4-7):** those residual rows still use
+   the legacy eligibility-check/send sequence, and a pre-R1 producer that slips
+   through during rollout may add another such row. The #811 domain-lock
+   linearization guarantee therefore does **not** cover the R1 drainer window.
+   It begins only after R2's fleet precondition and total quiescence check prove
+   no legacy producer/drainer work remains. The drainer is intentionally not
+   hardened because R2 retires it; immutable tags, the short R1 interval, and
+   the abort-on-any-Pending/Processing gate bound the accepted exposure.
 
 **Release R2 (small follow-up, same night or next deploy):**
 
@@ -1146,7 +1223,8 @@ expand/contract across **two releases**:
      lease) `Processing` row, and a **fresh `Pending` row inserted by an old
      producer** mid-R1 — each must abort the drop (C2).
 4. R2 code: delete `InvitationEmailOutboxDispatcher` (+ spec), the signal, and
-   the entity.
+   the entity. At this R2 quiescence boundary the new email handlers are the only
+   send path, so the #811 locked-eligibility guarantee becomes system-wide.
 
 **Proof the old dispatcher ignores the compound marker (R3-7).** The shipped R1
 implementation is
@@ -1572,6 +1650,14 @@ hole). The contract:
     one);
   - **cron policy**: the trigger **time zone** (default UTC, explicit per entry)
     and a **gap policy** (see below).
+- **Every dynamic `CronTrigger` disables Quartz catch-up (R4-2).**
+  `SyncSystemJobsJob` constructs it with
+  `WithCronSchedule(cronExpression, x => x.InTimeZone(timeZone)
+  .WithMisfireHandlingInstructionDoNothing())`. Quartz therefore skips a live
+  misfire caused by thread starvation or a paused scheduler; it never injects a
+  `FireOnceNow` occurrence behind the durable policy's back. The durable
+  reconciliation transaction is the **sole catch-up authority** for both
+  `DropOnGap` and `CatchUp = AtMost(n)`.
 - **`EnqueueSystemJobJob`** is the single Quartz job type every dynamic trigger
   fires (wired by `SyncSystemJobsJob`, which stamps the `job_key` into the
   trigger's `JobDataMap`). On fire it, **in one transaction**: computes
@@ -1610,8 +1696,9 @@ hole). The contract:
   current state, not three), so the next scheduled fire covers reality. An entry
   may **opt into bounded catch-up** (`CatchUp = AtMost(n)`): reconciliation
   enqueues at most the `n` most-recent missed occurrences, deliberately drops
-  older misses in the interval, then advances `reconciled_through = cutoff` in
-  the same transaction. No later pass inspects at/below that bound, even after
+  older misses in the interval, then advances
+  `reconciled_through = GREATEST(reconciled_through, cutoff)` in the same
+  transaction. No later pass inspects at/below that bound, even after
   occurrence retention prunes those rows. The policy is a per-catalog-entry
   field, so the choice is explicit and inspectable, never implicit RAM-store
   behavior.
@@ -1629,9 +1716,22 @@ hole). The contract:
 - **Specs (§9):** catalog-unknown `job_key` is skipped (not scheduled); a
   delayed duplicate occurrence enqueues nothing (ledger PK); prune then
   reconcile twice never resurrects an occurrence at/below the high-watermark;
+  sparse cron never regresses the watermark; cron edit and disable beyond
+  retention then re-enable both reset to database `now()` and never back-fill;
+  a live scheduler paused beyond a fire time uses
+  `WithMisfireHandlingInstructionDoNothing()` and enqueues nothing until the
+  durable reconciliation policy runs;
   catalog→handler
   closure fails the startup gate when a definition has no handler;
   `EnqueueSystemJobJob` routes only through `IJobEnqueuer`.
+
+> **Known code-alignment item (R4-2, captain's reconciliation round).** The
+> current `feat/634-app-role-quartz` line uses the default
+> `WithCronSchedule(cronExpression)`, whose smart misfire policy may fire once
+> immediately. Replacing it with
+> `WithMisfireHandlingInstructionDoNothing()` on every dynamic cron trigger and
+> adding the live-scheduler pause/misfire spec are Phase-2B alignment work; this
+> document makes no code-branch edit.
 
 **Why no `qrtz_*` tables (deviation from #194's table list):** durability lives
 in `job_queue` (work) and `system_job_occurrences` (recurring identity),
@@ -2017,7 +2117,8 @@ processing-over-lease > 0 for 3 consecutive samples, DLQ growth > 0 in an hour,
 2× interval** — R2-10) log at **warning** and increment a metric — telemetry the
 Phase-3 alert route (§7) consumes; the warning log is **not itself** a pager.
 
-**One notification per condition/window — database lease (R3-6).** Phase 3 adds
+**At-least-once alert delivery with a condition/window lease
+(R3-6/R4-5/O17).** Phase 3 adds
 the pure-Postgres `job_alert_delivery_leases` table; the webhook sink is only the
 transport and never performs deduplication itself:
 
@@ -2042,30 +2143,44 @@ only when `notification_sent_at IS NULL AND lease_until <= now()`, setting a
 `RETURNING` yields the row. On successful webhook response it sets
 `notification_sent_at = now()` conditioned on the same owner; on a definite
 failure it expires the lease immediately for retry. The webhook request also
-carries the stable idempotency key `{condition_key}:{window_started_at}` so an
-ambiguous response can be deduplicated by the configured receiver. Rows older
-than the alert audit window are retention-pruned. Condition keys exclude
+carries the stable idempotency key `{condition_key}:{window_started_at}` as a
+**best-effort receiver hint**, not a v1 exactly-once guarantee. If the receiver
+accepts and the worker crashes or times out before committing
+`notification_sent_at`, the lease expires and another replica retries; the
+receiver may render a duplicate unless it contractually honors that key. Thus
+the lease prevents concurrent sends and bounds duplicates to ambiguous-response
+or lease-expiry races, while delivery remains honestly **at least once**. Rows
+older than the alert audit window are retention-pruned. Condition keys exclude
 `instance` for fleet-wide facts (leader absence, queue depth) and include it for
 replica-local faults (listener disconnected), which makes the aggregation rule
 explicit rather than an assertion. The Phase-3 gate starts N worker monitors on
-one breached fleet-wide condition and proves exactly one rendered notification;
-it separately drops the scheduler lock and proves leader absence remains
-observable and produces one notification.
+one breached fleet-wide condition and proves only the lease winner attempts
+delivery while the lease is live; an accept-without-local-commit case then
+proves a retry occurs after expiry and records that a duplicate is permitted. It
+separately drops the scheduler lock and proves leader absence remains observable
+and attempts delivery through the same at-least-once path.
 
 ### 7.3 Operational jobs (Phase 3)
 
 Retention sweeps run as ordinary system jobs (dashboard-visible, #636):
 `email-log-retention` (delete rows older than `EMAIL_LOG_RETENTION_DAYS`,
 batched), `job-dead-letter-retention` (`JOB_DEAD_LETTER_RETENTION_DAYS`),
-`email-prepared-sends-retention` (**live-state anti-join, C1: delete only when
-`job_id` is absent from both `job_queue` and `job_dead_letter` AND older than
-`EMAIL_PREPARED_SEND_RETENTION_DAYS`** — default 7; the env var, not a hardcoded
-floor — R2-11; age alone never deletes), and `system-job-occurrence-retention`
+`email-prepared-sends-retention` (**bounded live-state policy, C1/R4-3/R4-6**:
+protect when `job_queue.id = email_prepared_sends.job_id`; protect a DLQ-only row
+only while the prepared-send window remains and only when
+`job_dead_letter.original_job_id = email_prepared_sends.job_id`; delete an
+unmatched orphan after the same age floor; delete expired DLQ prepared state even
+though its 90-day audit row remains — default 7 via
+`EMAIL_PREPARED_SEND_RETENTION_DAYS`, never a hardcoded value), and
+`system-job-occurrence-retention`
 (prune `system_job_occurrences` older than `SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS`
 — default 30; R2-1/O9). The prune never changes
 `system_job_definitions.reconciled_through`; reconciliation never inspects at or
 below that durable bound, so a pruned occurrence cannot be resurrected
-(R3-1/O10). Autovacuum storage parameters for `job_queue` ship in the
+(R3-1/O10). The prepared-send sweep reports the affected DLQ ids so the staff
+dashboard immediately renders those rows as **non-requeueable: prepared state
+expired** and points authorized staff to the audited new-logical-send operation
+(O16). Autovacuum storage parameters for `job_queue` ship in the
 Phase 2A-R migration (§4.1); the sampler watches dead tuples so a mis-tuned
 autovacuum is visible, not silent.
 
@@ -2183,10 +2298,10 @@ Engine (`JobQueueProcessor.Spec.cs` and siblings):
 | **renewal transient vs. confirmed-loss + safety margin (C7/R2-4/R3-4)** | startup rejects leases below 10 s; a renewal that *throws* retries while margin remains with every sleep capped to `remainingSafeInterval`; a renewal returning **0 rows** cancels at once; a transient outage crossing the deadline timer requests cancellation before expiry and the first settlement no-ops on the fence; a token-ignoring handler demonstrates why provider identity/idempotency, not cooperative cancellation, prevents duplicate effects |
 | **error sanitization (`JobErrorSanitizer.Spec.cs`, C11/F20/R2-8/R3-5)** | an exception message carrying an email + a token blob → stored `last_error` is type-coded, redacted (`[redacted-email]`/`[redacted-token]`), ≤ 2 KB; the actual configured console/file outputs contain no canary or raw exception message because `SanitizingLogEventSink` removes `LogEvent.Exception`, and the engine logs `Describe` + stack metadata |
 | **version-compat startup gate (C14/F14/R2-9)** | a `job_queue` **or** `job_dead_letter` row of an unregistered `job_type` → worker composition **fails to start**; **there is no bypass for a `job_queue` orphan**; a DLQ-only orphan in `JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST` (exact type) boots; all-registered → starts clean |
-| **DLQ requeue lineage + single-use (C9/F16/R2-7/R3-2)** | `RequeueDeadLetterAsync` restores the stored envelope, validates through `JobRegistration`, applies its policy, stamps lineage/audit atomically, and rejects repeats; for email, provider acceptance without local receipt → exhaustion/DLQ → requeue transfers the original prepared bytes/key to the new job and the fake provider records exactly one effect; missing external state rejects the requeue with no partial stamp/insert |
-| **system-job durable occurrence dedup (C4/F13/R2-1/R3-1)** | an occurrence enqueues its ledger row atomically; a delayed duplicate after queue deletion enqueues nothing; after pruning an old occurrence, **two reconciliation passes both ignore it because `scheduled_fire_at <= reconciled_through`**; concurrent reconcilers serialize on the definition row and watermark/jobs roll back together; catalog closure holds |
+| **DLQ requeue lineage + single-use (C9/F16/R2-7/R3-2/R4-3/R4-6)** | `RequeueDeadLetterAsync` restores the stored envelope, validates through `JobRegistration`, applies its policy, stamps lineage/audit atomically, and rejects repeats; for email, provider acceptance without local receipt → first DLQ → requeue transfer → re-dead-letter proves `job_dead_letter.original_job_id = email_prepared_sends.job_id` at every hop and preserves the original bytes/key; missing or >7-day prepared state rejects requeue with no partial stamp/insert, while new-logical-send remains available |
+| **system-job durable occurrence dedup (C4/F13/R2-1/R3-1/R4-1/R4-2)** | an occurrence enqueues its ledger row atomically; a delayed duplicate after queue deletion enqueues nothing; after pruning an old occurrence, **two reconciliation passes both ignore it because `scheduled_fire_at <= reconciled_through`**; concurrent reconcilers serialize and watermark/jobs roll back together; a sparse cron proves `GREATEST` never regresses the watermark; cron edit and disable-past-retention/re-enable reset it to DB `now()` without back-fill; a paused live scheduler proves DoNothing misfire behavior and reconciliation-only catch-up; catalog closure holds |
 | **2C registration set (R3-3)** | after 2B composition, 2C registers exactly one listener hosted service, one shared `IJobQueueSignal` binding, and exactly the three v1 email `JobRegistration`s with external-effect transfer hooks; missing/duplicate entries fail |
-| **alert condition/window lease (R3-6)** | N replica monitors breach the same fleet condition/window and only the DB-lease winner renders one notification; a definite delivery failure releases for retry; dropping the scheduler advisory lock makes every instance-tagged probe report absence while the fleet condition still produces one notification |
+| **alert condition/window lease (R3-6/R4-5)** | N replica monitors breach the same fleet condition/window and only the DB-lease winner attempts delivery during the live lease; a definite failure releases for retry; accept-without-local-commit → lease expiry → retry proves v1 at-least-once semantics and permits a receiver-visible duplicate; dropping the scheduler advisory lock makes every instance-tagged probe report absence while the fleet condition still attempts delivery |
 | leader election (`SchedulerLeaderService.Spec.cs`) | two hosts contend the advisory lock; exactly one starts Quartz; release migrates leadership; **standby is confirmed before the lock releases**, and an unconfirmed standby fails closed (lock retained) |
 | `AppRoleComposition.Spec.cs` (F17/C5) | `Worker` builds a Generic Host — **no server/endpoints exist**, and the full DI graph resolves without web registrations; the spec enumerates **every registered `IHostedService`** (not one namespace) and asserts `Api` registers **zero** job/worker hosted-services — including the transitional legacy outbox dispatcher |
 
@@ -2196,11 +2311,12 @@ Email handlers + fold:
 | --- | --- |
 | kind routing | each email `job_type` resolves its registered handler, which calls the right `IEmailService` method |
 | **eligibility race, both lock orders (F8/#811)** | order 1: revoke commits before the handler's locked read → no send, `CancelledIneligible` logged. order 2: handler holds the lock paused at the fake-sender barrier → the concurrent revoke **blocks** (does not complete), the send proceeds, revoke commits after — asserting the documented linearization semantic, not a preemption the design does not provide |
+| **#811 rollout boundary (R4-7)** | during R1 a residual legacy `Processing` send can still win the old eligibility-check/send race; after the immutable-tag fleet precondition and zero Pending/Processing R2 gate, the drainer is gone and both lock-order specs above cover every send path |
 | `email_log` terminal writes | `Submitted` / `CancelledIneligible` / `PermanentlyFailed` each produce exactly one row with kind/recipient/entity ids/`provider_message_id`/`request_sha256` |
 | provider-evidence lifecycle (R3-8) | only allowed conditioned transitions succeed; each update writes its immutable audit row atomically and deduplicates provider event id; forbidden/repeated transitions affect zero rows; dashboard history can reconstruct prior/new outcomes |
 | send idempotency + two-phase prepare + local recheck (F7/C1/R2-2) | re-running a job whose `Submitted` row exists sends **nothing**; the PREPARE transaction commits `request_body` **before** the provider call, and `SendPreparedAsync` sends those **exact bytes**, so a crash after provider-accept/before send-commit resends byte-identically even after the domain row mutates; a transient failure leaves the committed scratch; **two reclaimed handlers racing past step 0 — the second re-checks `email_log` under the SEND lock and does not call the provider** |
 | legacy `Sent` mapped honestly (R2-3) | a folded legacy `Sent` row becomes `LegacySubmissionUnverified`, **never `Submitted`**; no metric counts it as a confirmed submission |
-| prepared-send cleanup anti-join (C1) | the retention sweep deletes a prepared-send row **only** when its `job_id` is absent from both `job_queue` and `job_dead_letter`; a live job's envelope is never swept regardless of age |
+| prepared-send cleanup/expiry (C1/R4-3/R4-6) | a live `job_queue.id = email_prepared_sends.job_id` protects prepared state regardless of age; first DLQ, requeue transfer, and re-dead-letter each match on `job_dead_letter.original_job_id = email_prepared_sends.job_id`; at the prepared-send cutoff the DLQ bytes are swept, its dashboard row becomes non-requeueable, and requeue returns `PreparedStateExpired` without partial writes |
 | **non-throw provider failure (F3/F23)** | an unsuccessful provider response (no exception thrown by the SDK) surfaces as a classified exception → `Retry`/`PermanentFailure`; it can never yield `Submitted` |
 | #809 durability + rollback (F6) | the committed reset job survives request cancellation/restart and is deliverable; a failed enqueue rolls back token issuance and vice versa (both directions) |
 | **fold idempotency + in-flight dispatcher (F4/F23/C2/C3/R3-7)** | re-running the fold produces no duplicate jobs; a `Processing` row is untouched; R2 aborts for fresh/stale Processing and fresh old-producer Pending; a folded source persists the exact compound marker `Cancelled + 'folded to job_queue'`, is excluded from back-copy, and the shipped dispatcher claim predicate proves it is unclaimable; genuine outcomes alone are copied idempotently |
@@ -2275,8 +2391,9 @@ specs. The audit found it incomplete; 2A-R below is its remediation packet.
   allowlist** — C14/F14/R2-9; **+ catalog→definition→handler closure check** —
   R2-1); `Modules/Jobs/Entities/{SystemJobDefinition,SystemJobOccurrence}.cs`
   (**occurrence ledger** — R2-1); migration `AddSystemJobDefinitions`
-  (**+ `system_job_occurrences` + `reconciled_through` durable high-watermark,
-  initialized to database `now()`** — R2-1/R3-1/O10);
+  (**+ `system_job_occurrences` + monotonic `reconciled_through` durable
+  high-watermark + `schedule_policy_fingerprint`, initialized to database
+  `now()`/current policy** — R2-1/R3-1/R4-1/O10/O15);
   `Infrastructure/Jobs/WorkerHeartbeatService.cs`;
   `SchedulerLeaderService.Spec.cs`, `AppRoleComposition.Spec.cs`,
   `SystemJobCatalog`/`EnqueueSystemJobJob`/occurrence-dedup specs.
@@ -2294,10 +2411,13 @@ specs. The audit found it incomplete; 2A-R below is its remediation packet.
   before the worker loop); `ServiceRegistration.cs` (retarget shared registrations
   to `IHostApplicationBuilder`; move `AddHttpContextAccessor` into shared infra —
   F17); `Dockerfile`
-  (**`APP_ROLE=api` in the build-time OpenAPI env block** — C6/F24);
+  (**`APP_ROLE=api` in both the build-time OpenAPI env block and the production
+  `migrate` stage/invocation** — C6/F24/R4-4);
   `apps/front-2/docker-compose.test.yml` (`APP_ROLE=api` — C6/F24);
   **the OpenAPI-drift / `generate-client` CI workflow (`APP_ROLE=api`)** and any
-  other app-boot CI job (C6/F24 entrypoint enumeration, §3.1);
+  other app-boot CI job; `docs/front-2-migration/staging-deploy.md` staging
+  migrate service and the Dokploy migrate job (**both `APP_ROLE=api`** —
+  C6/F24/R4-4 entrypoint enumeration, §3.1);
   `dokploy.yml` (worker service: shared storage volume — F18; no
   `container_name`, `stop_grace_period: 45s` on both services — F19; immutable
   `${RELEASE_TAG}` images — F14); Quartz packages in
@@ -2308,8 +2428,11 @@ specs. The audit found it incomplete; 2A-R below is its remediation packet.
   resolvable DI graph, and — enumerating **every `IHostedService`** — that api
   registers **zero** job/worker services (C5); the version-compat startup gate
   fails closed on an unregistered queued/DLQ type (C14); worker container passes
-  `--worker-health`; every enumerated OpenAPI/CI/build entrypoint runs
-  role-pinned (C6).
+  `--worker-health`; sparse-cron/cron-edit/disable-past-retention reconciliation
+  specs and the live-scheduler DoNothing misfire spec pass (R4-1/R4-2); every
+  enumerated OpenAPI/CI/build/**migrate** entrypoint runs role-pinned, including
+  building/running the Docker `migrate` target under a production-like
+  environment (C6/R4-4).
 
 ### Phase 2C-R1 — #809/#810/#811: email jobs + `email_log` + fold (absorbs F3, F4, F6, F7, F8, F20) — **DEVELOPMENT DEPENDS ON 2A-R; RELEASE DEPENDS ON 2B**
 
@@ -2341,15 +2464,17 @@ specs. The audit found it incomplete; 2A-R below is its remediation packet.
   `email_prepared_sends` scratch persists the request as **`bytea` (`request_body`)
   with a committed-PREPARE phase — no `prepared_committed` flag, row existence is
   the proof** (C1/R2-12); `EmailLogOutcome` includes **`LegacySubmissionUnverified`**
-  (R2-3); email terminal failure retains prepared state and its registration
-  atomically transfers original bytes/key on requeue (R3-2); the fold migration
+  (R2-3); email terminal failure retains prepared state only within the
+  prepared-send window and its registration atomically transfers original
+  bytes/key on timely requeue (R3-2/R4-3); the fold migration
   marks folded rows with exact compound marker
   `Cancelled + 'folded to job_queue'`,
   back-copies **genuine outcomes only** with `Sent → LegacySubmissionUnverified`
   and a **SQL-side stable error code** (C3/R2-3/R2-8).
 - **Gate:** §9 email-handler specs green (both lock orders, prepared-envelope
   idempotency, non-throw provider failure, terminal `email_log` writes, #809
-  rollback both directions); fold idempotency spec green; an exact registration
+  rollback both directions, prepared-state expiry, and exact first-DLQ → requeue
+  transfer → re-dead-letter lineage predicate); fold idempotency spec green; an exact registration
   set spec asserts the three email registrations, one listener hosted service,
   and one shared signal binding with no duplicates/omissions (R3-3);
   `just test-api` green.
@@ -2370,7 +2495,9 @@ specs. The audit found it incomplete; 2A-R below is its remediation packet.
   `InvitationEmailOutbox.cs`; remove their (worker-only) registrations + DbSet.
   Gate: quiescence check exercised in a spec across **fresh `Processing`, stale
   `Processing`, and fresh old-producer `Pending`** (C2); full suite green with the
-  outbox code gone.
+  outbox code gone; the rollout spec records the accepted R1 #811 race window and
+  proves the locked-eligibility guarantee covers every send path only after this
+  R2 boundary (R4-7).
 
 ### Parallelization
 
@@ -2417,7 +2544,10 @@ prepared-sends via `EMAIL_PREPARED_SEND_RETENTION_DAYS`, and
 `system_job_occurrences` via `SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS` — R2-11/R2-1).
 Gate: jobs run on schedule under `worker`; sampler emits gauges and threshold
 warnings **from a follower with no leader present**; N replicas observing one
-fleet condition produce one notification in its window; the exact `pg_locks`
+fleet condition permit only the live lease winner to attempt delivery;
+accept-without-local-commit retries after lease expiry under the explicit
+at-least-once contract (a receiver-visible duplicate is allowed); the exact
+`pg_locks`
 probe reports leader absence without attempting the advisory lock; retention
 deletes only out-of-window rows.
 
@@ -2429,7 +2559,11 @@ Staff endpoints (`/staff/...`, per route-design guide) over `job_queue`,
 requeue-from-DLQ per the §4.2 contract** (engine-only `RequeueDeadLetterAsync`
 restoring the stored envelope + per-type external-effect state + lineage
 chaining, `staff:jobs:dead-letter:requeue`
-permission, immutable audit entry, no client payload override — F16/C9),
+permission, immutable audit entry, no client payload override — F16/C9), with
+email rows older than the prepared-send window plainly marked
+**non-requeueable: prepared state expired** and an explicit, separately
+permissioned/audited **new logical send** action that renders current state under
+a new id/key (R4-3/O16),
 enable/disable + edit-cron system jobs. Follows
 existing staff list-page + permission patterns. **Design-sketch scope only in
 this doc**; full UI spec is out of Epic A's core.
@@ -2440,6 +2574,12 @@ this doc**; full UI spec is out of Epic A's core.
   `seed-bulk` move. Revisit when the role-based single image is outgrown.
 - Durable Quartz store (`qrtz_*`) — only if misfire-across-restart semantics are
   ever required.
+- **Receiver-enforced alert idempotency contract (O17):** upgrading alert
+  delivery from v1 at-least-once to exactly-once requires selecting a receiver
+  that contractually deduplicates `{condition_key}:{window_started_at}`, with
+  specified key-retention, accept/response semantics, and an
+  accept-without-response integration test. It is a named follow-up, not a v1
+  guarantee inferred from the request header.
 - #646 (D3) `ScheduledPost` + `DispatchDuePostsJob` — the design accommodates it
   (idempotent enqueue + domain outcome marker, priority) but Epic A does not
   build it.
@@ -2485,9 +2625,10 @@ the same-night D2 revision and retained only for the record.
 - **O7 — Retention windows (F20). — AUTHOR-DECIDED: adopt defaults (pending owner
   objection).** `email_log` 180 days (`EMAIL_LOG_RETENTION_DAYS`),
   `job_dead_letter` 90 days (`JOB_DEAD_LETTER_RETENTION_DAYS`),
-  `email_prepared_sends` orphans 7 days behind the live-state anti-join
-  (`EMAIL_PREPARED_SEND_RETENTION_DAYS` — a real env var now, R2-11) — enforced by
-  Phase-3 sweep jobs (§7.3), env-overridable. **Decided: adopt these defaults.**
+  and `email_prepared_sends` 7 days
+  (`EMAIL_PREPARED_SEND_RETENTION_DAYS` — a real env var, R2-11), including the
+  email-DLQ requeue cap in O16 — enforced by Phase-3 sweep jobs (§7.3),
+  env-overridable. **Decided: adopt these defaults.**
   Flagged because retention of recipient personal data is policy territory; the
   owner may override any window without a design change (all are env vars, §3.1).
 - **O9 — System-job occurrence ledger: retention + gap policy (R2-1). —
@@ -2503,20 +2644,24 @@ the same-night D2 revision and retained only for the record.
   wires exactly one real destination — **default recommendation: a Serilog
   warning+ webhook sink to the operator's existing notification channel**, with an
   OTel/Prometheus exporter as the alternative if a metrics backend is stood up.
-  **Decided: telemetry v1, webhook-sink route in Phase 3.** Flagged because the
-  concrete destination is an ops/policy choice, not an engineering one.
+  Delivery is at least once (O17); its idempotency key is best-effort until a
+  receiver contract says otherwise. **Decided: telemetry v1, webhook-sink route
+  in Phase 3.** Flagged because the concrete destination is an ops/policy choice,
+  not an engineering one.
 - **O10 — Prune-safe catch-up identity (R3-1). — AUTHOR-DECIDED: durable
   high-watermark (pending owner objection).** Add
   `system_job_definitions.reconciled_through`; serialize reconciliation on the
-  definition row, scan only `(watermark, cutoff]`, and advance through the cutoff
-  atomically even when older misses are dropped (§4.3/§5.3). **Decided over:** a
+  definition row, scan only `(watermark, cutoff]`, and advance with `GREATEST`
+  atomically even when older misses are dropped (§4.3/§5.3). Schedule-edit reset
+  semantics are O15. **Decided over:** a
   catch-up-window/retention inequality, because correctness then does not depend
   on two independently tunable durations.
 - **O11 — External-effect DLQ requeue (R3-2). — AUTHOR-DECIDED: transfer state
   (pending owner objection).** Keep the staff requeue operation, but require each
   external-effect `JobRegistration` to atomically transfer its immutable prepared
-  request and original provider identity to the new job (§4.2). **Decided over:**
-  prohibiting requeue and exposing a separate new-logical-send operation.
+  request and original provider identity to the new job (§4.2), subject to the
+  seven-day email cap in O16. **Decided over:** prohibiting all requeue; the
+  separate new-logical-send operation is used only after faithful state expires.
 - **O12 — Minimum job lease (R3-4). — AUTHOR-DECIDED: 10 seconds (pending owner
   objection).** Startup rejects smaller `JOB_LEASE_SECONDS`; renewal sleeps are
   capped to the remaining safe interval and a deadline timer requests
@@ -2533,11 +2678,30 @@ the same-night D2 revision and retained only for the record.
   table); permit only the conditioned evidence transitions in §4.4 and write an
   immutable `AuditLog` entry in the same transaction. The row is no longer
   described as immutable or append-only.
+- **O15 — Schedule revision semantics (R4-1). — AUTHOR-DECIDED: reset to database
+  now, never back-fill (pending owner objection).** Cron/timezone/gap-policy
+  changes and disabled→enabled transitions atomically reset
+  `reconciled_through` to database `now()`; a persisted policy fingerprint makes
+  catalog changes detectable. **Decided over:** storing and replaying historical
+  schedule revisions, because edits should take effect prospectively.
+- **O16 — Email prepared-state/DLQ window (R4-3/R4-6). — AUTHOR-DECIDED: seven-day
+  requeue cap (pending owner objection).** Email DLQ requeue is faithful only
+  while its exact prepared bytes/key remain within
+  `EMAIL_PREPARED_SEND_RETENTION_DAYS` (default seven). Older DLQ rows remain for
+  audit but are non-requeueable; staff use the separately permissioned/audited
+  new-logical-send operation. **Decided over:** retaining sensitive prepared bytes
+  for 90 days or adding encryption machinery in v1.
+- **O17 — Alert delivery semantics (R4-5). — AUTHOR-DECIDED: at least once in v1
+  (pending owner objection).** The DB lease prevents concurrent attempts and
+  bounds duplicates to ambiguous-response/lease-expiry races; the stable key is
+  best-effort. Exactly-once requires the named receiver-contract follow-up in
+  §10. **Decided over:** claiming receiver behavior the selected generic webhook
+  route does not guarantee.
 
 ### Ratification record
 
 **Status vocabulary.** Only decisions explicitly attributed to the owner below
-are **owner-ratified**. O6–O14 are **author-decided, pending owner objection**;
+are **owner-ratified**. O6–O17 are **author-decided, pending owner objection**;
 their mechanisms are implementation-authoritative meanwhile, but this record
 does not relabel silence as ratification.
 
@@ -2758,3 +2922,48 @@ New author-decided items pending owner objection: **O10** high-watermark,
 code-alignment items for the captain: R3-1 (634 high-watermark), R3-2 (633/809
 requeue state), R3-3 (809 placeholder registrations), R3-4 (633 renewal + 634
 validator), and R3-5 (633 logging sink). No disputes this round.
+
+**2026-07-17 — PR #852 merge-challenge round 4 remediated (0 blockers /
+5 majors / 2 minors;
+`docs/reviews/jobs-infra-design-challenge/doc-challenge-r4-findings.md`).** All
+seven findings are absorbed as mechanisms:
+
+- **R4-1 (watermark monotonicity + schedule revisions, major):** reconciliation
+  advances with `GREATEST(reconciled_through, cutoff)`; a persisted policy
+  fingerprint detects cron/timezone/gap-policy revisions; edits and
+  disabled→enabled transitions atomically reset the watermark to database `now()`
+  and never back-fill under the new schedule. Sparse-cron, cron-edit, and
+  disable-past-retention specs bind the contract (§4.3/§5.3/§9; O15).
+- **R4-2 (Quartz live misfire, major):** every dynamic cron trigger uses
+  `WithMisfireHandlingInstructionDoNothing()`; durable reconciliation is the sole
+  catch-up authority, with a live-scheduler pause/misfire spec. The 634 default
+  `WithCronSchedule` call is an explicit code-alignment item (§5.3/§9).
+- **R4-3 (prepared-byte retention, major):** email-DLQ requeueability ends at the
+  prepared-send window (default seven days); older DLQ rows remain auditable but
+  lose sensitive request bytes and render non-requeueable, with an explicit
+  new-logical-send operation for staff (§4.2/§4.5/§7.3/§10; O16).
+- **R4-4 (migration-runner role, major):** the Docker `migrate` target, staging
+  migrate service, Dokploy migrate job, and every production-like migration
+  invocation are enumerated and pinned `APP_ROLE=api`; Phase 2B's gate builds and
+  runs the migrate target. Exact lagging files are captain-alignment items
+  (§3.1/§3.3/§10).
+- **R4-5 (alert receiver idempotency, major):** v1 alert delivery is explicitly
+  at least once; the DB lease prevents concurrent attempts but ambiguous
+  accept/lease-expiry races may duplicate, and the stable key is best-effort.
+  Exactly-once is a named receiver-contract follow-up (§7.2/§9/§10; O17).
+- **R4-6 (prepared-state lineage predicate, minor):** every DLQ relation uses
+  exact predicate
+  `job_dead_letter.original_job_id = email_prepared_sends.job_id`; the first-DLQ
+  → requeue transfer → re-dead-letter test proves each hop (§4.2/§4.5/§7.3/§9).
+- **R4-7 (#811 rollout boundary, minor):** the locked-eligibility guarantee begins
+  only at R2 quiescence. R1's old-semantics drainer race is documented as an
+  accepted, bounded rollout condition; no soon-retired drainer hardening is
+  claimed (§1/§4.6/§9/§10).
+
+New author-decided items pending owner objection: **O15** prospective
+schedule-revision resets, **O16** seven-day email-DLQ requeueability, and **O17**
+at-least-once alert delivery with a receiver-contract follow-up. Captain
+code-alignment items: R4-1/R4-2 (634 watermark/revision/misfire), R4-4
+(`apps/api/Dockerfile`, `docs/front-2-migration/staging-deploy.md`, and Dokploy
+migrate shape), plus the R4-3/R4-6 email sweep/requeue behavior when 809 is
+reconciled. No disputes this round.
