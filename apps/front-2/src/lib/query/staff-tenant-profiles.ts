@@ -301,6 +301,97 @@ const formatModuleLabel = (moduleKey: string): string =>
 		.replace(/[_-]+/g, ' ')
 		.replace(/\b\w/g, (value) => value.toUpperCase());
 
+const TENANT_PERMISSION_MODULE_ORDER: readonly string[] = [
+	'posts',
+	'media',
+	'calendar',
+	'channels',
+	'approvals',
+	'analytics',
+	'members',
+	'invitations',
+	'profiles',
+	'settings',
+	'billing',
+	'audit_logs',
+	'modules',
+];
+
+const TENANT_PERMISSION_ACTION_ORDER: Record<string, readonly string[]> = {
+	posts: ['view', 'create', 'edit', 'publish', 'schedule', 'delete'],
+	media: ['view', 'upload', 'edit', 'delete'],
+	calendar: ['view', 'manage'],
+	channels: ['view', 'connect', 'manage', 'disconnect'],
+	approvals: ['request', 'review'],
+	analytics: ['view', 'export'],
+	members: ['view', 'manage', 'suspend', 'remove'],
+	invitations: ['view', 'create', 'resend', 'revoke'],
+	profiles: [
+		'view',
+		'create',
+		'edit',
+		'assign_members',
+		'manage_permissions',
+		'delete',
+	],
+	settings: ['view', 'edit'],
+	billing: ['view', 'manage'],
+	audit_logs: ['view'],
+	modules: [
+		'access_dashboard',
+		'access_billing',
+		'access_settings',
+		'access_users',
+	],
+};
+
+const getPermissionAction = (permissionKey: string): string =>
+	permissionKey.slice(permissionKey.lastIndexOf('.') + 1);
+
+const comparePermissionOptions = (
+	moduleKey: string,
+	left: StaffTenantPermissionOption,
+	right: StaffTenantPermissionOption,
+): number => {
+	const actionOrder = TENANT_PERMISSION_ACTION_ORDER[moduleKey] ?? [];
+	const leftAction = getPermissionAction(left.key);
+	const rightAction = getPermissionAction(right.key);
+	const leftIndex = actionOrder.indexOf(leftAction);
+	const rightIndex = actionOrder.indexOf(rightAction);
+
+	if (leftIndex >= 0 && rightIndex >= 0) {
+		return leftIndex - rightIndex;
+	}
+	if (leftIndex >= 0) {
+		return -1;
+	}
+	if (rightIndex >= 0) {
+		return 1;
+	}
+
+	return leftAction.localeCompare(rightAction);
+};
+
+const comparePermissionGroups = (
+	left: StaffTenantPermissionGroup,
+	right: StaffTenantPermissionGroup,
+): number => {
+	const leftIndex = TENANT_PERMISSION_MODULE_ORDER.indexOf(left.moduleKey);
+	const rightIndex = TENANT_PERMISSION_MODULE_ORDER.indexOf(right.moduleKey);
+
+	if (leftIndex >= 0 && rightIndex >= 0) {
+		return leftIndex - rightIndex;
+	}
+	if (leftIndex >= 0) {
+		return -1;
+	}
+	if (rightIndex >= 0) {
+		return 1;
+	}
+
+	return left.moduleKey.localeCompare(right.moduleKey);
+};
+
 const isPositiveSafeInteger = (value: number | undefined): value is number =>
 	typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
 
@@ -399,7 +490,9 @@ export const buildStaffTenantPermissionCatalogGroups = (
 			continue;
 		}
 
-		options.sort((left, right) => left.label.localeCompare(right.label));
+		options.sort((left, right) =>
+			comparePermissionOptions(moduleKey, left, right),
+		);
 
 		groups.push({
 			moduleKey,
@@ -408,9 +501,7 @@ export const buildStaffTenantPermissionCatalogGroups = (
 		});
 	}
 
-	return groups.sort((left, right) =>
-		left.moduleLabel.localeCompare(right.moduleLabel),
-	);
+	return groups.sort(comparePermissionGroups);
 };
 
 export const buildFindStaffTenantProfilesQueryParameters = (

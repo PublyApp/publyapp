@@ -1,6 +1,6 @@
 import { IconChevronDown, IconSearch } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FormActionBar } from '~/components/field/form-layout';
 import { Button } from '~/components/ui/button';
@@ -200,6 +200,7 @@ export const ProfilePermissionsTab = ({
 	tenantId,
 	profileId,
 	grantedKeys,
+	grantedRevision,
 	permissionGroups,
 	isCatalogPending,
 	isCatalogError,
@@ -211,6 +212,8 @@ export const ProfilePermissionsTab = ({
 	profileId: string;
 	/** Server-truth granted permission keys for this profile. */
 	grantedKeys: string[];
+	/** Monotonic TanStack Query revision for the granted-key server result. */
+	grantedRevision: number;
 	permissionGroups: StaffTenantPermissionGroup[];
 	isCatalogPending: boolean;
 	isCatalogError: boolean;
@@ -248,16 +251,18 @@ export const ProfilePermissionsTab = ({
 	const isDirty = !areKeySetsEqual(stagedKeys, baselineKeys);
 	const grantedSignature = [...grantedKeys].sort().join(',');
 
-	// Signature of the granted-keys array we have already folded into the
-	// baseline. Kept in a ref (not a dep) so the adoption effect can re-fire on
-	// the dirty→clean transition and still tell whether a newer server truth is
-	// pending — the previous `deps: [grantedSignature]` version missed a fresh
-	// value that arrived *while dirty* and then never re-ran on discard/revert.
-	const appliedGrantedSignatureRef = useRef(grantedSignature);
-	// After a save advances the baseline optimistically, a refetch that was
-	// already in flight can echo the pre-save server truth. Guard that exact
-	// signature so it can't roll the just-saved baseline back.
-	const savedRollbackGuardRef = useRef<string | null>(null);
+	// Query revisions distinguish a stale in-flight result from a later result
+	// with the same keys. Signature equality cannot do that: legitimate server
+	// truth may repeat a pre-save signature after the save generation completes.
+	const appliedGrantedRevisionRef = useRef(grantedRevision);
+	const latestGrantedRevisionRef = useRef(grantedRevision);
+	const ignoredThroughGrantedRevisionRef = useRef<number | null>(null);
+	useLayoutEffect(() => {
+		latestGrantedRevisionRef.current = Math.max(
+			latestGrantedRevisionRef.current,
+			grantedRevision,
+		);
+	}, [grantedRevision]);
 	// The tab heading — focus lands here when the action bar (which held focus)
 	// unmounts after Save/Discard, so focus never falls to <body>.
 	const headingRef = useRef<HTMLHeadingElement>(null);
@@ -270,23 +275,24 @@ export const ProfilePermissionsTab = ({
 		if (isDirty) {
 			return;
 		}
-		if (grantedSignature === appliedGrantedSignatureRef.current) {
+		if (grantedRevision <= appliedGrantedRevisionRef.current) {
 			return;
 		}
-		if (grantedSignature === savedRollbackGuardRef.current) {
-			// A pre-invalidation refetch echoing the previous server truth — ignore
-			// it so it can't undo the baseline we just saved; the post-save refetch
-			// carries the new truth and clears the guard below.
+		const ignoredThroughRevision = ignoredThroughGrantedRevisionRef.current;
+		if (
+			ignoredThroughRevision !== null &&
+			grantedRevision <= ignoredThroughRevision
+		) {
 			return;
 		}
 
 		const next = new Set(grantedKeys);
 		setBaselineKeys(next);
 		setStagedKeys(next);
-		appliedGrantedSignatureRef.current = grantedSignature;
-		savedRollbackGuardRef.current = null;
+		appliedGrantedRevisionRef.current = grantedRevision;
+		ignoredThroughGrantedRevisionRef.current = null;
 		// eslint-disable-next-line react-hooks/exhaustive-deps -- grantedSignature is the stable key for the granted-keys array
-	}, [grantedSignature, isDirty]);
+	}, [grantedRevision, grantedSignature, isDirty]);
 
 	useEffect(() => {
 		onDirtyChange(isDirty);
@@ -320,8 +326,9 @@ export const ProfilePermissionsTab = ({
 	const visibleGroups = permissionGroups.filter((group) =>
 		group.options.some((option) => matchesFilter(option, filterNeedle)),
 	);
-	const leftGroups = visibleGroups.filter((_, index) => index % 2 === 0);
-	const rightGroups = visibleGroups.filter((_, index) => index % 2 === 1);
+	const leftColumnCount = Math.ceil(visibleGroups.length / 2);
+	const leftGroups = visibleGroups.slice(0, leftColumnCount);
+	const rightGroups = visibleGroups.slice(leftColumnCount);
 
 	const anyCollapsed = permissionGroups.some((group) =>
 		collapsedModules.has(group.moduleKey),
@@ -434,6 +441,7 @@ export const ProfilePermissionsTab = ({
 		const rejected = results.filter(
 			(result): result is PromiseRejectedResult => result.status === 'rejected',
 		);
+		const observedRevisionAtWriteSettlement = latestGrantedRevisionRef.current;
 
 		if (rejected.some((result) => shouldLogoutForFailure(result.reason))) {
 			setIsSaving(false);
@@ -444,7 +452,6 @@ export const ProfilePermissionsTab = ({
 		// Advance the baseline only for operations that actually persisted:
 		// their keys stop counting as unsaved (and are never retried on the next
 		// Save), while failed/aborted operations stay dirty for retry.
-		const preSaveSignature = [...baselineKeys].sort().join(',');
 		const nextBaseline = new Set(baselineKeys);
 		let fulfilledCount = 0;
 		for (const [index, result] of results.entries()) {
@@ -461,9 +468,16 @@ export const ProfilePermissionsTab = ({
 			}
 		}
 		setBaselineKeys(nextBaseline);
-		// Arm the rollback guard: an in-flight refetch may still deliver the
-		// pre-save server truth after this optimistic advance.
-		savedRollbackGuardRef.current = preSaveSignature;
+		if (fulfilledCount > 0) {
+			// Ignore every query result observed before the writes settled. A later
+			// revision — even with identical keys — remains eligible for adoption.
+			ignoredThroughGrantedRevisionRef.current =
+				observedRevisionAtWriteSettlement;
+			appliedGrantedRevisionRef.current = Math.max(
+				appliedGrantedRevisionRef.current,
+				observedRevisionAtWriteSettlement,
+			);
+		}
 
 		// Whatever succeeded is now server truth — refetch so the granted keys,
 		// glance and stat cards reflect it. A refresh failure must NOT be reported

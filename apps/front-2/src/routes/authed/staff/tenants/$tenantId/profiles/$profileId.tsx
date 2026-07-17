@@ -471,6 +471,7 @@ function StaffTenantProfileDetailsPage() {
 				tenantId={tenantId}
 				profileId={profileId}
 				grantedKeys={permissionKeys}
+				grantedRevision={permissionKeysQuery.dataUpdatedAt}
 				permissionGroups={permissionGroups}
 				isCatalogPending={permissionCatalogQuery.isPending}
 				isCatalogError={permissionCatalogQuery.isError}

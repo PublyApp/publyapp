@@ -11,6 +11,7 @@ vi.mock('~/lib/api-client/client-manager', () => ({
 }));
 import {
 	buildStaffTenantPermissionCatalogOptions,
+	buildStaffTenantPermissionCatalogGroups,
 	buildCreateStaffTenantProfileBody,
 	buildFindStaffTenantProfileMembersQueryParameters,
 	buildResolveStaffTenantProfileMemberAssignmentsBody,
@@ -158,6 +159,126 @@ describe('buildStaffTenantPermissionCatalogOptions', () => {
 				label: 'tenant.valid',
 				description: null,
 			},
+		]);
+	});
+});
+
+describe('buildStaffTenantPermissionCatalogGroups', () => {
+	test('orders every known module in the canonical matrix sequence', () => {
+		const shuffledModuleKeys = [
+			'modules',
+			'billing',
+			'profiles',
+			'members',
+			'analytics',
+			'approvals',
+			'channels',
+			'calendar',
+			'media',
+			'posts',
+			'audit_logs',
+			'settings',
+			'invitations',
+		];
+		const catalog = Object.fromEntries(
+			shuffledModuleKeys.map((moduleKey) => [
+				moduleKey,
+				{
+					permission: {
+						key: `tenant.${moduleKey}.future_action`,
+						name: moduleKey,
+					},
+				},
+			]),
+		);
+
+		expect(
+			buildStaffTenantPermissionCatalogGroups(catalog).map(
+				(group) => group.moduleKey,
+			),
+		).toEqual([
+			'posts',
+			'media',
+			'calendar',
+			'channels',
+			'approvals',
+			'analytics',
+			'members',
+			'invitations',
+			'profiles',
+			'settings',
+			'billing',
+			'audit_logs',
+			'modules',
+		]);
+	});
+
+	test('uses canonical module and action order independently of translated labels', () => {
+		const groups = buildStaffTenantPermissionCatalogGroups({
+			modules: {
+				users: { key: 'tenant.modules.access_users', name: 'A' },
+				dashboard: { key: 'tenant.modules.access_dashboard', name: 'Z' },
+			},
+			members: {
+				remove: { key: 'tenant.members.remove', name: 'A' },
+				view: { key: 'tenant.members.view', name: 'Z' },
+				manage: { key: 'tenant.members.manage', name: 'M' },
+			},
+			analytics: {
+				export: { key: 'tenant.analytics.export', name: 'A' },
+				view: { key: 'tenant.analytics.view', name: 'Z' },
+			},
+			channels: {
+				disconnect: { key: 'tenant.channels.disconnect', name: 'A' },
+				manage: { key: 'tenant.channels.manage', name: 'Z' },
+				connect: { key: 'tenant.channels.connect', name: 'M' },
+				view: { key: 'tenant.channels.view', name: 'Y' },
+			},
+			posts: {
+				delete: { key: 'tenant.posts.delete', name: 'A' },
+				archive: { key: 'tenant.posts.archive', name: 'B' },
+				view: { key: 'tenant.posts.view', name: 'Z' },
+				create: { key: 'tenant.posts.create', name: 'Y' },
+				duplicate: { key: 'tenant.posts.duplicate', name: 'C' },
+			},
+			zeta: {
+				view: { key: 'tenant.zeta.view', name: 'A' },
+			},
+		});
+
+		expect(groups.map((group) => group.moduleKey)).toEqual([
+			'posts',
+			'channels',
+			'analytics',
+			'members',
+			'modules',
+			'zeta',
+		]);
+		expect(groups[0]?.options.map((option) => option.key)).toEqual([
+			'tenant.posts.view',
+			'tenant.posts.create',
+			'tenant.posts.delete',
+			'tenant.posts.archive',
+			'tenant.posts.duplicate',
+		]);
+		expect(groups[1]?.options.map((option) => option.key)).toEqual([
+			'tenant.channels.view',
+			'tenant.channels.connect',
+			'tenant.channels.manage',
+			'tenant.channels.disconnect',
+		]);
+		expect(groups[2]?.options.map((option) => option.key)).toEqual([
+			'tenant.analytics.view',
+			'tenant.analytics.export',
+		]);
+		expect(groups[3]?.options.map((option) => option.key)).toEqual([
+			'tenant.members.view',
+			'tenant.members.manage',
+			'tenant.members.remove',
+		]);
+		expect(groups[4]?.options.map((option) => option.key)).toEqual([
+			'tenant.modules.access_dashboard',
+			'tenant.modules.access_users',
 		]);
 	});
 });

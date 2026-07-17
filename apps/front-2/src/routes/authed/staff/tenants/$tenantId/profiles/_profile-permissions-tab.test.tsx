@@ -177,6 +177,7 @@ const renderTab = (
 		tenantId: 'tenant-1',
 		profileId: 'profile-1',
 		grantedKeys: ['posts.view'],
+		grantedRevision: 1,
 		permissionGroups: PERMISSION_GROUPS,
 		isCatalogPending: false,
 		isCatalogError: false,
@@ -236,6 +237,58 @@ describe('ProfilePermissionsTab', () => {
 		expect(within(viewPostsRow).getByText('posts.view')).toBeTruthy();
 		// No unsaved changes yet → no action bar.
 		expect(screen.queryByTestId('permissions-change-status')).toBeNull();
+	});
+
+	test('splits canonical modules into contiguous columns like the reference matrix', () => {
+		const moduleKeys = [
+			'posts',
+			'media',
+			'calendar',
+			'channels',
+			'approvals',
+			'analytics',
+		];
+		renderTab({
+			permissionGroups: moduleKeys.map((moduleKey) => ({
+				moduleKey,
+				moduleLabel: moduleKey,
+				options: [
+					{
+						key: `${moduleKey}.view`,
+						label: `View ${moduleKey}`,
+						description: null,
+					},
+				],
+			})),
+		});
+
+		const leftColumn = screen.getByTestId(
+			'permission-module-posts',
+		).parentElement;
+		const rightColumn = screen.getByTestId(
+			'permission-module-channels',
+		).parentElement;
+
+		expect(leftColumn).toBeTruthy();
+		expect(rightColumn).toBeTruthy();
+		expect(
+			Array.from(leftColumn?.children ?? []).map((node) =>
+				node.getAttribute('data-testid'),
+			),
+		).toEqual([
+			'permission-module-posts',
+			'permission-module-media',
+			'permission-module-calendar',
+		]);
+		expect(
+			Array.from(rightColumn?.children ?? []).map((node) =>
+				node.getAttribute('data-testid'),
+			),
+		).toEqual([
+			'permission-module-channels',
+			'permission-module-approvals',
+			'permission-module-analytics',
+		]);
 	});
 
 	test('staging a toggle surfaces the dirty count, summary and reports dirtiness', () => {
@@ -539,6 +592,7 @@ describe('ProfilePermissionsTab', () => {
 			<ProfilePermissionsTab
 				{...props}
 				grantedKeys={['posts.view', 'channels.view']}
+				grantedRevision={2}
 			/>,
 		);
 		expect(screen.getByTestId('permissions-change-status')).toBeTruthy();
@@ -573,6 +627,7 @@ describe('ProfilePermissionsTab', () => {
 			<ProfilePermissionsTab
 				{...props}
 				grantedKeys={['posts.view', 'channels.view']}
+				grantedRevision={2}
 			/>,
 		);
 		expect(screen.getByTestId('permissions-change-status')).toBeTruthy();
@@ -593,6 +648,78 @@ describe('ProfilePermissionsTab', () => {
 				) as HTMLInputElement
 			).checked,
 		).toBe(true);
+	});
+
+	test('keeps saved truth when a server update lands during save, then adopts a later revision', async () => {
+		let resolveAssign: (() => void) | undefined;
+		mocks.assignMutateAsync.mockImplementationOnce(
+			() =>
+				new Promise<void>((resolve) => {
+					resolveAssign = resolve;
+				}),
+		);
+		mocks.invalidateAllStaffTenantScopes.mockRejectedValueOnce(
+			new Error('refresh boom'),
+		);
+		const { props, rerender } = renderTab({
+			grantedKeys: [],
+			grantedRevision: 1,
+		});
+
+		fireEvent.click(screen.getByRole('checkbox', { name: 'View posts' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+		await waitFor(() =>
+			expect(mocks.assignMutateAsync).toHaveBeenCalledTimes(1),
+		);
+
+		// A background result arrives before the write settles. It is newer than the
+		// locally adopted baseline, but cannot yet be known to follow the write.
+		rerender(
+			<ProfilePermissionsTab
+				{...props}
+				grantedKeys={['channels.view']}
+				grantedRevision={2}
+			/>,
+		);
+		act(() => resolveAssign?.());
+
+		await waitFor(() =>
+			expect(screen.queryByTestId('permissions-change-status')).toBeNull(),
+		);
+		expect(
+			(screen.getByRole('checkbox', { name: 'View posts' }) as HTMLInputElement)
+				.checked,
+		).toBe(true);
+		expect(
+			(
+				screen.getByRole('checkbox', {
+					name: 'View channels',
+				}) as HTMLInputElement
+			).checked,
+		).toBe(false);
+
+		// The same server signature is observed again after the save generation.
+		// A revision guard must adopt it instead of suppressing it forever.
+		rerender(
+			<ProfilePermissionsTab
+				{...props}
+				grantedKeys={['channels.view']}
+				grantedRevision={3}
+			/>,
+		);
+		await waitFor(() =>
+			expect(
+				(
+					screen.getByRole('checkbox', {
+						name: 'View channels',
+					}) as HTMLInputElement
+				).checked,
+			).toBe(true),
+		);
+		expect(
+			(screen.getByRole('checkbox', { name: 'View posts' }) as HTMLInputElement)
+				.checked,
+		).toBe(false);
 	});
 
 	test('a refresh failure after a successful save is not reported as a save failure', async () => {
