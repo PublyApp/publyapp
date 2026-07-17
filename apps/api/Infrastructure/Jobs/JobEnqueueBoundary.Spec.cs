@@ -3,6 +3,9 @@ using System.Text.RegularExpressions;
 
 using FluentAssertions;
 
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+
 using Xunit;
 
 namespace PublyApp.Api.Infrastructure.Jobs;
@@ -14,19 +17,18 @@ namespace PublyApp.Api.Infrastructure.Jobs;
 // issuing raw job_queue DML elsewhere bypasses definition policy, payload
 // validation, and provenance stamping — this spec fails the build on such drift.
 //
-// Mechanism (review round-4): the API-shape patterns run against a LEXICALLY masked
-// view of each file — a small C# scanner walks the source, strips comments, masks
-// string/char literal TEXT, and PRESERVES interpolation-hole expressions (holes are
-// code: `$"{db.JobQueue.Add(row)}"` must be caught, while a log message naming
-// JobQueue must not be). The raw-SQL pass runs on a comment-stripped view with
-// string contents fully visible (SQL lives inside strings). The scanner handles
-// regular strings (backslash escapes), verbatim @/$@/@$ strings (doubled-quote
-// escapes), interpolated variants with nested holes and quotes inside holes, raw
-// string literals with arbitrary 3+ quote delimiters and $-count-matched {{holes}},
-// char literals, and adjacent combinations. The detector is itself tested against a
-// fixture corpus of known-bad and known-good snippets. Residual gaps (documented):
-// alias-variable indirection, reflection, and EF interceptors are not detectable
-// textually.
+// Mechanism (review round-5, captain decision): the source is lexed by ROSLYN
+// (Microsoft.CodeAnalysis.CSharp — already pinned centrally for packages/lint-cs),
+// not a hand-rolled scanner. Two views are rendered from the token/trivia stream:
+// the MASKED view blanks string/char literal TOKEN text — including interpolated
+// string text portions and format clauses, which are literal per the C# grammar —
+// while interpolation EXPRESSION tokens stay visible, and comments become spaces;
+// the UNMASKED view only drops comments, keeping all string text for the raw-SQL
+// pass. Roslyn's lexer handles every grammar case by construction: comments inside
+// holes, format clauses, arbitrary-length raw delimiters, nesting. The API-shape
+// regex patterns run over the masked render; the detector is itself tested against
+// a fixture corpus. Residual gaps (documented): alias-variable indirection,
+// reflection, and EF interceptors are not detectable lexically.
 public sealed partial class JobEnqueueBoundarySpec {
 	// Paths (relative to apps/api) where touching the queue is legitimate: the
 	// engine itself, the EF model/config layer, migrations, and specs/test infra.
@@ -133,7 +135,10 @@ public sealed partial class JobEnqueueBoundarySpec {
 			// Nested string INSIDE a hole must not hide the surrounding call.
 			"var s = $\"{db.JobQueue.Add(Get(\"x\"))}\";",
 			// Adjacent literals around real mutating code.
-			"var s = \"prefix\" + db.JobQueue.Add(row) + \"suffix\";"
+			"var s = \"prefix\" + db.JobQueue.Add(row) + \"suffix\";",
+			// Round-5: a comment inside the hole must not end the hole early and
+			// hide the mutation that follows it.
+			"var s = $\"{/* } */ db.JobQueue.Add(row)}\";"
 		];
 
 		string[] knownGood = [
@@ -150,14 +155,17 @@ public sealed partial class JobEnqueueBoundarySpec {
 			// A STRING mentioning JobQueue next to another set's bulk delete.
 			"logger.LogInformation(\"JobQueue cleanup: {Count}\", "
 				+ "await db.Sessions.ExecuteDeleteAsync());",
-			// Round-4: 4-quote raw literal containing a 3-quote run + JobQueue text
-			// — masked whole, never prematurely terminated at the inner quotes.
+			// 4-quote raw literal containing a 3-quote run + JobQueue text —
+			// masked whole, never prematurely terminated at the inner quotes.
 			"var doc = " + q4 + " has " + q3 + " inside and JobQueue.Add(row) text "
 				+ q4 + ";",
 			// A string nested in a hole is still literal text.
 			"var s = $\"{Render(\"JobQueue.Add is documented behavior\")}\";",
 			// Adjacent literals that only ASSEMBLE the forbidden text.
-			"var s = \"JobQueue\" + \".Add\";"
+			"var s = \"JobQueue\" + \".Add\";",
+			// Round-5: a format clause is literal text per the C# grammar, not
+			// executable code.
+			"var s = $\"{value:JobQueue.Add(row)}\";"
 		];
 
 		foreach (var snippet in knownBad) {
@@ -176,8 +184,7 @@ public sealed partial class JobEnqueueBoundarySpec {
 	// Shared detector: API-shape patterns see code only (literal text masked, hole
 	// expressions preserved); the raw-SQL pass sees string contents, comments gone.
 	private static List<string> FindForbiddenPatterns(string source) {
-		var codeOnly = ScanAndMask(source, maskLiteralText: true);
-		var withStrings = ScanAndMask(source, maskLiteralText: false);
+		var (codeOnly, withStrings) = RenderViews(source);
 		var findings = new List<string>();
 
 		foreach (var (name, pattern) in ApiPatterns) {
@@ -193,307 +200,67 @@ public sealed partial class JobEnqueueBoundarySpec {
 		return findings;
 	}
 
-	// --- lexical scanner (test infrastructure) ------------------------------------
-	// Walks C# source: comments become one space; char/string literal TEXT is
-	// masked (or kept verbatim, per flag); interpolation-hole expressions are
-	// recursively re-scanned as CODE either way.
+	// String/char literal TEXT tokens, blanked in the masked view. Interpolated
+	// strings are not single tokens: their literal portions AND format clauses lex
+	// as InterpolatedStringTextToken while hole expressions are ordinary tokens —
+	// so masking these kinds hides exactly the text and keeps the code.
+	private static readonly HashSet<SyntaxKind> LiteralTextTokenKinds = [
+		SyntaxKind.StringLiteralToken,
+		SyntaxKind.SingleLineRawStringLiteralToken,
+		SyntaxKind.MultiLineRawStringLiteralToken,
+		SyntaxKind.Utf8StringLiteralToken,
+		SyntaxKind.Utf8SingleLineRawStringLiteralToken,
+		SyntaxKind.Utf8MultiLineRawStringLiteralToken,
+		SyntaxKind.CharacterLiteralToken,
+		SyntaxKind.InterpolatedStringTextToken
+	];
 
-	private static string ScanAndMask(string source, bool maskLiteralText) {
-		var builder = new StringBuilder(source.Length);
-		var i = 0;
+	// Renders both views in one pass over Roslyn's token/trivia stream. Every token
+	// carries its exact leading/trailing trivia, so appending
+	// trivia + token + trivia reproduces the file; comments (incl. doc comments)
+	// become a space in both views, literal-text tokens become spaces in the masked
+	// view only.
+	private static (string CodeOnly, string WithStrings) RenderViews(string source) {
+		var root = CSharpSyntaxTree.ParseText(source).GetRoot();
+		var masked = new StringBuilder(source.Length);
+		var unmasked = new StringBuilder(source.Length);
 
-		while (i < source.Length) {
-			var c = source[i];
+		foreach (var token in root.DescendantTokens(descendIntoTrivia: false)) {
+			AppendTrivia(masked, unmasked, token.LeadingTrivia);
 
-			if (c == '/' && i + 1 < source.Length && source[i + 1] == '/') {
-				while (i < source.Length && source[i] != '\n') {
-					i++;
-				}
-				builder.Append(' ');
-				continue;
-			}
+			var text = token.Text;
+			unmasked.Append(text);
+			masked.Append(
+				LiteralTextTokenKinds.Contains(token.Kind())
+					? new string(' ', text.Length)
+					: text
+			);
 
-			if (c == '/' && i + 1 < source.Length && source[i + 1] == '*') {
-				var end = source.IndexOf("*/", i + 2, StringComparison.Ordinal);
-				i = end < 0 ? source.Length : end + 2;
-				builder.Append(' ');
-				continue;
-			}
-
-			if (c == '\'') {
-				i = ScanCharLiteral(source, builder, i, maskLiteralText);
-				continue;
-			}
-
-			if (c is '"' or '$' or '@') {
-				var advanced = TryScanStringLiteral(source, builder, i, maskLiteralText);
-				if (advanced > i) {
-					i = advanced;
-					continue;
-				}
-			}
-
-			builder.Append(c);
-			i++;
+			AppendTrivia(masked, unmasked, token.TrailingTrivia);
 		}
 
-		return builder.ToString();
+		return (masked.ToString(), unmasked.ToString());
 	}
 
-	// Returns the index after the literal, or start when this is not a string
-	// (e.g. '@' beginning an identifier).
-	private static int TryScanStringLiteral(
-		string source,
-		StringBuilder builder,
-		int start,
-		bool mask
+	private static void AppendTrivia(
+		StringBuilder masked,
+		StringBuilder unmasked,
+		SyntaxTriviaList triviaList
 	) {
-		var i = start;
-		var dollars = 0;
-		var verbatim = false;
-
-		while (i < source.Length && (source[i] == '$' || source[i] == '@')) {
-			if (source[i] == '$') {
-				dollars++;
-			} else {
-				verbatim = true;
-			}
-			i++;
-		}
-
-		if (i >= source.Length || source[i] != '"') {
-			return start;
-		}
-
-		var quotes = 0;
-		while (i + quotes < source.Length && source[i + quotes] == '"') {
-			quotes++;
-		}
-
-		builder.Append('"');
-		int end;
-		if (!verbatim && quotes >= 3) {
-			// Raw string literal: the opening quote run IS the delimiter — any
-			// length >= 3 — so inner runs shorter than it never terminate early.
-			end = ScanRawStringBody(source, builder, i + quotes, quotes, dollars, mask);
-		} else {
-			end = ScanQuotedStringBody(source, builder, i + 1, verbatim, dollars > 0, mask);
-		}
-		builder.Append('"');
-
-		return end;
-	}
-
-	private static int ScanQuotedStringBody(
-		string source,
-		StringBuilder builder,
-		int i,
-		bool verbatim,
-		bool interpolated,
-		bool mask
-	) {
-		while (i < source.Length) {
-			var c = source[i];
-
-			if (c == '"') {
-				if (verbatim && i + 1 < source.Length && source[i + 1] == '"') {
-					// Doubled-quote escape: literal text.
-					if (!mask) {
-						builder.Append("\"\"");
-					}
-					i += 2;
-					continue;
-				}
-				return i + 1;
-			}
-
-			if (!verbatim && c == '\\') {
-				if (!mask && i + 1 < source.Length) {
-					builder.Append(source, i, 2);
-				}
-				i += 2;
+		foreach (var trivia in triviaList) {
+			if (trivia.IsKind(SyntaxKind.SingleLineCommentTrivia)
+				|| trivia.IsKind(SyntaxKind.MultiLineCommentTrivia)
+				|| trivia.IsKind(SyntaxKind.SingleLineDocumentationCommentTrivia)
+				|| trivia.IsKind(SyntaxKind.MultiLineDocumentationCommentTrivia)) {
+				masked.Append(' ');
+				unmasked.Append(' ');
 				continue;
 			}
 
-			if (interpolated && c == '{') {
-				if (i + 1 < source.Length && source[i + 1] == '{') {
-					// Escaped brace: literal text.
-					if (!mask) {
-						builder.Append("{{");
-					}
-					i += 2;
-					continue;
-				}
-				i = ScanHole(source, builder, i, braceCount: 1, mask);
-				continue;
-			}
-
-			if (interpolated && c == '}' && i + 1 < source.Length && source[i + 1] == '}') {
-				if (!mask) {
-					builder.Append("}}");
-				}
-				i += 2;
-				continue;
-			}
-
-			if (!mask) {
-				builder.Append(c);
-			}
-			i++;
+			var text = trivia.ToFullString();
+			masked.Append(text);
+			unmasked.Append(text);
 		}
-
-		return i;
-	}
-
-	private static int ScanRawStringBody(
-		string source,
-		StringBuilder builder,
-		int i,
-		int delimiterLength,
-		int dollars,
-		bool mask
-	) {
-		while (i < source.Length) {
-			if (source[i] == '"') {
-				var run = 0;
-				while (i + run < source.Length && source[i + run] == '"') {
-					run++;
-				}
-				if (run >= delimiterLength) {
-					// Quote runs SHORTER than the delimiter are content; this
-					// run closes the literal.
-					return i + delimiterLength;
-				}
-				if (!mask) {
-					builder.Append(source, i, run);
-				}
-				i += run;
-				continue;
-			}
-
-			if (dollars > 0 && source[i] == '{') {
-				var run = 0;
-				while (i + run < source.Length && source[i + run] == '{') {
-					run++;
-				}
-				if (run >= dollars) {
-					// Leading braces beyond the $ count are literal text; the
-					// last `dollars` braces open a hole.
-					if (!mask) {
-						builder.Append('{', run - dollars);
-					}
-					i += run - dollars;
-					i = ScanHole(source, builder, i, braceCount: dollars, mask);
-					continue;
-				}
-				if (!mask) {
-					builder.Append(source, i, run);
-				}
-				i += run;
-				continue;
-			}
-
-			if (!mask) {
-				builder.Append(source[i]);
-			}
-			i++;
-		}
-
-		return i;
-	}
-
-	// An interpolation hole is CODE: its expression is preserved and recursively
-	// re-scanned (so a string nested in the hole is still masked as text). Tracks
-	// nested braces and skips nested string/char literals so a '}' inside them
-	// never closes the hole. Opens/closes with `braceCount` braces ($-count in raw
-	// interpolated literals, 1 otherwise).
-	private static int ScanHole(
-		string source,
-		StringBuilder builder,
-		int i,
-		int braceCount,
-		bool mask
-	) {
-		i += braceCount;
-		var expressionStart = i;
-		var depth = 1;
-
-		while (i < source.Length && depth > 0) {
-			var c = source[i];
-
-			if (c == '\'') {
-				i = ScanCharLiteral(source, new StringBuilder(), i, mask: true);
-				continue;
-			}
-
-			if (c is '"' or '$' or '@') {
-				var skipped = TryScanStringLiteral(source, new StringBuilder(), i, mask: true);
-				if (skipped > i) {
-					i = skipped;
-					continue;
-				}
-			}
-
-			if (c == '{') {
-				depth++;
-				i++;
-				continue;
-			}
-
-			if (c == '}') {
-				if (depth == 1) {
-					var run = 0;
-					while (i + run < source.Length && source[i + run] == '}') {
-						run++;
-					}
-					if (run >= braceCount) {
-						AppendHoleExpression(source, builder, expressionStart, i, mask);
-						return i + braceCount;
-					}
-				}
-				depth--;
-				i++;
-				continue;
-			}
-
-			i++;
-		}
-
-		// Malformed/unterminated hole: preserve what was seen and stop.
-		AppendHoleExpression(source, builder, expressionStart, i, mask);
-		return i;
-	}
-
-	private static void AppendHoleExpression(
-		string source,
-		StringBuilder builder,
-		int expressionStart,
-		int expressionEnd,
-		bool mask
-	) {
-		builder.Append(' ');
-		builder.Append(ScanAndMask(source[expressionStart..expressionEnd], mask));
-		builder.Append(' ');
-	}
-
-	private static int ScanCharLiteral(
-		string source,
-		StringBuilder builder,
-		int start,
-		bool mask
-	) {
-		var i = start + 1;
-
-		while (i < source.Length && source[i] != '\'') {
-			if (source[i] == '\\') {
-				i++;
-			}
-			i++;
-		}
-
-		i = Math.Min(i + 1, source.Length);
-		builder.Append(mask ? "''" : source[start..i]);
-		return i;
 	}
 
 	// The test assembly runs from apps/api/.artifacts/bin/...; walk up until the
