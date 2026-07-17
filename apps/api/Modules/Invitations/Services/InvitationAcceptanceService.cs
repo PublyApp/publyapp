@@ -5,6 +5,7 @@ using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Users.Entities;
+using PublyApp.Api.Modules.Users.Services;
 
 using UserEntity = PublyApp.Api.Modules.Users.Entities.User;
 
@@ -246,6 +247,17 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 					$"Tenant invitation {invitation.GetRequiredId()} has no TenantId"
 				);
 			}
+
+			// TenantMembershipLockOrder step 1: an invitation can carry Admin level, so this
+			// path adds an admin membership to an identity that already exists and could be
+			// concurrently guarded by global suspension. Same rationale as the company
+			// assignment path. (The new-user acceptance path needs no mutex: it creates the
+			// identity in its own transaction, so nothing can be guarding it yet.)
+			await TenantMembershipLockOrder.LockUserIdentityRowsAsync(
+				_dbContext,
+				[userId],
+				cancellationToken
+			);
 
 			var tenantId = invitation.TenantId.Value;
 			var accountLevel = invitation.AccountLevel ?? AccountLevel.User;

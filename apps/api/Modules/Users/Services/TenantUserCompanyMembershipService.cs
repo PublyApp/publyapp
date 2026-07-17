@@ -130,6 +130,18 @@ public class TenantUserCompanyMembershipService : ITenantUserCompanyMembershipSe
 			var now = DateTime.UtcNow;
 			var isRestoringRemovedAccount = tenantAccount is not null;
 			try {
+				// TenantMembershipLockOrder step 1: this path creates or restores a membership
+				// for an identity that already exists, so it can widen the tenant set another
+				// operation is guarding for that identity — specifically global suspension,
+				// whose last-admin guard covers only the tenants it enumerated. Taking the
+				// identity mutex orders this "add an admin" against that "reduce the active
+				// admin count" instead of letting it slip in behind the enumeration.
+				await TenantMembershipLockOrder.LockUserIdentityRowsAsync(
+					_dbContext,
+					[args.UserId],
+					cancellationToken
+				);
+
 				if (tenantAccount is null) {
 					tenantAccount = UserAccount.CreateTenantAccount(
 						args.UserId,

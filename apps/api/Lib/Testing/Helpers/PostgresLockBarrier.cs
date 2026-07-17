@@ -55,25 +55,8 @@ internal static class PostgresLockBarrier {
 		var deadline = DateTime.UtcNow.AddSeconds(30);
 
 		while (DateTime.UtcNow < deadline) {
-			await using var scope = services.CreateAsyncScope();
-			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-			var blocked = await dbContext.Database
-				.SqlQuery<int>($"""
-					WITH RECURSIVE waiters AS (
-						SELECT pid FROM pg_stat_activity
-						WHERE datname = current_database()
-							AND {barrierPid} = ANY(pg_blocking_pids(pid))
-						UNION
-						SELECT sa.pid FROM pg_stat_activity sa, waiters w
-						WHERE sa.datname = current_database()
-							AND w.pid = ANY(pg_blocking_pids(sa.pid))
-					)
-					SELECT count(*)::int AS "Value" FROM waiters
-					""")
-				.FirstAsync(cancellationToken);
-
-			if (blocked >= expectedCount) {
+			if (await CountWaitersAsync(services, barrierPid, cancellationToken)
+				>= expectedCount) {
 				return;
 			}
 
@@ -86,5 +69,66 @@ internal static class PostgresLockBarrier {
 			+ "read, or the lock order changed — both defeat the protection the calling spec "
 			+ "exists to prove."
 		);
+	}
+
+	/// <summary>
+	/// Waits until <paramref name="task"/> has either completed or parked behind the barrier.
+	/// </summary>
+	/// <remarks>
+	/// Used to drive a schedule whose shape legitimately differs between the protected and
+	/// unprotected implementations: an operation the fix orders behind a mutex will park, while
+	/// the same operation without the fix runs straight through. Both are settled states, so the
+	/// spec can advance deterministically — on an observed condition, never a sleep — and still
+	/// assert the same invariant at the end.
+	/// </remarks>
+	internal static async Task WaitUntilSettledAsync(
+		IServiceProvider services,
+		Task task,
+		int barrierPid,
+		int expectedWaitersIfBlocked,
+		CancellationToken cancellationToken = default
+	) {
+		var deadline = DateTime.UtcNow.AddSeconds(30);
+
+		while (DateTime.UtcNow < deadline) {
+			if (task.IsCompleted) {
+				return;
+			}
+
+			if (await CountWaitersAsync(services, barrierPid, cancellationToken)
+				>= expectedWaitersIfBlocked) {
+				return;
+			}
+
+			await Task.Delay(50, cancellationToken);
+		}
+
+		throw new InvalidOperationException(
+			"Timed out waiting for the operation to either complete or park behind the barrier."
+		);
+	}
+
+	private static async Task<int> CountWaitersAsync(
+		IServiceProvider services,
+		int barrierPid,
+		CancellationToken cancellationToken
+	) {
+		await using var scope = services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		return await dbContext.Database
+			.SqlQuery<int>($"""
+				WITH RECURSIVE waiters AS (
+					SELECT pid FROM pg_stat_activity
+					WHERE datname = current_database()
+						AND {barrierPid} = ANY(pg_blocking_pids(pid))
+					UNION
+					SELECT sa.pid FROM pg_stat_activity sa, waiters w
+					WHERE sa.datname = current_database()
+						AND w.pid = ANY(pg_blocking_pids(sa.pid))
+				)
+				SELECT count(*)::int AS "Value" FROM waiters
+				""")
+			.FirstAsync(cancellationToken);
 	}
 }

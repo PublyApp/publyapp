@@ -38,7 +38,7 @@ internal static class TenantUserMembershipOperations {
 			await dbContext.Database.BeginTransactionAsync(cancellationToken);
 
 		try {
-			// TenantMembershipLockOrder step 1: serialize every admin-reducing path for this
+			// TenantMembershipLockOrder step 2: serialize every admin-reducing path for this
 			// tenant before counting admins, so the count includes concurrent removals.
 			await TenantMembershipLockOrder.LockTenantRowsAsync(
 				dbContext,
@@ -63,6 +63,9 @@ internal static class TenantUserMembershipOperations {
 					: 0;
 
 				if (isRemovingActiveAdmin && activeAdminCount <= 1) {
+					// Explicit rollback: this exit holds the tenant row lock, and the
+					// error-exit discipline does not rely on disposal.
+					await transaction.RollbackAsync(cancellationToken);
 					return new RemoveUserFromTenantResult.CannotRemoveLastAdmin();
 				}
 			}
@@ -105,7 +108,7 @@ internal static class TenantUserMembershipOperations {
 		);
 
 		try {
-			// TenantMembershipLockOrder step 1, before the admin count below.
+			// TenantMembershipLockOrder step 2, before the admin count below.
 			await TenantMembershipLockOrder.LockTenantRowsAsync(
 				dbContext,
 				[tenantId],
@@ -181,7 +184,7 @@ internal static class TenantUserMembershipOperations {
 			}
 
 			if (succeededAccountIds.Count > 0) {
-				// TenantMembershipLockOrder step 3, batched: pin every account being removed
+				// TenantMembershipLockOrder step 4, batched: pin every account being removed
 				// (in a deterministic id order) before touching their junction rows, so a
 				// concurrent tenant-profile assign cannot leave a link behind a removed
 				// membership.
@@ -191,7 +194,7 @@ internal static class TenantUserMembershipOperations {
 					cancellationToken
 				);
 
-				// Step 4: lock and materialize in one statement. This is what makes the batch
+				// Step 5: lock and materialize in one statement. This is what makes the batch
 				// see links committed while it waited, and hands back only survivors so a
 				// concurrent profile-delete cleanup cannot turn this into a tracked delete of
 				// an already-deleted row.
@@ -417,7 +420,7 @@ internal static class TenantUserMembershipOperations {
 		Guid userAccountId,
 		CancellationToken cancellationToken
 	) {
-		// TenantMembershipLockOrder step 3: pin the account row before touching its junction
+		// TenantMembershipLockOrder step 4: pin the account row before touching its junction
 		// rows. Without this, a concurrent tenant-profile assign could insert a link after this
 		// enumeration and leave a live link behind a removed membership.
 		await TenantMembershipLockOrder.LockUserAccountRowsAsync(
@@ -426,7 +429,7 @@ internal static class TenantUserMembershipOperations {
 			cancellationToken
 		);
 
-		// Step 4: lock and materialize in one statement. UserAccountProfile is current
+		// Step 5: lock and materialize in one statement. UserAccountProfile is current
 		// membership state — hard-delete links when membership is removed or restored so stale
 		// permissions cannot return. Locking here also means a concurrent profile-delete cleanup
 		// hands us only survivors instead of a row it already deleted.

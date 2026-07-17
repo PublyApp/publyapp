@@ -398,6 +398,114 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
+	/// <summary>
+	/// The identity mutex: a lock set discovered before it is frozen is not a lock set.
+	/// Reproduces the exact reviewed three-request schedule.
+	/// </summary>
+	/// <remarks>
+	/// <para>
+	/// Valid start state: <c>U</c> is active with a non-admin membership in tenant <c>S</c>;
+	/// tenant <c>T</c> has exactly one active Admin <c>X</c>; <c>U</c> is not in <c>T</c>.
+	/// </para>
+	/// <para>
+	/// A <c>FOR NO KEY UPDATE</c> barrier on <c>U</c>'s <c>users</c> row is what makes this
+	/// precise. It conflicts with global suspension's own status update (also a no-key update),
+	/// parking A at exactly the reviewed point — after its last-admin guard passed, before its
+	/// write. It does <b>not</b> conflict with the <c>FOR KEY SHARE</c> that B's membership
+	/// insert takes on the same row, so B is free to run — unless the identity mutex
+	/// (<c>FOR UPDATE</c>) orders it, which is the whole point of the fix.
+	/// </para>
+	/// <para>
+	/// Unprotected, this schedule ends with T at zero active admins while all three requests
+	/// report success: A's guard passed before U was an admin anywhere, B added U as T's Admin
+	/// behind A's enumeration, C then counted two admins and removed X, and A finally suspended
+	/// U. Removing the identity mutex from either A or B makes this spec fail on the final
+	/// assertion.
+	/// </para>
+	/// </remarks>
+	[Fact]
+	public async Task ItShouldKeepOneActiveAdminWhenCompanyAssignmentRacesGlobalSuspension() {
+		var sourceTenantId = await CreateTenantAsync();
+		var targetTenantId = await CreateTenantAsync();
+
+		// U: active, non-admin identity in S only.
+		var (suspendedUserId, _) = await SeedMemberAsync(sourceTenantId, AccountLevel.User);
+		// S keeps its own admin so U's membership there is incidental.
+		_ = await SeedMemberAsync(sourceTenantId, AccountLevel.Admin);
+		// T: exactly one active Admin, X.
+		var (adminUserId, _) = await SeedMemberAsync(targetTenantId, AccountLevel.Admin);
+
+		await using var barrierScope = _fixture.Factory.Services.CreateAsyncScope();
+		var barrierDb = barrierScope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var barrierTx = await barrierDb.Database.BeginTransactionAsync();
+
+		_ = await barrierDb.Database.ExecuteSqlAsync(
+			$"SELECT 1 FROM users WHERE id = {suspendedUserId} FOR NO KEY UPDATE"
+		);
+		var barrierPid = await PostgresLockBarrier.GetBackendPidAsync(barrierDb);
+
+		// A — global suspension of U.
+		var suspendTask = Task.Run(async () => {
+			await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+			var service = scope.ServiceProvider
+				.GetRequiredService<ITenantUserIdentityService>();
+			return await service.SuspendTenantUserIdentityForStaffAsync(suspendedUserId);
+		});
+
+		await PostgresLockBarrier.WaitUntilBlockedAsync(
+			_fixture.Factory.Services,
+			1,
+			barrierPid
+		);
+
+		// B — make U an Admin of T. Without the identity mutex this slips in behind A's
+		// enumeration; with it, B parks behind A.
+		var assignTask = Task.Run(async () => {
+			await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+			var service = scope.ServiceProvider
+				.GetRequiredService<ITenantUserCompanyMembershipService>();
+			return await service.AssignTenantUserCompaniesForStaffAsync(
+				new AssignTenantUserCompaniesArgs(
+					suspendedUserId,
+					[targetTenantId],
+					AccountLevel.Admin
+				)
+			);
+		});
+
+		await PostgresLockBarrier.WaitUntilSettledAsync(
+			_fixture.Factory.Services,
+			assignTask,
+			barrierPid,
+			2
+		);
+
+		// C — remove T's original admin X. Never blocked by the barrier: it only reads U's row.
+		var removalTask = Task.Run(async () => {
+			await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+			var service = scope.ServiceProvider
+				.GetRequiredService<ITenantUserMembershipService>();
+			return await service.RemoveUserFromTenantAsync(targetTenantId, adminUserId);
+		});
+
+		await PostgresLockBarrier.WaitUntilSettledAsync(
+			_fixture.Factory.Services,
+			removalTask,
+			barrierPid,
+			3
+		);
+
+		await barrierTx.RollbackAsync();
+
+		await Task.WhenAll(suspendTask, assignTask, removalTask);
+
+		(await CountActiveAdminsAsync(targetTenantId)).Should().BeGreaterThan(
+			0,
+			"a membership added behind global suspension's enumeration must not let the "
+			+ "tenant's last admin be removed and then suspended"
+		);
+	}
+
 	// ---------------------------------------------------------------------------------------
 	// Helpers
 	// ---------------------------------------------------------------------------------------

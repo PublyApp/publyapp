@@ -451,7 +451,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 		DeleteTenantProfileArgs args,
 		CancellationToken cancellationToken
 	) {
-		// TenantMembershipLockOrder step 1: pin the profile before enumerating its junction
+		// TenantMembershipLockOrder step 3: pin the profile before enumerating its junction
 		// rows, so a concurrent assign cannot slip a new link in behind this cleanup.
 		var profile = await TenantMembershipLockOrder.LockLiveTenantProfileAsync(
 			_dbContext,
@@ -477,7 +477,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 
 		var profileIdValue = profile.GetRequiredId();
 
-		// TenantMembershipLockOrder step 4: lock and materialize the junction rows in one
+		// TenantMembershipLockOrder step 5: lock and materialize the junction rows in one
 		// statement. A concurrent member-removal cleanup targeting the same link hands us only
 		// survivors, so we never issue a tracked delete for a row it already removed.
 		var links = await TenantMembershipLockOrder.LockAndMaterializeLinksForProfilesAsync(
@@ -556,7 +556,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 	) {
 		var args = new BulkDeleteTenantProfilesArgs(tenantId, requestedProfileIds);
 
-		// TenantMembershipLockOrder step 1, batched: pin every candidate profile in a
+		// TenantMembershipLockOrder step 3, batched: pin every candidate profile in a
 		// deterministic id order before reading them or their junction rows, so concurrent
 		// assigns cannot re-link a profile this batch is about to purge, and two concurrent
 		// bulk deletes cannot deadlock.
@@ -617,7 +617,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 			);
 		}
 
-		// TenantMembershipLockOrder step 4, batched — same rationale as the single-profile path.
+		// TenantMembershipLockOrder step 5, batched — same rationale as the single-profile path.
 		var links = await TenantMembershipLockOrder.LockAndMaterializeLinksForProfilesAsync(
 			_dbContext,
 			deletableProfileIds,
@@ -794,7 +794,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 			SetTenantProfileUserArgs args,
 			CancellationToken cancellationToken
 		) {
-		// Lock order step 1. Locking with the liveness predicate (rather than reading live and
+		// Lock order step 3. Locking with the liveness predicate (rather than reading live and
 		// locking by id) is what makes the tenant/scope/soft-delete guards linearizable: a
 		// profile deleted while we waited yields no row here, so we cannot insert a junction
 		// row under a profile the delete path already purged.
@@ -812,7 +812,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 			return (new SetTenantProfileUserResult.ProfileNotFound(), false);
 		}
 
-		// Lock order step 2. Blocks cross-tenant assignment, and a membership removed while we
+		// Lock order step 4. Blocks cross-tenant assignment, and a membership removed while we
 		// waited yields no row instead of a lock on a soft-deleted account.
 		var member = await TenantMembershipLockOrder.LockLiveTenantAccountAsync(
 			_dbContext,
@@ -838,7 +838,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 			member.Level
 		);
 
-		// Lock order step 3: both parents are pinned, so junction state read from here is
+		// Lock order step 5: both parents are pinned, so junction state read from here is
 		// stable for the rest of the transaction.
 		var existing = await (
 			from uap in _dbContext.UserAccountProfile

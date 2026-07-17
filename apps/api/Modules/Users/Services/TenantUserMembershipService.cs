@@ -178,7 +178,7 @@ public class TenantUserMembershipService : ITenantUserMembershipService {
 		try {
 			// Check last-admin invariant if demoting from admin
 			if (needsAdminInvariantTransaction) {
-				// TenantMembershipLockOrder step 1: the tenant's active-admin mutex, taken
+				// TenantMembershipLockOrder step 2: the tenant's active-admin mutex, taken
 				// before the counts below so they include concurrent admin removals.
 				await TenantMembershipLockOrder.LockTenantRowsAsync(
 					_dbContext,
@@ -203,6 +203,12 @@ public class TenantUserMembershipService : ITenantUserMembershipService {
 					);
 
 				if (isDemotingActiveAdmin && !hasAnotherActiveAdmin) {
+					// Explicit rollback: this exit holds the tenant row lock when the
+					// invariant transaction is in play.
+					if (transaction is not null) {
+						await transaction.RollbackAsync(cancellationToken);
+					}
+
 					return new UpdateTenantUserResult.CannotDemoteLastAdmin();
 				}
 			}

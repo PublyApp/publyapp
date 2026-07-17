@@ -12,9 +12,10 @@ namespace PublyApp.Api.Modules.Users.Services;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>Order: (1) <c>tenants</c> → (2) <c>profiles</c> → (3) <c>user_accounts</c> →
-/// (4) <c>user_account_profiles</c>.</b> A path takes only the steps it needs, but never takes
-/// them out of this order, and always takes a parent before reading the children it will act on.
+/// <b>Order: (1) <c>users</c> → (2) <c>tenants</c> → (3) <c>profiles</c> →
+/// (4) <c>user_accounts</c> → (5) <c>user_account_profiles</c>.</b> A path takes only the steps
+/// it needs, but never takes them out of this order, and always takes a parent before reading
+/// the children it will act on.
 /// Within a step, rows are locked in a deterministic id order — for the junction, always
 /// <c>(user_account_id, profile_id)</c>, the same key for both the profile axis and the account
 /// axis, so cross-axis cleanups acquire shared rows in the same relative order and cannot
@@ -29,7 +30,7 @@ namespace PublyApp.Api.Modules.Users.Services;
 /// Do not raise the isolation level of a path that takes these locks.
 /// </para>
 /// <para>
-/// <b>Why the liveness predicate travels inside the locking statement</b> (steps 2 and 3, the
+/// <b>Why the liveness predicate travels inside the locking statement</b> (steps 3 and 4, the
 /// <c>LockLive*</c> helpers). Under READ COMMITTED, when <c>SELECT … FOR UPDATE</c> blocks on a
 /// row a concurrent writer is updating, PostgreSQL re-evaluates the <c>WHERE</c> clause against
 /// the updated row version once that writer commits (EvalPlanQual). Carrying the full liveness
@@ -46,7 +47,23 @@ namespace PublyApp.Api.Modules.Users.Services;
 /// on the same physical row, which is what serializes the two sides.
 /// </para>
 /// <para>
-/// <b>Step 1 — the tenant row — is the tenant's active-admin mutex.</b> "A tenant keeps at least
+/// <b>Step 1 — the user row — is the identity mutex, and it exists because a lock set
+/// discovered before it is frozen is not a lock set.</b> Global suspension must guard every
+/// tenant where the user is an active admin, so it derives its tenant set by enumerating that
+/// user's memberships. Nothing about the tenant locks it then takes prevents a concurrent path
+/// from <i>adding</i> a membership in a tenant that was not in the enumeration — that tenant
+/// simply never contends, and no id-ordering can repair an incomplete set. So every path that
+/// creates or restores a tenant membership <b>for an already-existing identity</b> takes that
+/// user's row lock first, and global suspension holds it across enumerate-lock-guard-write. The
+/// set is then frozen for the whole operation rather than merely fresh at one instant.
+/// </para>
+/// <para>
+/// Paths that only <i>promote</i> an existing membership need no identity mutex: the tenant is
+/// already in the enumeration, and adding an admin can only raise an active-admin count, never
+/// strand a tenant at zero.
+/// </para>
+/// <para>
+/// <b>Step 2 — the tenant row — is the tenant's active-admin mutex.</b> "A tenant keeps at least
 /// one active admin" is a COUNT invariant over many rows, which no constraint can express and no
 /// lock on the acted-upon account can protect: two transactions removing two different admins
 /// touch disjoint rows, so nothing collides — classic write skew. Every path that may reduce a
@@ -82,9 +99,24 @@ namespace PublyApp.Api.Modules.Users.Services;
 /// Users → <c>TenantUserMembershipService.UpdateTenantUserAsync</c> (tenant, when demoting)
 /// </item>
 /// <item>
-/// Users → <c>TenantUserIdentityService.SuspendTenantUserIdentityForStaffAsync</c> (tenants)
+/// Users → <c>TenantUserIdentityService.SuspendTenantUserIdentityForStaffAsync</c>
+/// (user, then tenants)
+/// </item>
+/// <item>
+/// Users → <c>TenantUserCompanyMembershipService.AssignTenantUserCompaniesForStaffAsync</c>
+/// (user — it creates/restores a membership for an existing identity)
+/// </item>
+/// <item>
+/// Invitations → <c>InvitationAcceptanceService.AcceptTenantInvitationForExistingUserAsync</c>
+/// (user — same reason)
 /// </item>
 /// </list>
+/// </para>
+/// <para>
+/// <c>InvitationAcceptanceService.AcceptTenantInvitationAsync</c> deliberately takes no identity
+/// mutex: it creates the user inside its own transaction, so no concurrent operation can be
+/// guarding that identity yet. <c>AccountService.CreateTenantAccountAsync</c> would need one, but
+/// it has no production caller.
 /// </para>
 /// <para>
 /// <b>Known gap, pre-existing and not introduced here:</b>
@@ -97,7 +129,29 @@ namespace PublyApp.Api.Modules.Users.Services;
 /// </remarks>
 internal static class TenantMembershipLockOrder {
 	/// <summary>
-	/// Step 1: the tenant's active-admin mutex. Take before counting active admins on any path
+	/// Step 1: the identity mutex. Take before enumerating an identity's tenant memberships on a
+	/// path that guards them, and before creating or restoring a membership for an identity that
+	/// already exists. Locks in a deterministic id order.
+	/// </summary>
+	internal static async Task LockUserIdentityRowsAsync(
+		AppDbContext dbContext,
+		IReadOnlyCollection<Guid> userIds,
+		CancellationToken cancellationToken
+	) {
+		if (userIds.Count == 0) {
+			return;
+		}
+
+		var orderedIds = userIds.Distinct().OrderBy(id => id).ToArray();
+
+		_ = await dbContext.Database.ExecuteSqlAsync(
+			$"SELECT 1 FROM users WHERE id = ANY({orderedIds}) ORDER BY id FOR UPDATE",
+			cancellationToken
+		);
+	}
+
+	/// <summary>
+	/// Step 2: the tenant's active-admin mutex. Take before counting active admins on any path
 	/// that may reduce that count. Locks in a deterministic id order so a path spanning several
 	/// tenants cannot deadlock against another.
 	/// </summary>
@@ -119,7 +173,7 @@ internal static class TenantMembershipLockOrder {
 	}
 
 	/// <summary>
-	/// Step 2: lock the live tenant profile and re-validate tenant, scope and soft-delete state
+	/// Step 3: lock the live tenant profile and re-validate tenant, scope and soft-delete state
 	/// in the same statement. Returns <c>null</c> when the profile is not a live tenant profile
 	/// of <paramref name="tenantId"/> — including when a concurrent delete won the race.
 	/// </summary>
@@ -146,7 +200,7 @@ internal static class TenantMembershipLockOrder {
 	}
 
 	/// <summary>
-	/// Step 3: lock the live tenant account and re-validate tenant, scope and soft-delete state
+	/// Step 4: lock the live tenant account and re-validate tenant, scope and soft-delete state
 	/// in the same statement. Returns <c>null</c> when the account is not a live tenant-scope
 	/// membership of <paramref name="tenantId"/> — including when a concurrent removal won the
 	/// race. Suspended accounts are deliberately still returned: suspension is not removal, and
@@ -173,7 +227,7 @@ internal static class TenantMembershipLockOrder {
 	}
 
 	/// <summary>
-	/// Step 2, writer side: lock profile rows by id before enumerating their junction rows.
+	/// Step 3, writer side: lock profile rows by id before enumerating their junction rows.
 	/// </summary>
 	internal static async Task LockProfileRowsAsync(
 		AppDbContext dbContext,
@@ -194,7 +248,7 @@ internal static class TenantMembershipLockOrder {
 	}
 
 	/// <summary>
-	/// Step 3, writer side: lock account rows by id before enumerating their junction rows.
+	/// Step 4, writer side: lock account rows by id before enumerating their junction rows.
 	/// </summary>
 	internal static async Task LockUserAccountRowsAsync(
 		AppDbContext dbContext,
@@ -214,7 +268,7 @@ internal static class TenantMembershipLockOrder {
 	}
 
 	/// <summary>
-	/// Step 4, account axis: lock and materialize the junction rows of the given accounts in one
+	/// Step 5, account axis: lock and materialize the junction rows of the given accounts in one
 	/// statement. The returned rows are the survivors — a row a concurrent cleanup deleted while
 	/// we waited is re-evaluated away rather than handed back, which is what stops EF issuing a
 	/// tracked DELETE for a row that is already gone
@@ -243,7 +297,7 @@ internal static class TenantMembershipLockOrder {
 	}
 
 	/// <summary>
-	/// Step 4, profile axis. Ordered by the same <c>(user_account_id, profile_id)</c> key as the
+	/// Step 5, profile axis. Ordered by the same <c>(user_account_id, profile_id)</c> key as the
 	/// account axis: the two axes overlap on at most a shared subset, and because both walk that
 	/// subset in the same order, neither can hold a shared row the other needs earlier.
 	/// </summary>

@@ -199,10 +199,21 @@ public sealed class TenantUserIdentityService : ITenantUserIdentityService {
 			await _dbContext.Database.BeginTransactionAsync(cancellationToken);
 
 		try {
-			// TenantMembershipLockOrder step 1, across every tenant this user belongs to: those
-			// are exactly the tenants whose active-admin count this suspension can reduce. Taken
-			// before the scan below so it sees concurrently committed admin changes, and in id
-			// order so it cannot deadlock against a single-tenant path.
+			// TenantMembershipLockOrder step 1: freeze this identity's membership set BEFORE
+			// enumerating it. Without this the enumeration below is only a snapshot — a
+			// concurrent create/restore could add an Admin membership in a tenant this
+			// operation never locked, never guarded, and then stranded at zero active admins
+			// when the status update lands. A set discovered before it is frozen is not a set.
+			await TenantMembershipLockOrder.LockUserIdentityRowsAsync(
+				_dbContext,
+				[userId],
+				cancellationToken
+			);
+
+			// Step 2, across every tenant this user belongs to. The identity mutex above is
+			// what makes this enumeration complete for the rest of the transaction: no new
+			// membership can appear behind it. Locked in id order so it cannot deadlock
+			// against a single-tenant path.
 			var affectedTenantIds = (
 				await (
 					from ua in _dbContext.UserAccount
