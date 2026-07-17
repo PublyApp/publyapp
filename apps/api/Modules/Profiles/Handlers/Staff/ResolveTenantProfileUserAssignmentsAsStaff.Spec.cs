@@ -236,6 +236,47 @@ public sealed class ResolveTenantProfileUserAssignmentsAsStaffSpec : IClassFixtu
 		);
 	}
 
+	/// <summary>
+	/// Mutation-proof isolation check: the spec above creates the foreign member with NO
+	/// assignment at all, so it would pass even if the service's `ua.TenantId == args.TenantId`
+	/// predicate were deleted — the join is empty and false regardless. This test seeds a
+	/// UserAccountProfile row directly (bypassing the assign endpoint, which itself enforces
+	/// tenant matching) to represent corrupt/legacy cross-tenant data — a tenant B account
+	/// linked to tenant A's profile — so only the account-tenant predicate can keep the result
+	/// false.
+	/// </summary>
+	[Fact]
+	public async Task ItShouldNotResolveAForeignTenantAccountAsAssignedEvenWithACorruptJunctionRow() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantAId = await GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var tenantBId = await GetTenantIdAsync(SeedConstants.Tenants.TechStartName);
+
+		var profileAId = await CreateTenantProfileAsync(tenantAId);
+		var foreignMemberId = await CreateTenantMemberAsync(tenantBId);
+		await CreateCorruptCrossTenantJunctionRowAsync(foreignMemberId, profileAId);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			GetUrl(tenantAId.ToString(), profileAId.ToString())
+		).WithSessionToken(token);
+
+		request.Content = JsonContent.Create(
+			new { userAccountIds = new[] { foreignMemberId.ToString() } }
+		);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<ResolveTenantProfileUserAssignmentsAsStaffResult>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+
+		result.Assignments.Should().ContainSingle(a =>
+			a.UserAccountId == foreignMemberId && !a.IsAssigned
+		);
+	}
+
 	// ---------------------------------------------------------------------------------------
 	// Happy paths
 	// ---------------------------------------------------------------------------------------
@@ -281,12 +322,18 @@ public sealed class ResolveTenantProfileUserAssignmentsAsStaffSpec : IClassFixtu
 	}
 
 	/// <summary>
-	/// Mirrors the staff-profiles ResolveAssignment precedent: suspended members/users are
-	/// treated as not assignable via staff tooling, even though the Find endpoint still lists
-	/// them.
+	/// Resolve must report assignment TRUTH, not eligibility: a suspended account with a live
+	/// junction row must still resolve as assigned. Find already returns suspended members, and
+	/// the tenant toggle service (TenantMembershipLockOrder.LockLiveTenantAccountAsync)
+	/// deliberately accepts suspended accounts for both assign and unassign — so excluding
+	/// suspended accounts here would make an existing assignment resolve as IsAssigned: false,
+	/// and the assignment could never be removed through that state (the drawer would show an
+	/// unchecked switch and offer POST instead of DELETE). This replaces the previous
+	/// "exclude suspended" assertion, which encoded the staff-axis bug this slice must not
+	/// mirror.
 	/// </summary>
 	[Fact]
-	public async Task ItShouldExcludeSuspendedAccountsFromResolvedAssignments() {
+	public async Task ItShouldResolveASuspendedAccountWithALiveJunctionRowAsAssigned() {
 		var token = await _authClient.LoginAsStaffAdminAsync();
 		var tenantId = await GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
 		var profileId = await CreateTenantProfileAsync(tenantId);
@@ -313,7 +360,7 @@ public sealed class ResolveTenantProfileUserAssignmentsAsStaffSpec : IClassFixtu
 		Assert.NotNull(result);
 
 		result.Assignments.Should().ContainSingle(a =>
-			a.UserAccountId == suspendedMemberId && !a.IsAssigned
+			a.UserAccountId == suspendedMemberId && a.IsAssigned
 		);
 	}
 
@@ -423,5 +470,22 @@ public sealed class ResolveTenantProfileUserAssignmentsAsStaffSpec : IClassFixtu
 
 		using var response = await _http.SendAsync(request);
 		response.EnsureSuccessStatusCode();
+	}
+
+	/// <summary>
+	/// Inserts a UserAccountProfile junction row directly via the DbContext, bypassing the
+	/// assign endpoint (which itself enforces tenant matching). Used to represent corrupt/legacy
+	/// cross-tenant data for isolation specs that must exercise the service's account-tenant
+	/// predicate rather than relying on an otherwise-empty join.
+	/// </summary>
+	private async Task CreateCorruptCrossTenantJunctionRowAsync(Guid userAccountId, Guid profileId) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		_ = dbContext.UserAccountProfile.Add(new UserAccountProfile {
+			UserAccountId = userAccountId,
+			ProfileId = profileId,
+		});
+		_ = await dbContext.SaveChangesAsync();
 	}
 }

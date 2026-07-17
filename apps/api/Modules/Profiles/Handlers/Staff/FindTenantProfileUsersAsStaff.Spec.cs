@@ -200,6 +200,85 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 		result.Users.Should().NotContain(u => u.Id == memberBId);
 	}
 
+	/// <summary>
+	/// Mutation-proof isolation check: seeds a UserAccountProfile row directly (bypassing the
+	/// assign endpoint, which itself enforces tenant matching) to represent corrupt/legacy
+	/// cross-tenant data — a tenant B account linked to tenant A's profile. Find must still
+	/// exclude that account. The named "foreign tenant" spec above passes even if the service's
+	/// `ua.TenantId == args.TenantId` predicate were deleted, because the profile-id filter
+	/// alone already excludes tenant B's member from tenant A's profile query — this test seeds
+	/// the corrupt row specifically so the profile-id filter can no longer save the assertion,
+	/// leaving only the account-tenant predicate to guard it.
+	/// </summary>
+	[Fact]
+	public async Task ItShouldExcludeAForeignTenantAccountEvenWithACorruptJunctionRow() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantAId = await GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var tenantBId = await GetTenantIdAsync(SeedConstants.Tenants.TechStartName);
+
+		var profileAId = await CreateTenantProfileAsync(tenantAId);
+		var foreignMemberId = await CreateTenantMemberAsync(tenantBId);
+		await CreateCorruptCrossTenantJunctionRowAsync(foreignMemberId, profileAId);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetUrl(tenantAId.ToString(), profileAId.ToString()) + "?limit=50"
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<FindTenantProfileUsersAsStaffResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+
+		result.Users.Should().NotContain(u => u.Id == foreignMemberId);
+	}
+
+	// ---------------------------------------------------------------------------------------
+	// Pagination determinism
+	// ---------------------------------------------------------------------------------------
+
+	/// <summary>
+	/// Every Find sort branch ties routinely (all seeded members here share the default Active
+	/// status). Without a unique UserAccountId tie-breaker matching the primary sort direction,
+	/// Postgres may return tied rows in a different order across the two page requests below,
+	/// so adjacent offset pages could overlap or omit members. Seeding limit+1 tied members and
+	/// asserting the two-page union is exact (no overlap, nothing skipped) proves the
+	/// tie-breaker is in place.
+	/// </summary>
+	[Fact]
+	public async Task ItShouldPageWithoutOverlapOrGapsWhenManyMembersTieOnStatus() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var profileId = await CreateTenantProfileAsync(tenantId);
+
+		const int limit = 5;
+		var memberIds = new List<Guid>();
+		for (var i = 0; i < limit + 1; i++) {
+			var memberId = await CreateTenantMemberAsync(tenantId);
+			await AssignAsync(token, tenantId, profileId, memberId);
+			memberIds.Add(memberId);
+		}
+
+		var page1 = await GetUsersPageAsync(
+			token, tenantId, profileId, page: 1, limit: limit, sortId: "status"
+		);
+		var page2 = await GetUsersPageAsync(
+			token, tenantId, profileId, page: 2, limit: limit, sortId: "status"
+		);
+
+		var page1Ids = page1.Users.Select(u => u.Id).ToList();
+		var page2Ids = page2.Users.Select(u => u.Id).ToList();
+
+		page1Ids.Should().HaveCount(limit);
+		page2Ids.Should().HaveCount(1);
+		page1Ids.Intersect(page2Ids).Should().BeEmpty();
+
+		page1Ids.Concat(page2Ids).Should().BeEquivalentTo(memberIds);
+	}
+
 	// ---------------------------------------------------------------------------------------
 	// Happy paths
 	// ---------------------------------------------------------------------------------------
@@ -451,6 +530,48 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 
 		using var response = await _http.SendAsync(request);
 		response.EnsureSuccessStatusCode();
+	}
+
+	/// <summary>
+	/// Inserts a UserAccountProfile junction row directly via the DbContext, bypassing the
+	/// assign endpoint (which itself enforces tenant matching). Used to represent corrupt/legacy
+	/// cross-tenant data for isolation specs that must exercise the service's account-tenant
+	/// predicate rather than relying on the profile-id filter alone.
+	/// </summary>
+	private async Task CreateCorruptCrossTenantJunctionRowAsync(Guid userAccountId, Guid profileId) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		_ = dbContext.UserAccountProfile.Add(new UserAccountProfile {
+			UserAccountId = userAccountId,
+			ProfileId = profileId,
+		});
+		_ = await dbContext.SaveChangesAsync();
+	}
+
+	private async Task<FindTenantProfileUsersAsStaffResponse> GetUsersPageAsync(
+		string staffToken,
+		Guid tenantId,
+		Guid profileId,
+		int page,
+		int limit,
+		string sortId
+	) {
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetUrl(tenantId.ToString(), profileId.ToString())
+				+ $"?page={page}&limit={limit}&sort_id={sortId}&sort_order=desc"
+		).WithSessionToken(staffToken);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<FindTenantProfileUsersAsStaffResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+
+		return result;
 	}
 
 	// -- Response DTOs --

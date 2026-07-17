@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
 using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Profiles.Services;
 
@@ -55,55 +56,11 @@ public sealed class ResolveTenantProfileUserAssignmentsAsStaffBodyValidator
 
 	public ResolveTenantProfileUserAssignmentsAsStaffBodyValidator() {
 		RuleFor(x => x.UserAccountIds)
-			.Custom((element, context) => {
-				if (element.ValueKind
-					is JsonValueKind.Undefined
-					or JsonValueKind.Null) {
-					context.AddFailure("UserAccountIds is required");
-					return;
-				}
-
-				if (element.ValueKind != JsonValueKind.Array) {
-					context.AddFailure("UserAccountIds must be an array");
-					return;
-				}
-
-				var array = element.EnumerateArray().ToList();
-				if (array.Count > MaxUserAccountIds) {
-					context.AddFailure(
-						"userAccountIds",
-						$"At most {MaxUserAccountIds} userAccountIds are supported per request"
-					);
-					return;
-				}
-
-				for (var i = 0; i < array.Count; i++) {
-					var item = array[i];
-					if (item.ValueKind != JsonValueKind.String) {
-						context.AddFailure(
-							$"userAccountIds[{i}]",
-							"UserAccountId must be a string"
-						);
-						continue;
-					}
-
-					var str = item.GetString();
-					if (string.IsNullOrWhiteSpace(str)) {
-						context.AddFailure(
-							$"userAccountIds[{i}]",
-							"UserAccountId is required"
-						);
-						continue;
-					}
-
-					if (!Guid.TryParse(str, out _)) {
-						context.AddFailure(
-							$"userAccountIds[{i}]",
-							"UserAccountId must be a valid UUID"
-						);
-					}
-				}
-			});
+			.MustBeRequiredGuidArrayAllowingEmpty(
+				"UserAccountIds",
+				"userAccountId",
+				MaxUserAccountIds
+			);
 	}
 }
 

@@ -527,30 +527,35 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 
 		// Keep this list's supported sort_id values explicit and small, mirroring the
 		// staff-profiles Find precedent's sortable set.
+		//
+		// Every branch adds a UserAccountId tie-breaker (direction matching the primary sort).
+		// The primary sort fields routinely tie (status ties constantly; email/name/created_at
+		// can too), and without a unique tie-breaker Postgres may return tied rows in different
+		// orders across requests, causing adjacent offset pages to overlap or omit members.
 		var isAsc = effectiveSortOrder == SortOrder.Asc;
 		if (string.Equals(effectiveSortId, "created_at", StringComparison.OrdinalIgnoreCase)) {
 			query = isAsc
-				? query.OrderBy(x => x.AssignedAt)
-				: query.OrderByDescending(x => x.AssignedAt);
+				? query.OrderBy(x => x.AssignedAt).ThenBy(x => x.UserAccountId)
+				: query.OrderByDescending(x => x.AssignedAt).ThenByDescending(x => x.UserAccountId);
 		} else if (string.Equals(effectiveSortId, "email", StringComparison.OrdinalIgnoreCase)) {
 			query = isAsc
-				? query.OrderBy(x => x.Email)
-				: query.OrderByDescending(x => x.Email);
+				? query.OrderBy(x => x.Email).ThenBy(x => x.UserAccountId)
+				: query.OrderByDescending(x => x.Email).ThenByDescending(x => x.UserAccountId);
 		} else if (string.Equals(effectiveSortId, "first_name", StringComparison.OrdinalIgnoreCase)) {
 			query = isAsc
-				? query.OrderBy(x => x.FirstName)
-				: query.OrderByDescending(x => x.FirstName);
+				? query.OrderBy(x => x.FirstName).ThenBy(x => x.UserAccountId)
+				: query.OrderByDescending(x => x.FirstName).ThenByDescending(x => x.UserAccountId);
 		} else if (string.Equals(effectiveSortId, "last_name", StringComparison.OrdinalIgnoreCase)) {
 			query = isAsc
-				? query.OrderBy(x => x.LastName)
-				: query.OrderByDescending(x => x.LastName);
+				? query.OrderBy(x => x.LastName).ThenBy(x => x.UserAccountId)
+				: query.OrderByDescending(x => x.LastName).ThenByDescending(x => x.UserAccountId);
 		} else if (string.Equals(effectiveSortId, "status", StringComparison.OrdinalIgnoreCase)) {
 			// Sorts on the underlying global user status, the same simplification the
 			// staff-profiles Find precedent makes, rather than the compound derived tenant
 			// status (which also folds in the membership-local AccountStatus).
 			query = isAsc
-				? query.OrderBy(x => x.UserStatus)
-				: query.OrderByDescending(x => x.UserStatus);
+				? query.OrderBy(x => x.UserStatus).ThenBy(x => x.UserAccountId)
+				: query.OrderByDescending(x => x.UserStatus).ThenByDescending(x => x.UserAccountId);
 		} else {
 			return new FindTenantProfileUsersResult.InvalidSortId(effectiveSortId);
 		}
@@ -608,11 +613,19 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 		// to nullable IDs to keep the query fully translatable by EF.
 		var userAccountIdsNullable = args.UserAccountIds.Select(id => (Guid?)id).ToList();
 
-		// Resolve assignment in one query:
+		// Resolve assignment TRUTH, not eligibility: IsAssigned must be true iff a live,
+		// tenant-scoped UserAccountProfile junction row exists for (profileId, user_account_id),
+		// regardless of account/user suspension.
+		//
 		// - Only live tenant-scope accounts of THIS tenant are relevant (enforces tenant
 		//   isolation: a foreign tenant's account id can never resolve as assigned here).
-		// - Suspended accounts/users are treated as not assignable via staff tooling, mirroring
-		//   the staff-profiles ResolveAssignment precedent.
+		// - Suspended accounts/users are NOT excluded here: Find deliberately returns suspended
+		//   members, and the tenant toggle service (TenantMembershipLockOrder.
+		//   LockLiveTenantAccountAsync) deliberately accepts suspended accounts for both assign
+		//   and unassign. Excluding them here would make an existing assignment resolve as
+		//   IsAssigned: false, which would make the assignment un-removable through this state.
+		//   A consumer that needs suspension to gate unsafe UI actions should consume account
+		//   status as a separate field rather than overloading IsAssigned with it.
 		// - Junction links are hard-deleted when members are unassigned.
 		var assignedUserAccountIds = await (
 			from ua in _dbContext.UserAccount
@@ -622,9 +635,7 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 				&& ua.Scope == AccountScope.Tenant
 				&& ua.TenantId == args.TenantId
 				&& !ua.IsDeleted
-				&& ua.Status != AccountStatus.Suspended
 				&& !u.IsDeleted
-				&& u.Status != UserStatus.Suspended
 				&& uap.ProfileId == args.ProfileId
 			select ua.Id
 		)

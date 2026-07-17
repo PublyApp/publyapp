@@ -74,6 +74,10 @@ public sealed class JsonElementRulesSpec {
 		public JsonElement RequiredGuidArray { get; set; }
 	}
 
+	private class GuidArrayAllowingEmptyModel {
+		public JsonElement GuidArrayAllowingEmpty { get; set; }
+	}
+
 	// ----- validators (one per concern) -----
 
 	private class EmailValidator
@@ -179,6 +183,18 @@ public sealed class JsonElementRulesSpec {
 		public GuidArrayValidator() {
 			RuleFor(x => x.RequiredGuidArray)
 				.MustBeRequiredGuidArray(
+					"userIds",
+					"userId",
+					100
+				);
+		}
+	}
+
+	private class GuidArrayAllowingEmptyValidator
+		: AbstractValidator<GuidArrayAllowingEmptyModel> {
+		public GuidArrayAllowingEmptyValidator() {
+			RuleFor(x => x.GuidArrayAllowingEmpty)
+				.MustBeRequiredGuidArrayAllowingEmpty(
 					"userIds",
 					"userId",
 					100
@@ -722,6 +738,80 @@ public sealed class JsonElementRulesSpec {
 				.SerializeToElement(Array.Empty<Guid>()),
 		};
 		var result = new GuidArrayValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	// ============= RequiredGuidArrayAllowingEmpty =============
+
+	[Fact]
+	public void ItShouldPassGuidArrayAllowingEmptyWhenValid() {
+		var ids = JsonSerializer.SerializeToElement(
+			new[] { Guid.NewGuid(), Guid.NewGuid() }
+		);
+		var model = new GuidArrayAllowingEmptyModel {
+			GuidArrayAllowingEmpty = ids,
+		};
+		var result = new GuidArrayAllowingEmptyValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldPassGuidArrayAllowingEmptyWhenEmpty() {
+		var model = new GuidArrayAllowingEmptyModel {
+			GuidArrayAllowingEmpty = JsonSerializer
+				.SerializeToElement(Array.Empty<Guid>()),
+		};
+		var result = new GuidArrayAllowingEmptyValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldFailGuidArrayAllowingEmptyWhenNull() {
+		var model = new GuidArrayAllowingEmptyModel {
+			GuidArrayAllowingEmpty = JsonDocument
+				.Parse("null").RootElement,
+		};
+		var result = new GuidArrayAllowingEmptyValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldFailGuidArrayAllowingEmptyWhenNotAnArray() {
+		var model = new GuidArrayAllowingEmptyModel {
+			GuidArrayAllowingEmpty = JsonSerializer
+				.SerializeToElement("not-an-array"),
+		};
+		var result = new GuidArrayAllowingEmptyValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldFailGuidArrayAllowingEmptyWhenOverMaxCount() {
+		var ids = Enumerable.Range(0, 101)
+			.Select(_ => Guid.NewGuid())
+			.ToArray();
+		var model = new GuidArrayAllowingEmptyModel {
+			GuidArrayAllowingEmpty = JsonSerializer
+				.SerializeToElement(ids),
+		};
+		var result = new GuidArrayAllowingEmptyValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldFailGuidArrayAllowingEmptyWhenItemIsNotAValidGuid() {
+		string[] invalidIds = ["not-a-guid"];
+		var model = new GuidArrayAllowingEmptyModel {
+			GuidArrayAllowingEmpty = JsonSerializer
+				.SerializeToElement(invalidIds),
+		};
+		var result = new GuidArrayAllowingEmptyValidator()
 			.Validate(model);
 		_ = result.IsValid.Should().BeFalse();
 	}
