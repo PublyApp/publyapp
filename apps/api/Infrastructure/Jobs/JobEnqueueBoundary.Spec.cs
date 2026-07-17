@@ -67,12 +67,26 @@ public sealed partial class JobEnqueueBoundarySpec {
 	[GeneratedRegex(@"//[^\r\n]*")]
 	private static partial Regex LineComments();
 
-	private static readonly (string Name, Regex Pattern)[] ForbiddenPatterns = [
+	// C# string-literal masking (re-review 3): API-shape patterns must not fire on
+	// text INSIDE strings (log messages mentioning "JobQueue" would false-positive),
+	// while the raw-SQL pass must still SEE string contents (that is where SQL
+	// lives). Raw strings first, then verbatim (@" / @$", doubled-quote escapes),
+	// then regular/interpolated (backslash escapes).
+	[GeneratedRegex("\"\"\"[\\s\\S]*?\"\"\"")]
+	private static partial Regex RawStringLiterals();
+
+	[GeneratedRegex("(?:@\\$?|\\$@)\"(?:[^\"]|\"\")*\"")]
+	private static partial Regex VerbatimStringLiterals();
+
+	[GeneratedRegex("\\$?\"(?:[^\"\\\\\\r\\n]|\\\\.)*\"")]
+	private static partial Regex RegularStringLiterals();
+
+	// Matched against string-MASKED source (API shapes are code, not text).
+	private static readonly (string Name, Regex Pattern)[] ApiPatterns = [
 		("DbSet Add/Remove", DbSetMutation()),
 		("ExecuteUpdate/ExecuteDelete", BulkMutation()),
 		("Set<JobQueueItem>", SetOfJobQueueItem()),
-		("new JobQueueItem", EntityConstruction()),
-		("raw job_queue DML", RawSqlMutation())
+		("new JobQueueItem", EntityConstruction())
 	];
 
 	[Fact]
@@ -136,7 +150,11 @@ public sealed partial class JobEnqueueBoundarySpec {
 			// Other identifiers sharing the prefix.
 			"JobQueueProcessor.ClaimBatchAsync(db, w, 300, 20, ct);",
 			// A different statement's ExecuteDelete after the queue read ended.
-			"var a = db.JobQueue.Count(); await db.Session.ExecuteDeleteAsync();"
+			"var a = db.JobQueue.Count(); await db.Session.ExecuteDeleteAsync();",
+			// A STRING mentioning JobQueue next to another set's bulk delete must
+			// not trip the API scan (re-review 3's exact example).
+			"logger.LogInformation(\"JobQueue cleanup: {Count}\", "
+				+ "await db.Sessions.ExecuteDeleteAsync());"
 		];
 
 		foreach (var snippet in knownBad) {
@@ -152,18 +170,32 @@ public sealed partial class JobEnqueueBoundarySpec {
 		}
 	}
 
-	// Shared detector: comment-strip, then match every statement-spanning pattern.
+	// Shared detector: comment-strip once; API-shape patterns run against
+	// string-MASKED text (a log message naming JobQueue is not a write), while the
+	// raw-SQL pass keeps strings visible (SQL only ever lives inside them).
 	private static List<string> FindForbiddenPatterns(string source) {
-		var stripped = LineComments().Replace(BlockComments().Replace(source, " "), " ");
+		var withoutComments =
+			LineComments().Replace(BlockComments().Replace(source, " "), " ");
+		var withoutStrings = MaskStringLiterals(withoutComments);
 		var findings = new List<string>();
 
-		foreach (var (name, pattern) in ForbiddenPatterns) {
-			if (pattern.IsMatch(stripped)) {
+		foreach (var (name, pattern) in ApiPatterns) {
+			if (pattern.IsMatch(withoutStrings)) {
 				findings.Add(name);
 			}
 		}
 
+		if (RawSqlMutation().IsMatch(withoutComments)) {
+			findings.Add("raw job_queue DML");
+		}
+
 		return findings;
+	}
+
+	private static string MaskStringLiterals(string source) {
+		var masked = RawStringLiterals().Replace(source, "\"\"");
+		masked = VerbatimStringLiterals().Replace(masked, "\"\"");
+		return RegularStringLiterals().Replace(masked, "\"\"");
 	}
 
 	// The test assembly runs from apps/api/.artifacts/bin/...; walk up until the

@@ -289,23 +289,46 @@ namespace PublyApp.Api.Migrations
 
             // The old index was GLOBALLY unique on idempotency_key; keys legally
             // shared across job types under the new (job_type, key) scoping must be
-            // disambiguated deterministically before it can be recreated. Winner
-            // selection is ORDER BY id LIMIT 1 per key group (no min(uuid)
-            // aggregate exists); every loser is suffixed with its OWN row id, which
-            // is unique by construction — the rewritten keys can collide neither
-            // with each other nor with any pre-existing key (a pre-existing key
-            // already containing this row's uuid cannot occur: the uuid did not
-            // exist before this row).
+            // disambiguated deterministically before it can be recreated.
+            //
+            // Approach: a bounded set-based convergence loop. Each pass, within
+            // every duplicate-key group the row with the lowest id (ORDER BY id
+            // LIMIT 1 — no min(uuid) aggregate exists) keeps the key and every
+            // other row extends its key with its OWN id. A single pass prevents
+            // loser-vs-loser collisions but a rewritten key can still equal a
+            // PRE-EXISTING unrelated key (e.g. someone enqueued literally
+            // 'key:<loser-id>'), so the loop re-runs until a pass rewrites zero
+            // rows — i.e. no duplicate keys remain anywhere in the table. Keys
+            // strictly grow every pass (a row's id is appended), so cycles are
+            // impossible and convergence is guaranteed; the 20-pass bound only
+            // guards against pathological hand-crafted suffix chains, where the
+            // migration fails clear instead of looping.
             migrationBuilder.Sql("""
-                UPDATE job_queue q
-                SET idempotency_key = q.idempotency_key || ':' || q.id::text
-                WHERE q.idempotency_key IS NOT NULL
-                  AND q.id <> (
-                      SELECT o.id FROM job_queue o
-                      WHERE o.idempotency_key = q.idempotency_key
-                      ORDER BY o.id
-                      LIMIT 1
-                  );
+                DO $$
+                DECLARE
+                    rewritten integer;
+                    pass integer := 0;
+                BEGIN
+                    LOOP
+                        UPDATE job_queue q
+                        SET idempotency_key = q.idempotency_key || ':' || q.id::text
+                        WHERE q.idempotency_key IS NOT NULL
+                          AND q.id <> (
+                              SELECT o.id FROM job_queue o
+                              WHERE o.idempotency_key = q.idempotency_key
+                              ORDER BY o.id
+                              LIMIT 1
+                          );
+                        GET DIAGNOSTICS rewritten = ROW_COUNT;
+                        EXIT WHEN rewritten = 0;
+                        pass := pass + 1;
+                        IF pass > 20 THEN
+                            RAISE EXCEPTION
+                                'Could not disambiguate job_queue idempotency keys after 20 passes; resolve manually before downgrading';
+                        END IF;
+                    END LOOP;
+                END
+                $$;
                 """);
 
             migrationBuilder.CreateIndex(

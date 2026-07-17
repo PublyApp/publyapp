@@ -904,7 +904,13 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			};
 			var processor = CreateProcessor(handler);
 
-			await processor.ProcessOneAsync(row, claimed.LockToken, CancellationToken.None);
+			var result = await processor.ProcessOneAsync(
+				row, claimed.LockToken, CancellationToken.None
+			);
+
+			// Settlement honesty (re-review): a rolled-back terminal step is
+			// Faulted, never Completed.
+			result.Should().Be(JobQueueProcessor.JobExecutionResult.Faulted);
 
 			await using var verifyContext = await CreateDbContextAsync();
 			var queueRow = await verifyContext.JobQueue
@@ -918,6 +924,20 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			var dlqCount = await verifyContext.JobDeadLetter
 				.CountAsync(d => d.JobType == jobType);
 			dlqCount.Should().Be(0, "the DLQ insert rolled back with the hook");
+
+			// Batch-level accounting of the same path: a second row through
+			// ProcessBatchAsync (the first is still leased, so unclaimable)
+			// dispatches but confirms nothing.
+			var secondRow = NewJob(jobType);
+			secondRow.MaxAttempts = 1;
+			await dbContext.JobQueue.AddAsync(secondRow);
+			await dbContext.SaveChangesAsync();
+
+			var batchResult = await processor.ProcessBatchAsync(CancellationToken.None);
+			batchResult.Dispatched.Should().Be(1);
+			batchResult.Completed.Should().Be(
+				0, "a Faulted terminal step must never count as Completed"
+			);
 		} finally {
 			await DeleteJobsByTypeAsync(jobType);
 		}
