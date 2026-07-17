@@ -48,15 +48,13 @@ const zodResolver =
 			return { values: parsed.data, errors: {} as never };
 		}
 
-		const errors = parsed.error.issues.reduce<
-			Record<string, { type: string; message: string }>
-		>((acc, issue) => {
+		const errors: Record<string, { type: string; message: string }> = {};
+		for (const issue of parsed.error.issues) {
 			const field = issue.path[0];
 			if (typeof field === 'string') {
-				acc[field] = { type: issue.code, message: issue.message };
+				errors[field] = { type: issue.code, message: issue.message };
 			}
-			return acc;
-		}, {});
+		}
 
 		return { values: {} as T, errors: errors as never };
 	};
