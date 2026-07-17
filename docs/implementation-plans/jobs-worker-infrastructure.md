@@ -1,8 +1,8 @@
 # Background Jobs & Worker Infrastructure — Design
 
 > Status: **design, owner-ratified core decisions 2026-07-16; revised same
-> night; merge-challenge rounds 1–7 remediated 2026-07-17** (single-lane ruling,
-> adversarial-audit absorption, and seven challenge rounds — see the Ratification
+> night; merge-challenge rounds 1–8 remediated 2026-07-17** (single-lane ruling,
+> adversarial-audit absorption, and eight challenge rounds — see the Ratification
 > record, §11). Closes
 > the #632 gap (the #194 design was referenced but never committed).
 >
@@ -27,9 +27,10 @@
 > `docs/reviews/jobs-infra-design-challenge/doc-challenge-r1-findings.md`,
 > `doc-challenge-r2-findings.md`, `doc-challenge-r3-findings.md`,
 > `doc-challenge-r4-findings.md`, `doc-challenge-r5-findings.md`,
-> `doc-challenge-r6-findings.md`, and `doc-challenge-r7-findings.md`; their
-> C1–C17, R2-1–R2-12, R3-1–R3-9, R4-1–R4-7, R5-1–R5-3, R6-1–R6-5, and R7-1–R7-3
-> identifiers are cited inline where absorbed.
+> `doc-challenge-r6-findings.md`, `doc-challenge-r7-findings.md`, and
+> `doc-challenge-r8-findings.md`; their
+> C1–C17, R2-1–R2-12, R3-1–R3-9, R4-1–R4-7, R5-1–R5-3, R6-1–R6-5, R7-1–R7-3, and
+> R8-1–R8-5 identifiers are cited inline where absorbed.
 
 ---
 
@@ -555,7 +556,7 @@ CREATE TABLE job_queue (
     actor_user_id   uuid        NULL,                      --   "
     correlation_id  text        NULL,                      --   " (trace/correlation)
     requeued_from_dead_letter_id uuid NULL,                -- DLQ requeue lineage (F16/C9); NULL for originally-enqueued jobs
-    external_prepared_at timestamptz NULL,                 -- durable "PREPARE committed" marker (R6-4/O20): set in the PREPARE transaction, copied to the DLQ at dead-letter; NULL ⇒ no external effect can have occurred
+    external_prepared_at timestamptz NULL,                 -- durable "PREPARE committed" marker (R6-4/O20): set in the PREPARE transaction to the committed scratch row's OWN prepared_at (never a second now() — R7-2/O23), copied to the DLQ at dead-letter; NULL ⇒ no external effect can have occurred. Sole writers: IExternalPreparedMarker.StampAsync (§4.5) and RequeueDeadLetterAsync's transfer restore (§4.2) — both engine-owned, both proving a TransferExternalEffectState policy before writing (R8-3/O26), which is what makes a marker on a Standard/unregistered row an audited integrity failure rather than an ignorable value (§4.2)
     created_at      timestamptz NOT NULL DEFAULT now(),
     updated_at      timestamptz NOT NULL DEFAULT now(),    -- set via SQL in every engine transition
     CONSTRAINT pk_job_queue PRIMARY KEY (id),
@@ -717,11 +718,11 @@ the distinction is queryable state that outlives the bytes:
 
 | Status | Written by | Meaning | Requeue |
 | --- | --- | --- | --- |
-| `0 None` | the engine's built-in `Standard` classifier (§5.1), for a `RequeuePolicy = Standard` registration | the type has no external prepared state | `Standard` path |
-| `1 Present` | the registration's **terminal external-state classifier** (§5.1); email's consults `email_prepared_sends` and finds a committed row for `original_job_id` | bytes retained; `external_state_prepared_at` copied from the **marker**, `external_state_expires_at` = marker + retention | `TransferExternalEffectState` path |
+| `0 None` | the **engine** (§5.1), for a `RequeuePolicy = Standard` registration whose marker is **NULL** | the type has no external prepared state | `Standard` path |
+| `1 Present` | the **engine** (§5.1), when the marker is set and its probe of the registration's *declared* external-state store (email's: `email_prepared_sends`) finds a committed row for `original_job_id` | bytes retained; `external_state_prepared_at` copied from the **marker**, `external_state_expires_at` = marker + the store's declared retention | `TransferExternalEffectState` path |
 | `2 Expired` | the `email-prepared-sends-retention` sweep, in the **same statement** that deletes the bytes | policy-driven expiry at `external_state_expired_at` | rejected `PreparedStateExpired` |
-| `3 NeverPrepared` | the registration's classifier, when the queue row's `external_prepared_at` marker is **NULL** — the job died before PREPARE committed (render failure, or the invalid-before-handler settlement §5.1, where the classifier still runs because it is not a handler); **or** the engine directly for an unregistered `job_type`, where no classifier exists to resolve | no external effect can have occurred | allowed; the requeued job prepares normally |
-| `4 Missing` | the registration's classifier, when the marker is **set** but the prepared row is already gone; **or** any later reader that finds `status = 1` with no prepared row (§4.2 requeue, §7.2 dashboard read) | **integrity anomaly** — bytes vanished without a sweep stamp | rejected `PreparedStateAnomaly` |
+| `3 NeverPrepared` | the **engine** (§5.1), whenever the queue row's `external_prepared_at` marker is **NULL** and the type is not `Standard` — the job died before PREPARE committed (render failure, or the invalid-before-handler settlement §5.1); **or** an unregistered `job_type` with a NULL marker. **No store is probed on this branch** | no external effect can have occurred | allowed; the requeued job prepares normally |
+| `4 Missing` | the **engine** (§5.1), when the marker is **set** and (a) the probe finds no prepared row, (b) the probe *fails*, or (c) the type is `Standard` / unregistered — a marker that could not have been written (integrity failure, O25); **or** any later reader that finds `status = 1` with no prepared row (§4.2 requeue, §7.2 dashboard read) | **integrity anomaly** — bytes vanished without a sweep stamp, or a marker exists that no sanctioned writer could have set | rejected `PreparedStateAnomaly` |
 | `5 Transferred` | `RequeueDeadLetterAsync`, in the requeue transaction | the bytes moved to `requeued_as_job_id`; this ancestor no longer owns them | already-requeued (single-use guard) |
 
 `5 Transferred` exists because the requeue hook **moves** the prepared row from
@@ -749,34 +750,49 @@ requeue a licence to mint fresh bytes and a fresh key. The proof therefore lives
 **outside the deletable scratch**, on the queue row that survives to dead-letter:
 
 - **The marker.** `job_queue.external_prepared_at` (§4.1) is written **in the
-  PREPARE transaction itself**, from the same database `now()` that sets
-  `email_prepared_sends.prepared_at` — the two are equal by construction, and
-  because they commit together the marker means exactly "a committed PREPARE
-  exists for this job", the same proposition the scratch row's existence carries
-  (R2-12), on a row the retention sweep never touches.
+  PREPARE transaction itself**, and it takes **the committed scratch row's own
+  `prepared_at`** — the value `INSERT … RETURNING` hands back, or, when the insert
+  loses an `ON CONFLICT DO NOTHING` race, the value re-read from the winner row
+  inside that same fenced transaction (§4.5/R7-2/O23). There is **no second,
+  marker-side `now()`**: equality is *enforced by the write* (`… AND
+  (external_prepared_at IS NULL OR external_prepared_at = {preparedAt})`, exactly
+  one affected row or the whole transaction rolls back), not asserted by
+  construction. Because the two rows commit together, the marker means exactly "a
+  committed PREPARE exists for this job", the same proposition the scratch row's
+  existence carries (R2-12), on a row the retention sweep never touches.
 - **It carries no sensitive material.** It is one timestamp. No recipient, body,
   token, hash, or provider key leaves the scratch — the privacy line O16/O19 draw
   is unmoved, and `external_state_prepared_at` on the DLQ is that same timestamp.
-- **Classification at dead-letter is total**, decided from the marker first and
-  the scratch second. **The engine cannot decide it alone and does not try**:
-  "does a prepared row still exist?" is answerable only against a *type-specific*
-  store (`email_prepared_sends` today; a webhook/publishing prepared-state store
-  later), so the answer comes from the type's own **terminal external-state
-  classifier** — a `JobRegistration` capability, not a handler method. §5.1
-  specifies that capability, its ordering inside the terminal transaction, and the
-  startup gate that makes it mandatory; this table is the *semantic* it must
-  produce for email:
+- **Classification at dead-letter is total, and the *engine* decides every
+  branch** — marker first, store second. Only one sub-question is not generic
+  ("do the prepared bytes still exist?", answerable only against a *type-specific*
+  store — `email_prepared_sends` today, a webhook/publishing store later), and the
+  type answers it by **declaring where its store is, not by running code**: a
+  registration carries an `ExternalStateStore` *descriptor* (§5.1/O24) and the
+  engine builds and runs the probe itself. This table is the whole decision
+  function, and §5.1 states it once as engine code:
 
-  | Marker | Prepared row | Status stamped |
-  | --- | --- | --- |
-  | NULL | — (not consulted) | `3 NeverPrepared` (no external effect is possible) |
-  | set | present | `1 Present` + window bounds |
-  | set | absent | `4 Missing` — a real anomaly, audited and alerted like any other `Missing` (above), **never** `NeverPrepared` |
+  | Marker | Policy | Probe | Status stamped |
+  | --- | --- | --- | --- |
+  | NULL | `Standard` | not run | `0 None` |
+  | NULL | `TransferExternalEffectState` | not run | `3 NeverPrepared` (no external effect is possible) |
+  | NULL | unregistered `job_type` | not run | `3 NeverPrepared` |
+  | set | `TransferExternalEffectState` | row present | `1 Present` + window bounds |
+  | set | `TransferExternalEffectState` | row absent | `4 Missing` — a real anomaly, audited and alerted like any other `Missing` (above), **never** `NeverPrepared` |
+  | set | `TransferExternalEffectState` | probe **fails** | `4 Missing`, audited (O25) — a probe failure never rolls the settlement back |
+  | set | `Standard` **or** unregistered | not run | `4 Missing`, audited — **conservative integrity failure**: no sanctioned writer could have set this marker (§5.1), so the marker itself is the anomaly |
 
   `external_state_prepared_at` is copied from the **marker** on every branch that
   needs it, so the `Missing`-at-dead-letter row satisfies
-  `ck_job_dead_letter_external_state` without the deleted scratch, and
-  `external_state_expires_at = marker + EMAIL_PREPARED_SEND_RETENTION_DAYS`.
+  `ck_job_dead_letter_external_state` without the deleted scratch.
+  `external_state_expires_at = marker + {the store descriptor's declared
+  retention}` (email: `EMAIL_PREPARED_SEND_RETENTION_DAYS`). On the two
+  **integrity-failure** rows there is no descriptor and therefore no retention to
+  apply, so the engine writes `external_state_expires_at = external_state_prepared_at`
+  — a **zero-length window**, the only conservative value available: it claims no
+  retention for bytes the engine cannot account for, and it satisfies the CHECK
+  **without relaxing it**. Nothing reads it for a decision — status `4` is
+  rejected `PreparedStateAnomaly` by requeue regardless of its window (§4.2).
 - **The marker travels with a requeue.** A `TransferExternalEffectState` requeue
   moves the bytes to the new job without a second PREPARE, so the new queue row
   would carry a NULL marker and a later dead-letter would misread it as
@@ -1394,31 +1410,93 @@ member order) — the same code path `SendPreparedAsync` consumes.
       `prepared_at` (step 2's `SELECT`, repeated). Either way PREPARE now holds
       **`preparedAt` = the `prepared_at` of the one scratch row that actually
       exists**, never a value of its own invention;
-   4. **stamp the marker with that exact value, fenced on the lease token.** The
-      handler does **not** write `job_queue` itself — it calls an **engine-owned**
-      operation inside its PREPARE transaction:
+   4. **stamp the marker with that exact value, fenced on the lease token, and only
+      after the engine has *proved* the caller is entitled to it.** The handler does
+      **not** write `job_queue` itself — it calls an **engine-owned seam**
+      (`Infrastructure/Jobs/ExternalPreparedMarker.cs`, **built by Phase 2A-R**,
+      which owns engine contracts; 2C-R1 only calls it — §10):
 
       ```csharp
-      // Infrastructure/Jobs — the ONLY sanctioned marker write. Joins the caller's
-      // transaction; returns nothing and throws on a rowcount ≠ 1, so the caller
-      // cannot proceed past a lost fence.
-      Task StampExternalPreparedAsync(
-          Guid jobId, Guid lockToken, DateTimeOffset preparedAt,
-          AppDbContext db, CancellationToken ct);
+      // Infrastructure/Jobs — the ONLY sanctioned marker write.
+      public interface IExternalPreparedMarker {
+          Task StampAsync(StampExternalPreparedArgs args, CancellationToken ct);
+      }
+
+      // 3 params → an Args record, per the repo's service convention.
+      public sealed record StampExternalPreparedArgs(
+          Guid JobId, Guid LockToken, DateTimeOffset PreparedAt);
+
+      [Service(ServiceLifetime.Scoped)]
+      public sealed class ExternalPreparedMarker : IExternalPreparedMarker {
+          // Scoped AppDbContext IS the caller's PREPARE context, so the write joins
+          // the caller's transaction. No job_type parameter exists anywhere above:
+          // the caller cannot tell this seam what it is stamping.
+          public ExternalPreparedMarker(AppDbContext db, IJobRegistry registry) { … }
+      }
       ```
 
-      ```sql
-      -- what it executes:
-      UPDATE job_queue
-      SET    external_prepared_at = {preparedAt},   -- the scratch row's OWN value; NEVER a second now()
-             updated_at           = now()
-      WHERE  id         = {jobId}
-        AND  lock_token = {token}                   -- §6: every transition is conditioned on the token
-        AND  (external_prepared_at IS NULL OR external_prepared_at = {preparedAt});
-      ```
+      **Two guards, then the fenced write — in this order, each failing the call
+      rather than trusting a call site (R8-3).** Round 7 took only ids, a timestamp, a context,
+      and a token — so "both marker writers are reachable only for a
+      `TransferExternalEffectState` type" was **assertion-by-call-site**: any
+      same-assembly caller, including a `Standard` handler, could stamp. F15's guard
+      catches direct `job_queue` writes *outside* `Infrastructure/Jobs`; it does not
+      catch calls *into* an unrestricted engine method. So:
 
-      Engine-owned for two reasons: the fence/rowcount rule below cannot be
-      re-implemented — or quietly forgotten — per job type; and F15's boundary
+      1. **Active caller transaction required.** `db.Database.CurrentTransaction is
+         null` → throw before writing. Without an ambient transaction the `UPDATE`
+         would autocommit and step 5's rowcount-or-rollback rule could not roll the
+         scratch insert back — the fence would be decorative.
+      2. **Policy proved from the *persisted* row, under lock.**
+         ```sql
+         SELECT job_type FROM job_queue
+         WHERE id = {jobId} AND lock_token = {token} FOR UPDATE;
+         ```
+         Zero rows → the lease is lost or the row is settled → throw
+         `ExternalPreparedFenceLostException` **before writing**. Otherwise resolve
+         that `job_type` against the registry and throw unless it is a
+         `TransferExternalEffectState` registration. The `job_type` is **read from
+         the database, not supplied by the caller**, so the check is unforgeable: a
+         `Standard` handler stamping some other job's id is rejected on that job's
+         own persisted type.
+      3. **Then the fenced write** — same predicate, plus NULL-or-equal:
+         ```sql
+         UPDATE job_queue
+         SET    external_prepared_at = {preparedAt},   -- the scratch row's OWN value; NEVER a second now()
+                updated_at           = now()
+         WHERE  id         = {jobId}
+           AND  lock_token = {token}                   -- §6: every transition is conditioned on the token
+           AND  (external_prepared_at IS NULL OR external_prepared_at = {preparedAt});
+         ```
+         Rowcount ≠ 1 → throw. **What that check still catches, precisely:** guard 2
+         already holds the row lock with a matching token, and every §6 transition is
+         itself token-conditioned and needs that lock (a settling `DELETE … WHERE id
+         AND lock_token` blocks on it) — so the token cannot change and the row
+         cannot vanish underneath this statement. The residual zero-row case is
+         therefore exactly **"the marker already holds a different value"**, which is
+         the equality violation this rule exists to reject.
+
+      **The seam rolls the transaction back itself; it does not ask.** Every throw
+      above is preceded by `CurrentTransaction.RollbackAsync()`. This is not
+      belt-and-braces — without it the rollback would be a **convention** (the same
+      defect class as R8-1's "payload-blind" claim): guard 2's zero-row result is a
+      client-side condition, **not** a SQL error, so Postgres does *not* poison the
+      transaction, and a handler that wrapped `StampAsync` in a `try/catch` and
+      committed anyway would land its scratch bytes with no marker — an orphan
+      created by the very seam that exists to prevent one. Rolling back first makes
+      the caller's subsequent `CommitAsync` throw on an already-completed
+      transaction, so **a catching handler still commits nothing**. §9 asserts
+      exactly that.
+
+      **Lock order (global, and consistent with every other path):** domain row →
+      scratch row → `job_queue`. Terminal settlement takes an unlocked read of the
+      scratch and then `job_queue`, preserving the same relative order; the sweep's
+      order (DLQ → scratch, R6-3) shares no pair with either. No cycle exists, so
+      guard 2's `FOR UPDATE` introduces no `40P01` risk.
+
+      Engine-owned for three reasons: the fence/rowcount rule below cannot be
+      re-implemented — or quietly forgotten — per job type; the policy proof above is
+      only unforgeable if the caller cannot supply the `job_type`; and F15's boundary
       ("nothing outside `Infrastructure/Jobs` writes `job_queue`", §9's architecture
       guard) keeps holding, which it would not if each handler hand-wrote this
       `UPDATE`.
@@ -1441,12 +1519,14 @@ member order) — the same code path `SendPreparedAsync` consumes.
      cutoff past the real one and lying about when the bytes were prepared.
    - **A token-ignoring stale owner reaches PREPARE after lease loss** (§5.1 —
      cancellation is cooperative, so this is a *supported* path, not a hypothetical).
-     Its `lock_token` no longer matches → **zero rows** → the whole transaction rolls
-     back. It cannot insert an orphan scratch, cannot move the marker, and cannot
-     mutate a queue row the new owner now owns.
+     Its `lock_token` no longer matches, so **guard 2's fenced read finds zero rows**
+     and throws `ExternalPreparedFenceLostException` **before any write** → the whole
+     transaction rolls back. It cannot insert an orphan scratch, cannot move the
+     marker, and cannot mutate a queue row the new owner now owns.
    - **A stale owner reaches PREPARE after the row was already settled.** The queue
-     row is gone, so `WHERE id = {jobId}` matches **zero rows** → rollback → **no
-     scratch is committed after settlement** and no orphan outlives its queue row.
+     row is gone, so guard 2's `WHERE id = {jobId}` matches **zero rows** → the same
+     throw → rollback → **no scratch is committed after settlement** and no orphan
+     outlives its queue row.
    - **The marker already holds a different value.** Zero rows → rollback. So
      `job_queue.external_prepared_at = email_prepared_sends.prepared_at` is
      **enforced by the write itself** rather than asserted: the only value the marker
@@ -1461,7 +1541,7 @@ member order) — the same code path `SendPreparedAsync` consumes.
      rows and the attempt rolls back — the job **cannot silently re-render fresh
      bytes under a fresh provider key**, which is precisely the licence O20 exists to
      deny. It is not a stall: the rolled-back attempt is an ordinary failed attempt,
-     burns one of `max_attempts`, and the job settles terminally, where the
+     burns one of `max_attempts`, and the job settles terminally, where the engine's
      classifier reads marker-set + row-absent and stamps the audited `4 Missing`
      (§4.2). The anomaly is surfaced, not papered over.
 
@@ -1578,7 +1658,7 @@ requeue either commits (stamping `5 Transferred`, which the
 
 A `Present` row whose bytes are **already** gone does not match the `JOIN` and is
 never selected here — the sweep's job is deleting bytes, and there are none. It is
-not lost: the registration's terminal classifier (§5.1) classifies that state at
+not lost: the engine's terminal classifier (§5.1) classifies that state at
 dead-letter time from the marker (§4.2), and any later reader stamps `4 Missing`, so the anomaly is
 detected by the paths that can act on it rather than by a sweep that would spin on
 a row it can never transition.
@@ -1932,12 +2012,16 @@ public-method-for-determinism discipline.
       jobs declare a no-op policy; external-effect jobs must declare
       `TransferExternalEffectState` and supply an atomic hook that preserves the
       prepared request and original provider identity; and
-    - a **terminal external-state classifier** — the *dead-letter-time* peer of the
-      transfer hook (R7-1/O22), specified in full immediately below.
+    - an **`ExternalStateStore` descriptor** — the *dead-letter-time* peer of the
+      transfer hook (R7-1/R8-1/O22/O24). Note the asymmetry, which is deliberate:
+      the transfer hook is a **delegate** (it performs a move, at requeue, and there
+      is no declarative way to express one), while the descriptor is **data** — the
+      engine, not the type, runs the dead-letter probe. Specified in full immediately
+      below.
 
     Registration is explicit and fail-fast (each `job_type` maps to exactly one
     registration). The startup gate rejects an external-effect definition that is
-    missing **either** the transfer hook **or** the classifier. Pairing the validator, policy, and classifier with the factory is what lets
+    missing **either** the transfer hook **or** the descriptor. Pairing the validator, policy, and descriptor with the factory is what lets
     `RequeueDeadLetterAsync` (§4.2) validate a *stored* DLQ payload without a
     compile-time `TPayload`, and lets the enqueue side and the requeue side share
     one validation definition instead of two drifting copies. An **unknown
@@ -1946,12 +2030,13 @@ public-method-for-determinism discipline.
     the paired `JobDefinition<TPayload>` supplies `ValidatePayloadJson`, so a
     handler registered without its definition — or vice-versa — fails the
     fail-fast check.)
-  - **Terminal external-state classifier — a type-erased registration capability
-    (R7-1/O22).** §4.2's `external_state_status` machine is only total if something
-    can answer, for an *arbitrary stored `job_type`*, "did a PREPARE commit, and do
-    its bytes still exist?" The second half is **not generic**: it is answerable
-    only against a type-specific store (`email_prepared_sends` today; a webhook or
-    Epic-D publishing prepared-state store later). Three places that might have
+  - **Terminal external-state classification — the engine decides; the type only
+    *declares its store* (R7-1/R8-1/O22/O24).** §4.2's `external_state_status`
+    machine is only total if something can answer, for an *arbitrary stored
+    `job_type`*, "did a PREPARE commit, and do its bytes still exist?" The first
+    half is generic — it is the marker (§4.1), an engine-owned column. Only the
+    second half is type-specific (`email_prepared_sends` today; a webhook or
+    Epic-D publishing prepared-state store later), and three places that might have
     answered it cannot:
     - `JobDeadLetter.FromJob` is a **generic entity factory** — it would have to
       query an email table by name to classify, coupling the engine to one domain
@@ -1963,67 +2048,157 @@ public-method-for-determinism discipline.
     - the requeue `TransferExternalEffectState` hook answers a *different* question
       at a *different* time (move the bytes, at requeue).
 
-    So the capability is registered beside them, on `JobRegistration`:
+    **Round 7 answered this with a delegate on the registration, and that answer
+    was wrong in its API shape (R8-1).** The delegate took the full `JobQueueItem`
+    *and* `JobDeadLetter` — both carrying the malformed payload the text called
+    unreachable — plus a **writable `AppDbContext`**. "Payload-blind" and "its only
+    permitted write is `external_state_*`" were therefore **conventions the
+    signature did not enforce**, and the startup gate proved only that a delegate
+    *existed*, never what it did. Since a classifier failure rolled the terminal
+    transaction back, any deterministic classifier defect **recreated the infinite
+    re-lease loop O21 exists to close**. Blindness has to be structural.
+
+    So the executable surface is removed. The registration carries a **declarative
+    descriptor**; the engine builds and runs the probe and decides the status:
 
     ```csharp
-    // Infrastructure/Jobs — a JobRegistration capability, NOT an IJobHandler method.
-    // Runs inside the terminal transaction; stamps external_state_* on the
-    // not-yet-inserted DLQ entity. No handler instance, no JobContext.
-    Task ClassifyExternalStateAsync(
-        JobQueueItem   job,         // carries the engine-owned external_prepared_at marker
-        JobDeadLetter  deadLetter,  // the entity to stamp; not yet inserted
-        AppDbContext   db,          // the terminal transaction's context
-        CancellationToken ct);
+    // Infrastructure/Jobs — DATA, not a delegate. The type names its own scratch
+    // entity and its job-id column; it supplies NO code that runs.
+    public sealed record ExternalStateStore<TScratch>(
+        Expression<Func<TScratch, Guid>> JobIdSelector,
+        TimeSpan                         Retention) where TScratch : class;
+
+    // 2C-R1's three email registrations each supply exactly this:
+    new ExternalStateStore<EmailPreparedSend>(
+        s => s.JobId, AppEnvironment.EmailPreparedSendRetention);
+
+    // Composition erases TScratch into the type-erased probe the registration holds
+    // (the same erasure ValidatePayloadJson uses — R2-7). The WHOLE probe:
+    //     Func<AppDbContext, Guid, CancellationToken, Task<bool>>
+    //     = (db, jobId, ct) => db.Set<TScratch>().AnyAsync(<JobIdSelector> == jobId, ct);
     ```
 
-    **It is payload-blind, and that is a hard contract, not a convention.** Its
-    inputs are the queue row, the DLQ entity, and the DbContext — there is **no
-    `JobContext`** and it **may not deserialize `job.Payload` or reload domain
-    state**. This is the mechanism that lets it run where O21 forbids the terminal
-    *hook* to run: the malformed input that makes `OnTerminalFailureAsync` throw
-    (an unparseable payload with no recoverable recipient) is not reachable from
-    the classifier's signature, so it cannot reproduce the transactional-rollback
-    infinite loop O21 exists to foreclose. Its only permitted write is
-    `deadLetter.external_state_{status,prepared_at,expires_at}`.
+    **The probe returns a `bool` — nothing else.** It asks only "do the bytes still
+    exist?", which is the entire non-generic sub-question. It deliberately does
+    **not** read the store's `prepared_at`: §4.2 sources `external_state_prepared_at`
+    from the **marker** on every branch, and O23's fenced write makes marker =
+    scratch `prepared_at` an *enforced* equality — so a second read would be a
+    redundant path that could disagree with the marker, and reading it back through
+    a nullable projection would make "no row" indistinguishable from a `default`
+    timestamp. Existence is the question; a `bool` is the whole answer.
 
-    **Who decides which status — total, and stated here once** (§4.2's table is the
-    email *semantic* this must produce):
+    **Why this is blindness by API boundary rather than by promise:**
+    - **The payload is not in the type's reach.** The only value the selector ever
+      receives is a `TScratch` — `EmailPreparedSend`. `JobQueueItem.Payload` is not
+      reachable from it: not as a parameter, not as a navigation (the scratch holds
+      `job_id` as a plain `Guid`, §4.5), not through a `DbContext` (none is passed).
+      This is the *parameter type*, not a rule.
+    - **No type-supplied code executes.** The selector is an `Expression<>` tree
+      that **EF translates into SQL**; the engine never invokes type IL during
+      classification. A no-op, a mutation, a payload parse, and a
+      `throw` are not expressible — there is no method body to put them in.
+    - **Writes are not expressible.** The selector projects to a `Guid` and the probe
+      answers a `bool`. No entity handle, no `DbContext`, no tracked object leaves
+      the boundary, so "the only permitted write" stops being a sentence and starts
+      being the absence of any write surface.
+    - **Honest residue.** An expression tree *can* still contain an untranslatable
+      call, which EF rejects at translation time. That is not payload reach, but it
+      is a failure mode — closed twice: the startup gate **executes each descriptor's
+      probe once at composition** (below), so an untranslatable or mis-pointed
+      descriptor means the worker **does not boot**; and O25 makes any surviving
+      probe failure a conservative audited `4 Missing` rather than a rollback.
+    - **`Retention` is a value, captured at composition.** It is read from
+      `AppEnvironment` (startup-validated and immutable for the process), so this is
+      the same value a dead-letter-time read would have returned — no behaviour
+      changes versus O22's delegate, and R6-2 is untouched: `external_state_expires_at`
+      is still *materialized at dead-letter* and authoritative thereafter, with the
+      sweep and requeue reading the stored column rather than any env var.
+    - **What this keeps.** Store knowledge still lives on the registration, so the
+      generic engine still has **no compile-time coupling to `email_prepared_sends`**
+      and a webhook/publishing store adds a registration, not an engine edit — the
+      property round 8 held. Only the *executable* surface is gone.
+    - **Expressiveness limit, stated rather than assumed.** The descriptor spans
+      exactly "one scratch table, keyed by `job_id`, carrying a `prepared_at`" —
+      which is `email_prepared_sends` and the shape §4.5 mandates for any
+      prepared-state store. A future store needing more (a compound key, a status
+      column) is an **engine change, reviewed** — deliberately, rather than
+      re-opening a hole by handing arbitrary code back.
 
-    | Registration resolved for the `job_type` | Decided by | Status |
-    | --- | --- | --- |
-    | policy `TransferExternalEffectState` | **its classifier**, marker-first / store-second | `3` (marker NULL) / `1` / `4` per §4.2 |
-    | policy `Standard` | the engine's built-in `Standard` classifier — a constant, no query | `0 None` |
-    | **none** (unregistered/retired `job_type`) | the engine | `3 NeverPrepared` when the marker is NULL — sound by construction, since no handler exists to have run PREPARE and requeue refuses unregistered types (§4.2) |
+    **The decision function — engine code, total, stated once.** §4.2's table is
+    normative and this is its implementation:
 
-    The two engine-decided rows do not *assume* a NULL marker — the marker has
-    **exactly two writers, both engine code, both reachable only for a
-    `TransferExternalEffectState` type**, which is what makes those rows sound
-    without consulting any store:
+    ```csharp
+    // Infrastructure/Jobs/ExternalStateClassifier.cs — the WHOLE decision.
+    public interface IExternalStateClassifier {
+        Task<ExternalStateClassification> ClassifyAsync(
+            ExternalStateClassificationInput input, CancellationToken ct);
+    }
 
-    1. `StampExternalPreparedAsync` (§4.5), callable only from that type's fenced
-       PREPARE; and
+    // The restricted input: three engine-owned scalars. No payload-bearing object,
+    // no mutable DLQ entity, no DbContext — the engine holds those, not its input.
+    public sealed record ExternalStateClassificationInput(
+        Guid JobId, string JobType, DateTimeOffset? ExternalPreparedAt);
+
+    // The returned value the ENGINE applies and validates — the classifier proposes
+    // the triple; it never stamps the entity itself.
+    public sealed record ExternalStateClassification(
+        ExternalStateStatus Status,
+        DateTimeOffset?     PreparedAt,
+        DateTimeOffset?     ExpiresAt);
+
+    [Service(ServiceLifetime.Scoped)]
+    public sealed class ExternalStateClassifier : IExternalStateClassifier {
+        // ctor deps (AppDbContext db, IJobRegistry registry): the probe is async, so
+        // ClassifyAsync is too. db is the terminal transaction's scoped context, so
+        // the probe reads committed state as of the failure.
+        public ExternalStateClassifier(AppDbContext db, IJobRegistry registry) { … }
+    }
+    ```
+
+    It **assigns a status on every branch** — `0 None` is emitted on exactly one
+    (marker NULL + `Standard`) and is never reached by falling through to the enum's
+    default; the engine then **validates the returned triple against
+    `ck_job_dead_letter_external_state` before stamping**, so a status/bounds
+    mismatch is a spec failure at the seam rather than a constraint violation at
+    insert. A totality spec asserts all seven rows.
+
+    **Why the engine-decided branches are sound** — they do not *assume* a NULL
+    marker; the marker has **exactly two writers, both engine code, both of which
+    now *prove* the policy before writing** (this is what R8-3 fixed — previously it
+    was assertion-by-call-site):
+
+    1. `IExternalPreparedMarker.StampAsync` (§4.5), which re-reads the **locked
+       queue row's persisted `job_type`** and refuses unless it resolves to a
+       `TransferExternalEffectState` registration; and
     2. `RequeueDeadLetterAsync`'s transfer restore (§4.2), which runs on the
        transfer path only and refuses an unregistered `job_type` outright.
 
-    A `Standard` registration has no PREPARE path to reach writer 1 and cannot take
-    writer 2's branch; an unregistered type has no handler to have run either. So
-    "marker NULL ⇒ `None`/`NeverPrepared`" is an enumeration of the write paths, not
-    an inference from absence — and the completeness check below is what keeps the
-    enumeration true as types are added.
+    A `Standard` registration cannot reach writer 1 (the guard rejects it on the
+    persisted `job_type`, which the caller cannot forge) and cannot take writer 2's
+    branch; an unregistered type has no handler to have run either. So a marker on a
+    `Standard`/unregistered row is **not** a state the sanctioned writers can
+    produce — which is why §4.2 classifies it as an audited `4 Missing` integrity
+    failure and not as `None`/`NeverPrepared`. **Conservative, not convenient:** the
+    cheap reading ("`Standard` ⇒ `None`, whatever the marker says") would let an
+    unexplained marker license a fresh-bytes requeue, which is the exact licence
+    O20 exists to deny.
 
-    **The startup gate covers the capability** (gate bullet below): a
-    `TransferExternalEffectState` registration with no classifier — or a `Standard`
-    one that supplies a custom classifier or a transfer hook — **fails composition**.
-    Without that check a type could register with a policy but no classifier, and
-    the state machine would silently lose totality at the first dead-letter.
+    **The startup gate covers the descriptor** (gate bullet below): a
+    `TransferExternalEffectState` registration with no store descriptor — or a
+    `Standard` one that supplies a descriptor or a transfer hook — **fails
+    composition**, and each descriptor's probe is **executed once against the live
+    database** at composition, so a descriptor that cannot translate to SQL or names
+    a table that is not there fails the boot rather than the first dead-letter.
 
-    > **Captain-alignment item (R7-1) — this changes what Phase 2A-R must build.**
-    > `JobRegistration` gains a fourth capability; `JobDeadLetter.FromJob` becomes a
-    > pure envelope/lineage factory that **classifies nothing**; the startup gate
-    > gains the paired-capability check; and 2C-R1's three email registrations must
-    > each supply a classifier. §10 carries these into the phase specs. The 633 tip's
-    > `JobHandlerRegistry` has no such capability and 809's placeholders none either
-    > — **no code branch is edited by this document.**
+    > **Captain-alignment item (R7-1/R8-1) — this changes what Phase 2A-R must build.**
+    > `JobRegistration` gains a fourth capability — a **declarative
+    > `ExternalStateStore` descriptor**, not a delegate; `JobDeadLetter.FromJob`
+    > becomes a pure envelope/lineage factory that **classifies nothing**; the engine
+    > gains `ExternalStateClassifier`; the startup gate gains the paired-capability
+    > check **and the probe-executes check**; and 2C-R1's three email registrations
+    > must each supply a descriptor. §10 carries these into the phase specs. The 633
+    > tip's `JobHandlerRegistry` has no such capability and 809's placeholders none
+    > either — **no code branch is edited by this document.**
   - **Version-compatibility gate — fail closed at startup, not a post-damage
     warning (C14/F14).** The registry's DLQ-orphan *log warning* is retained
     only as the **observability twin**; the enforcement is a
@@ -2035,12 +2210,21 @@ public-method-for-determinism discipline.
       types with **no registered handler**.
     - **Registration-completeness check (R7-1).** In the same gate, over the
       registry itself: every registration's capability set must match its declared
-      policy — `TransferExternalEffectState` ⇒ **both** a transfer hook **and** a
-      terminal external-state classifier; `Standard` ⇒ **neither** (it takes the
-      engine's built-in `None` classifier). A mismatch **throws and the worker does
-      not boot**. This is drift fail-fast, not defensive coding: a policy-bearing
-      type registered without a classifier would dead-letter into an unclassified
-      row and silently break §4.2's totality at runtime, long after the deploy.
+      policy — `TransferExternalEffectState` ⇒ **both** a transfer hook **and** an
+      `ExternalStateStore` descriptor; `Standard` ⇒ **neither** (the engine's
+      decision function needs nothing from it). A mismatch **throws and the worker
+      does not boot**. This is drift fail-fast, not defensive coding: a
+      policy-bearing type registered without a descriptor would dead-letter into an
+      audited `4 Missing` integrity row (§4.2) and silently convert a deploy typo
+      into an anomaly alert, long after the deploy.
+    - **Descriptor-probe check (R8-1/O24).** For every `TransferExternalEffectState`
+      registration the gate **executes that descriptor's probe once** against the
+      live database with a synthetic job id (expecting no row), inside a
+      transaction it rolls back. This proves the selector **translates to SQL** and
+      the declared store **exists and is queryable** at boot. A descriptor that
+      cannot translate, or names a dropped/renamed table, **fails composition** —
+      turning O24's one honest residue (an untranslatable expression tree) into a
+      failed deploy rather than a first-dead-letter surprise.
     - If that set is non-empty the gate throws, the worker host fails to boot,
       and (because the container `--worker-health` probe never goes green) the
       **deploy fails closed**. A new worker can therefore never silently consume
@@ -2116,27 +2300,44 @@ public-method-for-determinism discipline.
   transactional, so a hook that cannot succeed does not merely fail — it rolls the
   settlement back forever.
 
-  **The terminal transaction runs in exactly this order** (R7-1 — the classifier
-  must stamp a DLQ entity that exists, and must observe the external state as of
-  the failure, *before* any terminal-hook write can touch it):
+  **The terminal transaction runs in exactly this order** (R7-1 — classification
+  must observe the external state as of the failure, *before* any terminal-hook
+  write can touch the type's own store):
 
   1. **Create the DLQ entity** — `JobDeadLetter.FromJob(job)` copies the envelope
      and lineage only. It **classifies nothing** (it is generic and has no
      type-specific store to consult).
-  2. **Classify external state** — invoke the registration's
-     `ClassifyExternalStateAsync` (above), which stamps
-     `external_state_{status,prepared_at,expires_at}` on that entity. This runs on
-     **both** settlement shapes: it is a registration capability, so it needs no
-     handler instance.
+  2. **Classify external state** — the engine's `IExternalStateClassifier` (above)
+     decides from the marker + the registration's declared store and **returns** an
+     `ExternalStateClassification`; the **engine** validates that triple against the
+     CHECK model and applies it to the entity. The classifier proposes, the engine
+     disposes — no classification code touches the entity. This runs on **both** settlement
+     shapes: it is engine code reading engine state, so it needs no handler
+     instance. It must precede step 3 because the hook may write the type's store.
   3. **Run the handler terminal hook** — `OnTerminalFailureAsync`, on the
      handler-reached shape **only**.
   4. **Insert** the DLQ row.
   5. **Fenced-delete** the queue row: `DELETE … WHERE id = {id} AND lock_token =
      {token}`, requiring exactly one affected row (§6).
 
-  All five are **one transaction**. Any failure — classifier, hook, insert, or a
-  zero-row fenced delete — rolls back the whole settlement (F5 semantics,
+  All five are **one transaction**. A failure in step **3, 4, or 5** — hook, insert,
+  or a zero-row fenced delete — rolls back the whole settlement (F5 semantics,
   spec-asserted).
+
+  **Step 2 is the deliberate exception, and it is what closes the loop class
+  structurally (R8-1/O25).** Classification **cannot fail the settlement**: if the
+  probe throws, the engine catches it, stamps the conservative audited `4 Missing`
+  (§4.2), and the settlement proceeds. This is not defensive garnish — it is the
+  load-bearing difference between a design that *promises* no infinite loop and one
+  that *cannot have* one. Under the round-7 contract every classifier failure rolled
+  the terminal transaction back, so the job returned to the queue, re-leased,
+  dead-lettered, and rolled back again — **exactly the #810 lease loop O21 was
+  written to close**, re-entered through the mechanism that was supposed to close
+  it. Now no classification outcome, including a total failure to probe, can revive
+  a job that has exhausted its attempts. The `4 Missing` it settles on is the
+  conservative answer: it rejects requeue with `PreparedStateAnomaly` and alerts
+  (§7.2), so an unclassifiable job becomes a **visible, terminal anomaly** instead
+  of a silent `None` or an invisible spin.
 
   - **Handler-reached settlement (the normal case).** The payload validated and a
     handler instance ran, so step 3 fires (§5.4 uses it for
@@ -2145,13 +2346,15 @@ public-method-for-determinism discipline.
     failure *is* that no handler could be reached — unknown `job_type`,
     `JsonException`, or a payload rejected by the registration's
     `ValidatePayloadJson` — there is **no handler instance and no `JobContext`**,
-    so the engine **skips step 3 entirely**. Steps 1–2 still run: the classifier is
-    not a handler and is payload-blind, so it classifies this path safely, and with
-    the `external_prepared_at` marker NULL by construction (nothing ran to set it)
-    it yields `external_state_status = 3 NeverPrepared`. An unknown `job_type` has
-    no registration at all, so the engine stamps `3 NeverPrepared` directly (table
-    above). **No `email_log` row is written**, and none is owed: `email_log` records
-    what happened to a *recipient*, and this job never determined one.
+    so the engine **skips step 3 entirely**. Steps 1–2 still run, and step 2 is
+    **pure engine code that touches no store on this path**: the marker is NULL by
+    construction (nothing ran to set it), and §4.2's table decides `3 NeverPrepared`
+    from the marker alone — **no probe is run and no registration code exists to
+    invoke**, so there is nothing here that could parse the malformed payload,
+    throw, or roll the settlement back. An unknown `job_type` has no registration at
+    all and takes the same NULL-marker branch. **No `email_log` row is written**,
+    and none is owed: `email_log` records what happened to a *recipient*, and this
+    job never determined one.
 
   This is a correctness requirement, not a simplification. `email_log.recipient`
   is `NOT NULL` (§4.4) and the email hook reloads the recipient from the payload's
@@ -2543,13 +2746,16 @@ Emails are ordinary jobs; the shipped `InvitationEmailOutboxDispatcher`, the
   specifies (R6-4/O21) — which is what keeps this hook's unconditional
   `email_log(PermanentlyFailed)` write, and `email_log.recipient`'s `NOT NULL`,
   both safe. **The hook does not stamp the DLQ row's prepared-state evidence — the
-  registration's terminal external-state classifier does** (R7-1/O22), earlier in
+  engine's `ExternalStateClassifier` does** (R7-1/R8-1/O22/O24), earlier in
   the **same terminal transaction** and on **both** settlement shapes (§5.1's
-  five-step order). The email registration therefore supplies **two** capabilities
-  beside its handler factory, at two different moments: this classifier, which reads
-  the marker first and `email_prepared_sends` second to produce §4.2's `1 Present` /
-  `4 Missing` / `3 NeverPrepared` without ever parsing the payload; and the
-  `TransferExternalEffectState` hook, which moves the bytes at requeue (§4.2). What
+  five-step order). The email registration therefore supplies **two** external-effect
+  capabilities beside its handler factory, at two different moments and in two
+  different forms: the **`ExternalStateStore` descriptor** — *declared data*, from
+  which the engine builds the dead-letter probe of `email_prepared_sends` to produce
+  §4.2's `1 Present` / `4 Missing` / `3 NeverPrepared` (the email registration
+  supplies no classification code, so nothing of its own can parse the payload); and
+  the `TransferExternalEffectState` **hook** — a delegate, which moves the bytes at
+  requeue (§4.2). What
   the hook still owns at terminal is the `email_log(PermanentlyFailed)` write and
   **retaining** the prepared-send row for that later transfer. Retention then ends the
   prepared bytes at `external_state_expires_at`, **not** when DLQ lineage
@@ -2701,8 +2907,11 @@ the `IJobQueueSignal` interface seam so tests can inject a deterministic fake.
 - **Poison jobs → DLQ.** When `attempts >= max_attempts` (or on
   `PermanentFailure`), the engine classifies external state, copies the **full
   envelope** to `job_dead_letter`, and deletes the queue row — one transaction,
-  conditioned on the fencing token; a classifier or hook failure rolls back the
-  whole terminal step. `OnTerminalFailureAsync` is invoked on **handler-reached
+  conditioned on the fencing token; a **hook, insert, or fenced-delete** failure
+  rolls back the whole terminal step. **Classification is the one step that cannot**
+  (R8-1/O25): a probe failure stamps the conservative audited `4 Missing` and the
+  settlement proceeds, so no classification outcome can revive an exhausted job
+  (§5.1). `OnTerminalFailureAsync` is invoked on **handler-reached
   terminal paths only**. Failures where no handler could be reached — unknown
   `job_type`, `JsonException`, a payload rejected by `ValidatePayloadJson` —
   settle **DLQ-only with no hook** and, for email types, **no `email_log` row**
@@ -3002,10 +3211,14 @@ top-level source area needs its own `Compile Include` line in the test shell).
   `system_job_definitions` row per shipped `SystemJobCatalog` entry.) Writes to
   `JobQueueItem` outside `Infrastructure/Jobs` are forbidden and spec-guarded
   (F15, §9). The unified **`JobRegistration`** (handler factory + type-erased
-  `ValidatePayloadJson` + per-type requeue state-transfer policy — R2-7/R3-2)
+  `ValidatePayloadJson` + per-type requeue state-transfer policy/hook **+ the
+  declarative `ExternalStateStore` descriptor that the engine's terminal
+  external-state classifier probes** — R2-7/R3-2/R7-1/R8-1/O22/O24)
   and the byte-faithful `SendPreparedAsync` transport
   (R2-2, in `Infrastructure/Messaging/Email`) are behavior, so they live in
-  `Infrastructure/`, not here.
+  `Infrastructure/`, not here. **`IExternalPreparedMarker`** (§4.5) is engine
+  behavior too and lives beside them — it is the only sanctioned writer of
+  `job_queue.external_prepared_at`.
 - **`EmailLog` home — `Modules/Messaging/` (O5's module, repurposed).** The
   single-lane ruling removes the `EmailOutbox` entity O5 created this module
   for, but the *reason* for a neutral messaging module survives: `email_log` is
@@ -3015,8 +3228,12 @@ top-level source area needs its own `Compile Include` line in the test shell).
   `EmailKind` / `EmailLogOutcome` enums, and a small `[Service]`
   `Modules/Messaging/Services/EmailLogWriter.cs` the handlers call. The
   alternative — parking these under `Modules/Jobs` — is rejected because they
-  are not engine tables: the engine never reads or writes them; domain email
-  handlers do.
+  are not engine tables: **the generic engine has no direct table coupling to
+  them** — no engine file names `email_log` or `email_prepared_sends` — while
+  **registered type-specific delegates and descriptors do**: the email handlers
+  read and write both, and the engine's terminal classifier probes
+  `email_prepared_sends` **only** through the `ExternalStateStore` descriptor 2C
+  declares on its registrations (§5.1/O24), never through a compile-time reference.
 - **Email job handlers (domain logic):** live with their domain, per the same
   rule as every other job handler — `Modules/Invitations/Jobs/
   {TenantInvitationEmailJobHandler,StaffInvitationEmailJobHandler}.cs` (the
@@ -3074,7 +3291,7 @@ Engine (`JobQueueProcessor.Spec.cs` and siblings):
 | **cancellation classification (F12/F23)** | a provider-style `TaskCanceledException` → `Retry`, worker keeps running; host-token stop → clean release, no attempt burned, no DLQ |
 | outcome taxonomy (F12) | malformed payload / unknown `job_type` / `PermanentFailure` skip retries and dead-letter immediately; `Cancelled` deletes without DLQ |
 | DLQ on exhaustion + hook (F5) | at terminal: `OnTerminalFailureAsync` ran, full envelope (priority, key, provenance, enqueued_at) present in `job_dead_letter`, queue row gone — and a **throwing hook rolls back** the whole terminal transaction |
-| **invalid-before-handler settlement (R6-4/R7-1/O21/O22)** | an `email.*` job with a malformed / missing-id payload (a type whose registered hook writes `email_log(PermanentlyFailed)` against a `NOT NULL` recipient) reaches terminal: **no hook is invoked**, yet the registration's **classifier still runs and stamps the row** — proving the seam is not a handler — exactly one `job_dead_letter` row exists with `external_state_status = 3 NeverPrepared`, **zero `email_log` rows** exist for that `job_id`, and the queue row is gone. The **loop regression is the point**: drive the engine's claim/settle cycle repeatedly past the lease and assert the job settles **once** and never re-appears as `Pending` — a control run that routes this failure through the hook reproduces the infinite rollback and fails the spec |
+| **invalid-before-handler settlement (R6-4/R7-1/O21/O22)** | an `email.*` job with a malformed / missing-id payload (a type whose registered hook writes `email_log(PermanentlyFailed)` against a `NOT NULL` recipient) reaches terminal: **no hook is invoked**, yet the row **is still classified and stamped** — by the engine, from the NULL marker alone, with **no probe run and no registration code invoked**, proving classification is not a handler and cannot touch the malformed payload — exactly one `job_dead_letter` row exists with `external_state_status = 3 NeverPrepared`, **zero `email_log` rows** exist for that `job_id`, and the queue row is gone. The **loop regression is the point**: drive the engine's claim/settle cycle repeatedly past the lease and assert the job settles **once** and never re-appears as `Pending` — a control run that routes this failure through the hook reproduces the infinite rollback and fails the spec |
 | **exact wire JSON (F2/F23)** | the byte-exact fold-migration JSON (`{"invitationId":"…"}`) deserializes into each payload record via `JobJson` with correct Guids; enqueuer output round-trips; missing/empty ID → `PermanentFailure` |
 | **enqueue boundary (F15)** | architecture guard: no code outside `Infrastructure/Jobs` writes `JobQueueItem`; enqueuer joins the caller's transaction (rollback removes the job row) |
 | idempotent enqueue scoping (F13) | same `(job_type, key)` dedups; same key across different job types does not collide |
@@ -3083,13 +3300,13 @@ Engine (`JobQueueProcessor.Spec.cs` and siblings):
 | **renewal transient vs. confirmed-loss + safety margin (C7/R2-4/R3-4)** | startup rejects leases below 10 s; a renewal that *throws* retries while margin remains with every sleep capped to `remainingSafeInterval`; a renewal returning **0 rows** cancels at once; a transient outage crossing the deadline timer requests cancellation before expiry and the first settlement no-ops on the fence; a token-ignoring handler demonstrates why provider identity/idempotency, not cooperative cancellation, prevents duplicate effects |
 | **error sanitization (`JobErrorSanitizer.Spec.cs`, C11/F20/R2-8/R3-5)** | an exception message carrying an email + a token blob → stored `last_error` is type-coded, redacted (`[redacted-email]`/`[redacted-token]`), ≤ 2 KB; the actual configured console/file outputs contain no canary or raw exception message because `SanitizingLogEventSink` removes `LogEvent.Exception`, and the engine logs `Describe` + stack metadata |
 | **version-compat startup gate (C14/F14/R2-9)** | a `job_queue` **or** `job_dead_letter` row of an unregistered `job_type` → worker composition **fails to start**; **there is no bypass for a `job_queue` orphan**; a DLQ-only orphan in `JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST` (exact type) boots; all-registered → starts clean |
-| **registration-completeness gate (R7-1/O22)** | the same gate rejects capability drift: a `TransferExternalEffectState` registration missing its **terminal external-state classifier** → composition **fails to start**; likewise one missing its transfer hook; a `Standard` registration that supplies either → fails; a fully-formed registry boots (non-vacuous). Proves a policy-bearing type cannot reach its first dead-letter unclassified |
+| **registration-completeness + descriptor-probe gate (R7-1/R8-1/O22/O24)** | the same gate rejects capability drift: a `TransferExternalEffectState` registration missing its **`ExternalStateStore` descriptor** → composition **fails to start**; likewise one missing its transfer hook; a `Standard` registration that supplies either → fails; a fully-formed registry boots (non-vacuous). Plus the probe check: a descriptor whose selector **cannot translate to SQL**, or which names a **dropped/renamed table**, fails composition — the gate executes each probe once with a synthetic job id in a rolled-back transaction, asserting it returns `false` rather than throwing. Proves a policy-bearing type cannot reach its first dead-letter unclassifiable |
 | **DLQ requeue lineage + single-use (C9/F16/R2-7/R3-2/R4-3/R4-6)** | `RequeueDeadLetterAsync` restores the stored envelope, validates through `JobRegistration`, applies its policy, stamps lineage/audit atomically, and rejects repeats; for email, provider acceptance without local receipt → first DLQ → requeue transfer → re-dead-letter proves `job_dead_letter.original_job_id = email_prepared_sends.job_id` at every hop and preserves the original bytes/key; missing or >7-day prepared state rejects requeue with no partial stamp/insert, while new-logical-send remains available |
 | **system-job durable occurrence dedup (C4/F13/R2-1/R3-1/R4-1/R4-2)** | an occurrence enqueues its ledger row atomically; a delayed duplicate after queue deletion enqueues nothing; after pruning an old occurrence, **two reconciliation passes both ignore it because `scheduled_fire_at <= reconciled_through`**; concurrent reconcilers serialize and watermark/jobs roll back together; a sparse cron proves `GREATEST` never regresses the watermark; cron edit and disable-past-retention/re-enable reset it to DB `now()` without back-fill; a paused live scheduler proves DoNothing misfire behavior and reconciliation-only catch-up; catalog closure holds |
 | **superseded-trigger epoch fence (R5-1/R6-1/O18)** | commit a dashboard cron edit (new fingerprint, **new `schedule_epoch`**, `reconciled_through` reset), **retain the old trigger and force it to fire** via `TriggerJob` with the pre-edit `JobDataMap`: `EnqueueSystemJobJob` observes the epoch mismatch under the definition lock and writes **no `system_job_occurrences` row and no `job_queue` row** — asserted by count, not by absence of an exception; it returns success, logs `system_job.fire_rejected` with `reason = superseded-schedule`, and increments the counter. The same forced fire against a **disabled** and a **soft-deleted** definition rejects with `reason = disabled` / `definition-deleted`. A fire whose epoch **matches** still enqueues normally (non-vacuous) |
 | **ABA epoch fence — the three identical-policy returns (R6-1/O18)** | each case drives the definition back to a state **textually identical** to the one that built the old trigger, then forces a *delayed old execution* to land after the return, and asserts zero occurrences + zero jobs from it while the **currently registered** trigger still enqueues normally (so the fence is not merely rejecting everything): (a) **`A → B → A`** cron revert — the fingerprint provably repeats (assert the two fingerprint values are equal) while the epoch provably does not (assert unequal), and the first-epoch fire is rejected; (b) **disable → enable** with no policy change — a fire acquired before the disable is rejected after re-enable even though `is_enabled = true` and the fingerprint matches; (c) **delete → recreate** of the same `job_key` with the same cron — the fire from the deleted definition's epoch is rejected against the new row (which is why the epoch is a random uuid: a per-row counter would restart at the recreated row and could collide). A control run stamping the **fingerprint** instead of the epoch fails all three — the spec must be able to fail |
 | **live-fire ∥ reconciliation lock order (R5-1/O18)** | a forced live fire and a reconciliation pass run concurrently against the **same definition** at the same tick: both take the definition row `FOR UPDATE` first, so they serialize — **no `40P01` deadlock** is raised by either transaction (asserted over repeated interleavings, with the definition-first order removed in a control run to show the spec can fail), and the occurrence is enqueued **exactly once** with no lost tick: the loser observes the winner's ledger row via `ON CONFLICT DO NOTHING` and commits a no-op |
-| **2C registration set (R3-3/R7-1)** | after 2B composition, 2C registers exactly one listener hosted service, one shared `IJobQueueSignal` binding, and exactly the three v1 email `JobRegistration`s — each carrying **both** the external-effect transfer hook **and** the terminal external-state classifier (R7-1/O22); missing/duplicate entries, or a registration with one capability but not the other, fail |
+| **2C registration set (R3-3/R7-1/R8-1)** | after 2B composition, 2C registers exactly one listener hosted service, one shared `IJobQueueSignal` binding, and exactly the three v1 email `JobRegistration`s — each carrying **both** the external-effect transfer hook **and** the `ExternalStateStore` descriptor (R7-1/O22/O24); missing/duplicate entries, or a registration with one capability but not the other, fail |
 | **alert condition/window lease (R3-6/R4-5)** | N replica monitors breach the same fleet condition/window and only the DB-lease winner attempts delivery during the live lease; a definite failure releases for retry; accept-without-local-commit → lease expiry → retry proves v1 at-least-once semantics and permits a receiver-visible duplicate; dropping the scheduler advisory lock makes every instance-tagged probe report absence while the fleet condition still attempts delivery |
 | **alert-lease retention (R5-3)** | `job-alert-lease-retention` deletes only rows older than `JOB_ALERT_LEASE_RETENTION_DAYS`, leaves a live in-window lease untouched, batches through `ix_job_alert_delivery_leases_window_started_at` (an `EXPLAIN` assertion shows the index scan, not a seq scan), and terminates on a short batch |
 | leader election (`SchedulerLeaderService.Spec.cs`) | two hosts contend the advisory lock; exactly one starts Quartz; release migrates leadership; **standby is confirmed before the lock releases**, and an unconfirmed standby fails closed (lock retained) |
@@ -3105,7 +3322,12 @@ Email handlers + fold:
 | `email_log` terminal writes | `Submitted` / `CancelledIneligible` / `PermanentlyFailed` each produce exactly one row with kind/recipient/entity ids/`provider_message_id`/`request_sha256` |
 | provider-evidence lifecycle (R3-8) | only allowed conditioned transitions succeed; each update writes its immutable audit row atomically and deduplicates provider event id; forbidden/repeated transitions affect zero rows; dashboard history can reconstruct prior/new outcomes |
 | send idempotency + two-phase prepare + local recheck (F7/C1/R2-2) | re-running a job whose `Submitted` row exists sends **nothing**; the PREPARE transaction commits `request_body` **before** the provider call, and `SendPreparedAsync` sends those **exact bytes**, so a crash after provider-accept/before send-commit resends byte-identically even after the domain row mutates; a transient failure leaves the committed scratch; **two reclaimed handlers racing past step 0 — the second re-checks `email_log` under the SEND lock and does not call the provider** |
-| **fenced PREPARE under a reclaimed owner (R7-2/O23)** | barrier-controlled, **two real owners of the same job**: owner A is paused inside its PREPARE transaction (after the domain lock, before its marker write); A's lease is expired and B reclaims it with a **new** `lock_token`; B PREPAREs to completion; A — a *token-ignoring* handler, the path §5.1 says cancellation cannot prevent — is then released to finish. Asserts: exactly **one** `email_prepared_sends` row for the job, whose `request_body`/`request_sha256`/`provider_idempotency_key` are **byte-identical to B's** (A's bytes never land); `job_queue.external_prepared_at` **equals** that row's `prepared_at` *exactly* (timestamp equality, not both-non-null); A's transaction **rolled back whole** — its marker write affected **0 rows** and it inserted no scratch. Then, settlement: with the queue row already deleted, a late stale PREPARE leaves **no orphan** scratch (zero rows for that `job_id`). Two control runs prove the spec can fail: (a) stamping the marker from an independent `now()` (the pre-R7 contract) yields marker ≠ `prepared_at`; (b) dropping `AND lock_token = {token}` lets A's rollback become a commit and produces the orphan |
+| **fenced PREPARE under a reclaimed owner (R7-2/R8-2/O23)** | barrier-controlled, **two real owners of the same job**. The schedule is constrained by the domain lock and is stated in the only order it can actually execute (R8-2 corrected an unconstructible one): (1) owner A enters PREPARE, takes the **domain row lock**, renders, inserts its scratch, and **pauses at a barrier before its marker write**; (2) A's lease is expired and B **reclaims** the `job_queue` row with a **new** `lock_token` — this touches only `job_queue`, which A does not yet hold; (3) B enters PREPARE and **blocks on the domain lock A holds** — asserted directly, via a `pg_locks` read showing B's backend waiting `granted = false` on that tuple, **not** inferred from a timeout. B **cannot** "PREPARE to completion" here, which is why the round-7 barrier schedule was impossible; (4) A — a *token-ignoring* handler, the path §5.1 says cancellation cannot prevent — is released: `IExternalPreparedMarker.StampAsync`'s guard-2 fenced read finds **zero rows** for A's stale token, throws `ExternalPreparedFenceLostException` **before writing**, and A's transaction **rolls back whole**, discarding A's scratch and releasing the domain lock; (5) B then acquires the domain lock, its post-lock recheck finds **no** scratch (A's rolled back), and B inserts and stamps its own. Asserts: exactly **one** `email_prepared_sends` row, whose `request_body`/`request_sha256`/`provider_idempotency_key` are **byte-identical to B's** (A's bytes never land); `job_queue.external_prepared_at` **equals** that row's `prepared_at` *exactly* (timestamp equality, not both-non-null); A committed **zero** `job_queue` writes and **zero** scratch rows; A failed with the fence exception **by type** (proving the guard fired, not a coincidental rollback) |
+| **no-token control — what dropping the fence actually breaks (R8-2)** | the same schedule with `AND lock_token = {token}` removed from **both** guard 2's read and the marker `UPDATE`. A's fence read now finds the row by `id` alone, its policy check passes (the `job_type` is still an email type), the marker is still NULL, so A's `UPDATE` affects **one** row and **A commits its scratch and marker under B's ownership**. B then acquires the domain lock, its recheck finds **A's** row, and B **adopts A's bytes** and never inserts. Asserts the failure precisely: the surviving `request_sha256` is **A's, not B's** — a *stale* owner's bytes commit under the new owner's lease. This is what the token predicate prevents; it is **not** an orphan (the queue row exists throughout, and after settlement `WHERE id = {jobId}` matches zero rows regardless of the token — which is why round 7's claim that this control produced an orphan was false) |
+| **post-settlement orphan control — removes the *rowcount-or-rollback rule*, not the token (R8-2)** | separate schedule, since the orphan needs a **settled** queue row: A enters PREPARE, holds the domain lock, inserts its scratch, and pauses before the marker; the job's attempts are exhausted and the engine settles it **DLQ-only** (invalid-before-handler, O21 — needs no domain lock and no handler, so it does not block on A) and fenced-deletes the queue row; A is released. Main run: guard 2 finds zero rows → throw → A rolls back → **no orphan** (zero `email_prepared_sends` rows for that `job_id`, asserted from a fresh context). Control: make the engine operation **return normally instead of throwing when its fenced read/update matches zero rows** — A's PREPARE now commits and leaves an **orphan scratch** whose `job_id` has no queue row. Also asserts the settlement itself classified `3 NeverPrepared` (A's scratch was uncommitted and its marker never set), proving the probe reads committed state only |
+| **independent-`now()` control (R7-2, retained)** | stamping the marker from an independent database `now()` (the pre-R7 contract) instead of the scratch row's returned `prepared_at` yields marker ≠ `prepared_at` — the main spec's exact-equality assertion fails, proving it is not vacuous |
+| **a `Standard` handler cannot stamp the marker (R8-3)** | runtime: a `Standard`-registered job type whose handler calls `IExternalPreparedMarker.StampAsync` with its **own** live `jobId`/`lockToken` inside a transaction is rejected — guard 2 resolves the **persisted** `job_type` to a `Standard` registration and throws **before** any write; `job_queue.external_prepared_at` stays NULL, asserted from a fresh context. Repeated with the `Standard` handler passing a *`TransferExternalEffectState`* job's id: also rejected, on **that** row's persisted type (the caller supplies no `job_type`, so it cannot forge one). Also asserted: calling `StampAsync` with **no ambient transaction** throws guard 1 and writes nothing; and a **handler that catches the fence exception and calls `CommitAsync` anyway** still commits nothing — the seam rolled the transaction back before throwing, so the commit itself throws and **zero** `email_prepared_sends` rows survive (proving the rollback is the seam's act, not the caller's courtesy). Architecture-convention half (the `ServiceArgsRecordConvention` analogue): `IExternalPreparedMarker` is the **only** symbol in the assembly that writes `job_queue.external_prepared_at`, discovered by reflection and failed on drift |
+| **classification cannot loop or silently emit `None` (R8-1/O24/O25)** | a `TransferExternalEffectState` registration whose `ExternalStateStore` probe **deterministically fails** (descriptor swapped post-boot to bypass the startup gate's probe check, e.g. pointed at a dropped table): a job with a **set** marker settles terminally in **one** pass — the DLQ row reads audited **`4 Missing`** (never `0 None`, never an unset default), the queue row is gone, and a second lease cycle is proved **not** to occur (the job never returns to `Pending`; asserted over two full lease windows). Control run: remove O25's catch so a probe failure rolls the terminal transaction back — the job **re-leases and re-settles repeatedly**, reproducing the #810 lease loop and failing the spec. Companion: the startup-gate probe check rejects that same descriptor at composition, so the runtime path is the *residue*, not the primary defence. Totality half: `ExternalStateClassifier.Classify` is asserted over **all seven** rows of §4.2's table, including marker-set/`Standard` and marker-set/unregistered → `4 Missing` with a zero-length window that satisfies `ck_job_dead_letter_external_state` |
 | legacy `Sent` mapped honestly (R2-3) | a folded legacy `Sent` row becomes `LegacySubmissionUnverified`, **never `Submitted`**; no metric counts it as a confirmed submission |
 | prepared-send cleanup/expiry (C1/R4-3/R4-6) | a live `job_queue.id = email_prepared_sends.job_id` protects prepared state regardless of age; first DLQ, requeue transfer, and re-dead-letter each match on `job_dead_letter.original_job_id = email_prepared_sends.job_id`; at the prepared-send cutoff the DLQ bytes are swept, its dashboard row becomes non-requeueable, and requeue returns `PreparedStateExpired` without partial writes |
 | **expiry evidence survives the bytes, from a fresh context (R5-2/O19)** | run the sweep past the cutoff, then **dispose the `AppDbContext`/service scope and resolve new ones** (no in-memory carry-over, no tracked entities): the dashboard read and `RequeueDeadLetterAsync` both report **`Expired`** with a populated `external_state_expired_at`, proving the distinction is durable column state rather than process memory. Re-resolving from a *second* fresh scope repeats it. The sweep's delete+stamp+audit is one statement: injecting a failure into the audit insert leaves the bytes **and** the `Present` status intact (all-or-nothing) |
@@ -3144,6 +3366,25 @@ specs. The audit found it incomplete; 2A-R below is its remediation packet.
 
 - **Create:** `Infrastructure/Jobs/{JobOutcome,JobJson,IJobEnqueuer,JobEnqueuer,JobDefinition,JobsMetrics,JobErrorSanitizer}.cs`
   (`JobErrorSanitizer` is the single C11/F20 persistence boundary);
+  **`Infrastructure/Jobs/ExternalPreparedMarker.cs`** (`IExternalPreparedMarker` +
+  `StampExternalPreparedArgs` + `ExternalPreparedFenceLostException` — the **only**
+  sanctioned `job_queue.external_prepared_at` writer, with its active-transaction
+  guard and its **persisted-`job_type` policy proof under lock**, §4.5) **+
+  `ExternalPreparedMarker.Spec.cs`** (a `Standard` handler cannot stamp — on its own
+  id *and* on a `TransferExternalEffectState` job's id; no-ambient-transaction
+  throws; the reflection guard that no other symbol writes the column — R8-3).
+  `StampExternalPreparedArgs` is a 3-param `{Action}{Domain}Args` record, so 2A-R
+  also **touches `apps/api/Lib/Architecture/ServiceArgsRecordConvention.Spec.cs`**
+  to add its assertion, per the repo's standing service convention;
+  **`Infrastructure/Jobs/ExternalStateStore.cs`** (the declarative
+  `ExternalStateStore<TScratch>` descriptor — data, no delegate — R8-1/O24) and
+  **`Infrastructure/Jobs/ExternalStateClassifier.cs`** (`IExternalStateClassifier` +
+  `ExternalStateClassificationInput` + `ExternalStateClassification` — the engine's
+  total marker-first decision function, returning a triple the engine validates
+  against the CHECK model and applies; + O25's probe-failure → conservative audited
+  `4 Missing`, §4.2/§5.1) **+
+  `ExternalStateClassifier.Spec.cs`** (all seven rows; the deterministic-probe-failure
+  control proving no `None` and no re-lease loop — R8-1);
   migration `HardenJobQueueEnvelope` — adds `lock_token`, `tenant_id`,
   `actor_user_id`, `correlation_id`, **`requeued_from_dead_letter_id`** (C9/F16
   lineage on both `job_queue` and `job_dead_letter`, + `requeued_as_job_id` /
@@ -3179,18 +3420,22 @@ specs. The audit found it incomplete; 2A-R below is its remediation packet.
   **durations** only, never timestamps — F11); `JobQueueItem.cs` /
   `JobDeadLetter.cs` (new columns; **remove all timestamp initializers** —
   F11; **`JobDeadLetter.FromJob` copies envelope + lineage and classifies
-  NOTHING** — the registration's terminal classifier stamps `external_state_*`, and
-  the engine settles invalid-before-handler failures DLQ-only with no terminal hook,
-  R6-4/R7-1/O20/O21/O22); **the terminal transaction follows §5.1's five-step order —
+  NOTHING** — the engine's `ExternalStateClassifier` decides `external_state_*` and
+  the engine stamps it, and the engine settles invalid-before-handler failures
+  DLQ-only with no terminal hook,
+  R6-4/R7-1/R8-1/O20/O21/O22/O24); **the terminal transaction follows §5.1's five-step order —
   create DLQ entity → classify → handler hook (handler-reached only) → insert →
-  fenced delete** (R7-1); `JobHandlerRegistry.cs` → **unified `JobRegistration`** (pairs handler
+  fenced delete, with classification the one step that cannot roll the settlement
+  back** (R7-1/O25); `JobHandlerRegistry.cs` → **unified `JobRegistration`** (pairs handler
   factory **and** type-erased `ValidatePayloadJson` for the requeue path —
   R2-7; **+ per-type requeue policy and external-effect state-transfer hook** —
-  R3-2/O11; **+ the type-erased terminal external-state classifier
-  `ClassifyExternalStateAsync`, payload-blind, with the engine's built-in `Standard`
-  `None` classifier** — R7-1/O22; versioned types, unknown-type → DLQ);
+  R3-2/O11; **+ the declarative `ExternalStateStore` descriptor — data the engine
+  probes, not a delegate it invokes; the engine owns every classification branch,
+  including `Standard` → `None`** — R7-1/R8-1/O22/O24; versioned types,
+  unknown-type → DLQ);
   `JobRegistryStartupGate` **also enforces registration completeness — policy and
-  capability set must match, or the worker does not boot** (R7-1). The
+  capability set must match — and executes each descriptor's probe once against the
+  live database, or the worker does not boot** (R7-1/R8-1). The
   drain-budget/lease knobs use
   code constants until 2B's `AppEnvironment` edit lands (call-out below).
 - **Gate:** all engine specs in §9 green, including old-owner-after-reclaim,
@@ -3294,21 +3539,29 @@ specs. The audit found it incomplete; 2A-R below is its remediation packet.
   per-replica signal instance, and add `JobRegistration` entries for
   `email.tenant-invitation.v1`, `email.staff-invitation.v1`, and
   `email.password-reset.v1`, each with the external-effect transfer policy/hook
-  **and** the terminal external-state classifier (marker-first / `email_prepared_sends`-second,
-  payload-blind — R7-1/O22; the startup gate rejects a registration carrying one
-  without the other)** — R3-2/R3-3/R7-1). **The legacy dispatcher is already
+  **and** an `ExternalStateStore<EmailPreparedSend>(s => s.JobId,
+  AppEnvironment.EmailPreparedSendRetention)` descriptor — **declared data, not a
+  classifier delegate**: 2A-R's engine owns the decision function and runs the probe
+  (R7-1/R8-1/O22/O24; the startup gate rejects a registration carrying one capability
+  without the other, and rejects a descriptor whose probe does not execute)** —
+  R3-2/R3-3/R7-1/R8-1). **The legacy dispatcher is already
   worker-only from 2B (R2-6); R1 merely retains it as a drainer** (§4.6). The
   `email_prepared_sends` scratch persists the request as **`bytea` (`request_body`)
   with a committed-PREPARE phase — no `prepared_committed` flag, row existence is
   the proof** (C1/R2-12), and the PREPARE transaction is **fenced and single**:
-  post-lock recheck, one insert, the marker set to **that row's own `prepared_at`**
-  (never a second `now()`) via `WHERE id = … AND lock_token = …`, exactly one
-  affected row or full rollback (§4.5 — R6-4/R7-2/O20/O23);
+  post-lock recheck, one insert, and the marker set to **that row's own
+  `prepared_at`** (never a second `now()`) by **calling 2A-R's pre-existing
+  `IExternalPreparedMarker.StampAsync` seam** — 2C **creates no engine file and
+  writes no `job_queue` SQL**; the seam's active-transaction guard, persisted-`job_type`
+  policy proof, token fence, and rowcount-or-rollback rule are 2A-R's contract and
+  2C only consumes them, per the phase-ownership rule below (§4.5 —
+  R6-4/R7-2/R8-3/O20/O23/O26);
   `EmailLogOutcome` includes **`LegacySubmissionUnverified`**
   (R2-3); email terminal failure retains prepared state only within the
-  prepared-send window, **stamps the new DLQ row's `external_state_*` evidence
-  (`Present` + materialized window bounds, `Missing`, or `NeverPrepared` — decided
-  by the marker, §4.2) in the same terminal transaction** (R5-2/R6-4/O19/O20), and
+  prepared-send window, **and the engine stamps the new DLQ row's `external_state_*`
+  evidence (`Present` + materialized window bounds, `Missing`, or `NeverPrepared` —
+  decided by the marker and 2C's declared descriptor, §4.2) in the same terminal
+  transaction** (R5-2/R6-4/R8-1/O19/O20/O24), and
   its registration atomically transfers original bytes/key on timely requeue while
   stamping the ancestor `Transferred` and **carrying the marker onto the new queue
   row** (R3-2/R4-3/R6-4); the fold migration
@@ -3324,14 +3577,20 @@ specs. The audit found it incomplete; 2A-R below is its remediation packet.
   barrier-controlled sweep ∥ requeue with no `40P01`, fresh-context persistence of
   a rejected `Missing`, pre-DLQ scratch loss → `Missing` (not `NeverPrepared`),
   marker survival across a transfer, and invalid-before-handler DLQ-only settlement
-  with its infinite-loop regression** (R6-2/R6-3/R6-4); **the R7 contract specs green —
-  the barrier-controlled fenced PREPARE against a reclaimed owner (one immutable
-  scratch, exact marker/`prepared_at` equality, stale-owner whole-transaction
-  rollback, no orphan after settlement, both control runs failing) and the
-  registration-completeness gate** (R7-1/R7-2); fold idempotency spec green; an exact registration
+  with its infinite-loop regression** (R6-2/R6-3/R6-4); **the R7/R8 contract specs green —
+  the barrier-controlled fenced PREPARE against a reclaimed owner in its
+  **constructible** order (B proved blocked on the domain lock via `pg_locks`; one
+  immutable scratch carrying B's bytes; exact marker/`prepared_at` equality;
+  stale-owner whole-transaction rollback with the fence exception asserted by type),
+  its three separate controls (no-token → *stale A's bytes commit under B*;
+  rowcount-rule-removed after settlement → *orphan scratch*; independent-`now()` →
+  *marker ≠ `prepared_at`*), the registration-completeness **and descriptor-probe**
+  gates, and the classification-cannot-loop control** (R7-1/R7-2/R8-1/R8-2);
+  fold idempotency spec green; an exact registration
   set spec asserts the three email registrations **each with both external-effect
-  capabilities** (transfer hook + classifier), one listener hosted service,
-  and one shared signal binding with no duplicates/omissions (R3-3/R7-1);
+  capabilities** (transfer hook + `ExternalStateStore` descriptor), one listener
+  hosted service, and one shared signal binding with no duplicates/omissions
+  (R3-3/R7-1/R8-1);
   `just test-api` green.
 
 > **Known code-alignment item (R3-3, captain's reconciliation round).** The
@@ -3388,7 +3647,13 @@ specs. The audit found it incomplete; 2A-R below is its remediation packet.
      outbox registration removal waits for 2C-R2). Land 2B's restructure
      before 2C-R1's listener/handler integration and 2C-R2's removals.
   5. **`IJobHandler`/engine contracts** — owned by 2A-R; 2B/2C consume, never
-     edit.
+     edit. This explicitly covers **`IExternalPreparedMarker`** (§4.5),
+     **`ExternalStateStore`**, and **`ExternalStateClassifier`** (§5.1): 2A-R
+     creates the files and their specs; 2C-R1 *calls* `StampAsync` from its PREPARE
+     and *supplies descriptor data* on its registrations. Round 8 (R8-3) caught the
+     inverse of this rule being unimplementable — §10 told 2C to use the fenced
+     marker transaction while assigning the marker operation to no phase at all, so
+     an implementer had to either leave it missing or breach this boundary.
 
 ### Phase 3 — #635: recovery/DLQ ops + first system jobs + observability sampler
 
@@ -3656,15 +3921,24 @@ the same-night D2 revision and retained only for the record.
   (R6-3); and `NeverPrepared` is read from a durable marker instead of inferred
   from absence (R6-4/O20).
 - **O20 — Durable "PREPARE occurred" marker (R6-4). — AUTHOR-DECIDED: persist the
-  marker outside the deletable scratch (pending owner objection).** O19's status
+  marker outside the deletable scratch (pending owner objection). SUPERSEDED AT THE
+  WRITE LEVEL BY O23** — the marker's *direction* (a durable, engine-owned proof
+  outside the scratch) stands unchanged and is what everything below relies on; the
+  *write mechanism* described in this item is the one R7-2/O23 replaced. Read the
+  paragraph below with that substitution, stated inline where it occurs.** O19's status
   model was not **total**: at dead-letter, "prepared row absent" was classified
   `NeverPrepared`, which cannot distinguish a true pre-PREPARE failure from
   prepared state lost or corrupted *before* dead-lettering — the very anomaly
   `Missing` names. Worst case, an ambiguous provider attempt followed by premature
   scratch loss reads as "no external effect occurred" and requeue mints fresh bytes
   under a fresh key. `job_queue.external_prepared_at` is therefore written **in the
-  PREPARE transaction**, from the same database `now()` as
-  `email_prepared_sends.prepared_at`, and copied to the DLQ at dead-letter — so
+  PREPARE transaction** ~~from the same database `now()` as
+  `email_prepared_sends.prepared_at`~~ — **superseded by O23: the marker takes the
+  committed scratch row's *own* `prepared_at`, returned by its `INSERT … RETURNING`
+  or re-read from the conflict winner inside the same fenced transaction; there is
+  **no second, marker-side `now()`**. The equality conclusion this item draws
+  survives and is now *enforced by the write* rather than claimed "by construction"
+  (§4.5)** — and copied to the DLQ at dead-letter — so
   marker present + row absent → a real, audited `Missing`; marker absent →
   genuinely `NeverPrepared` (§4.1/§4.2/§4.5). Requeue carries the marker onto the
   new queue row when it transfers state, so a transferred job that never re-PREPAREs
@@ -3696,9 +3970,15 @@ the same-night D2 revision and retained only for the record.
   writes an `email_log` row" false by design — the correct claim is "every terminal
   path that reached a handler" — and because the owner may prefer (c)'s explicit
   outcome value.
-- **O22 — Terminal external-state classification seam (R7-1). — AUTHOR-DECIDED: a
-  type-erased, payload-blind classifier on `JobRegistration` (pending owner
-  objection).** O19/O20 gave the DLQ a six-value external-state machine and O20 gave
+- **O22 — Terminal external-state classification seam (R7-1). — AUTHOR-DECIDED: the
+  seam belongs on `JobRegistration`, not on `FromJob` or `IJobHandler` (pending owner
+  objection). SUPERSEDED IN API SHAPE BY O24** — the *placement* decision below is
+  what round 8 held and it stands; the **delegate** shape it chose does not. This
+  item claimed the classifier was "payload-blind **by signature**" while the
+  signature handed it `JobQueueItem` *and* `JobDeadLetter` (both payload-bearing) and
+  a **writable `AppDbContext`**. That was blindness by convention. O24 replaces the
+  delegate with declarative data; read the API sentences below as superseded, the
+  placement rationale as live.** O19/O20 gave the DLQ a six-value external-state machine and O20 gave
   it a durable marker, but never said **who computes** the non-generic half of it.
   "Do the prepared bytes still exist?" is answerable only against a *type-specific*
   store, and the unified `JobRegistration` exposed only a handler factory, a payload
@@ -3745,11 +4025,115 @@ the same-night D2 revision and retained only for the record.
   Flagged because it makes PREPARE's correctness depend on the lease fence, so a
   handler that PREPAREs outside a claimed lease is now a **rollback**, not a
   tolerated write.
+- **O24 — Classification is declarative data, not a registration delegate (R8-1). —
+  AUTHOR-DECIDED: the type declares *where* its store is; the engine decides
+  everything (pending owner objection).** O22 put the classifier on the registration
+  as a delegate taking `(JobQueueItem, JobDeadLetter, AppDbContext, ct)` and called
+  it "payload-blind by signature". **It was not.** Both entities carry the payload,
+  the `AppDbContext` is writable, and the startup gate could only prove a delegate
+  *existed* — so "payload-blind" and "its only permitted write is `external_state_*`"
+  were conventions. Worse, because a classifier failure rolled the terminal
+  transaction back, any deterministic classifier defect **recreated the #810
+  infinite re-lease loop O21 exists to close** — through the very seam meant to close
+  it. `JobRegistration` therefore carries an `ExternalStateStore<TScratch>`
+  *descriptor* — one `Expression<>` job-id selector over the type's **scratch entity**
+  plus a retention `TimeSpan` — and the engine builds the probe, runs it, and owns the
+  whole decision (§4.2/§5.1). Blindness becomes structural: the only value the type's
+  code ever sees is a `TScratch`, so the payload is unreachable **by parameter type**;
+  the selector is an expression tree EF translates to SQL, so **no type IL executes
+  during classification** and a no-op/mutation/throw has no method body to live in;
+  the probe answers a **`bool`**, so no write surface — and no value at all — leaves
+  the boundary. The probe reads only *existence*: `external_state_prepared_at` comes
+  from the marker on every branch and O23 makes marker = scratch `prepared_at` an
+  enforced equality, so a second timestamp read would be a redundant path that could
+  disagree with the marker. What O22 got right is preserved intact — store knowledge still lives on
+  the registration, the engine still has **zero compile-time coupling** to
+  `email_prepared_sends`, and a webhook/publishing store still adds a registration
+  rather than an engine edit. **Decided over:** (a) O22's delegate with a narrowed
+  input record (`ExternalStateClassificationInput` → `ExternalStateClassification`) —
+  strictly better than O22 and the obvious fix, but it still hands back an executable
+  body, so "cannot throw / cannot no-op / cannot loop" would remain a promise about
+  behaviour rather than a property of the API, and the store access it needs would
+  reintroduce either a `DbContext` or an arbitrary-SQL capability; (b) welding the
+  engine to `email_prepared_sends` — rejected by O22 for reasons that still hold;
+  (c) handing the delegate a read-only query capability — "read-only" over arbitrary
+  SQL still reaches `job_queue.payload`, so it buys nothing structural. **Flagged
+  because it trades expressiveness for enforceability**: the descriptor spans exactly
+  "one scratch table, keyed by `job_id`, carrying a `prepared_at`" — today's
+  `email_prepared_sends` and the shape §4.5 mandates of any prepared-state store — and
+  a future store needing a compound key or a status column requires a **reviewed
+  engine change** rather than type-supplied code. That is the intended direction of
+  the trade, but it is a real constraint on Epic-D and should be objected to now if
+  the owner expects heterogeneous prepared-state shapes. Its one honest residue (an
+  expression tree containing an untranslatable call) is closed by the startup gate
+  executing every descriptor's probe at composition, and by O25 behind it.
+- **O25 — Classification cannot fail the settlement (R8-1). — AUTHOR-DECIDED: a probe
+  failure stamps a conservative audited `4 Missing` instead of rolling back (pending
+  owner objection).** Under R7's contract, step 2 of the terminal transaction was
+  inside F5's "any failure rolls the whole settlement back" rule — so an
+  unclassifiable job returned to the queue, re-leased, dead-lettered, and rolled back
+  forever. **A design cannot both claim to have closed the #810 loop class and route
+  a new failure mode back into it.** Classification is therefore the **one step** of
+  the five that cannot fail the settlement: the engine catches a probe failure,
+  stamps `4 Missing` with an `AuditLog` entry, and proceeds. This is what makes "no
+  classifier defect can loop" a *property* rather than a hope — no classification
+  outcome, including total probe failure, can revive a job that has exhausted its
+  attempts. **Decided over:** (a) leaving classification inside the rollback rule —
+  keeps F5 uniform, but re-opens the exact loop; (b) stamping `0 None` on failure —
+  silent, and `None` licenses a `Standard` requeue path for a job that may well have
+  external effects; (c) letting the settlement proceed *unclassified* — violates
+  `ck_job_dead_letter_external_state` and §4.2's totality. `4 Missing` is chosen
+  because it is the **conservative** answer: it rejects requeue with
+  `PreparedStateAnomaly`, alerts via §7.2's durable count, and turns an
+  unclassifiable job into a visible terminal anomaly rather than a silent spin.
+  **Flagged because it puts a deliberate hole in F5's uniformity** — §5.1 now reads
+  "steps 3, 4, 5 roll back; step 2 cannot" — and because it means a systematic probe
+  outage (a dropped store table) manifests as a burst of `Missing` anomaly alerts
+  rather than as stalled jobs. That is the correct failure direction, but it is a
+  paging consequence the owner should see.
+- **O26 — The marker write proves its own entitlement (R8-3). — AUTHOR-DECIDED:
+  policy read from the persisted row under lock + an active-transaction guard
+  (pending owner objection).** O23 made the marker write fenced but left
+  `StampExternalPreparedAsync(jobId, lockToken, preparedAt, db, ct)` taking **no
+  policy proof and no transaction guard** — so §5.1's load-bearing claim that "the
+  marker has exactly two writers, both reachable only for a
+  `TransferExternalEffectState` type" was **assertion-by-call-site**: any
+  same-assembly caller, `Standard` handlers included, could stamp, and F15's guard
+  (which catches `job_queue` writes *outside* `Infrastructure/Jobs`) does not see
+  calls *into* an engine method. Since §4.2's `Standard` → `None` and unregistered →
+  `NeverPrepared` branches are sound **only** because that enumeration holds, an
+  unenforced invariant there is a correctness hole, not a style point. The seam is now
+  `IExternalPreparedMarker.StampAsync(StampExternalPreparedArgs, ct)`, which (1)
+  refuses without an ambient caller transaction — otherwise the `UPDATE` autocommits
+  and the rowcount-or-rollback rule cannot roll the scratch back; (2) re-reads the
+  **locked queue row's persisted `job_type`** and refuses unless it resolves to a
+  `TransferExternalEffectState` registration; (3) only then runs the fenced update;
+  and (4) **rolls the ambient transaction back itself before every throw** — guard 2's
+  zero-row result is a client-side condition, not a SQL error, so Postgres does not
+  poison the transaction and a handler that caught the fence exception and committed
+  anyway would land orphan scratch bytes; rolling back first makes that commit throw,
+  so a catching handler commits nothing. The caller supplies **no `job_type`**, so the
+  policy check is unforgeable, and it cannot opt out of the fence by catching.
+  Correspondingly, §4.2 now classifies a marker on a `Standard`/unregistered row as
+  an audited `4 Missing` **integrity failure** — a state no sanctioned writer can
+  produce — rather than as `None`/`NeverPrepared`. **Decided over:** (a) trusting the
+  call site plus an architecture guard listing permitted callers — a fresh caller is
+  one edit away and the guard cannot see intent; (b) taking `job_type` as a parameter
+  — forgeable, and precisely the assertion-by-call-site being removed; (c) a
+  `TransferExternalEffectState`-only marker interface resolved from the registration
+  — better, but the entitlement would still rest on which object the caller managed
+  to obtain rather than on the row's persisted truth. **Flagged because it adds a
+  `SELECT … FOR UPDATE` on `job_queue` to every PREPARE** (one extra round trip and a
+  row lock held for the PREPARE's remainder, on the hottest engine table) and because
+  it makes the lock order **domain → scratch → `job_queue`** load-bearing across
+  PREPARE and terminal settlement. §4.5 states that order explicitly; no cycle exists
+  against the sweep's DLQ → scratch order (R6-3), but it is now a rule future paths
+  must respect.
 
 ### Ratification record
 
 **Status vocabulary.** Only decisions explicitly attributed to the owner below
-are **owner-ratified**. **O6–O23** are **author-decided, pending owner objection**
+are **owner-ratified**. **O6–O26** are **author-decided, pending owner objection**
 — every O-item above except the owner-ratified O1–O5 (of which O1 and O4 are
 superseded); their mechanisms are implementation-authoritative meanwhile, but this
 record does not relabel silence as ratification. (O8 is listed after O9 above: it
@@ -4222,17 +4606,29 @@ never specified. Both majors are that contract:
   is not invoked at all on the very path that most needs classifying. The seam is now
   a **peer capability of the registration**, not a handler method:
   `ClassifyExternalStateAsync(JobQueueItem, JobDeadLetter, AppDbContext, ct)`,
-  required alongside `TransferExternalEffectState`. It is **payload-blind by
-  signature** — no `JobContext`, no payload parse — which is the mechanism that lets
+  required alongside `TransferExternalEffectState`. ~~It is **payload-blind by
+  signature** — no `JobContext`, no payload parse~~ — which is the mechanism that lets
   it run on the invalid-before-handler path without reopening O21's
-  infinite-rollback class. The terminal transaction now has an explicit order
+  infinite-rollback class.
+  > ⚠️ **Round 8 proved that sentence false, and it is left here struck rather than
+  > quietly deleted (R8-1).** That signature handed the classifier the full
+  > `JobQueueItem` *and* `JobDeadLetter` — both payload-bearing — plus a **writable
+  > `AppDbContext`**; it was payload-blind only by *convention*, and the startup gate
+  > could prove only that a delegate existed. The mechanism claim is real but now
+  > rests on **O24**'s declarative descriptor (no type code runs at all) and **O25**
+  > (classification cannot roll the settlement back), not on this signature. Round 7
+  > wrote "by signature" without checking the signature — see the round-8 record
+  > below.
+  >
+  The terminal transaction now has an explicit order
   (create DLQ entity → classify → handler hook, handler-reached only → insert →
   fenced delete), and the **startup gate enforces registration completeness**, so a
   policy-bearing type cannot register without a classifier and silently lose
   totality at its first dead-letter. Engine-decided branches (`Standard` → `None`;
   unregistered type → `NeverPrepared`) are **conditioned on the marker, not
   assumed** — a set marker with no classifier stamps the conservative, audited
-  `4 Missing` rather than licensing a fresh-bytes requeue
+  `4 Missing` rather than licensing a fresh-bytes requeue — **a branch round 8
+  found no live section implemented; §4.2/§5.1 now do (O24/O26)**
   (§4.2/§5.1/§5.4/§9/§10; O22).
 - **R7-2 (the PREPARE marker write was neither fencing-conditioned nor tied to the
   row actually inserted, major):** "marker and `prepared_at` are equal by
@@ -4265,6 +4661,94 @@ New author-decided items pending owner objection: **O22** (terminal external-sta
 classification seam) and **O23** (fenced PREPARE). **O20** is completed at the write
 level by O23 and **O19/O21** at the dispatch level by O22 — neither direction is
 changed.
+
+**Round 8 (2026-07-17, the eighth merge challenge — NOT MERGE-READY, 0
+merge-blockers / 3 majors / 1 minor / 1 editorial;
+`docs/reviews/jobs-infra-design-challenge/doc-challenge-r8-findings.md`).**
+Round 8 confirmed the classification dispatch seam **genuinely exists** and the
+PREPARE SQL is **fence-safe**, graded **R7-3 Absorbed**, and ruled **O22 and O23
+sound decisions**. Blockers stayed at **0** for a fifth round. All three majors were
+defects *inside* round 7's new mechanisms, and their common shape is one lesson:
+**round 7 asserted safety that neither the type system nor the SQL enforced.**
+- **R8-1 (the classifier was not payload-blind, major):** "payload-blind **by
+  signature**" was **false** — the signature handed the classifier the full
+  `JobQueueItem` *and* `JobDeadLetter` (both payload-bearing) plus a **writable
+  `AppDbContext`**, so blindness and "the only permitted write" were conventions, and
+  the startup gate proved only that a delegate *existed*. Because every classifier
+  failure rolled the terminal transaction back, a deterministic classifier defect
+  **recreated the #810 lease loop O21 exists to close**. The executable surface is
+  therefore removed: the registration carries a declarative `ExternalStateStore`
+  descriptor, the engine builds and runs the probe and owns the entire decision
+  function, the payload is unreachable **by parameter type**, and no type IL executes
+  during classification (**O24**). Classification is also made unable to fail the
+  settlement — a probe failure stamps the conservative audited `4 Missing` instead of
+  rolling back, which is what turns "no classifier defect can loop" into a property
+  (**O25**). The marker-NULL invalid-before-handler case is engine-classified with no
+  probe and no registration code at all, and marker-set/`Standard` and
+  marker-set/unregistered are now explicitly a **conservative audited integrity
+  failure** — closing the contradiction round 8 found between the live status table
+  and the chronological record, by *implementing* the conservative branch rather than
+  deleting the claim (§4.2/§5.1/§9/§10; O24/O25).
+- **R8-2 (the mandatory PREPARE concurrency gate was unconstructible, major):** owner
+  A pauses *inside* its transaction holding the domain row's `FOR UPDATE`, so owner B
+  **cannot** "PREPARE to completion" first — B blocks on that same lock. The asserted
+  barrier schedule could never execute. The second control's claim was false too:
+  dropping only `AND lock_token = {token}` does **not** produce an orphan (the queue
+  row exists throughout; after settlement `WHERE id = {jobId}` matches zero rows
+  regardless). §9 now states the **real** schedule — A locks domain and pauses before
+  its marker; B reclaims `job_queue` and is **proved blocked on domain via
+  `pg_locks`**; A is released, its fenced read finds zero rows and throws before
+  writing, rolling A back whole; B then acquires the domain lock and commits its own
+  scratch/marker — and three **separate** controls: no-token → *stale A's bytes and
+  marker wrongly commit under B's ownership* (what the token predicate actually
+  prevents); rowcount-or-rollback-rule removed after settlement → *orphan scratch*;
+  independent-`now()` → *marker ≠ `prepared_at`* (retained) (§4.5/§9/§10).
+- **R8-3 (the two-writer marker invariant was unenforced and assigned to no phase,
+  major):** `StampExternalPreparedAsync` took only ids, a timestamp, a context, and a
+  token — **no policy proof, no transaction guard** — so "both writers are reachable
+  only for a `TransferExternalEffectState` type" was assertion-by-call-site, and F15's
+  guard cannot see calls *into* an engine method. Since §4.2's engine-decided branches
+  are sound only because that enumeration holds, this was a correctness hole. The seam
+  is now `IExternalPreparedMarker.StampAsync`, which requires an ambient caller
+  transaction, **re-reads the locked queue row's persisted `job_type`** — the caller
+  supplies none, so the check is unforgeable — fails before writing otherwise, and
+  **rolls the transaction back itself before throwing**, so a handler cannot catch the
+  fence and commit anyway (**O26**). Separately, §10 added the marker column in 2A-R and told 2C to
+  use the fenced transaction while **creating no file for the operation anywhere**,
+  forcing an implementer to leave it missing or breach the "2A-R owns engine
+  contracts" rule; `ExternalPreparedMarker.cs`, `ExternalStateStore.cs`,
+  `ExternalStateClassifier.cs`, and their specs are now **assigned to Phase 2A-R**,
+  and 2C only calls the pre-existing seam (§4.5/§5.1/§8/§9/§10).
+- **R8-4 (two summaries still described the superseded independent-`now()` write,
+  minor):** §4.2 and O20 both said the marker came from "the same database `now()`"
+  as `prepared_at` — the mechanism R7-2 replaced. Both now state that the marker takes
+  the **committed scratch row's own `prepared_at`**, returned or re-read inside the
+  fenced transaction, with no second marker-side `now()`; O20 is annotated
+  **superseded at the write level by O23** (direction unchanged, equality conclusion
+  intact and now enforced by the write).
+- **R8-5 (§8's placement summary omitted the fourth capability, editorial):** the
+  "unified `JobRegistration`" parenthetical now names the external-state descriptor,
+  and "the engine never reads or writes" the messaging tables is qualified to "the
+  generic engine has no direct table coupling; registered type-specific delegates and
+  descriptors do."
+
+New author-decided items pending owner objection: **O24** (declarative classification
+descriptor), **O25** (classification cannot fail the settlement), **O26** (the marker
+write proves its own entitlement). **O22** is superseded **in API shape** by O24 — its
+*placement* ruling, which round 8 held, is unchanged — and **O23** is completed at the
+authorization level by O26. No direction is reversed.
+
+⚠️ **Captain-alignment items carry forward** unchanged (R6-1: 634 has no
+`schedule_epoch`; R6-4: 633 has no marker and cannot classify absence; the **suspected
+live defect** on `origin/feat/809-email-jobs-fold`), and R7-1's build-target changes
+are restated in R8 terms at §5.1: `JobRegistration`'s fourth capability is a
+**descriptor**, not a delegate; the engine gains `ExternalStateClassifier`; the startup
+gate gains **both** the paired-capability check and the descriptor-probe check.
+**No code branch is edited by this document.** No disputes this round — all three
+majors, the minor, and the editorial are accepted as stated. The reviewer's central
+point is the one worth recording: **round 7's brief and its text both repeated
+"payload-blind by signature" without checking the signature.** A claim that something
+*cannot* happen is only worth what the type system or the SQL behind it enforces.
 
 ⚠️ **Captain-alignment items (R7-1) — build-target changes, not live defects.**
 Major 1's hook changes what **Phase 2A-R** must build: `JobRegistration` gains a
