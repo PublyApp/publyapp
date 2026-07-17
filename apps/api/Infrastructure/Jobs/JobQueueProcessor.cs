@@ -45,7 +45,9 @@ public sealed record JobQueueProcessorOptions {
 ///   completed run is never discarded by shutdown (§3.6);
 /// - retry backoff is applied as a SQL interval on now() with equal jitter (F11);
 /// - handler-supplied strings pass through JobErrorSanitizer before any durable
-///   write or log template; original exceptions go to the structured logger (F20);
+///   write or log template, and NO raw exception is ever handed to the logger: a
+///   sink renders ex.Message verbatim, so the engine logs the sanitized
+///   Describe(ex) plus safe stack metadata instead (F20/R2-8);
 /// - after a full batch the loop claims again immediately, bounded by a drain budget
 ///   (F10) — budget expiry resumes draining without waiting for signal/poll.
 /// Public ClaimBatchAsync / ProcessBatchAsync / ProcessOneAsync / Try*Async keep the
@@ -60,20 +62,25 @@ public sealed class JobQueueProcessor : BackgroundService {
 	private readonly ILogger<JobQueueProcessor> _logger;
 	private readonly JobQueueProcessorOptions _options;
 
-	// Identifies this worker instance in job_queue.locked_by for observability only.
-	// Correctness comes from FOR UPDATE SKIP LOCKED + the lock_token fence.
-	private readonly string _workerId = $"{Environment.MachineName}:{Guid.NewGuid():N}";
+	// The replica id this processor writes to job_queue.locked_by. It is INJECTED,
+	// not minted here: §7.1 requires the metrics `instance` tag to be the same value
+	// as locked_by, and JobWorkerInstance is the single generator that makes that so
+	// (see its docs). Correctness never rests on it — that is FOR UPDATE SKIP LOCKED
+	// plus the lock_token fence.
+	private readonly JobWorkerInstance _instance;
 
 	public JobQueueProcessor(
 		IServiceScopeFactory scopeFactory,
 		JobHandlerRegistry registry,
 		JobsMetrics metrics,
+		JobWorkerInstance instance,
 		ILogger<JobQueueProcessor> logger,
 		JobQueueProcessorOptions? options = null
 	) {
 		_scopeFactory = scopeFactory;
 		_registry = registry;
 		_metrics = metrics;
+		_instance = instance;
 		_logger = logger;
 		_options = options ?? new JobQueueProcessorOptions();
 	}
@@ -83,6 +90,18 @@ public sealed class JobQueueProcessor : BackgroundService {
 		public Guid Id { get; set; }
 		public Guid LockToken { get; set; }
 		public string JobType { get; set; } = string.Empty;
+	}
+
+	/// <summary>
+	/// A CONFIRMED lease stamp, returned by the renewal UPDATE's RETURNING clause
+	/// (design §5.1, R2-4): the deadline the row now actually carries and the database
+	/// clock reading from the same statement. Both are database-computed, so the
+	/// safety margin is measured in database time — the only clock that decides when
+	/// ResetExpiredLeasesAsync may reclaim the row (F11).
+	/// </summary>
+	public sealed class LeaseStamp {
+		public DateTime LockedUntil { get; set; }
+		public DateTime DatabaseNow { get; set; }
 	}
 
 	/// <summary>How one dispatched job's claimed ownership was settled.</summary>
@@ -118,6 +137,74 @@ public sealed class JobQueueProcessor : BackgroundService {
 
 	public sealed record DrainResult(int Claimed, int Dispatched, DrainExitReason Reason);
 
+	/// <summary>
+	/// One dispatch attempt's whole result: the outcome to apply, the ONLY handler
+	/// whose terminal hook may run for it, and the original exception (if any) for the
+	/// engine's logs.
+	///
+	/// The hook target is a field of this value rather than a local, because §5.1's
+	/// terminal-hook rule is a property of HOW the outcome was produced, not of
+	/// whether a handler object happens to exist. Those are different questions: an
+	/// instance must be CONSTRUCTED before anything can discover that the payload
+	/// never parses, so "a handler exists" is true on a path where the spec says no
+	/// handler was reached. Asking the object is how the hook ran for a malformed
+	/// payload — the hook reloads its recipient from ids the payload never carried,
+	/// throws, rolls the terminal step back, and revives the job on every lease
+	/// expiry: #810's infinite lease loop.
+	///
+	/// So no path may stay silent and inherit a hook target it never earned. There is
+	/// no public constructor — every path must pick <see cref="HandlerReached"/> or
+	/// <see cref="NoHandlerReached"/>, and definite assignment makes forgetting a
+	/// compile error rather than a revived job. The nullability of
+	/// <see cref="HookTarget"/> then means exactly one thing, and DeadLetterAsync's
+	/// guard is correct by construction.
+	/// </summary>
+	private sealed record JobDispatch {
+		private JobDispatch(JobOutcome outcome, IJobHandler? hookTarget, Exception? failure) {
+			Outcome = outcome;
+			HookTarget = hookTarget;
+			Failure = failure;
+		}
+
+		public JobOutcome Outcome { get; }
+
+		/// <summary>
+		/// The handler whose OnTerminalFailureAsync runs if this outcome goes
+		/// terminal; null when no handler was legitimately reached (§5.1).
+		/// </summary>
+		public IJobHandler? HookTarget { get; }
+
+		/// <summary>The original exception, for the engine's logs only; never durable.</summary>
+		public Exception? Failure { get; }
+
+		/// <summary>
+		/// The handler-reached settlement — §5.1's normal case. The registration
+		/// resolved, its handler owned this job_type, and the instance ran: whatever
+		/// it returned or threw is its own, so its terminal hook is its own to run.
+		/// </summary>
+		public static JobDispatch HandlerReached(
+			IJobHandler handler,
+			JobOutcome outcome,
+			Exception? failure = null
+		) {
+			return new JobDispatch(outcome, handler, failure);
+		}
+
+		/// <summary>
+		/// The invalid-before-handler settlement (§5.1, R6-4/O21): no handler was
+		/// legitimately reached — an unknown job_type, a drifted registration, a
+		/// handler that could not be constructed, or a payload that can never parse.
+		/// There is no JobContext worth handing anyone, so the terminal step is
+		/// DLQ-only and step 3 does not fire. That is the rule, not an omission.
+		/// </summary>
+		public static JobDispatch NoHandlerReached(
+			JobOutcome outcome,
+			Exception? failure = null
+		) {
+			return new JobDispatch(outcome, null, failure);
+		}
+	}
+
 	protected override async Task ExecuteAsync(CancellationToken stoppingToken) {
 		await LogDeadLetterOrphansAsync(stoppingToken);
 
@@ -128,7 +215,11 @@ public sealed class JobQueueProcessor : BackgroundService {
 				var result = await DrainAsync(stoppingToken);
 				exitReason = result.Reason;
 			} catch (Exception ex) when (ex is not OperationCanceledException) {
-				_logger.LogError(ex, "Job queue processing loop failed");
+				_logger.LogError(
+					"Job queue processing loop failed: {FailureDescription} {FailureStack}",
+					JobErrorSanitizer.Describe(ex),
+					JobErrorSanitizer.DescribeStack(ex)
+				);
 			}
 
 			// Budget expiry means the backlog is NOT drained: the yield above (one
@@ -206,7 +297,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 
 				var claimed = await ClaimBatchAsync(
 					claimContext,
-					_workerId,
+					_instance.Id,
 					_options.LeaseSeconds,
 					_options.BatchSize,
 					stoppingToken
@@ -341,11 +432,15 @@ public sealed class JobQueueProcessor : BackgroundService {
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		// Per-dispatch re-stamp (F1): job #20 of a slow serial batch must not start
-		// on an almost-expired lease. Zero rows = someone else owns it now.
+		// on an almost-expired lease. Zero rows = someone else owns it now. The
+		// anchor is taken BEFORE the statement is issued so that elapsed time
+		// measured against it can only OVER-count the time since the database's own
+		// now() — never under-count it (see ConfirmedLease).
+		var restampAnchor = Stopwatch.GetTimestamp();
 		var restamped = await TryRenewLeaseAsync(
 			dbContext, itemId, lockToken, _options.LeaseSeconds, stoppingToken
 		);
-		if (!restamped) {
+		if (restamped is null) {
 			_metrics.LeaseLost(item.JobType);
 			return JobExecutionResult.LeaseLost;
 		}
@@ -356,42 +451,30 @@ public sealed class JobQueueProcessor : BackgroundService {
 		);
 		using var renewalStop = new CancellationTokenSource();
 
+		// The re-stamp above is the renewal loop's time zero: it is the first
+		// confirmed database deadline, and the loop arms its deadline timer from it.
 		var renewalTask = _options.EnableLeaseRenewal
-			? RenewLeaseLoopAsync(itemId, lockToken, leaseLostSource, renewalStop.Token)
+			? RenewLeaseLoopAsync(
+				itemId,
+				lockToken,
+				ConfirmedLease.From(restamped, restampAnchor, SafetyMargin()),
+				leaseLostSource,
+				renewalStop.Token
+			)
 			: Task.CompletedTask;
 
 		var context = BuildContext(item, lastError: null);
 		var stopwatch = Stopwatch.StartNew();
-		IJobHandler? handler = null;
-		JobOutcome outcome;
-		Exception? failure = null;
+		JobDispatch dispatch;
 
 		try {
-			if (_registry.TryResolve(item.JobType, out var registration)) {
-				handler = registration.Factory(scope.ServiceProvider);
-
-				if (!string.Equals(handler.JobType, item.JobType, StringComparison.Ordinal)) {
-					// A registration/handler JobType drift is a pure configuration
-					// error: burning retries on it gains nothing → straight to the
-					// DLQ. Also guarded eagerly at registry build (DI construction
-					// resolves and verifies every registration), so this runtime
-					// path exists only as defense in depth.
-					outcome = new JobOutcome.PermanentFailure(
-						$"Handler {handler.GetType().Name} declares JobType "
-						+ $"'{handler.JobType}' but was registered for "
-						+ $"'{item.JobType}' (configuration drift)."
-					);
-					// The drifted handler's terminal hook must not run for a job
-					// that was never legitimately its own.
-					handler = null;
-				} else {
-					outcome = await handler.HandleAsync(context, linkedSource.Token);
-				}
-			} else {
-				outcome = new JobOutcome.PermanentFailure(
-					$"No job handler registered for job type '{item.JobType}'."
-				);
-			}
+			dispatch = await DispatchAsync(
+				scope.ServiceProvider,
+				context,
+				linkedSource.Token,
+				leaseLostSource.Token,
+				stoppingToken
+			);
 		} catch (OperationCanceledException) when (leaseLostSource.IsCancellationRequested) {
 			// Renewal detected a lost lease: the row belongs to a new claimant. The
 			// outcome is discarded; nothing is written (F1).
@@ -414,19 +497,16 @@ public sealed class JobQueueProcessor : BackgroundService {
 				return JobExecutionResult.LeaseLost;
 			}
 			return JobExecutionResult.Released;
-		} catch (JsonException ex) {
-			// A payload that can never parse gains nothing from retries (F2/F12).
-			failure = ex;
-			outcome = new JobOutcome.PermanentFailure(JobErrorSanitizer.Describe(ex));
-		} catch (OperationCanceledException ex) {
-			// A cancellation NOT sourced from the host token or the lease fence is a
-			// job failure (e.g. a provider HTTP timeout's TaskCanceledException) —
-			// it must never look like shutdown or abandon its batchmates (F12).
-			failure = ex;
-			outcome = new JobOutcome.Retry(Error: JobErrorSanitizer.Describe(ex));
 		} catch (Exception ex) {
-			failure = ex;
-			outcome = new JobOutcome.Retry(Error: JobErrorSanitizer.Describe(ex));
+			// Dispatch itself failed around — never inside — a legitimately reached
+			// handler: registry resolution or handler construction threw, or a
+			// foreign cancellation escaped one of them. Retryable: a transient
+			// dependency failure at construction can clear. No handler name is in
+			// scope here, so by construction nothing this catch can build carries a
+			// hook target (DispatchAsync owns every path where one exists).
+			dispatch = JobDispatch.NoHandlerReached(
+				new JobOutcome.Retry(Error: JobErrorSanitizer.Describe(ex)), ex
+			);
 		} finally {
 			stopwatch.Stop();
 			await renewalStop.CancelAsync();
@@ -448,7 +528,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 		}
 
 		_metrics.HandlerDuration(
-			item.JobType, outcome.GetType().Name, stopwatch.Elapsed.TotalSeconds
+			item.JobType, dispatch.Outcome.GetType().Name, stopwatch.Elapsed.TotalSeconds
 		);
 
 		// Once a handler has returned, its outcome is applied with
@@ -457,7 +537,94 @@ public sealed class JobQueueProcessor : BackgroundService {
 		// arriving between handler return and the transition SQL (§3.6). The
 		// settlement result is CONFIRMED, not assumed: a fenced zero-row transition
 		// reports LeaseLost, a rolled-back terminal step reports Faulted.
-		return await ApplyOutcomeAsync(dbContext, handler, item, lockToken, outcome, failure);
+		return await ApplyOutcomeAsync(dbContext, dispatch, item, lockToken);
+	}
+
+	// Resolves the registration and runs the handler, returning the outcome TOGETHER
+	// with the only handler whose terminal hook may run for it (§5.1). Every failure a
+	// handler can produce is classified HERE — the one place the instance is in scope
+	// — so each classification names its own hook target and none can inherit one by
+	// omission. Outside this method no handler can be named, which is what makes the
+	// hook unreachable on the invalid paths rather than merely unreached.
+	//
+	// The engine's OWN cancellations (lease lost / host shutdown) are the only things
+	// allowed to escape: ProcessOneAsync owns those two outcomes.
+	private async Task<JobDispatch> DispatchAsync(
+		IServiceProvider scopedProvider,
+		JobContext context,
+		CancellationToken handlerToken,
+		CancellationToken leaseLostToken,
+		CancellationToken stoppingToken
+	) {
+		if (!_registry.TryResolve(context.JobType, out var registration)) {
+			// Nothing is registered for this job_type: no instance exists and none
+			// can, so there is nothing to hook. Retries gain nothing (F12).
+			return JobDispatch.NoHandlerReached(
+				new JobOutcome.PermanentFailure(
+					$"No job handler registered for job type '{context.JobType}'."
+				)
+			);
+		}
+
+		var handler = registration.Factory(scopedProvider);
+
+		if (!string.Equals(handler.JobType, context.JobType, StringComparison.Ordinal)) {
+			// A registration/handler JobType drift is a pure configuration error:
+			// burning retries on it gains nothing → straight to the DLQ. Also guarded
+			// eagerly at registry build (DI construction resolves and verifies every
+			// registration), so this runtime path exists only as defense in depth.
+			// The drifted handler's terminal hook must not run for a job that was
+			// never legitimately its own — so it is not this dispatch's hook target.
+			return JobDispatch.NoHandlerReached(
+				new JobOutcome.PermanentFailure(
+					$"Handler {handler.GetType().Name} declares JobType "
+					+ $"'{handler.JobType}' but was registered for "
+					+ $"'{context.JobType}' (configuration drift)."
+				)
+			);
+		}
+
+		try {
+			return JobDispatch.HandlerReached(
+				handler, await handler.HandleAsync(context, handlerToken)
+			);
+		} catch (JsonException ex) {
+			// §5.1's invalid-before-handler settlement (R6-4/O21). A payload that can
+			// never parse gains nothing from retries (F2/F12) — and, decisively, it
+			// means no handler was legitimately REACHED, even though an instance had
+			// to be built to discover that. So this path names NO hook target: the
+			// hook would reload its recipient from the ids the payload just failed to
+			// produce, throw, roll the terminal step back, revive the still-leased
+			// row, and repeat on every lease expiry — #810's infinite lease loop.
+			return JobDispatch.NoHandlerReached(
+				new JobOutcome.PermanentFailure(JobErrorSanitizer.Describe(ex)), ex
+			);
+		} catch (Exception ex) when (IsHandlerFailure(ex, leaseLostToken, stoppingToken)) {
+			// The handler was legitimately reached and threw: its job, its retry, and
+			// — if this exhausts the attempts — its hook.
+			return JobDispatch.HandlerReached(
+				handler, new JobOutcome.Retry(Error: JobErrorSanitizer.Describe(ex)), ex
+			);
+		}
+	}
+
+	// A cancellation sourced from the lease fence or the host token is the ENGINE's own
+	// signal and belongs to ProcessOneAsync (F1/F12); it must not be reclassified as a
+	// job failure here. Everything else a handler throws is that job's failure —
+	// including a foreign cancellation such as a provider HTTP timeout's
+	// TaskCanceledException, which must never look like shutdown or abandon its
+	// batchmates.
+	private static bool IsHandlerFailure(
+		Exception exception,
+		CancellationToken leaseLostToken,
+		CancellationToken stoppingToken
+	) {
+		if (exception is not OperationCanceledException) {
+			return true;
+		}
+
+		return !leaseLostToken.IsCancellationRequested
+			&& !stoppingToken.IsCancellationRequested;
 	}
 
 	// --- fencing-conditioned transitions (F1) ------------------------------------
@@ -507,24 +674,36 @@ public sealed class JobQueueProcessor : BackgroundService {
 		return affected > 0;
 	}
 
-	/// <summary>Lease renewal / per-dispatch re-stamp (F1).</summary>
-	public static async Task<bool> TryRenewLeaseAsync(
+	/// <summary>
+	/// Lease renewal / per-dispatch re-stamp (F1). Returns the CONFIRMED stamp — the
+	/// deadline the row now carries and the database clock that computed it — or null
+	/// when the fence matched nothing, which is a definitively lost lease.
+	///
+	/// The RETURNING clause is not a convenience (§5.1, R2-4): the caller must judge
+	/// abandonment against the deadline the DATABASE actually wrote, because that is
+	/// the only value ResetExpiredLeasesAsync compares against when deciding the row
+	/// is reclaimable. A caller timing its own lease locally would be measuring a
+	/// different interval, from a start point that is already later than the
+	/// database's (F11).
+	/// </summary>
+	public static async Task<LeaseStamp?> TryRenewLeaseAsync(
 		AppDbContext dbContext,
 		Guid jobId,
 		Guid lockToken,
 		int leaseSeconds,
 		CancellationToken cancellationToken
 	) {
-		var affected = await dbContext.Database.ExecuteSqlAsync(
+		var stamps = await dbContext.Database.SqlQuery<LeaseStamp>(
 			$"""
 			UPDATE job_queue
 			SET locked_until = now() + make_interval(secs => {leaseSeconds}),
 				updated_at = now()
 			WHERE id = {jobId} AND lock_token = {lockToken}
-			""",
-			cancellationToken
-		);
-		return affected > 0;
+			RETURNING locked_until AS "LockedUntil", now() AS "DatabaseNow"
+			"""
+		).ToListAsync(cancellationToken);
+
+		return stamps.SingleOrDefault();
 	}
 
 	/// <summary>
@@ -560,13 +739,12 @@ public sealed class JobQueueProcessor : BackgroundService {
 	// delete/requeue affected a row or the terminal transaction committed.
 	private async Task<JobExecutionResult> ApplyOutcomeAsync(
 		AppDbContext dbContext,
-		IJobHandler? handler,
+		JobDispatch dispatch,
 		JobQueueItem item,
-		Guid lockToken,
-		JobOutcome outcome,
-		Exception? failure
+		Guid lockToken
 	) {
 		var itemId = RequireId(item);
+		var outcome = dispatch.Outcome;
 
 		if (outcome is JobOutcome.Success) {
 			var deleted = await TryCompleteAsync(
@@ -613,8 +791,8 @@ public sealed class JobQueueProcessor : BackgroundService {
 
 		if (outcome is JobOutcome.PermanentFailure permanent) {
 			return await DeadLetterAsync(
-				dbContext, handler, item, lockToken,
-				item.Attempts + 1, JobErrorSanitizer.Sanitize(permanent.Reason), failure
+				dbContext, dispatch, item, lockToken,
+				item.Attempts + 1, JobErrorSanitizer.Sanitize(permanent.Reason)
 			);
 		}
 
@@ -624,7 +802,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 
 			if (failedAttempts >= item.MaxAttempts) {
 				return await DeadLetterAsync(
-					dbContext, handler, item, lockToken, failedAttempts, safeError, failure
+					dbContext, dispatch, item, lockToken, failedAttempts, safeError
 				);
 			}
 
@@ -648,19 +826,23 @@ public sealed class JobQueueProcessor : BackgroundService {
 			_metrics.Retried(item.JobType);
 
 			if (_logger.IsEnabled(LogLevel.Warning)) {
-				// The original exception (with stack trace) goes to the
-				// structured logger; the template only carries sanitized text.
+				// No raw exception argument (R2-8): a sink renders ex.Message
+				// verbatim. The sanitized description and the safe frame metadata
+				// carry the same diagnosis without the payload echo.
+				var (description, stack) = JobErrorSanitizer.DescribeForLog(dispatch.Failure);
+
 				_logger.LogWarning(
-					failure,
 					"Job {JobId} of type {JobType} failed (attempt "
 					+ "{Attempt}/{MaxAttempts}); requeued with {DelaySeconds:F0}s "
-					+ "backoff: {Error}",
+					+ "backoff: {Error} [{FailureDescription}] {FailureStack}",
 					itemId,
 					item.JobType,
 					failedAttempts,
 					item.MaxAttempts,
 					delaySeconds,
-					safeError
+					safeError,
+					description,
+					stack
 				);
 			}
 			return JobExecutionResult.Completed;
@@ -679,12 +861,11 @@ public sealed class JobQueueProcessor : BackgroundService {
 	// row is retried whole after lease expiry.
 	private async Task<JobExecutionResult> DeadLetterAsync(
 		AppDbContext dbContext,
-		IJobHandler? handler,
+		JobDispatch dispatch,
 		JobQueueItem item,
 		Guid lockToken,
 		int attempts,
-		string? lastError,
-		Exception? failure
+		string? lastError
 	) {
 		var itemId = RequireId(item);
 		var deadLetter = JobDeadLetter.FromJob(item, attempts, lastError);
@@ -693,9 +874,13 @@ public sealed class JobQueueProcessor : BackgroundService {
 			await dbContext.Database.BeginTransactionAsync(CancellationToken.None);
 
 		try {
-			if (handler is not null) {
+			// Step 3, and ONLY for a handler-reached settlement (§5.1). The guard is
+			// correct by construction: HookTarget is non-null only on the path where
+			// a handler that owned this job_type actually ran, because JobDispatch
+			// has no constructor that lets any other path supply one.
+			if (dispatch.HookTarget is { } hookTarget) {
 				var terminalContext = BuildContext(item, lastError);
-				await handler.OnTerminalFailureAsync(terminalContext, CancellationToken.None);
+				await hookTarget.OnTerminalFailureAsync(terminalContext, CancellationToken.None);
 			}
 
 			await dbContext.JobDeadLetter.AddAsync(deadLetter, CancellationToken.None);
@@ -719,12 +904,13 @@ public sealed class JobQueueProcessor : BackgroundService {
 			dbContext.Entry(deadLetter).State = EntityState.Detached;
 
 			_logger.LogError(
-				ex,
 				"Terminal-failure step for job {JobId} of type {JobType} rolled back "
 				+ "(hook or DLQ write failed); the leased row will be retried whole "
-				+ "after lease expiry",
+				+ "after lease expiry: {FailureDescription} {FailureStack}",
 				itemId,
-				item.JobType
+				item.JobType,
+				JobErrorSanitizer.Describe(ex),
+				JobErrorSanitizer.DescribeStack(ex)
 			);
 			return JobExecutionResult.Faulted;
 		}
@@ -732,16 +918,19 @@ public sealed class JobQueueProcessor : BackgroundService {
 		_metrics.DeadLettered(item.JobType);
 		_metrics.AttemptsAtTerminal(item.JobType, attempts);
 
-		// The original exception (if any) carries the stack trace for structured
-		// logging; the durable last_error was sanitized before this call.
+		// The durable last_error was sanitized before this call; the failure metadata
+		// is projected rather than handed over as an exception object (R2-8).
+		var (description, stack) = JobErrorSanitizer.DescribeForLog(dispatch.Failure);
+
 		_logger.LogError(
-			failure,
 			"Job {JobId} of type {JobType} dead-lettered after {Attempts} attempts: "
-			+ "{Error}",
+			+ "{Error} [{FailureDescription}] {FailureStack}",
 			itemId,
 			item.JobType,
 			attempts,
-			lastError
+			lastError,
+			description,
+			stack
 		);
 
 		return JobExecutionResult.Completed;
@@ -749,76 +938,185 @@ public sealed class JobQueueProcessor : BackgroundService {
 
 	// --- renewal loop (F1) ---------------------------------------------------------
 
+	/// <summary>
+	/// The last CONFIRMED database lease deadline, minus the safety margin, expressed
+	/// as an interval measurable from a local monotonic anchor (design §5.1, R2-4).
+	///
+	/// Both terms of the interval are database-computed and come from the SAME
+	/// statement, so the margin is judged in database time — the clock that decides
+	/// when ResetExpiredLeasesAsync may reclaim the row (F11). The local anchor only
+	/// measures elapsed DURATION since that confirmed instant, which is all an app
+	/// can do: it cannot watch the database clock advance. Taking the anchor BEFORE
+	/// the statement is issued makes that measurement conservative — it charges the
+	/// whole round trip against the margin, so the interval can only run out EARLY,
+	/// never late.
+	///
+	/// This is the fix's whole point. A local stopwatch started AFTER the row was
+	/// stamped `now() + lease` measures the wrong interval from a start point already
+	/// later than the database's, so it expires strictly AFTER the row became
+	/// reclaimable: the "margin" pointed the wrong way and guaranteed the overlap it
+	/// was meant to reduce. Note "reduce": fencing is what makes overlap SAFE (§6);
+	/// this only makes it rarer.
+	/// </summary>
+	private readonly record struct ConfirmedLease {
+		private ConfirmedLease(TimeSpan safeIntervalAtConfirmation, long anchor) {
+			SafeIntervalAtConfirmation = safeIntervalAtConfirmation;
+			Anchor = anchor;
+		}
+
+		private TimeSpan SafeIntervalAtConfirmation { get; }
+		private long Anchor { get; }
+
+		public static ConfirmedLease From(LeaseStamp stamp, long anchor, TimeSpan safetyMargin) {
+			return new ConfirmedLease(
+				stamp.LockedUntil - stamp.DatabaseNow - safetyMargin, anchor
+			);
+		}
+
+		/// <summary>
+		/// How long is left before the safe deadline. Non-positive means the margin
+		/// is spent: ownership must be abandoned rather than assumed.
+		/// </summary>
+		public TimeSpan RemainingSafeInterval() {
+			return SafeIntervalAtConfirmation - Stopwatch.GetElapsedTime(Anchor);
+		}
+	}
+
+	// §5.1/R2-4: max(2 s, lease/20). The floor is what makes a lease shorter than a
+	// few seconds unusable by construction — there is no interval in which such a
+	// lease could be renewed with any margin at all, and pretending otherwise is how
+	// a renewal loop ends up racing the reclaimer it was written to avoid.
+	private TimeSpan SafetyMargin() {
+		return TimeSpan.FromSeconds(Math.Max(2.0, _options.LeaseSeconds / 20.0));
+	}
+
 	// Re-stamps the lease at lease/2 cadence while the handler runs, on its OWN scope
 	// and connection (the job scope's DbContext is busy with the handler's work).
 	// A renewal that returns zero rows is a definitively lost lease → cancel the
-	// handler. A renewal that FAILS transiently (DB hiccup) is retried on a short
-	// interval within the remaining lease window; if a FULL lease window elapses
-	// without one confirmed stamp, ownership is uncertain and the handler is
-	// cancelled — the fence still protects every transition either way (§6).
+	// handler at once; that is the only CERTAIN signal. A renewal that FAILS
+	// transiently (DB hiccup) leaves ownership UNKNOWN, not lost: it is retried on a
+	// fresh scope/connection, but only within the confirmed safe interval, and no
+	// sleep or database command is ever deliberately started beyond the safe deadline.
+	//
+	// Abandonment itself is NOT this task's job. It is armed on the CTS's own timer
+	// (see below), because this task is exactly the thing that cannot be trusted to
+	// notice: a renewal blocked in a hung database command — no CommandTimeout is set
+	// — would otherwise never reach any deadline check at all. The fence still
+	// protects every transition either way (§6).
 	private async Task RenewLeaseLoopAsync(
 		Guid jobId,
 		Guid lockToken,
+		ConfirmedLease initial,
 		CancellationTokenSource leaseLostSource,
 		CancellationToken stopRenewal
 	) {
-		var leaseWindow = TimeSpan.FromSeconds(_options.LeaseSeconds);
 		var renewInterval = TimeSpan.FromSeconds(_options.LeaseSeconds / 2.0);
 		var retryInterval = TimeSpan.FromSeconds(Math.Max(0.25, _options.LeaseSeconds / 8.0));
 
-		// The pre-dispatch re-stamp in ProcessOneAsync is the loop's time zero.
-		var sinceConfirmedStamp = Stopwatch.StartNew();
-		var wait = renewInterval;
+		var confirmed = initial;
+		var proposedDelay = renewInterval;
+
+		if (!await ArmDeadlineAsync(leaseLostSource, confirmed, jobId)) {
+			return;
+		}
 
 		while (!stopRenewal.IsCancellationRequested) {
-			try {
-				await Task.Delay(wait, stopRenewal);
-			} catch (OperationCanceledException) {
+			var remaining = confirmed.RemainingSafeInterval();
+			if (remaining <= TimeSpan.Zero) {
+				await AbandonAtDeadlineAsync(leaseLostSource, jobId);
 				return;
 			}
 
 			try {
+				// The actual delay is min(proposedDelay, remainingSafeInterval): a
+				// retry cadence of lease/8 is a PROPOSAL, and sleeping it whole would
+				// happily step past the deadline it exists to respect.
+				await Task.Delay(proposedDelay < remaining ? proposedDelay : remaining, stopRenewal);
+			} catch (OperationCanceledException) {
+				return;
+			}
+
+			// The sleep was capped to the deadline, so arriving here with nothing left
+			// means the margin is spent and no further command may be started.
+			if (confirmed.RemainingSafeInterval() <= TimeSpan.Zero) {
+				await AbandonAtDeadlineAsync(leaseLostSource, jobId);
+				return;
+			}
+
+			try {
+				var anchor = Stopwatch.GetTimestamp();
+
 				using var scope = _scopeFactory.CreateScope();
 				var renewalContext =
 					scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-				var renewed = await TryRenewLeaseAsync(
+				var stamp = await TryRenewLeaseAsync(
 					renewalContext, jobId, lockToken, _options.LeaseSeconds, stopRenewal
 				);
-				if (!renewed) {
+				if (stamp is null) {
 					await leaseLostSource.CancelAsync();
 					return;
 				}
 
-				sinceConfirmedStamp.Restart();
-				wait = renewInterval;
+				confirmed = ConfirmedLease.From(stamp, anchor, SafetyMargin());
+				if (!await ArmDeadlineAsync(leaseLostSource, confirmed, jobId)) {
+					return;
+				}
+
+				proposedDelay = renewInterval;
 			} catch (OperationCanceledException) {
 				return;
 			} catch (Exception ex) {
-				if (sinceConfirmedStamp.Elapsed >= leaseWindow) {
-					// No confirmed stamp for a full lease window: the lease may have
-					// expired and been reclaimed — ownership is uncertain, so stop
-					// the handler rather than risk racing a new claimant's work.
-					_logger.LogWarning(
-						ex,
-						"Lease renewal for job {JobId} failed for a full lease "
-						+ "window; treating ownership as lost and cancelling the "
-						+ "handler",
-						jobId
-					);
-					await leaseLostSource.CancelAsync();
-					return;
-				}
-
+				// Transient: ownership is unknown, not lost. Keep trying until the
+				// confirmed deadline says otherwise — the timer, not this loop, is
+				// what guarantees the handler stops.
 				_logger.LogWarning(
-					ex,
-					"Lease renewal attempt failed for job {JobId}; retrying within "
-					+ "the lease window",
-					jobId
+					"Lease renewal attempt failed for job {JobId}; retrying within the "
+					+ "confirmed lease deadline: {FailureDescription} {FailureStack}",
+					jobId,
+					JobErrorSanitizer.Describe(ex),
+					JobErrorSanitizer.DescribeStack(ex)
 				);
-				wait = retryInterval;
+				proposedDelay = retryInterval;
 			}
 		}
+	}
+
+	// The dedicated deadline timer (§5.1, R2-4). The CancellationTokenSource's own
+	// timer fires independently of the renewal task, so the handler is cancelled at
+	// the safe deadline EVEN IF that task is blocked — which is the case the spec's
+	// "even if the retry task is blocked" clause exists for. Each confirmed stamp
+	// re-arms it; CancelAfter replaces the pending fire rather than adding one.
+	private async Task<bool> ArmDeadlineAsync(
+		CancellationTokenSource leaseLostSource,
+		ConfirmedLease confirmed,
+		Guid jobId
+	) {
+		var remaining = confirmed.RemainingSafeInterval();
+
+		if (remaining <= TimeSpan.Zero) {
+			await AbandonAtDeadlineAsync(leaseLostSource, jobId);
+			return false;
+		}
+
+		leaseLostSource.CancelAfter(remaining);
+		return true;
+	}
+
+	private async Task AbandonAtDeadlineAsync(
+		CancellationTokenSource leaseLostSource,
+		Guid jobId
+	) {
+		if (_logger.IsEnabled(LogLevel.Warning)) {
+			_logger.LogWarning(
+				"Lease renewal for job {JobId} reached its confirmed safe deadline "
+				+ "without a fresh stamp; treating ownership as lost and cancelling "
+				+ "the handler",
+				jobId
+			);
+		}
+
+		await leaseLostSource.CancelAsync();
 	}
 
 	// --- helpers ---------------------------------------------------------------------
@@ -841,7 +1139,11 @@ public sealed class JobQueueProcessor : BackgroundService {
 		} catch (Exception ex) {
 			// Release is best-effort: the lease + fence still guarantee safe reclaim
 			// after expiry even if this cleanup itself fails (§6).
-			_logger.LogWarning(ex, "Releasing unsettled claimed jobs failed");
+			_logger.LogWarning(
+				"Releasing unsettled claimed jobs failed: {FailureDescription} {FailureStack}",
+				JobErrorSanitizer.Describe(ex),
+				JobErrorSanitizer.DescribeStack(ex)
+			);
 		}
 	}
 
@@ -864,7 +1166,12 @@ public sealed class JobQueueProcessor : BackgroundService {
 				dbContext, _logger, stoppingToken
 			);
 		} catch (Exception ex) when (ex is not OperationCanceledException) {
-			_logger.LogWarning(ex, "Dead-letter orphan check failed at startup");
+			_logger.LogWarning(
+				"Dead-letter orphan check failed at startup: {FailureDescription} "
+				+ "{FailureStack}",
+				JobErrorSanitizer.Describe(ex),
+				JobErrorSanitizer.DescribeStack(ex)
+			);
 		}
 	}
 

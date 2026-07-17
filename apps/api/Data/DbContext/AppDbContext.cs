@@ -415,6 +415,13 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 
 			entity.HasIndex(e => new { e.JobType, e.FailedAt })
 				.HasDatabaseName("ix_job_dead_letter_job_type");
+
+			// Walks the requeue chain backward/forward across re-dead-letterings
+			// (§4.2, F16/C9). Partial: the column is NULL for every originally-
+			// enqueued job, which is nearly all of them.
+			entity.HasIndex(e => e.RequeuedFromDeadLetterId)
+				.HasDatabaseName("ix_job_dead_letter_requeued_from")
+				.HasFilter("requeued_from_dead_letter_id IS NOT NULL");
 		});
 
 		// Partial indexes to favor active rows without enforcing global filters

@@ -186,6 +186,7 @@ public sealed class JobHandlerScopingSpec : IClassFixture<ApiFixture> {
 		registerHandler(services);
 		services.AddSingleton(registration);
 		services.AddSingleton<JobHandlerRegistry>();
+		services.AddSingleton<JobWorkerInstance>();
 		services.AddSingleton<JobsMetrics>();
 
 		return services.BuildServiceProvider(new ServiceProviderOptions {
@@ -199,6 +200,7 @@ public sealed class JobHandlerScopingSpec : IClassFixture<ApiFixture> {
 			provider.GetRequiredService<IServiceScopeFactory>(),
 			provider.GetRequiredService<JobHandlerRegistry>(),
 			provider.GetRequiredService<JobsMetrics>(),
+			provider.GetRequiredService<JobWorkerInstance>(),
 			NullLogger<JobQueueProcessor>.Instance
 		);
 	}

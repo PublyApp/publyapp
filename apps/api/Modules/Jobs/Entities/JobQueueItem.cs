@@ -94,6 +94,14 @@ public class JobQueueItem : INoTenantEntity {
 	[Column("correlation_id")]
 	public string? CorrelationId { get; set; }
 
+	// DLQ requeue lineage (F16/C9, §4.1): the job_dead_letter row a staff requeue
+	// produced this job from; NULL for originally-enqueued jobs. The REQUEUE
+	// OPERATION is Phase 4's — this column lands with the engine so that operation
+	// needs no migration of its own, and JobDeadLetter.FromJob copies it forward so a
+	// requeued job that dead-letters again preserves the whole chain.
+	[Column("requeued_from_dead_letter_id")]
+	public Guid? RequeuedFromDeadLetterId { get; set; }
+
 	// DB-generated (defaults + SQL SET in every engine transition) — F11.
 	[Column("created_at")]
 	public DateTime CreatedAt { get; set; }

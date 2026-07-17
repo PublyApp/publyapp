@@ -53,6 +53,17 @@ namespace PublyApp.Api.Migrations
                 type: "uuid",
                 nullable: true);
 
+            // F16/C9 requeue lineage (§4.1/§4.2). The requeue OPERATION is Phase 4's,
+            // but the columns are the engine's envelope: landing them here keeps that
+            // operation a pure code change and keeps FromJob able to copy the chain
+            // forward from the moment the engine can dead-letter at all. NULL for
+            // every originally-enqueued job, so no backfill exists or is owed.
+            migrationBuilder.AddColumn<Guid>(
+                name: "requeued_from_dead_letter_id",
+                table: "job_queue",
+                type: "uuid",
+                nullable: true);
+
             // F16 lineage: fail-clear rather than fabricate. original_job_id was
             // nullable pre-envelope but the engine always wrote it, so a NULL here
             // means manual tampering — abort the migration instead of stamping a
@@ -146,6 +157,33 @@ namespace PublyApp.Api.Migrations
                 type: "uuid",
                 nullable: true);
 
+            // Lineage IN (copied forward by JobDeadLetter.FromJob) + lineage OUT
+            // (written only by Phase 4's RequeueDeadLetterAsync) — §4.2, F16/C9.
+            migrationBuilder.AddColumn<Guid>(
+                name: "requeued_from_dead_letter_id",
+                table: "job_dead_letter",
+                type: "uuid",
+                nullable: true);
+
+            migrationBuilder.AddColumn<Guid>(
+                name: "requeued_as_job_id",
+                table: "job_dead_letter",
+                type: "uuid",
+                nullable: true);
+
+            migrationBuilder.AddColumn<DateTime>(
+                name: "requeued_at",
+                table: "job_dead_letter",
+                type: "timestamp with time zone",
+                nullable: true);
+
+            // Follow the requeue chain backward/forward across re-dead-letterings.
+            migrationBuilder.CreateIndex(
+                name: "ix_job_dead_letter_requeued_from",
+                table: "job_dead_letter",
+                column: "requeued_from_dead_letter_id",
+                filter: "requeued_from_dead_letter_id IS NOT NULL");
+
             migrationBuilder.CreateIndex(
                 name: "ix_job_queue_claim",
                 table: "job_queue",
@@ -206,6 +244,10 @@ namespace PublyApp.Api.Migrations
                 name: "ux_job_queue_type_idempotency",
                 table: "job_queue");
 
+            migrationBuilder.DropIndex(
+                name: "ix_job_dead_letter_requeued_from",
+                table: "job_dead_letter");
+
             migrationBuilder.DropCheckConstraint(
                 name: "ck_job_queue_max_attempts",
                 table: "job_queue");
@@ -228,6 +270,10 @@ namespace PublyApp.Api.Migrations
 
             migrationBuilder.DropColumn(
                 name: "tenant_id",
+                table: "job_queue");
+
+            migrationBuilder.DropColumn(
+                name: "requeued_from_dead_letter_id",
                 table: "job_queue");
 
             migrationBuilder.DropColumn(
@@ -260,6 +306,18 @@ namespace PublyApp.Api.Migrations
 
             migrationBuilder.DropColumn(
                 name: "tenant_id",
+                table: "job_dead_letter");
+
+            migrationBuilder.DropColumn(
+                name: "requeued_from_dead_letter_id",
+                table: "job_dead_letter");
+
+            migrationBuilder.DropColumn(
+                name: "requeued_as_job_id",
+                table: "job_dead_letter");
+
+            migrationBuilder.DropColumn(
+                name: "requeued_at",
                 table: "job_dead_letter");
 
             migrationBuilder.AlterColumn<int>(

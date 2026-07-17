@@ -64,6 +64,21 @@ public class JobDeadLetter : INoTenantEntity {
 	[Column("locked_by")]
 	public string? LockedBy { get; set; }
 
+	// Requeue lineage (F16/C9, §4.2). IN: the prior DLQ row the job that produced
+	// THIS row was requeued from — copied forward by FromJob, so re-dead-lettering a
+	// requeued job preserves the chain back to the original failure, which
+	// ix_job_dead_letter_requeued_from walks. OUT: the job_queue row a staff requeue
+	// produced from this row, and when. Phase 4's RequeueDeadLetterAsync is the sole
+	// writer of the OUT pair; both are NULL until it runs.
+	[Column("requeued_from_dead_letter_id")]
+	public Guid? RequeuedFromDeadLetterId { get; set; }
+
+	[Column("requeued_as_job_id")]
+	public Guid? RequeuedAsJobId { get; set; }
+
+	[Column("requeued_at")]
+	public DateTime? RequeuedAt { get; set; }
+
 	// DB-generated defaults (F11): no C# initializers.
 	[Column("failed_at")]
 	public DateTime FailedAt { get; set; }
@@ -91,7 +106,11 @@ public class JobDeadLetter : INoTenantEntity {
 			EnqueuedAt = job.CreatedAt,
 			Attempts = attempts,
 			LastError = lastError,
-			LockedBy = job.LockedBy
+			LockedBy = job.LockedBy,
+			// Carry the chain forward (§4.2, C9): if this job was itself a requeue of
+			// an earlier DLQ row, the new terminal record must still point back at it
+			// — otherwise the lineage ends at whichever failure happened to be last.
+			RequeuedFromDeadLetterId = job.RequeuedFromDeadLetterId
 		};
 	}
 }

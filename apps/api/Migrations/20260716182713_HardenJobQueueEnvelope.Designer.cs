@@ -420,6 +420,18 @@ namespace PublyApp.Api.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("priority");
 
+                    b.Property<Guid?>("RequeuedAsJobId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("requeued_as_job_id");
+
+                    b.Property<DateTime?>("RequeuedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("requeued_at");
+
+                    b.Property<Guid?>("RequeuedFromDeadLetterId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("requeued_from_dead_letter_id");
+
                     b.Property<Guid?>("TenantId")
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
@@ -429,6 +441,10 @@ namespace PublyApp.Api.Migrations
 
                     b.HasIndex("JobType", "FailedAt")
                         .HasDatabaseName("ix_job_dead_letter_job_type");
+
+                    b.HasIndex("RequeuedFromDeadLetterId")
+                        .HasDatabaseName("ix_job_dead_letter_requeued_from")
+                        .HasFilter("requeued_from_dead_letter_id IS NOT NULL");
 
                     b.ToTable("job_dead_letter");
                 });
@@ -510,6 +526,10 @@ namespace PublyApp.Api.Migrations
                         .HasColumnType("integer")
                         .HasDefaultValue(0)
                         .HasColumnName("priority");
+
+                    b.Property<Guid?>("RequeuedFromDeadLetterId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("requeued_from_dead_letter_id");
 
                     b.Property<int>("Status")
                         .ValueGeneratedOnAdd()

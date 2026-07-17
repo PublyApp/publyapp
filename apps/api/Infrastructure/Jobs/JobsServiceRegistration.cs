@@ -22,7 +22,11 @@ public static class JobsServiceRegistration {
 		// Singletons: the registry's fail-fast duplicate check runs once at startup
 		// over the JobHandlerRegistration descriptors (it holds types + factories,
 		// never handler instances); the metrics wrapper owns process-wide Meter
-		// instruments.
+		// instruments; the worker instance id is generated exactly once per replica
+		// and shared, because §7.1 requires the metrics `instance` tag and
+		// job_queue.locked_by to be the SAME value — a second registration of a
+		// second generator is the one way to break that silently.
+		builder.Services.AddSingleton<JobWorkerInstance>();
 		builder.Services.AddSingleton<JobsMetrics>();
 		builder.Services.AddSingleton<JobHandlerRegistry>();
 		builder.Services.AddHostedService<JobQueueProcessor>();

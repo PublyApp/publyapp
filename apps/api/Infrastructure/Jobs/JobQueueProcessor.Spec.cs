@@ -233,9 +233,16 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 
 	// --- full-batch lease survival via re-stamp + renewal (F1/F23) ------------------
 
-	// Three slow jobs on a 2 s lease: without the per-dispatch re-stamp and lease/2
-	// renewal, the batch tail would start on a spent lease. With them, every job
+	// Three slow jobs (3.5 s each) on a 6 s lease: the batch tail starts at t≈7 s,
+	// past the lease the claim took at t=0, so without the per-dispatch re-stamp and
+	// the lease/2 renewal it would run on a spent lease. With them, every job
 	// completes and nothing is reclaimed or lost.
+	//
+	// The lease is 6 s rather than 2 s because the spec's own safety margin —
+	// max(2 s, lease/20), §5.1/R2-4 — makes any lease at or below 2 s unusable by
+	// construction: there is no interval left in which to renew with a margin. The
+	// handler delay is raised to keep the tail past the lease, so the test still
+	// proves what its name claims.
 	[Fact]
 	public async Task ItShouldKeepASlowSerialBatchLeasedViaRestampAndRenewal() {
 		var jobType = UniqueType("slow-batch");
@@ -244,10 +251,10 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 
 		try {
 			var handler = new RecordingJobHandler(jobType) {
-				Delay = TimeSpan.FromSeconds(1.5)
+				Delay = TimeSpan.FromSeconds(3.5)
 			};
 			var processor = CreateProcessor(
-				new JobQueueProcessorOptions { LeaseSeconds = 2, BatchSize = 20 },
+				new JobQueueProcessorOptions { LeaseSeconds = 6, BatchSize = 20 },
 				handler
 			);
 
@@ -266,11 +273,13 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 
 	// --- renewal vs a live reclaim adversary (F1/F23, review finding 4) ------------
 
-	// One job running LONGER than its lease (5 s work, 2 s lease) while an adversary
+	// One job running LONGER than its lease (8 s work, 6 s lease) while an adversary
 	// loops the genuine reclaim path (reset expired leases + claim) every 200 ms.
 	// Only working lease renewal keeps the row out of the adversary's hands: if
-	// renewal breaks, the lease genuinely expires, the adversary steals the row, and
-	// the original owner's outcome is fenced to zero rows — failing the assertions.
+	// renewal breaks, the lease genuinely expires at t≈6 s, the adversary steals the
+	// row within 200 ms, and the original owner's outcome is fenced to zero rows —
+	// failing the assertions. (Lease 6 s, not 2 s: see the slow-batch spec above —
+	// §5.1's max(2 s, lease/20) margin leaves a 2 s lease no room to renew at all.)
 	[Fact]
 	public async Task ItShouldKeepARunningJobsLeaseAliveAgainstAConcurrentReclaimAdversary() {
 		var jobType = UniqueType("adversary");
@@ -285,12 +294,12 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			var handler = new RecordingJobHandler(jobType) {
 				OnHandle = async _ => {
 					started.TrySetResult();
-					// Runs well past the 2 s lease: only renewal keeps ownership.
-					await Task.Delay(TimeSpan.FromSeconds(5));
+					// Runs well past the 6 s lease: only renewal keeps ownership.
+					await Task.Delay(TimeSpan.FromSeconds(8));
 				}
 			};
 			var processor = CreateProcessor(
-				new JobQueueProcessorOptions { LeaseSeconds = 2 },
+				new JobQueueProcessorOptions { LeaseSeconds = 6 },
 				handler
 			);
 
@@ -731,10 +740,12 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			var registry = new JobHandlerRegistry([
 				new JobHandlerRegistration(jobType, _ => driftedHandler)
 			]);
+			var instance = new JobWorkerInstance();
 			var processor = new JobQueueProcessor(
 				_fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
 				registry,
-				new JobsMetrics(NullLogger<JobsMetrics>.Instance),
+				new JobsMetrics(instance, NullLogger<JobsMetrics>.Instance),
+				instance,
 				NullLogger<JobQueueProcessor>.Instance
 			);
 
@@ -791,6 +802,69 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 				.SingleOrDefaultAsync(j => j.Id == row.Id);
 			queueRow.Should().BeNull(
 				"a payload that can never parse gains nothing from retries"
+			);
+
+			var deadLetter = await verifyContext.JobDeadLetter
+				.SingleAsync(d => d.OriginalJobId == row.Id);
+			deadLetter.LastError.Should().StartWith("JsonException");
+		} finally {
+			await DeleteJobsByTypeAsync(jobType);
+		}
+	}
+
+	// §5.1's invalid-before-handler settlement (R6-4/O21) — the #810 regression guard.
+	// A payload that can never parse means no handler was legitimately REACHED, even
+	// though an instance had to be constructed to discover that, so the terminal hook
+	// must not run. This hook throws exactly as 2C's email hook will: that hook
+	// reloads its recipient from the payload's ids, and email_log.recipient is NOT
+	// NULL, so a malformed payload reaching it throws.
+	//
+	// Before the JobDispatch restructure the guard asked "is there a handler object"
+	// rather than "was a handler reached", so the hook ran here: it threw, the whole
+	// terminal step rolled back, the still-leased row revived, and it dead-lettered
+	// and rolled back again on every lease expiry — an infinite lease loop. The job
+	// must instead go straight to the DLQ, hook untouched.
+	[Fact]
+	public async Task ItShouldSkipTheTerminalHookAndDeadLetterWhenThePayloadCannotParse() {
+		var jobType = UniqueType("invalid-payload-hook");
+		await using var dbContext = await CreateDbContextAsync();
+
+		try {
+			var row = NewJob(jobType);
+			row.Payload = """{"unexpected": "shape"}""";
+			await dbContext.JobQueue.AddAsync(row);
+			await dbContext.SaveChangesAsync();
+
+			var claimed = await ClaimSingleAsync(dbContext, row);
+			var handler = new RecordingJobHandler(jobType) {
+				OnHandle = context => {
+					// The missing required member throws JsonException from inside a
+					// live handler — the case the old guard could not see.
+					context.DeserializePayload<RequiredIdPayload>();
+					return Task.CompletedTask;
+				},
+				ThrowOnTerminal = true
+			};
+			var processor = CreateProcessor(handler);
+
+			var result = await processor.ProcessOneAsync(
+				row, claimed.LockToken, CancellationToken.None
+			);
+
+			result.Should().Be(
+				JobQueueProcessor.JobExecutionResult.Completed,
+				"the dead-letter committed; a Faulted result would mean the hook ran "
+				+ "and rolled the terminal step back"
+			);
+			handler.TerminalContexts.Should().BeEmpty(
+				"no handler was legitimately reached, so step 3 never fires"
+			);
+
+			await using var verifyContext = await CreateDbContextAsync();
+			var queueRow = await verifyContext.JobQueue
+				.SingleOrDefaultAsync(j => j.Id == row.Id);
+			queueRow.Should().BeNull(
+				"the job dead-letters once instead of reviving on every lease expiry"
 			);
 
 			var deadLetter = await verifyContext.JobDeadLetter
@@ -1047,6 +1121,239 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 		}
 	}
 
+	// --- renewal: the DB-confirmed deadline + its safety margin (§5.1, R2-4) ---------
+
+	// The renewal statement must hand back the deadline the DATABASE wrote and the
+	// database clock that computed it, because that deadline — not any app-side timer
+	// — is what ResetExpiredLeasesAsync compares against when it decides the row is
+	// reclaimable (F11). A bool return forces the caller to guess it.
+	[Fact]
+	public async Task ItShouldReturnTheDatabaseComputedDeadlineAndClockFromALeaseRenewal() {
+		var jobType = UniqueType("renew-stamp");
+		await using var dbContext = await CreateDbContextAsync();
+
+		try {
+			var claimed = await SeedAndClaimOneAsync(dbContext, jobType, "worker-a");
+
+			var stamp = await JobQueueProcessor.TryRenewLeaseAsync(
+				dbContext, claimed.Id, claimed.LockToken, 120, CancellationToken.None
+			);
+
+			Assert.NotNull(stamp);
+			(stamp.LockedUntil - stamp.DatabaseNow).Should().BeCloseTo(
+				TimeSpan.FromSeconds(120),
+				TimeSpan.FromMilliseconds(1),
+				"both terms come from the same statement's now(), so the confirmed "
+				+ "window is exactly the lease — measured entirely in database time"
+			);
+
+			await using var verifyContext = await CreateDbContextAsync();
+			var row = await verifyContext.JobQueue.SingleAsync(j => j.Id == claimed.Id);
+			row.LockedUntil.Should().Be(
+				stamp.LockedUntil, "the returned deadline is the one the row carries"
+			);
+
+			// A stale fence renews nothing and says so — the confirmed-loss signal.
+			var fenced = await JobQueueProcessor.TryRenewLeaseAsync(
+				dbContext, claimed.Id, Guid.NewGuid(), 120, CancellationToken.None
+			);
+			fenced.Should().BeNull();
+		} finally {
+			await DeleteJobsByTypeAsync(jobType);
+		}
+	}
+
+	// The margin must point the RIGHT way: cancellation lands BEFORE the row becomes
+	// reclaimable, never after. A 2 s lease has a 2 s margin — max(2 s, lease/20) —
+	// so its safe interval is zero and ownership must be abandoned at once, while the
+	// row is still leased.
+	//
+	// Under the old local-stopwatch loop this test hangs instead: the stopwatch was
+	// started AFTER the database had already stamped now() + lease, it was compared
+	// against a FULL lease window with no margin at all, and that comparison only ran
+	// inside the renewal's catch — so a renewal that kept succeeding (as it does here)
+	// meant the deadline was never evaluated and the handler ran on forever.
+	[Fact]
+	public async Task ItShouldCancelTheHandlerBeforeTheRowIsReclaimableWhenTheLeaseLeavesNoSafetyMargin() {
+		var jobType = UniqueType("no-margin");
+		await using var dbContext = await CreateDbContextAsync();
+
+		try {
+			var claimed = await SeedAndClaimOneAsync(dbContext, jobType, "worker-a");
+			var item = await dbContext.JobQueue.SingleAsync(j => j.Id == claimed.Id);
+
+			// Would outlive any lease; only the deadline timer stops it.
+			var handler = new RecordingJobHandler(jobType) {
+				Delay = TimeSpan.FromSeconds(30)
+			};
+			var processor = CreateProcessor(
+				new JobQueueProcessorOptions { LeaseSeconds = 2 },
+				handler
+			);
+
+			var result = await processor
+				.ProcessOneAsync(item, claimed.LockToken, CancellationToken.None)
+				.WaitAsync(TimeSpan.FromSeconds(20));
+
+			result.Should().Be(
+				JobQueueProcessor.JobExecutionResult.LeaseLost,
+				"a lease with no safe interval left is abandoned, not assumed"
+			);
+
+			await using var verifyContext = await CreateDbContextAsync();
+			(await IsStillLeasedAsync(verifyContext, claimed.Id)).Should().BeTrue(
+				"the handler must be cancelled while the row is still ours — a margin "
+				+ "that expires after the row is reclaimable is not a margin"
+			);
+
+			var dlqCount = await verifyContext.JobDeadLetter
+				.CountAsync(d => d.JobType == jobType);
+			dlqCount.Should().Be(0, "a discarded outcome must not dead-letter");
+		} finally {
+			await DeleteJobsByTypeAsync(jobType);
+		}
+	}
+
+	// --- requeue lineage columns (F16/C9, §4.1/§4.2) ---------------------------------
+
+	// The columns and the FromJob copy land with the engine so Phase 4's
+	// RequeueDeadLetterAsync is a pure code change. The chain is what is being
+	// proven: a job that was requeued from an earlier DLQ row and dead-letters AGAIN
+	// must still point back at that row, or the lineage silently ends at whichever
+	// failure happened to be last.
+	[Fact]
+	public async Task ItShouldCarryRequeueLineageForwardWhenARequeuedJobDeadLettersAgain() {
+		var jobType = UniqueType("lineage");
+		await using var dbContext = await CreateDbContextAsync();
+
+		try {
+			var ancestorDeadLetterId = Guid.NewGuid();
+			var row = NewJob(jobType);
+			row.MaxAttempts = 1;
+			row.RequeuedFromDeadLetterId = ancestorDeadLetterId;
+			await dbContext.JobQueue.AddAsync(row);
+			await dbContext.SaveChangesAsync();
+
+			var claimed = await ClaimSingleAsync(dbContext, row);
+			var handler = new RecordingJobHandler(jobType) {
+				Outcome = new JobOutcome.Retry(Error: "still failing")
+			};
+			var processor = CreateProcessor(handler);
+
+			await processor.ProcessOneAsync(row, claimed.LockToken, CancellationToken.None);
+
+			await using var verifyContext = await CreateDbContextAsync();
+			var deadLetter = await verifyContext.JobDeadLetter
+				.SingleAsync(d => d.OriginalJobId == row.Id);
+
+			deadLetter.RequeuedFromDeadLetterId.Should().Be(
+				ancestorDeadLetterId, "FromJob copies the chain forward (§4.2)"
+			);
+			deadLetter.RequeuedAsJobId.Should().BeNull("the requeue OUT pair is Phase 4's");
+			deadLetter.RequeuedAt.Should().BeNull();
+		} finally {
+			await DeleteJobsByTypeAsync(jobType);
+		}
+	}
+
+	// §7.1: every engine instrument carries `instance` + `job_type`, and `instance`
+	// is "the worker's stable runtime replica id — the SAME value used for
+	// locked_by". That last clause is the assertion that matters: two independently
+	// generated ids would tag every instrument, satisfy every signature, and
+	// correlate nothing. So the tag is compared against the string the claim actually
+	// wrote to job_queue.locked_by, read mid-run while the row is still leased.
+	//
+	// jobs.last_success_at is checked here too — it is the gauge that makes a stalled
+	// job type detectable as an ageing timestamp rather than as silence.
+	[Fact]
+	public async Task ItShouldTagEveryInstrumentWithTheSameInstanceIdItWritesToLockedBy() {
+		var jobType = UniqueType("instance-tag");
+		await using var seedContext = await CreateDbContextAsync();
+		var seededIds = await SeedDueJobsAsync(seedContext, jobType, count: 1);
+		var jobId = seededIds.Single();
+
+		try {
+			string? lockedByDuringRun = null;
+			var handler = new RecordingJobHandler(jobType) {
+				OnHandle = async context => {
+					// Read the claim's own locked_by while the lease is still held —
+					// success hard-deletes the row moments later.
+					await using var probe = await CreateDbContextAsync();
+					lockedByDuringRun = await probe.JobQueue
+						.Where(j => j.Id == context.JobId)
+						.Select(j => j.LockedBy)
+						.SingleAsync();
+				}
+			};
+
+			var instance = new JobWorkerInstance();
+			var processor = CreateProcessor(instance, new JobQueueProcessorOptions(), handler);
+
+			var instanceTags = new List<string>();
+			long lastSuccessAt = 0;
+
+			using var listener = new MeterListener();
+			listener.InstrumentPublished = (instrument, meterListener) => {
+				if (instrument.Meter.Name == JobsMetrics.MeterName) {
+					meterListener.EnableMeasurementEvents(instrument);
+				}
+			};
+			listener.SetMeasurementEventCallback<long>((instrument, value, tags, _) => {
+				if (!HasTag(tags, "job_type", jobType)) {
+					return;
+				}
+
+				var instanceTag = TagValue(tags, "instance");
+				if (instanceTag is not null) {
+					lock (instanceTags) {
+						instanceTags.Add(instanceTag);
+					}
+				}
+
+				if (instrument.Name == "jobs.last_success_at") {
+					Interlocked.Exchange(ref lastSuccessAt, value);
+				}
+			});
+			listener.SetMeasurementEventCallback<double>((_, _, tags, _) => {
+				if (!HasTag(tags, "job_type", jobType)) {
+					return;
+				}
+
+				var instanceTag = TagValue(tags, "instance");
+				if (instanceTag is not null) {
+					lock (instanceTags) {
+						instanceTags.Add(instanceTag);
+					}
+				}
+			});
+			listener.Start();
+
+			var result = await processor.ProcessBatchAsync(CancellationToken.None);
+			result.Completed.Should().Be(1);
+
+			lockedByDuringRun.Should().Be(
+				instance.Id,
+				"the claim writes the injected instance id to locked_by — §7.1's "
+				+ "`instance` and locked_by are one generated value, not two"
+			);
+
+			// jobs.claimed, jobs.succeeded, jobs.last_success_at and
+			// jobs.handler_duration all fire for this job type in this batch.
+			instanceTags.Should().HaveCountGreaterThan(
+				2, "every engine instrument carries the instance tag"
+			);
+			instanceTags.Should().AllBe(instance.Id);
+
+			Interlocked.Read(ref lastSuccessAt).Should().BeCloseTo(
+				DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+				60,
+				"jobs.last_success_at is a unix-timestamp gauge recorded on success"
+			);
+		} finally {
+			await DeleteJobsByTypeAsync(jobType);
+		}
+	}
+
 	// --- drain loop (F10/F23) --------------------------------------------------------
 
 	[Fact]
@@ -1244,6 +1551,18 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 		return claimed.Single(c => c.Id == row.Id);
 	}
 
+	// Asked of the database, not of an app clock: "still leased" means exactly what
+	// ResetExpiredLeasesAsync means by it (F11).
+	private static async Task<bool> IsStillLeasedAsync(AppDbContext dbContext, Guid jobId) {
+		var leased = await dbContext.Database.SqlQuery<bool>(
+			$"""
+			SELECT (locked_until > now()) AS "Value" FROM job_queue WHERE id = {jobId}
+			"""
+		).ToListAsync();
+
+		return leased.Single();
+	}
+
 	private static async Task ExpireLeaseAsync(AppDbContext dbContext, Guid jobId) {
 		await dbContext.Database.ExecuteSqlAsync(
 			$"""
@@ -1281,6 +1600,17 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 		JobQueueProcessorOptions options,
 		params IJobHandler[] handlers
 	) {
+		return CreateProcessor(new JobWorkerInstance(), options, handlers);
+	}
+
+	// The instance id is threaded in rather than minted inside, so a spec can assert
+	// the value the engine tags its instruments with IS the value it claims rows under
+	// (§7.1).
+	private JobQueueProcessor CreateProcessor(
+		JobWorkerInstance instance,
+		JobQueueProcessorOptions options,
+		params IJobHandler[] handlers
+	) {
 		var registrations = handlers
 			.Select(h => new JobHandlerRegistration(h.JobType, _ => h))
 			.ToList();
@@ -1288,7 +1618,8 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 		return new JobQueueProcessor(
 			_fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
 			new JobHandlerRegistry(registrations),
-			new JobsMetrics(NullLogger<JobsMetrics>.Instance),
+			new JobsMetrics(instance, NullLogger<JobsMetrics>.Instance),
+			instance,
 			NullLogger<JobQueueProcessor>.Instance,
 			options
 		);
