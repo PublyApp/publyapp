@@ -16,6 +16,10 @@
 		<PackageReference Include="Testcontainers" />
 		<PackageReference Include="Testcontainers.PostgreSql" />
 		<PackageReference Include="FluentAssertions" />
+		<!-- Lexer for the JobEnqueueBoundary architecture guard: Roslyn's own C#
+		     scanner produces the literal-masked view (version pinned centrally in
+		     Directory.Packages.props, shared with packages/lint-cs). -->
+		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
 	</ItemGroup>
 
 	<ItemGroup>

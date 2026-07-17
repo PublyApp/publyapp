@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PublyApp.Api.Data.DbContext;
@@ -11,9 +12,11 @@ using PublyApp.Api.Data.DbContext;
 namespace PublyApp.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260716173219_AddJobQueue")]
+    partial class AddJobQueue
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -355,17 +358,9 @@ namespace PublyApp.Api.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("uuidv7()");
 
-                    b.Property<Guid?>("ActorUserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("actor_user_id");
-
                     b.Property<int>("Attempts")
                         .HasColumnType("integer")
                         .HasColumnName("attempts");
-
-                    b.Property<string>("CorrelationId")
-                        .HasColumnType("text")
-                        .HasColumnName("correlation_id");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -373,19 +368,11 @@ namespace PublyApp.Api.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("now()");
 
-                    b.Property<DateTime>("EnqueuedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("enqueued_at");
-
                     b.Property<DateTime>("FailedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("failed_at")
                         .HasDefaultValueSql("now()");
-
-                    b.Property<string>("IdempotencyKey")
-                        .HasColumnType("text")
-                        .HasColumnName("idempotency_key");
 
                     b.Property<string>("JobType")
                         .IsRequired()
@@ -396,15 +383,7 @@ namespace PublyApp.Api.Migrations
                         .HasColumnType("text")
                         .HasColumnName("last_error");
 
-                    b.Property<string>("LockedBy")
-                        .HasColumnType("text")
-                        .HasColumnName("locked_by");
-
-                    b.Property<int>("MaxAttempts")
-                        .HasColumnType("integer")
-                        .HasColumnName("max_attempts");
-
-                    b.Property<Guid>("OriginalJobId")
+                    b.Property<Guid?>("OriginalJobId")
                         .HasColumnType("uuid")
                         .HasColumnName("original_job_id");
 
@@ -413,35 +392,11 @@ namespace PublyApp.Api.Migrations
                         .HasColumnType("jsonb")
                         .HasColumnName("payload");
 
-                    b.Property<int>("Priority")
-                        .HasColumnType("integer")
-                        .HasColumnName("priority");
-
-                    b.Property<Guid?>("RequeuedAsJobId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("requeued_as_job_id");
-
-                    b.Property<DateTime?>("RequeuedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("requeued_at");
-
-                    b.Property<Guid?>("RequeuedFromDeadLetterId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("requeued_from_dead_letter_id");
-
-                    b.Property<Guid?>("TenantId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("tenant_id");
-
                     b.HasKey("Id")
                         .HasName("pk_job_dead_letter");
 
                     b.HasIndex("JobType", "FailedAt")
                         .HasDatabaseName("ix_job_dead_letter_job_type");
-
-                    b.HasIndex("RequeuedFromDeadLetterId")
-                        .HasDatabaseName("ix_job_dead_letter_requeued_from")
-                        .HasFilter("requeued_from_dead_letter_id IS NOT NULL");
 
                     b.ToTable("job_dead_letter");
                 });
@@ -454,19 +409,11 @@ namespace PublyApp.Api.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("uuidv7()");
 
-                    b.Property<Guid?>("ActorUserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("actor_user_id");
-
                     b.Property<int>("Attempts")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
                         .HasDefaultValue(0)
                         .HasColumnName("attempts");
-
-                    b.Property<string>("CorrelationId")
-                        .HasColumnType("text")
-                        .HasColumnName("correlation_id");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -487,10 +434,6 @@ namespace PublyApp.Api.Migrations
                         .HasColumnType("text")
                         .HasColumnName("last_error");
 
-                    b.Property<Guid?>("LockToken")
-                        .HasColumnType("uuid")
-                        .HasColumnName("lock_token");
-
                     b.Property<string>("LockedBy")
                         .HasColumnType("text")
                         .HasColumnName("locked_by");
@@ -502,7 +445,7 @@ namespace PublyApp.Api.Migrations
                     b.Property<int>("MaxAttempts")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
-                        .HasDefaultValue(10)
+                        .HasDefaultValue(8)
                         .HasColumnName("max_attempts");
 
                     b.Property<DateTime>("NextAttemptAt")
@@ -524,19 +467,11 @@ namespace PublyApp.Api.Migrations
                         .HasDefaultValue(0)
                         .HasColumnName("priority");
 
-                    b.Property<Guid?>("RequeuedFromDeadLetterId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("requeued_from_dead_letter_id");
-
                     b.Property<int>("Status")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
                         .HasDefaultValue(0)
                         .HasColumnName("status");
-
-                    b.Property<Guid?>("TenantId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("tenant_id");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
@@ -547,26 +482,21 @@ namespace PublyApp.Api.Migrations
                     b.HasKey("Id")
                         .HasName("pk_job_queue");
 
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_job_queue_idempotency")
+                        .HasFilter("idempotency_key IS NOT NULL");
+
                     b.HasIndex("LockedUntil")
                         .HasDatabaseName("ix_job_queue_reclaim")
                         .HasFilter("status = 1");
 
-                    b.HasIndex("JobType", "IdempotencyKey")
-                        .IsUnique()
-                        .HasDatabaseName("ux_job_queue_type_idempotency")
-                        .HasFilter("idempotency_key IS NOT NULL");
-
-                    b.HasIndex("Priority", "NextAttemptAt", "CreatedAt", "Id")
-                        .IsDescending(true, false, false, false)
+                    b.HasIndex("Priority", "NextAttemptAt", "CreatedAt")
+                        .IsDescending(true, false, false)
                         .HasDatabaseName("ix_job_queue_claim")
                         .HasFilter("status = 0");
 
-                    b.ToTable("job_queue", t =>
-                        {
-                            t.HasCheckConstraint("ck_job_queue_max_attempts", "max_attempts BETWEEN 1 AND 50");
-
-                            t.HasCheckConstraint("ck_job_queue_priority", "priority BETWEEN 0 AND 1000");
-                        });
+                    b.ToTable("job_queue");
                 });
 
             modelBuilder.Entity("PublyApp.Api.Modules.Permissions.Entities.Permission", b =>

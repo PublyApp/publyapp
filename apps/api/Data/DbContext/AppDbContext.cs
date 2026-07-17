@@ -7,6 +7,7 @@ using PublyApp.Api.Lib;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.Auth.Entities;
 using PublyApp.Api.Modules.Invitations.Entities;
+using PublyApp.Api.Modules.Jobs.Entities;
 using PublyApp.Api.Modules.Permissions.Entities;
 using PublyApp.Api.Modules.Profiles.Entities;
 using PublyApp.Api.Modules.Projects.Entities;
@@ -65,6 +66,15 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	}
 	public DbSet<InvitationEmailOutbox> InvitationEmailOutbox {
 		get { return Set<InvitationEmailOutbox>(); }
+	}
+
+	// Generic background job engine (Infrastructure/Jobs). Entities live in
+	// Modules/Jobs by convention; behavior lives in Infrastructure/Jobs.
+	public DbSet<JobQueueItem> JobQueue {
+		get { return Set<JobQueueItem>(); }
+	}
+	public DbSet<JobDeadLetter> JobDeadLetter {
+		get { return Set<JobDeadLetter>(); }
 	}
 
 	// Staff back-office entities
@@ -343,6 +353,75 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 				.WithMany()
 				.HasForeignKey(e => e.ProfileId)
 				.OnDelete(DeleteBehavior.Restrict);
+		});
+
+		// Generic job queue (Infrastructure/Jobs). Not a BaseAttributes entity by
+		// design (§4.0): success is a hard delete and every engine transition runs
+		// through raw SQL, so the uuidv7 id is configured explicitly here rather than
+		// via the BaseAttributes auto-config loop below. All safety-relevant
+		// timestamps are database-generated (F11) — the entity carries no C#
+		// initializers and EF falls back to the SQL defaults on insert.
+		modelBuilder.Entity<JobQueueItem>(entity => {
+			// Explicit snake_case PK constraint name (design §4.1); EF's convention
+			// would generate PK_job_queue.
+			entity.HasKey(e => e.Id).HasName("pk_job_queue");
+			entity.Property(e => e.Id).HasDefaultValueSql("uuidv7()");
+			entity.Property(e => e.Payload).HasDefaultValueSql("'{}'");
+			entity.Property(e => e.Status).HasDefaultValue(JobQueueStatus.Pending);
+			entity.Property(e => e.Priority).HasDefaultValue(0);
+			entity.Property(e => e.Attempts).HasDefaultValue(0);
+			entity.Property(e => e.MaxAttempts).HasDefaultValue(10);
+			entity.Property(e => e.NextAttemptAt).HasDefaultValueSql("now()");
+			entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+			entity.Property(e => e.UpdatedAt).HasDefaultValueSql("now()");
+
+			// Envelope bounds (§4.1, F15): no unbounded retries, sane priorities.
+			entity.ToTable(t => {
+				t.HasCheckConstraint(
+					"ck_job_queue_max_attempts",
+					"max_attempts BETWEEN 1 AND 50"
+				);
+				t.HasCheckConstraint(
+					"ck_job_queue_priority",
+					"priority BETWEEN 0 AND 1000"
+				);
+			});
+
+			// Claim hot path (F22): PENDING-ONLY partial index the claim query can
+			// use as one ordered scan, with id as the total tie-break.
+			entity.HasIndex(e => new { e.Priority, e.NextAttemptAt, e.CreatedAt, e.Id })
+				.HasDatabaseName("ix_job_queue_claim")
+				.IsDescending(true, false, false, false)
+				.HasFilter("status = 0");
+
+			// Stale-lease reset path.
+			entity.HasIndex(e => e.LockedUntil)
+				.HasDatabaseName("ix_job_queue_reclaim")
+				.HasFilter("status = 1");
+
+			// In-flight dedup, scoped so unrelated job types can never collide (F13).
+			entity.HasIndex(e => new { e.JobType, e.IdempotencyKey })
+				.IsUnique()
+				.HasDatabaseName("ux_job_queue_type_idempotency")
+				.HasFilter("idempotency_key IS NOT NULL");
+		});
+
+		modelBuilder.Entity<JobDeadLetter>(entity => {
+			// Explicit snake_case PK constraint name (design §4.2).
+			entity.HasKey(e => e.Id).HasName("pk_job_dead_letter");
+			entity.Property(e => e.Id).HasDefaultValueSql("uuidv7()");
+			entity.Property(e => e.FailedAt).HasDefaultValueSql("now()");
+			entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+
+			entity.HasIndex(e => new { e.JobType, e.FailedAt })
+				.HasDatabaseName("ix_job_dead_letter_job_type");
+
+			// Walks the requeue chain backward/forward across re-dead-letterings
+			// (§4.2, F16/C9). Partial: the column is NULL for every originally-
+			// enqueued job, which is nearly all of them.
+			entity.HasIndex(e => e.RequeuedFromDeadLetterId)
+				.HasDatabaseName("ix_job_dead_letter_requeued_from")
+				.HasFilter("requeued_from_dead_letter_id IS NOT NULL");
 		});
 
 		// Partial indexes to favor active rows without enforcing global filters
