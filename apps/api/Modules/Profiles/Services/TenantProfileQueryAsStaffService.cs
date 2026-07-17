@@ -6,6 +6,7 @@ using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Permissions.Entities;
 using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Profiles.Services;
 
@@ -61,6 +62,69 @@ public abstract record FindTenantProfilePermissionKeysResult {
 	public sealed record ProfileNotFound : FindTenantProfilePermissionKeysResult;
 }
 
+/// <summary>
+/// A tenant member (UserAccount) assigned to a tenant profile. Keyed by
+/// <see cref="UserAccountId"/> rather than the underlying user id: the sibling assign/unassign
+/// endpoints (<c>SetTenantProfileUserAsync</c>) already address membership by
+/// <c>user_account_id</c>, so the read side matches that established tenant-axis convention
+/// instead of the staff-profile precedent's user-id keying.
+/// </summary>
+public sealed record TenantProfileUserListItem(
+	Guid UserAccountId,
+	Guid UserId,
+	string Email,
+	string? FirstName,
+	string? LastName,
+	string? AvatarUrl,
+	UserStatus UserStatus,
+	AccountStatus AccountStatus,
+	AccountLevel Level
+);
+
+public abstract record FindTenantProfileUsersResult {
+	// "Success" here is a plain list response (offset pagination), mirroring the
+	// staff-profiles Find precedent's pagination shape.
+	public sealed record Success(
+		List<TenantProfileUserListItem> Users,
+		int Count
+	) : FindTenantProfileUsersResult;
+
+	// Missing/non-tenant/foreign-tenant profiles are all treated as "not found" for this
+	// endpoint, mirroring every other tenant-profile-as-staff read.
+	public sealed record ProfileNotFound : FindTenantProfileUsersResult;
+
+	public sealed record InvalidSortId(string SortId) : FindTenantProfileUsersResult;
+}
+
+public sealed record FindTenantProfileUsersArgs(
+	Guid TenantId,
+	Guid ProfileId,
+	int? Page,
+	int? Limit,
+	string? SortId,
+	SortOrder? SortOrder,
+	string? Search
+);
+
+public sealed record TenantProfileUserAssignmentResolutionItem(
+	Guid UserAccountId,
+	bool IsAssigned
+);
+
+public abstract record ResolveTenantProfileUserAssignmentsResult {
+	public sealed record Success(
+		List<TenantProfileUserAssignmentResolutionItem> Assignments
+	) : ResolveTenantProfileUserAssignmentsResult;
+
+	public sealed record ProfileNotFound : ResolveTenantProfileUserAssignmentsResult;
+}
+
+public sealed record ResolveTenantProfileUserAssignmentsArgs(
+	Guid TenantId,
+	Guid ProfileId,
+	List<Guid> UserAccountIds
+);
+
 public interface ITenantProfileQueryAsStaffService {
 	Task<FindTenantProfilesResult> FindTenantProfilesAsync(
 		FindTenantProfilesArgs args,
@@ -80,6 +144,16 @@ public interface ITenantProfileQueryAsStaffService {
 	// Count for the tenant detail page: active (non-deleted) tenant-scoped profiles.
 	Task<int> CountTenantProfilesAsync(
 		Guid tenantId,
+		CancellationToken cancellationToken = default
+	);
+
+	Task<FindTenantProfileUsersResult> FindTenantProfileUsersAsync(
+		FindTenantProfileUsersArgs args,
+		CancellationToken cancellationToken = default
+	);
+
+	Task<ResolveTenantProfileUserAssignmentsResult> ResolveTenantProfileUserAssignmentsAsync(
+		ResolveTenantProfileUserAssignmentsArgs args,
 		CancellationToken cancellationToken = default
 	);
 }
@@ -381,6 +455,198 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 			select p;
 
 		return await count.CountAsync(cancellationToken);
+	}
+
+	public async Task<FindTenantProfileUsersResult> FindTenantProfileUsersAsync(
+		FindTenantProfileUsersArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		var effectivePage = args.Page ?? 1;
+		var effectiveLimit =
+			args.Limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
+		var effectiveSortOrder = args.SortOrder ?? SortOrder.Desc;
+		var effectiveSortId = args.SortId ?? "created_at";
+		var search = args.Search;
+
+		// Guard early to avoid running a large join query when the profileId is invalid. A
+		// staff-scope profile or another tenant's profile is treated as not-found here too,
+		// mirroring TenantMembershipLockOrder.LockLiveTenantProfileAsync's liveness predicate.
+		var profileExists = await (
+			from p in _dbContext.Profile
+			where p.Id == args.ProfileId
+				&& p.Scope == ProfileScope.Tenant
+				&& p.TenantId == args.TenantId
+				&& !p.IsDeleted
+			select p.Id
+		).AnyAsync(cancellationToken);
+
+		if (!profileExists) {
+			return new FindTenantProfileUsersResult.ProfileNotFound();
+		}
+
+		// Query "tenant members assigned to this profile" via the junction table.
+		//
+		// IMPORTANT: Do NOT filter out suspended members here, mirroring the staff-profiles
+		// Find precedent (FindStaffProfileUsersAsync):
+		// - Staff tooling still needs to *see* suspended members (for auditing and reactivation).
+		// - The UI can disable actions for non-actionable statuses, but hiding rows causes
+		//   confusing "disappearing" behavior right after a status mutation.
+		var query =
+			from uap in _dbContext.UserAccountProfile
+			join ua in _dbContext.UserAccount on uap.UserAccountId equals ua.Id
+			join u in _dbContext.User on ua.UserId equals u.Id
+			where uap.ProfileId == args.ProfileId
+				&& ua.Scope == AccountScope.Tenant
+				&& ua.TenantId == args.TenantId
+				&& !ua.IsDeleted
+				&& !u.IsDeleted
+			select new {
+				UserAccountId = ua.Id,
+				UserId = u.Id,
+				u.Email,
+				u.FirstName,
+				u.LastName,
+				u.AvatarUrl,
+				UserStatus = u.Status,
+				AccountStatus = ua.Status,
+				ua.Level,
+				// Use the junction CreatedAt as "assigned at" for default sorting.
+				AssignedAt = uap.CreatedAt,
+			};
+
+		if (search is not null) {
+			// Search is intentionally simple (ILIKE wildcard) for UX, mirroring the
+			// staff-profiles Find precedent.
+			var wildcard = $"%{LikePatternUtils.EscapeLikePattern(search)}%";
+			query = query.Where(x =>
+				EF.Functions.ILike(x.Email, wildcard, LikePatternUtils.LikeEscapeChar)
+				|| EF.Functions.ILike(x.FirstName ?? "", wildcard, LikePatternUtils.LikeEscapeChar)
+				|| EF.Functions.ILike(x.LastName ?? "", wildcard, LikePatternUtils.LikeEscapeChar)
+			);
+		}
+
+		// Keep this list's supported sort_id values explicit and small, mirroring the
+		// staff-profiles Find precedent's sortable set.
+		var isAsc = effectiveSortOrder == SortOrder.Asc;
+		if (string.Equals(effectiveSortId, "created_at", StringComparison.OrdinalIgnoreCase)) {
+			query = isAsc
+				? query.OrderBy(x => x.AssignedAt)
+				: query.OrderByDescending(x => x.AssignedAt);
+		} else if (string.Equals(effectiveSortId, "email", StringComparison.OrdinalIgnoreCase)) {
+			query = isAsc
+				? query.OrderBy(x => x.Email)
+				: query.OrderByDescending(x => x.Email);
+		} else if (string.Equals(effectiveSortId, "first_name", StringComparison.OrdinalIgnoreCase)) {
+			query = isAsc
+				? query.OrderBy(x => x.FirstName)
+				: query.OrderByDescending(x => x.FirstName);
+		} else if (string.Equals(effectiveSortId, "last_name", StringComparison.OrdinalIgnoreCase)) {
+			query = isAsc
+				? query.OrderBy(x => x.LastName)
+				: query.OrderByDescending(x => x.LastName);
+		} else if (string.Equals(effectiveSortId, "status", StringComparison.OrdinalIgnoreCase)) {
+			// Sorts on the underlying global user status, the same simplification the
+			// staff-profiles Find precedent makes, rather than the compound derived tenant
+			// status (which also folds in the membership-local AccountStatus).
+			query = isAsc
+				? query.OrderBy(x => x.UserStatus)
+				: query.OrderByDescending(x => x.UserStatus);
+		} else {
+			return new FindTenantProfileUsersResult.InvalidSortId(effectiveSortId);
+		}
+
+		// Count is used by the UI to render pagination controls.
+		var count = await query.CountAsync(cancellationToken);
+
+		var users = await query
+			.Skip((effectivePage - 1) * effectiveLimit)
+			.Take(effectiveLimit)
+			// NOTE: This projection runs inside an EF Core expression tree.
+			// Do not use named arguments here; C# forbids named args in expression trees.
+			.Select(x => new TenantProfileUserListItem(
+				x.UserAccountId ?? Guid.Empty,
+				x.UserId ?? Guid.Empty,
+				x.Email,
+				x.FirstName,
+				x.LastName,
+				x.AvatarUrl,
+				x.UserStatus,
+				x.AccountStatus,
+				x.Level
+			))
+			.ToListAsync(cancellationToken);
+
+		return new FindTenantProfileUsersResult.Success(
+			Users: users,
+			Count: count
+		);
+	}
+
+	public async Task<ResolveTenantProfileUserAssignmentsResult>
+		ResolveTenantProfileUserAssignmentsAsync(
+		ResolveTenantProfileUserAssignmentsArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		var profileExists = await (
+			from p in _dbContext.Profile
+			where p.Id == args.ProfileId
+				&& p.Scope == ProfileScope.Tenant
+				&& p.TenantId == args.TenantId
+				&& !p.IsDeleted
+			select p.Id
+		).AnyAsync(cancellationToken);
+
+		if (!profileExists) {
+			return new ResolveTenantProfileUserAssignmentsResult.ProfileNotFound();
+		}
+
+		if (args.UserAccountIds.Count == 0) {
+			return new ResolveTenantProfileUserAssignmentsResult.Success([]);
+		}
+
+		// UserAccount.Id is nullable (Guid?) in the EF model, so convert the incoming Guid list
+		// to nullable IDs to keep the query fully translatable by EF.
+		var userAccountIdsNullable = args.UserAccountIds.Select(id => (Guid?)id).ToList();
+
+		// Resolve assignment in one query:
+		// - Only live tenant-scope accounts of THIS tenant are relevant (enforces tenant
+		//   isolation: a foreign tenant's account id can never resolve as assigned here).
+		// - Suspended accounts/users are treated as not assignable via staff tooling, mirroring
+		//   the staff-profiles ResolveAssignment precedent.
+		// - Junction links are hard-deleted when members are unassigned.
+		var assignedUserAccountIds = await (
+			from ua in _dbContext.UserAccount
+			join uap in _dbContext.UserAccountProfile on ua.Id equals uap.UserAccountId
+			join u in _dbContext.User on ua.UserId equals u.Id
+			where userAccountIdsNullable.Contains(ua.Id)
+				&& ua.Scope == AccountScope.Tenant
+				&& ua.TenantId == args.TenantId
+				&& !ua.IsDeleted
+				&& ua.Status != AccountStatus.Suspended
+				&& !u.IsDeleted
+				&& u.Status != UserStatus.Suspended
+				&& uap.ProfileId == args.ProfileId
+			select ua.Id
+		)
+			.Distinct()
+			.ToListAsync(cancellationToken);
+
+		var assignedLookup = new HashSet<Guid>();
+		foreach (var assignedUserAccountId in assignedUserAccountIds) {
+			if (assignedUserAccountId is Guid userAccountId) {
+				assignedLookup.Add(userAccountId);
+			}
+		}
+
+		var assignments = args.UserAccountIds
+			.Distinct()
+			.Select(userAccountId => new TenantProfileUserAssignmentResolutionItem(
+				UserAccountId: userAccountId,
+				IsAssigned: assignedLookup.Contains(userAccountId)
+			))
+			.ToList();
+
+		return new ResolveTenantProfileUserAssignmentsResult.Success(assignments);
 	}
 
 }

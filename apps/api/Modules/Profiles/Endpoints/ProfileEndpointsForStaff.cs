@@ -208,6 +208,27 @@ public static class ProfileEndpointsForStaff {
 			.WithSummary("Unassign a permission key from a tenant profile")
 			.WithPermission([AppPermissions.Staff.Profiles.UPDATE_FOR_TENANT]);
 
+		tenantGroup.MapGet(
+			Routes.Profiles.ForTenantAsStaff.Users.Find,
+			FindTenantProfileUsersAsStaff.Handle
+		)
+			.WithName("FindTenantProfileUsersAsStaff")
+			.WithSummary("Find tenant members assigned to a tenant profile")
+			// Distinct from GET_FOR_TENANT/UPDATE_FOR_TENANT, mirroring
+			// LIST_USERS_FOR_STAFF_PROFILE on the staff-profiles axis: listing assigned members
+			// is a distinct read capability from viewing or editing the profile itself.
+			.WithPermission([AppPermissions.Staff.Profiles.LIST_USERS_FOR_TENANT_PROFILE])
+			.WithReqQueryValidation<FindTenantProfileUsersAsStaffQuery>();
+
+		tenantGroup.MapPost(
+			Routes.Profiles.ForTenantAsStaff.Users.ResolveAssignment,
+			ResolveTenantProfileUserAssignmentsAsStaff.Handle
+		)
+			.WithName("ResolveTenantProfileUserAssignmentsAsStaff")
+			.WithSummary("Resolve whether tenant members are assigned to a tenant profile (batch)")
+			.WithPermission([AppPermissions.Staff.Profiles.LIST_USERS_FOR_TENANT_PROFILE])
+			.WithReqBodyValidation<ResolveTenantProfileUserAssignmentsAsStaffBody>();
+
 		tenantGroup.MapPost(
 			Routes.Profiles.ForTenantAsStaff.Users.Upsert,
 			AssignTenantProfileUserAsStaff.Handle
