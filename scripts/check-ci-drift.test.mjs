@@ -1,0 +1,199 @@
+import assert from 'node:assert/strict';
+import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import test from 'node:test';
+import { fileURLToPath } from 'node:url';
+
+import { findCiDrift } from './check-ci-drift.mjs';
+
+// These tests are the standing proof that the drift guard actually fires.
+// Every failure mode it claims to catch gets exercised against a throwaway
+// repo, so the guard cannot rot into a check that always returns green.
+
+const repoRoot = path.resolve(
+	path.dirname(fileURLToPath(import.meta.url)),
+	'..',
+);
+
+const workflow = (steps) =>
+	`name: fixture\non:\n  pull_request:\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n${steps}`;
+
+const mirroredStep = '      - name: Run tests\n        run: pnpm test\n';
+
+const reason = 'Mirrored locally by the fixture gate for testing purposes.';
+
+/**
+ * Builds a throwaway repo with one workflow and one manifest.
+ */
+const buildFixture = async ({ manifestSteps, steps }) => {
+	const rootDir = await mkdtemp(path.join(os.tmpdir(), 'publyapp-ci-drift-'));
+
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await mkdir(path.join(rootDir, 'scripts'), { recursive: true });
+
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflow(steps),
+	);
+	await writeFile(
+		path.join(rootDir, 'scripts/ci-gate-manifest.json'),
+		JSON.stringify({ steps: manifestSteps }, null, '\t'),
+	);
+
+	return rootDir;
+};
+
+// Hash of the `mirroredStep` above, as computed by the guard. Captured once so
+// the other tests can build a reconciled baseline to perturb.
+const reconciledHash = await (async () => {
+	const rootDir = await buildFixture({
+		manifestSteps: {
+			'fixture.yml::build::Run tests': {
+				hash: 'wrong',
+				mirror: 'just ci',
+				reason,
+			},
+		},
+		steps: mirroredStep,
+	});
+
+	const [finding] = await findCiDrift({ rootDir });
+
+	return finding.match(/workflow ([a-f0-9]+)/)[1];
+})();
+
+const reconciled = {
+	'fixture.yml::build::Run tests': {
+		hash: reconciledHash,
+		mirror: 'just ci',
+		reason,
+	},
+};
+
+test('passes when every workflow step is reconciled', async () => {
+	const rootDir = await buildFixture({
+		manifestSteps: reconciled,
+		steps: mirroredStep,
+	});
+
+	assert.deepEqual(await findCiDrift({ rootDir }), []);
+});
+
+test('fails when CI gains a step the local gate does not cover', async () => {
+	const rootDir = await buildFixture({
+		manifestSteps: reconciled,
+		steps: `${mirroredStep}      - name: Scan for secrets\n        run: pnpm scan:secrets\n`,
+	});
+
+	const findings = await findCiDrift({ rootDir });
+
+	assert.equal(findings.length, 1);
+	assert.match(
+		findings[0],
+		/^NEW STEP {2}fixture\.yml::build::Scan for secrets/,
+	);
+});
+
+test('fails when a reconciled CI step changes its command', async () => {
+	const rootDir = await buildFixture({
+		manifestSteps: reconciled,
+		steps: '      - name: Run tests\n        run: pnpm test --coverage\n',
+	});
+
+	const findings = await findCiDrift({ rootDir });
+
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /^CHANGED {3}fixture\.yml::build::Run tests/);
+});
+
+test('fails when a step changes only its env or condition', async () => {
+	const rootDir = await buildFixture({
+		manifestSteps: reconciled,
+		steps:
+			'      - name: Run tests\n        env:\n          CI: "1"\n        run: pnpm test\n',
+	});
+
+	const findings = await findCiDrift({ rootDir });
+
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /^CHANGED {3}fixture\.yml::build::Run tests/);
+});
+
+test('ignores cosmetic trailing whitespace so the guard is not noise', async () => {
+	const rootDir = await buildFixture({
+		manifestSteps: reconciled,
+		steps: '      - name: Run tests\n        run: |\n          pnpm test   \n',
+	});
+
+	assert.deepEqual(await findCiDrift({ rootDir }), []);
+});
+
+test('fails when the manifest reconciles a step that no longer exists', async () => {
+	const rootDir = await buildFixture({
+		manifestSteps: {
+			...reconciled,
+			'fixture.yml::build::Deleted step': {
+				hash: 'abc',
+				mirror: 'just ci',
+				reason,
+			},
+		},
+		steps: mirroredStep,
+	});
+
+	const findings = await findCiDrift({ rootDir });
+
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /^STALE {5}fixture\.yml::build::Deleted step/);
+});
+
+test('rejects an exemption that does not give a reviewable reason', async () => {
+	const rootDir = await buildFixture({
+		manifestSteps: {
+			'fixture.yml::build::Run tests': {
+				hash: reconciledHash,
+				mirror: null,
+				reason: 'n/a',
+			},
+		},
+		steps: mirroredStep,
+	});
+
+	const findings = await findCiDrift({ rootDir });
+
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /needs a `reason` of at least 24 characters/);
+});
+
+test('tracks uses: steps, so a new action cannot slip in uncounted', async () => {
+	const rootDir = await buildFixture({
+		manifestSteps: reconciled,
+		steps: `${mirroredStep}      - uses: some-org/scan-action@v1\n`,
+	});
+
+	const findings = await findCiDrift({ rootDir });
+
+	assert.equal(findings.length, 1);
+	assert.match(
+		findings[0],
+		/^NEW STEP {2}fixture\.yml::build::uses:some-org\/scan-action/,
+	);
+});
+
+test('fails closed when two steps in a job share an identity', async () => {
+	const rootDir = await buildFixture({
+		manifestSteps: reconciled,
+		steps: `${mirroredStep}      - name: Run tests\n        run: pnpm test:other\n`,
+	});
+
+	const findings = await findCiDrift({ rootDir });
+
+	assert.ok(
+		findings.some((finding) => /two steps labelled "Run tests"/.test(finding)),
+	);
+});
+
+test("the repo's own workflows are fully reconciled with the local gate", async () => {
+	assert.deepEqual(await findCiDrift({ rootDir: repoRoot }), []);
+});

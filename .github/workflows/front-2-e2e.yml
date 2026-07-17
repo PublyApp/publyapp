@@ -20,6 +20,14 @@ on:
 permissions:
   contents: read
 
+# Supersede in-flight runs for the same ref: a newer push makes an older run's
+# result irrelevant, and on a private repo every superseded minute is billed.
+# This is the most expensive workflow (docker build + Playwright), so it is
+# also where cancelling superseded runs saves the most.
+concurrency:
+  group: front-2-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   front-2-e2e:
     runs-on: ubuntu-latest

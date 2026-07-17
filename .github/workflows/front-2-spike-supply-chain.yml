@@ -24,6 +24,12 @@ on:
 permissions:
   contents: read
 
+# Supersede in-flight runs for the same ref: a newer push makes an older run's
+# result irrelevant, and on a private repo every superseded minute is billed.
+concurrency:
+  group: front-2-spike-supply-chain-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   supply-chain:
     runs-on: ubuntu-latest

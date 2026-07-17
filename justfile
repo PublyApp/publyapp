@@ -202,6 +202,119 @@ test-api-debug:
   cd {{api_dir}} && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --no-restore --nologo --verbosity minimal --logger "console;verbosity=detailed" --environment TEST_VERBOSE_LOGS=1 --diag .artifacts/logs/test-api-debug.log
 
 # =============================================================================
+# Local CI gate
+# =============================================================================
+#
+# `just ci`      - everyday pre-push gate: everything the workflows run except
+#                  the two browser/e2e suites, PLUS the full API test suite.
+# `just ci-full` - `just ci` + both e2e suites.
+#
+# The API suite is local-only: no workflow runs it (the only `dotnet test` in CI
+# is the OpenApiContractSpec filter). So a green `just ci` is STRONGER than CI
+# for backend work, and weaker only on the e2e suites that `ci-full` adds.
+#
+# These recipes deliberately compose existing targets rather than restating
+# their commands. `just ci-drift` fails the gate if a workflow gains or changes
+# a step that this gate has not been reconciled against.
+#
+# See docs/guides/local-ci-gate.md.
+
+# Fail if .github/workflows has a step the local gate is not reconciled with
+ci-drift:
+  @echo "=== [gate] workflow drift guard ==="
+  pnpm test:ci-drift
+  node ./scripts/check-ci-drift.mjs
+
+# Install exactly as CI does (supply-chain policy: frozen + no lifecycle scripts)
+ci-install:
+  @echo "=== [gate] install (frozen lockfile, no scripts) ==="
+  node apps/front-2/scripts/assert-pinned.mjs
+  node apps/front-2-spike/scripts/assert-pinned.mjs
+  pnpm install --frozen-lockfile --ignore-scripts
+  pnpm --filter @org/shared-ts run postinstall
+
+# Formatting (repo-wide oxfmt --check, exactly as both workflows run it)
+ci-format: format
+  @echo "=== [gate] format (done) ==="
+
+# Lint exactly the scope CI lints.
+#
+# Deliberately NOT `just lint`, which runs `oxlint --quiet .` over the whole
+# repo. That superset is red on develop today over pre-existing errors in
+# apps/front-2-spike, a disposable app no workflow lints — so using it here
+# would make `just ci` fail on things CI passes. A gate that cries wolf gets
+# ignored, which costs more than the extra coverage is worth. See
+# docs/guides/local-ci-gate.md.
+ci-lint:
+  @echo "=== [gate] lint ==="
+  npx oxlint --quiet apps/front-2 packages/shared-ts
+  pnpm lint:disables
+  pnpm check:frontend-barrels
+
+# front-2: build, bundle guards, smoke start, typecheck, design system, unit tests
+ci-front-2:
+  @echo "=== [gate] front-2 build + checks ==="
+  pnpm --filter front-2 build
+  pnpm --filter front-2 verify:build
+  pnpm --filter front-2 check:context-chunk-isolation
+  pnpm --filter front-2 smoke:start
+  pnpm --filter front-2 typecheck
+  pnpm --filter front-2 check:design-system
+  pnpm --filter front-2 test
+
+# front-2-spike: the disposable spike app's supply-chain build
+ci-front-2-spike:
+  @echo "=== [gate] front-2-spike build ==="
+  pnpm --filter front-2-spike build
+
+# front (legacy app): unit characterization + typecheck
+ci-front: tsc-front
+  @echo "=== [gate] front unit characterization ==="
+  pnpm --filter front run test
+
+# openapi.json + client-ts determinism, then the OpenAPI contract spec
+ci-spec-drift:
+  @echo "=== [gate] openapi + client drift ==="
+  dotnet tool restore
+  just build-api-full
+  node ./scripts/check-tree-clean.mjs apps/api/openapi.json
+  just generate-client
+  node ./scripts/check-tree-clean.mjs packages/client-ts
+  cd {{api_dir}} && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter "FullyQualifiedName~OpenApiContractSpec"
+
+# front-2 e2e: docker stack + playwright (e2e only; `just ci-full` runs this)
+#
+# The stack is reset up front rather than only torn down at the end. CI tears
+# down with `if: always()`, which a justfile cannot express — `just` stops at the
+# first failing line, so a Playwright failure would skip the teardown. Resetting
+# first makes the recipe idempotent regardless of how the last run ended, and
+# leaving a failed stack up is what you want locally anyway: you can inspect it.
+ci-e2e-front-2:
+  @echo "=== [gate] front-2 e2e (docker + playwright) ==="
+  docker compose -f apps/front-2/docker-compose.test.yml down -v --remove-orphans
+  docker compose -f apps/front-2/docker-compose.test.yml up -d --build --wait --wait-timeout 180
+  pnpm --filter front-2 exec playwright install chromium
+  pnpm --filter front-2 exec playwright test
+  docker compose -f apps/front-2/docker-compose.test.yml down -v
+
+# front e2e characterization: docker stack + playwright
+ci-e2e-front:
+  @echo "=== [gate] front e2e characterization (docker + playwright) ==="
+  pnpm --filter front exec playwright install chromium
+  pnpm --filter front run test:e2e:fresh
+
+# Everyday pre-push gate (no e2e). Fails on the first red sub-gate.
+ci: ci-drift ci-install ci-format ci-lint ci-front-2 ci-front-2-spike ci-front ci-spec-drift test-api
+  @echo ""
+  @echo "=== just ci: PASSED ==="
+  @echo "Not covered here: the two e2e suites (run 'just ci-full')."
+
+# Full gate: `just ci` plus both e2e suites.
+ci-full: ci ci-e2e-front-2 ci-e2e-front
+  @echo ""
+  @echo "=== just ci-full: PASSED ==="
+
+# =============================================================================
 # Docker
 # =============================================================================
 
