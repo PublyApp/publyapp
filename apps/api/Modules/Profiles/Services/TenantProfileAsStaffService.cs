@@ -3,9 +3,11 @@ using Microsoft.EntityFrameworkCore;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.Permissions.Entities;
 using PublyApp.Api.Modules.Profiles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
+using PublyApp.Api.Modules.Users.Services;
 
 namespace PublyApp.Api.Modules.Profiles.Services;
 
@@ -114,7 +116,10 @@ public sealed record SetTenantProfileUserArgs(
 	Guid TenantId,
 	Guid ProfileId,
 	Guid UserAccountId,
-	bool IsAssigned
+	bool IsAssigned,
+	// The acting staff user. The audit entry is written inside this operation's transaction,
+	// so the actor must travel with the request rather than be resolved afterwards.
+	Guid ActorUserId
 );
 
 public abstract record SetTenantProfileUserResult {
@@ -174,13 +179,19 @@ public interface ITenantProfileAsStaffService {
 public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 	private readonly AppDbContext _dbContext;
 	private readonly ILogger<TenantProfileAsStaffService> _logger;
+	private readonly IHttpContextAccessor _httpContextAccessor;
 
 	public TenantProfileAsStaffService(
 		AppDbContext dbContext,
-		ILogger<TenantProfileAsStaffService> logger
+		ILogger<TenantProfileAsStaffService> logger,
+		// Framework infrastructure, not a domain service: this is the same accessor
+		// AuditLogService uses to stamp ip/user-agent, so audit rows written transactionally
+		// here are shape-identical to the ones it writes.
+		IHttpContextAccessor httpContextAccessor
 	) {
 		_dbContext = dbContext;
 		_logger = logger;
+		_httpContextAccessor = httpContextAccessor;
 	}
 
 	public async Task<Profile> GetOrCreateDefaultTenantProfileAsync(
@@ -417,14 +428,37 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 		DeleteTenantProfileArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		var profile = await (
-			from p in _dbContext.Profile
-			where p.Id == args.ProfileId
-				&& p.Scope == ProfileScope.Tenant
-				&& p.TenantId == args.TenantId
-				&& !p.IsDeleted
-			select p
-		).FirstOrDefaultAsync(cancellationToken);
+		await using var transaction = await _dbContext.Database
+			.BeginTransactionAsync(cancellationToken);
+
+		try {
+			var result = await DeleteTenantProfileCoreAsync(args, cancellationToken);
+
+			if (result is DeleteTenantProfileResult.Success) {
+				await transaction.CommitAsync(cancellationToken);
+			} else {
+				await transaction.RollbackAsync(cancellationToken);
+			}
+
+			return result;
+		} catch {
+			await transaction.RollbackAsync(cancellationToken);
+			throw;
+		}
+	}
+
+	private async Task<DeleteTenantProfileResult> DeleteTenantProfileCoreAsync(
+		DeleteTenantProfileArgs args,
+		CancellationToken cancellationToken
+	) {
+		// UserAccountProfileLockOrder step 1: pin the profile before enumerating its junction
+		// rows, so a concurrent assign cannot slip a new link in behind this cleanup.
+		var profile = await UserAccountProfileLockOrder.LockLiveTenantProfileAsync(
+			_dbContext,
+			args.TenantId,
+			args.ProfileId,
+			cancellationToken
+		);
 
 		if (profile is null) {
 			return new DeleteTenantProfileResult.ProfileNotFound();
@@ -494,6 +528,40 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 				FailedItems: []
 			);
 		}
+
+		await using var transaction = await _dbContext.Database
+			.BeginTransactionAsync(cancellationToken);
+
+		try {
+			var result = await BulkDeleteTenantProfilesCoreAsync(
+				requestedProfileIds,
+				args.TenantId,
+				cancellationToken
+			);
+			await transaction.CommitAsync(cancellationToken);
+			return result;
+		} catch {
+			await transaction.RollbackAsync(cancellationToken);
+			throw;
+		}
+	}
+
+	private async Task<BulkProfileActionResult> BulkDeleteTenantProfilesCoreAsync(
+		List<Guid> requestedProfileIds,
+		Guid tenantId,
+		CancellationToken cancellationToken
+	) {
+		var args = new BulkDeleteTenantProfilesArgs(tenantId, requestedProfileIds);
+
+		// UserAccountProfileLockOrder step 1, batched: pin every candidate profile in a
+		// deterministic id order before reading them or their junction rows, so concurrent
+		// assigns cannot re-link a profile this batch is about to purge, and two concurrent
+		// bulk deletes cannot deadlock.
+		await UserAccountProfileLockOrder.LockProfileRowsAsync(
+			_dbContext,
+			requestedProfileIds,
+			cancellationToken
+		);
 
 		// Resolve all matching tenant profiles in one DB call; this lets us decide
 		// exactly which requested IDs are invalid or protected.
@@ -685,45 +753,72 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 		SetTenantProfileUserArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		// The cap below is a COUNT invariant, which no table constraint can express. We take a
-		// pessimistic row lock on the member's user_accounts row for the whole transaction, so
-		// concurrent assigns for the same member serialize and cannot both observe a
-		// below-cap count and then insert past it.
 		await using var transaction = await _dbContext.Database
 			.BeginTransactionAsync(cancellationToken);
 
-		// Scope guard: resolving the profile through tenant + Tenant scope means a staff-scope
-		// profile, another tenant's profile, and a deleted profile are all indistinguishable
-		// "not found" here. That mirrors SetTenantProfilePermissionAsync and avoids leaking
-		// the existence of profiles outside this tenant.
-		var profile = await (
-			from p in _dbContext.Profile
-			where p.Id == args.ProfileId
-				&& p.Scope == ProfileScope.Tenant
-				&& p.TenantId == args.TenantId
-				&& !p.IsDeleted
-			select p
-		).FirstOrDefaultAsync(cancellationToken);
+		try {
+			var (result, shouldCommit) = await SetTenantProfileUserCoreAsync(
+				args,
+				cancellationToken
+			);
+
+			if (shouldCommit) {
+				await transaction.CommitAsync(cancellationToken);
+			} else {
+				// Guard rejections and the duplicate-race backstop still exit a transaction
+				// that has taken row locks; release them explicitly rather than relying on
+				// disposal.
+				await transaction.RollbackAsync(cancellationToken);
+			}
+
+			return result;
+		} catch {
+			await transaction.RollbackAsync(cancellationToken);
+			throw;
+		}
+	}
+
+	/// <summary>
+	/// Transactional body of <see cref="SetTenantProfileUserAsync"/>. Follows
+	/// <see cref="UserAccountProfileLockOrder"/>: lock the live profile, then the live account,
+	/// then read junction state. Returns the caller-visible result plus whether the transaction
+	/// may be committed — the duplicate-race backstop reports success but must roll back,
+	/// because PostgreSQL has already aborted the transaction.
+	/// </summary>
+	private async Task<(SetTenantProfileUserResult Result, bool ShouldCommit)>
+		SetTenantProfileUserCoreAsync(
+			SetTenantProfileUserArgs args,
+			CancellationToken cancellationToken
+		) {
+		// Lock order step 1. Locking with the liveness predicate (rather than reading live and
+		// locking by id) is what makes the tenant/scope/soft-delete guards linearizable: a
+		// profile deleted while we waited yields no row here, so we cannot insert a junction
+		// row under a profile the delete path already purged.
+		// A staff-scope profile, another tenant's profile and a deleted profile are all
+		// indistinguishable "not found", mirroring SetTenantProfilePermissionAsync and avoiding
+		// leaks about profiles outside this tenant.
+		var profile = await UserAccountProfileLockOrder.LockLiveTenantProfileAsync(
+			_dbContext,
+			args.TenantId,
+			args.ProfileId,
+			cancellationToken
+		);
 
 		if (profile is null) {
-			return new SetTenantProfileUserResult.ProfileNotFound();
+			return (new SetTenantProfileUserResult.ProfileNotFound(), false);
 		}
 
-		// Membership guard: the account must be a tenant-scope account of THIS tenant, which
-		// is what blocks cross-tenant assignment. Suspended members stay assignable because
-		// this is a staff-side management path (PUBLY0007) and permission resolution already
-		// ignores suspended accounts at read time.
-		var member = await (
-			from ua in _dbContext.UserAccount
-			where ua.Id == args.UserAccountId
-				&& ua.Scope == AccountScope.Tenant
-				&& ua.TenantId == args.TenantId
-				&& !ua.IsDeleted
-			select ua
-		).FirstOrDefaultAsync(cancellationToken);
+		// Lock order step 2. Blocks cross-tenant assignment, and a membership removed while we
+		// waited yields no row instead of a lock on a soft-deleted account.
+		var member = await UserAccountProfileLockOrder.LockLiveTenantAccountAsync(
+			_dbContext,
+			args.TenantId,
+			args.UserAccountId,
+			cancellationToken
+		);
 
 		if (member is null) {
-			return new SetTenantProfileUserResult.MemberNotFound();
+			return (new SetTenantProfileUserResult.MemberNotFound(), false);
 		}
 
 		var profileAudit = new TenantProfileAuditData(
@@ -739,11 +834,8 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 			member.Level
 		);
 
-		await _dbContext.Database.ExecuteSqlAsync(
-			$"SELECT 1 FROM user_accounts WHERE id = {args.UserAccountId} FOR UPDATE",
-			cancellationToken
-		);
-
+		// Lock order step 3: both parents are pinned, so junction state read from here is
+		// stable for the rest of the transaction.
 		var existing = await (
 			from uap in _dbContext.UserAccountProfile
 			where uap.UserAccountId == args.UserAccountId
@@ -754,38 +846,55 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 		if (!args.IsAssigned) {
 			if (existing is null) {
 				// Unassigning something that is not assigned is a no-op success.
-				await transaction.CommitAsync(cancellationToken);
-				return new SetTenantProfileUserResult.Success(
-					profileAudit,
-					memberAudit,
-					Changed: false
+				return (
+					new SetTenantProfileUserResult.Success(
+						profileAudit,
+						memberAudit,
+						Changed: false
+					),
+					true
 				);
 			}
 
 			// Junction rows carry no soft-delete state; membership history lives in audit logs.
+			// The audit entry is therefore added to this same SaveChanges: the row and its only
+			// record must become durable together or not at all.
 			_dbContext.ForceHardDelete(existing);
-			await _dbContext.SaveChangesAsync(cancellationToken);
-			await transaction.CommitAsync(cancellationToken);
-
-			return new SetTenantProfileUserResult.Success(
+			AddAuditEntry(
+				args,
+				AuditActions.TenantProfileUserUnassigned,
 				profileAudit,
-				memberAudit,
-				Changed: true
+				memberAudit
+			);
+			await _dbContext.SaveChangesAsync(cancellationToken);
+
+			return (
+				new SetTenantProfileUserResult.Success(
+					profileAudit,
+					memberAudit,
+					Changed: true
+				),
+				true
 			);
 		}
 
 		if (existing is not null) {
 			// Already assigned: repeated POST is idempotent. This is checked before the cap so
 			// that re-asserting an existing assignment never fails, even for a member who is
-			// already at the cap.
-			await transaction.CommitAsync(cancellationToken);
-			return new SetTenantProfileUserResult.Success(
-				profileAudit,
-				memberAudit,
-				Changed: false
+			// already at the cap. No state change, so no audit entry.
+			return (
+				new SetTenantProfileUserResult.Success(
+					profileAudit,
+					memberAudit,
+					Changed: false
+				),
+				true
 			);
 		}
 
+		// The cap is a COUNT invariant, which no table constraint can express. The account row
+		// lock taken above is what stops two concurrent assigns from both observing a below-cap
+		// count and then inserting past it.
 		// Count only live assignments: a junction row pointing at a soft-deleted profile grants
 		// nothing, so it must not consume the member's quota.
 		var liveProfileCount = await (
@@ -799,7 +908,10 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 
 		var maxProfilesPerUser = AppEnvironment.Instance.MAX_PROFILES_PER_USER;
 		if (liveProfileCount >= maxProfilesPerUser) {
-			return new SetTenantProfileUserResult.MaxProfilesPerUserExceeded(maxProfilesPerUser);
+			return (
+				new SetTenantProfileUserResult.MaxProfilesPerUserExceeded(maxProfilesPerUser),
+				false
+			);
 		}
 
 		var assignment = new UserAccountProfile {
@@ -809,27 +921,78 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 
 		try {
 			await _dbContext.UserAccountProfile.AddAsync(assignment, cancellationToken);
+			AddAuditEntry(
+				args,
+				AuditActions.TenantProfileUserAssigned,
+				profileAudit,
+				memberAudit
+			);
 			await _dbContext.SaveChangesAsync(cancellationToken);
 		} catch (DbUpdateException ex) when (IsUserAccountProfileDuplicateViolation(ex)) {
 			// Defense in depth behind the row lock: the composite primary key is the final
 			// authority on "assigned at most once", so a lost insert race is still idempotent.
-			await transaction.RollbackAsync(cancellationToken);
-			_dbContext.Entry(assignment).State = EntityState.Detached;
+			// PostgreSQL has aborted the transaction, so the caller must roll back — which also
+			// discards this attempt's audit entry. That is correct: the winning writer recorded
+			// the assignment, and no state change of ours became durable.
+			foreach (var entry in _dbContext.ChangeTracker.Entries()
+				.Where(e => e.State == EntityState.Added)
+				.ToList()) {
+				entry.State = EntityState.Detached;
+			}
 
-			return new SetTenantProfileUserResult.Success(
-				profileAudit,
-				memberAudit,
-				Changed: false
+			return (
+				new SetTenantProfileUserResult.Success(
+					profileAudit,
+					memberAudit,
+					Changed: false
+				),
+				false
 			);
 		}
 
-		await transaction.CommitAsync(cancellationToken);
-
-		return new SetTenantProfileUserResult.Success(
-			profileAudit,
-			memberAudit,
-			Changed: true
+		return (
+			new SetTenantProfileUserResult.Success(
+				profileAudit,
+				memberAudit,
+				Changed: true
+			),
+			true
 		);
+	}
+
+	/// <summary>
+	/// Adds the audit entry to the current change tracker so it is flushed by the same
+	/// <c>SaveChanges</c> — and therefore the same transaction — as the junction mutation it
+	/// records. Deliberately does not go through <c>IAuditLogService</c>: that would be a
+	/// service-to-service dependency, and its own <c>SaveChanges</c> would make the audit a
+	/// second commit that a cancellation could skip.
+	/// </summary>
+	private void AddAuditEntry(
+		SetTenantProfileUserArgs args,
+		string action,
+		TenantProfileAuditData profileAudit,
+		TenantProfileMemberAuditData memberAudit
+	) {
+		var httpContext = _httpContextAccessor.HttpContext;
+
+		var auditLog = AuditLog.CreateEntry(
+			userId: args.ActorUserId,
+			action: action,
+			targetId: args.ProfileId,
+			details: new {
+				TenantId = args.TenantId,
+				ProfileId = args.ProfileId,
+				ProfileName = profileAudit.ProfileName,
+				IsDefault = profileAudit.IsDefault,
+				UserAccountId = memberAudit.UserAccountId,
+				UserId = memberAudit.UserId,
+				AccountLevel = memberAudit.Level.ToString()
+			},
+			ipAddress: httpContext?.Connection.RemoteIpAddress?.ToString(),
+			userAgent: httpContext?.Request.Headers.UserAgent.ToString()
+		);
+
+		_ = _dbContext.AuditLog.Add(auditLog);
 	}
 
 	/// <summary>

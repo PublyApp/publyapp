@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 using Microsoft.EntityFrameworkCore;
@@ -38,6 +39,31 @@ public class AuditLog : BaseAttributes, INoTenantEntity {
 
 	[Column("user_agent")]
 	public string? UserAgent { get; set; }
+
+	/// <summary>
+	/// Single construction path for audit entries, shared by <c>AuditLogService</c> (which
+	/// commits the entry on its own) and by domain services that must add the entry to the
+	/// same transaction as the state change it records.
+	/// </summary>
+	public static AuditLog CreateEntry(
+		Guid userId,
+		string action,
+		Guid? targetId,
+		object? details,
+		string? ipAddress,
+		string? userAgent
+	) {
+		return new AuditLog {
+			UserId = userId,
+			Action = action,
+			TargetId = targetId,
+			Details = details is not null
+				? JsonSerializer.Serialize(details)
+				: null,
+			IpAddress = ipAddress,
+			UserAgent = userAgent
+		};
+	}
 }
 
 public static class AuditActions {

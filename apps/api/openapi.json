@@ -6938,7 +6938,7 @@
         }
       }
     },
-    "/staff/tenants/{tenantId}/profiles/{profileId}/users/{userAccountId}": {
+    "/staff/tenants/{tenantId}/profiles/{profileId}/users/{user_account_id}": {
       "post": {
         "tags": [
           "Tenant Profiles (Staff View)"
@@ -6963,7 +6963,7 @@
             }
           },
           {
-            "name": "userAccountId",
+            "name": "user_account_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -7061,7 +7061,7 @@
             }
           },
           {
-            "name": "userAccountId",
+            "name": "user_account_id",
             "in": "path",
             "required": true,
             "schema": {

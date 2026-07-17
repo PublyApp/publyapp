@@ -7,9 +7,9 @@ import { createAppProblemDetailsFromDiscriminatorValue, createValidationProblemD
 import { type BaseRequestBuilder, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
- * Builds and executes requests for operations under /staff/tenants/{tenantId}/profiles/{profileId}/users/{userAccountId}
+ * Builds and executes requests for operations under /staff/tenants/{tenantId}/profiles/{profileId}/users/{user_account_id}
  */
-export interface WithUserAccountItemRequestBuilder extends BaseRequestBuilder<WithUserAccountItemRequestBuilder> {
+export interface WithUser_account_ItemRequestBuilder extends BaseRequestBuilder<WithUser_account_ItemRequestBuilder> {
     /**
      * Unassign a tenant profile from a tenant member
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
@@ -47,13 +47,13 @@ export interface WithUserAccountItemRequestBuilder extends BaseRequestBuilder<Wi
 /**
  * Uri template for the request builder.
  */
-export const WithUserAccountItemRequestBuilderUriTemplate = "{+baseurl}/staff/tenants/{tenantId}/profiles/{profileId}/users/{userAccountId}";
+export const WithUser_account_ItemRequestBuilderUriTemplate = "{+baseurl}/staff/tenants/{tenantId}/profiles/{profileId}/users/{user_account_id}";
 /**
  * Metadata for all the requests in the request builder.
  */
-export const WithUserAccountItemRequestBuilderRequestsMetadata: RequestsMetadata = {
+export const WithUser_account_ItemRequestBuilderRequestsMetadata: RequestsMetadata = {
     delete: {
-        uriTemplate: WithUserAccountItemRequestBuilderUriTemplate,
+        uriTemplate: WithUser_account_ItemRequestBuilderUriTemplate,
         responseBodyContentType: "application/problem+json",
         errorMappings: {
             400: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
@@ -65,7 +65,7 @@ export const WithUserAccountItemRequestBuilderRequestsMetadata: RequestsMetadata
         adapterMethodName: "sendNoResponseContent",
     },
     post: {
-        uriTemplate: WithUserAccountItemRequestBuilderUriTemplate,
+        uriTemplate: WithUser_account_ItemRequestBuilderUriTemplate,
         responseBodyContentType: "application/problem+json",
         errorMappings: {
             400: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,

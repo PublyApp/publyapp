@@ -4,8 +4,6 @@ using Microsoft.AspNetCore.Mvc;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Localization;
-using PublyApp.Api.Modules.AuditLogs.Entities;
-using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Profiles.Services;
 
 namespace PublyApp.Api.Modules.Profiles.Handlers.Staff;
@@ -18,10 +16,9 @@ public sealed class UnassignTenantProfileUserAsStaff {
 	>> Handle(
 		[FromRoute] string tenantId,
 		[FromRoute] string profileId,
-		[FromRoute] string userAccountId,
+		[FromRoute(Name = "user_account_id")] string userAccountId,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] ITenantProfileAsStaffService tenantProfileService,
-		[FromServices] IAuditLogService auditLogService,
 		CancellationToken cancellationToken
 	) {
 		if (!Guid.TryParse(tenantId, out var tenantIdGuid)) {
@@ -40,8 +37,16 @@ public sealed class UnassignTenantProfileUserAsStaff {
 
 		if (!Guid.TryParse(userAccountId, out var userAccountIdGuid)) {
 			return TypedProblems.BadRequest(
-				"Invalid userAccountId",
+				"Invalid user_account_id",
 				ResponseKeys.MalformedId
+			);
+		}
+
+		var account = authContext.AccountStaff;
+		if (account is null) {
+			throw new InvalidOperationException(
+				"Staff account not found in auth context. "
+				+ "Ensure the endpoint has .WithPermission() middleware."
 			);
 		}
 
@@ -50,7 +55,8 @@ public sealed class UnassignTenantProfileUserAsStaff {
 				TenantId: tenantIdGuid,
 				ProfileId: profileIdGuid,
 				UserAccountId: userAccountIdGuid,
-				IsAssigned: false
+				IsAssigned: false,
+				ActorUserId: account.UserId
 			),
 			cancellationToken
 		);
@@ -69,37 +75,13 @@ public sealed class UnassignTenantProfileUserAsStaff {
 			);
 		}
 
-		if (result is not SetTenantProfileUserResult.Success success) {
+		if (result is not SetTenantProfileUserResult.Success) {
 			throw new InvalidOperationException("Unhandled result type");
 		}
 
-		if (success.Changed) {
-			var account = authContext.AccountStaff;
-			if (account is null) {
-				throw new InvalidOperationException(
-					"Staff account not found in auth context. Ensure the endpoint has .WithPermission() middleware."
-				);
-			}
-
-			await auditLogService.LogAsync(
-				new CreateAuditLogArgs(
-					UserId: account.UserId,
-					Action: AuditActions.TenantProfileUserUnassigned,
-					TargetId: profileIdGuid,
-					Details: new {
-						TenantId = tenantIdGuid,
-						ProfileId = profileIdGuid,
-						ProfileName = success.Profile.ProfileName,
-						IsDefault = success.Profile.IsDefault,
-						UserAccountId = success.Member.UserAccountId,
-						UserId = success.Member.UserId,
-						AccountLevel = success.Member.Level.ToString()
-					}
-				),
-				cancellationToken
-			);
-		}
-
+		// No audit call here: the service records the unassignment in the same transaction as
+		// the junction delete. That matters most on this path — the row is hard-deleted, so the
+		// audit entry is the only surviving evidence the membership ever existed.
 		return TypedResults.NoContent();
 	}
 }

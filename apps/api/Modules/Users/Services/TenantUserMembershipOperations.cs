@@ -165,6 +165,16 @@ internal static class TenantUserMembershipOperations {
 			}
 
 			if (succeededAccountIds.Count > 0) {
+				// UserAccountProfileLockOrder step 2, batched: pin every account being removed
+				// (in a deterministic id order) before enumerating their junction rows, so a
+				// concurrent tenant-profile assign cannot leave a link behind a removed
+				// membership.
+				await UserAccountProfileLockOrder.LockUserAccountRowsAsync(
+					dbContext,
+					succeededAccountIds,
+					cancellationToken
+				);
+
 				var links = await (
 					from link in dbContext.UserAccountProfile
 					where succeededAccountIds.Contains(link.UserAccountId)
@@ -386,6 +396,15 @@ internal static class TenantUserMembershipOperations {
 		Guid userAccountId,
 		CancellationToken cancellationToken
 	) {
+		// UserAccountProfileLockOrder step 2: pin the account row before enumerating its
+		// junction rows. Without this, a concurrent tenant-profile assign could insert a link
+		// after this enumeration and leave a live link behind a removed membership.
+		await UserAccountProfileLockOrder.LockUserAccountRowsAsync(
+			dbContext,
+			[userAccountId],
+			cancellationToken
+		);
+
 		// UserAccountProfile is current membership state. Hard-delete links when
 		// membership is removed or restored so stale permissions cannot return.
 		var links = await (

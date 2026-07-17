@@ -152,10 +152,12 @@ public static partial class Routes {
 				}
 
 				// Membership is exposed as an idempotent per-member "upsert" toggle keyed by
-				// userAccountId, mirroring Permissions.Upsert in this same group:
+				// the member's account id, mirroring Permissions.Upsert in this same group:
 				// POST assigns, DELETE unassigns. This is what lets the members UI toggle a
 				// single row without a batch confirm step.
-				public const string Upsert = Root + "/{userAccountId}";
+				// The placeholder is snake_case per the URL-parameter convention; handlers bind
+				// it explicitly to an idiomatic C# `userAccountId`.
+				public const string Upsert = Root + "/{user_account_id}";
 				public static string UpsertFn(string profileId, string userAccountId) {
 					return $"{RootFn(profileId)}/{userAccountId}";
 				}
