@@ -81,6 +81,11 @@ public sealed class JobEnqueuerSpec : IClassFixture<ApiFixture> {
 				jobId = await enqueuer.EnqueueAsync(
 					definition, new ExportPayload { TargetId = Guid.NewGuid() }
 				);
+
+				// The enqueuer must JOIN the ambient transaction, never commit or
+				// replace it: it is still open and still the caller's to decide.
+				dbContext.Database.CurrentTransaction.Should().BeSameAs(transaction);
+
 				await transaction.RollbackAsync();
 			}
 
@@ -180,6 +185,63 @@ public sealed class JobEnqueuerSpec : IClassFixture<ApiFixture> {
 		}
 	}
 
+	// With NO ambient transaction the enqueuer owns one of its own, committing the
+	// insert and the pg_notify TOGETHER (review finding 3): the wake is delivered at
+	// commit — observed here by a real LISTEN connection — and a NOTIFY failure
+	// could never strand a durably-committed row behind a caller-visible exception.
+	[Fact]
+	public async Task ItShouldCommitInsertAndNotifyAtomicallyWhenItOwnsTheTransaction() {
+		var definition = NewDefinition("own-txn-notify");
+
+		try {
+			var connectionString = await GetConnectionStringAsync();
+
+			await using var listenConnection =
+				new Npgsql.NpgsqlConnection(connectionString);
+			await listenConnection.OpenAsync();
+
+			var notified = new TaskCompletionSource(
+				TaskCreationOptions.RunContinuationsAsynchronously
+			);
+			listenConnection.Notification += (_, args) => {
+				if (args.Channel == "job_queue") {
+					notified.TrySetResult();
+				}
+			};
+
+			await using (var listen = new Npgsql.NpgsqlCommand(
+				"LISTEN job_queue", listenConnection
+			)) {
+				await listen.ExecuteNonQueryAsync();
+			}
+
+			await using var dbContext = await CreateDbContextAsync();
+			var enqueuer = new JobEnqueuer(dbContext, new RequestAuthContext());
+
+			dbContext.Database.CurrentTransaction.Should().BeNull(
+				"this spec exercises the enqueuer-owned transaction path"
+			);
+
+			var jobId = await enqueuer.EnqueueAsync(
+				definition, new ExportPayload { TargetId = Guid.NewGuid() }
+			);
+
+			// Drive the listener until the at-commit notification arrives.
+			using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+			while (!notified.Task.IsCompleted) {
+				await listenConnection.WaitAsync(timeout.Token);
+			}
+			await notified.Task;
+
+			// And the row itself is durably committed and visible elsewhere.
+			await using var verifyContext = await CreateDbContextAsync();
+			var row = await verifyContext.JobQueue.SingleOrDefaultAsync(j => j.Id == jobId);
+			row.Should().NotBeNull();
+		} finally {
+			await DeleteJobsByTypeAsync(definition.JobType);
+		}
+	}
+
 	// --- helpers ----------------------------------------------------------------
 
 	private static JobDefinition<ExportPayload> NewDefinition(
@@ -201,7 +263,7 @@ public sealed class JobEnqueuerSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private async Task<AppDbContext> CreateDbContextAsync() {
+	private async Task<string> GetConnectionStringAsync() {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
@@ -213,9 +275,13 @@ public sealed class JobEnqueuerSpec : IClassFixture<ApiFixture> {
 			);
 		}
 
+		return connectionString;
+	}
+
+	private async Task<AppDbContext> CreateDbContextAsync() {
 		return new AppDbContext(
 			new DbContextOptionsBuilder<AppDbContext>()
-				.UseNpgsql(connectionString)
+				.UseNpgsql(await GetConnectionStringAsync())
 				.Options
 		);
 	}

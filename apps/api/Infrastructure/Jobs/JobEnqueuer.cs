@@ -40,6 +40,35 @@ public sealed class JobEnqueuer : IJobEnqueuer {
 			CorrelationId = Activity.Current?.Id
 		};
 
+		// Insert + NOTIFY must be one atomic unit: inside a caller-owned transaction
+		// they join it (commit and wake happen together at the caller's commit);
+		// with NO ambient transaction the enqueuer opens its own, so a NOTIFY
+		// failure after the insert can never leave a durably-enqueued row whose
+		// caller saw an exception (and would retry into a duplicate).
+		var ownsTransaction = _dbContext.Database.CurrentTransaction is null;
+
+		if (ownsTransaction) {
+			await using var transaction =
+				await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+			await InsertAndNotifyAsync(item, cancellationToken);
+			await transaction.CommitAsync(cancellationToken);
+		} else {
+			await InsertAndNotifyAsync(item, cancellationToken);
+		}
+
+		if (item.Id is null) {
+			throw new InvalidOperationException(
+				"job_queue insert did not populate the database-generated id."
+			);
+		}
+
+		return item.Id.Value;
+	}
+
+	private async Task InsertAndNotifyAsync(
+		JobQueueItem item,
+		CancellationToken cancellationToken
+	) {
 		await _dbContext.JobQueue.AddAsync(item, cancellationToken);
 		await _dbContext.SaveChangesAsync(cancellationToken);
 
@@ -51,14 +80,6 @@ public sealed class JobEnqueuer : IJobEnqueuer {
 			$"SELECT pg_notify('job_queue', '')",
 			cancellationToken
 		);
-
-		if (item.Id is null) {
-			throw new InvalidOperationException(
-				"job_queue insert did not populate the database-generated id."
-			);
-		}
-
-		return item.Id.Value;
 	}
 
 	// Defense-in-depth mirror of the §4.1 CHECK constraints, failing before SQL.
