@@ -30,7 +30,12 @@ public sealed record JobHandlerRegistration(
 public sealed class JobHandlerRegistry {
 	private readonly Dictionary<string, JobHandlerRegistration> _registrations;
 
-	public JobHandlerRegistry(IEnumerable<JobHandlerRegistration> registrations) {
+	// DI injects the scope factory, enabling the eager consistency check; spec code
+	// constructing a registry from ad-hoc registrations may omit it.
+	public JobHandlerRegistry(
+		IEnumerable<JobHandlerRegistration> registrations,
+		IServiceScopeFactory? scopeFactory = null
+	) {
 		_registrations = new Dictionary<string, JobHandlerRegistration>(StringComparer.Ordinal);
 
 		foreach (var registration in registrations) {
@@ -42,6 +47,30 @@ public sealed class JobHandlerRegistry {
 			}
 
 			_registrations.Add(registration.JobType, registration);
+		}
+
+		if (scopeFactory is not null) {
+			ValidateRegistrationConsistency(scopeFactory);
+		}
+	}
+
+	// Fail-fast configuration guard: every registration's factory must yield a
+	// handler whose own JobType matches the registered key — a drift is a pure
+	// config error and must die at startup, never at dispatch (the engine's
+	// runtime PermanentFailure classification is only defense in depth).
+	private void ValidateRegistrationConsistency(IServiceScopeFactory scopeFactory) {
+		using var scope = scopeFactory.CreateScope();
+
+		foreach (var registration in _registrations.Values) {
+			var handler = registration.Factory(scope.ServiceProvider);
+
+			if (!string.Equals(handler.JobType, registration.JobType, StringComparison.Ordinal)) {
+				throw new InvalidOperationException(
+					$"Handler {handler.GetType().Name} declares JobType "
+					+ $"'{handler.JobType}' but was registered for "
+					+ $"'{registration.JobType}'. Fix the AddJobHandler registration."
+				);
+			}
 		}
 	}
 

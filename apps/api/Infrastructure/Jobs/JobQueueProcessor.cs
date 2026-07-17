@@ -87,12 +87,17 @@ public sealed class JobQueueProcessor : BackgroundService {
 
 	/// <summary>How one dispatched job's claimed ownership was settled.</summary>
 	public enum JobExecutionResult {
-		// An outcome (Success/Cancelled/Retry/PermanentFailure) was applied.
+		// An outcome was CONFIRMED applied: the conditioned delete/requeue affected
+		// a row, or the terminal transaction committed. Never reported on a fenced
+		// zero-row transition or a rolled-back terminal step.
 		Completed = 0,
 		// Host shutdown: the row was proactively released back to Pending.
 		Released = 1,
 		// The lease was lost to another claimant; the outcome was discarded.
-		LeaseLost = 2
+		LeaseLost = 2,
+		// The terminal step rolled back (hook/DLQ write failed); the row is
+		// deliberately left leased and retried whole after lease expiry (F5).
+		Faulted = 3
 	}
 
 	/// <summary>
@@ -366,13 +371,22 @@ public sealed class JobQueueProcessor : BackgroundService {
 				handler = registration.Factory(scope.ServiceProvider);
 
 				if (!string.Equals(handler.JobType, item.JobType, StringComparison.Ordinal)) {
-					throw new InvalidOperationException(
+					// A registration/handler JobType drift is a pure configuration
+					// error: burning retries on it gains nothing → straight to the
+					// DLQ. Also guarded eagerly at registry build (DI construction
+					// resolves and verifies every registration), so this runtime
+					// path exists only as defense in depth.
+					outcome = new JobOutcome.PermanentFailure(
 						$"Handler {handler.GetType().Name} declares JobType "
-						+ $"'{handler.JobType}' but was registered for '{item.JobType}'."
+						+ $"'{handler.JobType}' but was registered for "
+						+ $"'{item.JobType}' (configuration drift)."
 					);
+					// The drifted handler's terminal hook must not run for a job
+					// that was never legitimately its own.
+					handler = null;
+				} else {
+					outcome = await handler.HandleAsync(context, linkedSource.Token);
 				}
-
-				outcome = await handler.HandleAsync(context, linkedSource.Token);
 			} else {
 				outcome = new JobOutcome.PermanentFailure(
 					$"No job handler registered for job type '{item.JobType}'."
@@ -440,9 +454,10 @@ public sealed class JobQueueProcessor : BackgroundService {
 		// Once a handler has returned, its outcome is applied with
 		// CancellationToken.None: bookkeeping is quick and bounded, and a completed
 		// run must never be discarded — or its row leaked as leased — by a shutdown
-		// arriving between handler return and the transition SQL (§3.6).
-		await ApplyOutcomeAsync(dbContext, handler, item, lockToken, outcome, failure);
-		return JobExecutionResult.Completed;
+		// arriving between handler return and the transition SQL (§3.6). The
+		// settlement result is CONFIRMED, not assumed: a fenced zero-row transition
+		// reports LeaseLost, a rolled-back terminal step reports Faulted.
+		return await ApplyOutcomeAsync(dbContext, handler, item, lockToken, outcome, failure);
 	}
 
 	// --- fencing-conditioned transitions (F1) ------------------------------------
@@ -541,7 +556,9 @@ public sealed class JobQueueProcessor : BackgroundService {
 
 	// Runs entirely on CancellationToken.None (see ProcessOneAsync): once a handler
 	// has produced an outcome, the quick bookkeeping completes even under shutdown.
-	private async Task ApplyOutcomeAsync(
+	// Returns the CONFIRMED settlement: Completed only when the conditioned
+	// delete/requeue affected a row or the terminal transaction committed.
+	private async Task<JobExecutionResult> ApplyOutcomeAsync(
 		AppDbContext dbContext,
 		IJobHandler? handler,
 		JobQueueItem item,
@@ -555,49 +572,50 @@ public sealed class JobQueueProcessor : BackgroundService {
 			var deleted = await TryCompleteAsync(
 				dbContext, itemId, lockToken, CancellationToken.None
 			);
-			if (deleted) {
-				_metrics.Succeeded(item.JobType);
-
-				if (_logger.IsEnabled(LogLevel.Information)) {
-					_logger.LogInformation(
-						"Completed job {JobId} of type {JobType}",
-						itemId,
-						item.JobType
-					);
-				}
-			} else {
+			if (!deleted) {
 				_metrics.LeaseLost(item.JobType);
+				return JobExecutionResult.LeaseLost;
 			}
-			return;
+
+			_metrics.Succeeded(item.JobType);
+
+			if (_logger.IsEnabled(LogLevel.Information)) {
+				_logger.LogInformation(
+					"Completed job {JobId} of type {JobType}",
+					itemId,
+					item.JobType
+				);
+			}
+			return JobExecutionResult.Completed;
 		}
 
 		if (outcome is JobOutcome.Cancelled cancelled) {
 			var deleted = await TryCompleteAsync(
 				dbContext, itemId, lockToken, CancellationToken.None
 			);
-			if (deleted) {
-				_metrics.Cancelled(item.JobType);
-
-				if (_logger.IsEnabled(LogLevel.Information)) {
-					_logger.LogInformation(
-						"Cancelled job {JobId} of type {JobType}: {Reason}",
-						itemId,
-						item.JobType,
-						JobErrorSanitizer.Sanitize(cancelled.Reason)
-					);
-				}
-			} else {
+			if (!deleted) {
 				_metrics.LeaseLost(item.JobType);
+				return JobExecutionResult.LeaseLost;
 			}
-			return;
+
+			_metrics.Cancelled(item.JobType);
+
+			if (_logger.IsEnabled(LogLevel.Information)) {
+				_logger.LogInformation(
+					"Cancelled job {JobId} of type {JobType}: {Reason}",
+					itemId,
+					item.JobType,
+					JobErrorSanitizer.Sanitize(cancelled.Reason)
+				);
+			}
+			return JobExecutionResult.Completed;
 		}
 
 		if (outcome is JobOutcome.PermanentFailure permanent) {
-			await DeadLetterAsync(
+			return await DeadLetterAsync(
 				dbContext, handler, item, lockToken,
 				item.Attempts + 1, JobErrorSanitizer.Sanitize(permanent.Reason), failure
 			);
-			return;
 		}
 
 		if (outcome is JobOutcome.Retry retry) {
@@ -605,10 +623,9 @@ public sealed class JobQueueProcessor : BackgroundService {
 			var safeError = JobErrorSanitizer.Sanitize(retry.Error);
 
 			if (failedAttempts >= item.MaxAttempts) {
-				await DeadLetterAsync(
+				return await DeadLetterAsync(
 					dbContext, handler, item, lockToken, failedAttempts, safeError, failure
 				);
-				return;
 			}
 
 			// Engine-owned backoff (§5.1): jittered exponential, with a handler
@@ -623,29 +640,30 @@ public sealed class JobQueueProcessor : BackgroundService {
 				dbContext, itemId, lockToken, delaySeconds, safeError,
 				CancellationToken.None
 			);
-			if (requeued) {
-				_metrics.Retried(item.JobType);
-
-				if (_logger.IsEnabled(LogLevel.Warning)) {
-					// The original exception (with stack trace) goes to the
-					// structured logger; the template only carries sanitized text.
-					_logger.LogWarning(
-						failure,
-						"Job {JobId} of type {JobType} failed (attempt "
-						+ "{Attempt}/{MaxAttempts}); requeued with {DelaySeconds:F0}s "
-						+ "backoff: {Error}",
-						itemId,
-						item.JobType,
-						failedAttempts,
-						item.MaxAttempts,
-						delaySeconds,
-						safeError
-					);
-				}
-			} else {
+			if (!requeued) {
 				_metrics.LeaseLost(item.JobType);
+				return JobExecutionResult.LeaseLost;
 			}
-			return;
+
+			_metrics.Retried(item.JobType);
+
+			if (_logger.IsEnabled(LogLevel.Warning)) {
+				// The original exception (with stack trace) goes to the
+				// structured logger; the template only carries sanitized text.
+				_logger.LogWarning(
+					failure,
+					"Job {JobId} of type {JobType} failed (attempt "
+					+ "{Attempt}/{MaxAttempts}); requeued with {DelaySeconds:F0}s "
+					+ "backoff: {Error}",
+					itemId,
+					item.JobType,
+					failedAttempts,
+					item.MaxAttempts,
+					delaySeconds,
+					safeError
+				);
+			}
+			return JobExecutionResult.Completed;
 		}
 
 		throw new InvalidOperationException(
@@ -659,7 +677,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 	// context is the SAME instance, so hook writes commit and roll back with the
 	// engine's terminal step. A hook throw rolls everything back and the still-leased
 	// row is retried whole after lease expiry.
-	private async Task DeadLetterAsync(
+	private async Task<JobExecutionResult> DeadLetterAsync(
 		AppDbContext dbContext,
 		IJobHandler? handler,
 		JobQueueItem item,
@@ -692,7 +710,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 				await transaction.RollbackAsync(CancellationToken.None);
 				dbContext.Entry(deadLetter).State = EntityState.Detached;
 				_metrics.LeaseLost(item.JobType);
-				return;
+				return JobExecutionResult.LeaseLost;
 			}
 
 			await transaction.CommitAsync(CancellationToken.None);
@@ -708,7 +726,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 				itemId,
 				item.JobType
 			);
-			return;
+			return JobExecutionResult.Faulted;
 		}
 
 		_metrics.DeadLettered(item.JobType);
@@ -725,6 +743,8 @@ public sealed class JobQueueProcessor : BackgroundService {
 			attempts,
 			lastError
 		);
+
+		return JobExecutionResult.Completed;
 	}
 
 	// --- renewal loop (F1) ---------------------------------------------------------

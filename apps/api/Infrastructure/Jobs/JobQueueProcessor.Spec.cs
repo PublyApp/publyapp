@@ -374,6 +374,23 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 				handler
 			);
 
+			// Settlement honesty (review): the fenced zero-row transition must be
+			// visible both in the batch accounting (Completed stays 0) and as a
+			// jobs.lease_lost measurement.
+			long leaseLostCount = 0;
+			using var listener = new MeterListener();
+			listener.InstrumentPublished = (instrument, meterListener) => {
+				if (instrument.Meter.Name == JobsMetrics.MeterName) {
+					meterListener.EnableMeasurementEvents(instrument);
+				}
+			};
+			listener.SetMeasurementEventCallback<long>((instrument, value, tags, _) => {
+				if (instrument.Name == "jobs.lease_lost" && HasTag(tags, "job_type", jobType)) {
+					Interlocked.Add(ref leaseLostCount, value);
+				}
+			});
+			listener.Start();
+
 			var processing = processor.ProcessBatchAsync(CancellationToken.None);
 			await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
 
@@ -397,7 +414,15 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			// Release the original owner; its Success outcome must be discarded by
 			// the fence (zero affected rows), not resurrect or double-complete.
 			barrier.TrySetResult();
-			await processing.WaitAsync(TimeSpan.FromSeconds(10));
+			var batchResult = await processing.WaitAsync(TimeSpan.FromSeconds(10));
+
+			// The fenced transition is NOT a completion: the batch reports the
+			// dispatch but no confirmed settlement, and lease loss is measured.
+			batchResult.Dispatched.Should().Be(1);
+			batchResult.Completed.Should().Be(
+				0, "a fenced zero-row transition must never count as Completed"
+			);
+			Interlocked.Read(ref leaseLostCount).Should().BeGreaterThan(0);
 
 			await using var verifyContext = await CreateDbContextAsync();
 			var queueCount = await verifyContext.JobQueue
@@ -682,6 +707,56 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			var deadLetter = await verifyContext.JobDeadLetter
 				.SingleAsync(d => d.OriginalJobId == claimed.Id);
 			deadLetter.LastError.Should().Contain("No job handler registered");
+		} finally {
+			await DeleteJobsByTypeAsync(jobType);
+		}
+	}
+
+	// A registration whose handler declares a DIFFERENT JobType is a pure config
+	// error: it must dead-letter immediately (never burn retries) — and the same
+	// drift is also caught eagerly at registry build when DI constructs it (see
+	// JobHandlerRegistrySpec); this covers the runtime defense-in-depth path.
+	[Fact]
+	public async Task ItShouldDeadLetterImmediatelyOnRegistrationJobTypeDrift() {
+		var jobType = UniqueType("drift");
+		await using var dbContext = await CreateDbContextAsync();
+
+		try {
+			var claimed = await SeedAndClaimOneAsync(dbContext, jobType, "worker-a");
+			var item = await dbContext.JobQueue.SingleAsync(j => j.Id == claimed.Id);
+
+			// Handler declares a different type than it was registered under; built
+			// without a scope factory so the eager guard is bypassed on purpose.
+			var driftedHandler = new RecordingJobHandler(UniqueType("other"));
+			var registry = new JobHandlerRegistry([
+				new JobHandlerRegistration(jobType, _ => driftedHandler)
+			]);
+			var processor = new JobQueueProcessor(
+				_fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
+				registry,
+				new JobsMetrics(NullLogger<JobsMetrics>.Instance),
+				NullLogger<JobQueueProcessor>.Instance
+			);
+
+			var result = await processor.ProcessOneAsync(
+				item, claimed.LockToken, CancellationToken.None
+			);
+
+			result.Should().Be(JobQueueProcessor.JobExecutionResult.Completed);
+			driftedHandler.Handled.Should().BeEmpty("a drifted handler must never run the job");
+			driftedHandler.TerminalContexts.Should().BeEmpty(
+				"nor should its terminal hook run for a job that was never its own"
+			);
+
+			await using var verifyContext = await CreateDbContextAsync();
+			var queueRow = await verifyContext.JobQueue
+				.SingleOrDefaultAsync(j => j.Id == claimed.Id);
+			queueRow.Should().BeNull("configuration drift skips retries entirely");
+
+			var deadLetter = await verifyContext.JobDeadLetter
+				.SingleAsync(d => d.OriginalJobId == claimed.Id);
+			deadLetter.LastError.Should().Contain("configuration drift");
+			deadLetter.Attempts.Should().Be(1);
 		} finally {
 			await DeleteJobsByTypeAsync(jobType);
 		}
