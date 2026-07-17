@@ -81,6 +81,9 @@ const mocks = vi.hoisted(() => ({
 		| undefined,
 	capturedOnDirtyChange: undefined as ((isDirty: boolean) => void) | undefined,
 	capturedOnSaved: undefined as (() => void) | undefined,
+	capturedMatrixDirtyChange: undefined as
+		| ((isDirty: boolean) => void)
+		| undefined,
 }));
 
 vi.mock('@tanstack/react-router', () => ({
@@ -270,6 +273,17 @@ vi.mock('~/lib/query/staff-tenant-profiles', () => ({
 
 vi.mock('~/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
+}));
+
+vi.mock('./_profile-permissions-tab', () => ({
+	ProfilePermissionsTab: ({
+		onDirtyChange,
+	}: {
+		onDirtyChange: (isDirty: boolean) => void;
+	}) => {
+		mocks.capturedMatrixDirtyChange = onDirtyChange;
+		return <div data-testid="staff-tenant-profile-permissions-content" />;
+	},
 }));
 
 vi.mock('./_profile-form-drawer', () => ({
@@ -478,6 +492,7 @@ describe('staff tenant profile details route', () => {
 		mocks.capturedShouldBlockFn = undefined;
 		mocks.capturedOnDirtyChange = undefined;
 		mocks.capturedOnSaved = undefined;
+		mocks.capturedMatrixDirtyChange = undefined;
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
 		mocks.useDeleteStaffTenantProfileMutation.mockReturnValue({
 			isPending: false,
@@ -737,7 +752,7 @@ describe('staff tenant profile details route', () => {
 		expect(tenantBand.textContent).toContain('publyapp.com/—');
 	});
 
-	test('renders URL-selected permissions and members placeholders with counted tabs', () => {
+	test('renders the URL-selected permissions tab and members placeholder with counted tabs', () => {
 		mocks.search = { tab: 'permissions' };
 		const view = renderPage();
 
@@ -747,7 +762,7 @@ describe('staff tenant profile details route', () => {
 				.querySelector('[aria-current="page"]')?.textContent,
 		).toContain('Permissions2');
 		expect(
-			screen.getByText('Permission management is moving here'),
+			screen.getByTestId('staff-tenant-profile-permissions-content'),
 		).toBeTruthy();
 		expect(
 			screen.queryByTestId('staff-tenant-profile-overview-content'),
@@ -1236,5 +1251,49 @@ describe('staff tenant profile details route', () => {
 		fireEvent.click(screen.getByRole('button', { name: 'Leave page' }));
 		expect(proceed).toHaveBeenCalled();
 		expect(reset).not.toHaveBeenCalled();
+	});
+
+	// Step 3: the inline Permissions matrix stages edits in a mounted tab; any
+	// navigation that leaves that tab discards them, so the page-level guard
+	// must prompt on a tab switch / Back while the matrix is dirty — without
+	// prompting when the drawer opens on the same tab (matrix stays mounted).
+	test('the nav-guard blocks leaving the Permissions tab while the inline matrix is dirty', () => {
+		const tabSwitchAway: BlockerArgs = {
+			current: { pathname: PROFILE_PATHNAME, search: { tab: 'permissions' } },
+			next: { pathname: PROFILE_PATHNAME, search: {} },
+			action: 'PUSH',
+		};
+		const backNavAway: BlockerArgs = {
+			current: { pathname: PROFILE_PATHNAME, search: { tab: 'permissions' } },
+			next: {
+				pathname:
+					'/staff/tenants/11111111-1111-1111-1111-111111111111/profiles',
+				search: {},
+			},
+			action: 'PUSH',
+		};
+		const openDrawerSameTab: BlockerArgs = {
+			current: { pathname: PROFILE_PATHNAME, search: { tab: 'permissions' } },
+			next: {
+				pathname: PROFILE_PATHNAME,
+				search: { tab: 'permissions', edit: 1 },
+			},
+			action: 'PUSH',
+		};
+
+		mocks.search = { tab: 'permissions' };
+		renderPage();
+
+		expect(mocks.capturedShouldBlockFn?.(tabSwitchAway)).toBe(false);
+
+		act(() => mocks.capturedMatrixDirtyChange?.(true));
+
+		expect(mocks.capturedShouldBlockFn?.(tabSwitchAway)).toBe(true);
+		expect(mocks.capturedShouldBlockFn?.(backNavAway)).toBe(true);
+		// Opening the edit drawer keeps the matrix mounted on the same tab.
+		expect(mocks.capturedShouldBlockFn?.(openDrawerSameTab)).toBe(false);
+
+		act(() => mocks.capturedMatrixDirtyChange?.(false));
+		expect(mocks.capturedShouldBlockFn?.(tabSwitchAway)).toBe(false);
 	});
 });

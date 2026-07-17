@@ -1,13 +1,18 @@
 import {
 	IconAlertCircle,
 	IconArrowLeft,
-	IconKey,
 	IconSearchOff,
 	IconUsers,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+	type ReactNode,
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -51,6 +56,7 @@ import {
 import { ProfileFormDrawer } from './_profile-form-drawer';
 import { ProfileIdentityHeader } from './_profile-identity-header';
 import { ProfileOverviewTab } from './_profile-overview-tab';
+import { ProfilePermissionsTab } from './_profile-permissions-tab';
 import { ProfileSectionNavLink } from './_profile-section-nav-link';
 import { ProfileTenantBand } from './_profile-tenant-band';
 
@@ -168,6 +174,11 @@ function StaffTenantProfileDetailsPage() {
 	const isEditDrawerOpen = search.edit === 1;
 	const activeTab = search.tab ?? 'overview';
 	const [isEditFormDirty, setIsEditFormDirty] = useState(false);
+	// The inline Permissions matrix stages edits locally; it reports its dirty
+	// state up here so the page-level nav guard (below) can prompt before a tab
+	// switch / Back discards them.
+	const [isPermissionsMatrixDirty, setIsPermissionsMatrixDirty] =
+		useState(false);
 	// `onDirtyChange(false)` (called by the drawer right before an
 	// app-initiated close/submit navigation) is an async React state update —
 	// a `navigate()` fired synchronously right after it still sees the old
@@ -196,6 +207,23 @@ function StaffTenantProfileDetailsPage() {
 	// edit draft silently (tenants-r1-F2).
 	const editDrawerBlocker = useBlocker({
 		shouldBlockFn: ({ current, next }) => {
+			// Step-3 inline-matrix guard (independent of the edit drawer). Unsaved
+			// matrix edits live only in the mounted Permissions tab, so any
+			// navigation that leaves that tab — a switch to Overview/Members, a
+			// sibling route, or a browser Back — would discard them; prompt there.
+			// Staying on the Permissions tab (e.g. opening the edit drawer via
+			// `?edit=1`, which keeps the matrix mounted) must never prompt.
+			if (isPermissionsMatrixDirty) {
+				const nextSearch = next.search as ProfileDetailsSearchParams;
+				const leavesPermissionsTab =
+					next.pathname !== current.pathname ||
+					nextSearch.tab !== 'permissions';
+
+				if (leavesPermissionsTab) {
+					return true;
+				}
+			}
+
 			if (
 				!isEditDrawerOpen ||
 				!isEditFormDirty ||
@@ -418,6 +446,52 @@ function StaffTenantProfileDetailsPage() {
 			params: { tenantId },
 		});
 	};
+
+	let activeTabContent: ReactNode;
+	if (activeTab === 'overview') {
+		activeTabContent = (
+			<ProfileOverviewTab
+				tenantId={tenantId}
+				profile={profile}
+				permissionKeys={permissionKeys}
+				permissionGroups={permissionGroups}
+				isCatalogPending={permissionCatalogQuery.isPending}
+				isCatalogError={permissionCatalogQuery.isError}
+				members={members}
+				membersPending={membersQuery.isPending}
+				membersError={membersQuery.isError}
+				locale={i18n.language}
+				onDeleteRequest={() => setPendingDelete(true)}
+				isDeletePending={deleteProfile.isPending}
+			/>
+		);
+	} else if (activeTab === 'permissions') {
+		activeTabContent = (
+			<ProfilePermissionsTab
+				tenantId={tenantId}
+				profileId={profileId}
+				grantedKeys={permissionKeys}
+				permissionGroups={permissionGroups}
+				isCatalogPending={permissionCatalogQuery.isPending}
+				isCatalogError={permissionCatalogQuery.isError}
+				catalogError={permissionCatalogQuery.error}
+				onDirtyChange={setIsPermissionsMatrixDirty}
+				onSessionExpired={() => setShouldRedirectToLogout(true)}
+			/>
+		);
+	} else {
+		activeTabContent = (
+			<StateView
+				icon={<IconUsers aria-hidden="true" />}
+				scale="inline"
+				title={t('profile-members-placeholder-title')}
+				description={t('profile-members-placeholder-description')}
+				testId="staff-tenant-profile-members-placeholder"
+				className="py-12"
+			/>
+		);
+	}
+
 	return (
 		<div
 			className="publy-detail-page flex w-full flex-col gap-5"
@@ -482,45 +556,7 @@ function StaffTenantProfileDetailsPage() {
 				onOpenChange={setPendingDelete}
 			/>
 
-			{activeTab === 'overview' ? (
-				<ProfileOverviewTab
-					tenantId={tenantId}
-					profile={profile}
-					permissionKeys={permissionKeys}
-					permissionGroups={permissionGroups}
-					isCatalogPending={permissionCatalogQuery.isPending}
-					isCatalogError={permissionCatalogQuery.isError}
-					members={members}
-					membersPending={membersQuery.isPending}
-					membersError={membersQuery.isError}
-					locale={i18n.language}
-					onDeleteRequest={() => setPendingDelete(true)}
-					isDeletePending={deleteProfile.isPending}
-				/>
-			) : (
-				<StateView
-					icon={
-						activeTab === 'permissions' ? (
-							<IconKey aria-hidden="true" />
-						) : (
-							<IconUsers aria-hidden="true" />
-						)
-					}
-					scale="inline"
-					title={
-						activeTab === 'permissions'
-							? t('profile-permissions-placeholder-title')
-							: t('profile-members-placeholder-title')
-					}
-					description={
-						activeTab === 'permissions'
-							? t('profile-permissions-placeholder-description')
-							: t('profile-members-placeholder-description')
-					}
-					testId={'staff-tenant-profile-' + activeTab + '-placeholder'}
-					className="py-12"
-				/>
-			)}
+			{activeTabContent}
 
 			<ProfileFormDrawer
 				tenantId={tenantId}
