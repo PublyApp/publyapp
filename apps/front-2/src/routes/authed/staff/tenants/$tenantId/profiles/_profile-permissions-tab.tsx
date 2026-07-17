@@ -257,10 +257,7 @@ export const ProfilePermissionsTab = ({
 	// with the same keys. Signature equality cannot do that: legitimate server
 	// truth may repeat a pre-save signature after the save generation completes.
 	const appliedGrantedRevisionRef = useRef(grantedRevision);
-	const ignoredGrantedCacheSnapshotRef = useRef<{
-		permissionKeys: string[];
-		revision: number;
-	} | null>(null);
+	const suppressedThroughGrantedRevisionRef = useRef<number | null>(null);
 	// A ref-backed generation opens synchronously before writes start. Adoption
 	// stays disabled until that generation's invalidation attempt finishes, so a
 	// cache notification whose React render is queued cannot slip through the
@@ -285,10 +282,11 @@ export const ProfilePermissionsTab = ({
 		if (grantedRevision <= appliedGrantedRevisionRef.current) {
 			return;
 		}
-		const ignoredSnapshot = ignoredGrantedCacheSnapshotRef.current;
+		const suppressedThroughRevision =
+			suppressedThroughGrantedRevisionRef.current;
 		if (
-			ignoredSnapshot !== null &&
-			grantedRevision <= ignoredSnapshot.revision
+			suppressedThroughRevision !== null &&
+			grantedRevision <= suppressedThroughRevision
 		) {
 			return;
 		}
@@ -297,7 +295,7 @@ export const ProfilePermissionsTab = ({
 		setBaselineKeys(next);
 		setStagedKeys(next);
 		appliedGrantedRevisionRef.current = grantedRevision;
-		ignoredGrantedCacheSnapshotRef.current = null;
+		suppressedThroughGrantedRevisionRef.current = null;
 		// eslint-disable-next-line react-hooks/exhaustive-deps -- grantedSignature is the stable key for the granted-keys array
 	}, [grantedRevision, grantedSignature, isDirty]);
 
@@ -446,6 +444,16 @@ export const ProfilePermissionsTab = ({
 						}),
 			),
 		);
+		// This exact scoped cache revision is the last one that may predate the
+		// settled writes. Invalidation can advance the cache while it is awaited,
+		// so generation close must never widen this suppression boundary.
+		const cacheSnapshotAtWriteSettlement =
+			getStaffTenantProfilePermissionKeysCacheSnapshot(queryClient, {
+				tenantId,
+				profileId,
+			});
+		const suppressionBoundaryRevision =
+			cacheSnapshotAtWriteSettlement?.revision ?? null;
 
 		const rejected = results.filter(
 			(result): result is PromiseRejectedResult => result.status === 'rejected',
@@ -492,19 +500,34 @@ export const ProfilePermissionsTab = ({
 
 		if (openSaveGenerationRef.current === saveGeneration) {
 			if (fulfilledCount > 0) {
-				const cacheSnapshot = getStaffTenantProfilePermissionKeysCacheSnapshot(
-					queryClient,
-					{
+				const cacheSnapshotAtGenerationClose =
+					getStaffTenantProfilePermissionKeysCacheSnapshot(queryClient, {
 						tenantId,
 						profileId,
-					},
-				);
-				if (cacheSnapshot !== null) {
-					ignoredGrantedCacheSnapshotRef.current = cacheSnapshot;
+					});
+				if (
+					suppressionBoundaryRevision !== null &&
+					cacheSnapshotAtGenerationClose !== null &&
+					cacheSnapshotAtGenerationClose.revision <= suppressionBoundaryRevision
+				) {
+					suppressedThroughGrantedRevisionRef.current =
+						suppressionBoundaryRevision;
 					appliedGrantedRevisionRef.current = Math.max(
 						appliedGrantedRevisionRef.current,
-						cacheSnapshot.revision,
+						suppressionBoundaryRevision,
 					);
+				} else if (
+					cacheSnapshotAtGenerationClose !== null &&
+					cacheSnapshotAtGenerationClose.revision >
+						appliedGrantedRevisionRef.current &&
+					areKeySetsEqual(stagedKeys, nextBaseline)
+				) {
+					const next = new Set(cacheSnapshotAtGenerationClose.permissionKeys);
+					setBaselineKeys(next);
+					setStagedKeys(next);
+					appliedGrantedRevisionRef.current =
+						cacheSnapshotAtGenerationClose.revision;
+					suppressedThroughGrantedRevisionRef.current = null;
 				}
 			}
 			openSaveGenerationRef.current = null;

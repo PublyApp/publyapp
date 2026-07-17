@@ -869,6 +869,60 @@ describe('ProfilePermissionsTab', () => {
 		).toBe(false);
 	});
 
+	test('adopts refreshed cache truth whose observer render is delayed until after invalidation', async () => {
+		let resolveInvalidation: (() => void) | undefined;
+		mocks.invalidateAllStaffTenantScopes.mockImplementationOnce(
+			() =>
+				new Promise<void>((resolve) => {
+					resolveInvalidation = resolve;
+				}),
+		);
+		mocks.permissionKeysQueryData = { permissionKeys: [] };
+		const { props, rerender } = renderTab({
+			grantedKeys: [],
+			grantedRevision: 1,
+		});
+
+		fireEvent.click(screen.getByRole('checkbox', { name: 'View posts' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+		await waitFor(() =>
+			expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalledTimes(1),
+		);
+
+		// The writes have settled, so revision 1 is the suppression boundary. The
+		// awaited invalidation then refreshes the exact scoped cache entry with
+		// authoritative truth, while its observer render remains queued.
+		mocks.permissionKeysQueryData = { permissionKeys: ['channels.view'] };
+		mocks.permissionKeysQueryRevision = 2;
+		act(() => resolveInvalidation?.());
+		await waitFor(() =>
+			expect(screen.queryByTestId('permissions-change-status')).toBeNull(),
+		);
+
+		// Flush the delayed observer render after generation close. Revision 2 is
+		// newer than the write-settlement boundary and must be adopted.
+		rerender(
+			<ProfilePermissionsTab
+				{...props}
+				grantedKeys={['channels.view']}
+				grantedRevision={2}
+			/>,
+		);
+		await waitFor(() =>
+			expect(
+				(
+					screen.getByRole('checkbox', {
+						name: 'View channels',
+					}) as HTMLInputElement
+				).checked,
+			).toBe(true),
+		);
+		expect(
+			(screen.getByRole('checkbox', { name: 'View posts' }) as HTMLInputElement)
+				.checked,
+		).toBe(false);
+	});
+
 	test('a refresh failure after a successful save is not reported as a save failure', async () => {
 		mocks.invalidateAllStaffTenantScopes.mockRejectedValueOnce(
 			new Error('refresh boom'),
