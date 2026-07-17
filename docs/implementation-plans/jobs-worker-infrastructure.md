@@ -1,8 +1,8 @@
 # Background Jobs & Worker Infrastructure — Design
 
 > Status: **design, owner-ratified core decisions 2026-07-16; revised same
-> night; merge-challenge rounds 1–5 remediated 2026-07-17** (single-lane ruling,
-> adversarial-audit absorption, and five challenge rounds — see the Ratification
+> night; merge-challenge rounds 1–6 remediated 2026-07-17** (single-lane ruling,
+> adversarial-audit absorption, and six challenge rounds — see the Ratification
 > record, §11). Closes
 > the #632 gap (the #194 design was referenced but never committed).
 >
@@ -26,9 +26,9 @@
 > challenge records are committed at
 > `docs/reviews/jobs-infra-design-challenge/doc-challenge-r1-findings.md`,
 > `doc-challenge-r2-findings.md`, `doc-challenge-r3-findings.md`,
-> `doc-challenge-r4-findings.md`, and `doc-challenge-r5-findings.md`; their
-> C1–C17, R2-1–R2-12, R3-1–R3-9, R4-1–R4-7, and R5-1–R5-3 identifiers are cited
-> inline where absorbed.
+> `doc-challenge-r4-findings.md`, `doc-challenge-r5-findings.md`, and
+> `doc-challenge-r6-findings.md`; their C1–C17, R2-1–R2-12, R3-1–R3-9, R4-1–R4-7,
+> R5-1–R5-3, and R6-1–R6-5 identifiers are cited inline where absorbed.
 
 ---
 
@@ -498,6 +498,26 @@ classes carry **no C# initializers** on these columns (no
 `= DateTime.UtcNow`); EF maps them as database-generated/never-written where
 applicable, so a skewed app clock cannot influence scheduling. See §6.
 
+**Lock-order rule (R5-1/R6-3), total:** when one transaction must hold two rows
+of a pair below, it acquires them in **this** order on **every** path that
+touches the pair. No path may invert it; a new path extends this table rather
+than choosing its own order.
+
+| Resource pair | Order | Paths bound |
+| --- | --- | --- |
+| `system_job_definitions` ↔ `system_job_occurrences` | **definition row first**, then the occurrence PK | `EnqueueSystemJobJob` live delivery; `SyncSystemJobsJob` reconciliation (§4.3/§5.3) |
+| `job_dead_letter` ↔ `email_prepared_sends` | **DLQ row first**, then the prepared row | `RequeueDeadLetterAsync` (§4.2); the `email-prepared-sends-retention` sweep (§4.5) |
+
+Two transactions then serialize on the first resource of the pair before either
+can wait on the second, so a wait cycle between the two resources is
+unconstructible and Postgres cannot abort one with `40P01`. `SKIP LOCKED` is a
+throughput choice on the first resource, never the deadlock remedy: once a
+transaction already owns the opposite resource, skipping cannot rescue it. The
+two rows are the same defect class found a round apart — R5-1's
+delivery/reconciliation inversion and R6-3's requeue/sweep inversion — so the
+rule is stated here **once** and cited from each path instead of re-argued
+per section.
+
 ### 4.0 `BaseAttributes` stance for infra tables (explicit)
 
 `BaseAttributes` brings `id` + `created_at` + `updated_at` + **`is_deleted` +
@@ -534,6 +554,7 @@ CREATE TABLE job_queue (
     actor_user_id   uuid        NULL,                      --   "
     correlation_id  text        NULL,                      --   " (trace/correlation)
     requeued_from_dead_letter_id uuid NULL,                -- DLQ requeue lineage (F16/C9); NULL for originally-enqueued jobs
+    external_prepared_at timestamptz NULL,                 -- durable "PREPARE committed" marker (R6-4/O20): set in the PREPARE transaction, copied to the DLQ at dead-letter; NULL ⇒ no external effect can have occurred
     created_at      timestamptz NOT NULL DEFAULT now(),
     updated_at      timestamptz NOT NULL DEFAULT now(),    -- set via SQL in every engine transition
     CONSTRAINT pk_job_queue PRIMARY KEY (id),
@@ -646,7 +667,7 @@ CREATE TABLE job_dead_letter (
         -- ExternalStateStatus: 0 None (RequeuePolicy = Standard — no external state),
         -- 1 Present, 2 Expired, 3 NeverPrepared, 4 Missing, 5 Transferred
     external_state_prepared_at timestamptz NULL, -- copied from email_prepared_sends.prepared_at at dead-letter
-    external_state_expires_at  timestamptz NULL, -- prepared_at + EMAIL_PREPARED_SEND_RETENTION_DAYS, materialized at dead-letter
+    external_state_expires_at  timestamptz NULL, -- marker + EMAIL_PREPARED_SEND_RETENTION_DAYS, materialized at dead-letter; AUTHORITATIVE thereafter — the sweep and requeue both READ it, never recompute it (R6-2)
     external_state_expired_at  timestamptz NULL, -- when the sweep actually deleted the bytes (status → 2)
     failed_at       timestamptz NOT NULL DEFAULT now(),
     created_at      timestamptz NOT NULL DEFAULT now(),
@@ -698,8 +719,8 @@ the distinction is queryable state that outlives the bytes:
 | `0 None` | `JobDeadLetter.FromJob`, when the type's `RequeuePolicy = Standard` | the type has no external prepared state | `Standard` path |
 | `1 Present` | `JobDeadLetter.FromJob`, when a committed `email_prepared_sends` row exists for `original_job_id` | bytes retained; `external_state_prepared_at`/`external_state_expires_at` copied from it | `TransferExternalEffectState` path |
 | `2 Expired` | the `email-prepared-sends-retention` sweep, in the **same statement** that deletes the bytes | policy-driven expiry at `external_state_expired_at` | rejected `PreparedStateExpired` |
-| `3 NeverPrepared` | `JobDeadLetter.FromJob`, when the job dead-lettered **before** PREPARE committed (malformed payload, render failure) | no external effect can have occurred | allowed; the requeued job prepares normally |
-| `4 Missing` | any reader that finds `status = 1` with no prepared row (§4.2 requeue, §7.2 dashboard read) | **integrity anomaly** — bytes vanished without a sweep stamp | rejected `PreparedStateAnomaly` |
+| `3 NeverPrepared` | `JobDeadLetter.FromJob`, when the queue row's `external_prepared_at` marker is **NULL** — the job died before PREPARE committed (invalid-before-handler settlement §5.1, render failure) | no external effect can have occurred | allowed; the requeued job prepares normally |
+| `4 Missing` | `JobDeadLetter.FromJob`, when the marker is **set** but the prepared row is already gone; **or** any later reader that finds `status = 1` with no prepared row (§4.2 requeue, §7.2 dashboard read) | **integrity anomaly** — bytes vanished without a sweep stamp | rejected `PreparedStateAnomaly` |
 | `5 Transferred` | `RequeueDeadLetterAsync`, in the requeue transaction | the bytes moved to `requeued_as_job_id`; this ancestor no longer owns them | already-requeued (single-use guard) |
 
 `5 Transferred` exists because the requeue hook **moves** the prepared row from
@@ -712,10 +733,50 @@ requeued ancestor would read as `Missing` and manufacture a false anomaly. The
 deleter of prepared bytes, and it stamps `Expired` atomically (§4.5). So a reader
 that finds `status = 1`, `requeued_as_job_id IS NULL`, and no prepared row has
 found bytes that disappeared outside the policy. It writes
-`external_state_status = 4` in its own transaction with an immutable `AuditLog`
-entry, surfaces the rejection as `PreparedStateAnomaly` (distinct from
-`PreparedStateExpired`), and increments the `jobs.dlq_external_state_missing`
-counter that §7.2 alerts on. Expiry is **never** inferred from absence.
+`external_state_status = 4` **in a transaction that commits** with an immutable
+`AuditLog` entry, and only then surfaces the rejection as `PreparedStateAnomaly`
+(distinct from `PreparedStateExpired`). §7.2 alerts on the **durable** count of
+these rows. Expiry is **never** inferred from absence.
+
+**Absence at dead-letter time is classified by a durable marker, never inferred
+(R6-4/O20).** `JobDeadLetter.FromJob` cannot ask "did PREPARE happen?" by probing
+`email_prepared_sends`: absence there is ambiguous between *never prepared* and
+*prepared, then lost* — and the second is exactly the anomaly `Missing` names, so
+inferring `NeverPrepared` from absence would label an ambiguous provider attempt
+followed by premature scratch loss as "no external effect occurred" and hand
+requeue a licence to mint fresh bytes and a fresh key. The proof therefore lives
+**outside the deletable scratch**, on the queue row that survives to dead-letter:
+
+- **The marker.** `job_queue.external_prepared_at` (§4.1) is written **in the
+  PREPARE transaction itself**, from the same database `now()` that sets
+  `email_prepared_sends.prepared_at` — the two are equal by construction, and
+  because they commit together the marker means exactly "a committed PREPARE
+  exists for this job", the same proposition the scratch row's existence carries
+  (R2-12), on a row the retention sweep never touches.
+- **It carries no sensitive material.** It is one timestamp. No recipient, body,
+  token, hash, or provider key leaves the scratch — the privacy line O16/O19 draw
+  is unmoved, and `external_state_prepared_at` on the DLQ is that same timestamp.
+- **Classification at dead-letter is total**, decided from the marker first and
+  the scratch second:
+
+  | Marker | Prepared row | Status stamped |
+  | --- | --- | --- |
+  | NULL | — | `3 NeverPrepared` (no external effect is possible) |
+  | set | present | `1 Present` + window bounds |
+  | set | absent | `4 Missing` — a real anomaly, audited and alerted like any other `Missing` (above), **never** `NeverPrepared` |
+
+  `external_state_prepared_at` is copied from the **marker** on every branch that
+  needs it, so the `Missing`-at-dead-letter row satisfies
+  `ck_job_dead_letter_external_state` without the deleted scratch, and
+  `external_state_expires_at = marker + EMAIL_PREPARED_SEND_RETENTION_DAYS`.
+- **The marker travels with a requeue.** A `TransferExternalEffectState` requeue
+  moves the bytes to the new job without a second PREPARE, so the new queue row
+  would carry a NULL marker and a later dead-letter would misread it as
+  `NeverPrepared`. `RequeueDeadLetterAsync` therefore restores
+  `external_prepared_at = {ancestor}.external_state_prepared_at` onto the new
+  queue row on the transfer path (and leaves it NULL on the `NeverPrepared` path,
+  where the requeued job PREPAREs normally and writes its own).
+- **`Standard`-policy types never set it**; their DLQ rows stay `0 None`.
 
 > Named `job_dead_letter` (per the ratified schema list), **renaming #194's
 > `dead_letter_jobs`** for a consistent `job_` prefix across the engine tables.
@@ -732,9 +793,57 @@ engine exposes a dedicated privileged operation:
 Task<Guid> RequeueDeadLetterAsync(Guid deadLetterId, RequeueContext ctx, CancellationToken ct);
 ```
 
-Its contract, all in **one transaction**:
+Its contract, all in **one transaction**, **in this order** — every validation
+precedes every write, so a rejection never has a partial write to undo (R6-3):
 
-- **Load** the `job_dead_letter` row by id.
+- **Load and lock the DLQ row first.** `SELECT … FROM job_dead_letter WHERE id =
+  {deadLetterId} FOR UPDATE`. This is the **DLQ-before-prepared** acquisition the
+  §4 lock-order rule mandates; the sweep (§4.5) takes the same pair in the same
+  order, so requeue and sweep cannot construct a wait cycle.
+- **Validate dispatchability + payload through a type-erased registration
+  (R2-7).** `RequeueDeadLetterAsync` handles an *arbitrary stored `job_type` +
+  JSON string*; it cannot call the generic `JobDefinition<TPayload>` directly. It
+  resolves the `job_type` in the unified **`JobRegistration`** registry (§5.1),
+  whose entry exposes a **non-generic `ValidatePayloadJson(string json)`** (a
+  closure bound to the concrete `TPayload` that runs the canonical `JobJson`
+  deserialize + the F2 required-member/empty-ID checks) alongside the handler
+  factory. An unregistered/retired `job_type` **fails with a clear error** (no
+  undispatchable enqueue); a payload that fails `ValidatePayloadJson` is
+  **rejected, not resurrected**.
+- **Validate external state before any write (R6-2/R6-3), from the DLQ row's own
+  durable columns — never from the prepared row's existence (R5-2/O19).** The
+  status column survives the sweep; a probe for `email_prepared_sends` returns
+  "absent" for expiry, loss, and corruption alike. The gate is status **and**
+  time:
+
+  | Read state | Outcome |
+  | --- | --- |
+  | `requeued_as_job_id IS NOT NULL` (always `5 Transferred`) | already requeued — abort with the single-use error; no writes. |
+  | `2 Expired` | reject `PreparedStateExpired`, citing `external_state_expired_at`; no writes. |
+  | `3 NeverPrepared` | allowed — no external effect occurred, so the requeued job renders and PREPAREs normally (its NULL marker is the proof, §4.2 above). Continue below. |
+  | `4 Missing` | reject `PreparedStateAnomaly` — already-recorded integrity anomaly; no writes. |
+  | `1 Present` | resolve it now — see the three sub-branches below. |
+
+  A `1 Present` row is resolved by locking the prepared row (`WHERE job_id =
+  original_job_id FOR UPDATE` — the **second** resource in the lock order) and
+  then branching on **existence first, clock second**, which makes the branch
+  total: absence and lateness are independent, and an expired-*and*-vanished row
+  is an anomaly, not an expiry.
+
+  | Prepared row | Clock | Outcome |
+  | --- | --- | --- |
+  | **absent** | (irrelevant) | The anomaly path — the bytes left outside the policy, so there is nothing to expire and nothing to transfer. Stamp `4 Missing` + audit, **COMMIT that transition**, and return `PreparedStateAnomaly` *after* the commit. No single-use stamp, no new job — and, because validation precedes every write, nothing to roll back (R6-3). |
+  | present | `now() >= external_state_expires_at` | The recorded cutoff has passed and the asynchronous sweep has not reached this row yet. Requeue neither waits for it nor admits a late transfer: it performs the *same* delete + `2 Expired` + `external_state_expired_at` + audit transition §4.5 defines, **commits** it, and returns `PreparedStateExpired`. **The gate is the clock, not the sweep's schedule** (R6-2). |
+  | present | `now() < external_state_expires_at` | Eligible — transfer, per the policy hook below. |
+
+  **`external_state_expires_at` is authoritative and shared.** It was
+  materialized at dead-letter and is the **same column the sweep predicates on**
+  (§4.5), so the boundary requeue enforces and the boundary deletion obeys are
+  one value — they cannot drift apart, and the dashboard's displayed timestamp is
+  the one that actually governs. Requeue never re-derives
+  `prepared_at + current EMAIL_PREPARED_SEND_RETENTION_DAYS`, and never branches
+  on stored status alone: status-only branching left a row `Present` and
+  requeueable past its own cutoff for however long the sweep lagged (R6-2).
 - **Single-use guard, atomic (R2-7).** Requeue is conditioned on the DLQ row not
   already having been requeued: the stamp is
   `UPDATE job_dead_letter SET requeued_as_job_id = {newId}, requeued_at = now()
@@ -749,16 +858,6 @@ Its contract, all in **one transaction**:
   `requeued_from_dead_letter_id = {ancestor}`; a further requeue operates on
   *that* new row (again once), walking the chain forward — the ancestor is never
   requeued repeatedly.
-- **Validate dispatchability + payload through a type-erased registration
-  (R2-7).** `RequeueDeadLetterAsync` handles an *arbitrary stored `job_type` +
-  JSON string*; it cannot call the generic `JobDefinition<TPayload>` directly. It
-  resolves the `job_type` in the unified **`JobRegistration`** registry (§5.1),
-  whose entry exposes a **non-generic `ValidatePayloadJson(string json)`** (a
-  closure bound to the concrete `TPayload` that runs the canonical `JobJson`
-  deserialize + the F2 required-member/empty-ID checks) alongside the handler
-  factory. An unregistered/retired `job_type` **fails with a clear error** (no
-  undispatchable enqueue); a payload that fails `ValidatePayloadJson` is
-  **rejected, not resurrected**.
 - **Apply the registration's per-type requeue policy before minting the new
   queue row (R3-2/O11).** `JobRegistration` carries
   `RequeuePolicy = Standard | TransferExternalEffectState` plus a type-erased
@@ -771,34 +870,23 @@ Its contract, all in **one transaction**:
   `job_id`: `request_body`, `request_sha256`, and
   `provider_idempotency_key` are copied byte-for-byte, and stamps the ancestor
   `external_state_status = 5 (Transferred)` in the same transaction so it is never
-  later misread as `Missing`.
-- **Eligibility is decided from the DLQ row's own durable state, never from the
-  prepared row's existence (R5-2/O19).** The hook branches on
-  `job_dead_letter.external_state_status` — a column that survives the sweep — not
-  on a probe for `email_prepared_sends`, because after expiry that probe returns
-  "absent" for expiry, loss, and corruption alike:
-
-  | Read status | Outcome |
-  | --- | --- |
-  | `1 Present` | load the row (`WHERE job_id = original_job_id FOR UPDATE`) and transfer. If it is genuinely there, proceed. If it is **absent**, this is the anomaly path: stamp `4 Missing` + audit, reject `PreparedStateAnomaly`, roll back the requeue. |
-  | `2 Expired` | reject `PreparedStateExpired` (the documented rejection), citing `external_state_expired_at`; no stamp, no insert. |
-  | `3 NeverPrepared` | allowed — no external effect occurred, so the requeued job renders and PREPAREs normally. |
-  | `4 Missing` | reject `PreparedStateAnomaly` — already-recorded integrity anomaly. |
-  | `5 Transferred` | rejected by the single-use guard (`requeued_as_job_id IS NOT NULL`). |
-
-  The status read replaces the old
-  `prepared_at >= (database now() - EMAIL_PREPARED_SEND_RETENTION_DAYS)`
-  recomputation: the window's boundary was materialized into
-  `external_state_expires_at` at dead-letter time and enforced by the sweep, so
-  requeue never re-derives a cutoff against a row that may no longer exist. Both
-  rejections roll back the DLQ stamp and the new queue insert. Future
-  webhook/publishing types must provide the equivalent
-  prepared-request/provider-identity transfer hook and the same status stamping.
+  later misread as `Missing`. **On a `3 NeverPrepared` ancestor the hook is a
+  no-op** — the gate above already proved no prepared row can exist — and the
+  ancestor **keeps** `3 NeverPrepared`: it is not stamped `Transferred`, both
+  because nothing was transferred and because
+  `ck_job_dead_letter_external_state` (§4.2) requires a window-carrying status to
+  carry its bounds, which a `NeverPrepared` row has none of. Single-use is
+  enforced by `requeued_as_job_id`, not by the status, so the ancestor is still
+  requeueable exactly once. Future webhook/publishing types must provide the
+  equivalent prepared-request/provider-identity transfer hook and the same status
+  stamping.
 - **Restore the approved envelope verbatim** into a new `job_queue` row —
   `payload`, `job_type`, `priority`, `max_attempts`, `idempotency_key`,
   `tenant_id`, `actor_user_id`, `correlation_id` all copied from the DLQ row
   (**nothing client-supplied, no re-stamp from the staff requester**), with
-  `attempts = 0`, `status = Pending`, `next_attempt_at = now()`.
+  `attempts = 0`, `status = Pending`, `next_attempt_at = now()`, and — on the
+  transfer path only — `external_prepared_at = {ancestor}.external_state_prepared_at`
+  so the moved bytes keep their PREPARE proof (§4.2 above; R6-4/O20).
 - **Chain the lineage (C9):** the new row's `requeued_from_dead_letter_id` is
   set to `deadLetterId`. `JobDeadLetter.FromJob` **copies
   `requeued_from_dead_letter_id` forward**, so a requeued job that dead-letters
@@ -822,11 +910,12 @@ row exists, using the exact lineage predicate
 `job_dead_letter.original_job_id = email_prepared_sends.job_id` (R4-3/R4-6).
 Within that window, DLQ requeue transfers the row to the new job before commit;
 the new handler skips rendering and calls the provider with the **original bytes
-and original key**. Once the window expires, the sweep deletes those sensitive
-bytes **and stamps `external_state_status = 2 (Expired)` +
-`external_state_expired_at` on the matching DLQ row in the same statement**
-(§4.5), so the DLQ audit row remains and still *reports its own expiry* rather
-than merely lacking bytes. The old logical send becomes non-requeueable. Staff
+and original key**. Requeueability ends **at `external_state_expires_at` itself**,
+not when the sweep next runs (R6-2): whichever of the two paths reaches the row
+first past that instant performs the same delete + `2 (Expired)` +
+`external_state_expired_at` + audit transition **in one statement** (§4.5), so
+the DLQ audit row remains and still *reports its own expiry* rather than merely
+lacking bytes. The old logical send becomes non-requeueable. Staff
 must use the explicit **new-logical-send** operation to re-render current domain
 state under a new job id/provider key (with its own permission and audit entry)
 rather than resurrecting stale token-bearing bytes. The §9 lineage test covers
@@ -869,7 +958,8 @@ CREATE TABLE system_job_definitions (
     description      text        NULL,
     last_enqueued_at timestamptz NULL,
     reconciled_through timestamptz NOT NULL DEFAULT now(), -- durable exclusive lower bound for gap reconciliation (R3-1)
-    schedule_policy_fingerprint text NOT NULL, -- hash/version of cron + timezone + gap policy (R4-1)
+    schedule_policy_fingerprint text NOT NULL, -- POLICY EQUALITY: hash/version of cron + timezone + gap policy (R4-1). Detects revisions; repeats across A → B → A by design.
+    schedule_epoch   uuid        NOT NULL DEFAULT gen_random_uuid(), -- EPOCH IDENTITY: re-randomized on every revision, every disable→enable, every recreation (R6-1/O18). Never repeats.
     created_at       timestamptz NOT NULL DEFAULT now(),
     updated_at       timestamptz NOT NULL DEFAULT now(),
     is_deleted       boolean     NOT NULL DEFAULT false,   -- BaseAttributes
@@ -965,16 +1055,19 @@ occurrence, reconciles twice, and proves that neither pass resurrects it.
 **Schedule-revision semantic: edits start “from now”; they never back-fill
 (R4-1/O15).** The stored `schedule_policy_fingerprint` is a deterministic
 version/hash of the effective cron expression, catalog timezone, and catalog gap
-policy. Every schedule mutation uses one of two transactionally complete paths:
+policy. Every schedule mutation uses one of two transactionally complete paths,
+and each writes the new fingerprint, a **fresh `schedule_epoch`**, and the
+watermark reset together:
 
 - the dashboard/service path locks the definition and, on a cron change or a
-  `disabled → enabled` transition, writes the new values/fingerprint and resets
-  `reconciled_through = database now()` in the same transaction; and
+  `disabled → enabled` transition, writes the new values/fingerprint, a new
+  `schedule_epoch`, and resets `reconciled_through = database now()` in the same
+  transaction; and
 - `SyncSystemJobsJob` compares the current catalog-derived fingerprint under the
   same definition-row lock. A timezone or gap-policy code change that causes a
-  mismatch atomically writes the new fingerprint and resets
-  `reconciled_through = database now()` **before** registering the revised live
-  trigger.
+  mismatch atomically writes the new fingerprint, a new `schedule_epoch`, and
+  resets `reconciled_through = database now()` **before** registering the revised
+  live trigger.
 
 That reset is the new schedule's exclusive effective lower bound: time before it
 is never interpreted under the new cron/timezone/gap policy, and time spent
@@ -992,63 +1085,99 @@ it: the old schedule's fire time is genuinely unique, so
 `INSERT … ON CONFLICT DO NOTHING` inserts happily and the system persists an
 occurrence — and a real job — from a schedule the operator has already replaced,
 *after* the new policy's effective boundary. The fence is therefore carried **on
-the trigger itself**:
+the trigger itself** — and the token it carries is the **epoch**, not the
+fingerprint:
 
-- `SyncSystemJobsJob` stamps **`schedule_policy_fingerprint` into every dynamic
-  trigger's `JobDataMap`** alongside `job_key`, read under the same definition-row
-  lock in which it compares the catalog-derived fingerprint. A trigger thus carries
-  the identity of the schedule that created it, and that identity travels with
-  every fire.
-- Because a Quartz `JobDataMap` is fixed at registration, a fingerprint change
-  means the trigger must be **replaced, not left in place**: `SyncSystemJobsJob`
-  unschedules the old trigger and registers a new one carrying the new fingerprint
+- **Two fields, two questions (R6-1/O18).** `schedule_policy_fingerprint` answers
+  **“is the policy text identical?”** (policy equality). `schedule_epoch` answers
+  **“did this execution come from the registration that is current now?”**
+  (registration-epoch identity). These are different propositions and neither
+  implies the other; the design keeps both fields because it needs both answers.
+  The fingerprint is the **detector** — it is what makes a revision noticeable, so
+  `SyncSystemJobsJob` knows when to re-register — and it is deliberately allowed
+  to repeat. The epoch is the **fence**, and it never repeats.
+- `SyncSystemJobsJob` stamps **`schedule_epoch` into every dynamic trigger's
+  `JobDataMap`** alongside `job_key`, read under the same definition-row lock in
+  which it compares the catalog-derived fingerprint. A trigger thus carries the
+  identity of the registration that created it, and that identity travels with
+  every fire. (The fingerprint is **not** stamped into triggers: one token on the
+  wire, one fence.)
+- Because a Quartz `JobDataMap` is fixed at registration, an epoch change means
+  the trigger must be **replaced, not left in place**: `SyncSystemJobsJob`
+  unschedules the old trigger and registers a new one carrying the new epoch
   (`RescheduleJob` with a fresh `TriggerKey` payload). Re-registration is what
   retires the old identity; any straggler fire from the old trigger still carries
-  the old fingerprint and is rejected below.
-- `EnqueueSystemJobJob` compares the trigger's fingerprint against the
-  definition's **current** fingerprint under the definition-row lock and enqueues
-  only on an **exact** match (§5.3).
+  the old epoch and is rejected below.
+- `EnqueueSystemJobJob` compares the trigger's epoch against the definition's
+  **current** `schedule_epoch` under the definition-row lock and enqueues only on
+  an **exact** match (§5.3).
 
-**Why the fingerprint, and not the watermark, is the fence.** A live tick is
+**Why a repeating fingerprint cannot be the fence — the ABA hole (R6-1/O18).**
+An earlier revision fenced on the fingerprint and argued that a revert
+(`A → B → A`) *should* recompute the same value because the old trigger is
+“schedule-identical” to the current one. That argument was **wrong**, and the
+error is worth stating precisely because it is easy to re-make: it answers the
+policy-equality question when the question on the wire is epoch identity. Both
+things are true at once, and they point opposite ways —
+
+- the **newly registered A trigger** should be accepted: its policy equals the
+  current policy, and that is what the fingerprint correctly reports; but
+- a **delayed execution acquired under the first A epoch** should be rejected:
+  Quartz may have acquired that fire long before, and it has been in flight across
+  a B interval the operator deliberately imposed. It is not a fire of the current
+  registration, and no property of the *policy text* can say so.
+
+A repeating hash cannot separate the two, so a fingerprint fence admits the
+stale one. The same hole opens for **disable → enable** (the fingerprint is
+unchanged across an interval where the operator's intent was "do not run", so a
+fire acquired before the disable passes both the hash check and the now-`true`
+enabled check) and for **delete → recreate** of the same `job_key` with the same
+policy. The occurrence PK does not close any of these: the stale fire's
+`scheduled_fire_at` is genuinely unique, so `ON CONFLICT DO NOTHING` inserts it
+happily.
+
+A random uuid re-drawn on every revision, every `disabled → enabled` transition,
+and every active-definition recreation closes all three, because no two
+registrations ever share an epoch — including a recreation, which a monotonic
+counter would restart from zero and which is why the epoch is a **uuid rather
+than a counter**. Note what is *not* claimed: the epoch is not ordered and
+carries no history; it answers identity only. Ordering questions belong to
+`reconciled_through`.
+
+**Why the epoch, and not the watermark, is the fence.** A live tick is
 legitimately allowed to land at or below `reconciled_through` — reconciliation
 advances the watermark to the latest expected fire at or before `now()`, which
 routinely passes live ticks. Fencing delivery on the watermark would therefore
-drop valid occurrences. The fingerprint is orthogonal: it asks "was this trigger
-built by the schedule that is current *now*?", which is exactly the superseded-fire
-question. A revert (`A → B → A`) recomputes the *same* fingerprint, and that is
-correct rather than a collision: a trigger built under the first `A` epoch is
-schedule-identical to the current one, so its fire is a legitimate fire of the
-current cron and the occurrence PK dedups it against the new trigger's.
+drop valid occurrences. The epoch is orthogonal to time entirely, which is
+exactly why it composes with the watermark instead of competing with it. (The
+reviewer's alternative — an immutable `schedule_effective_from` fence compared
+against `scheduled_fire_at` — also works, but only if kept strictly separate from
+the advancing watermark; the epoch is preferred because it needs no such
+separation discipline and it survives delete/recreate.)
 
-**Definition-first lock order, everywhere (R5-1/O18).** Both occurrence-writing
-paths open their transaction by locking the **definition row first**, before
-touching `system_job_occurrences`:
+**Definition-first lock order (R5-1/O18).** Both occurrence-writing paths open
+their transaction by locking the **definition row first**, per the §4 lock-order
+rule (`system_job_definitions` before `system_job_occurrences`):
 
 | Path | Order |
 | --- | --- |
-| `EnqueueSystemJobJob` (live delivery) | `SELECT … FROM system_job_definitions WHERE job_key = $1 AND is_deleted = false FOR UPDATE` → validate (enabled / not deleted / fingerprint match) → `INSERT INTO system_job_occurrences … ON CONFLICT DO NOTHING` → enqueue via `IJobEnqueuer` → stamp `last_enqueued_at` → COMMIT |
+| `EnqueueSystemJobJob` (live delivery) | `SELECT … FROM system_job_definitions WHERE job_key = $1 AND is_deleted = false FOR UPDATE` → validate (enabled / not deleted / **epoch match**) → `INSERT INTO system_job_occurrences … ON CONFLICT DO NOTHING` → enqueue via `IJobEnqueuer` → stamp `last_enqueued_at` → COMMIT |
 | Reconciliation (`SyncSystemJobsJob`) | `SELECT … FOR UPDATE` on the same definition row → derive `(reconciled_through, cutoff]` → insert occurrence + queue rows → `reconciled_through = GREATEST(reconciled_through, cutoff)` → COMMIT |
 
 This eliminates the inversion the previous text left open, in which reconciliation
 locked the definition and *then* inserted occurrences while live delivery inserted
-the occurrence and *only later* stamped `last_enqueued_at` on the definition. Those
-two orders acquire the definition row and the occurrence PK in opposite sequences,
-so a same-tick collision could deadlock (Postgres would abort one with
-`40P01`, surfacing as a spurious job failure). With both paths taking the
-definition row first, any two transactions touching one definition's occurrences
-**serialize on the definition row before either can wait on an occurrence PK** —
-a wait cycle between the two resources is unconstructible. The `last_enqueued_at`
-stamp is now a write under a lock the transaction already holds, not a second,
-later acquisition.
+the occurrence and *only later* stamped `last_enqueued_at` on the definition. The
+`last_enqueued_at` stamp is now a write under a lock the transaction already
+holds, not a second, later acquisition.
 
-> **Known code-alignment item (R3-1/R4-1/R5-1, captain's reconciliation round).**
-> The current `feat/634-app-role-quartz` line has no durable reconciliation
-> high-watermark, stamps only `job_key` into the `JobDataMap`, and does not lock
-> the definition row on the delivery path. This document specifies the correct
-> contract; adding the columns, migration initialization, `GREATEST` update,
-> schedule-fingerprint reset paths, the trigger fingerprint stamp/replacement, the
-> definition-first lock order, and specs belongs to the captain's reconciliation
-> round.
+> **Known code-alignment item (R3-1/R4-1/R5-1/R6-1, captain's reconciliation
+> round).** The current `feat/634-app-role-quartz` line has no durable
+> reconciliation high-watermark, no `schedule_epoch`, stamps only `job_key` into
+> the `JobDataMap`, and does not lock the definition row on the delivery path.
+> This document specifies the correct contract; adding the columns, migration
+> initialization, `GREATEST` update, the fingerprint/epoch reset paths, the
+> trigger epoch stamp/replacement, the definition-first lock order, and specs
+> belongs to the captain's reconciliation round.
 
 ### 4.4 `email_log` (auditable delivery lifecycle record — day one)
 
@@ -1188,9 +1317,15 @@ CREATE INDEX ix_email_prepared_sends_prepared_at ON email_prepared_sends (prepar
 `prepared_committed` flag** — another transaction cannot see an uncommitted
 insert, and every insert would set it true, so the column could never distinguish
 the two lifecycle states. The presence of a committed `email_prepared_sends` row
-for a `job_id` means PREPARE committed; its absence means it did not. `prepared_at`
-is retained because it is operationally useful and is the authoritative start
-of the sensitive-byte/DLQ-requeue window (§4.2/§7.3; R4-3).
+for a `job_id` means PREPARE committed; its absence means it did not — **while the
+row is still alive**. Once retention may have deleted it, the same proposition is
+carried by the `job_queue.external_prepared_at` marker written in this very
+transaction, which is what lets absence be classified rather than guessed
+(§4.2/R6-4). `prepared_at` is retained because it is operationally useful and is
+the **orphan** batch's age floor (§7.3); the DLQ-requeue window's boundary is
+never recomputed from it — that boundary is materialized once into
+`job_dead_letter.external_state_expires_at` at dead-letter and read from there
+(§4.2; R4-3/R6-2).
 
 **Why `bytea`, and a *transport* serializer — not `JobJson` (R2-2/C1).** The
 prepared body must be the **exact bytes written to the provider HTTP request**;
@@ -1230,8 +1365,11 @@ member order) — the same code path `SendPreparedAsync` consumes.
 
 1. **PREPARE transaction (commits before any provider call).** On the first
    attempt the handler renders the request from fresh domain state, serializes it
-   to `request_body`, and `INSERT … ON CONFLICT (job_id) DO NOTHING`, then
-   **commits**. Because this commit precedes the network call, a crash *after*
+   to `request_body`, `INSERT … ON CONFLICT (job_id) DO NOTHING`s, **stamps the
+   durable marker `job_queue.external_prepared_at = now()` from the same database
+   `now()` in the same transaction** (R6-4/O20 — the two timestamps are therefore
+   equal by construction, and the marker outlives the scratch), then **commits**.
+   Because this commit precedes the network call, a crash *after*
    the provider accepts but *before* the send transaction commits leaves the
    prepared bytes durably on disk — the retry re-sends the **same** bytes rather
    than re-rendering mutated state (the exact failure C1 flags). A subsequent
@@ -1249,17 +1387,34 @@ member order) — the same code path `SendPreparedAsync` consumes.
    window** (R3-2/R4-3).
 
 **Cleanup preserves live queue work but caps email-DLQ state at seven days
-(C1/R4-3/R4-6).** The `email-prepared-sends-retention` sweep (§7.3) uses exact
-relationships: `job_queue.id = email_prepared_sends.job_id` and
+(C1/R4-3/R4-6/R6-2).** The `email-prepared-sends-retention` sweep (§7.3) uses
+exact relationships: `job_queue.id = email_prepared_sends.job_id` and
 `job_dead_letter.original_job_id = email_prepared_sends.job_id`. A live
 `job_queue` row protects its prepared envelope regardless of age. A matching
-email DLQ row protects it only until
-`prepared_at + EMAIL_PREPARED_SEND_RETENTION_DAYS`; after that cutoff the sweep
-deletes the prepared bytes while retaining the DLQ audit row. A row matching
-neither relation is an orphan and is deleted after the same age floor. Thus age
-alone never deletes active queued work, but it deliberately ends requeueability
-for failed email sends so token-bearing recipient/body bytes do not inherit the
-90-day DLQ retention window (O16).
+email DLQ row protects it **exactly until that row's recorded
+`external_state_expires_at`** — the sweep reads that stored boundary and does
+**not** recompute `prepared_at + current EMAIL_PREPARED_SEND_RETENTION_DAYS`, so
+the timestamp the dashboard shows, the instant requeue stops accepting (§4.2),
+and the instant the bytes actually die are one value and cannot disagree. A row
+matching neither relation is an orphan, deleted by the sweep's **second batch**
+on the `prepared_at` age floor (it has no DLQ row to carry a boundary or to
+stamp). Thus age alone never deletes active queued work, but it deliberately ends
+requeueability for failed email sends so token-bearing recipient/body bytes do not
+inherit the 90-day DLQ retention window (O16).
+
+**A retention-window change is PROSPECTIVE ONLY (R6-2/O7).** Because the boundary
+is materialized at dead-letter, editing `EMAIL_PREPARED_SEND_RETENTION_DAYS`
+changes the window for rows dead-lettered **after** the change and leaves every
+already-materialized `external_state_expires_at` exactly as recorded. This is the
+deliberate choice, and it is what keeps the durable timestamp honest: a
+retroactive reading would let a shortened window delete bytes *before* the expiry
+the row advertises, and a lengthened one retain and requeue them *after* it —
+either way the DLQ row would be lying about its own cutoff. Operators shortening
+the window for a compliance deadline must therefore know it governs new rows;
+purging outstanding ones is an explicit, audited operation, not a silent
+consequence of an env-var edit (the alternative — a conditioned recalculation
+migration over outstanding `Present` rows before the new window takes effect —
+was considered and rejected in O7).
 
 **Deleting the bytes and recording that they expired are the same statement
 (R5-2/O19).** If the sweep deleted `email_prepared_sends` rows and *then* stamped
@@ -1272,21 +1427,23 @@ commit together or none do:
 
 ```sql
 -- email-prepared-sends-retention, DLQ-expiry batch (one statement, one transaction).
--- :retention_days = EMAIL_PREPARED_SEND_RETENTION_DAYS; :batch = the sweep batch size.
+-- :batch = the sweep batch size. No retention env var appears here: the boundary
+-- was materialized at dead-letter and is read, never recomputed (R6-2).
 WITH due AS (
-    SELECT p.job_id, d.id AS dead_letter_id, p.prepared_at
-    FROM   email_prepared_sends p
-    JOIN   job_dead_letter d ON d.original_job_id = p.job_id   -- R4-6 exact predicate
+    SELECT d.id AS dead_letter_id, d.original_job_id AS job_id,
+           d.external_state_expires_at
+    FROM   job_dead_letter d                                    -- DLQ FIRST (§4 lock order, R6-3)
+    JOIN   email_prepared_sends p ON p.job_id = d.original_job_id  -- R4-6 exact predicate; read, not locked here
     WHERE  d.requeued_as_job_id IS NULL
       AND  d.external_state_status = 1                          -- Present
-      AND  p.prepared_at < (now() - make_interval(days => :retention_days))
-      AND  NOT EXISTS (SELECT 1 FROM job_queue q WHERE q.id = p.job_id)
-    ORDER  BY p.prepared_at                                     -- ordered batch (§7.3 idiom)
+      AND  d.external_state_expires_at <= now()                 -- THE recorded boundary (R6-2)
+      AND  NOT EXISTS (SELECT 1 FROM job_queue q WHERE q.id = d.original_job_id)
+    ORDER  BY d.external_state_expires_at                       -- ordered batch (§7.3 idiom)
     LIMIT  :batch
-    FOR UPDATE OF p SKIP LOCKED
+    FOR UPDATE OF d SKIP LOCKED                                 -- lock the DLQ row, never p first
 ),
 purged AS (
-    DELETE FROM email_prepared_sends p
+    DELETE FROM email_prepared_sends p                          -- prepared row locked SECOND, by this delete
     USING  due
     WHERE  p.job_id = due.job_id
     RETURNING p.job_id
@@ -1310,10 +1467,27 @@ FROM   stamped s;
 ```
 
 The sweep loops this statement until it affects fewer than `:batch` rows.
-`SKIP LOCKED` means a row concurrently held by an in-flight requeue transfer is
-left for the next pass rather than blocking the sweep; that requeue either
-commits (stamping `5 Transferred`, which the `external_state_status = 1`
-predicate then excludes) or rolls back (leaving `1 Present` for the next batch).
+
+**The sweep takes the pair DLQ-first, exactly like requeue (§4 lock-order rule;
+R6-3).** `due` locks only the **DLQ** row (`FOR UPDATE OF d`) — the `JOIN` to
+`email_prepared_sends` reads the row to confirm bytes still exist but does not
+lock it — and the prepared row is locked **second**, implicitly, by `purged`'s
+`DELETE`. Requeue (§4.2) acquires the same two rows in the same order. The earlier
+text inverted them (sweep: `FOR UPDATE OF p` then update the DLQ; requeue: stamp
+the DLQ then lock `p`), which is the deadlock §4's rule now forecloses.
+
+`SKIP LOCKED` therefore serves throughput only: a DLQ row concurrently held by an
+in-flight requeue is left for the next pass rather than blocking the sweep; that
+requeue either commits (stamping `5 Transferred`, which the
+`external_state_status = 1` predicate then excludes) or rolls back (leaving
+`1 Present` for the next batch).
+
+A `Present` row whose bytes are **already** gone does not match the `JOIN` and is
+never selected here — the sweep's job is deleting bytes, and there are none. It is
+not lost: `JobDeadLetter.FromJob` classifies that state at dead-letter time from
+the marker (§4.2), and any later reader stamps `4 Missing`, so the anomaly is
+detected by the paths that can act on it rather than by a sweep that would spin on
+a row it can never transition.
 The `EXISTS (SELECT 1 FROM purged …)` join is what makes "stamped `Expired`"
 mean **"these exact bytes were deleted by this statement"** rather than an
 optimistic claim. Orphan rows (matching neither `job_queue` nor `job_dead_letter`)
@@ -1753,13 +1927,38 @@ public-method-for-determinism discipline.
   same claim predicate governs first runs and retries, so the #810 bug class
   is unrepresentable (handlers can't touch scheduling columns at all).
 
-- **Terminal path.** `PermanentFailure` or attempts exhausted: invoke the
-  handler's `OnTerminalFailureAsync` hook (§5.4 uses it for
-  `email_log(PermanentlyFailed)`), insert the full envelope into
-  `job_dead_letter`, delete the queue row conditioned on the fencing token —
-  **one transaction** (hook write included; hook failure rolls the transaction
-  back and the terminal attempt is retried whole — F5 semantics, spec-asserted).
-  On `Success`/`Cancelled`: conditioned delete.
+- **Terminal path — two settlement shapes (F5/R6-4/O21).** `PermanentFailure` or
+  attempts exhausted. Which shape applies is decided by **whether a handler was
+  ever reached**, and that is not a nuance: the hook is transactional, so a hook
+  that cannot succeed does not merely fail — it rolls the settlement back forever.
+
+  - **Handler-reached settlement (the normal case).** The payload validated and a
+    handler instance ran. Invoke its `OnTerminalFailureAsync` hook (§5.4 uses it
+    for `email_log(PermanentlyFailed)`), insert the full envelope into
+    `job_dead_letter`, delete the queue row conditioned on the fencing token —
+    **one transaction** (hook write included; hook failure rolls the transaction
+    back and the terminal attempt is retried whole — F5 semantics, spec-asserted).
+  - **Invalid-before-handler settlement: DLQ-only, no hook (R6-4/O21).** When the
+    failure *is* that no handler could be reached — unknown `job_type`,
+    `JsonException`, or a payload rejected by the registration's
+    `ValidatePayloadJson` — there is **no handler instance and no `JobContext`**,
+    so the engine invokes **no hook**. It inserts the envelope with
+    `external_state_status = 3 NeverPrepared` (the `external_prepared_at` marker
+    is NULL by construction — nothing ran to set it), deletes the queue row on the
+    fence, and commits. **No `email_log` row is written**, and none is owed:
+    `email_log` records what happened to a *recipient*, and this job never
+    determined one.
+
+  This is a correctness requirement, not a simplification. `email_log.recipient`
+  is `NOT NULL` (§4.4) and the email hook reloads the recipient from the payload's
+  ids — so if a malformed/missing-id payload could reach the hook, the hook would
+  throw, the transactional rollback above would revive the job, and it would
+  dead-letter and roll back again on every lease expiry: **an infinite lease loop**
+  (this system has shipped one of those and fixed it — #810). Neither escape is
+  taken: **no placeholder address is invented** (a fabricated recipient in a
+  delivery-audit table is a lie in the exact table support reads), and the
+  `NOT NULL` **is not relaxed** (it is what makes every `email_log` row mean
+  something). Rule stated once here; §5.4's hook cites it.
 
   ```csharp
   public interface IJobHandler {
@@ -1859,8 +2058,8 @@ startup and kept current by `SyncSystemJobsJob`.
 
 | Job | Cadence | Responsibility |
 | --- | --- | --- |
-| `SyncSystemJobsJob` | 60 s | Reconcile `system_job_definitions` (enabled, non-deleted, **catalog-known**) into the leader's live scheduler — add/**replace**/remove cron triggers so dashboard edits take effect within ~60 s (#636); stamps `job_key` + `schedule_policy_fingerprint` into each trigger's `JobDataMap` and replaces (never mutates) a trigger whose fingerprint changed (R5-1); skip+warn on catalog-unknown or invalid-cron rows (C4). |
-| `EnqueueSystemJobJob` | (per trigger) | **The generic dispatcher fired by every dynamic system-job trigger (C4).** Locks the definition row, rejects a superseded/disabled/deleted fire on the fingerprint fence (R5-1), resolves the trigger's `job_key` → `SystemJobCatalog` entry, then enqueues the mapped versioned job **exclusively through `IJobEnqueuer`** with a scheduled-occurrence idempotency key; stamps `last_enqueued_at`. The leader only *enqueues*; any worker runs the work. |
+| `SyncSystemJobsJob` | 60 s | Reconcile `system_job_definitions` (enabled, non-deleted, **catalog-known**) into the leader's live scheduler — add/**replace**/remove cron triggers so dashboard edits take effect within ~60 s (#636); stamps `job_key` + `schedule_epoch` into each trigger's `JobDataMap` and replaces (never mutates) a trigger whose epoch changed (R5-1/R6-1); skip+warn on catalog-unknown or invalid-cron rows (C4). |
+| `EnqueueSystemJobJob` | (per trigger) | **The generic dispatcher fired by every dynamic system-job trigger (C4).** Locks the definition row, rejects a superseded/disabled/deleted fire on the **epoch** fence (R5-1/R6-1), resolves the trigger's `job_key` → `SystemJobCatalog` entry, then enqueues the mapped versioned job **exclusively through `IJobEnqueuer`** with a scheduled-occurrence idempotency key; stamps `last_enqueued_at`. The leader only *enqueues*; any worker runs the work. |
 | `RecoverStaleJobsJob` | 5 min | Belt-and-braces run of the stale-lease reset statement (§5.1 step 1); the processor also resets inline — this covers a fully-crashed fleet. |
 | `DispatchDuePostsJob` | — | **FUTURE / D3 (#646).** Scans `scheduled_posts` and enqueues due posts into `job_queue` with an `idempotency_key` (+ a domain outcome marker per §4.1/F13). *Design accommodates it; does not build it.* |
 
@@ -1888,22 +2087,24 @@ hole). The contract:
   reconciliation transaction is the **sole catch-up authority** for both
   `DropOnGap` and `CatchUp = AtMost(n)`.
 - **`EnqueueSystemJobJob`** is the single Quartz job type every dynamic trigger
-  fires (wired by `SyncSystemJobsJob`, which stamps **both `job_key` and the
-  definition's current `schedule_policy_fingerprint`** into the trigger's
-  `JobDataMap` — R5-1/O18, §4.3). On fire it, **in one transaction, in this
-  order**:
+  fires (wired by `SyncSystemJobsJob`, which stamps **`job_key` and the
+  definition's current `schedule_epoch`** into the trigger's `JobDataMap` —
+  R6-1/O18, §4.3). On fire it, **in one transaction, in this order**:
   1. **Lock the definition first** —
-     `SELECT id, is_enabled, schedule_policy_fingerprint
+     `SELECT id, is_enabled, schedule_epoch
       FROM system_job_definitions
       WHERE job_key = {jobDataMap.job_key} AND is_deleted = false
       FOR UPDATE`. A vanished/soft-deleted definition yields zero rows → no-op
      (see below). This lock, taken **before** any occurrence write, is what makes
-     the delivery path share reconciliation's definition-first order (§4.3).
-  2. **Fence on the revision token** — require `is_enabled = true` **and**
-     `schedule_policy_fingerprint = {jobDataMap.schedule_policy_fingerprint}`
-     **exactly** (ordinal string equality; no prefix or "close enough" match). A
-     mismatch means the trigger was built by a schedule that has since been
-     replaced.
+     the delivery path share reconciliation's definition-first order (§4.3/§4).
+  2. **Fence on the epoch** — require `is_enabled = true` **and**
+     `schedule_epoch = {jobDataMap.schedule_epoch}` **exactly**. A mismatch means
+     the trigger was built by a registration that has since been retired — by a
+     cron/timezone/gap-policy revision, by a disable→enable cycle, or by a
+     delete/recreate — **including** when the current policy is textually
+     identical to the one that built it (§4.3: policy equality is not epoch
+     identity). The fingerprint is **not** consulted here; it is the detector that
+     tells `SyncSystemJobsJob` when to re-register, not the fence.
   3. Compute `scheduled_fire_at` (the trigger's *scheduled* fire time, quantized
      to cron granularity — Quartz exposes this on the fire context, distinct from
      "now"), `INSERT INTO system_job_occurrences (job_key, scheduled_fire_at) …
@@ -1923,7 +2124,7 @@ hole). The contract:
   Reconciliation owns whatever catch-up the new schedule's policy calls for
   (§4.3), so nothing is lost by dropping the fire. The job logs **one structured
   event at information** — `system_job.fire_rejected` with `job_key`,
-  `scheduled_fire_at`, `trigger_fingerprint`, `definition_fingerprint`, and
+  `scheduled_fire_at`, `trigger_epoch`, `definition_epoch`, and
   `reason` ∈ { `superseded-schedule`, `disabled`, `definition-deleted` } — and
   increments the `jobs.system_job_fire_rejected` counter tagged by `reason`
   (§7.2). Sustained `superseded-schedule` beyond one sync interval means
@@ -1982,7 +2183,9 @@ hole). The contract:
   `WithMisfireHandlingInstructionDoNothing()` and enqueues nothing until the
   durable reconciliation policy runs;
   **a committed cron edit followed by a forced fire of the retained old trigger
-  writes no occurrence and no job (fingerprint fence)**; **a live fire racing
+  writes no occurrence and no job (epoch fence)**; **`A → B → A`, disable→enable,
+  and delete/recreate each reject a delayed execution from the retired epoch even
+  though the policy is textually identical again (ABA)**; **a live fire racing
   reconciliation on one definition neither deadlocks nor loses an occurrence
   (definition-first lock order)**;
   catalog→handler
@@ -2124,21 +2327,36 @@ Emails are ordinary jobs; the shipped `InvitationEmailOutboxDispatcher`, the
      owns backoff throughout (#810 — handlers never see scheduling columns).
   `OnTerminalFailureAsync` writes `email_log(PermanentlyFailed)` with the last
   classified error when the engine dead-letters the job and **retains** the
-  prepared-send row for the external-effect requeue transfer (§4.2/R3-2). In the
-  **same terminal transaction** it stamps the new `job_dead_letter` row's
-  prepared-state evidence (R5-2/O19): `external_state_status = 1 (Present)` with
-  `external_state_prepared_at = email_prepared_sends.prepared_at` and
-  `external_state_expires_at = prepared_at + EMAIL_PREPARED_SEND_RETENTION_DAYS`
-  when a committed prepared row exists for the job, or
-  `external_state_status = 3 (NeverPrepared)` when the job dead-lettered before
-  PREPARE committed (malformed payload, render failure) — a case where no external
-  effect can have occurred and requeue stays available. Retention then ends the
+  prepared-send row for the external-effect requeue transfer (§4.2/R3-2). It runs
+  **only on the handler-reached settlement path**; a job whose payload never
+  validated settles DLQ-only with no hook and no `email_log` row, exactly as §5.1
+  specifies (R6-4/O21) — which is what keeps this hook's unconditional
+  `email_log(PermanentlyFailed)` write, and `email_log.recipient`'s `NOT NULL`,
+  both safe. In the **same terminal transaction** it stamps the new
+  `job_dead_letter` row's prepared-state evidence (R5-2/O19), classifying from the
+  durable marker per §4.2's table: `1 (Present)` + window bounds when the marker is
+  set and the prepared row is there, `4 (Missing)` when the marker is set and the
+  row is gone, `3 (NeverPrepared)` when the marker is NULL — no external effect can
+  have occurred and requeue stays available. Retention then ends the
   prepared bytes at `external_state_expires_at`, **not** when DLQ lineage
   disappears: the sweep deletes them and stamps `2 (Expired)` in one statement
   (§4.5), while the DLQ audit row survives to the full
   `JOB_DEAD_LETTER_RETENTION_DAYS`. (The earlier "delete only after both queue and
   DLQ lineage are gone" rule was the pre-O16 policy and is superseded — it would
   hold token-bearing bytes for the DLQ's 90 days.)
+
+  > ⚠️ **CAPTAIN-ALIGNMENT ITEM — a suspected LIVE DEFECT on `origin/feat/809-email-jobs-fold`,
+  > not merely a doc gap (R6-4).** Everything above is the *design's* rule. The
+  > hazard it forecloses looks reachable on the shipped 2C branch **today**: if
+  > that branch's engine invokes the terminal hook on *every* terminal path
+  > (including a payload that never validated) while the email hook writes
+  > `email_log(PermanentlyFailed)` and `email_log.recipient` is `NOT NULL`, then a
+  > malformed/missing-id payload makes the hook throw, the transactional terminal
+  > settlement roll back, and the job re-lease → re-fail → roll back **forever** —
+  > the same infinite-loop class as #810. This document makes **no code-branch
+  > edit**; the captain must verify the 809 tip against §5.1's two settlement
+  > shapes directly. Flagged here rather than filed silently because the
+  > difference between "doc gap" and "shipped bug" changes who must act and when.
 
 - **#809 — password-reset behind a transaction-owning Auth operation (F6).**
   The promised "same transaction as token issuance" **cannot be built through
@@ -2378,13 +2596,20 @@ A cheap **per-replica, instance-tagged** sampler (`JobQueueMonitorService`, 60 s
 sampled when no leader exists — R2-10): `due_depth` (pending & due, split by
 priority class), `oldest_due_age_seconds` (per priority class — the F22 fairness
 tripwire), `processing_over_lease_count` (should be ~0; sustained >0 means reclaim
-is broken), `dlq_size` + `dlq_growth_1h`, `email_log_failures_1h`, and `job_queue`
-dead-tuple count from `pg_stat_user_tables` (autovacuum health, F21). Two
-counters are incremented by the paths that detect their condition rather than
-sampled: `jobs.system_job_fire_rejected` (tagged `reason` — a superseded/disabled
-trigger fire, §5.3/R5-1) and `jobs.dlq_external_state_missing` (a DLQ row reading
-`Present` with no prepared bytes and no sweep stamp — the §4.2 integrity anomaly,
-R5-2). These are
+is broken), `dlq_size` + `dlq_growth_1h`, `email_log_failures_1h`, `job_queue`
+dead-tuple count from `pg_stat_user_tables` (autovacuum health, F21), and
+**`dlq_external_state_missing`** — a **sampled count of durable rows**
+(`SELECT count(*) FROM job_dead_letter WHERE external_state_status = 4`, served by
+`ix_job_dead_letter_external_state`), the §4.2 integrity anomaly. It is sampled
+from the table, **not** an in-process counter incremented once by the detecting
+path (R6-4): the status commit and the metric emission are separate events, so a
+crash or a restart between them would lose the only record that an anomaly was
+ever seen — while the row itself is durable and every replica can re-observe it.
+The detecting paths still log the event, but the **alert reads the table**. One
+counter remains genuinely in-process because it has no durable row to sample:
+`jobs.system_job_fire_rejected` (tagged `reason` — a superseded/disabled trigger
+fire, §5.3/R5-1), whose loss costs a diagnostic, not an integrity signal. These
+are
 whole-queue facts identical from any replica, so each sample is tagged with
 `instance` and the **alert layer aggregates by condition** — one breach is one
 alert regardless of how many replicas observed it (the round-1 leader-gating that
@@ -2395,8 +2620,9 @@ listener connectivity, handler durations, reconnects — are inherently per-repl
 500, oldest age > 10 min for priority 100 / > 60 min for priority 0,
 processing-over-lease > 0 for 3 consecutive samples, DLQ growth > 0 in an hour,
 **plus `scheduler.leader_present = 0` fleet-wide and `last_sync_at` staleness >
-2× interval** — R2-10; **plus any `jobs.dlq_external_state_missing` increment,
-which is an integrity anomaly rather than a threshold** — R5-2) log at
+2× interval** — R2-10; **plus `dlq_external_state_missing > 0`, which is an
+integrity anomaly rather than a threshold, and which stays alerting until the
+rows are triaged rather than firing once** — R5-2/R6-4) log at
 **warning** and increment a metric — telemetry the
 Phase-3 alert route (§7) consumes; the warning log is **not itself** a pager.
 
@@ -2461,13 +2687,15 @@ and attempts delivery through the same at-least-once path.
 Retention sweeps run as ordinary system jobs (dashboard-visible, #636):
 `email-log-retention` (delete rows older than `EMAIL_LOG_RETENTION_DAYS`,
 batched), `job-dead-letter-retention` (`JOB_DEAD_LETTER_RETENTION_DAYS`),
-`email-prepared-sends-retention` (**bounded live-state policy, C1/R4-3/R4-6**:
+`email-prepared-sends-retention` (**bounded live-state policy, C1/R4-3/R4-6/R6-2**:
 protect when `job_queue.id = email_prepared_sends.job_id`; protect a DLQ-only row
-only while the prepared-send window remains and only when
-`job_dead_letter.original_job_id = email_prepared_sends.job_id`; delete an
-unmatched orphan after the same age floor; delete expired DLQ prepared state even
-though its 90-day audit row remains — default 7 via
-`EMAIL_PREPARED_SEND_RETENTION_DAYS`, never a hardcoded value), and
+only until that DLQ row's **recorded** `external_state_expires_at`, matched on
+`job_dead_letter.original_job_id = email_prepared_sends.job_id` — the boundary is
+read, never recomputed from the current env var, so the sweep and requeue enforce
+the same instant (§4.2/§4.5); delete an unmatched orphan after the
+`EMAIL_PREPARED_SEND_RETENTION_DAYS` age floor — default 7, never a hardcoded
+value; delete expired DLQ prepared state even though its 90-day audit row
+remains), and
 `system-job-occurrence-retention`
 (prune `system_job_occurrences` older than `SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS`
 — default 30; R2-1/O9), and `job-alert-lease-retention`
@@ -2479,15 +2707,18 @@ below that durable bound, so a pruned occurrence cannot be resurrected
 
 **Shared sweep shape (all five retention jobs).** Each sweep selects its next
 batch through **an index leading with its own retention predicate**, **ordered by
-that column**, `LIMIT` the batch size, `FOR UPDATE SKIP LOCKED`, deletes that
-batch in one statement, and loops until a short batch. No sweep takes a
-table-wide lock, and none scans without an index:
+that column**, `LIMIT` the batch size, `FOR UPDATE SKIP LOCKED` on the **first
+row of its lock order** (§4), deletes that batch in one statement, and loops until
+a short batch. No sweep takes a table-wide lock, and none scans without an index.
+`email-prepared-sends-retention` is the one sweep with two batches, because its
+DLQ-expiry batch is driven by a boundary stored on the *other* table:
 
 | Sweep | Predicate | Index (all lead with the age column) |
 | --- | --- | --- |
 | `email-log-retention` | `occurred_at` | `ix_email_log_occurred_at` (§4.4) |
 | `job-dead-letter-retention` | `failed_at` | `ix_job_dead_letter_failed_at` (§4.2) |
-| `email-prepared-sends-retention` | `prepared_at` | `ix_email_prepared_sends_prepared_at` (§4.5) |
+| `email-prepared-sends-retention` — DLQ-expiry batch | `job_dead_letter.external_state_expires_at` (the **recorded** boundary, R6-2) | `ix_job_dead_letter_external_state` (§4.2 — `(external_state_status, external_state_expires_at)`: status equality then the range) |
+| `email-prepared-sends-retention` — orphan batch | `prepared_at` | `ix_email_prepared_sends_prepared_at` (§4.5) |
 | `system-job-occurrence-retention` | `scheduled_fire_at` | `ix_system_job_occurrences_scheduled_fire_at` (§4.3) |
 | `job-alert-lease-retention` | `window_started_at` | `ix_job_alert_delivery_leases_window_started_at` (§7.2) |
 
@@ -2621,6 +2852,7 @@ Engine (`JobQueueProcessor.Spec.cs` and siblings):
 | **cancellation classification (F12/F23)** | a provider-style `TaskCanceledException` → `Retry`, worker keeps running; host-token stop → clean release, no attempt burned, no DLQ |
 | outcome taxonomy (F12) | malformed payload / unknown `job_type` / `PermanentFailure` skip retries and dead-letter immediately; `Cancelled` deletes without DLQ |
 | DLQ on exhaustion + hook (F5) | at terminal: `OnTerminalFailureAsync` ran, full envelope (priority, key, provenance, enqueued_at) present in `job_dead_letter`, queue row gone — and a **throwing hook rolls back** the whole terminal transaction |
+| **invalid-before-handler settlement (R6-4/O21)** | an `email.*` job with a malformed / missing-id payload (a type whose registered hook writes `email_log(PermanentlyFailed)` against a `NOT NULL` recipient) reaches terminal: **no hook is invoked**, exactly one `job_dead_letter` row exists with `external_state_status = 3 NeverPrepared`, **zero `email_log` rows** exist for that `job_id`, and the queue row is gone. The **loop regression is the point**: drive the engine's claim/settle cycle repeatedly past the lease and assert the job settles **once** and never re-appears as `Pending` — a control run that routes this failure through the hook reproduces the infinite rollback and fails the spec |
 | **exact wire JSON (F2/F23)** | the byte-exact fold-migration JSON (`{"invitationId":"…"}`) deserializes into each payload record via `JobJson` with correct Guids; enqueuer output round-trips; missing/empty ID → `PermanentFailure` |
 | **enqueue boundary (F15)** | architecture guard: no code outside `Infrastructure/Jobs` writes `JobQueueItem`; enqueuer joins the caller's transaction (rollback removes the job row) |
 | idempotent enqueue scoping (F13) | same `(job_type, key)` dedups; same key across different job types does not collide |
@@ -2631,7 +2863,8 @@ Engine (`JobQueueProcessor.Spec.cs` and siblings):
 | **version-compat startup gate (C14/F14/R2-9)** | a `job_queue` **or** `job_dead_letter` row of an unregistered `job_type` → worker composition **fails to start**; **there is no bypass for a `job_queue` orphan**; a DLQ-only orphan in `JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST` (exact type) boots; all-registered → starts clean |
 | **DLQ requeue lineage + single-use (C9/F16/R2-7/R3-2/R4-3/R4-6)** | `RequeueDeadLetterAsync` restores the stored envelope, validates through `JobRegistration`, applies its policy, stamps lineage/audit atomically, and rejects repeats; for email, provider acceptance without local receipt → first DLQ → requeue transfer → re-dead-letter proves `job_dead_letter.original_job_id = email_prepared_sends.job_id` at every hop and preserves the original bytes/key; missing or >7-day prepared state rejects requeue with no partial stamp/insert, while new-logical-send remains available |
 | **system-job durable occurrence dedup (C4/F13/R2-1/R3-1/R4-1/R4-2)** | an occurrence enqueues its ledger row atomically; a delayed duplicate after queue deletion enqueues nothing; after pruning an old occurrence, **two reconciliation passes both ignore it because `scheduled_fire_at <= reconciled_through`**; concurrent reconcilers serialize and watermark/jobs roll back together; a sparse cron proves `GREATEST` never regresses the watermark; cron edit and disable-past-retention/re-enable reset it to DB `now()` without back-fill; a paused live scheduler proves DoNothing misfire behavior and reconciliation-only catch-up; catalog closure holds |
-| **superseded-trigger fence (R5-1/O18)** | commit a dashboard cron edit (new fingerprint, `reconciled_through` reset), **retain the old trigger and force it to fire** via `TriggerJob` with the pre-edit `JobDataMap`: `EnqueueSystemJobJob` observes the fingerprint mismatch under the definition lock and writes **no `system_job_occurrences` row and no `job_queue` row** — asserted by count, not by absence of an exception; it returns success, logs `system_job.fire_rejected` with `reason = superseded-schedule`, and increments the counter. The same forced fire against a **disabled** and a **soft-deleted** definition rejects with `reason = disabled` / `definition-deleted`. A fire whose fingerprint **matches** still enqueues normally (non-vacuous) |
+| **superseded-trigger epoch fence (R5-1/R6-1/O18)** | commit a dashboard cron edit (new fingerprint, **new `schedule_epoch`**, `reconciled_through` reset), **retain the old trigger and force it to fire** via `TriggerJob` with the pre-edit `JobDataMap`: `EnqueueSystemJobJob` observes the epoch mismatch under the definition lock and writes **no `system_job_occurrences` row and no `job_queue` row** — asserted by count, not by absence of an exception; it returns success, logs `system_job.fire_rejected` with `reason = superseded-schedule`, and increments the counter. The same forced fire against a **disabled** and a **soft-deleted** definition rejects with `reason = disabled` / `definition-deleted`. A fire whose epoch **matches** still enqueues normally (non-vacuous) |
+| **ABA epoch fence — the three identical-policy returns (R6-1/O18)** | each case drives the definition back to a state **textually identical** to the one that built the old trigger, then forces a *delayed old execution* to land after the return, and asserts zero occurrences + zero jobs from it while the **currently registered** trigger still enqueues normally (so the fence is not merely rejecting everything): (a) **`A → B → A`** cron revert — the fingerprint provably repeats (assert the two fingerprint values are equal) while the epoch provably does not (assert unequal), and the first-epoch fire is rejected; (b) **disable → enable** with no policy change — a fire acquired before the disable is rejected after re-enable even though `is_enabled = true` and the fingerprint matches; (c) **delete → recreate** of the same `job_key` with the same cron — the fire from the deleted definition's epoch is rejected against the new row (which is why the epoch is a random uuid: a per-row counter would restart at the recreated row and could collide). A control run stamping the **fingerprint** instead of the epoch fails all three — the spec must be able to fail |
 | **live-fire ∥ reconciliation lock order (R5-1/O18)** | a forced live fire and a reconciliation pass run concurrently against the **same definition** at the same tick: both take the definition row `FOR UPDATE` first, so they serialize — **no `40P01` deadlock** is raised by either transaction (asserted over repeated interleavings, with the definition-first order removed in a control run to show the spec can fail), and the occurrence is enqueued **exactly once** with no lost tick: the loser observes the winner's ledger row via `ON CONFLICT DO NOTHING` and commits a no-op |
 | **2C registration set (R3-3)** | after 2B composition, 2C registers exactly one listener hosted service, one shared `IJobQueueSignal` binding, and exactly the three v1 email `JobRegistration`s with external-effect transfer hooks; missing/duplicate entries fail |
 | **alert condition/window lease (R3-6/R4-5)** | N replica monitors breach the same fleet condition/window and only the DB-lease winner attempts delivery during the live lease; a definite failure releases for retry; accept-without-local-commit → lease expiry → retry proves v1 at-least-once semantics and permits a receiver-visible duplicate; dropping the scheduler advisory lock makes every instance-tagged probe report absence while the fleet condition still attempts delivery |
@@ -2652,7 +2885,14 @@ Email handlers + fold:
 | legacy `Sent` mapped honestly (R2-3) | a folded legacy `Sent` row becomes `LegacySubmissionUnverified`, **never `Submitted`**; no metric counts it as a confirmed submission |
 | prepared-send cleanup/expiry (C1/R4-3/R4-6) | a live `job_queue.id = email_prepared_sends.job_id` protects prepared state regardless of age; first DLQ, requeue transfer, and re-dead-letter each match on `job_dead_letter.original_job_id = email_prepared_sends.job_id`; at the prepared-send cutoff the DLQ bytes are swept, its dashboard row becomes non-requeueable, and requeue returns `PreparedStateExpired` without partial writes |
 | **expiry evidence survives the bytes, from a fresh context (R5-2/O19)** | run the sweep past the cutoff, then **dispose the `AppDbContext`/service scope and resolve new ones** (no in-memory carry-over, no tracked entities): the dashboard read and `RequeueDeadLetterAsync` both report **`Expired`** with a populated `external_state_expired_at`, proving the distinction is durable column state rather than process memory. Re-resolving from a *second* fresh scope repeats it. The sweep's delete+stamp+audit is one statement: injecting a failure into the audit insert leaves the bytes **and** the `Present` status intact (all-or-nothing) |
-| **expired vs. missing vs. never-prepared (R5-2/O19)** | three DLQ rows: (a) swept at cutoff → `Expired` → requeue rejects `PreparedStateExpired`; (b) prepared row deleted **out-of-band** with no sweep stamp → the reader stamps `4 Missing`, audits, increments `jobs.dlq_external_state_missing`, and rejects `PreparedStateAnomaly` — **never** silently reported as an expiry; (c) dead-lettered before PREPARE committed → `3 NeverPrepared` → requeue **succeeds** and the new job prepares normally. A successfully transferred ancestor reads `5 Transferred`, not `Missing` |
+| **expired vs. missing vs. never-prepared (R5-2/O19)** | three DLQ rows: (a) swept at cutoff → `Expired` → requeue rejects `PreparedStateExpired`; (b) prepared row deleted **out-of-band** with no sweep stamp → the reader stamps `4 Missing`, audits, and rejects `PreparedStateAnomaly` — **never** silently reported as an expiry; (c) dead-lettered with a NULL marker → `3 NeverPrepared` → requeue **succeeds** and the new job prepares normally. A successfully transferred ancestor reads `5 Transferred`, not `Missing` |
+| **requeue is gated on the clock, before the sweep runs (R6-2)** | a DLQ row is `1 Present` with `external_state_expires_at` in the **past** and the sweep **has not run** (it is never started): `RequeueDeadLetterAsync` rejects `PreparedStateExpired` — it does **not** transfer — and in the same call the bytes are gone, the row reads `2 Expired` with `external_state_expired_at` set, and the audit row exists. Asserted from a **fresh context**. Before the cutoff the same row requeues normally (non-vacuous) |
+| **retention-config change is prospective (R6-2/O7)** | with an existing `Present` DLQ row, change `EMAIL_PREPARED_SEND_RETENTION_DAYS` in **both** directions and re-run the sweep: the existing row's `external_state_expires_at` is **byte-identical to its recorded value** and its bytes survive/die at exactly that instant under either setting — shortening never deletes before the recorded expiry, lengthening never retains past it. A row dead-lettered **after** the change gets the new window. Proves the sweep predicates on the stored column, not on the env var |
+| **sweep ∥ requeue: one lock order, no deadlock (R6-3)** | a barrier-controlled interleaving on the **same** DLQ row + prepared row: the sweep is paused after locking the DLQ row and before its `DELETE`, a requeue is released into it, and both then run to completion — **no `40P01` is raised by either transaction** (asserted over repeated interleavings in both release orders), exactly one outcome stands (either the transfer commits and the row reads `5 Transferred`, or the sweep commits and requeue rejects `PreparedStateExpired`), and the bytes are never both moved and deleted. A control run inverting the sweep's order to `FOR UPDATE OF p`-then-DLQ **reproduces the deadlock** — the spec can fail |
+| **a rejected `Missing` detection is persisted, not rolled back (R6-3)** | a `1 Present` row whose prepared row was deleted out-of-band: `RequeueDeadLetterAsync` returns `PreparedStateAnomaly`, and from a **fresh `AppDbContext`/scope** the row reads `4 Missing` with its audit entry present — the rejection did **not** erase its own evidence. In the same fresh read: `requeued_as_job_id IS NULL` and **zero** `job_queue` rows reference that DLQ id (rejected *and* durable, simultaneously) |
+| **pre-DLQ scratch loss is `Missing`, not `NeverPrepared` (R6-4/O20)** | a job PREPAREs (marker + scratch committed), the prepared row is destroyed **before** the job dead-letters, then the job dead-letters: the DLQ row reads **`4 Missing`** with `external_state_prepared_at` populated from the marker (satisfying `ck_job_dead_letter_external_state`), it is audited and counted, and requeue rejects `PreparedStateAnomaly` — it is **never** classified `NeverPrepared` and never allowed to re-prepare fresh bytes under a new key. A job that dead-letters with **no** marker reads `3 NeverPrepared` in the same spec (the pair is what proves the classification is total, not merely conservative) |
+| **the marker survives a transfer (R6-4/O20)** | requeue transfers prepared state to a new job (which never PREPAREs again); the new `job_queue` row carries `external_prepared_at` copied from the ancestor. When that job dead-letters, its DLQ row reads `1 Present`/`4 Missing` per the bytes' actual fate — **never** `NeverPrepared` |
+| **`Missing` alerting reads the table (R6-4)** | with a durable `external_state_status = 4` row present, a **freshly started** monitor (no in-process history of the detection) reports `dlq_external_state_missing = 1`, and an `EXPLAIN` assertion shows `ix_job_dead_letter_external_state` serving the count |
 | **non-throw provider failure (F3/F23)** | an unsuccessful provider response (no exception thrown by the SDK) surfaces as a classified exception → `Retry`/`PermanentFailure`; it can never yield `Submitted` |
 | #809 durability + rollback (F6) | the committed reset job survives request cancellation/restart and is deliverable; a failed enqueue rolls back token issuance and vice versa (both directions) |
 | **fold idempotency + in-flight dispatcher (F4/F23/C2/C3/R3-7)** | re-running the fold produces no duplicate jobs; a `Processing` row is untouched; R2 aborts for fresh/stale Processing and fresh old-producer Pending; a folded source persists the exact compound marker `Cancelled + 'folded to job_queue'`, is excluded from back-copy, and the shipped dispatcher claim predicate proves it is unclaimable; genuine outcomes alone are copied idempotently |
@@ -2690,7 +2930,10 @@ specs. The audit found it incomplete; 2A-R below is its remediation packet.
   CHECK constraints + `ix_job_dead_letter_original_job_id` and
   `ix_job_dead_letter_external_state`** (R5-2/O19 — the engine owns the columns;
   2C-R1 populates them for email types and Phase 3's sweep transitions them),
-  **adds `ix_job_dead_letter_failed_at` for the retention age sweep** (R5-3),
+  **adds `job_queue.external_prepared_at`** (R6-4/O20 — the durable PREPARE marker;
+  the engine owns the column and copies it into the DLQ at dead-letter, 2C-R1's
+  PREPARE writes it), **adds `ix_job_dead_letter_failed_at` for the retention age
+  sweep** (R5-3),
   sets `job_queue`
   autovacuum/fillfactor params (§4.1), and bumps the `max_attempts` default
   to 10.
@@ -2711,7 +2954,10 @@ specs. The audit found it incomplete; 2A-R below is its remediation packet.
   `OnTerminalFailureAsync` — F5); `JobBackoff.cs` (computes delay
   **durations** only, never timestamps — F11); `JobQueueItem.cs` /
   `JobDeadLetter.cs` (new columns; **remove all timestamp initializers** —
-  F11); `JobHandlerRegistry.cs` → **unified `JobRegistration`** (pairs handler
+  F11; **`JobDeadLetter.FromJob` classifies `external_state_*` from the queue row's
+  `external_prepared_at` marker — `NeverPrepared` / `Present` / `Missing` per
+  §4.2's table — and settles invalid-before-handler failures DLQ-only with no
+  terminal hook**, R6-4/O20/O21); `JobHandlerRegistry.cs` → **unified `JobRegistration`** (pairs handler
   factory **and** type-erased `ValidatePayloadJson` for the requeue path —
   R2-7; **+ per-type requeue policy and external-effect state-transfer hook** —
   R3-2/O11; versioned types, unknown-type → DLQ). The drain-budget/lease knobs use
@@ -2734,13 +2980,16 @@ specs. The audit found it incomplete; 2A-R below is its remediation packet.
   R2-1); `Modules/Jobs/Entities/{SystemJobDefinition,SystemJobOccurrence}.cs`
   (**occurrence ledger** — R2-1); migration `AddSystemJobDefinitions`
   (**+ `system_job_occurrences` + monotonic `reconciled_through` durable
-  high-watermark + `schedule_policy_fingerprint`, initialized to database
-  `now()`/current policy** — R2-1/R3-1/R4-1/O10/O15). `SyncSystemJobsJob` stamps
-  `job_key` **+ `schedule_policy_fingerprint`** into every trigger's `JobDataMap`
-  and **replaces** (never mutates) a trigger whose fingerprint changed;
+  high-watermark + `schedule_policy_fingerprint` + `schedule_epoch`, initialized to
+  database `now()`/current policy/a fresh uuid per row** —
+  R2-1/R3-1/R4-1/R6-1/O10/O15/O18). Every revision path (dashboard edit,
+  disable→enable, catalog-driven sync, recreate) writes fingerprint **+ a new
+  `schedule_epoch` +** the watermark reset in one transaction; `SyncSystemJobsJob`
+  stamps `job_key` **+ `schedule_epoch`** into every trigger's `JobDataMap` and
+  **replaces** (never mutates) a trigger whose epoch changed;
   `EnqueueSystemJobJob` opens with `SELECT … FOR UPDATE` on the definition and
-  no-ops on a fence rejection — **definition-first lock order on both occurrence
-  paths** (R5-1/O18);
+  no-ops on an **exact-epoch** fence rejection — **definition-first lock order on
+  both occurrence paths** (R5-1/R6-1/O18);
   `Infrastructure/Jobs/WorkerHeartbeatService.cs`;
   `SchedulerLeaderService.Spec.cs`, `AppRoleComposition.Spec.cs`,
   `SystemJobCatalog`/`EnqueueSystemJobJob`/occurrence-dedup specs.
@@ -2778,9 +3027,11 @@ specs. The audit found it incomplete; 2A-R below is its remediation packet.
   fails closed on an unregistered queued/DLQ type (C14); worker container passes
   `--worker-health`; sparse-cron/cron-edit/disable-past-retention reconciliation
   specs and the live-scheduler DoNothing misfire spec pass (R4-1/R4-2); **the
-  superseded-trigger fence spec (forced old-trigger fire after a cron edit → zero
-  occurrences, zero jobs) and the concurrent live-fire ∥ reconciliation spec (no
-  `40P01`, no lost occurrence) pass** (R5-1); every
+  superseded-trigger epoch-fence spec (forced old-trigger fire after a cron edit →
+  zero occurrences, zero jobs), the ABA spec (`A → B → A`, disable→enable,
+  delete/recreate — each rejecting a delayed old execution after the definition
+  returns to identical state) and the concurrent live-fire ∥ reconciliation spec
+  (no `40P01`, no lost occurrence) pass** (R5-1/R6-1); every
   enumerated OpenAPI/CI/build/**migrate** entrypoint runs role-pinned, including
   building/running the Docker `migrate` target under a production-like
   environment (C6/R4-4).
@@ -2816,13 +3067,16 @@ specs. The audit found it incomplete; 2A-R below is its remediation packet.
   worker-only from 2B (R2-6); R1 merely retains it as a drainer** (§4.6). The
   `email_prepared_sends` scratch persists the request as **`bytea` (`request_body`)
   with a committed-PREPARE phase — no `prepared_committed` flag, row existence is
-  the proof** (C1/R2-12); `EmailLogOutcome` includes **`LegacySubmissionUnverified`**
+  the proof** (C1/R2-12), and the PREPARE transaction **also stamps
+  `job_queue.external_prepared_at` from the same database `now()`** (R6-4/O20);
+  `EmailLogOutcome` includes **`LegacySubmissionUnverified`**
   (R2-3); email terminal failure retains prepared state only within the
   prepared-send window, **stamps the new DLQ row's `external_state_*` evidence
-  (`Present` + materialized window bounds, or `NeverPrepared`) in the same
-  terminal transaction** (R5-2/O19), and its registration atomically transfers
-  original bytes/key on timely requeue while stamping the ancestor
-  `Transferred` (R3-2/R4-3); the fold migration
+  (`Present` + materialized window bounds, `Missing`, or `NeverPrepared` — decided
+  by the marker, §4.2) in the same terminal transaction** (R5-2/R6-4/O19/O20), and
+  its registration atomically transfers original bytes/key on timely requeue while
+  stamping the ancestor `Transferred` and **carrying the marker onto the new queue
+  row** (R3-2/R4-3/R6-4); the fold migration
   marks folded rows with exact compound marker
   `Cancelled + 'folded to job_queue'`,
   back-copies **genuine outcomes only** with `Sent → LegacySubmissionUnverified`
@@ -2830,7 +3084,12 @@ specs. The audit found it incomplete; 2A-R below is its remediation packet.
 - **Gate:** §9 email-handler specs green (both lock orders, prepared-envelope
   idempotency, non-throw provider failure, terminal `email_log` writes, #809
   rollback both directions, prepared-state expiry, and exact first-DLQ → requeue
-  transfer → re-dead-letter lineage predicate); fold idempotency spec green; an exact registration
+  transfer → re-dead-letter lineage predicate); **the R6 state-machine specs green
+  — clock-gated requeue before the sweep runs, prospective retention-config change,
+  barrier-controlled sweep ∥ requeue with no `40P01`, fresh-context persistence of
+  a rejected `Missing`, pre-DLQ scratch loss → `Missing` (not `NeverPrepared`),
+  marker survival across a transfer, and invalid-before-handler DLQ-only settlement
+  with its infinite-loop regression** (R6-2/R6-3/R6-4); fold idempotency spec green; an exact registration
   set spec asserts the three email registrations, one listener hosted service,
   and one shared signal binding with no duplicates/omissions (R3-3);
   `just test-api` green.
@@ -2841,6 +3100,12 @@ specs. The audit found it incomplete; 2A-R below is its remediation packet.
 > unified `JobRegistration` entries and it has no exact registration-set gate.
 > Rebase it after 2B, replace the placeholders with the three policy-bearing
 > registrations, and add the gate; no code branch is changed by this document.
+>
+> ⚠️ **Separately — a suspected live defect on that same branch, not a doc gap
+> (R6-4):** the malformed-payload → mandatory terminal hook → `NOT NULL`
+> `email_log.recipient` → infinite rollback loop described in §5.4. Verify the 809
+> tip against §5.1's two settlement shapes; it is a code question, not a
+> documentation one.
 
 ### Phase 2C-R2 — drop the outbox (small follow-up release)
 
@@ -3002,6 +3267,15 @@ the same-night D2 revision and retained only for the record.
   env-overridable. **Decided: adopt these defaults.**
   Flagged because retention of recipient personal data is policy territory; the
   owner may override any window without a design change (all are env vars, §3.1).
+  **Override semantics are PROSPECTIVE ONLY (R6-2)** — the mechanism and its
+  consequences are stated once in §4.5; the decision is recorded here.
+  `EMAIL_PREPARED_SEND_RETENTION_DAYS` is the only one of the four with a
+  *materialized* boundary (`external_state_expires_at`), so it is the only one
+  where the question arises; the other three are simple age predicates. **Decided
+  over:** a retroactive reading (a conditioned recalculation migration over
+  outstanding `Present` rows before the new window takes effect) — rejected
+  because a materialized timestamp the current env var can silently overrule is a
+  timestamp the dashboard is lying with.
 - **O9 — System-job occurrence ledger: retention + gap policy (R2-1). —
   AUTHOR-DECIDED (pending owner objection).** The `system_job_occurrences` durable
   dedup table (§4.3) is pruned to `SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS` (default
@@ -3068,21 +3342,51 @@ the same-night D2 revision and retained only for the record.
   best-effort. Exactly-once requires the named receiver-contract follow-up in
   §10. **Decided over:** claiming receiver behavior the selected generic webhook
   route does not guarantee.
-- **O18 — Superseded-trigger fence + lock order (R5-1). — AUTHOR-DECIDED: fence on
-  the existing `schedule_policy_fingerprint`, definition-first lock order (pending
-  owner objection).** Every dynamic trigger carries its schedule's
-  `schedule_policy_fingerprint` in the `JobDataMap`; `SyncSystemJobsJob` *replaces*
-  a trigger whose fingerprint changed; `EnqueueSystemJobJob` locks the definition
-  row first and enqueues only on an exact fingerprint match, treating a mismatch
-  as a **logged, counted, non-error no-op**. Both occurrence-writing paths take the
-  definition row before any occurrence row (§4.3/§5.3).
-  **Decided over:** (a) an explicit monotonic `schedule_revision` integer column —
-  rejected because the fingerprint already exists, is already reset-coupled to
-  `reconciled_through`, and an `A → B → A` revert *should* re-accept the identical
-  schedule rather than invalidate it, which a monotonic counter would get wrong;
-  (b) shortening the sync interval — that narrows the race without closing it;
-  (c) treating a superseded fire as a failure — it is the routine consequence of
-  a cron edit and would page operators for correct behavior.
+- **O18 — Superseded-trigger fence + lock order (R5-1/R6-1). — AUTHOR-DECIDED:
+  fence on a distinct `schedule_epoch`; keep the fingerprint as the revision
+  *detector*; definition-first lock order (pending owner objection).**
+  **This item REVERSES the round-5 decision recorded under this number. The
+  round-5 reasoning was wrong; it is corrected here rather than quietly
+  rewritten.** Round 5 fenced on `schedule_policy_fingerprint` and rejected a
+  revision token, arguing that an `A → B → A` revert *should* re-accept the
+  identical schedule and that a monotonic counter "would get that wrong." That
+  argument **conflated two different questions**:
+  - **policy equality** — "is the cron/timezone/gap policy textually identical?",
+    which the fingerprint answers correctly, and which is why the *newly
+    registered* A trigger should indeed be accepted; and
+  - **registration-epoch identity** — "did this execution come from the
+    registration that is current now?", which is the actual superseded-fire
+    question, and which **no property of the policy text can answer**.
+  Both answers are needed, and they point opposite ways in exactly the case round
+  5 used to justify the fingerprint: after `A → B → A`, the new A trigger should
+  be accepted **and** a delayed execution acquired under the *first* A epoch
+  should be rejected. A repeating hash cannot separate them, so the fingerprint
+  fence admitted the stale fire — an **ABA hole**, equally open for
+  disable→enable and for delete/recreate of the same `job_key` with the same
+  policy. The occurrence PK does not close it (the stale fire's `scheduled_fire_at`
+  is genuinely unique). The reviewer was right; round 5's rejection of a revision
+  token does not stand.
+  **Now decided:** `system_job_definitions.schedule_epoch` (a **random uuid**) is
+  re-drawn on **every** cron/timezone/gap-policy revision, **every**
+  disable→enable transition, and **every** active-definition recreation, in the
+  same transaction as the fingerprint write and the `reconciled_through` reset.
+  `SyncSystemJobsJob` stamps the **epoch** into every dynamic trigger's
+  `JobDataMap` and *replaces* a trigger whose epoch changed; `EnqueueSystemJobJob`
+  locks the definition row first and enqueues only on an **exact epoch match**,
+  treating a mismatch as a **logged, counted, non-error no-op**. The fingerprint
+  **stays** — as the detector that tells `SyncSystemJobsJob` a revision happened,
+  never as the fence. Two fields, two questions; §4.3 states the distinction where
+  the mechanism lives. Both occurrence-writing paths take the definition row
+  before any occurrence row, per §4's global lock-order rule (§4.3/§5.3).
+  **Decided over:** (a) a monotonic `schedule_revision` **integer** — an epoch
+  uuid composes with delete/recreate, where a per-row counter restarts at zero and
+  can collide with a retired registration's live trigger; (b) an immutable
+  `schedule_effective_from` fence compared against `scheduled_fire_at` (the
+  reviewer's alternative) — workable, but it must be kept strictly separate from
+  the advancing `reconciled_through` watermark, and the epoch needs no such
+  discipline; (c) shortening the sync interval — narrows the race without closing
+  it; (d) treating a superseded fire as a failure — it is the routine consequence
+  of a cron edit and would page operators for correct behavior.
   Flagged because "a superseded fire silently drops its tick, and reconciliation
   decides any catch-up" is a semantic the owner may want to see, and because the
   no-op is deliberately invisible outside the counter and the information log.
@@ -3104,13 +3408,70 @@ the same-night D2 revision and retained only for the record.
   new status values the owner may want to review; note the columns are window
   metadata only and carry **no** recipient/body/token material, so retaining them
   for the DLQ's 90 days does not re-open the O16 privacy exposure.
+  **Completed by R6 (transitions, not direction):** `external_state_expires_at` is
+  the *enforced* boundary on **both** paths, not just a recorded one — the sweep
+  predicates on it and requeue gates on `now() <` it (R6-2/O7); the sweep and
+  requeue share one DLQ→prepared lock order (§4; R6-3); the `Missing` detection
+  **commits and then rejects** rather than rolling back the evidence it just wrote
+  (R6-3); and `NeverPrepared` is read from a durable marker instead of inferred
+  from absence (R6-4/O20).
+- **O20 — Durable "PREPARE occurred" marker (R6-4). — AUTHOR-DECIDED: persist the
+  marker outside the deletable scratch (pending owner objection).** O19's status
+  model was not **total**: at dead-letter, "prepared row absent" was classified
+  `NeverPrepared`, which cannot distinguish a true pre-PREPARE failure from
+  prepared state lost or corrupted *before* dead-lettering — the very anomaly
+  `Missing` names. Worst case, an ambiguous provider attempt followed by premature
+  scratch loss reads as "no external effect occurred" and requeue mints fresh bytes
+  under a fresh key. `job_queue.external_prepared_at` is therefore written **in the
+  PREPARE transaction**, from the same database `now()` as
+  `email_prepared_sends.prepared_at`, and copied to the DLQ at dead-letter — so
+  marker present + row absent → a real, audited `Missing`; marker absent →
+  genuinely `NeverPrepared` (§4.1/§4.2/§4.5). Requeue carries the marker onto the
+  new queue row when it transfers state, so a transferred job that never re-PREPAREs
+  is not later misread as `NeverPrepared`. **The marker is one timestamp — no
+  recipient, body, token, hash, or provider key** — so O19's privacy claim stays
+  true. **Decided over:** narrowing `Missing` to post-dead-letter loss and dropping
+  the loss/corruption distinction — cheaper, but it answers a correctness question
+  by lowering the claim, and the standing rule is the correct architecture, not the
+  cheaper story. Flagged because it adds a column to the hottest engine table
+  (nullable, written once per external-effect job, never indexed).
+- **O21 — Invalid-before-handler settlement (R6-4). — AUTHOR-DECIDED: DLQ-only,
+  `NeverPrepared`, no `email_log` row (pending owner objection).** The engine's
+  terminal hook is transactional (F5), so a hook that *cannot* succeed does not
+  fail — it rolls settlement back forever. A malformed/missing-id email payload
+  cannot reload a recipient, and `email_log.recipient` is `NOT NULL`, so routing
+  that failure through `OnTerminalFailureAsync` yields an **infinite lease loop**
+  (the #810 class, already shipped once in this system). Settlement for failures
+  where **no handler instance was ever reached** — unknown `job_type`,
+  `JsonException`, payload rejected by `ValidatePayloadJson` — therefore invokes
+  **no hook**: DLQ-only, `external_state_status = 3 NeverPrepared`, no `email_log`
+  row, conditioned queue delete, one commit (§5.1/§5.4). **Decided over:** (a) a
+  placeholder recipient (`unknown@invalid`) — fabricated data in the table support
+  reads to answer "what happened to this address"; (b) relaxing `recipient` to
+  nullable — it is what makes every `email_log` row mean something, and a nullable
+  recipient would push the check to every reader forever; (c) a schema-supported
+  `recipient unavailable` outcome — a real option, but it adds an enum value and a
+  nullable column to record an event with no delivery semantics, and the DLQ row
+  already records it losslessly. Flagged because it makes "every terminal path
+  writes an `email_log` row" false by design — the correct claim is "every terminal
+  path that reached a handler" — and because the owner may prefer (c)'s explicit
+  outcome value.
 
 ### Ratification record
 
 **Status vocabulary.** Only decisions explicitly attributed to the owner below
-are **owner-ratified**. O6–O17 are **author-decided, pending owner objection**;
-their mechanisms are implementation-authoritative meanwhile, but this record
-does not relabel silence as ratification.
+are **owner-ratified**. **O6–O21** are **author-decided, pending owner objection**
+— every O-item above except the owner-ratified O1–O5 (of which O1 and O4 are
+superseded); their mechanisms are implementation-authoritative meanwhile, but this
+record does not relabel silence as ratification. (O8 is listed after O9 above: it
+was added a round later and is kept in its original position so the round-1 record
+below still cites it accurately. The ordering is intentional, not a gap.)
+
+**How to read the chronological record below.** Each entry records the **state
+after that round; later entries may supersede it.** Entries are never rewritten to
+match the current design — that is the point of keeping them — so where a bullet
+was later overturned it is annotated inline with the round that overturned it. The
+sections above are the only authority on current behavior.
 
 **2026-07-16 (owner, night session):** O1–O5 all approved as recommended — rename+extend migration, `LISTEN`/`NOTIFY` + poll fallback, file-heartbeat `--worker-health` probe, password-reset on typed `EmailOutbox`, new `Modules/Messaging/` home. This design is authoritative for Epic A implementation.
 
@@ -3170,7 +3531,9 @@ of `origin/feat/633-job-queue-core` and `origin/feat/634-app-role-quartz`:
   transaction persisting canonical request bytes as **`text`** (not `jsonb`),
   then a separate **locked SEND**; transient failure keeps the committed scratch;
   cleanup is a **live-state anti-join** on `job_queue`/`job_dead_letter`, never
-  age alone (§4.5/§5.4/§7.3).
+  age alone (§4.5/§5.4/§7.3). *(Superseded: `text` → **`bytea`** by R2-2's
+  byte-faithful transport; "never age alone" → a **recorded**
+  `external_state_expires_at` boundary by R4-3/O16 and R6-2 — see §4.5.)*
 - **C2 (R2 drop, F4):** `ACCESS EXCLUSIVE` lock + **zero `Pending`/`Processing`
   regardless of age** before drop (§4.6).
 - **C3 (false cancellation history, F4):** folded rows carry a reserved
@@ -3207,7 +3570,10 @@ of `origin/feat/633-job-queue-core` and `origin/feat/634-app-role-quartz`:
   originals only to protected structured logs (§5.1).
 - **C12 (observability, F21):** honest **telemetry-only v1** (no alert route/
   exporter in the console+file stack); scheduler/listener health + last-success
-  timestamps added; global gauges **leader-gated** (§7).
+  timestamps added; global gauges **leader-gated** (§7). *(Superseded: leader-gated
+  gauges → **per-replica, instance-tagged sampling with condition-level
+  aggregation** by R2-10, precisely because leader-gating blinded the fleet on
+  leader loss — see §7.2.)*
 - **C13 (self-contained claim):** authoritative scope **narrowed to Phases
   2A-R/2B/2C**, Phase 3/4 marked design-direction with build-grade contracts
   where they are core dependencies; **O6/O7 author-decided pending owner
@@ -3400,6 +3766,12 @@ findings are resolved as mechanisms:
   vs. definition-row at a same-tick collision. Two new specs bind it: forced
   old-trigger fire after a cron edit → zero occurrences/zero jobs; concurrent
   live-fire ∥ reconciliation → no `40P01`, no lost occurrence (§4.3/§5.3/§9; O18).
+  *(Superseded in part: the **fingerprint** fence is replaced by a distinct
+  **`schedule_epoch`** at R6-1 — a repeating hash cannot fence the `A → B → A`,
+  disable→enable, and delete/recreate ABA cases. The trigger-carried token,
+  replace-don't-mutate rule, exact match under the definition lock, non-error
+  no-op, and definition-first lock order all stand; only the token changed. See
+  O18 and the round-6 entry.)*
 - **R5-2 (expiry destroyed its own evidence, major; was R4-3/O16):** the 7-day
   cutoff is anchored to `email_prepared_sends.prepared_at`, but the sweep deletes
   that row and the DLQ stored neither the timestamps nor a status — so requeue and
@@ -3444,3 +3816,103 @@ code-alignment items: **R5-1** (634 stamps only `job_key` into the `JobDataMap`
 and does not lock the definition on the delivery path) and **R5-2** (633
 `job_dead_letter`/`JobDeadLetter.FromJob` have no `external_state_*` columns and
 stamp no status). No disputes this round.
+
+**2026-07-17 — PR #852 merge-challenge round 6 remediated (0 blockers /
+4 majors / 1 editorial;
+`docs/reviews/jobs-infra-design-challenge/doc-challenge-r6-findings.md`).**
+Round 6 graded R5-3 **Absorbed** (including the three extra global-age indexes,
+ruled correct scope) and R5-1/R5-2 **Weakened**. Findings rose 3 → 5 because
+round 5 added +615 lines of new mechanism and every round-6 major is a defect
+*inside that new text* — the round-6 remediation is therefore deliberately
+surgical, and states each new rule once (the §4 lock-order rule, §5.1's settlement
+shapes, §4.2's marker table) with cross-references rather than restatements.
+
+- **R6-1 (fingerprint is not an epoch fence, major; was R5-1/O18):** **the round-5
+  decision is reversed, and O18 records the reversal rather than being edited into
+  looking right.** Its argument — that a monotonic revision "would get `A → B → A`
+  wrong" — conflated **policy equality** with **registration-epoch identity**. Both
+  answers are needed and they point opposite ways in that very case: the newly
+  registered A trigger *should* be accepted; a delayed execution acquired under the
+  *first* A epoch *should not*. A repeating hash cannot separate them, so the
+  fingerprint fence admitted stale fires — an ABA hole equally open for
+  disable→enable and delete/recreate of the same `job_key` and policy, and one the
+  occurrence PK cannot catch (the stale fire's `scheduled_fire_at` is unique). Now
+  `system_job_definitions.schedule_epoch` (a **random uuid**, chosen over a counter
+  because it composes with delete/recreate) is re-drawn on every revision, every
+  disable→enable, and every recreation; `SyncSystemJobsJob` stamps the **epoch**
+  into each trigger's `JobDataMap`; `EnqueueSystemJobJob` requires an **exact epoch
+  match** under the definition lock. The **fingerprint stays as the revision
+  detector** — two fields, two questions, said once in §4.3. Specs extended to
+  `A → B → A`, disable→enable, and delete/recreate, each with a delayed old
+  execution landing after the definition returns to identical state, plus a control
+  run that fences on the fingerprint and fails (§4.3/§5.3/§9/§10; O18).
+- **R6-2 (the materialized boundary was neither the sweep's boundary nor the
+  requeue gate, major; was R5-2/O19):** **PROSPECTIVE semantics, made real.**
+  `external_state_expires_at` is now authoritative on **both** paths: the sweep
+  predicates on `d.external_state_expires_at <= now()` (no retention env var
+  appears in its SQL) and requeue requires `now() < external_state_expires_at`
+  under the lock — an expired attempt atomically performs the same
+  delete + `Expired` + audit transition, commits, and returns
+  `PreparedStateExpired`, closing the window where a row stayed `Present` and
+  requeueable past its own cutoff until the async sweep caught up. A
+  retention-config change is **prospective only** (O7): already-materialized rows
+  keep their recorded expiry, so the durable timestamp can never disagree with
+  actual deletion. New specs: requeue rejected after the cutoff *before the sweep
+  has run*, and a config change in both directions leaving existing rows untouched
+  (§4.2/§4.5/§7.3/§9; O7/O19).
+- **R6-3 (lock-order inversion + a `Missing` branch that could not both persist and
+  roll back, major; was R5-2/O19):** the requeue/sweep inversion is the **same
+  defect class** as R5-1's, so the rule is now stated **once** in §4 —
+  `system_job_definitions` before `system_job_occurrences`; **`job_dead_letter`
+  before `email_prepared_sends`** — and both pairs' paths cite it instead of
+  re-arguing it. The sweep selects and locks eligible **DLQ** rows first
+  (`FOR UPDATE OF d SKIP LOCKED`) and only then deletes their prepared rows;
+  requeue loads the DLQ row `FOR UPDATE` and **validates external state before
+  writing the single-use stamp or the new job**. Because validation now precedes
+  every write, the `Present`-but-absent branch **commits** its `Missing` + audit
+  and returns the rejection *after* that commit — no rollback erases the anomaly,
+  and no requeue is created or stamped; the durable-anomaly promise and the
+  reject-with-nothing-created promise hold simultaneously. New specs: a
+  barrier-controlled sweep ∥ requeue proving no `40P01` under the single order
+  (with an inverted control run that deadlocks), and a fresh-context assertion that
+  a rejected `Missing` stays persisted and audited (§4/§4.2/§4.5/§9).
+- **R6-4 (`NeverPrepared` inferred from absence; the malformed-payload path could
+  not satisfy the mandatory terminal hook, major; was R5-2/O19):** the **correct**
+  option was taken, not the narrowing one. A minimal non-sensitive **PREPARE-occurred
+  marker** (`job_queue.external_prepared_at`, one timestamp, written in the PREPARE
+  transaction, copied to the DLQ at dead-letter, carried onto the new queue row by a
+  transfer) makes absence classifiable: marker present + row absent → a real,
+  audited `Missing`; marker absent → genuinely `NeverPrepared` (O20). Separately,
+  **invalid-before-handler settlement** is defined: unknown `job_type`,
+  `JsonException`, or a payload rejected by `ValidatePayloadJson` reaches **no
+  handler instance**, so **no terminal hook runs** — DLQ-only with `NeverPrepared`
+  and **no `email_log` row**; no placeholder address is invented and
+  `email_log.recipient`'s `NOT NULL` is not relaxed (O21). Phase-3 alerting now
+  **samples durable `external_state_status = 4` rows** through
+  `ix_job_dead_letter_external_state` instead of trusting a one-shot in-process
+  counter that can be lost between the status commit and metric emission. Specs:
+  pre-DLQ scratch loss → `Missing` (paired with a NULL-marker row → `NeverPrepared`,
+  so totality is proven, not asserted), marker survival across a transfer, and
+  malformed-payload settlement with an **infinite-loop regression**
+  (§4.1/§4.2/§4.5/§5.1/§5.4/§7.2/§9/§10; O20/O21).
+- **R6-5 (editorial):** the status vocabulary reads **O6–O21** and notes the absent
+  O8 ordering is intentional; the chronological record carries an explicit "state
+  after that round; later entries may supersede" rubric, and the two named
+  superseded bullets are annotated with the rounds that overturned them (round-1
+  C1's `text` prepared bytes → `bytea` at R2-2; round-1 C12's leader-gated global
+  gauges → per-replica sampling at R2-10).
+
+New author-decided items pending owner objection: **O20** (durable PREPARE marker)
+and **O21** (invalid-before-handler DLQ-only settlement); **O18 reversed and
+rewritten**; **O7** extended with prospective override semantics; **O19** annotated
+as completed at mechanism level.
+
+⚠️ **Captain-alignment item — a suspected LIVE DEFECT, not a doc gap (R6-4).** The
+malformed-payload → mandatory terminal hook → `NOT NULL` `email_log.recipient` →
+infinite rollback loop looks reachable on the shipped 2C branch
+`origin/feat/809-email-jobs-fold` today. Flagged inline at §5.4 and §10 for
+separate code verification; **no code branch is edited by this document**. Other
+code-alignment items carry forward: **R6-1** (634 has no `schedule_epoch`) and
+**R6-4** (633's `job_queue`/`JobDeadLetter.FromJob` have no marker and cannot
+classify absence). No disputes this round — the reviewer's ruling on O18 is
+accepted in full.
