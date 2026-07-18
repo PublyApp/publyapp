@@ -11890,6 +11890,10 @@
             "type": "string",
             "format": "uuid"
           },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
           "email": {
             "type": "string"
           },
@@ -12146,6 +12150,10 @@
         "type": "object",
         "properties": {
           "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "userAccountId": {
             "type": "string",
             "format": "uuid"
           },

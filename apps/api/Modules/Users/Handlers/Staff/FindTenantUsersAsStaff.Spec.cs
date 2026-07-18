@@ -129,6 +129,70 @@ public sealed class FindTenantUsersAsStaffSpec
 		result.Data.Should().NotContain(u => u.FirstName == $"NoPercentAtAll{marker}");
 	}
 
+	/// <summary>
+	/// Regression for the front-2 step-4b review (BLOCKER 1): the tenant-users candidate
+	/// list is shared by both the tenant Users page (which links via the global user id) and
+	/// the Assign-members drawer (which must resolve/assign/unassign by user_account_id). The
+	/// two ids are independent UUIDs — this pins that the response carries both, and that they
+	/// are NOT equal for a genuine tenant member, so a caller can never mistake one for the
+	/// other.
+	/// </summary>
+	[Fact]
+	public async Task
+	ItShouldExposeBothTheGlobalUserIdAndTheDistinctUserAccountId() {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var marker = Guid.NewGuid().ToString("N")[..8];
+
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var tenant = new Tenant {
+			Name = $"Tenant Identity Fixture {marker}",
+			Code = Guid.NewGuid().ToString("N")[..10],
+			Status = TenantStatus.Active,
+			MaxUsers = 10,
+		};
+		await dbContext.Tenant.AddAsync(tenant);
+		await dbContext.SaveChangesAsync();
+		var tenantId = tenant.GetRequiredId();
+
+		var user = new User {
+			Email = $"tenant-identity-{marker}@example.com",
+			Password = "unused",
+			FirstName = "Identity",
+			LastName = "Fixture",
+			Status = UserStatus.Active,
+			IsVerified = true,
+		};
+		await dbContext.User.AddAsync(user);
+		await dbContext.SaveChangesAsync();
+		var userId = user.GetRequiredId();
+
+		var account = UserAccount.CreateTenantAccount(userId, tenantId);
+		await dbContext.UserAccount.AddAsync(account);
+		await dbContext.SaveChangesAsync();
+		var userAccountId = account.GetRequiredId();
+
+		var url = GetFindUrl(tenantId);
+		var request = new HttpRequestMessage(
+			HttpMethod.Get, url
+		).WithSessionToken(staffToken);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+
+		var item = result.Data.Should()
+			.ContainSingle(u => u.Id == userId.ToString())
+			.Subject;
+
+		item.UserAccountId.Should().Be(userAccountId.ToString());
+		item.UserAccountId.Should().NotBe(item.Id);
+	}
+
 	private async Task<Guid> SeedTenantWithSearchFixtureAsync(string marker) {
 		await using var scope =
 			_fixture.Factory.Services.CreateAsyncScope();
@@ -1114,6 +1178,7 @@ public sealed class FindTenantUsersAsStaffSpec
 
 	private record TenantUserItemDto {
 		public string Id { get; init; } = string.Empty;
+		public string UserAccountId { get; init; } = string.Empty;
 		public string Email { get; init; }
 			= string.Empty;
 		public string? LastName { get; init; }

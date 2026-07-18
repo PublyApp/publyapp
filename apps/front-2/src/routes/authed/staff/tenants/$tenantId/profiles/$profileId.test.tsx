@@ -433,7 +433,9 @@ describe('staff tenant profile details route', () => {
 			0,
 		);
 		expect(screen.getAllByText('Default').length).toBeGreaterThan(0);
-		expect(screen.getByText('7')).toBeTruthy();
+		// '7' now renders twice — the sidebar "Assigned users" DetailItem and the
+		// new Members tab trigger's count badge both show `userAccountCount`.
+		expect(screen.getAllByText('7').length).toBeGreaterThan(0);
 		expect(screen.getByText('tenant.approvals.review')).toBeTruthy();
 		expect(screen.getByText('tenant.users.read')).toBeTruthy();
 		expect(screen.getByText('tenant.users.write')).toBeTruthy();

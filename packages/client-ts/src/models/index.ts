@@ -4312,6 +4312,7 @@ export function deserializeIntoTenantProfileUserItem(tenantProfileUserItem: Part
         "lastName": n => { tenantProfileUserItem.lastName = n.getStringValue(); },
         "level": n => { tenantProfileUserItem.level = n.getStringValue(); },
         "status": n => { tenantProfileUserItem.status = n.getStringValue(); },
+        "userId": n => { tenantProfileUserItem.userId = n.getGuidValue(); },
     }
 }
 /**
@@ -4447,6 +4448,7 @@ export function deserializeIntoTenantUserItem(tenantUserItem: Partial<TenantUser
         "lastName": n => { tenantUserItem.lastName = n.getStringValue(); },
         "level": n => { tenantUserItem.level = n.getStringValue(); },
         "status": n => { tenantUserItem.status = n.getStringValue(); },
+        "userAccountId": n => { tenantUserItem.userAccountId = n.getGuidValue(); },
     }
 }
 /**
@@ -7554,6 +7556,7 @@ export function serializeTenantProfileUserItem(writer: SerializationWriter, tena
     writer.writeStringValue("lastName", tenantProfileUserItem.lastName);
     writer.writeStringValue("level", tenantProfileUserItem.level);
     writer.writeStringValue("status", tenantProfileUserItem.status);
+    writer.writeGuidValue("userId", tenantProfileUserItem.userId);
     writer.writeAdditionalData(tenantProfileUserItem.additionalData);
 }
 /**
@@ -7698,6 +7701,7 @@ export function serializeTenantUserItem(writer: SerializationWriter, tenantUserI
     writer.writeStringValue("lastName", tenantUserItem.lastName);
     writer.writeStringValue("level", tenantUserItem.level);
     writer.writeStringValue("status", tenantUserItem.status);
+    writer.writeGuidValue("userAccountId", tenantUserItem.userAccountId);
     writer.writeAdditionalData(tenantUserItem.additionalData);
 }
 /**
@@ -8608,6 +8612,10 @@ export interface TenantProfileUserItem extends AdditionalDataHolder, Parsable {
      * The status property
      */
     status?: string | null;
+    /**
+     * The userId property
+     */
+    userId?: Guid | null;
 }
 export interface TenantReactivatedResult extends AdditionalDataHolder, Parsable {
     /**
@@ -8809,6 +8817,10 @@ export interface TenantUserItem extends AdditionalDataHolder, Parsable {
      * The status property
      */
     status?: string | null;
+    /**
+     * The userAccountId property
+     */
+    userAccountId?: Guid | null;
 }
 export interface UnassignStaffProfileUsersBody extends AdditionalDataHolder, Parsable {
     /**
