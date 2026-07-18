@@ -1,23 +1,60 @@
 # Dokploy Configuration for PDF Vite App
 # Set environment variables in Dokploy GUI
 
+x-dokploy-pre-deploy:
+  command: docker compose -f dokploy.yml run --rm --no-deps publyapp-migrate
+  reason: One-shot pre-deploy migration step; non-zero exit aborts the deploy.
+
 services:
   publyapp-api:
     # Immutable release tag, never :latest (design §3.4, F14): a mixed-version fleet must
     # be an explicit, inspectable state, not an accident of pull timing.
     image: ghcr.io/radandevist/publyapp/api:${RELEASE_TAG}
-    container_name: publyapp-api
     restart: unless-stopped
     # > host ShutdownTimeout (30 s) so graceful drain wins over SIGKILL (design §3.6, F19).
     stop_grace_period: 45s
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
+      - DOTNET_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:5000
       # This container runs ONLY the HTTP surface; the job engine runs in
       # publyapp-worker below (design §3.2/§3.4).
       - APP_ROLE=api
-      - POSTGRES_CONNECTION_STRING=${POSTGRES_CONNECTION_STRING}
+      - POSTGRES_CONNECTION_STRING=${POSTGRES_CONNECTION_STRING};MaxPoolSize=50
       - FRONT_URL=${FRONT_URL}
+      - RESEND_API_KEY=${RESEND_API_KEY}
+      - STAFF_OWNER_EMAIL=${STAFF_OWNER_EMAIL}
+      - STAFF_OWNER_BOOTSTRAP_CODE=${STAFF_OWNER_BOOTSTRAP_CODE}
+      - APP_NAME=${APP_NAME}
+      - DEFAULT_EMAIL_SENDER_EMAIL=${DEFAULT_EMAIL_SENDER_EMAIL}
+      - DEFAULT_EMAIL_SENDER_NAME=${DEFAULT_EMAIL_SENDER_NAME}
+      - SESSION_TOKEN_HEADER_KEY=${SESSION_TOKEN_HEADER_KEY}
+      - TENANT_ID_HEADER_KEY=${TENANT_ID_HEADER_KEY}
+      - SESSION_EXPIRY_DAYS=${SESSION_EXPIRY_DAYS}
+      - EMAIL_VERIFY_TOKEN_VALIDITY_DURATION=${EMAIL_VERIFY_TOKEN_VALIDITY_DURATION}
+      - PASSWORD_RESET_TOKEN_VALIDITY_DURATION=${PASSWORD_RESET_TOKEN_VALIDITY_DURATION}
+      - PASSWORD_MIN_LENGTH=${PASSWORD_MIN_LENGTH}
+      - EMAIL_VERIFY_TOKEN_LENGTH=${EMAIL_VERIFY_TOKEN_LENGTH}
+      - PASSWORD_RESET_TOKEN_LENGTH=${PASSWORD_RESET_TOKEN_LENGTH}
+      - INVITATION_TOKEN_LENGTH=${INVITATION_TOKEN_LENGTH}
+      - DI_MANIFEST_ENABLED=${DI_MANIFEST_ENABLED}
+      - AUDIT_LOG_EXPORT_MAX_ROWS=${AUDIT_LOG_EXPORT_MAX_ROWS}
+      - MAX_PROFILES_PER_USER=${MAX_PROFILES_PER_USER}
+      - TENANT_USER_EXPORT_MAX_ROWS=${TENANT_USER_EXPORT_MAX_ROWS}
+      - TENANT_ACTIVITY_THROTTLE_MINUTES=${TENANT_ACTIVITY_THROTTLE_MINUTES}
+      - FILE_STORAGE_ROOT=${FILE_STORAGE_ROOT}
+      - UPLOAD_MAX_BYTES=${UPLOAD_MAX_BYTES}
+      - JOB_QUEUE_BATCH_SIZE=${JOB_QUEUE_BATCH_SIZE}
+      - JOB_QUEUE_POLL_SECONDS=${JOB_QUEUE_POLL_SECONDS}
+      - JOB_LEASE_SECONDS=${JOB_LEASE_SECONDS}
+      - JOB_QUEUE_DRAIN_BUDGET_SECONDS=${JOB_QUEUE_DRAIN_BUDGET_SECONDS}
+      - EMAIL_LOG_RETENTION_DAYS=${EMAIL_LOG_RETENTION_DAYS}
+      - JOB_DEAD_LETTER_RETENTION_DAYS=${JOB_DEAD_LETTER_RETENTION_DAYS}
+      - EMAIL_PREPARED_SEND_RETENTION_DAYS=${EMAIL_PREPARED_SEND_RETENTION_DAYS}
+      - EMAIL_PREPARED_SWEEP_MAX_LAG_MINUTES=${EMAIL_PREPARED_SWEEP_MAX_LAG_MINUTES}
+      - SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS=${SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS}
+      - JOB_ALERT_LEASE_RETENTION_DAYS=${JOB_ALERT_LEASE_RETENTION_DAYS}
+      - JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST=${JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST}
     # Persists staff-uploaded assets (tenant logos) at FILE_STORAGE_ROOT across
     # redeploys/container replacement — without this, every deploy wipes
     # .artifacts/storage and every /files/... URL in tenants.logo_url 404s.
@@ -32,7 +69,7 @@ services:
       - "dokploy.port=5000"
       - "dokploy.https=true"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -40,30 +77,52 @@ services:
 
   # Same GHCR image as publyapp-api, differing only by env: this container runs the
   # background job engine (queue processor, scheduler leader + Quartz, outbox
-  # dispatchers) and serves NO HTTP (design §3.2/§3.4/§3.5). Scale it independently of
-  # the api. This image runs NO migration at boot in any role: there is no startup
-  # Migrate()/MigrateAsync() path and the runtime entrypoint is plain
-  # `dotnet PublyApp.Api.dll` (apps/api/Dockerfile). The production migration runner is
-  # NOT encoded in this repo — whatever applies migrations MUST export APP_ROLE=api (or
-  # use the Docker `migrate` target, which pins `ENV APP_ROLE=api`). Under Production a
-  # missing APP_ROLE now fails fast (AppEnvironment.GetOptionalAppRole), so an unpinned
-  # runner would start the host, throw, and apply no migration. OWNER-GATE: confirm the
-  # live migration command pins APP_ROLE=api before relying on this.
+  # dispatchers) and serves NO HTTP (design §3.2/§3.4/§3.5).
   publyapp-worker:
     image: ghcr.io/radandevist/publyapp/api:${RELEASE_TAG}   # same image as api, immutable tag (F14)
-    # No container_name: it pins the service to a single replica and blocks scaling
-    # (audit F19). The worker is meant to scale horizontally.
     restart: unless-stopped
     # Above the ~30 s Quartz-drain / graceful-shutdown budget (HostOptions.ShutdownTimeout,
     # design §3.6); Compose's 10 s default would SIGKILL mid-drain (audit F19).
     stop_grace_period: 45s
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
+      - DOTNET_ENVIRONMENT=Production
       - APP_ROLE=worker
-      - POSTGRES_CONNECTION_STRING=${POSTGRES_CONNECTION_STRING}
+      - POSTGRES_CONNECTION_STRING=${POSTGRES_CONNECTION_STRING};MaxPoolSize=30
       - FRONT_URL=${FRONT_URL}
-      # + RESEND_API_KEY, STAFF_OWNER_*, APP_NAME, etc. — the same required set as the
-      #   api service, supplied via the Dokploy GUI.
+      - RESEND_API_KEY=${RESEND_API_KEY}
+      - STAFF_OWNER_EMAIL=${STAFF_OWNER_EMAIL}
+      - STAFF_OWNER_BOOTSTRAP_CODE=${STAFF_OWNER_BOOTSTRAP_CODE}
+      - APP_NAME=${APP_NAME}
+      - DEFAULT_EMAIL_SENDER_EMAIL=${DEFAULT_EMAIL_SENDER_EMAIL}
+      - DEFAULT_EMAIL_SENDER_NAME=${DEFAULT_EMAIL_SENDER_NAME}
+      - SESSION_TOKEN_HEADER_KEY=${SESSION_TOKEN_HEADER_KEY}
+      - TENANT_ID_HEADER_KEY=${TENANT_ID_HEADER_KEY}
+      - SESSION_EXPIRY_DAYS=${SESSION_EXPIRY_DAYS}
+      - EMAIL_VERIFY_TOKEN_VALIDITY_DURATION=${EMAIL_VERIFY_TOKEN_VALIDITY_DURATION}
+      - PASSWORD_RESET_TOKEN_VALIDITY_DURATION=${PASSWORD_RESET_TOKEN_VALIDITY_DURATION}
+      - PASSWORD_MIN_LENGTH=${PASSWORD_MIN_LENGTH}
+      - EMAIL_VERIFY_TOKEN_LENGTH=${EMAIL_VERIFY_TOKEN_LENGTH}
+      - PASSWORD_RESET_TOKEN_LENGTH=${PASSWORD_RESET_TOKEN_LENGTH}
+      - INVITATION_TOKEN_LENGTH=${INVITATION_TOKEN_LENGTH}
+      - DI_MANIFEST_ENABLED=${DI_MANIFEST_ENABLED}
+      - AUDIT_LOG_EXPORT_MAX_ROWS=${AUDIT_LOG_EXPORT_MAX_ROWS}
+      - MAX_PROFILES_PER_USER=${MAX_PROFILES_PER_USER}
+      - TENANT_USER_EXPORT_MAX_ROWS=${TENANT_USER_EXPORT_MAX_ROWS}
+      - TENANT_ACTIVITY_THROTTLE_MINUTES=${TENANT_ACTIVITY_THROTTLE_MINUTES}
+      - FILE_STORAGE_ROOT=${FILE_STORAGE_ROOT}
+      - UPLOAD_MAX_BYTES=${UPLOAD_MAX_BYTES}
+      - JOB_QUEUE_BATCH_SIZE=${JOB_QUEUE_BATCH_SIZE}
+      - JOB_QUEUE_POLL_SECONDS=${JOB_QUEUE_POLL_SECONDS}
+      - JOB_LEASE_SECONDS=${JOB_LEASE_SECONDS}
+      - JOB_QUEUE_DRAIN_BUDGET_SECONDS=${JOB_QUEUE_DRAIN_BUDGET_SECONDS}
+      - EMAIL_LOG_RETENTION_DAYS=${EMAIL_LOG_RETENTION_DAYS}
+      - JOB_DEAD_LETTER_RETENTION_DAYS=${JOB_DEAD_LETTER_RETENTION_DAYS}
+      - EMAIL_PREPARED_SEND_RETENTION_DAYS=${EMAIL_PREPARED_SEND_RETENTION_DAYS}
+      - EMAIL_PREPARED_SWEEP_MAX_LAG_MINUTES=${EMAIL_PREPARED_SWEEP_MAX_LAG_MINUTES}
+      - SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS=${SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS}
+      - JOB_ALERT_LEASE_RETENTION_DAYS=${JOB_ALERT_LEASE_RETENTION_DAYS}
+      - JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST=${JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST}
     # Shares the api's storage volume so files written by future export jobs (#213/#286)
     # are visible to the api's /files static serving (audit F18) — same FILE_STORAGE_ROOT
     # path in both roles.
@@ -81,25 +140,77 @@ services:
       retries: 3
       start_period: 40s
 
+  # Migration is a pre-deploy command, not a long-lived app service.
+  # In Dokploy, run this one-shot (example: x-dokploy-pre-deploy.command above) and abort
+  # the deploy on non-zero exit.
+  publyapp-migrate:
+    image: ghcr.io/radandevist/publyapp/migrate:${RELEASE_TAG}
+    profiles:
+      - pre-deploy
+    restart: "no"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - DOTNET_ENVIRONMENT=Production
+      - APP_ROLE=api
+      - POSTGRES_CONNECTION_STRING=${POSTGRES_CONNECTION_STRING};MaxPoolSize=50
+      - FRONT_URL=${FRONT_URL}
+      - RESEND_API_KEY=${RESEND_API_KEY}
+      - STAFF_OWNER_EMAIL=${STAFF_OWNER_EMAIL}
+      - STAFF_OWNER_BOOTSTRAP_CODE=${STAFF_OWNER_BOOTSTRAP_CODE}
+      - APP_NAME=${APP_NAME}
+      - DEFAULT_EMAIL_SENDER_EMAIL=${DEFAULT_EMAIL_SENDER_EMAIL}
+      - DEFAULT_EMAIL_SENDER_NAME=${DEFAULT_EMAIL_SENDER_NAME}
+      - SESSION_TOKEN_HEADER_KEY=${SESSION_TOKEN_HEADER_KEY}
+      - TENANT_ID_HEADER_KEY=${TENANT_ID_HEADER_KEY}
+      - SESSION_EXPIRY_DAYS=${SESSION_EXPIRY_DAYS}
+      - EMAIL_VERIFY_TOKEN_VALIDITY_DURATION=${EMAIL_VERIFY_TOKEN_VALIDITY_DURATION}
+      - PASSWORD_RESET_TOKEN_VALIDITY_DURATION=${PASSWORD_RESET_TOKEN_VALIDITY_DURATION}
+      - PASSWORD_MIN_LENGTH=${PASSWORD_MIN_LENGTH}
+      - EMAIL_VERIFY_TOKEN_LENGTH=${EMAIL_VERIFY_TOKEN_LENGTH}
+      - PASSWORD_RESET_TOKEN_LENGTH=${PASSWORD_RESET_TOKEN_LENGTH}
+      - INVITATION_TOKEN_LENGTH=${INVITATION_TOKEN_LENGTH}
+      - DI_MANIFEST_ENABLED=${DI_MANIFEST_ENABLED}
+      - AUDIT_LOG_EXPORT_MAX_ROWS=${AUDIT_LOG_EXPORT_MAX_ROWS}
+      - MAX_PROFILES_PER_USER=${MAX_PROFILES_PER_USER}
+      - TENANT_USER_EXPORT_MAX_ROWS=${TENANT_USER_EXPORT_MAX_ROWS}
+      - TENANT_ACTIVITY_THROTTLE_MINUTES=${TENANT_ACTIVITY_THROTTLE_MINUTES}
+      - FILE_STORAGE_ROOT=${FILE_STORAGE_ROOT}
+      - UPLOAD_MAX_BYTES=${UPLOAD_MAX_BYTES}
+      - JOB_QUEUE_BATCH_SIZE=${JOB_QUEUE_BATCH_SIZE}
+      - JOB_QUEUE_POLL_SECONDS=${JOB_QUEUE_POLL_SECONDS}
+      - JOB_LEASE_SECONDS=${JOB_LEASE_SECONDS}
+      - JOB_QUEUE_DRAIN_BUDGET_SECONDS=${JOB_QUEUE_DRAIN_BUDGET_SECONDS}
+      - EMAIL_LOG_RETENTION_DAYS=${EMAIL_LOG_RETENTION_DAYS}
+      - JOB_DEAD_LETTER_RETENTION_DAYS=${JOB_DEAD_LETTER_RETENTION_DAYS}
+      - EMAIL_PREPARED_SEND_RETENTION_DAYS=${EMAIL_PREPARED_SEND_RETENTION_DAYS}
+      - EMAIL_PREPARED_SWEEP_MAX_LAG_MINUTES=${EMAIL_PREPARED_SWEEP_MAX_LAG_MINUTES}
+      - SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS=${SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS}
+      - JOB_ALERT_LEASE_RETENTION_DAYS=${JOB_ALERT_LEASE_RETENTION_DAYS}
+      - JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST=${JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST}
+
   publyapp-front:
-    image: ghcr.io/radandevist/publyapp/front:latest
-    container_name: publyapp-front
+    image: ghcr.io/radandevist/publyapp/front-2:${RELEASE_TAG}
     restart: unless-stopped
     environment:
       - NODE_ENV=production
-      - PORT=5050
+      - PORT=3000
+      - PUBLIC_API_BASE_URL=${PUBLIC_API_BASE_URL}
+      - SERVER_API_BASE_URL=${SERVER_API_BASE_URL}
       - VITE_ASP_SERVER_URL=${VITE_ASP_SERVER_URL}
       - VITE_POSTHOG_API_KEY=${VITE_POSTHOG_API_KEY}
     networks:
       - publyapp-network
     labels:
       - "dokploy.domain=publyapp.com,www.publyapp.com"
-      - "dokploy.port=5050"
+      - "dokploy.port=3000"
       - "dokploy.https=true"
     depends_on:
-      - publyapp-api
+      publyapp-api:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5050/health"]
+      test:
+        - CMD-SHELL
+        - "node -e \"fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""
       interval: 30s
       timeout: 10s
       retries: 3

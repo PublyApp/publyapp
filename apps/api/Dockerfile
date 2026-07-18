@@ -33,19 +33,38 @@ RUN cd apps/api \
 	INVITATION_TOKEN_LENGTH="25" \
 	dotnet publish -c Release -o /publish
 
-FROM build AS migrate
-
+FROM build AS migrations
 WORKDIR /src/apps/api
 
-# Migration/model creation is an API-role tooling path, never an implicit `all` or worker
-# host (design §3.1, R4-4): dotnet-ef builds the app's host to resolve AppDbContext, so
-# APP_ROLE is read here too. This MUST be an ENV, not the inline `RUN` prefix the build
-# stage uses — those bindings exist only for that one RUN command and do not persist into
-# this derived stage. Without it, this stage inherits no APP_ROLE and (running under a
-# production-like environment) fails startup by design.
-ENV APP_ROLE=api
+RUN APP_ROLE=api \
+	ASPNETCORE_ENVIRONMENT=Production \
+	DOTNET_ENVIRONMENT=Production \
+	POSTGRES_CONNECTION_STRING="Host=localhost;Port=5432;Database=publyapp_build;Username=postgres;Password=password;" \
+	FRONT_URL="http://localhost:5050" \
+	RESEND_API_KEY="build-placeholder" \
+	STAFF_OWNER_EMAIL="owner@publyapp.local" \
+	STAFF_OWNER_BOOTSTRAP_CODE="build-placeholder" \
+	APP_NAME="PublyApp" \
+	DEFAULT_EMAIL_SENDER_EMAIL="support@publyapp.local" \
+	DEFAULT_EMAIL_SENDER_NAME="PublyApp Support" \
+	SESSION_TOKEN_HEADER_KEY="X-Session-Token" \
+	TENANT_ID_HEADER_KEY="X-PublyApp-TenantId" \
+	SESSION_EXPIRY_DAYS="7" \
+	EMAIL_VERIFY_TOKEN_VALIDITY_DURATION="7" \
+	PASSWORD_RESET_TOKEN_VALIDITY_DURATION="7" \
+	PASSWORD_MIN_LENGTH="12" \
+	EMAIL_VERIFY_TOKEN_LENGTH="25" \
+	PASSWORD_RESET_TOKEN_LENGTH="25" \
+	INVITATION_TOKEN_LENGTH="25" \
+	dotnet tool run dotnet-ef migrations bundle --configuration Release --verbose --output /publish/efbundle
 
-ENTRYPOINT ["dotnet", "tool", "run", "dotnet-ef", "database", "update", "--verbose"]
+FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:ddcf70ad1ab963a4fcd41fbd722a6b660e404e87567cfbd46fd2809c21b02088 AS migrate
+
+WORKDIR /app
+
+COPY --from=migrations /publish/efbundle /app/efbundle
+
+ENTRYPOINT ["./efbundle"]
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:ddcf70ad1ab963a4fcd41fbd722a6b660e404e87567cfbd46fd2809c21b02088 AS runtime
 
