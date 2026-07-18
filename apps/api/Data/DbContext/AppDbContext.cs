@@ -83,6 +83,9 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	public DbSet<SystemJobDefinition> SystemJobDefinition {
 		get { return Set<SystemJobDefinition>(); }
 	}
+	public DbSet<SystemJobOccurrence> SystemJobOccurrence {
+		get { return Set<SystemJobOccurrence>(); }
+	}
 
 	// Append-only email delivery record + send-once envelope scratch (design §4.4/§4.5,
 	// Modules/Messaging). Written by the email job handlers; never read by the engine.
@@ -457,6 +460,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 		modelBuilder.Entity<SystemJobDefinition>(entity => {
 			entity.HasKey(e => e.Id).HasName("pk_system_job_definitions");
 			entity.Property(e => e.IsEnabled).HasDefaultValue(true);
+			entity.Property(e => e.ScheduleEpoch).HasDefaultValueSql("gen_random_uuid()");
 			// §4.3 specifies a database-level DEFAULT false, so raw-SQL inserts (which
 			// bypass UpdateAuditFields) can never leave is_deleted NULL-ish/unset.
 			entity.Property(e => e.IsDeleted).HasDefaultValue(false);
@@ -467,6 +471,17 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 				.IsUnique()
 				.HasDatabaseName("ux_system_job_definitions_job_key")
 				.HasFilter("is_deleted = false");
+		});
+
+		// Durable occurrence identity (§4.3): the composite PK is the cross-leader
+		// dedup constraint. This is not a BaseAttributes entity and has no surrogate id.
+		modelBuilder.Entity<SystemJobOccurrence>(entity => {
+			entity.HasKey(e => new { e.JobKey, e.ScheduledFireAt })
+				.HasName("pk_system_job_occurrences");
+			entity.Property(e => e.EnqueuedAt).HasDefaultValueSql("now()");
+
+			entity.HasIndex(e => e.ScheduledFireAt)
+				.HasDatabaseName("ix_system_job_occurrences_scheduled_fire_at");
 		});
 
 		// Append-only email delivery record (design §4.4, F20). Not a BaseAttributes

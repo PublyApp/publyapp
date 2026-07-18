@@ -95,6 +95,89 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
+	[Fact]
+	public async Task ItShouldNotDoubleEnqueueWhenAReplacedTriggerRefiresTheSameScheduledInstant() {
+		var jobKeyName = $"same-cron-{Guid.NewGuid():N}";
+		var epoch = Guid.NewGuid();
+		var scheduledFireAt = DateTime.UtcNow.AddMinutes(1);
+		await using var dbContext = await CreateDbContextAsync();
+		var scheduler = await CreateRamSchedulerAsync();
+
+		try {
+			await dbContext.SystemJobDefinition.AddAsync(new SystemJobDefinition {
+				JobKey = jobKeyName,
+				CronExpression = ValidCron,
+				ScheduleEpoch = epoch,
+			});
+			await dbContext.SaveChangesAsync();
+
+			var syncJob = new SyncSystemJobsJob(
+				dbContext, NullLogger<SyncSystemJobsJob>.Instance
+			);
+			await syncJob.ReconcileAsync(scheduler, CancellationToken.None);
+			var enqueueJob = new EnqueueSystemJobJob(
+				dbContext, NullLogger<EnqueueSystemJobJob>.Instance
+			);
+			await enqueueJob.EnqueueOccurrenceAsync(
+				jobKeyName, scheduledFireAt, epoch, CancellationToken.None
+			);
+
+			await syncJob.ReconcileAsync(scheduler, CancellationToken.None);
+			var jobDetail = await scheduler.GetJobDetail(
+				new JobKey(jobKeyName, SyncSystemJobsJob.SystemJobsGroup)
+			);
+			jobDetail.Should().NotBeNull();
+			jobDetail?.JobDataMap.GetString(EnqueueSystemJobJob.ScheduleEpochDataKey)
+				.Should().Be(epoch.ToString());
+			await enqueueJob.EnqueueOccurrenceAsync(
+				jobKeyName, scheduledFireAt, epoch, CancellationToken.None
+			);
+
+			(await dbContext.JobQueue.CountAsync(row => row.JobType == jobKeyName))
+				.Should().Be(1);
+		} finally {
+			await CleanupJobAsync(dbContext, jobKeyName);
+			await scheduler.Shutdown(waitForJobsToComplete: false);
+		}
+	}
+
+	[Fact]
+	public async Task ItShouldRotateScheduleEpochWhenTheCronChangesAndStampTheReplacement() {
+		var jobKeyName = $"epoch-change-{Guid.NewGuid():N}";
+		var originalEpoch = Guid.NewGuid();
+		await using var dbContext = await CreateDbContextAsync();
+		var scheduler = await CreateRamSchedulerAsync();
+
+		try {
+			var definition = new SystemJobDefinition {
+				JobKey = jobKeyName,
+				CronExpression = ValidCron,
+				ScheduleEpoch = originalEpoch,
+			};
+			await dbContext.SystemJobDefinition.AddAsync(definition);
+			await dbContext.SaveChangesAsync();
+
+			var syncJob = new SyncSystemJobsJob(
+				dbContext, NullLogger<SyncSystemJobsJob>.Instance
+			);
+			await syncJob.ReconcileAsync(scheduler, CancellationToken.None);
+			definition.CronExpression = "0 0/10 * * * ?";
+			await dbContext.SaveChangesAsync();
+			await syncJob.ReconcileAsync(scheduler, CancellationToken.None);
+
+			definition.ScheduleEpoch.Should().NotBe(originalEpoch);
+			var jobDetail = await scheduler.GetJobDetail(
+				new JobKey(jobKeyName, SyncSystemJobsJob.SystemJobsGroup)
+			);
+			jobDetail.Should().NotBeNull();
+			jobDetail?.JobDataMap.GetString(EnqueueSystemJobJob.ScheduleEpochDataKey)
+				.Should().Be(definition.ScheduleEpoch.ToString());
+		} finally {
+			await CleanupJobAsync(dbContext, jobKeyName);
+			await scheduler.Shutdown(waitForJobsToComplete: false);
+		}
+	}
+
 	// A real RAM-store scheduler; never started, since ScheduleJob/CheckExists/
 	// GetJobKeys all work on a non-started scheduler and no trigger should fire here.
 	private static async Task<IScheduler> CreateRamSchedulerAsync() {
@@ -123,6 +206,18 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 			new DbContextOptionsBuilder<AppDbContext>()
 				.UseNpgsql(connectionString)
 				.Options
+		);
+	}
+
+	private static async Task CleanupJobAsync(AppDbContext dbContext, string jobKey) {
+		await dbContext.Database.ExecuteSqlAsync(
+			$"DELETE FROM system_job_occurrences WHERE job_key = {jobKey}"
+		);
+		await dbContext.Database.ExecuteSqlAsync(
+			$"DELETE FROM job_queue WHERE job_type = {jobKey}"
+		);
+		await dbContext.Database.ExecuteSqlAsync(
+			$"DELETE FROM system_job_definitions WHERE job_key = {jobKey}"
 		);
 	}
 }

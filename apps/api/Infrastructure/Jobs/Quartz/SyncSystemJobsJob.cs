@@ -39,9 +39,11 @@ public sealed class SyncSystemJobsJob : IJob {
 	// Public: lets specs drive one reconcile pass against a real scheduler directly
 	// (public-methods-for-determinism) without faking IJobExecutionContext.
 	public async Task ReconcileAsync(IScheduler scheduler, CancellationToken cancellationToken) {
-		var definitions = await _dbContext.SystemJobDefinition
-			.Where(d => d.IsEnabled && !d.IsDeleted)
-			.ToListAsync(cancellationToken);
+		var definitions = await (
+			from definition in _dbContext.SystemJobDefinition
+			where definition.IsEnabled && !definition.IsDeleted
+			select definition
+		).ToListAsync(cancellationToken);
 
 		// Split on cron validity FIRST: an invalid definition must not count as
 		// desired — its previously-scheduled trigger (from when the cron was still
@@ -80,9 +82,7 @@ public sealed class SyncSystemJobsJob : IJob {
 		// check) is logged and skipped so it cannot starve the remaining definitions.
 		foreach (var definition in validDefinitions) {
 			try {
-				await SyncOneAsync(
-					scheduler, definition.JobKey, definition.CronExpression, cancellationToken
-				);
+					await SyncOneAsync(scheduler, definition, cancellationToken);
 			} catch (Exception ex) when (ex is not OperationCanceledException) {
 				_logger.LogError(
 					ex,
@@ -93,29 +93,45 @@ public sealed class SyncSystemJobsJob : IJob {
 		}
 	}
 
-	private static async Task SyncOneAsync(
+	private async Task SyncOneAsync(
 		IScheduler scheduler,
-		string jobKeyName,
-		string cronExpression,
+		SystemJobDefinition definition,
 		CancellationToken cancellationToken
 	) {
+		var jobKeyName = definition.JobKey;
 		var jobKey = new JobKey(jobKeyName, SystemJobsGroup);
 
-		// Replace-on-reconcile keeps the cron current when a definition's schedule
-		// changes; the RAM store holds no durable state worth preserving across this.
+		// A changed cron retires every trigger stamped with the previous epoch. Persist
+		// the new epoch before installing its replacement so delivery can exact-match it.
 		if (await scheduler.CheckExists(jobKey, cancellationToken)) {
+			var triggers = await scheduler.GetTriggersOfJob(jobKey, cancellationToken);
+			var cronTrigger = triggers.OfType<ICronTrigger>().SingleOrDefault();
+			if (cronTrigger is null
+				|| !string.Equals(
+					cronTrigger.CronExpressionString,
+					definition.CronExpression,
+					StringComparison.Ordinal
+				)) {
+				definition.ScheduleEpoch = Guid.NewGuid();
+				await _dbContext.SaveChangesAsync(cancellationToken);
+			}
+
 			await scheduler.DeleteJob(jobKey, cancellationToken);
 		}
 
 		var jobDetail = JobBuilder.Create<EnqueueSystemJobJob>()
 			.WithIdentity(jobKey)
 			.UsingJobData(EnqueueSystemJobJob.JobKeyDataKey, jobKeyName)
+			.UsingJobData(
+				EnqueueSystemJobJob.ScheduleEpochDataKey,
+				definition.ScheduleEpoch.ToString()
+			)
 			.Build();
 
 		var trigger = TriggerBuilder.Create()
 			.WithIdentity(jobKeyName, SystemJobsGroup)
 			.ForJob(jobKey)
-			.WithCronSchedule(cronExpression)
+			.WithCronSchedule(definition.CronExpression)
 			.Build();
 
 		await scheduler.ScheduleJob(jobDetail, trigger, cancellationToken);
