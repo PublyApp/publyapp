@@ -16,8 +16,12 @@ import type {
 	CreateTenantProfileAsStaffBody,
 	FindTenantProfilePermissionsAsStaffResult,
 	FindTenantProfilesAsStaffResult,
+	FindTenantProfileUsersAsStaffResult,
 	GetTenantProfileByIdResponse,
+	ResolveTenantProfileUserAssignmentsAsStaffBody,
+	ResolveTenantProfileUserAssignmentsAsStaffResult,
 	TenantProfileItem,
+	TenantProfileUserItem,
 	UpdateTenantProfileAsStaffBody,
 } from '@org/client-ts/src/models/index.js';
 import type { TenantGetResponse } from '@org/client-ts/src/staff/permissions/scopes/tenant/index.js';
@@ -27,6 +31,7 @@ import {
 	buildStaffQueryOptions,
 	scopedKey,
 } from '@org/shared-ts/lib/query/create-hooks';
+import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
 export type StaffTenantProfilesQueryVariables = {
 	tenantId: string;
@@ -116,6 +121,37 @@ export type StaffTenantProfileMemberMutationVariables = {
 	userAccountId: string;
 };
 
+export type StaffTenantProfileMembersQueryVariables = {
+	tenantId: string;
+	profileId: string;
+	q?: string;
+	sortId?: string;
+	sortOrder?: SortOrder;
+	pageIndex?: number;
+	size?: number;
+};
+
+export type StaffTenantProfileMemberRow = {
+	id: string;
+	email: string;
+	firstName: string | null;
+	lastName: string | null;
+	avatarUrl: string | null;
+	status: string | null;
+	level: string | null;
+	displayName: string;
+};
+
+export type StaffTenantProfileUserAssignmentResolutionQueryVariables = {
+	tenantId: string;
+	profileId: string;
+	userAccountIds: string[];
+};
+
+/** `user_account_id` -> whether that tenant member is assigned to the
+ * profile, per `ResolveTenantProfileUserAssignmentsAsStaff` (#875). */
+export type StaffTenantProfileUserAssignmentMap = Record<string, boolean>;
+
 export type TenantPermissionCatalogItem = {
 	key?: string | null;
 	name?: string | null;
@@ -159,6 +195,16 @@ export const STAFF_TENANT_PROFILE_DETAILS_QUERY_KEY = [
 export const STAFF_TENANT_PROFILE_PERMISSION_KEYS_QUERY_KEY = [
 	...STAFF_TENANT_PROFILES_QUERY_KEY,
 	'permission-keys',
+] as const;
+/** Nests under `STAFF_TENANT_PROFILES_QUERY_KEY`, so `invalidateStaffTenantProfiles`
+ * already covers both the roster and the resolution query below. */
+export const STAFF_TENANT_PROFILE_MEMBERS_QUERY_KEY = [
+	...STAFF_TENANT_PROFILES_QUERY_KEY,
+	'users',
+] as const;
+export const STAFF_TENANT_PROFILE_MEMBER_ASSIGNMENT_RESOLUTION_QUERY_KEY = [
+	...STAFF_TENANT_PROFILE_MEMBERS_QUERY_KEY,
+	'assignment-resolution',
 ] as const;
 /** @internal Unscoped — see `STAFF_TENANT_PROFILES_QUERY_KEY` above. */
 export const STAFF_TENANT_PERMISSION_CATALOG_QUERY_KEY = [
@@ -210,6 +256,11 @@ const formatModuleLabel = (moduleKey: string): string =>
 
 const isPositiveSafeInteger = (value: number | undefined): value is number =>
 	typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
+
+const normalizePageIndex = (value: number | undefined): number =>
+	typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
+		? value
+		: 0;
 
 export const buildStaffTenantPermissionCatalogOptions = (
 	catalog: unknown,
@@ -470,6 +521,85 @@ export const toStaffTenantProfilePermissionKeys = (
 	return [...normalizedKeys].sort((left, right) => left.localeCompare(right));
 };
 
+export const buildFindStaffTenantProfileMembersQueryParameters = (
+	variables: Omit<
+		StaffTenantProfileMembersQueryVariables,
+		'tenantId' | 'profileId'
+	>,
+): {
+	q?: string;
+	sortId?: string;
+	sortOrder?: SortOrder;
+	page: string;
+	limit?: string;
+} => ({
+	q: normalizeString(variables.q),
+	sortId: normalizeString(variables.sortId),
+	sortOrder: variables.sortOrder,
+	page: String(normalizePageIndex(variables.pageIndex) + 1),
+	limit: isPositiveSafeInteger(variables.size)
+		? String(variables.size)
+		: undefined,
+});
+
+export const toStaffTenantProfileMemberRows = (
+	items: TenantProfileUserItem[] | null | undefined,
+): StaffTenantProfileMemberRow[] => {
+	const rows: StaffTenantProfileMemberRow[] = [];
+
+	for (const item of items ?? []) {
+		// Email is the required fallback identity `getUserFullName` falls back
+		// to — dropped rather than shown with a `'—'` placeholder a staff admin
+		// can't distinguish from a legitimate value (shell-r5-F3).
+		const id = normalizeString(item.id?.toString());
+		const email = normalizeString(item.email);
+		if (!id || !email) {
+			continue;
+		}
+
+		const firstName = normalizeNullableString(item.firstName);
+		const lastName = normalizeNullableString(item.lastName);
+
+		rows.push({
+			id,
+			email,
+			firstName,
+			lastName,
+			avatarUrl: normalizeNullableString(item.avatarUrl),
+			status: normalizeNullableString(item.status),
+			level: normalizeNullableString(item.level),
+			displayName: getUserFullName({ firstName, lastName }) || email,
+		});
+	}
+
+	return rows;
+};
+
+export const buildResolveStaffTenantProfileMemberAssignmentsBody = (
+	userAccountIds: string[],
+): ResolveTenantProfileUserAssignmentsAsStaffBody => ({
+	userAccountIds: createUntypedArray(
+		userAccountIds.map((userAccountId) => createUntypedString(userAccountId)),
+	) as ResolveTenantProfileUserAssignmentsAsStaffBody['userAccountIds'],
+});
+
+export const toStaffTenantProfileMemberAssignmentMap = (
+	result: ResolveTenantProfileUserAssignmentsAsStaffResult | null | undefined,
+): StaffTenantProfileUserAssignmentMap => {
+	const map: StaffTenantProfileUserAssignmentMap = {};
+
+	for (const assignment of result?.assignments ?? []) {
+		const userAccountId = normalizeString(assignment.userAccountId?.toString());
+		if (!userAccountId) {
+			continue;
+		}
+
+		map[userAccountId] = assignment.isAssigned === true;
+	}
+
+	return map;
+};
+
 const staffTenantProfilesQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	FindTenantProfilesAsStaffResult,
@@ -645,6 +775,75 @@ const staffTenantPermissionCatalogQueryOptions = buildStaffQueryOptions<
 	{ clientAccessor: getClientManager() },
 );
 
+/**
+ * Backs the Members-tab roster (#875's Find endpoint). Offset pagination
+ * (page/limit), not cursor — mirrors `FindStaffProfileUsers` (the
+ * staff-profiles precedent this endpoint was intentionally modeled on).
+ */
+const staffTenantProfileMembersQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	FindTenantProfileUsersAsStaffResult,
+	StaffTenantProfileMembersQueryVariables
+>(
+	{
+		queryKeyFn: () => [...STAFF_TENANT_PROFILE_MEMBERS_QUERY_KEY],
+		fetcher: async (client, variables) => {
+			const result = await client.staff.tenants
+				.byTenantId(variables.tenantId)
+				.profiles.byProfileId(variables.profileId)
+				.users.get({
+					queryParameters:
+						buildFindStaffTenantProfileMembersQueryParameters(variables),
+				});
+
+			if (!result) {
+				throw new Error('tenant profile members result was empty');
+			}
+
+			return result;
+		},
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+/**
+ * Batch "is assigned" read backing the Assign-members drawer's already-
+ * assigned state (#875's resolve endpoint). Modeled as a query (not a
+ * mutation) even though the wire call is a POST — it is a read, not a
+ * command, exactly like the sibling staff-profiles resolve endpoint.
+ */
+const staffTenantProfileMemberAssignmentResolutionQueryOptions =
+	buildStaffQueryOptions<
+		ApiClient,
+		ResolveTenantProfileUserAssignmentsAsStaffResult,
+		StaffTenantProfileUserAssignmentResolutionQueryVariables
+	>(
+		{
+			queryKeyFn: () => [
+				...STAFF_TENANT_PROFILE_MEMBER_ASSIGNMENT_RESOLUTION_QUERY_KEY,
+			],
+			fetcher: async (client, variables) => {
+				const result = await client.staff.tenants
+					.byTenantId(variables.tenantId)
+					.profiles.byProfileId(variables.profileId)
+					.users.assignmentResolution.post(
+						buildResolveStaffTenantProfileMemberAssignmentsBody(
+							variables.userAccountIds,
+						),
+					);
+
+				if (!result) {
+					throw new Error(
+						'tenant profile member assignment resolution result was empty',
+					);
+				}
+
+				return result;
+			},
+		},
+		{ clientAccessor: getClientManager() },
+	);
+
 const assignStaffTenantProfilePermissionMutationOptions =
 	buildStaffMutationOptions<
 		ApiClient,
@@ -744,6 +943,36 @@ export const useStaffTenantProfilePermissionKeysQuery = (
 		enabled: options?.enabled ?? true,
 	});
 
+export const useStaffTenantProfileMembersQuery = (
+	variables: StaffTenantProfileMembersQueryVariables,
+	options?: {
+		enabled?: boolean;
+	},
+) =>
+	useQuery({
+		queryKey: staffTenantProfileMembersQueryOptions.queryKey(variables),
+		queryFn: () => staffTenantProfileMembersQueryOptions.fetcher(variables),
+		enabled: options?.enabled ?? true,
+	});
+
+export const useStaffTenantProfileMemberAssignmentResolutionQuery = (
+	variables: StaffTenantProfileUserAssignmentResolutionQueryVariables,
+	options?: {
+		enabled?: boolean;
+	},
+) =>
+	useQuery({
+		queryKey:
+			staffTenantProfileMemberAssignmentResolutionQueryOptions.queryKey(
+				variables,
+			),
+		queryFn: () =>
+			staffTenantProfileMemberAssignmentResolutionQueryOptions.fetcher(
+				variables,
+			),
+		enabled: (options?.enabled ?? true) && variables.userAccountIds.length > 0,
+	});
+
 export const useStaffTenantPermissionCatalogQuery = (
 	variables?: StaffTenantPermissionCatalogQueryVariables,
 ) =>
@@ -759,11 +988,12 @@ export const useStaffTenantPermissionCatalogQuery = (
  * Idempotent per-member profile toggle (owner-confirmed UX, step 4b): POST
  * assigns, DELETE unassigns at
  * `/staff/tenants/{tenantId}/profiles/{profileId}/users/{user_account_id}`.
- * Mirrors the permission-key upsert pair above. There is currently no
- * "find/list members" or batch "resolve assignment" endpoint for TENANT
- * profiles on the backend (unlike the analogous STAFF-profile users routes,
- * which do expose both) — see the Members-tab route for how callers work
- * around that gap honestly instead of fabricating list/assignment data.
+ * Mirrors the permission-key upsert pair above. #875 added the sibling
+ * "find members" and batch "resolve assignment" endpoints for TENANT
+ * profiles (mirroring the STAFF-profile users routes, which already exposed
+ * both) — see `useStaffTenantProfileMembersQuery` (the Members-tab roster)
+ * and `useStaffTenantProfileMemberAssignmentResolutionQuery` (the
+ * Assign-members drawer's already-assigned state) above.
  */
 const assignStaffTenantProfileUserMutationOptions = buildStaffMutationOptions<
 	ApiClient,

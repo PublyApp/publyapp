@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
 	invalidateQueries: vi.fn().mockResolvedValue(undefined),
 	useStaffTenantUsersQuery: vi.fn(),
+	useStaffTenantProfileMemberAssignmentResolutionQuery: vi.fn(),
 	assignMutateAsync: vi.fn(),
 	unassignMutateAsync: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
@@ -29,7 +30,7 @@ const TRANSLATIONS: Record<string, string> = {
 	members: 'Members',
 	'assign-members': 'Assign members',
 	'assign-members-drawer-description':
-		"Toggle a tenant member on to assign this profile, or off to remove it. Changes save immediately — switches don't yet reflect who's already assigned.",
+		'Toggle a tenant member on to assign this profile, or off to remove it. Changes save immediately.',
 	'assign-member-toggle-label': 'Toggle profile assignment for {{name}}',
 	'no-tenant-members-to-assign': 'There are no tenant members to assign yet.',
 	'tenant-users-no-match-title': 'No members match your search',
@@ -64,6 +65,23 @@ vi.mock('~/lib/query/staff-tenant-profiles', () => ({
 	useUnassignStaffTenantProfileUserMutation: () => ({
 		mutateAsync: mocks.unassignMutateAsync,
 	}),
+	useStaffTenantProfileMemberAssignmentResolutionQuery:
+		mocks.useStaffTenantProfileMemberAssignmentResolutionQuery,
+	toStaffTenantProfileMemberAssignmentMap: (
+		result:
+			| { assignments?: { userAccountId?: string; isAssigned?: boolean }[] }
+			| null
+			| undefined,
+	) => {
+		const map: Record<string, boolean> = {};
+		for (const assignment of result?.assignments ?? []) {
+			if (!assignment.userAccountId) {
+				continue;
+			}
+			map[assignment.userAccountId] = assignment.isAssigned === true;
+		}
+		return map;
+	},
 }));
 
 vi.mock('~/lib/query/staff-tenant-users', () => ({
@@ -141,6 +159,11 @@ beforeEach(() => {
 		isError: false,
 		isFetching: false,
 		refetch: vi.fn(),
+	});
+	mocks.useStaffTenantProfileMemberAssignmentResolutionQuery.mockReturnValue({
+		data: { assignments: [] },
+		isPending: false,
+		isError: false,
 	});
 	mocks.assignMutateAsync.mockResolvedValue(undefined);
 	mocks.unassignMutateAsync.mockResolvedValue(undefined);
@@ -260,5 +283,83 @@ describe('AssignMembersDrawer', () => {
 				mocks.useStaffTenantUsersQuery.mock.calls.length - 1
 			];
 		expect(lastCall?.[1]).toEqual({ enabled: false });
+	});
+
+	test('does not resolve assignments while the drawer is closed', () => {
+		renderDrawer({ isOpen: false });
+
+		const lastCall =
+			mocks.useStaffTenantProfileMemberAssignmentResolutionQuery.mock.calls[
+				mocks.useStaffTenantProfileMemberAssignmentResolutionQuery.mock.calls
+					.length - 1
+			];
+		expect(lastCall?.[1]?.enabled).toBe(false);
+	});
+
+	test('resolves assignment status for the currently loaded rows', () => {
+		renderDrawer();
+
+		const lastCall =
+			mocks.useStaffTenantProfileMemberAssignmentResolutionQuery.mock.calls[
+				mocks.useStaffTenantProfileMemberAssignmentResolutionQuery.mock.calls
+					.length - 1
+			];
+		expect(lastCall?.[0]).toEqual({
+			tenantId: 'tenant-1',
+			profileId: 'profile-1',
+			userAccountIds: ['user-1', 'user-2'],
+		});
+		expect(lastCall?.[1]?.enabled).toBe(true);
+	});
+
+	test('seeds a row as checked when the resolve-assignment read reports it already assigned', () => {
+		mocks.useStaffTenantProfileMemberAssignmentResolutionQuery.mockReturnValue({
+			data: {
+				assignments: [
+					{ userAccountId: 'user-1', isAssigned: true },
+					{ userAccountId: 'user-2', isAssigned: false },
+				],
+			},
+			isPending: false,
+			isError: false,
+		});
+
+		renderDrawer();
+
+		expect(
+			screen
+				.getByTestId('assign-member-toggle-user-1')
+				.getAttribute('aria-checked'),
+		).toBe('true');
+		expect(
+			screen
+				.getByTestId('assign-member-toggle-user-2')
+				.getAttribute('aria-checked'),
+		).toBe('false');
+	});
+
+	test('toggling a resolved-as-assigned row off still fires the unassign DELETE', async () => {
+		mocks.useStaffTenantProfileMemberAssignmentResolutionQuery.mockReturnValue({
+			data: {
+				assignments: [{ userAccountId: 'user-1', isAssigned: true }],
+			},
+			isPending: false,
+			isError: false,
+		});
+
+		renderDrawer();
+
+		expect(
+			screen
+				.getByTestId('assign-member-toggle-user-1')
+				.getAttribute('aria-checked'),
+		).toBe('true');
+
+		fireEvent.click(screen.getByTestId('assign-member-toggle-user-1'));
+
+		await waitFor(() => {
+			expect(mocks.unassignMutateAsync).toHaveBeenCalledTimes(1);
+		});
+		expect(mocks.assignMutateAsync).not.toHaveBeenCalled();
 	});
 });

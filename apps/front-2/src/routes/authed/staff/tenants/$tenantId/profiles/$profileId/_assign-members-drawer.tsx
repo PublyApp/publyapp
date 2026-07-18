@@ -1,7 +1,7 @@
 import { IconUsers } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTable } from '~/components/table/data-table';
 import { useTableController } from '~/components/table/use-table-controller';
@@ -18,7 +18,9 @@ import {
 import { InitialsAvatar } from '~/components/ui/initials-avatar';
 import { Switch } from '~/components/ui/switch';
 import {
+	toStaffTenantProfileMemberAssignmentMap,
 	useAssignStaffTenantProfileUserMutation,
+	useStaffTenantProfileMemberAssignmentResolutionQuery,
 	useUnassignStaffTenantProfileUserMutation,
 } from '~/lib/query/staff-tenant-profiles';
 import {
@@ -35,11 +37,12 @@ const DEFAULT_SIZE = 20;
 const EMPTY_SEARCH: TableSearchParams = {};
 
 /**
- * Per-row assign/unassign toggle. There is no "resolve assignment" batch read
- * for TENANT profiles on the backend (unlike the analogous staff-profile
- * users routes), so `isAssigned` only reflects toggles made THIS session —
- * it is never seeded from the server. See the Members-tab route file for the
- * full explanation surfaced to the reviewer/owner.
+ * Per-row assign/unassign toggle, seeded from the batch "resolve assignment"
+ * read (#875) so a row's switch starts checked when the tenant member is
+ * already assigned — not just when THIS drawer session toggled it. Every
+ * toggle click is still a single, immediately-persisted POST/DELETE against
+ * the real per-member endpoint; the resolve read only feeds the initial
+ * (and post-refresh) checked state.
  */
 const makeAssignMembersColumns = (
 	t: (key: string, options?: Record<string, unknown>) => string,
@@ -105,10 +108,10 @@ export const AssignMembersDrawer = ({
 }) => {
 	const { t } = useTranslation('common');
 	const queryClient = useQueryClient();
-	// Optimistic, session-local record of what THIS drawer has toggled — not a
-	// read of server truth (no batch "is-assigned" endpoint exists for tenant
-	// profiles yet). Every toggle is still a single, immediately-persisted
-	// POST/DELETE against the real per-member endpoint.
+	// Seeded from the batch resolve-assignment read below once it resolves;
+	// until then (or for a row it hasn't covered yet) this only reflects
+	// toggles made THIS drawer session. Every toggle is still a single,
+	// immediately-persisted POST/DELETE against the real per-member endpoint.
 	const [assignedIds, setAssignedIds] = useState<Set<string>>(new Set());
 	const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
 	const [search, setSearch] = useState<TableSearchParams>(EMPTY_SEARCH);
@@ -134,7 +137,44 @@ export const AssignMembersDrawer = ({
 		{ enabled: isOpen && tenantId.length > 0 },
 	);
 
-	const rows = toStaffTenantUserRows(usersQuery.data?.data);
+	const rows = useMemo(
+		() => toStaffTenantUserRows(usersQuery.data?.data),
+		[usersQuery.data?.data],
+	);
+	const rowIds = useMemo(() => rows.map((row) => row.id), [rows]);
+
+	const resolutionQuery = useStaffTenantProfileMemberAssignmentResolutionQuery(
+		{ tenantId, profileId, userAccountIds: rowIds },
+		{
+			enabled:
+				isOpen &&
+				tenantId.length > 0 &&
+				profileId.length > 0 &&
+				rowIds.length > 0,
+		},
+	);
+
+	useEffect(() => {
+		if (!resolutionQuery.data) {
+			return;
+		}
+
+		const assignmentMap = toStaffTenantProfileMemberAssignmentMap(
+			resolutionQuery.data,
+		);
+
+		setAssignedIds((current) => {
+			const next = new Set(current);
+			for (const [userAccountId, isAssigned] of Object.entries(assignmentMap)) {
+				if (isAssigned) {
+					next.add(userAccountId);
+				} else {
+					next.delete(userAccountId);
+				}
+			}
+			return next;
+		});
+	}, [resolutionQuery.data]);
 
 	const setPending = (userAccountId: string, isPending: boolean): void => {
 		setPendingIds((current) => {
@@ -196,9 +236,10 @@ export const AssignMembersDrawer = ({
 		}
 
 		setPending(row.id, false);
-		// No dedicated "members" query exists to invalidate (see module note) —
-		// this refreshes the profile's `userAccountCount` and the tenant users
-		// list, the only real, currently-observable side effects of a toggle.
+		// Invalidates the whole staff-tenants scope, which nests the Members-tab
+		// roster, this drawer's resolve-assignment read, the profile's
+		// `userAccountCount`, and the tenant users list — every real,
+		// currently-observable side effect of a toggle.
 		await invalidateAllStaffTenantScopes(queryClient);
 	};
 

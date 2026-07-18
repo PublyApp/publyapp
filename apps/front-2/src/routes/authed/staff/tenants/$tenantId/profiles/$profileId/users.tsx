@@ -1,51 +1,148 @@
 import { IconAlertCircle, IconSearchOff, IconUsers } from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { useState } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
+import { DataTable } from '~/components/table/data-table';
+import { useTableController } from '~/components/table/use-table-controller';
 import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
+import { InitialsAvatar } from '~/components/ui/initials-avatar';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
-import { StateView } from '~/components/ui/state-view';
+import { StatusPill } from '~/components/ui/product-page';
+import { statusPillTone } from '~/components/ui/status-tone';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import {
 	toStaffTenantProfileDetails,
+	toStaffTenantProfileMemberRows,
 	useStaffTenantProfileDetailsQuery,
+	useStaffTenantProfileMembersQuery,
+	type StaffTenantProfileMemberRow,
 } from '~/lib/query/staff-tenant-profiles';
 import {
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
+import {
+	parseTableSearchParams,
+	serializeTableSearchParams,
+} from '~/lib/url-state/table-search-params';
+import type {
+	TableSearchParamInput,
+	TableSearchParams,
+} from '~/lib/url-state/table-search-params';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 import {
 	BackToTenantsLink,
+	formatTenantUserLevelLabel,
+	formatTenantUserStatusLabel,
 	MALFORMED_ID_TRANSLATION_KEY,
 	TenantDetailsError,
 	TenantDetailsLoading,
 	TenantDetailsPageShell,
 	TenantRetryActions,
+	tenantUserLevelChipClassName,
 } from '../../_tenant-details-shell';
 import { AssignMembersDrawer } from './_assign-members-drawer';
 
-export type ProfileMembersSearchParams = { assign?: 1 };
-export type ProfileMembersSearchParamInput = { assign?: unknown };
+export type ProfileMembersSearchParams = TableSearchParams & { assign?: 1 };
+export type ProfileMembersSearchParamInput = TableSearchParamInput & {
+	assign?: unknown;
+};
+
+const MEMBERS_DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
+const MEMBERS_DEFAULT_SIZE = 20;
 
 /** Mirrors `$profileId.tsx`'s `edit` flag: round-trips as the NUMBER 1, never
  * the string `'1'` (the router's search serializer JSON-quotes strings). */
 export const parseProfileMembersSearchParams = (
 	search: ProfileMembersSearchParamInput,
 ): ProfileMembersSearchParams => {
+	const base = parseTableSearchParams(search);
 	const isAssignOpen =
 		search.assign === 1 ||
 		(typeof search.assign === 'string' && search.assign.trim() === '1');
 
-	return { assign: isAssignOpen ? 1 : undefined };
+	return { ...base, assign: isAssignOpen ? 1 : undefined };
 };
+
+/** The counterpart to `parseProfileMembersSearchParams` — every `navigate`
+ * call must serialize through this before writing to the URL, so table
+ * state never leaks camelCase keys (`sortId`) into the query string. */
+export const serializeProfileMembersSearchParams = (
+	params: ProfileMembersSearchParams,
+): Record<string, string | 1 | undefined> => ({
+	...serializeTableSearchParams(params),
+	assign: params.assign,
+});
+
+export const makeProfileMemberColumns = (
+	tenantId: string,
+	t: (key: string, options?: Record<string, unknown>) => string,
+): ColumnDef<StaffTenantProfileMemberRow>[] => [
+	{
+		id: 'name',
+		header: t('members'),
+		enableSorting: false,
+		cell: ({ row }) => (
+			<Link
+				to="/staff/tenants/$tenantId/users/$userId"
+				params={{ tenantId, userId: row.original.id }}
+				className="flex min-w-0 items-center gap-2.5 no-underline"
+			>
+				<InitialsAvatar name={row.original.displayName} />
+				<span className="min-w-0 space-y-0.5">
+					<span
+						className="publy-record-link block truncate text-[13px] font-medium"
+						title={row.original.displayName}
+					>
+						{row.original.displayName}
+					</span>
+					<span
+						className="block truncate text-xs text-muted-foreground"
+						title={row.original.email}
+					>
+						{row.original.email}
+					</span>
+				</span>
+			</Link>
+		),
+	},
+	{
+		id: 'level',
+		header: t('level'),
+		accessorKey: 'level',
+		meta: { width: '150px', hideBelow: 768 },
+		cell: ({ getValue }) => {
+			const level = getValue<string | null>();
+			return (
+				<span className={tenantUserLevelChipClassName(level)}>
+					{formatTenantUserLevelLabel(level, t)}
+				</span>
+			);
+		},
+	},
+	{
+		id: 'status',
+		header: t('status'),
+		accessorKey: 'status',
+		meta: { width: '130px' },
+		cell: ({ getValue }) => {
+			const status = getValue<string | null>();
+			return (
+				<StatusPill tone={statusPillTone(status)}>
+					{formatTenantUserStatusLabel(status, t)}
+				</StatusPill>
+			);
+		},
+	},
+];
 
 const isProblemStatus = (
 	error: unknown,
@@ -157,13 +254,32 @@ function StaffTenantProfileMembersPage() {
 
 	const setAssignDrawerOpen = (isOpen: boolean): void => {
 		void navigate({
-			search: (previous: ProfileMembersSearchParams) => ({
-				...previous,
-				assign: isOpen ? 1 : undefined,
-			}),
+			search: (previous: ProfileMembersSearchParams) =>
+				serializeProfileMembersSearchParams({
+					...previous,
+					assign: isOpen ? 1 : undefined,
+				}) as unknown as ProfileMembersSearchParams,
 			replace: true,
 		});
 	};
+
+	const onMembersSearchChange = (next: TableSearchParams): void => {
+		void navigate({
+			search: serializeProfileMembersSearchParams({
+				...next,
+				assign: search.assign,
+			}) as unknown as ProfileMembersSearchParams,
+			replace: true,
+		});
+	};
+
+	const [membersPageIndex, setMembersPageIndex] = useState(0);
+	const membersController = useTableController({
+		search,
+		onSearchChange: onMembersSearchChange,
+		defaultSort: MEMBERS_DEFAULT_SORT,
+		defaultSize: MEMBERS_DEFAULT_SIZE,
+	});
 
 	const tenantQuery = useStaffTenantDetailsQuery(
 		{ tenantId },
@@ -179,6 +295,57 @@ function StaffTenantProfileMembersPage() {
 				!tenantQuery.isError,
 		},
 	);
+	const membersQuery = useStaffTenantProfileMembersQuery(
+		{
+			tenantId,
+			profileId,
+			q: membersController.search.committed,
+			sortId: membersController.sort.id,
+			sortOrder: membersController.sort.order,
+			pageIndex: membersPageIndex,
+			size: membersController.size,
+		},
+		{
+			enabled:
+				tenantId.length > 0 &&
+				profileId.length > 0 &&
+				!tenantQuery.isPending &&
+				!tenantQuery.isError &&
+				!detailQuery.isPending &&
+				!detailQuery.isError,
+		},
+	);
+	const memberRows = useMemo(
+		() => toStaffTenantProfileMemberRows(membersQuery.data?.users),
+		[membersQuery.data?.users],
+	);
+	const memberColumns = useMemo(
+		() => makeProfileMemberColumns(tenantId, t),
+		[tenantId, t],
+	);
+
+	useEffect(() => {
+		setMembersPageIndex(0);
+	}, [
+		tenantId,
+		profileId,
+		membersController.search.committed,
+		membersController.sort.id,
+		membersController.sort.order,
+		membersController.size,
+	]);
+
+	useEffect(() => {
+		const totalCount = membersQuery.data?.count ?? 0;
+		const lastPageIndex =
+			totalCount > 0
+				? Math.max(Math.ceil(totalCount / membersController.size) - 1, 0)
+				: 0;
+
+		if (membersPageIndex > lastPageIndex) {
+			setMembersPageIndex(lastPageIndex);
+		}
+	}, [membersController.size, membersPageIndex, membersQuery.data?.count]);
 
 	if (shouldRedirectToLogout) {
 		return <LogoutRedirect />;
@@ -308,13 +475,50 @@ function StaffTenantProfileMembersPage() {
 								</Button>
 							</div>
 
-							<StateView
-								icon={<IconUsers aria-hidden="true" />}
-								scale="inline"
-								title={t('profile-member-list-unavailable-title')}
-								description={t('profile-member-list-unavailable-description')}
-								testId="staff-tenant-profile-members-list-unavailable"
-								className="py-8"
+							<DataTable<StaffTenantProfileMemberRow>
+								testId="staff-tenant-profile-members-table"
+								ariaLabel={t('profile-members-table-aria-label')}
+								columns={memberColumns}
+								rows={memberRows}
+								getRowLabel={(row) => row.displayName}
+								isPending={membersQuery.isPending}
+								isError={membersQuery.isError}
+								onRetry={() => void membersQuery.refetch()}
+								emptyIcon={IconUsers}
+								emptyTitle={t('profile-members-empty-title')}
+								emptyContent={t('profile-members-empty-description')}
+								noMatchTitle={t('tenant-users-no-match-title')}
+								noMatchContent={t('tenant-users-no-match-description')}
+								hasActiveSearch={Boolean(membersController.search.committed)}
+								sort={membersController.sort}
+								onSortChange={membersController.onSortChange}
+								size={membersController.size}
+								onSizeChange={membersController.onSizeChange}
+								pageIndex={membersPageIndex}
+								hasPreviousPage={membersPageIndex > 0}
+								hasNextPage={
+									(membersPageIndex + 1) * membersController.size <
+									(membersQuery.data?.count ?? 0)
+								}
+								isPaginationPending={
+									membersQuery.isFetching && !membersQuery.isPending
+								}
+								onNextPage={() => {
+									const hasNext =
+										(membersPageIndex + 1) * membersController.size <
+										(membersQuery.data?.count ?? 0);
+									if (hasNext) {
+										setMembersPageIndex((current) => current + 1);
+									}
+								}}
+								onPreviousPage={() => {
+									if (membersPageIndex > 0) {
+										setMembersPageIndex((current) => Math.max(current - 1, 0));
+									}
+								}}
+								searchDraft={membersController.search.draft}
+								onSearchDraftChange={membersController.search.onDraftChange}
+								searchPlaceholder={t('search-tenant-members')}
 							/>
 						</Card>
 					</TabsContent>

@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import type { JSX } from 'react';
+import type { JSX, ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
 	toStaffTenantDetails: vi.fn(),
 	useStaffTenantProfileDetailsQuery: vi.fn(),
 	toStaffTenantProfileDetails: vi.fn(),
+	useStaffTenantProfileMembersQuery: vi.fn(),
 	shouldLogoutForFailure: vi.fn((_: unknown) => false),
 	drawerIsOpen: false,
 	drawerOnOpenChange: (_isOpen: boolean) => {},
@@ -33,7 +34,7 @@ vi.mock('@tanstack/react-router', () => ({
 		params,
 		...props
 	}: {
-		children: React.ReactNode;
+		children: ReactNode;
 		to: string;
 		params?: Record<string, string>;
 	}) => {
@@ -54,13 +55,25 @@ vi.mock('@tanstack/react-router', () => ({
 const TRANSLATIONS: Record<string, string> = {
 	profile: 'Profile',
 	members: 'Members',
+	level: 'Level',
+	status: 'Status',
+	admin: 'Admin',
+	user: 'User',
+	'status-active': 'Active',
+	'status-suspended': 'Suspended',
+	'status-globally-suspended': 'Globally suspended',
 	'profile-sections': 'Profile sections',
 	'assign-members': 'Assign members',
 	'profile-members-tab-description':
 		'People currently assigned to this profile.',
-	'profile-member-list-unavailable-title': "Member list isn't available yet",
-	'profile-member-list-unavailable-description':
-		'We can show how many members this profile has, but the detailed roster is not available from the API yet.',
+	'profile-members-table-aria-label': 'Profile members',
+	'profile-members-empty-title': 'No members assigned yet',
+	'profile-members-empty-description':
+		'Use "Assign members" to add people to this profile.',
+	'tenant-users-no-match-title': 'No members match your search',
+	'tenant-users-no-match-description':
+		'Try a different name, email, or filter.',
+	'search-tenant-members': 'Search members by name or email…',
 	'no-description-provided': 'No description provided.',
 	'loading-tenant-profile': 'Loading tenant profile…',
 	'error-500-code': '500 — Server Error',
@@ -102,14 +115,64 @@ vi.mock('~/components/error-views/View403', () => ({
 	View403: () => <div data-testid="forbidden-view">forbidden</div>,
 }));
 
+vi.mock('~/components/table/data-table', () => ({
+	DataTable: ({ testId }: { testId?: string }) => (
+		<div data-testid={testId ?? 'data-table'} />
+	),
+}));
+
+vi.mock('~/components/ui/initials-avatar', () => ({
+	InitialsAvatar: ({ name }: { name: string }) => (
+		<span aria-hidden="true" data-testid="initials" data-name={name} />
+	),
+	BrandTile: ({ name }: { name: string }) => (
+		<span aria-hidden="true" data-testid="brand-tile" data-name={name} />
+	),
+}));
+
+vi.mock('~/components/ui/product-page', () => ({
+	StatusPill: ({ children }: { children: ReactNode }) => (
+		<span data-testid="status-pill">{children}</span>
+	),
+}));
+
+vi.mock('~/components/ui/status-tone', () => ({
+	statusPillTone: (value: string | null) =>
+		value === 'Active' ? 'success' : 'warning',
+}));
+
 vi.mock('~/lib/query/staff-tenants', () => ({
 	useStaffTenantDetailsQuery: mocks.useStaffTenantDetailsQuery,
 	toStaffTenantDetails: mocks.toStaffTenantDetails,
 }));
 
+type MemberFixture = {
+	id?: string;
+	email?: string;
+	firstName?: string | null;
+	lastName?: string | null;
+	status?: string | null;
+	level?: string | null;
+};
+
 vi.mock('~/lib/query/staff-tenant-profiles', () => ({
 	useStaffTenantProfileDetailsQuery: mocks.useStaffTenantProfileDetailsQuery,
 	toStaffTenantProfileDetails: mocks.toStaffTenantProfileDetails,
+	useStaffTenantProfileMembersQuery: mocks.useStaffTenantProfileMembersQuery,
+	toStaffTenantProfileMemberRows: (items: MemberFixture[] | null | undefined) =>
+		(items ?? []).map((item) => ({
+			id: item.id ?? '',
+			email: item.email ?? '',
+			firstName: item.firstName ?? null,
+			lastName: item.lastName ?? null,
+			avatarUrl: null,
+			status: item.status ?? null,
+			level: item.level ?? null,
+			displayName:
+				[item.firstName, item.lastName].filter(Boolean).join(' ') ||
+				item.email ||
+				'',
+		})),
 }));
 
 vi.mock('~/lib/should-logout-for-failure', () => ({
@@ -130,7 +193,12 @@ vi.mock('./_assign-members-drawer', () => ({
 	},
 }));
 
-import { parseProfileMembersSearchParams, Route } from './users';
+import {
+	makeProfileMemberColumns,
+	parseProfileMembersSearchParams,
+	serializeProfileMembersSearchParams,
+	Route,
+} from './users';
 
 const renderPage = () => {
 	const Component = (
@@ -178,6 +246,13 @@ beforeEach(() => {
 		refetch: vi.fn(),
 	});
 	mocks.toStaffTenantProfileDetails.mockReturnValue(PROFILE);
+	mocks.useStaffTenantProfileMembersQuery.mockReturnValue({
+		data: { users: [], count: 0 },
+		isPending: false,
+		isError: false,
+		isFetching: false,
+		refetch: vi.fn(),
+	});
 });
 
 afterEach(() => {
@@ -185,17 +260,63 @@ afterEach(() => {
 });
 
 describe('parseProfileMembersSearchParams', () => {
-	test('round-trips the assign flag as the number 1', () => {
+	test('round-trips the assign flag as the number 1 alongside table state', () => {
 		expect(parseProfileMembersSearchParams({ assign: 1 })).toEqual({
+			q: undefined,
+			sortId: undefined,
+			sortOrder: undefined,
+			cursor: undefined,
+			size: undefined,
 			assign: 1,
 		});
-		expect(parseProfileMembersSearchParams({ assign: '1' })).toEqual({
+		expect(parseProfileMembersSearchParams({ assign: '1' }).assign).toBe(1);
+		expect(parseProfileMembersSearchParams({}).assign).toBeUndefined();
+		expect(
+			parseProfileMembersSearchParams({ assign: 'nonsense' }).assign,
+		).toBeUndefined();
+	});
+
+	test('parses table state alongside the assign flag', () => {
+		expect(
+			parseProfileMembersSearchParams({
+				q: 'ada',
+				sort_id: 'email',
+				sort_order: 'asc',
+				size: 50,
+				assign: 1,
+			}),
+		).toEqual({
+			q: 'ada',
+			sortId: 'email',
+			sortOrder: 'asc',
+			cursor: undefined,
+			size: 50,
 			assign: 1,
 		});
-		expect(parseProfileMembersSearchParams({})).toEqual({
-			assign: undefined,
+	});
+});
+
+describe('serializeProfileMembersSearchParams', () => {
+	test('serializes table state to snake_case and keeps the assign flag as a number', () => {
+		expect(
+			serializeProfileMembersSearchParams({
+				q: 'ada',
+				sortId: 'email',
+				sortOrder: 'asc',
+				size: 50,
+				assign: 1,
+			}),
+		).toEqual({
+			q: 'ada',
+			sort_id: 'email',
+			sort_order: 'asc',
+			size: '50',
+			assign: 1,
 		});
-		expect(parseProfileMembersSearchParams({ assign: 'nonsense' })).toEqual({
+	});
+
+	test('omits the assign key when undefined', () => {
+		expect(serializeProfileMembersSearchParams({ assign: undefined })).toEqual({
 			assign: undefined,
 		});
 	});
@@ -214,13 +335,28 @@ describe('StaffTenantProfileMembersPage', () => {
 		expect(screen.getByText('Profile', { selector: 'a' })).toBeTruthy();
 	});
 
-	test('shows the honest "list unavailable" state instead of a fabricated member table', () => {
+	test('renders a real members roster table instead of the removed placeholder', () => {
 		renderPage();
 
 		expect(
-			screen.getByTestId('staff-tenant-profile-members-list-unavailable'),
+			screen.getByTestId('staff-tenant-profile-members-table'),
 		).toBeTruthy();
-		expect(screen.getByText("Member list isn't available yet")).toBeTruthy();
+		expect(
+			screen.queryByTestId('staff-tenant-profile-members-list-unavailable'),
+		).toBeNull();
+	});
+
+	test('fetches members scoped to the tenant and profile once the profile is loaded', () => {
+		renderPage();
+
+		expect(mocks.useStaffTenantProfileMembersQuery).toHaveBeenCalled();
+		const [variables, options] =
+			mocks.useStaffTenantProfileMembersQuery.mock.calls[0];
+		expect(variables).toMatchObject({
+			tenantId: '11111111-1111-1111-1111-111111111111',
+			profileId: '22222222-2222-2222-2222-222222222222',
+		});
+		expect(options?.enabled).toBe(true);
 	});
 
 	test('opens the assign-members drawer via the URL-backed ?assign=1 flag', () => {
@@ -232,7 +368,7 @@ describe('StaffTenantProfileMembersPage', () => {
 
 		expect(mocks.navigate).toHaveBeenCalledTimes(1);
 		const call = mocks.navigate.mock.calls[0]?.[0] as {
-			search: (previous: { assign?: 1 }) => { assign?: 1 };
+			search: (previous: { assign?: 1 }) => Record<string, unknown>;
 			replace: boolean;
 		};
 		expect(call.search({})).toEqual({ assign: 1 });
@@ -283,5 +419,74 @@ describe('StaffTenantProfileMembersPage', () => {
 		renderPage();
 
 		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
+	});
+});
+
+describe('makeProfileMemberColumns', () => {
+	const TENANT_ID = '11111111-1111-1111-1111-111111111111';
+
+	test('renders the first column as a link to the tenant user detail page', () => {
+		const columns = makeProfileMemberColumns(
+			TENANT_ID,
+			(key) => TRANSLATIONS[key] ?? key,
+		);
+		const nameColumn = columns.find((column) => column.id === 'name');
+		const row = {
+			original: {
+				id: 'user-account-1',
+				email: 'ada@example.com',
+				firstName: 'Ada',
+				lastName: 'Lovelace',
+				avatarUrl: null,
+				status: 'Active',
+				level: 'Admin',
+				displayName: 'Ada Lovelace',
+			},
+		};
+		const cellRenderer = nameColumn?.cell as (props: {
+			row: typeof row;
+		}) => JSX.Element;
+
+		render(<>{cellRenderer({ row })}</>);
+
+		const userLink = screen.getByRole('link', {
+			name: /Ada Lovelace/,
+		}) as HTMLAnchorElement;
+		expect(userLink.getAttribute('href')).toBe(
+			`/staff/tenants/${TENANT_ID}/users/user-account-1`,
+		);
+		expect(screen.getByText('Ada Lovelace').className).toContain(
+			'publy-record-link',
+		);
+	});
+
+	test('renders the level chip using the shared level formatter', () => {
+		const columns = makeProfileMemberColumns(
+			TENANT_ID,
+			(key) => TRANSLATIONS[key] ?? key,
+		);
+		const levelColumn = columns.find((column) => column.id === 'level');
+		const cellRenderer = levelColumn?.cell as (props: {
+			getValue: () => string | null;
+		}) => JSX.Element;
+
+		render(<>{cellRenderer({ getValue: () => 'Admin' })}</>);
+
+		expect(screen.getByText('Admin')).toBeTruthy();
+	});
+
+	test('renders the status pill using the shared status formatter and tone', () => {
+		const columns = makeProfileMemberColumns(
+			TENANT_ID,
+			(key) => TRANSLATIONS[key] ?? key,
+		);
+		const statusColumn = columns.find((column) => column.id === 'status');
+		const cellRenderer = statusColumn?.cell as (props: {
+			getValue: () => string | null;
+		}) => JSX.Element;
+
+		render(<>{cellRenderer({ getValue: () => 'Active' })}</>);
+
+		expect(screen.getByTestId('status-pill').textContent).toBe('Active');
 	});
 });

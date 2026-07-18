@@ -12,6 +12,8 @@ vi.mock('~/lib/api-client/client-manager', () => ({
 import {
 	buildStaffTenantPermissionCatalogOptions,
 	buildCreateStaffTenantProfileBody,
+	buildFindStaffTenantProfileMembersQueryParameters,
+	buildResolveStaffTenantProfileMemberAssignmentsBody,
 	deleteStaffTenantProfileMutationOptions,
 	buildFindStaffTenantProfilesQueryParameters,
 	assignStaffTenantProfilePermissionMutationOptions,
@@ -22,6 +24,8 @@ import {
 	invalidateStaffTenantProfiles,
 	STAFF_TENANT_PROFILES_QUERY_KEY,
 	toStaffTenantProfileDetails,
+	toStaffTenantProfileMemberAssignmentMap,
+	toStaffTenantProfileMemberRows,
 	toStaffTenantProfilePermissionKeys,
 	toStaffTenantProfileRows,
 } from '~/lib/query/staff-tenant-profiles';
@@ -29,7 +33,9 @@ import {
 import type {
 	FindTenantProfilePermissionsAsStaffResult,
 	GetTenantProfileByIdResponse,
+	ResolveTenantProfileUserAssignmentsAsStaffResult,
 	TenantProfileItem,
+	TenantProfileUserItem,
 } from '@org/client-ts/src/models/index.js';
 
 beforeEach(() => {
@@ -613,5 +619,177 @@ describe('invalidateStaffTenantProfiles', () => {
 		expect(invalidateQueries).toHaveBeenCalledWith({
 			queryKey: ['staff', ...STAFF_TENANT_PROFILES_QUERY_KEY],
 		});
+	});
+});
+
+describe('buildFindStaffTenantProfileMembersQueryParameters', () => {
+	test('trims supported values, 1-indexes the page, and stringifies the limit', () => {
+		expect(
+			buildFindStaffTenantProfileMembersQueryParameters({
+				q: ' approver ',
+				sortId: ' email ',
+				sortOrder: 'asc',
+				pageIndex: 2,
+				size: 20,
+			}),
+		).toEqual({
+			q: 'approver',
+			sortId: 'email',
+			sortOrder: 'asc',
+			page: '3',
+			limit: '20',
+		});
+	});
+
+	test('defaults to page 1 and omits blank/invalid values', () => {
+		expect(
+			buildFindStaffTenantProfileMembersQueryParameters({
+				q: '   ',
+				sortId: '',
+				sortOrder: undefined,
+				pageIndex: undefined,
+				size: 0,
+			}),
+		).toEqual({
+			page: '1',
+			q: undefined,
+			sortId: undefined,
+			sortOrder: undefined,
+			limit: undefined,
+		});
+	});
+
+	test('clamps a negative or non-integer page index back to page 1', () => {
+		expect(
+			buildFindStaffTenantProfileMembersQueryParameters({ pageIndex: -3 }),
+		).toEqual({
+			page: '1',
+			q: undefined,
+			sortId: undefined,
+			sortOrder: undefined,
+			limit: undefined,
+		});
+	});
+});
+
+describe('toStaffTenantProfileMemberRows', () => {
+	test('normalizes API items, prefers the full name, and skips rows without a usable id or email', () => {
+		const items: TenantProfileUserItem[] = [
+			{
+				id: 'user-account-1' as never,
+				email: ' ada@example.com ',
+				firstName: ' Ada ',
+				lastName: ' Lovelace ',
+				avatarUrl: null,
+				status: 'Active',
+				level: 'Admin',
+			},
+			{
+				id: 'user-account-2' as never,
+				email: 'grace@example.com',
+				firstName: null,
+				lastName: null,
+				avatarUrl: null,
+				status: 'Suspended',
+				level: 'User',
+			},
+			{
+				id: '' as never,
+				email: 'skip-me@example.com',
+				firstName: 'Skip',
+				lastName: 'Me',
+				avatarUrl: null,
+				status: 'Active',
+				level: 'User',
+			},
+			{
+				id: 'user-account-4' as never,
+				email: '  ',
+				firstName: 'No',
+				lastName: 'Email',
+				avatarUrl: null,
+				status: 'Active',
+				level: 'User',
+			},
+		];
+
+		expect(toStaffTenantProfileMemberRows(items)).toEqual([
+			{
+				id: 'user-account-1',
+				email: 'ada@example.com',
+				firstName: 'Ada',
+				lastName: 'Lovelace',
+				avatarUrl: null,
+				status: 'Active',
+				level: 'Admin',
+				displayName: 'Ada Lovelace',
+			},
+			{
+				id: 'user-account-2',
+				email: 'grace@example.com',
+				firstName: null,
+				lastName: null,
+				avatarUrl: null,
+				status: 'Suspended',
+				level: 'User',
+				displayName: 'grace@example.com',
+			},
+		]);
+	});
+
+	test('returns an empty list when the payload is empty', () => {
+		expect(toStaffTenantProfileMemberRows(undefined)).toEqual([]);
+		expect(toStaffTenantProfileMemberRows(null)).toEqual([]);
+	});
+});
+
+describe('buildResolveStaffTenantProfileMemberAssignmentsBody', () => {
+	test('serializes the user account ids as an untyped string array', () => {
+		const body = buildResolveStaffTenantProfileMemberAssignmentsBody([
+			'user-account-1',
+			'user-account-2',
+		]);
+
+		expect(unwrapUntyped(body.userAccountIds)).toEqual([
+			'user-account-1',
+			'user-account-2',
+		]);
+	});
+
+	test('serializes an empty id list as an empty array', () => {
+		const body = buildResolveStaffTenantProfileMemberAssignmentsBody([]);
+
+		expect(unwrapUntyped(body.userAccountIds)).toEqual([]);
+	});
+});
+
+describe('toStaffTenantProfileMemberAssignmentMap', () => {
+	test('maps each user account id to its assigned boolean', () => {
+		const result: ResolveTenantProfileUserAssignmentsAsStaffResult = {
+			assignments: [
+				{ userAccountId: 'user-account-1' as never, isAssigned: true },
+				{ userAccountId: 'user-account-2' as never, isAssigned: false },
+			],
+		};
+
+		expect(toStaffTenantProfileMemberAssignmentMap(result)).toEqual({
+			'user-account-1': true,
+			'user-account-2': false,
+		});
+	});
+
+	test('skips assignments without a usable user account id', () => {
+		const result: ResolveTenantProfileUserAssignmentsAsStaffResult = {
+			assignments: [
+				{ userAccountId: '' as never, isAssigned: true },
+				{ userAccountId: null, isAssigned: true },
+			],
+		};
+
+		expect(toStaffTenantProfileMemberAssignmentMap(result)).toEqual({});
+	});
+
+	test('returns an empty map when the payload is empty', () => {
+		expect(toStaffTenantProfileMemberAssignmentMap(undefined)).toEqual({});
 	});
 });
