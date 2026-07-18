@@ -1,7 +1,8 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-using PublyApp.Api.Infrastructure.Messaging.Email;
+using PublyApp.Api.Infrastructure.Jobs;
+using PublyApp.Api.Modules.Invitations.Jobs;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Localization;
@@ -17,8 +18,7 @@ public sealed class ResendStaffInvitation {
 	>> Handle(
 		[FromRoute] string invitationId,
 		[FromServices] IInvitationQueryService invitationQueryService,
-		[FromServices] IEmailService emailService,
-		[FromServices] ILogger<ResendStaffInvitation> logger,
+		[FromServices] IJobEnqueuer jobEnqueuer,
 		CancellationToken cancellationToken = default
 	) {
 		if (!Guid.TryParse(invitationId, out var invitationIdGuid)) {
@@ -42,22 +42,10 @@ public sealed class ResendStaffInvitation {
 			return TypedProblems.BadRequest("Invitation is not pending", ResponseKeys.BadRequest);
 		}
 
-		// Best-effort resend; failures stay best-effort and do not leak to caller.
-		_ = Task.Run(
-			async () => {
-				try {
-					await emailService.SendInvitationToJoinStaffEmailAsync(invitation.Email, invitation.Token);
-				} catch (Exception ex) {
-					if (logger.IsEnabled(LogLevel.Error)) {
-						logger.LogError(
-							ex,
-							"Error sending invitation reminder to {Email}",
-							invitation.Email
-						);
-					}
-				}
-			},
-			CancellationToken.None
+		await jobEnqueuer.EnqueueAsync(
+			InvitationEmailJobs.StaffInvitationV1,
+			new StaffInvitationEmailPayload { InvitationId = invitation.GetRequiredId() },
+			cancellationToken: cancellationToken
 		);
 
 		return TypedResults.Ok(

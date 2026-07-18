@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Lib.DI;
@@ -5,6 +6,7 @@ using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Auth.Jobs;
 using PublyApp.Api.Modules.Users.Entities;
+using Npgsql;
 
 namespace PublyApp.Api.Modules.Users.Services;
 
@@ -36,19 +38,13 @@ public interface ICreateStaffUserService {
 [Service(ServiceLifetime.Scoped)]
 public sealed class CreateStaffUserService : ICreateStaffUserService {
 	private readonly AppDbContext _dbContext;
-	private readonly IUserService _userService;
-	private readonly IAccountService _accountService;
 	private readonly IJobEnqueuer _jobEnqueuer;
 
 	public CreateStaffUserService(
 		AppDbContext dbContext,
-		IUserService userService,
-		IAccountService accountService,
 		IJobEnqueuer jobEnqueuer
 	) {
 		_dbContext = dbContext;
-		_userService = userService;
-		_accountService = accountService;
 		_jobEnqueuer = jobEnqueuer;
 	}
 
@@ -80,27 +76,9 @@ public sealed class CreateStaffUserService : ICreateStaffUserService {
 
 		await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
 
-		User userResultEntity;
-		bool isNewUser;
+		var (isNewUser, userResultEntity) = await GetOrCreateUserAsync(user, cancellationToken);
 
-		var userResult = await _userService.CreateUserAsync(user, cancellationToken);
-		switch (userResult) {
-			case CreateUserResult.Success success:
-				userResultEntity = success.User;
-				isNewUser = true;
-				break;
-
-			case CreateUserResult.UserAlreadyExists alreadyExists:
-				userResultEntity = alreadyExists.User;
-				isNewUser = false;
-				break;
-
-			default:
-				await transaction.RollbackAsync(cancellationToken);
-				return new CreateStaffUserServiceResult.UserHasTenantOrProjectAccounts();
-		}
-
-		var accountResult = await _accountService.CreateStaffAccountAsync(
+		var accountResult = await CreateStaffAccountAsync(
 			userResultEntity.GetRequiredId(),
 			args.AccountLevel,
 			cancellationToken
@@ -137,5 +115,88 @@ public sealed class CreateStaffUserService : ICreateStaffUserService {
 			accountSuccess.Account,
 			isNewUser
 		);
+	}
+
+	private async Task<(bool IsNewUser, User User)> GetOrCreateUserAsync(
+		User user,
+		CancellationToken cancellationToken
+	) {
+		var existingUser = await (
+			from existing in _dbContext.User
+			where existing.Email == user.Email
+			select existing
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (existingUser is not null) {
+			return (false, existingUser);
+		}
+
+		var addedUser = await _dbContext.User.AddAsync(user, cancellationToken);
+		await _dbContext.SaveChangesAsync(cancellationToken);
+		return (true, addedUser.Entity);
+	}
+
+	private async Task<CreateStaffAccountResult> CreateStaffAccountAsync(
+		Guid userId,
+		AccountLevel? accountLevel,
+		CancellationToken cancellationToken
+	) {
+		var hasStaffAccount = await HasStaffAccountAsync(userId, cancellationToken);
+		if (hasStaffAccount) {
+			return new CreateStaffAccountResult.UserAlreadyStaffUser();
+		}
+
+		var hasTenantOrProjectAccounts = await HasTenantOrProjectAccountsAsync(userId, cancellationToken);
+		if (hasTenantOrProjectAccounts) {
+			return new CreateStaffAccountResult.UserHasTenantOrProjectAccounts();
+		}
+
+		var account = UserAccount.CreateStaffAccount(userId, accountLevel);
+		var addedAccount = await _dbContext.UserAccount.AddAsync(account, cancellationToken);
+
+		try {
+			await _dbContext.SaveChangesAsync(cancellationToken);
+		} catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex)) {
+			_dbContext.Entry(addedAccount.Entity).State = EntityState.Detached;
+			return new CreateStaffAccountResult.UserAlreadyStaffUser();
+		}
+
+		return new CreateStaffAccountResult.Success(addedAccount.Entity);
+	}
+
+	private async Task<bool> HasStaffAccountAsync(
+		Guid userId,
+		CancellationToken cancellationToken
+	) {
+		return await (
+			from ua in _dbContext.UserAccount
+			where ua.UserId == userId
+				&& ua.Scope == AccountScope.Staff
+				&& !ua.IsDeleted
+			select ua
+		).AnyAsync(cancellationToken);
+	}
+
+	private async Task<bool> HasTenantOrProjectAccountsAsync(
+		Guid userId,
+		CancellationToken cancellationToken
+	) {
+		return await (
+			from ua in _dbContext.UserAccount
+			where ua.UserId == userId
+				&& (ua.Scope == AccountScope.Tenant || ua.Scope == AccountScope.Project)
+				&& !ua.IsDeleted
+			select ua
+		).AnyAsync(cancellationToken);
+	}
+
+	private static bool IsUniqueConstraintViolation(DbUpdateException ex) {
+		if (ex.InnerException is PostgresException pgEx) {
+			return pgEx.SqlState == "23505"
+				&& pgEx.TableName is not null
+				&& pgEx.TableName.Equals("user_accounts", StringComparison.OrdinalIgnoreCase);
+		}
+
+		return false;
 	}
 }

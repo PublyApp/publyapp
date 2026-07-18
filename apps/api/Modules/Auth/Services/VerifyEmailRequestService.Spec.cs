@@ -10,7 +10,6 @@ using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Auth.Jobs;
-using PublyApp.Api.Modules.Users.Services;
 using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
@@ -31,9 +30,8 @@ public sealed class VerifyEmailRequestServiceSpec : IClassFixture<ApiFixture> {
 
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var userService = new UserService(dbContext);
 		var enqueuer = new RecordingEnqueuer();
-		var service = new VerifyEmailRequestService(dbContext, userService, enqueuer);
+		var service = new VerifyEmailRequestService(dbContext, enqueuer);
 
 		var result = await service.RequestAsync(email, CancellationToken.None);
 
@@ -61,9 +59,8 @@ public sealed class VerifyEmailRequestServiceSpec : IClassFixture<ApiFixture> {
 
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var userService = new UserService(dbContext);
 		var enqueuer = new RecordingEnqueuer();
-		var service = new VerifyEmailRequestService(dbContext, userService, enqueuer);
+		var service = new VerifyEmailRequestService(dbContext, enqueuer);
 
 		var result = await service.RequestAsync(email, CancellationToken.None);
 
@@ -86,8 +83,10 @@ public sealed class VerifyEmailRequestServiceSpec : IClassFixture<ApiFixture> {
 
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var userService = new UserService(dbContext);
-		var service = new VerifyEmailRequestService(dbContext, userService, new ThrowingEnqueuer());
+		var service = new VerifyEmailRequestService(
+			dbContext,
+			new ThrowingEnqueuer()
+		);
 
 		var act = async () => await service.RequestAsync(email, CancellationToken.None);
 		await act.Should().ThrowAsync<InvalidOperationException>();

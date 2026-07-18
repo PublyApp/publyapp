@@ -10,6 +10,7 @@ using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Auth.Jobs;
+using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
@@ -24,19 +25,16 @@ public sealed class CreateStaffUserServiceSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
-	public async Task ItShouldRollbackUserCreationWhenAccountCreationFails() {
+	public async Task ItShouldRejectWhenUserHasTenantOrProjectAccounts() {
 		var email = $"create-staff-f1-{Guid.NewGuid():N}@example.com";
 
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await SeedUserWithTenantAccountAsync(dbContext, email);
 
-		var userService = new UserService(dbContext);
-		var accountService = new FailingCreateStaffAccountService();
 		var enqueuer = new RejectingEnqueuer();
 		var service = new CreateStaffUserService(
 			dbContext,
-			userService,
-			accountService,
 			enqueuer
 		);
 
@@ -56,9 +54,10 @@ public sealed class CreateStaffUserServiceSpec : IClassFixture<ApiFixture> {
 		enqueuer.Calls.Should().Be(0);
 
 		await using var verify = CreateDbContext();
-		(await verify.User.AnyAsync(u => u.Email == email)).Should().BeFalse(
-			"the create-user write must be rolled back when account creation fails"
+		(await verify.User.AnyAsync(u => u.Email == email)).Should().BeTrue(
+			"account conflicts must not create an additional user row"
 		);
+		(await verify.User.CountAsync(u => u.Email == email)).Should().Be(1);
 	}
 
 	[Fact]
@@ -68,13 +67,9 @@ public sealed class CreateStaffUserServiceSpec : IClassFixture<ApiFixture> {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-		var userService = new UserService(dbContext);
-		var accountService = new AccountService(dbContext);
 		var enqueuer = new RecordingEnqueuer();
 		var service = new CreateStaffUserService(
 			dbContext,
-			userService,
-			accountService,
 			enqueuer
 		);
 
@@ -109,6 +104,39 @@ public sealed class CreateStaffUserServiceSpec : IClassFixture<ApiFixture> {
 			.AsNoTracking()
 			.SingleAsync(a => a.UserId == persistedUser.GetRequiredId());
 		persistedAccount.Scope.Should().Be(AccountScope.Staff);
+	}
+
+	private static async Task SeedUserWithTenantAccountAsync(
+		AppDbContext dbContext,
+		string email
+	) {
+		var tenant = new Tenant {
+			Code = $"tenant-{Guid.NewGuid():N}",
+			Name = "Tenant",
+			Status = TenantStatus.Active,
+			MaxUsers = 100
+		};
+		dbContext.Tenant.Add(tenant);
+		await dbContext.SaveChangesAsync();
+
+		var user = new User {
+			Email = email,
+			Password = PasswordUtils.HashPassword("unused-password"),
+			FirstName = "Seed",
+			LastName = "User",
+			Status = UserStatus.Active,
+			IsVerified = true
+		};
+		dbContext.User.Add(user);
+		await dbContext.SaveChangesAsync();
+
+		var account = UserAccount.CreateTenantAccount(
+			user.GetRequiredId(),
+			tenant.GetRequiredId(),
+			AccountLevel.User
+		);
+		await dbContext.UserAccount.AddAsync(account);
+		await dbContext.SaveChangesAsync();
 	}
 
 	private static string BaseConnectionString(ApiFixture fixture) {
@@ -177,160 +205,4 @@ public sealed class CreateStaffUserServiceSpec : IClassFixture<ApiFixture> {
 		}
 	}
 
-	private sealed class FailingCreateStaffAccountService : IAccountService {
-		public Task<CreateStaffAccountResult> CreateStaffAccountAsync(
-			Guid userId,
-			AccountLevel? accountLevel = null,
-			CancellationToken cancellationToken = default
-		) {
-			return Task.FromResult<CreateStaffAccountResult>(
-				new CreateStaffAccountResult.UserHasTenantOrProjectAccounts()
-			);
-		}
-
-		public Task<UserAccount?> GetUserStaffAccountAsync(
-			Guid userId,
-			CancellationToken cancellationToken = default
-		) {
-			throw new NotImplementedException();
-		}
-
-		public Task<UserAccount?> GetUserTenantAccountAsync(
-			Guid userId,
-			Guid tenantId,
-			CancellationToken cancellationToken = default
-		) {
-			throw new NotImplementedException();
-		}
-
-		public Task<bool> IsUserStaffUserAsync(
-			Guid userId,
-			CancellationToken cancellationToken = default
-		) {
-			throw new NotImplementedException();
-		}
-
-		public Task<bool> IsUserMemberOfTenantAsync(
-			Guid userId,
-			Guid tenantId,
-			CancellationToken cancellationToken = default
-		) {
-			throw new NotImplementedException();
-		}
-
-		public Task<bool> IsUserMemberOfActiveTenantAsync(
-			Guid userId,
-			Guid tenantId,
-			CancellationToken cancellationToken = default
-		) {
-			throw new NotImplementedException();
-		}
-
-		public Task<bool> HasStaffAccountAsync(
-			Guid userId,
-			CancellationToken cancellationToken = default
-		) {
-			throw new NotImplementedException();
-		}
-
-		public Task<bool> HasTenantAccountAsync(
-			Guid userId,
-			Guid tenantId,
-			CancellationToken cancellationToken = default
-		) {
-			throw new NotImplementedException();
-		}
-
-		public Task<ResolveTenantInvitationTargetByEmailResult> ResolveTenantInvitationTargetByEmailAsync(
-			string email,
-			Guid tenantId,
-			CancellationToken cancellationToken = default
-		) {
-			throw new NotImplementedException();
-		}
-
-		public Task<bool> HasTenantOrProjectAccountsAsync(
-			Guid userId,
-			CancellationToken cancellationToken = default
-		) {
-			return Task.FromResult(false);
-		}
-
-		public Task<bool> HasTenantAccountByEmailAsync(
-			string email,
-			Guid tenantId,
-			CancellationToken cancellationToken = default
-		) {
-			return Task.FromResult(false);
-		}
-
-		public Task<bool> HasTenantOrProjectAccountsByEmailAsync(
-			string email,
-			CancellationToken cancellationToken = default
-		) {
-			return Task.FromResult(false);
-		}
-
-		public Task<bool> HasStaffAccountByEmailAsync(
-			string email,
-			CancellationToken cancellationToken = default
-		) {
-			return Task.FromResult(false);
-		}
-
-		public Task<List<string>> GetEmailsWithTenantOrProjectAccountsAsync(
-			List<string> emails,
-			CancellationToken cancellationToken = default
-		) {
-			return Task.FromResult(new List<string>());
-		}
-
-		public Task<List<string>> GetEmailsWithStaffAccountsAsync(
-			List<string> emails,
-			CancellationToken cancellationToken = default
-		) {
-			return Task.FromResult(new List<string>());
-		}
-
-		public Task<List<UserAccount>> FindUserTenantAccountsAsync(
-			Guid userId,
-			int? limit = null,
-			CancellationToken cancellationToken = default
-		) {
-			return Task.FromResult(new List<UserAccount>());
-		}
-
-		public Task<CreateTenantAccountResult> CreateTenantAccountAsync(
-			Guid userId,
-			Guid tenantId,
-			AccountLevel accountLevel,
-			CancellationToken cancellationToken = default
-		) {
-			throw new NotImplementedException();
-		}
-
-		public Task AssignProfileToAccountAsync(
-			Guid accountId,
-			Guid profileId,
-			CancellationToken cancellationToken = default
-		) {
-			throw new NotImplementedException();
-		}
-
-		public Task<UserTenantsResult> GetUserTenantsAsync(
-			Guid userId,
-			int limit = 5,
-			CancellationToken cancellationToken = default
-		) {
-			throw new NotImplementedException();
-		}
-
-		public Task<UserTenantsForPickerResult> GetUserTenantsForPickerAsync(
-			Guid userId,
-			int limit = 50,
-			CancellationToken cancellationToken = default
-		) {
-			throw new NotImplementedException();
-		}
-	}
 }

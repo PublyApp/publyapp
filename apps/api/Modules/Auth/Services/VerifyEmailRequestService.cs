@@ -4,7 +4,7 @@ using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Modules.Auth.Jobs;
-using PublyApp.Api.Modules.Users.Services;
+using Microsoft.EntityFrameworkCore;
 
 namespace PublyApp.Api.Modules.Auth.Services;
 
@@ -24,16 +24,13 @@ public interface IVerifyEmailRequestService {
 [Service(ServiceLifetime.Scoped)]
 public sealed class VerifyEmailRequestService : IVerifyEmailRequestService {
 	private readonly AppDbContext _dbContext;
-	private readonly IUserService _userService;
 	private readonly IJobEnqueuer _jobEnqueuer;
 
 	public VerifyEmailRequestService(
 		AppDbContext dbContext,
-		IUserService userService,
 		IJobEnqueuer jobEnqueuer
 	) {
 		_dbContext = dbContext;
-		_userService = userService;
 		_jobEnqueuer = jobEnqueuer;
 	}
 
@@ -43,7 +40,14 @@ public sealed class VerifyEmailRequestService : IVerifyEmailRequestService {
 	) {
 		await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
 
-		var user = await _userService.GetUserByEmailAsync(email, cancellationToken);
+		var normalizedEmail = email.Trim().ToLowerInvariant();
+
+		var user = await (
+			from candidate in _dbContext.User
+			where candidate.Email == normalizedEmail && !candidate.IsDeleted
+			select candidate
+		).FirstOrDefaultAsync(cancellationToken);
+
 		if (user is null) {
 			await transaction.RollbackAsync(cancellationToken);
 			return new VerifyEmailRequestServiceResult.NotFound();
@@ -64,7 +68,7 @@ public sealed class VerifyEmailRequestService : IVerifyEmailRequestService {
 		if (!hasLiveToken) {
 			user.EmailVerifyToken = CryptoUtils.RandomString(env.EMAIL_VERIFY_TOKEN_LENGTH);
 			user.EmailVerifyTokenExpiresAt = now.AddDays(env.EMAIL_VERIFY_TOKEN_VALIDITY_DURATION);
-			await _userService.UpdateUserAsync(user, cancellationToken);
+			await _dbContext.SaveChangesAsync(cancellationToken);
 		}
 
 		await _jobEnqueuer.EnqueueAsync(
