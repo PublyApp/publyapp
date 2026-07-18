@@ -1,73 +1,68 @@
-
 using System.Collections.Concurrent;
 
 using PublyApp.Api.Infrastructure.Messaging.Email;
 
 namespace PublyApp.Api.Lib.Testing.Fakes {
 	/// <summary>
-	/// Fake email sender for tests. Captures emails instead
-	/// of sending.
-	/// Thread-safe: uses ConcurrentBag for parallel safety.
+	/// Fake email sender for tests, on the corrected F3 contract: SendAsync RETURNS an
+	/// <see cref="EmailSendReceipt"/> and can THROW a classified
+	/// <see cref="EmailProviderException"/> (via <see cref="FailWith"/>) so email-job
+	/// handler specs can drive the transient/permanent outcome mapping. It records each
+	/// send (request + job-stable idempotency key), letting specs prove byte-identical
+	/// idempotent resends (§4.5).
 	///
-	/// IMPORTANT: Registered as a singleton per ApiFixture
-	/// (per test class). Emails persist across tests within
-	/// the same class unless you call Clear() or DrainAll().
-	/// Always call Clear() at the start of tests that assert
-	/// on email state.
+	/// IMPORTANT: registered as a singleton per ApiFixture (per test class). Emails
+	/// persist across tests within the same class unless you call Clear() / DrainAll().
 	/// </summary>
 	public sealed class FakeEmailSender : IEmailSender {
-		private readonly ConcurrentBag<EmailRequest>
-			_sentEmails = [];
+		public sealed record SentEmail(EmailRequest Request, string? IdempotencyKey, string MessageId);
+
+		private readonly ConcurrentQueue<SentEmail> _sent = new();
 
 		public IReadOnlyCollection<EmailRequest> SentEmails {
-			get {
-				return _sentEmails;
-			}
+			get { return _sent.Select(s => s.Request).ToList(); }
+		}
+
+		/// <summary>The full send records (request + idempotency key + returned message id).</summary>
+		public IReadOnlyCollection<SentEmail> Sends {
+			get { return _sent.ToList(); }
 		}
 
 		/// <summary>
-		/// When set, SendAsync throws instead of recording the request for any
-		/// request this predicate returns true for. Used to prove retry/backoff
-		/// behavior (e.g. InvitationEmailOutboxDispatcher) under a real send failure.
-		/// Reset (set back to null) at the start of tests that use it.
+		/// When set and it returns a non-null exception for a request, SendAsync throws
+		/// it instead of recording the send — used to exercise the classified
+		/// transient/permanent failure paths (F3). Null (default) always succeeds.
 		/// </summary>
-		public Func<EmailRequest, bool>? ShouldFail { get; set; }
+		public Func<EmailRequest, EmailProviderException?>? FailWith { get; set; }
 
-		// This fake completes synchronously after recording the
-		// request; suppress CS1998 instead of adding an artificial
-		// await.
+		// Completes synchronously after recording; suppress CS1998 instead of an
+		// artificial await.
 #pragma warning disable CS1998
-		public async Task<EmailResult> SendAsync(
-			EmailRequest request
+		public async Task<EmailSendReceipt> SendAsync(
+			EmailRequest request,
+			string? idempotencyKey = null,
+			CancellationToken cancellationToken = default
 		) {
-			if (ShouldFail?.Invoke(request) == true) {
-				throw new InvalidOperationException("FakeEmailSender: simulated send failure");
+			if (FailWith?.Invoke(request) is { } failure) {
+				throw failure;
 			}
 
-			_sentEmails.Add(request);
-			return new EmailResult {
-				Success = true,
-				MessageId = Guid.NewGuid().ToString()
-			};
+			var messageId = Guid.NewGuid().ToString();
+			_sent.Enqueue(new SentEmail(request, idempotencyKey, messageId));
+
+			return new EmailSendReceipt(messageId);
 		}
 #pragma warning restore CS1998
 
-		/// <summary>
-		/// Clears captured emails.
-		/// Call at the start of tests that assert on emails.
-		/// </summary>
+		/// <summary>Clears captured emails. Call at the start of tests that assert on emails.</summary>
 		public void Clear() {
-			_sentEmails.Clear();
+			_sent.Clear();
 		}
 
-		/// <summary>
-		/// Returns all captured emails and clears the bag.
-		/// Safe for sequential tests (xUnit runs tests within
-		/// a class sequentially).
-		/// </summary>
+		/// <summary>Returns all captured emails and clears the queue.</summary>
 		public IReadOnlyList<EmailRequest> DrainAll() {
-			EmailRequest[] snapshot = _sentEmails.ToArray();
-			_sentEmails.Clear();
+			var snapshot = _sent.Select(s => s.Request).ToList();
+			_sent.Clear();
 			return snapshot;
 		}
 	}

@@ -1,0 +1,84 @@
+using PublyApp.Api.Lib;
+using PublyApp.Api.Modules.Auth.Utils;
+using PublyApp.Api.Modules.Users.Entities;
+
+namespace PublyApp.Api.Infrastructure.Messaging.Email;
+
+/// <summary>
+/// Renders the transactional-email <see cref="EmailRequest"/> for each kind, in ONE
+/// place. Shared by <see cref="EmailService"/> (inline sends) and the email job
+/// handlers (which freeze the rendered request into <c>email_prepared_sends</c> and
+/// resend the stored bytes byte-identically — design §4.5, F7). Extracting the
+/// rendering here keeps the on-the-wire output identical to the shipped
+/// <see cref="EmailService"/> methods, so the old dispatcher's output never drifts.
+/// </summary>
+public static class EmailTemplates {
+	private static string CreateHtmlLink(string url, string text) {
+		string linkStyle = "text-decoration: underline; color: #007bff;";
+		return $"<a href=\"{url}\" style=\"{linkStyle}\">{text}</a>";
+	}
+
+	private static string SenderFrom(AppEnvironment env) {
+		return $"{env.DEFAULT_EMAIL_SENDER_NAME} <{env.DEFAULT_EMAIL_SENDER_EMAIL}>";
+	}
+
+	public static EmailRequest TenantInvitation(
+		string email,
+		string tenantName,
+		string token,
+		AccountLevel level
+	) {
+		var env = AppEnvironment.Instance;
+		var invitationUrl = AuthUtils.CreateAcceptInvitationUrl(token, email);
+		var accountLevelText = level == AccountLevel.Admin ? "admin" : "user";
+
+		return new EmailRequest {
+			To = email,
+			From = SenderFrom(env),
+			Subject = $"You have been invited to join {tenantName} on {env.APP_NAME}",
+			HtmlBody = $"""
+				You have been invited to join {tenantName} on {env.APP_NAME} as a {accountLevelText}.
+				<br />
+				Please accept the invitation by clicking the link below:
+				<br />
+				{CreateHtmlLink(invitationUrl, "Accept the invitation")}
+				"""
+		};
+	}
+
+	public static EmailRequest StaffInvitation(string email, string token) {
+		var env = AppEnvironment.Instance;
+		var invitationUrl = AuthUtils.CreateAcceptInvitationUrl(token, email);
+
+		return new EmailRequest {
+			To = email,
+			From = SenderFrom(env),
+			Subject = $"You have been invited to join the staff of {env.APP_NAME}",
+			HtmlBody = $"""
+				You have been invited to join {env.APP_NAME} as a staff member.
+				<br />
+				Please accept the invitation to join the staff by clicking the link below:
+				<br />
+				{CreateHtmlLink(invitationUrl, "Accept the invitation")}
+				"""
+		};
+	}
+
+	public static EmailRequest PasswordReset(string email, string token) {
+		var env = AppEnvironment.Instance;
+		var resetPasswordUrl = AuthUtils.CreateResetPasswordUrl(token, email);
+
+		return new EmailRequest {
+			To = email,
+			From = SenderFrom(env),
+			Subject = $"Your password reset request",
+			HtmlBody = $"""
+				You have requested to reset your password.
+				<br />
+				Please reset your password by clicking the link below:
+				<br />
+				{CreateHtmlLink(resetPasswordUrl, "Reset your password")}
+				"""
+		};
+	}
+}

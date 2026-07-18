@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PublyApp.Api.Data.DbContext;
@@ -11,9 +12,11 @@ using PublyApp.Api.Data.DbContext;
 namespace PublyApp.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260717035428_AddEmailLogAndFoldEmailOutbox")]
+    partial class AddEmailLogAndFoldEmailOutbox
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -412,43 +415,43 @@ namespace PublyApp.Api.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("original_job_id");
 
-                    b.Property<string>("Payload")
-                        .IsRequired()
-                        .HasColumnType("jsonb")
-                        .HasColumnName("payload");
+					b.Property<string>("Payload")
+						.IsRequired()
+						.HasColumnType("jsonb")
+						.HasColumnName("payload");
 
-                    b.Property<int>("Priority")
-                        .HasColumnType("integer")
-                        .HasColumnName("priority");
+				b.Property<int>("Priority")
+					.HasColumnType("integer")
+					.HasColumnName("priority");
 
-                    b.Property<Guid?>("RequeuedAsJobId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("requeued_as_job_id");
+				b.Property<Guid?>("RequeuedAsJobId")
+					.HasColumnType("uuid")
+					.HasColumnName("requeued_as_job_id");
 
-                    b.Property<DateTime?>("RequeuedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("requeued_at");
+				b.Property<DateTime?>("RequeuedAt")
+					.HasColumnType("timestamp with time zone")
+					.HasColumnName("requeued_at");
 
-                    b.Property<Guid?>("RequeuedFromDeadLetterId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("requeued_from_dead_letter_id");
+				b.Property<Guid?>("RequeuedFromDeadLetterId")
+					.HasColumnType("uuid")
+					.HasColumnName("requeued_from_dead_letter_id");
 
-                    b.Property<Guid?>("TenantId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("tenant_id");
+				b.Property<Guid?>("TenantId")
+					.HasColumnType("uuid")
+					.HasColumnName("tenant_id");
 
-                    b.HasKey("Id")
-                        .HasName("pk_job_dead_letter");
+				b.HasKey("Id")
+					.HasName("pk_job_dead_letter");
 
-                    b.HasIndex("JobType", "FailedAt")
-                        .HasDatabaseName("ix_job_dead_letter_job_type");
+				b.HasIndex("JobType", "FailedAt")
+					.HasDatabaseName("ix_job_dead_letter_job_type");
 
-                    b.HasIndex("RequeuedFromDeadLetterId")
-                        .HasDatabaseName("ix_job_dead_letter_requeued_from")
-                        .HasFilter("requeued_from_dead_letter_id IS NOT NULL");
+				b.HasIndex("RequeuedFromDeadLetterId")
+					.HasDatabaseName("ix_job_dead_letter_requeued_from")
+					.HasFilter("requeued_from_dead_letter_id IS NOT NULL");
 
-                    b.ToTable("job_dead_letter");
-                });
+				b.ToTable("job_dead_letter");
+			});
 
             modelBuilder.Entity("PublyApp.Api.Modules.Jobs.Entities.JobQueueItem", b =>
                 {
@@ -528,9 +531,9 @@ namespace PublyApp.Api.Migrations
                         .HasDefaultValue(0)
                         .HasColumnName("priority");
 
-                    b.Property<Guid?>("RequeuedFromDeadLetterId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("requeued_from_dead_letter_id");
+					b.Property<Guid?>("RequeuedFromDeadLetterId")
+						.HasColumnType("uuid")
+						.HasColumnName("requeued_from_dead_letter_id");
 
                     b.Property<int>("Status")
                         .ValueGeneratedOnAdd()

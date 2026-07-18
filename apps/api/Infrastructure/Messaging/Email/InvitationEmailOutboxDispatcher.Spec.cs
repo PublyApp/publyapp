@@ -157,11 +157,13 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 		(claimedByA.Count + claimedByB.Count).Should().BeGreaterThan(0);
 	}
 
-	// round-6 API F3: revoking an invitation must cancel its still-pending
-	// delivery — otherwise a revoked invitation's link still gets emailed once
-	// the provider backoff/retry eventually succeeds.
+	// Fold §5.4: synchronous outbox cancellation on revoke is RETIRED. Revoke no longer
+	// mutates delivery rows; the send-time eligibility recheck (the adjacent
+	// ItShouldCancelInsteadOfSendWhenTheLinkedInvitationIsNoLongerEligible test) is the
+	// authoritative gate — a revoked invitation's row stays Pending and is cancelled at
+	// send. This test now asserts that retirement (the row is NOT eagerly cancelled).
 	[Fact]
-	public async Task ItShouldCancelThePendingOutboxRowWhenTheInvitationIsRevoked() {
+	public async Task ItShouldNotSynchronouslyCancelTheOutboxRowWhenTheInvitationIsRevoked() {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var revokeService = scope.ServiceProvider
@@ -195,7 +197,9 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 		var reloadedRow = await verifyDbContext.InvitationEmailOutbox
 			.SingleAsync(o => o.Id == outboxRow.Id);
 
-		reloadedRow.Status.Should().Be(InvitationEmailOutboxStatus.Cancelled);
+		// Retired: revoke does not eagerly cancel the row anymore (§5.4). It stays Pending
+		// and the dispatcher's send-time recheck cancels-instead-of-sends it.
+		reloadedRow.Status.Should().Be(InvitationEmailOutboxStatus.Pending);
 	}
 
 	// round-6 API F3: a row whose invitation went stale (revoked/accepted/
@@ -275,55 +279,62 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 			_shouldThrow = shouldThrow;
 		}
 
-		public Task SendWelComeEmailAsync(string email, string token) {
+		// F3 contract: IEmailService methods now return an EmailSendReceipt and throw a
+		// classified exception on failure. This stub records the send and returns a
+		// receipt; a simulated failure throws (the dispatcher catches it for retry).
+		private static Task<EmailSendReceipt> Receipt() {
+			return Task.FromResult(new EmailSendReceipt(Guid.NewGuid().ToString()));
+		}
+
+		public Task<EmailSendReceipt> SendWelComeEmailAsync(string email, string token) {
 			throw new NotImplementedException();
 		}
 
-		public Task SendEmailVerificationRequestAsync(string email, string token) {
+		public Task<EmailSendReceipt> SendEmailVerificationRequestAsync(string email, string token) {
 			throw new NotImplementedException();
 		}
 
-		public Task SendEmailVerifiedNotificationAsync(string email) {
+		public Task<EmailSendReceipt> SendEmailVerifiedNotificationAsync(string email) {
 			throw new NotImplementedException();
 		}
 
-		public Task SendStaffWelcomeEmailAsync(string email, string token) {
+		public Task<EmailSendReceipt> SendStaffWelcomeEmailAsync(string email, string token) {
 			throw new NotImplementedException();
 		}
 
-		public Task SendJoinedStaffNotificationEmailAsync(string email) {
+		public Task<EmailSendReceipt> SendJoinedStaffNotificationEmailAsync(string email) {
 			throw new NotImplementedException();
 		}
 
-		public Task SendResetPasswordRequestEmailAsync(string email, string token) {
+		public Task<EmailSendReceipt> SendResetPasswordRequestEmailAsync(string email, string token) {
 			throw new NotImplementedException();
 		}
 
-		public Task SendPasswordResetNotificationEmailAsync(string email) {
+		public Task<EmailSendReceipt> SendPasswordResetNotificationEmailAsync(string email) {
 			throw new NotImplementedException();
 		}
 
-		public Task SendInvitationToJoinStaffEmailAsync(string email, string token) {
+		public Task<EmailSendReceipt> SendInvitationToJoinStaffEmailAsync(string email, string token) {
 			if (_shouldThrow) {
-				throw new InvalidOperationException("StubEmailService: simulated send failure");
+				throw new EmailProviderPermanentException("StubEmailService: simulated send failure");
 			}
 
 			StaffInvitationsSent.Add((email, token));
-			return Task.CompletedTask;
+			return Receipt();
 		}
 
-		public Task SendTenantInvitationEmailAsync(
+		public Task<EmailSendReceipt> SendTenantInvitationEmailAsync(
 			string email,
 			string tenantName,
 			string token,
 			AccountLevel level
 		) {
 			if (_shouldThrow) {
-				throw new InvalidOperationException("StubEmailService: simulated send failure");
+				throw new EmailProviderPermanentException("StubEmailService: simulated send failure");
 			}
 
 			TenantInvitationsSent.Add((email, tenantName, token, level));
-			return Task.CompletedTask;
+			return Receipt();
 		}
 	}
 }

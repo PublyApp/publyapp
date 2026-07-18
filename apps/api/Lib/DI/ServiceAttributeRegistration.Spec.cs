@@ -10,6 +10,7 @@ using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Auth.Services;
 using PublyApp.Api.Modules.Impersonations.Services;
 using PublyApp.Api.Modules.Invitations.Services;
+using PublyApp.Api.Modules.Messaging.Services;
 using PublyApp.Api.Modules.Permissions.Services;
 using PublyApp.Api.Modules.Profiles.Services;
 using PublyApp.Api.Modules.Projects.Services;
@@ -36,6 +37,7 @@ public sealed class ServiceAttributeRegistrationSpec
 		(typeof(IAuditLogQueryService), typeof(AuditLogQueryService)),
 		(typeof(IAuditLogService), typeof(AuditLogService)),
 		(typeof(IAuthService), typeof(AuthService)),
+		(typeof(IEmailLogWriter), typeof(EmailLogWriter)),
 		(typeof(IInvitationAcceptanceService), typeof(InvitationAcceptanceService)),
 		(typeof(IImpersonationService), typeof(ImpersonationService)),
 		(typeof(IInvitationQueryService), typeof(InvitationQueryService)),
@@ -43,6 +45,7 @@ public sealed class ServiceAttributeRegistrationSpec
 		(typeof(IInvitationService), typeof(InvitationService)),
 		(typeof(IPermissionAsStaffService), typeof(PermissionAsStaffService)),
 		(typeof(IPermissionService), typeof(PermissionService)),
+		(typeof(IPasswordResetService), typeof(PasswordResetService)),
 		(typeof(IStaffProfileAsStaffService), typeof(StaffProfileAsStaffService)),
 		(typeof(IStaffProfileQueryAsStaffService), typeof(StaffProfileQueryAsStaffService)),
 		(typeof(IProfileService), typeof(ProfileService)),

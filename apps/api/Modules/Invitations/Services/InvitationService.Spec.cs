@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
@@ -5,37 +7,36 @@ using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
-using PublyApp.Api.Modules.Invitations.Entities;
+using PublyApp.Api.Modules.Jobs.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
 
 namespace PublyApp.Api.Modules.Invitations.Services;
 
-// Proves the round-5 API F3 durability guarantee: invitation creation persists a
-// durable InvitationEmailOutbox row in the same SaveChanges call as the invitation
-// itself. Queries through a SEPARATE AppDbContext instance (not the one the service
-// used) so the assertion proves real database persistence, not just EF change
-// tracking on the original context.
-public sealed class InvitationServiceOutboxDurabilitySpec : IClassFixture<ApiFixture> {
+// Proves the durability guarantee under the job-queue world: invitation creation
+// enqueues the invitation-email job into job_queue in the SAME SaveChanges call as
+// the invitation itself. Queries through a SEPARATE AppDbContext instance (not the
+// one the service used) so the assertion proves real database persistence, not just
+// EF change tracking on the original context.
+public sealed class InvitationServiceJobEnqueueDurabilitySpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
 
-	public InvitationServiceOutboxDurabilitySpec(ApiFixture fixture) {
+	public InvitationServiceJobEnqueueDurabilitySpec(ApiFixture fixture) {
 		_fixture = fixture;
 	}
 
 	[Fact]
-	public async Task ItShouldPersistDurableOutboxRowForStaffInvitationInSameCommit() {
+	public async Task ItShouldEnqueueStaffInvitationEmailJobInSameCommit() {
 		var email = $"staff-outbox-{Guid.NewGuid():N}@example.com";
 		Guid invitationId;
-		string token;
 
 		await using (var scope = _fixture.Factory.Services.CreateAsyncScope()) {
 			var invitationService = scope.ServiceProvider.GetRequiredService<IInvitationService>();
 			var profileId = await SeedStaffProfileAsync(scope.ServiceProvider);
 			var inviterId = await SeedStaffUserAsync(scope.ServiceProvider);
 
-			var (invitation, createdToken) = await invitationService.CreateStaffInvitationAsync(
+			var (invitation, _) = await invitationService.CreateStaffInvitationAsync(
 				new CreateStaffInvitationArgs(
 					Email: email,
 					ProfileIds: [profileId],
@@ -44,28 +45,17 @@ public sealed class InvitationServiceOutboxDurabilitySpec : IClassFixture<ApiFix
 			);
 
 			invitationId = invitation.GetRequiredId();
-			token = createdToken;
 		}
 
-		// Independent context: proves the row is durably committed, not just tracked
-		// in-memory on the context the service used.
+		// Independent context: proves the job row is durably committed, not just
+		// tracked in-memory on the context the service used.
 		await using var verifyContext = await CreateFreshDbContextAsync();
-		var outboxRow = await verifyContext.InvitationEmailOutbox
-			.SingleOrDefaultAsync(o => o.Email == email && o.Token == token);
-
-		outboxRow.Should().NotBeNull();
-		outboxRow!.Kind.Should().Be(InvitationEmailKind.StaffInvitation);
-		// What this test owns is that the row was COMMITTED with the invitation, not which
-		// delivery state it reached. The dispatcher is a live hosted service here and was
-		// signalled by the commit above, so it races this read through the row's whole
-		// legal lifecycle: Pending (unclaimed) -> Processing (claimed) -> Sent. Omitting
-		// the transient Processing made this spec flaky — reproduced on the pristine tip,
-		// so this is a pre-existing gap in the allowed set, not a behaviour change.
-		outboxRow.Status.Should().BeOneOf(
-			InvitationEmailOutboxStatus.Pending,
-			InvitationEmailOutboxStatus.Processing,
-			InvitationEmailOutboxStatus.Sent
+		var job = await SingleJobAsync(
+			verifyContext,
+			"email.staff-invitation.v1",
+			invitationId
 		);
+		job.Should().NotBeNull();
 
 		var invitationRow = await verifyContext.Invitation
 			.SingleOrDefaultAsync(i => i.Id == invitationId);
@@ -73,9 +63,9 @@ public sealed class InvitationServiceOutboxDurabilitySpec : IClassFixture<ApiFix
 	}
 
 	[Fact]
-	public async Task ItShouldPersistDurableOutboxRowForTenantInvitationWithTenantNameAndLevel() {
+	public async Task ItShouldEnqueueTenantInvitationEmailJobInSameCommit() {
 		var email = $"tenant-outbox-{Guid.NewGuid():N}@example.com";
-		string token;
+		Guid invitationId;
 
 		await using (var scope = _fixture.Factory.Services.CreateAsyncScope()) {
 			var invitationService = scope.ServiceProvider.GetRequiredService<IInvitationService>();
@@ -84,7 +74,7 @@ public sealed class InvitationServiceOutboxDurabilitySpec : IClassFixture<ApiFix
 			var tenantId = await SeedTenantAsync(dbContext);
 			var inviterId = await SeedStaffUserAsync(scope.ServiceProvider);
 
-			var (_, createdToken) = await invitationService.CreateTenantInvitationAsync(
+			var (invitation, _) = await invitationService.CreateTenantInvitationAsync(
 				new CreateTenantInvitationArgs(
 					Email: email,
 					TenantId: tenantId,
@@ -95,17 +85,41 @@ public sealed class InvitationServiceOutboxDurabilitySpec : IClassFixture<ApiFix
 				)
 			);
 
-			token = createdToken;
+			invitationId = invitation.GetRequiredId();
 		}
 
 		await using var verifyContext = await CreateFreshDbContextAsync();
-		var outboxRow = await verifyContext.InvitationEmailOutbox
-			.SingleOrDefaultAsync(o => o.Email == email && o.Token == token);
+		var job = await SingleJobAsync(
+			verifyContext,
+			"email.tenant-invitation.v1",
+			invitationId
+		);
+		job.Should().NotBeNull();
+	}
 
-		outboxRow.Should().NotBeNull();
-		outboxRow!.Kind.Should().Be(InvitationEmailKind.TenantInvitation);
-		outboxRow.TenantName.Should().Be("Durability Test Co");
-		outboxRow.AccountLevel.Should().Be(AccountLevel.Admin);
+	private static async Task<JobQueueItem?> SingleJobAsync(
+		AppDbContext dbContext,
+		string jobType,
+		Guid invitationId
+	) {
+		var jobs = await dbContext.JobQueue
+			.AsNoTracking()
+			.Where(job => job.JobType == jobType)
+			.ToListAsync();
+
+		return jobs
+			.SingleOrDefault(job => PayloadGuid(job.Payload, "invitationId") == invitationId);
+	}
+
+	private static Guid? PayloadGuid(string payload, string property) {
+		using var document = JsonDocument.Parse(payload);
+
+		if (document.RootElement.TryGetProperty(property, out var value)
+			&& value.TryGetGuid(out var guid)) {
+			return guid;
+		}
+
+		return null;
 	}
 
 	private async Task<AppDbContext> CreateFreshDbContextAsync() {

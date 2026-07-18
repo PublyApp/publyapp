@@ -63,6 +63,17 @@ public class InvitationEmailOutbox : BaseAttributes, INoTenantEntity {
 	public Guid? InvitationId { get; set; }
 	public Invitation? Invitation { get; set; }
 
+	// Durable fold-lineage marker (§4.6, R1/R2). Written ONCE, by the fold migration's
+	// CancelFoldedPendingRows step, to the job_queue.id this row was folded into, in the
+	// same statement that marks the row Cancelled. Nothing else ever writes it, so it is a
+	// provenance-safe fact — unlike the free-text LastError the old dispatcher fills and
+	// the cancellation paths preserve. The fold's back-copy excludes rows carrying it
+	// (their outcome is the new job, not a cancellation), and because it lives on the
+	// source row it OUTLIVES the fold job, which is deleted on success before R2's
+	// straggler back-copy. The R1 dispatcher/entity ship unchanged and ignore it.
+	[Column("folded_job_id")]
+	public Guid? FoldedJobId { get; set; }
+
 	[Column("status")]
 	public InvitationEmailOutboxStatus Status { get; set; } = InvitationEmailOutboxStatus.Pending;
 

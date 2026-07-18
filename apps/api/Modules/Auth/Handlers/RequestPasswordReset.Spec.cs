@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 
 using FluentAssertions;
 
@@ -7,9 +8,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
-using PublyApp.Api.Infrastructure.Messaging.Email;
+using PublyApp.Api.Modules.Auth.Jobs;
 using PublyApp.Api.Lib.Routes;
-using PublyApp.Api.Lib.Testing.Fakes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Users.Entities;
@@ -185,11 +185,36 @@ public sealed class RequestPasswordResetSpec
 	[Fact]
 	public async Task
 	ItShouldSendTheResetEmailWithThePersistedTokenForAVerifiedUserOnly() {
-		var fakeEmailSender = _fixture.GetFakeEmailSender();
-		fakeEmailSender.Clear();
-
 		var unverifiedEmail = await CreateUnverifiedUserAsync();
 		var nonExistentEmail = $"nonexistent-{Guid.NewGuid():N}@example.com";
+
+		using var baselineScope = _fixture.Factory.Services.CreateScope();
+		var baselineDbContext = baselineScope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+		var baselineVerifiedUser = await baselineDbContext.User
+			.IgnoreQueryFilters()
+			.FirstAsync(u => u.Email == TestConstants.StaffAdminEmail);
+		var baselineUnverifiedUser = await baselineDbContext.User
+			.IgnoreQueryFilters()
+			.FirstAsync(u => u.Email == unverifiedEmail);
+
+		var baselinePasswordResetJobs = await baselineDbContext.JobQueue.AsNoTracking()
+			.Where(j => j.JobType == AuthEmailJobs.PasswordResetV1.JobType)
+			.ToListAsync();
+
+		var baselineUnverifiedJobs = baselinePasswordResetJobs
+			.Count(j => JobPayloadContainsId(
+				j.Payload,
+				"userId",
+				baselineUnverifiedUser.GetRequiredId()
+			));
+
+		var baselineVerifiedJobs = baselinePasswordResetJobs
+			.Count(j => JobPayloadContainsId(
+				j.Payload,
+				"userId",
+				baselineVerifiedUser.GetRequiredId()
+			));
 
 		using var verifiedResponse = await _http.PostAsJsonAsync(
 			Routes.Auth.RequestPasswordReset,
@@ -209,13 +234,6 @@ public sealed class RequestPasswordResetSpec
 		);
 		nonExistentResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-		var sentEmail = await WaitForSingleEmailAsync(
-			fakeEmailSender,
-			TestConstants.StaffAdminEmail
-		);
-		sentEmail.Should().NotBeNull();
-		Assert.NotNull(sentEmail);
-
 		using var scope = _fixture.Factory.Services.CreateScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
@@ -228,35 +246,47 @@ public sealed class RequestPasswordResetSpec
 		Assert.NotNull(user);
 		user.PasswordResetToken.Should().NotBeNullOrEmpty();
 
-		sentEmail.HtmlBody.Should().Contain(user.PasswordResetToken);
+		var unverifiedUser = await dbContext.User
+			.IgnoreQueryFilters()
+			.FirstOrDefaultAsync(u => u.Email == unverifiedEmail);
+		Assert.NotNull(unverifiedUser);
 
-		// Give any (incorrect) fire-and-forget send for the unverified/
-		// non-existent cases a moment to land before asserting their absence.
-		await Task.Delay(200);
-		fakeEmailSender.SentEmails
-			.Should().NotContain(e => e.To == unverifiedEmail);
-		fakeEmailSender.SentEmails
-			.Should().NotContain(e => e.To == nonExistentEmail);
+		var passwordResetQueueItems = await dbContext.JobQueue.AsNoTracking()
+			.Where(j => j.JobType == AuthEmailJobs.PasswordResetV1.JobType)
+			.ToListAsync();
+
+		var unverifiedJobs = passwordResetQueueItems
+			.Where(j => JobPayloadContainsId(j.Payload, "userId", unverifiedUser!.GetRequiredId()))
+			.ToList();
+		unverifiedJobs.Should().BeEmpty();
+		passwordResetQueueItems
+			.Count(j => JobPayloadContainsId(j.Payload, "userId", unverifiedUser!.GetRequiredId()))
+			.Should().Be(baselineUnverifiedJobs);
+
+		var pendingResetJobs = passwordResetQueueItems.Count(
+			j => JobPayloadContainsId(j.Payload, "userId", user.GetRequiredId())
+		);
+		pendingResetJobs.Should().Be(baselineVerifiedJobs + 1);
 	}
 
-	private static async Task<EmailRequest?> WaitForSingleEmailAsync(
-		FakeEmailSender fakeEmailSender,
-		string email
+	private static bool JobPayloadContainsId(
+		string? payload,
+		string propertyName,
+		Guid id
 	) {
-		const int maxAttempts = 10;
-
-		for (var attempt = 0; attempt < maxAttempts; attempt++) {
-			var sentEmail = fakeEmailSender.SentEmails
-				.SingleOrDefault(x => x.To == email);
-
-			if (sentEmail is not null) {
-				return sentEmail;
-			}
-
-			await Task.Delay(100);
+		if (string.IsNullOrWhiteSpace(payload)) {
+			return false;
 		}
 
-		return null;
+		using var doc = JsonDocument.Parse(payload);
+		var root = doc.RootElement;
+		if (!root.TryGetProperty(propertyName, out var token)
+			|| token.ValueKind is not JsonValueKind.String) {
+			return false;
+		}
+
+		var tokenValue = token.GetString();
+		return tokenValue == id.ToString();
 	}
 
 	// round-6 F5: repeated requests must not rotate a token that is still
