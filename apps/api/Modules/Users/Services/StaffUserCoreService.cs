@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Modules.Users.Entities;
@@ -174,8 +175,12 @@ public class StaffUserCoreService : IStaffUserCoreService {
 			if (_logger.IsEnabled(LogLevel.Error)) {
 				_logger.LogError(exception, "Failed to update staff member {UserId}", userId);
 			}
+			// Never carry the raw exception message off this boundary (finding F3): the
+			// handler logs ErrorMessage as a template property with NO LogEvent.Exception,
+			// which the sanitizing sink cannot recognize as exception-derived. Describe
+			// yields the safe type + redacted, length-bounded message instead.
 			return new UpdateUserByIdResult.UpdateFailed(
-				exception.Message
+				JobErrorSanitizer.Describe(exception)
 			);
 		}
 	}

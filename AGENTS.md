@@ -32,8 +32,8 @@ just dev-db
 
 The API reads configuration exclusively from environment variables via `AppEnvironment` (`apps/api/Lib/AppEnvironment.cs`).
 
-- Development defaults live in repo-root `.env.development` and are loaded when the host environment is `Development`.
-- `dotnet build` also runs the app during OpenAPI document generation; if `ASPNETCORE_ENVIRONMENT`/`DOTNET_ENVIRONMENT` are unset, `.env.development` is loaded to prevent build failures.
+- Development defaults live in repo-root `.env.development` and are loaded when the host environment is `Development` (and, for config values only, when it is unset).
+- `dotnet build` runs the app during OpenAPI document generation. When `ASPNETCORE_ENVIRONMENT`/`DOTNET_ENVIRONMENT` are unset, the host environment resolves to **Production**, where `APP_ROLE` is required and a missing value fails fast — loading `.env.development` supplies config values but does **not** change that classification. So a bare `dotnet build` requires `APP_ROLE=api`; always build through the pinned `just` recipes (`just build-api`, `just generate-client`, `just db-*`), which export `APP_ROLE=api`.
 - Prefer keeping secrets out of the repo: use an example file (e.g. `.env.development.example`) + local overrides / CI secrets.
 
 ### Building

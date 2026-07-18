@@ -81,6 +81,11 @@ services:
       - ASPNETCORE_ENVIRONMENT=Production
       - DOTNET_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:5000
+      # Migration/model creation is an API-role tooling path, never an implicit `all` or
+      # worker host (design §3.1 item 5, R4-4). Under a production-like environment a
+      # missing APP_ROLE is a fail-fast startup error, so this pin is required, not
+      # cosmetic. The Dockerfile's `migrate` stage pins it too, as a backstop.
+      - APP_ROLE=api
       - POSTGRES_CONNECTION_STRING=Host=publyapp-postgres-staging;Port=5432;Database=<staging-postgres-db>;Username=<staging-postgres-user>;Password=<staging-postgres-password>;
       - FRONT_URL=https://front-2.staging.publyapp.com
       - RESEND_API_KEY=<set-in-dokploy>
@@ -118,6 +123,11 @@ services:
       - ASPNETCORE_ENVIRONMENT=Production
       - DOTNET_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:5000
+      # This container serves ONLY the HTTP surface; it must register no job
+      # hosted-services (design §3.2, D1). A missing APP_ROLE is a fail-fast startup
+      # error under a production-like environment (§3.1, C6/F24) — `all` is never
+      # inherited by omission.
+      - APP_ROLE=api
       - POSTGRES_CONNECTION_STRING=Host=publyapp-postgres-staging;Port=5432;Database=<staging-postgres-db>;Username=<staging-postgres-user>;Password=<staging-postgres-password>;
       - FRONT_URL=https://front-2.staging.publyapp.com
       - RESEND_API_KEY=<set-in-dokploy>
@@ -289,6 +299,9 @@ In Dokploy/container form, use `publyapp-api-staging-migrate`, the API Dockerfil
 
 - `ASPNETCORE_ENVIRONMENT=Production`
 - `DOTNET_ENVIRONMENT=Production`
+- `APP_ROLE=api` — required (design §3.1 item 5, R4-4): the migration job builds the
+  app's host, and under a production-like environment a missing `APP_ROLE` fails startup
+  by design rather than silently composing the job engine into a migration process
 - `POSTGRES_CONNECTION_STRING=Host=publyapp-postgres-staging;Port=5432;Database=<staging-postgres-db>;Username=<staging-postgres-user>;Password=<staging-postgres-password>;`
 - the same required API env-var names used by `publyapp-api-staging`
 

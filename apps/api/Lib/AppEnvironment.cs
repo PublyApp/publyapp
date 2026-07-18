@@ -60,6 +60,71 @@ public class AppEnvironment {
 	public string FILE_STORAGE_ROOT { get; }
 	public int UPLOAD_MAX_BYTES { get; }
 
+	// ========== Hosting role + worker tuning (design §3.1) ==========
+	// APP_ROLE picks the composition root. It is optional ONLY in the Development and
+	// Testing host environments, where it defaults to AppRole.All (both HTTP surface and
+	// job engine) so local dev and the worker integration fixtures need no extra config.
+	//
+	// In EVERY other host environment — Production, Staging, or an unset
+	// ASPNETCORE_ENVIRONMENT/DOTNET_ENVIRONMENT, which GetHostEnvironmentName resolves to
+	// Production — a missing or blank APP_ROLE is a fail-fast startup error (C6/F24).
+	// `All` composes the job engine into the process, so inheriting it by omission would
+	// silently run the worker surface inside a container an operator intended as
+	// API-only, double-claiming queue rows against the real worker. `All` is therefore
+	// only ever an explicit local-dev or fixture choice, never a production fallback.
+	//
+	// Consequence for tooling: every non-dev entrypoint that boots the app must pin
+	// APP_ROLE explicitly — including `dotnet build` (it runs the app to emit the OpenAPI
+	// document) and the Dockerfile's migrate stage. See the enumerated list in §3.1.
+	public AppRole Role { get; }
+
+	// Rows a JobQueueProcessor tick claims (matches the shipped outbox BatchSize).
+	public int JOB_QUEUE_BATCH_SIZE { get; }
+	// Fallback poll interval for the processor loop, in seconds.
+	public int JOB_QUEUE_POLL_SECONDS { get; }
+	// Claim lease / renewal target / stale-reclaim cutoff, in seconds.
+	public int JOB_LEASE_SECONDS { get; }
+	// Max continuous drain per wake before the processor yields one loop iteration
+	// (design §3.1, F10; consumed by 2A-R's drain loop).
+	public int JOB_QUEUE_DRAIN_BUDGET_SECONDS { get; }
+	// Retention sweep window for email_log rows (design §3.1, F20/O7; consumed by the
+	// Phase-3 retention system jobs).
+	public int EMAIL_LOG_RETENTION_DAYS { get; }
+	// Retention sweep window for job_dead_letter rows (design §3.1, F20/O7).
+	public int JOB_DEAD_LETTER_RETENTION_DAYS { get; }
+	// Sensitive prepared-byte lifetime and email-DLQ requeue window, in days
+	// (design §3.1/§4.2/§4.5/§7.3, O7/O16/R2-11/R4-3).
+	public int EMAIL_PREPARED_SEND_RETENTION_DAYS { get; }
+	// OBSERVABILITY THRESHOLD ONLY, not a deletion guarantee (design §3.1/§7.2, R10-2):
+	// the overdue age at which jobs.prepared_state.sweep_overdue warns. Nothing deletes
+	// bytes because this elapses — it exists so the gap between *eligible* and *deleted*
+	// is visible and alertable.
+	public int EMAIL_PREPARED_SWEEP_MAX_LAG_MINUTES { get; }
+	// Prune window for the system_job_occurrences ledger, in days
+	// (design §3.1/§4.3/§7.3, O9).
+	public int SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS { get; }
+	// Prune window for job_alert_delivery_leases audit rows, in days
+	// (design §3.1/§7.2/§7.3, O7/R5-3).
+	public int JOB_ALERT_LEASE_RETENTION_DAYS { get; }
+	// Exact job_type strings tolerated as historical orphans in job_dead_letter ONLY
+	// (design §3.1/§5.4, R2-9): DLQ rows whose handler is legitimately retired and which
+	// will never be requeued. It is NOT a global bypass — an unregistered job_type in
+	// job_queue is never tolerated, and wildcards are rejected (the validator enforces
+	// exact types). Empty by default; the startup gate audit-logs each entry at boot.
+	public IReadOnlyList<string> JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST { get; }
+
+	// Maps the HTTP request surface (endpoints + middleware). Computed the same way
+	// as the IsDevelopment accessors: `api` and `all` serve HTTP, `worker` does not.
+	public bool IsApiRole {
+		get { return Role is AppRole.Api or AppRole.All; }
+	}
+
+	// Runs the worker-only job hosted-services. `worker` and `all` run the engine,
+	// `api` does not.
+	public bool IsWorkerRole {
+		get { return Role is AppRole.Worker or AppRole.All; }
+	}
+
 	// ========== Constants (hardcoded, not from environment) ==========
 #pragma warning disable CA1822
 	public int PAGINATION_DEFAULT_LIMIT {
@@ -175,7 +240,19 @@ public class AppEnvironment {
 		int tenantUserExportMaxRows,
 		int tenantActivityThrottleMinutes,
 		string fileStorageRoot,
-		int uploadMaxBytes
+		int uploadMaxBytes,
+		AppRole role,
+		int jobQueueBatchSize,
+		int jobQueuePollSeconds,
+		int jobLeaseSeconds,
+		int jobQueueDrainBudgetSeconds,
+		int emailLogRetentionDays,
+		int jobDeadLetterRetentionDays,
+		int emailPreparedSendRetentionDays,
+		int emailPreparedSweepMaxLagMinutes,
+		int systemJobOccurrenceRetentionDays,
+		int jobAlertLeaseRetentionDays,
+		IReadOnlyList<string> jobRegistryDlqOrphanAllowlist
 	) {
 		POSTGRES_CONNECTION_STRING = postgresConnectionString;
 		FRONT_URL = frontUrl;
@@ -201,6 +278,18 @@ public class AppEnvironment {
 		TENANT_ACTIVITY_THROTTLE_MINUTES = tenantActivityThrottleMinutes;
 		FILE_STORAGE_ROOT = fileStorageRoot;
 		UPLOAD_MAX_BYTES = uploadMaxBytes;
+		Role = role;
+		JOB_QUEUE_BATCH_SIZE = jobQueueBatchSize;
+		JOB_QUEUE_POLL_SECONDS = jobQueuePollSeconds;
+		JOB_LEASE_SECONDS = jobLeaseSeconds;
+		JOB_QUEUE_DRAIN_BUDGET_SECONDS = jobQueueDrainBudgetSeconds;
+		EMAIL_LOG_RETENTION_DAYS = emailLogRetentionDays;
+		JOB_DEAD_LETTER_RETENTION_DAYS = jobDeadLetterRetentionDays;
+		EMAIL_PREPARED_SEND_RETENTION_DAYS = emailPreparedSendRetentionDays;
+		EMAIL_PREPARED_SWEEP_MAX_LAG_MINUTES = emailPreparedSweepMaxLagMinutes;
+		SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS = systemJobOccurrenceRetentionDays;
+		JOB_ALERT_LEASE_RETENTION_DAYS = jobAlertLeaseRetentionDays;
+		JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST = jobRegistryDlqOrphanAllowlist;
 	}
 
 	/// <summary>
@@ -257,7 +346,31 @@ public class AppEnvironment {
 				// `dotnet test` (CWD = test output dir), and the published container (CWD = /app),
 				// with no repo-root lookup needed.
 				fileStorageRoot: GetOptionalString(nameof(FILE_STORAGE_ROOT), ".artifacts/storage"),
-				uploadMaxBytes: GetOptionalInt(nameof(UPLOAD_MAX_BYTES), 2_000_000)
+				uploadMaxBytes: GetOptionalInt(nameof(UPLOAD_MAX_BYTES), 2_000_000),
+				// Fail-fast here (same InvalidOperationException path the other vars use),
+				// before the validator runs — neither an unparseable role nor an absent one
+				// outside Development/Testing can produce an enum value to range-check
+				// (design §3.1, C6/F24). The `All` argument is the DEV/TEST-ONLY default;
+				// GetOptionalAppRole applies it only in those environments.
+				role: GetOptionalAppRole(AppRoleVariableName, AppRole.All),
+				jobQueueBatchSize: GetOptionalInt(nameof(JOB_QUEUE_BATCH_SIZE), 20),
+				jobQueuePollSeconds: GetOptionalInt(nameof(JOB_QUEUE_POLL_SECONDS), 5),
+				jobLeaseSeconds: GetOptionalInt(nameof(JOB_LEASE_SECONDS), 300),
+				jobQueueDrainBudgetSeconds: GetOptionalInt(
+					nameof(JOB_QUEUE_DRAIN_BUDGET_SECONDS), 60),
+				emailLogRetentionDays: GetOptionalInt(nameof(EMAIL_LOG_RETENTION_DAYS), 180),
+				jobDeadLetterRetentionDays: GetOptionalInt(
+					nameof(JOB_DEAD_LETTER_RETENTION_DAYS), 90),
+				emailPreparedSendRetentionDays: GetOptionalInt(
+					nameof(EMAIL_PREPARED_SEND_RETENTION_DAYS), 7),
+				emailPreparedSweepMaxLagMinutes: GetOptionalInt(
+					nameof(EMAIL_PREPARED_SWEEP_MAX_LAG_MINUTES), 60),
+				systemJobOccurrenceRetentionDays: GetOptionalInt(
+					nameof(SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS), 30),
+				jobAlertLeaseRetentionDays: GetOptionalInt(
+					nameof(JOB_ALERT_LEASE_RETENTION_DAYS), 30),
+				jobRegistryDlqOrphanAllowlist: GetOptionalCsvList(
+					nameof(JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST))
 			);
 
 			var validator = new AppEnvironmentValidator();
@@ -339,6 +452,83 @@ public class AppEnvironment {
 		return result;
 	}
 
+	// The Role property is named for its use, not its variable, so the env-var name is a
+	// constant rather than a nameof().
+	internal const string AppRoleVariableName = "APP_ROLE";
+
+	// The ONLY environments where an absent APP_ROLE may fall back to `All` (design §3.1,
+	// C6/F24). Note an unset ASPNETCORE_ENVIRONMENT resolves to Production (see
+	// GetHostEnvironmentName), so it is correctly NOT covered here — the build-time
+	// OpenAPI path runs with the host environment unset and must pin APP_ROLE=api.
+	internal static bool IsAppRoleDefaultAllowed {
+		get { return IsDevelopment || IsTesting; }
+	}
+
+	// Whether APP_ROLE was explicitly provided. Backs the validator's defense-in-depth
+	// rule mirroring GetOptionalAppRole's fail-fast.
+	internal static bool IsAppRoleExplicitlySet {
+		get {
+			return !string.IsNullOrWhiteSpace(
+				Environment.GetEnvironmentVariable(AppRoleVariableName)
+			);
+		}
+	}
+
+	// Case-insensitive APP_ROLE parse via an explicit map (never ToLower() — PUBLY0003).
+	// The map is the whole accepted set; anything else fails fast.
+	private static readonly IReadOnlyDictionary<string, AppRole> AppRoleMap =
+		new Dictionary<string, AppRole>(StringComparer.OrdinalIgnoreCase) {
+			["api"] = AppRole.Api,
+			["worker"] = AppRole.Worker,
+			["all"] = AppRole.All,
+		};
+
+	// Environment-gated (design §3.1, C6/F24): <paramref name="defaultValue"/> is applied
+	// ONLY under Development/Testing. Everywhere else a missing/blank APP_ROLE is invalid
+	// and fails fast on the same InvalidOperationException path GetRequiredString uses, so
+	// `All` — which composes the job engine — can never leak into a production-like
+	// process by omission.
+	private static AppRole GetOptionalAppRole(string name, AppRole defaultValue) {
+		var value = Environment.GetEnvironmentVariable(name);
+		if (string.IsNullOrWhiteSpace(value)) {
+			if (IsAppRoleDefaultAllowed) {
+				return defaultValue;
+			}
+
+			throw new InvalidOperationException(
+				$"Environment variable '{name}' is not set. It is REQUIRED in the "
+				+ $"'{GetHostEnvironmentName()}' environment and must be one of 'api', "
+				+ "'worker', or 'all' (case-insensitive). It defaults to 'all' only in the "
+				+ $"'{EnvironmentNames.Development}' and '{EnvironmentNames.Testing}' "
+				+ "environments: 'all' composes the job engine into the process, so it must "
+				+ "never be inherited by omission by a process intended as API-only. Pin it "
+				+ "explicitly (APP_ROLE=api for HTTP/migration/tooling hosts, "
+				+ "APP_ROLE=worker for the job engine).");
+		}
+
+		if (AppRoleMap.TryGetValue(value.Trim(), out var role)) {
+			return role;
+		}
+
+		throw new InvalidOperationException(
+			$"Environment variable '{name}' must be one of 'api', 'worker', or 'all' "
+			+ $"(case-insensitive), got '{value.Trim()}'");
+	}
+
+	// Splits an optional CSV env var into trimmed, non-empty entries, preserving order
+	// and dropping duplicates. Absent/blank yields an empty list.
+	private static IReadOnlyList<string> GetOptionalCsvList(string name) {
+		var value = Environment.GetEnvironmentVariable(name);
+		if (string.IsNullOrWhiteSpace(value)) {
+			return [];
+		}
+
+		return value
+			.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+			.Distinct(StringComparer.Ordinal)
+			.ToList();
+	}
+
 	private static string GetHostEnvironmentName() {
 		return Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
 		?? Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")
@@ -358,14 +548,22 @@ public class AppEnvironment {
 		//    - The `Microsoft.Extensions.ApiDescription.Server` MSBuild target runs `dotnet-getdocument`,
 		//      which executes the app to discover endpoints and generate OpenAPI.
 		//    - That tool invocation frequently does NOT set `ASPNETCORE_ENVIRONMENT`/`DOTNET_ENVIRONMENT`.
-		//    - If we only loaded `.env.development` when the environment is explicitly Development,
-		//      `dotnet build` would fail because the app is executed without the required env vars.
+		//    - Loading `.env.development` supplies the required CONFIG values (connection string, etc.)
+		//      so the app can boot far enough to emit the document.
+		//
+		// IMPORTANT (APP_ROLE, design §3.1): loading `.env.development` does NOT change
+		// `GetHostEnvironmentName()`. An unset host environment is still classified as Production,
+		// where APP_ROLE is REQUIRED and a missing value fails fast in `GetOptionalAppRole`. So this
+		// method does NOT make bare `dotnet build` work on its own — the build additionally needs
+		// APP_ROLE=api. Repo builds must use the pinned `just` recipes (build-api, generate-client,
+		// db-*), which export APP_ROLE=api; that is the sanctioned path, not a bare `dotnet build`.
 		//
 		// Design choice:
 		// - If the host environment is explicitly set (Production/Staging/etc), we DO NOT load `.env.development`.
 		// - If the host environment is explicitly "Development", we DO load `.env.development`.
 		// - If the host environment is UNSET (neither ASPNETCORE_ENVIRONMENT nor DOTNET_ENVIRONMENT is set),
-		//   we also load `.env.development` to keep build-time OpenAPI generation working.
+		//   we also load `.env.development` to supply config values for build-time OpenAPI generation
+		//   (which still requires APP_ROLE=api to be pinned — see above).
 		//
 		// Security/safety note:
 		// - We intentionally do NOT mutate `ASPNETCORE_ENVIRONMENT` here. Changing the host environment
@@ -505,6 +703,79 @@ public class AppEnvironmentValidator : AbstractValidator<AppEnvironment> {
 		RuleFor(x => x.UPLOAD_MAX_BYTES)
 			.InclusiveBetween(1, 100_000_000)
 			.WithMessage("UPLOAD_MAX_BYTES must be between 1 and 100000000");
+
+		// APP_ROLE is already parsed to a defined enum by GetOptionalAppRole (which
+		// fails fast on any other string); this rule is defense-in-depth against an
+		// undefined enum value ever reaching startup.
+		RuleFor(x => x.Role)
+			.IsInEnum().WithMessage("APP_ROLE must be a valid hosting role (api/worker/all)");
+
+		// Environment-gated default (design §3.1, C6/F24). Defense in depth mirroring
+		// GetOptionalAppRole's fail-fast: outside Development/Testing, a role that was
+		// never set must not boot. `All` composes the job engine, so a process that
+		// inherited it by omission would run the worker surface — and double-claim queue
+		// rows — inside a container an operator intended as API-only.
+		RuleFor(x => x.Role)
+			.Must(_ => AppEnvironment.IsAppRoleExplicitlySet)
+			.When(_ => !AppEnvironment.IsAppRoleDefaultAllowed)
+			.WithMessage(
+				$"{AppEnvironment.AppRoleVariableName} must be set explicitly "
+				+ "(api/worker/all) outside the Development and Testing environments; "
+				+ "'all' is never an implicit default");
+
+		RuleFor(x => x.JOB_QUEUE_BATCH_SIZE)
+			.InclusiveBetween(1, 1_000)
+			.WithMessage("JOB_QUEUE_BATCH_SIZE must be between 1 and 1000");
+
+		RuleFor(x => x.JOB_QUEUE_POLL_SECONDS)
+			.InclusiveBetween(1, 3_600)
+			.WithMessage("JOB_QUEUE_POLL_SECONDS must be between 1 and 3600");
+
+		// Hard 10-second floor (design §3.1, R3-4/O12), NOT 1: the engine reserves a
+		// 2-second minimum safety margin before lease expiry and must still fit at least
+		// one bounded renewal retry inside the remainder. A 1-second lease leaves no room
+		// for either, so sub-10s leases are rejected at startup rather than pretending to
+		// be supportable.
+		RuleFor(x => x.JOB_LEASE_SECONDS)
+			.InclusiveBetween(10, 86_400)
+			.WithMessage("JOB_LEASE_SECONDS must be between 10 and 86400");
+
+		RuleFor(x => x.JOB_QUEUE_DRAIN_BUDGET_SECONDS)
+			.InclusiveBetween(1, 3_600)
+			.WithMessage("JOB_QUEUE_DRAIN_BUDGET_SECONDS must be between 1 and 3600");
+
+		RuleFor(x => x.EMAIL_LOG_RETENTION_DAYS)
+			.InclusiveBetween(1, 3_650)
+			.WithMessage("EMAIL_LOG_RETENTION_DAYS must be between 1 and 3650");
+
+		RuleFor(x => x.JOB_DEAD_LETTER_RETENTION_DAYS)
+			.InclusiveBetween(1, 3_650)
+			.WithMessage("JOB_DEAD_LETTER_RETENTION_DAYS must be between 1 and 3650");
+
+		RuleFor(x => x.EMAIL_PREPARED_SEND_RETENTION_DAYS)
+			.InclusiveBetween(1, 3_650)
+			.WithMessage("EMAIL_PREPARED_SEND_RETENTION_DAYS must be between 1 and 3650");
+
+		RuleFor(x => x.EMAIL_PREPARED_SWEEP_MAX_LAG_MINUTES)
+			.InclusiveBetween(1, 525_600)
+			.WithMessage("EMAIL_PREPARED_SWEEP_MAX_LAG_MINUTES must be between 1 and 525600");
+
+		RuleFor(x => x.SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS)
+			.InclusiveBetween(1, 3_650)
+			.WithMessage("SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS must be between 1 and 3650");
+
+		RuleFor(x => x.JOB_ALERT_LEASE_RETENTION_DAYS)
+			.InclusiveBetween(1, 3_650)
+			.WithMessage("JOB_ALERT_LEASE_RETENTION_DAYS must be between 1 and 3650");
+
+		// Exact job_type strings only (design §3.1/§5.4, R2-9). A wildcard would turn an
+		// audited, per-type escape for retired DLQ handlers into the global bypass the
+		// design explicitly refuses, so any pattern metacharacter is rejected at startup.
+		RuleForEach(x => x.JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST)
+			.Must(entry => entry.IndexOfAny(['*', '?', '%']) < 0)
+			.WithMessage(
+				"JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST entries must be exact job_type strings; "
+				+ "wildcards ('*', '?', '%') are not allowed");
 
 		RuleFor(x => x.SESSION_TOKEN_HEADER_KEY)
 			.Must(BeValidHeaderName)

@@ -29,6 +29,11 @@ public static partial class JobErrorSanitizer {
 	/// </summary>
 	public const int MaxStackFrames = 16;
 
+	// Bound on how many exceptions deep an InnerException chain is walked for the
+	// structured (frame-list) projection below — enough to locate a fault without a
+	// pathological chain flooding a sink.
+	private const int MaxExceptionChainDepth = 5;
+
 	[GeneratedRegex(@"[\w.+-]+@[\w-]+(\.[\w-]+)+")]
 	private static partial Regex EmailPattern();
 
@@ -115,5 +120,62 @@ public static partial class JobErrorSanitizer {
 		}
 
 		return (Describe(exception), DescribeStack(exception));
+	}
+
+	/// <summary>
+	/// Safe stack metadata as a structured frame list (design §5.1, R2-8) for
+	/// consumers that need discrete entries rather than <see cref="DescribeStack"/>'s
+	/// joined string — currently <c>SanitizingLogEventSink</c> (2B), which projects
+	/// each frame into its own Serilog sequence element rather than one flattened
+	/// property. Walks the InnerException chain (bounded by
+	/// <see cref="MaxExceptionChainDepth"/>) so a wrapped exception's own frames are
+	/// not lost, prefixing each inner exception's frames with a marker naming its
+	/// type. Frames describe code locations only — never a payload value — which is
+	/// exactly why they survive the boundary that drops the message.
+	/// </summary>
+	public static IReadOnlyList<string> DescribeStackFrames(Exception? exception) {
+		var described = new List<string>();
+		var current = exception;
+		var depth = 0;
+
+		while (current is not null
+			&& depth < MaxExceptionChainDepth
+			&& described.Count < MaxStackFrames) {
+			if (depth > 0) {
+				described.Add($"--- inner {current.GetType().FullName} ---");
+			}
+
+			foreach (var frame in new StackTrace(current, fNeedFileInfo: true).GetFrames()) {
+				if (described.Count >= MaxStackFrames) {
+					break;
+				}
+
+				var describedFrame = DescribeFrame(frame);
+				if (describedFrame is not null) {
+					described.Add(describedFrame);
+				}
+			}
+
+			current = current.InnerException;
+			depth++;
+		}
+
+		return described;
+	}
+
+	private static string? DescribeFrame(StackFrame frame) {
+		var method = frame.GetMethod();
+		if (method is null) {
+			return null;
+		}
+
+		var typeName = method.DeclaringType?.FullName ?? "(unknown type)";
+		var fileName = frame.GetFileName();
+
+		if (string.IsNullOrEmpty(fileName)) {
+			return $"{typeName}.{method.Name}";
+		}
+
+		return $"{typeName}.{method.Name} at {fileName}:{frame.GetFileLineNumber()}";
 	}
 }
