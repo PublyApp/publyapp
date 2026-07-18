@@ -12,7 +12,7 @@ namespace PublyApp.Api.Modules.Auth.Entities;
 
 [Table("sessions")]
 [Index(nameof(Token), IsUnique = true)]
-[Index(nameof(ExpiresAt))]
+[Index(nameof(ExpiresAt), nameof(Id), Name = "ix_sessions_expires_at_id")]
 public class Session : INoTenantEntity {
 	private UserEntity? _user;
 
