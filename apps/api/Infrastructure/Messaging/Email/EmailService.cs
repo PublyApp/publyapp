@@ -1,7 +1,7 @@
 using PublyApp.Api.Lib;
-using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Users.Entities;
 
+using PublyApp.Api.Modules.Auth.Utils;
 namespace PublyApp.Api.Infrastructure.Messaging.Email;
 
 public interface IEmailService {
@@ -47,20 +47,7 @@ public class EmailService : IEmailService {
 
 	// used when a staff member is created and user is new, hence needs to verify email
 	public async Task<EmailSendReceipt> SendStaffWelcomeEmailAsync(string email, string token) {
-		var env = AppEnvironment.Instance;
-		var verificationUrl = AuthUtils.CreateVerificationUrl(token, email);
-		return await _emailSender.SendAsync(new EmailRequest {
-			To = email,
-			From = $"{env.DEFAULT_EMAIL_SENDER_NAME} <{env.DEFAULT_EMAIL_SENDER_EMAIL}>",
-			Subject = $"Welcome to {env.APP_NAME}",
-			HtmlBody = $"""
-				You have been added as a staff member to {env.APP_NAME}.
-				<br />
-				Please verify your email by clicking the link below:
-				<br />
-				{CreateHtmlLink(verificationUrl, "Verify your email")}
-				"""
-		});
+		return await _emailSender.SendAsync(EmailTemplates.EmailVerificationWelcome(email, token));
 	}
 
 	// Used when a staff membership is added to an existing user, so verification is
@@ -82,38 +69,12 @@ public class EmailService : IEmailService {
 
 	// used when a user is created and needs to verify email
 	public async Task<EmailSendReceipt> SendWelComeEmailAsync(string email, string token) {
-		var env = AppEnvironment.Instance;
-		var verificationUrl = AuthUtils.CreateVerificationUrl(token, email);
-		return await _emailSender.SendAsync(new EmailRequest {
-			To = email,
-			From = $"{env.DEFAULT_EMAIL_SENDER_NAME} <{env.DEFAULT_EMAIL_SENDER_EMAIL}>",
-			Subject = $"Welcome to {env.APP_NAME}",
-			HtmlBody = $"""
-				Welcome to {env.APP_NAME}!
-				<br />
-				Please verify your email by clicking the link below:
-				<br />
-				{CreateHtmlLink(verificationUrl, "Verify your email")}
-				"""
-		});
+		return await _emailSender.SendAsync(EmailTemplates.EmailVerificationWelcome(email, token));
 	}
 
 	// used when a user requests to verify his/her email
 	public async Task<EmailSendReceipt> SendEmailVerificationRequestAsync(string email, string token) {
-		var env = AppEnvironment.Instance;
-		var verificationUrl = AuthUtils.CreateVerificationUrl(token, email);
-		return await _emailSender.SendAsync(new EmailRequest {
-			To = email,
-			From = $"{env.DEFAULT_EMAIL_SENDER_NAME} <{env.DEFAULT_EMAIL_SENDER_EMAIL}>",
-			Subject = $"Your email verification request",
-			HtmlBody = $"""
-				You have requested to verify your email address.
-				<br />
-				Please verify your email by clicking the link below:
-				<br />
-				{CreateHtmlLink(verificationUrl, "Verify your email")}
-				"""
-		});
+		return await _emailSender.SendAsync(EmailTemplates.EmailVerificationRequest(email, token));
 	}
 
 	// used when a user's email is verified following the verification process

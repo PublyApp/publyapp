@@ -142,16 +142,24 @@ public sealed class ResetPassword {
 
 		await userService.UpdateUserAsync(user, cancellationToken);
 
-		// Send email asynchronously with proper error handling
-		// We don't await this because we want to return the response immediately
-		_ = emailService.SendPasswordResetNotificationEmailAsync(user.Email)
-			.ContinueWith(t => {
-				if (t.Exception is not null) {
+		// Best-effort notification: best-effort and non-request-scoped to avoid
+		// cancellations caused by request completion.
+		_ = Task.Run(
+			async () => {
+				try {
+					await emailService.SendPasswordResetNotificationEmailAsync(user.Email);
+				} catch (Exception ex) {
 					if (logger.IsEnabled(LogLevel.Error)) {
-						logger.LogError(t.Exception, "Error sending password reset notification email to {Email}", user.Email);
+						logger.LogError(
+							ex,
+							"Error sending password reset notification email to {Email}",
+							user.Email
+						);
 					}
 				}
-			}, cancellationToken);
+			},
+			CancellationToken.None
+		);
 
 		return TypedResults.Ok(new ResetPasswordResult {
 			Status = "success"

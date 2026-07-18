@@ -5,14 +5,11 @@ using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-using PublyApp.Api.Infrastructure.Messaging.Email;
-using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.ProblemResults;
-using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Localization;
-using PublyApp.Api.Modules.Users.Services;
+using PublyApp.Api.Modules.Auth.Services;
 
 namespace PublyApp.Api.Modules.Auth.Handlers;
 
@@ -45,70 +42,35 @@ public sealed class VerifyEmailRequest {
 		>
 	> Handle(
 		[FromBody] VerifyEmailRequestBody body,
-		[FromServices] IUserService userService,
-		[FromServices] IEmailService emailService,
-		[FromServices] ILogger<VerifyEmailRequest> logger,
+		[FromServices] IVerifyEmailRequestService verifyEmailRequestService,
 		CancellationToken cancellationToken
 	) {
-		var env = AppEnvironment.Instance;
-
-		// check if user exists
-		var user = await userService.GetUserByEmailAsync(
-			body.GetEmail(), cancellationToken
+		var result = await verifyEmailRequestService.RequestAsync(
+			body.GetEmail(),
+			cancellationToken
 		);
 
-		if (user is null) {
+		if (result is VerifyEmailRequestServiceResult.NotFound) {
 			return TypedProblems.NotFound(
 				"User not found",
 				ResponseKeys.NotFound
 			);
 		}
 
-		if (user.IsVerified) {
-			return TypedProblems.BadRequest("Email already verified", ResponseKeys.EmailAlreadyVerified);
+		if (result is VerifyEmailRequestServiceResult.EmailAlreadyVerified) {
+			return TypedProblems.BadRequest(
+				"Email already verified",
+				ResponseKeys.EmailAlreadyVerified
+			);
 		}
 
-		var userEmail = user.Email;
-
-		// if the token is still valid, reuse it and send email
-		if (
-			!string.IsNullOrEmpty(user.EmailVerifyToken)
-			&& (DateTime.UtcNow < (user.EmailVerifyTokenExpiresAt ?? DateTime.MinValue))
-		) {
-			// Send email asynchronously with proper error handling
-			// We don't await this because we want to return the response immediately
-			_ = emailService.SendEmailVerificationRequestAsync(userEmail, user.EmailVerifyToken)
-				.ContinueWith(t => {
-					if (t.Exception is not null) {
-						if (logger.IsEnabled(LogLevel.Error)) {
-							logger.LogError(t.Exception, "Error sending verification email to {Email}", userEmail);
-						}
-					}
-				}, cancellationToken);
-
+		if (result is VerifyEmailRequestServiceResult.Success) {
 			return TypedResults.Ok(new VerifyEmailRequestResult());
 		}
 
-		var emailVerifyToken = CryptoUtils.RandomString(env.EMAIL_VERIFY_TOKEN_LENGTH);
-		var emailVerifyTokenExpiresAt = DateTime.UtcNow.AddDays(env.EMAIL_VERIFY_TOKEN_VALIDITY_DURATION);
-
-		user.IsVerified = false;
-		user.EmailVerifyToken = emailVerifyToken;
-		user.EmailVerifyTokenExpiresAt = emailVerifyTokenExpiresAt;
-
-		await userService.UpdateUserAsync(user, cancellationToken);
-
-		// Send email asynchronously with proper error handling
-		// We don't await this because we want to return the response immediately
-		_ = emailService.SendEmailVerificationRequestAsync(userEmail, user.EmailVerifyToken)
-			.ContinueWith(t => {
-				if (t.Exception is not null) {
-					if (logger.IsEnabled(LogLevel.Error)) {
-						logger.LogError(t.Exception, "Error sending verification email to {Email}", userEmail);
-					}
-				}
-			}, cancellationToken);
-
-		return TypedResults.Ok(new VerifyEmailRequestResult());
+		return TypedProblems.BadRequest(
+			"Failed to request email verification",
+			ResponseKeys.BadRequest
+		);
 	}
 }

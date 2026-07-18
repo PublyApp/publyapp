@@ -1,7 +1,8 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-using PublyApp.Api.Infrastructure.Messaging.Email;
+using PublyApp.Api.Infrastructure.Jobs;
+using PublyApp.Api.Modules.Invitations.Jobs;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Localization;
@@ -17,7 +18,7 @@ public sealed class ResendStaffInvitation {
 	>> Handle(
 		[FromRoute] string invitationId,
 		[FromServices] IInvitationQueryService invitationQueryService,
-		[FromServices] IEmailService emailService,
+		[FromServices] IJobEnqueuer jobEnqueuer,
 		CancellationToken cancellationToken = default
 	) {
 		if (!Guid.TryParse(invitationId, out var invitationIdGuid)) {
@@ -41,8 +42,11 @@ public sealed class ResendStaffInvitation {
 			return TypedProblems.BadRequest("Invitation is not pending", ResponseKeys.BadRequest);
 		}
 
-		// Send email using existing invitation token (no rotation).
-		await emailService.SendInvitationToJoinStaffEmailAsync(invitation.Email, invitation.Token);
+		await jobEnqueuer.EnqueueAsync(
+			InvitationEmailJobs.StaffInvitationV1,
+			new StaffInvitationEmailPayload { InvitationId = invitation.GetRequiredId() },
+			cancellationToken: cancellationToken
+		);
 
 		return TypedResults.Ok(
 			ApiResponse.Create(

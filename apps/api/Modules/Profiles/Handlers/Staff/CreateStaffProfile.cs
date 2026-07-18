@@ -253,9 +253,9 @@ public sealed class CreateStaffProfile {
 				emailService,
 				logger,
 				success.EmailsToNotify,
-				cancellationToken
+				CancellationToken.None
 			);
-		}, cancellationToken);
+		}, CancellationToken.None);
 
 		// Audit log - profile created
 		await auditLogService.LogAsync(
