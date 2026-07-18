@@ -83,6 +83,7 @@ just test-api          # Run API integration tests (requires Docker)
 
 ```bash
 just ci                # Mirror of CI (no e2e) + the full API suite — run before pushing
+just ci-migration-expand-contract # New migration safety gate for expand/contract DB rollout
 just ci-full           # just ci + both e2e suites
 ```
 

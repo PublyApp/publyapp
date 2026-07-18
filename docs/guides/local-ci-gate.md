@@ -19,6 +19,7 @@ resets and stays under budget, **this gate is the pre-merge net** — see issue 
 | front-2-spike build | yes | yes |
 | front unit characterization + typecheck | yes | yes |
 | `openapi.json` / `client-ts` drift + OpenAPI contract spec | yes | yes |
+| `ci-migration-expand-contract` | yes | yes |
 | **Full API test suite** (`just test-api`) | yes | yes |
 | front-2 e2e (docker compose + Playwright) | no | yes |
 | front e2e characterization (docker compose + Playwright) | no | yes |
@@ -138,6 +139,11 @@ Recorded here rather than hidden, so they can be judged:
   workflow side so the two cannot part ways unnoticed. It also binds a free ephemeral port
   rather than CI's hardcoded 3000 — a dev machine often has something on 3000 already, and
   asserting against whatever answers there would be a false green.
+- **`ci-migration-expand-contract` has heuristic gaps that require review judgment:**
+  - It does not inspect aliased/bound migration-builder variables (`var mb = migrationBuilder; mb.DropColumn(...)`).
+  - It does not inspect dynamically-built SQL strings passed to `migrationBuilder.Sql(...)`.
+  - It does not inspect `AddForeignKey`, `AddCheckConstraint`, unique `CreateIndex`, or `DropPrimaryKey` ops.
+  - For these residual cases, use the escape hatch marker (`// expand-contract-ok: ...`) as the explicit review override when the change is intentional.
 
 ## Runtime
 
