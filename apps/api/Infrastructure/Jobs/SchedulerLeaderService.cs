@@ -34,8 +34,8 @@ public sealed class SchedulerLeaderService : BackgroundService {
 	// Quartz group for the two fixed infrastructure triggers (separate from the dynamic
 	// system-jobs group SyncSystemJobsJob manages).
 	private const string InfraGroup = "infra";
-	private const int SyncIntervalSeconds = 60;
-	private const int RecoverIntervalSeconds = 300;
+	public const int SyncIntervalSeconds = 60;
+	public const int RecoverIntervalSeconds = 300;
 
 	private static readonly TimeSpan AcquireRetryInterval = TimeSpan.FromSeconds(15);
 	private static readonly TimeSpan RenewCheckInterval = TimeSpan.FromSeconds(15);

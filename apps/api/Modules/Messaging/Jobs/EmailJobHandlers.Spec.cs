@@ -590,6 +590,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 			new JobsMetrics(instance, NullLogger<JobsMetrics>.Instance),
 			instance,
 			NullLogger<JobQueueProcessor>.Instance,
+			null,
 			new JobQueueProcessorOptions {
 				BatchSize = 1,
 				LeaseSeconds = 60

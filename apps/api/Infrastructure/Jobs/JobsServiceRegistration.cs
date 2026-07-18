@@ -1,6 +1,8 @@
 using PublyApp.Api.Infrastructure.Jobs.Quartz;
 using PublyApp.Api.Infrastructure.Messaging.Email;
 using PublyApp.Api.Modules.Auth.Jobs;
+using PublyApp.Api.Modules.Jobs.Jobs;
+using PublyApp.Api.Modules.Messaging.Jobs;
 using PublyApp.Api.Modules.Invitations.Jobs;
 using PublyApp.Api.Lib;
 
@@ -58,6 +60,8 @@ public static class JobsServiceRegistration {
 		builder.Services.AddSingleton<JobWorkerInstance>();
 		builder.Services.AddSingleton<JobsMetrics>();
 		builder.Services.AddSingleton<JobHandlerRegistry>();
+		builder.Services.AddSingleton<IJobQueueSignal, JobQueueSignal>();
+		builder.Services.AddSingleton<SchedulerSyncState>();
 
 		// Quartz jobs are resolved per-fire from a DI scope by ScopedJobFactory, so they
 		// register as transient (each carries a scoped AppDbContext dependency).
@@ -67,7 +71,9 @@ public static class JobsServiceRegistration {
 
 		// Every worker runs the generic queue processor; only the leader runs Quartz.
 		builder.Services.AddHostedService<JobQueueProcessor>();
+		builder.Services.AddHostedService<JobQueueListener>();
 		builder.Services.AddHostedService<SchedulerLeaderService>();
+		builder.Services.AddHostedService<JobQueueMonitorService>();
 		builder.Services.AddHostedService<WorkerHeartbeatService>();
 
 		// Transitional legacy drainer (design §3.2 C5/R2-6, §4.6). The shipped
@@ -90,11 +96,27 @@ public static class JobsServiceRegistration {
 		builder.AddJobHandler<TenantInvitationEmailJobHandler>(
 			InvitationEmailJobs.TenantInvitationV1.JobType
 		);
+		builder.AddJobHandler<PasswordResetEmailJobHandler>(
+			AuthEmailJobs.PasswordResetV1.JobType
+		);
+
 		builder.AddJobHandler<StaffInvitationEmailJobHandler>(
 			InvitationEmailJobs.StaffInvitationV1.JobType
 		);
-		builder.AddJobHandler<PasswordResetEmailJobHandler>(
-			AuthEmailJobs.PasswordResetV1.JobType
+
+		// System job handlers (design §5.3/§7.3): system jobs are seeded into system_job_definitions
+		// and dispatched via EnqueueSystemJobJob -> JobQueueProcessor.
+		builder.AddJobHandler<CleanupExpiredSessionsHandler>(
+			CleanupExpiredSessionsHandler.JobKey
+		);
+		builder.AddJobHandler<EmailLogRetentionHandler>(
+			EmailLogRetentionHandler.JobKey
+		);
+		builder.AddJobHandler<DeadLetterRetentionHandler>(
+			DeadLetterRetentionHandler.JobKey
+		);
+		builder.AddJobHandler<EmailPreparedSendsRetentionHandler>(
+			EmailPreparedSendsRetentionHandler.JobKey
 		);
 	}
 

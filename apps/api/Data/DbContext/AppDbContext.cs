@@ -429,8 +429,14 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 			entity.Property(e => e.FailedAt).HasDefaultValueSql("now()");
 			entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
 
+			entity.HasIndex(e => new { e.FailedAt, e.Id })
+				.HasDatabaseName("ix_job_dead_letter_failed_at_id");
+
 			entity.HasIndex(e => new { e.JobType, e.FailedAt })
 				.HasDatabaseName("ix_job_dead_letter_job_type");
+
+			entity.HasIndex(e => e.OriginalJobId)
+				.HasDatabaseName("ix_job_dead_letter_original_job_id");
 
 			// Walks the requeue chain backward/forward across re-dead-letterings
 			// (§4.2, F16/C9). Partial: the column is NULL for every originally-
@@ -485,6 +491,16 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 				.HasDatabaseName("ix_email_log_user_id")
 				.HasFilter("user_id IS NOT NULL");
 
+			entity.HasIndex(e => e.OccurredAt)
+				.HasDatabaseName("ix_email_log_occurred_at");
+
+			entity.HasIndex(e => new { e.OccurredAt, e.Id })
+				.HasDatabaseName("ix_email_log_occurred_at_id");
+
+			entity.HasIndex(e => e.OccurredAt)
+				.HasDatabaseName("ix_email_log_permanently_failed_occurred_at")
+				.HasFilter("outcome = 2");
+
 			// Provider correlation lookup (F3/F20): resolve a delivery by provider message
 			// id. Partial — only accepted sends carry one.
 			entity.HasIndex(e => e.ProviderMessageId)
@@ -514,8 +530,9 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 
 			// The email-log-retention age sweep (§7.3). Both composite indexes above lead
 			// with kind/recipient, so neither can serve a global scan by age (R5-3).
-			entity.HasIndex(e => e.OccurredAt)
-				.HasDatabaseName("ix_email_log_occurred_at");
+			//
+			// Retain the legacy global time index for targeted analytics queries that still
+			// probe only by occurred_at.
 		});
 
 		// Send-once envelope scratch (design §4.5, F7). Keyed by job_id (no surrogate id);
@@ -528,6 +545,9 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 			// job_id PK cannot serve it (§4.5, R5-3).
 			entity.HasIndex(e => e.PreparedAt)
 				.HasDatabaseName("ix_email_prepared_sends_prepared_at");
+
+			entity.HasIndex(e => new { e.PreparedAt, e.JobId })
+				.HasDatabaseName("ix_email_prepared_sends_created_at_job_id");
 		});
 
 		// Partial indexes to favor active rows without enforcing global filters

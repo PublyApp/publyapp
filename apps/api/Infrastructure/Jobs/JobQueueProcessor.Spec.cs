@@ -1737,6 +1737,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 			new JobsMetrics(instance, NullLogger<JobsMetrics>.Instance),
 			instance,
 			NullLogger<JobQueueProcessor>.Instance,
+			null,
 			options
 		);
 	}

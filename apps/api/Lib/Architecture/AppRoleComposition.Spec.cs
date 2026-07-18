@@ -14,6 +14,8 @@ using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Infrastructure.Messaging.Email;
 using PublyApp.Api.Modules.Auth.Jobs;
+using PublyApp.Api.Modules.Jobs.Jobs;
+using PublyApp.Api.Modules.Messaging.Jobs;
 using PublyApp.Api.Modules.Invitations.Jobs;
 using PublyApp.Api.Lib.Diagnostics;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -39,6 +41,8 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 	private static readonly Type[] JobHostedServiceTypes = [
 		typeof(JobQueueProcessor),
 		typeof(SchedulerLeaderService),
+		typeof(JobQueueListener),
+		typeof(JobQueueMonitorService),
 		typeof(WorkerHeartbeatService),
 		typeof(InvitationEmailOutboxDispatcher),
 	];
@@ -504,6 +508,10 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 			InvitationEmailJobs.TenantInvitationV1.JobType,
 			InvitationEmailJobs.StaffInvitationV1.JobType,
 			AuthEmailJobs.PasswordResetV1.JobType,
+			CleanupExpiredSessionsHandler.JobKey,
+			EmailLogRetentionHandler.JobKey,
+			DeadLetterRetentionHandler.JobKey,
+			EmailPreparedSendsRetentionHandler.JobKey,
 		]);
 	}
 

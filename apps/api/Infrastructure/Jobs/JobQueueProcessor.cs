@@ -59,6 +59,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 	private readonly IServiceScopeFactory _scopeFactory;
 	private readonly JobHandlerRegistry _registry;
 	private readonly JobsMetrics _metrics;
+	private readonly IJobQueueSignal? _signal;
 	private readonly ILogger<JobQueueProcessor> _logger;
 	private readonly JobQueueProcessorOptions _options;
 
@@ -75,11 +76,13 @@ public sealed class JobQueueProcessor : BackgroundService {
 		JobsMetrics metrics,
 		JobWorkerInstance instance,
 		ILogger<JobQueueProcessor> logger,
+		IJobQueueSignal? signal = null,
 		JobQueueProcessorOptions? options = null
 	) {
 		_scopeFactory = scopeFactory;
 		_registry = registry;
 		_metrics = metrics;
+		_signal = signal;
 		_instance = instance;
 		_logger = logger;
 		_options = options ?? new JobQueueProcessorOptions();
@@ -244,7 +247,10 @@ public sealed class JobQueueProcessor : BackgroundService {
 			try {
 				// 2C's JobQueueListener adds a LISTEN/NOTIFY wake ahead of this
 				// fallback poll; the interval remains the correctness fallback.
-				await Task.Delay(TimeSpan.FromSeconds(_options.PollSeconds), stoppingToken);
+				var waitAsyncTask = _signal is null
+					? Task.Delay(TimeSpan.FromSeconds(_options.PollSeconds), stoppingToken)
+					: _signal.WaitAsync(TimeSpan.FromSeconds(_options.PollSeconds), stoppingToken);
+				await waitAsyncTask;
 			} catch (OperationCanceledException) {
 				break;
 			}
