@@ -83,15 +83,12 @@ const getFailedInviteeMessage = (
 	t: (key: string, options?: Record<string, unknown>) => string,
 ): string => {
 	const fallback = t('invite-tenant-user-failed');
-	const messageKey = getFailureMessage(
-		toApiFailure({
-			status: 400,
-			translationKey: failedItem.translationKey ?? undefined,
-		}),
-		{ fallback },
-	);
+	const translationKey = failedItem.translationKey;
+	if (!translationKey) {
+		return fallback;
+	}
 
-	return i18n.t(messageKey, {
+	return i18n.t(translationKey, {
 		ns: 'response-message',
 		defaultValue: fallback,
 	});
@@ -458,12 +455,15 @@ export const InviteTenantUserDrawer = ({
 			setBatchSummary(summary);
 			const failedInvitations = toFailedInvitations(values, summary);
 			if (failedInvitations.length > 0) {
-				reset({
-					pasteEmails: '',
-					sharedAccountLevel: values.sharedAccountLevel,
-					sharedProfileIds: values.sharedProfileIds,
-					invitations: failedInvitations,
-				});
+				reset(
+					{
+						pasteEmails: '',
+						sharedAccountLevel: values.sharedAccountLevel,
+						sharedProfileIds: values.sharedProfileIds,
+						invitations: failedInvitations,
+					},
+					{ keepDirty: true },
+				);
 			}
 			return;
 		}

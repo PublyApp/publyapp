@@ -448,13 +448,16 @@ describe('InviteTenantUserDrawer', () => {
 			],
 		});
 
+		const onDirtyChange = vi.fn();
+		const onOpenChange = vi.fn();
 		render(
 			<InviteTenantUserDrawer
 				tenantId="tenant-1"
 				isOpen
-				onOpenChange={vi.fn()}
+				onOpenChange={onOpenChange}
 				onInvited={vi.fn()}
 				onSessionExpired={vi.fn()}
+				onDirtyChange={onDirtyChange}
 			/>,
 		);
 
@@ -474,6 +477,12 @@ describe('InviteTenantUserDrawer', () => {
 		expect((screen.getByLabelText('Email') as HTMLInputElement).value).toBe(
 			'bob@example.com',
 		);
+
+		await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(true));
+		fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+		expect(onOpenChange).not.toHaveBeenCalled();
+		expect(screen.getByRole('alertdialog')).toBeTruthy();
 	});
 
 	test('blocks submission when the email is invalid (email schema rule)', async () => {
