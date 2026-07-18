@@ -2552,6 +2552,97 @@
         }
       }
     },
+    "/staff/tenants/{tenantId}/users/invitations/bulk": {
+      "post": {
+        "tags": [
+          "Tenant Users (Staff View)"
+        ],
+        "summary": "Invite multiple users to a tenant",
+        "operationId": "BulkCreateInvitationsForTenantAsStaff",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkCreateTenantInvitationsForTenantAsStaffBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkCreateTenantInvitationsForTenantAsStaffCreated"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/staff/tenants/{tenantId}/users/bulk-remove": {
       "post": {
         "tags": [
@@ -9479,6 +9570,65 @@
           }
         }
       },
+      "BulkCreateTenantInvitationsFailedItem": {
+        "required": [
+          "index",
+          "email",
+          "reason",
+          "translationKey"
+        ],
+        "type": "object",
+        "properties": {
+          "index": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "email": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "translationKey": {
+            "type": "string"
+          }
+        }
+      },
+      "BulkCreateTenantInvitationsForTenantAsStaffBody": {
+        "type": "object",
+        "properties": {
+          "invitations": {
+            "$ref": "#/components/schemas/JsonElement"
+          }
+        }
+      },
+      "BulkCreateTenantInvitationsForTenantAsStaffCreated": {
+        "required": [
+          "succeededCount",
+          "failedCount",
+          "failedItems"
+        ],
+        "type": "object",
+        "properties": {
+          "succeededCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "failedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "failedItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BulkCreateTenantInvitationsFailedItem"
+            }
+          }
+        }
+      },
       "BulkDeleteFailedItem": {
         "required": [
           "tenantId",
@@ -9943,6 +10093,9 @@
             "$ref": "#/components/schemas/JsonElement"
           },
           "accountLevel": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "profileIds": {
             "$ref": "#/components/schemas/JsonElement"
           }
         }
@@ -11275,6 +11428,22 @@
           }
         }
       },
+      "StaffInvitationProfileInfo": {
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
       "StaffProfileCreated": {
         "required": [
           "profileId",
@@ -11377,6 +11546,7 @@
           "id",
           "email",
           "scope",
+          "profiles",
           "status",
           "expiresAt",
           "createdAt",
@@ -11399,6 +11569,12 @@
               "null",
               "string"
             ]
+          },
+          "profiles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StaffInvitationProfileInfo"
+            }
           },
           "status": {
             "type": "string"

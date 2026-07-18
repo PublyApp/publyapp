@@ -39,6 +39,15 @@ public static class UserEndpointsForTenantAsStaff {
 			.WithPermission([AppPermissions.Staff.Users.CREATE_FOR_TENANT])
 			.WithReqBodyValidation<CreateInvitationForTenantAsStaffBody>();
 
+		group.MapPost(
+			Routes.Users.ForTenantAsStaff.BulkInvite,
+			BulkCreateInvitationsForTenantAsStaff.Handle
+		)
+			.WithName("BulkCreateInvitationsForTenantAsStaff")
+			.WithSummary("Invite multiple users to a tenant")
+			.WithPermission([AppPermissions.Staff.Users.CREATE_FOR_TENANT])
+			.WithReqBodyValidation<BulkCreateTenantInvitationsForTenantAsStaffBody>();
+
 		group.MapDelete(
 			Routes.Users.ForTenantAsStaff.Delete,
 			RemoveUserFromTenantAsStaff.Handle
