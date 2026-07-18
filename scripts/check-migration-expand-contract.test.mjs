@@ -4,9 +4,14 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { findMigrationExpandContractIssues } from './check-migration-expand-contract.mjs';
+import {
+	findMigrationExpandContractIssues,
+	listMigrationFiles,
+} from './check-migration-expand-contract.mjs';
 
-const migrationTemplate = (upMethodBody) => `using Microsoft.EntityFrameworkCore.Migrations;
+const migrationTemplate = (
+	upMethodBody,
+) => `using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -29,7 +34,9 @@ ${upMethodBody}
 `;
 
 const buildFixture = async ({ fileName, upMethodBody }) => {
-	const rootDir = await mkdtemp(path.join(os.tmpdir(), 'publyapp-migration-expand-contract-'));
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-migration-expand-contract-'),
+	);
 	const migrationFile = path.join(rootDir, 'apps', 'api', 'Migrations');
 	await mkdir(migrationFile, { recursive: true });
 	await writeFile(
@@ -40,8 +47,15 @@ const buildFixture = async ({ fileName, upMethodBody }) => {
 	return path.join(migrationFile, `${fileName}.cs`);
 };
 
+const normalizePath = (value) => value.trim().replace(/\\+/g, '/');
 const countBySeverity = (findings, level) =>
 	findings.filter((finding) => finding.level === level).length;
+const getFindingByOperation = (findings, operation, level = null) =>
+	findings.find(
+		(finding) =>
+			finding.operation === operation &&
+			(level === null || finding.level === level),
+	);
 
 test('passes a safe additive migration', async () => {
 	const migrationPath = await buildFixture({
@@ -194,18 +208,182 @@ test('fails when AlterColumn changes column type', async () => {
 	assert.match(findings[0].explanation, /type in place/);
 });
 
-test('downgrades findings to warnings when expand-contract-ok marker is present', async () => {
+test('bare expand-contract-ok marker does not downgrade; it emits a needs-reason warning', async () => {
 	const migrationPath = await buildFixture({
-		fileName: '20270001000008_MarkedMigration',
+		fileName: '20270001000008_BareMarker',
 		upMethodBody: `
-            // expand-contract-ok: staged rollout after release gate
+            // expand-contract-ok:
+            migrationBuilder.DropColumn(
+                name: "old_email",
+                table: "users");`,
+	});
+
+	const findings = await findMigrationExpandContractIssues({
+		migrationFilePaths: [migrationPath],
+	});
+
+	assert.equal(countBySeverity(findings, 'error'), 1);
+	assert.equal(countBySeverity(findings, 'warning'), 1);
+	assert.equal(
+		getFindingByOperation(findings, 'DropColumn', 'error')?.operation,
+		'DropColumn',
+	);
+	assert.match(
+		findings.find((finding) => finding.operation === 'expand-contract-ok')
+			.explanation,
+		/expand-contract-ok marker found with no reason/,
+	);
+});
+
+test('same-line expand-contract-ok marker downgrades only the marked op', async () => {
+	const migrationPath = await buildFixture({
+		fileName: '20270001000009_SameLineMarker',
+		upMethodBody: `
+            migrationBuilder.DropTable(name: "legacy_temp"); // expand-contract-ok: staged rollout
+            migrationBuilder.DropColumn(name: "old_email", table: "users");`,
+	});
+
+	const findings = await findMigrationExpandContractIssues({
+		migrationFilePaths: [migrationPath],
+	});
+
+	assert.equal(countBySeverity(findings, 'error'), 1);
+	assert.equal(countBySeverity(findings, 'warning'), 1);
+	assert.equal(
+		getFindingByOperation(findings, 'DropTable', 'warning')?.markerReason,
+		'staged rollout',
+	);
+	assert.equal(
+		getFindingByOperation(findings, 'DropColumn', 'error')?.operation,
+		'DropColumn',
+	);
+});
+
+test('marker applies per-op: one marked op warns while sibling breaking ops still error', async () => {
+	const migrationPath = await buildFixture({
+		fileName: '20270001000010_PerOpScope',
+		upMethodBody: `
+            // expand-contract-ok: rollout after compatibility window
             migrationBuilder.DropTable(
                 name: "legacy_temp");
+            migrationBuilder.DropColumn(
+                name: "legacy_id",
+                table: "users");
+            migrationBuilder.RenameColumn(
+                name: "old_name",
+                table: "users",
+                newName: "new_name");`,
+	});
+
+	const findings = await findMigrationExpandContractIssues({
+		migrationFilePaths: [migrationPath],
+	});
+
+	assert.equal(countBySeverity(findings, 'error'), 2);
+	assert.equal(countBySeverity(findings, 'warning'), 1);
+	assert.equal(
+		getFindingByOperation(findings, 'DropTable', 'warning')?.markerReason,
+		'rollout after compatibility window',
+	);
+	assert.equal(countBySeverity(findings, 'error'), 2);
+});
+
+test('flags AddColumn nullable=false with explicit null defaultValue', async () => {
+	const migrationPath = await buildFixture({
+		fileName: '20270001000011_NullDefaultAddColumn',
+		upMethodBody: `
             migrationBuilder.AddColumn<int>(
                 name: "legacy_id",
                 table: "users",
                 type: "integer",
-                nullable: false);`,
+                nullable: false,
+                defaultValue: null);`,
+	});
+
+	const findings = await findMigrationExpandContractIssues({
+		migrationFilePaths: [migrationPath],
+	});
+
+	assert.equal(countBySeverity(findings, 'error'), 1);
+	assert.equal(findings[0].operation, 'AddColumn');
+});
+
+test('flags AddColumn nullable=false with explicit null defaultValueSql', async () => {
+	const migrationPath = await buildFixture({
+		fileName: '20270001000012_NullDefaultSqlAddColumn',
+		upMethodBody: `
+            migrationBuilder.AddColumn<int>(
+                name: "legacy_id",
+                table: "users",
+                type: "integer",
+                nullable: false,
+                defaultValueSql: null);`,
+	});
+
+	const findings = await findMigrationExpandContractIssues({
+		migrationFilePaths: [migrationPath],
+	});
+
+	assert.equal(countBySeverity(findings, 'error'), 1);
+	assert.equal(findings[0].operation, 'AddColumn');
+});
+
+test('allows non-nullable AddColumn with a real default', async () => {
+	const migrationPath = await buildFixture({
+		fileName: '20270001000013_DefaultAddColumnPass',
+		upMethodBody: `
+            migrationBuilder.AddColumn<int>(
+                name: "legacy_id",
+                table: "users",
+                type: "integer",
+                nullable: false,
+                defaultValue: 0);`,
+	});
+
+	const findings = await findMigrationExpandContractIssues({
+		migrationFilePaths: [migrationPath],
+	});
+
+	assert.equal(findings.length, 0);
+});
+
+test('detects raw SQL DROP COLUMN as breaking', async () => {
+	const migrationPath = await buildFixture({
+		fileName: '20270001000014_RawSqlDropColumn',
+		upMethodBody: `
+            migrationBuilder.Sql(@"ALTER TABLE users DROP COLUMN legacy_id");`,
+	});
+
+	const findings = await findMigrationExpandContractIssues({
+		migrationFilePaths: [migrationPath],
+	});
+
+	assert.equal(countBySeverity(findings, 'error'), 1);
+	assert.equal(findings[0].operation, 'Sql');
+	assert.match(findings[0].explanation, /drops a column/);
+});
+
+test('passes raw SQL that only adds an index', async () => {
+	const migrationPath = await buildFixture({
+		fileName: '20270001000015_RawSqlAddIndex',
+		upMethodBody: `
+            migrationBuilder.Sql(
+                "CREATE INDEX CONCURRENTLY idx_users_email ON users(email);");`,
+	});
+
+	const findings = await findMigrationExpandContractIssues({
+		migrationFilePaths: [migrationPath],
+	});
+
+	assert.equal(findings.length, 0);
+});
+
+test('downgrades raw-SQL breaking SQL with per-op marker', async () => {
+	const migrationPath = await buildFixture({
+		fileName: '20270001000016_MarkedRawSql',
+		upMethodBody: `
+            // expand-contract-ok: phased raw sql cleanup
+            migrationBuilder.Sql(@"ALTER TABLE users DROP TABLE legacy_users");`,
 	});
 
 	const findings = await findMigrationExpandContractIssues({
@@ -213,5 +391,41 @@ test('downgrades findings to warnings when expand-contract-ok marker is present'
 	});
 
 	assert.equal(countBySeverity(findings, 'error'), 0);
-	assert.equal(countBySeverity(findings, 'warning'), 2);
+	assert.equal(countBySeverity(findings, 'warning'), 1);
+	assert.equal(findings[0].operation, 'Sql');
+	assert.equal(findings[0].markerReason, 'phased raw sql cleanup');
+});
+
+test('scans newly added migrations and ignores develop-only/deleted entries', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-migration-expand-contract-'),
+	);
+	const migrationDir = path.join(rootDir, 'apps', 'api', 'Migrations');
+	await mkdir(migrationDir, { recursive: true });
+	const added = path.join(migrationDir, '20270001000017_AddedByUs.cs');
+	await writeFile(added, migrationTemplate(''));
+
+	const runCommand = async (_command, args) => {
+		const command = args.join(' ');
+		if (command.startsWith('diff --name-only origin/develop')) {
+			return {
+				stdout: 'apps/api/Migrations/20270001000016_OnlyOnDevelop.cs',
+			};
+		}
+
+		if (
+			command.startsWith(
+				'ls-files --others --exclude-standard -- apps/api/Migrations',
+			)
+		) {
+			return { stdout: 'apps/api/Migrations/20270001000017_AddedByUs.cs' };
+		}
+
+		throw new Error(`Unexpected git command: ${command}`);
+	};
+
+	const files = await listMigrationFiles({ rootDir, runCommand });
+
+	assert.equal(files.length, 1);
+	assert.equal(files[0], normalizePath(added));
 });

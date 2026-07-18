@@ -1,14 +1,17 @@
 import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
-import { readFile } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
 
 // Explicit escape hatch comment required to downgrade an otherwise blocking
 // finding:
 //   // expand-contract-ok: <reason>
-const escapeHatchRegex = /\/\/\s*expand-contract-ok:\s*(?<reason>.+)$/im;
+const escapeHatchRegexLine =
+	/^\s*\/\/\s*expand-contract-ok:\s*(?<reason>[^\r\n]*)$/;
+const escapeHatchRegexInline =
+	/\/\/\s*expand-contract-ok:\s*(?<reason>[^\r\n]*)$/;
 
 const migrationGlobs = ['apps/api/Migrations'];
 
@@ -18,9 +21,14 @@ const isMigrationSource = (filePath) =>
 const normalizeMigrationPath = (rootDir, filePath) =>
 	path.resolve(rootDir, filePath.replace(/^\"|\"$/g, ''));
 
-const collectDiffPaths = async ({ rootDir, args, includePathspec = true }) => {
+const collectDiffPaths = async ({
+	rootDir,
+	args,
+	includePathspec = true,
+	runCommand = execFileAsync,
+}) => {
 	const command = includePathspec ? [...args, '--', ...migrationGlobs] : args;
-	const { stdout } = await execFileAsync('git', command, {
+	const { stdout } = await runCommand('git', command, {
 		cwd: rootDir,
 		encoding: 'utf8',
 	});
@@ -33,27 +41,49 @@ const collectDiffPaths = async ({ rootDir, args, includePathspec = true }) => {
 
 const normalizePath = (value) => value.trim().replace(/\\+/g, '/');
 
-const listMigrationFiles = async ({ rootDir }) => {
+const listMigrationFiles = async ({ rootDir, runCommand = execFileAsync }) => {
 	const changed = [
 		...(await collectDiffPaths({
 			rootDir,
 			args: ['diff', '--name-only', 'origin/develop'],
+			runCommand,
 		})),
 		...(await collectDiffPaths({
 			rootDir,
-			args: ['ls-files', '--others', '--exclude-standard', '--', ...migrationGlobs],
+			args: [
+				'ls-files',
+				'--others',
+				'--exclude-standard',
+				'--',
+				...migrationGlobs,
+			],
 			includePathspec: false,
+			runCommand,
 		})),
 	];
 
-	return [...new Set(changed)]
+	const candidatePaths = [...new Set(changed)]
 		.filter((value) => isMigrationSource(value))
 		.map((value) => normalizeMigrationPath(rootDir, value))
 		.sort();
+
+	const existenceChecks = await Promise.all(
+		candidatePaths.map(async (value) => {
+			try {
+				await access(value);
+				return true;
+			} catch {
+				return false;
+			}
+		}),
+	);
+
+	return candidatePaths.filter((value, index) => existenceChecks[index]);
 };
 
 const getUpMethodBody = (source) => {
-	const marker = 'protected override void Up(MigrationBuilder migrationBuilder)';
+	const marker =
+		'protected override void Up(MigrationBuilder migrationBuilder)';
 	const start = source.indexOf(marker);
 	if (start === -1) {
 		return null;
@@ -82,6 +112,55 @@ const getUpMethodBody = (source) => {
 	return null;
 };
 
+const parseMarkerInfo = (
+	lineText,
+	markerLineNumber,
+	filePath,
+	allowInline = false,
+) => {
+	const trimmedLineText = lineText.trimEnd();
+	const lineMatch = (
+		allowInline ? escapeHatchRegexInline : escapeHatchRegexLine
+	).exec(trimmedLineText);
+	if (lineMatch === null) {
+		return { isMarked: false };
+	}
+
+	const reason = lineMatch.groups?.reason?.trim() ?? '';
+	if (reason.length === 0) {
+		return {
+			isMarked: false,
+			missingReasonLine: markerLineNumber,
+			missingReasonMessage: `expand-contract-ok marker found with no reason on ${filePath}:${markerLineNumber} — add a reason to acknowledge this contract phase`,
+		};
+	}
+
+	return { isMarked: true, markerReason: reason };
+};
+
+const getMarkerForCall = (lines, lineIndex, filePath, baseLineNumber) => {
+	const sameLineMatch = parseMarkerInfo(
+		lines[lineIndex] ?? '',
+		baseLineNumber,
+		filePath,
+		true,
+	);
+	if (sameLineMatch.isMarked || sameLineMatch.missingReasonLine) {
+		return sameLineMatch;
+	}
+
+	if (lineIndex === 0) {
+		return { isMarked: false };
+	}
+
+	const previousLineNumber = baseLineNumber - 1;
+	return parseMarkerInfo(
+		lines[lineIndex - 1] ?? '',
+		previousLineNumber,
+		filePath,
+	);
+};
+
 const findCallEnd = (text, startIndex) => {
 	const open = text.indexOf('(', startIndex);
 	if (open === -1) {
@@ -106,17 +185,26 @@ const findCallEnd = (text, startIndex) => {
 };
 
 const getBooleanArg = (callText, argName) => {
-	const match = new RegExp(
-		`\\b${argName}\\s*:\\s*(true|false)\\b`,
-		'iu',
-	).exec(callText);
+	const match = new RegExp(`\\b${argName}\\s*:\\s*(true|false)\\b`, 'iu').exec(
+		callText,
+	);
 
 	return match === null ? null : match[1].toLowerCase() === 'true';
 };
 
 const getStringArg = (callText, argName) => {
-	const match = new RegExp(`\\b${argName}\\s*:\\s*"([^"]+)"`, 'i').exec(callText);
+	const match = new RegExp(`\\b${argName}\\s*:\\s*"([^"]+)"`, 'i').exec(
+		callText,
+	);
 	return match === null ? null : match[1];
+};
+
+const getRawArg = (callText, argName) => {
+	const match = new RegExp(
+		`\\b${argName}\\s*:\\s*(?<value>[^,\\)]+)`,
+		'i',
+	).exec(callText);
+	return match === null ? null : (match.groups?.value?.trim() ?? null);
 };
 
 const getOldClrType = (callText) => {
@@ -133,11 +221,12 @@ const getGenericType = (callText, operation) => {
 };
 
 const addFinding = (state, finding) => {
-	const detail = state.isMarked
-		? { ...finding, level: 'warning', markerReason: state.markerReason }
-		: { ...finding, level: 'error' };
+	const detail =
+		state.markerReason === null || state.markerReason === undefined
+			? { ...finding, level: 'error' }
+			: { ...finding, level: 'warning', markerReason: state.markerReason };
 
-	if (state.isMarked) {
+	if (detail.level === 'warning') {
 		state.warnings.push(detail);
 		return;
 	}
@@ -147,7 +236,11 @@ const addFinding = (state, finding) => {
 
 const checkAddColumn = (state, callText, filePath, lineNumber) => {
 	const isNullableFalse = getBooleanArg(callText, 'nullable') === false;
-	const hasDefaultValue = /\bdefaultValue(?:Sql)?\s*:/.test(callText);
+	const defaultValue = getRawArg(callText, 'defaultValue');
+	const defaultValueSql = getRawArg(callText, 'defaultValueSql');
+	const hasDefaultValue =
+		(defaultValue !== null && /^null$/i.test(defaultValue) === false) ||
+		(defaultValueSql !== null && /^null$/i.test(defaultValueSql) === false);
 
 	if (isNullableFalse && !hasDefaultValue) {
 		addFinding(state, {
@@ -204,14 +297,133 @@ const checkAlterColumn = (state, callText, filePath, lineNumber) => {
 	}
 };
 
-const checkOperationCall = (state, callText, filePath, lineNumber, operationName) => {
+const RAW_SQL_BREAKING_PATTERNS = [
+	{
+		name: 'DROP COLUMN',
+		regex: /\bdrop\s+column\b/i,
+		explanation:
+			'This migration executes raw SQL that drops a column, which is a breaking contract for rolling deploys.',
+		remedy:
+			'Replace with an expand/contract migration (add shadow column first, backfill, then drop old column).',
+	},
+	{
+		name: 'DROP TABLE',
+		regex: /\bdrop\s+table\b/i,
+		explanation:
+			'This migration executes raw SQL that drops a table, which is a breaking contract for rolling deploys.',
+		remedy:
+			'Keep the old table in place for in-flight app versions and remove it only after all apps have migrated.',
+	},
+	{
+		// Covers both "SET NOT NULL" and "... NOT NULL" forms in ALTER COLUMN statements.
+		name: 'ALTER COLUMN ... SET NOT NULL',
+		regex:
+			/\balter\s+table\b(?:(?!\bdrop\b|\brename\b)[\s\S]){0,120}?\balter\s+column\b[\s\S]{0,120}\bset\s+not\s+null\b/i,
+		explanation:
+			'This migration executes raw SQL that tightens nullability via ALTER COLUMN ... SET NOT NULL.',
+		remedy:
+			'Move to a nullable transition and enforce non-nullability only after all app versions are writing it.',
+	},
+	{
+		name: 'ALTER COLUMN ... NOT NULL',
+		regex:
+			/\balter\s+table\b(?:(?!\bdrop\b|\brename\b)[\s\S]){0,120}?\balter\s+column\b(?:(?!\bdrop\b|\brename\b)[\s\S]){0,120}\bnot\s+null\b/i,
+		explanation:
+			'This migration executes raw SQL that tightens nullability with ALTER COLUMN ... NOT NULL.',
+		remedy:
+			'Move to a nullable transition and enforce non-nullability only after all app versions are writing it.',
+	},
+	{
+		name: 'RENAME COLUMN',
+		regex: /\brename\s+column\b/i,
+		explanation:
+			'This migration executes raw SQL that renames a column, which is a breaking contract for rolling deploys.',
+		remedy:
+			'Use add+copy/backfill+drop in separate migrations so old app versions still see existing names.',
+	},
+	{
+		name: 'RENAME TO',
+		regex: /\brename\s+to\b/i,
+		explanation:
+			'This migration executes raw SQL that renames an object, which is a breaking contract for rolling deploys.',
+		remedy:
+			'Rename through a compatibility window using temporary aliases/views and remove the old object in a follow-up migration.',
+	},
+	{
+		name: 'DROP CONSTRAINT',
+		regex: /\bdrop\s+constraint\b/i,
+		explanation:
+			'This migration executes raw SQL that drops a constraint, which is a breaking contract for rolling deploys.',
+		remedy:
+			'Keep constraints in place during rollout and remove them only after all app versions are compatible.',
+	},
+	{
+		name: 'DROP DEFAULT',
+		regex: /\bdrop\s+default\b/i,
+		explanation:
+			'This migration executes raw SQL that drops a default, which is a breaking contract for rolling deploys.',
+		remedy:
+			'Phase out defaults with explicit writes and contract-safe migration steps before removing defaults.',
+	},
+];
+
+const parseSqlStringLiterals = (callText) => {
+	const literals = [];
+	const verbatimStringRegex = /@"((?:[^"]|"")*?)"/gs;
+	const normalStringRegex = /"((?:\\.|[^"\\])*)"/g;
+
+	for (const match of callText.matchAll(verbatimStringRegex)) {
+		const value = match[1].replace(/""/g, '"');
+		literals.push(value);
+	}
+
+	if (literals.length > 0) {
+		return literals;
+	}
+
+	for (const match of callText.matchAll(normalStringRegex)) {
+		literals.push(match[1]);
+	}
+
+	return literals;
+};
+
+const checkSqlOperation = (state, callText, filePath, lineNumber) => {
+	for (const literal of parseSqlStringLiterals(callText)) {
+		const sql = literal.toLowerCase();
+		for (const pattern of RAW_SQL_BREAKING_PATTERNS) {
+			if (pattern.regex.test(sql)) {
+				addFinding(state, {
+					file: filePath,
+					line: lineNumber,
+					operation: 'Sql',
+					explanation: pattern.explanation,
+					remedy: pattern.remedy,
+				});
+				return;
+			}
+		}
+	}
+};
+
+const checkOperationCall = (
+	state,
+	callText,
+	filePath,
+	lineNumber,
+	operationName,
+) => {
 	switch (operationName) {
 		case 'DropColumn':
 		case 'DropTable':
 		case 'RenameColumn':
 		case 'RenameTable': {
 			const action =
-				operationName === 'DropColumn' ? 'dropping' : operationName === 'DropTable' ? 'dropping' : 'renaming';
+				operationName === 'DropColumn'
+					? 'dropping'
+					: operationName === 'DropTable'
+						? 'dropping'
+						: 'renaming';
 			const remedy =
 				operationName === 'RenameColumn' || operationName === 'RenameTable'
 					? 'Use add+copy/backfill+drop in separate migrations so old app versions still see existing names.'
@@ -231,6 +443,10 @@ const checkOperationCall = (state, callText, filePath, lineNumber, operationName
 		case 'AlterColumn':
 			checkAlterColumn(state, callText, filePath, lineNumber);
 			return;
+		case 'Sql':
+		case 'SqlAsync':
+			checkSqlOperation(state, callText, filePath, lineNumber);
+			return;
 		default:
 			return;
 	}
@@ -239,31 +455,29 @@ const checkOperationCall = (state, callText, filePath, lineNumber, operationName
 export const findMigrationExpandContractIssues = async ({
 	rootDir = process.cwd(),
 	migrationFilePaths,
+	runCommand,
 } = {}) => {
-	const filesToCheck = migrationFilePaths ??
-		(await listMigrationFiles({ rootDir: rootDir }));
+	const filesToCheck =
+		migrationFilePaths ?? (await listMigrationFiles({ rootDir, runCommand }));
 
 	const issues = [];
 	const warnings = [];
 
-	const state = { errors: issues, warnings, isMarked: false };
+	const state = { errors: issues, warnings, markerReason: null };
 
 	for (const file of filesToCheck) {
 		const filePath = normalizePath(file);
 		const source = await readFile(filePath, 'utf8');
-		const marker = escapeHatchRegex.exec(source);
-		state.isMarked = marker !== null;
-		state.markerReason = marker?.groups?.reason?.trim() ?? '';
 
 		const up = getUpMethodBody(source);
 		if (up === null) {
 			continue;
 		}
 
-		state.isMarked = marker !== null;
 		const { body, startLine } = up;
+		const lines = body.split('\n');
 		const operationRegex =
-			/migrationBuilder\.(DropColumn|DropTable|RenameColumn|RenameTable|AddColumn|AlterColumn)(?:<[^>]*>)?\s*\(/g;
+			/migrationBuilder\.(DropColumn|DropTable|RenameColumn|RenameTable|AddColumn|AlterColumn|Sql|SqlAsync)(?:<[^>]*>)?\s*\(/g;
 
 		for (const match of body.matchAll(operationRegex)) {
 			const operationName = match[1];
@@ -274,7 +488,22 @@ export const findMigrationExpandContractIssues = async ({
 			}
 
 			const callText = body.slice(callStart, callEnd + 1);
-			const lineNumber = startLine + body.slice(0, callStart).split('\n').length - 1;
+			const lineIndex = body.slice(0, callStart).split('\n').length - 1;
+			const lineNumber = startLine + lineIndex;
+			const marker = getMarkerForCall(lines, lineIndex, filePath, lineNumber);
+			state.markerReason = marker.isMarked ? marker.markerReason : null;
+			if (marker.missingReasonLine) {
+				state.warnings.push({
+					file: filePath,
+					line: marker.missingReasonLine,
+					operation: 'expand-contract-ok',
+					explanation: marker.missingReasonMessage,
+					remedy:
+						'Add a non-empty reason to this marker and rerun the migration guard.',
+					level: 'warning',
+					markerReason: 'expand-contract-ok marker present',
+				});
+			}
 			checkOperationCall(state, callText, filePath, lineNumber, operationName);
 		}
 	}
@@ -284,12 +513,17 @@ export const findMigrationExpandContractIssues = async ({
 	}));
 };
 
+export { listMigrationFiles, collectDiffPaths };
+
 export const hasBlockingExpandContractIssues = async (options) =>
 	(await findMigrationExpandContractIssues(options)).filter(
 		(issue) => issue.level === 'error',
 	).length > 0;
 
-if (process.argv[1] && path.basename(process.argv[1]) === 'check-migration-expand-contract.mjs') {
+if (
+	process.argv[1] &&
+	path.basename(process.argv[1]) === 'check-migration-expand-contract.mjs'
+) {
 	const findings = await findMigrationExpandContractIssues({
 		rootDir: process.cwd(),
 	});
@@ -313,5 +547,7 @@ if (process.argv[1] && path.basename(process.argv[1]) === 'check-migration-expan
 		process.exit(1);
 	}
 
-	console.log('Migration expand/contract guard: no blocking changes in changed migrations.');
+	console.log(
+		'Migration expand/contract guard: no blocking changes in changed migrations.',
+	);
 }
