@@ -1243,6 +1243,8 @@
 	"assign-members-drawer-description": "Toggle a tenant member on to assign this profile, or off to remove it. Changes save immediately.",
 	"assign-member-toggle-label": "Toggle profile assignment for {{name}}",
 	"no-tenant-members-to-assign": "There are no tenant members to assign yet.",
+	"assign-members-resolution-error-title": "Can't confirm who's already assigned",
+	"assign-members-resolution-error-description": "We couldn't check current assignment status. Toggles stay disabled until this is retried.",
 	"profile-members-tab-description": "People currently assigned to this profile.",
 	"profile-members-table-aria-label": "Profile members",
 	"profile-members-empty-title": "No members assigned yet",

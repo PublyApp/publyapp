@@ -1,5 +1,6 @@
 import { IconUsers } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -16,6 +17,7 @@ import {
 	DrawerTitle,
 } from '~/components/ui/drawer';
 import { InitialsAvatar } from '~/components/ui/initials-avatar';
+import { ErrorStateSurface } from '~/components/ui/state-surface';
 import { Switch } from '~/components/ui/switch';
 import {
 	toStaffTenantProfileMemberAssignmentMap,
@@ -44,15 +46,18 @@ const EMPTY_SEARCH: TableSearchParams = {};
  * the real per-member endpoint; the resolve read only feeds the initial
  * (and post-refresh) checked state.
  *
- * Rows are keyed by `userAccountId` (the tenant membership id the
- * resolve/assign/unassign endpoints all require), NEVER `row.id` (the global
- * user id used elsewhere for linking to the member's own detail page) —
- * step4b-review BLOCKER 1. A row whose assignment status has not resolved
- * yet renders DISABLED rather than unchecked-and-actionable, which would
- * misrepresent an actually-assigned member as available to assign
- * (step4b-review MAJOR 3).
+ * The first column links with the row's GLOBAL `id` (the tenant-users
+ * candidate-list identity, matching `/users/{userId}`), per the mandatory
+ * entity-link convention (docs/guides/front-2/conventions.md:254-258) —
+ * step4b-rereview MAJOR 5. The assign/unassign toggle is keyed by
+ * `userAccountId` (the tenant membership id the resolve/assign/unassign
+ * endpoints all require), NEVER `row.id` — step4b-review BLOCKER 1. A row
+ * whose assignment status has not resolved yet renders DISABLED rather than
+ * unchecked-and-actionable, which would misrepresent an actually-assigned
+ * member as available to assign (step4b-review MAJOR 3).
  */
 const makeAssignMembersColumns = (
+	tenantId: string,
 	t: (key: string, options?: Record<string, unknown>) => string,
 	assignedIds: Set<string>,
 	resolvedIds: Set<string>,
@@ -64,11 +69,15 @@ const makeAssignMembersColumns = (
 		header: t('members'),
 		enableSorting: false,
 		cell: ({ row }) => (
-			<div className="flex min-w-0 items-center gap-2.5">
+			<Link
+				to="/staff/tenants/$tenantId/users/$userId"
+				params={{ tenantId, userId: row.original.id }}
+				className="flex min-w-0 items-center gap-2.5 no-underline"
+			>
 				<InitialsAvatar name={row.original.displayName} />
 				<span className="min-w-0 space-y-0.5">
 					<span
-						className="block truncate text-[13px] font-medium"
+						className="publy-record-link block truncate text-[13px] font-medium"
 						title={row.original.displayName}
 					>
 						{row.original.displayName}
@@ -80,7 +89,7 @@ const makeAssignMembersColumns = (
 						{row.original.email}
 					</span>
 				</span>
-			</div>
+			</Link>
 		),
 	},
 	{
@@ -135,15 +144,19 @@ export const AssignMembersDrawer = ({
 	const assignMember = useAssignStaffTenantProfileUserMutation();
 	const unassignMember = useUnassignStaffTenantProfileUserMutation();
 
-	// Guards against a resolve response that predates a since-committed local
-	// write from clobbering it: every successful assign/unassign records its
-	// commit time here, and a resolve response is only applied to an id if
-	// the response's `dataUpdatedAt` is NEWER than that id's last commit
-	// (step4b-review MAJOR 3).
-	const committedAtRef = useRef<Map<string, number>>(new Map());
+	// Cache-key-busting generation for the resolve query (step4b-rereview
+	// MAJOR 2 — replaces the earlier `dataUpdatedAt`-vs-wall-clock approach,
+	// which compared RECEIVE time against a commit timestamp; those aren't
+	// causally ordered, so a slow pre-toggle fetch could still "look newer"
+	// than a just-committed write. Bumping this after every commit forces a
+	// BRAND NEW query key — a stale in-flight fetch from the previous
+	// generation updates only its own (now-unread) cache entry and can never
+	// contaminate the current generation's `data`.
+	const [resolveGeneration, setResolveGeneration] = useState(0);
 	// Dedupes reprocessing the same resolve response object across re-renders
 	// that don't carry new data (e.g. a `pendingIds` change).
 	const appliedResolveDataRef = useRef<unknown>(undefined);
+	const previousRowAccountIdsKeyRef = useRef<string>('');
 
 	const controller = useTableController({
 		search,
@@ -172,9 +185,15 @@ export const AssignMembersDrawer = ({
 		() => rows.map((row) => row.userAccountId),
 		[rows],
 	);
+	const rowAccountIdsKey = rowAccountIds.join(',');
 
 	const resolutionQuery = useStaffTenantProfileMemberAssignmentResolutionQuery(
-		{ tenantId, profileId, userAccountIds: rowAccountIds },
+		{
+			tenantId,
+			profileId,
+			userAccountIds: rowAccountIds,
+			generation: resolveGeneration,
+		},
 		{
 			enabled:
 				isOpen &&
@@ -186,14 +205,42 @@ export const AssignMembersDrawer = ({
 
 	// A new drawer target (different tenant/profile) must start from a blank
 	// slate — never show a previous profile's resolved/optimistic state while
-	// the new profile's own resolve read is still in flight.
+	// the new profile's own resolve read is still in flight. No generation
+	// bump is needed here: `tenantId`/`profileId` are themselves part of the
+	// resolve query's key (see the variables passed below), so a different
+	// profile already produces a brand-new cache entry on its own.
 	useEffect(() => {
 		setAssignedIds(new Set());
 		setResolvedIds(new Set());
 		setPendingIds(new Set());
-		committedAtRef.current = new Map();
 		appliedResolveDataRef.current = undefined;
+		previousRowAccountIdsKeyRef.current = '';
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- only tenantId/profileId should reset the drawer to a blank slate.
 	}, [tenantId, profileId]);
+
+	// Scope resolved truth to the CURRENT result key (step4b-rereview MAJOR
+	// 2): when the candidate page/search changes the row-account-id set,
+	// prune local state down to the intersection with the new set instead of
+	// letting ids from a previous page/search linger as "resolved" (and
+	// therefore actionable) after they're no longer even in view.
+	useEffect(() => {
+		if (previousRowAccountIdsKeyRef.current === rowAccountIdsKey) {
+			return;
+		}
+		previousRowAccountIdsKeyRef.current = rowAccountIdsKey;
+
+		const currentIds = new Set(rowAccountIds);
+		setAssignedIds(
+			(current) => new Set([...current].filter((id) => currentIds.has(id))),
+		);
+		setResolvedIds(
+			(current) => new Set([...current].filter((id) => currentIds.has(id))),
+		);
+		setPendingIds(
+			(current) => new Set([...current].filter((id) => currentIds.has(id))),
+		);
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- keyed off the stable joined-id string; rowAccountIds is read, not re-triggered on.
+	}, [rowAccountIdsKey]);
 
 	useEffect(() => {
 		const data = resolutionQuery.data;
@@ -202,23 +249,14 @@ export const AssignMembersDrawer = ({
 		}
 		appliedResolveDataRef.current = data;
 
-		const dataUpdatedAt = resolutionQuery.dataUpdatedAt;
 		const assignmentMap = toStaffTenantProfileMemberAssignmentMap(data);
 
 		setAssignedIds((current) => {
 			const next = new Set(current);
 			for (const [userAccountId, isAssigned] of Object.entries(assignmentMap)) {
 				if (pendingIds.has(userAccountId)) {
-					// A write is in flight for this id right now — a read can never
-					// be newer than the truth we're actively producing locally.
-					continue;
-				}
-
-				const committedAt = committedAtRef.current.get(userAccountId);
-				if (committedAt !== undefined && dataUpdatedAt <= committedAt) {
-					// This response predates (or ties) the last local write for this
-					// id — stale for this id even though it's the latest response
-					// overall.
+					// A write is in flight for this id right now — never let a read
+					// override the truth we're actively producing locally.
 					continue;
 				}
 
@@ -238,7 +276,7 @@ export const AssignMembersDrawer = ({
 			}
 			return next;
 		});
-	}, [resolutionQuery.data, resolutionQuery.dataUpdatedAt, pendingIds]);
+	}, [resolutionQuery.data, pendingIds]);
 
 	const setPending = (userAccountId: string, isPending: boolean): void => {
 		setPendingIds((current) => {
@@ -300,18 +338,20 @@ export const AssignMembersDrawer = ({
 			return;
 		}
 
-		// This id's local truth is now authoritative — record the commit time so
-		// a resolve response fetched before this commit can never clobber it.
-		committedAtRef.current.set(userAccountId, Date.now());
 		setPending(userAccountId, false);
+		// Bump the resolve generation so the NEXT resolve fetch is issued under
+		// a brand-new query key, guaranteed to reflect at least this commit —
+		// any still-in-flight fetch from a previous generation can only ever
+		// update its own (now-unread) cache entry (step4b-rereview MAJOR 2).
+		setResolveGeneration((generation) => generation + 1);
 		// Invalidates the whole staff-tenants scope, which nests the Members-tab
-		// roster, this drawer's resolve-assignment read, the profile's
-		// `userAccountCount`, and the tenant users list — every real,
-		// currently-observable side effect of a toggle.
+		// roster, the profile's `userAccountCount`, and the tenant users list —
+		// every other real, currently-observable side effect of a toggle.
 		await invalidateAllStaffTenantScopes(queryClient);
 	};
 
 	const columns = makeAssignMembersColumns(
+		tenantId,
 		t,
 		assignedIds,
 		resolvedIds,
@@ -337,7 +377,23 @@ export const AssignMembersDrawer = ({
 						{t('assign-members-drawer-description')}
 					</DrawerDescription>
 				</DrawerHeader>
-				<DrawerBody className="flex min-h-0 flex-1 flex-col">
+				<DrawerBody className="flex min-h-0 flex-1 flex-col gap-3">
+					{resolutionQuery.isError ? (
+						<ErrorStateSurface
+							title={t('assign-members-resolution-error-title')}
+							description={t('assign-members-resolution-error-description')}
+							actions={
+								<Button
+									type="button"
+									variant="outline"
+									onClick={() => void resolutionQuery.refetch()}
+								>
+									{t('retry')}
+								</Button>
+							}
+							testId="assign-members-resolution-error"
+						/>
+					) : null}
 					<DataTable<StaffTenantUserRow>
 						testId="assign-members-table"
 						ariaLabel={t('assign-members')}

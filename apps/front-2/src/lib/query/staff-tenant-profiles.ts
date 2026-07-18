@@ -152,6 +152,18 @@ export type StaffTenantProfileUserAssignmentResolutionQueryVariables = {
 	tenantId: string;
 	profileId: string;
 	userAccountIds: string[];
+	/**
+	 * Cache-key-busting counter (step4b-rereview MAJOR 2) — deliberately NOT
+	 * sent to the API; the fetcher below only ever reads `userAccountIds` for
+	 * the request body. Bumping it forces a brand-new query key, so a stale
+	 * in-flight fetch from a PREVIOUS generation can never contaminate the
+	 * CURRENT generation's `data`/`dataUpdatedAt` — the two are entirely
+	 * separate cache entries. This is why callers must bump it after every
+	 * committed write rather than relying on `dataUpdatedAt` (receive time,
+	 * not causally ordered with request issuance) compared against a
+	 * wall-clock commit timestamp.
+	 */
+	generation: number;
 };
 
 /** `user_account_id` -> whether that tenant member is assigned to the

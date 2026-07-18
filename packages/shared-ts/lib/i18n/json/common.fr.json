@@ -1243,6 +1243,8 @@
 	"assign-members-drawer-description": "Activez un membre du locataire pour lui attribuer ce profil, ou désactivez-le pour le retirer. Les changements sont enregistrés immédiatement.",
 	"assign-member-toggle-label": "Basculer l'attribution du profil pour {{name}}",
 	"no-tenant-members-to-assign": "Il n'y a pas encore de membres du locataire à attribuer.",
+	"assign-members-resolution-error-title": "Impossible de confirmer les membres déjà assignés",
+	"assign-members-resolution-error-description": "Nous n'avons pas pu vérifier le statut d'attribution actuel. Les interrupteurs restent désactivés jusqu'à une nouvelle tentative.",
 	"profile-members-tab-description": "Personnes actuellement assignées à ce profil.",
 	"profile-members-table-aria-label": "Membres du profil",
 	"profile-members-empty-title": "Aucun membre assigné pour le moment",
