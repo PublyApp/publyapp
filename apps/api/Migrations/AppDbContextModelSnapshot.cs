@@ -812,7 +812,7 @@ namespace PublyApp.Api.Migrations
 					    .HasDatabaseName("ix_email_prepared_sends_prepared_at");
 
 				    b.HasIndex("PreparedAt", "JobId")
-					    .HasDatabaseName("ix_email_prepared_sends_created_at_job_id");
+					    .HasDatabaseName("ix_email_prepared_sends_prepared_at_job_id");
 
 				    b.ToTable("email_prepared_sends");
 				});

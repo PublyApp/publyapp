@@ -37,7 +37,7 @@ public sealed class AddSystemJobSweepIndexesSpec : IClassFixture<ApiFixture> {
 			"ix_email_log_occurred_at_id",
 			"ix_job_dead_letter_failed_at_id",
 			"ix_job_dead_letter_original_job_id",
-			"ix_email_prepared_sends_created_at_job_id",
+			"ix_email_prepared_sends_prepared_at_job_id",
 			"ix_email_log_permanently_failed_occurred_at",
 		]);
 

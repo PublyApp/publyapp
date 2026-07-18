@@ -30,7 +30,7 @@ namespace PublyApp.Api.Migrations
                 column: "original_job_id");
 
             migrationBuilder.CreateIndex(
-                name: "ix_email_prepared_sends_created_at_job_id",
+                name: "ix_email_prepared_sends_prepared_at_job_id",
                 table: "email_prepared_sends",
                 columns: new[] { "prepared_at", "job_id" });
 
@@ -62,7 +62,7 @@ namespace PublyApp.Api.Migrations
                 table: "job_dead_letter");
 
             migrationBuilder.DropIndex(
-                name: "ix_email_prepared_sends_created_at_job_id",
+                name: "ix_email_prepared_sends_prepared_at_job_id",
                 table: "email_prepared_sends");
 
             migrationBuilder.DropIndex(

@@ -547,7 +547,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 				.HasDatabaseName("ix_email_prepared_sends_prepared_at");
 
 			entity.HasIndex(e => new { e.PreparedAt, e.JobId })
-				.HasDatabaseName("ix_email_prepared_sends_created_at_job_id");
+				.HasDatabaseName("ix_email_prepared_sends_prepared_at_job_id");
 		});
 
 		// Partial indexes to favor active rows without enforcing global filters
