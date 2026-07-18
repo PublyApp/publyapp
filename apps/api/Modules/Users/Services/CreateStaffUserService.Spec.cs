@@ -61,6 +61,36 @@ public sealed class CreateStaffUserServiceSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldRollbackUserAndAccountWhenEnqueueFails() {
+		var email = $"create-staff-rollback-{Guid.NewGuid():N}@example.com";
+
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var service = new CreateStaffUserService(
+			dbContext,
+			new RejectingEnqueuer()
+		);
+
+		var act = async () => await service.CreateStaffUserAsync(
+			new CreateStaffUserArgs(
+				Email: email,
+				LastName: "Staff",
+				FirstName: "Atomic",
+				AvatarUrl: null,
+				Password: PasswordUtils.HashPassword("unused-password"),
+				SendNotification: true
+			),
+			CancellationToken.None
+		);
+
+		await act.Should().ThrowAsync<InvalidOperationException>();
+
+		await using var verify = CreateDbContext();
+		(await verify.User.CountAsync(u => u.Email == email)).Should().Be(0);
+		(await verify.UserAccount.CountAsync(a => a.User.Email == email)).Should().Be(0);
+	}
+
+	[Fact]
 	public async Task ItShouldCreateUserAccountAndEnqueueVerifyEmailWhenSuccessful() {
 		var email = $"create-staff-success-{Guid.NewGuid():N}@example.com";
 
