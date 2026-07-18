@@ -47,6 +47,7 @@ public sealed class SeederGateProbeSpec {
 			results.Payload.HasSystemJobDefinitions.Should().BeTrue();
 			results.Payload.HasOwnerUser.Should().BeTrue();
 			results.Payload.HasOwnerAccount.Should().BeTrue();
+			results.Payload.OwnerPasswordIsNotSeedPassword.Should().BeTrue();
 		} finally {
 			await DropDatabaseIfExistsAsync(adminConnection, dbName);
 		}
@@ -137,6 +138,7 @@ public sealed class SeederGateProbeSpec {
 		bool HasStaffOwnerProfile,
 		bool HasSystemJobDefinitions,
 		bool HasOwnerUser,
-		bool HasOwnerAccount
+		bool HasOwnerAccount,
+		bool OwnerPasswordIsNotSeedPassword
 	);
 }

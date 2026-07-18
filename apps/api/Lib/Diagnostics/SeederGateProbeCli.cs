@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
+using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Auth.Jobs;
 using PublyApp.Api.Modules.Jobs.Jobs;
 using PublyApp.Api.Modules.Messaging.Jobs;
@@ -105,6 +106,16 @@ public static class SeederGateProbeCli {
 				.IgnoreQueryFilters()
 				.AnyAsync(ua => ua.User != null && ua.User.Email == expectedOwnerEmail);
 
+			var ownerPasswordHash = await dbContext
+				.User
+				.IgnoreQueryFilters()
+				.Where(user => user.Email == expectedOwnerEmail)
+				.Select(user => user.Password)
+				.SingleOrDefaultAsync(cancellationToken: default);
+
+			var ownerPasswordMatchesCommittedSeed = ownerPasswordHash is not null
+				&& PasswordUtils.VerifyPassword(SeedConstants.SeedPassword, ownerPasswordHash);
+
 			var hasDemoTenants = await dbContext
 				.Tenant
 				.IgnoreQueryFilters()
@@ -135,6 +146,7 @@ public static class SeederGateProbeCli {
 				HasSystemJobDefinitions = missingJobKeys.Count == 0,
 				HasOwnerUser = hasOwnerUser,
 				HasOwnerAccount = hasOwnerAccount,
+				OwnerPasswordIsNotSeedPassword = !ownerPasswordMatchesCommittedSeed,
 			};
 
 			Console.Out.WriteLine($"{LinePrefix}{JsonSerializer.Serialize(result)}");
@@ -146,6 +158,7 @@ public static class SeederGateProbeCli {
 				&& result.HasSystemJobDefinitions
 				&& result.HasOwnerUser
 				&& result.HasOwnerAccount
+				&& result.OwnerPasswordIsNotSeedPassword
 				? SuccessExitCode
 				: 1;
 

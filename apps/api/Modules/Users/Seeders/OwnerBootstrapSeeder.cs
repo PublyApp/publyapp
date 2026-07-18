@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data;
 using PublyApp.Api.Data.DbContext;
-using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Auth.Utils;
@@ -19,7 +18,7 @@ namespace PublyApp.Api.Modules.Users.Seeders;
 /// </summary>
 public class OwnerBootstrapSeeder : IEntitySeeder {
 	private static readonly Lazy<string> CachedSeedPassword = new(
-		() => PasswordUtils.HashPassword(SeedConstants.SeedPassword),
+		() => PasswordUtils.HashPassword(AppEnvironment.Instance.STAFF_OWNER_BOOTSTRAP_CODE),
 		LazyThreadSafetyMode.ExecutionAndPublication
 	);
 
