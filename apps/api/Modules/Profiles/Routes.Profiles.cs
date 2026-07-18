@@ -151,6 +151,23 @@ public static partial class Routes {
 					return $"/{profileId}/users";
 				}
 
+				/// <summary>Find tenant members assigned to a tenant profile</summary>
+				public const string Find = Root;
+				public static string FindFn(string profileId) {
+					return RootFn(profileId);
+				}
+
+				/// <summary>
+				/// Batch-resolve whether a set of tenant member accounts is assigned to a
+				/// tenant profile. Mirrors Users.ResolveAssignment on the staff-profiles axis;
+				/// this exists to avoid N+1 per-row profile requests in list UIs (assignment
+				/// drawers).
+				/// </summary>
+				public const string ResolveAssignment = Root + "/assignment-resolution";
+				public static string ResolveAssignmentFn(string profileId) {
+					return $"{RootFn(profileId)}/assignment-resolution";
+				}
+
 				// Membership is exposed as an idempotent per-member "upsert" toggle keyed by
 				// the member's account id, mirroring Permissions.Upsert in this same group:
 				// POST assigns, DELETE unassigns. This is what lets the members UI toggle a

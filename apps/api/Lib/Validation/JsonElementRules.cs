@@ -565,6 +565,44 @@ public static class JsonElementRules {
 	}
 
 	/// <summary>
+	/// Validates a required JsonElement GUID array field that allows an empty array:
+	/// required → array → bounded size → every item is a GUID string. Unlike
+	/// <see cref="MustBeRequiredGuidArray{T}"/>, this does NOT require at least one item — use
+	/// it for batch-read/resolve-style endpoints where an empty array is a valid "resolve
+	/// nothing" request rather than a validation error.
+	/// </summary>
+	public static IRuleBuilderOptions<T, JsonElement>
+		MustBeRequiredGuidArrayAllowingEmpty<T>(
+			this IRuleBuilder<T, JsonElement> ruleBuilder,
+			string fieldName,
+			string itemName,
+			int maxCount
+	) {
+		return ruleBuilder
+			.Must(element =>
+				element.ValueKind
+				is not JsonValueKind.Undefined
+				and not JsonValueKind.Null
+			)
+			.WithMessage($"{fieldName} is required")
+			.Must(element => element.ValueKind == JsonValueKind.Array)
+			.WithMessage($"{fieldName} must be an array")
+			.Must(element =>
+				element.ValueKind == JsonValueKind.Array
+				&& element.EnumerateArray().Count() <= maxCount
+			)
+			.WithMessage($"Maximum {maxCount} {fieldName} allowed")
+			.Must(element =>
+				element.ValueKind == JsonValueKind.Array
+				&& element.EnumerateArray().All(item =>
+					item.ValueKind == JsonValueKind.String
+					&& item.TryGetGuid(out _)
+				)
+			)
+			.WithMessage($"Every {itemName} must be a valid GUID");
+	}
+
+	/// <summary>
 	/// Validates a required JsonElement string field that
 	/// must also be a valid encrypted string (for token IDs).
 	/// </summary>

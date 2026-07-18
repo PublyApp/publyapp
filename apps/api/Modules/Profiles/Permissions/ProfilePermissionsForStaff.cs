@@ -16,6 +16,7 @@ public class ProfilePermissionsForStaff : ISlicePermissions {
 
 	// ==== FOR TENANT ====
 	public Permission LIST_FOR_TENANT { get; }
+	public Permission LIST_USERS_FOR_TENANT_PROFILE { get; }
 	public Permission GET_FOR_TENANT { get; }
 	public Permission CREATE_FOR_TENANT { get; }
 	public Permission UPDATE_FOR_TENANT { get; }
@@ -58,6 +59,28 @@ public class ProfilePermissionsForStaff : ISlicePermissions {
 			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { KeyPrefix, "list_for_tenant" }))
 			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "List tenant profiles", Description = "List all tenant profiles" })
 			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Liste les profils du tenant", Description = "Liste tous les profils du tenant" });
+
+		LIST_USERS_FOR_TENANT_PROFILE = Permission
+			.CreateStaffPermission(
+				string.Join(
+					Permission.KeySeparator,
+					new[] { KeyPrefix, "list_users_for_tenant_profile" }
+				)
+			)
+			.SetTranslation(
+				SupportedLanguage.English,
+				new PermissionTranslation {
+					Name = "List users assigned to a tenant profile",
+					Description = "List users assigned to a tenant profile",
+				}
+			)
+			.SetTranslation(
+				SupportedLanguage.French,
+				new PermissionTranslation {
+					Name = "Lister les utilisateurs affectés à un profil du tenant",
+					Description = "Lister les utilisateurs affectés à un profil du tenant",
+				}
+			);
 
 		GET_FOR_TENANT = Permission
 			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { KeyPrefix, "get_for_tenant" }))

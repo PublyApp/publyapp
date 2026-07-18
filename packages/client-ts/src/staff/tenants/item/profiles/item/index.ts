@@ -6,7 +6,7 @@ import { createApiResponseFromDiscriminatorValue, createAppProblemDetailsFromDis
 // @ts-ignore
 import { PermissionsRequestBuilderNavigationMetadata, PermissionsRequestBuilderRequestsMetadata, type PermissionsRequestBuilder } from './permissions/index.js';
 // @ts-ignore
-import { type UsersRequestBuilder, UsersRequestBuilderNavigationMetadata } from './users/index.js';
+import { type UsersRequestBuilder, UsersRequestBuilderNavigationMetadata, UsersRequestBuilderRequestsMetadata } from './users/index.js';
 // @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
@@ -90,6 +90,7 @@ export const WithProfileItemRequestBuilderNavigationMetadata: Record<Exclude<key
         navigationMetadata: PermissionsRequestBuilderNavigationMetadata,
     },
     users: {
+        requestsMetadata: UsersRequestBuilderRequestsMetadata,
         navigationMetadata: UsersRequestBuilderNavigationMetadata,
     },
 };
