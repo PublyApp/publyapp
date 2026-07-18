@@ -84,12 +84,20 @@ vi.mock('~/lib/query/staff-tenant-profiles', () => ({
 	},
 }));
 
+// FIXTURE IDENTITY CONTRACT (step4b-review BLOCKER 1): every fixture row's
+// `id` (the global user id) is DELIBERATELY a different literal string from
+// its `userAccountId` (the tenant membership id). If the component ever
+// regresses to reading `row.id` for resolve/assign/unassign, an assertion
+// checking for the `account-*` value will fail against the `user-*` value
+// actually sent — a conflated fixture (same string for both) would make that
+// assertion vacuously pass either way.
 vi.mock('~/lib/query/staff-tenant-users', () => ({
 	useStaffTenantUsersQuery: mocks.useStaffTenantUsersQuery,
 	toStaffTenantUserRows: (
 		items:
 			| {
 					id?: string;
+					userAccountId?: string;
 					email?: string;
 					firstName?: string | null;
 					lastName?: string | null;
@@ -99,6 +107,7 @@ vi.mock('~/lib/query/staff-tenant-users', () => ({
 	) =>
 		(items ?? []).map((item) => ({
 			id: item.id ?? '',
+			userAccountId: item.userAccountId ?? '',
 			email: item.email ?? '',
 			firstName: item.firstName ?? null,
 			lastName: item.lastName ?? null,
@@ -124,12 +133,14 @@ import { AssignMembersDrawer } from './_assign-members-drawer';
 const FIXTURE_USERS = [
 	{
 		id: 'user-1',
+		userAccountId: 'account-1',
 		email: 'ada@example.com',
 		firstName: 'Ada',
 		lastName: 'Lovelace',
 	},
 	{
 		id: 'user-2',
+		userAccountId: 'account-2',
 		email: 'grace@example.com',
 		firstName: 'Grace',
 		lastName: 'Hopper',
@@ -151,6 +162,21 @@ const renderDrawer = (
 	return render((<AssignMembersDrawer {...props} />) as unknown as JSX.Element);
 };
 
+/** Default: both fixture members are RESOLVED (a real resolve answer exists)
+ * and unassigned — matches the shape most tests need (enabled, unchecked
+ * switches) without every test having to restate it. */
+const resolvedUnassigned = (dataUpdatedAt = 1000) => ({
+	data: {
+		assignments: [
+			{ userAccountId: 'account-1', isAssigned: false },
+			{ userAccountId: 'account-2', isAssigned: false },
+		],
+	},
+	dataUpdatedAt,
+	isPending: false,
+	isError: false,
+});
+
 beforeEach(() => {
 	vi.clearAllMocks();
 	mocks.useStaffTenantUsersQuery.mockReturnValue({
@@ -160,11 +186,9 @@ beforeEach(() => {
 		isFetching: false,
 		refetch: vi.fn(),
 	});
-	mocks.useStaffTenantProfileMemberAssignmentResolutionQuery.mockReturnValue({
-		data: { assignments: [] },
-		isPending: false,
-		isError: false,
-	});
+	mocks.useStaffTenantProfileMemberAssignmentResolutionQuery.mockReturnValue(
+		resolvedUnassigned(),
+	);
 	mocks.assignMutateAsync.mockResolvedValue(undefined);
 	mocks.unassignMutateAsync.mockResolvedValue(undefined);
 });
@@ -174,21 +198,105 @@ afterEach(() => {
 });
 
 describe('AssignMembersDrawer', () => {
-	test('renders assignable tenant members with an unchecked toggle per row', () => {
+	test('renders assignable tenant members with an unchecked, enabled toggle per row once resolved', () => {
 		renderDrawer();
 
 		expect(screen.getByTestId('assign-members-drawer')).toBeTruthy();
 		expect(screen.getByText('Ada Lovelace')).toBeTruthy();
 		expect(screen.getByText('Grace Hopper')).toBeTruthy();
 
-		const adaToggle = screen.getByTestId('assign-member-toggle-user-1');
+		const adaToggle = screen.getByTestId('assign-member-toggle-account-1');
 		expect(adaToggle.getAttribute('aria-checked')).toBe('false');
+		expect(adaToggle.getAttribute('aria-disabled')).toBeNull();
 	});
 
-	test('toggling a row on fires exactly one assign POST for that member', async () => {
+	// step4b-review MAJOR 3: a row must not be actionable before we have an
+	// authoritative answer for it — otherwise an actually-assigned member can
+	// look available to assign.
+	test('disables a row until the resolve read has an answer for it, and enables it once resolved', () => {
+		mocks.useStaffTenantProfileMemberAssignmentResolutionQuery.mockReturnValue({
+			data: undefined,
+			dataUpdatedAt: 0,
+			isPending: true,
+			isError: false,
+		});
+
+		const { rerender } = renderDrawer();
+
+		const toggle = screen.getByTestId('assign-member-toggle-account-1');
+		expect(toggle.getAttribute('aria-disabled')).toBe('true');
+
+		mocks.useStaffTenantProfileMemberAssignmentResolutionQuery.mockReturnValue(
+			resolvedUnassigned(),
+		);
+		rerender(
+			(
+				<AssignMembersDrawer
+					tenantId="tenant-1"
+					profileId="profile-1"
+					isOpen
+					onOpenChange={() => {}}
+					onSessionExpired={() => {}}
+				/>
+			) as unknown as JSX.Element,
+		);
+
+		expect(
+			screen
+				.getByTestId('assign-member-toggle-account-1')
+				.getAttribute('aria-disabled'),
+		).toBeNull();
+	});
+
+	// step4b-review BLOCKER 1: the resolve endpoint requires user_account_id,
+	// never the global user id.
+	test('sends the tenant-membership userAccountId (not the global user id) to the resolve read', () => {
 		renderDrawer();
 
-		fireEvent.click(screen.getByTestId('assign-member-toggle-user-1'));
+		const lastCall =
+			mocks.useStaffTenantProfileMemberAssignmentResolutionQuery.mock.calls[
+				mocks.useStaffTenantProfileMemberAssignmentResolutionQuery.mock.calls
+					.length - 1
+			];
+		expect(lastCall?.[0]).toEqual({
+			tenantId: 'tenant-1',
+			profileId: 'profile-1',
+			userAccountIds: ['account-1', 'account-2'],
+		});
+		expect(lastCall?.[1]?.enabled).toBe(true);
+	});
+
+	test('seeds a row as checked when the resolve-assignment read reports it already assigned', () => {
+		mocks.useStaffTenantProfileMemberAssignmentResolutionQuery.mockReturnValue({
+			data: {
+				assignments: [
+					{ userAccountId: 'account-1', isAssigned: true },
+					{ userAccountId: 'account-2', isAssigned: false },
+				],
+			},
+			dataUpdatedAt: 1000,
+			isPending: false,
+			isError: false,
+		});
+
+		renderDrawer();
+
+		expect(
+			screen
+				.getByTestId('assign-member-toggle-account-1')
+				.getAttribute('aria-checked'),
+		).toBe('true');
+		expect(
+			screen
+				.getByTestId('assign-member-toggle-account-2')
+				.getAttribute('aria-checked'),
+		).toBe('false');
+	});
+
+	test('toggling a row on fires exactly one assign POST keyed by userAccountId, never the global user id', async () => {
+		renderDrawer();
+
+		fireEvent.click(screen.getByTestId('assign-member-toggle-account-1'));
 
 		await waitFor(() => {
 			expect(mocks.assignMutateAsync).toHaveBeenCalledTimes(1);
@@ -196,7 +304,7 @@ describe('AssignMembersDrawer', () => {
 		expect(mocks.assignMutateAsync).toHaveBeenCalledWith({
 			tenantId: 'tenant-1',
 			profileId: 'profile-1',
-			userAccountId: 'user-1',
+			userAccountId: 'account-1',
 		});
 		expect(mocks.unassignMutateAsync).not.toHaveBeenCalled();
 
@@ -205,7 +313,7 @@ describe('AssignMembersDrawer', () => {
 		await waitFor(() => {
 			expect(
 				screen
-					.getByTestId('assign-member-toggle-user-1')
+					.getByTestId('assign-member-toggle-account-1')
 					.getAttribute('aria-checked'),
 			).toBe('true');
 		});
@@ -214,33 +322,33 @@ describe('AssignMembersDrawer', () => {
 		});
 	});
 
-	test('toggling a row off fires exactly one unassign DELETE for that member', async () => {
+	test('toggling a row off fires exactly one unassign DELETE keyed by userAccountId', async () => {
 		renderDrawer();
 
 		// First toggle on, then off — mirrors a staff admin correcting a
 		// just-made assignment within the same drawer session.
-		fireEvent.click(screen.getByTestId('assign-member-toggle-user-1'));
+		fireEvent.click(screen.getByTestId('assign-member-toggle-account-1'));
 		await waitFor(() => {
 			expect(
 				screen
-					.getByTestId('assign-member-toggle-user-1')
+					.getByTestId('assign-member-toggle-account-1')
 					.getAttribute('aria-checked'),
 			).toBe('true');
 		});
 
-		fireEvent.click(screen.getByTestId('assign-member-toggle-user-1'));
+		fireEvent.click(screen.getByTestId('assign-member-toggle-account-1'));
 		await waitFor(() => {
 			expect(mocks.unassignMutateAsync).toHaveBeenCalledTimes(1);
 		});
 		expect(mocks.unassignMutateAsync).toHaveBeenCalledWith({
 			tenantId: 'tenant-1',
 			profileId: 'profile-1',
-			userAccountId: 'user-1',
+			userAccountId: 'account-1',
 		});
 		await waitFor(() => {
 			expect(
 				screen
-					.getByTestId('assign-member-toggle-user-1')
+					.getByTestId('assign-member-toggle-account-1')
 					.getAttribute('aria-checked'),
 			).toBe('false');
 		});
@@ -250,7 +358,7 @@ describe('AssignMembersDrawer', () => {
 		mocks.assignMutateAsync.mockRejectedValueOnce(new Error('cap exceeded'));
 		renderDrawer();
 
-		fireEvent.click(screen.getByTestId('assign-member-toggle-user-1'));
+		fireEvent.click(screen.getByTestId('assign-member-toggle-account-1'));
 
 		await waitFor(() => {
 			expect(mocks.assignMutateAsync).toHaveBeenCalledTimes(1);
@@ -258,12 +366,162 @@ describe('AssignMembersDrawer', () => {
 		await waitFor(() => {
 			expect(
 				screen
-					.getByTestId('assign-member-toggle-user-1')
+					.getByTestId('assign-member-toggle-account-1')
 					.getAttribute('aria-checked'),
 			).toBe('false');
 		});
 		// A local, non-401 failure never triggers a session-expiry redirect.
 		expect(mocks.shouldLogoutForFailure).toHaveBeenCalled();
+	});
+
+	test('toggling a resolved-as-assigned row off still fires the unassign DELETE', async () => {
+		mocks.useStaffTenantProfileMemberAssignmentResolutionQuery.mockReturnValue({
+			data: {
+				assignments: [{ userAccountId: 'account-1', isAssigned: true }],
+			},
+			dataUpdatedAt: 1000,
+			isPending: false,
+			isError: false,
+		});
+
+		renderDrawer();
+
+		expect(
+			screen
+				.getByTestId('assign-member-toggle-account-1')
+				.getAttribute('aria-checked'),
+		).toBe('true');
+
+		fireEvent.click(screen.getByTestId('assign-member-toggle-account-1'));
+
+		await waitFor(() => {
+			expect(mocks.unassignMutateAsync).toHaveBeenCalledTimes(1);
+		});
+		expect(mocks.assignMutateAsync).not.toHaveBeenCalled();
+	});
+
+	// step4b-review MAJOR 3: a resolve response fetched BEFORE a since-
+	// committed local write must never clobber it, even if that response is
+	// the most RECENT one the component has seen.
+	test('ignores a stale resolve response (older dataUpdatedAt) that contradicts a since-committed write', async () => {
+		const { rerender } = renderDrawer();
+
+		fireEvent.click(screen.getByTestId('assign-member-toggle-account-1'));
+		await waitFor(() => {
+			expect(
+				screen
+					.getByTestId('assign-member-toggle-account-1')
+					.getAttribute('aria-checked'),
+			).toBe('true');
+		});
+		await waitFor(() => {
+			expect(mocks.invalidateQueries).toHaveBeenCalled();
+		});
+
+		// A resolve response that predates the commit (dataUpdatedAt=1, far
+		// below any real Date.now() the commit could have recorded) lands and
+		// disagrees (reports account-1 as NOT assigned). It must be ignored for
+		// account-1 specifically.
+		mocks.useStaffTenantProfileMemberAssignmentResolutionQuery.mockReturnValue({
+			data: {
+				assignments: [
+					{ userAccountId: 'account-1', isAssigned: false },
+					{ userAccountId: 'account-2', isAssigned: false },
+				],
+			},
+			dataUpdatedAt: 1,
+			isPending: false,
+			isError: false,
+		});
+		rerender(
+			(
+				<AssignMembersDrawer
+					tenantId="tenant-1"
+					profileId="profile-1"
+					isOpen
+					onOpenChange={() => {}}
+					onSessionExpired={() => {}}
+				/>
+			) as unknown as JSX.Element,
+		);
+
+		expect(
+			screen
+				.getByTestId('assign-member-toggle-account-1')
+				.getAttribute('aria-checked'),
+		).toBe('true');
+	});
+
+	// step4b-review MAJOR 3: a fresh resolve response replaces truth for
+	// exactly the ids it describes — it is not a one-way, only-ever-adds
+	// merge. A member unassigned elsewhere must show unchecked once a newer
+	// response says so.
+	test('replaces a row from unassigned to assigned (and back) as fresh resolve responses land', () => {
+		const { rerender } = renderDrawer();
+
+		expect(
+			screen
+				.getByTestId('assign-member-toggle-account-1')
+				.getAttribute('aria-checked'),
+		).toBe('false');
+
+		mocks.useStaffTenantProfileMemberAssignmentResolutionQuery.mockReturnValue({
+			data: {
+				assignments: [
+					{ userAccountId: 'account-1', isAssigned: true },
+					{ userAccountId: 'account-2', isAssigned: false },
+				],
+			},
+			dataUpdatedAt: 2000,
+			isPending: false,
+			isError: false,
+		});
+		rerender(
+			(
+				<AssignMembersDrawer
+					tenantId="tenant-1"
+					profileId="profile-1"
+					isOpen
+					onOpenChange={() => {}}
+					onSessionExpired={() => {}}
+				/>
+			) as unknown as JSX.Element,
+		);
+
+		expect(
+			screen
+				.getByTestId('assign-member-toggle-account-1')
+				.getAttribute('aria-checked'),
+		).toBe('true');
+
+		mocks.useStaffTenantProfileMemberAssignmentResolutionQuery.mockReturnValue({
+			data: {
+				assignments: [
+					{ userAccountId: 'account-1', isAssigned: false },
+					{ userAccountId: 'account-2', isAssigned: false },
+				],
+			},
+			dataUpdatedAt: 3000,
+			isPending: false,
+			isError: false,
+		});
+		rerender(
+			(
+				<AssignMembersDrawer
+					tenantId="tenant-1"
+					profileId="profile-1"
+					isOpen
+					onOpenChange={() => {}}
+					onSessionExpired={() => {}}
+				/>
+			) as unknown as JSX.Element,
+		);
+
+		expect(
+			screen
+				.getByTestId('assign-member-toggle-account-1')
+				.getAttribute('aria-checked'),
+		).toBe('false');
 	});
 
 	test('calls onOpenChange(false) when the footer Close button is clicked', () => {
@@ -294,72 +552,5 @@ describe('AssignMembersDrawer', () => {
 					.length - 1
 			];
 		expect(lastCall?.[1]?.enabled).toBe(false);
-	});
-
-	test('resolves assignment status for the currently loaded rows', () => {
-		renderDrawer();
-
-		const lastCall =
-			mocks.useStaffTenantProfileMemberAssignmentResolutionQuery.mock.calls[
-				mocks.useStaffTenantProfileMemberAssignmentResolutionQuery.mock.calls
-					.length - 1
-			];
-		expect(lastCall?.[0]).toEqual({
-			tenantId: 'tenant-1',
-			profileId: 'profile-1',
-			userAccountIds: ['user-1', 'user-2'],
-		});
-		expect(lastCall?.[1]?.enabled).toBe(true);
-	});
-
-	test('seeds a row as checked when the resolve-assignment read reports it already assigned', () => {
-		mocks.useStaffTenantProfileMemberAssignmentResolutionQuery.mockReturnValue({
-			data: {
-				assignments: [
-					{ userAccountId: 'user-1', isAssigned: true },
-					{ userAccountId: 'user-2', isAssigned: false },
-				],
-			},
-			isPending: false,
-			isError: false,
-		});
-
-		renderDrawer();
-
-		expect(
-			screen
-				.getByTestId('assign-member-toggle-user-1')
-				.getAttribute('aria-checked'),
-		).toBe('true');
-		expect(
-			screen
-				.getByTestId('assign-member-toggle-user-2')
-				.getAttribute('aria-checked'),
-		).toBe('false');
-	});
-
-	test('toggling a resolved-as-assigned row off still fires the unassign DELETE', async () => {
-		mocks.useStaffTenantProfileMemberAssignmentResolutionQuery.mockReturnValue({
-			data: {
-				assignments: [{ userAccountId: 'user-1', isAssigned: true }],
-			},
-			isPending: false,
-			isError: false,
-		});
-
-		renderDrawer();
-
-		expect(
-			screen
-				.getByTestId('assign-member-toggle-user-1')
-				.getAttribute('aria-checked'),
-		).toBe('true');
-
-		fireEvent.click(screen.getByTestId('assign-member-toggle-user-1'));
-
-		await waitFor(() => {
-			expect(mocks.unassignMutateAsync).toHaveBeenCalledTimes(1);
-		});
-		expect(mocks.assignMutateAsync).not.toHaveBeenCalled();
 	});
 });

@@ -1,7 +1,7 @@
 import { IconUsers } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTable } from '~/components/table/data-table';
 import { useTableController } from '~/components/table/use-table-controller';
@@ -43,10 +43,19 @@ const EMPTY_SEARCH: TableSearchParams = {};
  * toggle click is still a single, immediately-persisted POST/DELETE against
  * the real per-member endpoint; the resolve read only feeds the initial
  * (and post-refresh) checked state.
+ *
+ * Rows are keyed by `userAccountId` (the tenant membership id the
+ * resolve/assign/unassign endpoints all require), NEVER `row.id` (the global
+ * user id used elsewhere for linking to the member's own detail page) —
+ * step4b-review BLOCKER 1. A row whose assignment status has not resolved
+ * yet renders DISABLED rather than unchecked-and-actionable, which would
+ * misrepresent an actually-assigned member as available to assign
+ * (step4b-review MAJOR 3).
  */
 const makeAssignMembersColumns = (
 	t: (key: string, options?: Record<string, unknown>) => string,
 	assignedIds: Set<string>,
+	resolvedIds: Set<string>,
 	pendingIds: Set<string>,
 	onToggle: (row: StaffTenantUserRow, checked: boolean) => void,
 ): ColumnDef<StaffTenantUserRow>[] => [
@@ -79,17 +88,23 @@ const makeAssignMembersColumns = (
 		header: () => <span className="sr-only">{t('assign-members')}</span>,
 		enableSorting: false,
 		meta: { width: '64px', align: 'center' },
-		cell: ({ row }) => (
-			<Switch
-				checked={assignedIds.has(row.original.id)}
-				disabled={pendingIds.has(row.original.id)}
-				onCheckedChange={(checked) => onToggle(row.original, checked)}
-				aria-label={t('assign-member-toggle-label', {
-					name: row.original.displayName,
-				})}
-				data-testid={`assign-member-toggle-${row.original.id}`}
-			/>
-		),
+		cell: ({ row }) => {
+			const userAccountId = row.original.userAccountId;
+
+			return (
+				<Switch
+					checked={assignedIds.has(userAccountId)}
+					disabled={
+						pendingIds.has(userAccountId) || !resolvedIds.has(userAccountId)
+					}
+					onCheckedChange={(checked) => onToggle(row.original, checked)}
+					aria-label={t('assign-member-toggle-label', {
+						name: row.original.displayName,
+					})}
+					data-testid={`assign-member-toggle-${userAccountId}`}
+				/>
+			);
+		},
 	},
 ];
 
@@ -108,15 +123,27 @@ export const AssignMembersDrawer = ({
 }) => {
 	const { t } = useTranslation('common');
 	const queryClient = useQueryClient();
-	// Seeded from the batch resolve-assignment read below once it resolves;
-	// until then (or for a row it hasn't covered yet) this only reflects
-	// toggles made THIS drawer session. Every toggle is still a single,
-	// immediately-persisted POST/DELETE against the real per-member endpoint.
+	// Server-truth assignment state — seeded from the resolve endpoint below,
+	// or promoted directly from a locally-committed write (never fabricated).
 	const [assignedIds, setAssignedIds] = useState<Set<string>>(new Set());
+	// Ids we have an AUTHORITATIVE answer for (a resolve response or a
+	// completed local write). A row not yet in this set renders disabled
+	// rather than unchecked-and-actionable (step4b-review MAJOR 3).
+	const [resolvedIds, setResolvedIds] = useState<Set<string>>(new Set());
 	const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
 	const [search, setSearch] = useState<TableSearchParams>(EMPTY_SEARCH);
 	const assignMember = useAssignStaffTenantProfileUserMutation();
 	const unassignMember = useUnassignStaffTenantProfileUserMutation();
+
+	// Guards against a resolve response that predates a since-committed local
+	// write from clobbering it: every successful assign/unassign records its
+	// commit time here, and a resolve response is only applied to an id if
+	// the response's `dataUpdatedAt` is NEWER than that id's last commit
+	// (step4b-review MAJOR 3).
+	const committedAtRef = useRef<Map<string, number>>(new Map());
+	// Dedupes reprocessing the same resolve response object across re-renders
+	// that don't carry new data (e.g. a `pendingIds` change).
+	const appliedResolveDataRef = useRef<unknown>(undefined);
 
 	const controller = useTableController({
 		search,
@@ -141,31 +168,60 @@ export const AssignMembersDrawer = ({
 		() => toStaffTenantUserRows(usersQuery.data?.data),
 		[usersQuery.data?.data],
 	);
-	const rowIds = useMemo(() => rows.map((row) => row.id), [rows]);
+	const rowAccountIds = useMemo(
+		() => rows.map((row) => row.userAccountId),
+		[rows],
+	);
 
 	const resolutionQuery = useStaffTenantProfileMemberAssignmentResolutionQuery(
-		{ tenantId, profileId, userAccountIds: rowIds },
+		{ tenantId, profileId, userAccountIds: rowAccountIds },
 		{
 			enabled:
 				isOpen &&
 				tenantId.length > 0 &&
 				profileId.length > 0 &&
-				rowIds.length > 0,
+				rowAccountIds.length > 0,
 		},
 	);
 
+	// A new drawer target (different tenant/profile) must start from a blank
+	// slate — never show a previous profile's resolved/optimistic state while
+	// the new profile's own resolve read is still in flight.
 	useEffect(() => {
-		if (!resolutionQuery.data) {
+		setAssignedIds(new Set());
+		setResolvedIds(new Set());
+		setPendingIds(new Set());
+		committedAtRef.current = new Map();
+		appliedResolveDataRef.current = undefined;
+	}, [tenantId, profileId]);
+
+	useEffect(() => {
+		const data = resolutionQuery.data;
+		if (!data || data === appliedResolveDataRef.current) {
 			return;
 		}
+		appliedResolveDataRef.current = data;
 
-		const assignmentMap = toStaffTenantProfileMemberAssignmentMap(
-			resolutionQuery.data,
-		);
+		const dataUpdatedAt = resolutionQuery.dataUpdatedAt;
+		const assignmentMap = toStaffTenantProfileMemberAssignmentMap(data);
 
 		setAssignedIds((current) => {
 			const next = new Set(current);
 			for (const [userAccountId, isAssigned] of Object.entries(assignmentMap)) {
+				if (pendingIds.has(userAccountId)) {
+					// A write is in flight for this id right now — a read can never
+					// be newer than the truth we're actively producing locally.
+					continue;
+				}
+
+				const committedAt = committedAtRef.current.get(userAccountId);
+				if (committedAt !== undefined && dataUpdatedAt <= committedAt) {
+					// This response predates (or ties) the last local write for this
+					// id — stale for this id even though it's the latest response
+					// overall.
+					continue;
+				}
+
 				if (isAssigned) {
 					next.add(userAccountId);
 				} else {
@@ -174,7 +230,15 @@ export const AssignMembersDrawer = ({
 			}
 			return next;
 		});
-	}, [resolutionQuery.data]);
+
+		setResolvedIds((current) => {
+			const next = new Set(current);
+			for (const userAccountId of Object.keys(assignmentMap)) {
+				next.add(userAccountId);
+			}
+			return next;
+		});
+	}, [resolutionQuery.data, resolutionQuery.dataUpdatedAt, pendingIds]);
 
 	const setPending = (userAccountId: string, isPending: boolean): void => {
 		setPendingIds((current) => {
@@ -204,21 +268,22 @@ export const AssignMembersDrawer = ({
 		row: StaffTenantUserRow,
 		checked: boolean,
 	): Promise<void> => {
-		setPending(row.id, true);
-		setAssigned(row.id, checked);
+		const userAccountId = row.userAccountId;
+		setPending(userAccountId, true);
+		setAssigned(userAccountId, checked);
 
 		try {
 			if (checked) {
 				await assignMember.mutateAsync({
 					tenantId,
 					profileId,
-					userAccountId: row.id,
+					userAccountId,
 				});
 			} else {
 				await unassignMember.mutateAsync({
 					tenantId,
 					profileId,
-					userAccountId: row.id,
+					userAccountId,
 				});
 			}
 		} catch (error) {
@@ -226,8 +291,8 @@ export const AssignMembersDrawer = ({
 			// (router.tsx's MutationCache) already surfaces the failure toast,
 			// including the MaxProfilesPerUserExceeded cap and 403 cases, via
 			// the centralized failure->message path.
-			setAssigned(row.id, !checked);
-			setPending(row.id, false);
+			setAssigned(userAccountId, !checked);
+			setPending(userAccountId, false);
 
 			if (shouldLogoutForFailure(error)) {
 				onSessionExpired();
@@ -235,7 +300,10 @@ export const AssignMembersDrawer = ({
 			return;
 		}
 
-		setPending(row.id, false);
+		// This id's local truth is now authoritative — record the commit time so
+		// a resolve response fetched before this commit can never clobber it.
+		committedAtRef.current.set(userAccountId, Date.now());
+		setPending(userAccountId, false);
 		// Invalidates the whole staff-tenants scope, which nests the Members-tab
 		// roster, this drawer's resolve-assignment read, the profile's
 		// `userAccountCount`, and the tenant users list — every real,
@@ -246,6 +314,7 @@ export const AssignMembersDrawer = ({
 	const columns = makeAssignMembersColumns(
 		t,
 		assignedIds,
+		resolvedIds,
 		pendingIds,
 		(row, checked) => {
 			void handleToggle(row, checked);

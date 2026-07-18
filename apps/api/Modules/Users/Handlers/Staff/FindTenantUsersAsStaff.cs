@@ -14,6 +14,10 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
 public class TenantUserItem {
 	public Guid Id { get; set; }
+	// The tenant membership (UserAccount) id — distinct from Id (the global User id) above.
+	// Callers that need to address tenant-scoped membership operations (e.g. tenant-profile
+	// assign/unassign, which key by user_account_id) MUST use this field, never Id.
+	public Guid UserAccountId { get; set; }
 	public string Email { get; set; } = string.Empty;
 	public string? LastName { get; set; }
 	public string? FirstName { get; set; }
@@ -187,6 +191,8 @@ public sealed class FindTenantUsersAsStaff {
 						.Select(
 							tu => new TenantUserItem {
 								Id = tu.User
+									.GetRequiredId(),
+								UserAccountId = tu.Account
 									.GetRequiredId(),
 								Email =
 									tu.User.Email,

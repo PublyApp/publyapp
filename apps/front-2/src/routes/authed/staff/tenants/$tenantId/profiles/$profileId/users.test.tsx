@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
 	useStaffTenantProfileDetailsQuery: vi.fn(),
 	toStaffTenantProfileDetails: vi.fn(),
 	useStaffTenantProfileMembersQuery: vi.fn(),
+	toStaffTenantProfileMemberRows: vi.fn(),
 	shouldLogoutForFailure: vi.fn((_: unknown) => false),
 	drawerIsOpen: false,
 	drawerOnOpenChange: (_isOpen: boolean) => {},
@@ -89,6 +90,18 @@ const TRANSLATIONS: Record<string, string> = {
 	'tenant-response-incomplete': 'The tenant response was incomplete.',
 	'back-to-tenants': 'Back to tenants',
 	'try-again': 'Try again',
+	retry: 'Retry',
+	'list-error-default-description': 'Something went wrong loading this list.',
+	'list-unavailable-title': 'List unavailable',
+	'list-empty-title': 'Nothing here',
+	'list-empty-default-description': 'Nothing to show yet.',
+	'list-no-match-title': 'No matches',
+	'list-no-match-default-description': 'Try a different search.',
+	'rows-per-page': 'Rows per page',
+	'page-n': 'Page {{page}}',
+	'previous-page': 'Previous page',
+	'next-page': 'Next page',
+	search: 'Search',
 };
 
 vi.mock('react-i18next', () => ({
@@ -115,64 +128,16 @@ vi.mock('~/components/error-views/View403', () => ({
 	View403: () => <div data-testid="forbidden-view">forbidden</div>,
 }));
 
-vi.mock('~/components/table/data-table', () => ({
-	DataTable: ({ testId }: { testId?: string }) => (
-		<div data-testid={testId ?? 'data-table'} />
-	),
-}));
-
-vi.mock('~/components/ui/initials-avatar', () => ({
-	InitialsAvatar: ({ name }: { name: string }) => (
-		<span aria-hidden="true" data-testid="initials" data-name={name} />
-	),
-	BrandTile: ({ name }: { name: string }) => (
-		<span aria-hidden="true" data-testid="brand-tile" data-name={name} />
-	),
-}));
-
-vi.mock('~/components/ui/product-page', () => ({
-	StatusPill: ({ children }: { children: ReactNode }) => (
-		<span data-testid="status-pill">{children}</span>
-	),
-}));
-
-vi.mock('~/components/ui/status-tone', () => ({
-	statusPillTone: (value: string | null) =>
-		value === 'Active' ? 'success' : 'warning',
-}));
-
 vi.mock('~/lib/query/staff-tenants', () => ({
 	useStaffTenantDetailsQuery: mocks.useStaffTenantDetailsQuery,
 	toStaffTenantDetails: mocks.toStaffTenantDetails,
 }));
 
-type MemberFixture = {
-	id?: string;
-	email?: string;
-	firstName?: string | null;
-	lastName?: string | null;
-	status?: string | null;
-	level?: string | null;
-};
-
 vi.mock('~/lib/query/staff-tenant-profiles', () => ({
 	useStaffTenantProfileDetailsQuery: mocks.useStaffTenantProfileDetailsQuery,
 	toStaffTenantProfileDetails: mocks.toStaffTenantProfileDetails,
 	useStaffTenantProfileMembersQuery: mocks.useStaffTenantProfileMembersQuery,
-	toStaffTenantProfileMemberRows: (items: MemberFixture[] | null | undefined) =>
-		(items ?? []).map((item) => ({
-			id: item.id ?? '',
-			email: item.email ?? '',
-			firstName: item.firstName ?? null,
-			lastName: item.lastName ?? null,
-			avatarUrl: null,
-			status: item.status ?? null,
-			level: item.level ?? null,
-			displayName:
-				[item.firstName, item.lastName].filter(Boolean).join(' ') ||
-				item.email ||
-				'',
-		})),
+	toStaffTenantProfileMemberRows: mocks.toStaffTenantProfileMemberRows,
 }));
 
 vi.mock('~/lib/should-logout-for-failure', () => ({
@@ -210,8 +175,11 @@ const renderPage = () => {
 	return render(<Component />);
 };
 
+const TENANT_ID = '11111111-1111-1111-1111-111111111111';
+const PROFILE_ID = '22222222-2222-2222-2222-222222222222';
+
 const TENANT = {
-	id: '11111111-1111-1111-1111-111111111111',
+	id: TENANT_ID,
 	name: 'Acme Corporation',
 	code: 'ACME',
 	status: 'Active',
@@ -222,12 +190,50 @@ const TENANT = {
 };
 
 const PROFILE = {
-	id: '22222222-2222-2222-2222-222222222222',
+	id: PROFILE_ID,
 	name: 'Approvers',
 	description: 'Can review approvals',
 	isDefault: false,
 	userAccountCount: 4,
 };
+
+/** Row identity contract (step4b-review MAJOR 4): `id` (user_account_id) and
+ * `userId` (the global user id) are DELIBERATELY distinct literal strings so
+ * an assertion on link href actually proves which one is used — a fixture
+ * that conflates them would let a regression back to `id` pass silently. */
+const MEMBER_ROWS = [
+	{
+		id: 'account-1',
+		userId: 'user-1',
+		email: 'ada@example.com',
+		firstName: 'Ada',
+		lastName: 'Lovelace',
+		avatarUrl: null,
+		status: 'Active',
+		level: 'Admin',
+		displayName: 'Ada Lovelace',
+	},
+	{
+		id: 'account-2',
+		userId: 'user-2',
+		email: 'grace@example.com',
+		firstName: 'Grace',
+		lastName: 'Hopper',
+		avatarUrl: null,
+		status: 'Suspended',
+		level: 'User',
+		displayName: 'Grace Hopper',
+	},
+];
+
+const buildMembersQueryResult = (overrides: Record<string, unknown> = {}) => ({
+	data: { users: MEMBER_ROWS, count: MEMBER_ROWS.length },
+	isPending: false,
+	isError: false,
+	isFetching: false,
+	refetch: vi.fn(),
+	...overrides,
+});
 
 beforeEach(() => {
 	vi.clearAllMocks();
@@ -246,13 +252,10 @@ beforeEach(() => {
 		refetch: vi.fn(),
 	});
 	mocks.toStaffTenantProfileDetails.mockReturnValue(PROFILE);
-	mocks.useStaffTenantProfileMembersQuery.mockReturnValue({
-		data: { users: [], count: 0 },
-		isPending: false,
-		isError: false,
-		isFetching: false,
-		refetch: vi.fn(),
-	});
+	mocks.useStaffTenantProfileMembersQuery.mockReturnValue(
+		buildMembersQueryResult(),
+	);
+	mocks.toStaffTenantProfileMemberRows.mockReturnValue(MEMBER_ROWS);
 });
 
 afterEach(() => {
@@ -335,30 +338,6 @@ describe('StaffTenantProfileMembersPage', () => {
 		expect(screen.getByText('Profile', { selector: 'a' })).toBeTruthy();
 	});
 
-	test('renders a real members roster table instead of the removed placeholder', () => {
-		renderPage();
-
-		expect(
-			screen.getByTestId('staff-tenant-profile-members-table'),
-		).toBeTruthy();
-		expect(
-			screen.queryByTestId('staff-tenant-profile-members-list-unavailable'),
-		).toBeNull();
-	});
-
-	test('fetches members scoped to the tenant and profile once the profile is loaded', () => {
-		renderPage();
-
-		expect(mocks.useStaffTenantProfileMembersQuery).toHaveBeenCalled();
-		const [variables, options] =
-			mocks.useStaffTenantProfileMembersQuery.mock.calls[0];
-		expect(variables).toMatchObject({
-			tenantId: '11111111-1111-1111-1111-111111111111',
-			profileId: '22222222-2222-2222-2222-222222222222',
-		});
-		expect(options?.enabled).toBe(true);
-	});
-
 	test('opens the assign-members drawer via the URL-backed ?assign=1 flag', () => {
 		renderPage();
 
@@ -420,29 +399,236 @@ describe('StaffTenantProfileMembersPage', () => {
 
 		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
 	});
+
+	test('fetches members scoped to the tenant and profile once the profile is loaded', () => {
+		renderPage();
+
+		expect(mocks.useStaffTenantProfileMembersQuery).toHaveBeenCalled();
+		const [variables, options] =
+			mocks.useStaffTenantProfileMembersQuery.mock.calls[0];
+		expect(variables).toMatchObject({
+			tenantId: TENANT_ID,
+			profileId: PROFILE_ID,
+		});
+		expect(options?.enabled).toBe(true);
+	});
+});
+
+// Genuine roster rendering — uses the REAL DataTable, InitialsAvatar, and
+// StatusPill (not mocked), so these tests exercise the actual row/column
+// wiring, not just that a mock was invoked (step4b-review MAJOR 7).
+describe('StaffTenantProfileMembersPage — roster rendering', () => {
+	test('renders a real members roster table instead of the removed placeholder', () => {
+		renderPage();
+
+		expect(
+			screen.getByTestId('staff-tenant-profile-members-table'),
+		).toBeTruthy();
+		expect(
+			screen.queryByTestId('staff-tenant-profile-members-list-unavailable'),
+		).toBeNull();
+	});
+
+	test('renders each member row with name, email, level, and status', () => {
+		renderPage();
+
+		expect(screen.getByText('Ada Lovelace')).toBeTruthy();
+		expect(screen.getByText('ada@example.com')).toBeTruthy();
+		expect(screen.getByText('Admin')).toBeTruthy();
+		expect(screen.getAllByText('Active').length).toBeGreaterThan(0);
+
+		expect(screen.getByText('Grace Hopper')).toBeTruthy();
+		expect(screen.getByText('grace@example.com')).toBeTruthy();
+		expect(screen.getByText('User')).toBeTruthy();
+		expect(screen.getByText('Suspended')).toBeTruthy();
+	});
+
+	// step4b-review MAJOR 4: the roster's `id` is the user_account_id, but the
+	// name link must resolve the GLOBAL user id — a regression back to `id`
+	// would 404 in production.
+	test('links each row name to the global-user-id detail route, not the user_account_id', () => {
+		renderPage();
+
+		const adaLink = screen.getByText('Ada Lovelace').closest('a');
+		expect(adaLink?.getAttribute('href')).toBe(
+			`/staff/tenants/${TENANT_ID}/users/user-1`,
+		);
+
+		const graceLink = screen.getByText('Grace Hopper').closest('a');
+		expect(graceLink?.getAttribute('href')).toBe(
+			`/staff/tenants/${TENANT_ID}/users/user-2`,
+		);
+	});
+
+	test('renders the genuine empty state when the profile has no members, distinct from the removed unavailable state', () => {
+		mocks.useStaffTenantProfileMembersQuery.mockReturnValue(
+			buildMembersQueryResult({ data: { users: [], count: 0 } }),
+		);
+		mocks.toStaffTenantProfileMemberRows.mockReturnValue([]);
+
+		renderPage();
+
+		expect(
+			screen.getByTestId('staff-tenant-profile-members-table-empty'),
+		).toBeTruthy();
+		expect(screen.getByText('No members assigned yet')).toBeTruthy();
+		expect(
+			screen.queryByTestId('staff-tenant-profile-members-list-unavailable'),
+		).toBeNull();
+	});
+
+	test('renders the no-match state when a search is active and no rows match', () => {
+		mocks.search = { q: 'nobody' };
+		mocks.useStaffTenantProfileMembersQuery.mockReturnValue(
+			buildMembersQueryResult({ data: { users: [], count: 0 } }),
+		);
+		mocks.toStaffTenantProfileMemberRows.mockReturnValue([]);
+
+		renderPage();
+
+		expect(
+			screen.getByTestId('staff-tenant-profile-members-table-no-match'),
+		).toBeTruthy();
+		expect(screen.getByText('No members match your search')).toBeTruthy();
+	});
+
+	test('renders the error state with a retry action when the members query fails', () => {
+		const refetch = vi.fn();
+		mocks.useStaffTenantProfileMembersQuery.mockReturnValue(
+			buildMembersQueryResult({
+				data: undefined,
+				isError: true,
+				error: new Error('boom'),
+				refetch,
+			}),
+		);
+		mocks.toStaffTenantProfileMemberRows.mockReturnValue([]);
+
+		renderPage();
+
+		expect(
+			screen.getByTestId('staff-tenant-profile-members-table-error'),
+		).toBeTruthy();
+
+		fireEvent.click(screen.getByText('Retry'));
+		expect(refetch).toHaveBeenCalledTimes(1);
+	});
+
+	test('typing in the search box calls navigate with the committed q after debounce', async () => {
+		vi.useFakeTimers();
+		renderPage();
+
+		const searchInput = screen.getByPlaceholderText(
+			'Search members by name or email…',
+		);
+		fireEvent.change(searchInput, { target: { value: 'ada' } });
+
+		await vi.advanceTimersByTimeAsync(400);
+
+		expect(mocks.navigate).toHaveBeenCalled();
+		const lastCall = mocks.navigate.mock.calls.at(-1)?.[0] as {
+			search: Record<string, unknown>;
+		};
+		expect(lastCall.search.q).toBe('ada');
+		vi.useRealTimers();
+	});
+
+	// step4b-review MAJOR 5: the backend now supports sort_id=level (#875
+	// follow-up) — clicking the Level header must emit it, and the query must
+	// actually be called with it, proving the fix end-to-end from the UI.
+	test('clicking the Level column header navigates with sort_id=level (the now-supported backend sort)', () => {
+		renderPage();
+
+		fireEvent.click(screen.getByText('Level'));
+
+		expect(mocks.navigate).toHaveBeenCalledTimes(1);
+		const call = mocks.navigate.mock.calls[0]?.[0] as {
+			search: Record<string, unknown>;
+		};
+		expect(call.search).toMatchObject({
+			sort_id: 'level',
+			sort_order: 'asc',
+		});
+	});
+
+	// step4b-review MAJOR 5: proves the fix end-to-end — if the URL already
+	// carries sort_id=level (e.g. from the navigate above, or a deep link),
+	// the members query must actually be called with it.
+	test('requests sort_id=level from the members query when the URL already carries it', () => {
+		mocks.search = { sortId: 'level', sortOrder: 'asc' };
+		renderPage();
+
+		const lastCall =
+			mocks.useStaffTenantProfileMembersQuery.mock.calls[
+				mocks.useStaffTenantProfileMembersQuery.mock.calls.length - 1
+			];
+		expect(lastCall?.[0]).toMatchObject({ sortId: 'level', sortOrder: 'asc' });
+	});
+
+	test('clicking next page advances pageIndex on the members query once more results exist', () => {
+		mocks.useStaffTenantProfileMembersQuery.mockReturnValue(
+			buildMembersQueryResult({ data: { users: MEMBER_ROWS, count: 50 } }),
+		);
+
+		renderPage();
+
+		fireEvent.click(
+			screen.getByTestId('staff-tenant-profile-members-table-next-page'),
+		);
+
+		const lastCall =
+			mocks.useStaffTenantProfileMembersQuery.mock.calls[
+				mocks.useStaffTenantProfileMembersQuery.mock.calls.length - 1
+			];
+		expect(lastCall?.[0]).toMatchObject({ pageIndex: 1 });
+	});
+
+	test('does not advance beyond the last page when no more results exist', () => {
+		renderPage();
+
+		const nextPageButton = screen.getByTestId(
+			'staff-tenant-profile-members-table-next-page',
+		);
+		expect(nextPageButton.hasAttribute('disabled')).toBe(true);
+	});
+});
+
+// step4b-review MAJOR 6: a large roster must scroll inside the table, never
+// the app shell — mirrors the sibling contained-scroll test in
+// staff/profiles/$profileId/users.test.tsx.
+describe('StaffTenantProfileMembersPage — contained scroll layout', () => {
+	test('gives the shell a bounded h-full/min-h-0 flex chain down to the DataTable', () => {
+		renderPage();
+
+		const shell = screen.getByTestId('staff-tenant-profile-members-page');
+		expect(shell.getAttribute('data-body-scroll')).toBe('contained');
+
+		const table = screen.getByTestId('staff-tenant-profile-members-table');
+
+		const tabsContent = table.closest('.publy-detail-tab-body');
+		expect(tabsContent).not.toBeNull();
+		expect(tabsContent?.className).toContain('min-h-0');
+
+		const card = table.closest('[data-slot="card"]');
+		expect(card).not.toBeNull();
+		expect(card?.className).toContain('min-h-0');
+		expect(card?.className).toContain('flex-1');
+
+		const tabsRoot = tabsContent?.closest('[data-slot="tabs"]');
+		expect(tabsRoot).not.toBeNull();
+		expect(tabsRoot?.className).toContain('min-h-0');
+		expect(tabsRoot?.className).toContain('flex-1');
+	});
 });
 
 describe('makeProfileMemberColumns', () => {
-	const TENANT_ID = '11111111-1111-1111-1111-111111111111';
-
-	test('renders the first column as a link to the tenant user detail page', () => {
+	test('renders the first column as a link to the tenant user detail page using userId, not id', () => {
 		const columns = makeProfileMemberColumns(
 			TENANT_ID,
 			(key) => TRANSLATIONS[key] ?? key,
 		);
 		const nameColumn = columns.find((column) => column.id === 'name');
-		const row = {
-			original: {
-				id: 'user-account-1',
-				email: 'ada@example.com',
-				firstName: 'Ada',
-				lastName: 'Lovelace',
-				avatarUrl: null,
-				status: 'Active',
-				level: 'Admin',
-				displayName: 'Ada Lovelace',
-			},
-		};
+		const row = { original: MEMBER_ROWS[0] };
 		const cellRenderer = nameColumn?.cell as (props: {
 			row: typeof row;
 		}) => JSX.Element;
@@ -453,7 +639,7 @@ describe('makeProfileMemberColumns', () => {
 			name: /Ada Lovelace/,
 		}) as HTMLAnchorElement;
 		expect(userLink.getAttribute('href')).toBe(
-			`/staff/tenants/${TENANT_ID}/users/user-account-1`,
+			`/staff/tenants/${TENANT_ID}/users/user-1`,
 		);
 		expect(screen.getByText('Ada Lovelace').className).toContain(
 			'publy-record-link',
@@ -487,6 +673,6 @@ describe('makeProfileMemberColumns', () => {
 
 		render(<>{cellRenderer({ getValue: () => 'Active' })}</>);
 
-		expect(screen.getByTestId('status-pill').textContent).toBe('Active');
+		expect(screen.getByText('Active')).toBeTruthy();
 	});
 });

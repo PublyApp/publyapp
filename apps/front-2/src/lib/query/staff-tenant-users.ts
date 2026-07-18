@@ -57,7 +57,14 @@ type StaffTenantUserInvitationBodyInput = Omit<
 };
 
 export type StaffTenantUserRow = {
+	/** The global `User.Id` — matches `/staff/tenants/{tenantId}/users/{userId}`. Never use
+	 * this for tenant-profile membership operations (assign/unassign/resolve); those key by
+	 * `userAccountId` below. */
 	id: string;
+	/** The tenant membership (`UserAccount.Id`) — matches the tenant-profile assign/unassign
+	 * toggle route's `{user_account_id}` and the batch resolve-assignment endpoint. Distinct
+	 * from `id` above; never use `id` for these operations (step4b-review BLOCKER 1). */
+	userAccountId: string;
 	firstName: string | null;
 	lastName: string | null;
 	email: string;
@@ -320,10 +327,13 @@ export const toStaffTenantUserRows = (
 		// Email is the required fallback identity `getDisplayName` reads when
 		// no name is set — dropped rather than shown with a `'—'` placeholder
 		// a staff admin can't distinguish from a legitimate value
-		// (shell-r5-F3).
+		// (shell-r5-F3). A row missing either id is equally malformed — dropped
+		// rather than silently mixing up identity domains (step4b-review
+		// BLOCKER 1).
 		const id = normalizeString(item.id?.toString());
+		const userAccountId = normalizeString(item.userAccountId?.toString());
 		const email = normalizeString(item.email);
-		if (!id || !email) {
+		if (!id || !userAccountId || !email) {
 			continue;
 		}
 
@@ -332,6 +342,7 @@ export const toStaffTenantUserRows = (
 
 		rows.push({
 			id,
+			userAccountId,
 			firstName,
 			lastName,
 			email,

@@ -132,7 +132,13 @@ export type StaffTenantProfileMembersQueryVariables = {
 };
 
 export type StaffTenantProfileMemberRow = {
+	/** The tenant membership (`UserAccount.Id`) — matches the assign/unassign toggle route's
+	 * `{user_account_id}`. Never use this to link to the member's own detail page; that route
+	 * expects the global user id (`userId` below), not this one (step4b-review MAJOR 4). */
 	id: string;
+	/** The global `User.Id` — matches `/staff/tenants/{tenantId}/users/{userId}`. Distinct
+	 * from `id` above. */
+	userId: string;
 	email: string;
 	firstName: string | null;
 	lastName: string | null;
@@ -550,10 +556,13 @@ export const toStaffTenantProfileMemberRows = (
 	for (const item of items ?? []) {
 		// Email is the required fallback identity `getUserFullName` falls back
 		// to — dropped rather than shown with a `'—'` placeholder a staff admin
-		// can't distinguish from a legitimate value (shell-r5-F3).
+		// can't distinguish from a legitimate value (shell-r5-F3). A row missing
+		// either id is equally malformed — dropped rather than silently linking
+		// to the wrong identity domain (step4b-review MAJOR 4).
 		const id = normalizeString(item.id?.toString());
+		const userId = normalizeString(item.userId?.toString());
 		const email = normalizeString(item.email);
-		if (!id || !email) {
+		if (!id || !userId || !email) {
 			continue;
 		}
 
@@ -562,6 +571,7 @@ export const toStaffTenantProfileMemberRows = (
 
 		rows.push({
 			id,
+			userId,
 			email,
 			firstName,
 			lastName,

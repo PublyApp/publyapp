@@ -556,6 +556,13 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 			query = isAsc
 				? query.OrderBy(x => x.UserStatus).ThenBy(x => x.UserAccountId)
 				: query.OrderByDescending(x => x.UserStatus).ThenByDescending(x => x.UserAccountId);
+		} else if (string.Equals(effectiveSortId, "level", StringComparison.OrdinalIgnoreCase)) {
+			// AccountLevel is a small, explicitly-ordered enum (Admin=50 > User=10), so ordering by
+			// its underlying numeric value is well-defined — unlike a free-text field, there is no
+			// ambiguity about what "sorted by level" means.
+			query = isAsc
+				? query.OrderBy(x => x.Level).ThenBy(x => x.UserAccountId)
+				: query.OrderByDescending(x => x.Level).ThenByDescending(x => x.UserAccountId);
 		} else {
 			return new FindTenantProfileUsersResult.InvalidSortId(effectiveSortId);
 		}

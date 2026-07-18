@@ -93,7 +93,7 @@ export const makeProfileMemberColumns = (
 		cell: ({ row }) => (
 			<Link
 				to="/staff/tenants/$tenantId/users/$userId"
-				params={{ tenantId, userId: row.original.id }}
+				params={{ tenantId, userId: row.original.userId }}
 				className="flex min-w-0 items-center gap-2.5 no-underline"
 			>
 				<InitialsAvatar name={row.original.displayName} />
@@ -236,15 +236,7 @@ const TenantProfileMembersError = ({
 	);
 };
 
-export const Route = createFileRoute(
-	'/_authed-layout/staff/tenants/$tenantId/profiles/$profileId/users',
-)({
-	validateSearch: (search) =>
-		parseProfileMembersSearchParams(search as ProfileMembersSearchParamInput),
-	component: StaffTenantProfileMembersPage,
-});
-
-function StaffTenantProfileMembersPage() {
+const StaffTenantProfileMembersPage = () => {
 	const { tenantId, profileId } = Route.useParams();
 	const navigate = Route.useNavigate();
 	const search = Route.useSearch();
@@ -420,9 +412,10 @@ function StaffTenantProfileMembersPage() {
 			tenant={tenant}
 			activeSection="profiles"
 			testId="staff-tenant-profile-members-page"
+			bodyScroll="contained"
 		>
-			<div className="space-y-6">
-				<div className="space-y-1">
+			<div className="flex h-full min-h-0 flex-1 flex-col gap-6">
+				<div className="shrink-0 space-y-1">
 					<h2 className="text-2xl font-semibold text-foreground">
 						{profile.name}
 					</h2>
@@ -431,8 +424,12 @@ function StaffTenantProfileMembersPage() {
 					</p>
 				</div>
 
-				<Tabs value="members">
-					<TabsList variant="line" aria-label={t('profile-sections')}>
+				<Tabs value="members" className="min-h-0 flex-1">
+					<TabsList
+						variant="line"
+						aria-label={t('profile-sections')}
+						className="shrink-0"
+					>
 						<TabsTrigger
 							value="profile"
 							render={
@@ -452,9 +449,12 @@ function StaffTenantProfileMembersPage() {
 						</TabsTrigger>
 					</TabsList>
 
-					<TabsContent value="members" className="mt-5">
-						<Card className="space-y-4 p-5">
-							<div className="flex flex-wrap items-center justify-between gap-3">
+					<TabsContent
+						value="members"
+						className="publy-detail-tab-body min-h-0"
+					>
+						<Card className="min-h-0 flex-1 gap-4 p-5">
+							<div className="shrink-0 flex flex-wrap items-center justify-between gap-3">
 								<div className="space-y-1">
 									<p className="text-lg font-semibold text-foreground">
 										{t('members')}
@@ -534,4 +534,12 @@ function StaffTenantProfileMembersPage() {
 			/>
 		</TenantDetailsPageShell>
 	);
-}
+};
+
+export const Route = createFileRoute(
+	'/_authed-layout/staff/tenants/$tenantId/profiles/$profileId/users',
+)({
+	validateSearch: (search) =>
+		parseProfileMembersSearchParams(search as ProfileMembersSearchParamInput),
+	component: StaffTenantProfileMembersPage,
+});

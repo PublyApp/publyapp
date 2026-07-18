@@ -673,10 +673,11 @@ describe('buildFindStaffTenantProfileMembersQueryParameters', () => {
 });
 
 describe('toStaffTenantProfileMemberRows', () => {
-	test('normalizes API items, prefers the full name, and skips rows without a usable id or email', () => {
+	test('normalizes API items, prefers the full name, and skips rows without a usable id, userId, or email', () => {
 		const items: TenantProfileUserItem[] = [
 			{
 				id: 'user-account-1' as never,
+				userId: 'user-1' as never,
 				email: ' ada@example.com ',
 				firstName: ' Ada ',
 				lastName: ' Lovelace ',
@@ -686,6 +687,7 @@ describe('toStaffTenantProfileMemberRows', () => {
 			},
 			{
 				id: 'user-account-2' as never,
+				userId: 'user-2' as never,
 				email: 'grace@example.com',
 				firstName: null,
 				lastName: null,
@@ -695,6 +697,7 @@ describe('toStaffTenantProfileMemberRows', () => {
 			},
 			{
 				id: '' as never,
+				userId: 'user-skip' as never,
 				email: 'skip-me@example.com',
 				firstName: 'Skip',
 				lastName: 'Me',
@@ -704,9 +707,20 @@ describe('toStaffTenantProfileMemberRows', () => {
 			},
 			{
 				id: 'user-account-4' as never,
+				userId: 'user-4' as never,
 				email: '  ',
 				firstName: 'No',
 				lastName: 'Email',
+				avatarUrl: null,
+				status: 'Active',
+				level: 'User',
+			},
+			{
+				id: 'user-account-5' as never,
+				userId: '' as never,
+				email: 'no-user-id@example.com',
+				firstName: 'No',
+				lastName: 'UserId',
 				avatarUrl: null,
 				status: 'Active',
 				level: 'User',
@@ -716,6 +730,7 @@ describe('toStaffTenantProfileMemberRows', () => {
 		expect(toStaffTenantProfileMemberRows(items)).toEqual([
 			{
 				id: 'user-account-1',
+				userId: 'user-1',
 				email: 'ada@example.com',
 				firstName: 'Ada',
 				lastName: 'Lovelace',
@@ -726,6 +741,7 @@ describe('toStaffTenantProfileMemberRows', () => {
 			},
 			{
 				id: 'user-account-2',
+				userId: 'user-2',
 				email: 'grace@example.com',
 				firstName: null,
 				lastName: null,
@@ -735,6 +751,28 @@ describe('toStaffTenantProfileMemberRows', () => {
 				displayName: 'grace@example.com',
 			},
 		]);
+	});
+
+	// step4b-review MAJOR 4: `id` (the tenant membership/user_account_id) and
+	// `userId` (the global user id, needed to link to the member's own detail
+	// page) are independent UUIDs — a row must carry both, distinctly.
+	test('keeps id (user_account_id) and userId (global user id) as distinct fields', () => {
+		const [row] = toStaffTenantProfileMemberRows([
+			{
+				id: 'user-account-9' as never,
+				userId: 'user-9' as never,
+				email: 'rae@example.com',
+				firstName: 'Rae',
+				lastName: 'Lee',
+				avatarUrl: null,
+				status: 'Active',
+				level: 'User',
+			},
+		]);
+
+		expect(row?.id).toBe('user-account-9');
+		expect(row?.userId).toBe('user-9');
+		expect(row?.userId).not.toBe(row?.id);
 	});
 
 	test('returns an empty list when the payload is empty', () => {

@@ -13,7 +13,13 @@ using PublyApp.Api.Modules.Users.Entities;
 namespace PublyApp.Api.Modules.Profiles.Handlers.Staff;
 
 public class TenantProfileUserItem {
+	// The tenant membership (UserAccount) id — matches the sibling assign/unassign toggle
+	// route's {user_account_id} placeholder, not the global user id.
 	public Guid Id { get; set; }
+	// The global User id — distinct from Id above. Callers that need to LINK to a user's
+	// own detail page (e.g. GET /staff/tenants/{tenantId}/users/{userId}, which resolves the
+	// global user id) MUST use this field, never Id.
+	public Guid UserId { get; set; }
 	public string Email { get; set; } = string.Empty;
 	public string? LastName { get; set; }
 	public string? FirstName { get; set; }
@@ -130,6 +136,7 @@ public sealed class FindTenantProfileUsersAsStaff {
 							// The item id is the user_account_id, matching the toggle route's
 							// {user_account_id} placeholder — not the global user id.
 							Id = u.UserAccountId,
+							UserId = u.UserId,
 							Email = u.Email,
 							LastName = u.LastName,
 							FirstName = u.FirstName,

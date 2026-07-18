@@ -310,6 +310,39 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 		result.Users.Should().NotContain(u => u.Id == unassignedMemberId);
 	}
 
+	/// <summary>
+	/// Regression for the front-2 step-4b review (MAJOR 4): the roster's `id` is deliberately
+	/// the user_account_id (matching the assign/unassign toggle route), but a caller that wants
+	/// to link to the member's own detail page needs the DISTINCT global user id. This pins that
+	/// both are present and not equal, so a caller can never mistake one for the other.
+	/// </summary>
+	[Fact]
+	public async Task ItShouldExposeBothTheUserAccountIdAndTheDistinctGlobalUserId() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var profileId = await CreateTenantProfileAsync(tenantId);
+
+		var (userAccountId, userId) = await CreateTenantMemberWithUserIdAsync(tenantId);
+		await AssignAsync(token, tenantId, profileId, userAccountId);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetUrl(tenantId.ToString(), profileId.ToString()) + "?limit=50"
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<FindTenantProfileUsersAsStaffResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+
+		var item = result.Users.Should().ContainSingle(u => u.Id == userAccountId).Subject;
+		item.UserId.Should().Be(userId);
+		item.UserId.Should().NotBe(item.Id);
+	}
+
 	[Fact]
 	public async Task ItShouldSupportSearchByQ() {
 		var token = await _authClient.LoginAsStaffAdminAsync();
@@ -400,7 +433,9 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 		var memberId = await CreateTenantMemberAsync(tenantId);
 		await AssignAsync(token, tenantId, profileId, memberId);
 
-		var sortIds = new[] { "created_at", "email", "first_name", "last_name", "status" };
+		var sortIds = new[] {
+			"created_at", "email", "first_name", "last_name", "status", "level",
+		};
 		foreach (var sortId in sortIds) {
 			using var request = new HttpRequestMessage(
 				HttpMethod.Get,
@@ -411,6 +446,45 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 			using var response = await _http.SendAsync(request);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 		}
+	}
+
+	/// <summary>
+	/// Regression for the front-2 step-4b review (MAJOR 5): the Members-roster Level column
+	/// sorts client-side by emitting sort_id=level, which this endpoint used to reject with 400.
+	/// AccountLevel is a small, explicitly-ordered enum (Admin=50 &gt; User=10), so descending
+	/// order must place Admins before Users.
+	/// </summary>
+	[Fact]
+	public async Task ItShouldSortByLevelDescending() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var profileId = await CreateTenantProfileAsync(tenantId);
+
+		var adminMemberId = await CreateTenantMemberAsync(tenantId, level: AccountLevel.Admin);
+		var userMemberId = await CreateTenantMemberAsync(tenantId, level: AccountLevel.User);
+
+		await AssignAsync(token, tenantId, profileId, adminMemberId);
+		await AssignAsync(token, tenantId, profileId, userMemberId);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetUrl(tenantId.ToString(), profileId.ToString())
+				+ "?limit=50&sort_id=level&sort_order=desc"
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<FindTenantProfileUsersAsStaffResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+
+		var adminIndex = result.Users.FindIndex(u => u.Id == adminMemberId);
+		var userIndex = result.Users.FindIndex(u => u.Id == userMemberId);
+		adminIndex.Should().BeGreaterThanOrEqualTo(0);
+		userIndex.Should().BeGreaterThanOrEqualTo(0);
+		adminIndex.Should().BeLessThan(userIndex);
 	}
 
 	/// <summary>
@@ -472,7 +546,22 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 
 	private async Task<Guid> CreateTenantMemberAsync(
 		Guid tenantId,
-		string? email = null
+		string? email = null,
+		AccountLevel level = AccountLevel.User
+	) {
+		var (userAccountId, _) = await CreateTenantMemberWithUserIdAsync(tenantId, email, level);
+		return userAccountId;
+	}
+
+	/// <summary>
+	/// Same seeding as <see cref="CreateTenantMemberAsync"/>, but also returns the underlying
+	/// global user id — needed by identity-distinctness assertions (BLOCKER 1 regression) that
+	/// must confirm the response's `userId` differs from its `id` (the user_account_id).
+	/// </summary>
+	private async Task<(Guid UserAccountId, Guid UserId)> CreateTenantMemberWithUserIdAsync(
+		Guid tenantId,
+		string? email = null,
+		AccountLevel level = AccountLevel.User
 	) {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -494,14 +583,14 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 			UserId = user.GetRequiredId(),
 			TenantId = tenantId,
 			Scope = AccountScope.Tenant,
-			Level = AccountLevel.User,
+			Level = level,
 			Status = AccountStatus.Active,
 		};
 
 		_ = dbContext.UserAccount.Add(account);
 		_ = await dbContext.SaveChangesAsync();
 
-		return account.GetRequiredId();
+		return (account.GetRequiredId(), user.GetRequiredId());
 	}
 
 	private async Task SetMemberAccountStatusAsync(Guid userAccountId, AccountStatus status) {
@@ -583,6 +672,7 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 
 	private record TenantProfileUserItemResponse {
 		public Guid Id { get; init; }
+		public Guid UserId { get; init; }
 		public string Email { get; init; } = string.Empty;
 		public string? LastName { get; init; }
 		public string? FirstName { get; init; }

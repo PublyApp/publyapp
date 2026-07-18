@@ -174,6 +174,7 @@ describe('toStaffTenantUserRows', () => {
 		const items: TenantUserItem[] = [
 			{
 				id: 'user-1' as never,
+				userAccountId: 'account-1' as never,
 				firstName: ' Alex ',
 				lastName: ' Johnson ',
 				email: ' alex@example.com ',
@@ -183,6 +184,7 @@ describe('toStaffTenantUserRows', () => {
 			},
 			{
 				id: '' as never,
+				userAccountId: 'account-skip' as never,
 				firstName: 'Skip',
 				lastName: 'Me',
 				email: 'skip@example.com',
@@ -191,6 +193,7 @@ describe('toStaffTenantUserRows', () => {
 			},
 			{
 				id: 'user-2' as never,
+				userAccountId: 'account-2' as never,
 				firstName: ' ',
 				lastName: null,
 				email: ' second@example.com ',
@@ -203,6 +206,7 @@ describe('toStaffTenantUserRows', () => {
 		expect(toStaffTenantUserRows(items)).toEqual([
 			{
 				id: 'user-1',
+				userAccountId: 'account-1',
 				firstName: 'Alex',
 				lastName: 'Johnson',
 				email: 'alex@example.com',
@@ -213,6 +217,7 @@ describe('toStaffTenantUserRows', () => {
 			},
 			{
 				id: 'user-2',
+				userAccountId: 'account-2',
 				firstName: null,
 				lastName: null,
 				email: 'second@example.com',
@@ -224,10 +229,60 @@ describe('toStaffTenantUserRows', () => {
 		]);
 	});
 
+	// step4b-review BLOCKER 1: the global user id and the tenant membership
+	// (user_account_id) are independent UUIDs. A row must carry both, and they
+	// must never be silently collapsed into the same value.
+	test('keeps id (global user id) and userAccountId (tenant membership id) as distinct fields', () => {
+		const [row] = toStaffTenantUserRows([
+			{
+				id: 'user-3' as never,
+				userAccountId: 'account-3' as never,
+				firstName: 'Rae',
+				lastName: 'Lee',
+				email: 'rae@example.com',
+				level: 'User',
+				status: 'Active',
+			},
+		]);
+
+		expect(row?.id).toBe('user-3');
+		expect(row?.userAccountId).toBe('account-3');
+		expect(row?.userAccountId).not.toBe(row?.id);
+	});
+
+	// step4b-review BLOCKER 1: a row missing `userAccountId` is just as
+	// malformed as one missing `id`/`email` — dropped rather than letting a
+	// caller fall back to the wrong identity domain for membership ops.
+	test('drops a row with a blank/missing userAccountId', () => {
+		const items: TenantUserItem[] = [
+			{
+				id: 'user-6' as never,
+				userAccountId: '' as never,
+				firstName: 'No',
+				lastName: 'Account',
+				email: 'no-account@example.com',
+				level: 'User',
+				status: 'Active',
+			},
+			{
+				id: 'user-7' as never,
+				userAccountId: null as never,
+				firstName: 'Also',
+				lastName: 'Missing',
+				email: 'also-missing@example.com',
+				level: 'User',
+				status: 'Active',
+			},
+		];
+
+		expect(toStaffTenantUserRows(items)).toEqual([]);
+	});
+
 	test('resolves a root-relative /files/ avatarUrl against the API origin', () => {
 		const [row] = toStaffTenantUserRows([
 			{
 				id: 'user-3' as never,
+				userAccountId: 'account-3' as never,
 				firstName: 'Rae',
 				lastName: 'Lee',
 				email: 'rae@example.com',
@@ -250,6 +305,7 @@ describe('toStaffTenantUserRows', () => {
 		const items: TenantUserItem[] = [
 			{
 				id: 'user-4' as never,
+				userAccountId: 'account-4' as never,
 				firstName: 'Nobody',
 				lastName: 'Home',
 				email: '   ',
@@ -258,6 +314,7 @@ describe('toStaffTenantUserRows', () => {
 			},
 			{
 				id: 'user-5' as never,
+				userAccountId: 'account-5' as never,
 				email: null as never,
 			},
 		];
