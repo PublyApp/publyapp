@@ -185,6 +185,10 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 		}
 
 		return seeders
+			.Where(seeder =>
+				!AppEnvironment.IsProduction
+				|| !seeder.IsDemo
+			)
 			.OrderBy(seeder => seeder.Order)
 			.ToList();
 	}

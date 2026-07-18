@@ -5,7 +5,6 @@ using Microsoft.EntityFrameworkCore;
 using PublyApp.Api.Data;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
-using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Users.Entities;
 
@@ -26,6 +25,12 @@ public class UserAccountSeeder : IEntitySeeder {
 	public int Order {
 		get {
 			return 40;
+		}
+	}
+
+	public bool IsDemo {
+		get {
+			return true;
 		}
 	}
 
@@ -81,11 +86,6 @@ public class UserAccountSeeder : IEntitySeeder {
 
 	private async Task<List<UserAccount>> SeedStaffAccountsAsync(AppDbContext dbContext, CancellationToken cancellationToken) {
 		var staffAccountsData = new List<(string Email, AccountLevel Level)>();
-
-		var ownerEmail = AppEnvironment.Instance.STAFF_OWNER_EMAIL;
-		if (!string.IsNullOrWhiteSpace(ownerEmail)) {
-			staffAccountsData.Add((ownerEmail.Trim().ToLowerInvariant(), AccountLevel.Admin));
-		}
 
 		staffAccountsData.AddRange([
 			(SeedConstants.Staff.AdminEmail, AccountLevel.Admin),

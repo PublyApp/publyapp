@@ -28,6 +28,12 @@ public class TenantSeeder : IEntitySeeder {
 		}
 	}
 
+	public bool IsDemo {
+		get {
+			return true;
+		}
+	}
+
 	public async Task SeedAsync(
 		AppDbContext dbContext,
 		CancellationToken cancellationToken = default
