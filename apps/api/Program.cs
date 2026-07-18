@@ -53,6 +53,12 @@ public class Program {
 			return;
 		}
 
+		// Production seed gate probe. This is used by the production-seeding spec to prove
+		// demo fixtures are excluded under Production while essential seeders still run.
+		if (SeederGateProbeCli.TryRun(args)) {
+			return;
+		}
+
 		// The Worker role runs a genuine Generic Host (design §3.2, F17): no Kestrel is
 		// ever registered, ASPNETCORE_URLS is inert, nothing listens on any port —
 		// "zero mapped endpoints" on a web host would still start an HTTP server.
