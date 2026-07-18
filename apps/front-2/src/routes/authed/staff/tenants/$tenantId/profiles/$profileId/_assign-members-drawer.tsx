@@ -153,10 +153,22 @@ export const AssignMembersDrawer = ({
 	// generation updates only its own (now-unread) cache entry and can never
 	// contaminate the current generation's `data`.
 	const [resolveGeneration, setResolveGeneration] = useState(0);
-	// Dedupes reprocessing the same resolve response object across re-renders
-	// that don't carry new data (e.g. a `pendingIds` change).
+	// Dedupes reprocessing the SAME resolve response object across re-renders
+	// that don't carry new data (e.g. a `pendingIds` change). Deliberately
+	// reset to `undefined` on every scope change (see the row-key effect
+	// below) rather than compared once and left standing — keying by object
+	// identity ALONE, forever, is wrong: navigating page/search A -> B -> back
+	// to A within the default 30s staleTime (router.tsx) makes TanStack Query
+	// hand back the IDENTICAL cached object for A a second time, and a plain
+	// `data === lastApplied` check that never resets would then skip
+	// reprocessing — leaving A's rows stuck disabled even though an
+	// authoritative cached answer exists (step4b-r3-rereview finding 1(A)).
 	const appliedResolveDataRef = useRef<unknown>(undefined);
 	const previousRowAccountIdsKeyRef = useRef<string>('');
+	// Mirrors `pendingIds` for the scope-prune effect below, which must read
+	// the LATEST pending set without retriggering on every pending change
+	// (step4b-r3-rereview finding 1(B)).
+	const pendingIdsRef = useRef<Set<string>>(new Set());
 
 	const controller = useTableController({
 		search,
@@ -218,33 +230,60 @@ export const AssignMembersDrawer = ({
 		// eslint-disable-next-line react-hooks/exhaustive-deps -- only tenantId/profileId should reset the drawer to a blank slate.
 	}, [tenantId, profileId]);
 
+	// Keeps `pendingIdsRef` current for the scope-prune effect below, without
+	// making that effect re-run on every pending-set change (it must stay
+	// keyed ONLY on `rowAccountIdsKey`).
+	useEffect(() => {
+		pendingIdsRef.current = pendingIds;
+	}, [pendingIds]);
+
 	// Scope resolved truth to the CURRENT result key (step4b-rereview MAJOR
 	// 2): when the candidate page/search changes the row-account-id set,
 	// prune local state down to the intersection with the new set instead of
 	// letting ids from a previous page/search linger as "resolved" (and
 	// therefore actionable) after they're no longer even in view.
+	//
+	// `pendingIds` is DELIBERATELY EXCLUDED from this prune (step4b-r3-rereview
+	// finding 1(B)): an in-flight write is a live operation, not stale display
+	// state, and must survive its row scrolling out of view. Pruning it forgets
+	// the operation — if the row returns before the mutation settles, the
+	// switch could re-enable from cached pre-write data and permit a duplicate
+	// write. `assignedIds`/`resolvedIds` retain a pending id's entry too (via
+	// the union below) so the optimistic value stays visible instead of
+	// flashing back to an empty/default state while away.
+	//
+	// Resetting `appliedResolveDataRef` here (step4b-r3-rereview finding 1(A))
+	// is what makes returning to a previously-visited scope work: without it,
+	// the dedup ref would still be pointing at the exact object this scope's
+	// resolve query already resolved to (TanStack Query serves the identical
+	// cached object within staleTime), and the merge effect below would treat
+	// it as "already applied" and skip — even though THIS scope's local state
+	// was just pruned away by the block above. Resetting to `undefined` forces
+	// the merge effect to re-derive `resolvedIds`/`assignedIds` from whatever
+	// `resolutionQuery.data` is available for the CURRENT scope, cached or not.
 	useEffect(() => {
 		if (previousRowAccountIdsKeyRef.current === rowAccountIdsKey) {
 			return;
 		}
 		previousRowAccountIdsKeyRef.current = rowAccountIdsKey;
+		appliedResolveDataRef.current = undefined;
 
 		const currentIds = new Set(rowAccountIds);
-		setAssignedIds(
-			(current) => new Set([...current].filter((id) => currentIds.has(id))),
-		);
-		setResolvedIds(
-			(current) => new Set([...current].filter((id) => currentIds.has(id))),
-		);
-		setPendingIds(
-			(current) => new Set([...current].filter((id) => currentIds.has(id))),
-		);
+		const keep = (id: string): boolean =>
+			currentIds.has(id) || pendingIdsRef.current.has(id);
+		setAssignedIds((current) => new Set([...current].filter(keep)));
+		setResolvedIds((current) => new Set([...current].filter(keep)));
 		// eslint-disable-next-line react-hooks/exhaustive-deps -- keyed off the stable joined-id string; rowAccountIds is read, not re-triggered on.
 	}, [rowAccountIdsKey]);
 
 	useEffect(() => {
 		const data = resolutionQuery.data;
 		if (!data || data === appliedResolveDataRef.current) {
+			// The scope-prune effect above resets `appliedResolveDataRef` to
+			// `undefined` on every row-account-id-set change, so this dedup only
+			// ever skips a genuine no-op re-render WITHIN the same scope — it
+			// never suppresses reapplying cached data after returning to a
+			// previously-visited scope (step4b-r3-rereview finding 1(A)).
 			return;
 		}
 		appliedResolveDataRef.current = data;

@@ -561,6 +561,218 @@ describe('AssignMembersDrawer', () => {
 		).toBe('true');
 	});
 
+	// step4b-r3-rereview finding 1(A): away/back must re-enable a page whose
+	// resolve answer is still CACHED. TanStack Query serves the identical
+	// response object for a query within its default staleTime (30s,
+	// router.tsx) — a dedup guard keyed by object identity alone (with no
+	// reset on scope change) would treat "returning to A" as "already
+	// applied" and never restore A's pruned resolvedIds/assignedIds, leaving
+	// the switches stuck disabled with no error to retry (the query
+	// succeeded). This test fails against the pre-fix code for exactly that
+	// reason and passes once the applied-response marker is reset whenever
+	// the row-account-id scope changes.
+	test('returning to a page while its cached resolve answer is still fresh re-enables its rows instead of leaving them stuck disabled', () => {
+		// The SAME object reference is reused for both the initial visit and
+		// the return visit below — deliberately modeling "TanStack Query handed
+		// back the identical cached entry," not a fresh network response.
+		const pageAResolved = resolvedUnassigned([
+			{ userAccountId: 'account-1', isAssigned: true },
+			{ userAccountId: 'account-2', isAssigned: false },
+		]);
+		mocks.useStaffTenantProfileMemberAssignmentResolutionQuery.mockReturnValue(
+			pageAResolved,
+		);
+
+		const { rerender } = renderDrawer();
+
+		expect(
+			screen
+				.getByTestId('assign-member-toggle-account-1')
+				.getAttribute('aria-checked'),
+		).toBe('true');
+		expect(
+			screen
+				.getByTestId('assign-member-toggle-account-1')
+				.getAttribute('aria-disabled'),
+		).toBeNull();
+
+		// Navigate to page B while B's own resolve request is still pending.
+		mocks.useStaffTenantUsersQuery.mockReturnValue({
+			data: { data: OTHER_PAGE_FIXTURE_USERS, nextCursor: null },
+			isPending: false,
+			isError: false,
+			isFetching: false,
+			refetch: vi.fn(),
+		});
+		mocks.useStaffTenantProfileMemberAssignmentResolutionQuery.mockReturnValue({
+			data: undefined,
+			isPending: true,
+			isError: false,
+			refetch: mocks.resolutionRefetch,
+		});
+		rerender(
+			(
+				<AssignMembersDrawer
+					tenantId={TENANT_ID}
+					profileId="profile-1"
+					isOpen
+					onOpenChange={() => {}}
+					onSessionExpired={() => {}}
+				/>
+			) as unknown as JSX.Element,
+		);
+
+		expect(screen.queryByText('Ada Lovelace')).toBeNull();
+		expect(
+			screen
+				.getByTestId('assign-member-toggle-account-3')
+				.getAttribute('aria-disabled'),
+		).toBe('true');
+
+		// Return to page A quickly — the mock hands back the EXACT SAME
+		// `pageAResolved` object, exactly as TanStack Query would for a
+		// still-fresh cache entry.
+		mocks.useStaffTenantUsersQuery.mockReturnValue({
+			data: { data: FIXTURE_USERS, nextCursor: null },
+			isPending: false,
+			isError: false,
+			isFetching: false,
+			refetch: vi.fn(),
+		});
+		mocks.useStaffTenantProfileMemberAssignmentResolutionQuery.mockReturnValue(
+			pageAResolved,
+		);
+		rerender(
+			(
+				<AssignMembersDrawer
+					tenantId={TENANT_ID}
+					profileId="profile-1"
+					isOpen
+					onOpenChange={() => {}}
+					onSessionExpired={() => {}}
+				/>
+			) as unknown as JSX.Element,
+		);
+
+		expect(screen.getByText('Ada Lovelace')).toBeTruthy();
+		const adaToggle = screen.getByTestId('assign-member-toggle-account-1');
+		expect(adaToggle.getAttribute('aria-disabled')).toBeNull();
+		expect(adaToggle.getAttribute('aria-checked')).toBe('true');
+	});
+
+	// step4b-r3-rereview finding 1(B): pruning must never forget a LIVE write.
+	// If a row's mutation is still pending when it scrolls out of view (a
+	// page/search change) and the row later comes back before that mutation
+	// settles, the switch must stay disabled the whole time — never
+	// re-enabled by a scope change, which would let a second click fire a
+	// duplicate assign/unassign call. This test fails against the pre-fix
+	// code (which pruned `pendingIds` alongside `assignedIds`/`resolvedIds`
+	// on every scope change) and passes once pending operations survive scope
+	// changes and are cleared only when their own mutation settles.
+	test('an in-flight toggle survives its row scrolling out of view and back, and cannot be double-fired', async () => {
+		let resolveAssign: (() => void) | undefined;
+		mocks.assignMutateAsync.mockImplementation(
+			() =>
+				new Promise<void>((resolve) => {
+					resolveAssign = resolve;
+				}),
+		);
+
+		const { rerender } = renderDrawer();
+
+		fireEvent.click(screen.getByTestId('assign-member-toggle-account-1'));
+
+		// Optimistically pending immediately — the mutation has not settled.
+		await waitFor(() => {
+			expect(mocks.assignMutateAsync).toHaveBeenCalledTimes(1);
+		});
+		expect(
+			screen
+				.getByTestId('assign-member-toggle-account-1')
+				.getAttribute('aria-disabled'),
+		).toBe('true');
+
+		// The row scrolls out of view (candidate page/search changes) WHILE the
+		// write is still in flight, and a fresh resolve response for the new
+		// page reports (correctly, for THAT page) nothing relevant to account-1.
+		mocks.useStaffTenantUsersQuery.mockReturnValue({
+			data: { data: OTHER_PAGE_FIXTURE_USERS, nextCursor: null },
+			isPending: false,
+			isError: false,
+			isFetching: false,
+			refetch: vi.fn(),
+		});
+		mocks.useStaffTenantProfileMemberAssignmentResolutionQuery.mockReturnValue(
+			resolvedUnassigned([{ userAccountId: 'account-3', isAssigned: false }]),
+		);
+		rerender(
+			(
+				<AssignMembersDrawer
+					tenantId={TENANT_ID}
+					profileId="profile-1"
+					isOpen
+					onOpenChange={() => {}}
+					onSessionExpired={() => {}}
+				/>
+			) as unknown as JSX.Element,
+		);
+		expect(screen.queryByText('Ada Lovelace')).toBeNull();
+
+		// The row comes back into view WHILE the mutation is still pending —
+		// simulate a resolve answer for the ORIGINAL page reporting the
+		// PRE-write ("false") state, exactly what a cached/refetched answer
+		// unaware of the in-flight write would say.
+		mocks.useStaffTenantUsersQuery.mockReturnValue({
+			data: { data: FIXTURE_USERS, nextCursor: null },
+			isPending: false,
+			isError: false,
+			isFetching: false,
+			refetch: vi.fn(),
+		});
+		mocks.useStaffTenantProfileMemberAssignmentResolutionQuery.mockReturnValue(
+			resolvedUnassigned(),
+		);
+		rerender(
+			(
+				<AssignMembersDrawer
+					tenantId={TENANT_ID}
+					profileId="profile-1"
+					isOpen
+					onOpenChange={() => {}}
+					onSessionExpired={() => {}}
+				/>
+			) as unknown as JSX.Element,
+		);
+
+		// Still disabled — the write has not settled yet. A user cannot fire a
+		// second click here no matter what a stale/cached resolve answer says.
+		expect(
+			screen
+				.getByTestId('assign-member-toggle-account-1')
+				.getAttribute('aria-disabled'),
+		).toBe('true');
+		fireEvent.click(screen.getByTestId('assign-member-toggle-account-1'));
+		expect(mocks.assignMutateAsync).toHaveBeenCalledTimes(1);
+		expect(mocks.unassignMutateAsync).not.toHaveBeenCalled();
+
+		// Now let the original write settle.
+		resolveAssign?.();
+		await waitFor(() => {
+			expect(
+				screen
+					.getByTestId('assign-member-toggle-account-1')
+					.getAttribute('aria-disabled'),
+			).toBeNull();
+		});
+		expect(
+			screen
+				.getByTestId('assign-member-toggle-account-1')
+				.getAttribute('aria-checked'),
+		).toBe('true');
+		// Exactly one write total — no duplicate fired while pending.
+		expect(mocks.assignMutateAsync).toHaveBeenCalledTimes(1);
+	});
+
 	test('calls onOpenChange(false) when the footer Close button is clicked', () => {
 		const onOpenChange = vi.fn();
 		renderDrawer({ onOpenChange });
