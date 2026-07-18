@@ -4,6 +4,7 @@ export const routes = rootRoute('__root.tsx', [
 	index('index.tsx'),
 	route('/login', 'login.tsx'),
 	route('/signup', 'signup.tsx'),
+	route('/health', 'health.tsx'),
 	route('/verify-email', 'verify-email.tsx'),
 	route('/reset-password', 'reset-password.tsx'),
 	route('/accept-invitation', 'accept-invitation.tsx'),
