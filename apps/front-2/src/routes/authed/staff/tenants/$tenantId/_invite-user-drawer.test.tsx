@@ -16,7 +16,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
 	invalidateQueries: vi.fn(),
 	inviteMutation: vi.fn(),
-	useInviteTenantUserMutation: vi.fn(),
+	useBulkInviteTenantUsersMutation: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
 	invalidateAllStaffTenantScopes: vi.fn().mockResolvedValue(undefined),
 	displayLocalMutationFailure: vi.fn(),
@@ -39,9 +39,19 @@ vi.mock('react-i18next', () => ({
 		t: (key: string) => {
 			const labels: Record<string, string> = {
 				'invite-tenant-user': 'Invite tenant user',
-				'invite-tenant-user-description': 'Send a single tenant invitation.',
+				'invite-tenant-users-description': 'Send tenant invitations.',
 				email: 'Email',
 				'account-level': 'Account level',
+				'paste-emails': 'Paste emails',
+				'shared-account-level': 'Shared account level',
+				'shared-profiles': 'Shared profiles',
+				'add-pasted-emails': 'Add pasted emails',
+				'paste-email-addresses': 'Paste email addresses',
+				'paste-email-addresses-description': 'Paste several addresses.',
+				'paste-emails-placeholder': 'alice@example.com, bob@example.com',
+				'add-another-invitee': 'Add another invitee',
+				'invitee-number': 'Invitee',
+				profiles: 'Profiles',
 				admin: 'Admin',
 				user: 'User',
 				cancel: 'Cancel',
@@ -59,7 +69,13 @@ vi.mock('react-i18next', () => ({
 
 			return labels[key] ?? key;
 		},
-		i18n: { language: 'en' },
+		i18n: {
+			language: 'en',
+			t: (key: string, options?: { defaultValue?: string }) =>
+				key === 'pending-invitation-exists'
+					? 'A pending invitation already exists'
+					: (options?.defaultValue ?? key),
+		},
 	}),
 }));
 
@@ -129,11 +145,8 @@ vi.mock('~/components/field', () => ({
 			isDisabled?: boolean;
 			placeholder?: string;
 		}) => {
-			const {
-				register,
-				formState: { errors },
-			} = useFormContext();
-			const error = errors[name]?.message as string | undefined;
+			const { register, getFieldState, formState } = useFormContext();
+			const error = getFieldState(name, formState).error?.message;
 			return createElement(
 				'label',
 				undefined,
@@ -147,6 +160,30 @@ vi.mock('~/components/field', () => ({
 					...register(name),
 				}),
 				error ? createElement('p', undefined, error) : null,
+			);
+		},
+		Textarea: ({
+			name,
+			label,
+			isDisabled,
+			placeholder,
+		}: {
+			name: string;
+			label: string;
+			isDisabled?: boolean;
+			placeholder?: string;
+		}) => {
+			const { register } = useFormContext();
+			return createElement(
+				'label',
+				undefined,
+				createElement('span', undefined, label),
+				createElement('textarea', {
+					'aria-label': label,
+					disabled: isDisabled,
+					placeholder,
+					...register(name),
+				}),
 			);
 		},
 		Select: ({
@@ -182,7 +219,24 @@ vi.mock('~/components/field', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenant-users', () => ({
-	useInviteTenantUserMutation: mocks.useInviteTenantUserMutation,
+	useBulkInviteTenantUsersMutation: mocks.useBulkInviteTenantUsersMutation,
+	toStaffTenantInvitationBulkCreateSummary: (result: unknown) => result,
+}));
+
+vi.mock('./_invite-profile-select', () => ({
+	InviteProfileSelect: ({ name, label }: { name: string; label: string }) => {
+		const { setValue, watch } = useFormContext();
+		const selected = watch(name) as string[] | undefined;
+		return createElement(
+			'button',
+			{
+				type: 'button',
+				'aria-label': `${label} ${name}`,
+				onClick: () => setValue(name, ['profile-1'], { shouldDirty: true }),
+			},
+			selected?.join(',') || label,
+		);
+	},
 }));
 
 vi.mock('~/lib/query/staff-tenants', () => ({
@@ -200,7 +254,7 @@ describe('InviteTenantUserDrawer', () => {
 		vi.clearAllMocks();
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
 		mocks.invalidateQueries.mockResolvedValue(undefined);
-		mocks.useInviteTenantUserMutation.mockReturnValue({
+		mocks.useBulkInviteTenantUsersMutation.mockReturnValue({
 			mutateAsync: mocks.inviteMutation,
 			isPending: false,
 		});
@@ -287,7 +341,11 @@ describe('InviteTenantUserDrawer', () => {
 	});
 
 	test('submits the invitation, invalidates queries, and calls onInvited', async () => {
-		mocks.inviteMutation.mockResolvedValue({ id: 'invitation-1' });
+		mocks.inviteMutation.mockResolvedValue({
+			succeededCount: 1,
+			failedCount: 0,
+			failedItems: [],
+		});
 		const onInvited = vi.fn();
 
 		render(
@@ -308,12 +366,114 @@ describe('InviteTenantUserDrawer', () => {
 		await waitFor(() =>
 			expect(mocks.inviteMutation).toHaveBeenCalledWith({
 				tenantId: 'tenant-1',
-				email: 'new-user@example.com',
-				accountLevel: 'User',
+				invitations: [
+					{
+						email: 'new-user@example.com',
+						accountLevel: 'User',
+						profileIds: [],
+					},
+				],
 			}),
 		);
 		await waitFor(() => expect(onInvited).toHaveBeenCalled());
 		expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled();
+	});
+
+	test('expands pasted emails into rows with shared defaults and submits per-row overrides', async () => {
+		mocks.inviteMutation.mockResolvedValue({
+			succeededCount: 2,
+			failedCount: 0,
+			failedItems: [],
+		});
+
+		render(
+			<InviteTenantUserDrawer
+				tenantId="tenant-1"
+				isOpen
+				onOpenChange={vi.fn()}
+				onInvited={vi.fn()}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		fireEvent.change(screen.getByLabelText('Paste emails'), {
+			target: { value: 'alice@example.com, bob@example.com' },
+		});
+		fireEvent.change(screen.getByLabelText('Shared account level'), {
+			target: { value: 'Admin' },
+		});
+		fireEvent.click(
+			screen.getByRole('button', {
+				name: 'Shared profiles sharedProfileIds',
+			}),
+		);
+		fireEvent.click(screen.getByRole('button', { name: 'Add pasted emails' }));
+
+		expect(screen.getAllByLabelText('Email')).toHaveLength(2);
+		fireEvent.change(screen.getAllByLabelText('Account level')[1]!, {
+			target: { value: 'User' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Invite people' }));
+
+		await waitFor(() =>
+			expect(mocks.inviteMutation).toHaveBeenCalledWith({
+				tenantId: 'tenant-1',
+				invitations: [
+					{
+						email: 'alice@example.com',
+						accountLevel: 'Admin',
+						profileIds: ['profile-1'],
+					},
+					{
+						email: 'bob@example.com',
+						accountLevel: 'User',
+						profileIds: ['profile-1'],
+					},
+				],
+			}),
+		);
+	});
+
+	test('keeps only failed invitees after a mixed batch and renders translated reasons, never raw reason text', async () => {
+		mocks.inviteMutation.mockResolvedValue({
+			succeededCount: 1,
+			failedCount: 1,
+			failedItems: [
+				{
+					index: 1,
+					email: 'bob@example.com',
+					translationKey: 'pending-invitation-exists',
+					reason: 'RAW SERVER REASON',
+				},
+			],
+		});
+
+		render(
+			<InviteTenantUserDrawer
+				tenantId="tenant-1"
+				isOpen
+				onOpenChange={vi.fn()}
+				onInvited={vi.fn()}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		fireEvent.change(screen.getByLabelText('Paste emails'), {
+			target: { value: 'alice@example.com,bob@example.com' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Add pasted emails' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Invite people' }));
+
+		await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
+		expect(screen.getByText('bob@example.com')).toBeTruthy();
+		expect(screen.getByRole('alert').textContent).toContain(
+			'A pending invitation already exists',
+		);
+		expect(screen.queryByText('RAW SERVER REASON')).toBeNull();
+		expect(screen.getAllByLabelText('Email')).toHaveLength(1);
+		expect((screen.getByLabelText('Email') as HTMLInputElement).value).toBe(
+			'bob@example.com',
+		);
 	});
 
 	test('blocks submission when the email is invalid (email schema rule)', async () => {
@@ -339,7 +499,9 @@ describe('InviteTenantUserDrawer', () => {
 		mocks.inviteMutation.mockRejectedValue({
 			status: 422,
 			responseStatusCode: 422,
-			errors: { Email: ['Email must be a valid email address'] },
+			errors: {
+				'Invitations[0].Email': ['Email must be a valid email address'],
+			},
 		});
 
 		render(
@@ -376,7 +538,7 @@ describe('InviteTenantUserDrawer', () => {
 			status: 422,
 			responseStatusCode: 422,
 			errors: {
-				Email: ['Email must be a valid email address'],
+				'Invitations[0].Email': ['Email must be a valid email address'],
 				TenantId: ['Tenant is invalid'],
 			},
 		});
@@ -408,7 +570,7 @@ describe('InviteTenantUserDrawer', () => {
 		expect(mocks.toastSuccess).not.toHaveBeenCalled();
 	});
 
-	test('leaves general failures to central feedback without a persistent result block', async () => {
+	test('routes general failures to the named local feedback owner', async () => {
 		mocks.inviteMutation.mockRejectedValue({
 			status: 500,
 			detail: 'Invitation failed',
@@ -431,7 +593,7 @@ describe('InviteTenantUserDrawer', () => {
 
 		await waitFor(() => expect(mocks.inviteMutation).toHaveBeenCalledOnce());
 		expect(screen.queryByRole('alert')).toBeNull();
-		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
+		expect(mocks.displayLocalMutationFailure).toHaveBeenCalledOnce();
 	});
 
 	test('shows an inline root fallback for validation fields outside the invite controls', async () => {
