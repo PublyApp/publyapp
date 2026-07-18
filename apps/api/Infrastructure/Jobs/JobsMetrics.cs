@@ -31,6 +31,8 @@ public sealed class JobsMetrics {
 		Meter.CreateCounter<long>("jobs.cancelled");
 	private static readonly Counter<long> LeaseLostCounter =
 		Meter.CreateCounter<long>("jobs.lease_lost");
+	private static readonly Counter<long> EmailSubmitFailureCounter =
+		Meter.CreateCounter<long>("jobs.email_submit_failure");
 	private static readonly Counter<long> ListenerReconnectsCounter =
 		Meter.CreateCounter<long>("jobs.listener_reconnects");
 	private static readonly Histogram<double> HandlerDurationHistogram =
@@ -100,6 +102,25 @@ public sealed class JobsMetrics {
 				"jobs.lease_lost instance={Instance} job_type={JobType}",
 				_instanceId,
 				jobType
+			);
+		}
+	}
+
+	public void EmailSubmitFailure(string emailKind, string failureClass) {
+		EmailSubmitFailureCounter.Add(
+			1,
+			_instanceTag,
+			new KeyValuePair<string, object?>("email_kind", emailKind),
+			new KeyValuePair<string, object?>("failure_class", failureClass)
+		);
+
+		if (_logger.IsEnabled(LogLevel.Warning)) {
+			_logger.LogWarning(
+				"jobs.email_submit_failure instance={Instance} email_kind={EmailKind} "
+					+ "failure_class={FailureClass}",
+				_instanceId,
+				emailKind,
+				failureClass
 			);
 		}
 	}

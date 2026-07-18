@@ -106,7 +106,6 @@ public sealed class InvitationRevokeService : IInvitationRevokeService {
 		var foundById = rows.ToDictionary(inv => inv.GetRequiredId());
 		var failedItems = new List<BulkStaffInvitationActionFailedItem>();
 		var succeededCount = 0;
-		var revokedInvitationIds = new List<Guid>();
 		var now = DateTime.UtcNow;
 
 		// Iterate over the requested ids (not over rows) so missing ids surface
@@ -151,29 +150,17 @@ public sealed class InvitationRevokeService : IInvitationRevokeService {
 			invitation.Status = InvitationStatus.Revoked;
 			invitation.RevokedAt = now;
 			succeededCount++;
-			revokedInvitationIds.Add(invitationId);
 
 			if (_logger.IsEnabled(LogLevel.Information)) {
 				_logger.LogInformation("Revoked invitation {InvitationId}", invitationId);
 			}
 		}
 
-		// 1 SELECT + tracked update for every still-pending outbox row across the
-		// whole batch, not one query per invitation (round-6 API F3, F6 pattern).
-		if (revokedInvitationIds.Count > 0) {
-			var pendingOutboxRows = await _dbContext.InvitationEmailOutbox
-				.Where(o => o.InvitationId != null
-					&& revokedInvitationIds.Contains(o.InvitationId.Value)
-					&& (o.Status == InvitationEmailOutboxStatus.Pending
-						|| o.Status == InvitationEmailOutboxStatus.Processing))
-				.ToListAsync(cancellationToken);
-
-			foreach (var outboxRow in pendingOutboxRows) {
-				outboxRow.Status = InvitationEmailOutboxStatus.Cancelled;
-			}
-		}
-
-		// 1 SaveChanges for all updates.
+		// Synchronous outbox/job cancellation retired for the bulk path too (design §5.4):
+		// the single-revoke path already stopped eagerly cancelling rows, and the email
+		// job's send-time locked eligibility recheck is the authoritative gate. A revoked
+		// invitation's pending job resolves to CancelledIneligible at send, visible in
+		// email_log — so bulk revoke no longer mutates queue/outbox rows here.
 		await _dbContext.SaveChangesAsync(cancellationToken);
 
 		return new BulkStaffInvitationActionResult(
@@ -243,10 +230,9 @@ public sealed class InvitationRevokeService : IInvitationRevokeService {
 		invitation.Status = InvitationStatus.Revoked;
 		invitation.RevokedAt = DateTime.UtcNow;
 
-		await InvitationEmailOutbox.CancelPendingForInvitationAsync(
-			_dbContext, invitationId, cancellationToken
-		);
-
+		// Synchronous outbox cancellation retired (design §5.4): the email job's send-time
+		// locked eligibility recheck is now the authoritative gate — a revoked
+		// invitation resolves to CancelledIneligible at send, visible in email_log.
 		await _dbContext.SaveChangesAsync(cancellationToken);
 
 		if (_logger.IsEnabled(LogLevel.Information)) {

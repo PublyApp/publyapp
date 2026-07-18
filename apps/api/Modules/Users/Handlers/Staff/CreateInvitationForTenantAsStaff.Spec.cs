@@ -10,7 +10,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
-using PublyApp.Api.Infrastructure.Messaging.Email;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
@@ -19,6 +18,7 @@ using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
+using PublyApp.Api.Modules.Invitations.Jobs;
 using PublyApp.Api.Modules.Profiles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
@@ -43,9 +43,6 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldSendTenantInvitationEmailWhenInvitationIsCreated() {
-		var fakeEmailSender = _fixture.GetFakeEmailSender();
-		fakeEmailSender.Clear();
-
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var tenantId =
@@ -72,18 +69,46 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Created);
 
-		var sentEmail = await WaitForSingleEmailAsync(
-			fakeEmailSender,
-			inviteeEmail
-		);
+		var responseBody =
+			await response.Content
+				.ReadFromJsonAsync<InvitationCreatedForTenantResponse>();
+		responseBody.Should().NotBeNull();
+		Assert.NotNull(responseBody);
 
-		sentEmail.Should().NotBeNull();
-		Assert.NotNull(sentEmail);
-		sentEmail.To.Should().Be(inviteeEmail);
-		sentEmail.Subject.Should()
-			.Contain(SeedConstants.Tenants.AcmeName);
-		sentEmail.HtmlBody.Should()
-			.Contain("Accept the invitation");
+		using var scope =
+			_fixture.Factory.Services.CreateScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var pendingJobs = await dbContext.JobQueue.AsNoTracking()
+			.Where(j => j.JobType == InvitationEmailJobs.TenantInvitationV1.JobType)
+			.ToListAsync();
+
+		var matchingJobs = pendingJobs
+			.Where(j => JobPayloadContainsId(j.Payload, "invitationId", responseBody!.InvitationId))
+			.ToList();
+
+		matchingJobs.Should().HaveCount(1);
+	}
+
+	private static bool JobPayloadContainsId(
+		string? payload,
+		string propertyName,
+		Guid id
+	) {
+		if (string.IsNullOrWhiteSpace(payload)) {
+			return false;
+		}
+
+		using var doc = JsonDocument.Parse(payload);
+		var root = doc.RootElement;
+		if (!root.TryGetProperty(propertyName, out var token)
+			|| token.ValueKind is not JsonValueKind.String) {
+			return false;
+		}
+
+		var tokenValue = token.GetString();
+		return tokenValue == id.ToString();
 	}
 
 	[Fact]
@@ -784,24 +809,4 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 			.Contain(fieldName);
 	}
 
-	private static async Task<EmailRequest?>
-	WaitForSingleEmailAsync(
-		PublyApp.Api.Lib.Testing.Fakes.FakeEmailSender fakeEmailSender,
-		string email
-	) {
-		const int maxAttempts = 10;
-
-		for (var attempt = 0; attempt < maxAttempts; attempt++) {
-			var sentEmail = fakeEmailSender.SentEmails
-				.SingleOrDefault(x => x.To == email);
-
-			if (sentEmail is not null) {
-				return sentEmail;
-			}
-
-			await Task.Delay(100);
-		}
-
-		return null;
-	}
 }

@@ -8,6 +8,7 @@ using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.Auth.Entities;
 using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Jobs.Entities;
+using PublyApp.Api.Modules.Messaging.Entities;
 using PublyApp.Api.Modules.Permissions.Entities;
 using PublyApp.Api.Modules.Profiles.Entities;
 using PublyApp.Api.Modules.Projects.Entities;
@@ -81,6 +82,15 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	// scheduler by SyncSystemJobsJob (design §4.3).
 	public DbSet<SystemJobDefinition> SystemJobDefinition {
 		get { return Set<SystemJobDefinition>(); }
+	}
+
+	// Append-only email delivery record + send-once envelope scratch (design §4.4/§4.5,
+	// Modules/Messaging). Written by the email job handlers; never read by the engine.
+	public DbSet<EmailLog> EmailLog {
+		get { return Set<EmailLog>(); }
+	}
+	public DbSet<EmailPreparedSend> EmailPreparedSend {
+		get { return Set<EmailPreparedSend>(); }
 	}
 
 	// Staff back-office entities
@@ -447,6 +457,77 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 				.IsUnique()
 				.HasDatabaseName("ux_system_job_definitions_job_key")
 				.HasFilter("is_deleted = false");
+		});
+
+		// Append-only email delivery record (design §4.4, F20). Not a BaseAttributes
+		// entity — written once at a terminal outcome and never mutated/soft-deleted; the
+		// uuidv7 id + now() timestamps are configured explicitly here. Indexes serve the
+		// support query (recipient+time), kind/time, related-entity lookups, and the
+		// unique job_id idempotency marker (§5.4). No FK constraints on invitation_id /
+		// user_id — an audit trail must outlive the rows it references.
+		modelBuilder.Entity<EmailLog>(entity => {
+			entity.HasKey(e => e.Id).HasName("pk_email_log");
+			entity.Property(e => e.Id).HasDefaultValueSql("uuidv7()");
+			entity.Property(e => e.Attempts).HasDefaultValue(0);
+			entity.Property(e => e.EvidenceSource).HasDefaultValueSql("'local'");
+			entity.Property(e => e.OccurredAt).HasDefaultValueSql("now()");
+			entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+			entity.Property(e => e.UpdatedAt).HasDefaultValueSql("now()");
+
+			entity.HasIndex(e => new { e.Kind, e.OccurredAt })
+				.HasDatabaseName("ix_email_log_kind_occurred_at");
+			entity.HasIndex(e => new { e.Recipient, e.OccurredAt })
+				.HasDatabaseName("ix_email_log_recipient_occurred_at");
+			entity.HasIndex(e => e.InvitationId)
+				.HasDatabaseName("ix_email_log_invitation_id")
+				.HasFilter("invitation_id IS NOT NULL");
+			entity.HasIndex(e => e.UserId)
+				.HasDatabaseName("ix_email_log_user_id")
+				.HasFilter("user_id IS NOT NULL");
+
+			// Provider correlation lookup (F3/F20): resolve a delivery by provider message
+			// id. Partial — only accepted sends carry one.
+			entity.HasIndex(e => e.ProviderMessageId)
+				.HasDatabaseName("ix_email_log_provider_message_id")
+				.HasFilter("provider_message_id IS NOT NULL");
+
+			// One terminal outcome per job: doubles as the handler idempotency marker
+			// (§5.4 — a reclaimed job whose row exists must not resend).
+			entity.HasIndex(e => e.JobId)
+				.IsUnique()
+				.HasDatabaseName("ux_email_log_job_id")
+				.HasFilter("job_id IS NOT NULL");
+
+			// One historical row per source outbox row: the arbiter that makes the fold's
+			// back-copy idempotent and re-run-safe across R1/R2 (§4.4/§4.6, F4/C3).
+			entity.HasIndex(e => e.LegacyOutboxId)
+				.IsUnique()
+				.HasDatabaseName("ux_email_log_legacy_outbox_id")
+				.HasFilter("legacy_outbox_id IS NOT NULL");
+
+			// Provider evidence dedup (§4.4): rejects a concurrent webhook/reconciliation
+			// replay of the same event.
+			entity.HasIndex(e => e.ProviderEventId)
+				.IsUnique()
+				.HasDatabaseName("ux_email_log_provider_event_id")
+				.HasFilter("provider_event_id IS NOT NULL");
+
+			// The email-log-retention age sweep (§7.3). Both composite indexes above lead
+			// with kind/recipient, so neither can serve a global scan by age (R5-3).
+			entity.HasIndex(e => e.OccurredAt)
+				.HasDatabaseName("ix_email_log_occurred_at");
+		});
+
+		// Send-once envelope scratch (design §4.5, F7). Keyed by job_id (no surrogate id);
+		// inserted once, hard-deleted at the terminal outcome or by the Phase-3 sweep.
+		modelBuilder.Entity<EmailPreparedSend>(entity => {
+			entity.HasKey(e => e.JobId).HasName("pk_email_prepared_sends");
+			entity.Property(e => e.PreparedAt).HasDefaultValueSql("now()");
+
+			// The email-prepared-sends-retention sweep scans and orders by prepared_at; the
+			// job_id PK cannot serve it (§4.5, R5-3).
+			entity.HasIndex(e => e.PreparedAt)
+				.HasDatabaseName("ix_email_prepared_sends_prepared_at");
 		});
 
 		// Partial indexes to favor active rows without enforcing global filters

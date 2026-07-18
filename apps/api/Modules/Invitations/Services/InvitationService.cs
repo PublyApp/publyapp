@@ -1,11 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
-using PublyApp.Api.Infrastructure.Messaging.Email;
+using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Invitations.Entities;
+using PublyApp.Api.Modules.Invitations.Jobs;
 using PublyApp.Api.Modules.Profiles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 namespace PublyApp.Api.Modules.Invitations.Services;
@@ -168,16 +169,16 @@ public record StaffInvitationDetailsResult {
 [Service(ServiceLifetime.Scoped)]
 public class InvitationService : IInvitationService {
 	private readonly AppDbContext _dbContext;
-	private readonly IInvitationEmailOutboxSignal _outboxSignal;
+	private readonly IJobEnqueuer _jobEnqueuer;
 	private readonly ILogger<InvitationService> _logger;
 
 	public InvitationService(
 		AppDbContext dbContext,
-		IInvitationEmailOutboxSignal outboxSignal,
+		IJobEnqueuer jobEnqueuer,
 		ILogger<InvitationService> logger
 	) {
 		_dbContext = dbContext;
-		_outboxSignal = outboxSignal;
+		_jobEnqueuer = jobEnqueuer;
 		_logger = logger;
 	}
 
@@ -201,22 +202,24 @@ public class InvitationService : IInvitationService {
 
 		invitation.ValidateInvitationType();
 
-		await _dbContext.Invitation.AddAsync(invitation, cancellationToken);
+		// Fold (design §5.4): the invitation and its email job are enqueued in ONE
+		// transaction — the invitation is saved first so its store-generated uuidv7 id is
+		// available for the job payload, then the enqueue joins the same transaction (its
+		// transactional NOTIFY fires at commit). A rolled-back invitation takes its job
+		// with it; a committed one always has a durable delivery job.
+		await using var transaction =
+			await _dbContext.Database.BeginTransactionAsync(cancellationToken);
 
-		// Written in the same SaveChanges call as the invitation so a committed
-		// invitation always has a durable delivery record (round-5 API F3).
-		// The Invitation navigation lets EF resolve invitation_id via the
-		// store-generated (uuidv7) key from this same SaveChanges batch,
-		// linking the outbox row for revoke/accept cancellation (round-6 F3).
-		var staffOutboxRow = InvitationEmailOutbox.CreateStaffInvitation(email, token);
-		staffOutboxRow.Invitation = invitation;
-		await _dbContext.InvitationEmailOutbox.AddAsync(
-			staffOutboxRow,
-			cancellationToken
+		await _dbContext.Invitation.AddAsync(invitation, cancellationToken);
+		await _dbContext.SaveChangesAsync(cancellationToken);
+
+		await _jobEnqueuer.EnqueueAsync(
+			InvitationEmailJobs.StaffInvitationV1,
+			new StaffInvitationEmailPayload { InvitationId = invitation.GetRequiredId() },
+			cancellationToken: cancellationToken
 		);
 
-		await _dbContext.SaveChangesAsync(cancellationToken);
-		_outboxSignal.Notify();
+		await transaction.CommitAsync(cancellationToken);
 
 		if (_logger.IsEnabled(LogLevel.Information)) {
 			_logger.LogInformation(
@@ -253,24 +256,21 @@ public class InvitationService : IInvitationService {
 
 		invitation.ValidateInvitationType();
 
+		// Fold (design §5.4): invitation + email job enqueued in ONE transaction; the
+		// invitation is saved first so its uuidv7 id is available for the job payload.
+		await using var transaction =
+			await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+
 		await _dbContext.Invitation.AddAsync(invitation, cancellationToken);
-
-		// Written in the same SaveChanges call as the invitation so a committed
-		// invitation always has a durable delivery record (round-5 API F3).
-		var tenantOutboxRow = InvitationEmailOutbox.CreateTenantInvitation(
-			email,
-			args.TenantName,
-			token,
-			args.AccountLevel
-		);
-		tenantOutboxRow.Invitation = invitation;
-		await _dbContext.InvitationEmailOutbox.AddAsync(
-			tenantOutboxRow,
-			cancellationToken
-		);
-
 		await _dbContext.SaveChangesAsync(cancellationToken);
-		_outboxSignal.Notify();
+
+		await _jobEnqueuer.EnqueueAsync(
+			InvitationEmailJobs.TenantInvitationV1,
+			new TenantInvitationEmailPayload { InvitationId = invitation.GetRequiredId() },
+			cancellationToken: cancellationToken
+		);
+
+		await transaction.CommitAsync(cancellationToken);
 
 		if (_logger.IsEnabled(LogLevel.Information)) {
 			_logger.LogInformation(
@@ -405,6 +405,7 @@ public class InvitationService : IInvitationService {
 		try {
 			var expiresAt = DateTime.UtcNow.AddDays(7);
 			var invitationTokens = new List<(string Email, string Token)>();
+			var newInvitations = new List<Invitation>();
 
 			foreach (var item in invitations) {
 				// Generate unique token per invitation (one per email)
@@ -424,23 +425,28 @@ public class InvitationService : IInvitationService {
 
 				// Add invitation (EF Core will also track the InvitationProfile junction records)
 				_dbContext.Invitation.Add(invitation);
-
-				// Durable delivery record in the same transaction as the invitation
-				// (round-5 API F3).
-				var bulkStaffOutboxRow = InvitationEmailOutbox.CreateStaffInvitation(item.Email, token);
-				bulkStaffOutboxRow.Invitation = invitation;
-				_dbContext.InvitationEmailOutbox.Add(bulkStaffOutboxRow);
+				newInvitations.Add(invitation);
 
 				// Collect email and token for sending emails later
 				invitationTokens.Add((item.Email, token));
 			}
 
-			// Save all changes (single database INSERT with multiple rows)
+			// Save all invitations first (single INSERT) so their store-generated uuidv7
+			// ids are available for the email job payloads.
 			await _dbContext.SaveChangesAsync(cancellationToken);
+
+			// Fold (design §5.4): one email job per invitation, all joining THIS
+			// transaction (their transactional NOTIFYs fire at commit).
+			foreach (var invitation in newInvitations) {
+				await _jobEnqueuer.EnqueueAsync(
+					InvitationEmailJobs.StaffInvitationV1,
+					new StaffInvitationEmailPayload { InvitationId = invitation.GetRequiredId() },
+					cancellationToken: cancellationToken
+				);
+			}
 
 			// Commit transaction
 			await tx.CommitAsync(cancellationToken);
-			_outboxSignal.Notify();
 
 			if (_logger.IsEnabled(LogLevel.Information)) {
 				_logger.LogInformation(

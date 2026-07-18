@@ -13,6 +13,8 @@ using Microsoft.Extensions.Hosting;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Infrastructure.Messaging.Email;
+using PublyApp.Api.Modules.Auth.Jobs;
+using PublyApp.Api.Modules.Invitations.Jobs;
 using PublyApp.Api.Lib.Diagnostics;
 using PublyApp.Api.Lib.Testing.Fixtures;
 
@@ -114,6 +116,7 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 			.Should().NotBeNull("the worker must resolve AppDbContext to run jobs");
 
 		AssertJobProducerResolves(host.Services, "worker");
+		AssertEmailJobHandlersResolve(host.Services);
 	}
 
 	// --- all role: both surfaces -------------------------------------------------
@@ -131,6 +134,7 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 			.Should().NotBeNull("the all role hosts a real HTTP server");
 
 		AssertJobProducerResolves(app.Services, "all");
+		AssertEmailJobHandlersResolve(app.Services);
 	}
 
 	// --- red controls: the guard must FAIL on a hosted-service leak -----------------
@@ -492,6 +496,15 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 		using var scope = services.CreateScope();
 		scope.ServiceProvider.GetService<IJobEnqueuer>()
 			.Should().NotBeNull($"the {roleName} role must resolve the IJobEnqueuer producer boundary");
+	}
+
+	private static void AssertEmailJobHandlersResolve(IServiceProvider services) {
+		var registry = services.GetRequiredService<JobHandlerRegistry>();
+		registry.RegisteredJobTypes.Should().BeEquivalentTo([
+			InvitationEmailJobs.TenantInvitationV1.JobType,
+			InvitationEmailJobs.StaffInvitationV1.JobType,
+			AuthEmailJobs.PasswordResetV1.JobType,
+		]);
 	}
 
 	private static void AssertHasJobHostedServices(IServiceCollection services) {

@@ -1,5 +1,7 @@
 using PublyApp.Api.Infrastructure.Jobs.Quartz;
 using PublyApp.Api.Infrastructure.Messaging.Email;
+using PublyApp.Api.Modules.Auth.Jobs;
+using PublyApp.Api.Modules.Invitations.Jobs;
 using PublyApp.Api.Lib;
 
 namespace PublyApp.Api.Infrastructure.Jobs;
@@ -75,8 +77,25 @@ public static class JobsServiceRegistration {
 		// composition guard enumerates EVERY IHostedService rather than one namespace.
 		// 2C-R1 retains it as-is; R2 deletes it.
 		builder.Services.AddHostedService<InvitationEmailOutboxDispatcher>();
+		AddEmailJobHandlers(builder);
 
 		return builder;
+	}
+
+	// Email job handlers (design §5.4). Built to the finalized engine contract: SCOPED,
+	// constructor-injected AppDbContext, resolved from a fresh per-job DI scope; a
+	// handler's context shares the terminal (DLQ) transaction so OnTerminalFailureAsync's
+	// email_log(PermanentlyFailed) write commits atomically with the dead-letter.
+	private static void AddEmailJobHandlers(IHostApplicationBuilder builder) {
+		builder.AddJobHandler<TenantInvitationEmailJobHandler>(
+			InvitationEmailJobs.TenantInvitationV1.JobType
+		);
+		builder.AddJobHandler<StaffInvitationEmailJobHandler>(
+			InvitationEmailJobs.StaffInvitationV1.JobType
+		);
+		builder.AddJobHandler<PasswordResetEmailJobHandler>(
+			AuthEmailJobs.PasswordResetV1.JobType
+		);
 	}
 
 	/// <summary>
