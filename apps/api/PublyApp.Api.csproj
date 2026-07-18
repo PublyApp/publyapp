@@ -30,6 +30,7 @@
 			<PrivateAssets>all</PrivateAssets>
 		</PackageReference>
 		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+		<PackageReference Include="Quartz" />
 		<PackageReference Include="Resend" />
 		<PackageReference Include="Scalar.AspNetCore" />
 		<PackageReference Include="Serilog.AspNetCore" />

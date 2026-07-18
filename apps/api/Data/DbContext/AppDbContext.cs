@@ -77,6 +77,12 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 		get { return Set<JobDeadLetter>(); }
 	}
 
+	// Dashboard-configurable recurring system jobs, reconciled into the leader's Quartz
+	// scheduler by SyncSystemJobsJob (design §4.3).
+	public DbSet<SystemJobDefinition> SystemJobDefinition {
+		get { return Set<SystemJobDefinition>(); }
+	}
+
 	// Staff back-office entities
 	public DbSet<AuditLog> AuditLog {
 		get { return Set<AuditLog>(); }
@@ -422,6 +428,25 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 			entity.HasIndex(e => e.RequeuedFromDeadLetterId)
 				.HasDatabaseName("ix_job_dead_letter_requeued_from")
 				.HasFilter("requeued_from_dead_letter_id IS NOT NULL");
+		});
+
+		// Dashboard-configurable recurring system jobs (design §4.3). A BaseAttributes
+		// entity — the uuidv7 id + soft-delete columns come from the generic loop below;
+		// this block adds the explicit snake_case PK name and the job_key uniqueness
+		// invariant scoped to non-deleted rows.
+		modelBuilder.Entity<SystemJobDefinition>(entity => {
+			entity.HasKey(e => e.Id).HasName("pk_system_job_definitions");
+			entity.Property(e => e.IsEnabled).HasDefaultValue(true);
+			// §4.3 specifies a database-level DEFAULT false, so raw-SQL inserts (which
+			// bypass UpdateAuditFields) can never leave is_deleted NULL-ish/unset.
+			entity.Property(e => e.IsDeleted).HasDefaultValue(false);
+			entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+			entity.Property(e => e.UpdatedAt).HasDefaultValueSql("now()");
+
+			entity.HasIndex(e => e.JobKey)
+				.IsUnique()
+				.HasDatabaseName("ux_system_job_definitions_job_key")
+				.HasFilter("is_deleted = false");
 		});
 
 		// Partial indexes to favor active rows without enforcing global filters

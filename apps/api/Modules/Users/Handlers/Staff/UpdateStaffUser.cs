@@ -197,7 +197,13 @@ public sealed class UpdateStaffUser {
 
 		if (result is UpdateUserByIdResult.UpdateFailed updateFailed) {
 			if (logger.IsEnabled(LogLevel.Error)) {
-				logger.LogError("Failed to update staff member: {@LogData}", new { UserId = userIdGuid, ErrorMessage = updateFailed.ErrorMessage });
+				// ErrorMessage is already redacted at its source (StaffUserCoreService, via
+				// JobErrorSanitizer.Describe) — it carries no raw exception text (finding F3).
+				// This event sets no LogEvent.Exception, so keep ErrorMessage pre-sanitized.
+				logger.LogError(
+					"Failed to update staff member: {@LogData}",
+					new { UserId = userIdGuid, ErrorMessage = updateFailed.ErrorMessage }
+				);
 			}
 
 			return TypedProblems.InternalServerError(

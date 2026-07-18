@@ -171,9 +171,10 @@ public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
 EF migrations:
 
 ```bash
-cd apps/api
-pnpm migrate:add AddSocialEntities
-pnpm migrate:apply
+# Use the pinned just recipes (they export APP_ROLE=api; a bare `dotnet ef`/`dotnet build`
+# resolves Production and fails fast without it).
+just db-add AddSocialEntities
+just db-migrate
 ```
 
 Acceptance Criteria
@@ -701,7 +702,7 @@ Critical integration tests
 - [ ] Mount a persistent volume for Data Protection keys at `DATAPROTECTION_KEYS_DIR`.
 - [ ] Run DB migrations on first deploy.
   ```bash
-  cd apps/api && pnpm migrate:apply
+  just db-migrate
   ```
 - [ ] Verify `/health` for API and front healthcheck.
 - [ ] Verify Hangfire dashboard access (`/staff/hangfire`) for staff only.
@@ -747,12 +748,13 @@ Common issues
 
 ## Appendix: Commands & Paths
 
-API scripts (from `apps/api/package.json`)
+API commands (pinned `just` recipes — these export `APP_ROLE=api`; the only bare pnpm
+script kept on `apps/api` is `dev`, which runs under Development where the role defaults):
 ```bash
-pnpm --dir apps/api dev
-pnpm --dir apps/api build
-pnpm --dir apps/api migrate:add AddSocialEntities
-pnpm --dir apps/api migrate:apply
+just dev-api
+just build-api
+just db-add AddSocialEntities
+just db-migrate
 ```
 
 OpenAPI client generation (front)

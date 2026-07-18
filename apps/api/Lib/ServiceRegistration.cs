@@ -73,9 +73,6 @@ public static class ServiceRegistration {
 			options.AddDocumentTransformer<OpenApiDocumentNormalizer>();
 		});
 
-		// Add HttpContextAccessor for accessing HTTP context in services
-		builder.Services.AddHttpContextAccessor();
-
 		// CORS configuration
 		var env = AppEnvironment.Instance;
 		builder.Services.AddCors(options => {
@@ -113,8 +110,17 @@ public static class ServiceRegistration {
 
 	/// <summary>
 	/// Registers Infrastructure services: DbContext, external SDK clients, email, etc.
+	/// Targets IHostApplicationBuilder (design §3.2, F17) so BOTH host shapes — the
+	/// api/all WebApplication and the worker Generic Host — share one infra composition.
 	/// </summary>
-	public static WebApplicationBuilder AddInfraServices(this WebApplicationBuilder builder) {
+	public static IHostApplicationBuilder AddInfraServices(this IHostApplicationBuilder builder) {
+		// Shared DI prerequisite, deliberately NOT in AddWebServices (F17): the
+		// AddDbContext tenant-resolution factory below requires IHttpContextAccessor, and
+		// the worker Generic Host never calls AddWebServices. In the worker the accessor
+		// simply yields a null HttpContext → tenant id resolves null — correct for
+		// background execution.
+		builder.Services.AddHttpContextAccessor();
+
 		// Add HealthChecks (infrastructure checks will be added here over time)
 		builder.Services.AddHealthChecks();
 
@@ -140,19 +146,25 @@ public static class ServiceRegistration {
 			_ => new LocalDiskFileStorage(AppEnvironment.Instance.FILE_STORAGE_ROOT)
 		);
 
-		// Durable invitation email outbox: writers persist rows transactionally and
-		// signal this dispatcher, which delivers them on its own host-lifetime token
-		// (never a per-request token) with retry and restart recovery.
+		// Durable invitation email outbox — PRODUCER half only (design §3.2, C5/R2-6).
+		// The signal is not a hosted service: it is the wake handle the invitation-writing
+		// domain services ([Service]-registered, therefore resolved in EVERY role) inject
+		// after committing outbox rows, so it stays in shared infra. The CONSUMER half
+		// (InvitationEmailOutboxDispatcher, a BackgroundService and therefore a job hosted
+		// service) is registered ONLY by JobsServiceRegistration.AddWorkerServices: shared
+		// infra runs in the api role too, and registering it here made both deployed
+		// containers double-claim invitation_email_outbox (D1 violation).
 		builder.Services.AddSingleton<IInvitationEmailOutboxSignal, InvitationEmailOutboxSignal>();
-		builder.Services.AddHostedService<InvitationEmailOutboxDispatcher>();
 
 		return builder;
 	}
 
 	/// <summary>
 	/// Registers Application/business services from PublyApp.Api.Modules.*.Services.
+	/// Targets IHostApplicationBuilder (design §3.2, F17): producers and domain services
+	/// run in every role, including the worker Generic Host.
 	/// </summary>
-	public static WebApplicationBuilder AddAppServices(this WebApplicationBuilder builder) {
+	public static IHostApplicationBuilder AddAppServices(this IHostApplicationBuilder builder) {
 		// Validate [Service] attributed classes up front (fail-fast).
 		var discoveredServices = ValidateServiceAttributes();
 
@@ -176,11 +188,14 @@ public static class ServiceRegistration {
 		// Fail fast if any explicit registration overlaps with a discovered [Service] mapping.
 		RegisterDiscoveredServices(builder.Services, discoveredServices);
 
-		// Validate services at build time
-		builder.Host.UseDefaultServiceProvider(options => {
-			options.ValidateScopes = true;
-			options.ValidateOnBuild = true;
-		});
+		// Validate services at build time. ConfigureContainer with the default factory is
+		// the IHostApplicationBuilder-portable equivalent of
+		// Host.UseDefaultServiceProvider (which only exists on the web builder's
+		// ConfigureHostBuilder), so both host shapes validate identically (F17).
+		builder.ConfigureContainer(new DefaultServiceProviderFactory(new ServiceProviderOptions {
+			ValidateScopes = true,
+			ValidateOnBuild = true,
+		}));
 
 		return builder;
 	}

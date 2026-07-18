@@ -55,8 +55,15 @@ public sealed class InvitationServiceOutboxDurabilitySpec : IClassFixture<ApiFix
 
 		outboxRow.Should().NotBeNull();
 		outboxRow!.Kind.Should().Be(InvitationEmailKind.StaffInvitation);
+		// What this test owns is that the row was COMMITTED with the invitation, not which
+		// delivery state it reached. The dispatcher is a live hosted service here and was
+		// signalled by the commit above, so it races this read through the row's whole
+		// legal lifecycle: Pending (unclaimed) -> Processing (claimed) -> Sent. Omitting
+		// the transient Processing made this spec flaky — reproduced on the pristine tip,
+		// so this is a pre-existing gap in the allowed set, not a behaviour change.
 		outboxRow.Status.Should().BeOneOf(
 			InvitationEmailOutboxStatus.Pending,
+			InvitationEmailOutboxStatus.Processing,
 			InvitationEmailOutboxStatus.Sent
 		);
 

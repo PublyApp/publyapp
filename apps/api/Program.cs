@@ -1,7 +1,9 @@
 using Microsoft.Extensions.FileProviders;
 
+using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.Diagnostics;
 using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.Filters;
 using PublyApp.Api.Lib.Routes;
@@ -27,17 +29,101 @@ public class Program {
 			return;
 		}
 
+		// Worker liveness probe (design §3.5): exits 0/1 off the heartbeat file, no host
+		// build, no HTTP. Must run before any host builder like the seed CLI.
+		if (WorkerHealthCli.TryRun(args)) {
+			return;
+		}
+
+		// APP_ROLE decides composition (design §3.2). It defaults to All ONLY when the host
+		// environment is Development/Testing (§3.1). Under any other host environment —
+		// including an UNSET one, which resolves to Production — APP_ROLE is required and a
+		// missing value fails fast (AppEnvironment.GetOptionalAppRole); loading
+		// .env.development does NOT change that classification. So bare `dotnet build`
+		// (OpenAPI generation runs the app) requires APP_ROLE=api: repo builds must use the
+		// pinned `just` recipes (build-api, generate-client), which export it.
+		var role = AppEnvironment.Instance.Role;
+
+		// Out-of-process composition probe (design §3.2, finding F2): dumps the
+		// hosted-service collection the configured role would start, then exits without
+		// running the host. It lets AppRoleComposition.Spec assert the api-role graph under
+		// a REAL Production process where AppEnvironment and IHostEnvironment both resolve to
+		// Production, exactly as deployment does.
+		if (HostedServiceManifestCli.TryRun(args, role)) {
+			return;
+		}
+
+		// The Worker role runs a genuine Generic Host (design §3.2, F17): no Kestrel is
+		// ever registered, ASPNETCORE_URLS is inert, nothing listens on any port —
+		// "zero mapped endpoints" on a web host would still start an HTTP server.
+		if (role is AppRole.Worker) {
+			using var workerHost = CreateWorkerHostBuilder(args).Build();
+			workerHost.LogDiManifestIfPresent();
+			workerHost.Run();
+			return;
+		}
+
+		var builder = CreateWebHostBuilder(args, role);
+		var app = builder.Build();
+
+		app.LogDiManifestIfPresent();
+
+		ConfigureHttpPipeline(app);
+
+		app.Run();
+	}
+
+	/// <summary>
+	/// Composes the worker role's Generic Host (design §3.2, F17): shared infra + app
+	/// services + the worker-only job hosted-services, and NO web registrations — no
+	/// server exists in this graph at all. Public so AppRoleComposition.Spec asserts
+	/// against the exact composition Program runs.
+	/// </summary>
+	public static HostApplicationBuilder CreateWorkerHostBuilder(string[] args) {
+		var builder = Host.CreateApplicationBuilder(args);
+
+		builder.ConfigureLogger();
+		builder.AddInfraServices();
+		builder.AddAppServices();
+		// Producers run in EVERY role (design §3.2 matrix, last row) — worker jobs may
+		// re-enqueue through the same trusted boundary api handlers use.
+		builder.AddJobProducerServices();
+		builder.AddWorkerServices();
+
+		return builder;
+	}
+
+	/// <summary>
+	/// Composes the HTTP-serving host for the Api and All roles: the full web surface,
+	/// plus the job engine only for All (design §3.2 — Api registers ZERO job
+	/// hosted-services). Public so AppRoleComposition.Spec asserts against the exact
+	/// composition Program runs.
+	/// </summary>
+	public static WebApplicationBuilder CreateWebHostBuilder(string[] args, AppRole role) {
 		var builder = WebApplication.CreateBuilder(args);
 
 		builder.ConfigureLogger();
 		builder.AddWebServices();
 		builder.AddInfraServices();
 		builder.AddAppServices();
+		// Producers run in EVERY role (design §3.2 matrix, last row); only the
+		// consumers (AddWorkerServices) are role-gated.
+		builder.AddJobProducerServices();
 
-		var app = builder.Build();
+		if (role is AppRole.All) {
+			builder.AddWorkerServices();
+		}
 
-		app.LogDiManifestIfPresent();
+		return builder;
+	}
 
+	/// <summary>
+	/// Builds the HTTP request surface — middleware pipeline + endpoint maps — for the
+	/// Api and All roles. The Worker role never reaches this: it runs a Generic Host
+	/// with no HTTP server (design §3.2/§3.5, F17). Public so AppRoleComposition.Spec
+	/// can assert endpoint counts against the exact pipeline Program uses.
+	/// </summary>
+	public static void ConfigureHttpPipeline(WebApplication app) {
 		// ! order matters !
 		app.UseResponseCompression();
 		app.UseSecurityHeaders();
@@ -114,8 +200,6 @@ public class Program {
 
 		app.MapHealthChecks("/health");
 		app.MapNotFoundRoute();
-
-		app.Run();
 	}
 
 	// Test-only scaffold proving TenantPermissionFilter's AccountLevel.Admin bypass

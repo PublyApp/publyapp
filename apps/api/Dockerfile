@@ -13,6 +13,7 @@ RUN dotnet tool restore
 RUN cd apps/api \
 	&& ASPNETCORE_ENVIRONMENT=Production \
 	DOTNET_ENVIRONMENT=Production \
+	APP_ROLE=api \
 	POSTGRES_CONNECTION_STRING="Host=localhost;Port=5432;Database=publyapp_build;Username=postgres;Password=password;" \
 	FRONT_URL="http://localhost:5050" \
 	RESEND_API_KEY="build-placeholder" \
@@ -35,6 +36,15 @@ RUN cd apps/api \
 FROM build AS migrate
 
 WORKDIR /src/apps/api
+
+# Migration/model creation is an API-role tooling path, never an implicit `all` or worker
+# host (design §3.1, R4-4): dotnet-ef builds the app's host to resolve AppDbContext, so
+# APP_ROLE is read here too. This MUST be an ENV, not the inline `RUN` prefix the build
+# stage uses — those bindings exist only for that one RUN command and do not persist into
+# this derived stage. Without it, this stage inherits no APP_ROLE and (running under a
+# production-like environment) fails startup by design.
+ENV APP_ROLE=api
+
 ENTRYPOINT ["dotnet", "tool", "run", "dotnet-ef", "database", "update", "--verbose"]
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:ddcf70ad1ab963a4fcd41fbd722a6b660e404e87567cfbd46fd2809c21b02088 AS runtime

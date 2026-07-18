@@ -45,6 +45,9 @@ services:
       DOTNET_ENVIRONMENT: Production
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:5000
+      # API-only surface for the frontend E2E — don't inherit the `All` default and start
+      # worker infrastructure where callers assume an api-only process (audit F24).
+      APP_ROLE: api
       FRONT_URL: https://front-2.localhost:8443
     depends_on:
       postgres:

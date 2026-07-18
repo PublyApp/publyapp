@@ -5,9 +5,11 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Infrastructure.Messaging.Email;
 using PublyApp.Api.Lib.Testing.Fakes;
 
@@ -80,7 +82,42 @@ public sealed class ApiFactory
 			services.AddSingleton(typeof(ILogger<>), typeof(Logger<>));
 			services.AddSingleton<ILogger>(sp =>
 				sp.GetRequiredService<ILoggerFactory>().CreateLogger("Default"));
+
+			// 4) The default test host composes as `all` (APP_ROLE unset), so the
+			//    role-gated worker hosted services are registered. Remove the live
+			//    loops from the integration host: the job specs drive the processor
+			//    and scheduler-leader deterministically via their public methods, and a
+			//    background loop racing the shared test DB — plus the leader binding
+			//    AppEnvironment's (non-test) connection — would make specs flaky. Specs
+			//    that need these construct them directly against the test connection.
+			//    (The InvitationEmailOutboxDispatcher is intentionally left running, as
+			//    its specs rely on the live loop.)
+			RemoveWorkerHostedServices(services);
 		});
+	}
+
+	/// <summary>
+	/// Removes the worker-role background hosted services (JobQueueProcessor,
+	/// SchedulerLeaderService, WorkerHeartbeatService) from the integration test host so
+	/// no live loop races the deterministic job specs.
+	/// </summary>
+	private static void RemoveWorkerHostedServices(IServiceCollection services) {
+		var workerHostedServiceTypes = new[] {
+			typeof(JobQueueProcessor),
+			typeof(SchedulerLeaderService),
+			typeof(WorkerHeartbeatService),
+		};
+
+		var descriptorsToRemove = services
+			.Where(descriptor =>
+				descriptor.ServiceType == typeof(IHostedService)
+				&& descriptor.ImplementationType is not null
+				&& workerHostedServiceTypes.Contains(descriptor.ImplementationType))
+			.ToList();
+
+		foreach (var descriptor in descriptorsToRemove) {
+			services.Remove(descriptor);
+		}
 	}
 
 	/// <summary>

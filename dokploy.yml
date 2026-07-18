@@ -3,12 +3,19 @@
 
 services:
   publyapp-api:
-    image: ghcr.io/radandevist/publyapp/api:latest
+    # Immutable release tag, never :latest (design §3.4, F14): a mixed-version fleet must
+    # be an explicit, inspectable state, not an accident of pull timing.
+    image: ghcr.io/radandevist/publyapp/api:${RELEASE_TAG}
     container_name: publyapp-api
     restart: unless-stopped
+    # > host ShutdownTimeout (30 s) so graceful drain wins over SIGKILL (design §3.6, F19).
+    stop_grace_period: 45s
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:5000
+      # This container runs ONLY the HTTP surface; the job engine runs in
+      # publyapp-worker below (design §3.2/§3.4).
+      - APP_ROLE=api
       - POSTGRES_CONNECTION_STRING=${POSTGRES_CONNECTION_STRING}
       - FRONT_URL=${FRONT_URL}
     # Persists staff-uploaded assets (tenant logos) at FILE_STORAGE_ROOT across
@@ -26,6 +33,49 @@ services:
       - "dokploy.https=true"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Same GHCR image as publyapp-api, differing only by env: this container runs the
+  # background job engine (queue processor, scheduler leader + Quartz, outbox
+  # dispatchers) and serves NO HTTP (design §3.2/§3.4/§3.5). Scale it independently of
+  # the api. This image runs NO migration at boot in any role: there is no startup
+  # Migrate()/MigrateAsync() path and the runtime entrypoint is plain
+  # `dotnet PublyApp.Api.dll` (apps/api/Dockerfile). The production migration runner is
+  # NOT encoded in this repo — whatever applies migrations MUST export APP_ROLE=api (or
+  # use the Docker `migrate` target, which pins `ENV APP_ROLE=api`). Under Production a
+  # missing APP_ROLE now fails fast (AppEnvironment.GetOptionalAppRole), so an unpinned
+  # runner would start the host, throw, and apply no migration. OWNER-GATE: confirm the
+  # live migration command pins APP_ROLE=api before relying on this.
+  publyapp-worker:
+    image: ghcr.io/radandevist/publyapp/api:${RELEASE_TAG}   # same image as api, immutable tag (F14)
+    # No container_name: it pins the service to a single replica and blocks scaling
+    # (audit F19). The worker is meant to scale horizontally.
+    restart: unless-stopped
+    # Above the ~30 s Quartz-drain / graceful-shutdown budget (HostOptions.ShutdownTimeout,
+    # design §3.6); Compose's 10 s default would SIGKILL mid-drain (audit F19).
+    stop_grace_period: 45s
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - APP_ROLE=worker
+      - POSTGRES_CONNECTION_STRING=${POSTGRES_CONNECTION_STRING}
+      - FRONT_URL=${FRONT_URL}
+      # + RESEND_API_KEY, STAFF_OWNER_*, APP_NAME, etc. — the same required set as the
+      #   api service, supplied via the Dokploy GUI.
+    # Shares the api's storage volume so files written by future export jobs (#213/#286)
+    # are visible to the api's /files static serving (audit F18) — same FILE_STORAGE_ROOT
+    # path in both roles.
+    volumes:
+      - publyapp-api-storage:/app/.artifacts/storage
+    networks:
+      - publyapp-network
+    # NO dokploy.domain / dokploy.port labels — the worker serves no HTTP surface.
+    # Liveness is the in-image file-heartbeat probe (design §3.5, ratified O3): exits 0
+    # only when the heartbeat file (written after a successful DB probe) is fresh.
+    healthcheck:
+      test: ["CMD", "dotnet", "PublyApp.Api.dll", "--worker-health"]
       interval: 30s
       timeout: 10s
       retries: 3

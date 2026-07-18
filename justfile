@@ -64,15 +64,21 @@ dev-db: dev-services
 # =============================================================================
 
 # Build API only (skip restore)
-build-api:
+# APP_ROLE is pinned to `api` (design §3.1, C6/F24): `dotnet build` RUNS the app to emit
+# openapi.json, and with ASPNETCORE_ENVIRONMENT unset the host environment resolves to
+# Production — where a missing APP_ROLE is a fail-fast startup error, by design. Pinning
+# also keeps document generation on the API-only surface instead of composing the job
+# engine. Exported by just (a `$`-prefixed parameter), not shell syntax, so it works
+# under both bash and pwsh.
+build-api $APP_ROLE="api":
   cd {{api_dir}} && dotnet build --no-restore
 
 # Build API (with restore)
-build-api-full:
+build-api-full $APP_ROLE="api":
   cd {{api_dir}} && dotnet build
 
 # Publish API
-publish-api:
+publish-api $APP_ROLE="api":
   cd {{api_dir}} && dotnet publish
 
 # Build frontend
@@ -153,21 +159,27 @@ knip:
 # Database
 # =============================================================================
 
+# APP_ROLE is pinned to `api` on every dotnet-ef recipe below (design §3.1 item 5, R4-4):
+# dotnet-ef builds the app's host to resolve AppDbContext, so AppEnvironment runs and
+# reads APP_ROLE. Migration/model creation is an API-role tooling path, never an implicit
+# `all` or worker host. As above, the host environment resolves to Production when
+# ASPNETCORE_ENVIRONMENT is unset, so the pin is what keeps these recipes booting.
+
 # Run EF Core migrations
-db-migrate:
+db-migrate $APP_ROLE="api":
   cd {{api_dir}} && dotnet tool run dotnet-ef database update
 
 # Drop + migrate database
-db-reset:
+db-reset $APP_ROLE="api":
   cd {{api_dir}} && dotnet tool run dotnet-ef database drop -f
   cd {{api_dir}} && dotnet tool run dotnet-ef database update
 
 # Add new migration: `just db-add CreateUsers`
-db-add name:
+db-add name $APP_ROLE="api":
   cd {{api_dir}} && dotnet tool run dotnet-ef migrations add {{name}}
 
 # Remove last migration
-db-remove:
+db-remove $APP_ROLE="api":
   cd {{api_dir}} && dotnet tool run dotnet-ef migrations remove
 
 # =============================================================================
@@ -187,7 +199,14 @@ seed-bulk-reset:
 # =============================================================================
 
 # Run API integration tests (requires Docker)
-test-api:
+# APP_ROLE + ASPNETCORE_ENVIRONMENT pinned for the same reason as build-api (2B/G9):
+# the test host's own module-load-time bootstrap (TestEnvironment.Bootstrap(), a
+# [ModuleInitializer] in Tests/../Lib/Testing/Fixtures/TestEnvironment.cs) already makes
+# `dotnet test` deterministic regardless of these vars — but this recipe pins the same
+# contract anyway, so the sanctioned entrypoint and a bare `dotnet test` never disagree.
+# Exported by just (a `$`-prefixed parameter, same convention as build-api), not shell
+# syntax, so it works under both bash and pwsh.
+test-api $APP_ROLE="all" $ASPNETCORE_ENVIRONMENT="Testing":
   cd {{api_dir}} && dotnet restore Tests/PublyApp.Api.Tests.csproj
   cd {{api_dir}} && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --no-restore --nologo --verbosity minimal --logger "console;verbosity=normal"
 
@@ -197,7 +216,7 @@ test-analyzers:
   dotnet test packages/lint-cs/Tests/PublyApp.Analyzers.Tests.csproj -c Release --no-restore --nologo
 
 # Run API integration tests with verbose diagnostics
-test-api-debug:
+test-api-debug $APP_ROLE="all" $ASPNETCORE_ENVIRONMENT="Testing":
   cd {{api_dir}} && dotnet restore Tests/PublyApp.Api.Tests.csproj
   cd {{api_dir}} && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --no-restore --nologo --verbosity minimal --logger "console;verbosity=detailed" --environment TEST_VERBOSE_LOGS=1 --diag .artifacts/logs/test-api-debug.log
 
@@ -343,7 +362,9 @@ generate-response-keys:
 # =============================================================================
 
 # Build API + generate TypeScript client from OpenAPI
-generate-client:
+# APP_ROLE pinned for the same reason as build-api: this `dotnet build` boots the app to
+# regenerate openapi.json before kiota reads it (design §3.1 item 3).
+generate-client $APP_ROLE="api":
   cd {{api_dir}} && dotnet build --no-restore
   cd {{js_client_dir}} && dotnet kiota generate -d ../../{{api_dir}}/openapi.json -o src -l typescript -n PublyApp.Api.Client -c ApiClient
   cd {{js_client_dir}} && node -e "const fs=require('fs'),path=require('path'); const walk=(d)=>fs.readdirSync(d,{withFileTypes:true}).flatMap(e=>{const p=path.join(d,e.name); return e.isDirectory()?walk(p):[p];}); for (const f of walk('src')) { if (f.endsWith('.ts')||f.endsWith('.json')) { const c=fs.readFileSync(f,'utf8'); const n=c.replace(/\r\n?/g,'\n'); if (n!==c) fs.writeFileSync(f,n); } }"
