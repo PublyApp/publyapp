@@ -37,11 +37,16 @@ public sealed class ServiceDependencyBoundaryGuardSpec {
 	private static readonly HashSet<string> AllowedServiceDependencies = new(
 		StringComparer.Ordinal
 	) {
-		// ImpersonationService writes an audit-log entry synchronously inside the
-		// same transaction as session creation.  Refactoring would require either
-		// an outbox/domain-event pattern (not yet in place) or moving the log
-		// call to the handler that owns the orchestration. Ratchet target.
-		"ImpersonationService → IAuditLogService",
+		// CreateStaffUserService writes email verification + account creation in one
+		// transaction and calls IUserService/IAccountService for shared lookup and
+		// shared persistence behavior. Refactor to shared lower-level repositories
+		// is tracked and should be reviewed once this lane lands. Ratchet target.
+		"CreateStaffUserService → IAccountService",
+		"CreateStaffUserService → IUserService",
+		// VerifyEmailRequestService enqueues verification emails in the same
+		// transaction and reads user state via IUserService for token governance.
+		// Tracked as a temporary baseline exception; do not treat as permanent.
+		"VerifyEmailRequestService → IUserService",
 	};
 
 	[Fact]

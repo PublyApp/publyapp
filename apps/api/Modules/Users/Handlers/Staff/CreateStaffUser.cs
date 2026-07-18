@@ -11,13 +11,13 @@ using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Lib.Validation;
-using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Auth.Utils;
-using PublyApp.Api.Modules.Users.Entities;
+using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Users.Services;
 using PublyApp.Api.Modules.Users.Validation;
 
 using AccountLevelEnum = PublyApp.Api.Modules.Users.Entities.AccountLevel;
+using UserAccountEntity = PublyApp.Api.Modules.Users.Entities.UserAccount;
 
 namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
@@ -31,7 +31,7 @@ public class CreateStaffUserBody {
 	public JsonElement LastName { get; set; }
 	public JsonElement? FirstName { get; set; }
 	public JsonElement? AvatarUrl { get; set; }
-	public JsonElement? AccountLevel { get; set; }
+	public JsonElement? AccountLevelValue { get; set; }
 	public JsonElement? SendNotification { get; set; }
 
 	public string GetEmail() {
@@ -54,18 +54,19 @@ public class CreateStaffUserBody {
 		return SendNotification.GetValueAsBoolean();
 	}
 
-	public AccountLevel GetAccountLevel() {
-		switch (AccountLevel?.ValueKind) {
+	public AccountLevelEnum GetAccountLevel() {
+		switch (AccountLevelValue?.ValueKind) {
 			case null:
 			case JsonValueKind.Null:
 			case JsonValueKind.Undefined:
 				return AccountLevelEnum.User;
 			case JsonValueKind.String: {
-					var accountLevelString = AccountLevel.GetValueAsString();
-					var accountLevel = UserAccount.ParseLevel(accountLevelString);
+					var accountLevelString = AccountLevelValue.GetValueAsString();
+					var accountLevel = UserAccountEntity.ParseLevel(accountLevelString);
 					if (accountLevel is null) {
 						throw new InvalidOperationException("Invalid account level: " + accountLevelString);
 					}
+
 					return accountLevel.Value;
 				}
 			case JsonValueKind.Object:
@@ -76,9 +77,9 @@ public class CreateStaffUserBody {
 				throw new InvalidOperationException("AccountLevel must be a string or null");
 			default:
 				throw new ArgumentOutOfRangeException(
-					nameof(AccountLevel),
-					AccountLevel?.ValueKind,
-					$"Unhandled JsonValueKind: {AccountLevel?.ValueKind}"
+					nameof(AccountLevelValue),
+					AccountLevelValue?.ValueKind,
+					$"Unhandled JsonValueKind: {AccountLevelValue?.ValueKind}"
 				);
 		}
 	}
@@ -99,7 +100,7 @@ public class CreateStaffUserBodyValidator
 		RuleFor(x => x.AvatarUrl)
 			.MustBeNullableUrl("AvatarUrl");
 
-		RuleFor(x => x.AccountLevel)
+		RuleFor(x => x.AccountLevelValue)
 			.MustBeNullableAccountLevel();
 
 		RuleFor(x => x.SendNotification)
@@ -117,8 +118,7 @@ public sealed class CreateStaffUser {
 		>
 	> Handle(
 		[FromBody] CreateStaffUserBody body,
-		[FromServices] IUserService userService,
-		[FromServices] IAccountService accountService,
+		[FromServices] ICreateStaffUserService createStaffUserService,
 		[FromServices] IEmailService emailService,
 		[FromServices] ILogger<CreateStaffUser> logger,
 		CancellationToken cancellationToken
@@ -126,77 +126,31 @@ public sealed class CreateStaffUser {
 		var env = AppEnvironment.Instance;
 		var password = CryptoUtils.RandomString(env.PASSWORD_MIN_LENGTH);
 		password = PasswordUtils.HashPassword(password);
+
+		var accountLevel = body.GetAccountLevel();
 		var sendNotification = body.GetSendNotification();
 
-		var user = new User {
-			Email = body.GetEmail(),
-			Password = password,
-			LastName = body.GetLastName(),
-			FirstName = body.GetFirstName(),
-			AvatarUrl = body.GetAvatarUrl(),
-			// Legacy unmapped handler: default closed if this code is reused internally.
-			// Invitation acceptance is the normal path and explicitly activates users.
-			Status = UserStatus.Suspended,
-			IsVerified = false,
-		};
-
-		if (sendNotification) {
-			user.IsVerified = false;
-			user.EmailVerifyToken = CryptoUtils.RandomString(env.EMAIL_VERIFY_TOKEN_LENGTH);
-			user.EmailVerifyTokenExpiresAt = DateTime.UtcNow.AddDays(
-				env.EMAIL_VERIFY_TOKEN_VALIDITY_DURATION
-			);
-		}
-
-		var userResult = await userService.CreateUserAsync(user, cancellationToken);
-
-		Guid userIdGuid;
-		var shouldVerifyEmail = false;
-
-		if (userResult is CreateUserResult.UserAlreadyExists alreadyExistUserResult) {
-			if (logger.IsEnabled(LogLevel.Debug)) {
-				logger.LogDebug(
-					"User already exists, using existing user: {@LogData}",
-					new { UserId = alreadyExistUserResult.User.GetRequiredId() }
-				);
-			}
-			userIdGuid = alreadyExistUserResult.User.GetRequiredId();
-		} else if (userResult is CreateUserResult.Success successCreateUserResult) {
-			shouldVerifyEmail = true;
-			if (logger.IsEnabled(LogLevel.Debug)) {
-				logger.LogDebug(
-					"User created successfully, using new user: {@LogData}",
-					new { UserId = successCreateUserResult.User.GetRequiredId() }
-				);
-			}
-			userIdGuid = successCreateUserResult.User.GetRequiredId();
-		} else {
-			if (logger.IsEnabled(LogLevel.Error)) {
-				logger.LogError(
-					"Failed to create user: {@LogData}",
-					new { UserResult = userResult }
-				);
-			}
-			return TypedProblems.BadRequest(
-				"Failed to create user",
-				ResponseKeys.FailedToCreateUser
-			);
-		}
-
-		var accountResult = await accountService.CreateStaffAccountAsync(
-			userIdGuid,
-			accountLevel: body.GetAccountLevel(),
+		var serviceResult = await createStaffUserService.CreateStaffUserAsync(
+			new CreateStaffUserArgs(
+				Email: body.GetEmail(),
+				LastName: body.GetLastName(),
+				FirstName: body.GetFirstName(),
+				AvatarUrl: body.GetAvatarUrl(),
+				Password: password,
+				SendNotification: sendNotification,
+				AccountLevel: accountLevel
+			),
 			cancellationToken
 		);
 
-		if (accountResult is CreateStaffAccountResult.UserAlreadyStaffUser) {
+		if (serviceResult is CreateStaffUserServiceResult.UserAlreadyStaffUser) {
 			return TypedProblems.BadRequest(
 				"User is already member of staff",
 				ResponseKeys.UserAlreadyMemberOfStaff
 			);
 		}
 
-		if (accountResult is CreateStaffAccountResult.UserHasTenantOrProjectAccounts) {
+		if (serviceResult is CreateStaffUserServiceResult.UserHasTenantOrProjectAccounts) {
 			return TypedProblems.BadRequest(
 				"This user already has tenant or project accounts. "
 				+ "Staff and tenant/project accounts are mutually exclusive.",
@@ -204,24 +158,50 @@ public sealed class CreateStaffUser {
 			);
 		}
 
-		if (accountResult is CreateStaffAccountResult.Success accountSuccess) {
-			if (sendNotification) {
-				if (shouldVerifyEmail) {
-					if (string.IsNullOrEmpty(user.EmailVerifyToken)) {
-						throw new InvalidOperationException("Email verify should not be null or empty");
-					}
-					await emailService.SendStaffWelcomeEmailAsync(user.Email, user.EmailVerifyToken);
-				} else {
-					await emailService.SendJoinedStaffNotificationEmailAsync(user.Email);
-				}
+		if (serviceResult is CreateStaffUserServiceResult.Success successResult) {
+			if (sendNotification && !successResult.IsNewUser) {
+				_ = Task.Run(
+					async () => {
+						try {
+							await emailService.SendJoinedStaffNotificationEmailAsync(successResult.User.Email);
+						} catch (Exception ex) {
+							if (logger.IsEnabled(LogLevel.Error)) {
+								logger.LogError(
+									ex,
+									"Failed to send staff-join notification to {Email}",
+									successResult.User.Email
+								);
+							}
+						}
+					},
+					CancellationToken.None
+				);
 			}
+
+			if (logger.IsEnabled(LogLevel.Debug)) {
+				logger.LogDebug(
+					"Staff user create result: {@LogData}",
+					new {
+						UserId = successResult.User.GetRequiredId(),
+						AccountId = successResult.Account.GetRequiredId(),
+						IsNewUser = successResult.IsNewUser
+					}
+				);
+			}
+
 			return TypedResults.Created(
 				(string?)null,
 				new CreateStaffUserResult {
-					Id = userIdGuid,
-					AccountId = accountSuccess
-						.Account.GetRequiredId(),
+					Id = successResult.User.GetRequiredId(),
+					AccountId = successResult.Account.GetRequiredId(),
 				}
+			);
+		}
+
+		if (logger.IsEnabled(LogLevel.Error)) {
+			logger.LogError(
+				"Failed to create staff user: {@LogData}",
+				new { Body = body.Email.GetValueAsString() }
 			);
 		}
 

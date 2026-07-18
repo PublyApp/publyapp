@@ -4,10 +4,8 @@ using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.AuditLogs.Entities;
-using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Auth.Entities;
 using PublyApp.Api.Modules.Users.Entities;
-
 namespace PublyApp.Api.Modules.Impersonations.Services;
 
 public record CreateImpersonationSessionArgs(
@@ -30,16 +28,16 @@ public interface IImpersonationService {
 [Service(ServiceLifetime.Scoped)]
 public class ImpersonationService : IImpersonationService {
 	private readonly AppDbContext _dbContext;
-	private readonly IAuditLogService _auditLogService;
+	private readonly IHttpContextAccessor _httpContextAccessor;
 	private readonly ILogger<ImpersonationService> _logger;
 
 	public ImpersonationService(
 		AppDbContext dbContext,
-		IAuditLogService auditLogService,
+		IHttpContextAccessor httpContextAccessor,
 		ILogger<ImpersonationService> logger
 	) {
 		_dbContext = dbContext;
-		_auditLogService = auditLogService;
+		_httpContextAccessor = httpContextAccessor;
 		_logger = logger;
 	}
 
@@ -78,18 +76,11 @@ public class ImpersonationService : IImpersonationService {
 			ImpersonationExpiresAt = expiresAt
 		};
 
+		await using var tx = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
 		await _dbContext.Session.AddAsync(session, cancellationToken);
+		AddAuditEntry(staffUserId, tenantId, reason, durationMinutes);
 		await _dbContext.SaveChangesAsync(cancellationToken);
-
-		await _auditLogService.LogAsync(
-			new CreateAuditLogArgs(
-				UserId: staffUserId,
-				Action: AuditActions.ImpersonationStarted,
-				TargetId: tenantId,
-				Details: new { Reason = reason, Duration = durationMinutes }
-			),
-			cancellationToken
-		);
+		await tx.CommitAsync(cancellationToken);
 
 		if (_logger.IsEnabled(LogLevel.Information)) {
 			_logger.LogInformation(
@@ -100,6 +91,28 @@ public class ImpersonationService : IImpersonationService {
 		}
 
 		return session;
+	}
+
+	private void AddAuditEntry(
+		Guid staffUserId,
+		Guid tenantId,
+		string reason,
+		int durationMinutes
+	) {
+		var httpContext = _httpContextAccessor.HttpContext;
+		var auditLog = AuditLog.CreateEntry(
+			userId: staffUserId,
+			action: AuditActions.ImpersonationStarted,
+			targetId: tenantId,
+			details: new {
+				Reason = reason,
+				Duration = durationMinutes
+			},
+			ipAddress: httpContext?.Connection.RemoteIpAddress?.ToString(),
+			userAgent: httpContext?.Request.Headers.UserAgent.ToString()
+		);
+
+		_ = _dbContext.AuditLog.Add(auditLog);
 	}
 
 	public async Task<bool> ValidateImpersonationSessionAsync(

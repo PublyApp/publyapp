@@ -508,6 +508,7 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 			InvitationEmailJobs.TenantInvitationV1.JobType,
 			InvitationEmailJobs.StaffInvitationV1.JobType,
 			AuthEmailJobs.PasswordResetV1.JobType,
+			AuthEmailJobs.VerifyEmailV1.JobType,
 			CleanupExpiredSessionsHandler.JobKey,
 			EmailLogRetentionHandler.JobKey,
 			DeadLetterRetentionHandler.JobKey,

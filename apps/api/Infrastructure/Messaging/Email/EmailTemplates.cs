@@ -81,4 +81,40 @@ public static class EmailTemplates {
 				"""
 		};
 	}
+
+	public static EmailRequest EmailVerificationWelcome(string email, string token) {
+		var env = AppEnvironment.Instance;
+		var verificationUrl = AuthUtils.CreateVerificationUrl(token, email);
+
+		return new EmailRequest {
+			To = email,
+			From = SenderFrom(env),
+			Subject = $"Welcome to {env.APP_NAME}",
+			HtmlBody = $"""
+				Welcome to {env.APP_NAME}.
+				<br />
+				Please verify your email by clicking the link below:
+				<br />
+				{CreateHtmlLink(verificationUrl, "Verify your email")}
+				"""
+		};
+	}
+
+	public static EmailRequest EmailVerificationRequest(string email, string token) {
+		var env = AppEnvironment.Instance;
+		var verificationUrl = AuthUtils.CreateVerificationUrl(token, email);
+
+		return new EmailRequest {
+			To = email,
+			From = SenderFrom(env),
+			Subject = $"Your email verification request",
+			HtmlBody = $"""
+				You have requested to verify your email address.
+				<br />
+				Please verify your email by clicking the link below:
+				<br />
+				{CreateHtmlLink(verificationUrl, "Verify your email")}
+				"""
+		};
+	}
 }

@@ -18,6 +18,7 @@ public sealed class ResendStaffInvitation {
 		[FromRoute] string invitationId,
 		[FromServices] IInvitationQueryService invitationQueryService,
 		[FromServices] IEmailService emailService,
+		[FromServices] ILogger<ResendStaffInvitation> logger,
 		CancellationToken cancellationToken = default
 	) {
 		if (!Guid.TryParse(invitationId, out var invitationIdGuid)) {
@@ -41,8 +42,23 @@ public sealed class ResendStaffInvitation {
 			return TypedProblems.BadRequest("Invitation is not pending", ResponseKeys.BadRequest);
 		}
 
-		// Send email using existing invitation token (no rotation).
-		await emailService.SendInvitationToJoinStaffEmailAsync(invitation.Email, invitation.Token);
+		// Best-effort resend; failures stay best-effort and do not leak to caller.
+		_ = Task.Run(
+			async () => {
+				try {
+					await emailService.SendInvitationToJoinStaffEmailAsync(invitation.Email, invitation.Token);
+				} catch (Exception ex) {
+					if (logger.IsEnabled(LogLevel.Error)) {
+						logger.LogError(
+							ex,
+							"Error sending invitation reminder to {Email}",
+							invitation.Email
+						);
+					}
+				}
+			},
+			CancellationToken.None
+		);
 
 		return TypedResults.Ok(
 			ApiResponse.Create(

@@ -122,19 +122,23 @@ public sealed class CheckEmailVerificationToken {
 			resetPasswordUrl = AuthUtils.CreateResetPasswordUrl(passwordResetToken, user.Email);
 		}
 
-		// Send success email asynchronously
-		_ = emailService.SendEmailVerifiedNotificationAsync(user.Email)
-		.ContinueWith(t => {
-			if (t.Exception is not null) {
-				if (logger.IsEnabled(LogLevel.Error)) {
-					logger.LogError(
-						t.Exception,
-						"Error sending email verification success email to {Email}",
-						user.Email
-					);
+		// Best-effort notification: non-request-scoped and errors are logged only.
+		_ = Task.Run(
+			async () => {
+				try {
+					await emailService.SendEmailVerifiedNotificationAsync(user.Email);
+				} catch (Exception ex) {
+					if (logger.IsEnabled(LogLevel.Error)) {
+						logger.LogError(
+							ex,
+							"Error sending email verification success email to {Email}",
+							user.Email
+						);
+					}
 				}
-			}
-		}, cancellationToken);
+			},
+			CancellationToken.None
+		);
 
 		return TypedResults.Ok(new CheckEmailVerificationTokenResult {
 			Status = "success",
