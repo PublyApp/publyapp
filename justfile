@@ -225,6 +225,12 @@ ci-drift:
   pnpm test:ci-drift
   node ./scripts/check-ci-drift.mjs
 
+# Guard rails for database migration compatibility during zero-downtime rolling deploys.
+ci-migration-expand-contract:
+  @echo "=== [gate] migration expand/contract guard ==="
+  node --test ./scripts/check-migration-expand-contract.test.mjs
+  node ./scripts/check-migration-expand-contract.mjs
+
 # Install exactly as CI does (supply-chain policy: frozen + no lifecycle scripts)
 ci-install:
   @echo "=== [gate] install (frozen lockfile, no scripts) ==="
@@ -304,7 +310,7 @@ ci-e2e-front:
   pnpm --filter front run test:e2e:fresh
 
 # Everyday pre-push gate (no e2e). Fails on the first red sub-gate.
-ci: ci-drift ci-install ci-format ci-lint ci-front-2 ci-front-2-spike ci-front ci-spec-drift test-api
+ci: ci-drift ci-migration-expand-contract ci-install ci-format ci-lint ci-front-2 ci-front-2-spike ci-front ci-spec-drift test-api
   @echo ""
   @echo "=== just ci: PASSED ==="
   @echo "Not covered here: the two e2e suites (run 'just ci-full')."
