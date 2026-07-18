@@ -375,19 +375,31 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 
 		// Load profile names separately to avoid duplicating invitation rows.
 		var invitationIds = results.Select(r => r.Invitation.GetRequiredId()).ToList();
-		var profileNamesQuery =
+		var profileQuery =
 			from ip in _dbContext.InvitationProfile.AsNoTracking()
 			where invitationIds.Contains(ip.InvitationId)
 			join p in _dbContext.Profile.AsNoTracking() on ip.ProfileId equals p.Id
 			select new {
 				InvitationId = ip.InvitationId,
-				ProfileName = p.Name
+				Profile = new StaffInvitationProfileInfo {
+					Id = p.Id ?? Guid.Empty,
+					Name = p.Name
+				}
 			};
 
-		var profileNames = await profileNamesQuery.ToListAsync(cancellationToken);
-		var profileNamesByInvitation = profileNames
-			.GroupBy(pn => pn.InvitationId)
-			.ToDictionary(g => g.Key, g => string.Join(", ", g.Select(x => x.ProfileName)));
+		var profileRows = await profileQuery.ToListAsync(cancellationToken);
+		var profilesByInvitation = profileRows
+			.GroupBy(item => item.InvitationId)
+			.ToDictionary(
+				group => group.Key,
+				group => group.Select(item => item.Profile).ToList()
+			);
+
+		var profileNamesByInvitation = profilesByInvitation
+			.ToDictionary(
+				group => group.Key,
+				group => string.Join(", ", group.Value.Select(profile => profile.Name))
+			);
 
 		var invitationItems = results.Select(r => {
 			var invitationId = r.Invitation.GetRequiredId();
@@ -598,22 +610,38 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 		}
 
 		var invitationIds = results.Select(r => r.Invitation.GetRequiredId()).ToList();
-		var profileNamesQuery =
+		var profileRowsQuery =
 			from ip in _dbContext.InvitationProfile.AsNoTracking()
 			where invitationIds.Contains(ip.InvitationId)
 			join p in _dbContext.Profile.AsNoTracking() on ip.ProfileId equals p.Id
 			select new {
 				InvitationId = ip.InvitationId,
-				ProfileName = p.Name
+				Profile = new StaffInvitationProfileInfo {
+					Id = p.Id ?? Guid.Empty,
+					Name = p.Name
+				}
 			};
 
-		var profileNames = await profileNamesQuery.ToListAsync(cancellationToken);
-		var profileNamesByInvitation = profileNames
-			.GroupBy(pn => pn.InvitationId)
-			.ToDictionary(g => g.Key, g => string.Join(", ", g.Select(x => x.ProfileName)));
+		var profileRows = await profileRowsQuery.ToListAsync(cancellationToken);
+		var profilesByInvitation = profileRows
+			.GroupBy(item => item.InvitationId)
+			.ToDictionary(
+				group => group.Key,
+				group => group.Select(item => item.Profile).ToList()
+			);
+
+		var profileNamesByInvitation = profileRows
+			.GroupBy(item => item.InvitationId)
+			.ToDictionary(
+				group => group.Key,
+				group => string.Join(", ", group.Select(item => item.Profile.Name))
+			);
 
 		var invitationItems = results.Select(r => {
 			var invitationId = r.Invitation.GetRequiredId();
+			var profiles = profilesByInvitation.TryGetValue(invitationId, out var foundProfiles)
+				? foundProfiles
+				: [];
 			var profileName = profileNamesByInvitation.TryGetValue(invitationId, out var name)
 				? name
 				: null;
@@ -623,6 +651,7 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 				Email = r.Invitation.Email,
 				Scope = "Tenant",
 				ProfileName = profileName,
+				Profiles = profiles,
 				Status = Invitation.GetEffectiveStatusDescription(
 					Invitation.GetEffectiveStatus(
 						r.Invitation.Status,

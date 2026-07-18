@@ -106,6 +106,11 @@ public static partial class Routes {
 				return $"{RootFn(tenantId)}/invitations";
 			}
 
+			public const string BulkInvite = "/invitations/bulk";
+			public static string BulkInviteFn(string tenantId) {
+				return $"{RootFn(tenantId)}/invitations/bulk";
+			}
+
 			public const string Suspend = "/{userId}/suspend";
 			public static string SuspendFn(string tenantId, string userId) {
 				return $"{RootFn(tenantId)}/{userId}/suspend";

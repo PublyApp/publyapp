@@ -8,7 +8,7 @@ import { BulkRemoveRequestBuilderRequestsMetadata, type BulkRemoveRequestBuilder
 // @ts-ignore
 import { ExportRequestBuilderRequestsMetadata, type ExportRequestBuilder } from './exportEscaped/index.js';
 // @ts-ignore
-import { InvitationsRequestBuilderRequestsMetadata, type InvitationsRequestBuilder } from './invitations/index.js';
+import { InvitationsRequestBuilderNavigationMetadata, InvitationsRequestBuilderRequestsMetadata, type InvitationsRequestBuilder } from './invitations/index.js';
 // @ts-ignore
 import { type WithUserItemRequestBuilder, WithUserItemRequestBuilderNavigationMetadata, WithUserItemRequestBuilderRequestsMetadata } from './item/index.js';
 // @ts-ignore
@@ -94,6 +94,7 @@ export const UsersRequestBuilderNavigationMetadata: Record<Exclude<keyof UsersRe
     },
     invitations: {
         requestsMetadata: InvitationsRequestBuilderRequestsMetadata,
+        navigationMetadata: InvitationsRequestBuilderNavigationMetadata,
     },
 };
 /**

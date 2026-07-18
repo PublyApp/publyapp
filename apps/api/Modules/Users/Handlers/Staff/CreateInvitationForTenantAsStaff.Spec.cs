@@ -180,7 +180,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 					.Where(ip => ip.InvitationId == responseBody.InvitationId)
 					.ToListAsync();
 
-		invitationProfiles.Should().HaveCount(1);
+		invitationProfiles.Should().BeEmpty();
 	}
 
 	[Fact]
@@ -320,6 +320,123 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 			.Be(AccountLevel.Admin);
 		invitation.InvitationProfiles.Should()
 			.BeEmpty();
+	}
+
+	[Fact]
+	public async Task
+	ItShouldCreateTenantInvitationWithSpecifiedProfileIds() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tenantId =
+			await GetAcmeTenantIdAsync();
+		var inviteeEmail =
+			$"tenant-profile-ids-{Guid.NewGuid():N}@example.com";
+		var profileAName = $"tenant-profile-a-{Guid.NewGuid():N}";
+		var profileBName = $"tenant-profile-b-{Guid.NewGuid():N}";
+
+		using var setupScope =
+			_fixture.Factory.Services.CreateScope();
+		var dbContext = setupScope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var profileA = Profile.CreateTenantProfile(
+			tenantId,
+			name: profileAName,
+			description: "test profile"
+		);
+		var profileB = Profile.CreateTenantProfile(
+			tenantId,
+			name: profileBName,
+			description: "test profile"
+		);
+		await dbContext.Profile.AddRangeAsync(profileA, profileB);
+		await dbContext.SaveChangesAsync();
+
+		using var response = await _http.SendAsync(
+			CreateTenantInviteRequest(
+				staffToken,
+				tenantId.ToString(),
+				new {
+					email = inviteeEmail,
+					accountLevel = "User",
+					profileIds = new[] {
+						profileA.GetRequiredId().ToString(),
+						profileB.GetRequiredId().ToString(),
+					},
+				}
+			)
+		);
+
+		response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+		var responseBody =
+			await response.Content
+				.ReadFromJsonAsync<InvitationCreatedForTenantResponse>();
+		responseBody.Should().NotBeNull();
+
+		var invitationProfiles = await dbContext.InvitationProfile
+			.Where(ip => ip.InvitationId == responseBody!.InvitationId)
+			.Select(ip => ip.ProfileId)
+			.ToListAsync();
+
+		invitationProfiles.Should().HaveCount(2);
+		invitationProfiles.Should().Contain(profileA.GetRequiredId());
+		invitationProfiles.Should().Contain(profileB.GetRequiredId());
+	}
+
+	[Fact]
+	public async Task
+	ItShouldRejectTenantInvitationWithForeignTenantProfileId() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var acmeTenantId =
+			await GetAcmeTenantIdAsync();
+		var techStartTenantId =
+			await TenantTestHelper.GetTenantIdByNameAsync(
+				_http,
+				staffToken,
+				SeedConstants.Tenants.TechStartName
+			);
+
+		using var setupScope =
+			_fixture.Factory.Services.CreateScope();
+		var dbContext = setupScope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var foreignProfile = await dbContext.Profile
+			.Where(profile =>
+				profile.TenantId == techStartTenantId && profile.Scope == ProfileScope.Tenant
+			)
+			.FirstOrDefaultAsync();
+
+		if (foreignProfile is null) {
+			foreignProfile = Profile.CreateTenantProfile(
+				techStartTenantId,
+				"Foreign Tenant Profile"
+			);
+			dbContext.Profile.Add(foreignProfile);
+			await dbContext.SaveChangesAsync();
+		}
+
+		using var response = await _http.SendAsync(
+			CreateTenantInviteRequest(
+				staffToken,
+				acmeTenantId.ToString(),
+				new {
+					email = $"tenant-invalid-profile-{Guid.NewGuid():N}@example.com",
+					accountLevel = "User",
+					profileIds = new[] { foreignProfile.GetRequiredId().ToString() },
+				}
+			)
+		);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem =
+			await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.NotFound.Value);
 	}
 
 	[Fact]
@@ -581,7 +698,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 
 	[Fact]
 	public async Task
-	ItShouldUseDefaultTenantProfileMarkerInsteadOfProfileName() {
+	ItShouldCreateTenantInvitationWithEmptyProfileIds() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var tenantId =
@@ -591,38 +708,15 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 				SeedConstants.Tenants.AcmeName
 			);
 
-		using (var scope =
-			_fixture.Factory.Services.CreateScope()) {
-			var dbContext = scope.ServiceProvider
-				.GetRequiredService<AppDbContext>();
-
-			var renamedDefaultProfile = await dbContext.Profile
-				.Where(p => p.TenantId == tenantId && p.Scope == ProfileScope.Tenant && p.IsDefault)
-				.FirstOrDefaultAsync();
-
-			if (renamedDefaultProfile is null) {
-				renamedDefaultProfile = Profile.CreateTenantProfile(
-					tenantId,
-					name: "Default profile",
-					description: "Default profile with no permissions",
-					isDefault: true
-				);
-
-				await dbContext.Profile.AddAsync(renamedDefaultProfile);
-			}
-
-			renamedDefaultProfile.Name = "Base access";
-			await dbContext.SaveChangesAsync();
-		}
-
 		var inviteeEmail =
-			$"tenant-default-profile-{Guid.NewGuid():N}@example.com";
+			$"tenant-empty-profile-ids-{Guid.NewGuid():N}@example.com";
 		var request = CreateTenantInviteRequest(
 			staffToken,
 			tenantId.ToString(),
 			new {
 				email = inviteeEmail,
 				accountLevel = "User",
+				profileIds = Array.Empty<string>(),
 			}
 		);
 
@@ -643,17 +737,11 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 				.GetRequiredService<AppDbContext>();
 
 			Assert.NotNull(responseBody);
-			var profileId = await dbContext.InvitationProfile
-							.Where(ip => ip.InvitationId == responseBody.InvitationId)
-							.Select(ip => ip.ProfileId)
-							.SingleAsync();
+			var assignedProfiles = await dbContext.InvitationProfile
+				.Where(ip => ip.InvitationId == responseBody.InvitationId)
+				.ToListAsync();
 
-			var assignedProfile = await dbContext.Profile
-				.Where(p => p.Id == profileId)
-				.SingleAsync();
-
-			assignedProfile.IsDefault.Should().BeTrue();
-			assignedProfile.Name.Should().Be("Base access");
+			assignedProfiles.Should().BeEmpty();
 		}
 	}
 

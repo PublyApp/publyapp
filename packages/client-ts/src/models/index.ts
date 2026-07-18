@@ -181,6 +181,44 @@ export interface BulkCreateStaffInvitationsBody extends AdditionalDataHolder, Pa
      */
     invitations?: UntypedNode | null;
 }
+export interface BulkCreateTenantInvitationsFailedItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The email property
+     */
+    email?: string | null;
+    /**
+     * The index property
+     */
+    index?: number | null;
+    /**
+     * The reason property
+     */
+    reason?: string | null;
+    /**
+     * The translationKey property
+     */
+    translationKey?: string | null;
+}
+export interface BulkCreateTenantInvitationsForTenantAsStaffBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The invitations property
+     */
+    invitations?: UntypedNode | null;
+}
+export interface BulkCreateTenantInvitationsForTenantAsStaffCreated extends AdditionalDataHolder, Parsable {
+    /**
+     * The failedCount property
+     */
+    failedCount?: number | null;
+    /**
+     * The failedItems property
+     */
+    failedItems?: BulkCreateTenantInvitationsFailedItem[] | null;
+    /**
+     * The succeededCount property
+     */
+    succeededCount?: number | null;
+}
 export interface BulkDeleteFailedItem extends AdditionalDataHolder, Parsable {
     /**
      * The error property
@@ -545,6 +583,33 @@ export function createAuditLogListItemFromDiscriminatorValue(parseNode: ParseNod
 // @ts-ignore
 export function createBulkCreateStaffInvitationsBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoBulkCreateStaffInvitationsBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {BulkCreateTenantInvitationsFailedItem}
+ */
+// @ts-ignore
+export function createBulkCreateTenantInvitationsFailedItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoBulkCreateTenantInvitationsFailedItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {BulkCreateTenantInvitationsForTenantAsStaffBody}
+ */
+// @ts-ignore
+export function createBulkCreateTenantInvitationsForTenantAsStaffBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoBulkCreateTenantInvitationsForTenantAsStaffBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {BulkCreateTenantInvitationsForTenantAsStaffCreated}
+ */
+// @ts-ignore
+export function createBulkCreateTenantInvitationsForTenantAsStaffCreatedFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoBulkCreateTenantInvitationsForTenantAsStaffCreated;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -1455,6 +1520,10 @@ export interface CreateInvitationForTenantAsStaffBody extends AdditionalDataHold
      * The email property
      */
     email?: UntypedNode | null;
+    /**
+     * The profileIds property
+     */
+    profileIds?: UntypedNode | null;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -1645,6 +1714,15 @@ export function createStaffInvitationDetailsFromDiscriminatorValue(parseNode: Pa
 // @ts-ignore
 export function createStaffInvitationProfileFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoStaffInvitationProfile;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {StaffInvitationProfileInfo}
+ */
+// @ts-ignore
+export function createStaffInvitationProfileInfoFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoStaffInvitationProfileInfo;
 }
 export interface CreateStaffProfileBody extends AdditionalDataHolder, Parsable {
     /**
@@ -2507,6 +2585,44 @@ export function deserializeIntoBulkCreateStaffInvitationsBody(bulkCreateStaffInv
 }
 /**
  * The deserialization information for the current model
+ * @param BulkCreateTenantInvitationsFailedItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoBulkCreateTenantInvitationsFailedItem(bulkCreateTenantInvitationsFailedItem: Partial<BulkCreateTenantInvitationsFailedItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "email": n => { bulkCreateTenantInvitationsFailedItem.email = n.getStringValue(); },
+        "index": n => { bulkCreateTenantInvitationsFailedItem.index = n.getNumberValue(); },
+        "reason": n => { bulkCreateTenantInvitationsFailedItem.reason = n.getStringValue(); },
+        "translationKey": n => { bulkCreateTenantInvitationsFailedItem.translationKey = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param BulkCreateTenantInvitationsForTenantAsStaffBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoBulkCreateTenantInvitationsForTenantAsStaffBody(bulkCreateTenantInvitationsForTenantAsStaffBody: Partial<BulkCreateTenantInvitationsForTenantAsStaffBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "invitations": n => { bulkCreateTenantInvitationsForTenantAsStaffBody.invitations = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param BulkCreateTenantInvitationsForTenantAsStaffCreated The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoBulkCreateTenantInvitationsForTenantAsStaffCreated(bulkCreateTenantInvitationsForTenantAsStaffCreated: Partial<BulkCreateTenantInvitationsForTenantAsStaffCreated> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "failedCount": n => { bulkCreateTenantInvitationsForTenantAsStaffCreated.failedCount = n.getNumberValue(); },
+        "failedItems": n => { bulkCreateTenantInvitationsForTenantAsStaffCreated.failedItems = n.getCollectionOfObjectValues<BulkCreateTenantInvitationsFailedItem>(createBulkCreateTenantInvitationsFailedItemFromDiscriminatorValue); },
+        "succeededCount": n => { bulkCreateTenantInvitationsForTenantAsStaffCreated.succeededCount = n.getNumberValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param BulkDeleteFailedItem The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -2871,6 +2987,7 @@ export function deserializeIntoCreateInvitationForTenantAsStaffBody(createInvita
     return {
         "accountLevel": n => { createInvitationForTenantAsStaffBody.accountLevel = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "email": n => { createInvitationForTenantAsStaffBody.email = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "profileIds": n => { createInvitationForTenantAsStaffBody.profileIds = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
 /**
@@ -3985,6 +4102,18 @@ export function deserializeIntoStaffInvitationProfile(staffInvitationProfile: Pa
 }
 /**
  * The deserialization information for the current model
+ * @param StaffInvitationProfileInfo The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoStaffInvitationProfileInfo(staffInvitationProfileInfo: Partial<StaffInvitationProfileInfo> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "id": n => { staffInvitationProfileInfo.id = n.getGuidValue(); },
+        "name": n => { staffInvitationProfileInfo.name = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param StaffProfileCreated The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -4045,6 +4174,7 @@ export function deserializeIntoStaffTenantInvitationListItem(staffTenantInvitati
         "id": n => { staffTenantInvitationListItem.id = n.getGuidValue(); },
         "invitedByName": n => { staffTenantInvitationListItem.invitedByName = n.getStringValue(); },
         "profileName": n => { staffTenantInvitationListItem.profileName = n.getStringValue(); },
+        "profiles": n => { staffTenantInvitationListItem.profiles = n.getCollectionOfObjectValues<StaffInvitationProfileInfo>(createStaffInvitationProfileInfoFromDiscriminatorValue); },
         "scope": n => { staffTenantInvitationListItem.scope = n.getStringValue(); },
         "status": n => { staffTenantInvitationListItem.status = n.getStringValue(); },
     }
@@ -5645,6 +5775,47 @@ export function serializeBulkCreateStaffInvitationsBody(writer: SerializationWri
 }
 /**
  * Serializes information the current object
+ * @param BulkCreateTenantInvitationsFailedItem The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeBulkCreateTenantInvitationsFailedItem(writer: SerializationWriter, bulkCreateTenantInvitationsFailedItem: Partial<BulkCreateTenantInvitationsFailedItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!bulkCreateTenantInvitationsFailedItem || isSerializingDerivedType) { return; }
+    writer.writeStringValue("email", bulkCreateTenantInvitationsFailedItem.email);
+    writer.writeNumberValue("index", bulkCreateTenantInvitationsFailedItem.index);
+    writer.writeStringValue("reason", bulkCreateTenantInvitationsFailedItem.reason);
+    writer.writeStringValue("translationKey", bulkCreateTenantInvitationsFailedItem.translationKey);
+    writer.writeAdditionalData(bulkCreateTenantInvitationsFailedItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param BulkCreateTenantInvitationsForTenantAsStaffBody The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeBulkCreateTenantInvitationsForTenantAsStaffBody(writer: SerializationWriter, bulkCreateTenantInvitationsForTenantAsStaffBody: Partial<BulkCreateTenantInvitationsForTenantAsStaffBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!bulkCreateTenantInvitationsForTenantAsStaffBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("invitations", bulkCreateTenantInvitationsForTenantAsStaffBody.invitations);
+    writer.writeAdditionalData(bulkCreateTenantInvitationsForTenantAsStaffBody.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param BulkCreateTenantInvitationsForTenantAsStaffCreated The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeBulkCreateTenantInvitationsForTenantAsStaffCreated(writer: SerializationWriter, bulkCreateTenantInvitationsForTenantAsStaffCreated: Partial<BulkCreateTenantInvitationsForTenantAsStaffCreated> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!bulkCreateTenantInvitationsForTenantAsStaffCreated || isSerializingDerivedType) { return; }
+    writer.writeNumberValue("failedCount", bulkCreateTenantInvitationsForTenantAsStaffCreated.failedCount);
+    writer.writeCollectionOfObjectValues<BulkCreateTenantInvitationsFailedItem>("failedItems", bulkCreateTenantInvitationsForTenantAsStaffCreated.failedItems, serializeBulkCreateTenantInvitationsFailedItem);
+    writer.writeNumberValue("succeededCount", bulkCreateTenantInvitationsForTenantAsStaffCreated.succeededCount);
+    writer.writeAdditionalData(bulkCreateTenantInvitationsForTenantAsStaffCreated.additionalData);
+}
+/**
+ * Serializes information the current object
  * @param BulkDeleteFailedItem The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
@@ -6038,6 +6209,7 @@ export function serializeCreateInvitationForTenantAsStaffBody(writer: Serializat
     if (!createInvitationForTenantAsStaffBody || isSerializingDerivedType) { return; }
     writer.writeObjectValue("accountLevel", createInvitationForTenantAsStaffBody.accountLevel);
     writer.writeObjectValue("email", createInvitationForTenantAsStaffBody.email);
+    writer.writeObjectValue("profileIds", createInvitationForTenantAsStaffBody.profileIds);
     writer.writeAdditionalData(createInvitationForTenantAsStaffBody.additionalData);
 }
 /**
@@ -7210,6 +7382,19 @@ export function serializeStaffInvitationProfile(writer: SerializationWriter, sta
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param StaffInvitationProfileInfo The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeStaffInvitationProfileInfo(writer: SerializationWriter, staffInvitationProfileInfo: Partial<StaffInvitationProfileInfo> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!staffInvitationProfileInfo || isSerializingDerivedType) { return; }
+    writer.writeGuidValue("id", staffInvitationProfileInfo.id);
+    writer.writeStringValue("name", staffInvitationProfileInfo.name);
+    writer.writeAdditionalData(staffInvitationProfileInfo.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param StaffProfileCreated The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
@@ -7273,6 +7458,7 @@ export function serializeStaffTenantInvitationListItem(writer: SerializationWrit
     writer.writeGuidValue("id", staffTenantInvitationListItem.id);
     writer.writeStringValue("invitedByName", staffTenantInvitationListItem.invitedByName);
     writer.writeStringValue("profileName", staffTenantInvitationListItem.profileName);
+    writer.writeCollectionOfObjectValues<StaffInvitationProfileInfo>("profiles", staffTenantInvitationListItem.profiles, serializeStaffInvitationProfileInfo);
     writer.writeStringValue("scope", staffTenantInvitationListItem.scope);
     writer.writeStringValue("status", staffTenantInvitationListItem.status);
     writer.writeAdditionalData(staffTenantInvitationListItem.additionalData);
@@ -8131,6 +8317,16 @@ export interface StaffInvitationProfile extends AdditionalDataHolder, Parsable {
      */
     name?: string | null;
 }
+export interface StaffInvitationProfileInfo extends AdditionalDataHolder, Parsable {
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The name property
+     */
+    name?: string | null;
+}
 export interface StaffProfileCreated extends AdditionalDataHolder, Parsable {
     /**
      * The description property
@@ -8234,6 +8430,10 @@ export interface StaffTenantInvitationListItem extends AdditionalDataHolder, Par
      * The profileName property
      */
     profileName?: string | null;
+    /**
+     * The profiles property
+     */
+    profiles?: StaffInvitationProfileInfo[] | null;
     /**
      * The scope property
      */
