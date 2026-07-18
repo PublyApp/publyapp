@@ -13,6 +13,7 @@ using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Invitations.Services;
 using PublyApp.Api.Modules.Tenants.Services;
 using PublyApp.Api.Modules.Users.Services;
+using PublyApp.Api.Modules.Users.Validation;
 
 namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
@@ -80,6 +81,8 @@ public record BulkCreateTenantInvitationsForTenantAsStaffCreated {
 
 public sealed class BulkCreateInvitationsForTenantAsStaffBodyValidator
 	: AbstractValidator<BulkCreateTenantInvitationsForTenantAsStaffBody> {
+	private readonly TenantInvitationProfileIdsValidator _profileIdsValidator = new();
+
 	public BulkCreateInvitationsForTenantAsStaffBodyValidator() {
 		RuleFor(x => x.Invitations)
 			.Custom((element, context) => {
@@ -168,40 +171,26 @@ public sealed class BulkCreateInvitationsForTenantAsStaffBodyValidator
 						continue;
 					}
 
-					if (profileIdsElement.ValueKind != JsonValueKind.Array) {
+					var profileIdsValidation =
+						_profileIdsValidator.Validate(profileIdsElement);
+					foreach (var failure in profileIdsValidation.Errors) {
 						context.AddFailure(
 							$"invitations[{index}].profileIds",
-							"ProfileIds must be an array"
+							failure.ErrorMessage
 						);
+					}
+
+					if (profileIdsElement.ValueKind != JsonValueKind.Array) {
 						continue;
 					}
 
 					var profileIds = profileIdsElement.EnumerateArray().ToList();
-					var maxProfileIds = AppEnvironment.Instance.MAX_BULK_INVITATIONS_SIZE;
-
-					if (profileIds.Count > maxProfileIds) {
-						context.AddFailure(
-							$"invitations[{index}].profileIds",
-							$"Maximum {maxProfileIds} profileIds allowed"
-						);
-					}
-
 					var seenProfileIds = new HashSet<Guid>();
 					for (var j = 0; j < profileIds.Count; j++) {
 						var profileIdElement = profileIds[j];
-						if (profileIdElement.ValueKind != JsonValueKind.String) {
-							context.AddFailure(
-								$"invitations[{index}].profileIds[{j}]",
-								"ProfileId must be a valid GUID"
-							);
-							continue;
-						}
-
-						if (!profileIdElement.TryGetGuid(out var profileId)) {
-							context.AddFailure(
-								$"invitations[{index}].profileIds[{j}]",
-								"ProfileId must be a valid GUID"
-							);
+						if (profileIdElement.ValueKind != JsonValueKind.String
+							|| !profileIdElement.TryGetGuid(out var profileId)
+						) {
 							continue;
 						}
 
@@ -292,14 +281,6 @@ public sealed class BulkCreateInvitationsForTenantAsStaff {
 			.Distinct()
 			.ToList();
 
-		var conflictingEmails = await accountService.GetEmailsWithTenantOrProjectAccountsAsync(
-			uniqueEmails,
-			cancellationToken
-		);
-		var existingEmails = await invitationService.GetExistingUserEmailsAsync(
-			uniqueEmails,
-			cancellationToken
-		);
 		var existingInvitationEmails = await invitationService.GetPendingTenantInvitationEmailsAsync(
 			uniqueEmails,
 			tenantIdGuid,
@@ -314,15 +295,17 @@ public sealed class BulkCreateInvitationsForTenantAsStaff {
 			: [];
 
 		var validProfileIdSet = validProfileIds.ToHashSet();
-		var conflictingEmailSet = conflictingEmails.ToHashSet(StringComparer.OrdinalIgnoreCase);
-		var existingEmailSet = existingEmails.ToHashSet(StringComparer.OrdinalIgnoreCase);
 		var existingInvitationEmailSet = existingInvitationEmails.ToHashSet(StringComparer.OrdinalIgnoreCase);
 		var seenEmails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+		var succeededInvitations = new List<(
+			Guid InvitationId,
+			string Email,
+			string AccountLevel
+		)>();
 
 		for (var i = 0; i < invitations.Count; i++) {
 			var invitation = invitations[i];
 			var email = invitation.Email;
-			var normalizedEmail = email.ToLowerInvariant();
 			var profileIds = invitation.GetProfileIds();
 			var invalidProfileIds = profileIds
 				.Distinct()
@@ -332,42 +315,12 @@ public sealed class BulkCreateInvitationsForTenantAsStaff {
 				invitation.AccountLevel
 			);
 
-			if (!seenEmails.Add(normalizedEmail)) {
+			if (!seenEmails.Add(email)) {
 				failedItems.Add(new BulkCreateTenantInvitationsFailedItem(
 					i,
 					email,
 					"Duplicate email in request",
 					ResponseKeys.BadRequest.Value
-				));
-				continue;
-			}
-
-			if (conflictingEmailSet.Contains(normalizedEmail)) {
-				failedItems.Add(new BulkCreateTenantInvitationsFailedItem(
-					i,
-					email,
-					"User already has tenant or project accounts",
-					ResponseKeys.UserHasTenantOrProjectAccounts.Value
-				));
-				continue;
-			}
-
-			if (existingEmailSet.Contains(normalizedEmail)) {
-				failedItems.Add(new BulkCreateTenantInvitationsFailedItem(
-					i,
-					email,
-					"User already exists",
-					ResponseKeys.UserAlreadyExists.Value
-				));
-				continue;
-			}
-
-			if (existingInvitationEmailSet.Contains(normalizedEmail)) {
-				failedItems.Add(new BulkCreateTenantInvitationsFailedItem(
-					i,
-					email,
-					"Pending invitation already exists",
-					ResponseKeys.PendingInvitationExists.Value
 				));
 				continue;
 			}
@@ -393,6 +346,47 @@ public sealed class BulkCreateInvitationsForTenantAsStaff {
 			}
 
 			try {
+				var invitationTarget =
+					await accountService.ResolveTenantInvitationTargetByEmailAsync(
+						email,
+						tenantIdGuid,
+						cancellationToken
+					);
+
+				if (invitationTarget
+					is ResolveTenantInvitationTargetByEmailResult.UserHasStaffAccount
+				) {
+					failedItems.Add(new BulkCreateTenantInvitationsFailedItem(
+						i,
+						email,
+						"This user already has a Staff account",
+						ResponseKeys.UserHasStaffAccount.Value
+					));
+					continue;
+				}
+
+				if (invitationTarget
+					is ResolveTenantInvitationTargetByEmailResult.UserAlreadyMemberOfTenant
+				) {
+					failedItems.Add(new BulkCreateTenantInvitationsFailedItem(
+						i,
+						email,
+						"User is already member of tenant",
+						ResponseKeys.UserAlreadyMemberOfTenant.Value
+					));
+					continue;
+				}
+
+				if (existingInvitationEmailSet.Contains(email)) {
+					failedItems.Add(new BulkCreateTenantInvitationsFailedItem(
+						i,
+						email,
+						"Pending invitation exists for this tenant",
+						ResponseKeys.PendingInvitationExists.Value
+					));
+					continue;
+				}
+
 				var createArgs = new CreateTenantInvitationArgs(
 					Email: email,
 					TenantId: tenantIdGuid,
@@ -408,6 +402,11 @@ public sealed class BulkCreateInvitationsForTenantAsStaff {
 				);
 
 				succeededInvitationIds.Add(createdInvitation.GetRequiredId());
+				succeededInvitations.Add((
+					createdInvitation.GetRequiredId(),
+					email,
+					invitation.AccountLevel
+				));
 			} catch (Exception ex) {
 				logger.LogWarning(
 					ex,
@@ -427,12 +426,17 @@ public sealed class BulkCreateInvitationsForTenantAsStaff {
 		if (succeededInvitationIds.Count > 0) {
 			try {
 				await auditLogService.LogManyAsync(
-					succeededInvitationIds
-						.Select(invitationId => new CreateAuditLogArgs(
+					succeededInvitations
+						.Select(invitation => new CreateAuditLogArgs(
 							UserId: account.UserId,
 							Action: AuditActions.InvitationCreated,
-							TargetId: invitationId,
-							Details: new { AccountLevel = "Tenant" }
+							TargetId: invitation.InvitationId,
+							Details: new {
+								invitation.Email,
+								TenantId = tenantIdGuid,
+								invitation.AccountLevel,
+								Scope = "Tenant"
+							}
 						))
 						.ToList(),
 					cancellationToken

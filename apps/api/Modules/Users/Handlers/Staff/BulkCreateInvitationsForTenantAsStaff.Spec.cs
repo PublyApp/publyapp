@@ -119,7 +119,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 		payload.FailedItems.Should().ContainSingle(item =>
 			item.Index == 0
 			&& item.Email == conflictingInviteeEmail
-			&& item.TranslationKey == ResponseKeys.UserHasTenantOrProjectAccounts.Value
+			&& item.TranslationKey == ResponseKeys.UserAlreadyMemberOfTenant.Value
 		);
 		payload.FailedItems.Should().ContainSingle(item =>
 			item.Index == 2
@@ -178,6 +178,49 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldCreateBulkTenantInvitationForExistingNonStaffUserFromAnotherTenant() {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetAcmeTenantIdAsync();
+
+		using var response = await SendBulkCreateAsync(
+			staffToken,
+			tenantId.ToString(),
+			new {
+				invitations = new[] {
+					new {
+						email = SeedConstants.Tenants.TechStartUserEmail,
+						accountLevel = "User",
+						profileIds = Array.Empty<string>(),
+					},
+				},
+			}
+		);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var payload = await response.Content
+			.ReadFromJsonAsync<BulkCreateTenantInvitationsResponse>();
+		payload.Should().NotBeNull();
+		Assert.NotNull(payload);
+		payload.SucceededCount.Should().Be(1);
+		payload.FailedCount.Should().Be(0);
+		payload.FailedItems.Should().BeEmpty();
+
+		using var scope = _fixture.Factory.Services.CreateScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+		var invitationExists = await dbContext.Invitation
+			.Where(invitation =>
+				invitation.TenantId == tenantId
+				&& invitation.Scope == InvitationScope.Tenant
+				&& invitation.Email == SeedConstants.Tenants.TechStartUserEmail
+			)
+			.AnyAsync();
+
+		invitationExists.Should().BeTrue();
 	}
 
 	private static string GetBulkInviteUrl(string tenantId) {

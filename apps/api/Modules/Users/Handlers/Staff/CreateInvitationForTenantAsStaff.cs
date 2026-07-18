@@ -57,44 +57,27 @@ public class CreateInvitationForTenantAsStaffBodyValidator
 			.MustBeRequiredAccountLevel();
 
 		RuleFor(x => x.ProfileIds)
-			.Custom((element, context) => {
-				if (element.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null) {
-					return;
-				}
+			.SetValidator(new TenantInvitationProfileIdsValidator())
+			.When(x =>
+				x.ProfileIds.ValueKind
+					is not JsonValueKind.Undefined
+					and not JsonValueKind.Null
+			);
 
+		RuleFor(x => x.ProfileIds)
+			.Custom((element, context) => {
 				if (element.ValueKind != JsonValueKind.Array) {
-					context.AddFailure("ProfileIds", "ProfileIds must be an array");
 					return;
 				}
 
 				var profileIds = element.EnumerateArray().ToList();
-				var maxCount = AppEnvironment.Instance.MAX_BULK_INVITATIONS_SIZE;
-
-				if (profileIds.Count > maxCount) {
-					context.AddFailure(
-						"ProfileIds",
-						$"Maximum {maxCount} ProfileIds allowed"
-					);
-					return;
-				}
-
 				var seenProfileIds = new HashSet<Guid>();
 				for (var i = 0; i < profileIds.Count; i++) {
 					var profileIdElement = profileIds[i];
 
-					if (profileIdElement.ValueKind != JsonValueKind.String) {
-						context.AddFailure(
-							$"ProfileIds[{i}]",
-							"ProfileId must be a valid GUID"
-						);
-						continue;
-					}
-
-					if (!profileIdElement.TryGetGuid(out var profileId)) {
-						context.AddFailure(
-							$"ProfileIds[{i}]",
-							"ProfileId must be a valid GUID"
-						);
+					if (profileIdElement.ValueKind != JsonValueKind.String
+						|| !profileIdElement.TryGetGuid(out var profileId)
+					) {
 						continue;
 					}
 
