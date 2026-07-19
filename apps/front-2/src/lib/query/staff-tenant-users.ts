@@ -1,5 +1,6 @@
 import {
 	createUntypedArray,
+	createUntypedObject,
 	createUntypedString,
 } from '@microsoft/kiota-abstractions';
 import type { QueryClient } from '@tanstack/react-query';
@@ -15,6 +16,8 @@ import type { ApiClient } from '@org/client-ts/src/apiClient';
 import type {
 	CreateInvitationForTenantAsStaffBody,
 	ApiResponse,
+	BulkCreateTenantInvitationsForTenantAsStaffBody,
+	BulkCreateTenantInvitationsForTenantAsStaffCreated,
 	BulkRemoveTenantUsersBody,
 	BulkRemoveTenantUsersResult,
 	FindTenantUsersAsStaffResult,
@@ -47,6 +50,29 @@ export type StaffTenantUserInvitationInput = {
 	tenantId: string;
 	email: string;
 	accountLevel: 'Admin' | 'User';
+};
+
+export type StaffTenantInvitationInput = {
+	email: string;
+	accountLevel: 'Admin' | 'User';
+	profileIds: string[];
+};
+
+export type StaffTenantInvitationsBulkCreateInput = {
+	tenantId: string;
+	invitations: StaffTenantInvitationInput[];
+};
+
+export type StaffTenantInvitationBulkCreateFailedItem = {
+	index: number | null;
+	email: string | null;
+	translationKey: string | null;
+};
+
+export type StaffTenantInvitationBulkCreateSummary = {
+	succeededCount: number;
+	failedCount: number;
+	failedItems: StaffTenantInvitationBulkCreateFailedItem[];
 };
 
 type StaffTenantUserInvitationBodyInput = Omit<
@@ -239,6 +265,39 @@ export const buildCreateStaffTenantUserInvitationBody = (
 
 	return body;
 };
+
+export const buildBulkCreateStaffTenantInvitationsBody = (
+	invitations: StaffTenantInvitationInput[],
+): BulkCreateTenantInvitationsForTenantAsStaffBody => ({
+	invitations: createUntypedArray(
+		invitations.map((invitation) =>
+			createUntypedObject({
+				email: createUntypedString(invitation.email.trim()),
+				accountLevel: createUntypedString(invitation.accountLevel),
+				profileIds: createUntypedArray(
+					invitation.profileIds.map((profileId) =>
+						createUntypedString(profileId),
+					),
+				),
+			}),
+		),
+	) as BulkCreateTenantInvitationsForTenantAsStaffBody['invitations'],
+});
+
+export const toStaffTenantInvitationBulkCreateSummary = (
+	result: BulkCreateTenantInvitationsForTenantAsStaffCreated | null | undefined,
+): StaffTenantInvitationBulkCreateSummary => ({
+	succeededCount: result?.succeededCount ?? 0,
+	failedCount: result?.failedCount ?? 0,
+	failedItems: (result?.failedItems ?? []).map((item) => ({
+		index:
+			typeof item.index === 'number' && Number.isInteger(item.index)
+				? item.index
+				: null,
+		email: normalizeNullableString(item.email),
+		translationKey: normalizeNullableString(item.translationKey),
+	})),
+});
 
 export const buildUpdateStaffTenantUserBody = (
 	input: Omit<StaffTenantUserUpdateInput, 'tenantId' | 'userId'>,
@@ -437,6 +496,34 @@ const createStaffTenantUserInvitationMutationOptions =
 		{ clientAccessor: getClientManager() },
 	);
 
+export const bulkCreateStaffTenantInvitationsMutationOptions =
+	buildStaffMutationOptions<
+		ApiClient,
+		BulkCreateTenantInvitationsForTenantAsStaffCreated | undefined,
+		StaffTenantInvitationsBulkCreateInput
+	>(
+		{
+			mutationKeyFn: () => [
+				'staff-tenants',
+				'users',
+				'invitations',
+				'bulk-create',
+			],
+			mutationFn: (client, variables) =>
+				client.staff.tenants
+					.byTenantId(variables.tenantId)
+					.users.invitations.bulk.post(
+						buildBulkCreateStaffTenantInvitationsBody(variables.invitations),
+					),
+			meta: {
+				silentSuccess: true,
+				skipGlobalErrorHandler: true,
+				validationHandledByForm: true,
+			},
+		},
+		{ clientAccessor: getClientManager() },
+	);
+
 const staffTenantUserDetailsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	TenantUserDetailsResult,
@@ -607,6 +694,9 @@ export const useStaffTenantUserDetailsQuery = (
 
 export const useInviteTenantUserMutation = () =>
 	useMutation(createStaffTenantUserInvitationMutationOptions);
+
+export const useBulkInviteTenantUsersMutation = () =>
+	useMutation(bulkCreateStaffTenantInvitationsMutationOptions);
 
 export const useUpdateStaffTenantUserMutation = () =>
 	useMutation(updateStaffTenantUserMutationOptions);

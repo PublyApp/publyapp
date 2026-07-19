@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import {
+	bulkCreateStaffTenantInvitationsMutationOptions,
 	removeStaffTenantUserMutationOptions,
 	bulkRemoveStaffTenantUsersMutationOptions,
+	buildBulkCreateStaffTenantInvitationsBody,
 	buildBulkRemoveStaffTenantUsersBody,
 	buildCreateStaffTenantUserInvitationBody,
 	buildExportStaffTenantUsersQueryParameters,
@@ -11,12 +13,14 @@ import {
 	invalidateStaffTenantUsers,
 	STAFF_TENANT_USERS_QUERY_KEY,
 	toStaffTenantUserBulkActionSummary,
+	toStaffTenantInvitationBulkCreateSummary,
 	toStaffTenantUserDetails,
 	toStaffTenantUserRows,
 	useInviteTenantUserMutation,
 } from '~/lib/query/staff-tenant-users';
 
 import type {
+	BulkCreateTenantInvitationsForTenantAsStaffCreated,
 	BulkRemoveTenantUsersResult,
 	TenantUserDetailsResult,
 	TenantUserItem,
@@ -165,6 +169,112 @@ describe('buildCreateStaffTenantUserInvitationBody', () => {
 			}),
 		).toMatchObject({
 			avatarUrl: { value: '/files/uploads/2026/07/alex.png' },
+		});
+	});
+});
+
+describe('buildBulkCreateStaffTenantInvitationsBody', () => {
+	test('wraps every invitee email, account level, and profile id for Kiota', () => {
+		expect(
+			buildBulkCreateStaffTenantInvitationsBody([
+				{
+					email: '  alice@example.com  ',
+					accountLevel: 'Admin',
+					profileIds: ['profile-1', 'profile-2'],
+				},
+				{
+					email: 'bob@example.com',
+					accountLevel: 'User',
+					profileIds: [],
+				},
+			]),
+		).toMatchObject({
+			invitations: {
+				value: [
+					{
+						value: {
+							email: { value: 'alice@example.com' },
+							accountLevel: { value: 'Admin' },
+							profileIds: {
+								value: [{ value: 'profile-1' }, { value: 'profile-2' }],
+							},
+						},
+					},
+					{
+						value: {
+							email: { value: 'bob@example.com' },
+							accountLevel: { value: 'User' },
+							profileIds: { value: [] },
+						},
+					},
+				],
+			},
+		});
+	});
+});
+
+describe('toStaffTenantInvitationBulkCreateSummary', () => {
+	test('normalizes counts and keeps failed invitee identity plus translation key', () => {
+		const result: BulkCreateTenantInvitationsForTenantAsStaffCreated = {
+			succeededCount: 1,
+			failedCount: 1,
+			failedItems: [
+				{
+					index: 1,
+					email: ' bob@example.com ',
+					reason: 'Raw server reason',
+					translationKey: 'pending-invitation-exists',
+				},
+			],
+		};
+
+		expect(toStaffTenantInvitationBulkCreateSummary(result)).toEqual({
+			succeededCount: 1,
+			failedCount: 1,
+			failedItems: [
+				{
+					index: 1,
+					email: 'bob@example.com',
+					translationKey: 'pending-invitation-exists',
+				},
+			],
+		});
+	});
+});
+
+describe('bulkCreateStaffTenantInvitationsMutationOptions', () => {
+	test('uses the generated tenant bulk invitation endpoint with local feedback ownership', async () => {
+		const post = vi.fn().mockResolvedValue({
+			succeededCount: 1,
+			failedCount: 0,
+			failedItems: [],
+		});
+		const byTenantId = vi.fn(() => ({
+			users: { invitations: { bulk: { post } } },
+		}));
+		mocks.getOrCreateStaffClient.mockReturnValue({
+			staff: { tenants: { byTenantId } },
+		});
+
+		const result =
+			await bulkCreateStaffTenantInvitationsMutationOptions.mutationFn({
+				tenantId: 'tenant-001',
+				invitations: [
+					{
+						email: 'alice@example.com',
+						accountLevel: 'User',
+						profileIds: ['profile-1'],
+					},
+				],
+			});
+
+		expect(byTenantId).toHaveBeenCalledWith('tenant-001');
+		expect(post).toHaveBeenCalledOnce();
+		expect(result).toMatchObject({ succeededCount: 1, failedCount: 0 });
+		expect(bulkCreateStaffTenantInvitationsMutationOptions.meta).toEqual({
+			silentSuccess: true,
+			skipGlobalErrorHandler: true,
+			validationHandledByForm: true,
 		});
 	});
 });
