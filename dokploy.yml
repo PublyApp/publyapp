@@ -59,12 +59,12 @@ services:
     volumes:
       - publyapp-api-storage:/app/.artifacts/storage
     networks:
-      - publyapp-network
       - dokploy-network
-    labels:
-      - "dokploy.domain=api.publyapp.com"
-      - "dokploy.port=5000"
-      - "dokploy.https=true"
+    # HTTP routing (domain -> this service on :5000, HTTPS) is configured in Dokploy's
+    # Domains tab, NOT via compose labels. Dokploy translates a Domains-tab record into the
+    # raw traefik.* labels + traefik.docker.network=dokploy-network that Traefik actually
+    # reads; hand-written dokploy.* labels are not a supported abstraction and were removed
+    # so this file never looks like it wires routing when it does not. See the deploy runbook.
     healthcheck:
       # Readiness gates routing. The five-minute start period matches the migration gate
       # budget, so pending migrations keep the task alive-but-unrouted without counting
@@ -129,7 +129,6 @@ services:
     volumes:
       - publyapp-api-storage:/app/.artifacts/storage
     networks:
-      - publyapp-network
       - dokploy-network
     # NO dokploy.domain / dokploy.port labels — the worker serves no HTTP surface.
     # Liveness is the in-image file-heartbeat probe (design §3.5, ratified O3): exits 0
@@ -194,7 +193,6 @@ services:
       - JOB_ALERT_LEASE_RETENTION_DAYS=${JOB_ALERT_LEASE_RETENTION_DAYS}
       - JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST=${JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST}
     networks:
-      - publyapp-network
       - dokploy-network
 
   publyapp-front:
@@ -208,12 +206,9 @@ services:
       - VITE_ASP_SERVER_URL=${VITE_ASP_SERVER_URL}
       - VITE_POSTHOG_API_KEY=${VITE_POSTHOG_API_KEY}
     networks:
-      - publyapp-network
       - dokploy-network
-    labels:
-      - "dokploy.domain=publyapp.com,www.publyapp.com"
-      - "dokploy.port=3000"
-      - "dokploy.https=true"
+    # HTTP routing (domains -> this service on :3000, HTTPS) is configured in Dokploy's
+    # Domains tab, NOT via compose labels (same rationale as publyapp-api above).
     healthcheck:
       test:
         - CMD-SHELL
@@ -224,11 +219,12 @@ services:
       start_period: 40s
 
 networks:
-  publyapp-network:
-    driver: bridge
-  # Dokploy's shared network. Required so api/worker/migrate can reach a Dokploy-managed
-  # PostgreSQL (which lives on this network) by its service name, and so Traefik can route to
-  # the api/front. Must already exist (created by Dokploy); joined as external.
+  # Dokploy's shared network is the ONLY network these services need. It lets api/worker/migrate
+  # reach a Dokploy-managed PostgreSQL by its service name and lets Traefik route to the api/front.
+  # A separate private bridge was removed as redundant: the DB is reached via connection string,
+  # api<->worker share state through a named volume, and front reaches api by its configured URL —
+  # nothing needs an extra internal network, and a single network removes all Traefik
+  # multi-network routing ambiguity. Must already exist (created by Dokploy); joined as external.
   dokploy-network:
     external: true
 
