@@ -4,12 +4,18 @@
 // @ts-ignore
 import { createAppProblemDetailsFromDiscriminatorValue, createInvitationCreatedForTenantFromDiscriminatorValue, createValidationProblemDetailsFromDiscriminatorValue, serializeCreateInvitationForTenantAsStaffBody, serializeInvitationCreatedForTenant, type AppProblemDetails, type CreateInvitationForTenantAsStaffBody, type InvitationCreatedForTenant, type ValidationProblemDetails } from '../../../../../models/index.js';
 // @ts-ignore
-import { type BaseRequestBuilder, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
+import { BulkRequestBuilderRequestsMetadata, type BulkRequestBuilder } from './bulk/index.js';
+// @ts-ignore
+import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
  * Builds and executes requests for operations under /staff/tenants/{tenantId}/users/invitations
  */
 export interface InvitationsRequestBuilder extends BaseRequestBuilder<InvitationsRequestBuilder> {
+    /**
+     * The bulk property
+     */
+    get bulk(): BulkRequestBuilder;
     /**
      * Invite a user to a tenant
      * @param body The request body
@@ -34,6 +40,14 @@ export interface InvitationsRequestBuilder extends BaseRequestBuilder<Invitation
  * Uri template for the request builder.
  */
 export const InvitationsRequestBuilderUriTemplate = "{+baseurl}/staff/tenants/{tenantId}/users/invitations";
+/**
+ * Metadata for all the navigation properties in the request builder.
+ */
+export const InvitationsRequestBuilderNavigationMetadata: Record<Exclude<keyof InvitationsRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
+    bulk: {
+        requestsMetadata: BulkRequestBuilderRequestsMetadata,
+    },
+};
 /**
  * Metadata for all the requests in the request builder.
  */

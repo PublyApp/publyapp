@@ -37,11 +37,6 @@ public sealed class ServiceDependencyBoundaryGuardSpec {
 	private static readonly HashSet<string> AllowedServiceDependencies = new(
 		StringComparer.Ordinal
 	) {
-		// ImpersonationService writes an audit-log entry synchronously inside the
-		// same transaction as session creation.  Refactoring would require either
-		// an outbox/domain-event pattern (not yet in place) or moving the log
-		// call to the handler that owns the orchestration. Ratchet target.
-		"ImpersonationService → IAuditLogService",
 	};
 
 	[Fact]

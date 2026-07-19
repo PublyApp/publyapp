@@ -128,16 +128,16 @@ namespace PublyApp.Api.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
-				    b.HasKey("Id");
+                    b.HasKey("Id");
 
-				    b.HasIndex(new[] { "ExpiresAt", "Id" }, "ix_sessions_expires_at_id");
-
-				    b.HasIndex("ImpersonatingStaffUserId");
+                    b.HasIndex("ImpersonatingStaffUserId");
 
                     b.HasIndex("Token")
                         .IsUnique();
 
                     b.HasIndex("UserId");
+
+                    b.HasIndex(new[] { "ExpiresAt", "Id" }, "ix_sessions_expires_at_id");
 
                     b.ToTable("sessions");
                 });
@@ -437,21 +437,21 @@ namespace PublyApp.Api.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
 
-				    b.HasKey("Id")
-					    .HasName("pk_job_dead_letter");
+                    b.HasKey("Id")
+                        .HasName("pk_job_dead_letter");
 
-				    b.HasIndex("FailedAt", "Id")
-					    .HasDatabaseName("ix_job_dead_letter_failed_at_id");
+                    b.HasIndex("OriginalJobId")
+                        .HasDatabaseName("ix_job_dead_letter_original_job_id");
 
-				    b.HasIndex("JobType", "FailedAt")
-					    .HasDatabaseName("ix_job_dead_letter_job_type");
+                    b.HasIndex("RequeuedFromDeadLetterId")
+                        .HasDatabaseName("ix_job_dead_letter_requeued_from")
+                        .HasFilter("requeued_from_dead_letter_id IS NOT NULL");
 
-				    b.HasIndex("OriginalJobId")
-					    .HasDatabaseName("ix_job_dead_letter_original_job_id");
+                    b.HasIndex("FailedAt", "Id")
+                        .HasDatabaseName("ix_job_dead_letter_failed_at_id");
 
-				    b.HasIndex("RequeuedFromDeadLetterId")
-					    .HasDatabaseName("ix_job_dead_letter_requeued_from")
-					    .HasFilter("requeued_from_dead_letter_id IS NOT NULL");
+                    b.HasIndex("JobType", "FailedAt")
+                        .HasDatabaseName("ix_job_dead_letter_job_type");
 
                     b.ToTable("job_dead_letter");
                 });
@@ -627,6 +627,12 @@ namespace PublyApp.Api.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_enqueued_at");
 
+                    b.Property<Guid>("ScheduleEpoch")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("schedule_epoch")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -642,6 +648,35 @@ namespace PublyApp.Api.Migrations
                         .HasFilter("is_deleted = false");
 
                     b.ToTable("system_job_definitions");
+                });
+
+            modelBuilder.Entity("PublyApp.Api.Modules.Jobs.Entities.SystemJobOccurrence", b =>
+                {
+                    b.Property<string>("JobKey")
+                        .HasColumnType("text")
+                        .HasColumnName("job_key");
+
+                    b.Property<DateTime>("ScheduledFireAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("scheduled_fire_at");
+
+                    b.Property<DateTime>("EnqueuedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("enqueued_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid?>("EnqueuedJobId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("enqueued_job_id");
+
+                    b.HasKey("JobKey", "ScheduledFireAt")
+                        .HasName("pk_system_job_occurrences");
+
+                    b.HasIndex("ScheduledFireAt")
+                        .HasDatabaseName("ix_system_job_occurrences_scheduled_fire_at");
+
+                    b.ToTable("system_job_occurrences");
                 });
 
             modelBuilder.Entity("PublyApp.Api.Modules.Messaging.Entities.EmailLog", b =>
@@ -701,13 +736,13 @@ namespace PublyApp.Api.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("outcome");
 
-				b.Property<string>("ProviderEventId")
-					.HasColumnType("text")
-					.HasColumnName("provider_event_id");
+                    b.Property<string>("ProviderEventId")
+                        .HasColumnType("text")
+                        .HasColumnName("provider_event_id");
 
-			    b.Property<string>("ProviderMessageId")
-				    .HasColumnType("text")
-				    .HasColumnName("provider_message_id");
+                    b.Property<string>("ProviderMessageId")
+                        .HasColumnType("text")
+                        .HasColumnName("provider_message_id");
 
                     b.Property<string>("Recipient")
                         .IsRequired()
@@ -728,32 +763,26 @@ namespace PublyApp.Api.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
-				    b.HasKey("Id")
-					    .HasName("pk_email_log");
+                    b.HasKey("Id")
+                        .HasName("pk_email_log");
 
-			    b.HasIndex("InvitationId")
-				    .HasDatabaseName("ix_email_log_invitation_id")
-				    .HasFilter("invitation_id IS NOT NULL");
+                    b.HasIndex("InvitationId")
+                        .HasDatabaseName("ix_email_log_invitation_id")
+                        .HasFilter("invitation_id IS NOT NULL");
 
                     b.HasIndex("JobId")
                         .IsUnique()
                         .HasDatabaseName("ux_email_log_job_id")
                         .HasFilter("job_id IS NOT NULL");
 
-				    b.HasIndex("LegacyOutboxId")
-					    .IsUnique()
-					    .HasDatabaseName("ux_email_log_legacy_outbox_id")
-					    .HasFilter("legacy_outbox_id IS NOT NULL");
+                    b.HasIndex("LegacyOutboxId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_email_log_legacy_outbox_id")
+                        .HasFilter("legacy_outbox_id IS NOT NULL");
 
-			    b.HasIndex("OccurredAt")
-				    .HasDatabaseName("ix_email_log_occurred_at");
-
-				    b.HasIndex("OccurredAt", "Id")
-					    .HasDatabaseName("ix_email_log_occurred_at_id");
-
-				    b.HasIndex("OccurredAt")
-					    .HasDatabaseName("ix_email_log_permanently_failed_occurred_at")
-					    .HasFilter("outcome = 2");
+                    b.HasIndex("OccurredAt")
+                        .HasDatabaseName("ix_email_log_permanently_failed_occurred_at")
+                        .HasFilter("outcome = 2");
 
                     b.HasIndex("ProviderEventId")
                         .IsUnique()
@@ -770,6 +799,9 @@ namespace PublyApp.Api.Migrations
 
                     b.HasIndex("Kind", "OccurredAt")
                         .HasDatabaseName("ix_email_log_kind_occurred_at");
+
+                    b.HasIndex("OccurredAt", "Id")
+                        .HasDatabaseName("ix_email_log_occurred_at_id");
 
                     b.HasIndex("Recipient", "OccurredAt")
                         .HasDatabaseName("ix_email_log_recipient_occurred_at");
@@ -805,17 +837,17 @@ namespace PublyApp.Api.Migrations
                         .HasColumnType("text")
                         .HasColumnName("request_sha256");
 
-				    b.HasKey("JobId")
-					    .HasName("pk_email_prepared_sends");
+                    b.HasKey("JobId")
+                        .HasName("pk_email_prepared_sends");
 
-				    b.HasIndex("PreparedAt")
-					    .HasDatabaseName("ix_email_prepared_sends_prepared_at");
+                    b.HasIndex("PreparedAt")
+                        .HasDatabaseName("ix_email_prepared_sends_prepared_at");
 
-				    b.HasIndex("PreparedAt", "JobId")
-					    .HasDatabaseName("ix_email_prepared_sends_prepared_at_job_id");
+                    b.HasIndex("PreparedAt", "JobId")
+                        .HasDatabaseName("ix_email_prepared_sends_prepared_at_job_id");
 
-				    b.ToTable("email_prepared_sends");
-				});
+                    b.ToTable("email_prepared_sends");
+                });
 
             modelBuilder.Entity("PublyApp.Api.Modules.Permissions.Entities.Permission", b =>
                 {

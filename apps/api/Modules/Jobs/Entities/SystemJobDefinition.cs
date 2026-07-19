@@ -23,6 +23,12 @@ public class SystemJobDefinition : BaseAttributes, INoTenantEntity {
 	[Column("cron_expression")]
 	public required string CronExpression { get; set; }
 
+	// Fences fires from a retired Quartz registration. SyncSystemJobsJob rotates this
+	// value when the live trigger's cron differs from the definition and stamps the
+	// current value into the replacement trigger's JobDataMap.
+	[Column("schedule_epoch")]
+	public Guid ScheduleEpoch { get; set; }
+
 	// Operational on/off switch. Disabling removes the trigger without losing the row.
 	[Column("is_enabled")]
 	public bool IsEnabled { get; set; } = true;

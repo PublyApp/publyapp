@@ -76,6 +76,7 @@ import {
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
 const EXPIRES_SOON_MS = 48 * 60 * 60 * 1000;
+const VISIBLE_PROFILE_CHIP_COUNT = 2;
 
 type InvitationRouteSearchParams = InvitationListSearchParams &
 	InviteUserSearchState;
@@ -168,6 +169,36 @@ export const createColumns = ({
 		enableSorting: false,
 		meta: { width: '160px', hideBelow: 768 },
 		cell: ({ row }) => {
+			const profiles = row.original.profiles ?? [];
+			if (profiles.length > 0) {
+				const visibleProfiles = profiles.slice(0, VISIBLE_PROFILE_CHIP_COUNT);
+				const overflowProfiles = profiles.slice(VISIBLE_PROFILE_CHIP_COUNT);
+
+				return (
+					<div className="flex min-w-0 items-center gap-1">
+						{visibleProfiles.map((profile) => (
+							<span
+								key={profile.id}
+								className="publy-detail-chip publy-detail-chip--outline max-w-24 truncate"
+								title={profile.name}
+							>
+								{profile.name}
+							</span>
+						))}
+						{overflowProfiles.length > 0 ? (
+							<span
+								className="publy-detail-chip publy-detail-chip--outline"
+								title={overflowProfiles
+									.map((profile) => profile.name)
+									.join(', ')}
+							>
+								+{overflowProfiles.length}
+							</span>
+						) : null}
+					</div>
+				);
+			}
+
 			const profileName = row.original.profileName;
 			const access = profileName?.trim().length
 				? profileName

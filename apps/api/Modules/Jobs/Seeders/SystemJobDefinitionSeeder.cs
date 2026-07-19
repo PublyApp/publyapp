@@ -121,6 +121,14 @@ public class SystemJobDefinitionSeeder : IEntitySeeder {
 					"Delete job_dead_letter rows older than JOB_DEAD_LETTER_RETENTION_DAYS.",
 			},
 			new SystemJobDefinition {
+				JobKey = SystemJobOccurrenceRetentionHandler.JobKey,
+				// Daily at 04:15, staggered after the dead-letter sweep.
+				CronExpression = "0 15 4 * * ?",
+				Description =
+					"Delete system_job_occurrences rows older than "
+					+ "SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS.",
+			},
+			new SystemJobDefinition {
 				JobKey = EmailPreparedSendsRetentionHandler.JobKey,
 				// Every 10 minutes — NOT daily like the sweeps above, and the difference is
 				// load-bearing (design §7.3/K-3). This sweep is the only privacy-load-bearing

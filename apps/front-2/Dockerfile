@@ -54,11 +54,11 @@ COPY --from=build /workspace/deploy/package.json /app/package.json
 COPY --from=build /workspace/deploy/server.mjs /app/server.mjs
 COPY --from=build /workspace/deploy/dist ./dist
 
-ENV PORT=3000
+ENV PORT=5050
 ENV NODE_ENV=production
-EXPOSE 3000
+EXPOSE 5050
 HEALTHCHECK --interval=5s --timeout=3s --start-period=15s --retries=20 \
-  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||5050)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 USER app
 CMD ["node", "server.mjs"]

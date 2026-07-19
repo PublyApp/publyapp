@@ -13,7 +13,6 @@ using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Invitations.Services;
-using PublyApp.Api.Modules.Profiles.Services;
 using PublyApp.Api.Modules.Tenants.Services;
 using PublyApp.Api.Modules.Users.Entities;
 using PublyApp.Api.Modules.Users.Services;
@@ -26,6 +25,20 @@ public record CreateInvitationForTenantAsStaffBody {
 	// reach FluentValidation so clients receive the repo-standard 422 validation problem.
 	public JsonElement Email { get; init; }
 	public JsonElement AccountLevel { get; init; }
+	public JsonElement ProfileIds { get; init; }
+
+	public List<Guid> GetProfileIds() {
+		if (ProfileIds.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null) {
+			return [];
+		}
+
+		var profileIds = new List<Guid>();
+		foreach (var profileId in ProfileIds.EnumerateArray()) {
+			profileIds.Add(profileId.GetGuid());
+		}
+
+		return profileIds;
+	}
 }
 
 public record InvitationCreatedForTenant {
@@ -42,13 +55,48 @@ public class CreateInvitationForTenantAsStaffBodyValidator
 		RuleFor(x => x.AccountLevel)
 			.MustBeRequiredString("AccountLevel")
 			.MustBeRequiredAccountLevel();
+
+		RuleFor(x => x.ProfileIds)
+			.SetValidator(new TenantInvitationProfileIdsValidator())
+			.When(x =>
+				x.ProfileIds.ValueKind
+					is not JsonValueKind.Undefined
+					and not JsonValueKind.Null
+			);
+
+		RuleFor(x => x.ProfileIds)
+			.Custom((element, context) => {
+				if (element.ValueKind != JsonValueKind.Array) {
+					return;
+				}
+
+				var profileIds = element.EnumerateArray().ToList();
+				var seenProfileIds = new HashSet<Guid>();
+				for (var i = 0; i < profileIds.Count; i++) {
+					var profileIdElement = profileIds[i];
+
+					if (profileIdElement.ValueKind != JsonValueKind.String
+						|| !profileIdElement.TryGetGuid(out var profileId)
+					) {
+						continue;
+					}
+
+					if (!seenProfileIds.Add(profileId)) {
+						context.AddFailure(
+							$"ProfileIds[{i}]",
+							"Duplicate profileId is not allowed"
+						);
+					}
+				}
+			});
 	}
 }
 
 public sealed class CreateInvitationForTenantAsStaff {
 	public static async Task<Results<
 		Created<InvitationCreatedForTenant>,
-		AppBadRequestHttpResult
+		AppBadRequestHttpResult,
+		AppValidationProblemHttpResult
 	>> Handle(
 		[FromRoute] string tenantId,
 		[FromBody] CreateInvitationForTenantAsStaffBody body,
@@ -56,7 +104,6 @@ public sealed class CreateInvitationForTenantAsStaff {
 		[FromServices] IInvitationService invitationService,
 		[FromServices] IAccountService accountService,
 		[FromServices] IAuditLogService auditLogService,
-		[FromServices] ITenantProfileAsStaffService tenantProfileService,
 		[FromServices] ITenantService tenantService,
 		CancellationToken cancellationToken = default
 	) {
@@ -78,6 +125,33 @@ public sealed class CreateInvitationForTenantAsStaff {
 			);
 		}
 		var accountLevel = parsedAccountLevel.Value;
+		var profileIds = body.GetProfileIds();
+
+		if (profileIds.Count > 0) {
+			var validProfileIds = await invitationService.ValidateTenantProfilesAsync(
+				tenantIdGuid,
+				profileIds,
+				cancellationToken
+			);
+
+			var missingProfileIds = profileIds
+				.Distinct()
+				.Where(profileId => !validProfileIds.Contains(profileId))
+				.ToList();
+
+			if (missingProfileIds.Count > 0) {
+				var missing = missingProfileIds.ToDictionary(
+					missingProfileId => missingProfileId.ToString(),
+					missingProfileId => new[] { $"{missingProfileId} is not a valid tenant profile id" }
+				);
+
+				return TypedProblems.ValidationProblem(
+					"One or more profileIds are invalid for this tenant",
+					ResponseKeys.NotFound,
+					missing
+				);
+			}
+		}
 
 		// Check if tenant exists (including suspended)
 		var tenant = await tenantService.GetTenantByIdIncludingSuspendedAsync(tenantIdGuid, cancellationToken);
@@ -133,16 +207,6 @@ public sealed class CreateInvitationForTenantAsStaff {
 				"Staff account not found in auth context. "
 				+ "Ensure the endpoint has .WithPermission() middleware."
 			);
-		}
-
-		List<Guid> profileIds = [];
-		if (accountLevel != AccountLevel.Admin) {
-			var defaultProfile = await tenantProfileService.GetOrCreateDefaultTenantProfileAsync(
-				tenantIdGuid,
-				cancellationToken
-			);
-
-			profileIds = [defaultProfile.GetRequiredId()];
 		}
 
 		// Create the invitation. Persists a durable email outbox row in the same

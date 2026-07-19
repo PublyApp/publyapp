@@ -51,6 +51,19 @@ public record BulkCreateStaffInvitationsArgs(
 	Guid InvitedByUserId
 );
 
+public record BulkCreateTenantInvitationsFailedItem(
+	int Index,
+	string Email,
+	string Reason,
+	string TranslationKey
+);
+
+public record BulkCreateTenantInvitationsResult(
+	int SucceededCount,
+	int FailedCount,
+	List<BulkCreateTenantInvitationsFailedItem> FailedItems
+);
+
 public interface IInvitationService {
 	Task<(Invitation Invitation, string Token)> CreateStaffInvitationAsync(
 		CreateStaffInvitationArgs args,
@@ -92,9 +105,19 @@ public interface IInvitationService {
 		List<Guid> profileIds,
 		CancellationToken cancellationToken = default);
 
+	Task<List<Guid>> ValidateTenantProfilesAsync(
+		Guid tenantId,
+		List<Guid> profileIds,
+		CancellationToken cancellationToken = default);
+
 	// Bulk creation method
 	Task<List<(string Email, string Token)>> BulkCreateStaffInvitationsAsync(
 		BulkCreateStaffInvitationsArgs args,
+		CancellationToken cancellationToken = default);
+
+	Task<List<string>> GetPendingTenantInvitationEmailsAsync(
+		List<string> emails,
+		Guid tenantId,
 		CancellationToken cancellationToken = default);
 }
 
@@ -115,6 +138,7 @@ public record StaffTenantInvitationListItem {
 	public required string Email { get; init; }
 	public required string Scope { get; init; }
 	public string? ProfileName { get; init; }
+	public required List<StaffInvitationProfileInfo> Profiles { get; init; }
 	public required string Status { get; init; }
 	public required DateTime ExpiresAt { get; init; }
 	public DateTime? AcceptedAt { get; init; }
@@ -392,6 +416,47 @@ public class InvitationService : IInvitationService {
 		).ToListAsync(cancellationToken);
 
 		return validProfileIds;
+	}
+
+	public async Task<List<Guid>> ValidateTenantProfilesAsync(
+		Guid tenantId,
+		List<Guid> profileIds,
+		CancellationToken cancellationToken = default
+	) {
+		var normalizedProfileIds = profileIds.Distinct().ToList();
+
+		var validProfileIds = await (
+			from p in _dbContext.Profile.AsNoTracking()
+			where p.Id != null
+				&& normalizedProfileIds.Contains(p.Id.Value)
+				&& p.Scope == ProfileScope.Tenant
+				&& p.TenantId == tenantId
+				&& !p.IsDeleted
+			select p.Id ?? Guid.Empty
+		).ToListAsync(cancellationToken);
+
+		return validProfileIds;
+	}
+
+	public async Task<List<string>> GetPendingTenantInvitationEmailsAsync(
+		List<string> emails,
+		Guid tenantId,
+		CancellationToken cancellationToken = default
+	) {
+		var normalizedEmails = emails.Select(e => e.ToLowerInvariant()).ToList();
+		var now = DateTime.UtcNow;
+
+		var existingEmails = await (
+			from inv in _dbContext.Invitation.AsNoTracking()
+			where normalizedEmails.Contains(inv.Email)
+				&& inv.Scope == InvitationScope.Tenant
+				&& inv.TenantId == tenantId
+				&& inv.Status == InvitationStatus.Pending
+				&& inv.ExpiresAt > now
+			select inv.Email
+		).ToListAsync(cancellationToken);
+
+		return existingEmails;
 	}
 
 	public async Task<List<(string Email, string Token)>> BulkCreateStaffInvitationsAsync(

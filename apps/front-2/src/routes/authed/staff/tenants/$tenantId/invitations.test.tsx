@@ -383,6 +383,35 @@ describe('staff tenant invitations route', () => {
 		expect(screen.queryByText('Admin')).toBeNull();
 	});
 
+	test('renders plural invitation profiles as chips with a +N overflow affordance', () => {
+		mocks.toStaffTenantInvitationRows.mockReturnValue([
+			{
+				id: 'invite-many-profiles',
+				email: 'profiles@example.com',
+				status: 'Pending',
+				scope: 'Tenant',
+				profileName: 'Legacy profile',
+				profiles: [
+					{ id: 'profile-1', name: 'Authors' },
+					{ id: 'profile-2', name: 'Reviewers' },
+					{ id: 'profile-3', name: 'Publishers' },
+				],
+				accountLevel: 'User',
+				invitedByName: 'Taylor Smith',
+				acceptedAt: null,
+				createdAt: new Date('2026-07-01T09:00:00Z'),
+				expiresAt: new Date('2026-07-07T09:00:00Z'),
+			},
+		]);
+
+		renderPage();
+
+		expect(screen.getByText('Authors')).toBeTruthy();
+		expect(screen.getByText('Reviewers')).toBeTruthy();
+		expect(screen.getByText('+1').getAttribute('title')).toBe('Publishers');
+		expect(screen.queryByText('Legacy profile')).toBeNull();
+	});
+
 	test('renders the invite CTA in the empty state when there are no invitations', () => {
 		mocks.toStaffTenantInvitationRows.mockReturnValue([]);
 		mocks.useStaffTenantInvitationsQuery.mockReturnValue(

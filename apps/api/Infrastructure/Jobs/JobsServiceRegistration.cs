@@ -99,6 +99,9 @@ public static class JobsServiceRegistration {
 		builder.AddJobHandler<PasswordResetEmailJobHandler>(
 			AuthEmailJobs.PasswordResetV1.JobType
 		);
+		builder.AddJobHandler<EmailVerificationEmailJobHandler>(
+			AuthEmailJobs.VerifyEmailV1.JobType
+		);
 
 		builder.AddJobHandler<StaffInvitationEmailJobHandler>(
 			InvitationEmailJobs.StaffInvitationV1.JobType
@@ -114,6 +117,9 @@ public static class JobsServiceRegistration {
 		);
 		builder.AddJobHandler<DeadLetterRetentionHandler>(
 			DeadLetterRetentionHandler.JobKey
+		);
+		builder.AddJobHandler<SystemJobOccurrenceRetentionHandler>(
+			SystemJobOccurrenceRetentionHandler.JobKey
 		);
 		builder.AddJobHandler<EmailPreparedSendsRetentionHandler>(
 			EmailPreparedSendsRetentionHandler.JobKey

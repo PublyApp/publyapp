@@ -16,5 +16,12 @@ public interface IEntitySeeder {
 	/// Seeds data for the entity in the database.
 	/// </summary>
 	Task SeedAsync(AppDbContext dbContext, CancellationToken cancellationToken = default);
-}
 
+	/// <summary>
+	/// Marks whether this seeder should only run in Development/Testing.
+	/// Demo seeders are excluded in Production to avoid shipping fixture data.
+	/// </summary>
+	bool IsDemo {
+		get { return false; }
+	}
+}

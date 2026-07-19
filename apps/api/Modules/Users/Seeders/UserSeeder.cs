@@ -5,7 +5,6 @@ using Microsoft.EntityFrameworkCore;
 using PublyApp.Api.Data;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
-using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Users.Entities;
@@ -34,17 +33,17 @@ public class UserSeeder : IEntitySeeder {
 		}
 	}
 
+	public bool IsDemo {
+		get {
+			return true;
+		}
+	}
+
 	public async Task SeedAsync(AppDbContext dbContext, CancellationToken cancellationToken = default) {
 		var seedPassword = GetSeedPassword();
 
 		// Seed all users (staff and tenant users)
 		var allUsers = new List<(string Email, UserStatus Status, string? FirstName, string? LastName)>();
-
-		var ownerEmail = AppEnvironment.Instance.STAFF_OWNER_EMAIL;
-		if (!string.IsNullOrWhiteSpace(ownerEmail)) {
-			var normalizedOwnerEmail = ownerEmail.Trim().ToLowerInvariant();
-			allUsers.Add((normalizedOwnerEmail, UserStatus.Active, "Platform", "Owner"));
-		}
 
 		allUsers.AddRange(new List<(string Email, UserStatus Status, string? FirstName, string? LastName)> {
 			// Staff users
@@ -128,4 +127,3 @@ public class UserSeeder : IEntitySeeder {
 		return CachedSeedPassword.Value;
 	}
 }
-

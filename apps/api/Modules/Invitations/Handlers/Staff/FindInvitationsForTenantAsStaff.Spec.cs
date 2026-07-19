@@ -113,12 +113,86 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			_ = invitation.Id.Should().NotBeEmpty();
 			_ = invitation.Email.Should().NotBeNullOrEmpty();
 			_ = invitation.Scope.Should().Be("Tenant");
-			_ = invitation.ProfileName.Should().NotBeNull();
+			_ = invitation.ProfileName.Should().BeNull();
+			_ = invitation.Profiles.Should().BeEmpty();
 			_ = invitation.AccountLevel.Should().Be("User");
 			_ = invitation.Status.Should().Be("Pending");
 			_ = invitation.ExpiresAt.Should().BeAfter(DateTime.UtcNow);
 			_ = invitation.CreatedAt.Should().BeBefore(DateTime.UtcNow.AddMinutes(1));
 			_ = invitation.InvitedByName.Should().NotBeNullOrEmpty();
+		}
+
+		[Fact]
+		public async Task
+		ItShouldReturnProfilesInInvitationListRows() {
+			string staffToken =
+				await _authClient.LoginAsStaffAdminAsync();
+			Guid tenantId =
+				await TenantTestHelper
+					.GetTenantIdByNameAsync(
+						_http,
+						staffToken,
+						SeedConstants.Tenants.AcmeName
+					);
+
+			string inviteeEmail =
+				$"tenant-list-profiles-{Guid.NewGuid():N}@example.com";
+			using (IServiceScope setupScope = _fixture.Factory.Services.CreateScope()) {
+				AppDbContext dbContext = setupScope.ServiceProvider
+					.GetRequiredService<AppDbContext>();
+
+				var profileA = Profile.CreateTenantProfile(
+					tenantId,
+					name: $"tenant-profile-list-a-{Guid.NewGuid():N}",
+					description: "Invitation list profile A"
+				);
+				var profileB = Profile.CreateTenantProfile(
+					tenantId,
+					name: $"tenant-profile-list-b-{Guid.NewGuid():N}",
+					description: "Invitation list profile B"
+				);
+
+				await dbContext.Profile.AddRangeAsync(profileA, profileB);
+				await dbContext.SaveChangesAsync();
+
+				var createRequest = CreateTenantInviteRequest(
+					staffToken,
+					tenantId.ToString(),
+					new {
+						email = inviteeEmail,
+						accountLevel = "User",
+						profileIds = new[] {
+							profileA.GetRequiredId().ToString(),
+							profileB.GetRequiredId().ToString(),
+						},
+					}
+				);
+
+				using HttpResponseMessage createResponse =
+					await _http.SendAsync(createRequest);
+				createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+			}
+
+			string url = GetFindUrl(tenantId, limit: 50);
+			HttpRequestMessage request = new HttpRequestMessage(
+				HttpMethod.Get, url
+			).WithSessionToken(staffToken);
+
+			using HttpResponseMessage response =
+				await _http.SendAsync(request);
+
+			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			FindResponse? result = await response.Content
+				.ReadFromJsonAsync<FindResponse>();
+			_ = result.Should().NotBeNull();
+			Assert.NotNull(result);
+
+			InvitationListItemDto? invitation = result.Data
+				.FirstOrDefault(i => i.Email.Equals(inviteeEmail, StringComparison.OrdinalIgnoreCase));
+			_ = invitation.Should().NotBeNull();
+			Assert.NotNull(invitation);
+			_ = invitation.Profiles.Should().HaveCount(2);
 		}
 
 		[Fact]
@@ -1408,6 +1482,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			_ = foundInvitation.Should().NotBeNull();
 			Assert.NotNull(foundInvitation);
 			_ = foundInvitation.ProfileName.Should().BeNull();
+			_ = foundInvitation.Profiles.Should().BeEmpty();
 			_ = foundInvitation.AccountLevel.Should().Be("User");
 		}
 
@@ -1473,6 +1548,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			_ = foundInvitation.Should().NotBeNull();
 			Assert.NotNull(foundInvitation);
 			_ = foundInvitation.ProfileName.Should().NotBeEmpty();
+			_ = foundInvitation.Profiles.Should().NotBeEmpty();
 			_ = foundInvitation.AccountLevel.Should().Be("User");
 		}
 
@@ -1614,6 +1690,22 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			string email,
 			string accountLevel = "User"
 		) {
+			return await CreateTenantInvitationWithProfilesAsync(
+				staffToken,
+				tenantId,
+				email,
+				accountLevel,
+				Array.Empty<Guid>()
+			);
+		}
+
+		private async Task<Guid> CreateTenantInvitationWithProfilesAsync(
+			string staffToken,
+			Guid tenantId,
+			string email,
+			string accountLevel,
+			IReadOnlyCollection<Guid> profileIds
+		) {
 			string url = PathUtils.Join(
 				Routes.Staff.Root,
 				Routes.Users.ForTenantAsStaff.InviteFn(
@@ -1624,12 +1716,14 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 				HttpMethod.Post, url
 			).WithSessionToken(staffToken);
 
-			request.Content = JsonContent.Create(
-				new {
-					email = email,
-					accountLevel
-				}
-			);
+
+			var body = new {
+				email,
+				accountLevel,
+				profileIds = profileIds.Select(x => x.ToString()).ToArray()
+			};
+
+			request.Content = JsonContent.Create(body);
 
 			using HttpResponseMessage response =
 				await _http.SendAsync(request);
@@ -1641,6 +1735,25 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 
 			Assert.NotNull(responseBody);
 			return responseBody.InvitationId;
+		}
+
+		private static HttpRequestMessage CreateTenantInviteRequest(
+			string sessionToken,
+			string tenantId,
+			object body
+		) {
+			HttpRequestMessage request = new HttpRequestMessage(
+				HttpMethod.Post,
+				PathUtils.Join(
+					Routes.Staff.Root,
+					Routes.Users.ForTenantAsStaff.InviteFn(tenantId)
+				)
+			);
+
+			request = request.WithSessionToken(sessionToken);
+			request.Content = JsonContent.Create(body);
+
+			return request;
 		}
 
 		private async Task RevokeTenantInvitationAsync(
@@ -1707,12 +1820,18 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			public string Email { get; init; } = string.Empty;
 			public string Scope { get; init; } = string.Empty;
 			public string ProfileName { get; init; } = string.Empty;
+			public List<InvitationProfileDto> Profiles { get; init; } = [];
 			public string AccountLevel { get; init; } = string.Empty;
 			public string Status { get; init; } = string.Empty;
 			public DateTime ExpiresAt { get; init; }
 			public DateTime? AcceptedAt { get; init; }
 			public DateTime CreatedAt { get; init; }
 			public string? InvitedByName { get; init; }
+		}
+
+		private record InvitationProfileDto {
+			public Guid Id { get; init; }
+			public string Name { get; init; } = string.Empty;
 		}
 
 		private record InvitationCreatedResponse {

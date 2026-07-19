@@ -46,6 +46,7 @@ public sealed class SystemJobDefinitionSeederSpec : IClassFixture<ApiFixture> {
 		CleanupExpiredSessionsHandler.JobKey,
 		EmailLogRetentionHandler.JobKey,
 		DeadLetterRetentionHandler.JobKey,
+		SystemJobOccurrenceRetentionHandler.JobKey,
 		EmailPreparedSendsRetentionHandler.JobKey,
 	];
 

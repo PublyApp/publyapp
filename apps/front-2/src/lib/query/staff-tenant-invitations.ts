@@ -31,6 +31,7 @@ export type StaffTenantInvitationRow = {
 	status: string | null;
 	scope: string | null;
 	profileName: string | null;
+	profiles: Array<{ id: string; name: string }>;
 	accountLevel: string | null;
 	invitedByName: string;
 	acceptedAt: Date | null;
@@ -75,6 +76,26 @@ const normalizeStatusToken = (
 ): string | undefined => {
 	const normalized = normalizeString(value);
 	return normalized?.toLowerCase();
+};
+
+const normalizeProfiles = (
+	profiles: StaffTenantInvitationListItem['profiles'],
+): Array<{ id: string; name: string }> => {
+	const normalizedProfiles: Array<{ id: string; name: string }> = [];
+	const seenIds = new Set<string>();
+
+	for (const profile of profiles ?? []) {
+		const id = normalizeString(profile.id?.toString());
+		const name = normalizeString(profile.name);
+		if (!id || !name || seenIds.has(id)) {
+			continue;
+		}
+
+		normalizedProfiles.push({ id, name });
+		seenIds.add(id);
+	}
+
+	return normalizedProfiles;
 };
 
 const isPositiveSafeInteger = (value: number | undefined): value is number =>
@@ -125,6 +146,7 @@ export const toStaffTenantInvitationRows = (
 			status: normalizeNullableString(item.status),
 			scope: normalizeNullableString(item.scope),
 			profileName,
+			profiles: normalizeProfiles(item.profiles),
 			accountLevel: accountLevel ?? null,
 			invitedByName,
 			acceptedAt: item.acceptedAt ?? null,

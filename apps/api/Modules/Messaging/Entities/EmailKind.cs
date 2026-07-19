@@ -9,7 +9,9 @@ namespace PublyApp.Api.Modules.Messaging.Entities;
 public enum EmailKind {
 	TenantInvitation = 0,
 	StaffInvitation = 1,
-	PasswordReset = 2
+	PasswordReset = 2,
+	EmailVerification = 3,
+	LegacySubmissionUnverified = 4
 }
 
 /// <summary>

@@ -3,6 +3,16 @@ using PublyApp.Api.Infrastructure.Jobs;
 namespace PublyApp.Api.Modules.Auth.Jobs;
 
 /// <summary>
+/// Payload for <c>email.verify.v1</c>. The handler reloads the user and current token at
+/// send time; <c>IsWelcomeEmail</c> chooses the subject/body variant (new-user welcome vs.
+/// plain verification request).
+/// </summary>
+public sealed record VerifyEmailPayload {
+	public required Guid UserId { get; init; }
+	public bool IsWelcomeEmail { get; init; }
+}
+
+/// <summary>
 /// Payload for <c>email.password-reset.v1</c> (design §5.4, F2/F6). IDs only — the
 /// handler reloads the user and its current reset token fresh at send time, which is
 /// the token-validity recheck (#811-equivalent) and staleness-proof. <c>required</c> so
@@ -21,6 +31,12 @@ public sealed record PasswordResetEmailPayload {
 public static class AuthEmailJobs {
 	// Elevated so transactional emails are claimed ahead of bulk work (design §4.1).
 	private const int EmailPriority = 100;
+
+	public static readonly JobDefinition<VerifyEmailPayload> VerifyEmailV1 =
+		new() {
+			JobType = "email.verify.v1",
+			Priority = EmailPriority
+		};
 
 	public static readonly JobDefinition<PasswordResetEmailPayload> PasswordResetV1 =
 		new() {
