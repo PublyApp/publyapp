@@ -90,9 +90,9 @@ public sealed class EndpointPermissionMetadataGuardSpec : IDisposable {
 	/// </summary>
 	private static readonly IReadOnlyList<AllowlistedRoute> SystemAllowlist = [
 		new AllowlistedRoute(
-			PathMatch: RoutePathMatch.Exact("/health"),
+			PathMatch: RoutePathMatch.Prefix("/health"),
 			Reason:
-				"Health-check endpoint registered by app.MapHealthChecks(\"/health\"); "
+				"Health-check endpoints registered below /health; "
 				+ "must be reachable by load-balancer probes without auth."
 		),
 		new AllowlistedRoute(

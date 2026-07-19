@@ -9,8 +9,8 @@ Target host: **Dokploy on a single Hostinger VPS**, GHCR images, Traefik SSL. Gr
 > **Migration gating — ratified approach A:** Dokploy does not provide the Compose/Swarm
 > pre-deploy hook assumed by decision 3 below. The ratified implementation is a normal
 > one-shot migrate service plus API readiness and worker startup gates. See the
-> [Production Deploy Runbook](./production-deploy-runbook.md). The older pre-deploy text
-> below is retained as historical design context and is superseded by this note.
+> [Production Deploy Runbook](./production-deploy-runbook.md). This note supersedes the
+> earlier pre-deploy-command design.
 
 ## Decisions
 
@@ -18,7 +18,7 @@ Target host: **Dokploy on a single Hostinger VPS**, GHCR images, Traefik SSL. Gr
 |---|----------|--------|
 | 1 | Process topology | **Split** — separate `api`, `worker`, and `front` services (not a combined `APP_ROLE=all`) |
 | 2 | Migration mechanism | **Apply directly** (automated), packaged as an **EF migration bundle** (no SDK/source in prod) |
-| 3 | Migration execution | **Dokploy pre-deploy command** running the bundle once before the rolling update (aborts deploy on failure) |
+| 3 | Migration execution | **One-shot migrate service** plus API readiness and worker startup gates, each with a five-minute startup grace |
 | 4 | Seeding | **Split by intent** — essentials idempotent everywhere, demo gated OFF in Production, owner via bootstrap |
 | 5 | Deploy model | **Zero-downtime** — Swarm rolling + **expand/contract** (backward-compatible) migration discipline |
 | 6 | DB credentials | **Single** app credential (migrator + runtime share one role) |
@@ -27,7 +27,7 @@ Target host: **Dokploy on a single Hostinger VPS**, GHCR images, Traefik SSL. Gr
 ### Why these (rationale)
 - **Split (1):** builds the target topology from day one; `APP_ROLE=all` remains a valid fallback. Split gives process/operational isolation. It is only worse than combined if the VPS OOMs/swaps or connection pools are uncapped — both mitigated below.
 - **Bundle (2):** same automated "apply-directly" behaviour as `dotnet ef database update`, but ships a ~200 MB purpose-built migrator with **no .NET SDK, no EF tooling, and no source code** in production (the current `migrate` Dockerfile stage is SDK-based, ~800 MB, and carries source). The bundle takes EF's migration lock and still runs `UseSeeding`.
-- **Pre-deploy command (3):** the earlier idea of an in-compose `migrate` service gated by `depends_on: service_completed_successfully` is **Compose-only** — Docker **Swarm ignores `depends_on`**, and Dokploy's zero-downtime uses Swarm. So migrations run as a pre-deploy step, then the services roll. Fails closed: a failed migration aborts the deploy.
+- **One-shot service (3):** Docker **Swarm ignores `depends_on`**, so the immutable migrator runs concurrently as a normal service with restart condition `none`. API readiness and the worker startup gate block application work; five-minute healthcheck startup grace prevents Swarm from reaping them during the bounded wait.
 - **Seeding split (4):** the current seeders run unconditionally on migrate and mix **essential** data (permission catalog, real owner) with **demo fixtures** (Acme tenant; Alice/Charlie/Acme users seeded with a *source-controlled known password*). Shipping the demo fixtures to prod is a **first-deploy security hole**, not just clutter.
 - **Zero-downtime + expand/contract (5):** owner chose zero-downtime. It has two halves: **schema safety** (expand/contract — always ours to control) and **deploy mechanics** (Swarm rolling on Dokploy). Expand/contract is the real guarantee; rolling delivers no-gap cutover.
 - **Single credential (6):** least-privilege DDL/DML split is deferred; pre-launch, the split's default-privileges management is a self-inflicted-outage risk with low marginal benefit. Revisit at/near launch.
@@ -35,23 +35,23 @@ Target host: **Dokploy on a single Hostinger VPS**, GHCR images, Traefik SSL. Gr
 
 ## Target architecture
 
-One immutable release tag per deploy → **migrate (pre-deploy)** → **api + worker + front** roll in with zero downtime.
+One immutable release tag per deploy → **migrate + gated api/worker + front** start concurrently.
 
 | Service | `APP_ROLE` | Health check | Public (Traefik) |
 |---------|-----------|--------------|------------------|
-| **migrate** (EF bundle, one-shot pre-deploy) | `api` | process exit code (non-zero aborts deploy) | — |
-| **api** | `api` | `GET /health` | `api.publyapp.com` |
+| **migrate** (EF bundle, one-shot service) | `api` | process exit code (non-zero remains failed) | — |
+| **api** | `api` | `GET /health/live` (liveness), `GET /health/ready` (readiness) | `api.publyapp.com` |
 | **worker** | `worker` | `--worker-health` CLI (no HTTP surface) | — |
 | **front** (front-2 SSR, service name `publyapp-front`) | — | `GET /health` | `publyapp.com`, `www.publyapp.com` |
 
 Deploy flow:
 1. CI builds and pushes immutable-tagged images (`…:<release>`), including the migrator-bundle image.
-2. Dokploy **pre-deploy command** runs the migrator bundle once (`APP_ROLE=api`, full env). Non-zero exit aborts the deploy — nothing rolls against a failed migration.
-3. Dokploy rolls **api**, **worker**, **front** as Swarm services: new container starts → health check passes → Traefik reroutes → old container drains.
+2. Dokploy starts the one-shot migrator and application services concurrently. API readiness and the worker startup gate remain closed until the bundle applies migrations and production-safe seeds.
+3. API and worker healthchecks have a five-minute `start_period`, matching the worker gate budget. Swarm keeps them alive during that grace and routes the API only after `/health/ready` passes; failure beyond the budget becomes a visible failed/rescheduled task.
 4. The **worker's** brief two-instance overlap during a roll is safe by design: 2B's fenced leases + advisory-lock scheduler leadership + ~45s graceful drain prevent double-execution.
 
 ## Migrations
-- **Bundle** built in CI (`dotnet ef migrations bundle`, target the VPS runtime), shipped in a slim image; run by the pre-deploy step. Runs `UseSeeding` (gated — see below).
+- **Bundle** built in CI (`dotnet ef migrations bundle`, target the VPS runtime), shipped in a slim image; run by the one-shot migrate service. Runs `UseSeeding` (gated — see below).
 - **Expand/contract discipline:** no breaking schema change in a single release; destructive changes split across two releases (expand → deploy code using both → contract later). Enforced now by **policy + PR checklist**; automated **CI guard is issue #877** (fast-follow — do not forget).
 - **Single DB credential** shared by migrator + runtime.
 - **Rollback:** prefer backward-compatible forward migrations + backups + forward fixes. Do **not** rely on automatic `Down()` in production (it can destroy newly-written data).
@@ -75,7 +75,9 @@ Independent of the jobs work — these would break deploy #1 today:
 
 ## Sequencing & dependencies
 - This design **depends on 2B** (it introduces `APP_ROLE` + the worker composition root). **Approving this design is what unblocks merging 2B → 2C → P3** — the work #876 was gating.
-- Implementation order: land 2B/2C/P3 → then wire deploy config (per-service Dokploy Applications), the CI **bundle** build, the **pre-deploy** hook, the **seeding gate** + Production-exclusion test, the **env/secret** set, **pool caps**, **immutable tags**, and the footgun fixes.
+- Implementation order: land 2B/2C/P3 → then wire deploy config, the CI **bundle** build,
+  the one-shot migrate service, API/worker gates, the **seeding gate** + Production-exclusion
+  test, the **env/secret** set, **pool caps**, **immutable tags**, and the footgun fixes.
 - front-2 deployability items: add a `/health` route; confirm its Dockerfile + production env set.
 
 ## Non-goals / deferred (tracked)
@@ -84,7 +86,7 @@ Independent of the jobs work — these would break deploy #1 today:
 - **Blue/green / multi-replica horizontal scale** — the split topology and immutable tags keep the door open; not needed pre-launch.
 
 ## Verification
-- Local `docker compose` smoke: migrate (bundle) → api + worker come up healthy with the full env; api `/health` and worker `--worker-health` pass.
+- Local `docker compose` smoke: migrate (bundle) → api + worker come up healthy with the full env; API `/health/live` stays 200 while `/health/ready` changes from 503 to 200, and worker `--worker-health` stays fresh during the gate wait.
 - A spec asserting **demo seeders do not run under `ASPNETCORE_ENVIRONMENT=Production`** and essentials do.
 - A dry-run rolling deploy on Dokploy (health-gated cutover, no 502s) before first real launch.
 

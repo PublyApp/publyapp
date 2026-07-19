@@ -28,15 +28,18 @@ public sealed class HealthSpec
 	}
 
 	[Fact]
-	public async Task ItShouldReturnOkWhenAllMigrationsAreApplied() {
-		var response = await _http.GetAsync("/health");
+	public async Task ItShouldReturnReadyOnBothReadinessRoutesWhenAllMigrationsAreApplied() {
+		var readyResponse = await _http.GetAsync("/health/ready");
+		var aliasResponse = await _http.GetAsync("/health");
 
-		response.StatusCode.Should()
+		readyResponse.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+		aliasResponse.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
 	}
 
 	[Fact]
-	public async Task ItShouldReturnServiceUnavailableWhenAMigrationIsPending() {
+	public async Task ItShouldReturnLiveAndNotReadyWhenAMigrationIsPending() {
 		using var scope = _fixture.Factory.Services.CreateScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var migrations = dbContext.Database.GetMigrations().ToList();
@@ -48,9 +51,12 @@ public sealed class HealthSpec
 
 		await migrator.MigrateAsync(previousMigration);
 		try {
-			var response = await _http.GetAsync("/health");
+			var liveResponse = await _http.GetAsync("/health/live");
+			var readyResponse = await _http.GetAsync("/health/ready");
 
-			response.StatusCode.Should()
+			liveResponse.StatusCode.Should()
+				.Be(HttpStatusCode.OK);
+			readyResponse.StatusCode.Should()
 				.Be(HttpStatusCode.ServiceUnavailable);
 		} finally {
 			await migrator.MigrateAsync(latestMigration);

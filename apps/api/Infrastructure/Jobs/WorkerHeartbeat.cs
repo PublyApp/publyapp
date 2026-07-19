@@ -4,9 +4,10 @@ namespace PublyApp.Api.Infrastructure.Jobs;
 
 /// <summary>
 /// Shared contract for the worker liveness file-heartbeat (design §3.5, ratified O3).
-/// The <see cref="WorkerHeartbeatService"/> touches the file on a successful DB probe;
-/// the in-image <c>--worker-health</c> CLI reads the same file's freshness. Both sides
-/// live here so the path and freshness window can never drift apart.
+/// The migration startup gate touches the file while it waits; after startup, the
+/// <see cref="WorkerHeartbeatService"/> refreshes it on a successful DB probe. The in-image
+/// <c>--worker-health</c> CLI reads the same file's freshness. All writers and the reader live
+/// here so the path and freshness window can never drift apart.
 /// </summary>
 public static class WorkerHeartbeat {
 	// Under the already-writable .artifacts tree (mirrors FILE_STORAGE_ROOT and the

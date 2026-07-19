@@ -126,7 +126,8 @@ public static class ServiceRegistration {
 		builder.Services.AddHealthChecks()
 			.AddCheck<DatabaseMigrationHealthCheck>(
 				"database_migrations",
-				failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy
+				failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy,
+				tags: ["ready"]
 			);
 
 		// Register scoped DbContext (for per-request instances)

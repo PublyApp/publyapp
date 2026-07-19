@@ -65,11 +65,14 @@ services:
       - "dokploy.port=5000"
       - "dokploy.https=true"
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5000/health"]
-      interval: 30s
-      timeout: 10s
+      # Readiness gates routing. The five-minute start period matches the migration gate
+      # budget, so pending migrations keep the task alive-but-unrouted without counting
+      # probe failures toward Swarm's restart threshold.
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5000/health/ready"]
+      interval: 10s
+      timeout: 5s
       retries: 3
-      start_period: 40s
+      start_period: 300s
 
   # Same GHCR image as publyapp-api, differing only by env: this container runs the
   # background job engine (queue processor, scheduler leader + Quartz, outbox
@@ -128,13 +131,14 @@ services:
       - publyapp-network
     # NO dokploy.domain / dokploy.port labels — the worker serves no HTTP surface.
     # Liveness is the in-image file-heartbeat probe (design §3.5, ratified O3): exits 0
-    # only when the heartbeat file (written after a successful DB probe) is fresh.
+    # when the migration gate or post-startup heartbeat service has kept the file fresh.
     healthcheck:
       test: ["CMD", "dotnet", "PublyApp.Api.dll", "--worker-health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      # Belt-and-suspenders grace matching the worker migration-gate timeout.
+      start_period: 300s
 
   # A normal Swarm service, not a Compose profile or dependency. The immutable image tag
   # changes on every release, so Swarm creates one migration task for each stack deploy.

@@ -12,22 +12,32 @@ bundle image. Its Swarm restart policy is `condition: none`, so the release-tag 
 creates one migration task and Swarm does not restart it after it exits.
 
 Dokploy starts the services concurrently. Ordering therefore comes from application
-readiness, not Compose dependencies:
+readiness plus a startup grace period longer than the migration budget, not Compose dependencies:
 
 1. `publyapp-migrate` runs the EF bundle and exits zero after migrations and production-safe
    seeding complete. A non-zero exit remains visible as a failed Swarm task.
-2. `publyapp-api` starts, but `GET /health` returns 503 until its configured `AppDbContext`
-   can reach PostgreSQL and `GetPendingMigrationsAsync()` returns no migrations. Traefik and
-   Swarm must use this health result to withhold traffic from the new task.
+2. `publyapp-api` exposes liveness at `GET /health/live` and migration-gated readiness at
+   `GET /health/ready` (`GET /health` remains a readiness alias). Its container healthcheck
+   probes readiness with a five-minute `start_period`, keeping the task alive-but-unrouted while
+   migrations and production-safe seeding run. Readiness changes from 503 to 200 only after its
+   configured `AppDbContext` can reach PostgreSQL and has no pending migrations.
 3. `publyapp-worker` starts its migration gate before any queue processor, listener,
-   scheduler, monitor, or heartbeat service. It retries every two seconds for up to five
-   minutes, logging that it is waiting. On success, job processing and heartbeat liveness
-   start. On timeout, host startup fails visibly instead of hanging forever.
+   scheduler, monitor, or heartbeat service. The gate refreshes the heartbeat file while it
+   retries every two seconds for up to five minutes, so liveness remains healthy while job
+   processing is blocked. On timeout, host startup still fails visibly instead of hanging forever.
 4. `publyapp-front` reports health through `GET /health`.
 
-The worker heartbeat file and `--worker-health` command remain liveness checks. They begin
-only after the startup migration gate succeeds and must not be used as migration ordering.
-The migrate bundle does not wait on itself; its image entrypoint is the bundle directly.
+The worker heartbeat file and `--worker-health` command remain liveness checks; the gate writes
+the heartbeat during its bounded migration wait, and the regular heartbeat service takes over
+after startup. They do not replace the migration gate. The migrate bundle does not wait on itself;
+its image entrypoint is the bundle directly.
+
+Under Swarm, the five-minute `start_period` prevents readiness failures from counting toward the
+task-kill threshold while health-gated routing keeps the API task out of service. A migration that
+fails or exceeds that budget produces a visible failed/rescheduled task. Under plain Compose,
+unhealthy containers are not killed; `/health/ready` remains 503 and can gate any consumer using
+`depends_on: condition: service_healthy`. The installed Dokploy version's actual Swarm-versus-plain-
+Compose behavior remains an open production-instance check, but the configuration is safe in both.
 
 ### Deploy checklist
 
@@ -42,10 +52,10 @@ Before triggering the stack deployment:
 During deployment:
 
 - Watch the `publyapp-migrate` task to a zero exit. Inspect its logs on non-zero exit.
-- Confirm new API tasks remain unhealthy/503 while a migration is pending, then become
-  healthy after the migration task succeeds.
+- Confirm new API tasks remain alive but not ready/routed while a migration is pending, then become
+  ready after the migration task succeeds.
 - Confirm the worker logs the bounded wait when necessary, then produces a fresh heartbeat
-  only after migrations are applied.
+  throughout the wait and begins job processing only after migrations are applied.
 - Confirm the front `/health` check passes before routing production traffic.
 
 If migration fails, do not force readiness or run the application against a partially

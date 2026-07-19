@@ -5,6 +5,7 @@ namespace PublyApp.Api.Infrastructure.Jobs;
 public sealed record WorkerMigrationStartupGateOptions {
 	public TimeSpan Timeout { get; init; } = TimeSpan.FromMinutes(5);
 	public TimeSpan RetryDelay { get; init; } = TimeSpan.FromSeconds(2);
+	public string HeartbeatPath { get; init; } = WorkerHeartbeat.ResolvePath();
 }
 
 /// <summary>
@@ -46,6 +47,11 @@ public sealed class WorkerMigrationStartupGate : IHostedService {
 		while (!waitToken.IsCancellationRequested) {
 			attempt++;
 			try {
+				await WorkerHeartbeat.TouchAsync(
+					_options.HeartbeatPath,
+					DateTime.UtcNow,
+					waitToken
+				);
 				if (await _migrationReadiness.IsReadyAsync(waitToken)) {
 					_logger.LogInformation(
 						"Database migrations are applied; worker startup may continue"
@@ -64,7 +70,8 @@ public sealed class WorkerMigrationStartupGate : IHostedService {
 			} catch (Exception ex) {
 				_logger.LogWarning(
 					ex,
-					"Waiting for database migrations... database probe attempt {Attempt} failed",
+					"Waiting for database migrations... liveness or database probe attempt "
+						+ "{Attempt} failed",
 					attempt
 				);
 			}
