@@ -1,5 +1,7 @@
 # Deployment Guide (Dokploy Artifact Pipeline)
 
+> **SUPERSEDED:** This document is superseded by [Production Deployment & Migration Design](./../deployment/production-deployment-design.md).
+
 This repo supports a “build locally, then upload artifacts to Dokploy” workflow.
 
 The pipeline builds:
@@ -63,4 +65,3 @@ node scripts/deploy.mjs --target front --upload --front-app-name web
 - The front artifact patches its copied root `package.json` to remove `scripts.prepare` (husky) so `pnpm install --prod` inside the container doesn’t fail.
 - The generated front `Dockerfile` starts the SSR server from `apps/front/` (required because `server.js` serves `build/**` using relative paths).
 - The API artifact uses a runtime image and runs the locally published `PublyApp.Api.dll`.
-

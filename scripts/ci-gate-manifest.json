@@ -271,6 +271,41 @@
 			"mirror": "just ci-front",
 			"reason": "ci-front runs the identical pnpm --filter front run test."
 		},
+		"deploy-images.yml::publish::Checkout": {
+			"hash": "2b0c921edab45332",
+			"mirror": null,
+			"reason": "GitHub-only: clones the repository onto the runner. Locally the working tree already is the code under test."
+		},
+		"deploy-images.yml::publish::Set up Docker Buildx": {
+			"hash": "3ad8b2197dc635fc",
+			"mirror": "just ci",
+			"reason": "Local pre-push checks do not run a GitHub container registry publish flow that requires runner buildx service setup."
+		},
+		"deploy-images.yml::publish::Log in to GHCR": {
+			"hash": "7987b4ca391d3193",
+			"mirror": "just ci",
+			"reason": "GitHub-only registry authentication step required to push images; local gate does not publish images."
+		},
+		"deploy-images.yml::publish::Resolve immutable release tag": {
+			"hash": "2b6064613365d5cf",
+			"mirror": "just ci",
+			"reason": "The workflow computes RELEASE_TAG from GITHUB_SHA for immutable tagging; local checks do not perform registry publishing."
+		},
+		"deploy-images.yml::publish::Build and push API runtime image": {
+			"hash": "bf87c51aa2192fdf",
+			"mirror": "just ci",
+			"reason": "This is a CI publish path for the API runtime image and does not have a local equivalent in pre-push checks."
+		},
+		"deploy-images.yml::publish::Build and push API migrate image": {
+			"hash": "e705d96dd891e938",
+			"mirror": "just ci",
+			"reason": "This is a CI publish path for the migration bundle image and does not have a local equivalent in pre-push checks."
+		},
+		"deploy-images.yml::publish::Build and push Front-2 image": {
+			"hash": "98d1e49a5b503231",
+			"mirror": "just ci",
+			"reason": "This is a CI publish path for the front-2 image and does not have a local equivalent in pre-push checks."
+		},
 		"openapi-spec-drift.yml::spec-drift::uses:actions/checkout": {
 			"hash": "2b0c921edab45332",
 			"mirror": null,

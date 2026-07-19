@@ -1,5 +1,7 @@
 # Database Migration and Seeding Deployment Guide
 
+> **SUPERSEDED:** This document is superseded by [Production Deployment & Migration Design](./../deployment/production-deployment-design.md).
+
 This document outlines the industry-standard approaches for applying migrations and seeds to production databases in the PublyApp application.
 
 ## 🎯 **Industry Standard Approaches**

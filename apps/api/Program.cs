@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.FileProviders;
 
 using PublyApp.Api.Infrastructure.Jobs;
@@ -204,7 +205,14 @@ public class Program {
 			MapTenantTestingScaffoldEndpoints(tenantGroup);
 		}
 
-		app.MapHealthChecks("/health");
+		var readinessOptions = new HealthCheckOptions {
+			Predicate = registration => registration.Tags.Contains("ready"),
+		};
+		app.MapHealthChecks("/health/live", new HealthCheckOptions {
+			Predicate = _ => false,
+		});
+		app.MapHealthChecks("/health/ready", readinessOptions);
+		app.MapHealthChecks("/health", readinessOptions);
 		app.MapNotFoundRoute();
 	}
 

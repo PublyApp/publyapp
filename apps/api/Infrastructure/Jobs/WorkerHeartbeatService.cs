@@ -8,9 +8,10 @@ namespace PublyApp.Api.Infrastructure.Jobs;
 /// Worker liveness writer (design §3.5, ratified O3). Because the worker role serves no
 /// HTTP, the <c>/health</c> endpoint is unavailable there; instead this
 /// <see cref="BackgroundService"/> touches a heartbeat file every
-/// <see cref="WorkerHeartbeat.WriteInterval"/> — but only after a successful
-/// <c>SELECT 1</c> against Postgres, so the file's freshness reflects DB reachability,
-/// not merely "process alive". The container healthcheck runs the same assembly with
+/// <see cref="WorkerHeartbeat.WriteInterval"/> after startup — but only after a successful
+/// <c>SELECT 1</c> against Postgres. During the migration startup gate, the gate itself
+/// refreshes the file to show that the process is alive while job processing remains blocked.
+/// The container healthcheck runs the same assembly with
 /// <c>--worker-health</c>, which reads this file (see <see cref="WorkerHealthCli"/>).
 /// </summary>
 public sealed class WorkerHeartbeatService : BackgroundService {
