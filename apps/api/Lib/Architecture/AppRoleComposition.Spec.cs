@@ -512,6 +512,7 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 			CleanupExpiredSessionsHandler.JobKey,
 			EmailLogRetentionHandler.JobKey,
 			DeadLetterRetentionHandler.JobKey,
+			SystemJobOccurrenceRetentionHandler.JobKey,
 			EmailPreparedSendsRetentionHandler.JobKey,
 		]);
 	}

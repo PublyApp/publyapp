@@ -118,6 +118,9 @@ public static class JobsServiceRegistration {
 		builder.AddJobHandler<DeadLetterRetentionHandler>(
 			DeadLetterRetentionHandler.JobKey
 		);
+		builder.AddJobHandler<SystemJobOccurrenceRetentionHandler>(
+			SystemJobOccurrenceRetentionHandler.JobKey
+		);
 		builder.AddJobHandler<EmailPreparedSendsRetentionHandler>(
 			EmailPreparedSendsRetentionHandler.JobKey
 		);
