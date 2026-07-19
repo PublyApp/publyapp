@@ -6,6 +6,12 @@ PublyApp has never been deployed — there is no production or staging environme
 
 Target host: **Dokploy on a single Hostinger VPS**, GHCR images, Traefik SSL. Grounded in `dokploy.yml` + `apps/api/Dockerfile` as they stand, plus a second architectural opinion (GPT-5.6-sol) captured during design.
 
+> **Migration gating — ratified approach A:** Dokploy does not provide the Compose/Swarm
+> pre-deploy hook assumed by decision 3 below. The ratified implementation is a normal
+> one-shot migrate service plus API readiness and worker startup gates. See the
+> [Production Deploy Runbook](./production-deploy-runbook.md). The older pre-deploy text
+> below is retained as historical design context and is superseded by this note.
+
 ## Decisions
 
 | # | Decision | Choice |

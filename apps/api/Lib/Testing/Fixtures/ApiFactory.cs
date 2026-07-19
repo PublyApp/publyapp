@@ -100,8 +100,9 @@ public sealed class ApiFactory
 	/// Removes the worker-role background hosted services (including queue monitor/listener)
 	/// from the integration test host so no live loop races the deterministic job specs.
 	/// </summary>
-	private static void RemoveWorkerHostedServices(IServiceCollection services) {
+	internal static void RemoveWorkerHostedServices(IServiceCollection services) {
 		var workerHostedServiceTypes = new[] {
+			typeof(WorkerMigrationStartupGate),
 			typeof(JobQueueProcessor),
 			typeof(SchedulerLeaderService),
 			typeof(JobQueueListener),

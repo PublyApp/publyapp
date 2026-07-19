@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 
 using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Infrastructure.Health;
 using PublyApp.Api.Infrastructure.Messaging.Email;
 using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib.DI;
@@ -121,8 +122,12 @@ public static class ServiceRegistration {
 		// background execution.
 		builder.Services.AddHttpContextAccessor();
 
-		// Add HealthChecks (infrastructure checks will be added here over time)
-		builder.Services.AddHealthChecks();
+		builder.Services.AddSingleton<IDatabaseMigrationReadiness, DatabaseMigrationReadiness>();
+		builder.Services.AddHealthChecks()
+			.AddCheck<DatabaseMigrationHealthCheck>(
+				"database_migrations",
+				failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy
+			);
 
 		// Register scoped DbContext (for per-request instances)
 		builder.Services.AddDbContext<AppDbContext>((serviceProvider, options) => {

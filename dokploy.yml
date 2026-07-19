@@ -1,10 +1,6 @@
 # Dokploy Configuration for PDF Vite App
 # Set environment variables in Dokploy GUI
 
-x-dokploy-pre-deploy:
-  command: docker compose -f dokploy.yml run --rm --no-deps publyapp-migrate
-  reason: One-shot pre-deploy migration step; non-zero exit aborts the deploy.
-
 services:
   publyapp-api:
     # Immutable release tag, never :latest (design §3.4, F14): a mixed-version fleet must
@@ -140,14 +136,14 @@ services:
       retries: 3
       start_period: 40s
 
-  # Migration is a pre-deploy command, not a long-lived app service.
-  # In Dokploy, run this one-shot (example: x-dokploy-pre-deploy.command above) and abort
-  # the deploy on non-zero exit.
+  # A normal Swarm service, not a Compose profile or dependency. The immutable image tag
+  # changes on every release, so Swarm creates one migration task for each stack deploy.
+  # The task exits after the EF bundle finishes and is never restarted.
   publyapp-migrate:
     image: ghcr.io/radandevist/publyapp/migrate:${RELEASE_TAG}
-    profiles:
-      - pre-deploy
-    restart: "no"
+    deploy:
+      restart_policy:
+        condition: none
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - DOTNET_ENVIRONMENT=Production
@@ -187,6 +183,8 @@ services:
       - SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS=${SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS}
       - JOB_ALERT_LEASE_RETENTION_DAYS=${JOB_ALERT_LEASE_RETENTION_DAYS}
       - JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST=${JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST}
+    networks:
+      - publyapp-network
 
   publyapp-front:
     image: ghcr.io/radandevist/publyapp/front-2:${RELEASE_TAG}
@@ -204,13 +202,10 @@ services:
       - "dokploy.domain=publyapp.com,www.publyapp.com"
       - "dokploy.port=3000"
       - "dokploy.https=true"
-    depends_on:
-      publyapp-api:
-        condition: service_healthy
     healthcheck:
       test:
         - CMD-SHELL
-        - "node -e \"fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""
+        - "node -e \"fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""
       interval: 30s
       timeout: 10s
       retries: 3

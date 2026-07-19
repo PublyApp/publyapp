@@ -13,12 +13,12 @@ using Microsoft.Extensions.Hosting;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Infrastructure.Messaging.Email;
-using PublyApp.Api.Modules.Auth.Jobs;
-using PublyApp.Api.Modules.Jobs.Jobs;
-using PublyApp.Api.Modules.Messaging.Jobs;
-using PublyApp.Api.Modules.Invitations.Jobs;
 using PublyApp.Api.Lib.Diagnostics;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Modules.Auth.Jobs;
+using PublyApp.Api.Modules.Invitations.Jobs;
+using PublyApp.Api.Modules.Jobs.Jobs;
+using PublyApp.Api.Modules.Messaging.Jobs;
 
 using Xunit;
 
@@ -39,6 +39,7 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 	// even though it lives outside Infrastructure.Jobs: it is a BackgroundService that
 	// claims outbox rows, which is what makes it a job hosted service (design §3.2, C5).
 	private static readonly Type[] JobHostedServiceTypes = [
+		typeof(WorkerMigrationStartupGate),
 		typeof(JobQueueProcessor),
 		typeof(SchedulerLeaderService),
 		typeof(JobQueueListener),
@@ -518,6 +519,20 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 	}
 
 	private static void AssertHasJobHostedServices(IServiceCollection services) {
+		var jobHostedServiceOrder = services
+			.Where(descriptor =>
+				descriptor.ServiceType == typeof(IHostedService)
+				&& descriptor.ImplementationType is not null
+				&& JobHostedServiceTypes.Contains(descriptor.ImplementationType))
+			.Select(descriptor => descriptor.ImplementationType)
+			.ToList();
+
+		jobHostedServiceOrder.Should().NotBeEmpty();
+		jobHostedServiceOrder[0].Should().Be(
+			typeof(WorkerMigrationStartupGate),
+			"the migration gate must start before every job-processing hosted service"
+		);
+
 		foreach (var hostedServiceType in JobHostedServiceTypes) {
 			HasHostedService(services, hostedServiceType)
 				.Should().BeTrue($"the worker/all role must register {hostedServiceType.Name}");

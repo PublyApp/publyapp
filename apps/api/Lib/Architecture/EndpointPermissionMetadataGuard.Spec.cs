@@ -11,6 +11,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Filters;
 using PublyApp.Api.Lib.Testing.Fakes;
+using PublyApp.Api.Lib.Testing.Fixtures;
 
 using Xunit;
 
@@ -322,6 +323,10 @@ public sealed class EndpointPermissionMetadataGuardSpec : IDisposable {
 				services.AddSingleton<Infrastructure.Messaging.Email.IEmailSender>(
 					sp => sp.GetRequiredService<FakeEmailSender>()
 				);
+
+				// Route discovery needs no hosted worker loops. In particular, the migration
+				// startup gate must not probe this intentionally unreachable stub database.
+				ApiFactory.RemoveWorkerHostedServices(services);
 			});
 		}
 	}

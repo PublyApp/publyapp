@@ -1,10 +1,10 @@
 using PublyApp.Api.Infrastructure.Jobs.Quartz;
 using PublyApp.Api.Infrastructure.Messaging.Email;
+using PublyApp.Api.Lib;
 using PublyApp.Api.Modules.Auth.Jobs;
+using PublyApp.Api.Modules.Invitations.Jobs;
 using PublyApp.Api.Modules.Jobs.Jobs;
 using PublyApp.Api.Modules.Messaging.Jobs;
-using PublyApp.Api.Modules.Invitations.Jobs;
-using PublyApp.Api.Lib;
 
 namespace PublyApp.Api.Infrastructure.Jobs;
 
@@ -43,6 +43,7 @@ public static class JobsServiceRegistration {
 			PollSeconds = env.JOB_QUEUE_POLL_SECONDS,
 			DrainBudgetSeconds = env.JOB_QUEUE_DRAIN_BUDGET_SECONDS,
 		});
+		builder.Services.AddSingleton(new WorkerMigrationStartupGateOptions());
 
 		// The scheduler leader takes a dedicated, non-pooled connection to the same
 		// database the DbContext uses (design §5.2).
@@ -68,6 +69,10 @@ public static class JobsServiceRegistration {
 		builder.Services.AddTransient<SyncSystemJobsJob>();
 		builder.Services.AddTransient<RecoverStaleJobsJob>();
 		builder.Services.AddTransient<EnqueueSystemJobJob>();
+
+		// Hosted services start sequentially in registration order. Keep the migration gate
+		// first so no processor, listener, scheduler, monitor, or heartbeat starts early.
+		builder.Services.AddHostedService<WorkerMigrationStartupGate>();
 
 		// Every worker runs the generic queue processor; only the leader runs Quartz.
 		builder.Services.AddHostedService<JobQueueProcessor>();
