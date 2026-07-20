@@ -17,10 +17,10 @@ import { loginAsStaffAdmin } from './helpers/login';
  * until the client bundle loads, hydrates, AND the surface-redirect-code
  * query round-trips to the API. That whole gap is a genuinely blank page.
  *
- * The fix wires a pendingComponent that renders the real app-shell chrome
- * (rail + topbar), so it ships as part of the initial HTML byte stream
- * itself — a deterministic, timing-independent guarantee, not a "usually
- * fast enough" one.
+ * The root shell renders the real app-shell chrome above the `ssr: false`
+ * match, while that route's pendingComponent supplies only main content.
+ * Both therefore ship in the initial HTML byte stream — a deterministic,
+ * timing-independent guarantee, not a "usually fast enough" one.
  */
 test.describe('cold-boot stability (BUG-2)', () => {
 	test('the raw SSR HTML response for a reload already contains the app shell chrome', async ({
@@ -43,8 +43,9 @@ test.describe('cold-boot stability (BUG-2)', () => {
 			return response.text();
 		});
 
-		expect(html).toContain('data-testid="app-shell-pending-rail"');
-		expect(html).toContain('data-testid="app-shell-pending-topbar"');
+		expect(html).toContain('data-testid="app-shell-rail"');
+		expect(html).toContain('data-testid="app-shell-topbar"');
+		expect(html).toContain('data-testid="authed-route-content-skeleton"');
 
 		// Sanity check: the raw HTML is not itself already the finished
 		// table — this assertion is about the pending shell, not the data.
