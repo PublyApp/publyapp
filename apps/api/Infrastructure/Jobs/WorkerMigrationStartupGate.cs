@@ -6,6 +6,7 @@ public sealed record WorkerMigrationStartupGateOptions {
 	public TimeSpan Timeout { get; init; } = TimeSpan.FromMinutes(5);
 	public TimeSpan RetryDelay { get; init; } = TimeSpan.FromSeconds(2);
 	public string HeartbeatPath { get; init; } = WorkerHeartbeat.ResolvePath();
+	public bool EmitDevelopmentMigrationCue { get; init; }
 }
 
 /// <summary>
@@ -14,6 +15,8 @@ public sealed record WorkerMigrationStartupGateOptions {
 /// concurrently and ignores Compose dependency ordering.
 /// </summary>
 public sealed class WorkerMigrationStartupGate : IHostedService {
+	private const int DevelopmentMigrationCueAttempt = 3;
+
 	private readonly IDatabaseMigrationReadiness _migrationReadiness;
 	private readonly ILogger<WorkerMigrationStartupGate> _logger;
 	private readonly WorkerMigrationStartupGateOptions _options;
@@ -63,6 +66,18 @@ public sealed class WorkerMigrationStartupGate : IHostedService {
 					_logger.LogInformation(
 						"Waiting for database migrations... attempt {Attempt}",
 						attempt
+					);
+				}
+
+				if (
+					attempt == DevelopmentMigrationCueAttempt
+					&& _options.EmitDevelopmentMigrationCue
+					&& _logger.IsEnabled(LogLevel.Warning)
+				) {
+					_logger.LogWarning(
+						"No migrator detected and migrations are not yet applied. In local dev, "
+							+ "run 'just db-migrate' in another terminal (nothing applies migrations "
+							+ "in-process since #885)."
 					);
 				}
 			} catch (OperationCanceledException) when (waitToken.IsCancellationRequested) {
