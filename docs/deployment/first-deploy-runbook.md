@@ -121,7 +121,7 @@ code defaults when they are blank.
 | `RELEASE_TAG` | the GHCR image tag to deploy (the full commit SHA) |
 | `POSTGRES_CONNECTION_STRING` | `Host=<internal-host>;Port=5432;Database=<db>;Username=<user>;Password=<pass>` — **Host = the Postgres service's Connection tab → "Internal Host"** (it has a Dokploy-generated suffix, e.g. `publyapp-postgres-a1b2c3`; the App Name you typed is NOT the hostname — see step 3). (The app appends `;MaxPoolSize=…` itself.) |
 | `STAFF_OWNER_EMAIL` | the platform owner's login email |
-| `STAFF_OWNER_BOOTSTRAP_CODE` | strong secret — becomes the owner's **initial password** on first boot |
+| `STAFF_OWNER_BOOTSTRAP_CODE` | strong secret — becomes the owner's **initial password** on first boot. **Avoid `#` in the value** (and any other env-file metacharacter): Dokploy stores these in a host `.env`, where `#` starts a comment, so `Str0ng#Pass` is silently truncated to `Str0ng`. Nothing errors — you just can't log in. Prefer long alphanumeric + `-_.` only. See the trap in §8. |
 | `RESEND_API_KEY` | your Resend API key (rotate the committed placeholder) |
 | `APP_NAME` | display/app name (e.g. `PublyApp`) |
 | `FRONT_URL` | public URL of the front (e.g. `https://publyapp.com`) |
@@ -212,6 +212,12 @@ checks". They are now answered; that section is closed out.
    origin never has one, so `https://x.com/` never matches and every browser call is blocked.
 4. **A domain configured only for the front** leaves the api unreachable from the browser;
    login then fails at the network layer with no server-side log at all.
+5. **A `#` inside a secret truncates it silently.** Dokploy writes the Environment tab to a
+   host `.env`, and `#` begins a comment there — so `STAFF_OWNER_BOOTSTRAP_CODE=Str0ng#Pass`
+   is stored as `Str0ng`. The seeder then hashes the *truncated* value, the account is created
+   normally, and the only symptom is "Invalid email or password" on a password you believe is
+   correct. Nothing logs a warning. Applies to every secret, not just this one — keep env
+   values to alphanumerics plus `-_.` and it can't happen.
 
 ## 9. Troubleshooting
 - **App can't reach DB / "Database is unreachable"** → #1 cause: `Host=` uses the App Name you
@@ -232,6 +238,17 @@ checks". They are now answered; that section is closed out.
   cannot reach the API. Either the api has no domain configured (§4.5), or `FRONT_URL` has a
   trailing slash so CORS rejects the origin (see trap 3), or `PUBLIC_API_BASE_URL` is `http://`
   on an HTTPS page (mixed content). Test directly: `curl -i <PUBLIC_API_BASE_URL>/health/live`.
+- **Login says "Invalid email or password" with the credentials you're sure are right** → the
+  app reached the DB and compared a password, so it's one of exactly two things (the handler
+  has distinct messages for suspended/unverified users):
+  1. **Your secret got truncated at a `#`** — see trap 5 in §8. This is the likely one. Check
+     the stored value, not what you typed into the form.
+  2. **The owner was seeded earlier with a different code.** `OwnerBootstrapSeeder` is
+     idempotent **by email**: if a user with `STAFF_OWNER_EMAIL` already exists it returns
+     immediately and **never updates the password**. So changing
+     `STAFF_OWNER_BOOTSTRAP_CODE` after the first successful migration has **no effect** —
+     the original hash stands. To recover, change the password in-app, or delete that user
+     row and let the next migration reseed it.
 - **A 500 with no log line at all** → should no longer happen: production now streams
   Information-and-above to **stdout** (PR #894). Before that fix, errors were written only to
   files inside the container, which the runtime never captures and which die on redeploy. If
