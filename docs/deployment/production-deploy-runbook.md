@@ -36,8 +36,9 @@ Under Swarm, the five-minute `start_period` prevents readiness failures from cou
 task-kill threshold while health-gated routing keeps the API task out of service. A migration that
 fails or exceeds that budget produces a visible failed/rescheduled task. Under plain Compose,
 unhealthy containers are not killed; `/health/ready` remains 503 and can gate any consumer using
-`depends_on: condition: service_healthy`. The installed Dokploy version's actual Swarm-versus-plain-
-Compose behavior remains an open production-instance check, but the configuration is safe in both.
+`depends_on: condition: service_healthy`. **The instance runs plain Compose** — confirmed on the first
+deploy (2026-07-20), see the resolved checks below — so that is the active behaviour today; the
+configuration remains safe under either runtime.
 
 ### Deploy checklist
 
@@ -82,15 +83,30 @@ image on the database network, verify a zero exit and logs, and only then trigge
 Dokploy stack deployment. This works without Dokploy lifecycle hooks but relies on manual
 discipline, so it is an interim/fallback procedure rather than the default.
 
-## Open production-instance checks
+## Production-instance checks — RESOLVED (first deploy, 2026-07-20)
 
-Operations must confirm these on the real VPS before the first deployment:
+These were open before the first real deployment. They are now answered on the live VPS. The
+click-by-click procedure and the traps encountered live in
+[`first-deploy-runbook.md`](first-deploy-runbook.md).
 
-- The installed Dokploy version and the actual Compose/Swarm behavior it exposes.
-- Whether the VPS host Docker daemon already has GHCR pull credentials; otherwise perform
-  an operator-managed `docker login ghcr.io` without storing credentials in this repo.
-- The exact overlay network the migration task must join to resolve and reach PostgreSQL;
-  update the Dokploy network attachment after discovering the instance-specific name.
+- **Compose vs Swarm** — the instance runs the app as **plain `docker compose`, not Swarm**
+  (the deploy log reports `Compose Type: docker-compose`). So `restart:` governs and
+  `deploy.restart_policy` is inert; an unhealthy container is not killed or rescheduled, it
+  simply stays running and unrouted. The one-shot migrate service therefore carries **both**
+  `restart: "no"` and `deploy.restart_policy.condition: none`, so it holds under either
+  runtime. The paragraph above describing this as an open check no longer applies.
+- **GHCR credentials** — configured once in Dokploy Settings → Registry; the host pulls the
+  private images successfully. No credentials are stored in this repo.
+- **The overlay network** — it is `dokploy-network`, joined by every service as
+  `external: true`. A Dokploy-managed PostgreSQL lives on that network, so this is what the
+  migration task must join to resolve and reach the database.
+  **Note:** joining the right network is necessary but not sufficient — the managed database's
+  hostname carries a Dokploy-generated suffix and is **not** the App Name you typed. Take it
+  from the Postgres service's Connection tab → Internal Host, or the migration task fails DNS
+  resolution before it applies anything.
+
+If alternative B is pursued later, also confirm whether `schedule.runManually` blocks or is
+fire-and-forget and provision the least-privileged API key needed for schedule/deploy calls.
 
 If alternative B is pursued later, also confirm whether `schedule.runManually` blocks or is
 fire-and-forget and provision the least-privileged API key needed for schedule/deploy calls.
