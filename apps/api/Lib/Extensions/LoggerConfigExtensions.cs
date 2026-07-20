@@ -67,6 +67,20 @@ public static class LoggerConfigExtensions {
 					.MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogEventLevel.Warning)
 					.MinimumLevel.Override("Microsoft.EntityFrameworkCore.Query", LogEventLevel.Error);
 			}
+		} else {
+			// Production. ASP.NET emits a "Request starting"/"Request finished" pair at
+			// Information for EVERY request. The console sink below now carries
+			// Information-and-above, and Serilog's console sink writes SYNCHRONOUSLY to
+			// Console.Out (a lock-synchronized writer), so leaving Microsoft.AspNetCore at
+			// Information would put per-request I/O and lock contention on request threads —
+			// stdout volume would scale with traffic. Warnings and errors from ASP.NET still
+			// reach stdout; only the routine per-request pair is suppressed, which keeps the
+			// deployed log signal-dense and the synchronous writes cheap.
+			//
+			// If per-request visibility is wanted later, add it deliberately as ONE summary
+			// line per request (UseSerilogRequestLogging) rather than re-admitting this pair,
+			// and revisit wrapping the console in .Async(...) at that point.
+			loggerConfig.MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning);
 		}
 
 		loggerConfig.WriteTo.Sanitized(writeTo => {
@@ -136,17 +150,28 @@ public static class LoggerConfigExtensions {
 					);
 				}
 			}
-			// Production: Show only startup info in console
+			// Production: stream Information-and-above to stdout so the container runtime
+			// captures it (see the rationale inside).
 			else {
-				writeTo.Logger(l => l
-					.Filter.ByIncludingOnly(e =>
-						e.Level == LogEventLevel.Information &&
-						e.Properties.ContainsKey("SourceContext") &&
-						e.Properties["SourceContext"].ToString().Contains("Microsoft.Hosting"))
-					.WriteTo.Console(
-						theme: AnsiConsoleTheme.Literate,
-						formatProvider: CultureInfo.InvariantCulture,
-						applyThemeToRedirectedOutput: true));
+				// Everything Information-and-above goes to STDOUT, because that is the only
+				// log surface a container runtime captures: `docker logs` and the hosting
+				// platform's log panel read stdout/stderr, never files inside the container.
+				// The previous filter admitted ONLY Information events from Microsoft.Hosting,
+				// so a production process emitted its four startup lines and then went silent
+				// forever — warnings and unhandled-exception errors (CustomExceptionHandler's
+				// LogError) reached the file sinks above and nothing else, leaving a live
+				// 500 undiagnosable from outside the container. Those files also sit on the
+				// container's ephemeral layer, so they are destroyed on every redeploy.
+				//
+				// Debug/Verbose stay out deliberately: the global minimum is already
+				// Information outside Development, and restricting the sink keeps production
+				// stdout free of debug noise even if that minimum is ever loosened.
+				writeTo.Console(
+					theme: AnsiConsoleTheme.Literate,
+					formatProvider: CultureInfo.InvariantCulture,
+					restrictedToMinimumLevel: LogEventLevel.Information,
+					applyThemeToRedirectedOutput: true
+				);
 			}
 		});
 	}
