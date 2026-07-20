@@ -44,6 +44,9 @@ update-deps:
 dev-api:
   cd {{api_dir}} && dotnet watch run --no-restore -property:OpenApiGenerateDocuments=false
 
+# Apply pending migrations, then start the API development server
+dev-api-migrated: db-migrate dev-api
+
 # Start API using Node.js watcher (alternative)
 dev-api-alt:
   node {{api_dir}}/run-dev.mjs

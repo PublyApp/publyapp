@@ -26,6 +26,9 @@ just dev-front
 just dev-db
 ```
 
+Since #885, the API waits for pending migrations but does not apply them. Run
+`just db-migrate` first, or use `just dev-api-migrated` to migrate and start the API.
+
 **Windows note:** the repo `justfile` uses PowerShell 7 (`pwsh`) on Windows (not Windows PowerShell 5.1).
 
 ### Configuration (AppEnvironment)
