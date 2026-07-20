@@ -11,6 +11,7 @@ using PublyApp.Api.Lib.Extensions;
 
 using Serilog;
 using Serilog.Core;
+using Serilog.Events;
 
 using Xunit;
 
@@ -108,7 +109,68 @@ public sealed class LoggerSinkGraphSpec {
 		);
 	}
 
+	// Production stdout reachability (the regression that motivated this guard).
+	//
+	// Production console output was previously filtered to ONLY Information events whose
+	// SourceContext contained "Microsoft.Hosting". A deployed process therefore emitted its
+	// four startup lines and then went permanently silent: warnings and the
+	// CustomExceptionHandler's LogError for an unhandled exception reached the FILE sinks
+	// and nothing else. Container runtimes capture stdout/stderr only — never files inside
+	// the container — so a live 500 was undiagnosable from `docker logs`, and those files
+	// were destroyed on the next redeploy. This asserts behaviour (does the event actually
+	// land on stdout), not shape, because the defect was a filter, not a missing sink.
+	[Theory]
+	[InlineData(LogEventLevel.Error)]
+	[InlineData(LogEventLevel.Warning)]
+	[InlineData(LogEventLevel.Information)]
+	public void ItShouldWriteToStdoutForEachNonDebugLevelInProduction(LogEventLevel level) {
+		var captured = CaptureProductionStdout(logger =>
+			logger.Write(level, "publyapp-stdout-probe")
+		);
+
+		captured.Should().Contain(
+			"publyapp-stdout-probe",
+			$"a {level} event must reach stdout under Production — a container runtime "
+			+ "captures stdout only, so anything filtered out of the console is invisible to "
+			+ "`docker logs` and dies with the container"
+		);
+	}
+
+	// The other half of the owner-ratified rule: stdout carries Information and above, and
+	// deliberately NOT Debug/Verbose, so production stdout never fills with debug noise.
+	[Fact]
+	public void ItShouldNotWriteDebugToStdoutInProduction() {
+		var captured = CaptureProductionStdout(logger =>
+			logger.Write(LogEventLevel.Debug, "publyapp-debug-probe")
+		);
+
+		captured.Should().NotContain(
+			"publyapp-debug-probe",
+			"Production stdout is restricted to Information and above; Debug/Verbose must "
+			+ "stay out so deployed logs are signal, not noise"
+		);
+	}
+
 	// --- helpers ------------------------------------------------------------------
+
+	// Redirects Console.Out BEFORE the logger is built, because Serilog's console sink
+	// resolves its output writer at construction time.
+	private static string CaptureProductionStdout(Action<Logger> emit) {
+		var originalOut = Console.Out;
+		using var captured = new StringWriter();
+		Console.SetOut(captured);
+
+		try {
+			// Disposing inside the redirect flushes the async sinks before Console.Out is
+			// restored, so nothing races the assertion.
+			using var logger = BuildLogger(EnvironmentNames.Production);
+			emit(logger);
+		} finally {
+			Console.SetOut(originalOut);
+		}
+
+		return captured.ToString();
+	}
 
 	private static Logger BuildLogger(string environmentName) {
 		var loggerConfig = new LoggerConfiguration();
