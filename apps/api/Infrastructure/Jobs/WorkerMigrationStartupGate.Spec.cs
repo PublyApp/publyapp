@@ -4,7 +4,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 using PublyApp.Api.Infrastructure.Health;
-using PublyApp.Api.Lib;
 
 using Xunit;
 
@@ -98,88 +97,67 @@ public sealed class WorkerMigrationStartupGateSpec {
 
 	[Fact]
 	public async Task ItShouldEmitActionableMigrationCueAfterThresholdInDevelopment() {
-		await RunInEnvironmentAsync(EnvironmentNames.Development, async () => {
-			var heartbeatPath = Path.Combine(
-				Path.GetTempPath(),
-				$"publyapp-worker-gate-{Guid.NewGuid():N}"
-			);
-			var readiness = new SequencedMigrationReadiness([false, false, false, true]);
-			var logger = new CapturingLogger<WorkerMigrationStartupGate>();
-			var gate = new WorkerMigrationStartupGate(
-				readiness,
-				logger,
-				new WorkerMigrationStartupGateOptions {
-					Timeout = TimeSpan.FromSeconds(1),
-					RetryDelay = TimeSpan.FromMilliseconds(1),
-					HeartbeatPath = heartbeatPath,
-				}
-			);
-
-			try {
-				await gate.StartAsync(CancellationToken.None);
-
-				logger.Entries
-					.Where(entry => entry.Level == LogLevel.Warning)
-					.Should()
-					.ContainSingle(entry => entry.Message.Contains("just db-migrate"));
-			} finally {
-				File.Delete(heartbeatPath);
+		var heartbeatPath = Path.Combine(
+			Path.GetTempPath(),
+			$"publyapp-worker-gate-{Guid.NewGuid():N}"
+		);
+		var readiness = new SequencedMigrationReadiness([false, false, false, true]);
+		var logger = new CapturingLogger<WorkerMigrationStartupGate>();
+		var gate = new WorkerMigrationStartupGate(
+			readiness,
+			logger,
+			new WorkerMigrationStartupGateOptions {
+				Timeout = TimeSpan.FromSeconds(1),
+				RetryDelay = TimeSpan.FromMilliseconds(1),
+				HeartbeatPath = heartbeatPath,
+				EmitDevelopmentMigrationCue = true,
 			}
-		});
+		);
+
+		try {
+			await gate.StartAsync(CancellationToken.None);
+
+			logger.Entries
+				.Where(entry => entry.Level == LogLevel.Warning)
+				.Should()
+				.ContainSingle(entry => entry.Message.Contains("just db-migrate"));
+		} finally {
+			File.Delete(heartbeatPath);
+		}
 	}
 
 	[Fact]
-	public async Task ItShouldNotEmitActionableMigrationCueInProduction() {
-		await RunInEnvironmentAsync(EnvironmentNames.Production, async () => {
-			var heartbeatPath = Path.Combine(
-				Path.GetTempPath(),
-				$"publyapp-worker-gate-{Guid.NewGuid():N}"
-			);
-			var readiness = new SequencedMigrationReadiness([false, false, false, true]);
-			var logger = new CapturingLogger<WorkerMigrationStartupGate>();
-			var gate = new WorkerMigrationStartupGate(
-				readiness,
-				logger,
-				new WorkerMigrationStartupGateOptions {
-					Timeout = TimeSpan.FromSeconds(1),
-					RetryDelay = TimeSpan.FromMilliseconds(1),
-					HeartbeatPath = heartbeatPath,
-				}
-			);
-
-			try {
-				await gate.StartAsync(CancellationToken.None);
-
-				logger.Entries.Should().NotContain(entry => entry.Level == LogLevel.Warning);
-				logger.Entries
-					.Count(entry => entry.Message.StartsWith(
-						"Waiting for database migrations",
-						StringComparison.Ordinal
-					))
-					.Should()
-					.Be(3);
-			} finally {
-				File.Delete(heartbeatPath);
-			}
-		});
-	}
-
-	private static async Task RunInEnvironmentAsync(
-		string environmentName,
-		Func<Task> action
-	) {
-		var previousEnvironment = Environment.GetEnvironmentVariable(
-			"ASPNETCORE_ENVIRONMENT"
+	public async Task ItShouldNotEmitActionableMigrationCueOnPlainPath() {
+		var heartbeatPath = Path.Combine(
+			Path.GetTempPath(),
+			$"publyapp-worker-gate-{Guid.NewGuid():N}"
 		);
-		Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", environmentName);
+		var readiness = new SequencedMigrationReadiness([false, false, false, true]);
+		var logger = new CapturingLogger<WorkerMigrationStartupGate>();
+		var gate = new WorkerMigrationStartupGate(
+			readiness,
+			logger,
+			new WorkerMigrationStartupGateOptions {
+				Timeout = TimeSpan.FromSeconds(1),
+				RetryDelay = TimeSpan.FromMilliseconds(1),
+				HeartbeatPath = heartbeatPath,
+				EmitDevelopmentMigrationCue = false,
+			}
+		);
 
 		try {
-			await action();
+			await gate.StartAsync(CancellationToken.None);
+
+			logger.Entries.Should().NotContain(entry => entry.Level == LogLevel.Warning);
+			logger.Entries
+				.Count(entry => entry.Message.StartsWith(
+					"Waiting for database migrations",
+					StringComparison.Ordinal
+				))
+				.Should()
+				.Be(3);
 		} finally {
-			Environment.SetEnvironmentVariable(
-				"ASPNETCORE_ENVIRONMENT",
-				previousEnvironment
-			);
+			File.Delete(heartbeatPath);
 		}
 	}
 

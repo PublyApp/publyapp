@@ -43,7 +43,9 @@ public static class JobsServiceRegistration {
 			PollSeconds = env.JOB_QUEUE_POLL_SECONDS,
 			DrainBudgetSeconds = env.JOB_QUEUE_DRAIN_BUDGET_SECONDS,
 		});
-		builder.Services.AddSingleton(new WorkerMigrationStartupGateOptions());
+		builder.Services.AddSingleton(new WorkerMigrationStartupGateOptions {
+			EmitDevelopmentMigrationCue = AppEnvironment.IsDevelopment,
+		});
 
 		// The scheduler leader takes a dedicated, non-pooled connection to the same
 		// database the DbContext uses (design §5.2).

@@ -1,5 +1,4 @@
 using PublyApp.Api.Infrastructure.Health;
-using PublyApp.Api.Lib;
 
 namespace PublyApp.Api.Infrastructure.Jobs;
 
@@ -7,6 +6,7 @@ public sealed record WorkerMigrationStartupGateOptions {
 	public TimeSpan Timeout { get; init; } = TimeSpan.FromMinutes(5);
 	public TimeSpan RetryDelay { get; init; } = TimeSpan.FromSeconds(2);
 	public string HeartbeatPath { get; init; } = WorkerHeartbeat.ResolvePath();
+	public bool EmitDevelopmentMigrationCue { get; init; }
 }
 
 /// <summary>
@@ -71,7 +71,7 @@ public sealed class WorkerMigrationStartupGate : IHostedService {
 
 				if (
 					attempt == DevelopmentMigrationCueAttempt
-					&& AppEnvironment.IsDevelopment
+					&& _options.EmitDevelopmentMigrationCue
 					&& _logger.IsEnabled(LogLevel.Warning)
 				) {
 					_logger.LogWarning(
