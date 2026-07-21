@@ -444,13 +444,20 @@ const localLoaders = import.meta.glob<JsonModule>(
 	'../i18n/locales/*/*.json',
 );
 
+// Relative paths into shared-ts's JSON, NOT `@org/shared-ts/...json` (which resolves to a
+// nonexistent `.json.ts` under shared-ts's `./* → ./*.ts` export map) and NOT the locale barrel
+// (`@org/shared-ts/lib/i18n/locales/{en,fr}`, which would pull shared `common` into every namespace
+// chunk). A relative dynamic `import()` of the exact file resolves correctly and code-splits each
+// namespace on its own — verified resolving + typechecking from `apps/front-2/src/lib/`.
 const sharedLoaders: Record<string, ResourceLoader> = {
-	'en/zod': () => import('@org/shared-ts/lib/i18n/json/zod.en.json'),
-	'fr/zod': () => import('@org/shared-ts/lib/i18n/json/zod.fr.json'),
+	'en/zod': () =>
+		import('../../../../packages/shared-ts/lib/i18n/json/zod.en.json'),
+	'fr/zod': () =>
+		import('../../../../packages/shared-ts/lib/i18n/json/zod.fr.json'),
 	'en/response-message': () =>
-		import('@org/shared-ts/lib/i18n/json/response-message.en.json'),
+		import('../../../../packages/shared-ts/lib/i18n/json/response-message.en.json'),
 	'fr/response-message': () =>
-		import('@org/shared-ts/lib/i18n/json/response-message.fr.json'),
+		import('../../../../packages/shared-ts/lib/i18n/json/response-message.fr.json'),
 };
 
 const localLoaderByKey = new Map<string, ResourceLoader>();
@@ -972,13 +979,13 @@ const makeI18n = () =>
 	});
 ```
 
-In `apps/front-2/src/components/field/field.test.tsx`, remove `buildI18nResources`, import the two shared Zod JSON files, and replace the async helper with an explicit one-namespace snapshot:
+In `apps/front-2/src/components/field/field.test.tsx`, remove `buildI18nResources`, take the shared `zod` namespace from the shared **locale barrel** (a test, so pulling `common` transitively is irrelevant; raw `@org/shared-ts/...json` paths do not resolve — see Task 2/Task 3), and replace the async helper with an explicit one-namespace snapshot:
 
 ```ts
-import zodEn from '@org/shared-ts/lib/i18n/json/zod.en.json';
-import zodFr from '@org/shared-ts/lib/i18n/json/zod.fr.json';
+import sharedEn from '@org/shared-ts/lib/i18n/locales/en';
+import sharedFr from '@org/shared-ts/lib/i18n/locales/fr';
 
-const zodResources = { en: zodEn, fr: zodFr } as const;
+const zodResources = { en: sharedEn.zod, fr: sharedFr.zod } as const;
 
 const configureInterZodLocale = (locale: 'en' | 'fr') => {
 	const i18n = createI18nFromResources(locale, ['zod'], {
