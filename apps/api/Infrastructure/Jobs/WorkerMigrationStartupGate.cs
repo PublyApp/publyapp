@@ -6,7 +6,7 @@ public sealed record WorkerMigrationStartupGateOptions {
 	public TimeSpan Timeout { get; init; } = TimeSpan.FromMinutes(5);
 	public TimeSpan RetryDelay { get; init; } = TimeSpan.FromSeconds(2);
 	public string HeartbeatPath { get; init; } = WorkerHeartbeat.ResolvePath();
-	public bool EmitDevelopmentMigrationCue { get; init; }
+	public bool FailFastWhenMigrationsPending { get; init; }
 }
 
 /// <summary>
@@ -15,8 +15,6 @@ public sealed record WorkerMigrationStartupGateOptions {
 /// concurrently and ignores Compose dependency ordering.
 /// </summary>
 public sealed class WorkerMigrationStartupGate : IHostedService {
-	private const int DevelopmentMigrationCueAttempt = 3;
-
 	private readonly IDatabaseMigrationReadiness _migrationReadiness;
 	private readonly ILogger<WorkerMigrationStartupGate> _logger;
 	private readonly WorkerMigrationStartupGateOptions _options;
@@ -49,6 +47,7 @@ public sealed class WorkerMigrationStartupGate : IHostedService {
 
 		while (!waitToken.IsCancellationRequested) {
 			attempt++;
+			var shouldFailFast = false;
 			try {
 				await WorkerHeartbeat.TouchAsync(
 					_options.HeartbeatPath,
@@ -62,22 +61,12 @@ public sealed class WorkerMigrationStartupGate : IHostedService {
 					return;
 				}
 
-				if (_logger.IsEnabled(LogLevel.Information)) {
+				if (_options.FailFastWhenMigrationsPending) {
+					shouldFailFast = true;
+				} else if (_logger.IsEnabled(LogLevel.Information)) {
 					_logger.LogInformation(
 						"Waiting for database migrations... attempt {Attempt}",
 						attempt
-					);
-				}
-
-				if (
-					attempt == DevelopmentMigrationCueAttempt
-					&& _options.EmitDevelopmentMigrationCue
-					&& _logger.IsEnabled(LogLevel.Warning)
-				) {
-					_logger.LogWarning(
-						"No migrator detected and migrations are not yet applied. In local dev, "
-							+ "run 'just db-migrate' in another terminal (nothing applies migrations "
-							+ "in-process since #885)."
 					);
 				}
 			} catch (OperationCanceledException) when (waitToken.IsCancellationRequested) {
@@ -88,6 +77,13 @@ public sealed class WorkerMigrationStartupGate : IHostedService {
 					"Waiting for database migrations... liveness or database probe attempt "
 						+ "{Attempt} failed",
 					attempt
+				);
+			}
+
+			if (shouldFailFast) {
+				throw new InvalidOperationException(
+					"Pending database migrations and nothing applies them in-process (since #885). "
+						+ "Run 'just db-migrate' (or start with 'just dev-api-migrated'), then restart."
 				);
 			}
 

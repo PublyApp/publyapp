@@ -69,7 +69,42 @@ public sealed class WorkerMigrationStartupGateSpec {
 	}
 
 	[Fact]
-	public async Task ItShouldFailWorkerStartupAfterTheMigrationWaitTimeout() {
+	public async Task ItShouldKeepWaitingForPendingMigrationsUntilTimeoutInProduction() {
+		var heartbeatPath = Path.Combine(
+			Path.GetTempPath(),
+			$"publyapp-worker-gate-{Guid.NewGuid():N}"
+		);
+		var readiness = new SequencedMigrationReadiness([false]);
+		var logger = new CapturingLogger<WorkerMigrationStartupGate>();
+		var gate = new WorkerMigrationStartupGate(
+			readiness,
+			logger,
+			new WorkerMigrationStartupGateOptions {
+				Timeout = TimeSpan.FromMilliseconds(30),
+				RetryDelay = TimeSpan.FromMilliseconds(5),
+				HeartbeatPath = heartbeatPath,
+				FailFastWhenMigrationsPending = false,
+			}
+		);
+
+		var act = async () => await gate.StartAsync(CancellationToken.None);
+
+		try {
+			var exception = await act.Should().ThrowAsync<TimeoutException>();
+			exception.WithMessage("Database migrations were not ready within*");
+			readiness.CallCount.Should().BeGreaterThan(1);
+			logger.Entries.Should().Contain(entry => entry.Message.StartsWith(
+				"Waiting for database migrations... attempt",
+				StringComparison.Ordinal
+			));
+			logger.Entries.Should().NotContain(entry => entry.Message.Contains("just db-migrate"));
+		} finally {
+			File.Delete(heartbeatPath);
+		}
+	}
+
+	[Fact]
+	public async Task ItShouldFailFastWhenMigrationsArePendingInDevelopment() {
 		var heartbeatPath = Path.Combine(
 			Path.GetTempPath(),
 			$"publyapp-worker-gate-{Guid.NewGuid():N}"
@@ -79,29 +114,30 @@ public sealed class WorkerMigrationStartupGateSpec {
 			readiness,
 			NullLogger<WorkerMigrationStartupGate>.Instance,
 			new WorkerMigrationStartupGateOptions {
-				Timeout = TimeSpan.FromMilliseconds(30),
-				RetryDelay = TimeSpan.FromMilliseconds(5),
+				Timeout = TimeSpan.FromSeconds(1),
+				RetryDelay = TimeSpan.FromMilliseconds(100),
 				HeartbeatPath = heartbeatPath,
+				FailFastWhenMigrationsPending = true,
 			}
 		);
-
 		var act = async () => await gate.StartAsync(CancellationToken.None);
 
 		try {
-			await act.Should().ThrowAsync<TimeoutException>();
-			readiness.CallCount.Should().BeGreaterThan(1);
+			var exception = await act.Should().ThrowAsync<InvalidOperationException>();
+			exception.WithMessage("*just db-migrate*");
+			readiness.CallCount.Should().Be(1);
 		} finally {
 			File.Delete(heartbeatPath);
 		}
 	}
 
 	[Fact]
-	public async Task ItShouldEmitActionableMigrationCueAfterThresholdInDevelopment() {
+	public async Task ItShouldRetryUnreachableDatabaseWarmupInDevelopment() {
 		var heartbeatPath = Path.Combine(
 			Path.GetTempPath(),
 			$"publyapp-worker-gate-{Guid.NewGuid():N}"
 		);
-		var readiness = new SequencedMigrationReadiness([false, false, false, true]);
+		var readiness = new ThrowingThenReadyMigrationReadiness(failureCount: 2);
 		var logger = new CapturingLogger<WorkerMigrationStartupGate>();
 		var gate = new WorkerMigrationStartupGate(
 			readiness,
@@ -110,52 +146,15 @@ public sealed class WorkerMigrationStartupGateSpec {
 				Timeout = TimeSpan.FromSeconds(1),
 				RetryDelay = TimeSpan.FromMilliseconds(1),
 				HeartbeatPath = heartbeatPath,
-				EmitDevelopmentMigrationCue = true,
+				FailFastWhenMigrationsPending = true,
 			}
 		);
 
 		try {
 			await gate.StartAsync(CancellationToken.None);
 
-			logger.Entries
-				.Where(entry => entry.Level == LogLevel.Warning)
-				.Should()
-				.ContainSingle(entry => entry.Message.Contains("just db-migrate"));
-		} finally {
-			File.Delete(heartbeatPath);
-		}
-	}
-
-	[Fact]
-	public async Task ItShouldNotEmitActionableMigrationCueOnPlainPath() {
-		var heartbeatPath = Path.Combine(
-			Path.GetTempPath(),
-			$"publyapp-worker-gate-{Guid.NewGuid():N}"
-		);
-		var readiness = new SequencedMigrationReadiness([false, false, false, true]);
-		var logger = new CapturingLogger<WorkerMigrationStartupGate>();
-		var gate = new WorkerMigrationStartupGate(
-			readiness,
-			logger,
-			new WorkerMigrationStartupGateOptions {
-				Timeout = TimeSpan.FromSeconds(1),
-				RetryDelay = TimeSpan.FromMilliseconds(1),
-				HeartbeatPath = heartbeatPath,
-				EmitDevelopmentMigrationCue = false,
-			}
-		);
-
-		try {
-			await gate.StartAsync(CancellationToken.None);
-
-			logger.Entries.Should().NotContain(entry => entry.Level == LogLevel.Warning);
-			logger.Entries
-				.Count(entry => entry.Message.StartsWith(
-					"Waiting for database migrations",
-					StringComparison.Ordinal
-				))
-				.Should()
-				.Be(3);
+			readiness.CallCount.Should().Be(3);
+			logger.Entries.Count(entry => entry.Level == LogLevel.Warning).Should().Be(2);
 		} finally {
 			File.Delete(heartbeatPath);
 		}
@@ -181,6 +180,27 @@ public sealed class WorkerMigrationStartupGateSpec {
 			}
 
 			return Task.FromResult(_lastResult);
+		}
+	}
+
+	private sealed class ThrowingThenReadyMigrationReadiness : IDatabaseMigrationReadiness {
+		private readonly int _failureCount;
+
+		public int CallCount { get; private set; }
+
+		public ThrowingThenReadyMigrationReadiness(int failureCount) {
+			_failureCount = failureCount;
+		}
+
+		public Task<bool> IsReadyAsync(CancellationToken cancellationToken) {
+			cancellationToken.ThrowIfCancellationRequested();
+			CallCount++;
+
+			if (CallCount <= _failureCount) {
+				throw new InvalidOperationException("Database is still starting.");
+			}
+
+			return Task.FromResult(true);
 		}
 	}
 

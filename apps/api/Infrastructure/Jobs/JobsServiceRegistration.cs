@@ -44,7 +44,7 @@ public static class JobsServiceRegistration {
 			DrainBudgetSeconds = env.JOB_QUEUE_DRAIN_BUDGET_SECONDS,
 		});
 		builder.Services.AddSingleton(new WorkerMigrationStartupGateOptions {
-			EmitDevelopmentMigrationCue = AppEnvironment.IsDevelopment,
+			FailFastWhenMigrationsPending = AppEnvironment.IsDevelopment,
 		});
 
 		// The scheduler leader takes a dedicated, non-pooled connection to the same
