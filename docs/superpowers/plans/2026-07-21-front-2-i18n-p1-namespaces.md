@@ -19,8 +19,8 @@
 > namespace-loading design + compile-time **completeness** safety (`fr.ts satisfies LooseResource`,
 > which verifiably fails on a missing French key) and the namespace-aware key-coverage test, but does
 > **not** add the `CustomTypeOptions` augmentation. Call-site key **typo-catching** is deferred to
-> follow-ups: primary — adopt i18next's large-resource selector mode (i18next 25.4+); later — evaluate
-> TypeScript 7 for front-2's typecheck (it does not crash). Consequently there is **no
+> follow-ups: primary — adopt i18next's large-resource selector mode (i18next 25.4+) — #907; later —
+> evaluate TypeScript 7 for front-2's typecheck (it does not crash) — #908. Consequently there is **no
 > `apps/front-2/src/types/i18next.d.ts`** and **no `tsconfig.json` include change** in P1; any later
 > task that once relied on a compile-time key error as a red/green signal relies on the key-coverage
 > test instead.

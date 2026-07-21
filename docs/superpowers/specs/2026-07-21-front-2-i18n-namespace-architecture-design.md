@@ -132,8 +132,8 @@ is refined per migration phase; add a namespace only when its screen exists.)
    investigation; expression-level annotations only relocate the crash). front-2 has no active
    call-site key augmentation today (the shared-ts one is inert across the package/version boundary),
    so this is not a regression. Call-site typo-catching is a **step-by-step follow-up**: primary —
-   adopt i18next's large-resource selector mode (i18next 25.4+, purpose-built for this); later —
-   evaluate TypeScript 7 for front-2's typecheck (it does not crash). This is decoupled from the
+   adopt i18next's large-resource selector mode (i18next 25.4+, purpose-built for this) — #907; later —
+   evaluate TypeScript 7 for front-2's typecheck (it does not crash) — #908. This is decoupled from the
    runtime loading design, which ships in full.
 
 ## 8. Framework spike — MUST lock before P1 build (de-risking)
