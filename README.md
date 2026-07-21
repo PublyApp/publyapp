@@ -283,6 +283,8 @@ authoritative reference — the highlights:
 | `just check-write`       | Run oxlint + oxfmt with auto-fix                       |
 | `just test-api`          | Run API integration tests (requires Docker)           |
 | `just test-analyzers`    | Run the Roslyn analyzer tests                         |
+| `just ci`                | Full local pre-push gate — mirrors CI + API suite (Docker required) |
+| `just deploy-images`     | Build + push GHCR deploy images from a clean checkout of a ref |
 
 <!-- markdownlint-enable MD013 MD060 -->
 
@@ -298,7 +300,15 @@ just test-analyzers    # Roslyn analyzer unit tests
 just check-write       # oxlint + oxfmt (auto-fix)
 just tsc-front         # frontend type checking
 just knip              # find unused dependencies
+
+just ci                # Full pre-push gate: mirrors CI + runs the full API suite (Docker required)
+just ci-full           # just ci plus both end-to-end browser suites
 ```
+
+**`just ci` is the everyday pre-push gate** — run it before pushing. It actually covers *more* than
+the GitHub workflow did: the online CI never ran the API suite, so the local gate is the stronger
+backend signal. Full details, exemptions, and known gaps:
+[`docs/guides/local-ci-gate.md`](docs/guides/local-ci-gate.md).
 
 Run a single API test class or method with a filter:
 
@@ -356,7 +366,14 @@ A few non-negotiables worth surfacing here:
 
 PublyApp deploys to **Dokploy on a Hostinger VPS**: GitHub → GHCR Docker images → Dokploy → Traefik
 (SSL termination). Deployment configuration lives in `dokploy.yml`; build artifacts are produced with
-`just build-deploy`. See [`docs/misc/deployment-guide.md`](docs/misc/deployment-guide.md) for details.
+`just build-deploy`.
+
+**Publishing images:** deploy images normally build in CI. When that workflow is unavailable, publish
+them locally with **`just deploy-images [ref]`** (defaults to `origin/develop`) — it builds all three
+images (api, migrate, front-2) from a clean checkout at that commit and prints the `RELEASE_TAG` to
+set in Dokploy → Environment before redeploying. Run `docker login ghcr.io` first. See the
+[first-deploy runbook](docs/deployment/first-deploy-runbook.md) and
+[`docs/misc/deployment-guide.md`](docs/misc/deployment-guide.md) for details.
 
 <!-- markdownlint-enable MD013 MD060 -->
 
