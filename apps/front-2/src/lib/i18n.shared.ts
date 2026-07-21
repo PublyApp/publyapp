@@ -4,6 +4,8 @@ import { initReactI18next } from 'react-i18next';
 import enResource from '@org/shared-ts/lib/i18n/locales/en';
 import frResource from '@org/shared-ts/lib/i18n/locales/fr';
 
+import type { SupportedNamespace } from './i18n.namespaces';
+
 export const SUPPORTED_LANGUAGES = ['en', 'fr'] as const;
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
 export const FALLBACK_LANGUAGE: SupportedLanguage = 'en';
@@ -25,10 +27,23 @@ export const dirForLocale = (lng: string): 'ltr' | 'rtl' =>
 
 export type JsonValue = string | { [key: string]: JsonValue };
 
-type LocaleResourceBundle = Record<string, JsonValue>;
+export type NamespaceResource = Record<string, JsonValue>;
+type LocaleResourceBundle = NamespaceResource;
 type LocaleLanguageBundle = Record<string, LocaleResourceBundle>;
+type NamespaceLanguageBundle = Partial<
+	Record<SupportedNamespace, NamespaceResource>
+>;
 
-export type I18nResources = Record<string, LocaleLanguageBundle>;
+export type I18nResources = Partial<
+	Record<SupportedLanguage, NamespaceLanguageBundle>
+> & {
+	[language: string]: NamespaceLanguageBundle;
+};
+export type I18nLoadResult = {
+	namespaces: SupportedNamespace[];
+	resources: I18nResources;
+	namespaceLoadError: string | null;
+};
 
 const LOCALE_RESOURCES: Record<SupportedLanguage, LocaleLanguageBundle> = {
 	en: enResource as LocaleLanguageBundle,
