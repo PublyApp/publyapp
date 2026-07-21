@@ -20,11 +20,15 @@ import { AppToaster } from '~/components/ui/toaster';
 import { AuthBrandProvider } from '~/lib/auth-brand-context';
 import { isAuthPath, isPathForSurface } from '~/lib/auth-paths';
 import { useLogout } from '~/lib/hooks/use-logout';
+import { createBackendI18n, loadI18nContext } from '~/lib/i18n.backend';
+import {
+	collectI18nNamespaces,
+	type I18nRouteMatch,
+	type SupportedNamespace,
+} from '~/lib/i18n.namespaces';
 import {
 	createI18nFromResources,
-	buildI18nResources,
 	dirForLocale,
-	FALLBACK_I18N_RESOURCES,
 	FALLBACK_LANGUAGE,
 	type I18nResources,
 	isSupportedLanguage,
@@ -51,13 +55,16 @@ import appCss from '../styles/app.css?url';
 
 type RootRouteContext = {
 	locale: SupportedLanguage;
+	namespaces: SupportedNamespace[];
 	resources: I18nResources;
+	namespaceLoadError: string | null;
 };
 
-const clientRootContextByLocale = new Map<
+const clientLoadingInstanceByLocale = new Map<
 	SupportedLanguage,
-	RootRouteContext
+	Promise<I18nInstance>
 >();
+const clientRootContextByKey = new Map<string, Promise<RootRouteContext>>();
 
 type RouteSurface = 'auth' | 'marketing';
 
@@ -66,41 +73,56 @@ type RouteSurface = 'auth' | 'marketing';
  * match context survives a subsequent `loader` throw (TanStack Router keeps
  * `__beforeLoadContext` on the match regardless of load status), so the
  * `shellComponent` below — which wraps the success/error/not-found branches
- * alike — can always read a real, locale-aware i18n instance. Falling back to
- * `FALLBACK_LANGUAGE`/`FALLBACK_I18N_RESOURCES` here only covers the (now
- * vanishingly rare) case where `beforeLoad` itself throws.
+ * alike — can always read a real, locale-aware i18n instance.
  */
-const resolveRootContext = async (): Promise<RootRouteContext> => {
-	try {
-		if (typeof document !== 'undefined') {
-			const localeFromCookie = parseCookie(document.cookie)[LOCALE_COOKIE_KEY];
-			const documentLanguage = document.documentElement.lang;
-			let locale = FALLBACK_LANGUAGE;
-
-			if (isSupportedLanguage(localeFromCookie)) {
-				locale = localeFromCookie;
-			} else if (isSupportedLanguage(documentLanguage)) {
-				locale = documentLanguage;
-			}
-
-			const cachedContext = clientRootContextByLocale.get(locale);
-
-			if (cachedContext) {
-				return cachedContext;
-			}
-
-			const context = {
-				locale,
-				resources: await buildI18nResources(locale),
-			};
-			clientRootContextByLocale.set(locale, context);
-			return context;
-		}
-
-		return await loadI18nForRequest();
-	} catch {
-		return { locale: FALLBACK_LANGUAGE, resources: FALLBACK_I18N_RESOURCES };
+const getClientLoadingInstance = (locale: SupportedLanguage) => {
+	const cached = clientLoadingInstanceByLocale.get(locale);
+	if (cached) {
+		return cached;
 	}
+	const pending = createBackendI18n(locale);
+	clientLoadingInstanceByLocale.set(locale, pending);
+	return pending;
+};
+
+const loadClientRootContext = (
+	locale: SupportedLanguage,
+	namespaces: readonly SupportedNamespace[],
+): Promise<RootRouteContext> => {
+	const key = `${locale}:${namespaces.join('|')}`;
+	const cached = clientRootContextByKey.get(key);
+	if (cached) {
+		return cached;
+	}
+	const pending = getClientLoadingInstance(locale).then(async (instance) => ({
+		locale,
+		...(await loadI18nContext(instance, locale, namespaces)),
+	}));
+	clientRootContextByKey.set(key, pending);
+	void pending.then((context) => {
+		if (context.namespaceLoadError) {
+			clientRootContextByKey.delete(key);
+		}
+	});
+	return pending;
+};
+
+const resolveRootContext = async (
+	options: unknown,
+): Promise<RootRouteContext> => {
+	const { matches } = options as { matches: readonly I18nRouteMatch[] };
+	const namespaces = collectI18nNamespaces(matches);
+	if (typeof document === 'undefined') {
+		return loadI18nForRequest({ data: { namespaces } });
+	}
+	const cookieLocale = parseCookie(document.cookie)[LOCALE_COOKIE_KEY];
+	let locale = FALLBACK_LANGUAGE;
+	if (isSupportedLanguage(cookieLocale)) {
+		locale = cookieLocale;
+	} else if (isSupportedLanguage(document.documentElement.lang)) {
+		locale = document.documentElement.lang;
+	}
+	return loadClientRootContext(locale, namespaces);
 };
 
 const RootErrorBoundaryContent = ({
@@ -382,15 +404,16 @@ export const Route = createRootRouteWithContext<{
  * French/English copy, not an English-only fragment.
  */
 function RootShell({ children }: { children: React.ReactNode }) {
-	const { locale, resources } = Route.useRouteContext({
+	const { locale, namespaces, resources } = Route.useRouteContext({
 		select: (context) => ({
 			locale: context.locale,
+			namespaces: context.namespaces,
 			resources: context.resources,
 		}),
 	});
 	const i18n = React.useMemo(
-		() => createI18nFromResources(locale, resources),
-		[locale, resources],
+		() => createI18nFromResources(locale, namespaces, resources),
+		[locale, namespaces, resources],
 	);
 	const router = useRouter();
 	const cspNonce = router.options.ssr?.nonce ?? '';
@@ -443,5 +466,11 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
+	const namespaceLoadError = Route.useRouteContext({
+		select: (context) => context.namespaceLoadError,
+	});
+	if (namespaceLoadError) {
+		throw new Error(namespaceLoadError);
+	}
 	return <Outlet />;
 }

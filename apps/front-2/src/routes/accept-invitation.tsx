@@ -193,7 +193,7 @@ const InvitationDetailsCard = ({
 	email: string;
 	profileName: string;
 }) => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['auth', 'common']);
 
 	return (
 		<Card size="sm" data-testid="accept-invitation-details-card">
@@ -203,7 +203,7 @@ const InvitationDetailsCard = ({
 					<p className="text-sm font-medium text-foreground">{email}</p>
 				</div>
 				<div className="border-t border-border pt-3">
-					<p className="text-xs text-muted-foreground">{t('profile')}</p>
+					<p className="text-xs text-muted-foreground">{t('common:profile')}</p>
 					<span className="mt-0.5 inline-flex items-center rounded-[var(--publy-radius-chip)] bg-muted px-2 py-0.5 text-xs font-medium text-foreground">
 						{profileName}
 					</span>
@@ -214,7 +214,7 @@ const InvitationDetailsCard = ({
 };
 
 const AcceptInvitationLoading = () => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['auth', 'common']);
 
 	return (
 		<div
@@ -223,7 +223,7 @@ const AcceptInvitationLoading = () => {
 		>
 			<IconLoader2
 				role="status"
-				aria-label={t('common-loading')}
+				aria-label={t('common:common-loading')}
 				className="size-8 animate-spin text-muted-foreground"
 			/>
 		</div>
@@ -239,10 +239,10 @@ const AuthLookupErrorView = ({
 	onRetry: () => void;
 	isRetrying: boolean;
 }) => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['auth', 'common']);
 	const failure = toApiFailure(error);
 	const message = getFailureMessage(failure, {
-		fallback: t('an-error-occurred'),
+		fallback: t('common:an-error-occurred'),
 	});
 
 	return (
@@ -259,7 +259,7 @@ const AuthLookupErrorView = ({
 				disabled={isRetrying}
 				onClick={onRetry}
 			>
-				{t('try-again')}
+				{t('common:try-again')}
 			</Button>
 		</div>
 	);
@@ -288,7 +288,7 @@ type AcceptInvitationActionResult = {
  */
 const useAcceptInvitationSubmit = (token: string) => {
 	const navigate = useNavigate();
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['auth', 'common']);
 	const acceptAction = useServerFn(acceptInvitation);
 	const completeRedirect = useServerFn(completeLoginRedirect);
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -323,7 +323,9 @@ const useAcceptInvitationSubmit = (token: string) => {
 		} catch (error) {
 			const failure = toApiFailure(error);
 			setErrorMessage(
-				getFailureMessage(failure, { fallback: t('an-error-occurred') }),
+				getFailureMessage(failure, {
+					fallback: t('common:an-error-occurred'),
+				}),
 			);
 		} finally {
 			setIsSubmitting(false);
@@ -371,7 +373,7 @@ const NewUserForm = ({
 	isSubmitting: boolean;
 	errorMessage: string;
 }) => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['auth', 'common']);
 	const formSchema = useMemo(() => getNewUserFormSchema(t), [t]);
 	const isHydrated = useHydrated();
 
@@ -480,7 +482,7 @@ const NewUserForm = ({
 					<div>
 						<PasswordField
 							id="accept-invitation-password"
-							label={t('password')}
+							label={t('common:password')}
 							register={register('password')}
 							required
 							invalid={Boolean(errors.password?.message)}
@@ -540,7 +542,7 @@ const ExistingMatchView = ({
 	isSubmitting: boolean;
 	errorMessage: string;
 }) => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['auth', 'common']);
 	const { logout, isLoggingOut } = useLogout();
 
 	return (
@@ -611,7 +613,7 @@ const ExistingSignedOutView = ({
 	profileName: string;
 	loginSearch: Record<string, string>;
 }) => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['auth', 'common']);
 
 	return (
 		<div
@@ -660,15 +662,11 @@ const MismatchView = ({
 	loginHref: string;
 	stayOnPageHref: string;
 }) => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['auth', 'common']);
 	const { logout, isLoggingOut } = useLogout();
 
-	const descriptionKey = userExists
-		? 'auth-invitation-existing-user-mismatch-description'
-		: 'auth-invitation-new-user-mismatch-description';
-	const ctaKey = userExists
-		? 'auth-invitation-log-out-and-sign-in'
-		: 'auth-invitation-log-out-and-continue';
+	const mismatchKeys =
+		INVITATION_MISMATCH_I18N_KEYS[userExists ? 'existing' : 'newUser'];
 	const redirectTo = userExists ? loginHref : stayOnPageHref;
 
 	return (
@@ -679,7 +677,8 @@ const MismatchView = ({
 				<AuthFormHeader title={t('auth-invitation-wrong-account-title')} />
 				<p className="mt-1 text-sm text-muted-foreground">
 					<Trans
-						i18nKey={descriptionKey}
+						i18nKey={mismatchKeys.description}
+						ns="auth"
 						values={{ invitationEmail: email, currentUserEmail: currentEmail }}
 						components={{ strong: <strong className="text-foreground" /> }}
 					/>
@@ -711,13 +710,24 @@ const MismatchView = ({
 				className="h-12 w-full text-sm lg:h-11"
 				onClick={() => logout({ redirectTo })}
 			>
-				{t(ctaKey)}
+				{t(mismatchKeys.cta)}
 			</Button>
 		</div>
 	);
 };
 
-const BRAND_KEY_BY_BRANCH: Partial<
+const INVITATION_MISMATCH_I18N_KEYS = {
+	existing: {
+		description: 'auth-invitation-existing-user-mismatch-description',
+		cta: 'auth-invitation-log-out-and-sign-in',
+	},
+	newUser: {
+		description: 'auth-invitation-new-user-mismatch-description',
+		cta: 'auth-invitation-log-out-and-continue',
+	},
+} as const;
+
+const INVITATION_BRAND_I18N_KEYS: Partial<
 	Record<BranchKind, { headline: string; subtitle: string }>
 > = {
 	'new-user': {
@@ -744,7 +754,7 @@ const AcceptInvitationRoute = () => {
 	}) as InvitationLoaderData;
 	const location = useLocation();
 	const authState = useInvitationAuthState();
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['auth', 'common']);
 	// Owned above branch selection (keyed by the invitation token, which is
 	// fixed for the lifetime of this route) so the committed acceptance result
 	// survives an auth-state transition that swaps the rendered branch between
@@ -763,7 +773,9 @@ const AcceptInvitationRoute = () => {
 		loaderData.view === 'valid'
 			? resolveBranchKind(loaderData, authState)
 			: undefined;
-	const brandKeys = branchKind ? BRAND_KEY_BY_BRANCH[branchKind] : undefined;
+	const brandKeys = branchKind
+		? INVITATION_BRAND_I18N_KEYS[branchKind]
+		: undefined;
 	const brand: AuthBrand | undefined = brandKeys
 		? {
 				eyebrow: t('accept-invitation-brand-eyebrow'),
@@ -860,6 +872,7 @@ const AcceptInvitationRoute = () => {
 };
 
 export const Route = createFileRoute('/accept-invitation')({
+	staticData: { i18nNamespaces: ['auth'] },
 	loader: invitationLoader,
 	component: AcceptInvitationRoute,
 });

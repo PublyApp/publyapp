@@ -28,7 +28,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@tanstack/react-router', () => ({
-	createFileRoute: () => (options: Record<string, unknown>) => options,
+	createFileRoute: () => (options: Record<string, unknown>) => ({
+		...options,
+		options,
+	}),
 	useLoaderData: () => mocks.loaderData,
 	redirect: mocks.redirect,
 	Link: ({ children, to, ...props }: { children: ReactNode; to: string }) =>
@@ -73,7 +76,10 @@ const EN_LABELS: Record<string, string> = {
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string) => EN_LABELS[key] ?? key,
+		t: (key: string) => {
+			const resolvedKey = key.replace(/^common:/, '');
+			return EN_LABELS[resolvedKey] ?? resolvedKey;
+		},
 		i18n: { language: 'en' },
 	}),
 	Trans: ({
@@ -103,6 +109,10 @@ const renderVerifyEmailRoute = () => {
 };
 
 describe('verify-email route', () => {
+	test('declares the auth i18n namespace', () => {
+		expect(Route.options.staticData).toEqual({ i18nNamespaces: ['auth'] });
+	});
+
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mocks.loaderData = { view: 'request' };

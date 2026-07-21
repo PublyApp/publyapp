@@ -24,7 +24,7 @@ type MutationToastModule = typeof import('./mutation-toast');
 let adapter: MutationToastModule;
 
 const makeI18n = () =>
-	createI18nFromResources('fr', {
+	createI18nFromResources('fr', ['common', 'response-message'], {
 		fr: {
 			common: {
 				'an-error-occurred': 'Une erreur est survenue',
@@ -33,16 +33,6 @@ const makeI18n = () =>
 			'response-message': {
 				'backend-success': 'Succès backend',
 				'backend-failure': 'Échec backend',
-			},
-		},
-		en: {
-			common: {
-				'an-error-occurred': 'An error occurred',
-				'frontend-success': 'Frontend success',
-			},
-			'response-message': {
-				'backend-success': 'Backend success',
-				'backend-failure': 'Backend failure',
 			},
 		},
 	});

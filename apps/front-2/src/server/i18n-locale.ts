@@ -1,8 +1,9 @@
 import { createServerFn } from '@tanstack/react-start';
 import { getCookie, setCookie } from '@tanstack/react-start/server';
 import { z } from 'zod';
+import { createBackendI18n, loadI18nContext } from '~/lib/i18n.backend';
+import { I18nNamespaceListSchema } from '~/lib/i18n.namespaces';
 import {
-	buildI18nResources,
 	FALLBACK_LANGUAGE,
 	isSupportedLanguage,
 	SUPPORTED_LANGUAGES,
@@ -19,13 +20,22 @@ const resolveLocaleFromCookie = (): SupportedLanguage => {
 		: FALLBACK_LANGUAGE;
 };
 
-export const loadI18nForRequest = createServerFn({ method: 'GET' }).handler(
-	async () => {
+const LoadI18nInputSchema = z.object({
+	namespaces: I18nNamespaceListSchema,
+});
+
+type LoadI18nInput = z.infer<typeof LoadI18nInputSchema>;
+
+export const loadI18nForRequest = createServerFn({ method: 'GET' })
+	.validator((data): LoadI18nInput => LoadI18nInputSchema.parse(data))
+	.handler(async ({ data }) => {
 		const locale = resolveLocaleFromCookie();
-		const resources = await buildI18nResources(locale);
-		return { locale, resources };
-	},
-);
+		const instance = await createBackendI18n(locale);
+		return {
+			locale,
+			...(await loadI18nContext(instance, locale, data.namespaces)),
+		};
+	});
 
 const SetLocaleInputSchema = z.object({
 	locale: z.enum(SUPPORTED_LANGUAGES),

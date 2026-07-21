@@ -36,9 +36,28 @@ vi.mock('~/lib/i18n.client', () => ({
 	initI18nOnClient: vi.fn(async () => undefined),
 }));
 
-import { buildI18nResources } from '~/lib/i18n.shared';
+import enResource from '~/i18n/locales/en';
+import frResource from '~/i18n/locales/fr';
+import { GLOBAL_I18N_NAMESPACES } from '~/lib/i18n.namespaces';
+import type { SupportedLanguage } from '~/lib/i18n.shared';
 
 import { RootErrorBoundary, Route as RootRoute } from './__root';
+
+const makeRootI18nContext = (locale: SupportedLanguage) => {
+	const resource = locale === 'fr' ? frResource : enResource;
+	return {
+		locale,
+		namespaces: [...GLOBAL_I18N_NAMESPACES],
+		resources: {
+			[locale]: {
+				common: resource.common,
+				zod: resource.zod,
+				'response-message': resource['response-message'],
+			},
+		},
+		namespaceLoadError: null,
+	};
+};
 
 // React's server renderer (`renderToStaticMarkup`/`renderToString`, and even
 // the streaming `renderToPipeableStream` under jsdom/node in this test setup)
@@ -110,10 +129,7 @@ describe('root shell wraps success/error/not-found in one document (shell-r5-F1)
 	});
 
 	test('an unknown route still renders the full document shell in French', async () => {
-		mocks.loadI18nForRequest.mockResolvedValue({
-			locale: 'fr',
-			resources: await buildI18nResources('fr'),
-		});
+		mocks.loadI18nForRequest.mockResolvedValue(makeRootI18nContext('fr'));
 
 		const html = await renderRoute('/nowhere', false);
 
@@ -124,8 +140,8 @@ describe('root shell wraps success/error/not-found in one document (shell-r5-F1)
 		expect(html).not.toContain('page-not-found<');
 	});
 
-	test('an unknown route falls back to English when locale resolution fails', async () => {
-		mocks.loadI18nForRequest.mockRejectedValue(new Error('cookie read failed'));
+	test('an unknown route renders English when server locale resolution falls back', async () => {
+		mocks.loadI18nForRequest.mockResolvedValue(makeRootI18nContext('en'));
 
 		const html = await renderRoute('/nowhere', false);
 
@@ -135,10 +151,7 @@ describe('root shell wraps success/error/not-found in one document (shell-r5-F1)
 	});
 
 	test('the root error boundary renders inside the shell (document + Retry), in English', async () => {
-		mocks.loadI18nForRequest.mockResolvedValue({
-			locale: 'en',
-			resources: await buildI18nResources('en'),
-		});
+		mocks.loadI18nForRequest.mockResolvedValue(makeRootI18nContext('en'));
 
 		const html = await renderRoute('/staff/error-preview', true);
 
@@ -151,10 +164,7 @@ describe('root shell wraps success/error/not-found in one document (shell-r5-F1)
 	});
 
 	test('the root error boundary carries the FRENCH root locale, not a hardcoded English instance', async () => {
-		mocks.loadI18nForRequest.mockResolvedValue({
-			locale: 'fr',
-			resources: await buildI18nResources('fr'),
-		});
+		mocks.loadI18nForRequest.mockResolvedValue(makeRootI18nContext('fr'));
 
 		const html = await renderRoute('/staff/error-preview', true);
 

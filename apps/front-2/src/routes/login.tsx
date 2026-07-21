@@ -130,7 +130,7 @@ const getFailureStatus = (error: unknown): number | undefined => {
 const LoginRoute = () => {
 	const navigate = useNavigate();
 	const location = useLocation();
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['auth', 'common']);
 	const [showForbidden, setShowForbidden] = useState(false);
 	const [errorMessage, setErrorMessage] = useState('');
 	const [invalidCredentialsMessage, setInvalidCredentialsMessage] =
@@ -266,7 +266,7 @@ const LoginRoute = () => {
 			) : null}
 
 			<AuthFormHeader
-				title={isSessionExpired ? t('welcome-back') : t('sign-in')}
+				title={isSessionExpired ? t('welcome-back') : t('common:sign-in')}
 				secondary={
 					isSessionExpired ? (
 						t('sign-in-to-pick-up-where-you-left-off')
@@ -305,14 +305,14 @@ const LoginRoute = () => {
 							htmlFor="login-email"
 							className="text-[13px] font-medium text-foreground"
 						>
-							{t('email-address')}
+							{t('common:email-address')}
 						</label>
 						<Input
 							{...register('email')}
 							id="login-email"
 							required
 							type="email"
-							placeholder={t('email-placeholder')}
+							placeholder={t('common:email-placeholder')}
 							aria-invalid={Boolean(errors.email?.message) || undefined}
 							autoComplete="email"
 							className="h-11 text-sm lg:h-10 lg:text-[13px]"
@@ -324,7 +324,7 @@ const LoginRoute = () => {
 
 					<PasswordField
 						id="login-password"
-						label={t('password')}
+						label={t('common:password')}
 						register={register('password')}
 						placeholder={t('enter-your-password')}
 						required
@@ -364,7 +364,7 @@ const LoginRoute = () => {
 						{isSubmitting ? (
 							<IconLoader2 aria-hidden="true" className="size-4 animate-spin" />
 						) : null}
-						{isSubmitting ? t('signing-in') : t('sign-in')}
+						{isSubmitting ? t('signing-in') : t('common:sign-in')}
 					</Button>
 				</fieldset>
 			</form>
@@ -380,20 +380,20 @@ const LoginErrorBoundary = ({
 	reset: () => void;
 }) => {
 	const router = useRouter();
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['auth', 'common']);
 	const routeStatus = getFailureStatus(error);
 
 	if (routeStatus === 401) {
 		return (
 			<AppErrorView
 				icon={<IconLock aria-hidden="true" className="size-7" />}
-				code={t('error-401-code')}
-				title={t('authentication-required')}
+				code={t('common:error-401-code')}
+				title={t('common:authentication-required')}
 				description={t('login-request-unauthorized-description')}
 				testId="auth-401-view"
 				actions={
 					<Link to="/login" className={buttonVariants({ variant: 'default' })}>
-						{t('back-to-login')}
+						{t('common:back-to-login')}
 					</Link>
 				}
 			/>
@@ -416,16 +416,16 @@ const LoginErrorBoundary = ({
 	return (
 		<AppErrorView
 			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-			code={t('error-500-code')}
-			title={t('something-went-wrong')}
+			code={t('common:error-500-code')}
+			title={t('common:something-went-wrong')}
 			description={t('sign-in-could-not-be-completed')}
 			actions={
 				<>
 					<Button variant="default" onClick={retry} type="button">
-						{t('retry')}
+						{t('common:retry')}
 					</Button>
 					<Link to="/" className={buttonVariants({ variant: 'outline' })}>
-						{t('go-to-home')}
+						{t('common:go-to-home')}
 					</Link>
 				</>
 			}
@@ -435,6 +435,7 @@ const LoginErrorBoundary = ({
 
 export const Route = createFileRoute('/login')({
 	beforeLoad: redirectAuthenticatedUserAwayFromAuthPage,
+	staticData: { i18nNamespaces: ['auth'] },
 	component: LoginRoute,
 	errorComponent: LoginErrorBoundary,
 });

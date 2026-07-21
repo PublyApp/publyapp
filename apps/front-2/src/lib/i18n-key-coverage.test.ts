@@ -4,6 +4,9 @@ import { fileURLToPath } from 'node:url';
 
 import ts from 'typescript';
 import { describe, expect, test } from 'vitest';
+import enResource from '~/i18n/locales/en';
+import frResource from '~/i18n/locales/fr';
+import type { SupportedNamespace } from '~/lib/i18n.namespaces';
 import suppressionInventory from '~/lib/suppression-inventory.json';
 import {
 	diffSuppressionInventory,
@@ -11,9 +14,6 @@ import {
 	isPreviousLineSuppressed,
 	type SuppressionSite,
 } from '~/lib/suppression-reason';
-
-import enResource from '@org/shared-ts/lib/i18n/locales/en';
-import frResource from '@org/shared-ts/lib/i18n/locales/fr';
 
 // Extracts every string-literal translation-function call and JSX i18n-key
 // attribute under apps/front-2/src and asserts it resolves in both locale
@@ -24,9 +24,25 @@ const srcDir = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const TEXT_EXTENSIONS = new Set(['.ts', '.tsx']);
 
 const KEY_PATTERNS = [
-	/\bt\(\s*(['"])([a-zA-Z0-9_.-]+)\1/g,
-	/\bi18nKey=(['"])([a-zA-Z0-9_.-]+)\1/g,
+	/\bt\(\s*(['"])([a-zA-Z0-9_.:-]+)\1/g,
+	/\bi18nKey=(['"])([a-zA-Z0-9_.:-]+)\1/g,
 ];
+const USE_TRANSLATION_PATTERN =
+	/\buseTranslation\(\s*(?:\[\s*)?(['"])([a-zA-Z0-9_.-]+)\1/;
+
+type UsageKey = { namespace: SupportedNamespace; key: string };
+
+const resolveUsageKey = (
+	rawKey: string,
+	defaultNamespace: SupportedNamespace,
+): UsageKey => {
+	const separator = rawKey.indexOf(':');
+	if (separator === -1) return { namespace: defaultNamespace, key: rawKey };
+	return {
+		namespace: rawKey.slice(0, separator) as SupportedNamespace,
+		key: rawKey.slice(separator + 1),
+	};
+};
 
 // Some modules resolve a translation key indirectly through a lookup object
 // (e.g. `getInvitationStatusLabelKey` in list-helpers.ts) instead of passing
@@ -63,6 +79,7 @@ const SCALAR_KEY_DECLARATION_PATTERN =
 const extractKeyMapLiteralUsages = (
 	source: string,
 	relativePath: string,
+	defaultNamespace: SupportedNamespace,
 	usagesByKey: Map<string, string[]>,
 ): void => {
 	for (const declMatch of source.matchAll(KEY_MAP_DECLARATION_PATTERN)) {
@@ -93,9 +110,10 @@ const extractKeyMapLiteralUsages = (
 				continue;
 			}
 
-			const usages = usagesByKey.get(candidate) ?? [];
+			const qualifiedKey = `${defaultNamespace}:${candidate}`;
+			const usages = usagesByKey.get(qualifiedKey) ?? [];
 			usages.push(relativePath);
-			usagesByKey.set(candidate, usages);
+			usagesByKey.set(qualifiedKey, usages);
 		}
 	}
 };
@@ -103,6 +121,7 @@ const extractKeyMapLiteralUsages = (
 const extractScalarKeyDeclarations = (
 	source: string,
 	relativePath: string,
+	defaultNamespace: SupportedNamespace,
 	usagesByKey: Map<string, string[]>,
 ): void => {
 	for (const match of source.matchAll(SCALAR_KEY_DECLARATION_PATTERN)) {
@@ -111,9 +130,10 @@ const extractScalarKeyDeclarations = (
 			continue;
 		}
 
-		const usages = usagesByKey.get(candidate) ?? [];
+		const qualifiedKey = `${defaultNamespace}:${candidate}`;
+		const usages = usagesByKey.get(qualifiedKey) ?? [];
 		usages.push(relativePath);
-		usagesByKey.set(candidate, usages);
+		usagesByKey.set(qualifiedKey, usages);
 	}
 };
 
@@ -170,20 +190,38 @@ export const extractI18nKeyUsages = async (
 	const usagesByKey = new Map<string, string[]>();
 
 	for (const { relativePath, source } of files) {
+		if (
+			relativePath.endsWith('.test.ts') ||
+			relativePath.endsWith('.test.tsx')
+		) {
+			continue;
+		}
+
+		const defaultNamespace = (source.match(USE_TRANSLATION_PATTERN)?.[2] ??
+			'common') as SupportedNamespace;
+
 		for (const pattern of KEY_PATTERNS) {
 			for (const match of source.matchAll(pattern)) {
-				const rawKey = match[2];
-				const key = rawKey.startsWith('common:')
-					? rawKey.slice('common:'.length)
-					: rawKey;
-				const usages = usagesByKey.get(key) ?? [];
+				const { namespace, key } = resolveUsageKey(match[2], defaultNamespace);
+				const qualifiedKey = `${namespace}:${key}`;
+				const usages = usagesByKey.get(qualifiedKey) ?? [];
 				usages.push(relativePath);
-				usagesByKey.set(key, usages);
+				usagesByKey.set(qualifiedKey, usages);
 			}
 		}
 
-		extractKeyMapLiteralUsages(source, relativePath, usagesByKey);
-		extractScalarKeyDeclarations(source, relativePath, usagesByKey);
+		extractKeyMapLiteralUsages(
+			source,
+			relativePath,
+			defaultNamespace,
+			usagesByKey,
+		);
+		extractScalarKeyDeclarations(
+			source,
+			relativePath,
+			defaultNamespace,
+			usagesByKey,
+		);
 	}
 
 	return usagesByKey;
@@ -856,6 +894,17 @@ const findHardcodedUiLiterals = (
 };
 
 describe('i18n key coverage', () => {
+	test('attributes unqualified and explicitly qualified keys to their namespaces', () => {
+		expect(resolveUsageKey('sign-in', 'auth')).toEqual({
+			namespace: 'auth',
+			key: 'sign-in',
+		});
+		expect(resolveUsageKey('common:retry', 'auth')).toEqual({
+			namespace: 'common',
+			key: 'retry',
+		});
+	});
+
 	// r4-tests-F1: the review's exact planted example against the pre-fix
 	// detector reported "planted hardcoded UI matches: 0" — a plain JSX text
 	// node and an unbraced string attribute were both invisible. This canary
@@ -1242,24 +1291,24 @@ describe('i18n key coverage', () => {
 		);
 	});
 
-	test('every t()/i18nKey literal under src resolves in both common bundles', async () => {
-		const usagesByKey = await extractI18nKeyUsages(srcDir);
-		expect(usagesByKey.size).toBeGreaterThan(0);
-
+	test('every t()/i18nKey literal resolves in its namespace in both locales', async () => {
+		const usages = await extractI18nKeyUsages(srcDir);
 		const missingEn: string[] = [];
 		const missingFr: string[] = [];
-
-		for (const [key, usages] of usagesByKey) {
-			if (!resolvesInBundle(key, enResource.common)) {
-				missingEn.push(`${key} (${usages.join(', ')})`);
+		for (const [qualifiedKey, locations] of usages) {
+			const [namespace, ...parts] = qualifiedKey.split(':');
+			const key = parts.join(':');
+			if (!resolvesInBundle(key, enResource[namespace as SupportedNamespace])) {
+				missingEn.push(`${qualifiedKey} (${locations.join(', ')})`);
 			}
-			if (!resolvesInBundle(key, frResource.common)) {
-				missingFr.push(`${key} (${usages.join(', ')})`);
+			if (!resolvesInBundle(key, frResource[namespace as SupportedNamespace])) {
+				missingFr.push(`${qualifiedKey} (${locations.join(', ')})`);
 			}
 		}
-
-		expect(missingEn, 'keys missing from common.en.json').toEqual([]);
-		expect(missingFr, 'keys missing from common.fr.json').toEqual([]);
+		expect(missingEn, 'keys missing from English namespace bundles').toEqual(
+			[],
+		);
+		expect(missingFr, 'keys missing from French namespace bundles').toEqual([]);
 	});
 
 	// r3-tests-F6: a canary for the scalar-`*_KEY` extractor itself going
@@ -1271,7 +1320,9 @@ describe('i18n key coverage', () => {
 	test('the scalar-*_KEY extractor still sees the r3-tests-F6 canary key', async () => {
 		const usagesByKey = await extractI18nKeyUsages(srcDir);
 
-		expect(usagesByKey.has('selection-locked-while-selecting')).toBe(true);
+		expect(usagesByKey.has('common:selection-locked-while-selecting')).toBe(
+			true,
+		);
 	});
 
 	test('no hardcoded English UI literal escapes t() (r3-shell-F2)', async () => {

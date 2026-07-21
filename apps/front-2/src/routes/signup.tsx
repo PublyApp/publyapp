@@ -51,7 +51,7 @@ const getSignUpFormSchema = (t: Translate) =>
  * pages exist (product TODO), rather than shipping either failure mode.
  */
 const SignUpTermsFooter = () => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['auth', 'common']);
 
 	return (
 		<p className="text-center text-xs text-muted-foreground">
@@ -63,7 +63,7 @@ const SignUpTermsFooter = () => {
 
 const SignUpRoute = () => {
 	const navigate = useNavigate();
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['auth', 'common']);
 	const [errorMessage, setErrorMessage] = useState('');
 	const signupsEnabled = FEATURES.auth.signupsEnabled;
 	const isHydrated = useHydrated();
@@ -122,14 +122,18 @@ const SignUpRoute = () => {
 				}
 				if (!mappedToField) {
 					setErrorMessage(
-						getFailureMessage(failure, { fallback: t('an-error-occurred') }),
+						getFailureMessage(failure, {
+							fallback: t('common:an-error-occurred'),
+						}),
 					);
 				}
 				return;
 			}
 
 			setErrorMessage(
-				getFailureMessage(failure, { fallback: t('an-error-occurred') }),
+				getFailureMessage(failure, {
+					fallback: t('common:an-error-occurred'),
+				}),
 			);
 		}
 	};
@@ -232,14 +236,14 @@ const SignUpRoute = () => {
 							htmlFor="signup-email"
 							className="text-[13px] font-medium text-foreground"
 						>
-							{t('email-address')}
+							{t('common:email-address')}
 						</label>
 						<Input
 							{...registerField('email')}
 							id="signup-email"
 							required
 							type="email"
-							placeholder={t('email-placeholder')}
+							placeholder={t('common:email-placeholder')}
 							aria-invalid={Boolean(errors.email?.message) || undefined}
 							autoComplete="email"
 							className="h-11 text-sm lg:h-10 lg:text-[13px]"
@@ -251,9 +255,9 @@ const SignUpRoute = () => {
 
 					<PasswordField
 						id="signup-password"
-						label={t('password')}
+						label={t('common:password')}
 						register={registerField('password')}
-						placeholder={t('n+ characters', {
+						placeholder={t('common:min-characters-hint', {
 							characters: PASSWORD_MIN_LENGTH,
 						})}
 						required
@@ -284,5 +288,6 @@ const SignUpRoute = () => {
 
 export const Route = createFileRoute('/signup')({
 	beforeLoad: redirectAuthenticatedUserAwayFromAuthPage,
+	staticData: { i18nNamespaces: ['auth'] },
 	component: SignUpRoute,
 });

@@ -110,7 +110,7 @@ const getSetNewPasswordFormSchema = (t: Translate) =>
 		});
 
 const ResetPasswordSuccess = () => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['auth', 'common']);
 
 	return (
 		<div className="space-y-6 text-center" data-testid="reset-password-success">
@@ -147,7 +147,7 @@ const ResetPasswordSuccess = () => {
 };
 
 const ResetPasswordRequestForm = () => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['auth', 'common']);
 	const [submitted, setSubmitted] = useState(false);
 	const [errorMessage, setErrorMessage] = useState('');
 	const isHydrated = useHydrated();
@@ -172,6 +172,7 @@ const ResetPasswordRequestForm = () => {
 				description={
 					<Trans
 						i18nKey="reset-link-sent-description"
+						ns="auth"
 						values={{ email }}
 						components={{ strong: <strong className="text-foreground" /> }}
 					/>
@@ -190,7 +191,9 @@ const ResetPasswordRequestForm = () => {
 		} catch (error) {
 			const failure = toApiFailure(error);
 			setErrorMessage(
-				getFailureMessage(failure, { fallback: t('an-error-occurred') }),
+				getFailureMessage(failure, {
+					fallback: t('common:an-error-occurred'),
+				}),
 			);
 		}
 	};
@@ -227,14 +230,14 @@ const ResetPasswordRequestForm = () => {
 							htmlFor="reset-password-email"
 							className="text-[13px] font-medium text-foreground"
 						>
-							{t('email-address')}
+							{t('common:email-address')}
 						</label>
 						<Input
 							{...register('email')}
 							id="reset-password-email"
 							required
 							type="email"
-							placeholder={t('email-placeholder')}
+							placeholder={t('common:email-placeholder')}
 							aria-invalid={Boolean(errors.email?.message) || undefined}
 							autoComplete="email"
 							className="h-11 text-sm lg:h-10 lg:text-[13px]"
@@ -281,7 +284,7 @@ const SetNewPasswordForm = ({
 	fromEmailVerification: boolean;
 	onInvalidToken: () => void;
 }) => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['auth', 'common']);
 	const [success, setSuccess] = useState(false);
 	const [errorMessage, setErrorMessage] = useState('');
 	const isHydrated = useHydrated();
@@ -337,14 +340,18 @@ const SetNewPasswordForm = ({
 				}
 				if (!mappedToField) {
 					setErrorMessage(
-						getFailureMessage(failure, { fallback: t('an-error-occurred') }),
+						getFailureMessage(failure, {
+							fallback: t('common:an-error-occurred'),
+						}),
 					);
 				}
 				return;
 			}
 
 			setErrorMessage(
-				getFailureMessage(failure, { fallback: t('an-error-occurred') }),
+				getFailureMessage(failure, {
+					fallback: t('common:an-error-occurred'),
+				}),
 			);
 		}
 	};
@@ -357,6 +364,7 @@ const SetNewPasswordForm = ({
 			<p className="-mt-4 text-sm text-muted-foreground">
 				<Trans
 					i18nKey="reset-password-description"
+					ns="auth"
 					values={{ email }}
 					components={{ strong: <strong className="text-foreground" /> }}
 				/>
@@ -444,7 +452,7 @@ const ResetPasswordRoute = () => {
 	const loaderData = useLoaderData({
 		from: '/reset-password',
 	}) as ResetPasswordLoaderData;
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['auth', 'common']);
 	// Models only the mid-submit token rejection (`onInvalidToken`) — the
 	// loader-derived view below is the source of truth otherwise, so a
 	// same-route "Request a new link" navigation (which re-runs the loader
@@ -491,6 +499,7 @@ const ResetPasswordRoute = () => {
 
 export const Route = createFileRoute('/reset-password')({
 	beforeLoad: redirectAuthenticatedUserAwayFromAuthPage,
+	staticData: { i18nNamespaces: ['auth'] },
 	loader: resetPasswordLoader,
 	component: ResetPasswordRoute,
 });
