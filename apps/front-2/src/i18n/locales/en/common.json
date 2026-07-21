@@ -240,7 +240,7 @@
 	"confirm-delete-dialog-text": "Are you sure you want to delete this item?",
 	"copy-to-clipboard-success": "Copied to clipboard",
 	"copy-to-clipboard-error": "Error while copying to clipboard",
-	"n+ characters": "{{characters}}+ characters",
+	"min-characters-hint": "{{characters}}+ characters",
 	"session-expired": "Session expired",
 	"send-email-verification-follow-up": "Resend verification",
 	"follow-up": "Reminder",

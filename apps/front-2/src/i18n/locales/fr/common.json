@@ -262,7 +262,7 @@
 	"confirm-delete-dialog-text": "Êtes-vous sûr de vouloir supprimer cet élément ?",
 	"copy-to-clipboard-success": "Copié dans le presse-papiers",
 	"copy-to-clipboard-error": "Erreur lors de la copie vers le presse-papiers",
-	"n+ characters": "{{characters}}+ caractères",
+	"min-characters-hint": "{{characters}}+ caractères",
 	"session-expired": "Session expirée",
 	"send-email-verification-follow-up": "Relancer la vérification",
 	"follow-up": "Relancer",

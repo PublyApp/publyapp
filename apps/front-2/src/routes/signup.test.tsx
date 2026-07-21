@@ -59,7 +59,7 @@ const EN_LABELS: Record<string, string> = {
 	'email-address': 'Email address',
 	password: 'Password',
 	'email-placeholder': 'name@company.com',
-	'n+ characters': '{{characters}}+ characters',
+	'min-characters-hint': '{{characters}}+ characters',
 	'create-account': 'Create account',
 	'by-signing-up-agree': 'By signing up, I agree to',
 	'terms-of-service': 'Terms of service',

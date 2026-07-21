@@ -257,7 +257,7 @@ const SignUpRoute = () => {
 						id="signup-password"
 						label={t('common:password')}
 						register={registerField('password')}
-						placeholder={t('n+ characters', {
+						placeholder={t('common:min-characters-hint', {
 							characters: PASSWORD_MIN_LENGTH,
 						})}
 						required
