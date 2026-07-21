@@ -11,6 +11,7 @@ import {
 	useRouter,
 } from '@tanstack/react-router';
 import { createClientOnlyFn } from '@tanstack/react-start';
+import { parse as parseCookie } from 'cookie';
 import type { i18n as I18nInstance } from 'i18next';
 import * as React from 'react';
 import { I18nextProvider, useTranslation } from 'react-i18next';
@@ -21,10 +22,12 @@ import { isAuthPath, isPathForSurface } from '~/lib/auth-paths';
 import { useLogout } from '~/lib/hooks/use-logout';
 import {
 	createI18nFromResources,
+	buildI18nResources,
 	dirForLocale,
 	FALLBACK_I18N_RESOURCES,
 	FALLBACK_LANGUAGE,
 	type I18nResources,
+	isSupportedLanguage,
 	type SupportedLanguage,
 } from '~/lib/i18n.shared';
 import { registerMutationToastI18n } from '~/lib/mutation-toast';
@@ -34,6 +37,7 @@ import { TabSyncListener } from '~/lib/tab-sync/tab-sync-listener';
 import { loadI18nForRequest } from '~/server/i18n-locale';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
+import { LOCALE_COOKIE_KEY } from '@org/shared-ts/lib/constants';
 
 import { AppErrorView } from '../components/error-views/AppErrorView';
 import { LogoutRedirect } from '../components/error-views/LogoutRedirect';
@@ -50,6 +54,11 @@ type RootRouteContext = {
 	resources: I18nResources;
 };
 
+const clientRootContextByLocale = new Map<
+	SupportedLanguage,
+	RootRouteContext
+>();
+
 type RouteSurface = 'auth' | 'marketing';
 
 /**
@@ -63,6 +72,31 @@ type RouteSurface = 'auth' | 'marketing';
  */
 const resolveRootContext = async (): Promise<RootRouteContext> => {
 	try {
+		if (typeof document !== 'undefined') {
+			const localeFromCookie = parseCookie(document.cookie)[LOCALE_COOKIE_KEY];
+			const documentLanguage = document.documentElement.lang;
+			let locale = FALLBACK_LANGUAGE;
+
+			if (isSupportedLanguage(localeFromCookie)) {
+				locale = localeFromCookie;
+			} else if (isSupportedLanguage(documentLanguage)) {
+				locale = documentLanguage;
+			}
+
+			const cachedContext = clientRootContextByLocale.get(locale);
+
+			if (cachedContext) {
+				return cachedContext;
+			}
+
+			const context = {
+				locale,
+				resources: await buildI18nResources(locale),
+			};
+			clientRootContextByLocale.set(locale, context);
+			return context;
+		}
+
 		return await loadI18nForRequest();
 	} catch {
 		return { locale: FALLBACK_LANGUAGE, resources: FALLBACK_I18N_RESOURCES };
