@@ -41,15 +41,13 @@ test('concurrent SSR requests do not leak locale resources', async ({
 });
 
 test('hydration preserves the SSR locale and auth copy', async ({ page }) => {
-	await page
-		.context()
-		.addCookies([
-			{
-				name: LOCALE_COOKIE_KEY,
-				value: 'fr',
-				url: 'https://front-2.localhost:8443',
-			},
-		]);
+	await page.context().addCookies([
+		{
+			name: LOCALE_COOKIE_KEY,
+			value: 'fr',
+			url: 'https://front-2.localhost:8443',
+		},
+	]);
 	const englishFlash: string[] = [];
 	await page.exposeFunction('recordEnglishFlash', (value: string) => {
 		englishFlash.push(value);
