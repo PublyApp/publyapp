@@ -36,9 +36,13 @@
 - `apps/front-2/src/lib/i18n.client.ts` — remove embedded en/fr resources and bind client-only Zod behavior to the already hydrated provider instance.
 - `apps/front-2/src/lib/i18n.server.ts` — keep cookie normalization only; remove the obsolete `buildI18nResources` re-export.
 - `apps/front-2/src/lib/i18n.server.test.ts` — retain locale-cookie tests and remove monolithic/fallback assertions replaced by backend/shared tests.
+- `apps/front-2/src/server.ts` — load the global namespaces through the Vite backend for request-local SEO translation and keep `/` and `/login` title/description injection working.
 - `apps/front-2/src/server/i18n-locale.ts` — accept a validated namespace allowlist and create a request-local backend instance on the SSR branch only.
 - `apps/front-2/src/routes/__root.tsx` — collect matched namespaces, split client direct-import from SSR server loading, cache by locale plus namespace set, keep failures non-throwing, dehydrate the snapshot, and wire `RootShell` synchronously.
 - `apps/front-2/src/routes/__root-i18n-context.test.ts` — exercise matched-route collection, no client RPC, stable cache keys, active-language-only snapshots, SSR input, locale switches, and failure fallback.
+- `apps/front-2/src/routes/__root-error-boundary.test.tsx` — replace monolithic resource construction with explicit active-locale global snapshots.
+- `apps/front-2/src/lib/mutation-toast.test.ts` — construct its test instance with an explicit namespace list and active-locale snapshot.
+- `apps/front-2/src/components/field/field.test.tsx` — construct its InterZod test instances from explicit per-locale `zod` snapshots.
 - `apps/front-2/src/lib/i18n-key-coverage.test.ts` — read front-2 manifests and resolve each literal or indirect key against its actual namespace in both locales.
 - `apps/front-2/src/routes/login.tsx` — declare `auth`, bind both translation hooks to it, and explicitly qualify retained globals with `common:`.
 - `apps/front-2/src/routes/signup.tsx` — declare `auth`, bind both translation hooks to it, and qualify retained globals.
@@ -591,7 +595,7 @@ git add apps/front-2/src/lib/i18n.backend.ts apps/front-2/src/lib/i18n.backend.t
 git commit -m "feat(front-2): add lazy i18n backend"
 ```
 
-### Task 4: Strict Synchronous Provider Construction
+### Task 4: Atomic Strict Provider and Matched Namespace Loading Migration
 
 **Files:**
 - Modify: `apps/front-2/src/lib/i18n.shared.ts`
@@ -599,9 +603,17 @@ git commit -m "feat(front-2): add lazy i18n backend"
 - Modify: `apps/front-2/src/lib/i18n.server.ts`
 - Modify: `apps/front-2/src/lib/i18n.server.test.ts`
 - Modify: `apps/front-2/src/lib/i18n.backend.ts`
+- Modify: `apps/front-2/src/server/i18n-locale.ts`
+- Modify: `apps/front-2/src/routes/__root.tsx`
+- Modify: `apps/front-2/src/server.ts`
+- Modify: `apps/front-2/src/routes/__root-error-boundary.test.tsx`
+- Modify: `apps/front-2/src/lib/mutation-toast.test.ts`
+- Modify: `apps/front-2/src/components/field/field.test.tsx`
 - Test: `apps/front-2/src/lib/i18n.shared.test.ts`
+- Test: `apps/front-2/src/routes/__root-i18n-context.test.ts`
+- Test: `apps/front-2/src/server.test.ts`
 
-- [ ] **Step 1: Write the failing strict-fallback test**
+- [ ] **Step 1: Write the failing strict-fallback and namespace-aware root-context tests**
 
 ```ts
 import { describe, expect, test } from 'vitest';
@@ -629,13 +641,71 @@ describe('createI18nFromResources', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+In `apps/front-2/src/routes/__root-i18n-context.test.ts`, keep the existing cookie/document helpers, mock `createBackendI18n`, `loadI18nContext`, and `loadI18nForRequest`, and call `RootRoute.options.beforeLoad` with `matches`. Add these core cases:
 
-Run: `pnpm --filter front-2 exec vitest run src/lib/i18n.shared.test.ts`
+```ts
+const authMatches = [
+	{ staticData: undefined },
+	{ staticData: { i18nNamespaces: ['auth'] as const } },
+];
 
-Expected: FAIL because the current function has the old two-argument signature and `fallbackLng: 'en'`.
+test('loads matched namespaces on the client without an RPC', async () => {
+	stubDocument(`${LOCALE_COOKIE_KEY}=fr`, 'en');
+	const context = await runRootBeforeLoad(authMatches);
+	expect(context.locale).toBe('fr');
+	expect(mocks.loadI18nContext).toHaveBeenCalledWith(
+		expect.anything(),
+		'fr',
+		['common', 'zod', 'response-message', 'auth'],
+	);
+	expect(mocks.loadI18nForRequest).not.toHaveBeenCalled();
+});
 
-- [ ] **Step 3: Replace monolithic shared loading with snapshot-only initialization**
+test('uses the validated server loader only during SSR', async () => {
+	vi.unstubAllGlobals();
+	await runRootBeforeLoad(authMatches);
+	expect(mocks.loadI18nForRequest).toHaveBeenCalledWith({
+		data: { namespaces: ['common', 'zod', 'response-message', 'auth'] },
+	});
+});
+
+test('caches by locale and namespace set, not locale alone', async () => {
+	stubDocument(`${LOCALE_COOKIE_KEY}=fr`, 'en');
+	const globals = await runRootBeforeLoad([]);
+	const auth = await runRootBeforeLoad(authMatches);
+	expect(auth).not.toBe(globals);
+	expect((auth.resources as object)).not.toHaveProperty('en');
+});
+
+test('returns globals plus a serializable error when a feature import fails', async () => {
+	mocks.loadI18nContext.mockResolvedValueOnce({
+		namespaces: ['common', 'zod', 'response-message'],
+		resources: {
+			fr: {
+				common: { retry: 'Réessayer' },
+				zod: {},
+				'response-message': {},
+			},
+		},
+		namespaceLoadError: 'Unknown i18n resource: fr/auth',
+	});
+	stubDocument(`${LOCALE_COOKIE_KEY}=fr`, 'en');
+	await expect(runRootBeforeLoad(authMatches)).resolves.toMatchObject({
+		locale: 'fr',
+		namespaceLoadError: 'Unknown i18n resource: fr/auth',
+	});
+});
+```
+
+Also retain the unsupported-cookie/document test, change the locale-switch cache test to assert the snapshot has only the new locale, and assert identical `(locale, namespaceSet)` calls return the same object.
+
+- [ ] **Step 2: Run both test files to verify the combined behavior is red**
+
+Run: `pnpm --filter front-2 exec vitest run src/lib/i18n.shared.test.ts src/routes/__root-i18n-context.test.ts`
+
+Expected: FAIL because `createI18nFromResources` still has the old two-argument signature and English fallback, `beforeLoad` ignores matches, the SSR function accepts no data, and snapshots have no namespace/error fields.
+
+- [ ] **Step 3: Replace monolithic shared loading with snapshot-only initialization and update the client initializer**
 
 Retain `SUPPORTED_LANGUAGES`, `SupportedLanguage`, `FALLBACK_LANGUAGE`, locale labels, `isSupportedLanguage`, and `dirForLocale`. Remove both shared locale value imports, `LOCALE_RESOURCES`, `FALLBACK_I18N_RESOURCES`, `buildI18nResources`, and the old namespace constant. Keep the resource/result types introduced in Task 3 exactly once in this file and leave `i18n.backend.ts` importing them:
 
@@ -686,8 +756,6 @@ export const createI18nFromResources = (
 
 `apps/front-2/src/lib/i18n.server.ts` now exports only `normalizeLocale` and `resolveLocaleFromCookie`; delete `export { buildI18nResources } from './i18n.shared'`. In its test, delete the two `buildI18nResources` tests while retaining both cookie tests.
 
-- [ ] **Step 4: Remove embedded locale values from the client initializer**
-
 Delete the en/fr value imports, `embeddedResources`, and the `i18next` singleton import. Make the hydrated instance mandatory; it is already synchronously initialized by `RootShell`:
 
 ```ts
@@ -723,95 +791,9 @@ export const initI18nOnClient = async (
 
 Keep `bindInterZodToI18n` and `resolveLocale`; remove `initialized` and every `.init(...)` branch. This guarantees the client initializer never imports or reinstalls translation resources.
 
-- [ ] **Step 5: Run the task verification floor**
+- [ ] **Step 4: Validate SSR namespace input and replace root resolution with matched loading**
 
-Run: `pnpm --filter front-2 exec vitest run src/lib/i18n.shared.test.ts src/lib/i18n.server.test.ts src/lib/i18n.backend.test.ts`
-
-Expected: PASS.
-
-Run: `npx oxlint apps/front-2/src/lib/i18n.shared.ts apps/front-2/src/lib/i18n.shared.test.ts apps/front-2/src/lib/i18n.client.ts apps/front-2/src/lib/i18n.server.ts apps/front-2/src/lib/i18n.server.test.ts apps/front-2/src/lib/i18n.backend.ts`
-
-Expected: 0 errors.
-
-Run: `pnpm --filter front-2 typecheck`
-
-Expected: PASS.
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add apps/front-2/src/lib/i18n.shared.ts apps/front-2/src/lib/i18n.shared.test.ts apps/front-2/src/lib/i18n.client.ts apps/front-2/src/lib/i18n.server.ts apps/front-2/src/lib/i18n.server.test.ts apps/front-2/src/lib/i18n.backend.ts
-git commit -m "refactor(front-2): enforce strict locale snapshots"
-```
-
-### Task 5: Matched Namespace Loading, Dehydration, and RootShell
-
-**Files:**
-- Modify: `apps/front-2/src/server/i18n-locale.ts`
-- Modify: `apps/front-2/src/routes/__root.tsx`
-- Test: `apps/front-2/src/routes/__root-i18n-context.test.ts`
-
-- [ ] **Step 1: Replace the old root-context tests with failing namespace-aware cases**
-
-Keep the existing cookie/document helpers, mock `createBackendI18n`, `loadI18nContext`, and `loadI18nForRequest`, and call `RootRoute.options.beforeLoad` with `matches`. The core assertions are:
-
-```ts
-const authMatches = [
-	{ staticData: undefined },
-	{ staticData: { i18nNamespaces: ['auth'] as const } },
-];
-
-test('loads matched namespaces on the client without an RPC', async () => {
-	stubDocument(`${LOCALE_COOKIE_KEY}=fr`, 'en');
-	const context = await runRootBeforeLoad(authMatches);
-	expect(context.locale).toBe('fr');
-	expect(mocks.loadI18nContext).toHaveBeenCalledWith(
-		expect.anything(),
-		'fr',
-		['common', 'zod', 'response-message', 'auth'],
-	);
-	expect(mocks.loadI18nForRequest).not.toHaveBeenCalled();
-});
-
-test('uses the validated server loader only during SSR', async () => {
-	vi.unstubAllGlobals();
-	await runRootBeforeLoad(authMatches);
-	expect(mocks.loadI18nForRequest).toHaveBeenCalledWith({
-		data: { namespaces: ['common', 'zod', 'response-message', 'auth'] },
-	});
-});
-
-test('caches by locale and namespace set, not locale alone', async () => {
-	stubDocument(`${LOCALE_COOKIE_KEY}=fr`, 'en');
-	const globals = await runRootBeforeLoad([]);
-	const auth = await runRootBeforeLoad(authMatches);
-	expect(auth).not.toBe(globals);
-	expect((auth.resources as object)).not.toHaveProperty('en');
-});
-
-test('returns globals plus a serializable error when a feature import fails', async () => {
-	mocks.loadI18nContext.mockResolvedValueOnce({
-		namespaces: ['common', 'zod', 'response-message'],
-		resources: { fr: { common: { retry: 'Réessayer' }, zod: {}, 'response-message': {} } },
-		namespaceLoadError: 'Unknown i18n resource: fr/auth',
-	});
-	stubDocument(`${LOCALE_COOKIE_KEY}=fr`, 'en');
-	await expect(runRootBeforeLoad(authMatches)).resolves.toMatchObject({
-		locale: 'fr',
-		namespaceLoadError: 'Unknown i18n resource: fr/auth',
-	});
-});
-```
-
-Also retain the unsupported-cookie/document test, change the locale-switch cache test to assert the snapshot has only the new locale, and assert identical `(locale, namespaceSet)` calls return the same object. Run the file now.
-
-Run: `pnpm --filter front-2 exec vitest run src/routes/__root-i18n-context.test.ts`
-
-Expected: FAIL because `beforeLoad` ignores matches, the SSR function accepts no data, and snapshots have no namespace/error fields.
-
-- [ ] **Step 2: Validate SSR namespace input and use a request-local loading instance**
-
-Replace `loadI18nForRequest` in `src/server/i18n-locale.ts` with:
+Replace `loadI18nForRequest` in `apps/front-2/src/server/i18n-locale.ts` with:
 
 ```ts
 const LoadI18nInputSchema = z.object({
@@ -834,9 +816,7 @@ export const loadI18nForRequest = createServerFn({ method: 'GET' })
 
 Import `createBackendI18n`/`loadI18nContext` and `I18nNamespaceListSchema`; remove `buildI18nResources`. Keep `setLocale` unchanged. The validator matters even though current calls are SSR-inline because every server function remains client-callable.
 
-- [ ] **Step 3: Replace root resolution with direct client loading and `(locale, namespaceSet)` caching**
-
-Add `namespaces` and `namespaceLoadError` to `RootRouteContext`. Import `collectI18nNamespaces`, backend helpers, and the i18next instance type. Replace the old locale-only map and resolver with:
+In `apps/front-2/src/routes/__root.tsx`, add `namespaces` and `namespaceLoadError` to `RootRouteContext`. Import `collectI18nNamespaces`, backend helpers, the route-match/namespace types, and the i18next instance type. Replace the old locale-only map and resolver with:
 
 ```ts
 const clientLoadingInstanceByLocale = new Map<
@@ -892,9 +872,7 @@ const resolveRootContext = async ({
 
 Do not add any client call to `loadI18nForRequest`. The persistent loading instance avoids re-importing globals and hover-preloaded namespaces; the cached root value stays stable for the exact locale/set.
 
-- [ ] **Step 4: Build RootShell synchronously from the dehydrated snapshot and surface failures under it**
-
-Select `namespaces` in `RootShell` and use:
+Select `namespaces` in `RootShell` and build the provider synchronously from the dehydrated snapshot:
 
 ```ts
 const i18n = React.useMemo(
@@ -919,28 +897,143 @@ function RootComponent() {
 
 Keep `RootShell` outside success/error/not-found, keep `react.useSuspense: false`, and keep resolver load failures as returned context rather than throws.
 
-- [ ] **Step 5: Run the task verification floor**
+- [ ] **Step 5: Migrate every remaining old-API consumer in the same change**
 
-Run: `pnpm --filter front-2 exec vitest run src/routes/__root-i18n-context.test.ts src/lib/i18n.backend.test.ts src/lib/i18n.shared.test.ts`
+In `apps/front-2/src/server.ts`, replace the old i18n imports with:
+
+```ts
+import { createBackendI18n, loadNamespacesStrict } from './lib/i18n.backend';
+import { GLOBAL_I18N_NAMESPACES } from './lib/i18n.namespaces';
+import { resolveLocaleFromCookie } from './lib/i18n.server';
+import type { SupportedLanguage } from './lib/i18n.shared';
+```
+
+Replace the complete SEO translator function with the request-local backend path below. This loads only the global namespaces for the active locale, keeps all SEO keys in `common`, and does not introduce a server-function call:
+
+```ts
+export const resolveSeoTranslator = async (
+	locale: SupportedLanguage,
+): Promise<SeoTranslator> => {
+	const instance = await createBackendI18n(locale);
+	await loadNamespacesStrict(instance, GLOBAL_I18N_NAMESPACES);
+	const t = instance.getFixedT(locale, 'common');
+	return (key: string) => t(key as never);
+};
+```
+
+In `apps/front-2/src/routes/__root-error-boundary.test.tsx`, remove the `buildI18nResources` import. Import the manifests, registry, and locale type, then add a plain active-language global snapshot helper:
+
+```ts
+import enResource from '~/i18n/locales/en';
+import frResource from '~/i18n/locales/fr';
+import { GLOBAL_I18N_NAMESPACES } from '~/lib/i18n.namespaces';
+import type { SupportedLanguage } from '~/lib/i18n.shared';
+
+const makeRootI18nContext = (locale: SupportedLanguage) => {
+	const resource = locale === 'fr' ? frResource : enResource;
+	return {
+		locale,
+		namespaces: [...GLOBAL_I18N_NAMESPACES],
+		resources: {
+			[locale]: {
+				common: resource.common,
+				zod: resource.zod,
+				'response-message': resource['response-message'],
+			},
+		},
+		namespaceLoadError: null,
+	};
+};
+```
+
+Replace the three successful `mockResolvedValue({ locale, resources: await buildI18nResources(locale) })` calls with `mockResolvedValue(makeRootI18nContext(locale))`. Replace the obsolete rejection/fallback case with the server loader's actual fallback contract:
+
+```ts
+test('an unknown route renders English when server locale resolution falls back', async () => {
+	mocks.loadI18nForRequest.mockResolvedValue(makeRootI18nContext('en'));
+
+	const html = await renderRoute('/nowhere', false);
+
+	expect(html).toMatch(/<html[^>]*lang="en"/);
+	expect(html).toContain('</head>');
+	expect(html).toContain('Page not found');
+});
+```
+
+In `apps/front-2/src/lib/mutation-toast.test.ts`, keep the existing `createI18nFromResources` import and replace `makeI18n` with the new three-argument, active-language-only snapshot:
+
+```ts
+const makeI18n = () =>
+	createI18nFromResources('fr', ['common', 'response-message'], {
+		fr: {
+			common: {
+				'an-error-occurred': 'Une erreur est survenue',
+				'frontend-success': 'Succès frontend',
+			},
+			'response-message': {
+				'backend-success': 'Succès backend',
+				'backend-failure': 'Échec backend',
+			},
+		},
+	});
+```
+
+In `apps/front-2/src/components/field/field.test.tsx`, remove `buildI18nResources`, import the two shared Zod JSON files, and replace the async helper with an explicit one-namespace snapshot:
+
+```ts
+import zodEn from '@org/shared-ts/lib/i18n/json/zod.en.json';
+import zodFr from '@org/shared-ts/lib/i18n/json/zod.fr.json';
+
+const zodResources = { en: zodEn, fr: zodFr } as const;
+
+const configureInterZodLocale = (locale: 'en' | 'fr') => {
+	const i18n = createI18nFromResources(locale, ['zod'], {
+		[locale]: { zod: zodResources[locale] },
+	});
+	const interZod = new InterZod({
+		i18n: {
+			getFixedT: i18n.getFixedT.bind(i18n),
+			t: i18n.t.bind(i18n) as never,
+		},
+		locale,
+	});
+
+	z.setErrorMap(interZod.getErrorMap());
+};
+```
+
+Change both `await configureInterZodLocale(...)` calls to direct synchronous calls. After this step, a repository search for `buildI18nResources`, `FALLBACK_I18N_RESOURCES`, or a two-argument `createI18nFromResources` call under `apps/front-2/src` must return no matches.
+
+- [ ] **Step 6: Run the atomic task verification floor**
+
+Run:
+
+```bash
+pnpm --filter front-2 exec vitest run src/lib/i18n.shared.test.ts src/lib/i18n.server.test.ts src/lib/i18n.backend.test.ts src/routes/__root-i18n-context.test.ts src/routes/__root-error-boundary.test.tsx src/lib/mutation-toast.test.ts src/components/field/field.test.tsx src/server.test.ts
+```
 
 Expected: PASS.
 
-Run: `npx oxlint apps/front-2/src/server/i18n-locale.ts apps/front-2/src/routes/__root.tsx apps/front-2/src/routes/__root-i18n-context.test.ts`
+Run:
+
+```bash
+npx oxlint apps/front-2/src/lib/i18n.shared.ts apps/front-2/src/lib/i18n.shared.test.ts apps/front-2/src/lib/i18n.client.ts apps/front-2/src/lib/i18n.server.ts apps/front-2/src/lib/i18n.server.test.ts apps/front-2/src/lib/i18n.backend.ts apps/front-2/src/server/i18n-locale.ts apps/front-2/src/routes/__root.tsx apps/front-2/src/routes/__root-i18n-context.test.ts apps/front-2/src/routes/__root-error-boundary.test.tsx apps/front-2/src/server.ts apps/front-2/src/lib/mutation-toast.test.ts apps/front-2/src/components/field/field.test.tsx
+```
 
 Expected: 0 errors.
 
 Run: `pnpm --filter front-2 typecheck`
 
-Expected: PASS.
+Expected: PASS with the removed exports and new three-argument constructor fully migrated across every source and test consumer.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit the API removal and all consumers atomically**
 
 ```bash
-git add apps/front-2/src/server/i18n-locale.ts apps/front-2/src/routes/__root.tsx apps/front-2/src/routes/__root-i18n-context.test.ts
+git add apps/front-2/src/lib/i18n.shared.ts apps/front-2/src/lib/i18n.shared.test.ts apps/front-2/src/lib/i18n.client.ts apps/front-2/src/lib/i18n.server.ts apps/front-2/src/lib/i18n.server.test.ts apps/front-2/src/lib/i18n.backend.ts apps/front-2/src/server/i18n-locale.ts apps/front-2/src/routes/__root.tsx apps/front-2/src/routes/__root-i18n-context.test.ts apps/front-2/src/routes/__root-error-boundary.test.tsx apps/front-2/src/server.ts apps/front-2/src/lib/mutation-toast.test.ts apps/front-2/src/components/field/field.test.tsx
 git commit -m "feat(front-2): load matched i18n namespaces"
 ```
 
-### Task 6: Namespace-aware Translation Key Coverage
+### Task 5: Namespace-aware Translation Key Coverage
 
 **Files:**
 - Modify: `apps/front-2/src/lib/i18n-key-coverage.test.ts`
@@ -1036,7 +1129,7 @@ git add apps/front-2/src/lib/i18n-key-coverage.test.ts
 git commit -m "test(front-2): cover namespaced i18n keys"
 ```
 
-### Task 7: Extract the Auth Namespace and Declare the Five Routes
+### Task 6: Extract the Auth Namespace and Declare the Five Routes
 
 **Files:**
 - Modify: `apps/front-2/src/i18n/locales/en/common.json`
@@ -1077,7 +1170,7 @@ Expected: FAIL in five new assertions because all route `staticData` values are 
 
 - [ ] **Step 2: Use this audited call-site inventory while editing**
 
-The current route files contain 19 `useTranslation('common')` hooks: login 2, signup 2, reset-password 4, verify-email 1, accept-invitation 9. Change every one to `useTranslation(['auth', 'common'])`; `auth` is the primary namespace, and including `common` makes explicit `common:<key>` calls type-safe without namespace fallback. Literal calls currently resolve these keys:
+The current route files contain 18 `useTranslation('common')` hooks: login 2, signup 2, reset-password 4, verify-email 1, accept-invitation 9. Change every one to `useTranslation(['auth', 'common'])`; `auth` is the primary namespace, and including `common` makes explicit `common:<key>` calls type-safe without namespace fallback. Literal calls currently resolve these keys:
 
 - `login.tsx`: `authentication-required`, `back-to-login`, `create-one`, `email-address`, `email-placeholder`, `enter-valid-email-address`, `enter-valid-email-and-password`, `enter-your-password`, `error-401-code`, `error-500-code`, `forgot-password`, `go-to-home`, `invalid-credentials-description`, `login-request-unauthorized-description`, `no-account-yet`, `password`, `password-is-required`, `password-reset-success`, `retry`, `session-expired-notice`, `sign-in`, `sign-in-could-not-be-completed`, `sign-in-failed-check-credentials`, `sign-in-to-pick-up-where-you-left-off`, `signing-in`, `something-went-wrong`, `welcome-back`.
 - `signup.tsx`: `already-have-account-question`, `an-error-occurred`, `and`, `auth-first-name`, `auth-last-name`, `by-signing-up-agree`, `create-account`, `create-your-account`, `email-address`, `email-placeholder`, `enter-valid-email-address`, `first-name-required`, `last-name-required`, `log-in`, `password`, `password-min-length-hint-n`, `privacy-policy`, `signup-closed-notice`, `terms-of-service`.
@@ -1154,7 +1247,7 @@ Add this to each of the five `createFileRoute` option objects:
 staticData: { i18nNamespaces: ['auth'] },
 ```
 
-Change all 19 hooks to `useTranslation(['auth', 'common'])`. Change each retained-global call from `t('retry')` to the corresponding qualified form, for example `t('common:retry')`; apply this to every occurrence of the 15-key retained list. Add `ns="auth"` to all four `Trans` uses. Do not configure `fallbackNS`; every cross-namespace lookup remains explicit.
+Change all 18 hooks to `useTranslation(['auth', 'common'])`. Change each retained-global call from `t('retry')` to the corresponding qualified form, for example `t('common:retry')`; apply this to every occurrence of the 15-key retained list. Add `ns="auth"` to all four `Trans` uses. Do not configure `fallbackNS`; every cross-namespace lookup remains explicit.
 
 Replace the invitation's invisible ternary/dynamic tables with extractor-visible constants:
 
@@ -1192,7 +1285,7 @@ const INVITATION_BRAND_I18N_KEYS: Partial<
 };
 ```
 
-Select `INVITATION_MISMATCH_I18N_KEYS[userExists ? 'existing' : 'newUser']` once and use its `description`/`cta`; rename the existing brand lookup reference to `INVITATION_BRAND_I18N_KEYS`. Both names end in `_I18N_KEYS`, so Task 6's indirect-key collector verifies every value.
+Select `INVITATION_MISMATCH_I18N_KEYS[userExists ? 'existing' : 'newUser']` once and use its `description`/`cta`; rename the existing brand lookup reference to `INVITATION_BRAND_I18N_KEYS`. Both names end in `_I18N_KEYS`, so Task 5's indirect-key collector verifies every value.
 
 - [ ] **Step 5: Run the task verification floor**
 
@@ -1222,10 +1315,10 @@ git commit -m "feat(front-2): extract auth translations"
 ## Final production runtime verification
 
 **Files:**
-- Created in Task 7: `apps/front-2/e2e/i18n-namespaces.spec.ts`
+- Created in Task 6: `apps/front-2/e2e/i18n-namespaces.spec.ts`
 - Test: `apps/front-2/e2e/i18n-namespaces.spec.ts`
 
-Add this production-runtime coverage during Task 7 before moving the JSON/routes. The five new route assertions are the deterministic red test; this file supplies the production proof once the task is green.
+Add this production-runtime coverage during Task 6 before moving the JSON/routes. The five new route assertions are the deterministic red test; this file supplies the production proof once the task is green.
 
 ```ts
 import { expect, test } from '@playwright/test';
@@ -1290,7 +1383,7 @@ test('hydration preserves the SSR locale and auth copy', async ({ page }) => {
 });
 ```
 
-These tests run against the rebuilt production stack after Task 7.
+These tests run against the rebuilt production stack after Task 6.
 
 ### Build and run the focused e2e
 
