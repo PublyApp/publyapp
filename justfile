@@ -92,6 +92,10 @@ build-front:
 build-deploy:
   node ./scripts/deploy.mjs
 
+# Build + push the three GHCR deploy images from a clean checkout at REF (Actions is stalled).
+deploy-images ref="origin/develop":
+  bash scripts/deploy-images.sh {{ref}}
+
 # Deploy front artifact (dokploy)
 deploy-front:
   node ./scripts/deploy.mjs --target front --upload
