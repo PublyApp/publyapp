@@ -28,9 +28,10 @@ pay for them twice.
   `ghcr.io/radandevist/publyapp/{api,migrate,front-2}` tagged by commit SHA on push to the
   target branch. Pick the SHA tag you want to deploy (that becomes `RELEASE_TAG`).
   If Actions is billing-stalled, first run `docker login ghcr.io -u radandevist`, then run
-  `just deploy-images [ref]` locally (the ref defaults to `origin/develop`). The wrapper mirrors
-  the workflow's three builds and pushes, using a pristine `git archive` of the resolved commit
-  rather than the current working tree. Copy its final `RELEASE_TAG=<full-SHA>` into Dokploy.
+  `just deploy-images [ref]` locally (the ref defaults to `origin/develop`), or invoke
+  `node scripts/deploy-images.mjs [ref]` directly. The wrapper mirrors the workflow's three builds
+  and pushes, using a pristine detached git worktree at the resolved commit rather than the current
+  working tree. Copy its final `RELEASE_TAG=<full-SHA>` into Dokploy.
 - A GitHub **classic PAT** with `read:packages` (and `write:packages`) scope, for GHCR pulls.
 - A domain (or subdomain) pointed at the VPS for the front + api, if you want HTTPS via Traefik.
 
@@ -237,8 +238,9 @@ checks". They are now answered; that section is closed out.
   that did build. If GitHub Actions cannot run at all (e.g. the account is over its Actions
   spending limit, which shows as **every** job failing in ~3s with 0 steps and no runner),
   authenticate with `docker login ghcr.io -u radandevist`, then run
-  `just deploy-images [ref]`. It mirrors `deploy-images.yml` exactly and tags all three images
-  with the **same full commit SHA**, from a clean archive of that commit.
+  `just deploy-images [ref]` (or `node scripts/deploy-images.mjs [ref]`). It mirrors
+  `deploy-images.yml` exactly and tags all three images with the **same full commit SHA**, from a
+  clean detached worktree at that commit.
 - **Login fails with a network/"request failed" error (nothing server-side)** → the browser
   cannot reach the API. Either the api has no domain configured (§4.5), or `FRONT_URL` has a
   trailing slash so CORS rejects the origin (see trap 3), or `PUBLIC_API_BASE_URL` is `http://`
