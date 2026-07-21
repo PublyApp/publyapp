@@ -21,7 +21,6 @@ import {
 	getSessionTokensFromBrowser,
 } from '~/lib/api-client/client-manager';
 import { buildLoginRedirectSearch } from '~/lib/login-redirect-search';
-import { shouldShowSecondaryPanel } from '~/lib/navigation/route-metadata';
 import { ServerFailure } from '~/lib/server/server-failure';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
@@ -32,7 +31,6 @@ import {
 	type ParsedSessionTokens,
 } from '@org/shared-ts/lib/session/parse';
 
-import { AuthedLayout } from '../../layouts/authed-layout';
 import { AuthedRouteContentSkeleton } from './_route-content-skeleton';
 
 const STAFF_PATH = '/staff';
@@ -114,43 +112,15 @@ const parseRedirectCode = async (token: string): Promise<string | null> => {
 	}
 };
 
-// TanStack Start renders this as the route's SSR fallback AND its
-// pre-hydration ClientOnly fallback (see Match.js: `resolvedNoSsr` routes
-// wrap MatchInner in `<ClientOnly fallback={pendingElement}>`). Without a
-// pendingComponent, that fallback is `null` — a genuinely blank <body> for
-// the entire network+hydrate round trip on a cold boot (tab discard, hard
-// reload).
-//
-// This must stay a STATIC skeleton, not the real (Zustand-backed)
-// AuthedLayout rendered by the route component below: that shell's
-// secondary-panel visibility
-// depends on `useUiStore`, whose persisted sidebarOpen/colorScheme are only
-// read from localStorage in a `useEffect` (`hydrateFromStorage`) — deferred
-// on purpose so the store's SSR-safe default doesn't cause a hydration
-// mismatch. `pendingComponent` is unmounted and replaced by a brand-new
-// mount of the real route component the instant hydration completes
-// (ClientOnly swaps `fallback` for `children`, a different element type at
-// that position, forcing React to remount) — a second, independent
-// AppShell/useUiStore mount with its OWN un-hydrated-yet default render.
-// Reusing the stateful shell here raced that second mount's correction
-// against whatever the real route was already settled on, intermittently
-// leaving a stale/duplicate secondary-panel node (caught by
-// shell.spec.ts's collapsed-panel-preference test). A skeleton with no
-// store dependency can't race anything.
-//
-// This also deliberately uses its OWN testids (`app-shell-pending-*`), not
-// the real shell's (`app-shell-shell`/`app-shell-rail`/`app-shell-topbar`):
-// an internal redirect (e.g. `/staff` -> `/staff/staff-users`) re-matches
-// the whole route tree, and TanStack Router keeps the outgoing match's DOM
-// mounted (hidden via `display:none`) while the incoming match's
-// pendingComponent renders — so a real, already-hydrated shell and a fresh
-// pendingComponent render can briefly coexist in the DOM. Sharing testids
-// with the real shell would make that framework transition look like a
-// strict-mode duplicate to every existing `getByTestId('app-shell-rail')`
-// assertion; distinct testids keep the two trees unambiguous.
+// TanStack Start renders this as the route's SSR fallback and its
+// pre-hydration ClientOnly fallback for this `ssr: false` route. Shell
+// ownership deliberately stays above the route match in RoutedShell: an
+// internal redirect such as `/staff` -> `/staff/staff-users` replaces this
+// content fallback, but it cannot replace the real AppShell or create a
+// second Zustand-backed shell mount. Keeping the pending component
+// store-free preserves the persisted secondary-panel geometry contract.
 const AuthedRoutePendingSkeleton = () => {
 	const location = useLocation();
-	const { t } = useTranslation('common');
 	const pathname = location.pathname ?? '';
 	const isTenantPortalRoot = pathname.replace(/\/+$/, '') === TENANT_PATH;
 
@@ -165,47 +135,7 @@ const AuthedRoutePendingSkeleton = () => {
 		);
 	}
 
-	// r4-shell-F4: the pending skeleton reserves the secondary-panel grid
-	// track from the same store-free default that controls its panel markup.
-	// `shouldShowSecondaryPanel(pathname)` with no options uses the same
-	// fallback defaults the real shell uses before `sidebarOpen` hydrates
-	// (open + desktop + >=2 items), so this store-free skeleton
-	// still reserves the right grid track and the real first frame doesn't
-	// pop the layout when it mounts.
-	const showSecondaryPanel = shouldShowSecondaryPanel(pathname);
-
-	return (
-		<div
-			className="app-shell-workspace"
-			data-testid="app-shell-pending-skeleton"
-			data-mode="authed"
-			data-has-secondary-panel={showSecondaryPanel ? 'true' : undefined}
-			data-panel-open={showSecondaryPanel ? 'true' : 'false'}
-		>
-			<nav
-				className="app-shell-rail"
-				aria-label={t('primary-navigation')}
-				data-testid="app-shell-pending-rail"
-			/>
-			{showSecondaryPanel ? (
-				<aside
-					className="app-shell-secondary-panel"
-					data-testid="app-shell-pending-secondary-panel"
-				>
-					<div className="app-shell-secondary-panel-inner" />
-				</aside>
-			) : null}
-			<div className="app-shell-body">
-				<header
-					className="app-shell-topbar"
-					data-testid="app-shell-pending-topbar"
-				/>
-				<main className="app-shell-main">
-					<AuthedRouteContentSkeleton />
-				</main>
-			</div>
-		</div>
-	);
+	return <AuthedRouteContentSkeleton />;
 };
 
 const AuthedLayoutErrorBoundary = ({
@@ -291,7 +221,6 @@ export const Route = createFileRoute('/_authed-layout')({
 function AuthedRouteLayout() {
 	const location = useLocation();
 	const pathname = location.pathname ?? '';
-	const search = location.search as Record<string, unknown>;
 	const navigate = useNavigate();
 	const { t } = useTranslation('common');
 	const isStaffSurface = pathname.startsWith(STAFF_PATH);
@@ -417,28 +346,15 @@ function AuthedRouteLayout() {
 			);
 		}
 
-		return (
-			<AuthedLayout pathname={pathname} search={search}>
-				<AuthedRouteContentSkeleton />
-			</AuthedLayout>
-		);
+		return <AuthedRouteContentSkeleton />;
 	}
 
 	if (isSurfaceMismatch) {
-		// A neutral, pathname-agnostic skeleton — the stateful AuthedLayout
-		// would flash the wrong surface's nav rail for the duration of the
-		// navigate({ to: TENANT_PATH | STAFF_PATH }) round trip triggered by
-		// the effect above.
+		// Keep route content neutral while RoutedShell preserves the committed
+		// surface shell for the navigate({ to: TENANT_PATH | STAFF_PATH })
+		// round trip triggered by the effect above.
 		return <AuthedRoutePendingSkeleton />;
 	}
 
-	if (isTenantPortalRoot) {
-		return <Outlet />;
-	}
-
-	return (
-		<AuthedLayout pathname={pathname} search={search}>
-			<Outlet />
-		</AuthedLayout>
-	);
+	return <Outlet />;
 }

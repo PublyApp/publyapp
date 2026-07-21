@@ -7,6 +7,7 @@ import {
 	Outlet,
 	Scripts,
 	useLocation,
+	useMatches,
 	useRouter,
 } from '@tanstack/react-router';
 import { createClientOnlyFn } from '@tanstack/react-start';
@@ -40,6 +41,7 @@ import { View403 } from '../components/error-views/View403';
 import { View404 } from '../components/error-views/View404';
 import type { AuthBrand } from '../layouts/auth-layout';
 import { AuthLayout } from '../layouts/auth-layout';
+import { AuthedLayout } from '../layouts/authed-layout';
 import { MarketingLayout } from '../layouts/marketing-layout';
 import appCss from '../styles/app.css?url';
 
@@ -271,8 +273,23 @@ export const buildThemeInitScript = (storageKey: string): string => `(() => {
 	} catch (e) {}
 })();`;
 
-const RoutedShell = () => {
-	const location = useLocation();
+/**
+ * Owns surface chrome above TanStack Router's replaceable route-match tree.
+ * `useLocation` advances before the rendered matches during navigation, while
+ * `resolvedLocation` can advance after their outlet. The active match set is
+ * the only public state that changes with the content passed as `children`.
+ */
+export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
+	const location = useMatches({
+		select: (matches) => {
+			const match = matches[matches.length - 1];
+
+			return {
+				pathname: match?.pathname ?? '/',
+				search: match?.search ?? {},
+			};
+		},
+	});
 	const pathname = location.pathname;
 	const surface = resolveRouteSurface(pathname);
 	const [brand, setBrand] = React.useState<AuthBrand | undefined>(undefined);
@@ -281,24 +298,27 @@ const RoutedShell = () => {
 		isPathForSurface(pathname, '/staff') ||
 		isPathForSurface(pathname, '/tenant')
 	) {
-		return <Outlet />;
+		const isTenantPortalRoot = pathname.replace(/\/+$/, '') === '/tenant';
+		if (isTenantPortalRoot) {
+			return children;
+		}
+
+		return (
+			<AuthedLayout pathname={pathname} search={location.search}>
+				{children}
+			</AuthedLayout>
+		);
 	}
 
 	if (surface === 'auth') {
 		return (
 			<AuthBrandProvider value={setBrand}>
-				<AuthLayout brand={brand}>
-					<Outlet />
-				</AuthLayout>
+				<AuthLayout brand={brand}>{children}</AuthLayout>
 			</AuthBrandProvider>
 		);
 	}
 
-	return (
-		<MarketingLayout pathname={pathname}>
-			<Outlet />
-		</MarketingLayout>
-	);
+	return <MarketingLayout pathname={pathname}>{children}</MarketingLayout>;
 };
 
 export const Route = createRootRouteWithContext<{
@@ -380,7 +400,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
 					<SessionInvalidationListener />
 					<ThemeHydrationListener />
 					<AppToaster />
-					{children}
+					<RoutedShell>{children}</RoutedShell>
 				</I18nextProvider>
 				<Scripts />
 			</body>
@@ -389,5 +409,5 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
-	return <RoutedShell />;
+	return <Outlet />;
 }

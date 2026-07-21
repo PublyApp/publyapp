@@ -52,12 +52,6 @@ vi.mock('~/lib/api-client/client-manager', () => ({
 	}),
 }));
 
-vi.mock('../../layouts/authed-layout', () => ({
-	AuthedLayout: ({ children }: { children: ReactNode }) => (
-		<div data-testid="authed-layout-stub">{children}</div>
-	),
-}));
-
 vi.mock('~/components/error-views/AppErrorView', () => ({
 	AppErrorView: () => <div data-testid="app-error-view-stub" />,
 }));
@@ -161,7 +155,7 @@ describe('AuthedRouteLayout surface-redirect-code query', () => {
 });
 
 describe('AuthedRouteLayout render gating', () => {
-	test('keeps the app shell mounted with a content skeleton while the surface query loads', () => {
+	test('swaps only route content while the surface query settles', () => {
 		mocks.queryResult = {
 			data: undefined,
 			error: undefined,
@@ -171,7 +165,6 @@ describe('AuthedRouteLayout render gating', () => {
 		};
 		const { rerender } = render(<AuthedRouteLayout />);
 
-		const loadingShell = screen.getByTestId('authed-layout-stub');
 		expect(screen.getByTestId('authed-route-content-skeleton')).toBeTruthy();
 		expect(screen.queryByText('loading')).toBeNull();
 
@@ -184,11 +177,10 @@ describe('AuthedRouteLayout render gating', () => {
 		};
 		rerender(<AuthedRouteLayout />);
 
-		expect(screen.getByTestId('authed-layout-stub')).toBe(loadingShell);
 		expect(screen.getByTestId('outlet-stub')).toBeTruthy();
 	});
 
-	test('renders the outlet through the authed shell once the query has settled', () => {
+	test('renders the outlet once the query has settled', () => {
 		mocks.queryResult = {
 			data: 'staff',
 			error: undefined,
@@ -213,21 +205,13 @@ describe('BUG-2: pendingComponent closes the cold-boot blank window', () => {
 		expect(typeof routeOptions.pendingComponent).toBe('function');
 	});
 
-	test('renders static app shell chrome (rail + topbar) for a staff path', () => {
+	test('renders a store-free content skeleton for a staff path', () => {
 		mocks.location = { pathname: '/staff/tenants', search: {} };
 		render(<AuthedRoutePendingSkeleton />);
 
-		expect(screen.getByTestId('app-shell-pending-rail')).toBeTruthy();
-		expect(screen.getByTestId('app-shell-pending-topbar')).toBeTruthy();
 		expect(screen.getByTestId('authed-route-content-skeleton')).toBeTruthy();
-		// No AuthedLayout/AppShell stub here on purpose — this must stay a
-		// store-free static skeleton (see the comment on
-		// AuthedRoutePendingSkeleton for why reusing the stateful shell
-		// regressed the secondary-panel persisted preference), and it uses
-		// its own testids distinct from the real shell's (see the comment on
-		// AuthedRoutePendingSkeleton for why sharing them broke existing
-		// strict-mode getByTestId assertions during internal redirects).
-		expect(screen.queryByTestId('authed-layout-stub')).toBeNull();
+		// The route fallback owns content only. RoutedShell owns the one real
+		// AppShell instance across pending and settled matches.
 		expect(screen.queryByTestId('app-shell-rail')).toBeNull();
 	});
 
@@ -235,33 +219,6 @@ describe('BUG-2: pendingComponent closes the cold-boot blank window', () => {
 		mocks.location = { pathname: '/tenant', search: {} };
 		render(<AuthedRoutePendingSkeleton />);
 
-		expect(screen.queryByTestId('app-shell-pending-rail')).toBeNull();
-	});
-
-	// r4-shell-F4: the pending skeleton previously always omitted the
-	// secondary-panel track (only rail + body/topbar/main), while the real
-	// shell defaults `sidebarOpen` to open on a default-open list route and
-	// inserts a secondary-panel grid track
-	// (`data-has-secondary-panel` / `data-panel-open` in app.css) —
-	// producing a geometry pop the instant the real shell mounts.
-	test('reserves the secondary-panel grid track for a default-open list route', () => {
-		mocks.location = { pathname: '/staff/tenants', search: {} };
-		render(<AuthedRoutePendingSkeleton />);
-
-		expect(
-			screen.getByTestId('app-shell-pending-secondary-panel'),
-		).toBeTruthy();
-	});
-
-	test('reserves the secondary-panel grid track for a detail route using the same defaults', () => {
-		mocks.location = {
-			pathname: '/staff/tenants/11111111-1111-1111-1111-111111111111',
-			search: {},
-		};
-		render(<AuthedRoutePendingSkeleton />);
-
-		expect(
-			screen.getByTestId('app-shell-pending-secondary-panel'),
-		).toBeTruthy();
+		expect(screen.queryByTestId('authed-route-content-skeleton')).toBeNull();
 	});
 });
