@@ -8,8 +8,6 @@ import {
 	type SupportedLanguage,
 } from './i18n.shared';
 
-export { buildI18nResources } from './i18n.shared';
-
 export const normalizeLocale = (
 	value: string | null | undefined,
 ): SupportedLanguage => {

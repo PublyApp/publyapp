@@ -8,8 +8,9 @@ import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 import { captureBadRequest } from './lib/analytics';
 import { getOptionalPublicApiBaseUrl, isDevelopmentRuntime } from './lib/env';
-import { buildI18nResources, resolveLocaleFromCookie } from './lib/i18n.server';
-import { createI18nFromResources } from './lib/i18n.shared';
+import { createBackendI18n, loadNamespacesStrict } from './lib/i18n.backend';
+import { GLOBAL_I18N_NAMESPACES } from './lib/i18n.namespaces';
+import { resolveLocaleFromCookie } from './lib/i18n.server';
 import type { SupportedLanguage } from './lib/i18n.shared';
 import { mintCspNonce, applyCspHeaders } from './server/csp';
 import { seo } from './utils/seo';
@@ -114,9 +115,10 @@ export type SeoTranslator = (key: string) => string;
 export const resolveSeoTranslator = async (
 	locale: SupportedLanguage,
 ): Promise<SeoTranslator> => {
-	const resources = await buildI18nResources(locale);
-	const instance = createI18nFromResources(locale, resources);
-	return (key: string) => instance.t(key);
+	const instance = await createBackendI18n(locale);
+	await loadNamespacesStrict(instance, GLOBAL_I18N_NAMESPACES);
+	const t = instance.getFixedT(locale, 'common');
+	return (key: string) => t(key as never);
 };
 
 const resolveFallbackTitle = (t: SeoTranslator, isLogin: boolean): string => {

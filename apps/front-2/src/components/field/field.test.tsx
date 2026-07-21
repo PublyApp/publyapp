@@ -13,16 +13,20 @@ import { useForm } from 'react-hook-form';
 import { afterEach, describe, expect, test } from 'vitest';
 import { z } from 'zod';
 import { createI18nFromResources } from '~/lib/i18n.shared';
-import { buildI18nResources } from '~/lib/i18n.shared';
 
+import sharedEn from '@org/shared-ts/lib/i18n/locales/en';
+import sharedFr from '@org/shared-ts/lib/i18n/locales/fr';
 import InterZod from '@org/shared-ts/lib/zod/InterZod';
 
 import { Field } from './fields';
 import { Form } from './form';
 
-const configureInterZodLocale = async (locale: 'en' | 'fr') => {
-	const resources = await buildI18nResources(locale);
-	const i18n = createI18nFromResources(locale, resources);
+const zodResources = { en: sharedEn.zod, fr: sharedFr.zod } as const;
+
+const configureInterZodLocale = (locale: 'en' | 'fr') => {
+	const i18n = createI18nFromResources(locale, ['zod'], {
+		[locale]: { zod: zodResources[locale] },
+	});
 	const interZod = new InterZod({
 		i18n: {
 			getFixedT: i18n.getFixedT.bind(i18n),
@@ -264,7 +268,7 @@ describe('Field.Select (handoff select trigger)', () => {
 
 describe('InterZod localization via zodResolver-compatible schema setup', () => {
 	test('validates email with localized English message', async () => {
-		await configureInterZodLocale('en');
+		configureInterZodLocale('en');
 
 		const schema = z.object({
 			email: z.string().email(),
@@ -277,7 +281,7 @@ describe('InterZod localization via zodResolver-compatible schema setup', () => 
 	});
 
 	test('validates email with localized French message', async () => {
-		await configureInterZodLocale('fr');
+		configureInterZodLocale('fr');
 
 		const schema = z.object({
 			email: z.string().email(),
