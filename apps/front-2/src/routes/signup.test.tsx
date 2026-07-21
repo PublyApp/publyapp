@@ -20,7 +20,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@tanstack/react-router', () => ({
-	createFileRoute: () => (options: Record<string, unknown>) => options,
+	createFileRoute: () => (options: Record<string, unknown>) => ({
+		...options,
+		options,
+	}),
 	useNavigate: () => mocks.navigate,
 	Link: ({ children, to, ...props }: { children: ReactNode; to: string }) =>
 		createElement('a', { href: to, ...props }, children),
@@ -75,7 +78,8 @@ const EN_LABELS: Record<string, string> = {
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string, options?: Record<string, unknown>) => {
-			let text = EN_LABELS[key] ?? key;
+			const resolvedKey = key.replace(/^common:/, '');
+			let text = EN_LABELS[resolvedKey] ?? resolvedKey;
 			for (const [name, value] of Object.entries(options ?? {})) {
 				text = text.replaceAll(`{{${name}}}`, String(value));
 			}
@@ -97,6 +101,10 @@ const renderSignUpRoute = () => {
 };
 
 describe('signup route', () => {
+	test('declares the auth i18n namespace', () => {
+		expect(Route.options.staticData).toEqual({ i18nNamespaces: ['auth'] });
+	});
+
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mocks.signupsEnabled = false;

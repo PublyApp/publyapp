@@ -121,7 +121,7 @@ const VerifyEmailRoute = () => {
 	const loaderData = useLoaderData({
 		from: '/verify-email',
 	}) as VerifyEmailLoaderData;
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['auth', 'common']);
 	// Only records a submit-triggered "sent" transition — the loader-derived
 	// view is the source of truth otherwise, so a same-route navigation (the
 	// loader re-running with a different search) isn't stuck showing a stale
@@ -176,6 +176,7 @@ const VerifyEmailRoute = () => {
 				description={
 					<Trans
 						i18nKey="verify-email-sent-description"
+						ns="auth"
 						values={{ email: submittedEmail }}
 						components={{ strong: <strong className="text-foreground" /> }}
 					/>
@@ -195,7 +196,9 @@ const VerifyEmailRoute = () => {
 		} catch (error) {
 			const failure = toApiFailure(error);
 			setErrorMessage(
-				getFailureMessage(failure, { fallback: t('an-error-occurred') }),
+				getFailureMessage(failure, {
+					fallback: t('common:an-error-occurred'),
+				}),
 			);
 		}
 	};
@@ -232,14 +235,14 @@ const VerifyEmailRoute = () => {
 							htmlFor="verify-email-email"
 							className="text-[13px] font-medium text-foreground"
 						>
-							{t('email-address')}
+							{t('common:email-address')}
 						</label>
 						<Input
 							{...register('email')}
 							id="verify-email-email"
 							required
 							type="email"
-							placeholder={t('email-placeholder')}
+							placeholder={t('common:email-placeholder')}
 							aria-invalid={Boolean(errors.email?.message) || undefined}
 							autoComplete="email"
 							className="h-11 text-sm lg:h-10 lg:text-[13px]"
@@ -275,6 +278,7 @@ const VerifyEmailRoute = () => {
 
 export const Route = createFileRoute('/verify-email')({
 	beforeLoad: redirectAuthenticatedUserAwayFromAuthPage,
+	staticData: { i18nNamespaces: ['auth'] },
 	loader: verifyEmailLoader,
 	component: VerifyEmailRoute,
 });
