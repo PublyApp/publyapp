@@ -1,8 +1,7 @@
 # front-2 i18n: Namespace Architecture + Per-Route Lazy Loading — Design (DRAFT for review)
 
-**Status:** draft for owner approval. On approval it moves to
-`docs/superpowers/specs/2026-07-21-front-2-i18n-namespace-architecture-design.md` on the
-re-arch branch, then becomes an implementation plan.
+**Status:** APPROVED by owner (2026-07-21). Implemented via
+`docs/superpowers/plans/2026-07-21-front-2-i18n-p1-namespaces.md` (P1).
 
 **Issue:** part of #904 (the de-RPC unblock is a separate PR already in flight).
 
@@ -79,9 +78,15 @@ is refined per migration phase; add a namespace only when its screen exists.)
 - **Client on-demand:** on navigation, before rendering the target route's content, compute the
   union for the target matches and `await i18next.loadNamespaces(missing)` (backend fetches the
   Vite chunks); block in the route loader so there is no flash. Globals are always present.
-- **Active-language-only + fallback:** load only the active locale's namespaces; for `fr` also
-  load `en` for the SAME namespaces (i18next `fallbackLng`). EN users load EN only; FR users load
-  FR+EN for namespaces they visit. Preserves today's missing-key fallback behavior.
+- **Strict active-language-only (`fallbackLng: false`):** load only the active locale's namespaces
+  — a French page loads only French chunks, never English. French completeness is enforced
+  statically (`fr.ts satisfies LooseResource`) + by the namespace-aware key-coverage test, so
+  nothing needs a runtime fallback. (Owner decision 2026-07-21, superseding an earlier
+  load-en-fallback-for-fr idea.)
+- **Client loading (captain correction to the spike):** client navigations load namespaces via the
+  client-side Vite-glob backend (a lazy chunk `import()`), NOT a per-navigation server function —
+  which would reintroduce the per-nav RPC stall #904/#905 just removed. The server function is
+  SSR-only (runs inline).
 - **Language switch:** set cookie → reload the currently-active namespaces in the new locale via
   `changeLanguage` (backend re-loads active ns) → re-render. No full reload.
 - **Carries forward from the unblock PR:** client-local locale resolution (no per-nav serverFn) +
@@ -109,13 +114,15 @@ is refined per migration phase; add a namespace only when its screen exists.)
 - Coverage: extend `i18n-key-coverage` for the per-namespace structure.
 - Regression: zero per-nav serverFn; language switch reloads active namespaces.
 
-## 7. Open decisions (need owner sign-off)
+## 7. Decisions (resolved — owner, 2026-07-21)
 
-1. **Taxonomy** (§2) — approve the namespace list / adjust.
-2. **Source layout** (§3) — `apps/front-2/src/i18n/locales/{lng}/{ns}.json`; zod+response-message
-   stay in shared-ts. OK?
-3. **Backend dep** — add `i18next-resources-to-backend` vs hand-roll (~15 lines). Preference?
-4. **Migration granularity** — one feature namespace per PR (recommended) vs batches.
+1. **Taxonomy** (§2) — approved.
+2. **Source layout** (§3) — approved: `apps/front-2/src/i18n/locales/{lng}/{ns}.json`; `zod` +
+   `response-message` stay in shared-ts.
+3. **Backend** — hand-rolled `import.meta.glob` backend; no `i18next-resources-to-backend` dependency.
+4. **Migration granularity** — one feature namespace per PR.
+5. **Fallback** — strict `fallbackLng: false` (§4).
+6. **Client loading** — client-side Vite-glob backend, no per-navigation server function (§4).
 
 ## 8. Framework spike — MUST lock before P1 build (de-risking)
 
