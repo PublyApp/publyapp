@@ -123,6 +123,18 @@ is refined per migration phase; add a namespace only when its screen exists.)
 4. **Migration granularity** — one feature namespace per PR.
 5. **Fallback** — strict `fallbackLng: false` (§4).
 6. **Client loading** — client-side Vite-glob backend, no per-navigation server function (§4).
+7. **Compile-time key safety** (resolved 2026-07-21, owner-approved) — P1 enforces cross-language
+   **completeness** at compile time via `fr.ts satisfies LooseResource` (deep key-shape check;
+   verifiably fails on a missing French key) plus the namespace-aware key-coverage test. It does
+   **not** add an i18next `CustomTypeOptions` augmentation for call-site `t('key')` typo-catching:
+   under the pinned TypeScript 6.0.2/6.0.3, an active large front-2 augmentation deterministically
+   crashes the compiler (upstream bug — TypeScript issue #63195; confirmed by bisection + independent
+   investigation; expression-level annotations only relocate the crash). front-2 has no active
+   call-site key augmentation today (the shared-ts one is inert across the package/version boundary),
+   so this is not a regression. Call-site typo-catching is a **step-by-step follow-up**: primary —
+   adopt i18next's large-resource selector mode (i18next 25.4+, purpose-built for this); later —
+   evaluate TypeScript 7 for front-2's typecheck (it does not crash). This is decoupled from the
+   runtime loading design, which ships in full.
 
 ## 8. Framework spike — MUST lock before P1 build (de-risking)
 

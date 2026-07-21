@@ -8,6 +8,23 @@
 
 **Tech Stack:** TypeScript 6, React 19, TanStack Router/Start, i18next 24, react-i18next, Vite 8 `import.meta.glob`, Zod 3, Vitest 4, Playwright 1.61, pnpm.
 
+> **P1 scope correction (2026-07-21, owner-approved).** An earlier draft added a front-2-local
+> i18next `CustomTypeOptions` augmentation so `t('key')` call sites would be compile-time key-checked.
+> Under the repo's pinned TypeScript 6.0.2/6.0.3, an active large JSON-backed front-2 augmentation
+> deterministically crashes the compiler (upstream bug: TypeScript issue #63195; `Debug Failure. No
+> error for last overload signature`). This was confirmed by a full bisection + an independent
+> investigation; expression-level annotations only relocate the crash (whack-a-mole). front-2 also
+> has **no active call-site key augmentation today** — the shared-ts augmentation is inert across the
+> package/version boundary — so omitting it is not a regression. **Decision:** P1 ships the runtime
+> namespace-loading design + compile-time **completeness** safety (`fr.ts satisfies LooseResource`,
+> which verifiably fails on a missing French key) and the namespace-aware key-coverage test, but does
+> **not** add the `CustomTypeOptions` augmentation. Call-site key **typo-catching** is deferred to
+> follow-ups: primary — adopt i18next's large-resource selector mode (i18next 25.4+); later — evaluate
+> TypeScript 7 for front-2's typecheck (it does not crash). Consequently there is **no
+> `apps/front-2/src/types/i18next.d.ts`** and **no `tsconfig.json` include change** in P1; any later
+> task that once relied on a compile-time key error as a red/green signal relies on the key-coverage
+> test instead.
+
 ---
 
 ## File Structure
@@ -26,12 +43,10 @@
 - `apps/front-2/src/i18n/locales/en.ts` — front-2 English resource manifest and canonical resource type.
 - `apps/front-2/src/i18n/locales/fr.ts` — French resource manifest constrained with `satisfies LooseResource`.
 - `apps/front-2/src/i18n/locales/locales.test.ts` — manifest namespace order and cross-language key-parity tests.
-- `apps/front-2/src/types/i18next.d.ts` — front-2-local i18next resource augmentation including `auth`.
 - `apps/front-2/e2e/i18n-namespaces.spec.ts` — SSR no-flash, dehydration/hydration, concurrent locale, SPA lazy-load, preload, and locale-switch checks.
 
 ### Modify
 
-- `apps/front-2/tsconfig.json` — include shared global helpers without importing shared-ts's incompatible i18next augmentation.
 - `apps/front-2/src/lib/i18n.shared.ts` — retain locale utilities, define serializable snapshot types, set `fallbackLng: false`, and synchronously create an instance from an explicit namespace list.
 - `apps/front-2/src/lib/i18n.client.ts` — remove embedded en/fr resources and bind client-only Zod behavior to the already hydrated provider instance.
 - `apps/front-2/src/lib/i18n.server.ts` — keep cookie normalization only; remove the obsolete `buildI18nResources` re-export.
@@ -185,8 +200,15 @@ git commit -m "feat(front-2): add i18n namespace registry"
 - Create: `apps/front-2/src/i18n/locales/en.ts`
 - Create: `apps/front-2/src/i18n/locales/fr.ts`
 - Create: `apps/front-2/src/i18n/locales/locales.test.ts`
-- Create: `apps/front-2/src/types/i18next.d.ts`
-- Modify: `apps/front-2/tsconfig.json`
+
+> **No i18next augmentation / no tsconfig change** (see the P1 scope correction near the top). Do
+> **not** create `src/types/i18next.d.ts` and do **not** edit `tsconfig.json`. Leaving the existing
+> `tsconfig.json` include (with the `../../packages/shared-ts/@types/**/*.d.ts` wildcard) untouched is
+> deliberate: it keeps the shared `Bun` global and the `ToPrimitive`/`Paths` helpers available, and
+> the shared i18next augmentation it carries is inert for front-2, so it causes no crash and no
+> behavior change. `zod` and `response-message` types come from the shared **locale barrel**, not raw
+> `.json` paths (raw `@org/shared-ts/...json` resolves to a nonexistent `.json.ts` under shared-ts's
+> `./* → ./*.ts` export map).
 
 - [ ] **Step 1: Write the failing locale-manifest test**
 
@@ -225,7 +247,7 @@ Expected: FAIL because the front-2 locale manifests do not exist.
 Run these mechanical copy/create commands from the repository root:
 
 ```bash
-mkdir -p apps/front-2/src/i18n/locales/en apps/front-2/src/i18n/locales/fr apps/front-2/src/types
+mkdir -p apps/front-2/src/i18n/locales/en apps/front-2/src/i18n/locales/fr
 cp packages/shared-ts/lib/i18n/json/common.en.json apps/front-2/src/i18n/locales/en/common.json
 cp packages/shared-ts/lib/i18n/json/common.fr.json apps/front-2/src/i18n/locales/fr/common.json
 printf '{}\n' > apps/front-2/src/i18n/locales/en/auth.json
@@ -234,21 +256,22 @@ printf '{}\n' > apps/front-2/src/i18n/locales/fr/auth.json
 
 The `cp` is intentional: front-2 owns the new files after this commit; do not replace them with imports or symlinks.
 
-- [ ] **Step 4: Add English/French manifests and the front-2 i18next augmentation**
+- [ ] **Step 4: Add English/French manifests**
+
+`zod` and `response-message` are typed from the shared **locale barrel** (`@org/shared-ts/lib/i18n/locales/{en,fr}`, which resolves via `./* → ./*.ts`); `common` and `auth` are front-2-local JSON. `ToPrimitive` is a shared global (available through the untouched tsconfig wildcard). There is no `CustomTypeOptions` augmentation (see the scope correction); `LooseResource` + `satisfies` still gives compile-time cross-language completeness.
 
 `apps/front-2/src/i18n/locales/en.ts`:
 
 ```ts
-import responseMessage from '@org/shared-ts/lib/i18n/json/response-message.en.json';
-import zod from '@org/shared-ts/lib/i18n/json/zod.en.json';
+import sharedEn from '@org/shared-ts/lib/i18n/locales/en';
 
 import auth from './en/auth.json';
 import common from './en/common.json';
 
 const resourceEN = {
 	common,
-	zod,
-	'response-message': responseMessage,
+	zod: sharedEn.zod,
+	'response-message': sharedEn['response-message'],
 	auth,
 } as const;
 
@@ -261,50 +284,21 @@ export default resourceEN;
 `apps/front-2/src/i18n/locales/fr.ts`:
 
 ```ts
-import responseMessage from '@org/shared-ts/lib/i18n/json/response-message.fr.json';
-import zod from '@org/shared-ts/lib/i18n/json/zod.fr.json';
+import sharedFr from '@org/shared-ts/lib/i18n/locales/fr';
 
+import type { LooseResource } from './en';
 import auth from './fr/auth.json';
 import common from './fr/common.json';
-import type { LooseResource } from './en';
 
 const resourceFR = {
 	common,
-	zod,
-	'response-message': responseMessage,
+	zod: sharedFr.zod,
+	'response-message': sharedFr['response-message'],
 	auth,
 } as const satisfies LooseResource;
 
 export default resourceFR;
 ```
-
-`apps/front-2/src/types/i18next.d.ts`:
-
-```ts
-import type { Front2Resource } from '../i18n/locales/en';
-
-declare module 'i18next' {
-	interface CustomTypeOptions {
-		defaultNS: 'common';
-		resources: Front2Resource;
-	}
-}
-```
-
-In `apps/front-2/tsconfig.json`, replace the wildcard shared declaration include with the two global helper declarations, leaving the rest unchanged:
-
-```json
-"include": [
-	"**/*.ts",
-	"**/*.tsx",
-	"server.mjs",
-	"scripts/**/*.mjs",
-	"../../packages/shared-ts/@types/utils.d.ts",
-	"../../packages/shared-ts/@types/paths.d.ts"
-]
-```
-
-This prevents `packages/shared-ts/@types/i18next.d.ts` from defining the old three-namespace resource shape inside front-2 while preserving `ToPrimitive`, `Paths`, and the other shared global helpers.
 
 - [ ] **Step 5: Run the task verification floor**
 
@@ -312,18 +306,18 @@ Run: `pnpm --filter front-2 exec vitest run src/i18n/locales/locales.test.ts`
 
 Expected: PASS (2 tests).
 
-Run: `npx oxlint apps/front-2/src/i18n/locales/en.ts apps/front-2/src/i18n/locales/fr.ts apps/front-2/src/i18n/locales/locales.test.ts apps/front-2/src/types/i18next.d.ts`
+Run: `npx oxlint apps/front-2/src/i18n/locales/en.ts apps/front-2/src/i18n/locales/fr.ts apps/front-2/src/i18n/locales/locales.test.ts`
 
 Expected: 0 errors.
 
 Run: `pnpm --filter front-2 typecheck`
 
-Expected: PASS, including the `fr.ts satisfies LooseResource` key-shape check.
+Expected: PASS, including the `fr.ts satisfies LooseResource` key-shape check. (Verify the check is live by temporarily deleting one key from `fr/common.json` → typecheck must fail with `TS2741`, then restore.)
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add apps/front-2/tsconfig.json apps/front-2/src/i18n apps/front-2/src/types/i18next.d.ts
+git add apps/front-2/src/i18n
 git commit -m "feat(front-2): own locale namespace sources"
 ```
 
