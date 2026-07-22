@@ -321,6 +321,24 @@ vi.mock('./_profile-form-drawer', () => ({
 	},
 }));
 
+vi.mock('./_profile-edit-details-drawer', () => ({
+	ProfileEditDetailsDrawer: ({
+		isOpen,
+		onDirtyChange,
+		onSaved,
+	}: {
+		isOpen: boolean;
+		onDirtyChange?: (isDirty: boolean) => void;
+		onSaved?: () => void;
+	}) => {
+		mocks.capturedOnDirtyChange = onDirtyChange;
+		mocks.capturedOnSaved = onSaved;
+		return isOpen ? (
+			<div data-testid="profile-edit-details-drawer-open" />
+		) : null;
+	},
+}));
+
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string, options?: Record<string, unknown>) => {
@@ -974,11 +992,12 @@ describe('staff tenant profile details route', () => {
 		});
 	});
 
-	test('renders the edit drawer open when the edit search param is set', () => {
+	test('renders the minimal edit-details drawer when the edit search param is set', () => {
 		mocks.search = { edit: 1 };
 		renderPage();
 
-		expect(screen.getByTestId('profile-edit-drawer-open')).toBeTruthy();
+		expect(screen.getByTestId('profile-edit-details-drawer-open')).toBeTruthy();
+		expect(screen.queryByTestId('profile-edit-drawer-open')).toBeNull();
 	});
 
 	test('confirms deletion, invalidates tenant profile queries, and navigates back to the list', async () => {

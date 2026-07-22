@@ -5,13 +5,7 @@ import {
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
-import {
-	type ReactNode,
-	useLayoutEffect,
-	useMemo,
-	useRef,
-	useState,
-} from 'react';
+import { type ReactNode, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -52,7 +46,7 @@ import {
 	type ProfileDetailsSearchParamInput,
 	type ProfileDetailsSearchParams,
 } from './_profile-details-search';
-import { ProfileFormDrawer } from './_profile-form-drawer';
+import { ProfileEditDetailsDrawer } from './_profile-edit-details-drawer';
 import { ProfileIdentityHeader } from './_profile-identity-header';
 import { ProfileMembersTab } from './_profile-members-tab';
 import { ProfileOverviewTab } from './_profile-overview-tab';
@@ -333,34 +327,6 @@ function StaffTenantProfileDetailsPage() {
 			{ label: profile?.name ?? t('common:profile') },
 		]);
 	}, [profile?.name, setBreadcrumbOverride, t, tenant?.name, tenantId]);
-	// Stable identity across refetch re-renders — the drawer resets its form
-	// whenever this prop's reference changes, so a new object literal here
-	// would silently discard unsaved edits (see _profile-form-drawer.tsx).
-	const permissionKeysCacheKey = permissionKeys.join(',');
-	const profileFormDrawerProfile = useMemo(
-		() =>
-			profile === null
-				? undefined
-				: {
-						id: profile.id,
-						name: profile.name,
-						description: profile.description,
-						icon: profile.icon,
-						tone: profile.tone,
-						memberCount: profile.userAccountCount,
-						permissionKeys,
-					},
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- permissionKeysCacheKey is the stable key, not the array identity
-		[
-			profile?.id,
-			profile?.name,
-			profile?.description,
-			profile?.icon,
-			profile?.tone,
-			profile?.userAccountCount,
-			permissionKeysCacheKey,
-		],
-	);
 	const permissionGroups = buildStaffTenantPermissionCatalogGroups(
 		permissionCatalogQuery.data?.additionalData,
 	);
@@ -582,11 +548,10 @@ function StaffTenantProfileDetailsPage() {
 
 			{activeTabContent}
 
-			<ProfileFormDrawer
+			<ProfileEditDetailsDrawer
 				tenantId={tenantId}
-				mode="edit"
 				isOpen={isEditDrawerOpen}
-				profile={profileFormDrawerProfile}
+				profile={profile}
 				onOpenChange={setEditDrawerOpen}
 				onSessionExpired={() => setShouldRedirectToLogout(true)}
 				onDirtyChange={setIsEditFormDirty}
