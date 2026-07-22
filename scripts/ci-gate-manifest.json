@@ -117,9 +117,9 @@
 			"reason": "GitHub-only: authenticates the workflow token to GHCR so the shared per-run images can be pushed."
 		},
 		"front-2-e2e.yml::build::Build and push stack images": {
-			"hash": "6c51b185511cdfef",
+			"hash": "7da646b855340f0e",
 			"mirror": "just ci-e2e-front-2",
-			"reason": "ci-e2e-front-2 builds the same four Compose services locally via up --build. CI splits that build into one GHA-cached job and pushes the immutable images to GHCR for all shards."
+			"reason": "ci-e2e-front-2 builds the same four Compose services locally via up --build. CI uses the Compose-derived Bake graph with the GHA cache and --push to publish the immutable images to GHCR for all shards."
 		},
 		"front-2-e2e.yml::cleanup::Delete run image versions": {
 			"hash": "c4f53de5bd9c9f38",

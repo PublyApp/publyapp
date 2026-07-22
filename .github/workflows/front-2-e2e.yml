@@ -58,10 +58,9 @@ jobs:
 
       - name: Build and push stack images
         env:
-          COMPOSE_BAKE: 'true'
           E2E_IMAGE_NS: ghcr.io/radandevist/publyapp-e2e
           E2E_IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
-        run: docker compose -f apps/front-2/docker-compose.test.yml build --push
+        run: docker buildx bake -f apps/front-2/docker-compose.test.yml --push
 
   test:
     name: front-2-e2e (${{ matrix.shard }}/4)
