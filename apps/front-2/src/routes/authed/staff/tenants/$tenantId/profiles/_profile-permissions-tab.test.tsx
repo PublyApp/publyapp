@@ -64,6 +64,7 @@ vi.mock('react-i18next', () => ({
 				'profile-updated-successfully': 'Profile updated successfully.',
 				'permissions-save-failed': "Some permission changes couldn't be saved.",
 				'permissions-save-partial': '{{saved}}, {{failed}}.',
+				'permissions-selected-total': '{{selected}} of {{total}} selected',
 				'permissions-saved-count_one': '{{count}} change saved',
 				'permissions-saved-count_other': '{{count}} changes saved',
 				'permissions-failed-count_one': '{{count}} change failed',

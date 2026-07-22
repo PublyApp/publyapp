@@ -26,6 +26,7 @@
 	"permissions-failed-count_other": "Échec de {{count}} modifications",
 	"permissions-save-failed": "Certaines modifications de permissions n’ont pas pu être enregistrées.",
 	"permissions-save-partial": "{{saved}}, {{failed}}.",
+	"permissions-selected-total": "{{selected}} sur {{total}} sélectionnées",
 	"permissions-saved-count_one": "{{count}} modification enregistrée",
 	"permissions-saved-count_other": "{{count}} modifications enregistrées",
 	"permissions-unsaved-changes_one": "{{count}} modification non enregistrée",

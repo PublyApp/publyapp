@@ -1,17 +1,13 @@
-import { IconChevronDown } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FormActionBar } from '~/components/field/form-layout';
 import { Button } from '~/components/ui/button';
-import { Checkbox } from '~/components/ui/checkbox';
-import { FilterInput } from '~/components/ui/filter-input';
 import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
 } from '~/lib/mutation-toast';
 import {
-	buildStaffTenantPermissionGroupColumns,
 	getStaffTenantProfilePermissionKeysCacheSnapshot,
 	type StaffTenantPermissionGroup,
 	useAssignStaffTenantProfilePermissionMutation,
@@ -19,12 +15,13 @@ import {
 } from '~/lib/query/staff-tenant-profiles';
 import { invalidateAllStaffTenantScopes } from '~/lib/query/staff-tenants';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
-import { cn } from '~/lib/utils';
 
 import {
 	getFailureMessage,
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
+
+import { PermissionMatrix } from './_permission-matrix';
 
 // Assign/unassign fire per key with local feedback: the batch save owns the
 // toast (silent success) and its own error surfacing (skip global handler),
@@ -46,156 +43,6 @@ const areKeySetsEqual = (left: Set<string>, right: Set<string>): boolean => {
 	}
 
 	return true;
-};
-
-const matchesFilter = (
-	option: { key: string; label: string },
-	needle: string,
-): boolean => {
-	if (needle.length === 0) {
-		return true;
-	}
-
-	return (
-		option.label.toLowerCase().includes(needle) ||
-		option.key.toLowerCase().includes(needle)
-	);
-};
-
-type PermissionModuleGroupProps = {
-	group: StaffTenantPermissionGroup;
-	stagedKeys: Set<string>;
-	baselineKeys: Set<string>;
-	filterNeedle: string;
-	isCollapsed: boolean;
-	isSaving: boolean;
-	onToggleKey: (key: string, checked: boolean) => void;
-	onToggleModule: (keys: string[], checked: boolean) => void;
-	onToggleCollapsed: (moduleKey: string) => void;
-};
-
-// Matches design 02-standalone-permissions: no card chrome. Each module is a
-// light-gray full-width header band (name + granted count) followed by flat,
-// borderless rows on the page background.
-const PermissionModuleGroup = ({
-	group,
-	stagedKeys,
-	baselineKeys,
-	filterNeedle,
-	isCollapsed,
-	isSaving,
-	onToggleKey,
-	onToggleModule,
-	onToggleCollapsed,
-}: PermissionModuleGroupProps) => {
-	const { t } = useTranslation('staff-tenant-profiles');
-	const allKeys = group.options.map((option) => option.key);
-	const grantedCount = allKeys.filter((key) => stagedKeys.has(key)).length;
-	const totalCount = allKeys.length;
-	const allChecked = grantedCount === totalCount && totalCount > 0;
-	const someChecked = grantedCount > 0 && !allChecked;
-	// A live filter narrows the visible rows; the header count and select-all
-	// still act on the whole module so the numbers stay honest against the
-	// permission total the design shows (e.g. "5 / 6").
-	const visibleOptions = group.options.filter((option) =>
-		matchesFilter(option, filterNeedle),
-	);
-	const expanded = !isCollapsed && visibleOptions.length > 0;
-
-	return (
-		<section
-			className="flex flex-col gap-0.5"
-			data-testid={`permission-module-${group.moduleKey}`}
-		>
-			<div className="flex items-center justify-between gap-3 rounded-[var(--publy-radius-sm)] bg-muted px-3 py-2">
-				<div className="flex min-w-0 items-center gap-2.5">
-					<Checkbox
-						checked={allChecked}
-						indeterminate={someChecked}
-						disabled={isSaving}
-						aria-label={t('toggle-all-module-permissions', {
-							module: group.moduleLabel,
-						})}
-						onCheckedChange={(checked) =>
-							onToggleModule(allKeys, Boolean(checked))
-						}
-					/>
-					<button
-						type="button"
-						className="flex min-w-0 items-center gap-1.5"
-						aria-expanded={expanded}
-						onClick={() => onToggleCollapsed(group.moduleKey)}
-					>
-						<IconChevronDown
-							aria-hidden="true"
-							className={cn(
-								'size-3.5 shrink-0 text-muted-foreground transition-transform',
-								expanded ? undefined : '-rotate-90',
-							)}
-						/>
-						<span className="publy-type-section-title truncate">
-							{group.moduleLabel}
-						</span>
-					</button>
-				</div>
-				<span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-					{grantedCount} / {totalCount}
-				</span>
-			</div>
-
-			{expanded ? (
-				<ul className="flex flex-col">
-					{visibleOptions.map((option) => {
-						const checked = stagedKeys.has(option.key);
-						const isChanged = checked !== baselineKeys.has(option.key);
-						const changedDescriptionId = `permission-changed-${option.key}`;
-
-						return (
-							<li
-								key={option.key}
-								data-testid={`permission-row-${option.key}`}
-								data-changed={isChanged ? 'true' : undefined}
-								className={cn(
-									'rounded-[var(--publy-radius-sm)] px-3 py-1.5',
-									isChanged
-										? 'bg-[color:var(--publy-primary-soft)]'
-										: undefined,
-								)}
-							>
-								<label className="flex items-center gap-2.5 text-sm">
-									<Checkbox
-										checked={checked}
-										disabled={isSaving}
-										aria-label={option.label}
-										aria-describedby={
-											isChanged ? changedDescriptionId : undefined
-										}
-										onCheckedChange={(next) =>
-											onToggleKey(option.key, Boolean(next))
-										}
-									/>
-									<span className="text-foreground">{option.label}</span>
-									{isChanged ? (
-										<>
-											<span aria-hidden="true" className="text-primary">
-												•
-											</span>
-											<span id={changedDescriptionId} className="sr-only">
-												{t('permission-changed-indicator')}
-											</span>
-										</>
-									) : null}
-									<code className="ml-auto font-mono text-xs text-muted-foreground">
-										{option.key}
-									</code>
-								</label>
-							</li>
-						);
-					})}
-				</ul>
-			) : null}
-		</section>
-	);
 };
 
 export const ProfilePermissionsTab = ({
@@ -243,10 +90,6 @@ export const ProfilePermissionsTab = ({
 	const [stagedKeys, setStagedKeys] = useState<Set<string>>(
 		() => new Set(grantedKeys),
 	);
-	const [collapsedModules, setCollapsedModules] = useState<Set<string>>(
-		() => new Set(),
-	);
-	const [filterDraft, setFilterDraft] = useState('');
 	const [isSaving, setIsSaving] = useState(false);
 	const [saveErrorText, setSaveErrorText] = useState<string | null>(null);
 
@@ -327,68 +170,9 @@ export const ProfilePermissionsTab = ({
 		...removedKeys.map((key) => `−${labelByKey.get(key) ?? key}`),
 	].join(', ');
 
-	const filterNeedle = filterDraft.trim().toLowerCase();
-	const visibleGroups = permissionGroups.filter((group) =>
-		group.options.some((option) => matchesFilter(option, filterNeedle)),
-	);
-	const [leftGroups, rightGroups] =
-		buildStaffTenantPermissionGroupColumns(visibleGroups);
-
-	const anyCollapsed = permissionGroups.some((group) =>
-		collapsedModules.has(group.moduleKey),
-	);
-
-	const setKeyStaged = (key: string, checked: boolean): void => {
+	const setPermissionsStaged = (nextKeys: string[]): void => {
 		setSaveErrorText(null);
-		setStagedKeys((current) => {
-			const next = new Set(current);
-			if (checked) {
-				next.add(key);
-			} else {
-				next.delete(key);
-			}
-			return next;
-		});
-	};
-
-	const setModuleStaged = (keys: string[], checked: boolean): void => {
-		setSaveErrorText(null);
-		setStagedKeys((current) => {
-			const next = new Set(current);
-			for (const key of keys) {
-				if (checked) {
-					next.add(key);
-				} else {
-					next.delete(key);
-				}
-			}
-			return next;
-		});
-	};
-
-	const toggleCollapsed = (moduleKey: string): void => {
-		setCollapsedModules((current) => {
-			const next = new Set(current);
-			if (next.has(moduleKey)) {
-				next.delete(moduleKey);
-			} else {
-				next.add(moduleKey);
-			}
-			return next;
-		});
-	};
-
-	const handleExpandCollapseAll = (): void => {
-		setCollapsedModules(
-			anyCollapsed
-				? new Set()
-				: new Set(permissionGroups.map((group) => group.moduleKey)),
-		);
-	};
-
-	const handleClearAll = (): void => {
-		setSaveErrorText(null);
-		setStagedKeys(new Set());
+		setStagedKeys(new Set(nextKeys));
 	};
 
 	// The action bar closes when the matrix returns to a clean state; it held
@@ -586,37 +370,6 @@ export const ProfilePermissionsTab = ({
 				<p className="publy-type-helper">{t('profile-permissions-subtitle')}</p>
 			</div>
 
-			<div className="flex flex-wrap items-center justify-between gap-3">
-				<FilterInput
-					aria-label={t('filter-permissions')}
-					value={filterDraft}
-					onValueChange={setFilterDraft}
-					placeholder={t('filter-permissions')}
-					clearLabel={t('clear-permissions-filter')}
-					data-testid="permissions-filter"
-				/>
-				<div className="flex items-center gap-2">
-					<Button
-						type="button"
-						variant="outline"
-						size="sm"
-						onClick={handleExpandCollapseAll}
-						disabled={permissionGroups.length === 0}
-					>
-						{anyCollapsed ? t('expand-all') : t('collapse-all')}
-					</Button>
-					<Button
-						type="button"
-						variant="outline"
-						size="sm"
-						onClick={handleClearAll}
-						disabled={isSaving || stagedKeys.size === 0}
-					>
-						{t('common:clear-all')}
-					</Button>
-				</div>
-			</div>
-
 			{isCatalogPending ? (
 				<p className="text-sm text-muted-foreground">
 					{t('common:loading-permissions')}
@@ -638,26 +391,13 @@ export const ProfilePermissionsTab = ({
 			) : null}
 
 			{!isCatalogPending && !isCatalogError && permissionGroups.length > 0 ? (
-				<div className="grid gap-4 lg:grid-cols-2">
-					{[leftGroups, rightGroups].map((columnGroups, columnIndex) => (
-						<div key={columnIndex} className="flex flex-col gap-4">
-							{columnGroups.map((group) => (
-								<PermissionModuleGroup
-									key={group.moduleKey}
-									group={group}
-									stagedKeys={stagedKeys}
-									baselineKeys={baselineKeys}
-									filterNeedle={filterNeedle}
-									isCollapsed={collapsedModules.has(group.moduleKey)}
-									isSaving={isSaving}
-									onToggleKey={setKeyStaged}
-									onToggleModule={setModuleStaged}
-									onToggleCollapsed={toggleCollapsed}
-								/>
-							))}
-						</div>
-					))}
-				</div>
+				<PermissionMatrix
+					groups={permissionGroups}
+					value={[...stagedKeys]}
+					baselineValue={[...baselineKeys]}
+					disabled={isSaving}
+					onChange={setPermissionsStaged}
+				/>
 			) : null}
 
 			{saveErrorText ? (
