@@ -56,11 +56,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ github.token }}
 
-      - name: Build and push stack images
+      - name: Build stack images
+        env:
+          COMPOSE_BAKE: 'true'
+          E2E_IMAGE_NS: ghcr.io/radandevist/publyapp-e2e
+          E2E_IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
+        run: docker compose -f apps/front-2/docker-compose.test.yml build
+
+      - name: Push stack images
         env:
           E2E_IMAGE_NS: ghcr.io/radandevist/publyapp-e2e
           E2E_IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
-        run: docker buildx bake -f apps/front-2/docker-compose.test.yml --push
+        run: docker compose -f apps/front-2/docker-compose.test.yml push migrate api request-counter front-2
 
   test:
     name: front-2-e2e (${{ matrix.shard }}/4)

@@ -116,10 +116,15 @@
 			"mirror": null,
 			"reason": "GitHub-only: authenticates the workflow token to GHCR so the shared per-run images can be pushed."
 		},
-		"front-2-e2e.yml::build::Build and push stack images": {
-			"hash": "7da646b855340f0e",
+		"front-2-e2e.yml::build::Build stack images": {
+			"hash": "02f005ac5083cd10",
 			"mirror": "just ci-e2e-front-2",
-			"reason": "ci-e2e-front-2 builds the same four Compose services locally via up --build. CI uses the Compose-derived Bake graph with the GHA cache and --push to publish the immutable images to GHCR for all shards."
+			"reason": "ci-e2e-front-2 builds the same four Compose services locally via up --build. CI enables Compose Bake for the GHA cache while retaining Compose-file-relative build-context resolution and loading the four GHCR-tagged images."
+		},
+		"front-2-e2e.yml::build::Push stack images": {
+			"hash": "dd959f151b347e06",
+			"mirror": null,
+			"reason": "GitHub-only: pushes the four loaded, immutable per-run application images to GHCR for the matrix runners; local e2e builds never publish them."
 		},
 		"front-2-e2e.yml::cleanup::Delete run image versions": {
 			"hash": "c4f53de5bd9c9f38",
