@@ -50,7 +50,7 @@ const buildColumns = (
 ): ColumnDef<StaffUserRow>[] => [
 	{
 		id: 'name',
-		header: t('name'),
+		header: t('common:name'),
 		enableSorting: false,
 		meta: { headerIcon: <IconUser />, width: '200px', pinWidthAbove: 768 },
 		cell: ({ row }) => (
@@ -71,12 +71,12 @@ const buildColumns = (
 	},
 	{
 		id: 'email',
-		header: t('email'),
+		header: t('common:email'),
 		accessorKey: 'email',
 		enableSorting: false,
 		meta: { headerIcon: <IconMail />, hideBelow: 768 },
 		cell: ({ getValue }) => {
-			const email = getValue<string>() || t('no-email-address');
+			const email = getValue<string>() || t('common:no-email-address');
 			return (
 				<span className="block truncate font-normal" title={email}>
 					{email}
@@ -86,7 +86,7 @@ const buildColumns = (
 	},
 	{
 		id: 'level',
-		header: t('level'),
+		header: t('common:level'),
 		accessorKey: 'level',
 		meta: { headerIcon: <IconIdBadge2 />, width: '104px', hideBelow: 768 },
 		cell: ({ getValue }) => (
@@ -97,7 +97,7 @@ const buildColumns = (
 	},
 	{
 		id: 'status',
-		header: t('status'),
+		header: t('common:status'),
 		accessorKey: 'status',
 		meta: { headerIcon: <IconCircleDot />, width: '122px' },
 		cell: ({ getValue }) => {
@@ -113,12 +113,14 @@ const buildColumns = (
 		id: 'actions',
 		// Visually chromeless per the handoff, but the columnheader needs an
 		// accessible name (axe empty-table-header, parity contract).
-		header: () => <span className="sr-only">{t('actions')}</span>,
+		header: () => <span className="sr-only">{t('common:actions')}</span>,
 		enableSorting: false,
 		meta: { width: '40px', align: 'center' },
 		cell: ({ row }) => (
 			<DataTableRowActions
-				ariaLabel={t('actions-for', { name: row.original.displayName })}
+				ariaLabel={t('common:actions-for', {
+					name: row.original.displayName,
+				})}
 				testId={`staff-user-actions-${row.original.id}`}
 			>
 				<DropdownMenuItem
@@ -130,7 +132,7 @@ const buildColumns = (
 					}
 				>
 					<IconEye />
-					{t('view-profile')}
+					{t('common:view-profile')}
 				</DropdownMenuItem>
 			</DataTableRowActions>
 		),
@@ -138,6 +140,7 @@ const buildColumns = (
 ];
 
 export const Route = createFileRoute('/_authed-layout/staff/staff-users')({
+	staticData: { i18nNamespaces: ['staff-users'] },
 	validateSearch: (search) =>
 		parseTableSearchParams(search as TableSearchParamInput),
 	component: StaffUsersPage,
@@ -146,7 +149,7 @@ export const Route = createFileRoute('/_authed-layout/staff/staff-users')({
 function StaffUsersPage() {
 	const navigate = Route.useNavigate();
 	const search = Route.useSearch();
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['staff-users', 'common']);
 
 	const onSearchChange = (next: TableSearchParams): void => {
 		void navigate({
@@ -196,7 +199,7 @@ function StaffUsersPage() {
 						className={buttonVariants({ variant: 'default' })}
 					>
 						<IconUserPlus aria-hidden="true" className="size-4" />
-						{t('invite-users')}
+						{t('common:invite-users')}
 					</Link>
 				}
 			/>
@@ -231,14 +234,14 @@ function StaffUsersPage() {
 				selection={selection}
 				fileNamePrefix="staff-users"
 				columns={[
-					{ header: t('name'), getValue: (row) => row.displayName },
-					{ header: t('email'), getValue: (row) => row.email },
+					{ header: t('common:name'), getValue: (row) => row.displayName },
+					{ header: t('common:email'), getValue: (row) => row.email },
 					{
-						header: t('level'),
+						header: t('common:level'),
 						getValue: (row) => formatAccountLevelLabel(row.level, t),
 					},
 					{
-						header: t('status'),
+						header: t('common:status'),
 						getValue: (row) => formatStaffStatusLabel(row.status, t),
 					},
 				]}

@@ -134,7 +134,7 @@ const DeleteConfirmField = ({
 	value: string;
 	onChange: (next: string) => void;
 }) => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['staff-users', 'common']);
 
 	return (
 		<div className="space-y-1.5">
@@ -166,12 +166,13 @@ const getActiveSection = (pathname: string): TabSection => {
 export const Route = createFileRoute(
 	'/_authed-layout/staff/staff-users/$userId',
 )({
+	staticData: { i18nNamespaces: ['staff-users'] },
 	component: StaffUserDetailsPage,
 });
 
 function StaffUserDetailsPage() {
 	const { userId } = Route.useParams();
-	const { t, i18n } = useTranslation('common');
+	const { t, i18n } = useTranslation(['staff-users', 'common']);
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
 	const [deleteConfirmText, setDeleteConfirmText] = useState('');
@@ -222,7 +223,7 @@ function StaffUserDetailsPage() {
 			return (
 				<AppErrorView
 					icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-					code={t('error-404-code')}
+					code={t('common:error-404-code')}
 					title={t('staff-user-not-found-title')}
 					description={getFailureDescription(
 						detailQuery.error,
@@ -248,7 +249,7 @@ function StaffUserDetailsPage() {
 		return (
 			<AppErrorView
 				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-				code={t('error-500-code')}
+				code={t('common:error-500-code')}
 				title={t('unable-to-load-staff-user')}
 				description={t('problem-loading-staff-user-details')}
 				testId="staff-user-details-error"
@@ -259,7 +260,7 @@ function StaffUserDetailsPage() {
 							onClick={() => void detailQuery.refetch()}
 							type="button"
 						>
-							{t('try-again')}
+							{t('common:try-again')}
 						</Button>
 						<Link
 							to="/staff/staff-users"
@@ -279,7 +280,7 @@ function StaffUserDetailsPage() {
 		return (
 			<AppErrorView
 				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-				code={t('error-404-code')}
+				code={t('common:error-404-code')}
 				title={t('staff-user-not-found-title')}
 				description={t('staff-user-payload-empty')}
 				testId="staff-user-details-empty"
@@ -426,7 +427,7 @@ function StaffUserDetailsPage() {
 								) : null}
 							</div>
 							<p className="max-w-3xl text-[13px] text-muted-foreground">
-								{user.email || t('no-email-address')}
+								{user.email || t('common:no-email-address')}
 							</p>
 						</div>
 					</div>
@@ -438,13 +439,13 @@ function StaffUserDetailsPage() {
 							className={buttonVariants({ variant: 'outline', size: 'sm' })}
 						>
 							<IconPencil className="size-4" />
-							{t('edit')}
+							{t('common:edit')}
 						</Link>
 						<ConfirmDialog
 							isOpen={isSuspendDialogOpen}
 							title={t(getSuspendDialogKeys(user.status).titleKey)}
 							description={t(getSuspendDialogKeys(user.status).descriptionKey)}
-							confirmLabel={t(getSuspendLabelKey(user.status))}
+							confirmLabel={t(`common:${getSuspendLabelKey(user.status)}`)}
 							isPending={pendingAction}
 							onConfirm={() => {
 								void handleLifecycleAction();
@@ -455,7 +456,7 @@ function StaffUserDetailsPage() {
 						>
 							<ConfirmHeaderInfo
 								name={user.displayName}
-								email={user.email || t('no-email-address')}
+								email={user.email || t('common:no-email-address')}
 								avatarSeed={user.displayName}
 							/>
 						</ConfirmDialog>
@@ -470,7 +471,7 @@ function StaffUserDetailsPage() {
 								<Link to="/staff/staff-users/$userId" params={{ userId }} />
 							}
 						>
-							{t('overview')}
+							{t('common:overview')}
 						</TabsTrigger>
 						<TabsTrigger
 							value="permissions"
@@ -481,7 +482,7 @@ function StaffUserDetailsPage() {
 								/>
 							}
 						>
-							{t('permissions')}
+							{t('common:permissions')}
 						</TabsTrigger>
 						<TabsTrigger
 							value="activity"
@@ -492,7 +493,7 @@ function StaffUserDetailsPage() {
 								/>
 							}
 						>
-							{t('activity')}
+							{t('common:activity')}
 						</TabsTrigger>
 						<TabsTrigger
 							value="settings"
@@ -519,7 +520,7 @@ function StaffUserDetailsPage() {
 				isOpen={isDeleteDialogOpen}
 				title={t('confirm-delete-staff-user-title')}
 				description={t('confirm-delete-staff-user-message')}
-				confirmLabel={t('delete')}
+				confirmLabel={t('common:delete')}
 				tone="danger"
 				isPending={deleteUser.isPending}
 				isConfirmDisabled={!isDeleteConfirmReady}

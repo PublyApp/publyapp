@@ -13,24 +13,28 @@ const t = (key: string): string => `t:${key}`;
 
 describe('formatStaffStatusLabel', () => {
 	test('routes the API enum through the i18n key, not the raw string', () => {
-		expect(formatStaffStatusLabel('Active', t)).toBe('t:status-active');
-		expect(formatStaffStatusLabel('Suspended', t)).toBe('t:status-suspended');
+		expect(formatStaffStatusLabel('Active', t)).toBe('t:common:status-active');
+		expect(formatStaffStatusLabel('Suspended', t)).toBe(
+			't:common:status-suspended',
+		);
 	});
 
 	test('falls back to the unknown key for null/unrecognised values', () => {
-		expect(formatStaffStatusLabel(null, t)).toBe('t:status-unknown');
-		expect(formatStaffStatusLabel('Unknown', t)).toBe('t:status-unknown');
+		expect(formatStaffStatusLabel(null, t)).toBe('t:common:status-unknown');
+		expect(formatStaffStatusLabel('Unknown', t)).toBe(
+			't:common:status-unknown',
+		);
 	});
 });
 
 describe('formatAccountLevelLabel', () => {
 	test('routes the API enum through the i18n key, not the raw string', () => {
-		expect(formatAccountLevelLabel('Admin', t)).toBe('t:admin');
-		expect(formatAccountLevelLabel('User', t)).toBe('t:user');
+		expect(formatAccountLevelLabel('Admin', t)).toBe('t:common:admin');
+		expect(formatAccountLevelLabel('User', t)).toBe('t:common:user');
 	});
 
 	test('falls back to the unknown key for null/unrecognised values', () => {
-		expect(formatAccountLevelLabel(null, t)).toBe('t:unknown');
-		expect(formatAccountLevelLabel('Unknown', t)).toBe('t:unknown');
+		expect(formatAccountLevelLabel(null, t)).toBe('t:common:unknown');
+		expect(formatAccountLevelLabel('Unknown', t)).toBe('t:common:unknown');
 	});
 });

@@ -36,6 +36,7 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string) => {
+			const resolvedKey = key.replace(/^common:/, '');
 			const labels: Record<string, string> = {
 				'change-email': 'Change email',
 				'change-staff-user-email-description':
@@ -53,7 +54,7 @@ vi.mock('react-i18next', () => ({
 				close: 'Close',
 			};
 
-			return labels[key] ?? key;
+			return labels[resolvedKey] ?? resolvedKey;
 		},
 		i18n: { language: 'en' },
 	}),

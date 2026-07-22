@@ -49,7 +49,7 @@ const ContactDetailsCard = ({
 	};
 	locale: string;
 }) => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['staff-users', 'common']);
 
 	return (
 		<section className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] shadow-[var(--publy-shadow-ring)]">
@@ -58,10 +58,13 @@ const ContactDetailsCard = ({
 			</div>
 			<div className="px-4 pb-4 pt-3">
 				<div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-					<DetailMetaItem label={t('name')} value={details.displayName} />
 					<DetailMetaItem
-						label={t('email')}
-						value={details.email || t('no-email-address')}
+						label={t('common:name')}
+						value={details.displayName}
+					/>
+					<DetailMetaItem
+						label={t('common:email')}
+						value={details.email || t('common:no-email-address')}
 					/>
 					{details.accountLevel ? (
 						<DetailMetaItem
@@ -70,7 +73,7 @@ const ContactDetailsCard = ({
 						/>
 					) : null}
 					<DetailMetaItem
-						label={t('status')}
+						label={t('common:status')}
 						value={
 							<StatusPill tone={statusPillTone(details.status)}>
 								{formatStaffStatusLabel(details.status, t)}
@@ -78,11 +81,11 @@ const ContactDetailsCard = ({
 						}
 					/>
 					<DetailMetaItem
-						label={t('created')}
+						label={t('common:created')}
 						value={formatDateTime(details.createdAt, locale)}
 					/>
 					<DetailMetaItem
-						label={t('updated')}
+						label={t('common:updated')}
 						value={formatDateTime(details.updatedAt, locale)}
 					/>
 				</div>
@@ -92,7 +95,7 @@ const ContactDetailsCard = ({
 };
 
 const AssignedProfilesLoadingCard = () => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['staff-users', 'common']);
 
 	return (
 		<section
@@ -107,7 +110,7 @@ const AssignedProfilesLoadingCard = () => {
 			<div className="flex items-center gap-2.5 px-4 pb-4 pt-3 text-sm text-muted-foreground">
 				<IconLoader2
 					role="status"
-					aria-label={t('common-loading')}
+					aria-label={t('common:common-loading')}
 					className="size-4 animate-spin"
 				/>
 				<span>{t('loading-assigned-profiles')}</span>
@@ -123,7 +126,7 @@ const AssignedProfilesCard = ({
 	profiles: AssignedStaffProfile[];
 	maxProfiles: number;
 }) => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['staff-users', 'common']);
 	const assignedCount = profiles.length;
 	const meterPercent =
 		maxProfiles > 0 ? Math.min((assignedCount / maxProfiles) * 100, 100) : 0;
@@ -163,13 +166,14 @@ const AssignedProfilesCard = ({
 											params={{ profileId: profile.id }}
 											className="text-sm font-medium text-foreground hover:underline"
 										>
-											{profile.name ?? t('unnamed-profile')}
+											{profile.name ?? t('common:unnamed-profile')}
 										</Link>
 										<p
 											className="truncate text-xs text-muted-foreground"
 											title={profile.description || undefined}
 										>
-											{profile.description ?? t('no-description-provided')}
+											{profile.description ??
+												t('common:no-description-provided')}
 										</p>
 									</div>
 								</div>
@@ -199,7 +203,7 @@ const AssignedProfilesCard = ({
 };
 
 const AccountCard = ({ displayId }: { displayId: string }) => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['staff-users', 'common']);
 
 	return (
 		<section className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] shadow-[var(--publy-shadow-ring)]">
@@ -208,7 +212,7 @@ const AccountCard = ({ displayId }: { displayId: string }) => {
 			</div>
 			<div className="px-4 pb-4 pt-3">
 				<div className="space-y-3 text-sm">
-					<DetailMetaItem label={t('user-id')} value={displayId} />
+					<DetailMetaItem label={t('common:user-id')} value={displayId} />
 				</div>
 			</div>
 		</section>
@@ -218,11 +222,12 @@ const AccountCard = ({ displayId }: { displayId: string }) => {
 export const Route = createFileRoute(
 	'/_authed-layout/staff/staff-users/$userId/',
 )({
+	staticData: { i18nNamespaces: ['staff-users'] },
 	component: StaffUserOverviewTab,
 });
 
 function StaffUserOverviewTab() {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['staff-users', 'common']);
 	const {
 		user,
 		locale,
@@ -262,7 +267,7 @@ function StaffUserOverviewTab() {
 						size="sm"
 						onClick={onRetryProfiles}
 					>
-						{t('try-again')}
+						{t('common:try-again')}
 					</Button>
 				</div>
 			);
@@ -284,7 +289,7 @@ function StaffUserOverviewTab() {
 			</DetailMain>
 			<DetailAside>
 				<AccountCard displayId={user.id} />
-				<DangerZoneCard title={t('danger-zone')}>
+				<DangerZoneCard title={t('common:danger-zone')}>
 					<DangerZoneRow
 						title={t('suspend-or-reactivate')}
 						description={suspendDescription}
@@ -296,7 +301,7 @@ function StaffUserOverviewTab() {
 								onClick={onOpenSuspendDialog}
 								disabled={!canSuspend && !canReactivate}
 							>
-								{t(suspendLabelKey)}
+								{t(`common:${suspendLabelKey}`)}
 							</Button>
 						}
 					/>
@@ -311,7 +316,7 @@ function StaffUserOverviewTab() {
 								onClick={onOpenDeleteDialog}
 								disabled={isDeletePending}
 							>
-								{t('delete')}
+								{t('common:delete')}
 							</Button>
 						}
 					/>

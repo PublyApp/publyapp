@@ -5,7 +5,7 @@ export const GLOBAL_I18N_NAMESPACES = [
 	'zod',
 	'response-message',
 ] as const;
-export const FEATURE_I18N_NAMESPACES = ['auth'] as const;
+export const FEATURE_I18N_NAMESPACES = ['auth', 'staff-users'] as const;
 export const I18N_NAMESPACES = [
 	...GLOBAL_I18N_NAMESPACES,
 	...FEATURE_I18N_NAMESPACES,

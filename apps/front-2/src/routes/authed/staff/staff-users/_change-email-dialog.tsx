@@ -30,9 +30,9 @@ import {
 const buildChangeEmailSchema = (t: (key: string) => string) =>
 	z.object({
 		email: z
-			.string({ required_error: t('email-required') })
+			.string({ required_error: t('common:email-required') })
 			.trim()
-			.email(t('invalid-email-address')),
+			.email(t('common:invalid-email-address')),
 	});
 
 type ChangeEmailFormValues = z.infer<ReturnType<typeof buildChangeEmailSchema>>;
@@ -58,7 +58,7 @@ export const ChangeStaffUserEmailDialog = ({
 	onUpdated: (email: string) => void;
 	onSessionExpired: () => void;
 }) => {
-	const { t, i18n } = useTranslation('common');
+	const { t, i18n } = useTranslation(['staff-users', 'common']);
 	const queryClient = useQueryClient();
 	const { mutateAsync, isPending } = useUpdateStaffUserEmailMutation();
 	const [rootValidationError, setRootValidationError] = useState('');
@@ -167,7 +167,7 @@ export const ChangeStaffUserEmailDialog = ({
 						<DrawerBody className="space-y-4">
 							<Field.Email
 								name="email"
-								label={t('email')}
+								label={t('common:email')}
 								isDisabled={isFormLocked}
 								fullWidth
 							/>
@@ -184,10 +184,10 @@ export const ChangeStaffUserEmailDialog = ({
 								disabled={isFormLocked}
 								onClick={requestClose}
 							>
-								{t('cancel')}
+								{t('common:cancel')}
 							</Button>
 							<Button type="submit" disabled={isFormLocked}>
-								{t('save-changes')}
+								{t('common:save-changes')}
 							</Button>
 						</DrawerFooter>
 					</Form>
@@ -195,10 +195,10 @@ export const ChangeStaffUserEmailDialog = ({
 			</Drawer>
 			<ConfirmDialog
 				isOpen={showDiscardConfirm}
-				title={t('unsaved-changes-dialog-title')}
-				description={t('unsaved-changes-dialog-description')}
-				confirmLabel={t('leave-page')}
-				cancelLabel={t('cancel')}
+				title={t('common:unsaved-changes-dialog-title')}
+				description={t('common:unsaved-changes-dialog-description')}
+				confirmLabel={t('common:leave-page')}
+				cancelLabel={t('common:cancel')}
 				tone="danger"
 				onConfirm={() => {
 					setShowDiscardConfirm(false);
