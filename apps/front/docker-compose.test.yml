@@ -86,7 +86,7 @@ services:
       dockerfile: apps/front/Dockerfile
       args:
         VITE_ASP_SERVER_URL: http://api.front.localhost:5000
-        VITE_POSTHOG_API_KEY: e2e-disabled
+        VITE_POSTHOG_PROJECT_TOKEN: e2e-disabled
     image: publyapp/front:test
     environment:
       NODE_ENV: production

@@ -28,9 +28,9 @@ WORKDIR /workspace
 RUN corepack enable && corepack prepare pnpm@10.13.1 --activate
 
 ARG VITE_ASP_SERVER_URL=http://api.front.localhost:5000
-ARG VITE_POSTHOG_API_KEY=e2e-disabled
+ARG VITE_POSTHOG_PROJECT_TOKEN=e2e-disabled
 ENV VITE_ASP_SERVER_URL=${VITE_ASP_SERVER_URL}
-ENV VITE_POSTHOG_API_KEY=${VITE_POSTHOG_API_KEY}
+ENV VITE_POSTHOG_PROJECT_TOKEN=${VITE_POSTHOG_PROJECT_TOKEN}
 
 COPY --from=install /workspace/ ./
 COPY --from=prune /workspace/out/full/ ./

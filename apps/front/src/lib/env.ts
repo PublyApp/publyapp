@@ -4,14 +4,14 @@ import { deepFreeze } from '@org/shared-ts/utils/any.utils';
 
 const envSchema = z.object({
 	VITE_ASP_SERVER_URL: z.string(),
-	VITE_POSTHOG_API_KEY: z.string(),
+	VITE_POSTHOG_PROJECT_TOKEN: z.string(),
 });
 
 type AppEnv = z.infer<typeof envSchema>;
 
 const dotEnv = {
 	VITE_ASP_SERVER_URL: import.meta.env.VITE_ASP_SERVER_URL,
-	VITE_POSTHOG_API_KEY: import.meta.env.VITE_POSTHOG_API_KEY,
+	VITE_POSTHOG_PROJECT_TOKEN: import.meta.env.VITE_POSTHOG_PROJECT_TOKEN,
 } satisfies Partial<AppEnv>;
 
 const parseZodSchema = () => {

@@ -45,7 +45,7 @@
 - **Author profile pages** — bylines link nowhere; no `/blog/author/:slug` routes.
 - **RSS feed** — out for v1. Easy to add as a static `_routes/blog.rss.xml` builder later.
 - **Reading-time auto-calculation** — `readingMinutes` is hardcoded per post. Walking JSX trees to estimate word count is engineering effort with no payoff for placeholder content.
-- **Analytics events on filter clicks / share clicks** — out for v1. PostHog is wired in the app (`VITE_POSTHOG_API_KEY` in env) but adding event names is its own product decision; revisit when blog has actual readers.
+- **Analytics events on filter clicks / share clicks** — out for v1. PostHog is wired in the app (`VITE_POSTHOG_PROJECT_TOKEN` in env) but adding event names is its own product decision; revisit when blog has actual readers.
 - **Cover image upload UI / asset pipeline** — covers reference Unsplash hot-link slugs, same pattern as `TEAM_MEMBERS`.
 
 ### Follow-ups (out of phase, but worth noting)
