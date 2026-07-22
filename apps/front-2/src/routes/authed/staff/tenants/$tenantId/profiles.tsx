@@ -54,6 +54,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu';
+import { getIconColorPickerIcon } from '~/components/ui/icon-color-picker-options';
 import { Skeleton } from '~/components/ui/skeleton';
 import {
 	ErrorStateSurface,
@@ -206,15 +207,31 @@ const PROFILE_CARD_TONE_COUNT = 8;
 
 export const deriveTenantProfileCardStyle = (
 	name: string,
+	icon?: string | null,
+	tone?: string | null,
 ): { Icon: Icon; tone: string } => {
 	let sum = 0;
 	for (const char of name) {
 		sum += char.codePointAt(0) ?? 0;
 	}
 
+	const derivedIcon =
+		PROFILE_CARD_ICONS[sum % PROFILE_CARD_ICONS.length] ?? IconShield;
+	const derivedTone = String(sum % PROFILE_CARD_TONE_COUNT);
+	const toneNumber = Number(tone);
+	const persistedTone =
+		tone !== null &&
+		tone !== undefined &&
+		Number.isInteger(toneNumber) &&
+		toneNumber >= 0 &&
+		toneNumber < PROFILE_CARD_TONE_COUNT &&
+		String(toneNumber) === tone
+			? tone
+			: undefined;
+
 	return {
-		Icon: PROFILE_CARD_ICONS[sum % PROFILE_CARD_ICONS.length] ?? IconShield,
-		tone: String(sum % PROFILE_CARD_TONE_COUNT),
+		Icon: getIconColorPickerIcon(icon ?? undefined) ?? derivedIcon,
+		tone: persistedTone ?? derivedTone,
 	};
 };
 
@@ -320,6 +337,8 @@ const ProfileCard = ({
 	const { t } = useTranslation('common');
 	const { Icon: ProfileIcon, tone } = deriveTenantProfileCardStyle(
 		profile.name,
+		profile.icon,
+		profile.tone,
 	);
 
 	return (
@@ -410,6 +429,8 @@ const ProfileNameCell = ({
 }) => {
 	const { Icon: ProfileIcon, tone } = deriveTenantProfileCardStyle(
 		profile.name,
+		profile.icon,
+		profile.tone,
 	);
 
 	return (

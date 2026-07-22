@@ -1,26 +1,12 @@
 import { Popover } from '@base-ui/react/popover';
-import {
-	IconAdjustments,
-	IconBriefcase,
-	IconBuilding,
-	IconCalendar,
-	IconChartBar,
-	IconKey,
-	IconLock,
-	IconMail,
-	IconMessage,
-	IconPencil,
-	IconPhoto,
-	IconSettings,
-	IconShieldCheck,
-	IconStar,
-	IconUsersGroup,
-	IconWorld,
-} from '@tabler/icons-react';
-import type { Icon } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FilterInput } from '~/components/ui/filter-input';
+import {
+	DEFAULT_ICON_COLOR_PICKER_OPTION,
+	getIconColorPickerOption,
+	ICON_COLOR_PICKER_OPTIONS,
+} from '~/components/ui/icon-color-picker-options';
 import { cn } from '~/lib/utils';
 
 type IconColorPickerValue = {
@@ -35,76 +21,8 @@ type IconColorPickerProps = {
 	'aria-label'?: string;
 };
 
-type IconOption = {
-	name: string;
-	labelKey: string;
-	Icon: Icon;
-};
-
-const ICON_OPTIONS: readonly IconOption[] = [
-	{
-		name: 'shield-check',
-		labelKey: 'profile-icon-shield-check',
-		Icon: IconShieldCheck,
-	},
-	{ name: 'key', labelKey: 'profile-icon-key', Icon: IconKey },
-	{ name: 'lock', labelKey: 'profile-icon-lock', Icon: IconLock },
-	{ name: 'star', labelKey: 'profile-icon-star', Icon: IconStar },
-	{
-		name: 'briefcase',
-		labelKey: 'profile-icon-briefcase',
-		Icon: IconBriefcase,
-	},
-	{
-		name: 'adjustments',
-		labelKey: 'profile-icon-adjustments',
-		Icon: IconAdjustments,
-	},
-	{
-		name: 'users-group',
-		labelKey: 'profile-icon-users-group',
-		Icon: IconUsersGroup,
-	},
-	{
-		name: 'settings',
-		labelKey: 'profile-icon-settings',
-		Icon: IconSettings,
-	},
-	{ name: 'pencil', labelKey: 'profile-icon-pencil', Icon: IconPencil },
-	{ name: 'photo', labelKey: 'profile-icon-photo', Icon: IconPhoto },
-	{
-		name: 'calendar',
-		labelKey: 'profile-icon-calendar',
-		Icon: IconCalendar,
-	},
-	{
-		name: 'chart-bar',
-		labelKey: 'profile-icon-chart-bar',
-		Icon: IconChartBar,
-	},
-	{
-		name: 'message',
-		labelKey: 'profile-icon-message',
-		Icon: IconMessage,
-	},
-	{ name: 'mail', labelKey: 'profile-icon-mail', Icon: IconMail },
-	{ name: 'world', labelKey: 'profile-icon-world', Icon: IconWorld },
-	{
-		name: 'building',
-		labelKey: 'profile-icon-building',
-		Icon: IconBuilding,
-	},
-];
-
 const PROFILE_TONES = ['0', '1', '2', '3', '4', '5', '6', '7'] as const;
-const DEFAULT_ICON_OPTION = ICON_OPTIONS[0] as IconOption;
 const DEFAULT_TONE = PROFILE_TONES[0];
-
-const getIconColorPickerOption = (icon?: string): IconOption | undefined =>
-	ICON_OPTIONS.find((option) => option.name === icon);
-
-export const getIconColorPickerIcon = (icon?: string): Icon | undefined =>
-	getIconColorPickerOption(icon)?.Icon;
 
 const getIconColorPickerTone = (tone?: string): string | undefined =>
 	PROFILE_TONES.find((option) => option === tone);
@@ -118,15 +36,15 @@ const IconColorPicker = ({
 	const { t } = useTranslation('staff-tenant-profiles');
 	const [search, setSearch] = useState('');
 	const activeIconOption =
-		getIconColorPickerOption(value.icon) ?? DEFAULT_ICON_OPTION;
+		getIconColorPickerOption(value.icon) ?? DEFAULT_ICON_COLOR_PICKER_OPTION;
 	const activeTone = getIconColorPickerTone(value.tone) ?? DEFAULT_TONE;
 	const filteredIconOptions = useMemo(() => {
 		const query = search.trim().toLocaleLowerCase();
 		if (!query) {
-			return ICON_OPTIONS;
+			return ICON_COLOR_PICKER_OPTIONS;
 		}
 
-		return ICON_OPTIONS.filter((option) => {
+		return ICON_COLOR_PICKER_OPTIONS.filter((option) => {
 			const label = t(option.labelKey).toLocaleLowerCase();
 			return label.includes(query) || option.name.includes(query);
 		});

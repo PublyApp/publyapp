@@ -82,6 +82,8 @@ export type StaffTenantProfileRow = {
 	id: string;
 	name: string;
 	description: string | null;
+	icon?: string | null;
+	tone?: string | null;
 	isDefault: boolean;
 	userAccountCount: number;
 	permissionsCount: number;
@@ -91,6 +93,8 @@ export type StaffTenantProfileDetails = {
 	id: string;
 	name: string;
 	description: string | null;
+	icon?: string | null;
+	tone?: string | null;
 	isDefault: boolean;
 	userAccountCount: number;
 	createdAt: Date | null;
@@ -657,6 +661,8 @@ export const toStaffTenantProfileRows = (
 			id,
 			name,
 			description: normalizeNullableString(item.description),
+			icon: normalizeNullableString(item.icon),
+			tone: normalizeNullableString(item.tone),
 			isDefault: item.isDefault === true,
 			userAccountCount: item.userAccountCount ?? 0,
 			permissionsCount: item.permissionsCount ?? 0,
@@ -684,6 +690,8 @@ export const toStaffTenantProfileDetails = (
 		id,
 		name,
 		description: normalizeNullableString(profile?.description),
+		icon: normalizeNullableString(profile?.icon),
+		tone: normalizeNullableString(profile?.tone),
 		isDefault: profile?.isDefault === true,
 		userAccountCount: profile?.userAccountCount ?? 0,
 		createdAt: normalizeDate(profile?.createdAt),

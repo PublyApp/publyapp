@@ -658,6 +658,21 @@ describe('staff tenant profile details route', () => {
 		cleanup();
 	});
 
+	test('renders the persisted profile icon and tone in the identity header', () => {
+		mocks.toStaffTenantProfileDetails.mockReturnValue({
+			...nonDefaultProfile,
+			icon: 'briefcase',
+			tone: '6',
+		});
+
+		renderPage();
+
+		const identity = screen.getByTestId('staff-tenant-profile-identity');
+		const tile = identity.querySelector('.publy-profile-detail-tile');
+		expect(tile?.getAttribute('data-tone')).toBe('6');
+		expect(tile?.querySelector('.tabler-icon-briefcase')).toBeTruthy();
+	});
+
 	test('renders standalone tenant and profile chrome above the overview content', () => {
 		renderPage();
 

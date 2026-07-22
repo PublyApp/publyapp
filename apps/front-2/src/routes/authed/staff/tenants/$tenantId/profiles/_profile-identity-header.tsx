@@ -20,6 +20,8 @@ export const ProfileIdentityHeader = ({
 	const { t } = useTranslation('staff-tenant-profiles');
 	const { Icon: ProfileIcon, tone: profileTone } = deriveTenantProfileCardStyle(
 		profile.name,
+		profile.icon,
+		profile.tone,
 	);
 	const updatedRelativeParts = getRelativeTimeParts(profile.updatedAt);
 
