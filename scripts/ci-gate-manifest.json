@@ -116,10 +116,30 @@
 			"mirror": "just ci-install",
 			"reason": "ci-install runs the identical pnpm install --frozen-lockfile --ignore-scripts."
 		},
-		"front-2-e2e.yml::front-2-e2e::Bring up front-2 integration stack": {
-			"hash": "a2c0f01858fe76ac",
+		"front-2-e2e.yml::front-2-e2e::Setup Docker Buildx": {
+			"hash": "3d16005f4dabbda6",
+			"mirror": null,
+			"reason": "GitHub-only: Buildx's container driver and gha cache export require the GitHub Actions runner; no local equivalent exists."
+		},
+		"front-2-e2e.yml::front-2-e2e::Setup GitHub Actions runtime": {
+			"hash": "e49a98d1931e5eb3",
+			"mirror": null,
+			"reason": "GitHub-only: exports Actions cache runtime variables for the gha backend; no local equivalent exists."
+		},
+		"front-2-e2e.yml::front-2-e2e::Build stack": {
+			"hash": "52b3cee6e7333038",
 			"mirror": "just ci-e2e-front-2",
-			"reason": "ci-e2e-front-2 brings up the same apps/front-2/docker-compose.test.yml stack with --build; it adds --wait so the separate health-poll step below is unnecessary."
+			"reason": "ci-e2e-front-2 builds the same compose stack via up --build; CI splits build from startup to use GHA cache export."
+		},
+		"front-2-e2e.yml::front-2-e2e::Up stack": {
+			"hash": "2b592c8903446b3e",
+			"mirror": "just ci-e2e-front-2",
+			"reason": "ci-e2e-front-2 brings up the same stack with up --build --wait; CI splits build, detached up, and health polling, so startup is covered differently."
+		},
+		"front-2-e2e.yml::front-2-e2e::Cache Playwright browsers": {
+			"hash": "c632d2db20136539",
+			"mirror": null,
+			"reason": "GitHub-only actions/cache step; the local recipe has no separate browser-cache action or equivalent cache backend."
 		},
 		"front-2-e2e.yml::front-2-e2e::Wait for front-2 stack health": {
 			"hash": "44e875a9f72281db",

@@ -49,6 +49,10 @@ services:
       context: ../..
       dockerfile: apps/api/Dockerfile
       target: migrate
+      cache_from:
+        - type=gha,scope=front-2-e2e-api
+      cache_to:
+        - type=gha,mode=max,scope=front-2-e2e-api
     environment:
       <<: *api-test-environment
       DOTNET_ENVIRONMENT: Testing
@@ -65,6 +69,10 @@ services:
       context: ../..
       dockerfile: apps/api/Dockerfile
       target: runtime
+      cache_from:
+        - type=gha,scope=front-2-e2e-api
+      cache_to:
+        - type=gha,mode=max,scope=front-2-e2e-api
     environment:
       # API-only surface for the frontend E2E — don't inherit the `All` default and start
       # worker infrastructure where callers assume an api-only process (audit F24).
@@ -106,6 +114,10 @@ services:
     build:
       context: ./deploy/request-counter
       dockerfile: Dockerfile
+      cache_from:
+        - type=gha,scope=front-2-e2e-request-counter
+      cache_to:
+        - type=gha,mode=max,scope=front-2-e2e-request-counter
     environment:
       API_UPSTREAM: http://toxiproxy:8666
     depends_on:
@@ -157,6 +169,10 @@ services:
     build:
       context: ../..
       dockerfile: apps/front-2/Dockerfile
+      cache_from:
+        - type=gha,scope=front-2-e2e-front2
+      cache_to:
+        - type=gha,mode=max,scope=front-2-e2e-front2
       # Turns on the /field-validation demo route (gated off in production)
       # so the e2e suite can cover InterZod's localized built-in validation
       # messages, which no other route exercises.
