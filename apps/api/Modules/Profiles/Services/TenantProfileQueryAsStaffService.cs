@@ -14,6 +14,8 @@ public class TenantProfileItem {
 	public Guid Id { get; set; }
 	public string Name { get; set; } = string.Empty;
 	public string? Description { get; set; }
+	public string? Icon { get; set; }
+	public string? Tone { get; set; }
 	public bool IsDefault { get; set; }
 	public int UserAccountCount { get; set; }
 	public int PermissionsCount { get; set; }
@@ -379,6 +381,8 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 				Id = profileId,
 				Name = p.Name,
 				Description = p.Description,
+				Icon = p.Icon,
+				Tone = p.Tone,
 				IsDefault = p.IsDefault,
 				UserAccountCount = userAccountCountByProfileId.GetValueOrDefault(profileId, 0),
 				PermissionsCount = permissionCountByProfileId.GetValueOrDefault(profileId, 0),
@@ -409,6 +413,8 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 				Id = p.Id ?? Guid.Empty,
 				Name = p.Name,
 				Description = p.Description,
+				Icon = p.Icon,
+				Tone = p.Tone,
 				IsDefault = p.IsDefault,
 				UserAccountCount = p.UserAccountProfiles.Count,
 				PermissionsCount = p.ProfilePermissions.Count,

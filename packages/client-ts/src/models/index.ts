@@ -2066,6 +2066,10 @@ export interface CreateTenantProfileAsStaffBody extends AdditionalDataHolder, Pa
      */
     description?: UntypedNode | null;
     /**
+     * The icon property
+     */
+    icon?: UntypedNode | null;
+    /**
      * The name property
      */
     name?: UntypedNode | null;
@@ -2073,6 +2077,10 @@ export interface CreateTenantProfileAsStaffBody extends AdditionalDataHolder, Pa
      * The permissionKeys property
      */
     permissionKeys?: UntypedNode | null;
+    /**
+     * The tone property
+     */
+    tone?: UntypedNode | null;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -3437,8 +3445,10 @@ export function deserializeIntoCreateTenantAsStaffResult(createTenantAsStaffResu
 export function deserializeIntoCreateTenantProfileAsStaffBody(createTenantProfileAsStaffBody: Partial<CreateTenantProfileAsStaffBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "description": n => { createTenantProfileAsStaffBody.description = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "icon": n => { createTenantProfileAsStaffBody.icon = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "name": n => { createTenantProfileAsStaffBody.name = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "permissionKeys": n => { createTenantProfileAsStaffBody.permissionKeys = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "tone": n => { createTenantProfileAsStaffBody.tone = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
 /**
@@ -4430,10 +4440,12 @@ export function deserializeIntoTenantProfileItem(tenantProfileItem: Partial<Tena
     return {
         "createdAt": n => { tenantProfileItem.createdAt = n.getDateValue(); },
         "description": n => { tenantProfileItem.description = n.getStringValue(); },
+        "icon": n => { tenantProfileItem.icon = n.getStringValue(); },
         "id": n => { tenantProfileItem.id = n.getGuidValue(); },
         "isDefault": n => { tenantProfileItem.isDefault = n.getBooleanValue(); },
         "name": n => { tenantProfileItem.name = n.getStringValue(); },
         "permissionsCount": n => { tenantProfileItem.permissionsCount = n.getNumberValue(); },
+        "tone": n => { tenantProfileItem.tone = n.getStringValue(); },
         "updatedAt": n => { tenantProfileItem.updatedAt = n.getDateValue(); },
         "userAccountCount": n => { tenantProfileItem.userAccountCount = n.getNumberValue(); },
     }
@@ -4853,7 +4865,9 @@ export function deserializeIntoUpdateTenantAsStaffBody_maxUsersMember1(updateTen
 export function deserializeIntoUpdateTenantProfileAsStaffBody(updateTenantProfileAsStaffBody: Partial<UpdateTenantProfileAsStaffBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "description": n => { updateTenantProfileAsStaffBody.description = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "icon": n => { updateTenantProfileAsStaffBody.icon = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "name": n => { updateTenantProfileAsStaffBody.name = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "tone": n => { updateTenantProfileAsStaffBody.tone = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
 /**
@@ -6681,8 +6695,10 @@ export function serializeCreateTenantAsStaffResult(writer: SerializationWriter, 
 export function serializeCreateTenantProfileAsStaffBody(writer: SerializationWriter, createTenantProfileAsStaffBody: Partial<CreateTenantProfileAsStaffBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!createTenantProfileAsStaffBody || isSerializingDerivedType) { return; }
     writer.writeObjectValue("description", createTenantProfileAsStaffBody.description);
+    writer.writeObjectValue("icon", createTenantProfileAsStaffBody.icon);
     writer.writeObjectValue("name", createTenantProfileAsStaffBody.name);
     writer.writeObjectValue("permissionKeys", createTenantProfileAsStaffBody.permissionKeys);
+    writer.writeObjectValue("tone", createTenantProfileAsStaffBody.tone);
     writer.writeAdditionalData(createTenantProfileAsStaffBody.additionalData);
 }
 /**
@@ -7745,10 +7761,12 @@ export function serializeTenantProfileItem(writer: SerializationWriter, tenantPr
     if (!tenantProfileItem || isSerializingDerivedType) { return; }
     writer.writeDateValue("createdAt", tenantProfileItem.createdAt);
     writer.writeStringValue("description", tenantProfileItem.description);
+    writer.writeStringValue("icon", tenantProfileItem.icon);
     writer.writeGuidValue("id", tenantProfileItem.id);
     writer.writeBooleanValue("isDefault", tenantProfileItem.isDefault);
     writer.writeStringValue("name", tenantProfileItem.name);
     writer.writeNumberValue("permissionsCount", tenantProfileItem.permissionsCount);
+    writer.writeStringValue("tone", tenantProfileItem.tone);
     writer.writeDateValue("updatedAt", tenantProfileItem.updatedAt);
     writer.writeNumberValue("userAccountCount", tenantProfileItem.userAccountCount);
     writer.writeAdditionalData(tenantProfileItem.additionalData);
@@ -8188,7 +8206,9 @@ export function serializeUpdateTenantAsStaffBody_maxUsersMember1(writer: Seriali
 export function serializeUpdateTenantProfileAsStaffBody(writer: SerializationWriter, updateTenantProfileAsStaffBody: Partial<UpdateTenantProfileAsStaffBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!updateTenantProfileAsStaffBody || isSerializingDerivedType) { return; }
     writer.writeObjectValue("description", updateTenantProfileAsStaffBody.description);
+    writer.writeObjectValue("icon", updateTenantProfileAsStaffBody.icon);
     writer.writeObjectValue("name", updateTenantProfileAsStaffBody.name);
+    writer.writeObjectValue("tone", updateTenantProfileAsStaffBody.tone);
     writer.writeAdditionalData(updateTenantProfileAsStaffBody.additionalData);
 }
 /**
@@ -8809,6 +8829,10 @@ export interface TenantProfileItem extends AdditionalDataHolder, Parsable {
      */
     description?: string | null;
     /**
+     * The icon property
+     */
+    icon?: string | null;
+    /**
      * The id property
      */
     id?: Guid | null;
@@ -8824,6 +8848,10 @@ export interface TenantProfileItem extends AdditionalDataHolder, Parsable {
      * The permissionsCount property
      */
     permissionsCount?: number | null;
+    /**
+     * The tone property
+     */
+    tone?: string | null;
     /**
      * The updatedAt property
      */
@@ -9234,9 +9262,17 @@ export interface UpdateTenantProfileAsStaffBody extends AdditionalDataHolder, Pa
      */
     description?: UntypedNode | null;
     /**
+     * The icon property
+     */
+    icon?: UntypedNode | null;
+    /**
      * The name property
      */
     name?: UntypedNode | null;
+    /**
+     * The tone property
+     */
+    tone?: UntypedNode | null;
 }
 /**
  * Updates a tenant user's profile and/or account level.

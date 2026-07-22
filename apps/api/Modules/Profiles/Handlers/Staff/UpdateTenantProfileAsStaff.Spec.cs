@@ -18,6 +18,7 @@ using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
+using PublyApp.Api.Modules.Profiles.Entities;
 
 using Xunit;
 
@@ -278,6 +279,116 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldSetIconAndTone() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync();
+		var profileId = await CreateProfileAsync(token, tenantId);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Patch,
+			GetUrl(tenantId.ToString(), profileId)
+		).WithSessionToken(token);
+		request.Content = JsonContent.Create(new {
+			icon = "users-group",
+			tone = "6",
+		});
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var payload = await response.Content.ReadFromJsonAsync<GetTenantProfileByIdResponse>();
+		payload.Should().NotBeNull();
+		Assert.NotNull(payload);
+		payload.Profile.Icon.Should().Be("users-group");
+		payload.Profile.Tone.Should().Be("6");
+
+		var persistedProfile = await GetProfileAsync(Guid.Parse(profileId));
+		persistedProfile.Icon.Should().Be("users-group");
+		persistedProfile.Tone.Should().Be("6");
+	}
+
+	[Fact]
+	public async Task ItShouldClearIconAndToneWhenNullIsProvided() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync();
+		var profileId = await CreateProfileAsync(token, tenantId);
+		await SetProfileStyleAsync(Guid.Parse(profileId), "shield", "2");
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Patch,
+			GetUrl(tenantId.ToString(), profileId)
+		).WithSessionToken(token);
+		request.Content = new StringContent(
+			"{\"icon\":null,\"tone\":null}",
+			Encoding.UTF8,
+			"application/json"
+		);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var payload = await response.Content.ReadFromJsonAsync<GetTenantProfileByIdResponse>();
+		payload.Should().NotBeNull();
+		Assert.NotNull(payload);
+		payload.Profile.Icon.Should().BeNull();
+		payload.Profile.Tone.Should().BeNull();
+
+		var persistedProfile = await GetProfileAsync(Guid.Parse(profileId));
+		persistedProfile.Icon.Should().BeNull();
+		persistedProfile.Tone.Should().BeNull();
+	}
+
+	[Fact]
+	public async Task ItShouldLeaveIconAndToneUnchangedWhenOmitted() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync();
+		var profileId = await CreateProfileAsync(token, tenantId);
+		await SetProfileStyleAsync(Guid.Parse(profileId), "briefcase", "3");
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Patch,
+			GetUrl(tenantId.ToString(), profileId)
+		).WithSessionToken(token);
+		request.Content = JsonContent.Create(new {
+			description = "Style fields omitted",
+		});
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var payload = await response.Content.ReadFromJsonAsync<GetTenantProfileByIdResponse>();
+		payload.Should().NotBeNull();
+		Assert.NotNull(payload);
+		payload.Profile.Icon.Should().Be("briefcase");
+		payload.Profile.Tone.Should().Be("3");
+
+		var persistedProfile = await GetProfileAsync(Guid.Parse(profileId));
+		persistedProfile.Icon.Should().Be("briefcase");
+		persistedProfile.Tone.Should().Be("3");
+	}
+
+	[Fact]
+	public async Task ItShouldReturnUnprocessableEntityForInvalidTone() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync();
+		var profileId = await CreateProfileAsync(token, tenantId);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Patch,
+			GetUrl(tenantId.ToString(), profileId)
+		).WithSessionToken(token);
+		request.Content = JsonContent.Create(new { tone = "8" });
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		Assert.NotNull(problem);
+		problem.Errors.Should().ContainKey("Tone");
+	}
+
+	[Fact]
 	public async Task ItShouldNotWriteAuditLogWhenPatchNormalizesToNoChange() {
 		var token = await _authClient.LoginAsStaffAdminAsync();
 		var tenantId = await GetTenantIdAsync();
@@ -382,6 +493,27 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 			.FirstOrDefaultAsync();
 	}
 
+	private async Task SetProfileStyleAsync(
+		Guid profileId,
+		string icon,
+		string tone
+	) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var profile = await dbContext.Profile.SingleAsync(item => item.Id == profileId);
+		profile.Icon = icon;
+		profile.Tone = tone;
+		await dbContext.SaveChangesAsync();
+	}
+
+	private async Task<Profile> GetProfileAsync(Guid profileId) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		return await dbContext.Profile
+			.AsNoTracking()
+			.SingleAsync(item => item.Id == profileId);
+	}
+
 	private static void AssertAuditDetails(
 		AuditLog auditLog,
 		Guid expectedTenantId,
@@ -429,6 +561,8 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		public Guid Id { get; init; }
 		public string Name { get; init; } = string.Empty;
 		public string? Description { get; init; }
+		public string? Icon { get; init; }
+		public string? Tone { get; init; }
 		public bool IsDefault { get; init; }
 		public int UserAccountCount { get; init; }
 	}

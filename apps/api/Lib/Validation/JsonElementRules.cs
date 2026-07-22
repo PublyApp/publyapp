@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 using FluentValidation;
 
@@ -7,6 +8,68 @@ using PublyApp.Api.Lib.Utils;
 namespace PublyApp.Api.Lib.Validation;
 
 public static class JsonElementRules {
+	/// <summary>
+	/// Validates an optional, clearable string against a maximum length and pattern.
+	/// </summary>
+	public static IRuleBuilderOptions<T, JsonElement>
+		MustBePatchFieldStringMatchingPattern<T>(
+			this IRuleBuilder<T, JsonElement> ruleBuilder,
+			string fieldName,
+			int maxLength,
+			Regex pattern,
+			string formatDescription
+		) {
+		return ruleBuilder
+			.Must(e => e.ValueKind
+				is JsonValueKind.Undefined
+				or JsonValueKind.Null
+				or JsonValueKind.String)
+			.WithMessage($"{fieldName} must be a string, null, or omitted")
+			.Must(e => e.ValueKind != JsonValueKind.String
+				|| !string.IsNullOrWhiteSpace(e.GetString()))
+			.WithMessage($"{fieldName} must not be empty")
+			.Must(e => e.ValueKind != JsonValueKind.String
+				|| (e.GetString()?.Length ?? 0) <= maxLength)
+			.WithMessage($"{fieldName} must be {maxLength} characters or less")
+			.Must(e => {
+				if (e.ValueKind != JsonValueKind.String) {
+					return true;
+				}
+
+				var value = e.GetString();
+				return value is not null && pattern.IsMatch(value);
+			})
+			.WithMessage($"{fieldName} must {formatDescription}");
+	}
+
+	/// <summary>
+	/// Validates an optional, clearable string against a finite set of allowed values.
+	/// </summary>
+	public static IRuleBuilderOptions<T, JsonElement>
+		MustBePatchFieldStringInSet<T>(
+			this IRuleBuilder<T, JsonElement> ruleBuilder,
+			string fieldName,
+			IReadOnlySet<string> allowedValues
+		) {
+		return ruleBuilder
+			.Must(e => e.ValueKind
+				is JsonValueKind.Undefined
+				or JsonValueKind.Null
+				or JsonValueKind.String)
+			.WithMessage($"{fieldName} must be a string, null, or omitted")
+			.Must(e => {
+				if (e.ValueKind != JsonValueKind.String) {
+					return true;
+				}
+
+				var value = e.GetString();
+				return value is not null && allowedValues.Contains(value);
+			})
+			.WithMessage(
+				$"{fieldName} must be one of: {string.Join(", ", allowedValues)}"
+			);
+	}
+
 	/// <summary>
 	/// Validates a required JsonElement email field:
 	/// NotEmpty → must be string → valid email format.

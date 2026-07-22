@@ -73,11 +73,15 @@ public class Profile : BaseAttributes, IOptionalTenantEntity {
 		Guid tenantId,
 		string name,
 		string? description = null,
-		bool isDefault = false
+		bool isDefault = false,
+		string? icon = null,
+		string? tone = null
 	) {
 		return new Profile {
 			Name = name,
 			Description = description,
+			Icon = icon,
+			Tone = tone,
 			Scope = ProfileScope.Tenant,
 			IsDefault = isDefault,
 			TenantId = tenantId,
