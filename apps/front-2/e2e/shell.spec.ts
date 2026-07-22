@@ -578,6 +578,10 @@ test('no bottom rail on mobile and rail-hidden behavior is preserved', async ({
 });
 
 test('mobile shell menu is keyboard and route-aware', async ({ page }) => {
+	// The default project starts with a staff-admin session, but this transition
+	// must exercise the anonymous auth route instead of its authenticated-user
+	// redirect guard.
+	await page.context().clearCookies();
 	await page.setViewportSize({ width: 390, height: 812 });
 	await page.goto('/');
 
@@ -596,10 +600,6 @@ test('mobile shell menu is keyboard and route-aware', async ({ page }) => {
 	// The auth surface is a standalone split-brand layout, not the app shell
 	// (no rail/topbar/mobile menu) — see docs/guides/front-2/conventions.md.
 	await expect(page).toHaveURL('/login');
-	// The URL advances before the async route match commits; under loaded
-	// sharded CI the auth namespace and standalone layout can take over 5s.
-	await expect(page.getByTestId('auth-layout')).toBeVisible({
-		timeout: 15_000,
-	});
+	await expect(page.getByTestId('auth-layout')).toBeVisible();
 	await expect(page.getByTestId('app-shell-shell')).toHaveCount(0);
 });
