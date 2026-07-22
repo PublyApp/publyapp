@@ -171,23 +171,34 @@ knip:
 # reads APP_ROLE. Migration/model creation is an API-role tooling path, never an implicit
 # `all` or worker host. As above, the host environment resolves to Production when
 # ASPNETCORE_ENVIRONMENT is unset, so the pin is what keeps these recipes booting.
+#
+# Each recipe builds ONCE with -property:OpenApiGenerateDocuments=false, then runs the EF
+# tool with --no-build. Migrations never need openapi.json, and a normal build RUNS the
+# app via dotnet-getdocument to emit it — pure waste on these paths, and a hard failure
+# point when doc generation is slow/hangs (it would block the very migration you are
+# trying to apply, a bootstrap deadlock). Mirrors `dev-api`, which skips doc-gen the same
+# way.
 
 # Run EF Core migrations
 db-migrate $APP_ROLE="api":
-  cd {{api_dir}} && dotnet tool run dotnet-ef database update
+  cd {{api_dir}} && dotnet build -property:OpenApiGenerateDocuments=false
+  cd {{api_dir}} && dotnet tool run dotnet-ef database update --no-build
 
 # Drop + migrate database
 db-reset $APP_ROLE="api":
-  cd {{api_dir}} && dotnet tool run dotnet-ef database drop -f
-  cd {{api_dir}} && dotnet tool run dotnet-ef database update
+  cd {{api_dir}} && dotnet build -property:OpenApiGenerateDocuments=false
+  cd {{api_dir}} && dotnet tool run dotnet-ef database drop -f --no-build
+  cd {{api_dir}} && dotnet tool run dotnet-ef database update --no-build
 
 # Add new migration: `just db-add CreateUsers`
 db-add name $APP_ROLE="api":
-  cd {{api_dir}} && dotnet tool run dotnet-ef migrations add {{name}}
+  cd {{api_dir}} && dotnet build -property:OpenApiGenerateDocuments=false
+  cd {{api_dir}} && dotnet tool run dotnet-ef migrations add {{name}} --no-build
 
 # Remove last migration
 db-remove $APP_ROLE="api":
-  cd {{api_dir}} && dotnet tool run dotnet-ef migrations remove
+  cd {{api_dir}} && dotnet build -property:OpenApiGenerateDocuments=false
+  cd {{api_dir}} && dotnet tool run dotnet-ef migrations remove --no-build
 
 # =============================================================================
 # Bulk seeding (testing)
