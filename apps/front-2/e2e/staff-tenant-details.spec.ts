@@ -767,7 +767,7 @@ test.describe('staff tenant invite-user drawer', () => {
 			'[data-sonner-toast][data-type="success"]',
 		);
 		await expect(
-			page.getByText('Invitation sent successfully', { exact: true }),
+			page.getByText('1 invitation sent successfully.', { exact: true }),
 		).toBeVisible();
 		await expect(successToasts).toHaveCount(1);
 		await expect(successToasts).toBeInViewport({ ratio: 1 });
