@@ -26,6 +26,13 @@ public class TenantProfileUserItem {
 	public string? AvatarUrl { get; set; }
 	public string Status { get; set; } = string.Empty;
 	public string Level { get; set; } = string.Empty;
+	public required List<TenantProfileUserProfileItem> OtherProfiles { get; set; }
+	public DateTime? JoinedAt { get; set; }
+}
+
+public class TenantProfileUserProfileItem {
+	public Guid Id { get; set; }
+	public string Name { get; set; } = string.Empty;
 }
 
 public class FindTenantProfileUsersAsStaffResult {
@@ -145,6 +152,13 @@ public sealed class FindTenantProfileUsersAsStaff {
 								UserAccount.GetTenantStatus(u.UserStatus, u.AccountStatus)
 							),
 							Level = UserAccount.GetLevelDescription(u.Level),
+							OtherProfiles = u.OtherProfiles
+								.Select(profile => new TenantProfileUserProfileItem {
+									Id = profile.Id,
+									Name = profile.Name,
+								})
+								.ToList(),
+							JoinedAt = u.JoinedAt,
 						})
 						.ToList(),
 					Count = success.Count,

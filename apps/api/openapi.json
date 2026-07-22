@@ -13138,6 +13138,9 @@
         }
       },
       "TenantProfileUserItem": {
+        "required": [
+          "otherProfiles"
+        ],
         "type": "object",
         "properties": {
           "id": {
@@ -13173,6 +13176,31 @@
             "type": "string"
           },
           "level": {
+            "type": "string"
+          },
+          "otherProfiles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TenantProfileUserProfileItem"
+            }
+          },
+          "joinedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "TenantProfileUserProfileItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
             "type": "string"
           }
         }

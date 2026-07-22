@@ -310,6 +310,80 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 		result.Users.Should().NotContain(u => u.Id == unassignedMemberId);
 	}
 
+	[Fact]
+	public async Task ItShouldExposeOtherProfilesAndTheCurrentAssignmentTimestamp() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var currentProfileId = await CreateTenantProfileAsync(
+			tenantId,
+			"Current profile"
+		);
+		var otherProfileAId = await CreateTenantProfileAsync(
+			tenantId,
+			"Other profile A"
+		);
+		var otherProfileBId = await CreateTenantProfileAsync(
+			tenantId,
+			"Other profile B"
+		);
+		var memberWithOtherProfilesId = await CreateTenantMemberAsync(tenantId);
+		var memberWithOnlyCurrentProfileId = await CreateTenantMemberAsync(tenantId);
+		var joinedAt = new DateTime(2026, 2, 3, 4, 5, 6, DateTimeKind.Utc);
+
+		await CreateAssignmentAsync(
+			memberWithOtherProfilesId,
+			currentProfileId,
+			joinedAt
+		);
+		await CreateAssignmentAsync(
+			memberWithOtherProfilesId,
+			otherProfileAId,
+			joinedAt.AddDays(1)
+		);
+		await CreateAssignmentAsync(
+			memberWithOtherProfilesId,
+			otherProfileBId,
+			joinedAt.AddDays(2)
+		);
+		await CreateAssignmentAsync(
+			memberWithOnlyCurrentProfileId,
+			currentProfileId,
+			joinedAt.AddDays(3)
+		);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetUrl(tenantId.ToString(), currentProfileId.ToString()) + "?limit=50"
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<FindTenantProfileUsersAsStaffResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+
+		var memberWithOtherProfiles = result.Users
+			.Should()
+			.ContainSingle(u => u.Id == memberWithOtherProfilesId)
+			.Subject;
+		memberWithOtherProfiles.JoinedAt.Should().Be(joinedAt);
+		memberWithOtherProfiles.OtherProfiles.Should().BeEquivalentTo([
+			new TenantProfileUserProfileItemResponse(otherProfileAId, "Other profile A"),
+			new TenantProfileUserProfileItemResponse(otherProfileBId, "Other profile B"),
+		]);
+		memberWithOtherProfiles.OtherProfiles.Should()
+			.NotContain(profile => profile.Id == currentProfileId);
+
+		var memberWithOnlyCurrentProfile = result.Users
+			.Should()
+			.ContainSingle(u => u.Id == memberWithOnlyCurrentProfileId)
+			.Subject;
+		memberWithOnlyCurrentProfile.JoinedAt.Should().Be(joinedAt.AddDays(3));
+		memberWithOnlyCurrentProfile.OtherProfiles.Should().BeEmpty();
+	}
+
 	/// <summary>
 	/// Regression for the front-2 step-4b review (MAJOR 4): the roster's `id` is deliberately
 	/// the user_account_id (matching the assign/unassign toggle route), but a caller that wants
@@ -527,13 +601,16 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 		return await TenantTestHelper.GetTenantIdByNameAsync(_http, token, tenantName);
 	}
 
-	private async Task<Guid> CreateTenantProfileAsync(Guid tenantId) {
+	private async Task<Guid> CreateTenantProfileAsync(
+		Guid tenantId,
+		string? name = null
+	) {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var profile = Profile.CreateTenantProfile(
 			tenantId,
-			name: "Tenant Profile " + Guid.NewGuid().ToString("N")[..8],
+			name: name ?? ("Tenant Profile " + Guid.NewGuid().ToString("N")[..8]),
 			description: "Profile created for FindTenantProfileUsersAsStaffSpec"
 		);
 		profile.ValidateProfileType();
@@ -542,6 +619,23 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 		_ = await dbContext.SaveChangesAsync();
 
 		return profile.GetRequiredId();
+	}
+
+	private async Task CreateAssignmentAsync(
+		Guid userAccountId,
+		Guid profileId,
+		DateTime createdAt
+	) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		_ = dbContext.UserAccountProfile.Add(new UserAccountProfile {
+			UserAccountId = userAccountId,
+			ProfileId = profileId,
+			CreatedAt = createdAt,
+			UpdatedAt = createdAt,
+		});
+		_ = await dbContext.SaveChangesAsync();
 	}
 
 	private async Task<Guid> CreateTenantMemberAsync(
@@ -679,5 +773,9 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 		public string? AvatarUrl { get; init; }
 		public string Status { get; init; } = string.Empty;
 		public string Level { get; init; } = string.Empty;
+		public List<TenantProfileUserProfileItemResponse> OtherProfiles { get; init; } = [];
+		public DateTime? JoinedAt { get; init; }
 	}
+
+	private sealed record TenantProfileUserProfileItemResponse(Guid Id, string Name);
 }
