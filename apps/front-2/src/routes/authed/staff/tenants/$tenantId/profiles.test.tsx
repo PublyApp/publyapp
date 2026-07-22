@@ -1194,6 +1194,7 @@ describe('deriveTenantProfileCardStyle', () => {
 	test('falls back to the same deterministic style for absent or null persisted values', () => {
 		const absent = deriveTenantProfileCardStyle('Approvers');
 		const nullPersisted = deriveTenantProfileCardStyle('Approvers', null, null);
+		expect(absent.icon).toBe(nullPersisted.icon);
 		expect(absent.tone).toBe(nullPersisted.tone);
 		expect(absent.Icon).toBe(nullPersisted.Icon);
 	});
@@ -1207,6 +1208,7 @@ describe('deriveTenantProfileCardStyle', () => {
 		);
 
 		expect(persisted.tone).toBe('6');
+		expect(persisted.icon).toBe('briefcase');
 		expect(persisted.Icon).not.toBe(derived.Icon);
 	});
 });

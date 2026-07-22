@@ -1,12 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
-import { Controller, useForm, useFormContext } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { Field, Form } from '~/components/field';
 import { Button } from '~/components/ui/button';
-import { Checkbox } from '~/components/ui/checkbox';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
 	Drawer,
@@ -17,13 +16,13 @@ import {
 	DrawerHeader,
 	DrawerTitle,
 } from '~/components/ui/drawer';
+import { IconColorPicker } from '~/components/ui/icon-color-picker';
 import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
 } from '~/lib/mutation-toast';
 import {
 	buildStaffTenantPermissionCatalogGroups,
-	type StaffTenantPermissionGroup,
 	useAssignStaffTenantProfilePermissionMutation,
 	useCreateStaffTenantProfileMutation,
 	useStaffTenantPermissionCatalogQuery,
@@ -38,6 +37,9 @@ import {
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
+import { PermissionMatrix } from './_permission-matrix';
+import { deriveTenantProfileCardStyle } from './_profile-card-style';
+
 const buildProfileFormSchema = (t: (key: string) => string) =>
 	z.object({
 		name: z
@@ -50,6 +52,8 @@ const buildProfileFormSchema = (t: (key: string) => string) =>
 			.trim()
 			.max(500, { message: t('profile-description-too-long') })
 			.optional(),
+		icon: z.string().min(1),
+		tone: z.string().min(1),
 		permissionKeys: z.array(z.string()),
 	});
 
@@ -58,6 +62,8 @@ type ProfileFormValues = z.infer<ReturnType<typeof buildProfileFormSchema>>;
 const PROFILE_FORM_FIELDS = [
 	'name',
 	'description',
+	'icon',
+	'tone',
 	'permissionKeys',
 ] as const satisfies readonly (keyof ProfileFormValues)[];
 
@@ -71,73 +77,39 @@ const LOCAL_PERMISSION_META = {
 	skipGlobalErrorHandler: true,
 } as const;
 
-const EMPTY_VALUES: ProfileFormValues = {
-	name: '',
-	description: '',
-	permissionKeys: [],
-};
-
 const toStringArray = (value: unknown): string[] =>
 	Array.isArray(value)
 		? value.filter((item): item is string => typeof item === 'string')
 		: [];
 
-const PermissionGroupChecklist = ({
-	groups,
-	isDisabled,
-}: {
-	groups: StaffTenantPermissionGroup[];
-	isDisabled?: boolean;
-}) => {
-	const { control } = useFormContext();
+const getProfileFormValues = (
+	profile?: ProfileFormDrawerProfile,
+): ProfileFormValues => {
+	const style = deriveTenantProfileCardStyle(
+		profile?.name ?? '',
+		profile?.icon,
+		profile?.tone,
+	);
+
+	return {
+		name: profile?.name ?? '',
+		description: profile?.description ?? '',
+		icon: style.icon,
+		tone: style.tone,
+		permissionKeys: profile?.permissionKeys ?? [],
+	};
+};
+
+const countPermissionChanges = (
+	baselineValue: string[],
+	value: string[],
+): number => {
+	const baseline = new Set(baselineValue);
+	const selected = new Set(value);
 
 	return (
-		<Controller
-			name="permissionKeys"
-			control={control}
-			render={({ field }) => {
-				const value = toStringArray(field.value);
-
-				const toggle = (key: string, checked: boolean) => {
-					field.onChange(
-						checked
-							? [...new Set([...value, key])]
-							: value.filter((item) => item !== key),
-					);
-				};
-
-				return (
-					<div
-						className="space-y-4"
-						data-testid="profile-permissions-checklist"
-					>
-						{groups.map((group) => (
-							<div key={group.moduleKey} className="space-y-2">
-								<p className="publy-type-eyebrow">{group.moduleLabel}</p>
-								<div className="space-y-1.5">
-									{group.options.map((option) => (
-										<label
-											key={option.key}
-											className="flex items-start gap-2 text-[13px]"
-											title={option.description ?? undefined}
-										>
-											<Checkbox
-												checked={value.includes(option.key)}
-												disabled={isDisabled}
-												onCheckedChange={(checked) =>
-													toggle(option.key, Boolean(checked))
-												}
-											/>
-											<span>{option.label}</span>
-										</label>
-									))}
-								</div>
-							</div>
-						))}
-					</div>
-				);
-			}}
-		/>
+		baselineValue.filter((key) => !selected.has(key)).length +
+		value.filter((key) => !baseline.has(key)).length
 	);
 };
 
@@ -145,6 +117,9 @@ export type ProfileFormDrawerProfile = {
 	id: string;
 	name: string;
 	description: string | null;
+	icon?: string | null;
+	tone?: string | null;
+	memberCount: number;
 	permissionKeys: string[];
 };
 
@@ -174,6 +149,7 @@ export const ProfileFormDrawer = ({
 	onDirtyChange?: (isDirty: boolean) => void;
 }) => {
 	const { t, i18n } = useTranslation('common');
+	const { t: tProfiles } = useTranslation('staff-tenant-profiles');
 	const queryClient = useQueryClient();
 
 	const catalogQuery = useStaffTenantPermissionCatalogQuery({});
@@ -198,13 +174,18 @@ export const ProfileFormDrawer = ({
 
 	const methods = useForm<ProfileFormValues>({
 		resolver,
-		defaultValues: EMPTY_VALUES,
+		defaultValues: getProfileFormValues(),
 	});
 	const {
 		reset,
 		formState: { isDirty, isSubmitting },
 	} = methods;
 	const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
+	const icon = useWatch({ control: methods.control, name: 'icon' });
+	const tone = useWatch({ control: methods.control, name: 'tone' });
+	const permissionKeys = toStringArray(
+		useWatch({ control: methods.control, name: 'permissionKeys' }),
+	);
 
 	useEffect(() => {
 		if (!isOpen) {
@@ -212,15 +193,7 @@ export const ProfileFormDrawer = ({
 		}
 
 		setIsDiscardConfirmOpen(false);
-		reset(
-			mode === 'edit' && profile
-				? {
-						name: profile.name,
-						description: profile.description ?? '',
-						permissionKeys: profile.permissionKeys,
-					}
-				: EMPTY_VALUES,
-		);
+		reset(getProfileFormValues(mode === 'edit' ? profile : undefined));
 		// Re-seeds only when the drawer opens or the target profile changes —
 		// `profile` is rebuilt every render by the parent, so depending on its
 		// identity would reset unsaved edits on any background refetch.
@@ -233,6 +206,10 @@ export const ProfileFormDrawer = ({
 
 	const isSaving = createProfile.isPending || updateProfile.isPending;
 	const isFormLocked = isSaving || isSubmitting;
+	const permissionChangeCount =
+		mode === 'edit' && profile
+			? countPermissionChanges(profile.permissionKeys, permissionKeys)
+			: 0;
 
 	// tenants-r6-F3: every close path (Escape, backdrop click, Cancel, and
 	// browser back — all funneled through Base UI's `onOpenChange`) must
@@ -299,6 +276,8 @@ export const ProfileFormDrawer = ({
 					tenantId,
 					name: values.name,
 					description: values.description,
+					icon: values.icon,
+					tone: values.tone,
 					permissionKeys: values.permissionKeys,
 				});
 			} catch (error) {
@@ -327,6 +306,8 @@ export const ProfileFormDrawer = ({
 				profileId: profile.id,
 				name: values.name,
 				description: values.description,
+				icon: values.icon,
+				tone: values.tone,
 			});
 		} catch (error) {
 			await handleProfileSaveFailure(error);
@@ -418,24 +399,48 @@ export const ProfileFormDrawer = ({
 				<DrawerHeader>
 					<DrawerTitle>{title}</DrawerTitle>
 					<DrawerDescription>
-						{t('profile-form-drawer-description')}
+						{mode === 'edit' && profile
+							? tProfiles('profile-edit-subtitle', {
+									name: profile.name,
+									count: profile.memberCount,
+								})
+							: t('profile-form-drawer-description')}
 					</DrawerDescription>
 				</DrawerHeader>
 				<Form methods={methods} onSubmit={onSubmit}>
 					<DrawerBody className="space-y-4">
-						<Field.Text
-							name="name"
-							label={t('profile-name')}
-							placeholder={t('tenant-profile-name-placeholder')}
-							isDisabled={isFormLocked}
-							fullWidth
-						/>
-						<Field.Text
+						<div className="space-y-1.5">
+							<div className="grid items-end gap-3 sm:grid-cols-[auto_minmax(0,1fr)]">
+								<IconColorPicker
+									value={{ icon, tone }}
+									disabled={isFormLocked}
+									onChange={(next) => {
+										methods.setValue('icon', next.icon ?? icon, {
+											shouldDirty: true,
+										});
+										methods.setValue('tone', next.tone ?? tone, {
+											shouldDirty: true,
+										});
+									}}
+								/>
+								<Field.Text
+									name="name"
+									label={t('profile-name')}
+									placeholder={t('tenant-profile-name-placeholder')}
+									isDisabled={isFormLocked}
+									fullWidth
+								/>
+							</div>
+							<p className="text-xs text-muted-foreground sm:pl-[68px]">
+								{tProfiles('profile-icon-picker-hint')}
+							</p>
+						</div>
+						<Field.Textarea
 							name="description"
 							label={t('description')}
 							placeholder={t('profile-description-placeholder')}
+							rows={4}
 							isDisabled={isFormLocked}
-							fullWidth
 						/>
 
 						{catalogQuery.isPending ? (
@@ -455,9 +460,22 @@ export const ProfileFormDrawer = ({
 						{!catalogQuery.isPending &&
 						!catalogQuery.isError &&
 						groups.length > 0 ? (
-							<PermissionGroupChecklist
-								groups={groups}
-								isDisabled={isFormLocked}
+							<Controller
+								name="permissionKeys"
+								control={methods.control}
+								render={({ field }) => (
+									<div data-testid="profile-permissions-checklist">
+										<PermissionMatrix
+											groups={groups}
+											value={toStringArray(field.value)}
+											onChange={field.onChange}
+											baselineValue={
+												mode === 'edit' ? profile?.permissionKeys : []
+											}
+											disabled={isFormLocked}
+										/>
+									</div>
+								)}
 							/>
 						) : null}
 
@@ -476,6 +494,16 @@ export const ProfileFormDrawer = ({
 						) : null}
 					</DrawerBody>
 					<DrawerFooter>
+						{mode === 'edit' ? (
+							<p
+								className="mr-auto text-sm text-muted-foreground"
+								aria-live="polite"
+							>
+								{tProfiles('profile-permissions-changed', {
+									count: permissionChangeCount,
+								})}
+							</p>
+						) : null}
 						<Button
 							type="button"
 							variant="ghost"

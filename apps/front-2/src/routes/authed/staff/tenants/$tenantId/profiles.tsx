@@ -1,23 +1,15 @@
 import {
-	IconAdjustments,
 	IconAlertCircle,
-	IconBriefcase,
 	IconChevronDown,
 	IconEye,
 	IconFilter,
-	IconKey,
 	IconLayoutGrid,
-	IconLock,
 	IconPencil,
 	IconPlus,
-	IconSettings,
 	IconShield,
-	IconStar,
 	IconTable,
 	IconTrash,
-	IconUsers,
 } from '@tabler/icons-react';
-import type { Icon } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -54,7 +46,6 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu';
-import { getIconColorPickerIcon } from '~/components/ui/icon-color-picker-options';
 import { Skeleton } from '~/components/ui/skeleton';
 import {
 	ErrorStateSurface,
@@ -95,7 +86,10 @@ import {
 	TenantDetailsPageShell,
 	TenantRetryActions,
 } from './_tenant-details-shell';
+import { deriveTenantProfileCardStyle } from './profiles/_profile-card-style';
 import { ProfileFormDrawer } from './profiles/_profile-form-drawer';
+
+export { deriveTenantProfileCardStyle } from './profiles/_profile-card-style';
 
 export type StaffTenantProfileTypeFilter = 'true' | 'false';
 export type StaffTenantProfilesViewMode = 'cards' | 'table';
@@ -190,50 +184,6 @@ export const serializeStaffTenantProfilesSearchParams = (
 
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
-
-/** Deterministic, decorative icon + tone for a profile card — same hashing
- * approach as the staff (non-tenant) profiles list; not a contract field. */
-const PROFILE_CARD_ICONS: readonly Icon[] = [
-	IconShield,
-	IconKey,
-	IconLock,
-	IconStar,
-	IconBriefcase,
-	IconAdjustments,
-	IconUsers,
-	IconSettings,
-];
-const PROFILE_CARD_TONE_COUNT = 8;
-
-export const deriveTenantProfileCardStyle = (
-	name: string,
-	icon?: string | null,
-	tone?: string | null,
-): { Icon: Icon; tone: string } => {
-	let sum = 0;
-	for (const char of name) {
-		sum += char.codePointAt(0) ?? 0;
-	}
-
-	const derivedIcon =
-		PROFILE_CARD_ICONS[sum % PROFILE_CARD_ICONS.length] ?? IconShield;
-	const derivedTone = String(sum % PROFILE_CARD_TONE_COUNT);
-	const toneNumber = Number(tone);
-	const persistedTone =
-		tone !== null &&
-		tone !== undefined &&
-		Number.isInteger(toneNumber) &&
-		toneNumber >= 0 &&
-		toneNumber < PROFILE_CARD_TONE_COUNT &&
-		String(toneNumber) === tone
-			? tone
-			: undefined;
-
-	return {
-		Icon: getIconColorPickerIcon(icon ?? undefined) ?? derivedIcon,
-		tone: persistedTone ?? derivedTone,
-	};
-};
 
 export const tenantProfileTypeChipClassName = (isDefault: boolean): string =>
 	isDefault

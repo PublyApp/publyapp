@@ -47,6 +47,8 @@ export type CreateStaffTenantProfileInput = {
 	tenantId: string;
 	name: string;
 	description?: string;
+	icon?: string;
+	tone?: string;
 	permissionKeys?: string[];
 };
 
@@ -55,6 +57,8 @@ export type UpdateStaffTenantProfileInput = {
 	profileId: string;
 	name: string;
 	description?: string;
+	icon?: string;
+	tone?: string;
 };
 
 export type DeleteStaffTenantProfileInput = {
@@ -601,6 +605,8 @@ export const buildCreateStaffTenantProfileBody = (
 ): CreateTenantProfileAsStaffBody => {
 	const body: CreateTenantProfileAsStaffBody = {};
 	const description = normalizeString(input.description);
+	const icon = normalizeString(input.icon);
+	const tone = normalizeString(input.tone);
 
 	body.name = createUntypedString(input.name) as typeof body.name;
 
@@ -608,6 +614,12 @@ export const buildCreateStaffTenantProfileBody = (
 		body.description = createUntypedString(
 			description,
 		) as typeof body.description;
+	}
+	if (icon) {
+		body.icon = createUntypedString(icon) as typeof body.icon;
+	}
+	if (tone) {
+		body.tone = createUntypedString(tone) as typeof body.tone;
 	}
 
 	const permissionKeys = (input.permissionKeys ?? [])
@@ -628,6 +640,8 @@ export const buildUpdateStaffTenantProfileBody = (
 ): UpdateTenantProfileAsStaffBody => {
 	const body: UpdateTenantProfileAsStaffBody = {};
 	const description = normalizeString(input.description);
+	const icon = normalizeString(input.icon);
+	const tone = normalizeString(input.tone);
 
 	body.name = createUntypedString(input.name.trim()) as typeof body.name;
 
@@ -637,6 +651,12 @@ export const buildUpdateStaffTenantProfileBody = (
 		) as typeof body.description;
 	} else if (input.description !== undefined) {
 		body.description = null;
+	}
+	if (icon) {
+		body.icon = createUntypedString(icon) as typeof body.icon;
+	}
+	if (tone) {
+		body.tone = createUntypedString(tone) as typeof body.tone;
 	}
 
 	return body;

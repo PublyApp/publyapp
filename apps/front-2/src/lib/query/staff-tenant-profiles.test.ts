@@ -398,6 +398,17 @@ describe('staff tenant profile permission-key cache snapshot', () => {
 });
 
 describe('buildCreateStaffTenantProfileBody', () => {
+	test('serializes the concrete icon and tone', () => {
+		const body = buildCreateStaffTenantProfileBody({
+			name: 'Approvers',
+			icon: 'briefcase',
+			tone: '6',
+		});
+
+		expect(unwrapUntyped(body.icon)).toBe('briefcase');
+		expect(unwrapUntyped(body.tone)).toBe('6');
+	});
+
 	test('includes a trimmed description without serializing permission keys', () => {
 		const body = buildCreateStaffTenantProfileBody({
 			name: 'Approvers',
@@ -444,6 +455,17 @@ describe('buildCreateStaffTenantProfileBody', () => {
 });
 
 describe('buildUpdateStaffTenantProfileBody', () => {
+	test('serializes the concrete icon and tone', () => {
+		const body = buildUpdateStaffTenantProfileBody({
+			name: 'Approvers',
+			icon: 'briefcase',
+			tone: '6',
+		});
+
+		expect(unwrapUntyped(body.icon)).toBe('briefcase');
+		expect(unwrapUntyped(body.tone)).toBe('6');
+	});
+
 	test('includes a trimmed description when provided', () => {
 		const body = buildUpdateStaffTenantProfileBody({
 			name: '  Approvers  ',

@@ -43,6 +43,8 @@ vi.mock('react-i18next', () => ({
 				'new-profile': 'New profile',
 				'edit-profile': 'Edit profile',
 				'profile-form-drawer-description': 'Configure this profile.',
+				'profile-edit-subtitle': '{{name}} · applies to {{count}} members',
+				'profile-permissions-changed': '{{count}} changed',
 				'profile-name': 'Profile name',
 				'tenant-profile-name-placeholder': 'Approvers',
 				'profile-name-required': 'Profile name is required.',
@@ -103,12 +105,15 @@ vi.mock('~/components/ui/checkbox', () => ({
 		checked,
 		disabled,
 		onCheckedChange,
+		...props
 	}: {
 		checked: boolean;
 		disabled?: boolean;
 		onCheckedChange: (checked: boolean) => void;
+		'aria-label'?: string;
 	}) =>
 		createElement('input', {
+			...props,
 			type: 'checkbox',
 			checked,
 			disabled,
@@ -178,7 +183,49 @@ vi.mock('~/components/field', () => ({
 					: null,
 			);
 		},
+		Textarea: ({
+			name,
+			label,
+			isDisabled,
+		}: {
+			name: string;
+			label: string;
+			isDisabled?: boolean;
+		}) => {
+			const { register } = useFormContext();
+			return createElement(
+				'label',
+				undefined,
+				createElement('span', undefined, label),
+				createElement('textarea', {
+					'aria-label': label,
+					disabled: isDisabled,
+					...register(name),
+				}),
+			);
+		},
 	},
+}));
+
+vi.mock('~/components/ui/icon-color-picker', () => ({
+	IconColorPicker: ({
+		value,
+		onChange,
+	}: {
+		value: { icon?: string; tone?: string };
+		onChange: (value: { icon: string; tone: string }) => void;
+	}) =>
+		createElement(
+			'button',
+			{
+				type: 'button',
+				'aria-label': 'Choose icon and color',
+				'data-icon': value.icon,
+				'data-tone': value.tone,
+				onClick: () => onChange({ icon: 'briefcase', tone: '6' }),
+			},
+			'Choose icon and color',
+		),
 }));
 
 vi.mock('~/lib/query/staff-tenant-profiles', async () => {
@@ -372,7 +419,7 @@ describe('ProfileFormDrawer', () => {
 		expect(onOpenChange).toHaveBeenCalledWith(false);
 	});
 
-	test('create mode submits name, description, and selected permission keys', async () => {
+	test('create mode submits concrete icon, tone, description, and all staged permission keys', async () => {
 		mocks.createProfileMutation.mockResolvedValue({
 			profile: { id: 'profile-1' },
 		});
@@ -392,7 +439,15 @@ describe('ProfileFormDrawer', () => {
 		fireEvent.change(screen.getByLabelText('Profile name'), {
 			target: { value: 'Approvers' },
 		});
+		expect(screen.getByLabelText('Description').tagName).toBe('TEXTAREA');
+		const picker = screen.getByRole('button', {
+			name: 'Choose icon and color',
+		});
+		expect(picker.getAttribute('data-icon')).toBeTruthy();
+		expect(picker.getAttribute('data-tone')).toBeTruthy();
+		fireEvent.click(picker);
 		fireEvent.click(screen.getByLabelText('Read users'));
+		fireEvent.click(screen.getByLabelText('Publish posts'));
 		fireEvent.click(screen.getByRole('button', { name: 'Create profile' }));
 
 		await waitFor(() =>
@@ -400,7 +455,9 @@ describe('ProfileFormDrawer', () => {
 				expect.objectContaining({
 					tenantId: 'tenant-1',
 					name: 'Approvers',
-					permissionKeys: ['users.read'],
+					icon: 'briefcase',
+					tone: '6',
+					permissionKeys: ['users.read', 'posts.publish'],
 				}),
 			),
 		);
@@ -452,6 +509,9 @@ describe('ProfileFormDrawer', () => {
 					id: 'profile-1',
 					name: 'Approvers',
 					description: 'Approves things',
+					icon: 'key',
+					tone: '2',
+					memberCount: 21,
 					permissionKeys: ['users.read'],
 				}}
 				onOpenChange={vi.fn()}
@@ -459,10 +519,19 @@ describe('ProfileFormDrawer', () => {
 				onSessionExpired={vi.fn()}
 			/>,
 		);
+		expect(screen.getByText('Approvers · applies to 21 members')).toBeTruthy();
+		expect(screen.getByLabelText('Description').tagName).toBe('TEXTAREA');
+		expect(screen.getByText('0 changed')).toBeTruthy();
 
 		// users.read starts checked; uncheck it and check posts.publish instead.
 		fireEvent.click(screen.getByLabelText('Read users'));
 		fireEvent.click(screen.getByLabelText('Publish posts'));
+		expect(screen.getByText('2 changed')).toBeTruthy();
+		expect(
+			screen
+				.getByTestId('permission-row-users.read')
+				.getAttribute('data-changed'),
+		).toBe('true');
 		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
 
 		await waitFor(() =>
@@ -471,6 +540,8 @@ describe('ProfileFormDrawer', () => {
 				profileId: 'profile-1',
 				name: 'Approvers',
 				description: 'Approves things',
+				icon: 'key',
+				tone: '2',
 			}),
 		);
 		await waitFor(() =>
@@ -508,6 +579,7 @@ describe('ProfileFormDrawer', () => {
 					id: 'profile-1',
 					name: 'Approvers',
 					description: 'Approves things',
+					memberCount: 21,
 					permissionKeys: ['users.read'],
 				}}
 				onOpenChange={vi.fn()}
@@ -534,6 +606,7 @@ describe('ProfileFormDrawer', () => {
 					id: 'profile-1',
 					name: 'Approvers',
 					description: 'Approves things',
+					memberCount: 21,
 					permissionKeys: ['users.read'],
 				}}
 				onOpenChange={vi.fn()}
@@ -562,6 +635,7 @@ describe('ProfileFormDrawer', () => {
 					id: 'profile-1',
 					name: 'Approvers',
 					description: 'Approves things',
+					memberCount: 21,
 					permissionKeys: ['users.read'],
 				}}
 				onOpenChange={vi.fn()}
@@ -713,6 +787,7 @@ describe('ProfileFormDrawer', () => {
 					id: 'profile-1',
 					name: 'Approvers',
 					description: 'Approves things',
+					memberCount: 21,
 					permissionKeys: [],
 				}}
 				onOpenChange={vi.fn()}

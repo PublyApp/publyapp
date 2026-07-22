@@ -345,10 +345,21 @@ function StaffTenantProfileDetailsPage() {
 						id: profile.id,
 						name: profile.name,
 						description: profile.description,
+						icon: profile.icon,
+						tone: profile.tone,
+						memberCount: profile.userAccountCount,
 						permissionKeys,
 					},
 		// eslint-disable-next-line react-hooks/exhaustive-deps -- permissionKeysCacheKey is the stable key, not the array identity
-		[profile?.id, profile?.name, profile?.description, permissionKeysCacheKey],
+		[
+			profile?.id,
+			profile?.name,
+			profile?.description,
+			profile?.icon,
+			profile?.tone,
+			profile?.userAccountCount,
+			permissionKeysCacheKey,
+		],
 	);
 	const permissionGroups = buildStaffTenantPermissionCatalogGroups(
 		permissionCatalogQuery.data?.additionalData,
