@@ -939,6 +939,13 @@ describe('toStaffTenantProfileMemberRows', () => {
 				avatarUrl: null,
 				status: 'Active',
 				level: 'Admin',
+				otherProfiles: [
+					{
+						id: 'profile-1' as never,
+						name: ' Editors ',
+					},
+				],
+				joinedAt: new Date('2026-02-03T04:05:06Z'),
 			},
 			{
 				id: 'user-account-2' as never,
@@ -949,6 +956,8 @@ describe('toStaffTenantProfileMemberRows', () => {
 				avatarUrl: null,
 				status: 'Suspended',
 				level: 'User',
+				otherProfiles: null,
+				joinedAt: null,
 			},
 			{
 				id: '' as never,
@@ -959,6 +968,8 @@ describe('toStaffTenantProfileMemberRows', () => {
 				avatarUrl: null,
 				status: 'Active',
 				level: 'User',
+				otherProfiles: [],
+				joinedAt: null,
 			},
 			{
 				id: 'user-account-4' as never,
@@ -969,6 +980,8 @@ describe('toStaffTenantProfileMemberRows', () => {
 				avatarUrl: null,
 				status: 'Active',
 				level: 'User',
+				otherProfiles: [],
+				joinedAt: null,
 			},
 			{
 				id: 'user-account-5' as never,
@@ -979,6 +992,8 @@ describe('toStaffTenantProfileMemberRows', () => {
 				avatarUrl: null,
 				status: 'Active',
 				level: 'User',
+				otherProfiles: [],
+				joinedAt: null,
 			},
 		];
 
@@ -992,6 +1007,8 @@ describe('toStaffTenantProfileMemberRows', () => {
 				avatarUrl: null,
 				status: 'Active',
 				level: 'Admin',
+				otherProfiles: [{ id: 'profile-1', name: 'Editors' }],
+				joinedAt: new Date('2026-02-03T04:05:06Z'),
 				displayName: 'Ada Lovelace',
 			},
 			{
@@ -1003,6 +1020,8 @@ describe('toStaffTenantProfileMemberRows', () => {
 				avatarUrl: null,
 				status: 'Suspended',
 				level: 'User',
+				otherProfiles: [],
+				joinedAt: null,
 				displayName: 'grace@example.com',
 			},
 		]);
@@ -1022,6 +1041,8 @@ describe('toStaffTenantProfileMemberRows', () => {
 				avatarUrl: null,
 				status: 'Active',
 				level: 'User',
+				otherProfiles: [],
+				joinedAt: null,
 			},
 		]);
 

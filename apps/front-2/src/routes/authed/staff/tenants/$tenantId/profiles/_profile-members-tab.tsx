@@ -29,7 +29,7 @@ export const ProfileMembersTab = ({
 	memberCount: number;
 	onSessionExpired: () => void;
 }) => {
-	const { t } = useTranslation('common');
+	const { t, i18n } = useTranslation(['common', 'staff-tenant-profiles']);
 	const [search, setSearch] = useState<TableSearchParams>(EMPTY_SEARCH);
 	const [pageIndex, setPageIndex] = useState(0);
 	const [isAssignDrawerOpen, setIsAssignDrawerOpen] = useState(false);
@@ -56,8 +56,8 @@ export const ProfileMembersTab = ({
 		[membersQuery.data?.users],
 	);
 	const columns = useMemo(
-		() => makeProfileMemberColumns(tenantId, t),
-		[tenantId, t],
+		() => makeProfileMemberColumns(tenantId, t, i18n.language),
+		[i18n.language, tenantId, t],
 	);
 
 	useEffect(() => {

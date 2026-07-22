@@ -174,7 +174,7 @@ const StaffTenantProfileMembersPage = () => {
 	const { tenantId, profileId } = Route.useParams();
 	const navigate = Route.useNavigate();
 	const search = Route.useSearch();
-	const { t } = useTranslation('common');
+	const { t, i18n } = useTranslation(['common', 'staff-tenant-profiles']);
 	const [shouldRedirectToLogout, setShouldRedirectToLogout] = useState(false);
 	const isAssignDrawerOpen = search.assign === 1;
 
@@ -246,8 +246,8 @@ const StaffTenantProfileMembersPage = () => {
 		[membersQuery.data?.users],
 	);
 	const memberColumns = useMemo(
-		() => makeProfileMemberColumns(tenantId, t),
-		[tenantId, t],
+		() => makeProfileMemberColumns(tenantId, t, i18n.language),
+		[i18n.language, tenantId, t],
 	);
 
 	useEffect(() => {

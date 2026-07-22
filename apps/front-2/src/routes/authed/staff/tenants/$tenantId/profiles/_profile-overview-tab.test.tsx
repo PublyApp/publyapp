@@ -160,6 +160,8 @@ const buildMembers = (count: number): StaffTenantProfileMemberRow[] =>
 		avatarUrl: null,
 		level: 'User',
 		status: 'Active',
+		otherProfiles: [],
+		joinedAt: null,
 		displayName: `Member ${index}`,
 	}));
 

@@ -6,14 +6,18 @@ import { statusPillTone } from '~/components/ui/status-tone';
 import type { StaffTenantProfileMemberRow } from '~/lib/query/staff-tenant-profiles';
 
 import {
+	formatMonthYear,
 	formatTenantUserLevelLabel,
 	formatTenantUserStatusLabel,
 	tenantUserLevelChipClassName,
 } from '../_tenant-details-shell';
 
+const VISIBLE_OTHER_PROFILE_CHIP_COUNT = 2;
+
 export const makeProfileMemberColumns = (
 	tenantId: string,
 	t: (key: string, options?: Record<string, unknown>) => string,
+	locale: string,
 ): ColumnDef<StaffTenantProfileMemberRow>[] => [
 	{
 		id: 'name',
@@ -58,6 +62,52 @@ export const makeProfileMemberColumns = (
 		},
 	},
 	{
+		id: 'otherProfiles',
+		header: t('staff-tenant-profiles:other-profiles'),
+		enableSorting: false,
+		meta: { width: '250px', hideBelow: 1024 },
+		cell: ({ row }) => {
+			const otherProfiles = row.original.otherProfiles;
+			if (otherProfiles.length === 0) {
+				return (
+					<span className="text-xs text-muted-foreground">
+						{t('staff-tenant-profiles:no-other-profiles')}
+					</span>
+				);
+			}
+
+			const visibleProfiles = otherProfiles.slice(
+				0,
+				VISIBLE_OTHER_PROFILE_CHIP_COUNT,
+			);
+			const overflowProfiles = otherProfiles.slice(
+				VISIBLE_OTHER_PROFILE_CHIP_COUNT,
+			);
+
+			return (
+				<div className="flex min-w-0 items-center gap-1">
+					{visibleProfiles.map((profile) => (
+						<span
+							key={profile.id}
+							className="publy-detail-chip publy-detail-chip--outline max-w-24 truncate"
+							title={profile.name}
+						>
+							{profile.name}
+						</span>
+					))}
+					{overflowProfiles.length > 0 ? (
+						<span
+							className="publy-detail-chip publy-detail-chip--outline"
+							title={overflowProfiles.map((profile) => profile.name).join(', ')}
+						>
+							+{overflowProfiles.length}
+						</span>
+					) : null}
+				</div>
+			);
+		},
+	},
+	{
 		id: 'status',
 		header: t('status'),
 		accessorKey: 'status',
@@ -70,5 +120,17 @@ export const makeProfileMemberColumns = (
 				</StatusPill>
 			);
 		},
+	},
+	{
+		id: 'joinedAt',
+		header: t('staff-tenant-profiles:joined'),
+		accessorKey: 'joinedAt',
+		enableSorting: false,
+		meta: { width: '120px', hideBelow: 768 },
+		cell: ({ getValue }) => (
+			<span className="text-xs text-muted-foreground">
+				{formatMonthYear(getValue<Date | null>(), locale)}
+			</span>
+		),
 	},
 ];

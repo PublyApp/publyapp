@@ -59,6 +59,9 @@ const TRANSLATIONS: Record<string, string> = {
 	members: 'Members',
 	level: 'Level',
 	status: 'Status',
+	'staff-tenant-profiles:other-profiles': 'Other profiles',
+	'staff-tenant-profiles:joined': 'Joined',
+	'staff-tenant-profiles:no-other-profiles': 'No other profiles',
 	admin: 'Admin',
 	user: 'User',
 	'status-active': 'Active',
@@ -212,6 +215,12 @@ const MEMBER_ROWS = [
 		avatarUrl: null,
 		status: 'Active',
 		level: 'Admin',
+		otherProfiles: [
+			{ id: 'profile-1', name: 'Editors' },
+			{ id: 'profile-2', name: 'Publishers' },
+			{ id: 'profile-3', name: 'Reviewers' },
+		],
+		joinedAt: new Date('2026-02-03T04:05:06Z'),
 		displayName: 'Ada Lovelace',
 	},
 	{
@@ -223,6 +232,8 @@ const MEMBER_ROWS = [
 		avatarUrl: null,
 		status: 'Suspended',
 		level: 'User',
+		otherProfiles: [],
+		joinedAt: null,
 		displayName: 'Grace Hopper',
 	},
 ];
@@ -633,6 +644,7 @@ describe('makeProfileMemberColumns', () => {
 		const columns = makeProfileMemberColumns(
 			TENANT_ID,
 			(key) => TRANSLATIONS[key] ?? key,
+			'en',
 		);
 		const nameColumn = columns.find((column) => column.id === 'name');
 		const row = { original: MEMBER_ROWS[0] };
@@ -657,6 +669,7 @@ describe('makeProfileMemberColumns', () => {
 		const columns = makeProfileMemberColumns(
 			TENANT_ID,
 			(key) => TRANSLATIONS[key] ?? key,
+			'en',
 		);
 		const levelColumn = columns.find((column) => column.id === 'level');
 		const cellRenderer = levelColumn?.cell as (props: {
@@ -672,6 +685,7 @@ describe('makeProfileMemberColumns', () => {
 		const columns = makeProfileMemberColumns(
 			TENANT_ID,
 			(key) => TRANSLATIONS[key] ?? key,
+			'en',
 		);
 		const statusColumn = columns.find((column) => column.id === 'status');
 		const cellRenderer = statusColumn?.cell as (props: {
@@ -681,5 +695,71 @@ describe('makeProfileMemberColumns', () => {
 		render(<>{cellRenderer({ getValue: () => 'Active' })}</>);
 
 		expect(screen.getByText('Active')).toBeTruthy();
+	});
+
+	test('orders and labels the five design columns', () => {
+		const columns = makeProfileMemberColumns(
+			TENANT_ID,
+			(key) => TRANSLATIONS[key] ?? key,
+			'en',
+		);
+
+		expect(columns.map((column) => column.id)).toEqual([
+			'name',
+			'level',
+			'otherProfiles',
+			'status',
+			'joinedAt',
+		]);
+		expect(columns[2]?.header).toBe('Other profiles');
+		expect(columns[4]?.header).toBe('Joined');
+	});
+
+	test('renders other-profile chips with overflow and the empty treatment', () => {
+		const columns = makeProfileMemberColumns(
+			TENANT_ID,
+			(key) => TRANSLATIONS[key] ?? key,
+			'en',
+		);
+		const otherProfilesColumn = columns.find(
+			(column) => column.id === 'otherProfiles',
+		);
+		const cellRenderer = otherProfilesColumn?.cell as (props: {
+			row: { original: (typeof MEMBER_ROWS)[number] };
+		}) => JSX.Element;
+
+		const { rerender } = render(
+			<>{cellRenderer({ row: { original: MEMBER_ROWS[0] } })}</>,
+		);
+
+		expect(screen.getByText('Editors').className).toContain(
+			'publy-detail-chip',
+		);
+		expect(screen.getByText('Publishers')).toBeTruthy();
+		expect(screen.queryByText('Reviewers')).toBeNull();
+		expect(screen.getByText('+1')).toBeTruthy();
+
+		rerender(<>{cellRenderer({ row: { original: MEMBER_ROWS[1] } })}</>);
+		expect(screen.getByText('No other profiles')).toBeTruthy();
+	});
+
+	test('renders joined as month-year and uses a dash when joinedAt is null', () => {
+		const columns = makeProfileMemberColumns(
+			TENANT_ID,
+			(key) => TRANSLATIONS[key] ?? key,
+			'en',
+		);
+		const joinedColumn = columns.find((column) => column.id === 'joinedAt');
+		const cellRenderer = joinedColumn?.cell as (props: {
+			getValue: () => Date | null;
+		}) => JSX.Element;
+
+		const { rerender } = render(
+			<>{cellRenderer({ getValue: () => MEMBER_ROWS[0].joinedAt })}</>,
+		);
+		expect(screen.getByText('Feb 2026')).toBeTruthy();
+
+		rerender(<>{cellRenderer({ getValue: () => MEMBER_ROWS[1].joinedAt })}</>);
+		expect(screen.getByText('—')).toBeTruthy();
 	});
 });

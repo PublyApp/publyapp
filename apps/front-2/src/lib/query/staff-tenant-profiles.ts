@@ -147,7 +147,14 @@ export type StaffTenantProfileMemberRow = {
 	avatarUrl: string | null;
 	status: string | null;
 	level: string | null;
+	otherProfiles: StaffTenantProfileMemberProfile[];
+	joinedAt: Date | null;
 	displayName: string;
+};
+
+export type StaffTenantProfileMemberProfile = {
+	id: string;
+	name: string;
 };
 
 export type StaffTenantProfileUserAssignmentResolutionQueryVariables = {
@@ -744,6 +751,16 @@ export const toStaffTenantProfileMemberRows = (
 
 		const firstName = normalizeNullableString(item.firstName);
 		const lastName = normalizeNullableString(item.lastName);
+		const otherProfiles: StaffTenantProfileMemberProfile[] = [];
+		for (const profile of item.otherProfiles ?? []) {
+			const profileId = normalizeString(profile.id?.toString());
+			const profileName = normalizeString(profile.name);
+			if (!profileId || !profileName) {
+				continue;
+			}
+
+			otherProfiles.push({ id: profileId, name: profileName });
+		}
 
 		rows.push({
 			id,
@@ -754,6 +771,8 @@ export const toStaffTenantProfileMemberRows = (
 			avatarUrl: normalizeNullableString(item.avatarUrl),
 			status: normalizeNullableString(item.status),
 			level: normalizeNullableString(item.level),
+			otherProfiles,
+			joinedAt: normalizeDate(item.joinedAt),
 			displayName: getUserFullName({ firstName, lastName }) || email,
 		});
 	}
