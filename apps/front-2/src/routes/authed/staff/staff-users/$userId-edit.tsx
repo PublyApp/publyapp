@@ -105,7 +105,7 @@ const getFailureDescription = (error: unknown, fallback: string): string => {
 };
 
 const StaffUserEditLoading = () => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['staff-users', 'common']);
 
 	return (
 		<div
@@ -115,7 +115,7 @@ const StaffUserEditLoading = () => {
 			<div className="flex items-center gap-3 text-sm text-muted-foreground">
 				<span
 					role="status"
-					aria-label={t('loading')}
+					aria-label={t('common:loading')}
 					className="size-4 animate-spin rounded-[var(--publy-radius-sm)] border-2 border-muted-foreground/30 border-t-foreground"
 				/>
 				<span>{t('loading-staff-user')}</span>
@@ -131,7 +131,7 @@ const StaffUserEditError = ({
 	error: unknown;
 	onRetry: () => void;
 }) => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['staff-users', 'common']);
 
 	if (
 		isProblemStatus(error, 404) ||
@@ -140,7 +140,7 @@ const StaffUserEditError = ({
 		return (
 			<AppErrorView
 				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-				code={t('error-404-code')}
+				code={t('common:error-404-code')}
 				title={t('staff-user-not-found-title')}
 				description={getFailureDescription(
 					error,
@@ -166,14 +166,14 @@ const StaffUserEditError = ({
 	return (
 		<AppErrorView
 			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-			code={t('error-500-code')}
+			code={t('common:error-500-code')}
 			title={t('unable-to-load-staff-user')}
 			description={t('problem-loading-staff-user-details')}
 			testId="staff-user-edit-error"
 			actions={
 				<>
 					<Button variant="default" onClick={onRetry} type="button">
-						{t('try-again')}
+						{t('common:try-again')}
 					</Button>
 					<Link
 						to="/staff/staff-users"
@@ -190,6 +190,7 @@ const StaffUserEditError = ({
 export const Route = createFileRoute(
 	'/_authed-layout/staff/staff-users/$userId/edit',
 )({
+	staticData: { i18nNamespaces: ['staff-users'] },
 	component: StaffUserEditPage,
 });
 
@@ -197,7 +198,7 @@ function StaffUserEditPage() {
 	const { userId } = Route.useParams();
 	const navigate = Route.useNavigate();
 	const queryClient = useQueryClient();
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['staff-users', 'common']);
 	const [shouldLogout, setShouldLogout] = useState(false);
 	const [serverError, setServerError] = useState('');
 	const [isChangeEmailOpen, setIsChangeEmailOpen] = useState(false);
@@ -344,7 +345,7 @@ function StaffUserEditPage() {
 		return (
 			<AppErrorView
 				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-				code={t('error-404-code')}
+				code={t('common:error-404-code')}
 				title={t('staff-user-not-found-title')}
 				description={t('staff-user-payload-empty')}
 				testId="staff-user-edit-not-found"
@@ -465,10 +466,10 @@ function StaffUserEditPage() {
 		}
 
 		if (attentionCount > 0) {
-			return `${t('unsaved-changes')} · ${t('fields-need-attention', { count: attentionCount })}`;
+			return `${t('common:unsaved-changes')} · ${t('fields-need-attention', { count: attentionCount })}`;
 		}
 
-		return t('unsaved-changes');
+		return t('common:unsaved-changes');
 	})();
 
 	return (
@@ -480,7 +481,7 @@ function StaffUserEditPage() {
 					className="publy-back-link"
 				>
 					<IconArrowLeft aria-hidden="true" className="size-3" />
-					{t('back-to-user')}
+					{t('common:back-to-user')}
 				</Link>
 				<div>
 					<h1 className="text-xl font-semibold tracking-[-0.01em]">
@@ -495,25 +496,25 @@ function StaffUserEditPage() {
 			<Form methods={methods} onSubmit={onSubmit}>
 				<section className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] shadow-[var(--publy-shadow-ring)]">
 					<div className="publy-card-header">
-						<p className="publy-type-section-title">{t('identity')}</p>
+						<p className="publy-type-section-title">{t('common:identity')}</p>
 					</div>
 					<div className="grid gap-4 p-5 md:grid-cols-2">
 						<Field.Text
 							name="firstName"
-							label={t('first-name')}
-							placeholder={t('first-name')}
+							label={t('common:first-name')}
+							placeholder={t('common:first-name')}
 							isDisabled={isSubmittingForm}
 						/>
 						<Field.Text
 							name="lastName"
-							label={t('last-name')}
-							placeholder={t('last-name')}
+							label={t('common:last-name')}
+							placeholder={t('common:last-name')}
 							isDisabled={isSubmittingForm}
 						/>
 						<div className="space-y-2">
 							<Field.Email
 								name="email"
-								label={t('email-address')}
+								label={t('common:email-address')}
 								helperText={t('email-managed-separately')}
 								isDisabled
 							/>
@@ -528,7 +529,7 @@ function StaffUserEditPage() {
 						</div>
 						<Field.Text
 							name="avatarUrl"
-							label={t('avatar-url')}
+							label={t('common:avatar-url')}
 							placeholder="https://example.com/avatar.png"
 							isDisabled={isSubmittingForm}
 						/>
@@ -537,7 +538,7 @@ function StaffUserEditPage() {
 
 				<section className="rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] shadow-[var(--publy-shadow-ring)]">
 					<div className="publy-card-header">
-						<p className="publy-type-section-title">{t('access')}</p>
+						<p className="publy-type-section-title">{t('common:access')}</p>
 					</div>
 					<div className="space-y-4 p-5">
 						<div className="grid gap-4 md:grid-cols-2">
@@ -546,19 +547,21 @@ function StaffUserEditPage() {
 								label={t('role')}
 								options={ACCOUNT_LEVEL_OPTIONS.map((value) => ({
 									value,
-									label: t(value === 'Admin' ? 'admin' : 'user'),
+									label: t(value === 'Admin' ? 'common:admin' : 'common:user'),
 								}))}
 								isDisabled={isSubmittingForm}
 							/>
 							{/* TODO(contract): status changes use suspend/reactivate endpoints. */}
 							<Field.Select
 								name="status"
-								label={t('status')}
+								label={t('common:status')}
 								helperText={t('status-managed-from-details')}
 								options={STATUS_OPTIONS.map((value) => ({
 									value,
 									label: t(
-										value === 'Active' ? 'status-active' : 'status-suspended',
+										value === 'Active'
+											? 'common:status-active'
+											: 'common:status-suspended',
 									),
 								}))}
 								isDisabled
@@ -568,10 +571,10 @@ function StaffUserEditPage() {
 							<>
 								<Field.CheckboxGroup
 									name="profileIds"
-									label={t('profiles')}
+									label={t('common:profiles')}
 									options={profileOptions.map((profile) => ({
 										value: profile.id,
-										label: profile.name ?? t('unnamed-profile'),
+										label: profile.name ?? t('common:unnamed-profile'),
 										description: profile.description ?? undefined,
 									}))}
 									isDisabled={isSubmittingForm}
@@ -586,7 +589,7 @@ function StaffUserEditPage() {
 							</>
 						) : (
 							<p className="text-sm text-muted-foreground">
-								{t('no-profiles-available')}
+								{t('common:no-profiles-available')}
 							</p>
 						)}
 					</div>
@@ -610,13 +613,13 @@ function StaffUserEditPage() {
 						}}
 						disabled={isSubmittingForm}
 					>
-						{t('cancel')}
+						{t('common:cancel')}
 					</Button>
 					<Button
 						type="submit"
 						disabled={isSubmittingForm || !formState.isDirty}
 					>
-						{t('save-changes')}
+						{t('common:save-changes')}
 					</Button>
 				</FormActionBar>
 			</Form>
@@ -630,10 +633,10 @@ function StaffUserEditPage() {
 			/>
 			<ConfirmDialog
 				isOpen={blocker.status === 'blocked'}
-				title={t('unsaved-changes-dialog-title')}
-				description={t('unsaved-changes-dialog-description')}
-				confirmLabel={t('leave-page')}
-				cancelLabel={t('cancel')}
+				title={t('common:unsaved-changes-dialog-title')}
+				description={t('common:unsaved-changes-dialog-description')}
+				confirmLabel={t('common:leave-page')}
+				cancelLabel={t('common:cancel')}
 				tone="danger"
 				onConfirm={() => blocker.proceed?.()}
 				onOpenChange={(isOpen) => {

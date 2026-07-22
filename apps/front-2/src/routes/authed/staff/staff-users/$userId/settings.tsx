@@ -4,11 +4,12 @@ import { useTranslation } from 'react-i18next';
 export const Route = createFileRoute(
 	'/_authed-layout/staff/staff-users/$userId/settings',
 )({
+	staticData: { i18nNamespaces: ['staff-users'] },
 	component: StaffUserSettingsTab,
 });
 
 function StaffUserSettingsTab() {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['staff-users', 'common']);
 
 	return (
 		<div

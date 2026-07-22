@@ -12,12 +12,12 @@ export const formatStaffStatusLabel = (
 ): string => {
 	const normalized = status?.trim().toLowerCase() ?? '';
 	if (normalized === STAFF_STATUS_ACTIVE) {
-		return t('status-active');
+		return t('common:status-active');
 	}
 	if (normalized === STAFF_STATUS_SUSPENDED) {
-		return t('status-suspended');
+		return t('common:status-suspended');
 	}
-	return t('status-unknown');
+	return t('common:status-unknown');
 };
 
 /** Formats the raw backend account level (`"Admin"`/`"User"`/`"Unknown"`)
@@ -28,10 +28,10 @@ export const formatAccountLevelLabel = (
 ): string => {
 	const normalized = level?.trim().toLowerCase() ?? '';
 	if (normalized === STAFF_LEVEL_ADMIN) {
-		return t('admin');
+		return t('common:admin');
 	}
 	if (normalized === STAFF_LEVEL_USER) {
-		return t('user');
+		return t('common:user');
 	}
-	return t('unknown');
+	return t('common:unknown');
 };

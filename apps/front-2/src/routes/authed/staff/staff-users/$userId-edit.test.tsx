@@ -117,6 +117,7 @@ const getProfileState = (userId: string): QueryState =>
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => ({
 		...options,
+		options,
 		useParams: () => ({
 			userId: queryState.activeUserId,
 		}),
@@ -154,6 +155,7 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string) => {
+			const resolvedKey = key.replace(/^common:/, '');
 			const labels: Record<string, string> = {
 				'back-to-user': 'Back to staff user',
 				'email-address': 'Email address',
@@ -192,7 +194,7 @@ vi.mock('react-i18next', () => ({
 					'Identity saved, but profile assignments failed to save.',
 			};
 
-			return labels[key] ?? key;
+			return labels[resolvedKey] ?? resolvedKey;
 		},
 		i18n: { language: 'en' },
 	}),
@@ -384,6 +386,12 @@ const Component = (
 const renderPage = () => render(<Component />);
 
 describe('staff user edit route', () => {
+	test('declares the staff-users i18n namespace', () => {
+		expect(Route.options.staticData).toEqual({
+			i18nNamespaces: ['staff-users'],
+		});
+	});
+
 	beforeEach(() => {
 		vi.clearAllMocks();
 		queryState.activeUserId = USER_A;

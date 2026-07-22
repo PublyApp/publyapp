@@ -16,7 +16,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@tanstack/react-router', () => ({
-	createFileRoute: () => (options: Record<string, unknown>) => options,
+	createFileRoute: () => (options: Record<string, unknown>) => ({
+		...options,
+		options,
+	}),
 	Link: ({
 		children,
 		to,
@@ -79,18 +82,19 @@ const I18N_LABELS: Record<string, string> = {
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string, options?: Record<string, unknown>) => {
+			const resolvedKey = key.replace(/^common:/, '');
 			const count = typeof options?.count === 'number' ? options.count : 0;
 			const max = typeof options?.max === 'number' ? options.max : 0;
 
-			if (key === 'assigned-count') {
+			if (resolvedKey === 'assigned-count') {
 				return `${count} assigned`;
 			}
 
-			if (key === 'count-of-max') {
+			if (resolvedKey === 'count-of-max') {
 				return `${count} of ${max}`;
 			}
 
-			return I18N_LABELS[key] ?? key;
+			return I18N_LABELS[resolvedKey] ?? resolvedKey;
 		},
 	}),
 }));
@@ -165,6 +169,12 @@ const renderTab = (
 };
 
 describe('staff user overview tab', () => {
+	test('declares the staff-users i18n namespace', () => {
+		expect(Route.options.staticData).toEqual({
+			i18nNamespaces: ['staff-users'],
+		});
+	});
+
 	beforeEach(() => {
 		vi.clearAllMocks();
 	});

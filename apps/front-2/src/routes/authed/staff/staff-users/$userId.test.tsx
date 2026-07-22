@@ -41,6 +41,7 @@ vi.mock('~/lib/mutation-toast', () => ({
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => ({
 		...options,
+		options,
 		useParams: () => ({
 			userId: '11111111-1111-1111-1111-111111111111',
 		}),
@@ -165,7 +166,10 @@ const I18N_LABELS: Record<string, string> = {
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string) => I18N_LABELS[key] ?? key,
+		t: (key: string) => {
+			const resolvedKey = key.replace(/^common:/, '');
+			return I18N_LABELS[resolvedKey] ?? resolvedKey;
+		},
 		i18n: {
 			language: 'en',
 		},
@@ -244,6 +248,12 @@ const renderPage = () => {
 };
 
 describe('staff user details route shell', () => {
+	test('declares the staff-users i18n namespace', () => {
+		expect(Route.options.staticData).toEqual({
+			i18nNamespaces: ['staff-users'],
+		});
+	});
+
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mocks.pathname = `${BASE_PATH}/`;
