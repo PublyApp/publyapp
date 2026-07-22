@@ -75,9 +75,9 @@ describe('authed layout 500 branch renders a translated code, not a hardcoded En
 		);
 
 		expect(screen.getByText('500 — Server Error')).toBeTruthy();
-		expect(tSpy.mock.calls.some((call) => call[0] === 'error-500-code')).toBe(
-			true,
-		);
+		expect(
+			tSpy.mock.calls.some((call) => Object.is(call[0], 'error-500-code')),
+		).toBe(true);
 	});
 
 	test('French: renders the French 500 code, not the hardcoded English literal', () => {

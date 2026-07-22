@@ -1,4 +1,4 @@
-import type { i18n as I18nInstance } from 'i18next';
+import type { i18n as I18nInstance, Namespace } from 'i18next';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
@@ -45,7 +45,7 @@ const loadSonner = async (): Promise<typeof import('sonner') | undefined> => {
 
 const translateIfPresent = (
 	key: string,
-	namespace: string,
+	namespace: Namespace,
 ): string | undefined => {
 	const instance = browserI18n;
 	if (!instance || !instance.exists(key, { ns: namespace })) {
