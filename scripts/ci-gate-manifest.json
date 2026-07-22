@@ -341,6 +341,11 @@
 			"mirror": "just ci-spec-drift",
 			"reason": "ci-spec-drift runs the identical dotnet tool restore before building."
 		},
+		"openapi-spec-drift.yml::spec-drift::Materialize .env.development from template (CI has no gitignored env file)": {
+			"hash": "d8f5978225925d15",
+			"mirror": null,
+			"reason": "CI-only compensation for the gitignored, absent .env.development. Copies .env.example, then forces APP_ROLE=api so build-time OpenAPI doc-gen runs api-only (no worker WorkerMigrationStartupGate, no DB connection) -- .env.example ships APP_ROLE=all, which DotNetEnv would clobber the recipe's APP_ROLE=api with and hang the DB-less runner. Locally a developer already has a real repo-root .env.development, so just ci-spec-drift needs no such step."
+		},
 		"openapi-spec-drift.yml::spec-drift::Build API (regenerates openapi.json)": {
 			"hash": "d0f91b0e5fc4e1dc",
 			"mirror": "just ci-spec-drift",

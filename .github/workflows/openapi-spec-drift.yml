@@ -72,6 +72,22 @@ jobs:
       - name: Restore .NET tools (kiota, dotnet-ef)
         run: dotnet tool restore
 
+      # Build-time OpenAPI generation boots the app (host env unset -> Production),
+      # so AppEnvironment.Initialize() loads the repo-root .env.development for its
+      # config values. That file is gitignored and absent in CI, so materialize it
+      # from the committed .env.example template.
+      #
+      # APP_ROLE MUST be forced to "api": .env.example ships APP_ROLE="all" (the
+      # local-dev default that runs api+worker in one process), and DotNetEnv
+      # clobbers the `APP_ROLE=api` the just recipe exports. With APP_ROLE=all,
+      # doc-gen composes the worker host, whose WorkerMigrationStartupGate blocks
+      # on a live database (5-min retry loop -> failure) that this DB-less job does
+      # not have. api-only doc-gen never touches the DB, so it succeeds offline.
+      - name: Materialize .env.development from template (CI has no gitignored env file)
+        run: |
+          cp .env.example .env.development
+          sed -i 's/^APP_ROLE=.*/APP_ROLE="api"/' .env.development
+
       - name: Build API (regenerates openapi.json)
         run: just build-api-full
 
