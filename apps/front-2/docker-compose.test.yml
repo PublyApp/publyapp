@@ -1,12 +1,13 @@
 name: publyapp-front2-real-test
 
 x-api-test-environment: &api-test-environment
-  # Required outside Dev/Testing (these services run as Production below). Without
-  # it AppEnvironment.Initialize() fails fast and the migrate container exits 1.
-  # "api" = HTTP surface + migrations, never the worker engine (mirrors
-  # apps/front/docker-compose.test.yml). These inline test values replace the
-  # former `env_file: ../../.env.development`, which is gitignored and absent in
-  # CI / fresh checkouts.
+  # These services run under the Testing environment (set per-service below) so the
+  # demo seeders run: they are gated off under Production (AppDbContext seeder filter),
+  # and the e2e suites log in as demo-seed users (e.g. staff-admin@example.com).
+  # APP_ROLE is still required (Testing defaults it to All otherwise); "api" = HTTP
+  # surface + migrations, never the worker engine (mirrors apps/front/docker-compose.test.yml).
+  # These inline test values replace the former `env_file: ../../.env.development`,
+  # which is gitignored and absent in CI / fresh checkouts.
   APP_ROLE: api
   POSTGRES_CONNECTION_STRING: Host=postgres;Port=5432;Database=publyapp_db;Username=postgres;Password=password;
   FRONT_URL: https://front-2.localhost:8443
@@ -50,8 +51,8 @@ services:
       target: migrate
     environment:
       <<: *api-test-environment
-      DOTNET_ENVIRONMENT: Production
-      ASPNETCORE_ENVIRONMENT: Production
+      DOTNET_ENVIRONMENT: Testing
+      ASPNETCORE_ENVIRONMENT: Testing
       ASPNETCORE_URLS: http://+:5000
     depends_on:
       postgres:
@@ -69,8 +70,8 @@ services:
       # worker infrastructure where callers assume an api-only process (audit F24).
       # APP_ROLE: api and FRONT_URL: https://front-2.localhost:8443 come from the anchor.
       <<: *api-test-environment
-      DOTNET_ENVIRONMENT: Production
-      ASPNETCORE_ENVIRONMENT: Production
+      DOTNET_ENVIRONMENT: Testing
+      ASPNETCORE_ENVIRONMENT: Testing
       ASPNETCORE_URLS: http://+:5000
     depends_on:
       postgres:
