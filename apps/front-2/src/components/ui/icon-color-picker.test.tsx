@@ -1,0 +1,101 @@
+/**
+ * @vitest-environment jsdom
+ */
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, test, vi } from 'vitest';
+
+import { IconColorPicker } from './icon-color-picker';
+
+const translations: Record<string, string> = {
+	'choose-icon-and-color': 'Choose icon and color',
+	'choose-icon': 'Choose icon',
+	'choose-color': 'Choose color',
+	'choose-profile-tone': 'Choose {{color}}',
+	'profile-tone-2': 'Rose',
+	'profile-tone-4': 'Violet',
+	'profile-icon-search': 'Search icons',
+	'profile-icon-search-placeholder': 'Search icons…',
+	'clear-profile-icon-search': 'Clear icon search',
+	'profile-icon-shield-check': 'Shield check',
+	'profile-icon-briefcase': 'Briefcase',
+	'profile-icon-calendar': 'Calendar',
+};
+
+vi.mock('react-i18next', () => ({
+	useTranslation: () => ({
+		t: (key: string, options?: Record<string, unknown>) => {
+			const translation = translations[key] ?? key;
+			const color = typeof options?.color === 'string' ? options.color : '';
+			return translation.replace('{{color}}', color);
+		},
+	}),
+}));
+
+describe('IconColorPicker', () => {
+	afterEach(() => {
+		cleanup();
+	});
+
+	test('opens the popover and emits the selected tone with the current icon', () => {
+		const onChange = vi.fn();
+		render(
+			<IconColorPicker
+				value={{ icon: 'shield-check', tone: '2' }}
+				onChange={onChange}
+			/>,
+		);
+
+		fireEvent.click(
+			screen.getByRole('button', { name: 'Choose icon and color' }),
+		);
+
+		expect(screen.getByText('Choose color')).toBeTruthy();
+		expect(screen.getByText('Choose icon')).toBeTruthy();
+		fireEvent.click(screen.getByRole('button', { name: 'Choose Violet' }));
+
+		expect(onChange).toHaveBeenLastCalledWith({
+			icon: 'shield-check',
+			tone: '4',
+		});
+	});
+
+	test('emits the selected icon with the current tone', () => {
+		const onChange = vi.fn();
+		render(
+			<IconColorPicker
+				value={{ icon: 'shield-check', tone: '2' }}
+				onChange={onChange}
+			/>,
+		);
+
+		fireEvent.click(
+			screen.getByRole('button', { name: 'Choose icon and color' }),
+		);
+		fireEvent.click(screen.getByRole('button', { name: 'Briefcase' }));
+
+		expect(onChange).toHaveBeenLastCalledWith({
+			icon: 'briefcase',
+			tone: '2',
+		});
+	});
+
+	test('filters the curated icon grid by localized icon name', () => {
+		render(
+			<IconColorPicker
+				value={{ icon: 'shield-check', tone: '2' }}
+				onChange={vi.fn()}
+			/>,
+		);
+
+		fireEvent.click(
+			screen.getByRole('button', { name: 'Choose icon and color' }),
+		);
+		fireEvent.change(screen.getByRole('searchbox', { name: 'Search icons' }), {
+			target: { value: 'brief' },
+		});
+
+		expect(screen.getByRole('button', { name: 'Briefcase' })).toBeTruthy();
+		expect(screen.queryByRole('button', { name: 'Shield check' })).toBeNull();
+		expect(screen.queryByRole('button', { name: 'Calendar' })).toBeNull();
+	});
+});
