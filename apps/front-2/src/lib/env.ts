@@ -110,16 +110,23 @@ const parseZodSchema = <Schema extends z.ZodTypeAny>(
 	}
 };
 
-const readFirstProcessValue = (keys: readonly string[]): string | undefined => {
-	const processEnv = getProcessEnv();
+const readFirstRawValue = (
+	keys: readonly string[],
+	getValue: (key: string) => string | undefined,
+): string | undefined => {
 	for (const key of keys) {
-		const value = processEnv[key];
-		if (value !== undefined) {
-			return value;
+		const value = getValue(key)?.trim();
+		if (value !== '' && value !== undefined) {
+			return getValue(key);
 		}
 	}
 
 	return undefined;
+};
+
+const readFirstProcessValue = (keys: readonly string[]): string | undefined => {
+	const processEnv = getProcessEnv();
+	return readFirstRawValue(keys, (key) => processEnv[key]);
 };
 
 const parsePublicEnv = (): PublicEnv => {
@@ -129,7 +136,10 @@ const parsePublicEnv = (): PublicEnv => {
 	for (const name of Object.keys(envDefinition.public) as PublicName[]) {
 		const entry = envDefinition.public[name];
 		const rawValue = isBrowser()
-			? runtimeEnv?.[entry.wireKey]
+			? readFirstRawValue(
+					[entry.wireKey],
+					(key) => runtimeEnv?.[key as keyof RuntimePublicEnv],
+				)
 			: readFirstProcessValue(entry.processKeys);
 		const value = parseZodSchema(
 			entry.schema,

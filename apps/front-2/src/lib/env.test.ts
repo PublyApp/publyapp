@@ -83,6 +83,24 @@ describe('front-2 runtime env registry', () => {
 		expect(getPublicEnv().apiBaseUrl).toBe('https://public.example.test');
 	});
 
+	test('treats required public values as missing when empty', async () => {
+		process.env.PUBLIC_API_BASE_URL = '';
+		const { getPublicEnv } = await importEnv();
+
+		expect(() => getPublicEnv()).toThrow(
+			/failed to validate front-2 public runtime env:.*PUBLIC_API_BASE_URL/,
+		);
+	});
+
+	test('treats required public values as missing when whitespace-only', async () => {
+		process.env.PUBLIC_API_BASE_URL = '   ';
+		const { getPublicEnv } = await importEnv();
+
+		expect(() => getPublicEnv()).toThrow(
+			/failed to validate front-2 public runtime env:.*PUBLIC_API_BASE_URL/,
+		);
+	});
+
 	test('reads browser public values only from window.__ENV__', async () => {
 		process.env.PUBLIC_API_BASE_URL = 'https://process.example.test';
 		vi.stubGlobal('window', {
@@ -93,6 +111,19 @@ describe('front-2 runtime env registry', () => {
 		const { getPublicEnv } = await importEnv();
 
 		expect(getPublicEnv().apiBaseUrl).toBe('https://browser.example.test');
+	});
+
+	test('treats blank browser public values as absent', async () => {
+		vi.stubGlobal('window', {
+			__ENV__: {
+				PUBLIC_API_BASE_URL: '   ',
+			},
+		} satisfies RuntimeWindow);
+		const { getPublicEnv } = await importEnv();
+
+		expect(() => getPublicEnv()).toThrow(
+			/failed to validate front-2 public runtime env:.*PUBLIC_API_BASE_URL/,
+		);
 	});
 
 	test('does not fall back to process.env when browser public config is missing', async () => {
@@ -165,6 +196,15 @@ describe('front-2 runtime env registry', () => {
 		expect(getPublicEnv().posthogProjectToken).toBe('canonical-token');
 	});
 
+	test('skips a blank canonical PostHog token and uses the alias', async () => {
+		process.env.PUBLIC_API_BASE_URL = 'https://public.example.test';
+		process.env.PUBLIC_POSTHOG_PROJECT_TOKEN = '';
+		process.env.POSTHOG_PROJECT_TOKEN = 'phc_valid';
+		const { getPublicEnv } = await importEnv();
+
+		expect(getPublicEnv().posthogProjectToken).toBe('phc_valid');
+	});
+
 	test('supports the temporary server-side PostHog token alias', async () => {
 		process.env.PUBLIC_API_BASE_URL = 'https://public.example.test';
 		process.env.POSTHOG_PROJECT_TOKEN = ' alias-token ';
@@ -187,6 +227,17 @@ describe('front-2 runtime env registry', () => {
 		const { getPublicEnv } = await importEnv();
 
 		expect(getPublicEnv().posthogProjectToken).toBeUndefined();
+	});
+
+	test('treats empty-string optional PostHog token as absent', async () => {
+		process.env.PUBLIC_API_BASE_URL = 'https://public.example.test';
+		process.env.PUBLIC_POSTHOG_PROJECT_TOKEN = '';
+		const { getPublicEnv, serializePublicRuntimeEnv } = await importEnv();
+
+		expect(getPublicEnv().posthogProjectToken).toBeUndefined();
+		expect(JSON.parse(serializePublicRuntimeEnv())).toEqual({
+			PUBLIC_API_BASE_URL: 'https://public.example.test',
+		});
 	});
 
 	test('serializes all defined public values by their wire keys', async () => {
