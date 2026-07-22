@@ -2,14 +2,10 @@ import { randomBytes } from 'node:crypto';
 
 import { createCSPHeader } from '@org/shared-ts/lib/csp';
 
-import { getOptionalPublicApiBaseUrl } from '../lib/env';
+import { getPublicEnv } from '../lib/env';
 
 const getPublicApiOrigin = (): string | undefined => {
-	const publicApiBaseUrl = getOptionalPublicApiBaseUrl();
-
-	if (!publicApiBaseUrl) {
-		return undefined;
-	}
+	const publicApiBaseUrl = getPublicEnv().apiBaseUrl;
 
 	try {
 		const origin = new URL(publicApiBaseUrl).origin;

@@ -6,8 +6,13 @@ import {
 
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
-import { captureBadRequest } from './lib/analytics';
-import { getOptionalPublicApiBaseUrl, isDevelopmentRuntime } from './lib/env';
+import { captureBadRequest, classifyBadResponse } from './lib/analytics';
+import {
+	getPublicEnv,
+	getServerEnv,
+	isDevelopmentRuntime,
+	serializePublicRuntimeEnv,
+} from './lib/env';
 import { createBackendI18n, loadNamespacesStrict } from './lib/i18n.backend';
 import { GLOBAL_I18N_NAMESPACES } from './lib/i18n.namespaces';
 import { resolveLocaleFromCookie } from './lib/i18n.server';
@@ -43,18 +48,6 @@ export const escapeHtml = (value: string): string =>
 		.replace(/>/g, '&gt;')
 		.replace(/"/g, '&quot;')
 		.replace(/'/g, '&#39;');
-
-export const resolvePublicApiBaseUrlEnv = (): string | undefined => {
-	const value = getOptionalPublicApiBaseUrl();
-	if (!value) {
-		return undefined;
-	}
-
-	return JSON.stringify({ PUBLIC_API_BASE_URL: value }).replace(
-		/</g,
-		'\\u003c',
-	);
-};
 
 const setRouterNonce = (ctx: StreamHandlerContext, nonce: string): void => {
 	ctx.router.options = {
@@ -183,16 +176,24 @@ export const injectSeoMarkup = (
 
 export const injectPublicRuntimeEnv = (
 	html: string,
-	payload: string | undefined,
+	payload: string,
 	nonce: string,
 ): string => {
-	if (!payload || !html.includes('</head>')) {
+	if (!html.includes('</head>')) {
 		return html;
 	}
 
-	return html.replace(
-		'</head>',
-		`${renderPublicEnvScript(payload, nonce)}\n</head>`,
+	const headEndIndex = html.indexOf('</head>');
+	const firstScriptIndex = html.indexOf('<script');
+	const insertionIndex =
+		firstScriptIndex >= 0 && firstScriptIndex < headEndIndex
+			? firstScriptIndex
+			: headEndIndex;
+
+	return (
+		html.slice(0, insertionIndex) +
+		`${renderPublicEnvScript(payload, nonce)}\n` +
+		html.slice(insertionIndex)
 	);
 };
 
@@ -200,7 +201,8 @@ const sendBadResponseCapture = (
 	ctx: StreamHandlerContext,
 	response: Response,
 ): void => {
-	if (response.status >= 200 && response.status < 300) {
+	const disposition = classifyBadResponse(response.status);
+	if (disposition === 'drop') {
 		return;
 	}
 
@@ -211,12 +213,23 @@ const sendBadResponseCapture = (
 		method: ctx.request.method,
 		locale: resolveLocaleFromRequest(ctx.request),
 	}).catch((error) => {
-		logger.debug('bad-request analytics capture failed', {
+		const logContext = {
 			error: `${error}`,
 			path: new URL(ctx.request.url).pathname,
 			status: response.status,
-		});
+		};
+		if (disposition === 'error') {
+			logger.error('bad-request analytics capture failed', logContext);
+			return;
+		}
+
+		logger.debug('bad-request analytics capture failed', logContext);
 	});
+};
+
+export const validateRuntimeEnv = (): void => {
+	getPublicEnv();
+	getServerEnv();
 };
 
 export default {
@@ -250,7 +263,7 @@ export default {
 			);
 			const withPublicRuntimeEnv = injectPublicRuntimeEnv(
 				updatedHtml,
-				resolvePublicApiBaseUrlEnv(),
+				serializePublicRuntimeEnv(),
 				nonce,
 			);
 			const headers = new Headers(response.headers);

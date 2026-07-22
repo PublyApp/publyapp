@@ -1,7 +1,4 @@
-// Reserved runtime public-env injection contract for later migration.
-export type RuntimePublicEnv = {
-	PUBLIC_API_BASE_URL?: string;
-};
+import type { RuntimePublicEnv } from './lib/env';
 
 declare global {
 	interface Window {

@@ -21,6 +21,19 @@ export interface IPostHogBrowser {
 	captureException(error: unknown, additionalProperties?: Properties): void;
 }
 
+let hasWarnedAnalyticsNotInitialized = false;
+
+const warnAnalyticsNotInitializedOnce = (): void => {
+	if (hasWarnedAnalyticsNotInitialized) {
+		return;
+	}
+
+	hasWarnedAnalyticsNotInitialized = true;
+	logger.warn(
+		'Analytics not initialized; skipping analytics calls (this warning will not repeat)',
+	);
+};
+
 /**
  * IsoAnalytics is a unified analytics client that works on both server and browser environments.
  * It automatically detects the runtime environment and uses the appropriate PostHog implementation:
@@ -100,7 +113,7 @@ export class IsoAnalytics implements IAnalytics {
 
 	capture(params: CaptureEventParams): void {
 		if (!this.initialized) {
-			logger.warn('Analytics not initialized, skipping capture event');
+			warnAnalyticsNotInitializedOnce();
 			return;
 		}
 
@@ -133,7 +146,7 @@ export class IsoAnalytics implements IAnalytics {
 
 	identify(params: IdentifyUserParams): void {
 		if (!this.initialized) {
-			logger.warn('Analytics not initialized, skipping identify user');
+			warnAnalyticsNotInitializedOnce();
 			return;
 		}
 
@@ -175,7 +188,7 @@ export class IsoAnalytics implements IAnalytics {
 
 	captureException(params: CaptureExceptionParams): void {
 		if (!this.initialized) {
-			logger.warn('Analytics not initialized, skipping capture exception');
+			warnAnalyticsNotInitializedOnce();
 			return;
 		}
 

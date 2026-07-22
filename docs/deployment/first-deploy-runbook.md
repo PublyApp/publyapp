@@ -4,6 +4,7 @@ Step-by-step operator guide for deploying to Dokploy (Hostinger VPS) with a
 **Dokploy-managed PostgreSQL** database.
 
 **Companion docs — read in this order:**
+
 - [`production-deployment-design.md`](production-deployment-design.md) — why the deployment is
   shaped this way.
 - [`production-deploy-runbook.md`](production-deploy-runbook.md) — the **migration-gating
@@ -16,6 +17,7 @@ numbered trap cost real debugging time — they are written down so the next dep
 pay for them twice.
 
 > **Three facts that shape everything below** (from research):
+>
 > 1. Dokploy runs a "Docker Compose" app as **plain `docker compose`, NOT Swarm**, by default. So `restart:` applies and `deploy.restart_policy` is ignored; an unhealthy container is **not** restarted or killed — it just stays running and Traefik withholds routing until it's healthy. Our approach-A design works cleanly under this (no crash-loop risk).
 > 2. A Dokploy-managed database sits on the shared **`dokploy-network`**. A Compose app gets its **own** network by default and must **explicitly join `dokploy-network`** to reach the DB. This is the #1 thing that breaks a first deploy — **the committed `dokploy.yml` already does this** (all services are on `dokploy-network`, and nothing else).
 > 3. Traefik routing is **not** configured by labels in the compose file. You add each domain in Dokploy's **Domains tab**, and Dokploy generates the real `traefik.*` labels (including pinning the container's network to `dokploy-network`). So domain setup is a UI step, not a file edit — see §4.5.
@@ -23,6 +25,7 @@ pay for them twice.
 ---
 
 ## 0. Prerequisites
+
 - Dokploy installed and reachable (admin UI), on the VPS.
 - The app images exist in GHCR — CI (`.github/workflows/deploy-images.yml`) builds and pushes
   `ghcr.io/radandevist/publyapp/{api,migrate,front-2}` tagged by commit SHA on push to the
@@ -38,8 +41,10 @@ pay for them twice.
 ---
 
 ## 1. Config prep — none needed; the committed `dokploy.yml` is deploy-ready
+
 The compose file is already set up for the **Dokploy-managed Postgres + plain-Compose** path
 (this is what PR #892 landed). Specifically, you do **not** need to hand-edit it:
+
 - All four services (`publyapp-api`, `publyapp-worker`, `publyapp-migrate`, `publyapp-front`)
   are on **`dokploy-network` only** — so they reach the managed DB and Traefik can route to
   them, with no multi-network ambiguity.
@@ -55,9 +60,11 @@ compose app (a known Dokploy issue can then block DB reachability even on `dokpl
 ---
 
 ## 2. Configure GHCR registry auth (Dokploy → Settings → Registry)
+
 Add a registry: **URL** `ghcr.io`, **Username** = your GitHub username, **Password** = the PAT.
 Click **Test**, then **Create**. This runs `docker login ghcr.io` on the host so any app can
 pull the private images.
+
 - **[CONFIRM ON INSTANCE]** after saving, SSH to the VPS and check `cat ~/.docker/config.json`
   has a `ghcr.io` entry. If missing, run manually:
   `echo <PAT> | docker login ghcr.io -u <github-user> --password-stdin`.
@@ -65,6 +72,7 @@ pull the private images.
 ---
 
 ## 3. Create the managed Postgres (Dokploy → your project → Add Service → PostgreSQL)
+
 - **Name**: friendly (e.g. "publyapp-db").
 - **App Name**: e.g. `publyapp-postgres`.
   > ⚠️ **TRAP — the App Name is NOT the hostname.** Dokploy appends a random suffix to the
@@ -88,6 +96,7 @@ pull the private images.
 ---
 
 ## 4. Create the Compose application (Dokploy → project → Add Service → Docker Compose)
+
 - **Compose Type**: **Docker Compose** (NOT "Stack"). This is permanent — chosen once.
 - **Provider**: point at the Git repo + path to `dokploy.yml` (or paste the file). Pick the
   branch/commit whose SHA you'll use as `RELEASE_TAG`.
@@ -96,14 +105,15 @@ pull the private images.
 ---
 
 ## 4.5. Configure the domains (Compose app → Domains tab) — this is what wires HTTPS routing
+
 Because the compose file carries **no** routing labels, Traefik only routes once you add the
 domains here. Dokploy turns each entry into the real `traefik.*` labels (and pins the network
 to `dokploy-network`). Add two:
 
-| Host | Service | Container Port | HTTPS |
-|---|---|---|---|
-| `api.yourdomain.com` | `publyapp-api` | `5000` | on (Let's Encrypt) |
-| `yourdomain.com` (and `www.yourdomain.com`) | `publyapp-front` | `3000` | on (Let's Encrypt) |
+| Host                                        | Service          | Container Port | HTTPS              |
+| ------------------------------------------- | ---------------- | -------------- | ------------------ |
+| `api.yourdomain.com`                        | `publyapp-api`   | `5000`         | on (Let's Encrypt) |
+| `yourdomain.com` (and `www.yourdomain.com`) | `publyapp-front` | `3000`         | on (Let's Encrypt) |
 
 - **[CONFIRM ON INSTANCE]** after saving, open the app's **Preview Compose** (or inspect the
   running containers) and confirm each web service got `traefik.enable=true`, a router+service
@@ -114,28 +124,31 @@ to `dokploy-network`). Add two:
 ---
 
 ## 5. Set environment variables (Compose app → Environment tab)
+
 Dokploy saves these to a host `.env` that your compose file reads via `${VAR}` interpolation.
-**The app fails fast at startup on the *first* missing REQUIRED var** (e.g.
+**The app fails fast at startup on the _first_ missing REQUIRED var** (e.g.
 `Environment variable 'DEFAULT_EMAIL_SENDER_EMAIL' is not set`), so every required var below
 MUST be present or no container starts. Optional vars are safe to omit — the app falls back to
 code defaults when they are blank.
 
 ### 5a. REQUIRED — deployment-specific (you provide the value)
-| Variable | Value |
-|---|---|
-| `RELEASE_TAG` | the GHCR image tag to deploy (the full commit SHA) |
-| `POSTGRES_CONNECTION_STRING` | `Host=<internal-host>;Port=5432;Database=<db>;Username=<user>;Password=<pass>` — **Host = the Postgres service's Connection tab → "Internal Host"** (it has a Dokploy-generated suffix, e.g. `publyapp-postgres-a1b2c3`; the App Name you typed is NOT the hostname — see step 3). (The app appends `;MaxPoolSize=…` itself.) |
-| `STAFF_OWNER_EMAIL` | the platform owner's login email |
+
+| Variable                     | Value                                                                                                                                                                                                                                                                                                                                                                |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RELEASE_TAG`                | the GHCR image tag to deploy (the full commit SHA)                                                                                                                                                                                                                                                                                                                   |
+| `POSTGRES_CONNECTION_STRING` | `Host=<internal-host>;Port=5432;Database=<db>;Username=<user>;Password=<pass>` — **Host = the Postgres service's Connection tab → "Internal Host"** (it has a Dokploy-generated suffix, e.g. `publyapp-postgres-a1b2c3`; the App Name you typed is NOT the hostname — see step 3). (The app appends `;MaxPoolSize=…` itself.)                                        |
+| `STAFF_OWNER_EMAIL`          | the platform owner's login email                                                                                                                                                                                                                                                                                                                                     |
 | `STAFF_OWNER_BOOTSTRAP_CODE` | strong secret — becomes the owner's **initial password** on first boot. **Avoid `#` in the value** (and any other env-file metacharacter): Dokploy stores these in a host `.env`, where `#` starts a comment, so `Str0ng#Pass` is silently truncated to `Str0ng`. Nothing errors — you just can't log in. Prefer long alphanumeric + `-_.` only. See the trap in §8. |
-| `RESEND_API_KEY` | your Resend API key (rotate the committed placeholder) |
-| `APP_NAME` | display/app name (e.g. `PublyApp`) |
-| `FRONT_URL` | public URL of the front (e.g. `https://publyapp.com`) |
-| `DEFAULT_EMAIL_SENDER_EMAIL` | the "from" address — must be a **Resend-verified** domain for mail to deliver (app still starts if not) |
-| `PUBLIC_API_BASE_URL` | api's **public** URL, browser-facing (e.g. `https://api.publyapp.com`) |
-| `VITE_ASP_SERVER_URL` | same public api URL (baked into the browser bundle) |
-| `SERVER_API_BASE_URL` | server-to-server (front SSR → api). Use the internal `http://publyapp-api:5000` (both are on `dokploy-network`) — faster and doesn't need the public domain live |
+| `RESEND_API_KEY`             | your Resend API key (rotate the committed placeholder)                                                                                                                                                                                                                                                                                                               |
+| `APP_NAME`                   | display/app name (e.g. `PublyApp`)                                                                                                                                                                                                                                                                                                                                   |
+| `FRONT_URL`                  | public URL of the front (e.g. `https://publyapp.com`)                                                                                                                                                                                                                                                                                                                |
+| `DEFAULT_EMAIL_SENDER_EMAIL` | the "from" address — must be a **Resend-verified** domain for mail to deliver (app still starts if not)                                                                                                                                                                                                                                                              |
+| `PUBLIC_API_BASE_URL`        | api's **public** URL, browser-facing (e.g. `https://api.publyapp.com`)                                                                                                                                                                                                                                                                                               |
+| `VITE_ASP_SERVER_URL`        | same public api URL (baked into the browser bundle)                                                                                                                                                                                                                                                                                                                  |
+| `SERVER_API_BASE_URL`        | server-to-server (front SSR → api). Use the internal `http://publyapp-api:5000` (both are on `dokploy-network`) — faster and doesn't need the public domain live                                                                                                                                                                                                     |
 
 ### 5b. REQUIRED — config (paste these values as-is; they match the app defaults)
+
 ```
 DEFAULT_EMAIL_SENDER_NAME=PublyApp Support
 SESSION_TOKEN_HEADER_KEY=X-Session-Token
@@ -150,7 +163,8 @@ INVITATION_TOKEN_LENGTH=32
 ```
 
 ### 5c. OPTIONAL — safe to omit (blank → code default). Set only to tune.
-`VITE_POSTHOG_PROJECT_TOKEN` (analytics), `DI_MANIFEST_ENABLED` (false), `AUDIT_LOG_EXPORT_MAX_ROWS`
+
+`PUBLIC_POSTHOG_PROJECT_TOKEN` (analytics), `DI_MANIFEST_ENABLED` (false), `AUDIT_LOG_EXPORT_MAX_ROWS`
 (10000), `MAX_PROFILES_PER_USER` (5), `TENANT_USER_EXPORT_MAX_ROWS` (10000),
 `TENANT_ACTIVITY_THROTTLE_MINUTES` (5), `FILE_STORAGE_ROOT` (.artifacts/storage),
 `UPLOAD_MAX_BYTES` (2000000), `JOB_QUEUE_BATCH_SIZE` (20), `JOB_QUEUE_POLL_SECONDS` (5),
@@ -166,7 +180,9 @@ INVITATION_TOKEN_LENGTH=32
 ---
 
 ## 6. Deploy + watch
+
 Click **Deploy**. In the deployment log you should see, in order:
+
 1. Images pulled from GHCR.
 2. **`publyapp-migrate`** starts, runs the EF bundle, applies all migrations + production
    seeding, and **exits 0** (it will show as "exited" — that is success, not failure).
@@ -181,6 +197,7 @@ redeploy. The api will stay not-ready (unrouted) until a successful migrate.
 ---
 
 ## 7. Verify
+
 - `https://api.yourdomain.com/health/live` → 200 (process up).
 - `https://api.yourdomain.com/health/ready` → 200 (migrations applied).
 - Front loads at `FRONT_URL` (this only works once the domains from §4.5 are configured).
@@ -192,6 +209,7 @@ redeploy. The api will stay not-ready (unrouted) until a successful migrate.
 ---
 
 ## 8. Confirmed on the real instance (first deploy, 2026-07-20)
+
 These were open questions in `production-deploy-runbook.md` → "Open production-instance
 checks". They are now answered; that section is closed out.
 
@@ -207,6 +225,7 @@ checks". They are now answered; that section is closed out.
   default 404 (a 19-byte `text/plain` body — a useful fingerprint when diagnosing).
 
 ### The traps that actually bit (all cost real time)
+
 1. **The managed DB's hostname is NOT the App Name** — Dokploy appends a random suffix. Using
    the App Name gives `SocketException (11)` from `Dns.GetHostAddresses`, which surfaces as
    "Database is unreachable" in the api and a migrate service that dies before applying
@@ -219,12 +238,13 @@ checks". They are now answered; that section is closed out.
    login then fails at the network layer with no server-side log at all.
 5. **A `#` inside a secret truncates it silently.** Dokploy writes the Environment tab to a
    host `.env`, and `#` begins a comment there — so `STAFF_OWNER_BOOTSTRAP_CODE=Str0ng#Pass`
-   is stored as `Str0ng`. The seeder then hashes the *truncated* value, the account is created
+   is stored as `Str0ng`. The seeder then hashes the _truncated_ value, the account is created
    normally, and the only symptom is "Invalid email or password" on a password you believe is
    correct. Nothing logs a warning. Applies to every secret, not just this one — keep env
    values to alphanumerics plus `-_.` and it can't happen.
 
 ## 9. Troubleshooting
+
 - **App can't reach DB / "Database is unreachable"** → #1 cause: `Host=` uses the App Name you
   typed instead of the real **Internal Host** (Dokploy adds a random suffix). Symptom in the
   migrate log is `SocketException (11)` from `Dns.GetHostAddresses`. Copy the hostname from the
@@ -270,6 +290,7 @@ checks". They are now answered; that section is closed out.
 ---
 
 ### Note on the config
+
 The managed-Postgres + plain-Compose correctness fixes (single `dokploy-network`, migrate
 `restart: "no"`, routing via the Domains tab instead of labels) are **already in the committed
 `dokploy.yml`** via PR #892 (Part of #876). No hand-editing of the compose file is needed —

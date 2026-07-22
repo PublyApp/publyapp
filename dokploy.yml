@@ -69,7 +69,15 @@ services:
       # Readiness gates routing. The five-minute start period matches the migration gate
       # budget, so pending migrations keep the task alive-but-unrouted without counting
       # probe failures toward Swarm's restart threshold.
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5000/health/ready"]
+      test:
+        [
+          'CMD',
+          'wget',
+          '--no-verbose',
+          '--tries=1',
+          '--spider',
+          'http://localhost:5000/health/ready',
+        ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -79,7 +87,7 @@ services:
   # background job engine (queue processor, scheduler leader + Quartz, outbox
   # dispatchers) and serves NO HTTP (design §3.2/§3.4/§3.5).
   publyapp-worker:
-    image: ghcr.io/radandevist/publyapp/api:${RELEASE_TAG}   # same image as api, immutable tag (F14)
+    image: ghcr.io/radandevist/publyapp/api:${RELEASE_TAG} # same image as api, immutable tag (F14)
     restart: unless-stopped
     # Above the ~30 s Quartz-drain / graceful-shutdown budget (HostOptions.ShutdownTimeout,
     # design §3.6); Compose's 10 s default would SIGKILL mid-drain (audit F19).
@@ -134,7 +142,7 @@ services:
     # Liveness is the in-image file-heartbeat probe (design §3.5, ratified O3): exits 0
     # when the migration gate or post-startup heartbeat service has kept the file fresh.
     healthcheck:
-      test: ["CMD", "dotnet", "PublyApp.Api.dll", "--worker-health"]
+      test: ['CMD', 'dotnet', 'PublyApp.Api.dll', '--worker-health']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -149,7 +157,7 @@ services:
     # One-shot: run once per deploy, never restart. `restart: "no"` governs under plain
     # `docker compose` (Dokploy's default Compose mode); `deploy.restart_policy` below is the
     # Swarm/Stack-mode equivalent. Both are set so the one-shot holds under either runtime.
-    restart: "no"
+    restart: 'no'
     deploy:
       restart_policy:
         condition: none
@@ -204,7 +212,7 @@ services:
       - PUBLIC_API_BASE_URL=${PUBLIC_API_BASE_URL}
       - SERVER_API_BASE_URL=${SERVER_API_BASE_URL}
       - VITE_ASP_SERVER_URL=${VITE_ASP_SERVER_URL}
-      - VITE_POSTHOG_PROJECT_TOKEN=${VITE_POSTHOG_PROJECT_TOKEN}
+      - PUBLIC_POSTHOG_PROJECT_TOKEN=${PUBLIC_POSTHOG_PROJECT_TOKEN}
     networks:
       - dokploy-network
     # HTTP routing (domains -> this service on :3000, HTTPS) is configured in Dokploy's
@@ -212,7 +220,7 @@ services:
     healthcheck:
       test:
         - CMD-SHELL
-        - "node -e \"fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""
+        - 'node -e "fetch(''http://127.0.0.1:''+(process.env.PORT||3000)+''/health'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"'
       interval: 30s
       timeout: 10s
       retries: 3

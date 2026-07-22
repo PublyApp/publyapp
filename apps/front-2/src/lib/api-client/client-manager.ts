@@ -18,7 +18,7 @@ import {
 } from '@org/shared-ts/lib/session/parse';
 import type { ParsedSessionTokens } from '@org/shared-ts/lib/session/parse';
 
-import { getPublicApiBaseUrl, getServerApiBaseUrl } from '../env';
+import { getPublicEnv, getServerEnv } from '../env';
 
 type SessionScope = 'tenant' | 'staff';
 type FetchFunction = (
@@ -122,10 +122,10 @@ const isServerRuntime = (): boolean => typeof document === 'undefined';
 
 const resolveApiBaseUrl = (): string => {
 	if (isServerRuntime()) {
-		return getServerApiBaseUrl();
+		return getServerEnv().apiBaseUrl;
 	}
 
-	return getPublicApiBaseUrl();
+	return getPublicEnv().apiBaseUrl;
 };
 
 const isRequestLike = (input: unknown): input is RequestLike => {
