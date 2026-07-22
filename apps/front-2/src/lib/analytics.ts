@@ -4,7 +4,7 @@ import { isIP } from 'node:net';
 import { IsoAnalytics } from '@org/shared-ts/lib/analytics/iso-analytics';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
-import { getPosthogProjectToken, isProductionRuntime } from './env';
+import { getPublicEnv, isProductionRuntime } from './env';
 
 type AddressHeader =
 	| 'cf-connecting-ip'
@@ -77,25 +77,42 @@ const buildBadResponseProperties = ({
 	locale,
 });
 
-const isBadStatus = (status: number): boolean => status < 200 || status >= 300;
+export type BadResponseDisposition = 'debug' | 'drop' | 'error';
 
-const analyticsClient = new IsoAnalytics(getPosthogProjectToken() ?? '');
+export const classifyBadResponse = (status: number): BadResponseDisposition => {
+	if (status === 404 || status < 400) {
+		return 'drop';
+	}
+
+	return status >= 500 ? 'error' : 'debug';
+};
+
+let analyticsClient: IsoAnalytics | undefined;
 let analyticsInit: Promise<void> | undefined;
 
-const initializeAnalytics = async (): Promise<void> => {
-	if (!getPosthogProjectToken()) {
-		analyticsClient.logOnly = true;
-		return;
+const initializeAnalytics = async (): Promise<IsoAnalytics> => {
+	if (!analyticsClient) {
+		const token = getPublicEnv().posthogProjectToken;
+		analyticsClient = new IsoAnalytics(token ?? '');
+		if (!token) {
+			analyticsClient.logOnly = true;
+		}
+	}
+
+	if (analyticsClient.logOnly) {
+		return analyticsClient;
 	}
 
 	analyticsInit ??= analyticsClient.init();
 	await analyticsInit;
+	return analyticsClient;
 };
 
 export const captureBadRequest = async (
 	input: BadResponseCaptureArgs,
 ): Promise<void> => {
-	if (!isBadStatus(input.status)) {
+	const disposition = classifyBadResponse(input.status);
+	if (disposition === 'drop') {
 		return;
 	}
 
@@ -103,7 +120,7 @@ export const captureBadRequest = async (
 		return;
 	}
 
-	await initializeAnalytics();
+	const client = await initializeAnalytics();
 
 	const properties = buildBadResponseProperties({
 		...input,
@@ -114,14 +131,17 @@ export const captureBadRequest = async (
 		logger.debug('bad-request analytics has no client IP for hashing');
 	}
 
-	analyticsClient.capture({
+	client.capture({
 		distinctId: distinctId || randomUUID(),
 		event: 'bad_request',
 		properties,
 	});
 
-	logger.debug('bad-request analytics captured', {
-		path: input.path,
-		status: input.status,
-	});
+	const logContext = { path: input.path, status: input.status };
+	if (disposition === 'error') {
+		logger.error('bad-request analytics captured', logContext);
+		return;
+	}
+
+	logger.debug('bad-request analytics captured', logContext);
 };

@@ -15,6 +15,8 @@ export default defineConfig(({ mode }) => {
 		rootEnv.SERVER_API_BASE_URL ??
 		rootEnv.PUBLIC_API_BASE_URL ??
 		rootEnv.VITE_ASP_SERVER_URL;
+	process.env.PUBLIC_POSTHOG_PROJECT_TOKEN ??=
+		rootEnv.PUBLIC_POSTHOG_PROJECT_TOKEN ?? rootEnv.POSTHOG_PROJECT_TOKEN;
 
 	return {
 		envDir: workspaceRootDir,

@@ -1,25 +1,11 @@
 import { describe, expect, test, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({
-	publicApiBaseUrl: undefined as string | undefined,
-}));
-
-vi.mock('./lib/env', async (importOriginal) => {
-	const actual = await importOriginal<typeof import('./lib/env')>();
-	return {
-		...actual,
-		getOptionalPublicApiBaseUrl: () => mocks.publicApiBaseUrl,
-		isDevelopmentRuntime: () => false,
-	};
-});
-
 import {
 	escapeHtml,
 	injectPublicRuntimeEnv,
 	injectSeoMarkup,
 	isIndexableSeoRoute,
 	renderPublicEnvScript,
-	resolvePublicApiBaseUrlEnv,
 	resolveSeoTranslator,
 } from './server';
 
@@ -31,25 +17,6 @@ describe('escapeHtml', () => {
 		expect(escapeHtml(`<script>alert('x')</script> & "quoted"`)).toBe(
 			'&lt;script&gt;alert(&#39;x&#39;)&lt;/script&gt; &amp; &quot;quoted&quot;',
 		);
-	});
-});
-
-describe('resolvePublicApiBaseUrlEnv', () => {
-	test('escapes a `</script>`-breaking value in the serialized payload', () => {
-		mocks.publicApiBaseUrl =
-			'https://api.example.test/</script><script>alert(1)</script>';
-
-		const payload = resolvePublicApiBaseUrlEnv();
-
-		expect(payload).toBeDefined();
-		expect(payload).not.toContain('</script>');
-		expect(payload).toContain('\\u003c/script>');
-	});
-
-	test('returns undefined when no public API base URL is configured', () => {
-		mocks.publicApiBaseUrl = undefined;
-
-		expect(resolvePublicApiBaseUrlEnv()).toBeUndefined();
 	});
 });
 
@@ -67,10 +34,7 @@ describe('renderPublicEnvScript / injectPublicRuntimeEnv', () => {
 		expect(output).toContain(payload);
 	});
 
-	test('is a no-op when there is no payload or no </head> to inject into', () => {
-		const html = '<html><head></head><body></body></html>';
-
-		expect(injectPublicRuntimeEnv(html, undefined, 'nonce')).toBe(html);
+	test('is a no-op when there is no </head> to inject into', () => {
 		expect(injectPublicRuntimeEnv('<body></body>', 'payload', 'nonce')).toBe(
 			'<body></body>',
 		);
@@ -81,6 +45,55 @@ describe('renderPublicEnvScript / injectPublicRuntimeEnv', () => {
 
 		expect(script).not.toContain('"><script>alert(1)</script>');
 		expect(script).toContain('&quot;&gt;&lt;script&gt;');
+	});
+
+	test('injects public env before the client bootstrap script', () => {
+		const html =
+			'<html><head><script type="module" src="/assets/client.js"></script></head></html>';
+		const output = injectPublicRuntimeEnv(html, '{}', 'nonce');
+
+		expect(output.indexOf('window.__ENV__')).toBeLessThan(
+			output.indexOf('src="/assets/client.js"'),
+		);
+	});
+
+	test('renders the real registry-derived serialized payload without an env mock', async () => {
+		const originalPublicApiBaseUrl = process.env.PUBLIC_API_BASE_URL;
+		const originalPosthogToken = process.env.PUBLIC_POSTHOG_PROJECT_TOKEN;
+
+		try {
+			process.env.PUBLIC_API_BASE_URL = 'https://api.example.test';
+			process.env.PUBLIC_POSTHOG_PROJECT_TOKEN = 'project-token';
+			vi.resetModules();
+			const [{ serializePublicRuntimeEnv }, serverModule] = await Promise.all([
+				import('./lib/env'),
+				import('./server'),
+			]);
+
+			const script = serverModule.renderPublicEnvScript(
+				serializePublicRuntimeEnv(),
+				'test-nonce',
+			);
+
+			expect(script).toContain(
+				'"PUBLIC_API_BASE_URL":"https://api.example.test"',
+			);
+			expect(script).toContain(
+				'"PUBLIC_POSTHOG_PROJECT_TOKEN":"project-token"',
+			);
+		} finally {
+			if (originalPublicApiBaseUrl === undefined) {
+				delete process.env.PUBLIC_API_BASE_URL;
+			} else {
+				process.env.PUBLIC_API_BASE_URL = originalPublicApiBaseUrl;
+			}
+
+			if (originalPosthogToken === undefined) {
+				delete process.env.PUBLIC_POSTHOG_PROJECT_TOKEN;
+			} else {
+				process.env.PUBLIC_POSTHOG_PROJECT_TOKEN = originalPosthogToken;
+			}
+		}
 	});
 });
 
