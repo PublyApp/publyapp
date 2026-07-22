@@ -2,14 +2,16 @@ import sharedEn from '@org/shared-ts/lib/i18n/locales/en';
 
 import auth from './en/auth.json';
 import common from './en/common.json';
-import staffInvitations from './en/staff-invitations.json';
+import staffTenantProfiles from './en/staff-tenant-profiles.json';
 import staffUsers from './en/staff-users.json';
+import staffInvitations from './en/staff-invitations.json';
 
 const resourceEN = {
 	common,
 	zod: sharedEn.zod,
 	'response-message': sharedEn['response-message'],
 	auth,
+	'staff-tenant-profiles': staffTenantProfiles,
 	'staff-users': staffUsers,
 	'staff-invitations': staffInvitations,
 } as const;

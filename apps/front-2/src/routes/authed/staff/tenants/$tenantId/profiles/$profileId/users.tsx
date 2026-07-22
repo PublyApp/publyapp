@@ -1,6 +1,5 @@
 import { IconAlertCircle, IconSearchOff, IconUsers } from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import type { ColumnDef } from '@tanstack/react-table';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
@@ -10,10 +9,7 @@ import { DataTable } from '~/components/table/data-table';
 import { useTableController } from '~/components/table/use-table-controller';
 import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
-import { InitialsAvatar } from '~/components/ui/initials-avatar';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
-import { StatusPill } from '~/components/ui/product-page';
-import { statusPillTone } from '~/components/ui/status-tone';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import {
 	toStaffTenantProfileDetails,
@@ -40,16 +36,16 @@ import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 import {
 	BackToTenantsLink,
-	formatTenantUserLevelLabel,
-	formatTenantUserStatusLabel,
 	MALFORMED_ID_TRANSLATION_KEY,
 	TenantDetailsError,
 	TenantDetailsLoading,
 	TenantDetailsPageShell,
 	TenantRetryActions,
-	tenantUserLevelChipClassName,
 } from '../../_tenant-details-shell';
+import { makeProfileMemberColumns } from '../_profile-member-columns';
 import { AssignMembersDrawer } from './_assign-members-drawer';
+
+export { makeProfileMemberColumns } from '../_profile-member-columns';
 
 export type ProfileMembersSearchParams = TableSearchParams & { assign?: 1 };
 export type ProfileMembersSearchParamInput = TableSearchParamInput & {
@@ -81,68 +77,6 @@ export const serializeProfileMembersSearchParams = (
 	...serializeTableSearchParams(params),
 	assign: params.assign,
 });
-
-export const makeProfileMemberColumns = (
-	tenantId: string,
-	t: (key: string, options?: Record<string, unknown>) => string,
-): ColumnDef<StaffTenantProfileMemberRow>[] => [
-	{
-		id: 'name',
-		header: t('members'),
-		enableSorting: false,
-		cell: ({ row }) => (
-			<Link
-				to="/staff/tenants/$tenantId/users/$userId"
-				params={{ tenantId, userId: row.original.userId }}
-				className="flex min-w-0 items-center gap-2.5 no-underline"
-			>
-				<InitialsAvatar name={row.original.displayName} />
-				<span className="min-w-0 space-y-0.5">
-					<span
-						className="publy-record-link block truncate text-[13px] font-medium"
-						title={row.original.displayName}
-					>
-						{row.original.displayName}
-					</span>
-					<span
-						className="block truncate text-xs text-muted-foreground"
-						title={row.original.email}
-					>
-						{row.original.email}
-					</span>
-				</span>
-			</Link>
-		),
-	},
-	{
-		id: 'level',
-		header: t('level'),
-		accessorKey: 'level',
-		meta: { width: '150px', hideBelow: 768 },
-		cell: ({ getValue }) => {
-			const level = getValue<string | null>();
-			return (
-				<span className={tenantUserLevelChipClassName(level)}>
-					{formatTenantUserLevelLabel(level, t)}
-				</span>
-			);
-		},
-	},
-	{
-		id: 'status',
-		header: t('status'),
-		accessorKey: 'status',
-		meta: { width: '130px' },
-		cell: ({ getValue }) => {
-			const status = getValue<string | null>();
-			return (
-				<StatusPill tone={statusPillTone(status)}>
-					{formatTenantUserStatusLabel(status, t)}
-				</StatusPill>
-			);
-		},
-	},
-];
 
 const isProblemStatus = (
 	error: unknown,
@@ -539,6 +473,7 @@ const StaffTenantProfileMembersPage = () => {
 export const Route = createFileRoute(
 	'/_authed-layout/staff/tenants/$tenantId/profiles/$profileId/users',
 )({
+	staticData: { i18nNamespaces: ['staff-tenant-profiles'] },
 	validateSearch: (search) =>
 		parseProfileMembersSearchParams(search as ProfileMembersSearchParamInput),
 	component: StaffTenantProfileMembersPage,

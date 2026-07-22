@@ -41,6 +41,7 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string, options?: Record<string, unknown>) => {
+			const resourceKey = key.includes(':') ? key.split(':')[1] : key;
 			const labels: Record<string, string> = {
 				permissions: 'Permissions',
 				'profile-permissions-subtitle':
@@ -70,12 +71,12 @@ vi.mock('react-i18next', () => ({
 
 			const pluralKey =
 				typeof options?.count === 'number'
-					? `${key}_${options.count === 1 ? 'one' : 'other'}`
+					? `${resourceKey}_${options.count === 1 ? 'one' : 'other'}`
 					: undefined;
 			let text =
 				(pluralKey === undefined ? undefined : labels[pluralKey]) ??
-				labels[key] ??
-				key;
+				labels[resourceKey] ??
+				resourceKey;
 			for (const [optionKey, value] of Object.entries(options ?? {})) {
 				text = text.replaceAll(`{{${optionKey}}}`, String(value));
 			}

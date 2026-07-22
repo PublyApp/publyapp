@@ -235,23 +235,6 @@ public static class ProfileEndpointsForStaff {
 			.WithSummary("List permission keys assigned to a tenant profile")
 			.WithPermission([AppPermissions.Staff.Profiles.GET_FOR_TENANT]);
 
-		tenantGroup.MapGet(
-			Routes.Profiles.ForTenantAsStaff.Users.Find,
-			FindTenantProfileUsersAsStaff.Handle
-		)
-			.WithName("FindTenantProfileUsersAsStaff")
-			.WithSummary("Find members (users) that hold a tenant profile")
-			// This list exposes tenant-user PII (names, emails, levels, statuses,
-			// join dates), not just profile metadata — so profile read access alone
-			// is not enough. Require BOTH the profile read permission and the
-			// tenant-users list permission; the Permission[] overload of
-			// WithPermission enforces ALL of them (AND logic).
-			.WithPermission([
-				AppPermissions.Staff.Profiles.GET_FOR_TENANT,
-				AppPermissions.Staff.Users.LIST_FOR_TENANT,
-			])
-			.WithReqQueryValidation<FindTenantProfileUsersAsStaffQuery>();
-
 		tenantGroup.MapPost(
 			Routes.Profiles.ForTenantAsStaff.Permissions.Upsert,
 			AssignTenantProfilePermissionAsStaff.Handle

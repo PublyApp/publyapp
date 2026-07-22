@@ -64,8 +64,8 @@ const mocks = vi.hoisted(() => ({
 	toStaffTenantProfileDetails: vi.fn(),
 	useStaffTenantProfilePermissionKeysQuery: vi.fn(),
 	toStaffTenantProfilePermissionKeys: vi.fn(),
-	useStaffTenantProfileUsersQuery: vi.fn(),
-	toStaffTenantProfileMembers: vi.fn(),
+	useStaffTenantProfileMembersQuery: vi.fn(),
+	toStaffTenantProfileMemberRows: vi.fn(),
 	useStaffTenantPermissionCatalogQuery: vi.fn(),
 	useDeleteStaffTenantProfileMutation: vi.fn(),
 	useAssignStaffTenantProfilePermissionMutation: vi.fn(),
@@ -91,6 +91,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => ({
 		...options,
+		options,
 		useNavigate: () => mocks.navigate,
 		useParams: () => ({
 			tenantId: '11111111-1111-1111-1111-111111111111',
@@ -265,8 +266,8 @@ vi.mock('~/lib/query/staff-tenant-profiles', () => ({
 		revision: mocks.permissionKeysCacheRevision,
 	}),
 	toStaffTenantProfilePermissionKeys: mocks.toStaffTenantProfilePermissionKeys,
-	useStaffTenantProfileUsersQuery: mocks.useStaffTenantProfileUsersQuery,
-	toStaffTenantProfileMembers: mocks.toStaffTenantProfileMembers,
+	useStaffTenantProfileMembersQuery: mocks.useStaffTenantProfileMembersQuery,
+	toStaffTenantProfileMemberRows: mocks.toStaffTenantProfileMemberRows,
 	useDeleteStaffTenantProfileMutation:
 		mocks.useDeleteStaffTenantProfileMutation,
 	useStaffTenantPermissionCatalogQuery:
@@ -295,6 +296,15 @@ vi.mock('./_profile-permissions-tab', () => ({
 	},
 }));
 
+vi.mock('./_profile-members-tab', () => ({
+	ProfileMembersTab: () => (
+		<>
+			<div data-testid="staff-tenant-profile-members-table" />
+			<div data-testid="assign-members-drawer" />
+		</>
+	),
+}));
+
 vi.mock('./_profile-form-drawer', () => ({
 	ProfileFormDrawer: ({
 		isOpen,
@@ -314,6 +324,9 @@ vi.mock('./_profile-form-drawer', () => ({
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string, options?: Record<string, unknown>) => {
+			const resourceKey = key.includes(':')
+				? (key.split(':').at(-1) ?? key)
+				: key;
 			const labels: Record<string, string> = {
 				basics: 'Basics',
 				custom: 'Custom',
@@ -331,13 +344,6 @@ vi.mock('react-i18next', () => ({
 				'system-profile': 'System profile',
 				'open-tenant': 'Open tenant',
 				'back-to-tenant-profiles': 'Back to {{name}} profiles',
-				'profile-members-placeholder-title': 'Members are coming soon',
-				'profile-members-placeholder-description':
-					'Member management will be added in a later refinement step.',
-				'profile-permissions-placeholder-title':
-					'Permission management is moving here',
-				'profile-permissions-placeholder-description':
-					'The dedicated permissions view will be added in a later refinement step.',
 				assign: 'Assign',
 				assigned: 'Assigned',
 				'assign-permission': 'Assign {{name}}',
@@ -438,12 +444,12 @@ vi.mock('react-i18next', () => ({
 			// `_one`/`_other` suffixed key when the dictionary provides it.
 			const pluralKey =
 				typeof options?.count === 'number'
-					? `${key}_${options.count === 1 ? 'one' : 'other'}`
+					? `${resourceKey}_${options.count === 1 ? 'one' : 'other'}`
 					: undefined;
 			let text =
 				(pluralKey === undefined ? undefined : labels[pluralKey]) ??
-				labels[key] ??
-				key;
+				labels[resourceKey] ??
+				resourceKey;
 			if (options) {
 				for (const [optionKey, value] of Object.entries(options)) {
 					text = text.replaceAll(`{{${optionKey}}}`, String(value));
@@ -491,6 +497,12 @@ const renderPage = () => {
 };
 
 describe('staff tenant profile details route', () => {
+	test('declares the profile feature namespace', () => {
+		expect(Route.options.staticData).toEqual({
+			i18nNamespaces: ['staff-tenant-profiles'],
+		});
+	});
+
 	beforeEach(() => {
 		vi.clearAllMocks();
 		useUiStore.setState({ breadcrumbOverride: null });
@@ -559,8 +571,8 @@ describe('staff tenant profile details route', () => {
 				},
 			}),
 		);
-		mocks.toStaffTenantProfileMembers.mockReturnValue([]);
-		mocks.useStaffTenantProfileUsersQuery.mockReturnValue(
+		mocks.toStaffTenantProfileMemberRows.mockReturnValue([]);
+		mocks.useStaffTenantProfileMembersQuery.mockReturnValue(
 			buildQueryResult({ data: { data: [] } }),
 		);
 		mocks.useStaffTenantPermissionCatalogQuery.mockReturnValue(
@@ -763,7 +775,7 @@ describe('staff tenant profile details route', () => {
 		expect(tenantBand.textContent).toContain('publyapp.com/—');
 	});
 
-	test('renders the URL-selected permissions tab and members placeholder with counted tabs', () => {
+	test('renders the URL-selected permissions and canonical members tabs with counted tabs', () => {
 		mocks.search = { tab: 'permissions' };
 		mocks.permissionKeysCacheRevision = 7;
 		const view = renderPage();
@@ -790,7 +802,10 @@ describe('staff tenant profile details route', () => {
 				.getByTestId('staff-tenant-profile-tabs')
 				.querySelector('[aria-current="page"]')?.textContent,
 		).toContain('Members7');
-		expect(screen.getByText('Members are coming soon')).toBeTruthy();
+		expect(
+			screen.getByTestId('staff-tenant-profile-members-table'),
+		).toBeTruthy();
+		expect(screen.getByTestId('assign-members-drawer')).toBeTruthy();
 	});
 
 	test('validates profile tab search state and keeps the numeric edit flag', () => {
@@ -1159,7 +1174,7 @@ describe('staff tenant profile details route', () => {
 			title: 'Unauthorized',
 			detail: 'Session expired',
 		};
-		mocks.useStaffTenantProfileUsersQuery.mockReturnValue(
+		mocks.useStaffTenantProfileMembersQuery.mockReturnValue(
 			buildQueryResult({ error: membersError, isError: true }),
 		);
 		mocks.shouldLogoutForFailure.mockImplementation(

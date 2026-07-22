@@ -6,7 +6,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import type {
 	StaffTenantPermissionGroup,
 	StaffTenantProfileDetails,
-	StaffTenantProfileMember,
+	StaffTenantProfileMemberRow,
 } from '~/lib/query/staff-tenant-profiles';
 
 vi.mock('@tanstack/react-router', () => ({
@@ -56,6 +56,7 @@ vi.mock('../_tenant-details-shell', () => ({
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string, options?: Record<string, unknown>) => {
+			const resourceKey = key.includes(':') ? key.split(':')[1] : key;
 			const labels: Record<string, string> = {
 				members: 'Members',
 				permissions: 'Permissions',
@@ -96,12 +97,12 @@ vi.mock('react-i18next', () => ({
 			// `_one`/`_other` suffixed key when the dictionary provides it.
 			const pluralKey =
 				typeof options?.count === 'number'
-					? `${key}_${options.count === 1 ? 'one' : 'other'}`
+					? `${resourceKey}_${options.count === 1 ? 'one' : 'other'}`
 					: undefined;
 			let text =
 				(pluralKey === undefined ? undefined : labels[pluralKey]) ??
-				labels[key] ??
-				key;
+				labels[resourceKey] ??
+				resourceKey;
 			if (options) {
 				for (const [optionKey, value] of Object.entries(options)) {
 					text = text.replaceAll(`{{${optionKey}}}`, String(value));
@@ -149,16 +150,17 @@ const baseProfile: StaffTenantProfileDetails = {
 	updatedAt: new Date('2026-07-14T10:00:00Z'),
 };
 
-const buildMembers = (count: number): StaffTenantProfileMember[] =>
+const buildMembers = (count: number): StaffTenantProfileMemberRow[] =>
 	Array.from({ length: count }, (_, index) => ({
-		userAccountId: `acc-${index}`,
+		id: `acc-${index}`,
 		userId: `usr-${index}`,
-		name: `Member ${index}`,
 		email: `member${index}@example.com`,
+		firstName: 'Member',
+		lastName: String(index),
+		avatarUrl: null,
 		level: 'User',
 		status: 'Active',
-		joinedAt: new Date('2026-06-01T00:00:00Z'),
-		otherProfiles: [],
+		displayName: `Member ${index}`,
 	}));
 
 const renderTab = (
@@ -305,7 +307,12 @@ describe('ProfileOverviewTab', () => {
 
 	test('renders the email only once when the display name fell back to it', () => {
 		const base = buildMembers(1);
-		const noNameMember = { ...base[0], name: '' } as StaffTenantProfileMember;
+		const noNameMember: StaffTenantProfileMemberRow = {
+			...base[0],
+			firstName: null,
+			lastName: null,
+			displayName: base[0].email,
+		};
 		renderTab({ members: [noNameMember] });
 
 		// Primary line shows the email fallback; the secondary email line is

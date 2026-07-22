@@ -14,7 +14,8 @@ export const ProfileTenantBand = ({
 	tenant: StaffTenantDetails;
 	tenantId: string;
 }) => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation('staff-tenant-profiles');
+	const { t: tCommon } = useTranslation('common');
 
 	return (
 		<section
@@ -38,8 +39,8 @@ export const ProfileTenantBand = ({
 			</div>
 			<StatusPill tone={statusPillTone(tenant.status)}>
 				{tenant.status
-					? formatTenantStatusLabel(tenant.status, t)
-					: t('status-unknown')}
+					? formatTenantStatusLabel(tenant.status, tCommon)
+					: tCommon('status-unknown')}
 			</StatusPill>
 			<Link
 				to="/staff/tenants/$tenantId"

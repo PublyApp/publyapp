@@ -1422,8 +1422,7 @@ namespace PublyApp.Api.Migrations
 
                     b.HasKey("UserAccountId", "ProfileId");
 
-                    b.HasIndex("ProfileId", "UserAccountId")
-                        .HasDatabaseName("ix_user_account_profiles_profile_id_user_account_id");
+                    b.HasIndex("ProfileId");
 
                     b.ToTable("user_account_profiles");
                 });

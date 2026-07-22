@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => ({
 		...options,
+		options,
 		useNavigate: () => mocks.navigate,
 		useParams: () => ({
 			tenantId: '11111111-1111-1111-1111-111111111111',
@@ -326,6 +327,12 @@ describe('serializeProfileMembersSearchParams', () => {
 });
 
 describe('StaffTenantProfileMembersPage', () => {
+	test('declares the profile feature namespace', () => {
+		expect(Route.options.staticData).toEqual({
+			i18nNamespaces: ['staff-tenant-profiles'],
+		});
+	});
+
 	test('renders the profile identity, member count, and tabs', () => {
 		renderPage();
 

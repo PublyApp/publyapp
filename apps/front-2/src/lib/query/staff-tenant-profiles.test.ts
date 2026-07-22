@@ -29,14 +29,14 @@ import {
 	getStaffTenantProfilePermissionKeysQueryKey,
 	STAFF_TENANT_PROFILES_QUERY_KEY,
 	toStaffTenantProfileDetails,
-	toStaffTenantProfileMembers,
+	toStaffTenantProfileMemberAssignmentMap,
+	toStaffTenantProfileMemberRows,
 	toStaffTenantProfilePermissionKeys,
 	toStaffTenantProfileRows,
 } from '~/lib/query/staff-tenant-profiles';
 
 import type {
 	FindTenantProfilePermissionsAsStaffResult,
-	FindTenantProfileUsersAsStaffResult,
 	GetTenantProfileByIdResponse,
 	ResolveTenantProfileUserAssignmentsAsStaffResult,
 	TenantProfileItem,
@@ -854,94 +854,6 @@ describe('toStaffTenantProfilePermissionKeys', () => {
 
 	test('returns an empty list when the payload is empty', () => {
 		expect(toStaffTenantProfilePermissionKeys(undefined)).toEqual([]);
-	});
-});
-
-describe('toStaffTenantProfileMembers', () => {
-	test('maps members, normalizes fields, and keeps other profiles', () => {
-		const result = toStaffTenantProfileMembers({
-			data: [
-				{
-					userAccountId: 'acc-1',
-					userId: 'usr-1',
-					name: '  Ada Lovelace  ',
-					email: 'ada@example.com',
-					level: 'Admin',
-					status: 'Active',
-					joinedAt: new Date('2026-06-01T00:00:00Z'),
-					otherProfiles: [
-						{ id: 'p-2', name: 'Reviewers' },
-						{ id: '', name: 'Dropped' },
-						{ id: 'p-3', name: '  ' },
-					],
-				},
-			],
-		} as unknown as FindTenantProfileUsersAsStaffResult);
-
-		expect(result).toEqual([
-			{
-				userAccountId: 'acc-1',
-				userId: 'usr-1',
-				name: 'Ada Lovelace',
-				email: 'ada@example.com',
-				level: 'Admin',
-				status: 'Active',
-				joinedAt: new Date('2026-06-01T00:00:00Z'),
-				// Only the well-formed other profile survives (blank id / blank name
-				// entries are dropped).
-				otherProfiles: [{ id: 'p-2', name: 'Reviewers' }],
-			},
-		]);
-	});
-
-	test('keeps a member with no name (empty), so the UI can fall back to email', () => {
-		const result = toStaffTenantProfileMembers({
-			data: [
-				{
-					userAccountId: 'acc-2',
-					userId: 'usr-2',
-					name: '   ',
-					email: 'noname@example.com',
-					level: 'User',
-					status: 'Suspended',
-					joinedAt: null,
-					otherProfiles: [],
-				},
-			],
-		} as unknown as FindTenantProfileUsersAsStaffResult);
-
-		expect(result).toHaveLength(1);
-		expect(result[0]?.name).toBe('');
-		expect(result[0]?.email).toBe('noname@example.com');
-		expect(result[0]?.joinedAt).toBeNull();
-	});
-
-	test('drops malformed members missing an account id or an email', () => {
-		const result = toStaffTenantProfileMembers({
-			data: [
-				{
-					userAccountId: '',
-					userId: 'usr-3',
-					name: 'No Account',
-					email: 'x@example.com',
-					otherProfiles: [],
-				},
-				{
-					userAccountId: 'acc-4',
-					userId: 'usr-4',
-					name: 'No Email',
-					email: '  ',
-					otherProfiles: [],
-				},
-			],
-		} as unknown as FindTenantProfileUsersAsStaffResult);
-
-		expect(result).toEqual([]);
-	});
-
-	test('returns an empty list when the payload is empty', () => {
-		expect(toStaffTenantProfileMembers(undefined)).toEqual([]);
-		expect(toStaffTenantProfileMembers({ data: null } as never)).toEqual([]);
 	});
 });
 

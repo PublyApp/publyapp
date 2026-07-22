@@ -102,30 +102,6 @@ export type StaffTenantProfileDetailsQueryVariables = {
 	profileId: string;
 };
 
-export type StaffTenantProfileMemberOtherProfile = {
-	id: string;
-	name: string;
-};
-
-export type StaffTenantProfileMember = {
-	userAccountId: string;
-	userId: string;
-	/** Composed "First Last"; may be empty — the UI falls back to the email. */
-	name: string;
-	email: string;
-	level: string;
-	status: string;
-	joinedAt: Date | null;
-	otherProfiles: StaffTenantProfileMemberOtherProfile[];
-};
-
-export type StaffTenantProfileMembersQueryVariables = {
-	tenantId: string;
-	profileId: string;
-	/** First-page size (the Overview preview only needs the leading few). */
-	limit?: number;
-};
-
 export type StaffTenantProfilePermissionKeysQueryVariables = {
 	tenantId: string;
 	profileId: string;
@@ -242,7 +218,11 @@ export const STAFF_TENANT_PROFILE_PERMISSION_KEYS_QUERY_KEY = [
 ] as const;
 export const STAFF_TENANT_PROFILE_MEMBERS_QUERY_KEY = [
 	...STAFF_TENANT_PROFILES_QUERY_KEY,
-	'members',
+	'users',
+] as const;
+export const STAFF_TENANT_PROFILE_MEMBER_ASSIGNMENT_RESOLUTION_QUERY_KEY = [
+	...STAFF_TENANT_PROFILE_MEMBERS_QUERY_KEY,
+	'assignment-resolution',
 ] as const;
 /** @internal Unscoped — see `STAFF_TENANT_PROFILES_QUERY_KEY` above. */
 export const STAFF_TENANT_PERMISSION_CATALOG_QUERY_KEY = [
@@ -704,47 +684,6 @@ export const toStaffTenantProfileDetails = (
 	};
 };
 
-export const toStaffTenantProfileMembers = (
-	result: FindTenantProfileUsersAsStaffResult | null | undefined,
-): StaffTenantProfileMember[] => {
-	const members: StaffTenantProfileMember[] = [];
-
-	for (const item of result?.data ?? []) {
-		// A member with no account identity or email is malformed — dropped
-		// rather than rendered with a placeholder a staff admin can't act on
-		// (same honesty rule as the profile rows above).
-		const userAccountId = normalizeString(item.userAccountId?.toString());
-		const email = normalizeString(item.email);
-		if (!userAccountId || !email) {
-			continue;
-		}
-
-		const otherProfiles: StaffTenantProfileMemberOtherProfile[] = [];
-		for (const other of item.otherProfiles ?? []) {
-			const id = normalizeString(other.id?.toString());
-			const name = normalizeString(other.name);
-			if (!id || !name) {
-				continue;
-			}
-
-			otherProfiles.push({ id, name });
-		}
-
-		members.push({
-			userAccountId,
-			userId: normalizeString(item.userId?.toString()) ?? '',
-			name: normalizeString(item.name) ?? '',
-			email,
-			level: normalizeString(item.level) ?? '',
-			status: normalizeString(item.status) ?? '',
-			joinedAt: normalizeDate(item.joinedAt),
-			otherProfiles,
-		});
-	}
-
-	return members;
-};
-
 export const toStaffTenantProfilePermissionKeys = (
 	result: FindTenantProfilePermissionsAsStaffResult | null | undefined,
 ): string[] => {
@@ -965,35 +904,6 @@ const staffTenantProfileDetailsQueryOptions = buildStaffQueryOptions<
 
 			if (!result) {
 				throw new Error('staff tenant profile details result was empty');
-			}
-
-			return result;
-		},
-	},
-	{ clientAccessor: getClientManager() },
-);
-
-const staffTenantProfileMembersQueryOptions = buildStaffQueryOptions<
-	ApiClient,
-	FindTenantProfileUsersAsStaffResult,
-	StaffTenantProfileMembersQueryVariables
->(
-	{
-		queryKeyFn: () => [...STAFF_TENANT_PROFILE_MEMBERS_QUERY_KEY],
-		fetcher: async (client, variables) => {
-			const result = await client.staff.tenants
-				.byTenantId(variables.tenantId)
-				.profiles.byProfileId(variables.profileId)
-				.users.get({
-					queryParameters: {
-						limit: isPositiveSafeInteger(variables.limit)
-							? String(variables.limit)
-							: undefined,
-					},
-				});
-
-			if (!result) {
-				throw new Error('staff tenant profile members result was empty');
 			}
 
 			return result;
@@ -1226,18 +1136,6 @@ export const useStaffTenantProfileDetailsQuery = (
 	useQuery({
 		queryKey: staffTenantProfileDetailsQueryOptions.queryKey(variables),
 		queryFn: () => staffTenantProfileDetailsQueryOptions.fetcher(variables),
-		enabled: options?.enabled ?? true,
-	});
-
-export const useStaffTenantProfileUsersQuery = (
-	variables: StaffTenantProfileMembersQueryVariables,
-	options?: {
-		enabled?: boolean;
-	},
-) =>
-	useQuery({
-		queryKey: staffTenantProfileMembersQueryOptions.queryKey(variables),
-		queryFn: () => staffTenantProfileMembersQueryOptions.fetcher(variables),
 		enabled: options?.enabled ?? true,
 	});
 

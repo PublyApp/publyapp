@@ -88,7 +88,7 @@ const PermissionModuleGroup = ({
 	onToggleModule,
 	onToggleCollapsed,
 }: PermissionModuleGroupProps) => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation('staff-tenant-profiles');
 	const allKeys = group.options.map((option) => option.key);
 	const grantedCount = allKeys.filter((key) => stagedKeys.has(key)).length;
 	const totalCount = allKeys.length;
@@ -225,7 +225,7 @@ export const ProfilePermissionsTab = ({
 	onDirtyChange: (isDirty: boolean) => void;
 	onSessionExpired: () => void;
 }) => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation('staff-tenant-profiles');
 	const queryClient = useQueryClient();
 	const assignPermission = useAssignStaffTenantProfilePermissionMutation(
 		LOCAL_PERMISSION_META,
@@ -557,7 +557,7 @@ export const ProfilePermissionsTab = ({
 		}
 
 		setIsSaving(false);
-		toastLocalMutationResult.success(t('profile-updated-successfully'));
+		toastLocalMutationResult.success(t('common:profile-updated-successfully'));
 		focusOnActionBarClose();
 	};
 
@@ -581,7 +581,7 @@ export const ProfilePermissionsTab = ({
 					tabIndex={-1}
 					className="publy-type-page-title outline-none"
 				>
-					{t('permissions')}
+					{t('common:permissions')}
 				</h2>
 				<p className="publy-type-helper">{t('profile-permissions-subtitle')}</p>
 			</div>
@@ -615,28 +615,28 @@ export const ProfilePermissionsTab = ({
 						onClick={handleClearAll}
 						disabled={isSaving || stagedKeys.size === 0}
 					>
-						{t('clear-all')}
+						{t('common:clear-all')}
 					</Button>
 				</div>
 			</div>
 
 			{isCatalogPending ? (
 				<p className="text-sm text-muted-foreground">
-					{t('loading-permissions')}
+					{t('common:loading-permissions')}
 				</p>
 			) : null}
 
 			{isCatalogError ? (
 				<p className="text-sm text-destructive" role="alert">
 					{getFailureMessage(toApiFailure(catalogError), {
-						fallback: t('tenant-permission-catalog-load-failed'),
+						fallback: t('common:tenant-permission-catalog-load-failed'),
 					})}
 				</p>
 			) : null}
 
 			{!isCatalogPending && !isCatalogError && permissionGroups.length === 0 ? (
 				<p className="text-sm text-muted-foreground">
-					{t('no-permissions-available')}
+					{t('common:no-permissions-available')}
 				</p>
 			) : null}
 
@@ -694,7 +694,7 @@ export const ProfilePermissionsTab = ({
 						}}
 						disabled={isSaving}
 					>
-						{t('save-changes')}
+						{t('common:save-changes')}
 					</Button>
 				</FormActionBar>
 			) : null}

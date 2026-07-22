@@ -7,6 +7,7 @@ export const GLOBAL_I18N_NAMESPACES = [
 ] as const;
 export const FEATURE_I18N_NAMESPACES = [
 	'auth',
+	'staff-tenant-profiles',
 	'staff-users',
 	'staff-invitations',
 ] as const;

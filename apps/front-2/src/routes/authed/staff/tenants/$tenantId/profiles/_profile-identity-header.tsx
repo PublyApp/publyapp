@@ -17,7 +17,7 @@ export const ProfileIdentityHeader = ({
 	permissionCount: number;
 	onEdit: () => void;
 }) => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation('staff-tenant-profiles');
 	const { Icon: ProfileIcon, tone: profileTone } = deriveTenantProfileCardStyle(
 		profile.name,
 	);
@@ -42,14 +42,14 @@ export const ProfileIdentityHeader = ({
 						</span>
 					</div>
 					<p className="max-w-3xl text-sm text-muted-foreground">
-						{profile.description ?? t('no-description-provided')}
+						{profile.description ?? t('common:no-description-provided')}
 					</p>
 					<p className="text-xs text-muted-foreground">
-						{t('tenant-member-count', {
+						{t('common:tenant-member-count', {
 							count: profile.userAccountCount,
 						})}
 						{' · '}
-						{t('tenant-permission-count', {
+						{t('common:tenant-permission-count', {
 							count: permissionCount,
 						})}
 						{updatedRelativeParts ? (
@@ -58,6 +58,7 @@ export const ProfileIdentityHeader = ({
 								{t('profile-updated-relative', {
 									time: t(updatedRelativeParts.key, {
 										count: updatedRelativeParts.count,
+										ns: 'common',
 									}),
 								})}
 							</>

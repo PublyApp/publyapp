@@ -7651,140 +7651,6 @@
         }
       }
     },
-    "/staff/tenants/{tenantId}/profiles/{profileId}/users": {
-      "get": {
-        "tags": [
-          "Tenant Profiles (Staff View)"
-        ],
-        "summary": "Find members (users) that hold a tenant profile",
-        "operationId": "FindTenantProfileUsersAsStaff",
-        "parameters": [
-          {
-            "name": "tenantId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "profileId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "cursor",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "q",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "sort_id",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "sort_order",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AppProblemDetails"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AppProblemDetails"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AppProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FindTenantProfileUsersAsStaffResult"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AppProblemDetails"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AppProblemDetails"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Unprocessable Entity",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ValidationProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/staff/tenants/{tenantId}/profiles/{profileId}/permissions/{permissionKey}": {
       "post": {
         "tags": [
@@ -11715,19 +11581,22 @@
         }
       },
       "FindTenantProfileUsersAsStaffResult": {
+        "required": [
+          "users",
+          "count"
+        ],
         "type": "object",
         "properties": {
-          "data": {
+          "users": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/TenantProfileMemberItem"
+              "$ref": "#/components/schemas/TenantProfileUserItem"
             }
           },
-          "nextCursor": {
-            "type": [
-              "null",
-              "string"
-            ]
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -13268,10 +13137,10 @@
           }
         }
       },
-      "TenantProfileMemberItem": {
+      "TenantProfileUserItem": {
         "type": "object",
         "properties": {
-          "userAccountId": {
+          "id": {
             "type": "string",
             "format": "uuid"
           },
@@ -13279,38 +13148,31 @@
             "type": "string",
             "format": "uuid"
           },
-          "name": {
-            "type": "string"
-          },
           "email": {
             "type": "string"
           },
-          "level": {
-            "type": "string"
+          "lastName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "firstName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "avatarUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "status": {
             "type": "string"
           },
-          "joinedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "otherProfiles": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/TenantProfileMemberProfileRef"
-            }
-          }
-        }
-      },
-      "TenantProfileMemberProfileRef": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "name": {
+          "level": {
             "type": "string"
           }
         }

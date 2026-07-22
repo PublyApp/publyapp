@@ -344,13 +344,6 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 				.WithMany(p => p.UserAccountProfiles)
 				.HasForeignKey(e => e.ProfileId)
 				.OnDelete(DeleteBehavior.Cascade);
-
-			// Serves the staff profile-members list: profile-membership lookup
-			// ordered by user_account_id (the `id` keyset sort + the cursor
-			// tie-breaker every other sort falls back to). The composite PK leads
-			// on user_account_id, so it cannot serve profile-scoped scans.
-			entity.HasIndex(e => new { e.ProfileId, e.UserAccountId })
-				.HasDatabaseName("ix_user_account_profiles_profile_id_user_account_id");
 		});
 
 		// Explicit relationships for Session -> User (two FKs to same principal)

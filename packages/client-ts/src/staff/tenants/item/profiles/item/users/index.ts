@@ -4,14 +4,28 @@
 // @ts-ignore
 import { createAppProblemDetailsFromDiscriminatorValue, createFindTenantProfileUsersAsStaffResultFromDiscriminatorValue, createValidationProblemDetailsFromDiscriminatorValue, type AppProblemDetails, type FindTenantProfileUsersAsStaffResult, type ValidationProblemDetails } from '../../../../../../models/index.js';
 // @ts-ignore
-import { type BaseRequestBuilder, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
+import { AssignmentResolutionRequestBuilderRequestsMetadata, type AssignmentResolutionRequestBuilder } from './assignmentResolution/index.js';
+// @ts-ignore
+import { type WithUser_account_ItemRequestBuilder, WithUser_account_ItemRequestBuilderRequestsMetadata } from './item/index.js';
+// @ts-ignore
+import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
  * Builds and executes requests for operations under /staff/tenants/{tenantId}/profiles/{profileId}/users
  */
 export interface UsersRequestBuilder extends BaseRequestBuilder<UsersRequestBuilder> {
     /**
-     * Find members (users) that hold a tenant profile
+     * The assignmentResolution property
+     */
+    get assignmentResolution(): AssignmentResolutionRequestBuilder;
+    /**
+     * Gets an item from the PublyApp.Api.Client.staff.tenants.item.profiles.item.users.item collection
+     * @param user_account_id Unique identifier of the item
+     * @returns {WithUser_account_ItemRequestBuilder}
+     */
+     byUser_account_id(user_account_id: string) : WithUser_account_ItemRequestBuilder;
+    /**
+     * Find tenant members assigned to a tenant profile
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {Promise<FindTenantProfileUsersAsStaffResult>}
      * @throws {AppProblemDetails} error when the service returns a 400 status code
@@ -24,18 +38,18 @@ export interface UsersRequestBuilder extends BaseRequestBuilder<UsersRequestBuil
      */
      get(requestConfiguration?: RequestConfiguration<UsersRequestBuilderGetQueryParameters> | undefined) : Promise<FindTenantProfileUsersAsStaffResult | undefined>;
     /**
-     * Find members (users) that hold a tenant profile
+     * Find tenant members assigned to a tenant profile
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {RequestInformation}
      */
      toGetRequestInformation(requestConfiguration?: RequestConfiguration<UsersRequestBuilderGetQueryParameters> | undefined) : RequestInformation;
 }
 /**
- * Find members (users) that hold a tenant profile
+ * Find tenant members assigned to a tenant profile
  */
 export interface UsersRequestBuilderGetQueryParameters {
-    cursor?: string;
     limit?: string;
+    page?: string;
     q?: string;
     sortId?: string;
     sortOrder?: string;
@@ -43,13 +57,25 @@ export interface UsersRequestBuilderGetQueryParameters {
 /**
  * Uri template for the request builder.
  */
-export const UsersRequestBuilderUriTemplate = "{+baseurl}/staff/tenants/{tenantId}/profiles/{profileId}/users{?cursor*,limit*,q*,sort_id*,sort_order*}";
+export const UsersRequestBuilderUriTemplate = "{+baseurl}/staff/tenants/{tenantId}/profiles/{profileId}/users{?limit*,page*,q*,sort_id*,sort_order*}";
 /**
  * Mapper for query parameters from symbol name to serialization name represented as a constant.
  */
 const UsersRequestBuilderGetQueryParametersMapper: Record<string, string> = {
     "sortId": "sort_id",
     "sortOrder": "sort_order",
+};
+/**
+ * Metadata for all the navigation properties in the request builder.
+ */
+export const UsersRequestBuilderNavigationMetadata: Record<Exclude<keyof UsersRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
+    byUser_account_id: {
+        requestsMetadata: WithUser_account_ItemRequestBuilderRequestsMetadata,
+        pathParametersMappings: ["user_account_id"],
+    },
+    assignmentResolution: {
+        requestsMetadata: AssignmentResolutionRequestBuilderRequestsMetadata,
+    },
 };
 /**
  * Metadata for all the requests in the request builder.

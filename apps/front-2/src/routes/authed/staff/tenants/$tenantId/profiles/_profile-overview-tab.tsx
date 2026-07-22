@@ -26,7 +26,7 @@ import { StatCard } from '~/components/ui/stat-card';
 import type {
 	StaffTenantPermissionGroup,
 	StaffTenantProfileDetails,
-	StaffTenantProfileMember,
+	StaffTenantProfileMemberRow,
 } from '~/lib/query/staff-tenant-profiles';
 
 import { formatMonthYear } from '../_tenant-details-shell';
@@ -42,10 +42,8 @@ const meterPercent = (granted: number, total: number): number => {
 	return Math.min(100, Math.round((granted / total) * 100));
 };
 
-/** A member's display label — the composed name when present, else the email
- * (the backend leaves `name` empty for accounts with no first/last name). */
-const memberDisplayName = (member: StaffTenantProfileMember): string =>
-	member.name.length > 0 ? member.name : member.email;
+const memberDisplayName = (member: StaffTenantProfileMemberRow): string =>
+	member.displayName;
 
 /** Honest members preview: distinct loading / error / empty / loaded branches,
  * mirroring the QueryDisplay contract used elsewhere in this slice. */
@@ -55,12 +53,12 @@ const MembersPreviewBody = ({
 	isError,
 	totalCount,
 }: {
-	members: StaffTenantProfileMember[];
+	members: StaffTenantProfileMemberRow[];
 	isPending: boolean;
 	isError: boolean;
 	totalCount: number;
 }) => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation('staff-tenant-profiles');
 
 	if (isPending) {
 		return (
@@ -84,7 +82,7 @@ const MembersPreviewBody = ({
 	if (totalCount === 0 || previewMembers.length === 0) {
 		return (
 			<p className="px-4 pb-4 pt-3 text-sm text-muted-foreground">
-				{t('no-members-yet')}
+				{t('common:no-members-yet')}
 			</p>
 		);
 	}
@@ -92,10 +90,7 @@ const MembersPreviewBody = ({
 	return (
 		<ul className="flex flex-col divide-y divide-border">
 			{previewMembers.map((member) => (
-				<li
-					key={member.userAccountId}
-					className="flex items-center gap-3 px-4 py-2.5"
-				>
+				<li key={member.id} className="flex items-center gap-3 px-4 py-2.5">
 					<InitialsAvatar name={memberDisplayName(member)} size="sm" />
 					<div className="min-w-0">
 						<p className="truncate text-sm font-medium text-foreground">
@@ -103,7 +98,7 @@ const MembersPreviewBody = ({
 						</p>
 						{/* When the display name fell back to the email, a secondary
 						    email line would repeat the exact same text — omit it. */}
-						{member.name.length > 0 ? (
+						{member.displayName !== member.email ? (
 							<p className="truncate text-xs text-muted-foreground">
 								{member.email}
 							</p>
@@ -152,13 +147,13 @@ const PermissionGlanceBody = ({
 	isCatalogPending: boolean;
 	isCatalogError: boolean;
 }) => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation('staff-tenant-profiles');
 
 	if (isCatalogPending) {
 		return (
 			<div className="flex items-center gap-2 px-4 py-6 text-sm text-muted-foreground">
 				<LoadingSpinner />
-				<span>{t('loading-available-permissions')}</span>
+				<span>{t('common:loading-available-permissions')}</span>
 			</div>
 		);
 	}
@@ -166,7 +161,7 @@ const PermissionGlanceBody = ({
 	if (isCatalogError) {
 		return (
 			<p className="px-4 py-6 text-sm text-muted-foreground">
-				{t('tenant-permission-catalog-load-failed')}
+				{t('common:tenant-permission-catalog-load-failed')}
 			</p>
 		);
 	}
@@ -174,7 +169,7 @@ const PermissionGlanceBody = ({
 	if (glance.modules.length === 0) {
 		return (
 			<p className="px-4 py-6 text-sm text-muted-foreground">
-				{t('no-permissions-available')}
+				{t('common:no-permissions-available')}
 			</p>
 		);
 	}
@@ -267,14 +262,14 @@ export const ProfileOverviewTab = ({
 	permissionGroups: StaffTenantPermissionGroup[];
 	isCatalogPending: boolean;
 	isCatalogError: boolean;
-	members: StaffTenantProfileMember[];
+	members: StaffTenantProfileMemberRow[];
 	membersPending: boolean;
 	membersError: boolean;
 	locale: string;
 	onDeleteRequest: () => void;
 	isDeletePending: boolean;
 }) => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation('staff-tenant-profiles');
 	const glance = buildProfilePermissionGlance(permissionGroups, permissionKeys);
 	const catalogReady =
 		!isCatalogPending && !isCatalogError && glance.catalogTotal > 0;
@@ -294,7 +289,7 @@ export const ProfileOverviewTab = ({
 			<div className="publy-stat-row">
 				<StatCard
 					testId="profile-stat-members"
-					label={t('members')}
+					label={t('common:members')}
 					icon={<IconUsers aria-hidden="true" className="size-[14px]" />}
 					secondary={
 						stackNames.length > 0 ? (
@@ -326,7 +321,7 @@ export const ProfileOverviewTab = ({
 
 				<StatCard
 					testId="profile-stat-permissions"
-					label={t('permissions')}
+					label={t('common:permissions')}
 					icon={<IconKey aria-hidden="true" className="size-[14px]" />}
 					secondary={
 						catalogReady ? (
@@ -446,7 +441,7 @@ export const ProfileOverviewTab = ({
 					>
 						<div className="publy-card-header">
 							<p className="publy-type-section-title">
-								{t('members')} · {profile.userAccountCount}
+								{t('common:members')} · {profile.userAccountCount}
 							</p>
 							{profile.userAccountCount > 0 ? (
 								<ProfileTabLink
@@ -467,13 +462,13 @@ export const ProfileOverviewTab = ({
 						/>
 					</section>
 
-					<DangerZoneCard title={t('danger-zone')}>
+					<DangerZoneCard title={t('common:danger-zone')}>
 						<DangerZoneRow
-							title={t('delete-profile')}
+							title={t('common:delete-profile')}
 							description={
 								profile.isDefault
-									? t('default-profile-delete-disabled')
-									: t('confirm-delete-tenant-profile-description')
+									? t('common:default-profile-delete-disabled')
+									: t('common:confirm-delete-tenant-profile-description')
 							}
 							action={
 								profile.isDefault ? null : (
@@ -484,7 +479,7 @@ export const ProfileOverviewTab = ({
 										onClick={onDeleteRequest}
 										disabled={isDeletePending}
 									>
-										{t('delete-profile')}
+										{t('common:delete-profile')}
 									</Button>
 								)
 							}

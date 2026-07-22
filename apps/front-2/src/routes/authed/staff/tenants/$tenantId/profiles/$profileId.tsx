@@ -2,7 +2,6 @@ import {
 	IconAlertCircle,
 	IconArrowLeft,
 	IconSearchOff,
-	IconUsers,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
@@ -19,18 +18,17 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
-import { StateView } from '~/components/ui/state-view';
 import {
 	buildStaffTenantPermissionCatalogGroups,
 	getStaffTenantProfilePermissionKeysCacheSnapshot,
 	toStaffTenantProfileDetails,
-	toStaffTenantProfileMembers,
+	toStaffTenantProfileMemberRows,
 	toStaffTenantProfilePermissionKeys,
 	useDeleteStaffTenantProfileMutation,
 	useStaffTenantPermissionCatalogQuery,
 	useStaffTenantProfileDetailsQuery,
 	useStaffTenantProfilePermissionKeysQuery,
-	useStaffTenantProfileUsersQuery,
+	useStaffTenantProfileMembersQuery,
 } from '~/lib/query/staff-tenant-profiles';
 import {
 	invalidateAllStaffTenantScopes,
@@ -56,6 +54,7 @@ import {
 } from './_profile-details-search';
 import { ProfileFormDrawer } from './_profile-form-drawer';
 import { ProfileIdentityHeader } from './_profile-identity-header';
+import { ProfileMembersTab } from './_profile-members-tab';
 import { ProfileOverviewTab } from './_profile-overview-tab';
 import { ProfilePermissionsTab } from './_profile-permissions-tab';
 import { ProfileSectionNavLink } from './_profile-section-nav-link';
@@ -91,7 +90,7 @@ const getFailureDescription = (error: unknown, fallback: string): string => {
 };
 
 const ProfileDetailsLoading = () => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation('staff-tenant-profiles');
 
 	return (
 		<div
@@ -100,23 +99,23 @@ const ProfileDetailsLoading = () => {
 		>
 			<div className="flex items-center gap-3 text-sm text-muted-foreground">
 				<LoadingSpinner />
-				<span>{t('loading-tenant-profile')}</span>
+				<span>{t('common:loading-tenant-profile')}</span>
 			</div>
 		</div>
 	);
 };
 
 const MissingTenantProfileView = ({ error }: { error: unknown }) => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation('staff-tenant-profiles');
 
 	return (
 		<AppErrorView
 			icon={<IconSearchOff aria-hidden="true" className="size-7" />}
-			code={t('error-404-code')}
-			title={t('tenant-profile-not-found-title')}
+			code={t('common:error-404-code')}
+			title={t('common:tenant-profile-not-found-title')}
 			description={getFailureDescription(
 				error,
-				t('tenant-profile-not-found-description'),
+				t('common:tenant-profile-not-found-description'),
 			)}
 			testId="staff-tenant-profile-details-not-found"
 			actions={<BackToTenantsLink />}
@@ -131,7 +130,7 @@ const TenantProfileDetailsError = ({
 	error: unknown;
 	onRetry: () => void;
 }) => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation('staff-tenant-profiles');
 
 	if (
 		isProblemStatus(error, 404) ||
@@ -147,9 +146,9 @@ const TenantProfileDetailsError = ({
 	return (
 		<AppErrorView
 			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-			code={t('error-500-code')}
-			title={t('unable-to-load-tenant-profile')}
-			description={t('tenant-profile-load-error-description')}
+			code={t('common:error-500-code')}
+			title={t('common:unable-to-load-tenant-profile')}
+			description={t('common:tenant-profile-load-error-description')}
 			testId="staff-tenant-profile-details-error"
 			actions={<TenantRetryActions onRetry={onRetry} />}
 		/>
@@ -159,6 +158,7 @@ const TenantProfileDetailsError = ({
 export const Route = createFileRoute(
 	'/_authed-layout/staff/tenants/$tenantId/profiles/$profileId',
 )({
+	staticData: { i18nNamespaces: ['staff-tenant-profiles'] },
 	validateSearch: (search) =>
 		parseProfileDetailsSearchParams(search as ProfileDetailsSearchParamInput),
 	component: StaffTenantProfileDetailsPage,
@@ -168,7 +168,7 @@ function StaffTenantProfileDetailsPage() {
 	const { tenantId, profileId } = Route.useParams();
 	const navigate = Route.useNavigate();
 	const search = Route.useSearch();
-	const { t, i18n } = useTranslation('common');
+	const { t, i18n } = useTranslation('staff-tenant-profiles');
 	const queryClient = useQueryClient();
 	const [pendingDelete, setPendingDelete] = useState(false);
 	const [shouldRedirectToLogout, setShouldRedirectToLogout] = useState(false);
@@ -271,12 +271,20 @@ function StaffTenantProfileDetailsPage() {
 				!tenantQuery.isError,
 		},
 	);
-	// Overview only needs the leading members (avatar stack + first-4 preview);
-	// the full Members table (step 4) will page through the same endpoint.
-	const membersQuery = useStaffTenantProfileUsersQuery(
-		{ tenantId, profileId, limit: MEMBERS_PREVIEW_LIMIT },
+	// Overview only needs the leading members (avatar stack + first-4 preview).
+	// It uses the same canonical offset-paginated endpoint as the full Members tab.
+	const membersQuery = useStaffTenantProfileMembersQuery(
+		{
+			tenantId,
+			profileId,
+			pageIndex: 0,
+			size: MEMBERS_PREVIEW_LIMIT,
+			sortId: 'created_at',
+			sortOrder: 'desc',
+		},
 		{
 			enabled:
+				activeTab === 'overview' &&
 				tenantId.length > 0 &&
 				profileId.length > 0 &&
 				!tenantQuery.isPending &&
@@ -295,7 +303,7 @@ function StaffTenantProfileDetailsPage() {
 			tenantId,
 			profileId,
 		});
-	const members = toStaffTenantProfileMembers(membersQuery.data);
+	const members = toStaffTenantProfileMemberRows(membersQuery.data?.users);
 	const setBreadcrumbOverride = useUiStore(
 		(state) => state.setBreadcrumbOverride,
 	);
@@ -313,16 +321,16 @@ function StaffTenantProfileDetailsPage() {
 	// published trail.
 	useLayoutEffect(() => {
 		return setBreadcrumbOverride([
-			{ label: t('tenants'), to: '/staff/tenants' },
+			{ label: t('common:tenants'), to: '/staff/tenants' },
 			{
-				label: tenant?.name ?? t('tenant'),
+				label: tenant?.name ?? t('common:tenant'),
 				to: '/staff/tenants/' + tenantId,
 			},
 			{
-				label: t('profiles'),
+				label: t('common:profiles'),
 				to: '/staff/tenants/' + tenantId + '/profiles',
 			},
-			{ label: profile?.name ?? t('profile') },
+			{ label: profile?.name ?? t('common:profile') },
 		]);
 	}, [profile?.name, setBreadcrumbOverride, t, tenant?.name, tenantId]);
 	// Stable identity across refetch re-renders — the drawer resets its form
@@ -373,9 +381,9 @@ function StaffTenantProfileDetailsPage() {
 		return (
 			<AppErrorView
 				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-				code={t('error-500-code')}
-				title={t('tenant-details-error-title')}
-				description={t('tenant-response-incomplete')}
+				code={t('common:error-500-code')}
+				title={t('common:tenant-details-error-title')}
+				description={t('common:tenant-response-incomplete')}
 				testId="staff-tenant-details-error"
 				actions={
 					<TenantRetryActions onRetry={() => void tenantQuery.refetch()} />
@@ -421,9 +429,9 @@ function StaffTenantProfileDetailsPage() {
 		return (
 			<AppErrorView
 				icon={<IconSearchOff aria-hidden="true" className="size-7" />}
-				code={t('error-404-code')}
-				title={t('tenant-profile-not-found-title')}
-				description={t('tenant-profile-payload-empty')}
+				code={t('common:error-404-code')}
+				title={t('common:tenant-profile-not-found-title')}
+				description={t('common:tenant-profile-payload-empty')}
 				testId="staff-tenant-profile-details-not-found"
 				actions={<BackToTenantsLink />}
 			/>
@@ -488,13 +496,11 @@ function StaffTenantProfileDetailsPage() {
 		);
 	} else {
 		activeTabContent = (
-			<StateView
-				icon={<IconUsers aria-hidden="true" />}
-				scale="inline"
-				title={t('profile-members-placeholder-title')}
-				description={t('profile-members-placeholder-description')}
-				testId="staff-tenant-profile-members-placeholder"
-				className="py-12"
+			<ProfileMembersTab
+				tenantId={tenantId}
+				profileId={profileId}
+				memberCount={profile.userAccountCount}
+				onSessionExpired={() => setShouldRedirectToLogout(true)}
 			/>
 		);
 	}
@@ -528,7 +534,7 @@ function StaffTenantProfileDetailsPage() {
 			>
 				<ProfileSectionNavLink
 					activeTab={activeTab}
-					label={t('overview')}
+					label={t('common:overview')}
 					tab="overview"
 					tenantId={tenantId}
 					profileId={profileId}
@@ -536,7 +542,7 @@ function StaffTenantProfileDetailsPage() {
 				<ProfileSectionNavLink
 					activeTab={activeTab}
 					count={permissionKeys.length}
-					label={t('permissions')}
+					label={t('common:permissions')}
 					tab="permissions"
 					tenantId={tenantId}
 					profileId={profileId}
@@ -544,7 +550,7 @@ function StaffTenantProfileDetailsPage() {
 				<ProfileSectionNavLink
 					activeTab={activeTab}
 					count={profile.userAccountCount}
-					label={t('members')}
+					label={t('common:members')}
 					tab="members"
 					tenantId={tenantId}
 					profileId={profileId}
@@ -553,9 +559,9 @@ function StaffTenantProfileDetailsPage() {
 
 			<ConfirmDialog
 				isOpen={pendingDelete}
-				title={t('delete-tenant-profile-confirm-title')}
-				description={t('confirm-delete-tenant-profile-description')}
-				confirmLabel={t('delete')}
+				title={t('common:delete-tenant-profile-confirm-title')}
+				description={t('common:confirm-delete-tenant-profile-description')}
+				confirmLabel={t('common:delete')}
 				isPending={deleteProfile.isPending}
 				onConfirm={() => {
 					void handleDelete();
@@ -577,10 +583,10 @@ function StaffTenantProfileDetailsPage() {
 			/>
 			<ConfirmDialog
 				isOpen={editDrawerBlocker.status === 'blocked'}
-				title={t('unsaved-changes-dialog-title')}
-				description={t('unsaved-changes-dialog-description')}
-				confirmLabel={t('leave-page')}
-				cancelLabel={t('cancel')}
+				title={t('common:unsaved-changes-dialog-title')}
+				description={t('common:unsaved-changes-dialog-description')}
+				confirmLabel={t('common:leave-page')}
+				cancelLabel={t('common:cancel')}
 				tone="danger"
 				onConfirm={() => editDrawerBlocker.proceed?.()}
 				onOpenChange={(isOpen) => {
