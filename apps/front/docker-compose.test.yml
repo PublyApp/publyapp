@@ -1,6 +1,11 @@
 name: publyapp-front-real-test
 
 x-api-test-environment: &api-test-environment
+  # Required outside Dev/Testing (these services run as Production below). Without
+  # it AppEnvironment.Initialize() fails fast and the migrate container exits 1.
+  # "api" = HTTP surface + migrations, never the worker engine (mirrors
+  # apps/front-2/docker-compose.test.yml).
+  APP_ROLE: api
   POSTGRES_CONNECTION_STRING: Host=postgres;Port=5432;Database=publyapp_db;Username=postgres;Password=password;
   FRONT_URL: http://front.localhost:5051
   RESEND_API_KEY: e2e-disabled
