@@ -145,12 +145,13 @@ export const buildProfileOptions = ({
 };
 
 export const Route = createFileRoute('/_authed-layout/staff/invitations/new')({
+	staticData: { i18nNamespaces: ['staff-invitations'] },
 	component: NewStaffInvitationsRoute,
 });
 
 function NewStaffInvitationsRoute() {
 	const navigate = Route.useNavigate();
-	const { t, i18n } = useTranslation('common');
+	const { t, i18n } = useTranslation(['staff-invitations', 'common']);
 	const [profileSearch, setProfileSearch] = useState('');
 	const deferredProfileSearch = useDeferredValue(profileSearch.trim());
 	const [serverErrors, setServerErrors] = useState<string[]>([]);
@@ -230,7 +231,7 @@ function NewStaffInvitationsRoute() {
 	const isPending = isSubmitting || createInvitations.isPending;
 	const profileLoadError = profilesQuery.isError
 		? getFailureMessage(toApiFailure(profilesQuery.error), {
-				fallback: t('unable-to-load-profiles'),
+				fallback: t('common:unable-to-load-profiles'),
 			})
 		: '';
 
@@ -276,9 +277,9 @@ function NewStaffInvitationsRoute() {
 			<div className="space-y-1">
 				<Link to={STAFF_INVITATIONS_INDEX_PATH} className="publy-back-link">
 					<IconArrowLeft aria-hidden="true" className="size-3" />
-					{t('staff-invitations')}
+					{t('common:staff-invitations')}
 				</Link>
-				<h1 className="publy-type-page-title">{t('invite-users')}</h1>
+				<h1 className="publy-type-page-title">{t('common:invite-users')}</h1>
 				<p className="publy-type-helper">
 					{t('send-email-invitations-and-assign-staff-profiles')}
 				</p>
@@ -290,7 +291,7 @@ function NewStaffInvitationsRoute() {
 						className="text-sm font-medium text-foreground"
 						htmlFor="profile-search"
 					>
-						{t('profiles')}
+						{t('common:profiles')}
 					</label>
 					<Input
 						id="profile-search"
@@ -298,7 +299,7 @@ function NewStaffInvitationsRoute() {
 						onChange={(event) => {
 							setProfileSearch(event.target.value);
 						}}
-						placeholder={t('search')}
+						placeholder={t('common:search')}
 						autoComplete="off"
 						data-testid="staff-invitations-profile-search"
 					/>
@@ -310,7 +311,7 @@ function NewStaffInvitationsRoute() {
 				{profilesQuery.isFetching ? (
 					<div className="flex items-center gap-2 text-sm text-muted-foreground">
 						<LoadingSpinner />
-						<span>{t('profiles')}</span>
+						<span>{t('common:profiles')}</span>
 					</div>
 				) : null}
 
@@ -331,7 +332,7 @@ function NewStaffInvitationsRoute() {
 								<div className="flex items-start justify-between gap-4">
 									<div className="space-y-1">
 										<h2 className="text-lg font-semibold">
-											{t('invitation')} #{index + 1}
+											{t('common:invitation')} #{index + 1}
 										</h2>
 										<p className="text-sm text-muted-foreground">
 											{t('enter-email-and-select-profiles')}
@@ -353,8 +354,8 @@ function NewStaffInvitationsRoute() {
 
 								<Field.Email
 									name={`invitations.${index}.email`}
-									label={t('email-address')}
-									placeholder={t('email-placeholder')}
+									label={t('common:email-address')}
+									placeholder={t('common:email-placeholder')}
 									required
 									disabled={isPending}
 								/>
@@ -372,7 +373,7 @@ function NewStaffInvitationsRoute() {
 										return (
 											<div className="flex items-center gap-2 text-sm text-muted-foreground">
 												<LoadingSpinner />
-												<span>{t('profiles')}</span>
+												<span>{t('common:profiles')}</span>
 											</div>
 										);
 									}
@@ -388,7 +389,7 @@ function NewStaffInvitationsRoute() {
 									return (
 										<Field.CheckboxGroup
 											name={`invitations.${index}.profileIds`}
-											label={t('select-profiles')}
+											label={t('common:select-profiles')}
 											helperText={t('select-at-least-one-profile')}
 											options={profileOptions}
 											isDisabled={isPending || profilesQuery.isPending}
@@ -428,10 +429,10 @@ function NewStaffInvitationsRoute() {
 			</Card>
 			<ConfirmDialog
 				isOpen={blocker.status === 'blocked'}
-				title={t('unsaved-changes-dialog-title')}
-				description={t('unsaved-changes-dialog-description')}
-				confirmLabel={t('leave-page')}
-				cancelLabel={t('cancel')}
+				title={t('common:unsaved-changes-dialog-title')}
+				description={t('common:unsaved-changes-dialog-description')}
+				confirmLabel={t('common:leave-page')}
+				cancelLabel={t('common:cancel')}
 				tone="danger"
 				onConfirm={() => blocker.proceed?.()}
 				onOpenChange={(isOpen) => {

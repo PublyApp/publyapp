@@ -14,10 +14,16 @@ describe('i18n namespace registry', () => {
 				{ staticData: undefined },
 				{ staticData: { i18nNamespaces: ['auth'] } },
 				{ staticData: { i18nNamespaces: ['staff-users'] } },
+				{ staticData: { i18nNamespaces: ['staff-invitations'] } },
 				{ staticData: { i18nNamespaces: ['auth'] } },
 				{ staticData: { i18nNamespaces: ['staff-users'] } },
 			]),
-		).toEqual([...GLOBAL_I18N_NAMESPACES, 'auth', 'staff-users']);
+		).toEqual([
+			...GLOBAL_I18N_NAMESPACES,
+			'auth',
+			'staff-users',
+			'staff-invitations',
+		]);
 	});
 
 	test('validates only registered server-function input', () => {

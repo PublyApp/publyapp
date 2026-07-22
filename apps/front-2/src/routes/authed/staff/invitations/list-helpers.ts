@@ -118,10 +118,10 @@ export const formatInvitationStatusLabel = (
 };
 
 const INVITATION_STATUS_LABEL_KEYS: Record<InvitationDisplayStatus, string> = {
-	pending: 'invitation-status-pending',
-	accepted: 'invitation-status-accepted',
-	expired: 'invitation-status-expired',
-	revoked: 'invitation-status-revoked',
+	pending: 'staff-invitations:invitation-status-pending',
+	accepted: 'staff-invitations:invitation-status-accepted',
+	expired: 'staff-invitations:invitation-status-expired',
+	revoked: 'staff-invitations:invitation-status-revoked',
 	unknown: 'unknown',
 };
 

@@ -48,7 +48,7 @@ type CreateInvitationColumnsArgs = {
 };
 
 const InvitationRowActions = ({ row }: { row: InvitationRow }) => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['staff-invitations', 'common']);
 	const queryClient = useQueryClient();
 	const [isConfirmOpen, setConfirmOpen] = useState(false);
 	const resendMutation = useResendStaffInvitationMutation();
@@ -96,7 +96,9 @@ const InvitationRowActions = ({ row }: { row: InvitationRow }) => {
 	return (
 		<>
 			<DataTableRowActions
-				ariaLabel={t('actions-for', { name: row.email || t('invitation') })}
+				ariaLabel={t('common:actions-for', {
+					name: row.email || t('common:invitation'),
+				})}
 				testId={`staff-invitation-actions-${row.id}`}
 			>
 				<DropdownMenuItem
@@ -113,14 +115,14 @@ const InvitationRowActions = ({ row }: { row: InvitationRow }) => {
 					disabled={isActionPending}
 				>
 					<IconX className="size-[15px]" />
-					{t('revoke-invitation')}
+					{t('common:revoke-invitation')}
 				</DropdownMenuItem>
 			</DataTableRowActions>
 			<ConfirmDialog
 				isOpen={isConfirmOpen}
-				title={t('revoke-invitation')}
+				title={t('common:revoke-invitation')}
 				description={t('invitation-removal-description')}
-				confirmLabel={t('revoke')}
+				confirmLabel={t('common:revoke')}
 				isPending={revokeMutation.isPending}
 				onConfirm={() => void handleRevoke()}
 				onOpenChange={setConfirmOpen}
@@ -138,7 +140,7 @@ export const createInvitationColumns = ({
 		header: () => (
 			<div className="inline-flex items-center gap-1.5">
 				<IconMail className="size-3.5 text-muted-foreground" />
-				<span>{t('invitee')}</span>
+				<span>{t('common:invitee')}</span>
 			</div>
 		),
 		accessorKey: 'email',
@@ -182,7 +184,7 @@ export const createInvitationColumns = ({
 		header: () => (
 			<div className="inline-flex items-center gap-1.5">
 				<IconId className="size-3.5 text-muted-foreground" />
-				<span>{t('profiles')}</span>
+				<span>{t('common:profiles')}</span>
 			</div>
 		),
 		accessorKey: 'profileName',
@@ -209,7 +211,7 @@ export const createInvitationColumns = ({
 		header: () => (
 			<div className="inline-flex items-center gap-1.5">
 				<IconUser className="size-3.5 text-muted-foreground" />
-				<span>{t('invited-by')}</span>
+				<span>{t('common:invited-by')}</span>
 			</div>
 		),
 		accessorKey: 'invitedByName',
@@ -235,7 +237,7 @@ export const createInvitationColumns = ({
 		header: () => (
 			<div className="inline-flex items-center gap-1.5">
 				<IconClock className="size-3.5 text-muted-foreground" />
-				<span>{t('expires')}</span>
+				<span>{t('common:expires')}</span>
 			</div>
 		),
 		accessorFn: (row) => row.expiresAt,
@@ -251,7 +253,7 @@ export const createInvitationColumns = ({
 		header: () => (
 			<div className="inline-flex items-center gap-1.5">
 				<IconCircleDot className="size-3.5 text-muted-foreground" />
-				<span>{t('status')}</span>
+				<span>{t('common:status')}</span>
 			</div>
 		),
 		enableSorting: false,
@@ -264,7 +266,7 @@ export const createInvitationColumns = ({
 	},
 	{
 		id: 'actions',
-		header: () => <span className="sr-only">{t('actions')}</span>,
+		header: () => <span className="sr-only">{t('common:actions')}</span>,
 		enableSorting: false,
 		meta: { width: '40px', align: 'center' },
 		cell: ({ row }) => <InvitationRowActions row={row.original} />,

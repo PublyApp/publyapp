@@ -80,12 +80,12 @@ const InvitationDetailsLoading = () => (
 );
 
 const InvitationDetailsEmpty = () => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['staff-invitations', 'common']);
 
 	return (
 		<AppErrorView
 			icon={<IconHelpCircle aria-hidden="true" className="size-7" />}
-			code={t('error-404-code')}
+			code={t('common:error-404-code')}
 			title={t('invitation-not-found')}
 			description={t('invitation-not-found-description')}
 			testId="staff-invitation-details-not-found"
@@ -94,7 +94,7 @@ const InvitationDetailsEmpty = () => {
 					to={STAFF_INVITATIONS_LIST_PATH}
 					className={buttonVariants({ variant: 'outline' })}
 				>
-					{t('staff-invitations')}
+					{t('common:staff-invitations')}
 				</Link>
 			}
 		/>
@@ -108,7 +108,7 @@ const InvitationDetailsError = ({
 	error: unknown;
 	query: { refetch: () => unknown };
 }) => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation(['staff-invitations', 'common']);
 
 	if (
 		isProblemStatus(error, 404) ||
@@ -124,7 +124,7 @@ const InvitationDetailsError = ({
 	return (
 		<AppErrorView
 			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-			code={t('error-500-code')}
+			code={t('common:error-500-code')}
 			title={t('invitation-details-error-title')}
 			description={t('invitation-details-error-description')}
 			testId="staff-invitation-details-error"
@@ -135,13 +135,13 @@ const InvitationDetailsError = ({
 						onClick={() => void query.refetch()}
 						type="button"
 					>
-						{t('try-again')}
+						{t('common:try-again')}
 					</Button>
 					<Link
 						to={STAFF_INVITATIONS_LIST_PATH}
 						className={buttonVariants({ variant: 'outline' })}
 					>
-						{t('staff-invitations')}
+						{t('common:staff-invitations')}
 					</Link>
 				</>
 			}
@@ -170,7 +170,7 @@ const InvitationDetailsCard = ({
 	onRefresh,
 	onAuthFailure,
 }: InvitationDetailsCardProps) => {
-	const { t, i18n } = useTranslation('common');
+	const { t, i18n } = useTranslation(['staff-invitations', 'common']);
 	const locale = i18n?.language ?? 'en';
 	const queryClient = useQueryClient();
 	const [inviteLink, setInviteLink] = useState<string>('');
@@ -243,7 +243,7 @@ const InvitationDetailsCard = ({
 				<div className="space-y-1">
 					<Link to={STAFF_INVITATIONS_LIST_PATH} className="publy-back-link">
 						<IconArrowLeft aria-hidden="true" className="size-3" />
-						{t('staff-invitations')}
+						{t('common:staff-invitations')}
 					</Link>
 					<h1 className="publy-type-page-title">
 						{invitation.email || t('invitation-details')}
@@ -265,16 +265,16 @@ const InvitationDetailsCard = ({
 						onClick={handleResend}
 						disabled={!canManage || activeMutationPending}
 					>
-						{t('resend')}
+						{t('common:resend')}
 					</Button>
 				</div>
 			</div>
 
 			<ConfirmDialog
 				isOpen={pendingRevoke}
-				title={t('revoke-invitation')}
+				title={t('common:revoke-invitation')}
 				description={t('invitation-removal-description')}
-				confirmLabel={t('revoke')}
+				confirmLabel={t('common:revoke')}
 				isPending={revoke.isPending}
 				onConfirm={() => void handleRevoke()}
 				onOpenChange={setPendingRevoke}
@@ -297,15 +297,18 @@ const InvitationDetailsCard = ({
 
 			<div className="grid gap-4 md:grid-cols-2">
 				<DetailField
-					label={t('status')}
+					label={t('common:status')}
 					value={t(getInvitationStatusLabelKey(status))}
 				/>
 				{invitation.email?.trim() ? (
-					<DetailField label={t('email')} value={invitation.email.trim()} />
+					<DetailField
+						label={t('common:email')}
+						value={invitation.email.trim()}
+					/>
 				) : null}
 				{invitation.profiles && invitation.profiles.length > 0 ? (
 					<DetailField
-						label={t('profiles')}
+						label={t('common:profiles')}
 						value={
 							<div className="flex flex-wrap gap-2">
 								{invitation.profiles.map((profile) => (
@@ -314,7 +317,7 @@ const InvitationDetailsCard = ({
 										key={`${String(profile.id ?? '')}:${profile.name ?? ''}`}
 										className="h-auto rounded-[var(--publy-radius-chip)] border-none bg-muted px-2 py-0.5 text-xs font-medium text-foreground"
 									>
-										{profile.name?.trim() || t('unnamed-profile')}
+										{profile.name?.trim() || t('common:unnamed-profile')}
 									</Badge>
 								))}
 							</div>
@@ -375,7 +378,7 @@ const InvitationDetailsCard = ({
 						onClick={() => setPendingRevoke(true)}
 						disabled={!canManage || activeMutationPending}
 					>
-						{t('staff-revoke')}
+						{t('common:staff-revoke')}
 					</Button>
 				</div>
 			</Card>
@@ -386,6 +389,7 @@ const InvitationDetailsCard = ({
 export const Route = createFileRoute(
 	'/_authed-layout/staff/invitations/$invitationId',
 )({
+	staticData: { i18nNamespaces: ['staff-invitations'] },
 	component: StaffInvitationDetailsRoute,
 });
 
