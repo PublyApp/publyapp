@@ -4,7 +4,7 @@ import { isIP } from 'node:net';
 import { IsoAnalytics } from '@org/shared-ts/lib/analytics/iso-analytics';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
-import { getPosthogApiKey, isProductionRuntime } from './env';
+import { getPosthogProjectToken, isProductionRuntime } from './env';
 
 type AddressHeader =
 	| 'cf-connecting-ip'
@@ -79,11 +79,11 @@ const buildBadResponseProperties = ({
 
 const isBadStatus = (status: number): boolean => status < 200 || status >= 300;
 
-const analyticsClient = new IsoAnalytics(getPosthogApiKey() ?? '');
+const analyticsClient = new IsoAnalytics(getPosthogProjectToken() ?? '');
 let analyticsInit: Promise<void> | undefined;
 
 const initializeAnalytics = async (): Promise<void> => {
-	if (!getPosthogApiKey()) {
+	if (!getPosthogProjectToken()) {
 		analyticsClient.logOnly = true;
 		return;
 	}

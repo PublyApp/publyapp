@@ -63,9 +63,9 @@ export const getServerApiBaseUrl = (): string =>
 		'front-2 server runtime env',
 	).SERVER_API_BASE_URL;
 
-export const getPosthogApiKey = (): string | undefined =>
-	trimOptional(getProcessEnv().POSTHOG_API_KEY) ??
-	trimOptional(getProcessEnv().PUBLIC_POSTHOG_API_KEY);
+export const getPosthogProjectToken = (): string | undefined =>
+	trimOptional(getProcessEnv().POSTHOG_PROJECT_TOKEN) ??
+	trimOptional(getProcessEnv().PUBLIC_POSTHOG_PROJECT_TOKEN);
 
 export const getNodeEnv = (): string | undefined =>
 	trimOptional(getProcessEnv().NODE_ENV);
