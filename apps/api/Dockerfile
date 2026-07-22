@@ -70,9 +70,19 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:ddcf70ad1ab963a4fcd41fbd722a6b6
 
 WORKDIR /app
 
-RUN apt-get update \
-	&& apt-get install -y --no-install-recommends libgssapi-krb5-2 wget \
-	&& rm -rf /var/lib/apt/lists/*
+RUN set -eu; \
+	for attempt in 1 2 3; do \
+		if apt-get update \
+			&& apt-get install -y --no-install-recommends libgssapi-krb5-2 wget; then \
+			rm -rf /var/lib/apt/lists/*; \
+			break; \
+		fi; \
+		rm -rf /var/lib/apt/lists/*; \
+		if [ "$attempt" -eq 3 ]; then \
+			exit 1; \
+		fi; \
+		sleep 5; \
+	done
 
 COPY --from=build /publish ./
 

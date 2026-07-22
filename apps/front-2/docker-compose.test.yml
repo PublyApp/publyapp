@@ -45,6 +45,7 @@ services:
       - publyapp-network
 
   migrate:
+    image: ${E2E_IMAGE_NS:-ghcr.io/radandevist/publyapp-e2e}-migrate:${E2E_IMAGE_TAG:-test}
     build:
       context: ../..
       dockerfile: apps/api/Dockerfile
@@ -65,6 +66,7 @@ services:
       - publyapp-network
 
   api:
+    image: ${E2E_IMAGE_NS:-ghcr.io/radandevist/publyapp-e2e}-api:${E2E_IMAGE_TAG:-test}
     build:
       context: ../..
       dockerfile: apps/api/Dockerfile
@@ -111,6 +113,7 @@ services:
       - publyapp-network
 
   request-counter:
+    image: ${E2E_IMAGE_NS:-ghcr.io/radandevist/publyapp-e2e}-request-counter:${E2E_IMAGE_TAG:-test}
     build:
       context: ./deploy/request-counter
       dockerfile: Dockerfile
@@ -178,7 +181,7 @@ services:
       # messages, which no other route exercises.
       args:
         VITE_FEATURE_FIELD_VALIDATION_DEMO_ENABLED: "true"
-    image: publyapp/front-2:test
+    image: ${E2E_IMAGE_NS:-ghcr.io/radandevist/publyapp-e2e}-front-2:${E2E_IMAGE_TAG:-test}
     environment:
       NODE_ENV: production
       PORT: 3000

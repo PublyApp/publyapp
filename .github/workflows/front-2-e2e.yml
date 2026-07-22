@@ -16,9 +16,6 @@ on:
       - 'packages/client-ts/**'
       - '.github/workflows/front-2-e2e.yml'
 
-permissions:
-  contents: read
-
 # Supersede in-flight runs for the same ref: a newer push makes an older run's
 # result irrelevant, and on a private repo every superseded minute is billed.
 # This is the most expensive workflow (docker build + Playwright), so it is
@@ -28,13 +25,58 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  front-2-e2e:
-    name: front-2-e2e (${{ matrix.shard }}/4)
+  build:
+    name: Build e2e images
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      tag: ${{ steps.image-tag.outputs.tag }}
+    steps:
+      - name: Set image tag
+        id: image-tag
+        run: echo "tag=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+        with:
+          driver: docker-container
+
+      - name: Setup GitHub Actions runtime
+        uses: crazy-max/ghaction-github-runtime@3cb05d89e1f492524af3d41a1c98c83bc3025124 # v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Build and push stack images
+        env:
+          COMPOSE_BAKE: 'true'
+          E2E_IMAGE_NS: ghcr.io/radandevist/publyapp-e2e
+          E2E_IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
+        run: docker compose -f apps/front-2/docker-compose.test.yml build --push
+
+  test:
+    name: front-2-e2e (${{ matrix.shard }}/4)
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     strategy:
       fail-fast: false
       matrix:
         shard: [1, 2, 3, 4]
+    env:
+      E2E_IMAGE_NS: ghcr.io/radandevist/publyapp-e2e
+      E2E_IMAGE_TAG: ${{ needs.build.outputs.tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -55,21 +97,18 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Login to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
-          driver: docker-container
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
 
-      - name: Setup GitHub Actions runtime
-        uses: crazy-max/ghaction-github-runtime@3cb05d89e1f492524af3d41a1c98c83bc3025124 # v3
-
-      - name: Build stack
-        env:
-          COMPOSE_BAKE: 'true'
-        run: docker compose -f apps/front-2/docker-compose.test.yml build
+      - name: Pull stack
+        run: docker compose -f apps/front-2/docker-compose.test.yml pull
 
       - name: Up stack
-        run: docker compose -f apps/front-2/docker-compose.test.yml up -d
+        run: docker compose -f apps/front-2/docker-compose.test.yml up -d --no-build
 
       - name: Wait for front-2 stack health
         run: |
@@ -160,3 +199,55 @@ jobs:
       - name: Tear down front-2 stack
         if: always()
         run: docker compose -f apps/front-2/docker-compose.test.yml down -v
+
+  cleanup:
+    name: Clean up e2e images
+    needs: [build, test]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    env:
+      E2E_IMAGE_TAG: ${{ needs.build.outputs.tag }}
+    steps:
+      - name: Delete run image versions
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -z "$E2E_IMAGE_TAG" ]; then
+            echo "::warning::Build did not emit an image tag; skipping GHCR cleanup."
+            exit 0
+          fi
+
+          packages=(
+            publyapp-e2e-migrate
+            publyapp-e2e-api
+            publyapp-e2e-request-counter
+            publyapp-e2e-front-2
+          )
+          cleanup_failed=false
+
+          for package in "${packages[@]}"; do
+            if ! version_ids="$(
+              gh api --paginate \
+                "/users/${GITHUB_REPOSITORY_OWNER}/packages/container/${package}/versions?per_page=100" \
+                --jq ".[] | select(.metadata.container.tags | index(\"${E2E_IMAGE_TAG}\")) | .id"
+            )"; then
+              echo "::warning::Could not list GHCR versions for ${package}."
+              cleanup_failed=true
+              continue
+            fi
+
+            for version_id in $version_ids; do
+              if ! gh api --method DELETE \
+                "/users/${GITHUB_REPOSITORY_OWNER}/packages/container/${package}/versions/${version_id}"; then
+                echo "::warning::Could not delete GHCR version ${version_id} for ${package}."
+                cleanup_failed=true
+              fi
+            done
+          done
+
+          if [ "$cleanup_failed" = true ]; then
+            exit 1
+          fi

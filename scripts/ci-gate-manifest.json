@@ -91,72 +91,102 @@
 			"mirror": "just ci-front-2",
 			"reason": "ci-front-2 runs the identical pnpm --filter front-2 test."
 		},
-		"front-2-e2e.yml::front-2-e2e::Checkout": {
+		"front-2-e2e.yml::build::Set image tag": {
+			"hash": "f8404b7467cf197a",
+			"mirror": null,
+			"reason": "GitHub-only: derives an immutable image tag from the Actions run id and attempt; local e2e builds use the Compose default tag."
+		},
+		"front-2-e2e.yml::build::Checkout": {
 			"hash": "389e0b8b6a55dd60",
 			"mirror": null,
 			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
 		},
-		"front-2-e2e.yml::front-2-e2e::Install pnpm": {
-			"hash": "4d4703fdf957db42",
-			"mirror": null,
-			"reason": "Runner toolchain provisioning. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
-		},
-		"front-2-e2e.yml::front-2-e2e::Setup Node": {
-			"hash": "9f0469bb2703ae67",
-			"mirror": null,
-			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
-		},
-		"front-2-e2e.yml::front-2-e2e::Assert exact pins": {
-			"hash": "861b83995b3b3087",
-			"mirror": "just ci-install",
-			"reason": "ci-install runs the identical node apps/front-2/scripts/assert-pinned.mjs."
-		},
-		"front-2-e2e.yml::front-2-e2e::Install dependencies": {
-			"hash": "8525a83744708464",
-			"mirror": "just ci-install",
-			"reason": "ci-install runs the identical pnpm install --frozen-lockfile --ignore-scripts."
-		},
-		"front-2-e2e.yml::front-2-e2e::Setup Docker Buildx": {
+		"front-2-e2e.yml::build::Setup Docker Buildx": {
 			"hash": "3d16005f4dabbda6",
 			"mirror": null,
 			"reason": "GitHub-only: Buildx's container driver and gha cache export require the GitHub Actions runner; no local equivalent exists."
 		},
-		"front-2-e2e.yml::front-2-e2e::Setup GitHub Actions runtime": {
+		"front-2-e2e.yml::build::Setup GitHub Actions runtime": {
 			"hash": "e49a98d1931e5eb3",
 			"mirror": null,
 			"reason": "GitHub-only: exports Actions cache runtime variables for the gha backend; no local equivalent exists."
 		},
-		"front-2-e2e.yml::front-2-e2e::Build stack": {
-			"hash": "52b3cee6e7333038",
-			"mirror": "just ci-e2e-front-2",
-			"reason": "ci-e2e-front-2 builds the same compose stack via up --build; CI splits build from startup to use GHA cache export."
-		},
-		"front-2-e2e.yml::front-2-e2e::Up stack": {
-			"hash": "2b592c8903446b3e",
-			"mirror": "just ci-e2e-front-2",
-			"reason": "ci-e2e-front-2 brings up the same stack with up --build --wait; CI splits build, detached up, and health polling, so startup is covered differently."
-		},
-		"front-2-e2e.yml::front-2-e2e::Cache Playwright browsers": {
-			"hash": "c632d2db20136539",
+		"front-2-e2e.yml::build::Login to GHCR": {
+			"hash": "77b1d2239deff208",
 			"mirror": null,
-			"reason": "GitHub-only actions/cache step; the local recipe has no separate browser-cache action or equivalent cache backend."
+			"reason": "GitHub-only: authenticates the workflow token to GHCR so the shared per-run images can be pushed."
 		},
-		"front-2-e2e.yml::front-2-e2e::Wait for front-2 stack health": {
+		"front-2-e2e.yml::build::Build and push stack images": {
+			"hash": "6c51b185511cdfef",
+			"mirror": "just ci-e2e-front-2",
+			"reason": "ci-e2e-front-2 builds the same four Compose services locally via up --build. CI splits that build into one GHA-cached job and pushes the immutable images to GHCR for all shards."
+		},
+		"front-2-e2e.yml::cleanup::Delete run image versions": {
+			"hash": "c4f53de5bd9c9f38",
+			"mirror": null,
+			"reason": "GitHub-only: deletes the four ephemeral per-run GHCR image versions after every matrix outcome; local builds never publish them."
+		},
+		"front-2-e2e.yml::test::Checkout": {
+			"hash": "389e0b8b6a55dd60",
+			"mirror": null,
+			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
+		},
+		"front-2-e2e.yml::test::Install pnpm": {
+			"hash": "4d4703fdf957db42",
+			"mirror": null,
+			"reason": "Runner toolchain provisioning. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
+		},
+		"front-2-e2e.yml::test::Setup Node": {
+			"hash": "9f0469bb2703ae67",
+			"mirror": null,
+			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
+		},
+		"front-2-e2e.yml::test::Assert exact pins": {
+			"hash": "861b83995b3b3087",
+			"mirror": "just ci-install",
+			"reason": "ci-install runs the identical node apps/front-2/scripts/assert-pinned.mjs."
+		},
+		"front-2-e2e.yml::test::Install dependencies": {
+			"hash": "8525a83744708464",
+			"mirror": "just ci-install",
+			"reason": "ci-install runs the identical pnpm install --frozen-lockfile --ignore-scripts."
+		},
+		"front-2-e2e.yml::test::Login to GHCR": {
+			"hash": "77b1d2239deff208",
+			"mirror": null,
+			"reason": "GitHub-only: authenticates each matrix runner to GHCR so it can read the build job's private package versions."
+		},
+		"front-2-e2e.yml::test::Pull stack": {
+			"hash": "a766f11d09b6b502",
+			"mirror": "just ci-e2e-front-2",
+			"reason": "ci-e2e-front-2 makes the same four application images available by building them locally. CI instead pulls the build job's immutable images plus the same pinned public dependencies."
+		},
+		"front-2-e2e.yml::test::Up stack": {
+			"hash": "8272694384261ca2",
+			"mirror": "just ci-e2e-front-2",
+			"reason": "ci-e2e-front-2 starts the same stack via up --build --wait. CI starts the already-pulled images with --no-build and performs its unchanged health polling separately."
+		},
+		"front-2-e2e.yml::test::Wait for front-2 stack health": {
 			"hash": "44e875a9f72281db",
 			"mirror": "just ci-e2e-front-2",
 			"reason": "ci-e2e-front-2 uses 'docker compose up --wait --wait-timeout 180' instead of the workflow's hand-rolled docker inspect polling loop. Same property (every service running and healthy before Playwright starts, 180s budget), enforced by compose itself rather than by bash."
 		},
-		"front-2-e2e.yml::front-2-e2e::Run playwright browser tests": {
+		"front-2-e2e.yml::test::Cache Playwright browsers": {
+			"hash": "c632d2db20136539",
+			"mirror": null,
+			"reason": "GitHub-only actions/cache step; the local recipe has no separate browser-cache action or equivalent cache backend."
+		},
+		"front-2-e2e.yml::test::Run playwright browser tests": {
 			"hash": "fb4860cd0c14b55c",
 			"mirror": "just ci-e2e-front-2",
 			"reason": "ci-e2e-front-2 runs the same complete Playwright suite on one isolated local stack. CI partitions the non-counter projects across four isolated runners and runs the counter project alone after setup on shard 4; the local gate stays unsharded to preserve coverage without multiplying Docker stacks. It also drops --with-deps, which requires root; system libraries are a one-time developer setup."
 		},
-		"front-2-e2e.yml::front-2-e2e::Upload playwright report": {
+		"front-2-e2e.yml::test::Upload playwright report": {
 			"hash": "a9e32c27b869d886",
 			"mirror": null,
 			"reason": "actions/upload-artifact uses a shard-specific name to get each report off its ephemeral runner. Locally the report is already on disk at apps/front-2/playwright-report; there is nothing to upload it to."
 		},
-		"front-2-e2e.yml::front-2-e2e::Tear down front-2 stack": {
+		"front-2-e2e.yml::test::Tear down front-2 stack": {
 			"hash": "30e868e83d3a06ef",
 			"mirror": "just ci-e2e-front-2",
 			"reason": "ci-e2e-front-2 runs the identical docker compose ... down -v as its final step. DELIBERATE DIFFERENCE: this workflow step is if:always(), which a justfile cannot express (just stops at the first failing line), so the recipe also resets the stack with down -v --remove-orphans before bringing it up. Net effect is the same clean slate per run; a failed run's stack is left up locally for inspection instead."
