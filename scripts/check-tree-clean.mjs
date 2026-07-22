@@ -27,7 +27,9 @@ const run = () => {
 	const paths = process.argv.slice(2);
 
 	if (paths.length === 0) {
-		console.error('Usage: node ./scripts/check-tree-clean.mjs <path> [...paths]');
+		console.error(
+			'Usage: node ./scripts/check-tree-clean.mjs <path> [...paths]',
+		);
 		process.exit(1);
 	}
 
