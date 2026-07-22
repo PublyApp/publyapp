@@ -84,9 +84,6 @@ const renderLinkTag = (link: {
 	return `<link ${attributes} />`;
 };
 
-const renderTitleTag = (title: string): string =>
-	`<title>${escapeHtml(title)}</title>`;
-
 export const renderPublicEnvScript = (payload: string, nonce: string): string =>
 	`<script nonce="${escapeHtml(nonce)}">` +
 	`window.__ENV__ = Object.assign({}, window.__ENV__, ${payload});` +
@@ -114,19 +111,10 @@ export const resolveSeoTranslator = async (
 	return (key: string) => t(key as never);
 };
 
-const resolveFallbackTitle = (t: SeoTranslator, isLogin: boolean): string => {
-	if (isLogin) {
-		return t('seo-login-title');
-	}
-
-	return t('seo-default-title');
-};
-
 export const injectSeoMarkup = (
 	html: string,
 	request: Request,
 	locale: SupportedLanguage,
-	nonce: string,
 	seoAllowed: boolean,
 	t: SeoTranslator,
 ): string => {
@@ -159,16 +147,6 @@ export const injectSeoMarkup = (
 		metaTags.push(...payload.links.map(renderLinkTag));
 	} else {
 		metaTags.push('<meta name="robots" content="noindex, nofollow" />');
-	}
-
-	if (!output.includes('name="csp-nonce"')) {
-		metaTags.unshift(
-			`<meta name="csp-nonce" content="${escapeHtml(nonce)}" />`,
-		);
-	}
-
-	if (!output.includes('<title')) {
-		metaTags.unshift(renderTitleTag(resolveFallbackTitle(t, isLogin)));
 	}
 
 	return output.replace('</head>', `${metaTags.join('\n')}\n</head>`);
@@ -257,7 +235,6 @@ export default {
 				html,
 				ctx.request,
 				locale,
-				nonce,
 				shouldInjectSeo,
 				seoTranslator,
 			);

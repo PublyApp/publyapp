@@ -417,6 +417,8 @@ function RootShell({ children }: { children: React.ReactNode }) {
 	);
 	const router = useRouter();
 	const cspNonce = router.options.ssr?.nonce ?? '';
+	const isLogin = router.state.location.pathname === '/login';
+	const t = i18n.getFixedT(locale, 'common');
 
 	React.useEffect(() => {
 		registerMutationToastI18n(i18n);
@@ -436,6 +438,8 @@ function RootShell({ children }: { children: React.ReactNode }) {
 		>
 			<head>
 				<HeadContent />
+				<meta name="csp-nonce" content={cspNonce || undefined} />
+				<title>{t(isLogin ? 'seo-login-title' : 'seo-default-title')}</title>
 				<script
 					nonce={cspNonce || undefined}
 					suppressHydrationWarning

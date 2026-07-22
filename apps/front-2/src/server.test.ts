@@ -107,27 +107,50 @@ describe('isIndexableSeoRoute', () => {
 	});
 });
 
-// shell-r6-F1: the SEO title/description must be PublyApp-branded and
-// locale-aware everywhere a document is rendered — not just the two
-// indexable routes, and never the internal migration codename.
+// shell-r6-F1: SEO metadata remains locale-aware everywhere a document is
+// rendered. The React shell owns the document title so it survives hydration;
+// this handler owns only string-injected SEO metadata.
 describe('injectSeoMarkup / resolveSeoTranslator (shell-r6-F1)', () => {
 	const html = '<html><head></head><body></body></html>';
 	const request = (path: string) => new Request(`https://publyapp.test${path}`);
+	const htmlWithHead = (title: string) =>
+		`<html><head><title>${title}</title><meta name="csp-nonce" content="nonce" /></head><body></body></html>`;
 
-	test('home route gets a PublyApp-branded title/description in English', async () => {
+	test('does not inject React-owned title or CSP nonce into raw HTML', async () => {
 		const t = await resolveSeoTranslator('en');
-		const output = injectSeoMarkup(html, request('/'), 'en', 'nonce', true, t);
+		const output = injectSeoMarkup(html, request('/'), 'en', true, t);
+
+		expect(output).not.toContain('<title>');
+		expect(output).not.toContain('name="csp-nonce"');
+	});
+
+	test('home route gets PublyApp-branded SEO metadata in English', async () => {
+		const t = await resolveSeoTranslator('en');
+		const output = injectSeoMarkup(
+			htmlWithHead('PublyApp'),
+			request('/'),
+			'en',
+			true,
+			t,
+		);
 
 		expect(output).toContain('<title>PublyApp</title>');
+		expect(output.match(/name="csp-nonce"/g)).toHaveLength(1);
 		expect(output).toContain(
 			'content="PublyApp keeps your whole team and every channel moving together',
 		);
 		expect(output).not.toContain('front-2');
 	});
 
-	test('home route gets a PublyApp-branded title/description in French', async () => {
+	test('home route gets PublyApp-branded SEO metadata in French', async () => {
 		const t = await resolveSeoTranslator('fr');
-		const output = injectSeoMarkup(html, request('/'), 'fr', 'nonce', true, t);
+		const output = injectSeoMarkup(
+			htmlWithHead('PublyApp'),
+			request('/'),
+			'fr',
+			true,
+			t,
+		);
 
 		expect(output).toContain('<title>PublyApp</title>');
 		expect(output).toContain(
@@ -136,13 +159,12 @@ describe('injectSeoMarkup / resolveSeoTranslator (shell-r6-F1)', () => {
 		expect(output).not.toContain('front-2');
 	});
 
-	test('login route gets a PublyApp-branded, localized title/description', async () => {
+	test('login route gets PublyApp-branded, localized SEO metadata', async () => {
 		const en = await resolveSeoTranslator('en');
 		const enOutput = injectSeoMarkup(
-			html,
+			htmlWithHead('Sign in to PublyApp'),
 			request('/login'),
 			'en',
-			'nonce',
 			true,
 			en,
 		);
@@ -153,10 +175,9 @@ describe('injectSeoMarkup / resolveSeoTranslator (shell-r6-F1)', () => {
 
 		const fr = await resolveSeoTranslator('fr');
 		const frOutput = injectSeoMarkup(
-			html,
+			htmlWithHead('Connexion à PublyApp'),
 			request('/login'),
 			'fr',
-			'nonce',
 			true,
 			fr,
 		);
@@ -164,13 +185,12 @@ describe('injectSeoMarkup / resolveSeoTranslator (shell-r6-F1)', () => {
 		expect(frOutput).not.toContain('front-2');
 	});
 
-	test('every non-indexable (authenticated) route also gets a PublyApp title, not the migration codename', async () => {
+	test('every non-indexable (authenticated) route leaves title ownership to React', async () => {
 		const t = await resolveSeoTranslator('en');
 		const output = injectSeoMarkup(
-			html,
+			htmlWithHead('PublyApp'),
 			request('/staff/staff-users'),
 			'en',
-			'nonce',
 			false,
 			t,
 		);
