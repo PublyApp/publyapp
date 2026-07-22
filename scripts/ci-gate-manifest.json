@@ -147,14 +147,14 @@
 			"reason": "ci-e2e-front-2 uses 'docker compose up --wait --wait-timeout 180' instead of the workflow's hand-rolled docker inspect polling loop. Same property (every service running and healthy before Playwright starts, 180s budget), enforced by compose itself rather than by bash."
 		},
 		"front-2-e2e.yml::front-2-e2e::Run playwright browser tests": {
-			"hash": "0d098e5720f6b131",
+			"hash": "fb4860cd0c14b55c",
 			"mirror": "just ci-e2e-front-2",
-			"reason": "ci-e2e-front-2 runs the same playwright install + playwright test. DELIBERATE DIFFERENCE: it drops --with-deps, which shells out to sudo apt-get and fails on any machine without passwordless sudo. A pre-push gate must not require root. The browser binary still installs to the user cache; system libraries are a one-time developer setup (npx playwright install-deps)."
+			"reason": "ci-e2e-front-2 runs the same complete Playwright suite on one isolated local stack. CI partitions the non-counter projects across four isolated runners and runs the counter project alone after setup on shard 4; the local gate stays unsharded to preserve coverage without multiplying Docker stacks. It also drops --with-deps, which requires root; system libraries are a one-time developer setup."
 		},
 		"front-2-e2e.yml::front-2-e2e::Upload playwright report": {
-			"hash": "ca9517512876621f",
+			"hash": "a9e32c27b869d886",
 			"mirror": null,
-			"reason": "actions/upload-artifact exists to get files off an ephemeral runner. Locally the report is already on disk at apps/front-2/playwright-report; there is nothing to upload it to."
+			"reason": "actions/upload-artifact uses a shard-specific name to get each report off its ephemeral runner. Locally the report is already on disk at apps/front-2/playwright-report; there is nothing to upload it to."
 		},
 		"front-2-e2e.yml::front-2-e2e::Tear down front-2 stack": {
 			"hash": "30e868e83d3a06ef",

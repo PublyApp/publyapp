@@ -16,7 +16,6 @@ on:
       - 'packages/client-ts/**'
       - '.github/workflows/front-2-e2e.yml'
 
-
 permissions:
   contents: read
 
@@ -30,7 +29,12 @@ concurrency:
 
 jobs:
   front-2-e2e:
+    name: front-2-e2e (${{ matrix.shard }}/4)
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -61,7 +65,7 @@ jobs:
 
       - name: Build stack
         env:
-          COMPOSE_BAKE: "true"
+          COMPOSE_BAKE: 'true'
         run: docker compose -f apps/front-2/docker-compose.test.yml build
 
       - name: Up stack
@@ -124,15 +128,30 @@ jobs:
           key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: Run playwright browser tests
+        env:
+          PLAYWRIGHT_CI_SHARD: 'true'
         run: |
           pnpm --filter front-2 exec playwright install chromium --with-deps
-          pnpm --filter front-2 exec playwright test
+          pnpm --filter front-2 exec playwright test \
+            --project=chromium \
+            --project=chromium-faults \
+            --shard=${{ matrix.shard }}/4
+
+          # The counter has global state within a stack. Keep it off the shared
+          # shard invocation, then run it after setup on one otherwise-idle,
+          # isolated stack. The unsharded config retains its dependency barrier.
+          if [ "${{ matrix.shard }}" = "4" ]; then
+            pnpm --filter front-2 exec playwright test --project=setup --no-deps
+            pnpm --filter front-2 exec playwright test \
+              --project=chromium-hermetic-counter \
+              --no-deps
+          fi
 
       - name: Upload playwright report
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: front-2-e2e-playwright-report
+          name: front-2-e2e-playwright-report-${{ matrix.shard }}-of-4
           path: |
             apps/front-2/playwright-report
             apps/front-2/test-results
