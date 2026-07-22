@@ -1,11 +1,11 @@
-import { IconChevronDown, IconSearch } from '@tabler/icons-react';
+import { IconChevronDown } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FormActionBar } from '~/components/field/form-layout';
 import { Button } from '~/components/ui/button';
 import { Checkbox } from '~/components/ui/checkbox';
-import { Input } from '~/components/ui/input';
+import { FilterInput } from '~/components/ui/filter-input';
 import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
@@ -587,17 +587,14 @@ export const ProfilePermissionsTab = ({
 			</div>
 
 			<div className="flex flex-wrap items-center justify-between gap-3">
-				<div className="publy-search-wrapper">
-					<IconSearch aria-hidden="true" className="publy-search-icon" />
-					<Input
-						aria-label={t('filter-permissions')}
-						className="bg-background pl-9"
-						value={filterDraft}
-						placeholder={t('filter-permissions')}
-						onChange={(event) => setFilterDraft(event.target.value)}
-						data-testid="permissions-filter"
-					/>
-				</div>
+				<FilterInput
+					aria-label={t('filter-permissions')}
+					value={filterDraft}
+					onValueChange={setFilterDraft}
+					placeholder={t('filter-permissions')}
+					clearLabel={t('clear-permissions-filter')}
+					data-testid="permissions-filter"
+				/>
 				<div className="flex items-center gap-2">
 					<Button
 						type="button"

@@ -47,6 +47,7 @@ vi.mock('react-i18next', () => ({
 				'profile-permissions-subtitle':
 					'Toggle what this profile can do. Changes save when you hit Save.',
 				'filter-permissions': 'Filter permissions…',
+				'clear-permissions-filter': 'Clear permission filter',
 				'expand-all': 'Expand all',
 				'collapse-all': 'Collapse all',
 				'clear-all': 'Clear all',
