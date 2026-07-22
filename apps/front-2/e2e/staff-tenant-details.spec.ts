@@ -703,7 +703,7 @@ test.describe('staff tenant invite-user drawer', () => {
 		await loginAsStaffAdmin(page);
 		await mockTenantDetails(page);
 		await page.route(
-			`**/staff/tenants/${TENANT_ID}/users/invitations`,
+			`**/staff/tenants/${TENANT_ID}/users/invitations/bulk`,
 			async (route) => {
 				if (route.request().method() !== 'POST') {
 					await route.fallback();
@@ -714,8 +714,9 @@ test.describe('staff tenant invite-user drawer', () => {
 					status: 201,
 					contentType: 'application/json',
 					body: JSON.stringify({
-						id: '0197b8f0-7777-7ccc-8ccc-1111aaaaaaaa',
-						email: 'new-user@example.com',
+						succeededCount: 1,
+						failedCount: 0,
+						failedItems: [],
 					}),
 				});
 			},
@@ -789,7 +790,7 @@ test.describe('staff tenant invite-user drawer', () => {
 		await loginAsStaffAdmin(page);
 		await mockTenantDetails(page);
 		await page.route(
-			`**/staff/tenants/${TENANT_ID}/users/invitations`,
+			`**/staff/tenants/${TENANT_ID}/users/invitations/bulk`,
 			async (route) => {
 				if (route.request().method() !== 'POST') {
 					await route.fallback();
@@ -800,8 +801,9 @@ test.describe('staff tenant invite-user drawer', () => {
 					status: 201,
 					contentType: 'application/json',
 					body: JSON.stringify({
-						id: '0197b8f0-7777-7ccc-8ccc-2222aaaaaaaa',
-						email: 'new-user@example.com',
+						succeededCount: 1,
+						failedCount: 0,
+						failedItems: [],
 					}),
 				});
 			},
@@ -908,7 +910,7 @@ test.describe('staff tenant invite-user drawer', () => {
 		await loginAsStaffAdmin(page);
 		await mockTenantDetails(page);
 		await page.route(
-			`**/staff/tenants/${TENANT_ID}/users/invitations`,
+			`**/staff/tenants/${TENANT_ID}/users/invitations/bulk`,
 			async (route) => {
 				if (route.request().method() !== 'POST') {
 					await route.fallback();
@@ -919,8 +921,9 @@ test.describe('staff tenant invite-user drawer', () => {
 					status: 201,
 					contentType: 'application/json',
 					body: JSON.stringify({
-						id: '0197b8f0-7777-7ccc-8ccc-3333aaaaaaaa',
-						email: 'new-user@example.com',
+						succeededCount: 1,
+						failedCount: 0,
+						failedItems: [],
 					}),
 				});
 			},
