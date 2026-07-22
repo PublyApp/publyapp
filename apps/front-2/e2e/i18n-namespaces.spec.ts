@@ -41,6 +41,10 @@ test('concurrent SSR requests do not leak locale resources', async ({
 });
 
 test('hydration preserves the SSR locale and auth copy', async ({ page }) => {
+	// The default chromium project loads the pre-authenticated staff-admin
+	// storageState. Clear it first so /login actually renders the login page
+	// instead of the authed-user guard redirecting to the workspace.
+	await page.context().clearCookies();
 	await page.context().addCookies([
 		{
 			name: LOCALE_COOKIE_KEY,
