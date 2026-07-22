@@ -110,6 +110,20 @@ const expectThemeMode = async (
 	await expect.poll(() => readThemeMode(page)).toBe(colorScheme);
 };
 
+const expectCollapsedSidebarPreferenceApplied = async (
+	page: Page,
+): Promise<void> => {
+	// A document navigation first renders the server's default-open shell, then
+	// the root hydration effect applies the localStorage preference. Wait on the
+	// Zustand-driven shell state itself; loaded sharded CI can take over 5s to
+	// hydrate, while a missing panel would never satisfy this assertion.
+	await expect(page.getByTestId('app-shell-shell')).toHaveAttribute(
+		'data-panel-open',
+		'false',
+		{ timeout: 15_000 },
+	);
+};
+
 /**
  * A real, navigated-to detail path (never a hardcoded id) — a fabricated id
  * like `t-1` is not a GUID, so the real API answers 400 malformed-id and the
@@ -315,6 +329,7 @@ test('rail navigation preserves collapsed sidebar preference', async ({
 	await page.goto('/staff/invitations');
 
 	await expect(page).toHaveURL('/staff/invitations');
+	await expectCollapsedSidebarPreferenceApplied(page);
 	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
 	await expect(page.getByTestId('app-shell-secondary-panel')).toBeHidden();
 });
@@ -426,12 +441,14 @@ test('the collapsed-panel preference persists across list and detail navigation'
 
 	// The collapsed preference carries to the next list route too.
 	await page.goto('/staff/tenants');
+	await expectCollapsedSidebarPreferenceApplied(page);
 	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
 	await expect(page.getByTestId('app-shell-secondary-panel')).toBeHidden();
 
 	// And detail routes on another module still follow the same preference —
 	// (tenants) than the one visited above (staff-users).
 	await getRealTenantDetailPath(page);
+	await expectCollapsedSidebarPreferenceApplied(page);
 	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
 	await expect(page.getByTestId('app-shell-secondary-panel')).toBeHidden();
 });
@@ -579,6 +596,10 @@ test('mobile shell menu is keyboard and route-aware', async ({ page }) => {
 	// The auth surface is a standalone split-brand layout, not the app shell
 	// (no rail/topbar/mobile menu) — see docs/guides/front-2/conventions.md.
 	await expect(page).toHaveURL('/login');
-	await expect(page.getByTestId('auth-layout')).toBeVisible();
+	// The URL advances before the async route match commits; under loaded
+	// sharded CI the auth namespace and standalone layout can take over 5s.
+	await expect(page.getByTestId('auth-layout')).toBeVisible({
+		timeout: 15_000,
+	});
 	await expect(page.getByTestId('app-shell-shell')).toHaveCount(0);
 });
