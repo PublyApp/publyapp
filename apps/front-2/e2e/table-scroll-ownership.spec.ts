@@ -14,6 +14,7 @@ const isApiPath = (url: string, path: string): boolean => {
  * scroll container actually overflows. */
 const SEEDED_USER_ROWS = Array.from({ length: 40 }, (_, index) => ({
 	id: `0197b8f0-4444-7ccc-8ccc-${String(index).padStart(12, '0')}`,
+	userAccountId: `0197b8f0-5555-7ccc-8ccc-${String(index).padStart(12, '0')}`,
 	email: `user-${index}@example.com`,
 	firstName: `User`,
 	lastName: `${index}`,

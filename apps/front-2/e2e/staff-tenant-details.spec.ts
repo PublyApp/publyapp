@@ -99,6 +99,7 @@ const mockTenantDetails = async (page: Page) => {
 			const users = [
 				{
 					id: '0197b8f0-4444-7ccc-8ccc-dddddddddddd',
+					userAccountId: '0197b8f0-5555-7ccc-8ccc-dddddddddddd',
 					email: 'jamie@example.com',
 					firstName: 'Jamie',
 					lastName: 'Lee',
@@ -108,6 +109,7 @@ const mockTenantDetails = async (page: Page) => {
 				},
 				{
 					id: '0197b8f0-4444-7ccc-8ccc-eeeeeeeeeeee',
+					userAccountId: '0197b8f0-5555-7ccc-8ccc-eeeeeeeeeeee',
 					email: 'morgan@example.com',
 					firstName: 'Morgan',
 					lastName: 'Reyes',
@@ -701,7 +703,7 @@ test.describe('staff tenant invite-user drawer', () => {
 		await loginAsStaffAdmin(page);
 		await mockTenantDetails(page);
 		await page.route(
-			`**/staff/tenants/${TENANT_ID}/users/invitations`,
+			`**/staff/tenants/${TENANT_ID}/users/invitations/bulk`,
 			async (route) => {
 				if (route.request().method() !== 'POST') {
 					await route.fallback();
@@ -712,8 +714,9 @@ test.describe('staff tenant invite-user drawer', () => {
 					status: 201,
 					contentType: 'application/json',
 					body: JSON.stringify({
-						id: '0197b8f0-7777-7ccc-8ccc-1111aaaaaaaa',
-						email: 'new-user@example.com',
+						succeededCount: 1,
+						failedCount: 0,
+						failedItems: [],
 					}),
 				});
 			},
@@ -737,7 +740,7 @@ test.describe('staff tenant invite-user drawer', () => {
 		await expect(page.getByText('Invalid email address')).toBeVisible();
 
 		await drawer
-			.getByRole('textbox', { name: 'Email' })
+			.getByRole('textbox', { name: 'Email', exact: true })
 			.fill('new-user@example.com');
 
 		const inviteRequest = page.waitForRequest(
@@ -764,7 +767,7 @@ test.describe('staff tenant invite-user drawer', () => {
 			'[data-sonner-toast][data-type="success"]',
 		);
 		await expect(
-			page.getByText('Invitation sent successfully', { exact: true }),
+			page.getByText('1 invitation sent successfully.', { exact: true }),
 		).toBeVisible();
 		await expect(successToasts).toHaveCount(1);
 		await expect(successToasts).toBeInViewport({ ratio: 1 });
@@ -787,7 +790,7 @@ test.describe('staff tenant invite-user drawer', () => {
 		await loginAsStaffAdmin(page);
 		await mockTenantDetails(page);
 		await page.route(
-			`**/staff/tenants/${TENANT_ID}/users/invitations`,
+			`**/staff/tenants/${TENANT_ID}/users/invitations/bulk`,
 			async (route) => {
 				if (route.request().method() !== 'POST') {
 					await route.fallback();
@@ -798,8 +801,9 @@ test.describe('staff tenant invite-user drawer', () => {
 					status: 201,
 					contentType: 'application/json',
 					body: JSON.stringify({
-						id: '0197b8f0-7777-7ccc-8ccc-2222aaaaaaaa',
-						email: 'new-user@example.com',
+						succeededCount: 1,
+						failedCount: 0,
+						failedItems: [],
 					}),
 				});
 			},
@@ -825,7 +829,7 @@ test.describe('staff tenant invite-user drawer', () => {
 		).toHaveText('Invitations');
 
 		await drawer
-			.getByRole('textbox', { name: 'Email' })
+			.getByRole('textbox', { name: 'Email', exact: true })
 			.fill('new-user@example.com');
 		const inviteRequest = page.waitForRequest(
 			(request) =>
@@ -883,7 +887,7 @@ test.describe('staff tenant invite-user drawer', () => {
 		await expect(drawer).toBeVisible();
 
 		await drawer
-			.getByRole('textbox', { name: 'Email' })
+			.getByRole('textbox', { name: 'Email', exact: true })
 			.fill('new-user@example.com');
 		await drawer.getByRole('button', { name: 'Invite people' }).click();
 
@@ -906,7 +910,7 @@ test.describe('staff tenant invite-user drawer', () => {
 		await loginAsStaffAdmin(page);
 		await mockTenantDetails(page);
 		await page.route(
-			`**/staff/tenants/${TENANT_ID}/users/invitations`,
+			`**/staff/tenants/${TENANT_ID}/users/invitations/bulk`,
 			async (route) => {
 				if (route.request().method() !== 'POST') {
 					await route.fallback();
@@ -917,8 +921,9 @@ test.describe('staff tenant invite-user drawer', () => {
 					status: 201,
 					contentType: 'application/json',
 					body: JSON.stringify({
-						id: '0197b8f0-7777-7ccc-8ccc-3333aaaaaaaa',
-						email: 'new-user@example.com',
+						succeededCount: 1,
+						failedCount: 0,
+						failedItems: [],
 					}),
 				});
 			},
@@ -942,7 +947,7 @@ test.describe('staff tenant invite-user drawer', () => {
 		await expect(drawer).toBeVisible();
 
 		await drawer
-			.getByRole('textbox', { name: 'Email' })
+			.getByRole('textbox', { name: 'Email', exact: true })
 			.fill('new-user@example.com');
 		const inviteRequest = page.waitForRequest(
 			(request) =>
