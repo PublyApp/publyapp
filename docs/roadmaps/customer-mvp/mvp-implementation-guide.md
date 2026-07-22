@@ -698,7 +698,7 @@ Critical integration tests
 - [ ] Configure Dokploy service `publyapp-api` and `publyapp-front` (see `dokploy.yml`).
 - [ ] Set environment variables in Dokploy:
   - API: `ASPNETCORE_ENVIRONMENT=Production`, `POSTGRES_CONNECTION_STRING`, `FRONT_URL`, `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, `S3_*`, `DATAPROTECTION_KEYS_DIR=/var/app/dp-keys`
-  - FRONT: `VITE_ASP_SERVER_URL`, `VITE_POSTHOG_API_KEY` (optional)
+  - FRONT: `VITE_ASP_SERVER_URL`, `VITE_POSTHOG_PROJECT_TOKEN` (optional)
 - [ ] Mount a persistent volume for Data Protection keys at `DATAPROTECTION_KEYS_DIR`.
 - [ ] Run DB migrations on first deploy.
   ```bash
@@ -783,5 +783,4 @@ Suggested new frontend files
 ⚠️ Warnings
 - Treat LinkedIn rate limits seriously; add delays/backoff.
 - When posting to real accounts, use test content and obtain consent.
-
 

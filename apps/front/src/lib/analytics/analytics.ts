@@ -3,7 +3,7 @@ import { IsoAnalytics } from '@org/shared-ts/lib/analytics/iso-analytics';
 
 import { env } from '../env';
 
-const _analytics = new IsoAnalytics(env.VITE_POSTHOG_API_KEY);
+const _analytics = new IsoAnalytics(env.VITE_POSTHOG_PROJECT_TOKEN);
 await _analytics.init();
 
 const isDevelopment = import.meta.env.DEV;

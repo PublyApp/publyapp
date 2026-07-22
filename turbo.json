@@ -25,7 +25,7 @@
 		"JOB_INPUT",
 		"SERVER_API_BASE_URL",
 		"PUBLIC_API_BASE_URL",
-		"VITE_POSTHOG_API_KEY"
+		"VITE_POSTHOG_PROJECT_TOKEN"
 	],
 	"tasks": {
 		"build": {
