@@ -21,6 +21,6 @@ declare module 'i18next' {
 
 declare module 'react-i18next/TransWithoutContext' {
 	interface TransSelector extends TransLegacy {
-		// Remove with the legacy-string TFunction overload at the #907 phase 4 gate.
+		// TODO(#907 phase 4): remove this legacy-Trans compatibility shim together with the TFunction overload — same completion gate; until removed, <Trans i18nKey="string"> stays unchecked
 	}
 }
