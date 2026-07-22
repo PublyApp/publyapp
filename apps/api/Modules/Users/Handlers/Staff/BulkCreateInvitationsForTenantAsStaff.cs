@@ -12,6 +12,7 @@ using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Invitations.Services;
 using PublyApp.Api.Modules.Tenants.Services;
+using PublyApp.Api.Modules.Users.Entities;
 using PublyApp.Api.Modules.Users.Services;
 using PublyApp.Api.Modules.Users.Validation;
 
@@ -302,6 +303,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaff {
 			string Email,
 			string AccountLevel
 		)>();
+		var maxProfilesPerUser = AppEnvironment.Instance.MAX_PROFILES_PER_USER;
 
 		for (var i = 0; i < invitations.Count; i++) {
 			var invitation = invitations[i];
@@ -311,7 +313,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaff {
 				.Distinct()
 				.Where(profileId => !validProfileIdSet.Contains(profileId))
 				.ToList();
-			var parsedAccountLevel = PublyApp.Api.Modules.Users.Entities.UserAccount.ParseLevel(
+			var parsedAccountLevel = UserAccount.ParseLevel(
 				invitation.AccountLevel
 			);
 
@@ -341,6 +343,30 @@ public sealed class BulkCreateInvitationsForTenantAsStaff {
 					email,
 					"Invalid account level",
 					ResponseKeys.BadRequest.Value
+				));
+				continue;
+			}
+
+			if (parsedAccountLevel == AccountLevel.Admin
+				&& profileIds.Count > 0
+			) {
+				failedItems.Add(new BulkCreateTenantInvitationsFailedItem(
+					i,
+					email,
+					"Admin invitees cannot be assigned profiles",
+					ResponseKeys.AdminInviteeCannotHaveProfiles.Value
+				));
+				continue;
+			}
+
+			if (parsedAccountLevel == AccountLevel.User
+				&& profileIds.Count > maxProfilesPerUser
+			) {
+				failedItems.Add(new BulkCreateTenantInvitationsFailedItem(
+					i,
+					email,
+					$"Cannot assign more than {maxProfilesPerUser} profiles",
+					ResponseKeys.TooManyProfilesForInvitee.Value
 				));
 				continue;
 			}

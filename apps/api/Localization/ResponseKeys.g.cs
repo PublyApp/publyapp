@@ -10,6 +10,11 @@ namespace PublyApp.Api.Localization;
 /// </summary>
 public static partial class ResponseKeys {
 	/// <summary>
+	/// Admin invitees cannot be assigned profiles
+	/// </summary>
+	public static readonly TranslationKey AdminInviteeCannotHaveProfiles = new("admin-invitee-cannot-have-profiles");
+
+	/// <summary>
 	/// Bad request
 	/// </summary>
 	public static readonly TranslationKey BadRequest = new("bad-request");
@@ -403,6 +408,11 @@ public static partial class ResponseKeys {
 	/// Tenant has been updated successfully
 	/// </summary>
 	public static readonly TranslationKey TenantUpdatedSuccess = new("tenant-updated-success");
+
+	/// <summary>
+	/// This invitee has too many profiles
+	/// </summary>
+	public static readonly TranslationKey TooManyProfilesForInvitee = new("too-many-profiles-for-invitee");
 
 	/// <summary>
 	/// Too many requests
