@@ -1,6 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
+import { pathToFileURL } from 'node:url';
 
 // Guardrail for source-owned lint suppressions.
 //
@@ -62,7 +63,6 @@ const bannedReasonPatterns = [
 	/\bcode from template leave as is for now\b/i,
 ];
 
-const cwd = process.cwd();
 const disableToken = 'oxlint' + '-disable';
 
 // Accept all directive variants supported by oxlint. Rule names may be
@@ -74,7 +74,8 @@ const disablePattern = new RegExp(
 
 const toPosixPath = (value) => value.split(path.sep).join('/');
 
-const getRelativePath = (filePath) => toPosixPath(path.relative(cwd, filePath));
+const getRelativePath = (filePath, rootDir) =>
+	toPosixPath(path.relative(rootDir, filePath));
 
 /**
  * Checks repo-relative paths against audit-level ignore roots.
@@ -134,9 +135,9 @@ const getFailureReason = (line) => {
 /**
  * Scans one source file and appends all low-quality disable findings.
  */
-const scanFile = async (filePath, failures) => {
+const scanFile = async (filePath, failures, rootDir) => {
 	const content = await readFile(filePath, 'utf8');
-	const relativePath = getRelativePath(filePath);
+	const relativePath = getRelativePath(filePath, rootDir);
 	const lines = content.split(/\r?\n/);
 
 	for (const [index, line] of lines.entries()) {
@@ -158,7 +159,7 @@ const scanFile = async (filePath, failures) => {
  * Recursively scans a directory while pruning generated, dependency, and build
  * folders before reading their contents.
  */
-const scanDirectory = async (directoryPath, failures) => {
+const scanDirectory = async (directoryPath, failures, rootDir) => {
 	const entries = await readdir(directoryPath, { withFileTypes: true });
 
 	for (const entry of entries) {
@@ -167,37 +168,47 @@ const scanDirectory = async (directoryPath, failures) => {
 		}
 
 		const entryPath = path.join(directoryPath, entry.name);
-		const relativePath = getRelativePath(entryPath);
+		const relativePath = getRelativePath(entryPath, rootDir);
 
 		if (isIgnoredPath(relativePath)) {
 			continue;
 		}
 
 		if (entry.isDirectory()) {
-			await scanDirectory(entryPath, failures);
+			await scanDirectory(entryPath, failures, rootDir);
 			continue;
 		}
 
 		if (entry.isFile() && scannedExtensions.has(path.extname(entry.name))) {
-			await scanFile(entryPath, failures);
+			await scanFile(entryPath, failures, rootDir);
 		}
 	}
 };
 
-const failures = [];
+export const findOxlintDisableViolations = async (rootDir = process.cwd()) => {
+	const failures = [];
+	await scanDirectory(rootDir, failures, rootDir);
+	return failures;
+};
 
-await scanDirectory(cwd, failures);
+const run = async () => {
+	const failures = await findOxlintDisableViolations(process.cwd());
 
-if (failures.length > 0) {
-	console.error('Found low-quality oxlint disable comments:');
+	if (failures.length > 0) {
+		console.error('Found low-quality oxlint disable comments:');
 
-	for (const failure of failures) {
-		console.error(failure);
+		for (const failure of failures) {
+			console.error(failure);
+		}
+
+		process.exit(1);
 	}
 
-	process.exit(1);
-}
+	console.log(
+		'All oxlint disable comments include specific rules and reviewable reasons.',
+	);
+};
 
-console.log(
-	'All oxlint disable comments include specific rules and reviewable reasons.',
-);
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+	await run();
+}
