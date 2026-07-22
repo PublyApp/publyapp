@@ -8,6 +8,7 @@ import {
 	screen,
 	waitFor,
 } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { JSX } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -652,6 +653,7 @@ describe('staff tenant users route', () => {
 	});
 
 	test('shows a reactivate action for a suspended user and a suspend action for an active one', async () => {
+		const user = userEvent.setup();
 		mocks.toStaffTenantUserRows.mockReturnValue([
 			{
 				id: 'user-1',
@@ -678,14 +680,14 @@ describe('staff tenant users route', () => {
 		renderPage();
 
 		const triggers = screen.getAllByRole('button', { name: /^Actions for/ });
-		fireEvent.click(triggers[0]);
+		await user.click(triggers[0]);
 		expect(
 			await screen.findByRole('menuitem', { name: 'Suspend' }),
 		).toBeTruthy();
 		expect(screen.queryByRole('menuitem', { name: 'Reactivate' })).toBeNull();
 
-		fireEvent.click(triggers[0]);
-		fireEvent.click(triggers[1]);
+		await user.click(triggers[0]);
+		await user.click(triggers[1]);
 		expect(
 			await screen.findByRole('menuitem', { name: 'Reactivate' }),
 		).toBeTruthy();
@@ -693,12 +695,13 @@ describe('staff tenant users route', () => {
 	});
 
 	test('suspends a user after explicit confirmation and invalidates tenant user and tenant details queries', async () => {
+		const user = userEvent.setup();
 		mocks.suspendMutation.mockResolvedValue({});
 
 		renderPage();
 
-		fireEvent.click(screen.getByRole('button', { name: /^Actions for/ }));
-		fireEvent.click(await screen.findByRole('menuitem', { name: 'Suspend' }));
+		await user.click(screen.getByRole('button', { name: /^Actions for/ }));
+		await user.click(await screen.findByRole('menuitem', { name: 'Suspend' }));
 
 		await waitFor(() =>
 			expect(screen.getByRole('heading', { name: 'Suspend' })).toBeTruthy(),
@@ -719,6 +722,7 @@ describe('staff tenant users route', () => {
 	});
 
 	test('leaves a failed row action to central feedback without a persistent bar', async () => {
+		const user = userEvent.setup();
 		mocks.suspendMutation.mockRejectedValue({
 			kind: 'problem',
 			status: 400,
@@ -729,8 +733,8 @@ describe('staff tenant users route', () => {
 
 		renderPage();
 
-		fireEvent.click(screen.getByRole('button', { name: /^Actions for/ }));
-		fireEvent.click(await screen.findByRole('menuitem', { name: 'Suspend' }));
+		await user.click(screen.getByRole('button', { name: /^Actions for/ }));
+		await user.click(await screen.findByRole('menuitem', { name: 'Suspend' }));
 
 		await waitFor(() =>
 			expect(screen.getByRole('heading', { name: 'Suspend' })).toBeTruthy(),
@@ -746,12 +750,13 @@ describe('staff tenant users route', () => {
 	});
 
 	test('removes a user from the tenant after explicit confirmation', async () => {
+		const user = userEvent.setup();
 		mocks.removeMutation.mockResolvedValue({});
 
 		renderPage();
 
-		fireEvent.click(screen.getByRole('button', { name: /^Actions for/ }));
-		fireEvent.click(
+		await user.click(screen.getByRole('button', { name: /^Actions for/ }));
+		await user.click(
 			await screen.findByRole('menuitem', { name: 'Remove from tenant' }),
 		);
 
@@ -951,16 +956,17 @@ describe('staff tenant users route', () => {
 	});
 
 	test('exports the selected users as a csv download', async () => {
+		const user = userEvent.setup();
 		const buffer = new ArrayBuffer(4);
 		mocks.exportMutation.mockResolvedValue(buffer);
 
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
-		fireEvent.click(
+		await user.click(
 			await screen.findByRole('button', { name: 'More actions' }),
 		);
-		fireEvent.click(
+		await user.click(
 			await screen.findByRole('menuitem', { name: 'Export selected users' }),
 		);
 
@@ -985,16 +991,17 @@ describe('staff tenant users route', () => {
 	});
 
 	test('displays one local mutation failure when the export request rejects', async () => {
+		const user = userEvent.setup();
 		const error = new Error('request failed');
 		mocks.exportMutation.mockRejectedValue(error);
 
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
-		fireEvent.click(
+		await user.click(
 			await screen.findByRole('button', { name: 'More actions' }),
 		);
-		fireEvent.click(
+		await user.click(
 			await screen.findByRole('menuitem', { name: 'Export selected users' }),
 		);
 
@@ -1010,15 +1017,16 @@ describe('staff tenant users route', () => {
 	});
 
 	test('shows one export failure when the response has no data', async () => {
+		const user = userEvent.setup();
 		mocks.exportMutation.mockResolvedValue(undefined);
 
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
-		fireEvent.click(
+		await user.click(
 			await screen.findByRole('button', { name: 'More actions' }),
 		);
-		fireEvent.click(
+		await user.click(
 			await screen.findByRole('menuitem', { name: 'Export selected users' }),
 		);
 
@@ -1029,6 +1037,7 @@ describe('staff tenant users route', () => {
 	});
 
 	test('shows one export failure when download post-processing throws', async () => {
+		const user = userEvent.setup();
 		mocks.exportMutation.mockResolvedValue(new ArrayBuffer(4));
 		mocks.downloadFile.mockImplementation(() => {
 			throw new Error('download failed');
@@ -1037,10 +1046,10 @@ describe('staff tenant users route', () => {
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
-		fireEvent.click(
+		await user.click(
 			await screen.findByRole('button', { name: 'More actions' }),
 		);
-		fireEvent.click(
+		await user.click(
 			await screen.findByRole('menuitem', { name: 'Export selected users' }),
 		);
 
@@ -1051,6 +1060,7 @@ describe('staff tenant users route', () => {
 	});
 
 	test('removes selected users after explicit confirmation and shows a success summary', async () => {
+		const user = userEvent.setup();
 		mocks.bulkRemoveMutation.mockResolvedValue({
 			succeededCount: 1,
 			failedCount: 0,
@@ -1060,10 +1070,10 @@ describe('staff tenant users route', () => {
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
-		fireEvent.click(
+		await user.click(
 			await screen.findByRole('button', { name: 'More actions' }),
 		);
-		fireEvent.click(
+		await user.click(
 			await screen.findByRole('menuitem', {
 				name: 'Remove selected from tenant',
 			}),
@@ -1093,6 +1103,7 @@ describe('staff tenant users route', () => {
 	});
 
 	test('reports a partial-success message when some bulk-removed users fail', async () => {
+		const user = userEvent.setup();
 		mocks.bulkRemoveMutation.mockResolvedValue({
 			succeededCount: 1,
 			failedCount: 1,
@@ -1102,10 +1113,10 @@ describe('staff tenant users route', () => {
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
-		fireEvent.click(
+		await user.click(
 			await screen.findByRole('button', { name: 'More actions' }),
 		);
-		fireEvent.click(
+		await user.click(
 			await screen.findByRole('menuitem', {
 				name: 'Remove selected from tenant',
 			}),
@@ -1126,6 +1137,7 @@ describe('staff tenant users route', () => {
 	});
 
 	test('reports a failure message when every bulk-removed user fails', async () => {
+		const user = userEvent.setup();
 		mocks.bulkRemoveMutation.mockResolvedValue({
 			succeededCount: 0,
 			failedCount: 1,
@@ -1135,10 +1147,10 @@ describe('staff tenant users route', () => {
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
-		fireEvent.click(
+		await user.click(
 			await screen.findByRole('button', { name: 'More actions' }),
 		);
-		fireEvent.click(
+		await user.click(
 			await screen.findByRole('menuitem', {
 				name: 'Remove selected from tenant',
 			}),
@@ -1158,16 +1170,17 @@ describe('staff tenant users route', () => {
 		expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled();
 	});
 	test('displays one local failure when bulk removal rejects', async () => {
+		const user = userEvent.setup();
 		const error = new Error('bulk request failed');
 		mocks.bulkRemoveMutation.mockRejectedValue(error);
 
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
-		fireEvent.click(
+		await user.click(
 			await screen.findByRole('button', { name: 'More actions' }),
 		);
-		fireEvent.click(
+		await user.click(
 			await screen.findByRole('menuitem', {
 				name: 'Remove selected from tenant',
 			}),
