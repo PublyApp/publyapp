@@ -193,6 +193,7 @@ export const tenantProfileTypeChipClassName = (isDefault: boolean): string =>
 export const Route = createFileRoute(
 	'/_authed-layout/staff/tenants/$tenantId/profiles',
 )({
+	staticData: { i18nNamespaces: ['staff-tenant-profiles'] },
 	validateSearch: (search) =>
 		serializeStaffTenantProfilesSearchParams(
 			parseStaffTenantProfilesSearchParams(

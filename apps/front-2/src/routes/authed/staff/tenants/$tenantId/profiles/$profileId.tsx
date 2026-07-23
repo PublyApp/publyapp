@@ -285,7 +285,9 @@ function StaffTenantProfileDetailsPage() {
 				!tenantQuery.isError,
 		},
 	);
-	const permissionCatalogQuery = useStaffTenantPermissionCatalogQuery({});
+	const permissionCatalogQuery = useStaffTenantPermissionCatalogQuery({
+		language: i18n.language,
+	});
 	const deleteProfile = useDeleteStaffTenantProfileMutation();
 	const tenant = toStaffTenantDetails(tenantQuery.data);
 	const profile = toStaffTenantProfileDetails(detailQuery.data);

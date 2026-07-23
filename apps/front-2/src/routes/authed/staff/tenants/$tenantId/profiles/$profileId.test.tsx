@@ -86,6 +86,7 @@ const mocks = vi.hoisted(() => ({
 		| undefined,
 	permissionKeysCacheRevision: 1,
 	capturedGrantedRevision: undefined as number | undefined,
+	language: 'en',
 }));
 
 vi.mock('@tanstack/react-router', () => ({
@@ -475,7 +476,7 @@ vi.mock('react-i18next', () => ({
 			}
 			return text;
 		},
-		i18n: { language: 'en' },
+		i18n: { language: mocks.language },
 	}),
 }));
 
@@ -534,6 +535,7 @@ describe('staff tenant profile details route', () => {
 		mocks.capturedMatrixDirtyChange = undefined;
 		mocks.permissionKeysCacheRevision = 1;
 		mocks.capturedGrantedRevision = undefined;
+		mocks.language = 'en';
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
 		mocks.useDeleteStaffTenantProfileMutation.mockReturnValue({
 			isPending: false,
@@ -764,7 +766,28 @@ describe('staff tenant profile details route', () => {
 			},
 			{ enabled: true },
 		);
-		expect(mocks.useStaffTenantPermissionCatalogQuery).toHaveBeenCalledWith({});
+		expect(mocks.useStaffTenantPermissionCatalogQuery).toHaveBeenCalledWith({
+			language: 'en',
+		});
+	});
+
+	test('requests a localized permission catalog when the language changes', () => {
+		const englishView = renderPage();
+		expect(mocks.useStaffTenantPermissionCatalogQuery).toHaveBeenLastCalledWith(
+			{
+				language: 'en',
+			},
+		);
+		englishView.unmount();
+
+		mocks.language = 'fr';
+		renderPage();
+
+		expect(mocks.useStaffTenantPermissionCatalogQuery).toHaveBeenLastCalledWith(
+			{
+				language: 'fr',
+			},
+		);
 	});
 
 	test('shows an "Updated" relative timestamp in the identity meta, omitting it when absent', () => {

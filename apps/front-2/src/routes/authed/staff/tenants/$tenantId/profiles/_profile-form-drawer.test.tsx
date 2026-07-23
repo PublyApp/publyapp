@@ -357,6 +357,9 @@ describe('ProfileFormDrawer', () => {
 		expect(screen.getByText('Posts')).toBeTruthy();
 		expect(screen.getByText('Read users')).toBeTruthy();
 		expect(screen.getByText('Publish posts')).toBeTruthy();
+		expect(mocks.useStaffTenantPermissionCatalogQuery).toHaveBeenCalledWith({
+			language: 'en',
+		});
 		expect(
 			mocks.useAssignStaffTenantProfilePermissionMutation,
 		).toHaveBeenCalledWith({

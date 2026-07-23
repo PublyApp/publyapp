@@ -152,7 +152,9 @@ export const ProfileFormDrawer = ({
 	const { t: tProfiles } = useTranslation('staff-tenant-profiles');
 	const queryClient = useQueryClient();
 
-	const catalogQuery = useStaffTenantPermissionCatalogQuery({});
+	const catalogQuery = useStaffTenantPermissionCatalogQuery({
+		language: i18n.language,
+	});
 	const createProfile = useCreateStaffTenantProfileMutation();
 	const updateProfile = useUpdateStaffTenantProfileMutation();
 	const assignPermission = useAssignStaffTenantProfilePermissionMutation(

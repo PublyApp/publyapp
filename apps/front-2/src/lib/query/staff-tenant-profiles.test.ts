@@ -28,6 +28,7 @@ import {
 	getStaffTenantProfilePermissionKeysCacheSnapshot,
 	getStaffTenantProfilePermissionKeysQueryKey,
 	STAFF_TENANT_PROFILES_QUERY_KEY,
+	staffTenantPermissionCatalogQueryOptions,
 	toStaffTenantProfileDetails,
 	toStaffTenantProfileMemberAssignmentMap,
 	toStaffTenantProfileMemberRows,
@@ -164,6 +165,42 @@ describe('buildStaffTenantPermissionCatalogOptions', () => {
 				description: null,
 			},
 		]);
+	});
+});
+
+describe('staffTenantPermissionCatalogQueryOptions', () => {
+	test('scopes the request and cache key to the active language', async () => {
+		const getCatalog = vi.fn().mockResolvedValue({ additionalData: {} });
+		mocks.getOrCreateStaffClient.mockReturnValue({
+			staff: {
+				permissions: {
+					scopes: {
+						tenant: {
+							get: getCatalog,
+						},
+					},
+				},
+			},
+		});
+
+		const englishKey = staffTenantPermissionCatalogQueryOptions.queryKey({
+			language: 'en',
+		});
+		const frenchKey = staffTenantPermissionCatalogQueryOptions.queryKey({
+			language: 'fr',
+		});
+
+		expect(englishKey).not.toEqual(frenchKey);
+		expect(englishKey).toContainEqual({ language: 'en' });
+		expect(frenchKey).toContainEqual({ language: 'fr' });
+
+		await staffTenantPermissionCatalogQueryOptions.fetcher({
+			language: 'fr',
+		});
+
+		expect(getCatalog).toHaveBeenCalledWith({
+			queryParameters: { language: 'fr' },
+		});
 	});
 });
 

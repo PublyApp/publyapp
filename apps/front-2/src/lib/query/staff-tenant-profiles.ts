@@ -1011,7 +1011,7 @@ export const getStaffTenantProfilePermissionKeysCacheSnapshot = (
 	};
 };
 
-const staffTenantPermissionCatalogQueryOptions = buildStaffQueryOptions<
+export const staffTenantPermissionCatalogQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	TenantGetResponse,
 	StaffTenantPermissionCatalogQueryVariables
