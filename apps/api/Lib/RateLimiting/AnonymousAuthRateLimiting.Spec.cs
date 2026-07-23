@@ -287,7 +287,59 @@ public sealed class AnonymousAuthRateLimitingSpec
 	}
 
 	[Fact]
-	public async Task ItShouldFallBackToIpWhenEmailInspectionExceedsItsBound() {
+	public async Task ItShouldUseBinderEquivalentCaseInsensitiveEmailMatching() {
+		await using var factory = CreateFactory(
+			perIpPermitLimit: 100,
+			perEmailPermitLimit: 100,
+			passwordResetPerEmailPermitLimit: 1
+		);
+		using var client = CreateClient(factory);
+		const string email = "mixed-case-limit@example.com";
+
+		using var first = await SendRawPasswordResetAsync(
+			client,
+			$$"""{"email":"{{email}}"}""",
+			"203.0.113.100"
+		);
+		using var mixedCase = await SendRawPasswordResetAsync(
+			client,
+			$$"""{"Email":"{{email}}"}""",
+			"203.0.113.101"
+		);
+
+		first.StatusCode.Should().Be(HttpStatusCode.OK);
+		mixedCase.StatusCode.Should()
+			.Be(HttpStatusCode.TooManyRequests);
+	}
+
+	[Fact]
+	public async Task ItShouldUseTheLastBinderMatchedEmailWhenCasingIsDuplicated() {
+		await using var factory = CreateFactory(
+			perIpPermitLimit: 100,
+			perEmailPermitLimit: 100,
+			passwordResetPerEmailPermitLimit: 1
+		);
+		using var client = CreateClient(factory);
+		const string email = "duplicate-case-limit@example.com";
+
+		using var first = await SendRawPasswordResetAsync(
+			client,
+			$$"""{"email":"{{email}}"}""",
+			"203.0.113.102"
+		);
+		using var duplicateCase = await SendRawPasswordResetAsync(
+			client,
+			$$"""{"email":"decoy@example.com","Email":"{{email}}"}""",
+			"203.0.113.103"
+		);
+
+		first.StatusCode.Should().Be(HttpStatusCode.OK);
+		duplicateCase.StatusCode.Should()
+			.Be(HttpStatusCode.TooManyRequests);
+	}
+
+	[Fact]
+	public async Task ItShouldRejectOversizedEmailBodiesAcrossRotatingClientIps() {
 		await using var factory = CreateFactory(
 			perIpPermitLimit: 100,
 			perEmailPermitLimit: 100,
@@ -296,24 +348,45 @@ public sealed class AnonymousAuthRateLimitingSpec
 		using var client = CreateClient(factory);
 		var padding = new string('x', 20_000);
 
-		using var first = await client.PostAsJsonAsync(
-			AppRoutes.Auth.RequestPasswordReset,
-			new {
-				email = "oversized-first@example.com",
-				padding,
-			}
+		using var first = await SendRawPasswordResetAsync(
+			client,
+			$$"""{"email":"oversized@example.com","padding":"{{padding}}"}""",
+			"203.0.113.104"
 		);
-		using var second = await client.PostAsJsonAsync(
-			AppRoutes.Auth.RequestPasswordReset,
-			new {
-				email = "oversized-second@example.com",
-				padding,
-			}
+		using var second = await SendRawPasswordResetAsync(
+			client,
+			$$"""{"email":"oversized@example.com","padding":"{{padding}}"}""",
+			"203.0.113.105"
 		);
 
-		first.StatusCode.Should().Be(HttpStatusCode.OK);
+		first.StatusCode.Should()
+			.Be(HttpStatusCode.RequestEntityTooLarge);
 		second.StatusCode.Should()
-			.Be(HttpStatusCode.TooManyRequests);
+			.Be(HttpStatusCode.RequestEntityTooLarge);
+	}
+
+	[Theory]
+	[InlineData("[]")]
+	[InlineData("\"not-an-object\"")]
+	[InlineData("123")]
+	[InlineData("null")]
+	public async Task ItShouldNotReturn500ForNonObjectJsonBodies(
+		string body
+	) {
+		await using var factory = CreateFactory(
+			perIpPermitLimit: 100,
+			perEmailPermitLimit: 100,
+			passwordResetPerEmailPermitLimit: 100
+		);
+		using var client = CreateClient(factory);
+
+		using var response = await SendRawPasswordResetAsync(
+			client,
+			body
+		);
+
+		response.StatusCode.Should()
+			.NotBe(HttpStatusCode.InternalServerError);
 	}
 
 	private static void AssertPolicy(
@@ -397,6 +470,33 @@ public sealed class AnonymousAuthRateLimitingSpec
 
 		if (forwardedFor is not null) {
 			request.Headers.TryAddWithoutValidation("X-Forwarded-For", forwardedFor);
+		}
+
+		return await client.SendAsync(request);
+	}
+
+	private static async Task<HttpResponseMessage>
+		SendRawPasswordResetAsync(
+			HttpClient client,
+			string body,
+			string? forwardedFor = null
+		) {
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			AppRoutes.Auth.RequestPasswordReset
+		) {
+			Content = new StringContent(
+				body,
+				System.Text.Encoding.UTF8,
+				"application/json"
+			),
+		};
+
+		if (forwardedFor is not null) {
+			request.Headers.TryAddWithoutValidation(
+				"X-Forwarded-For",
+				forwardedFor
+			);
 		}
 
 		return await client.SendAsync(request);
