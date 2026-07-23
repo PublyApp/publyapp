@@ -181,4 +181,24 @@ public static class DiagnosticCatalog {
 			+ "session-token value to a logger in any log level; log a non-sensitive identifier "
 			+ "instead."
 	);
+
+	/// <summary>
+	/// PUBLY0011 — requires every mapped Minimal API endpoint to have an
+	/// explicit rate-limit disposition. Named policies may be declared on
+	/// the endpoint or inherited from a local route group. Global-only and
+	/// reason-bearing opt-out markers are the only alternatives.
+	/// </summary>
+	public static readonly DiagnosticDescriptor EndpointRateLimit = new(
+		DiagnosticIds.PUBLY0011,
+		"Declare endpoint rate limiting",
+		"Endpoint mapping '{0}' must declare or inherit a named "
+			+ "rate-limit policy, use WithGlobalRateLimitOnly(), "
+			+ "or use WithRateLimitOptOut(\"reason\")",
+		"PublyApp.Security",
+		DiagnosticSeverity.Warning,
+		isEnabledByDefault: false,
+		description: "Every API endpoint must be protected by a named "
+			+ "rate-limit policy or explicitly marked as global-only. "
+			+ "Infrastructure opt-outs require a non-empty reason."
+	);
 }

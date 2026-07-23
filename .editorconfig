@@ -107,6 +107,7 @@ dotnet_diagnostic.PUBLY0007.severity = warning   # Require *ForStaff service var
 dotnet_diagnostic.PUBLY0008.severity = warning   # Prefer is null / is not null
 dotnet_diagnostic.PUBLY0009.severity = warning   # Disallow TypedResults.Forbid() — use TypedProblems.* (RFC 7807)
 dotnet_diagnostic.PUBLY0010.severity = warning   # Never log session-token values (X-Session-Token / SessionToken)
+dotnet_diagnostic.PUBLY0011.severity = warning   # Require explicit endpoint rate-limit disposition
 dotnet_diagnostic.SYSLIB1045.severity = warning # Use [GeneratedRegex]
 dotnet_diagnostic.xUnit1042.severity = warning  # MemberData should return TheoryData<...> for type safety
 dotnet_diagnostic.xUnit1045.severity = warning  # TheoryData type argument must be serializable

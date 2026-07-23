@@ -252,6 +252,9 @@ public class Program {
 	// environment (see call site above) — must not ship into production artifacts.
 	private static void MapTenantTestingScaffoldEndpoints(RouteGroupBuilder tenantGroup) {
 		tenantGroup.MapGet("/test-permission", () => "Hello, Permission!")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.AuthenticatedDefault
+			)
 			.WithTenantPermission([AppPermissions.Tenant.Modules.ACCESS_DASHBOARD]);
 	}
 }
