@@ -115,8 +115,8 @@ public sealed class ComprehensiveRateLimitingSpec
 		var sessionService =
 			new RejectingSessionService();
 		await using var factory = CreateFactory(
-			globalPermitLimit: 1,
-			authenticatedPermitLimit: 100,
+			globalPermitLimit: 100,
+			authenticatedPermitLimit: 1,
 			sessionService: sessionService
 		);
 		using var client = CreateClient(factory);
@@ -139,9 +139,10 @@ public sealed class ComprehensiveRateLimitingSpec
 			rotatedResponse
 		);
 		sessionService.LookupCount.Should().Be(
-			1,
-			"the IP floor must reject before another "
-				+ "database-backed session lookup"
+			2,
+			"the generous IP floor must admit both "
+				+ "requests so the authenticated policy "
+				+ "proves forged tokens share one bucket"
 		);
 	}
 
