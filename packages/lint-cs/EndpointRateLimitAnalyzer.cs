@@ -220,11 +220,90 @@ public sealed class EndpointRateLimitAnalyzer
 				"Microsoft.AspNetCore.Builder."
 					+ "RouteGroupBuilder"
 			);
-		return routeGroupBuilderType is null
-			|| !SymbolEqualityComparer.Default.Equals(
+		return !IsNonTerminalMapping(
+			method,
+			routeBuilderType,
+			conventionBuilderType,
+			routeGroupBuilderType,
+			context.CancellationToken
+		);
+	}
+
+	private static bool IsNonTerminalMapping(
+		IMethodSymbol method,
+		INamedTypeSymbol routeBuilderType,
+		INamedTypeSymbol conventionBuilderType,
+		INamedTypeSymbol? routeGroupBuilderType,
+		CancellationToken cancellationToken
+	) {
+		if (
+			routeGroupBuilderType is not null
+			&& SymbolEqualityComparer.Default.Equals(
 				method.ReturnType,
 				routeGroupBuilderType
-			);
+			)
+		) {
+			return true;
+		}
+
+		if (
+			method.ReturnType.TypeKind == TypeKind.Interface
+			&& (
+				IsOrImplements(
+					method.ReturnType,
+					routeBuilderType
+				)
+				|| IsOrImplements(
+					method.ReturnType,
+					conventionBuilderType
+				)
+			)
+		) {
+			return true;
+		}
+
+		return method.DeclaringSyntaxReferences.Any(
+			reference =>
+				reference.GetSyntax(cancellationToken)
+					is MethodDeclarationSyntax declaration
+				&& ReturnsMapGroup(declaration)
+		);
+	}
+
+	private static bool ReturnsMapGroup(
+		MethodDeclarationSyntax declaration
+	) {
+		if (
+			declaration.ExpressionBody?.Expression
+				is ExpressionSyntax expression
+		) {
+			return IsMapGroupInvocation(expression);
+		}
+
+		return declaration.Body?.Statements
+			.OfType<ReturnStatementSyntax>()
+			.Any(statement =>
+				statement.Expression is not null
+				&& IsMapGroupInvocation(
+					statement.Expression
+				)
+			) == true;
+	}
+
+	private static bool IsMapGroupInvocation(
+		ExpressionSyntax expression
+	) {
+		while (
+			expression
+				is ParenthesizedExpressionSyntax parenthesized
+		) {
+			expression = parenthesized.Expression;
+		}
+
+		return expression
+				is InvocationExpressionSyntax invocation
+			&& GetInvokedMethodName(invocation)
+				== "MapGroup";
 	}
 
 	private static bool IsOrImplements(

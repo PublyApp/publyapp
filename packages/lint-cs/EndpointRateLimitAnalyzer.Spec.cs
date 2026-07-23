@@ -74,6 +74,10 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 					Action handler
 				) => new RouteHandlerBuilder();
 
+				public static IEndpointConventionBuilder MapArea(
+					this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder
+				) => builder.MapGroup("/area");
+
 				public static RouteHandlerBuilder AddEndpointFilter(
 					this RouteHandlerBuilder builder
 				) => builder;
@@ -300,6 +304,19 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 				.WithLocation(0)
 				.WithArguments("MapWidget")
 		);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldIgnoreMapNamedRouteGroupHelpersReturningAnInterface() {
+		const string source = """
+			using Microsoft.AspNetCore.Builder;
+
+			var app = new RouteBuilder();
+			app.MapArea();
+			""";
+
+		await VerifyAsync(source);
 	}
 
 	[Fact]
