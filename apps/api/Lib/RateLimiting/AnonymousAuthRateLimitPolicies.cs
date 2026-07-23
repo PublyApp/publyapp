@@ -3,6 +3,7 @@ using System.Threading.RateLimiting;
 
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Options;
 
 using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.ProblemResults;
@@ -165,6 +166,11 @@ internal sealed class AnonymousAuthPerIpRateLimitPolicy
 		var clientIp =
 			AnonymousAuthRateLimitPartitionKeys
 				.GetClientIp(httpContext);
+		RateLimitRejectionContext.Set(
+			httpContext,
+			AnonymousAuthRateLimitPolicies.PerIp,
+			clientIp
+		);
 
 		return RateLimitPartition.Get(
 			clientIp,
@@ -197,6 +203,7 @@ internal sealed class AnonymousAuthPerEmailRateLimitPolicy
 		return EmailRateLimitPartition.Create(
 			httpContext,
 			_store,
+			AnonymousAuthRateLimitPolicies.PerEmail,
 			isPasswordReset: false
 		);
 	}
@@ -226,6 +233,8 @@ internal sealed class PasswordResetPerEmailRateLimitPolicy
 		return EmailRateLimitPartition.Create(
 			httpContext,
 			_store,
+			AnonymousAuthRateLimitPolicies
+				.PasswordResetPerEmail,
 			isPasswordReset: true
 		);
 	}
@@ -235,6 +244,7 @@ internal static class EmailRateLimitPartition {
 	public static RateLimitPartition<string> Create(
 		HttpContext httpContext,
 		AnonymousAuthRateLimiterStore store,
+		string policyName,
 		bool isPasswordReset
 	) {
 		var clientIp =
@@ -244,6 +254,11 @@ internal static class EmailRateLimitPartition {
 			AnonymousAuthRateLimitPartitionKeys
 				.GetEmail(httpContext);
 		var partitionKey = $"{clientIp}\n{email}";
+		RateLimitRejectionContext.Set(
+			httpContext,
+			policyName,
+			partitionKey
+		);
 
 		return RateLimitPartition.Get(
 			partitionKey,
@@ -275,6 +290,13 @@ public static class AnonymousAuthRateLimitExtensions {
 			AnonymousAuthPerEmailRateLimitPolicy>();
 		services.AddSingleton<
 			PasswordResetPerEmailRateLimitPolicy>();
+		services.AddSingleton(
+			ApiRateLimitSettings.ProductionDefaults
+		);
+		services.AddSingleton<ApiRateLimiterStore>();
+		services.AddSingleton<
+			IConfigureOptions<RateLimiterOptions>,
+			ApiRateLimiterOptionsSetup>();
 
 		services.Configure<ForwardedHeadersOptions>(
 			options => {
@@ -373,6 +395,24 @@ public static class AnonymousAuthRateLimitExtensions {
 		OnRejectedContext context,
 		CancellationToken cancellationToken
 	) {
+		var rejectionInfo = RateLimitRejectionContext
+			.Get(context.HttpContext);
+		if (rejectionInfo is not null) {
+			var logger = context.HttpContext
+				.RequestServices
+				.GetRequiredService<ILoggerFactory>()
+				.CreateLogger(
+					"PublyApp.Api.RateLimiting"
+				);
+			logger.LogWarning(
+				"Rate limit rejected request for policy "
+					+ "{RateLimitPolicy} partition "
+					+ "{RateLimitPartitionFingerprint}",
+				rejectionInfo.PolicyName,
+				rejectionInfo.PartitionFingerprint
+			);
+		}
+
 		var retryAfter = TimeSpan.FromSeconds(1);
 		if (
 			context.Lease.TryGetMetadata(
