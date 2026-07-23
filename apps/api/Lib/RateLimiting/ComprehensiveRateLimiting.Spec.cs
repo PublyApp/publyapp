@@ -452,6 +452,44 @@ public sealed class ComprehensiveRateLimitingSpec
 
 	[Fact]
 	public async Task
+	ItShouldNotExposeCorsOriginOnRateLimitedResponsesForDisallowedOrigins() {
+		await using var factory = CreateFactory(
+			globalPermitLimit: 1
+		);
+		using var client = CreateClient(factory);
+		const string path = "/health/not-real";
+		const string disallowedOrigin =
+			"https://disallowed.example.com";
+
+		using var firstRequest = CreateCorsRequest(
+			HttpMethod.Get,
+			path,
+			disallowedOrigin
+		);
+		using var firstResponse = await client.SendAsync(
+			firstRequest
+		);
+		using var rejectedRequest = CreateCorsRequest(
+			HttpMethod.Get,
+			path,
+			disallowedOrigin
+		);
+		using var rejectedResponse = await client.SendAsync(
+			rejectedRequest
+		);
+
+		firstResponse.StatusCode.Should()
+			.Be(HttpStatusCode.NotFound);
+		await AssertRateLimitedResponseAsync(
+			rejectedResponse
+		);
+		rejectedResponse.Headers.Contains(
+			"Access-Control-Allow-Origin"
+		).Should().BeFalse();
+	}
+
+	[Fact]
+	public async Task
 	ItShouldExposeCorsHeadersOnOversizedEmailBodies() {
 		await using var factory = CreateFactory();
 		using var client = CreateClient(factory);
@@ -857,12 +895,13 @@ public sealed class ComprehensiveRateLimitingSpec
 
 	private static HttpRequestMessage CreateCorsRequest(
 		HttpMethod method,
-		string path
+		string path,
+		string? origin = null
 	) {
 		var request = new HttpRequestMessage(method, path);
 		request.Headers.TryAddWithoutValidation(
 			"Origin",
-			AppEnvironment.Instance.FRONT_URL
+			origin ?? AppEnvironment.Instance.FRONT_URL
 		);
 		return request;
 	}
