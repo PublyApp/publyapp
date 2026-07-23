@@ -85,7 +85,7 @@ public sealed class CheckEmailVerificationToken {
 		) {
 			return TypedProblems.BadRequest(
 				"Invalid or expired email verification token",
-				ResponseKeys.InvalidEmailVerificationToken
+				ResponseKeys.EmailVerificationTokenExpired
 			);
 		}
 

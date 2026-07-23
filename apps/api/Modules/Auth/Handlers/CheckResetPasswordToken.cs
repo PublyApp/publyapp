@@ -72,8 +72,8 @@ public sealed class CheckResetPasswordToken {
 			&& DateTime.UtcNow > user.PasswordResetTokenExpiresAt.Value
 		) {
 			return TypedProblems.BadRequest(
-				"Invalid or expired password reset token",
-				ResponseKeys.InvalidPasswordResetToken
+				"This password reset link has expired",
+				ResponseKeys.PasswordResetTokenExpired
 			);
 		}
 
