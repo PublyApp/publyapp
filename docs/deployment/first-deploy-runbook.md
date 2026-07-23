@@ -143,6 +143,7 @@ code defaults when they are blank.
 | `APP_NAME`                   | display/app name (e.g. `PublyApp`)                                                                                                                                                                                                                                                                                                                                   |
 | `FRONT_URL`                  | public URL of the front (e.g. `https://publyapp.com`)                                                                                                                                                                                                                                                                                                                |
 | `DEFAULT_EMAIL_SENDER_EMAIL` | the "from" address — must be a **Resend-verified** domain for mail to deliver (app still starts if not)                                                                                                                                                                                                                                                              |
+| `TRUSTED_PROXY_CIDRS`        | the exact `dokploy-network` CIDR from `docker network inspect dokploy-network --format '{{(index .IPAM.Config 0).Subnet}}'`; the production API fails fast when this is missing, because trusting arbitrary proxies enables X-Forwarded-For spoofing while trusting none collapses every client into Traefik's IP |
 | `PUBLIC_API_BASE_URL`        | api's **public** URL, browser-facing (e.g. `https://api.publyapp.com`)                                                                                                                                                                                                                                                                                               |
 | `VITE_ASP_SERVER_URL`        | same public api URL (baked into the browser bundle)                                                                                                                                                                                                                                                                                                                  |
 | `SERVER_API_BASE_URL`        | server-to-server (front SSR → api). Use the internal `http://publyapp-api:5000` (both are on `dokploy-network`) — faster and doesn't need the public domain live                                                                                                                                                                                                     |
@@ -168,6 +169,11 @@ INVITATION_TOKEN_LENGTH=32
 (10000), `MAX_PROFILES_PER_USER` (5), `TENANT_USER_EXPORT_MAX_ROWS` (10000),
 `TENANT_ACTIVITY_THROTTLE_MINUTES` (5), `FILE_STORAGE_ROOT` (.artifacts/storage),
 `UPLOAD_MAX_BYTES` (2000000), `JOB_QUEUE_BATCH_SIZE` (20), `JOB_QUEUE_POLL_SECONDS` (5),
+`ANON_AUTH_IP_RATE_LIMIT_PERMIT_LIMIT` (30), `ANON_AUTH_IP_RATE_LIMIT_WINDOW_SECONDS` (60),
+`ANON_AUTH_EMAIL_RATE_LIMIT_PERMIT_LIMIT` (30),
+`ANON_AUTH_EMAIL_RATE_LIMIT_WINDOW_SECONDS` (60),
+`PASSWORD_RESET_EMAIL_RATE_LIMIT_PERMIT_LIMIT` (3),
+`PASSWORD_RESET_EMAIL_RATE_LIMIT_WINDOW_SECONDS` (900),
 `JOB_LEASE_SECONDS` (300), `JOB_QUEUE_DRAIN_BUDGET_SECONDS` (60), `EMAIL_LOG_RETENTION_DAYS`
 (180), `JOB_DEAD_LETTER_RETENTION_DAYS` (90), `EMAIL_PREPARED_SEND_RETENTION_DAYS` (7),
 `EMAIL_PREPARED_SWEEP_MAX_LAG_MINUTES` (60), `SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS` (30),
