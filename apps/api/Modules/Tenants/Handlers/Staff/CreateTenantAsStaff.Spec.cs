@@ -1,12 +1,16 @@
 
 using System.Net;
 using System.Net.Http.Json;
+using System.Reflection;
 using System.Text;
+using System.Text.Json;
 
 using FluentAssertions;
 
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Messaging.Email;
@@ -21,6 +25,7 @@ using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Profiles.Entities;
 using PublyApp.Api.Modules.Tenants.Entities;
+using PublyApp.Api.Modules.Tenants.Services;
 using PublyApp.Api.Modules.Tenants.Validation;
 using PublyApp.Api.Modules.Users.Entities;
 
@@ -1149,6 +1154,68 @@ public sealed class CreateTenantAsStaffSpec
 		return created;
 	}
 
+	[Fact]
+	public async Task
+	ItShouldNotExposeCreationExceptionDetailsWhenTenantServiceFails() {
+		using var bodyDocument = JsonDocument.Parse(
+			"""
+			{
+				"name": "Sanitized Tenant Failure",
+				"maxUsers": 1,
+				"initialUsers": [
+					{
+						"email": "sanitized-tenant@example.com",
+						"accountLevel": "Admin"
+					}
+				]
+			}
+			"""
+		);
+		var bodyRoot = bodyDocument.RootElement;
+		var body = new CreateTenantAsStaffBody {
+			Name = bodyRoot.GetProperty("name"),
+			MaxUsers = bodyRoot.GetProperty("maxUsers"),
+			InitialUsers = bodyRoot.GetProperty("initialUsers")
+		};
+		var authContext = new RequestAuthContext {
+			AccountStaff = UserAccount.CreateStaffAccount(Guid.NewGuid())
+		};
+		var tenantService =
+			DispatchProxy.Create<ITenantAsStaffService, ThrowingTenantServiceProxy>();
+
+		var result = await CreateTenantAsStaff.Handle(
+			body,
+			tenantService,
+			authContext,
+			NullLogger<CreateTenantAsStaff>.Instance,
+			CancellationToken.None
+		);
+		var httpContext = new DefaultHttpContext();
+		httpContext.Response.Body = new MemoryStream();
+
+		await result.ExecuteAsync(httpContext);
+
+		httpContext.Response.StatusCode.Should()
+			.Be(StatusCodes.Status400BadRequest);
+		httpContext.Response.ContentType.Should()
+			.Be("application/problem+json");
+		httpContext.Response.Body.Position = 0;
+		using var reader = new StreamReader(httpContext.Response.Body);
+		var responseBody = await reader.ReadToEndAsync();
+		responseBody.Should().NotContain(
+			ThrowingTenantServiceProxy.RawExceptionMessage
+		);
+
+		var problem = JsonSerializer.Deserialize<AppProblemDetails>(
+			responseBody,
+			JsonSerializerOptions.Web
+		);
+		problem.Should().NotBeNull();
+		Assert.NotNull(problem);
+		problem.Detail.Should().Be("Failed to create tenant");
+		problem.TranslationKey.Should().Be(ResponseKeys.BadRequest);
+	}
+
 	private async Task AssertTenantMaxUsersAsync(
 		Guid tenantId,
 		int expectedMaxUsers
@@ -1262,5 +1329,26 @@ public sealed class CreateTenantAsStaffSpec
 		}
 
 		return fakeEmailSender.SentEmails;
+	}
+
+	public class ThrowingTenantServiceProxy : DispatchProxy {
+		public const string RawExceptionMessage =
+			"Host=prod-db;Username=admin;Password=super-secret";
+
+		protected override object? Invoke(
+			MethodInfo? targetMethod,
+			object?[]? args
+		) {
+			if (
+				targetMethod?.Name
+				== nameof(ITenantAsStaffService.CreateTenantWithInitialUsersAsync)
+			) {
+				throw new InvalidOperationException(RawExceptionMessage);
+			}
+
+			throw new NotSupportedException(
+				$"Unexpected service call: {targetMethod?.Name}"
+			);
+		}
 	}
 }
