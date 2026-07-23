@@ -348,20 +348,63 @@ public sealed class EndpointRateLimitAnalyzer
 			.DescendantNodes()
 			.OfType<InvocationExpressionSyntax>()
 			.Where(candidate =>
-				candidate.Expression
-					is MemberAccessExpressionSyntax {
+				IsInvocationRootedInLocal(
+					candidate,
+					endpointLocal,
+					semanticModel,
+					cancellationToken
+				)
+			)
+			.ToArray();
+	}
+
+	private static bool IsInvocationRootedInLocal(
+		InvocationExpressionSyntax invocation,
+		ILocalSymbol endpointLocal,
+		SemanticModel semanticModel,
+		CancellationToken cancellationToken
+	) {
+		if (
+			invocation.Expression
+				is not MemberAccessExpressionSyntax memberAccess
+		) {
+			return false;
+		}
+
+		ExpressionSyntax receiver =
+			memberAccess.Expression;
+		while (true) {
+			if (
+				receiver
+					is ParenthesizedExpressionSyntax
+						parenthesized
+			) {
+				receiver = parenthesized.Expression;
+				continue;
+			}
+
+			if (
+				receiver
+					is InvocationExpressionSyntax {
 						Expression:
-							IdentifierNameSyntax identifier,
+							MemberAccessExpressionSyntax
+								previousAccess,
 					}
+			) {
+				receiver = previousAccess.Expression;
+				continue;
+			}
+
+			return receiver
+					is IdentifierNameSyntax identifier
 				&& SymbolEqualityComparer.Default.Equals(
 					semanticModel.GetSymbolInfo(
 						identifier,
 						cancellationToken
 					).Symbol,
 					endpointLocal
-				)
-			)
-			.ToArray();
+				);
+		}
 	}
 
 	private static bool HasDisableRateLimiting(

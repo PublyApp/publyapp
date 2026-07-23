@@ -289,6 +289,57 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 	}
 
 	[Fact]
+	public async Task
+	ItShouldRejectChainedCapturedDisableOverridingAnInheritedNamedPolicy() {
+		const string source = """
+			using Microsoft.AspNetCore.Builder;
+
+			var app = new RouteBuilder();
+			var group = app.MapGroup("/staff")
+				.RequireRateLimiting("authenticated-default");
+			var endpoint = group.{|#0:MapGet|}("/users", () => { });
+			endpoint.AddEndpointFilter().DisableRateLimiting();
+			""";
+
+		await VerifyAsync(
+			source,
+			Verifier
+				.Diagnostic(DiagnosticIds.PUBLY0011)
+				.WithLocation(0)
+				.WithArguments("MapGet")
+		);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldAcceptCapturedEndpointOptOutWithAReason() {
+		const string source = """
+			using Microsoft.AspNetCore.Builder;
+
+			var app = new RouteBuilder();
+			var endpoint = app.MapGet("/health", () => { });
+			endpoint.WithRateLimitOptOut("load-balancer health probe");
+			""";
+
+		await VerifyAsync(source);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldAcceptChainedCapturedEndpointOptOutWithAReason() {
+		const string source = """
+			using Microsoft.AspNetCore.Builder;
+
+			var app = new RouteBuilder();
+			var endpoint = app.MapGet("/health", () => { });
+			endpoint.AddEndpointFilter()
+				.WithRateLimitOptOut("load-balancer health probe");
+			""";
+
+		await VerifyAsync(source);
+	}
+
+	[Fact]
 	public async Task ItShouldAnalyzeCustomEndpointMappingHelpers() {
 		const string source = """
 			using Microsoft.AspNetCore.Builder;
