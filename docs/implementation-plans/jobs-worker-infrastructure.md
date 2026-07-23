@@ -49,7 +49,7 @@ against this infrastructure:
 | --- | --- | --- |
 | Scheduled post publishing | #646 (D3, part of #631) | Quartz due-scan → enqueue → publish; **future**, this design accommodates it, does not build it |
 | Expired-session cleanup | #389 | recurring system job, batched hard-delete |
-| Expired-invitation status set | #425 | recurring system job |
+| Invitation expiration | #425 | derived at read time; **no job** (owner ruling, §11 O32) |
 | Audit-log export → background | #213 | on-demand job, file output + notify email |
 | Full-result tenant export | #286 | on-demand job, file output + notify email |
 | Invitation email delivery | #291 | shipped as a typed outbox in #806; **folds into `job_queue` as email jobs** (this design) |
@@ -3960,11 +3960,11 @@ top-level source area needs its own `Compile Include` line in the test shell).
   domain-service rules.
 - **Job handlers generally:** live with their domain, not in the engine —
   session cleanup (#389) → `Modules/Auth/Jobs/CleanupExpiredSessionsHandler.cs`
-  (Session lives in `Modules/Auth/Entities`), expired-invitation sweep (#425) →
-  `Modules/Invitations/Jobs/`, exports (#213/#286) →
+  (Session lives in `Modules/Auth/Entities`), exports (#213/#286) →
   `Modules/AuditLogs/Jobs/` and `Modules/Tenants/Jobs/`. Each implements
   `IJobHandler`. This keeps the engine domain-agnostic and each job's business
-  logic inside its slice.
+  logic inside its slice. Invitation expiration (#425) has no handler or sweep;
+  it is derived at read time (see §11, O32/#425 ruling).
 - **Migrations:** `apps/api/Migrations/` (unchanged location) — one per schema
   step (§10), each also mutating `AppDbContextModelSnapshot.cs`.
 - **DI:** worker hosted services via `AddHostedService<…>()` inside
@@ -4424,10 +4424,11 @@ specs. The audit found it incomplete; 2A-R below is its remediation packet.
 
 ### Phase 3 — #635: recovery/DLQ ops + first system jobs + observability sampler
 
-`RecoverStaleJobsJob` + `SyncSystemJobsJob` seed rows; first recurring
-handlers: session cleanup (#389, `Modules/Auth/Jobs/`) and expired-invitation
-status (#425, `Modules/Invitations/Jobs/`), each with an idempotency spec and a
-domain outcome marker where applicable (F13); `JobQueueMonitorService` (§7.2 —
+`RecoverStaleJobsJob` + `SyncSystemJobsJob` seed rows; Phase 3 seeds exactly
+one domain job: session cleanup (#389, `Modules/Auth/Jobs/`), with an
+idempotency spec and a domain outcome marker where applicable (F13). Invitation
+expiration (#425) is not a handler or system-job definition; it remains derived
+at read time (see §11, O32/#425 ruling). `JobQueueMonitorService` (§7.2 —
 **per-replica, instance-tagged, not leader-gated**, + `scheduler.leader_present`
 and sync-staleness alerts — R2-10); **the one wired alert route** (Serilog
 warning+ webhook sink — O8/R2-10) behind the
@@ -5115,6 +5116,15 @@ the same-night D2 revision and retained only for the record.
   batch resolves only the `1 Present` half. The `6 Unclassified` half is **K-1** —
   the one place this design knowingly trades unbounded row growth for refusing to
   manufacture a claim it cannot support.
+- **O32 — Invitation expiration (#425). — OWNER-RATIFIED 2026-07-17: derived at
+  read time; no sweep job and no persisted `Expired` status.** Invitations store
+  an expiry timestamp, and expiration is computed at read time. The existing
+  database CHECK constraint continues to forbid a persisted `Expired` status. A
+  sweep would only write down a fact that is already computable and would be
+  correct only until its next run; the derived value is correct the instant the
+  deadline passes. Persisting the status would be justified only if directly
+  querying or filtering expired invitations in SQL later becomes a requirement.
+  #425 is closed as satisfied by the existing design.
 
 ### Known open items — read this before building (round 10, final)
 
