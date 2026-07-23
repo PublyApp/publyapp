@@ -21,6 +21,17 @@ public sealed class EndpointRateLimitAnalyzer
 		NonTerminal,
 	}
 
+	private const string AspNetBuilderNamespace =
+		"Microsoft.AspNetCore.Builder";
+	private const string RateLimiterExtensionsType =
+		"RateLimiterEndpointConventionBuilderExtensions";
+	private const string RateLimitingNamespace =
+		"PublyApp.Api.Lib.RateLimiting";
+	private const string ApiRateLimitExtensionsType =
+		"ApiRateLimitEndpointExtensions";
+	private const string AnonymousAuthExtensionsType =
+		"AnonymousAuthRateLimitExtensions";
+
 	private static readonly ImmutableHashSet<string>
 		KnownNamedPolicies =
 			ImmutableHashSet.Create(
@@ -102,11 +113,21 @@ public sealed class EndpointRateLimitAnalyzer
 			);
 		if (
 			(
-				HasDisableRateLimiting(chainRoot)
+				HasDisableRateLimiting(
+					chainRoot,
+					context.SemanticModel,
+					context.CancellationToken
+				)
 				|| capturedInvocations.Any(
 					candidate =>
-						GetInvokedMethodName(candidate)
-							== "DisableRateLimiting"
+						IsIntendedMethod(
+							candidate,
+							"DisableRateLimiting",
+							AspNetBuilderNamespace,
+							RateLimiterExtensionsType,
+							context.SemanticModel,
+							context.CancellationToken
+						)
 				)
 			)
 			&& !(
@@ -672,9 +693,16 @@ public sealed class EndpointRateLimitAnalyzer
 		SyntaxNode chainRoot,
 		SemanticModel semanticModel,
 		CancellationToken cancellationToken
-	) {
+		) {
+		var conventionBuilderType = semanticModel
+			.Compilation
+			.GetTypeByMetadataName(
+				"Microsoft.AspNetCore.Builder."
+					+ "IEndpointConventionBuilder"
+			);
 		if (
-			chainRoot.Parent
+			conventionBuilderType is null
+			|| chainRoot.Parent
 				is not EqualsValueClauseSyntax {
 					Parent: VariableDeclaratorSyntax
 						declarator,
@@ -692,9 +720,10 @@ public sealed class EndpointRateLimitAnalyzer
 			.DescendantNodes()
 			.OfType<InvocationExpressionSyntax>()
 			.Where(candidate =>
-				IsInvocationRootedInLocal(
+				IsEndpointConventionChainRootedInLocal(
 					candidate,
 					endpointLocal,
+					conventionBuilderType,
 					semanticModel,
 					cancellationToken
 				)
@@ -702,15 +731,25 @@ public sealed class EndpointRateLimitAnalyzer
 			.ToArray();
 	}
 
-	private static bool IsInvocationRootedInLocal(
+	private static bool
+		IsEndpointConventionChainRootedInLocal(
 		InvocationExpressionSyntax invocation,
 		ILocalSymbol endpointLocal,
+		INamedTypeSymbol conventionBuilderType,
 		SemanticModel semanticModel,
 		CancellationToken cancellationToken
 	) {
 		if (
 			invocation.Expression
 				is not MemberAccessExpressionSyntax memberAccess
+			|| semanticModel.GetTypeInfo(
+				invocation,
+				cancellationToken
+			).Type is not ITypeSymbol resultType
+			|| !IsOrImplements(
+				resultType,
+				conventionBuilderType
+			)
 		) {
 			return false;
 		}
@@ -718,6 +757,21 @@ public sealed class EndpointRateLimitAnalyzer
 		ExpressionSyntax receiver =
 			memberAccess.Expression;
 		while (true) {
+			var receiverType = semanticModel
+				.GetTypeInfo(
+					receiver,
+					cancellationToken
+				).Type;
+			if (
+				receiverType is null
+				|| !IsOrImplements(
+					receiverType,
+					conventionBuilderType
+				)
+			) {
+				return false;
+			}
+
 			if (
 				receiver
 					is ParenthesizedExpressionSyntax
@@ -752,14 +806,22 @@ public sealed class EndpointRateLimitAnalyzer
 	}
 
 	private static bool HasDisableRateLimiting(
-		SyntaxNode root
+		SyntaxNode root,
+		SemanticModel semanticModel,
+		CancellationToken cancellationToken
 	) {
 		return root
 			.DescendantNodesAndSelf()
 			.OfType<InvocationExpressionSyntax>()
 			.Any(invocation =>
-				GetInvokedMethodName(invocation)
-					== "DisableRateLimiting"
+				IsIntendedMethod(
+					invocation,
+					"DisableRateLimiting",
+					AspNetBuilderNamespace,
+					RateLimiterExtensionsType,
+					semanticModel,
+					cancellationToken
+				)
 			);
 	}
 
@@ -781,11 +843,17 @@ public sealed class EndpointRateLimitAnalyzer
 			invocations,
 		SemanticModel semanticModel,
 		CancellationToken cancellationToken
-	) {
+		) {
 		return invocations
 			.Any(invocation =>
-				GetInvokedMethodName(invocation)
-					== "WithRateLimitOptOut"
+				IsIntendedMethod(
+					invocation,
+					"WithRateLimitOptOut",
+					RateLimitingNamespace,
+					ApiRateLimitExtensionsType,
+					semanticModel,
+					cancellationToken
+				)
 				&& HasNonEmptyConstantReason(
 					invocation,
 					semanticModel,
@@ -883,16 +951,13 @@ public sealed class EndpointRateLimitAnalyzer
 			invocations,
 		SemanticModel semanticModel,
 		CancellationToken cancellationToken
-	) {
+		) {
 		foreach (
 			var invocation in invocations
 		) {
-			var methodName =
-				GetInvokedMethodName(invocation);
 			if (
 				IsNamedPolicyInvocation(
 					invocation,
-					methodName,
 					semanticModel,
 					cancellationToken
 				)
@@ -901,15 +966,27 @@ public sealed class EndpointRateLimitAnalyzer
 			}
 
 			if (
-				methodName
-					== "WithGlobalRateLimitOnly"
+				IsIntendedMethod(
+					invocation,
+					"WithGlobalRateLimitOnly",
+					RateLimitingNamespace,
+					ApiRateLimitExtensionsType,
+					semanticModel,
+					cancellationToken
+				)
 			) {
 				return true;
 			}
 
 			if (
-				methodName
-					== "WithRateLimitOptOut"
+				IsIntendedMethod(
+					invocation,
+					"WithRateLimitOptOut",
+					RateLimitingNamespace,
+					ApiRateLimitExtensionsType,
+					semanticModel,
+					cancellationToken
+				)
 				&& HasNonEmptyConstantReason(
 					invocation,
 					semanticModel,
@@ -925,18 +1002,36 @@ public sealed class EndpointRateLimitAnalyzer
 
 	private static bool IsNamedPolicyInvocation(
 		InvocationExpressionSyntax invocation,
-		string? methodName,
 		SemanticModel semanticModel,
 		CancellationToken cancellationToken
 	) {
+		var methodName =
+			GetInvokedMethodName(invocation);
 		if (
 			methodName is not null
 			&& ApprovedNamedPolicyHelpers.Contains(methodName)
+			&& IsIntendedMethod(
+				invocation,
+				methodName,
+				RateLimitingNamespace,
+				AnonymousAuthExtensionsType,
+				semanticModel,
+				cancellationToken
+			)
 		) {
 			return true;
 		}
 
-		if (methodName != "RequireRateLimiting") {
+		if (
+			!IsIntendedMethod(
+				invocation,
+				"RequireRateLimiting",
+				AspNetBuilderNamespace,
+				RateLimiterExtensionsType,
+				semanticModel,
+				cancellationToken
+			)
+		) {
 			return false;
 		}
 
@@ -954,6 +1049,33 @@ public sealed class EndpointRateLimitAnalyzer
 		return constant.HasValue
 			&& constant.Value is string policyName
 			&& KnownNamedPolicies.Contains(policyName);
+	}
+
+	private static bool IsIntendedMethod(
+		InvocationExpressionSyntax invocation,
+		string methodName,
+		string containingNamespace,
+		string containingType,
+		SemanticModel semanticModel,
+		CancellationToken cancellationToken
+	) {
+		if (
+			semanticModel.GetSymbolInfo(
+				invocation,
+				cancellationToken
+			).Symbol is not IMethodSymbol method
+		) {
+			return false;
+		}
+
+		var definition = method.ReducedFrom
+			?? method;
+		return definition.Name == methodName
+			&& definition.ContainingType.Name
+				== containingType
+			&& definition.ContainingNamespace
+				.ToDisplayString()
+				== containingNamespace;
 	}
 
 	private static bool HasNonEmptyConstantReason(
