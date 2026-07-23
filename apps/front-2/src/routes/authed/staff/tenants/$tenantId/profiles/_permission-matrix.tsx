@@ -280,7 +280,7 @@ const PermissionMatrix = ({
 				</div>
 			</div>
 
-			{groups.length > 0 ? (
+			{visibleGroups.length > 0 ? (
 				<div className="grid gap-4 lg:grid-cols-2">
 					{[leftGroups, rightGroups].map((columnGroups, columnIndex) => (
 						<div key={columnIndex} className="flex flex-col gap-4">
@@ -301,6 +301,17 @@ const PermissionMatrix = ({
 						</div>
 					))}
 				</div>
+			) : null}
+
+			{groups.length > 0 &&
+			visibleGroups.length === 0 &&
+			filterNeedle.length > 0 ? (
+				<p
+					className="py-6 text-center text-sm text-muted-foreground"
+					role="status"
+				>
+					{t('no-matching-permissions')}
+				</p>
 			) : null}
 		</div>
 	);

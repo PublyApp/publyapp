@@ -43,6 +43,7 @@ const buildProfileFormSchema = (t: (key: string) => string) =>
 			.string()
 			.trim()
 			.min(1, { message: t('profile-name-required') })
+			.min(2, { message: t('profile-name-too-short') })
 			.max(100, { message: t('profile-name-too-long') }),
 		description: z
 			.string()

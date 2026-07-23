@@ -23,6 +23,7 @@ vi.mock('react-i18next', () => ({
 				'permissions-selected-total': '{{selected}} of {{total}} selected',
 				'toggle-all-module-permissions': 'Toggle all {{module}} permissions',
 				'permission-changed-indicator': 'changed',
+				'no-matching-permissions': 'No matching permissions.',
 			};
 			let text = labels[key.includes(':') ? key.split(':')[1] : key] ?? key;
 			for (const [optionKey, value] of Object.entries(options ?? {})) {
@@ -130,5 +131,17 @@ describe('PermissionMatrix', () => {
 		expect(screen.getByTestId('permissions-selected-total').textContent).toBe(
 			'0 of 3 selected',
 		);
+	});
+
+	test('shows an explicit empty state when the filter excludes every permission', () => {
+		render(<ControlledMatrix />);
+
+		fireEvent.change(screen.getByTestId('permissions-filter'), {
+			target: { value: 'does not exist' },
+		});
+
+		expect(screen.getByText('No matching permissions.')).toBeTruthy();
+		expect(screen.queryByTestId('permission-module-posts')).toBeNull();
+		expect(screen.queryByTestId('permission-module-channels')).toBeNull();
 	});
 });

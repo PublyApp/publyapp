@@ -39,6 +39,7 @@ vi.mock('react-i18next', () => ({
 				'profile-name': 'Profile name',
 				'tenant-profile-name-placeholder': 'Approvers',
 				'profile-name-required': 'Profile name is required.',
+				'profile-name-too-short': 'Enter at least 2 characters.',
 				'profile-name-too-long': 'Profile name is too long.',
 				description: 'Description',
 				'profile-description-placeholder':
@@ -422,7 +423,7 @@ describe('ProfileFormDrawer', () => {
 		expect(mocks.toastSuccess).toHaveBeenCalledTimes(1);
 	});
 
-	test('blocks submission when the profile name is empty (name.min(1))', async () => {
+	test('blocks submission when the profile name is empty', async () => {
 		render(
 			<ProfileFormDrawer
 				tenantId="tenant-1"
@@ -438,6 +439,30 @@ describe('ProfileFormDrawer', () => {
 
 		await waitFor(() =>
 			expect(mocks.createProfileMutation).not.toHaveBeenCalled(),
+		);
+	});
+
+	test('blocks submission when the profile name has only one character', async () => {
+		render(
+			<ProfileFormDrawer
+				tenantId="tenant-1"
+				isOpen
+				onOpenChange={vi.fn()}
+				onSaved={vi.fn()}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		fireEvent.change(screen.getByLabelText('Profile name'), {
+			target: { value: 'A' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Create profile' }));
+
+		await waitFor(() =>
+			expect(mocks.createProfileMutation).not.toHaveBeenCalled(),
+		);
+		expect(screen.getByRole('alert').textContent).toBe(
+			'Enter at least 2 characters.',
 		);
 	});
 

@@ -35,6 +35,7 @@ vi.mock('react-i18next', () => ({
 					'Permissions & members are managed in their own tabs.',
 				'profile-name': 'Profile name',
 				'profile-name-required': 'Profile name is required.',
+				'profile-name-too-short': 'Enter at least 2 characters.',
 				'profile-name-too-long': 'Profile name is too long.',
 				description: 'Description',
 				'profile-description-placeholder': 'Describe this profile',
@@ -106,12 +107,20 @@ vi.mock('~/components/field', () => ({
 		),
 	Field: {
 		Text: ({ name, label }: { name: string; label: string }) => {
-			const { register } = useFormContext();
-			return createElement('input', {
-				'aria-label': label,
-				type: 'text',
-				...register(name),
-			});
+			const { register, getFieldState, formState } = useFormContext();
+			const error = getFieldState(name, formState).error;
+			return createElement(
+				'label',
+				undefined,
+				createElement('input', {
+					'aria-label': label,
+					type: 'text',
+					...register(name),
+				}),
+				error?.message
+					? createElement('span', { role: 'alert' }, error.message)
+					: null,
+			);
 		},
 		Textarea: ({ name, label }: { name: string; label: string }) => {
 			const { register } = useFormContext();
@@ -303,6 +312,37 @@ describe('ProfileEditDetailsDrawer', () => {
 				icon: null,
 				tone: null,
 			}),
+		);
+	});
+
+	test('blocks submission when the profile name has only one character', async () => {
+		render(
+			<ProfileEditDetailsDrawer
+				tenantId="tenant-1"
+				isOpen
+				profile={{
+					id: 'profile-1',
+					name: 'Author',
+					description: 'Draft posts',
+					icon: null,
+					tone: null,
+				}}
+				onOpenChange={vi.fn()}
+				onSaved={vi.fn()}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		fireEvent.change(screen.getByLabelText('Profile name'), {
+			target: { value: 'A' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+		await waitFor(() =>
+			expect(mocks.updateProfileMutation).not.toHaveBeenCalled(),
+		);
+		expect(screen.getByRole('alert').textContent).toBe(
+			'Enter at least 2 characters.',
 		);
 	});
 });

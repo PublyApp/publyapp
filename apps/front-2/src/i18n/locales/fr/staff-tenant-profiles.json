@@ -67,6 +67,7 @@
 	"profile-glance-summary_one": "{{granted}} sur {{total}} accordées dans {{count}} module",
 	"profile-glance-summary_other": "{{granted}} sur {{total}} accordées dans {{count}} modules",
 	"profile-permissions-subtitle": "Choisissez ce que ce profil peut faire. Les modifications sont enregistrées lorsque vous cliquez sur Enregistrer.",
+	"no-matching-permissions": "Aucune permission correspondante.",
 	"profile-sections": "Sections du profil",
 	"profile-updated-relative": "Mis à jour {{time}}",
 	"profile-tone-0": "Bleu ciel",

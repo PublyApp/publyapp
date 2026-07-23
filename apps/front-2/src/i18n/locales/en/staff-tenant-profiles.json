@@ -67,6 +67,7 @@
 	"profile-glance-summary_one": "{{granted}} of {{total}} granted across {{count}} module",
 	"profile-glance-summary_other": "{{granted}} of {{total}} granted across {{count}} modules",
 	"profile-permissions-subtitle": "Toggle what this profile can do. Changes save when you hit Save.",
+	"no-matching-permissions": "No matching permissions.",
 	"profile-sections": "Profile sections",
 	"profile-updated-relative": "Updated {{time}}",
 	"profile-tone-0": "Sky",
