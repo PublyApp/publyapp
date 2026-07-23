@@ -449,9 +449,9 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	}
 
 	// WriteCsvAsync's mid-stream failure path (r2 F6) cannot be exercised through
-	// a real HTTP round-trip: TestServer has no way to make ExportAsync's EF Core
+	// a real HTTP round-trip: TestServer has no way to make the buffered row
 	// enumeration throw after rows have already been written. Call the (public)
-	// streaming method directly with a throwing IAsyncEnumerable and a fake
+	// streaming method directly with a throwing enumerable and a fake
 	// IHttpRequestLifetimeFeature so the abort behavior is actually pinned.
 	[Fact]
 	public async Task ItShouldAbortTheConnectionWhenTheExportEnumerationThrowsMidStream() {
@@ -465,7 +465,7 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 
 		var act = async () => await ExportTenantUsersAsStaff.WriteCsvAsync(
 			httpContext,
-			ThrowingExportItemsAsync(),
+			ThrowingExportItems(),
 			CancellationToken.None
 		);
 
@@ -475,14 +475,13 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private static async IAsyncEnumerable<TenantUserExportItem> ThrowingExportItemsAsync() {
+	private static IEnumerable<TenantUserExportItem> ThrowingExportItems() {
 		yield return new TenantUserExportItem {
 			Email = "first-row@example.com",
 			Level = "User",
 			Status = "Active",
 			CreatedAt = DateTime.UtcNow,
 		};
-		await Task.Yield();
 		throw new InvalidOperationException("Simulated mid-stream enumeration failure");
 	}
 

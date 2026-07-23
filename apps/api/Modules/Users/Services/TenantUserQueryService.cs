@@ -1,5 +1,3 @@
-using System.Runtime.CompilerServices;
-
 using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
@@ -80,17 +78,10 @@ public interface ITenantUserQueryService {
 		Guid userId,
 		CancellationToken cancellationToken = default
 	);
-	// Bounded at TENANT_USER_EXPORT_MAX_ROWS + 1 (like ExportAsync's Take(limit)),
-	// so callers can both detect "exceeds limit" (result > limit) and log the exact
-	// row count about to be exported without a second, unbounded COUNT(*) query.
-	Task<int> CountForExportAsync(
+	Task<List<TenantUserExportItem>> FindExportRowsAsync(
 		Guid tenantId,
 		ExportTenantUsersArgs args,
-		CancellationToken cancellationToken = default
-	);
-	IAsyncEnumerable<TenantUserExportItem> ExportAsync(
-		Guid tenantId,
-		ExportTenantUsersArgs args,
+		int limit,
 		CancellationToken cancellationToken = default
 	);
 }
@@ -531,26 +522,15 @@ public class TenantUserQueryService : ITenantUserQueryService {
 		);
 	}
 
-	public async Task<int> CountForExportAsync(
+	public async Task<List<TenantUserExportItem>> FindExportRowsAsync(
 		Guid tenantId,
 		ExportTenantUsersArgs args,
+		int limit,
 		CancellationToken cancellationToken = default
 	) {
-		var limit = AppEnvironment.Instance.TENANT_USER_EXPORT_MAX_ROWS;
 		var query = ApplyExportFilters(BuildExportBaseQuery(tenantId), args);
 
-		return await query.Take(limit + 1).CountAsync(cancellationToken);
-	}
-
-	public async IAsyncEnumerable<TenantUserExportItem> ExportAsync(
-		Guid tenantId,
-		ExportTenantUsersArgs args,
-		[EnumeratorCancellation] CancellationToken cancellationToken = default
-	) {
-		var limit = AppEnvironment.Instance.TENANT_USER_EXPORT_MAX_ROWS;
-		var query = ApplyExportFilters(BuildExportBaseQuery(tenantId), args);
-
-		var exportQuery = (
+		return await (
 			from ua in query
 			orderby ua.User.CreatedAt descending, ua.UserId descending
 			select new TenantUserExportItem {
@@ -563,14 +543,7 @@ public class TenantUserQueryService : ITenantUserQueryService {
 				),
 				CreatedAt = ua.User.CreatedAt,
 			}
-		).Take(limit);
-
-		await foreach (var item in exportQuery
-			.AsAsyncEnumerable()
-			.WithCancellation(cancellationToken)
-		) {
-			yield return item;
-		}
+		).Take(limit).ToListAsync(cancellationToken);
 	}
 
 	private IQueryable<UserAccount> BuildExportBaseQuery(Guid tenantId) {
