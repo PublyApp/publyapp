@@ -33,6 +33,7 @@ public sealed record ApiRateLimitSettings(
 }
 
 public static class ApiRateLimitPolicies {
+	public const string GlobalSafetyNet = "global-safety-net";
 	public const string AnonymousOther = "anonymous-other";
 	public const string AuthenticatedDefault = "authenticated-default";
 	public const string HeavySearchList = "heavy-search-list";

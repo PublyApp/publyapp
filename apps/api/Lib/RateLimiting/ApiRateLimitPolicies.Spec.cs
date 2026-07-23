@@ -1,6 +1,7 @@
 using FluentAssertions;
 
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.RateLimiting;
 
 using Xunit;
 
@@ -100,6 +101,56 @@ public sealed class ApiRateLimitPoliciesSpec {
 		independentLease.IsAcquired.Should().BeTrue();
 	}
 
+	[Fact]
+	public async Task ItShouldApplyTheGlobalFloorByIpAndExcludeInfrastructurePaths() {
+		var settings = CreateSettings(
+			globalPermitLimit: 1
+		);
+		await using var store = new ApiRateLimiterStore(
+			settings
+		);
+		var options = new RateLimiterOptions();
+		new ApiRateLimiterOptionsSetup(
+			store
+		).Configure(options);
+		var globalLimiter = options.GlobalLimiter;
+
+		globalLimiter.Should().NotBeNull();
+		Assert.NotNull(globalLimiter);
+
+		var firstContext = CreateIpContext(
+			"203.0.113.50",
+			"/global-only"
+		);
+		var sameIpContext = CreateIpContext(
+			"203.0.113.50",
+			"/global-only"
+		);
+		var otherIpContext = CreateIpContext(
+			"203.0.113.51",
+			"/global-only"
+		);
+
+		using var firstLease = await globalLimiter
+			.AcquireAsync(firstContext);
+		using var rejectedLease = await globalLimiter
+			.AcquireAsync(sameIpContext);
+		using var independentLease = await globalLimiter
+			.AcquireAsync(otherIpContext);
+		using var fileLease = await globalLimiter.AcquireAsync(
+			CreateIpContext("203.0.113.50", "/files/logo.png")
+		);
+		using var healthLease = await globalLimiter.AcquireAsync(
+			CreateIpContext("203.0.113.50", "/health/ready")
+		);
+
+		firstLease.IsAcquired.Should().BeTrue();
+		rejectedLease.IsAcquired.Should().BeFalse();
+		independentLease.IsAcquired.Should().BeTrue();
+		fileLease.IsAcquired.Should().BeTrue();
+		healthLease.IsAcquired.Should().BeTrue();
+	}
+
 	private static DefaultHttpContext CreateContext(
 		string sessionToken
 	) {
@@ -110,7 +161,19 @@ public sealed class ApiRateLimitPoliciesSpec {
 		return context;
 	}
 
+	private static DefaultHttpContext CreateIpContext(
+		string clientIp,
+		string path
+	) {
+		var context = new DefaultHttpContext();
+		context.Connection.RemoteIpAddress =
+			System.Net.IPAddress.Parse(clientIp);
+		context.Request.Path = path;
+		return context;
+	}
+
 	private static ApiRateLimitSettings CreateSettings(
+		int globalPermitLimit = 100,
 		int authenticatedPermitLimit = 100,
 		int bulkPermitLimit = 100,
 		int tenantBulkPermitLimit = 100
@@ -121,7 +184,10 @@ public sealed class ApiRateLimitPoliciesSpec {
 		);
 
 		return new ApiRateLimitSettings(
-			Global: generous,
+			Global: new RateLimitWindowSettings(
+				globalPermitLimit,
+				LongWindowSeconds
+			),
 			AnonymousOther: generous,
 			Authenticated: new RateLimitWindowSettings(
 				authenticatedPermitLimit,

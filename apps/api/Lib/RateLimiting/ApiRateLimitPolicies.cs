@@ -12,9 +12,12 @@ internal sealed class ApiRateLimiterStore
 		PartitionedRateLimiter<string>
 	> _limiters;
 
+	public RateLimitWindowSettings GlobalSettings { get; }
+
 	public ApiRateLimiterStore(
 		ApiRateLimitSettings settings
 	) {
+		GlobalSettings = settings.Global;
 		_limiters = new Dictionary<
 			string,
 			PartitionedRateLimiter<string>
@@ -125,6 +128,10 @@ internal sealed class ApiRateLimiterOptionsSetup
 	}
 
 	public void Configure(RateLimiterOptions options) {
+		options.GlobalLimiter =
+			CreateGlobalLimiter(
+				_store.GlobalSettings
+			);
 		AddSinglePolicy(
 			options,
 			ApiRateLimitPolicies.AnonymousOther,
@@ -181,6 +188,45 @@ internal sealed class ApiRateLimiterOptionsSetup
 			ApiRateLimitPartitionKeys
 				.GetSessionFingerprint
 		);
+	}
+
+	private static PartitionedRateLimiter<HttpContext>
+		CreateGlobalLimiter(
+			RateLimitWindowSettings settings
+		) {
+		return PartitionedRateLimiter.Create<
+			HttpContext,
+			string
+		>(context => {
+			if (IsExcludedFromGlobalLimit(context)) {
+				return RateLimitPartition.GetNoLimiter(
+					"global-excluded"
+				);
+			}
+
+			var clientIp = GetClientIp(context);
+			RateLimitRejectionContext.Set(
+				context,
+				ApiRateLimitPolicies.GlobalSafetyNet,
+				clientIp
+			);
+			return RateLimitPartition
+				.GetFixedWindowLimiter(
+					clientIp,
+					_ => new FixedWindowRateLimiterOptions {
+						PermitLimit =
+							settings.PermitLimit,
+						Window = TimeSpan.FromSeconds(
+							settings.WindowSeconds
+						),
+						QueueLimit = 0,
+						QueueProcessingOrder =
+							QueueProcessingOrder
+								.OldestFirst,
+						AutoReplenishment = false,
+					}
+				);
+		});
 	}
 
 	private void AddSinglePolicy(
@@ -249,5 +295,16 @@ internal sealed class ApiRateLimiterOptionsSetup
 	) {
 		return AnonymousAuthRateLimitPartitionKeys
 			.GetClientIp(context);
+	}
+
+	private static bool IsExcludedFromGlobalLimit(
+		HttpContext context
+	) {
+		return context.Request.Path.StartsWithSegments(
+				"/health"
+			)
+			|| context.Request.Path.StartsWithSegments(
+				"/files"
+			);
 	}
 }
