@@ -151,6 +151,31 @@ public sealed class ApiRateLimitPoliciesSpec {
 		healthLease.IsAcquired.Should().BeTrue();
 	}
 
+	[Fact]
+	public void ItShouldKeepOnlySafeRejectionLogContext() {
+		var context = new DefaultHttpContext();
+		const string rawPartition =
+			"raw-session-token\nperson@example.com";
+
+		RateLimitRejectionContext.Set(
+			context,
+			ApiRateLimitPolicies.EmailOperation,
+			rawPartition
+		);
+
+		var info = RateLimitRejectionContext.Get(context);
+
+		info.Should().NotBeNull();
+		Assert.NotNull(info);
+		info.PolicyName.Should().Be(
+			ApiRateLimitPolicies.EmailOperation
+		);
+		info.PartitionFingerprint.Should().HaveLength(16);
+		info.PartitionFingerprint.Should()
+			.NotContain("raw-session-token")
+			.And.NotContain("person@example.com");
+	}
+
 	private static DefaultHttpContext CreateContext(
 		string sessionToken
 	) {

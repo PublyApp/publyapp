@@ -154,7 +154,7 @@ public sealed class AnonymousAuthRateLimitingSpec
 	}
 
 	[Fact]
-	public async Task ItShouldNotThrottleAuthenticatedEndpoints() {
+	public async Task ItShouldNotApplyAnonymousLimitsToAuthenticatedEndpoints() {
 		await using var factory = CreateFactory(
 			perIpPermitLimit: 1,
 			perEmailPermitLimit: 100,
