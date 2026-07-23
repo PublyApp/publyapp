@@ -25,46 +25,75 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 	private const string EndpointStubs = """
 		using System;
 
+		namespace Microsoft.AspNetCore.Routing
+		{
+			public interface IEndpointRouteBuilder
+			{
+			}
+		}
+
 		namespace Microsoft.AspNetCore.Builder
 		{
 			public sealed class RouteBuilder
+				: Microsoft.AspNetCore.Routing.IEndpointRouteBuilder
+			{
+			}
+
+			public interface IEndpointConventionBuilder
+			{
+			}
+
+			public sealed class RouteGroupBuilder
+				: Microsoft.AspNetCore.Routing.IEndpointRouteBuilder,
+					IEndpointConventionBuilder
+			{
+			}
+
+			public sealed class RouteHandlerBuilder
+				: IEndpointConventionBuilder
 			{
 			}
 
 			public static class EndpointExtensions
 			{
-				public static RouteBuilder MapGroup(
-					this RouteBuilder builder,
+				public static RouteGroupBuilder MapGroup(
+					this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder,
 					string pattern
-				) => builder;
+				) => new RouteGroupBuilder();
 
-				public static RouteBuilder MapGet(
-					this RouteBuilder builder,
+				public static RouteHandlerBuilder MapGet(
+					this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder,
 					string pattern,
 					Action handler
-				) => builder;
+				) => new RouteHandlerBuilder();
 
-				public static RouteBuilder RequireRateLimiting(
-					this RouteBuilder builder,
+				public static RouteHandlerBuilder MapWidget(
+					this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder,
+					string pattern,
+					Action handler
+				) => new RouteHandlerBuilder();
+
+				public static TBuilder RequireRateLimiting<TBuilder>(
+					this TBuilder builder,
 					string policy
-				) => builder;
+				) where TBuilder : IEndpointConventionBuilder => builder;
 
-				public static RouteBuilder RequireAnonymousAuthIpRateLimit(
-					this RouteBuilder builder
-				) => builder;
+				public static TBuilder RequireAnonymousAuthIpRateLimit<TBuilder>(
+					this TBuilder builder
+				) where TBuilder : IEndpointConventionBuilder => builder;
 
-				public static RouteBuilder WithGlobalRateLimitOnly(
-					this RouteBuilder builder
-				) => builder;
+				public static TBuilder WithGlobalRateLimitOnly<TBuilder>(
+					this TBuilder builder
+				) where TBuilder : IEndpointConventionBuilder => builder;
 
-				public static RouteBuilder WithRateLimitOptOut(
-					this RouteBuilder builder,
+				public static TBuilder WithRateLimitOptOut<TBuilder>(
+					this TBuilder builder,
 					string reason
-				) => builder;
+				) where TBuilder : IEndpointConventionBuilder => builder;
 
-				public static RouteBuilder DisableRateLimiting(
-					this RouteBuilder builder
-				) => builder;
+				public static TBuilder DisableRateLimiting<TBuilder>(
+					this TBuilder builder
+				) where TBuilder : IEndpointConventionBuilder => builder;
 			}
 		}
 		""";
@@ -225,6 +254,46 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 				.Diagnostic(DiagnosticIds.PUBLY0011)
 				.WithLocation(0)
 				.WithArguments("MapGet")
+		);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldRejectSplitEndpointDisableOverridingAnInheritedNamedPolicy() {
+		const string source = """
+			using Microsoft.AspNetCore.Builder;
+
+			var app = new RouteBuilder();
+			var group = app.MapGroup("/staff")
+				.RequireRateLimiting("authenticated-default");
+			var endpoint = group.{|#0:MapGet|}("/users", () => { });
+			endpoint.DisableRateLimiting();
+			""";
+
+		await VerifyAsync(
+			source,
+			Verifier
+				.Diagnostic(DiagnosticIds.PUBLY0011)
+				.WithLocation(0)
+				.WithArguments("MapGet")
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldAnalyzeCustomEndpointMappingHelpers() {
+		const string source = """
+			using Microsoft.AspNetCore.Builder;
+
+			var app = new RouteBuilder();
+			app.{|#0:MapWidget|}("/widget", () => { });
+			""";
+
+		await VerifyAsync(
+			source,
+			Verifier
+				.Diagnostic(DiagnosticIds.PUBLY0011)
+				.WithLocation(0)
+				.WithArguments("MapWidget")
 		);
 	}
 

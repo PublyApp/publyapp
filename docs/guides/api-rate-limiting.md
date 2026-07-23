@@ -107,12 +107,16 @@ inventory.
    A request whose recipient count does not fit is rejected before the handler sends or
    queues any email.
 
-`PUBLY0011` enforces the static registration rule during build: every recognized mapped
-endpoint must declare or inherit a named policy, carry the global-only marker, or carry
-an opt-out marker with a reason. The startup guard then inspects the complete materialized
-route map and fails application boot if any endpoint is uncovered, names an unknown
-policy, or disables limiting without a reasoned opt-out. This runtime backstop also covers
-custom or future mapping helpers that static analyzer discovery does not recognize.
+`PUBLY0011` enforces the static registration rule during build: every mapped endpoint must
+declare or inherit a named policy, carry the global-only marker, or carry an opt-out marker
+with a reason. It identifies mapping calls semantically from an `IEndpointRouteBuilder`
+receiver and an `IEndpointConventionBuilder` result, excluding route-group creation, so
+standard and custom mapping-helper names are covered. It also follows conventions applied
+directly to a captured endpoint local. The startup guard then inspects the complete
+materialized route map and fails application boot if any endpoint is uncovered, names an
+unknown policy, or disables limiting without a reasoned opt-out. This runtime backstop
+covers registrations Roslyn cannot resolve and metadata applied through aliases, dynamic
+dispatch, reflection, or control flow the analyzer does not follow.
 
 The normal registration shape is:
 

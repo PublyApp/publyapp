@@ -16,21 +16,6 @@ namespace PublyApp.Analyzers;
 public sealed class EndpointRateLimitAnalyzer
 	: DiagnosticAnalyzer {
 	private static readonly ImmutableHashSet<string>
-		EndpointMappingMethods =
-			ImmutableHashSet.Create(
-				StringComparer.Ordinal,
-				"MapGet",
-				"MapPost",
-				"MapPut",
-				"MapPatch",
-				"MapDelete",
-				"MapMethods",
-				"MapFallback",
-				"MapHealthChecks",
-				"MapOpenApi",
-				"MapScalarApiReference"
-			);
-	private static readonly ImmutableHashSet<string>
 		KnownNamedPolicies =
 			ImmutableHashSet.Create(
 				StringComparer.Ordinal,
@@ -92,17 +77,43 @@ public sealed class EndpointRateLimitAnalyzer
 
 		var methodName =
 			memberAccess.Name.Identifier.ValueText;
-		if (!EndpointMappingMethods.Contains(methodName)) {
+		if (
+			!IsEndpointMapping(
+				invocation,
+				memberAccess,
+				context
+			)
+		) {
 			return;
 		}
 
 		var chainRoot = GetFluentChainRoot(invocation);
-		if (
-			HasDisableRateLimiting(chainRoot)
-			&& !HasReasonedOptOut(
+		var capturedInvocations =
+			GetCapturedEndpointInvocations(
 				chainRoot,
 				context.SemanticModel,
 				context.CancellationToken
+			);
+		if (
+			(
+				HasDisableRateLimiting(chainRoot)
+				|| capturedInvocations.Any(
+					candidate =>
+						GetInvokedMethodName(candidate)
+							== "DisableRateLimiting"
+				)
+			)
+			&& !(
+				HasReasonedOptOut(
+					chainRoot,
+					context.SemanticModel,
+					context.CancellationToken
+				)
+				|| HasReasonedOptOut(
+					capturedInvocations,
+					context.SemanticModel,
+					context.CancellationToken
+				)
 			)
 		) {
 			context.ReportDiagnostic(
@@ -118,6 +129,11 @@ public sealed class EndpointRateLimitAnalyzer
 		if (
 			HasDisposition(
 				chainRoot,
+				context.SemanticModel,
+				context.CancellationToken
+			)
+			|| HasDisposition(
+				capturedInvocations,
 				context.SemanticModel,
 				context.CancellationToken
 			)
@@ -148,6 +164,123 @@ public sealed class EndpointRateLimitAnalyzer
 		);
 	}
 
+	private static bool IsEndpointMapping(
+		InvocationExpressionSyntax invocation,
+		MemberAccessExpressionSyntax memberAccess,
+		SyntaxNodeAnalysisContext context
+	) {
+		var routeBuilderType = context.Compilation
+			.GetTypeByMetadataName(
+				"Microsoft.AspNetCore.Routing."
+					+ "IEndpointRouteBuilder"
+			);
+		var conventionBuilderType = context.Compilation
+			.GetTypeByMetadataName(
+				"Microsoft.AspNetCore.Builder."
+					+ "IEndpointConventionBuilder"
+			);
+		if (
+			routeBuilderType is null
+			|| conventionBuilderType is null
+		) {
+			return false;
+		}
+
+		var receiverType = context.SemanticModel
+			.GetTypeInfo(
+				memberAccess.Expression,
+				context.CancellationToken
+			).Type;
+		var method = context.SemanticModel
+			.GetSymbolInfo(
+				invocation,
+				context.CancellationToken
+			).Symbol as IMethodSymbol;
+		if (
+			receiverType is null
+			|| method is null
+			|| !IsOrImplements(
+				receiverType,
+				routeBuilderType
+			)
+			|| !IsOrImplements(
+				method.ReturnType,
+				conventionBuilderType
+			)
+		) {
+			return false;
+		}
+
+		var routeGroupBuilderType = context.Compilation
+			.GetTypeByMetadataName(
+				"Microsoft.AspNetCore.Builder."
+					+ "RouteGroupBuilder"
+			);
+		return routeGroupBuilderType is null
+			|| !SymbolEqualityComparer.Default.Equals(
+				method.ReturnType,
+				routeGroupBuilderType
+			);
+	}
+
+	private static bool IsOrImplements(
+		ITypeSymbol type,
+		INamedTypeSymbol target
+	) {
+		return SymbolEqualityComparer.Default.Equals(
+				type,
+				target
+			)
+			|| type.AllInterfaces.Any(candidate =>
+				SymbolEqualityComparer.Default.Equals(
+					candidate,
+					target
+				)
+			);
+	}
+
+	private static IReadOnlyList<
+		InvocationExpressionSyntax
+	> GetCapturedEndpointInvocations(
+		SyntaxNode chainRoot,
+		SemanticModel semanticModel,
+		CancellationToken cancellationToken
+	) {
+		if (
+			chainRoot.Parent
+				is not EqualsValueClauseSyntax {
+					Parent: VariableDeclaratorSyntax
+						declarator,
+				}
+			|| semanticModel.GetDeclaredSymbol(
+				declarator,
+				cancellationToken
+			) is not ILocalSymbol endpointLocal
+		) {
+			return [];
+		}
+
+		return chainRoot.SyntaxTree
+			.GetRoot(cancellationToken)
+			.DescendantNodes()
+			.OfType<InvocationExpressionSyntax>()
+			.Where(candidate =>
+				candidate.Expression
+					is MemberAccessExpressionSyntax {
+						Expression:
+							IdentifierNameSyntax identifier,
+					}
+				&& SymbolEqualityComparer.Default.Equals(
+					semanticModel.GetSymbolInfo(
+						identifier,
+						cancellationToken
+					).Symbol,
+					endpointLocal
+				)
+			)
+			.ToArray();
+	}
+
 	private static bool HasDisableRateLimiting(
 		SyntaxNode root
 	) {
@@ -165,9 +298,21 @@ public sealed class EndpointRateLimitAnalyzer
 		SemanticModel semanticModel,
 		CancellationToken cancellationToken
 	) {
-		return root
-			.DescendantNodesAndSelf()
-			.OfType<InvocationExpressionSyntax>()
+		return HasReasonedOptOut(
+			root.DescendantNodesAndSelf()
+				.OfType<InvocationExpressionSyntax>(),
+			semanticModel,
+			cancellationToken
+		);
+	}
+
+	private static bool HasReasonedOptOut(
+		IEnumerable<InvocationExpressionSyntax>
+			invocations,
+		SemanticModel semanticModel,
+		CancellationToken cancellationToken
+	) {
+		return invocations
 			.Any(invocation =>
 				GetInvokedMethodName(invocation)
 					== "WithRateLimitOptOut"
@@ -255,10 +400,22 @@ public sealed class EndpointRateLimitAnalyzer
 		SemanticModel semanticModel,
 		CancellationToken cancellationToken
 	) {
+		return HasDisposition(
+			root.DescendantNodesAndSelf()
+				.OfType<InvocationExpressionSyntax>(),
+			semanticModel,
+			cancellationToken
+		);
+	}
+
+	private static bool HasDisposition(
+		IEnumerable<InvocationExpressionSyntax>
+			invocations,
+		SemanticModel semanticModel,
+		CancellationToken cancellationToken
+	) {
 		foreach (
-			var invocation in root
-				.DescendantNodesAndSelf()
-				.OfType<InvocationExpressionSyntax>()
+			var invocation in invocations
 		) {
 			var methodName =
 				GetInvokedMethodName(invocation);
