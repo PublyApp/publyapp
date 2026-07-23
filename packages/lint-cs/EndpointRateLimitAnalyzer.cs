@@ -15,6 +15,12 @@ namespace PublyApp.Analyzers;
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class EndpointRateLimitAnalyzer
 	: DiagnosticAnalyzer {
+	private enum MappingTerminality {
+		Undecidable,
+		Terminal,
+		NonTerminal,
+	}
+
 	private static readonly ImmutableHashSet<string>
 		KnownNamedPolicies =
 			ImmutableHashSet.Create(
@@ -217,93 +223,431 @@ public sealed class EndpointRateLimitAnalyzer
 
 		var routeGroupBuilderType = context.Compilation
 			.GetTypeByMetadataName(
-				"Microsoft.AspNetCore.Builder."
+				"Microsoft.AspNetCore.Routing."
 					+ "RouteGroupBuilder"
 			);
-		return !IsNonTerminalMapping(
+		var routeHandlerBuilderType = context.Compilation
+			.GetTypeByMetadataName(
+				"Microsoft.AspNetCore.Builder."
+					+ "RouteHandlerBuilder"
+			);
+		return GetMappingTerminality(
 			method,
 			routeBuilderType,
 			conventionBuilderType,
 			routeGroupBuilderType,
-			context.CancellationToken
-		);
+			routeHandlerBuilderType,
+			context.Compilation,
+			context.CancellationToken,
+			new HashSet<ISymbol>(
+				SymbolEqualityComparer.Default
+			)
+		) == MappingTerminality.Terminal;
 	}
 
-	private static bool IsNonTerminalMapping(
+	private static MappingTerminality
+		GetMappingTerminality(
 		IMethodSymbol method,
 		INamedTypeSymbol routeBuilderType,
 		INamedTypeSymbol conventionBuilderType,
 		INamedTypeSymbol? routeGroupBuilderType,
-		CancellationToken cancellationToken
+		INamedTypeSymbol? routeHandlerBuilderType,
+		Compilation compilation,
+		CancellationToken cancellationToken,
+		HashSet<ISymbol> visited
 	) {
 		if (
-			routeGroupBuilderType is not null
-			&& SymbolEqualityComparer.Default.Equals(
-				method.ReturnType,
-				routeGroupBuilderType
-			)
+			!visited.Add(method.OriginalDefinition)
 		) {
-			return true;
+			return MappingTerminality.Undecidable;
 		}
 
 		if (
-			method.ReturnType.TypeKind == TypeKind.Interface
-			&& (
-				IsOrImplements(
-					method.ReturnType,
-					routeBuilderType
-				)
-				|| IsOrImplements(
-					method.ReturnType,
-					conventionBuilderType
-				)
+			IsAspNetCoreMappingApi(
+				method,
+				routeBuilderType,
+				conventionBuilderType
 			)
 		) {
-			return true;
+			return ClassifyMappingResultType(
+				method.ReturnType,
+				routeBuilderType,
+				routeGroupBuilderType,
+				routeHandlerBuilderType
+			);
 		}
 
-		return method.DeclaringSyntaxReferences.Any(
-			reference =>
+		if (method.DeclaringSyntaxReferences.Length == 0) {
+			return MappingTerminality.Undecidable;
+		}
+
+		MappingTerminality? terminality = null;
+		foreach (
+			var reference
+				in method.DeclaringSyntaxReferences
+		) {
+			if (
 				reference.GetSyntax(cancellationToken)
-					is MethodDeclarationSyntax declaration
-				&& ReturnsMapGroup(declaration)
-		);
+					is not MethodDeclarationSyntax declaration
+			) {
+				return MappingTerminality.Undecidable;
+			}
+
+			#pragma warning disable RS1030
+			// Source-visible helpers can be declared in another
+			// syntax tree. Their returned mapping symbol cannot
+			// be resolved from the call site's semantic model.
+			var semanticModel = compilation.GetSemanticModel(
+				declaration.SyntaxTree
+			);
+			#pragma warning restore RS1030
+			var declarationTerminality =
+				GetDeclarationTerminality(
+					declaration,
+					semanticModel,
+					routeBuilderType,
+					conventionBuilderType,
+					routeGroupBuilderType,
+					routeHandlerBuilderType,
+					compilation,
+					cancellationToken,
+					visited
+				);
+			if (
+				declarationTerminality
+					== MappingTerminality.Undecidable
+				|| (
+					terminality is not null
+					&& terminality.Value
+						!= declarationTerminality
+				)
+			) {
+				return MappingTerminality.Undecidable;
+			}
+
+			terminality = declarationTerminality;
+		}
+
+		return terminality
+			?? MappingTerminality.Undecidable;
 	}
 
-	private static bool ReturnsMapGroup(
-		MethodDeclarationSyntax declaration
+	private static MappingTerminality
+		GetDeclarationTerminality(
+		MethodDeclarationSyntax declaration,
+		SemanticModel semanticModel,
+		INamedTypeSymbol routeBuilderType,
+		INamedTypeSymbol conventionBuilderType,
+		INamedTypeSymbol? routeGroupBuilderType,
+		INamedTypeSymbol? routeHandlerBuilderType,
+		Compilation compilation,
+		CancellationToken cancellationToken,
+		HashSet<ISymbol> visited
 	) {
 		if (
 			declaration.ExpressionBody?.Expression
 				is ExpressionSyntax expression
 		) {
-			return IsMapGroupInvocation(expression);
+			return GetExpressionTerminality(
+				expression,
+				semanticModel,
+				routeBuilderType,
+				conventionBuilderType,
+				routeGroupBuilderType,
+				routeHandlerBuilderType,
+				compilation,
+				cancellationToken,
+				visited
+			);
 		}
 
-		return declaration.Body?.Statements
+		var returnExpressions = declaration.Body
+			?.DescendantNodes(
+				node =>
+					node
+						is not (
+							AnonymousFunctionExpressionSyntax
+							or LocalFunctionStatementSyntax
+						)
+			)
 			.OfType<ReturnStatementSyntax>()
-			.Any(statement =>
-				statement.Expression is not null
-				&& IsMapGroupInvocation(
-					statement.Expression
+			.Select(statement => statement.Expression)
+			.OfType<ExpressionSyntax>()
+			.ToArray();
+		if (
+			returnExpressions is null
+			|| returnExpressions.Length == 0
+		) {
+			return MappingTerminality.Undecidable;
+		}
+
+		MappingTerminality? terminality = null;
+		foreach (var returnExpression in returnExpressions) {
+			var returnTerminality =
+				GetExpressionTerminality(
+					returnExpression,
+					semanticModel,
+					routeBuilderType,
+					conventionBuilderType,
+					routeGroupBuilderType,
+					routeHandlerBuilderType,
+					compilation,
+					cancellationToken,
+					visited
+				);
+			if (
+				returnTerminality
+					== MappingTerminality.Undecidable
+				|| (
+					terminality is not null
+					&& terminality.Value
+						!= returnTerminality
 				)
-			) == true;
+			) {
+				return MappingTerminality.Undecidable;
+			}
+
+			terminality = returnTerminality;
+		}
+
+		return terminality
+			?? MappingTerminality.Undecidable;
 	}
 
-	private static bool IsMapGroupInvocation(
-		ExpressionSyntax expression
+	private static MappingTerminality
+		GetExpressionTerminality(
+		ExpressionSyntax expression,
+		SemanticModel semanticModel,
+		INamedTypeSymbol routeBuilderType,
+		INamedTypeSymbol conventionBuilderType,
+		INamedTypeSymbol? routeGroupBuilderType,
+		INamedTypeSymbol? routeHandlerBuilderType,
+		Compilation compilation,
+		CancellationToken cancellationToken,
+		HashSet<ISymbol> visited
 	) {
-		while (
+		if (
 			expression
 				is ParenthesizedExpressionSyntax parenthesized
 		) {
-			expression = parenthesized.Expression;
+			return GetExpressionTerminality(
+				parenthesized.Expression,
+				semanticModel,
+				routeBuilderType,
+				conventionBuilderType,
+				routeGroupBuilderType,
+				routeHandlerBuilderType,
+				compilation,
+				cancellationToken,
+				visited
+			);
 		}
 
-		return expression
-				is InvocationExpressionSyntax invocation
-			&& GetInvokedMethodName(invocation)
-				== "MapGroup";
+		if (expression is CastExpressionSyntax cast) {
+			return GetExpressionTerminality(
+				cast.Expression,
+				semanticModel,
+				routeBuilderType,
+				conventionBuilderType,
+				routeGroupBuilderType,
+				routeHandlerBuilderType,
+				compilation,
+				cancellationToken,
+				visited
+			);
+		}
+
+		if (
+			expression
+				is IdentifierNameSyntax identifier
+			&& semanticModel.GetSymbolInfo(
+				identifier,
+				cancellationToken
+			).Symbol is ILocalSymbol local
+			&& local.DeclaringSyntaxReferences
+				.FirstOrDefault()
+				?.GetSyntax(cancellationToken)
+				is VariableDeclaratorSyntax {
+					Initializer.Value:
+						ExpressionSyntax initializer,
+				}
+		) {
+			return GetExpressionTerminality(
+				initializer,
+				semanticModel,
+				routeBuilderType,
+				conventionBuilderType,
+				routeGroupBuilderType,
+				routeHandlerBuilderType,
+				compilation,
+				cancellationToken,
+				visited
+			);
+		}
+
+		if (
+			expression
+				is not InvocationExpressionSyntax invocation
+			|| semanticModel.GetSymbolInfo(
+				invocation,
+				cancellationToken
+			).Symbol is not IMethodSymbol method
+		) {
+			return MappingTerminality.Undecidable;
+		}
+
+		if (
+			IsAspNetCoreMappingApi(
+				method,
+				routeBuilderType,
+				conventionBuilderType
+			)
+		) {
+			return ClassifyMappingResultType(
+				method.ReturnType,
+				routeBuilderType,
+				routeGroupBuilderType,
+				routeHandlerBuilderType
+			);
+		}
+
+		if (
+			IsMappingMethodCandidate(
+				method,
+				routeBuilderType,
+				conventionBuilderType
+			)
+		) {
+			return GetMappingTerminality(
+				method,
+				routeBuilderType,
+				conventionBuilderType,
+				routeGroupBuilderType,
+				routeHandlerBuilderType,
+				compilation,
+				cancellationToken,
+				visited
+			);
+		}
+
+		if (
+			invocation.Expression
+				is MemberAccessExpressionSyntax memberAccess
+		) {
+			return GetExpressionTerminality(
+				memberAccess.Expression,
+				semanticModel,
+				routeBuilderType,
+				conventionBuilderType,
+				routeGroupBuilderType,
+				routeHandlerBuilderType,
+				compilation,
+				cancellationToken,
+				visited
+			);
+		}
+
+		return MappingTerminality.Undecidable;
+	}
+
+	private static bool IsMappingMethodCandidate(
+		IMethodSymbol method,
+		INamedTypeSymbol routeBuilderType,
+		INamedTypeSymbol conventionBuilderType
+	) {
+		return method.Name.StartsWith(
+				"Map",
+				StringComparison.Ordinal
+			)
+			&& IsOrImplements(
+				GetMappingReceiverType(method),
+				routeBuilderType
+			)
+			&& IsOrImplements(
+				method.ReturnType,
+				conventionBuilderType
+			);
+	}
+
+	private static bool IsAspNetCoreMappingApi(
+		IMethodSymbol method,
+		INamedTypeSymbol routeBuilderType,
+		INamedTypeSymbol conventionBuilderType
+	) {
+		var definition = method.ReducedFrom
+			?? method;
+		var assemblyName =
+			definition.ContainingAssembly?.Name;
+		var isFrameworkSymbol =
+			assemblyName?.StartsWith(
+				"Microsoft.AspNetCore.",
+				StringComparison.Ordinal
+			) == true
+			|| (
+				definition.ContainingType.Name
+					== "EndpointRouteBuilderExtensions"
+				&& definition.ContainingNamespace
+					.ToDisplayString()
+					== "Microsoft.AspNetCore.Builder"
+			);
+
+		return isFrameworkSymbol
+			&& IsMappingMethodCandidate(
+				method,
+				routeBuilderType,
+				conventionBuilderType
+			);
+	}
+
+	private static ITypeSymbol GetMappingReceiverType(
+		IMethodSymbol method
+	) {
+		var definition = method.ReducedFrom
+			?? method;
+		if (
+			definition.IsExtensionMethod
+			&& definition.Parameters.Length > 0
+		) {
+			return definition.Parameters[0].Type;
+		}
+
+		return method.ReceiverType
+			?? method.ContainingType;
+	}
+
+	private static MappingTerminality
+		ClassifyMappingResultType(
+		ITypeSymbol returnType,
+		INamedTypeSymbol routeBuilderType,
+		INamedTypeSymbol? routeGroupBuilderType,
+		INamedTypeSymbol? routeHandlerBuilderType
+	) {
+		if (
+			routeGroupBuilderType is not null
+			&& SymbolEqualityComparer.Default.Equals(
+				returnType,
+				routeGroupBuilderType
+			)
+		) {
+			return MappingTerminality.NonTerminal;
+		}
+
+		if (
+			routeHandlerBuilderType is not null
+			&& SymbolEqualityComparer.Default.Equals(
+				returnType,
+				routeHandlerBuilderType
+			)
+		) {
+			return MappingTerminality.Terminal;
+		}
+
+		return IsOrImplements(
+			returnType,
+			routeBuilderType
+		)
+			? MappingTerminality.NonTerminal
+			: MappingTerminality.Terminal;
 	}
 
 	private static bool IsOrImplements(

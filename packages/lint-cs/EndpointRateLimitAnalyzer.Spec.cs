@@ -25,54 +25,60 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 	private const string EndpointStubs = """
 		using System;
 
-		namespace Microsoft.AspNetCore.Routing
-		{
-			public interface IEndpointRouteBuilder
+			namespace Microsoft.AspNetCore.Routing
 			{
-			}
-		}
+				public interface IEndpointRouteBuilder
+				{
+				}
 
-		namespace Microsoft.AspNetCore.Builder
+				public sealed class RouteGroupBuilder
+					: IEndpointRouteBuilder,
+						Microsoft.AspNetCore.Builder.IEndpointConventionBuilder
+				{
+				}
+			}
+
+			namespace Microsoft.AspNetCore.Builder
 		{
 			public sealed class RouteBuilder
 				: Microsoft.AspNetCore.Routing.IEndpointRouteBuilder
 			{
 			}
 
-			public interface IEndpointConventionBuilder
-			{
-			}
+				public interface IEndpointConventionBuilder
+				{
+				}
 
-			public sealed class RouteGroupBuilder
-				: Microsoft.AspNetCore.Routing.IEndpointRouteBuilder,
-					IEndpointConventionBuilder
-			{
-			}
+				public sealed class RouteHandlerBuilder
+					: IEndpointConventionBuilder
+				{
+				}
 
-			public sealed class RouteHandlerBuilder
-				: Microsoft.AspNetCore.Routing.IEndpointRouteBuilder,
-					IEndpointConventionBuilder
-			{
-			}
+				public static class EndpointRouteBuilderExtensions
+				{
+					public static Microsoft.AspNetCore.Routing.RouteGroupBuilder MapGroup(
+						this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder,
+						string pattern
+					) => new Microsoft.AspNetCore.Routing.RouteGroupBuilder();
 
-			public static class EndpointExtensions
-			{
-				public static RouteGroupBuilder MapGroup(
-					this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder,
-					string pattern
-				) => new RouteGroupBuilder();
+					public static RouteHandlerBuilder MapGet(
+						this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder,
+						string pattern,
+						Action handler
+					) => new RouteHandlerBuilder();
+				}
 
-				public static RouteHandlerBuilder MapGet(
-					this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder,
-					string pattern,
-					Action handler
-				) => new RouteHandlerBuilder();
-
-				public static RouteHandlerBuilder MapWidget(
-					this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder,
-					string pattern,
-					Action handler
-				) => new RouteHandlerBuilder();
+				public static class EndpointExtensions
+				{
+					public static RouteHandlerBuilder MapWidget(
+						this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder,
+						string pattern,
+						Action handler
+					) => EndpointRouteBuilderExtensions.MapGet(
+						builder,
+						pattern,
+						handler
+					);
 
 				public static IEndpointConventionBuilder MapArea(
 					this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder
@@ -354,6 +360,41 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 				.Diagnostic(DiagnosticIds.PUBLY0011)
 				.WithLocation(0)
 				.WithArguments("MapWidget")
+		);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldAnalyzeInterfaceReturningTerminalMappingHelpers() {
+		const string source = """
+			using Microsoft.AspNetCore.Builder;
+
+			var app = new RouteBuilder();
+			app.{|#0:MapInterfaceWidget|}(
+				"/widget",
+				() => { }
+			);
+
+			static class WidgetEndpointExtensions
+			{
+				public static IEndpointConventionBuilder MapInterfaceWidget(
+					this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder,
+					string pattern,
+					System.Action handler
+				) => builder.{|#1:MapGet|}(pattern, handler);
+			}
+			""";
+
+		await VerifyAsync(
+			source,
+			Verifier
+				.Diagnostic(DiagnosticIds.PUBLY0011)
+				.WithLocation(0)
+				.WithArguments("MapInterfaceWidget"),
+			Verifier
+				.Diagnostic(DiagnosticIds.PUBLY0011)
+				.WithLocation(1)
+				.WithArguments("MapGet")
 		);
 	}
 
