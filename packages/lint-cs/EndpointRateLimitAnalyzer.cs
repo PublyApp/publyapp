@@ -199,6 +199,10 @@ public sealed class EndpointRateLimitAnalyzer
 		if (
 			receiverType is null
 			|| method is null
+			|| !method.Name.StartsWith(
+				"Map",
+				StringComparison.Ordinal
+			)
 			|| !IsOrImplements(
 				receiverType,
 				routeBuilderType

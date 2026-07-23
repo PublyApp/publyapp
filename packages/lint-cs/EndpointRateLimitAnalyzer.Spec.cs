@@ -50,7 +50,8 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 			}
 
 			public sealed class RouteHandlerBuilder
-				: IEndpointConventionBuilder
+				: Microsoft.AspNetCore.Routing.IEndpointRouteBuilder,
+					IEndpointConventionBuilder
 			{
 			}
 
@@ -72,6 +73,10 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 					string pattern,
 					Action handler
 				) => new RouteHandlerBuilder();
+
+				public static RouteHandlerBuilder AddEndpointFilter(
+					this RouteHandlerBuilder builder
+				) => builder;
 
 				public static TBuilder RequireRateLimiting<TBuilder>(
 					this TBuilder builder,
@@ -295,6 +300,19 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 				.WithLocation(0)
 				.WithArguments("MapWidget")
 		);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldIgnoreNonMappingEndpointBuilderConventions() {
+		const string source = """
+			using Microsoft.AspNetCore.Builder;
+
+			var endpoint = new RouteHandlerBuilder();
+			endpoint.AddEndpointFilter();
+			""";
+
+		await VerifyAsync(source);
 	}
 
 	[Fact]
