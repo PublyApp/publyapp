@@ -682,8 +682,11 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 
 		var userId = user.GetRequiredId();
 		if (createdAt is not null) {
-			_ = await dbContext.User
-				.Where(x => x.Id == userId)
+			var usersToStamp =
+				from candidate in dbContext.User
+				where candidate.Id == userId
+				select candidate;
+			_ = await usersToStamp
 				.ExecuteUpdateAsync(setters => setters
 					.SetProperty(x => x.CreatedAt, createdAt.Value)
 				);
