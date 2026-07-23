@@ -291,7 +291,9 @@ public static class AnonymousAuthRateLimitExtensions {
 		services.AddSingleton<
 			PasswordResetPerEmailRateLimitPolicy>();
 		services.AddSingleton(
-			ApiRateLimitSettings.ProductionDefaults
+			ApiRateLimitSettings.FromEnvironment(
+				AppEnvironment.Instance
+			)
 		);
 		services.AddSingleton<ApiRateLimiterStore>();
 		services.AddSingleton<

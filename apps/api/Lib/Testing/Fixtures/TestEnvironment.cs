@@ -180,6 +180,27 @@ namespace PublyApp.Api.Lib.Testing.Fixtures {
 					"PASSWORD_RESET_EMAIL_RATE_LIMIT_PERMIT_LIMIT",
 					"10000"
 				);
+				var highRateLimitPermitVariables = new[] {
+					"GLOBAL_RATE_LIMIT_PERMIT_LIMIT",
+					"ANONYMOUS_OTHER_RATE_LIMIT_PERMIT_LIMIT",
+					"AUTHENTICATED_RATE_LIMIT_PERMIT_LIMIT",
+					"HEAVY_SEARCH_RATE_LIMIT_PERMIT_LIMIT",
+					"BULK_RATE_LIMIT_PERMIT_LIMIT",
+					"TENANT_BULK_RATE_LIMIT_PERMIT_LIMIT",
+					"EMAIL_RATE_LIMIT_PERMIT_LIMIT",
+					"TENANT_EMAIL_RATE_LIMIT_PERMIT_LIMIT",
+					"EXPORT_RATE_LIMIT_PERMIT_LIMIT",
+					"TENANT_EXPORT_RATE_LIMIT_PERMIT_LIMIT",
+					"UPLOAD_RATE_LIMIT_PERMIT_LIMIT",
+				};
+				foreach (
+					var variable in highRateLimitPermitVariables
+				) {
+					Environment.SetEnvironmentVariable(
+						variable,
+						"10000"
+					);
+				}
 
 				// 4. Initialize AppEnvironment singleton BEFORE any
 				//    AppDbContext is created (OnModelCreating

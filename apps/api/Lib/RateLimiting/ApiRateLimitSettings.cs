@@ -13,23 +13,69 @@ public sealed record ApiRateLimitSettings(
 	RateLimitWindowSettings TenantExport,
 	RateLimitWindowSettings Upload
 ) {
-	public static ApiRateLimitSettings ProductionDefaults {
-		get {
-			return new(
-				Global: new RateLimitWindowSettings(1_200, 60),
-				AnonymousOther: new RateLimitWindowSettings(120, 60),
-				Authenticated: new RateLimitWindowSettings(600, 60),
-				HeavySearch: new RateLimitWindowSettings(180, 60),
-				Bulk: new RateLimitWindowSettings(30, 60),
-				TenantBulk: new RateLimitWindowSettings(120, 60),
-				Email: new RateLimitWindowSettings(10, 900),
-				TenantEmail: new RateLimitWindowSettings(50, 900),
-				Export: new RateLimitWindowSettings(10, 60),
-				TenantExport: new RateLimitWindowSettings(40, 60),
-				Upload: new RateLimitWindowSettings(20, 60)
-			);
-		}
+	public static ApiRateLimitSettings FromEnvironment(
+		AppEnvironment environment
+	) {
+		return new(
+			Global: new RateLimitWindowSettings(
+				environment.GLOBAL_RATE_LIMIT_PERMIT_LIMIT,
+				environment.GLOBAL_RATE_LIMIT_WINDOW_SECONDS
+			),
+			AnonymousOther: new RateLimitWindowSettings(
+				environment
+					.ANONYMOUS_OTHER_RATE_LIMIT_PERMIT_LIMIT,
+				environment
+					.ANONYMOUS_OTHER_RATE_LIMIT_WINDOW_SECONDS
+			),
+			Authenticated: new RateLimitWindowSettings(
+				environment
+					.AUTHENTICATED_RATE_LIMIT_PERMIT_LIMIT,
+				environment
+					.AUTHENTICATED_RATE_LIMIT_WINDOW_SECONDS
+			),
+			HeavySearch: new RateLimitWindowSettings(
+				environment
+					.HEAVY_SEARCH_RATE_LIMIT_PERMIT_LIMIT,
+				environment
+					.HEAVY_SEARCH_RATE_LIMIT_WINDOW_SECONDS
+			),
+			Bulk: new RateLimitWindowSettings(
+				environment.BULK_RATE_LIMIT_PERMIT_LIMIT,
+				environment.BULK_RATE_LIMIT_WINDOW_SECONDS
+			),
+			TenantBulk: new RateLimitWindowSettings(
+				environment
+					.TENANT_BULK_RATE_LIMIT_PERMIT_LIMIT,
+				environment
+					.TENANT_BULK_RATE_LIMIT_WINDOW_SECONDS
+			),
+			Email: new RateLimitWindowSettings(
+				environment.EMAIL_RATE_LIMIT_PERMIT_LIMIT,
+				environment.EMAIL_RATE_LIMIT_WINDOW_SECONDS
+			),
+			TenantEmail: new RateLimitWindowSettings(
+				environment
+					.TENANT_EMAIL_RATE_LIMIT_PERMIT_LIMIT,
+				environment
+					.TENANT_EMAIL_RATE_LIMIT_WINDOW_SECONDS
+			),
+			Export: new RateLimitWindowSettings(
+				environment.EXPORT_RATE_LIMIT_PERMIT_LIMIT,
+				environment.EXPORT_RATE_LIMIT_WINDOW_SECONDS
+			),
+			TenantExport: new RateLimitWindowSettings(
+				environment
+					.TENANT_EXPORT_RATE_LIMIT_PERMIT_LIMIT,
+				environment
+					.TENANT_EXPORT_RATE_LIMIT_WINDOW_SECONDS
+			),
+			Upload: new RateLimitWindowSettings(
+				environment.UPLOAD_RATE_LIMIT_PERMIT_LIMIT,
+				environment.UPLOAD_RATE_LIMIT_WINDOW_SECONDS
+			)
+		);
 	}
+
 }
 
 public static class ApiRateLimitPolicies {
