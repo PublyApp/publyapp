@@ -5,9 +5,11 @@ using FluentAssertions;
 
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
+using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -16,6 +18,7 @@ using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Auth.Entities;
 using PublyApp.Api.Modules.Auth.Services;
+using PublyApp.Api.Modules.Profiles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
@@ -256,6 +259,118 @@ public sealed class ComprehensiveRateLimitingSpec
 		await AssertRateLimitedResponseAsync(
 			rejectedResponse
 		);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldCountEveryStaffBulkInvitationRecipient() {
+		await using var factory = CreateFactory(
+			emailPermitLimit: 2
+		);
+		using var client = CreateClient(factory);
+		var token = await new TestAuthClient(client)
+			.LoginAsStaffAdminAsync();
+		var profileId = await GetStaffProfileIdAsync(
+			factory
+		);
+
+		using var weightedResponse =
+			await SendStaffBulkInvitationsAsync(
+				client,
+				token,
+				profileId,
+				[
+					$"weighted-staff-a-{Guid.NewGuid():N}"
+						+ "@example.com",
+					$"weighted-staff-b-{Guid.NewGuid():N}"
+						+ "@example.com",
+				]
+			);
+		using var rejectedResponse =
+			await SendStaffBulkInvitationsAsync(
+				client,
+				token,
+				profileId,
+				[
+					$"weighted-staff-c-{Guid.NewGuid():N}"
+						+ "@example.com",
+				]
+			);
+
+		weightedResponse.StatusCode.Should()
+			.Be(HttpStatusCode.Created);
+		await AssertRateLimitedResponseAsync(
+			rejectedResponse
+		);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldCountEveryTenantCreationRecipient() {
+		await using var factory = CreateFactory(
+			emailPermitLimit: 2
+		);
+		using var client = CreateClient(factory);
+		var token = await new TestAuthClient(client)
+			.LoginAsStaffAdminAsync();
+
+		using var weightedResponse =
+			await SendTenantCreateAsync(
+				client,
+				token,
+				2
+			);
+		using var rejectedResponse =
+			await SendTenantCreateAsync(
+				client,
+				token,
+				1
+			);
+
+		weightedResponse.StatusCode.Should()
+			.Be(HttpStatusCode.Created);
+		await AssertRateLimitedResponseAsync(
+			rejectedResponse
+		);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldNotCreateOrEnqueueAboveTheRecipientCeiling() {
+		await using var factory = CreateFactory(
+			emailPermitLimit: 1
+		);
+		using var client = CreateClient(factory);
+		var token = await new TestAuthClient(client)
+			.LoginAsStaffAdminAsync();
+		var profileId = await GetStaffProfileIdAsync(
+			factory
+		);
+		var emails = new[] {
+			$"over-cap-a-{Guid.NewGuid():N}@example.com",
+			$"over-cap-b-{Guid.NewGuid():N}@example.com",
+		};
+
+		using var response =
+			await SendStaffBulkInvitationsAsync(
+				client,
+				token,
+				profileId,
+				emails
+			);
+
+		await AssertRateLimitedResponseAsync(response);
+		await using var scope =
+			factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+		(await dbContext.Invitation.AnyAsync(
+			invitation =>
+				emails.Contains(invitation.Email)
+		)).Should().BeFalse();
+		(await dbContext.InvitationEmailOutbox.AnyAsync(
+			outbox => emails.Contains(outbox.Email)
+		)).Should().BeFalse();
 	}
 
 	[Fact]
@@ -856,6 +971,84 @@ public sealed class ComprehensiveRateLimitingSpec
 						.GET_FOR_STAFF.Key,
 				},
 				emails,
+			}),
+		}.WithSessionToken(token);
+		return await client.SendAsync(request);
+	}
+
+	private static async Task<Guid>
+		GetStaffProfileIdAsync(
+			WebApplicationFactory<Program> factory
+		) {
+		await using var scope =
+			factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+		var profile = await dbContext.Profile
+			.FirstAsync(candidate =>
+				candidate.Scope == ProfileScope.Staff
+			);
+		return profile.GetRequiredId();
+	}
+
+	private static async Task<HttpResponseMessage>
+		SendStaffBulkInvitationsAsync(
+			HttpClient client,
+			string token,
+			Guid profileId,
+			IReadOnlyList<string> emails
+		) {
+		var invitations = emails
+			.Select(email => new {
+				email,
+				profileIds = new[] {
+					profileId,
+				},
+			})
+			.ToArray();
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			PathUtils.Join(
+				AppRoutes.Staff.Root,
+				AppRoutes.Invitations.ForStaff.Root,
+				AppRoutes.Invitations.ForStaff.BulkCreate
+			)
+		) {
+			Content = JsonContent.Create(new {
+				invitations,
+			}),
+		}.WithSessionToken(token);
+		return await client.SendAsync(request);
+	}
+
+	private static async Task<HttpResponseMessage>
+		SendTenantCreateAsync(
+			HttpClient client,
+			string token,
+			int recipientCount
+		) {
+		var initialUsers = Enumerable
+			.Range(0, recipientCount)
+			.Select(_ => new {
+				email =
+					$"weighted-tenant-create-"
+					+ $"{Guid.NewGuid():N}@example.com",
+				accountLevel = "Admin",
+			})
+			.ToArray();
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			PathUtils.Join(
+				AppRoutes.Staff.Root,
+				AppRoutes.Tenants.ForStaff.Root,
+				AppRoutes.Tenants.ForStaff.Create
+			)
+		) {
+			Content = JsonContent.Create(new {
+				name =
+					$"Weighted Tenant {Guid.NewGuid():N}",
+				maxUsers = recipientCount,
+				initialUsers,
 			}),
 		}.WithSessionToken(token);
 		return await client.SendAsync(request);

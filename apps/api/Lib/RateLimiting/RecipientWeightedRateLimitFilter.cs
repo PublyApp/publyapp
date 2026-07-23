@@ -68,7 +68,7 @@ internal sealed class RecipientWeightedRateLimitFilter<
 				context.HttpContext,
 				lease
 			);
-			return null;
+			return Results.Empty;
 		}
 
 		return await next(context);
