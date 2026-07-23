@@ -6,6 +6,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
+using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.ProblemResults;
@@ -488,8 +489,21 @@ public sealed class CreateTenantAsStaff {
 			);
 
 		} catch (InvalidOperationException ex) {
-			logger.LogWarning(ex, "Tenant creation validation failed");
-			return TypedProblems.BadRequest(ex.Message, ResponseKeys.BadRequest);
+			if (logger.IsEnabled(LogLevel.Warning)) {
+				var (exceptionDescription, exceptionStack) =
+					JobErrorSanitizer.DescribeForLog(ex);
+				logger.LogWarning(
+					"Tenant creation validation failed: {ExceptionDescription} "
+					+ "{ExceptionStack}",
+					exceptionDescription,
+					exceptionStack
+				);
+			}
+
+			return TypedProblems.BadRequest(
+				"Failed to create tenant",
+				ResponseKeys.BadRequest
+			);
 		}
 	}
 }
