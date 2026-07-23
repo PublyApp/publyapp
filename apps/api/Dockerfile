@@ -17,6 +17,7 @@ RUN cd apps/api \
 	POSTGRES_CONNECTION_STRING="Host=localhost;Port=5432;Database=publyapp_build;Username=postgres;Password=password;" \
 	FRONT_URL="http://localhost:5050" \
 	RESEND_API_KEY="build-placeholder" \
+	TRUSTED_PROXY_CIDRS="127.0.0.1/32" \
 	STAFF_OWNER_EMAIL="owner@publyapp.local" \
 	STAFF_OWNER_BOOTSTRAP_CODE="build-placeholder" \
 	APP_NAME="PublyApp" \
@@ -42,6 +43,7 @@ RUN APP_ROLE=api \
 	POSTGRES_CONNECTION_STRING="Host=localhost;Port=5432;Database=publyapp_build;Username=postgres;Password=password;" \
 	FRONT_URL="http://localhost:5050" \
 	RESEND_API_KEY="build-placeholder" \
+	TRUSTED_PROXY_CIDRS="127.0.0.1/32" \
 	STAFF_OWNER_EMAIL="owner@publyapp.local" \
 	STAFF_OWNER_BOOTSTRAP_CODE="build-placeholder" \
 	APP_NAME="PublyApp" \
