@@ -75,6 +75,57 @@ internal sealed class ApiRateLimiterStore
 		);
 	}
 
+	public RateLimiter CreateRecipientWeighted(
+		string policyName,
+		HttpContext context
+	) {
+		var sessionFingerprint =
+			ApiRateLimitPartitionKeys
+				.GetSessionFingerprint(context);
+		if (
+			policyName
+				== ApiRateLimitPolicies.EmailOperation
+		) {
+			RateLimitRejectionContext.Set(
+				context,
+				policyName,
+				sessionFingerprint
+			);
+			return CreateSingle(
+				policyName,
+				sessionFingerprint
+			);
+		}
+
+		if (
+			policyName
+				== ApiRateLimitPolicies
+					.TenantEmailOperation
+		) {
+			var tenantKey =
+				ApiRateLimitPartitionKeys
+					.GetTenant(context);
+			var partitionKey =
+				$"{sessionFingerprint}\n{tenantKey}";
+			RateLimitRejectionContext.Set(
+				context,
+				policyName,
+				partitionKey
+			);
+			return CreateTenantChained(
+				ApiRateLimitPolicies.EmailOperation,
+				sessionFingerprint,
+				policyName,
+				tenantKey
+			);
+		}
+
+		throw new InvalidOperationException(
+			$"Policy '{policyName}' does not support "
+				+ "recipient weighting"
+		);
+	}
+
 	public async ValueTask DisposeAsync() {
 		foreach (var storedLimiter in _limiters.Values) {
 			await storedLimiter.Limiter.DisposeAsync();

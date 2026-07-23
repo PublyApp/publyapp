@@ -59,7 +59,13 @@ public static class UserEndpointsForTenantAsStaff {
 			)
 			.WithSummary("Invite multiple users to a tenant")
 			.WithPermission([AppPermissions.Staff.Users.CREATE_FOR_TENANT])
-			.WithReqBodyValidation<BulkCreateTenantInvitationsForTenantAsStaffBody>();
+			.WithReqBodyValidation<BulkCreateTenantInvitationsForTenantAsStaffBody>()
+			.WithRecipientWeightedRateLimit<
+				BulkCreateTenantInvitationsForTenantAsStaffBody
+			>(
+				ApiRateLimitPolicies.TenantEmailOperation,
+				body => body.GetInvitations().Count
+			);
 
 		group.MapDelete(
 			Routes.Users.ForTenantAsStaff.Delete,

@@ -38,6 +38,12 @@ public static class InvitationEndpointsForStaff {
 			)
 			.WithSummary("Bulk create staff invitations (Admin only)")
 			.WithReqBodyValidation<BulkCreateStaffInvitationsBody>()
+			.WithRecipientWeightedRateLimit<
+				BulkCreateStaffInvitationsBody
+			>(
+				ApiRateLimitPolicies.EmailOperation,
+				body => body.GetInvitations().Count
+			)
 			.WithPermission([AppPermissions.Staff.Invitations.CREATE_FOR_STAFF]);
 
 		group.MapPost(

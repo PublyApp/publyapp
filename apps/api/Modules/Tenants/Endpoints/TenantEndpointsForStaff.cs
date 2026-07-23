@@ -26,6 +26,12 @@ public static class TenantEndpointsForStaff {
 			)
 			.WithSummary("Create a new tenant")
 			.WithReqBodyValidation<CreateTenantAsStaffBody>()
+			.WithRecipientWeightedRateLimit<
+				CreateTenantAsStaffBody
+			>(
+				ApiRateLimitPolicies.EmailOperation,
+				body => body.GetInitialUsers().Count
+			)
 			.WithPermission([AppPermissions.Staff.Tenants.CREATE]);
 
 		group.MapGet(

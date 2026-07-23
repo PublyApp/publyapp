@@ -27,15 +27,15 @@ shared integration-test hosts do not exhaust a partition accidentally.
 | Anonymous password-reset request and verification-email resend | `password-reset-per-email` | 30 / 60s IP + 3 / 900s email | Resolved client IP + normalized email | `ANON_AUTH_IP_RATE_LIMIT_PERMIT_LIMIT`, `ANON_AUTH_IP_RATE_LIMIT_WINDOW_SECONDS`, `PASSWORD_RESET_EMAIL_RATE_LIMIT_PERMIT_LIMIT`, `PASSWORD_RESET_EMAIL_RATE_LIMIT_WINDOW_SECONDS` |
 | Other anonymous auth actions: password-reset confirmation/token checks, email-verification confirmation/token checks, invitation acceptance | `anonymous-auth-per-ip` | 30 / 60s | Resolved client IP | `ANON_AUTH_IP_RATE_LIMIT_PERMIT_LIMIT`, `ANON_AUTH_IP_RATE_LIMIT_WINDOW_SECONDS` |
 | Other unauthenticated endpoints, including public invitation reads and active notices | `anonymous-other` | 120 / 60s | Resolved client IP | `ANONYMOUS_OTHER_RATE_LIMIT_PERMIT_LIMIT`, `ANONYMOUS_OTHER_RATE_LIMIT_WINDOW_SECONDS` |
-| Normal authenticated staff and tenant reads/writes | `authenticated-default` | 600 / 60s | SHA-256 session fingerprint | `AUTHENTICATED_RATE_LIMIT_PERMIT_LIMIT`, `AUTHENTICATED_RATE_LIMIT_WINDOW_SECONDS` |
-| Expensive search/list endpoints | `heavy-search-list` | 180 / 60s | SHA-256 session fingerprint | `HEAVY_SEARCH_RATE_LIMIT_PERMIT_LIMIT`, `HEAVY_SEARCH_RATE_LIMIT_WINDOW_SECONDS` |
-| Non-tenant bulk operations | `bulk-operation` | 30 / 60s | SHA-256 session fingerprint | `BULK_RATE_LIMIT_PERMIT_LIMIT`, `BULK_RATE_LIMIT_WINDOW_SECONDS` |
-| Tenant-scoped bulk operations | `tenant-bulk-operation` | 30 / 60s session + 120 / 60s tenant | SHA-256 session fingerprint + tenant ID | `BULK_RATE_LIMIT_PERMIT_LIMIT`, `BULK_RATE_LIMIT_WINDOW_SECONDS`, `TENANT_BULK_RATE_LIMIT_PERMIT_LIMIT`, `TENANT_BULK_RATE_LIMIT_WINDOW_SECONDS` |
-| Non-tenant email-producing operations | `email-operation` | 10 / 900s | SHA-256 session fingerprint | `EMAIL_RATE_LIMIT_PERMIT_LIMIT`, `EMAIL_RATE_LIMIT_WINDOW_SECONDS` |
-| Tenant email-producing operations | `tenant-email-operation` | 10 / 900s session + 50 / 900s tenant | SHA-256 session fingerprint + tenant ID | `EMAIL_RATE_LIMIT_PERMIT_LIMIT`, `EMAIL_RATE_LIMIT_WINDOW_SECONDS`, `TENANT_EMAIL_RATE_LIMIT_PERMIT_LIMIT`, `TENANT_EMAIL_RATE_LIMIT_WINDOW_SECONDS` |
-| Non-tenant exports | `export` | 10 / 60s | SHA-256 session fingerprint | `EXPORT_RATE_LIMIT_PERMIT_LIMIT`, `EXPORT_RATE_LIMIT_WINDOW_SECONDS` |
-| Tenant exports | `tenant-export` | 10 / 60s session + 40 / 60s tenant | SHA-256 session fingerprint + tenant ID | `EXPORT_RATE_LIMIT_PERMIT_LIMIT`, `EXPORT_RATE_LIMIT_WINDOW_SECONDS`, `TENANT_EXPORT_RATE_LIMIT_PERMIT_LIMIT`, `TENANT_EXPORT_RATE_LIMIT_WINDOW_SECONDS` |
-| Uploads | `upload` | 20 / 60s | SHA-256 session fingerprint | `UPLOAD_RATE_LIMIT_PERMIT_LIMIT`, `UPLOAD_RATE_LIMIT_WINDOW_SECONDS` |
+| Normal authenticated staff and tenant reads/writes | `authenticated-default` | 600 / 60s | Validated session ID fingerprint | `AUTHENTICATED_RATE_LIMIT_PERMIT_LIMIT`, `AUTHENTICATED_RATE_LIMIT_WINDOW_SECONDS` |
+| Expensive search/list endpoints | `heavy-search-list` | 180 / 60s | Validated session ID fingerprint | `HEAVY_SEARCH_RATE_LIMIT_PERMIT_LIMIT`, `HEAVY_SEARCH_RATE_LIMIT_WINDOW_SECONDS` |
+| Non-tenant bulk operations | `bulk-operation` | 30 / 60s | Validated session ID fingerprint | `BULK_RATE_LIMIT_PERMIT_LIMIT`, `BULK_RATE_LIMIT_WINDOW_SECONDS` |
+| Tenant-scoped bulk operations | `tenant-bulk-operation` | 30 / 60s session + 120 / 60s tenant | Validated session ID fingerprint + tenant ID | `BULK_RATE_LIMIT_PERMIT_LIMIT`, `BULK_RATE_LIMIT_WINDOW_SECONDS`, `TENANT_BULK_RATE_LIMIT_PERMIT_LIMIT`, `TENANT_BULK_RATE_LIMIT_WINDOW_SECONDS` |
+| Non-tenant email-producing operations | `email-operation` | 10 recipients / 900s | Validated session ID fingerprint | `EMAIL_RATE_LIMIT_PERMIT_LIMIT`, `EMAIL_RATE_LIMIT_WINDOW_SECONDS` |
+| Tenant email-producing operations | `tenant-email-operation` | 10 recipients / 900s session + 50 recipients / 900s tenant | Validated session ID fingerprint + tenant ID | `EMAIL_RATE_LIMIT_PERMIT_LIMIT`, `EMAIL_RATE_LIMIT_WINDOW_SECONDS`, `TENANT_EMAIL_RATE_LIMIT_PERMIT_LIMIT`, `TENANT_EMAIL_RATE_LIMIT_WINDOW_SECONDS` |
+| Non-tenant exports | `export` | 10 / 60s | Validated session ID fingerprint | `EXPORT_RATE_LIMIT_PERMIT_LIMIT`, `EXPORT_RATE_LIMIT_WINDOW_SECONDS` |
+| Tenant exports | `tenant-export` | 10 / 60s session + 40 / 60s tenant | Validated session ID fingerprint + tenant ID | `EXPORT_RATE_LIMIT_PERMIT_LIMIT`, `EXPORT_RATE_LIMIT_WINDOW_SECONDS`, `TENANT_EXPORT_RATE_LIMIT_PERMIT_LIMIT`, `TENANT_EXPORT_RATE_LIMIT_WINDOW_SECONDS` |
+| Uploads | `upload` | 20 / 60s | Validated session ID fingerprint | `UPLOAD_RATE_LIMIT_PERMIT_LIMIT`, `UPLOAD_RATE_LIMIT_WINDOW_SECONDS` |
 
 SSR is served by the frontend process and does not enter the API middleware pipeline.
 Static files under `/files` are excluded because their immutable, server-generated URLs
@@ -75,6 +75,12 @@ inventory.
 5. Add or update a limiter integration spec when a route changes bucket, partition key,
    or rejection behavior. Specs must prove the cap succeeds and the next request returns
    RFC 7807 `429` with `Retry-After`.
+6. Email fan-out endpoints must add
+   `.WithRecipientWeightedRateLimit<TBody>(policy, getRecipientCount)` after body
+   validation. The named policy consumes the first recipient permit; the filter consumes
+   the remaining recipients from the same session and, for tenant email, tenant buckets.
+   A request whose recipient count does not fit is rejected before the handler sends or
+   queues any email.
 
 `PUBLY0011` enforces the static registration rule during build: every mapped endpoint
 must declare or inherit a named policy, carry the global-only marker, or carry an
@@ -95,11 +101,25 @@ Do not apply multiple endpoint policies expecting them to compose. A tighter end
 policy replaces inherited named-policy metadata. The tenant bulk, email, and export
 policies perform their session-plus-tenant composition internally.
 
+The current email-fan-out judgments are:
+
+- staff and tenant bulk invitations remain in their email policies and are
+  recipient-weighted;
+- `CreateStaffProfile` remains `email-operation` because its optional `emails` array can
+  create invitations; the array is bounded by `MAX_BULK_INVITATIONS_SIZE` and its actual
+  recipients are weighted;
+- tenant creation remains `email-operation` because every required initial user receives
+  an invitation, and `initialUsers` are recipient-weighted;
+- cross-company membership bulk operations do not produce email and remain
+  session-scoped `bulk-operation`.
+
 ## Enforcement and observability
 
 Trusted forwarded headers are resolved before rate limiting. IP policies therefore key
 on the client address produced by the trusted-proxy configuration, not the proxy address.
-Authenticated policies hash the session token before using it as a partition key.
+Authenticated policies validate the session before rate limiting and key on a fingerprint
+of the persisted session ID. Missing or invalid tokens fall back to the resolved client-IP
+partition, so rotating forged token strings cannot mint fresh authenticated buckets.
 Tenant policies resolve the explicit `{tenantId}` route value first, then the
 `X-Tenant-Id` header used by tenant-self-service routes.
 

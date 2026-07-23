@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Threading.RateLimiting;
 
 using Microsoft.AspNetCore.HttpOverrides;
@@ -6,8 +5,6 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 
 using PublyApp.Api.Lib.Extensions;
-using PublyApp.Api.Lib.ProblemResults;
-using PublyApp.Api.Localization;
 
 namespace PublyApp.Api.Lib.RateLimiting;
 
@@ -443,49 +440,9 @@ public static class AnonymousAuthRateLimitExtensions {
 		OnRejectedContext context,
 		CancellationToken cancellationToken
 	) {
-		var rejectionInfo = RateLimitRejectionContext
-			.Get(context.HttpContext);
-		if (rejectionInfo is not null) {
-			var logger = context.HttpContext
-				.RequestServices
-				.GetRequiredService<ILoggerFactory>()
-				.CreateLogger(
-					"PublyApp.Api.RateLimiting"
-				);
-			logger.LogWarning(
-				"Rate limit rejected request for policy "
-					+ "{RateLimitPolicy} partition "
-					+ "{RateLimitPartitionFingerprint}",
-				rejectionInfo.PolicyName,
-				rejectionInfo.PartitionFingerprint
-			);
-		}
-
-		var retryAfter = TimeSpan.FromSeconds(1);
-		if (
-			context.Lease.TryGetMetadata(
-				MetadataName.RetryAfter,
-				out var leaseRetryAfter
-			)
-		) {
-			retryAfter = leaseRetryAfter;
-		}
-
-		var retryAfterSeconds = Math.Max(
-			1,
-			(int)Math.Ceiling(
-				retryAfter.TotalSeconds
-			)
+		await RateLimitRejectionResponse.WriteAsync(
+			context.HttpContext,
+			context.Lease
 		);
-		context.HttpContext.Response.Headers[
-			"Retry-After"
-		] = retryAfterSeconds.ToString(
-			CultureInfo.InvariantCulture
-		);
-
-		await TypedProblems.TooManyRequests(
-			"Too many requests. Please try again later.",
-			ResponseKeys.TooManyRequests
-		).ExecuteAsync(context.HttpContext);
 	}
 }

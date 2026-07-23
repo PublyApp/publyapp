@@ -39,7 +39,13 @@ public static class ProfileEndpointsForStaff {
 			)
 			.WithSummary("Create a new staff profile")
 			.WithPermission([AppPermissions.Staff.Profiles.CREATE_FOR_STAFF])
-			.WithReqBodyValidation<CreateStaffProfileBody>();
+			.WithReqBodyValidation<CreateStaffProfileBody>()
+			.WithRecipientWeightedRateLimit<
+				CreateStaffProfileBody
+			>(
+				ApiRateLimitPolicies.EmailOperation,
+				body => body.GetEmails().Count
+			);
 
 		staffGroup.MapGet(
 			Routes.Profiles.ForStaff.Get,

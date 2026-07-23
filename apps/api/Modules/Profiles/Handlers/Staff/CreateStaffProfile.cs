@@ -123,6 +123,15 @@ public partial class CreateStaffProfileBodyValidator
 					context.AddFailure("Emails must be a list of valid email addresses");
 					return;
 				}
+				var maxSize = AppEnvironment.Instance
+					.MAX_BULK_INVITATIONS_SIZE;
+				if (list.Count > maxSize) {
+					context.AddFailure(
+						$"Emails cannot contain more "
+							+ $"than {maxSize} items"
+					);
+					return;
+				}
 				if (!list.All(email => EmailRegex().IsMatch(email))) {
 					context.AddFailure("Emails must be a list of valid email addresses");
 				}
