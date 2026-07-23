@@ -136,6 +136,91 @@ public sealed class TenantAsStaffBulkLifecycleServiceSpec
 			.Should().BeTrue();
 	}
 
+	[Fact]
+	public async Task
+	ItShouldExcludeConcurrentlySuspendedTenantFromBulkSuspendSuccesses() {
+		var raceTenantId = await SeedTenantAsync(TenantStatus.Active);
+		var stableTenantId = await SeedTenantAsync(TenantStatus.Active);
+		var setup = await CreateServiceAsync(cancellationToken =>
+			SetTenantStatusAsync(
+				raceTenantId,
+				TenantStatus.Suspended,
+				cancellationToken
+			)
+		);
+
+		await using var serviceDbContext = setup.DbContext;
+		var result = await setup.Service.BulkSuspendAsync([
+			raceTenantId,
+			stableTenantId,
+		]);
+
+		result.SucceededCount.Should().Be(1);
+		result.FailedCount.Should().Be(1);
+		result.SucceededIds.Should().Equal(stableTenantId);
+		result.FailedItems.Should().ContainSingle(item =>
+			item.TenantId == raceTenantId
+			&& item.Error == "Already suspended"
+		);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldExcludeConcurrentlyReactivatedTenantFromBulkReactivateSuccesses() {
+		var raceTenantId = await SeedTenantAsync(TenantStatus.Suspended);
+		var stableTenantId = await SeedTenantAsync(TenantStatus.Suspended);
+		var setup = await CreateServiceAsync(cancellationToken =>
+			SetTenantStatusAsync(
+				raceTenantId,
+				TenantStatus.Active,
+				cancellationToken
+			)
+		);
+
+		await using var serviceDbContext = setup.DbContext;
+		var result = await setup.Service.BulkReactivateAsync([
+			raceTenantId,
+			stableTenantId,
+		]);
+
+		result.SucceededCount.Should().Be(1);
+		result.FailedCount.Should().Be(1);
+		result.SucceededIds.Should().Equal(stableTenantId);
+		result.FailedItems.Should().ContainSingle(item =>
+			item.TenantId == raceTenantId
+			&& item.Error == "Tenant is not suspended"
+		);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldExcludeConcurrentlyReactivatedTenantFromBulkDeleteSuccesses() {
+		var raceTenantId = await SeedTenantAsync(TenantStatus.Suspended);
+		var stableTenantId = await SeedTenantAsync(TenantStatus.Suspended);
+		var setup = await CreateServiceAsync(cancellationToken =>
+			SetTenantStatusAsync(
+				raceTenantId,
+				TenantStatus.Active,
+				cancellationToken
+			)
+		);
+
+		await using var serviceDbContext = setup.DbContext;
+		var result = await setup.Service.BulkDeleteAsync([
+			raceTenantId,
+			stableTenantId,
+		]);
+
+		result.SucceededCount.Should().Be(1);
+		result.FailedCount.Should().Be(1);
+		result.SucceededIds.Should().Equal(stableTenantId);
+		result.FailedItems.Should().ContainSingle(item =>
+			item.TenantId == raceTenantId
+			&& item.Error == "Tenant is not suspended"
+		);
+		(await GetTenantAsync(raceTenantId)).IsDeleted.Should().BeFalse();
+	}
+
 	private async Task<Guid> SeedTenantAsync(TenantStatus status) {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -161,9 +246,29 @@ public sealed class TenantAsStaffBulkLifecycleServiceSpec
 			.SingleAsync(tenant => tenant.Id == tenantId);
 	}
 
-	private async Task<ServiceSetup> CreateServiceAsync() {
+	private async Task SetTenantStatusAsync(
+		Guid tenantId,
+		TenantStatus status,
+		CancellationToken cancellationToken
+	) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		_ = await dbContext.Tenant
+			.Where(tenant => tenant.Id == tenantId && !tenant.IsDeleted)
+			.ExecuteUpdateAsync(
+				setters => setters
+					.SetProperty(tenant => tenant.Status, status)
+					.SetProperty(tenant => tenant.UpdatedAt, DateTime.UtcNow),
+				cancellationToken
+			);
+	}
+
+	private async Task<ServiceSetup> CreateServiceAsync(
+		Func<CancellationToken, Task>? beforeTenantUpdateAsync = null
+	) {
 		var connectionString = await GetConnectionStringAsync();
-		var interceptor = new TenantCommandInterceptor();
+		var interceptor = new TenantCommandInterceptor(beforeTenantUpdateAsync);
 		var options = new DbContextOptionsBuilder<AppDbContext>()
 			.UseNpgsql(connectionString)
 			.AddInterceptors(interceptor)
@@ -201,6 +306,14 @@ public sealed class TenantAsStaffBulkLifecycleServiceSpec
 
 	private sealed class TenantCommandInterceptor : DbCommandInterceptor {
 		private readonly List<string> _commandTexts = [];
+		private readonly Func<CancellationToken, Task>? _beforeTenantUpdateAsync;
+		private bool _hasRunBeforeUpdate;
+
+		public TenantCommandInterceptor(
+			Func<CancellationToken, Task>? beforeTenantUpdateAsync
+		) {
+			_beforeTenantUpdateAsync = beforeTenantUpdateAsync;
+		}
 
 		public int TenantSelectCount {
 			get {
@@ -218,7 +331,7 @@ public sealed class TenantAsStaffBulkLifecycleServiceSpec
 			}
 		}
 
-		public override ValueTask<InterceptionResult<DbDataReader>>
+		public override async ValueTask<InterceptionResult<DbDataReader>>
 		ReaderExecutingAsync(
 			DbCommand command,
 			CommandEventData eventData,
@@ -226,10 +339,11 @@ public sealed class TenantAsStaffBulkLifecycleServiceSpec
 			CancellationToken cancellationToken = default
 		) {
 			_commandTexts.Add(command.CommandText);
-			return new ValueTask<InterceptionResult<DbDataReader>>(result);
+			await RunBeforeTenantUpdateAsync(command, cancellationToken);
+			return result;
 		}
 
-		public override ValueTask<InterceptionResult<int>>
+		public override async ValueTask<InterceptionResult<int>>
 		NonQueryExecutingAsync(
 			DbCommand command,
 			CommandEventData eventData,
@@ -237,7 +351,24 @@ public sealed class TenantAsStaffBulkLifecycleServiceSpec
 			CancellationToken cancellationToken = default
 		) {
 			_commandTexts.Add(command.CommandText);
-			return new ValueTask<InterceptionResult<int>>(result);
+			await RunBeforeTenantUpdateAsync(command, cancellationToken);
+			return result;
+		}
+
+		private async Task RunBeforeTenantUpdateAsync(
+			DbCommand command,
+			CancellationToken cancellationToken
+		) {
+			if (
+				_hasRunBeforeUpdate
+				|| _beforeTenantUpdateAsync is null
+				|| !IsTenantCommand(command.CommandText, "UPDATE")
+			) {
+				return;
+			}
+
+			_hasRunBeforeUpdate = true;
+			await _beforeTenantUpdateAsync(cancellationToken);
 		}
 
 		private static bool IsTenantCommand(
