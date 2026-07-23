@@ -1,24 +1,42 @@
 using System.Security.Cryptography;
 using System.Text;
 
+using Microsoft.AspNetCore.RateLimiting;
+
+using PublyApp.Api.Modules.Auth.Services;
+
 namespace PublyApp.Api.Lib.RateLimiting;
 
 internal static class ApiRateLimitPartitionKeys {
+	private static readonly object
+		ValidatedSessionFingerprintItemKey = new();
+
 	public static string GetSessionFingerprint(
 		HttpContext context
 	) {
-		var token = context.Request.Headers[
-			AppEnvironment.Instance.SESSION_TOKEN_HEADER_KEY
-		].ToString();
-
-		if (!string.IsNullOrWhiteSpace(token)) {
-			return Hash(token);
+		if (
+			context.Items.TryGetValue(
+				ValidatedSessionFingerprintItemKey,
+				out var value
+			)
+			&& value is string fingerprint
+		) {
+			return fingerprint;
 		}
 
 		var clientIp =
 			AnonymousAuthRateLimitPartitionKeys
 				.GetClientIp(context);
-		return $"missing:{Hash(clientIp)}";
+		return $"unauthenticated:{Hash(clientIp)}";
+	}
+
+	public static void SetValidatedSession(
+		HttpContext context,
+		Guid sessionId
+	) {
+		context.Items[
+			ValidatedSessionFingerprintItemKey
+		] = Hash(sessionId.ToString("D"));
 	}
 
 	public static string GetTenant(
@@ -55,6 +73,90 @@ internal static class ApiRateLimitPartitionKeys {
 		}
 
 		return trimmed;
+	}
+}
+
+internal sealed class
+	ValidatedSessionRateLimitPartitionMiddleware {
+	private readonly RequestDelegate _next;
+
+	public ValidatedSessionRateLimitPartitionMiddleware(
+		RequestDelegate next
+	) {
+		_next = next;
+	}
+
+	public async Task InvokeAsync(HttpContext context) {
+		if (!RequiresValidatedSessionPartition(context)) {
+			await _next(context);
+			return;
+		}
+
+		var token = context.Request.Headers[
+			AppEnvironment.Instance.SESSION_TOKEN_HEADER_KEY
+		].FirstOrDefault();
+		if (string.IsNullOrWhiteSpace(token)) {
+			await _next(context);
+			return;
+		}
+
+		var sessionService = context.RequestServices
+			.GetRequiredService<ISessionService>();
+		var sessionData =
+			await sessionService.GetSessionByToken(
+				token,
+				context.RequestAborted
+			);
+		if (
+			sessionData?.Session.Id is not Guid sessionId
+			|| sessionData.User.Id is not Guid userId
+		) {
+			await _next(context);
+			return;
+		}
+
+		var authContext = context.RequestServices
+			.GetRequiredService<IRequestAuthContext>();
+		authContext.SessionToken = token;
+		authContext.UserId = userId;
+		ApiRateLimitPartitionKeys.SetValidatedSession(
+			context,
+			sessionId
+		);
+
+		await _next(context);
+	}
+
+	private static bool
+		RequiresValidatedSessionPartition(
+			HttpContext context
+		) {
+		var endpoint = context.GetEndpoint();
+		if (
+			endpoint?.Metadata
+				.GetMetadata<
+					DisableRateLimitingAttribute>()
+				is not null
+		) {
+			return false;
+		}
+
+		var policyName = endpoint?.Metadata
+			.GetMetadata<EnableRateLimitingAttribute>()
+			?.PolicyName;
+		return ApiRateLimitPolicies
+			.UsesValidatedSessionPartition(policyName);
+	}
+}
+
+public static class
+	ValidatedSessionRateLimitPartitionExtensions {
+	public static IApplicationBuilder
+		UseValidatedSessionRateLimitPartitioning(
+			this IApplicationBuilder app
+		) {
+		return app.UseMiddleware<
+			ValidatedSessionRateLimitPartitionMiddleware>();
 	}
 }
 

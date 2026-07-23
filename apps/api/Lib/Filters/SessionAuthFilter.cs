@@ -23,7 +23,6 @@ public class SessionAuthFilter : IEndpointFilter {
 	) {
 		var httpContext = context.HttpContext;
 		var authContext = httpContext.RequestServices.GetRequiredService<IRequestAuthContext>();
-		var sessionService = httpContext.RequestServices.GetRequiredService<ISessionService>();
 		var env = AppEnvironment.Instance;
 
 		// Get session token (should be set by CheckSessionHeaderFilter)
@@ -35,6 +34,11 @@ public class SessionAuthFilter : IEndpointFilter {
 			return TypedProblems.Unauthorized("Session token is missing", ResponseKeys.Unauthorized);
 		}
 
+		if (authContext.IsAuthenticated) {
+			return await next(context);
+		}
+
+		var sessionService = httpContext.RequestServices.GetRequiredService<ISessionService>();
 		var sessionData = await sessionService.GetSessionByToken(sessionToken, httpContext.RequestAborted);
 
 		if (sessionData is null) {

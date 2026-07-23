@@ -146,6 +146,10 @@ public class Program {
 			app.UseHttpsRedirection();
 		}
 		app.UseCors();
+		// Authenticated policies must never partition on an unvalidated
+		// session header. Resolve the persisted session identity first;
+		// invalid or missing tokens remain in the client-IP partition.
+		app.UseValidatedSessionRateLimitPartitioning();
 		// Email extraction buffers and rewinds only endpoints carrying
 		// EmailRateLimitMetadata. The limiter then combines that stable
 		// key with the already-resolved real client IP.

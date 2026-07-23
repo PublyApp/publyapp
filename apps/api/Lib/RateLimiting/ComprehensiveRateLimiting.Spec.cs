@@ -106,6 +106,33 @@ public sealed class ComprehensiveRateLimitingSpec
 
 	[Fact]
 	public async Task
+	ItShouldNotMultiplyAllowanceByRotatingForgedSessionTokens() {
+		await using var factory = CreateFactory(
+			authenticatedPermitLimit: 1
+		);
+		using var client = CreateClient(factory);
+
+		using var firstResponse = await SendAuthenticatedAsync(
+			client,
+			AppRoutes.Auth.GetUserAuthData,
+			"first-forged-session-token"
+		);
+		using var rotatedResponse =
+			await SendAuthenticatedAsync(
+				client,
+				AppRoutes.Auth.GetUserAuthData,
+				"second-forged-session-token"
+			);
+
+		firstResponse.StatusCode.Should()
+			.Be(HttpStatusCode.Unauthorized);
+		await AssertRateLimitedResponseAsync(
+			rotatedResponse
+		);
+	}
+
+	[Fact]
+	public async Task
 	ItShouldEnforceTheTighterExportPolicyBeforeTheAuthenticatedDefault() {
 		await using var factory = CreateFactory(
 			authenticatedPermitLimit: 100,

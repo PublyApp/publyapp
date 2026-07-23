@@ -11,25 +11,28 @@ public sealed class ApiRateLimitPoliciesSpec {
 	private const int LongWindowSeconds = 3_600;
 
 	[Fact]
-	public void ItShouldHashSessionTokensBeforeUsingThemAsPartitionKeys() {
-		var firstContext = CreateContext("raw-session-token");
-		var sameContext = CreateContext("raw-session-token");
-		var otherContext = CreateContext("other-session-token");
+	public void ItShouldIgnoreUnvalidatedSessionTokenHeaders() {
+		var firstContext = CreateContext(
+			"forged-session-token",
+			"203.0.113.60"
+		);
+		var otherContext = CreateContext(
+			"other-forged-session-token",
+			"203.0.113.60"
+		);
 
 		var first = ApiRateLimitPartitionKeys.GetSessionFingerprint(
 			firstContext
-		);
-		var same = ApiRateLimitPartitionKeys.GetSessionFingerprint(
-			sameContext
 		);
 		var other = ApiRateLimitPartitionKeys.GetSessionFingerprint(
 			otherContext
 		);
 
-		first.Should().Be(same);
-		first.Should().NotBe(other);
-		first.Should().NotContain("raw-session-token");
-		first.Should().HaveLength(64);
+		first.Should().Be(other);
+		first.Should()
+			.StartWith("unauthenticated:");
+		first.Should()
+			.NotContain("forged-session-token");
 	}
 
 	[Fact]
@@ -210,12 +213,15 @@ public sealed class ApiRateLimitPoliciesSpec {
 	}
 
 	private static DefaultHttpContext CreateContext(
-		string sessionToken
+		string sessionToken,
+		string clientIp
 	) {
 		var context = new DefaultHttpContext();
 		context.Request.Headers[
 			AppEnvironment.Instance.SESSION_TOKEN_HEADER_KEY
 		] = sessionToken;
+		context.Connection.RemoteIpAddress =
+			System.Net.IPAddress.Parse(clientIp);
 		return context;
 	}
 

@@ -103,4 +103,18 @@ public static class ApiRateLimitPolicies {
 			or TenantExport
 			or Upload;
 	}
+
+	public static bool UsesValidatedSessionPartition(
+		string? policyName
+	) {
+		return policyName is AuthenticatedDefault
+			or HeavySearchList
+			or BulkOperation
+			or TenantBulkOperation
+			or EmailOperation
+			or TenantEmailOperation
+			or Export
+			or TenantExport
+			or Upload;
+	}
 }
