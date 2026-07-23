@@ -57,6 +57,7 @@
 	"profile-icon-users-group": "User group",
 	"profile-icon-world": "World",
 	"profile-icon-picker-hint": "Tap the tile to change icon & color",
+	"restore-automatic-profile-style": "Use automatic style",
 	"profile-edit-subtitle_one": "{{name}} · applies to {{count}} member",
 	"profile-edit-subtitle_other": "{{name}} · applies to {{count}} members",
 	"profile-permissions-changed_one": "{{count}} changed",

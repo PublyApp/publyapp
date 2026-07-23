@@ -485,6 +485,17 @@ describe('buildUpdateStaffTenantProfileBody', () => {
 		expect(unwrapUntyped(body.name)).toBe('Approvers');
 		expect(body.description).toBeNull();
 	});
+
+	test('serializes null icon and tone to restore automatic styling', () => {
+		const body = buildUpdateStaffTenantProfileBody({
+			name: 'Approvers',
+			icon: null,
+			tone: null,
+		});
+
+		expect(body.icon).toBeNull();
+		expect(body.tone).toBeNull();
+	});
 });
 
 describe('deleteStaffTenantProfileMutationOptions', () => {

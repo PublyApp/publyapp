@@ -45,8 +45,8 @@ const buildProfileEditDetailsSchema = (t: (key: string) => string) =>
 			.trim()
 			.max(500, { message: t('profile-description-too-long') })
 			.optional(),
-		icon: z.string().min(1),
-		tone: z.string().min(1),
+		icon: z.string().min(1).nullable(),
+		tone: z.string().min(1).nullable(),
 	});
 
 type ProfileEditDetailsValues = z.infer<
@@ -75,20 +75,12 @@ type ProfileEditDetailsDrawerProfile = {
 
 const getProfileEditDetailsValues = (
 	profile: ProfileEditDetailsDrawerProfile,
-): ProfileEditDetailsValues => {
-	const style = deriveTenantProfileCardStyle(
-		profile.name,
-		profile.icon,
-		profile.tone,
-	);
-
-	return {
-		name: profile.name,
-		description: profile.description ?? '',
-		icon: style.icon,
-		tone: style.tone,
-	};
-};
+): ProfileEditDetailsValues => ({
+	name: profile.name,
+	description: profile.description ?? '',
+	icon: profile.icon ?? null,
+	tone: profile.tone ?? null,
+});
 
 const ProfileEditDetailsDrawer = ({
 	tenantId,
@@ -125,8 +117,15 @@ const ProfileEditDetailsDrawer = ({
 		formState: { isDirty, isSubmitting },
 	} = methods;
 	const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
+	const name = useWatch({ control: methods.control, name: 'name' });
 	const icon = useWatch({ control: methods.control, name: 'icon' });
 	const tone = useWatch({ control: methods.control, name: 'tone' });
+	const displayedStyle = deriveTenantProfileCardStyle(
+		name ?? profile.name,
+		icon,
+		tone,
+	);
+	const hasCustomStyle = icon !== null || tone !== null;
 
 	useEffect(() => {
 		if (!isOpen) {
@@ -239,13 +238,16 @@ const ProfileEditDetailsDrawer = ({
 						<div className="space-y-1.5">
 							<div className="grid items-end gap-3 sm:grid-cols-[auto_minmax(0,1fr)]">
 								<IconColorPicker
-									value={{ icon, tone }}
+									value={{
+										icon: displayedStyle.icon,
+										tone: displayedStyle.tone,
+									}}
 									disabled={isFormLocked}
 									onChange={(next) => {
-										methods.setValue('icon', next.icon ?? icon, {
+										methods.setValue('icon', next.icon ?? displayedStyle.icon, {
 											shouldDirty: true,
 										});
-										methods.setValue('tone', next.tone ?? tone, {
+										methods.setValue('tone', next.tone ?? displayedStyle.tone, {
 											shouldDirty: true,
 										});
 									}}
@@ -258,9 +260,32 @@ const ProfileEditDetailsDrawer = ({
 									fullWidth
 								/>
 							</div>
-							<p className="text-xs text-muted-foreground sm:pl-[68px]">
-								{tProfiles('profile-icon-picker-hint')}
-							</p>
+							<div className="flex min-h-6 items-center justify-between gap-3 text-xs sm:pl-[68px]">
+								<p className="text-muted-foreground">
+									{tProfiles('profile-icon-picker-hint')}
+								</p>
+								{hasCustomStyle ? (
+									<Button
+										type="button"
+										variant="link"
+										size="xs"
+										disabled={isFormLocked}
+										className="h-auto px-0 text-xs"
+										onClick={() => {
+											methods.setValue('icon', null, {
+												shouldDirty: true,
+												shouldValidate: true,
+											});
+											methods.setValue('tone', null, {
+												shouldDirty: true,
+												shouldValidate: true,
+											});
+										}}
+									>
+										{tProfiles('restore-automatic-profile-style')}
+									</Button>
+								) : null}
+							</div>
 						</div>
 						<Field.Textarea
 							name="description"

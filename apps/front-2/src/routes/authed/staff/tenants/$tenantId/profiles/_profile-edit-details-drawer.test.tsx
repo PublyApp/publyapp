@@ -30,6 +30,7 @@ vi.mock('react-i18next', () => ({
 				'edit-details': 'Edit details',
 				'edit-details-subtitle': 'Rename or restyle the {{name}} profile.',
 				'profile-icon-picker-hint': 'Tap the tile to change icon & color',
+				'restore-automatic-profile-style': 'Use automatic style',
 				'profile-details-management-note':
 					'Permissions & members are managed in their own tabs.',
 				'profile-name': 'Profile name',
@@ -230,5 +231,78 @@ describe('ProfileEditDetailsDrawer', () => {
 			}),
 		);
 		expect(onSaved).toHaveBeenCalledWith('profile-1');
+	});
+
+	test('preserves automatic style when an unmodified null-style profile is saved', async () => {
+		render(
+			<ProfileEditDetailsDrawer
+				tenantId="tenant-1"
+				isOpen
+				profile={{
+					id: 'profile-1',
+					name: 'Author',
+					description: 'Draft posts',
+					icon: null,
+					tone: null,
+				}}
+				onOpenChange={vi.fn()}
+				onSaved={vi.fn()}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		const picker = screen.getByRole('button', {
+			name: 'Choose icon and color',
+		});
+		expect(picker.getAttribute('data-icon')).toBeTruthy();
+		expect(picker.getAttribute('data-tone')).toBeTruthy();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+		await waitFor(() =>
+			expect(mocks.updateProfileMutation).toHaveBeenCalledWith({
+				tenantId: 'tenant-1',
+				profileId: 'profile-1',
+				name: 'Author',
+				description: 'Draft posts',
+				icon: null,
+				tone: null,
+			}),
+		);
+	});
+
+	test('restores automatic styling after a custom style was selected', async () => {
+		render(
+			<ProfileEditDetailsDrawer
+				tenantId="tenant-1"
+				isOpen
+				profile={{
+					id: 'profile-1',
+					name: 'Author',
+					description: 'Draft posts',
+					icon: 'shield-check',
+					tone: '4',
+				}}
+				onOpenChange={vi.fn()}
+				onSaved={vi.fn()}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		fireEvent.click(
+			screen.getByRole('button', { name: 'Use automatic style' }),
+		);
+		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+		await waitFor(() =>
+			expect(mocks.updateProfileMutation).toHaveBeenCalledWith({
+				tenantId: 'tenant-1',
+				profileId: 'profile-1',
+				name: 'Author',
+				description: 'Draft posts',
+				icon: null,
+				tone: null,
+			}),
+		);
 	});
 });

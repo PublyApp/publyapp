@@ -57,8 +57,8 @@ export type UpdateStaffTenantProfileInput = {
 	profileId: string;
 	name: string;
 	description?: string;
-	icon?: string;
-	tone?: string;
+	icon?: string | null;
+	tone?: string | null;
 };
 
 export type DeleteStaffTenantProfileInput = {
@@ -654,9 +654,13 @@ export const buildUpdateStaffTenantProfileBody = (
 	}
 	if (icon) {
 		body.icon = createUntypedString(icon) as typeof body.icon;
+	} else if (input.icon !== undefined) {
+		body.icon = null;
 	}
 	if (tone) {
 		body.tone = createUntypedString(tone) as typeof body.tone;
+	} else if (input.tone !== undefined) {
+		body.tone = null;
 	}
 
 	return body;

@@ -57,6 +57,7 @@
 	"profile-icon-users-group": "Groupe d’utilisateurs",
 	"profile-icon-world": "Monde",
 	"profile-icon-picker-hint": "Touchez la tuile pour changer l’icône et la couleur",
+	"restore-automatic-profile-style": "Utiliser le style automatique",
 	"profile-edit-subtitle_one": "{{name}} · s’applique à {{count}} membre",
 	"profile-edit-subtitle_other": "{{name}} · s’applique à {{count}} membres",
 	"profile-permissions-changed_one": "{{count}} modification",
