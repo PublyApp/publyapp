@@ -34,6 +34,9 @@ public static class ProfileEndpointsForStaff {
 			CreateStaffProfile.Handle
 		)
 			.WithName("CreateStaffProfile")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.EmailOperation
+			)
 			.WithSummary("Create a new staff profile")
 			.WithPermission([AppPermissions.Staff.Profiles.CREATE_FOR_STAFF])
 			.WithReqBodyValidation<CreateStaffProfileBody>();

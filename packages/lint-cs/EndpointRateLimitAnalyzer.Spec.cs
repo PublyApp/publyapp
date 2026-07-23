@@ -101,6 +101,25 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 	}
 
 	[Fact]
+	public async Task ItShouldRejectAnUnknownNamedPolicy() {
+		const string source = """
+			using Microsoft.AspNetCore.Builder;
+
+			var app = new RouteBuilder();
+			app.{|#0:MapGet|}("/typo", () => { })
+				.RequireRateLimiting("authenitcated-default");
+			""";
+
+		await VerifyAsync(
+			source,
+			Verifier
+				.Diagnostic(DiagnosticIds.PUBLY0011)
+				.WithLocation(0)
+				.WithArguments("MapGet")
+		);
+	}
+
+	[Fact]
 	public async Task ItShouldAcceptAnInheritedRouteGroupPolicy() {
 		const string source = """
 			using Microsoft.AspNetCore.Builder;

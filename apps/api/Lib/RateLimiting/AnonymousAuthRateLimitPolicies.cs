@@ -19,6 +19,9 @@ internal sealed class AnonymousAuthRateLimiterStore
 		_perEmail;
 	private readonly PartitionedRateLimiter<string>
 		_passwordResetPerEmail;
+	private readonly TimeSpan _perIpWindow;
+	private readonly TimeSpan _perEmailWindow;
+	private readonly TimeSpan _passwordResetPerEmailWindow;
 
 	public AnonymousAuthRateLimiterStore(
 		AnonymousAuthRateLimitSettings settings
@@ -27,12 +30,24 @@ internal sealed class AnonymousAuthRateLimiterStore
 		_perEmail = CreateLimiter(settings.PerEmail);
 		_passwordResetPerEmail =
 			CreateLimiter(settings.PasswordResetPerEmail);
+		_perIpWindow = TimeSpan.FromSeconds(
+			settings.PerIp.WindowSeconds
+		);
+		_perEmailWindow = TimeSpan.FromSeconds(
+			settings.PerEmail.WindowSeconds
+		);
+		_passwordResetPerEmailWindow =
+			TimeSpan.FromSeconds(
+				settings.PasswordResetPerEmail
+					.WindowSeconds
+			);
 	}
 
 	public RateLimiter CreatePerIp(string clientIp) {
 		return new PartitionedResourceRateLimiter(
 			_perIp,
-			clientIp
+			clientIp,
+			_perIpWindow
 		);
 	}
 
@@ -44,15 +59,20 @@ internal sealed class AnonymousAuthRateLimiterStore
 		var emailLimiter = isPasswordReset
 			? _passwordResetPerEmail
 			: _perEmail;
+		var emailWindow = isPasswordReset
+			? _passwordResetPerEmailWindow
+			: _perEmailWindow;
 
 		return RateLimiter.CreateChained(
 			new PartitionedResourceRateLimiter(
 				_perIp,
-				clientIp
+				clientIp,
+				_perIpWindow
 			),
 			new PartitionedResourceRateLimiter(
 				emailLimiter,
-				email
+				email,
+				emailWindow
 			)
 		);
 	}
@@ -94,17 +114,34 @@ internal sealed class PartitionedResourceRateLimiter
 	private readonly PartitionedRateLimiter<string>
 		_inner;
 	private readonly string _resource;
+	private readonly TimeSpan _retentionWindow;
+	private long _lastAccessTimestamp;
 
 	public PartitionedResourceRateLimiter(
 		PartitionedRateLimiter<string> inner,
-		string resource
+		string resource,
+		TimeSpan retentionWindow
 	) {
 		_inner = inner;
 		_resource = resource;
+		_retentionWindow = retentionWindow;
+		_lastAccessTimestamp =
+			TimeProvider.System.GetTimestamp();
 	}
 
 	public override TimeSpan? IdleDuration {
-		get { return null; }
+		get {
+			var lastAccess = Volatile.Read(
+				ref _lastAccessTimestamp
+			);
+			var elapsed = TimeProvider.System
+				.GetElapsedTime(lastAccess);
+			if (elapsed < _retentionWindow) {
+				return null;
+			}
+
+			return elapsed - _retentionWindow;
+		}
 	}
 
 	public override RateLimiterStatistics? GetStatistics() {
@@ -114,6 +151,7 @@ internal sealed class PartitionedResourceRateLimiter
 	protected override RateLimitLease AttemptAcquireCore(
 		int permitCount
 	) {
+		MarkAccess();
 		return _inner.AttemptAcquire(
 			_resource,
 			permitCount
@@ -123,8 +161,9 @@ internal sealed class PartitionedResourceRateLimiter
 	protected override ValueTask<RateLimitLease>
 		AcquireAsyncCore(
 			int permitCount,
-			CancellationToken cancellationToken
-		) {
+		CancellationToken cancellationToken
+	) {
+		MarkAccess();
 		return _inner.AcquireAsync(
 			_resource,
 			permitCount,
@@ -139,6 +178,13 @@ internal sealed class PartitionedResourceRateLimiter
 
 	protected override ValueTask DisposeAsyncCore() {
 		return ValueTask.CompletedTask;
+	}
+
+	private void MarkAccess() {
+		Interlocked.Exchange(
+			ref _lastAccessTimestamp,
+			TimeProvider.System.GetTimestamp()
+		);
 	}
 }
 

@@ -146,12 +146,12 @@ public sealed class ComprehensiveRateLimitingSpec
 
 	[Fact]
 	public async Task
-	ItShouldApplyTheGlobalFloorToAGlobalOnlyEndpoint() {
+	ItShouldApplyTheGlobalFloorToAnUnmappedHealthPrefix() {
 		await using var factory = CreateFactory(
 			globalPermitLimit: 1
 		);
 		using var client = CreateClient(factory);
-		const string path = "/rate-limit-global-only-missing-route";
+		const string path = "/health/not-real";
 
 		using var firstResponse = await client.GetAsync(path);
 		using var rejectedResponse = await client.GetAsync(path);

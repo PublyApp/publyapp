@@ -1,7 +1,9 @@
 using FluentAssertions;
 
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.Routing.Patterns;
 using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Lib.RateLimiting;
@@ -36,24 +38,7 @@ public sealed class EndpointRateLimitMetadataGuardSpec
 		var offenders = new List<string>();
 
 		foreach (var endpoint in GetRouteEndpoints()) {
-			var namedPolicy = endpoint.Metadata
-				.GetMetadata<EnableRateLimitingAttribute>();
-			var globalOnly = endpoint.Metadata
-				.GetMetadata<GlobalRateLimitOnlyMetadata>();
-			var optOut = endpoint.Metadata
-				.GetMetadata<RateLimitOptOutMetadata>();
-			var disabled = endpoint.Metadata
-				.GetMetadata<DisableRateLimitingAttribute>();
-
-			if (namedPolicy is not null || globalOnly is not null) {
-				continue;
-			}
-
-			if (
-				optOut is not null
-				&& !string.IsNullOrWhiteSpace(optOut.Reason)
-				&& disabled is not null
-			) {
+			if (HasValidDisposition(endpoint)) {
 				continue;
 			}
 
@@ -67,6 +52,23 @@ public sealed class EndpointRateLimitMetadataGuardSpec
 			"every route must use a named policy, explicitly rely "
 				+ "on the global floor, or opt out with a reason"
 		);
+	}
+
+	[Fact]
+	public void ItShouldRejectAnUnknownNamedPolicyInTheRuntimeGuard() {
+		var builder = new RouteEndpointBuilder(
+			_ => Task.CompletedTask,
+			RoutePatternFactory.Parse("/unknown-policy"),
+			0
+		);
+		builder.Metadata.Add(
+			new EnableRateLimitingAttribute(
+				"authenitcated-default"
+			)
+		);
+
+		HasValidDisposition(builder.Build()).Should()
+			.BeFalse();
 	}
 
 	[Fact]
@@ -94,5 +96,33 @@ public sealed class EndpointRateLimitMetadataGuardSpec
 			.Endpoints
 			.OfType<RouteEndpoint>()
 			.ToArray();
+	}
+
+	private static bool HasValidDisposition(
+		Endpoint endpoint
+	) {
+		var namedPolicy = endpoint.Metadata
+			.GetMetadata<EnableRateLimitingAttribute>();
+		if (namedPolicy is not null) {
+			return ApiRateLimitPolicies.IsKnown(
+					namedPolicy.PolicyName
+				)
+				|| AnonymousAuthRateLimitPolicies
+					.IsKnown(namedPolicy.PolicyName);
+		}
+
+		var globalOnly = endpoint.Metadata
+			.GetMetadata<GlobalRateLimitOnlyMetadata>();
+		if (globalOnly is not null) {
+			return true;
+		}
+
+		var optOut = endpoint.Metadata
+			.GetMetadata<RateLimitOptOutMetadata>();
+		var disabled = endpoint.Metadata
+			.GetMetadata<DisableRateLimitingAttribute>();
+		return optOut is not null
+			&& !string.IsNullOrWhiteSpace(optOut.Reason)
+			&& disabled is not null;
 	}
 }

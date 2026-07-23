@@ -30,6 +30,31 @@ public sealed class EndpointRateLimitAnalyzer
 				"MapOpenApi",
 				"MapScalarApiReference"
 			);
+	private static readonly ImmutableHashSet<string>
+		KnownNamedPolicies =
+			ImmutableHashSet.Create(
+				StringComparer.Ordinal,
+				"anonymous-auth-per-ip",
+				"anonymous-auth-per-email",
+				"password-reset-per-email",
+				"anonymous-other",
+				"authenticated-default",
+				"heavy-search-list",
+				"bulk-operation",
+				"tenant-bulk-operation",
+				"email-operation",
+				"tenant-email-operation",
+				"export",
+				"tenant-export",
+				"upload"
+			);
+	private static readonly ImmutableHashSet<string>
+		ApprovedNamedPolicyHelpers =
+			ImmutableHashSet.Create(
+				StringComparer.Ordinal,
+				"RequireAnonymousAuthIpRateLimit",
+				"RequireAnonymousAuthEmailRateLimit"
+			);
 
 	public override ImmutableArray<DiagnosticDescriptor>
 		SupportedDiagnostics {
@@ -188,7 +213,14 @@ public sealed class EndpointRateLimitAnalyzer
 		) {
 			var methodName =
 				GetInvokedMethodName(invocation);
-			if (IsNamedPolicyMethod(methodName)) {
+			if (
+				IsNamedPolicyInvocation(
+					invocation,
+					methodName,
+					semanticModel,
+					cancellationToken
+				)
+			) {
 				return true;
 			}
 
@@ -215,22 +247,37 @@ public sealed class EndpointRateLimitAnalyzer
 		return false;
 	}
 
-	private static bool IsNamedPolicyMethod(
-		string? methodName
+	private static bool IsNamedPolicyInvocation(
+		InvocationExpressionSyntax invocation,
+		string? methodName,
+		SemanticModel semanticModel,
+		CancellationToken cancellationToken
 	) {
-		if (methodName == "RequireRateLimiting") {
+		if (
+			methodName is not null
+			&& ApprovedNamedPolicyHelpers.Contains(methodName)
+		) {
 			return true;
 		}
 
-		return methodName is not null
-			&& methodName.StartsWith(
-				"Require",
-				StringComparison.Ordinal
-			)
-			&& methodName.EndsWith(
-				"RateLimit",
-				StringComparison.Ordinal
-			);
+		if (methodName != "RequireRateLimiting") {
+			return false;
+		}
+
+		var argument = invocation.ArgumentList
+			.Arguments
+			.FirstOrDefault();
+		if (argument is null) {
+			return false;
+		}
+
+		var constant = semanticModel.GetConstantValue(
+			argument.Expression,
+			cancellationToken
+		);
+		return constant.HasValue
+			&& constant.Value is string policyName
+			&& KnownNamedPolicies.Contains(policyName);
 	}
 
 	private static bool HasNonEmptyConstantReason(

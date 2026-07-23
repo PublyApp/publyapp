@@ -207,7 +207,7 @@ Each rule has an ID, descriptor in `DiagnosticCatalog.cs`, and is referenced in 
 - **Source:** `packages/lint-cs/EndpointRateLimitAnalyzer.cs`
 - **Spec:** `packages/lint-cs/EndpointRateLimitAnalyzer.Spec.cs`
 - **AGENTS.md:** "Every mapped endpoint must declare or inherit a named rate-limit policy, carry the explicit global-only marker, or carry an opt-out marker with a non-empty reason."
-- **Strategy:** inspects Minimal API mapping calls and their fluent registration chain or local route-group initializer. An unprotected mapping is reported; `.RequireRateLimiting(...)`, the approved named-policy helpers, `.WithGlobalRateLimitOnly()`, and `.WithRateLimitOptOut("reason")` satisfy the rule.
+- **Strategy:** inspects Minimal API mapping calls and their fluent registration chain or local route-group initializer. An unprotected mapping is reported; `.RequireRateLimiting(...)` with a registered constant policy, the approved anonymous-auth policy helpers, `.WithGlobalRateLimitOnly()`, and `.WithRateLimitOptOut("reason")` satisfy the rule. Unknown or misspelled policy names are rejected.
 - **Runtime companion:** `EndpointRateLimitMetadataGuard.Spec.cs` builds the real route map and proves group-level policy metadata reaches every endpoint.
 - **Shipped in:** #952
 - **Enforced in:** #952

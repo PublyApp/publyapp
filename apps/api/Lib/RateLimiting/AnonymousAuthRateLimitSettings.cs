@@ -44,4 +44,10 @@ public static class AnonymousAuthRateLimitPolicies {
 		"anonymous-auth-per-email";
 	public const string PasswordResetPerEmail =
 		"password-reset-per-email";
+
+	public static bool IsKnown(string? policyName) {
+		return policyName is PerIp
+			or PerEmail
+			or PasswordResetPerEmail;
+	}
 }

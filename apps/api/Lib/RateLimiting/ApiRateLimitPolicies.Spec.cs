@@ -57,6 +57,35 @@ public sealed class ApiRateLimitPoliciesSpec {
 	}
 
 	[Fact]
+	public async Task ItShouldReplenishAndBecomeEvictableAfterTheWindow() {
+		await using var store = new ApiRateLimiterStore(
+			CreateSettings(
+				authenticatedPermitLimit: 1,
+				authenticatedWindowSeconds: 1
+			)
+		);
+		using var limiter = store.CreateSingle(
+			ApiRateLimitPolicies.AuthenticatedDefault,
+			"eventually-idle-session"
+		);
+
+		using var firstLease = await limiter.AcquireAsync();
+		using var rejectedLease = await limiter.AcquireAsync();
+		await Task.Delay(TimeSpan.FromMilliseconds(1_200));
+
+		limiter.IdleDuration.Should()
+			.NotBeNull()
+			.And.BeGreaterThan(TimeSpan.Zero);
+		using var replenishedLease =
+			await limiter.AcquireAsync();
+
+		firstLease.IsAcquired.Should().BeTrue();
+		rejectedLease.IsAcquired.Should().BeFalse();
+		replenishedLease.IsAcquired.Should().BeTrue();
+		limiter.IdleDuration.Should().BeNull();
+	}
+
+	[Fact]
 	public async Task ItShouldShareTheTenantBulkLimitAcrossSessions() {
 		await using var store = new ApiRateLimiterStore(
 			CreateSettings(
@@ -143,12 +172,16 @@ public sealed class ApiRateLimitPoliciesSpec {
 		using var healthLease = await globalLimiter.AcquireAsync(
 			CreateIpContext("203.0.113.50", "/health/ready")
 		);
+		using var healthPrefixLease = await globalLimiter.AcquireAsync(
+			CreateIpContext("203.0.113.50", "/health/not-real")
+		);
 
 		firstLease.IsAcquired.Should().BeTrue();
 		rejectedLease.IsAcquired.Should().BeFalse();
 		independentLease.IsAcquired.Should().BeTrue();
 		fileLease.IsAcquired.Should().BeTrue();
 		healthLease.IsAcquired.Should().BeTrue();
+		healthPrefixLease.IsAcquired.Should().BeFalse();
 	}
 
 	[Fact]
@@ -200,6 +233,7 @@ public sealed class ApiRateLimitPoliciesSpec {
 	private static ApiRateLimitSettings CreateSettings(
 		int globalPermitLimit = 100,
 		int authenticatedPermitLimit = 100,
+		int authenticatedWindowSeconds = LongWindowSeconds,
 		int bulkPermitLimit = 100,
 		int tenantBulkPermitLimit = 100
 	) {
@@ -216,7 +250,7 @@ public sealed class ApiRateLimitPoliciesSpec {
 			AnonymousOther: generous,
 			Authenticated: new RateLimitWindowSettings(
 				authenticatedPermitLimit,
-				LongWindowSeconds
+				authenticatedWindowSeconds
 			),
 			HeavySearch: generous,
 			Bulk: new RateLimitWindowSettings(

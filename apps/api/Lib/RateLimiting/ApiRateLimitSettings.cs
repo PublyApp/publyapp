@@ -90,4 +90,17 @@ public static class ApiRateLimitPolicies {
 	public const string Export = "export";
 	public const string TenantExport = "tenant-export";
 	public const string Upload = "upload";
+
+	public static bool IsKnown(string? policyName) {
+		return policyName is AnonymousOther
+			or AuthenticatedDefault
+			or HeavySearchList
+			or BulkOperation
+			or TenantBulkOperation
+			or EmailOperation
+			or TenantEmailOperation
+			or Export
+			or TenantExport
+			or Upload;
+	}
 }

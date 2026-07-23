@@ -10,6 +10,10 @@ both the global safety net and the named policy. Limits use fixed windows with n
 Rejected requests return RFC 7807 `application/problem+json`, status `429`, and a
 `Retry-After` header.
 
+Counters are process-local. A deployment with multiple API replicas receives the
+configured allowance independently on each replica; use a shared limiter before scaling
+when a strict deployment-wide cap is required.
+
 ## Audit matrix
 
 All permit limits and windows are environment-configurable through `AppEnvironment`.

@@ -9,7 +9,7 @@ internal sealed class ApiRateLimiterStore
 	: IAsyncDisposable {
 	private readonly IReadOnlyDictionary<
 		string,
-		PartitionedRateLimiter<string>
+		StoredLimiter
 	> _limiters;
 
 	public RateLimitWindowSettings GlobalSettings { get; }
@@ -20,7 +20,7 @@ internal sealed class ApiRateLimiterStore
 		GlobalSettings = settings.Global;
 		_limiters = new Dictionary<
 			string,
-			PartitionedRateLimiter<string>
+			StoredLimiter
 		>(StringComparer.Ordinal) {
 			[ApiRateLimitPolicies.AnonymousOther] =
 				CreateLimiter(settings.AnonymousOther),
@@ -49,9 +49,11 @@ internal sealed class ApiRateLimiterStore
 		string policyName,
 		string partitionKey
 	) {
+		var storedLimiter = GetLimiter(policyName);
 		return new PartitionedResourceRateLimiter(
-			GetLimiter(policyName),
-			partitionKey
+			storedLimiter.Limiter,
+			partitionKey,
+			storedLimiter.Window
 		);
 	}
 
@@ -74,12 +76,12 @@ internal sealed class ApiRateLimiterStore
 	}
 
 	public async ValueTask DisposeAsync() {
-		foreach (var limiter in _limiters.Values) {
-			await limiter.DisposeAsync();
+		foreach (var storedLimiter in _limiters.Values) {
+			await storedLimiter.Limiter.DisposeAsync();
 		}
 	}
 
-	private PartitionedRateLimiter<string> GetLimiter(
+	private StoredLimiter GetLimiter(
 		string policyName
 	) {
 		if (_limiters.TryGetValue(policyName, out var limiter)) {
@@ -91,30 +93,37 @@ internal sealed class ApiRateLimiterStore
 		);
 	}
 
-	private static PartitionedRateLimiter<string>
+	private static StoredLimiter
 		CreateLimiter(RateLimitWindowSettings settings) {
-		return PartitionedRateLimiter.Create<
-			string,
-			string
-		>(partitionKey => {
-			return RateLimitPartition
-				.GetFixedWindowLimiter(
-					partitionKey,
-					_ => new FixedWindowRateLimiterOptions {
-						PermitLimit =
-							settings.PermitLimit,
-						Window = TimeSpan.FromSeconds(
-							settings.WindowSeconds
-						),
-						QueueLimit = 0,
-						QueueProcessingOrder =
-							QueueProcessingOrder
-								.OldestFirst,
-						AutoReplenishment = false,
-					}
-				);
-		});
+		var window = TimeSpan.FromSeconds(
+			settings.WindowSeconds
+		);
+		var limiter = PartitionedRateLimiter.Create<
+				string,
+				string
+			>(partitionKey => {
+				return RateLimitPartition
+					.GetFixedWindowLimiter(
+						partitionKey,
+						_ => new FixedWindowRateLimiterOptions {
+							PermitLimit =
+								settings.PermitLimit,
+							Window = window,
+							QueueLimit = 0,
+							QueueProcessingOrder =
+								QueueProcessingOrder
+									.OldestFirst,
+							AutoReplenishment = false,
+						}
+					);
+			});
+		return new StoredLimiter(limiter, window);
 	}
+
+	private sealed record StoredLimiter(
+		PartitionedRateLimiter<string> Limiter,
+		TimeSpan Window
+	);
 }
 
 internal sealed class ApiRateLimiterOptionsSetup
@@ -300,9 +309,9 @@ internal sealed class ApiRateLimiterOptionsSetup
 	private static bool IsExcludedFromGlobalLimit(
 		HttpContext context
 	) {
-		return context.Request.Path.StartsWithSegments(
-				"/health"
-			)
+		return context.Request.Path == "/health"
+			|| context.Request.Path == "/health/live"
+			|| context.Request.Path == "/health/ready"
 			|| context.Request.Path.StartsWithSegments(
 				"/files"
 			);

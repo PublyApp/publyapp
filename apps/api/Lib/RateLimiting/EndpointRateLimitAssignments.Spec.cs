@@ -58,6 +58,10 @@ public sealed class EndpointRateLimitAssignmentsSpec
 		ApiRateLimitPolicies.EmailOperation
 	)]
 	[InlineData(
+		"CreateStaffProfile",
+		ApiRateLimitPolicies.EmailOperation
+	)]
+	[InlineData(
 		"CreateInvitationForTenantAsStaff",
 		ApiRateLimitPolicies.TenantEmailOperation
 	)]
