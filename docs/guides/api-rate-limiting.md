@@ -38,6 +38,23 @@ Static files under `/files` are excluded because their immutable, server-generat
 are served by `StaticFileMiddleware`. Health, liveness, and readiness endpoints opt out so
 infrastructure probes cannot be throttled.
 
+## Explicit exceptional dispositions
+
+Only these mapped endpoints intentionally rely on the global safety net without a named
+policy:
+
+- the fallback `404` route;
+- the OpenAPI document and Scalar UI, when they are mapped in Development.
+
+They carry `.WithGlobalRateLimitOnly()`. The three health endpoints (`/health`,
+`/health/live`, and `/health/ready`) are the only mapped opt-outs. Each carries
+`.WithRateLimitOptOut("reason")`, which adds both the documented reason and
+`DisableRateLimiting` metadata.
+
+`/files` is middleware rather than a mapped endpoint, so it is excluded directly by the
+global partitioner. SSR belongs to the frontend process and is outside the API route
+inventory.
+
 ## Rules for adding or changing an endpoint
 
 1. Classify the endpoint by the most specific row in the audit matrix. Expensive work
@@ -60,12 +77,33 @@ must declare or inherit a named policy, carry the global-only marker, or carry a
 opt-out marker with a reason. A runtime-metadata architecture spec separately builds the
 real route map and verifies that group-level policy metadata reached every endpoint.
 
+The normal registration shape is:
+
+```csharp
+var group = app.MapGroup("/widgets")
+    .RequireRateLimiting(ApiRateLimitPolicies.AuthenticatedDefault);
+
+group.MapGet("/", FindWidgets.Handle)
+    .RequireRateLimiting(ApiRateLimitPolicies.HeavySearchList);
+```
+
+Do not apply multiple endpoint policies expecting them to compose. A tighter endpoint
+policy replaces inherited named-policy metadata. The tenant bulk, email, and export
+policies perform their session-plus-tenant composition internally.
+
 ## Enforcement and observability
 
 Trusted forwarded headers are resolved before rate limiting. IP policies therefore key
 on the client address produced by the trusted-proxy configuration, not the proxy address.
 Authenticated policies hash the session token before using it as a partition key.
+Tenant policies resolve the explicit `{tenantId}` route value first, then the
+`X-Tenant-Id` header used by tenant-self-service routes.
 
 Throttle logs contain only the named policy and a truncated SHA-256 fingerprint of the
 partition. They never contain a raw session token, email address, tenant ID, client IP,
 request body, or other personally identifiable value.
+
+When changing a default, update the matching `AppEnvironment` values, `.env.example`,
+every active compose definition, and the audit-matrix row together. Keep Testing defaults
+high; integration specs that exercise rejection must replace limiter settings in their
+isolated test host.
