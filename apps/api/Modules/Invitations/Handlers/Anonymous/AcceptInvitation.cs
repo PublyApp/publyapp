@@ -5,6 +5,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
+using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.ProblemResults;
@@ -72,6 +73,7 @@ public sealed class AcceptInvitation {
 		[FromServices] ISessionService sessionService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] IAccountService accountService,
+		[FromServices] ILogger<AcceptInvitation> logger,
 		CancellationToken cancellationToken = default
 	) {
 		var useExistingAccount = body.UseExistingAccount.GetValueAsBoolean();
@@ -172,7 +174,22 @@ public sealed class AcceptInvitation {
 							cancellationToken
 						);
 				} catch (InvalidOperationException ex) {
-					return TypedProblems.BadRequest(ex.Message, ResponseKeys.BadRequest);
+					if (logger.IsEnabled(LogLevel.Warning)) {
+						var (description, stack) = JobErrorSanitizer.DescribeForLog(ex);
+						logger.LogWarning(
+							"Failed to accept invitation {InvitationId} for existing user "
+							+ "{UserId}: {ExceptionDescription} {ExceptionStack}",
+							invitation.GetRequiredId(),
+							sessionData.User.GetRequiredId(),
+							description,
+							stack
+						);
+					}
+
+					return TypedProblems.BadRequest(
+						"Failed to accept invitation",
+						ResponseKeys.BadRequest
+					);
 				}
 
 				await auditLogService.LogAsync(
