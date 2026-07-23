@@ -408,6 +408,82 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 	}
 
 	/// <summary>
+	/// The suspension guard must derive admin status after acquiring the tenant lock, not from the
+	/// account loaded before the transaction. Removal queues first, suspension queues second while
+	/// the target is still a User, then promotion commits without taking the tenant lock. When the
+	/// barrier releases, removal consumes the original admin and suspension must re-read the
+	/// promoted target as the final active admin and refuse.
+	/// </summary>
+	[Fact]
+	public async Task ItShouldRecheckPromotedAdminAfterSuspensionWaitsForTenantLock() {
+		var tenantId = await CreateTenantAsync();
+		var (removedAdminUserId, _) = await SeedMemberAsync(tenantId, AccountLevel.Admin);
+		var (suspendedUserId, _) = await SeedMemberAsync(tenantId, AccountLevel.User);
+
+		await using var barrierScope = _fixture.Factory.Services.CreateAsyncScope();
+		var barrierDb = barrierScope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var barrierTx = await barrierDb.Database.BeginTransactionAsync();
+
+		_ = await barrierDb.Database.ExecuteSqlAsync(
+			$"SELECT 1 FROM tenants WHERE id = {tenantId} FOR UPDATE"
+		);
+		var barrierPid = await PostgresLockBarrier.GetBackendPidAsync(barrierDb);
+
+		var removalTask = Task.Run(async () => {
+			await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+			var service = scope.ServiceProvider
+				.GetRequiredService<ITenantUserMembershipService>();
+			return await service.RemoveUserFromTenantAsync(tenantId, removedAdminUserId);
+		});
+
+		await PostgresLockBarrier.WaitUntilBlockedAsync(
+			_fixture.Factory.Services,
+			1,
+			barrierPid
+		);
+
+		var suspensionTask = Task.Run(async () => {
+			await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+			var service = scope.ServiceProvider
+				.GetRequiredService<ITenantUserMembershipService>();
+			return await service.SuspendTenantUserAsync(tenantId, suspendedUserId);
+		});
+
+		await PostgresLockBarrier.WaitUntilBlockedAsync(
+			_fixture.Factory.Services,
+			2,
+			barrierPid
+		);
+
+		await using (var promotionScope = _fixture.Factory.Services.CreateAsyncScope()) {
+			var service = promotionScope.ServiceProvider
+				.GetRequiredService<ITenantUserMembershipService>();
+			var promotionResult = await service.UpdateTenantUserAsync(
+				tenantId,
+				suspendedUserId,
+				new UpdateTenantUserDocument {
+					Level = UserAccount.GetLevelDescription(AccountLevel.Admin)
+				}
+			);
+
+			promotionResult.Should().BeOfType<UpdateTenantUserResult.Success>();
+		}
+
+		await barrierTx.RollbackAsync();
+
+		var removalResult = await removalTask;
+		var suspensionResult = await suspensionTask;
+
+		removalResult.Should().BeOfType<RemoveUserFromTenantResult.Success>();
+		suspensionResult.Should().BeOfType<SuspendTenantUserResult.CannotSuspendLastAdmin>();
+
+		(await CountActiveAdminsAsync(tenantId)).Should().Be(
+			1,
+			"the promoted final admin must remain active after the suspension re-check"
+		);
+	}
+
+	/// <summary>
 	/// The cross-path half of the same invariant: removing one admin while demoting the other.
 	/// These are different code paths (<c>RemoveUserFromTenantAsync</c> versus
 	/// <c>UpdateTenantUserAsync</c>) touching disjoint account rows, so nothing collides — this

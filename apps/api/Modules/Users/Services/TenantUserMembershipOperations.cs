@@ -265,26 +265,25 @@ internal static class TenantUserMembershipOperations {
 				cancellationToken
 			);
 
-			// Check last-admin invariant: cannot suspend the last active admin
-			if (account.Level == AccountLevel.Admin) {
-				var isSuspendingActiveAdmin = await IsActiveTenantAdminAsync(
+			// Derive admin status after the lock instead of trusting the account loaded before
+			// this transaction: a concurrent promotion may have committed while we waited.
+			var isSuspendingActiveAdmin = await IsActiveTenantAdminAsync(
+				dbContext,
+				tenantId,
+				userId,
+				cancellationToken
+			);
+			var activeAdminCount = isSuspendingActiveAdmin
+				? await CountActiveTenantAdminsAsync(
 					dbContext,
 					tenantId,
-					userId,
 					cancellationToken
-				);
-				var activeAdminCount = isSuspendingActiveAdmin
-					? await CountActiveTenantAdminsAsync(
-						dbContext,
-						tenantId,
-						cancellationToken
-					)
-					: 0;
+				)
+				: 0;
 
-				if (isSuspendingActiveAdmin && activeAdminCount <= 1) {
-					await transaction.RollbackAsync(cancellationToken);
-					return new SuspendTenantUserResult.CannotSuspendLastAdmin();
-				}
+			if (isSuspendingActiveAdmin && activeAdminCount <= 1) {
+				await transaction.RollbackAsync(cancellationToken);
+				return new SuspendTenantUserResult.CannotSuspendLastAdmin();
 			}
 
 			// Use atomic update for race-condition safety
