@@ -287,6 +287,146 @@ public sealed class ComprehensiveRateLimitingSpec
 		);
 	}
 
+	[Fact]
+	public async Task
+	ItShouldExhaustTheHeavySearchPolicyThroughHttpRequests() {
+		await using var factory = CreateFactory(
+			heavySearchPermitLimit: 1
+		);
+		using var client = CreateClient(factory);
+		var token = await new TestAuthClient(client)
+			.LoginAsStaffAdminAsync();
+		var path = PathUtils.Join(
+			AppRoutes.Staff.Root,
+			AppRoutes.Permissions.ForStaff.Root,
+			AppRoutes.Permissions.ForStaff.Scopes.Root,
+			AppRoutes.Permissions.ForStaff.Scopes.Staff
+		);
+
+		using var firstResponse = await SendAuthenticatedAsync(
+			client,
+			path,
+			token
+		);
+		using var rejectedResponse =
+			await SendAuthenticatedAsync(
+				client,
+				path,
+				token
+			);
+
+		firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+		await AssertRateLimitedResponseAsync(
+			rejectedResponse
+		);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldExhaustTheBulkPolicyThroughHttpRequests() {
+		await using var factory = CreateFactory(
+			bulkPermitLimit: 1
+		);
+		using var client = CreateClient(factory);
+		var token = await new TestAuthClient(client)
+			.LoginAsStaffAdminAsync();
+
+		using var firstResponse = await SendBulkSuspendAsync(
+			client,
+			token
+		);
+		using var rejectedResponse =
+			await SendBulkSuspendAsync(
+				client,
+				token
+			);
+
+		firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+		await AssertRateLimitedResponseAsync(
+			rejectedResponse
+		);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldExhaustTheUploadPolicyThroughHttpRequests() {
+		await using var factory = CreateFactory(
+			uploadPermitLimit: 1
+		);
+		using var client = CreateClient(factory);
+		var token = await new TestAuthClient(client)
+			.LoginAsStaffAdminAsync();
+
+		using var firstResponse = await SendUploadAsync(
+			client,
+			token
+		);
+		using var rejectedResponse = await SendUploadAsync(
+			client,
+			token
+		);
+
+		firstResponse.StatusCode.Should()
+			.Be(HttpStatusCode.Created);
+		await AssertRateLimitedResponseAsync(
+			rejectedResponse
+		);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldKeepTheGlobalFloorAdditiveOnNamedPolicies() {
+		var token = await new TestAuthClient(
+			_fixture.HttpClient
+		).LoginAsStaffAdminAsync();
+		await using var factory = CreateFactory(
+			globalPermitLimit: 1,
+			heavySearchPermitLimit: 100
+		);
+		using var client = CreateClient(factory);
+		var path = PathUtils.Join(
+			AppRoutes.Staff.Root,
+			AppRoutes.Permissions.ForStaff.Root,
+			AppRoutes.Permissions.ForStaff.Scopes.Root,
+			AppRoutes.Permissions.ForStaff.Scopes.Staff
+		);
+
+		using var firstResponse = await SendAuthenticatedAsync(
+			client,
+			path,
+			token
+		);
+		using var rejectedResponse =
+			await SendAuthenticatedAsync(
+				client,
+				path,
+				token
+			);
+
+		firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+		await AssertRateLimitedResponseAsync(
+			rejectedResponse
+		);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldExcludeFilesFromTheGlobalFloorThroughHttpRequests() {
+		await using var factory = CreateFactory(
+			globalPermitLimit: 1
+		);
+		using var client = CreateClient(factory);
+		var path = $"/files/not-found-{Guid.NewGuid():N}.png";
+
+		for (var requestNumber = 0; requestNumber < 10; requestNumber++) {
+			using var response = await client.GetAsync(path);
+			response.StatusCode.Should().Be(
+				HttpStatusCode.NotFound,
+				$"file request {requestNumber + 1} should be exempt"
+			);
+		}
+	}
+
 	[Theory]
 	[InlineData("/health")]
 	[InlineData("/health/live")]
@@ -315,7 +455,10 @@ public sealed class ComprehensiveRateLimitingSpec
 		int authenticatedPermitLimit = 100,
 		int exportPermitLimit = 100,
 		int emailPermitLimit = 100,
-		int tenantEmailPermitLimit = 100
+		int tenantEmailPermitLimit = 100,
+		int heavySearchPermitLimit = 100,
+		int bulkPermitLimit = 100,
+		int uploadPermitLimit = 100
 	) {
 		var generous = new RateLimitWindowSettings(
 			100,
@@ -347,8 +490,14 @@ public sealed class ComprehensiveRateLimitingSpec
 				authenticatedPermitLimit,
 				LongWindowSeconds
 			),
-			HeavySearch: generous,
-			Bulk: generous,
+			HeavySearch: new RateLimitWindowSettings(
+				heavySearchPermitLimit,
+				LongWindowSeconds
+			),
+			Bulk: new RateLimitWindowSettings(
+				bulkPermitLimit,
+				LongWindowSeconds
+			),
 			TenantBulk: generous,
 			Email: new RateLimitWindowSettings(
 				emailPermitLimit,
@@ -363,7 +512,10 @@ public sealed class ComprehensiveRateLimitingSpec
 				LongWindowSeconds
 			),
 			TenantExport: generous,
-			Upload: generous
+			Upload: new RateLimitWindowSettings(
+				uploadPermitLimit,
+				LongWindowSeconds
+			)
 		);
 
 		return _fixture.Factory.WithWebHostBuilder(
@@ -511,6 +663,57 @@ public sealed class ComprehensiveRateLimitingSpec
 				},
 				emails,
 			}),
+		}.WithSessionToken(token);
+		return await client.SendAsync(request);
+	}
+
+	private static async Task<HttpResponseMessage>
+		SendBulkSuspendAsync(
+			HttpClient client,
+			string token
+		) {
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			PathUtils.Join(
+				AppRoutes.Staff.Root,
+				AppRoutes.Users.ForStaff.Root,
+				AppRoutes.Users.ForStaff.BulkSuspend
+			)
+		) {
+			Content = JsonContent.Create(new {
+				userIds = new[] {
+					Guid.NewGuid(),
+				},
+			}),
+		}.WithSessionToken(token);
+		return await client.SendAsync(request);
+	}
+
+	private static async Task<HttpResponseMessage>
+		SendUploadAsync(
+			HttpClient client,
+			string token
+		) {
+		using var content = new MultipartFormDataContent();
+		var fileContent = new ByteArrayContent([
+			0x89, 0x50, 0x4E, 0x47,
+			0x0D, 0x0A, 0x1A, 0x0A,
+			0x00, 0x00, 0x00, 0x0D,
+			0x00, 0x00,
+		]);
+		fileContent.Headers.ContentType =
+			new System.Net.Http.Headers
+				.MediaTypeHeaderValue("image/png");
+		content.Add(fileContent, "file", "limit.png");
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			PathUtils.Join(
+				AppRoutes.Staff.Root,
+				AppRoutes.Uploads.ForStaff.Root,
+				AppRoutes.Uploads.ForStaff.Create
+			)
+		) {
+			Content = content,
 		}.WithSessionToken(token);
 		return await client.SendAsync(request);
 	}
