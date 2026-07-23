@@ -45,6 +45,8 @@ RUN pnpm --filter front-2 build
 RUN pnpm --filter=front-2 deploy --legacy --prod /workspace/deploy
 
 FROM node:24-alpine@sha256:156b55f92e98ccd5ef49578a8cea0df4679826564bad1c9d4ef04462b9f0ded6 AS runtime
+LABEL org.opencontainers.image.source="https://github.com/radandevist/publyapp"
+LABEL org.opencontainers.image.description="PublyApp front-2 web"
 
 RUN addgroup -S app && adduser -S -G app app
 
