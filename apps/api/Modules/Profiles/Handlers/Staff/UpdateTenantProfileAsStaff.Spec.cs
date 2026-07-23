@@ -308,6 +308,78 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldWriteAuditLogWhenOnlyIconChanges() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync();
+		var profileId = await CreateProfileAsync(token, tenantId);
+		var profileGuid = Guid.Parse(profileId);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Patch,
+			GetUrl(tenantId.ToString(), profileId)
+		).WithSessionToken(token);
+		request.Content = JsonContent.Create(new { icon = "users-group" });
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var payload = await response.Content
+			.ReadFromJsonAsync<GetTenantProfileByIdResponse>();
+		payload.Should().NotBeNull();
+		Assert.NotNull(payload);
+
+		var auditLog = await GetLatestAuditLogAsync(
+			AuditActions.TenantProfileUpdated,
+			profileGuid
+		);
+		AssertStyleAuditDetails(
+			auditLog,
+			tenantId,
+			profileGuid,
+			payload.Profile.Name,
+			new Dictionary<string, (string? Old, string? New)> {
+				["icon"] = (null, "users-group"),
+			}
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldWriteAuditLogWhenOnlyToneChanges() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync();
+		var profileId = await CreateProfileAsync(token, tenantId);
+		var profileGuid = Guid.Parse(profileId);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Patch,
+			GetUrl(tenantId.ToString(), profileId)
+		).WithSessionToken(token);
+		request.Content = JsonContent.Create(new { tone = "6" });
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var payload = await response.Content
+			.ReadFromJsonAsync<GetTenantProfileByIdResponse>();
+		payload.Should().NotBeNull();
+		Assert.NotNull(payload);
+
+		var auditLog = await GetLatestAuditLogAsync(
+			AuditActions.TenantProfileUpdated,
+			profileGuid
+		);
+		AssertStyleAuditDetails(
+			auditLog,
+			tenantId,
+			profileGuid,
+			payload.Profile.Name,
+			new Dictionary<string, (string? Old, string? New)> {
+				["tone"] = (null, "6"),
+			}
+		);
+	}
+
+	[Fact]
 	public async Task ItShouldClearIconAndToneWhenNullIsProvided() {
 		var token = await _authClient.LoginAsStaffAdminAsync();
 		var tenantId = await GetTenantIdAsync();
@@ -336,6 +408,21 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		var persistedProfile = await GetProfileAsync(Guid.Parse(profileId));
 		persistedProfile.Icon.Should().BeNull();
 		persistedProfile.Tone.Should().BeNull();
+
+		var auditLog = await GetLatestAuditLogAsync(
+			AuditActions.TenantProfileUpdated,
+			Guid.Parse(profileId)
+		);
+		AssertStyleAuditDetails(
+			auditLog,
+			tenantId,
+			Guid.Parse(profileId),
+			payload.Profile.Name,
+			new Dictionary<string, (string? Old, string? New)> {
+				["icon"] = ("shield", null),
+				["tone"] = ("2", null),
+			}
+		);
 	}
 
 	[Fact]
@@ -551,6 +638,48 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 				description.GetProperty("New").GetString().Should().Be(expectedDescriptionNew);
 			}
 		}
+	}
+
+	private static void AssertStyleAuditDetails(
+		AuditLog? auditLog,
+		Guid expectedTenantId,
+		Guid expectedProfileId,
+		string expectedProfileName,
+		IReadOnlyDictionary<string, (string? Old, string? New)> expectedChanges
+	) {
+		auditLog.Should().NotBeNull();
+		Assert.NotNull(auditLog);
+		auditLog.Action.Should().Be(AuditActions.TenantProfileUpdated);
+		auditLog.Details.Should().NotBeNull();
+		Assert.NotNull(auditLog.Details);
+
+		using var document = JsonDocument.Parse(auditLog.Details);
+		var details = document.RootElement;
+		details.GetProperty("TenantId").GetGuid().Should().Be(expectedTenantId);
+		details.GetProperty("ProfileId").GetGuid().Should().Be(expectedProfileId);
+		details.GetProperty("ProfileName").GetString().Should().Be(expectedProfileName);
+
+		var changedFields = details.GetProperty("ChangedFields");
+		changedFields.EnumerateObject()
+			.Select(property => property.Name)
+			.Should()
+			.BeEquivalentTo(expectedChanges.Keys);
+
+		foreach (var expectedChange in expectedChanges) {
+			var changedField = changedFields.GetProperty(expectedChange.Key);
+			GetNullableString(changedField.GetProperty("Old"))
+				.Should().Be(expectedChange.Value.Old);
+			GetNullableString(changedField.GetProperty("New"))
+				.Should().Be(expectedChange.Value.New);
+		}
+	}
+
+	private static string? GetNullableString(JsonElement element) {
+		if (element.ValueKind == JsonValueKind.Null) {
+			return null;
+		}
+
+		return element.GetString();
 	}
 
 	private sealed record GetTenantProfileByIdResponse {

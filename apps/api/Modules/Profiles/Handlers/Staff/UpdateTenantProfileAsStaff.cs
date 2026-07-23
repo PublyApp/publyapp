@@ -227,36 +227,36 @@ public sealed class UpdateTenantProfileAsStaff {
 				};
 			}
 
+			if (icon.IsPresent
+				&& !string.Equals(
+					success.PreviousProfile.Icon,
+					success.Profile.Icon,
+					StringComparison.Ordinal
+				)) {
+				changedFields["icon"] = new {
+					Old = success.PreviousProfile.Icon,
+					New = success.Profile.Icon
+				};
+			}
+
+			if (tone.IsPresent
+				&& !string.Equals(
+					success.PreviousProfile.Tone,
+					success.Profile.Tone,
+					StringComparison.Ordinal
+				)) {
+				changedFields["tone"] = new {
+					Old = success.PreviousProfile.Tone,
+					New = success.Profile.Tone
+				};
+			}
+
 			if (changedFields.Count > 0) {
 				var account = authContext.AccountStaff;
 				if (account is null) {
 					throw new InvalidOperationException(
 						"Staff account not found in auth context. Ensure the endpoint has .WithPermission() middleware."
 					);
-				}
-
-				if (icon.IsPresent
-					&& !string.Equals(
-						success.PreviousProfile.Icon,
-						success.Profile.Icon,
-						StringComparison.Ordinal
-					)) {
-					changedFields["icon"] = new {
-						Old = success.PreviousProfile.Icon,
-						New = success.Profile.Icon
-					};
-				}
-
-				if (tone.IsPresent
-					&& !string.Equals(
-						success.PreviousProfile.Tone,
-						success.Profile.Tone,
-						StringComparison.Ordinal
-					)) {
-					changedFields["tone"] = new {
-						Old = success.PreviousProfile.Tone,
-						New = success.Profile.Tone
-					};
 				}
 
 				await auditLogService.LogAsync(
