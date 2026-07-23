@@ -294,8 +294,72 @@ public sealed class ComprehensiveRateLimitingSpec
 
 		firstResponse.StatusCode.Should()
 			.Be(HttpStatusCode.NoContent);
+		AssertCorsPreflightHeaders(firstResponse);
 		await AssertRateLimitedResponseAsync(
 			rejectedResponse
+		);
+		AssertCorsPreflightHeaders(rejectedResponse);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldExposeCorsHeadersOnRateLimitedResponses() {
+		await using var factory = CreateFactory(
+			globalPermitLimit: 1
+		);
+		using var client = CreateClient(factory);
+		const string path = "/health/not-real";
+
+		using var firstRequest = CreateCorsRequest(
+			HttpMethod.Get,
+			path
+		);
+		using var firstResponse = await client.SendAsync(
+			firstRequest
+		);
+		using var rejectedRequest = CreateCorsRequest(
+			HttpMethod.Get,
+			path
+		);
+		using var rejectedResponse = await client.SendAsync(
+			rejectedRequest
+		);
+
+		firstResponse.StatusCode.Should()
+			.Be(HttpStatusCode.NotFound);
+		await AssertRateLimitedResponseAsync(
+			rejectedResponse
+		);
+		AssertCorsOrigin(rejectedResponse);
+		AssertRetryAfterIsCorsExposed(rejectedResponse);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldExposeCorsHeadersOnOversizedEmailBodies() {
+		await using var factory = CreateFactory();
+		using var client = CreateClient(factory);
+		var padding = new string('x', 20_000);
+		using var request = CreateCorsRequest(
+			HttpMethod.Post,
+			AppRoutes.Auth.Login
+		);
+		request.Content = JsonContent.Create(new {
+			email = "oversized-cors@example.com",
+			padding,
+		});
+
+		using var response = await client.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.RequestEntityTooLarge);
+		AssertCorsOrigin(response);
+		var problem = await response.Content
+			.ReadFromJsonAsync<AppProblemDetails>();
+		problem.Should().NotBeNull();
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(
+			ResponseKeys.RequestBodyValidationFailed
 		);
 	}
 
@@ -560,17 +624,25 @@ public sealed class ComprehensiveRateLimitingSpec
 
 	private static HttpRequestMessage
 		CreateCorsPreflightRequest() {
-		var request = new HttpRequestMessage(
+		var request = CreateCorsRequest(
 			HttpMethod.Options,
 			AppRoutes.Auth.Login
 		);
 		request.Headers.TryAddWithoutValidation(
-			"Origin",
-			AppEnvironment.Instance.FRONT_URL
-		);
-		request.Headers.TryAddWithoutValidation(
 			"Access-Control-Request-Method",
 			"POST"
+		);
+		return request;
+	}
+
+	private static HttpRequestMessage CreateCorsRequest(
+		HttpMethod method,
+		string path
+	) {
+		var request = new HttpRequestMessage(method, path);
+		request.Headers.TryAddWithoutValidation(
+			"Origin",
+			AppEnvironment.Instance.FRONT_URL
 		);
 		return request;
 	}
@@ -801,6 +873,48 @@ public sealed class ComprehensiveRateLimitingSpec
 			out var retryAfterSeconds
 		).Should().BeTrue();
 		retryAfterSeconds.Should().BeGreaterThan(0);
+	}
+
+	private static void AssertCorsOrigin(
+		HttpResponseMessage response
+	) {
+		response.Headers.TryGetValues(
+			"Access-Control-Allow-Origin",
+			out var values
+		).Should().BeTrue();
+		values.Should().ContainSingle()
+			.Which.Should().Be(
+				AppEnvironment.Instance.FRONT_URL
+			);
+	}
+
+	private static void AssertRetryAfterIsCorsExposed(
+		HttpResponseMessage response
+	) {
+		response.Headers.TryGetValues(
+			"Access-Control-Expose-Headers",
+			out var values
+		).Should().BeTrue();
+		values.Should().ContainSingle()
+			.Which.Split(
+				',',
+				StringSplitOptions.TrimEntries
+			).Should().Contain("Retry-After");
+	}
+
+	private static void AssertCorsPreflightHeaders(
+		HttpResponseMessage response
+	) {
+		AssertCorsOrigin(response);
+		response.Headers.TryGetValues(
+			"Access-Control-Allow-Methods",
+			out var values
+		).Should().BeTrue();
+		values.Should().ContainSingle()
+			.Which.Split(
+				',',
+				StringSplitOptions.TrimEntries
+			).Should().Contain("POST");
 	}
 
 	private sealed class RejectingSessionService

@@ -145,6 +145,11 @@ public class Program {
 		if (!app.Environment.IsEnvironment(EnvironmentNames.Testing)) {
 			app.UseHttpsRedirection();
 		}
+		// Apply the configured CORS response headers without short-circuiting.
+		// Early 429/413 responses stay browser-readable, while accepted
+		// preflight requests still reach the global floor before UseCors serves
+		// them below.
+		app.UseCorsResponseHeaders();
 		// Enforce the IP safety floor before any database-backed
 		// session resolution so forged tokens cannot amplify DB work.
 		app.UseGlobalRateLimit();
@@ -157,8 +162,8 @@ public class Program {
 		// key with the already-resolved real client IP.
 		app.UseEmailRateLimitPartitioning();
 		app.UseRateLimiter();
-		// CORS can short-circuit valid preflight requests. Keep it behind
-		// the global floor so OPTIONS traffic cannot bypass rate limiting.
+		// The framework CORS middleware serves accepted preflight requests.
+		// Keep it behind the global floor so OPTIONS traffic remains bounded.
 		app.UseCors();
 		app.UseOpenApi();
 

@@ -89,7 +89,10 @@ public static class ServiceRegistration {
 						env.SESSION_TOKEN_HEADER_KEY,
 						env.TENANT_ID_HEADER_KEY
 					)
-					.WithExposedHeaders(env.SESSION_TOKEN_HEADER_KEY)
+					.WithExposedHeaders(
+						env.SESSION_TOKEN_HEADER_KEY,
+						"Retry-After"
+					)
 					.SetPreflightMaxAge(TimeSpan.FromMinutes(10));
 			});
 		});

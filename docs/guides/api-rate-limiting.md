@@ -147,8 +147,11 @@ on the client address produced by the trusted-proxy configuration, not the proxy
 Production must trust only Traefik's exact `/32` or `/128` address(es), or a dedicated
 proxy-only network. The shared application network must not be trusted because any peer
 container could otherwise forge `X-Forwarded-For`; universal CIDRs are rejected at startup.
-The global limiter runs before CORS, so valid preflight `OPTIONS` requests consume the same
-per-IP floor as other traffic instead of short-circuiting around enforcement.
+The configured CORS policy is evaluated by a header-only middleware before limiting, so
+allowed browser origins can read early `429` and `413` RFC 7807 responses and the exposed
+`Retry-After` header. That middleware does not short-circuit. The global limiter therefore
+still runs before the framework CORS middleware serves a valid preflight, so `OPTIONS`
+requests consume the same per-IP floor as other traffic instead of bypassing enforcement.
 It also runs before database-backed session resolution. Once an IP exhausts the floor,
 rotating forged session headers is rejected without another session lookup; a validation
 result, including an invalid result, is reused for the remainder of the accepted request.
