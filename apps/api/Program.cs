@@ -145,6 +145,9 @@ public class Program {
 		if (!app.Environment.IsEnvironment(EnvironmentNames.Testing)) {
 			app.UseHttpsRedirection();
 		}
+		// Enforce the IP safety floor before any database-backed
+		// session resolution so forged tokens cannot amplify DB work.
+		app.UseGlobalRateLimit();
 		// Authenticated policies must never partition on an unvalidated
 		// session header. Resolve the persisted session identity first;
 		// invalid or missing tokens remain in the client-IP partition.

@@ -3,7 +3,6 @@ using System.Threading.RateLimiting;
 using FluentAssertions;
 
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -145,15 +144,6 @@ public sealed class ApiRateLimitPoliciesSpec {
 		await using var store = new ApiRateLimiterStore(
 			settings
 		);
-		var options = new RateLimiterOptions();
-		new ApiRateLimiterOptionsSetup(
-			store
-		).Configure(options);
-		var globalLimiter = options.GlobalLimiter;
-
-		globalLimiter.Should().NotBeNull();
-		Assert.NotNull(globalLimiter);
-
 		var firstContext = CreateIpContext(
 			"203.0.113.50",
 			"/global-only"
@@ -167,28 +157,46 @@ public sealed class ApiRateLimitPoliciesSpec {
 			"/global-only"
 		);
 
-		using var firstLease = await globalLimiter
-			.AcquireAsync(firstContext);
-		using var rejectedLease = await globalLimiter
-			.AcquireAsync(sameIpContext);
-		using var independentLease = await globalLimiter
-			.AcquireAsync(otherIpContext);
-		using var fileLease = await globalLimiter.AcquireAsync(
-			CreateIpContext("203.0.113.50", "/files/logo.png")
+		using var firstLimiter = store.CreateGlobal(
+			AnonymousAuthRateLimitPartitionKeys
+				.GetClientIp(firstContext)
 		);
-		using var healthLease = await globalLimiter.AcquireAsync(
-			CreateIpContext("203.0.113.50", "/health/ready")
+		using var sameIpLimiter = store.CreateGlobal(
+			AnonymousAuthRateLimitPartitionKeys
+				.GetClientIp(sameIpContext)
 		);
-		using var healthPrefixLease = await globalLimiter.AcquireAsync(
-			CreateIpContext("203.0.113.50", "/health/not-real")
+		using var otherIpLimiter = store.CreateGlobal(
+			AnonymousAuthRateLimitPartitionKeys
+				.GetClientIp(otherIpContext)
 		);
+		using var firstLease = await firstLimiter
+			.AcquireAsync();
+		using var rejectedLease = await sameIpLimiter
+			.AcquireAsync();
+		using var independentLease = await otherIpLimiter
+			.AcquireAsync();
 
 		firstLease.IsAcquired.Should().BeTrue();
 		rejectedLease.IsAcquired.Should().BeFalse();
 		independentLease.IsAcquired.Should().BeTrue();
-		fileLease.IsAcquired.Should().BeTrue();
-		healthLease.IsAcquired.Should().BeTrue();
-		healthPrefixLease.IsAcquired.Should().BeFalse();
+		GlobalRateLimitMiddleware.IsExcluded(
+			CreateIpContext(
+				"203.0.113.50",
+				"/files/logo.png"
+			)
+		).Should().BeTrue();
+		GlobalRateLimitMiddleware.IsExcluded(
+			CreateIpContext(
+				"203.0.113.50",
+				"/health/ready"
+			)
+		).Should().BeTrue();
+		GlobalRateLimitMiddleware.IsExcluded(
+			CreateIpContext(
+				"203.0.113.50",
+				"/health/not-real"
+			)
+		).Should().BeFalse();
 	}
 
 	[Fact]

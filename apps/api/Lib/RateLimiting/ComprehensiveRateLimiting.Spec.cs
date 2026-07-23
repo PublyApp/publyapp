@@ -14,6 +14,9 @@ using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Auth.Entities;
+using PublyApp.Api.Modules.Auth.Services;
+using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
 
@@ -109,8 +112,12 @@ public sealed class ComprehensiveRateLimitingSpec
 	[Fact]
 	public async Task
 	ItShouldNotMultiplyAllowanceByRotatingForgedSessionTokens() {
+		var sessionService =
+			new RejectingSessionService();
 		await using var factory = CreateFactory(
-			authenticatedPermitLimit: 1
+			globalPermitLimit: 1,
+			authenticatedPermitLimit: 100,
+			sessionService: sessionService
 		);
 		using var client = CreateClient(factory);
 
@@ -130,6 +137,11 @@ public sealed class ComprehensiveRateLimitingSpec
 			.Be(HttpStatusCode.Unauthorized);
 		await AssertRateLimitedResponseAsync(
 			rotatedResponse
+		);
+		sessionService.LookupCount.Should().Be(
+			1,
+			"the IP floor must reject before another "
+				+ "database-backed session lookup"
 		);
 	}
 
@@ -458,7 +470,8 @@ public sealed class ComprehensiveRateLimitingSpec
 		int tenantEmailPermitLimit = 100,
 		int heavySearchPermitLimit = 100,
 		int bulkPermitLimit = 100,
-		int uploadPermitLimit = 100
+		int uploadPermitLimit = 100,
+		ISessionService? sessionService = null
 	) {
 		var generous = new RateLimitWindowSettings(
 			100,
@@ -526,6 +539,10 @@ public sealed class ComprehensiveRateLimitingSpec
 					services.RemoveAll<ApiRateLimitSettings>();
 					services.AddSingleton(anonymousSettings);
 					services.AddSingleton(apiSettings);
+					if (sessionService is not null) {
+						services.RemoveAll<ISessionService>();
+						services.AddSingleton(sessionService);
+					}
 				});
 			}
 		);
@@ -784,5 +801,25 @@ public sealed class ComprehensiveRateLimitingSpec
 			out var retryAfterSeconds
 		).Should().BeTrue();
 		retryAfterSeconds.Should().BeGreaterThan(0);
+	}
+
+	private sealed class RejectingSessionService
+		: ISessionService {
+		public int LookupCount { get; private set; }
+
+		public Task<Session> CreateSessionForUser(
+			User user,
+			CancellationToken cancellationToken = default
+		) {
+			throw new NotSupportedException();
+		}
+
+		public Task<SessionData?> GetSessionByToken(
+			string token,
+			CancellationToken cancellationToken = default
+		) {
+			LookupCount++;
+			return Task.FromResult<SessionData?>(null);
+		}
 	}
 }

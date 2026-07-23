@@ -1,5 +1,6 @@
 using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.RateLimiting;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Auth.Services;
 
@@ -36,6 +37,19 @@ public class SessionAuthFilter : IEndpointFilter {
 
 		if (authContext.IsAuthenticated) {
 			return await next(context);
+		}
+
+		if (
+			ApiRateLimitPartitionKeys
+				.WasSessionValidationAttempted(httpContext)
+		) {
+			_logger.LogDebug(
+				"Session token is invalid or expired"
+			);
+			return TypedProblems.Unauthorized(
+				"Session token is invalid or expired",
+				ResponseKeys.Unauthorized
+			);
 		}
 
 		var sessionService = httpContext.RequestServices.GetRequiredService<ISessionService>();

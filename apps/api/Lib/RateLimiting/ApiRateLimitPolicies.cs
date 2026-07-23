@@ -12,16 +12,15 @@ internal sealed class ApiRateLimiterStore
 		StoredLimiter
 	> _limiters;
 
-	public RateLimitWindowSettings GlobalSettings { get; }
-
 	public ApiRateLimiterStore(
 		ApiRateLimitSettings settings
 	) {
-		GlobalSettings = settings.Global;
 		_limiters = new Dictionary<
 			string,
 			StoredLimiter
 		>(StringComparer.Ordinal) {
+			[ApiRateLimitPolicies.GlobalSafetyNet] =
+				CreateLimiter(settings.Global),
 			[ApiRateLimitPolicies.AnonymousOther] =
 				CreateLimiter(settings.AnonymousOther),
 			[ApiRateLimitPolicies.AuthenticatedDefault] =
@@ -54,6 +53,15 @@ internal sealed class ApiRateLimiterStore
 			storedLimiter.Limiter,
 			partitionKey,
 			storedLimiter.Window
+		);
+	}
+
+	public RateLimiter CreateGlobal(
+		string clientIp
+	) {
+		return CreateSingle(
+			ApiRateLimitPolicies.GlobalSafetyNet,
+			clientIp
 		);
 	}
 
@@ -188,10 +196,6 @@ internal sealed class ApiRateLimiterOptionsSetup
 	}
 
 	public void Configure(RateLimiterOptions options) {
-		options.GlobalLimiter =
-			CreateGlobalLimiter(
-				_store.GlobalSettings
-			);
 		AddSinglePolicy(
 			options,
 			ApiRateLimitPolicies.AnonymousOther,
@@ -248,45 +252,6 @@ internal sealed class ApiRateLimiterOptionsSetup
 			ApiRateLimitPartitionKeys
 				.GetSessionFingerprint
 		);
-	}
-
-	private static PartitionedRateLimiter<HttpContext>
-		CreateGlobalLimiter(
-			RateLimitWindowSettings settings
-		) {
-		return PartitionedRateLimiter.Create<
-			HttpContext,
-			string
-		>(context => {
-			if (IsExcludedFromGlobalLimit(context)) {
-				return RateLimitPartition.GetNoLimiter(
-					"global-excluded"
-				);
-			}
-
-			var clientIp = GetClientIp(context);
-			RateLimitRejectionContext.Set(
-				context,
-				ApiRateLimitPolicies.GlobalSafetyNet,
-				clientIp
-			);
-			return RateLimitPartition
-				.GetFixedWindowLimiter(
-					clientIp,
-					_ => new FixedWindowRateLimiterOptions {
-						PermitLimit =
-							settings.PermitLimit,
-						Window = TimeSpan.FromSeconds(
-							settings.WindowSeconds
-						),
-						QueueLimit = 0,
-						QueueProcessingOrder =
-							QueueProcessingOrder
-								.OldestFirst,
-						AutoReplenishment = false,
-					}
-				);
-		});
 	}
 
 	private void AddSinglePolicy(
@@ -355,16 +320,5 @@ internal sealed class ApiRateLimiterOptionsSetup
 	) {
 		return AnonymousAuthRateLimitPartitionKeys
 			.GetClientIp(context);
-	}
-
-	private static bool IsExcludedFromGlobalLimit(
-		HttpContext context
-	) {
-		return context.Request.Path == "/health"
-			|| context.Request.Path == "/health/live"
-			|| context.Request.Path == "/health/ready"
-			|| context.Request.Path.StartsWithSegments(
-				"/files"
-			);
 	}
 }

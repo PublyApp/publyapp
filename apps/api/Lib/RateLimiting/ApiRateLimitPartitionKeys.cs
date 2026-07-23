@@ -10,6 +10,8 @@ namespace PublyApp.Api.Lib.RateLimiting;
 internal static class ApiRateLimitPartitionKeys {
 	private static readonly object
 		ValidatedSessionFingerprintItemKey = new();
+	private static readonly object
+		SessionValidationAttemptedItemKey = new();
 
 	public static string GetSessionFingerprint(
 		HttpContext context
@@ -37,6 +39,22 @@ internal static class ApiRateLimitPartitionKeys {
 		context.Items[
 			ValidatedSessionFingerprintItemKey
 		] = Hash(sessionId.ToString("D"));
+	}
+
+	public static void MarkSessionValidationAttempted(
+		HttpContext context
+	) {
+		context.Items[
+			SessionValidationAttemptedItemKey
+		] = true;
+	}
+
+	public static bool WasSessionValidationAttempted(
+		HttpContext context
+	) {
+		return context.Items.ContainsKey(
+			SessionValidationAttemptedItemKey
+		);
 	}
 
 	public static string GetTenant(
@@ -100,6 +118,8 @@ internal sealed class
 			return;
 		}
 
+		ApiRateLimitPartitionKeys
+			.MarkSessionValidationAttempted(context);
 		var sessionService = context.RequestServices
 			.GetRequiredService<ISessionService>();
 		var sessionData =
