@@ -260,6 +260,9 @@ services:
 networks:
   # Dokploy's shared network is the ONLY network these services need. It lets api/worker/migrate
   # reach a Dokploy-managed PostgreSQL by its service name and lets Traefik route to the api/front.
+  # Do NOT put this shared subnet in TRUSTED_PROXY_CIDRS: peer containers could forge XFF.
+  # Trust Traefik's exact /32 or /128 address(es), or provision a proxy-only network joined by
+  # Traefik and the API and trust only that network's CIDR.
   # A separate private bridge was removed as redundant: the DB is reached via connection string,
   # api<->worker share state through a named volume, and front reaches api by its configured URL —
   # nothing needs an extra internal network, and a single network removes all Traefik

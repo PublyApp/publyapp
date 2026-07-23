@@ -939,6 +939,15 @@ public class AppEnvironmentValidator : AbstractValidator<AppEnvironment> {
 			.Must(cidr => IPNetwork.TryParse(cidr, out _))
 			.WithMessage("TRUSTED_PROXY_CIDRS entries must use valid CIDR notation");
 
+		RuleForEach(x => x.TRUSTED_PROXY_CIDRS)
+			.Must(cidr =>
+				!IPNetwork.TryParse(cidr, out var network)
+				|| network.PrefixLength != 0
+			)
+			.WithMessage(
+				"TRUSTED_PROXY_CIDRS entries must not trust a universal network"
+			);
+
 		RuleFor(x => x.TRUSTED_PROXY_CIDRS)
 			.Must(_ => AppEnvironment.IsTrustedProxyCidrsExplicitlySet)
 			.When(x => AppEnvironment.IsProduction && x.IsApiRole)

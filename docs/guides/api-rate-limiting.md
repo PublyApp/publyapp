@@ -117,6 +117,9 @@ The current email-fan-out judgments are:
 
 Trusted forwarded headers are resolved before rate limiting. IP policies therefore key
 on the client address produced by the trusted-proxy configuration, not the proxy address.
+Production must trust only Traefik's exact `/32` or `/128` address(es), or a dedicated
+proxy-only network. The shared application network must not be trusted because any peer
+container could otherwise forge `X-Forwarded-For`; universal CIDRs are rejected at startup.
 Authenticated policies validate the session before rate limiting and key on a fingerprint
 of the persisted session ID. Missing or invalid tokens fall back to the resolved client-IP
 partition, so rotating forged token strings cannot mint fresh authenticated buckets.
