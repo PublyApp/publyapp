@@ -120,6 +120,8 @@ on the client address produced by the trusted-proxy configuration, not the proxy
 Production must trust only Traefik's exact `/32` or `/128` address(es), or a dedicated
 proxy-only network. The shared application network must not be trusted because any peer
 container could otherwise forge `X-Forwarded-For`; universal CIDRs are rejected at startup.
+The global limiter runs before CORS, so valid preflight `OPTIONS` requests consume the same
+per-IP floor as other traffic instead of short-circuiting around enforcement.
 Authenticated policies validate the session before rate limiting and key on a fingerprint
 of the persisted session ID. Missing or invalid tokens fall back to the resolved client-IP
 partition, so rotating forged token strings cannot mint fresh authenticated buckets.

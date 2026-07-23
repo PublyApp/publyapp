@@ -263,6 +263,30 @@ public sealed class ComprehensiveRateLimitingSpec
 		);
 	}
 
+	[Fact]
+	public async Task
+	ItShouldApplyTheGlobalFloorToCorsPreflightRequests() {
+		await using var factory = CreateFactory(
+			globalPermitLimit: 1
+		);
+		using var client = CreateClient(factory);
+
+		using var firstRequest = CreateCorsPreflightRequest();
+		using var firstResponse = await client.SendAsync(
+			firstRequest
+		);
+		using var rejectedRequest = CreateCorsPreflightRequest();
+		using var rejectedResponse = await client.SendAsync(
+			rejectedRequest
+		);
+
+		firstResponse.StatusCode.Should()
+			.Be(HttpStatusCode.NoContent);
+		await AssertRateLimitedResponseAsync(
+			rejectedResponse
+		);
+	}
+
 	[Theory]
 	[InlineData("/health")]
 	[InlineData("/health/live")]
@@ -363,6 +387,23 @@ public sealed class ComprehensiveRateLimitingSpec
 				HandleCookies = false,
 			}
 		);
+	}
+
+	private static HttpRequestMessage
+		CreateCorsPreflightRequest() {
+		var request = new HttpRequestMessage(
+			HttpMethod.Options,
+			AppRoutes.Auth.Login
+		);
+		request.Headers.TryAddWithoutValidation(
+			"Origin",
+			AppEnvironment.Instance.FRONT_URL
+		);
+		request.Headers.TryAddWithoutValidation(
+			"Access-Control-Request-Method",
+			"POST"
+		);
+		return request;
 	}
 
 	private static HttpRequestMessage CreateAnonymousRequest(

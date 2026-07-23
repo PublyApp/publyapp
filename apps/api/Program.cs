@@ -145,7 +145,6 @@ public class Program {
 		if (!app.Environment.IsEnvironment(EnvironmentNames.Testing)) {
 			app.UseHttpsRedirection();
 		}
-		app.UseCors();
 		// Authenticated policies must never partition on an unvalidated
 		// session header. Resolve the persisted session identity first;
 		// invalid or missing tokens remain in the client-IP partition.
@@ -155,6 +154,9 @@ public class Program {
 		// key with the already-resolved real client IP.
 		app.UseEmailRateLimitPartitioning();
 		app.UseRateLimiter();
+		// CORS can short-circuit valid preflight requests. Keep it behind
+		// the global floor so OPTIONS traffic cannot bypass rate limiting.
+		app.UseCors();
 		app.UseOpenApi();
 
 		// Anonymous, read-only static file serving for staff-uploaded assets
