@@ -7,6 +7,7 @@ using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Diagnostics;
 using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.Filters;
+using PublyApp.Api.Lib.RateLimiting;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Seeding;
 using PublyApp.Api.Modules.AuditLogs.Endpoints;
@@ -135,12 +136,21 @@ public class Program {
 		app.UseResponseCompression();
 		app.UseSecurityHeaders();
 		app.UseCustomExceptionHandler();
+		// Must precede HTTPS redirection and rate limiting so both
+		// scheme and client IP reflect the single trusted Traefik hop.
+		// Trust is restricted to AppEnvironment.TRUSTED_PROXY_CIDRS.
+		app.UseForwardedHeaders();
 		// Use host environment here (not AppEnvironment) because
 		// WebApplicationFactory/UseEnvironment can override it per host instance.
 		if (!app.Environment.IsEnvironment(EnvironmentNames.Testing)) {
 			app.UseHttpsRedirection();
 		}
 		app.UseCors();
+		// Email extraction buffers and rewinds only endpoints carrying
+		// EmailRateLimitMetadata. The limiter then combines that stable
+		// key with the already-resolved real client IP.
+		app.UseEmailRateLimitPartitioning();
+		app.UseRateLimiter();
 		app.UseOpenApi();
 
 		// Anonymous, read-only static file serving for staff-uploaded assets

@@ -12,6 +12,7 @@ using PublyApp.Api.Infrastructure.Messaging.Email;
 using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Lib.Extensions;
+using PublyApp.Api.Lib.RateLimiting;
 using PublyApp.Api.Modules.Uploads;
 
 using Resend;
@@ -49,6 +50,7 @@ public static class ServiceRegistration {
 				}
 			};
 		});
+		builder.Services.AddAnonymousAuthRateLimiting();
 
 		// Add Response Compression
 		builder.Services.AddResponseCompressionServices();

@@ -1,5 +1,6 @@
 using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.Filters;
+using PublyApp.Api.Lib.RateLimiting;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Invitations.Handlers.Anonymous;
@@ -28,6 +29,7 @@ public static class InvitationEndpointsAnonymous {
 			.WithName("AcceptInvitation")
 			.WithSummary("Accept invitation with a new or existing account")
 			.WithReqBodyValidation<AcceptInvitationBody>()
+			.RequireAnonymousAuthIpRateLimit()
 			.ProducesAppProblem(StatusCodes.Status500InternalServerError);
 
 		group.MapGet(

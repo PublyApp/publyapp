@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net;
 
 using FluentValidation;
 
@@ -59,6 +60,13 @@ public class AppEnvironment {
 	public int TENANT_ACTIVITY_THROTTLE_MINUTES { get; }
 	public string FILE_STORAGE_ROOT { get; }
 	public int UPLOAD_MAX_BYTES { get; }
+	public IReadOnlyList<string> TRUSTED_PROXY_CIDRS { get; }
+	public int ANON_AUTH_IP_RATE_LIMIT_PERMIT_LIMIT { get; }
+	public int ANON_AUTH_IP_RATE_LIMIT_WINDOW_SECONDS { get; }
+	public int ANON_AUTH_EMAIL_RATE_LIMIT_PERMIT_LIMIT { get; }
+	public int ANON_AUTH_EMAIL_RATE_LIMIT_WINDOW_SECONDS { get; }
+	public int PASSWORD_RESET_EMAIL_RATE_LIMIT_PERMIT_LIMIT { get; }
+	public int PASSWORD_RESET_EMAIL_RATE_LIMIT_WINDOW_SECONDS { get; }
 
 	// ========== Hosting role + worker tuning (design §3.1) ==========
 	// APP_ROLE picks the composition root. It is optional ONLY in the Development and
@@ -241,6 +249,13 @@ public class AppEnvironment {
 		int tenantActivityThrottleMinutes,
 		string fileStorageRoot,
 		int uploadMaxBytes,
+		IReadOnlyList<string> trustedProxyCidrs,
+		int anonAuthIpRateLimitPermitLimit,
+		int anonAuthIpRateLimitWindowSeconds,
+		int anonAuthEmailRateLimitPermitLimit,
+		int anonAuthEmailRateLimitWindowSeconds,
+		int passwordResetEmailRateLimitPermitLimit,
+		int passwordResetEmailRateLimitWindowSeconds,
 		AppRole role,
 		int jobQueueBatchSize,
 		int jobQueuePollSeconds,
@@ -278,6 +293,15 @@ public class AppEnvironment {
 		TENANT_ACTIVITY_THROTTLE_MINUTES = tenantActivityThrottleMinutes;
 		FILE_STORAGE_ROOT = fileStorageRoot;
 		UPLOAD_MAX_BYTES = uploadMaxBytes;
+		TRUSTED_PROXY_CIDRS = trustedProxyCidrs;
+		ANON_AUTH_IP_RATE_LIMIT_PERMIT_LIMIT = anonAuthIpRateLimitPermitLimit;
+		ANON_AUTH_IP_RATE_LIMIT_WINDOW_SECONDS = anonAuthIpRateLimitWindowSeconds;
+		ANON_AUTH_EMAIL_RATE_LIMIT_PERMIT_LIMIT = anonAuthEmailRateLimitPermitLimit;
+		ANON_AUTH_EMAIL_RATE_LIMIT_WINDOW_SECONDS = anonAuthEmailRateLimitWindowSeconds;
+		PASSWORD_RESET_EMAIL_RATE_LIMIT_PERMIT_LIMIT =
+			passwordResetEmailRateLimitPermitLimit;
+		PASSWORD_RESET_EMAIL_RATE_LIMIT_WINDOW_SECONDS =
+			passwordResetEmailRateLimitWindowSeconds;
 		Role = role;
 		JOB_QUEUE_BATCH_SIZE = jobQueueBatchSize;
 		JOB_QUEUE_POLL_SECONDS = jobQueuePollSeconds;
@@ -347,6 +371,34 @@ public class AppEnvironment {
 				// with no repo-root lookup needed.
 				fileStorageRoot: GetOptionalString(nameof(FILE_STORAGE_ROOT), ".artifacts/storage"),
 				uploadMaxBytes: GetOptionalInt(nameof(UPLOAD_MAX_BYTES), 2_000_000),
+				trustedProxyCidrs: GetOptionalCsvList(
+					nameof(TRUSTED_PROXY_CIDRS),
+					["127.0.0.1/32", "::1/128"]
+				),
+				anonAuthIpRateLimitPermitLimit: GetOptionalInt(
+					nameof(ANON_AUTH_IP_RATE_LIMIT_PERMIT_LIMIT),
+					30
+				),
+				anonAuthIpRateLimitWindowSeconds: GetOptionalInt(
+					nameof(ANON_AUTH_IP_RATE_LIMIT_WINDOW_SECONDS),
+					60
+				),
+				anonAuthEmailRateLimitPermitLimit: GetOptionalInt(
+					nameof(ANON_AUTH_EMAIL_RATE_LIMIT_PERMIT_LIMIT),
+					30
+				),
+				anonAuthEmailRateLimitWindowSeconds: GetOptionalInt(
+					nameof(ANON_AUTH_EMAIL_RATE_LIMIT_WINDOW_SECONDS),
+					60
+				),
+				passwordResetEmailRateLimitPermitLimit: GetOptionalInt(
+					nameof(PASSWORD_RESET_EMAIL_RATE_LIMIT_PERMIT_LIMIT),
+					3
+				),
+				passwordResetEmailRateLimitWindowSeconds: GetOptionalInt(
+					nameof(PASSWORD_RESET_EMAIL_RATE_LIMIT_WINDOW_SECONDS),
+					900
+				),
 				// Fail-fast here (same InvalidOperationException path the other vars use),
 				// before the validator runs — neither an unparseable role nor an absent one
 				// outside Development/Testing can produce an enum value to range-check
@@ -474,6 +526,16 @@ public class AppEnvironment {
 		}
 	}
 
+	internal static bool IsTrustedProxyCidrsExplicitlySet {
+		get {
+			return !string.IsNullOrWhiteSpace(
+				Environment.GetEnvironmentVariable(
+					nameof(TRUSTED_PROXY_CIDRS)
+				)
+			);
+		}
+	}
+
 	// Case-insensitive APP_ROLE parse via an explicit map (never ToLower() — PUBLY0003).
 	// The map is the whole accepted set; anything else fails fast.
 	private static readonly IReadOnlyDictionary<string, AppRole> AppRoleMap =
@@ -517,10 +579,13 @@ public class AppEnvironment {
 
 	// Splits an optional CSV env var into trimmed, non-empty entries, preserving order
 	// and dropping duplicates. Absent/blank yields an empty list.
-	private static IReadOnlyList<string> GetOptionalCsvList(string name) {
+	private static IReadOnlyList<string> GetOptionalCsvList(
+		string name,
+		IReadOnlyList<string>? defaultValue = null
+	) {
 		var value = Environment.GetEnvironmentVariable(name);
 		if (string.IsNullOrWhiteSpace(value)) {
-			return [];
+			return defaultValue ?? [];
 		}
 
 		return value
@@ -703,6 +768,46 @@ public class AppEnvironmentValidator : AbstractValidator<AppEnvironment> {
 		RuleFor(x => x.UPLOAD_MAX_BYTES)
 			.InclusiveBetween(1, 100_000_000)
 			.WithMessage("UPLOAD_MAX_BYTES must be between 1 and 100000000");
+
+		RuleForEach(x => x.TRUSTED_PROXY_CIDRS)
+			.Must(cidr => IPNetwork.TryParse(cidr, out _))
+			.WithMessage("TRUSTED_PROXY_CIDRS entries must use valid CIDR notation");
+
+		RuleFor(x => x.TRUSTED_PROXY_CIDRS)
+			.Must(_ => AppEnvironment.IsTrustedProxyCidrsExplicitlySet)
+			.When(x => AppEnvironment.IsProduction && x.IsApiRole)
+			.WithMessage(
+				"TRUSTED_PROXY_CIDRS must be set explicitly for a production API role");
+
+		RuleFor(x => x.ANON_AUTH_IP_RATE_LIMIT_PERMIT_LIMIT)
+			.InclusiveBetween(1, 10_000)
+			.WithMessage(
+				"ANON_AUTH_IP_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 10000");
+
+		RuleFor(x => x.ANON_AUTH_IP_RATE_LIMIT_WINDOW_SECONDS)
+			.InclusiveBetween(1, 86_400)
+			.WithMessage(
+				"ANON_AUTH_IP_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
+
+		RuleFor(x => x.ANON_AUTH_EMAIL_RATE_LIMIT_PERMIT_LIMIT)
+			.InclusiveBetween(1, 10_000)
+			.WithMessage(
+				"ANON_AUTH_EMAIL_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 10000");
+
+		RuleFor(x => x.ANON_AUTH_EMAIL_RATE_LIMIT_WINDOW_SECONDS)
+			.InclusiveBetween(1, 86_400)
+			.WithMessage(
+				"ANON_AUTH_EMAIL_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
+
+		RuleFor(x => x.PASSWORD_RESET_EMAIL_RATE_LIMIT_PERMIT_LIMIT)
+			.InclusiveBetween(1, 10_000)
+			.WithMessage(
+				"PASSWORD_RESET_EMAIL_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 10000");
+
+		RuleFor(x => x.PASSWORD_RESET_EMAIL_RATE_LIMIT_WINDOW_SECONDS)
+			.InclusiveBetween(1, 86_400)
+			.WithMessage(
+				"PASSWORD_RESET_EMAIL_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
 
 		// APP_ROLE is already parsed to a defined enum by GetOptionalAppRole (which
 		// fails fast on any other string); this rule is defense-in-depth against an

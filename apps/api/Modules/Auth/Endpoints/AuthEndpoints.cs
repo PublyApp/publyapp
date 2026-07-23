@@ -2,6 +2,7 @@ using FluentValidation;
 
 using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.Filters;
+using PublyApp.Api.Lib.RateLimiting;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Auth.Handlers;
@@ -20,6 +21,7 @@ public static class AuthEndpoints {
 			.WithName("LoginWithEmailAndPassword")
 			.WithSummary("Password Login")
 			.WithReqBodyValidation<PasswordLoginBody>()
+			.RequireAnonymousAuthEmailRateLimit()
 			.ProducesAppProblem(StatusCodes.Status500InternalServerError);
 
 		group.MapPost(
@@ -29,6 +31,7 @@ public static class AuthEndpoints {
 			.WithName("RegisterWithEmailAndPassword")
 			.WithSummary("Password Register")
 			.WithReqBodyValidation<PasswordRegisterBody>()
+			.RequireAnonymousAuthEmailRateLimit()
 			.ProducesAppProblem(StatusCodes.Status500InternalServerError);
 
 		group.MapGet(
@@ -56,6 +59,9 @@ public static class AuthEndpoints {
 			.WithName("VerifyEmailRequest")
 			.WithSummary("Verify Email Request")
 			.WithReqBodyValidation<VerifyEmailRequestBody>()
+			.RequireAnonymousAuthEmailRateLimit(
+				isPasswordReset: true
+			)
 			.ProducesAppProblem(StatusCodes.Status500InternalServerError);
 
 		group.MapGet(
@@ -111,6 +117,9 @@ public static class AuthEndpoints {
 			.WithName("RequestPasswordReset")
 			.WithSummary("Request Password Reset")
 			.WithReqBodyValidation<RequestPasswordResetBody>()
+			.RequireAnonymousAuthEmailRateLimit(
+				isPasswordReset: true
+			)
 			.ProducesAppProblem(StatusCodes.Status500InternalServerError);
 
 		group.MapPost(
@@ -120,6 +129,7 @@ public static class AuthEndpoints {
 			.WithName("ResetPassword")
 			.WithSummary("Reset Password")
 			.WithReqBodyValidation<ResetPasswordBody>()
+			.RequireAnonymousAuthIpRateLimit()
 			.ProducesAppProblem(StatusCodes.Status500InternalServerError);
 
 		group.MapGet(
