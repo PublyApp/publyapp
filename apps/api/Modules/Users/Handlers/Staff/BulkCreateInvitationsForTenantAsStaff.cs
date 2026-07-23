@@ -303,8 +303,6 @@ public sealed class BulkCreateInvitationsForTenantAsStaff {
 			string Email,
 			string AccountLevel
 		)>();
-		var maxProfilesPerUser = AppEnvironment.Instance.MAX_PROFILES_PER_USER;
-
 		for (var i = 0; i < invitations.Count; i++) {
 			var invitation = invitations[i];
 			var email = invitation.Email;
@@ -343,30 +341,6 @@ public sealed class BulkCreateInvitationsForTenantAsStaff {
 					email,
 					"Invalid account level",
 					ResponseKeys.BadRequest.Value
-				));
-				continue;
-			}
-
-			if (parsedAccountLevel == AccountLevel.Admin
-				&& profileIds.Count > 0
-			) {
-				failedItems.Add(new BulkCreateTenantInvitationsFailedItem(
-					i,
-					email,
-					"Admin invitees cannot be assigned profiles",
-					ResponseKeys.AdminInviteeCannotHaveProfiles.Value
-				));
-				continue;
-			}
-
-			if (parsedAccountLevel == AccountLevel.User
-				&& profileIds.Count > maxProfilesPerUser
-			) {
-				failedItems.Add(new BulkCreateTenantInvitationsFailedItem(
-					i,
-					email,
-					$"Cannot assign more than {maxProfilesPerUser} profiles",
-					ResponseKeys.TooManyProfilesForInvitee.Value
 				));
 				continue;
 			}
@@ -422,10 +396,27 @@ public sealed class BulkCreateInvitationsForTenantAsStaff {
 					InvitedByUserId: account.UserId
 				);
 
-				var (createdInvitation, _) = await invitationService.CreateTenantInvitationAsync(
+				var createResult = await invitationService.CreateTenantInvitationAsync(
 					createArgs,
 					cancellationToken
 				);
+				if (createResult
+					is CreateTenantInvitationResult.InvalidProfileAssignment invalidAssignment
+				) {
+					failedItems.Add(new BulkCreateTenantInvitationsFailedItem(
+						i,
+						email,
+						invalidAssignment.Reason,
+						invalidAssignment.TranslationKey.Value
+					));
+					continue;
+				}
+				if (createResult is not CreateTenantInvitationResult.Success success) {
+					throw new InvalidOperationException(
+						"Tenant invitation creation returned an unsupported result"
+					);
+				}
+				var createdInvitation = success.Invitation;
 
 				succeededInvitationIds.Add(createdInvitation.GetRequiredId());
 				succeededInvitations.Add((

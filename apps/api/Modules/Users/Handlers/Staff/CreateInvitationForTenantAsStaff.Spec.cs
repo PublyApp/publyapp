@@ -18,6 +18,7 @@ using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
+using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Invitations.Jobs;
 using PublyApp.Api.Modules.Profiles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
@@ -320,6 +321,80 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 			.Be(AccountLevel.Admin);
 		invitation.InvitationProfiles.Should()
 			.BeEmpty();
+	}
+
+	[Fact]
+	public async Task
+	ItShouldRejectAdminTenantInvitationWithProfiles() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tenantId =
+			await GetAcmeTenantIdAsync();
+		var profileIds =
+			await CreateTenantProfilesAsync(tenantId, count: 1);
+		var inviteeEmail =
+			$"tenant-admin-profile-{Guid.NewGuid():N}@example.com";
+
+		using var response = await _http.SendAsync(
+			CreateTenantInviteRequest(
+				staffToken,
+				tenantId.ToString(),
+				new {
+					email = inviteeEmail,
+					accountLevel = "Admin",
+					profileIds = profileIds.Select(id => id.ToString()).ToArray(),
+				}
+			)
+		);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.UnprocessableEntity);
+		var problem =
+			await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+			.Be(ResponseKeys.AdminInviteeCannotHaveProfiles.Value);
+		(await TenantInvitationExistsAsync(tenantId, inviteeEmail))
+			.Should().BeFalse();
+	}
+
+	[Fact]
+	public async Task
+	ItShouldRejectUserTenantInvitationAboveConfiguredProfileCap() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tenantId =
+			await GetAcmeTenantIdAsync();
+		var profileCount =
+			AppEnvironment.Instance.MAX_PROFILES_PER_USER + 1;
+		var profileIds =
+			await CreateTenantProfilesAsync(tenantId, profileCount);
+		var inviteeEmail =
+			$"tenant-user-profile-cap-{Guid.NewGuid():N}@example.com";
+
+		using var response = await _http.SendAsync(
+			CreateTenantInviteRequest(
+				staffToken,
+				tenantId.ToString(),
+				new {
+					email = inviteeEmail,
+					accountLevel = "User",
+					profileIds = profileIds.Select(id => id.ToString()).ToArray(),
+				}
+			)
+		);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.UnprocessableEntity);
+		var problem =
+			await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+			.Be(ResponseKeys.TooManyProfilesForInvitee.Value);
+		(await TenantInvitationExistsAsync(tenantId, inviteeEmail))
+			.Should().BeFalse();
 	}
 
 	[Fact]
@@ -784,6 +859,50 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 			_http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
+		);
+	}
+
+	private async Task<List<Guid>> CreateTenantProfilesAsync(
+		Guid tenantId,
+		int count
+	) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+		var profiles = new List<Profile>();
+
+		for (var index = 0; index < count; index++) {
+			profiles.Add(
+				Profile.CreateTenantProfile(
+					tenantId,
+					$"tenant-invite-profile-{Guid.NewGuid():N}",
+					"Single invitation profile-rule test"
+				)
+			);
+		}
+
+		await dbContext.Profile.AddRangeAsync(profiles);
+		await dbContext.SaveChangesAsync();
+
+		return profiles
+			.Select(profile => profile.GetRequiredId())
+			.ToList();
+	}
+
+	private async Task<bool> TenantInvitationExistsAsync(
+		Guid tenantId,
+		string email
+	) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		return await dbContext.Invitation.AnyAsync(invitation =>
+			invitation.TenantId == tenantId
+			&& invitation.Scope == InvitationScope.Tenant
+			&& invitation.Email == email
 		);
 	}
 

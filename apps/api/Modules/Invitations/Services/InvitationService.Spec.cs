@@ -74,7 +74,7 @@ public sealed class InvitationServiceJobEnqueueDurabilitySpec : IClassFixture<Ap
 			var tenantId = await SeedTenantAsync(dbContext);
 			var inviterId = await SeedStaffUserAsync(scope.ServiceProvider);
 
-			var (invitation, _) = await invitationService.CreateTenantInvitationAsync(
+			var result = await invitationService.CreateTenantInvitationAsync(
 				new CreateTenantInvitationArgs(
 					Email: email,
 					TenantId: tenantId,
@@ -84,6 +84,9 @@ public sealed class InvitationServiceJobEnqueueDurabilitySpec : IClassFixture<Ap
 					InvitedByUserId: inviterId
 				)
 			);
+			result.Should().BeOfType<CreateTenantInvitationResult.Success>();
+			var success = (CreateTenantInvitationResult.Success)result;
+			var invitation = success.Invitation;
 
 			invitationId = invitation.GetRequiredId();
 		}

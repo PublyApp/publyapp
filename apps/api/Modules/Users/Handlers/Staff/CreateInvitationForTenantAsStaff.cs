@@ -220,11 +220,27 @@ public sealed class CreateInvitationForTenantAsStaff {
 			AccountLevel: accountLevel,
 			InvitedByUserId: account.UserId
 		);
-		var (invitation, _) = await invitationService.CreateTenantInvitationAsync(
+		var createResult = await invitationService.CreateTenantInvitationAsync(
 			createArgs,
 			cancellationToken
 		);
-		var createdInvitation = invitation;
+		if (createResult
+			is CreateTenantInvitationResult.InvalidProfileAssignment invalidAssignment
+		) {
+			return TypedProblems.ValidationProblem(
+				invalidAssignment.Reason,
+				invalidAssignment.TranslationKey,
+				new Dictionary<string, string[]> {
+					["profileIds"] = [invalidAssignment.Reason],
+				}
+			);
+		}
+		if (createResult is not CreateTenantInvitationResult.Success success) {
+			throw new InvalidOperationException(
+				"Tenant invitation creation returned an unsupported result"
+			);
+		}
+		var createdInvitation = success.Invitation;
 
 		// Audit log
 		await auditLogService.LogAsync(
