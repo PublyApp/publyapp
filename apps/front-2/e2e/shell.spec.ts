@@ -124,6 +124,18 @@ const expectCollapsedSidebarPreferenceApplied = async (
 	);
 };
 
+const expectOpenSidebarReadyForInteraction = async (
+	page: Page,
+): Promise<void> => {
+	const shell = page.getByTestId('app-shell-shell');
+
+	// The server-rendered shell defaults open, so data-panel-open="true" alone
+	// does not prove React has attached the toggle handler. data-motion-ready is
+	// set by a post-hydration effect; require both before interacting.
+	await expect(shell).toHaveAttribute('data-motion-ready', 'true');
+	await expect(shell).toHaveAttribute('data-panel-open', 'true');
+};
+
 /**
  * A real, navigated-to detail path (never a hardcoded id) — a fabricated id
  * like `t-1` is not a GUID, so the real API answers 400 malformed-id and the
@@ -435,8 +447,10 @@ test('the collapsed-panel preference persists across list and detail navigation'
 	// Back on a list route, the panel is visible again (preference untouched).
 	await page.goto('/staff/staff-users');
 	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
+	await expectOpenSidebarReadyForInteraction(page);
 
 	await page.getByRole('button', { name: 'Collapse navigation panel' }).click();
+	await expectCollapsedSidebarPreferenceApplied(page);
 	await expect(page.getByTestId('app-shell-secondary-panel')).toBeHidden();
 
 	// The collapsed preference carries to the next list route too.
