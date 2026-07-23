@@ -53,6 +53,7 @@ public sealed class BulkReactivateTenantsAsStaff {
 		// Parse tenant IDs (validated to be GUIDs by the validator)
 		var validIds = body.TenantIds.EnumerateArray()
 			.Select(id => id.GetGuid())
+			.Distinct()
 			.ToList();
 
 		var result = await tenantService.BulkReactivateAsync(
@@ -72,24 +73,26 @@ public sealed class BulkReactivateTenantsAsStaff {
 		// best-effort from here so it never turns an already-successful mutation
 		// into a 500 (round-5 API F2 — sweep of every post-commit side effect).
 		var account = authContext.AccountStaff;
-		if (account is not null) {
+		if (account is not null && result.SucceededIds.Count > 0) {
 			try {
-				await auditLogService.LogAsync(
-					new CreateAuditLogArgs(
-						UserId: account.UserId,
-						Action: AuditActions.TenantBulkReactivated,
-						TargetId: account.UserId,
-						Details: new {
-							Count = result.SucceededCount,
-							FailedCount = result.FailedCount
-						}
-					),
+				await auditLogService.LogManyAsync(
+					result.SucceededIds.Select(tenantId =>
+						new CreateAuditLogArgs(
+							UserId: account.UserId,
+							Action: AuditActions.TenantBulkReactivated,
+							TargetId: tenantId,
+							Details: new {
+								Count = result.SucceededCount,
+								FailedCount = result.FailedCount
+							}
+						)
+					).ToList(),
 					cancellationToken
 				);
 			} catch (Exception ex) {
 				logger.LogWarning(
 					ex,
-					"Failed to write audit log for tenant bulk reactivate by staff user {UserId}",
+					"Failed to write audit logs for tenant bulk reactivate by staff user {UserId}",
 					account.UserId
 				);
 			}

@@ -57,6 +57,7 @@ public sealed class BulkSuspendTenantsAsStaff {
 		// Parse tenant IDs (validated to be GUIDs by the validator)
 		var validIds = body.TenantIds.EnumerateArray()
 			.Select(id => id.GetGuid())
+			.Distinct()
 			.ToList();
 
 		var reason = body.Reason?.ValueKind == JsonValueKind.String
@@ -77,27 +78,27 @@ public sealed class BulkSuspendTenantsAsStaff {
 		// best-effort from here so it never turns an already-successful mutation
 		// into a 500 (round-5 API F2 — sweep of every post-commit side effect).
 		var account = authContext.AccountStaff;
-		if (account is not null) {
+		if (account is not null && result.SucceededIds.Count > 0) {
 			try {
-				// We can't easily get individual tenant names in bulk without extra queries
-				// Log a summary audit entry
-				await auditLogService.LogAsync(
-					new CreateAuditLogArgs(
-						UserId: account.UserId,
-						Action: AuditActions.TenantBulkSuspended,
-						TargetId: account.UserId, // Use actor as target since multiple tenants
-						Details: new {
-							Count = result.SucceededCount,
-							FailedCount = result.FailedCount,
-							Reason = reason
-						}
-					),
+				await auditLogService.LogManyAsync(
+					result.SucceededIds.Select(tenantId =>
+						new CreateAuditLogArgs(
+							UserId: account.UserId,
+							Action: AuditActions.TenantBulkSuspended,
+							TargetId: tenantId,
+							Details: new {
+								Count = result.SucceededCount,
+								FailedCount = result.FailedCount,
+								Reason = reason
+							}
+						)
+					).ToList(),
 					cancellationToken
 				);
 			} catch (Exception ex) {
 				logger.LogWarning(
 					ex,
-					"Failed to write audit log for tenant bulk suspend by staff user {UserId}",
+					"Failed to write audit logs for tenant bulk suspend by staff user {UserId}",
 					account.UserId
 				);
 			}

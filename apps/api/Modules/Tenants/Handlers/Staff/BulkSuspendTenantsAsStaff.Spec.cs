@@ -30,9 +30,13 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 
 	[Fact]
 	public async Task
-	ItShouldSuspendActiveTenantsAndWriteAuditLog() {
+	ItShouldSuspendDistinctActiveTenantsAndWritePerTargetAuditLogs() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
+		var actorUserId = await AuditLogTestHelper.GetUserIdByEmailAsync(
+			_fixture.Factory,
+			TestConstants.StaffAdminEmail
+		);
 		var firstTenant = await SeedTenantAsync(
 			"Bulk Suspend Active A",
 			TenantStatus.Active
@@ -42,12 +46,14 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 			TenantStatus.Active
 		);
 		var reason = "Bulk compliance review";
+		var startedAt = DateTime.UtcNow;
 
 		using var response = await _http.SendAsync(
 			CreateRequest(
 				staffToken,
 				new {
 					tenantIds = new[] {
+						firstTenant.TenantId,
 						firstTenant.TenantId,
 						secondTenant.TenantId,
 					},
@@ -80,23 +86,28 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 			TenantStatus.Suspended
 		);
 
-		var auditLog = await TenantBulkActionSpecSupport
-			.GetLatestAuditLogAsync(
-				_fixture,
-				AuditActions.TenantBulkSuspended
-			);
-		auditLog.Should().NotBeNull();
-		if (auditLog is null) {
-			throw new InvalidOperationException(
-				"Bulk suspend audit log was not written."
+		var auditLogs = await TenantBulkActionSpecSupport.GetAuditLogsAsync(
+			_fixture,
+			AuditActions.TenantBulkSuspended,
+			actorUserId,
+			startedAt
+		);
+		auditLogs.Should().HaveCount(2);
+		auditLogs.Select(auditLog => auditLog.TargetId)
+			.Should().BeEquivalentTo([
+				firstTenant.TenantId,
+				secondTenant.TenantId,
+			]);
+		auditLogs.Select(auditLog => auditLog.TargetId)
+			.Should().NotContain(actorUserId);
+		foreach (var auditLog in auditLogs) {
+			TenantBulkActionSpecSupport.AssertAuditDetails(
+				auditLog,
+				expectedCount: 2,
+				expectedFailedCount: 0,
+				expectedReason: reason
 			);
 		}
-		TenantBulkActionSpecSupport.AssertAuditDetails(
-			auditLog,
-			expectedCount: 2,
-			expectedFailedCount: 0,
-			expectedReason: reason
-		);
 	}
 
 	[Fact]
@@ -117,6 +128,11 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 			TenantStatus.Pending
 		);
 		var missingTenantId = Guid.NewGuid();
+		var actorUserId = await AuditLogTestHelper.GetUserIdByEmailAsync(
+			_fixture.Factory,
+			TestConstants.StaffAdminEmail
+		);
+		var startedAt = DateTime.UtcNow;
 
 		using var response = await _http.SendAsync(
 			CreateRequest(
@@ -166,6 +182,15 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 			pendingTenant.TenantId,
 			TenantStatus.Pending
 		);
+
+		var auditLogs = await TenantBulkActionSpecSupport.GetAuditLogsAsync(
+			_fixture,
+			AuditActions.TenantBulkSuspended,
+			actorUserId,
+			startedAt
+		);
+		auditLogs.Should().ContainSingle();
+		auditLogs.Single().TargetId.Should().Be(activeTenant.TenantId);
 	}
 
 	[Fact]

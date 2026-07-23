@@ -30,9 +30,13 @@ public sealed class BulkDeleteTenantsAsStaffSpec
 
 	[Fact]
 	public async Task
-	ItShouldSoftDeleteSuspendedTenantsAndWriteAuditLog() {
+	ItShouldDeleteDistinctTenantsAndWritePerTargetAuditLogs() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
+		var actorUserId = await AuditLogTestHelper.GetUserIdByEmailAsync(
+			_fixture.Factory,
+			TestConstants.StaffAdminEmail
+		);
 		var firstTenant = await SeedTenantAsync(
 			"Bulk Delete Suspended A",
 			TenantStatus.Suspended
@@ -41,12 +45,14 @@ public sealed class BulkDeleteTenantsAsStaffSpec
 			"Bulk Delete Suspended B",
 			TenantStatus.Suspended
 		);
+		var startedAt = DateTime.UtcNow;
 
 		using var response = await _http.SendAsync(
 			CreateRequest(
 				staffToken,
 				new {
 					tenantIds = new[] {
+						firstTenant.TenantId,
 						firstTenant.TenantId,
 						secondTenant.TenantId,
 					},
@@ -72,22 +78,27 @@ public sealed class BulkDeleteTenantsAsStaffSpec
 		await AssertTenantDeletedAsync(firstTenant.TenantId);
 		await AssertTenantDeletedAsync(secondTenant.TenantId);
 
-		var auditLog = await TenantBulkActionSpecSupport
-			.GetLatestAuditLogAsync(
-				_fixture,
-				AuditActions.TenantBulkDeleted
-			);
-		auditLog.Should().NotBeNull();
-		if (auditLog is null) {
-			throw new InvalidOperationException(
-				"Bulk delete audit log was not written."
+		var auditLogs = await TenantBulkActionSpecSupport.GetAuditLogsAsync(
+			_fixture,
+			AuditActions.TenantBulkDeleted,
+			actorUserId,
+			startedAt
+		);
+		auditLogs.Should().HaveCount(2);
+		auditLogs.Select(auditLog => auditLog.TargetId)
+			.Should().BeEquivalentTo([
+				firstTenant.TenantId,
+				secondTenant.TenantId,
+			]);
+		auditLogs.Select(auditLog => auditLog.TargetId)
+			.Should().NotContain(actorUserId);
+		foreach (var auditLog in auditLogs) {
+			TenantBulkActionSpecSupport.AssertAuditDetails(
+				auditLog,
+				expectedCount: 2,
+				expectedFailedCount: 0
 			);
 		}
-		TenantBulkActionSpecSupport.AssertAuditDetails(
-			auditLog,
-			expectedCount: 2,
-			expectedFailedCount: 0
-		);
 	}
 
 	[Fact]
@@ -104,6 +115,11 @@ public sealed class BulkDeleteTenantsAsStaffSpec
 			TenantStatus.Active
 		);
 		var missingTenantId = Guid.NewGuid();
+		var actorUserId = await AuditLogTestHelper.GetUserIdByEmailAsync(
+			_fixture.Factory,
+			TestConstants.StaffAdminEmail
+		);
+		var startedAt = DateTime.UtcNow;
 
 		using var response = await _http.SendAsync(
 			CreateRequest(
@@ -142,6 +158,15 @@ public sealed class BulkDeleteTenantsAsStaffSpec
 
 		await AssertTenantDeletedAsync(suspendedTenant.TenantId);
 		await AssertTenantNotDeletedAsync(activeTenant.TenantId);
+
+		var auditLogs = await TenantBulkActionSpecSupport.GetAuditLogsAsync(
+			_fixture,
+			AuditActions.TenantBulkDeleted,
+			actorUserId,
+			startedAt
+		);
+		auditLogs.Should().ContainSingle();
+		auditLogs.Single().TargetId.Should().Be(suspendedTenant.TenantId);
 	}
 
 	[Fact]
