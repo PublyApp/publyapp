@@ -154,6 +154,12 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 					this UnrelatedBuilder builder,
 					string reason
 				) => builder;
+
+				public static Microsoft.AspNetCore.Builder.RouteHandlerBuilder
+					WithRateLimitOptOut(
+					this Microsoft.AspNetCore.Builder.RouteHandlerBuilder builder,
+					string reason
+				) => builder;
 			}
 		}
 		""";
@@ -404,6 +410,30 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 			""";
 
 		await VerifyAsync(source);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldRejectUnrelatedEndpointBuilderOptOutDisposition() {
+		const string source = """
+			using Microsoft.AspNetCore.Builder;
+			using Unrelated;
+
+			var app = new RouteBuilder();
+			var endpoint = app.{|#0:MapGet|}(
+				"/uncovered",
+				() => { }
+			);
+			endpoint.WithRateLimitOptOut("unrelated metadata");
+			""";
+
+		await VerifyAsync(
+			source,
+			Verifier
+				.Diagnostic(DiagnosticIds.PUBLY0011)
+				.WithLocation(0)
+				.WithArguments("MapGet")
+		);
 	}
 
 	[Fact]
