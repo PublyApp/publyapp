@@ -109,17 +109,27 @@ inventory.
 
 `PUBLY0011` enforces the static registration rule during build: every mapped endpoint must
 declare or inherit a named policy, carry the global-only marker, or carry an opt-out marker
-with a reason. It identifies mapping calls semantically from an `IEndpointRouteBuilder`
-receiver, a `Map*` method name, and an `IEndpointConventionBuilder` result, excluding
-route-group creation and interface-shaped or `MapGroup(...)` pass-through helpers that do
-not clearly terminally map one endpoint. This covers standard methods and concrete custom
-helpers that follow the ASP.NET mapping convention without a literal method allowlist. It
-also follows conventions applied directly or through a fluent chain on a captured endpoint
-local. The startup guard then inspects the complete materialized route map and fails
-application boot if any endpoint is uncovered, names an unknown policy, or disables limiting
-without a reasoned opt-out. This runtime backstop covers non-`Map*` helpers, registrations
-Roslyn cannot resolve, and metadata applied through aliases, dynamic dispatch, reflection,
-or control flow the analyzer does not follow.
+with a reason. It resolves the mapping method, receiver, and result types through Roslyn.
+Known ASP.NET mapping symbols returning `RouteHandlerBuilder` (or another terminal
+endpoint-convention builder) are terminal, while symbols returning `RouteGroupBuilder` are
+group creation. For source-visible custom `Map*` helpers, it follows the returned expression
+to the resolved mapping symbol, so an `IEndpointConventionBuilder` declaration no longer
+hides a terminal `MapGet(...)` return and a `MapGroup(...)` return remains non-terminal.
+
+For a captured endpoint local, the analyzer follows a fluent chain only while every receiver
+and result remains an `IEndpointConventionBuilder`. It recognizes `RequireRateLimiting`,
+`DisableRateLimiting`, `WithGlobalRateLimitOnly`, `WithRateLimitOptOut`, and the approved
+anonymous-auth helpers by their intended containing type and namespace, not by method name
+alone. Same-named methods on unrelated types therefore neither cover nor invalidate an
+endpoint.
+
+The analyzer deliberately emits no diagnostic when a custom helper is external or opaque,
+or when source-visible returns have conflicting or unsupported flow and terminality cannot
+be decided from available symbols. The startup guard is the authoritative coverage gate: it
+inspects the complete materialized route map and fails application boot if any endpoint is
+uncovered, names an unknown policy, or disables limiting without a reasoned opt-out. This
+runtime backstop also covers non-`Map*` helpers and metadata applied through aliases, dynamic
+dispatch, reflection, or control flow the analyzer does not follow.
 
 The normal registration shape is:
 
