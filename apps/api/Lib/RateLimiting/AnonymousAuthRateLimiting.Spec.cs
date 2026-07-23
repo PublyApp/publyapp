@@ -274,6 +274,36 @@ public sealed class AnonymousAuthRateLimitingSpec
 			.Be(untrustedPeer);
 	}
 
+	[Fact]
+	public async Task ItShouldFallBackToIpWhenEmailInspectionExceedsItsBound() {
+		await using var factory = CreateFactory(
+			perIpPermitLimit: 100,
+			perEmailPermitLimit: 100,
+			passwordResetPerEmailPermitLimit: 1
+		);
+		using var client = CreateClient(factory);
+		var padding = new string('x', 20_000);
+
+		using var first = await client.PostAsJsonAsync(
+			AppRoutes.Auth.RequestPasswordReset,
+			new {
+				email = "oversized-first@example.com",
+				padding,
+			}
+		);
+		using var second = await client.PostAsJsonAsync(
+			AppRoutes.Auth.RequestPasswordReset,
+			new {
+				email = "oversized-second@example.com",
+				padding,
+			}
+		);
+
+		first.StatusCode.Should().Be(HttpStatusCode.OK);
+		second.StatusCode.Should()
+			.Be(HttpStatusCode.TooManyRequests);
+	}
+
 	private static void AssertPolicy(
 		IReadOnlyList<Endpoint> endpoints,
 		string routePattern,

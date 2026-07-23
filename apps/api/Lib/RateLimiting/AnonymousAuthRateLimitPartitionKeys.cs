@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Net.Sockets;
 using System.Text.Json;
 
@@ -49,6 +50,8 @@ internal static class AnonymousAuthRateLimitPartitionKeys {
 }
 
 internal sealed class EmailRateLimitPartitionMiddleware {
+	private const int MaxInspectedBodyBytes =
+		16 * 1_024;
 	private readonly RequestDelegate _next;
 
 	public EmailRateLimitPartitionMiddleware(
@@ -74,15 +77,53 @@ internal sealed class EmailRateLimitPartitionMiddleware {
 	private static async Task ReadEmailAsync(
 		HttpContext context
 	) {
+		if (
+			context.Request.ContentLength
+				is > MaxInspectedBodyBytes
+		) {
+			return;
+		}
+
 		context.Request.EnableBuffering();
+		var inspectionLength =
+			MaxInspectedBodyBytes + 1;
+		var buffer = ArrayPool<byte>.Shared.Rent(
+			inspectionLength
+		);
 
 		try {
-			using var document =
-				await JsonDocument.ParseAsync(
-					context.Request.Body,
-					cancellationToken:
+			var bytesRead = 0;
+			var reachedEnd = false;
+
+			while (bytesRead < inspectionLength) {
+				var read = await context.Request.Body
+					.ReadAsync(
+						buffer.AsMemory(
+							bytesRead,
+							inspectionLength
+								- bytesRead
+						),
 						context.RequestAborted
-				);
+					);
+
+				if (read == 0) {
+					reachedEnd = true;
+					break;
+				}
+
+				bytesRead += read;
+			}
+
+			if (
+				!reachedEnd
+				|| bytesRead > MaxInspectedBodyBytes
+			) {
+				return;
+			}
+
+			using var document = JsonDocument.Parse(
+				buffer.AsMemory(0, bytesRead)
+			);
 
 			if (
 				document.RootElement.TryGetProperty(
@@ -103,6 +144,7 @@ internal sealed class EmailRateLimitPartitionMiddleware {
 			// The fallback partition still keeps abuse bounded by IP.
 		} finally {
 			context.Request.Body.Position = 0;
+			ArrayPool<byte>.Shared.Return(buffer);
 		}
 	}
 }
