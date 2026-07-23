@@ -63,17 +63,20 @@ public abstract record ReactivateTenantResult {
 public record BulkSuspendResult(
 	int SucceededCount,
 	int FailedCount,
-	List<(Guid TenantId, string Error)> FailedItems
+	List<(Guid TenantId, string Error)> FailedItems,
+	IReadOnlyList<Guid> SucceededIds
 );
 public record BulkReactivateResult(
 	int SucceededCount,
 	int FailedCount,
-	List<(Guid TenantId, string Error)> FailedItems
+	List<(Guid TenantId, string Error)> FailedItems,
+	IReadOnlyList<Guid> SucceededIds
 );
 public record BulkDeleteResult(
 	int SucceededCount,
 	int FailedCount,
-	List<(Guid TenantId, string Error)> FailedItems
+	List<(Guid TenantId, string Error)> FailedItems,
+	IReadOnlyList<Guid> SucceededIds
 );
 
 // Result types for update/delete operations
@@ -964,32 +967,63 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		IReadOnlyList<Guid> tenantIds,
 		CancellationToken cancellationToken = default
 	) {
+		var requestedIds = tenantIds.Distinct().ToList();
+		if (requestedIds.Count == 0) {
+			return new BulkSuspendResult(0, 0, [], []);
+		}
+
+		var tenantStatuses = await FindBulkTenantStatusesAsync(
+			requestedIds,
+			cancellationToken
+		);
 		var failedItems = new List<(Guid TenantId, string Error)>();
-		var succeededCount = 0;
+		var succeededIds = new List<Guid>();
 
-		foreach (var tenantId in tenantIds) {
-			var result = await SuspendTenantAsync(tenantId, cancellationToken);
-
-			if (result is SuspendTenantResult.Success) {
-				succeededCount++;
+		foreach (var tenantId in requestedIds) {
+			if (!tenantStatuses.TryGetValue(tenantId, out var status)) {
+				failedItems.Add((tenantId, "Tenant not found"));
 				continue;
 			}
 
-			var errorMessage = result switch {
-				SuspendTenantResult.NotFound => "Tenant not found",
-				SuspendTenantResult.AlreadySuspended => "Already suspended",
-				SuspendTenantResult.NotActiveStatus => "Tenant is not active",
-				_ => throw new InvalidOperationException(
-					$"Unknown suspend tenant result: {result.GetType().Name}"
-				)
-			};
-			failedItems.Add((tenantId, errorMessage));
+			if (status == TenantStatus.Suspended) {
+				failedItems.Add((tenantId, "Already suspended"));
+				continue;
+			}
+
+			if (status != TenantStatus.Active) {
+				failedItems.Add((tenantId, "Tenant is not active"));
+				continue;
+			}
+
+			succeededIds.Add(tenantId);
+		}
+
+		if (succeededIds.Count > 0) {
+			var now = DateTime.UtcNow;
+			var updateQuery =
+				from tenant in _dbContext.Tenant
+				where tenant.Id.HasValue
+					&& succeededIds.Contains(tenant.Id.Value)
+					&& !tenant.IsDeleted
+					&& tenant.Status == TenantStatus.Active
+				select tenant;
+
+			await updateQuery.ExecuteUpdateAsync(
+				setters => setters
+					.SetProperty(
+						tenant => tenant.Status,
+						TenantStatus.Suspended
+					)
+					.SetProperty(tenant => tenant.UpdatedAt, now),
+				cancellationToken
+			);
 		}
 
 		return new BulkSuspendResult(
-			SucceededCount: succeededCount,
+			SucceededCount: succeededIds.Count,
 			FailedCount: failedItems.Count,
-			FailedItems: failedItems
+			FailedItems: failedItems,
+			SucceededIds: succeededIds
 		);
 	}
 
@@ -997,31 +1031,58 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		IReadOnlyList<Guid> tenantIds,
 		CancellationToken cancellationToken = default
 	) {
+		var requestedIds = tenantIds.Distinct().ToList();
+		if (requestedIds.Count == 0) {
+			return new BulkReactivateResult(0, 0, [], []);
+		}
+
+		var tenantStatuses = await FindBulkTenantStatusesAsync(
+			requestedIds,
+			cancellationToken
+		);
 		var failedItems = new List<(Guid TenantId, string Error)>();
-		var succeededCount = 0;
+		var succeededIds = new List<Guid>();
 
-		foreach (var tenantId in tenantIds) {
-			var result = await ReactivateTenantAsync(tenantId, cancellationToken);
-
-			if (result is ReactivateTenantResult.Success) {
-				succeededCount++;
+		foreach (var tenantId in requestedIds) {
+			if (!tenantStatuses.TryGetValue(tenantId, out var status)) {
+				failedItems.Add((tenantId, "Tenant not found"));
 				continue;
 			}
 
-			var errorMessage = result switch {
-				ReactivateTenantResult.NotFound => "Tenant not found",
-				ReactivateTenantResult.NotSuspended => "Tenant is not suspended",
-				_ => throw new InvalidOperationException(
-					$"Unknown reactivate tenant result: {result.GetType().Name}"
-				)
-			};
-			failedItems.Add((tenantId, errorMessage));
+			if (status != TenantStatus.Suspended) {
+				failedItems.Add((tenantId, "Tenant is not suspended"));
+				continue;
+			}
+
+			succeededIds.Add(tenantId);
+		}
+
+		if (succeededIds.Count > 0) {
+			var now = DateTime.UtcNow;
+			var updateQuery =
+				from tenant in _dbContext.Tenant
+				where tenant.Id.HasValue
+					&& succeededIds.Contains(tenant.Id.Value)
+					&& !tenant.IsDeleted
+					&& tenant.Status == TenantStatus.Suspended
+				select tenant;
+
+			await updateQuery.ExecuteUpdateAsync(
+				setters => setters
+					.SetProperty(
+						tenant => tenant.Status,
+						TenantStatus.Active
+					)
+					.SetProperty(tenant => tenant.UpdatedAt, now),
+				cancellationToken
+			);
 		}
 
 		return new BulkReactivateResult(
-			SucceededCount: succeededCount,
+			SucceededCount: succeededIds.Count,
 			FailedCount: failedItems.Count,
-			FailedItems: failedItems
+			FailedItems: failedItems,
+			SucceededIds: succeededIds
 		);
 	}
 
@@ -1029,31 +1090,77 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		IReadOnlyList<Guid> tenantIds,
 		CancellationToken cancellationToken = default
 	) {
+		var requestedIds = tenantIds.Distinct().ToList();
+		if (requestedIds.Count == 0) {
+			return new BulkDeleteResult(0, 0, [], []);
+		}
+
+		var tenantStatuses = await FindBulkTenantStatusesAsync(
+			requestedIds,
+			cancellationToken
+		);
 		var failedItems = new List<(Guid TenantId, string Error)>();
-		var succeededCount = 0;
+		var succeededIds = new List<Guid>();
 
-		foreach (var tenantId in tenantIds) {
-			var result = await DeleteTenantAsync(tenantId, cancellationToken);
-
-			if (result is DeleteTenantResult.Success) {
-				succeededCount++;
+		foreach (var tenantId in requestedIds) {
+			if (!tenantStatuses.TryGetValue(tenantId, out var status)) {
+				failedItems.Add((tenantId, "Tenant not found"));
 				continue;
 			}
 
-			var errorMessage = result switch {
-				DeleteTenantResult.NotFound => "Tenant not found",
-				DeleteTenantResult.NotSuspended => "Tenant is not suspended",
-				_ => throw new InvalidOperationException(
-					$"Unknown delete tenant result: {result.GetType().Name}"
-				)
-			};
-			failedItems.Add((tenantId, errorMessage));
+			if (status != TenantStatus.Suspended) {
+				failedItems.Add((tenantId, "Tenant is not suspended"));
+				continue;
+			}
+
+			succeededIds.Add(tenantId);
+		}
+
+		if (succeededIds.Count > 0) {
+			var now = DateTime.UtcNow;
+			var updateQuery =
+				from tenant in _dbContext.Tenant
+				where tenant.Id.HasValue
+					&& succeededIds.Contains(tenant.Id.Value)
+					&& !tenant.IsDeleted
+					&& tenant.Status == TenantStatus.Suspended
+				select tenant;
+
+			await updateQuery.ExecuteUpdateAsync(
+				setters => setters
+					.SetProperty(tenant => tenant.IsDeleted, true)
+					.SetProperty(tenant => tenant.DeletedAt, now)
+					.SetProperty(tenant => tenant.UpdatedAt, now),
+				cancellationToken
+			);
 		}
 
 		return new BulkDeleteResult(
-			SucceededCount: succeededCount,
+			SucceededCount: succeededIds.Count,
 			FailedCount: failedItems.Count,
-			FailedItems: failedItems
+			FailedItems: failedItems,
+			SucceededIds: succeededIds
+		);
+	}
+
+	private async Task<Dictionary<Guid, TenantStatus>> FindBulkTenantStatusesAsync(
+		IReadOnlyCollection<Guid> tenantIds,
+		CancellationToken cancellationToken
+	) {
+		var tenantStatuses = await (
+			from tenant in _dbContext.Tenant.AsNoTracking()
+			where tenant.Id.HasValue
+				&& tenantIds.Contains(tenant.Id.Value)
+				&& !tenant.IsDeleted
+			select new {
+				Id = tenant.Id.GetValueOrDefault(),
+				tenant.Status
+			}
+		).ToListAsync(cancellationToken);
+
+		return tenantStatuses.ToDictionary(
+			tenant => tenant.Id,
+			tenant => tenant.Status
 		);
 	}
 }
