@@ -579,6 +579,8 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 		await VerifyAsync(source);
 	}
 
+	// Overcorrection guard: the prior return-type heuristic also excluded
+	// this helper, so it is not evidence that semantic terminality replaced it.
 	[Fact]
 	public async Task
 	ItShouldIgnoreMapNamedRouteGroupHelpersReturningAnInterface() {
