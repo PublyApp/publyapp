@@ -181,11 +181,23 @@ public class Program {
 
 		// Apply filters to route groups (in order of execution)
 		var staffGroup = app.MapGroup(Routes.Staff.Root)
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.AuthenticatedDefault
+			)
+			.ProducesAppProblem(
+				StatusCodes.Status429TooManyRequests
+			)
 			.WithCheckSessionHeader()         // 1. Check session header
 			.WithSessionAuthentication()      // 2. Authenticate session
 			.WithStaffAuthorization();        // 3. Verify staff account
 
 		var tenantGroup = app.MapGroup(Routes.Tenant.Root)
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.AuthenticatedDefault
+			)
+			.ProducesAppProblem(
+				StatusCodes.Status429TooManyRequests
+			)
 			.WithCheckSessionHeader()         // 1. Check session header
 			.WithCheckTenantHeader()          // 2. Check tenant header
 			.WithSessionAuthentication()      // 3. Authenticate session
@@ -220,9 +232,17 @@ public class Program {
 		};
 		app.MapHealthChecks("/health/live", new HealthCheckOptions {
 			Predicate = _ => false,
-		});
-		app.MapHealthChecks("/health/ready", readinessOptions);
-		app.MapHealthChecks("/health", readinessOptions);
+		}).WithRateLimitOptOut(
+			"Liveness probes must remain available during request bursts"
+		);
+		app.MapHealthChecks("/health/ready", readinessOptions)
+			.WithRateLimitOptOut(
+				"Readiness probes must remain available during request bursts"
+			);
+		app.MapHealthChecks("/health", readinessOptions)
+			.WithRateLimitOptOut(
+				"Health probes must remain available during request bursts"
+			);
 		app.MapNotFoundRoute();
 	}
 

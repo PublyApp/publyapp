@@ -1,5 +1,6 @@
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Filters;
+using PublyApp.Api.Lib.RateLimiting;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Modules.Profiles.Handlers.Staff;
 
@@ -11,6 +12,9 @@ public static class ProfileEndpointsForStaff {
 	) {
 		// Staff profile routes: /staff/profiles
 		var staffGroup = routes.MapGroup(Routes.Profiles.ForStaff.Root)
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.AuthenticatedDefault
+			)
 			.WithTags("Staff Profiles");
 
 		staffGroup.MapGet(
@@ -18,6 +22,9 @@ public static class ProfileEndpointsForStaff {
 			FindStaffProfiles.Handle
 		)
 			.WithName("FindStaffProfiles")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.HeavySearchList
+			)
 			.WithSummary("Find profiles for a staff member")
 			.WithPermission([AppPermissions.Staff.Profiles.LIST_FOR_STAFF])
 			.WithReqQueryValidation<FindStaffProfilesQuery>();
@@ -54,6 +61,9 @@ public static class ProfileEndpointsForStaff {
 			BulkDeleteStaffProfiles.Handle
 		)
 			.WithName("BulkDeleteStaffProfiles")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.BulkOperation
+			)
 			.WithSummary("Bulk delete staff profiles")
 			// Use the same delete permission as single deletes; this endpoint performs
 			// one request for a multi-id payload.
@@ -76,6 +86,9 @@ public static class ProfileEndpointsForStaff {
 			FindStaffProfilePermissions.Handle
 		)
 			.WithName("FindStaffProfilePermissions")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.HeavySearchList
+			)
 			.WithSummary("List permission keys assigned to a staff profile")
 			// Treat "read permissions for profile" as part of profile read access.
 			.WithPermission([AppPermissions.Staff.Profiles.GET_FOR_STAFF]);
@@ -101,6 +114,9 @@ public static class ProfileEndpointsForStaff {
 			FindStaffProfileUsers.Handle
 		)
 			.WithName("FindStaffProfileUsers")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.HeavySearchList
+			)
 			.WithSummary("Find users assigned to a staff profile")
 			// This permission is intentionally separate from profile read/write permissions:
 			// listing assigned users is a distinct capability from editing the profile itself.
@@ -112,6 +128,9 @@ public static class ProfileEndpointsForStaff {
 			ResolveStaffProfileUserAssignments.Handle
 		)
 			.WithName("ResolveStaffProfileUserAssignments")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.HeavySearchList
+			)
 			.WithSummary("Resolve whether staff users are assigned to a staff profile (batch)")
 			.WithPermission([AppPermissions.Staff.Profiles.LIST_USERS_FOR_STAFF_PROFILE])
 			.WithReqBodyValidation<ResolveStaffProfileUserAssignmentsBody>();
@@ -121,6 +140,9 @@ public static class ProfileEndpointsForStaff {
 			UnassignStaffProfileUsers.Handle
 		)
 			.WithName("UnassignStaffProfileUsers")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.BulkOperation
+			)
 			.WithSummary("Bulk-unassign staff users from a staff profile")
 			// Reuse UPDATE permission: assignment membership is part of managing what the
 			// profile applies to, even though it is exposed as a dedicated bulk route.
@@ -129,6 +151,9 @@ public static class ProfileEndpointsForStaff {
 
 		// Tenant profile routes (viewed by staff): /staff/tenants/{tenantId}/profiles
 		var tenantGroup = routes.MapGroup(Routes.Profiles.ForTenantAsStaff.Root)
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.AuthenticatedDefault
+			)
 			.WithTags("Tenant Profiles (Staff View)");
 
 		tenantGroup.MapGet(
@@ -136,6 +161,9 @@ public static class ProfileEndpointsForStaff {
 			FindTenantProfilesAsStaff.Handle
 		)
 			.WithName("FindTenantProfiles")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.HeavySearchList
+			)
 			.WithSummary("Find profiles for a tenant")
 			.WithPermission([AppPermissions.Staff.Profiles.LIST_FOR_TENANT])
 			.WithReqQueryValidation<FindTenantProfilesAsStaffQuery>();
@@ -179,6 +207,9 @@ public static class ProfileEndpointsForStaff {
 			BulkDeleteTenantProfilesAsStaff.Handle
 		)
 			.WithName("BulkDeleteTenantProfilesAsStaff")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.TenantBulkOperation
+			)
 			.WithSummary("Bulk delete tenant profiles")
 			// Keep tenant scope on this endpoint to prevent cross-tenant profile deletion.
 			.WithPermission([AppPermissions.Staff.Profiles.DELETE_FOR_TENANT])
@@ -189,6 +220,9 @@ public static class ProfileEndpointsForStaff {
 			FindTenantProfilePermissionsAsStaff.Handle
 		)
 			.WithName("FindTenantProfilePermissionsAsStaff")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.HeavySearchList
+			)
 			.WithSummary("List permission keys assigned to a tenant profile")
 			.WithPermission([AppPermissions.Staff.Profiles.GET_FOR_TENANT]);
 
@@ -213,6 +247,9 @@ public static class ProfileEndpointsForStaff {
 			FindTenantProfileUsersAsStaff.Handle
 		)
 			.WithName("FindTenantProfileUsersAsStaff")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.HeavySearchList
+			)
 			.WithSummary("Find tenant members assigned to a tenant profile")
 			// Distinct from GET_FOR_TENANT/UPDATE_FOR_TENANT, mirroring
 			// LIST_USERS_FOR_STAFF_PROFILE on the staff-profiles axis: listing assigned members
@@ -225,6 +262,9 @@ public static class ProfileEndpointsForStaff {
 			ResolveTenantProfileUserAssignmentsAsStaff.Handle
 		)
 			.WithName("ResolveTenantProfileUserAssignmentsAsStaff")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.HeavySearchList
+			)
 			.WithSummary("Resolve whether tenant members are assigned to a tenant profile (batch)")
 			.WithPermission([AppPermissions.Staff.Profiles.LIST_USERS_FOR_TENANT_PROFILE])
 			.WithReqBodyValidation<ResolveTenantProfileUserAssignmentsAsStaffBody>();

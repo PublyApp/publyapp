@@ -14,6 +14,7 @@ export interface ActiveRequestBuilder extends BaseRequestBuilder<ActiveRequestBu
      * Get all currently active system notices
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {Promise<ActiveSystemNotice[]>}
+     * @throws {AppProblemDetails} error when the service returns a 429 status code
      * @throws {AppProblemDetails} error when the service returns a 500 status code
      */
      get(requestConfiguration?: RequestConfiguration<object> | undefined) : Promise<ActiveSystemNotice[] | undefined>;
@@ -36,6 +37,7 @@ export const ActiveRequestBuilderRequestsMetadata: RequestsMetadata = {
         uriTemplate: ActiveRequestBuilderUriTemplate,
         responseBodyContentType: "application/json",
         errorMappings: {
+            429: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             500: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
         },
         adapterMethodName: "sendCollection",

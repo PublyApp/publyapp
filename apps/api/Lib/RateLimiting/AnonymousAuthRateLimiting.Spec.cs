@@ -220,17 +220,29 @@ public sealed class AnonymousAuthRateLimitingSpec
 		);
 		AssertPolicy(
 			endpoints,
+			AppRoutes.Auth.GetVerificationLink,
+			AnonymousAuthRateLimitPolicies.PerIp
+		);
+		AssertPolicy(
+			endpoints,
+			AppRoutes.Auth.CheckEmailVerificationToken,
+			AnonymousAuthRateLimitPolicies.PerIp
+		);
+		AssertPolicy(
+			endpoints,
+			AppRoutes.Auth.CheckResetPasswordToken,
+			AnonymousAuthRateLimitPolicies.PerIp
+		);
+		AssertPolicy(
+			endpoints,
 			AppRoutes.Invitations.Anonymous.AcceptByToken,
 			AnonymousAuthRateLimitPolicies.PerIp
 		);
-
-		var authenticatedEndpoint = GetRouteEndpoint(
+		AssertPolicy(
 			endpoints,
-			AppRoutes.Auth.GetUserAuthData
+			AppRoutes.Auth.GetUserAuthData,
+			ApiRateLimitPolicies.AuthenticatedDefault
 		);
-		authenticatedEndpoint.Metadata
-			.GetMetadata<EnableRateLimitingAttribute>()
-			.Should().BeNull();
 	}
 
 	[Fact]

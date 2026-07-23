@@ -1,5 +1,6 @@
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Filters;
+using PublyApp.Api.Lib.RateLimiting;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Modules.Users.Handlers.Staff;
 
@@ -13,6 +14,9 @@ public static class UserEndpointsForTenantUsersAsStaff {
 		// Company actions below mutate tenant memberships while keeping the
 		// identity details URL stable.
 		var group = routes.MapGroup(Routes.Users.ForTenantUsersAsStaff.Root)
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.AuthenticatedDefault
+			)
 			.WithTags("Tenant Users (Staff)");
 
 		group.MapGet(
@@ -29,6 +33,9 @@ public static class UserEndpointsForTenantUsersAsStaff {
 				.Handle
 		)
 			.WithName("FindTenantUserCompaniesForStaff")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.HeavySearchList
+			)
 			.WithSummary("Find companies assigned to a tenant user")
 			.WithPermission([AppPermissions.Staff.Users.GET_FOR_TENANT])
 			.WithReqQueryValidation<FindTenantUserCompaniesForStaffQuery>();
@@ -49,6 +56,9 @@ public static class UserEndpointsForTenantUsersAsStaff {
 				.Handle
 		)
 			.WithName("BulkRemoveTenantUserCompaniesForStaff")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.BulkOperation
+			)
 			.WithSummary("Remove a tenant user from selected companies")
 			.WithPermission([AppPermissions.Staff.Users.DELETE_FOR_TENANT])
 			.WithReqBodyValidation<TenantUserCompanyIdsForStaffBody>();
@@ -59,6 +69,9 @@ public static class UserEndpointsForTenantUsersAsStaff {
 				.Handle
 		)
 			.WithName("BulkSuspendTenantUserCompaniesForStaff")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.BulkOperation
+			)
 			.WithSummary("Suspend a tenant user in selected companies")
 			.WithPermission([AppPermissions.Staff.Users.UPDATE_FOR_TENANT])
 			.WithReqBodyValidation<TenantUserCompanyIdsForStaffBody>();
@@ -69,6 +82,9 @@ public static class UserEndpointsForTenantUsersAsStaff {
 				.Handle
 		)
 			.WithName("BulkReactivateTenantUserCompaniesForStaff")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.BulkOperation
+			)
 			.WithSummary("Reactivate a tenant user in selected companies")
 			.WithPermission([AppPermissions.Staff.Users.UPDATE_FOR_TENANT])
 			.WithReqBodyValidation<TenantUserCompanyIdsForStaffBody>();

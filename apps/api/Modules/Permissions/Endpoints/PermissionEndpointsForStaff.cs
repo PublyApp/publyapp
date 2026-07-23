@@ -1,5 +1,6 @@
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Filters;
+using PublyApp.Api.Lib.RateLimiting;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Modules.Permissions.Handlers.Staff;
 
@@ -10,6 +11,9 @@ public static class PermissionEndpointsForStaff {
 		this IEndpointRouteBuilder routes
 	) {
 		var group = routes.MapGroup(Routes.Permissions.ForStaff.Root)
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.AuthenticatedDefault
+			)
 			.WithTags("Permissions");
 		var scopesGroup = group.MapGroup(Routes.Permissions.ForStaff.Scopes.Root);
 
@@ -18,6 +22,9 @@ public static class PermissionEndpointsForStaff {
 			FindStaffPermissions.Handle
 		)
 			.WithName("FindStaffPermissions")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.HeavySearchList
+			)
 			.WithSummary("Find staff permissions")
 			.WithPermission([
 				AppPermissions.Staff.Profiles.GET_FOR_STAFF,
@@ -30,6 +37,9 @@ public static class PermissionEndpointsForStaff {
 			FindTenantPermissions.Handle
 		)
 			.WithName("FindTenantPermissions")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.HeavySearchList
+			)
 			.WithSummary("Find tenant permissions")
 			.WithPermission([
 				AppPermissions.Staff.Profiles.GET_FOR_TENANT,

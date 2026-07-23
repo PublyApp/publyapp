@@ -30,6 +30,7 @@ export interface WithProfileItemRequestBuilder extends BaseRequestBuilder<WithPr
      * @throws {AppProblemDetails} error when the service returns a 401 status code
      * @throws {AppProblemDetails} error when the service returns a 403 status code
      * @throws {AppProblemDetails} error when the service returns a 404 status code
+     * @throws {AppProblemDetails} error when the service returns a 429 status code
      * @throws {AppProblemDetails} error when the service returns a 500 status code
      */
      delete(requestConfiguration?: RequestConfiguration<object> | undefined) : Promise<ApiResponse | undefined>;
@@ -41,6 +42,7 @@ export interface WithProfileItemRequestBuilder extends BaseRequestBuilder<WithPr
      * @throws {AppProblemDetails} error when the service returns a 401 status code
      * @throws {AppProblemDetails} error when the service returns a 403 status code
      * @throws {AppProblemDetails} error when the service returns a 404 status code
+     * @throws {AppProblemDetails} error when the service returns a 429 status code
      * @throws {AppProblemDetails} error when the service returns a 500 status code
      */
      get(requestConfiguration?: RequestConfiguration<object> | undefined) : Promise<GetTenantProfileByIdResponse | undefined>;
@@ -54,6 +56,7 @@ export interface WithProfileItemRequestBuilder extends BaseRequestBuilder<WithPr
      * @throws {AppProblemDetails} error when the service returns a 403 status code
      * @throws {AppProblemDetails} error when the service returns a 404 status code
      * @throws {ValidationProblemDetails} error when the service returns a 422 status code
+     * @throws {AppProblemDetails} error when the service returns a 429 status code
      * @throws {AppProblemDetails} error when the service returns a 500 status code
      */
      patch(body: UpdateTenantProfileAsStaffBody, requestConfiguration?: RequestConfiguration<object> | undefined) : Promise<GetTenantProfileByIdResponse | undefined>;
@@ -106,6 +109,7 @@ export const WithProfileItemRequestBuilderRequestsMetadata: RequestsMetadata = {
             401: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             403: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             404: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
+            429: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             500: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
         },
         adapterMethodName: "send",
@@ -119,6 +123,7 @@ export const WithProfileItemRequestBuilderRequestsMetadata: RequestsMetadata = {
             401: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             403: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             404: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
+            429: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             500: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
         },
         adapterMethodName: "send",
@@ -133,6 +138,7 @@ export const WithProfileItemRequestBuilderRequestsMetadata: RequestsMetadata = {
             403: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             404: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             422: createValidationProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
+            429: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             500: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
         },
         adapterMethodName: "send",

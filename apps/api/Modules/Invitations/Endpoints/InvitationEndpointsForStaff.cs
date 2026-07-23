@@ -1,5 +1,6 @@
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Filters;
+using PublyApp.Api.Lib.RateLimiting;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Modules.Invitations.Handlers.Staff;
 
@@ -10,6 +11,9 @@ public static class InvitationEndpointsForStaff {
 		this IEndpointRouteBuilder routes
 	) {
 		var group = routes.MapGroup(Routes.Invitations.ForStaff.Root)
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.AuthenticatedDefault
+			)
 			.WithTags("Staff Invitations");
 
 		group.MapPost(
@@ -17,6 +21,9 @@ public static class InvitationEndpointsForStaff {
 				CreateStaffInvitation.Handle
 			)
 			.WithName("CreateStaffInvitation")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.EmailOperation
+			)
 			.WithSummary("Create a staff invitation (Admin only)")
 			.WithReqBodyValidation<CreateStaffInvitationBody>()
 			.WithPermission([AppPermissions.Staff.Invitations.CREATE_FOR_STAFF]);
@@ -26,6 +33,9 @@ public static class InvitationEndpointsForStaff {
 				BulkCreateStaffInvitations.Handle
 			)
 			.WithName("BulkCreateStaffInvitations")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.EmailOperation
+			)
 			.WithSummary("Bulk create staff invitations (Admin only)")
 			.WithReqBodyValidation<BulkCreateStaffInvitationsBody>()
 			.WithPermission([AppPermissions.Staff.Invitations.CREATE_FOR_STAFF]);
@@ -35,6 +45,9 @@ public static class InvitationEndpointsForStaff {
 				BulkRevokeStaffInvitations.Handle
 			)
 			.WithName("BulkRevokeStaffInvitations")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.BulkOperation
+			)
 			.WithSummary("Bulk revoke staff invitations")
 			.WithReqBodyValidation<BulkRevokeStaffInvitationsBody>()
 			.WithPermission([AppPermissions.Staff.Invitations.REVOKE_FOR_STAFF]);
@@ -44,6 +57,9 @@ public static class InvitationEndpointsForStaff {
 				FindStaffInvitations.Handle
 			)
 			.WithName("FindStaffInvitations")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.HeavySearchList
+			)
 			.WithSummary("Find staff invitations")
 			.WithPermission([AppPermissions.Staff.Invitations.LIST_FOR_STAFF])
 			// Validate cursor/sort/status query params before hitting the service.
@@ -70,6 +86,9 @@ public static class InvitationEndpointsForStaff {
 				ResendStaffInvitation.Handle
 			)
 			.WithName("ResendStaffInvitation")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.EmailOperation
+			)
 			.WithSummary("Resend staff invitation email")
 			.WithPermission([AppPermissions.Staff.Invitations.RESEND_FOR_STAFF]);
 

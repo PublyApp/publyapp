@@ -16,6 +16,7 @@ export interface ScopeAuthDataRequestBuilder extends BaseRequestBuilder<ScopeAut
      * @returns {Promise<GetScopeAuthDataTenant>}
      * @throws {AppProblemDetails} error when the service returns a 401 status code
      * @throws {AppProblemDetails} error when the service returns a 403 status code
+     * @throws {AppProblemDetails} error when the service returns a 429 status code
      * @throws {AppProblemDetails} error when the service returns a 500 status code
      */
      get(requestConfiguration?: RequestConfiguration<ScopeAuthDataRequestBuilderGetQueryParameters> | undefined) : Promise<GetScopeAuthDataTenant | undefined>;
@@ -46,6 +47,7 @@ export const ScopeAuthDataRequestBuilderRequestsMetadata: RequestsMetadata = {
         errorMappings: {
             401: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             403: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
+            429: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             500: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
         },
         adapterMethodName: "send",

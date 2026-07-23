@@ -1,6 +1,7 @@
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.Filters;
+using PublyApp.Api.Lib.RateLimiting;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Modules.Users.Handlers.Staff;
 
@@ -11,6 +12,9 @@ public static class UserEndpointsForTenantAsStaff {
 		this IEndpointRouteBuilder routes
 	) {
 		var group = routes.MapGroup(Routes.Users.ForTenantAsStaff.Root)
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.AuthenticatedDefault
+			)
 			.WithTags("Tenant Users (Staff View)");
 
 		group.MapGet(
@@ -18,6 +22,9 @@ public static class UserEndpointsForTenantAsStaff {
 			FindTenantUsersAsStaff.Handle
 		)
 			.WithName("FindTenantUsersAsStaff")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.HeavySearchList
+			)
 			.WithSummary("Find users for a tenant")
 			.WithPermission([AppPermissions.Staff.Users.LIST_FOR_TENANT])
 			.WithReqQueryValidation<FindTenantUsersAsStaffQuery>();
@@ -35,6 +42,9 @@ public static class UserEndpointsForTenantAsStaff {
 			CreateInvitationForTenantAsStaff.Handle
 		)
 			.WithName("CreateInvitationForTenantAsStaff")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.TenantEmailOperation
+			)
 			.WithSummary("Invite a user to a tenant")
 			.WithPermission([AppPermissions.Staff.Users.CREATE_FOR_TENANT])
 			.WithReqBodyValidation<CreateInvitationForTenantAsStaffBody>();
@@ -44,6 +54,9 @@ public static class UserEndpointsForTenantAsStaff {
 			BulkCreateInvitationsForTenantAsStaff.Handle
 		)
 			.WithName("BulkCreateInvitationsForTenantAsStaff")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.TenantEmailOperation
+			)
 			.WithSummary("Invite multiple users to a tenant")
 			.WithPermission([AppPermissions.Staff.Users.CREATE_FOR_TENANT])
 			.WithReqBodyValidation<BulkCreateTenantInvitationsForTenantAsStaffBody>();
@@ -61,6 +74,9 @@ public static class UserEndpointsForTenantAsStaff {
 			BulkRemoveTenantUsersAsStaff.Handle
 		)
 			.WithName("BulkRemoveTenantUsersAsStaff")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.TenantBulkOperation
+			)
 			.WithSummary("Remove multiple users from a tenant")
 			.WithPermission([AppPermissions.Staff.Users.DELETE_FOR_TENANT])
 			.WithReqBodyValidation<BulkRemoveTenantUsersBody>();
@@ -70,6 +86,9 @@ public static class UserEndpointsForTenantAsStaff {
 			ExportTenantUsersAsStaff.Handle
 		)
 			.WithName("ExportTenantUsersAsStaff")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.TenantExport
+			)
 			.WithSummary("Export tenant users as CSV")
 			// The handler streams CSV directly to Response.Body; this metadata
 			// exists only to document the response shape in OpenAPI.

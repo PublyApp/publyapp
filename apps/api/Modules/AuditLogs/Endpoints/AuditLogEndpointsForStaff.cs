@@ -1,6 +1,7 @@
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.Filters;
+using PublyApp.Api.Lib.RateLimiting;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Modules.AuditLogs.Handlers.Staff;
 
@@ -15,6 +16,9 @@ public static class AuditLogEndpointsForStaff {
 			.MapGroup(
 				Routes.AuditLogs.ForStaff.Root
 			)
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.AuthenticatedDefault
+			)
 			.WithTags("Staff Audit Logs");
 
 		group.MapGet(
@@ -22,6 +26,9 @@ public static class AuditLogEndpointsForStaff {
 				FindAuditLogs.Handle
 			)
 			.WithName("FindAuditLogs")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.HeavySearchList
+			)
 			.WithSummary(
 				"List audit logs with pagination"
 				+ " and filters"
@@ -51,6 +58,9 @@ public static class AuditLogEndpointsForStaff {
 				ExportAuditLogs.Handle
 			)
 			.WithName("ExportAuditLogs")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.Export
+			)
 			.WithSummary(
 				"Export audit logs as CSV or JSON"
 			)

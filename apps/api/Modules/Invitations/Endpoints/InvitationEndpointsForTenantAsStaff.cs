@@ -1,5 +1,6 @@
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Filters;
+using PublyApp.Api.Lib.RateLimiting;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Modules.Invitations.Handlers.Staff;
 
@@ -10,6 +11,9 @@ public static class InvitationEndpointsForTenantAsStaff {
 		this IEndpointRouteBuilder routes
 	) {
 		var group = routes.MapGroup(Routes.Invitations.ForTenantAsStaff.Root)
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.AuthenticatedDefault
+			)
 			.WithTags("Tenant Invitations (Staff View)");
 
 		group.MapGet(
@@ -17,6 +21,9 @@ public static class InvitationEndpointsForTenantAsStaff {
 				FindInvitationsForTenantAsStaff.Handle
 			)
 			.WithName("FindInvitationsForTenantAsStaff")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.HeavySearchList
+			)
 			.WithSummary("Find invitations for a tenant")
 			.WithPermission([AppPermissions.Staff.Invitations.LIST_FOR_TENANT])
 			.WithReqQueryValidation<FindInvitationsForTenantAsStaffQuery>();

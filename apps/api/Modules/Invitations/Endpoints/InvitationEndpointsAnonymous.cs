@@ -12,6 +12,12 @@ public static class InvitationEndpointsAnonymous {
 	this IEndpointRouteBuilder app
 ) {
 		var group = app.MapGroup(PathUtils.GetLastSegment(Routes.Invitations.Anonymous.Root))
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.AnonymousOther
+			)
+			.ProducesAppProblem(
+				StatusCodes.Status429TooManyRequests
+			)
 			.WithTags("Invitations (Anonymous)");
 
 		group.MapGet(
