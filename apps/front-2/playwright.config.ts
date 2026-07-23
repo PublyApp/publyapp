@@ -5,6 +5,7 @@ import { STAFF_ADMIN_STORAGE_STATE } from './e2e/helpers/storage-state';
 const faultSpecs = ['**/auth-error.spec.ts', '**/log-leak.spec.ts'];
 const hermeticCounterSpecs = ['**/request-counter.spec.ts'];
 const authSetupSpecs = ['**/auth.setup.ts'];
+const isCiShard = process.env.PLAYWRIGHT_CI_SHARD === 'true';
 
 export default defineConfig({
 	testDir: './e2e',
@@ -23,6 +24,12 @@ export default defineConfig({
 	// vectors those tests are written to surface instead of surfacing them.
 	// See review-r1-tests.md F24.
 	retries: 0,
+	// One worker per stack keeps shared API/database state deterministic. CI
+	// gets parallelism from four isolated stacks instead. `fullyParallel` is
+	// enabled only there so Playwright can balance individual tests across
+	// shards without introducing concurrency inside any one stack.
+	workers: 1,
+	fullyParallel: isCiShard,
 	reporter: [
 		['list'],
 		['html', { outputFolder: 'playwright-report', open: 'never' }],
@@ -76,7 +83,9 @@ export default defineConfig({
 			// e2e/request-counter.spec.ts. Tradeoff: if a test in either
 			// dependency project fails, Playwright skips this project's tests
 			// entirely rather than running them — accepted here in exchange for
-			// a real (not probabilistic) isolation guarantee.
+			// a real (not probabilistic) isolation guarantee. The CI workflow
+			// shards the other projects across isolated stacks, then runs this
+			// project alone with `--no-deps` after an explicit setup invocation.
 			name: 'chromium-hermetic-counter',
 			testMatch: hermeticCounterSpecs,
 			workers: 1,
