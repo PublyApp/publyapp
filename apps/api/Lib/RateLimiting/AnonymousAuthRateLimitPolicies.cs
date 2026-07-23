@@ -340,6 +340,8 @@ public static class AnonymousAuthRateLimitExtensions {
 		);
 		services.AddSingleton<ApiRateLimiterStore>();
 		services.AddSingleton<
+			RateLimitRejectionLogAggregator>();
+		services.AddSingleton<
 			IConfigureOptions<RateLimiterOptions>,
 			ApiRateLimiterOptionsSetup>();
 

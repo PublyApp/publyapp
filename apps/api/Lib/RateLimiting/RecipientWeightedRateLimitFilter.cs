@@ -116,18 +116,27 @@ internal static class RateLimitRejectionResponse {
 		var rejectionInfo =
 			RateLimitRejectionContext.Get(context);
 		if (rejectionInfo is not null) {
-			var logger = context.RequestServices
-				.GetRequiredService<ILoggerFactory>()
-				.CreateLogger(
-					"PublyApp.Api.RateLimiting"
+			var entry = context.RequestServices
+				.GetRequiredService<
+					RateLimitRejectionLogAggregator
+				>()
+				.Record(rejectionInfo);
+			if (entry is not null) {
+				var logger = context.RequestServices
+					.GetRequiredService<ILoggerFactory>()
+					.CreateLogger(
+						"PublyApp.Api.RateLimiting"
+					);
+				logger.LogWarning(
+					"Rate limit rejected {RateLimitRejectionCount} "
+						+ "requests for policy {RateLimitPolicy} "
+						+ "since the previous sample; latest "
+						+ "partition {RateLimitPartitionFingerprint}",
+					entry.RejectionCount,
+					entry.PolicyName,
+					entry.LatestPartitionFingerprint
 				);
-			logger.LogWarning(
-				"Rate limit rejected request for policy "
-					+ "{RateLimitPolicy} partition "
-					+ "{RateLimitPartitionFingerprint}",
-				rejectionInfo.PolicyName,
-				rejectionInfo.PartitionFingerprint
-			);
+			}
 		}
 
 		var retryAfter = TimeSpan.FromSeconds(1);

@@ -130,7 +130,9 @@ Tenant policies resolve the explicit `{tenantId}` route value first, then the
 
 Throttle logs contain only the named policy and a truncated SHA-256 fingerprint of the
 partition. They never contain a raw session token, email address, tenant ID, client IP,
-request body, or other personally identifiable value.
+request body, or other personally identifiable value. Rejection warnings are sampled at
+most once per policy per minute; a later sample reports the aggregate rejection count
+since the previous warning, preventing rejected-request floods from amplifying log volume.
 
 When changing a default, update the matching `AppEnvironment` values, `.env.example`,
 every active compose definition, and the audit-matrix row together. Keep Testing defaults

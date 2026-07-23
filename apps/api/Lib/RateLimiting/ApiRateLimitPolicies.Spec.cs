@@ -1,7 +1,11 @@
+using System.Threading.RateLimiting;
+
 using FluentAssertions;
 
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 using Xunit;
 
@@ -212,6 +216,74 @@ public sealed class ApiRateLimitPoliciesSpec {
 			.And.NotContain("person@example.com");
 	}
 
+	[Fact]
+	public async Task
+	ItShouldAggregateRepeatedRejectionLogsPerPolicy() {
+		var provider = new CapturingLoggerProvider();
+		await using var services = new ServiceCollection()
+			.AddLogging(builder => builder.AddProvider(provider))
+			.AddSingleton<RateLimitRejectionLogAggregator>()
+			.BuildServiceProvider();
+		using var limiter = new FixedWindowRateLimiter(
+			new FixedWindowRateLimiterOptions {
+				PermitLimit = 1,
+				Window = TimeSpan.FromMinutes(1),
+				QueueLimit = 0,
+				QueueProcessingOrder =
+					QueueProcessingOrder.OldestFirst,
+				AutoReplenishment = false,
+			}
+		);
+		using var acquiredLease = limiter.AttemptAcquire();
+		using var rejectedLease = limiter.AttemptAcquire();
+
+		for (var requestNumber = 0; requestNumber < 3; requestNumber++) {
+			var context = new DefaultHttpContext {
+				RequestServices = services,
+			};
+			context.Response.Body = new MemoryStream();
+			RateLimitRejectionContext.Set(
+				context,
+				ApiRateLimitPolicies.EmailOperation,
+				$"partition-{requestNumber}"
+			);
+
+			await RateLimitRejectionResponse.WriteAsync(
+				context,
+				rejectedLease
+			);
+		}
+
+		provider.WarningCount.Should().Be(1);
+	}
+
+	[Fact]
+	public void
+	ItShouldReportSuppressedRejectionsInTheNextSample() {
+		var timeProvider = new ManualTimeProvider();
+		var aggregator = new RateLimitRejectionLogAggregator(
+			timeProvider
+		);
+		var info = new RateLimitRejectionInfo(
+			ApiRateLimitPolicies.EmailOperation,
+			"fingerprint"
+		);
+
+		var first = aggregator.Record(info);
+		var suppressed = aggregator.Record(info);
+		aggregator.Record(info).Should().BeNull();
+		timeProvider.Advance(TimeSpan.FromMinutes(1));
+		var aggregate = aggregator.Record(info);
+
+		first.Should().NotBeNull();
+		Assert.NotNull(first);
+		first.RejectionCount.Should().Be(1);
+		suppressed.Should().BeNull();
+		aggregate.Should().NotBeNull();
+		Assert.NotNull(aggregate);
+		aggregate.RejectionCount.Should().Be(3);
+	}
+
 	private static DefaultHttpContext CreateContext(
 		string sessionToken,
 		string clientIp
@@ -273,5 +345,62 @@ public sealed class ApiRateLimitPoliciesSpec {
 			TenantExport: generous,
 			Upload: generous
 		);
+	}
+
+	private sealed class CapturingLoggerProvider
+		: ILoggerProvider {
+		public int WarningCount { get; private set; }
+
+		public ILogger CreateLogger(string categoryName) {
+			return new CapturingLogger(this);
+		}
+
+		public void Dispose() {
+		}
+
+		private sealed class CapturingLogger(
+			CapturingLoggerProvider provider
+		) : ILogger {
+			public IDisposable? BeginScope<TState>(
+				TState state
+			) where TState : notnull {
+				return null;
+			}
+
+			public bool IsEnabled(LogLevel logLevel) {
+				return true;
+			}
+
+			public void Log<TState>(
+				LogLevel logLevel,
+				EventId eventId,
+				TState state,
+				Exception? exception,
+				Func<TState, Exception?, string>
+					formatter
+			) {
+				if (logLevel == LogLevel.Warning) {
+					provider.WarningCount++;
+				}
+			}
+		}
+	}
+
+	private sealed class ManualTimeProvider : TimeProvider {
+		private long _timestamp;
+
+		public override long TimestampFrequency {
+			get {
+				return TimeSpan.TicksPerSecond;
+			}
+		}
+
+		public override long GetTimestamp() {
+			return _timestamp;
+		}
+
+		public void Advance(TimeSpan duration) {
+			_timestamp += duration.Ticks;
+		}
 	}
 }
