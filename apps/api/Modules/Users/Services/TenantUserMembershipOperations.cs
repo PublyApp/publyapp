@@ -249,8 +249,24 @@ internal static class TenantUserMembershipOperations {
 			return new SuspendTenantUserResult.AlreadySuspended();
 		}
 
-		// Check last-admin invariant: cannot suspend the last active admin
-		if (account.Level == AccountLevel.Admin) {
+		// Wrap the admin check and atomic update in the same READ COMMITTED transaction as
+		// the removal path. The tenant row lock below protects the cross-row COUNT invariant.
+		await using var transaction =
+			await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+		TenantUserData updatedUserData;
+
+		try {
+			// TenantMembershipLockOrder step 2: serialize every admin-reducing path for this
+			// tenant before counting admins, so the count includes concurrent mutations.
+			await TenantMembershipLockOrder.LockTenantRowsAsync(
+				dbContext,
+				[tenantId],
+				cancellationToken
+			);
+
+			// Derive admin status after the lock instead of trusting the account loaded before
+			// this transaction: a concurrent promotion may have committed while we waited.
 			var isSuspendingActiveAdmin = await IsActiveTenantAdminAsync(
 				dbContext,
 				tenantId,
@@ -266,53 +282,60 @@ internal static class TenantUserMembershipOperations {
 				: 0;
 
 			if (isSuspendingActiveAdmin && activeAdminCount <= 1) {
+				await transaction.RollbackAsync(cancellationToken);
 				return new SuspendTenantUserResult.CannotSuspendLastAdmin();
 			}
-		}
 
-		// Use atomic update for race-condition safety
-		var rowsAffected = await dbContext.UserAccount
-			.Where(ua =>
-				ua.TenantId == tenantId
-				&& ua.UserId == userId
-				&& ua.Scope == AccountScope.Tenant
-				&& !ua.IsDeleted
-				&& ua.Status != AccountStatus.Suspended
-			)
-			.ExecuteUpdateAsync(setters => setters
-				.SetProperty(ua => ua.Status, AccountStatus.Suspended)
-				.SetProperty(ua => ua.UpdatedAt, DateTime.UtcNow),
-				cancellationToken);
+			// Use atomic update for race-condition safety
+			var rowsAffected = await dbContext.UserAccount
+				.Where(ua =>
+					ua.TenantId == tenantId
+					&& ua.UserId == userId
+					&& ua.Scope == AccountScope.Tenant
+					&& !ua.IsDeleted
+					&& ua.Status != AccountStatus.Suspended
+				)
+				.ExecuteUpdateAsync(setters => setters
+					.SetProperty(ua => ua.Status, AccountStatus.Suspended)
+					.SetProperty(ua => ua.UpdatedAt, DateTime.UtcNow),
+					cancellationToken);
 
-		if (rowsAffected == 0) {
-			return new SuspendTenantUserResult.AlreadySuspended();
-		}
+			if (rowsAffected == 0) {
+				await transaction.RollbackAsync(cancellationToken);
+				return new SuspendTenantUserResult.AlreadySuspended();
+			}
 
-		// Re-fetch to return current state
-		var updatedAccount = await (
-			from ua in dbContext.UserAccount
-				.AsNoTracking()
-			join u in dbContext.User on ua.UserId equals u.Id
-			where ua.TenantId == tenantId
-				&& ua.UserId == userId
-				&& ua.Scope == AccountScope.Tenant
-			select new { User = u, Account = ua }
-		).FirstOrDefaultAsync(cancellationToken);
+			// Re-fetch to return current state
+			var updatedAccount = await (
+				from ua in dbContext.UserAccount
+					.AsNoTracking()
+				join u in dbContext.User on ua.UserId equals u.Id
+				where ua.TenantId == tenantId
+					&& ua.UserId == userId
+					&& ua.Scope == AccountScope.Tenant
+				select new { User = u, Account = ua }
+			).FirstOrDefaultAsync(cancellationToken);
 
-		if (updatedAccount is null) {
-			throw new InvalidOperationException(
-				"User account not found after successful suspend. "
-				+ "This indicates a data integrity issue."
-			);
-		}
+			if (updatedAccount is null) {
+				throw new InvalidOperationException(
+					"User account not found after successful suspend. "
+					+ "This indicates a data integrity issue."
+				);
+			}
 
-		return new SuspendTenantUserResult.Success(
-			new TenantUserData {
+			updatedUserData = new TenantUserData {
 				User = updatedAccount.User,
 				Account = updatedAccount.Account,
 				AccountLevel = updatedAccount.Account.Level
-			}
-		);
+			};
+
+			await transaction.CommitAsync(cancellationToken);
+		} catch {
+			await transaction.RollbackAsync(cancellationToken);
+			throw;
+		}
+
+		return new SuspendTenantUserResult.Success(updatedUserData);
 	}
 
 	internal static async Task<ReactivateTenantUserResult> ReactivateTenantUserAsync(

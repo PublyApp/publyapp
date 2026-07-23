@@ -88,6 +88,9 @@ namespace PublyApp.Api.Modules.Users.Services;
 /// (tenant, account, links)
 /// </item>
 /// <item>
+/// Users → <c>TenantUserMembershipOperations.SuspendTenantUserAsync</c> (tenant)
+/// </item>
+/// <item>
 /// Users → <c>TenantUserMembershipOperations.BulkRemoveUsersFromTenantAsync</c>
 /// (tenant, accounts, links)
 /// </item>
@@ -141,14 +144,6 @@ namespace PublyApp.Api.Modules.Users.Services;
 /// participants target <b>tenant</b> identities, and staff/tenant scope exclusivity means those
 /// two <c>users</c> rows are never the same row. Do not restate the broad claim: it teaches the
 /// exact auditing mistake this order exists to prevent.
-/// </para>
-/// <para>
-/// <b>Known gap, pre-existing and not introduced here:</b>
-/// <c>TenantUserMembershipOperations.SuspendTenantUserAsync</c> enforces the same last-admin
-/// invariant but runs its check outside any transaction, so it takes no tenant lock and races
-/// with the paths above. It was equally unprotected before this order existed — running outside
-/// a transaction, it never participated in the SERIALIZABLE protocol those paths used — so it is
-/// left alone rather than widened into here; it needs its own change.
 /// </para>
 /// </remarks>
 internal static class TenantMembershipLockOrder {
