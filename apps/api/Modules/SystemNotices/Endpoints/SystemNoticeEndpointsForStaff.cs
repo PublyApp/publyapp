@@ -1,5 +1,6 @@
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Filters;
+using PublyApp.Api.Lib.RateLimiting;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Modules.SystemNotices.Handlers.Staff;
 
@@ -10,6 +11,9 @@ public static class SystemNoticeEndpointsForStaff {
 		this IEndpointRouteBuilder routes
 	) {
 		var group = routes.MapGroup(Routes.SystemNotices.ForStaff.Root)
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.AuthenticatedDefault
+			)
 			.WithTags("Staff System Notices");
 
 		group.MapPost(
@@ -26,6 +30,9 @@ public static class SystemNoticeEndpointsForStaff {
 				FindSystemNotices.Handle
 			)
 			.WithName("FindSystemNotices")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.HeavySearchList
+			)
 			.WithSummary("List all system notices with pagination")
 			.WithReqQueryValidation<FindSystemNoticesQuery>()
 			.WithPermission([AppPermissions.Staff.SystemNotices.LIST]);

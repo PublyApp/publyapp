@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net;
 
 using FluentValidation;
 
@@ -59,6 +60,35 @@ public class AppEnvironment {
 	public int TENANT_ACTIVITY_THROTTLE_MINUTES { get; }
 	public string FILE_STORAGE_ROOT { get; }
 	public int UPLOAD_MAX_BYTES { get; }
+	public IReadOnlyList<string> TRUSTED_PROXY_CIDRS { get; }
+	public int ANON_AUTH_IP_RATE_LIMIT_PERMIT_LIMIT { get; }
+	public int ANON_AUTH_IP_RATE_LIMIT_WINDOW_SECONDS { get; }
+	public int ANON_AUTH_EMAIL_RATE_LIMIT_PERMIT_LIMIT { get; }
+	public int ANON_AUTH_EMAIL_RATE_LIMIT_WINDOW_SECONDS { get; }
+	public int PASSWORD_RESET_EMAIL_RATE_LIMIT_PERMIT_LIMIT { get; }
+	public int PASSWORD_RESET_EMAIL_RATE_LIMIT_WINDOW_SECONDS { get; }
+	public int GLOBAL_RATE_LIMIT_PERMIT_LIMIT { get; }
+	public int GLOBAL_RATE_LIMIT_WINDOW_SECONDS { get; }
+	public int ANONYMOUS_OTHER_RATE_LIMIT_PERMIT_LIMIT { get; }
+	public int ANONYMOUS_OTHER_RATE_LIMIT_WINDOW_SECONDS { get; }
+	public int AUTHENTICATED_RATE_LIMIT_PERMIT_LIMIT { get; }
+	public int AUTHENTICATED_RATE_LIMIT_WINDOW_SECONDS { get; }
+	public int HEAVY_SEARCH_RATE_LIMIT_PERMIT_LIMIT { get; }
+	public int HEAVY_SEARCH_RATE_LIMIT_WINDOW_SECONDS { get; }
+	public int BULK_RATE_LIMIT_PERMIT_LIMIT { get; }
+	public int BULK_RATE_LIMIT_WINDOW_SECONDS { get; }
+	public int TENANT_BULK_RATE_LIMIT_PERMIT_LIMIT { get; }
+	public int TENANT_BULK_RATE_LIMIT_WINDOW_SECONDS { get; }
+	public int EMAIL_RATE_LIMIT_PERMIT_LIMIT { get; }
+	public int EMAIL_RATE_LIMIT_WINDOW_SECONDS { get; }
+	public int TENANT_EMAIL_RATE_LIMIT_PERMIT_LIMIT { get; }
+	public int TENANT_EMAIL_RATE_LIMIT_WINDOW_SECONDS { get; }
+	public int EXPORT_RATE_LIMIT_PERMIT_LIMIT { get; }
+	public int EXPORT_RATE_LIMIT_WINDOW_SECONDS { get; }
+	public int TENANT_EXPORT_RATE_LIMIT_PERMIT_LIMIT { get; }
+	public int TENANT_EXPORT_RATE_LIMIT_WINDOW_SECONDS { get; }
+	public int UPLOAD_RATE_LIMIT_PERMIT_LIMIT { get; }
+	public int UPLOAD_RATE_LIMIT_WINDOW_SECONDS { get; }
 
 	// ========== Hosting role + worker tuning (design §3.1) ==========
 	// APP_ROLE picks the composition root. It is optional ONLY in the Development and
@@ -241,6 +271,35 @@ public class AppEnvironment {
 		int tenantActivityThrottleMinutes,
 		string fileStorageRoot,
 		int uploadMaxBytes,
+		IReadOnlyList<string> trustedProxyCidrs,
+		int anonAuthIpRateLimitPermitLimit,
+		int anonAuthIpRateLimitWindowSeconds,
+		int anonAuthEmailRateLimitPermitLimit,
+		int anonAuthEmailRateLimitWindowSeconds,
+		int passwordResetEmailRateLimitPermitLimit,
+		int passwordResetEmailRateLimitWindowSeconds,
+		int globalRateLimitPermitLimit,
+		int globalRateLimitWindowSeconds,
+		int anonymousOtherRateLimitPermitLimit,
+		int anonymousOtherRateLimitWindowSeconds,
+		int authenticatedRateLimitPermitLimit,
+		int authenticatedRateLimitWindowSeconds,
+		int heavySearchRateLimitPermitLimit,
+		int heavySearchRateLimitWindowSeconds,
+		int bulkRateLimitPermitLimit,
+		int bulkRateLimitWindowSeconds,
+		int tenantBulkRateLimitPermitLimit,
+		int tenantBulkRateLimitWindowSeconds,
+		int emailRateLimitPermitLimit,
+		int emailRateLimitWindowSeconds,
+		int tenantEmailRateLimitPermitLimit,
+		int tenantEmailRateLimitWindowSeconds,
+		int exportRateLimitPermitLimit,
+		int exportRateLimitWindowSeconds,
+		int tenantExportRateLimitPermitLimit,
+		int tenantExportRateLimitWindowSeconds,
+		int uploadRateLimitPermitLimit,
+		int uploadRateLimitWindowSeconds,
 		AppRole role,
 		int jobQueueBatchSize,
 		int jobQueuePollSeconds,
@@ -278,6 +337,49 @@ public class AppEnvironment {
 		TENANT_ACTIVITY_THROTTLE_MINUTES = tenantActivityThrottleMinutes;
 		FILE_STORAGE_ROOT = fileStorageRoot;
 		UPLOAD_MAX_BYTES = uploadMaxBytes;
+		TRUSTED_PROXY_CIDRS = trustedProxyCidrs;
+		ANON_AUTH_IP_RATE_LIMIT_PERMIT_LIMIT = anonAuthIpRateLimitPermitLimit;
+		ANON_AUTH_IP_RATE_LIMIT_WINDOW_SECONDS = anonAuthIpRateLimitWindowSeconds;
+		ANON_AUTH_EMAIL_RATE_LIMIT_PERMIT_LIMIT = anonAuthEmailRateLimitPermitLimit;
+		ANON_AUTH_EMAIL_RATE_LIMIT_WINDOW_SECONDS = anonAuthEmailRateLimitWindowSeconds;
+		PASSWORD_RESET_EMAIL_RATE_LIMIT_PERMIT_LIMIT =
+			passwordResetEmailRateLimitPermitLimit;
+		PASSWORD_RESET_EMAIL_RATE_LIMIT_WINDOW_SECONDS =
+			passwordResetEmailRateLimitWindowSeconds;
+		GLOBAL_RATE_LIMIT_PERMIT_LIMIT = globalRateLimitPermitLimit;
+		GLOBAL_RATE_LIMIT_WINDOW_SECONDS = globalRateLimitWindowSeconds;
+		ANONYMOUS_OTHER_RATE_LIMIT_PERMIT_LIMIT =
+			anonymousOtherRateLimitPermitLimit;
+		ANONYMOUS_OTHER_RATE_LIMIT_WINDOW_SECONDS =
+			anonymousOtherRateLimitWindowSeconds;
+		AUTHENTICATED_RATE_LIMIT_PERMIT_LIMIT =
+			authenticatedRateLimitPermitLimit;
+		AUTHENTICATED_RATE_LIMIT_WINDOW_SECONDS =
+			authenticatedRateLimitWindowSeconds;
+		HEAVY_SEARCH_RATE_LIMIT_PERMIT_LIMIT =
+			heavySearchRateLimitPermitLimit;
+		HEAVY_SEARCH_RATE_LIMIT_WINDOW_SECONDS =
+			heavySearchRateLimitWindowSeconds;
+		BULK_RATE_LIMIT_PERMIT_LIMIT = bulkRateLimitPermitLimit;
+		BULK_RATE_LIMIT_WINDOW_SECONDS = bulkRateLimitWindowSeconds;
+		TENANT_BULK_RATE_LIMIT_PERMIT_LIMIT =
+			tenantBulkRateLimitPermitLimit;
+		TENANT_BULK_RATE_LIMIT_WINDOW_SECONDS =
+			tenantBulkRateLimitWindowSeconds;
+		EMAIL_RATE_LIMIT_PERMIT_LIMIT = emailRateLimitPermitLimit;
+		EMAIL_RATE_LIMIT_WINDOW_SECONDS = emailRateLimitWindowSeconds;
+		TENANT_EMAIL_RATE_LIMIT_PERMIT_LIMIT =
+			tenantEmailRateLimitPermitLimit;
+		TENANT_EMAIL_RATE_LIMIT_WINDOW_SECONDS =
+			tenantEmailRateLimitWindowSeconds;
+		EXPORT_RATE_LIMIT_PERMIT_LIMIT = exportRateLimitPermitLimit;
+		EXPORT_RATE_LIMIT_WINDOW_SECONDS = exportRateLimitWindowSeconds;
+		TENANT_EXPORT_RATE_LIMIT_PERMIT_LIMIT =
+			tenantExportRateLimitPermitLimit;
+		TENANT_EXPORT_RATE_LIMIT_WINDOW_SECONDS =
+			tenantExportRateLimitWindowSeconds;
+		UPLOAD_RATE_LIMIT_PERMIT_LIMIT = uploadRateLimitPermitLimit;
+		UPLOAD_RATE_LIMIT_WINDOW_SECONDS = uploadRateLimitWindowSeconds;
 		Role = role;
 		JOB_QUEUE_BATCH_SIZE = jobQueueBatchSize;
 		JOB_QUEUE_POLL_SECONDS = jobQueuePollSeconds;
@@ -347,6 +449,122 @@ public class AppEnvironment {
 				// with no repo-root lookup needed.
 				fileStorageRoot: GetOptionalString(nameof(FILE_STORAGE_ROOT), ".artifacts/storage"),
 				uploadMaxBytes: GetOptionalInt(nameof(UPLOAD_MAX_BYTES), 2_000_000),
+				trustedProxyCidrs: GetOptionalCsvList(
+					nameof(TRUSTED_PROXY_CIDRS),
+					["127.0.0.1/32", "::1/128"]
+				),
+				anonAuthIpRateLimitPermitLimit: GetOptionalInt(
+					nameof(ANON_AUTH_IP_RATE_LIMIT_PERMIT_LIMIT),
+					30
+				),
+				anonAuthIpRateLimitWindowSeconds: GetOptionalInt(
+					nameof(ANON_AUTH_IP_RATE_LIMIT_WINDOW_SECONDS),
+					60
+				),
+				anonAuthEmailRateLimitPermitLimit: GetOptionalInt(
+					nameof(ANON_AUTH_EMAIL_RATE_LIMIT_PERMIT_LIMIT),
+					30
+				),
+				anonAuthEmailRateLimitWindowSeconds: GetOptionalInt(
+					nameof(ANON_AUTH_EMAIL_RATE_LIMIT_WINDOW_SECONDS),
+					60
+				),
+				passwordResetEmailRateLimitPermitLimit: GetOptionalInt(
+					nameof(PASSWORD_RESET_EMAIL_RATE_LIMIT_PERMIT_LIMIT),
+					3
+				),
+				passwordResetEmailRateLimitWindowSeconds: GetOptionalInt(
+					nameof(PASSWORD_RESET_EMAIL_RATE_LIMIT_WINDOW_SECONDS),
+					900
+				),
+				globalRateLimitPermitLimit: GetOptionalInt(
+					nameof(GLOBAL_RATE_LIMIT_PERMIT_LIMIT),
+					6_000
+				),
+				globalRateLimitWindowSeconds: GetOptionalInt(
+					nameof(GLOBAL_RATE_LIMIT_WINDOW_SECONDS),
+					60
+				),
+				anonymousOtherRateLimitPermitLimit: GetOptionalInt(
+					nameof(ANONYMOUS_OTHER_RATE_LIMIT_PERMIT_LIMIT),
+					120
+				),
+				anonymousOtherRateLimitWindowSeconds: GetOptionalInt(
+					nameof(ANONYMOUS_OTHER_RATE_LIMIT_WINDOW_SECONDS),
+					60
+				),
+				authenticatedRateLimitPermitLimit: GetOptionalInt(
+					nameof(AUTHENTICATED_RATE_LIMIT_PERMIT_LIMIT),
+					600
+				),
+				authenticatedRateLimitWindowSeconds: GetOptionalInt(
+					nameof(AUTHENTICATED_RATE_LIMIT_WINDOW_SECONDS),
+					60
+				),
+				heavySearchRateLimitPermitLimit: GetOptionalInt(
+					nameof(HEAVY_SEARCH_RATE_LIMIT_PERMIT_LIMIT),
+					180
+				),
+				heavySearchRateLimitWindowSeconds: GetOptionalInt(
+					nameof(HEAVY_SEARCH_RATE_LIMIT_WINDOW_SECONDS),
+					60
+				),
+				bulkRateLimitPermitLimit: GetOptionalInt(
+					nameof(BULK_RATE_LIMIT_PERMIT_LIMIT),
+					30
+				),
+				bulkRateLimitWindowSeconds: GetOptionalInt(
+					nameof(BULK_RATE_LIMIT_WINDOW_SECONDS),
+					60
+				),
+				tenantBulkRateLimitPermitLimit: GetOptionalInt(
+					nameof(TENANT_BULK_RATE_LIMIT_PERMIT_LIMIT),
+					120
+				),
+				tenantBulkRateLimitWindowSeconds: GetOptionalInt(
+					nameof(TENANT_BULK_RATE_LIMIT_WINDOW_SECONDS),
+					60
+				),
+				emailRateLimitPermitLimit: GetOptionalInt(
+					nameof(EMAIL_RATE_LIMIT_PERMIT_LIMIT),
+					10
+				),
+				emailRateLimitWindowSeconds: GetOptionalInt(
+					nameof(EMAIL_RATE_LIMIT_WINDOW_SECONDS),
+					900
+				),
+				tenantEmailRateLimitPermitLimit: GetOptionalInt(
+					nameof(TENANT_EMAIL_RATE_LIMIT_PERMIT_LIMIT),
+					50
+				),
+				tenantEmailRateLimitWindowSeconds: GetOptionalInt(
+					nameof(TENANT_EMAIL_RATE_LIMIT_WINDOW_SECONDS),
+					900
+				),
+				exportRateLimitPermitLimit: GetOptionalInt(
+					nameof(EXPORT_RATE_LIMIT_PERMIT_LIMIT),
+					10
+				),
+				exportRateLimitWindowSeconds: GetOptionalInt(
+					nameof(EXPORT_RATE_LIMIT_WINDOW_SECONDS),
+					60
+				),
+				tenantExportRateLimitPermitLimit: GetOptionalInt(
+					nameof(TENANT_EXPORT_RATE_LIMIT_PERMIT_LIMIT),
+					40
+				),
+				tenantExportRateLimitWindowSeconds: GetOptionalInt(
+					nameof(TENANT_EXPORT_RATE_LIMIT_WINDOW_SECONDS),
+					60
+				),
+				uploadRateLimitPermitLimit: GetOptionalInt(
+					nameof(UPLOAD_RATE_LIMIT_PERMIT_LIMIT),
+					20
+				),
+				uploadRateLimitWindowSeconds: GetOptionalInt(
+					nameof(UPLOAD_RATE_LIMIT_WINDOW_SECONDS),
+					60
+				),
 				// Fail-fast here (same InvalidOperationException path the other vars use),
 				// before the validator runs — neither an unparseable role nor an absent one
 				// outside Development/Testing can produce an enum value to range-check
@@ -474,6 +692,16 @@ public class AppEnvironment {
 		}
 	}
 
+	internal static bool IsTrustedProxyCidrsExplicitlySet {
+		get {
+			return !string.IsNullOrWhiteSpace(
+				Environment.GetEnvironmentVariable(
+					nameof(TRUSTED_PROXY_CIDRS)
+				)
+			);
+		}
+	}
+
 	// Case-insensitive APP_ROLE parse via an explicit map (never ToLower() — PUBLY0003).
 	// The map is the whole accepted set; anything else fails fast.
 	private static readonly IReadOnlyDictionary<string, AppRole> AppRoleMap =
@@ -517,10 +745,13 @@ public class AppEnvironment {
 
 	// Splits an optional CSV env var into trimmed, non-empty entries, preserving order
 	// and dropping duplicates. Absent/blank yields an empty list.
-	private static IReadOnlyList<string> GetOptionalCsvList(string name) {
+	private static IReadOnlyList<string> GetOptionalCsvList(
+		string name,
+		IReadOnlyList<string>? defaultValue = null
+	) {
 		var value = Environment.GetEnvironmentVariable(name);
 		if (string.IsNullOrWhiteSpace(value)) {
-			return [];
+			return defaultValue ?? [];
 		}
 
 		return value
@@ -703,6 +934,165 @@ public class AppEnvironmentValidator : AbstractValidator<AppEnvironment> {
 		RuleFor(x => x.UPLOAD_MAX_BYTES)
 			.InclusiveBetween(1, 100_000_000)
 			.WithMessage("UPLOAD_MAX_BYTES must be between 1 and 100000000");
+
+		RuleForEach(x => x.TRUSTED_PROXY_CIDRS)
+			.Must(cidr => IPNetwork.TryParse(cidr, out _))
+			.WithMessage("TRUSTED_PROXY_CIDRS entries must use valid CIDR notation");
+
+		RuleForEach(x => x.TRUSTED_PROXY_CIDRS)
+			.Must(cidr =>
+				!IPNetwork.TryParse(cidr, out var network)
+				|| network.PrefixLength != 0
+			)
+			.WithMessage(
+				"TRUSTED_PROXY_CIDRS entries must not trust a universal network"
+			);
+
+		RuleFor(x => x.TRUSTED_PROXY_CIDRS)
+			.Must(_ => AppEnvironment.IsTrustedProxyCidrsExplicitlySet)
+			.When(x => AppEnvironment.IsProduction && x.IsApiRole)
+			.WithMessage(
+				"TRUSTED_PROXY_CIDRS must be set explicitly for a production API role");
+
+		RuleFor(x => x.ANON_AUTH_IP_RATE_LIMIT_PERMIT_LIMIT)
+			.InclusiveBetween(1, 10_000)
+			.WithMessage(
+				"ANON_AUTH_IP_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 10000");
+
+		RuleFor(x => x.ANON_AUTH_IP_RATE_LIMIT_WINDOW_SECONDS)
+			.InclusiveBetween(1, 86_400)
+			.WithMessage(
+				"ANON_AUTH_IP_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
+
+		RuleFor(x => x.ANON_AUTH_EMAIL_RATE_LIMIT_PERMIT_LIMIT)
+			.InclusiveBetween(1, 10_000)
+			.WithMessage(
+				"ANON_AUTH_EMAIL_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 10000");
+
+		RuleFor(x => x.ANON_AUTH_EMAIL_RATE_LIMIT_WINDOW_SECONDS)
+			.InclusiveBetween(1, 86_400)
+			.WithMessage(
+				"ANON_AUTH_EMAIL_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
+
+		RuleFor(x => x.PASSWORD_RESET_EMAIL_RATE_LIMIT_PERMIT_LIMIT)
+			.InclusiveBetween(1, 10_000)
+			.WithMessage(
+				"PASSWORD_RESET_EMAIL_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 10000");
+
+		RuleFor(x => x.PASSWORD_RESET_EMAIL_RATE_LIMIT_WINDOW_SECONDS)
+			.InclusiveBetween(1, 86_400)
+			.WithMessage(
+				"PASSWORD_RESET_EMAIL_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
+
+		RuleFor(x => x.GLOBAL_RATE_LIMIT_PERMIT_LIMIT)
+			.InclusiveBetween(1, 100_000)
+			.WithMessage(
+				"GLOBAL_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 100000");
+
+		RuleFor(x => x.GLOBAL_RATE_LIMIT_WINDOW_SECONDS)
+			.InclusiveBetween(1, 86_400)
+			.WithMessage(
+				"GLOBAL_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
+
+		RuleFor(x => x.ANONYMOUS_OTHER_RATE_LIMIT_PERMIT_LIMIT)
+			.InclusiveBetween(1, 100_000)
+			.WithMessage(
+				"ANONYMOUS_OTHER_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 100000");
+
+		RuleFor(x => x.ANONYMOUS_OTHER_RATE_LIMIT_WINDOW_SECONDS)
+			.InclusiveBetween(1, 86_400)
+			.WithMessage(
+				"ANONYMOUS_OTHER_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
+
+		RuleFor(x => x.AUTHENTICATED_RATE_LIMIT_PERMIT_LIMIT)
+			.InclusiveBetween(1, 100_000)
+			.WithMessage(
+				"AUTHENTICATED_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 100000");
+
+		RuleFor(x => x.AUTHENTICATED_RATE_LIMIT_WINDOW_SECONDS)
+			.InclusiveBetween(1, 86_400)
+			.WithMessage(
+				"AUTHENTICATED_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
+
+		RuleFor(x => x.HEAVY_SEARCH_RATE_LIMIT_PERMIT_LIMIT)
+			.InclusiveBetween(1, 100_000)
+			.WithMessage(
+				"HEAVY_SEARCH_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 100000");
+
+		RuleFor(x => x.HEAVY_SEARCH_RATE_LIMIT_WINDOW_SECONDS)
+			.InclusiveBetween(1, 86_400)
+			.WithMessage(
+				"HEAVY_SEARCH_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
+
+		RuleFor(x => x.BULK_RATE_LIMIT_PERMIT_LIMIT)
+			.InclusiveBetween(1, 100_000)
+			.WithMessage(
+				"BULK_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 100000");
+
+		RuleFor(x => x.BULK_RATE_LIMIT_WINDOW_SECONDS)
+			.InclusiveBetween(1, 86_400)
+			.WithMessage(
+				"BULK_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
+
+		RuleFor(x => x.TENANT_BULK_RATE_LIMIT_PERMIT_LIMIT)
+			.InclusiveBetween(1, 100_000)
+			.WithMessage(
+				"TENANT_BULK_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 100000");
+
+		RuleFor(x => x.TENANT_BULK_RATE_LIMIT_WINDOW_SECONDS)
+			.InclusiveBetween(1, 86_400)
+			.WithMessage(
+				"TENANT_BULK_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
+
+		RuleFor(x => x.EMAIL_RATE_LIMIT_PERMIT_LIMIT)
+			.InclusiveBetween(1, 100_000)
+			.WithMessage(
+				"EMAIL_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 100000");
+
+		RuleFor(x => x.EMAIL_RATE_LIMIT_WINDOW_SECONDS)
+			.InclusiveBetween(1, 86_400)
+			.WithMessage(
+				"EMAIL_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
+
+		RuleFor(x => x.TENANT_EMAIL_RATE_LIMIT_PERMIT_LIMIT)
+			.InclusiveBetween(1, 100_000)
+			.WithMessage(
+				"TENANT_EMAIL_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 100000");
+
+		RuleFor(x => x.TENANT_EMAIL_RATE_LIMIT_WINDOW_SECONDS)
+			.InclusiveBetween(1, 86_400)
+			.WithMessage(
+				"TENANT_EMAIL_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
+
+		RuleFor(x => x.EXPORT_RATE_LIMIT_PERMIT_LIMIT)
+			.InclusiveBetween(1, 100_000)
+			.WithMessage(
+				"EXPORT_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 100000");
+
+		RuleFor(x => x.EXPORT_RATE_LIMIT_WINDOW_SECONDS)
+			.InclusiveBetween(1, 86_400)
+			.WithMessage(
+				"EXPORT_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
+
+		RuleFor(x => x.TENANT_EXPORT_RATE_LIMIT_PERMIT_LIMIT)
+			.InclusiveBetween(1, 100_000)
+			.WithMessage(
+				"TENANT_EXPORT_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 100000");
+
+		RuleFor(x => x.TENANT_EXPORT_RATE_LIMIT_WINDOW_SECONDS)
+			.InclusiveBetween(1, 86_400)
+			.WithMessage(
+				"TENANT_EXPORT_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
+
+		RuleFor(x => x.UPLOAD_RATE_LIMIT_PERMIT_LIMIT)
+			.InclusiveBetween(1, 100_000)
+			.WithMessage(
+				"UPLOAD_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 100000");
+
+		RuleFor(x => x.UPLOAD_RATE_LIMIT_WINDOW_SECONDS)
+			.InclusiveBetween(1, 86_400)
+			.WithMessage(
+				"UPLOAD_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
 
 		// APP_ROLE is already parsed to a defined enum by GetOptionalAppRole (which
 		// fails fast on any other string); this rule is defense-in-depth against an

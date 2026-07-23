@@ -7,6 +7,7 @@ using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Diagnostics;
 using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.Filters;
+using PublyApp.Api.Lib.RateLimiting;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Seeding;
 using PublyApp.Api.Modules.AuditLogs.Endpoints;
@@ -135,11 +136,34 @@ public class Program {
 		app.UseResponseCompression();
 		app.UseSecurityHeaders();
 		app.UseCustomExceptionHandler();
+		// Must precede HTTPS redirection and rate limiting so both
+		// scheme and client IP reflect the single trusted Traefik hop.
+		// Trust is restricted to AppEnvironment.TRUSTED_PROXY_CIDRS.
+		app.UseForwardedHeaders();
 		// Use host environment here (not AppEnvironment) because
 		// WebApplicationFactory/UseEnvironment can override it per host instance.
 		if (!app.Environment.IsEnvironment(EnvironmentNames.Testing)) {
 			app.UseHttpsRedirection();
 		}
+		// Apply the configured CORS response headers without short-circuiting.
+		// Early 429/413 responses stay browser-readable, while accepted
+		// preflight requests still reach the global floor before UseCors serves
+		// them below.
+		app.UseCorsResponseHeaders();
+		// Enforce the IP safety floor before any database-backed
+		// session resolution so forged tokens cannot amplify DB work.
+		app.UseGlobalRateLimit();
+		// Authenticated policies must never partition on an unvalidated
+		// session header. Resolve the persisted session identity first;
+		// invalid or missing tokens remain in the client-IP partition.
+		app.UseValidatedSessionRateLimitPartitioning();
+		// Email extraction buffers and rewinds only endpoints carrying
+		// EmailRateLimitMetadata. The limiter then combines that stable
+		// key with the already-resolved real client IP.
+		app.UseEmailRateLimitPartitioning();
+		app.UseRateLimiter();
+		// The framework CORS middleware serves accepted preflight requests.
+		// Keep it behind the global floor so OPTIONS traffic remains bounded.
 		app.UseCors();
 		app.UseOpenApi();
 
@@ -171,11 +195,23 @@ public class Program {
 
 		// Apply filters to route groups (in order of execution)
 		var staffGroup = app.MapGroup(Routes.Staff.Root)
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.AuthenticatedDefault
+			)
+			.ProducesAppProblem(
+				StatusCodes.Status429TooManyRequests
+			)
 			.WithCheckSessionHeader()         // 1. Check session header
 			.WithSessionAuthentication()      // 2. Authenticate session
 			.WithStaffAuthorization();        // 3. Verify staff account
 
 		var tenantGroup = app.MapGroup(Routes.Tenant.Root)
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.AuthenticatedDefault
+			)
+			.ProducesAppProblem(
+				StatusCodes.Status429TooManyRequests
+			)
 			.WithCheckSessionHeader()         // 1. Check session header
 			.WithCheckTenantHeader()          // 2. Check tenant header
 			.WithSessionAuthentication()      // 3. Authenticate session
@@ -210,10 +246,19 @@ public class Program {
 		};
 		app.MapHealthChecks("/health/live", new HealthCheckOptions {
 			Predicate = _ => false,
-		});
-		app.MapHealthChecks("/health/ready", readinessOptions);
-		app.MapHealthChecks("/health", readinessOptions);
+		}).WithRateLimitOptOut(
+			"Liveness probes must remain available during request bursts"
+		);
+		app.MapHealthChecks("/health/ready", readinessOptions)
+			.WithRateLimitOptOut(
+				"Readiness probes must remain available during request bursts"
+			);
+		app.MapHealthChecks("/health", readinessOptions)
+			.WithRateLimitOptOut(
+				"Health probes must remain available during request bursts"
+			);
 		app.MapNotFoundRoute();
+		app.ValidateEndpointRateLimitCoverage();
 	}
 
 	// Test-only scaffold proving TenantPermissionFilter's AccountLevel.Admin bypass
@@ -222,6 +267,9 @@ public class Program {
 	// environment (see call site above) — must not ship into production artifacts.
 	private static void MapTenantTestingScaffoldEndpoints(RouteGroupBuilder tenantGroup) {
 		tenantGroup.MapGet("/test-permission", () => "Hello, Permission!")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.AuthenticatedDefault
+			)
 			.WithTenantPermission([AppPermissions.Tenant.Modules.ACCESS_DASHBOARD]);
 	}
 }

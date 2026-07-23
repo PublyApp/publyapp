@@ -1,4 +1,5 @@
 using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.RateLimiting;
 
 using Scalar.AspNetCore;
 
@@ -13,7 +14,8 @@ public static class OpenApiExtensions {
 	public static WebApplication UseOpenApi(this WebApplication app) {
 		if (app.Environment.IsDevelopment()) {
 			// /openapi/{documentName}.json
-			app.MapOpenApi();
+			app.MapOpenApi()
+				.WithGlobalRateLimitOnly();
 			app.MapScalarApiReference(options => {
 				options.EnabledTargets = [
 					ScalarTarget.Shell,
@@ -29,7 +31,7 @@ public static class OpenApiExtensions {
 					// csharp
 					ScalarClient.HttpClient,
 				];
-			});
+			}).WithGlobalRateLimitOnly();
 		}
 
 		return app;

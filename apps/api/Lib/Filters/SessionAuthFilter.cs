@@ -1,5 +1,6 @@
 using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.RateLimiting;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Auth.Services;
 
@@ -23,7 +24,6 @@ public class SessionAuthFilter : IEndpointFilter {
 	) {
 		var httpContext = context.HttpContext;
 		var authContext = httpContext.RequestServices.GetRequiredService<IRequestAuthContext>();
-		var sessionService = httpContext.RequestServices.GetRequiredService<ISessionService>();
 		var env = AppEnvironment.Instance;
 
 		// Get session token (should be set by CheckSessionHeaderFilter)
@@ -35,6 +35,24 @@ public class SessionAuthFilter : IEndpointFilter {
 			return TypedProblems.Unauthorized("Session token is missing", ResponseKeys.Unauthorized);
 		}
 
+		if (authContext.IsAuthenticated) {
+			return await next(context);
+		}
+
+		if (
+			ApiRateLimitPartitionKeys
+				.WasSessionValidationAttempted(httpContext)
+		) {
+			_logger.LogDebug(
+				"Session token is invalid or expired"
+			);
+			return TypedProblems.Unauthorized(
+				"Session token is invalid or expired",
+				ResponseKeys.Unauthorized
+			);
+		}
+
+		var sessionService = httpContext.RequestServices.GetRequiredService<ISessionService>();
 		var sessionData = await sessionService.GetSessionByToken(sessionToken, httpContext.RequestAborted);
 
 		if (sessionData is null) {

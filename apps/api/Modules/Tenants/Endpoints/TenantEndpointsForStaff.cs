@@ -1,5 +1,6 @@
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Filters;
+using PublyApp.Api.Lib.RateLimiting;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Modules.Tenants.Handlers.Staff;
 
@@ -10,6 +11,9 @@ public static class TenantEndpointsForStaff {
 		this IEndpointRouteBuilder routes
 	) {
 		var group = routes.MapGroup(Routes.Tenants.ForStaff.Root)
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.AuthenticatedDefault
+			)
 			.WithTags("Tenants");
 
 		group.MapPost(
@@ -17,8 +21,17 @@ public static class TenantEndpointsForStaff {
 			CreateTenantAsStaff.Handle
 		)
 			.WithName("CreateTenant")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.EmailOperation
+			)
 			.WithSummary("Create a new tenant")
 			.WithReqBodyValidation<CreateTenantAsStaffBody>()
+			.WithRecipientWeightedRateLimit<
+				CreateTenantAsStaffBody
+			>(
+				ApiRateLimitPolicies.EmailOperation,
+				body => body.GetInitialUsers().Count
+			)
 			.WithPermission([AppPermissions.Staff.Tenants.CREATE]);
 
 		group.MapGet(
@@ -34,6 +47,9 @@ public static class TenantEndpointsForStaff {
 			FindTenantsAsStaff.Handle
 		)
 			.WithName("FindTenants")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.HeavySearchList
+			)
 			.WithSummary("Find tenants with pagination")
 			.WithReqQueryValidation<FindTenantsAsStaffQuery>()
 			.WithPermission([AppPermissions.Staff.Tenants.LIST]);
@@ -81,6 +97,9 @@ public static class TenantEndpointsForStaff {
 			BulkSuspendTenantsAsStaff.Handle
 		)
 			.WithName("BulkSuspendTenants")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.BulkOperation
+			)
 			.WithSummary("Bulk suspend tenants")
 			.WithReqBodyValidation<BulkSuspendTenantsAsStaffBody>()
 			.WithPermission([AppPermissions.Staff.Tenants.SUSPEND]);
@@ -90,6 +109,9 @@ public static class TenantEndpointsForStaff {
 			BulkReactivateTenantsAsStaff.Handle
 		)
 			.WithName("BulkReactivateTenants")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.BulkOperation
+			)
 			.WithSummary("Bulk reactivate tenants")
 			.WithReqBodyValidation<BulkReactivateTenantsAsStaffBody>()
 			.WithPermission([AppPermissions.Staff.Tenants.REACTIVATE]);
@@ -99,6 +121,9 @@ public static class TenantEndpointsForStaff {
 			BulkDeleteTenantsAsStaff.Handle
 		)
 			.WithName("BulkDeleteTenants")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.BulkOperation
+			)
 			.WithSummary("Bulk delete tenants")
 			.WithReqBodyValidation<BulkDeleteTenantsAsStaffBody>()
 			.WithPermission([AppPermissions.Staff.Tenants.DELETE]);

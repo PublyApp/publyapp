@@ -163,6 +163,44 @@ namespace PublyApp.Api.Lib.Testing.Fixtures {
 					"STAFF_OWNER_BOOTSTRAP_CODE",
 					"test-bootstrap-code"
 				);
+				// Large integration-spec classes share one API host and
+				// legitimately log in more often than production limits
+				// allow. Keep their setup traffic isolated from rate-limit
+				// state; AnonymousAuthRateLimitingSpec replaces these
+				// settings with deliberately small limits.
+				Environment.SetEnvironmentVariable(
+					"ANON_AUTH_IP_RATE_LIMIT_PERMIT_LIMIT",
+					"10000"
+				);
+				Environment.SetEnvironmentVariable(
+					"ANON_AUTH_EMAIL_RATE_LIMIT_PERMIT_LIMIT",
+					"10000"
+				);
+				Environment.SetEnvironmentVariable(
+					"PASSWORD_RESET_EMAIL_RATE_LIMIT_PERMIT_LIMIT",
+					"10000"
+				);
+				var highRateLimitPermitVariables = new[] {
+					"GLOBAL_RATE_LIMIT_PERMIT_LIMIT",
+					"ANONYMOUS_OTHER_RATE_LIMIT_PERMIT_LIMIT",
+					"AUTHENTICATED_RATE_LIMIT_PERMIT_LIMIT",
+					"HEAVY_SEARCH_RATE_LIMIT_PERMIT_LIMIT",
+					"BULK_RATE_LIMIT_PERMIT_LIMIT",
+					"TENANT_BULK_RATE_LIMIT_PERMIT_LIMIT",
+					"EMAIL_RATE_LIMIT_PERMIT_LIMIT",
+					"TENANT_EMAIL_RATE_LIMIT_PERMIT_LIMIT",
+					"EXPORT_RATE_LIMIT_PERMIT_LIMIT",
+					"TENANT_EXPORT_RATE_LIMIT_PERMIT_LIMIT",
+					"UPLOAD_RATE_LIMIT_PERMIT_LIMIT",
+				};
+				foreach (
+					var variable in highRateLimitPermitVariables
+				) {
+					Environment.SetEnvironmentVariable(
+						variable,
+						"10000"
+					);
+				}
 
 				// 4. Initialize AppEnvironment singleton BEFORE any
 				//    AppDbContext is created (OnModelCreating

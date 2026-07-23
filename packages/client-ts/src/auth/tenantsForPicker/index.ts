@@ -15,6 +15,7 @@ export interface TenantsForPickerRequestBuilder extends BaseRequestBuilder<Tenan
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {Promise<GetUserTenantsForPickerResponse>}
      * @throws {AppProblemDetails} error when the service returns a 401 status code
+     * @throws {AppProblemDetails} error when the service returns a 429 status code
      * @throws {AppProblemDetails} error when the service returns a 500 status code
      */
      get(requestConfiguration?: RequestConfiguration<object> | undefined) : Promise<GetUserTenantsForPickerResponse | undefined>;
@@ -38,6 +39,7 @@ export const TenantsForPickerRequestBuilderRequestsMetadata: RequestsMetadata = 
         responseBodyContentType: "application/json",
         errorMappings: {
             401: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
+            429: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             500: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
         },
         adapterMethodName: "send",

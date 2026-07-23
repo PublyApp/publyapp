@@ -1,4 +1,5 @@
 using PublyApp.Api.Lib.Extensions;
+using PublyApp.Api.Lib.RateLimiting;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.SystemNotices.Handlers.Anonymous;
@@ -10,6 +11,12 @@ public static class SystemNoticeEndpointsAnonymous {
 		this IEndpointRouteBuilder app
 	) {
 		var group = app.MapGroup(PathUtils.GetLastSegment(Routes.SystemNotices.Anonymous.Root))
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.AnonymousOther
+			)
+			.ProducesAppProblem(
+				StatusCodes.Status429TooManyRequests
+			)
 			.WithTags("System Notices (Public)");
 
 		group.MapGet(

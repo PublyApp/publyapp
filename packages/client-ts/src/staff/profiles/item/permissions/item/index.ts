@@ -17,6 +17,7 @@ export interface WithPermissionKeyItemRequestBuilder extends BaseRequestBuilder<
      * @throws {AppProblemDetails} error when the service returns a 401 status code
      * @throws {AppProblemDetails} error when the service returns a 403 status code
      * @throws {AppProblemDetails} error when the service returns a 404 status code
+     * @throws {AppProblemDetails} error when the service returns a 429 status code
      * @throws {AppProblemDetails} error when the service returns a 500 status code
      */
      delete(requestConfiguration?: RequestConfiguration<object> | undefined) : Promise<void>;
@@ -27,6 +28,7 @@ export interface WithPermissionKeyItemRequestBuilder extends BaseRequestBuilder<
      * @throws {AppProblemDetails} error when the service returns a 401 status code
      * @throws {AppProblemDetails} error when the service returns a 403 status code
      * @throws {AppProblemDetails} error when the service returns a 404 status code
+     * @throws {AppProblemDetails} error when the service returns a 429 status code
      * @throws {AppProblemDetails} error when the service returns a 500 status code
      */
      post(requestConfiguration?: RequestConfiguration<object> | undefined) : Promise<void>;
@@ -59,6 +61,7 @@ export const WithPermissionKeyItemRequestBuilderRequestsMetadata: RequestsMetada
             401: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             403: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             404: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
+            429: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             500: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
         },
         adapterMethodName: "sendNoResponseContent",
@@ -71,6 +74,7 @@ export const WithPermissionKeyItemRequestBuilderRequestsMetadata: RequestsMetada
             401: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             403: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             404: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
+            429: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             500: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
         },
         adapterMethodName: "sendNoResponseContent",

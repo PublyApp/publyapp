@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Filters;
+using PublyApp.Api.Lib.RateLimiting;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Modules.Uploads.Handlers.Staff;
 
@@ -13,6 +14,9 @@ public static class UploadEndpointsForStaff {
 	) {
 		var group = routes
 			.MapGroup(Routes.Uploads.ForStaff.Root)
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.AuthenticatedDefault
+			)
 			.WithTags("Staff Uploads");
 
 		group.MapPost(
@@ -20,6 +24,9 @@ public static class UploadEndpointsForStaff {
 				CreateStaffUpload.Handle
 			)
 			.WithName("CreateStaffUpload")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.Upload
+			)
 			.WithSummary(
 				"Upload an image (multipart 'file' field) and get back a served URL"
 			)

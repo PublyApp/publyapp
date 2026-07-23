@@ -201,6 +201,17 @@ Each rule has an ID, descriptor in `DiagnosticCatalog.cs`, and is referenced in 
   - **Anonymous-object property names:** the `NameEquals` label in `new { HasSessionToken = expr }` is a syntactic label, not a value expression — it is skipped. Only the value side is examined.
   - **Null-presence checks:** an occurrence of a session-token identifier or member used solely as the operand of a null check (`M is null`, `M is not null`, `M == null`, `M != null`, `null == M`, `null != M`) yields a `bool`, not the token value, and is exempt. The exemption is per-occurrence: a ternary like `sessionToken is not null ? sessionToken : "none"` is still flagged because the `sessionToken` in the whenTrue branch flows the value to the logger.
 
+### `PUBLY0011` — mapped endpoints require an explicit rate-limit disposition
+
+- **Severity in `.editorconfig`:** `warning` (enforced)
+- **Source:** `packages/lint-cs/EndpointRateLimitAnalyzer.cs`
+- **Spec:** `packages/lint-cs/EndpointRateLimitAnalyzer.Spec.cs`
+- **AGENTS.md:** "Every mapped endpoint must declare or inherit a named rate-limit policy, carry the explicit global-only marker, or carry an opt-out marker with a non-empty reason."
+- **Strategy:** inspects Minimal API mapping calls and their fluent registration chain or local route-group initializer. An unprotected mapping is reported; `.RequireRateLimiting(...)` with a registered constant policy, the approved anonymous-auth policy helpers, `.WithGlobalRateLimitOnly()`, and `.WithRateLimitOptOut("reason")` satisfy the rule. Unknown or misspelled policy names are rejected.
+- **Runtime companion:** `EndpointRateLimitMetadataGuard.Spec.cs` builds the real route map and proves group-level policy metadata reaches every endpoint.
+- **Shipped in:** #952
+- **Enforced in:** #952
+
 ## How to add a new rule
 
 See the Phase-2 PRs (#463 for the JS scaffold pattern, #464 for the Roslyn scaffold pattern). The short version:

@@ -11,7 +11,7 @@
 ; `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` in Directory.Build.props, this turns
 ; each opted-in rule into a hard build error. Currently enforced as warnings:
 ;   PUBLY0001, PUBLY0002, PUBLY0003, PUBLY0004, PUBLY0005, PUBLY0006, PUBLY0007, PUBLY0008,
-;   PUBLY0009, PUBLY0010.
+;   PUBLY0009, PUBLY0010, PUBLY0011.
 
 ### New Rules
 
@@ -27,3 +27,4 @@ PUBLY0007 | PublyApp.Authorization | Disabled | Require ForStaff service variant
 PUBLY0008 | PublyApp.Nullability | Disabled | Prefer is-null pattern checks over == / != with null
 PUBLY0009 | PublyApp.ErrorHandling | Disabled | Avoid TypedResults.Forbid() — use TypedProblems.* (RFC 7807)
 PUBLY0010 | PublyApp.Security | Disabled | Do not log session-token values (X-Session-Token / SessionToken)
+PUBLY0011 | PublyApp.Security | Disabled | Require an explicit endpoint rate-limit disposition

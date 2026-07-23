@@ -147,6 +147,25 @@ public static class TypedProblems {
 	}
 
 	/// <summary>
+	/// Creates a 429 Too Many Requests response with ProblemDetails
+	/// </summary>
+	/// <param name="detail">Detailed explanation of the error</param>
+	/// <param name="translationKey">Translation key for frontend i18n</param>
+	/// <param name="title">Short summary (defaults to "Too Many Requests")</param>
+	public static AppTooManyRequestsHttpResult TooManyRequests(
+		string detail,
+		TranslationKey translationKey,
+		string title = "Too Many Requests"
+	) {
+		return new(AppProblemDetails.Create(
+			StatusCodes.Status429TooManyRequests,
+			title,
+			detail,
+			translationKey
+	));
+	}
+
+	/// <summary>
 	/// Creates a 422 Unprocessable Entity response with validation errors
 	/// </summary>
 	/// <param name="detail">Detailed explanation of the error</param>

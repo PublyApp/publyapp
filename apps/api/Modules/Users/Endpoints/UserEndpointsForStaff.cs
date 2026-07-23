@@ -1,5 +1,6 @@
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Filters;
+using PublyApp.Api.Lib.RateLimiting;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Modules.Users.Handlers.Staff;
 
@@ -8,6 +9,9 @@ namespace PublyApp.Api.Modules.Users.Endpoints;
 public static class UserEndpointsForStaff {
 	public static IEndpointRouteBuilder MapUserEndpointsForStaff(this IEndpointRouteBuilder routes) {
 		var group = routes.MapGroup(Routes.Users.ForStaff.Root)
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.AuthenticatedDefault
+			)
 			.WithTags("Staff Users");
 
 		// Direct staff-user creation is intentionally not mapped: onboarding must flow
@@ -36,6 +40,9 @@ public static class UserEndpointsForStaff {
 				FindStaffUsers.Handle
 			)
 			.WithName("FindStaffUsers")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.HeavySearchList
+			)
 			.WithSummary("Find staff users")
 			.WithReqQueryValidation<FindStaffUsersQuery>()
 			.WithPermission([AppPermissions.Staff.Users.LIST_FOR_STAFF]);
@@ -82,6 +89,9 @@ public static class UserEndpointsForStaff {
 				BulkSuspendStaffUsers.Handle
 			)
 			.WithName("BulkSuspendStaffUsers")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.BulkOperation
+			)
 			.WithSummary("Bulk suspend staff users")
 			.WithReqBodyValidation<BulkSuspendStaffUsersBody>()
 			.WithPermission([AppPermissions.Staff.Users.SUSPEND_FOR_STAFF]);
@@ -91,6 +101,9 @@ public static class UserEndpointsForStaff {
 				BulkReactivateStaffUsers.Handle
 			)
 			.WithName("BulkReactivateStaffUsers")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.BulkOperation
+			)
 			.WithSummary("Bulk reactivate staff users")
 			.WithReqBodyValidation<BulkReactivateStaffUsersBody>()
 			.WithPermission([AppPermissions.Staff.Users.REACTIVATE_FOR_STAFF]);
@@ -100,6 +113,9 @@ public static class UserEndpointsForStaff {
 				BulkDeleteStaffUsers.Handle
 			)
 			.WithName("BulkDeleteStaffUsers")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.BulkOperation
+			)
 			.WithSummary("Bulk delete staff users")
 			.WithReqBodyValidation<BulkDeleteStaffUsersBody>()
 			.WithPermission([AppPermissions.Staff.Users.DELETE_FOR_STAFF]);

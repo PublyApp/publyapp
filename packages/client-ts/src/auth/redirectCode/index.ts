@@ -16,6 +16,7 @@ export interface RedirectCodeRequestBuilder extends BaseRequestBuilder<RedirectC
      * @returns {Promise<GetRedirectCodeResult>}
      * @throws {AppProblemDetails} error when the service returns a 401 status code
      * @throws {ValidationProblemDetails} error when the service returns a 422 status code
+     * @throws {AppProblemDetails} error when the service returns a 429 status code
      * @throws {AppProblemDetails} error when the service returns a 500 status code
      */
      get(requestConfiguration?: RequestConfiguration<RedirectCodeRequestBuilderGetQueryParameters> | undefined) : Promise<GetRedirectCodeResult | undefined>;
@@ -52,6 +53,7 @@ export const RedirectCodeRequestBuilderRequestsMetadata: RequestsMetadata = {
         errorMappings: {
             401: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             422: createValidationProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
+            429: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             500: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
         },
         adapterMethodName: "send",

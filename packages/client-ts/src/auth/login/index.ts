@@ -17,6 +17,7 @@ export interface LoginRequestBuilder extends BaseRequestBuilder<LoginRequestBuil
      * @returns {Promise<PasswordLoginResult>}
      * @throws {AppProblemDetails} error when the service returns a 400 status code
      * @throws {ValidationProblemDetails} error when the service returns a 422 status code
+     * @throws {AppProblemDetails} error when the service returns a 429 status code
      * @throws {AppProblemDetails} error when the service returns a 500 status code
      */
      post(body: PasswordLoginBody, requestConfiguration?: RequestConfiguration<object> | undefined) : Promise<PasswordLoginResult | undefined>;
@@ -42,6 +43,7 @@ export const LoginRequestBuilderRequestsMetadata: RequestsMetadata = {
         errorMappings: {
             400: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             422: createValidationProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
+            429: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             500: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
         },
         adapterMethodName: "send",

@@ -16,6 +16,7 @@ export interface RequestPasswordResetRequestBuilder extends BaseRequestBuilder<R
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {Promise<RequestPasswordResetResult>}
      * @throws {ValidationProblemDetails} error when the service returns a 422 status code
+     * @throws {AppProblemDetails} error when the service returns a 429 status code
      * @throws {AppProblemDetails} error when the service returns a 500 status code
      */
      post(body: RequestPasswordResetBody, requestConfiguration?: RequestConfiguration<object> | undefined) : Promise<RequestPasswordResetResult | undefined>;
@@ -40,6 +41,7 @@ export const RequestPasswordResetRequestBuilderRequestsMetadata: RequestsMetadat
         responseBodyContentType: "application/json",
         errorMappings: {
             422: createValidationProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
+            429: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             500: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
         },
         adapterMethodName: "send",

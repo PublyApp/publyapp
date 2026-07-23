@@ -237,6 +237,9 @@ For the complete route design guide (staff/tenant/anonymous route structures, de
 route constants, handler naming conventions, and adding new domain slices), see:
 [`docs/guides/api-route-design.md`](docs/guides/api-route-design.md)
 
+For endpoint rate-limit buckets, policy assignment, opt-out rules, and environment knobs, see:
+[`docs/guides/api-rate-limiting.md`](docs/guides/api-rate-limiting.md)
+
 For route parameter conventions (no route constraints, ID validation pattern), see:
 [`docs/guides/api-route-parameters.md`](docs/guides/api-route-parameters.md)
 

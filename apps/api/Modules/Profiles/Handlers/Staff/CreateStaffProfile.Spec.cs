@@ -1,6 +1,7 @@
 
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 
 using FluentAssertions;
 
@@ -88,6 +89,49 @@ public sealed class CreateStaffProfileSpec : IClassFixture<ApiFixture> {
 			InvitationEmailOutboxStatus.Pending,
 			InvitationEmailOutboxStatus.Processing,
 			InvitationEmailOutboxStatus.Sent
+		);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldRejectEmailArraysAboveTheBulkInvitationBound() {
+		var emails = Enumerable
+			.Range(
+				0,
+				AppEnvironment.Instance
+					.MAX_BULK_INVITATIONS_SIZE
+					+ 1
+			)
+			.Select(index =>
+				$"profile-bound-{index}@example.com"
+			)
+			.ToArray();
+		var body = new CreateStaffProfileBody {
+			Name = JsonSerializer.SerializeToElement(
+				"Bounded Profile"
+			),
+			Permissions =
+				JsonSerializer.SerializeToElement(
+					new[] {
+						AppPermissions.Staff.Profiles
+							.GET_FOR_STAFF.Key,
+					}
+				),
+			Emails = JsonSerializer.SerializeToElement(
+				emails
+			),
+		};
+
+		var result =
+			await new CreateStaffProfileBodyValidator()
+				.ValidateAsync(body);
+
+		result.IsValid.Should().BeFalse();
+		result.Errors.Should().Contain(failure =>
+			failure.ErrorMessage.Contains(
+				"Emails cannot contain more than",
+				StringComparison.Ordinal
+			)
 		);
 	}
 }

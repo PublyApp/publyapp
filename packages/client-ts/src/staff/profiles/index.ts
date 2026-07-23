@@ -32,6 +32,7 @@ export interface ProfilesRequestBuilder extends BaseRequestBuilder<ProfilesReque
      * @throws {AppProblemDetails} error when the service returns a 401 status code
      * @throws {AppProblemDetails} error when the service returns a 403 status code
      * @throws {ValidationProblemDetails} error when the service returns a 422 status code
+     * @throws {AppProblemDetails} error when the service returns a 429 status code
      * @throws {AppProblemDetails} error when the service returns a 500 status code
      */
      get(requestConfiguration?: RequestConfiguration<ProfilesRequestBuilderGetQueryParameters> | undefined) : Promise<FindStaffProfilesResult | undefined>;
@@ -44,6 +45,7 @@ export interface ProfilesRequestBuilder extends BaseRequestBuilder<ProfilesReque
      * @throws {AppProblemDetails} error when the service returns a 401 status code
      * @throws {AppProblemDetails} error when the service returns a 403 status code
      * @throws {ValidationProblemDetails} error when the service returns a 422 status code
+     * @throws {AppProblemDetails} error when the service returns a 429 status code
      * @throws {AppProblemDetails} error when the service returns a 500 status code
      */
      post(body: CreateStaffProfileBody, requestConfiguration?: RequestConfiguration<object> | undefined) : Promise<StaffProfileCreated | undefined>;
@@ -107,6 +109,7 @@ export const ProfilesRequestBuilderRequestsMetadata: RequestsMetadata = {
             401: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             403: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             422: createValidationProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
+            429: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             500: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
         },
         adapterMethodName: "send",
@@ -121,6 +124,7 @@ export const ProfilesRequestBuilderRequestsMetadata: RequestsMetadata = {
             401: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             403: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             422: createValidationProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
+            429: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             500: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
         },
         adapterMethodName: "send",
