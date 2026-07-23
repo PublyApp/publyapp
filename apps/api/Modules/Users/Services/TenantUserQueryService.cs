@@ -51,7 +51,8 @@ public record ExportTenantUsersArgs(
 	string? Search,
 	IReadOnlySet<TenantUserStatus>? Status,
 	IReadOnlySet<AccountLevel>? Level,
-	IReadOnlySet<Guid>? Ids
+	IReadOnlySet<Guid>? Ids,
+	int Limit
 );
 
 public record TenantUserExportItem {
@@ -81,7 +82,6 @@ public interface ITenantUserQueryService {
 	Task<List<TenantUserExportItem>> FindExportRowsAsync(
 		Guid tenantId,
 		ExportTenantUsersArgs args,
-		int limit,
 		CancellationToken cancellationToken = default
 	);
 }
@@ -525,7 +525,6 @@ public class TenantUserQueryService : ITenantUserQueryService {
 	public async Task<List<TenantUserExportItem>> FindExportRowsAsync(
 		Guid tenantId,
 		ExportTenantUsersArgs args,
-		int limit,
 		CancellationToken cancellationToken = default
 	) {
 		var query = ApplyExportFilters(BuildExportBaseQuery(tenantId), args);
@@ -543,7 +542,7 @@ public class TenantUserQueryService : ITenantUserQueryService {
 				),
 				CreatedAt = ua.User.CreatedAt,
 			}
-		).Take(limit).ToListAsync(cancellationToken);
+		).Take(args.Limit).ToListAsync(cancellationToken);
 	}
 
 	private IQueryable<UserAccount> BuildExportBaseQuery(Guid tenantId) {

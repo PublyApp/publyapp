@@ -142,18 +142,18 @@ public sealed class ExportTenantUsersAsStaff {
 			);
 		}
 
+		var maxRows = AppEnvironment.Instance.TENANT_USER_EXPORT_MAX_ROWS;
 		var exportArgs = new ExportTenantUsersArgs(
 			Search: query.GetSearchNormalized(),
 			Status: query.GetStatusesOrNull(),
 			Level: query.GetLevelsOrNull(),
-			Ids: query.GetIdsOrNull()
+			Ids: query.GetIdsOrNull(),
+			Limit: maxRows + 1
 		);
 
-		var maxRows = AppEnvironment.Instance.TENANT_USER_EXPORT_MAX_ROWS;
 		var items = await tenantUserQueryService.FindExportRowsAsync(
 			tenantIdGuid,
 			exportArgs,
-			maxRows + 1,
 			cancellationToken
 		);
 
