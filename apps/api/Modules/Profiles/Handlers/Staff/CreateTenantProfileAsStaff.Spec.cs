@@ -158,6 +158,13 @@ public sealed class CreateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		Assert.NotNull(persistedProfile);
 		persistedProfile.Icon.Should().BeNull();
 		persistedProfile.Tone.Should().BeNull();
+		payload.Profile.PermissionsCount.Should().Be(0);
+		payload.Profile.CreatedAt.Should()
+			.BeCloseTo(persistedProfile.CreatedAt, TimeSpan.FromMicroseconds(1));
+		payload.Profile.UpdatedAt.Should()
+			.BeCloseTo(persistedProfile.UpdatedAt, TimeSpan.FromMicroseconds(1));
+		payload.Profile.CreatedAt.Should().NotBe(default);
+		payload.Profile.UpdatedAt.Should().NotBe(default);
 
 		var auditLog = await GetLatestAuditLogAsync(
 			AuditActions.TenantProfileCreated,
@@ -283,6 +290,9 @@ public sealed class CreateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		payload.Should().NotBeNull();
 
 		Assert.NotNull(payload);
+		payload.Profile.PermissionsCount.Should().Be(permissionKeys.Length);
+		payload.Profile.CreatedAt.Should().NotBe(default);
+		payload.Profile.UpdatedAt.Should().NotBe(default);
 		var persistedPermissionKeys = await GetPermissionKeysAsync(payload.Profile.Id);
 		persistedPermissionKeys.Should().BeEquivalentTo(permissionKeys);
 
@@ -552,5 +562,8 @@ public sealed class CreateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		public string? Tone { get; init; }
 		public bool IsDefault { get; init; }
 		public int UserAccountCount { get; init; }
+		public int PermissionsCount { get; init; }
+		public DateTime CreatedAt { get; init; }
+		public DateTime UpdatedAt { get; init; }
 	}
 }

@@ -11,6 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
+using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -191,6 +192,11 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		var token = await _authClient.LoginAsStaffAdminAsync();
 		var tenantId = await GetTenantIdAsync();
 		var profileId = await CreateProfileAsync(token, tenantId);
+		var profileGuid = Guid.Parse(profileId);
+		await AddProfilePermissionAsync(
+			profileGuid,
+			AppPermissions.Tenant.Modules.ACCESS_USERS.Key
+		);
 		var originalName = await GetProfileNameAsync(token, tenantId, profileId);
 		var originalDescription = "Profile created for update tests";
 		var updatedName = "Renamed " + Guid.NewGuid().ToString("N")[..8];
@@ -212,6 +218,15 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		payload.Should().NotBeNull();
 		Assert.NotNull(payload);
 		payload.Profile.Description.Should().Be(updatedDescription);
+		payload.Profile.PermissionsCount.Should().Be(1);
+		payload.Profile.CreatedAt.Should().NotBe(default);
+		payload.Profile.UpdatedAt.Should().NotBe(default);
+
+		var persistedProfile = await GetProfileAsync(profileGuid);
+		payload.Profile.CreatedAt.Should()
+			.BeCloseTo(persistedProfile.CreatedAt, TimeSpan.FromMicroseconds(1));
+		payload.Profile.UpdatedAt.Should()
+			.BeCloseTo(persistedProfile.UpdatedAt, TimeSpan.FromMicroseconds(1));
 
 		var auditLog = await GetLatestAuditLogAsync(
 			AuditActions.TenantProfileUpdated,
@@ -593,6 +608,21 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		await dbContext.SaveChangesAsync();
 	}
 
+	private async Task AddProfilePermissionAsync(
+		Guid profileId,
+		string permissionKey
+	) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+		await dbContext.ProfilePermission.AddAsync(new ProfilePermission {
+			ProfileId = profileId,
+			PermissionKey = permissionKey,
+		});
+		await dbContext.SaveChangesAsync();
+	}
+
 	private async Task<Profile> GetProfileAsync(Guid profileId) {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -694,5 +724,8 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		public string? Tone { get; init; }
 		public bool IsDefault { get; init; }
 		public int UserAccountCount { get; init; }
+		public int PermissionsCount { get; init; }
+		public DateTime CreatedAt { get; init; }
+		public DateTime UpdatedAt { get; init; }
 	}
 }

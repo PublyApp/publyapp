@@ -346,6 +346,9 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 			Tone = profile.Tone,
 			IsDefault = profile.IsDefault,
 			UserAccountCount = 0,
+			PermissionsCount = validPermissionKeys.Count,
+			CreatedAt = profile.CreatedAt,
+			UpdatedAt = profile.UpdatedAt,
 		};
 
 		return new CreateTenantProfileResult.Success(
@@ -433,6 +436,12 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 			select uap.ProfileId
 		).CountAsync(cancellationToken);
 
+		var permissionsCount = await (
+			from profilePermission in _dbContext.ProfilePermission
+			where profilePermission.ProfileId == args.ProfileId
+			select profilePermission.ProfileId
+		).CountAsync(cancellationToken);
+
 		var updated = new TenantProfileItem {
 			Id = profile.GetRequiredId(),
 			Name = profile.Name,
@@ -441,6 +450,9 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 			Tone = profile.Tone,
 			IsDefault = profile.IsDefault,
 			UserAccountCount = userAccountCount,
+			PermissionsCount = permissionsCount,
+			CreatedAt = profile.CreatedAt,
+			UpdatedAt = profile.UpdatedAt,
 		};
 
 		return new UpdateTenantProfileResult.Success(updated, previousProfile);
