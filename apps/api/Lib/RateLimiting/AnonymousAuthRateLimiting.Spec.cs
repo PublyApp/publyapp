@@ -3,10 +3,16 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -172,6 +178,129 @@ public sealed class AnonymousAuthRateLimitingSpec
 
 		firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 		secondResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+	}
+
+	[Fact]
+	public async Task ItShouldScopeTheExpectedPolicyToEachAnonymousAuthWrite() {
+		await using var factory = CreateFactory(
+			perIpPermitLimit: 100,
+			perEmailPermitLimit: 100,
+			passwordResetPerEmailPermitLimit: 100
+		);
+		var endpoints = factory.Services
+			.GetRequiredService<EndpointDataSource>()
+			.Endpoints;
+
+		AssertPolicy(
+			endpoints,
+			AppRoutes.Auth.Login,
+			AnonymousAuthRateLimitPolicies.PerEmail
+		);
+		AssertPolicy(
+			endpoints,
+			AppRoutes.Auth.Register,
+			AnonymousAuthRateLimitPolicies.PerEmail
+		);
+		AssertPolicy(
+			endpoints,
+			AppRoutes.Auth.VerifyEmailRequest,
+			AnonymousAuthRateLimitPolicies
+				.PasswordResetPerEmail
+		);
+		AssertPolicy(
+			endpoints,
+			AppRoutes.Auth.RequestPasswordReset,
+			AnonymousAuthRateLimitPolicies
+				.PasswordResetPerEmail
+		);
+		AssertPolicy(
+			endpoints,
+			AppRoutes.Auth.ResetPassword,
+			AnonymousAuthRateLimitPolicies.PerIp
+		);
+		AssertPolicy(
+			endpoints,
+			AppRoutes.Invitations.Anonymous.AcceptByToken,
+			AnonymousAuthRateLimitPolicies.PerIp
+		);
+
+		var authenticatedEndpoint = GetRouteEndpoint(
+			endpoints,
+			AppRoutes.Auth.GetUserAuthData
+		);
+		authenticatedEndpoint.Metadata
+			.GetMetadata<EnableRateLimitingAttribute>()
+			.Should().BeNull();
+	}
+
+	[Fact]
+	public async Task ItShouldIgnoreForwardedForFromAnUntrustedPeer() {
+		await using var factory = CreateFactory(
+			perIpPermitLimit: 100,
+			perEmailPermitLimit: 100,
+			passwordResetPerEmailPermitLimit: 100
+		);
+		var options = factory.Services
+			.GetRequiredService<
+				IOptions<ForwardedHeadersOptions>>()
+			.Value;
+		var untrustedPeer = IPAddress.Parse(
+			"198.51.100.40"
+		);
+		var spoofedClient = IPAddress.Parse(
+			"203.0.113.40"
+		);
+		var context = new DefaultHttpContext();
+		context.Connection.RemoteIpAddress =
+			untrustedPeer;
+		context.Request.Headers[
+			"X-Forwarded-For"
+		] = spoofedClient.ToString();
+
+		using var loggerFactory = LoggerFactory.Create(
+			_ => { }
+		);
+		var middleware = new ForwardedHeadersMiddleware(
+			_ => Task.CompletedTask,
+			loggerFactory,
+			Options.Create(options)
+		);
+
+		await middleware.Invoke(context);
+
+		options.ForwardedHeaders.Should()
+			.HaveFlag(ForwardedHeaders.XForwardedFor);
+		context.Connection.RemoteIpAddress.Should()
+			.Be(untrustedPeer);
+	}
+
+	private static void AssertPolicy(
+		IReadOnlyList<Endpoint> endpoints,
+		string routePattern,
+		string expectedPolicy
+	) {
+		var endpoint = GetRouteEndpoint(
+			endpoints,
+			routePattern
+		);
+		var metadata = endpoint.Metadata
+			.GetMetadata<EnableRateLimitingAttribute>();
+
+		metadata.Should().NotBeNull();
+		Assert.NotNull(metadata);
+		metadata.PolicyName.Should().Be(expectedPolicy);
+	}
+
+	private static RouteEndpoint GetRouteEndpoint(
+		IReadOnlyList<Endpoint> endpoints,
+		string routePattern
+	) {
+		return endpoints
+			.OfType<RouteEndpoint>()
+			.Single(endpoint =>
+				endpoint.RoutePattern.RawText
+					== routePattern
+			);
 	}
 
 	private WebApplicationFactory<Program> CreateFactory(
