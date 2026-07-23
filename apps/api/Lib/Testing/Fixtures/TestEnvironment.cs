@@ -163,6 +163,23 @@ namespace PublyApp.Api.Lib.Testing.Fixtures {
 					"STAFF_OWNER_BOOTSTRAP_CODE",
 					"test-bootstrap-code"
 				);
+				// Large integration-spec classes share one API host and
+				// legitimately log in more often than production limits
+				// allow. Keep their setup traffic isolated from rate-limit
+				// state; AnonymousAuthRateLimitingSpec replaces these
+				// settings with deliberately small limits.
+				Environment.SetEnvironmentVariable(
+					"ANON_AUTH_IP_RATE_LIMIT_PERMIT_LIMIT",
+					"10000"
+				);
+				Environment.SetEnvironmentVariable(
+					"ANON_AUTH_EMAIL_RATE_LIMIT_PERMIT_LIMIT",
+					"10000"
+				);
+				Environment.SetEnvironmentVariable(
+					"PASSWORD_RESET_EMAIL_RATE_LIMIT_PERMIT_LIMIT",
+					"10000"
+				);
 
 				// 4. Initialize AppEnvironment singleton BEFORE any
 				//    AppDbContext is created (OnModelCreating
