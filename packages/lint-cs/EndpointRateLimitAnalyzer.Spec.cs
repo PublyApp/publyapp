@@ -490,6 +490,67 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 
 	[Fact]
 	public async Task
+	ItShouldAnalyzeSiblingReturnsCallingTheSameTerminalHelper() {
+		const string source = """
+			using Microsoft.AspNetCore.Builder;
+
+			var app = new RouteBuilder();
+			app.{|#0:MapConditional|}(true);
+
+			static class ConditionalEndpointExtensions
+			{
+				public static RouteHandlerBuilder MapConditional(
+					this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder,
+					bool first
+				)
+				{
+					if (first)
+					{
+						return builder.MapInner()
+							.WithGlobalRateLimitOnly();
+					}
+
+					return builder.MapInner()
+						.WithGlobalRateLimitOnly();
+				}
+
+				private static RouteHandlerBuilder MapInner(
+					this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder
+				) => builder.MapGet("/inner", () => { })
+					.WithGlobalRateLimitOnly();
+			}
+			""";
+
+		await VerifyAsync(
+			source,
+			Verifier
+				.Diagnostic(DiagnosticIds.PUBLY0011)
+				.WithLocation(0)
+				.WithArguments("MapConditional")
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldDeferSelfRecursiveMappingHelpers() {
+		const string source = """
+			using Microsoft.AspNetCore.Builder;
+
+			var app = new RouteBuilder();
+			app.MapRecursive();
+
+			static class RecursiveEndpointExtensions
+			{
+				public static RouteHandlerBuilder MapRecursive(
+					this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder
+				) => builder.MapRecursive();
+			}
+			""";
+
+		await VerifyAsync(source);
+	}
+
+	[Fact]
+	public async Task
 	ItShouldIgnoreMapNamedRouteGroupHelpersReturningAnInterface() {
 		const string source = """
 			using Microsoft.AspNetCore.Builder;

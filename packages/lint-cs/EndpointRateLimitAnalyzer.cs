@@ -414,7 +414,10 @@ public sealed class EndpointRateLimitAnalyzer
 					routeHandlerBuilderType,
 					compilation,
 					cancellationToken,
-					visited
+					new HashSet<ISymbol>(
+						visited,
+						SymbolEqualityComparer.Default
+					)
 				);
 			if (
 				returnTerminality
