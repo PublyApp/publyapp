@@ -8,6 +8,7 @@ COPY apps/api ./apps/api
 COPY packages/lint-cs ./packages/lint-cs
 COPY packages/scripts-cs ./packages/scripts-cs
 COPY packages/shared-ts/lib/i18n/json/response-message.en.json ./packages/shared-ts/lib/i18n/json/response-message.en.json
+COPY packages/shared-ts/lib/profile-style/tenant-profile-icons.json ./packages/shared-ts/lib/profile-style/tenant-profile-icons.json
 
 RUN dotnet tool restore
 RUN cd apps/api \
