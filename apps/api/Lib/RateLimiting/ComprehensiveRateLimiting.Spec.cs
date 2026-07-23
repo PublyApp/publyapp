@@ -366,6 +366,27 @@ public sealed class ComprehensiveRateLimitingSpec
 
 	[Fact]
 	public async Task
+	ItShouldExhaustAnonymousOtherThroughConfiguredOnRejected() {
+		await using var factory = CreateFactory(
+			anonymousOtherPermitLimit: 1
+		);
+		using var client = CreateClient(factory);
+
+		using var firstResponse = await client.GetAsync(
+			AppRoutes.SystemNotices.Anonymous.GetActive
+		);
+		using var rejectedResponse = await client.GetAsync(
+			AppRoutes.SystemNotices.Anonymous.GetActive
+		);
+
+		firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+		await AssertRateLimitedResponseAsync(
+			rejectedResponse
+		);
+	}
+
+	[Fact]
+	public async Task
 	ItShouldExhaustTheHeavySearchPolicyThroughHttpRequests() {
 		await using var factory = CreateFactory(
 			heavySearchPermitLimit: 1
@@ -415,6 +436,81 @@ public sealed class ComprehensiveRateLimitingSpec
 		using var rejectedResponse =
 			await SendBulkSuspendAsync(
 				client,
+				token
+			);
+
+		firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+		await AssertRateLimitedResponseAsync(
+			rejectedResponse
+		);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldExhaustTheTenantBulkPolicyThroughHttpRequests() {
+		await using var factory = CreateFactory(
+			tenantBulkPermitLimit: 1
+		);
+		using var client = CreateClient(factory);
+		var token = await new TestAuthClient(client)
+			.LoginAsStaffAdminAsync();
+		var tenantId =
+			await TenantTestHelper.GetTenantIdByNameAsync(
+				client,
+				token,
+				SeedConstants.Tenants.AcmeName
+			);
+
+		using var firstResponse =
+			await SendTenantBulkRemoveAsync(
+				client,
+				token,
+				tenantId
+			);
+		using var rejectedResponse =
+			await SendTenantBulkRemoveAsync(
+				client,
+				token,
+				tenantId
+			);
+
+		firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+		await AssertRateLimitedResponseAsync(
+			rejectedResponse
+		);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldExhaustTheTenantExportPolicyThroughHttpRequests() {
+		await using var factory = CreateFactory(
+			tenantExportPermitLimit: 1
+		);
+		using var client = CreateClient(factory);
+		var token = await new TestAuthClient(client)
+			.LoginAsStaffAdminAsync();
+		var tenantId =
+			await TenantTestHelper.GetTenantIdByNameAsync(
+				client,
+				token,
+				SeedConstants.Tenants.AcmeName
+			);
+		var path = PathUtils.Join(
+			AppRoutes.Staff.Root,
+			AppRoutes.Users.ForTenantAsStaff.ExportFn(
+				tenantId.ToString("D")
+			)
+		);
+
+		using var firstResponse = await SendAuthenticatedAsync(
+			client,
+			path,
+			token
+		);
+		using var rejectedResponse =
+			await SendAuthenticatedAsync(
+				client,
+				path,
 				token
 			);
 
@@ -529,19 +625,18 @@ public sealed class ComprehensiveRateLimitingSpec
 	private WebApplicationFactory<Program> CreateFactory(
 		int globalPermitLimit = 100,
 		int anonymousPermitLimit = 100,
+		int anonymousOtherPermitLimit = 100,
 		int authenticatedPermitLimit = 100,
 		int exportPermitLimit = 100,
+		int tenantExportPermitLimit = 100,
 		int emailPermitLimit = 100,
 		int tenantEmailPermitLimit = 100,
 		int heavySearchPermitLimit = 100,
 		int bulkPermitLimit = 100,
+		int tenantBulkPermitLimit = 100,
 		int uploadPermitLimit = 100,
 		ISessionService? sessionService = null
 	) {
-		var generous = new RateLimitWindowSettings(
-			100,
-			LongWindowSeconds
-		);
 		var anonymousSettings =
 			new AnonymousAuthRateLimitSettings(
 				PerIp: new RateLimitWindowSettings(
@@ -563,7 +658,10 @@ public sealed class ComprehensiveRateLimitingSpec
 				globalPermitLimit,
 				LongWindowSeconds
 			),
-			AnonymousOther: generous,
+			AnonymousOther: new RateLimitWindowSettings(
+				anonymousOtherPermitLimit,
+				LongWindowSeconds
+			),
 			Authenticated: new RateLimitWindowSettings(
 				authenticatedPermitLimit,
 				LongWindowSeconds
@@ -576,7 +674,10 @@ public sealed class ComprehensiveRateLimitingSpec
 				bulkPermitLimit,
 				LongWindowSeconds
 			),
-			TenantBulk: generous,
+			TenantBulk: new RateLimitWindowSettings(
+				tenantBulkPermitLimit,
+				LongWindowSeconds
+			),
 			Email: new RateLimitWindowSettings(
 				emailPermitLimit,
 				LongWindowSeconds
@@ -589,7 +690,10 @@ public sealed class ComprehensiveRateLimitingSpec
 				exportPermitLimit,
 				LongWindowSeconds
 			),
-			TenantExport: generous,
+			TenantExport: new RateLimitWindowSettings(
+				tenantExportPermitLimit,
+				LongWindowSeconds
+			),
 			Upload: new RateLimitWindowSettings(
 				uploadPermitLimit,
 				LongWindowSeconds
@@ -768,6 +872,31 @@ public sealed class ComprehensiveRateLimitingSpec
 				AppRoutes.Staff.Root,
 				AppRoutes.Users.ForStaff.Root,
 				AppRoutes.Users.ForStaff.BulkSuspend
+			)
+		) {
+			Content = JsonContent.Create(new {
+				userIds = new[] {
+					Guid.NewGuid(),
+				},
+			}),
+		}.WithSessionToken(token);
+		return await client.SendAsync(request);
+	}
+
+	private static async Task<HttpResponseMessage>
+		SendTenantBulkRemoveAsync(
+			HttpClient client,
+			string token,
+			Guid tenantId
+		) {
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			PathUtils.Join(
+				AppRoutes.Staff.Root,
+				AppRoutes.Users.ForTenantAsStaff
+					.BulkRemoveFn(
+						tenantId.ToString("D")
+					)
 			)
 		) {
 			Content = JsonContent.Create(new {
