@@ -207,6 +207,28 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 	}
 
 	[Fact]
+	public async Task
+	ItShouldRejectEndpointDisableOverridingAnInheritedNamedPolicy() {
+		const string source = """
+			using Microsoft.AspNetCore.Builder;
+
+			var app = new RouteBuilder();
+			var group = app.MapGroup("/staff")
+				.RequireRateLimiting("authenticated-default");
+			group.{|#0:MapGet|}("/users", () => { })
+				.DisableRateLimiting();
+			""";
+
+		await VerifyAsync(
+			source,
+			Verifier
+				.Diagnostic(DiagnosticIds.PUBLY0011)
+				.WithLocation(0)
+				.WithArguments("MapGet")
+		);
+	}
+
+	[Fact]
 	public async Task ItShouldRejectAnOptOutMarkerWithABlankReason() {
 		const string source = """
 			using Microsoft.AspNetCore.Builder;

@@ -98,6 +98,24 @@ public sealed class EndpointRateLimitAnalyzer
 
 		var chainRoot = GetFluentChainRoot(invocation);
 		if (
+			HasDisableRateLimiting(chainRoot)
+			&& !HasReasonedOptOut(
+				chainRoot,
+				context.SemanticModel,
+				context.CancellationToken
+			)
+		) {
+			context.ReportDiagnostic(
+				Diagnostic.Create(
+					DiagnosticCatalog.EndpointRateLimit,
+					memberAccess.Name.GetLocation(),
+					methodName
+				)
+			);
+			return;
+		}
+
+		if (
 			HasDisposition(
 				chainRoot,
 				context.SemanticModel,
@@ -128,6 +146,37 @@ public sealed class EndpointRateLimitAnalyzer
 				methodName
 			)
 		);
+	}
+
+	private static bool HasDisableRateLimiting(
+		SyntaxNode root
+	) {
+		return root
+			.DescendantNodesAndSelf()
+			.OfType<InvocationExpressionSyntax>()
+			.Any(invocation =>
+				GetInvokedMethodName(invocation)
+					== "DisableRateLimiting"
+			);
+	}
+
+	private static bool HasReasonedOptOut(
+		SyntaxNode root,
+		SemanticModel semanticModel,
+		CancellationToken cancellationToken
+	) {
+		return root
+			.DescendantNodesAndSelf()
+			.OfType<InvocationExpressionSyntax>()
+			.Any(invocation =>
+				GetInvokedMethodName(invocation)
+					== "WithRateLimitOptOut"
+				&& HasNonEmptyConstantReason(
+					invocation,
+					semanticModel,
+					cancellationToken
+				)
+			);
 	}
 
 	private static bool HasInheritedDisposition(

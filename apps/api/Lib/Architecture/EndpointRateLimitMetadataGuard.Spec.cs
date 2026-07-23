@@ -72,6 +72,27 @@ public sealed class EndpointRateLimitMetadataGuardSpec
 	}
 
 	[Fact]
+	public void
+	ItShouldRejectDisableOverridingAnInheritedNamedPolicyInTheRuntimeGuard() {
+		var builder = new RouteEndpointBuilder(
+			_ => Task.CompletedTask,
+			RoutePatternFactory.Parse("/disabled-policy"),
+			0
+		);
+		builder.Metadata.Add(
+			new EnableRateLimitingAttribute(
+				ApiRateLimitPolicies.AuthenticatedDefault
+			)
+		);
+		builder.Metadata.Add(
+			new DisableRateLimitingAttribute()
+		);
+
+		HasValidDisposition(builder.Build()).Should()
+			.BeFalse();
+	}
+
+	[Fact]
 	public void ItShouldObserveRealRouteGroupPolicyInheritance() {
 		var endpoint = GetRouteEndpoints()
 			.Single(route =>
@@ -101,6 +122,17 @@ public sealed class EndpointRateLimitMetadataGuardSpec
 	private static bool HasValidDisposition(
 		Endpoint endpoint
 	) {
+		var disabled = endpoint.Metadata
+			.GetMetadata<DisableRateLimitingAttribute>();
+		if (disabled is not null) {
+			var optOut = endpoint.Metadata
+				.GetMetadata<RateLimitOptOutMetadata>();
+			return optOut is not null
+				&& !string.IsNullOrWhiteSpace(
+					optOut.Reason
+				);
+		}
+
 		var namedPolicy = endpoint.Metadata
 			.GetMetadata<EnableRateLimitingAttribute>();
 		if (namedPolicy is not null) {
@@ -117,12 +149,6 @@ public sealed class EndpointRateLimitMetadataGuardSpec
 			return true;
 		}
 
-		var optOut = endpoint.Metadata
-			.GetMetadata<RateLimitOptOutMetadata>();
-		var disabled = endpoint.Metadata
-			.GetMetadata<DisableRateLimitingAttribute>();
-		return optOut is not null
-			&& !string.IsNullOrWhiteSpace(optOut.Reason)
-			&& disabled is not null;
+		return false;
 	}
 }
