@@ -53,6 +53,8 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string, options?: { count?: number }) => {
+			const normalize = (value: string): string =>
+				value.startsWith('common:') ? value.replace(/^common:/, '') : value;
 			const labels: Record<string, string> = {
 				'staff-invitations': 'Staff invitations',
 				'invite-users': 'Invite users',
@@ -74,7 +76,7 @@ vi.mock('react-i18next', () => ({
 				cancel: 'Cancel',
 			};
 
-			return labels[key] ?? key;
+			return labels[normalize(key)] ?? labels[key] ?? key;
 		},
 		i18n: {
 			language: 'en',

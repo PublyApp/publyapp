@@ -18,6 +18,15 @@ const mocks = vi.hoisted(() => ({
 	toastWarning: vi.fn(),
 }));
 
+vi.mock('react-i18next', () => ({
+	useTranslation: () => ({
+		t: (key: string) => {
+			const normalized = key.includes(':') ? key.split(':').at(-1)! : key;
+			return normalized;
+		},
+	}),
+}));
+
 vi.mock('@tanstack/react-router', () => ({
 	Link: ({
 		children,
@@ -53,7 +62,8 @@ vi.mock('~/lib/mutation-toast', () => ({
 
 import { createInvitationColumns } from './table-columns';
 
-const t = (key: string): string => key;
+const t = (key: string): string =>
+	key.startsWith('common:') ? key.replace(/^common:/, '') : key;
 
 const buildRow = (overrides: Record<string, unknown> = {}) => ({
 	id: 'invitation-1',

@@ -66,13 +66,14 @@ const toRows = (
 export const Route = createFileRoute('/_authed-layout/staff/invitations')({
 	validateSearch: (search) =>
 		parseInvitationListSearchParams(search as InvitationListSearchParamInput),
+	staticData: { i18nNamespaces: ['staff-invitations'] },
 	component: StaffInvitationsPage,
 });
 
 function StaffInvitationsPage() {
 	const navigate = Route.useNavigate();
 	const search = Route.useSearch() as InvitationListSearchParams;
-	const { t, i18n } = useTranslation('common');
+	const { t, i18n } = useTranslation(['staff-invitations', 'common']);
 
 	const selectedStatuses = parseInvitationStatusFilter(search.status);
 
@@ -137,7 +138,7 @@ function StaffInvitationsPage() {
 
 	const statusFilterLabel =
 		selectedStatuses.length === 0
-			? t('all-statuses')
+			? t('common:all-statuses')
 			: selectedStatuses
 					.map((status) => t(getInvitationStatusLabelKey(status)))
 					.join(', ');
@@ -145,7 +146,7 @@ function StaffInvitationsPage() {
 	return (
 		<div className="publy-page-fill" data-testid="staff-invitations-list-page">
 			<PageHeader
-				title={t('staff-invitations')}
+				title={t('common:staff-invitations')}
 				description={t('invite-staff-users-to-the-platform')}
 				actions={
 					<Link
@@ -183,7 +184,7 @@ function StaffInvitationsPage() {
 								closeOnClick
 								onCheckedChange={() => setStatuses([])}
 							>
-								{t('all-statuses')}
+								{t('common:all-statuses')}
 							</DropdownMenuCheckboxItem>
 							{KNOWN_INVITATION_STATUSES.map((status) => (
 								<DropdownMenuCheckboxItem
@@ -200,7 +201,7 @@ function StaffInvitationsPage() {
 					</DropdownMenu>
 				}
 				testId="staff-invitations-table"
-				ariaLabel={t('staff-invitations')}
+				ariaLabel={t('common:staff-invitations')}
 				columns={columns}
 				rows={rows}
 				isPending={query.isPending}
@@ -228,15 +229,18 @@ function StaffInvitationsPage() {
 				selection={selection}
 				fileNamePrefix="staff-invitations"
 				columns={[
-					{ header: t('invitee'), getValue: (row) => row.email },
-					{ header: t('profiles'), getValue: (row) => row.profileName },
-					{ header: t('invited-by'), getValue: (row) => row.invitedByName },
+					{ header: t('common:invitee'), getValue: (row) => row.email },
+					{ header: t('common:profiles'), getValue: (row) => row.profileName },
 					{
-						header: t('status'),
+						header: t('common:invited-by'),
+						getValue: (row) => row.invitedByName,
+					},
+					{
+						header: t('common:status'),
 						getValue: (row) => t(getInvitationStatusLabelKey(row.status)),
 					},
 					{
-						header: t('expires'),
+						header: t('common:expires'),
 						getValue: (row) => formatDateTime(row.expiresAt, i18n.language),
 					},
 				]}

@@ -36,7 +36,10 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string) => {
+			const normalize = (value: string): string =>
+				value.includes(':') ? value.split(':').at(-1)! : value;
 			const labels: Record<string, string> = {
+				revoke: 'revoke',
 				'staff-invitations': 'Staff invitations',
 				'copy-link': 'Copy link',
 				resend: 'Resend',
@@ -71,7 +74,7 @@ vi.mock('react-i18next', () => ({
 				'try-again': 'Try again',
 			};
 
-			return labels[key] ?? key;
+			return labels[normalize(key)] ?? labels[key] ?? key;
 		},
 	}),
 }));
@@ -454,13 +457,11 @@ describe('StaffInvitationDetailsPage', () => {
 		);
 
 		renderPage();
+		const buttons = screen.getAllByRole('button');
+		expect(buttons.map((button) => button.textContent)).toContain('Revoke');
 		fireEvent.click(screen.getByRole('button', { name: 'Revoke' }));
-		await waitFor(() =>
-			expect(screen.getByText('revoke-invitation')).toBeTruthy(),
-		);
-		fireEvent.click(
-			screen.getAllByRole('button', { name: 'revoke' }).slice(-1)[0],
-		);
+		await waitFor(() => expect(screen.getByText('revoke')).toBeTruthy());
+		fireEvent.click(screen.getByText('revoke'));
 
 		await waitFor(() => expect(revoke).toHaveBeenCalledTimes(1));
 		await waitFor(() => expect(refetch).toHaveBeenCalledTimes(1));

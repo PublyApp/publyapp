@@ -61,16 +61,16 @@ describe('serializeInvitationListSearchParams', () => {
 describe('getInvitationStatusLabelKey', () => {
 	test('maps every known status to a translation key', () => {
 		expect(getInvitationStatusLabelKey('pending')).toBe(
-			'invitation-status-pending',
+			'staff-invitations:invitation-status-pending',
 		);
 		expect(getInvitationStatusLabelKey('accepted')).toBe(
-			'invitation-status-accepted',
+			'staff-invitations:invitation-status-accepted',
 		);
 		expect(getInvitationStatusLabelKey('expired')).toBe(
-			'invitation-status-expired',
+			'staff-invitations:invitation-status-expired',
 		);
 		expect(getInvitationStatusLabelKey('revoked')).toBe(
-			'invitation-status-revoked',
+			'staff-invitations:invitation-status-revoked',
 		);
 		expect(getInvitationStatusLabelKey('unknown')).toBe('unknown');
 	});
