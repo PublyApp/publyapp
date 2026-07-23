@@ -355,9 +355,9 @@ public static class AnonymousAuthRateLimitExtensions {
 				options.KnownIPNetworks.Clear();
 
 				// Traefik is the only trusted hop in
-				// production. The exact dokploy-network
-				// CIDR is deployment config: trusting
-				// arbitrary senders would let clients
+				// production. Trust its exact address
+				// or a dedicated proxy-only network:
+				// shared-network peers could otherwise
 				// forge X-Forwarded-For and evade limits.
 				foreach (
 					var cidr in AppEnvironment

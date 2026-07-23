@@ -107,10 +107,12 @@ inventory.
    A request whose recipient count does not fit is rejected before the handler sends or
    queues any email.
 
-`PUBLY0011` enforces the static registration rule during build: every mapped endpoint
-must declare or inherit a named policy, carry the global-only marker, or carry an
-opt-out marker with a reason. A runtime-metadata architecture spec separately builds the
-real route map and verifies that group-level policy metadata reached every endpoint.
+`PUBLY0011` enforces the static registration rule during build: every recognized mapped
+endpoint must declare or inherit a named policy, carry the global-only marker, or carry
+an opt-out marker with a reason. The startup guard then inspects the complete materialized
+route map and fails application boot if any endpoint is uncovered, names an unknown
+policy, or disables limiting without a reasoned opt-out. This runtime backstop also covers
+custom or future mapping helpers that static analyzer discovery does not recognize.
 
 The normal registration shape is:
 

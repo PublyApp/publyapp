@@ -250,6 +250,7 @@ public class Program {
 				"Health probes must remain available during request bursts"
 			);
 		app.MapNotFoundRoute();
+		app.ValidateEndpointRateLimitCoverage();
 	}
 
 	// Test-only scaffold proving TenantPermissionFilter's AccountLevel.Admin bypass
