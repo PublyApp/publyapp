@@ -49,6 +49,13 @@
 		<PackageReference Include="Bogus" />
 	</ItemGroup>
 
+	<ItemGroup>
+		<EmbeddedResource
+			Include="../../packages/shared-ts/lib/profile-style/tenant-profile-icons.json"
+			Link="Resources/tenant-profile-icons.json"
+			LogicalName="PublyApp.TenantProfileIcons.json" />
+	</ItemGroup>
+
 	<!-- Wire the analyzer assembly into the API build without making it a runtime dependency.
 	     OutputItemType="Analyzer" tells Roslyn to load the DLL as an in-process analyzer rather
 	     than adding it to the output/publish set. ReferenceOutputAssembly="false" ensures the

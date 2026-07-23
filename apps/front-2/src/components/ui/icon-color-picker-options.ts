@@ -18,66 +18,54 @@ import {
 } from '@tabler/icons-react';
 import type { Icon } from '@tabler/icons-react';
 
+import { TENANT_PROFILE_ICON_NAMES } from '@org/shared-ts/lib/profile-style/tenant-profile-icons';
+
 export type IconColorPickerOption = {
 	name: string;
 	labelKey: string;
 	Icon: Icon;
 };
 
-export const ICON_COLOR_PICKER_OPTIONS: readonly IconColorPickerOption[] = [
-	{
-		name: 'shield-check',
-		labelKey: 'profile-icon-shield-check',
-		Icon: IconShieldCheck,
-	},
-	{ name: 'key', labelKey: 'profile-icon-key', Icon: IconKey },
-	{ name: 'lock', labelKey: 'profile-icon-lock', Icon: IconLock },
-	{ name: 'star', labelKey: 'profile-icon-star', Icon: IconStar },
-	{
-		name: 'briefcase',
-		labelKey: 'profile-icon-briefcase',
-		Icon: IconBriefcase,
-	},
-	{
-		name: 'adjustments',
-		labelKey: 'profile-icon-adjustments',
-		Icon: IconAdjustments,
-	},
-	{
-		name: 'users-group',
-		labelKey: 'profile-icon-users-group',
-		Icon: IconUsersGroup,
-	},
-	{
-		name: 'settings',
-		labelKey: 'profile-icon-settings',
-		Icon: IconSettings,
-	},
-	{ name: 'pencil', labelKey: 'profile-icon-pencil', Icon: IconPencil },
-	{ name: 'photo', labelKey: 'profile-icon-photo', Icon: IconPhoto },
-	{
-		name: 'calendar',
-		labelKey: 'profile-icon-calendar',
-		Icon: IconCalendar,
-	},
-	{
-		name: 'chart-bar',
-		labelKey: 'profile-icon-chart-bar',
-		Icon: IconChartBar,
-	},
-	{
-		name: 'message',
-		labelKey: 'profile-icon-message',
-		Icon: IconMessage,
-	},
-	{ name: 'mail', labelKey: 'profile-icon-mail', Icon: IconMail },
-	{ name: 'world', labelKey: 'profile-icon-world', Icon: IconWorld },
-	{
-		name: 'building',
-		labelKey: 'profile-icon-building',
-		Icon: IconBuilding,
-	},
+const TENANT_PROFILE_ICON_COMPONENTS: readonly Icon[] = [
+	IconShieldCheck,
+	IconKey,
+	IconLock,
+	IconStar,
+	IconBriefcase,
+	IconAdjustments,
+	IconUsersGroup,
+	IconSettings,
+	IconPencil,
+	IconPhoto,
+	IconCalendar,
+	IconChartBar,
+	IconMessage,
+	IconMail,
+	IconWorld,
+	IconBuilding,
 ];
+
+if (
+	TENANT_PROFILE_ICON_NAMES.length !== TENANT_PROFILE_ICON_COMPONENTS.length
+) {
+	throw new Error(
+		'Tenant profile icon catalog and component map are out of sync',
+	);
+}
+
+export const ICON_COLOR_PICKER_OPTIONS: readonly IconColorPickerOption[] =
+	TENANT_PROFILE_ICON_NAMES.map((name, index) => {
+		const IconComponent = TENANT_PROFILE_ICON_COMPONENTS[index];
+		if (!IconComponent) {
+			throw new Error(`Missing tenant profile icon component for ${name}`);
+		}
+
+		return {
+			name,
+			labelKey: `profile-icon-${name}`,
+			Icon: IconComponent,
+		};
+	});
 
 export const DEFAULT_ICON_COLOR_PICKER_OPTION =
 	ICON_COLOR_PICKER_OPTIONS[0] as IconColorPickerOption;

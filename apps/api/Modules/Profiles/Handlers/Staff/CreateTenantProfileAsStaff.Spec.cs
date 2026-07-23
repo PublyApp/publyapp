@@ -241,7 +241,7 @@ public sealed class CreateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
-	public async Task ItShouldReturnUnprocessableEntityForInvalidIcon() {
+	public async Task ItShouldReturnUnprocessableEntityForUnsupportedIcon() {
 		var token = await _authClient.LoginAsStaffAdminAsync();
 		var tenantId = await GetTenantIdAsync();
 
@@ -251,7 +251,7 @@ public sealed class CreateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(new {
 			name = "Invalid Icon " + Guid.NewGuid().ToString("N")[..8],
-			icon = "Shield Check!",
+			icon = "address-book",
 		});
 
 		using var response = await _http.SendAsync(request);

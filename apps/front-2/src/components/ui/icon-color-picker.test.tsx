@@ -4,7 +4,10 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
+import { TENANT_PROFILE_ICON_NAMES } from '@org/shared-ts/lib/profile-style/tenant-profile-icons';
+
 import { IconColorPicker } from './icon-color-picker';
+import { ICON_COLOR_PICKER_OPTIONS } from './icon-color-picker-options';
 
 const translations: Record<string, string> = {
 	'choose-icon-and-color': 'Choose icon and color',
@@ -34,6 +37,12 @@ vi.mock('react-i18next', () => ({
 describe('IconColorPicker', () => {
 	afterEach(() => {
 		cleanup();
+	});
+
+	test('exposes every icon from the shared API catalog exactly once', () => {
+		expect(ICON_COLOR_PICKER_OPTIONS.map((option) => option.name)).toEqual(
+			TENANT_PROFILE_ICON_NAMES,
+		);
 	});
 
 	test('opens the popover and emits the selected tone with the current icon', () => {

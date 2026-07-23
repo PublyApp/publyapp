@@ -94,11 +94,9 @@ public class CreateTenantProfileAsStaffBodyValidator
 			.MustBePatchFieldStringWithMaxLength("Description", 500, trim: true);
 
 		RuleFor(x => x.Icon)
-			.MustBePatchFieldStringMatchingPattern(
+			.MustBePatchFieldStringInSet(
 				"Icon",
-				TenantProfileStyleValidationRules.IconMaxLength,
-				TenantProfileStyleValidationRules.IconPattern,
-				"be a lowercase Tabler icon name using letters, digits, and hyphens"
+				TenantProfileStyleValidationRules.Icons
 			);
 
 		RuleFor(x => x.Tone)
