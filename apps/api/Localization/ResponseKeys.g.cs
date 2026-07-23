@@ -60,6 +60,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey EmailAlreadyVerified = new("email-already-verified");
 
 	/// <summary>
+	/// This email verification link has expired
+	/// </summary>
+	public static readonly TranslationKey EmailVerificationTokenExpired = new("email-verification-token-expired");
+
+	/// <summary>
 	/// error loading {{item}}
 	/// </summary>
 	public static readonly TranslationKey ErrorLoadingItems = new("error-loading-items");
@@ -193,6 +198,11 @@ public static partial class ResponseKeys {
 	/// Password reset successfully
 	/// </summary>
 	public static readonly TranslationKey PasswordResetSuccess = new("password-reset-success");
+
+	/// <summary>
+	/// This password reset link has expired
+	/// </summary>
+	public static readonly TranslationKey PasswordResetTokenExpired = new("password-reset-token-expired");
 
 	/// <summary>
 	/// A pending invitation already exists for this email
