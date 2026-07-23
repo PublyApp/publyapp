@@ -14,6 +14,31 @@ Counters are process-local. A deployment with multiple API replicas receives the
 configured allowance independently on each replica; use a shared limiter before scaling
 when a strict deployment-wide cap is required.
 
+### Global-floor tuning and alerts
+
+The owner-tunable default is **6,000 requests per minute per resolved client IP**. It
+allows a 100-user office NAT roughly 60 API requests per user per minute while named
+session and work-class policies continue to constrain authenticated, expensive, and
+email-producing operations. This is a safety floor, not a normal per-user quota.
+
+Fixed windows can admit nearly twice the configured allowance across a window boundary.
+Capacity planning for the default must therefore tolerate a short burst approaching
+12,000 requests from one IP around a boundary. Before lowering the floor, replay a
+representative front-end load that includes initial navigation, parallel query prefetch,
+refocus refetches, and retry behavior behind a shared NAT.
+
+Track global-floor utilization and `429` responses separately from named-policy
+rejections. Alert for investigation when either condition is sustained for 15 minutes:
+
+- p95 legitimate per-IP utilization exceeds 70% of the configured global allowance;
+
+- global-floor `429` responses exceed 0.5% of non-health API requests.
+
+Raise the floor when known legitimate NAT partitions approach the utilization threshold
+without downstream saturation. Lower it only when capacity evidence supports the
+fixed-window boundary burst. Re-evaluate the number when API replica count, front-end
+request behavior, proxy topology, or expected office size changes.
+
 ## Audit matrix
 
 All permit limits and windows are environment-configurable through `AppEnvironment`.
@@ -22,7 +47,7 @@ shared integration-test hosts do not exhaust a partition accidentally.
 
 | Endpoint class | Policy | Default | Partition | Environment variables |
 |---|---|---:|---|---|
-| All API routes except health probes and `/files` | Global safety net | 1200 / 60s | Resolved client IP | `GLOBAL_RATE_LIMIT_PERMIT_LIMIT`, `GLOBAL_RATE_LIMIT_WINDOW_SECONDS` |
+| All API routes except health probes and `/files` | Global safety net | 6000 / 60s | Resolved client IP | `GLOBAL_RATE_LIMIT_PERMIT_LIMIT`, `GLOBAL_RATE_LIMIT_WINDOW_SECONDS` |
 | Anonymous login and registration | `anonymous-auth-per-email` | 30 / 60s IP + 30 / 60s email | Resolved client IP + normalized email | `ANON_AUTH_IP_RATE_LIMIT_PERMIT_LIMIT`, `ANON_AUTH_IP_RATE_LIMIT_WINDOW_SECONDS`, `ANON_AUTH_EMAIL_RATE_LIMIT_PERMIT_LIMIT`, `ANON_AUTH_EMAIL_RATE_LIMIT_WINDOW_SECONDS` |
 | Anonymous password-reset request and verification-email resend | `password-reset-per-email` | 30 / 60s IP + 3 / 900s email | Resolved client IP + normalized email | `ANON_AUTH_IP_RATE_LIMIT_PERMIT_LIMIT`, `ANON_AUTH_IP_RATE_LIMIT_WINDOW_SECONDS`, `PASSWORD_RESET_EMAIL_RATE_LIMIT_PERMIT_LIMIT`, `PASSWORD_RESET_EMAIL_RATE_LIMIT_WINDOW_SECONDS` |
 | Other anonymous auth actions: password-reset confirmation/token checks, email-verification confirmation/token checks, invitation acceptance | `anonymous-auth-per-ip` | 30 / 60s | Resolved client IP | `ANON_AUTH_IP_RATE_LIMIT_PERMIT_LIMIT`, `ANON_AUTH_IP_RATE_LIMIT_WINDOW_SECONDS` |

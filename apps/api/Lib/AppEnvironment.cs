@@ -479,7 +479,7 @@ public class AppEnvironment {
 				),
 				globalRateLimitPermitLimit: GetOptionalInt(
 					nameof(GLOBAL_RATE_LIMIT_PERMIT_LIMIT),
-					1_200
+					6_000
 				),
 				globalRateLimitWindowSeconds: GetOptionalInt(
 					nameof(GLOBAL_RATE_LIMIT_WINDOW_SECONDS),
