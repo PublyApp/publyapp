@@ -23,6 +23,8 @@ namespace PublyApp.Api.Migrations;
 public sealed class RepairOrphanedUserAccountProfileLinksSpec : IAsyncLifetime {
 	private const string PreviousMigrationId =
 		"20260712114851_AddTenantOrganizationProfileFields";
+	private const string RepairMigrationId =
+		"20260723175718_RepairOrphanedUserAccountProfileLinks";
 
 	private PostgresContainerFixture _containerFixture = null!;
 	private string _dbName = null!;
@@ -78,6 +80,9 @@ public sealed class RepairOrphanedUserAccountProfileLinksSpec : IAsyncLifetime {
 		var partitions = new[] {
 			MembershipPartition.Create("staff", 0, null, null, null),
 			MembershipPartition.Create("tenant", 1, tenantId, tenantId, null),
+			// The old composite index included tenant_id, while the replacement project
+			// uniqueness scope is user_id + project_id. A mismatched historical tenant_id
+			// therefore permits the legacy project duplicate without altering the old schema.
 			MembershipPartition.Create(
 				"project",
 				2,
@@ -101,7 +106,7 @@ public sealed class RepairOrphanedUserAccountProfileLinksSpec : IAsyncLifetime {
 			}
 		}
 
-		await migrator.MigrateAsync();
+		await migrator.MigrateAsync(RepairMigrationId);
 
 		await using var verifyConnection = new NpgsqlConnection(_connectionString);
 		await verifyConnection.OpenAsync();
@@ -166,7 +171,7 @@ public sealed class RepairOrphanedUserAccountProfileLinksSpec : IAsyncLifetime {
 			await SeedLegitimateStaffMembershipAsync(connection, accountId, profileId);
 		}
 
-		await migrator.MigrateAsync();
+		await migrator.MigrateAsync(RepairMigrationId);
 
 		await using var verifyConnection = new NpgsqlConnection(_connectionString);
 		await verifyConnection.OpenAsync();
