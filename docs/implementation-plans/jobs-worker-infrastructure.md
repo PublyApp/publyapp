@@ -5164,13 +5164,14 @@ document** — these are reconciliation work, not doc gaps.
 ### Ratification record
 
 **Status vocabulary.** Only decisions explicitly attributed to the owner below
-are **owner-ratified**. **O6–O31** are **author-decided, pending owner objection**
-— every O-item above except the owner-ratified O1–O5 (of which O1 and O4 are
-superseded); their mechanisms are implementation-authoritative meanwhile, but this
-record does not relabel silence as ratification. (O8 is listed after O9 above: it
-was added a round later and is kept in its original position so the round-1 record
-below still cites it accurately. The ordering is intentional, not a gap.) The
-"Known open items" table above is the short form of what this backlog costs.
+are **owner-ratified**. **O6–O31** are **author-decided, pending owner objection**;
+**O32** is separately owner-ratified by the 2026-07-17 #425 ruling. Of O1–O5,
+O1 and O4 are superseded. The O6–O31 mechanisms are
+implementation-authoritative meanwhile, but this record does not relabel silence
+as ratification. (O8 is listed after O9 above: it was added a round later and is
+kept in its original position so the round-1 record below still cites it
+accurately. The ordering is intentional, not a gap.) The "Known open items" table
+above is the short form of what this backlog costs.
 
 **How to read the chronological record below.** Each entry records the **state
 after that round; later entries may supersede it.** Entries are never rewritten to
@@ -6090,3 +6091,12 @@ converges: claim only what a type, a SQL predicate, a CHECK constraint, or a sav
 enforces — and when you cannot, write the weaker sentence that is true, or write the
 gap down where the next reader will find it.** §11's *Known open items* is the second
 half of that rule, applied to the six things this document does not close.
+
+**2026-07-17 (owner, #425 option B ruling):** Invitation expiration stays
+derived: invitations store an expiry timestamp, and expiration is computed at
+read time. The existing database CHECK constraint continues to forbid a persisted
+`Expired` status. There is no sweep job. A sweep would only write down a fact that
+is already computable and would be correct only until its next run; the derived
+value is correct the instant the deadline passes. Persisting the status would be
+justified only if directly querying or filtering expired invitations in SQL later
+becomes a requirement. #425 is closed as satisfied by the existing design.
