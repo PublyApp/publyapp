@@ -1137,7 +1137,6 @@ function StaffTenantProfilesPage() {
 
 			<ProfileFormDrawer
 				tenantId={tenantId}
-				mode="create"
 				isOpen={isCreateDrawerOpen}
 				onOpenChange={setCreateDrawerOpen}
 				onSessionExpired={() => setShouldRedirectToLogout(true)}

@@ -23,11 +23,8 @@ import {
 } from '~/lib/mutation-toast';
 import {
 	buildStaffTenantPermissionCatalogGroups,
-	useAssignStaffTenantProfilePermissionMutation,
 	useCreateStaffTenantProfileMutation,
 	useStaffTenantPermissionCatalogQuery,
-	useUnassignStaffTenantProfilePermissionMutation,
-	useUpdateStaffTenantProfileMutation,
 } from '~/lib/query/staff-tenant-profiles';
 import { invalidateAllStaffTenantScopes } from '~/lib/query/staff-tenants';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
@@ -72,71 +69,33 @@ const isProfileFormField = (
 ): field is (typeof PROFILE_FORM_FIELDS)[number] =>
 	PROFILE_FORM_FIELDS.some((candidate) => candidate === field);
 
-const LOCAL_PERMISSION_META = {
-	silentSuccess: true,
-	skipGlobalErrorHandler: true,
-} as const;
-
 const toStringArray = (value: unknown): string[] =>
 	Array.isArray(value)
 		? value.filter((item): item is string => typeof item === 'string')
 		: [];
 
-const getProfileFormValues = (
-	profile?: ProfileFormDrawerProfile,
-): ProfileFormValues => {
-	const style = deriveTenantProfileCardStyle(
-		profile?.name ?? '',
-		profile?.icon,
-		profile?.tone,
-	);
+const getProfileFormValues = (): ProfileFormValues => {
+	const style = deriveTenantProfileCardStyle('');
 
 	return {
-		name: profile?.name ?? '',
-		description: profile?.description ?? '',
+		name: '',
+		description: '',
 		icon: style.icon,
 		tone: style.tone,
-		permissionKeys: profile?.permissionKeys ?? [],
+		permissionKeys: [],
 	};
-};
-
-const countPermissionChanges = (
-	baselineValue: string[],
-	value: string[],
-): number => {
-	const baseline = new Set(baselineValue);
-	const selected = new Set(value);
-
-	return (
-		baselineValue.filter((key) => !selected.has(key)).length +
-		value.filter((key) => !baseline.has(key)).length
-	);
-};
-
-export type ProfileFormDrawerProfile = {
-	id: string;
-	name: string;
-	description: string | null;
-	icon?: string | null;
-	tone?: string | null;
-	memberCount: number;
-	permissionKeys: string[];
 };
 
 export const ProfileFormDrawer = ({
 	tenantId,
-	mode,
 	isOpen,
-	profile,
 	onOpenChange,
 	onSaved,
 	onSessionExpired,
 	onDirtyChange,
 }: {
 	tenantId: string;
-	mode: 'create' | 'edit';
 	isOpen: boolean;
-	profile?: ProfileFormDrawerProfile;
 	onOpenChange: (isOpen: boolean) => void;
 	onSaved: (profileId: string) => void;
 	onSessionExpired: () => void;
@@ -156,13 +115,6 @@ export const ProfileFormDrawer = ({
 		language: i18n.language,
 	});
 	const createProfile = useCreateStaffTenantProfileMutation();
-	const updateProfile = useUpdateStaffTenantProfileMutation();
-	const assignPermission = useAssignStaffTenantProfilePermissionMutation(
-		LOCAL_PERMISSION_META,
-	);
-	const unassignPermission = useUnassignStaffTenantProfilePermissionMutation(
-		LOCAL_PERMISSION_META,
-	);
 
 	const groups = buildStaffTenantPermissionCatalogGroups(
 		catalogQuery.data?.additionalData,
@@ -185,9 +137,6 @@ export const ProfileFormDrawer = ({
 	const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
 	const icon = useWatch({ control: methods.control, name: 'icon' });
 	const tone = useWatch({ control: methods.control, name: 'tone' });
-	const permissionKeys = toStringArray(
-		useWatch({ control: methods.control, name: 'permissionKeys' }),
-	);
 
 	useEffect(() => {
 		if (!isOpen) {
@@ -195,27 +144,19 @@ export const ProfileFormDrawer = ({
 		}
 
 		setIsDiscardConfirmOpen(false);
-		reset(getProfileFormValues(mode === 'edit' ? profile : undefined));
-		// Re-seeds only when the drawer opens or the target profile changes —
-		// `profile` is rebuilt every render by the parent, so depending on its
-		// identity would reset unsaved edits on any background refetch.
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [isOpen, mode, profile?.id, reset]);
+		reset(getProfileFormValues());
+	}, [isOpen, reset]);
 
 	useEffect(() => {
 		onDirtyChange?.(isDirty);
 	}, [isDirty, onDirtyChange]);
 
-	const isSaving = createProfile.isPending || updateProfile.isPending;
+	const isSaving = createProfile.isPending;
 	const isFormLocked = isSaving || isSubmitting;
-	const permissionChangeCount =
-		mode === 'edit' && profile
-			? countPermissionChanges(profile.permissionKeys, permissionKeys)
-			: 0;
 
 	// tenants-r6-F3: every close path (Escape, backdrop click, Cancel, and
 	// browser back — all funneled through Base UI's `onOpenChange`) must
-	// confirm before discarding a dirty create/edit form.
+	// confirm before discarding a dirty create form.
 	const requestClose = () => {
 		if (isDirty) {
 			setIsDiscardConfirmOpen(true);
@@ -271,115 +212,30 @@ export const ProfileFormDrawer = ({
 	const onSubmit = methods.handleSubmit(async (values) => {
 		methods.clearErrors('root');
 
-		if (mode === 'create') {
-			let result;
-			try {
-				result = await createProfile.mutateAsync({
-					tenantId,
-					name: values.name,
-					description: values.description,
-					icon: values.icon,
-					tone: values.tone,
-					permissionKeys: values.permissionKeys,
-				});
-			} catch (error) {
-				await handleProfileSaveFailure(error);
-				return;
-			}
-
-			await invalidateProfileQueries();
-			toastLocalMutationResult.success(t('profile-created-successfully'));
-
-			const profileId = result?.profile?.id?.toString().trim();
-			// A successful submit must never trip the parent's nav guard on
-			// the navigation `onSaved` performs next.
-			onDirtyChange?.(false);
-			onSaved(profileId ?? '');
-			return;
-		}
-
-		if (!profile) {
-			return;
-		}
-
+		let result;
 		try {
-			await updateProfile.mutateAsync({
+			result = await createProfile.mutateAsync({
 				tenantId,
-				profileId: profile.id,
 				name: values.name,
 				description: values.description,
 				icon: values.icon,
 				tone: values.tone,
+				permissionKeys: values.permissionKeys,
 			});
 		} catch (error) {
 			await handleProfileSaveFailure(error);
 			return;
 		}
 
-		const initialKeys = new Set(profile.permissionKeys);
-		const nextKeys = new Set(values.permissionKeys);
-		const keysToAssign = values.permissionKeys.filter(
-			(key) => !initialKeys.has(key),
-		);
-		const keysToUnassign = profile.permissionKeys.filter(
-			(key) => !nextKeys.has(key),
-		);
-
-		const permissionResults = await Promise.allSettled([
-			...keysToAssign.map((permissionKey) =>
-				assignPermission.mutateAsync({
-					tenantId,
-					profileId: profile.id,
-					permissionKey,
-				}),
-			),
-			...keysToUnassign.map((permissionKey) =>
-				unassignPermission.mutateAsync({
-					tenantId,
-					profileId: profile.id,
-					permissionKey,
-				}),
-			),
-		]);
-		const rejectedResults = permissionResults.filter(
-			(result): result is PromiseRejectedResult => result.status === 'rejected',
-		);
-
-		if (
-			rejectedResults.some((result) => shouldLogoutForFailure(result.reason))
-		) {
-			onSessionExpired();
-			return;
-		}
-
-		const visibleFailures = rejectedResults.filter(
-			(result) => toApiFailure(result.reason).kind !== 'abort',
-		);
 		await invalidateProfileQueries();
+		toastLocalMutationResult.success(t('profile-created-successfully'));
 
-		if (visibleFailures.length > 0) {
-			methods.setError('root.server', {
-				type: 'server',
-				message: t('tenant-profile-permission-update-partial-success', {
-					succeeded: permissionResults.filter(
-						(result) => result.status === 'fulfilled',
-					).length,
-					failed: visibleFailures.length,
-				}),
-			});
-			return;
-		}
-
-		if (rejectedResults.length > 0) {
-			return;
-		}
-
-		toastLocalMutationResult.success(t('profile-updated-successfully'));
+		const profileId = result?.profile?.id?.toString().trim();
+		// A successful submit must never trip the parent's nav guard on
+		// the navigation `onSaved` performs next.
 		onDirtyChange?.(false);
-		onSaved(profile.id);
+		onSaved(profileId ?? '');
 	});
-
-	const title = mode === 'create' ? t('new-profile') : t('edit-profile');
 
 	return (
 		<Drawer
@@ -399,14 +255,9 @@ export const ProfileFormDrawer = ({
 		>
 			<DrawerContent data-testid="profile-form-drawer">
 				<DrawerHeader>
-					<DrawerTitle>{title}</DrawerTitle>
+					<DrawerTitle>{t('new-profile')}</DrawerTitle>
 					<DrawerDescription>
-						{mode === 'edit' && profile
-							? tProfiles('profile-edit-subtitle', {
-									name: profile.name,
-									count: profile.memberCount,
-								})
-							: t('profile-form-drawer-description')}
+						{t('profile-form-drawer-description')}
 					</DrawerDescription>
 				</DrawerHeader>
 				<Form methods={methods} onSubmit={onSubmit}>
@@ -471,9 +322,7 @@ export const ProfileFormDrawer = ({
 											groups={groups}
 											value={toStringArray(field.value)}
 											onChange={field.onChange}
-											baselineValue={
-												mode === 'edit' ? profile?.permissionKeys : []
-											}
+											baselineValue={[]}
 											disabled={isFormLocked}
 										/>
 									</div>
@@ -496,16 +345,6 @@ export const ProfileFormDrawer = ({
 						) : null}
 					</DrawerBody>
 					<DrawerFooter>
-						{mode === 'edit' ? (
-							<p
-								className="mr-auto text-sm text-muted-foreground"
-								aria-live="polite"
-							>
-								{tProfiles('profile-permissions-changed', {
-									count: permissionChangeCount,
-								})}
-							</p>
-						) : null}
 						<Button
 							type="button"
 							variant="ghost"
@@ -515,7 +354,7 @@ export const ProfileFormDrawer = ({
 							{t('cancel')}
 						</Button>
 						<Button type="submit" disabled={isFormLocked}>
-							{mode === 'create' ? t('create-profile') : t('save-changes')}
+							{t('create-profile')}
 						</Button>
 					</DrawerFooter>
 				</Form>
