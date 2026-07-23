@@ -361,7 +361,7 @@ const StaffTenantProfileMembersPage = () => {
 				<Tabs value="members" className="min-h-0 flex-1">
 					<TabsList
 						variant="line"
-						aria-label={t('profile-sections')}
+						aria-label={t('staff-tenant-profiles:profile-sections')}
 						className="shrink-0"
 					>
 						<TabsTrigger

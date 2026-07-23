@@ -67,7 +67,7 @@ const TRANSLATIONS: Record<string, string> = {
 	'status-active': 'Active',
 	'status-suspended': 'Suspended',
 	'status-globally-suspended': 'Globally suspended',
-	'profile-sections': 'Profile sections',
+	'staff-tenant-profiles:profile-sections': 'Profile sections',
 	'assign-members': 'Assign members',
 	'profile-members-tab-description':
 		'People currently assigned to this profile.',
