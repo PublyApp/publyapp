@@ -142,25 +142,29 @@ public sealed class ExportTenantUsersAsStaff {
 			);
 		}
 
+		var maxRows = AppEnvironment.Instance.TENANT_USER_EXPORT_MAX_ROWS;
 		var exportArgs = new ExportTenantUsersArgs(
 			Search: query.GetSearchNormalized(),
 			Status: query.GetStatusesOrNull(),
 			Level: query.GetLevelsOrNull(),
-			Ids: query.GetIdsOrNull()
+			Ids: query.GetIdsOrNull(),
+			Limit: maxRows + 1
 		);
 
-		var rowCount = await tenantUserQueryService.CountForExportAsync(
+		var items = await tenantUserQueryService.FindExportRowsAsync(
 			tenantIdGuid,
 			exportArgs,
 			cancellationToken
 		);
 
-		if (rowCount > AppEnvironment.Instance.TENANT_USER_EXPORT_MAX_ROWS) {
+		if (items.Count > maxRows) {
 			return TypedProblems.BadRequest(
 				"Export exceeds the maximum row limit. Please narrow your filters.",
 				ResponseKeys.BadRequest
 			);
 		}
+
+		var rowCount = items.Count;
 
 		// Exporting emails/names/etc. for every matching user is a PII bulk-read;
 		// audit it before streaming starts. A failed audit write must never block
@@ -197,24 +201,17 @@ public sealed class ExportTenantUsersAsStaff {
 		httpContext.Response.Headers.ContentDisposition =
 			$"attachment; filename=\"{fileName}\"";
 
-		var items = tenantUserQueryService.ExportAsync(
-			tenantIdGuid,
-			exportArgs,
-			cancellationToken
-		);
-
 		await WriteCsvAsync(httpContext, items, cancellationToken);
 
 		return Results.Empty;
 	}
 
-	// Public (not private) so the mid-stream-failure abort path can be exercised
-	// directly by a unit test with a fake IAsyncEnumerable and a fake
-	// IHttpRequestLifetimeFeature — TestServer cannot make ExportAsync's real
-	// EF Core enumeration throw mid-stream.
+	// Public (not private) so the response-write failure abort path can be
+	// exercised directly with a throwing enumerable and a fake
+	// IHttpRequestLifetimeFeature.
 	public static async Task WriteCsvAsync(
 		HttpContext httpContext,
-		IAsyncEnumerable<TenantUserExportItem> items,
+		IEnumerable<TenantUserExportItem> items,
 		CancellationToken cancellationToken
 	) {
 		await using var writer = new StreamWriter(httpContext.Response.Body, Encoding.UTF8, leaveOpen: true);
@@ -222,7 +219,8 @@ public sealed class ExportTenantUsersAsStaff {
 		try {
 			await writer.WriteLineAsync("Email,FirstName,LastName,Level,Status,CreatedAt");
 
-			await foreach (var item in items.WithCancellation(cancellationToken)) {
+			foreach (var item in items) {
+				cancellationToken.ThrowIfCancellationRequested();
 				var line = string.Join(",",
 					EscapeCsv(item.Email),
 					EscapeCsv(item.FirstName ?? ""),

@@ -1,6 +1,8 @@
 
 using System.Net;
 using System.Reflection;
+using System.Text;
+using System.Text.Json;
 
 using FluentAssertions;
 
@@ -8,6 +10,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
@@ -17,6 +20,7 @@ using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.AuditLogs.Entities;
+using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 using PublyApp.Api.Modules.Users.Services;
@@ -445,9 +449,9 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	}
 
 	// WriteCsvAsync's mid-stream failure path (r2 F6) cannot be exercised through
-	// a real HTTP round-trip: TestServer has no way to make ExportAsync's EF Core
+	// a real HTTP round-trip: TestServer has no way to make the buffered row
 	// enumeration throw after rows have already been written. Call the (public)
-	// streaming method directly with a throwing IAsyncEnumerable and a fake
+	// streaming method directly with a throwing enumerable and a fake
 	// IHttpRequestLifetimeFeature so the abort behavior is actually pinned.
 	[Fact]
 	public async Task ItShouldAbortTheConnectionWhenTheExportEnumerationThrowsMidStream() {
@@ -461,7 +465,7 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 
 		var act = async () => await ExportTenantUsersAsStaff.WriteCsvAsync(
 			httpContext,
-			ThrowingExportItemsAsync(),
+			ThrowingExportItems(),
 			CancellationToken.None
 		);
 
@@ -471,14 +475,13 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private static async IAsyncEnumerable<TenantUserExportItem> ThrowingExportItemsAsync() {
+	private static IEnumerable<TenantUserExportItem> ThrowingExportItems() {
 		yield return new TenantUserExportItem {
 			Email = "first-row@example.com",
 			Level = "User",
 			Status = "Active",
 			CreatedAt = DateTime.UtcNow,
 		};
-		await Task.Yield();
 		throw new InvalidOperationException("Simulated mid-stream enumeration failure");
 	}
 
@@ -512,6 +515,95 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 			using var response = await _http.SendAsync(request);
 			response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 		} finally {
+			SetExportMaxRows(originalLimit);
+		}
+	}
+
+	[Fact]
+	public async Task ItShouldExportAConsistentSnapshotWhenAMatchingUserIsInsertedAtTheLimit() {
+		const int exportLimit = 2;
+		var (tenantId, _) = await SeedTenantWithAdminAsync();
+		var oldestCreatedAt = DateTime.UtcNow.AddDays(-1);
+		var (_, oldestEmail) = await SeedTenantUserWithIdAsync(
+			tenantId,
+			"export-race-oldest",
+			oldestCreatedAt
+		);
+
+		var connectionString = await GetConnectionStringAsync();
+		var options = new DbContextOptionsBuilder<AppDbContext>()
+			.UseNpgsql(connectionString)
+			.Options;
+
+		await using var exportDbContext = new AppDbContext(options);
+		var queryService = new TenantUserQueryService(exportDbContext);
+		var auditLogService = new BarrierAuditLogService();
+		var authContext = new RequestAuthContext {
+			AccountStaff = UserAccount.CreateStaffAccount(Guid.NewGuid())
+		};
+
+		await using var requestScope = _fixture.Factory.Services.CreateAsyncScope();
+		var responseBody = new MemoryStream();
+		var httpContext = new DefaultHttpContext {
+			RequestServices = requestScope.ServiceProvider
+		};
+		httpContext.Response.Body = responseBody;
+
+		var originalLimit = AppEnvironment.Instance.TENANT_USER_EXPORT_MAX_ROWS;
+		SetExportMaxRows(exportLimit);
+
+		try {
+			var exportTask = ExportTenantUsersAsStaff.Handle(
+				tenantId.ToString(),
+				new ExportTenantUsersAsStaffQuery(),
+				queryService,
+				auditLogService,
+				authContext,
+				NullLogger<ExportTenantUsersAsStaff>.Instance,
+				httpContext,
+				CancellationToken.None
+			);
+
+			try {
+				await auditLogService.Reached.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+				_ = await SeedTenantUserWithIdAsync(
+					tenantId,
+					"export-race-concurrent",
+					DateTime.UtcNow.AddDays(1)
+				);
+			} finally {
+				auditLogService.Release.TrySetResult();
+			}
+
+			var result = await exportTask.WaitAsync(TimeSpan.FromSeconds(10));
+			await result.ExecuteAsync(httpContext);
+
+			var content = Encoding.UTF8.GetString(responseBody.ToArray());
+			if (httpContext.Response.StatusCode == StatusCodes.Status400BadRequest) {
+				content.Should().NotContain("Email,FirstName,LastName,Level,Status,CreatedAt");
+				httpContext.Response.Headers.ContentDisposition.Should().BeEmpty();
+				auditLogService.Entries.Should().BeEmpty();
+				return;
+			}
+
+			httpContext.Response.StatusCode.Should().Be(StatusCodes.Status200OK);
+			var emittedRowCount = content
+				.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+				.Skip(1)
+				.Count();
+
+			emittedRowCount.Should().Be(exportLimit);
+			content.Should().Contain(
+				oldestEmail,
+				"a successful snapshot export must not silently drop an older matching row"
+			);
+
+			var auditEntry = auditLogService.Entries.Should().ContainSingle().Subject;
+			var details = JsonSerializer.SerializeToElement(auditEntry.Details);
+			details.GetProperty("RowCount").GetInt32().Should().Be(emittedRowCount);
+		} finally {
+			auditLogService.Release.TrySetResult();
 			SetExportMaxRows(originalLimit);
 		}
 	}
@@ -568,7 +660,8 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 
 	private async Task<(Guid UserId, string Email)> SeedTenantUserWithIdAsync(
 		Guid tenantId,
-		string emailPrefix
+		string emailPrefix,
+		DateTime? createdAt = null
 	) {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -587,12 +680,24 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		await dbContext.User.AddAsync(user);
 		await dbContext.SaveChangesAsync();
 
+		var userId = user.GetRequiredId();
+		if (createdAt is not null) {
+			var usersToStamp =
+				from candidate in dbContext.User
+				where candidate.Id == userId
+				select candidate;
+			_ = await usersToStamp
+				.ExecuteUpdateAsync(setters => setters
+					.SetProperty(x => x.CreatedAt, createdAt.Value)
+				);
+		}
+
 		await dbContext.UserAccount.AddAsync(
-			UserAccount.CreateTenantAccount(user.GetRequiredId(), tenantId, AccountLevel.User)
+			UserAccount.CreateTenantAccount(userId, tenantId, AccountLevel.User)
 		);
 		await dbContext.SaveChangesAsync();
 
-		return (user.GetRequiredId(), email);
+		return (userId, email);
 	}
 
 	private async Task<string> SeedTenantUserWithEmailAsync(
@@ -646,6 +751,45 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 			UserAccount.CreateTenantAccount(user.GetRequiredId(), tenantId, AccountLevel.User)
 		);
 		await dbContext.SaveChangesAsync();
+	}
+
+	private async Task<string> GetConnectionStringAsync() {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var connectionString = dbContext.Database.GetConnectionString();
+
+		if (connectionString is null) {
+			throw new InvalidOperationException(
+				"Test database connection string was unexpectedly null."
+			);
+		}
+
+		return connectionString;
+	}
+
+	private sealed class BarrierAuditLogService : IAuditLogService {
+		public List<CreateAuditLogArgs> Entries { get; } = [];
+		public TaskCompletionSource Reached { get; } =
+			new(TaskCreationOptions.RunContinuationsAsynchronously);
+		public TaskCompletionSource Release { get; } =
+			new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+		public async Task LogAsync(
+			CreateAuditLogArgs args,
+			CancellationToken cancellationToken = default
+		) {
+			Entries.Add(args);
+			Reached.TrySetResult();
+			await Release.Task.WaitAsync(cancellationToken);
+		}
+
+		public Task LogManyAsync(
+			IReadOnlyCollection<CreateAuditLogArgs> argsList,
+			CancellationToken cancellationToken = default
+		) {
+			Entries.AddRange(argsList);
+			return Task.CompletedTask;
+		}
 	}
 
 	// Uses reflection on the auto-property backing field because AppEnvironment
