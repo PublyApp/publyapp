@@ -84,8 +84,8 @@ public sealed class CheckEmailVerificationToken {
 			&& DateTime.UtcNow > user.EmailVerifyTokenExpiresAt.Value
 		) {
 			return TypedProblems.BadRequest(
-				"Invalid or expired email verification token",
-				ResponseKeys.InvalidEmailVerificationToken
+				"This email verification link has expired",
+				ResponseKeys.EmailVerificationTokenExpired
 			);
 		}
 
