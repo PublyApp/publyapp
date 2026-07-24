@@ -114,9 +114,11 @@ internal static class TenantBulkActionSpecSupport {
 		return await query.FirstOrDefaultAsync();
 	}
 
-	public static async Task<AuditLog?> GetLatestAuditLogAsync(
+	public static async Task<List<AuditLog>> GetAuditLogsAsync(
 		ApiFixture fixture,
-		string action
+		string action,
+		Guid actorUserId,
+		DateTime startedAt
 	) {
 		await using var scope =
 			fixture.Factory.Services.CreateAsyncScope();
@@ -126,10 +128,12 @@ internal static class TenantBulkActionSpecSupport {
 		var query =
 			from log in dbContext.AuditLog
 			where log.Action == action
-			orderby log.CreatedAt descending
+				&& log.UserId == actorUserId
+				&& log.CreatedAt >= startedAt
+			orderby log.CreatedAt
 			select log;
 
-		return await query.FirstOrDefaultAsync();
+		return await query.ToListAsync();
 	}
 
 	public static async Task<string> CreateStaffUserTokenWithoutPermissionAsync(
