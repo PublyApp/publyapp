@@ -909,6 +909,12 @@ describe('staff tenant invitations route', () => {
 		};
 		expect(firstLevelNavigation.replace).toBe(true);
 		expect(firstLevelNavigation.search.level).toBe('admin');
+		// URL-state only: the invitations query reads its cursor from
+		// useCursorPagination, never from the URL, so this asserts that the
+		// level-change navigation drops the stale `cursor` search param — NOT
+		// that the client-held page cursor reset. See "changing the account
+		// level filter resets the client-held cursor and page index" below for
+		// the real reset coverage.
 		expect(firstLevelNavigation.search.cursor).toBeUndefined();
 		expect(
 			screen.getByTestId('staff-tenant-invitations-level-filter-admin'),
@@ -930,6 +936,7 @@ describe('staff tenant invitations route', () => {
 		};
 		expect(secondLevelNavigation.replace).toBe(true);
 		expect(secondLevelNavigation.search.level).toBe('admin,user');
+		// URL-state only — see the note on the first navigation above.
 		expect(secondLevelNavigation.search.cursor).toBeUndefined();
 	});
 
@@ -968,12 +975,82 @@ describe('staff tenant invitations route', () => {
 			invite: 1,
 		});
 		expect(resetNavigation.search.level).toBeUndefined();
+		// URL-state only — see the note on the level-toggle test above.
 		expect(resetNavigation.search.cursor).toBeUndefined();
 		await waitFor(() =>
 			expect(
 				screen.queryByTestId('staff-tenant-invitations-level-filter-all'),
 			).toBeNull(),
 		);
+	});
+
+	// Round-2 finding 3: the URL `cursor` assertions above cannot fail when the
+	// client-held cursor stack leaks across a filter change, because the list
+	// query never reads the URL cursor. This test drives the real thing: page
+	// forward so useCursorPagination holds a server cursor at page index 1, then
+	// change the level filter (which changes cursorResetKey) and assert the very
+	// next list query is issued with no cursor, back at page index 0.
+	test('changing the account level filter resets the client-held cursor and page index', () => {
+		mocks.useStaffTenantInvitationsQuery.mockReturnValue(
+			buildQueryResult({
+				data: {
+					data: [
+						{
+							id: 'invite-1',
+							email: 'alex@example.com',
+							status: 'Pending',
+						},
+					],
+					nextCursor: 'invite-cursor-2',
+				},
+			}),
+		);
+
+		const Component = getRouteComponent();
+		const renderResult = render(<Component />);
+
+		const currentPageLabel = (): string | undefined =>
+			document.querySelector('.publy-pager-current')?.textContent ?? undefined;
+		const lastQueryVariables = (): Record<string, unknown> =>
+			mocks.useStaffTenantInvitationsQuery.mock.calls.at(-1)?.[0] as Record<
+				string,
+				unknown
+			>;
+
+		expect(currentPageLabel()).toBe('1');
+		expect(lastQueryVariables()).toMatchObject({ cursor: undefined });
+		expect(lastQueryVariables().level).toBeUndefined();
+
+		fireEvent.click(
+			screen.getByTestId('staff-tenant-invitations-table-next-page'),
+		);
+
+		expect(currentPageLabel()).toBe('2');
+		expect(lastQueryVariables()).toMatchObject({
+			cursor: 'invite-cursor-2',
+		});
+		expect(
+			screen
+				.getByTestId('staff-tenant-invitations-table-prev-page')
+				.hasAttribute('disabled'),
+		).toBe(false);
+
+		// The URL now carries the level filter, exactly as the navigate() from
+		// setLevels() produces. Re-render with the new search props, the same way
+		// a real navigation would.
+		mocks.search = { level: 'admin' };
+		renderResult.rerender(<Component />);
+
+		expect(currentPageLabel()).toBe('1');
+		expect(lastQueryVariables()).toMatchObject({
+			cursor: undefined,
+			level: 'admin',
+		});
+		expect(
+			screen
+				.getByTestId('staff-tenant-invitations-table-prev-page')
+				.hasAttribute('disabled'),
+		).toBe(true);
 	});
 
 	test('debounced search preserves account level, status, sorting, size, and drawer state', async () => {
