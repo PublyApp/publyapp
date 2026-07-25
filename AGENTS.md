@@ -440,7 +440,13 @@ client regeneration workflow, and TypeScript patterns), see:
 
 ## Documentation Organization
 
-- **Never** place generated docs at the repo root — always under `docs/`
-- Use existing subdirectories when appropriate; create new ones with kebab-case names
-- Existing dirs: `docs/implementation-plans/`, `docs/refactoring-guides/`, `docs/roadmaps/`, `docs/reviews/`, `docs/misc/`
-- Only `docs/guides/` files should be referenced from AGENTS.md; unreferenced guides belong elsewhere
+[`docs/README.md`](docs/README.md) is the filing index: it lists which documents are normative and
+gives one filing rule per directory. Read it before creating a document.
+
+- **Never** place a generated doc at the repo root, and never at the `docs/` root either — always in
+  a `docs/` subdirectory
+- Use an existing subdirectory; only create a new one (kebab-case) if nothing in `docs/README.md` fits
+- This file links only `docs/guides/` and `docs/deployment/` documents. A guide nothing links to is a
+  record, not a rule
+- Standing rules belong in this file or a `docs/guides/` file. Plans, reviews, audits, analyses and
+  change notes are records: write them once, date them, and supersede rather than retro-edit them
