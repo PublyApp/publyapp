@@ -538,10 +538,8 @@ const isRoundedRadiusAllowed = (relativePath, line, lineIndex, lines) => {
 	return (
 		line.includes('.app-shell-topbar-action-btn') ||
 		hasNearbySelector(lines, lineIndex, '.app-shell-topbar-action-btn') ||
-		hasNearbySelector(lines, lineIndex, '.publy-avatar-initials') ||
-		// The two other genuinely circular surfaces (F4): the rail's account
-		// avatar/link (a real avatar, same shape rule as .publy-avatar-initials
-		// above) and the form action bar's 7px status dot.
+		// The remaining genuinely circular CSS surfaces (F4): the rail's
+		// account avatar/link and the form action bar's 7px status dot.
 		hasNearbySelector(lines, lineIndex, "[data-rail-item='account']") ||
 		hasNearbySelector(lines, lineIndex, '.app-shell-rail-account-avatar') ||
 		hasNearbySelector(lines, lineIndex, '.publy-form-action-bar-status::before')
