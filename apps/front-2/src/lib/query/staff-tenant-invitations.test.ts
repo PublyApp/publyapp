@@ -16,6 +16,7 @@ describe('buildFindStaffTenantInvitationsQueryParameters', () => {
 			buildFindStaffTenantInvitationsQueryParameters({
 				q: ' alex ',
 				status: ' pending,accepted ',
+				level: ' admin,user ',
 				sortId: ' expires_at ',
 				sortOrder: 'asc',
 				cursor: ' invitation-123 ',
@@ -24,6 +25,7 @@ describe('buildFindStaffTenantInvitationsQueryParameters', () => {
 		).toEqual({
 			q: 'alex',
 			status: 'pending,accepted',
+			level: 'admin,user',
 			sortId: 'expires_at',
 			sortOrder: 'asc',
 			cursor: 'invitation-123',
@@ -36,6 +38,7 @@ describe('buildFindStaffTenantInvitationsQueryParameters', () => {
 			buildFindStaffTenantInvitationsQueryParameters({
 				q: '   ',
 				status: ' ',
+				level: ' ',
 				sortId: '',
 				sortOrder: undefined,
 				cursor: ' ',

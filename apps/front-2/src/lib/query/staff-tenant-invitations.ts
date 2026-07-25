@@ -19,6 +19,7 @@ export type StaffTenantInvitationsQueryVariables = {
 	tenantId: string;
 	q?: string;
 	status?: string;
+	level?: string;
 	sortId?: string;
 	sortOrder?: SortOrder;
 	cursor?: string;
@@ -106,6 +107,7 @@ export const buildFindStaffTenantInvitationsQueryParameters = (
 ): {
 	q?: string;
 	status?: string;
+	level?: string;
 	sortId?: string;
 	sortOrder?: SortOrder;
 	cursor?: string;
@@ -113,6 +115,7 @@ export const buildFindStaffTenantInvitationsQueryParameters = (
 } => ({
 	q: normalizeString(variables.q),
 	status: normalizeString(variables.status),
+	level: normalizeString(variables.level),
 	sortId: normalizeString(variables.sortId),
 	sortOrder: variables.sortOrder,
 	cursor: normalizeString(variables.cursor),

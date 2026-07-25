@@ -118,6 +118,7 @@ const TRANSLATIONS: Record<string, string> = {
 	'staff-revoke': 'Revoke',
 	'revoke-invitation-success': 'Invitation revoked.',
 	'all-statuses': 'All statuses',
+	'all-account-levels': 'All account levels',
 	pending: 'Pending',
 	accepted: 'Accepted',
 	expired: 'Expired',
@@ -326,6 +327,7 @@ describe('staff tenant invitations route', () => {
 				tenantId: '11111111-1111-1111-1111-111111111111',
 				q: undefined,
 				status: undefined,
+				level: undefined,
 				sortId: 'created_at',
 				sortOrder: 'desc',
 				cursor: undefined,
@@ -336,7 +338,7 @@ describe('staff tenant invitations route', () => {
 	});
 
 	test('invite people button opens the same-route drawer and keeps current invitation filters', () => {
-		mocks.search = { q: 'sam', status: 'pending' };
+		mocks.search = { q: 'sam', status: 'pending', level: 'admin,user' };
 		renderPage();
 
 		fireEvent.click(screen.getByRole('button', { name: 'Invite people' }));
@@ -347,6 +349,7 @@ describe('staff tenant invitations route', () => {
 					invite: 1,
 					q: 'sam',
 					status: 'pending',
+					level: 'admin,user',
 				}),
 				replace: true,
 			}),
@@ -439,7 +442,12 @@ describe('staff tenant invitations route', () => {
 	});
 
 	test('opens with query filters intact when arriving via deep-link invite state', () => {
-		mocks.search = { invite: 1, q: 'sam', status: 'pending' };
+		mocks.search = {
+			invite: 1,
+			q: 'sam',
+			status: 'pending',
+			level: 'admin',
+		};
 		renderPage();
 
 		expect(screen.getByTestId('staff-tenant-invitations-page')).toBeTruthy();
@@ -448,7 +456,12 @@ describe('staff tenant invitations route', () => {
 	});
 
 	test('closing the invite drawer from Invitations removes only invite and preserves list state', () => {
-		mocks.search = { invite: 1, q: 'sam', status: 'pending' };
+		mocks.search = {
+			invite: 1,
+			q: 'sam',
+			status: 'pending',
+			level: 'admin',
+		};
 		renderPage();
 
 		mocks.navigate.mockClear();
@@ -460,6 +473,7 @@ describe('staff tenant invitations route', () => {
 					invite: undefined,
 					q: 'sam',
 					status: 'pending',
+					level: 'admin',
 				}),
 				replace: true,
 			}),
@@ -811,6 +825,224 @@ describe('staff tenant invitations route', () => {
 
 		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
 	});
+
+	test('canonicalizes both account levels and forwards them to the list query', () => {
+		const validateSearch = (
+			Route as unknown as {
+				validateSearch: (
+					search: Record<string, unknown>,
+				) => Record<string, unknown>;
+			}
+		).validateSearch;
+		const canonicalSearch = validateSearch({
+			q: ' sam ',
+			status: 'pending',
+			level: ' Admin, user, bogus, ADMIN ',
+			sort_id: 'email',
+			sort_order: 'asc',
+			cursor: 'invite-cursor',
+			size: '25',
+			invite: 1,
+		});
+
+		expect(canonicalSearch).toMatchObject({
+			q: 'sam',
+			status: 'pending',
+			level: 'admin,user',
+			sort_id: 'email',
+			sort_order: 'asc',
+			cursor: 'invite-cursor',
+			size: '25',
+			invite: 1,
+		});
+
+		mocks.search = canonicalSearch;
+		renderPage();
+
+		expect(
+			screen.getByTestId('staff-tenant-invitations-level-filter-trigger')
+				.textContent,
+		).toContain('Admin, User');
+		expect(mocks.useStaffTenantInvitationsQuery).toHaveBeenCalledWith(
+			expect.objectContaining({
+				q: 'sam',
+				status: 'pending',
+				level: 'admin,user',
+				sortId: 'email',
+				sortOrder: 'asc',
+				size: 25,
+			}),
+			{ enabled: true },
+		);
+	});
+
+	test('renders square checkboxes for account levels and selects both without closing', async () => {
+		renderPage();
+
+		fireEvent.click(
+			screen.getByTestId('staff-tenant-invitations-level-filter-trigger'),
+		);
+		const resetItem = await screen.findByTestId(
+			'staff-tenant-invitations-level-filter-all',
+		);
+		const adminItem = screen.getByTestId(
+			'staff-tenant-invitations-level-filter-admin',
+		);
+		const userItem = screen.getByTestId(
+			'staff-tenant-invitations-level-filter-user',
+		);
+
+		expect(
+			resetItem.querySelector('[data-slot="dropdown-menu-checkbox-item-box"]'),
+		).toBeNull();
+		expect(
+			adminItem.querySelector('[data-slot="dropdown-menu-checkbox-item-box"]'),
+		).toBeTruthy();
+		expect(
+			userItem.querySelector('[data-slot="dropdown-menu-checkbox-item-box"]'),
+		).toBeTruthy();
+
+		fireEvent.click(adminItem);
+		const firstLevelNavigation = mocks.navigate.mock.calls.at(-1)?.[0] as {
+			search: Record<string, unknown>;
+			replace: boolean;
+		};
+		expect(firstLevelNavigation.replace).toBe(true);
+		expect(firstLevelNavigation.search.level).toBe('admin');
+		expect(firstLevelNavigation.search.cursor).toBeUndefined();
+		expect(
+			screen.getByTestId('staff-tenant-invitations-level-filter-admin'),
+		).toBeTruthy();
+
+		mocks.search = { level: 'admin' };
+		const Component = getRouteComponent();
+		cleanup();
+		render(<Component />);
+		fireEvent.click(
+			screen.getByTestId('staff-tenant-invitations-level-filter-trigger'),
+		);
+		fireEvent.click(
+			await screen.findByTestId('staff-tenant-invitations-level-filter-user'),
+		);
+		const secondLevelNavigation = mocks.navigate.mock.calls.at(-1)?.[0] as {
+			search: Record<string, unknown>;
+			replace: boolean;
+		};
+		expect(secondLevelNavigation.replace).toBe(true);
+		expect(secondLevelNavigation.search.level).toBe('admin,user');
+		expect(secondLevelNavigation.search.cursor).toBeUndefined();
+	});
+
+	test('account-level reset clears only level and preserves every other URL state', async () => {
+		mocks.search = {
+			q: 'sam',
+			status: 'pending,accepted',
+			level: 'admin,user',
+			sort_id: 'email',
+			sort_order: 'asc',
+			cursor: 'invite-cursor',
+			size: '25',
+			invite: 1,
+		};
+		renderPage();
+
+		fireEvent.click(
+			screen.getByTestId('staff-tenant-invitations-level-filter-trigger'),
+		);
+		const resetItem = await screen.findByTestId(
+			'staff-tenant-invitations-level-filter-all',
+		);
+		fireEvent.click(resetItem);
+
+		const resetNavigation = mocks.navigate.mock.calls.at(-1)?.[0] as {
+			search: Record<string, unknown>;
+			replace: boolean;
+		};
+		expect(resetNavigation.replace).toBe(true);
+		expect(resetNavigation.search).toMatchObject({
+			q: 'sam',
+			status: 'pending,accepted',
+			sort_id: 'email',
+			sort_order: 'asc',
+			size: '25',
+			invite: 1,
+		});
+		expect(resetNavigation.search.level).toBeUndefined();
+		expect(resetNavigation.search.cursor).toBeUndefined();
+		await waitFor(() =>
+			expect(
+				screen.queryByTestId('staff-tenant-invitations-level-filter-all'),
+			).toBeNull(),
+		);
+	});
+
+	test('debounced search preserves account level, status, sorting, size, and drawer state', async () => {
+		mocks.search = {
+			level: 'admin,user',
+			status: 'pending',
+			sort_id: 'email',
+			sort_order: 'asc',
+			size: '25',
+			invite: 1,
+		};
+		renderPage();
+
+		fireEvent.change(
+			screen.getByTestId('staff-tenant-invitations-table-search'),
+			{ target: { value: 'sam' } },
+		);
+		await new Promise((resolve) => setTimeout(resolve, 350));
+
+		const searchNavigation = mocks.navigate.mock.calls.at(-1)?.[0] as {
+			search: Record<string, unknown>;
+		};
+		expect(searchNavigation.search).toMatchObject({
+			q: 'sam',
+			level: 'admin,user',
+			status: 'pending',
+			sort_id: 'email',
+			sort_order: 'asc',
+			size: '25',
+			invite: 1,
+		});
+	});
+
+	test('status changes preserve account level and other URL state while resetting cursor', async () => {
+		mocks.search = {
+			q: 'sam',
+			level: 'admin',
+			status: 'pending',
+			sort_id: 'email',
+			sort_order: 'asc',
+			cursor: 'invite-cursor',
+			size: '25',
+			invite: 1,
+		};
+		renderPage();
+
+		fireEvent.click(
+			screen.getByTestId('staff-tenant-invitations-status-filter-trigger'),
+		);
+		fireEvent.click(
+			await screen.findByTestId(
+				'staff-tenant-invitations-status-filter-accepted',
+			),
+		);
+
+		const statusNavigation = mocks.navigate.mock.calls.at(-1)?.[0] as {
+			search: Record<string, unknown>;
+		};
+		expect(statusNavigation.search).toMatchObject({
+			q: 'sam',
+			level: 'admin',
+			status: 'pending,accepted',
+			sort_id: 'email',
+			sort_order: 'asc',
+			size: '25',
+			invite: 1,
+		});
+		expect(statusNavigation.search.cursor).toBeUndefined();
+	});
 });
 
 describe('createColumns column widths', () => {
@@ -821,6 +1053,7 @@ describe('createColumns column widths', () => {
 			isRevokePending: false,
 			onRevoke: () => undefined,
 		});
+
 		const widthById = Object.fromEntries(
 			columns.map((column) => [column.id, column.meta?.width]),
 		);

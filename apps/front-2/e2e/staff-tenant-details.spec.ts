@@ -181,22 +181,48 @@ const mockTenantDetails = async (page: Page) => {
 			request.method() === 'GET' &&
 			isApiPath(url, `/staff/tenants/${TENANT_ID}/invitations`)
 		) {
+			const levelParam = new URL(url).searchParams.get('level');
+			const selectedLevels = new Set(
+				levelParam?.split(',').map((level) => level.toLowerCase()) ?? [],
+			);
+			const invitations = [
+				{
+					id: PENDING_INVITATION_ID,
+					email: 'sam@example.com',
+					status: 'Pending',
+					accountLevel: 'Admin',
+					profileName: 'Approvers',
+					profiles: [],
+					invitedByName: 'Taylor Smith',
+					createdAt: '2026-07-01T09:00:00Z',
+					expiresAt: '2026-07-07T09:00:00Z',
+					acceptedAt: null,
+				},
+				{
+					id: '0197b8f0-6666-7ccc-8ccc-eeeeeeeeeeee',
+					email: 'user@example.com',
+					status: 'Pending',
+					accountLevel: 'User',
+					profileName: null,
+					profiles: [],
+					invitedByName: 'Taylor Smith',
+					createdAt: '2026-07-01T10:00:00Z',
+					expiresAt: '2026-07-07T10:00:00Z',
+					acceptedAt: null,
+				},
+			];
+			const filteredInvitations =
+				selectedLevels.size === 0
+					? invitations
+					: invitations.filter((invitation) =>
+							selectedLevels.has(invitation.accountLevel.toLowerCase()),
+						);
+
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
 				body: JSON.stringify({
-					data: [
-						{
-							id: PENDING_INVITATION_ID,
-							email: 'sam@example.com',
-							status: 'Pending',
-							profileName: 'Approvers',
-							invitedByName: 'Taylor Smith',
-							createdAt: '2026-07-01T09:00:00Z',
-							expiresAt: '2026-07-07T09:00:00Z',
-							acceptedAt: null,
-						},
-					],
+					data: filteredInvitations,
 					nextCursor: null,
 				}),
 			});
@@ -482,6 +508,38 @@ test.describe('staff tenant Profiles/Invitations/Users tab bodies', () => {
 		await expect(
 			page.getByRole('heading', { name: /Invitations/ }),
 		).toContainText('4 pending');
+	});
+
+	test('Invitations account-level filter supports Admin, User, both, and reset', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await mockTenantDetails(page);
+
+		await page.goto(`/staff/tenants/${TENANT_ID}/invitations?level=admin`);
+		await expect(
+			page.getByTestId('staff-tenant-invitations-page'),
+		).toBeVisible();
+		await expect(page.getByText('sam@example.com')).toBeVisible();
+		await expect(page.getByText('user@example.com')).not.toBeVisible();
+
+		const trigger = page.getByTestId(
+			'staff-tenant-invitations-level-filter-trigger',
+		);
+		await expect(trigger).toContainText('Admin');
+		await trigger.click();
+		await page
+			.getByTestId('staff-tenant-invitations-level-filter-user')
+			.click();
+
+		await expect(page).toHaveURL(/[?&]level=admin%2Cuser(?:&|$)/);
+		await expect(trigger).toContainText('Admin, User');
+		await expect(page.getByText('sam@example.com')).toBeVisible();
+		await expect(page.getByText('user@example.com')).toBeVisible();
+
+		await page.getByTestId('staff-tenant-invitations-level-filter-all').click();
+		await expect(page).not.toHaveURL(/[?&]level=/);
+		await expect(trigger).toContainText('All account levels');
 	});
 
 	test('revoking a pending invitation shows one global success toast without inline status feedback', async ({
