@@ -141,7 +141,7 @@ public class FindInvitationsForTenantAsStaffQueryValidator : CursorPaginatedQuer
 			.WithMessage($"Status must be one of: {AllowedStatusesDisplay}");
 		RuleFor(x => x.Level)
 			.Must(raw => {
-				if (raw is null) {
+				if (string.IsNullOrWhiteSpace(raw)) {
 					return true;
 				}
 

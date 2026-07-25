@@ -9,10 +9,12 @@ using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
+using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Profiles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
@@ -909,6 +911,72 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		[Theory]
 		[InlineData("")]
 		[InlineData(" ")]
+		public async Task
+		ItShouldTreatEmptyOrWhitespaceAccountLevelAsNoFilter(
+			string level
+		) {
+			string staffToken =
+				await _authClient.LoginAsStaffAdminAsync();
+			Guid tenantId =
+				await TenantTestHelper
+					.GetTenantIdByNameAsync(
+						_http,
+						staffToken,
+						SeedConstants.Tenants.AcmeName
+					);
+
+			string prefix = $"level-empty-{Guid.NewGuid():N}";
+			string adminEmail = $"{prefix}-admin@example.com";
+			string userEmail = $"{prefix}-user@example.com";
+			string legacyEmail = $"{prefix}-legacy@example.com";
+			_ = await CreateTenantInvitationAsync(
+				staffToken,
+				tenantId,
+				adminEmail,
+				"Admin"
+			);
+			_ = await CreateTenantInvitationAsync(
+				staffToken,
+				tenantId,
+				userEmail,
+				"User"
+			);
+			await CreateLegacyTenantInvitationWithNullLevelAsync(
+				tenantId,
+				legacyEmail
+			);
+
+			string url = GetFindUrl(
+				tenantId,
+				level: level,
+				q: prefix,
+				sortId: "email",
+				sortOrder: "asc",
+				limit: 50
+			);
+			HttpRequestMessage request = new HttpRequestMessage(
+				HttpMethod.Get, url
+			).WithSessionToken(staffToken);
+
+			using HttpResponseMessage response =
+				await _http.SendAsync(request);
+
+			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
+			FindResponse? result = await response.Content
+				.ReadFromJsonAsync<FindResponse>();
+			_ = result.Should().NotBeNull();
+			Assert.NotNull(result);
+			_ = result.Data.Select(invitation => (
+				invitation.Email,
+				invitation.AccountLevel
+			)).Should().Equal(
+				(adminEmail, "Admin"),
+				(legacyEmail, "User"),
+				(userEmail, "User")
+			);
+		}
+
+		[Theory]
 		[InlineData(",")]
 		[InlineData("User,,Admin")]
 		[InlineData("Owner")]
@@ -936,6 +1004,24 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.UnprocessableEntity);
+			_ = response.Content.Headers.ContentType?.MediaType
+				.Should().Be("application/problem+json");
+
+			ValidationProblemDetails? problem = await response.Content
+				.ReadFromJsonAsync<ValidationProblemDetails>();
+			_ = problem.Should().NotBeNull();
+			Assert.NotNull(problem);
+			_ = problem.Status.Should()
+				.Be((int)HttpStatusCode.UnprocessableEntity);
+			_ = problem.Detail.Should()
+				.Be("Query parameters validation failed");
+			_ = problem.TranslationKey.Should()
+				.Be(ResponseKeys.QueryParametersValidationFailed);
+			_ = problem.Errors.Should().ContainKey("level");
+			_ = problem.Errors["level"].Should()
+				.ContainSingle()
+				.Which.Should()
+				.Be("level must be one of: admin, user");
 		}
 
 		[Fact]
