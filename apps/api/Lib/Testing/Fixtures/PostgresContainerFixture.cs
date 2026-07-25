@@ -11,26 +11,27 @@ namespace PublyApp.Api.Lib.Testing.Fixtures;
 /// run. Uses static lazy initialization so test classes can
 /// run in parallel without a serializing xUnit collection.
 ///
-/// Container cleanup is handled by Testcontainers Ryuk
-/// (sidecar container that stops/removes containers when the
-/// parent process exits).
+/// The shared container is disposed when the test process
+/// exits. Ryuk remains a fallback for abnormal termination.
 ///
 /// Usage: await PostgresContainerFixture.GetSharedAsync()
 /// from ApiFixture.InitializeAsync().
 /// </summary>
-public sealed class PostgresContainerFixture {
+public sealed class PostgresContainerFixture : IAsyncDisposable {
 	private static readonly SemaphoreSlim _initLock =
 		new(1, 1);
 	private static PostgresContainerFixture? _sharedInstance;
 
-	// Keep container reference alive for process lifetime
 	private PostgreSqlContainer? _container;
+	private int _disposeStarted;
 
 	public string AdminConnectionString { get; private set; }
 		= string.Empty;
 	public string TemplateDbName { get; } = "publyapp_api_template";
 
-	private PostgresContainerFixture() { }
+	private PostgresContainerFixture() {
+		AppDomain.CurrentDomain.ProcessExit += HandleProcessExit;
+	}
 
 	private PostgreSqlContainer Container {
 		get {
@@ -129,6 +130,28 @@ public sealed class PostgresContainerFixture {
 				// best-effort
 			}
 			throw;
+		}
+	}
+
+	public async ValueTask DisposeAsync() {
+		if (Interlocked.Exchange(ref _disposeStarted, 1) != 0) {
+			return;
+		}
+
+		AppDomain.CurrentDomain.ProcessExit -= HandleProcessExit;
+
+		var container = Interlocked.Exchange(ref _container, null);
+		if (container is not null) {
+			await container.DisposeAsync();
+		}
+	}
+
+	private void HandleProcessExit(object? sender, EventArgs args) {
+		try {
+			DisposeAsync().AsTask().GetAwaiter().GetResult();
+		} catch {
+			// Process-exit cleanup is best-effort. Ryuk remains
+			// the fallback when deterministic disposal fails.
 		}
 	}
 }
