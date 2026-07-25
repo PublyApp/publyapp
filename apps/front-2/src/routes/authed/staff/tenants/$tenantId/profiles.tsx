@@ -302,7 +302,7 @@ const ProfileCard = ({
 		>
 			<span
 				className={cn(
-					'absolute left-3 top-3 z-10 flex size-4 shrink-0 items-center justify-center rounded-[7px] bg-background transition-opacity',
+					'absolute left-3 top-3 z-(--publy-z-raised) flex size-4 shrink-0 items-center justify-center rounded-[7px] bg-background transition-opacity',
 					isSelectionMode
 						? 'opacity-100'
 						: 'opacity-0 group-hover/profile-card:opacity-100 focus-within:opacity-100',

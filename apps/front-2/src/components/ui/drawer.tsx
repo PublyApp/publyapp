@@ -23,16 +23,22 @@ function DrawerClose(props: DialogPrimitive.Close.Props) {
 	return <DialogPrimitive.Close data-slot="drawer-close" {...props} />;
 }
 
+type DrawerContentProps = DialogPrimitive.Popup.Props & {
+	width?: 736;
+};
+
 function DrawerContent({
 	className,
 	children,
+	width,
 	...props
-}: DialogPrimitive.Popup.Props) {
+}: DrawerContentProps) {
 	return (
 		<DialogPrimitive.Portal>
 			<DialogPrimitive.Backdrop className="publy-overlay-backdrop z-(--publy-z-overlay) transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[opacity] data-ending-style:opacity-0 data-starting-style:opacity-0 motion-reduce:transition-none" />
 			<DialogPrimitive.Popup
 				data-slot="drawer"
+				data-width={width === undefined ? undefined : String(width)}
 				className={cn(
 					'publy-drawer z-(--publy-z-drawer-surface) outline-none transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform data-ending-style:translate-x-full data-starting-style:translate-x-full motion-reduce:transition-none',
 					className,

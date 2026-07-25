@@ -254,7 +254,7 @@ export const ProfileFormDrawer = ({
 				onOpenChange(open);
 			}}
 		>
-			<DrawerContent data-testid="profile-form-drawer">
+			<DrawerContent width={736} data-testid="profile-form-drawer">
 				<DrawerHeader>
 					<DrawerTitle>{t('new-profile')}</DrawerTitle>
 					<DrawerDescription>

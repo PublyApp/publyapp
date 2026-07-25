@@ -1090,6 +1090,28 @@ test.describe('staff tenant profile create/edit drawers', () => {
 		await expect(drawer.getByText('Publish posts')).toBeVisible();
 	});
 
+	test('the profile color picker is operable from inside the create drawer', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
+		await mockTenantDetails(page);
+		await mockPermissionCatalog(page);
+
+		await page.goto(`/staff/tenants/${TENANT_ID}/profiles`);
+		await page.getByRole('button', { name: 'New profile' }).click();
+
+		const drawer = page.getByTestId('profile-form-drawer');
+		const pickerTrigger = drawer.getByRole('button', {
+			name: 'Choose icon and color',
+		});
+		await expect(pickerTrigger).toHaveAttribute('data-tone', '0');
+
+		await pickerTrigger.click();
+		await page.getByRole('button', { name: 'Choose Violet' }).click();
+
+		await expect(pickerTrigger).toHaveAttribute('data-tone', '4');
+	});
+
 	test('the legacy profiles/new URL redirects to the profiles tab with the drawer open', async ({
 		page,
 	}) => {
