@@ -614,16 +614,16 @@ function StaffUserEditPage() {
 								className="text-sm font-medium text-foreground"
 								htmlFor="staff-user-profile-search"
 							>
-								{t('common:profiles')}
+								{t('common:search-profiles')}
 							</label>
 							<Input
 								id="staff-user-profile-search"
-								aria-label={t('common:search')}
+								aria-label={t('common:search-profiles')}
 								value={profileSearch}
 								onChange={(event) => {
 									setProfileSearch(event.target.value);
 								}}
-								placeholder={t('common:search')}
+								placeholder={t('common:search-profiles')}
 								autoComplete="off"
 								disabled={isSubmittingForm}
 								data-testid="staff-user-profile-search"
@@ -651,7 +651,9 @@ function StaffUserEditPage() {
 						!profilesQuery.isPending &&
 						!profilesQuery.isFetching ? (
 							<p className="text-sm text-muted-foreground">
-								{t('common:no-profiles-available')}
+								{profileSearch.trim()
+									? t('common:list-no-match-default-description')
+									: t('common:no-profiles-available')}
 							</p>
 						) : null}
 						{profilePagination.hasPreviousPage ||

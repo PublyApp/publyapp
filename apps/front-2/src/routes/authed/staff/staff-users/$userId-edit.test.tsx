@@ -166,6 +166,9 @@ vi.mock('react-i18next', () => ({
 				'avatar-url': 'Avatar URL',
 				profiles: 'Profiles',
 				search: 'Search',
+				'search-profiles': 'Search profiles…',
+				'list-no-match-default-description': 'No results match your search.',
+				'no-profiles-available': 'No profiles are available.',
 				role: 'Role',
 				status: 'Status',
 				admin: 'Admin',
@@ -657,6 +660,73 @@ describe('staff user edit route', () => {
 		expect(screen.getByText('Billing')).toBeTruthy();
 	});
 
+	test('names the profile search control with its visible label', () => {
+		renderPage();
+
+		const search = screen.getByRole('textbox', { name: 'Search profiles…' });
+		const label = document.querySelector(
+			'label[for="staff-user-profile-search"]',
+		);
+
+		expect(label?.textContent).toBe('Search profiles…');
+		expect(label?.textContent).toBe(search.getAttribute('aria-label'));
+	});
+
+	test('shows the no-match message instead of the empty-catalogue message for an empty search result', async () => {
+		setProfileState(USER_A, {
+			data: { assignedProfiles: [] },
+			isPending: false,
+			isSuccess: true,
+		});
+		mocks.toAssignedStaffProfiles.mockReturnValue([]);
+		mocks.toStaffProfileRows.mockReturnValue([]);
+		mocks.useStaffProfilesQuery.mockImplementation(() =>
+			buildQueryResult({
+				data: {
+					data: [],
+					nextCursor: null,
+				},
+			}),
+		);
+
+		renderPage();
+
+		fireEvent.change(screen.getByTestId('staff-user-profile-search'), {
+			target: { value: 'Missing' },
+		});
+
+		await waitFor(() =>
+			expect(mocks.useStaffProfilesQuery).toHaveBeenCalledWith(
+				expect.objectContaining({ q: 'Missing' }),
+			),
+		);
+		expect(screen.getByText('No results match your search.')).toBeTruthy();
+		expect(screen.queryByText('No profiles are available.')).toBeNull();
+	});
+
+	test('shows the empty-catalogue message when no profiles exist and the search is empty', () => {
+		setProfileState(USER_A, {
+			data: { assignedProfiles: [] },
+			isPending: false,
+			isSuccess: true,
+		});
+		mocks.toAssignedStaffProfiles.mockReturnValue([]);
+		mocks.toStaffProfileRows.mockReturnValue([]);
+		mocks.useStaffProfilesQuery.mockReturnValue(
+			buildQueryResult({
+				data: {
+					data: [],
+					nextCursor: null,
+				},
+			}),
+		);
+
+		renderPage();
+
+		expect(screen.getByText('No profiles are available.')).toBeTruthy();
+		expect(screen.queryByText('No results match your search.')).toBeNull();
+	});
+
 	// users-auth-r6-F4: the disabled email field must have a real route to
 	// the update-email endpoint, not just a "managed separately" dead end.
 	test('the Change email button opens a dialog that updates the email via the dedicated mutation', async () => {
@@ -771,9 +841,12 @@ describe('staff user edit route', () => {
 
 		renderPage();
 
-		fireEvent.change(screen.getByRole('textbox', { name: 'Search' }), {
-			target: { value: 'Archive' },
-		});
+		fireEvent.change(
+			screen.getByRole('textbox', { name: 'Search profiles…' }),
+			{
+				target: { value: 'Archive' },
+			},
+		);
 
 		await waitFor(() =>
 			expect(mocks.useStaffProfilesQuery).toHaveBeenCalledWith(
