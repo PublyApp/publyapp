@@ -1,5 +1,13 @@
 # OpenAPI & Kiota Client Generation Safeguards
 
+> **MIXED GUIDE — read the split before you follow anything.**
+> **Normative:** the .NET/OpenAPI/Kiota contract safeguards, the client-regeneration workflow, and
+> the front-2 request-body patterns using Kiota's `createUntyped*` factories.
+> **Not normative:** any response-extraction helper or path from `apps/front`, the retired MUI +
+> React Router v7 app. It is not deployed, and the owner will not edit it again. Use the generated
+> types in `apps/front-2`; if a response union remains after fixing the OpenAPI schema, treat a new
+> front-2 adapter as its own deliberate change rather than copying the retired utility.
+
 > Extracted from `AGENTS.md` — safeguards for the TypeScript API client auto-generated from the .NET OpenAPI spec using Microsoft Kiota.
 
 **CRITICAL:** Several .NET patterns directly affect TypeScript type generation.
@@ -162,7 +170,7 @@ just build-api
 just generate-client
 
 # 3. Run TypeScript check to verify no type errors
-just tsc-front
+pnpm --filter front-2 typecheck
 ```
 
 **Common issues after regeneration:**
@@ -193,20 +201,10 @@ const body: CreateUserBody = {
 };
 ```
 
-**For response data with potential UntypedNode unions:**
+**For response data with potential `UntypedNode` unions:**
 
-```typescript
-import { getUntypedNumber } from '@/front/lib/api-client/kiota-utils';
-
-// ✅ CORRECT - Use utility to safely extract number
-const count = getUntypedNumber(response.count, 0);
-
-// ❌ WRONG - Assumes response.count is always number
-const count = response.count;  // Could be number | UntypedNode
-```
-
-**Utility functions in `apps/front/app/lib/api-client/kiota-utils.ts`:**
-- `getUntypedNumber(value, defaultValue)` - Safely extract number from `number | UntypedNode`
-- `getUntypedString(value, defaultValue)` - Safely extract string from `string | UntypedNode`
-- `getUntypedArray(value)` - Safely extract array from `T[] | UntypedNode`
-- `getUntypedValue(value)` - Generic extraction for any type
+First fix the OpenAPI schema when the union is a generator artifact; the integer schema transformer
+above is the canonical example. `apps/front-2` has no shared `getUntypedNumber`,
+`getUntypedString`, `getUntypedArray`, or `getUntypedValue` utility. Do not copy the similarly named
+helper from the retired `apps/front`. If the corrected contract genuinely still needs an adapter,
+add and test a front-2-local seam as a focused change.
