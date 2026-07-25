@@ -1,10 +1,17 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import {
+	act,
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+} from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { paletteIndex, toInitials } from './avatar-initials';
+import { MockImage } from './avatar.test-helper';
 import { AvatarStack, BrandTile } from './initials-avatar';
 
 vi.mock('react-i18next', () => ({
@@ -14,7 +21,15 @@ vi.mock('react-i18next', () => ({
 	}),
 }));
 
-afterEach(cleanup);
+beforeEach(() => {
+	MockImage.instances = [];
+	vi.stubGlobal('Image', MockImage);
+});
+
+afterEach(() => {
+	cleanup();
+	vi.unstubAllGlobals();
+});
 
 describe('toInitials', () => {
 	test('takes the first letter of the first and last words', () => {
@@ -73,6 +88,10 @@ describe('AvatarStack', () => {
 		expect(stack?.getAttribute('role')).toBe('img');
 		expect(stack?.getAttribute('aria-label')).toContain('Ada Lovelace');
 		expect(stack?.getAttribute('aria-label')).toContain('Grace Hopper');
+		expect(MockImage.instances[0]?.src).toBe('https://example.com/ada.png');
+
+		act(() => MockImage.instances[0]?.onload?.());
+
 		expect(container.querySelector('img')?.getAttribute('src')).toBe(
 			'https://example.com/ada.png',
 		);

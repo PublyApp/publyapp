@@ -4,19 +4,8 @@
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
+import { MockImage } from './avatar.test-helper';
 import { PersonAvatar } from './person-avatar';
-
-class MockImage {
-	static instances: MockImage[] = [];
-
-	onerror: (() => void) | null = null;
-	onload: (() => void) | null = null;
-	src = '';
-
-	constructor() {
-		MockImage.instances.push(this);
-	}
-}
 
 beforeEach(() => {
 	MockImage.instances = [];

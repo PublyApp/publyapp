@@ -1,8 +1,8 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, render } from '@testing-library/react';
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import { act, cleanup, render } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 vi.mock('~/lib/api-client/client-manager', () => ({
 	getClientManager: () => ({
@@ -28,11 +28,20 @@ vi.mock('@tanstack/react-router', () => ({
 	),
 }));
 
+import { MockImage } from '~/components/ui/avatar.test-helper';
 import { toStaffUserRows } from '~/lib/query/staff-users';
 
 import { StaffUserNameCell } from './_staff-user-name-cell';
 
-afterEach(cleanup);
+beforeEach(() => {
+	MockImage.instances = [];
+	vi.stubGlobal('Image', MockImage);
+});
+
+afterEach(() => {
+	cleanup();
+	vi.unstubAllGlobals();
+});
 
 describe('StaffUserNameCell avatar flow', () => {
 	test('renders the avatarUrl retained by the staff-user query mapper', () => {
@@ -54,6 +63,12 @@ describe('StaffUserNameCell avatar flow', () => {
 		}
 
 		const { container } = render(<StaffUserNameCell row={row} />);
+
+		expect(MockImage.instances[0]?.src).toBe(
+			'https://api.example.test/files/uploads/ada.png',
+		);
+
+		act(() => MockImage.instances[0]?.onload?.());
 
 		expect(container.querySelector('img')?.getAttribute('src')).toBe(
 			'https://api.example.test/files/uploads/ada.png',
