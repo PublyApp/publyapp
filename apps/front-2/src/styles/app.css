@@ -445,6 +445,11 @@ html.dark {
 	   line-height ever changes. */
 	.publy-toast-icon {
 		order: 1;
+		/* The loading spinner is sonner's `.sonner-loader`, which is
+		   `position: absolute; top: 50%; left: 50%`. Without a positioned icon
+		   slot it resolves against the toast element itself and the spinner
+		   paints in the middle of the message text. */
+		position: relative;
 		display: flex;
 		flex: 0 0 auto;
 		align-items: center;
@@ -471,10 +476,13 @@ html.dark {
 		overflow-wrap: anywhere;
 	}
 
+	/* `--publy-foreground-secondary`, not `-muted`: measured against the light
+	   success and error tints the muted tone lands at 4.23:1, under the 4.5:1
+	   small-text floor (see toast-contrast.test.ts). */
 	.publy-toast-description {
 		font-size: 13px;
 		line-height: 18px;
-		color: var(--publy-foreground-muted);
+		color: var(--publy-foreground-secondary);
 		overflow-wrap: anywhere;
 	}
 
@@ -547,6 +555,13 @@ html.dark {
 	.publy-toast-close-button:hover {
 		background: var(--publy-surface-active);
 		color: var(--publy-foreground);
+	}
+
+	.publy-toast-action-button:focus-visible,
+	.publy-toast-cancel-button:focus-visible,
+	.publy-toast-close-button:focus-visible {
+		outline: 2px solid var(--publy-focus-ring);
+		outline-offset: 1px;
 	}
 
 	/* Sonner hides the contents of the back toasts in a collapsed stack, but
