@@ -22,7 +22,8 @@ import {
 	DetailGrid,
 	DetailMain,
 } from '~/components/ui/detail-layout';
-import { AvatarStack, InitialsAvatar } from '~/components/ui/initials-avatar';
+import { AvatarStack } from '~/components/ui/initials-avatar';
+import { PersonAvatar } from '~/components/ui/person-avatar';
 import { StatusPill } from '~/components/ui/product-page';
 import { StatCard } from '~/components/ui/stat-card';
 import { statusPillTone } from '~/components/ui/status-tone';
@@ -280,7 +281,11 @@ const UsersPreviewCard = ({
 			<div className="divide-y divide-[color:var(--publy-row-border)]">
 				{rows.map((row) => (
 					<div key={row.id} className="flex items-center gap-3 px-4 py-2.5">
-						<InitialsAvatar name={row.displayName} size="sm" />
+						<PersonAvatar
+							name={row.displayName}
+							avatarUrl={row.avatarUrl}
+							size="sm"
+						/>
 						<div className="min-w-0 flex-1">
 							<p className="truncate text-[13px] font-medium text-foreground">
 								{row.displayName}
@@ -356,7 +361,7 @@ const OwnersCard = ({
 						key={row.id}
 						className="flex items-center gap-3 px-[18px] py-[11px]"
 					>
-						<InitialsAvatar name={row.displayName} />
+						<PersonAvatar name={row.displayName} avatarUrl={row.avatarUrl} />
 						<div className="min-w-0 flex-1">
 							<p className="truncate text-[13px] font-medium text-foreground">
 								{row.displayName}
@@ -521,9 +526,12 @@ function StaffTenantDetailsPage() {
 		tenant.maxUsers > 0
 			? Math.min((tenant.usersCount / tenant.maxUsers) * 100, 100)
 			: 0;
-	const ownerNames = toStaffTenantUserRows(ownersQuery.data?.data)
+	const ownerPeople = toStaffTenantUserRows(ownersQuery.data?.data)
 		.slice(0, 5)
-		.map((row) => row.displayName);
+		.map((row) => ({
+			name: row.displayName,
+			avatarUrl: row.avatarUrl,
+		}));
 	const hasExpiringSoonInvitations = tenant.expiringSoonInvitationsCount > 0;
 	const lifecycleTitle = resolveLifecycleTitle({ isActive, isSuspended, t });
 	const lifecycleDescription = resolveLifecycleDescription({
@@ -568,7 +576,7 @@ function StaffTenantDetailsPage() {
 					testId="tenant-stat-owners"
 					label={t('owners')}
 					icon={<IconKey aria-hidden="true" className="size-[14px]" />}
-					secondary={<AvatarStack names={ownerNames} />}
+					secondary={<AvatarStack people={ownerPeople} />}
 				>
 					{tenant.ownersCount}
 				</StatCard>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { PersonAvatar } from '~/components/ui/person-avatar';
 import { cn } from '~/lib/utils';
 
 const PALETTE_SIZE = 8;
@@ -28,37 +29,20 @@ export const toInitials = (name: string): string => {
 	return `${first}${second}`.toUpperCase();
 };
 
-export const InitialsAvatar = ({
-	name,
-	size,
-}: {
-	name: string;
-	size?: 'xs' | 'sm' | 'md' | 'lg';
-}) => (
-	<span
-		aria-hidden="true"
-		className="publy-avatar-initials"
-		data-palette={paletteIndex(name)}
-		data-size={size}
-	>
-		{toInitials(name)}
-	</span>
-);
-
 /**
- * Overlapping hashed-initials avatars for a stat-card secondary row (e.g.
- * Owners count) — 20px circles, −6px overlap, thin ring so they read as a
- * stack rather than a run-on row.
+ * Overlapping person avatars for a stat-card secondary row (e.g. Owners
+ * count) — 20px circles, −6px overlap, thin ring so they read as a stack
+ * rather than a run-on row.
  */
 export const AvatarStack = ({
-	names,
+	people,
 	max = 5,
 }: {
-	names: string[];
+	people: Array<{ name: string; avatarUrl?: string | null }>;
 	max?: number;
 }) => {
 	const { t } = useTranslation('common');
-	const visible = names.slice(0, max);
+	const visible = people.slice(0, max);
 
 	if (visible.length === 0) {
 		return null;
@@ -68,19 +52,19 @@ export const AvatarStack = ({
 		<div
 			className="publy-avatar-stack"
 			role="img"
-			aria-label={t('avatar-stack-people', { names: names.join(', ') })}
+			aria-label={t('avatar-stack-people', {
+				names: people.map((person) => person.name).join(', '),
+			})}
 		>
-			{visible.map((name, index) => (
-				<span
-					key={`${name}-${index}`}
-					aria-hidden="true"
-					className="publy-avatar-initials publy-avatar-stack-item"
-					data-palette={paletteIndex(name)}
-					data-size="xs"
+			{visible.map((person, index) => (
+				<PersonAvatar
+					key={`${person.name}-${index}`}
+					name={person.name}
+					avatarUrl={person.avatarUrl}
+					size="xs"
+					className="publy-avatar-stack-item"
 					style={{ zIndex: visible.length - index }}
-				>
-					{toInitials(name)}
-				</span>
+				/>
 			))}
 		</div>
 	);
@@ -88,8 +72,8 @@ export const AvatarStack = ({
 
 /**
  * Square r14 brand/logo tile for organization identity (tenant detail
- * header) — distinct from InitialsAvatar, which is circular and reserved for
- * people. Falls back to hashed initials when there's no logoUrl.
+ * header) — distinct from circular person avatars. Falls back to hashed
+ * initials when there's no logoUrl.
  */
 // Keyed by `logoUrl` at the `BrandTile` call site below, so a `logoUrl`
 // change remounts a fresh instance (fresh `errored` state) by identity

@@ -15,7 +15,6 @@ import { useTranslation } from 'react-i18next';
 import { DataTableRowActions } from '~/components/table/row-actions';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
-import { InitialsAvatar } from '~/components/ui/initials-avatar';
 import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import { formatDateTime } from '~/lib/format-date-time';
@@ -168,7 +167,12 @@ export const createInvitationColumns = ({
 					params={{ invitationId: row.original.id }}
 					className="flex min-w-0 items-center gap-2.5 no-underline"
 				>
-					<InitialsAvatar name={row.original.email} />
+					<span
+						aria-hidden="true"
+						className="inline-flex size-[26px] shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
+					>
+						<IconMail className="size-3.5" />
+					</span>
 					<span
 						className="publy-record-link min-w-0 truncate text-[13px]"
 						title={email}

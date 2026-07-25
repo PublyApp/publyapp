@@ -1065,67 +1065,6 @@ html.dark {
 		color: var(--publy-chip-pending-text);
 	}
 
-	.publy-avatar-initials {
-		@apply inline-flex shrink-0 items-center justify-center rounded-full;
-		width: 26px;
-		height: 26px;
-		font-size: 10px;
-		font-weight: 600;
-		line-height: 1;
-		color: var(--publy-avatar-foreground);
-		background: var(--publy-avatar-1);
-		user-select: none;
-	}
-
-	.publy-avatar-initials[data-palette='1'] {
-		background: var(--publy-avatar-1);
-	}
-	.publy-avatar-initials[data-palette='2'] {
-		background: var(--publy-avatar-2);
-	}
-	.publy-avatar-initials[data-palette='3'] {
-		background: var(--publy-avatar-3);
-	}
-	.publy-avatar-initials[data-palette='4'] {
-		background: var(--publy-avatar-4);
-	}
-	.publy-avatar-initials[data-palette='5'] {
-		background: var(--publy-avatar-5);
-	}
-	.publy-avatar-initials[data-palette='6'] {
-		background: var(--publy-avatar-6);
-	}
-	.publy-avatar-initials[data-palette='7'] {
-		background: var(--publy-avatar-7);
-	}
-	.publy-avatar-initials[data-palette='8'] {
-		background: var(--publy-avatar-8);
-	}
-
-	.publy-avatar-initials[data-size='lg'] {
-		width: 56px;
-		height: 56px;
-		font-size: 18px;
-	}
-
-	.publy-avatar-initials[data-size='sm'] {
-		width: 32px;
-		height: 32px;
-		font-size: 11px;
-	}
-
-	.publy-avatar-initials[data-size='xs'] {
-		width: 20px;
-		height: 20px;
-		font-size: 8px;
-	}
-
-	.publy-avatar-initials[data-size='md'] {
-		width: 36px;
-		height: 36px;
-		font-size: 12px;
-	}
-
 	.publy-card-header {
 		@apply flex items-center justify-between gap-3;
 		padding: 14px 18px;

@@ -18,8 +18,8 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
 import { Button, buttonVariants } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
-import { InitialsAvatar } from '~/components/ui/initials-avatar';
 import { Input } from '~/components/ui/input';
+import { PersonAvatar } from '~/components/ui/person-avatar';
 import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
@@ -110,15 +110,15 @@ const getSuspendDialogKeys = (
 const ConfirmHeaderInfo = ({
 	name,
 	email,
-	avatarSeed,
+	avatarUrl,
 }: {
 	name: string;
 	email: string;
-	avatarSeed: string;
+	avatarUrl: string | null;
 }) => (
 	<div className="rounded-[var(--publy-radius-card)] border border-[var(--publy-row-border)] bg-[var(--publy-surface-raised)] p-3">
 		<div className="flex items-center gap-2.5">
-			<InitialsAvatar name={avatarSeed} size="sm" />
+			<PersonAvatar name={name} avatarUrl={avatarUrl} size="sm" />
 			<div className="min-w-0">
 				<p className="text-sm font-medium text-foreground">{name}</p>
 				<p className="truncate text-xs text-muted-foreground">{email}</p>
@@ -408,7 +408,11 @@ function StaffUserDetailsPage() {
 				<div className="flex flex-wrap items-center justify-between gap-3">
 					<div className="flex items-start gap-3">
 						<div className="h-14 w-14">
-							<InitialsAvatar name={user.displayName} size="lg" />
+							<PersonAvatar
+								name={user.displayName}
+								avatarUrl={user.avatarUrl}
+								size="lg"
+							/>
 						</div>
 						<div className="min-w-0">
 							<div className="flex flex-wrap items-center gap-2">
@@ -457,7 +461,7 @@ function StaffUserDetailsPage() {
 							<ConfirmHeaderInfo
 								name={user.displayName}
 								email={user.email || t('common:no-email-address')}
-								avatarSeed={user.displayName}
+								avatarUrl={user.avatarUrl}
 							/>
 						</ConfirmDialog>
 					</div>
@@ -540,7 +544,7 @@ function StaffUserDetailsPage() {
 					<ConfirmHeaderInfo
 						name={user.displayName}
 						email={user.email}
-						avatarSeed={user.displayName}
+						avatarUrl={user.avatarUrl}
 					/>
 					<DeleteConfirmField
 						value={deleteConfirmText}

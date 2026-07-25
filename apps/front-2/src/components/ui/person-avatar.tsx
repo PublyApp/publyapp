@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { Image } from '~/components/ui/image';
 import { cn } from '~/lib/utils';
 
@@ -57,24 +57,27 @@ const PersonAvatarVisual = ({
 	);
 };
 
-export const PersonAvatar = ({
+export const EntityAvatar = ({
 	name,
 	avatarUrl,
 	size,
 	accessibleLabel,
 	className,
+	style,
 }: {
 	name: string;
 	avatarUrl?: string | null;
 	size?: PersonAvatarSize;
 	accessibleLabel?: string;
 	className?: string;
+	style?: CSSProperties;
 }) => (
 	<span
 		data-slot="person-avatar"
 		role={accessibleLabel ? 'img' : undefined}
 		aria-label={accessibleLabel}
 		aria-hidden={accessibleLabel ? undefined : true}
+		style={style}
 		className={cn(
 			'inline-flex shrink-0 rounded-full',
 			sizeClassNames[size ?? 'default'],
@@ -88,3 +91,5 @@ export const PersonAvatar = ({
 		/>
 	</span>
 );
+
+export const PersonAvatar = EntityAvatar;

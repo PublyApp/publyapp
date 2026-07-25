@@ -6,7 +6,6 @@ import {
 	IconSun,
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
-import { Avatar, AvatarImage } from '~/components/ui/avatar';
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -22,7 +21,7 @@ import {
 	DropdownMenuSubTrigger,
 	DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu';
-import { InitialsAvatar } from '~/components/ui/initials-avatar';
+import { PersonAvatar } from '~/components/ui/person-avatar';
 import { useLogout } from '~/lib/hooks/use-logout';
 import { useSwitchLocale } from '~/lib/hooks/use-switch-locale';
 import {
@@ -58,13 +57,12 @@ export const AppShellUserMenu = () => {
 				className="app-shell-user-chip"
 				data-testid="app-shell-user-menu-trigger"
 			>
-				{currentUser?.avatarUrl ? (
-					<Avatar size="sm" className="size-7">
-						<AvatarImage src={currentUser.avatarUrl} alt="" />
-					</Avatar>
-				) : (
-					<InitialsAvatar name={avatarSeed} />
-				)}
+				<PersonAvatar
+					name={avatarSeed}
+					avatarUrl={currentUser?.avatarUrl}
+					size="sm"
+					className="size-7"
+				/>
 				<span className="app-shell-user-name">{displayName}</span>
 				<IconChevronDown aria-hidden="true" className="size-4" />
 			</DropdownMenuTrigger>

@@ -61,17 +61,32 @@ describe('AvatarStack', () => {
 	// identities must still reach assistive tech through the container.
 	test('exposes the member names through an aria-label on the stack container', () => {
 		const { container } = render(
-			<AvatarStack names={['Ada Lovelace', 'Grace Hopper']} />,
+			<AvatarStack
+				people={[
+					{
+						name: 'Ada Lovelace',
+						avatarUrl: 'https://example.com/ada.png',
+					},
+					{ name: 'Grace Hopper', avatarUrl: null },
+				]}
+			/>,
 		);
 
 		const stack = container.querySelector('.publy-avatar-stack');
 		expect(stack?.getAttribute('role')).toBe('img');
 		expect(stack?.getAttribute('aria-label')).toContain('Ada Lovelace');
 		expect(stack?.getAttribute('aria-label')).toContain('Grace Hopper');
+		expect(container.querySelector('img')?.getAttribute('src')).toBe(
+			'https://example.com/ada.png',
+		);
+		expect(
+			container.querySelector('[data-slot="person-avatar-fallback"]'),
+		).not.toBeNull();
+		expect(container.querySelector('[data-palette]')).toBeNull();
 	});
 
 	test('renders nothing for an empty name list', () => {
-		const { container } = render(<AvatarStack names={[]} />);
+		const { container } = render(<AvatarStack people={[]} />);
 
 		expect(container.querySelector('.publy-avatar-stack')).toBeNull();
 	});

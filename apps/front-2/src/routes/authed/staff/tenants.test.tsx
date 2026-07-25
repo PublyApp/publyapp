@@ -891,22 +891,27 @@ describe('staff tenants route', () => {
 	});
 
 	describe('bulk actions', () => {
-		test('renders a selection checkbox and hashed avatar for each tenant row', () => {
+		test('renders a selection checkbox and neutral entity avatar for each tenant row', () => {
 			const { container } = renderPage();
 
 			expect(
 				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 			).toBeTruthy();
-			expect(container.querySelector('.publy-avatar-initials')).toBeTruthy();
+			expect(
+				container.querySelector('[data-slot="person-avatar"]'),
+			).toBeTruthy();
+			expect(container.querySelector('[data-palette]')).toBeNull();
 		});
 
 		test('wraps the avatar and name inside a single link so hovering either activates it', () => {
 			const { container } = renderPage();
 
 			const nameLink = screen.getByRole('link', { name: /Acme Corporation/ });
-			expect(nameLink.querySelector('.publy-avatar-initials')).toBeTruthy();
-			expect(container.querySelector('.publy-avatar-initials')).toBe(
-				nameLink.querySelector('.publy-avatar-initials'),
+			expect(
+				nameLink.querySelector('[data-slot="person-avatar"]'),
+			).toBeTruthy();
+			expect(container.querySelector('[data-slot="person-avatar"]')).toBe(
+				nameLink.querySelector('[data-slot="person-avatar"]'),
 			);
 		});
 

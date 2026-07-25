@@ -44,7 +44,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu';
-import { InitialsAvatar } from '~/components/ui/initials-avatar';
+import { PersonAvatar } from '~/components/ui/person-avatar';
 import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import { downloadFile, formatExportDateStamp } from '~/lib/download-file';
@@ -417,7 +417,10 @@ export const makeTenantUserColumns = (
 				params={{ tenantId, userId: row.original.id }}
 				className="flex min-w-0 items-center gap-2.5 no-underline"
 			>
-				<InitialsAvatar name={row.original.displayName} />
+				<PersonAvatar
+					name={row.original.displayName}
+					avatarUrl={row.original.avatarUrl}
+				/>
 				<span className="min-w-0 space-y-0.5">
 					<span
 						className="publy-record-link block truncate text-[13px] font-medium"

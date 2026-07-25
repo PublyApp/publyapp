@@ -37,7 +37,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu';
-import { InitialsAvatar } from '~/components/ui/initials-avatar';
+import { EntityAvatar } from '~/components/ui/person-avatar';
 import { PageHeader, StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import {
@@ -179,7 +179,10 @@ const buildTenantColumns = (
 				params={{ tenantId: row.original.id }}
 				className="flex min-w-0 items-center gap-2.5 no-underline"
 			>
-				<InitialsAvatar name={row.original.name} />
+				<EntityAvatar
+					name={row.original.name}
+					avatarUrl={row.original.logoUrl}
+				/>
 				<span
 					className="publy-record-link min-w-0 truncate"
 					title={row.original.name}

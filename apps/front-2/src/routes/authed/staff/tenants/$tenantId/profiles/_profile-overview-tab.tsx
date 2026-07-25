@@ -19,8 +19,9 @@ import {
 	DetailGrid,
 	DetailMain,
 } from '~/components/ui/detail-layout';
-import { AvatarStack, InitialsAvatar } from '~/components/ui/initials-avatar';
+import { AvatarStack } from '~/components/ui/initials-avatar';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
+import { PersonAvatar } from '~/components/ui/person-avatar';
 import { StatusPill } from '~/components/ui/product-page';
 import { StatCard } from '~/components/ui/stat-card';
 import type {
@@ -91,7 +92,11 @@ const MembersPreviewBody = ({
 		<ul className="flex flex-col divide-y divide-border">
 			{previewMembers.map((member) => (
 				<li key={member.id} className="flex items-center gap-3 px-4 py-2.5">
-					<InitialsAvatar name={memberDisplayName(member)} size="sm" />
+					<PersonAvatar
+						name={memberDisplayName(member)}
+						avatarUrl={member.avatarUrl}
+						size="sm"
+					/>
 					<div className="min-w-0">
 						<p className="truncate text-sm font-medium text-foreground">
 							{memberDisplayName(member)}
@@ -275,9 +280,12 @@ export const ProfileOverviewTab = ({
 		!isCatalogPending && !isCatalogError && glance.catalogTotal > 0;
 	// The stack shows up to 5 leading members; the overflow badge counts the rest
 	// against the profile's true member total (the query only fetches the lead).
-	const stackNames = members.slice(0, 5).map(memberDisplayName);
+	const stackPeople = members.slice(0, 5).map((member) => ({
+		name: memberDisplayName(member),
+		avatarUrl: member.avatarUrl,
+	}));
 	const membersOverflow = Math.max(
-		profile.userAccountCount - stackNames.length,
+		profile.userAccountCount - stackPeople.length,
 		0,
 	);
 
@@ -292,12 +300,12 @@ export const ProfileOverviewTab = ({
 					label={t('common:members')}
 					icon={<IconUsers aria-hidden="true" className="size-[14px]" />}
 					secondary={
-						stackNames.length > 0 ? (
+						stackPeople.length > 0 ? (
 							<div
 								className="flex items-center gap-2"
 								data-testid="profile-stat-members-stack"
 							>
-								<AvatarStack names={stackNames} />
+								<AvatarStack people={stackPeople} />
 								{membersOverflow > 0 ? (
 									<span className="publy-stat-card-link">
 										{t('members-more-count', { count: membersOverflow })}
