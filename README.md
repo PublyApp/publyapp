@@ -202,28 +202,41 @@ pnpm --filter front-2 typecheck    # confirm the frontend compiles against the n
 ### Get running
 
 ```bash
-# 1. Install everything (pnpm workspaces + dotnet restore + shared postinstall)
+# 1. Create local configuration
+cp .env.example .env.development
+
+# 2. Install everything (pnpm workspaces + dotnet restore + shared postinstall)
 just install
 
-# 2. Start PostgreSQL in Docker
+# 3. Start PostgreSQL in Docker
 just dev-db
 
-# 3. Apply database migrations
+# 4. Apply database migrations
 just db-migrate
 
-# 4. Start the API           (terminal 1)
+# 5. Start the API           (terminal 1)
 just dev-api
 
-# 5. Start the frontend       (terminal 2)
+# 6. Start the frontend       (terminal 2)
 pnpm --filter front-2 dev
 ```
+
+Before migrating, edit `.env.development` so its database connection matches the local container:
+
+```dotenv
+POSTGRES_CONNECTION_STRING="Host=localhost;Port=5454;Database=publyapp_db;Username=postgres;Password=password"
+```
+
+The committed template deliberately contains placeholders; its database name and password do not
+match `docker-compose.services.yml`.
 
 > **Heads-up on legacy frontend recipes.** `dev-front`, `build-front`, `tsc-front`, `start-front`,
 > `deploy-front`, `ci-front`, `ci-e2e-front`, and `clean-front` target `apps/front`, the **retired**
 > frontend. Use `pnpm --filter front-2 <script>` or `just ci-front-2` for the frontend that actually
 > ships.
 
-> First time? `just dev-setup` runs install + database in one step.
+> After creating and editing `.env.development`, `just dev-setup` can run install + database in one
+> step.
 
 ### Local URLs
 
@@ -234,9 +247,9 @@ pnpm --filter front-2 dev
 | API docs (Scalar) | <http://localhost:5000/scalar/v1>                             |
 | PostgreSQL        | `localhost:5454`                                              |
 
-Local development configuration lives in `.env.development`, which you create by copying the
-committed `.env.example` template. Real env files are gitignored and must never be committed; they
-are validated at startup.
+Local development configuration lives in `.env.development`. The API throws at startup or during
+build-time initialization when that file is absent in Development or when the host environment is
+unset. Real env files are gitignored and must never be committed; they are validated at startup.
 
 <!-- markdownlint-enable MD013 MD060 -->
 
