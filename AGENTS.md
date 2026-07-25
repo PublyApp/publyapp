@@ -333,7 +333,9 @@ because the owner will not edit `apps/front` again.
   `_components/`, or `routes/` source paths.
 - Retired `apps/front` only: `no-raw-mui-textfield-register` covers its source files;
   `no-native-html-in-mui-surfaces` and `no-raw-img-in-product-surfaces` cover product JSX under
-  `components/`, `layouts/`, `routes/`, and `lib/`, with their narrow marketing/brand exclusions.
+  `components/`, `layouts/`, `routes/`, and `lib/`, with their narrow marketing/brand exclusions;
+  `no-raw-img-in-product-surfaces` also exempts an image when the immediately preceding line
+  contains the `publy-allow full-bleed-background` comment marker.
 
 `publy/no-op` and `publy/arrow-function-components` are off. Component declaration style is
 therefore not lint-enforced in front-2; both arrow components and function declarations exist.
