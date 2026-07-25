@@ -1,23 +1,15 @@
 import {
-	IconAdjustments,
 	IconAlertCircle,
-	IconBriefcase,
 	IconChevronDown,
 	IconEye,
 	IconFilter,
-	IconKey,
 	IconLayoutGrid,
-	IconLock,
 	IconPencil,
 	IconPlus,
-	IconSettings,
 	IconShield,
-	IconStar,
 	IconTable,
 	IconTrash,
-	IconUsers,
 } from '@tabler/icons-react';
-import type { Icon } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -94,7 +86,10 @@ import {
 	TenantDetailsPageShell,
 	TenantRetryActions,
 } from './_tenant-details-shell';
+import { deriveTenantProfileCardStyle } from './profiles/_profile-card-style';
 import { ProfileFormDrawer } from './profiles/_profile-form-drawer';
+
+export { deriveTenantProfileCardStyle } from './profiles/_profile-card-style';
 
 export type StaffTenantProfileTypeFilter = 'true' | 'false';
 export type StaffTenantProfilesViewMode = 'cards' | 'table';
@@ -190,34 +185,6 @@ export const serializeStaffTenantProfilesSearchParams = (
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
 
-/** Deterministic, decorative icon + tone for a profile card — same hashing
- * approach as the staff (non-tenant) profiles list; not a contract field. */
-const PROFILE_CARD_ICONS: readonly Icon[] = [
-	IconShield,
-	IconKey,
-	IconLock,
-	IconStar,
-	IconBriefcase,
-	IconAdjustments,
-	IconUsers,
-	IconSettings,
-];
-const PROFILE_CARD_TONE_COUNT = 8;
-
-export const deriveTenantProfileCardStyle = (
-	name: string,
-): { Icon: Icon; tone: string } => {
-	let sum = 0;
-	for (const char of name) {
-		sum += char.codePointAt(0) ?? 0;
-	}
-
-	return {
-		Icon: PROFILE_CARD_ICONS[sum % PROFILE_CARD_ICONS.length] ?? IconShield,
-		tone: String(sum % PROFILE_CARD_TONE_COUNT),
-	};
-};
-
 export const tenantProfileTypeChipClassName = (isDefault: boolean): string =>
 	isDefault
 		? 'publy-detail-chip publy-detail-chip--amber'
@@ -226,6 +193,7 @@ export const tenantProfileTypeChipClassName = (isDefault: boolean): string =>
 export const Route = createFileRoute(
 	'/_authed-layout/staff/tenants/$tenantId/profiles',
 )({
+	staticData: { i18nNamespaces: ['staff-tenant-profiles'] },
 	validateSearch: (search) =>
 		serializeStaffTenantProfilesSearchParams(
 			parseStaffTenantProfilesSearchParams(
@@ -320,6 +288,8 @@ const ProfileCard = ({
 	const { t } = useTranslation('common');
 	const { Icon: ProfileIcon, tone } = deriveTenantProfileCardStyle(
 		profile.name,
+		profile.icon,
+		profile.tone,
 	);
 
 	return (
@@ -410,6 +380,8 @@ const ProfileNameCell = ({
 }) => {
 	const { Icon: ProfileIcon, tone } = deriveTenantProfileCardStyle(
 		profile.name,
+		profile.icon,
+		profile.tone,
 	);
 
 	return (
@@ -1165,7 +1137,6 @@ function StaffTenantProfilesPage() {
 
 			<ProfileFormDrawer
 				tenantId={tenantId}
-				mode="create"
 				isOpen={isCreateDrawerOpen}
 				onOpenChange={setCreateDrawerOpen}
 				onSessionExpired={() => setShouldRedirectToLogout(true)}

@@ -93,10 +93,63 @@ const DETAIL_ROUTE_OTHER = '/staff/invitations/i-1';
 
 const resetUiStore = () => {
 	useUiStore.setState({
+		breadcrumbOverride: null,
 		colorScheme: 'light',
 		sidebarOpen: true,
 	});
 };
+
+describe('AppShell breadcrumb override', () => {
+	beforeEach(() => {
+		mocks.isDesktop = true;
+		window.localStorage.clear();
+		resetUiStore();
+	});
+
+	afterEach(() => {
+		cleanup();
+	});
+
+	test('renders a page-published named trail instead of route metadata', () => {
+		useUiStore.getState().setBreadcrumbOverride([
+			{ label: 'Tenants', to: '/staff/tenants' },
+			{
+				label: 'Acme Corporation',
+				to: '/staff/tenants/11111111-1111-1111-1111-111111111111',
+			},
+			{
+				label: 'Profiles',
+				to: '/staff/tenants/11111111-1111-1111-1111-111111111111/profiles',
+			},
+			{ label: 'Approvers' },
+		]);
+
+		render(
+			<AppShell
+				mode="authed"
+				pathname="/staff/tenants/11111111-1111-1111-1111-111111111111/profiles/22222222-2222-2222-2222-222222222222"
+			>
+				content
+			</AppShell>,
+		);
+
+		const breadcrumb = screen.getByRole('navigation', {
+			name: 'nav-breadcrumb',
+		});
+		expect(breadcrumb.textContent).toContain(
+			'TenantsAcme CorporationProfilesApprovers',
+		);
+		expect(
+			within(breadcrumb)
+				.getByRole('link', { name: 'Acme Corporation' })
+				.getAttribute('href'),
+		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111');
+		expect(
+			within(breadcrumb).getByText('Approvers').getAttribute('aria-current'),
+		).toBe('page');
+		expect(breadcrumb.textContent).not.toContain('nav-dashboard');
+	});
+});
 
 describe('AppShell secondary-panel toggle', () => {
 	beforeEach(() => {

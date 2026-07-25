@@ -149,7 +149,22 @@ public sealed class CreateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		Assert.NotNull(payload);
 		payload.Profile.Name.Should().Be(name);
 		payload.Profile.Description.Should().Be("Created through tenant profile CRUD");
+		payload.Profile.Icon.Should().BeNull();
+		payload.Profile.Tone.Should().BeNull();
 		payload.Profile.IsDefault.Should().BeFalse();
+
+		var persistedProfile = await GetTenantProfileByNameAsync(tenantId, name);
+		persistedProfile.Should().NotBeNull();
+		Assert.NotNull(persistedProfile);
+		persistedProfile.Icon.Should().BeNull();
+		persistedProfile.Tone.Should().BeNull();
+		payload.Profile.PermissionsCount.Should().Be(0);
+		payload.Profile.CreatedAt.Should()
+			.BeCloseTo(persistedProfile.CreatedAt, TimeSpan.FromMicroseconds(1));
+		payload.Profile.UpdatedAt.Should()
+			.BeCloseTo(persistedProfile.UpdatedAt, TimeSpan.FromMicroseconds(1));
+		payload.Profile.CreatedAt.Should().NotBe(default);
+		payload.Profile.UpdatedAt.Should().NotBe(default);
 
 		var auditLog = await GetLatestAuditLogAsync(
 			AuditActions.TenantProfileCreated,
@@ -167,6 +182,85 @@ public sealed class CreateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 			expectedInitialPermissionKeys: [],
 			expectedInitialPermissionCount: 0
 		);
+	}
+
+	[Fact]
+	public async Task ItShouldCreateTenantProfileWithIconAndTone() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync();
+		var name = "Styled Tenant Profile " + Guid.NewGuid().ToString("N")[..8];
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			GetUrl(tenantId.ToString())
+		).WithSessionToken(token);
+		request.Content = JsonContent.Create(new {
+			name,
+			description = "Created with persisted card style",
+			icon = "shield-check",
+			tone = "4",
+		});
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+		var payload = await response.Content.ReadFromJsonAsync<GetTenantProfileByIdResponse>();
+		payload.Should().NotBeNull();
+		Assert.NotNull(payload);
+		payload.Profile.Icon.Should().Be("shield-check");
+		payload.Profile.Tone.Should().Be("4");
+
+		var persistedProfile = await GetTenantProfileByNameAsync(tenantId, name);
+		persistedProfile.Should().NotBeNull();
+		Assert.NotNull(persistedProfile);
+		persistedProfile.Icon.Should().Be("shield-check");
+		persistedProfile.Tone.Should().Be("4");
+	}
+
+	[Fact]
+	public async Task ItShouldReturnUnprocessableEntityForInvalidTone() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			GetUrl(tenantId.ToString())
+		).WithSessionToken(token);
+		request.Content = JsonContent.Create(new {
+			name = "Invalid Tone " + Guid.NewGuid().ToString("N")[..8],
+			tone = "8",
+		});
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		Assert.NotNull(problem);
+		problem.Errors.Should().ContainKey("Tone");
+	}
+
+	[Fact]
+	public async Task ItShouldReturnUnprocessableEntityForUnsupportedIcon() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			GetUrl(tenantId.ToString())
+		).WithSessionToken(token);
+		request.Content = JsonContent.Create(new {
+			name = "Invalid Icon " + Guid.NewGuid().ToString("N")[..8],
+			icon = "address-book",
+		});
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		Assert.NotNull(problem);
+		problem.Errors.Should().ContainKey("Icon");
 	}
 
 	[Fact]
@@ -196,6 +290,9 @@ public sealed class CreateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		payload.Should().NotBeNull();
 
 		Assert.NotNull(payload);
+		payload.Profile.PermissionsCount.Should().Be(permissionKeys.Length);
+		payload.Profile.CreatedAt.Should().NotBe(default);
+		payload.Profile.UpdatedAt.Should().NotBe(default);
 		var persistedPermissionKeys = await GetPermissionKeysAsync(payload.Profile.Id);
 		persistedPermissionKeys.Should().BeEquivalentTo(permissionKeys);
 
@@ -461,7 +558,12 @@ public sealed class CreateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		public Guid Id { get; init; }
 		public string Name { get; init; } = string.Empty;
 		public string? Description { get; init; }
+		public string? Icon { get; init; }
+		public string? Tone { get; init; }
 		public bool IsDefault { get; init; }
 		public int UserAccountCount { get; init; }
+		public int PermissionsCount { get; init; }
+		public DateTime CreatedAt { get; init; }
+		public DateTime UpdatedAt { get; init; }
 	}
 }

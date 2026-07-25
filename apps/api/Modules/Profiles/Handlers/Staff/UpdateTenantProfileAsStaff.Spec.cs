@@ -11,6 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
+using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -18,6 +19,7 @@ using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
+using PublyApp.Api.Modules.Profiles.Entities;
 
 using Xunit;
 
@@ -190,6 +192,11 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		var token = await _authClient.LoginAsStaffAdminAsync();
 		var tenantId = await GetTenantIdAsync();
 		var profileId = await CreateProfileAsync(token, tenantId);
+		var profileGuid = Guid.Parse(profileId);
+		await AddProfilePermissionAsync(
+			profileGuid,
+			AppPermissions.Tenant.Modules.ACCESS_USERS.Key
+		);
 		var originalName = await GetProfileNameAsync(token, tenantId, profileId);
 		var originalDescription = "Profile created for update tests";
 		var updatedName = "Renamed " + Guid.NewGuid().ToString("N")[..8];
@@ -211,6 +218,15 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		payload.Should().NotBeNull();
 		Assert.NotNull(payload);
 		payload.Profile.Description.Should().Be(updatedDescription);
+		payload.Profile.PermissionsCount.Should().Be(1);
+		payload.Profile.CreatedAt.Should().NotBe(default);
+		payload.Profile.UpdatedAt.Should().NotBe(default);
+
+		var persistedProfile = await GetProfileAsync(profileGuid);
+		payload.Profile.CreatedAt.Should()
+			.BeCloseTo(persistedProfile.CreatedAt, TimeSpan.FromMicroseconds(1));
+		payload.Profile.UpdatedAt.Should()
+			.BeCloseTo(persistedProfile.UpdatedAt, TimeSpan.FromMicroseconds(1));
 
 		var auditLog = await GetLatestAuditLogAsync(
 			AuditActions.TenantProfileUpdated,
@@ -275,6 +291,203 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 			expectedDescriptionOld: "Profile created for update tests",
 			expectedDescriptionNew: null
 		);
+	}
+
+	[Fact]
+	public async Task ItShouldSetIconAndTone() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync();
+		var profileId = await CreateProfileAsync(token, tenantId);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Patch,
+			GetUrl(tenantId.ToString(), profileId)
+		).WithSessionToken(token);
+		request.Content = JsonContent.Create(new {
+			icon = "users-group",
+			tone = "6",
+		});
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var payload = await response.Content.ReadFromJsonAsync<GetTenantProfileByIdResponse>();
+		payload.Should().NotBeNull();
+		Assert.NotNull(payload);
+		payload.Profile.Icon.Should().Be("users-group");
+		payload.Profile.Tone.Should().Be("6");
+
+		var persistedProfile = await GetProfileAsync(Guid.Parse(profileId));
+		persistedProfile.Icon.Should().Be("users-group");
+		persistedProfile.Tone.Should().Be("6");
+	}
+
+	[Fact]
+	public async Task ItShouldWriteAuditLogWhenOnlyIconChanges() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync();
+		var profileId = await CreateProfileAsync(token, tenantId);
+		var profileGuid = Guid.Parse(profileId);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Patch,
+			GetUrl(tenantId.ToString(), profileId)
+		).WithSessionToken(token);
+		request.Content = JsonContent.Create(new { icon = "users-group" });
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var payload = await response.Content
+			.ReadFromJsonAsync<GetTenantProfileByIdResponse>();
+		payload.Should().NotBeNull();
+		Assert.NotNull(payload);
+
+		var auditLog = await GetLatestAuditLogAsync(
+			AuditActions.TenantProfileUpdated,
+			profileGuid
+		);
+		AssertStyleAuditDetails(
+			auditLog,
+			tenantId,
+			profileGuid,
+			payload.Profile.Name,
+			new Dictionary<string, (string? Old, string? New)> {
+				["icon"] = (null, "users-group"),
+			}
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldWriteAuditLogWhenOnlyToneChanges() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync();
+		var profileId = await CreateProfileAsync(token, tenantId);
+		var profileGuid = Guid.Parse(profileId);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Patch,
+			GetUrl(tenantId.ToString(), profileId)
+		).WithSessionToken(token);
+		request.Content = JsonContent.Create(new { tone = "6" });
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var payload = await response.Content
+			.ReadFromJsonAsync<GetTenantProfileByIdResponse>();
+		payload.Should().NotBeNull();
+		Assert.NotNull(payload);
+
+		var auditLog = await GetLatestAuditLogAsync(
+			AuditActions.TenantProfileUpdated,
+			profileGuid
+		);
+		AssertStyleAuditDetails(
+			auditLog,
+			tenantId,
+			profileGuid,
+			payload.Profile.Name,
+			new Dictionary<string, (string? Old, string? New)> {
+				["tone"] = (null, "6"),
+			}
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldClearIconAndToneWhenNullIsProvided() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync();
+		var profileId = await CreateProfileAsync(token, tenantId);
+		await SetProfileStyleAsync(Guid.Parse(profileId), "shield", "2");
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Patch,
+			GetUrl(tenantId.ToString(), profileId)
+		).WithSessionToken(token);
+		request.Content = new StringContent(
+			"{\"icon\":null,\"tone\":null}",
+			Encoding.UTF8,
+			"application/json"
+		);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var payload = await response.Content.ReadFromJsonAsync<GetTenantProfileByIdResponse>();
+		payload.Should().NotBeNull();
+		Assert.NotNull(payload);
+		payload.Profile.Icon.Should().BeNull();
+		payload.Profile.Tone.Should().BeNull();
+
+		var persistedProfile = await GetProfileAsync(Guid.Parse(profileId));
+		persistedProfile.Icon.Should().BeNull();
+		persistedProfile.Tone.Should().BeNull();
+
+		var auditLog = await GetLatestAuditLogAsync(
+			AuditActions.TenantProfileUpdated,
+			Guid.Parse(profileId)
+		);
+		AssertStyleAuditDetails(
+			auditLog,
+			tenantId,
+			Guid.Parse(profileId),
+			payload.Profile.Name,
+			new Dictionary<string, (string? Old, string? New)> {
+				["icon"] = ("shield", null),
+				["tone"] = ("2", null),
+			}
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldLeaveIconAndToneUnchangedWhenOmitted() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync();
+		var profileId = await CreateProfileAsync(token, tenantId);
+		await SetProfileStyleAsync(Guid.Parse(profileId), "briefcase", "3");
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Patch,
+			GetUrl(tenantId.ToString(), profileId)
+		).WithSessionToken(token);
+		request.Content = JsonContent.Create(new {
+			description = "Style fields omitted",
+		});
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var payload = await response.Content.ReadFromJsonAsync<GetTenantProfileByIdResponse>();
+		payload.Should().NotBeNull();
+		Assert.NotNull(payload);
+		payload.Profile.Icon.Should().Be("briefcase");
+		payload.Profile.Tone.Should().Be("3");
+
+		var persistedProfile = await GetProfileAsync(Guid.Parse(profileId));
+		persistedProfile.Icon.Should().Be("briefcase");
+		persistedProfile.Tone.Should().Be("3");
+	}
+
+	[Fact]
+	public async Task ItShouldReturnUnprocessableEntityForInvalidTone() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await GetTenantIdAsync();
+		var profileId = await CreateProfileAsync(token, tenantId);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Patch,
+			GetUrl(tenantId.ToString(), profileId)
+		).WithSessionToken(token);
+		request.Content = JsonContent.Create(new { tone = "8" });
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		Assert.NotNull(problem);
+		problem.Errors.Should().ContainKey("Tone");
 	}
 
 	[Fact]
@@ -382,6 +595,42 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 			.FirstOrDefaultAsync();
 	}
 
+	private async Task SetProfileStyleAsync(
+		Guid profileId,
+		string icon,
+		string tone
+	) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var profile = await dbContext.Profile.SingleAsync(item => item.Id == profileId);
+		profile.Icon = icon;
+		profile.Tone = tone;
+		await dbContext.SaveChangesAsync();
+	}
+
+	private async Task AddProfilePermissionAsync(
+		Guid profileId,
+		string permissionKey
+	) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+		await dbContext.ProfilePermission.AddAsync(new ProfilePermission {
+			ProfileId = profileId,
+			PermissionKey = permissionKey,
+		});
+		await dbContext.SaveChangesAsync();
+	}
+
+	private async Task<Profile> GetProfileAsync(Guid profileId) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		return await dbContext.Profile
+			.AsNoTracking()
+			.SingleAsync(item => item.Id == profileId);
+	}
+
 	private static void AssertAuditDetails(
 		AuditLog auditLog,
 		Guid expectedTenantId,
@@ -421,6 +670,48 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		}
 	}
 
+	private static void AssertStyleAuditDetails(
+		AuditLog? auditLog,
+		Guid expectedTenantId,
+		Guid expectedProfileId,
+		string expectedProfileName,
+		IReadOnlyDictionary<string, (string? Old, string? New)> expectedChanges
+	) {
+		auditLog.Should().NotBeNull();
+		Assert.NotNull(auditLog);
+		auditLog.Action.Should().Be(AuditActions.TenantProfileUpdated);
+		auditLog.Details.Should().NotBeNull();
+		Assert.NotNull(auditLog.Details);
+
+		using var document = JsonDocument.Parse(auditLog.Details);
+		var details = document.RootElement;
+		details.GetProperty("TenantId").GetGuid().Should().Be(expectedTenantId);
+		details.GetProperty("ProfileId").GetGuid().Should().Be(expectedProfileId);
+		details.GetProperty("ProfileName").GetString().Should().Be(expectedProfileName);
+
+		var changedFields = details.GetProperty("ChangedFields");
+		changedFields.EnumerateObject()
+			.Select(property => property.Name)
+			.Should()
+			.BeEquivalentTo(expectedChanges.Keys);
+
+		foreach (var expectedChange in expectedChanges) {
+			var changedField = changedFields.GetProperty(expectedChange.Key);
+			GetNullableString(changedField.GetProperty("Old"))
+				.Should().Be(expectedChange.Value.Old);
+			GetNullableString(changedField.GetProperty("New"))
+				.Should().Be(expectedChange.Value.New);
+		}
+	}
+
+	private static string? GetNullableString(JsonElement element) {
+		if (element.ValueKind == JsonValueKind.Null) {
+			return null;
+		}
+
+		return element.GetString();
+	}
+
 	private sealed record GetTenantProfileByIdResponse {
 		public required TenantProfileItemResponse Profile { get; init; }
 	}
@@ -429,7 +720,12 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		public Guid Id { get; init; }
 		public string Name { get; init; } = string.Empty;
 		public string? Description { get; init; }
+		public string? Icon { get; init; }
+		public string? Tone { get; init; }
 		public bool IsDefault { get; init; }
 		public int UserAccountCount { get; init; }
+		public int PermissionsCount { get; init; }
+		public DateTime CreatedAt { get; init; }
+		public DateTime UpdatedAt { get; init; }
 	}
 }

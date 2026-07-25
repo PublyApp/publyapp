@@ -24,6 +24,7 @@ import {
 } from '~/components/ui/detail-layout';
 import { AvatarStack, InitialsAvatar } from '~/components/ui/initials-avatar';
 import { StatusPill } from '~/components/ui/product-page';
+import { StatCard } from '~/components/ui/stat-card';
 import { statusPillTone } from '~/components/ui/status-tone';
 import {
 	toStaffTenantUserRows,
@@ -101,33 +102,6 @@ export const Route = createFileRoute('/_authed-layout/staff/tenants/$tenantId')(
 	{
 		component: StaffTenantDetailsPage,
 	},
-);
-
-const StatCard = ({
-	testId,
-	label,
-	icon,
-	secondary,
-	children,
-}: {
-	testId: string;
-	label: string;
-	icon: ReactNode;
-	secondary: ReactNode;
-	children: ReactNode;
-}) => (
-	<div className="publy-stat-card" data-testid={testId}>
-		<div className="publy-stat-card-header">
-			<span className="publy-stat-card-label">{label}</span>
-			<span className="publy-stat-card-icon" aria-hidden="true">
-				{icon}
-			</span>
-		</div>
-		<div className="publy-stat-card-inner">
-			<p className="publy-stat-card-value">{children}</p>
-			<div className="publy-stat-card-secondary">{secondary}</div>
-		</div>
-	</div>
 );
 
 const OrgField = ({

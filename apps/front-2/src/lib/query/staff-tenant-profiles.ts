@@ -47,6 +47,8 @@ export type CreateStaffTenantProfileInput = {
 	tenantId: string;
 	name: string;
 	description?: string;
+	icon?: string;
+	tone?: string;
 	permissionKeys?: string[];
 };
 
@@ -55,6 +57,8 @@ export type UpdateStaffTenantProfileInput = {
 	profileId: string;
 	name: string;
 	description?: string;
+	icon?: string | null;
+	tone?: string | null;
 };
 
 export type DeleteStaffTenantProfileInput = {
@@ -82,6 +86,8 @@ export type StaffTenantProfileRow = {
 	id: string;
 	name: string;
 	description: string | null;
+	icon?: string | null;
+	tone?: string | null;
 	isDefault: boolean;
 	userAccountCount: number;
 	permissionsCount: number;
@@ -91,8 +97,12 @@ export type StaffTenantProfileDetails = {
 	id: string;
 	name: string;
 	description: string | null;
+	icon?: string | null;
+	tone?: string | null;
 	isDefault: boolean;
 	userAccountCount: number;
+	createdAt: Date | null;
+	updatedAt: Date | null;
 };
 
 export type StaffTenantProfileDetailsQueryVariables = {
@@ -145,7 +155,14 @@ export type StaffTenantProfileMemberRow = {
 	avatarUrl: string | null;
 	status: string | null;
 	level: string | null;
+	otherProfiles: StaffTenantProfileMemberProfile[];
+	joinedAt: Date | null;
 	displayName: string;
+};
+
+export type StaffTenantProfileMemberProfile = {
+	id: string;
+	name: string;
 };
 
 export type StaffTenantProfileUserAssignmentResolutionQueryVariables = {
@@ -214,8 +231,6 @@ export const STAFF_TENANT_PROFILE_PERMISSION_KEYS_QUERY_KEY = [
 	...STAFF_TENANT_PROFILES_QUERY_KEY,
 	'permission-keys',
 ] as const;
-/** Nests under `STAFF_TENANT_PROFILES_QUERY_KEY`, so `invalidateStaffTenantProfiles`
- * already covers both the roster and the resolution query below. */
 export const STAFF_TENANT_PROFILE_MEMBERS_QUERY_KEY = [
 	...STAFF_TENANT_PROFILES_QUERY_KEY,
 	'users',
@@ -230,9 +245,10 @@ export const STAFF_TENANT_PERMISSION_CATALOG_QUERY_KEY = [
 	'catalog',
 ] as const;
 
-/** Invalidates the tenant-profiles list, every profile's details entry, and
- * its permission-keys entry — all nest under `STAFF_TENANT_PROFILES_QUERY_KEY`,
- * so a single prefix invalidation covers all three. */
+/** Invalidates the tenant-profiles list, every profile's details entry, its
+ * permission-keys entry, and its members entry — all nest under
+ * `STAFF_TENANT_PROFILES_QUERY_KEY`, so a single prefix invalidation covers
+ * every one. */
 export const invalidateStaffTenantProfiles = (queryClient: QueryClient) =>
 	queryClient.invalidateQueries({
 		queryKey: scopedKey('staff', STAFF_TENANT_PROFILES_QUERY_KEY),
@@ -253,6 +269,14 @@ const normalizeNullableString = (
 	value: string | null | undefined,
 ): string | null => normalizeString(value) ?? null;
 
+const normalizeDate = (value: Date | null | undefined): Date | null => {
+	if (!(value instanceof Date) || Number.isNaN(value.valueOf())) {
+		return null;
+	}
+
+	return value;
+};
+
 const normalizeUnknownString = (value: unknown): string | undefined => {
 	if (typeof value !== 'string') {
 		return undefined;
@@ -271,6 +295,159 @@ const formatModuleLabel = (moduleKey: string): string =>
 		.trim()
 		.replace(/[_-]+/g, ' ')
 		.replace(/\b\w/g, (value) => value.toUpperCase());
+
+const TENANT_PERMISSION_MODULE_ORDER: readonly string[] = [
+	'posts',
+	'media',
+	'calendar',
+	'channels',
+	'approvals',
+	'analytics',
+	'members',
+	'invitations',
+	'profiles',
+	'settings',
+	'billing',
+	'audit_logs',
+	'modules',
+];
+
+// Canonical two-column flow from design 02-standalone-permissions. The three
+// content groups lead the left column, while Channels/Approvals/Analytics lead
+// the right. Administrative groups then trail the column shown in the design.
+export const TENANT_PERMISSION_LEFT_COLUMN_FLOW: readonly string[] = [
+	'posts',
+	'media',
+	'calendar',
+	'invitations',
+	'audit_logs',
+	'modules',
+];
+
+export const TENANT_PERMISSION_RIGHT_COLUMN_FLOW: readonly string[] = [
+	'channels',
+	'approvals',
+	'analytics',
+	'members',
+	'settings',
+	'billing',
+	'profiles',
+];
+
+const TENANT_PERMISSION_CANONICAL_COLUMN_MODULES = new Set([
+	...TENANT_PERMISSION_LEFT_COLUMN_FLOW,
+	...TENANT_PERMISSION_RIGHT_COLUMN_FLOW,
+]);
+
+/** Preserves the design's explicit canonical flow. Unknown/future modules
+ * keep their catalog order and append one-by-one to the currently shorter
+ * column (left wins ties), keeping growth deterministic and balanced. */
+export const buildStaffTenantPermissionGroupColumns = (
+	groups: StaffTenantPermissionGroup[],
+): readonly [StaffTenantPermissionGroup[], StaffTenantPermissionGroup[]] => {
+	const groupByModuleKey = new Map(
+		groups.map((group) => [group.moduleKey, group] as const),
+	);
+	const leftGroups = TENANT_PERMISSION_LEFT_COLUMN_FLOW.flatMap((moduleKey) => {
+		const group = groupByModuleKey.get(moduleKey);
+		return group ? [group] : [];
+	});
+	const rightGroups = TENANT_PERMISSION_RIGHT_COLUMN_FLOW.flatMap(
+		(moduleKey) => {
+			const group = groupByModuleKey.get(moduleKey);
+			return group ? [group] : [];
+		},
+	);
+
+	for (const group of groups) {
+		if (TENANT_PERMISSION_CANONICAL_COLUMN_MODULES.has(group.moduleKey)) {
+			continue;
+		}
+
+		if (leftGroups.length <= rightGroups.length) {
+			leftGroups.push(group);
+		} else {
+			rightGroups.push(group);
+		}
+	}
+
+	return [leftGroups, rightGroups];
+};
+
+const TENANT_PERMISSION_ACTION_ORDER: Record<string, readonly string[]> = {
+	posts: ['view', 'create', 'edit', 'publish', 'schedule', 'delete'],
+	media: ['view', 'upload', 'edit', 'delete'],
+	calendar: ['view', 'manage'],
+	channels: ['view', 'connect', 'manage', 'disconnect'],
+	approvals: ['request', 'review'],
+	analytics: ['view', 'export'],
+	members: ['view', 'manage', 'suspend', 'remove'],
+	invitations: ['view', 'create', 'resend', 'revoke'],
+	profiles: [
+		'view',
+		'create',
+		'edit',
+		'assign_members',
+		'manage_permissions',
+		'delete',
+	],
+	settings: ['view', 'edit'],
+	billing: ['view', 'manage'],
+	audit_logs: ['view'],
+	modules: [
+		'access_dashboard',
+		'access_billing',
+		'access_settings',
+		'access_users',
+	],
+};
+
+const getPermissionAction = (permissionKey: string): string =>
+	permissionKey.slice(permissionKey.lastIndexOf('.') + 1);
+
+const comparePermissionOptions = (
+	moduleKey: string,
+	left: StaffTenantPermissionOption,
+	right: StaffTenantPermissionOption,
+): number => {
+	const actionOrder = TENANT_PERMISSION_ACTION_ORDER[moduleKey] ?? [];
+	const leftAction = getPermissionAction(left.key);
+	const rightAction = getPermissionAction(right.key);
+	const leftIndex = actionOrder.indexOf(leftAction);
+	const rightIndex = actionOrder.indexOf(rightAction);
+
+	if (leftIndex >= 0 && rightIndex >= 0) {
+		return leftIndex - rightIndex;
+	}
+	if (leftIndex >= 0) {
+		return -1;
+	}
+	if (rightIndex >= 0) {
+		return 1;
+	}
+
+	return leftAction.localeCompare(rightAction);
+};
+
+const comparePermissionGroups = (
+	left: StaffTenantPermissionGroup,
+	right: StaffTenantPermissionGroup,
+): number => {
+	const leftIndex = TENANT_PERMISSION_MODULE_ORDER.indexOf(left.moduleKey);
+	const rightIndex = TENANT_PERMISSION_MODULE_ORDER.indexOf(right.moduleKey);
+
+	if (leftIndex >= 0 && rightIndex >= 0) {
+		return leftIndex - rightIndex;
+	}
+	if (leftIndex >= 0) {
+		return -1;
+	}
+	if (rightIndex >= 0) {
+		return 1;
+	}
+
+	return left.moduleKey.localeCompare(right.moduleKey);
+};
 
 const isPositiveSafeInteger = (value: number | undefined): value is number =>
 	typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
@@ -370,7 +547,9 @@ export const buildStaffTenantPermissionCatalogGroups = (
 			continue;
 		}
 
-		options.sort((left, right) => left.label.localeCompare(right.label));
+		options.sort((left, right) =>
+			comparePermissionOptions(moduleKey, left, right),
+		);
 
 		groups.push({
 			moduleKey,
@@ -379,9 +558,7 @@ export const buildStaffTenantPermissionCatalogGroups = (
 		});
 	}
 
-	return groups.sort((left, right) =>
-		left.moduleLabel.localeCompare(right.moduleLabel),
-	);
+	return groups.sort(comparePermissionGroups);
 };
 
 export const buildFindStaffTenantProfilesQueryParameters = (
@@ -428,6 +605,8 @@ export const buildCreateStaffTenantProfileBody = (
 ): CreateTenantProfileAsStaffBody => {
 	const body: CreateTenantProfileAsStaffBody = {};
 	const description = normalizeString(input.description);
+	const icon = normalizeString(input.icon);
+	const tone = normalizeString(input.tone);
 
 	body.name = createUntypedString(input.name) as typeof body.name;
 
@@ -435,6 +614,12 @@ export const buildCreateStaffTenantProfileBody = (
 		body.description = createUntypedString(
 			description,
 		) as typeof body.description;
+	}
+	if (icon) {
+		body.icon = createUntypedString(icon) as typeof body.icon;
+	}
+	if (tone) {
+		body.tone = createUntypedString(tone) as typeof body.tone;
 	}
 
 	const permissionKeys = (input.permissionKeys ?? [])
@@ -455,6 +640,8 @@ export const buildUpdateStaffTenantProfileBody = (
 ): UpdateTenantProfileAsStaffBody => {
 	const body: UpdateTenantProfileAsStaffBody = {};
 	const description = normalizeString(input.description);
+	const icon = normalizeString(input.icon);
+	const tone = normalizeString(input.tone);
 
 	body.name = createUntypedString(input.name.trim()) as typeof body.name;
 
@@ -464,6 +651,16 @@ export const buildUpdateStaffTenantProfileBody = (
 		) as typeof body.description;
 	} else if (input.description !== undefined) {
 		body.description = null;
+	}
+	if (icon) {
+		body.icon = createUntypedString(icon) as typeof body.icon;
+	} else if (input.icon !== undefined) {
+		body.icon = null;
+	}
+	if (tone) {
+		body.tone = createUntypedString(tone) as typeof body.tone;
+	} else if (input.tone !== undefined) {
+		body.tone = null;
 	}
 
 	return body;
@@ -488,6 +685,8 @@ export const toStaffTenantProfileRows = (
 			id,
 			name,
 			description: normalizeNullableString(item.description),
+			icon: normalizeNullableString(item.icon),
+			tone: normalizeNullableString(item.tone),
 			isDefault: item.isDefault === true,
 			userAccountCount: item.userAccountCount ?? 0,
 			permissionsCount: item.permissionsCount ?? 0,
@@ -515,8 +714,12 @@ export const toStaffTenantProfileDetails = (
 		id,
 		name,
 		description: normalizeNullableString(profile?.description),
+		icon: normalizeNullableString(profile?.icon),
+		tone: normalizeNullableString(profile?.tone),
 		isDefault: profile?.isDefault === true,
 		userAccountCount: profile?.userAccountCount ?? 0,
+		createdAt: normalizeDate(profile?.createdAt),
+		updatedAt: normalizeDate(profile?.updatedAt),
 	};
 };
 
@@ -580,6 +783,16 @@ export const toStaffTenantProfileMemberRows = (
 
 		const firstName = normalizeNullableString(item.firstName);
 		const lastName = normalizeNullableString(item.lastName);
+		const otherProfiles: StaffTenantProfileMemberProfile[] = [];
+		for (const profile of item.otherProfiles ?? []) {
+			const profileId = normalizeString(profile.id?.toString());
+			const profileName = normalizeString(profile.name);
+			if (!profileId || !profileName) {
+				continue;
+			}
+
+			otherProfiles.push({ id: profileId, name: profileName });
+		}
 
 		rows.push({
 			id,
@@ -590,6 +803,8 @@ export const toStaffTenantProfileMemberRows = (
 			avatarUrl: normalizeNullableString(item.avatarUrl),
 			status: normalizeNullableString(item.status),
 			level: normalizeNullableString(item.level),
+			otherProfiles,
+			joinedAt: normalizeDate(item.joinedAt),
 			displayName: getUserFullName({ firstName, lastName }) || email,
 		});
 	}
@@ -773,7 +988,30 @@ const staffTenantProfilePermissionKeysQueryOptions = buildStaffQueryOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-const staffTenantPermissionCatalogQueryOptions = buildStaffQueryOptions<
+export const getStaffTenantProfilePermissionKeysQueryKey = (
+	variables: StaffTenantProfilePermissionKeysQueryVariables,
+) => staffTenantProfilePermissionKeysQueryOptions.queryKey(variables);
+
+export const getStaffTenantProfilePermissionKeysCacheSnapshot = (
+	queryClient: QueryClient,
+	variables: StaffTenantProfilePermissionKeysQueryVariables,
+): { permissionKeys: string[]; revision: number } | null => {
+	const queryState =
+		queryClient.getQueryState<FindTenantProfilePermissionsAsStaffResult>(
+			getStaffTenantProfilePermissionKeysQueryKey(variables),
+		);
+
+	if (!queryState?.data) {
+		return null;
+	}
+
+	return {
+		permissionKeys: toStaffTenantProfilePermissionKeys(queryState.data),
+		revision: queryState.dataUpdateCount,
+	};
+};
+
+export const staffTenantPermissionCatalogQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	TenantGetResponse,
 	StaffTenantPermissionCatalogQueryVariables

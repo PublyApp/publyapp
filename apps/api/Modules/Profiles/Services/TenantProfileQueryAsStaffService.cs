@@ -14,9 +14,13 @@ public class TenantProfileItem {
 	public Guid Id { get; set; }
 	public string Name { get; set; } = string.Empty;
 	public string? Description { get; set; }
+	public string? Icon { get; set; }
+	public string? Tone { get; set; }
 	public bool IsDefault { get; set; }
 	public int UserAccountCount { get; set; }
 	public int PermissionsCount { get; set; }
+	public DateTime CreatedAt { get; set; }
+	public DateTime UpdatedAt { get; set; }
 }
 
 public abstract record FindTenantProfilesResult {
@@ -78,7 +82,14 @@ public sealed record TenantProfileUserListItem(
 	string? AvatarUrl,
 	UserStatus UserStatus,
 	AccountStatus AccountStatus,
-	AccountLevel Level
+	AccountLevel Level,
+	DateTime JoinedAt,
+	List<TenantProfileUserProfileListItem> OtherProfiles
+);
+
+public sealed record TenantProfileUserProfileListItem(
+	Guid Id,
+	string Name
 );
 
 public abstract record FindTenantProfileUsersResult {
@@ -370,9 +381,13 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 				Id = profileId,
 				Name = p.Name,
 				Description = p.Description,
+				Icon = p.Icon,
+				Tone = p.Tone,
 				IsDefault = p.IsDefault,
 				UserAccountCount = userAccountCountByProfileId.GetValueOrDefault(profileId, 0),
 				PermissionsCount = permissionCountByProfileId.GetValueOrDefault(profileId, 0),
+				CreatedAt = p.CreatedAt,
+				UpdatedAt = p.UpdatedAt,
 			};
 		}).ToList();
 
@@ -398,9 +413,13 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 				Id = p.Id ?? Guid.Empty,
 				Name = p.Name,
 				Description = p.Description,
+				Icon = p.Icon,
+				Tone = p.Tone,
 				IsDefault = p.IsDefault,
 				UserAccountCount = p.UserAccountProfiles.Count,
 				PermissionsCount = p.ProfilePermissions.Count,
+				CreatedAt = p.CreatedAt,
+				UpdatedAt = p.UpdatedAt,
 			}
 		).FirstOrDefaultAsync(cancellationToken);
 
@@ -570,23 +589,78 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 		// Count is used by the UI to render pagination controls.
 		var count = await query.CountAsync(cancellationToken);
 
-		var users = await query
+		var pageMembers = await query
 			.Skip((effectivePage - 1) * effectiveLimit)
 			.Take(effectiveLimit)
-			// NOTE: This projection runs inside an EF Core expression tree.
-			// Do not use named arguments here; C# forbids named args in expression trees.
-			.Select(x => new TenantProfileUserListItem(
-				x.UserAccountId ?? Guid.Empty,
-				x.UserId ?? Guid.Empty,
+			.Select(x => new {
+				UserAccountId = x.UserAccountId ?? Guid.Empty,
+				UserId = x.UserId ?? Guid.Empty,
 				x.Email,
 				x.FirstName,
 				x.LastName,
 				x.AvatarUrl,
 				x.UserStatus,
 				x.AccountStatus,
-				x.Level
-			))
+				x.Level,
+				JoinedAt = x.AssignedAt,
+			})
 			.ToListAsync(cancellationToken);
+
+		var pageUserAccountIds = pageMembers
+			.Select(member => member.UserAccountId)
+			.ToList();
+		var otherProfileRows = await (
+			from uap in _dbContext.UserAccountProfile.AsNoTracking()
+			join profile in _dbContext.Profile.AsNoTracking()
+				on uap.ProfileId equals profile.Id
+			where pageUserAccountIds.Contains(uap.UserAccountId)
+				&& uap.ProfileId != args.ProfileId
+				&& profile.Scope == ProfileScope.Tenant
+				&& profile.TenantId == args.TenantId
+				&& !profile.IsDeleted
+			orderby profile.Name, profile.Id
+			select new {
+				uap.UserAccountId,
+				ProfileId = profile.Id ?? Guid.Empty,
+				profile.Name,
+			}
+		).ToListAsync(cancellationToken);
+
+		var otherProfilesByUserAccountId =
+			new Dictionary<Guid, List<TenantProfileUserProfileListItem>>();
+		foreach (var row in otherProfileRows) {
+			if (!otherProfilesByUserAccountId.TryGetValue(
+				row.UserAccountId,
+				out var otherProfiles
+			)) {
+				otherProfiles = [];
+				otherProfilesByUserAccountId[row.UserAccountId] = otherProfiles;
+			}
+
+			otherProfiles.Add(new TenantProfileUserProfileListItem(
+				row.ProfileId,
+				row.Name
+			));
+		}
+
+		var users = pageMembers
+			.Select(member => new TenantProfileUserListItem(
+				member.UserAccountId,
+				member.UserId,
+				member.Email,
+				member.FirstName,
+				member.LastName,
+				member.AvatarUrl,
+				member.UserStatus,
+				member.AccountStatus,
+				member.Level,
+				member.JoinedAt,
+				otherProfilesByUserAccountId.GetValueOrDefault(
+					member.UserAccountId,
+					[]
+				)
+			))
+			.ToList();
 
 		return new FindTenantProfileUsersResult.Success(
 			Users: users,

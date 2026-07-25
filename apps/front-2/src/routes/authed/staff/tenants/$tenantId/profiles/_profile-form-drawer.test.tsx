@@ -16,14 +16,8 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
 	invalidateQueries: vi.fn(),
 	createProfileMutation: vi.fn(),
-	updateProfileMutation: vi.fn(),
-	assignPermissionMutation: vi.fn(),
-	unassignPermissionMutation: vi.fn(),
 	useStaffTenantPermissionCatalogQuery: vi.fn(),
 	useCreateStaffTenantProfileMutation: vi.fn(),
-	useUpdateStaffTenantProfileMutation: vi.fn(),
-	useAssignStaffTenantProfilePermissionMutation: vi.fn(),
-	useUnassignStaffTenantProfilePermissionMutation: vi.fn(),
 	displayLocalMutationFailure: vi.fn().mockResolvedValue(undefined),
 	toastSuccess: vi.fn(),
 	shouldLogoutForFailure: vi.fn((_: unknown) => false),
@@ -41,11 +35,11 @@ vi.mock('react-i18next', () => ({
 		t: (key: string, options?: Record<string, unknown>) => {
 			const labels: Record<string, string> = {
 				'new-profile': 'New profile',
-				'edit-profile': 'Edit profile',
 				'profile-form-drawer-description': 'Configure this profile.',
 				'profile-name': 'Profile name',
 				'tenant-profile-name-placeholder': 'Approvers',
 				'profile-name-required': 'Profile name is required.',
+				'profile-name-too-short': 'Enter at least 2 characters.',
 				'profile-name-too-long': 'Profile name is too long.',
 				description: 'Description',
 				'profile-description-placeholder':
@@ -56,12 +50,8 @@ vi.mock('react-i18next', () => ({
 				'no-permissions-available': 'No permission keys are available.',
 				cancel: 'Cancel',
 				'create-profile': 'Create profile',
-				'save-changes': 'Save changes',
 				'profile-save-failed': 'Unable to save this tenant profile.',
 				'profile-created-successfully': 'Profile created successfully',
-				'profile-updated-successfully': 'Profile updated successfully.',
-				'tenant-profile-permission-update-partial-success':
-					'Updated {{succeeded}} permission(s), {{failed}} failed.',
 				'unsaved-changes-dialog-title': 'Leave without saving?',
 				'unsaved-changes-dialog-description':
 					'You have unsaved changes that will be lost if you leave this page.',
@@ -103,12 +93,15 @@ vi.mock('~/components/ui/checkbox', () => ({
 		checked,
 		disabled,
 		onCheckedChange,
+		...props
 	}: {
 		checked: boolean;
 		disabled?: boolean;
 		onCheckedChange: (checked: boolean) => void;
+		'aria-label'?: string;
 	}) =>
 		createElement('input', {
+			...props,
 			type: 'checkbox',
 			checked,
 			disabled,
@@ -178,7 +171,49 @@ vi.mock('~/components/field', () => ({
 					: null,
 			);
 		},
+		Textarea: ({
+			name,
+			label,
+			isDisabled,
+		}: {
+			name: string;
+			label: string;
+			isDisabled?: boolean;
+		}) => {
+			const { register } = useFormContext();
+			return createElement(
+				'label',
+				undefined,
+				createElement('span', undefined, label),
+				createElement('textarea', {
+					'aria-label': label,
+					disabled: isDisabled,
+					...register(name),
+				}),
+			);
+		},
 	},
+}));
+
+vi.mock('~/components/ui/icon-color-picker', () => ({
+	IconColorPicker: ({
+		value,
+		onChange,
+	}: {
+		value: { icon?: string; tone?: string };
+		onChange: (value: { icon: string; tone: string }) => void;
+	}) =>
+		createElement(
+			'button',
+			{
+				type: 'button',
+				'aria-label': 'Choose icon and color',
+				'data-icon': value.icon,
+				'data-tone': value.tone,
+				onClick: () => onChange({ icon: 'briefcase', tone: '6' }),
+			},
+			'Choose icon and color',
+		),
 }));
 
 vi.mock('~/lib/query/staff-tenant-profiles', async () => {
@@ -205,12 +240,6 @@ vi.mock('~/lib/query/staff-tenant-profiles', async () => {
 			mocks.useStaffTenantPermissionCatalogQuery,
 		useCreateStaffTenantProfileMutation:
 			mocks.useCreateStaffTenantProfileMutation,
-		useUpdateStaffTenantProfileMutation:
-			mocks.useUpdateStaffTenantProfileMutation,
-		useAssignStaffTenantProfilePermissionMutation:
-			mocks.useAssignStaffTenantProfilePermissionMutation,
-		useUnassignStaffTenantProfilePermissionMutation:
-			mocks.useUnassignStaffTenantProfilePermissionMutation,
 	};
 });
 
@@ -259,20 +288,6 @@ describe('ProfileFormDrawer', () => {
 			mutateAsync: mocks.createProfileMutation,
 			isPending: false,
 		});
-		mocks.useUpdateStaffTenantProfileMutation.mockReturnValue({
-			mutateAsync: mocks.updateProfileMutation,
-			isPending: false,
-		});
-		mocks.useAssignStaffTenantProfilePermissionMutation.mockReturnValue({
-			mutateAsync: mocks.assignPermissionMutation,
-			isPending: false,
-		});
-		mocks.useUnassignStaffTenantProfilePermissionMutation.mockReturnValue({
-			mutateAsync: mocks.unassignPermissionMutation,
-			isPending: false,
-		});
-		mocks.assignPermissionMutation.mockResolvedValue(undefined);
-		mocks.unassignPermissionMutation.mockResolvedValue(undefined);
 	});
 
 	afterEach(() => {
@@ -283,7 +298,6 @@ describe('ProfileFormDrawer', () => {
 		render(
 			<ProfileFormDrawer
 				tenantId="tenant-1"
-				mode="create"
 				isOpen={false}
 				onOpenChange={vi.fn()}
 				onSaved={vi.fn()}
@@ -298,7 +312,6 @@ describe('ProfileFormDrawer', () => {
 		render(
 			<ProfileFormDrawer
 				tenantId="tenant-1"
-				mode="create"
 				isOpen
 				onOpenChange={vi.fn()}
 				onSaved={vi.fn()}
@@ -310,17 +323,8 @@ describe('ProfileFormDrawer', () => {
 		expect(screen.getByText('Posts')).toBeTruthy();
 		expect(screen.getByText('Read users')).toBeTruthy();
 		expect(screen.getByText('Publish posts')).toBeTruthy();
-		expect(
-			mocks.useAssignStaffTenantProfilePermissionMutation,
-		).toHaveBeenCalledWith({
-			silentSuccess: true,
-			skipGlobalErrorHandler: true,
-		});
-		expect(
-			mocks.useUnassignStaffTenantProfilePermissionMutation,
-		).toHaveBeenCalledWith({
-			silentSuccess: true,
-			skipGlobalErrorHandler: true,
+		expect(mocks.useStaffTenantPermissionCatalogQuery).toHaveBeenCalledWith({
+			language: 'en',
 		});
 	});
 
@@ -331,7 +335,6 @@ describe('ProfileFormDrawer', () => {
 		render(
 			<ProfileFormDrawer
 				tenantId="tenant-1"
-				mode="create"
 				isOpen
 				onOpenChange={onOpenChange}
 				onSaved={vi.fn()}
@@ -350,7 +353,6 @@ describe('ProfileFormDrawer', () => {
 		render(
 			<ProfileFormDrawer
 				tenantId="tenant-1"
-				mode="create"
 				isOpen
 				onOpenChange={onOpenChange}
 				onSaved={vi.fn()}
@@ -372,7 +374,7 @@ describe('ProfileFormDrawer', () => {
 		expect(onOpenChange).toHaveBeenCalledWith(false);
 	});
 
-	test('create mode submits name, description, and selected permission keys', async () => {
+	test('create mode submits concrete icon, tone, description, and all staged permission keys', async () => {
 		mocks.createProfileMutation.mockResolvedValue({
 			profile: { id: 'profile-1' },
 		});
@@ -381,7 +383,6 @@ describe('ProfileFormDrawer', () => {
 		render(
 			<ProfileFormDrawer
 				tenantId="tenant-1"
-				mode="create"
 				isOpen
 				onOpenChange={vi.fn()}
 				onSaved={onSaved}
@@ -392,7 +393,15 @@ describe('ProfileFormDrawer', () => {
 		fireEvent.change(screen.getByLabelText('Profile name'), {
 			target: { value: 'Approvers' },
 		});
+		expect(screen.getByLabelText('Description').tagName).toBe('TEXTAREA');
+		const picker = screen.getByRole('button', {
+			name: 'Choose icon and color',
+		});
+		expect(picker.getAttribute('data-icon')).toBeTruthy();
+		expect(picker.getAttribute('data-tone')).toBeTruthy();
+		fireEvent.click(picker);
 		fireEvent.click(screen.getByLabelText('Read users'));
+		fireEvent.click(screen.getByLabelText('Publish posts'));
 		fireEvent.click(screen.getByRole('button', { name: 'Create profile' }));
 
 		await waitFor(() =>
@@ -400,7 +409,9 @@ describe('ProfileFormDrawer', () => {
 				expect.objectContaining({
 					tenantId: 'tenant-1',
 					name: 'Approvers',
-					permissionKeys: ['users.read'],
+					icon: 'briefcase',
+					tone: '6',
+					permissionKeys: ['users.read', 'posts.publish'],
 				}),
 			),
 		);
@@ -412,11 +423,10 @@ describe('ProfileFormDrawer', () => {
 		expect(mocks.toastSuccess).toHaveBeenCalledTimes(1);
 	});
 
-	test('blocks submission when the profile name is empty (name.min(1))', async () => {
+	test('blocks submission when the profile name is empty', async () => {
 		render(
 			<ProfileFormDrawer
 				tenantId="tenant-1"
-				mode="create"
 				isOpen
 				onOpenChange={vi.fn()}
 				onSaved={vi.fn()}
@@ -432,84 +442,11 @@ describe('ProfileFormDrawer', () => {
 		);
 	});
 
-	test('edit mode emits one success only after profile and permission synchronization complete', async () => {
-		mocks.updateProfileMutation.mockResolvedValue(undefined);
-		let resolveAssign: () => void = () => {};
-		mocks.assignPermissionMutation.mockImplementation(
-			() =>
-				new Promise<void>((resolve) => {
-					resolveAssign = resolve;
-				}),
-		);
-		const onSaved = vi.fn();
-
+	test('blocks submission when the profile name has only one character', async () => {
 		render(
 			<ProfileFormDrawer
 				tenantId="tenant-1"
-				mode="edit"
 				isOpen
-				profile={{
-					id: 'profile-1',
-					name: 'Approvers',
-					description: 'Approves things',
-					permissionKeys: ['users.read'],
-				}}
-				onOpenChange={vi.fn()}
-				onSaved={onSaved}
-				onSessionExpired={vi.fn()}
-			/>,
-		);
-
-		// users.read starts checked; uncheck it and check posts.publish instead.
-		fireEvent.click(screen.getByLabelText('Read users'));
-		fireEvent.click(screen.getByLabelText('Publish posts'));
-		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
-
-		await waitFor(() =>
-			expect(mocks.updateProfileMutation).toHaveBeenCalledWith({
-				tenantId: 'tenant-1',
-				profileId: 'profile-1',
-				name: 'Approvers',
-				description: 'Approves things',
-			}),
-		);
-		await waitFor(() =>
-			expect(mocks.assignPermissionMutation).toHaveBeenCalledWith({
-				tenantId: 'tenant-1',
-				profileId: 'profile-1',
-				permissionKey: 'posts.publish',
-			}),
-		);
-		await waitFor(() =>
-			expect(mocks.unassignPermissionMutation).toHaveBeenCalledWith({
-				tenantId: 'tenant-1',
-				profileId: 'profile-1',
-				permissionKey: 'users.read',
-			}),
-		);
-		expect(mocks.toastSuccess).not.toHaveBeenCalled();
-		expect(onSaved).not.toHaveBeenCalled();
-
-		resolveAssign();
-		await waitFor(() => expect(onSaved).toHaveBeenCalledWith('profile-1'));
-		expect(mocks.toastSuccess).toHaveBeenCalledWith(
-			'Profile updated successfully.',
-		);
-		expect(mocks.toastSuccess).toHaveBeenCalledTimes(1);
-	});
-
-	test('keeps typed edits when the parent re-renders with a fresh profile object while open (F3)', () => {
-		const { rerender } = render(
-			<ProfileFormDrawer
-				tenantId="tenant-1"
-				mode="edit"
-				isOpen
-				profile={{
-					id: 'profile-1',
-					name: 'Approvers',
-					description: 'Approves things',
-					permissionKeys: ['users.read'],
-				}}
 				onOpenChange={vi.fn()}
 				onSaved={vi.fn()}
 				onSessionExpired={vi.fn()}
@@ -517,76 +454,16 @@ describe('ProfileFormDrawer', () => {
 		);
 
 		fireEvent.change(screen.getByLabelText('Profile name'), {
-			target: { value: 'Unsaved edit' },
+			target: { value: 'A' },
 		});
-		expect(screen.getByLabelText('Profile name')).toHaveProperty(
-			'value',
-			'Unsaved edit',
-		);
-
-		// Simulate a background refetch: same profile identity, new object reference.
-		rerender(
-			<ProfileFormDrawer
-				tenantId="tenant-1"
-				mode="edit"
-				isOpen
-				profile={{
-					id: 'profile-1',
-					name: 'Approvers',
-					description: 'Approves things',
-					permissionKeys: ['users.read'],
-				}}
-				onOpenChange={vi.fn()}
-				onSaved={vi.fn()}
-				onSessionExpired={vi.fn()}
-			/>,
-		);
-
-		expect(screen.getByLabelText('Profile name')).toHaveProperty(
-			'value',
-			'Unsaved edit',
-		);
-	});
-
-	test('reports a partial-success count and still invalidates when a permission mutation fails (F11)', async () => {
-		mocks.updateProfileMutation.mockResolvedValue(undefined);
-		mocks.unassignPermissionMutation.mockRejectedValueOnce(new Error('boom'));
-		const onSaved = vi.fn();
-
-		render(
-			<ProfileFormDrawer
-				tenantId="tenant-1"
-				mode="edit"
-				isOpen
-				profile={{
-					id: 'profile-1',
-					name: 'Approvers',
-					description: 'Approves things',
-					permissionKeys: ['users.read'],
-				}}
-				onOpenChange={vi.fn()}
-				onSaved={onSaved}
-				onSessionExpired={vi.fn()}
-			/>,
-		);
-
-		fireEvent.click(screen.getByLabelText('Read users'));
-		fireEvent.click(screen.getByLabelText('Publish posts'));
-		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Create profile' }));
 
 		await waitFor(() =>
-			expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled(),
+			expect(mocks.createProfileMutation).not.toHaveBeenCalled(),
 		);
-		expect(screen.getByText('Updated 1 permission(s), 1 failed.')).toBeTruthy();
-		expect(onSaved).not.toHaveBeenCalled();
-		expect(mocks.toastSuccess).not.toHaveBeenCalled();
-
-		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
-		await waitFor(() => expect(onSaved).toHaveBeenCalledWith('profile-1'));
-		expect(mocks.toastSuccess).toHaveBeenCalledWith(
-			'Profile updated successfully.',
+		expect(screen.getByRole('alert').textContent).toBe(
+			'Enter at least 2 characters.',
 		);
-		expect(mocks.toastSuccess).toHaveBeenCalledTimes(1);
 	});
 
 	test('maps profile validation inline and keeps unmappable fields visible', async () => {
@@ -603,7 +480,6 @@ describe('ProfileFormDrawer', () => {
 		render(
 			<ProfileFormDrawer
 				tenantId="tenant-1"
-				mode="create"
 				isOpen
 				onOpenChange={vi.fn()}
 				onSaved={vi.fn()}
@@ -634,7 +510,6 @@ describe('ProfileFormDrawer', () => {
 		render(
 			<ProfileFormDrawer
 				tenantId="tenant-1"
-				mode="create"
 				isOpen
 				onOpenChange={vi.fn()}
 				onSaved={vi.fn()}
@@ -670,7 +545,6 @@ describe('ProfileFormDrawer', () => {
 		render(
 			<ProfileFormDrawer
 				tenantId="tenant-1"
-				mode="create"
 				isOpen
 				onOpenChange={vi.fn()}
 				onSaved={vi.fn()}
@@ -682,46 +556,6 @@ describe('ProfileFormDrawer', () => {
 			target: { value: 'Approvers' },
 		});
 		fireEvent.click(screen.getByRole('button', { name: 'Create profile' }));
-
-		await waitFor(() => expect(onSessionExpired).toHaveBeenCalled());
-		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
-		expect(mocks.toastSuccess).not.toHaveBeenCalled();
-	});
-
-	test('redirects to logout when permission synchronization expires the session', async () => {
-		mocks.updateProfileMutation.mockResolvedValue(undefined);
-		mocks.assignPermissionMutation.mockRejectedValue({
-			status: 401,
-			responseStatusCode: 401,
-			title: 'Unauthorized',
-		});
-		mocks.shouldLogoutForFailure.mockImplementation((error: unknown) =>
-			Boolean(
-				typeof error === 'object' &&
-				error !== null &&
-				(error as { status?: number }).status === 401,
-			),
-		);
-		const onSessionExpired = vi.fn();
-
-		render(
-			<ProfileFormDrawer
-				tenantId="tenant-1"
-				mode="edit"
-				isOpen
-				profile={{
-					id: 'profile-1',
-					name: 'Approvers',
-					description: 'Approves things',
-					permissionKeys: [],
-				}}
-				onOpenChange={vi.fn()}
-				onSaved={vi.fn()}
-				onSessionExpired={onSessionExpired}
-			/>,
-		);
-		fireEvent.click(screen.getByLabelText('Publish posts'));
-		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
 
 		await waitFor(() => expect(onSessionExpired).toHaveBeenCalled());
 		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();

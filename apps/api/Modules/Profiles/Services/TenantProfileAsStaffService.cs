@@ -15,13 +15,17 @@ public sealed record TenantProfileAuditData(
 	Guid ProfileId,
 	string ProfileName,
 	string? Description,
-	bool IsDefault
+	bool IsDefault,
+	string? Icon = null,
+	string? Tone = null
 );
 
 public sealed record CreateTenantProfileArgs(
 	Guid TenantId,
 	string Name,
 	string? Description,
+	string? Icon,
+	string? Tone,
 	List<string> PermissionKeys
 );
 
@@ -45,7 +49,9 @@ public sealed record UpdateTenantProfileArgs(
 	Guid TenantId,
 	Guid ProfileId,
 	PatchField<string?> Name,
-	PatchField<string?> Description
+	PatchField<string?> Description,
+	PatchField<string?> Icon,
+	PatchField<string?> Tone
 );
 
 public abstract record UpdateTenantProfileResult {
@@ -295,7 +301,9 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 		var profile = Profile.CreateTenantProfile(
 			args.TenantId,
 			normalizedName,
-			normalizedDescription
+			normalizedDescription,
+			icon: args.Icon,
+			tone: args.Tone
 		);
 
 		try {
@@ -334,8 +342,13 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 			Id = profile.GetRequiredId(),
 			Name = profile.Name,
 			Description = profile.Description,
+			Icon = profile.Icon,
+			Tone = profile.Tone,
 			IsDefault = profile.IsDefault,
 			UserAccountCount = 0,
+			PermissionsCount = validPermissionKeys.Count,
+			CreatedAt = profile.CreatedAt,
+			UpdatedAt = profile.UpdatedAt,
 		};
 
 		return new CreateTenantProfileResult.Success(
@@ -365,7 +378,9 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 			profile.GetRequiredId(),
 			profile.Name,
 			profile.Description,
-			profile.IsDefault
+			profile.IsDefault,
+			profile.Icon,
+			profile.Tone
 		);
 
 		if (args.Name.IsPresent) {
@@ -398,6 +413,14 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 			profile.Description = args.Description.Value?.Trim();
 		}
 
+		if (args.Icon.IsPresent) {
+			profile.Icon = args.Icon.Value;
+		}
+
+		if (args.Tone.IsPresent) {
+			profile.Tone = args.Tone.Value;
+		}
+
 		try {
 			await _dbContext.SaveChangesAsync(cancellationToken);
 		} catch (DbUpdateException ex) when (IsTenantProfileNameUniqueViolation(ex)) {
@@ -413,12 +436,23 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 			select uap.ProfileId
 		).CountAsync(cancellationToken);
 
+		var permissionsCount = await (
+			from profilePermission in _dbContext.ProfilePermission
+			where profilePermission.ProfileId == args.ProfileId
+			select profilePermission.ProfileId
+		).CountAsync(cancellationToken);
+
 		var updated = new TenantProfileItem {
 			Id = profile.GetRequiredId(),
 			Name = profile.Name,
 			Description = profile.Description,
+			Icon = profile.Icon,
+			Tone = profile.Tone,
 			IsDefault = profile.IsDefault,
 			UserAccountCount = userAccountCount,
+			PermissionsCount = permissionsCount,
+			CreatedAt = profile.CreatedAt,
+			UpdatedAt = profile.UpdatedAt,
 		};
 
 		return new UpdateTenantProfileResult.Success(updated, previousProfile);

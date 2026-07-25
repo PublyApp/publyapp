@@ -1,6 +1,6 @@
-using FluentValidation;
-
 using System.Text.Json;
+
+using FluentValidation;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -13,12 +13,15 @@ using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Profiles.Services;
+using PublyApp.Api.Modules.Profiles.Validation;
 
 namespace PublyApp.Api.Modules.Profiles.Handlers.Staff;
 
 public record CreateTenantProfileAsStaffBody {
 	public JsonElement Name { get; init; }
 	public JsonElement Description { get; init; }
+	public JsonElement Icon { get; init; }
+	public JsonElement Tone { get; init; }
 	public JsonElement PermissionKeys { get; init; }
 
 	private bool _parsedPermissionKeys;
@@ -30,6 +33,14 @@ public record CreateTenantProfileAsStaffBody {
 
 	public string? GetDescription() {
 		return Description.GetValueAsStringOrNull();
+	}
+
+	public string? GetIcon() {
+		return Icon.GetValueAsStringOrNull();
+	}
+
+	public string? GetTone() {
+		return Tone.GetValueAsStringOrNull();
 	}
 
 	public List<string> GetPermissionKeys() {
@@ -81,6 +92,18 @@ public class CreateTenantProfileAsStaffBodyValidator
 
 		RuleFor(x => x.Description)
 			.MustBePatchFieldStringWithMaxLength("Description", 500, trim: true);
+
+		RuleFor(x => x.Icon)
+			.MustBePatchFieldStringInSet(
+				"Icon",
+				TenantProfileStyleValidationRules.Icons
+			);
+
+		RuleFor(x => x.Tone)
+			.MustBePatchFieldStringInSet(
+				"Tone",
+				TenantProfileStyleValidationRules.Tones
+			);
 
 		RuleFor(x => x.PermissionKeys).Custom((element, context) => {
 			if (
@@ -140,6 +163,8 @@ public sealed class CreateTenantProfileAsStaff {
 
 		var name = body.GetName();
 		var description = body.GetDescription();
+		var icon = body.GetIcon();
+		var tone = body.GetTone();
 		var permissionKeys = body.GetPermissionKeys();
 
 		var result = await tenantProfileService.CreateTenantProfileAsync(
@@ -147,6 +172,8 @@ public sealed class CreateTenantProfileAsStaff {
 				TenantId: tenantIdGuid,
 				Name: name,
 				Description: description,
+				Icon: icon,
+				Tone: tone,
 				PermissionKeys: permissionKeys
 			),
 			cancellationToken

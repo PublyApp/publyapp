@@ -5,6 +5,7 @@ using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Invitations.Jobs;
 using PublyApp.Api.Modules.Profiles.Entities;
@@ -46,6 +47,18 @@ public record CreateTenantInvitationArgs(
 	Guid InvitedByUserId
 );
 
+public abstract record CreateTenantInvitationResult {
+	public sealed record Success(
+		Invitation Invitation,
+		string Token
+	) : CreateTenantInvitationResult;
+
+	public sealed record InvalidProfileAssignment(
+		string Reason,
+		TranslationKey TranslationKey
+	) : CreateTenantInvitationResult;
+}
+
 public record BulkCreateStaffInvitationsArgs(
 	List<BulkStaffInvitationItem> Invitations,
 	Guid InvitedByUserId
@@ -69,7 +82,7 @@ public interface IInvitationService {
 		CreateStaffInvitationArgs args,
 		CancellationToken cancellationToken = default);
 
-	Task<(Invitation Invitation, string Token)> CreateTenantInvitationAsync(
+	Task<CreateTenantInvitationResult> CreateTenantInvitationAsync(
 		CreateTenantInvitationArgs args,
 		CancellationToken cancellationToken = default);
 
@@ -257,7 +270,7 @@ public class InvitationService : IInvitationService {
 		return (invitation, token);
 	}
 
-	public async Task<(Invitation Invitation, string Token)> CreateTenantInvitationAsync(
+	public async Task<CreateTenantInvitationResult> CreateTenantInvitationAsync(
 		CreateTenantInvitationArgs args,
 		CancellationToken cancellationToken = default
 	) {
@@ -265,6 +278,26 @@ public class InvitationService : IInvitationService {
 		var tenantId = args.TenantId;
 		var profileIds = args.ProfileIds;
 		var invitedByUserId = args.InvitedByUserId;
+		var maxProfilesPerUser = AppEnvironment.Instance.MAX_PROFILES_PER_USER;
+
+		if (args.AccountLevel == AccountLevel.Admin
+			&& profileIds.Count > 0
+		) {
+			return new CreateTenantInvitationResult.InvalidProfileAssignment(
+				"Admin invitees cannot be assigned profiles",
+				ResponseKeys.AdminInviteeCannotHaveProfiles
+			);
+		}
+
+		if (args.AccountLevel == AccountLevel.User
+			&& profileIds.Count > maxProfilesPerUser
+		) {
+			return new CreateTenantInvitationResult.InvalidProfileAssignment(
+				$"Cannot assign more than {maxProfilesPerUser} profiles",
+				ResponseKeys.TooManyProfilesForInvitee
+			);
+		}
+
 		var token = CryptoUtils.RandomString(AppEnvironment.Instance.INVITATION_TOKEN_LENGTH);
 		var expiresAt = DateTime.UtcNow.AddDays(7);
 
@@ -306,7 +339,7 @@ public class InvitationService : IInvitationService {
 			);
 		}
 
-		return (invitation, token);
+		return new CreateTenantInvitationResult.Success(invitation, token);
 	}
 
 	public async Task<Profile?> GetStaffProfileAsync(

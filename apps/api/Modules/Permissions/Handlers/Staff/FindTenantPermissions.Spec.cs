@@ -17,6 +17,68 @@ namespace PublyApp.Api.Modules.Permissions.Handlers.Staff;
 
 public sealed class FindTenantPermissionsSpec
 	: IClassFixture<ApiFixture> {
+	private static readonly string[] ExpectedTenantPermissionGroups = [
+		"posts",
+		"media",
+		"calendar",
+		"channels",
+		"approvals",
+		"analytics",
+		"members",
+		"invitations",
+		"profiles",
+		"settings",
+		"billing",
+		"audit_logs",
+		"modules"
+	];
+
+	private static readonly string[] ExpectedTenantPermissionKeys = [
+		"tenant.posts.view",
+		"tenant.posts.create",
+		"tenant.posts.edit",
+		"tenant.posts.publish",
+		"tenant.posts.schedule",
+		"tenant.posts.delete",
+		"tenant.media.view",
+		"tenant.media.upload",
+		"tenant.media.edit",
+		"tenant.media.delete",
+		"tenant.calendar.view",
+		"tenant.calendar.manage",
+		"tenant.channels.view",
+		"tenant.channels.connect",
+		"tenant.channels.disconnect",
+		"tenant.channels.manage",
+		"tenant.approvals.request",
+		"tenant.approvals.review",
+		"tenant.analytics.view",
+		"tenant.analytics.export",
+		"tenant.members.view",
+		"tenant.members.manage",
+		"tenant.members.suspend",
+		"tenant.members.remove",
+		"tenant.invitations.view",
+		"tenant.invitations.create",
+		"tenant.invitations.revoke",
+		"tenant.invitations.resend",
+		"tenant.profiles.view",
+		"tenant.profiles.create",
+		"tenant.profiles.edit",
+		"tenant.profiles.delete",
+		"tenant.profiles.assign_members",
+		"tenant.profiles.manage_permissions",
+		"tenant.settings.view",
+		"tenant.settings.edit",
+		"tenant.billing.view",
+		"tenant.billing.manage",
+		"tenant.audit_logs.view",
+		"tenant.modules.access_dashboard",
+		"tenant.modules.access_billing",
+		"tenant.modules.access_settings",
+		"tenant.modules.access_users"
+	];
+
 	private static readonly string FindUrl = PathUtils.Join(
 		Routes.Staff.Root,
 		Routes.Permissions.ForStaff.Root,
@@ -163,6 +225,59 @@ public sealed class FindTenantPermissionsSpec
 			.Be("Accéder aux utilisateurs");
 		modulePermissions[AppPermissions.Tenant.Modules.ACCESS_USERS.Key].Description.Should()
 			.Be("Accéder aux utilisateurs du tenant");
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnTheCompleteTenantCatalogWithEnglishAndFrenchCopy() {
+		var sessionToken = await _authClient.LoginAsStaffAdminAsync();
+		var catalogsByLanguage = new Dictionary<
+			string,
+			Dictionary<string, Dictionary<string, PermissionAsStaffItem>>
+		>();
+
+		foreach (var language in SupportedLanguage.All) {
+			var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				GetFindUrl(language)
+			).WithSessionToken(sessionToken);
+
+			using var response = await _http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var payload = await response.Content.ReadFromJsonAsync<
+				Dictionary<string, Dictionary<string, PermissionAsStaffItem>>
+			>();
+			payload.Should().NotBeNull();
+			Assert.NotNull(payload);
+			catalogsByLanguage.Add(language, payload);
+		}
+
+		foreach (var (language, catalog) in catalogsByLanguage) {
+			catalog.Keys.Should().BeEquivalentTo(ExpectedTenantPermissionGroups);
+			catalog.Should().HaveCount(13);
+
+			var permissions = catalog.Values
+				.SelectMany(group => group.Values)
+				.ToList();
+			var keys = permissions.Select(permission => permission.Key).ToList();
+
+			keys.Should().HaveCount(43);
+			keys.Should().OnlyHaveUniqueItems();
+			keys.Should().BeEquivalentTo(ExpectedTenantPermissionKeys);
+			keys.Should().OnlyContain(key => key.StartsWith(
+				"tenant.",
+				StringComparison.Ordinal
+			));
+			permissions.Should().OnlyContain(
+				permission => !string.IsNullOrWhiteSpace(permission.Name),
+				$"every {language} permission name must be populated"
+			);
+			permissions.Should().OnlyContain(
+				permission => !string.IsNullOrWhiteSpace(permission.Description),
+				$"every {language} permission description must be populated"
+			);
+		}
 	}
 
 	private static string GetFindUrl(string? language = null) {

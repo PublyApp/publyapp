@@ -150,6 +150,10 @@ public sealed class GetTenantProfileByIdAsStaffSpec : IClassFixture<ApiFixture> 
 		payload.Profile.Id.Should().Be(Guid.Parse(profileId));
 		payload.Profile.Name.Should().StartWith("Tenant Profile");
 		payload.Profile.IsDefault.Should().BeFalse();
+		// Timestamps are exposed for the profile Overview tab (staff view). A
+		// freshly created profile has non-default audit timestamps.
+		payload.Profile.CreatedAt.Should().NotBe(default);
+		payload.Profile.UpdatedAt.Should().NotBe(default);
 	}
 
 	private async Task<Guid> GetTenantIdAsync() {
@@ -200,5 +204,7 @@ public sealed class GetTenantProfileByIdAsStaffSpec : IClassFixture<ApiFixture> 
 		public string? Description { get; init; }
 		public bool IsDefault { get; init; }
 		public int UserAccountCount { get; init; }
+		public DateTime CreatedAt { get; init; }
+		public DateTime UpdatedAt { get; init; }
 	}
 }

@@ -11408,6 +11408,12 @@
           "description": {
             "$ref": "#/components/schemas/JsonElement"
           },
+          "icon": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "tone": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
           "permissionKeys": {
             "$ref": "#/components/schemas/JsonElement"
           }
@@ -13114,6 +13120,18 @@
               "string"
             ]
           },
+          "icon": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tone": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "isDefault": {
             "type": "boolean"
           },
@@ -13126,10 +13144,21 @@
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": "integer",
             "format": "int32"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
       "TenantProfileUserItem": {
+        "required": [
+          "otherProfiles"
+        ],
         "type": "object",
         "properties": {
           "id": {
@@ -13165,6 +13194,31 @@
             "type": "string"
           },
           "level": {
+            "type": "string"
+          },
+          "otherProfiles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TenantProfileUserProfileItem"
+            }
+          },
+          "joinedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "TenantProfileUserProfileItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
             "type": "string"
           }
         }
@@ -13605,6 +13659,12 @@
             "$ref": "#/components/schemas/JsonElement"
           },
           "description": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "icon": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "tone": {
             "$ref": "#/components/schemas/JsonElement"
           }
         }

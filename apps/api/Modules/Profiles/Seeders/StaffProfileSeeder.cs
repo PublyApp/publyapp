@@ -27,6 +27,24 @@ public class StaffProfileSeeder : IEntitySeeder {
 	}
 
 	public async Task SeedAsync(AppDbContext dbContext, CancellationToken cancellationToken = default) {
+		var profileStyleColumnsExist = await dbContext.Database
+			.SqlQueryRaw<bool>(
+				"""
+				SELECT COUNT(*) = 2 AS "Value"
+				FROM information_schema.columns
+				WHERE table_schema = 'public'
+					AND table_name = 'profiles'
+					AND column_name IN ('icon', 'tone')
+				"""
+			)
+			.SingleAsync(cancellationToken);
+		if (!profileStyleColumnsExist) {
+			_logger.LogInformation(
+				"Staff profile seeding skipped; profile style columns do not exist yet."
+			);
+			return;
+		}
+
 		var staffProfiles = new List<(string Name, string Description)> {
 			("Staff Owner", "Platform owner with full system access"),
 			("Staff Admin", "Platform administrator with management access"),

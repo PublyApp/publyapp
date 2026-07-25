@@ -12,6 +12,7 @@ using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Invitations.Services;
 using PublyApp.Api.Modules.Tenants.Services;
+using PublyApp.Api.Modules.Users.Entities;
 using PublyApp.Api.Modules.Users.Services;
 using PublyApp.Api.Modules.Users.Validation;
 
@@ -302,7 +303,6 @@ public sealed class BulkCreateInvitationsForTenantAsStaff {
 			string Email,
 			string AccountLevel
 		)>();
-
 		for (var i = 0; i < invitations.Count; i++) {
 			var invitation = invitations[i];
 			var email = invitation.Email;
@@ -311,7 +311,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaff {
 				.Distinct()
 				.Where(profileId => !validProfileIdSet.Contains(profileId))
 				.ToList();
-			var parsedAccountLevel = PublyApp.Api.Modules.Users.Entities.UserAccount.ParseLevel(
+			var parsedAccountLevel = UserAccount.ParseLevel(
 				invitation.AccountLevel
 			);
 
@@ -396,10 +396,27 @@ public sealed class BulkCreateInvitationsForTenantAsStaff {
 					InvitedByUserId: account.UserId
 				);
 
-				var (createdInvitation, _) = await invitationService.CreateTenantInvitationAsync(
+				var createResult = await invitationService.CreateTenantInvitationAsync(
 					createArgs,
 					cancellationToken
 				);
+				if (createResult
+					is CreateTenantInvitationResult.InvalidProfileAssignment invalidAssignment
+				) {
+					failedItems.Add(new BulkCreateTenantInvitationsFailedItem(
+						i,
+						email,
+						invalidAssignment.Reason,
+						invalidAssignment.TranslationKey.Value
+					));
+					continue;
+				}
+				if (createResult is not CreateTenantInvitationResult.Success success) {
+					throw new InvalidOperationException(
+						"Tenant invitation creation returned an unsupported result"
+					);
+				}
+				var createdInvitation = success.Invitation;
 
 				succeededInvitationIds.Add(createdInvitation.GetRequiredId());
 				succeededInvitations.Add((

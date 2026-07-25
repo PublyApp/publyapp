@@ -50,6 +50,7 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => ({
 		...options,
+		options,
 		useNavigate: () => mocks.navigate,
 		useParams: () => ({
 			tenantId: '11111111-1111-1111-1111-111111111111',
@@ -250,6 +251,12 @@ const RouteComponent = (
 const renderPage = () => render(<RouteComponent />);
 
 describe('staff tenant profiles route', () => {
+	test('declares the profile feature namespace', () => {
+		expect(Route.options.staticData).toEqual({
+			i18nNamespaces: ['staff-tenant-profiles'],
+		});
+	});
+
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mocks.search = {};
@@ -375,6 +382,28 @@ describe('staff tenant profiles route', () => {
 			},
 			{ enabled: true },
 		);
+	});
+
+	test('renders a persisted icon and tone on the profile card', () => {
+		mocks.toStaffTenantProfileRows.mockReturnValue([
+			{
+				id: 'profile-1',
+				name: 'Approvers',
+				description: 'Can review approvals',
+				icon: 'briefcase',
+				tone: '6',
+				isDefault: false,
+				userAccountCount: 7,
+				permissionsCount: 12,
+			},
+		]);
+
+		renderPage();
+
+		const card = screen.getByTestId('staff-tenant-profile-card-profile-1');
+		const tile = card.querySelector('.publy-profile-icon-tile');
+		expect(tile?.getAttribute('data-tone')).toBe('6');
+		expect(tile?.querySelector('.tabler-icon-briefcase')).toBeTruthy();
 	});
 
 	test('new profile button navigates to open the create drawer via search state', () => {
@@ -1169,10 +1198,24 @@ describe('tenantProfileTypeChipClassName', () => {
 });
 
 describe('deriveTenantProfileCardStyle', () => {
-	test('is deterministic for the same name', () => {
-		const first = deriveTenantProfileCardStyle('Approvers');
-		const second = deriveTenantProfileCardStyle('Approvers');
-		expect(first.tone).toBe(second.tone);
-		expect(first.Icon).toBe(second.Icon);
+	test('falls back to the same deterministic style for absent or null persisted values', () => {
+		const absent = deriveTenantProfileCardStyle('Approvers');
+		const nullPersisted = deriveTenantProfileCardStyle('Approvers', null, null);
+		expect(absent.icon).toBe(nullPersisted.icon);
+		expect(absent.tone).toBe(nullPersisted.tone);
+		expect(absent.Icon).toBe(nullPersisted.Icon);
+	});
+
+	test('prefers persisted icon and tone over the name-derived style', () => {
+		const derived = deriveTenantProfileCardStyle('Approvers');
+		const persisted = deriveTenantProfileCardStyle(
+			'Approvers',
+			'briefcase',
+			'6',
+		);
+
+		expect(persisted.tone).toBe('6');
+		expect(persisted.icon).toBe('briefcase');
+		expect(persisted.Icon).not.toBe(derived.Icon);
 	});
 });

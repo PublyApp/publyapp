@@ -1,3 +1,4 @@
+import { QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -11,6 +12,8 @@ vi.mock('~/lib/api-client/client-manager', () => ({
 }));
 import {
 	buildStaffTenantPermissionCatalogOptions,
+	buildStaffTenantPermissionCatalogGroups,
+	buildStaffTenantPermissionGroupColumns,
 	buildCreateStaffTenantProfileBody,
 	buildFindStaffTenantProfileMembersQueryParameters,
 	buildResolveStaffTenantProfileMemberAssignmentsBody,
@@ -22,7 +25,10 @@ import {
 	unassignStaffTenantProfileUserMutationOptions,
 	buildUpdateStaffTenantProfileBody,
 	invalidateStaffTenantProfiles,
+	getStaffTenantProfilePermissionKeysCacheSnapshot,
+	getStaffTenantProfilePermissionKeysQueryKey,
 	STAFF_TENANT_PROFILES_QUERY_KEY,
+	staffTenantPermissionCatalogQueryOptions,
 	toStaffTenantProfileDetails,
 	toStaffTenantProfileMemberAssignmentMap,
 	toStaffTenantProfileMemberRows,
@@ -162,7 +168,284 @@ describe('buildStaffTenantPermissionCatalogOptions', () => {
 	});
 });
 
+describe('staffTenantPermissionCatalogQueryOptions', () => {
+	test('scopes the request and cache key to the active language', async () => {
+		const getCatalog = vi.fn().mockResolvedValue({ additionalData: {} });
+		mocks.getOrCreateStaffClient.mockReturnValue({
+			staff: {
+				permissions: {
+					scopes: {
+						tenant: {
+							get: getCatalog,
+						},
+					},
+				},
+			},
+		});
+
+		const englishKey = staffTenantPermissionCatalogQueryOptions.queryKey({
+			language: 'en',
+		});
+		const frenchKey = staffTenantPermissionCatalogQueryOptions.queryKey({
+			language: 'fr',
+		});
+
+		expect(englishKey).not.toEqual(frenchKey);
+		expect(englishKey).toContainEqual({ language: 'en' });
+		expect(frenchKey).toContainEqual({ language: 'fr' });
+
+		await staffTenantPermissionCatalogQueryOptions.fetcher({
+			language: 'fr',
+		});
+
+		expect(getCatalog).toHaveBeenCalledWith({
+			queryParameters: { language: 'fr' },
+		});
+	});
+});
+
+describe('buildStaffTenantPermissionCatalogGroups', () => {
+	test('assigns all 13 canonical modules to the design column flows', () => {
+		const moduleKeys = [
+			'posts',
+			'media',
+			'calendar',
+			'channels',
+			'approvals',
+			'analytics',
+			'members',
+			'invitations',
+			'profiles',
+			'settings',
+			'billing',
+			'audit_logs',
+			'modules',
+		];
+		const groups = moduleKeys.map((moduleKey) => ({
+			moduleKey,
+			moduleLabel: moduleKey,
+			options: [],
+		}));
+
+		const [leftGroups, rightGroups] =
+			buildStaffTenantPermissionGroupColumns(groups);
+
+		expect(leftGroups.map((group) => group.moduleKey)).toEqual([
+			'posts',
+			'media',
+			'calendar',
+			'invitations',
+			'audit_logs',
+			'modules',
+		]);
+		expect(rightGroups.map((group) => group.moduleKey)).toEqual([
+			'channels',
+			'approvals',
+			'analytics',
+			'members',
+			'settings',
+			'billing',
+			'profiles',
+		]);
+	});
+
+	test('appends future modules in catalog order to the shorter column', () => {
+		const groups = ['posts', 'channels', 'future_a', 'future_b'].map(
+			(moduleKey) => ({
+				moduleKey,
+				moduleLabel: moduleKey,
+				options: [],
+			}),
+		);
+
+		const [leftGroups, rightGroups] =
+			buildStaffTenantPermissionGroupColumns(groups);
+
+		expect(leftGroups.map((group) => group.moduleKey)).toEqual([
+			'posts',
+			'future_a',
+		]);
+		expect(rightGroups.map((group) => group.moduleKey)).toEqual([
+			'channels',
+			'future_b',
+		]);
+	});
+
+	test('orders every known module in the canonical matrix sequence', () => {
+		const shuffledModuleKeys = [
+			'modules',
+			'billing',
+			'profiles',
+			'members',
+			'analytics',
+			'approvals',
+			'channels',
+			'calendar',
+			'media',
+			'posts',
+			'audit_logs',
+			'settings',
+			'invitations',
+		];
+		const catalog = Object.fromEntries(
+			shuffledModuleKeys.map((moduleKey) => [
+				moduleKey,
+				{
+					permission: {
+						key: `tenant.${moduleKey}.future_action`,
+						name: moduleKey,
+					},
+				},
+			]),
+		);
+
+		expect(
+			buildStaffTenantPermissionCatalogGroups(catalog).map(
+				(group) => group.moduleKey,
+			),
+		).toEqual([
+			'posts',
+			'media',
+			'calendar',
+			'channels',
+			'approvals',
+			'analytics',
+			'members',
+			'invitations',
+			'profiles',
+			'settings',
+			'billing',
+			'audit_logs',
+			'modules',
+		]);
+	});
+
+	test('uses canonical module and action order independently of translated labels', () => {
+		const groups = buildStaffTenantPermissionCatalogGroups({
+			modules: {
+				users: { key: 'tenant.modules.access_users', name: 'A' },
+				dashboard: { key: 'tenant.modules.access_dashboard', name: 'Z' },
+			},
+			members: {
+				remove: { key: 'tenant.members.remove', name: 'A' },
+				view: { key: 'tenant.members.view', name: 'Z' },
+				manage: { key: 'tenant.members.manage', name: 'M' },
+			},
+			analytics: {
+				export: { key: 'tenant.analytics.export', name: 'A' },
+				view: { key: 'tenant.analytics.view', name: 'Z' },
+			},
+			channels: {
+				disconnect: { key: 'tenant.channels.disconnect', name: 'A' },
+				manage: { key: 'tenant.channels.manage', name: 'Z' },
+				connect: { key: 'tenant.channels.connect', name: 'M' },
+				view: { key: 'tenant.channels.view', name: 'Y' },
+			},
+			posts: {
+				delete: { key: 'tenant.posts.delete', name: 'A' },
+				archive: { key: 'tenant.posts.archive', name: 'B' },
+				view: { key: 'tenant.posts.view', name: 'Z' },
+				create: { key: 'tenant.posts.create', name: 'Y' },
+				duplicate: { key: 'tenant.posts.duplicate', name: 'C' },
+			},
+			zeta: {
+				view: { key: 'tenant.zeta.view', name: 'A' },
+			},
+		});
+
+		expect(groups.map((group) => group.moduleKey)).toEqual([
+			'posts',
+			'channels',
+			'analytics',
+			'members',
+			'modules',
+			'zeta',
+		]);
+		expect(groups[0]?.options.map((option) => option.key)).toEqual([
+			'tenant.posts.view',
+			'tenant.posts.create',
+			'tenant.posts.delete',
+			'tenant.posts.archive',
+			'tenant.posts.duplicate',
+		]);
+		expect(groups[1]?.options.map((option) => option.key)).toEqual([
+			'tenant.channels.view',
+			'tenant.channels.connect',
+			'tenant.channels.manage',
+			'tenant.channels.disconnect',
+		]);
+		expect(groups[2]?.options.map((option) => option.key)).toEqual([
+			'tenant.analytics.view',
+			'tenant.analytics.export',
+		]);
+		expect(groups[3]?.options.map((option) => option.key)).toEqual([
+			'tenant.members.view',
+			'tenant.members.manage',
+			'tenant.members.remove',
+		]);
+		expect(groups[4]?.options.map((option) => option.key)).toEqual([
+			'tenant.modules.access_dashboard',
+			'tenant.modules.access_users',
+		]);
+	});
+});
+
+describe('staff tenant profile permission-key cache snapshot', () => {
+	test('reads normalized data and revision from the exact scoped query entry', () => {
+		const queryClient = new QueryClient();
+		const variables = { tenantId: 'tenant-1', profileId: 'profile-1' };
+		const queryKey = getStaffTenantProfilePermissionKeysQueryKey(variables);
+		queryClient.setQueryData(
+			queryKey,
+			{ permissionKeys: [' channels.view ', 'posts.view', 'posts.view'] },
+			{ updatedAt: 42 },
+		);
+
+		expect(
+			getStaffTenantProfilePermissionKeysCacheSnapshot(queryClient, variables),
+		).toEqual({
+			permissionKeys: ['channels.view', 'posts.view'],
+			revision: 1,
+		});
+	});
+
+	test('advances the revision when data updates within the same millisecond', () => {
+		const queryClient = new QueryClient();
+		const variables = { tenantId: 'tenant-1', profileId: 'profile-1' };
+		const queryKey = getStaffTenantProfilePermissionKeysQueryKey(variables);
+		queryClient.setQueryData(
+			queryKey,
+			{ permissionKeys: ['posts.view'] },
+			{ updatedAt: 42 },
+		);
+		queryClient.setQueryData(
+			queryKey,
+			{ permissionKeys: ['channels.view'] },
+			{ updatedAt: 42 },
+		);
+
+		expect(queryClient.getQueryState(queryKey)?.dataUpdatedAt).toBe(42);
+		expect(
+			getStaffTenantProfilePermissionKeysCacheSnapshot(queryClient, variables),
+		).toEqual({
+			permissionKeys: ['channels.view'],
+			revision: 2,
+		});
+	});
+});
+
 describe('buildCreateStaffTenantProfileBody', () => {
+	test('serializes the concrete icon and tone', () => {
+		const body = buildCreateStaffTenantProfileBody({
+			name: 'Approvers',
+			icon: 'briefcase',
+			tone: '6',
+		});
+
+		expect(unwrapUntyped(body.icon)).toBe('briefcase');
+		expect(unwrapUntyped(body.tone)).toBe('6');
+	});
+
 	test('includes a trimmed description without serializing permission keys', () => {
 		const body = buildCreateStaffTenantProfileBody({
 			name: 'Approvers',
@@ -209,6 +492,17 @@ describe('buildCreateStaffTenantProfileBody', () => {
 });
 
 describe('buildUpdateStaffTenantProfileBody', () => {
+	test('serializes the concrete icon and tone', () => {
+		const body = buildUpdateStaffTenantProfileBody({
+			name: 'Approvers',
+			icon: 'briefcase',
+			tone: '6',
+		});
+
+		expect(unwrapUntyped(body.icon)).toBe('briefcase');
+		expect(unwrapUntyped(body.tone)).toBe('6');
+	});
+
 	test('includes a trimmed description when provided', () => {
 		const body = buildUpdateStaffTenantProfileBody({
 			name: '  Approvers  ',
@@ -227,6 +521,17 @@ describe('buildUpdateStaffTenantProfileBody', () => {
 
 		expect(unwrapUntyped(body.name)).toBe('Approvers');
 		expect(body.description).toBeNull();
+	});
+
+	test('serializes null icon and tone to restore automatic styling', () => {
+		const body = buildUpdateStaffTenantProfileBody({
+			name: 'Approvers',
+			icon: null,
+			tone: null,
+		});
+
+		expect(body.icon).toBeNull();
+		expect(body.tone).toBeNull();
 	});
 });
 
@@ -482,6 +787,8 @@ describe('toStaffTenantProfileRows', () => {
 				id: 'profile-1' as never,
 				name: ' Approvers ',
 				description: ' Can review approvals ',
+				icon: ' briefcase ',
+				tone: ' 6 ',
 				isDefault: true,
 				userAccountCount: 7,
 				permissionsCount: 12,
@@ -501,6 +808,8 @@ describe('toStaffTenantProfileRows', () => {
 				id: 'profile-1',
 				name: 'Approvers',
 				description: 'Can review approvals',
+				icon: 'briefcase',
+				tone: '6',
 				isDefault: true,
 				userAccountCount: 7,
 				permissionsCount: 12,
@@ -537,23 +846,47 @@ describe('toStaffTenantProfileRows', () => {
 
 describe('toStaffTenantProfileDetails', () => {
 	test('normalizes a detail payload and preserves optional values', () => {
+		const createdAt = new Date('2026-05-10T09:00:00Z');
+		const updatedAt = new Date('2026-07-14T10:00:00Z');
+
 		expect(
 			toStaffTenantProfileDetails({
 				profile: {
 					id: 'profile-7' as never,
 					name: ' Approvers ',
 					description: ' Can review approvals ',
+					icon: ' briefcase ',
+					tone: ' 6 ',
 					isDefault: true,
 					userAccountCount: 7,
+					createdAt,
+					updatedAt,
 				},
 			} as GetTenantProfileByIdResponse),
 		).toEqual({
 			id: 'profile-7',
 			name: 'Approvers',
 			description: 'Can review approvals',
+			icon: 'briefcase',
+			tone: '6',
 			isDefault: true,
 			userAccountCount: 7,
+			createdAt,
+			updatedAt,
 		});
+	});
+
+	test('nulls out missing or invalid timestamps', () => {
+		const result = toStaffTenantProfileDetails({
+			profile: {
+				id: 'profile-9' as never,
+				name: 'Approvers',
+				createdAt: new Date('invalid') as never,
+			},
+		} as GetTenantProfileByIdResponse);
+
+		expect(result?.createdAt).toBeNull();
+		expect(result?.updatedAt).toBeNull();
 	});
 
 	test('returns null when the payload has no usable profile id', () => {
@@ -684,6 +1017,13 @@ describe('toStaffTenantProfileMemberRows', () => {
 				avatarUrl: null,
 				status: 'Active',
 				level: 'Admin',
+				otherProfiles: [
+					{
+						id: 'profile-1' as never,
+						name: ' Editors ',
+					},
+				],
+				joinedAt: new Date('2026-02-03T04:05:06Z'),
 			},
 			{
 				id: 'user-account-2' as never,
@@ -694,6 +1034,8 @@ describe('toStaffTenantProfileMemberRows', () => {
 				avatarUrl: null,
 				status: 'Suspended',
 				level: 'User',
+				otherProfiles: null,
+				joinedAt: null,
 			},
 			{
 				id: '' as never,
@@ -704,6 +1046,8 @@ describe('toStaffTenantProfileMemberRows', () => {
 				avatarUrl: null,
 				status: 'Active',
 				level: 'User',
+				otherProfiles: [],
+				joinedAt: null,
 			},
 			{
 				id: 'user-account-4' as never,
@@ -714,6 +1058,8 @@ describe('toStaffTenantProfileMemberRows', () => {
 				avatarUrl: null,
 				status: 'Active',
 				level: 'User',
+				otherProfiles: [],
+				joinedAt: null,
 			},
 			{
 				id: 'user-account-5' as never,
@@ -724,6 +1070,8 @@ describe('toStaffTenantProfileMemberRows', () => {
 				avatarUrl: null,
 				status: 'Active',
 				level: 'User',
+				otherProfiles: [],
+				joinedAt: null,
 			},
 		];
 
@@ -737,6 +1085,8 @@ describe('toStaffTenantProfileMemberRows', () => {
 				avatarUrl: null,
 				status: 'Active',
 				level: 'Admin',
+				otherProfiles: [{ id: 'profile-1', name: 'Editors' }],
+				joinedAt: new Date('2026-02-03T04:05:06Z'),
 				displayName: 'Ada Lovelace',
 			},
 			{
@@ -748,6 +1098,8 @@ describe('toStaffTenantProfileMemberRows', () => {
 				avatarUrl: null,
 				status: 'Suspended',
 				level: 'User',
+				otherProfiles: [],
+				joinedAt: null,
 				displayName: 'grace@example.com',
 			},
 		]);
@@ -767,6 +1119,8 @@ describe('toStaffTenantProfileMemberRows', () => {
 				avatarUrl: null,
 				status: 'Active',
 				level: 'User',
+				otherProfiles: [],
+				joinedAt: null,
 			},
 		]);
 

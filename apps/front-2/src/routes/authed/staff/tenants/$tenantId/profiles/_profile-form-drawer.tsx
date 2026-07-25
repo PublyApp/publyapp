@@ -1,12 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
-import { Controller, useForm, useFormContext } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { Field, Form } from '~/components/field';
 import { Button } from '~/components/ui/button';
-import { Checkbox } from '~/components/ui/checkbox';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
 	Drawer,
@@ -17,18 +16,15 @@ import {
 	DrawerHeader,
 	DrawerTitle,
 } from '~/components/ui/drawer';
+import { IconColorPicker } from '~/components/ui/icon-color-picker';
 import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
 } from '~/lib/mutation-toast';
 import {
 	buildStaffTenantPermissionCatalogGroups,
-	type StaffTenantPermissionGroup,
-	useAssignStaffTenantProfilePermissionMutation,
 	useCreateStaffTenantProfileMutation,
 	useStaffTenantPermissionCatalogQuery,
-	useUnassignStaffTenantProfilePermissionMutation,
-	useUpdateStaffTenantProfileMutation,
 } from '~/lib/query/staff-tenant-profiles';
 import { invalidateAllStaffTenantScopes } from '~/lib/query/staff-tenants';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
@@ -38,18 +34,24 @@ import {
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
+import { PermissionMatrix } from './_permission-matrix';
+import { deriveTenantProfileCardStyle } from './_profile-card-style';
+
 const buildProfileFormSchema = (t: (key: string) => string) =>
 	z.object({
 		name: z
 			.string()
 			.trim()
 			.min(1, { message: t('profile-name-required') })
+			.min(2, { message: t('profile-name-too-short') })
 			.max(100, { message: t('profile-name-too-long') }),
 		description: z
 			.string()
 			.trim()
 			.max(500, { message: t('profile-description-too-long') })
 			.optional(),
+		icon: z.string().min(1),
+		tone: z.string().min(1),
 		permissionKeys: z.array(z.string()),
 	});
 
@@ -58,6 +60,8 @@ type ProfileFormValues = z.infer<ReturnType<typeof buildProfileFormSchema>>;
 const PROFILE_FORM_FIELDS = [
 	'name',
 	'description',
+	'icon',
+	'tone',
 	'permissionKeys',
 ] as const satisfies readonly (keyof ProfileFormValues)[];
 
@@ -66,102 +70,33 @@ const isProfileFormField = (
 ): field is (typeof PROFILE_FORM_FIELDS)[number] =>
 	PROFILE_FORM_FIELDS.some((candidate) => candidate === field);
 
-const LOCAL_PERMISSION_META = {
-	silentSuccess: true,
-	skipGlobalErrorHandler: true,
-} as const;
-
-const EMPTY_VALUES: ProfileFormValues = {
-	name: '',
-	description: '',
-	permissionKeys: [],
-};
-
 const toStringArray = (value: unknown): string[] =>
 	Array.isArray(value)
 		? value.filter((item): item is string => typeof item === 'string')
 		: [];
 
-const PermissionGroupChecklist = ({
-	groups,
-	isDisabled,
-}: {
-	groups: StaffTenantPermissionGroup[];
-	isDisabled?: boolean;
-}) => {
-	const { control } = useFormContext();
+const getProfileFormValues = (): ProfileFormValues => {
+	const style = deriveTenantProfileCardStyle('');
 
-	return (
-		<Controller
-			name="permissionKeys"
-			control={control}
-			render={({ field }) => {
-				const value = toStringArray(field.value);
-
-				const toggle = (key: string, checked: boolean) => {
-					field.onChange(
-						checked
-							? [...new Set([...value, key])]
-							: value.filter((item) => item !== key),
-					);
-				};
-
-				return (
-					<div
-						className="space-y-4"
-						data-testid="profile-permissions-checklist"
-					>
-						{groups.map((group) => (
-							<div key={group.moduleKey} className="space-y-2">
-								<p className="publy-type-eyebrow">{group.moduleLabel}</p>
-								<div className="space-y-1.5">
-									{group.options.map((option) => (
-										<label
-											key={option.key}
-											className="flex items-start gap-2 text-[13px]"
-											title={option.description ?? undefined}
-										>
-											<Checkbox
-												checked={value.includes(option.key)}
-												disabled={isDisabled}
-												onCheckedChange={(checked) =>
-													toggle(option.key, Boolean(checked))
-												}
-											/>
-											<span>{option.label}</span>
-										</label>
-									))}
-								</div>
-							</div>
-						))}
-					</div>
-				);
-			}}
-		/>
-	);
-};
-
-export type ProfileFormDrawerProfile = {
-	id: string;
-	name: string;
-	description: string | null;
-	permissionKeys: string[];
+	return {
+		name: '',
+		description: '',
+		icon: style.icon,
+		tone: style.tone,
+		permissionKeys: [],
+	};
 };
 
 export const ProfileFormDrawer = ({
 	tenantId,
-	mode,
 	isOpen,
-	profile,
 	onOpenChange,
 	onSaved,
 	onSessionExpired,
 	onDirtyChange,
 }: {
 	tenantId: string;
-	mode: 'create' | 'edit';
 	isOpen: boolean;
-	profile?: ProfileFormDrawerProfile;
 	onOpenChange: (isOpen: boolean) => void;
 	onSaved: (profileId: string) => void;
 	onSessionExpired: () => void;
@@ -174,17 +109,13 @@ export const ProfileFormDrawer = ({
 	onDirtyChange?: (isDirty: boolean) => void;
 }) => {
 	const { t, i18n } = useTranslation('common');
+	const { t: tProfiles } = useTranslation('staff-tenant-profiles');
 	const queryClient = useQueryClient();
 
-	const catalogQuery = useStaffTenantPermissionCatalogQuery({});
+	const catalogQuery = useStaffTenantPermissionCatalogQuery({
+		language: i18n.language,
+	});
 	const createProfile = useCreateStaffTenantProfileMutation();
-	const updateProfile = useUpdateStaffTenantProfileMutation();
-	const assignPermission = useAssignStaffTenantProfilePermissionMutation(
-		LOCAL_PERMISSION_META,
-	);
-	const unassignPermission = useUnassignStaffTenantProfilePermissionMutation(
-		LOCAL_PERMISSION_META,
-	);
 
 	const groups = buildStaffTenantPermissionCatalogGroups(
 		catalogQuery.data?.additionalData,
@@ -198,13 +129,15 @@ export const ProfileFormDrawer = ({
 
 	const methods = useForm<ProfileFormValues>({
 		resolver,
-		defaultValues: EMPTY_VALUES,
+		defaultValues: getProfileFormValues(),
 	});
 	const {
 		reset,
 		formState: { isDirty, isSubmitting },
 	} = methods;
 	const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
+	const icon = useWatch({ control: methods.control, name: 'icon' });
+	const tone = useWatch({ control: methods.control, name: 'tone' });
 
 	useEffect(() => {
 		if (!isOpen) {
@@ -212,31 +145,19 @@ export const ProfileFormDrawer = ({
 		}
 
 		setIsDiscardConfirmOpen(false);
-		reset(
-			mode === 'edit' && profile
-				? {
-						name: profile.name,
-						description: profile.description ?? '',
-						permissionKeys: profile.permissionKeys,
-					}
-				: EMPTY_VALUES,
-		);
-		// Re-seeds only when the drawer opens or the target profile changes —
-		// `profile` is rebuilt every render by the parent, so depending on its
-		// identity would reset unsaved edits on any background refetch.
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [isOpen, mode, profile?.id, reset]);
+		reset(getProfileFormValues());
+	}, [isOpen, reset]);
 
 	useEffect(() => {
 		onDirtyChange?.(isDirty);
 	}, [isDirty, onDirtyChange]);
 
-	const isSaving = createProfile.isPending || updateProfile.isPending;
+	const isSaving = createProfile.isPending;
 	const isFormLocked = isSaving || isSubmitting;
 
 	// tenants-r6-F3: every close path (Escape, backdrop click, Cancel, and
 	// browser back — all funneled through Base UI's `onOpenChange`) must
-	// confirm before discarding a dirty create/edit form.
+	// confirm before discarding a dirty create form.
 	const requestClose = () => {
 		if (isDirty) {
 			setIsDiscardConfirmOpen(true);
@@ -292,111 +213,30 @@ export const ProfileFormDrawer = ({
 	const onSubmit = methods.handleSubmit(async (values) => {
 		methods.clearErrors('root');
 
-		if (mode === 'create') {
-			let result;
-			try {
-				result = await createProfile.mutateAsync({
-					tenantId,
-					name: values.name,
-					description: values.description,
-					permissionKeys: values.permissionKeys,
-				});
-			} catch (error) {
-				await handleProfileSaveFailure(error);
-				return;
-			}
-
-			await invalidateProfileQueries();
-			toastLocalMutationResult.success(t('profile-created-successfully'));
-
-			const profileId = result?.profile?.id?.toString().trim();
-			// A successful submit must never trip the parent's nav guard on
-			// the navigation `onSaved` performs next.
-			onDirtyChange?.(false);
-			onSaved(profileId ?? '');
-			return;
-		}
-
-		if (!profile) {
-			return;
-		}
-
+		let result;
 		try {
-			await updateProfile.mutateAsync({
+			result = await createProfile.mutateAsync({
 				tenantId,
-				profileId: profile.id,
 				name: values.name,
 				description: values.description,
+				icon: values.icon,
+				tone: values.tone,
+				permissionKeys: values.permissionKeys,
 			});
 		} catch (error) {
 			await handleProfileSaveFailure(error);
 			return;
 		}
 
-		const initialKeys = new Set(profile.permissionKeys);
-		const nextKeys = new Set(values.permissionKeys);
-		const keysToAssign = values.permissionKeys.filter(
-			(key) => !initialKeys.has(key),
-		);
-		const keysToUnassign = profile.permissionKeys.filter(
-			(key) => !nextKeys.has(key),
-		);
-
-		const permissionResults = await Promise.allSettled([
-			...keysToAssign.map((permissionKey) =>
-				assignPermission.mutateAsync({
-					tenantId,
-					profileId: profile.id,
-					permissionKey,
-				}),
-			),
-			...keysToUnassign.map((permissionKey) =>
-				unassignPermission.mutateAsync({
-					tenantId,
-					profileId: profile.id,
-					permissionKey,
-				}),
-			),
-		]);
-		const rejectedResults = permissionResults.filter(
-			(result): result is PromiseRejectedResult => result.status === 'rejected',
-		);
-
-		if (
-			rejectedResults.some((result) => shouldLogoutForFailure(result.reason))
-		) {
-			onSessionExpired();
-			return;
-		}
-
-		const visibleFailures = rejectedResults.filter(
-			(result) => toApiFailure(result.reason).kind !== 'abort',
-		);
 		await invalidateProfileQueries();
+		toastLocalMutationResult.success(t('profile-created-successfully'));
 
-		if (visibleFailures.length > 0) {
-			methods.setError('root.server', {
-				type: 'server',
-				message: t('tenant-profile-permission-update-partial-success', {
-					succeeded: permissionResults.filter(
-						(result) => result.status === 'fulfilled',
-					).length,
-					failed: visibleFailures.length,
-				}),
-			});
-			return;
-		}
-
-		if (rejectedResults.length > 0) {
-			return;
-		}
-
-		toastLocalMutationResult.success(t('profile-updated-successfully'));
+		const profileId = result?.profile?.id?.toString().trim();
+		// A successful submit must never trip the parent's nav guard on
+		// the navigation `onSaved` performs next.
 		onDirtyChange?.(false);
-		onSaved(profile.id);
+		onSaved(profileId ?? '');
 	});
-
-	const title = mode === 'create' ? t('new-profile') : t('edit-profile');
 
 	return (
 		<Drawer
@@ -416,26 +256,45 @@ export const ProfileFormDrawer = ({
 		>
 			<DrawerContent data-testid="profile-form-drawer">
 				<DrawerHeader>
-					<DrawerTitle>{title}</DrawerTitle>
+					<DrawerTitle>{t('new-profile')}</DrawerTitle>
 					<DrawerDescription>
 						{t('profile-form-drawer-description')}
 					</DrawerDescription>
 				</DrawerHeader>
 				<Form methods={methods} onSubmit={onSubmit}>
 					<DrawerBody className="space-y-4">
-						<Field.Text
-							name="name"
-							label={t('profile-name')}
-							placeholder={t('tenant-profile-name-placeholder')}
-							isDisabled={isFormLocked}
-							fullWidth
-						/>
-						<Field.Text
+						<div className="space-y-1.5">
+							<div className="grid items-end gap-3 sm:grid-cols-[auto_minmax(0,1fr)]">
+								<IconColorPicker
+									value={{ icon, tone }}
+									disabled={isFormLocked}
+									onChange={(next) => {
+										methods.setValue('icon', next.icon ?? icon, {
+											shouldDirty: true,
+										});
+										methods.setValue('tone', next.tone ?? tone, {
+											shouldDirty: true,
+										});
+									}}
+								/>
+								<Field.Text
+									name="name"
+									label={t('profile-name')}
+									placeholder={t('tenant-profile-name-placeholder')}
+									isDisabled={isFormLocked}
+									fullWidth
+								/>
+							</div>
+							<p className="text-xs text-muted-foreground sm:pl-[68px]">
+								{tProfiles('profile-icon-picker-hint')}
+							</p>
+						</div>
+						<Field.Textarea
 							name="description"
 							label={t('description')}
 							placeholder={t('profile-description-placeholder')}
+							rows={4}
 							isDisabled={isFormLocked}
-							fullWidth
 						/>
 
 						{catalogQuery.isPending ? (
@@ -455,9 +314,20 @@ export const ProfileFormDrawer = ({
 						{!catalogQuery.isPending &&
 						!catalogQuery.isError &&
 						groups.length > 0 ? (
-							<PermissionGroupChecklist
-								groups={groups}
-								isDisabled={isFormLocked}
+							<Controller
+								name="permissionKeys"
+								control={methods.control}
+								render={({ field }) => (
+									<div data-testid="profile-permissions-checklist">
+										<PermissionMatrix
+											groups={groups}
+											value={toStringArray(field.value)}
+											onChange={field.onChange}
+											baselineValue={[]}
+											disabled={isFormLocked}
+										/>
+									</div>
+								)}
 							/>
 						) : null}
 
@@ -485,7 +355,7 @@ export const ProfileFormDrawer = ({
 							{t('cancel')}
 						</Button>
 						<Button type="submit" disabled={isFormLocked}>
-							{mode === 'create' ? t('create-profile') : t('save-changes')}
+							{t('create-profile')}
 						</Button>
 					</DrawerFooter>
 				</Form>
