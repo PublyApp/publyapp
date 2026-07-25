@@ -384,18 +384,25 @@ html.dark {
 		   button are all sized to it, so they stay optically centred on line 1
 		   however far the message wraps. */
 		--publy-toast-line: 20px;
+		/* How far outside the border edge the focus ring below sits, and the
+		   border width it has to clear. Both are read back by the ring rule so
+		   the two cannot drift apart. */
+		--publy-toast-focus-offset: 3px;
+		--publy-toast-border-width: 1px;
 
 		box-sizing: border-box;
 		display: flex;
+		flex-wrap: wrap;
 		align-items: flex-start;
+		justify-content: flex-end;
 		column-gap: 10px;
-		row-gap: 6px;
+		row-gap: 8px;
 		width: 100%;
 		max-width: 100%;
 		min-width: 0;
 		padding-block: 14px;
-		padding-inline: 14px 12px;
-		border: 1px solid var(--publy-toast-edge);
+		padding-inline: 12px 14px;
+		border: var(--publy-toast-border-width) solid var(--publy-toast-edge);
 		border-radius: var(--publy-radius-control);
 		/* Two of the four semantic tints are translucent rgba tokens, and a
 		   toast floats over arbitrary page content — so the tint is painted as
@@ -440,11 +447,20 @@ html.dark {
 		--publy-toast-accent: var(--publy-alert-info-text);
 	}
 
-	/* Icon and close button are boxed to the first line's height rather than
+	/* LAYOUT ORDER — deliberately no `order`/`row-reverse` anywhere in this
+	   block. Sonner hard-codes its children as close button, icon, content,
+	   cancel, action (verified in sonner 2.0.6's compiled render; `closeButton`
+	   is a boolean and `icons.close` only swaps the glyph, so there is no render
+	   slot that would let us emit a different DOM order). `order` reorders paint
+	   but NOT sequential focus, so the previous revision made Tab walk the
+	   controls right-to-left. The layout therefore follows the DOM instead: the
+	   dismiss control leads, and the button cluster trails. Every focusable then
+	   receives focus in the same sequence a sighted user reads them.
+
+	   Icon and close button are boxed to the first line's height rather than
 	   given a top margin, so they re-centre themselves if the title's
 	   line-height ever changes. */
 	.publy-toast-icon {
-		order: 1;
 		/* The loading spinner is sonner's `.sonner-loader`, which is
 		   `position: absolute; top: 50%; left: 50%`. Without a positioned icon
 		   slot it resolves against the toast element itself and the spinner
@@ -459,10 +475,17 @@ html.dark {
 		color: var(--publy-toast-accent);
 	}
 
+	/* `flex-basis: 70%` is what makes the button cluster wrap onto its own row
+	   instead of squeezing the message into a ~130px column (review of #991
+	   measured a 150px-tall toast whose text had 131px to wrap in). Flex line
+	   breaking uses the hypothetical main size, so a 70% basis leaves too little
+	   room for even the narrowest button and pushes cancel+action to row 2
+	   together, where `justify-content: flex-end` trails them. With no buttons
+	   the basis still fits on row 1 and `flex-grow` expands it, so the ordinary
+	   message-only toast is unchanged. */
 	.publy-toast-content {
-		order: 2;
 		display: flex;
-		flex: 1 1 auto;
+		flex: 1 1 70%;
 		flex-direction: column;
 		gap: 2px;
 		min-width: 0;
@@ -486,12 +509,10 @@ html.dark {
 		overflow-wrap: anywhere;
 	}
 
-	/* Sonner's DOM order is close button, icon, content, cancel, action — the
-	   `order` values put them back into reading order without touching the
-	   markup. */
+	/* Cancel precedes action in sonner's DOM, which is also the conventional
+	   secondary-then-primary reading order, so neither needs reordering. */
 	.publy-toast-action-button,
 	.publy-toast-cancel-button {
-		order: 3;
 		display: inline-flex;
 		flex: 0 0 auto;
 		align-items: center;
@@ -514,7 +535,6 @@ html.dark {
 	}
 
 	.publy-toast-cancel-button {
-		order: 4;
 		border-color: transparent;
 		background: none;
 		color: var(--publy-foreground-muted);
@@ -532,9 +552,9 @@ html.dark {
 	/* Dismissal is secondary chrome: no border, no surface of its own, only a
 	   muted glyph that gains a background on hover. `--publy-foreground-muted`
 	   (not `-subtle`) keeps the glyph above the 3:1 non-text contrast floor on
-	   both themes. */
+	   both themes. It leads the row because sonner renders it first — see the
+	   LAYOUT ORDER note above. */
 	.publy-toast-close-button {
-		order: 5;
 		display: flex;
 		flex: 0 0 auto;
 		align-items: center;
@@ -574,14 +594,31 @@ html.dark {
 
 	/* Sonner's own focus ring is a 20%-black box-shadow, effectively invisible
 	   on the dark theme, and it is un-layered so it cannot be overridden from
-	   here on specificity. Drawing the ring on a pseudo-element sidesteps the
-	   conflict instead of reaching for an important marker. */
-	.publy-toast:focus-visible::before {
+	   here on specificity — hence a pseudo-element ring.
+
+	   It hangs off `.publy-toast-content`, NOT off the toast itself. Sonner owns
+	   BOTH of the toast's own pseudo-elements: `::before` is its swipe hit-area
+	   (`left/right: -100%; transform: scaleY(3)`) and `::after` is the
+	   hover-expand bridge. Review of #991 forced `:focus-visible` together with
+	   `data-swiping='true'` and sonner's un-layered swipe geometry won on the
+	   shared `::before`, painting a 1074px-wide amber rectangle across the page.
+	   `[data-content]` has no sonner pseudo-element rules at all, so this ring
+	   cannot be captured by any toast state.
+
+	   The content div is not itself positioned, so the ring's containing block is
+	   the toast's PADDING box — whose edge is already inside the border, one
+	   border-width in. The inset therefore only has to clear that border plus
+	   the offset; it must NOT re-add the padding. */
+	.publy-toast:focus-visible .publy-toast-content::after {
 		content: '';
 		position: absolute;
-		inset: -3px;
+		inset: calc(
+			-1 * (var(--publy-toast-border-width) + var(--publy-toast-focus-offset))
+		);
 		border: 2px solid var(--publy-focus-ring);
-		border-radius: calc(var(--publy-radius-control) + 3px);
+		border-radius: calc(
+			var(--publy-radius-control) + var(--publy-toast-focus-offset)
+		);
 		pointer-events: none;
 	}
 
