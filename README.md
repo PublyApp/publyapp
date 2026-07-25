@@ -230,13 +230,16 @@ POSTGRES_CONNECTION_STRING="Host=localhost;Port=5454;Database=publyapp_db;Userna
 The committed template deliberately contains placeholders; its database name and password do not
 match `docker-compose.services.yml`.
 
-> **Heads-up on legacy frontend recipes.** `dev-front`, `build-front`, `tsc-front`, `start-front`,
-> `deploy-front`, `ci-front`, `ci-e2e-front`, and `clean-front` target `apps/front`, the **retired**
-> frontend. Use `pnpm --filter front-2 <script>` or `just ci-front-2` for the frontend that actually
-> ships.
+> **Heads-up on legacy frontend recipes.** `dev-front`, `build-front`, `build-deploy`,
+> `deploy-front`, `deploy`, `start-front`, `tsc-front`, `ci-front`, `ci-e2e-front`, and
+> `clean-front` directly build, run, deploy, type-check, or clean `apps/front`, the **retired**
+> frontend. The aggregate `ci` and `ci-full` gates intentionally include its characterization
+> suites, and `clean` removes its artifacts with the rest of the workspace. Use
+> `pnpm --filter front-2 <script>` or `just ci-front-2` for the frontend that actually ships.
 
 > After creating and editing `.env.development`, `just dev-setup` can run install + database in one
-> step.
+> step. Its final prompt — and the final prompt from `just quick-start` — still says to run the
+> retired `just dev-front`; ignore that prompt and run `pnpm --filter front-2 dev` instead.
 
 ### Local URLs
 
