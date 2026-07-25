@@ -125,7 +125,8 @@ to `dokploy-network`). Add two:
 
 ## 5. Set environment variables (Compose app → Environment tab)
 
-Dokploy saves these to a host `.env` that your compose file reads via `${VAR}` interpolation.
+Set these in Dokploy's Environment tab; the Compose file consumes them through `${VAR}`
+interpolation.
 **The app fails fast at startup on the _first_ missing REQUIRED var** (e.g.
 `Environment variable 'DEFAULT_EMAIL_SENDER_EMAIL' is not set`), so every required var below
 MUST be present or no container starts. Optional vars are safe to omit — the app falls back to
@@ -138,12 +139,12 @@ code defaults when they are blank.
 | `RELEASE_TAG`                | the GHCR image tag to deploy (the full commit SHA)                                                                                                                                                                                                                                                                                                                   |
 | `POSTGRES_CONNECTION_STRING` | `Host=<internal-host>;Port=5432;Database=<db>;Username=<user>;Password=<pass>` — **Host = the Postgres service's Connection tab → "Internal Host"** (it has a Dokploy-generated suffix, e.g. `publyapp-postgres-a1b2c3`; the App Name you typed is NOT the hostname — see step 3). (The app appends `;MaxPoolSize=…` itself.)                                        |
 | `STAFF_OWNER_EMAIL`          | the platform owner's login email                                                                                                                                                                                                                                                                                                                                     |
-| `STAFF_OWNER_BOOTSTRAP_CODE` | strong secret — becomes the owner's **initial password** on first boot. **Avoid `#` in the value** (and any other env-file metacharacter): Dokploy stores these in a host `.env`, where `#` starts a comment, so `Str0ng#Pass` is silently truncated to `Str0ng`. Nothing errors — you just can't log in. Prefer long alphanumeric + `-_.` only. See the trap in §8. |
+| `STAFF_OWNER_BOOTSTRAP_CODE` | strong secret — becomes the owner's **initial password** on first boot. **Avoid `#` in the value** (and any other env-file metacharacter): this project's first deployment observed a secret containing `#` silently truncated at that character. Nothing errored — login simply failed. Prefer long alphanumeric + `-_.` only. This is observed project behaviour, not a vendor-documentation claim; see §8. |
 | `RESEND_API_KEY`             | your Resend API key (rotate the committed placeholder)                                                                                                                                                                                                                                                                                                               |
 | `APP_NAME`                   | display/app name (e.g. `PublyApp`)                                                                                                                                                                                                                                                                                                                                   |
 | `FRONT_URL`                  | public URL of the front (e.g. `https://publyapp.com`)                                                                                                                                                                                                                                                                                                                |
 | `DEFAULT_EMAIL_SENDER_EMAIL` | the "from" address — must be a **Resend-verified** domain for mail to deliver (app still starts if not)                                                                                                                                                                                                                                                              |
-| `TRUSTED_PROXY_CIDRS`        | Traefik's exact address(es), expressed as `/32` (IPv4) or `/128` (IPv6), or the CIDR of a dedicated proxy network joined **only** by Traefik and the API. **Do not paste what Docker reports.** `docker inspect` gives the container address with the **network** prefix (e.g. `10.0.1.9/24`) — pasting that verbatim trusts every peer container on the shared `dokploy-network`, and any of them could then forge `X-Forwarded-For`. Convert it to `/32`: `10.0.1.9/24` → `10.0.1.9/32`. Universal CIDRs (`0.0.0.0/0`, `::/0`) are rejected at startup, and a **missing** value fails the Production `api` role at startup — this crash-looped a real deploy. The value must contain **no `#`** (see trap 5 in §8: Dokploy truncates at `#`, so a truncated CIDR list fails validation or, worse, silently drops entries). Recheck exact addresses after any Traefik or network recreation. |
+| `TRUSTED_PROXY_CIDRS`        | Traefik's exact address(es), expressed as `/32` (IPv4) or `/128` (IPv6), or the CIDR of a dedicated proxy network joined **only** by Traefik and the API. **Do not paste what Docker reports.** `docker inspect` gives the container address with the **network** prefix (e.g. `10.0.1.9/24`) — pasting that verbatim trusts every peer container on the shared `dokploy-network`, and any of them could then forge `X-Forwarded-For`. Convert it to `/32`: `10.0.1.9/24` → `10.0.1.9/32`. Universal CIDRs (`0.0.0.0/0`, `::/0`) are rejected at startup, and a **missing** value fails the Production `api` role at startup — this crash-looped a real deploy. The value must contain **no `#`** because this deployment previously observed silent truncation at that character (trap 5 in §8); a truncated CIDR list fails validation or, worse, silently drops entries. Recheck exact addresses after any Traefik or network recreation. |
 | `PUBLIC_API_BASE_URL`        | api's **public** URL, browser-facing (e.g. `https://api.publyapp.com`)                                                                                                                                                                                                                                                                                               |
 | `VITE_ASP_SERVER_URL`        | same public api URL (baked into the browser bundle)                                                                                                                                                                                                                                                                                                                  |
 | `SERVER_API_BASE_URL`        | server-to-server (front SSR → api). Use the internal `http://publyapp-api:5000` (both are on `dokploy-network`) — faster and doesn't need the public domain live                                                                                                                                                                                                     |
@@ -245,12 +246,12 @@ checks". They are now answered; that section is closed out.
    origin never has one, so `https://x.com/` never matches and every browser call is blocked.
 4. **A domain configured only for the front** leaves the api unreachable from the browser;
    login then fails at the network layer with no server-side log at all.
-5. **A `#` inside a secret truncates it silently.** Dokploy writes the Environment tab to a
-   host `.env`, and `#` begins a comment there — so `STAFF_OWNER_BOOTSTRAP_CODE=Str0ng#Pass`
-   is stored as `Str0ng`. The seeder then hashes the _truncated_ value, the account is created
-   normally, and the only symptom is "Invalid email or password" on a password you believe is
-   correct. Nothing logs a warning. Applies to every secret, not just this one — keep env
-   values to alphanumerics plus `-_.` and it can't happen.
+5. **This deployment observed a secret silently truncated at `#`.**
+   The application received only the prefix before that character. The owner seeder then hashed
+   the _truncated_ value, the account was created normally, and the only symptom was "Invalid email
+   or password" on a password believed to be correct. Nothing logged a warning. This is observed
+   project behaviour, not a documented vendor guarantee; avoid the same parsing path for every
+   Environment value by using alphanumerics plus `-_.`.
 
 ## 9. Troubleshooting
 
@@ -277,8 +278,8 @@ checks". They are now answered; that section is closed out.
 - **Login says "Invalid email or password" with the credentials you're sure are right** → the
   app reached the DB and compared a password, so it's one of exactly two things (the handler
   has distinct messages for suspended/unverified users):
-  1. **Your secret got truncated at a `#`** — see trap 5 in §8. This is the likely one. Check
-     the stored value, not what you typed into the form.
+  1. **Your secret may have followed the `#` truncation observed on the first deployment** — see
+     trap 5 in §8. Check the stored value, not what you typed into the form.
   2. **The owner was seeded earlier with a different code.** `OwnerBootstrapSeeder` is
      idempotent **by email**: if a user with `STAFF_OWNER_EMAIL` already exists it returns
      immediately and **never updates the password**. So changing

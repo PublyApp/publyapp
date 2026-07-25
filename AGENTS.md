@@ -462,7 +462,8 @@ gives one filing rule per directory. Read it before creating a document.
 - **Never** place a generated doc at the repo root, and never at the `docs/` root either — always in
   a `docs/` subdirectory
 - Use an existing subdirectory; only create a new one (kebab-case) if nothing in `docs/README.md` fits
-- Apart from the `docs/README.md` index, this file links only `docs/guides/` and
-  `docs/deployment/` documents. A guide nothing links to is a record, not a rule
+- This file links guides/deployment docs for standing policy and may also link repository
+  config/source files to anchor a rule. A `docs/guides/` file this file does not link is a record,
+  not a rule
 - Standing rules belong in this file or a `docs/guides/` file. Plans, reviews, audits, analyses and
   change notes are records: write them once, date them, and supersede rather than retro-edit them

@@ -84,7 +84,7 @@ Deploy flow:
 
 ## Config, secrets, resources
 - **Required `AppEnvironment` values** must be supplied to `api`, `worker`, and `migrate`; missing required strings/integers fail fast. Many tuning and storage settings use `GetOptional*` defaults and may be omitted. `dokploy.yml` supplies the required values and also passes explicit values for many optional settings. Secrets live in Dokploy's env management, never committed.
-- **A secret must contain no `#`.** Dokploy writes the Environment tab to a host `.env`, where `#` starts a comment, so the value is silently truncated with no error. Keep env values to alphanumerics plus `-_.`.
+- **Observed in this deployment:** a secret containing `#` was silently truncated during the first Dokploy deployment. Treat `#` as unsafe in this project's Environment values and keep secrets to alphanumerics plus `-_.`; this is an operational incident finding, not a claim from vendor documentation.
 - **`TRUSTED_PROXY_CIDRS` must be Traefik's exact address as `/32`** (or `/128` for IPv6), never the network CIDR — see the note in the [first-deploy runbook](./first-deploy-runbook.md) §5a. A missing value crash-loops the API on a Production `api` role.
 - **`APP_ROLE`** is required in Production (from 2B): `api`/`migrate` → `api`, `worker` → `worker`.
 - **Connection pool caps** per role so `api` + `worker` + scheduler-leadership + LISTEN/NOTIFY connections leave an admin reserve under the database's configured connection limit. In force: **api `MaxPoolSize=50`, worker `MaxPoolSize=30`**; tune under load.

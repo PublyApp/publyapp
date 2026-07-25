@@ -59,7 +59,8 @@ Before triggering the stack deployment:
   lets any of them forge `X-Forwarded-For`. Universal CIDRs (`0.0.0.0/0`, `::/0`) are rejected at
   startup, and a **missing** value fails the Production `api` role at startup — a real deploy
   crash-looped on this. Recheck the address after any Traefik or network recreation, and make sure
-  the value contains no `#` (Dokploy silently truncates a secret at `#`). Full note:
+  the value contains no `#` (this deployment's first release silently truncated a secret there).
+  This is observed project behaviour, not a vendor-documentation claim. Full note:
   [`first-deploy-runbook.md`](first-deploy-runbook.md) §5a.
 - Confirm the migration service joins a network that resolves and reaches PostgreSQL.
 - Confirm the persistent API storage volume is mounted and writable by the runtime UID.
