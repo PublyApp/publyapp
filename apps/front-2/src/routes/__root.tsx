@@ -1,9 +1,5 @@
 import { IconAlertCircle, IconLock } from '@tabler/icons-react';
-import {
-	type QueryClient,
-	useIsFetching,
-	useQueryClient,
-} from '@tanstack/react-query';
+import { type QueryClient, useQuery } from '@tanstack/react-query';
 import {
 	createRootRouteWithContext,
 	HeadContent,
@@ -423,26 +419,24 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 	const sessionSurface = getSessionSurface(pathname);
 	const surfaceRedirectCodeQueryKey =
 		getSurfaceRedirectCodeQueryKey(sessionSurface);
-	const queryClient = useQueryClient();
-	const surfaceSessionFetchCount = useIsFetching({
-		exact: true,
+	const surfaceSessionState = useQuery<string | null>({
+		enabled: false,
 		queryKey: surfaceRedirectCodeQueryKey,
 	});
-	const surfaceSessionState = queryClient.getQueryState<string | null>(
-		surfaceRedirectCodeQueryKey,
-	);
-	const surfaceSessionQueryStatus =
-		surfaceSessionState?.status ??
-		(surfaceSessionFetchCount > 0 ? 'pending' : undefined);
 	const surfaceSessionFailureStatus =
-		surfaceSessionState?.status === 'error'
+		surfaceSessionState.status === 'error'
 			? getRouteFailureStatus(surfaceSessionState.error)
 			: undefined;
+	const hasSurfaceSessionRecovery =
+		isHydrated &&
+		surfaceSessionState.status === 'error' &&
+		surfaceSessionFailureStatus !== 401 &&
+		surfaceSessionFailureStatus !== 403;
 	const canRenderAuthenticatedChrome = shouldRenderAuthenticatedChrome({
 		failureStatus: surfaceSessionFailureStatus,
 		isHydrated,
-		queryData: surfaceSessionState?.data,
-		queryStatus: surfaceSessionQueryStatus,
+		queryData: surfaceSessionState.data,
+		queryStatus: surfaceSessionState.status,
 	});
 	const [brand, setBrand] = React.useState<AuthBrand | undefined>(undefined);
 
@@ -454,7 +448,12 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 
 		if (!canRenderAuthenticatedChrome) {
 			return (
-				<NeutralAuthedShell pathname={pathname}>{children}</NeutralAuthedShell>
+				<NeutralAuthedShell
+					isRecovery={hasSurfaceSessionRecovery}
+					pathname={pathname}
+				>
+					{children}
+				</NeutralAuthedShell>
 			);
 		}
 

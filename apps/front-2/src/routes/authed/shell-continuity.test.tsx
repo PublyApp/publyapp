@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -27,10 +28,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@tanstack/react-query', () => ({
-	useIsFetching: () => (mocks.sessionQueryState.status === 'pending' ? 1 : 0),
-	useQueryClient: () => ({
-		getQueryState: () => mocks.sessionQueryState,
-	}),
+	useQuery: () => mocks.sessionQueryState,
 }));
 
 vi.mock('@tanstack/react-router', async (importOriginal) => {
@@ -222,6 +220,40 @@ describe('authenticated shell continuity', () => {
 
 		expect(screen.getByTestId('app-shell-shell')).toBeTruthy();
 		expect(screen.queryByTestId('neutral-authed-shell')).toBeNull();
+	});
+
+	test('exposes non-403 session recovery outside the inert shell and lets keyboard Retry run', async () => {
+		mocks.location = {
+			pathname: '/staff/staff-users',
+			search: {},
+			searchStr: '',
+		};
+		mocks.resolvedLocation = mocks.location;
+		mocks.matchedPathname = '/staff/staff-users';
+		mocks.sessionQueryState = {
+			data: undefined,
+			error: { responseStatusCode: 500, status: 500 },
+			status: 'error',
+		};
+		const retry = vi.fn();
+		const user = userEvent.setup();
+
+		render(
+			<RoutedShell>
+				<button type="button" onClick={retry}>
+					Retry
+				</button>
+			</RoutedShell>,
+		);
+
+		const retryButton = screen.getByRole('button', { name: 'Retry' });
+		expect(screen.queryByTestId('neutral-authed-shell')).toBeNull();
+		expect(screen.getByTestId('neutral-authed-recovery')).toBeTruthy();
+
+		await user.tab();
+		expect(document.activeElement).toBe(retryButton);
+		await user.keyboard('{Enter}');
+		expect(retry).toHaveBeenCalledTimes(1);
 	});
 
 	test('keeps the real app shell node while pending content settles and the staff index redirects', () => {

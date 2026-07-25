@@ -122,6 +122,10 @@ const staffProfileUsersQueryOptions = buildStaffQueryOptions<
 	{ clientAccessor: getClientManager() },
 );
 
+export const getStaffProfileUsersQueryKey = (
+	variables: StaffProfileUsersQueryVariables,
+) => staffProfileUsersQueryOptions.queryKey(variables);
+
 export const useStaffProfileUsersQuery = (
 	variables: StaffProfileUsersQueryVariables,
 	options?: {
@@ -129,7 +133,7 @@ export const useStaffProfileUsersQuery = (
 	},
 ) =>
 	useQuery({
-		queryKey: staffProfileUsersQueryOptions.queryKey(variables),
+		queryKey: getStaffProfileUsersQueryKey(variables),
 		queryFn: () => staffProfileUsersQueryOptions.fetcher(variables),
 		enabled: options?.enabled ?? true,
 	});
