@@ -93,6 +93,7 @@ flowchart LR
     subgraph Client["apps/front-2 — TanStack Start"]
         UI["Base UI · Tailwind v4 · TanStack Query"]
         TSClient["@org/client-ts\n(generated TS client)"]
+        FetchWrapper["front-2 fetch wrapper\n(session + tenant headers)"]
     end
 
     subgraph Server["apps/api — .NET 10 Web API"]
@@ -105,7 +106,7 @@ flowchart LR
     DB[("PostgreSQL 18\nUUID v7 · soft deletes")]
     Shared["@org/shared-ts\n(validations · i18n)"]
 
-    UI --> TSClient -->|X-Session-Token / X-Tenant-Id| Endpoints
+    UI --> TSClient --> FetchWrapper -->|X-Session-Token / X-PublyApp-TenantId| Endpoints
     Endpoints --> Handlers --> Services --> DB
     Server -.->|OpenAPI → Kiota| TSClient
     Shared -.- UI
@@ -116,7 +117,8 @@ flowchart LR
 
 | Stage | Responsibility |
 | --- | --- |
-| `@org/client-ts` (generated) | Type-safe calls from `apps/front-2`; sends `X-Session-Token` / `X-Tenant-Id`. |
+| `@org/client-ts` (generated) | Type-safe request builders generated from OpenAPI. |
+| `apps/front-2` fetch wrapper | Sends the request and injects `X-Session-Token` / `X-PublyApp-TenantId` for same-origin API calls. |
 | Minimal-API endpoints + permission filters | Route mapping and route-level permission enforcement. |
 | CQRS-lite handlers | Orchestrate one operation each (create / find / get / update / delete). |
 | Domain services | Business logic and data access (the only layer touching the DB). |
@@ -230,13 +232,16 @@ POSTGRES_CONNECTION_STRING="Host=localhost;Port=5454;Database=publyapp_db;Userna
 The committed template deliberately contains placeholders; its database name and password do not
 match `docker-compose.services.yml`.
 
-> **Heads-up on legacy frontend recipes.** `dev-front`, `build-front`, `tsc-front`, `start-front`,
-> `deploy-front`, `ci-front`, `ci-e2e-front`, and `clean-front` target `apps/front`, the **retired**
-> frontend. Use `pnpm --filter front-2 <script>` or `just ci-front-2` for the frontend that actually
-> ships.
+> **Heads-up on legacy frontend recipes.** `dev-front`, `build-front`, `build-deploy`,
+> `deploy-front`, `deploy`, `start-front`, `tsc-front`, `ci-front`, `ci-e2e-front`, and
+> `clean-front` directly build, run, deploy, type-check, or clean `apps/front`, the **retired**
+> frontend. The aggregate `ci` and `ci-full` gates intentionally include its characterization
+> suites, and `clean` removes its artifacts with the rest of the workspace. Use
+> `pnpm --filter front-2 <script>` or `just ci-front-2` for the frontend that actually ships.
 
 > After creating and editing `.env.development`, `just dev-setup` can run install + database in one
-> step.
+> step. Its final prompt — and the final prompt from `just quick-start` — still says to run the
+> retired `just dev-front`; ignore that prompt and run `pnpm --filter front-2 dev` instead.
 
 ### Local URLs
 
@@ -247,9 +252,11 @@ match `docker-compose.services.yml`.
 | API docs (Scalar) | <http://localhost:5000/scalar/v1>                             |
 | PostgreSQL        | `localhost:5454`                                              |
 
-Local development configuration lives in `.env.development`. The API throws at startup or during
-build-time initialization when that file is absent in Development or when the host environment is
-unset. Real env files are gitignored and must never be committed; they are validated at startup.
+Local development configuration lives in `.env.development`. It is the only env file the API loads,
+and only when the host environment is Development or unset; the API throws at startup or during
+build-time initialization when the file is required but absent. `.env.production` is gitignored but
+is not consumed — production variables come from Dokploy. Real env files must never be committed;
+`AppEnvironment` validates the resulting runtime environment variables at startup.
 
 <!-- markdownlint-enable MD013 MD060 -->
 
@@ -397,13 +404,15 @@ A few non-negotiables worth surfacing here:
 
 <!-- markdownlint-disable MD013 MD060 -->
 
-PublyApp has been **live in production since 2026-07-20** on **Dokploy on a Hostinger VPS**, run as
-plain `docker compose` (not Swarm): GitHub → GHCR Docker images → Dokploy → Traefik (SSL
-termination). Deployment configuration lives in `dokploy.yml`.
+The first-deploy operator record says PublyApp has been **live in production since 2026-07-20** on
+**Dokploy on a Hostinger VPS**, with the live app observed in plain `docker compose` mode rather
+than Swarm: GitHub → GHCR Docker images → Dokploy → Traefik (SSL termination). The repository
+declares the service topology in `dokploy.yml` but does not encode the selected Dokploy mode.
 
 A release publishes **three** images — `api`, `migrate`, and `front-2` — all tagged with the same
-commit SHA. They back **four** running services: `publyapp-api`, `publyapp-worker` (the same API
-image with `APP_ROLE=worker`), `publyapp-migrate`, and `publyapp-front`.
+commit SHA. They back **four declared services**: the long-running `publyapp-api`,
+`publyapp-worker` (the same API image with `APP_ROLE=worker`), and `publyapp-front`, plus the
+one-shot `publyapp-migrate`, which exits and remains stopped after migrations finish.
 
 **Publishing images:** deploy images normally build in CI
 (`.github/workflows/deploy-images.yml`). When that workflow is unavailable, publish them locally

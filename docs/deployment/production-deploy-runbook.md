@@ -1,8 +1,10 @@
 # Production Deploy Runbook
 
-This runbook is the operational source of truth for database migration gating on the
-live Dokploy deployment. **The active runtime is plain `docker compose`, not Swarm.**
-Consequently `restart:` governs container restarts, `deploy.restart_policy` is inert, and an
+This runbook is the operational source of truth for database migration gating. The first-deploy
+operator record says the live Dokploy log reported `Compose Type: docker-compose`; that is a
+live-server observation, not a mode encoded by this repository.
+Compose applies `deploy.restart_policy` when it is present and falls back to the service-level
+`restart:` field only when it is absent. The migrator sets both controls to no restart, and an
 unhealthy container remains running rather than being rescheduled.
 
 ## Ratified approach A: one-shot migrate plus application gates
@@ -11,8 +13,8 @@ Every release uses one immutable `RELEASE_TAG`. It tags **three** published imag
 `migrate`, and `front-2` — which back **four** services: the worker runs the **same `api` image**
 with `APP_ROLE=worker`, so there is no separate worker image. `dokploy.yml` declares
 `publyapp-migrate` as a one-shot Compose service using the slim EF bundle image. Its
-`restart: "no"` policy leaves it stopped after the bundle exits; operators inspect that exited
-container and its logs.
+paired no-restart declarations leave it stopped after the bundle exits; operators inspect that
+exited container and its logs.
 
 Dokploy starts the services concurrently. Ordering therefore comes from application readiness
 plus a five-minute health grace matching the migration-gate budget, not Compose dependencies:
@@ -36,14 +38,16 @@ the heartbeat during its bounded migration wait, and the regular heartbeat servi
 after startup. They do not replace the migration gate. The migrate bundle does not wait on itself;
 its image entrypoint is the bundle directly.
 
-In the active Compose runtime, unhealthy containers are not killed or rescheduled.
+In the plain-Compose runtime observed on the live server, unhealthy containers are not killed or
+rescheduled.
 `/health/ready` remains 503, so health-gated routing keeps the API out of service while the failed
 or stuck migration is investigated. The migration container remains exited after either a zero or
 non-zero exit because its restart policy is `no`.
 
-**Non-active Swarm contingency:** `dokploy.yml` also carries
-`deploy.restart_policy.condition: none` for the migration service. That field would matter only
-after an intentional move to Dokploy Stack/Swarm and is not part of today's operator procedure.
+`dokploy.yml` carries both `deploy.restart_policy.condition: none` and `restart: "no"` for the
+migration service. Compose gives the deploy restart policy precedence; the service-level field is
+the equivalent fallback if that policy is absent. Both declarations therefore preserve the same
+one-shot, no-restart behavior.
 
 ### Deploy checklist
 
@@ -104,17 +108,17 @@ These were open before the first real deployment. They are now answered on the l
 click-by-click procedure and the traps encountered live in
 [`first-deploy-runbook.md`](first-deploy-runbook.md).
 
-- **Compose vs Swarm** — the instance runs the app as **plain `docker compose`, not Swarm**
-  (the deploy log reports `Compose Type: docker-compose`). So `restart:` governs and
-  `deploy.restart_policy` is inert; an unhealthy container is not killed or rescheduled, it
-  simply stays running and unrouted. The one-shot migrate service therefore carries **both**
-  `restart: "no"` and `deploy.restart_policy.condition: none`, so it holds under either
-  runtime.
+- **Compose vs Swarm** — the operator record says the live deploy log reported
+  `Compose Type: docker-compose`; the repository does not encode that Dokploy selection. Compose gives
+  `deploy.restart_policy` precedence and falls back to `restart:` only when it is absent; an
+  unhealthy container is not killed or rescheduled, it simply stays running and unrouted. The
+  one-shot migrate service carries both equivalent no-restart declarations.
 - **GHCR credentials** — configured once in Dokploy Settings → Registry; the host pulls the
   private images successfully. No credentials are stored in this repo.
-- **The Docker network** — it is `dokploy-network`, joined by every service as
-  `external: true`. A Dokploy-managed PostgreSQL lives on that network, so this is what the
-  migration service must join to resolve and reach the database.
+- **The Docker network** — the repository declares `dokploy-network` by name, joined by every
+  service as `external: true`; it does not declare that external network's driver. Live-server
+  inspection confirmed that the managed PostgreSQL was reachable on the named network, so this is
+  what the migration service must join to resolve and reach the database.
   **Note:** joining the right network is necessary but not sufficient — the managed database's
   hostname carries a Dokploy-generated suffix and is **not** the App Name you typed. Take it
   from the Postgres service's Connection tab → Internal Host, or the migration container fails DNS

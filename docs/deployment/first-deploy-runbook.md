@@ -18,7 +18,12 @@ pay for them twice.
 
 > **Three facts that shape everything below** (from research):
 >
-> 1. Dokploy runs a "Docker Compose" app as **plain `docker compose`, NOT Swarm**, by default. So `restart:` applies and `deploy.restart_policy` is ignored; an unhealthy container is **not** restarted or killed — it just stays running and Traefik withholds routing until it's healthy. Our approach-A design works cleanly under this (no crash-loop risk).
+> 1. On this live server, the first-deploy log reported `Compose Type: docker-compose`. That selected
+> Dokploy mode is an operator observation, not a setting stored in this repository; Dokploy supports
+> separate Docker Compose and Stack/Swarm configuration methods. Compose applies
+> `deploy.restart_policy` when present and falls back to `restart:` only when that policy is absent.
+> Both migrator declarations say not to restart; an unhealthy container is **not** restarted or
+> killed — it just stays running and Traefik withholds routing until it's healthy.
 > 2. A Dokploy-managed database sits on the shared **`dokploy-network`**. A Compose app gets its **own** network by default and must **explicitly join `dokploy-network`** to reach the DB. This is the #1 thing that breaks a first deploy — **the committed `dokploy.yml` already does this** (all services are on `dokploy-network`, and nothing else).
 > 3. Traefik routing is **not** configured by labels in the compose file. You add each domain in Dokploy's **Domains tab**, and Dokploy generates the real `traefik.*` labels (including pinning the container's network to `dokploy-network`). So domain setup is a UI step, not a file edit — see §4.5.
 
@@ -42,15 +47,16 @@ pay for them twice.
 
 ## 1. Config prep — none needed; the committed `dokploy.yml` is deploy-ready
 
-The compose file is already set up for the **Dokploy-managed Postgres + plain-Compose** path
-(this is what PR #892 landed). Specifically, you do **not** need to hand-edit it:
+The compose file is already set up for the declared **Dokploy-managed Postgres** topology and for
+the plain-Compose behavior recorded on the live server (this is what PR #892 landed). The selected
+Dokploy mode itself lives outside the repository. You do **not** need to hand-edit the file:
 
 - All four services (`publyapp-api`, `publyapp-worker`, `publyapp-migrate`, `publyapp-front`)
   are on **`dokploy-network` only** — so they reach the managed DB and Traefik can route to
   them, with no multi-network ambiguity.
-- The one-shot migrate service carries `restart: "no"` (plain-Compose) **and**
-  `deploy.restart_policy.condition: none` (Swarm/Stack), so it runs exactly once per deploy
-  under either runtime.
+- The one-shot migrate service carries `deploy.restart_policy.condition: none` and the equivalent
+  `restart: "no"` fallback. Compose gives the deploy policy precedence when present, so the
+  declarations agree and it runs exactly once per deploy.
 - There are **no routing labels** in the file on purpose — routing is configured in the
   Domains tab (§4.5).
 
@@ -184,8 +190,9 @@ INVITATION_TOKEN_LENGTH=32
 > (`GetRequiredString`/`GetRequiredInt` = required; `GetOptional*` = has a default). The committed
 > `.env.example` is a starting template, but its placeholder values are not deployment-ready (and
 > its database values do not match the local Compose database). It is the only committed env file —
-> `.env.development` and `.env.production` are gitignored local/deployment state and must never be
-> committed.
+> `.env.development` is gitignored local state and must never be committed. A local
+> `.env.production` would also be gitignored but is not consumed; production values come from
+> Dokploy's environment management.
 
 ---
 
@@ -223,12 +230,13 @@ redeploy. The api will stay not-ready (unrouted) until a successful migrate.
 These were open questions in `production-deploy-runbook.md` → "Open production-instance
 checks". They are now answered; that section is closed out.
 
-- ✅ **Runtime is plain `docker compose`, NOT Swarm.** The deploy log states it outright:
-  `Compose Type: docker-compose`. So `restart:` governs and `deploy.restart_policy` is inert;
-  an unhealthy container is not killed, it just stays unrouted. (Both forms are set on the
-  migrate service, so switching to Stack later still behaves.)
-- ✅ **The overlay network is `dokploy-network`**, joined as `external: true`. All four services
-  are on it and nothing else — the managed Postgres is reachable there.
+- ✅ **Observed runtime was plain `docker compose`, NOT Swarm.** The live deploy log states:
+  `Compose Type: docker-compose`. Compose gives `deploy.restart_policy` precedence and falls back
+  to `restart:` only when it is absent; an unhealthy container is not killed, it just stays
+  unrouted. Both forms are set to no restart on the migrate service.
+- ✅ **Live-server inspection identified `dokploy-network` as an overlay network.** The repository
+  proves only that all four services join the external network with that name; it does not declare
+  the network driver. The managed Postgres was observed reachable there.
 - ✅ **GHCR pull works** from the host once the registry is configured in Dokploy Settings.
 - ✅ **Traefik routing comes from the Domains tab**, not compose labels. Adding a domain per
   web service is mandatory; without it Traefik has no router for the host and returns its
@@ -301,7 +309,8 @@ checks". They are now answered; that section is closed out.
 
 ### Note on the config
 
-The managed-Postgres + plain-Compose correctness fixes (single `dokploy-network`, migrate
-`restart: "no"`, routing via the Domains tab instead of labels) are **already in the committed
-`dokploy.yml`** via PR #892 (Part of #876). No hand-editing of the compose file is needed —
-deploy the branch/commit as-is.
+The managed-Postgres topology and runtime-compatible controls (single external
+`dokploy-network`, matching no-restart declarations for the migrator, and routing via the Domains
+tab instead of labels) are **already in the committed `dokploy.yml`** via PR #892 (Part of #876).
+The repository does not select the Dokploy Compose type or declare the external network's driver.
+No hand-editing of the compose file is needed — deploy the branch/commit as-is.

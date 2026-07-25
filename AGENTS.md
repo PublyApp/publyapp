@@ -26,10 +26,13 @@ pnpm --filter front-2 dev
 just dev-db
 ```
 
-**Frontend recipe naming:** these legacy recipes target `apps/front`, the retired app:
-`dev-front`, `build-front`, `tsc-front`, `start-front`, `deploy-front`, `ci-front`,
-`ci-e2e-front`, and `clean-front`. Drive `apps/front-2` — the app that actually ships — with
-`pnpm --filter front-2 <script>` or the `just ci-front-2` gate.
+**Frontend recipe naming:** these recipes directly build, run, deploy, type-check, or clean
+`apps/front`, the retired app: `dev-front`, `build-front`, `build-deploy`, `deploy-front`, `deploy`,
+`start-front`, `tsc-front`, `ci-front`, `ci-e2e-front`, and `clean-front`. The aggregate `ci` and
+`ci-full` gates intentionally include the retired app's characterization suites, and `clean` removes
+its artifacts along with the rest of the workspace. `dev-setup` and `quick-start` also print the
+obsolete instruction to run `just dev-front`; ignore that final prompt. Drive `apps/front-2` — the
+app that actually ships — with `pnpm --filter front-2 <script>` or the `just ci-front-2` gate.
 
 Since #885, the API waits for pending migrations but does not apply them. Run
 `just db-migrate` first, or use `just dev-api-migrated` to migrate and start the API.
@@ -40,7 +43,12 @@ Since #885, the API waits for pending migrations but does not apply them. Run
 
 The API reads configuration exclusively from environment variables via `AppEnvironment` (`apps/api/Lib/AppEnvironment.cs`).
 
-- Repo-root `.env.example` is the committed template; copy it to `.env.development` (local dev) or `.env.production` (deploy). Both real files are **gitignored** and must never be committed — keep them in sync with `.env.example` when you add a variable. Development defaults are loaded from `.env.development` when the host environment is `Development` (and, for config values only, when it is unset).
+- Repo-root `.env.example` is the committed template; copy it to `.env.development` for local
+  development. The API loads only `.env.development`, when the host environment is `Development`
+  (and, for config values only, when it is unset), then validates the resulting environment
+  variables. A local `.env.production` would be **gitignored** but is not consumed; production
+  variables come from Dokploy's environment management. Real env files must never be committed —
+  keep the committed template in sync when you add a variable.
 - `dotnet build` runs the app during OpenAPI document generation. When `ASPNETCORE_ENVIRONMENT`/`DOTNET_ENVIRONMENT` are unset, the host environment resolves to **Production**, where `APP_ROLE` is required and a missing value fails fast — loading `.env.development` supplies config values but does **not** change that classification. So a bare `dotnet build` requires `APP_ROLE=api`; always build through the pinned `just` recipes (`just build-api`, `just generate-client`, `just db-*`), which export `APP_ROLE=api`.
 - Keep secrets out of the repo: `.env.example` carries placeholder values only; real values live in your local `.env.development`, in the deployment platform's env management, or in CI secrets.
 
@@ -325,7 +333,9 @@ because the owner will not edit `apps/front` again.
   `_components/`, or `routes/` source paths.
 - Retired `apps/front` only: `no-raw-mui-textfield-register` covers its source files;
   `no-native-html-in-mui-surfaces` and `no-raw-img-in-product-surfaces` cover product JSX under
-  `components/`, `layouts/`, `routes/`, and `lib/`, with their narrow marketing/brand exclusions.
+  `components/`, `layouts/`, `routes/`, and `lib/`, with their narrow marketing/brand exclusions;
+  `no-raw-img-in-product-surfaces` also exempts an image when the immediately preceding line
+  contains the `publy-allow full-bleed-background` comment marker.
 
 `publy/no-op` and `publy/arrow-function-components` are off. Component declaration style is
 therefore not lint-enforced in front-2; both arrow components and function declarations exist.
@@ -415,22 +425,28 @@ For the complete list of custom lint rules with severity and source, see [`docs/
 ## Development Environment
 
 **Local access:** Frontend `localhost:5050` | API `localhost:5000` | Scalar docs `localhost:5000/scalar/v1` | Postgres `localhost:5454`
-**Env vars:** `.env.example` is the only committed env file (the template). `.env.development` (local dev) and `.env.production` (deployment) are **gitignored** and must never be committed — `.gitignore` ignores `.env.*` with a single `!.env.example` exception. All of them are validated at startup via `AppEnvironment.Initialize()`.
+**Env vars:** `.env.example` is the only committed env file (the template).
+`.env.development` is **gitignored**, is the only env file the API loads, and is used only for
+Development or an unset host environment. `.env.production` would also be gitignored but is not
+consumed; production variables come from Dokploy. Real env files must never be committed.
+`AppEnvironment.Initialize()` validates the resulting runtime environment variables.
 **.NET artifacts:** New .NET projects must output under a local `.artifacts/` directory.
 Set `DotNetArtifactsRoot` in a project-area `Directory.Build.props` before importing the repo
 root props; `Directory.Build.targets` enforces this during builds.
 
 ## Deployment
 
-**Production has been live since 2026-07-20.** Dokploy on a Hostinger VPS, run as plain
-`docker compose` (not Swarm): GitHub → GHCR Docker images → Dokploy → Traefik SSL. Config in
-`dokploy.yml`.
+**The first-deploy operator record reports production live since 2026-07-20.** It records Dokploy
+on a Hostinger VPS with the app observed in plain `docker compose` mode rather than Swarm:
+GitHub → GHCR Docker images → Dokploy → Traefik SSL. `dokploy.yml` declares the service topology
+but does not encode the selected Dokploy mode.
 
 `.github/workflows/deploy-images.yml` publishes **three** image artifacts per release, all tagged
 with the same commit SHA: `api` (from `apps/api/Dockerfile`, target `runtime`), `migrate` (same
-Dockerfile, target `migrate`), and `front-2` (from `apps/front-2/Dockerfile`). Four *services* run
-from them — `publyapp-api`, `publyapp-worker` (the **same API image** with `APP_ROLE=worker`),
-`publyapp-migrate`, and `publyapp-front`.
+Dockerfile, target `migrate`), and `front-2` (from `apps/front-2/Dockerfile`). They back four
+declared services: the long-running `publyapp-api`, `publyapp-worker` (the **same API image** with
+`APP_ROLE=worker`), and `publyapp-front`, plus the one-shot `publyapp-migrate`, which remains
+exited after it finishes.
 
 Operational docs: [`docs/deployment/production-deployment-design.md`](docs/deployment/production-deployment-design.md)
 (why it is shaped this way), [`docs/deployment/production-deploy-runbook.md`](docs/deployment/production-deploy-runbook.md)
