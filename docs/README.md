@@ -37,6 +37,18 @@ task specifically needs the reasoning behind an old decision or incident.
 Do not file new work directly in the archive. Write it in the active directory selected below; move
 it to the archive only through an explicit documentation-curation change.
 
+**Archived records are point-in-time snapshots, and their links are not maintained.** A record
+describes what was true on the day it was written, so it may name paths that have since moved or been
+deleted. That is expected, and it is not a defect to repair. Where a document an archived record
+cites still exists, it is usually under `docs/archive/` at the corresponding path; where it does not,
+the reference stands as evidence that it once did.
+
+**Never edit an archived record to make a reference resolve.** Archiving prepends the four-line
+header and changes nothing else — every archived body is byte-identical to the original. Rewriting a
+record to scrub a path is falsifying the evidence the archive exists to hold, and it is the specific
+mistake this repository has already had to undo (PR #985). If a stale reference genuinely obstructs
+someone, the fix is a note in the *current* guide, never a change to the record.
+
 ## Where a new document goes
 
 One rule per directory. Pick the **first** row that matches; if two seem to fit, the earlier row
