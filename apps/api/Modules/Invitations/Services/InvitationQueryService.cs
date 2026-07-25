@@ -579,6 +579,14 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 			);
 		}
 
+		if (filters.Level is { Count: > 0 } levels) {
+			query = query.Where(
+				inv => levels.Contains(
+					inv.AccountLevel ?? AccountLevel.User
+				)
+			);
+		}
+
 		if (cursor != Guid.Empty) {
 			var cursorValue = await handler.GetCursorValue(cursor);
 			if (cursorValue is null) {

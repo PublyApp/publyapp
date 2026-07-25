@@ -9,6 +9,7 @@ using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Invitations.Services;
+using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Invitations.Handlers.Staff;
 
@@ -21,6 +22,9 @@ public class FindInvitationsForTenantAsStaffQuery : CursorPaginatedQuery {
 
 	[FromQuery(Name = "status")]
 	public string? Status { get; set; }
+
+	[FromQuery(Name = "level")]
+	public string? Level { get; set; }
 
 	public string? GetSearchNormalized() {
 		if (Search is null) {
@@ -56,6 +60,37 @@ public class FindInvitationsForTenantAsStaffQuery : CursorPaginatedQuery {
 		}
 		return statuses.Count > 0 ? statuses : null;
 	}
+
+	public IReadOnlySet<AccountLevel>? GetLevelsOrNull() {
+		if (Level is null) {
+			return null;
+		}
+
+		var trimmed = Level.Trim();
+		if (trimmed.Length == 0) {
+			return null;
+		}
+
+		var parts = trimmed
+			.Split(
+				',',
+				StringSplitOptions.RemoveEmptyEntries
+					| StringSplitOptions.TrimEntries
+			);
+		if (parts.Length == 0) {
+			return null;
+		}
+
+		var levels = new HashSet<AccountLevel>();
+		foreach (var part in parts) {
+			AccountLevel? parsed = UserAccount.ParseLevel(part);
+			if (parsed is { } level) {
+				levels.Add(level);
+			}
+		}
+
+		return levels.Count > 0 ? levels : null;
+	}
 }
 
 public class FindInvitationsForTenantAsStaffQueryValidator : CursorPaginatedQueryValidator<FindInvitationsForTenantAsStaffQuery> {
@@ -76,6 +111,17 @@ public class FindInvitationsForTenantAsStaffQueryValidator : CursorPaginatedQuer
 	private static readonly string AllowedStatusesDisplay =
 		string.Join(", ", AllowedStatuses.Select(s => s.ToLowerInvariant()).Order());
 
+	private static readonly string[] AllowedLevels = [
+		nameof(AccountLevel.Admin),
+		nameof(AccountLevel.User),
+	];
+
+	private static readonly HashSet<string> AllowedLevelSet =
+		new(AllowedLevels, StringComparer.OrdinalIgnoreCase);
+
+	private static readonly string AllowedLevelsDisplay =
+		string.Join(", ", AllowedLevels.Select(s => s.ToLowerInvariant()).Order());
+
 	public FindInvitationsForTenantAsStaffQueryValidator() {
 		RuleFor(x => x.Search).MaximumLength(200);
 		RuleFor(x => x.Status)
@@ -93,6 +139,24 @@ public class FindInvitationsForTenantAsStaffQueryValidator : CursorPaginatedQuer
 				return parts.All(p => p.Length > 0 && AllowedStatusSet.Contains(p));
 			})
 			.WithMessage($"Status must be one of: {AllowedStatusesDisplay}");
+		RuleFor(x => x.Level)
+			.Must(raw => {
+				if (raw is null) {
+					return true;
+				}
+
+				var parts = raw.Split(',', StringSplitOptions.TrimEntries);
+				if (parts.Length == 0) {
+					return false;
+				}
+
+				return parts.All(
+					part =>
+						part.Length > 0
+						&& AllowedLevelSet.Contains(part)
+				);
+			})
+			.WithMessage($"level must be one of: {AllowedLevelsDisplay}");
 	}
 }
 
@@ -128,6 +192,7 @@ public sealed class FindInvitationsForTenantAsStaff {
 			Filters = new FindTenantInvitationsFilters {
 				Search = query.GetSearchNormalized(),
 				Status = query.GetStatusesOrNull(),
+				Level = query.GetLevelsOrNull(),
 			},
 		};
 

@@ -717,6 +717,340 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 
 		#endregion
 
+		#region Account Level Filter Tests
+
+		[Fact]
+		public async Task
+		ItShouldFilterByAdminAccountLevelCaseInsensitively() {
+			string staffToken =
+				await _authClient.LoginAsStaffAdminAsync();
+			Guid tenantId =
+				await TenantTestHelper
+					.GetTenantIdByNameAsync(
+						_http,
+						staffToken,
+						SeedConstants.Tenants.AcmeName
+					);
+
+			string prefix = $"level-admin-{Guid.NewGuid():N}";
+			string adminEmail = $"{prefix}-admin@example.com";
+			string userEmail = $"{prefix}-user@example.com";
+			_ = await CreateTenantInvitationAsync(
+				staffToken,
+				tenantId,
+				adminEmail,
+				"Admin"
+			);
+			_ = await CreateTenantInvitationAsync(
+				staffToken,
+				tenantId,
+				userEmail,
+				"User"
+			);
+
+			string url = GetFindUrl(
+				tenantId,
+				level: "aDmIn",
+				q: prefix,
+				limit: 50
+			);
+			HttpRequestMessage request = new HttpRequestMessage(
+				HttpMethod.Get, url
+			).WithSessionToken(staffToken);
+
+			using HttpResponseMessage response =
+				await _http.SendAsync(request);
+
+			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
+			FindResponse? result = await response.Content
+				.ReadFromJsonAsync<FindResponse>();
+			_ = result.Should().NotBeNull();
+			Assert.NotNull(result);
+			_ = result.Data.Should().ContainSingle(
+				invitation =>
+					invitation.Email.Equals(
+						adminEmail,
+						StringComparison.OrdinalIgnoreCase
+					)
+					&& invitation.AccountLevel == "Admin"
+					&& invitation.Profiles.Count == 0
+			);
+			_ = result.Data.Should().NotContain(
+				invitation => invitation.Email.Equals(
+					userEmail,
+					StringComparison.OrdinalIgnoreCase
+				)
+			);
+		}
+
+		[Fact]
+		public async Task
+		ItShouldTreatLegacyNullAccountLevelAsUserWhenFiltering() {
+			string staffToken =
+				await _authClient.LoginAsStaffAdminAsync();
+			Guid tenantId =
+				await TenantTestHelper
+					.GetTenantIdByNameAsync(
+						_http,
+						staffToken,
+						SeedConstants.Tenants.AcmeName
+					);
+
+			string legacyEmail =
+				$"legacy-null-level-{Guid.NewGuid():N}@example.com";
+			await CreateLegacyTenantInvitationWithNullLevelAsync(
+				tenantId,
+				legacyEmail
+			);
+
+			string url = GetFindUrl(
+				tenantId,
+				level: "User",
+				q: legacyEmail,
+				limit: 50
+			);
+			HttpRequestMessage request = new HttpRequestMessage(
+				HttpMethod.Get, url
+			).WithSessionToken(staffToken);
+
+			using HttpResponseMessage response =
+				await _http.SendAsync(request);
+
+			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
+			FindResponse? result = await response.Content
+				.ReadFromJsonAsync<FindResponse>();
+			_ = result.Should().NotBeNull();
+			Assert.NotNull(result);
+			_ = result.Data.Should().ContainSingle(
+				invitation =>
+					invitation.Email.Equals(
+						legacyEmail,
+						StringComparison.OrdinalIgnoreCase
+					)
+					&& invitation.AccountLevel == "User"
+			);
+
+			string adminUrl = GetFindUrl(
+				tenantId,
+				level: "Admin",
+				q: legacyEmail,
+				limit: 50
+			);
+			HttpRequestMessage adminRequest = new HttpRequestMessage(
+				HttpMethod.Get, adminUrl
+			).WithSessionToken(staffToken);
+
+			using HttpResponseMessage adminResponse =
+				await _http.SendAsync(adminRequest);
+
+			_ = adminResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+			FindResponse? adminResult = await adminResponse.Content
+				.ReadFromJsonAsync<FindResponse>();
+			_ = adminResult.Should().NotBeNull();
+			Assert.NotNull(adminResult);
+			_ = adminResult.Data.Should().BeEmpty();
+		}
+
+		[Fact]
+		public async Task
+		ItShouldCombineMultipleAccountLevelsWithSearchStatusAndSorting() {
+			string staffToken =
+				await _authClient.LoginAsStaffAdminAsync();
+			Guid tenantId =
+				await TenantTestHelper
+					.GetTenantIdByNameAsync(
+						_http,
+						staffToken,
+						SeedConstants.Tenants.AcmeName
+					);
+
+			string prefix = $"level-combined-{Guid.NewGuid():N}";
+			string adminEmail = $"{prefix}-a-admin@example.com";
+			string userEmail = $"{prefix}-b-user@example.com";
+			_ = await CreateTenantInvitationAsync(
+				staffToken,
+				tenantId,
+				adminEmail,
+				"Admin"
+			);
+			_ = await CreateTenantInvitationAsync(
+				staffToken,
+				tenantId,
+				userEmail,
+				"User"
+			);
+
+			string url = GetFindUrl(
+				tenantId,
+				level: "uSeR, AdMiN",
+				status: "pending",
+				q: prefix,
+				sortId: "email",
+				sortOrder: "asc",
+				limit: 50
+			);
+			HttpRequestMessage request = new HttpRequestMessage(
+				HttpMethod.Get, url
+			).WithSessionToken(staffToken);
+
+			using HttpResponseMessage response =
+				await _http.SendAsync(request);
+
+			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
+			FindResponse? result = await response.Content
+				.ReadFromJsonAsync<FindResponse>();
+			_ = result.Should().NotBeNull();
+			Assert.NotNull(result);
+			_ = result.Data.Select(invitation => invitation.Email)
+				.Should()
+				.Equal(adminEmail, userEmail);
+		}
+
+		[Theory]
+		[InlineData("")]
+		[InlineData(" ")]
+		[InlineData(",")]
+		[InlineData("User,,Admin")]
+		[InlineData("Owner")]
+		public async Task
+		ItShouldReturnUnprocessableEntityWhenAccountLevelIsInvalid(
+			string level
+		) {
+			string staffToken =
+				await _authClient.LoginAsStaffAdminAsync();
+			Guid tenantId =
+				await TenantTestHelper
+					.GetTenantIdByNameAsync(
+						_http,
+						staffToken,
+						SeedConstants.Tenants.AcmeName
+					);
+
+			string url = GetFindUrl(tenantId, level: level);
+			HttpRequestMessage request = new HttpRequestMessage(
+				HttpMethod.Get, url
+			).WithSessionToken(staffToken);
+
+			using HttpResponseMessage response =
+				await _http.SendAsync(request);
+
+			_ = response.StatusCode.Should()
+				.Be(HttpStatusCode.UnprocessableEntity);
+		}
+
+		[Fact]
+		public async Task
+		ItShouldKeepAccountLevelFilterAcrossCursorPagination() {
+			string staffToken =
+				await _authClient.LoginAsStaffAdminAsync();
+			Guid tenantId =
+				await TenantTestHelper
+					.GetTenantIdByNameAsync(
+						_http,
+						staffToken,
+						SeedConstants.Tenants.AcmeName
+					);
+
+			string prefix = $"level-page-{Guid.NewGuid():N}";
+			for (int index = 0; index < 3; index++) {
+				_ = await CreateTenantInvitationAsync(
+					staffToken,
+					tenantId,
+					$"{prefix}-admin-{index}@example.com",
+					"Admin"
+				);
+			}
+			_ = await CreateTenantInvitationAsync(
+				staffToken,
+				tenantId,
+				$"{prefix}-user@example.com",
+				"User"
+			);
+
+			string firstUrl = GetFindUrl(
+				tenantId,
+				level: "Admin",
+				q: prefix,
+				sortId: "email",
+				sortOrder: "asc",
+				limit: 1
+			);
+			HttpRequestMessage firstRequest = new HttpRequestMessage(
+				HttpMethod.Get, firstUrl
+			).WithSessionToken(staffToken);
+
+			using HttpResponseMessage firstResponse =
+				await _http.SendAsync(firstRequest);
+
+			_ = firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+			FindResponse? firstPage = await firstResponse.Content
+				.ReadFromJsonAsync<FindResponse>();
+			_ = firstPage.Should().NotBeNull();
+			Assert.NotNull(firstPage);
+			_ = firstPage.Data.Should().ContainSingle();
+			_ = firstPage.Data.Should().OnlyContain(
+				invitation => invitation.AccountLevel == "Admin"
+			);
+			_ = firstPage.NextCursor.Should().NotBeNullOrEmpty();
+
+			string secondUrl = GetFindUrl(
+				tenantId,
+				cursor: firstPage.NextCursor,
+				level: "Admin",
+				q: prefix,
+				sortId: "email",
+				sortOrder: "asc",
+				limit: 1
+			);
+			HttpRequestMessage secondRequest = new HttpRequestMessage(
+				HttpMethod.Get, secondUrl
+			).WithSessionToken(staffToken);
+
+			using HttpResponseMessage secondResponse =
+				await _http.SendAsync(secondRequest);
+
+			_ = secondResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+			FindResponse? secondPage = await secondResponse.Content
+				.ReadFromJsonAsync<FindResponse>();
+			_ = secondPage.Should().NotBeNull();
+			Assert.NotNull(secondPage);
+			_ = secondPage.Data.Should().ContainSingle();
+			_ = secondPage.Data.Should().OnlyContain(
+				invitation => invitation.AccountLevel == "Admin"
+			);
+			_ = secondPage.Data[0].Id.Should().NotBe(firstPage.Data[0].Id);
+			_ = secondPage.NextCursor.Should().NotBeNullOrEmpty();
+
+			string thirdUrl = GetFindUrl(
+				tenantId,
+				cursor: secondPage.NextCursor,
+				level: "Admin",
+				q: prefix,
+				sortId: "email",
+				sortOrder: "asc",
+				limit: 1
+			);
+			HttpRequestMessage thirdRequest = new HttpRequestMessage(
+				HttpMethod.Get, thirdUrl
+			).WithSessionToken(staffToken);
+
+			using HttpResponseMessage thirdResponse =
+				await _http.SendAsync(thirdRequest);
+
+			_ = thirdResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+			FindResponse? thirdPage = await thirdResponse.Content
+				.ReadFromJsonAsync<FindResponse>();
+			_ = thirdPage.Should().NotBeNull();
+			Assert.NotNull(thirdPage);
+			_ = thirdPage.Data.Should().ContainSingle();
+			_ = thirdPage.Data.Should().OnlyContain(
+				invitation => invitation.AccountLevel == "Admin"
+			);
+			_ = thirdPage.NextCursor.Should().BeNull();
+		}
+
+		#endregion
+
 		#region Status Filter Tests
 
 		[Fact]
@@ -1628,18 +1962,20 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			string? cursor = null,
 			int? limit = null,
 			string? sortId = null,
-			string? sortOrder = null,
-			string? status = null,
-			string? q = null
-		) {
+				string? sortOrder = null,
+				string? status = null,
+				string? q = null,
+				string? level = null
+			) {
 			return GetFindUrl(
 				tenantId.ToString(),
-				cursor,
-				limit,
-				sortId,
+			cursor,
+			limit,
+			sortId,
 				sortOrder,
 				status,
-				q
+				q,
+				level
 			);
 		}
 
@@ -1648,10 +1984,11 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			string? cursor = null,
 			int? limit = null,
 			string? sortId = null,
-			string? sortOrder = null,
-			string? status = null,
-			string? q = null
-		) {
+				string? sortOrder = null,
+				string? status = null,
+				string? q = null,
+				string? level = null
+			) {
 			string basePath = PathUtils.Join(
 				Routes.Staff.Root,
 				Routes.Invitations.ForTenantAsStaff.RootFn(
@@ -1680,16 +2017,19 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			if (q is not null) {
 				queryParams.Add($"q={Uri.EscapeDataString(q)}");
 			}
+			if (level is not null) {
+				queryParams.Add($"level={Uri.EscapeDataString(level)}");
+			}
 
 			return queryParams.Count > 0 ? $"{basePath}?{string.Join("&", queryParams)}" : basePath;
 		}
 
 		private async Task<Guid> CreateTenantInvitationAsync(
-			string staffToken,
-			Guid tenantId,
-			string email,
-			string accountLevel = "User"
-		) {
+		string staffToken,
+		Guid tenantId,
+		string email,
+		string accountLevel = "User"
+	) {
 			return await CreateTenantInvitationWithProfilesAsync(
 				staffToken,
 				tenantId,
@@ -1757,10 +2097,10 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		}
 
 		private async Task RevokeTenantInvitationAsync(
-			string staffToken,
-			Guid tenantId,
-			Guid invitationId
-		) {
+		string staffToken,
+		Guid tenantId,
+		Guid invitationId
+	) {
 			string revokeUrl = PathUtils.Join(
 				Routes.Staff.Root,
 				Routes.Invitations.ForTenantAsStaff.RevokeByIdFn(
@@ -1779,10 +2119,36 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
 		}
 
-		private static async Task<Profile> GetOrCreateDefaultTenantProfileAsync(
-			AppDbContext dbContext,
-			Guid tenantId
+		private async Task CreateLegacyTenantInvitationWithNullLevelAsync(
+			Guid tenantId,
+			string email
 		) {
+			using IServiceScope scope =
+				_fixture.Factory.Services.CreateScope();
+			AppDbContext dbContext = scope.ServiceProvider
+				.GetRequiredService<AppDbContext>();
+			Users.Entities.User staffUser = await dbContext.User
+				.FirstAsync(user =>
+					user.Email == SeedConstants.Staff.AdminEmail
+				);
+			Invitation invitation = new Invitation {
+				Email = email.ToLowerInvariant(),
+				Scope = InvitationScope.Tenant,
+				TenantId = tenantId,
+				Token = Guid.NewGuid().ToString("N")[..32],
+				AccountLevel = null,
+				ExpiresAt = DateTime.UtcNow.AddDays(7),
+				InvitedByUserId = staffUser.GetRequiredId()
+			};
+
+			_ = await dbContext.Invitation.AddAsync(invitation);
+			_ = await dbContext.SaveChangesAsync();
+		}
+
+		private static async Task<Profile> GetOrCreateDefaultTenantProfileAsync(
+		AppDbContext dbContext,
+		Guid tenantId
+	) {
 			Profile? defaultProfile = await dbContext.Profile
 				.Where(p =>
 					p.TenantId == tenantId &&
@@ -1795,11 +2161,11 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			}
 
 			defaultProfile = Profile.CreateTenantProfile(
-				tenantId,
-				name: "Default profile",
-				description: "Default profile with no permissions",
-				isDefault: true
-			);
+			tenantId,
+			name: "Default profile",
+			description: "Default profile with no permissions",
+			isDefault: true
+		);
 			_ = await dbContext.Profile.AddAsync(defaultProfile);
 			_ = await dbContext.SaveChangesAsync();
 
