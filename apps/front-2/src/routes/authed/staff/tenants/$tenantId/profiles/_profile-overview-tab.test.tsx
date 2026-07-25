@@ -295,7 +295,11 @@ describe('ProfileOverviewTab', () => {
 		expect(stack.querySelectorAll('[data-slot="person-avatar"]')).toHaveLength(
 			5,
 		);
-		expect(stack.querySelector('[data-palette]')).toBeNull();
+		expect(
+			stack.querySelectorAll(
+				'[data-slot="person-avatar-fallback"][data-palette]',
+			),
+		).toHaveLength(5);
 		// Overflow = total (12) − shown (5) = 7.
 		expect(screen.getByText('+7 more')).toBeTruthy();
 	});

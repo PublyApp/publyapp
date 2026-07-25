@@ -1123,7 +1123,7 @@ describe('staff tenant invitations route', () => {
 });
 
 describe('createColumns column widths', () => {
-	test('uses the accessible neutral token pair for the invitation mail tile', () => {
+	test('uses the email-hashed avatar palette for the invitation mail tile', () => {
 		const columns = createColumns({
 			locale: 'en',
 			t: (key: string) => key,
@@ -1149,11 +1149,10 @@ describe('createColumns column widths', () => {
 		);
 		const mailTile = container.querySelector('[aria-hidden="true"]');
 
-		expect(mailTile?.className).toContain('bg-muted');
-		expect(mailTile?.className).toContain(
-			'text-[var(--publy-foreground-secondary)]',
-		);
+		expect(mailTile?.className).toContain('publy-avatar-initials');
+		expect(mailTile?.className).not.toContain('bg-muted');
 		expect(mailTile?.className).not.toContain('text-muted-foreground');
+		expect(mailTile?.getAttribute('data-palette')).toBe('5');
 	});
 
 	test('applies a fixed width to every column except the fluid email column', () => {

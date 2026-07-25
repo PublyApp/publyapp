@@ -98,7 +98,7 @@ describe('AvatarStack', () => {
 		expect(
 			container.querySelector('[data-slot="person-avatar-fallback"]'),
 		).not.toBeNull();
-		expect(container.querySelector('[data-palette]')).toBeNull();
+		expect(screen.getByText('GH').getAttribute('data-palette')).toBe('6');
 	});
 
 	test('renders nothing for an empty name list', () => {

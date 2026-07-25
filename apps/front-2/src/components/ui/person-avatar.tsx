@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar';
-import { toInitials } from '~/components/ui/avatar-initials';
+import { paletteIndex, toInitials } from '~/components/ui/avatar-initials';
 import { cn } from '~/lib/utils';
 
 type PersonAvatarSize = 'xs' | 'sm' | 'md' | 'lg';
@@ -47,7 +47,8 @@ export const EntityAvatar = ({
 		<AvatarFallback
 			aria-hidden="true"
 			data-slot="person-avatar-fallback"
-			className="text-[var(--publy-foreground-secondary)] font-semibold leading-none text-[length:inherit] select-none"
+			data-palette={paletteIndex(name)}
+			className="publy-avatar-initials text-[var(--publy-avatar-foreground)] font-semibold leading-none text-[length:inherit] select-none"
 		>
 			{toInitials(name)}
 		</AvatarFallback>
