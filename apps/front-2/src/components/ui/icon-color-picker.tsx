@@ -63,7 +63,11 @@ const IconColorPicker = ({
 			</Popover.Trigger>
 
 			<Popover.Portal>
-				<Popover.Positioner sideOffset={8} align="start" className="z-50">
+				<Popover.Positioner
+					sideOffset={8}
+					align="start"
+					className="z-(--publy-z-menu)"
+				>
 					<Popover.Popup className="w-[min(320px,calc(100vw-24px))] rounded-[var(--publy-radius-card)] bg-popover p-4 text-popover-foreground shadow-[var(--publy-shadow-ring)] outline-none">
 						<section aria-labelledby="icon-color-picker-color-heading">
 							<h2

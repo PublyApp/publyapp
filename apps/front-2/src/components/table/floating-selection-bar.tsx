@@ -80,7 +80,7 @@ export const FloatingSelectionBar = ({
 
 	return createPortal(
 		<div
-			className="pointer-events-none fixed z-40 flex justify-center px-1 sm:px-2"
+			className="pointer-events-none fixed z-(--publy-z-selection-bar) flex justify-center px-1 sm:px-2"
 			style={{
 				bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)',
 				left: 0,

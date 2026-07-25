@@ -181,10 +181,14 @@
 	--publy-shell-rail-width: 49px;
 	--publy-shell-panel-width: 272px;
 	--publy-shell-topbar-height: 64px;
-	/* Popup stacking scale (all portal to document.body, so paint order is
-	   z-index only): overlay backdrop < drawer/dialog surface < menu/select
+	/* Shared stacking scale. Local raised/sticky chrome stays below portalled
+	   surfaces. All popups portal to document.body, so their paint order is
+	   z-index only: overlay backdrop < drawer/dialog surface < menu/select
 	   popups, so a Select/DropdownMenu opened from inside a Drawer paints
 	   above it instead of underneath. */
+	--publy-z-raised: 10;
+	--publy-z-shell-topbar: 20;
+	--publy-z-selection-bar: 40;
 	--publy-z-overlay: 70;
 	--publy-z-drawer-surface: 80;
 	--publy-z-menu: 100;
@@ -812,7 +816,7 @@ html.dark {
 	/* ---- Topbar ---- */
 
 	.app-shell-topbar {
-		@apply z-20 flex shrink-0 items-center justify-between;
+		@apply z-(--publy-z-shell-topbar) flex shrink-0 items-center justify-between;
 		height: var(--publy-shell-topbar-height);
 		padding: 14px 16px;
 		background: var(--publy-background);
@@ -1310,7 +1314,7 @@ html.dark {
 	   bar before reaching its natural resting position, so any translucency
 	   lets that content show through while it passes. */
 	.publy-form-action-bar {
-		@apply sticky bottom-0 z-10 flex shrink-0 items-center justify-between gap-4;
+		@apply sticky bottom-0 z-(--publy-z-raised) flex shrink-0 items-center justify-between gap-4;
 		border-top: 1px solid var(--publy-border);
 		background: var(--publy-background);
 		padding: 12px 32px 32px;
