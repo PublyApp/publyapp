@@ -45,7 +45,10 @@ describe('PersonAvatar', () => {
 		const fallback = getByText('AL');
 		expect(fallback.getAttribute('data-slot')).toBe('person-avatar-fallback');
 		expect(fallback.className).toContain('bg-muted');
-		expect(fallback.className).toContain('text-muted-foreground');
+		expect(fallback.className).toContain(
+			'text-[var(--publy-foreground-secondary)]',
+		);
+		expect(fallback.className).not.toContain('text-muted-foreground');
 		expect(fallback.getAttribute('data-palette')).toBeNull();
 		expect(container.querySelector('img')).toBeNull();
 	});

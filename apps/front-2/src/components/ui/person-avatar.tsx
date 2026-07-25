@@ -47,7 +47,7 @@ export const EntityAvatar = ({
 		<AvatarFallback
 			aria-hidden="true"
 			data-slot="person-avatar-fallback"
-			className="font-semibold leading-none text-[length:inherit] select-none"
+			className="text-[var(--publy-foreground-secondary)] font-semibold leading-none text-[length:inherit] select-none"
 		>
 			{toInitials(name)}
 		</AvatarFallback>

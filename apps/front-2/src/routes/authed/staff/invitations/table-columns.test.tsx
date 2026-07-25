@@ -169,7 +169,13 @@ describe('createInvitationColumns', () => {
 		render(cellRenderer({ row }));
 
 		const link = screen.getByRole('link', { name: /person@example\.com/ });
+		const mailTile = link.querySelector('[aria-hidden="true"]');
 		expect(link.getAttribute('href')).toBe('/staff/invitations/invitation-1');
+		expect(mailTile?.className).toContain('bg-muted');
+		expect(mailTile?.className).toContain(
+			'text-[var(--publy-foreground-secondary)]',
+		);
+		expect(mailTile?.className).not.toContain('text-muted-foreground');
 	});
 
 	describe('missing-data cells (r5-F5)', () => {

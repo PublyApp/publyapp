@@ -150,7 +150,7 @@ export const createColumns = ({
 				<div className="flex min-w-0 items-center gap-2.5">
 					<span
 						aria-hidden="true"
-						className="inline-flex size-[26px] shrink-0 items-center justify-center rounded-[var(--publy-radius-small-control)] bg-muted text-muted-foreground"
+						className="inline-flex size-[26px] shrink-0 items-center justify-center rounded-[var(--publy-radius-small-control)] bg-muted text-[var(--publy-foreground-secondary)]"
 					>
 						<IconMail className="size-3.5" />
 					</span>
