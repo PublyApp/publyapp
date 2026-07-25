@@ -250,9 +250,11 @@ match `docker-compose.services.yml`.
 | API docs (Scalar) | <http://localhost:5000/scalar/v1>                             |
 | PostgreSQL        | `localhost:5454`                                              |
 
-Local development configuration lives in `.env.development`. The API throws at startup or during
-build-time initialization when that file is absent in Development or when the host environment is
-unset. Real env files are gitignored and must never be committed; they are validated at startup.
+Local development configuration lives in `.env.development`. It is the only env file the API loads,
+and only when the host environment is Development or unset; the API throws at startup or during
+build-time initialization when the file is required but absent. `.env.production` is gitignored but
+is not consumed — production variables come from Dokploy. Real env files must never be committed;
+`AppEnvironment` validates the resulting runtime environment variables at startup.
 
 <!-- markdownlint-enable MD013 MD060 -->
 
