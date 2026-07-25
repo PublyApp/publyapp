@@ -18,7 +18,11 @@ pay for them twice.
 
 > **Three facts that shape everything below** (from research):
 >
-> 1. Dokploy runs a "Docker Compose" app as **plain `docker compose`, NOT Swarm**, by default. So `restart:` applies and `deploy.restart_policy` is ignored; an unhealthy container is **not** restarted or killed — it just stays running and Traefik withholds routing until it's healthy. Our approach-A design works cleanly under this (no crash-loop risk).
+> 1. Dokploy runs a "Docker Compose" app as **plain `docker compose`, NOT Swarm**, by default.
+> Compose applies `deploy.restart_policy` when present and falls back to `restart:` only when that
+> policy is absent. Both migrator declarations say not to restart; an unhealthy container is **not**
+> restarted or killed — it just stays running and Traefik withholds routing until it's healthy.
+> Our approach-A design works cleanly under this (no crash-loop risk).
 > 2. A Dokploy-managed database sits on the shared **`dokploy-network`**. A Compose app gets its **own** network by default and must **explicitly join `dokploy-network`** to reach the DB. This is the #1 thing that breaks a first deploy — **the committed `dokploy.yml` already does this** (all services are on `dokploy-network`, and nothing else).
 > 3. Traefik routing is **not** configured by labels in the compose file. You add each domain in Dokploy's **Domains tab**, and Dokploy generates the real `traefik.*` labels (including pinning the container's network to `dokploy-network`). So domain setup is a UI step, not a file edit — see §4.5.
 
@@ -48,9 +52,9 @@ The compose file is already set up for the **Dokploy-managed Postgres + plain-Co
 - All four services (`publyapp-api`, `publyapp-worker`, `publyapp-migrate`, `publyapp-front`)
   are on **`dokploy-network` only** — so they reach the managed DB and Traefik can route to
   them, with no multi-network ambiguity.
-- The one-shot migrate service carries `restart: "no"` (plain-Compose) **and**
-  `deploy.restart_policy.condition: none` (Swarm/Stack), so it runs exactly once per deploy
-  under either runtime.
+- The one-shot migrate service carries `deploy.restart_policy.condition: none` and the equivalent
+  `restart: "no"` fallback. Compose gives the deploy policy precedence when present, so the
+  declarations agree and it runs exactly once per deploy.
 - There are **no routing labels** in the file on purpose — routing is configured in the
   Domains tab (§4.5).
 
@@ -224,9 +228,9 @@ These were open questions in `production-deploy-runbook.md` → "Open production
 checks". They are now answered; that section is closed out.
 
 - ✅ **Runtime is plain `docker compose`, NOT Swarm.** The deploy log states it outright:
-  `Compose Type: docker-compose`. So `restart:` governs and `deploy.restart_policy` is inert;
-  an unhealthy container is not killed, it just stays unrouted. (Both forms are set on the
-  migrate service, so switching to Stack later still behaves.)
+  `Compose Type: docker-compose`. Compose gives `deploy.restart_policy` precedence and falls back
+  to `restart:` only when it is absent; an unhealthy container is not killed, it just stays
+  unrouted. Both forms are set to no restart on the migrate service.
 - ✅ **The overlay network is `dokploy-network`**, joined as `external: true`. All four services
   are on it and nothing else — the managed Postgres is reachable there.
 - ✅ **GHCR pull works** from the host once the registry is configured in Dokploy Settings.

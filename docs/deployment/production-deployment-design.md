@@ -17,10 +17,11 @@ Host: **Dokploy on a single Hostinger VPS**, GHCR images, Traefik SSL. Grounded 
 
 > **The runtime is plain `docker compose`, not Swarm.** Confirmed on the first deploy
 > (the deploy log reports `Compose Type: docker-compose`). Every Swarm-specific expectation in the
-> original design — rolling updates, task reaping/rescheduling, `deploy.restart_policy` — is
-> therefore inert. `restart:` governs; an unhealthy container is not killed, it stays running and
-> Traefik withholds routing. Individual paragraphs below carry a **SUPERSEDED** marker where they
-> assumed Swarm.
+> original design — rolling updates and task reaping/rescheduling — is therefore inert. Compose does
+> apply `deploy.restart_policy` when present and falls back to `restart:` only when it is absent;
+> both migrator declarations say not to restart. An unhealthy container is not killed, it stays
+> running and Traefik withholds routing. Individual paragraphs below carry a **SUPERSEDED** marker
+> where they assumed Swarm.
 
 > **Migration gating — ratified approach A:** the deployed configuration does not use the
 > pre-deploy hook assumed by decision 3 below. The ratified and now shipped implementation is a
@@ -43,7 +44,7 @@ Host: **Dokploy on a single Hostinger VPS**, GHCR images, Traefik SSL. Grounded 
 ### Why these (rationale)
 - **Split (1):** builds the target topology from day one; `APP_ROLE=all` remains the Development/Testing default when the role is omitted. Split gives process/operational isolation. It is only worse than combined if the VPS OOMs/swaps or connection pools are uncapped — both mitigated below.
 - **Bundle (2):** same automated "apply-directly" behaviour as `dotnet ef database update`. The SDK-based `migrations` build stage creates `efbundle`; the final `migrate` stage uses the ASP.NET runtime image and copies only that bundle, not the SDK, EF tooling, or source tree. The bundle still runs `UseSeeding`.
-- **One-shot service (3):** the active Compose file has no `depends_on`; the immutable migrator runs as a one-shot service while API readiness and the worker startup gate block application work. A five-minute healthcheck startup grace matches the bounded wait. The migrate service carries **both** `restart: "no"` (active Compose control) and `deploy.restart_policy.condition: none` (non-active Swarm contingency).
+- **One-shot service (3):** the active Compose file has no `depends_on`; the immutable migrator runs as a one-shot service while API readiness and the worker startup gate block application work. A five-minute healthcheck startup grace matches the bounded wait. The migrate service carries **both** `deploy.restart_policy.condition: none` (the Compose-preferred control when present) and the equivalent `restart: "no"` fallback.
 - **Seeding split (4):** **SUPERSEDED:** the original design found that seeders ran unconditionally and would have included demo fixtures in Production. The shipped `CreateSeeders` filter excludes every `IsDemo` seeder in Production, while non-demo seeders — including permissions, system definitions, and the owner bootstrap — still run. A Production-process spec verifies both sides of the gate.
 - **Zero-downtime + expand/contract (5):** owner chose zero-downtime. It has two halves: **schema safety** (expand/contract — always ours to control) and **deploy mechanics** (Swarm rolling on Dokploy). Expand/contract is the real guarantee and it shipped. **SUPERSEDED — the deploy-mechanics half:** the instance runs plain Compose, so there is no rolling update and a deploy has a brief container-recreate gap. Getting true no-gap cutover later means switching the app to Dokploy "Stack" (Swarm) or fronting it with two health-gated replicas; neither is done, and neither is needed at current traffic.
 - **Single credential (6):** least-privilege DDL/DML split remains deferred; its default-privileges management adds outage risk for limited current benefit. Revisit if the threat model changes.
