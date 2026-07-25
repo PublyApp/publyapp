@@ -28,6 +28,7 @@ import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 import {
 	parseTableSearchParams,
 	serializeTableSearchParams,
+	validateTableSearchParams,
 } from '~/lib/url-state/table-search-params';
 import type {
 	TableSearchParamInput,
@@ -129,21 +130,20 @@ const buildColumns = (
 export const Route = createFileRoute('/_authed-layout/staff/staff-users')({
 	staticData: { i18nNamespaces: ['staff-users'] },
 	validateSearch: (search) =>
-		parseTableSearchParams(search as TableSearchParamInput),
+		validateTableSearchParams(search as TableSearchParamInput),
 	component: StaffUsersPage,
 });
 
 function StaffUsersPage() {
 	const navigate = Route.useNavigate();
-	const search = Route.useSearch();
+	const search = parseTableSearchParams(
+		Route.useSearch() as TableSearchParamInput,
+	);
 	const { t } = useTranslation(['staff-users', 'common']);
 
 	const onSearchChange = (next: TableSearchParams): void => {
 		void navigate({
-			// Deliberate cast: the URL contract is snake_case (serializeTableSearchParams),
-			// the route's validated search type is camelCase (TableSearchParams) — they are
-			// different shapes by design, see docs/guides/front-2/conventions.md#url-state.
-			search: serializeTableSearchParams(next) as unknown as TableSearchParams,
+			search: serializeTableSearchParams(next),
 			replace: true,
 		});
 	};

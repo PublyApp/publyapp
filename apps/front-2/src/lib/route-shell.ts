@@ -1,4 +1,5 @@
 export type ShellRouteMatch = {
+	globalNotFound?: boolean;
 	pathname?: string;
 	routeId?: string;
 };
@@ -15,6 +16,7 @@ export const hasExactAuthedRouteMatch = (
 	const deepestMatch = matches[matches.length - 1];
 
 	return (
+		!matches.some((match) => match.globalNotFound) &&
 		matches.some((match) => match.routeId === AUTHED_LAYOUT_ROUTE_ID) &&
 		normalizePathname(deepestMatch?.pathname ?? '/') ===
 			normalizePathname(pathname)

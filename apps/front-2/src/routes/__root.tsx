@@ -16,6 +16,7 @@ import { parse as parseCookie } from 'cookie';
 import type { i18n as I18nInstance } from 'i18next';
 import * as React from 'react';
 import { I18nextProvider, useTranslation } from 'react-i18next';
+import { NeutralAuthedShell } from '~/components/app-shell/neutral-authed-shell';
 import { Button, buttonVariants } from '~/components/ui/button';
 import { AppToaster } from '~/components/ui/toaster';
 import { AuthBrandProvider } from '~/lib/auth-brand-context';
@@ -42,7 +43,11 @@ import { registerMutationToastI18n } from '~/lib/mutation-toast';
 import { hasExactAuthedRouteMatch } from '~/lib/route-shell';
 import { getServerSessionAction } from '~/lib/server/session-actions';
 import { subscribeToSessionInvalidated } from '~/lib/session-invalidation-channel';
-import { COLOR_SCHEME_STORAGE_KEY, useUiStore } from '~/lib/store/ui-store';
+import {
+	COLOR_SCHEME_STORAGE_KEY,
+	SIDEBAR_OPEN_STORAGE_KEY,
+	useUiStore,
+} from '~/lib/store/ui-store';
 import { TabSyncListener } from '~/lib/tab-sync/tab-sync-listener';
 import { loadI18nForRequest } from '~/server/i18n-locale';
 
@@ -331,18 +336,20 @@ export const ThemeHydrationListener = () => {
 };
 
 /**
- * Reads the persisted colour scheme and applies it to `documentElement`
- * before the browser paints — without this, every cold load (any surface,
- * not just the authed shell) flashes light and only repaints dark once
- * `ThemeHydrationListener`'s post-paint effect runs (shell r2-F1). Must stay
- * dependency-free inline JS: it runs before the app bundle (and therefore
- * `ui-store.ts`) has loaded, so the parsing here is a deliberate, minimal
- * duplicate of `ui-store.ts`'s `parsePersistedColorState`/
- * `applyThemeToDocument` — keep the two in sync by hand if that shape changes.
+ * Reads persisted presentation preferences and applies them to
+ * `documentElement` before the browser paints. The colour scheme prevents a
+ * light flash, while the sidebar state lets the neutral authenticated shell
+ * reserve the same geometry as the hydrated shell. Must stay dependency-free
+ * inline JS: it runs before the app bundle (and therefore `ui-store.ts`) has
+ * loaded, so the parsing here is a deliberate, minimal duplicate of the
+ * store's persisted-state parsing. Keep the two in sync if that shape changes.
  */
-export const buildThemeInitScript = (storageKey: string): string => `(() => {
+export const buildThemeInitScript = (
+	colorStorageKey: string,
+	sidebarStorageKey: string,
+): string => `(() => {
 	try {
-		var raw = window.localStorage.getItem(${JSON.stringify(storageKey)});
+		var raw = window.localStorage.getItem(${JSON.stringify(colorStorageKey)});
 		var scheme = 'light';
 		if (raw) {
 			var parsed = JSON.parse(raw);
@@ -358,6 +365,28 @@ export const buildThemeInitScript = (storageKey: string): string => `(() => {
 		}
 		document.documentElement.dataset.theme = scheme;
 	} catch (e) {}
+	try {
+		var sidebarRaw = window.localStorage.getItem(${JSON.stringify(sidebarStorageKey)});
+		var sidebarOpen = true;
+		if (sidebarRaw) {
+			var sidebarParsed = JSON.parse(sidebarRaw);
+			if (typeof sidebarParsed === 'boolean') {
+				sidebarOpen = sidebarParsed;
+			}
+		} else {
+			var legacyRaw = window.localStorage.getItem(${JSON.stringify(colorStorageKey)});
+			if (legacyRaw) {
+				var legacyParsed = JSON.parse(legacyRaw);
+				var legacyState = legacyParsed && typeof legacyParsed === 'object' ? legacyParsed.state : undefined;
+				if (legacyState && typeof legacyState.sidebarOpen === 'boolean') {
+					sidebarOpen = legacyState.sidebarOpen;
+				}
+			}
+		}
+		document.documentElement.dataset.sidebarOpen = sidebarOpen ? 'true' : 'false';
+	} catch (e) {
+		document.documentElement.dataset.sidebarOpen = 'true';
+	}
 })();`;
 
 /**
@@ -386,8 +415,14 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 
 	if (location.hasAuthedRouteMatch) {
 		const isTenantPortalRoot = pathname.replace(/\/+$/, '') === '/tenant';
-		if (isTenantPortalRoot || !isHydrated) {
+		if (isTenantPortalRoot) {
 			return children;
+		}
+
+		if (!isHydrated) {
+			return (
+				<NeutralAuthedShell pathname={pathname}>{children}</NeutralAuthedShell>
+			);
 		}
 
 		return (
@@ -484,7 +519,10 @@ function RootShell({ children }: { children: React.ReactNode }) {
 					nonce={cspNonce || undefined}
 					suppressHydrationWarning
 					dangerouslySetInnerHTML={{
-						__html: buildThemeInitScript(COLOR_SCHEME_STORAGE_KEY),
+						__html: buildThemeInitScript(
+							COLOR_SCHEME_STORAGE_KEY,
+							SIDEBAR_OPEN_STORAGE_KEY,
+						),
 					}}
 				/>
 				<script

@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
 		searchStr: '',
 	},
 	matchedPathname: '/staff',
+	isHydrated: true,
 	navigate: vi.fn(),
 	outletPhase: 'loading' as 'loading' | 'settled',
 }));
@@ -74,6 +75,10 @@ vi.mock('react-i18next', async (importOriginal) => {
 	};
 });
 
+vi.mock('~/lib/hooks/use-hydrated', () => ({
+	useHydrated: () => mocks.isHydrated,
+}));
+
 vi.mock('~/components/app-shell/user-menu', () => ({
 	AppShellUserMenu: () => <div data-testid="user-menu-stub" />,
 }));
@@ -113,11 +118,43 @@ afterEach(() => {
 		searchStr: '',
 	};
 	mocks.matchedPathname = '/staff';
+	mocks.isHydrated = true;
 	mocks.navigate.mockReset();
 	mocks.outletPhase = 'loading';
 });
 
 describe('authenticated shell continuity', () => {
+	test('holds neutral shell geometry before hydration without identity or navigation', () => {
+		mocks.location = {
+			pathname: '/staff/profiles',
+			search: {},
+			searchStr: '',
+		};
+		mocks.resolvedLocation = mocks.location;
+		mocks.matchedPathname = '/staff/profiles';
+		mocks.isHydrated = false;
+
+		render(
+			<RoutedShell>
+				<RouteContent />
+			</RoutedShell>,
+		);
+
+		const shell = screen.getByTestId('neutral-authed-shell');
+		expect(shell.getAttribute('data-has-secondary-panel')).toBe('true');
+		expect(shell.getAttribute('data-panel-open')).toBe('true');
+		expect(screen.getByTestId('neutral-authed-shell-rail')).toBeTruthy();
+		expect(screen.getByTestId('neutral-authed-shell-topbar')).toBeTruthy();
+		expect(screen.getByTestId('route-loading-content')).toBeTruthy();
+		expect(screen.queryByTestId('app-shell-shell')).toBeNull();
+		expect(screen.queryByTestId('app-shell-rail')).toBeNull();
+		expect(screen.queryByTestId('app-shell-topbar')).toBeNull();
+		expect(screen.queryByTestId('user-menu-stub')).toBeNull();
+		expect(shell.querySelector('a')).toBeNull();
+		expect(shell.querySelector('nav')).toBeNull();
+		expect(shell.textContent).toBe('');
+	});
+
 	test('keeps the real app shell node while pending content settles and the staff index redirects', () => {
 		const { rerender } = render(
 			<RoutedShell>

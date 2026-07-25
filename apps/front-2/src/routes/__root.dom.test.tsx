@@ -17,7 +17,10 @@ vi.mock('~/lib/store/ui-store', async () => {
 	};
 });
 
-import { COLOR_SCHEME_STORAGE_KEY } from '~/lib/store/ui-store';
+import {
+	COLOR_SCHEME_STORAGE_KEY,
+	SIDEBAR_OPEN_STORAGE_KEY,
+} from '~/lib/store/ui-store';
 
 import { buildThemeInitScript, ThemeHydrationListener } from './__root';
 
@@ -42,13 +45,16 @@ describe('ThemeHydrationListener', () => {
 describe('buildThemeInitScript', () => {
 	const runScript = () => {
 		// eslint-disable-next-line no-new-func -- exercising the exact string shipped inline in <head>
-		new Function(buildThemeInitScript(COLOR_SCHEME_STORAGE_KEY))();
+		new Function(
+			buildThemeInitScript(COLOR_SCHEME_STORAGE_KEY, SIDEBAR_OPEN_STORAGE_KEY),
+		)();
 	};
 
 	beforeEach(() => {
 		window.localStorage.clear();
 		document.documentElement.classList.remove('dark', 'light');
 		delete document.documentElement.dataset.theme;
+		delete document.documentElement.dataset.sidebarOpen;
 	});
 
 	test('applies a persisted dark scheme before hydration, killing the light flash', () => {
@@ -75,5 +81,19 @@ describe('buildThemeInitScript', () => {
 
 		expect(() => runScript()).not.toThrow();
 		expect(document.documentElement.classList.contains('dark')).toBe(false);
+	});
+
+	test('publishes the persisted closed sidebar state before hydration', () => {
+		window.localStorage.setItem(SIDEBAR_OPEN_STORAGE_KEY, 'false');
+
+		runScript();
+
+		expect(document.documentElement.dataset.sidebarOpen).toBe('false');
+	});
+
+	test('defaults the pre-hydration sidebar state to open', () => {
+		runScript();
+
+		expect(document.documentElement.dataset.sidebarOpen).toBe('true');
 	});
 });

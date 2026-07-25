@@ -31,6 +31,26 @@ describe('hasExactAuthedRouteMatch', () => {
 		).toBe(false);
 	});
 
+	test('rejects a global not-found match even when its pathname is exact', () => {
+		expect(
+			hasExactAuthedRouteMatch(
+				[
+					{ routeId: '__root__', pathname: '/' },
+					{
+						routeId: '/_authed-layout',
+						pathname: '/',
+						globalNotFound: true,
+					},
+					{
+						routeId: '/_authed-layout/staff',
+						pathname: '/staff/users',
+					},
+				],
+				'/staff/users',
+			),
+		).toBe(false);
+	});
+
 	test('rejects a /staff route registered outside the authed layout', () => {
 		expect(
 			hasExactAuthedRouteMatch(
