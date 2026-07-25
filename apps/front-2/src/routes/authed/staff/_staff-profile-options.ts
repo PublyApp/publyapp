@@ -13,6 +13,7 @@ type BuildStaffProfileOptionsArgs = {
 		| undefined;
 	selectedProfileIds: string[];
 	knownProfileNames: ReadonlyMap<string, string>;
+	includeDescriptions?: boolean;
 };
 
 const getStaffProfileId = (
@@ -56,6 +57,7 @@ export const buildStaffProfileOptions = ({
 	profiles,
 	selectedProfileIds,
 	knownProfileNames,
+	includeDescriptions = false,
 }: BuildStaffProfileOptionsArgs): StaffProfileOption[] => {
 	const options: StaffProfileOption[] = [];
 	const seen = new Set<string>();
@@ -66,7 +68,9 @@ export const buildStaffProfileOptions = ({
 			continue;
 		}
 
-		const description = profile.description?.trim();
+		const description = includeDescriptions
+			? profile.description?.trim()
+			: undefined;
 		options.push({
 			value: profileId,
 			label:

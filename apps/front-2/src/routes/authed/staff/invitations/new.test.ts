@@ -256,7 +256,13 @@ describe('staff invitation create route', () => {
 
 	test('keeps selected profile ids visible when the current search result omits them', () => {
 		const options = buildStaffProfileOptions({
-			profiles: [{ id: 'profile-admin', name: 'Admin' }],
+			profiles: [
+				{
+					id: 'profile-admin',
+					name: 'Admin',
+					description: 'Full access',
+				},
+			],
 			selectedProfileIds: ['profile-admin', 'profile-editor'],
 			knownProfileNames: new Map([['profile-editor', 'Editor']]),
 		});

@@ -272,6 +272,7 @@ function StaffUserEditPage() {
 		profiles: profilesQuery.data?.data,
 		selectedProfileIds,
 		knownProfileNames,
+		includeDescriptions: true,
 	});
 	// Tracks which userId the form currently holds hydrated data for. Comparing
 	// against this (rather than diffing profileIds) guarantees the zero-profile
