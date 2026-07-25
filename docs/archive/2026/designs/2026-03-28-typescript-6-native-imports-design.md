@@ -16,10 +16,10 @@ Upgrade the repo from TypeScript 5 to TypeScript 6 without using deprecated Type
 
 The current branch is based on `feat/tenant-module-completion` and still has the older TypeScript setup:
 
-- Root [`package.json`](../../../../package.json) pins `typescript` to `^5.9.3`
-- [`packages/_tsconfig/tsconfig.base.json`](../../../../packages/_tsconfig/tsconfig.base.json) still uses `"moduleResolution": "node"`
-- `tsconfig.paths.json` uses deprecated `"baseUrl"` and `"paths"`
-- [`apps/front/tsconfig.json`](../../../../apps/front/tsconfig.json) extends `tsconfig.paths.json`
+- Root [`package.json`](../../../package.json) pins `typescript` to `^5.9.3`
+- [`packages/_tsconfig/tsconfig.base.json`](../../../packages/_tsconfig/tsconfig.base.json) still uses `"moduleResolution": "node"`
+- [`tsconfig.paths.json`](../../../tsconfig.paths.json) uses deprecated `"baseUrl"` and `"paths"`
+- [`apps/front/tsconfig.json`](../../../apps/front/tsconfig.json) extends [`tsconfig.paths.json`](../../../tsconfig.paths.json)
 - Frontend source imports heavily use `@/front/*`
 - Cross-package imports already use real workspace package names such as `@org/shared-ts/...` and `@org/client-ts/...`
 
@@ -58,9 +58,9 @@ The alternative of relative-only app imports would create unnecessary churn. The
 
 ### 1. TypeScript configuration
 
-Update the root TypeScript version in [`package.json`](../../../../package.json) from `^5.9.3` to the current TS6 target used for this branch.
+Update the root TypeScript version in [`package.json`](../../../package.json) from `^5.9.3` to the current TS6 target used for this branch.
 
-Update [`packages/_tsconfig/tsconfig.base.json`](../../../../packages/_tsconfig/tsconfig.base.json):
+Update [`packages/_tsconfig/tsconfig.base.json`](../../../packages/_tsconfig/tsconfig.base.json):
 
 - change `"moduleResolution": "node"` to `"bundler"`
 - leave `esModuleInterop` and `allowSyntheticDefaultImports` untouched in this branch unless they are proven to block compilation after the main migration
@@ -69,7 +69,7 @@ The intent is to remove the deprecated setting that has a direct migration path 
 
 ### 2. Remove TS path aliasing
 
-`tsconfig.paths.json` currently exists only to provide aliases via:
+[`tsconfig.paths.json`](../../../tsconfig.paths.json) currently exists only to provide aliases via:
 
 - `"baseUrl": "."`
 - `"paths": { "@/front/*": ..., "@org/shared-ts/*": ..., "@org/client-ts/*": ... }`
@@ -78,17 +78,15 @@ That file should stop participating in active TypeScript resolution for this bra
 
 The practical end state is:
 
-- [`apps/front/tsconfig.json`](../../../../apps/front/tsconfig.json) no longer depends on
-  `tsconfig.paths.json` for aliasing
+- [`apps/front/tsconfig.json`](../../../apps/front/tsconfig.json) no longer depends on [`tsconfig.paths.json`](../../../tsconfig.paths.json) for aliasing
 - workspace package imports resolve through normal package resolution
 - frontend-local imports resolve through `#app/*`, not TS `paths`
 
-If `tsconfig.paths.json` becomes unused afterward, remove it. If another config still references it
-for a non-deprecated reason, narrow it so it no longer defines `baseUrl` or `paths`.
+If [`tsconfig.paths.json`](../../../tsconfig.paths.json) becomes unused afterward, remove it. If another config still references it for a non-deprecated reason, narrow it so it no longer defines `baseUrl` or `paths`.
 
 ### 3. Frontend-local alias
 
-Define one app-local alias for [`apps/front`](../../../../apps/front):
+Define one app-local alias for [`apps/front`](../../../apps/front):
 
 - `#app/*` -> frontend source root
 
@@ -145,14 +143,14 @@ If an existing baseline issue unrelated to the migration blocks one of these com
 
 Likely files to change:
 
-- [`package.json`](../../../../package.json)
-- [`pnpm-lock.yaml`](../../../../pnpm-lock.yaml)
-- [`packages/_tsconfig/tsconfig.base.json`](../../../../packages/_tsconfig/tsconfig.base.json)
-- `tsconfig.paths.json`
-- [`apps/front/tsconfig.json`](../../../../apps/front/tsconfig.json)
-- [`apps/front/package.json`](../../../../apps/front/package.json)
+- [`package.json`](../../../package.json)
+- [`pnpm-lock.yaml`](../../../pnpm-lock.yaml)
+- [`packages/_tsconfig/tsconfig.base.json`](../../../packages/_tsconfig/tsconfig.base.json)
+- [`tsconfig.paths.json`](../../../tsconfig.paths.json)
+- [`apps/front/tsconfig.json`](../../../apps/front/tsconfig.json)
+- [`apps/front/package.json`](../../../apps/front/package.json)
 - frontend bundler or router config files that currently assume TS path aliases
-- many files under [`apps/front/src`](../../../../apps/front/src) and [`apps/front/server`](../../../../apps/front/server) for import rewrites
+- many files under [`apps/front/src`](../../../apps/front/src) and [`apps/front/server`](../../../apps/front/server) for import rewrites
 
 ### Risk areas
 

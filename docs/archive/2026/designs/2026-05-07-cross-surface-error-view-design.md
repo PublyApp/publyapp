@@ -190,7 +190,7 @@ The auth surface reuses the existing wrappers (`NotFoundView`, `View401`, `View5
 
 ## Documentation guide
 
-The retired app's error-view guide — short, linked into AGENTS.md. Contents:
+`docs/guides/error-views.md` — short, links into AGENTS.md. Contents:
 
 1. **Two surfaces, two visual languages** — explains why `MarketingErrorView` is intentionally separate
 2. **`AppErrorView` shell API** — props table, mutual exclusivity of `numeral` vs `icon`, `tone` semantics
@@ -248,7 +248,7 @@ The repo has no automated frontend tests yet (per AGENTS.md). Quality gates:
 - [ ] No raw "Application Error" or React error overlay reachable via the manual smoke checklist
 - [ ] Visual refresh applied: `varFade` motion (not `varBounce`), solid theme colors (no gradient text), MUI-only, theme palette tokens only
 - [ ] Marketing surface visually unchanged (`MarketingErrorView` not modified)
-- [ ] Retired-app error-view guide written
+- [ ] `docs/guides/error-views.md` written
 - [ ] AGENTS.md cross-references the new guide
 - [ ] `just check-write` passes
 - [ ] `just tsc-front` passes
