@@ -93,6 +93,7 @@ flowchart LR
     subgraph Client["apps/front-2 — TanStack Start"]
         UI["Base UI · Tailwind v4 · TanStack Query"]
         TSClient["@org/client-ts\n(generated TS client)"]
+        FetchWrapper["front-2 fetch wrapper\n(session + tenant headers)"]
     end
 
     subgraph Server["apps/api — .NET 10 Web API"]
@@ -105,7 +106,7 @@ flowchart LR
     DB[("PostgreSQL 18\nUUID v7 · soft deletes")]
     Shared["@org/shared-ts\n(validations · i18n)"]
 
-    UI --> TSClient -->|X-Session-Token / X-Tenant-Id| Endpoints
+    UI --> TSClient --> FetchWrapper -->|X-Session-Token / X-PublyApp-TenantId| Endpoints
     Endpoints --> Handlers --> Services --> DB
     Server -.->|OpenAPI → Kiota| TSClient
     Shared -.- UI
@@ -116,7 +117,8 @@ flowchart LR
 
 | Stage | Responsibility |
 | --- | --- |
-| `@org/client-ts` (generated) | Type-safe calls from `apps/front-2`; sends `X-Session-Token` / `X-Tenant-Id`. |
+| `@org/client-ts` (generated) | Type-safe request builders generated from OpenAPI. |
+| `apps/front-2` fetch wrapper | Sends the request and injects `X-Session-Token` / `X-PublyApp-TenantId` for same-origin API calls. |
 | Minimal-API endpoints + permission filters | Route mapping and route-level permission enforcement. |
 | CQRS-lite handlers | Orchestrate one operation each (create / find / get / update / delete). |
 | Domain services | Business logic and data access (the only layer touching the DB). |
