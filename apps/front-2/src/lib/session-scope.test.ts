@@ -4,6 +4,9 @@ import {
 	determineServerSessionAction,
 	determineSessionScope,
 	determineSessionToken,
+	getSessionSurface,
+	getSurfaceRedirectCodeQueryKey,
+	shouldRenderAuthenticatedChrome,
 } from './session-scope';
 
 describe('determineServerSessionAction', () => {
@@ -96,5 +99,60 @@ describe('determineSessionToken', () => {
 		expect(determineSessionToken({ tenantToken: 'tenant-tok' }, '/')).toEqual({
 			token: 'tenant-tok',
 		});
+	});
+});
+
+describe('authenticated chrome validation gate', () => {
+	test.each([
+		['/staff/staff-users', 'staff'],
+		['/tenant', 'tenant'],
+		['/login', 'other'],
+	])('maps %s to the %s surface query key', (pathname, expectedSurface) => {
+		const surface = getSessionSurface(pathname);
+
+		expect(surface).toBe(expectedSurface);
+		expect(getSurfaceRedirectCodeQueryKey(surface)).toEqual([
+			'front-2',
+			'auth',
+			'surface-redirect-code',
+			expectedSurface,
+		]);
+	});
+
+	test('shows authenticated chrome only after the existing session query proves validity', () => {
+		expect(
+			shouldRenderAuthenticatedChrome({
+				isHydrated: false,
+				queryData: 'staff',
+				queryStatus: 'success',
+			}),
+		).toBe(false);
+		expect(
+			shouldRenderAuthenticatedChrome({
+				isHydrated: true,
+				queryStatus: 'pending',
+			}),
+		).toBe(false);
+		expect(
+			shouldRenderAuthenticatedChrome({
+				failureStatus: 401,
+				isHydrated: true,
+				queryStatus: 'error',
+			}),
+		).toBe(false);
+		expect(
+			shouldRenderAuthenticatedChrome({
+				isHydrated: true,
+				queryData: 'staff',
+				queryStatus: 'success',
+			}),
+		).toBe(true);
+		expect(
+			shouldRenderAuthenticatedChrome({
+				failureStatus: 403,
+				isHydrated: true,
+				queryStatus: 'error',
+			}),
+		).toBe(true);
 	});
 });

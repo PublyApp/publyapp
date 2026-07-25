@@ -1,7 +1,13 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, render, screen } from '@testing-library/react';
+import {
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { createElement, type JSX } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -15,6 +21,7 @@ const mocks = vi.hoisted(() => ({
 	useStaffProfileDetailsQuery: vi.fn(),
 	useStaffProfileUsersQuery: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
+	search: {} as Record<string, unknown>,
 }));
 
 const labelMap: Record<string, Record<string, string>> = {
@@ -34,7 +41,7 @@ vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => ({
 		...options,
 		useParams: () => ({ profileId: 'profile-1' }),
-		useSearch: () => ({}),
+		useSearch: () => mocks.search,
 		useNavigate: () => mocks.navigate,
 	}),
 	Link: ({
@@ -134,8 +141,44 @@ vi.mock('~/components/ui/button', () => ({
 }));
 
 vi.mock('~/components/table/data-table', () => ({
-	DataTable: ({ testId }: { testId?: string }) =>
-		createElement('div', { 'data-testid': testId ?? 'data-table' }),
+	DataTable: ({
+		testId,
+		pageIndex = 0,
+		hasPreviousPage,
+		hasNextPage,
+		onPreviousPage,
+		onNextPage,
+	}: {
+		testId?: string;
+		pageIndex?: number;
+		hasPreviousPage?: boolean;
+		hasNextPage?: boolean;
+		onPreviousPage?: () => void;
+		onNextPage?: () => void;
+	}) =>
+		createElement(
+			'div',
+			{ 'data-testid': testId ?? 'data-table' },
+			createElement('span', null, `Page ${pageIndex + 1}`),
+			createElement(
+				'button',
+				{
+					disabled: !hasPreviousPage,
+					onClick: onPreviousPage,
+					type: 'button',
+				},
+				'Previous',
+			),
+			createElement(
+				'button',
+				{
+					disabled: !hasNextPage,
+					onClick: onNextPage,
+					type: 'button',
+				},
+				'Next',
+			),
+		),
 }));
 
 import { buildColumns, Route } from './users';
@@ -151,6 +194,7 @@ const renderPage = () => render(<Component />);
 afterEach(() => {
 	cleanup();
 	vi.clearAllMocks();
+	mocks.search = {};
 });
 
 beforeEach(() => {
@@ -292,5 +336,55 @@ describe('staff profile users page — contained scroll layout', () => {
 		expect(tabsRoot).not.toBeNull();
 		expect(tabsRoot?.className).toContain('min-h-0');
 		expect(tabsRoot?.className).toContain('flex-1');
+	});
+});
+
+describe('staff profile users page — offset pagination', () => {
+	test('keeps page 2 selected while its slow 25-user response is pending and can navigate back', async () => {
+		mocks.search = { size: 10 };
+		let pageTwoResolved = false;
+		const requestedPages: number[] = [];
+		mocks.useStaffProfileUsersQuery.mockImplementation(
+			({ pageIndex = 0 }: { pageIndex?: number }) => {
+				requestedPages.push(pageIndex + 1);
+
+				if (pageIndex === 1 && !pageTwoResolved) {
+					return {
+						data: undefined,
+						isPending: true,
+						isError: false,
+						isFetching: true,
+						error: null,
+						refetch: vi.fn(),
+					};
+				}
+
+				return {
+					data: { users: [], count: 25 },
+					isPending: false,
+					isError: false,
+					isFetching: false,
+					error: null,
+					refetch: vi.fn(),
+				};
+			},
+		);
+
+		const view = renderPage();
+
+		expect(screen.getByText('Page 1')).toBeTruthy();
+		fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+		await waitFor(() => expect(requestedPages).toContain(2));
+		expect(screen.getByText('Page 2')).toBeTruthy();
+
+		pageTwoResolved = true;
+		view.rerender(<Component />);
+
+		expect(screen.getByText('Page 2')).toBeTruthy();
+		fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
+
+		expect(screen.getByText('Page 1')).toBeTruthy();
+		expect(requestedPages).toContain(1);
 	});
 });

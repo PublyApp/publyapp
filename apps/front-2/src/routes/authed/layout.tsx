@@ -22,7 +22,11 @@ import {
 } from '~/lib/api-client/client-manager';
 import { buildLoginRedirectSearch } from '~/lib/login-redirect-search';
 import { ServerFailure } from '~/lib/server/server-failure';
-import { determineSessionToken } from '~/lib/session-scope';
+import {
+	determineSessionToken,
+	getSessionSurface,
+	getSurfaceRedirectCodeQueryKey,
+} from '~/lib/session-scope';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
@@ -185,21 +189,11 @@ function AuthedRouteLayout() {
 	const pathname = location.pathname ?? '';
 	const navigate = useNavigate();
 	const { t } = useTranslation('common');
-	const isStaffSurface = pathname.startsWith(STAFF_PATH);
-	const isTenantSurface = pathname.startsWith(TENANT_PATH);
-	const surfaceScope = ((): 'staff' | 'tenant' | 'other' => {
-		if (isStaffSurface) {
-			return 'staff';
-		}
-
-		if (isTenantSurface) {
-			return 'tenant';
-		}
-
-		return 'other';
-	})();
+	const surfaceScope = getSessionSurface(pathname);
+	const isStaffSurface = surfaceScope === 'staff';
+	const isTenantSurface = surfaceScope === 'tenant';
 	const query = useQuery({
-		queryKey: ['front-2', 'auth', 'surface-redirect-code', surfaceScope],
+		queryKey: getSurfaceRedirectCodeQueryKey(surfaceScope),
 		queryFn: async (): Promise<string | null> => {
 			const tokens = getSessionTokensFromBrowser();
 			const resolved = determineSessionToken(tokens, pathname);

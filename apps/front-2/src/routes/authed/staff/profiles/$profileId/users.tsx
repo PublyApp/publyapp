@@ -260,7 +260,11 @@ function StaffProfileUsersPage() {
 	]);
 
 	useEffect(() => {
-		const totalCount = usersQuery.data?.count ?? 0;
+		const totalCount = usersQuery.data?.count;
+		if (typeof totalCount !== 'number') {
+			return;
+		}
+
 		const lastPageIndex =
 			totalCount > 0
 				? Math.max(Math.ceil(totalCount / controller.size) - 1, 0)

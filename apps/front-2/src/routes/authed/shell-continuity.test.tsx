@@ -19,6 +19,18 @@ const mocks = vi.hoisted(() => ({
 	isHydrated: true,
 	navigate: vi.fn(),
 	outletPhase: 'loading' as 'loading' | 'settled',
+	sessionQueryState: {
+		data: 'staff' as string | null | undefined,
+		error: undefined as unknown,
+		status: 'success' as 'error' | 'pending' | 'success',
+	},
+}));
+
+vi.mock('@tanstack/react-query', () => ({
+	useIsFetching: () => (mocks.sessionQueryState.status === 'pending' ? 1 : 0),
+	useQueryClient: () => ({
+		getQueryState: () => mocks.sessionQueryState,
+	}),
 }));
 
 vi.mock('@tanstack/react-router', async (importOriginal) => {
@@ -121,6 +133,11 @@ afterEach(() => {
 	mocks.isHydrated = true;
 	mocks.navigate.mockReset();
 	mocks.outletPhase = 'loading';
+	mocks.sessionQueryState = {
+		data: 'staff',
+		error: undefined,
+		status: 'success',
+	};
 });
 
 describe('authenticated shell continuity', () => {
@@ -153,6 +170,58 @@ describe('authenticated shell continuity', () => {
 		expect(shell.querySelector('a')).toBeNull();
 		expect(shell.querySelector('nav')).toBeNull();
 		expect(shell.textContent).toBe('');
+	});
+
+	test('keeps hydrated chrome neutral until session validation succeeds', () => {
+		mocks.location = {
+			pathname: '/staff/staff-users',
+			search: {},
+			searchStr: '',
+		};
+		mocks.resolvedLocation = mocks.location;
+		mocks.matchedPathname = '/staff/staff-users';
+		mocks.sessionQueryState = {
+			data: undefined,
+			error: undefined,
+			status: 'pending',
+		};
+
+		const view = render(
+			<RoutedShell>
+				<RouteContent />
+			</RoutedShell>,
+		);
+
+		expect(screen.getByTestId('neutral-authed-shell')).toBeTruthy();
+		expect(screen.queryByTestId('app-shell-shell')).toBeNull();
+
+		mocks.sessionQueryState = {
+			data: undefined,
+			error: { responseStatusCode: 401, status: 401 },
+			status: 'error',
+		};
+		view.rerender(
+			<RoutedShell>
+				<RouteContent />
+			</RoutedShell>,
+		);
+
+		expect(screen.getByTestId('neutral-authed-shell')).toBeTruthy();
+		expect(screen.queryByTestId('app-shell-shell')).toBeNull();
+
+		mocks.sessionQueryState = {
+			data: 'staff',
+			error: undefined,
+			status: 'success',
+		};
+		view.rerender(
+			<RoutedShell>
+				<RouteContent />
+			</RoutedShell>,
+		);
+
+		expect(screen.getByTestId('app-shell-shell')).toBeTruthy();
+		expect(screen.queryByTestId('neutral-authed-shell')).toBeNull();
 	});
 
 	test('keeps the real app shell node while pending content settles and the staff index redirects', () => {

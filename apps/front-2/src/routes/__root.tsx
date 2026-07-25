@@ -1,5 +1,9 @@
 import { IconAlertCircle, IconLock } from '@tabler/icons-react';
-import type { QueryClient } from '@tanstack/react-query';
+import {
+	type QueryClient,
+	useIsFetching,
+	useQueryClient,
+} from '@tanstack/react-query';
 import {
 	createRootRouteWithContext,
 	HeadContent,
@@ -43,6 +47,11 @@ import { registerMutationToastI18n } from '~/lib/mutation-toast';
 import { hasExactAuthedRouteMatch } from '~/lib/route-shell';
 import { getServerSessionAction } from '~/lib/server/session-actions';
 import { subscribeToSessionInvalidated } from '~/lib/session-invalidation-channel';
+import {
+	getSessionSurface,
+	getSurfaceRedirectCodeQueryKey,
+	shouldRenderAuthenticatedChrome,
+} from '~/lib/session-scope';
 import {
 	COLOR_SCHEME_STORAGE_KEY,
 	SIDEBAR_OPEN_STORAGE_KEY,
@@ -411,6 +420,30 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 	});
 	const pathname = location.pathname;
 	const surface = resolveRouteSurface(pathname);
+	const sessionSurface = getSessionSurface(pathname);
+	const surfaceRedirectCodeQueryKey =
+		getSurfaceRedirectCodeQueryKey(sessionSurface);
+	const queryClient = useQueryClient();
+	const surfaceSessionFetchCount = useIsFetching({
+		exact: true,
+		queryKey: surfaceRedirectCodeQueryKey,
+	});
+	const surfaceSessionState = queryClient.getQueryState<string | null>(
+		surfaceRedirectCodeQueryKey,
+	);
+	const surfaceSessionQueryStatus =
+		surfaceSessionState?.status ??
+		(surfaceSessionFetchCount > 0 ? 'pending' : undefined);
+	const surfaceSessionFailureStatus =
+		surfaceSessionState?.status === 'error'
+			? getRouteFailureStatus(surfaceSessionState.error)
+			: undefined;
+	const canRenderAuthenticatedChrome = shouldRenderAuthenticatedChrome({
+		failureStatus: surfaceSessionFailureStatus,
+		isHydrated,
+		queryData: surfaceSessionState?.data,
+		queryStatus: surfaceSessionQueryStatus,
+	});
 	const [brand, setBrand] = React.useState<AuthBrand | undefined>(undefined);
 
 	if (location.hasAuthedRouteMatch) {
@@ -419,7 +452,7 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 			return children;
 		}
 
-		if (!isHydrated) {
+		if (!canRenderAuthenticatedChrome) {
 			return (
 				<NeutralAuthedShell pathname={pathname}>{children}</NeutralAuthedShell>
 			);
