@@ -510,7 +510,7 @@ test.describe('staff tenant Profiles/Invitations/Users tab bodies', () => {
 		).toContainText('4 pending');
 	});
 
-	test('Invitations account-level filter supports Admin, User, both, and reset', async ({
+	test('Invitations account-level filter supports Admin-only, User-only, both, and reset', async ({
 		page,
 	}) => {
 		await loginAsStaffAdmin(page);
@@ -536,6 +536,19 @@ test.describe('staff tenant Profiles/Invitations/Users tab bodies', () => {
 		await expect(trigger).toContainText('Admin, User');
 		await expect(page.getByText('sam@example.com')).toBeVisible();
 		await expect(page.getByText('user@example.com')).toBeVisible();
+
+		// User-only: deselect Admin so User is the single selected level. Without
+		// this step the title's "User" claim was only ever exercised as part of
+		// the both-levels selection (round-2 finding 5).
+		await page
+			.getByTestId('staff-tenant-invitations-level-filter-admin')
+			.click();
+
+		await expect(page).toHaveURL(/[?&]level=user(?:&|$)/);
+		await expect(trigger).toContainText('User');
+		await expect(trigger).not.toContainText('Admin');
+		await expect(page.getByText('user@example.com')).toBeVisible();
+		await expect(page.getByText('sam@example.com')).not.toBeVisible();
 
 		await page.getByTestId('staff-tenant-invitations-level-filter-all').click();
 		await expect(page).not.toHaveURL(/[?&]level=/);
