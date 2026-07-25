@@ -1,7 +1,7 @@
 Status: Historical — not normative
 Original location: docs/superpowers/specs/2026-05-12-audit-logs-filters-upgrade-design.md
 Archive reason: Completed design retained only for architectural decision history.
-Superseded by: Current module implementation and the normative guides linked from AGENTS.md.
+Superseded by: apps/api/Modules/AuditLogs/Handlers/Staff/FindAuditLogs.cs and docs/guides/list-pages-search-filter-cursor-pagination.md.
 
 # Staff Audit Logs — Filters Upgrade
 

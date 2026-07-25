@@ -1,7 +1,7 @@
 Status: Historical — not normative
 Original location: docs/superpowers/specs/2026-04-09-staff-user-profiles-permissions-design.md
 Archive reason: Completed design retained only for architectural decision history.
-Superseded by: Current module implementation and the normative guides linked from AGENTS.md.
+Superseded by: apps/api/Modules/Users/Handlers/Staff/UpdateStaffUserProfiles.cs and apps/api/Modules/Profiles/Handlers/Staff/FindStaffProfileUsers.cs.
 
 # Staff User, Profiles, Permissions (Staff Scope Only)
 

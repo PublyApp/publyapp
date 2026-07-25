@@ -1,7 +1,7 @@
 Status: Historical — not normative
 Original location: docs/superpowers/specs/2026-04-06-tenant-users-global-suspension-visibility-design.md
 Archive reason: Completed design retained only for architectural decision history.
-Superseded by: Current module implementation and the normative guides linked from AGENTS.md.
+Superseded by: apps/api/Modules/Users/Entities/UserAccount.cs, apps/api/Modules/Users/Handlers/Staff/FindTenantUsersAsStaff.Spec.cs, and apps/front-2/src/routes/authed/staff/tenants/$tenantId/users.tsx.
 
 # Tenant Users Global Suspension Visibility Design
 
