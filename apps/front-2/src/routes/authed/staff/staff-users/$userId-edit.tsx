@@ -210,6 +210,7 @@ function StaffUserEditPage() {
 	const [isChangeEmailOpen, setIsChangeEmailOpen] = useState(false);
 	const [profileSearch, setProfileSearch] = useState('');
 	const deferredProfileSearch = useDeferredValue(profileSearch.trim());
+	const isProfileSearchSettled = profileSearch.trim() === deferredProfileSearch;
 	const hasSavedRef = useRef(false);
 	const hasLoadedProfilesRef = useRef(false);
 	const knownProfileNamesRef = useRef(new Map<string, string>());
@@ -235,6 +236,7 @@ function StaffUserEditPage() {
 		q: deferredProfileSearch || undefined,
 		cursor: profilePagination.cursor,
 	});
+	const hasNoServerProfileRows = profilesQuery.data?.data.length === 0;
 	const updateStaffUser = useUpdateStaffUserMutation();
 	const updateStaffUserProfiles = useUpdateStaffUserProfilesMutation();
 	const user = useMemo(
@@ -648,11 +650,12 @@ function StaffUserEditPage() {
 								}
 							/>
 						) : null}
-						{profileOptions.length === 0 &&
+						{hasNoServerProfileRows &&
+						isProfileSearchSettled &&
 						!profilesQuery.isPending &&
 						!profilesQuery.isFetching ? (
 							<p className="text-sm text-muted-foreground">
-								{profileSearch.trim()
+								{deferredProfileSearch
 									? t('common:list-no-match-default-description')
 									: t('common:no-profiles-available')}
 							</p>

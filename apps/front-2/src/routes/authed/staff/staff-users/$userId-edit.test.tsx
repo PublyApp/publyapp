@@ -35,6 +35,7 @@ const mocks = vi.hoisted(() => ({
 	displayLocalMutationFailure: vi.fn().mockResolvedValue(undefined),
 	toastSuccess: vi.fn(),
 	toastError: vi.fn(),
+	deferredProfileSearch: undefined as string | undefined,
 	blockerResolver: {
 		status: 'idle' as 'idle' | 'blocked',
 		proceed: undefined as (() => void) | undefined,
@@ -42,6 +43,15 @@ const mocks = vi.hoisted(() => ({
 	},
 	capturedShouldBlockFn: undefined as (() => boolean) | undefined,
 }));
+
+vi.mock('react', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('react')>();
+
+	return {
+		...actual,
+		useDeferredValue: (value: string) => mocks.deferredProfileSearch ?? value,
+	};
+});
 
 vi.mock('~/lib/mutation-toast', () => ({
 	displayLocalMutationFailure: mocks.displayLocalMutationFailure,
@@ -407,6 +417,7 @@ describe('staff user edit route', () => {
 		mocks.blockerResolver.proceed = undefined;
 		mocks.blockerResolver.reset = undefined;
 		mocks.capturedShouldBlockFn = undefined;
+		mocks.deferredProfileSearch = undefined;
 		mocks.navigate.mockResolvedValue(undefined);
 		mocks.invalidateQueries.mockResolvedValue(undefined);
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
@@ -702,6 +713,104 @@ describe('staff user edit route', () => {
 		);
 		expect(screen.getByText('No results match your search.')).toBeTruthy();
 		expect(screen.queryByText('No profiles are available.')).toBeNull();
+	});
+
+	test('shows the no-match message alongside a preserved selected profile when the server search returns no rows', async () => {
+		mocks.useStaffProfilesQuery.mockImplementation(({ q }: { q?: string }) =>
+			buildQueryResult({
+				data: {
+					data:
+						q === 'Missing'
+							? []
+							: [
+									{
+										id: 'profile-1',
+										name: 'Publishing',
+										description: null,
+									},
+								],
+					nextCursor: null,
+				},
+			}),
+		);
+
+		renderPage();
+
+		fireEvent.change(screen.getByTestId('staff-user-profile-search'), {
+			target: { value: 'Missing' },
+		});
+
+		await waitFor(() =>
+			expect(mocks.useStaffProfilesQuery).toHaveBeenCalledWith(
+				expect.objectContaining({ q: 'Missing' }),
+			),
+		);
+		expect(screen.getByText('No results match your search.')).toBeTruthy();
+		expect(screen.getByRole('checkbox', { name: 'Publishing' })).toHaveProperty(
+			'checked',
+			true,
+		);
+		expect(screen.queryByText('No profiles are available.')).toBeNull();
+	});
+
+	test('treats a whitespace-only profile search as an empty query', () => {
+		setProfileState(USER_A, {
+			data: { assignedProfiles: [] },
+			isPending: false,
+			isSuccess: true,
+		});
+		mocks.toAssignedStaffProfiles.mockReturnValue([]);
+		mocks.useStaffProfilesQuery.mockReturnValue(
+			buildQueryResult({
+				data: {
+					data: [],
+					nextCursor: null,
+				},
+			}),
+		);
+
+		renderPage();
+
+		fireEvent.change(screen.getByTestId('staff-user-profile-search'), {
+			target: { value: '   ' },
+		});
+
+		expect(mocks.useStaffProfilesQuery).toHaveBeenLastCalledWith(
+			expect.objectContaining({ q: undefined }),
+		);
+		expect(screen.getByText('No profiles are available.')).toBeTruthy();
+		expect(screen.queryByText('No results match your search.')).toBeNull();
+	});
+
+	test('hides empty-state copy while a newer profile search keystroke is still deferred', () => {
+		setProfileState(USER_A, {
+			data: { assignedProfiles: [] },
+			isPending: false,
+			isSuccess: true,
+		});
+		mocks.toAssignedStaffProfiles.mockReturnValue([]);
+		mocks.deferredProfileSearch = '';
+		mocks.useStaffProfilesQuery.mockReturnValue(
+			buildQueryResult({
+				data: {
+					data: [],
+					nextCursor: null,
+				},
+			}),
+		);
+
+		renderPage();
+		expect(screen.getByText('No profiles are available.')).toBeTruthy();
+
+		fireEvent.change(screen.getByTestId('staff-user-profile-search'), {
+			target: { value: 'Missing' },
+		});
+
+		expect(mocks.useStaffProfilesQuery).toHaveBeenLastCalledWith(
+			expect.objectContaining({ q: undefined }),
+		);
+		expect(screen.queryByText('No profiles are available.')).toBeNull();
+		expect(screen.queryByText('No results match your search.')).toBeNull();
 	});
 
 	test('shows the empty-catalogue message when no profiles exist and the search is empty', () => {
