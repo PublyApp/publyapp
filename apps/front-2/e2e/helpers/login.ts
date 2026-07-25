@@ -61,8 +61,8 @@ export const setLocaleCookie = async (page: Page, locale: 'fr') => {
  * Fast-path aware: projects that supply a pre-authenticated `storageState`
  * (see playwright.config.ts's `setup` project) land straight on
  * `/staff/staff-users` without ever hitting the login form. Projects with no
- * (or an expired) session get redirected to `/login` by the authed layout's
- * own guard, then this helper fills the form. To avoid races, it now waits for
+ * (or an expired) session get redirected to `/login` by the server/browser
+ * session guards, then this helper fills the form. To avoid races, it waits for
  * whichever appears first: the `staff-users-table` (fast path) or the login form
  * (fallback) using a deterministic race. Every existing call site keeps working
  * unchanged (review-r1-tests.md F29).

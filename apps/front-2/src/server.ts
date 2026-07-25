@@ -7,12 +7,7 @@ import {
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 import { captureBadRequest, classifyBadResponse } from './lib/analytics';
-import {
-	getPublicEnv,
-	getServerEnv,
-	isDevelopmentRuntime,
-	serializePublicRuntimeEnv,
-} from './lib/env';
+import { getPublicEnv, getServerEnv, isDevelopmentRuntime } from './lib/env';
 import { createBackendI18n, loadNamespacesStrict } from './lib/i18n.backend';
 import { GLOBAL_I18N_NAMESPACES } from './lib/i18n.namespaces';
 import { resolveLocaleFromCookie } from './lib/i18n.server';
@@ -84,11 +79,6 @@ const renderLinkTag = (link: {
 	return `<link ${attributes} />`;
 };
 
-export const renderPublicEnvScript = (payload: string, nonce: string): string =>
-	`<script nonce="${escapeHtml(nonce)}">` +
-	`window.__ENV__ = Object.assign({}, window.__ENV__, ${payload});` +
-	`</script>`;
-
 export const isIndexableSeoRoute = (
 	requestPath: string,
 	status: number,
@@ -150,29 +140,6 @@ export const injectSeoMarkup = (
 	}
 
 	return output.replace('</head>', `${metaTags.join('\n')}\n</head>`);
-};
-
-export const injectPublicRuntimeEnv = (
-	html: string,
-	payload: string,
-	nonce: string,
-): string => {
-	if (!html.includes('</head>')) {
-		return html;
-	}
-
-	const headEndIndex = html.indexOf('</head>');
-	const firstScriptIndex = html.indexOf('<script');
-	const insertionIndex =
-		firstScriptIndex >= 0 && firstScriptIndex < headEndIndex
-			? firstScriptIndex
-			: headEndIndex;
-
-	return (
-		html.slice(0, insertionIndex) +
-		`${renderPublicEnvScript(payload, nonce)}\n` +
-		html.slice(insertionIndex)
-	);
 };
 
 const sendBadResponseCapture = (
@@ -238,17 +205,12 @@ export default {
 				shouldInjectSeo,
 				seoTranslator,
 			);
-			const withPublicRuntimeEnv = injectPublicRuntimeEnv(
-				updatedHtml,
-				serializePublicRuntimeEnv(),
-				nonce,
-			);
 			const headers = new Headers(response.headers);
 
 			headers.delete('content-encoding');
 			headers.delete('content-length');
 
-			return new Response(withPublicRuntimeEnv, {
+			return new Response(updatedHtml, {
 				status: response.status,
 				statusText: response.statusText,
 				headers,

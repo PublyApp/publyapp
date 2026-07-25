@@ -22,14 +22,12 @@ import {
 } from '~/lib/api-client/client-manager';
 import { buildLoginRedirectSearch } from '~/lib/login-redirect-search';
 import { ServerFailure } from '~/lib/server/server-failure';
+import { determineSessionToken } from '~/lib/session-scope';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { REDIRECT_CODE } from '@org/shared-ts/lib/constants';
-import {
-	selectToken,
-	type ParsedSessionTokens,
-} from '@org/shared-ts/lib/session/parse';
+import { selectToken } from '@org/shared-ts/lib/session/parse';
 
 import { AuthedRouteContentSkeleton } from './_route-content-skeleton';
 
@@ -39,42 +37,6 @@ const TENANT_PATH = '/tenant';
 const getFailureStatus = (error: unknown): number | undefined => {
 	const failure = toApiFailure(error);
 	return failure.kind === 'problem' ? failure.status : undefined;
-};
-
-export const determineSessionToken = (
-	tokens: ParsedSessionTokens,
-	pathname: string,
-): { token: string | undefined; redirectPath?: string } => {
-	const isStaffPath = pathname.startsWith(STAFF_PATH);
-	const isTenantPath = pathname.startsWith(TENANT_PATH);
-	const staffToken = tokens.staffToken;
-	const tenantToken = selectToken(tokens, 'tenant');
-
-	if (!staffToken && !tenantToken) {
-		return { token: undefined };
-	}
-
-	if (isStaffPath) {
-		if (!staffToken) {
-			return tenantToken
-				? { token: undefined, redirectPath: TENANT_PATH }
-				: { token: undefined };
-		}
-
-		return { token: staffToken };
-	}
-
-	if (isTenantPath) {
-		if (!tenantToken) {
-			return staffToken
-				? { token: undefined, redirectPath: STAFF_PATH }
-				: { token: undefined };
-		}
-
-		return { token: tenantToken };
-	}
-
-	return staffToken ? { token: staffToken } : { token: tenantToken };
 };
 
 const parseRedirectCode = async (token: string): Promise<string | null> => {

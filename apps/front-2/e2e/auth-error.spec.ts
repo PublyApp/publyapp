@@ -359,7 +359,7 @@ test('reset peer maps to a list error without crashing or logging out', async ({
 
 	await loginAsStaffAdmin(page);
 	await addToxic('api-reset-peer', 'reset_peer');
-	await navigateToFaultedStaffUsers(page, 'reset-peer');
+	await searchFaultedStaffUsers(page, 'reset-peer');
 	await expectStillAuthenticated(
 		page,
 		pageErrors,
@@ -375,7 +375,7 @@ test('timeout maps to a list error without crashing or logging out', async ({
 
 	await loginAsStaffAdmin(page);
 	await addToxic('api-timeout', 'timeout', { timeout: 1_000 });
-	await navigateToFaultedStaffUsers(page, 'timeout');
+	await searchFaultedStaffUsers(page, 'timeout');
 	await expectStillAuthenticated(
 		page,
 		pageErrors,
