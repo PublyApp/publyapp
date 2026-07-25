@@ -236,7 +236,7 @@ function StaffUserEditPage() {
 		q: deferredProfileSearch || undefined,
 		cursor: profilePagination.cursor,
 	});
-	const hasNoServerProfileRows = profilesQuery.data?.data.length === 0;
+	const hasNoServerProfileRows = profilesQuery.data?.data?.length === 0;
 	const updateStaffUser = useUpdateStaffUserMutation();
 	const updateStaffUserProfiles = useUpdateStaffUserProfilesMutation();
 	const user = useMemo(
