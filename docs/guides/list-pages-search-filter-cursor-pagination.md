@@ -1,5 +1,15 @@
 # List Pages: Search/Filter + Cursor Pagination Conventions
 
+> **MIXED GUIDE — read the split before you follow anything.**
+> **Normative:** the list-page contract — search (`q`), multi-select enum filters, cursor
+> pagination with no total count, stable `sort_id` values, the snake_case URL parameter names, and
+> the backend query/handler shape.
+> **Not normative:** the component-level mechanics (e.g. "use MUI `Select` with `multiple`") and any
+> `apps/front` path. `apps/front` is the retired MUI + React Router v7 app — not deployed, and the
+> owner will not edit it again. Build the UI in `apps/front-2` per
+> [`front-2/index.md`](front-2/index.md) and [`front-2/conventions.md`](front-2/conventions.md).
+> Porting the UI half of this guide is deferred to a later wave of the documentation remediation.
+
 This guide defines the **default conventions** for list pages that support:
 
 - Search (`q`)

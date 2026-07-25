@@ -1,5 +1,11 @@
 # Cursor/Keyset Pagination Guide
 
+> **Backend-normative.** The cursor/keyset contract in this guide — DTOs, service interfaces, query
+> shape, handler wiring, and the `sort_id`/`sort_order`/`cursor`/`size` wire names — is current and
+> applies to all new work. The one exception is the "Frontend note (Material React Table)" near the
+> end: Material React Table belongs to `apps/front`, the retired MUI app. `apps/front-2` uses its own
+> table components — see [`front-2/conventions.md`](front-2/conventions.md).
+
 ## Table of Contents
 - [Overview](#overview)
 - [Why Keyset Pagination?](#why-keyset-pagination)

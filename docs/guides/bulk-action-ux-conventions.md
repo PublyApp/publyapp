@@ -1,5 +1,16 @@
 # Bulk Action UX Conventions
 
+> **MIXED GUIDE — read the split before you follow anything.**
+> **Normative:** the bulk-action UX policy (menu items always render, never `disabled` or hidden by
+> per-row eligibility, ineligible clicks show an i18n toast, the trigger gates on
+> `BULK_ACTION_MAX_COUNT`) and the whole backend contract — batched service queries, batched audit
+> logs, and the mutation-hook split try/catch.
+> **Not normative:** the MUI component mechanics (`MenuItem`, `sx`, …) and any `apps/front` path.
+> `apps/front` is the retired MUI + React Router v7 app — not deployed, and the owner will not edit
+> it again. Build the UI in `apps/front-2` per [`front-2/index.md`](front-2/index.md) and
+> [`front-2/conventions.md`](front-2/conventions.md). Porting the UI half of this guide is deferred
+> to a later wave of the documentation remediation.
+
 > Rules for list-page multi-select bulk actions (revoke, suspend, reactivate, delete, remove, etc.) — both the frontend selection menu and the backend service/handler/audit-log shape.
 
 For the broader list-page surface (search, filters, cursor pagination, selection plumbing), see
