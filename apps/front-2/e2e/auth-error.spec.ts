@@ -229,6 +229,20 @@ const navigateToFaultedStaffUsers = async (
 	).toBeVisible({ timeout: 45_000 });
 };
 
+const searchFaultedStaffUsers = async (page: Page, q: string) => {
+	// Keep the authenticated document mounted: a full page.goto() re-runs the
+	// authed layout's /auth/redirect-code query first, so disabling the proxy
+	// fails that request and prevents the staff-users list query from mounting.
+	const faultSignal = waitForStaffUsersFaultSignal(page);
+
+	await page.getByTestId('staff-users-table-search').fill(q);
+	await faultSignal;
+	await expect(
+		page.getByTestId('staff-users-table-error'),
+		`${q} error view`,
+	).toBeVisible({ timeout: 45_000 });
+};
+
 const installPageErrorCapture = (page: Page): string[] => {
 	const pageErrors: string[] = [];
 
@@ -329,7 +343,7 @@ test('connection-refused maps to a list error without crashing or logging out', 
 
 	await loginAsStaffAdmin(page);
 	await disableToxiproxy();
-	await navigateToFaultedStaffUsers(page, 'connection-refused');
+	await searchFaultedStaffUsers(page, 'connection-refused');
 	await expectStillAuthenticated(
 		page,
 		pageErrors,
