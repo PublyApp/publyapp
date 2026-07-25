@@ -508,7 +508,10 @@ const isAppCssTokenLayerLine = (relativePath, lineIndex, lines) => {
 };
 
 const isRoundedRadiusAllowed = (relativePath, line, lineIndex, lines) => {
-	if (relativePath === 'src/components/ui/avatar.tsx') {
+	if (
+		relativePath === 'src/components/ui/avatar.tsx' ||
+		relativePath === 'src/components/ui/person-avatar.tsx'
+	) {
 		return true;
 	}
 

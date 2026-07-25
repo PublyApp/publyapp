@@ -169,7 +169,7 @@ export const createInvitationColumns = ({
 				>
 					<span
 						aria-hidden="true"
-						className="inline-flex size-[26px] shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
+						className="inline-flex size-[26px] shrink-0 items-center justify-center rounded-[var(--publy-radius-small-control)] bg-muted text-muted-foreground"
 					>
 						<IconMail className="size-3.5" />
 					</span>
