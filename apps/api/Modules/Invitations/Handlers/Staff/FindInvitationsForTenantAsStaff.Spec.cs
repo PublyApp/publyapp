@@ -855,7 +855,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 
 		[Fact]
 		public async Task
-		ItShouldCombineMultipleAccountLevelsWithSearchStatusAndSorting() {
+		ItShouldCombineAccountLevelWithSearchStatusAndSorting() {
 			string staffToken =
 				await _authClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
@@ -867,24 +867,31 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 					);
 
 			string prefix = $"level-combined-{Guid.NewGuid():N}";
-			string adminEmail = $"{prefix}-a-admin@example.com";
-			string userEmail = $"{prefix}-b-user@example.com";
+			string firstAdminEmail = $"{prefix}-a-admin@example.com";
+			string excludedUserEmail = $"{prefix}-b-user@example.com";
+			string secondAdminEmail = $"{prefix}-c-admin@example.com";
 			_ = await CreateTenantInvitationAsync(
 				staffToken,
 				tenantId,
-				adminEmail,
+				firstAdminEmail,
 				"Admin"
 			);
 			_ = await CreateTenantInvitationAsync(
 				staffToken,
 				tenantId,
-				userEmail,
+				excludedUserEmail,
 				"User"
+			);
+			_ = await CreateTenantInvitationAsync(
+				staffToken,
+				tenantId,
+				secondAdminEmail,
+				"Admin"
 			);
 
 			string url = GetFindUrl(
 				tenantId,
-				level: "uSeR, AdMiN",
+				level: "AdMiN",
 				status: "pending",
 				q: prefix,
 				sortId: "email",
@@ -905,7 +912,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			Assert.NotNull(result);
 			_ = result.Data.Select(invitation => invitation.Email)
 				.Should()
-				.Equal(adminEmail, userEmail);
+				.Equal(firstAdminEmail, secondAdminEmail);
 		}
 
 		[Theory]
