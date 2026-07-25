@@ -218,8 +218,8 @@ just dev-api
 pnpm --filter front-2 dev
 ```
 
-> **Heads-up on the `just *-front` recipes.** `just dev-front`, `build-front`, `tsc-front` and
-> `start-front` all point at `apps/front`, the **retired** frontend. Use
+> **Heads-up on the `just *-front` recipes.** Every one of them — `dev-front`, `build-front`,
+> `tsc-front`, `start-front`, `deploy-front` — points at `apps/front`, the **retired** frontend. Use
 > `pnpm --filter front-2 <script>` for the frontend that actually ships.
 
 > First time? `just dev-setup` runs install + database in one step.

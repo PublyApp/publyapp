@@ -26,8 +26,8 @@ pnpm --filter front-2 dev
 just dev-db
 ```
 
-**Frontend recipe naming:** the `just *-front` recipes (`dev-front`, `build-front`, `tsc-front`,
-`start-front`) all target `apps/front`, the retired app (`front_dir := "apps/front"` in the
+**Frontend recipe naming:** every `just *-front` recipe (`dev-front`, `build-front`, `tsc-front`,
+`start-front`, `deploy-front`) targets `apps/front`, the retired app (`front_dir := "apps/front"` in the
 `justfile`). Drive `apps/front-2` — the app that actually ships — with `pnpm --filter front-2 <script>`
 or the `just ci-front-2` gate.
 
@@ -446,7 +446,7 @@ gives one filing rule per directory. Read it before creating a document.
 - **Never** place a generated doc at the repo root, and never at the `docs/` root either — always in
   a `docs/` subdirectory
 - Use an existing subdirectory; only create a new one (kebab-case) if nothing in `docs/README.md` fits
-- This file links only `docs/guides/` and `docs/deployment/` documents. A guide nothing links to is a
-  record, not a rule
+- Apart from the `docs/README.md` index, this file links only `docs/guides/` and
+  `docs/deployment/` documents. A guide nothing links to is a record, not a rule
 - Standing rules belong in this file or a `docs/guides/` file. Plans, reviews, audits, analyses and
   change notes are records: write them once, date them, and supersede rather than retro-edit them

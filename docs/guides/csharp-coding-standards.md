@@ -721,8 +721,9 @@ var headerKey = AppEnvironment.Instance.SESSION_TOKEN_HEADER_KEY;
 | **Computed** | `IsDevelopment`, `IsProduction`, `EnvironmentName` |
 
 **Environment files:**
-- Development: `.env.development` (committed to repo)
-- Production: `.env.production` (not in repo, set via deployment)
+- Template: `.env.example` — the **only** env file tracked in git (`.gitignore` ignores `.env.*` with a `!.env.example` exception)
+- Development: `.env.development` — gitignored; copy it from `.env.example` locally
+- Production: `.env.production` — gitignored; in the live deployment the values are set in the Dokploy environment rather than in a file
 
 **Why static access instead of DI?**
 - Configuration is immutable after startup

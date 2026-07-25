@@ -24,8 +24,8 @@ Two cautions about `docs/guides/`:
 - Some guides predate the front-2 migration. Where a guide mixes still-valid backend/API/UX policy
   with code examples from the retired `apps/front` (MUI) app, it now carries a header saying which
   half is which. Follow the policy; ignore the MUI mechanics.
-- `AGENTS.md` links only `docs/guides/` and `docs/deployment/` files. A guide nothing links to is a
-  record, not a rule.
+- Apart from this index, `AGENTS.md` links only `docs/guides/` and `docs/deployment/` files. A
+  guide nothing links to is a record, not a rule.
 
 ## Where a new document goes
 
