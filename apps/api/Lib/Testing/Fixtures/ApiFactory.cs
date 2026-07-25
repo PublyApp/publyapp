@@ -90,8 +90,6 @@ public sealed class ApiFactory
 			//    background loop racing the shared test DB — plus the leader binding
 			//    AppEnvironment's (non-test) connection — would make specs flaky. Specs
 			//    that need these construct them directly against the test connection.
-			//    (The InvitationEmailOutboxDispatcher is intentionally left running, as
-			//    its specs rely on the live loop.)
 			RemoveWorkerHostedServices(services);
 		});
 	}
@@ -108,6 +106,7 @@ public sealed class ApiFactory
 			typeof(JobQueueListener),
 			typeof(JobQueueMonitorService),
 			typeof(WorkerHeartbeatService),
+			typeof(InvitationEmailOutboxDispatcher),
 		};
 
 		var descriptorsToRemove = services

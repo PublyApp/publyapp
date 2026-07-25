@@ -17,7 +17,6 @@ using PublyApp.Api.Infrastructure.Messaging.Email;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
-using PublyApp.Api.Lib.Testing.Fakes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
@@ -133,17 +132,35 @@ public sealed class CreateTenantAsStaffSpec
 			link.ProfileId == defaultProfile.GetRequiredId()
 		);
 
-		var sentEmails = await WaitForEmailsAsync(fakeEmailSender, 2);
-		// Filter to this test's own recipients rather than asserting on the
-		// whole fixture-scoped buffer: a straggling fire-and-forget email from
-		// a prior test in this class can still land here after Clear().
-		var relevantEmails = sentEmails
-			.Where(email => email.To == adminEmail || email.To == userEmail)
-			.ToList();
+		var outboxRows = await dbContext.InvitationEmailOutbox
+			.Where(outbox =>
+				outbox.Email == adminEmail
+				|| outbox.Email == userEmail
+			)
+			.Include(outbox => outbox.Invitation)
+			.ToListAsync();
+		outboxRows.Should().HaveCount(2);
 
-		relevantEmails.Select(email => email.To)
+		var dispatcher =
+			ActivatorUtilities.CreateInstance<InvitationEmailOutboxDispatcher>(
+				scope.ServiceProvider
+			);
+		var emailService = scope.ServiceProvider
+			.GetRequiredService<IEmailService>();
+
+		foreach (var outboxRow in outboxRows) {
+			await dispatcher.SendOneAsync(
+				dbContext,
+				emailService,
+				outboxRow,
+				CancellationToken.None
+			);
+		}
+
+		var sentEmails = fakeEmailSender.SentEmails;
+		sentEmails.Select(email => email.To)
 			.Should().BeEquivalentTo([adminEmail, userEmail]);
-		relevantEmails.Should().OnlyContain(email =>
+		sentEmails.Should().OnlyContain(email =>
 			email.Subject.Contains(tenantName, StringComparison.Ordinal)
 			&& email.HtmlBody.Contains("Accept the invitation", StringComparison.Ordinal)
 		);
@@ -1309,26 +1326,6 @@ public sealed class CreateTenantAsStaffSpec
 					.Be(ResponseKeys.RequestBodyValidationFailed.Value);
 		problem.Errors.Keys.Should()
 			.Contain(fieldName);
-	}
-
-	private static async Task<IReadOnlyCollection<EmailRequest>>
-	WaitForEmailsAsync(
-		FakeEmailSender fakeEmailSender,
-		int expectedCount
-	) {
-		const int maxAttempts = 20;
-
-		for (var attempt = 0; attempt < maxAttempts; attempt++) {
-			var sentEmails = fakeEmailSender.SentEmails;
-
-			if (sentEmails.Count >= expectedCount) {
-				return sentEmails;
-			}
-
-			await Task.Delay(100);
-		}
-
-		return fakeEmailSender.SentEmails;
 	}
 
 	public class ThrowingTenantServiceProxy : DispatchProxy {
