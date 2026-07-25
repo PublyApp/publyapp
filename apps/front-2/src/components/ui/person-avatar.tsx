@@ -1,0 +1,90 @@
+import { useState } from 'react';
+import { Image } from '~/components/ui/image';
+import { cn } from '~/lib/utils';
+
+type PersonAvatarSize = 'xs' | 'sm' | 'md' | 'lg';
+
+const sizeClassNames: Record<PersonAvatarSize | 'default', string> = {
+	default: 'size-[26px] text-[10px]',
+	xs: 'size-5 text-[8px]',
+	sm: 'size-8 text-[11px]',
+	md: 'size-9 text-xs',
+	lg: 'size-14 text-lg',
+};
+
+const firstCodePoint = (word: string): string => [...word][0] ?? '';
+
+export const toInitials = (name: string): string => {
+	const words = name
+		.split(/\s+/)
+		.map((word) => word.trim())
+		.filter(Boolean);
+	if (words.length === 0) {
+		return '?';
+	}
+	const first = firstCodePoint(words[0]?.toUpperCase() ?? '');
+	const second =
+		words.length > 1 ? firstCodePoint(words.at(-1)?.toUpperCase() ?? '') : '';
+	return `${first}${second}`.toUpperCase();
+};
+
+const PersonAvatarVisual = ({
+	name,
+	avatarUrl,
+}: {
+	name: string;
+	avatarUrl?: string | null;
+}) => {
+	const [hasImageError, setHasImageError] = useState(false);
+
+	return avatarUrl && !hasImageError ? (
+		<Image
+			src={avatarUrl}
+			alt=""
+			aria-hidden="true"
+			ratio="1/1"
+			className="size-full rounded-full"
+			onError={() => setHasImageError(true)}
+		/>
+	) : (
+		<span
+			aria-hidden="true"
+			data-slot="person-avatar-fallback"
+			className="inline-flex size-full items-center justify-center rounded-full bg-muted font-semibold leading-none text-muted-foreground select-none"
+		>
+			{toInitials(name)}
+		</span>
+	);
+};
+
+export const PersonAvatar = ({
+	name,
+	avatarUrl,
+	size,
+	accessibleLabel,
+	className,
+}: {
+	name: string;
+	avatarUrl?: string | null;
+	size?: PersonAvatarSize;
+	accessibleLabel?: string;
+	className?: string;
+}) => (
+	<span
+		data-slot="person-avatar"
+		role={accessibleLabel ? 'img' : undefined}
+		aria-label={accessibleLabel}
+		aria-hidden={accessibleLabel ? undefined : true}
+		className={cn(
+			'inline-flex shrink-0 rounded-full',
+			sizeClassNames[size ?? 'default'],
+			className,
+		)}
+	>
+		<PersonAvatarVisual
+			key={avatarUrl ?? 'no-avatar'}
+			name={name}
+			avatarUrl={avatarUrl}
+		/>
+	</span>
+);
