@@ -6,7 +6,6 @@ import { formatSessionCookie } from '@org/shared-ts/lib/session/parse';
 import { API_BASE_URL } from './helpers/api';
 import { loginAsStaffAdmin } from './helpers/login';
 
-const API_ROUTE_GLOB = `${API_BASE_URL}/**`;
 const FRONTEND_ORIGIN = 'https://front-2.localhost:8443';
 const STAFF_USERS_PATH = '/staff/users';
 const TOXIPROXY_API_URL = 'http://127.0.0.1:8474';
@@ -313,13 +312,13 @@ const installSyntheticStaffUsersResponse = async (
 	page: Page,
 	response: SyntheticResponse,
 ) => {
-	await page.route(API_ROUTE_GLOB, async (route) => {
+	await page.route(`${API_BASE_URL}/**`, async (route) => {
 		await fulfillSyntheticStaffUsersResponse(route, response);
 	});
 };
 
 test.afterEach(async ({ page }) => {
-	await page.unroute(API_ROUTE_GLOB);
+	await page.unroute(`${API_BASE_URL}/**`);
 	await restoreToxiproxy();
 });
 
@@ -389,7 +388,7 @@ test('invalid JSON maps to a list error without crashing or logging out', async 
 		page,
 		pageErrors,
 		async () => {
-			await page.unroute(API_ROUTE_GLOB);
+			await page.unroute(`${API_BASE_URL}/**`);
 		},
 		'invalid-json-recovered',
 	);
