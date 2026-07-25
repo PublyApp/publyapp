@@ -188,8 +188,9 @@ INVITATION_TOKEN_LENGTH=32
 > (`GetRequiredString`/`GetRequiredInt` = required; `GetOptional*` = has a default). The committed
 > `.env.example` is a starting template, but its placeholder values are not deployment-ready (and
 > its database values do not match the local Compose database). It is the only committed env file —
-> `.env.development` and `.env.production` are gitignored local/deployment state and must never be
-> committed.
+> `.env.development` is gitignored local state and must never be committed. A local
+> `.env.production` would also be gitignored but is not consumed; production values come from
+> Dokploy's environment management.
 
 ---
 

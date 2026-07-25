@@ -423,7 +423,11 @@ For the complete list of custom lint rules with severity and source, see [`docs/
 ## Development Environment
 
 **Local access:** Frontend `localhost:5050` | API `localhost:5000` | Scalar docs `localhost:5000/scalar/v1` | Postgres `localhost:5454`
-**Env vars:** `.env.example` is the only committed env file (the template). `.env.development` (local dev) and `.env.production` (deployment) are **gitignored** and must never be committed — `.gitignore` ignores `.env.*` with a single `!.env.example` exception. All of them are validated at startup via `AppEnvironment.Initialize()`.
+**Env vars:** `.env.example` is the only committed env file (the template).
+`.env.development` is **gitignored**, is the only env file the API loads, and is used only for
+Development or an unset host environment. `.env.production` would also be gitignored but is not
+consumed; production variables come from Dokploy. Real env files must never be committed.
+`AppEnvironment.Initialize()` validates the resulting runtime environment variables.
 **.NET artifacts:** New .NET projects must output under a local `.artifacts/` directory.
 Set `DotNetArtifactsRoot` in a project-area `Directory.Build.props` before importing the repo
 root props; `Directory.Build.targets` enforces this during builds.
