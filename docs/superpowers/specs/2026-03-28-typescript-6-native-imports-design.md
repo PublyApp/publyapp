@@ -13,8 +13,8 @@ The current branch is based on `feat/tenant-module-completion` and still has the
 
 - Root [`package.json`](../../../package.json) pins `typescript` to `^5.9.3`
 - [`packages/_tsconfig/tsconfig.base.json`](../../../packages/_tsconfig/tsconfig.base.json) still uses `"moduleResolution": "node"`
-- [`tsconfig.paths.json`](../../../tsconfig.paths.json) uses deprecated `"baseUrl"` and `"paths"`
-- [`apps/front/tsconfig.json`](../../../apps/front/tsconfig.json) extends [`tsconfig.paths.json`](../../../tsconfig.paths.json)
+- `tsconfig.paths.json` uses deprecated `"baseUrl"` and `"paths"`
+- [`apps/front/tsconfig.json`](../../../apps/front/tsconfig.json) extends `tsconfig.paths.json`
 - Frontend source imports heavily use `@/front/*`
 - Cross-package imports already use real workspace package names such as `@org/shared-ts/...` and `@org/client-ts/...`
 
@@ -64,7 +64,7 @@ The intent is to remove the deprecated setting that has a direct migration path 
 
 ### 2. Remove TS path aliasing
 
-[`tsconfig.paths.json`](../../../tsconfig.paths.json) currently exists only to provide aliases via:
+`tsconfig.paths.json` currently exists only to provide aliases via:
 
 - `"baseUrl": "."`
 - `"paths": { "@/front/*": ..., "@org/shared-ts/*": ..., "@org/client-ts/*": ... }`
@@ -73,11 +73,13 @@ That file should stop participating in active TypeScript resolution for this bra
 
 The practical end state is:
 
-- [`apps/front/tsconfig.json`](../../../apps/front/tsconfig.json) no longer depends on [`tsconfig.paths.json`](../../../tsconfig.paths.json) for aliasing
+- [`apps/front/tsconfig.json`](../../../apps/front/tsconfig.json) no longer depends on
+  `tsconfig.paths.json` for aliasing
 - workspace package imports resolve through normal package resolution
 - frontend-local imports resolve through `#app/*`, not TS `paths`
 
-If [`tsconfig.paths.json`](../../../tsconfig.paths.json) becomes unused afterward, remove it. If another config still references it for a non-deprecated reason, narrow it so it no longer defines `baseUrl` or `paths`.
+If `tsconfig.paths.json` becomes unused afterward, remove it. If another config still references it
+for a non-deprecated reason, narrow it so it no longer defines `baseUrl` or `paths`.
 
 ### 3. Frontend-local alias
 
@@ -141,7 +143,7 @@ Likely files to change:
 - [`package.json`](../../../package.json)
 - [`pnpm-lock.yaml`](../../../pnpm-lock.yaml)
 - [`packages/_tsconfig/tsconfig.base.json`](../../../packages/_tsconfig/tsconfig.base.json)
-- [`tsconfig.paths.json`](../../../tsconfig.paths.json)
+- `tsconfig.paths.json`
 - [`apps/front/tsconfig.json`](../../../apps/front/tsconfig.json)
 - [`apps/front/package.json`](../../../apps/front/package.json)
 - frontend bundler or router config files that currently assume TS path aliases

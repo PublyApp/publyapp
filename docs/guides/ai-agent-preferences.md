@@ -13,7 +13,7 @@ This guide captures **repository-specific preferences** for AI coding assistants
 It is intended to reduce review churn by making repeated feedback explicit.
 
 These preferences are **additive** to existing repo guides (especially):
-- `docs/guides/frontend-coding-standards.md`
+- `docs/guides/front-2/conventions.md`
 - `docs/guides/frontend-error-handling.md`
 - `docs/guides/api-module-structure.md`
 - `docs/guides/csharp-coding-standards.md`
@@ -119,8 +119,6 @@ If a preference below conflicts with an existing guide, follow the existing guid
 - Keep a frontend barrel only when it is an intentional, narrow public facade
   with a documented reason.
 - Do not manually edit generated Kiota client barrels under `packages/client-ts`.
-
-Reference: `docs/refactoring-guides/frontend-barrel-files.md`
 
 ## Backend (API)
 

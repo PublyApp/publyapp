@@ -267,7 +267,8 @@ If a `// dark-diff:` comment appears in legal page code during review, treat it 
 
 ## Conventions reused from Phase 1
 
-- Canvas → MUI `sx` translation per `docs/guides/tailwind-to-sx-mapping.md`
-- Marketing surface conventions per `docs/guides/marketing-surface-conventions.md` (hover convention, no perpetual animation, `<Box>` not `<Button>` for slot-style links if any appear in callouts)
+- Canvas → MUI `sx` translation per the retired app's Tailwind-to-`sx` mapping note
+- Marketing surface conventions for the retired app (hover convention, no perpetual animation,
+  `<Box>` not `<Button>` for slot-style links if any appear in callouts)
 - Hybrid dark mode (token-driven default + `// dark-diff:` overrides where a dark canvas diverges) — though for legal pages we expect zero overrides
 - `MarketingLayout` already provides `ScrollProgress` + `BackToTopButton` + `HomeFooter` — Phase 2 routes inherit them automatically

@@ -105,7 +105,8 @@ Top-to-bottom order. Each section lists intent and the visual treatment. Section
     - Make the human-vs-agent split explicit: humans → Quick Start; agents/contributors → AGENTS.md + guides.
 
 11. **Deployment (C)**
-    - Dokploy on Hostinger VPS → GHCR Docker images → Traefik SSL; `dokploy.yml` config; `just build-deploy`. Link `docs/misc/deployment-guide.md` only if it exists (verify in §4).
+    - Dokploy on Hostinger VPS → GHCR Docker images → Traefik SSL; `dokploy.yml` config;
+      `just build-deploy`. Link the then-current deployment note only if it exists (verify in §4).
 
 12. **Status & License**
     - "Active development." + "Proprietary — all rights reserved. Not licensed for redistribution or use outside the PublyApp project."
@@ -138,16 +139,22 @@ The implementation pass must use these verified facts. Where a fact is uncertain
 
 **Implementation-time verification notes:**
 - `apps/jobs/` is described as future/planned in `AGENTS.md`, but the directory is currently absent. Omit it from the tree or label it explicitly as planned; do not list it as an existing directory.
-- `dokploy.yml` and `docs/misc/deployment-guide.md` exist and may be linked, but re-check before the final README patch in case the branch changes.
+- `dokploy.yml` and the then-current deployment note exist and may be linked, but re-check before
+  the final README patch in case the branch changes.
 - npm scopes are currently verified as `@org/client-ts` and `@org/shared-ts`; re-check the package `name` fields before finalizing.
 
 ---
 
 ## 5. Asset / Banner Strategy
 
-- **An in-repo brand asset exists:** `docs/misc/logo-idea.svg` — a monochrome flame glyph (`solar:fire-bold-duotone`, drawn with `fill="currentColor"`, 24×24). This is the only existing brand mark.
+- **An in-repo brand asset exists:** the then-current logo draft — a monochrome flame glyph
+  (`solar:fire-bold-duotone`, drawn with `fill="currentColor"`, 24×24). This is the only existing
+  brand mark.
 - **Optional (feasible) banner approach — preferred if a visual lift is wanted:** promote the existing flame glyph into a small, tasteful hero mark. Implementation options, in order of preference:
-  1. **Inline the SVG** centered above the title (GitHub renders sanitized inline SVG in markdown via an `<img>` to a committed asset, not raw `<svg>` in markdown — so commit a proper asset file and reference it). Move/copy the glyph to a stable asset path (e.g. `docs/assets/` or `.github/assets/`) rather than referencing `docs/misc/logo-idea.svg` directly; keep the original where it is.
+  1. **Inline the SVG** centered above the title (GitHub renders sanitized inline SVG in markdown
+     via an `<img>` to a committed asset, not raw `<svg>` in markdown — so commit a proper asset
+     file and reference it). Move/copy the glyph to a stable asset path (e.g. `docs/assets/` or
+     `.github/assets/`) rather than referencing the draft directly; keep the original where it is.
   2. **A simple composed banner** (glyph + "PublyApp" wordmark) as a single committed SVG, light/dark friendly. Use `currentColor` or theme-neutral fills so it works in both GitHub themes. Optionally provide `<picture>` with `prefers-color-scheme` if a dark/light pair is produced.
 - **Hard constraints on assets:**
   - No external image URLs for product screenshots; no fabricated UI imagery.
@@ -201,11 +208,13 @@ Run/inspect before declaring the rewrite done:
 - [ ] Confirm each `just` command appears in `justfile` (no invented recipes); spot-check `just --list`.
 - [ ] Confirm package directory names against `packages/` listing; confirm displayed npm scope against the real `package.json` `name` fields.
 - [ ] Verify `apps/jobs/` existence; currently absent, so omit or mark as planned rather than listing it as a real directory.
-- [ ] Verify `dokploy.yml` and `docs/misc/deployment-guide.md` still exist before linking; they exist at spec-writing time.
+- [ ] Verify `dokploy.yml` and the then-current deployment note still exist before linking; they
+  exist at spec-writing time.
 - [ ] Confirm Local URLs (5050 / 5000 / `/scalar/v1` / 5454) against `AGENTS.md`.
 - [ ] Grep the final README for secret-shaped content (tokens, passwords, connection strings, `postgres://`, real IPs) → none present.
 - [ ] Validate Mermaid diagram(s) render on GitHub (no syntax errors); confirm legibility in light + dark.
-- [ ] If a banner asset is added: confirm it is committed, self-contained (no external refs), and legible in both themes; original `docs/misc/logo-idea.svg` left intact.
+- [ ] If a banner asset is added: confirm it is committed, self-contained (no external refs), and
+  legible in both themes; original logo draft left intact.
 - [ ] Confirm all relative doc links resolve (`AGENTS.md`, `docs/guides/*`, deployment guide).
 - [ ] Markdownlint strategy chosen deliberately: either the final README is lint-clean, or any intentional GitHub README polish exceptions (for example inline HTML hero/badges and long badge/table lines) are handled with targeted disables/config and documented in the implementation summary. Link checks for local relative links pass.
 - [ ] Read-through: emoji restraint respected; section rhythm varied; tone premium + proprietary.

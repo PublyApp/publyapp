@@ -18,8 +18,8 @@ implementation unless a section is explicitly labelled front-2. The legacy
 frontend is unchanged by the front-2 policy below.
 
 **Related Documentation:**
-- Analysis: `docs/analysis/analysis-client-side-problem-details-error-handling.md`
-- Implementation Plan: `docs/plans/plan-client-side-error-handling-implementation.md`
+- Front-2 conventions: `docs/guides/front-2/conventions.md`
+- Repository error/logout contract: `AGENTS.md`
 
 ---
 

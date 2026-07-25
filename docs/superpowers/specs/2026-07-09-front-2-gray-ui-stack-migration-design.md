@@ -3,7 +3,7 @@
 ## Status
 
 Accepted by Radan on 2026-07-09. This supersedes the HeroUI-targeted parts of
-`docs/superpowers/plans/2026-07-08-front-2-staff-admin-design-handoff.md`.
+the preceding front-2 staff-admin design handoff.
 
 ## Goal
 

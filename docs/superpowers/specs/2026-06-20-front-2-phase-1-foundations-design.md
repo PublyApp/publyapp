@@ -58,7 +58,10 @@ Phase 1 turns the proof into durable infrastructure. It is **foundations, not pa
 These were flagged by review as "decide now or rediscover in Phase 2":
 
 - **D5 — URL state: adopt TanStack Router typed search params** for front-2 (per strategy §, over `nuqs`). The current app is `nuqs`/MRT-based (`apps/front/src/hooks/use-table-state.ts`); front-2 builds a typed-search-param table-state adapter. **Decided before M2.1** (the table depends on it).
-- **D6 — Error views are a Phase-1 foundation.** Port the `AppErrorView` system (`docs/guides/error-views.md`) to HeroUI with the **correct 401 split**: auth-surface 401 → **NO logout** (expired URL-borne tokens; show view + back-to-login); authed 401 → **logout**; 403 → **no logout** anywhere. Built in M1, tested.
+- **D6 — Error views are a Phase-1 foundation.** Port the retired app's `AppErrorView` system to
+  HeroUI with the **correct 401 split**: auth-surface 401 → **NO logout** (expired URL-borne
+  tokens; show view + back-to-login); authed 401 → **logout**; 403 → **no logout** anywhere.
+  Built in M1, tested.
 - **D7 — `QueryDisplay` equivalent** ships with the query core fold (front-2's standard query-state renderer), since every authed surface depends on it.
 - **D8 — Observability/state carry:** **carry** analytics (`shared-ts/lib/analytics` PostHog wrapper + SSR bad-response capture, mirroring `apps/front/src/entry.server.tsx`); **carry minimal** Zustand global UI state (theme + sidebar/settings, as the authed layout initializes today). Decided in M1.
 - **D9 — `<Image>` primitive: demand-driven, not deferred-as-afterthought.** Built when the first M2 reference surface needs content imagery (strategy treats it as first-class); not pre-built in M0/M1.
@@ -143,7 +146,7 @@ retiring) — back-port only a proven production bug fix as a standalone PR.
 
 ### 5.4 Error views (D6) — the corrected 401 semantics
 
-Port `AppErrorView` to HeroUI. ErrorBoundary placement mirrors `docs/guides/error-views.md`:
+Port `AppErrorView` to HeroUI. ErrorBoundary placement mirrors the retired app's error-view guide:
 auth-surface boundary (**401 → no logout**, expired URL token → view + back-to-login), authed
 boundary (**401 → logout**), 404/403 views (**403 never logs out**). This is a hard invariant set,
 e2e-tested.
@@ -271,7 +274,7 @@ M0.3**.
 - Strategy spec: `docs/superpowers/specs/2026-06-19-front-2-tanstack-heroui-migration-design.md`
 - Phase 0 findings: `docs/superpowers/reviews/2026-06-19-front-2-phase-0-findings.md`
 - Parity contract: `docs/front-2-migration/parity-contract.md`
-- Error views: `docs/guides/error-views.md`
+- Error views: the retired app's error-view guide
 - Adversarial reviews (Rev 2/3 inputs): GPT-5.5 xhigh — `.dump/phase1-spec-review-r1.out`,
   `.dump/phase1-spec-review-r2.out`
 - Characterization issues: #693 (infra), #694 (design)

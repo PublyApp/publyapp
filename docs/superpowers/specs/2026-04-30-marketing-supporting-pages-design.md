@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-30
 **Status:** Design generation complete — all canvases accepted by user, ready for code adoption
-**Predecessor:** `docs/guides/marketing-surface-conventions.md` (boundary doc, ratified 2026-04-30)
+**Predecessor:** the retired app's marketing-surface conventions (ratified 2026-04-30)
 **Branch:** `feature/marketing-supporting-pages`
 
 ## Goal
@@ -56,7 +56,8 @@ The spec covers design only. A follow-up implementation plan (per the brainstorm
 - **Palette + typography** — theme tokens via `text.*`, `background.*`, `primary.*`, `divider`. Font family + scale identical to product
 - **Primary CTA color** — `primary.main` everywhere
 - **Dark mode mechanism** — `theme.applyStyles('dark', …)` + `varAlpha(theme.vars.palette.X.mainChannel, n)`
-- **Hover convention** — stable bg/text/border, only `transform` + `boxShadow` change (per `docs/guides/marketing-surface-conventions.md`)
+- **Hover convention** — stable bg/text/border, only `transform` + `boxShadow` change (per the
+  retired app's then-current marketing-surface conventions)
 
 ### Allowed page-specific divergence
 
