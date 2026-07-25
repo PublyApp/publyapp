@@ -12,7 +12,13 @@ export const LOCALE_COOKIE_KEY = `${APP_ID}-locale`; // used to help remix detec
 
 // =============================================================================
 // Tenant Hints Cookie (Identity-Scoped)
-// See: docs/implementation-plans/identity-scoped-tenant-cookie.md
+//
+// A single versioned cookie holding a user->last-used-tenant mapping, so that
+// two users sharing a browser cannot inherit each other's tenant hint. Bounded
+// to TENANT_HINTS_MAX_ENTRIES to keep the cookie under 1 KB.
+//
+// Historical design record (shipped in #184, not a current spec):
+// docs/implementation-plans/identity-scoped-tenant-cookie.md
 // =============================================================================
 
 /** New cookie key for user→tenant mapping (v4 format) */

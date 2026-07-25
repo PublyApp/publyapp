@@ -15,7 +15,8 @@
 <p align="center">
   <a href="https://dotnet.microsoft.com/"><img alt=".NET 10" src="https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white" /></a>
   <a href="https://react.dev/"><img alt="React 19" src="https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white" /></a>
-  <a href="https://reactrouter.com/"><img alt="React Router 7" src="https://img.shields.io/badge/React%20Router-7-CA4245?logo=reactrouter&logoColor=white" /></a>
+  <a href="https://tanstack.com/start"><img alt="TanStack Start" src="https://img.shields.io/badge/TanStack-Start-FF4154?logo=reactquery&logoColor=white" /></a>
+  <a href="https://tailwindcss.com/"><img alt="Tailwind CSS 4" src="https://img.shields.io/badge/Tailwind%20CSS-4-06B6D4?logo=tailwindcss&logoColor=white" /></a>
   <a href="https://www.postgresql.org/"><img alt="PostgreSQL 18" src="https://img.shields.io/badge/PostgreSQL-18-4169E1?logo=postgresql&logoColor=white" /></a>
   <a href="https://pnpm.io/"><img alt="pnpm 10.13" src="https://img.shields.io/badge/pnpm-10.13-F69220?logo=pnpm&logoColor=white" /></a>
   <a href="https://turbo.build/repo"><img alt="Turborepo" src="https://img.shields.io/badge/Turborepo-monorepo-EF4444?logo=turborepo&logoColor=white" /></a>
@@ -43,8 +44,9 @@
 <!-- markdownlint-disable MD013 MD060 -->
 
 PublyApp is a full-stack SaaS foundation for **multi-tenant social content operations** across many
-organizations. It ships as one monorepo — a .NET API, an SSR-capable React frontend, and a
-TypeScript client generated from the API contract that keeps both sides in lockstep.
+organizations. It ships as one monorepo — a .NET API (which also runs as a background worker and a
+migrator), a TanStack Start React frontend (`apps/front-2`), and a TypeScript client generated from
+the API contract that keeps both sides in lockstep.
 
 It is **multi-tenant from the ground up**, with three nested user scopes:
 
@@ -88,8 +90,8 @@ exclusive — which keeps the security boundary unambiguous across the whole sys
 
 ```mermaid
 flowchart LR
-    subgraph Client["apps/front — React Router 7 (SSR)"]
-        UI["MUI · TanStack Query · Zustand"]
+    subgraph Client["apps/front-2 — TanStack Start"]
+        UI["Base UI · Tailwind v4 · TanStack Query"]
         TSClient["@org/client-ts\n(generated TS client)"]
     end
 
@@ -114,7 +116,7 @@ flowchart LR
 
 | Stage | Responsibility |
 | --- | --- |
-| `@org/client-ts` (generated) | Type-safe calls from the React app; sends `X-Session-Token` / `X-Tenant-Id`. |
+| `@org/client-ts` (generated) | Type-safe calls from `apps/front-2`; sends `X-Session-Token` / `X-Tenant-Id`. |
 | Minimal-API endpoints + permission filters | Route mapping and route-level permission enforcement. |
 | CQRS-lite handlers | Orchestrate one operation each (create / find / get / update / delete). |
 | Domain services | Business logic and data access (the only layer touching the DB). |
@@ -138,9 +140,9 @@ client is regenerated from the API's OpenAPI document via **Microsoft Kiota** (s
 | ---------------- | -------------------------------------------------------------------------------- |
 | **Backend**      | .NET 10.0 (ASP.NET Core Minimal APIs), EF Core, FluentValidation, Serilog, Polly |
 | **Database**     | PostgreSQL 18 (UUID v7 PKs, soft deletes, audit timestamps)                      |
-| **Frontend**     | React 19, React Router 7 (SSR), TypeScript, Vite                                 |
-| **UI**           | MUI 7, Emotion, MUI X (Data Grid / Date Pickers), TipTap, Framer Motion          |
-| **Client state** | TanStack Query (server), Zustand (global), nuqs (URL), React Hook Form + Zod     |
+| **Frontend**     | React 19, TanStack Start + TanStack Router, TypeScript, Vite                      |
+| **UI**           | `@base-ui/react` primitives behind a local `components/ui/*` layer, Tailwind v4   |
+| **Client state** | TanStack Query (server), Zustand (UI), TanStack Router search params (URL), React Hook Form + Zod |
 | **API contract** | OpenAPI + Scalar docs, Microsoft Kiota → generated TypeScript client             |
 | **Monorepo**     | Turborepo, pnpm workspaces                                                        |
 | **Quality**      | oxlint + oxfmt, custom Roslyn analyzers + ESLint rules, Husky, Knip              |
@@ -160,17 +162,17 @@ run the three steps below in order:
 
 ```mermaid
 flowchart LR
-    A["just build-api<br/>emit OpenAPI"] --> B["just generate-client<br/>Kiota → client-ts"] --> C["just tsc-front<br/>type-check frontend"]
+    A["just build-api<br/>emit OpenAPI"] --> B["just generate-client<br/>Kiota → client-ts"] --> C["pnpm --filter front-2 typecheck<br/>type-check frontend"]
 ```
 
 1. **`just build-api`** — builds the .NET API and emits the OpenAPI document (the contract).
 2. **`just generate-client`** — runs Microsoft Kiota to regenerate the TypeScript client in `packages/client-ts`.
-3. **`just tsc-front`** — type-checks the frontend so any contract drift surfaces as a compile error, not a runtime bug.
+3. **`pnpm --filter front-2 typecheck`** — type-checks the frontend so any contract drift surfaces as a compile error, not a runtime bug.
 
 ```bash
-just build-api        # build API + emit the OpenAPI document
-just generate-client  # Kiota → regenerate packages/client-ts
-just tsc-front        # confirm the frontend compiles against the new contract
+just build-api                     # build API + emit the OpenAPI document
+just generate-client               # Kiota → regenerate packages/client-ts
+pnpm --filter front-2 typecheck    # confirm the frontend compiles against the new contract
 ```
 
 > **Never hand-edit anything under `packages/client-ts/`.** It is overwritten on every generation —
@@ -200,23 +202,41 @@ just tsc-front        # confirm the frontend compiles against the new contract
 ### Get running
 
 ```bash
-# 1. Install everything (pnpm workspaces + dotnet restore + shared postinstall)
+# 1. Create local configuration
+cp .env.example .env.development
+
+# 2. Install everything (pnpm workspaces + dotnet restore + shared postinstall)
 just install
 
-# 2. Start PostgreSQL in Docker
+# 3. Start PostgreSQL in Docker
 just dev-db
 
-# 3. Apply database migrations
+# 4. Apply database migrations
 just db-migrate
 
-# 4. Start the API           (terminal 1)
+# 5. Start the API           (terminal 1)
 just dev-api
 
-# 5. Start the frontend       (terminal 2)
-just dev-front
+# 6. Start the frontend       (terminal 2)
+pnpm --filter front-2 dev
 ```
 
-> First time? `just dev-setup` runs install + database in one step.
+Before migrating, edit `.env.development` so its database connection matches the local container:
+
+```dotenv
+POSTGRES_CONNECTION_STRING="Host=localhost;Port=5454;Database=publyapp_db;Username=postgres;Password=password"
+```
+
+The committed template deliberately contains placeholders; its database name and password do not
+match `docker-compose.services.yml`.
+
+> **Heads-up on legacy frontend recipes.** `dev-front`, `build-front`, `tsc-front`, `start-front`,
+> `deploy-front`, `ci-front`, `ci-e2e-front`, and `clean-front` target `apps/front`, the **retired**
+> frontend. Use `pnpm --filter front-2 <script>` or `just ci-front-2` for the frontend that actually
+> ships.
+
+> After creating and editing `.env.development`, `just dev-setup` can run install + database in one
+> step.
 
 ### Local URLs
 
@@ -227,7 +247,9 @@ just dev-front
 | API docs (Scalar) | <http://localhost:5000/scalar/v1>                             |
 | PostgreSQL        | `localhost:5454`                                              |
 
-Local development configuration lives in the committed `.env.development`, validated at startup.
+Local development configuration lives in `.env.development`. The API throws at startup or during
+build-time initialization when that file is absent in Development or when the host environment is
+unset. Real env files are gitignored and must never be committed; they are validated at startup.
 
 <!-- markdownlint-enable MD013 MD060 -->
 
@@ -240,8 +262,10 @@ Local development configuration lives in the committed `.env.development`, valid
 ```text
 publyapp/
 ├── apps/
-│   ├── api/                # .NET 10 Web API — vertical-slice, domain-first modules
-│   └── front/              # React Router 7 frontend (SSR-enabled)
+│   ├── api/                # .NET 10 Web API — vertical-slice, domain-first modules.
+│   │                       #   Also the background worker (APP_ROLE=worker) and the migrator.
+│   ├── front/              # RETIRED React Router 7 + MUI frontend — not built, not deployed
+│   └── front-2/            # THE frontend — TanStack Start + Base UI + Tailwind v4 (deployed)
 ├── packages/
 │   ├── client-ts/          # @org/client-ts — generated TypeScript API client (Kiota) — do not edit
 │   ├── shared-ts/          # @org/shared-ts — shared validations & i18n
@@ -270,23 +294,28 @@ authoritative reference — the highlights:
 | ------------------------ | ----------------------------------------------------- |
 | `just install`           | Install all dependencies (pnpm + dotnet restore)      |
 | `just dev-api`           | Run the API with hot reload (`dotnet watch`)          |
-| `just dev-front`         | Run the frontend (Vite dev server)                    |
+| `pnpm --filter front-2 dev` | Run the frontend (TanStack Start dev server)       |
 | `just dev-db`            | Start PostgreSQL in Docker                            |
 | `just build-api`         | Build the .NET API                                    |
-| `just build-front`       | Build the frontend for production                     |
-| `just build-deploy`      | Build deployment artifacts                            |
+| `pnpm --filter front-2 build` | Build the frontend for production                |
+| `just build-deploy`      | Build legacy Dokploy-from-source API + retired-front artifacts |
 | `just db-migrate`        | Apply EF Core migrations                              |
 | `just db-add <Name>`     | Add a new migration                                   |
 | `just db-reset`          | Drop and recreate the database                        |
 | `just generate-client`   | Build API + regenerate the TypeScript client (Kiota)  |
-| `just tsc-front`         | Type-check the frontend                               |
+| `pnpm --filter front-2 typecheck` | Type-check the frontend                     |
 | `just check-write`       | Run oxlint + oxfmt with auto-fix                       |
 | `just test-api`          | Run API integration tests (requires Docker)           |
+| `pnpm --filter front-2 test` | Run the frontend suite + its design-system guards |
+| `just ci-front-2`        | The frontend CI gate (build, bundle guards, smoke, typecheck, tests) |
 | `just test-analyzers`    | Run the Roslyn analyzer tests                         |
 | `just ci`                | Full local pre-push gate — mirrors CI + API suite (Docker required) |
 | `just deploy-images`     | Build + push GHCR deploy images from a clean checkout of a ref |
 
 <!-- markdownlint-enable MD013 MD060 -->
+
+`just build-deploy` does not build `front-2` or the migrator image. Releases use
+`just deploy-images` for the three GHCR images: `api`, `migrate`, and `front-2`.
 
 ---
 
@@ -295,11 +324,12 @@ authoritative reference — the highlights:
 <!-- markdownlint-disable MD013 MD060 -->
 
 ```bash
-just test-api          # API integration tests (Testcontainers spins up Postgres — Docker required)
-just test-analyzers    # Roslyn analyzer unit tests
-just check-write       # oxlint + oxfmt (auto-fix)
-just tsc-front         # frontend type checking
-just knip              # find unused dependencies
+just test-api                      # API integration tests (Testcontainers spins up Postgres — Docker required)
+just test-analyzers                # Roslyn analyzer unit tests
+pnpm --filter front-2 test         # frontend unit/component suite + design-system guards
+pnpm --filter front-2 typecheck    # frontend type checking
+just check-write                   # oxlint + oxfmt (auto-fix)
+just knip                          # find unused dependencies
 
 just ci                # Full pre-push gate: mirrors CI + runs the full API suite (Docker required)
 just ci-full           # just ci plus both end-to-end browser suites
@@ -341,17 +371,20 @@ Quality gates also run automatically on commit via Husky. See
   [api-route-design](docs/guides/api-route-design.md),
   [csharp-coding-standards](docs/guides/csharp-coding-standards.md),
   [architecture-details](docs/guides/architecture-details.md)
-- **Frontend** — [frontend-architecture](docs/guides/frontend-architecture.md),
-  [frontend-coding-standards](docs/guides/frontend-coding-standards.md),
-  [frontend-error-handling](docs/guides/frontend-error-handling.md),
-  [error-views](docs/guides/error-views.md)
+- **Frontend (front-2)** — [front-2/index](docs/guides/front-2/index.md),
+  [front-2/conventions](docs/guides/front-2/conventions.md),
+  [frontend-error-handling](docs/guides/frontend-error-handling.md)
+  (its `ApiFailure` contract is normative; its code examples are still MUI-era `apps/front`)
 - **Contracts & workflows** — [openapi-kiota-safeguards](docs/guides/openapi-kiota-safeguards.md),
   [common-workflows](docs/guides/common-workflows.md),
   [project-conventions](docs/guides/project-conventions.md)
 
 A few non-negotiables worth surfacing here:
 
-- Frontend uses **MUI components and the `sx` prop only** — no native HTML elements, no Tailwind.
+- Frontend work means **`apps/front-2`**: `@base-ui/react` primitives behind a local
+  `components/ui/*` layer, styled with **Tailwind v4**. No MUI, no `sx`.
+- **`apps/front` is retired.** It still exists on disk and a CI characterization job still runs
+  against it, but it is not built for release, not deployed, and is not to be edited or copied.
 - Backend errors are **RFC 7807** (`application/problem+json`); `401` means "session invalid" only.
 - Add new backend code under domain modules in `apps/api/Modules/<Domain>/` — not the legacy folders.
 - Regenerate, never hand-edit, the API client (see [API Contract Workflow](#api-contract-workflow)).
@@ -364,16 +397,26 @@ A few non-negotiables worth surfacing here:
 
 <!-- markdownlint-disable MD013 MD060 -->
 
-PublyApp deploys to **Dokploy on a Hostinger VPS**: GitHub → GHCR Docker images → Dokploy → Traefik
-(SSL termination). Deployment configuration lives in `dokploy.yml`; build artifacts are produced with
-`just build-deploy`.
+PublyApp has been **live in production since 2026-07-20** on **Dokploy on a Hostinger VPS**, run as
+plain `docker compose` (not Swarm): GitHub → GHCR Docker images → Dokploy → Traefik (SSL
+termination). Deployment configuration lives in `dokploy.yml`.
 
-**Publishing images:** deploy images normally build in CI. When that workflow is unavailable, publish
-them locally with **`just deploy-images [ref]`** (defaults to `origin/develop`) — it builds all three
-images (api, migrate, front-2) from a clean checkout at that commit and prints the `RELEASE_TAG` to
-set in Dokploy → Environment before redeploying. Run `docker login ghcr.io` first. See the
-[first-deploy runbook](docs/deployment/first-deploy-runbook.md) and
-[`docs/misc/deployment-guide.md`](docs/misc/deployment-guide.md) for details.
+A release publishes **three** images — `api`, `migrate`, and `front-2` — all tagged with the same
+commit SHA. They back **four** running services: `publyapp-api`, `publyapp-worker` (the same API
+image with `APP_ROLE=worker`), `publyapp-migrate`, and `publyapp-front`.
+
+**Publishing images:** deploy images normally build in CI
+(`.github/workflows/deploy-images.yml`). When that workflow is unavailable, publish them locally
+with **`just deploy-images [ref]`** (defaults to `origin/develop`) — it builds the same three images
+from a clean checkout at that commit and prints the `RELEASE_TAG` to set in Dokploy → Environment
+before redeploying. Run `docker login ghcr.io` first.
+
+Operational docs live in [`docs/deployment/`](docs/deployment):
+[production-deployment-design](docs/deployment/production-deployment-design.md) (why it is shaped
+this way), [production-deploy-runbook](docs/deployment/production-deploy-runbook.md) (migration
+gating and the release checklist), and
+[first-deploy-runbook](docs/deployment/first-deploy-runbook.md) (click-by-click, plus the traps that
+actually bit).
 
 <!-- markdownlint-enable MD013 MD060 -->
 
@@ -383,6 +426,7 @@ set in Dokploy → Environment before redeploying. Run `docker login ghcr.io` fi
 
 <!-- markdownlint-disable MD013 MD060 -->
 
-**Status:** Active development. **License:** Proprietary — all rights reserved. This repository is not
+**Status:** Live in production (since 2026-07-20) and under active development. **License:**
+Proprietary — all rights reserved. This repository is not
 licensed for redistribution or use outside the PublyApp project.
 <!-- markdownlint-enable MD013 MD060 -->

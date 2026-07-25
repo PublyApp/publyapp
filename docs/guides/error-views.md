@@ -1,5 +1,13 @@
 # Error Views
 
+> **RETIRED APP — reference only.** This guide describes `apps/front`, the retired MUI + React
+> Router v7 frontend. `apps/front` is not built for release, is not deployed, and the owner will not
+> edit it again. **Nothing in this guide is a current instruction.** For frontend work see
+> [`front-2/index.md`](front-2/index.md) and [`front-2/conventions.md`](front-2/conventions.md).
+> It is kept because `apps/front` still exists on disk under a CI characterization job, and because
+> some of its intent has not yet been ported to front-2. Its fate is decided in a later wave of the
+> documentation remediation.
+
 This codebase has **two** error-view systems by design:
 
 1. **Marketing** — `apps/front/src/routes/marketing/_components/marketing-error-view.tsx` — opinionated marketing visual (gradient numerals, glass card, ambient glows, popular-destinations pill row). Used only inside `MarketingLayout`.

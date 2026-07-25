@@ -611,7 +611,11 @@ Task<bool> DeleteAsync(
 
 When adding a second (or nth) implementation of an existing service interface:
 
-- **Keys classes**: Use the appropriate keys class:
+> **Nothing is keyed yet.** There are no `AddKeyed*` registrations and no `[FromKeyedServices]`
+> consumers in the codebase today, so none of the keys classes below exists on disk. The first keyed
+> implementation creates its keys class following these rules.
+
+- **Keys classes**: Use the appropriate keys class (create it if it does not exist yet):
   - `ProviderKeys` — provider/adapter implementations (email providers, auth providers)
   - `StorageKeys` — storage backends (file storage, blob storage)
   - `IntegrationKeys` — external integrations (payment gateways, notification services)
@@ -653,6 +657,13 @@ Quick Do / Don't:
   - Duplicate unkeyed defaults or duplicate keys are startup errors
 - **Migration guardrail**: If a service type is discovered via `[Service]`, it MUST NOT also have any explicit DI registrations (unkeyed or keyed). Startup fails fast to prevent half-migrated states.
 - **Misuse is a hard error**: Any `[Service]` attribute outside `PublyApp.Api.Modules.*.Services` fails startup
+
+**Never registered via `[Service]`** — wire these explicitly in their group instead:
+
+- Framework wiring (ProblemDetails, OpenAPI, CORS, response compression)
+- Infrastructure wiring (DbContext, SDK clients, adapters, hosted/background services)
+- Request-context plumbing (e.g. `IRequestAuthContext`)
+- FluentValidation (registered by assembly scan in `AddAppServices`, unchanged)
 
 ### Fail-Fast Validation (Troubleshooting)
 
@@ -710,8 +721,9 @@ var headerKey = AppEnvironment.Instance.SESSION_TOKEN_HEADER_KEY;
 | **Computed** | `IsDevelopment`, `IsProduction`, `EnvironmentName` |
 
 **Environment files:**
-- Development: `.env.development` (committed to repo)
-- Production: `.env.production` (not in repo, set via deployment)
+- Template: `.env.example` — the **only** env file tracked in git (`.gitignore` ignores `.env.*` with a `!.env.example` exception)
+- Development: `.env.development` — gitignored; copy it from `.env.example` locally
+- Production: `.env.production` — gitignored; in the live deployment the values are set in the Dokploy environment rather than in a file
 
 **Why static access instead of DI?**
 - Configuration is immutable after startup

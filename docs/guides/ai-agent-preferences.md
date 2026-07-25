@@ -1,5 +1,14 @@
 # AI Agent Preferences (Repo-Specific)
 
+> **MIXED GUIDE — read the split before you follow anything.**
+> **Normative:** the C#/backend and general-review preferences.
+> **Not normative:** the "Frontend (React / MUI)" section and any `apps/front/src` path in this
+> guide. `apps/front` is the retired MUI + React Router v7 app — not deployed, and the owner will
+> not edit it again. Frontend work happens in `apps/front-2` per
+> [`front-2/index.md`](front-2/index.md) and [`front-2/conventions.md`](front-2/conventions.md).
+> Restating the still-useful frontend preferences in front-2 terms is deferred to a later wave of
+> the documentation remediation.
+
 This guide captures **repository-specific preferences** for AI coding assistants.
 It is intended to reduce review churn by making repeated feedback explicit.
 

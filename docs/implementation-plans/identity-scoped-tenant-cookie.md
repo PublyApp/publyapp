@@ -1,5 +1,11 @@
 # Implementation Plan: Single Cookie with User→Tenant Mapping
 
+> **SHIPPED — historical record.** This plan was implemented and merged in #184 (2026-01-31). It is
+> kept as the design rationale behind the tenant-hints cookie constants in
+> `packages/shared-ts/lib/constants.ts`; it is **not** a current specification and the "PLANNING"
+> status below is historical. If the cookie behaviour changes, change the code and record the new
+> decision — do not edit this plan.
+
 ## Status: PLANNING (v4.1 - Single Cookie with User Mapping)
 
 ## Revision History

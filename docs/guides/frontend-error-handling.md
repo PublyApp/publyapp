@@ -1,5 +1,15 @@
 # Frontend Error Handling Guide
 
+> **MIXED GUIDE — read the split before you follow anything.**
+> **Normative everywhere:** the `ApiFailure` discriminated union, the
+> `toApiFailure`/`getFailureMessage` seam, and the RFC 7807 logout split (only an authed-surface
+> `401` logs out; `403` never does). Sections explicitly labelled front-2 are normative as written.
+> **Not normative:** everything else — the examples and API reference describe `apps/front`, the
+> retired MUI + React Router v7 app, which is not deployed and which the owner will not edit again.
+> Implement in `apps/front-2` per [`front-2/index.md`](front-2/index.md) and
+> [`front-2/conventions.md`](front-2/conventions.md). A full front-2 rewrite of this guide is
+> deferred to a later wave of the documentation remediation.
+
 ## Overview
 
 This document describes centralized error handling for both PublyApp frontends.

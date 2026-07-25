@@ -19,12 +19,17 @@ PublyApp is a modern full-stack multi-tenant SaaS application built with .NET 10
 # Terminal 1 - Start API with hot reload
 just dev-api
 
-# Terminal 2 - Start React frontend with Vite
-just dev-front
+# Terminal 2 - Start the frontend (front-2, TanStack Start dev server)
+pnpm --filter front-2 dev
 
 # Start PostgreSQL in Docker
 just dev-db
 ```
+
+**Frontend recipe naming:** these legacy recipes target `apps/front`, the retired app:
+`dev-front`, `build-front`, `tsc-front`, `start-front`, `deploy-front`, `ci-front`,
+`ci-e2e-front`, and `clean-front`. Drive `apps/front-2` — the app that actually ships — with
+`pnpm --filter front-2 <script>` or the `just ci-front-2` gate.
 
 Since #885, the API waits for pending migrations but does not apply them. Run
 `just db-migrate` first, or use `just dev-api-migrated` to migrate and start the API.
@@ -37,22 +42,29 @@ The API reads configuration exclusively from environment variables via `AppEnvir
 
 - Repo-root `.env.example` is the committed template; copy it to `.env.development` (local dev) or `.env.production` (deploy). Both real files are **gitignored** and must never be committed — keep them in sync with `.env.example` when you add a variable. Development defaults are loaded from `.env.development` when the host environment is `Development` (and, for config values only, when it is unset).
 - `dotnet build` runs the app during OpenAPI document generation. When `ASPNETCORE_ENVIRONMENT`/`DOTNET_ENVIRONMENT` are unset, the host environment resolves to **Production**, where `APP_ROLE` is required and a missing value fails fast — loading `.env.development` supplies config values but does **not** change that classification. So a bare `dotnet build` requires `APP_ROLE=api`; always build through the pinned `just` recipes (`just build-api`, `just generate-client`, `just db-*`), which export `APP_ROLE=api`.
-- Prefer keeping secrets out of the repo: use an example file (e.g. `.env.development.example`) + local overrides / CI secrets.
+- Keep secrets out of the repo: `.env.example` carries placeholder values only; real values live in your local `.env.development`, in the deployment platform's env management, or in CI secrets.
 
 ### Building
 
 ```bash
-just build-api          # Build .NET API
-just build-front        # Build React frontend for production
-just build-deploy       # Build everything for deployment
+just build-api                     # Build .NET API
+pnpm --filter front-2 build        # Build the shipped frontend for production
+just build-deploy                  # Build legacy Dokploy-from-source API + apps/front artifacts
+just deploy-images                 # Build + push the three GHCR release images
+just build-front                   # Builds apps/front (retired app) — not the release artifact
 ```
+
+`just build-deploy` does not build `front-2` or the migrator image. Releases use
+`just deploy-images` to build and push the `api`, `migrate`, and `front-2` images from a clean
+checkout.
 
 ### Code Quality
 
 ```bash
-just check-write        # Run oxlint + oxfmt (auto-fix)
-just tsc-front          # TypeScript type checking
-just knip               # Check for unused dependencies
+just check-write                       # Run oxlint + oxfmt (auto-fix)
+pnpm --filter front-2 typecheck        # TypeScript type checking (front-2)
+just tsc-front                         # TypeScript type checking (apps/front, retired)
+just knip                              # Check for unused dependencies
 ```
 
 ### Database Operations
@@ -77,7 +89,8 @@ This is critical - the frontend TypeScript client is auto-generated from the bac
 ### Running Tests
 
 ```bash
-just test-api          # Run API integration tests (requires Docker)
+just test-api                  # Run API integration tests (requires Docker)
+pnpm --filter front-2 test     # Run the front-2 unit/component suite (Vitest)
 ```
 
 **Prerequisites:** Docker must be running (Testcontainers spins up Postgres automatically).
@@ -104,8 +117,8 @@ cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter "Ful
 # Run a specific test method
 cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter "ItShouldReturnSessionTokenWithValidCredentials"
 
-# Frontend tests (when implemented)
-cd apps/front && pnpm test
+# Run a single front-2 test file (`pnpm ... test` is a chain of guards, so call vitest directly)
+pnpm --filter front-2 exec vitest run src/components/ui/avatar.test.tsx
 ```
 
 For the full guide on writing and debugging integration tests, see [`docs/guides/api-integration-tests.md`](docs/guides/api-integration-tests.md).
@@ -116,15 +129,29 @@ For the full guide on writing and debugging integration tests, see [`docs/guides
 
 ```
 apps/
-├── api/              # .NET 10.0 Web API backend
-├── front/            # React Router v7 frontend (SSR-enabled)
-└── jobs/             # Background jobs (future)
+├── api/              # .NET 10.0 Web API backend — also the worker (APP_ROLE=worker) and migrator
+├── front/            # RETIRED React Router v7 + MUI frontend — see note below
+└── front-2/          # THE frontend: TanStack Start + Base UI + Tailwind v4 (deployed)
 
 packages/
 ├── shared-ts/        # Shared TypeScript utilities, validations, i18n
 ├── client-ts/        # Auto-generated TypeScript API client
+├── lint-ts/          # Custom oxlint/ESLint rules (@org/lint-ts)
+├── lint-cs/          # Custom Roslyn analyzers (PublyApp.Analyzers)
+├── scripts-cs/       # Codegen tooling (PublyApp.Scripts)
 └── _tsconfig/        # Shared TypeScript configurations
 ```
+
+There is **no `apps/jobs`**. Background jobs shipped inside the API project (`apps/api/Modules/Jobs`)
+and run as a separate deployed process off the **same API image** with `APP_ROLE=worker` — see
+`dokploy.yml`.
+
+**`apps/front` is retired-but-present.** It is not built for release and not deployed: the release
+workflow builds only `apps/api/Dockerfile` and `apps/front-2/Dockerfile`, and `dokploy.yml` serves
+`ghcr.io/radandevist/publyapp/front-2`. The directory still exists and is still covered by the
+`front-characterization.yml` CI job, so do not be surprised to find it — but **do not write code in
+it and do not use it as a pattern source.** All frontend work happens in `apps/front-2`.
+front→front-2 feature parity is **not** complete (open: #735, #818, #819, #820).
 
 ### Backend Architecture (Vertical Slice, Domain-First)
 
@@ -186,38 +213,39 @@ For detailed documentation on business rules, database layer, authentication, an
 - Session-based auth via `X-Session-Token`; permission-based authorization via `PermissionFilter`
 - Middleware order: Security headers → Exception handling → CORS → Tenant header → Session header → Session auth → Staff auth
 
-### Frontend Architecture (React Router v7)
+### Frontend Architecture (`apps/front-2` — TanStack Start)
 
-**File-based routing:**
-- Routes defined in `app/routes.ts`
-- Route components in `app/routes/[section]/[page]/`
-- Three main layouts: Marketing, Auth, Authenticated
+`apps/front-2` is the only frontend under development and the only one deployed. The normative
+guides are:
+
+[`docs/guides/front-2/index.md`](docs/guides/front-2/index.md) — stack, commands, layout, and how
+front-2 is organized.
+[`docs/guides/front-2/conventions.md`](docs/guides/front-2/conventions.md) — rendering strategy,
+server-function boundary, URL state, error views/logout, mutation feedback ownership, route-local
+file naming, and the owner-ratified product UI design preferences.
+
+**Routing:** routes are declared in the virtual route config `apps/front-2/src/routes.ts` (not
+file-based discovery); `routeTree.gen.ts` is generated. A route-local file that must not become a
+route is prefixed with `_`.
 
 **State Management Strategy:**
 ```
 Server State     → TanStack Query (API data, caching, mutations)
-Global State     → Zustand (user preferences, UI state)
-URL State        → nuqs (filters, pagination, search)
-Form State       → React Hook Form (local form state)
+Global State     → Zustand (UI state — `apps/front-2/src/lib/store/ui-store.ts`)
+URL State        → TanStack Router search params, snake_case keys (q, sort_id, sort_order, cursor, size)
+Form State       → React Hook Form + Zod
 ```
 
-For detailed frontend architecture patterns (API client integration, getting clients in hooks/browser/SSR,
-data fetching patterns by route type, and optimized prefetching), see:
-[`docs/guides/frontend-architecture.md`](docs/guides/frontend-architecture.md)
-
-For route-local file placement rules (`_parts` vs `_components`), see:
-[`docs/guides/frontend-route-file-organization.md`](docs/guides/frontend-route-file-organization.md)
-
-For the cross-surface error view system (the `AppErrorView` shell, wrapper inventory, ErrorBoundary placement
-map, and the 401-no-logout invariant for the auth surface), see:
-[`docs/guides/error-views.md`](docs/guides/error-views.md)
-
 **Key rules (always apply):**
-- Marketing/Auth pages use SSR loaders; Authed pages use TanStack Query (client-only)
-- Never fetch application data in authed page `loader` — use hook factories (`createStaffQuery`, etc.)
-- Use `getClientLoader` wrapper (not raw `clientLoader`) for client-side prefetching
-- Authed layout wrapped in `<ClientOnly>` component
-- `_parts` is for private page/route implementation; `_components` is for reusable route-family components with a stable local API
+- Marketing and auth surfaces are SSR; authenticated surfaces are CSR (`ssr: false`) and fetch
+  application data in the browser via TanStack Query + the Kiota client
+- Never fetch authenticated domain data in a server loader or a server function
+- `createServerFn` is for frontend-server concerns only (cookie read/write, the session-setting
+  login call, i18n resource loading). It is **not** a BFF, and it must never return a raw cookie or
+  session token
+- URL query parameter names stay snake_case (see the API contract naming split below)
+- Only `401` on an authed surface triggers logout; a `401` on the auth surface shows the auth error
+  view without logging out; `403` never logs out
 
 ### RFC 7807 + Frontend Logout Semantics (Do Not Regress)
 
@@ -259,34 +287,48 @@ For route parameter conventions (no route constraints, ID validation pattern), s
   - Never use collapsed lowercase wire values like `updatedat`
 
 ## Frontend Coding Standards
-`apps/front-2` (the front-2 migration app) uses `@base-ui/react` primitives + Tailwind v4, **not MUI/sx or HeroUI**. The MUI-specific standards in this section are scoped to `apps/front` and do not apply to `apps/front-2`. Source-of-truth for front-2 front-end conventions is [`docs/guides/front-2/index.md`](docs/guides/front-2/index.md) and [`docs/guides/front-2/conventions.md`](docs/guides/front-2/conventions.md).
 
-
-For the complete frontend coding standards (MUI components, sx prop styling, Day.js utilities,
-array methods, arrow functions, arrow components, forms, QueryDisplay, and component structure), see:
-[`docs/guides/frontend-coding-standards.md`](docs/guides/frontend-coding-standards.md)
+Frontend work means `apps/front-2`. It uses `@base-ui/react` primitives wrapped by a local
+`src/components/ui/*` layer (`cva` + `tailwind-merge`) on **Tailwind v4** — no MUI, no `sx`, no
+HeroUI. The normative sources are
+[`docs/guides/front-2/index.md`](docs/guides/front-2/index.md) and
+[`docs/guides/front-2/conventions.md`](docs/guides/front-2/conventions.md); the latter carries the
+owner-ratified product UI design preferences (elevation, radius, destructive-action placement,
+primary-CTA consistency, tables, selection mode, empty/error states, navigation).
 
 Additional repo-specific preferences for AI assistants (to reduce review churn):
 [`docs/guides/ai-agent-preferences.md`](docs/guides/ai-agent-preferences.md)
 
-For the marketing-vs-product surface split (what brand DNA must match vs what's allowed to diverge on radii/sizing/motion, approved hardcoded-color exceptions, where marketing code lives), see:
-[`docs/guides/marketing-surface-conventions.md`](docs/guides/marketing-surface-conventions.md)
-
 **Key principles (always apply):**
 For the complete list of custom lint rules with severity and source, see [`docs/guides/lint-rules.md`](docs/guides/lint-rules.md).
 
-- MUI v6 only — never native HTML elements (`<div>` → `<Box>`, `<h1>` → `<Typography variant="h1">`) (enforced by `publy/no-native-html-in-mui-surfaces`)
-- `sx` prop for all styling — never Tailwind CSS or className
-- Day.js via `format-time.ts` utilities — never import dayjs directly in components (enforced by `publy/no-direct-dayjs-in-components`)
-- Arrow function components only — never `function` declarations for components
-- `QueryDisplay` component for TanStack Query states — never manual conditional rendering
-- No `Array.reduce()` — use `find`, `filter+map`, `for...of`, or `Object.groupBy`
-- React Hook Form + Zod for form validation — always use `Form`/`Field.*` wrappers from `@/front/components/hook-form`, never raw MUI `TextField` with `register()` (enforced by `publy/no-raw-mui-textfield-register`)
-- First-column table entity avatars/icons must use a neutral, muted, subtle fallback treatment; preserve real images when present, but avoid bright semantic or generated avatar colors for fallback icons
-- Bulk-action `MenuItem`s on list-page selection menus always render — never `disabled`, never conditionally hidden by per-row eligibility; ineligible clicks show an i18n toast. The trigger button gates on `BULK_ACTION_MAX_COUNT`. See [`docs/guides/bulk-action-ux-conventions.md`](docs/guides/bulk-action-ux-conventions.md).
-- Marketing surfaces (landing, pricing, future blog) may diverge from product defaults on radii (16–40 px), button sizing, spacing, and motion — but must match product on palette tokens, typography family, primary CTA color, and dark-mode mechanism. See `docs/guides/marketing-surface-conventions.md` for the full divergence table and approved hardcoded-color exceptions.
-- **Content imagery (photos, avatars, hero illustrations) must use the `<Image>` primitive** at `apps/front/src/components/image/image.tsx` with a `ratio` prop — never raw `<img>` or `<Box component="img">`. Approved exceptions: full-bleed backgrounds with `position:absolute + inset:0 + object-fit:cover`, inline SVGs, brand wordmarks. See marketing-surface-conventions.md → "Use `<Image>` for content imagery". (enforced by `publy/no-raw-img-in-product-surfaces`)
-- **Animation presets are canon** — entry/exit via `varFade`/`varScale`/`varZoom`; hover via `hoverLift`/`hoverZoom`/`hoverPadCollapse` from `apps/front/src/components/animate/variants/`. Override via opts (`hoverLift({ y: -14 })`); only inline custom variants for genuinely one-off cases. If the same custom shape repeats ≥ 2 times, extract a new preset into `variants/hover.ts`. See marketing-surface-conventions.md → "Reuse hover animation presets".
+- Compose UI from the local `apps/front-2/src/components/ui/*` wrappers over Base UI primitives; style with Tailwind utility classes through `cn()` (`apps/front-2/src/lib/utils.ts`). Do not reach into Base UI protected/internal APIs.
+- Design-token discipline is machine-checked — `pnpm --filter front-2 check:design-system` runs in `just ci-front-2` and in `pnpm --filter front-2 test`.
+- No `Array.reduce()` — use `find`, `filter+map`, `for...of`, or `Object.groupBy` (enforced by `publy/no-array-reduce`).
+- Never import dayjs directly in components (enforced by `publy/no-direct-dayjs-in-components`).
+- React Hook Form + Zod for form validation; go through the front-2 form/field wrappers rather than wiring `register()` onto raw inputs.
+- Loading/empty/error states use the front-2 state components (`state-view.tsx`, `state-surface.tsx`, `skeleton.tsx`) — never ad-hoc conditional rendering per page.
+- **Entity images and avatars:** preserve the real image when one exists, keep the intended aspect ratio, and fall back to a neutral, muted, subtle treatment — never a bright semantic colour or a generated per-entity colour. For person avatars, use the stable `Avatar`/`AvatarImage`/`AvatarFallback` primitive layer in [`apps/front-2/src/components/ui/avatar.tsx`](apps/front-2/src/components/ui/avatar.tsx); its image preserves a square cover crop and its fallback uses the muted tokens. Do not use a name-hashed palette as a person fallback. **front-2 has no `<Image>` primitive** — do not import one, and do not invent one as a side effect of another task; if a non-avatar content-image need appears, raise it as its own change rather than sprawling raw `<img>` tags. Raw `<img>` is acceptable only for the brand wordmark/logo and inline SVGs, as it is used today in the layouts.
+- Bulk-action items on list-page selection menus always render — never `disabled`, never conditionally hidden by per-row eligibility; ineligible clicks show an i18n toast. The trigger button gates on `BULK_ACTION_MAX_COUNT`. See [`docs/guides/bulk-action-ux-conventions.md`](docs/guides/bulk-action-ux-conventions.md) (its backend/UX policy is normative; its code examples are MUI-era `apps/front`).
+
+**About `apps/front`:** it is retired. The MUI/`sx`/React-Router-loader/animation-preset standards
+that used to live in this section governed that app only; they are gone from this file on purpose,
+because the owner will not edit `apps/front` again.
+
+**Enabled `publy/*` lint-rule scopes** (the configuration sets each of these to `error`):
+
+- All linted JavaScript/TypeScript: `no-array-reduce`, `prefer-specific-lodash-imports`, and
+  `no-manual-response-message-translation`.
+- `no-console-in-source`: source files under `apps/front/src`, `apps/front-2/src`, and
+  `packages/shared-ts`, excluding tests/specs, shared package scripts, and CLI files.
+- `no-direct-dayjs-in-components`: TSX files under either frontend's `components/`, `_parts/`,
+  `_components/`, or `routes/` source paths.
+- Retired `apps/front` only: `no-raw-mui-textfield-register` covers its source files;
+  `no-native-html-in-mui-surfaces` and `no-raw-img-in-product-surfaces` cover product JSX under
+  `components/`, `layouts/`, `routes/`, and `lib/`, with their narrow marketing/brand exclusions.
+
+`publy/no-op` and `publy/arrow-function-components` are off. Component declaration style is
+therefore not lint-enforced in front-2; both arrow components and function declarations exist.
 
 ## JavaScript/TypeScript Conventions
 
@@ -373,14 +415,27 @@ For the complete list of custom lint rules with severity and source, see [`docs/
 ## Development Environment
 
 **Local access:** Frontend `localhost:5050` | API `localhost:5000` | Scalar docs `localhost:5000/scalar/v1` | Postgres `localhost:5454`
-**Env vars:** `.env.development` (committed), `.env.production` (not in repo), validated at startup via `AppEnvironment.Initialize()`
+**Env vars:** `.env.example` is the only committed env file (the template). `.env.development` (local dev) and `.env.production` (deployment) are **gitignored** and must never be committed — `.gitignore` ignores `.env.*` with a single `!.env.example` exception. All of them are validated at startup via `AppEnvironment.Initialize()`.
 **.NET artifacts:** New .NET projects must output under a local `.artifacts/` directory.
 Set `DotNetArtifactsRoot` in a project-area `Directory.Build.props` before importing the repo
 root props; `Directory.Build.targets` enforces this during builds.
 
 ## Deployment
 
-Dokploy on Hostinger VPS: GitHub → GHCR Docker images → Dokploy → Traefik SSL. Config in `dokploy.yml`.
+**Production has been live since 2026-07-20.** Dokploy on a Hostinger VPS, run as plain
+`docker compose` (not Swarm): GitHub → GHCR Docker images → Dokploy → Traefik SSL. Config in
+`dokploy.yml`.
+
+`.github/workflows/deploy-images.yml` publishes **three** image artifacts per release, all tagged
+with the same commit SHA: `api` (from `apps/api/Dockerfile`, target `runtime`), `migrate` (same
+Dockerfile, target `migrate`), and `front-2` (from `apps/front-2/Dockerfile`). Four *services* run
+from them — `publyapp-api`, `publyapp-worker` (the **same API image** with `APP_ROLE=worker`),
+`publyapp-migrate`, and `publyapp-front`.
+
+Operational docs: [`docs/deployment/production-deployment-design.md`](docs/deployment/production-deployment-design.md)
+(why it is shaped this way), [`docs/deployment/production-deploy-runbook.md`](docs/deployment/production-deploy-runbook.md)
+(migration gating + release checklist), [`docs/deployment/first-deploy-runbook.md`](docs/deployment/first-deploy-runbook.md)
+(click-by-click, plus the traps that actually bit).
 
 ## OpenAPI Documentation
 
@@ -396,12 +451,19 @@ client regeneration workflow, and TypeScript patterns), see:
 - Required body fields: non-nullable `JsonElement` (not `JsonElement?`) for cleaner TypeScript types
 - Never add XML comments to generic types (`<T>`) — triggers .NET 10 OpenAPI bug
 - `[AsParameters]` query DTOs: never use `List<T>?` or custom `BindAsync`; use CSV `string?` + parser method for multi-value filters — see [`openapi-kiota-safeguards.md`](docs/guides/openapi-kiota-safeguards.md#query-dto-multi-value-filters)
-- After DTO/endpoint changes: `just build-api && just generate-client && just tsc-front`
+- After DTO/endpoint changes: `just build-api && just generate-client && pnpm --filter front-2 typecheck` (add `just tsc-front` only if you also need the retired app to keep compiling)
 - Use `createUntypedString()` / `createUntypedArray()` for request body fields in TypeScript
 
 ## Documentation Organization
 
-- **Never** place generated docs at the repo root — always under `docs/`
-- Use existing subdirectories when appropriate; create new ones with kebab-case names
-- Existing dirs: `docs/implementation-plans/`, `docs/refactoring-guides/`, `docs/roadmaps/`, `docs/reviews/`, `docs/misc/`
-- Only `docs/guides/` files should be referenced from AGENTS.md; unreferenced guides belong elsewhere
+[`docs/README.md`](docs/README.md) is the filing index: it lists which documents are normative and
+gives one filing rule per directory. Read it before creating a document.
+
+- **Never** place a generated doc at the repo root, and never at the `docs/` root either — always in
+  a `docs/` subdirectory
+- Use an existing subdirectory; only create a new one (kebab-case) if nothing in `docs/README.md` fits
+- This file links guides/deployment docs for standing policy and may also link repository
+  config/source files to anchor a rule. A `docs/guides/` file this file does not link is a record,
+  not a rule
+- Standing rules belong in this file or a `docs/guides/` file. Plans, reviews, audits, analyses and
+  change notes are records: write them once, date them, and supersede rather than retro-edit them
