@@ -1,4 +1,12 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
+
+vi.mock('~/lib/api-client/client-manager', () => ({
+	getClientManager: () => ({
+		getOrCreateStaffClient: () => ({}),
+	}),
+	resolveApiBaseUrl: () => 'https://api.example.test',
+}));
+
 import {
 	buildStaffProfileUsersRequestQuery,
 	toStaffProfileUserRows,
@@ -14,7 +22,7 @@ describe('toStaffProfileUserRows', () => {
 				email: 'alpha@example.com',
 				firstName: ' Alpha ',
 				lastName: ' Admin ',
-				avatarUrl: 'https://example.com/alpha.png',
+				avatarUrl: '/files/uploads/alpha.png',
 				status: 'Active',
 			},
 			{
@@ -40,7 +48,7 @@ describe('toStaffProfileUserRows', () => {
 				email: 'alpha@example.com',
 				firstName: 'Alpha',
 				lastName: 'Admin',
-				avatarUrl: 'https://example.com/alpha.png',
+				avatarUrl: 'https://api.example.test/files/uploads/alpha.png',
 				status: 'Active',
 			},
 			{

@@ -47,6 +47,7 @@ export type StaffTenantsQueryVariables = {
 export type StaffTenantRow = {
 	id: string;
 	name: string;
+	logoUrl: string | null;
 	status: string | null;
 	usersCount: number;
 	maxUsers: number;
@@ -228,6 +229,7 @@ export const toStaffTenantRows = (
 		rows.push({
 			id,
 			name,
+			logoUrl: normalizeNullableFileUrl(item.logoUrl),
 			status: normalizeNullableString(item.status),
 			usersCount: item.usersCount ?? 0,
 			maxUsers: item.maxUsers ?? 0,

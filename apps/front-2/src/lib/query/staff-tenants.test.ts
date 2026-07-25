@@ -611,6 +611,7 @@ describe('toStaffTenantRows', () => {
 			{
 				id: 'tenant-1',
 				name: ' Acme Corporation ',
+				logoUrl: '/files/uploads/acme.png',
 				status: ' Active ',
 				usersCount: 12,
 				maxUsers: 50,
@@ -628,6 +629,7 @@ describe('toStaffTenantRows', () => {
 			{
 				id: 'tenant-1',
 				name: 'Acme Corporation',
+				logoUrl: 'https://api.example.test/files/uploads/acme.png',
 				status: 'Active',
 				usersCount: 12,
 				maxUsers: 50,
