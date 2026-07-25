@@ -304,20 +304,31 @@ For the complete list of custom lint rules with severity and source, see [`docs/
 
 - Compose UI from the local `apps/front-2/src/components/ui/*` wrappers over Base UI primitives; style with Tailwind utility classes through `cn()` (`apps/front-2/src/lib/utils.ts`). Do not reach into Base UI protected/internal APIs.
 - Design-token discipline is machine-checked — `pnpm --filter front-2 check:design-system` runs in `just ci-front-2` and in `pnpm --filter front-2 test`.
-- Arrow function components only — never `function` declarations for components.
 - No `Array.reduce()` — use `find`, `filter+map`, `for...of`, or `Object.groupBy` (enforced by `publy/no-array-reduce`).
 - Never import dayjs directly in components (enforced by `publy/no-direct-dayjs-in-components`).
 - React Hook Form + Zod for form validation; go through the front-2 form/field wrappers rather than wiring `register()` onto raw inputs.
 - Loading/empty/error states use the front-2 state components (`state-view.tsx`, `state-surface.tsx`, `skeleton.tsx`) — never ad-hoc conditional rendering per page.
-- **Entity images and avatars:** preserve the real image when one exists, keep the intended aspect ratio, and fall back to a neutral, muted, subtle treatment — never a bright semantic colour or a generated per-user avatar colour. In front-2 the building blocks are Base UI `Avatar`/`AvatarImage`/`AvatarFallback` (plus `AvatarBadge`/`AvatarGroup`) in [`apps/front-2/src/components/ui/avatar.tsx`](apps/front-2/src/components/ui/avatar.tsx) and `InitialsAvatar`/`AvatarStack`/`BrandTile` in `apps/front-2/src/components/ui/initials-avatar.tsx`. **front-2 has no `<Image>` primitive** — do not import one, and do not invent one as a side effect of another task; if a non-avatar content-image need appears, raise it as its own change rather than sprawling raw `<img>` tags. Raw `<img>` is acceptable only for the brand wordmark/logo and inline SVGs, as it is used today in the layouts.
+- **Entity images and avatars:** preserve the real image when one exists, keep the intended aspect ratio, and fall back to a neutral, muted, subtle treatment — never a bright semantic colour or a generated per-entity colour. For person avatars, use the stable `Avatar`/`AvatarImage`/`AvatarFallback` primitive layer in [`apps/front-2/src/components/ui/avatar.tsx`](apps/front-2/src/components/ui/avatar.tsx); its image preserves a square cover crop and its fallback uses the muted tokens. Do not use a name-hashed palette as a person fallback. **front-2 has no `<Image>` primitive** — do not import one, and do not invent one as a side effect of another task; if a non-avatar content-image need appears, raise it as its own change rather than sprawling raw `<img>` tags. Raw `<img>` is acceptable only for the brand wordmark/logo and inline SVGs, as it is used today in the layouts.
 - Bulk-action items on list-page selection menus always render — never `disabled`, never conditionally hidden by per-row eligibility; ineligible clicks show an i18n toast. The trigger button gates on `BULK_ACTION_MAX_COUNT`. See [`docs/guides/bulk-action-ux-conventions.md`](docs/guides/bulk-action-ux-conventions.md) (its backend/UX policy is normative; its code examples are MUI-era `apps/front`).
 
 **About `apps/front`:** it is retired. The MUI/`sx`/React-Router-loader/animation-preset standards
 that used to live in this section governed that app only; they are gone from this file on purpose,
-because the owner will not edit `apps/front` again. Three custom lint rules
-(`publy/no-native-html-in-mui-surfaces`, `publy/no-raw-img-in-product-surfaces`,
-`publy/no-raw-mui-textfield-register`) remain scoped to `apps/front` so its characterization job
-keeps passing; the other `publy/*` rules are portable and apply to front-2 too.
+because the owner will not edit `apps/front` again.
+
+**Enabled `publy/*` lint-rule scopes** (the configuration sets each of these to `error`):
+
+- All linted JavaScript/TypeScript: `no-array-reduce`, `prefer-specific-lodash-imports`, and
+  `no-manual-response-message-translation`.
+- `no-console-in-source`: source files under `apps/front/src`, `apps/front-2/src`, and
+  `packages/shared-ts`, excluding tests/specs, shared package scripts, and CLI files.
+- `no-direct-dayjs-in-components`: TSX files under either frontend's `components/`, `_parts/`,
+  `_components/`, or `routes/` source paths.
+- Retired `apps/front` only: `no-raw-mui-textfield-register` covers its source files;
+  `no-native-html-in-mui-surfaces` and `no-raw-img-in-product-surfaces` cover product JSX under
+  `components/`, `layouts/`, `routes/`, and `lib/`, with their narrow marketing/brand exclusions.
+
+`publy/no-op` and `publy/arrow-function-components` are off. Component declaration style is
+therefore not lint-enforced in front-2; both arrow components and function declarations exist.
 
 ## JavaScript/TypeScript Conventions
 
