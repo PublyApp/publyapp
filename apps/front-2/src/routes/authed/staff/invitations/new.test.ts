@@ -204,7 +204,8 @@ vi.mock('~/lib/mutation-toast', () => ({
 	displayMutationFeedback: mocks.displayMutationFeedback,
 }));
 
-import { Route, buildProfileOptions } from './new';
+import { buildStaffProfileOptions } from '../_staff-profile-options';
+import { Route } from './new';
 
 const ADMIN_PROFILE_ID = '11111111-1111-1111-1111-111111111111';
 
@@ -254,8 +255,14 @@ describe('staff invitation create route', () => {
 	});
 
 	test('keeps selected profile ids visible when the current search result omits them', () => {
-		const options = buildProfileOptions({
-			profiles: [{ id: 'profile-admin', name: 'Admin' }],
+		const options = buildStaffProfileOptions({
+			profiles: [
+				{
+					id: 'profile-admin',
+					name: 'Admin',
+					description: 'Full access',
+				},
+			],
 			selectedProfileIds: ['profile-admin', 'profile-editor'],
 			knownProfileNames: new Map([['profile-editor', 'Editor']]),
 		});

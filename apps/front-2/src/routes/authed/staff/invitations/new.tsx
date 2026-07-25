@@ -30,7 +30,6 @@ import {
 import { useStaffProfilesQuery } from '~/lib/query/staff-profiles';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
-import type { StaffProfileItem } from '@org/client-ts/src/models/index.js';
 import {
 	getFailureMessage,
 	toApiFailure,
@@ -38,20 +37,16 @@ import {
 import InterZod from '@org/shared-ts/lib/zod/InterZod';
 import { getBulkCreateInvitationsSchema } from '@org/shared-ts/validations/invitation.validations';
 
+import {
+	buildStaffProfileOptions,
+	collectSelectedProfileIds,
+	rememberStaffProfileNames,
+} from '../_staff-profile-options';
+
 type InvitationFormValues = z.infer<
 	ReturnType<typeof getBulkCreateInvitationsSchema>
 >;
 
-type ProfileOption = {
-	value: string;
-	label: string;
-};
-
-type BuildProfileOptionsArgs = {
-	profiles: Array<Pick<StaffProfileItem, 'id' | 'name'>> | null | undefined;
-	selectedProfileIds: string[];
-	knownProfileNames: Map<string, string>;
-};
 type InterZodOptions = ConstructorParameters<typeof InterZod>[0];
 type InterZodI18nLike = InterZodOptions['i18n'];
 
@@ -79,69 +74,6 @@ const getInterZodForI18n = (instance: I18nInstance) => {
 		i18n: i18nLike,
 		locale,
 	});
-};
-
-const getProfileId = (
-	profile: Pick<StaffProfileItem, 'id'>,
-): string | undefined =>
-	typeof profile.id === 'string' && profile.id.length > 0
-		? profile.id
-		: undefined;
-
-const collectSelectedProfileIds = (
-	invitations: StaffInvitationInput[] | undefined,
-): string[] => {
-	if (!Array.isArray(invitations)) {
-		return [];
-	}
-
-	const selected = new Set<string>();
-	for (const invitation of invitations) {
-		for (const profileId of invitation.profileIds) {
-			if (profileId) {
-				selected.add(profileId);
-			}
-		}
-	}
-
-	return [...selected];
-};
-
-export const buildProfileOptions = ({
-	profiles,
-	selectedProfileIds,
-	knownProfileNames,
-}: BuildProfileOptionsArgs): ProfileOption[] => {
-	const options: ProfileOption[] = [];
-	const seen = new Set<string>();
-
-	for (const profile of profiles ?? []) {
-		const profileId = getProfileId(profile);
-		if (!profileId || seen.has(profileId)) {
-			continue;
-		}
-
-		options.push({
-			value: profileId,
-			label:
-				profile.name?.trim() || knownProfileNames.get(profileId) || profileId,
-		});
-		seen.add(profileId);
-	}
-
-	for (const profileId of selectedProfileIds) {
-		if (!profileId || seen.has(profileId)) {
-			continue;
-		}
-
-		options.push({
-			value: profileId,
-			label: knownProfileNames.get(profileId) || profileId,
-		});
-		seen.add(profileId);
-	}
-
-	return options;
 };
 
 export const Route = createFileRoute('/_authed-layout/staff/invitations/new')({
@@ -206,24 +138,20 @@ function NewStaffInvitationsRoute() {
 	}, []);
 
 	useEffect(() => {
-		const profiles = profilesQuery.data?.data ?? [];
-		for (const profile of profiles) {
-			const profileId = getProfileId(profile);
-			const label = profile.name?.trim();
-			if (!profileId || !label) {
-				continue;
-			}
-
-			knownProfileNamesRef.current.set(profileId, label);
-		}
+		rememberStaffProfileNames(
+			knownProfileNamesRef.current,
+			profilesQuery.data?.data,
+		);
 	}, [profilesQuery.data]);
 
 	if (profilesQuery.isError && shouldLogoutForFailure(profilesQuery.error)) {
 		return <LogoutRedirect />;
 	}
 
-	const selectedProfileIds = collectSelectedProfileIds(watchedInvitations);
-	const profileOptions = buildProfileOptions({
+	const selectedProfileIds = collectSelectedProfileIds(
+		watchedInvitations?.map((invitation) => invitation.profileIds),
+	);
+	const profileOptions = buildStaffProfileOptions({
 		profiles: profilesQuery.data?.data,
 		selectedProfileIds,
 		knownProfileNames: knownProfileNamesRef.current,
