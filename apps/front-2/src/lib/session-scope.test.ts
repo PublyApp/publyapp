@@ -1,6 +1,29 @@
 import { describe, expect, test } from 'vitest';
 
-import { determineSessionScope, determineSessionToken } from './session-scope';
+import {
+	determineServerSessionAction,
+	determineSessionScope,
+	determineSessionToken,
+} from './session-scope';
+
+describe('determineServerSessionAction', () => {
+	test('redirects only when the session cookie is absent', () => {
+		expect(determineServerSessionAction(undefined)).toBe('redirect-login');
+	});
+
+	test.each([
+		['forged staff token', 's:forged'],
+		['forged tenant token', 't:forged'],
+		['forged dual-scope hints', 's:forged-staff+t:forged-tenant'],
+		['expired token', 's:expired'],
+		['empty scoped token', 's:'],
+		['malformed scoped pair', 's:forged+t:'],
+		['raw legacy value', 'forged-legacy'],
+		['empty cookie value', ''],
+	])('keeps %s neutral instead of treating it as authenticated', (_, value) => {
+		expect(determineServerSessionAction(value)).toBe('neutral');
+	});
+});
 
 describe('determineSessionScope', () => {
 	test('leaves a missing session for the caller to route to login', () => {

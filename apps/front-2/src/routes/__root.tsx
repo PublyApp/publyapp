@@ -19,8 +19,9 @@ import { I18nextProvider, useTranslation } from 'react-i18next';
 import { Button, buttonVariants } from '~/components/ui/button';
 import { AppToaster } from '~/components/ui/toaster';
 import { AuthBrandProvider } from '~/lib/auth-brand-context';
-import { isAuthPath, isPathForSurface } from '~/lib/auth-paths';
+import { isAuthPath } from '~/lib/auth-paths';
 import { serializePublicRuntimeEnv } from '~/lib/env';
+import { useHydrated } from '~/lib/hooks/use-hydrated';
 import { useLogout } from '~/lib/hooks/use-logout';
 import { createBackendI18n, loadI18nContext } from '~/lib/i18n.backend';
 import {
@@ -38,9 +39,9 @@ import {
 } from '~/lib/i18n.shared';
 import { buildLoginRedirectSearch } from '~/lib/login-redirect-search';
 import { registerMutationToastI18n } from '~/lib/mutation-toast';
-import { getSessionScopeAvailability } from '~/lib/server/session-actions';
+import { hasExactAuthedRouteMatch } from '~/lib/route-shell';
+import { getServerSessionAction } from '~/lib/server/session-actions';
 import { subscribeToSessionInvalidated } from '~/lib/session-invalidation-channel';
-import { determineSessionScope } from '~/lib/session-scope';
 import { COLOR_SCHEME_STORAGE_KEY, useUiStore } from '~/lib/store/ui-store';
 import { TabSyncListener } from '~/lib/tab-sync/tab-sync-listener';
 import { loadI18nForRequest } from '~/server/i18n-locale';
@@ -72,9 +73,6 @@ const clientLoadingInstanceByLocale = new Map<
 const clientRootContextByKey = new Map<string, Promise<RootRouteContext>>();
 
 type RouteSurface = 'auth' | 'marketing';
-
-const normalizePathname = (pathname: string): string =>
-	pathname.replace(/\/+$/, '') || '/';
 
 /**
  * Resolved in `beforeLoad`, not `loader` (shell-r5-F1): `beforeLoad`-provided
@@ -125,23 +123,16 @@ const resolveRootContext = async (
 			routeId?: string;
 		})[];
 	};
-	const deepestMatch = matches[matches.length - 1];
 	// The pathless authed layout also matches unknown `/staff/*` URLs. Require
 	// the deepest match to consume the whole path so API-shaped probes retain
 	// the root 404 instead of being redirected through the login page.
-	const hasAuthedRouteMatch =
-		matches.some((match) => match.routeId === '/_authed-layout') &&
-		normalizePathname(deepestMatch?.pathname ?? '/') ===
-			normalizePathname(location.pathname);
+	const hasAuthedRouteMatch = hasExactAuthedRouteMatch(
+		matches,
+		location.pathname,
+	);
 	if (typeof document === 'undefined' && hasAuthedRouteMatch) {
-		const availability = await getSessionScopeAvailability();
-		const decision = determineSessionScope(availability, location.pathname);
-
-		if (decision.redirectPath) {
-			throw redirect({ to: decision.redirectPath });
-		}
-
-		if (!decision.scope) {
+		const sessionAction = await getServerSessionAction();
+		if (sessionAction === 'redirect-login') {
 			throw redirect({
 				to: '/login',
 				search: buildLoginRedirectSearch({
@@ -376,12 +367,15 @@ export const buildThemeInitScript = (storageKey: string): string => `(() => {
  * the only public state that changes with the content passed as `children`.
  */
 export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
+	const isHydrated = useHydrated();
 	const location = useMatches({
 		select: (matches) => {
 			const match = matches[matches.length - 1];
+			const pathname = match?.pathname ?? '/';
 
 			return {
-				pathname: match?.pathname ?? '/',
+				hasAuthedRouteMatch: hasExactAuthedRouteMatch(matches, pathname),
+				pathname,
 				search: match?.search ?? {},
 			};
 		},
@@ -390,12 +384,9 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 	const surface = resolveRouteSurface(pathname);
 	const [brand, setBrand] = React.useState<AuthBrand | undefined>(undefined);
 
-	if (
-		isPathForSurface(pathname, '/staff') ||
-		isPathForSurface(pathname, '/tenant')
-	) {
+	if (location.hasAuthedRouteMatch) {
 		const isTenantPortalRoot = pathname.replace(/\/+$/, '') === '/tenant';
-		if (isTenantPortalRoot) {
+		if (isTenantPortalRoot || !isHydrated) {
 			return children;
 		}
 

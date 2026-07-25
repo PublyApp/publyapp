@@ -37,13 +37,26 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
 			),
 		useLocation: () => mocks.location,
 		useNavigate: () => mocks.navigate,
-		useMatches: ({ select }: { select: (matches: unknown[]) => unknown }) =>
-			select([
-				{
-					pathname: mocks.matchedPathname,
-					search: mocks.location.search,
-				},
-			]),
+		useMatches: ({ select }: { select: (matches: unknown[]) => unknown }) => {
+			const matches = mocks.matchedPathname.startsWith('/staff')
+				? [
+						{ routeId: '/_authed-layout', pathname: '/' },
+						{
+							routeId: '/_authed-layout/staff',
+							pathname: mocks.matchedPathname,
+							search: mocks.location.search,
+						},
+					]
+				: [
+						{
+							routeId: mocks.matchedPathname,
+							pathname: mocks.matchedPathname,
+							search: mocks.location.search,
+						},
+					];
+
+			return select(matches);
+		},
 		useRouterState: ({ select }: { select: (state: unknown) => unknown }) =>
 			select({
 				location: mocks.location,

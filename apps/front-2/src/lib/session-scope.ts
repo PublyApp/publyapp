@@ -13,8 +13,15 @@ export type SessionScopeDecision = {
 	redirectPath?: string;
 };
 
+export type ServerSessionAction = 'neutral' | 'redirect-login';
+
 const STAFF_PATH = '/staff';
 const TENANT_PATH = '/tenant';
+
+export const determineServerSessionAction = (
+	sessionCookieValue: string | undefined,
+): ServerSessionAction =>
+	sessionCookieValue === undefined ? 'redirect-login' : 'neutral';
 
 export const determineSessionScope = (
 	availability: SessionScopeAvailability,

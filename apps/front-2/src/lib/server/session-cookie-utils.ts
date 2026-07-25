@@ -82,10 +82,10 @@ const isSecureCookieContext = (): boolean => {
  * never be referenced outside a handler body, or the server import leaks
  * into the client build and import-protection fails it.
  */
-export const readSessionTokensFromCookie = (): RawCookieSessionTokens => {
+export const readSessionCookieValue = (): string | undefined => {
 	const header = getSessionCookieHeader();
 	if (!header) {
-		return {};
+		return undefined;
 	}
 
 	// `setCookie` below percent-encodes the value (it contains a literal ":"
@@ -95,7 +95,14 @@ export const readSessionTokensFromCookie = (): RawCookieSessionTokens => {
 	// unusable (surfaces as a false "session token is invalid or expired").
 	const parsed = cookie.parse(header);
 	const sessionCookieValue = parsed[SESSION_TOKEN_COOKIE_KEY];
-	if (!sessionCookieValue || typeof sessionCookieValue !== 'string') {
+	return typeof sessionCookieValue === 'string'
+		? sessionCookieValue
+		: undefined;
+};
+
+export const readSessionTokensFromCookie = (): RawCookieSessionTokens => {
+	const sessionCookieValue = readSessionCookieValue();
+	if (!sessionCookieValue) {
 		return {};
 	}
 
