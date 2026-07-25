@@ -218,9 +218,10 @@ just dev-api
 pnpm --filter front-2 dev
 ```
 
-> **Heads-up on the `just *-front` recipes.** Every one of them — `dev-front`, `build-front`,
-> `tsc-front`, `start-front`, `deploy-front` — points at `apps/front`, the **retired** frontend. Use
-> `pnpm --filter front-2 <script>` for the frontend that actually ships.
+> **Heads-up on legacy frontend recipes.** `dev-front`, `build-front`, `tsc-front`, `start-front`,
+> `deploy-front`, `ci-front`, `ci-e2e-front`, and `clean-front` target `apps/front`, the **retired**
+> frontend. Use `pnpm --filter front-2 <script>` or `just ci-front-2` for the frontend that actually
+> ships.
 
 > First time? `just dev-setup` runs install + database in one step.
 
@@ -284,7 +285,7 @@ authoritative reference — the highlights:
 | `just dev-db`            | Start PostgreSQL in Docker                            |
 | `just build-api`         | Build the .NET API                                    |
 | `pnpm --filter front-2 build` | Build the frontend for production                |
-| `just build-deploy`      | Build deployment artifacts                            |
+| `just build-deploy`      | Build legacy Dokploy-from-source API + retired-front artifacts |
 | `just db-migrate`        | Apply EF Core migrations                              |
 | `just db-add <Name>`     | Add a new migration                                   |
 | `just db-reset`          | Drop and recreate the database                        |
@@ -299,6 +300,9 @@ authoritative reference — the highlights:
 | `just deploy-images`     | Build + push GHCR deploy images from a clean checkout of a ref |
 
 <!-- markdownlint-enable MD013 MD060 -->
+
+`just build-deploy` does not build `front-2` or the migrator image. Releases use
+`just deploy-images` for the three GHCR images: `api`, `migrate`, and `front-2`.
 
 ---
 

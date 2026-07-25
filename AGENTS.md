@@ -26,10 +26,10 @@ pnpm --filter front-2 dev
 just dev-db
 ```
 
-**Frontend recipe naming:** every `just *-front` recipe (`dev-front`, `build-front`, `tsc-front`,
-`start-front`, `deploy-front`) targets `apps/front`, the retired app (`front_dir := "apps/front"` in the
-`justfile`). Drive `apps/front-2` — the app that actually ships — with `pnpm --filter front-2 <script>`
-or the `just ci-front-2` gate.
+**Frontend recipe naming:** these legacy recipes target `apps/front`, the retired app:
+`dev-front`, `build-front`, `tsc-front`, `start-front`, `deploy-front`, `ci-front`,
+`ci-e2e-front`, and `clean-front`. Drive `apps/front-2` — the app that actually ships — with
+`pnpm --filter front-2 <script>` or the `just ci-front-2` gate.
 
 Since #885, the API waits for pending migrations but does not apply them. Run
 `just db-migrate` first, or use `just dev-api-migrated` to migrate and start the API.
@@ -49,9 +49,14 @@ The API reads configuration exclusively from environment variables via `AppEnvir
 ```bash
 just build-api                     # Build .NET API
 pnpm --filter front-2 build        # Build the shipped frontend for production
-just build-deploy                  # Build everything for deployment
+just build-deploy                  # Build legacy Dokploy-from-source API + apps/front artifacts
+just deploy-images                 # Build + push the three GHCR release images
 just build-front                   # Builds apps/front (retired app) — not the release artifact
 ```
+
+`just build-deploy` does not build `front-2` or the migrator image. Releases use
+`just deploy-images` to build and push the `api`, `migrate`, and `front-2` images from a clean
+checkout.
 
 ### Code Quality
 
