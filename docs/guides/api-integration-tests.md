@@ -187,7 +187,24 @@ If you need to change seed data, update `SeedConstants.cs` — seeders and `Test
 1. **DbContext connection string** — points to the per-class test database (cloned from template), not the admin/template DB
 2. **IEmailSender** — replaced with `FakeEmailSender` (captures sent emails in memory instead of calling Resend API)
 
-Everything else (middleware, auth, routing, services) runs exactly as in production.
+It also removes worker-role hosted services from the integration host. Specs exercise
+background processors explicitly through their public methods so a live loop cannot race
+the per-class database or carry work across test methods. Everything else (middleware,
+auth, routing, services) runs exactly as in production.
+
+### Fixture Lifecycle and Mutable Test State
+
+`ApiFixture` is created once per test class, not once per test method. The database,
+`ApiFactory`, and singleton test doubles such as `FakeEmailSender` therefore persist
+across every method in that class.
+
+- Clear a mutable fake at the start of any test that asserts its complete state.
+- Do not enable hosted worker loops in `ApiFactory`. A background operation can append to
+  a fake after `Clear()`, making the next test observe state from its neighbor.
+- Drive asynchronous infrastructure explicitly and await it in the test that owns the
+  assertion. Select only that test's durable rows before invoking a dispatcher directly.
+- Test classes remain isolated from one another through separate `ApiFixture` instances
+  and database clones; no suite-wide collection serialization is needed.
 
 ### Why FakeEmailSender Lives in Testing/Fakes/
 
@@ -304,6 +321,7 @@ public async Task ItShouldSendEmailOnInvite() {
   emailSender.Clear(); // Reset captured emails
 
   // ... trigger endpoint that sends email ...
+  // ... explicitly dispatch and await this test's durable email row ...
 
   emailSender.SentEmails.Should().HaveCount(1);
   emailSender.SentEmails.First().To
