@@ -227,7 +227,9 @@ just dev-front
 | API docs (Scalar) | <http://localhost:5000/scalar/v1>                             |
 | PostgreSQL        | `localhost:5454`                                              |
 
-Local development configuration lives in the committed `.env.development`, validated at startup.
+Local development configuration lives in `.env.development`, which you create by copying the
+committed `.env.example` template. Real env files are gitignored and must never be committed; they
+are validated at startup.
 
 <!-- markdownlint-enable MD013 MD060 -->
 

@@ -314,8 +314,9 @@ against production, local development, or a shared database.
 ## Environment Variable Names
 
 Values are set in Dokploy. This list intentionally records names only. API env
-names were verified against `apps/api/Lib/AppEnvironment.cs` and
-`.env.development`; front-2 env names were verified against
+names were verified against `apps/api/Lib/AppEnvironment.cs` and the
+committed `.env.example` template (the only committed env file — real
+`.env.development`/`.env.production` are gitignored); front-2 env names were verified against
 `apps/front-2-spike/docker-compose.test.yml`, `apps/front-2-spike/src/env.d.ts`,
 and the front-2 spike server/client references. `ASPNETCORE_ENVIRONMENT`,
 `DOTNET_ENVIRONMENT`, `ASPNETCORE_URLS`, `NODE_ENV`, and `PORT` are host/runtime

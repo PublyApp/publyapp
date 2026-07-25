@@ -37,7 +37,7 @@ The API reads configuration exclusively from environment variables via `AppEnvir
 
 - Repo-root `.env.example` is the committed template; copy it to `.env.development` (local dev) or `.env.production` (deploy). Both real files are **gitignored** and must never be committed — keep them in sync with `.env.example` when you add a variable. Development defaults are loaded from `.env.development` when the host environment is `Development` (and, for config values only, when it is unset).
 - `dotnet build` runs the app during OpenAPI document generation. When `ASPNETCORE_ENVIRONMENT`/`DOTNET_ENVIRONMENT` are unset, the host environment resolves to **Production**, where `APP_ROLE` is required and a missing value fails fast — loading `.env.development` supplies config values but does **not** change that classification. So a bare `dotnet build` requires `APP_ROLE=api`; always build through the pinned `just` recipes (`just build-api`, `just generate-client`, `just db-*`), which export `APP_ROLE=api`.
-- Prefer keeping secrets out of the repo: use an example file (e.g. `.env.development.example`) + local overrides / CI secrets.
+- Keep secrets out of the repo: `.env.example` carries placeholder values only; real values live in your local `.env.development`, in the deployment platform's env management, or in CI secrets.
 
 ### Building
 
@@ -373,7 +373,7 @@ For the complete list of custom lint rules with severity and source, see [`docs/
 ## Development Environment
 
 **Local access:** Frontend `localhost:5050` | API `localhost:5000` | Scalar docs `localhost:5000/scalar/v1` | Postgres `localhost:5454`
-**Env vars:** `.env.development` (committed), `.env.production` (not in repo), validated at startup via `AppEnvironment.Initialize()`
+**Env vars:** `.env.example` is the only committed env file (the template). `.env.development` (local dev) and `.env.production` (deployment) are **gitignored** and must never be committed — `.gitignore` ignores `.env.*` with a single `!.env.example` exception. All of them are validated at startup via `AppEnvironment.Initialize()`.
 **.NET artifacts:** New .NET projects must output under a local `.artifacts/` directory.
 Set `DotNetArtifactsRoot` in a project-area `Directory.Build.props` before importing the repo
 root props; `Directory.Build.targets` enforces this during builds.

@@ -181,7 +181,9 @@ INVITATION_TOKEN_LENGTH=32
 
 > **Source of truth:** the required vs optional split is enforced in `apps/api/Lib/AppEnvironment.cs`
 > (`GetRequiredString`/`GetRequiredInt` = required; `GetOptional*` = has a default). The committed
-> `.env.development` shows working example values for all of them.
+> `.env.example` template lists every variable with a working placeholder value. It is the only
+> committed env file — `.env.development` and `.env.production` are gitignored local/deployment
+> state and must never be committed.
 
 ---
 
