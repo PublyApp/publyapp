@@ -1,15 +1,18 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, test, vi } from 'vitest';
-
 import {
-	AvatarStack,
-	BrandTile,
-	paletteIndex,
-	toInitials,
-} from './initials-avatar';
+	act,
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+} from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+
+import { paletteIndex, toInitials } from './avatar-initials';
+import { MockImage } from './avatar.test-helper';
+import { AvatarStack, BrandTile } from './initials-avatar';
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
@@ -18,7 +21,15 @@ vi.mock('react-i18next', () => ({
 	}),
 }));
 
-afterEach(cleanup);
+beforeEach(() => {
+	MockImage.instances = [];
+	vi.stubGlobal('Image', MockImage);
+});
+
+afterEach(() => {
+	cleanup();
+	vi.unstubAllGlobals();
+});
 
 describe('toInitials', () => {
 	test('takes the first letter of the first and last words', () => {
@@ -61,17 +72,37 @@ describe('AvatarStack', () => {
 	// identities must still reach assistive tech through the container.
 	test('exposes the member names through an aria-label on the stack container', () => {
 		const { container } = render(
-			<AvatarStack names={['Ada Lovelace', 'Grace Hopper']} />,
+			<AvatarStack
+				people={[
+					{
+						id: 'user-1',
+						name: 'Ada Lovelace',
+						avatarUrl: 'https://example.com/ada.png',
+					},
+					{ id: 'user-2', name: 'Grace Hopper', avatarUrl: null },
+				]}
+			/>,
 		);
 
 		const stack = container.querySelector('.publy-avatar-stack');
 		expect(stack?.getAttribute('role')).toBe('img');
 		expect(stack?.getAttribute('aria-label')).toContain('Ada Lovelace');
 		expect(stack?.getAttribute('aria-label')).toContain('Grace Hopper');
+		expect(MockImage.instances[0]?.src).toBe('https://example.com/ada.png');
+
+		act(() => MockImage.instances[0]?.onload?.());
+
+		expect(container.querySelector('img')?.getAttribute('src')).toBe(
+			'https://example.com/ada.png',
+		);
+		expect(
+			container.querySelector('[data-slot="person-avatar-fallback"]'),
+		).not.toBeNull();
+		expect(container.querySelector('[data-palette]')).toBeNull();
 	});
 
 	test('renders nothing for an empty name list', () => {
-		const { container } = render(<AvatarStack names={[]} />);
+		const { container } = render(<AvatarStack people={[]} />);
 
 		expect(container.querySelector('.publy-avatar-stack')).toBeNull();
 	});

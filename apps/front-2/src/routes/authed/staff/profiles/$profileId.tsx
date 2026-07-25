@@ -26,8 +26,8 @@ import {
 	DetailGrid,
 	DetailMain,
 } from '~/components/ui/detail-layout';
-import { InitialsAvatar } from '~/components/ui/initials-avatar';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
+import { PersonAvatar } from '~/components/ui/person-avatar';
 import {
 	useStaffProfileUsersQuery,
 	toStaffProfileUserRows,
@@ -472,11 +472,12 @@ function StaffProfileDetailsPage() {
 				key={user.id}
 				className="flex items-center gap-[11px] px-[18px] py-[11px] border-b border-[var(--publy-row-border)] last:border-b-0"
 			>
-				<InitialsAvatar
+				<PersonAvatar
 					name={
 						[user.firstName, user.lastName].filter(Boolean).join(' ') ||
 						user.email
 					}
+					avatarUrl={user.avatarUrl}
 				/>
 				<div className="flex flex-col gap-px min-w-0">
 					<span className="text-[13px] font-medium truncate">

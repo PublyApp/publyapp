@@ -292,7 +292,10 @@ describe('ProfileOverviewTab', () => {
 		});
 
 		const stack = screen.getByTestId('profile-stat-members-stack');
-		expect(stack.querySelectorAll('.publy-avatar-initials')).toHaveLength(5);
+		expect(stack.querySelectorAll('[data-slot="person-avatar"]')).toHaveLength(
+			5,
+		);
+		expect(stack.querySelector('[data-palette]')).toBeNull();
 		// Overflow = total (12) − shown (5) = 7.
 		expect(screen.getByText('+7 more')).toBeTruthy();
 	});

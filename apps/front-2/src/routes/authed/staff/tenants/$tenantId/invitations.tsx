@@ -29,7 +29,6 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu';
-import { InitialsAvatar } from '~/components/ui/initials-avatar';
 import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import {
@@ -172,7 +171,12 @@ export const createColumns = ({
 			const email = row.original.email;
 			return (
 				<div className="flex min-w-0 items-center gap-2.5">
-					<InitialsAvatar name={row.original.email} />
+					<span
+						aria-hidden="true"
+						className="inline-flex size-[26px] shrink-0 items-center justify-center rounded-[var(--publy-radius-small-control)] bg-muted text-[var(--publy-foreground-secondary)]"
+					>
+						<IconMail className="size-3.5" />
+					</span>
 					<span className="min-w-0 truncate text-[13px]" title={email}>
 						{email}
 					</span>

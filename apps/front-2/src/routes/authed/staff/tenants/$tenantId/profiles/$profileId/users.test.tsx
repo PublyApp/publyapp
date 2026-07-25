@@ -432,7 +432,7 @@ describe('StaffTenantProfileMembersPage', () => {
 	});
 });
 
-// Genuine roster rendering — uses the REAL DataTable, InitialsAvatar, and
+// Genuine roster rendering — uses the REAL DataTable, PersonAvatar, and
 // StatusPill (not mocked), so these tests exercise the actual row/column
 // wiring, not just that a mock was invoked (step4b-review MAJOR 7).
 describe('StaffTenantProfileMembersPage — roster rendering', () => {

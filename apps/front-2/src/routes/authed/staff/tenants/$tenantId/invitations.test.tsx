@@ -1123,6 +1123,39 @@ describe('staff tenant invitations route', () => {
 });
 
 describe('createColumns column widths', () => {
+	test('uses the accessible neutral token pair for the invitation mail tile', () => {
+		const columns = createColumns({
+			locale: 'en',
+			t: (key: string) => key,
+			isRevokePending: false,
+			onRevoke: () => undefined,
+		});
+		const emailColumn = columns.find((column) => column.id === 'email');
+		const cellRenderer = emailColumn?.cell as (props: {
+			row: {
+				original: {
+					email: string;
+				};
+			};
+		}) => JSX.Element;
+		const { container } = render(
+			cellRenderer({
+				row: {
+					original: {
+						email: 'person@example.com',
+					},
+				},
+			}),
+		);
+		const mailTile = container.querySelector('[aria-hidden="true"]');
+
+		expect(mailTile?.className).toContain('bg-muted');
+		expect(mailTile?.className).toContain(
+			'text-[var(--publy-foreground-secondary)]',
+		);
+		expect(mailTile?.className).not.toContain('text-muted-foreground');
+	});
+
 	test('applies a fixed width to every column except the fluid email column', () => {
 		const columns = createColumns({
 			locale: 'en',

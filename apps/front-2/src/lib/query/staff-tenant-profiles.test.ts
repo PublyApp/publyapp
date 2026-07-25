@@ -9,6 +9,7 @@ vi.mock('~/lib/api-client/client-manager', () => ({
 	getClientManager: () => ({
 		getOrCreateStaffClient: mocks.getOrCreateStaffClient,
 	}),
+	resolveApiBaseUrl: () => 'https://api.example.test',
 }));
 import {
 	buildStaffTenantPermissionCatalogOptions,
@@ -1014,7 +1015,7 @@ describe('toStaffTenantProfileMemberRows', () => {
 				email: ' ada@example.com ',
 				firstName: ' Ada ',
 				lastName: ' Lovelace ',
-				avatarUrl: null,
+				avatarUrl: '/files/uploads/ada.png',
 				status: 'Active',
 				level: 'Admin',
 				otherProfiles: [
@@ -1082,7 +1083,7 @@ describe('toStaffTenantProfileMemberRows', () => {
 				email: 'ada@example.com',
 				firstName: 'Ada',
 				lastName: 'Lovelace',
-				avatarUrl: null,
+				avatarUrl: 'https://api.example.test/files/uploads/ada.png',
 				status: 'Active',
 				level: 'Admin',
 				otherProfiles: [{ id: 'profile-1', name: 'Editors' }],

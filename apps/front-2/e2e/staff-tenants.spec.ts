@@ -247,7 +247,7 @@ test.describe('staff tenants toolbar status filter', () => {
 });
 
 test.describe('staff tenants list', () => {
-	test('renders a selection checkbox and hashed avatar per row, matching the staff-users archetype', async ({
+	test('renders a selection checkbox and neutral entity avatar per row, matching the staff-users archetype', async ({
 		page,
 	}) => {
 		await loginAsStaffAdmin(page);
@@ -264,7 +264,7 @@ test.describe('staff tenants list', () => {
 			name: /Acme Corporation/,
 		});
 		await expect(
-			activeTenantRow.locator('.publy-avatar-initials'),
+			activeTenantRow.locator('[data-slot="person-avatar"]'),
 		).toBeVisible();
 	});
 

@@ -16,7 +16,7 @@ import {
 	DrawerHeader,
 	DrawerTitle,
 } from '~/components/ui/drawer';
-import { InitialsAvatar } from '~/components/ui/initials-avatar';
+import { PersonAvatar } from '~/components/ui/person-avatar';
 import { ErrorStateSurface } from '~/components/ui/state-surface';
 import { Switch } from '~/components/ui/switch';
 import {
@@ -74,7 +74,10 @@ const makeAssignMembersColumns = (
 				params={{ tenantId, userId: row.original.id }}
 				className="flex min-w-0 items-center gap-2.5 no-underline"
 			>
-				<InitialsAvatar name={row.original.displayName} />
+				<PersonAvatar
+					name={row.original.displayName}
+					avatarUrl={row.original.avatarUrl}
+				/>
 				<span className="min-w-0 space-y-0.5">
 					<span
 						className="publy-record-link block truncate text-[13px] font-medium"

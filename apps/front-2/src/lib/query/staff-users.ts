@@ -50,6 +50,7 @@ export type StaffUserRow = {
 	email: string;
 	firstName: string | null;
 	lastName: string | null;
+	avatarUrl: string | null;
 	level: string | null;
 	status: string | null;
 	displayName: string;
@@ -208,6 +209,7 @@ export const toStaffUserRows = (
 			email,
 			firstName,
 			lastName,
+			avatarUrl: normalizeNullableFileUrl(item.avatarUrl),
 			level: normalizeNullableString(item.level),
 			status: normalizeNullableString(item.status),
 			displayName: getDisplayName({ firstName, lastName, email }),

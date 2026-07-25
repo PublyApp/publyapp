@@ -86,9 +86,9 @@ vi.mock('../../staff-users/status-labels', () => ({
 	},
 }));
 
-vi.mock('~/components/ui/initials-avatar', () => ({
-	InitialsAvatar: ({ name }: { name: string }) =>
-		createElement('span', { 'data-testid': 'initials', children: name }),
+vi.mock('~/components/ui/person-avatar', () => ({
+	PersonAvatar: ({ name }: { name: string }) =>
+		createElement('span', { 'data-testid': 'initials' }, name),
 }));
 
 vi.mock('react-i18next', () => ({

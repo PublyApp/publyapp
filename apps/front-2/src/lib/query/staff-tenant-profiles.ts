@@ -6,6 +6,7 @@ import type { QueryClient } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
 import { useMutation } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
+import { normalizeNullableFileUrl } from '~/lib/api-client/resolve-api-file-url';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/src/apiClient';
@@ -800,7 +801,7 @@ export const toStaffTenantProfileMemberRows = (
 			email,
 			firstName,
 			lastName,
-			avatarUrl: normalizeNullableString(item.avatarUrl),
+			avatarUrl: normalizeNullableFileUrl(item.avatarUrl),
 			status: normalizeNullableString(item.status),
 			level: normalizeNullableString(item.level),
 			otherProfiles,

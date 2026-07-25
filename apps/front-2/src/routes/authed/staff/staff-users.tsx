@@ -17,7 +17,6 @@ import { useRowSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
 import { buttonVariants } from '~/components/ui/button';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
-import { InitialsAvatar } from '~/components/ui/initials-avatar';
 import { PageHeader, StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import {
@@ -39,6 +38,8 @@ import {
 	formatAccountLevelLabel,
 	formatStaffStatusLabel,
 } from '~/routes/authed/staff/staff-users/status-labels';
+
+import { StaffUserNameCell } from './_staff-user-name-cell';
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 // Locked contract default (docs/front-2-migration/parity-contract.md): 100,
 // matching the current app and the selectable page-size options.
@@ -53,21 +54,7 @@ const buildColumns = (
 		header: t('common:name'),
 		enableSorting: false,
 		meta: { headerIcon: <IconUser />, width: '200px', pinWidthAbove: 768 },
-		cell: ({ row }) => (
-			<Link
-				to="/staff/staff-users/$userId"
-				params={{ userId: row.original.id }}
-				className="flex min-w-0 items-center gap-2.5 no-underline"
-			>
-				<InitialsAvatar name={row.original.displayName} />
-				<span
-					className="publy-record-link min-w-0 truncate"
-					title={row.original.displayName}
-				>
-					{row.original.displayName}
-				</span>
-			</Link>
-		),
+		cell: ({ row }) => <StaffUserNameCell row={row.original} />,
 	},
 	{
 		id: 'email',
