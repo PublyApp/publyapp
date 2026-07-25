@@ -408,8 +408,9 @@ than Swarm: GitHub → GHCR Docker images → Dokploy → Traefik (SSL terminati
 declares the service topology in `dokploy.yml` but does not encode the selected Dokploy mode.
 
 A release publishes **three** images — `api`, `migrate`, and `front-2` — all tagged with the same
-commit SHA. They back **four** running services: `publyapp-api`, `publyapp-worker` (the same API
-image with `APP_ROLE=worker`), `publyapp-migrate`, and `publyapp-front`.
+commit SHA. They back **four declared services**: the long-running `publyapp-api`,
+`publyapp-worker` (the same API image with `APP_ROLE=worker`), and `publyapp-front`, plus the
+one-shot `publyapp-migrate`, which exits and remains stopped after migrations finish.
 
 **Publishing images:** deploy images normally build in CI
 (`.github/workflows/deploy-images.yml`). When that workflow is unavailable, publish them locally

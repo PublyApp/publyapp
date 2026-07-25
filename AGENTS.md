@@ -441,9 +441,10 @@ but does not encode the selected Dokploy mode.
 
 `.github/workflows/deploy-images.yml` publishes **three** image artifacts per release, all tagged
 with the same commit SHA: `api` (from `apps/api/Dockerfile`, target `runtime`), `migrate` (same
-Dockerfile, target `migrate`), and `front-2` (from `apps/front-2/Dockerfile`). Four *services* run
-from them — `publyapp-api`, `publyapp-worker` (the **same API image** with `APP_ROLE=worker`),
-`publyapp-migrate`, and `publyapp-front`.
+Dockerfile, target `migrate`), and `front-2` (from `apps/front-2/Dockerfile`). They back four
+declared services: the long-running `publyapp-api`, `publyapp-worker` (the **same API image** with
+`APP_ROLE=worker`), and `publyapp-front`, plus the one-shot `publyapp-migrate`, which remains
+exited after it finishes.
 
 Operational docs: [`docs/deployment/production-deployment-design.md`](docs/deployment/production-deployment-design.md)
 (why it is shaped this way), [`docs/deployment/production-deploy-runbook.md`](docs/deployment/production-deploy-runbook.md)

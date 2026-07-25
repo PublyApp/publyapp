@@ -62,8 +62,10 @@ One immutable release tag per deploy → **migrate + gated api/worker + front** 
 
 A release publishes **three** image artifacts, all tagged with the same commit SHA:
 `ghcr.io/radandevist/publyapp/api` (`apps/api/Dockerfile`, target `runtime`), `…/migrate` (same
-Dockerfile, target `migrate`), and `…/front-2` (`apps/front-2/Dockerfile`). Four **services** run
-from them — the worker reuses the API image with a different `APP_ROLE`, so there is no fourth image.
+Dockerfile, target `migrate`), and `…/front-2` (`apps/front-2/Dockerfile`). Four **services** are
+declared from them: API, worker, and front are long-running; the migrator is one-shot and
+remains exited after completion. The worker reuses the API image with a different `APP_ROLE`, so
+there is no fourth image.
 
 | Service | Image | `APP_ROLE` | Health check | Public (Traefik) |
 |---------|-------|-----------|--------------|------------------|
