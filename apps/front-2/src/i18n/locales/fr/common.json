@@ -666,6 +666,7 @@
 	"filter-by-status": "Filtrer par statut",
 	"all-statuses": "Tous les statuts",
 	"all-levels": "Tous les niveaux",
+	"all-account-levels": "Tous les niveaux de compte",
 	"active": "Actif",
 	"pending": "En attente",
 	"suspended": "Suspendu",

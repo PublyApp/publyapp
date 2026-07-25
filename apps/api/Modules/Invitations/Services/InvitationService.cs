@@ -15,6 +15,7 @@ namespace PublyApp.Api.Modules.Invitations.Services;
 public record FindTenantInvitationsFilters {
 	public string? Search { get; init; }
 	public IReadOnlySet<InvitationEffectiveStatus>? Status { get; init; }
+	public IReadOnlySet<AccountLevel>? Level { get; init; }
 }
 public record FindTenantInvitationsArgs {
 	public Guid Cursor { get; init; }

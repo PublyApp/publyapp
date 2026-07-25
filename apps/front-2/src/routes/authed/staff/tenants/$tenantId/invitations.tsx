@@ -4,6 +4,7 @@ import {
 	IconCircleDot,
 	IconClock,
 	IconId,
+	IconKey,
 	IconMail,
 	IconPlus,
 	IconUser,
@@ -49,11 +50,15 @@ import {
 	type InvitationDisplayStatus,
 	type InvitationListSearchParamInput,
 	type InvitationListSearchParams,
+	type KnownInvitationAccountLevel,
 	type KnownInvitationStatus,
+	KNOWN_INVITATION_ACCOUNT_LEVELS,
 	KNOWN_INVITATION_STATUSES,
 	normalizeInvitationStatus,
+	parseInvitationAccountLevelFilter,
 	parseInvitationListSearchParams,
 	parseInvitationStatusFilter,
+	serializeInvitationAccountLevelFilter,
 	serializeInvitationListSearchParams,
 	serializeInvitationStatusFilter,
 } from '../../invitations/list-helpers';
@@ -79,24 +84,42 @@ const EXPIRES_SOON_MS = 48 * 60 * 60 * 1000;
 const VISIBLE_PROFILE_CHIP_COUNT = 2;
 
 type InvitationRouteSearchParams = InvitationListSearchParams &
-	InviteUserSearchState;
+	InviteUserSearchState & {
+		level?: string;
+	};
 
 type InvitationRouteSearchParamInput = InvitationListSearchParamInput &
-	InviteUserSearchStateInput;
+	InviteUserSearchStateInput & {
+		level?: unknown;
+	};
 
 const parseInvitationRouteSearchParams = (
 	search: InvitationRouteSearchParamInput,
-): InvitationRouteSearchParams => ({
-	...parseInvitationListSearchParams(search),
-	...parseInviteUserSearchParams(search),
-});
+): InvitationRouteSearchParams => {
+	const level = serializeInvitationAccountLevelFilter(
+		parseInvitationAccountLevelFilter(search.level),
+	);
+
+	return {
+		...parseInvitationListSearchParams(search),
+		level: level || undefined,
+		...parseInviteUserSearchParams(search),
+	};
+};
 
 const serializeInvitationRouteSearchParams = (
 	search: InvitationRouteSearchParams,
-): Record<string, string | 1 | undefined> => ({
-	...serializeInvitationListSearchParams(search),
-	...serializeInviteUserSearchParams(search),
-});
+): Record<string, string | 1 | undefined> => {
+	const level = serializeInvitationAccountLevelFilter(
+		parseInvitationAccountLevelFilter(search.level),
+	);
+
+	return {
+		...serializeInvitationListSearchParams(search),
+		level: level || undefined,
+		...serializeInviteUserSearchParams(search),
+	};
+};
 
 type CreateColumnsArgs = {
 	locale: string;
@@ -330,8 +353,9 @@ function StaffTenantInvitationsPage() {
 	const isInviteDrawerOpen = search.invite === 1;
 
 	const selectedStatuses = parseInvitationStatusFilter(search.status);
+	const selectedLevels = parseInvitationAccountLevelFilter(search.level);
 
-	const onSearchChange = (next: InvitationListSearchParams): void => {
+	const onSearchChange = (next: InvitationRouteSearchParams): void => {
 		void navigate({
 			search: serializeInvitationRouteSearchParams({
 				...next,
@@ -356,7 +380,7 @@ function StaffTenantInvitationsPage() {
 		onSearchChange,
 		defaultSort: DEFAULT_SORT,
 		defaultSize: DEFAULT_SIZE,
-		cursorResetKey: `${tenantId}:${search.status ?? ''}`,
+		cursorResetKey: `${tenantId}:${search.status ?? ''}:${search.level ?? ''}`,
 	});
 	const detailsQuery = useStaffTenantDetailsQuery(
 		{ tenantId },
@@ -368,6 +392,7 @@ function StaffTenantInvitationsPage() {
 			tenantId,
 			q: controller.apiVariables.q,
 			status: search.status,
+			level: search.level,
 			sortId: controller.apiVariables.sortId,
 			sortOrder: controller.apiVariables.sortOrder,
 			cursor: controller.apiVariables.cursor,
@@ -486,6 +511,33 @@ function StaffTenantInvitationsPage() {
 					.map((status) => formatTenantInvitationStatusLabel(status, t))
 					.join(', ');
 
+	const setLevels = (nextLevels: KnownInvitationAccountLevel[]): void => {
+		void navigate({
+			search: serializeInvitationRouteSearchParams({
+				...search,
+				level: serializeInvitationAccountLevelFilter(nextLevels),
+				cursor: undefined,
+			}),
+			replace: true,
+		});
+	};
+
+	const toggleLevel = (level: KnownInvitationAccountLevel): void => {
+		if (selectedLevels.includes(level)) {
+			setLevels(selectedLevels.filter((value) => value !== level));
+			return;
+		}
+
+		setLevels([...selectedLevels, level]);
+	};
+
+	const levelFilterLabel =
+		selectedLevels.length === 0
+			? t('all-account-levels')
+			: selectedLevels
+					.map((level) => formatTenantUserLevelLabel(level, t))
+					.join(', ');
+
 	return (
 		<TenantDetailsPageShell
 			tenant={tenant}
@@ -561,7 +613,9 @@ function StaffTenantInvitationsPage() {
 				}
 				noMatchTitle={t('tenant-invitations-no-match-title')}
 				noMatchContent={t('tenant-invitations-no-match-description')}
-				hasActiveSearch={Boolean(controller.search.committed || search.status)}
+				hasActiveSearch={Boolean(
+					controller.search.committed || search.status || search.level,
+				)}
 				sort={controller.sort}
 				onSortChange={controller.onSortChange}
 				size={controller.size}
@@ -580,48 +634,97 @@ function StaffTenantInvitationsPage() {
 				onSearchDraftChange={controller.search.onDraftChange}
 				searchPlaceholder={t('search-invitations')}
 				toolbarEnd={
-					<DropdownMenu>
-						<DropdownMenuTrigger
-							render={
-								<Button
-									type="button"
-									variant="outline"
-									className="publy-data-table-filter-button max-w-64 text-[13px]"
-								/>
-							}
-						>
-							<IconCircleDot
-								aria-hidden="true"
-								className="size-[15px] text-[var(--publy-foreground-secondary)]"
-							/>
-							<span className="truncate">{statusFilterLabel}</span>
-							<IconChevronDown aria-hidden="true" className="size-3" />
-						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end" sideOffset={6}>
-							<DropdownMenuCheckboxItem
-								checked={selectedStatuses.length === 0}
-								closeOnClick
-								onCheckedChange={() => setStatuses([])}
+					<div className="flex items-center gap-2">
+						<DropdownMenu>
+							<DropdownMenuTrigger
+								render={
+									<Button
+										type="button"
+										variant="outline"
+										className="publy-data-table-filter-button max-w-64 text-[13px]"
+										data-testid="staff-tenant-invitations-level-filter-trigger"
+									/>
+								}
 							>
-								{t('all-statuses')}
-							</DropdownMenuCheckboxItem>
-							{KNOWN_INVITATION_STATUSES.map((status) => (
+								<IconKey
+									aria-hidden="true"
+									className="size-[15px] text-[var(--publy-foreground-secondary)]"
+								/>
+								<span className="truncate">{levelFilterLabel}</span>
+								<IconChevronDown aria-hidden="true" className="size-3" />
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end" sideOffset={6}>
 								<DropdownMenuCheckboxItem
-									key={status}
-									checked={selectedStatuses.includes(status)}
-									closeOnClick={false}
-									showCheckbox
-									onCheckedChange={() => toggleStatus(status)}
+									checked={selectedLevels.length === 0}
+									closeOnClick
+									data-testid="staff-tenant-invitations-level-filter-all"
+									onCheckedChange={() => setLevels([])}
 								>
-									{formatTenantInvitationStatusLabel(status, t)}
+									{t('all-account-levels')}
 								</DropdownMenuCheckboxItem>
-							))}
-							<DropdownMenuSeparator />
-							<DropdownMenuItem onClick={() => setStatuses([])}>
-								{t('clear')}
-							</DropdownMenuItem>
-						</DropdownMenuContent>
-					</DropdownMenu>
+								{KNOWN_INVITATION_ACCOUNT_LEVELS.map((level) => (
+									<DropdownMenuCheckboxItem
+										key={level}
+										checked={selectedLevels.includes(level)}
+										closeOnClick={false}
+										showCheckbox
+										data-testid={`staff-tenant-invitations-level-filter-${level}`}
+										onCheckedChange={() => toggleLevel(level)}
+									>
+										{formatTenantUserLevelLabel(level, t)}
+									</DropdownMenuCheckboxItem>
+								))}
+								<DropdownMenuSeparator />
+								<DropdownMenuItem onClick={() => setLevels([])}>
+									{t('clear')}
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+						<DropdownMenu>
+							<DropdownMenuTrigger
+								render={
+									<Button
+										type="button"
+										variant="outline"
+										className="publy-data-table-filter-button max-w-64 text-[13px]"
+										data-testid="staff-tenant-invitations-status-filter-trigger"
+									/>
+								}
+							>
+								<IconCircleDot
+									aria-hidden="true"
+									className="size-[15px] text-[var(--publy-foreground-secondary)]"
+								/>
+								<span className="truncate">{statusFilterLabel}</span>
+								<IconChevronDown aria-hidden="true" className="size-3" />
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end" sideOffset={6}>
+								<DropdownMenuCheckboxItem
+									checked={selectedStatuses.length === 0}
+									closeOnClick
+									onCheckedChange={() => setStatuses([])}
+								>
+									{t('all-statuses')}
+								</DropdownMenuCheckboxItem>
+								{KNOWN_INVITATION_STATUSES.map((status) => (
+									<DropdownMenuCheckboxItem
+										key={status}
+										checked={selectedStatuses.includes(status)}
+										closeOnClick={false}
+										showCheckbox
+										data-testid={`staff-tenant-invitations-status-filter-${status}`}
+										onCheckedChange={() => toggleStatus(status)}
+									>
+										{formatTenantInvitationStatusLabel(status, t)}
+									</DropdownMenuCheckboxItem>
+								))}
+								<DropdownMenuSeparator />
+								<DropdownMenuItem onClick={() => setStatuses([])}>
+									{t('clear')}
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+					</div>
 				}
 			/>
 
