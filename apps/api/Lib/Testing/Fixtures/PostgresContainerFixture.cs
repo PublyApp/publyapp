@@ -76,8 +76,7 @@ public sealed class PostgresContainerFixture : IAsyncDisposable {
 		// Use Testcontainers default wait strategy (more
 		// robust than UntilPortIsAvailable — waits for
 		// pg_isready or equivalent health check)
-		var containerBuilder = new PostgreSqlBuilder()
-			.WithImage("postgres:18-alpine")
+		var containerBuilder = new PostgreSqlBuilder("postgres:18-alpine")
 			.WithDatabase("postgres")
 			.WithUsername("postgres")
 			.WithPassword("postgres");
