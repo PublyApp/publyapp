@@ -18,6 +18,8 @@ namespace PublyApp.Api.Lib.Testing.Fixtures;
 /// from ApiFixture.InitializeAsync().
 /// </summary>
 public sealed class PostgresContainerFixture : IAsyncDisposable {
+	private static readonly TimeSpan _processExitDisposeTimeout =
+		TimeSpan.FromSeconds(5);
 	private static readonly SemaphoreSlim _initLock =
 		new(1, 1);
 	private static PostgresContainerFixture? _sharedInstance;
@@ -147,7 +149,17 @@ public sealed class PostgresContainerFixture : IAsyncDisposable {
 
 	private void HandleProcessExit(object? sender, EventArgs args) {
 		try {
-			DisposeAsync().AsTask().GetAwaiter().GetResult();
+			var disposeTask = DisposeAsync().AsTask();
+			_ = disposeTask.ContinueWith(
+				static task => {
+					_ = task.Exception;
+				},
+				CancellationToken.None,
+				TaskContinuationOptions.OnlyOnFaulted
+					| TaskContinuationOptions.ExecuteSynchronously,
+				TaskScheduler.Default
+			);
+			disposeTask.Wait(_processExitDisposeTimeout);
 		} catch {
 			// Process-exit cleanup is best-effort. Ryuk remains
 			// the fallback when deterministic disposal fails.
