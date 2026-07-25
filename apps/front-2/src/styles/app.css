@@ -536,7 +536,11 @@ html.dark {
 	   that is not in it. */
 	.publy-toast:has(> .publy-toast-close-button) .publy-toast-title::before {
 		content: '';
+		/* `right` first as the physical fallback: if a browser does not know
+		   the logical value it drops that declaration and keeps this one, so
+		   the reserve never disappears in the direction the app ships. */
 		float: right;
+		float: inline-end;
 		width: var(--publy-toast-close-gutter);
 		height: var(--publy-toast-line);
 	}
@@ -559,26 +563,47 @@ html.dark {
 	   `action="A"` alone dropped to row 2, and an action-only "OK" staying
 	   inline and narrowing the message column by 70px.
 	   Cancel precedes action in sonner's DOM, which is also the conventional
-	   secondary-then-primary reading order, so neither needs reordering. */
+	   secondary-then-primary reading order, so neither needs reordering.
+
+	   A LABEL MUST BE ABLE TO GROW. The previous revision combined a fixed
+	   `height: 20px` with `white-space: nowrap`, which left a long label
+	   nowhere to go: review of #991 measured two French labels at 320px whose
+	   painted text ran outside both button boxes, overlapped each other by
+	   ~87px, and reached past the toast's own right edge. So the label wraps
+	   (`overflow-wrap: anywhere` so even one unbreakable token can), and
+	   `min-height` replaces `height` so the button takes the height its label
+	   needs. `overflow-wrap` is what actually guarantees containment: it lowers
+	   the button's min-content width, which is the floor the two `auto` tracks
+	   are allowed to shrink to. Both buttons `stretch` so a one-line label next
+	   to a two-line one still reads as one cluster.
+
+	   Note for anyone re-verifying this: `documentElement.scrollWidth` cannot
+	   see that failure. The toaster host is `position: fixed`, so it never
+	   contributes to the document's scrollable extent and the metric stays at
+	   the viewport width while the labels paint outside the toast. Measure the
+	   painted text rects against the button and toast boxes instead. */
 	.publy-toast-action-button,
 	.publy-toast-cancel-button {
 		display: flex;
 		grid-row: 2;
+		align-self: stretch;
 		align-items: center;
 		justify-content: center;
-		height: var(--publy-toast-line);
+		min-height: var(--publy-toast-line);
 		min-width: 0;
 		max-width: 100%;
 		padding-inline: 8px;
 		border: 1px solid var(--publy-border-strong);
-		/* Smallest step on the radius scale: at the 20px height these sit at,
-		   the 8px chip radius already reads as a pill. */
+		/* Smallest step on the radius scale: at the 20px height a single-line
+		   label sits at, the 8px chip radius already reads as a pill. */
 		border-radius: var(--publy-radius-sm);
 		background: var(--publy-surface);
 		color: var(--publy-foreground);
 		font-size: 12px;
 		font-weight: 500;
-		white-space: nowrap;
+		line-height: 16px;
+		text-align: center;
+		overflow-wrap: anywhere;
 		cursor: pointer;
 	}
 
@@ -620,7 +645,10 @@ html.dark {
 	.publy-toast-close-button {
 		position: absolute;
 		top: var(--publy-toast-pad);
-		right: var(--publy-toast-pad);
+		/* Logical, not `right`: the two cannot both be declared here, because
+		   in an RTL context `inset-inline-end` resolves to `left` and a
+		   surviving `right` would over-constrain the box and win. */
+		inset-inline-end: var(--publy-toast-pad);
 		display: flex;
 		align-items: center;
 		justify-content: center;
