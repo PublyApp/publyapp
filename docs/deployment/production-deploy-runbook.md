@@ -6,9 +6,10 @@ applications, and Swarm ignores Compose `depends_on`. The owner ratified approac
 
 ## Ratified approach A: one-shot migrate plus application gates
 
-Every release uses one immutable `RELEASE_TAG` for the API, worker, migrator, and front
-images. `dokploy.yml` declares `publyapp-migrate` as a normal service using the slim EF
-bundle image. Its Swarm restart policy is `condition: none`, so the release-tag update
+Every release uses one immutable `RELEASE_TAG`. It tags **three** published images — `api`,
+`migrate`, and `front-2` — which back **four** services: the worker runs the **same `api` image**
+with `APP_ROLE=worker`, so there is no separate worker image. `dokploy.yml` declares
+`publyapp-migrate` as a normal service using the slim EF bundle image. Its Swarm restart policy is `condition: none`, so the release-tag update
 creates one migration task and Swarm does not restart it after it exits.
 
 Dokploy starts the services concurrently. Ordering therefore comes from application
@@ -44,9 +45,18 @@ configuration remains safe under either runtime.
 
 Before triggering the stack deployment:
 
-- Confirm the release workflow published all four images with the same immutable tag.
+- Confirm the release workflow published all three images (`api`, `migrate`, `front-2`) with the
+  same immutable tag. The worker reuses the `api` image, so there is no fourth image to check.
 - Set `RELEASE_TAG` and the complete environment/secret set in Dokploy. API and migrator
   share the single database credential; API and worker pool caps remain 50 and 30.
+- Confirm `TRUSTED_PROXY_CIDRS` is set and is **Traefik's exact address as `/32`** (or `/128` for
+  IPv6) — not a network CIDR. `docker inspect` reports a container address with the network prefix
+  (e.g. `10.0.1.9/24`); pasting that verbatim trusts every peer container on `dokploy-network` and
+  lets any of them forge `X-Forwarded-For`. Universal CIDRs (`0.0.0.0/0`, `::/0`) are rejected at
+  startup, and a **missing** value fails the Production `api` role at startup — a real deploy
+  crash-looped on this. Recheck the address after any Traefik or network recreation, and make sure
+  the value contains no `#` (Dokploy silently truncates a secret at `#`). Full note:
+  [`first-deploy-runbook.md`](first-deploy-runbook.md) §5a.
 - Confirm the migration task joins a network that resolves and reaches PostgreSQL.
 - Confirm the persistent API storage volume is mounted and writable by the runtime UID.
 
@@ -104,9 +114,6 @@ click-by-click procedure and the traps encountered live in
   hostname carries a Dokploy-generated suffix and is **not** the App Name you typed. Take it
   from the Postgres service's Connection tab → Internal Host, or the migration task fails DNS
   resolution before it applies anything.
-
-If alternative B is pursued later, also confirm whether `schedule.runManually` blocks or is
-fire-and-forget and provision the least-privileged API key needed for schedule/deploy calls.
 
 If alternative B is pursued later, also confirm whether `schedule.runManually` blocks or is
 fire-and-forget and provision the least-privileged API key needed for schedule/deploy calls.
