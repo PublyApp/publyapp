@@ -15,7 +15,10 @@ const scriptExtensions = new Set([
 ]);
 const zIndexUtilityPattern =
 	/(?:^|:)(-?z-(?:\d+|auto|\[[^\]\s]+\]|\([^)]+\)))$/;
-const tokenBackedZIndexPattern = /^z-\(--publy-z-[a-z0-9-]+\)$/;
+const zIndexTokenPrefix = ['--publy', 'z'].join('-');
+const tokenBackedZIndexPattern = new RegExp(
+	`^z-\\(${zIndexTokenPrefix}-[a-z0-9-]+\\)$`,
+);
 
 type SourceFragment = {
 	text: string;
