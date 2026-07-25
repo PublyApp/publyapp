@@ -654,7 +654,7 @@ function StaffUserEditPage() {
 						isProfileSearchSettled &&
 						!profilesQuery.isPending &&
 						!profilesQuery.isFetching ? (
-							<p className="text-sm text-muted-foreground">
+							<p role="status" className="text-sm text-muted-foreground">
 								{deferredProfileSearch
 									? t('common:list-no-match-default-description')
 									: t('common:no-profiles-available')}
