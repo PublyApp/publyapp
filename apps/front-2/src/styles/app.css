@@ -355,86 +355,219 @@ html.dark {
    default utility classes (Badge/Button) that must keep losing — see each
    rule's comment. */
 @layer components {
+	/* Toast (sonner, `unstyled: true`). Two cascade facts shape this whole
+	   block, and both were verified in a real browser (#991):
+
+	   1. With `unstyled` sonner ships NO layout for the toast element, so
+	      everything — including `display` — has to be declared here. Before
+	      this block did, the toast computed to the `<li>` default
+	      `display: list-item`, which silently voided `gap`/`flex` and stacked
+	      the close button, the icon and the message in a column.
+	   2. Sonner's own stylesheet is UN-layered, so it beats every rule in
+	      `@layer components` regardless of specificity. That is why
+	      `richColors` is switched off in toaster.tsx: its un-layered
+	      `[data-rich-colors]` rules own background, border-color and the
+	      close-button colours, and would defeat everything below.
+
+	   Variant colour comes from the same semantic alert tokens the inline alert
+	   surfaces already use (`components/auth/auth-alert.tsx`), so an error
+	   toast and an error alert read as one family. */
 	.publy-toast {
+		/* Per-variant channel, overridden by the four `.publy-toast-*` rules
+		   further down. The defaults are the neutral (`message`/`loading`)
+		   tone; painting `--publy-surface-raised` over itself is a deliberate
+		   no-op so the neutral case needs no separate rule. */
+		--publy-toast-tint: var(--publy-surface-raised);
+		--publy-toast-edge: var(--publy-border);
+		--publy-toast-accent: var(--publy-foreground-muted);
+		/* The first text line's box. The icon, the close button and any action
+		   button are all sized to it, so they stay optically centred on line 1
+		   however far the message wraps. */
+		--publy-toast-line: 20px;
+
 		box-sizing: border-box;
+		display: flex;
+		align-items: flex-start;
+		column-gap: 10px;
+		row-gap: 6px;
 		width: 100%;
 		max-width: 100%;
 		min-width: 0;
-		min-height: 56px;
-		padding: 12px 42px 12px 14px;
-		gap: 10px;
-		border: 1px solid var(--publy-border);
+		padding-block: 14px;
+		padding-inline: 14px 12px;
+		border: 1px solid var(--publy-toast-edge);
 		border-radius: var(--publy-radius-control);
-		background: var(--publy-surface-raised);
+		/* Two of the four semantic tints are translucent rgba tokens, and a
+		   toast floats over arbitrary page content — so the tint is painted as
+		   a flat gradient layer on top of an opaque raised surface rather than
+		   being the background itself. */
+		background-color: var(--publy-surface-raised);
+		background-image: linear-gradient(
+			var(--publy-toast-tint),
+			var(--publy-toast-tint)
+		);
 		color: var(--publy-foreground);
 		box-shadow: var(--publy-shadow-menu);
 		overflow-wrap: anywhere;
 	}
 
-	.publy-toast-content {
-		min-width: 0;
-		flex: 1 1 auto;
-		overflow-wrap: anywhere;
+	/* Sonner puts `classNames.default` on EVERY toast alongside the type class
+	   (`publy-toast-default publy-toast-success`), so there is deliberately no
+	   `.publy-toast-default` rule — the neutral tone lives on `.publy-toast`
+	   above and a `.publy-toast-default` rule of equal specificity would fight
+	   these four for it. */
+	.publy-toast-success {
+		--publy-toast-tint: var(--publy-alert-success-bg);
+		--publy-toast-edge: var(--publy-alert-success-border);
+		--publy-toast-accent: var(--publy-alert-success-text);
 	}
 
-	.publy-toast-title,
-	.publy-toast-description {
-		overflow-wrap: anywhere;
+	.publy-toast-error {
+		--publy-toast-tint: var(--publy-alert-danger-bg);
+		--publy-toast-edge: var(--publy-alert-danger-border);
+		--publy-toast-accent: var(--publy-alert-danger-text);
 	}
 
+	.publy-toast-warning {
+		--publy-toast-tint: var(--publy-alert-warning-bg);
+		--publy-toast-edge: var(--publy-alert-warning-border);
+		--publy-toast-accent: var(--publy-alert-warning-text);
+	}
+
+	.publy-toast-info {
+		--publy-toast-tint: var(--publy-alert-info-bg);
+		--publy-toast-edge: var(--publy-alert-info-border);
+		--publy-toast-accent: var(--publy-alert-info-text);
+	}
+
+	/* Icon and close button are boxed to the first line's height rather than
+	   given a top margin, so they re-centre themselves if the title's
+	   line-height ever changes. */
 	.publy-toast-icon {
-		flex: 0 0 auto;
-	}
-
-	.publy-toast-success .publy-toast-icon {
-		color: var(--publy-success);
-	}
-
-	.publy-toast-error .publy-toast-icon {
-		color: var(--publy-danger);
-	}
-
-	.publy-toast-warning .publy-toast-icon {
-		color: var(--publy-warning);
-	}
-
-	.publy-toast-info .publy-toast-icon,
-	.publy-toast-default .publy-toast-icon,
-	.publy-toast-loading .publy-toast-icon {
-		color: var(--publy-foreground-muted);
-	}
-
-	.publy-toast-close-button {
-		top: 8px;
-		right: 8px;
-		width: 24px;
-		height: 24px;
-		padding: 0;
+		order: 1;
 		display: flex;
+		flex: 0 0 auto;
 		align-items: center;
 		justify-content: center;
-		border: 1px solid var(--publy-border);
+		width: 16px;
+		height: var(--publy-toast-line);
+		color: var(--publy-toast-accent);
+	}
+
+	.publy-toast-content {
+		order: 2;
+		display: flex;
+		flex: 1 1 auto;
+		flex-direction: column;
+		gap: 2px;
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
+
+	.publy-toast-title {
+		font-size: 14px;
+		font-weight: 500;
+		line-height: var(--publy-toast-line);
+		overflow-wrap: anywhere;
+	}
+
+	.publy-toast-description {
+		font-size: 13px;
+		line-height: 18px;
+		color: var(--publy-foreground-muted);
+		overflow-wrap: anywhere;
+	}
+
+	/* Sonner's DOM order is close button, icon, content, cancel, action — the
+	   `order` values put them back into reading order without touching the
+	   markup. */
+	.publy-toast-action-button,
+	.publy-toast-cancel-button {
+		order: 3;
+		display: inline-flex;
+		flex: 0 0 auto;
+		align-items: center;
+		justify-content: center;
+		align-self: flex-start;
+		height: var(--publy-toast-line);
+		min-width: 0;
+		max-width: 100%;
+		padding-inline: 8px;
+		border: 1px solid var(--publy-border-strong);
+		/* Smallest step on the radius scale: at the 20px height these sit at,
+		   the 8px chip radius already reads as a pill. */
 		border-radius: var(--publy-radius-sm);
 		background: var(--publy-surface);
-		color: var(--publy-foreground-muted);
+		color: var(--publy-foreground);
+		font-size: 12px;
+		font-weight: 500;
+		white-space: nowrap;
 		cursor: pointer;
 	}
 
-	.publy-toast-close-button:hover {
-		border-color: var(--publy-border-strong);
-		background: var(--publy-surface-hover);
+	.publy-toast-cancel-button {
+		order: 4;
+		border-color: transparent;
+		background: none;
+		color: var(--publy-foreground-muted);
+	}
+
+	.publy-toast-action-button:hover {
+		background: var(--publy-surface-active);
+	}
+
+	.publy-toast-cancel-button:hover {
+		background: var(--publy-surface-active);
 		color: var(--publy-foreground);
 	}
 
-	.publy-toast-action-button,
-	.publy-toast-cancel-button {
-		min-width: 0;
-		max-width: 100%;
-		border: 1px solid var(--publy-border);
+	/* Dismissal is secondary chrome: no border, no surface of its own, only a
+	   muted glyph that gains a background on hover. `--publy-foreground-muted`
+	   (not `-subtle`) keeps the glyph above the 3:1 non-text contrast floor on
+	   both themes. */
+	.publy-toast-close-button {
+		order: 5;
+		display: flex;
+		flex: 0 0 auto;
+		align-items: center;
+		justify-content: center;
+		width: var(--publy-toast-line);
+		height: var(--publy-toast-line);
+		padding: 0;
+		border: 0;
 		border-radius: var(--publy-radius-sm);
-		background: var(--publy-surface-muted);
+		background: none;
+		color: var(--publy-foreground-muted);
+		cursor: pointer;
+		transition:
+			color var(--publy-motion-fast) var(--publy-motion-ease),
+			background-color var(--publy-motion-fast) var(--publy-motion-ease);
+	}
+
+	.publy-toast-close-button:hover {
+		background: var(--publy-surface-active);
 		color: var(--publy-foreground);
-		overflow-wrap: anywhere;
+	}
+
+	/* Sonner hides the contents of the back toasts in a collapsed stack, but
+	   only under `[data-styled='true']` — which `unstyled: true` opts out of.
+	   Without this the stack's clamped back toasts keep painting their text
+	   behind the front toast whenever they are taller than it. */
+	.publy-toast[data-expanded='false'][data-front='false'] > * {
+		opacity: 0;
+	}
+
+	/* Sonner's own focus ring is a 20%-black box-shadow, effectively invisible
+	   on the dark theme, and it is un-layered so it cannot be overridden from
+	   here on specificity. Drawing the ring on a pseudo-element sidesteps the
+	   conflict instead of reaching for an important marker. */
+	.publy-toast:focus-visible::before {
+		content: '';
+		position: absolute;
+		inset: -3px;
+		border: 2px solid var(--publy-focus-ring);
+		border-radius: calc(var(--publy-radius-control) + 3px);
+		pointer-events: none;
 	}
 
 	html {
