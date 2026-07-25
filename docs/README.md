@@ -27,6 +27,16 @@ Two cautions about `docs/guides/`:
 - `AGENTS.md` also links repository config/source files when a rule needs an implementation anchor.
   A `docs/guides/` file that `AGENTS.md` does not link is a record, not a rule.
 
+## Historical archive
+
+`docs/archive/` is deliberately outside normal contributor navigation and outside agent-required
+reading. Its files are curated historical evidence, explicitly non-normative, and must not be used
+as a substitute for a current guide or the implementation. Consult an archived record only when a
+task specifically needs the reasoning behind an old decision or incident.
+
+Do not file new work directly in the archive. Write it in the active directory selected below; move
+it to the archive only through an explicit documentation-curation change.
+
 ## Where a new document goes
 
 One rule per directory. Pick the **first** row that matches; if two seem to fit, the earlier row
