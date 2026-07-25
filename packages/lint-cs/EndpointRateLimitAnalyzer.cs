@@ -218,14 +218,13 @@ public sealed class EndpointRateLimitAnalyzer
 				memberAccess.Expression,
 				context.CancellationToken
 			).Type;
-		var method = context.SemanticModel
+		if (
+			receiverType is null
+			|| context.SemanticModel
 			.GetSymbolInfo(
 				invocation,
 				context.CancellationToken
-			).Symbol as IMethodSymbol;
-		if (
-			receiverType is null
-			|| method is null
+			).Symbol is not IMethodSymbol method
 			|| !method.Name.StartsWith(
 				"Map",
 				StringComparison.Ordinal
@@ -252,6 +251,10 @@ public sealed class EndpointRateLimitAnalyzer
 				"Microsoft.AspNetCore.Builder."
 					+ "RouteHandlerBuilder"
 			);
+		var completedTerminalities =
+			new Dictionary<ISymbol, MappingTerminality>(
+				SymbolEqualityComparer.Default
+			);
 		return GetMappingTerminality(
 			method,
 			routeBuilderType,
@@ -262,7 +265,8 @@ public sealed class EndpointRateLimitAnalyzer
 			context.CancellationToken,
 			new HashSet<ISymbol>(
 				SymbolEqualityComparer.Default
-			)
+			),
+			completedTerminalities
 		) == MappingTerminality.Terminal;
 	}
 
@@ -275,14 +279,25 @@ public sealed class EndpointRateLimitAnalyzer
 		INamedTypeSymbol? routeHandlerBuilderType,
 		Compilation compilation,
 		CancellationToken cancellationToken,
-		HashSet<ISymbol> visited
+		HashSet<ISymbol> visited,
+		Dictionary<ISymbol, MappingTerminality>
+			completedTerminalities
 	) {
-		if (
-			!visited.Add(method.OriginalDefinition)
-		) {
+		var definition = method.OriginalDefinition;
+		if (visited.Contains(definition)) {
 			return MappingTerminality.Undecidable;
 		}
 
+		if (
+			completedTerminalities.TryGetValue(
+				definition,
+				out var completedTerminality
+			)
+		) {
+			return completedTerminality;
+		}
+
+		visited.Add(definition);
 		if (
 			IsAspNetCoreMappingApi(
 				method,
@@ -290,12 +305,16 @@ public sealed class EndpointRateLimitAnalyzer
 				conventionBuilderType
 			)
 		) {
-			return ClassifyMappingResultType(
+			var frameworkTerminality =
+				ClassifyMappingResultType(
 				method.ReturnType,
 				routeBuilderType,
 				routeGroupBuilderType,
 				routeHandlerBuilderType
 			);
+			completedTerminalities[definition] =
+				frameworkTerminality;
+			return frameworkTerminality;
 		}
 
 		if (method.DeclaringSyntaxReferences.Length == 0) {
@@ -314,14 +333,14 @@ public sealed class EndpointRateLimitAnalyzer
 				return MappingTerminality.Undecidable;
 			}
 
-			#pragma warning disable RS1030
+#pragma warning disable RS1030
 			// Source-visible helpers can be declared in another
 			// syntax tree. Their returned mapping symbol cannot
 			// be resolved from the call site's semantic model.
 			var semanticModel = compilation.GetSemanticModel(
 				declaration.SyntaxTree
 			);
-			#pragma warning restore RS1030
+#pragma warning restore RS1030
 			var declarationTerminality =
 				GetDeclarationTerminality(
 					declaration,
@@ -332,7 +351,8 @@ public sealed class EndpointRateLimitAnalyzer
 					routeHandlerBuilderType,
 					compilation,
 					cancellationToken,
-					visited
+					visited,
+					completedTerminalities
 				);
 			if (
 				declarationTerminality
@@ -349,8 +369,15 @@ public sealed class EndpointRateLimitAnalyzer
 			terminality = declarationTerminality;
 		}
 
-		return terminality
+		var result = terminality
 			?? MappingTerminality.Undecidable;
+		// Undecidable can depend on this path's active
+		// ancestors, so it is not a completed result.
+		if (result != MappingTerminality.Undecidable) {
+			completedTerminalities[definition] = result;
+		}
+
+		return result;
 	}
 
 	private static MappingTerminality
@@ -363,7 +390,9 @@ public sealed class EndpointRateLimitAnalyzer
 		INamedTypeSymbol? routeHandlerBuilderType,
 		Compilation compilation,
 		CancellationToken cancellationToken,
-		HashSet<ISymbol> visited
+		HashSet<ISymbol> visited,
+		Dictionary<ISymbol, MappingTerminality>
+			completedTerminalities
 	) {
 		if (
 			declaration.ExpressionBody?.Expression
@@ -378,7 +407,8 @@ public sealed class EndpointRateLimitAnalyzer
 				routeHandlerBuilderType,
 				compilation,
 				cancellationToken,
-				visited
+				visited,
+				completedTerminalities
 			);
 		}
 
@@ -417,7 +447,8 @@ public sealed class EndpointRateLimitAnalyzer
 					new HashSet<ISymbol>(
 						visited,
 						SymbolEqualityComparer.Default
-					)
+					),
+					completedTerminalities
 				);
 			if (
 				returnTerminality
@@ -448,7 +479,9 @@ public sealed class EndpointRateLimitAnalyzer
 		INamedTypeSymbol? routeHandlerBuilderType,
 		Compilation compilation,
 		CancellationToken cancellationToken,
-		HashSet<ISymbol> visited
+		HashSet<ISymbol> visited,
+		Dictionary<ISymbol, MappingTerminality>
+			completedTerminalities
 	) {
 		if (
 			expression
@@ -463,7 +496,8 @@ public sealed class EndpointRateLimitAnalyzer
 				routeHandlerBuilderType,
 				compilation,
 				cancellationToken,
-				visited
+				visited,
+				completedTerminalities
 			);
 		}
 
@@ -477,7 +511,8 @@ public sealed class EndpointRateLimitAnalyzer
 				routeHandlerBuilderType,
 				compilation,
 				cancellationToken,
-				visited
+				visited,
+				completedTerminalities
 			);
 		}
 
@@ -505,7 +540,8 @@ public sealed class EndpointRateLimitAnalyzer
 				routeHandlerBuilderType,
 				compilation,
 				cancellationToken,
-				visited
+				visited,
+				completedTerminalities
 			);
 		}
 
@@ -550,7 +586,8 @@ public sealed class EndpointRateLimitAnalyzer
 				routeHandlerBuilderType,
 				compilation,
 				cancellationToken,
-				visited
+				visited,
+				completedTerminalities
 			);
 		}
 
@@ -567,7 +604,8 @@ public sealed class EndpointRateLimitAnalyzer
 				routeHandlerBuilderType,
 				compilation,
 				cancellationToken,
-				visited
+				visited,
+				completedTerminalities
 			);
 		}
 

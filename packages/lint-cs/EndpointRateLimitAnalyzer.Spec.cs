@@ -2,6 +2,9 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Testing;
 using Microsoft.CodeAnalysis.Testing;
 
+using System.Globalization;
+using System.Text;
+
 using Xunit;
 
 using AnalyzerUnderTest =
@@ -557,6 +560,67 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 				.Diagnostic(DiagnosticIds.PUBLY0011)
 				.WithLocation(0)
 				.WithArguments("MapConditional")
+		);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldAnalyzeABranchyDagWithSharedTerminalHelpers() {
+		const int branchDepth = 14;
+		var helpers = new StringBuilder();
+		for (var level = 0; level < branchDepth; level++) {
+			var nextLevel = level + 1;
+			helpers.Append(
+				CultureInfo.InvariantCulture,
+				$$"""
+					public static RouteHandlerBuilder MapLevel{{level}}(
+						this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder,
+						bool first = true
+					)
+					{
+						if (first)
+						{
+							return builder.MapLevel{{nextLevel}}()
+								.WithGlobalRateLimitOnly();
+						}
+
+						return builder.MapLevel{{nextLevel}}()
+							.WithGlobalRateLimitOnly();
+					}
+
+				"""
+			);
+		}
+
+		helpers.Append(
+			CultureInfo.InvariantCulture,
+			$$"""
+				public static RouteHandlerBuilder MapLevel{{branchDepth}}(
+					this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder
+				) => builder.MapGet("/leaf", () => { })
+					.WithGlobalRateLimitOnly();
+			"""
+		);
+
+		var source =
+			$$"""
+				using Microsoft.AspNetCore.Builder;
+
+				var app = new RouteBuilder();
+				app.{|#0:MapLevel0|}();
+
+				static class BranchyEndpointExtensions
+				{
+				{{helpers}}
+				}
+				""";
+
+		await VerifyAsync(
+			source,
+			Verifier
+				.Diagnostic(DiagnosticIds.PUBLY0011)
+				.WithLocation(0)
+				.WithArguments("MapLevel0")
 		);
 	}
 
