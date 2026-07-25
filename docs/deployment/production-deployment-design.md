@@ -1,7 +1,7 @@
 # Production Deployment & Migration Design
 
-**Issue:** #876 (closed) · **Status:** implemented — **live in production since 2026-07-20** ·
-**CI-guard follow-up:** #877 (closed)
+**Issue:** #876 (closed) · **Status:** implemented · **Operational record:** first successful
+production deploy observed on 2026-07-20 · **CI-guard follow-up:** #877 (closed)
 
 This document is the architecture and decision record for how PublyApp deploys to production and
 applies database migrations. The decisions below are in force; where the original design assumed
@@ -12,16 +12,22 @@ It supersedes the older `docs/misc/deployment-guide.md` (artifact-upload flow) a
 `docs/misc/database-migration-deployment.md` (generic/stale, references SQL Server `sqlcmd` and a
 DbContext class that no longer exists).
 
-Host: **Dokploy on a single Hostinger VPS**, GHCR images, Traefik SSL. Grounded in `dokploy.yml` +
-`apps/api/Dockerfile`, plus a second architectural opinion (GPT-5.6-sol) captured during design.
+The repository proves the declared topology and controls: `dokploy.yml` defines four services,
+three image names, both migrator restart declarations, and an external network named
+`dokploy-network`; the Dockerfiles define the image contents; and
+`.github/workflows/deploy-images.yml` publishes images. It does **not** record which Dokploy
+Compose type is selected on the live server, perform a deployment, prove the production date, or
+declare the external network's driver.
 
-> **The runtime is plain `docker compose`, not Swarm.** Confirmed on the first deploy
-> (the deploy log reports `Compose Type: docker-compose`). Every Swarm-specific expectation in the
-> original design — rolling updates and task reaping/rescheduling — is therefore inert. Compose does
-> apply `deploy.restart_policy` when present and falls back to `restart:` only when it is absent;
-> both migrator declarations say not to restart. An unhealthy container is not killed, it stays
-> running and Traefik withholds routing. Individual paragraphs below carry a **SUPERSEDED** marker
-> where they assumed Swarm.
+> **Live-server observation, not repository proof:** the first-deploy operator record says the
+> Dokploy log reported `Compose Type: docker-compose` on the production VPS. That observation is the
+> basis for treating rolling updates and task reaping/rescheduling as inactive on this instance.
+> Compose still applies `deploy.restart_policy` when present and falls back to `restart:` only when
+> it is absent; both migrator declarations say not to restart. Individual paragraphs below carry a
+> **SUPERSEDED** marker where the original design assumed Swarm. Two untouched source comments still
+> describe Swarm (`dokploy.yml` above `publyapp-migrate` and `WorkerMigrationStartupGate`); those
+> contradictory comments require separate code/config follow-up and are not evidence of the live
+> mode.
 
 > **Migration gating — ratified approach A:** the deployed configuration does not use the
 > pre-deploy hook assumed by decision 3 below. The ratified and now shipped implementation is a
@@ -37,7 +43,7 @@ Host: **Dokploy on a single Hostinger VPS**, GHCR images, Traefik SSL. Grounded 
 | 2 | Migration mechanism | **Apply directly** (automated), packaged as an **EF migration bundle** (no SDK/source in prod) |
 | 3 | Migration execution | **One-shot migrate service** plus API readiness and worker startup gates, each with a five-minute startup grace |
 | 4 | Seeding | **Split by intent** — essentials idempotent everywhere, demo gated OFF in Production, owner via bootstrap |
-| 5 | Deploy model | **Expand/contract** (backward-compatible) migration discipline. *Zero-downtime via Swarm rolling: **SUPERSEDED** — the instance runs plain Compose, so a deploy has a short recreate gap. Expand/contract still holds and is the half that mattered.* |
+| 5 | Deploy model | **Expand/contract** (backward-compatible) migration discipline. *Zero-downtime via Swarm rolling: **SUPERSEDED** — the observed instance uses plain Compose, so a deploy has a short recreate gap. Expand/contract still holds and is the half that mattered.* |
 | 6 | DB credentials | **Single** app credential (migrator + runtime share one role) |
 | 7 | Frontend target | **`apps/front-2`** (SSR), deployed under the generic service name `publyapp-front`. `apps/front` is retired and is not built for release. |
 
@@ -46,7 +52,7 @@ Host: **Dokploy on a single Hostinger VPS**, GHCR images, Traefik SSL. Grounded 
 - **Bundle (2):** same automated "apply-directly" behaviour as `dotnet ef database update`. The SDK-based `migrations` build stage creates `efbundle`; the final `migrate` stage uses the ASP.NET runtime image and copies only that bundle, not the SDK, EF tooling, or source tree. The bundle still runs `UseSeeding`.
 - **One-shot service (3):** the active Compose file has no `depends_on`; the immutable migrator runs as a one-shot service while API readiness and the worker startup gate block application work. A five-minute healthcheck startup grace matches the bounded wait. The migrate service carries **both** `deploy.restart_policy.condition: none` (the Compose-preferred control when present) and the equivalent `restart: "no"` fallback.
 - **Seeding split (4):** **SUPERSEDED:** the original design found that seeders ran unconditionally and would have included demo fixtures in Production. The shipped `CreateSeeders` filter excludes every `IsDemo` seeder in Production, while non-demo seeders — including permissions, system definitions, and the owner bootstrap — still run. A Production-process spec verifies both sides of the gate.
-- **Zero-downtime + expand/contract (5):** owner chose zero-downtime. It has two halves: **schema safety** (expand/contract — always ours to control) and **deploy mechanics** (Swarm rolling on Dokploy). Expand/contract is the real guarantee and it shipped. **SUPERSEDED — the deploy-mechanics half:** the instance runs plain Compose, so there is no rolling update and a deploy has a brief container-recreate gap. Getting true no-gap cutover later means switching the app to Dokploy "Stack" (Swarm) or fronting it with two health-gated replicas; neither is done, and neither is needed at current traffic.
+- **Zero-downtime + expand/contract (5):** owner chose zero-downtime. It has two halves: **schema safety** (expand/contract — always ours to control) and **deploy mechanics** (Swarm rolling on Dokploy). Expand/contract is the real guarantee and it shipped. **SUPERSEDED — the deploy-mechanics half:** the live-server record identifies the selected mode as plain Compose, so the observed deployment has no rolling update and has a brief container-recreate gap. Getting true no-gap cutover later means selecting Dokploy "Stack" (Swarm) or fronting it with two health-gated replicas; neither was observed on the instance, and neither is needed at current traffic.
 - **Single credential (6):** least-privilege DDL/DML split remains deferred; its default-privileges management adds outage risk for limited current benefit. Revisit if the threat model changes.
 - **front-2 (7):** front-2 is the go-forward UI and deploys under the generic service name `publyapp-front`; the retired `apps/front` has no release image.
 
@@ -69,7 +75,7 @@ from them — the worker reuses the API image with a different `APP_ROLE`, so th
 Deploy flow:
 1. The release publishers — `.github/workflows/deploy-images.yml` or local `just deploy-images` — build and push the same three immutable-tagged images (`…:<release>`), including the migrator-bundle image.
 2. Dokploy starts the one-shot migrator and application services concurrently. API readiness and the worker startup gate remain closed until the bundle applies migrations and production-safe seeds.
-3. API and worker healthchecks have a five-minute `start_period`, matching the worker gate budget. Under plain Compose the container is not killed for failing its healthcheck: it stays running and Traefik withholds routing until `/health/ready` passes. **SUPERSEDED (Swarm-only):** the original wording said Swarm keeps the task alive during the grace and a failure beyond the budget becomes a failed/rescheduled task. There is no rescheduling here — a stuck migration simply leaves the app unrouted, which is why the migrate container's exit code must be watched during a deploy.
+3. API and worker healthchecks have a five-minute `start_period`, matching the worker gate budget. Under the plain-Compose mode recorded on the live server, the container is not killed for failing its healthcheck: it stays running and Traefik withholds routing until `/health/ready` passes. **SUPERSEDED (Swarm-only):** the original wording said Swarm keeps the task alive during the grace and a failure beyond the budget becomes a failed/rescheduled task. The observed mode does not reschedule it — a stuck migration simply leaves the app unrouted, which is why the migrate container's exit code must be watched during a deploy.
 4. **SUPERSEDED (Swarm-only):** the **worker's** brief two-instance overlap during a *rolling* update. Plain Compose recreates rather than rolls, so no overlap occurs today. The safety properties still hold and are what would make a future roll safe: 2B's fenced leases + advisory-lock scheduler leadership + ~45s graceful drain prevent double-execution.
 
 ## Migrations
@@ -108,16 +114,23 @@ These would have broken deploy #1. They are resolved in the committed `dokploy.y
 
 ## Non-goals / still deferred
 - **Least-privilege DDL/DML credential split** — still deferred; the migrator and runtime share one credential (decision 6). Revisit if the threat model changes.
-- **True zero-downtime cutover** — not achieved; the instance runs plain Compose, so a deploy recreates containers. Would require Dokploy "Stack" (Swarm) or health-gated replicas.
+- **True zero-downtime cutover** — not achieved on the observed instance; its recorded
+  plain-Compose mode recreates containers. This would require Dokploy "Stack" (Swarm) or
+  health-gated replicas.
 - **Blue/green / multi-replica horizontal scale** — the split topology and immutable tags keep the door open; not needed at current traffic.
 - ~~Automated expand/contract CI guard (#877)~~ — **done**, see Migrations above.
 
 ## Verification (all performed)
 - Local `docker compose` smoke: migrate (bundle) → api + worker come up healthy with the full env; API `/health/live` stays 200 while `/health/ready` changes from 503 to 200, and worker `--worker-health` stays fresh during the gate wait.
 - A spec asserts **demo seeders do not run under `ASPNETCORE_ENVIRONMENT=Production`** and essentials do.
-- The first real deploy (2026-07-20) walked the whole flow on the instance. What was confirmed, and the five traps that cost real debugging time, are recorded in the [first-deploy runbook](./first-deploy-runbook.md) §8. **SUPERSEDED:** the planned "dry-run *rolling* deploy" — there is no rolling deploy under plain Compose.
+- The operator record says the first successful deploy on 2026-07-20 walked the whole flow on the
+  instance. What was observed, and the five traps that cost real debugging time, are recorded in the
+  [first-deploy runbook](./first-deploy-runbook.md) §8. **SUPERSEDED:** the planned "dry-run
+  *rolling* deploy" — the recorded live mode was plain Compose, not a rolling Swarm deployment.
 
 ## References
 - Second opinion: GPT-5.6-sol advisory (topology pressure-test, bundle recommendation, seeding security finding, footgun list).
 - EF Core: [applying migrations](https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/applying), [data seeding](https://learn.microsoft.com/en-us/ef/core/modeling/data-seeding).
+- Docker: [Compose Deploy Specification](https://docs.docker.com/reference/compose-file/deploy/).
+- Dokploy: [Docker Compose configuration methods](https://docs.dokploy.com/docs/core/docker-compose).
 - Dokploy: [zero-downtime](https://docs.dokploy.com/docs/core/applications/zero-downtime) (Swarm rolling; requires a health route; Compose alone cannot do zero-downtime).

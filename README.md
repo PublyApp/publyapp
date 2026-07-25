@@ -402,9 +402,10 @@ A few non-negotiables worth surfacing here:
 
 <!-- markdownlint-disable MD013 MD060 -->
 
-PublyApp has been **live in production since 2026-07-20** on **Dokploy on a Hostinger VPS**, run as
-plain `docker compose` (not Swarm): GitHub → GHCR Docker images → Dokploy → Traefik (SSL
-termination). Deployment configuration lives in `dokploy.yml`.
+The first-deploy operator record says PublyApp has been **live in production since 2026-07-20** on
+**Dokploy on a Hostinger VPS**, with the live app observed in plain `docker compose` mode rather
+than Swarm: GitHub → GHCR Docker images → Dokploy → Traefik (SSL termination). The repository
+declares the service topology in `dokploy.yml` but does not encode the selected Dokploy mode.
 
 A release publishes **three** images — `api`, `migrate`, and `front-2` — all tagged with the same
 commit SHA. They back **four** running services: `publyapp-api`, `publyapp-worker` (the same API

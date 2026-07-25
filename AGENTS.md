@@ -434,9 +434,10 @@ root props; `Directory.Build.targets` enforces this during builds.
 
 ## Deployment
 
-**Production has been live since 2026-07-20.** Dokploy on a Hostinger VPS, run as plain
-`docker compose` (not Swarm): GitHub → GHCR Docker images → Dokploy → Traefik SSL. Config in
-`dokploy.yml`.
+**The first-deploy operator record reports production live since 2026-07-20.** It records Dokploy
+on a Hostinger VPS with the app observed in plain `docker compose` mode rather than Swarm:
+GitHub → GHCR Docker images → Dokploy → Traefik SSL. `dokploy.yml` declares the service topology
+but does not encode the selected Dokploy mode.
 
 `.github/workflows/deploy-images.yml` publishes **three** image artifacts per release, all tagged
 with the same commit SHA: `api` (from `apps/api/Dockerfile`, target `runtime`), `migrate` (same
