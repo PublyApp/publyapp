@@ -370,6 +370,47 @@ test('timeout maps to a list error without crashing or logging out', async ({
 	);
 });
 
+/** The authed-surface counterpart to the `auth/redirect-code` 500 covered by
+ * `design-handoff-foundation.spec.ts` and the POST 500 covered by
+ * `staff-tenant-details.spec.ts`: neither of those proves that a `500`
+ * `application/problem+json` on an authed LIST GET renders the list error
+ * instead of tripping centralized logout. Only `401` may log a user out
+ * (AGENTS.md → "Frontend invariants"), so a `500` must leave the session
+ * cookie and the authed shell intact. */
+test('HTTP 500 problem+json maps to a list error without crashing or logging out', async ({
+	page,
+}) => {
+	const pageErrors = installPageErrorCapture(page);
+
+	await loginAsStaffAdmin(page);
+	await installSyntheticStaffUsersResponse(page, {
+		status: 500,
+		contentType: 'application/problem+json',
+		body: JSON.stringify({
+			type: 'about:blank',
+			title: 'Synthetic server error',
+			status: 500,
+			detail: 'Synthetic server error',
+			translationKey: 'e2e-500',
+		}),
+	});
+	await navigateToFaultedStaffUsers(page, 'http-500');
+	await expect(
+		page
+			.getByTestId('staff-users-table-error')
+			.getByRole('button', { name: /retry/i }),
+		'list error retry affordance',
+	).toBeVisible();
+	await expectStillAuthenticated(
+		page,
+		pageErrors,
+		async () => {
+			await page.unroute(`${API_BASE_URL}/**`);
+		},
+		'http-500-recovered',
+	);
+});
+
 test('invalid JSON maps to a list error without crashing or logging out', async ({
 	page,
 }) => {
