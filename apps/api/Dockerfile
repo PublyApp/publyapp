@@ -67,6 +67,20 @@ LABEL org.opencontainers.image.description="PublyApp API migrator"
 
 WORKDIR /app
 
+RUN set -eu; \
+	for attempt in 1 2 3; do \
+		if apt-get update \
+			&& apt-get install -y --no-install-recommends libgssapi-krb5-2; then \
+			rm -rf /var/lib/apt/lists/*; \
+			break; \
+		fi; \
+		rm -rf /var/lib/apt/lists/*; \
+		if [ "$attempt" -eq 3 ]; then \
+			exit 1; \
+		fi; \
+		sleep 5; \
+	done
+
 COPY --from=migrations /publish/efbundle /app/efbundle
 
 ENTRYPOINT ["./efbundle"]
