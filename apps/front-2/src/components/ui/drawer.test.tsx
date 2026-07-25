@@ -1,6 +1,10 @@
 /**
  * @vitest-environment jsdom
  */
+
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import * as React from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
@@ -116,6 +120,26 @@ describe('Drawer', () => {
 		const backdrop = document.querySelector('.publy-overlay-backdrop');
 		expect(backdrop?.className).toContain('z-(--publy-z-overlay)');
 		expect(backdrop?.className).not.toMatch(/z-\[\d+\]/);
+	});
+
+	test('supports an opt-in 736px width while retaining the mobile viewport clamp', () => {
+		render(
+			<Drawer open={true}>
+				<DrawerContent width={736}>
+					<DrawerTitle>Wide drawer</DrawerTitle>
+				</DrawerContent>
+			</Drawer>,
+		);
+
+		expect(screen.getByRole('dialog').getAttribute('data-width')).toBe('736');
+
+		const appCssSource = readFileSync(
+			path.resolve(import.meta.dirname, '../../styles/app.css'),
+			'utf8',
+		);
+		expect(appCssSource).toMatch(
+			/\.publy-drawer\[data-width='736'\]\s*\{\s*width:\s*min\(736px,\s*calc\(100vw - 24px\)\);/,
+		);
 	});
 
 	test('header close button requests dismissal through onOpenChange', () => {

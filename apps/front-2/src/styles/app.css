@@ -1252,6 +1252,10 @@ html.dark {
 		box-shadow: var(--publy-shadow-drawer);
 	}
 
+	.publy-drawer[data-width='736'] {
+		width: min(736px, calc(100vw - 24px));
+	}
+
 	.publy-drawer-header {
 		@apply flex shrink-0 items-start justify-between gap-3;
 		padding: 18px 22px;

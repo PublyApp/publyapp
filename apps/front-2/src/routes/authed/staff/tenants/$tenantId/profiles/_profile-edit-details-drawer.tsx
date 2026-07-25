@@ -227,7 +227,7 @@ const ProfileEditDetailsDrawer = ({
 				onOpenChange(open);
 			}}
 		>
-			<DrawerContent data-testid="profile-edit-details-drawer">
+			<DrawerContent width={736} data-testid="profile-edit-details-drawer">
 				<DrawerHeader>
 					<DrawerTitle>{tProfiles('edit-details')}</DrawerTitle>
 					<DrawerDescription>
