@@ -1035,23 +1035,29 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 						_http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
-					);
+			);
 
 			string prefix = $"level-page-{Guid.NewGuid():N}";
-			for (int index = 0; index < 3; index++) {
+			string[] adminEmails = [
+				$"{prefix}-a-admin@example.com",
+				$"{prefix}-c-admin@example.com",
+				$"{prefix}-e-admin@example.com",
+			];
+			(string Email, string Level)[] invitations = [
+				(adminEmails[0], "Admin"),
+				($"{prefix}-b-user@example.com", "User"),
+				(adminEmails[1], "Admin"),
+				($"{prefix}-d-user@example.com", "User"),
+				(adminEmails[2], "Admin"),
+			];
+			foreach (var invitation in invitations) {
 				_ = await CreateTenantInvitationAsync(
 					staffToken,
 					tenantId,
-					$"{prefix}-admin-{index}@example.com",
-					"Admin"
+					invitation.Email,
+					invitation.Level
 				);
 			}
-			_ = await CreateTenantInvitationAsync(
-				staffToken,
-				tenantId,
-				$"{prefix}-user@example.com",
-				"User"
-			);
 
 			string firstUrl = GetFindUrl(
 				tenantId,
@@ -1077,6 +1083,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			_ = firstPage.Data.Should().OnlyContain(
 				invitation => invitation.AccountLevel == "Admin"
 			);
+			_ = firstPage.Data[0].Email.Should().Be(adminEmails[0]);
 			_ = firstPage.NextCursor.Should().NotBeNullOrEmpty();
 
 			string secondUrl = GetFindUrl(
@@ -1104,7 +1111,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			_ = secondPage.Data.Should().OnlyContain(
 				invitation => invitation.AccountLevel == "Admin"
 			);
-			_ = secondPage.Data[0].Id.Should().NotBe(firstPage.Data[0].Id);
+			_ = secondPage.Data[0].Email.Should().Be(adminEmails[1]);
 			_ = secondPage.NextCursor.Should().NotBeNullOrEmpty();
 
 			string thirdUrl = GetFindUrl(
@@ -1132,6 +1139,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			_ = thirdPage.Data.Should().OnlyContain(
 				invitation => invitation.AccountLevel == "Admin"
 			);
+			_ = thirdPage.Data[0].Email.Should().Be(adminEmails[2]);
 			_ = thirdPage.NextCursor.Should().BeNull();
 		}
 
