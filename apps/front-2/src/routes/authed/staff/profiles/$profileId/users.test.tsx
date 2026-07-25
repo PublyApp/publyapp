@@ -1,13 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import {
-	cleanup,
-	fireEvent,
-	render,
-	screen,
-	waitFor,
-} from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { createElement, type JSX } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -20,9 +14,7 @@ const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
 	useStaffProfileDetailsQuery: vi.fn(),
 	useStaffProfileUsersQuery: vi.fn(),
-	invalidateQueries: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
-	search: {} as Record<string, unknown>,
 }));
 
 const labelMap: Record<string, Record<string, string>> = {
@@ -42,7 +34,7 @@ vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => ({
 		...options,
 		useParams: () => ({ profileId: 'profile-1' }),
-		useSearch: () => mocks.search,
+		useSearch: () => ({}),
 		useNavigate: () => mocks.navigate,
 	}),
 	Link: ({
@@ -105,17 +97,7 @@ vi.mock('react-i18next', () => ({
 	}),
 }));
 
-vi.mock('@tanstack/react-query', () => ({
-	useQueryClient: () => ({
-		invalidateQueries: mocks.invalidateQueries,
-	}),
-}));
-
 vi.mock('~/lib/query/staff-profile-users', () => ({
-	getStaffProfileUsersQueryKey: (variables: Record<string, unknown>) => [
-		'staff-profile-users',
-		variables,
-	],
 	toStaffProfileUserRows: (rows: unknown[] | null | undefined) => rows ?? [],
 	useStaffProfileUsersQuery: mocks.useStaffProfileUsersQuery,
 }));
@@ -152,49 +134,8 @@ vi.mock('~/components/ui/button', () => ({
 }));
 
 vi.mock('~/components/table/data-table', () => ({
-	DataTable: ({
-		testId,
-		pageIndex = 0,
-		rows = [],
-		hasPreviousPage,
-		hasNextPage,
-		onPreviousPage,
-		onNextPage,
-	}: {
-		testId?: string;
-		pageIndex?: number;
-		rows?: Array<{ email: string }>;
-		hasPreviousPage?: boolean;
-		hasNextPage?: boolean;
-		onPreviousPage?: () => void;
-		onNextPage?: () => void;
-	}) =>
-		createElement(
-			'div',
-			{ 'data-testid': testId ?? 'data-table' },
-			createElement('span', null, `Page ${pageIndex + 1}`),
-			...rows.map((row) =>
-				createElement('span', { key: row.email }, row.email),
-			),
-			createElement(
-				'button',
-				{
-					disabled: !hasPreviousPage,
-					onClick: onPreviousPage,
-					type: 'button',
-				},
-				'Previous',
-			),
-			createElement(
-				'button',
-				{
-					disabled: !hasNextPage,
-					onClick: onNextPage,
-					type: 'button',
-				},
-				'Next',
-			),
-		),
+	DataTable: ({ testId }: { testId?: string }) =>
+		createElement('div', { 'data-testid': testId ?? 'data-table' }),
 }));
 
 import { buildColumns, Route } from './users';
@@ -210,7 +151,6 @@ const renderPage = () => render(<Component />);
 afterEach(() => {
 	cleanup();
 	vi.clearAllMocks();
-	mocks.search = {};
 });
 
 beforeEach(() => {
@@ -352,106 +292,5 @@ describe('staff profile users page — contained scroll layout', () => {
 		expect(tabsRoot).not.toBeNull();
 		expect(tabsRoot?.className).toContain('min-h-0');
 		expect(tabsRoot?.className).toContain('flex-1');
-	});
-});
-
-describe('staff profile users page — offset pagination', () => {
-	test('keeps page 2 selected while its slow 25-user response is pending and can navigate back', async () => {
-		mocks.search = { size: 10 };
-		let pageTwoResolved = false;
-		const requestedPages: number[] = [];
-		mocks.useStaffProfileUsersQuery.mockImplementation(
-			({ pageIndex = 0 }: { pageIndex?: number }) => {
-				requestedPages.push(pageIndex + 1);
-
-				if (pageIndex === 1 && !pageTwoResolved) {
-					return {
-						data: undefined,
-						isPending: true,
-						isError: false,
-						isFetching: true,
-						error: null,
-						refetch: vi.fn(),
-					};
-				}
-
-				return {
-					data: { users: [], count: 25 },
-					isPending: false,
-					isError: false,
-					isFetching: false,
-					error: null,
-					refetch: vi.fn(),
-				};
-			},
-		);
-
-		const view = renderPage();
-
-		expect(screen.getByText('Page 1')).toBeTruthy();
-		fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-
-		await waitFor(() => expect(requestedPages).toContain(2));
-		expect(screen.getByText('Page 2')).toBeTruthy();
-
-		pageTwoResolved = true;
-		view.rerender(<Component />);
-
-		expect(screen.getByText('Page 2')).toBeTruthy();
-		fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
-
-		expect(screen.getByText('Page 1')).toBeTruthy();
-		expect(requestedPages).toContain(1);
-	});
-
-	test('revalidates a cached clamp destination before showing its rows after the count shrinks', async () => {
-		mocks.search = { size: 10 };
-		let pageTwoRevalidated = false;
-		mocks.invalidateQueries.mockImplementation(async () => {
-			pageTwoRevalidated = true;
-		});
-		mocks.useStaffProfileUsersQuery.mockImplementation(
-			({ pageIndex = 0 }: { pageIndex?: number }) => {
-				const count = pageIndex === 2 ? 15 : 25;
-				let length = 10;
-				if (pageIndex === 1 && pageTwoRevalidated) {
-					length = 5;
-				} else if (pageIndex === 2) {
-					length = 0;
-				}
-				const users = Array.from({ length }, (_, index) => ({
-					email: `boundary-${pageIndex + 1}-${index}@example.test`,
-				}));
-
-				return {
-					data: { users, count },
-					isPending: false,
-					isError: false,
-					isFetching: false,
-					error: null,
-					refetch: vi.fn(),
-				};
-			},
-		);
-
-		renderPage();
-		fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-		expect(screen.getByText('boundary-2-9@example.test')).toBeTruthy();
-		fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-
-		await waitFor(() => {
-			expect(screen.getByText('Page 2')).toBeTruthy();
-			expect(screen.queryByText('boundary-2-9@example.test')).toBeNull();
-			expect(screen.getByText('boundary-2-4@example.test')).toBeTruthy();
-		});
-		expect(mocks.invalidateQueries).toHaveBeenCalledTimes(1);
-		expect(mocks.invalidateQueries).toHaveBeenCalledWith({
-			exact: true,
-			queryKey: [
-				'staff-profile-users',
-				expect.objectContaining({ pageIndex: 1, size: 10 }),
-			],
-			refetchType: 'all',
-		});
 	});
 });

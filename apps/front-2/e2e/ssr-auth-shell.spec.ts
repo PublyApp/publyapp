@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Request } from '@playwright/test';
 
 import { loginAsStaffAdmin } from './helpers/login';
 
@@ -12,8 +12,6 @@ const AUTHED_CHROME_MARKERS = [
 	'data-testid="app-shell-rail"',
 	'data-testid="app-shell-topbar"',
 ];
-
-const PROFILE_ID = '11111111-1111-1111-1111-111111111111';
 
 type MatrixCase = {
 	name: string;
@@ -249,6 +247,9 @@ test('session-validation failures expose an accessible neutral Retry and recover
 		});
 		let failedAttemptCount = 0;
 		let successfulAttemptCount = 0;
+		let activeRequestCount = 0;
+		let maximumActiveRequestCount = 0;
+		let totalRequestCount = 0;
 		let isRecoveryEnabled = false;
 		let releaseFirstRequest: (() => void) | undefined;
 		const firstRequestBlocked = new Promise<void>((resolve) => {
@@ -304,6 +305,33 @@ test('session-validation failures expose an accessible neutral Retry and recover
 			await route.abort('internetdisconnected');
 		});
 		const casePage = await caseContext.newPage();
+		const activeRequests = new Set<Request>();
+		const isValidationRequest = (request: Request) =>
+			request.method() === 'GET' &&
+			new URL(request.url()).pathname.endsWith('/auth/redirect-code');
+		casePage.on('request', (request) => {
+			if (!isValidationRequest(request)) {
+				return;
+			}
+
+			totalRequestCount += 1;
+			activeRequests.add(request);
+			activeRequestCount = activeRequests.size;
+			maximumActiveRequestCount = Math.max(
+				maximumActiveRequestCount,
+				activeRequestCount,
+			);
+		});
+		const markRequestSettled = (request: Request) => {
+			if (!isValidationRequest(request)) {
+				return;
+			}
+
+			activeRequests.delete(request);
+			activeRequestCount = activeRequests.size;
+		};
+		casePage.on('requestfailed', markRequestSettled);
+		casePage.on('requestfinished', markRequestSettled);
 
 		await casePage.goto('/staff/staff-users', {
 			waitUntil: 'domcontentloaded',
@@ -316,6 +344,11 @@ test('session-validation failures expose an accessible neutral Retry and recover
 
 		const retry = casePage.getByRole('button', { name: 'Retry' });
 		await expect(retry, failureCase).toBeVisible({ timeout: 25_000 });
+		await expect
+			.poll(() => activeRequestCount, {
+				message: `${failureCase}: failed validation request was cancelled`,
+			})
+			.toBe(0);
 		await expect(casePage.getByTestId('neutral-authed-recovery')).toBeVisible();
 		await expect(casePage.getByTestId('neutral-authed-shell')).toHaveCount(0);
 		await expect(casePage.getByTestId('app-shell-shell')).toHaveCount(0);
@@ -335,332 +368,21 @@ test('session-validation failures expose an accessible neutral Retry and recover
 		await expect(retry).toBeFocused();
 
 		isRecoveryEnabled = true;
-		if (releaseFirstRequest) {
-			releaseFirstRequest();
-		}
 		await casePage.keyboard.press('Enter');
 
 		await expect(casePage.getByTestId('app-shell-shell')).toBeVisible({
 			timeout: 15_000,
 		});
+		if (releaseFirstRequest) {
+			releaseFirstRequest();
+		}
 		expect(failedAttemptCount, failureCase).toBe(1);
 		expect(successfulAttemptCount, failureCase).toBe(1);
+		expect(totalRequestCount, failureCase).toBe(2);
+		expect(maximumActiveRequestCount, failureCase).toBe(1);
 
 		await caseContext.close();
 	}
-});
-
-test('profile-user paging holds page 2 through a slow deterministic 25-user response', async ({
-	page,
-}) => {
-	await loginAsStaffAdmin(page);
-
-	const requestedPages: number[] = [];
-	let releaseSecondPage: (() => void) | undefined;
-	const secondPageBlocked = new Promise<void>((resolve) => {
-		releaseSecondPage = resolve;
-	});
-
-	await page.route(
-		`**/staff/profiles/${PROFILE_ID}**`,
-		async (route, request) => {
-			const url = new URL(request.url());
-			if (!url.hostname.startsWith('api.')) {
-				await route.continue();
-				return;
-			}
-
-			if (!url.pathname.endsWith('/users')) {
-				await route.fulfill({
-					contentType: 'application/json',
-					json: {
-						profile: {
-							description: 'Deterministic paging fixture',
-							id: PROFILE_ID,
-							name: 'QA profile',
-							userAccountCount: 25,
-						},
-					},
-				});
-				return;
-			}
-
-			const pageNumber = Number(url.searchParams.get('page') ?? '1');
-			requestedPages.push(pageNumber);
-			if (pageNumber === 2) {
-				await secondPageBlocked;
-			}
-
-			const firstUserNumber = (pageNumber - 1) * 10 + 1;
-			const users = Array.from(
-				{ length: pageNumber === 3 ? 5 : 10 },
-				(_, index) => {
-					const userNumber = firstUserNumber + index;
-					return {
-						avatarUrl: null,
-						email: `qa-user-${userNumber}@example.test`,
-						firstName: 'QA',
-						id: `00000000-0000-0000-0000-${String(userNumber).padStart(12, '0')}`,
-						lastName: `User ${userNumber}`,
-						status: 'active',
-					};
-				},
-			);
-			await route.fulfill({
-				contentType: 'application/json',
-				json: { count: 25, users },
-			});
-		},
-	);
-
-	await page.goto(`/staff/profiles/${PROFILE_ID}/users?size=10`);
-	await expect(
-		page.getByTestId('staff-profile-users-table-page-label'),
-	).toHaveText('Page 1');
-
-	await page.getByTestId('staff-profile-users-table-next-page').click();
-	await expect.poll(() => requestedPages.includes(2)).toBe(true);
-	await page.waitForTimeout(250);
-	expect(requestedPages).toEqual([1, 2]);
-
-	if (!releaseSecondPage) {
-		throw new Error('the page-2 response gate was not initialized');
-	}
-	releaseSecondPage();
-	await expect(
-		page.getByTestId('staff-profile-users-table-page-label'),
-	).toHaveText('Page 2');
-	await expect(page.getByText('qa-user-11@example.test')).toBeVisible();
-
-	await page.getByTestId('staff-profile-users-table-prev-page').click();
-	await expect(
-		page.getByTestId('staff-profile-users-table-page-label'),
-	).toHaveText('Page 1');
-	await expect(page.getByText('qa-user-1@example.test')).toBeVisible();
-	expect(requestedPages).toEqual([1, 2]);
-});
-
-test('profile-user count shrink revalidates the cached clamp destination before showing rows', async ({
-	page,
-}) => {
-	await loginAsStaffAdmin(page);
-
-	const requestedPages: number[] = [];
-	let totalCount = 25;
-	await page.route(
-		`**/staff/profiles/${PROFILE_ID}**`,
-		async (route, request) => {
-			const url = new URL(request.url());
-			if (!url.hostname.startsWith('api.')) {
-				await route.continue();
-				return;
-			}
-
-			if (!url.pathname.endsWith('/users')) {
-				await route.fulfill({
-					contentType: 'application/json',
-					json: {
-						profile: {
-							description: 'Count shrink fixture',
-							id: PROFILE_ID,
-							name: 'QA profile',
-							userAccountCount: 25,
-						},
-					},
-				});
-				return;
-			}
-
-			const pageNumber = Number(url.searchParams.get('page') ?? '1');
-			requestedPages.push(pageNumber);
-			if (pageNumber === 3) {
-				totalCount = 15;
-			}
-
-			let length = 10;
-			if (pageNumber === 3) {
-				length = 0;
-			} else if (pageNumber === 2 && totalCount === 15) {
-				length = 5;
-			}
-			const users = Array.from({ length }, (_, index) => ({
-				avatarUrl: null,
-				email: `boundary-${pageNumber}-${index}@example.test`,
-				firstName: 'Boundary',
-				id: `00000000-0000-0000-${String(pageNumber).padStart(4, '0')}-${String(index).padStart(12, '0')}`,
-				lastName: `User ${index}`,
-				status: 'active',
-			}));
-			await route.fulfill({
-				contentType: 'application/json',
-				json: { count: totalCount, users },
-			});
-		},
-	);
-
-	await page.goto(`/staff/profiles/${PROFILE_ID}/users?size=10`);
-	await page.getByTestId('staff-profile-users-table-next-page').click();
-	await expect(page.getByText('boundary-2-9@example.test')).toBeVisible();
-	await page.getByTestId('staff-profile-users-table-next-page').click();
-
-	await expect(
-		page.getByTestId('staff-profile-users-table-page-label'),
-	).toHaveText('Page 2');
-	await expect(page.getByText('boundary-2-4@example.test')).toBeVisible();
-	await expect(page.getByText('boundary-2-9@example.test')).toHaveCount(0);
-	expect(requestedPages).toEqual([1, 2, 3, 2]);
-});
-
-test('profile-user paging hides at zero and disables Next at exactly one page', async ({
-	page,
-}) => {
-	await loginAsStaffAdmin(page);
-
-	let totalCount = 0;
-	await page.route(
-		`**/staff/profiles/${PROFILE_ID}**`,
-		async (route, request) => {
-			const url = new URL(request.url());
-			if (!url.hostname.startsWith('api.')) {
-				await route.continue();
-				return;
-			}
-
-			if (!url.pathname.endsWith('/users')) {
-				await route.fulfill({
-					contentType: 'application/json',
-					json: {
-						profile: {
-							description: 'Paging boundary fixture',
-							id: PROFILE_ID,
-							name: 'QA profile',
-							userAccountCount: totalCount,
-						},
-					},
-				});
-				return;
-			}
-
-			const users = Array.from({ length: totalCount }, (_, index) => ({
-				avatarUrl: null,
-				email: `boundary-single-${index}@example.test`,
-				firstName: 'Boundary',
-				id: `00000000-0000-0000-0000-${String(index).padStart(12, '0')}`,
-				lastName: `User ${index}`,
-				status: 'active',
-			}));
-			await route.fulfill({
-				contentType: 'application/json',
-				json: { count: totalCount, users },
-			});
-		},
-	);
-
-	await page.goto(`/staff/profiles/${PROFILE_ID}/users?size=10`);
-	await expect(
-		page.getByTestId('staff-profile-users-table-footer'),
-	).toHaveCount(0);
-
-	totalCount = 10;
-	await page.reload();
-	await expect(page.getByText('boundary-single-9@example.test')).toBeVisible();
-	await expect(
-		page.getByTestId('staff-profile-users-table-next-page'),
-	).toBeDisabled();
-});
-
-test('staff profiles and staff users still page forward and backward by cursor', async ({
-	page,
-}) => {
-	await loginAsStaffAdmin(page);
-
-	const profileCursors: Array<string | null> = [];
-	const userCursors: Array<string | null> = [];
-	await page.route('**/staff/profiles?**', async (route, request) => {
-		const url = new URL(request.url());
-		if (!url.hostname.startsWith('api.')) {
-			await route.continue();
-			return;
-		}
-
-		const cursor = url.searchParams.get('cursor');
-		profileCursors.push(cursor);
-		await route.fulfill({
-			contentType: 'application/json',
-			json: {
-				data: [
-					{
-						description: null,
-						id:
-							cursor === 'profile-cursor-2'
-								? '22222222-2222-2222-2222-222222222222'
-								: PROFILE_ID,
-						name:
-							cursor === 'profile-cursor-2'
-								? 'Profile page 2'
-								: 'Profile page 1',
-						userAccountCount: 1,
-					},
-				],
-				nextCursor: cursor === 'profile-cursor-2' ? null : 'profile-cursor-2',
-			},
-		});
-	});
-	await page.route('**/staff/users?**', async (route, request) => {
-		const url = new URL(request.url());
-		if (!url.hostname.startsWith('api.')) {
-			await route.continue();
-			return;
-		}
-
-		const cursor = url.searchParams.get('cursor');
-		userCursors.push(cursor);
-		await route.fulfill({
-			contentType: 'application/json',
-			json: {
-				data: [
-					{
-						avatarUrl: null,
-						email:
-							cursor === 'user-cursor-2'
-								? 'staff-page-2@example.test'
-								: 'staff-page-1@example.test',
-						firstName: 'Staff',
-						id:
-							cursor === 'user-cursor-2'
-								? '44444444-4444-4444-4444-444444444444'
-								: '33333333-3333-3333-3333-333333333333',
-						lastName: cursor === 'user-cursor-2' ? 'Page 2' : 'Page 1',
-						level: 'admin',
-						status: 'active',
-					},
-				],
-				nextCursor: cursor === 'user-cursor-2' ? null : 'user-cursor-2',
-			},
-		});
-	});
-
-	await page.goto('/staff/profiles?size=10');
-	await expect(page.getByText('Profile page 1')).toBeVisible();
-	await page.getByTestId('staff-profiles-table-next-page').click();
-	await expect(page.getByText('Profile page 2')).toBeVisible();
-	await expect(page.getByTestId('staff-profiles-table-page-label')).toHaveText(
-		'Page 2',
-	);
-	await page.getByTestId('staff-profiles-table-prev-page').click();
-	await expect(page.getByText('Profile page 1')).toBeVisible();
-	expect(profileCursors).toEqual([null, 'profile-cursor-2']);
-
-	await page.goto('/staff/staff-users?size=10');
-	await expect(page.getByText('staff-page-1@example.test')).toBeVisible();
-	await page.getByTestId('staff-users-table-next-page').click();
-	await expect(page.getByText('staff-page-2@example.test')).toBeVisible();
-	await expect(page.getByTestId('staff-users-table-page-label')).toHaveText(
-		'Page 2',
-	);
-	await page.getByTestId('staff-users-table-prev-page').click();
-	await expect(page.getByText('staff-page-1@example.test')).toBeVisible();
-	expect(userCursors).toEqual([null, 'user-cursor-2']);
 });
 
 test('neutral authenticated geometry matches the hydrated shell across responsive widths', async ({

@@ -10,7 +10,7 @@ import type { ParsedSessionTokens } from '@org/shared-ts/lib/session/parse';
 const mocks = vi.hoisted(() => ({
 	queryOptions: undefined as
 		| {
-				queryFn: () => Promise<string | null>;
+				queryFn: (context: { signal: AbortSignal }) => Promise<string | null>;
 				staleTime?: number;
 				refetchOnWindowFocus?: boolean;
 				retry?: boolean;
@@ -24,6 +24,8 @@ const mocks = vi.hoisted(() => ({
 		refetch: vi.fn(),
 	},
 	tokens: {} as ParsedSessionTokens,
+	createClientSignal: undefined as AbortSignal | undefined,
+	redirectCodeGet: vi.fn(),
 	location: {
 		pathname: '/staff/tenants',
 		search: {} as Record<string, unknown>,
@@ -49,9 +51,12 @@ vi.mock('@tanstack/react-query', () => ({
 
 vi.mock('~/lib/api-client/client-manager', () => ({
 	getSessionTokensFromBrowser: () => mocks.tokens,
-	createClient: () => ({
-		auth: { redirectCode: { get: vi.fn() } },
-	}),
+	createClient: (options: { signal?: AbortSignal }) => {
+		mocks.createClientSignal = options.signal;
+		return {
+			auth: { redirectCode: { get: mocks.redirectCodeGet } },
+		};
+	},
 }));
 
 vi.mock('~/components/error-views/AppErrorView', () => ({
@@ -79,6 +84,7 @@ afterEach(() => {
 	vi.clearAllMocks();
 	mocks.queryOptions = undefined;
 	mocks.tokens = {};
+	mocks.createClientSignal = undefined;
 	mocks.location = { pathname: '/staff/tenants', search: {} };
 });
 
@@ -146,13 +152,47 @@ describe('AuthedRouteLayout surface-redirect-code query', () => {
 		mocks.tokens = { staffToken: undefined };
 		render(<AuthedRouteLayout />);
 
-		const result = await mocks.queryOptions?.queryFn();
+		const result = await mocks.queryOptions?.queryFn({
+			signal: new AbortController().signal,
+		});
 
 		// TanStack Query v5 rejects a queryFn that resolves to `undefined`
 		// ("Query data cannot be undefined") — null is the only valid
 		// no-token-yet result.
 		expect(result).toBeNull();
 		expect(result).not.toBeUndefined();
+	});
+
+	test('forwards query cancellation to the in-flight validation request', async () => {
+		mocks.tokens = { staffToken: 'staff-tok' };
+		const caller = new AbortController();
+		const abortReason = new DOMException(
+			'Session validation superseded',
+			'AbortError',
+		);
+		mocks.redirectCodeGet.mockImplementation(() => {
+			const signal = mocks.createClientSignal;
+			if (!signal) {
+				return Promise.reject(
+					new Error('validation client did not receive an abort signal'),
+				);
+			}
+
+			return new Promise((_resolve, reject) => {
+				signal.addEventListener('abort', () => reject(signal.reason), {
+					once: true,
+				});
+			});
+		});
+		render(<AuthedRouteLayout />);
+
+		const result = mocks.queryOptions?.queryFn({ signal: caller.signal });
+		await Promise.resolve();
+		caller.abort(abortReason);
+
+		await expect(result).rejects.toBe(abortReason);
+		expect(mocks.createClientSignal?.aborted).toBe(true);
+		expect(mocks.redirectCodeGet).toHaveBeenCalledTimes(1);
 	});
 });
 

@@ -44,8 +44,11 @@ const getFailureStatus = (error: unknown): number | undefined => {
 	return failure.kind === 'problem' ? failure.status : undefined;
 };
 
-const parseRedirectCode = async (token: string): Promise<string | null> => {
-	const client = createClient({ getSessionToken: () => token });
+const parseRedirectCode = async (
+	token: string,
+	signal: AbortSignal,
+): Promise<string | null> => {
+	const client = createClient({ getSessionToken: () => token, signal });
 	try {
 		const result = await client.auth.redirectCode.get();
 
@@ -195,11 +198,12 @@ function AuthedRouteLayout() {
 	const isTenantSurface = surfaceScope === 'tenant';
 	const query = useQuery({
 		queryKey: getSurfaceRedirectCodeQueryKey(surfaceScope),
-		queryFn: async (): Promise<string | null> => {
+		queryFn: async ({ signal }): Promise<string | null> => {
 			const tokens = getSessionTokensFromBrowser();
 			const resolved = determineSessionToken(tokens, pathname);
+			const token = resolved.token;
 
-			if (!resolved.token) {
+			if (!token) {
 				// A TanStack Query v5 queryFn must never resolve to `undefined`
 				// (it rejects with "Query data cannot be undefined"). `beforeLoad`
 				// already redirects away before this ever mounts without a token,
@@ -207,7 +211,10 @@ function AuthedRouteLayout() {
 				return null;
 			}
 
-			return withSessionValidationTimeout(parseRedirectCode(resolved.token));
+			return withSessionValidationTimeout(
+				(validationSignal) => parseRedirectCode(token, validationSignal),
+				signal,
+			);
 		},
 		enabled: surfaceScope !== 'other',
 		retry: false,

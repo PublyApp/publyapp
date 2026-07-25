@@ -3,7 +3,6 @@ import {
 	IconArrowLeft,
 	IconSearchOff,
 } from '@tabler/icons-react';
-import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useEffect, useMemo, useState } from 'react';
@@ -20,7 +19,6 @@ import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import {
-	getStaffProfileUsersQueryKey,
 	toStaffProfileUserRows,
 	useStaffProfileUsersQuery,
 } from '~/lib/query/staff-profile-users';
@@ -217,7 +215,6 @@ export const Route = createFileRoute(
 
 function StaffProfileUsersPage() {
 	const navigate = Route.useNavigate();
-	const queryClient = useQueryClient();
 	const { profileId } = Route.useParams();
 	const search = parseTableSearchParams(
 		Route.useSearch() as TableSearchParamInput,
@@ -263,52 +260,16 @@ function StaffProfileUsersPage() {
 	]);
 
 	useEffect(() => {
-		const totalCount = usersQuery.data?.count;
-		if (typeof totalCount !== 'number') {
-			return;
-		}
-
+		const totalCount = usersQuery.data?.count ?? 0;
 		const lastPageIndex =
 			totalCount > 0
 				? Math.max(Math.ceil(totalCount / controller.size) - 1, 0)
 				: 0;
 
 		if (pageIndex > lastPageIndex) {
-			const destinationQueryKey = getStaffProfileUsersQueryKey({
-				profileId,
-				q: controller.search.committed,
-				sortId: controller.sort.id,
-				sortOrder: controller.sort.order,
-				pageIndex: lastPageIndex,
-				size: controller.size,
-			});
-			let isCurrent = true;
-			void queryClient
-				.invalidateQueries({
-					exact: true,
-					queryKey: destinationQueryKey,
-					refetchType: 'all',
-				})
-				.then(() => {
-					if (isCurrent) {
-						setPageIndex(lastPageIndex);
-					}
-				});
-
-			return () => {
-				isCurrent = false;
-			};
+			setPageIndex(lastPageIndex);
 		}
-	}, [
-		controller.search.committed,
-		controller.size,
-		controller.sort.id,
-		controller.sort.order,
-		pageIndex,
-		profileId,
-		queryClient,
-		usersQuery.data?.count,
-	]);
+	}, [controller.size, pageIndex, usersQuery.data?.count]);
 
 	if (
 		(detailQuery.isError && shouldLogoutForFailure(detailQuery.error)) ||
