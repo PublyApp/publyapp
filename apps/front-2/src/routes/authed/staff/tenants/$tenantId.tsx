@@ -529,6 +529,7 @@ function StaffTenantDetailsPage() {
 	const ownerPeople = toStaffTenantUserRows(ownersQuery.data?.data)
 		.slice(0, 5)
 		.map((row) => ({
+			id: row.id,
 			name: row.displayName,
 			avatarUrl: row.avatarUrl,
 		}));

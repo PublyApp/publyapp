@@ -281,6 +281,7 @@ export const ProfileOverviewTab = ({
 	// The stack shows up to 5 leading members; the overflow badge counts the rest
 	// against the profile's true member total (the query only fetches the lead).
 	const stackPeople = members.slice(0, 5).map((member) => ({
+		id: member.id,
 		name: memberDisplayName(member),
 		avatarUrl: member.avatarUrl,
 	}));

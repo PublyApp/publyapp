@@ -1,4 +1,5 @@
 import { useState, type CSSProperties } from 'react';
+import { toInitials } from '~/components/ui/avatar-initials';
 import { Image } from '~/components/ui/image';
 import { cn } from '~/lib/utils';
 
@@ -10,22 +11,6 @@ const sizeClassNames: Record<PersonAvatarSize | 'default', string> = {
 	sm: 'size-8 text-[11px]',
 	md: 'size-9 text-xs',
 	lg: 'size-14 text-lg',
-};
-
-const firstCodePoint = (word: string): string => [...word][0] ?? '';
-
-export const toInitials = (name: string): string => {
-	const words = name
-		.split(/\s+/)
-		.map((word) => word.trim())
-		.filter(Boolean);
-	if (words.length === 0) {
-		return '?';
-	}
-	const first = firstCodePoint(words[0]?.toUpperCase() ?? '');
-	const second =
-		words.length > 1 ? firstCodePoint(words.at(-1)?.toUpperCase() ?? '') : '';
-	return `${first}${second}`.toUpperCase();
 };
 
 const PersonAvatarVisual = ({

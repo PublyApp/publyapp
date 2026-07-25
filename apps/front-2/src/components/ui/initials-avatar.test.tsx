@@ -4,12 +4,8 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-import {
-	AvatarStack,
-	BrandTile,
-	paletteIndex,
-	toInitials,
-} from './initials-avatar';
+import { paletteIndex, toInitials } from './avatar-initials';
+import { AvatarStack, BrandTile } from './initials-avatar';
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
@@ -64,10 +60,11 @@ describe('AvatarStack', () => {
 			<AvatarStack
 				people={[
 					{
+						id: 'user-1',
 						name: 'Ada Lovelace',
 						avatarUrl: 'https://example.com/ada.png',
 					},
-					{ name: 'Grace Hopper', avatarUrl: null },
+					{ id: 'user-2', name: 'Grace Hopper', avatarUrl: null },
 				]}
 			/>,
 		);
