@@ -1035,7 +1035,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 						_http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
-			);
+					);
 
 			string prefix = $"level-page-{Guid.NewGuid():N}";
 			string[] adminEmails = [
