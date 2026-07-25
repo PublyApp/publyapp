@@ -1,15 +1,35 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, test } from 'vitest';
+import { act, cleanup, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { PersonAvatar } from './person-avatar';
 
-afterEach(cleanup);
+class MockImage {
+	static instances: MockImage[] = [];
+
+	onerror: (() => void) | null = null;
+	onload: (() => void) | null = null;
+	src = '';
+
+	constructor() {
+		MockImage.instances.push(this);
+	}
+}
+
+beforeEach(() => {
+	MockImage.instances = [];
+	vi.stubGlobal('Image', MockImage);
+});
+
+afterEach(() => {
+	cleanup();
+	vi.unstubAllGlobals();
+});
 
 describe('PersonAvatar', () => {
-	test('renders the real avatar through the Image primitive when avatarUrl is present', () => {
+	test('renders the real avatar through the shared Avatar primitives when avatarUrl is present', () => {
 		const { container } = render(
 			<PersonAvatar
 				name="Ada Lovelace"
@@ -17,9 +37,15 @@ describe('PersonAvatar', () => {
 			/>,
 		);
 
-		const image = container.querySelector('[data-slot="image"] img');
+		expect(MockImage.instances).toHaveLength(1);
+		expect(MockImage.instances[0]?.src).toBe('https://example.com/ada.png');
+
+		act(() => MockImage.instances[0]?.onload?.());
+
+		const image = container.querySelector('[data-slot="avatar-image"]');
 		expect(image?.getAttribute('src')).toBe('https://example.com/ada.png');
 		expect(image?.getAttribute('alt')).toBe('');
+		expect(image?.className).toContain('aspect-square');
 	});
 
 	test('renders muted neutral initials when avatarUrl is absent', () => {
@@ -43,13 +69,12 @@ describe('PersonAvatar', () => {
 			/>,
 		);
 
-		const image = container.querySelector('img');
-		expect(image).not.toBeNull();
-		if (image) {
-			fireEvent.error(image);
-		}
+		expect(MockImage.instances).toHaveLength(1);
+		expect(MockImage.instances[0]?.src).toBe('https://example.com/broken.png');
 
-		expect(container.querySelector('img')).toBeNull();
+		act(() => MockImage.instances[0]?.onerror?.());
+
+		expect(container.querySelector('[data-slot="avatar-image"]')).toBeNull();
 		expect(getByText('AL').getAttribute('data-slot')).toBe(
 			'person-avatar-fallback',
 		);

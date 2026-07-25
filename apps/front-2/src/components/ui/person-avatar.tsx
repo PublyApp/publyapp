@@ -1,6 +1,6 @@
-import { useState, type CSSProperties } from 'react';
+import type { CSSProperties } from 'react';
+import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar';
 import { toInitials } from '~/components/ui/avatar-initials';
-import { Image } from '~/components/ui/image';
 import { cn } from '~/lib/utils';
 
 type PersonAvatarSize = 'xs' | 'sm' | 'md' | 'lg';
@@ -11,35 +11,6 @@ const sizeClassNames: Record<PersonAvatarSize | 'default', string> = {
 	sm: 'size-8 text-[11px]',
 	md: 'size-9 text-xs',
 	lg: 'size-14 text-lg',
-};
-
-const PersonAvatarVisual = ({
-	name,
-	avatarUrl,
-}: {
-	name: string;
-	avatarUrl?: string | null;
-}) => {
-	const [hasImageError, setHasImageError] = useState(false);
-
-	return avatarUrl && !hasImageError ? (
-		<Image
-			src={avatarUrl}
-			alt=""
-			aria-hidden="true"
-			ratio="1/1"
-			className="size-full rounded-full"
-			onError={() => setHasImageError(true)}
-		/>
-	) : (
-		<span
-			aria-hidden="true"
-			data-slot="person-avatar-fallback"
-			className="inline-flex size-full items-center justify-center rounded-full bg-muted font-semibold leading-none text-muted-foreground select-none"
-		>
-			{toInitials(name)}
-		</span>
-	);
 };
 
 export const EntityAvatar = ({
@@ -57,24 +28,30 @@ export const EntityAvatar = ({
 	className?: string;
 	style?: CSSProperties;
 }) => (
-	<span
+	<Avatar
+		key={avatarUrl ?? 'no-avatar'}
 		data-slot="person-avatar"
 		role={accessibleLabel ? 'img' : undefined}
 		aria-label={accessibleLabel}
 		aria-hidden={accessibleLabel ? undefined : true}
 		style={style}
 		className={cn(
-			'inline-flex shrink-0 rounded-full',
+			'inline-flex shrink-0 overflow-hidden rounded-full after:hidden',
 			sizeClassNames[size ?? 'default'],
 			className,
 		)}
 	>
-		<PersonAvatarVisual
-			key={avatarUrl ?? 'no-avatar'}
-			name={name}
-			avatarUrl={avatarUrl}
-		/>
-	</span>
+		{avatarUrl ? (
+			<AvatarImage src={avatarUrl} alt="" aria-hidden="true" />
+		) : null}
+		<AvatarFallback
+			aria-hidden="true"
+			data-slot="person-avatar-fallback"
+			className="font-semibold leading-none text-[length:inherit] select-none"
+		>
+			{toInitials(name)}
+		</AvatarFallback>
+	</Avatar>
 );
 
 export const PersonAvatar = EntityAvatar;
