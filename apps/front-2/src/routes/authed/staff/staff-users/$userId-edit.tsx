@@ -2,24 +2,24 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { IconAlertCircle, IconArrowLeft } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
 import { Field, Form, FormActionBar, FormPageLayout } from '~/components/field';
+import { useCursorPagination } from '~/components/table/use-cursor-pagination';
 import { Button, buttonVariants } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
+import { Input } from '~/components/ui/input';
+import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
 } from '~/lib/mutation-toast';
-import {
-	toStaffProfileRows,
-	useStaffProfilesQuery,
-} from '~/lib/query/staff-profiles';
+import { useStaffProfilesQuery } from '~/lib/query/staff-profiles';
 import {
 	invalidateStaffUsers,
 	toAssignedStaffProfiles,
@@ -36,12 +36,18 @@ import {
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
+import {
+	buildStaffProfileOptions,
+	collectSelectedProfileIds,
+	rememberStaffProfileNames,
+} from '../_staff-profile-options';
 import { ChangeStaffUserEmailDialog } from './_change-email-dialog';
 
 const ACCOUNT_LEVEL_OPTIONS = ['Admin', 'User'] as const;
 const STATUS_OPTIONS = ['Active', 'Suspended'] as const;
 
 const ALLOWED_AVATAR_URL_PROTOCOLS = ['http:', 'https:'];
+const PROFILE_PAGE_SIZE = 20;
 
 const getStaffUserEditSchema = (t: (key: string) => string) =>
 	z.object({
@@ -202,7 +208,11 @@ function StaffUserEditPage() {
 	const [shouldLogout, setShouldLogout] = useState(false);
 	const [serverError, setServerError] = useState('');
 	const [isChangeEmailOpen, setIsChangeEmailOpen] = useState(false);
+	const [profileSearch, setProfileSearch] = useState('');
+	const deferredProfileSearch = useDeferredValue(profileSearch.trim());
 	const hasSavedRef = useRef(false);
+	const hasLoadedProfilesRef = useRef(false);
+	const knownProfileNamesRef = useRef(new Map<string, string>());
 
 	const detailsQuery = useStaffUserDetailsQuery(
 		{ userId },
@@ -212,10 +222,18 @@ function StaffUserEditPage() {
 		{ userId },
 		{ enabled: userId.length > 0 },
 	);
-	const profilesQuery = useStaffProfilesQuery({
-		limit: 100,
+	const profilePagination = useCursorPagination({
 		sortId: 'name',
 		sortOrder: 'asc',
+		size: PROFILE_PAGE_SIZE,
+		scopeKey: `${userId}:${deferredProfileSearch}`,
+	});
+	const profilesQuery = useStaffProfilesQuery({
+		limit: PROFILE_PAGE_SIZE,
+		sortId: 'name',
+		sortOrder: 'asc',
+		q: deferredProfileSearch || undefined,
+		cursor: profilePagination.cursor,
 	});
 	const updateStaffUser = useUpdateStaffUserMutation();
 	const updateStaffUserProfiles = useUpdateStaffUserProfilesMutation();
@@ -226,10 +244,6 @@ function StaffUserEditPage() {
 	const assignedProfiles = useMemo(
 		() => toAssignedStaffProfiles(assignedProfilesQuery.data),
 		[assignedProfilesQuery.data],
-	);
-	const profileOptions = useMemo(
-		() => toStaffProfileRows(profilesQuery.data?.data),
-		[profilesQuery.data],
 	);
 	const staffUserEditSchema = useMemo(() => getStaffUserEditSchema(t), [t]);
 	const methods = useForm<StaffUserEditValues>({
@@ -246,11 +260,39 @@ function StaffUserEditPage() {
 	});
 	const { formState, reset } = methods;
 	const { errors, isSubmitting } = formState;
+	const watchedProfileIds = useWatch({
+		control: methods.control,
+		name: 'profileIds',
+	});
+	const selectedProfileIds = collectSelectedProfileIds([watchedProfileIds]);
+	const knownProfileNames = new Map(knownProfileNamesRef.current);
+	rememberStaffProfileNames(knownProfileNames, assignedProfiles);
+	rememberStaffProfileNames(knownProfileNames, profilesQuery.data?.data);
+	const profileOptions = buildStaffProfileOptions({
+		profiles: profilesQuery.data?.data,
+		selectedProfileIds,
+		knownProfileNames,
+	});
 	// Tracks which userId the form currently holds hydrated data for. Comparing
 	// against this (rather than diffing profileIds) guarantees the zero-profile
 	// case still hydrates, and forces a fresh reset on a dirty userId transition
 	// so a previous user's in-progress edits can never survive into the next one.
 	const hydratedUserIdRef = useRef<string | null>(null);
+
+	useEffect(() => {
+		if (profilesQuery.isSuccess) {
+			hasLoadedProfilesRef.current = true;
+		}
+
+		rememberStaffProfileNames(
+			knownProfileNamesRef.current,
+			profilesQuery.data?.data,
+		);
+	}, [profilesQuery.data, profilesQuery.isSuccess]);
+
+	useEffect(() => {
+		rememberStaffProfileNames(knownProfileNamesRef.current, assignedProfiles);
+	}, [assignedProfiles]);
 
 	useEffect(() => {
 		if (
@@ -309,7 +351,7 @@ function StaffUserEditPage() {
 	if (
 		detailsQuery.isPending ||
 		assignedProfilesQuery.isPending ||
-		profilesQuery.isPending
+		(profilesQuery.isPending && !hasLoadedProfilesRef.current)
 	) {
 		return <StaffUserEditLoading />;
 	}
@@ -567,31 +609,95 @@ function StaffUserEditPage() {
 								isDisabled
 							/>
 						</div>
+						<div className="space-y-1">
+							<label
+								className="text-sm font-medium text-foreground"
+								htmlFor="staff-user-profile-search"
+							>
+								{t('common:profiles')}
+							</label>
+							<Input
+								id="staff-user-profile-search"
+								aria-label={t('common:search')}
+								value={profileSearch}
+								onChange={(event) => {
+									setProfileSearch(event.target.value);
+								}}
+								placeholder={t('common:search')}
+								autoComplete="off"
+								disabled={isSubmittingForm}
+								data-testid="staff-user-profile-search"
+							/>
+						</div>
+						{profilesQuery.isFetching ? (
+							<div className="flex items-center gap-2 text-sm text-muted-foreground">
+								<LoadingSpinner />
+								<span>{t('common:profiles')}</span>
+							</div>
+						) : null}
 						{profileOptions.length > 0 ? (
-							<>
-								<Field.CheckboxGroup
-									name="profileIds"
-									label={t('common:profiles')}
-									options={profileOptions.map((profile) => ({
-										value: profile.id,
-										label: profile.name ?? t('common:unnamed-profile'),
-										description: profile.description ?? undefined,
-									}))}
-									isDisabled={isSubmittingForm}
-								/>
-								{profilesQuery.data?.nextCursor ? (
-									<p className="text-xs text-muted-foreground">
-										{t('showing-first-n-profiles', {
-											count: profileOptions.length,
-										})}
-									</p>
-								) : null}
-							</>
-						) : (
+							<Field.CheckboxGroup
+								name="profileIds"
+								label={t('common:select-profiles')}
+								options={profileOptions}
+								isDisabled={
+									isSubmittingForm ||
+									profilesQuery.isPending ||
+									profilesQuery.isFetching
+								}
+							/>
+						) : null}
+						{profileOptions.length === 0 &&
+						!profilesQuery.isPending &&
+						!profilesQuery.isFetching ? (
 							<p className="text-sm text-muted-foreground">
 								{t('common:no-profiles-available')}
 							</p>
-						)}
+						) : null}
+						{profilePagination.hasPreviousPage ||
+						profilesQuery.data?.nextCursor ? (
+							<div className="flex items-center justify-between gap-3">
+								<p className="text-xs text-muted-foreground">
+									{t('common:page-n', {
+										page: profilePagination.pageIndex + 1,
+									})}
+								</p>
+								<div className="flex items-center gap-2">
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										aria-label={t('common:previous-page')}
+										disabled={
+											isSubmittingForm ||
+											profilesQuery.isFetching ||
+											!profilePagination.hasPreviousPage
+										}
+										onClick={profilePagination.retreat}
+									>
+										{t('common:previous-page')}
+									</Button>
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										aria-label={t('common:next-page')}
+										disabled={
+											isSubmittingForm ||
+											profilesQuery.isFetching ||
+											!profilesQuery.data?.nextCursor
+										}
+										onClick={() =>
+											profilePagination.advance(
+												profilesQuery.data?.nextCursor ?? undefined,
+											)
+										}
+									>
+										{t('common:next-page')}
+									</Button>
+								</div>
+							</div>
+						) : null}
 					</div>
 				</section>
 

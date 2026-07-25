@@ -165,6 +165,7 @@ vi.mock('react-i18next', () => ({
 				'last-name': 'Last name',
 				'avatar-url': 'Avatar URL',
 				profiles: 'Profiles',
+				search: 'Search',
 				role: 'Role',
 				status: 'Status',
 				admin: 'Admin',
@@ -177,7 +178,9 @@ vi.mock('react-i18next', () => ({
 				'staff-user-updated-success': 'Staff user updated successfully.',
 				'edit-staff-user': 'Edit staff user',
 				'invalid-url': 'Invalid URL',
-				'showing-first-n-profiles': 'Showing the first profiles.',
+				'previous-page': 'Previous page',
+				'next-page': 'Next page',
+				'page-n': 'Page',
 				'change-email': 'Change email',
 				'change-staff-user-email-description':
 					'Send this user a new sign-in email address.',
@@ -461,7 +464,15 @@ describe('staff user edit route', () => {
 			isSuccess: true,
 		});
 		mocks.useStaffProfilesQuery.mockReturnValue(
-			buildQueryResult({ data: { data: [] } }),
+			buildQueryResult({
+				data: {
+					data: [
+						{ id: 'profile-1', name: 'Publishing', description: null },
+						{ id: 'profile-2', name: 'Billing', description: null },
+					],
+					nextCursor: null,
+				},
+			}),
 		);
 	});
 
@@ -674,20 +685,216 @@ describe('staff user edit route', () => {
 		expect(mocks.invalidateQueries).toHaveBeenCalled();
 	});
 
-	test('does not hint at a truncated profile list when the profiles query has no further cursor', () => {
-		renderPage();
-
-		expect(screen.queryByText('Showing the first profiles.')).toBeNull();
-	});
-
-	test('hints that the assignable-profile list is truncated when the profiles query reports a further cursor', () => {
-		mocks.useStaffProfilesQuery.mockReturnValue(
-			buildQueryResult({ data: { data: [], nextCursor: 'cursor-2' } }),
+	test('reaches and assigns a profile beyond the first page', async () => {
+		mocks.updateStaffUserProfiles.mockResolvedValue({
+			assignedProfiles: [],
+		});
+		mocks.useStaffProfilesQuery.mockImplementation(
+			({ cursor }: { cursor?: string }) =>
+				cursor === 'cursor-2'
+					? buildQueryResult({
+							data: {
+								data: [
+									{
+										id: 'profile-101',
+										name: 'Archive',
+										description: null,
+									},
+								],
+								nextCursor: null,
+							},
+						})
+					: buildQueryResult({
+							data: {
+								data: [
+									{
+										id: 'profile-1',
+										name: 'Publishing',
+										description: null,
+									},
+								],
+								nextCursor: 'cursor-2',
+							},
+						}),
 		);
 
 		renderPage();
 
-		expect(screen.getByText('Showing the first profiles.')).toBeTruthy();
+		fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
+		await waitFor(() =>
+			expect(screen.getByRole('checkbox', { name: 'Archive' })).toBeTruthy(),
+		);
+		fireEvent.click(screen.getByRole('checkbox', { name: 'Archive' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+		await waitFor(() =>
+			expect(mocks.updateStaffUserProfiles).toHaveBeenCalledWith({
+				userId: USER_A,
+				profileIds: ['profile-1', 'profile-101'],
+			}),
+		);
+		expect(mocks.useStaffProfilesQuery).toHaveBeenCalledWith(
+			expect.objectContaining({
+				cursor: 'cursor-2',
+			}),
+		);
+	});
+
+	test('searches the server-side profile catalogue beyond the current page', async () => {
+		mocks.useStaffProfilesQuery.mockImplementation(({ q }: { q?: string }) =>
+			q === 'Archive'
+				? buildQueryResult({
+						data: {
+							data: [
+								{
+									id: 'profile-101',
+									name: 'Archive',
+									description: null,
+								},
+							],
+							nextCursor: null,
+						},
+					})
+				: buildQueryResult({
+						data: {
+							data: [
+								{
+									id: 'profile-1',
+									name: 'Publishing',
+									description: null,
+								},
+							],
+							nextCursor: 'cursor-2',
+						},
+					}),
+		);
+
+		renderPage();
+
+		fireEvent.change(screen.getByRole('textbox', { name: 'Search' }), {
+			target: { value: 'Archive' },
+		});
+
+		await waitFor(() =>
+			expect(mocks.useStaffProfilesQuery).toHaveBeenCalledWith(
+				expect.objectContaining({
+					q: 'Archive',
+				}),
+			),
+		);
+		expect(screen.getByRole('checkbox', { name: 'Archive' })).toBeTruthy();
+	});
+
+	test('preserves an assigned off-page profile when another profile is assigned', async () => {
+		setProfileState(USER_A, {
+			data: {
+				assignedProfiles: [
+					{ id: 'profile-101', name: 'Archive', description: null },
+				],
+			},
+			isPending: false,
+			isSuccess: true,
+		});
+		mocks.toAssignedStaffProfiles.mockReturnValue([
+			{ id: 'profile-101', name: 'Archive', description: null },
+		]);
+		mocks.updateStaffUserProfiles.mockResolvedValue({
+			assignedProfiles: [],
+		});
+
+		renderPage();
+
+		await waitFor(() =>
+			expect(
+				(
+					screen.getByRole('checkbox', {
+						name: 'Archive',
+					}) as HTMLInputElement
+				).checked,
+			).toBe(true),
+		);
+		fireEvent.click(screen.getByRole('checkbox', { name: 'Billing' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+		await waitFor(() =>
+			expect(mocks.updateStaffUserProfiles).toHaveBeenCalledWith({
+				userId: USER_A,
+				profileIds: ['profile-101', 'profile-2'],
+			}),
+		);
+	});
+
+	test('explicitly unassigns an off-page profile', async () => {
+		setProfileState(USER_A, {
+			data: {
+				assignedProfiles: [
+					{ id: 'profile-101', name: 'Archive', description: null },
+				],
+			},
+			isPending: false,
+			isSuccess: true,
+		});
+		mocks.toAssignedStaffProfiles.mockReturnValue([
+			{ id: 'profile-101', name: 'Archive', description: null },
+		]);
+		mocks.updateStaffUserProfiles.mockResolvedValue({
+			assignedProfiles: [],
+		});
+
+		renderPage();
+
+		const archive = await screen.findByRole('checkbox', { name: 'Archive' });
+		fireEvent.click(archive);
+		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+		await waitFor(() =>
+			expect(mocks.updateStaffUserProfiles).toHaveBeenCalledWith({
+				userId: USER_A,
+				profileIds: [],
+			}),
+		);
+	});
+
+	test('saves an intentional removal of all assigned profiles', async () => {
+		setProfileState(USER_A, {
+			data: {
+				assignedProfiles: [
+					{ id: 'profile-1', name: 'Publishing', description: null },
+					{ id: 'profile-2', name: 'Billing', description: null },
+				],
+			},
+			isPending: false,
+			isSuccess: true,
+		});
+		mocks.toAssignedStaffProfiles.mockReturnValue([
+			{ id: 'profile-1', name: 'Publishing', description: null },
+			{ id: 'profile-2', name: 'Billing', description: null },
+		]);
+		mocks.updateStaffUserProfiles.mockResolvedValue({
+			assignedProfiles: [],
+		});
+
+		renderPage();
+
+		await waitFor(() =>
+			expect(
+				(
+					screen.getByRole('checkbox', {
+						name: 'Publishing',
+					}) as HTMLInputElement
+				).checked,
+			).toBe(true),
+		);
+		fireEvent.click(screen.getByRole('checkbox', { name: 'Publishing' }));
+		fireEvent.click(screen.getByRole('checkbox', { name: 'Billing' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+		await waitFor(() =>
+			expect(mocks.updateStaffUserProfiles).toHaveBeenCalledWith({
+				userId: USER_A,
+				profileIds: [],
+			}),
+		);
 	});
 
 	test('blocks submit when a field fails validation', async () => {
