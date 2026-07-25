@@ -16,7 +16,6 @@ resets and stays under budget, **this gate is the pre-merge net** — see issue 
 | `pnpm format` (repo-wide oxfmt) | yes | yes |
 | Lint (oxlint scope CI uses, disables audit, barrel check) | yes | yes |
 | front-2 build, CSS-asset check, bundle isolation, smoke start, typecheck, design system, unit tests | yes | yes |
-| front-2-spike build | yes | yes |
 | front unit characterization + typecheck | yes | yes |
 | `openapi.json` / `client-ts` drift + OpenAPI contract spec | yes | yes |
 | `ci-migration-expand-contract` | yes | yes |
@@ -120,10 +119,9 @@ Do not bump the hash without doing step 1. The hash is only meaningful if someon
 Recorded here rather than hidden, so they can be judged:
 
 - **`just ci-lint` does not lint the whole repo.** It uses CI's scope
-  (`apps/front-2 packages/shared-ts`). `just lint` — `oxlint --quiet .` — is red on
-  `develop` over pre-existing errors in `apps/front-2-spike`, which no workflow lints.
-  Using the superset would fail the gate on things CI passes, and a gate that cries wolf
-  gets ignored. Run `just lint` deliberately when touching the spike.
+  (`apps/front-2 packages/shared-ts`). Issue #803 owns broadening this gate to
+  repo-wide `oxlint` and resolving the remaining pre-existing errors. Until then,
+  the narrower scope intentionally mirrors CI.
 - **`just ci-e2e-front` delegates to the app's `test:e2e:fresh`**, which omits
   `--remove-orphans` and CI's explicit `--wait-timeout 180`.
 - **The e2e recipes run `playwright install chromium` without CI's `--with-deps`.** That

@@ -308,7 +308,6 @@ ci-docs-archive-records:
 ci-install:
   @echo "=== [gate] install (frozen lockfile, no scripts) ==="
   node apps/front-2/scripts/assert-pinned.mjs
-  node apps/front-2-spike/scripts/assert-pinned.mjs
   pnpm install --frozen-lockfile --ignore-scripts
   pnpm --filter @org/shared-ts run postinstall
 
@@ -319,11 +318,9 @@ ci-format: format
 # Lint exactly the scope CI lints.
 #
 # Deliberately NOT `just lint`, which runs `oxlint --quiet .` over the whole
-# repo. That superset is red on develop today over pre-existing errors in
-# apps/front-2-spike, a disposable app no workflow lints — so using it here
-# would make `just ci` fail on things CI passes. A gate that cries wolf gets
-# ignored, which costs more than the extra coverage is worth. See
-# docs/guides/local-ci-gate.md.
+# repo. Issue #803 owns broadening that scope and resolving the remaining
+# repo-wide errors. Until then, this gate mirrors the narrower CI lint step
+# exactly. See docs/guides/local-ci-gate.md.
 ci-lint:
   @echo "=== [gate] lint ==="
   npx oxlint --quiet apps/front-2 packages/shared-ts
@@ -340,11 +337,6 @@ ci-front-2:
   pnpm --filter front-2 typecheck
   pnpm --filter front-2 check:design-system
   pnpm --filter front-2 test
-
-# front-2-spike: the disposable spike app's supply-chain build
-ci-front-2-spike:
-  @echo "=== [gate] front-2-spike build ==="
-  pnpm --filter front-2-spike build
 
 # front (legacy app): unit characterization + typecheck
 ci-front: tsc-front
@@ -383,7 +375,7 @@ ci-e2e-front:
   pnpm --filter front run test:e2e:fresh
 
 # Everyday pre-push gate (no e2e). Fails on the first red sub-gate.
-ci: ci-drift ci-migration-expand-contract ci-review-front-2-resolution ci-docs-archive-records ci-install ci-format ci-lint ci-front-2 ci-front-2-spike ci-front ci-spec-drift test-api
+ci: ci-drift ci-migration-expand-contract ci-review-front-2-resolution ci-docs-archive-records ci-install ci-format ci-lint ci-front-2 ci-front ci-spec-drift test-api
   @echo ""
   @echo "=== just ci: PASSED ==="
   @echo "Not covered here: the two e2e suites (run 'just ci-full')."

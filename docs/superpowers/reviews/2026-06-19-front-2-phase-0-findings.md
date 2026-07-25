@@ -1,5 +1,8 @@
 # front-2 Phase 0 — GO/NO-GO findings
 
+> Historical note: `apps/front-2-spike` was removed in #965 after its findings
+> were reimplemented in `apps/front-2`. Paths below record the Phase 0 evidence.
+>
 > **Status:** Phase 0 de-risking spike (disposable). This document is the single
 > **GO/NO-GO record** for the proposed migration of PublyApp's frontend to
 > **TanStack Start + HeroUI v3**. Phase 0 is the cheapest kill-switch: it records

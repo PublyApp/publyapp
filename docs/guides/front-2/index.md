@@ -4,9 +4,8 @@
 migration. It is the new application engineers should build against during Phase 1 and
 later migration work.
 
-`apps/front-2-spike` is disposable reference only. Use it to understand harvested patterns
-and prior de-risking work, but do not treat spike code as canonical. Do not copy it
-verbatim; reimplement selected patterns after applying the Phase 1 cleanup rules.
+The disposable proof-of-concept was removed in #965 after its findings were
+reimplemented. `apps/front-2` is the canonical application and reference.
 
 AGENTS.md remains authoritative for repo-wide API/error/URL/logging conventions; this guide governs front-2 styling/architecture specifics.
 
