@@ -35,9 +35,13 @@ const runRootBeforeLoad = async (
 	matches: readonly I18nRouteMatch[],
 ): Promise<RootContext> => {
 	const beforeLoad = RootRoute.options.beforeLoad as (options: {
+		location: { pathname: string };
 		matches: readonly I18nRouteMatch[];
 	}) => Promise<RootContext>;
-	return await beforeLoad({ matches });
+	return await beforeLoad({
+		location: { pathname: '/login' },
+		matches,
+	});
 };
 
 const stubDocument = (cookie: string, language: string): void => {
