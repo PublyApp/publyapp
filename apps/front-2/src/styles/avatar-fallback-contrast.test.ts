@@ -7,6 +7,16 @@ import { describe, expect, test } from 'vitest';
 const rootDir = path.resolve(fileURLToPath(new URL('.', import.meta.url)));
 const appCss = readFileSync(path.join(rootDir, 'app.css'), 'utf8');
 const SMALL_TEXT_CONTRAST_FLOOR = 4.5;
+const BRAND_BACKGROUND_TOKENS = [
+	'--publy-avatar-1',
+	'--publy-avatar-2',
+	'--publy-avatar-3',
+	'--publy-avatar-4',
+	'--publy-avatar-5',
+	'--publy-avatar-6',
+	'--publy-avatar-7',
+	'--publy-avatar-8',
+] as const;
 
 type Rgb = { r: number; g: number; b: number };
 
@@ -110,11 +120,8 @@ describe('neutral fallback contrast', () => {
 				'--publy-avatar-foreground',
 			);
 
-			for (let index = 1; index <= 8; index += 1) {
-				const background = resolveThemeHexToken(
-					header,
-					`--publy-avatar-${index}`,
-				);
+			for (const backgroundToken of BRAND_BACKGROUND_TOKENS) {
+				const background = resolveThemeHexToken(header, backgroundToken);
 				expect(contrastRatio(foreground, background)).toBeGreaterThanOrEqual(
 					SMALL_TEXT_CONTRAST_FLOOR,
 				);
