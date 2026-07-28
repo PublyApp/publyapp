@@ -71,12 +71,12 @@
 	},
 	{
 		"convention": "i18n-guard-ignore",
-		"file": "src/routes/authed/layout.tsx",
-		"reason": "no-hardcoded-ui-literal — see comment above."
+		"file": "src/routes/__root.tsx",
+		"reason": "no-hardcoded-ui-literal — request-failure payload fields are technical transport metadata, never displayed as UI copy."
 	},
 	{
 		"convention": "i18n-guard-ignore",
-		"file": "src/routes/authed/layout.tsx",
-		"reason": "no-hardcoded-ui-literal — see title above."
+		"file": "src/routes/__root.tsx",
+		"reason": "no-hardcoded-ui-literal — request-failure payload fields are technical transport metadata, never displayed as UI copy."
 	}
 ]

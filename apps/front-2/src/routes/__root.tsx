@@ -161,7 +161,9 @@ const parseRedirectCode = async (
 		throw new ServerFailure({
 			responseStatusCode: failure.status,
 			status: failure.status,
+			// i18n-guard-ignore: no-hardcoded-ui-literal — request-failure payload fields are technical transport metadata, never displayed as UI copy.
 			title: failure.title ?? 'Request failed',
+			// i18n-guard-ignore: no-hardcoded-ui-literal — request-failure payload fields are technical transport metadata, never displayed as UI copy.
 			detail: failure.detail ?? 'Request failed',
 			translationKey: failure.translationKey,
 		});

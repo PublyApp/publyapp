@@ -33,6 +33,19 @@ import { AuthedRouteContentSkeleton } from './_route-content-skeleton';
 const STAFF_PATH = '/staff';
 const TENANT_PATH = '/tenant';
 
+const isNavigationReload = (): boolean => {
+	if (typeof window === 'undefined' || typeof performance === 'undefined') {
+		return false;
+	}
+
+	const [entry] = performance.getEntriesByType('navigation');
+	if ((entry as PerformanceNavigationTiming | undefined)?.type === 'reload') {
+		return true;
+	}
+
+	return false;
+};
+
 const getFailureStatus = (error: unknown): number | undefined => {
 	const failure = toApiFailure(error);
 	return failure.kind === 'problem' ? failure.status : undefined;
@@ -216,7 +229,7 @@ function AuthedRouteLayout() {
 						<Button variant="default" onClick={retry} type="button">
 							{t('retry')}
 						</Button>
-						{isSurfaceRecovery ? null : (
+						{isSurfaceRecovery && !isNavigationReload() ? null : (
 							<Link to="/" className={buttonVariants({ variant: 'outline' })}>
 								{t('go-to-home')}
 							</Link>

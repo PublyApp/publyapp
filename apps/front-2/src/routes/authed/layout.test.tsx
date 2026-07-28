@@ -5,24 +5,28 @@ import type { UseQueryResult } from '@tanstack/react-query';
 import { cleanup, render, screen } from '@testing-library/react';
 import type { ComponentType, ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { SessionSurfaceValidationProvider } from '~/lib/session-surface-recovery-context';
+import {
+	SessionSurfaceRecoveryProvider,
+	SessionSurfaceValidationProvider,
+} from '~/lib/session-surface-recovery-context';
 
 import type { ParsedSessionTokens } from '@org/shared-ts/lib/session/parse';
 
-const createQueryResult = (overrides: {
+function createQueryResult(overrides: {
 	data: string | null | undefined;
 	isLoading?: boolean;
 	isError?: boolean;
 	error?: unknown;
 	refetch?: () => void;
-}): UseQueryResult<string | null, unknown> =>
-	({
+}): UseQueryResult<string | null, unknown> {
+	return {
 		error: overrides.error,
 		isError: overrides.isError,
 		isLoading: overrides.isLoading,
 		refetch: overrides.refetch,
 		data: overrides.data,
-	}) as unknown as UseQueryResult<string | null, unknown>;
+	} as unknown as UseQueryResult<string | null, unknown>;
+}
 
 const mocks = vi.hoisted(() => ({
 	queryResult: createQueryResult({
@@ -90,9 +94,11 @@ const AuthedRoutePendingSkeleton = routeOptions.pendingComponent;
 
 const renderLayout = () =>
 	render(
-		<SessionSurfaceValidationProvider value={mocks.queryResult}>
-			<AuthedRouteLayout />
-		</SessionSurfaceValidationProvider>,
+		<SessionSurfaceRecoveryProvider value={true}>
+			<SessionSurfaceValidationProvider value={mocks.queryResult}>
+				<AuthedRouteLayout />
+			</SessionSurfaceValidationProvider>
+		</SessionSurfaceRecoveryProvider>,
 	);
 
 describe('beforeLoad session-token guard', () => {
@@ -175,9 +181,11 @@ describe('AuthedRouteLayout render gating', () => {
 			refetch: vi.fn(),
 		});
 		rerender(
-			<SessionSurfaceValidationProvider value={mocks.queryResult}>
-				<AuthedRouteLayout />
-			</SessionSurfaceValidationProvider>,
+			<SessionSurfaceRecoveryProvider value={true}>
+				<SessionSurfaceValidationProvider value={mocks.queryResult}>
+					<AuthedRouteLayout />
+				</SessionSurfaceValidationProvider>
+			</SessionSurfaceRecoveryProvider>,
 		);
 
 		expect(screen.getByTestId('outlet-stub')).toBeTruthy();
