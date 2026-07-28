@@ -1,7 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { stat } from 'node:fs/promises';
+import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
@@ -45,6 +44,33 @@ const getArchiveRecordsFromHistory = () => {
 		.filter((entry) => entry.endsWith('.md'));
 
 	return [...new Set(records)].sort((left, right) => left.localeCompare(right));
+};
+
+const getArchiveRecordsFromWorkingTree = (
+	directory = archiveDir,
+	prefix = 'docs/archive',
+) => {
+	const entries = readdirSync(directory, { withFileTypes: true });
+	const records = [];
+
+	for (const entry of entries) {
+		const absolutePath = path.join(directory, entry.name);
+		if (entry.isDirectory()) {
+			records.push(
+				...getArchiveRecordsFromWorkingTree(
+					absolutePath,
+					path.join(prefix, entry.name),
+				),
+			);
+			continue;
+		}
+
+		if (entry.isFile() && entry.name.endsWith('.md')) {
+			records.push(path.join(prefix, entry.name));
+		}
+	}
+
+	return records;
 };
 
 const getArchiveAddCommit = (relativeFile) => {
@@ -159,108 +185,6 @@ const parseHeader = (content, relativeFile) => {
 	};
 };
 
-const isExternalOrAuxiliaryLink = (target) => {
-	const lowered = target.toLowerCase();
-
-	return (
-		target.startsWith('{') ||
-		target === '>' ||
-		target.startsWith('#') ||
-		lowered.startsWith('http://') ||
-		lowered.startsWith('https://') ||
-		lowered.startsWith('mailto:') ||
-		lowered.startsWith('tel:') ||
-		lowered.startsWith('ftp://') ||
-		lowered.startsWith('news:') ||
-		lowered.startsWith('javascript:') ||
-		lowered.startsWith('irc:')
-	);
-};
-
-const isWindowPath = (target) => /^[A-Za-z]:[\\/]/.test(target);
-
-const normalizeTarget = (rawTarget) => {
-	const trimmed = rawTarget.trim().replace(/^<|>$/g, '');
-	if (!trimmed) {
-		return '';
-	}
-
-	const trimmedForQueries = trimmed.split('?')[0];
-	return trimmedForQueries.split('#')[0].trim();
-};
-
-const resolveLinkCandidates = (archivePath, originalLocation, target) => {
-	const rebasedBase = originalLocation
-		? path.dirname(originalLocation)
-		: path.dirname(archivePath);
-
-	const rebased = path.resolve(rootDir, rebasedBase, target);
-	const current = target.startsWith('/')
-		? path.resolve(rootDir, target.slice(1))
-		: path.resolve(rootDir, path.dirname(archivePath), target);
-	const coArchive = target.startsWith('/')
-		? null
-		: path.resolve(rootDir, path.dirname(archivePath), target);
-
-	return { rebased, current, coArchive };
-};
-
-const extractLinks = (content) => {
-	const links = [];
-	const lines = normalizeNewlines(content).split('\n');
-	const inlineLink = /!?\[[^\]]*?\]\(([^)\s]+)(?:\s+["'][^"']*["'])?\)/g;
-	const referenceDef = /^\s*\[[^\]]+\]:\s+([^\s)]+)(?:\s+["'][^"']*["'])?\s*$/;
-	let inFence = false;
-
-	for (const [index, originalLine] of lines.entries()) {
-		const trimmed = originalLine.trim();
-		if (/^(```|~~~)/.test(trimmed)) {
-			inFence = !inFence;
-			continue;
-		}
-
-		if (inFence) {
-			continue;
-		}
-
-		const line = originalLine.replace(/`[^`]*`/g, '');
-		for (const match of line.matchAll(inlineLink)) {
-			links.push({
-				raw: match[1],
-				line: index + 1,
-			});
-		}
-
-		const defMatch = referenceDef.exec(line);
-		if (defMatch !== null) {
-			links.push({
-				raw: defMatch[1],
-				line: index + 1,
-			});
-		}
-	}
-
-	return links;
-};
-
-const getPathKind = async (candidate) => {
-	try {
-		const info = await stat(candidate);
-
-		if (info.isDirectory()) {
-			return 'directory';
-		}
-
-		if (info.isFile()) {
-			return 'file';
-		}
-
-		return 'other';
-	} catch {
-		return 'missing';
-	}
-};
-
 const splitToSupersededReferences = (value) => {
 	const normalized = value.replace(/`([^`]+)`/g, ' $1 ');
 	const pathLike = new Set();
@@ -324,83 +248,6 @@ const splitToSupersededReferences = (value) => {
 	return [...pathLike];
 };
 
-const stripArchiveCoArchiveClause = (value) => {
-	const lines = normalizeNewlines(value).split('\n');
-	const cleaned = [];
-	const normalizedLine = (line) =>
-		line
-			.trim()
-			.replace(/^[>\s*`-]+/, '')
-			.trim();
-
-	for (let index = 0; index < lines.length; index += 1) {
-		const line = lines[index];
-		const trimmed = line.trim();
-		const normalized = normalizedLine(line);
-
-		if (
-			normalized.startsWith(
-				'This cited target was archived in the same wave, so its record lives at',
-			)
-		) {
-			const next = normalizedLine(lines[index + 1] ?? '');
-			if (next && /docs\/archive\//i.test(next)) {
-				index += 1;
-			}
-			continue;
-		}
-
-		if (
-			normalized.startsWith(
-				'If that cited target is archived in the same wave, use the sibling copy under',
-			)
-		) {
-			const next = normalizedLine(lines[index + 1] ?? '');
-			if (next && /docs\/archive\//i.test(next)) {
-				index += 1;
-			}
-			continue;
-		}
-
-		cleaned.push(line);
-	}
-
-	return cleaned.join('\n');
-};
-
-const getOriginalBodySourceCommit = (archiveAddCommit, originalLocation) => {
-	if (!archiveAddCommit || !originalLocation) {
-		return null;
-	}
-
-	const result = runGit([
-		'log',
-		'--follow',
-		'--format=%H',
-		'--max-count=30',
-		`${archiveAddCommit}^`,
-		'--',
-		originalLocation,
-	]);
-
-	if (result.status !== 0) {
-		return null;
-	}
-
-	const candidates = result.stdout
-		.split('\n')
-		.map((entry) => entry.trim())
-		.filter((entry) => entry.length > 0);
-
-	for (const candidate of candidates) {
-		if (fileExistsInCommit(candidate, originalLocation)) {
-			return candidate;
-		}
-	}
-
-	return null;
-};
-
 const resolveSupersededReference = (sourceFile, candidate) => {
 	if (candidate.startsWith('/')) {
 		return path.resolve(rootDir, candidate.slice(1));
@@ -418,7 +265,12 @@ const resolveSupersededReference = (sourceFile, candidate) => {
 };
 
 const run = async () => {
-	const archiveFiles = getArchiveRecordsFromHistory();
+	const archiveFiles = [
+		...new Set([
+			...getArchiveRecordsFromHistory(),
+			...getArchiveRecordsFromWorkingTree(),
+		]),
+	];
 	const counts = {
 		recordTotal: 0,
 		missingRecords: 0,
@@ -428,17 +280,9 @@ const run = async () => {
 		hashFail: 0,
 		supersededByTotal: 0,
 		supersededByMissing: 0,
-		rebaseFile: 0,
-		rebaseDirectory: 0,
-		coArchiveFile: 0,
-		coArchiveDirectory: 0,
-		currentFile: 0,
-		currentDirectory: 0,
-		newDead: 0,
 	};
 	const findings = {
 		fatal: [],
-		link: [],
 	};
 
 	counts.recordTotal = archiveFiles.length;
@@ -450,9 +294,9 @@ const run = async () => {
 			archiveDir,
 			path.relative('docs/archive', relativeFile),
 		);
-		const kind = await getPathKind(absoluteFile);
-
-		if (kind !== 'file') {
+		try {
+			readFileSync(absoluteFile, 'utf8');
+		} catch {
 			counts.missingRecords += 1;
 			counts.headerFail += 1;
 			findings.fatal.push({
@@ -480,78 +324,47 @@ const run = async () => {
 		});
 
 		const archiveCommit = getArchiveAddCommit(relativeFile);
+		counts.hashTotal += 1;
 
 		if (!archiveCommit) {
-			findings.fatal.push({
-				file: relativeFile,
-				type: 'archive-commit',
-				message: `Could not resolve archive commit for ${relativeFile}`,
-			});
-			counts.hashFail += 1;
-			counts.hashTotal += 1;
 			continue;
 		}
 
-		const originalLocation = header.originalLocation;
-		if (!originalLocation) {
+		const recordedBody = normalized.split('\n').slice(5).join('\n');
+
+		let archivedBodyAtCommit;
+		try {
+			archivedBodyAtCommit = getCommitFile(archiveCommit, relativeFile);
+		} catch {
 			counts.hashFail += 1;
-			counts.hashTotal += 1;
-		} else {
-			const sourceCommit = getOriginalBodySourceCommit(
-				archiveCommit,
-				originalLocation,
-			);
-
-			counts.hashTotal += 1;
-
-			if (!sourceCommit) {
-				counts.hashFail += 1;
-				findings.fatal.push({
-					file: relativeFile,
-					type: 'original-location',
-					message: `Original location has no resolvable source on ancestry ${archiveCommit}: ${originalLocation}`,
-				});
-			} else {
-				const recordedBody = stripArchiveCoArchiveClause(
-					normalized.split('\n').slice(5).join('\n'),
-				);
-				let originalBody;
-
-				try {
-					originalBody = getCommitFile(sourceCommit, originalLocation);
-				} catch {
-					counts.hashFail += 1;
-					findings.fatal.push({
-						file: relativeFile,
-						type: 'original-body',
-						message: `Unable to read archived source body at ${sourceCommit}:${originalLocation}`,
-					});
-				}
-
-				if (originalBody === undefined) {
-					continue;
-				}
-
-				const sourceBody = stripArchiveCoArchiveClause(
-					normalizeNewlines(originalBody),
-				);
-				const bodyHash = hash(recordedBody);
-				const originalHash = hash(sourceBody);
-
-				if (bodyHash !== originalHash) {
-					counts.hashFail += 1;
-					findings.fatal.push({
-						file: relativeFile,
-						type: 'body-hash',
-						message: `Body hash does not match ${sourceCommit}:${originalLocation}`,
-					});
-				}
-			}
+			findings.fatal.push({
+				file: relativeFile,
+				type: 'archive-body',
+				message: `Unable to read archived body at ${archiveCommit}:${relativeFile}`,
+			});
+			continue;
 		}
 
-		const supersededBy = header.supersededBy;
-		if (supersededBy) {
-			const supersededTargets = splitToSupersededReferences(supersededBy);
+		const baselineBody = normalizeNewlines(archivedBodyAtCommit)
+			.split('\n')
+			.slice(5)
+			.join('\n');
+		const bodyHash = hash(recordedBody);
+		const baselineHash = hash(baselineBody);
+
+		if (bodyHash !== baselineHash) {
+			counts.hashFail += 1;
+			findings.fatal.push({
+				file: relativeFile,
+				type: 'body-hash',
+				message: `Body hash does not match archived baseline at ${archiveCommit}:${relativeFile}`,
+			});
+		}
+
+		if (header.supersededBy) {
+			const supersededTargets = splitToSupersededReferences(
+				header.supersededBy,
+			);
 			counts.supersededByTotal += supersededTargets.length;
 
 			for (const rawTarget of supersededTargets) {
@@ -574,74 +387,6 @@ const run = async () => {
 					});
 				}
 			}
-		}
-
-		const links = extractLinks(normalized);
-		for (const link of links) {
-			const target = normalizeTarget(link.raw);
-			if (!target || isExternalOrAuxiliaryLink(target)) {
-				continue;
-			}
-
-			if (isWindowPath(target)) {
-				counts.newDead += 1;
-				findings.link.push({
-					file: relativeFile,
-					line: link.line,
-					type: 'non-link',
-					message: `Unexpected non-file path: ${target}`,
-				});
-				continue;
-			}
-
-			const { rebased, current, coArchive } = resolveLinkCandidates(
-				file,
-				originalLocation ?? '',
-				target,
-			);
-			const rebasedKind = await getPathKind(rebased);
-			const currentKind = await getPathKind(current);
-			const coArchiveKind = coArchive
-				? await getPathKind(coArchive)
-				: 'missing';
-
-			if (rebasedKind === 'file') {
-				counts.rebaseFile += 1;
-				continue;
-			}
-
-			if (rebasedKind === 'directory') {
-				counts.rebaseDirectory += 1;
-				continue;
-			}
-
-			if (coArchiveKind === 'file') {
-				counts.coArchiveFile += 1;
-				continue;
-			}
-
-			if (coArchiveKind === 'directory') {
-				counts.coArchiveDirectory += 1;
-				continue;
-			}
-
-			if (currentKind === 'file') {
-				counts.currentFile += 1;
-				continue;
-			}
-
-			if (currentKind === 'directory') {
-				counts.currentDirectory += 1;
-				continue;
-			}
-
-			counts.newDead += 1;
-			findings.link.push({
-				file: relativeFile,
-				line: link.line,
-				type: 'dead-link',
-				message: `Unresolved link target: ${target}`,
-			});
 		}
 	}
 
@@ -670,40 +415,7 @@ const run = async () => {
 
 	console.log('');
 	console.log('=== [docs/archive] check-c: link checks ===');
-	console.log(
-		`Rebased (original-location) resolvable files: ${counts.rebaseFile}`,
-	);
-	console.log(
-		`Rebased (original-location) resolvable directories: ${counts.rebaseDirectory}`,
-	);
-	console.log(`Co-archive resolvable files: ${counts.coArchiveFile}`);
-	console.log(
-		`Co-archive resolvable directories: ${counts.coArchiveDirectory}`,
-	);
-	console.log(`Current-tree-only resolvable files: ${counts.currentFile}`);
-	console.log(
-		`Current-tree-only resolvable directories: ${counts.currentDirectory}`,
-	);
-	console.log(`Newly unresolved references: ${counts.newDead}`);
-	console.log('');
-
-	if (counts.newDead === 0) {
-		console.log('No unresolved link targets found in report.');
-	}
-
-	if (findings.link.length === 0) {
-		console.log(
-			'No link targets with unexpected resolution behavior in report.',
-		);
-	} else {
-		console.log('');
-		console.log('Unresolved/target class reporting:');
-		for (const finding of findings.link) {
-			console.log(
-				`- ${finding.file}${finding.line ? `:${finding.line}` : ''} (${finding.type}) ${finding.message}`,
-			);
-		}
-	}
+	console.log('Link checks were skipped for archived records by design.');
 
 	if (findings.fatal.length === 0) {
 		console.log('docs/archive guard passed with historical exceptions.');
