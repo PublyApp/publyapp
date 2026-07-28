@@ -115,8 +115,8 @@ public sealed class InvitationEmailOutboxDispatcher : BackgroundService {
 	}
 
 	// Public: lets specs exercise retry/backoff/permanent-failure behavior on a
-	// single row directly, without racing the live background poll loop that also
-	// runs against the shared test database (round-5 API F3, LAW 2).
+	// single row directly, without depending on ExecuteAsync's poll timing
+	// (round-5 API F3, LAW 2).
 	public async Task SendOneAsync(
 		AppDbContext dbContext,
 		IEmailService emailService,

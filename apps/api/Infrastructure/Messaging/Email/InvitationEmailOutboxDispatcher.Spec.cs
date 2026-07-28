@@ -14,9 +14,9 @@ using Xunit;
 
 namespace PublyApp.Api.Infrastructure.Messaging.Email;
 
-// Exercises InvitationEmailOutboxDispatcher.SendOneAsync directly on rows scheduled
-// far in the future, so the live background dispatcher started by the test host (it
-// only picks up rows with NextAttemptAt <= now) never races these assertions.
+// Exercises InvitationEmailOutboxDispatcher.SendOneAsync directly. The integration host
+// registers no live dispatcher loop for any spec (ApiFactory.RemoveWorkerHostedServices),
+// so nothing but this file's own explicit calls ever claims or sends a row here.
 public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
 
@@ -30,7 +30,6 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 		await using var dbContext = await CreateDbContextAsync();
 
 		var row = InvitationEmailOutbox.CreateStaffInvitation("succeed@example.com", "tok-succeed");
-		row.NextAttemptAt = DateTime.UtcNow.AddDays(1);
 		await dbContext.InvitationEmailOutbox.AddAsync(row);
 		await dbContext.SaveChangesAsync();
 
@@ -50,7 +49,6 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 		await using var dbContext = await CreateDbContextAsync();
 
 		var row = InvitationEmailOutbox.CreateStaffInvitation("retry@example.com", "tok-retry");
-		row.NextAttemptAt = DateTime.UtcNow.AddDays(1);
 		await dbContext.InvitationEmailOutbox.AddAsync(row);
 		await dbContext.SaveChangesAsync();
 
@@ -73,7 +71,6 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 		await using var dbContext = await CreateDbContextAsync();
 
 		var row = InvitationEmailOutbox.CreateStaffInvitation("exhausted@example.com", "tok-exhausted");
-		row.NextAttemptAt = DateTime.UtcNow.AddDays(1);
 		row.AttemptCount = InvitationEmailOutboxDispatcher.MaxAttempts - 1;
 		await dbContext.InvitationEmailOutbox.AddAsync(row);
 		await dbContext.SaveChangesAsync();
@@ -97,7 +94,6 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 			"tok-tenant",
 			AccountLevel.Admin
 		);
-		row.NextAttemptAt = DateTime.UtcNow.AddDays(1);
 		await dbContext.InvitationEmailOutbox.AddAsync(row);
 		await dbContext.SaveChangesAsync();
 
@@ -120,9 +116,8 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 	// invitation email to be sent twice. Uses ClaimBatchAsync directly (not
 	// ProcessBatchAsync) so the assertion is about claim exclusivity itself,
 	// independent of send/email behavior. 50 rows gives generous margin over
-	// the live background dispatcher's own BatchSize=20, so even if it also
-	// races in and claims some rows first, plenty remain to prove the two
-	// explicit claims below never overlap.
+	// BatchSize=20 so plenty remain to prove the two explicit claims below
+	// never overlap, however the batch happens to split between them.
 	[Fact]
 	public async Task ItShouldNeverClaimTheSameRowFromTwoConcurrentDispatchers() {
 		await using var seedContext = await CreateDbContextAsync();
@@ -182,7 +177,6 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 
 		var outboxRow = InvitationEmailOutbox.CreateStaffInvitation(invitation.Email, invitation.Token);
 		outboxRow.Invitation = invitation;
-		outboxRow.NextAttemptAt = DateTime.UtcNow.AddDays(1);
 		await dbContext.InvitationEmailOutbox.AddAsync(outboxRow);
 		await dbContext.SaveChangesAsync();
 
@@ -226,7 +220,6 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 
 		var row = InvitationEmailOutbox.CreateStaffInvitation(invitation.Email, invitation.Token);
 		row.Invitation = invitation;
-		row.NextAttemptAt = DateTime.UtcNow.AddDays(1);
 		await dbContext.InvitationEmailOutbox.AddAsync(row);
 		await dbContext.SaveChangesAsync();
 

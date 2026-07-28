@@ -194,17 +194,39 @@ auth, routing, services) runs exactly as in production.
 
 ### Fixture Lifecycle and Mutable Test State
 
-`ApiFixture` is created once per test class, not once per test method. The database,
-`ApiFactory`, and singleton test doubles such as `FakeEmailSender` therefore persist
-across every method in that class.
+`ApiFixture` is created once per test class when injected via `IClassFixture<ApiFixture>`,
+not once per test method. The database, `ApiFactory`, and singleton test doubles such as
+`FakeEmailSender` therefore persist across every method in that class — a test method that
+asserts on the complete state of a shared singleton fake (e.g. "the queue contains exactly
+these emails") depends on what every other method in the class did to that same instance,
+including methods added later by someone who doesn't know this fixture is shared.
 
-- Clear a mutable fake at the start of any test that asserts its complete state.
-- Do not enable hosted worker loops in `ApiFactory`. A background operation can append to
-  a fake after `Clear()`, making the next test observe state from its neighbor.
+**Ownership, not resetting, is what makes a test independent of run order.** A shared fake
+that everyone diligently resets stays correct only as long as every future author
+remembers to reset it; a fake nothing else can reach cannot be contaminated by
+construction. Prefer ownership:
+
+- If a test needs to observe complete/exact state on a fake like `FakeEmailSender` (send
+  counts, exact recipient sets), give it a fixture instance nothing else can write to.
+  Don't take `ApiFixture` through `IClassFixture<ApiFixture>` in that spec class — instead
+  implement `IAsyncLifetime` directly on the spec class and construct
+  `private readonly ApiFixture _fixture = new();`, calling `_fixture.InitializeAsync()` /
+  `_fixture.DisposeAsync()` from the class's own `InitializeAsync`/`DisposeAsync`. xUnit
+  instantiates a test class fresh per test method, so this gives every method — present or
+  future — its own database and its own singleton fakes, with nothing to reset. See
+  `CreateTenantAsStaffEmailSpec` and `EmailJobHandlersDispatchSpec` for the pattern.
+- Reserve `IClassFixture<ApiFixture>` (one database/factory shared across the class's
+  methods) for specs that don't assert on a shared mutable fake's complete state — most
+  handler specs, which only assert on their own durable DB rows by id/email, fall here.
+- Do not enable hosted worker loops in `ApiFactory`. A background operation racing the
+  shared test DB or a shared fake would defeat ownership just as badly as sharing the
+  fixture across methods.
 - Drive asynchronous infrastructure explicitly and await it in the test that owns the
   assertion. Select only that test's durable rows before invoking a dispatcher directly.
 - Test classes remain isolated from one another through separate `ApiFixture` instances
-  and database clones; no suite-wide collection serialization is needed.
+  and database clones; no suite-wide collection serialization is needed. The per-method
+  ownership pattern above simply extends that same isolation down to the method level for
+  the specs that need it.
 
 ### Why FakeEmailSender Lives in Testing/Fakes/
 
