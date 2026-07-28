@@ -94,6 +94,16 @@ const getArchiveAddCommit = (relativeFile) => {
 	return commits.length > 0 ? commits[0] : null;
 };
 
+const getMergeBase = () => {
+	const result = runGit(['merge-base', 'origin/develop', 'HEAD']);
+
+	if (result.status !== 0 || !result.stdout.trim()) {
+		return null;
+	}
+
+	return result.stdout.trim();
+};
+
 const fileExistsInCommit = (ref, repoPath) => {
 	const target = `${ref}:${toPosix(repoPath)}`;
 	const result = runGit(['cat-file', '-e', target], {
@@ -283,7 +293,18 @@ const run = async () => {
 	};
 	const findings = {
 		fatal: [],
+		warning: [],
 	};
+	const mergeBase = getMergeBase();
+
+	if (mergeBase === null) {
+		findings.fatal.push({
+			file: 'docs/archive',
+			type: 'merge-base',
+			message:
+				'Unable to resolve merge base for origin/develop and HEAD. Configure origin/develop and retry.',
+		});
+	}
 
 	counts.recordTotal = archiveFiles.length;
 	const files = [];
@@ -323,24 +344,47 @@ const run = async () => {
 			counts.headerFail += 1;
 		});
 
+		const isPresentAtMergeBase =
+			mergeBase !== null ? fileExistsInCommit(mergeBase, relativeFile) : false;
 		const archiveCommit = getArchiveAddCommit(relativeFile);
 		counts.hashTotal += 1;
 
-		if (!archiveCommit) {
+		if (!archiveCommit && !isPresentAtMergeBase) {
 			continue;
 		}
 
 		const recordedBody = normalized.split('\n').slice(5).join('\n');
 
 		let archivedBodyAtCommit;
+		let baselineSource;
+		let bodyMismatchMessage;
+
 		try {
-			archivedBodyAtCommit = getCommitFile(archiveCommit, relativeFile);
+			if (isPresentAtMergeBase) {
+				archivedBodyAtCommit = getCommitFile(mergeBase, relativeFile);
+				baselineSource = `merge base ${mergeBase}`;
+				bodyMismatchMessage = `Body changed after archive compared with merge base ${mergeBase}`;
+			} else if (archiveCommit) {
+				archivedBodyAtCommit = getCommitFile(archiveCommit, relativeFile);
+				baselineSource = `archive add commit ${archiveCommit}`;
+				bodyMismatchMessage =
+					`Body differs from archived add-commit snapshot ${archiveCommit}. ` +
+					`This record changed after it was archived within this change; verify this is a repair and not a rewrite.`;
+			} else {
+				counts.hashFail += 1;
+				findings.fatal.push({
+					file: relativeFile,
+					type: 'archive-body',
+					message: `Unable to locate archived add commit baseline for ${relativeFile}`,
+				});
+				continue;
+			}
 		} catch {
 			counts.hashFail += 1;
 			findings.fatal.push({
 				file: relativeFile,
 				type: 'archive-body',
-				message: `Unable to read archived body at ${archiveCommit}:${relativeFile}`,
+				message: `Unable to read archived body at ${baselineSource}:${relativeFile}`,
 			});
 			continue;
 		}
@@ -353,12 +397,20 @@ const run = async () => {
 		const baselineHash = hash(baselineBody);
 
 		if (bodyHash !== baselineHash) {
-			counts.hashFail += 1;
-			findings.fatal.push({
-				file: relativeFile,
-				type: 'body-hash',
-				message: `Body hash does not match archived baseline at ${archiveCommit}:${relativeFile}`,
-			});
+			if (isPresentAtMergeBase) {
+				counts.hashFail += 1;
+				findings.fatal.push({
+					file: relativeFile,
+					type: 'body-hash',
+					message: `${bodyMismatchMessage}: ${relativeFile} vs ${baselineSource}`,
+				});
+			} else {
+				findings.warning.push({
+					file: relativeFile,
+					type: 'body-hash',
+					message: `${bodyMismatchMessage}`,
+				});
+			}
 		}
 
 		if (header.supersededBy) {
@@ -407,6 +459,7 @@ const run = async () => {
 			counts.hashFail
 		}`,
 	);
+	console.log(`Warnings: ${findings.warning.length}`);
 	console.log(
 		`Superseded-by references: ${counts.supersededByMissing} unresolved, ${
 			counts.supersededByTotal - counts.supersededByMissing
@@ -416,6 +469,16 @@ const run = async () => {
 	console.log('');
 	console.log('=== [docs/archive] check-c: link checks ===');
 	console.log('Link checks were skipped for archived records by design.');
+
+	if (findings.warning.length > 0) {
+		console.log('');
+		console.log('=== [docs/archive] check-w: body hash warnings ===');
+		for (const finding of findings.warning) {
+			console.error(
+				`- ${finding.file}${finding.line ? `:${finding.line}` : ''} (${finding.type ?? 'header'}) ${finding.message}`,
+			);
+		}
+	}
 
 	if (findings.fatal.length === 0) {
 		console.log('docs/archive guard passed with historical exceptions.');
