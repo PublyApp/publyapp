@@ -2,6 +2,7 @@
 
 export const GH_AUTH_FAILURE = 'gh-auth-failure';
 export const GH_NETWORK_FAILURE = 'gh-network-failure';
+export const GH_INVOCATION_FAILURE = 'gh-invocation-failure';
 
 const ISSUE_TOKEN_PATTERN_SOURCE = '(^|[\\/_-])${number}(?=$|[/_-])';
 
@@ -131,7 +132,7 @@ export const isGhAuthFailure = (message) => {
 	);
 };
 
-const isGhNetworkFailure = (message) => {
+export const isGhNetworkFailure = (message) => {
 	const lowered = normalizeMessage(message).toLowerCase();
 	return (
 		lowered.includes('network') ||
@@ -178,16 +179,19 @@ export const runGhJson = async (args, { runGh } = {}) => {
 		);
 	}
 
-	if (message.length > 0 || isGhNetworkFailure(message)) {
+	if (isGhNetworkFailure(message)) {
 		throw createError(
-			message.length > 0
-				? `gh failed for ${args[0]} ${args[1]}: ${message}`
-				: `gh failed for ${args[0]} ${args[1]}.`,
+			`gh network failure for ${args[0]} ${args[1]}: ${message}`,
 			GH_NETWORK_FAILURE,
 		);
 	}
 
-	throw createError(`gh failed for ${args[0]} ${args[1]}.`, GH_NETWORK_FAILURE);
+	throw createError(
+		message.length > 0
+			? `gh failed for ${args[0]} ${args[1]}: ${message}`
+			: `gh failed for ${args[0]} ${args[1]}.`,
+		GH_INVOCATION_FAILURE,
+	);
 };
 
 export const runPrByNumber = (number, { runGh }) =>
@@ -258,7 +262,12 @@ export const resolveByNumber = async (
 	}
 
 	if (matches.length > 1) {
-		return { kind: 'issue-ambiguous', source: issue, worktrees: matches };
+		return {
+			kind: 'issue-ambiguous',
+			source: issue,
+			requested: number,
+			worktrees: matches,
+		};
 	}
 
 	return { kind: 'issue', source: issue, worktree: matches[0] };
