@@ -2,34 +2,20 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-	BASE_PORT,
-	ENVIRONMENT_GENERATION_MARKER,
-	FRONTEND_ENV_KEYS,
 	GH_AUTH_FAILURE,
 	GH_NETWORK_FAILURE,
-	buildFrontendEnvLines,
-	buildFrontendHost,
-	buildFrontendToken,
-	generateFrontendUrl,
-	choosePort,
-	derivePreferredPort,
-	generateFrontendTokenForTarget,
 	getBranchPathByMap,
 	getIssueBranchPattern,
 	isGhAuthFailure,
 	isGhMissingReference,
-	parseAddressForFrontend,
-	parseFrontendTokenFromPath,
 	parseTrackedChangesFromStatus,
 	parseWorktrees,
 	resolveByNumber,
-	resolveByPull,
-	resolveFrontendToken,
 	resolveInteractivePicker,
-	resolvePrForIssueWorktree,
 	resolveTarget,
 	runGhJson,
-	runPrsByHeadBranch,
+	runIssueByNumber,
+	runPrByNumber,
 } from './review-front-2.resolve.mjs';
 
 const runResult = (status = 0, stdout = '', stderr = '') => ({
@@ -167,25 +153,6 @@ for (const scenario of [
 	});
 }
 
-test('resolveByPull prefers branch over head OID fallback', () => {
-	const worktrees = [
-		{ path: '/tmp/renamed', head: 'renamed-head', branch: 'renamed-branch' },
-		{ path: '/tmp/fork', head: 'fork-head', branch: 'other' },
-	];
-
-	assert.deepEqual(
-		resolveByPull(
-			{ headRefName: 'renamed-branch', headRefOid: 'fork-head' },
-			worktrees,
-		),
-		{ path: '/tmp/renamed', head: 'renamed-head', branch: 'renamed-branch' },
-	);
-	assert.deepEqual(
-		resolveByPull({ headRefName: 'none', headRefOid: 'fork-head' }, worktrees),
-		{ path: '/tmp/fork', head: 'fork-head', branch: 'other' },
-	);
-});
-
 for (const scenario of [
 	{
 		name: 'PR matched by branch',
@@ -292,6 +259,9 @@ for (const scenario of [
 		if (scenario.expectedKind === 'issue-ambiguous') {
 			assert.equal(result.worktrees.length, 2);
 		}
+		if (scenario.expectedKind === 'not-found') {
+			assert.equal(result.requested, scenario.number);
+		}
 	});
 }
 
@@ -312,102 +282,41 @@ test('resolveByNumber gives PR precedence over issue when both can match', async
 
 	assert.equal(result.kind, 'pr');
 	assert.equal(result.source.number, 994);
+	assert.equal(result.worktree?.path, '/tmp/issue');
 });
 
-test('resolvePrForIssueWorktree passes worktree object and favors open PR', async () => {
-	const worktree = {
-		path: '/tmp/issue',
-		branch: 'feature/issue-901',
-		head: 'x',
-	};
-	let observed = null;
-	const result = await resolvePrForIssueWorktree(worktree, {
-		runPrsByHeadBranch: async (value) => {
-			observed = value;
-			return [
-				{ number: 555, state: 'CLOSED', headRefName: 'feature/issue-901' },
-				{ number: 1010, state: 'OPEN', headRefName: 'feature/issue-901' },
-			];
+test('runPrByNumber uses expected gh CLI args', async () => {
+	let capturedArgs = [];
+	await runPrByNumber(901, {
+		runGh: async (args) => {
+			capturedArgs = args;
+			return runResult(0, '{"number":901,"state":"OPEN"}', '');
 		},
 	});
-
-	assert.equal(observed, worktree);
-	assert.equal(result?.number, 1010);
-});
-
-test('runPrsByHeadBranch builds gh args from worktree branch', async () => {
-	let capturedArgs = [];
-	await runPrsByHeadBranch(
-		{ path: '/tmp/issue', branch: 'feature/xyz' },
-		{
-			runGh: async (args) => {
-				capturedArgs = args;
-				return runResult(0, '[]', '');
-			},
-		},
-	);
 
 	assert.equal(capturedArgs[0], 'pr');
-	assert.equal(capturedArgs.includes('--head'), true);
-	assert.equal(capturedArgs[capturedArgs.length - 1], 'feature/xyz');
+	assert.equal(capturedArgs[1], 'view');
+	assert.equal(capturedArgs[2], '901');
+	assert.deepEqual(capturedArgs.slice(3), [
+		'--json',
+		'number,state,title,headRefName,headRefOid',
+	]);
 });
 
-for (const scenario of [
-	{
-		name: 'Issue token resolves from gh PR even when path token differs',
-		resolved: {
-			kind: 'issue',
-			worktree: {
-				path: '/tmp/pr994',
-				branch: 'feature/issue-994',
-				head: 'x',
-			},
+test('runIssueByNumber uses expected gh CLI args', async () => {
+	let capturedArgs = [];
+	await runIssueByNumber(901, {
+		runGh: async (args) => {
+			capturedArgs = args;
+			return runResult(0, '{"number":901}', '');
 		},
-		resolvePrByBranch: async () => ({ number: 1010, state: 'OPEN' }),
-		expected: 'pr1010',
-	},
-	{
-		name: 'Issue token falls back to path when issue PR cannot be resolved',
-		resolved: {
-			kind: 'issue',
-			worktree: {
-				path: '/tmp/pr994',
-				branch: 'feature/issue-994',
-				head: 'x',
-			},
-		},
-		resolvePrByBranch: async () => ({ state: 'CLOSED' }),
-		expected: 'pr994',
-	},
-	{
-		name: 'Issue token cannot be derived when neither branch PR nor path token exists',
-		resolved: {
-			kind: 'issue',
-			worktree: { path: '/tmp/feature', branch: null },
-		},
-		resolvePrByBranch: async () => ({ state: 'CLOSED' }),
-		expected: null,
-	},
-	{
-		name: 'PR kind is direct',
-		resolved: { kind: 'pr', source: { number: 123 } },
-		expected: 'pr123',
-	},
-]) {
-	test(`resolveFrontendToken: ${scenario.name}`, async () => {
-		const token = await resolveFrontendToken(scenario.resolved, {
-			resolvePrByBranch: scenario.resolvePrByBranch,
-		});
-		assert.equal(token, scenario.expected);
-
-		if (scenario.expected === null) {
-			await assert.rejects(
-				() => generateFrontendTokenForTarget(scenario.resolved),
-				/Could not derive a PR token from/,
-			);
-		}
 	});
-}
+
+	assert.equal(capturedArgs[0], 'issue');
+	assert.equal(capturedArgs[1], 'view');
+	assert.equal(capturedArgs[2], '901');
+	assert.deepEqual(capturedArgs.slice(3), ['--json', 'title,number']);
+});
 
 test('resolveInteractivePicker sends selected PR number to injected resolve', async () => {
 	const byBranch = getBranchPathByMap([
@@ -485,125 +394,4 @@ test('resolveTarget has no module-scope state and validates runtime input', asyn
 	assert.equal(pickedByNumber.kind, 'pr');
 	assert.equal(pickedByNumber.source.number, 123);
 	assert.equal(pickedByNumber.worktree?.path, '/tmp/target');
-});
-
-for (const scenario of [
-	{
-		name: 'choosePort uses preferred candidate and skips busy one',
-		number: 0,
-		probe: (candidate) => candidate !== 5001,
-		expected: 5002,
-	},
-	{
-		name: 'choosePort advances forward while preserving reserved ports',
-		number: 1,
-		probe: (candidate) => candidate !== 5001,
-		expected: 5002,
-	},
-]) {
-	test(scenario.name, async () => {
-		const checks = [];
-		const port = await choosePort(scenario.number, {
-			host: '127.0.0.1',
-			probePortAvailable: async (_host, candidate) => {
-				checks.push(candidate);
-				return scenario.probe(candidate);
-			},
-		});
-
-		assert.equal(port, scenario.expected);
-		assert.equal(checks[0], derivePreferredPort(scenario.number));
-		assert.equal(checks[1], scenario.expected);
-	});
-}
-
-test('parseAddressForFrontend targets single-address lookup result', async () => {
-	const seenOptions = [];
-	const resolved = await parseAddressForFrontend('pr994.localhost', {
-		dnsLookup: async (_host, options) => {
-			seenOptions.push(options);
-			return { address: '::1', family: 6 };
-		},
-	});
-
-	assert.equal(resolved.address, '::1');
-	assert.equal(resolved.family, 6);
-	assert.deepEqual(seenOptions, [{ all: false }]);
-});
-
-for (const scenario of [
-	{
-		name: 'posthog token included when present',
-		posthog: '  token-123  ',
-		count: 5,
-		posthogExpected: 'token-123',
-	},
-	{
-		name: 'posthog token dropped when blank',
-		posthog: '   ',
-		count: 4,
-		posthogExpected: null,
-	},
-	{
-		name: 'posthog token dropped when missing',
-		posthog: undefined,
-		count: 4,
-		posthogExpected: null,
-	},
-]) {
-	test(scenario.name, () => {
-		const lines = buildFrontendEnvLines({
-			frontendToken: 'pr994',
-			frontendPort: 5994,
-			publicValues: {
-				PUBLIC_POSTHOG_PROJECT_TOKEN: scenario.posthog,
-				IGNORED: 'ignore',
-			},
-		});
-
-		assert.equal(lines[0], ENVIRONMENT_GENERATION_MARKER);
-		const values = new Map(
-			lines.slice(1).map((line) => {
-				const [key, value = ''] = line.split('=', 2);
-				return [key, value];
-			}),
-		);
-
-		assert.equal(values.size, scenario.count);
-		assert.equal(values.get('FRONT_URL'), 'http://pr994.localhost:5994');
-		assert.equal(values.get('PUBLIC_API_BASE_URL'), 'http://localhost:5000');
-		assert.equal(values.get('SERVER_API_BASE_URL'), 'http://localhost:5000');
-		assert.equal(values.get('VITE_ASP_SERVER_URL'), 'http://localhost:5000');
-
-		for (const [key, value] of values) {
-			assert.ok(FRONTEND_ENV_KEYS.includes(key));
-			assert.equal(value.includes('undefined'), false);
-		}
-
-		if (scenario.posthogExpected === null) {
-			assert.equal(values.has('PUBLIC_POSTHOG_PROJECT_TOKEN'), false);
-		} else {
-			assert.equal(
-				values.get('PUBLIC_POSTHOG_PROJECT_TOKEN'),
-				scenario.posthogExpected,
-			);
-		}
-	});
-}
-
-test('frontend host/url helpers are deterministic', () => {
-	for (const value of [1, 10, 500, 999]) {
-		assert.equal(buildFrontendToken(value), `pr${value}`);
-		assert.equal(buildFrontendHost(`pr${value}`), `pr${value}.localhost`);
-		assert.equal(
-			generateFrontendUrl(`pr${value}`, BASE_PORT),
-			`http://pr${value}.localhost:${BASE_PORT}`,
-		);
-	}
-});
-
-test('parseFrontendTokenFromPath reads only basename token', () => {
-	assert.equal(parseFrontendTokenFromPath('/tmp/.worktrees/pr994'), 'pr994');
-	assert.equal(parseFrontendTokenFromPath('C:/tmp/pr995'), 'pr995');
-	assert.equal(parseFrontendTokenFromPath('/tmp/issue-995'), null);
 });
