@@ -67,7 +67,14 @@ const collectFiles = async (dir, extensions) => {
 // Biased toward over-matching: a false positive here only produces a loud
 // "unfingerprinted" report, while a false negative silently defeats the
 // entire guard — which is the bug this script exists to fix.
-const CREATE_CONTEXT_PATTERN = /createContext(?![\w$])\s*(<[^(]*>)?\s*\(/;
+//
+// Global: a single file can declare more than one context (e.g. a
+// recovery-state context and a validation-query context in the same
+// module). Each `createContext()` call site is its own isolation unit and
+// must get its own fingerprint — collapsing a file's contexts down to one
+// fingerprint is exactly how a second, unfingerprinted context can be
+// duplicated across chunks without the guard ever noticing.
+const CREATE_CONTEXT_PATTERN = /createContext(?![\w$])\s*(<[^(]*>)?\s*\(/g;
 
 const MUST_BE_USED_WITHIN_PATTERN = /[^'"`]*must be used within[^'"`]*/;
 
@@ -79,14 +86,30 @@ export const findContextFingerprints = async ({
 
 	for (const filePath of files) {
 		const source = await readFile(filePath, 'utf8');
-		if (!CREATE_CONTEXT_PATTERN.test(source)) {
+		const contextMatches = [...source.matchAll(CREATE_CONTEXT_PATTERN)];
+		if (contextMatches.length === 0) {
 			continue;
 		}
 
-		const match = source.match(MUST_BE_USED_WITHIN_PATTERN);
-		fingerprints.push({
-			file: path.relative(sourceDir, filePath).split(path.sep).join('/'),
-			identifyingString: match ? match[0].trim() : null,
+		const relativePath = path
+			.relative(sourceDir, filePath)
+			.split(path.sep)
+			.join('/');
+
+		contextMatches.forEach((contextMatch, index) => {
+			// Scope the search for this context's accessor message to the
+			// source between this `createContext()` call and the next one (or
+			// end of file), so a second context declared later in the same
+			// file can never be misattributed to an earlier one's message.
+			const segmentStart = contextMatch.index;
+			const segmentEnd = contextMatches[index + 1]?.index ?? source.length;
+			const segment = source.slice(segmentStart, segmentEnd);
+			const match = segment.match(MUST_BE_USED_WITHIN_PATTERN);
+
+			fingerprints.push({
+				file: relativePath,
+				identifyingString: match ? match[0].trim() : null,
+			});
 		});
 	}
 

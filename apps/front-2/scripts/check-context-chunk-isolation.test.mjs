@@ -298,11 +298,12 @@ test('CLI exits non-zero when zero contexts are discovered under sourceDir', asy
 
 test('findContextFingerprints run over the real repository src/ finds exactly the contexts that exist today', async () => {
 	// Keep this as a hard lock on all auth-surface contexts with
-	// "must be used within" guards: both of them are consumed across
-	// route boundaries and would silently regress into duplicate
-	// context instances if split into multiple chunks without isolation
-	// treatment. Bumping this value must always be a conscious code-review
-	// decision, not a magic number.
+	// "must be used within" guards: each is consumed across route
+	// boundaries and would silently regress into duplicate context
+	// instances if split into multiple chunks without isolation treatment.
+	// Bumping this value must always be a conscious code-review decision,
+	// not a magic number. Fingerprints are per-context, not per-file — see
+	// the two-context fixture tests below for that scanning behaviour.
 	const fingerprints = await findContextFingerprints({
 		sourceDir: repoSourceDir,
 	});
@@ -318,7 +319,7 @@ test('findContextFingerprints run over the real repository src/ finds exactly th
 		fingerprints.some(
 			(context) =>
 				context.identifyingString ===
-				'useSessionSurfaceRecovery must be used within SessionSurfaceRecoveryProvider',
+				'useSessionSurfaceValidation must be used within SessionSurfaceValidationProvider',
 		),
 	);
 	assert.ok(
@@ -328,4 +329,92 @@ test('findContextFingerprints run over the real repository src/ finds exactly th
 				'useStaffUserOverviewContext must be used within the staff user detail route',
 		),
 	);
+});
+
+const TWO_CONTEXT_SOURCE = `
+import { createContext, useContext } from 'react';
+
+const FirstContext = createContext(null);
+
+export const useFirst = () => {
+	const value = useContext(FirstContext);
+	if (!value) {
+		throw new Error('useFirst must be used within FirstProvider');
+	}
+	return value;
+};
+
+const SecondContext = createContext(null);
+
+export const useSecond = () => {
+	const value = useContext(SecondContext);
+	if (!value) {
+		throw new Error('useSecond must be used within SecondProvider');
+	}
+	return value;
+};
+`;
+
+test('findContextFingerprints fingerprints every createContext() call in a file, not just the first', async () => {
+	const root = await makeFixture({
+		'src/two-context.tsx': TWO_CONTEXT_SOURCE,
+	});
+
+	const fingerprints = await findContextFingerprints({
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(fingerprints.length, 2);
+	assert.deepEqual(
+		fingerprints.map((context) => context.identifyingString).sort(),
+		[
+			'useFirst must be used within FirstProvider',
+			'useSecond must be used within SecondProvider',
+		],
+	);
+});
+
+test('fails when only the second context in a two-context file is duplicated across chunks (the regression this packet fixes)', async () => {
+	const root = await makeFixture({
+		'src/two-context.tsx': TWO_CONTEXT_SOURCE,
+		// The first context's fingerprint is correctly isolated to a single
+		// chunk. Only the second context's fingerprint is duplicated. A
+		// scanner that fingerprints one context per file (using whichever
+		// message it finds first) would attribute the whole file to the
+		// first context's message and never notice this duplication.
+		'dist/client/assets/route-a.js':
+			'throw new Error("useFirst must be used within FirstProvider")\n' +
+			'throw new Error("useSecond must be used within SecondProvider")',
+		'dist/client/assets/route-b.js':
+			'throw new Error("useSecond must be used within SecondProvider")',
+	});
+
+	const { violations } = await checkContextChunkIsolation({
+		sourceDir: path.join(root, 'src'),
+		distAssetsDir: path.join(root, 'dist', 'client', 'assets'),
+	});
+
+	assert.equal(violations.length, 1);
+	assert.equal(
+		violations[0].identifyingString,
+		'useSecond must be used within SecondProvider',
+	);
+	assert.equal(violations[0].chunkCount, 2);
+});
+
+test('passes when both contexts in a two-context file are correctly isolated to one chunk each', async () => {
+	const root = await makeFixture({
+		'src/two-context.tsx': TWO_CONTEXT_SOURCE,
+		'dist/client/assets/route-a.js':
+			'throw new Error("useFirst must be used within FirstProvider")\n' +
+			'throw new Error("useSecond must be used within SecondProvider")',
+	});
+
+	const { violations, unfingerprinted } = await checkContextChunkIsolation({
+		sourceDir: path.join(root, 'src'),
+		distAssetsDir: path.join(root, 'dist', 'client', 'assets'),
+	});
+
+	assert.deepEqual(violations, []);
+	assert.deepEqual(unfingerprinted, []);
 });

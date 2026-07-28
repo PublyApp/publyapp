@@ -54,10 +54,7 @@ import {
 	getSurfaceRedirectCodeQueryKey,
 	shouldRenderAuthenticatedChrome,
 } from '~/lib/session-scope';
-import {
-	SessionSurfaceRecoveryProvider,
-	SessionSurfaceValidationProvider,
-} from '~/lib/session-surface-recovery-context';
+import { SessionSurfaceValidationProvider } from '~/lib/session-surface-recovery-context';
 import { withSessionValidationTimeout } from '~/lib/session-validation';
 import {
 	COLOR_SCHEME_STORAGE_KEY,
@@ -486,7 +483,8 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 				signal,
 			);
 		},
-		enabled: isHydrated && sessionSurface !== 'other',
+		enabled:
+			isHydrated && location.hasAuthedRouteMatch && sessionSurface !== 'other',
 		retry: false,
 		// Session-stable: which surface a token belongs to only changes on
 		// login/logout, both already invalidated explicitly (see
@@ -535,15 +533,9 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 			);
 		}
 		return (
-			<SessionSurfaceRecoveryProvider
-				value={
-					location.pathname === '/tenant' ? false : hasSurfaceSessionRecovery
-				}
-			>
-				<SessionSurfaceValidationProvider value={surfaceSessionState}>
-					{shellContent}
-				</SessionSurfaceValidationProvider>
-			</SessionSurfaceRecoveryProvider>
+			<SessionSurfaceValidationProvider value={surfaceSessionState}>
+				{shellContent}
+			</SessionSurfaceValidationProvider>
 		);
 	}
 

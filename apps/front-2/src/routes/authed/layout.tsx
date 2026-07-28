@@ -18,10 +18,7 @@ import { Button, buttonVariants } from '~/components/ui/button';
 import { getSessionTokensFromBrowser } from '~/lib/api-client/client-manager';
 import { buildLoginRedirectSearch } from '~/lib/login-redirect-search';
 import { determineSessionToken, getSessionSurface } from '~/lib/session-scope';
-import {
-	useSessionSurfaceRecovery,
-	useSessionSurfaceValidation,
-} from '~/lib/session-surface-recovery-context';
+import { useSessionSurfaceValidation } from '~/lib/session-surface-recovery-context';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
@@ -32,19 +29,6 @@ import { AuthedRouteContentSkeleton } from './_route-content-skeleton';
 
 const STAFF_PATH = '/staff';
 const TENANT_PATH = '/tenant';
-
-const isNavigationReload = (): boolean => {
-	if (typeof window === 'undefined' || typeof performance === 'undefined') {
-		return false;
-	}
-
-	const [entry] = performance.getEntriesByType('navigation');
-	if ((entry as PerformanceNavigationTiming | undefined)?.type === 'reload') {
-		return true;
-	}
-
-	return false;
-};
 
 const getFailureStatus = (error: unknown): number | undefined => {
 	const failure = toApiFailure(error);
@@ -112,7 +96,7 @@ const AuthedLayoutErrorBoundary = ({
 			description={t('problem-loading-page')}
 			actions={
 				<>
-					<Button variant="default" onClick={() => void retry()} type="button">
+					<Button variant="default" onClick={() => retry()} type="button">
 						{t('retry')}
 					</Button>
 					<Link to="/" className={buttonVariants({ variant: 'outline' })}>
@@ -165,7 +149,6 @@ function AuthedRouteLayout() {
 	const surfaceScope = getSessionSurface(pathname);
 	const isStaffSurface = surfaceScope === 'staff';
 	const isTenantSurface = surfaceScope === 'tenant';
-	const isSurfaceRecovery = useSessionSurfaceRecovery();
 	const query = useSessionSurfaceValidation();
 	const routeFailureStatus =
 		query.isError && query.error ? getFailureStatus(query.error) : undefined;
@@ -229,11 +212,9 @@ function AuthedRouteLayout() {
 						<Button variant="default" onClick={retry} type="button">
 							{t('retry')}
 						</Button>
-						{isSurfaceRecovery && !isNavigationReload() ? null : (
-							<Link to="/" className={buttonVariants({ variant: 'outline' })}>
-								{t('go-to-home')}
-							</Link>
-						)}
+						<Link to="/" className={buttonVariants({ variant: 'outline' })}>
+							{t('go-to-home')}
+						</Link>
 					</>
 				}
 			/>

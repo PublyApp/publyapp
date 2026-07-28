@@ -5,10 +5,7 @@ import type { UseQueryResult } from '@tanstack/react-query';
 import { cleanup, render, screen } from '@testing-library/react';
 import type { ComponentType, ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import {
-	SessionSurfaceRecoveryProvider,
-	SessionSurfaceValidationProvider,
-} from '~/lib/session-surface-recovery-context';
+import { SessionSurfaceValidationProvider } from '~/lib/session-surface-recovery-context';
 
 import type { ParsedSessionTokens } from '@org/shared-ts/lib/session/parse';
 
@@ -94,11 +91,9 @@ const AuthedRoutePendingSkeleton = routeOptions.pendingComponent;
 
 const renderLayout = () =>
 	render(
-		<SessionSurfaceRecoveryProvider value={true}>
-			<SessionSurfaceValidationProvider value={mocks.queryResult}>
-				<AuthedRouteLayout />
-			</SessionSurfaceValidationProvider>
-		</SessionSurfaceRecoveryProvider>,
+		<SessionSurfaceValidationProvider value={mocks.queryResult}>
+			<AuthedRouteLayout />
+		</SessionSurfaceValidationProvider>,
 	);
 
 describe('beforeLoad session-token guard', () => {
@@ -181,11 +176,9 @@ describe('AuthedRouteLayout render gating', () => {
 			refetch: vi.fn(),
 		});
 		rerender(
-			<SessionSurfaceRecoveryProvider value={true}>
-				<SessionSurfaceValidationProvider value={mocks.queryResult}>
-					<AuthedRouteLayout />
-				</SessionSurfaceValidationProvider>
-			</SessionSurfaceRecoveryProvider>,
+			<SessionSurfaceValidationProvider value={mocks.queryResult}>
+				<AuthedRouteLayout />
+			</SessionSurfaceValidationProvider>,
 		);
 
 		expect(screen.getByTestId('outlet-stub')).toBeTruthy();

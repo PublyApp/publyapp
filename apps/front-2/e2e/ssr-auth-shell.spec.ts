@@ -107,6 +107,78 @@ test('SSR never serves authenticated chrome from an unvalidated cookie or a /sta
 	}
 });
 
+test('hydration never validates stale cookies on unknown authed-prefix paths, so 404 stays genuine', async ({
+	context,
+}) => {
+	const cases = [
+		{
+			cookie: undefined,
+			name: 'no cookie on unknown staff path',
+			path: '/staff/not-a-route',
+		},
+		{
+			cookie: 's:forged',
+			name: 'forged staff token on unknown staff path',
+			path: '/staff/not-a-route',
+		},
+		{
+			cookie: 'forged-legacy',
+			name: 'malformed legacy token on unknown staff path',
+			path: '/staff/not-a-route',
+		},
+		{
+			cookie: 's:',
+			name: 'empty scoped token on unknown staff path',
+			path: '/staff/not-a-route',
+		},
+		{
+			cookie: 's:forged',
+			name: 'forged staff token on a lookalike public path',
+			path: '/staffing',
+		},
+	] as const;
+
+	for (const matrixCase of cases) {
+		await context.clearCookies();
+		if (matrixCase.cookie) {
+			await context.addCookies([
+				{
+					name: 'publyapp-session_token',
+					url: 'https://front-2.localhost:8443',
+					value: matrixCase.cookie,
+				},
+			]);
+		}
+
+		const casePage = await context.newPage();
+		const validationRequests: string[] = [];
+		casePage.on('request', (request) => {
+			if (isValidationRequest(request)) {
+				validationRequests.push(request.url());
+			}
+		});
+
+		const response = await casePage.goto(matrixCase.path, {
+			waitUntil: 'domcontentloaded',
+		});
+		expect(response?.status(), matrixCase.name).toBe(404);
+
+		await expect(
+			casePage.getByTestId('view-404'),
+			matrixCase.name,
+		).toBeVisible();
+		await casePage.waitForLoadState('networkidle');
+
+		expect(validationRequests, matrixCase.name).toEqual([]);
+		expect(new URL(casePage.url()).pathname, matrixCase.name).toBe(
+			matrixCase.path,
+		);
+		expectNoAuthedChrome(await casePage.content());
+
+		await casePage.close();
+	}
+});
+
 test('a genuine session cold-loads the authenticated shell without a hydration error', async ({
 	page,
 }) => {
