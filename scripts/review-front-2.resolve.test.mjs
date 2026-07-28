@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
 	GH_AUTH_FAILURE,
+	GH_INVOCATION_FAILURE,
 	GH_NETWORK_FAILURE,
 	getBranchPathByMap,
 	getIssueBranchPattern,
@@ -66,11 +67,21 @@ for (const [branch, expected] of [
 	['1989-fix', false],
 	['feature/989', true],
 	['feature/18990', false],
+	['fix/9891-x', false],
 ]) {
 	test(`issue branch pattern for ${branch}`, () => {
 		assert.equal(getIssueBranchPattern(989).test(branch), expected);
 	});
 }
+
+test('getBranchPathByMap keys the map by branch name, not by path', () => {
+	const map = getBranchPathByMap([
+		{ path: '/tmp/pr900', branch: 'feature/900', head: 'h900' },
+	]);
+
+	assert.equal(map.get('feature/900'), '/tmp/pr900');
+	assert.equal(map.has('/tmp/pr900'), false);
+});
 
 test('gh classifiers are pinned to message semantics', () => {
 	assert.equal(
@@ -153,6 +164,16 @@ for (const scenario of [
 	});
 }
 
+test('runGhJson rejects rather than collapsing an empty non-zero gh result into "not found"', async () => {
+	await assert.rejects(
+		() =>
+			runGhJson(['issue', 'view', '11', '--json', 'title'], {
+				runGh: async () => runResult(1, '', ''),
+			}),
+		(error) => error.code === GH_INVOCATION_FAILURE,
+	);
+});
+
 for (const scenario of [
 	{
 		name: 'PR matched by branch',
@@ -201,6 +222,14 @@ for (const scenario of [
 		runPr: async () => null,
 		runIssue: async () => ({ number: 994 }),
 		expectedKind: 'issue-ambiguous',
+	},
+	{
+		name: 'Issue never matches via a detached worktree path, only via branch',
+		number: 994,
+		worktrees: [{ path: '/x/.worktrees/994', branch: null, head: 'h994' }],
+		runPr: async () => null,
+		runIssue: async () => ({ number: 994 }),
+		expectedKind: 'not-found',
 	},
 	{
 		name: 'Issue with no branch match',
@@ -258,6 +287,7 @@ for (const scenario of [
 		}
 		if (scenario.expectedKind === 'issue-ambiguous') {
 			assert.equal(result.worktrees.length, 2);
+			assert.equal(result.requested, scenario.number);
 		}
 		if (scenario.expectedKind === 'not-found') {
 			assert.equal(result.requested, scenario.number);
@@ -346,6 +376,58 @@ test('resolveInteractivePicker sends selected PR number to injected resolve', as
 
 	assert.equal(selectedNumber, 901);
 	assert.deepEqual(selected, { kind: 'picked', number: 901 });
+});
+
+test('resolveInteractivePicker rows use byBranch to resolve each PR path', async () => {
+	const byBranch = getBranchPathByMap([
+		{ path: '/tmp/pr900', branch: 'feature/900', head: 'h900' },
+	]);
+	let seenLines = null;
+
+	await resolveInteractivePicker(
+		[{ path: '/tmp/pr900', branch: 'feature/900', head: 'h900' }],
+		byBranch,
+		{
+			runOpenPrs: async () => [
+				{ number: 900, title: 'First', headRefName: 'feature/900' },
+				{ number: 901, title: 'Second', headRefName: 'feature/901' },
+			],
+			askChoice: async (title, lines) => {
+				seenLines = lines;
+				return 0;
+			},
+			runByNumber: async (number) => ({ kind: 'picked', number }),
+		},
+	);
+
+	assert.equal(seenLines[0], '#900 | feature/900 | /tmp/pr900 | First');
+	assert.equal(seenLines[1], '#901 | feature/901 | none | Second');
+});
+
+test('resolveInteractivePicker sorts PRs with a worktree ahead of PRs without one', async () => {
+	const byBranch = getBranchPathByMap([
+		{ path: '/tmp/pr901', branch: 'feature/901', head: 'h901' },
+	]);
+	let seenLines = null;
+
+	await resolveInteractivePicker(
+		[{ path: '/tmp/pr901', branch: 'feature/901', head: 'h901' }],
+		byBranch,
+		{
+			runOpenPrs: async () => [
+				{ number: 900, title: 'NoWorktree', headRefName: 'feature/900' },
+				{ number: 901, title: 'HasWorktree', headRefName: 'feature/901' },
+			],
+			askChoice: async (title, lines) => {
+				seenLines = lines;
+				return 0;
+			},
+			runByNumber: async (number) => ({ kind: 'picked', number }),
+		},
+	);
+
+	assert.equal(seenLines[0].startsWith('#901'), true);
+	assert.equal(seenLines[1].startsWith('#900'), true);
 });
 
 test('resolveTarget has no module-scope state and validates runtime input', async () => {
