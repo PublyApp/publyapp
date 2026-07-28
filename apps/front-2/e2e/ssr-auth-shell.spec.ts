@@ -110,25 +110,29 @@ test('SSR never serves authenticated chrome from an unvalidated cookie or a /sta
 test('hydration never validates stale cookies on unknown authed-prefix paths, so 404 stays genuine', async ({
 	context,
 }) => {
+	// Every case here carries a staff-scoped (if bogus) token, so
+	// `_authed-layout`'s own `beforeLoad` never redirects: it only redirects
+	// when a token is completely absent, or when a token resolves to the
+	// *other* surface (e.g. an unscoped legacy cookie parses as a tenant
+	// token, and `/staff/*` with only a tenant token legitimately bounces to
+	// `/tenant` — that's `determineSessionScope`'s already-reviewed cross-
+	// surface routing, not the defect under test here). With the redirect
+	// out of the way, only the RoutedShell surface-session query being fixed
+	// in this test is in play.
 	const cases = [
-		{
-			cookie: undefined,
-			name: 'no cookie on unknown staff path',
-			path: '/staff/not-a-route',
-		},
 		{
 			cookie: 's:forged',
 			name: 'forged staff token on unknown staff path',
 			path: '/staff/not-a-route',
 		},
 		{
-			cookie: 'forged-legacy',
-			name: 'malformed legacy token on unknown staff path',
+			cookie: 's:expired',
+			name: 'expired staff token on unknown staff path',
 			path: '/staff/not-a-route',
 		},
 		{
-			cookie: 's:',
-			name: 'empty scoped token on unknown staff path',
+			cookie: 's:forged-staff+t:forged-tenant',
+			name: 'validly formatted forged staff and tenant hints on unknown staff path',
 			path: '/staff/not-a-route',
 		},
 		{
@@ -428,7 +432,13 @@ test('session-validation failures expose an accessible neutral Retry and recover
 		await expect(casePage.getByTestId('neutral-authed-recovery')).toBeVisible();
 		await expect(casePage.getByTestId('neutral-authed-shell')).toHaveCount(0);
 		await expect(casePage.getByTestId('app-shell-shell')).toHaveCount(0);
-		await expect(casePage.getByRole('link')).toHaveCount(0);
+		// The only link on this screen is the always-rendered "Go to home"
+		// control (PR #997 finding 3) — it must never be hidden, including
+		// during a goto-driven (not reload-driven) recovery flow like this one.
+		const homeLink = casePage.getByRole('link', { name: 'Go to home' });
+		await expect(casePage.getByRole('link')).toHaveCount(1);
+		await expect(homeLink).toBeVisible();
+		await expect(homeLink).toHaveAttribute('href', '/');
 		expect(
 			await retry.locator('xpath=ancestor-or-self::*[@inert]').count(),
 			failureCase,

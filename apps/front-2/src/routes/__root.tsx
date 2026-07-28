@@ -511,8 +511,14 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 	});
 	const [brand, setBrand] = React.useState<AuthBrand | undefined>(undefined);
 
+	// `_authed-layout` also matches an unknown path under an authed prefix
+	// (it owns that path's notFound bubbling, see hasExactAuthedRouteMatch) —
+	// its component still renders in that case, unconditionally reading this
+	// context. The provider therefore wraps every branch below, not just the
+	// exact-match one, so an unknown /staff/* path renders the layout's own
+	// 404 instead of crashing on a missing provider.
+	let shellContent: React.ReactNode;
 	if (location.hasAuthedRouteMatch) {
-		let shellContent: React.ReactNode = null;
 		const isTenantPortalRoot = pathname.replace(/\/+$/, '') === '/tenant';
 		if (isTenantPortalRoot) {
 			shellContent = children;
@@ -532,22 +538,23 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 				</AuthedLayout>
 			);
 		}
-		return (
-			<SessionSurfaceValidationProvider value={surfaceSessionState}>
-				{shellContent}
-			</SessionSurfaceValidationProvider>
-		);
-	}
-
-	if (surface === 'auth') {
-		return (
+	} else if (surface === 'auth') {
+		shellContent = (
 			<AuthBrandProvider value={setBrand}>
 				<AuthLayout brand={brand}>{children}</AuthLayout>
 			</AuthBrandProvider>
 		);
+	} else {
+		shellContent = (
+			<MarketingLayout pathname={pathname}>{children}</MarketingLayout>
+		);
 	}
 
-	return <MarketingLayout pathname={pathname}>{children}</MarketingLayout>;
+	return (
+		<SessionSurfaceValidationProvider value={surfaceSessionState}>
+			{shellContent}
+		</SessionSurfaceValidationProvider>
+	);
 };
 
 export const Route = createRootRouteWithContext<{
