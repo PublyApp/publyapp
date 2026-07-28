@@ -61,8 +61,8 @@ dev-front-2 port="5050":
   cd {{front2_dir}} && pnpm exec vite dev --port {{port}} --strictPort
 
 # Start another worktree's front-2 frontend by PR/issue number
-review-front-2 ref="":
-  node scripts/review-front-2.mjs "{{ref}}"
+review-front-2 *args:
+  node scripts/review-front-2.mjs {{args}}
 
 # Start docker services (postgres, etc.)
 dev-services:
