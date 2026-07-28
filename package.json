@@ -12,6 +12,7 @@
 		"lint:fix": "oxlint --fix --quiet . && pnpm check:frontend-barrels",
 		"prepare": "husky",
 		"test:ci-drift": "node --test ./scripts/check-ci-drift.test.mjs",
+		"test:review-front-2-resolution": "node --test ./scripts/review-front-2.resolve.test.mjs",
 		"test:frontend-barrels": "node --test ./scripts/check-frontend-barrels.test.mjs"
 	},
 	"devDependencies": {

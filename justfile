@@ -11,6 +11,7 @@ set windows-shell := ["pwsh", "-NoLogo", "-NoProfile", "-Command"]
 
 api_dir := "apps/api"
 front_dir := "apps/front"
+front2_dir := "apps/front-2"
 shared_dir := "packages/shared-ts"
 js_client_dir := "packages/client-ts"
 scripts_cs_dir := "packages/scripts-cs"
@@ -54,6 +55,30 @@ dev-api-alt:
 # Start React frontend (Vite)
 dev-front:
   cd {{front_dir}} && pnpm dev
+
+# Start front-2 frontend (Vite)
+dev-front-2 port="5050":
+  cd {{front2_dir}} && pnpm exec vite dev --port {{port}} --strictPort
+
+# {{args}} would interpolate as raw shell text, splitting on internal whitespace and
+# letting metacharacters execute (worktree paths/branches with spaces are ordinary here).
+# `set positional-arguments` + "$@"/@args forwards each argument as its own argv entry
+# instead. `pwsh -Command` (the configured windows-shell) joins trailing args back into
+# one string and re-parses it as PowerShell source, defeating positional-arguments — see
+# https://github.com/casey/just/issues/1592 — so the Windows variant runs as a real script
+# file via [script("pwsh")], which binds $args from genuine process arguments.
+
+# Start another worktree's front-2 frontend by PR/issue number
+[unix]
+[positional-arguments]
+review-front-2 *args:
+  node scripts/review-front-2.mjs "$@"
+
+[windows]
+[script("pwsh")]
+[positional-arguments]
+review-front-2 *args:
+  node scripts/review-front-2.mjs @args
 
 # Start docker services (postgres, etc.)
 dev-services:
@@ -268,6 +293,10 @@ ci-migration-expand-contract:
   node --test ./scripts/check-migration-expand-contract.test.mjs
   node ./scripts/check-migration-expand-contract.mjs
 
+# Ensure the review-front-2 pure-resolution logic remains covered in the gate.
+ci-review-front-2-resolution:
+  pnpm test:review-front-2-resolution
+
 # Install exactly as CI does (supply-chain policy: frozen + no lifecycle scripts)
 ci-install:
   @echo "=== [gate] install (frozen lockfile, no scripts) ==="
@@ -347,7 +376,7 @@ ci-e2e-front:
   pnpm --filter front run test:e2e:fresh
 
 # Everyday pre-push gate (no e2e). Fails on the first red sub-gate.
-ci: ci-drift ci-migration-expand-contract ci-install ci-format ci-lint ci-front-2 ci-front-2-spike ci-front ci-spec-drift test-api
+ci: ci-drift ci-migration-expand-contract ci-review-front-2-resolution ci-install ci-format ci-lint ci-front-2 ci-front-2-spike ci-front ci-spec-drift test-api
   @echo ""
   @echo "=== just ci: PASSED ==="
   @echo "Not covered here: the two e2e suites (run 'just ci-full')."
