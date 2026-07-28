@@ -297,9 +297,11 @@ ci-migration-expand-contract:
 ci-review-front-2-resolution:
   pnpm test:review-front-2-resolution
 
-# Archive records: verify metadata, immutability, and link rebasing expectations
+# Archive records: verify metadata and body immutability (link checks are
+# intentionally skipped, see docs/README.md's archive policy)
 ci-docs-archive-records:
   @echo "=== [gate] docs archive records ==="
+  node --test ./scripts/check-archive-records.test.mjs
   node ./scripts/check-archive-records.mjs
 
 # Install exactly as CI does (supply-chain policy: frozen + no lifecycle scripts)

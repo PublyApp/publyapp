@@ -5,15 +5,12 @@ import path from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 
-const rootDir = process.cwd();
-const archiveDir = path.join(rootDir, 'docs', 'archive');
-
 const toPosix = (value) => value.split(path.sep).join('/');
 const normalizeNewlines = (value) => value.replace(/\r\n/g, '\n');
 const hash = (value) =>
 	createHash('sha256').update(normalizeNewlines(value)).digest('hex');
 
-const runGit = (args, options = {}) => {
+const runGit = (rootDir, args, options = {}) => {
 	const result = spawnSync('git', args, {
 		cwd: rootDir,
 		encoding: 'utf8',
@@ -23,8 +20,8 @@ const runGit = (args, options = {}) => {
 	return result;
 };
 
-const getArchiveRecordsFromHistory = () => {
-	const result = runGit([
+const getArchiveRecordsFromHistory = (rootDir) => {
+	const result = runGit(rootDir, [
 		'log',
 		'--reverse',
 		'--pretty=format:',
@@ -46,11 +43,13 @@ const getArchiveRecordsFromHistory = () => {
 	return [...new Set(records)].sort((left, right) => left.localeCompare(right));
 };
 
-const getArchiveRecordsFromWorkingTree = (
-	directory = archiveDir,
-	prefix = 'docs/archive',
-) => {
-	const entries = readdirSync(directory, { withFileTypes: true });
+const getArchiveRecordsFromWorkingTree = (directory, prefix) => {
+	let entries;
+	try {
+		entries = readdirSync(directory, { withFileTypes: true });
+	} catch {
+		return [];
+	}
 	const records = [];
 
 	for (const entry of entries) {
@@ -73,8 +72,8 @@ const getArchiveRecordsFromWorkingTree = (
 	return records;
 };
 
-const getArchiveAddCommit = (relativeFile) => {
-	const result = runGit([
+const getArchiveAddCommit = (rootDir, relativeFile) => {
+	const result = runGit(rootDir, [
 		'log',
 		'--format=%H',
 		'--reverse',
@@ -94,8 +93,8 @@ const getArchiveAddCommit = (relativeFile) => {
 	return commits.length > 0 ? commits[0] : null;
 };
 
-const getMergeBase = () => {
-	const result = runGit(['merge-base', 'origin/develop', 'HEAD']);
+const getMergeBase = (rootDir) => {
+	const result = runGit(rootDir, ['merge-base', 'origin/develop', 'HEAD']);
 
 	if (result.status !== 0 || !result.stdout.trim()) {
 		return null;
@@ -104,20 +103,20 @@ const getMergeBase = () => {
 	return result.stdout.trim();
 };
 
-const fileExistsInCommit = (ref, repoPath) => {
+const fileExistsInCommit = (rootDir, ref, repoPath) => {
 	const target = `${ref}:${toPosix(repoPath)}`;
-	const result = runGit(['cat-file', '-e', target], {
+	const result = runGit(rootDir, ['cat-file', '-e', target], {
 		stdio: ['ignore', 'pipe', 'pipe'],
 	});
 	return result.status === 0;
 };
 
-const pathExistsInCommit = (ref, repoPath) => {
-	if (fileExistsInCommit(ref, repoPath)) {
+const pathExistsInCommit = (rootDir, ref, repoPath) => {
+	if (fileExistsInCommit(rootDir, ref, repoPath)) {
 		return true;
 	}
 
-	const result = runGit([
+	const result = runGit(rootDir, [
 		'ls-tree',
 		'-d',
 		'--name-only',
@@ -129,9 +128,9 @@ const pathExistsInCommit = (ref, repoPath) => {
 	return result.status === 0 && result.stdout.trim().length > 0;
 };
 
-const getCommitFile = (ref, repoPath) => {
+const getCommitFile = (rootDir, ref, repoPath) => {
 	const target = `${ref}:${toPosix(repoPath)}`;
-	const result = runGit(['show', target], {
+	const result = runGit(rootDir, ['show', target], {
 		stdio: ['ignore', 'pipe', 'pipe'],
 	});
 	if (result.status !== 0) {
@@ -258,7 +257,7 @@ const splitToSupersededReferences = (value) => {
 	return [...pathLike];
 };
 
-const resolveSupersededReference = (sourceFile, candidate) => {
+const resolveSupersededReference = (rootDir, sourceFile, candidate) => {
 	if (candidate.startsWith('/')) {
 		return path.resolve(rootDir, candidate.slice(1));
 	}
@@ -274,11 +273,12 @@ const resolveSupersededReference = (sourceFile, candidate) => {
 	return path.resolve(rootDir, candidate);
 };
 
-const run = async () => {
+export const runCheck = async (rootDir) => {
+	const archiveDir = path.join(rootDir, 'docs', 'archive');
 	const archiveFiles = [
 		...new Set([
-			...getArchiveRecordsFromHistory(),
-			...getArchiveRecordsFromWorkingTree(),
+			...getArchiveRecordsFromHistory(rootDir),
+			...getArchiveRecordsFromWorkingTree(archiveDir, 'docs/archive'),
 		]),
 	];
 	const counts = {
@@ -295,7 +295,7 @@ const run = async () => {
 		fatal: [],
 		warning: [],
 	};
-	const mergeBase = getMergeBase();
+	const mergeBase = getMergeBase(rootDir);
 
 	if (mergeBase === null) {
 		findings.fatal.push({
@@ -345,8 +345,10 @@ const run = async () => {
 		});
 
 		const isPresentAtMergeBase =
-			mergeBase !== null ? fileExistsInCommit(mergeBase, relativeFile) : false;
-		const archiveCommit = getArchiveAddCommit(relativeFile);
+			mergeBase !== null
+				? fileExistsInCommit(rootDir, mergeBase, relativeFile)
+				: false;
+		const archiveCommit = getArchiveAddCommit(rootDir, relativeFile);
 		counts.hashTotal += 1;
 
 		if (!archiveCommit && !isPresentAtMergeBase) {
@@ -361,11 +363,15 @@ const run = async () => {
 
 		try {
 			if (isPresentAtMergeBase) {
-				archivedBodyAtCommit = getCommitFile(mergeBase, relativeFile);
+				archivedBodyAtCommit = getCommitFile(rootDir, mergeBase, relativeFile);
 				baselineSource = `merge base ${mergeBase}`;
 				bodyMismatchMessage = `Body changed after archive compared with merge base ${mergeBase}`;
 			} else if (archiveCommit) {
-				archivedBodyAtCommit = getCommitFile(archiveCommit, relativeFile);
+				archivedBodyAtCommit = getCommitFile(
+					rootDir,
+					archiveCommit,
+					relativeFile,
+				);
 				baselineSource = `archive add commit ${archiveCommit}`;
 				bodyMismatchMessage =
 					`Body differs from archived add-commit snapshot ${archiveCommit}. ` +
@@ -421,6 +427,7 @@ const run = async () => {
 
 			for (const rawTarget of supersededTargets) {
 				const candidatePath = resolveSupersededReference(
+					rootDir,
 					relativeFile,
 					rawTarget,
 				);
@@ -428,7 +435,7 @@ const run = async () => {
 				const resolved =
 					!candidateRepoPath.startsWith('..' + path.sep) &&
 					!path.isAbsolute(candidateRepoPath) &&
-					pathExistsInCommit(archiveCommit, candidateRepoPath);
+					pathExistsInCommit(rootDir, archiveCommit, candidateRepoPath);
 
 				if (!resolved) {
 					counts.supersededByMissing += 1;
@@ -442,6 +449,10 @@ const run = async () => {
 		}
 	}
 
+	return { findings, counts };
+};
+
+const report = ({ findings, counts }) => {
 	console.log('=== [docs/archive] check-a: header checks ===');
 	console.log(
 		`Checked ${counts.headerTotal} headers. Passed: ${
@@ -482,7 +493,7 @@ const run = async () => {
 
 	if (findings.fatal.length === 0) {
 		console.log('docs/archive guard passed with historical exceptions.');
-		process.exit(0);
+		return 0;
 	}
 
 	console.error('docs/archive guard failed:');
@@ -491,7 +502,12 @@ const run = async () => {
 			`- ${finding.file}${finding.line ? `:${finding.line}` : ''} (${finding.type ?? 'header'}) ${finding.message}`,
 		);
 	}
-	process.exit(1);
+	return 1;
+};
+
+const run = async () => {
+	const result = await runCheck(process.cwd());
+	process.exit(report(result));
 };
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {

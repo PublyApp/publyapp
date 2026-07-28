@@ -29,7 +29,7 @@
 		"docs-archive.yml::docs-archive::Check archive records": {
 			"hash": "19b8d92061eaf21f",
 			"mirror": "node scripts/check-archive-records.mjs",
-			"reason": "Run locally to catch archive-record body drift, provenance issues, and stale links before docs-only reviews land."
+			"reason": "Run locally to catch archive-record body drift and header/provenance issues before docs-only reviews land. Link checks inside docs/archive are intentionally skipped, per docs/README.md's archive policy."
 		},
 		"front-2-ci.yml::supply-chain::Checkout": {
 			"hash": "389e0b8b6a55dd60",
