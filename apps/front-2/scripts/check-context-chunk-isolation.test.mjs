@@ -297,22 +297,35 @@ test('CLI exits non-zero when zero contexts are discovered under sourceDir', asy
 });
 
 test('findContextFingerprints run over the real repository src/ finds exactly the contexts that exist today', async () => {
-	// Hardcoding today's count (1) and its fingerprint is deliberate: this
-	// test exists so that adding a second React context to the real
-	// codebase forces this assertion to fail, so whoever adds it has to
-	// think about chunk isolation instead of silently growing an
-	// unguarded blind spot.
+	// Keep this as a hard lock on all auth-surface contexts with
+	// "must be used within" guards: both of them are consumed across
+	// route boundaries and would silently regress into duplicate
+	// context instances if split into multiple chunks without isolation
+	// treatment. Bumping this value must always be a conscious code-review
+	// decision, not a magic number.
 	const fingerprints = await findContextFingerprints({
 		sourceDir: repoSourceDir,
 	});
 
-	assert.equal(fingerprints.length, 1);
-	assert.equal(
-		fingerprints[0].file,
+	const files = fingerprints.map((context) => context.file).sort();
+
+	assert.equal(fingerprints.length, 2);
+	assert.deepEqual(files, [
+		'lib/session-surface-recovery-context.tsx',
 		'routes/authed/staff/staff-users/$userId/_overview-context.tsx',
+	]);
+	assert.ok(
+		fingerprints.some(
+			(context) =>
+				context.identifyingString ===
+				'useSessionSurfaceRecovery must be used within SessionSurfaceRecoveryProvider',
+		),
 	);
-	assert.equal(
-		fingerprints[0].identifyingString,
-		'useStaffUserOverviewContext must be used within the staff user detail route',
+	assert.ok(
+		fingerprints.some(
+			(context) =>
+				context.identifyingString ===
+				'useStaffUserOverviewContext must be used within the staff user detail route',
+		),
 	);
 });
