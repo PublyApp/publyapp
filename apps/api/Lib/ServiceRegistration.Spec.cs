@@ -5,6 +5,8 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 
+using PublyApp.Api.Lib.Testing.Fixtures;
+
 using Xunit;
 
 namespace PublyApp.Api.Lib;
@@ -19,13 +21,20 @@ public sealed class ServiceRegistrationSpec {
 
 		using var request = CreateCorsRequest(
 			HttpMethod.Get,
-			"/health",
+			"/health/live",
 			worktreeOrigin
 		);
 		using var response = await client.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		AssertCorsOrigin(response, worktreeOrigin);
+
+		using var preflightRequest = CreateCorsPreflightRequest(worktreeOrigin);
+		using var preflightResponse = await client.SendAsync(preflightRequest);
+
+		preflightResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+		AssertCorsOrigin(preflightResponse, worktreeOrigin);
+		AssertCorsPreflightHeaders(preflightResponse);
 	}
 
 	[Fact]
@@ -45,13 +54,20 @@ public sealed class ServiceRegistrationSpec {
 		foreach (var origin in disallowedOrigins) {
 			using var request = CreateCorsRequest(
 				HttpMethod.Get,
-				"/health",
+				"/health/live",
 				origin
 			);
 			using var response = await client.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 			response.Headers.Contains(
+				"Access-Control-Allow-Origin"
+			).Should().BeFalse();
+
+			using var preflightRequest = CreateCorsPreflightRequest(origin);
+			using var preflightResponse = await client.SendAsync(preflightRequest);
+
+			preflightResponse.Headers.Contains(
 				"Access-Control-Allow-Origin"
 			).Should().BeFalse();
 		}
@@ -66,13 +82,20 @@ public sealed class ServiceRegistrationSpec {
 
 		using var request = CreateCorsRequest(
 			HttpMethod.Get,
-			"/health",
+			"/health/live",
 			worktreeOrigin
 		);
 		using var response = await client.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		response.Headers.Contains(
+			"Access-Control-Allow-Origin"
+		).Should().BeFalse();
+
+		using var preflightRequest = CreateCorsPreflightRequest(worktreeOrigin);
+		using var preflightResponse = await client.SendAsync(preflightRequest);
+
+		preflightResponse.Headers.Contains(
 			"Access-Control-Allow-Origin"
 		).Should().BeFalse();
 	}
@@ -92,13 +115,21 @@ public sealed class ServiceRegistrationSpec {
 
 		using var request = CreateCorsRequest(
 			HttpMethod.Get,
-			"/health",
+			"/health/live",
 			AppEnvironment.Instance.FRONT_URL
 		);
 		using var response = await client.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		AssertCorsOrigin(response, AppEnvironment.Instance.FRONT_URL);
+
+		using var preflightRequest = CreateCorsPreflightRequest(
+			AppEnvironment.Instance.FRONT_URL
+		);
+		using var preflightResponse = await client.SendAsync(preflightRequest);
+
+		AssertCorsOrigin(preflightResponse, AppEnvironment.Instance.FRONT_URL);
+		AssertCorsPreflightHeaders(preflightResponse);
 	}
 
 	private static HttpClient CreateCorsClient(
@@ -120,11 +151,17 @@ public sealed class ServiceRegistrationSpec {
 	private static WebApplicationFactory<Program> CreateCorsFactory(
 		string environment
 	) {
-		return new WebApplicationFactory<Program>().WithWebHostBuilder(
-			builder => {
-				builder.UseEnvironment(environment);
-			}
-		);
+		return new CorsFactory(environment);
+	}
+
+	private sealed class CorsFactory(string environment)
+		: WebApplicationFactory<Program> {
+		protected override void ConfigureWebHost(
+			IWebHostBuilder builder
+		) {
+			builder.UseEnvironment(environment);
+			builder.ConfigureServices(ApiFactory.RemoveCorsFactoryHostedServices);
+		}
 	}
 
 	private static HttpRequestMessage CreateCorsRequest(
@@ -138,6 +175,35 @@ public sealed class ServiceRegistrationSpec {
 			origin ?? AppEnvironment.Instance.FRONT_URL
 		);
 		return request;
+	}
+
+	private static HttpRequestMessage CreateCorsPreflightRequest(
+		string? origin = null
+	) {
+		var request = CreateCorsRequest(
+			HttpMethod.Options,
+			"/health",
+			origin
+		);
+		request.Headers.TryAddWithoutValidation(
+			"Access-Control-Request-Method",
+			"POST"
+		);
+		return request;
+	}
+
+	private static void AssertCorsPreflightHeaders(
+		HttpResponseMessage response
+	) {
+		response.Headers.TryGetValues(
+			"Access-Control-Allow-Methods",
+			out var values
+		).Should().BeTrue();
+		values.Should().ContainSingle()
+			.Which.Split(
+				',',
+				StringSplitOptions.TrimEntries
+			).Should().Contain("POST");
 	}
 
 	private static void AssertCorsOrigin(

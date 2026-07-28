@@ -123,6 +123,25 @@ public sealed class ApiFactory
 	}
 
 	/// <summary>
+	/// Removes all hosted services that can race short-lived middleware tests.
+	/// In addition to worker services, this removes the invitation outbox dispatcher.
+	/// </summary>
+	internal static void RemoveCorsFactoryHostedServices(IServiceCollection services) {
+		RemoveWorkerHostedServices(services);
+
+		var descriptorsToRemove = services
+			.Where(descriptor =>
+				descriptor.ServiceType == typeof(IHostedService)
+				&& descriptor.ImplementationType
+					== typeof(InvitationEmailOutboxDispatcher))
+			.ToList();
+
+		foreach (var descriptor in descriptorsToRemove) {
+			services.Remove(descriptor);
+		}
+	}
+
+	/// <summary>
 	/// Extracts tenant ID from request header.
 	/// Mirrors ServiceRegistration.GetCurrentTenantId().
 	/// </summary>
