@@ -45,10 +45,7 @@ Static content shared across marketing pages lives in `_data/<topic>.ts`. Phase 
 
 ### 3. Canvas-to-MUI translation: hand-translate + cheat-sheet
 
-Canvases are Tailwind HTML; marketing code is MUI v6 + `sx` per `AGENTS.md`. Translation is
-hand-done with the canvas open side-by-side. Recurring Tailwind patterns were codified in the
-retired app's Tailwind-to-`sx` mapping note, seeded in Phase 1 and appended in later phases as new
-patterns appeared.
+Canvases are Tailwind HTML; marketing code is MUI v6 + `sx` per `AGENTS.md`. Translation is hand-done with the canvas open side-by-side. Recurring Tailwind patterns are codified in `docs/guides/tailwind-to-sx-mapping.md`, seeded in Phase 1 and appended in later phases as new patterns appear.
 
 Where a Tailwind utility maps to a theme token (e.g., `text-slate-600` ≈ `text.secondary`), the theme token always wins over a literal hex — preserving the dark-mode token-swap mechanism.
 
@@ -71,8 +68,7 @@ A new `marketing` namespace is added to `FRONT_PATH_NAMES` in Phase 1. Every mar
 3. **Marketing route tree update** — `marketing.routes.ts` registers `/pricing`
 4. **Shared pricing data module** — `routes/marketing/_data/pricing.ts` exporting `TIERS`, `COMPARISON_MATRIX`, `PRICING_FAQS`
 5. **Refactor `home-pricing.tsx`** — consume `TIERS` from shared module, add a "See full pricing →" link to `/pricing`
-6. **Tailwind→sx cheat-sheet seed** — the retired app's Tailwind-to-`sx` mapping note populated
-   with patterns from Pricing translation
+6. **Tailwind→sx cheat-sheet seed** — `docs/guides/tailwind-to-sx-mapping.md` populated with patterns from Pricing translation
 7. **Empty `_components/` folder** — established for Phase 2+ extractions
 
 ### Out of scope (deferred or later phases)
@@ -229,7 +225,7 @@ During implementation, diff the two canvases section-by-section. Expected number
 
 ## Cheat-sheet doc seed
 
-**File:** the retired app's Tailwind-to-`sx` mapping note
+**File:** `docs/guides/tailwind-to-sx-mapping.md`
 
 Lookup table for the recurring Tailwind patterns used across the 14 marketing canvases. Phase 1 seeds it with patterns encountered during Pricing translation; later phases append rows as new patterns appear. If a pattern appears only once across all canvases, it doesn't need a row.
 
@@ -292,5 +288,5 @@ The cheat-sheet documents *patterns we used*, not every possible Tailwind class.
 - Parent spec: `docs/superpowers/specs/2026-04-30-marketing-supporting-pages-design.md`
 - Canvas IDs (Pricing): `35a6d196-5354-45b9-943c-4417adf150c9` (light), `6c3e35f3-c07f-4ec8-917d-95c78b07597e` (dark)
 - Brand kit: `31329e88-32ed-4dc2-9130-c5f5018e1c67` (PublyApp Marketing v3 light)
-- Marketing surface conventions for the retired app
-- Frontend coding standards for the retired app
+- Marketing surface conventions: `docs/guides/marketing-surface-conventions.md`
+- Frontend coding standards: `docs/guides/frontend-coding-standards.md`
