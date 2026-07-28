@@ -5,11 +5,13 @@ on:
     paths:
       - 'docs/**'
       - 'scripts/check-archive-records.mjs'
+      - 'scripts/check-archive-records.test.mjs'
       - '.github/workflows/docs-archive.yml'
   push:
     paths:
       - 'docs/**'
       - 'scripts/check-archive-records.mjs'
+      - 'scripts/check-archive-records.test.mjs'
       - '.github/workflows/docs-archive.yml'
 
 permissions:
@@ -28,6 +30,9 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 24
+
+      - name: Run archive guard fixture tests
+        run: node --test ./scripts/check-archive-records.test.mjs
 
       - name: Check archive records
         run: node scripts/check-archive-records.mjs

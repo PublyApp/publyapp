@@ -154,19 +154,42 @@ test('warning: a newly archived record falsified since its add commit', async ()
 
 test('verdict is unaffected by an unrelated advance of develop', async () => {
 	const rootDir = await initRepo('unrelated-advance');
-	await writeFile(path.join(rootDir, 'README.md'), 'baseline\n');
-	commitAll(rootDir, 'baseline');
-	git(rootDir, ['branch', 'origin/develop']);
 
+	// An ESTABLISHED record: present at the true merge base, so a body
+	// drift against it is fatal both before and after develop moves. A
+	// record only added after the branch point (as the previous version of
+	// this fixture used) is absent from origin/develop either way, so the
+	// moving ref is observationally irrelevant to it — this record must
+	// already exist at the merge base for the ref choice to matter.
 	await writeArchiveFile(
 		rootDir,
-		'docs/archive/new.md',
-		'Body copied verbatim.\n',
+		'docs/archive/established.md',
+		'Original body.\n',
 	);
-	commitAll(rootDir, 'archive new record');
+	commitAll(rootDir, 'archive established record');
+	git(rootDir, ['branch', 'origin/develop']);
+
+	// Drift the body on the local branch relative to the merge base. This
+	// is fatal under a correct merge-base implementation, and — critically —
+	// the fatal message embeds the baseline commit SHA, so if that baseline
+	// is computed differently the message itself changes even though a
+	// fatal finding fires in both cases.
+	await writeArchiveFile(
+		rootDir,
+		'docs/archive/established.md',
+		'Drifted body.\n',
+	);
+	commitAll(rootDir, 'drift the established record');
 
 	const before = await runCheck(rootDir);
+	const beforeFatal = findFatal(before.findings, 'docs/archive/established.md');
+	assert.ok(beforeFatal, 'expected the drift to be fatal before the advance');
 
+	// Advance origin/develop with an unrelated, unrelated-file-only commit
+	// on top of the true merge base. A correct merge-base implementation
+	// still resolves to the original common ancestor here (advancing a ref
+	// forward along the same line does not change the most recent common
+	// ancestor with HEAD), so the finding must be byte-identical.
 	git(rootDir, ['checkout', '-q', '-b', 'develop-advance', 'origin/develop']);
 	await writeFile(path.join(rootDir, 'unrelated.md'), 'unrelated change\n');
 	commitAll(rootDir, 'unrelated advance of develop');
