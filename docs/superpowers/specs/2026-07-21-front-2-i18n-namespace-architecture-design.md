@@ -1,7 +1,7 @@
 # front-2 i18n: Namespace Architecture + Per-Route Lazy Loading — Design (DRAFT for review)
 
 **Status:** APPROVED by owner (2026-07-21). Implemented via
-the completed front-2 i18n P1 execution plan.
+`docs/superpowers/plans/2026-07-21-front-2-i18n-p1-namespaces.md`.
 
 **Issue:** part of #904 (the de-RPC unblock is a separate PR already in flight).
 

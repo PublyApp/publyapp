@@ -8,7 +8,8 @@ applies database migrations. The decisions below are in force; where the origina
 something that turned out not to be true on the real instance, the assumption is marked
 **SUPERSEDED** in place rather than deleted, so the reasoning stays auditable.
 
-It supersedes two older notes: the artifact-upload deployment flow, and a generic database-migration
+It supersedes `docs/misc/deployment-guide.md` and
+`docs/misc/database-migration-deployment.md`: the artifact-upload deployment flow, and a generic
 note that referenced SQL Server `sqlcmd` and a DbContext class that no longer exists.
 
 The repository proves the declared topology and controls: `dokploy.yml` defines four services,
