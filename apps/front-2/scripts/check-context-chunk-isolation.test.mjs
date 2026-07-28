@@ -107,13 +107,19 @@ test('findContextFingerprints detects createContext<T>(...) with a generic type 
 	);
 });
 
-test('findContextFingerprints matches nested generics, unions, and mangled spacing, but not createContext-lookalike identifiers', async () => {
+test('findContextFingerprints matches nested generics, unions, mangled spacing, and function-typed generics, but not createContext-lookalike identifiers', async () => {
 	const root = await makeFixture({
 		'src/a.tsx': 'createContext(null);',
 		'src/b.tsx': 'createContext<Foo | null>(null);',
 		'src/c.tsx': 'createContext<Foo<Bar> | null>(null);',
 		'src/d.tsx': 'createContext < Foo > (null);',
 		'src/e.tsx': 'React.createContext<Foo>(null);',
+		// The real bug: a generic type argument containing a function
+		// signature has a `(` inside the `<...>`, which a regex that stops
+		// its generic match at the first `(` (`<[^(]*>`) never matches. This
+		// is the exact shape auth-brand-context.tsx uses.
+		'src/g.tsx':
+			'createContext<((foo: string) => void) | undefined>(undefined);',
 		'src/f.tsx':
 			'useCreateContext(foo);\nmyCreateContext(bar);\ncreateContextValue(baz);',
 	});
@@ -123,7 +129,14 @@ test('findContextFingerprints matches nested generics, unions, and mangled spaci
 	});
 
 	const files = fingerprints.map((fingerprint) => fingerprint.file).sort();
-	assert.deepEqual(files, ['a.tsx', 'b.tsx', 'c.tsx', 'd.tsx', 'e.tsx']);
+	assert.deepEqual(files, [
+		'a.tsx',
+		'b.tsx',
+		'c.tsx',
+		'd.tsx',
+		'e.tsx',
+		'g.tsx',
+	]);
 });
 
 test('passes when the context fingerprint appears in exactly one client chunk', async () => {
@@ -297,21 +310,26 @@ test('CLI exits non-zero when zero contexts are discovered under sourceDir', asy
 });
 
 test('findContextFingerprints run over the real repository src/ finds exactly the contexts that exist today', async () => {
-	// Keep this as a hard lock on all auth-surface contexts with
-	// "must be used within" guards: each is consumed across route
-	// boundaries and would silently regress into duplicate context
-	// instances if split into multiple chunks without isolation treatment.
-	// Bumping this value must always be a conscious code-review decision,
-	// not a magic number. Fingerprints are per-context, not per-file — see
-	// the two-context fixture tests below for that scanning behaviour.
+	// Keep this as a hard lock on every context this guard must protect.
+	// Two are consumed across route boundaries and throw a "must be used
+	// within" message; the third (AuthBrandContext) deliberately degrades
+	// gracefully instead of throwing, so it is fingerprinted by its
+	// `displayName` instead — see the reasoning comment next to that
+	// assignment in auth-brand-context.tsx. All three would silently regress
+	// into duplicate context instances if split into multiple chunks without
+	// isolation treatment. Bumping this value must always be a conscious
+	// code-review decision, not a magic number. Fingerprints are per-context,
+	// not per-file — see the two-context fixture tests below for that
+	// scanning behaviour.
 	const fingerprints = await findContextFingerprints({
 		sourceDir: repoSourceDir,
 	});
 
 	const files = fingerprints.map((context) => context.file).sort();
 
-	assert.equal(fingerprints.length, 2);
+	assert.equal(fingerprints.length, 3);
 	assert.deepEqual(files, [
+		'lib/auth-brand-context.tsx',
 		'lib/session-surface-recovery-context.tsx',
 		'routes/authed/staff/staff-users/$userId/_overview-context.tsx',
 	]);
@@ -327,6 +345,13 @@ test('findContextFingerprints run over the real repository src/ finds exactly th
 			(context) =>
 				context.identifyingString ===
 				'useStaffUserOverviewContext must be used within the staff user detail route',
+		),
+	);
+	assert.ok(
+		fingerprints.some(
+			(context) =>
+				context.identifyingString ===
+				'AuthBrandContext (auth-brand-context.tsx)',
 		),
 	);
 });
@@ -398,6 +423,132 @@ test('fails when only the second context in a two-context file is duplicated acr
 	assert.equal(
 		violations[0].identifyingString,
 		'useSecond must be used within SecondProvider',
+	);
+	assert.equal(violations[0].chunkCount, 2);
+});
+
+// Mirrors auth-brand-context.tsx's actual shape: a generic type argument
+// containing a function signature, which is the specific pattern the old
+// `<[^(]*>` regex could not see at all.
+const FUNCTION_TYPE_GENERIC_CONTEXT_SOURCE = `
+import { createContext, useContext } from 'react';
+
+export const DemoContext = createContext<
+	((value: string) => void) | undefined
+>(undefined);
+
+export const useDemoContext = () => {
+	const context = useContext(DemoContext);
+	if (!context) {
+		throw new Error('useDemoContext must be used within the demo route');
+	}
+	return context;
+};
+`;
+
+test('findContextFingerprints detects a createContext<T>(...) call whose generic contains a function signature', async () => {
+	const root = await makeFixture({
+		'src/demo-context.tsx': FUNCTION_TYPE_GENERIC_CONTEXT_SOURCE,
+	});
+
+	const fingerprints = await findContextFingerprints({
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(fingerprints.length, 1);
+	assert.equal(
+		fingerprints[0].identifyingString,
+		'useDemoContext must be used within the demo route',
+	);
+});
+
+test('fails when a function-typed-generic context fixture is duplicated across chunks', async () => {
+	const root = await makeFixture({
+		'src/demo-context.tsx': FUNCTION_TYPE_GENERIC_CONTEXT_SOURCE,
+		'dist/client/assets/route-a.js':
+			'throw new Error("useDemoContext must be used within the demo route")',
+		'dist/client/assets/route-b.js':
+			'throw new Error("useDemoContext must be used within the demo route")',
+	});
+
+	const { violations } = await checkContextChunkIsolation({
+		sourceDir: path.join(root, 'src'),
+		distAssetsDir: path.join(root, 'dist', 'client', 'assets'),
+	});
+
+	assert.equal(violations.length, 1);
+	assert.equal(violations[0].chunkCount, 2);
+});
+
+// Mirrors auth-brand-context.tsx: no "must be used within" throw at all —
+// the accessor degrades gracefully instead — so the only available
+// fingerprint is the `displayName` assigned on the context object.
+const DISPLAY_NAME_CONTEXT_SOURCE = `
+import { createContext, useContext } from 'react';
+
+const DemoContext = createContext<((value: string) => void) | undefined>(
+	undefined,
+);
+DemoContext.displayName = 'DemoContext (demo-context.tsx)';
+
+export const DemoProvider = DemoContext.Provider;
+
+export const useSetDemo = (value) => {
+	const setValue = useContext(DemoContext);
+	setValue?.(value);
+};
+`;
+
+test('findContextFingerprints fingerprints a non-throwing context by its displayName assignment', async () => {
+	const root = await makeFixture({
+		'src/demo-context.tsx': DISPLAY_NAME_CONTEXT_SOURCE,
+	});
+
+	const fingerprints = await findContextFingerprints({
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(fingerprints.length, 1);
+	assert.equal(
+		fingerprints[0].identifyingString,
+		'DemoContext (demo-context.tsx)',
+	);
+});
+
+test('a displayName-fingerprinted context is not reported as unfingerprinted', async () => {
+	const root = await makeFixture({
+		'src/demo-context.tsx': DISPLAY_NAME_CONTEXT_SOURCE,
+		'dist/client/assets/route-a.js':
+			"console.log('DemoContext (demo-context.tsx)')",
+	});
+
+	const { violations, unfingerprinted } = await checkContextChunkIsolation({
+		sourceDir: path.join(root, 'src'),
+		distAssetsDir: path.join(root, 'dist', 'client', 'assets'),
+	});
+
+	assert.deepEqual(violations, []);
+	assert.deepEqual(unfingerprinted, []);
+});
+
+test('fails when a displayName-fingerprinted context is duplicated across chunks', async () => {
+	const root = await makeFixture({
+		'src/demo-context.tsx': DISPLAY_NAME_CONTEXT_SOURCE,
+		'dist/client/assets/route-a.js':
+			"console.log('DemoContext (demo-context.tsx)')",
+		'dist/client/assets/route-b.js':
+			"console.log('DemoContext (demo-context.tsx)')",
+	});
+
+	const { violations } = await checkContextChunkIsolation({
+		sourceDir: path.join(root, 'src'),
+		distAssetsDir: path.join(root, 'dist', 'client', 'assets'),
+	});
+
+	assert.equal(violations.length, 1);
+	assert.equal(
+		violations[0].identifyingString,
+		'DemoContext (demo-context.tsx)',
 	);
 	assert.equal(violations[0].chunkCount, 2);
 });
