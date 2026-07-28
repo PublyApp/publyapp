@@ -9,6 +9,7 @@ import {
 	getIssueBranchPattern,
 	isGhAuthFailure,
 	isGhMissingReference,
+	isGhNetworkFailure,
 	parseTrackedChangesFromStatus,
 	parseWorktrees,
 	resolveByNumber,
@@ -94,6 +95,22 @@ test('gh classifiers are pinned to message semantics', () => {
 	assert.equal(isGhMissingReference('network error'), false);
 });
 
+test("isGhNetworkFailure matches gh CLI's actual connectivity-error output", () => {
+	const actualGhOutput = [
+		'error connecting to notfound.invalid',
+		'check your internet connection or https://githubstatus.com',
+	].join('\n');
+
+	assert.equal(isGhNetworkFailure(actualGhOutput), true);
+	assert.equal(isGhNetworkFailure('error connecting to api.github.com'), true);
+	assert.equal(
+		isGhNetworkFailure(
+			'check your internet connection or https://githubstatus.com',
+		),
+		true,
+	);
+});
+
 for (const scenario of [
 	{
 		name: 'runGhJson maps missing gh refs to null',
@@ -111,6 +128,15 @@ for (const scenario of [
 		name: 'runGhJson classifies network failures',
 		status: 1,
 		stderr: 'Network unreachable',
+		expectedCode: GH_NETWORK_FAILURE,
+	},
+	{
+		name: "runGhJson classifies gh CLI's actual connectivity-error output as a network failure",
+		status: 1,
+		stderr: [
+			'error connecting to notfound.invalid',
+			'check your internet connection or https://githubstatus.com',
+		].join('\n'),
 		expectedCode: GH_NETWORK_FAILURE,
 	},
 	{

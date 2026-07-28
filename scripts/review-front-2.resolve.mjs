@@ -140,7 +140,9 @@ export const isGhNetworkFailure = (message) => {
 		lowered.includes('unable to connect') ||
 		lowered.includes('econn') ||
 		lowered.includes('getaddrinfo') ||
-		lowered.includes('enotfound')
+		lowered.includes('enotfound') ||
+		lowered.includes('error connecting to') ||
+		lowered.includes('check your internet connection')
 	);
 };
 
