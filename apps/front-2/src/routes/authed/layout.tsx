@@ -1,10 +1,10 @@
 import { IconAlertCircle, IconLoader2 } from '@tabler/icons-react';
 import {
-	redirect,
 	createFileRoute,
 	Link,
-	useLocation,
 	Outlet,
+	redirect,
+	useLocation,
 	useNavigate,
 	useRouter,
 } from '@tanstack/react-router';
@@ -32,19 +32,6 @@ import { AuthedRouteContentSkeleton } from './_route-content-skeleton';
 
 const STAFF_PATH = '/staff';
 const TENANT_PATH = '/tenant';
-
-const isNavigationReload = (): boolean => {
-	if (typeof window === 'undefined' || typeof performance === 'undefined') {
-		return false;
-	}
-
-	const [entry] = performance.getEntriesByType('navigation');
-	if ((entry as PerformanceNavigationTiming | undefined)?.type === 'reload') {
-		return true;
-	}
-
-	return false;
-};
 
 const getFailureStatus = (error: unknown): number | undefined => {
 	const failure = toApiFailure(error);
@@ -111,9 +98,14 @@ const AuthedLayoutErrorBoundary = ({
 			title={t('something-went-wrong')}
 			description={t('problem-loading-page')}
 			actions={
-				<Button variant="default" onClick={retry} type="button">
-					{t('retry')}
-				</Button>
+				<>
+					<Button variant="default" onClick={() => void retry()} type="button">
+						{t('retry')}
+					</Button>
+					<Link to="/" className={buttonVariants({ variant: 'outline' })}>
+						{t('go-to-home')}
+					</Link>
+				</>
 			}
 		/>
 	);
@@ -156,15 +148,18 @@ function AuthedRouteLayout() {
 	const location = useLocation();
 	const pathname = location.pathname ?? '';
 	const navigate = useNavigate();
-	const isSurfaceRecovery = useSessionSurfaceRecovery();
 	const { t } = useTranslation('common');
 	const surfaceScope = getSessionSurface(pathname);
 	const isStaffSurface = surfaceScope === 'staff';
 	const isTenantSurface = surfaceScope === 'tenant';
+	const isSurfaceRecovery = useSessionSurfaceRecovery();
 	const query = useSessionSurfaceValidation();
 	const routeFailureStatus =
 		query.isError && query.error ? getFailureStatus(query.error) : undefined;
 	const hasQueryError = query.isError && Boolean(query.error);
+	const retry = () => {
+		void query.refetch();
+	};
 
 	useEffect(() => {
 		if (hasQueryError || query.data == null) {
@@ -218,14 +213,10 @@ function AuthedRouteLayout() {
 				description={t('problem-loading-page')}
 				actions={
 					<>
-						<Button
-							variant="default"
-							onClick={() => void query.refetch()}
-							type="button"
-						>
+						<Button variant="default" onClick={retry} type="button">
 							{t('retry')}
 						</Button>
-						{isSurfaceRecovery && !isNavigationReload() ? null : (
+						{isSurfaceRecovery ? null : (
 							<Link to="/" className={buttonVariants({ variant: 'outline' })}>
 								{t('go-to-home')}
 							</Link>
