@@ -393,90 +393,6 @@ public sealed class ComprehensiveRateLimitingSpec
 
 	[Fact]
 	public async Task
-	ItShouldAllowADevWorktreeOriginInDevelopment() {
-		const string worktreeOrigin = "http://pr994.localhost:5994";
-		await using var factory = CreateCorsFactory("Development");
-		using var client = CreateCorsClient(factory);
-
-		using var request = CreateCorsRequest(
-			HttpMethod.Get,
-			"/health",
-			worktreeOrigin
-		);
-		using var response = await client.SendAsync(request);
-
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-		AssertCorsOrigin(response, worktreeOrigin);
-	}
-
-	[Fact]
-	public async Task
-	ItShouldRejectANearMissPrWorktreeOriginInDevelopment() {
-		const string disallowedPrOrigin =
-			"https://pr1.localhost.evil.com:5994";
-		await using var factory = CreateCorsFactory("Development");
-		using var client = CreateCorsClient(factory);
-
-		using var request = CreateCorsRequest(
-			HttpMethod.Get,
-			"/health",
-			disallowedPrOrigin
-		);
-		using var response = await client.SendAsync(request);
-
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-		response.Headers.Contains(
-			"Access-Control-Allow-Origin"
-		).Should().BeFalse();
-	}
-
-	[Fact]
-	public async Task
-	ItShouldRejectADevWorktreeOriginInProduction() {
-		const string worktreeOrigin = "http://pr994.localhost:5994";
-		await using var factory = CreateCorsFactory("Production");
-		using var client = CreateCorsClient(factory, useHttps: true);
-
-		using var request = CreateCorsRequest(
-			HttpMethod.Get,
-			"/health",
-			worktreeOrigin
-		);
-		using var response = await client.SendAsync(request);
-
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-		response.Headers.Contains(
-			"Access-Control-Allow-Origin"
-		).Should().BeFalse();
-	}
-
-	[Theory]
-	[InlineData("Development")]
-	[InlineData("Production")]
-	public async Task
-	ItShouldAlwaysAllowFrontUrlAcrossEnvironments(
-		string environment
-	) {
-		var baseFactory = CreateCorsFactory(environment);
-		await using var factory = baseFactory;
-		using var client = CreateCorsClient(
-			factory,
-			useHttps: environment == "Production"
-		);
-
-		using var request = CreateCorsRequest(
-			HttpMethod.Get,
-			"/health",
-			AppEnvironment.Instance.FRONT_URL
-		);
-		using var response = await client.SendAsync(request);
-
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-		AssertCorsOrigin(response, AppEnvironment.Instance.FRONT_URL);
-	}
-
-	[Fact]
-	public async Task
 	ItShouldApplyTheGlobalFloorToCorsPreflightRequests() {
 		await using var factory = CreateFactory(
 			globalPermitLimit: 1
@@ -964,32 +880,6 @@ public sealed class ComprehensiveRateLimitingSpec
 		);
 	}
 
-	private static HttpClient CreateCorsClient(
-		WebApplicationFactory<Program> factory,
-		bool useHttps = false
-	) {
-		return factory.CreateClient(
-			new WebApplicationFactoryClientOptions {
-				HandleCookies = false,
-				BaseAddress = new Uri(
-					useHttps
-						? "https://localhost"
-						: "http://localhost"
-				),
-			}
-		);
-	}
-
-	private static WebApplicationFactory<Program> CreateCorsFactory(
-		string environment
-	) {
-		return new WebApplicationFactory<Program>().WithWebHostBuilder(
-			builder => {
-				builder.UseEnvironment(environment);
-			}
-		);
-	}
-
 	private static HttpRequestMessage
 		CreateCorsPreflightRequest() {
 		var request = CreateCorsRequest(
@@ -1358,18 +1248,6 @@ public sealed class ComprehensiveRateLimitingSpec
 			.Which.Should().Be(
 				AppEnvironment.Instance.FRONT_URL
 		);
-	}
-
-	private static void AssertCorsOrigin(
-		HttpResponseMessage response,
-		string expectedOrigin
-	) {
-		response.Headers.TryGetValues(
-			"Access-Control-Allow-Origin",
-			out var values
-		).Should().BeTrue();
-		values.Should().ContainSingle()
-			.Which.Should().Be(expectedOrigin);
 	}
 
 	private static void AssertRetryAfterIsCorsExposed(

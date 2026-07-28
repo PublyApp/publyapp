@@ -20,7 +20,7 @@ PublyApp is a modern full-stack multi-tenant SaaS application built with .NET 10
 just dev-api
 
 # Terminal 2 - Start the frontend (front-2, TanStack Start dev server)
-pnpm --filter front-2 dev
+just dev-front-2
 
 # Start PostgreSQL in Docker
 just dev-db
@@ -32,7 +32,7 @@ just dev-db
 `ci-full` gates intentionally include the retired app's characterization suites, and `clean` removes
 its artifacts along with the rest of the workspace. `dev-setup` and `quick-start` also print the
 obsolete instruction to run `just dev-front`; ignore that final prompt. Drive `apps/front-2` — the
-app that actually ships — with `pnpm --filter front-2 <script>` or the `just ci-front-2` gate.
+app that actually ships — with `just dev-front-2`, `just review-front-2`, `pnpm --filter front-2 <script>`, or the `just ci-front-2` gate.
 
 Since #885, the API waits for pending migrations but does not apply them. Run
 `just db-migrate` first, or use `just dev-api-migrated` to migrate and start the API.

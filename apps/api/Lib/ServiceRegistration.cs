@@ -21,7 +21,10 @@ using Resend;
 namespace PublyApp.Api.Lib;
 
 public static partial class ServiceRegistration {
-	[GeneratedRegex("^http://pr\\d+\\.localhost:\\d+$", RegexOptions.CultureInvariant)]
+	[GeneratedRegex(
+		"^http://pr[0-9]+\\.localhost:[0-9]+\\z",
+		RegexOptions.CultureInvariant
+	)]
 	private static partial Regex WorktreePrOriginPattern();
 
 	// Helper method to get current tenant ID
@@ -88,12 +91,12 @@ public static partial class ServiceRegistration {
 			options.AddDefaultPolicy(policy => {
 				policy
 					.WithOrigins(env.FRONT_URL)
-					.SetIsOriginAllowed(origin =>
-						string.Equals(
-							origin,
-							env.FRONT_URL,
-							StringComparison.OrdinalIgnoreCase
-						)
+				.SetIsOriginAllowed(origin =>
+					string.Equals(
+						origin,
+						env.FRONT_URL,
+						StringComparison.Ordinal
+					)
 						|| (isDevelopment
 							&& origin is not null
 							&& WorktreePrOriginPattern().IsMatch(origin))
