@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 using System.Text;
 
 using FluentValidation;
@@ -19,7 +20,10 @@ using Resend;
 
 namespace PublyApp.Api.Lib;
 
-public static class ServiceRegistration {
+public static partial class ServiceRegistration {
+	[GeneratedRegex("^http://pr\\d+\\.localhost:\\d+$", RegexOptions.CultureInvariant)]
+	private static partial Regex WorktreePrOriginPattern();
+
 	// Helper method to get current tenant ID
 	private static Guid? GetCurrentTenantId(IHttpContextAccessor httpContextAccessor) {
 		var httpContext = httpContextAccessor.HttpContext;
@@ -40,6 +44,8 @@ public static class ServiceRegistration {
 	/// Registers Web/API surface services: ProblemDetails, OpenAPI, CORS, compression, etc.
 	/// </summary>
 	public static WebApplicationBuilder AddWebServices(this WebApplicationBuilder builder) {
+		var isDevelopment = builder.Environment.IsDevelopment();
+
 		// Enable framework ProblemDetails services (RFC 7807)
 		builder.Services.AddProblemDetails(options => {
 			options.CustomizeProblemDetails = context => {
@@ -82,6 +88,16 @@ public static class ServiceRegistration {
 			options.AddDefaultPolicy(policy => {
 				policy
 					.WithOrigins(env.FRONT_URL)
+					.SetIsOriginAllowed(origin =>
+						string.Equals(
+							origin,
+							env.FRONT_URL,
+							StringComparison.OrdinalIgnoreCase
+						)
+						|| (isDevelopment
+							&& origin is not null
+							&& WorktreePrOriginPattern().IsMatch(origin))
+					)
 					.AllowAnyMethod()
 					.WithHeaders(
 						"Content-Type",

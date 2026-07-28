@@ -11,6 +11,7 @@ set windows-shell := ["pwsh", "-NoLogo", "-NoProfile", "-Command"]
 
 api_dir := "apps/api"
 front_dir := "apps/front"
+front2_dir := "apps/front-2"
 shared_dir := "packages/shared-ts"
 js_client_dir := "packages/client-ts"
 scripts_cs_dir := "packages/scripts-cs"
@@ -54,6 +55,14 @@ dev-api-alt:
 # Start React frontend (Vite)
 dev-front:
   cd {{front_dir}} && pnpm dev
+
+# Start front-2 frontend (Vite)
+dev-front-2 port="5050":
+  cd {{front2_dir}} && pnpm exec vite dev --port {{port}} --strictPort
+
+# Start another worktree's front-2 frontend by PR/issue number
+review-front-2 ref="":
+  node scripts/review-front-2.mjs "{{ref}}"
 
 # Start docker services (postgres, etc.)
 dev-services:
