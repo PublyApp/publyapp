@@ -167,3 +167,5 @@ local API.
 
 See [`frontend-route-file-organization.md`](frontend-route-file-organization.md)
 for the full `_parts` vs `_components` rule.
+If that cited target is archived in the same wave, use the sibling copy under
+`docs/archive/2026/guides/`.

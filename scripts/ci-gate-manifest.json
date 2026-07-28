@@ -16,6 +16,21 @@
 		"See docs/guides/local-ci-gate.md."
 	],
 	"steps": {
+		"docs-archive.yml::docs-archive::Checkout": {
+			"hash": "05b3bb91005e5436",
+			"mirror": null,
+			"reason": "GitHub-only: checks out the repository for the guard to evaluate git history and file identity. Local verification uses an already-present working tree."
+		},
+		"docs-archive.yml::docs-archive::Setup Node": {
+			"hash": "9f0469bb2703ae67",
+			"mirror": null,
+			"reason": "GitHub-only Node setup for PR gating. This repository's local checks already assume Node is available locally for scripts and format/lint tooling."
+		},
+		"docs-archive.yml::docs-archive::Check archive records": {
+			"hash": "19b8d92061eaf21f",
+			"mirror": "node scripts/check-archive-records.mjs",
+			"reason": "Run locally to catch archive-record body drift, provenance issues, and stale links before docs-only reviews land."
+		},
 		"front-2-ci.yml::supply-chain::Checkout": {
 			"hash": "389e0b8b6a55dd60",
 			"mirror": null,

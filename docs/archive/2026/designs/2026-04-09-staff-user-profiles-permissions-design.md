@@ -11,7 +11,7 @@ Owner: Staff module
 
 ## Problem
 
-Smoke test item `docs/misc/tenant-module-smoke-test-checklist.md` requires:
+The retired app's tenant-module smoke checklist required:
 
 - A non-admin staff user who has the specific *tenant invitation revoke* permission can revoke a pending tenant invitation successfully.
 - A non-admin staff user without that permission gets `403`.
@@ -216,4 +216,3 @@ Frontend smoke tests (checklist additions):
   - then user page,
   - then profile users tab,
   - then profile permissions wiring.
-

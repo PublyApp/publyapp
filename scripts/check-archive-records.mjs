@@ -1,28 +1,18 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { access } from 'node:fs/promises';
-import { readdir } from 'node:fs/promises';
+import { stat } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 
 const rootDir = process.cwd();
 const archiveDir = path.join(rootDir, 'docs', 'archive');
-const archiveBaseRef = 'origin/develop';
 
 const toPosix = (value) => value.split(path.sep).join('/');
 const normalizeNewlines = (value) => value.replace(/\r\n/g, '\n');
 const hash = (value) =>
 	createHash('sha256').update(normalizeNewlines(value)).digest('hex');
-
-const knownDeadLinks = new Set([
-	'docs/archive/2026/designs/2026-03-28-typescript-6-native-imports-design.md|../../../tsconfig.paths.json',
-]);
-
-const knownNonLinks = new Set([
-	'docs/archive/2026/designs/2026-04-13-staff-profile-users-drawer-search-design.md|C:/Users/radan/Documents/_RADAN/Dev/PublyApp/publyapp-2/apps/front/src/components/scrollbar/scrollbar.tsx',
-]);
 
 const runGit = (args, options = {}) => {
 	const result = spawnSync('git', args, {
@@ -34,12 +24,73 @@ const runGit = (args, options = {}) => {
 	return result;
 };
 
+const getArchiveRecordsFromHistory = () => {
+	const result = runGit([
+		'log',
+		'--reverse',
+		'--pretty=format:',
+		'--name-only',
+		'--diff-filter=A',
+		'--',
+		'docs/archive',
+	]);
+
+	if (result.status !== 0) {
+		return [];
+	}
+
+	const records = result.stdout
+		.split('\n')
+		.map((entry) => entry.trim())
+		.filter((entry) => entry.endsWith('.md'));
+
+	return [...new Set(records)].sort((left, right) => left.localeCompare(right));
+};
+
+const getArchiveAddCommit = (relativeFile) => {
+	const result = runGit([
+		'log',
+		'--format=%H',
+		'--reverse',
+		'--diff-filter=A',
+		'--',
+		relativeFile,
+	]);
+
+	if (result.status !== 0) {
+		return null;
+	}
+
+	const commits = result.stdout
+		.split('\n')
+		.map((entry) => entry.trim())
+		.filter((entry) => entry.length > 0);
+	return commits.length > 0 ? commits[0] : null;
+};
+
 const fileExistsInCommit = (ref, repoPath) => {
 	const target = `${ref}:${toPosix(repoPath)}`;
 	const result = runGit(['cat-file', '-e', target], {
 		stdio: ['ignore', 'pipe', 'pipe'],
 	});
 	return result.status === 0;
+};
+
+const pathExistsInCommit = (ref, repoPath) => {
+	if (fileExistsInCommit(ref, repoPath)) {
+		return true;
+	}
+
+	const result = runGit([
+		'ls-tree',
+		'-d',
+		'--name-only',
+		ref,
+		'--',
+		toPosix(repoPath),
+	]);
+
+	return result.status === 0 && result.stdout.trim().length > 0;
 };
 
 const getCommitFile = (ref, repoPath) => {
@@ -54,29 +105,10 @@ const getCommitFile = (ref, repoPath) => {
 	return result.stdout;
 };
 
-const findArchiveFiles = async (directory = archiveDir) => {
-	const entries = await readdir(directory, { withFileTypes: true });
-	const files = [];
-
-	for (const entry of entries) {
-		const entryPath = path.join(directory, entry.name);
-
-		if (entry.isDirectory()) {
-			files.push(...(await findArchiveFiles(entryPath)));
-			continue;
-		}
-
-		if (entry.isFile() && entry.name.endsWith('.md')) {
-			files.push(entryPath);
-		}
-	}
-
-	return files.sort((left, right) => left.localeCompare(right));
-};
-
 const parseHeader = (content, relativeFile) => {
 	const lines = normalizeNewlines(content).split('\n');
 	const errors = [];
+	const supersededBy = /^Superseded by:\s+(.+)$/.exec(lines[3]);
 
 	if (lines.length < 5) {
 		errors.push({
@@ -120,7 +152,11 @@ const parseHeader = (content, relativeFile) => {
 		});
 	}
 
-	return { errors, originalLocation: originalMatch?.[1] ?? null };
+	return {
+		errors,
+		originalLocation: originalMatch?.[1] ?? null,
+		supersededBy: supersededBy?.[1] ?? null,
+	};
 };
 
 const isExternalOrAuxiliaryLink = (target) => {
@@ -153,15 +189,6 @@ const normalizeTarget = (rawTarget) => {
 	return trimmedForQueries.split('#')[0].trim();
 };
 
-const exists = async (candidate) => {
-	try {
-		await access(candidate);
-		return true;
-	} catch {
-		return false;
-	}
-};
-
 const resolveLinkCandidates = (archivePath, originalLocation, target) => {
 	const rebasedBase = originalLocation
 		? path.dirname(originalLocation)
@@ -171,8 +198,11 @@ const resolveLinkCandidates = (archivePath, originalLocation, target) => {
 	const current = target.startsWith('/')
 		? path.resolve(rootDir, target.slice(1))
 		: path.resolve(rootDir, path.dirname(archivePath), target);
+	const coArchive = target.startsWith('/')
+		? null
+		: path.resolve(rootDir, path.dirname(archivePath), target);
 
-	return { rebased, current };
+	return { rebased, current, coArchive };
 };
 
 const extractLinks = (content) => {
@@ -213,20 +243,230 @@ const extractLinks = (content) => {
 	return links;
 };
 
+const getPathKind = async (candidate) => {
+	try {
+		const info = await stat(candidate);
+
+		if (info.isDirectory()) {
+			return 'directory';
+		}
+
+		if (info.isFile()) {
+			return 'file';
+		}
+
+		return 'other';
+	} catch {
+		return 'missing';
+	}
+};
+
+const splitToSupersededReferences = (value) => {
+	const normalized = value.replace(/`([^`]+)`/g, ' $1 ');
+	const pathLike = new Set();
+	const slashRefs = new Set();
+	const slashBasenames = new Set();
+
+	const normalizeCandidate = (raw) => {
+		const candidate = raw
+			.replace(/^[`'"\s.,;:\)\]}]+/, '')
+			.replace(/[`'"\s.,;:\(\[{)]+$/, '')
+			.trim();
+
+		if (!candidate) {
+			return null;
+		}
+
+		const isLikelyReference =
+			candidate.includes('/') ||
+			candidate.includes('\\') ||
+			/^[A-Za-z][A-Za-z0-9._-]*\.[A-Za-z][A-Za-z0-9._-]*$/i.test(candidate);
+
+		if (isLikelyReference && !/^[a-z]+:\/\//i.test(candidate)) {
+			return candidate;
+		}
+
+		return null;
+	};
+
+	const slashPattern =
+		/(?:\.\/|\.\.\/)?[A-Za-z0-9_$][A-Za-z0-9._$-]*(?:\/[A-Za-z0-9_$][A-Za-z0-9._$-]*)+[A-Za-z0-9._$-]*/g;
+	const dotPattern = /\b[A-Za-z][A-Za-z0-9._-]*\.[A-Za-z][A-Za-z0-9._-]*\b/g;
+
+	for (const token of normalized.split(/\band\b|,|;/i)) {
+		for (const match of token.matchAll(slashPattern)) {
+			const candidate = normalizeCandidate(match[0]);
+			if (!candidate) {
+				continue;
+			}
+
+			pathLike.add(candidate);
+			slashRefs.add(candidate.toLowerCase());
+			slashBasenames.add(path.basename(candidate).toLowerCase());
+		}
+
+		for (const match of token.matchAll(dotPattern)) {
+			const candidate = normalizeCandidate(match[0]);
+			if (!candidate) {
+				continue;
+			}
+			const lower = candidate.toLowerCase();
+			if (
+				!candidate.includes('/') &&
+				!slashRefs.has(lower) &&
+				!slashBasenames.has(lower)
+			) {
+				pathLike.add(candidate);
+			}
+		}
+	}
+
+	return [...pathLike];
+};
+
+const stripArchiveCoArchiveClause = (value) => {
+	const lines = normalizeNewlines(value).split('\n');
+	const cleaned = [];
+	const normalizedLine = (line) =>
+		line
+			.trim()
+			.replace(/^[>\s*`-]+/, '')
+			.trim();
+
+	for (let index = 0; index < lines.length; index += 1) {
+		const line = lines[index];
+		const trimmed = line.trim();
+		const normalized = normalizedLine(line);
+
+		if (
+			normalized.startsWith(
+				'This cited target was archived in the same wave, so its record lives at',
+			)
+		) {
+			const next = normalizedLine(lines[index + 1] ?? '');
+			if (next && /docs\/archive\//i.test(next)) {
+				index += 1;
+			}
+			continue;
+		}
+
+		if (
+			normalized.startsWith(
+				'If that cited target is archived in the same wave, use the sibling copy under',
+			)
+		) {
+			const next = normalizedLine(lines[index + 1] ?? '');
+			if (next && /docs\/archive\//i.test(next)) {
+				index += 1;
+			}
+			continue;
+		}
+
+		cleaned.push(line);
+	}
+
+	return cleaned.join('\n');
+};
+
+const getOriginalBodySourceCommit = (archiveAddCommit, originalLocation) => {
+	if (!archiveAddCommit || !originalLocation) {
+		return null;
+	}
+
+	const result = runGit([
+		'log',
+		'--follow',
+		'--format=%H',
+		'--max-count=30',
+		`${archiveAddCommit}^`,
+		'--',
+		originalLocation,
+	]);
+
+	if (result.status !== 0) {
+		return null;
+	}
+
+	const candidates = result.stdout
+		.split('\n')
+		.map((entry) => entry.trim())
+		.filter((entry) => entry.length > 0);
+
+	for (const candidate of candidates) {
+		if (fileExistsInCommit(candidate, originalLocation)) {
+			return candidate;
+		}
+	}
+
+	return null;
+};
+
+const resolveSupersededReference = (sourceFile, candidate) => {
+	if (candidate.startsWith('/')) {
+		return path.resolve(rootDir, candidate.slice(1));
+	}
+
+	if (/^[A-Za-z]:[\\/]/.test(candidate)) {
+		return candidate;
+	}
+
+	if (candidate.startsWith('./') || candidate.startsWith('../')) {
+		return path.resolve(rootDir, path.dirname(sourceFile), candidate);
+	}
+
+	return path.resolve(rootDir, candidate);
+};
+
 const run = async () => {
-	const files = await findArchiveFiles();
+	const archiveFiles = getArchiveRecordsFromHistory();
 	const counts = {
+		recordTotal: 0,
+		missingRecords: 0,
 		headerTotal: 0,
 		headerFail: 0,
 		hashTotal: 0,
 		hashFail: 0,
-		rebaseOk: 0,
-		currentTreeOk: 0,
-		knownDead: 0,
-		knownNonLink: 0,
+		supersededByTotal: 0,
+		supersededByMissing: 0,
+		rebaseFile: 0,
+		rebaseDirectory: 0,
+		coArchiveFile: 0,
+		coArchiveDirectory: 0,
+		currentFile: 0,
+		currentDirectory: 0,
 		newDead: 0,
 	};
-	const findings = [];
+	const findings = {
+		fatal: [],
+		link: [],
+	};
+
+	counts.recordTotal = archiveFiles.length;
+	const files = [];
+	for (const relativeFile of archiveFiles.sort((left, right) =>
+		left.localeCompare(right),
+	)) {
+		const absoluteFile = path.join(
+			archiveDir,
+			path.relative('docs/archive', relativeFile),
+		);
+		const kind = await getPathKind(absoluteFile);
+
+		if (kind !== 'file') {
+			counts.missingRecords += 1;
+			counts.headerFail += 1;
+			findings.fatal.push({
+				file: relativeFile,
+				type: 'archive-record-missing',
+				message: `Expected archive record is missing from working tree: ${relativeFile}`,
+			});
+			continue;
+		}
+
+		files.push(absoluteFile);
+	}
+
+	counts.headerTotal = counts.recordTotal;
 
 	for (const file of files) {
 		const relativeFile = toPosix(path.relative(rootDir, file));
@@ -235,63 +475,102 @@ const run = async () => {
 
 		const header = parseHeader(normalized, relativeFile);
 		header.errors.forEach((failure) => {
-			findings.push(failure);
+			findings.fatal.push(failure);
 			counts.headerFail += 1;
 		});
-		counts.headerTotal += 1;
 
-		const archiveCommit = (() => {
-			const result = runGit([
-				'log',
-				'--format=%H',
-				'--max-count=1',
-				'--',
-				relativeFile,
-			]);
-			if (result.status !== 0 || !result.stdout.trim()) {
-				return null;
-			}
-
-			return result.stdout.trim();
-		})();
+		const archiveCommit = getArchiveAddCommit(relativeFile);
 
 		if (!archiveCommit) {
-			findings.push({
+			findings.fatal.push({
 				file: relativeFile,
 				type: 'archive-commit',
 				message: `Could not resolve archive commit for ${relativeFile}`,
 			});
 			counts.hashFail += 1;
 			counts.hashTotal += 1;
+			continue;
 		}
 
 		const originalLocation = header.originalLocation;
 		if (!originalLocation) {
-			if (archiveCommit) {
-				counts.hashFail += 1;
-				counts.hashTotal += 1;
-			}
+			counts.hashFail += 1;
+			counts.hashTotal += 1;
 		} else {
+			const sourceCommit = getOriginalBodySourceCommit(
+				archiveCommit,
+				originalLocation,
+			);
+
 			counts.hashTotal += 1;
 
-			if (!fileExistsInCommit(archiveBaseRef, originalLocation)) {
+			if (!sourceCommit) {
 				counts.hashFail += 1;
-				findings.push({
+				findings.fatal.push({
 					file: relativeFile,
 					type: 'original-location',
-					message: `Original location does not exist at ${archiveBaseRef}: ${originalLocation}`,
+					message: `Original location has no resolvable source on ancestry ${archiveCommit}: ${originalLocation}`,
 				});
 			} else {
-				const bodyHash = hash(normalized.split('\n').slice(5).join('\n'));
-				const originalBody = getCommitFile(archiveBaseRef, originalLocation);
-				const originalHash = hash(originalBody);
+				const recordedBody = stripArchiveCoArchiveClause(
+					normalized.split('\n').slice(5).join('\n'),
+				);
+				let originalBody;
+
+				try {
+					originalBody = getCommitFile(sourceCommit, originalLocation);
+				} catch {
+					counts.hashFail += 1;
+					findings.fatal.push({
+						file: relativeFile,
+						type: 'original-body',
+						message: `Unable to read archived source body at ${sourceCommit}:${originalLocation}`,
+					});
+				}
+
+				if (originalBody === undefined) {
+					continue;
+				}
+
+				const sourceBody = stripArchiveCoArchiveClause(
+					normalizeNewlines(originalBody),
+				);
+				const bodyHash = hash(recordedBody);
+				const originalHash = hash(sourceBody);
 
 				if (bodyHash !== originalHash) {
 					counts.hashFail += 1;
-					findings.push({
+					findings.fatal.push({
 						file: relativeFile,
 						type: 'body-hash',
-						message: `Body hash does not match ${archiveBaseRef}:${originalLocation}`,
+						message: `Body hash does not match ${sourceCommit}:${originalLocation}`,
+					});
+				}
+			}
+		}
+
+		const supersededBy = header.supersededBy;
+		if (supersededBy) {
+			const supersededTargets = splitToSupersededReferences(supersededBy);
+			counts.supersededByTotal += supersededTargets.length;
+
+			for (const rawTarget of supersededTargets) {
+				const candidatePath = resolveSupersededReference(
+					relativeFile,
+					rawTarget,
+				);
+				const candidateRepoPath = path.relative(rootDir, candidatePath);
+				const resolved =
+					!candidateRepoPath.startsWith('..' + path.sep) &&
+					!path.isAbsolute(candidateRepoPath) &&
+					pathExistsInCommit(archiveCommit, candidateRepoPath);
+
+				if (!resolved) {
+					counts.supersededByMissing += 1;
+					findings.fatal.push({
+						file: relativeFile,
+						type: 'superseded-by',
+						message: `Superseded-by reference does not resolve: ${rawTarget}`,
 					});
 				}
 			}
@@ -304,15 +583,9 @@ const run = async () => {
 				continue;
 			}
 
-			const key = `${relativeFile}|${target}`;
 			if (isWindowPath(target)) {
-				if (knownNonLinks.has(key)) {
-					counts.knownNonLink += 1;
-					continue;
-				}
-
 				counts.newDead += 1;
-				findings.push({
+				findings.link.push({
 					file: relativeFile,
 					line: link.line,
 					type: 'non-link',
@@ -321,31 +594,49 @@ const run = async () => {
 				continue;
 			}
 
-			const { rebased, current } = resolveLinkCandidates(
+			const { rebased, current, coArchive } = resolveLinkCandidates(
 				file,
 				originalLocation ?? '',
 				target,
 			);
-			const rebasedExists = await exists(rebased);
-			const currentExists = await exists(current);
+			const rebasedKind = await getPathKind(rebased);
+			const currentKind = await getPathKind(current);
+			const coArchiveKind = coArchive
+				? await getPathKind(coArchive)
+				: 'missing';
 
-			if (rebasedExists || currentExists) {
-				if (rebasedExists) {
-					counts.rebaseOk += 1;
-					continue;
-				}
-
-				counts.currentTreeOk += 1;
+			if (rebasedKind === 'file') {
+				counts.rebaseFile += 1;
 				continue;
 			}
 
-			if (knownDeadLinks.has(key)) {
-				counts.knownDead += 1;
+			if (rebasedKind === 'directory') {
+				counts.rebaseDirectory += 1;
+				continue;
+			}
+
+			if (coArchiveKind === 'file') {
+				counts.coArchiveFile += 1;
+				continue;
+			}
+
+			if (coArchiveKind === 'directory') {
+				counts.coArchiveDirectory += 1;
+				continue;
+			}
+
+			if (currentKind === 'file') {
+				counts.currentFile += 1;
+				continue;
+			}
+
+			if (currentKind === 'directory') {
+				counts.currentDirectory += 1;
 				continue;
 			}
 
 			counts.newDead += 1;
-			findings.push({
+			findings.link.push({
 				file: relativeFile,
 				line: link.line,
 				type: 'dead-link',
@@ -360,6 +651,9 @@ const run = async () => {
 			counts.headerTotal - counts.headerFail
 		}, Failed: ${counts.headerFail}`,
 	);
+	console.log(
+		`Tracked records in repo history: ${counts.recordTotal}, Missing in working tree: ${counts.missingRecords}`,
+	);
 
 	console.log('');
 	console.log('=== [docs/archive] check-b: body hash checks ===');
@@ -368,23 +662,56 @@ const run = async () => {
 			counts.hashFail
 		}`,
 	);
+	console.log(
+		`Superseded-by references: ${counts.supersededByMissing} unresolved, ${
+			counts.supersededByTotal - counts.supersededByMissing
+		} resolved or omitted`,
+	);
 
 	console.log('');
 	console.log('=== [docs/archive] check-c: link checks ===');
-	console.log(`Rebased (original-location) resolvable: ${counts.rebaseOk}`);
-	console.log(`Genuinely dead: ${counts.knownDead}`);
-	console.log(`Allowed non-link references: ${counts.knownNonLink}`);
+	console.log(
+		`Rebased (original-location) resolvable files: ${counts.rebaseFile}`,
+	);
+	console.log(
+		`Rebased (original-location) resolvable directories: ${counts.rebaseDirectory}`,
+	);
+	console.log(`Co-archive resolvable files: ${counts.coArchiveFile}`);
+	console.log(
+		`Co-archive resolvable directories: ${counts.coArchiveDirectory}`,
+	);
+	console.log(`Current-tree-only resolvable files: ${counts.currentFile}`);
+	console.log(
+		`Current-tree-only resolvable directories: ${counts.currentDirectory}`,
+	);
 	console.log(`Newly unresolved references: ${counts.newDead}`);
-	console.log(`Current-tree-only resolvable: ${counts.currentTreeOk}`);
 	console.log('');
 
-	if (findings.length === 0) {
+	if (counts.newDead === 0) {
+		console.log('No unresolved link targets found in report.');
+	}
+
+	if (findings.link.length === 0) {
+		console.log(
+			'No link targets with unexpected resolution behavior in report.',
+		);
+	} else {
+		console.log('');
+		console.log('Unresolved/target class reporting:');
+		for (const finding of findings.link) {
+			console.log(
+				`- ${finding.file}${finding.line ? `:${finding.line}` : ''} (${finding.type}) ${finding.message}`,
+			);
+		}
+	}
+
+	if (findings.fatal.length === 0) {
 		console.log('docs/archive guard passed with historical exceptions.');
-		return;
+		process.exit(0);
 	}
 
 	console.error('docs/archive guard failed:');
-	for (const finding of findings) {
+	for (const finding of findings.fatal) {
 		console.error(
 			`- ${finding.file}${finding.line ? `:${finding.line}` : ''} (${finding.type ?? 'header'}) ${finding.message}`,
 		);

@@ -42,7 +42,8 @@ A record describes what was true on the day it was written, so it may name paths
 moved or been deleted. That is expected, and it is not a defect to repair. A record's relative links
 are relative to its `Original location:` directory, not to `docs/archive/`. Rebase the link against
 that directory to follow it; where the target has since been deleted, the reference stands as evidence
-that it once existed.
+that it once existed. If the cited target was archived in the same wave, it is expected to resolve to
+the co-archived copy next to the record under `docs/archive/`.
 
 **Never edit an archived record to make a reference resolve.** Archiving prepends the four-line
 header and keeps the body byte-identical to the original file. The header is curatorial metadata, so
@@ -87,4 +88,4 @@ wins.
 - A record (plan, review, analysis, change note) is written once and then left alone. Do not
   retro-edit it to match later reality — supersede it, and say what superseded it.
 - A guide is the opposite: if reality changes, the guide changes with it.
-- When you move or retire a document, fix the links pointing at it; archived records are exempt.
+- When you move or retire a document, fix the links pointing at it; records generally are exempt.

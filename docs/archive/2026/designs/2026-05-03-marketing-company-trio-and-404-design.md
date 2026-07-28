@@ -339,8 +339,8 @@ Form inputs use the existing `Field.*` wrappers which already handle dark mode �
 
 ## Conventions reused from Phases 1+2
 
-- Canvas → MUI `sx` translation per `docs/guides/tailwind-to-sx-mapping.md`
-- Marketing surface conventions per `docs/guides/marketing-surface-conventions.md`:
+- Canvas → MUI `sx` translation per the retired app's Tailwind-to-`sx` mapping note
+- Marketing surface conventions for the retired app:
   - `<Box>` not `<Button>` for marketing CTAs (avoids MUI `--variant-hover-bg` cascade)
   - Hover discipline (only `transform` + `boxShadow` change, never bg/color/border)
   - `grey.X` does NOT dark-swap — use `varAlpha(text.primaryChannel, n)` overlays
