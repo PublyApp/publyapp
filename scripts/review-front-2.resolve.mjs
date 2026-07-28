@@ -18,7 +18,8 @@ export const FRONTEND_ENV_KEYS = [
 	'PUBLIC_POSTHOG_PROJECT_TOKEN',
 ];
 
-const normalizeMessage = (value) => (typeof value === 'string' ? value.trim() : '');
+const normalizeMessage = (value) =>
+	typeof value === 'string' ? value.trim() : '';
 
 const createError = (message, code, cause) => {
 	const error = new Error(message);
@@ -70,7 +71,9 @@ export const parseWorktrees = (raw) => {
 		}
 
 		if (line.startsWith('branch ')) {
-			current.branch = line.slice('branch '.length).replace(/^refs\/heads\//, '');
+			current.branch = line
+				.slice('branch '.length)
+				.replace(/^refs\/heads\//, '');
 		}
 	}
 
@@ -91,7 +94,10 @@ export const parseTrackedChangesFromStatus = (output) => {
 };
 
 export const getIssueBranchPattern = (number) =>
-	new RegExp(ISSUE_TOKEN_PATTERN_SOURCE.replace('${number}', String(number)), 'i');
+	new RegExp(
+		ISSUE_TOKEN_PATTERN_SOURCE.replace('${number}', String(number)),
+		'i',
+	);
 
 export const getBranchPathByMap = (worktrees) => {
 	const map = new Map();
@@ -171,7 +177,8 @@ export const runGhJson = async (args, { runGh } = {}) => {
 		}
 	}
 
-	const message = normalizeMessage(result.stderr) || normalizeMessage(result.stdout);
+	const message =
+		normalizeMessage(result.stderr) || normalizeMessage(result.stdout);
 	if (isGhMissingReference(message)) {
 		return null;
 	}
@@ -233,7 +240,9 @@ export const runPrsByHeadBranch = (worktree, { runGh }) => {
 };
 
 export const resolveByPull = (pr, worktrees) => {
-	const exact = worktrees.find((worktree) => worktree.branch === pr.headRefName);
+	const exact = worktrees.find(
+		(worktree) => worktree.branch === pr.headRefName,
+	);
 	if (exact) {
 		return exact;
 	}
@@ -249,15 +258,19 @@ export const resolvePrForIssueWorktree = async (
 		return null;
 	}
 
-	const runner =
-		requireRunner(runPrsByHeadBranchFn ?? runPrsByHeadBranch, 'runPrsByHeadBranch');
+	const runner = requireRunner(
+		runPrsByHeadBranchFn ?? runPrsByHeadBranch,
+		'runPrsByHeadBranch',
+	);
 	const candidates = await runner(worktree, { runGh });
 
 	if (!Array.isArray(candidates) || candidates.length === 0) {
 		return null;
 	}
 
-	return candidates.find((candidate) => candidate.state === 'OPEN') ?? candidates[0];
+	return (
+		candidates.find((candidate) => candidate.state === 'OPEN') ?? candidates[0]
+	);
 };
 
 export const resolveByNumber = async (
@@ -315,22 +328,16 @@ export const resolveInteractivePicker = async (
 		runOpenPrs ??
 		(() =>
 			runGhJson(
-				[
-					'pr',
-					'list',
-					'--state',
-					'open',
-					'--json',
-					'number,title,headRefName',
-				],
+				['pr', 'list', '--state', 'open', '--json', 'number,title,headRefName'],
 				{ runGh },
 			));
-	const pick = askChoice ?? (() => {
+	const pick =
+		askChoice ??
+		(() => {
 			throw new Error('askChoice is required for interactive selection.');
 		});
 	const resolve =
-		runByNumber ??
-		((number) => resolveByNumber(number, worktrees, { runGh }));
+		runByNumber ?? ((number) => resolveByNumber(number, worktrees, { runGh }));
 
 	const openPrs = await loadOpenPrs();
 	if (!Array.isArray(openPrs) || openPrs.length === 0) {
@@ -383,7 +390,9 @@ export const resolveTarget = async (
 	const request = requestedRef?.trim() ?? '';
 	if (!request) {
 		if (!hasInteractiveTerminal) {
-			throw new Error('No PR/issue ref provided in a non-interactive terminal.');
+			throw new Error(
+				'No PR/issue ref provided in a non-interactive terminal.',
+			);
 		}
 
 		const picker =
@@ -404,9 +413,11 @@ export const resolveTarget = async (
 	return resolveByNumber(Number.parseInt(request, 10), worktrees, { ...rest });
 };
 
-export const buildFrontendToken = (prNumber) => `${FRONTEND_TOKEN_PREFIX}${prNumber}`;
+export const buildFrontendToken = (prNumber) =>
+	`${FRONTEND_TOKEN_PREFIX}${prNumber}`;
 
-export const buildFrontendHost = (frontendToken) => `${frontendToken}.localhost`;
+export const buildFrontendHost = (frontendToken) =>
+	`${frontendToken}.localhost`;
 
 export const derivePreferredPort = (prNumber) => {
 	let candidate = BASE_PORT + (prNumber % 1000);
@@ -428,7 +439,10 @@ export const generateFrontendUrl = (frontendToken, port) =>
 export const parseFrontendTokenFromPath = (worktreePath) => {
 	const base =
 		typeof worktreePath === 'string'
-			? worktreePath.replace(/[\\/]+$/u, '').split(/[\\/]/).at(-1) || ''
+			? worktreePath
+					.replace(/[\\/]+$/u, '')
+					.split(/[\\/]/)
+					.at(-1) || ''
 			: '';
 	const match = /^pr(\d+)$/i.exec(base);
 	if (!match) {
@@ -440,7 +454,11 @@ export const parseFrontendTokenFromPath = (worktreePath) => {
 
 export const choosePort = async (
 	prNumber,
-	{ host = '127.0.0.1', probePortAvailable, reservedPorts = RESERVED_PORTS } = {},
+	{
+		host = '127.0.0.1',
+		probePortAvailable,
+		reservedPorts = RESERVED_PORTS,
+	} = {},
 ) => {
 	if (typeof probePortAvailable !== 'function') {
 		throw new Error('probePortAvailable is required to choose port.');
@@ -536,7 +554,10 @@ export const resolveFrontendToken = async (resolved, options = {}) => {
 	return null;
 };
 
-export const generateFrontendTokenForTarget = async (resolved, options = {}) => {
+export const generateFrontendTokenForTarget = async (
+	resolved,
+	options = {},
+) => {
 	const token = await resolveFrontendToken(resolved, options);
 	if (!token) {
 		throw new Error(

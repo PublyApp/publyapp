@@ -54,7 +54,11 @@ test('parseWorktrees parses porcelain output and detached HEAD worktrees', () =>
 
 	assert.deepEqual(parseWorktrees(input), [
 		{ path: '/tmp/pr1000', head: 'deadbeef', branch: 'fix/989-ui' },
-		{ path: '/tmp/space name/path with spaces', head: 'faceb00c', branch: null },
+		{
+			path: '/tmp/space name/path with spaces',
+			head: 'faceb00c',
+			branch: null,
+		},
 		{ path: '/tmp/issue-pr', head: 'caffeined', branch: 'fix/1245-a' },
 	]);
 });
@@ -84,7 +88,9 @@ for (const [branch, expected] of [
 
 test('gh classifiers are pinned to message semantics', () => {
 	assert.equal(
-		isGhMissingReference('Could not resolve to a pull request with that number'),
+		isGhMissingReference(
+			'Could not resolve to a pull request with that number',
+		),
 		true,
 	);
 	assert.equal(isGhAuthFailure('not authenticated with github'), true);
@@ -197,7 +203,9 @@ for (const scenario of [
 	{
 		name: 'PR unmatched after branch/head fallback',
 		number: 992,
-		worktrees: [{ path: '/tmp/other', branch: 'feature/x', head: 'renamed-head' }],
+		worktrees: [
+			{ path: '/tmp/other', branch: 'feature/x', head: 'renamed-head' },
+		],
 		runPr: async () => ({
 			number: 992,
 			state: 'CLOSED',
@@ -230,7 +238,9 @@ for (const scenario of [
 	{
 		name: 'Issue with no branch match',
 		number: 995,
-		worktrees: [{ path: '/tmp/other', branch: 'feature/issue-only', head: 'h1' }],
+		worktrees: [
+			{ path: '/tmp/other', branch: 'feature/issue-only', head: 'h1' },
+		],
 		runPr: async () => null,
 		runIssue: async () => ({ number: 995 }),
 		expectedKind: 'not-found',
@@ -256,15 +266,18 @@ for (const scenario of [
 			},
 			runIssueByNumber: scenario.runIssue
 				? async (requested) => {
-					issueCalls += 1;
-					assert.equal(requested, scenario.number);
-					return scenario.runIssue(requested);
-				}
+						issueCalls += 1;
+						assert.equal(requested, scenario.number);
+						return scenario.runIssue(requested);
+					}
 				: undefined,
 		});
 
 		assert.equal(prCalls, 1);
-		if (scenario.expectedKind === 'pr' || scenario.expectedKind === 'pr-unmatched') {
+		if (
+			scenario.expectedKind === 'pr' ||
+			scenario.expectedKind === 'pr-unmatched'
+		) {
 			assert.equal(issueCalls, 0);
 		} else {
 			assert.equal(issueCalls, 1);
@@ -283,24 +296,30 @@ for (const scenario of [
 }
 
 test('resolveByNumber gives PR precedence over issue when both can match', async () => {
-	const result = await resolveByNumber(994, [
-		{ path: '/tmp/issue', branch: 'fix/994', head: 'h' },
-	], {
-		runPrByNumber: async () => ({
-			number: 994,
-			headRefName: 'feature/issue-994',
-			headRefOid: 'h',
-			state: 'OPEN',
-		}),
-		runIssueByNumber: async () => ({ number: 994 }),
-	});
+	const result = await resolveByNumber(
+		994,
+		[{ path: '/tmp/issue', branch: 'fix/994', head: 'h' }],
+		{
+			runPrByNumber: async () => ({
+				number: 994,
+				headRefName: 'feature/issue-994',
+				headRefOid: 'h',
+				state: 'OPEN',
+			}),
+			runIssueByNumber: async () => ({ number: 994 }),
+		},
+	);
 
 	assert.equal(result.kind, 'pr');
 	assert.equal(result.source.number, 994);
 });
 
 test('resolvePrForIssueWorktree passes worktree object and favors open PR', async () => {
-	const worktree = { path: '/tmp/issue', branch: 'feature/issue-901', head: 'x' };
+	const worktree = {
+		path: '/tmp/issue',
+		branch: 'feature/issue-901',
+		head: 'x',
+	};
 	let observed = null;
 	const result = await resolvePrForIssueWorktree(worktree, {
 		runPrsByHeadBranch: async (value) => {
@@ -362,7 +381,10 @@ for (const scenario of [
 	},
 	{
 		name: 'Issue token cannot be derived when neither branch PR nor path token exists',
-		resolved: { kind: 'issue', worktree: { path: '/tmp/feature', branch: null } },
+		resolved: {
+			kind: 'issue',
+			worktree: { path: '/tmp/feature', branch: null },
+		},
 		resolvePrByBranch: async () => ({ state: 'CLOSED' }),
 		expected: null,
 	},
@@ -430,7 +452,10 @@ test('resolveTarget has no module-scope state and validates runtime input', asyn
 	const picked = await resolveTarget([], null, {
 		hasInteractiveTerminal: true,
 		requestedRef: '',
-		resolveInteractivePicker: async () => ({ kind: 'picked', source: { number: 7 } }),
+		resolveInteractivePicker: async () => ({
+			kind: 'picked',
+			source: { number: 7 },
+		}),
 	});
 	assert.deepEqual(picked, { kind: 'picked', source: { number: 7 } });
 
@@ -443,18 +468,20 @@ test('resolveTarget has no module-scope state and validates runtime input', asyn
 		/Expected a PR or issue number, got issue-abc\./,
 	);
 
-	const pickedByNumber = await resolveTarget([
-		{ path: '/tmp/target', branch: 'branch', head: 'oid' },
-	], null, {
-		requestedRef: '123',
-		hasInteractiveTerminal: true,
-		runPrByNumber: async (number) => ({
-			number,
-			state: 'OPEN',
-			headRefName: 'branch',
-			headRefOid: 'oid',
-		}),
-	});
+	const pickedByNumber = await resolveTarget(
+		[{ path: '/tmp/target', branch: 'branch', head: 'oid' }],
+		null,
+		{
+			requestedRef: '123',
+			hasInteractiveTerminal: true,
+			runPrByNumber: async (number) => ({
+				number,
+				state: 'OPEN',
+				headRefName: 'branch',
+				headRefOid: 'oid',
+			}),
+		},
+	);
 	assert.equal(pickedByNumber.kind, 'pr');
 	assert.equal(pickedByNumber.source.number, 123);
 	assert.equal(pickedByNumber.worktree?.path, '/tmp/target');
@@ -536,12 +563,10 @@ for (const scenario of [
 
 		assert.equal(lines[0], ENVIRONMENT_GENERATION_MARKER);
 		const values = new Map(
-			lines
-				.slice(1)
-				.map((line) => {
-					const [key, value = ''] = line.split('=', 2);
-					return [key, value];
-				}),
+			lines.slice(1).map((line) => {
+				const [key, value = ''] = line.split('=', 2);
+				return [key, value];
+			}),
 		);
 
 		assert.equal(values.size, scenario.count);
@@ -558,7 +583,10 @@ for (const scenario of [
 		if (scenario.posthogExpected === null) {
 			assert.equal(values.has('PUBLIC_POSTHOG_PROJECT_TOKEN'), false);
 		} else {
-			assert.equal(values.get('PUBLIC_POSTHOG_PROJECT_TOKEN'), scenario.posthogExpected);
+			assert.equal(
+				values.get('PUBLIC_POSTHOG_PROJECT_TOKEN'),
+				scenario.posthogExpected,
+			);
 		}
 	});
 }
@@ -567,7 +595,10 @@ test('frontend host/url helpers are deterministic', () => {
 	for (const value of [1, 10, 500, 999]) {
 		assert.equal(buildFrontendToken(value), `pr${value}`);
 		assert.equal(buildFrontendHost(`pr${value}`), `pr${value}.localhost`);
-		assert.equal(generateFrontendUrl(`pr${value}`, BASE_PORT), `http://pr${value}.localhost:${BASE_PORT}`);
+		assert.equal(
+			generateFrontendUrl(`pr${value}`, BASE_PORT),
+			`http://pr${value}.localhost:${BASE_PORT}`,
+		);
 	}
 });
 
