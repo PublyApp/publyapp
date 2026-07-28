@@ -60,9 +60,25 @@ dev-front:
 dev-front-2 port="5050":
   cd {{front2_dir}} && pnpm exec vite dev --port {{port}} --strictPort
 
+# {{args}} would interpolate as raw shell text, splitting on internal whitespace and
+# letting metacharacters execute (worktree paths/branches with spaces are ordinary here).
+# `set positional-arguments` + "$@"/@args forwards each argument as its own argv entry
+# instead. `pwsh -Command` (the configured windows-shell) joins trailing args back into
+# one string and re-parses it as PowerShell source, defeating positional-arguments — see
+# https://github.com/casey/just/issues/1592 — so the Windows variant runs as a real script
+# file via [script("pwsh")], which binds $args from genuine process arguments.
+
 # Start another worktree's front-2 frontend by PR/issue number
+[unix]
+[positional-arguments]
 review-front-2 *args:
-  node scripts/review-front-2.mjs {{args}}
+  node scripts/review-front-2.mjs "$@"
+
+[windows]
+[script("pwsh")]
+[positional-arguments]
+review-front-2 *args:
+  node scripts/review-front-2.mjs @args
 
 # Start docker services (postgres, etc.)
 dev-services:
