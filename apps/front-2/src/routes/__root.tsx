@@ -19,6 +19,10 @@ import { I18nextProvider, useTranslation } from 'react-i18next';
 import { NeutralAuthedShell } from '~/components/app-shell/neutral-authed-shell';
 import { Button, buttonVariants } from '~/components/ui/button';
 import { AppToaster } from '~/components/ui/toaster';
+import {
+	createClient,
+	getSessionTokensFromBrowser,
+} from '~/lib/api-client/client-manager';
 import { AuthBrandProvider } from '~/lib/auth-brand-context';
 import { isAuthPath } from '~/lib/auth-paths';
 import { serializePublicRuntimeEnv } from '~/lib/env';
@@ -41,13 +45,20 @@ import {
 import { buildLoginRedirectSearch } from '~/lib/login-redirect-search';
 import { registerMutationToastI18n } from '~/lib/mutation-toast';
 import { hasExactAuthedRouteMatch } from '~/lib/route-shell';
+import { ServerFailure } from '~/lib/server/server-failure';
 import { getServerSessionAction } from '~/lib/server/session-actions';
 import { subscribeToSessionInvalidated } from '~/lib/session-invalidation-channel';
 import {
+	determineSessionToken,
 	getSessionSurface,
 	getSurfaceRedirectCodeQueryKey,
 	shouldRenderAuthenticatedChrome,
 } from '~/lib/session-scope';
+import {
+	SessionSurfaceRecoveryProvider,
+	SessionSurfaceValidationProvider,
+} from '~/lib/session-surface-recovery-context';
+import { withSessionValidationTimeout } from '~/lib/session-validation';
 import {
 	COLOR_SCHEME_STORAGE_KEY,
 	SIDEBAR_OPEN_STORAGE_KEY,
@@ -57,7 +68,7 @@ import { TabSyncListener } from '~/lib/tab-sync/tab-sync-listener';
 import { loadI18nForRequest } from '~/server/i18n-locale';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
-import { LOCALE_COOKIE_KEY } from '@org/shared-ts/lib/constants';
+import { LOCALE_COOKIE_KEY, REDIRECT_CODE } from '@org/shared-ts/lib/constants';
 
 import { AppErrorView } from '../components/error-views/AppErrorView';
 import { LogoutRedirect } from '../components/error-views/LogoutRedirect';
@@ -121,6 +132,40 @@ const loadClientRootContext = (
 		}
 	});
 	return pending;
+};
+
+const parseRedirectCode = async (
+	token: string,
+	signal: AbortSignal,
+): Promise<string | null> => {
+	const client = createClient({ getSessionToken: () => token, signal });
+	try {
+		const result = await client.auth.redirectCode.get();
+
+		if (result?.redirectCode === REDIRECT_CODE.UNAUTHORIZED) {
+			throw new ServerFailure({
+				responseStatusCode: 403,
+				status: 403,
+				title: 'Forbidden',
+				detail: 'User has no accessible scope.',
+			});
+		}
+
+		return result?.redirectCode ?? null;
+	} catch (error: unknown) {
+		const failure = toApiFailure(error);
+		if (failure.kind !== 'problem') {
+			throw error;
+		}
+
+		throw new ServerFailure({
+			responseStatusCode: failure.status,
+			status: failure.status,
+			title: failure.title ?? 'Request failed',
+			detail: failure.detail ?? 'Request failed',
+			translationKey: failure.translationKey,
+		});
+	}
 };
 
 const resolveRootContext = async (
@@ -420,8 +465,34 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 	const surfaceRedirectCodeQueryKey =
 		getSurfaceRedirectCodeQueryKey(sessionSurface);
 	const surfaceSessionState = useQuery<string | null>({
-		enabled: false,
 		queryKey: surfaceRedirectCodeQueryKey,
+		queryFn: async ({ signal }): Promise<string | null> => {
+			const tokens = getSessionTokensFromBrowser();
+			const resolved = determineSessionToken(tokens, pathname);
+			const token = resolved.token;
+
+			if (!token) {
+				// A TanStack Query v5 queryFn must never resolve to `undefined`
+				// (it rejects with "Query data cannot be undefined"). This path
+				// should never be reached for authenticated routes: beforeLoad
+				// redirects away earlier when no token is available.
+				return null;
+			}
+
+			return withSessionValidationTimeout(
+				(validationSignal) => parseRedirectCode(token, validationSignal),
+				signal,
+			);
+		},
+		enabled: isHydrated && sessionSurface !== 'other',
+		retry: false,
+		// Session-stable: which surface a token belongs to only changes on
+		// login/logout, both already invalidated explicitly (see
+		// useCurrentUserQuery). Refetching on refocus can turn a transient
+		// hiccup into full-page shell churn, so keep it disabled.
+		refetchOnMount: false,
+		staleTime: Infinity,
+		refetchOnWindowFocus: false,
 	});
 	const surfaceSessionFailureStatus =
 		surfaceSessionState.status === 'error'
@@ -441,13 +512,12 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 	const [brand, setBrand] = React.useState<AuthBrand | undefined>(undefined);
 
 	if (location.hasAuthedRouteMatch) {
+		let shellContent: React.ReactNode = null;
 		const isTenantPortalRoot = pathname.replace(/\/+$/, '') === '/tenant';
 		if (isTenantPortalRoot) {
-			return children;
-		}
-
-		if (!canRenderAuthenticatedChrome) {
-			return (
+			shellContent = children;
+		} else if (!canRenderAuthenticatedChrome) {
+			shellContent = (
 				<NeutralAuthedShell
 					isRecovery={hasSurfaceSessionRecovery}
 					pathname={pathname}
@@ -455,12 +525,23 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 					{children}
 				</NeutralAuthedShell>
 			);
+		} else {
+			shellContent = (
+				<AuthedLayout pathname={pathname} search={location.search}>
+					{children}
+				</AuthedLayout>
+			);
 		}
-
 		return (
-			<AuthedLayout pathname={pathname} search={location.search}>
-				{children}
-			</AuthedLayout>
+			<SessionSurfaceRecoveryProvider
+				value={
+					location.pathname === '/tenant' ? false : hasSurfaceSessionRecovery
+				}
+			>
+				<SessionSurfaceValidationProvider value={surfaceSessionState}>
+					{shellContent}
+				</SessionSurfaceValidationProvider>
+			</SessionSurfaceRecoveryProvider>
 		);
 	}
 

@@ -1,10 +1,9 @@
 import { IconAlertCircle, IconLoader2 } from '@tabler/icons-react';
-import { useQuery } from '@tanstack/react-query';
 import {
 	redirect,
 	createFileRoute,
-	useLocation,
 	Link,
+	useLocation,
 	Outlet,
 	useNavigate,
 	useRouter,
@@ -16,18 +15,13 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
 import { View404 } from '~/components/error-views/View404';
 import { Button, buttonVariants } from '~/components/ui/button';
-import {
-	createClient,
-	getSessionTokensFromBrowser,
-} from '~/lib/api-client/client-manager';
+import { getSessionTokensFromBrowser } from '~/lib/api-client/client-manager';
 import { buildLoginRedirectSearch } from '~/lib/login-redirect-search';
-import { ServerFailure } from '~/lib/server/server-failure';
+import { determineSessionToken, getSessionSurface } from '~/lib/session-scope';
 import {
-	determineSessionToken,
-	getSessionSurface,
-	getSurfaceRedirectCodeQueryKey,
-} from '~/lib/session-scope';
-import { withSessionValidationTimeout } from '~/lib/session-validation';
+	useSessionSurfaceRecovery,
+	useSessionSurfaceValidation,
+} from '~/lib/session-surface-recovery-context';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
@@ -39,47 +33,22 @@ import { AuthedRouteContentSkeleton } from './_route-content-skeleton';
 const STAFF_PATH = '/staff';
 const TENANT_PATH = '/tenant';
 
+const isNavigationReload = (): boolean => {
+	if (typeof window === 'undefined' || typeof performance === 'undefined') {
+		return false;
+	}
+
+	const [entry] = performance.getEntriesByType('navigation');
+	if ((entry as PerformanceNavigationTiming | undefined)?.type === 'reload') {
+		return true;
+	}
+
+	return false;
+};
+
 const getFailureStatus = (error: unknown): number | undefined => {
 	const failure = toApiFailure(error);
 	return failure.kind === 'problem' ? failure.status : undefined;
-};
-
-const parseRedirectCode = async (
-	token: string,
-	signal: AbortSignal,
-): Promise<string | null> => {
-	const client = createClient({ getSessionToken: () => token, signal });
-	try {
-		const result = await client.auth.redirectCode.get();
-
-		if (result?.redirectCode === REDIRECT_CODE.UNAUTHORIZED) {
-			throw new ServerFailure({
-				responseStatusCode: 403,
-				status: 403,
-				title: 'Forbidden',
-				detail: 'User has no accessible scope.',
-			});
-		}
-
-		return result?.redirectCode ?? null;
-	} catch (error: unknown) {
-		const failure = toApiFailure(error);
-		if (failure.kind !== 'problem') {
-			throw error;
-		}
-
-		throw new ServerFailure({
-			responseStatusCode: failure.status,
-			status: failure.status,
-			// Internal ServerFailure metadata, never rendered raw — the displayed
-			// copy comes from t() keyed off .status/.translationKey (__root.tsx).
-			// i18n-guard-ignore: no-hardcoded-ui-literal — see comment above.
-			title: failure.title ?? 'Request failed',
-			// i18n-guard-ignore: no-hardcoded-ui-literal — see title above.
-			detail: failure.detail ?? 'Request failed',
-			translationKey: failure.translationKey,
-		});
-	}
 };
 
 // TanStack Start renders this as the route's SSR fallback and its
@@ -142,14 +111,9 @@ const AuthedLayoutErrorBoundary = ({
 			title={t('something-went-wrong')}
 			description={t('problem-loading-page')}
 			actions={
-				<>
-					<Button variant="default" onClick={retry} type="button">
-						{t('retry')}
-					</Button>
-					<Link to="/" className={buttonVariants({ variant: 'outline' })}>
-						{t('go-to-home')}
-					</Link>
-				</>
+				<Button variant="default" onClick={retry} type="button">
+					{t('retry')}
+				</Button>
 			}
 		/>
 	);
@@ -192,40 +156,12 @@ function AuthedRouteLayout() {
 	const location = useLocation();
 	const pathname = location.pathname ?? '';
 	const navigate = useNavigate();
+	const isSurfaceRecovery = useSessionSurfaceRecovery();
 	const { t } = useTranslation('common');
 	const surfaceScope = getSessionSurface(pathname);
 	const isStaffSurface = surfaceScope === 'staff';
 	const isTenantSurface = surfaceScope === 'tenant';
-	const query = useQuery({
-		queryKey: getSurfaceRedirectCodeQueryKey(surfaceScope),
-		queryFn: async ({ signal }): Promise<string | null> => {
-			const tokens = getSessionTokensFromBrowser();
-			const resolved = determineSessionToken(tokens, pathname);
-			const token = resolved.token;
-
-			if (!token) {
-				// A TanStack Query v5 queryFn must never resolve to `undefined`
-				// (it rejects with "Query data cannot be undefined"). `beforeLoad`
-				// already redirects away before this ever mounts without a token,
-				// so this is a defensive no-op path, not the redirect-away signal.
-				return null;
-			}
-
-			return withSessionValidationTimeout(
-				(validationSignal) => parseRedirectCode(token, validationSignal),
-				signal,
-			);
-		},
-		enabled: surfaceScope !== 'other',
-		retry: false,
-		// Session-stable: which surface a token belongs to only changes on
-		// login/logout, both already invalidated explicitly (see
-		// useCurrentUserQuery). Refetching this on every tab refocus is what
-		// turns a transient/background hiccup into a full-page error swap
-		// (see hasQueryError below) — it must not ride the focus trigger.
-		staleTime: Infinity,
-		refetchOnWindowFocus: false,
-	});
+	const query = useSessionSurfaceValidation();
 	const routeFailureStatus =
 		query.isError && query.error ? getFailureStatus(query.error) : undefined;
 	const hasQueryError = query.isError && Boolean(query.error);
@@ -281,13 +217,20 @@ function AuthedRouteLayout() {
 				title={t('something-went-wrong')}
 				description={t('problem-loading-page')}
 				actions={
-					<Button
-						variant="default"
-						onClick={() => void query.refetch()}
-						type="button"
-					>
-						{t('retry')}
-					</Button>
+					<>
+						<Button
+							variant="default"
+							onClick={() => void query.refetch()}
+							type="button"
+						>
+							{t('retry')}
+						</Button>
+						{isSurfaceRecovery && !isNavigationReload() ? null : (
+							<Link to="/" className={buttonVariants({ variant: 'outline' })}>
+								{t('go-to-home')}
+							</Link>
+						)}
+					</>
 				}
 			/>
 		);

@@ -43,9 +43,14 @@ test.describe('cold-boot stability (BUG-2)', () => {
 			return response.text();
 		});
 
-		expect(html).toContain('data-testid="app-shell-rail"');
-		expect(html).toContain('data-testid="app-shell-topbar"');
-		expect(html).toContain('data-testid="authed-route-content-skeleton"');
+		expect(html).toContain('data-testid="neutral-authed-shell"');
+		expect(html).toContain('data-testid="neutral-authed-shell-rail"');
+		expect(html).toContain('data-testid="neutral-authed-shell-topbar"');
+		expect(html).toContain('class="app-shell-body"');
+		expect(html).toContain('class="app-shell-rail"');
+		expect(html).toContain('class="app-shell-topbar"');
+		expect(html).not.toContain('data-testid="app-shell-shell"');
+		expect(html).not.toContain('data-mode="authed"');
 
 		// Sanity check: the raw HTML is not itself already the finished
 		// table — this assertion is about the pending shell, not the data.

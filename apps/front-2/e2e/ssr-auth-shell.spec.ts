@@ -29,6 +29,10 @@ const expectNoAuthedChrome = (html: string) => {
 	}
 };
 
+const isValidationRequest = (request: Request) =>
+	request.method() === 'GET' &&
+	new URL(request.url()).pathname.endsWith('/auth/redirect-code');
+
 test('SSR never serves authenticated chrome from an unvalidated cookie or a /staff prefix', async ({
 	request,
 }) => {
@@ -423,9 +427,13 @@ test('neutral authenticated geometry matches the hydrated shell across responsiv
 		const validationBlocked = new Promise<void>((resolve) => {
 			releaseValidation = resolve;
 		});
-		let validationRequestSeen = false;
+		const validationRequest = casePage.waitForRequest(
+			(request) => isValidationRequest(request),
+			{
+				timeout: 30_000,
+			},
+		);
 		await casePage.route('**/auth/redirect-code**', async (route) => {
-			validationRequestSeen = true;
 			await validationBlocked;
 			await route.continue();
 		});
@@ -434,11 +442,10 @@ test('neutral authenticated geometry matches the hydrated shell across responsiv
 			waitUntil: 'domcontentloaded',
 		});
 		await expect(casePage.getByTestId('neutral-authed-shell')).toBeVisible();
-		await expect
-			.poll(() => validationRequestSeen, {
-				message: `${matrixCase.pathname} ${matrixCase.width}px did not validate the session`,
-			})
-			.toBe(true);
+		await expect(
+			validationRequest,
+			`${matrixCase.pathname} ${matrixCase.width}px did not validate the session`,
+		).resolves.toBeTruthy();
 
 		const neutralGeometry = await casePage
 			.locator('.neutral-authed-shell > .app-shell-body')
