@@ -10,13 +10,15 @@ import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 
 import {
+	GH_AUTH_FAILURE,
+	GH_INVOCATION_FAILURE,
+	GH_NETWORK_FAILURE,
 	parseWorktrees,
 	parseTrackedChangesFromStatus,
 	getBranchPathByMap,
 	resolveTarget,
 	runIssueByNumber,
 	runPrByNumber,
-	runGhJson,
 } from './review-front-2.resolve.mjs';
 
 const DEFAULT_PORT = 5050;
@@ -27,7 +29,6 @@ const rootRepoCache = { path: null };
 const requestedArgs = process.argv.slice(2);
 const hasInteractiveTerminal = process.stdin.isTTY && process.stdout.isTTY;
 
-const formatShellWord = (value) => JSON.stringify(String(value));
 const err = (message) => {
 	console.error(message);
 	process.exit(1);
@@ -418,7 +419,6 @@ const main = async () => {
 		askChoice,
 		runPrByNumber: (number) => runPrByNumber(number, { runGh }),
 		runIssueByNumber: (number) => runIssueByNumber(number, { runGh }),
-		runGhJson,
 		runGh,
 	});
 
@@ -433,10 +433,11 @@ const main = async () => {
 		}
 
 		if (resolved?.kind === 'issue-ambiguous') {
+			const candidates = resolved.worktrees.map((w) => w.path).join('\n  ');
 			err(
 				`Issue ${String(
 					resolved.requested,
-				)} matched multiple worktrees; pick the target directly by PR number or by path.`,
+				)} matched multiple worktrees; pick the target directly by PR number or by path.\n  ${candidates}`,
 			);
 		}
 
@@ -483,5 +484,24 @@ const main = async () => {
 };
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-	await main();
+	try {
+		await main();
+	} catch (error) {
+		switch (error?.code) {
+			case GH_AUTH_FAILURE: {
+				err(`${error.message}\nRun: gh auth login`);
+				break;
+			}
+
+			case GH_NETWORK_FAILURE:
+			case GH_INVOCATION_FAILURE: {
+				err(error.message);
+				break;
+			}
+
+			default: {
+				err(error?.message ?? String(error));
+			}
+		}
+	}
 }
