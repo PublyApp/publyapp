@@ -84,14 +84,13 @@ public sealed class ApiFactory
 				sp.GetRequiredService<ILoggerFactory>().CreateLogger("Default"));
 
 			// 4) The default test host composes as `all` (APP_ROLE unset), so the
-			//    role-gated worker hosted services are registered. Remove the live
+			//    worker role-gated hosted services are registered. Remove the live
 			//    loops from the integration host: the job specs drive the processor
 			//    and scheduler-leader deterministically via their public methods, and a
 			//    background loop racing the shared test DB — plus the leader binding
-			//    AppEnvironment's (non-test) connection — would make specs flaky. Specs
-			//    that need these construct them directly against the test connection.
-			//    (The InvitationEmailOutboxDispatcher is intentionally left running, as
-			//    its specs rely on the live loop.)
+			//    AppEnvironment's (non-test) connection — would make specs flaky.
+			//    Specs that need these construct them directly against the test
+			//    connection.
 			RemoveWorkerHostedServices(services);
 		});
 	}
@@ -108,6 +107,7 @@ public sealed class ApiFactory
 			typeof(JobQueueListener),
 			typeof(JobQueueMonitorService),
 			typeof(WorkerHeartbeatService),
+			typeof(InvitationEmailOutboxDispatcher),
 		};
 
 		var descriptorsToRemove = services
@@ -115,25 +115,6 @@ public sealed class ApiFactory
 				descriptor.ServiceType == typeof(IHostedService)
 				&& descriptor.ImplementationType is not null
 				&& workerHostedServiceTypes.Contains(descriptor.ImplementationType))
-			.ToList();
-
-		foreach (var descriptor in descriptorsToRemove) {
-			services.Remove(descriptor);
-		}
-	}
-
-	/// <summary>
-	/// Removes all hosted services that can race short-lived middleware tests.
-	/// In addition to worker services, this removes the invitation outbox dispatcher.
-	/// </summary>
-	internal static void RemoveCorsFactoryHostedServices(IServiceCollection services) {
-		RemoveWorkerHostedServices(services);
-
-		var descriptorsToRemove = services
-			.Where(descriptor =>
-				descriptor.ServiceType == typeof(IHostedService)
-				&& descriptor.ImplementationType
-					== typeof(InvitationEmailOutboxDispatcher))
 			.ToList();
 
 		foreach (var descriptor in descriptorsToRemove) {

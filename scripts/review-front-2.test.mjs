@@ -6,10 +6,14 @@ import test from 'node:test';
 
 import {
 	choosePort,
+	buildFrontendToken,
+	generateFrontendTokenForTarget,
 	generateEnv,
 	getIssueBranchPattern,
+	parseFrontendTokenFromPath,
 	parseTrackedChangesFromStatus,
 	parseWorktrees,
+	resolveFrontendToken,
 	FRONTEND_ENV_KEYS,
 } from './review-front-2.mjs';
 
@@ -89,25 +93,120 @@ test('issue token pattern avoids near misses and suffix-only matches', () => {
 	assert.equal(isMatch(989, 'hotfix/1989-x'), false);
 });
 
-test('generated review overlay contains only allowed keys', async () => {
+test('resolves token for PR references', async () => {
+	const token = await resolveFrontendToken({
+		kind: 'pr',
+		source: { number: 997 },
+		worktree: { path: '/tmp/pr997', branch: 'fix/997-ui' },
+	});
+
+	assert.equal(token, 'pr997');
+	assert.equal(
+		await generateFrontendTokenForTarget({
+			kind: 'pr',
+			source: { number: 997 },
+			worktree: { path: '/tmp/pr997', branch: 'fix/997-ui' },
+		}),
+		'pr997',
+	);
+});
+
+test('resolves issue token via injected resolver branch lookup', async () => {
+	const token = await resolveFrontendToken(
+		{
+			kind: 'issue',
+			worktree: {
+				branch: 'fix/997-auth',
+				path: '/tmp/.worktrees/fix-997-auth',
+			},
+		},
+		{
+			resolvePrByBranch: async () => ({ number: 997 }),
+		},
+	);
+
+	assert.equal(token, 'pr997');
+});
+
+test('falls back to path parsing for issue refs when no issue PR exists', async () => {
+	const token = await resolveFrontendToken(
+		{
+			kind: 'issue',
+			worktree: {
+				branch: 'fix/997-auth',
+				path: '/tmp/.worktrees/pr997',
+			},
+		},
+		{
+			resolvePrByBranch: async () => ({ number: null }),
+		},
+	);
+
+	assert.equal(token, 'pr997');
+});
+
+test('resolves issue token through default path when no branch is available', async () => {
+	const token = await resolveFrontendToken({
+		kind: 'issue',
+		worktree: {
+			branch: null,
+			path: '/tmp/.worktrees/pr998',
+		},
+	});
+
+	assert.equal(token, 'pr998');
+});
+
+test('generated review overlay writes expected keys and token values', async () => {
 	const worktreePath = await mkdtemp(
 		path.join(os.tmpdir(), 'review-front-2-overlay-'),
 	);
 	const envFile = path.join(worktreePath, '.env.development.local');
 	const priorToken = process.env.PUBLIC_POSTHOG_PROJECT_TOKEN;
 
-	process.env.PUBLIC_POSTHOG_PROJECT_TOKEN = 'token-from-test';
-	await generateEnv(worktreePath, 'pr989', 5994);
-	const raw = await readFile(envFile, 'utf8');
-	try {
-		for (const line of raw.split('\n')) {
-			if (line.trim().length === 0 || line.startsWith('#')) {
-				continue;
-			}
+	const assertOverlay = async (expectedPostHogToken) => {
+		const raw = await readFile(envFile, 'utf8');
+		const entries = new Map(
+			raw
+				.split('\n')
+				.filter((line) => line.length > 0 && !line.startsWith('#'))
+				.map((line) => {
+					const [key, value = ''] = line.split('=', 2);
+					return [key, value];
+				}),
+		);
 
-			const key = line.slice(0, line.indexOf('='));
+		assert.ok(entries.has('FRONT_URL'));
+		assert.equal(entries.get('FRONT_URL'), 'http://pr989.localhost:5994');
+		assert.equal(entries.get('PUBLIC_API_BASE_URL'), 'http://localhost:5000');
+		assert.equal(entries.get('SERVER_API_BASE_URL'), 'http://localhost:5000');
+		assert.equal(entries.get('VITE_ASP_SERVER_URL'), 'http://localhost:5000');
+
+		if (expectedPostHogToken === undefined) {
+			assert.ok(!entries.has('PUBLIC_POSTHOG_PROJECT_TOKEN'));
+			assert.equal(entries.size, 4);
+		} else {
+			assert.equal(
+				entries.get('PUBLIC_POSTHOG_PROJECT_TOKEN'),
+				expectedPostHogToken,
+			);
+			assert.equal(entries.size, 5);
+		}
+
+		for (const key of entries.keys()) {
 			assert.ok(FRONTEND_ENV_KEYS.includes(key));
 		}
+	};
+
+	try {
+		process.env.PUBLIC_POSTHOG_PROJECT_TOKEN = 'token-from-test';
+		await generateEnv(worktreePath, 'pr989', 5994);
+		await assertOverlay('token-from-test');
+
+		await rm(envFile, { force: true });
+		delete process.env.PUBLIC_POSTHOG_PROJECT_TOKEN;
+		await generateEnv(worktreePath, 'pr989', 5994);
+		await assertOverlay(undefined);
 	} finally {
 		if (priorToken === undefined) {
 			delete process.env.PUBLIC_POSTHOG_PROJECT_TOKEN;
@@ -117,6 +216,12 @@ test('generated review overlay contains only allowed keys', async () => {
 
 		await rm(worktreePath, { recursive: true, force: true });
 	}
+});
+
+test('generated helpers build and parse frontend tokens', () => {
+	assert.equal(buildFrontendToken(989), 'pr989');
+	assert.equal(parseFrontendTokenFromPath('/tmp/.worktrees/pr994'), 'pr994');
+	assert.equal(parseFrontendTokenFromPath('/tmp/.worktrees/issue-1'), null);
 });
 
 test('tracked changes parser preserves exact path with leading space and renames', () => {

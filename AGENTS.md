@@ -32,7 +32,7 @@ just dev-db
 `ci-full` gates intentionally include the retired app's characterization suites, and `clean` removes
 its artifacts along with the rest of the workspace. `dev-setup` and `quick-start` also print the
 obsolete instruction to run `just dev-front`; ignore that final prompt. Drive `apps/front-2` — the
-app that actually ships — with `just dev-front-2`, `just review-front-2`, `pnpm --filter front-2 <script>`, or the `just ci-front-2` gate.
+app that actually ships — with `just dev-front-2`, `just review-front-2 <pr-or-issue-number>`, `pnpm --filter front-2 <script>`, or the `just ci-front-2` gate.
 
 Since #885, the API waits for pending migrations but does not apply them. Run
 `just db-migrate` first, or use `just dev-api-migrated` to migrate and start the API.
@@ -179,6 +179,7 @@ apps/api/Modules/<Domain>/
 ```
 
 **Key Patterns:**
+
 - **CQRS-lite**: handlers per operation (create/find/get/update/delete)
 - **Minimal APIs**: endpoints map routes and attach filters/permissions
 - **FluentValidation**: automatic body/query validation via endpoint extensions
@@ -186,6 +187,7 @@ apps/api/Modules/<Domain>/
 - **Namespace discipline**: `IDE0130` is treated as error — file namespace must match its folder path
 
 **Finding Backend Code:**
+
 - Domain modules (preferred): `apps/api/Modules/<Domain>/` (e.g. `Auth`, `Users`, `Invitations`)
 - Legacy (migration in progress): `apps/api/Modules/{Shared,Staff,Tenant}/` (do not add new code here unless you're migrating existing slices)
 - Cross-cutting utilities/middleware: `apps/api/Lib/`
@@ -198,6 +200,7 @@ slice boundaries, permission enforcement, vertical slice design principles, and 
 [`docs/guides/api-module-structure.md`](docs/guides/api-module-structure.md)
 
 **Key principles (always apply):**
+
 - Domain-first modules: `apps/api/Modules/<Domain>/` — route scope expressed via handler folders + endpoint groups
 - Junction entities live with their **primary entity**'s domain
 - Pure junction entities use a composite primary key made from their foreign keys; do not inherit
@@ -214,6 +217,7 @@ For detailed documentation on business rules, database layer, authentication, an
 [`docs/guides/architecture-details.md`](docs/guides/architecture-details.md)
 
 **Key facts (always apply):**
+
 - Staff/Tenant mutual exclusivity: a `User` can only have accounts of ONE scope type (Staff or Tenant/Project, never both); suspended accounts still count
 - PostgreSQL 18 with UUID v7 PKs, soft deletes (`IsDeleted`), and audit tracking
   (`CreatedAt`/`UpdatedAt`/`DeletedAt`) for normal entities via `BaseAttributes`;
@@ -237,6 +241,7 @@ file-based discovery); `routeTree.gen.ts` is generated. A route-local file that 
 route is prefixed with `_`.
 
 **State Management Strategy:**
+
 ```
 Server State     → TanStack Query (API data, caching, mutations)
 Global State     → Zustand (UI state — `apps/front-2/src/lib/store/ui-store.ts`)
@@ -245,6 +250,7 @@ Form State       → React Hook Form + Zod
 ```
 
 **Key rules (always apply):**
+
 - Marketing and auth surfaces are SSR; authenticated surfaces are CSR (`ssr: false`) and fetch
   application data in the browser via TanStack Query + the Kiota client
 - Never fetch authenticated domain data in a server loader or a server function
@@ -258,6 +264,7 @@ Form State       → React Hook Form + Zod
 ### RFC 7807 + Frontend Logout Semantics (Do Not Regress)
 
 **Backend invariants:**
+
 - Error responses must be RFC 7807 `application/problem+json` via `TypedProblems.*` and the `App*HttpResult` types.
 - `422` is for validation problems and must include `errors: Dictionary<string, string[]>` with stable keys.
 - `401` must be reserved for **invalid/missing session** only (frontend treats `401` as "logout now").
@@ -265,6 +272,7 @@ Form State       → React Hook Form + Zod
 - Never log secrets: do not log `X-Session-Token` (or any session token value) in any log level.
 
 **Frontend invariants:**
+
 - Only `401` triggers centralized logout; `403` must not log users out.
 
 ### API Routes & Endpoint Path Design
@@ -280,6 +288,7 @@ For route parameter conventions (no route constraints, ID validation pattern), s
 [`docs/guides/api-route-parameters.md`](docs/guides/api-route-parameters.md)
 
 **Key principles (always apply):**
+
 - Staff API: `/staff/...` with explicit `{tenantId}` in path
 - Tenant API: `/...` (root) with implicit tenant from `X-Tenant-Id` header
 - Anonymous: `/auth/...`, `/invitations/...`
@@ -404,6 +413,7 @@ For step-by-step checklists (adding features, updating API contract, adding enti
 [`docs/guides/common-workflows.md`](docs/guides/common-workflows.md)
 
 **Quick reference:**
+
 - After API contract changes: `just build-api && just generate-client` (never modify `packages/client-ts/` manually)
 - New entity: inherit `BaseAttributes`, implement tenant interface, add `DbSet`, `just db-add <MigrationName> && just db-migrate`
 - New permission: add to `Seeder.cs`, use `PermissionFilter` on endpoint, check via `AuthContext.HasPermission()`
@@ -464,6 +474,7 @@ client regeneration workflow, and TypeScript patterns), see:
 [`docs/guides/openapi-kiota-safeguards.md`](docs/guides/openapi-kiota-safeguards.md)
 
 **Key rules (always apply):**
+
 - Required body fields: non-nullable `JsonElement` (not `JsonElement?`) for cleaner TypeScript types
 - Never add XML comments to generic types (`<T>`) — triggers .NET 10 OpenAPI bug
 - `[AsParameters]` query DTOs: never use `List<T>?` or custom `BindAsync`; use CSV `string?` + parser method for multi-value filters — see [`openapi-kiota-safeguards.md`](docs/guides/openapi-kiota-safeguards.md#query-dto-multi-value-filters)

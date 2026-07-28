@@ -1247,7 +1247,7 @@ public sealed class ComprehensiveRateLimitingSpec
 		values.Should().ContainSingle()
 			.Which.Should().Be(
 				AppEnvironment.Instance.FRONT_URL
-		);
+			);
 	}
 
 	private static void AssertRetryAfterIsCorsExposed(

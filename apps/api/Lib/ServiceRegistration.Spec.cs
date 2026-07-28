@@ -1,4 +1,6 @@
 using System.Net;
+using System.Reflection;
+using System.Text.RegularExpressions;
 
 using FluentAssertions;
 
@@ -47,6 +49,7 @@ public sealed class ServiceRegistrationSpec {
 			"https://pr1.localhost.evil.com:5994",
 			"http://pr1.localhost.evil.com:5994",
 			"http://pr1.localhost.:5994",
+			AppEnvironment.Instance.FRONT_URL.ToUpperInvariant(),
 			"HTTP://PR1.LOCALHOST:5994",
 			"http://pr١.localhost:5994",
 		};
@@ -71,6 +74,15 @@ public sealed class ServiceRegistrationSpec {
 				"Access-Control-Allow-Origin"
 			).Should().BeFalse();
 		}
+	}
+
+	[Fact]
+	public void
+	ItShouldRejectAWorktreeOriginWithTrailingNewlineOrWhitespace() {
+		var regex = GetWorktreePrOriginPattern();
+		regex.IsMatch("http://pr994.localhost:5994").Should().BeTrue();
+		regex.IsMatch("http://pr994.localhost:5994\n").Should().BeFalse();
+		regex.IsMatch("http://pr994.localhost:5994\r").Should().BeFalse();
 	}
 
 	[Fact]
@@ -160,7 +172,7 @@ public sealed class ServiceRegistrationSpec {
 			IWebHostBuilder builder
 		) {
 			builder.UseEnvironment(environment);
-			builder.ConfigureServices(ApiFactory.RemoveCorsFactoryHostedServices);
+			builder.ConfigureServices(ApiFactory.RemoveWorkerHostedServices);
 		}
 	}
 
@@ -182,7 +194,7 @@ public sealed class ServiceRegistrationSpec {
 	) {
 		var request = CreateCorsRequest(
 			HttpMethod.Options,
-			"/health",
+			"/health/live",
 			origin
 		);
 		request.Headers.TryAddWithoutValidation(
@@ -190,6 +202,19 @@ public sealed class ServiceRegistrationSpec {
 			"POST"
 		);
 		return request;
+	}
+
+	private static Regex GetWorktreePrOriginPattern() {
+		var method = typeof(ServiceRegistration).GetMethod(
+			"WorktreePrOriginPattern",
+			BindingFlags.NonPublic | BindingFlags.Static
+		);
+		method.Should().NotBeNull();
+
+		var regex = method!.Invoke(null, null) as Regex;
+		regex.Should().NotBeNull();
+
+		return regex!;
 	}
 
 	private static void AssertCorsPreflightHeaders(
