@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
 import { Checkbox } from '~/components/ui/checkbox';
-import { FilterInput } from '~/components/ui/filter-input';
+import { SearchInput } from '~/components/ui/search-input';
 import {
 	buildStaffTenantPermissionGroupColumns,
 	type StaffTenantPermissionGroup,
@@ -240,7 +240,7 @@ const PermissionMatrix = ({
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="flex flex-wrap items-center justify-between gap-3">
-				<FilterInput
+				<SearchInput
 					aria-label={t('filter-permissions')}
 					value={filterDraft}
 					onValueChange={setFilterDraft}

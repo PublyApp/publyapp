@@ -2,12 +2,12 @@ import { Popover } from '@base-ui/react/popover';
 import { IconPencil } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FilterInput } from '~/components/ui/filter-input';
 import {
 	DEFAULT_ICON_COLOR_PICKER_OPTION,
 	getIconColorPickerOption,
 	ICON_COLOR_PICKER_OPTIONS,
 } from '~/components/ui/icon-color-picker-options';
+import { SearchInput } from '~/components/ui/search-input';
 import { cn } from '~/lib/utils';
 
 type IconColorPickerValue = {
@@ -127,13 +127,14 @@ const IconColorPicker = ({
 							>
 								{t('choose-icon')}
 							</h2>
-							<FilterInput
+							<SearchInput
 								value={search}
 								onValueChange={setSearch}
 								aria-label={t('profile-icon-search')}
 								placeholder={t('profile-icon-search-placeholder')}
 								clearLabel={t('clear-profile-icon-search')}
-								className="mt-2 h-9"
+								size="compact"
+								className="mt-2"
 							/>
 							<div className="mt-3 grid max-h-48 grid-cols-4 gap-2 overflow-y-auto p-0.5">
 								{filteredIconOptions.map((option) => {

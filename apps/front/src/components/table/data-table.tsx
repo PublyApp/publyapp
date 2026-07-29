@@ -4,7 +4,6 @@ import {
 	IconArrowsSort,
 	IconChevronLeft,
 	IconChevronRight,
-	IconSearch,
 	type TablerIcon,
 } from '@tabler/icons-react';
 import {
@@ -25,7 +24,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
 import { Checkbox } from '~/components/ui/checkbox';
-import { Input } from '~/components/ui/input';
+import { SearchInput } from '~/components/ui/search-input';
 import {
 	Select,
 	SelectContent,
@@ -275,19 +274,17 @@ export const DataTableToolbar = ({
 	return (
 		<div className="publy-data-table-toolbar" data-testid={`${testId}-toolbar`}>
 			{onSearchDraftChange ? (
-				<div className="publy-search-wrapper">
-					<IconSearch aria-hidden="true" className="publy-search-icon" />
-					<Input
-						aria-label={t('search')}
-						className="publy-data-table-search-input bg-background pl-9"
-						value={searchDraft ?? ''}
-						onChange={(event) => onSearchDraftChange(event.target.value)}
-						disabled={disabled}
-						title={disabled ? disabledTitle : undefined}
-						placeholder={resolvedPlaceholder}
-						data-testid={`${testId}-search`}
-					/>
-				</div>
+				<SearchInput
+					aria-label={t('search')}
+					size="table"
+					value={searchDraft ?? ''}
+					onValueChange={onSearchDraftChange}
+					disabled={disabled}
+					title={disabled ? disabledTitle : undefined}
+					placeholder={resolvedPlaceholder}
+					clearLabel={t('clear-search')}
+					data-testid={`${testId}-search`}
+				/>
 			) : null}
 			{toolbarEnd ? (
 				<div className="publy-data-table-toolbar-end">{toolbarEnd}</div>

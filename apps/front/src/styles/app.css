@@ -2039,6 +2039,14 @@ html.dark {
 		color: var(--publy-foreground-subtle);
 	}
 
+	/* #975 defect 2: the clear button anchors to the SAME field box the
+	   magnifier does — top-1/2 -translate-y-1/2 of the wrapper, which is
+	   guaranteed to equal the field's own box because the caller's className
+	   lands on this wrapper, never on the input (see search-input.tsx). */
+	.publy-search-clear {
+		@apply absolute right-2 top-1/2 -translate-y-1/2 inline-flex size-6 items-center justify-center rounded-[var(--publy-radius-sm)] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-50;
+	}
+
 	.publy-data-table-toolbar-end {
 		@apply flex items-center gap-2;
 	}
@@ -2350,6 +2358,18 @@ html.dark {
 	height: 40px;
 	min-height: 40px;
 	border-radius: var(--publy-radius-control);
+}
+
+/* #975 defect 1: suppress the browser's native `type="search"` cancel
+   button. `display: none` (not a visually-hidden trick) fully removes it
+   from the accessibility tree and tab order, so it can never sit beside our
+   own clear button or remain a hidden-but-focusable stray control. Kept
+   outside the layer so it always wins regardless of cascade-layer ordering
+   against the UA stylesheet. */
+.publy-search-input[type='search']::-webkit-search-cancel-button {
+	-webkit-appearance: none;
+	appearance: none;
+	display: none;
 }
 
 .publy-data-table-filter-button[data-slot='button'] {
