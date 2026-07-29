@@ -21,12 +21,26 @@ jobs:
     name: Determine changed paths
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       pull-requests: read
     outputs:
       relevant: ${{ steps.filter.outputs.relevant }}
     steps:
-      - name: Checkout
+      # A pull_request run checks out the PR's own merge commit by default,
+      # which means the PR's own copy of the classifier decides whether the
+      # PR gets tested — a PR could edit this script to always report
+      # relevant=false (round-2 review). Force the base commit instead, so
+      # the classifier that runs is not something this pull request controls.
+      # Not a complete trust boundary (the calling workflow is itself
+      # merge-commit-controlled) — see #1017 follow-up for the honest
+      # framing — but it closes the script-only bypass.
+      - name: Checkout classifier from the base commit (not the PR's own copy)
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
+          sparse-checkout: |
+            scripts/ci-changed-paths.mjs
+          sparse-checkout-cone-mode: false
 
       - name: Setup Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -80,23 +94,22 @@ jobs:
     needs: [changes, docs-archive]
     runs-on: ubuntu-latest
     steps:
+      # Reads the `needs` context directly (via toJSON) instead of a
+      # hand-written per-job map: a job added to `needs` above without also
+      # being added to a hand-maintained Bash list would silently never be
+      # checked (round-2 review). `needs` is populated by Actions from this
+      # job's own `needs:` keyword, so there is no second list to omit an
+      # entry from.
       - name: Check required jobs
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
         run: |
-          declare -A results=(
-            [changes]="${{ needs.changes.result }}"
-            [docs-archive]="${{ needs.docs-archive.result }}"
-          )
+          echo "Required jobs and their results:"
+          echo "$NEEDS_JSON" | jq -r 'to_entries[] | "  \(.key): \(.value.result)"'
 
-          failed=false
-          for name in "${!results[@]}"; do
-            result="${results[$name]}"
-            echo "  $name: $result"
-            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
-              failed=true
-            fi
-          done
+          bad_count="$(echo "$NEEDS_JSON" | jq '[.[] | select(.result == "failure" or .result == "cancelled")] | length')"
 
-          if [ "$failed" = true ]; then
+          if [ "$bad_count" -gt 0 ]; then
             echo "::error::One or more required jobs failed or were cancelled."
             exit 1
           fi
