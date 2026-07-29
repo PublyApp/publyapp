@@ -28,6 +28,21 @@ type SourceFile = {
 	source: string;
 };
 
+// `ts.SourceFile.parseDiagnostics` has always existed on the classic
+// compiler's concrete SourceFile at runtime, but it is `@internal` and not
+// part of the public `ts.SourceFile` type, so a plain untyped consumer (like
+// check-design-system.mjs) can read it directly while this typechecked `.ts`
+// file cannot without a cast. Isolated in one place instead of an inline
+// `as`/`any` at every call site.
+type CompilerSourceFileWithParseDiagnostics = ts.SourceFile & {
+	parseDiagnostics: readonly ts.Diagnostic[];
+};
+
+const getParseDiagnostics = (
+	sourceFile: ts.SourceFile,
+): readonly ts.Diagnostic[] =>
+	(sourceFile as CompilerSourceFileWithParseDiagnostics).parseDiagnostics;
+
 const isProductionSourceFile = (relativePath: string): boolean => {
 	const normalized = relativePath.split(path.sep).join('/');
 	const basename = path.posix.basename(normalized);
@@ -85,14 +100,53 @@ const getProductionSourceFiles = (): Promise<SourceFile[]> => {
 	return cachedSourceFiles;
 };
 
-const parseSource = (source: string): ts.SourceFile =>
-	ts.createSourceFile(
-		'architecture-fixture.tsx',
+const scriptKindForRelativePath = (relativePath: string): ts.ScriptKind =>
+	relativePath.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
+
+// chore/908 follow-up (adversarial review BLOCKER): this used to always parse
+// as TSX under a fake .tsx filename, regardless of the real file's extension.
+// TSX grammar treats a generic arrow function (`const fn = <T>(...) => ...`,
+// valid in a real .ts file) as ambiguous with a JSX opening tag, so a real
+// .ts production file with that shape produced parse errors; the recovery
+// tree that TSX-parsing built from that point on was silently a DIFFERENT,
+// partial tree — and a forbidden import placed after the break vanished from
+// it. Two independent fixes, both required:
+//  1. Choose ScriptKind from the real relative path, not a hardcoded TSX
+//     default, so a .ts file is parsed as TS.
+//  2. Treat ANY parseDiagnostics as a hard, loud failure naming the file,
+//     instead of ever walking whatever recovery tree the parser produced.
+//     ts-morph's vendored compiler only stabilizes the *API surface* across
+//     TypeScript upgrades (see the import-site comment above) — it does not,
+//     and cannot, make an older parser understand syntax only a newer one
+//     accepts. The day production source uses such syntax, this guard must
+//     stop the build with a named file, not quietly report zero findings.
+const parseSource = (
+	source: string,
+	relativePath = 'architecture-fixture.ts',
+): ts.SourceFile => {
+	const sourceFile = ts.createSourceFile(
+		relativePath,
 		source,
 		ts.ScriptTarget.Latest,
 		true,
-		ts.ScriptKind.TSX,
+		scriptKindForRelativePath(relativePath),
 	);
+
+	const parseDiagnostics = getParseDiagnostics(sourceFile);
+	if (parseDiagnostics.length > 0) {
+		const messages = parseDiagnostics
+			.map((diagnostic) =>
+				ts.flattenDiagnosticMessageText(diagnostic.messageText, ' '),
+			)
+			.join('; ');
+		throw new Error(
+			`mutation-feedback-architecture guard could not parse ${relativePath} — ` +
+				`refusing to scan a partial/recovered syntax tree: ${messages}`,
+		);
+	}
+
+	return sourceFile;
+};
 
 const getPropertyName = (name: ts.PropertyName): string | undefined => {
 	if (ts.isIdentifier(name) || ts.isStringLiteralLike(name)) {
@@ -133,8 +187,11 @@ const containsIdentifier = (node: ts.Node, name: string): boolean => {
 	return found;
 };
 
-export const findSonnerImports = (source: string): string[] => {
-	const sourceFile = parseSource(source);
+export const findSonnerImports = (
+	source: string,
+	relativePath?: string,
+): string[] => {
+	const sourceFile = parseSource(source, relativePath);
 	const imports: string[] = [];
 	const visit = (node: ts.Node): void => {
 		if (
@@ -166,8 +223,11 @@ export const findSonnerImports = (source: string): string[] => {
 	return imports;
 };
 
-export const hasDirectUseMutationCall = (source: string): boolean => {
-	const sourceFile = parseSource(source);
+export const hasDirectUseMutationCall = (
+	source: string,
+	relativePath?: string,
+): boolean => {
+	const sourceFile = parseSource(source, relativePath);
 	return containsIdentifierCall(sourceFile, 'useMutation');
 };
 
@@ -188,8 +248,11 @@ const containsIdentifierCall = (node: ts.Node, name: string): boolean => {
 	return found;
 };
 
-export const findRouterFeedbackViolations = (source: string): string[] => {
-	const sourceFile = parseSource(source);
+export const findRouterFeedbackViolations = (
+	source: string,
+	relativePath?: string,
+): string[] => {
+	const sourceFile = parseSource(source, relativePath);
 	const queryCaches: ts.ObjectLiteralExpression[] = [];
 	const mutationCaches: ts.ObjectLiteralExpression[] = [];
 	const visit = (node: ts.Node): void => {
@@ -242,8 +305,11 @@ export const findRouterFeedbackViolations = (source: string): string[] => {
 	return violations;
 };
 
-export const hasQueryFactoryOnToast = (source: string): boolean => {
-	const sourceFile = parseSource(source);
+export const hasQueryFactoryOnToast = (
+	source: string,
+	relativePath?: string,
+): boolean => {
+	const sourceFile = parseSource(source, relativePath);
 	let found = false;
 	const inspectForHandlers = (node: ts.Node): void => {
 		if (ts.isObjectLiteralExpression(node)) {
@@ -276,8 +342,11 @@ export const hasQueryFactoryOnToast = (source: string): boolean => {
 	return found;
 };
 
-const extractSuccessMessageKeys = (source: string): string[] => {
-	const sourceFile = parseSource(source);
+const extractSuccessMessageKeys = (
+	source: string,
+	relativePath?: string,
+): string[] => {
+	const sourceFile = parseSource(source, relativePath);
 	const keys: string[] = [];
 
 	const visit = (node: ts.Node): void => {
@@ -310,7 +379,9 @@ const collectQuerySuccessMessageKeys = async (): Promise<string[]> => {
 		new Set(
 			files
 				.filter(({ relativePath }) => relativePath.startsWith('lib/query/'))
-				.flatMap(({ source }) => extractSuccessMessageKeys(source)),
+				.flatMap(({ source, relativePath }) =>
+					extractSuccessMessageKeys(source, relativePath),
+				),
 		),
 	);
 };
@@ -333,6 +404,43 @@ describe('mutation feedback architecture classifiers', () => {
 		expect(
 			findSonnerImports("// sonner is an adapter\nconst label = 'sonner';"),
 		).toEqual([]);
+	});
+
+	// Adversarial review BLOCKER regression: parseSource used to always parse
+	// as TSX under a synthetic .tsx filename, no matter the real extension. A
+	// generic arrow function is valid, unambiguous syntax in a real .ts file
+	// but reads as an unclosed JSX opening tag under TSX grammar — the parser
+	// recovered into a different, partial tree from that point on, and a
+	// forbidden Sonner import placed after the generic arrow vanished from it
+	// even though `pnpm --filter front typecheck` accepts the file outright.
+	// Passing the real .ts relativePath must select ScriptKind.TS and keep the
+	// import visible.
+	test('a .ts file with a generic arrow function does not defeat the Sonner-import scan (regression: previously misparsed as TSX)', () => {
+		const source = [
+			'const identity = <T,>(value: T): T => value;',
+			"import { toast } from 'sonner';",
+			'void identity;',
+			'void toast;',
+		].join('\n');
+
+		expect(findSonnerImports(source, 'lib/generic-arrow-probe.ts')).toEqual([
+			'sonner',
+		]);
+	});
+
+	// Adversarial review IMPORTANT/BLOCKER-adjacent regression: a source the
+	// bundled parser cannot finish parsing must never be treated as "found
+	// nothing" — it must throw, naming the file, so the guard fails the build
+	// instead of silently reporting a clean scan of a broken recovery tree.
+	test('parseSource fails loudly, naming the file, when the bundled parser cannot finish parsing (parse-diagnostic canary)', () => {
+		const unparseable = [
+			'const broken = `unterminated template literal',
+			"import { toast } from 'sonner';",
+		].join('\n');
+
+		expect(() =>
+			findSonnerImports(unparseable, 'lib/unparseable-probe.ts'),
+		).toThrow(/lib\/unparseable-probe\.ts/);
 	});
 
 	test('finds direct useMutation calls, including generic calls, but not text', () => {
@@ -402,7 +510,7 @@ describe('front mutation feedback architecture', () => {
 		const offenders = files
 			.filter(
 				({ relativePath, source }) =>
-					findSonnerImports(source).length > 0 &&
+					findSonnerImports(source, relativePath).length > 0 &&
 					!ALLOWED_SONNER_IMPORTERS.has(relativePath),
 			)
 			.map(({ relativePath }) => relativePath);
@@ -418,7 +526,7 @@ describe('front mutation feedback architecture', () => {
 		const offenders = files
 			.filter(
 				({ relativePath, source }) =>
-					hasDirectUseMutationCall(source) &&
+					hasDirectUseMutationCall(source, relativePath) &&
 					!relativePath.startsWith('lib/query/'),
 			)
 			.map(({ relativePath }) => relativePath);
@@ -439,7 +547,10 @@ describe('front mutation feedback architecture', () => {
 			'router.tsx must be included in production source',
 		).toBeDefined();
 
-		const violations = findRouterFeedbackViolations(router?.source ?? '');
+		const violations = findRouterFeedbackViolations(
+			router?.source ?? '',
+			router?.relativePath ?? 'router.tsx',
+		);
 		expect(
 			violations,
 			`router.tsx must keep query/auth errors in QueryCache and mutation success/failure feedback in MutationCache. Violations: ${violations.join('; ')}`,
@@ -449,7 +560,9 @@ describe('front mutation feedback architecture', () => {
 	test('front query factories never configure handlers.onToast', async () => {
 		const files = await getProductionSourceFiles();
 		const offenders = files
-			.filter(({ source }) => hasQueryFactoryOnToast(source))
+			.filter(({ source, relativePath }) =>
+				hasQueryFactoryOnToast(source, relativePath),
+			)
 			.map(({ relativePath }) => relativePath);
 
 		expect(
