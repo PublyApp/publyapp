@@ -499,7 +499,7 @@ const ResetPasswordRoute = () => {
 
 export const Route = createFileRoute('/reset-password')({
 	beforeLoad: redirectAuthenticatedUserAwayFromAuthPage,
-	staticData: { i18nNamespaces: ['auth'] },
+	staticData: { i18nNamespaces: ['auth'], crumbs: 'shell' },
 	loader: resetPasswordLoader,
 	component: ResetPasswordRoute,
 });

@@ -33,7 +33,9 @@ import {
 } from '~/lib/query/staff-tenant-users';
 import {
 	invalidateStaffTenants,
+	selectStaffTenantCrumbName,
 	STAFF_TENANT_DETAILS_QUERY_KEY,
+	staffTenantCrumbQuery,
 	toStaffTenantDetails,
 	useDeleteStaffTenantMutation,
 	useReactivateStaffTenantMutation,
@@ -101,6 +103,16 @@ const resolveLifecycleDescription = ({
 
 export const Route = createFileRoute('/_authed-layout/staff/tenants/$tenantId')(
 	{
+		staticData: {
+			crumbs: () => [
+				{ kind: 'label', labelKey: 'nav-tenants', to: '/staff/tenants' },
+				{
+					kind: 'entity',
+					query: staffTenantCrumbQuery,
+					select: selectStaffTenantCrumbName,
+				},
+			],
+		},
 		component: StaffTenantDetailsPage,
 	},
 );

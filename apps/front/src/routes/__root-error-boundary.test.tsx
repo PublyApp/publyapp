@@ -83,6 +83,7 @@ const buildRouter = (initialUrl: string, includeErrorPreview: boolean) => {
 				createRoute({
 					getParentRoute: () => RootRoute,
 					path: '/staff/error-preview',
+					staticData: { crumbs: 'shell' },
 					component: () => (
 						<RootErrorBoundary error={new Error('boom')} reset={() => {}} />
 					),

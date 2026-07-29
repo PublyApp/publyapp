@@ -169,6 +169,9 @@ export const buildColumns = (
 ];
 
 export const Route = createFileRoute('/_authed-layout/staff/profiles')({
+	staticData: {
+		crumbs: () => [{ kind: 'label', labelKey: 'nav-staff-profiles' }],
+	},
 	validateSearch: (search) =>
 		validateTableSearchParams(search as TableSearchParamInput),
 	component: StaffProfilesPage,

@@ -177,6 +177,11 @@ vi.mock('~/lib/query/staff-tenants', () => ({
 		queryClient.invalidateQueries({
 			queryKey: ['staff', 'staff-tenants'],
 		}),
+	staffTenantCrumbQuery: () => ({
+		queryKey: ['staff', 'staff-tenants', 'details'],
+		queryFn: async () => undefined,
+	}),
+	selectStaffTenantCrumbName: () => undefined,
 }));
 
 vi.mock('~/lib/query/staff-tenant-profiles', () => ({
@@ -277,6 +282,11 @@ vi.mock('~/lib/query/staff-tenant-profiles', () => ({
 		mocks.useAssignStaffTenantProfilePermissionMutation,
 	useUnassignStaffTenantProfilePermissionMutation:
 		mocks.useUnassignStaffTenantProfilePermissionMutation,
+	staffTenantProfileCrumbQuery: () => ({
+		queryKey: ['staff', 'staff-tenants', 'profiles', 'detail'],
+		queryFn: async () => undefined,
+	}),
+	selectStaffTenantProfileCrumbName: () => undefined,
 }));
 
 vi.mock('~/lib/should-logout-for-failure', () => ({
@@ -482,8 +492,6 @@ vi.mock('react-i18next', () => ({
 	}),
 }));
 
-import { useUiStore } from '~/lib/store/ui-store';
-
 import { Route } from './$profileId';
 import { parseProfileDetailsSearchParams } from './_profile-details-search';
 
@@ -519,14 +527,34 @@ const renderPage = () => {
 
 describe('staff tenant profile details route', () => {
 	test('declares the profile feature namespace', () => {
-		expect(Route.options.staticData).toEqual({
-			i18nNamespaces: ['staff-tenant-profiles'],
+		expect(Route.options.staticData?.i18nNamespaces).toEqual([
+			'staff-tenant-profiles',
+		]);
+	});
+
+	// The breadcrumb trail itself is no longer published by this component —
+	// it is declared on `Route.options.staticData.crumbs` and derived by the
+	// shell from `useMatches()` (#973). See
+	// `src/lib/navigation/breadcrumb-contract.test.tsx` for the real-router
+	// coverage (crumb declaration shape, skeleton/name/dash states, no
+	// crumb-count jump).
+	test('declares an entity crumb for both the tenant and the profile', () => {
+		const tail = Route.options.staticData?.crumbs;
+		if (typeof tail !== 'function') {
+			throw new Error('expected a crumbs function, not the "shell" escape');
+		}
+
+		const specs = tail({
+			tenantId: '11111111-1111-1111-1111-111111111111',
+			profileId: '22222222-2222-2222-2222-222222222222',
 		});
+		const entityCount = specs.filter((spec) => spec.kind === 'entity').length;
+
+		expect(entityCount).toBe(2);
 	});
 
 	beforeEach(() => {
 		vi.clearAllMocks();
-		useUiStore.setState({ breadcrumbOverride: null });
 		mocks.search = {};
 		mocks.blockerResolver.status = 'idle';
 		mocks.blockerResolver.proceed = undefined;
@@ -899,75 +927,6 @@ describe('staff tenant profile details route', () => {
 			edit: undefined,
 			tab: undefined,
 		});
-	});
-
-	test('publishes named breadcrumbs and clears them when the page unmounts', async () => {
-		const view = renderPage();
-
-		await waitFor(() => {
-			expect(useUiStore.getState().breadcrumbOverride).toEqual([
-				{ label: 'Tenants', to: '/staff/tenants' },
-				{
-					label: 'Acme Corporation',
-					to: '/staff/tenants/11111111-1111-1111-1111-111111111111',
-				},
-				{
-					label: 'Profiles',
-					to: '/staff/tenants/11111111-1111-1111-1111-111111111111/profiles',
-				},
-				{ label: 'Approvers' },
-			]);
-		});
-
-		view.unmount();
-		expect(useUiStore.getState().breadcrumbOverride).toBeNull();
-	});
-
-	test('publishes a stable four-item generic trail while entity names load', async () => {
-		mocks.useStaffTenantDetailsQuery.mockReturnValue(
-			buildQueryResult({ isPending: true }),
-		);
-		mocks.toStaffTenantDetails.mockReturnValue(null);
-		mocks.useStaffTenantProfileDetailsQuery.mockReturnValue(
-			buildQueryResult({ isPending: true }),
-		);
-		mocks.toStaffTenantProfileDetails.mockReturnValue(null);
-
-		renderPage();
-
-		await waitFor(() => {
-			expect(
-				useUiStore.getState().breadcrumbOverride?.map(({ label }) => label),
-			).toEqual(['Tenants', 'Tenant', 'Profiles', 'Profile']);
-		});
-	});
-
-	// First-paint guard: the override is published in a layout effect, so the
-	// full 4-crumb trail is committed to the store synchronously (before the
-	// browser paints) — the app-shell never renders its 3-crumb path fallback
-	// first and then jumps to 4. Asserted with no `waitFor`: the trail must
-	// already be present the instant the first render commits, even while both
-	// entity queries are still loading (generic labels, four crumbs).
-	test('publishes the four-crumb trail before first paint without a fallback jump', () => {
-		mocks.useStaffTenantDetailsQuery.mockReturnValue(
-			buildQueryResult({ isPending: true }),
-		);
-		mocks.toStaffTenantDetails.mockReturnValue(null);
-		mocks.useStaffTenantProfileDetailsQuery.mockReturnValue(
-			buildQueryResult({ isPending: true }),
-		);
-		mocks.toStaffTenantProfileDetails.mockReturnValue(null);
-
-		renderPage();
-
-		const trail = useUiStore.getState().breadcrumbOverride;
-		expect(trail).toHaveLength(4);
-		expect(trail?.map(({ label }) => label)).toEqual([
-			'Tenants',
-			'Tenant',
-			'Profiles',
-			'Profile',
-		]);
 	});
 
 	test('moves the delete action into a labeled danger-zone section under permissions', () => {

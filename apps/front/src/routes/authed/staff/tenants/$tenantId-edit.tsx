@@ -23,6 +23,8 @@ import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import {
 	invalidateStaffTenants,
+	selectStaffTenantCrumbName,
+	staffTenantCrumbQuery,
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 	useUpdateStaffTenantMutation,
@@ -190,6 +192,18 @@ const ReadOnlySlugField = ({
 export const Route = createFileRoute(
 	'/_authed-layout/staff/tenants/$tenantId/edit',
 )({
+	staticData: {
+		crumbs: (params) => [
+			{ kind: 'label', labelKey: 'nav-tenants', to: '/staff/tenants' },
+			{
+				kind: 'entity',
+				to: `/staff/tenants/${params.tenantId}`,
+				query: staffTenantCrumbQuery,
+				select: selectStaffTenantCrumbName,
+			},
+			{ kind: 'label', labelKey: 'common:edit' },
+		],
+	},
 	component: StaffTenantEditRoute,
 });
 

@@ -65,6 +65,8 @@ import {
 } from '~/lib/query/staff-tenant-users';
 import {
 	invalidateAllStaffTenantScopes,
+	selectStaffTenantCrumbName,
+	staffTenantCrumbQuery,
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
@@ -484,6 +486,18 @@ export const makeTenantUserColumns = (
 export const Route = createFileRoute(
 	'/_authed-layout/staff/tenants/$tenantId/users',
 )({
+	staticData: {
+		crumbs: (params) => [
+			{ kind: 'label', labelKey: 'nav-tenants', to: '/staff/tenants' },
+			{
+				kind: 'entity',
+				to: `/staff/tenants/${params.tenantId}`,
+				query: staffTenantCrumbQuery,
+				select: selectStaffTenantCrumbName,
+			},
+			{ kind: 'label', labelKey: 'common:users' },
+		],
+	},
 	validateSearch: (search) =>
 		serializeTenantUsersListSearchParams(
 			parseTenantUsersListSearchParams(

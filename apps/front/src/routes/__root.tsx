@@ -586,6 +586,7 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 export const Route = createRootRouteWithContext<{
 	queryClient: QueryClient;
 }>()({
+	staticData: { crumbs: 'shell' },
 	head: () => ({
 		meta: [
 			{ charSet: 'utf-8' },

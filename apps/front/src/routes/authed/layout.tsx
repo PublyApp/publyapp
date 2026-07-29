@@ -110,6 +110,7 @@ const AuthedLayoutErrorBoundary = ({
 };
 
 export const Route = createFileRoute('/_authed-layout')({
+	staticData: { crumbs: 'shell' },
 	ssr: false,
 	beforeLoad: async ({ location, matches }) => {
 		if (typeof document === 'undefined') {

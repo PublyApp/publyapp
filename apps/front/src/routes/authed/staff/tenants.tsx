@@ -243,6 +243,9 @@ const buildTenantColumns = (
 ];
 
 export const Route = createFileRoute('/_authed-layout/staff/tenants')({
+	staticData: {
+		crumbs: () => [{ kind: 'label', labelKey: 'nav-tenants' }],
+	},
 	validateSearch: (search) =>
 		validateTenantListSearchParams(search as TenantListSearchParamInput),
 	component: StaffTenantsPage,

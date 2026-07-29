@@ -8,6 +8,9 @@ import { createFileRoute, redirect } from '@tanstack/react-router';
 export const Route = createFileRoute(
 	'/_authed-layout/staff/tenants/$tenantId/profiles/$profileId/edit',
 )({
+	// Frozen legacy redirect stub (#972 allowlist) — never renders, so it
+	// never supplies a trail.
+	staticData: { crumbs: 'shell' },
 	beforeLoad: ({ params }) => {
 		throw redirect({
 			to: '/staff/tenants/$tenantId/profiles/$profileId',

@@ -4,7 +4,7 @@ import {
 	IconMenu2,
 	IconX,
 } from '@tabler/icons-react';
-import { Link } from '@tanstack/react-router';
+import { Link, useMatches } from '@tanstack/react-router';
 import { Fragment, useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '~/components/ui/badge';
@@ -19,9 +19,14 @@ import {
 
 import logoSvg from '../../assets/gray-ui/logo.svg';
 import { useMediaQuery } from '../../lib/hooks/use-media-query';
+import type {
+	CrumbSpec,
+	MatchForBreadcrumbs,
+} from '../../lib/navigation/breadcrumbs';
+import { deriveBreadcrumbTrail } from '../../lib/navigation/breadcrumbs';
+import { EntityCrumb } from '../../lib/navigation/entity-crumb';
 import {
 	getActiveRailItem,
-	getBreadcrumbsForPath,
 	getRailItemsForPath,
 	getSecondaryPanelItems,
 	isSecondaryPanelItemActive,
@@ -326,13 +331,37 @@ const AuthedWorkspaceShell = ({
 	const { t } = useTranslation('common');
 	const sidebarOpen = useUiStore((state) => state.sidebarOpen);
 	const toggleSidebarOpen = useUiStore((state) => state.toggleSidebarOpen);
-	const breadcrumbOverride = useUiStore((state) => state.breadcrumbOverride);
 	const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 	const [isPanelMotionReady, setIsPanelMotionReady] = useState(false);
 	const activeRoute = getActiveRailItem(pathname);
 	const railItems = getRailItemsForPath(pathname);
 	const secondaryItems = getSecondaryPanelItems(pathname);
-	const breadcrumbs = breadcrumbOverride ?? getBreadcrumbsForPath(pathname);
+	// The trail is a pure function of the current matches (i.e. of the URL),
+	// never of fetched data — every dynamic path param the deepest match's
+	// route declares MUST resolve to a named entity crumb (#973), and the
+	// crumb COUNT here is final on the first frame regardless of whether any
+	// entity name has loaded yet (see `EntityCrumb`).
+	const breadcrumbMatches = useMatches({
+		select: (matches): MatchForBreadcrumbs[] =>
+			matches.map((match) => ({
+				pathname: match.pathname,
+				params: match.params as Record<string, string>,
+				staticData: match.staticData,
+			})),
+	});
+	const {
+		root: breadcrumbRoot,
+		tail: breadcrumbTail,
+		params: breadcrumbParams,
+	} = deriveBreadcrumbTrail(breadcrumbMatches);
+	const breadcrumbs: readonly CrumbSpec[] = [
+		{
+			kind: 'label',
+			labelKey: breadcrumbRoot.labelKey,
+			to: breadcrumbRoot.path,
+		},
+		...breadcrumbTail,
+	];
 	const isDesktop = useMediaQuery('(min-width: 1024px)');
 	const showSecondaryPanel = shouldShowSecondaryPanel(pathname, {
 		sidebarOpen,
@@ -480,8 +509,13 @@ const AuthedWorkspaceShell = ({
 						>
 							{breadcrumbs.map((item, index) => {
 								const isLast = index === breadcrumbs.length - 1;
-								const label = 'label' in item ? item.label : t(item.labelKey);
-								const path = 'label' in item ? item.to : item.path;
+								const label: ReactNode =
+									item.kind === 'entity' ? (
+										<EntityCrumb spec={item} params={breadcrumbParams} />
+									) : (
+										t(item.labelKey)
+									);
+								const path = item.to;
 								let content: ReactNode;
 								if (isLast) {
 									content = (
@@ -504,7 +538,7 @@ const AuthedWorkspaceShell = ({
 									);
 								}
 								return (
-									<Fragment key={path ?? label}>
+									<Fragment key={`${item.kind}-${index}-${path ?? ''}`}>
 										{index > 0 ? (
 											<IconChevronRight
 												aria-hidden="true"

@@ -15,6 +15,11 @@ import {
 import { TenantPortalPickerView } from './tenant/_tenant-picker-view';
 
 export const Route = createFileRoute('/_authed-layout/tenant')({
+	// `/tenant` is the workspace root itself (RoutedShell renders it without
+	// the AppShell workspace chrome at all — see `isTenantPortalRoot`), so an
+	// empty tail is correct: the scope root crumb ("Workspace") is the whole
+	// trail.
+	staticData: { crumbs: () => [] },
 	component: TenantPortalRoute,
 });
 

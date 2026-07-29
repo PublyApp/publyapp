@@ -66,7 +66,10 @@ const toRows = (
 export const Route = createFileRoute('/_authed-layout/staff/invitations')({
 	validateSearch: (search) =>
 		parseInvitationListSearchParams(search as InvitationListSearchParamInput),
-	staticData: { i18nNamespaces: ['staff-invitations'] },
+	staticData: {
+		i18nNamespaces: ['staff-invitations'],
+		crumbs: () => [{ kind: 'label', labelKey: 'nav-staff-invitations' }],
+	},
 	component: StaffInvitationsPage,
 });
 

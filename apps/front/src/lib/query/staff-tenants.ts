@@ -12,6 +12,7 @@ import {
 	normalizeNullableFileUrl,
 	toRootRelativeApiFileUrl,
 } from '~/lib/api-client/resolve-api-file-url';
+import type { EntityCrumbQuery } from '~/lib/navigation/breadcrumbs';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/src/apiClient';
@@ -536,7 +537,7 @@ export const updateStaffTenantMutationOptions = buildStaffMutationOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-const staffTenantDetailsQueryOptions = buildStaffQueryOptions<
+export const staffTenantDetailsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	GetTenantAsStaffResult,
 	StaffTenantDetailsQueryVariables
@@ -570,6 +571,26 @@ export const useStaffTenantDetailsQuery = (
 		enabled: options?.enabled ?? true,
 		staleTime: 30_000,
 	});
+
+/**
+ * A breadcrumb `entity` crumb's `query`/`select` pair for the tenant detail
+ * route. Reuses `staffTenantDetailsQueryOptions` directly (the SAME query key
+ * as `useStaffTenantDetailsQuery`) so TanStack Query dedupes the request — a
+ * page the user navigated from (e.g. the tenants list) already caches the
+ * name, and the crumb paints instantly instead of showing a skeleton.
+ */
+export const staffTenantCrumbQuery = (
+	params: Record<string, string>,
+): EntityCrumbQuery => ({
+	queryKey: staffTenantDetailsQueryOptions.queryKey({
+		tenantId: params.tenantId,
+	}),
+	queryFn: () =>
+		staffTenantDetailsQueryOptions.fetcher({ tenantId: params.tenantId }),
+});
+
+export const selectStaffTenantCrumbName = (data: unknown): string | undefined =>
+	toStaffTenantDetails(data as GetTenantAsStaffResult | null | undefined)?.name;
 
 export const useCreateStaffTenantMutation = () =>
 	useMutation(createStaffTenantMutationOptions);

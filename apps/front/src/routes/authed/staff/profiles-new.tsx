@@ -157,6 +157,12 @@ const getInterZodForI18n = (instance: I18nInstance) => {
 };
 
 export const Route = createFileRoute('/_authed-layout/staff/profiles/new')({
+	staticData: {
+		crumbs: () => [
+			{ kind: 'label', labelKey: 'nav-staff-profiles', to: '/staff/profiles' },
+			{ kind: 'label', labelKey: 'common:create-profile' },
+		],
+	},
 	component: NewStaffProfileRoute,
 });
 

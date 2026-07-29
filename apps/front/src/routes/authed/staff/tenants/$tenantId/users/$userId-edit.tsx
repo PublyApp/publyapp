@@ -20,12 +20,16 @@ import { Card } from '~/components/ui/card';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import {
+	selectStaffTenantUserCrumbName,
+	staffTenantUserCrumbQuery,
 	toStaffTenantUserDetails,
 	useStaffTenantUserDetailsQuery,
 	useUpdateStaffTenantUserMutation,
 } from '~/lib/query/staff-tenant-users';
 import {
 	invalidateAllStaffTenantScopes,
+	selectStaffTenantCrumbName,
+	staffTenantCrumbQuery,
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
@@ -205,6 +209,29 @@ const TenantUserEditError = ({
 export const Route = createFileRoute(
 	'/_authed-layout/staff/tenants/$tenantId/users/$userId/edit',
 )({
+	staticData: {
+		crumbs: (params) => [
+			{ kind: 'label', labelKey: 'nav-tenants', to: '/staff/tenants' },
+			{
+				kind: 'entity',
+				to: `/staff/tenants/${params.tenantId}`,
+				query: staffTenantCrumbQuery,
+				select: selectStaffTenantCrumbName,
+			},
+			{
+				kind: 'label',
+				labelKey: 'common:users',
+				to: `/staff/tenants/${params.tenantId}/users`,
+			},
+			{
+				kind: 'entity',
+				to: `/staff/tenants/${params.tenantId}/users/${params.userId}`,
+				query: staffTenantUserCrumbQuery,
+				select: selectStaffTenantUserCrumbName,
+			},
+			{ kind: 'label', labelKey: 'common:edit' },
+		],
+	},
 	component: StaffTenantUserEditPage,
 });
 

@@ -18,11 +18,6 @@ export type ShellScope = 'staff' | 'tenant';
 /** Every literal here must be a real, registered route — no dead links. */
 export type AppRoutePath = FileRouteTypes['to'];
 
-export type BreadcrumbItem = {
-	labelKey: string;
-	path?: AppRoutePath;
-};
-
 export type SecondaryPanelItemSearch = {
 	status?: 'pending' | 'active' | 'suspended';
 };
@@ -43,7 +38,6 @@ export type AppRouteMetadata = {
 	labelKey: string;
 	scope: ShellScope;
 	path: AppRoutePath;
-	breadcrumbLabelKey: string;
 	Icon: TablerIcon;
 	matchPrefixes: string[];
 	secondaryItems: SecondaryPanelItem[];
@@ -136,7 +130,6 @@ const STAFF_ROUTES: AppRouteMetadata[] = [
 		labelKey: 'nav-dashboard',
 		scope: 'staff',
 		path: '/staff/dashboard',
-		breadcrumbLabelKey: 'nav-dashboard',
 		Icon: IconLayoutDashboard,
 		matchPrefixes: [
 			'/staff/dashboard',
@@ -149,7 +142,6 @@ const STAFF_ROUTES: AppRouteMetadata[] = [
 		labelKey: 'nav-tenants',
 		scope: 'staff',
 		path: '/staff/tenants',
-		breadcrumbLabelKey: 'nav-tenants',
 		Icon: IconBuilding,
 		matchPrefixes: ['/staff/tenants'],
 		secondaryItems: TENANTS_MODULE_ITEMS,
@@ -159,7 +151,6 @@ const STAFF_ROUTES: AppRouteMetadata[] = [
 		labelKey: 'nav-staff',
 		scope: 'staff',
 		path: '/staff/staff-users',
-		breadcrumbLabelKey: 'nav-staff-breadcrumb',
 		Icon: IconUsers,
 		matchPrefixes: [
 			'/staff/staff-users',
@@ -175,38 +166,11 @@ const STAFF_ROUTES: AppRouteMetadata[] = [
 // here only once their routes exist in src/routes.ts.
 const TENANT_ROUTES: AppRouteMetadata[] = [];
 
-const STAFF_BREADCRUMB_DETAIL_LABELS: Record<string, string> = {
-	'/staff/staff-users': 'nav-detail-user',
-	'/staff/invitations': 'nav-detail-invitation',
-	'/staff/profiles': 'nav-detail-profile',
-	'/staff/tenants': 'nav-detail-tenant',
-};
-
-const createPathRules: Array<string | RegExp> = [
-	'/staff/tenants/new',
-	'/staff/profiles/new',
-	'/staff/invitations/new',
-];
-
 const isPathPrefix = (pathname: string, prefix: string): boolean =>
 	pathname === prefix || pathname.startsWith(`${prefix}/`);
 
 const matchPath = (pathname: string, prefixes: string[]): boolean =>
 	prefixes.some((prefix) => isPathPrefix(pathname, prefix));
-
-function getMatchedPrefix(
-	pathname: string,
-	route: AppRouteMetadata,
-): string | undefined {
-	return route.matchPrefixes
-		.filter((prefix) => isPathPrefix(pathname, prefix))
-		.sort((a, b) => b.length - a.length)[0];
-}
-
-const isCreatePath = (pathname: string): boolean =>
-	createPathRules.some((rule) =>
-		typeof rule === 'string' ? pathname === rule : rule.test(pathname),
-	);
 
 export function getShellScope(pathname: string): ShellScope | undefined {
 	if (isPathPrefix(pathname, '/staff')) {
@@ -270,20 +234,6 @@ export function isSecondaryPanelItemActive(
 	return matchesPath && itemStatus === currentStatus;
 }
 
-/**
- * A rail detail route is a route under an active rail item (excluding create
- * paths) that includes extra segments.
- */
-const isDetailPath = (pathname: string): boolean => {
-	const activeRoute = getActiveRailItem(pathname);
-	if (!activeRoute || isCreatePath(pathname)) {
-		return false;
-	}
-
-	const matchedPrefix = getMatchedPrefix(pathname, activeRoute);
-	return matchedPrefix !== undefined && matchedPrefix !== pathname;
-};
-
 export function shouldShowSecondaryPanel(
 	pathname: string,
 	options?: {
@@ -296,47 +246,4 @@ export function shouldShowSecondaryPanel(
 	const panelOpen = options?.sidebarOpen ?? true;
 
 	return panelOpen && viewportWidth >= 1024 && activeItems.length >= 2;
-}
-
-export function getBreadcrumbsForPath(pathname: string): BreadcrumbItem[] {
-	const scope = getShellScope(pathname);
-	if (!scope) {
-		return [{ labelKey: 'nav-root-staff', path: '/staff/staff-users' }];
-	}
-
-	const activeRoute = getActiveRailItem(pathname);
-	const rootLabelKey =
-		scope === 'staff' ? 'nav-root-staff' : 'nav-root-workspace';
-	const rootPath: AppRoutePath = scope === 'staff' ? '/staff' : '/tenant';
-
-	const breadcrumbs: BreadcrumbItem[] = [
-		{ labelKey: rootLabelKey, path: rootPath },
-	];
-
-	if (!activeRoute) {
-		return breadcrumbs;
-	}
-
-	const matchedPrefix = getMatchedPrefix(pathname, activeRoute);
-	const matchedItem = activeRoute.secondaryItems.find(
-		(item) => itemPathname(item) === matchedPrefix,
-	);
-
-	const labelKey =
-		matchedPrefix === activeRoute.path
-			? activeRoute.breadcrumbLabelKey
-			: (matchedItem?.labelKey ?? activeRoute.breadcrumbLabelKey);
-	breadcrumbs.push({
-		labelKey,
-		path: matchedItem ? matchedItem.path : activeRoute.path,
-	});
-
-	if (isDetailPath(pathname)) {
-		const detailLabelKey =
-			STAFF_BREADCRUMB_DETAIL_LABELS[matchedPrefix ?? activeRoute.path] ??
-			'nav-detail-generic';
-		breadcrumbs.push({ labelKey: detailLabelKey });
-	}
-
-	return breadcrumbs;
 }

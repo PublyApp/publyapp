@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useMutation } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 import { normalizeNullableFileUrl } from '~/lib/api-client/resolve-api-file-url';
+import type { EntityCrumbQuery } from '~/lib/navigation/breadcrumbs';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/src/apiClient';
@@ -941,7 +942,7 @@ export const bulkDeleteStaffTenantProfilesMutationOptions =
 		{ clientAccessor: getClientManager() },
 	);
 
-const staffTenantProfileDetailsQueryOptions = buildStaffQueryOptions<
+export const staffTenantProfileDetailsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	GetTenantProfileByIdResponse,
 	StaffTenantProfileDetailsQueryVariables
@@ -1190,6 +1191,32 @@ export const useStaffTenantProfileDetailsQuery = (
 		queryFn: () => staffTenantProfileDetailsQueryOptions.fetcher(variables),
 		enabled: options?.enabled ?? true,
 	});
+
+/**
+ * A breadcrumb `entity` crumb's `query`/`select` pair for the tenant-profile
+ * detail route — same query key as `useStaffTenantProfileDetailsQuery`, so
+ * TanStack Query dedupes and a cached name paints the crumb instantly.
+ */
+export const staffTenantProfileCrumbQuery = (
+	params: Record<string, string>,
+): EntityCrumbQuery => ({
+	queryKey: staffTenantProfileDetailsQueryOptions.queryKey({
+		tenantId: params.tenantId,
+		profileId: params.profileId,
+	}),
+	queryFn: () =>
+		staffTenantProfileDetailsQueryOptions.fetcher({
+			tenantId: params.tenantId,
+			profileId: params.profileId,
+		}),
+});
+
+export const selectStaffTenantProfileCrumbName = (
+	data: unknown,
+): string | undefined =>
+	toStaffTenantProfileDetails(
+		data as GetTenantProfileByIdResponse | null | undefined,
+	)?.name;
 
 export const useStaffTenantProfilePermissionKeysQuery = (
 	variables: StaffTenantProfilePermissionKeysQueryVariables,
