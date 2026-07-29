@@ -211,14 +211,33 @@ jobs:
       - name: Check required jobs
         env:
           NEEDS_JSON: ${{ toJSON(needs) }}
+        # Fail closed on anything outside the exact documented shape: a
+        # nonempty JSON object whose every entry's result is exactly
+        # "success" or "skipped" (GitHub documents only
+        # success/failure/cancelled/skipped for needs.<job>.result — see
+        # scripts/ci-gate-aggregation.test.mjs). An empty object/array, a
+        # missing `.result`, or an unrecognized result value (a documented
+        # future addition, a typo, a job whose result GitHub reports in a
+        # shape this was not written against) must never silently pass
+        # "nothing to flag" — and neither may examining zero jobs.
         run: |
+          if [ "$(echo "$NEEDS_JSON" | jq -r 'type')" != "object" ]; then
+            echo "::error::NEEDS_JSON is not a JSON object — examining nothing must never pass."
+            exit 1
+          fi
+
+          if [ "$(echo "$NEEDS_JSON" | jq 'length')" -eq 0 ]; then
+            echo "::error::NEEDS_JSON has no entries — examining zero jobs must never pass."
+            exit 1
+          fi
+
           echo "Required jobs and their results:"
           echo "$NEEDS_JSON" | jq -r 'to_entries[] | "  \(.key): \(.value.result)"'
 
-          bad_count="$(echo "$NEEDS_JSON" | jq '[.[] | select(.result == "failure" or .result == "cancelled")] | length')"
+          bad_count="$(echo "$NEEDS_JSON" | jq '[.[] | select((.result == "success" or .result == "skipped") | not)] | length')"
 
           if [ "$bad_count" -gt 0 ]; then
-            echo "::error::One or more required jobs failed or were cancelled."
+            echo "::error::One or more required jobs did not report success or skipped (failure, cancelled, or an unrecognized result value)."
             exit 1
           fi
 
