@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import path from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import {
 	assertNoPendingMigrations,
@@ -12,11 +15,30 @@ import {
 	formatMigrationGuardStatusMessage,
 	listMigrationsJson,
 	parseArgs,
+	parseConnectionStringPairs,
 	redactSecrets,
 	resolveTrustedProxyCidrs,
 	runCommand,
 	validateMigrationEntries,
 } from './review-api.mjs';
+
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(scriptDir, '..');
+
+// parseArgs's own rejection path calls the module-local `err()`, which calls
+// process.exit(1) — not throwable/mockable in-process. Spawning the real CLI is the only
+// way to observe that rejection without changing production error-handling just for
+// testability. parseArgs runs as the very first thing in main(), before any git/gh call, so
+// a malformed argument fails fast with no network/worktree dependency.
+const runCliArgs = (args) => {
+	const result = spawnSync('node', ['scripts/review-api.mjs', ...args], {
+		cwd: repoRoot,
+		encoding: 'utf8',
+		timeout: 10_000,
+	});
+
+	return { status: result.status, stderr: String(result.stderr ?? '') };
+};
 
 test('parseArgs: bare ref, default port, migrations blocked by default', () => {
 	assert.deepEqual(parseArgs(['1016']), {
@@ -53,6 +75,38 @@ test('parseArgs: --allow-migrations sets the escape hatch regardless of position
 			allowMigrations: true,
 		},
 	);
+});
+
+// --- parseArgs: malformed input rejection (round-3 review) -----------------------
+//
+// `Number.parseInt` stops at the first non-digit and silently accepted "5000junk" and
+// "5000.5" as port 5000; a leading unrecognized option was accepted as the requested ref;
+// a second positional argument was silently dropped. Rejection goes through the
+// module-local `err()`, which calls process.exit(1) — not observable in-process, so these
+// spawn the real CLI (see runCliArgs above).
+
+test('parseArgs (real CLI): rejects a port value with trailing garbage', () => {
+	const { status, stderr } = runCliArgs(['1016', '--port=5000junk']);
+	assert.notEqual(status, 0);
+	assert.match(stderr, /Invalid --port value: 5000junk/);
+});
+
+test('parseArgs (real CLI): rejects a non-integer (decimal) port value', () => {
+	const { status, stderr } = runCliArgs(['1016', '--port=5000.5']);
+	assert.notEqual(status, 0);
+	assert.match(stderr, /Invalid --port value: 5000\.5/);
+});
+
+test('parseArgs (real CLI): rejects an unrecognized leading option instead of treating it as the ref', () => {
+	const { status, stderr } = runCliArgs(['--bogus', '1016']);
+	assert.notEqual(status, 0);
+	assert.match(stderr, /Unknown option: --bogus/);
+});
+
+test('parseArgs (real CLI): rejects a second positional argument instead of silently dropping it', () => {
+	const { status, stderr } = runCliArgs(['1016', '1017']);
+	assert.notEqual(status, 0);
+	assert.match(stderr, /Unexpected extra argument: 1017/);
 });
 
 test('extractEnvValue: reads a quoted KEY="value" line', () => {
@@ -494,6 +548,89 @@ test('connectionStringSecrets: returns both the full string and the isolated pas
 		'hunter2',
 	]);
 	assert.deepEqual(connectionStringSecrets('Host=x'), ['Host=x']);
+});
+
+// --- parseConnectionStringPairs / extractConnectionStringPassword: quoting (round-3) ---
+//
+// Round-3 review: the naive `;`-splitting regex truncated a valid, Npgsql-legal
+// double-quoted password containing a literal semicolon at the first `;`, so only a
+// fragment was ever redacted. https://www.npgsql.org/doc/connection-string-parameters.html
+// documents double/single-quoted values (which may embed `;`) and doubled-quote escaping.
+
+test('parseConnectionStringPairs: an unquoted value stops at the next semicolon', () => {
+	assert.deepEqual(parseConnectionStringPairs('Host=localhost;Port=5454'), [
+		['Host', 'localhost'],
+		['Port', '5454'],
+	]);
+});
+
+test('extractConnectionStringPassword: a double-quoted password preserves an embedded semicolon and space', () => {
+	assert.equal(
+		extractConnectionStringPassword(
+			'Host=localhost;Database=publyapp;Username=postgres;Password="pa;ss word"',
+		),
+		'pa;ss word',
+	);
+});
+
+test('extractConnectionStringPassword: a single-quoted password preserves an embedded semicolon', () => {
+	assert.equal(
+		extractConnectionStringPassword("Host=localhost;Password='pa;ss word'"),
+		'pa;ss word',
+	);
+});
+
+test('extractConnectionStringPassword: a doubled quote inside a quoted password is an escaped literal quote', () => {
+	assert.equal(
+		extractConnectionStringPassword(
+			'Host=localhost;Password="has ""quotes"" inside"',
+		),
+		'has "quotes" inside',
+	);
+});
+
+test('extractConnectionStringPassword: leading/trailing spaces around "=" and the segment are trimmed for unquoted values', () => {
+	assert.equal(
+		extractConnectionStringPassword(
+			'  Host = localhost ; Password = hunter2 ; ',
+		),
+		'hunter2',
+	);
+});
+
+test('extractConnectionStringPassword: a quoted value keeps its own internal spacing verbatim', () => {
+	assert.equal(
+		extractConnectionStringPassword('Host=localhost;Password="  spaced  "'),
+		'  spaced  ',
+	);
+});
+
+test('connectionStringSecrets: a quoted semicolon password is redacted as its own secret alongside the full string', () => {
+	const connectionString =
+		'Host=localhost;Database=publyapp;Username=postgres;Password="pa;ss word"';
+	assert.deepEqual(connectionStringSecrets(connectionString), [
+		connectionString,
+		'pa;ss word',
+	]);
+});
+
+test('runCommand (real subprocess): redacts a quoted semicolon password that a failing child wrote to stderr on its own', () => {
+	const connectionString = 'Host=x;Password="pa;ss word"';
+	const secrets = connectionStringSecrets(connectionString);
+
+	assert.throws(
+		() =>
+			runCommand(
+				'node',
+				['-e', "process.stderr.write('pa;ss word'); process.exit(1);"],
+				{ secrets },
+			),
+		(error) => {
+			assert.doesNotMatch(error.message, /pa;ss word/);
+			assert.match(error.message, /\[REDACTED\]/);
+			return true;
+		},
+	);
 });
 
 test('listMigrationsJson: redacts the isolated password out of an unparseable-JSON indeterminate error', () => {
