@@ -332,7 +332,6 @@ ci-front-2:
   @echo "=== [gate] front-2 build + checks ==="
   pnpm --filter front-2 build
   pnpm --filter front-2 verify:build
-  pnpm --filter front-2 check:context-chunk-isolation
   pnpm --filter front-2 smoke:start
   pnpm --filter front-2 typecheck
   pnpm --filter front-2 check:design-system

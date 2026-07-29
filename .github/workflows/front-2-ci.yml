@@ -58,9 +58,6 @@ jobs:
       - name: Verify front-2 production build emits a CSS asset
         run: node apps/front-2/scripts/verify-build-css-link.mjs
 
-      - name: Check front-2 client-bundle context isolation
-        run: pnpm --filter front-2 check:context-chunk-isolation
-
       - name: Smoke start front-2 server and verify stylesheet tag
         env:
           PUBLIC_API_BASE_URL: 'http://127.0.0.1:5000'

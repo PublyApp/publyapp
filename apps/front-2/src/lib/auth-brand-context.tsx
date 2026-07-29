@@ -14,12 +14,9 @@ const AuthBrandContext = createContext<
 
 // Unlike this codebase's other route-scoped contexts, this one's accessor
 // (`useSetAuthBrand` below) degrades gracefully instead of throwing when read
-// outside its Provider, so it has no "must be used within" message for
-// scripts/check-context-chunk-isolation.mjs to fingerprint. `displayName` is
-// inert React DevTools metadata — setting it changes no runtime behaviour —
-// but it is a stable string literal that survives into the built chunk the
-// same way a thrown message does, so the isolation guard fingerprints this
-// context by its displayName instead.
+// outside its Provider, so it has no "must be used within" message.
+// `displayName` is set anyway as inert React DevTools metadata to make this
+// context identifiable at runtime and in tooling.
 AuthBrandContext.displayName = 'AuthBrandContext (auth-brand-context.tsx)';
 
 export const AuthBrandProvider = AuthBrandContext.Provider;
