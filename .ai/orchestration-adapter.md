@@ -42,6 +42,42 @@ Fielded adapter for `/home/radan/ai-orchestration-playbook/PLAYBOOK.md`.
 - Need to merge a PR without explicit Radan authorization.
 - Scope change, secret exposure risk, auth/security invariant uncertainty, or e2e harness failure with unclear cause.
 
+## Owner deliverables — do these without being asked
+
+These are standing obligations, not per-task instructions. Radan should never have to ask for any of
+them. Every one below has had to be requested more than once.
+
+**A squash body is written the moment a PR is review-approved.** Not when merging is proposed, not when
+asked. The approval is the trigger. Write it to `.dump/squash-<PR>.md` and say only the path in chat.
+
+**Deliverables go to files under `.dump/`, never inline in chat.** Squash bodies, PR bodies, review
+output, plans, analyses. Chat gets a path pointer and the few sentences that need a decision. Pasting the
+artefact into chat instead of writing the file is the single most repeated correction in this repo's
+history; if a request seems to ask for the content, it is asking where the file is.
+
+**Squash body format, strictly.** Plain text. No leading conventional-commit subject line, no `##`
+headers, no bold, no backticks, no code fences, plain `-` bullets. Owner-facing plain language: describe
+what changed and why it matters, not the commit sequence. Ends with `Closes #N` — the
+require-linked-issue gate fails without a closing keyword, so `Part of #N` alone will red the PR. Never
+include a "generated with" line or a `Co-Authored-By` trailer, in the body or in any commit message.
+Offer the subject line separately, in chat.
+
+**Every PR opens against `develop` with a linked issue.** If no issue exists, file one first and describe
+the defect there, including how it was found. Never push to `develop` directly; branch, then PR.
+
+**`gh pr edit` is broken on this repository.** It exits 1 and silently writes nothing. Use
+`gh api -X PATCH` and verify by reading the body back, not by checking the exit code.
+
+**Worktrees live under `publyapp/.worktrees/` and are named `pr<NUMBER>`** after the PR they produce.
+Create under a provisional slug, open the PR, then `git worktree move` onto the `pr<NUMBER>` name. Never
+string-build a worktree path — `git worktree move` leaves git metadata under the original internal name,
+so read paths from `git worktree list --porcelain`.
+
+**When a PR is merged, remove its worktree and delete its branches** without being asked.
+
+**Report status in plain language.** Keep SHAs, branch names and internal jargon out of owner-facing
+summaries unless they are the point. Say what is ready, what is blocked, and on what.
+
 ## Verification lessons — front-2 owner-feedback batch (2026-07-10)
 
 **A green check is a claim, not evidence. Probe the claim.** Three defects in this batch passed every
