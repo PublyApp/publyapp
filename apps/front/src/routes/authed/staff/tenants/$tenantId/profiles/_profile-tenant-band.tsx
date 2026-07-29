@@ -1,3 +1,4 @@
+import { IconArrowRight } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { BrandTile } from '~/components/ui/initials-avatar';
@@ -19,7 +20,7 @@ export const ProfileTenantBand = ({
 
 	return (
 		<section
-			className="flex flex-wrap items-center gap-3 rounded-[var(--publy-radius-control)] bg-card px-4 py-3 shadow-[var(--publy-shadow-ring)]"
+			className="flex flex-wrap items-center gap-3 rounded-[var(--publy-radius-control)] bg-muted px-4 py-3 shadow-[var(--publy-shadow-ring)]"
 			data-testid="staff-tenant-profile-tenant-band"
 		>
 			<BrandTile
@@ -45,9 +46,10 @@ export const ProfileTenantBand = ({
 			<Link
 				to="/staff/tenants/$tenantId"
 				params={{ tenantId }}
-				className="publy-record-link ml-auto text-sm"
+				className="publy-record-link ml-auto inline-flex items-center gap-1 text-sm"
 			>
 				{t('open-tenant')}
+				<IconArrowRight aria-hidden="true" className="size-3.5" />
 			</Link>
 		</section>
 	);
