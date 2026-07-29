@@ -215,7 +215,7 @@ after(() => {
 	// Backstop in case a launch test's own try/finally never got to run (e.g. the process
 	// was killed externally mid-test): sweep both end-to-end ports one more time before
 	// tearing down the database they were pointed at.
-	for (const port of [CLI_PORT, NORMAL_LAUNCH_PORT]) {
+	for (const port of [CLI_PORT, NORMAL_LAUNCH_PORT, MISSING_VALUE_PORT]) {
 		try {
 			execFileSync('pkill', ['-9', '-f', `127.0.0.1:${String(port)}`], {
 				stdio: 'ignore',
@@ -316,6 +316,34 @@ const withWorktreeConnectionString = async (temporaryConnectionString, run) => {
 	}
 };
 
+// Round-3 review: no test owned the case where the worktree file has NO
+// POSTGRES_CONNECTION_STRING line at all — only the pure parser's absent-key return was
+// covered. Removes the line entirely (not merely blanking its value) rather than the
+// substitution above.
+const withWorktreeConnectionStringRemoved = async (run) => {
+	backUpEnvFile();
+	const original = readFileSync(envFilePath, 'utf8');
+	const rewritten = original
+		.split('\n')
+		.filter((line) => !line.startsWith('POSTGRES_CONNECTION_STRING='))
+		.join('\n');
+	assert.notEqual(
+		rewritten,
+		original,
+		'the POSTGRES_CONNECTION_STRING line must actually be found and removed',
+	);
+	writeFileSync(envFilePath, rewritten);
+
+	try {
+		return await run();
+	} finally {
+		writeFileSync(envFilePath, original);
+		if (existsSync(envFileBackupPath)) {
+			unlinkSync(envFileBackupPath);
+		}
+	}
+};
+
 const killProcessGroup = (child, port) => {
 	if (child.exitCode === null && !child.killed) {
 		try {
@@ -335,6 +363,87 @@ const killProcessGroup = (child, port) => {
 	} catch {
 		// Nothing left to kill, or none matched — fine either way.
 	}
+};
+
+// ---------------------------------------------------------------------------
+// Hosted-service manifest probe (round-3 review MINOR): the ordinary-launch test's only
+// negative assertion used to be "the Quartz scheduler log line is absent" — registering
+// WorkerHeartbeatService in the Api role without Quartz still passed. Reusing the shipped
+// --print-hosted-services probe (Lib/Diagnostics/HostedServiceManifestCli.cs, the same
+// mechanism apps/api/Lib/Architecture/AppRoleComposition.Spec.cs and
+// AppEnvironmentDotEnvPrecedence.Spec.cs assert against) checks the COMPLETE resolved
+// hosted-service set, not one log line, so any unexpected service — named or not — fails it.
+// ---------------------------------------------------------------------------
+
+const HOSTED_SERVICE_LINE_PREFIX = 'HOSTED_SERVICE:';
+const HOSTED_SERVICES_END_MARKER = 'HOSTED_SERVICES_END';
+
+// Mirrors AppRoleCompositionSpec's ApiRoleAllowedHostedServices — the only hosted services
+// permitted in the Api-role graph (design §3.2, D1). Kept independent (not imported; there is
+// no cross-language import) so a change to one allowlist without the other is visible as a
+// test diff, not a silent divergence.
+const ALLOWED_API_ROLE_HOSTED_SERVICES = [
+	'Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckPublisherHostedService',
+	'Microsoft.AspNetCore.Hosting.GenericWebHostService',
+].sort();
+
+const findApiAssemblyPath = () => {
+	const binRoot = path.join(apiDir, '.artifacts', 'bin', 'PublyApp.Api');
+	for (const configuration of readdirSync(binRoot)) {
+		const configurationDir = path.join(binRoot, configuration);
+		for (const framework of readdirSync(configurationDir)) {
+			const candidate = path.join(
+				configurationDir,
+				framework,
+				'PublyApp.Api.dll',
+			);
+			if (existsSync(candidate)) {
+				return candidate;
+			}
+		}
+	}
+
+	throw new Error(`Could not find a built PublyApp.Api.dll under ${binRoot}.`);
+};
+
+// Runs the shipped --print-hosted-services probe against the SAME worktree .env.development
+// and connection string the real launched CLI used (cwd = apiDir, so FindDotEnvPath
+// discovers the same file), pinned to APP_ROLE=api — exactly what review-api.mjs's
+// buildApiChildEnv forces for every launch. Returns the resolved hosted-service type names.
+const runHostedServiceManifestProbe = ({
+	trustedProxyCidrs,
+	connectionString,
+}) => {
+	const assemblyPath = findApiAssemblyPath();
+	const result = spawnSync(
+		'dotnet',
+		['exec', assemblyPath, '--print-hosted-services'],
+		{
+			cwd: apiDir,
+			encoding: 'utf8',
+			env: {
+				...process.env,
+				ASPNETCORE_ENVIRONMENT: 'Development',
+				APP_ROLE: 'api',
+				TRUSTED_PROXY_CIDRS: trustedProxyCidrs,
+				POSTGRES_CONNECTION_STRING: connectionString,
+			},
+			timeout: 30_000,
+		},
+	);
+
+	assert.equal(
+		result.status,
+		0,
+		`hosted-service manifest probe failed: ${result.stdout} ${result.stderr}`,
+	);
+	assert.match(result.stdout, new RegExp(HOSTED_SERVICES_END_MARKER));
+
+	return result.stdout
+		.split('\n')
+		.map((line) => line.trim())
+		.filter((line) => line.startsWith(HOSTED_SERVICE_LINE_PREFIX))
+		.map((line) => line.slice(HOSTED_SERVICE_LINE_PREFIX.length));
 };
 
 test(
@@ -391,6 +500,22 @@ test(
 					live,
 					true,
 					'the real CLI must actually launch and bind the port',
+				);
+
+				// waitForApiReachable is intentionally status-agnostic (any HTTP response counts
+				// as "reachable" — appropriate for /health above, whose 503 is deliberate under
+				// --allow-migrations). Round-3 review found that made this assertion pass even
+				// against a 404 for an unmapped /health/live route: renaming the real route to
+				// /health/live-broken still passed. Fetch it directly here and require the actual
+				// expected 200, not merely "something answered".
+				const liveResponse = await fetch(liveUrl, {
+					signal: AbortSignal.timeout(5000),
+				});
+				assert.equal(
+					liveResponse.status,
+					200,
+					'/health/live must actually be mapped and healthy, not merely reachable ' +
+						'(a 404 for an unmapped route would also satisfy status-agnostic reachability)',
 				);
 
 				const readinessResponse = await fetch(readyUrl, {
@@ -473,22 +598,11 @@ test(
 				],
 				{
 					cwd: repoRoot,
-					// Captured (not inherited) so the Quartz/job-engine startup log lines that
-					// only the Worker/All role prints can be asserted on directly, rather than
-					// relying on an indirect signal.
-					stdio: ['ignore', 'pipe', 'pipe'],
+					stdio: 'inherit',
 					detached: true,
 					env: { ...process.env },
 				},
 			);
-
-			let combinedOutput = '';
-			child.stdout.on('data', (chunk) => {
-				combinedOutput += chunk.toString();
-			});
-			child.stderr.on('data', (chunk) => {
-				combinedOutput += chunk.toString();
-			});
 
 			try {
 				const liveUrl = `http://127.0.0.1:${String(NORMAL_LAUNCH_PORT)}${LIVENESS_PATH}`;
@@ -502,19 +616,30 @@ test(
 					'the real CLI must actually launch and bind the port',
 				);
 
-				// A worker/all-role process logs the Quartz scheduler starting almost
-				// immediately at boot (observed directly in this repo's own dev-api output);
-				// give it a moment to have done so if it were running before asserting absence.
-				await new Promise((resolve) => {
-					setTimeout(resolve, 2000);
+				// waitForApiReachable is status-agnostic; require the actual expected 200
+				// directly, not merely "something answered" (round-3 review: a 404 for an
+				// unmapped route would also satisfy plain reachability).
+				const liveResponse = await fetch(liveUrl, {
+					signal: AbortSignal.timeout(5000),
 				});
+				assert.equal(liveResponse.status, 200);
 
-				assert.doesNotMatch(
-					combinedOutput,
-					/Quartz Scheduler created/,
-					'an ordinary review-api launch must NEVER start the job engine (Quartz scheduler, ' +
-						'queue processor/listener, worker heartbeat) against the shared database — ' +
-						'role selection must not depend on whether a migration happens to be pending',
+				// Round-3 review: checking only the Quartz scheduler's own log line let a
+				// mutation that registered WorkerHeartbeatService in the Api role WITHOUT
+				// Quartz slip through undetected. Assert the COMPLETE resolved hosted-service
+				// set against the same worktree config the real launch used, instead of one
+				// log line — any unexpected service, named or not, now fails this.
+				const resolvedHostedServices = runHostedServiceManifestProbe({
+					trustedProxyCidrs: TRUSTED_PROXY_CIDRS,
+					connectionString: TEST_CONNECTION,
+				});
+				assert.deepEqual(
+					[...resolvedHostedServices].sort((a, b) => a.localeCompare(b)),
+					ALLOWED_API_ROLE_HOSTED_SERVICES,
+					'an ordinary review-api launch must resolve to EXACTLY the allowlisted Api-role ' +
+						'hosted-service set — no job/worker service (queue processor/listener, ' +
+						'scheduler, monitor, heartbeat, outbox dispatcher), named or not, may be ' +
+						'present; role selection must not depend on whether a migration is pending',
 				);
 
 				const readyUrl = `http://127.0.0.1:${String(NORMAL_LAUNCH_PORT)}${READINESS_PATH}`;
@@ -529,6 +654,75 @@ test(
 			} finally {
 				killProcessGroup(child, NORMAL_LAUNCH_PORT);
 			}
+		});
+	},
+);
+
+// ---------------------------------------------------------------------------
+// Round-3 review IMPORTANT: the current main() path is safe (it reads the worktree file and
+// exits when POSTGRES_CONNECTION_STRING is missing), but no test owned that invariant — only
+// the pure parser's absent-key return was covered. Reviewer's own mutation ("fall back to
+// the ambient process.env.POSTGRES_CONNECTION_STRING when the file key is absent")
+// reintroduces the central round-2 hazard specifically for the missing-value case: the guard
+// and child could silently target the reviewer's ambient database instead of failing closed.
+// ---------------------------------------------------------------------------
+
+const MISSING_VALUE_PORT = 5595;
+
+test(
+	'END-TO-END: a worktree file missing POSTGRES_CONNECTION_STRING fails closed instead of falling back to an ambient decoy',
+	{ skip: skip && 'Docker is required for this test' },
+	async () => {
+		await withWorktreeConnectionStringRemoved(async () => {
+			const free = await isPortFree(MISSING_VALUE_PORT);
+			assert.equal(
+				free,
+				true,
+				'the test port must be free before spawning the real CLI',
+			);
+
+			const result = spawnSync(
+				'node',
+				[
+					'scripts/review-api.mjs',
+					'1016',
+					'--port',
+					String(MISSING_VALUE_PORT),
+				],
+				{
+					cwd: repoRoot,
+					encoding: 'utf8',
+					timeout: 30_000,
+					env: {
+						...process.env,
+						// A valid, reachable, fully migrated ambient decoy. If the launcher ever
+						// silently fell back to it instead of failing closed on the missing file
+						// value, this would let it start rather than error — the exact hazard this
+						// test exists to catch.
+						POSTGRES_CONNECTION_STRING: AMBIENT_DECOY_CONNECTION,
+					},
+				},
+			);
+
+			assert.notEqual(
+				result.status,
+				0,
+				'must fail closed rather than silently launching against the ambient decoy; ' +
+					`stdout: ${result.stdout} stderr: ${result.stderr}`,
+			);
+			assert.match(
+				result.stderr,
+				/POSTGRES_CONNECTION_STRING is missing from/,
+				'must report the specific file-value-missing error, not some other failure — ' +
+					`stderr: ${result.stderr}`,
+			);
+
+			const stillFree = await isPortFree(MISSING_VALUE_PORT);
+			assert.equal(
+				stillFree,
+				true,
+				'no listener may remain on the requested port after failing closed',
+			);
 		});
 	},
 );
