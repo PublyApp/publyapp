@@ -10,8 +10,8 @@ set shell := ["bash", "-cu"]
 set windows-shell := ["pwsh", "-NoLogo", "-NoProfile", "-Command"]
 
 api_dir := "apps/api"
+old_front_dir := "apps/old-front"
 front_dir := "apps/front"
-front2_dir := "apps/front-2"
 shared_dir := "packages/shared-ts"
 js_client_dir := "packages/client-ts"
 scripts_cs_dir := "packages/scripts-cs"
@@ -52,13 +52,13 @@ dev-api-migrated: db-migrate dev-api
 dev-api-alt:
   node {{api_dir}}/run-dev.mjs
 
-# Start React frontend (Vite)
-dev-front:
-  cd {{front_dir}} && pnpm dev
+# Start the retired React Router frontend (Vite)
+dev-old-front:
+  cd {{old_front_dir}} && pnpm dev
 
-# Start front-2 frontend (Vite)
-dev-front-2 port="5050":
-  cd {{front2_dir}} && pnpm exec vite dev --port {{port}} --strictPort
+# Start front frontend (Vite)
+dev-front port="5050":
+  cd {{front_dir}} && pnpm exec vite dev --port {{port}} --strictPort
 
 # {{args}} would interpolate as raw shell text, splitting on internal whitespace and
 # letting metacharacters execute (worktree paths/branches with spaces are ordinary here).
@@ -68,16 +68,16 @@ dev-front-2 port="5050":
 # https://github.com/casey/just/issues/1592 — so the Windows variant runs as a real script
 # file via [script("pwsh")], which binds $args from genuine process arguments.
 
-# Start another worktree's front-2 frontend by PR/issue number
+# Start another worktree's front frontend by PR/issue number
 [unix]
 [positional-arguments]
-review-front-2 *args:
+review-front *args:
   node scripts/review-front-2.mjs "$@"
 
 [windows]
 [script("pwsh")]
 [positional-arguments]
-review-front-2 *args:
+review-front *args:
   node scripts/review-front-2.mjs @args
 
 # Start docker services (postgres, etc.)
@@ -109,9 +109,9 @@ build-api-full $APP_ROLE="api":
 publish-api $APP_ROLE="api":
   cd {{api_dir}} && dotnet publish
 
-# Build frontend
-build-front:
-  cd {{front_dir}} && pnpm build
+# Build the retired frontend
+build-old-front:
+  cd {{old_front_dir}} && pnpm build
 
 # Build for deployment (dokploy-from-source artifacts)
 build-deploy:
@@ -121,8 +121,8 @@ build-deploy:
 deploy-images ref="origin/develop":
   node scripts/deploy-images.mjs {{ref}}
 
-# Deploy front artifact (dokploy)
-deploy-front:
+# Deploy the retired front artifact (dokploy)
+deploy-old-front:
   node ./scripts/deploy.mjs --target front --upload
 
 # Deploy api artifact (dokploy)
@@ -141,17 +141,17 @@ deploy:
 run-api:
   cd {{api_dir}} && dotnet run --no-restore -property:OpenApiGenerateDocuments=false
 
-# Start frontend production server
-start-front:
-  cd {{front_dir}} && pnpm start
+# Start the retired frontend production server
+start-old-front:
+  cd {{old_front_dir}} && pnpm start
 
 # =============================================================================
 # Type checking
 # =============================================================================
 
-# Type-check frontend (pnpm)
-tsc-front:
-  cd {{front_dir}} && pnpm type-check
+# Type-check the retired frontend (pnpm)
+tsc-old-front:
+  cd {{old_front_dir}} && pnpm type-check
 
 # =============================================================================
 # Code quality
@@ -307,7 +307,7 @@ ci-docs-archive-records:
 # Install exactly as CI does (supply-chain policy: frozen + no lifecycle scripts)
 ci-install:
   @echo "=== [gate] install (frozen lockfile, no scripts) ==="
-  node apps/front-2/scripts/assert-pinned.mjs
+  node apps/front/scripts/assert-pinned.mjs
   pnpm install --frozen-lockfile --ignore-scripts
   pnpm --filter @org/shared-ts run postinstall
 
@@ -323,24 +323,24 @@ ci-format: format
 # exactly. See docs/guides/local-ci-gate.md.
 ci-lint:
   @echo "=== [gate] lint ==="
-  npx oxlint --quiet apps/front-2 packages/shared-ts
+  npx oxlint --quiet apps/front packages/shared-ts
   pnpm lint:disables
   pnpm check:frontend-barrels
 
-# front-2: build, bundle guards, smoke start, typecheck, design system, unit tests
-ci-front-2:
-  @echo "=== [gate] front-2 build + checks ==="
-  pnpm --filter front-2 build
-  pnpm --filter front-2 verify:build
-  pnpm --filter front-2 smoke:start
-  pnpm --filter front-2 typecheck
-  pnpm --filter front-2 check:design-system
-  pnpm --filter front-2 test
+# front: build, bundle guards, smoke start, typecheck, design system, unit tests
+ci-front:
+  @echo "=== [gate] front build + checks ==="
+  pnpm --filter front build
+  pnpm --filter front verify:build
+  pnpm --filter front smoke:start
+  pnpm --filter front typecheck
+  pnpm --filter front check:design-system
+  pnpm --filter front test
 
-# front (legacy app): unit characterization + typecheck
-ci-front: tsc-front
-  @echo "=== [gate] front unit characterization ==="
-  pnpm --filter front run test
+# old-front (legacy app): unit characterization + typecheck
+ci-old-front: tsc-old-front
+  @echo "=== [gate] old-front unit characterization ==="
+  pnpm --filter old-front run test
 
 # openapi.json + client-ts determinism, then the OpenAPI contract spec
 ci-spec-drift:
@@ -352,35 +352,35 @@ ci-spec-drift:
   node ./scripts/check-tree-clean.mjs packages/client-ts
   cd {{api_dir}} && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter "FullyQualifiedName~OpenApiContractSpec"
 
-# front-2 e2e: docker stack + playwright (e2e only; `just ci-full` runs this)
+# front e2e: docker stack + playwright (e2e only; `just ci-full` runs this)
 #
 # The stack is reset up front rather than only torn down at the end. CI tears
 # down with `if: always()`, which a justfile cannot express — `just` stops at the
 # first failing line, so a Playwright failure would skip the teardown. Resetting
 # first makes the recipe idempotent regardless of how the last run ended, and
 # leaving a failed stack up is what you want locally anyway: you can inspect it.
-ci-e2e-front-2:
-  @echo "=== [gate] front-2 e2e (docker + playwright) ==="
-  docker compose -f apps/front-2/docker-compose.test.yml down -v --remove-orphans
-  docker compose -f apps/front-2/docker-compose.test.yml up -d --build --wait --wait-timeout 180
-  pnpm --filter front-2 exec playwright install chromium
-  pnpm --filter front-2 exec playwright test
-  docker compose -f apps/front-2/docker-compose.test.yml down -v
-
-# front e2e characterization: docker stack + playwright
 ci-e2e-front:
-  @echo "=== [gate] front e2e characterization (docker + playwright) ==="
+  @echo "=== [gate] front e2e (docker + playwright) ==="
+  docker compose -f apps/front/docker-compose.test.yml down -v --remove-orphans
+  docker compose -f apps/front/docker-compose.test.yml up -d --build --wait --wait-timeout 180
   pnpm --filter front exec playwright install chromium
-  pnpm --filter front run test:e2e:fresh
+  pnpm --filter front exec playwright test
+  docker compose -f apps/front/docker-compose.test.yml down -v
+
+# old-front e2e characterization: docker stack + playwright
+ci-e2e-old-front:
+  @echo "=== [gate] old-front e2e characterization (docker + playwright) ==="
+  pnpm --filter old-front exec playwright install chromium
+  pnpm --filter old-front run test:e2e:fresh
 
 # Everyday pre-push gate (no e2e). Fails on the first red sub-gate.
-ci: ci-drift ci-migration-expand-contract ci-review-front-2-resolution ci-docs-archive-records ci-install ci-format ci-lint ci-front-2 ci-front ci-spec-drift test-api
+ci: ci-drift ci-migration-expand-contract ci-review-front-2-resolution ci-docs-archive-records ci-install ci-format ci-lint ci-front ci-old-front ci-spec-drift test-api
   @echo ""
   @echo "=== just ci: PASSED ==="
   @echo "Not covered here: the two e2e suites (run 'just ci-full')."
 
 # Full gate: `just ci` plus both e2e suites.
-ci-full: ci ci-e2e-front-2 ci-e2e-front
+ci-full: ci ci-e2e-front ci-e2e-old-front
   @echo ""
   @echo "=== just ci-full: PASSED ==="
 
@@ -435,16 +435,16 @@ client-info:
 
 # Clean all build artifacts (cross-platform via node)
 clean:
-  node -e "const fs=require('fs'); const rm=(x)=>fs.rmSync(x,{recursive:true,force:true}); const glob=(dir)=>fs.existsSync(dir)?fs.readdirSync(dir,{withFileTypes:true}).filter((x)=>x.isDirectory()).map((x)=>`${dir}/${x.name}/.artifacts`):[]; ['node_modules','apps/api/node_modules','apps/front/node_modules','packages/shared-ts/node_modules','packages/client-ts/node_modules','packages/scripts-cs/bin','packages/scripts-cs/obj','apps/front/build','apps/front/dist','apps/front/.next',...glob('apps'),...glob('packages')].forEach(rm)"
+  node -e "const fs=require('fs'); const rm=(x)=>fs.rmSync(x,{recursive:true,force:true}); const glob=(dir)=>fs.existsSync(dir)?fs.readdirSync(dir,{withFileTypes:true}).filter((x)=>x.isDirectory()).map((x)=>`${dir}/${x.name}/.artifacts`):[]; ['node_modules','apps/api/node_modules','apps/old-front/node_modules','packages/shared-ts/node_modules','packages/client-ts/node_modules','packages/scripts-cs/bin','packages/scripts-cs/obj','apps/old-front/build','apps/old-front/dist','apps/old-front/.next',...glob('apps'),...glob('packages')].forEach(rm)"
 
 # Clean API artifacts
 clean-api:
   cd {{api_dir}} && dotnet clean
   node -e "const fs=require('fs'); const p=(x)=>fs.rmSync(x,{recursive:true,force:true}); ['apps/api/.artifacts'].forEach(p)"
 
-# Clean frontend artifacts
-clean-front:
-  node -e "const fs=require('fs'); const p=(x)=>fs.rmSync(x,{recursive:true,force:true}); ['apps/front/build','apps/front/dist','apps/front/.next'].forEach(p)"
+# Clean the retired frontend's artifacts
+clean-old-front:
+  node -e "const fs=require('fs'); const p=(x)=>fs.rmSync(x,{recursive:true,force:true}); ['apps/old-front/build','apps/old-front/dist','apps/old-front/.next'].forEach(p)"
 
 # =============================================================================
 # Utility
