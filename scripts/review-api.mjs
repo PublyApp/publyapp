@@ -66,22 +66,103 @@ export const redactSecrets = (text, secrets = []) => {
 	return redacted;
 };
 
+// Tokenizes an ADO.NET/Npgsql-style connection string into ordered [key, value] pairs,
+// correctly handling double- and single-quoted values — which may themselves contain
+// literal semicolons — and doubled-quote escaping inside them
+// (https://www.npgsql.org/doc/connection-string-parameters.html). Round-3 review found the
+// previous naive `;`-splitting regex truncated a valid `Password="pa;ss word"` at the first
+// semicolon, so only `pa` was ever redacted and the rest of the password reached error
+// output. This walks the string character-by-character instead of assuming values never
+// contain the pair delimiter.
+export const parseConnectionStringPairs = (connectionString) => {
+	const pairs = [];
+	const text = connectionString ?? '';
+	let index = 0;
+
+	const skipWhile = (predicate) => {
+		while (index < text.length && predicate(text[index])) {
+			index += 1;
+		}
+	};
+
+	while (index < text.length) {
+		skipWhile((char) => char === ' ' || char === ';');
+		if (index >= text.length) {
+			break;
+		}
+
+		const keyStart = index;
+		while (index < text.length && text[index] !== '=' && text[index] !== ';') {
+			index += 1;
+		}
+
+		const key = text.slice(keyStart, index).trim();
+		if (text[index] !== '=') {
+			// Malformed segment (no '=' before the next ';' or end) — skip past it rather
+			// than guess at a key/value split.
+			index += 1;
+			continue;
+		}
+
+		index += 1; // consume '='
+		skipWhile((char) => char === ' ');
+
+		let value = '';
+		const quote =
+			text[index] === '"' || text[index] === "'" ? text[index] : null;
+
+		if (quote) {
+			index += 1; // consume the opening quote
+			while (index < text.length) {
+				if (text[index] === quote) {
+					if (text[index + 1] === quote) {
+						value += quote; // a doubled quote is an escaped literal quote char
+						index += 2;
+						continue;
+					}
+
+					index += 1; // consume the closing quote
+					break;
+				}
+
+				value += text[index];
+				index += 1;
+			}
+
+			// Discard anything between the closing quote and the next ';' — whitespace
+			// only in a well-formed connection string.
+			while (index < text.length && text[index] !== ';') {
+				index += 1;
+			}
+		} else {
+			const valueStart = index;
+			while (index < text.length && text[index] !== ';') {
+				index += 1;
+			}
+
+			value = text.slice(valueStart, index).trim();
+		}
+
+		if (key.length > 0) {
+			pairs.push([key, value]);
+		}
+	}
+
+	return pairs;
+};
+
 // Full-string redaction alone misses the password appearing on its own (e.g. a child that
 // echoes only the credential it failed to authenticate with, not the whole connection
 // string) — round-2 review reproduced exactly that. Redacting the extracted password as its
-// own secret closes that gap. Postgres/Npgsql connection strings are semicolon-delimited
-// `key=value` pairs; this covers the common unquoted-value shape used throughout this repo's
-// env files without pulling in a full connection-string parser.
+// own secret closes that gap for both quoted and unquoted values (round-3).
 export const extractConnectionStringPassword = (connectionString) => {
-	const match = /(?:^|;)\s*password\s*=\s*([^;]*)/i.exec(
-		connectionString ?? '',
-	);
-	if (!match) {
-		return undefined;
+	for (const [key, value] of parseConnectionStringPairs(connectionString)) {
+		if (/^password$/i.test(key) && value.length > 0) {
+			return value;
+		}
 	}
 
-	const value = match[1].trim();
-	return value.length > 0 ? value : undefined;
+	return undefined;
 };
 
 // The full set of values a connection string should never let leak into a rendered error:
@@ -99,7 +180,7 @@ export const runCommand = (command, args, options = {}) => {
 	const secrets = options.secrets ?? [];
 	const result = spawnSync(command, args, {
 		cwd: options.cwd,
-		env: { ...process.env, ...(options.env ?? {}) },
+		env: { ...process.env, ...options.env },
 		encoding: 'utf8',
 		stdio: options.stdio ?? 'pipe',
 		timeout: options.timeout ?? DEFAULT_COMMAND_TIMEOUT_MS,
@@ -149,6 +230,22 @@ const runCommandOptional = (command, args, options = {}) => {
 	}
 };
 
+// Whole-string decimal check — `Number.parseInt` stops at the first non-digit character and
+// happily returns 5000 for "5000junk" or "5000.5" (round-3 review), silently accepting
+// garbage input as a valid port.
+const parseStrictPort = (rawValue) => {
+	if (!/^\d+$/.test(rawValue)) {
+		err(`Invalid --port value: ${rawValue}.`);
+	}
+
+	const parsed = Number.parseInt(rawValue, 10);
+	if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65_535) {
+		err(`Invalid --port value: ${rawValue}.`);
+	}
+
+	return parsed;
+};
+
 export const parseArgs = (args) => {
 	let requestedRef = '';
 	let port = DEFAULT_PORT;
@@ -163,23 +260,12 @@ export const parseArgs = (args) => {
 			}
 
 			index += 1;
-			const parsed = Number.parseInt(requestedPort, 10);
-			if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65_535) {
-				err(`Invalid --port value: ${requestedPort}.`);
-			}
-
-			port = parsed;
+			port = parseStrictPort(requestedPort);
 			continue;
 		}
 
 		if (argument.startsWith('--port=')) {
-			const requestedPort = argument.slice('--port='.length);
-			const parsed = Number.parseInt(requestedPort, 10);
-			if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65_535) {
-				err(`Invalid --port value: ${requestedPort}.`);
-			}
-
-			port = parsed;
+			port = parseStrictPort(argument.slice('--port='.length));
 			continue;
 		}
 
@@ -188,14 +274,18 @@ export const parseArgs = (args) => {
 			continue;
 		}
 
-		if (requestedRef.length === 0) {
-			requestedRef = argument;
-			continue;
-		}
-
+		// Reject any unrecognized `--`-prefixed option immediately, regardless of whether a
+		// ref has been assigned yet — round-3 review found a leading unknown option (e.g.
+		// `--bogus`) was silently accepted as the requested ref instead.
 		if (argument.startsWith('--')) {
 			err(`Unknown option: ${argument}`);
 		}
+
+		if (requestedRef.length > 0) {
+			err(`Unexpected extra argument: ${argument}.`);
+		}
+
+		requestedRef = argument;
 	}
 
 	return { requestedRef, port, allowMigrations };
@@ -646,17 +736,26 @@ export const buildApiChildEnv = ({
 	return env;
 };
 
+const isWindows = process.platform === 'win32';
+
 // Spawns the API child without waiting on it — split out from launchApi so a test can
 // assert readiness/liveness itself and control shutdown, rather than being stuck inside a
 // promise that only resolves once the child has already exited.
 //
-// `detached: true` makes `child.pid` the leader of a NEW process group (POSIX), so
+// POSIX: `detached: true` makes `child.pid` the leader of a NEW process group, so
 // `process.kill(-child.pid, signal)` reaches the whole tree in one call — `dotnet watch`
 // itself, the `dotnet-watch.dll` process it spawns, and the actual PublyApp.Api process it
 // spawns in turn. Signaling only `child.pid` (no leading `-`) reaches just the outermost
 // `dotnet` dispatch process; `dotnet watch` is confirmed (by hand) to survive its inner app
 // crashing — "Waiting for a file to change before restarting" — so that alone is not enough
 // to guarantee the whole tree is gone.
+//
+// Windows: deliberately NOT detached. A negative pid is a POSIX process-group id; Node's own
+// docs say `process.kill()` with one throws on Windows (round-3 review), and `detached: true`
+// on Windows does not create anything analogous to a killable process group — it instead
+// gives the child its own console window, which is not what we want here. Windows tree-kill
+// instead addresses the process BY PID by walking its actual process tree: see
+// killApiChildGroup's `taskkill /PID <pid> /T` branch.
 export const spawnApiChild = (worktreePath, port, options = {}) => {
 	const cwd = path.join(worktreePath, 'apps', 'api');
 	const publicUrl = `http://127.0.0.1:${String(port)}`;
@@ -674,17 +773,44 @@ export const spawnApiChild = (worktreePath, port, options = {}) => {
 			cwd,
 			stdio: 'inherit',
 			env: buildApiChildEnv(options),
-			detached: true,
+			detached: !isWindows,
 		},
 	);
 
 	return { child, publicUrl };
 };
 
-// Signals the whole process group spawned by spawnApiChild, not just the immediate child —
-// see the detached: true rationale above. Swallows ESRCH-style failures (group already gone).
+// Signals the whole process tree spawned by spawnApiChild, not just the immediate child.
+//
+// POSIX: process.kill(-pid, signal) against the process group created by `detached: true`
+// above — reaches dotnet watch and every process it spawned. Swallows ESRCH-style failures
+// (group already gone).
+//
+// Windows: UNVERIFIED — written to Node's and Microsoft's documented behavior, but no
+// Windows environment was available to run it (see the justfile `review-api` Windows recipe
+// and the round-3 review that raised this). `taskkill /PID <pid> /T` walks the real process
+// tree rooted at that PID regardless of process-group membership, which is why
+// spawnApiChild does not need `detached: true` on this platform at all. `/T` alone requests
+// a normal termination first (many console apps ignore it and taskkill reports a non-zero
+// exit); `/F` forces it. SIGKILL (already an escalation, e.g. from killAndReapApiChild after
+// a graceful attempt timed out) forces immediately; anything else tries graceful first and
+// escalates to forced only if that attempt did not report success.
 const killApiChildGroup = (child, signal) => {
 	if (child.killed || child.exitCode !== null) {
+		return;
+	}
+
+	if (isWindows) {
+		const pid = String(child.pid);
+		const forceImmediately = signal === 'SIGKILL';
+		const graceful = forceImmediately
+			? null
+			: spawnSync('taskkill', ['/PID', pid, '/T'], { stdio: 'ignore' });
+
+		if (forceImmediately || !graceful || graceful.status !== 0) {
+			spawnSync('taskkill', ['/PID', pid, '/T', '/F'], { stdio: 'ignore' });
+		}
+
 		return;
 	}
 
