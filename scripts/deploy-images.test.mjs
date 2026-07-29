@@ -45,6 +45,16 @@ const extractImageRoot = (image, context) => {
 	return match[1];
 };
 
+// Splits a step's `with.tags` value into individual tags. A single-line `tags: <one tag>`
+// yields one entry; a multi-line `tags: |` block yields one entry per non-blank line — a
+// second line appended to that block publishes a second, independent image and must be
+// counted as its own tag rather than folded into the step's "one image" total.
+const splitTags = (tags) =>
+	String(tags)
+		.split(/\r?\n/)
+		.map((line) => line.trim())
+		.filter((line) => line.length > 0);
+
 const readWorkflowPublishedImageRoots = () => {
 	const workflow = parse(readFileSync(deployImagesWorkflowPath, 'utf8'));
 	const steps = workflow.jobs?.publish?.steps ?? [];
@@ -58,25 +68,35 @@ const readWorkflowPublishedImageRoots = () => {
 		`found no docker/build-push-action steps in ${deployImagesWorkflowPath}`,
 	);
 
-	return buildSteps.map((step) =>
-		extractImageRoot(step.with.tags, `workflow step "${step.name}"`),
+	return buildSteps.flatMap((step) =>
+		splitTags(step.with.tags).map((tag) =>
+			extractImageRoot(tag, `workflow step "${step.name}"`),
+		),
 	);
 };
 
+// Enumerates EVERY Dokploy service whose image is a first-party
+// ghcr.io/radandevist/publyapp/* reference — it does not look up a fixed list of expected
+// service keys, so an added, renamed, or repurposed service shows up in the actual mapping
+// and fails the deepEqual comparison against EXPECTED_SERVICE_IMAGE_ROOTS below, instead of
+// silently passing because nothing ever asked about it.
 const readDokployServiceImageRoots = () => {
 	const dokploy = parse(readFileSync(dokployComposePath, 'utf8'));
 	const services = dokploy.services ?? {};
 
-	return Object.fromEntries(
-		Object.entries(EXPECTED_SERVICE_IMAGE_ROOTS).map(([serviceName]) => {
-			const service = services[serviceName];
-			assert.ok(service, `dokploy.yml has no service "${serviceName}"`);
-			return [
-				serviceName,
-				extractImageRoot(service.image, `dokploy service "${serviceName}"`),
-			];
-		}),
-	);
+	const serviceImageRoots = {};
+	for (const [serviceName, service] of Object.entries(services)) {
+		const image = service?.image;
+		if (typeof image !== 'string' || !IMAGE_ROOT_PATTERN.test(image)) {
+			continue;
+		}
+		serviceImageRoots[serviceName] = extractImageRoot(
+			image,
+			`dokploy service "${serviceName}"`,
+		);
+	}
+
+	return serviceImageRoots;
 };
 
 const formatArgument = (argument) => {
