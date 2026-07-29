@@ -1,0 +1,170 @@
+import { execFileSync } from 'node:child_process';
+import { appendFileSync } from 'node:fs';
+import path from 'node:path';
+import process from 'node:process';
+
+// Changed-path classifier for the #1017 aggregate CI gates (front-e2e.yml,
+// front-ci.yml, openapi-spec-drift.yml, docs-archive.yml). Each workflow's
+// cheap `changes` job shells out to this script instead of inlining the
+// logic, so the decision that controls whether the heavy jobs run is a real,
+// unit-tested function rather than untested bash embedded in YAML.
+//
+// THE FAILURE MODE THIS EXISTS TO CLOSE
+// --------------------------------------
+// GitHub's "List pull request files" endpoint returns at most 3,000 entries,
+// full stop — `gh api --paginate` follows every page GitHub offers, but it
+// cannot make the endpoint hand back a 3,001st file. A pull request above
+// that ceiling gets a VALID, SUCCESSFUL, TRUNCATED response. If a relevant
+// file sits outside the returned set, naive pattern matching finds nothing,
+// reports "not relevant", the heavy job is skipped, and the aggregate gate
+// (which correctly treats "skipped" as a pass) reports green — a required
+// check certifying nothing.
+//
+// classifyRelevance() closes that hole by comparing the fetched file count
+// against the pull request's own reported `changed_files` total. Any
+// mismatch — truncation, an empty response, a non-numeric total — means the
+// complete list cannot be established, and the classifier fails closed by
+// reporting the workflow relevant (run everything) rather than guessing.
+
+/**
+ * Pure decision function: given a pull request event's changed-file
+ * evidence and this workflow's relevance pattern, decides whether the heavy
+ * jobs should run.
+ *
+ * @param {{
+ *   eventName: string,
+ *   files: unknown,
+ *   changedFilesTotal: unknown,
+ *   pattern: string,
+ * }} input
+ * @returns {{ relevant: boolean, reason: string }}
+ */
+export const classifyRelevance = ({
+	eventName,
+	files,
+	changedFilesTotal,
+	pattern,
+}) => {
+	if (eventName !== 'pull_request') {
+		return {
+			relevant: true,
+			reason:
+				'non-pull_request event; push runs are already path-filtered at the trigger, so a push that starts this workflow is relevant by construction',
+		};
+	}
+
+	if (!Array.isArray(files)) {
+		return {
+			relevant: true,
+			reason:
+				'changed-file list is not an array (missing or malformed API response); the complete list cannot be established, so failing closed by running everything',
+		};
+	}
+
+	if (
+		typeof changedFilesTotal !== 'number' ||
+		!Number.isFinite(changedFilesTotal) ||
+		changedFilesTotal < 0
+	) {
+		return {
+			relevant: true,
+			reason:
+				"the pull request's reported changed_files total is missing or not a valid non-negative number; completeness cannot be verified, so failing closed by running everything",
+		};
+	}
+
+	if (files.length !== changedFilesTotal) {
+		return {
+			relevant: true,
+			reason: `fetched ${files.length} changed file(s) but the pull request reports ${changedFilesTotal} — the list is incomplete (this is exactly what GitHub's 3,000-file "List pull request files" ceiling produces), so failing closed by running everything`,
+		};
+	}
+
+	const regex = new RegExp(pattern);
+	const matched = files.some((file) => regex.test(file));
+
+	return {
+		relevant: matched,
+		reason: matched
+			? 'at least one changed file matched the relevant path groups'
+			: 'the complete changed-file list was verified (fetched count matches the PR total) and no file matched the relevant path groups',
+	};
+};
+
+const toPosixPath = (value) => value.split(path.sep).join('/');
+
+const isDirectRun =
+	process.argv[1] &&
+	toPosixPath(process.argv[1]).endsWith('scripts/ci-changed-paths.mjs');
+
+if (isDirectRun) {
+	const pattern = process.argv[2];
+
+	if (!pattern) {
+		console.error(
+			'Usage: node scripts/ci-changed-paths.mjs <regex-pattern>\n' +
+				'(Reads GITHUB_EVENT_NAME, GH_REPO, PR_NUMBER, GH_TOKEN from the environment.)',
+		);
+		process.exit(1);
+	}
+
+	const eventName = process.env.GITHUB_EVENT_NAME ?? '';
+
+	let files = [];
+	let changedFilesTotal = 0;
+
+	if (eventName === 'pull_request') {
+		const repo = process.env.GH_REPO;
+		const prNumber = process.env.PR_NUMBER;
+
+		if (!repo || !prNumber) {
+			throw new Error(
+				'GH_REPO and PR_NUMBER must be set in the environment for a pull_request event.',
+			);
+		}
+
+		// Two independent signals: the PR's own idea of how many files changed
+		// (from the PR resource itself, not the paginated files list), and the
+		// actual enumerated list. Disagreement between them is the truncation
+		// signal classifyRelevance() checks for.
+		changedFilesTotal = Number(
+			execFileSync(
+				'gh',
+				['api', `repos/${repo}/pulls/${prNumber}`, '--jq', '.changed_files'],
+				{ encoding: 'utf8' },
+			).trim(),
+		);
+
+		const filesOutput = execFileSync(
+			'gh',
+			[
+				'api',
+				'--paginate',
+				`repos/${repo}/pulls/${prNumber}/files`,
+				'--jq',
+				'.[].filename',
+			],
+			{ encoding: 'utf8' },
+		);
+
+		files = filesOutput
+			.split('\n')
+			.map((line) => line.trim())
+			.filter((line) => line.length > 0);
+	}
+
+	const { relevant, reason } = classifyRelevance({
+		eventName,
+		files,
+		changedFilesTotal,
+		pattern,
+	});
+
+	console.log(`relevant=${relevant} (${reason})`);
+
+	const githubOutput = process.env.GITHUB_OUTPUT;
+
+	if (githubOutput) {
+		appendFileSync(githubOutput, `relevant=${relevant}\n`);
+	}
+}
