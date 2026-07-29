@@ -1,7 +1,7 @@
 # Front-2 ↔ old front — feature-parity status
 
-Dated snapshot: **2026-07-11** (swept from `apps/front/src/routes.ts` + `_tree/*` vs
-`apps/front-2/src/routes.ts` + `src/lib/navigation/route-metadata.tsx`). Update this file when an
+Dated snapshot: **2026-07-11** (swept from `apps/old-front/src/routes.ts` + `_tree/*` vs
+`apps/front/src/routes.ts` + `src/lib/navigation/route-metadata.tsx`). Update this file when an
 area changes state; `parity-contract.md` stays the per-decision design log.
 
 ## Scope decision (2026-07-11, Radan)

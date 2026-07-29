@@ -231,7 +231,7 @@ Add to `AppEnvironment` (`apps/api/Lib/AppEnvironment.cs`):
   enumerated entrypoint set (all must be pinned, verified by a checklist in
   Phase 2B's gate):
   1. the Dockerfile's build-time OpenAPI-generation env block (§3.3);
-  2. `apps/front-2/docker-compose.test.yml`'s api service (front-2 E2E);
+  2. `apps/front/docker-compose.test.yml`'s api service (front-2 E2E);
   3. the **OpenAPI-drift / client-generation workflow** (`just build-api` +
      `just generate-client`, and its CI job) — `dotnet build` runs the app to
      emit the OpenAPI document, so the build env must export `APP_ROLE=api`;
@@ -357,7 +357,7 @@ started the shipped outbox dispatcher before the fold-in) — these are the
 "worker-specific integration fixtures" the `all` default exists for.
 **Everything that is not local dev or a worker fixture pins `APP_ROLE=api`
 explicitly (C6/F24/R4-4)** — the full enumerated list is in §3.1: the Dockerfile
-build-time OpenAPI env block, `apps/front-2/docker-compose.test.yml`, the
+build-time OpenAPI env block, `apps/front/docker-compose.test.yml`, the
 `just build-api`/`generate-client` OpenAPI-drift workflow and its CI job, every
 other CI app-boot, and every production-like migration invocation (the
 Dockerfile `migrate` stage, the staging migrate service, and the Dokploy migrate
@@ -4239,7 +4239,7 @@ specs. The audit found it incomplete; 2A-R below is its remediation packet.
   F17); `Dockerfile`
   (**`APP_ROLE=api` in both the build-time OpenAPI env block and the production
   `migrate` stage/invocation** — C6/F24/R4-4);
-  `apps/front-2/docker-compose.test.yml` (`APP_ROLE=api` — C6/F24);
+  `apps/front/docker-compose.test.yml` (`APP_ROLE=api` — C6/F24);
   **the OpenAPI-drift / `generate-client` CI workflow (`APP_ROLE=api`)** and any
   other app-boot CI job; `docs/front-migration/staging-deploy.md` staging
   migrate service and the Dokploy migrate job (**both `APP_ROLE=api`** —

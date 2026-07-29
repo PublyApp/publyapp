@@ -2,27 +2,27 @@
 
 This contract is the reusable invariant set for Phase 1. The disposable
 proof-of-concept was removed in #965 after these behaviors were carried into
-`apps/front-2`; the behaviors remain part of the migration contract. Each
+`apps/front`; the behaviors remain part of the migration contract. Each
 migrated page must preserve the relevant invariants against the current
-`apps/front` behavior.
+`apps/old-front` behavior.
 
 `Expected current-app behavior` is intentionally marked `Phase 1 confirm` unless
-already proven by the existing spike evidence. The next task checks `apps/front`
+already proven by the existing spike evidence. The next task checks `apps/old-front`
 against this contract.
 
 ## Phase-2 Fan-Out Gate
 
 Every Phase-2 surface migration must keep the current-app golden reference
-green before it can replace `apps/front` behavior. The blocking CI checks are:
+green before it can replace `apps/old-front` behavior. The blocking CI checks are:
 
-- `front-unit`
-- `front-e2e`
+- `old-front-unit`
+- `old-front-e2e`
 
-The `front characterization` workflow runs those checks on every pull request
+The `old-front characterization` workflow runs those checks on every pull request
 so required checks cannot be left pending by workflow-level path filters. It
-also runs on `develop` pushes for current-app, front-2 migration, API,
+also runs on `develop` pushes for current-app, front migration, API,
 generated-client, shared package, workflow, and migration-doc changes. A
-migration PR may add or strengthen front-2 parity assertions, but it must not
+migration PR may add or strengthen front parity assertions, but it must not
 weaken or remove the current-app characterization checks unless this contract
 records an explicit follow-up decision.
 
