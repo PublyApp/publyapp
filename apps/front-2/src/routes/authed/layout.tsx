@@ -17,6 +17,7 @@ import { View404 } from '~/components/error-views/View404';
 import { Button, buttonVariants } from '~/components/ui/button';
 import { getSessionTokensFromBrowser } from '~/lib/api-client/client-manager';
 import { buildLoginRedirectSearch } from '~/lib/login-redirect-search';
+import { hasExactAuthedRouteMatch } from '~/lib/route-shell';
 import { determineSessionToken, getSessionSurface } from '~/lib/session-scope';
 import { useSessionSurfaceValidation } from '~/lib/session-surface-recovery-context';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
@@ -110,8 +111,21 @@ const AuthedLayoutErrorBoundary = ({
 
 export const Route = createFileRoute('/_authed-layout')({
 	ssr: false,
-	beforeLoad: async ({ location }) => {
+	beforeLoad: async ({ location, matches }) => {
 		if (typeof document === 'undefined') {
+			return;
+		}
+
+		// This pathless layout also matches unknown paths under an authed
+		// prefix (e.g. /staff/not-a-route) — the root already declines to
+		// treat those as an authenticated route (see `resolveRootContext` in
+		// __root.tsx), but this route's own beforeLoad used to run the
+		// session-token redirect logic below regardless, so a signed-out
+		// visitor or a stale/cross-scope cookie holder got redirected to
+		// /login or /tenant instead of seeing the genuine 404 (PR #997
+		// finding 1). Applying the same exact-match guard here keeps that
+		// redirect logic scoped to real authenticated routes only.
+		if (!hasExactAuthedRouteMatch(matches, location.pathname ?? '/')) {
 			return;
 		}
 

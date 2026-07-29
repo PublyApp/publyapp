@@ -110,16 +110,37 @@ test('SSR never serves authenticated chrome from an unvalidated cookie or a /sta
 test('hydration never validates stale cookies on unknown authed-prefix paths, so 404 stays genuine', async ({
 	context,
 }) => {
-	// Every case here carries a staff-scoped (if bogus) token, so
-	// `_authed-layout`'s own `beforeLoad` never redirects: it only redirects
-	// when a token is completely absent, or when a token resolves to the
-	// *other* surface (e.g. an unscoped legacy cookie parses as a tenant
-	// token, and `/staff/*` with only a tenant token legitimately bounces to
-	// `/tenant` — that's `determineSessionScope`'s already-reviewed cross-
-	// surface routing, not the defect under test here). With the redirect
-	// out of the way, only the RoutedShell surface-session query being fixed
-	// in this test is in play.
+	// `_authed-layout`'s own `beforeLoad` applies the same
+	// `hasExactAuthedRouteMatch` guard the root already applies (PR #997
+	// finding 1), so none of these cases may redirect away from an unknown
+	// path anymore: neither the tokenless/unresolvable-token branch (no
+	// cookie, an empty scoped cookie, an unscoped/malformed legacy cookie)
+	// nor the cross-surface branch (a bare tenant token, or an unscoped
+	// legacy cookie that also parses as a tenant token) may fire for a path
+	// that isn't an exact authenticated route match. With the redirect out
+	// of the way for every one of these shapes, only the RoutedShell
+	// surface-session query being fixed in this test is in play.
 	const cases = [
+		{
+			cookie: undefined,
+			name: 'no cookie on unknown staff path',
+			path: '/staff/not-a-route',
+		},
+		{
+			cookie: 's:',
+			name: 'empty scoped token on unknown staff path',
+			path: '/staff/not-a-route',
+		},
+		{
+			cookie: 'forged-legacy',
+			name: 'malformed raw legacy token on unknown staff path',
+			path: '/staff/not-a-route',
+		},
+		{
+			cookie: 't:forged-tenant',
+			name: 'cross-scope tenant-only token on unknown staff path',
+			path: '/staff/not-a-route',
+		},
 		{
 			cookie: 's:forged',
 			name: 'forged staff token on unknown staff path',

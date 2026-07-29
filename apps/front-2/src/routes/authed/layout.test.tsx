@@ -81,11 +81,35 @@ afterEach(() => {
 	mocks.location = { pathname: '/staff/tenants', search: {} };
 });
 
+type MockMatch = {
+	globalNotFound?: boolean;
+	pathname?: string;
+	routeId?: string;
+};
+
 const routeOptions = Route as unknown as {
 	component: ComponentType;
 	pendingComponent: ComponentType;
-	beforeLoad: (args: { location: { pathname: string } }) => Promise<void>;
+	beforeLoad: (args: {
+		location: { pathname: string };
+		matches: MockMatch[];
+	}) => Promise<void>;
 };
+
+// An exact match: the deepest match is a real leaf route registered under
+// `/_authed-layout` whose pathname is the requested one.
+const exactMatches = (pathname: string): MockMatch[] => [
+	{ routeId: '__root__', pathname: '/' },
+	{ routeId: '/_authed-layout', pathname: '/' },
+	{ routeId: `/_authed-layout${pathname}`, pathname },
+];
+
+// An unknown path under the authed prefix: no leaf route matched, so the
+// deepest match is the pathless layout itself (see route-shell.test.ts).
+const unknownPathMatches: MockMatch[] = [
+	{ routeId: '__root__', pathname: '/' },
+	{ routeId: '/_authed-layout', pathname: '/' },
+];
 const AuthedRouteLayout = routeOptions.component;
 const AuthedRoutePendingSkeleton = routeOptions.pendingComponent;
 
@@ -101,7 +125,10 @@ describe('beforeLoad session-token guard', () => {
 		mocks.tokens = { tenantToken: 'tenant-tok' };
 
 		await expect(
-			routeOptions.beforeLoad({ location: { pathname: '/staff/profiles' } }),
+			routeOptions.beforeLoad({
+				location: { pathname: '/staff/profiles' },
+				matches: exactMatches('/staff/profiles'),
+			}),
 		).rejects.toEqual({ to: '/tenant' });
 	});
 
@@ -109,7 +136,10 @@ describe('beforeLoad session-token guard', () => {
 		mocks.tokens = { staffToken: 'staff-tok' };
 
 		await expect(
-			routeOptions.beforeLoad({ location: { pathname: '/tenant' } }),
+			routeOptions.beforeLoad({
+				location: { pathname: '/tenant' },
+				matches: exactMatches('/tenant'),
+			}),
 		).rejects.toEqual({ to: '/staff' });
 	});
 
@@ -117,7 +147,10 @@ describe('beforeLoad session-token guard', () => {
 		mocks.tokens = {};
 
 		const rejection = await routeOptions
-			.beforeLoad({ location: { pathname: '/staff/profiles' } })
+			.beforeLoad({
+				location: { pathname: '/staff/profiles' },
+				matches: exactMatches('/staff/profiles'),
+			})
 			.catch((error: unknown) => error);
 
 		expect(rejection).toMatchObject({
@@ -133,8 +166,46 @@ describe('beforeLoad session-token guard', () => {
 		mocks.tokens = { staffToken: 'staff-tok' };
 
 		await expect(
-			routeOptions.beforeLoad({ location: { pathname: '/staff/profiles' } }),
+			routeOptions.beforeLoad({
+				location: { pathname: '/staff/profiles' },
+				matches: exactMatches('/staff/profiles'),
+			}),
 		).resolves.toBeUndefined();
+	});
+});
+
+describe('beforeLoad exact-match guard (PR #997 finding 1)', () => {
+	test('does not redirect a signed-out visitor on an unknown authed-prefix path', async () => {
+		mocks.tokens = {};
+
+		await expect(
+			routeOptions.beforeLoad({
+				location: { pathname: '/staff/not-a-route' },
+				matches: unknownPathMatches,
+			}),
+		).resolves.toBeUndefined();
+	});
+
+	test('does not redirect a cross-scope cookie holder on an unknown authed-prefix path', async () => {
+		mocks.tokens = { tenantToken: 'tenant-tok' };
+
+		await expect(
+			routeOptions.beforeLoad({
+				location: { pathname: '/staff/not-a-route' },
+				matches: unknownPathMatches,
+			}),
+		).resolves.toBeUndefined();
+	});
+
+	test('still redirects a tokenless visitor when the same path is an exact authed match', async () => {
+		mocks.tokens = {};
+
+		await expect(
+			routeOptions.beforeLoad({
+				location: { pathname: '/staff/profiles' },
+				matches: exactMatches('/staff/profiles'),
+			}),
+		).rejects.toMatchObject({ to: '/login' });
 	});
 });
 
