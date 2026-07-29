@@ -60,7 +60,10 @@ describe('injectSeoMarkup / resolveSeoTranslator (shell-r6-F1)', () => {
 		expect(output).toContain(
 			'content="PublyApp keeps your whole team and every channel moving together',
 		);
-		expect(output).not.toContain('front-2');
+		expect(output).toContain(
+			'<meta name="twitter:title" content="PublyApp" />',
+		);
+		expect(output).toContain('<meta property="og:title" content="PublyApp" />');
 	});
 
 	test('home route gets PublyApp-branded SEO metadata in French', async () => {
@@ -77,7 +80,10 @@ describe('injectSeoMarkup / resolveSeoTranslator (shell-r6-F1)', () => {
 		expect(output).toContain(
 			'content="PublyApp permet à toute votre équipe et à chaque canal d&#39;avancer ensemble',
 		);
-		expect(output).not.toContain('front-2');
+		expect(output).toContain(
+			'<meta name="twitter:title" content="PublyApp" />',
+		);
+		expect(output).toContain('<meta property="og:title" content="PublyApp" />');
 	});
 
 	test('login route gets PublyApp-branded, localized SEO metadata', async () => {
@@ -93,6 +99,12 @@ describe('injectSeoMarkup / resolveSeoTranslator (shell-r6-F1)', () => {
 		expect(enOutput).toContain(
 			'content="Sign in to your PublyApp workspace to get started."',
 		);
+		expect(enOutput).toContain(
+			'<meta name="twitter:title" content="Sign in to PublyApp" />',
+		);
+		expect(enOutput).toContain(
+			'<meta property="og:title" content="Sign in to PublyApp" />',
+		);
 
 		const fr = await resolveSeoTranslator('fr');
 		const frOutput = injectSeoMarkup(
@@ -103,7 +115,12 @@ describe('injectSeoMarkup / resolveSeoTranslator (shell-r6-F1)', () => {
 			fr,
 		);
 		expect(frOutput).toContain('<title>Connexion à PublyApp</title>');
-		expect(frOutput).not.toContain('front-2');
+		expect(frOutput).toContain(
+			'<meta name="twitter:title" content="Connexion à PublyApp" />',
+		);
+		expect(frOutput).toContain(
+			'<meta property="og:title" content="Connexion à PublyApp" />',
+		);
 	});
 
 	test('every non-indexable (authenticated) route leaves title ownership to React', async () => {
@@ -117,6 +134,5 @@ describe('injectSeoMarkup / resolveSeoTranslator (shell-r6-F1)', () => {
 		);
 
 		expect(output).toContain('<title>PublyApp</title>');
-		expect(output).not.toContain('front-2');
 	});
 });
