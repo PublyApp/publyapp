@@ -32,8 +32,14 @@ export const ProfileTenantBand = ({
 				<p className="truncate text-sm font-semibold text-foreground">
 					{tenant.name}
 				</p>
-				<p className="font-mono text-xs text-muted-foreground">
-					<span className="text-muted-foreground">publyapp.com/</span>
+				{/* text-muted-foreground on bg-muted lands at 4.40:1 in light mode,
+				    under the WCAG AA 4.5:1 floor for normal text — foreground-secondary
+				    is the established fix for this same "muted-on-muted" contrast gap
+				    (see .publy-toast-description in app.css). */}
+				<p className="font-mono text-xs text-[var(--publy-foreground-secondary)]">
+					<span className="text-[var(--publy-foreground-secondary)]">
+						publyapp.com/
+					</span>
 					{/* data-honesty-ignore: tenant code is a documented OPTIONAL field — a tenant without an assigned workspace slug has none, this is not fabricated identity data */}
 					{tenant.code ?? '—'}
 				</p>
