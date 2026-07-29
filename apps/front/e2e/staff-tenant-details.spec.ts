@@ -413,7 +413,7 @@ test.describe('staff tenant Profiles/Invitations/Users tab bodies', () => {
 		await expect(page.getByTestId('staff-tenant-profiles-page')).toBeVisible();
 
 		// #8 — "New profile" is primary (--publy-primary, #fdc700), not outline,
-		// per the owner's cross-app consistency ruling (docs/guides/front-2/conventions.md).
+		// per the owner's cross-app consistency ruling (docs/guides/front/conventions.md).
 		const newProfileButton = page.getByRole('button', { name: 'New profile' });
 		await expect(newProfileButton).toBeVisible();
 		await expect(newProfileButton).toHaveCSS(

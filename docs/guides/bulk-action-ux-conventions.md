@@ -5,10 +5,10 @@
 > per-row eligibility, ineligible clicks show an i18n toast, the trigger gates on
 > `BULK_ACTION_MAX_COUNT`) and the whole backend contract — batched service queries, batched audit
 > logs, and the mutation-hook split try/catch.
-> **Not normative:** the MUI component mechanics (`MenuItem`, `sx`, …) and any `apps/front` path.
-> `apps/front` is the retired MUI + React Router v7 app — not deployed, and the owner will not edit
-> it again. Build the UI in `apps/front-2` per [`front-2/index.md`](front-2/index.md) and
-> [`front-2/conventions.md`](front-2/conventions.md). Porting the UI half of this guide is deferred
+> **Not normative:** the MUI component mechanics (`MenuItem`, `sx`, …) and any `apps/old-front` path.
+> `apps/old-front` is the retired MUI + React Router v7 app — not deployed, and the owner will not edit
+> it again. Build the UI in `apps/front` per [`front/index.md`](front/index.md) and
+> [`front/conventions.md`](front/conventions.md). Porting the UI half of this guide is deferred
 > to a later wave of the documentation remediation.
 
 > Rules for list-page multi-select bulk actions (revoke, suspend, reactivate, delete, remove, etc.) — both the frontend selection menu and the backend service/handler/audit-log shape.
@@ -186,8 +186,8 @@ The two MUST stay in sync. Comment on both sides referencing the other.
 
 Cite as canonical when in doubt:
 
-- Frontend selection menu: `apps/front/src/routes/authed/staff/invitations/list/_parts/staff-invitations-selection-actions.tsx`
-- Frontend mutation hook: `apps/front/src/routes/authed/staff/invitations/list/_parts/use-staff-invitation-bulk-revoke.ts`
+- Frontend selection menu: `apps/old-front/src/routes/authed/staff/invitations/list/_parts/staff-invitations-selection-actions.tsx`
+- Frontend mutation hook: `apps/old-front/src/routes/authed/staff/invitations/list/_parts/use-staff-invitation-bulk-revoke.ts`
 - Backend handler: `apps/api/Modules/Invitations/Handlers/Staff/BulkRevokeStaffInvitations.cs`
 - Backend service method: `InvitationService.BulkRevokeStaffInvitationsAsync` in
   `apps/api/Modules/Invitations/Services/InvitationService.cs`

@@ -1,30 +1,30 @@
-# Front-2 Conventions
+# Front Conventions
 
-These rules apply to `apps/front-2`. Repo-wide API, error, URL, logging, and generated-client
+These rules apply to `apps/front`. Repo-wide API, error, URL, logging, and generated-client
 rules from `AGENTS.md` still apply unless this guide explicitly narrows a frontend styling rule.
 
 ## Base UI and Tailwind
 
-`apps/front-2` uses `@base-ui/react` primitives (headless, unstyled) wrapped by a local
+`apps/front` uses `@base-ui/react` primitives (headless, unstyled) wrapped by a local
 `components/ui/*` layer — styled with Tailwind v4 utility classes, `class-variance-authority`
 (`cva`) for variants, and `tailwind-merge` (via the `cn` helper) for class composition. `shadcn`
 is a dev-time scaffolding/CSS-import dependency only, not a component library consumed at
 runtime.
 
 This intentionally diverges from the MUI + `sx` rules and app-local primitive patterns that
-govern `apps/front`. Those current-app rules are scoped to `apps/front`; they do not apply to
-`apps/front-2`. Examples include:
+govern `apps/old-front`. Those retired-app rules are scoped to `apps/old-front`; they do not apply
+to `apps/front`. Examples include:
 
 - `publy/no-native-html-in-mui-surfaces`
 - `publy/no-raw-mui-textfield-register`
 - `publy/no-raw-img-in-product-surfaces`
 
-Do not import MUI or `apps/front` UI primitives into `apps/front-2` to reuse current-app
+Do not import MUI or `apps/old-front` UI primitives into `apps/front` to reuse retired-app
 components. Rebuild the surface with the `components/ui/*` primitive layer (Base UI + `cva` +
-Tailwind), and front-2-local equivalents where needed, keeping shared behavior behind
+Tailwind), and front-local equivalents where needed, keeping shared behavior behind
 framework-agnostic contracts where possible.
 
-Portable repo rules still matter in front-2 when their path coverage includes it:
+Portable repo rules still matter in front when their path coverage includes it:
 
 - no token or secret logging
 - no `console.*` in source
@@ -54,7 +54,7 @@ Prefix a route-local file that must not become a route with `_` (e.g. `_tenant-d
 ## Superseded proof-of-concept
 
 The disposable proof-of-concept was removed in #965 after its findings were
-reimplemented. Use `apps/front-2` as the canonical source for durable code.
+reimplemented. Use `apps/front` as the canonical source for durable code.
 
 ## Ports and Adapters
 
@@ -85,7 +85,7 @@ receive injected accessors. They must not import React, TanStack Query, Kiota, `
 or MUI at runtime. Any external framework or client references needed by shared contracts must be
 `import type` only, with no runtime import side effects.
 
-App-bound pieces stay local to `apps/front-2`, including:
+App-bound pieces stay local to `apps/front`, including:
 
 - `ClientManager` and concrete Kiota client wiring
 - environment and cookie I/O
@@ -125,7 +125,7 @@ client graph and the build's import-protection plugin fails — but only the pro
 (`vite build`) catches this; vitest and `tsc` do not. Shared server-only helpers (e.g. cookie
 read/write utilities used by more than one `*-actions.ts` module) belong in their own module
 (such as `src/lib/server/session-cookie-utils.ts`) and must only ever be called from inside
-`createServerFn` handler bodies in their consumers. `pnpm --filter front-2 build` is part of
+`createServerFn` handler bodies in their consumers. `pnpm --filter front build` is part of
 verification for any change that touches a server-fn module.
 
 ## URL State
@@ -139,13 +139,13 @@ URL query parameters use snake_case per `AGENTS.md`. Table/list state uses:
 - `size`
 
 The spike's `sortId` and `sortOrder` names are not the convention. Do not parse or emit spike
-aliases such as `sortId` or `sortOrder` in durable front-2 routes. Internal TypeScript objects may
+aliases such as `sortId` or `sortOrder` in durable front routes. Internal TypeScript objects may
 use camelCase when useful, but the URL contract must stay snake_case. Convert between internal
 state and URL parameters at explicit parse/serialize boundaries, not ad hoc inside components.
 
 ## Error Views and Logout
 
-Front-2 preserves the hard RFC 7807 logout split:
+Front preserves the hard RFC 7807 logout split:
 
 - Auth surface `401` follows the auth error path. Show the auth error view. Do not log out.
 - Authed surface `401` means the active session is invalid. Log out.
@@ -169,19 +169,19 @@ global or local feedback owner. Use the current `MutationFeedbackMeta` fields:
 `successMessage` for a translated global success, `silentSuccess` for locally
 owned success, `validationHandledByForm` for exhaustively rendered inline
 validation, and `skipGlobalErrorHandler` for a named local failure owner. Do
-not configure front-2 factories with `handlers.onToast`, because that shared
+not configure front factories with `handlers.onToast`, because that shared
 seam also handles query failures.
 
 Pure mutation-feedback policy stays in `@org/shared-ts`. Sonner presentation
 stays local to `components/ui/toaster.tsx` and `lib/mutation-toast.ts`. The
 executable guard is
-`apps/front-2/src/lib/mutation-feedback-architecture.test.ts`.
+`apps/front/src/lib/mutation-feedback-architecture.test.ts`.
 
 ## Product UI Design Preferences (owner-ratified)
 
-These are standing design decisions Radan has ratified across the front-2 parity review
+These are standing design decisions Radan has ratified across the front parity review
 (rounds 1–6, 2026-07). They are **defaults, not per-screen requests** — apply them to every new
-surface without waiting to be told. `docs/front-2-migration/parity-contract.md` is the dated
+surface without waiting to be told. `docs/front-migration/parity-contract.md` is the dated
 decision log; this section is the forward-looking rulebook. When a new screen forces a genuinely
 new choice, decide in this spirit and add the rule here.
 

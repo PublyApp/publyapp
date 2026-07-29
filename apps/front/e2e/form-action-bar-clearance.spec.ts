@@ -59,7 +59,7 @@ const mockTenantEdit = async (page: Page) => {
  * required. */
 const SHORT_VIEWPORT = { width: 1280, height: 620 };
 
-/** Fully opaque per docs/guides/front-2/conventions.md — asserts the
+/** Fully opaque per docs/guides/front/conventions.md — asserts the
  * resolved background-color's alpha channel is 1, so scrolled-past content
  * can never show through the pinned bar. */
 const expectOpaqueBackground = async (page: Page) => {

@@ -11,7 +11,7 @@ import {
 	type SuppressionSite,
 } from '~/lib/suppression-reason';
 
-// Guards docs/guides/front-2/conventions.md's §Content & data honesty rule:
+// Guards docs/guides/front/conventions.md's §Content & data honesty rule:
 // "never render fabricated or placeholder admin data".
 //
 // r5-F5 found the original guard (a single TODO(contract)-then-em-dash

@@ -15,7 +15,7 @@ on:
       - 'packages/_tsconfig/**'
       - 'packages/lint-cs/**'
       - 'packages/scripts-cs/**'
-      - 'docs/front-2-migration/**'
+      - 'docs/front-migration/**'
       - 'turbo.json'
       - '.github/workflows/old-front-characterization.yml'
       - 'pnpm-lock.yaml'

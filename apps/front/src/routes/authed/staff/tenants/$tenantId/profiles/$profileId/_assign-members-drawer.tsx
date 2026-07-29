@@ -48,7 +48,7 @@ const EMPTY_SEARCH: TableSearchParams = {};
  *
  * The first column links with the row's GLOBAL `id` (the tenant-users
  * candidate-list identity, matching `/users/{userId}`), per the mandatory
- * entity-link convention (docs/guides/front-2/conventions.md:254-258) —
+ * entity-link convention (docs/guides/front/conventions.md:254-258) —
  * step4b-rereview MAJOR 5. The assign/unassign toggle is keyed by
  * `userAccountId` (the tenant membership id the resolve/assign/unassign
  * endpoints all require), NEVER `row.id` — step4b-review BLOCKER 1. A row

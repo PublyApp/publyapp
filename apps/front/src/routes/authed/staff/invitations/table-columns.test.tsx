@@ -121,7 +121,7 @@ describe('createInvitationColumns', () => {
 		);
 
 		// No `role` column: `InvitationListItem` carries no role field, and
-		// per docs/guides/front-2/conventions.md's data-honesty rule a column
+		// per docs/guides/front/conventions.md's data-honesty rule a column
 		// with nothing to back it must not exist rather than render a
 		// fabricated "—".
 		expect(widthById).toEqual({

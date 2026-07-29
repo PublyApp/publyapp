@@ -1761,7 +1761,7 @@ html.dark {
 	}
 
 	/* Tab body wrapper for TenantDetailsPageShell's bodyScroll="contained"
-	   mode (tables own their scroll, docs/guides/front-2/conventions.md):
+	   mode (tables own their scroll, docs/guides/front/conventions.md):
 	   a min-h-0 flex column so a DataTable inside can claim the remaining
 	   height and scroll internally instead of the page. */
 	.publy-detail-tab-body {

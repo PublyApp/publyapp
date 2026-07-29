@@ -10,7 +10,7 @@ unhealthy container remains running rather than being rescheduled.
 ## Ratified approach A: one-shot migrate plus application gates
 
 Every release uses one immutable `RELEASE_TAG`. It tags **three** published images — `api`,
-`migrate`, and `front-2` — which back **four** services: the worker runs the **same `api` image**
+`migrate`, and `front` — which back **four** services: the worker runs the **same `api` image**
 with `APP_ROLE=worker`, so there is no separate worker image. `dokploy.yml` declares
 `publyapp-migrate` as a one-shot Compose service using the slim EF bundle image. Its
 paired no-restart declarations leave it stopped after the bundle exits; operators inspect that
@@ -53,7 +53,7 @@ one-shot, no-restart behavior.
 
 Before triggering the stack deployment:
 
-- Confirm the release workflow published all three images (`api`, `migrate`, `front-2`) with the
+- Confirm the release workflow published all three images (`api`, `migrate`, `front`) with the
   same immutable tag. The worker reuses the `api` image, so there is no fourth image to check.
 - Set `RELEASE_TAG` and the complete environment/secret set in Dokploy. API and migrator
   share the single database credential; API and worker pool caps remain 50 and 30.

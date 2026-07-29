@@ -1,13 +1,13 @@
-# Front-2 Guide
+# Front Guide
 
-`apps/front-2` is the durable TanStack Start + Base UI frontend for the front-2
+`apps/front` is the durable TanStack Start + Base UI frontend for the front
 migration. It is the new application engineers should build against during Phase 1 and
 later migration work.
 
 The disposable proof-of-concept was removed in #965 after its findings were
-reimplemented. `apps/front-2` is the canonical application and reference.
+reimplemented. `apps/front` is the canonical application and reference.
 
-AGENTS.md remains authoritative for repo-wide API/error/URL/logging conventions; this guide governs front-2 styling/architecture specifics.
+AGENTS.md remains authoritative for repo-wide API/error/URL/logging conventions; this guide governs front styling/architecture specifics.
 
 ## Stack
 
@@ -26,22 +26,22 @@ AGENTS.md remains authoritative for repo-wide API/error/URL/logging conventions;
 Run commands from the repository root unless noted otherwise.
 
 ```bash
-pnpm --filter front-2 dev
-pnpm --filter front-2 build
-pnpm --filter front-2 start
-pnpm --filter front-2 typecheck
-pnpm --filter front-2 test
+pnpm --filter front dev
+pnpm --filter front build
+pnpm --filter front start
+pnpm --filter front typecheck
+pnpm --filter front test
 ```
 
-The package scripts in `apps/front-2/package.json` are the source of truth:
+The package scripts in `apps/front/package.json` are the source of truth:
 
 - `dev` starts the TanStack Start/Vite dev server.
 - `build` builds the app.
-- `start` runs `apps/front-2/server.mjs`.
+- `start` runs `apps/front/server.mjs`.
 - `typecheck` runs `tsc --noEmit`.
 - `test` runs `vitest run`.
 
 ## Guide Set
 
-- [`conventions.md`](conventions.md) — front-2 styling, data, server-function boundary,
+- [`conventions.md`](conventions.md) — front styling, data, server-function boundary,
   locked conventions pending automation, URL-state, and error-boundary discipline.

@@ -16,13 +16,13 @@ else in `docs/` is a **record** — accurate as of its date, not a standing inst
 | --- | --- |
 | [`AGENTS.md`](../AGENTS.md) (repo root) | The behavioural contract. Architecture and conventions for the whole repo. Wins over anything in `docs/`. |
 | [`docs/guides/`](guides) | The guides `AGENTS.md` links to. These are the long-form version of its rules. |
-| [`docs/guides/front-2/`](guides/front-2) | The frontend. `apps/front-2` is the only frontend under development and the only one deployed. |
+| [`docs/guides/front/`](guides/front) | The frontend. `apps/front` is the only frontend under development and the only one deployed. |
 | [`docs/deployment/`](deployment) | Live production operations — deployment design, migration gating, and the first-deploy runbook. Production has run on these since 2026-07-20. |
 
 Two cautions about `docs/guides/`:
 
-- Some guides predate the front-2 migration. Where a guide mixes still-valid backend/API/UX policy
-  with code examples from the retired `apps/front` (MUI) app, it now carries a header saying which
+- Some guides predate the front migration. Where a guide mixes still-valid backend/API/UX policy
+  with code examples from the retired `apps/old-front` (MUI) app, it now carries a header saying which
   half is which. Follow the policy; ignore the MUI mechanics.
 - `AGENTS.md` also links repository config/source files when a rule needs an implementation anchor.
   A `docs/guides/` file that `AGENTS.md` does not link is a record, not a rule.
@@ -60,7 +60,7 @@ wins.
 | Directory | Put a document here when… |
 | --- | --- |
 | `guides/` | It is a standing rule or how-to that should still be true in six months, and `AGENTS.md` will link to it. Guides are maintained; if you add one, you own keeping it true. |
-| `guides/front-2/` | Same, but specific to `apps/front-2` styling/architecture. |
+| `guides/front/` | Same, but specific to `apps/front` styling/architecture. |
 | `deployment/` | It is operational: how the production stack is shaped, how a release is gated, how an operator deploys or recovers. |
 | `implementation-plans/` | It is a step-by-step plan for one specific change, written before the work, and it will be obsolete once merged. |
 | `plans/` | (Directory currently absent: create on first use.) It is higher-level than an implementation plan — issue planning, sequencing, a design sketch for work not yet broken down. Date-prefix the filename (`YYYY-MM-DD-topic.md`). |
@@ -73,11 +73,11 @@ wins.
 | `implementation-summaries/` | (Directory currently absent: create on first use.) Same as `changes/`, for larger multi-phase work. Prefer `changes/` for anything small. |
 | `spikes/` | It records a time-boxed investigation whose only deliverable is the finding. Date-prefix. |
 | `issues/<number>/` | (Directory currently absent: create on first use.) It is scratch working material scoped to one GitHub issue. |
-| `front-2-migration/` | It concerns the front→front-2 migration specifically (parity contracts, characterization, staging). |
+| `front-migration/` | It concerns the front→front-2 migration specifically (parity contracts, characterization, staging). |
 | `misc/` | Nothing above fits. Treat a `misc/` file as scratch — never link one from `AGENTS.md`. |
 | `assets/` | It is an image or other binary a doc embeds. |
 | `superpowers/` | **Do not file here by hand.** This is the superpowers workflow's own output tree (`plans/`, `specs/`, `reviews/`) and it is written by that tooling. |
-| `front/` | **Closed.** `apps/front` is retired; do not add frontend planning notes here. |
+| `old-front/` | **Closed.** `apps/old-front` is retired; do not add frontend planning notes here. |
 
 ## Rules
 

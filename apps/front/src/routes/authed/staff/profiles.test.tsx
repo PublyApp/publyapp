@@ -14,7 +14,7 @@ const t = (key: string): string => key;
 describe('staff profiles column grid', () => {
 	// `StaffProfileItem` carries only description/id/name/userAccountCount —
 	// no permission count, no updated_at (packages/client-ts/src/models/index.ts).
-	// Per docs/guides/front-2/conventions.md's data-honesty rule, a column with
+	// Per docs/guides/front/conventions.md's data-honesty rule, a column with
 	// no backing field must not exist rather than render a fabricated "—".
 	test('applies the column grid across the columns the contract can back', () => {
 		const columns = buildColumns(t);

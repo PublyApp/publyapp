@@ -381,7 +381,7 @@ export const TenantDetailsPageShell = ({
 	 * (Basics, Profiles). 'contained': the shell is height-bound to
 	 * `.app-shell-main` and the tab body becomes a `min-h-0` flex column, so a
 	 * `DataTable` inside it owns its own scroll instead of the page (Users,
-	 * Invitations) — see docs/guides/front-2/conventions.md "tables own their
+	 * Invitations) — see docs/guides/front/conventions.md "tables own their
 	 * scroll".
 	 */
 	bodyScroll?: 'page' | 'contained';

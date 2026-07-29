@@ -2,11 +2,11 @@
 
 > **MIXED GUIDE — read the split before you follow anything.**
 > **Normative:** the .NET/OpenAPI/Kiota contract safeguards, the client-regeneration workflow, and
-> the front-2 request-body patterns using Kiota's `createUntyped*` factories.
-> **Not normative:** any response-extraction helper or path from `apps/front`, the retired MUI +
+> the front request-body patterns using Kiota's `createUntyped*` factories.
+> **Not normative:** any response-extraction helper or path from `apps/old-front`, the retired MUI +
 > React Router v7 app. It is not deployed, and the owner will not edit it again. Use the generated
-> types in `apps/front-2`; if a response union remains after fixing the OpenAPI schema, treat a new
-> front-2 adapter as its own deliberate change rather than copying the retired utility.
+> types in `apps/front`; if a response union remains after fixing the OpenAPI schema, treat a new
+> front adapter as its own deliberate change rather than copying the retired utility.
 
 > Extracted from `AGENTS.md` — safeguards for the TypeScript API client auto-generated from the .NET OpenAPI spec using Microsoft Kiota.
 
@@ -170,7 +170,7 @@ just build-api
 just generate-client
 
 # 3. Run TypeScript check to verify no type errors
-pnpm --filter front-2 typecheck
+pnpm --filter front typecheck
 ```
 
 **Common issues after regeneration:**
@@ -204,7 +204,7 @@ const body: CreateUserBody = {
 **For response data with potential `UntypedNode` unions:**
 
 First fix the OpenAPI schema when the union is a generator artifact; the integer schema transformer
-above is the canonical example. `apps/front-2` has no shared `getUntypedNumber`,
+above is the canonical example. `apps/front` has no shared `getUntypedNumber`,
 `getUntypedString`, `getUntypedArray`, or `getUntypedValue` utility. Do not copy the similarly named
-helper from the retired `apps/front`. If the corrected contract genuinely still needs an adapter,
-add and test a front-2-local seam as a focused change.
+helper from the retired `apps/old-front`. If the corrected contract genuinely still needs an adapter,
+add and test a front-local seam as a focused change.

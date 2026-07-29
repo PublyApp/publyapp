@@ -612,7 +612,7 @@ test('mobile shell menu is keyboard and route-aware', async ({ page }) => {
 	await page.getByRole('link', { name: 'Login' }).click();
 
 	// The auth surface is a standalone split-brand layout, not the app shell
-	// (no rail/topbar/mobile menu) — see docs/guides/front-2/conventions.md.
+	// (no rail/topbar/mobile menu) — see docs/guides/front/conventions.md.
 	await expect(page).toHaveURL('/login');
 	await expect(page.getByTestId('auth-layout')).toBeVisible();
 	await expect(page.getByTestId('app-shell-shell')).toHaveCount(0);

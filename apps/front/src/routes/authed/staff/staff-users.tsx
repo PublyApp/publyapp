@@ -42,7 +42,7 @@ import {
 
 import { StaffUserNameCell } from './_staff-user-name-cell';
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
-// Locked contract default (docs/front-2-migration/parity-contract.md): 100,
+// Locked contract default (docs/front-migration/parity-contract.md): 100,
 // matching the current app and the selectable page-size options.
 const DEFAULT_SIZE = 100;
 

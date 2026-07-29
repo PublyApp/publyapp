@@ -3,41 +3,41 @@
 > **MIXED GUIDE — read the split before you follow anything.**
 > **Normative everywhere:** the `ApiFailure` discriminated union, the
 > `toApiFailure`/`getFailureMessage` seam, and the RFC 7807 logout split (only an authed-surface
-> `401` logs out; `403` never does). Sections explicitly labelled front-2 are normative as written.
-> **Not normative:** everything else — the examples and API reference describe `apps/front`, the
+> `401` logs out; `403` never does). Sections explicitly labelled front are normative as written.
+> **Not normative:** everything else — the examples and API reference describe `apps/old-front`, the
 > retired MUI + React Router v7 app, which is not deployed and which the owner will not edit again.
-> Implement in `apps/front-2` per [`front-2/index.md`](front-2/index.md) and
-> [`front-2/conventions.md`](front-2/conventions.md). A full front-2 rewrite of this guide is
+> Implement in `apps/front` per [`front/index.md`](front/index.md) and
+> [`front/conventions.md`](front/conventions.md). A full front rewrite of this guide is
 > deferred to a later wave of the documentation remediation.
 
 ## Overview
 
 This document describes centralized error handling for both PublyApp frontends.
-The examples and API reference below describe the legacy `apps/front`
-implementation unless a section is explicitly labelled front-2. The legacy
-frontend is unchanged by the front-2 policy below.
+The examples and API reference below describe the legacy `apps/old-front`
+implementation unless a section is explicitly labelled front. The legacy
+frontend is unchanged by the front policy below.
 
 **Related Documentation:**
-- Front-2 conventions: `docs/guides/front-2/conventions.md`
+- Front conventions: `docs/guides/front/conventions.md`
 - Repository error/logout contract: `AGENTS.md`
 
 ---
 
-## Front-2 Mutation Feedback
+## Front Mutation Feedback
 
-`apps/front-2` normalizes failures with `toApiFailure` and resolves feedback
+`apps/front` normalizes failures with `toApiFailure` and resolves feedback
 policy with the pure functions in
-`@org/shared-ts/lib/mutation-feedback/policy`. Presentation stays front-2-local:
+`@org/shared-ts/lib/mutation-feedback/policy`. Presentation stays front-local:
 `router.tsx` owns the global `MutationCache`, `lib/mutation-toast.ts` translates
 and presents the intent, and `components/ui/toaster.tsx` mounts Sonner. Those
-two adapter files are the only front-2 production modules allowed to import
+two adapter files are the only front production modules allowed to import
 `sonner`.
 
 The feedback matrix is:
 
 <!-- markdownlint-disable MD013 -->
 
-| Operation or result | Front-2 behavior |
+| Operation or result | Front behavior |
 | --- | --- |
 | User-command mutation success | Show one success toast |
 | General mutation failure | Show one error toast |
@@ -57,7 +57,7 @@ of an unrecognized field is not a handled state. Generic alerts, component
 feedback state, `setError`, validation summaries, and retryable partial-state
 UI remain valid; the architecture policy does not ban them.
 
-Front-2 mutation factories use the current `MutationFeedbackMeta` type from
+Front mutation factories use the current `MutationFeedbackMeta` type from
 `@org/shared-ts/lib/mutation-feedback/types`:
 
 ```typescript
@@ -87,14 +87,14 @@ For compound, bulk, export, and upload flows, choose either the global
 coordinator owns feedback, configure the mutation with `silentSuccess: true`
 and `skipGlobalErrorHandler: true`; do not also emit a global toast. Pure
 classification and policy remain in `@org/shared-ts`; Sonner translation and
-display remain in front-2. Front-2 factories must never configure
+display remain in front. Front factories must never configure
 `handlers.onToast`, because that shared seam also processes query failures.
 
 The executable rules live in
-`apps/front-2/src/lib/mutation-feedback-architecture.test.ts`. They keep Sonner
+`apps/front/src/lib/mutation-feedback-architecture.test.ts`. They keep Sonner
 behind its adapters, direct `useMutation(...)` construction under
 `src/lib/query`, query feedback out of `QueryCache`, mutation feedback in
-`MutationCache`, and `handlers.onToast` out of front-2 query factories.
+`MutationCache`, and `handlers.onToast` out of front query factories.
 
 ---
 
@@ -474,7 +474,7 @@ if (isProblemFailure(failure)) {
 ## File Structure
 
 ```
-apps/front/app/lib/
+apps/old-front/app/lib/
 ├── api-failure/
 │   ├── index.ts                    # Re-exports
 │   ├── types.ts                    # ApiFailure discriminated union

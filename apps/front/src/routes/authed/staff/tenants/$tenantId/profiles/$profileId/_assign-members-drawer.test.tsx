@@ -307,7 +307,7 @@ describe('AssignMembersDrawer', () => {
 	});
 
 	// step4b-rereview MAJOR 3: a resolve failure must be persistent and
-	// recoverable (docs/guides/front-2/conventions.md:160-164), not a silent
+	// recoverable (docs/guides/front/conventions.md:160-164), not a silent
 	// permanently-disabled dead end.
 	test('shows a persistent resolution-error state with a retry action when the resolve read fails', () => {
 		mocks.useStaffTenantProfileMemberAssignmentResolutionQuery.mockReturnValue({

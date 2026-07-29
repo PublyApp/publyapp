@@ -197,7 +197,7 @@ function AuthedRouteLayout() {
 			(isTenantSurface && query.data === REDIRECT_CODE.STAFF));
 
 	// The tenant portal (post-login org picker) is a standalone SimpleLayout
-	// surface, not the workspace shell — see docs/front-2-migration P1. It
+	// surface, not the workspace shell — see docs/front-migration P1. It
 	// manages its own chrome, so it renders bare here, ahead of `<Outlet />`
 	// being wrapped in the full authed app shell.
 	const isTenantPortalRoot = pathname.replace(/\/+$/, '') === TENANT_PATH;

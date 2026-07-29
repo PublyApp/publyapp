@@ -45,7 +45,7 @@ declare the external network's driver.
 | 4 | Seeding | **Split by intent** — essentials idempotent everywhere, demo gated OFF in Production, owner via bootstrap |
 | 5 | Deploy model | **Expand/contract** (backward-compatible) migration discipline. *Zero-downtime via Swarm rolling: **SUPERSEDED** — the observed instance uses plain Compose, so a deploy has a short recreate gap. Expand/contract still holds and is the half that mattered.* |
 | 6 | DB credentials | **Single** app credential (migrator + runtime share one role) |
-| 7 | Frontend target | **`apps/front-2`** (SSR), deployed under the generic service name `publyapp-front`. `apps/front` is retired and is not built for release. |
+| 7 | Frontend target | **`apps/front`** (SSR), deployed under the generic service name `publyapp-front`. `apps/old-front` is retired and is not built for release. |
 
 ### Why these (rationale)
 - **Split (1):** builds the target topology from day one; `APP_ROLE=all` remains the Development/Testing default when the role is omitted. Split gives process/operational isolation. It is only worse than combined if the VPS OOMs/swaps or connection pools are uncapped — both mitigated below.
@@ -54,7 +54,7 @@ declare the external network's driver.
 - **Seeding split (4):** **SUPERSEDED:** the original design found that seeders ran unconditionally and would have included demo fixtures in Production. The shipped `CreateSeeders` filter excludes every `IsDemo` seeder in Production, while non-demo seeders — including permissions, system definitions, and the owner bootstrap — still run. A Production-process spec verifies both sides of the gate.
 - **Zero-downtime + expand/contract (5):** owner chose zero-downtime. It has two halves: **schema safety** (expand/contract — always ours to control) and **deploy mechanics** (Swarm rolling on Dokploy). Expand/contract is the real guarantee and it shipped. **SUPERSEDED — the deploy-mechanics half:** the live-server record identifies the selected mode as plain Compose, so the observed deployment has no rolling update and has a brief container-recreate gap. Getting true no-gap cutover later means selecting Dokploy "Stack" (Swarm) or fronting it with two health-gated replicas; neither was observed on the instance, and neither is needed at current traffic.
 - **Single credential (6):** least-privilege DDL/DML split remains deferred; its default-privileges management adds outage risk for limited current benefit. Revisit if the threat model changes.
-- **front-2 (7):** front-2 is the go-forward UI and deploys under the generic service name `publyapp-front`; the retired `apps/front` has no release image.
+- **front (7):** front is the go-forward UI and deploys under the generic service name `publyapp-front`; the retired `apps/old-front` has no release image.
 
 ## Architecture as deployed
 
@@ -62,7 +62,7 @@ One immutable release tag per deploy → **migrate + gated api/worker + front** 
 
 A release publishes **three** image artifacts, all tagged with the same commit SHA:
 `ghcr.io/radandevist/publyapp/api` (`apps/api/Dockerfile`, target `runtime`), `…/migrate` (same
-Dockerfile, target `migrate`), and `…/front-2` (`apps/front-2/Dockerfile`). Four **services** are
+Dockerfile, target `migrate`), and `…/front` (`apps/front/Dockerfile`). Four **services** are
 declared from them: API, worker, and front are long-running; the migrator is one-shot and
 remains exited after completion. The worker reuses the API image with a different `APP_ROLE`, so
 there is no fourth image.
@@ -72,7 +72,7 @@ there is no fourth image.
 | **publyapp-migrate** (EF bundle, one-shot service) | `migrate` | `api` | process exit code (container remains exited; inspect non-zero) | — |
 | **publyapp-api** | `api` | `api` | `GET /health/live` (liveness), `GET /health/ready` (readiness) | `api.publyapp.com` |
 | **publyapp-worker** | `api` (same image) | `worker` | `--worker-health` CLI (no HTTP surface) | — |
-| **publyapp-front** (front-2 SSR) | `front-2` | — | `GET /health` | `publyapp.com`, `www.publyapp.com` |
+| **publyapp-front** (front SSR) | `front` | — | `GET /health` | `publyapp.com`, `www.publyapp.com` |
 
 Deploy flow:
 1. The release publishers — `.github/workflows/deploy-images.yml` or local `just deploy-images` — build and push the same three immutable-tagged images (`…:<release>`), including the migrator-bundle image.
