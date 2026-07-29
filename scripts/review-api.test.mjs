@@ -4,6 +4,8 @@ import test from 'node:test';
 import {
 	assertNoPendingMigrations,
 	buildApiChildEnv,
+	connectionStringSecrets,
+	extractConnectionStringPassword,
 	extractEnvValue,
 	extractPendingMigrationIds,
 	formatMigrationGuardError,
@@ -295,7 +297,10 @@ test('validateMigrationEntries: throws MIGRATION_GUARD_INDETERMINATE for applied
 		() => validateMigrationEntries(entries),
 		(error) => {
 			assert.equal(error.code, 'MIGRATION_GUARD_INDETERMINATE');
-			assert.match(error.message, /unrecognized shape/);
+			assert.match(error.message, /missing or non-boolean "applied"/);
+			// The safe, already-validated id may be named; the untrusted raw entry object
+			// (which could carry arbitrary fields) must never be interpolated verbatim.
+			assert.match(error.message, /20260511120526_Init/);
 			return true;
 		},
 	);
@@ -446,8 +451,102 @@ test('listMigrationsJson: passes the connection string via env, never argv, and 
 			call.options.env.POSTGRES_CONNECTION_STRING,
 			'Host=x;Password=hunter2',
 		);
-		assert.deepEqual(call.options.secrets, ['Host=x;Password=hunter2']);
+		// Both the full connection string AND the extracted password in isolation must be
+		// redacted — round-2 review reproduced a leak where only the password (not the full
+		// string) was echoed by a failing child, which full-string-only redaction missed.
+		assert.deepEqual(call.options.secrets, [
+			'Host=x;Password=hunter2',
+			'hunter2',
+		]);
 	}
+});
+
+// --- extractConnectionStringPassword / connectionStringSecrets (redaction gap fix) ---
+
+test('extractConnectionStringPassword: extracts the password component from a connection string', () => {
+	assert.equal(
+		extractConnectionStringPassword(
+			'Host=localhost;Port=5454;Password=hunter2;Username=postgres',
+		),
+		'hunter2',
+	);
+});
+
+test('extractConnectionStringPassword: is case-insensitive and tolerates surrounding whitespace', () => {
+	assert.equal(
+		extractConnectionStringPassword('Host=x; PASSWORD = hunter2 ;User=y'),
+		'hunter2',
+	);
+});
+
+test('extractConnectionStringPassword: returns undefined when there is no password segment', () => {
+	assert.equal(
+		extractConnectionStringPassword('Host=localhost;Port=5454'),
+		undefined,
+	);
+	assert.equal(extractConnectionStringPassword(undefined), undefined);
+	assert.equal(extractConnectionStringPassword(''), undefined);
+});
+
+test('connectionStringSecrets: returns both the full string and the isolated password, deduplicated of empties', () => {
+	assert.deepEqual(connectionStringSecrets('Host=x;Password=hunter2'), [
+		'Host=x;Password=hunter2',
+		'hunter2',
+	]);
+	assert.deepEqual(connectionStringSecrets('Host=x'), ['Host=x']);
+});
+
+test('listMigrationsJson: redacts the isolated password out of an unparseable-JSON indeterminate error', () => {
+	const run = (command, args) => {
+		if (args.includes('build')) {
+			return { stdout: '', stderr: '', status: 0 };
+		}
+
+		// Simulate a parser message that quotes an excerpt of the offending input containing
+		// the password — modern V8 JSON.parse errors can do exactly this.
+		return { status: 0, stdout: 'not json hunter2 trailing', stderr: '' };
+	};
+
+	assert.throws(
+		() =>
+			listMigrationsJson({
+				apiDir: '/fake/apps/api',
+				connectionString: 'Host=x;Password=hunter2',
+				trustedProxyCidrs: 'cidr',
+				run,
+			}),
+		(error) => {
+			assert.equal(error.code, 'MIGRATION_GUARD_INDETERMINATE');
+			assert.doesNotMatch(error.message, /hunter2/);
+			return true;
+		},
+	);
+});
+
+// --- validateMigrationEntries: duplicate / whitespace-only ids (round-2 MINOR) ------
+
+test('validateMigrationEntries: throws MIGRATION_GUARD_INDETERMINATE for a whitespace-only id', () => {
+	assert.throws(
+		() => validateMigrationEntries([{ id: '   ', applied: true }]),
+		(error) => error.code === 'MIGRATION_GUARD_INDETERMINATE',
+	);
+});
+
+test('validateMigrationEntries: throws MIGRATION_GUARD_INDETERMINATE for a duplicate id', () => {
+	const entries = [
+		{ id: '20260511120526_Init', applied: true },
+		{ id: '20260511120526_Init', applied: false },
+	];
+
+	assert.throws(
+		() => validateMigrationEntries(entries),
+		(error) => {
+			assert.equal(error.code, 'MIGRATION_GUARD_INDETERMINATE');
+			assert.match(error.message, /20260511120526_Init/);
+			assert.match(error.message, /more than once/);
+			return true;
+		},
+	);
 });
 
 // --- buildApiChildEnv (the escape hatch's actual fix) -----------------------------

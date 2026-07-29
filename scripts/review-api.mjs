@@ -66,6 +66,33 @@ export const redactSecrets = (text, secrets = []) => {
 	return redacted;
 };
 
+// Full-string redaction alone misses the password appearing on its own (e.g. a child that
+// echoes only the credential it failed to authenticate with, not the whole connection
+// string) — round-2 review reproduced exactly that. Redacting the extracted password as its
+// own secret closes that gap. Postgres/Npgsql connection strings are semicolon-delimited
+// `key=value` pairs; this covers the common unquoted-value shape used throughout this repo's
+// env files without pulling in a full connection-string parser.
+export const extractConnectionStringPassword = (connectionString) => {
+	const match = /(?:^|;)\s*password\s*=\s*([^;]*)/i.exec(
+		connectionString ?? '',
+	);
+	if (!match) {
+		return undefined;
+	}
+
+	const value = match[1].trim();
+	return value.length > 0 ? value : undefined;
+};
+
+// The full set of values a connection string should never let leak into a rendered error:
+// the string itself, and its password component in isolation.
+export const connectionStringSecrets = (connectionString) => {
+	return [
+		connectionString,
+		extractConnectionStringPassword(connectionString),
+	].filter((value) => typeof value === 'string' && value.length > 0);
+};
+
 // Exported so the bounded-timeout behavior can be tested directly against a real
 // subprocess, not a mock of spawnSync's option-handling.
 export const runCommand = (command, args, options = {}) => {
@@ -369,9 +396,15 @@ const createIndeterminateError = (message) => {
 // each one's applied state". dotnet-ef 10.0.2 can exit 0 with every entry's `applied` set
 // to `null` when the database is unreachable (verified independently in review) — keeping
 // only `applied === false` entries would silently treat that as "nothing pending" and let
-// the API launch. A non-empty array of entries, each with a non-empty string `id` and a
-// boolean `applied`, is the only shape trusted here; anything else throws
-// MIGRATION_GUARD_INDETERMINATE instead of resolving to an empty pending list.
+// the API launch. A non-empty array of entries, each with a non-empty (non-whitespace),
+// UNIQUE string `id` and a boolean `applied`, is the only shape trusted here; anything else
+// throws MIGRATION_GUARD_INDETERMINATE instead of resolving to an empty pending list.
+//
+// Deliberately never interpolates the untrusted entry itself (no JSON.stringify(entry)) into
+// the error — dotnet-ef's output is not something this guard should treat as safe to render
+// verbatim (round-2 review: an invalid entry carrying a diagnostic field with the connection
+// string reproduced the full string and password in a prior version of this function). Only
+// the entry's position and which check it failed are reported.
 export const validateMigrationEntries = (parsed) => {
 	if (!Array.isArray(parsed) || parsed.length === 0) {
 		throw createIndeterminateError(
@@ -379,22 +412,41 @@ export const validateMigrationEntries = (parsed) => {
 		);
 	}
 
-	for (const entry of parsed) {
+	const seenIds = new Set();
+
+	for (const [index, entry] of parsed.entries()) {
 		const hasValidId =
 			entry !== null &&
 			typeof entry === 'object' &&
 			typeof entry.id === 'string' &&
-			entry.id.length > 0;
+			entry.id.trim().length > 0;
 		const hasValidApplied =
 			entry !== null &&
 			typeof entry === 'object' &&
 			typeof entry.applied === 'boolean';
 
-		if (!hasValidId || !hasValidApplied) {
+		if (!hasValidId) {
 			throw createIndeterminateError(
-				`dotnet-ef reported a migration entry with an unrecognized shape: ${JSON.stringify(entry)}.`,
+				`dotnet-ef reported a migration entry at index ${String(index)} with a missing, ` +
+					'non-string, or whitespace-only "id".',
 			);
 		}
+
+		if (!hasValidApplied) {
+			throw createIndeterminateError(
+				`dotnet-ef reported a migration entry at index ${String(index)} (id: ${entry.id}) ` +
+					'with a missing or non-boolean "applied".',
+			);
+		}
+
+		if (seenIds.has(entry.id)) {
+			throw createIndeterminateError(
+				`dotnet-ef reported the migration id "${entry.id}" more than once — a migration ` +
+					'list is only unambiguous when every id is unique.',
+			);
+		}
+
+		seenIds.add(entry.id);
 	}
 
 	return parsed;
@@ -453,7 +505,7 @@ export const listMigrationsJson = ({
 		TRUSTED_PROXY_CIDRS: trustedProxyCidrs,
 		POSTGRES_CONNECTION_STRING: connectionString,
 	};
-	const secrets = [connectionString];
+	const secrets = connectionStringSecrets(connectionString);
 
 	run('dotnet', ['build', '-property:OpenApiGenerateDocuments=false'], {
 		cwd: apiDir,
@@ -474,9 +526,16 @@ export const listMigrationsJson = ({
 		parsed = JSON.parse(result.stdout);
 	} catch (error) {
 		// Only the parser's own message (token/position), never the raw stdout — it could
-		// otherwise echo a connection failure preamble containing the connection string.
+		// otherwise echo a connection failure preamble containing the connection string. Also
+		// redact: modern V8 JSON.parse error messages can include a literal excerpt of the
+		// offending input (round-2 review: unparseable stdout beginning with the password
+		// reproduced it here even though the raw stdout itself is never rendered).
+		const parserMessage = redactSecrets(
+			String(error?.message ?? error),
+			secrets,
+		);
 		throw createIndeterminateError(
-			`dotnet-ef output could not be parsed as JSON: ${String(error?.message ?? error)}.`,
+			`dotnet-ef output could not be parsed as JSON: ${parserMessage}.`,
 		);
 	}
 
@@ -545,17 +604,31 @@ export const waitForApiReachable = async (
 	return false;
 };
 
-// The env a launched API child gets. `forceApiRole` pins APP_ROLE=api regardless of what
-// .env.development says (default "all" — see AGENTS.md), which is required precisely when
-// --allow-migrations is in effect: WorkerMigrationStartupGate is registered for the
-// Worker/All roles and deliberately fails fast on a pending migration in Development
-// (apps/api/Infrastructure/Jobs/WorkerMigrationStartupGate.cs), so an All-role process
-// would immediately crash on the very migration state the reviewer just chose to accept.
-// The Api role never registers that gate at all (apps/api/Program.cs), so it starts
-// regardless. This only takes effect because of the #1019 NoClobber fix
+// The env a launched API child gets.
+//
+// forceApiRole: `main` now passes true UNCONDITIONALLY (round-2 review BLOCKER) — not only
+// on the migration-bypass path. Losing `dev-api` job-engine parity is the correct trade: the
+// whole premise of this command is that reviewing a branch must not disturb the shared dev
+// database, and the All/Worker role starts JobQueueProcessor, JobQueueListener,
+// SchedulerLeaderService, JobQueueMonitorService, WorkerHeartbeatService, and
+// InvitationEmailOutboxDispatcher against that SAME shared database
+// (apps/api/Infrastructure/Jobs/JobsServiceRegistration.cs) — a second job engine, one per
+// concurrent review session, all claiming shared queued work, sending real email, and
+// competing for scheduler leadership. That is exactly the disturbance #1016 exists to avoid,
+// independent of whether a migration happens to be pending. The Api role registers none of
+// it (apps/api/Program.cs). This only takes effect because of the #1019 NoClobber fix
 // (apps/api/Lib/AppEnvironment.cs) — without it, .env.development's APP_ROLE="all" would
-// silently overwrite this value back, and the escape hatch would still not work end to
-// end (verified empirically; see the commit history for #1016).
+// silently overwrite this value back (verified empirically; see the commit history).
+//
+// connectionStringOverride: `main` now passes the SAME worktree-file-resolved value used to
+// build the guard's environment, UNCONDITIONALLY (round-2 review BLOCKER). Without this,
+// buildApiChildEnv started from the launcher's own ambient `process.env`, so with NoClobber
+// in place an exported POSTGRES_CONNECTION_STRING in the reviewer's OWN shell would survive
+// and win for the launched child — while the guard, which always builds its env explicitly
+// from the worktree file, checked a different database entirely. Resolve the connection
+// once in `main`, pin that exact value into both, and never silently honor an ambient
+// connection string — the issue's decision was the shared development database,
+// deliberately, not whatever the operator's shell happens to export.
 export const buildApiChildEnv = ({
 	trustedProxyCidrs,
 	forceApiRole = false,
@@ -576,6 +649,14 @@ export const buildApiChildEnv = ({
 // Spawns the API child without waiting on it — split out from launchApi so a test can
 // assert readiness/liveness itself and control shutdown, rather than being stuck inside a
 // promise that only resolves once the child has already exited.
+//
+// `detached: true` makes `child.pid` the leader of a NEW process group (POSIX), so
+// `process.kill(-child.pid, signal)` reaches the whole tree in one call — `dotnet watch`
+// itself, the `dotnet-watch.dll` process it spawns, and the actual PublyApp.Api process it
+// spawns in turn. Signaling only `child.pid` (no leading `-`) reaches just the outermost
+// `dotnet` dispatch process; `dotnet watch` is confirmed (by hand) to survive its inner app
+// crashing — "Waiting for a file to change before restarting" — so that alone is not enough
+// to guarantee the whole tree is gone.
 export const spawnApiChild = (worktreePath, port, options = {}) => {
 	const cwd = path.join(worktreePath, 'apps', 'api');
 	const publicUrl = `http://127.0.0.1:${String(port)}`;
@@ -593,25 +674,67 @@ export const spawnApiChild = (worktreePath, port, options = {}) => {
 			cwd,
 			stdio: 'inherit',
 			env: buildApiChildEnv(options),
+			detached: true,
 		},
 	);
 
 	return { child, publicUrl };
 };
 
+// Signals the whole process group spawned by spawnApiChild, not just the immediate child —
+// see the detached: true rationale above. Swallows ESRCH-style failures (group already gone).
+const killApiChildGroup = (child, signal) => {
+	if (child.killed || child.exitCode !== null) {
+		return;
+	}
+
+	try {
+		process.kill(-child.pid, signal);
+	} catch {
+		// Already gone, or never got its own process group — nothing left to signal.
+	}
+};
+
+// Kills the child's whole process group and waits (bounded) for it to actually exit, so a
+// caller that is about to report failure and exit does not leave `dotnet watch` (and its
+// descendants) running on the requested port — the caller reported it as failed; it must
+// not silently keep serving traffic.
+const killAndReapApiChild = async (child, { timeoutMs = 5000 } = {}) => {
+	if (child.exitCode !== null) {
+		return;
+	}
+
+	killApiChildGroup(child, 'SIGTERM');
+	const exited = await Promise.race([
+		once(child, 'exit').then(() => true),
+		new Promise((resolve) => {
+			setTimeout(() => resolve(false), timeoutMs);
+		}),
+	]);
+
+	if (!exited && child.exitCode === null) {
+		killApiChildGroup(child, 'SIGKILL');
+	}
+};
+
 const launchApi = async (worktreePath, port, options) => {
 	const { child, publicUrl } = spawnApiChild(worktreePath, port, options);
 
-	const shutdown = (signal) => {
-		if (!child.killed) {
-			child.kill(signal);
-		}
-	};
-	process.on('SIGINT', () => shutdown('SIGINT'));
-	process.on('SIGTERM', () => shutdown('SIGTERM'));
+	process.on('SIGINT', () => killApiChildGroup(child, 'SIGINT'));
+	process.on('SIGTERM', () => killApiChildGroup(child, 'SIGTERM'));
 
-	const reachable = await waitForApiReachable(`${publicUrl}${HEALTH_PATH}`);
+	// A longer-than-default budget (~30s): the API is already built by this point (the
+	// migration guard just did it), but a loaded or cold machine can still take a while to
+	// bind. See waitForApiReachable's own default for the tighter budget appropriate to a
+	// test that already knows which outcome to expect.
+	const reachable = await waitForApiReachable(`${publicUrl}${HEALTH_PATH}`, {
+		attempts: 120,
+		intervalMs: 250,
+	});
 	if (!reachable) {
+		// Report failure, but do not leave dotnet watch (and its descendants) running on the
+		// requested port after telling the operator this launch failed.
+		await killAndReapApiChild(child);
 		err(
 			`API did not become reachable at ${publicUrl}${HEALTH_PATH} before timeout.`,
 		);
@@ -698,11 +821,6 @@ const main = async () => {
 		trustedProxyCidrs,
 		allowMigrations,
 	});
-	// Pin the Api role only when we are actually bypassing a real pending migration — the
-	// only condition that reaches here with a non-empty pending list (assertNoPendingMigrations
-	// throws otherwise). Every other launch keeps .env.development's default ("all"), so a
-	// normal review session still gets the worker/job engine, matching `just dev-api`.
-	const forceApiRole = guardResult.pending.length > 0;
 	console.log(formatMigrationGuardStatusMessage(guardResult.pending));
 
 	console.log('\n');
@@ -715,9 +833,12 @@ const main = async () => {
 	console.log('');
 
 	const beforeDirty = trackedChanges(worktree.path);
+	// Both forceApiRole and connectionStringOverride are unconditional, not just on the
+	// migration-bypass path — see the review-api-blockers comment on buildApiChildEnv.
 	const { code, signal } = await launchApi(worktree.path, port, {
 		trustedProxyCidrs,
-		forceApiRole,
+		forceApiRole: true,
+		connectionStringOverride: connectionString,
 	});
 	const afterDirty = trackedChanges(worktree.path);
 	const newlyDirty = [...afterDirty].filter((entry) => !beforeDirty.has(entry));
