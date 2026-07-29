@@ -406,35 +406,39 @@ export const ProfilePermissionsTab = ({
 				</p>
 			) : null}
 
-			{isDirty ? (
-				<FormActionBar
-					data-testid="permissions-action-bar"
-					status={
-						<span data-testid="permissions-change-status">
-							{t('permissions-unsaved-changes', { count: changeCount })}
-							{changeSummary.length > 0 ? ` · ${changeSummary}` : ''}
-						</span>
-					}
+			{/* Always rendered — even clean — so there is a persistent, discoverable
+			Save affordance and no layout shift on the first toggle (#976). Both
+			buttons gate on dirtiness instead of the bar's presence. */}
+			<FormActionBar
+				data-testid="permissions-action-bar"
+				status={
+					<span data-testid="permissions-change-status">
+						{isDirty
+							? `${t('permissions-unsaved-changes', { count: changeCount })}${
+									changeSummary.length > 0 ? ` · ${changeSummary}` : ''
+								}`
+							: t('permissions-no-unsaved-changes')}
+					</span>
+				}
+			>
+				<Button
+					type="button"
+					variant="ghost"
+					onClick={handleDiscard}
+					disabled={isSaving || !isDirty}
 				>
-					<Button
-						type="button"
-						variant="ghost"
-						onClick={handleDiscard}
-						disabled={isSaving}
-					>
-						{t('discard')}
-					</Button>
-					<Button
-						type="button"
-						onClick={() => {
-							handleSave().catch(handleUnexpectedSaveError);
-						}}
-						disabled={isSaving}
-					>
-						{t('common:save-changes')}
-					</Button>
-				</FormActionBar>
-			) : null}
+					{t('discard')}
+				</Button>
+				<Button
+					type="button"
+					onClick={() => {
+						handleSave().catch(handleUnexpectedSaveError);
+					}}
+					disabled={isSaving || !isDirty}
+				>
+					{t('common:save-changes')}
+				</Button>
+			</FormActionBar>
 		</div>
 	);
 };

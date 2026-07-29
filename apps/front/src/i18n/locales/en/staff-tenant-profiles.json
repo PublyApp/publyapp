@@ -28,6 +28,7 @@
 	"permissions-at-a-glance": "Permissions at a glance",
 	"permissions-failed-count_one": "{{count}} change failed",
 	"permissions-failed-count_other": "{{count}} changes failed",
+	"permissions-no-unsaved-changes": "No unsaved changes",
 	"permissions-save-failed": "Some permission changes couldn't be saved.",
 	"permissions-save-partial": "{{saved}}, {{failed}}.",
 	"permissions-selected-total": "{{selected}} of {{total}} selected",

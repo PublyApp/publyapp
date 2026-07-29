@@ -55,6 +55,7 @@ vi.mock('react-i18next', () => ({
 				'save-changes': 'Save changes',
 				'permissions-unsaved-changes_one': '{{count}} unsaved change',
 				'permissions-unsaved-changes_other': '{{count}} unsaved changes',
+				'permissions-no-unsaved-changes': 'No unsaved changes',
 				'toggle-all-module-permissions': 'Toggle all {{module}} permissions',
 				'permission-changed-indicator': 'changed',
 				'loading-permissions': 'Loading available permissions…',
@@ -292,8 +293,12 @@ describe('ProfilePermissionsTab', () => {
 		).toBe(false);
 		// Mono permission keys are shown.
 		expect(within(viewPostsRow).getByText('posts.view')).toBeTruthy();
-		// No unsaved changes yet → no action bar.
-		expect(screen.queryByTestId('permissions-change-status')).toBeNull();
+		// #976: the action bar is always rendered, even with nothing staged —
+		// the status line shows the clean-state message instead of "0 unsaved
+		// changes", and the buttons are disabled rather than the bar unmounting.
+		expect(screen.getByTestId('permissions-change-status').textContent).toBe(
+			'No unsaved changes',
+		);
 	});
 
 	test('assigns all canonical modules to the reference matrix column flows', () => {
@@ -452,7 +457,9 @@ describe('ProfilePermissionsTab', () => {
 			'Profile updated successfully.',
 		);
 		await waitFor(() =>
-			expect(screen.queryByTestId('permissions-change-status')).toBeNull(),
+			expect(screen.getByTestId('permissions-change-status').textContent).toBe(
+				'No unsaved changes',
+			),
 		);
 		expect(props.onDirtyChange).toHaveBeenLastCalledWith(false);
 		// Focus moves to the tab heading when the action bar closes on save.
@@ -473,7 +480,9 @@ describe('ProfilePermissionsTab', () => {
 
 		fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
 
-		expect(screen.queryByTestId('permissions-change-status')).toBeNull();
+		expect(screen.getByTestId('permissions-change-status').textContent).toBe(
+			'No unsaved changes',
+		);
 		expect(
 			(
 				within(screen.getByTestId('permission-row-posts.create')).getByRole(
@@ -611,7 +620,9 @@ describe('ProfilePermissionsTab', () => {
 		});
 		expect(mocks.assignMutateAsync).not.toHaveBeenCalled();
 		await waitFor(() =>
-			expect(screen.queryByTestId('permissions-change-status')).toBeNull(),
+			expect(screen.getByTestId('permissions-change-status').textContent).toBe(
+				'No unsaved changes',
+			),
 		);
 	});
 
@@ -671,7 +682,9 @@ describe('ProfilePermissionsTab', () => {
 		// Discarding returns to a clean state → the deferred server truth is now
 		// adopted as the new baseline (channels.view granted, nothing dirty).
 		fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
-		expect(screen.queryByTestId('permissions-change-status')).toBeNull();
+		expect(screen.getByTestId('permissions-change-status').textContent).toBe(
+			'No unsaved changes',
+		);
 		expect(
 			(
 				within(screen.getByTestId('permission-row-channels.view')).getByRole(
@@ -711,7 +724,9 @@ describe('ProfilePermissionsTab', () => {
 			),
 		);
 
-		expect(screen.queryByTestId('permissions-change-status')).toBeNull();
+		expect(screen.getByTestId('permissions-change-status').textContent).toBe(
+			'No unsaved changes',
+		);
 		expect(
 			(
 				within(screen.getByTestId('permission-row-channels.view')).getByRole(
@@ -757,7 +772,9 @@ describe('ProfilePermissionsTab', () => {
 		act(() => resolveAssign?.());
 
 		await waitFor(() =>
-			expect(screen.queryByTestId('permissions-change-status')).toBeNull(),
+			expect(screen.getByTestId('permissions-change-status').textContent).toBe(
+				'No unsaved changes',
+			),
 		);
 		expect(
 			(screen.getByRole('checkbox', { name: 'View posts' }) as HTMLInputElement)
@@ -827,7 +844,9 @@ describe('ProfilePermissionsTab', () => {
 		act(() => resolveAssign?.());
 
 		await waitFor(() =>
-			expect(screen.queryByTestId('permissions-change-status')).toBeNull(),
+			expect(screen.getByTestId('permissions-change-status').textContent).toBe(
+				'No unsaved changes',
+			),
 		);
 
 		// Flush the delayed observer render only after settlement/invalidation.
@@ -902,7 +921,9 @@ describe('ProfilePermissionsTab', () => {
 		mocks.permissionKeysQueryUpdateCount = 2;
 		act(() => resolveInvalidation?.());
 		await waitFor(() =>
-			expect(screen.queryByTestId('permissions-change-status')).toBeNull(),
+			expect(screen.getByTestId('permissions-change-status').textContent).toBe(
+				'No unsaved changes',
+			),
 		);
 
 		// Flush the delayed observer render after generation close. Revision 2 is
@@ -955,7 +976,9 @@ describe('ProfilePermissionsTab', () => {
 		mocks.permissionKeysQueryUpdateCount = 2;
 		act(() => resolveInvalidation?.());
 		await waitFor(() =>
-			expect(screen.queryByTestId('permissions-change-status')).toBeNull(),
+			expect(screen.getByTestId('permissions-change-status').textContent).toBe(
+				'No unsaved changes',
+			),
 		);
 
 		rerender(
@@ -999,7 +1022,9 @@ describe('ProfilePermissionsTab', () => {
 		expect(screen.queryByText('0 changes saved, 1 change failed.')).toBeNull();
 		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
 		await waitFor(() =>
-			expect(screen.queryByTestId('permissions-change-status')).toBeNull(),
+			expect(screen.getByTestId('permissions-change-status').textContent).toBe(
+				'No unsaved changes',
+			),
 		);
 		expect(props.onDirtyChange).toHaveBeenLastCalledWith(false);
 	});
@@ -1082,5 +1107,105 @@ describe('ProfilePermissionsTab', () => {
 				) as HTMLInputElement
 			).checked,
 		).toBe(false);
+	});
+
+	// #976: the save bar renders unconditionally and only its buttons gate on
+	// dirtiness. Nested inside the outer describe so it shares the same
+	// beforeEach/afterEach (mock setup + cleanup) as the rest of this suite.
+	describe('always-rendered save bar (#976)', () => {
+		test('is present on first paint, before any interaction, with both buttons disabled and the clean-state message', () => {
+			renderTab();
+
+			const actionBar = screen.getByTestId('permissions-action-bar');
+			expect(actionBar).toBeTruthy();
+			expect(screen.getByTestId('permissions-change-status').textContent).toBe(
+				'No unsaved changes',
+			);
+			expect(
+				(screen.getByRole('button', { name: 'Discard' }) as HTMLButtonElement)
+					.disabled,
+			).toBe(true);
+			expect(
+				(
+					screen.getByRole('button', {
+						name: 'Save changes',
+					}) as HTMLButtonElement
+				).disabled,
+			).toBe(true);
+		});
+
+		test('enables both buttons once a change is staged', () => {
+			renderTab();
+
+			fireEvent.click(
+				within(screen.getByTestId('permission-row-posts.create')).getByRole(
+					'checkbox',
+				),
+			);
+
+			expect(
+				(screen.getByRole('button', { name: 'Discard' }) as HTMLButtonElement)
+					.disabled,
+			).toBe(false);
+			expect(
+				(
+					screen.getByRole('button', {
+						name: 'Save changes',
+					}) as HTMLButtonElement
+				).disabled,
+			).toBe(false);
+		});
+
+		test('does not unmount the bar after Discard — it returns to the disabled/clean state', () => {
+			renderTab();
+
+			fireEvent.click(
+				within(screen.getByTestId('permission-row-posts.create')).getByRole(
+					'checkbox',
+				),
+			);
+			fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
+
+			expect(screen.getByTestId('permissions-action-bar')).toBeTruthy();
+			expect(screen.getByTestId('permissions-change-status').textContent).toBe(
+				'No unsaved changes',
+			);
+			expect(
+				(screen.getByRole('button', { name: 'Discard' }) as HTMLButtonElement)
+					.disabled,
+			).toBe(true);
+			expect(
+				(
+					screen.getByRole('button', {
+						name: 'Save changes',
+					}) as HTMLButtonElement
+				).disabled,
+			).toBe(true);
+		});
+
+		test('does not unmount the bar after a successful Save — it returns to the disabled/clean state', async () => {
+			renderTab({ grantedKeys: [] });
+
+			fireEvent.click(screen.getByRole('checkbox', { name: 'View posts' }));
+			fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+			await waitFor(() =>
+				expect(
+					screen.getByTestId('permissions-change-status').textContent,
+				).toBe('No unsaved changes'),
+			);
+			expect(screen.getByTestId('permissions-action-bar')).toBeTruthy();
+			expect(
+				(screen.getByRole('button', { name: 'Discard' }) as HTMLButtonElement)
+					.disabled,
+			).toBe(true);
+			expect(
+				(
+					screen.getByRole('button', {
+						name: 'Save changes',
+					}) as HTMLButtonElement
+				).disabled,
+			).toBe(true);
+		});
 	});
 });
