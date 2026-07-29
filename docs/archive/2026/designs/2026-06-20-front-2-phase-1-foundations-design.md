@@ -39,10 +39,9 @@ D2 §-reference.
 
 ## 1. Context
 
-Phase 0 shipped a disposable de-risking spike, returned **GO**, and produced the
-foundation later reimplemented in `apps/front-2`. The spike was removed in #965. It also
-caught a real 401-logout bug **in the spike** and produced a parity contract.
-**Important caveat the plan must respect:** Phase 0 never browser-confirmed the
+Phase 0 shipped a disposable de-risking spike (`apps/front-2-spike`, now on `develop`) and
+returned **GO**. It also caught a real 401-logout bug **in the spike** and produced a parity
+contract. **Important caveat the plan must respect:** Phase 0 never browser-confirmed the
 **current** app — `apps/front`'s dev server exited on first `GET /login` in-sandbox, so parity
 was verified by API + source inspection only (`docs/front-2-migration/parity-contract.md`). The
 current-app parity baseline is therefore **unproven in a browser**, which directly shapes the
@@ -83,7 +82,8 @@ harness (#693/#694) with a browser baseline gating M0.
 
 **Out of scope (deferred):** real product pages beyond what exercises the foundations → Phase 2;
 bespoke brand theming / OKLCH tokens → later phase (strategy §15); production cutover → Phase 4;
-authoring new custom lint rules (D12). `<Image>` is built on first M2 demand (D9), not pre-built.
+deleting `apps/front-2-spike`; authoring new custom lint rules (D12). `<Image>` is built on first
+M2 demand (D9), not pre-built.
 
 **Definition of done:** `apps/front-2` deploys to hosted staging on every merge; auth / error
 views / i18n / CSP / SEO meta / shell / theme / table / `Field.*` work there with invariants

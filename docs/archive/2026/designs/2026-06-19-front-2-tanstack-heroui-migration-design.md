@@ -5,10 +5,6 @@ Superseded by: Current apps/front-2 implementation and docs/guides/front-2/conve
 
 # Front-2 Migration Strategy & Architecture — TanStack Start + HeroUI v3
 
-> Historical note: `apps/front-2-spike` was removed in #965 after its findings
-> were reimplemented in `apps/front-2`. Spike paths below describe the approved
-> migration strategy at the time.
-
 | | |
 |---|---|
 | **Date** | 2026-06-19 |
