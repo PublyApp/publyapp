@@ -162,6 +162,11 @@ test.describe('staff invitations request counter (hermetic project)', () => {
 			STAFF_INVITATIONS_PATH,
 			'GET',
 		);
+		const initialOptionsCount = await getCounter(
+			page,
+			STAFF_INVITATIONS_PATH,
+			'OPTIONS',
+		);
 		const filterResponse = waitForStaffInvitationsGetResponse(page);
 
 		await page.getByRole('button', { name: 'All statuses' }).click();
@@ -182,6 +187,13 @@ test.describe('staff invitations request counter (hermetic project)', () => {
 		);
 
 		expect(filteredGetCount).toBe(initialGetCount + 1);
-		expect(optionsCount).toBeLessThanOrEqual(MAX_PREFLIGHT_COUNT);
+		// The preflight budget is per data call, not per test: the CORS preflight
+		// cache is keyed by full request URL, so the filtered `?status=pending`
+		// call is a distinct entry from the unfiltered one and legitimately emits
+		// its own `OPTIONS`. Counting cumulatively against a bound of one would
+		// fail on correct behaviour, so assert the delta the filter itself caused.
+		expect(optionsCount - initialOptionsCount).toBeLessThanOrEqual(
+			MAX_PREFLIGHT_COUNT,
+		);
 	});
 });
