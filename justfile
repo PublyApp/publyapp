@@ -305,6 +305,7 @@ ci-drift:
   pnpm test:ci-drift
   node ./scripts/check-ci-drift.mjs
   node --test ./scripts/ci-changed-paths.test.mjs
+  node --test ./scripts/ci-run-classifier.test.mjs
   node --test ./scripts/check-ci-gate-structure.test.mjs
   node ./scripts/check-ci-gate-structure.mjs
 
