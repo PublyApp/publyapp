@@ -2,6 +2,8 @@ using FluentAssertions;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 using PublyApp.Api.Infrastructure.Messaging.Email;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -53,12 +55,11 @@ public sealed class ApiFactoryHostedServiceGuardSpec : IClassFixture<ApiFixture>
 		);
 	}
 
-	// Unit test of the removal HELPER's own predicate, kept as a fast synthetic-input
-	// regression test. It proves RemoveWorkerHostedServices does what it claims against inputs
-	// shaped exactly like its own expectations — it is NOT a substitute for the host guard
-	// above: it never constructs an ApiFactory, so it cannot see a host that stopped calling
-	// the helper, and it repeats the helper's own ImplementationType predicate, so it cannot
-	// see a registration shape (factory/instance) the predicate does not recognize.
+	// Unit tests of the removal HELPER itself, kept as fast synthetic-input regression tests.
+	// They prove RemoveWorkerHostedServices does what it claims against each registration
+	// shape it must recognize — they are NOT a substitute for the host guard above: none of
+	// them constructs an ApiFactory, so none can see a host that stopped calling the helper.
+
 	[Fact]
 	public void ItShouldRemoveInvitationEmailDispatcherFromIntegrationHost() {
 		ServiceCollection services = [];
@@ -69,6 +70,51 @@ public sealed class ApiFactoryHostedServiceGuardSpec : IClassFixture<ApiFixture>
 		services.Should().NotContain(descriptor =>
 			descriptor.ServiceType == typeof(IHostedService)
 			&& descriptor.ImplementationType == typeof(InvitationEmailOutboxDispatcher)
+		);
+	}
+
+	// Hole 2 (issue #548 review): an ImplementationInstance registration has
+	// ImplementationType == null, so a predicate matching only on ImplementationType would
+	// silently skip it and the live singleton instance would start in the integration host.
+	[Fact]
+	public void ItShouldRemoveInvitationEmailDispatcherRegisteredAsAnInstance() {
+		ServiceCollection services = [];
+
+		using var scopeFactoryProvider = new ServiceCollection().BuildServiceProvider();
+		var dispatcherInstance = new InvitationEmailOutboxDispatcher(
+			scopeFactoryProvider.GetRequiredService<IServiceScopeFactory>(),
+			new InvitationEmailOutboxSignal(),
+			NullLogger<InvitationEmailOutboxDispatcher>.Instance
+		);
+		services.AddSingleton<IHostedService>(dispatcherInstance);
+
+		ApiFactory.RemoveWorkerHostedServices(services);
+
+		services.Should().NotContain(descriptor =>
+			descriptor.ServiceType == typeof(IHostedService)
+			&& descriptor.ImplementationInstance is InvitationEmailOutboxDispatcher
+		);
+	}
+
+	// Hole 2 (issue #548 review): registering through an ImplementationFactory — for example,
+	// registering the concrete singleton and then adding a hosted-service factory that
+	// resolves it — also yields ImplementationType == null. The removal helper must resolve
+	// the factory (in isolation, against a throwaway provider) to see the produced type.
+	[Fact]
+	public void ItShouldRemoveInvitationEmailDispatcherRegisteredThroughAnImplementationFactory() {
+		ServiceCollection services = [];
+		services.AddSingleton<IInvitationEmailOutboxSignal, InvitationEmailOutboxSignal>();
+		services.AddSingleton<ILogger<InvitationEmailOutboxDispatcher>>(
+			NullLogger<InvitationEmailOutboxDispatcher>.Instance);
+		services.AddSingleton<InvitationEmailOutboxDispatcher>();
+		services.AddSingleton<IHostedService>(
+			sp => sp.GetRequiredService<InvitationEmailOutboxDispatcher>());
+
+		ApiFactory.RemoveWorkerHostedServices(services);
+
+		services.Should().NotContain(descriptor =>
+			descriptor.ServiceType == typeof(IHostedService)
+			&& descriptor.ImplementationFactory != null
 		);
 	}
 }

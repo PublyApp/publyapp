@@ -109,16 +109,73 @@ public sealed class ApiFactory
 			typeof(InvitationEmailOutboxDispatcher),
 		};
 
-		var descriptorsToRemove = services
-			.Where(descriptor =>
-				descriptor.ServiceType == typeof(IHostedService)
-				&& descriptor.ImplementationType is not null
-				&& workerHostedServiceTypes.Contains(descriptor.ImplementationType))
+		var hostedServiceDescriptors = services
+			.Where(descriptor => descriptor.ServiceType == typeof(IHostedService))
+			.ToList();
+
+		var descriptorsToRemove = hostedServiceDescriptors
+			.Where(descriptor => {
+				var implementationType = ResolveHostedServiceImplementationType(descriptor, services);
+
+				return implementationType is not null
+					&& workerHostedServiceTypes.Contains(implementationType);
+			})
 			.ToList();
 
 		foreach (var descriptor in descriptorsToRemove) {
 			services.Remove(descriptor);
 		}
+	}
+
+	/// <summary>
+	/// Identifies the concrete type an <see cref="IHostedService"/> descriptor would resolve
+	/// to, whatever registration shape it took (issue #548 review, hole 2: matching on
+	/// <see cref="ServiceDescriptor.ImplementationType"/> alone misses a worker service
+	/// registered as a singleton instance or through an implementation factory — an
+	/// <c>AddSingleton&lt;IHostedService&gt;(sp => ...)</c> shape has
+	/// <c>ImplementationType == null</c>, so the removal predicate would silently skip it and
+	/// the live service would start).
+	///
+	/// An <see cref="ServiceDescriptor.ImplementationInstance"/> registration names its type
+	/// without resolving anything. A factory registration does not: its concrete type is only
+	/// knowable by invoking it, so it is resolved once — from a throwaway
+	/// <see cref="IServiceProvider"/> built from the SAME (still being configured) collection,
+	/// never the real host's provider — purely to inspect the produced instance's type, then
+	/// disposed immediately. This only runs for the (currently zero, in production) case of a
+	/// factory-registered <see cref="IHostedService"/>; this is test-only host wiring (
+	/// <see cref="ApiFactory"/> never runs in production), so the extra construction is an
+	/// acceptable cost for closing the predicate's blind spot rather than leaving it to be
+	/// caught only by <see cref="Architecture.ApiFactoryHostedServiceGuardSpec"/>'s resolved-host
+	/// assertion.
+	/// </summary>
+	private static Type? ResolveHostedServiceImplementationType(
+		ServiceDescriptor descriptor,
+		IServiceCollection services
+	) {
+		if (descriptor.ImplementationType is not null) {
+			return descriptor.ImplementationType;
+		}
+
+		if (descriptor.ImplementationInstance is not null) {
+			return descriptor.ImplementationInstance.GetType();
+		}
+
+		if (descriptor.ImplementationFactory is not null) {
+			using var probeProvider = services.BuildServiceProvider();
+			using var probeScope = probeProvider.CreateScope();
+
+			var produced = descriptor.ImplementationFactory(probeScope.ServiceProvider);
+
+			if (produced is IAsyncDisposable asyncDisposable) {
+				_ = asyncDisposable.DisposeAsync().AsTask();
+			} else if (produced is IDisposable disposable) {
+				disposable.Dispose();
+			}
+
+			return produced?.GetType();
+		}
+
+		return null;
 	}
 
 	/// <summary>
