@@ -414,7 +414,7 @@ export const runCheck = async (rootDir) => {
 				findings.warning.push({
 					file: relativeFile,
 					type: 'body-hash',
-					message: `${bodyMismatchMessage}`,
+					message: bodyMismatchMessage,
 				});
 			}
 		}
