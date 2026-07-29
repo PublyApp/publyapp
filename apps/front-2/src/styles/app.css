@@ -339,6 +339,48 @@ html.dark {
 	--publy-profile-tone-7-fg: #60a5fa;
 }
 
+/* PersonAvatar intentionally keeps the shared AvatarFallback primitive's
+   neutral defaults unchanged. This opt-in rule is unlayered so its fixed,
+   contrast-guarded palette wins over those Tailwind utility-layer defaults
+   only for person fallbacks and invitation mail tiles. Shape and sizing stay
+   with the consuming component. */
+.publy-avatar-initials {
+	color: var(--publy-avatar-foreground);
+	background: var(--publy-avatar-1);
+}
+
+.publy-avatar-initials[data-palette='1'] {
+	background: var(--publy-avatar-1);
+}
+
+.publy-avatar-initials[data-palette='2'] {
+	background: var(--publy-avatar-2);
+}
+
+.publy-avatar-initials[data-palette='3'] {
+	background: var(--publy-avatar-3);
+}
+
+.publy-avatar-initials[data-palette='4'] {
+	background: var(--publy-avatar-4);
+}
+
+.publy-avatar-initials[data-palette='5'] {
+	background: var(--publy-avatar-5);
+}
+
+.publy-avatar-initials[data-palette='6'] {
+	background: var(--publy-avatar-6);
+}
+
+.publy-avatar-initials[data-palette='7'] {
+	background: var(--publy-avatar-7);
+}
+
+.publy-avatar-initials[data-palette='8'] {
+	background: var(--publy-avatar-8);
+}
+
 @layer base {
 	*,
 	::before,

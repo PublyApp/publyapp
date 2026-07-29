@@ -891,7 +891,7 @@ describe('staff tenants route', () => {
 	});
 
 	describe('bulk actions', () => {
-		test('renders a selection checkbox and neutral entity avatar for each tenant row', () => {
+		test('renders a selection checkbox and hashed logo fallback for each tenant row', () => {
 			const { container } = renderPage();
 
 			expect(
@@ -900,7 +900,11 @@ describe('staff tenants route', () => {
 			expect(
 				container.querySelector('[data-slot="person-avatar"]'),
 			).toBeTruthy();
-			expect(container.querySelector('[data-palette]')).toBeNull();
+			expect(
+				container
+					.querySelector('[data-slot="person-avatar-fallback"]')
+					?.getAttribute('data-palette'),
+			).toBe('7');
 		});
 
 		test('wraps the avatar and name inside a single link so hovering either activates it', () => {

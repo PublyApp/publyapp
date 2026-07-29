@@ -37,23 +37,24 @@ describe('PersonAvatar', () => {
 		expect(image?.className).toContain('aspect-square');
 	});
 
-	test('renders muted neutral initials when avatarUrl is absent', () => {
+	test('renders name-hashed palette initials when avatarUrl is absent', () => {
 		const { container, getByText } = render(
 			<PersonAvatar name="Ada Lovelace" avatarUrl={null} />,
 		);
 
 		const fallback = getByText('AL');
 		expect(fallback.getAttribute('data-slot')).toBe('person-avatar-fallback');
-		expect(fallback.className).toContain('bg-muted');
+		expect(fallback.className).toContain('publy-avatar-initials');
 		expect(fallback.className).toContain(
-			'text-[var(--publy-foreground-secondary)]',
+			'text-[var(--publy-avatar-foreground)]',
 		);
+		expect(fallback.className).not.toContain('foreground-secondary');
 		expect(fallback.className).not.toContain('text-muted-foreground');
-		expect(fallback.getAttribute('data-palette')).toBeNull();
+		expect(fallback.getAttribute('data-palette')).toBe('7');
 		expect(container.querySelector('img')).toBeNull();
 	});
 
-	test('falls back to muted neutral initials when the avatar image fails', () => {
+	test('falls back to name-hashed palette initials when the avatar image fails', () => {
 		const { container, getByText } = render(
 			<PersonAvatar
 				name="Ada Lovelace"
@@ -67,9 +68,9 @@ describe('PersonAvatar', () => {
 		act(() => MockImage.instances[0]?.onerror?.());
 
 		expect(container.querySelector('[data-slot="avatar-image"]')).toBeNull();
-		expect(getByText('AL').getAttribute('data-slot')).toBe(
-			'person-avatar-fallback',
-		);
+		const fallback = getByText('AL');
+		expect(fallback.getAttribute('data-slot')).toBe('person-avatar-fallback');
+		expect(fallback.getAttribute('data-palette')).toBe('7');
 	});
 
 	test('is decorative by default but can expose an accessible name when standalone', () => {

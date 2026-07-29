@@ -13,6 +13,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTableRowActions } from '~/components/table/row-actions';
+import { paletteIndex } from '~/components/ui/avatar-initials';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
 import { StatusPill } from '~/components/ui/product-page';
@@ -169,7 +170,8 @@ export const createInvitationColumns = ({
 				>
 					<span
 						aria-hidden="true"
-						className="inline-flex size-[26px] shrink-0 items-center justify-center rounded-[var(--publy-radius-small-control)] bg-muted text-[var(--publy-foreground-secondary)]"
+						className="publy-avatar-initials inline-flex size-[26px] shrink-0 items-center justify-center rounded-[var(--publy-radius-small-control)]"
+						data-palette={paletteIndex(email)}
 					>
 						<IconMail className="size-3.5" />
 					</span>

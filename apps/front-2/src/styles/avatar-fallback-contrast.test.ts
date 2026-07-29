@@ -7,7 +7,7 @@ import { describe, expect, test } from 'vitest';
 const rootDir = path.resolve(fileURLToPath(new URL('.', import.meta.url)));
 const appCss = readFileSync(path.join(rootDir, 'app.css'), 'utf8');
 const SMALL_TEXT_CONTRAST_FLOOR = 4.5;
-const BRAND_BACKGROUND_TOKENS = [
+const AVATAR_BACKGROUND_TOKENS = [
 	'--publy-avatar-1',
 	'--publy-avatar-2',
 	'--publy-avatar-3',
@@ -92,7 +92,7 @@ const contrastRatio = (foreground: string, background: string): number => {
 	return (lighter + 0.05) / (darker + 0.05);
 };
 
-describe('neutral fallback contrast', () => {
+describe('avatar fallback contrast', () => {
 	test.each([
 		['light', ':root'],
 		['dark', 'html.dark'],
@@ -113,14 +113,14 @@ describe('neutral fallback contrast', () => {
 		['light', ':root'],
 		['dark', 'html.dark'],
 	] as const)(
-		'keeps every BrandTile palette option legible in the %s theme',
+		'keeps every BrandTile and person avatar palette option legible in the %s theme',
 		(_theme, header) => {
 			const foreground = resolveThemeHexToken(
 				header,
 				'--publy-avatar-foreground',
 			);
 
-			for (const backgroundToken of BRAND_BACKGROUND_TOKENS) {
+			for (const backgroundToken of AVATAR_BACKGROUND_TOKENS) {
 				const background = resolveThemeHexToken(header, backgroundToken);
 				expect(contrastRatio(foreground, background)).toBeGreaterThanOrEqual(
 					SMALL_TEXT_CONTRAST_FLOOR,
@@ -128,4 +128,22 @@ describe('neutral fallback contrast', () => {
 			}
 		},
 	);
+
+	test('wires person and invitation avatar tiles to every guarded palette option', () => {
+		expect(appCss).toMatch(
+			/\.publy-avatar-initials\s*\{[^}]*color:\s*var\(--publy-avatar-foreground\);[^}]*\}/s,
+		);
+
+		for (const [index, backgroundToken] of AVATAR_BACKGROUND_TOKENS.entries()) {
+			expect(appCss).toContain(
+				`.publy-avatar-initials[data-palette='${index + 1}']`,
+			);
+			expect(appCss).toMatch(
+				new RegExp(
+					`\\.publy-avatar-initials\\[data-palette='${index + 1}'\\]\\s*\\{[^}]*background:\\s*var\\(${backgroundToken}\\);[^}]*\\}`,
+					's',
+				),
+			);
+		}
+	});
 });

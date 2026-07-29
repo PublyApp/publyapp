@@ -19,6 +19,7 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
 import { DataTableRowActions } from '~/components/table/row-actions';
 import { useTableController } from '~/components/table/use-table-controller';
+import { paletteIndex } from '~/components/ui/avatar-initials';
 import { Button } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
@@ -173,7 +174,8 @@ export const createColumns = ({
 				<div className="flex min-w-0 items-center gap-2.5">
 					<span
 						aria-hidden="true"
-						className="inline-flex size-[26px] shrink-0 items-center justify-center rounded-[var(--publy-radius-small-control)] bg-muted text-[var(--publy-foreground-secondary)]"
+						className="publy-avatar-initials inline-flex size-[26px] shrink-0 items-center justify-center rounded-[var(--publy-radius-small-control)]"
+						data-palette={paletteIndex(email)}
 					>
 						<IconMail className="size-3.5" />
 					</span>

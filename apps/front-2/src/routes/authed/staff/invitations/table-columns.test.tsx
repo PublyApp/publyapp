@@ -171,11 +171,10 @@ describe('createInvitationColumns', () => {
 		const link = screen.getByRole('link', { name: /person@example\.com/ });
 		const mailTile = link.querySelector('[aria-hidden="true"]');
 		expect(link.getAttribute('href')).toBe('/staff/invitations/invitation-1');
-		expect(mailTile?.className).toContain('bg-muted');
-		expect(mailTile?.className).toContain(
-			'text-[var(--publy-foreground-secondary)]',
-		);
+		expect(mailTile?.className).toContain('publy-avatar-initials');
+		expect(mailTile?.className).not.toContain('bg-muted');
 		expect(mailTile?.className).not.toContain('text-muted-foreground');
+		expect(mailTile?.getAttribute('data-palette')).toBe('5');
 	});
 
 	describe('missing-data cells (r5-F5)', () => {

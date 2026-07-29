@@ -187,7 +187,11 @@ test.describe('staff-users first-column hit area', () => {
 			.getByTestId('staff-users-table-rows')
 			.locator('[data-slot="table-row"]')
 			.first();
-		const avatar = firstRow.locator('[data-slot="person-avatar"]').first();
+		const avatar = firstRow
+			.locator(
+				'[data-slot="person-avatar-fallback"].publy-avatar-initials[data-palette]',
+			)
+			.first();
 		await expect(avatar).toBeVisible();
 
 		const firstCellLink = firstRow
