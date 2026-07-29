@@ -8,7 +8,7 @@ const IMAGE_ROOT = 'ghcr.io/radandevist/publyapp';
 
 const usage = `Usage: scripts/deploy-images.mjs [--no-push] [--dry-run] [REF]
 
-Build the API, migrator, and front-2 deploy images from a pristine worktree of REF.
+Build the API, migrator, and front deploy images from a pristine worktree of REF.
 
 Arguments:
   REF        Git ref to build (default: origin/develop)
@@ -130,7 +130,7 @@ const hasGhcrAuth = () => {
 
 const getBuildCommands = (context, sha) => {
 	const apiDockerfile = path.join(context, 'apps', 'api', 'Dockerfile');
-	const frontDockerfile = path.join(context, 'apps', 'front-2', 'Dockerfile');
+	const frontDockerfile = path.join(context, 'apps', 'front', 'Dockerfile');
 
 	return [
 		[
@@ -178,7 +178,7 @@ const getBuildCommands = (context, sha) => {
 				'-f',
 				frontDockerfile,
 				'-t',
-				`${IMAGE_ROOT}/front-2:${sha}`,
+				`${IMAGE_ROOT}/front:${sha}`,
 				context,
 			],
 		],
@@ -186,7 +186,7 @@ const getBuildCommands = (context, sha) => {
 };
 
 const getPushCommands = (sha) => {
-	return ['api', 'migrate', 'front-2'].map((image) => [
+	return ['api', 'migrate', 'front'].map((image) => [
 		'docker',
 		['push', `${IMAGE_ROOT}/${image}:${sha}`],
 	]);
@@ -328,7 +328,7 @@ const main = () => {
 			const buildLabels = [
 				'Building API runtime image',
 				'Building API migrate image',
-				'Building front-2 image',
+				'Building front image',
 			];
 			for (const [index, command] of buildCommands.entries()) {
 				progress(buildLabels[index]);
@@ -338,7 +338,7 @@ const main = () => {
 			const pushLabels = [
 				'Pushing API image',
 				'Pushing migrate image',
-				'Pushing front-2 image',
+				'Pushing front image',
 			];
 			for (const [index, command] of pushCommands.entries()) {
 				progress(pushLabels[index]);

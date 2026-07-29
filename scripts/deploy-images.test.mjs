@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -7,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 const scriptsDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(scriptsDirectory, '..');
 const script = path.join(scriptsDirectory, 'deploy-images.mjs');
+const dokployComposePath = path.join(repositoryRoot, 'dokploy.yml');
 
 const formatArgument = (argument) => {
 	return argument.length > 0 && !/[\s"']/.test(argument)
@@ -121,9 +123,9 @@ test('dry run prints the resolved SHA and exact worktree, build, and push comman
 				'--platform',
 				'linux/amd64',
 				'-f',
-				path.join(context, 'apps/front-2/Dockerfile'),
+				path.join(context, 'apps/front/Dockerfile'),
 				'-t',
-				`ghcr.io/radandevist/publyapp/front-2:${sha}`,
+				`ghcr.io/radandevist/publyapp/front:${sha}`,
 				context,
 			),
 		),
@@ -147,7 +149,7 @@ test('dry run prints the resolved SHA and exact worktree, build, and push comman
 			commandLine(
 				'docker',
 				'push',
-				`ghcr.io/radandevist/publyapp/front-2:${sha}`,
+				`ghcr.io/radandevist/publyapp/front:${sha}`,
 			),
 		),
 	);
@@ -165,4 +167,30 @@ test('bad ref exits 1', () => {
 
 	assert.equal(result.status, 1);
 	assert.match(result.stderr, new RegExp(`Could not resolve git ref: ${ref}`));
+});
+
+// A mismatch here is invisible until a deploy fails: dokploy.yml pins the image
+// Dokploy pulls, and this script builds and pushes the image under test. If the
+// two names ever disagree, the next deploy pulls a tag that was never pushed.
+test('every image name deploy-images.mjs builds and pushes appears in dokploy.yml', () => {
+	const result = run(['--dry-run', 'HEAD']);
+	assert.equal(result.status, 0, result.stderr);
+
+	const pushedImageRoots = [
+		...result.stdout.matchAll(/^==> docker push (\S+):[0-9a-f]{40}$/gm),
+	].map((match) => match[1]);
+	assert.ok(
+		pushedImageRoots.length >= 3,
+		`expected at least 3 pushed images in dry-run output, got: ${JSON.stringify(pushedImageRoots)}`,
+	);
+
+	const dokployCompose = readFileSync(dokployComposePath, 'utf8');
+
+	for (const imageRoot of pushedImageRoots) {
+		assert.ok(
+			dokployCompose.includes(`${imageRoot}:`),
+			`dokploy.yml does not reference "${imageRoot}", which deploy-images.mjs builds and pushes. ` +
+				'The built image name and the deployed image name must match, or the next deploy pulls a tag that was never pushed.',
+		);
+	}
 });

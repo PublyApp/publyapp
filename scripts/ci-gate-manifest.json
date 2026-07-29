@@ -336,11 +336,6 @@
 			"mirror": "just ci",
 			"reason": "This is a CI publish path for the migration bundle image and does not have a local equivalent in pre-push checks."
 		},
-		"deploy-images.yml::publish::Build and push Front-2 image": {
-			"hash": "98d1e49a5b503231",
-			"mirror": "just ci",
-			"reason": "This is a CI publish path for the front-2 image and does not have a local equivalent in pre-push checks."
-		},
 		"openapi-spec-drift.yml::spec-drift::uses:actions/checkout": {
 			"hash": "2b0c921edab45332",
 			"mirror": null,
@@ -410,6 +405,11 @@
 			"hash": "4ab757bac17a95ad",
 			"mirror": null,
 			"reason": "Reads github.event.pull_request.body. At pre-push time there is no PR and therefore no body to check, so this gate is unreproducible locally by construction rather than by omission. It stays a required GitHub check."
+		},
+		"deploy-images.yml::publish::Build and push Front image": {
+			"hash": "8cd754d0f6ff71c7",
+			"mirror": "just ci",
+			"reason": "This is a CI publish path for the front image and does not have a local equivalent in pre-push checks."
 		}
 	}
 }
