@@ -72,13 +72,13 @@ dev-front port="5050":
 [unix]
 [positional-arguments]
 review-front *args:
-  node scripts/review-front-2.mjs "$@"
+  node scripts/review-front.mjs "$@"
 
 [windows]
 [script("pwsh")]
 [positional-arguments]
 review-front *args:
-  node scripts/review-front-2.mjs @args
+  node scripts/review-front.mjs @args
 
 # Start docker services (postgres, etc.)
 dev-services:
@@ -293,9 +293,9 @@ ci-migration-expand-contract:
   node --test ./scripts/check-migration-expand-contract.test.mjs
   node ./scripts/check-migration-expand-contract.mjs
 
-# Ensure the review-front-2 pure-resolution logic remains covered in the gate.
-ci-review-front-2-resolution:
-  pnpm test:review-front-2-resolution
+# Ensure the review-worktree pure-resolution logic remains covered in the gate.
+ci-review-worktree-resolution:
+  pnpm test:review-worktree-resolution
 
 # Archive records: verify metadata and body immutability (link checks are
 # intentionally skipped, see docs/README.md's archive policy)
@@ -374,7 +374,7 @@ ci-e2e-old-front:
   pnpm --filter old-front run test:e2e:fresh
 
 # Everyday pre-push gate (no e2e). Fails on the first red sub-gate.
-ci: ci-drift ci-migration-expand-contract ci-review-front-2-resolution ci-docs-archive-records ci-install ci-format ci-lint ci-front ci-old-front ci-spec-drift test-api
+ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-docs-archive-records ci-install ci-format ci-lint ci-front ci-old-front ci-spec-drift test-api
   @echo ""
   @echo "=== just ci: PASSED ==="
   @echo "Not covered here: the two e2e suites (run 'just ci-full')."

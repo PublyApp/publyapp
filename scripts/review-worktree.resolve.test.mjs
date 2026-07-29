@@ -18,7 +18,7 @@ import {
 	runGhJson,
 	runIssueByNumber,
 	runPrByNumber,
-} from './review-front-2.resolve.mjs';
+} from './review-worktree.resolve.mjs';
 
 const runResult = (status = 0, stdout = '', stderr = '') => ({
 	status,
@@ -53,13 +53,13 @@ test('parseWorktrees parses porcelain output and detached HEAD worktrees', () =>
 
 test('parseTrackedChangesFromStatus slices file path at index 3 and keeps renames', () => {
 	const status = [
-		' M apps/front-2/src/routeTree.gen.ts',
-		'R  apps/front-2/old.ts -> apps/front-2/new.ts',
+		' M apps/front/src/routeTree.gen.ts',
+		'R  apps/front/old.ts -> apps/front/new.ts',
 	].join('\n');
 
 	const changes = parseTrackedChangesFromStatus(status);
-	assert.ok(changes.has('apps/front-2/src/routeTree.gen.ts'));
-	assert.ok(changes.has('apps/front-2/old.ts -> apps/front-2/new.ts'));
+	assert.ok(changes.has('apps/front/src/routeTree.gen.ts'));
+	assert.ok(changes.has('apps/front/old.ts -> apps/front/new.ts'));
 });
 
 for (const [branch, expected] of [

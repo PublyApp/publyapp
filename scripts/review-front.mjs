@@ -19,7 +19,7 @@ import {
 	resolveTarget,
 	runIssueByNumber,
 	runPrByNumber,
-} from './review-front-2.resolve.mjs';
+} from './review-worktree.resolve.mjs';
 
 const DEFAULT_PORT = 5050;
 const FRONTEND_ENV_FILE = '.env.development';
@@ -181,10 +181,10 @@ const ensureApi = async () => {
 };
 
 const ensureDependencies = (worktreePath) => {
-	const worktreeFront2NodeModules = path.join(
+	const worktreeFrontNodeModules = path.join(
 		worktreePath,
 		'apps',
-		'front-2',
+		'front',
 		'node_modules',
 	);
 	const sharedTsPostinstall = path.join(
@@ -196,30 +196,30 @@ const ensureDependencies = (worktreePath) => {
 	const assertPinnedPath = path.join(
 		worktreePath,
 		'apps',
-		'front-2',
+		'front',
 		'scripts',
 		'assert-pinned.mjs',
 	);
 
-	if (existsSync(worktreeFront2NodeModules)) {
-		console.log('Dependency check: front-2 dependencies already installed.');
+	if (existsSync(worktreeFrontNodeModules)) {
+		console.log('Dependency check: front dependencies already installed.');
 		return;
 	}
 
 	console.log('Checking pinned deps in worktree...');
 
 	if (existsSync(assertPinnedPath)) {
-		runCommand('node', ['apps/front-2/scripts/assert-pinned.mjs'], {
+		runCommand('node', ['apps/front/scripts/assert-pinned.mjs'], {
 			cwd: worktreePath,
 			stdio: 'inherit',
 		});
 	} else {
 		console.error(
-			'Skipping assert-pinned check (missing target script): apps/front-2/scripts/assert-pinned.mjs',
+			'Skipping assert-pinned check (missing target script): apps/front/scripts/assert-pinned.mjs',
 		);
 	}
 
-	console.log('Installing front-2 deps (frozen, no scripts)...');
+	console.log('Installing front deps (frozen, no scripts)...');
 	runCommand('pnpm', ['install', '--frozen-lockfile', '--ignore-scripts'], {
 		cwd: worktreePath,
 		stdio: 'inherit',
@@ -363,7 +363,7 @@ const askChoice = async (title, rows) => {
 };
 
 const launchVite = async (worktreePath, port, { host = '127.0.0.1' } = {}) => {
-	const cwd = path.join(worktreePath, 'apps', 'front-2');
+	const cwd = path.join(worktreePath, 'apps', 'front');
 	const publicUrl = `http://${host}:${port}`;
 	const child = spawn(
 		'pnpm',
