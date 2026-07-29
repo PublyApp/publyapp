@@ -507,6 +507,17 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 		// hiccup into full-page shell churn, so keep it disabled.
 		refetchOnMount: false,
 		staleTime: Infinity,
+		// The key now includes `hasAuthedRouteMatch` (see comment above), so
+		// the successful entry goes inactive the moment the route stops being
+		// an exact authenticated match — e.g. a stale link to an unknown path
+		// under a validated /staff/* prefix. Without an explicit `gcTime` the
+		// installed TanStack Query browser default (5 minutes) collects that
+		// inactive entry, so a user who leaves such a 404 open past the GC
+		// window and goes back misses the cache and re-validates for no
+		// reason (PR #997 round 6 finding). The key space is bounded (surface
+		// × exactness), logout clears the whole cache, and login invalidates
+		// broadly, so keeping this session-stable entry forever is safe.
+		gcTime: Infinity,
 		refetchOnWindowFocus: false,
 	});
 	const surfaceSessionFailureStatus =
