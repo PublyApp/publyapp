@@ -36,275 +36,275 @@
 			"mirror": "node scripts/check-archive-records.mjs",
 			"reason": "Run locally to catch archive-record body drift and header/provenance issues before docs-only reviews land. Link checks inside docs/archive are intentionally skipped, per docs/README.md's archive policy."
 		},
-		"front-2-ci.yml::supply-chain::Checkout": {
+		"front-ci.yml::supply-chain::Checkout": {
 			"hash": "389e0b8b6a55dd60",
 			"mirror": null,
 			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
 		},
-		"front-2-ci.yml::supply-chain::Install pnpm": {
+		"front-ci.yml::supply-chain::Install pnpm": {
 			"hash": "4d4703fdf957db42",
 			"mirror": null,
 			"reason": "Runner toolchain provisioning. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
 		},
-		"front-2-ci.yml::supply-chain::Setup Node": {
+		"front-ci.yml::supply-chain::Setup Node": {
 			"hash": "9f0469bb2703ae67",
 			"mirror": null,
 			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
 		},
-		"front-2-ci.yml::supply-chain::Assert exact pins": {
-			"hash": "861b83995b3b3087",
+		"front-ci.yml::supply-chain::Assert exact pins": {
+			"hash": "4f3066f03278bb53",
 			"mirror": "just ci-install",
-			"reason": "ci-install runs the identical command: node apps/front-2/scripts/assert-pinned.mjs."
+			"reason": "ci-install runs the identical command: node apps/front/scripts/assert-pinned.mjs."
 		},
-		"front-2-ci.yml::supply-chain::Install (frozen lockfile, no scripts)": {
+		"front-ci.yml::supply-chain::Install (frozen lockfile, no scripts)": {
 			"hash": "8525a83744708464",
 			"mirror": "just ci-install",
 			"reason": "ci-install runs the identical pnpm install --frozen-lockfile --ignore-scripts."
 		},
-		"front-2-ci.yml::supply-chain::Run trusted first-party postinstall (@org/shared-ts)": {
+		"front-ci.yml::supply-chain::Run trusted first-party postinstall (@org/shared-ts)": {
 			"hash": "734af738fc578d53",
 			"mirror": "just ci-install",
 			"reason": "ci-install runs the identical pnpm --filter @org/shared-ts run postinstall."
 		},
-		"front-2-ci.yml::supply-chain::Check front-2 formatting": {
+		"front-ci.yml::supply-chain::Check front formatting": {
 			"hash": "3002e9b223861c4c",
 			"mirror": "just format",
 			"reason": "just format runs pnpm format, the identical oxfmt --check invocation over the repo's configured globs."
 		},
-		"front-2-ci.yml::supply-chain::Build front-2": {
-			"hash": "071b60591c12180e",
-			"mirror": "just ci-front-2",
-			"reason": "ci-front-2 runs the identical pnpm --filter front-2 build."
+		"front-ci.yml::supply-chain::Build front": {
+			"hash": "691a239af962cd6a",
+			"mirror": "just ci-front",
+			"reason": "ci-front runs the identical pnpm --filter front build."
 		},
-		"front-2-ci.yml::supply-chain::Verify front-2 production build emits a CSS asset": {
-			"hash": "c91abe05dba61d55",
-			"mirror": "just ci-front-2",
-			"reason": "ci-front-2 runs pnpm --filter front-2 verify:build, whose script body is the same verify-build-css-link.mjs call."
+		"front-ci.yml::supply-chain::Verify front production build emits a CSS asset": {
+			"hash": "67ba4af220732568",
+			"mirror": "just ci-front",
+			"reason": "ci-front runs pnpm --filter front verify:build, whose script body is the same verify-build-css-link.mjs call."
 		},
-		"front-2-ci.yml::supply-chain::Smoke start front-2 server and verify stylesheet tag": {
-			"hash": "b96fb9a8080f60a4",
-			"mirror": "just ci-front-2",
-			"reason": "ci-front-2 runs pnpm --filter front-2 smoke:start. The workflow does this with inline bash (background job + trap + curl + grep) which cannot run under the justfile's pwsh shell on Windows, so apps/front-2/scripts/smoke-start-server.mjs re-implements the same assertions in Node: serve the production build, GET /, require a rel=stylesheet link to a .css asset. DELIBERATE DIFFERENCE: CI hardcodes port 3000 (a fresh runner has nothing else on it); the local script binds a free ephemeral port via PORT, because probing a busy 3000 on a dev machine would assert against whatever unrelated app answered and report a false green."
+		"front-ci.yml::supply-chain::Smoke start front server and verify stylesheet tag": {
+			"hash": "13904ace8cb43927",
+			"mirror": "just ci-front",
+			"reason": "ci-front runs pnpm --filter front smoke:start. The workflow does this with inline bash (background job + trap + curl + grep) which cannot run under the justfile's pwsh shell on Windows, so apps/front/scripts/smoke-start-server.mjs re-implements the same assertions in Node: serve the production build, GET /, require a rel=stylesheet link to a .css asset. DELIBERATE DIFFERENCE: CI hardcodes port 3000 (a fresh runner has nothing else on it); the local script binds a free ephemeral port via PORT, because probing a busy 3000 on a dev machine would assert against whatever unrelated app answered and report a false green."
 		},
-		"front-2-ci.yml::supply-chain::Typecheck front-2": {
-			"hash": "c8c46730ebd110db",
-			"mirror": "just ci-front-2",
-			"reason": "ci-front-2 runs the identical pnpm --filter front-2 typecheck."
+		"front-ci.yml::supply-chain::Typecheck front": {
+			"hash": "780f674ec757c52e",
+			"mirror": "just ci-front",
+			"reason": "ci-front runs the identical pnpm --filter front typecheck."
 		},
-		"front-2-ci.yml::supply-chain::Lint front-2": {
-			"hash": "a9af90e25413a851",
+		"front-ci.yml::supply-chain::Lint front": {
+			"hash": "bb98e17222da8f8d",
 			"mirror": "just ci-lint",
 			"reason": "ci-lint runs the same three commands with the same oxlint scope. Issue #803 owns broadening the gate to repo-wide oxlint and resolving the remaining pre-existing errors."
 		},
-		"front-2-ci.yml::supply-chain::Check front-2 design system": {
-			"hash": "8e0b27ecf757dcc8",
-			"mirror": "just ci-front-2",
-			"reason": "ci-front-2 runs the identical pnpm --filter front-2 check:design-system."
+		"front-ci.yml::supply-chain::Check front design system": {
+			"hash": "63fb0d45187accac",
+			"mirror": "just ci-front",
+			"reason": "ci-front runs the identical pnpm --filter front check:design-system."
 		},
-		"front-2-ci.yml::supply-chain::Test front-2": {
-			"hash": "897696396df55ed4",
-			"mirror": "just ci-front-2",
-			"reason": "ci-front-2 runs the identical pnpm --filter front-2 test."
+		"front-ci.yml::supply-chain::Test front": {
+			"hash": "981d370e8a37a61f",
+			"mirror": "just ci-front",
+			"reason": "ci-front runs the identical pnpm --filter front test."
 		},
-		"front-2-e2e.yml::build::Set image tag": {
+		"front-e2e.yml::build::Set image tag": {
 			"hash": "f8404b7467cf197a",
 			"mirror": null,
 			"reason": "GitHub-only: derives an immutable image tag from the Actions run id and attempt; local e2e builds use the Compose default tag."
 		},
-		"front-2-e2e.yml::build::Checkout": {
+		"front-e2e.yml::build::Checkout": {
 			"hash": "389e0b8b6a55dd60",
 			"mirror": null,
 			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
 		},
-		"front-2-e2e.yml::build::Setup Docker Buildx": {
+		"front-e2e.yml::build::Setup Docker Buildx": {
 			"hash": "3d16005f4dabbda6",
 			"mirror": null,
 			"reason": "GitHub-only: Buildx's container driver and gha cache export require the GitHub Actions runner; no local equivalent exists."
 		},
-		"front-2-e2e.yml::build::Setup GitHub Actions runtime": {
+		"front-e2e.yml::build::Setup GitHub Actions runtime": {
 			"hash": "e49a98d1931e5eb3",
 			"mirror": null,
 			"reason": "GitHub-only: exports Actions cache runtime variables for the gha backend; no local equivalent exists."
 		},
-		"front-2-e2e.yml::build::Login to GHCR": {
+		"front-e2e.yml::build::Login to GHCR": {
 			"hash": "77b1d2239deff208",
 			"mirror": null,
 			"reason": "GitHub-only: authenticates the workflow token to GHCR so the shared per-run images can be pushed."
 		},
-		"front-2-e2e.yml::build::Build stack images": {
-			"hash": "02f005ac5083cd10",
-			"mirror": "just ci-e2e-front-2",
-			"reason": "ci-e2e-front-2 builds the same four Compose services locally via up --build. CI enables Compose Bake for the GHA cache while retaining Compose-file-relative build-context resolution and loading the four GHCR-tagged images."
+		"front-e2e.yml::build::Build stack images": {
+			"hash": "0029329a6e94ebdf",
+			"mirror": "just ci-e2e-front",
+			"reason": "ci-e2e-front builds the same four Compose services locally via up --build. CI enables Compose Bake for the GHA cache while retaining Compose-file-relative build-context resolution and loading the four GHCR-tagged images."
 		},
-		"front-2-e2e.yml::build::Push stack images": {
-			"hash": "dd959f151b347e06",
+		"front-e2e.yml::build::Push stack images": {
+			"hash": "3ab2709c7b9805e4",
 			"mirror": null,
 			"reason": "GitHub-only: pushes the four loaded, immutable per-run application images to GHCR for the matrix runners; local e2e builds never publish them."
 		},
-		"front-2-e2e.yml::cleanup::Delete run image versions": {
-			"hash": "c4f53de5bd9c9f38",
+		"front-e2e.yml::cleanup::Delete run image versions": {
+			"hash": "38a9df68c6297158",
 			"mirror": null,
 			"reason": "GitHub-only: deletes the four ephemeral per-run GHCR image versions after every matrix outcome; local builds never publish them."
 		},
-		"front-2-e2e.yml::test::Checkout": {
+		"front-e2e.yml::test::Checkout": {
 			"hash": "389e0b8b6a55dd60",
 			"mirror": null,
 			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
 		},
-		"front-2-e2e.yml::test::Install pnpm": {
+		"front-e2e.yml::test::Install pnpm": {
 			"hash": "4d4703fdf957db42",
 			"mirror": null,
 			"reason": "Runner toolchain provisioning. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
 		},
-		"front-2-e2e.yml::test::Setup Node": {
+		"front-e2e.yml::test::Setup Node": {
 			"hash": "9f0469bb2703ae67",
 			"mirror": null,
 			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
 		},
-		"front-2-e2e.yml::test::Assert exact pins": {
-			"hash": "861b83995b3b3087",
+		"front-e2e.yml::test::Assert exact pins": {
+			"hash": "4f3066f03278bb53",
 			"mirror": "just ci-install",
-			"reason": "ci-install runs the identical node apps/front-2/scripts/assert-pinned.mjs."
+			"reason": "ci-install runs the identical node apps/front/scripts/assert-pinned.mjs."
 		},
-		"front-2-e2e.yml::test::Install dependencies": {
+		"front-e2e.yml::test::Install dependencies": {
 			"hash": "8525a83744708464",
 			"mirror": "just ci-install",
 			"reason": "ci-install runs the identical pnpm install --frozen-lockfile --ignore-scripts."
 		},
-		"front-2-e2e.yml::test::Login to GHCR": {
+		"front-e2e.yml::test::Login to GHCR": {
 			"hash": "77b1d2239deff208",
 			"mirror": null,
 			"reason": "GitHub-only: authenticates each matrix runner to GHCR so it can read the build job's private package versions."
 		},
-		"front-2-e2e.yml::test::Pull stack": {
-			"hash": "a766f11d09b6b502",
-			"mirror": "just ci-e2e-front-2",
-			"reason": "ci-e2e-front-2 makes the same four application images available by building them locally. CI instead pulls the build job's immutable images plus the same pinned public dependencies."
+		"front-e2e.yml::test::Pull stack": {
+			"hash": "9bdefcb3423a151b",
+			"mirror": "just ci-e2e-front",
+			"reason": "ci-e2e-front makes the same four application images available by building them locally. CI instead pulls the build job's immutable images plus the same pinned public dependencies."
 		},
-		"front-2-e2e.yml::test::Up stack": {
-			"hash": "8272694384261ca2",
-			"mirror": "just ci-e2e-front-2",
-			"reason": "ci-e2e-front-2 starts the same stack via up --build --wait. CI starts the already-pulled images with --no-build and performs its unchanged health polling separately."
+		"front-e2e.yml::test::Up stack": {
+			"hash": "c9d984764cc35350",
+			"mirror": "just ci-e2e-front",
+			"reason": "ci-e2e-front starts the same stack via up --build --wait. CI starts the already-pulled images with --no-build and performs its unchanged health polling separately."
 		},
-		"front-2-e2e.yml::test::Wait for front-2 stack health": {
-			"hash": "44e875a9f72281db",
-			"mirror": "just ci-e2e-front-2",
-			"reason": "ci-e2e-front-2 uses 'docker compose up --wait --wait-timeout 180' instead of the workflow's hand-rolled docker inspect polling loop. Same property (every service running and healthy before Playwright starts, 180s budget), enforced by compose itself rather than by bash."
+		"front-e2e.yml::test::Wait for front stack health": {
+			"hash": "b166555e180bdabd",
+			"mirror": "just ci-e2e-front",
+			"reason": "ci-e2e-front uses 'docker compose up --wait --wait-timeout 180' instead of the workflow's hand-rolled docker inspect polling loop. Same property (every service running and healthy before Playwright starts, 180s budget), enforced by compose itself rather than by bash."
 		},
-		"front-2-e2e.yml::test::Cache Playwright browsers": {
+		"front-e2e.yml::test::Cache Playwright browsers": {
 			"hash": "c632d2db20136539",
 			"mirror": null,
 			"reason": "GitHub-only actions/cache step; the local recipe has no separate browser-cache action or equivalent cache backend."
 		},
-		"front-2-e2e.yml::test::Run playwright browser tests": {
-			"hash": "fb4860cd0c14b55c",
-			"mirror": "just ci-e2e-front-2",
-			"reason": "ci-e2e-front-2 runs the same complete Playwright suite on one isolated local stack. CI partitions the non-counter projects across four isolated runners and runs the counter project alone after setup on shard 4; the local gate stays unsharded to preserve coverage without multiplying Docker stacks. It also drops --with-deps, which requires root; system libraries are a one-time developer setup."
+		"front-e2e.yml::test::Run playwright browser tests": {
+			"hash": "5bc32d56ada70689",
+			"mirror": "just ci-e2e-front",
+			"reason": "ci-e2e-front runs the same complete Playwright suite on one isolated local stack. CI partitions the non-counter projects across four isolated runners and runs the counter project alone after setup on shard 4; the local gate stays unsharded to preserve coverage without multiplying Docker stacks. It also drops --with-deps, which requires root; system libraries are a one-time developer setup."
 		},
-		"front-2-e2e.yml::test::Upload playwright report": {
-			"hash": "a9e32c27b869d886",
+		"front-e2e.yml::test::Upload playwright report": {
+			"hash": "ffac770f6a53e9b8",
 			"mirror": null,
-			"reason": "actions/upload-artifact uses a shard-specific name to get each report off its ephemeral runner. Locally the report is already on disk at apps/front-2/playwright-report; there is nothing to upload it to."
+			"reason": "actions/upload-artifact uses a shard-specific name to get each report off its ephemeral runner. Locally the report is already on disk at apps/front/playwright-report; there is nothing to upload it to."
 		},
-		"front-2-e2e.yml::test::Tear down front-2 stack": {
-			"hash": "30e868e83d3a06ef",
-			"mirror": "just ci-e2e-front-2",
-			"reason": "ci-e2e-front-2 runs the identical docker compose ... down -v as its final step. DELIBERATE DIFFERENCE: this workflow step is if:always(), which a justfile cannot express (just stops at the first failing line), so the recipe also resets the stack with down -v --remove-orphans before bringing it up. Net effect is the same clean slate per run; a failed run's stack is left up locally for inspection instead."
+		"front-e2e.yml::test::Tear down front stack": {
+			"hash": "53ee6ec69bcc7e7a",
+			"mirror": "just ci-e2e-front",
+			"reason": "ci-e2e-front runs the identical docker compose ... down -v as its final step. DELIBERATE DIFFERENCE: this workflow step is if:always(), which a justfile cannot express (just stops at the first failing line), so the recipe also resets the stack with down -v --remove-orphans before bringing it up. Net effect is the same clean slate per run; a failed run's stack is left up locally for inspection instead."
 		},
-		"front-characterization.yml::front-e2e::Checkout": {
+		"old-front-characterization.yml::old-front-e2e::Checkout": {
 			"hash": "389e0b8b6a55dd60",
 			"mirror": null,
 			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
 		},
-		"front-characterization.yml::front-e2e::Install pnpm": {
+		"old-front-characterization.yml::old-front-e2e::Install pnpm": {
 			"hash": "4d4703fdf957db42",
 			"mirror": null,
 			"reason": "Runner toolchain provisioning. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
 		},
-		"front-characterization.yml::front-e2e::Setup Node": {
+		"old-front-characterization.yml::old-front-e2e::Setup Node": {
 			"hash": "9f0469bb2703ae67",
 			"mirror": null,
 			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
 		},
-		"front-characterization.yml::front-e2e::Install (frozen lockfile, no scripts)": {
+		"old-front-characterization.yml::old-front-e2e::Install (frozen lockfile, no scripts)": {
 			"hash": "8525a83744708464",
 			"mirror": "just ci-install",
 			"reason": "ci-install runs the identical pnpm install --frozen-lockfile --ignore-scripts."
 		},
-		"front-characterization.yml::front-e2e::Run trusted first-party postinstall (@org/shared-ts)": {
+		"old-front-characterization.yml::old-front-e2e::Run trusted first-party postinstall (@org/shared-ts)": {
 			"hash": "734af738fc578d53",
 			"mirror": "just ci-install",
 			"reason": "ci-install runs the identical pnpm --filter @org/shared-ts run postinstall."
 		},
-		"front-characterization.yml::front-e2e::Install Playwright Chromium": {
-			"hash": "17f57bf6ce7afebb",
-			"mirror": "just ci-e2e-front",
-			"reason": "ci-e2e-front runs the same playwright install chromium. DELIBERATE DIFFERENCE: it drops --with-deps, which shells out to sudo apt-get and fails without passwordless sudo. A pre-push gate must not require root; system libraries are a one-time developer setup (npx playwright install-deps)."
+		"old-front-characterization.yml::old-front-e2e::Install Playwright Chromium": {
+			"hash": "727416421f0fb094",
+			"mirror": "just ci-e2e-old-front",
+			"reason": "ci-e2e-old-front runs the same playwright install chromium. DELIBERATE DIFFERENCE: it drops --with-deps, which shells out to sudo apt-get and fails without passwordless sudo. A pre-push gate must not require root; system libraries are a one-time developer setup (npx playwright install-deps)."
 		},
-		"front-characterization.yml::front-e2e::Reset current frontend characterization stack": {
-			"hash": "ac3f7eaf96e01486",
-			"mirror": "just ci-e2e-front",
-			"reason": "ci-e2e-front delegates to the app's own test:e2e:fresh script, which opens with 'docker compose -f docker-compose.test.yml down -v'. KNOWN GAP: the app script omits --remove-orphans, so a stale orphan container from a renamed service would be left behind locally but removed in CI."
+		"old-front-characterization.yml::old-front-e2e::Reset current frontend characterization stack": {
+			"hash": "83b018a3b260ed88",
+			"mirror": "just ci-e2e-old-front",
+			"reason": "ci-e2e-old-front delegates to the app's own test:e2e:fresh script, which opens with 'docker compose -f docker-compose.test.yml down -v'. KNOWN GAP: the app script omits --remove-orphans, so a stale orphan container from a renamed service would be left behind locally but removed in CI."
 		},
-		"front-characterization.yml::front-e2e::Build and wait for current frontend characterization stack": {
-			"hash": "3dc27f8a4254cb67",
-			"mirror": "just ci-e2e-front",
+		"old-front-characterization.yml::old-front-e2e::Build and wait for current frontend characterization stack": {
+			"hash": "77fe7d490e075fc2",
+			"mirror": "just ci-e2e-old-front",
 			"reason": "test:e2e:fresh runs 'docker compose up -d --build --wait'. KNOWN GAP: it does not pass --wait-timeout 180, so it uses compose's default timeout rather than CI's explicit 180s budget."
 		},
-		"front-characterization.yml::front-e2e::Run current frontend e2e characterization": {
-			"hash": "4c38834d1ad0fc06",
-			"mirror": "just ci-e2e-front",
+		"old-front-characterization.yml::old-front-e2e::Run current frontend e2e characterization": {
+			"hash": "3535b5fedd04ed06",
+			"mirror": "just ci-e2e-old-front",
 			"reason": "test:e2e:fresh runs playwright test against the stack, the same suite CI runs via pnpm --filter front exec playwright test."
 		},
-		"front-characterization.yml::front-e2e::Capture current frontend stack logs": {
-			"hash": "b33bb64917be7e9f",
+		"old-front-characterization.yml::old-front-e2e::Capture current frontend stack logs": {
+			"hash": "c371ae53c02c62cb",
 			"mirror": null,
 			"reason": "Failure-only step that dumps compose logs to a file purely so the upload-artifact step below can ship them off the runner. Locally 'docker compose logs' is available directly against the stack."
 		},
-		"front-characterization.yml::front-e2e::Upload Playwright report": {
-			"hash": "573eaebd488cd663",
+		"old-front-characterization.yml::old-front-e2e::Upload Playwright report": {
+			"hash": "49116183d1cb5246",
 			"mirror": null,
 			"reason": "actions/upload-artifact exists to get files off an ephemeral runner. Locally the report is already on disk at apps/front/playwright-report; there is nothing to upload it to."
 		},
-		"front-characterization.yml::front-e2e::Tear down current frontend characterization stack": {
-			"hash": "53ee6ec69bcc7e7a",
-			"mirror": "just ci-e2e-front",
+		"old-front-characterization.yml::old-front-e2e::Tear down current frontend characterization stack": {
+			"hash": "b06a159ae7ecc718",
+			"mirror": "just ci-e2e-old-front",
 			"reason": "test:e2e:fresh always tears the stack down with 'down -v' after Playwright, preserving the exit status, which matches this if:always() step."
 		},
-		"front-characterization.yml::front-unit::Checkout": {
+		"old-front-characterization.yml::old-front-unit::Checkout": {
 			"hash": "389e0b8b6a55dd60",
 			"mirror": null,
 			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
 		},
-		"front-characterization.yml::front-unit::Install pnpm": {
+		"old-front-characterization.yml::old-front-unit::Install pnpm": {
 			"hash": "4d4703fdf957db42",
 			"mirror": null,
 			"reason": "Runner toolchain provisioning. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
 		},
-		"front-characterization.yml::front-unit::Setup Node": {
+		"old-front-characterization.yml::old-front-unit::Setup Node": {
 			"hash": "9f0469bb2703ae67",
 			"mirror": null,
 			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
 		},
-		"front-characterization.yml::front-unit::Install (frozen lockfile, no scripts)": {
+		"old-front-characterization.yml::old-front-unit::Install (frozen lockfile, no scripts)": {
 			"hash": "8525a83744708464",
 			"mirror": "just ci-install",
 			"reason": "ci-install runs the identical pnpm install --frozen-lockfile --ignore-scripts."
 		},
-		"front-characterization.yml::front-unit::Run trusted first-party postinstall (@org/shared-ts)": {
+		"old-front-characterization.yml::old-front-unit::Run trusted first-party postinstall (@org/shared-ts)": {
 			"hash": "734af738fc578d53",
 			"mirror": "just ci-install",
 			"reason": "ci-install runs the identical pnpm --filter @org/shared-ts run postinstall."
 		},
-		"front-characterization.yml::front-unit::Check formatting": {
+		"old-front-characterization.yml::old-front-unit::Check formatting": {
 			"hash": "3002e9b223861c4c",
 			"mirror": "just format",
 			"reason": "just format runs pnpm format, the identical oxfmt --check invocation over the repo's configured globs."
 		},
-		"front-characterization.yml::front-unit::Test current frontend unit characterization": {
-			"hash": "26457cfabc2100a3",
-			"mirror": "just ci-front",
-			"reason": "ci-front runs the identical pnpm --filter front run test."
+		"old-front-characterization.yml::old-front-unit::Test current frontend unit characterization": {
+			"hash": "ee88047eb42acf85",
+			"mirror": "just ci-old-front",
+			"reason": "ci-old-front runs the identical pnpm --filter old-front run test."
 		},
 		"deploy-images.yml::publish::Checkout": {
 			"hash": "2b0c921edab45332",
