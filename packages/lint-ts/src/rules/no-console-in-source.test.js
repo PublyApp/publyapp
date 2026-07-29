@@ -35,25 +35,25 @@ const runCases = (rule, label) => {
 				},
 				{
 					code: "console.log('allowed in tests');",
-					filename: 'apps/front-2/src/routes/example/example.test.tsx',
+					filename: 'apps/front/src/routes/example/example.test.tsx',
 				},
 				{
 					code: "console.log('allowed in jsx tests');",
-					filename: 'apps/front-2\\src\\routes\\example\\example.test.jsx',
+					filename: 'apps/front\\src\\routes\\example\\example.test.jsx',
 				},
 				{
 					code: `${LOGGER_IMPORT}\n\nlogger.info('already using logger');`,
-					filename: 'apps/front/src/routes/example/example.ts',
+					filename: 'apps/old-front/src/routes/example/example.ts',
 				},
 				{
 					code:
 						'const console = mockLogger;\n' +
 						'export const Example = () => console.log("x");',
-					filename: 'apps/front/src/routes/example/example.ts',
+					filename: 'apps/old-front/src/routes/example/example.ts',
 				},
 				{
 					code: "console.log('windows test file is ignored');",
-					filename: 'apps/front-2\\src\\routes\\example\\example.test.tsx',
+					filename: 'apps/front\\src\\routes\\example\\example.test.tsx',
 				},
 			],
 			invalid: [
@@ -63,7 +63,7 @@ const runCases = (rule, label) => {
 						"\tconsole.log('rendered');\n" +
 						'\treturn null;\n' +
 						'};',
-					filename: 'apps/front/src/routes/example/example.tsx',
+					filename: 'apps/old-front/src/routes/example/example.tsx',
 					errors: [{ messageId: 'unexpected' }],
 					output:
 						`${LOGGER_IMPORT}\n` +
@@ -95,30 +95,30 @@ const runCases = (rule, label) => {
 						'};',
 				},
 				{
-					code: "console.debug('front-2 should still be checked');",
-					filename: 'apps/front-2/src/routes/example/example.tsx',
+					code: "console.debug('front should still be checked');",
+					filename: 'apps/front/src/routes/example/example.tsx',
 					errors: [{ messageId: 'unexpected' }],
 					output:
 						`${LOGGER_IMPORT}\n` +
-						"logger.debug('front-2 should still be checked');",
+						"logger.debug('front should still be checked');",
 				},
 				{
 					code: "console.log('front component');",
-					filename: 'apps/front-2/src/components/auth/page.tsx',
+					filename: 'apps/front/src/components/auth/page.tsx',
 					errors: [{ messageId: 'unexpected' }],
 					output: `${LOGGER_IMPORT}\n` + "logger.log('front component');",
 				},
 				{
-					code: "console.log('front-2 parts');",
-					filename: 'apps/front-2/src/_parts/auth/page.tsx',
+					code: "console.log('front parts');",
+					filename: 'apps/front/src/_parts/auth/page.tsx',
 					errors: [{ messageId: 'unexpected' }],
-					output: `${LOGGER_IMPORT}\n` + "logger.log('front-2 parts');",
+					output: `${LOGGER_IMPORT}\n` + "logger.log('front parts');",
 				},
 				{
-					code: "console.log('front-2 _components');",
-					filename: 'apps/front-2\\src\\_components\\auth\\page.tsx',
+					code: "console.log('front _components');",
+					filename: 'apps/front\\src\\_components\\auth\\page.tsx',
 					errors: [{ messageId: 'unexpected' }],
-					output: `${LOGGER_IMPORT}\n` + "logger.log('front-2 _components');",
+					output: `${LOGGER_IMPORT}\n` + "logger.log('front _components');",
 				},
 			],
 		});

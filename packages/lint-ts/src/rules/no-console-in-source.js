@@ -49,8 +49,8 @@ const isSharedScriptFile = (filename) =>
 	filename.includes('/packages/shared-ts/scripts/');
 
 const isFrontServerFile = (filename) =>
-	filename.startsWith('apps/front/server/') ||
-	filename.includes('/apps/front/server/');
+	filename.startsWith('apps/old-front/server/') ||
+	filename.includes('/apps/old-front/server/');
 
 const isNodeCliFile = (filename) =>
 	/(?:^|\/)(?:bin|cli)\//.test(filename) ||

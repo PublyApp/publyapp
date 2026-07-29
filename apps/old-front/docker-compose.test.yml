@@ -5,7 +5,7 @@ x-api-test-environment: &api-test-environment
   # demo seeders run: they are gated off under Production (AppDbContext seeder filter),
   # and the e2e suites log in as demo-seed users (e.g. staff-admin@example.com).
   # APP_ROLE is still required (Testing defaults it to All otherwise); "api" = HTTP
-  # surface + migrations, never the worker engine (mirrors apps/front-2/docker-compose.test.yml).
+  # surface + migrations, never the worker engine (mirrors apps/front/docker-compose.test.yml).
   APP_ROLE: api
   POSTGRES_CONNECTION_STRING: Host=postgres;Port=5432;Database=publyapp_db;Username=postgres;Password=password;
   FRONT_URL: http://front.localhost:5051

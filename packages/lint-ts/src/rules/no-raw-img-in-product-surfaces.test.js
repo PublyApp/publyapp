@@ -40,34 +40,34 @@ const runCases = (rule, label) => {
 			valid: [
 				{
 					code: 'const Hero = () => <img alt="Hero" src="/hero.png" />;',
-					filename: 'apps/front/src/routes/marketing/home/hero.tsx',
+					filename: 'apps/old-front/src/routes/marketing/home/hero.tsx',
 				},
 				{
 					code: [
 						'import { Image } from "#app/components/image/image.tsx";',
 						'const Avatar = () => <Image alt="User" src="/user.png" ratio="1/1" />;',
 					].join('\n'),
-					filename: 'apps/front/src/components/user-avatar.tsx',
+					filename: 'apps/old-front/src/components/user-avatar.tsx',
 				},
 				{
 					code: 'const Icon = () => <svg><path d="M0 0h1v1z" /></svg>;',
-					filename: 'apps/front/src/components/icon.tsx',
+					filename: 'apps/old-front/src/components/icon.tsx',
 				},
 				{
 					code: 'const Logo = () => <img alt="Publy" src="/logo.svg" />;',
-					filename: 'apps/front/src/components/brand/publy-wordmark.tsx',
+					filename: 'apps/old-front/src/components/brand/publy-wordmark.tsx',
 				},
 				{
 					code: 'const Logo = () => <Box component="img" alt="Publy" src="/logo.svg" />;',
-					filename: 'apps/front/src/components/logo/logo.tsx',
+					filename: 'apps/old-front/src/components/logo/logo.tsx',
 				},
 				{
-					code: 'const Preview = () => <img alt="Front 2 preview" src="/front-2.png" />;',
-					filename: 'apps/front-2/src/components/upload-preview.tsx',
+					code: 'const Preview = () => <img alt="Front preview" src="/front.png" />;',
+					filename: 'apps/front/src/components/upload-preview.tsx',
 				},
 				{
-					code: 'const Preview = () => <img alt="Front 2 preview" src="/front-2.png" />;',
-					filename: 'apps/front-2/src/components/upload-preview.jsx',
+					code: 'const Preview = () => <img alt="Front preview" src="/front.png" />;',
+					filename: 'apps/front/src/components/upload-preview.jsx',
 				},
 				{
 					code: [
@@ -78,28 +78,28 @@ const runCases = (rule, label) => {
 						'\t</>',
 						');',
 					].join('\n'),
-					filename: 'apps/front/src/layouts/auth-split/section.tsx',
+					filename: 'apps/old-front/src/layouts/auth-split/section.tsx',
 				},
 			],
 			invalid: [
 				{
 					code: 'const Preview = () => <img alt="Preview" src="/preview.png" />;',
-					filename: 'apps/front/src/components/upload-preview.tsx',
+					filename: 'apps/old-front/src/components/upload-preview.tsx',
 					errors: [{ messageId: 'rawImg' }],
 				},
 				{
 					code: 'const Preview = () => <img alt="Preview" src="/preview.png" />;',
-					filename: 'apps/front/src/components/upload-preview.jsx',
+					filename: 'apps/old-front/src/components/upload-preview.jsx',
 					errors: [{ messageId: 'rawImg' }],
 				},
 				{
 					code: 'const Preview = () => <Box component="img" alt="Preview" src="/preview.png" />;',
-					filename: 'apps/front/src/components/upload-preview.tsx',
+					filename: 'apps/old-front/src/components/upload-preview.tsx',
 					errors: [{ messageId: 'rawImg' }],
 				},
 				{
 					code: 'const Preview = () => <CardMedia component="img" alt="Preview" src="/preview.png" />;',
-					filename: 'apps/front/src/routes/authed/staff/preview.tsx',
+					filename: 'apps/old-front/src/routes/authed/staff/preview.tsx',
 					errors: [{ messageId: 'rawImg' }],
 				},
 			],

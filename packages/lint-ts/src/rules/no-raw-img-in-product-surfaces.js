@@ -14,8 +14,8 @@
  *
  * What it allows:
  *   - Marketing surfaces (same path exclusions as no-native-html-in-mui-surfaces)
- *   - Brand wordmark/logo files under `apps/front/src/components/brand/` and
- *     `apps/front/src/components/logo/`
+ *   - Brand wordmark/logo files under `apps/old-front/src/components/brand/` and
+ *     `apps/old-front/src/components/logo/`
  *   - Full-bleed background image exceptions marked by the line-above comment:
  *     `publy-allow full-bleed-background`
  *
@@ -34,13 +34,13 @@ const MESSAGE =
 	'content-imagery rule. Marketing surfaces and brand wordmarks are exempt.';
 
 const MARKETING_EXCLUSIONS = [
-	'apps/front/src/routes/marketing/',
-	'apps/front/src/components/marketing/',
+	'apps/old-front/src/routes/marketing/',
+	'apps/old-front/src/components/marketing/',
 ];
 
 const BRAND_WORDMARK_PREFIXES = [
-	'apps/front/src/components/brand/',
-	'apps/front/src/components/logo/',
+	'apps/old-front/src/components/brand/',
+	'apps/old-front/src/components/logo/',
 ];
 
 const FULL_BLEED_BACKGROUND_MARKER = 'publy-allow full-bleed-background';

@@ -2,8 +2,8 @@
  * Scoping matrix for M0.6 rule rollout.
  *
  * This test ensures:
- * - Portable rules apply to both `apps/front` and `apps/front-2`.
- * - MUI-specific rules remain scoped to `apps/front` only.
+ * - Portable rules apply to both `apps/old-front` and `apps/front`.
+ * - MUI-specific rules remain scoped to `apps/old-front` only.
  * - Root `.oxlintrc.json` keeps the relevant `publy/*` rules at `error`.
  */
 import assert from 'node:assert/strict';
@@ -58,7 +58,7 @@ const FRONT_SCOPED_MUI_RULE_CODES = [
 	'publy(no-raw-mui-textfield-register)',
 ];
 
-const FRONT2_PORTABLE_RULE_CODES = [
+const FRONT_PORTABLE_RULE_CODES = [
 	'publy(no-array-reduce)',
 	'publy(no-console-in-source)',
 	'publy(no-direct-dayjs-in-components)',
@@ -72,17 +72,17 @@ const RULE_SCOPING_CASES = [
 		valid: [
 			{
 				code: "console.log('front 2 test file ignore');",
-				filename: 'apps/front-2/src/components/example.test.tsx',
+				filename: 'apps/front/src/components/example.test.tsx',
 			},
 		],
 		invalid: [
 			{
-				code: "console.log('front-2 should be linted');",
-				filename: 'apps/front-2/src/routes/users/page.tsx',
+				code: "console.log('front should be linted');",
+				filename: 'apps/front/src/routes/users/page.tsx',
 				errors: [{ messageId: 'unexpected' }],
 				output:
 					"import { logger } from '@org/shared-ts/lib/logger/iso-logger';\n" +
-					"logger.log('front-2 should be linted');",
+					"logger.log('front should be linted');",
 			},
 		],
 	},
@@ -92,18 +92,18 @@ const RULE_SCOPING_CASES = [
 		valid: [
 			{
 				code: "import dayjs from 'dayjs';",
-				filename: 'apps/front-2/src/pages/users/overview.tsx',
+				filename: 'apps/front/src/pages/users/overview.tsx',
 			},
 		],
 		invalid: [
 			{
 				code: "import dayjs from 'dayjs';",
-				filename: 'apps/front-2/src/components/date-label.tsx',
+				filename: 'apps/front/src/components/date-label.tsx',
 				errors: [{ messageId: 'directDayjsImport' }],
 			},
 			{
 				code: "import * as dayjs from 'dayjs';",
-				filename: 'apps/front-2\\src\\_parts\\date-range-picker.tsx',
+				filename: 'apps/front\\src\\_parts\\date-range-picker.tsx',
 				errors: [{ messageId: 'directDayjsImport' }],
 			},
 		],
@@ -114,13 +114,13 @@ const RULE_SCOPING_CASES = [
 		valid: [
 			{
 				code: 'const sum = [1, 2, 3].map((x) => x + 1);',
-				filename: 'apps/front-2/src/pages/users/overview.test.ts',
+				filename: 'apps/front/src/pages/users/overview.test.ts',
 			},
 		],
 		invalid: [
 			{
 				code: 'const total = values.reduce((acc, x) => acc + x, 0);',
-				filename: 'apps/front-2/src/routes/analytics/page.tsx',
+				filename: 'apps/front/src/routes/analytics/page.tsx',
 				errors: [{ messageId: 'noReduce' }],
 			},
 		],
@@ -131,13 +131,13 @@ const RULE_SCOPING_CASES = [
 		valid: [
 			{
 				code: 'getFailureMessage(toApiFailure(error));',
-				filename: 'apps/front-2/src/components/detail-card.tsx',
+				filename: 'apps/front/src/components/detail-card.tsx',
 			},
 		],
 		invalid: [
 			{
 				code: "t('response-message.user-not-found');",
-				filename: 'apps/front-2/src/routes/settings/page.tsx',
+				filename: 'apps/front/src/routes/settings/page.tsx',
 				errors: [{ messageId: 'manualResponseMessage' }],
 			},
 		],
@@ -148,13 +148,13 @@ const RULE_SCOPING_CASES = [
 		valid: [
 			{
 				code: 'const Component = () => <div>front 2 escape hatch</div>;',
-				filename: 'apps/front-2/src/components/upload-preview.tsx',
+				filename: 'apps/front/src/components/upload-preview.tsx',
 			},
 		],
 		invalid: [
 			{
 				code: 'const Component = () => <div>legacy front surface</div>;',
-				filename: 'apps/front/src/components/upload-preview.tsx',
+				filename: 'apps/old-front/src/components/upload-preview.tsx',
 				errors: [{ messageId: 'div' }],
 			},
 		],
@@ -165,13 +165,13 @@ const RULE_SCOPING_CASES = [
 		valid: [
 			{
 				code: 'const Preview = () => <img alt="Front 2" src="/preview.png" />;',
-				filename: 'apps/front-2/src/components/upload-preview.tsx',
+				filename: 'apps/front/src/components/upload-preview.tsx',
 			},
 		],
 		invalid: [
 			{
 				code: 'const Preview = () => <img alt="Front" src="/preview.png" />;',
-				filename: 'apps/front/src/components/upload-preview.tsx',
+				filename: 'apps/old-front/src/components/upload-preview.tsx',
 				errors: [{ messageId: 'rawImg' }],
 			},
 		],
@@ -182,13 +182,13 @@ const RULE_SCOPING_CASES = [
 		valid: [
 			{
 				code: '<TextField {...register("email")} />;',
-				filename: 'apps/front-2/src/components/example-form.tsx',
+				filename: 'apps/front/src/components/example-form.tsx',
 			},
 		],
 		invalid: [
 			{
 				code: '<TextField {...register("email")} />;',
-				filename: 'apps/front/src/components/example-form.tsx',
+				filename: 'apps/old-front/src/components/example-form.tsx',
 				errors: [{ messageId: 'raw' }],
 			},
 		],
@@ -242,47 +242,84 @@ const createScopingFixtures = () => {
 	const tempRoot = mkdtempSync(
 		join(WORKSPACE_ROOT, '.tmp', 'm0.6-lint-scoping-'),
 	);
+	const oldFrontComponentsDir = join(tempRoot, 'apps/old-front/src/components');
 	const frontComponentsDir = join(tempRoot, 'apps/front/src/components');
-	const front2ComponentsDir = join(tempRoot, 'apps/front-2/src/components');
 
+	mkdirSync(oldFrontComponentsDir, { recursive: true });
 	mkdirSync(frontComponentsDir, { recursive: true });
-	mkdirSync(front2ComponentsDir, { recursive: true });
 
-	const frontNativePath = join(frontComponentsDir, 'bad-native.tsx');
-	const frontNativeJsxPath = join(frontComponentsDir, 'bad-native.jsx');
-	const frontImgPath = join(frontComponentsDir, 'bad-img.tsx');
-	const frontImgJsxPath = join(frontComponentsDir, 'bad-img.jsx');
-	const frontTextFieldPath = join(frontComponentsDir, 'bad-textfield.tsx');
-	const frontTextFieldJsxPath = join(frontComponentsDir, 'bad-textfield.jsx');
-	const front2NativePath = join(front2ComponentsDir, 'front2-native.tsx');
-	const front2NativeJsxPath = join(front2ComponentsDir, 'front2-native.jsx');
-	const front2ImgPath = join(front2ComponentsDir, 'front2-img.tsx');
-	const front2ImgJsxPath = join(front2ComponentsDir, 'front2-img.jsx');
-	const front2TextFieldPath = join(front2ComponentsDir, 'front2-textfield.tsx');
-	const front2TextFieldJsxPath = join(
-		front2ComponentsDir,
-		'front2-textfield.jsx',
+	const oldFrontNativePath = join(oldFrontComponentsDir, 'bad-native.tsx');
+	const oldFrontNativeJsxPath = join(oldFrontComponentsDir, 'bad-native.jsx');
+	const oldFrontImgPath = join(oldFrontComponentsDir, 'bad-img.tsx');
+	const oldFrontImgJsxPath = join(oldFrontComponentsDir, 'bad-img.jsx');
+	const oldFrontTextFieldPath = join(
+		oldFrontComponentsDir,
+		'bad-textfield.tsx',
 	);
-	const front2ConsolePath = join(front2ComponentsDir, 'front2-console.tsx');
-	const front2DayjsPath = join(front2ComponentsDir, 'front2-dayjs.tsx');
-	const front2ArrayReducePath = join(
-		front2ComponentsDir,
-		'front2-array-reduce.tsx',
+	const oldFrontTextFieldJsxPath = join(
+		oldFrontComponentsDir,
+		'bad-textfield.jsx',
 	);
-	const front2ManualResponsePath = join(
-		front2ComponentsDir,
-		'front2-manual-response.tsx',
+	const frontNativePath = join(frontComponentsDir, 'front-native.tsx');
+	const frontNativeJsxPath = join(frontComponentsDir, 'front-native.jsx');
+	const frontImgPath = join(frontComponentsDir, 'front-img.tsx');
+	const frontImgJsxPath = join(frontComponentsDir, 'front-img.jsx');
+	const frontTextFieldPath = join(frontComponentsDir, 'front-textfield.tsx');
+	const frontTextFieldJsxPath = join(frontComponentsDir, 'front-textfield.jsx');
+	const frontConsolePath = join(frontComponentsDir, 'front-console.tsx');
+	const frontDayjsPath = join(frontComponentsDir, 'front-dayjs.tsx');
+	const frontArrayReducePath = join(
+		frontComponentsDir,
+		'front-array-reduce.tsx',
+	);
+	const frontManualResponsePath = join(
+		frontComponentsDir,
+		'front-manual-response.tsx',
 	);
 
 	writeFileSync(
-		frontNativePath,
+		oldFrontNativePath,
 		"import * as React from 'react';\n" +
 			'export const NativeView = () => <div>legacy</div>;\n',
 	);
 	writeFileSync(
-		frontNativeJsxPath,
+		oldFrontNativeJsxPath,
 		"import * as React from 'react';\n" +
 			'export const NativeView = () => <div>legacy jsx</div>;\n',
+	);
+	writeFileSync(
+		oldFrontImgPath,
+		"import * as React from 'react';\n" +
+			"export const RawImage = () => <img alt='Preview' src='/preview.png' />;\n",
+	);
+	writeFileSync(
+		oldFrontImgJsxPath,
+		"import * as React from 'react';\n" +
+			"export const RawImage = () => <img alt='Preview' src='/preview.png' />;\n",
+	);
+	writeFileSync(
+		oldFrontTextFieldPath,
+		"import * as React from 'react';\n" +
+			"import { TextField } from '@mui/material';\n" +
+			'const register = (name: string) => ({ name });\n' +
+			"export const Field = () => <TextField {...register('email')} />;\n",
+	);
+	writeFileSync(
+		oldFrontTextFieldJsxPath,
+		"import * as React from 'react';\n" +
+			"import { TextField } from '@mui/material';\n" +
+			'const register = (name) => ({ name });\n' +
+			"export const Field = () => <TextField {...register('email')} />;\n",
+	);
+	writeFileSync(
+		frontNativePath,
+		"import * as React from 'react';\n" +
+			'export const NativeView = () => <div>front</div>;\n',
+	);
+	writeFileSync(
+		frontNativeJsxPath,
+		"import * as React from 'react';\n" +
+			'export const NativeView = () => <div>front jsx</div>;\n',
 	);
 	writeFileSync(
 		frontImgPath,
@@ -309,74 +346,40 @@ const createScopingFixtures = () => {
 			"export const Field = () => <TextField {...register('email')} />;\n",
 	);
 	writeFileSync(
-		front2NativePath,
-		"import * as React from 'react';\n" +
-			'export const NativeView = () => <div>front-2</div>;\n',
+		frontConsolePath,
+		"console.log('front should be linted by no-console-in-source');\n",
 	);
 	writeFileSync(
-		front2NativeJsxPath,
-		"import * as React from 'react';\n" +
-			'export const NativeView = () => <div>front-2 jsx</div>;\n',
-	);
-	writeFileSync(
-		front2ImgPath,
-		"import * as React from 'react';\n" +
-			"export const RawImage = () => <img alt='Preview' src='/preview.png' />;\n",
-	);
-	writeFileSync(
-		front2ImgJsxPath,
-		"import * as React from 'react';\n" +
-			"export const RawImage = () => <img alt='Preview' src='/preview.png' />;\n",
-	);
-	writeFileSync(
-		front2TextFieldPath,
-		"import * as React from 'react';\n" +
-			"import { TextField } from '@mui/material';\n" +
-			'const register = (name: string) => ({ name });\n' +
-			"export const Field = () => <TextField {...register('email')} />;\n",
-	);
-	writeFileSync(
-		front2TextFieldJsxPath,
-		"import * as React from 'react';\n" +
-			"import { TextField } from '@mui/material';\n" +
-			'const register = (name) => ({ name });\n' +
-			"export const Field = () => <TextField {...register('email')} />;\n",
-	);
-	writeFileSync(
-		front2ConsolePath,
-		"console.log('front-2 should be linted by no-console-in-source');\n",
-	);
-	writeFileSync(
-		front2DayjsPath,
+		frontDayjsPath,
 		"import dayjs from 'dayjs';\nexport const now = dayjs();\n",
 	);
 	writeFileSync(
-		front2ArrayReducePath,
+		frontArrayReducePath,
 		'const values = [1, 2, 3];\n' +
 			'export const sum = values.reduce((acc, value) => acc + value, 0);\n',
 	);
 	writeFileSync(
-		front2ManualResponsePath,
+		frontManualResponsePath,
 		"t('response-message.user-not-found');\n",
 	);
 
 	return {
+		oldFrontNativePath,
+		oldFrontNativeJsxPath,
+		oldFrontImgPath,
+		oldFrontImgJsxPath,
+		oldFrontTextFieldPath,
+		oldFrontTextFieldJsxPath,
 		frontNativePath,
 		frontNativeJsxPath,
 		frontImgPath,
 		frontImgJsxPath,
 		frontTextFieldPath,
 		frontTextFieldJsxPath,
-		front2NativePath,
-		front2NativeJsxPath,
-		front2ImgPath,
-		front2ImgJsxPath,
-		front2TextFieldPath,
-		front2TextFieldJsxPath,
-		front2ConsolePath,
-		front2DayjsPath,
-		front2ArrayReducePath,
-		front2ManualResponsePath,
+		frontConsolePath,
+		frontDayjsPath,
+		frontArrayReducePath,
+		frontManualResponsePath,
 		cleanup: () => rmSync(tempRoot, { force: true, recursive: true }),
 	};
 };
@@ -410,10 +413,18 @@ describe('M0.6 rule scoping matrix', () => {
 		}
 	});
 
-	it('verifies apps/front remains protected while apps/front-2 is not scoped by MUI rules', () => {
+	it('verifies apps/old-front remains protected while apps/front is not scoped by MUI rules', () => {
 		const fixtures = createScopingFixtures();
 
 		try {
+			const oldFrontDiagnostics = runOxlint([
+				fixtures.oldFrontNativePath,
+				fixtures.oldFrontNativeJsxPath,
+				fixtures.oldFrontImgPath,
+				fixtures.oldFrontImgJsxPath,
+				fixtures.oldFrontTextFieldPath,
+				fixtures.oldFrontTextFieldJsxPath,
+			]).diagnostics;
 			const frontDiagnostics = runOxlint([
 				fixtures.frontNativePath,
 				fixtures.frontNativeJsxPath,
@@ -421,18 +432,10 @@ describe('M0.6 rule scoping matrix', () => {
 				fixtures.frontImgJsxPath,
 				fixtures.frontTextFieldPath,
 				fixtures.frontTextFieldJsxPath,
-			]).diagnostics;
-			const front2Diagnostics = runOxlint([
-				fixtures.front2NativePath,
-				fixtures.front2NativeJsxPath,
-				fixtures.front2ImgPath,
-				fixtures.front2ImgJsxPath,
-				fixtures.front2TextFieldPath,
-				fixtures.front2TextFieldJsxPath,
-				fixtures.front2ConsolePath,
-				fixtures.front2DayjsPath,
-				fixtures.front2ArrayReducePath,
-				fixtures.front2ManualResponsePath,
+				fixtures.frontConsolePath,
+				fixtures.frontDayjsPath,
+				fixtures.frontArrayReducePath,
+				fixtures.frontManualResponsePath,
 			]).diagnostics;
 
 			const hasDiagnosticForPath = (diagnostics, ruleCode, filePath) =>
@@ -457,126 +460,126 @@ describe('M0.6 rule scoping matrix', () => {
 				);
 			};
 
+			const oldFrontDiagnosticCodes = new Set(
+				oldFrontDiagnostics.map((diag) => diag.code),
+			);
 			const frontDiagnosticCodes = new Set(
 				frontDiagnostics.map((diag) => diag.code),
-			);
-			const front2DiagnosticCodes = new Set(
-				front2Diagnostics.map((diag) => diag.code),
 			);
 
 			for (const ruleCode of FRONT_SCOPED_MUI_RULE_CODES) {
 				assert.ok(
-					frontDiagnosticCodes.has(ruleCode),
-					`${ruleCode} should report in apps/front`,
+					oldFrontDiagnosticCodes.has(ruleCode),
+					`${ruleCode} should report in apps/old-front`,
 				);
 				assert.ok(
-					!front2DiagnosticCodes.has(ruleCode),
-					`${ruleCode} should not report in apps/front-2`,
+					!frontDiagnosticCodes.has(ruleCode),
+					`${ruleCode} should not report in apps/front`,
 				);
 			}
 
 			assert.ok(
 				hasDiagnosticForPath(
+					oldFrontDiagnostics,
+					'publy(no-native-html-in-mui-surfaces)',
+					fixtures.oldFrontNativePath,
+				),
+				'no-native-html-in-mui-surfaces should fire in apps/old-front .tsx',
+			);
+			assert.ok(
+				hasDiagnosticForPath(
+					oldFrontDiagnostics,
+					'publy(no-native-html-in-mui-surfaces)',
+					fixtures.oldFrontNativeJsxPath,
+				),
+				'no-native-html-in-mui-surfaces should fire in apps/old-front .jsx',
+			);
+			assert.ok(
+				!hasDiagnosticForPath(
 					frontDiagnostics,
 					'publy(no-native-html-in-mui-surfaces)',
 					fixtures.frontNativePath,
 				),
-				'no-native-html-in-mui-surfaces should fire in apps/front .tsx',
+				'no-native-html-in-mui-surfaces should not fire in front .tsx',
 			);
 			assert.ok(
-				hasDiagnosticForPath(
+				!hasDiagnosticForPath(
 					frontDiagnostics,
 					'publy(no-native-html-in-mui-surfaces)',
 					fixtures.frontNativeJsxPath,
 				),
-				'no-native-html-in-mui-surfaces should fire in apps/front .jsx',
-			);
-			assert.ok(
-				!hasDiagnosticForPath(
-					front2Diagnostics,
-					'publy(no-native-html-in-mui-surfaces)',
-					fixtures.front2NativePath,
-				),
-				'no-native-html-in-mui-surfaces should not fire in front-2 .tsx',
-			);
-			assert.ok(
-				!hasDiagnosticForPath(
-					front2Diagnostics,
-					'publy(no-native-html-in-mui-surfaces)',
-					fixtures.front2NativeJsxPath,
-				),
-				'no-native-html-in-mui-surfaces should not fire in front-2 .jsx',
+				'no-native-html-in-mui-surfaces should not fire in front .jsx',
 			);
 			assert.ok(
 				hasDiagnosticForPath(
+					oldFrontDiagnostics,
+					'publy(no-raw-img-in-product-surfaces)',
+					fixtures.oldFrontImgPath,
+				),
+				'no-raw-img-in-product-surfaces should fire in apps/old-front .tsx',
+			);
+			assert.ok(
+				hasDiagnosticForPath(
+					oldFrontDiagnostics,
+					'publy(no-raw-img-in-product-surfaces)',
+					fixtures.oldFrontImgJsxPath,
+				),
+				'no-raw-img-in-product-surfaces should fire in apps/old-front .jsx',
+			);
+			assert.ok(
+				!hasDiagnosticForPath(
 					frontDiagnostics,
 					'publy(no-raw-img-in-product-surfaces)',
 					fixtures.frontImgPath,
 				),
-				'no-raw-img-in-product-surfaces should fire in apps/front .tsx',
+				'no-raw-img-in-product-surfaces should not fire in front .tsx',
 			);
 			assert.ok(
-				hasDiagnosticForPath(
+				!hasDiagnosticForPath(
 					frontDiagnostics,
 					'publy(no-raw-img-in-product-surfaces)',
 					fixtures.frontImgJsxPath,
 				),
-				'no-raw-img-in-product-surfaces should fire in apps/front .jsx',
-			);
-			assert.ok(
-				!hasDiagnosticForPath(
-					front2Diagnostics,
-					'publy(no-raw-img-in-product-surfaces)',
-					fixtures.front2ImgPath,
-				),
-				'no-raw-img-in-product-surfaces should not fire in front-2 .tsx',
-			);
-			assert.ok(
-				!hasDiagnosticForPath(
-					front2Diagnostics,
-					'publy(no-raw-img-in-product-surfaces)',
-					fixtures.front2ImgJsxPath,
-				),
-				'no-raw-img-in-product-surfaces should not fire in front-2 .jsx',
+				'no-raw-img-in-product-surfaces should not fire in front .jsx',
 			);
 			assert.ok(
 				hasDiagnosticForPath(
+					oldFrontDiagnostics,
+					'publy(no-raw-mui-textfield-register)',
+					fixtures.oldFrontTextFieldPath,
+				),
+				'no-raw-mui-textfield-register should fire in apps/old-front .tsx',
+			);
+			assert.ok(
+				hasDiagnosticForPath(
+					oldFrontDiagnostics,
+					'publy(no-raw-mui-textfield-register)',
+					fixtures.oldFrontTextFieldJsxPath,
+				),
+				'no-raw-mui-textfield-register should fire in apps/old-front .jsx',
+			);
+			assert.ok(
+				!hasDiagnosticForPath(
 					frontDiagnostics,
 					'publy(no-raw-mui-textfield-register)',
 					fixtures.frontTextFieldPath,
 				),
-				'no-raw-mui-textfield-register should fire in apps/front .tsx',
+				'no-raw-mui-textfield-register should not fire in front .tsx',
 			);
 			assert.ok(
-				hasDiagnosticForPath(
+				!hasDiagnosticForPath(
 					frontDiagnostics,
 					'publy(no-raw-mui-textfield-register)',
 					fixtures.frontTextFieldJsxPath,
 				),
-				'no-raw-mui-textfield-register should fire in apps/front .jsx',
-			);
-			assert.ok(
-				!hasDiagnosticForPath(
-					front2Diagnostics,
-					'publy(no-raw-mui-textfield-register)',
-					fixtures.front2TextFieldPath,
-				),
-				'no-raw-mui-textfield-register should not fire in front-2 .tsx',
-			);
-			assert.ok(
-				!hasDiagnosticForPath(
-					front2Diagnostics,
-					'publy(no-raw-mui-textfield-register)',
-					fixtures.front2TextFieldJsxPath,
-				),
-				'no-raw-mui-textfield-register should not fire in front-2 .jsx',
+				'no-raw-mui-textfield-register should not fire in front .jsx',
 			);
 
-			const front2DiagnosticsCodes = front2Diagnostics.map((diag) => diag.code);
+			const frontDiagnosticsCodes = frontDiagnostics.map((diag) => diag.code);
 			assert.deepStrictEqual(
-				uniqueSorted(front2DiagnosticsCodes),
-				FRONT2_PORTABLE_RULE_CODES.slice().sort(),
-				'front-2 apps should report exactly the expected portable violations',
+				uniqueSorted(frontDiagnosticsCodes),
+				FRONT_PORTABLE_RULE_CODES.slice().sort(),
+				'front apps should report exactly the expected portable violations',
 			);
 		} finally {
 			fixtures.cleanup();
