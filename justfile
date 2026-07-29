@@ -295,11 +295,18 @@ test-api-debug $APP_ROLE="all" $ASPNETCORE_ENVIRONMENT="Testing":
 #
 # See docs/guides/local-ci-gate.md.
 
-# Fail if .github/workflows has a step the local gate is not reconciled with
+# Fail if .github/workflows has a step the local gate is not reconciled with,
+# if the #1017 changed-path classifier's fail-closed logic regresses, or if
+# an aggregate gate's job graph (needs/if/permissions/outputs — the metadata
+# check-ci-drift.mjs's step-content hash does not cover) drifts from what
+# #1017 requires.
 ci-drift:
   @echo "=== [gate] workflow drift guard ==="
   pnpm test:ci-drift
   node ./scripts/check-ci-drift.mjs
+  node --test ./scripts/ci-changed-paths.test.mjs
+  node --test ./scripts/check-ci-gate-structure.test.mjs
+  node ./scripts/check-ci-gate-structure.mjs
 
 # Guard rails for database migration compatibility during zero-downtime rolling deploys.
 ci-migration-expand-contract:
