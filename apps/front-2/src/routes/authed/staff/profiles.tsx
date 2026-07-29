@@ -34,6 +34,7 @@ import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 import {
 	parseTableSearchParams,
 	serializeTableSearchParams,
+	validateTableSearchParams,
 } from '~/lib/url-state/table-search-params';
 import type {
 	TableSearchParamInput,
@@ -169,18 +170,20 @@ export const buildColumns = (
 
 export const Route = createFileRoute('/_authed-layout/staff/profiles')({
 	validateSearch: (search) =>
-		parseTableSearchParams(search as TableSearchParamInput),
+		validateTableSearchParams(search as TableSearchParamInput),
 	component: StaffProfilesPage,
 });
 
 function StaffProfilesPage() {
 	const navigate = Route.useNavigate();
-	const search = Route.useSearch();
+	const search = parseTableSearchParams(
+		Route.useSearch() as TableSearchParamInput,
+	);
 	const { t } = useTranslation('common');
 
 	const onSearchChange = (next: TableSearchParams): void => {
 		void navigate({
-			search: serializeTableSearchParams(next) as unknown as TableSearchParams,
+			search: serializeTableSearchParams(next),
 			replace: true,
 		});
 	};

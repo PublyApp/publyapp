@@ -1,5 +1,5 @@
 import { IconAlertCircle, IconLock } from '@tabler/icons-react';
-import type { QueryClient } from '@tanstack/react-query';
+import { type QueryClient, useQuery } from '@tanstack/react-query';
 import {
 	createRootRouteWithContext,
 	HeadContent,
@@ -16,11 +16,17 @@ import { parse as parseCookie } from 'cookie';
 import type { i18n as I18nInstance } from 'i18next';
 import * as React from 'react';
 import { I18nextProvider, useTranslation } from 'react-i18next';
+import { NeutralAuthedShell } from '~/components/app-shell/neutral-authed-shell';
 import { Button, buttonVariants } from '~/components/ui/button';
 import { AppToaster } from '~/components/ui/toaster';
+import {
+	createClient,
+	getSessionTokensFromBrowser,
+} from '~/lib/api-client/client-manager';
 import { AuthBrandProvider } from '~/lib/auth-brand-context';
-import { isAuthPath, isPathForSurface } from '~/lib/auth-paths';
+import { isAuthPath } from '~/lib/auth-paths';
 import { serializePublicRuntimeEnv } from '~/lib/env';
+import { useHydrated } from '~/lib/hooks/use-hydrated';
 import { useLogout } from '~/lib/hooks/use-logout';
 import { createBackendI18n, loadI18nContext } from '~/lib/i18n.backend';
 import {
@@ -38,15 +44,28 @@ import {
 } from '~/lib/i18n.shared';
 import { buildLoginRedirectSearch } from '~/lib/login-redirect-search';
 import { registerMutationToastI18n } from '~/lib/mutation-toast';
-import { getSessionScopeAvailability } from '~/lib/server/session-actions';
+import { hasExactAuthedRouteMatch } from '~/lib/route-shell';
+import { ServerFailure } from '~/lib/server/server-failure';
+import { getServerSessionAction } from '~/lib/server/session-actions';
 import { subscribeToSessionInvalidated } from '~/lib/session-invalidation-channel';
-import { determineSessionScope } from '~/lib/session-scope';
-import { COLOR_SCHEME_STORAGE_KEY, useUiStore } from '~/lib/store/ui-store';
+import {
+	determineSessionToken,
+	getSessionSurface,
+	getSurfaceRedirectCodeQueryKey,
+	shouldRenderAuthenticatedChrome,
+} from '~/lib/session-scope';
+import { SessionSurfaceValidationProvider } from '~/lib/session-surface-recovery-context';
+import { withSessionValidationTimeout } from '~/lib/session-validation';
+import {
+	COLOR_SCHEME_STORAGE_KEY,
+	SIDEBAR_OPEN_STORAGE_KEY,
+	useUiStore,
+} from '~/lib/store/ui-store';
 import { TabSyncListener } from '~/lib/tab-sync/tab-sync-listener';
 import { loadI18nForRequest } from '~/server/i18n-locale';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
-import { LOCALE_COOKIE_KEY } from '@org/shared-ts/lib/constants';
+import { LOCALE_COOKIE_KEY, REDIRECT_CODE } from '@org/shared-ts/lib/constants';
 
 import { AppErrorView } from '../components/error-views/AppErrorView';
 import { LogoutRedirect } from '../components/error-views/LogoutRedirect';
@@ -72,9 +91,6 @@ const clientLoadingInstanceByLocale = new Map<
 const clientRootContextByKey = new Map<string, Promise<RootRouteContext>>();
 
 type RouteSurface = 'auth' | 'marketing';
-
-const normalizePathname = (pathname: string): string =>
-	pathname.replace(/\/+$/, '') || '/';
 
 /**
  * Resolved in `beforeLoad`, not `loader` (shell-r5-F1): `beforeLoad`-provided
@@ -115,6 +131,42 @@ const loadClientRootContext = (
 	return pending;
 };
 
+const parseRedirectCode = async (
+	token: string,
+	signal: AbortSignal,
+): Promise<string | null> => {
+	const client = createClient({ getSessionToken: () => token, signal });
+	try {
+		const result = await client.auth.redirectCode.get();
+
+		if (result?.redirectCode === REDIRECT_CODE.UNAUTHORIZED) {
+			throw new ServerFailure({
+				responseStatusCode: 403,
+				status: 403,
+				title: 'Forbidden',
+				detail: 'User has no accessible scope.',
+			});
+		}
+
+		return result?.redirectCode ?? null;
+	} catch (error: unknown) {
+		const failure = toApiFailure(error);
+		if (failure.kind !== 'problem') {
+			throw error;
+		}
+
+		throw new ServerFailure({
+			responseStatusCode: failure.status,
+			status: failure.status,
+			// i18n-guard-ignore: no-hardcoded-ui-literal — request-failure payload fields are technical transport metadata, never displayed as UI copy.
+			title: failure.title ?? 'Request failed',
+			// i18n-guard-ignore: no-hardcoded-ui-literal — request-failure payload fields are technical transport metadata, never displayed as UI copy.
+			detail: failure.detail ?? 'Request failed',
+			translationKey: failure.translationKey,
+		});
+	}
+};
+
 const resolveRootContext = async (
 	options: unknown,
 ): Promise<RootRouteContext> => {
@@ -125,23 +177,16 @@ const resolveRootContext = async (
 			routeId?: string;
 		})[];
 	};
-	const deepestMatch = matches[matches.length - 1];
 	// The pathless authed layout also matches unknown `/staff/*` URLs. Require
 	// the deepest match to consume the whole path so API-shaped probes retain
 	// the root 404 instead of being redirected through the login page.
-	const hasAuthedRouteMatch =
-		matches.some((match) => match.routeId === '/_authed-layout') &&
-		normalizePathname(deepestMatch?.pathname ?? '/') ===
-			normalizePathname(location.pathname);
+	const hasAuthedRouteMatch = hasExactAuthedRouteMatch(
+		matches,
+		location.pathname,
+	);
 	if (typeof document === 'undefined' && hasAuthedRouteMatch) {
-		const availability = await getSessionScopeAvailability();
-		const decision = determineSessionScope(availability, location.pathname);
-
-		if (decision.redirectPath) {
-			throw redirect({ to: decision.redirectPath });
-		}
-
-		if (!decision.scope) {
+		const sessionAction = await getServerSessionAction();
+		if (sessionAction === 'redirect-login') {
 			throw redirect({
 				to: '/login',
 				search: buildLoginRedirectSearch({
@@ -340,18 +385,20 @@ export const ThemeHydrationListener = () => {
 };
 
 /**
- * Reads the persisted colour scheme and applies it to `documentElement`
- * before the browser paints — without this, every cold load (any surface,
- * not just the authed shell) flashes light and only repaints dark once
- * `ThemeHydrationListener`'s post-paint effect runs (shell r2-F1). Must stay
- * dependency-free inline JS: it runs before the app bundle (and therefore
- * `ui-store.ts`) has loaded, so the parsing here is a deliberate, minimal
- * duplicate of `ui-store.ts`'s `parsePersistedColorState`/
- * `applyThemeToDocument` — keep the two in sync by hand if that shape changes.
+ * Reads persisted presentation preferences and applies them to
+ * `documentElement` before the browser paints. The colour scheme prevents a
+ * light flash, while the sidebar state lets the neutral authenticated shell
+ * reserve the same geometry as the hydrated shell. Must stay dependency-free
+ * inline JS: it runs before the app bundle (and therefore `ui-store.ts`) has
+ * loaded, so the parsing here is a deliberate, minimal duplicate of the
+ * store's persisted-state parsing. Keep the two in sync if that shape changes.
  */
-export const buildThemeInitScript = (storageKey: string): string => `(() => {
+export const buildThemeInitScript = (
+	colorStorageKey: string,
+	sidebarStorageKey: string,
+): string => `(() => {
 	try {
-		var raw = window.localStorage.getItem(${JSON.stringify(storageKey)});
+		var raw = window.localStorage.getItem(${JSON.stringify(colorStorageKey)});
 		var scheme = 'light';
 		if (raw) {
 			var parsed = JSON.parse(raw);
@@ -367,6 +414,28 @@ export const buildThemeInitScript = (storageKey: string): string => `(() => {
 		}
 		document.documentElement.dataset.theme = scheme;
 	} catch (e) {}
+	try {
+		var sidebarRaw = window.localStorage.getItem(${JSON.stringify(sidebarStorageKey)});
+		var sidebarOpen = true;
+		if (sidebarRaw) {
+			var sidebarParsed = JSON.parse(sidebarRaw);
+			if (typeof sidebarParsed === 'boolean') {
+				sidebarOpen = sidebarParsed;
+			}
+		} else {
+			var legacyRaw = window.localStorage.getItem(${JSON.stringify(colorStorageKey)});
+			if (legacyRaw) {
+				var legacyParsed = JSON.parse(legacyRaw);
+				var legacyState = legacyParsed && typeof legacyParsed === 'object' ? legacyParsed.state : undefined;
+				if (legacyState && typeof legacyState.sidebarOpen === 'boolean') {
+					sidebarOpen = legacyState.sidebarOpen;
+				}
+			}
+		}
+		document.documentElement.dataset.sidebarOpen = sidebarOpen ? 'true' : 'false';
+	} catch (e) {
+		document.documentElement.dataset.sidebarOpen = 'true';
+	}
 })();`;
 
 /**
@@ -376,45 +445,142 @@ export const buildThemeInitScript = (storageKey: string): string => `(() => {
  * the only public state that changes with the content passed as `children`.
  */
 export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
+	const isHydrated = useHydrated();
 	const location = useMatches({
 		select: (matches) => {
 			const match = matches[matches.length - 1];
+			const pathname = match?.pathname ?? '/';
 
 			return {
-				pathname: match?.pathname ?? '/',
+				hasAuthedRouteMatch: hasExactAuthedRouteMatch(matches, pathname),
+				pathname,
 				search: match?.search ?? {},
 			};
 		},
 	});
 	const pathname = location.pathname;
 	const surface = resolveRouteSurface(pathname);
+	const sessionSurface = getSessionSurface(pathname);
+	// Appending `hasAuthedRouteMatch` gives the query a different identity
+	// the moment the route stops being an exact authenticated match (e.g.
+	// navigating from a known /staff/* route to an unknown one under the
+	// same prefix keeps `sessionSurface` at 'staff', so the base key alone
+	// would not change). TanStack Query only cancels a query's in-flight
+	// fetch when its last observer is detached (query-core's
+	// `Query#removeObserver`, gated on the queryFn having consumed
+	// `signal`, which it does below) — flipping `enabled` to `false` alone
+	// does not detach the observer or abort the request, so a stale
+	// response could otherwise settle into the cache after this route
+	// stopped matching (PR #997 finding 2). Changing the key identity here
+	// makes the observer move to a new (disabled, never-fetched) query,
+	// which detaches it from the old one and fires its abort signal.
+	const surfaceRedirectCodeQueryKey = [
+		...getSurfaceRedirectCodeQueryKey(sessionSurface),
+		location.hasAuthedRouteMatch,
+	] as const;
+	const surfaceSessionState = useQuery<string | null>({
+		queryKey: surfaceRedirectCodeQueryKey,
+		queryFn: async ({ signal }): Promise<string | null> => {
+			const tokens = getSessionTokensFromBrowser();
+			const resolved = determineSessionToken(tokens, pathname);
+			const token = resolved.token;
+
+			if (!token) {
+				// A TanStack Query v5 queryFn must never resolve to `undefined`
+				// (it rejects with "Query data cannot be undefined"). This path
+				// should never be reached for authenticated routes: beforeLoad
+				// redirects away earlier when no token is available.
+				return null;
+			}
+
+			return withSessionValidationTimeout(
+				(validationSignal) => parseRedirectCode(token, validationSignal),
+				signal,
+			);
+		},
+		enabled:
+			isHydrated && location.hasAuthedRouteMatch && sessionSurface !== 'other',
+		retry: false,
+		// Session-stable: which surface a token belongs to only changes on
+		// login/logout, both already invalidated explicitly (see
+		// useCurrentUserQuery). Refetching on refocus can turn a transient
+		// hiccup into full-page shell churn, so keep it disabled.
+		refetchOnMount: false,
+		staleTime: Infinity,
+		// The key now includes `hasAuthedRouteMatch` (see comment above), so
+		// the successful entry goes inactive the moment the route stops being
+		// an exact authenticated match — e.g. a stale link to an unknown path
+		// under a validated /staff/* prefix. Without an explicit `gcTime` the
+		// installed TanStack Query browser default (5 minutes) collects that
+		// inactive entry, so a user who leaves such a 404 open past the GC
+		// window and goes back misses the cache and re-validates for no
+		// reason (PR #997 round 6 finding). The key space is bounded (surface
+		// × exactness), logout clears the whole cache, and login invalidates
+		// broadly, so keeping this session-stable entry forever is safe.
+		gcTime: Infinity,
+		refetchOnWindowFocus: false,
+	});
+	const surfaceSessionFailureStatus =
+		surfaceSessionState.status === 'error'
+			? getRouteFailureStatus(surfaceSessionState.error)
+			: undefined;
+	const hasSurfaceSessionRecovery =
+		isHydrated &&
+		surfaceSessionState.status === 'error' &&
+		surfaceSessionFailureStatus !== 401 &&
+		surfaceSessionFailureStatus !== 403;
+	const canRenderAuthenticatedChrome = shouldRenderAuthenticatedChrome({
+		failureStatus: surfaceSessionFailureStatus,
+		isHydrated,
+		queryData: surfaceSessionState.data,
+		queryStatus: surfaceSessionState.status,
+	});
 	const [brand, setBrand] = React.useState<AuthBrand | undefined>(undefined);
 
-	if (
-		isPathForSurface(pathname, '/staff') ||
-		isPathForSurface(pathname, '/tenant')
-	) {
+	// `_authed-layout` also matches an unknown path under an authed prefix
+	// (it owns that path's notFound bubbling, see hasExactAuthedRouteMatch) —
+	// its component still renders in that case, unconditionally reading this
+	// context. The provider therefore wraps every branch below, not just the
+	// exact-match one, so an unknown /staff/* path renders the layout's own
+	// 404 instead of crashing on a missing provider.
+	let shellContent: React.ReactNode;
+	if (location.hasAuthedRouteMatch) {
 		const isTenantPortalRoot = pathname.replace(/\/+$/, '') === '/tenant';
 		if (isTenantPortalRoot) {
-			return children;
+			shellContent = children;
+		} else if (!canRenderAuthenticatedChrome) {
+			shellContent = (
+				<NeutralAuthedShell
+					isRecovery={hasSurfaceSessionRecovery}
+					pathname={pathname}
+				>
+					{children}
+				</NeutralAuthedShell>
+			);
+		} else {
+			shellContent = (
+				<AuthedLayout pathname={pathname} search={location.search}>
+					{children}
+				</AuthedLayout>
+			);
 		}
-
-		return (
-			<AuthedLayout pathname={pathname} search={location.search}>
-				{children}
-			</AuthedLayout>
-		);
-	}
-
-	if (surface === 'auth') {
-		return (
+	} else if (surface === 'auth') {
+		shellContent = (
 			<AuthBrandProvider value={setBrand}>
 				<AuthLayout brand={brand}>{children}</AuthLayout>
 			</AuthBrandProvider>
 		);
+	} else {
+		shellContent = (
+			<MarketingLayout pathname={pathname}>{children}</MarketingLayout>
+		);
 	}
 
-	return <MarketingLayout pathname={pathname}>{children}</MarketingLayout>;
+	return (
+		<SessionSurfaceValidationProvider value={surfaceSessionState}>
+			{shellContent}
+		</SessionSurfaceValidationProvider>
+	);
 };
 
 export const Route = createRootRouteWithContext<{
@@ -493,7 +659,10 @@ function RootShell({ children }: { children: React.ReactNode }) {
 					nonce={cspNonce || undefined}
 					suppressHydrationWarning
 					dangerouslySetInnerHTML={{
-						__html: buildThemeInitScript(COLOR_SCHEME_STORAGE_KEY),
+						__html: buildThemeInitScript(
+							COLOR_SCHEME_STORAGE_KEY,
+							SIDEBAR_OPEN_STORAGE_KEY,
+						),
 					}}
 				/>
 				<script

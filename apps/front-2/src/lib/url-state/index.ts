@@ -1,6 +1,7 @@
 export {
 	parseTableSearchParams,
 	serializeTableSearchParams,
+	validateTableSearchParams,
 } from './table-search-params';
 
 export type {

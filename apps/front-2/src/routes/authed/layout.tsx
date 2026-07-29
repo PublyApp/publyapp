@@ -1,11 +1,10 @@
 import { IconAlertCircle, IconLoader2 } from '@tabler/icons-react';
-import { useQuery } from '@tanstack/react-query';
 import {
-	redirect,
 	createFileRoute,
-	useLocation,
 	Link,
 	Outlet,
+	redirect,
+	useLocation,
 	useNavigate,
 	useRouter,
 } from '@tanstack/react-router';
@@ -16,13 +15,11 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
 import { View404 } from '~/components/error-views/View404';
 import { Button, buttonVariants } from '~/components/ui/button';
-import {
-	createClient,
-	getSessionTokensFromBrowser,
-} from '~/lib/api-client/client-manager';
+import { getSessionTokensFromBrowser } from '~/lib/api-client/client-manager';
 import { buildLoginRedirectSearch } from '~/lib/login-redirect-search';
-import { ServerFailure } from '~/lib/server/server-failure';
-import { determineSessionToken } from '~/lib/session-scope';
+import { hasExactAuthedRouteMatch } from '~/lib/route-shell';
+import { determineSessionToken, getSessionSurface } from '~/lib/session-scope';
+import { useSessionSurfaceValidation } from '~/lib/session-surface-recovery-context';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
@@ -37,41 +34,6 @@ const TENANT_PATH = '/tenant';
 const getFailureStatus = (error: unknown): number | undefined => {
 	const failure = toApiFailure(error);
 	return failure.kind === 'problem' ? failure.status : undefined;
-};
-
-const parseRedirectCode = async (token: string): Promise<string | null> => {
-	const client = createClient({ getSessionToken: () => token });
-	try {
-		const result = await client.auth.redirectCode.get();
-
-		if (result?.redirectCode === REDIRECT_CODE.UNAUTHORIZED) {
-			throw new ServerFailure({
-				responseStatusCode: 403,
-				status: 403,
-				title: 'Forbidden',
-				detail: 'User has no accessible scope.',
-			});
-		}
-
-		return result?.redirectCode ?? null;
-	} catch (error: unknown) {
-		const failure = toApiFailure(error);
-		if (failure.kind !== 'problem') {
-			throw error;
-		}
-
-		throw new ServerFailure({
-			responseStatusCode: failure.status,
-			status: failure.status,
-			// Internal ServerFailure metadata, never rendered raw — the displayed
-			// copy comes from t() keyed off .status/.translationKey (__root.tsx).
-			// i18n-guard-ignore: no-hardcoded-ui-literal — see comment above.
-			title: failure.title ?? 'Request failed',
-			// i18n-guard-ignore: no-hardcoded-ui-literal — see title above.
-			detail: failure.detail ?? 'Request failed',
-			translationKey: failure.translationKey,
-		});
-	}
 };
 
 // TanStack Start renders this as the route's SSR fallback and its
@@ -135,7 +97,7 @@ const AuthedLayoutErrorBoundary = ({
 			description={t('problem-loading-page')}
 			actions={
 				<>
-					<Button variant="default" onClick={retry} type="button">
+					<Button variant="default" onClick={() => retry()} type="button">
 						{t('retry')}
 					</Button>
 					<Link to="/" className={buttonVariants({ variant: 'outline' })}>
@@ -149,8 +111,21 @@ const AuthedLayoutErrorBoundary = ({
 
 export const Route = createFileRoute('/_authed-layout')({
 	ssr: false,
-	beforeLoad: async ({ location }) => {
+	beforeLoad: async ({ location, matches }) => {
 		if (typeof document === 'undefined') {
+			return;
+		}
+
+		// This pathless layout also matches unknown paths under an authed
+		// prefix (e.g. /staff/not-a-route) — the root already declines to
+		// treat those as an authenticated route (see `resolveRootContext` in
+		// __root.tsx), but this route's own beforeLoad used to run the
+		// session-token redirect logic below regardless, so a signed-out
+		// visitor or a stale/cross-scope cookie holder got redirected to
+		// /login or /tenant instead of seeing the genuine 404 (PR #997
+		// finding 1). Applying the same exact-match guard here keeps that
+		// redirect logic scoped to real authenticated routes only.
+		if (!hasExactAuthedRouteMatch(matches, location.pathname ?? '/')) {
 			return;
 		}
 
@@ -185,48 +160,16 @@ function AuthedRouteLayout() {
 	const pathname = location.pathname ?? '';
 	const navigate = useNavigate();
 	const { t } = useTranslation('common');
-	const isStaffSurface = pathname.startsWith(STAFF_PATH);
-	const isTenantSurface = pathname.startsWith(TENANT_PATH);
-	const surfaceScope = ((): 'staff' | 'tenant' | 'other' => {
-		if (isStaffSurface) {
-			return 'staff';
-		}
-
-		if (isTenantSurface) {
-			return 'tenant';
-		}
-
-		return 'other';
-	})();
-	const query = useQuery({
-		queryKey: ['front-2', 'auth', 'surface-redirect-code', surfaceScope],
-		queryFn: async (): Promise<string | null> => {
-			const tokens = getSessionTokensFromBrowser();
-			const resolved = determineSessionToken(tokens, pathname);
-
-			if (!resolved.token) {
-				// A TanStack Query v5 queryFn must never resolve to `undefined`
-				// (it rejects with "Query data cannot be undefined"). `beforeLoad`
-				// already redirects away before this ever mounts without a token,
-				// so this is a defensive no-op path, not the redirect-away signal.
-				return null;
-			}
-
-			return parseRedirectCode(resolved.token);
-		},
-		enabled: surfaceScope !== 'other',
-		retry: false,
-		// Session-stable: which surface a token belongs to only changes on
-		// login/logout, both already invalidated explicitly (see
-		// useCurrentUserQuery). Refetching this on every tab refocus is what
-		// turns a transient/background hiccup into a full-page error swap
-		// (see hasQueryError below) — it must not ride the focus trigger.
-		staleTime: Infinity,
-		refetchOnWindowFocus: false,
-	});
+	const surfaceScope = getSessionSurface(pathname);
+	const isStaffSurface = surfaceScope === 'staff';
+	const isTenantSurface = surfaceScope === 'tenant';
+	const query = useSessionSurfaceValidation();
 	const routeFailureStatus =
 		query.isError && query.error ? getFailureStatus(query.error) : undefined;
 	const hasQueryError = query.isError && Boolean(query.error);
+	const retry = () => {
+		void query.refetch();
+	};
 
 	useEffect(() => {
 		if (hasQueryError || query.data == null) {
@@ -280,11 +223,7 @@ function AuthedRouteLayout() {
 				description={t('problem-loading-page')}
 				actions={
 					<>
-						<Button
-							variant="default"
-							onClick={() => void query.refetch()}
-							type="button"
-						>
+						<Button variant="default" onClick={retry} type="button">
 							{t('retry')}
 						</Button>
 						<Link to="/" className={buttonVariants({ variant: 'outline' })}>

@@ -28,6 +28,39 @@ const extractRuleBlock = (source: string, selector: string): string => {
 	return normalizedSource.slice(bodyStart, bodyEnd + 1);
 };
 
+const extractAtRuleBlocks = (source: string, atRule: string): string[] => {
+	const blocks: string[] = [];
+	let searchIndex = 0;
+
+	while (searchIndex < source.length) {
+		const headerIndex = source.indexOf(atRule, searchIndex);
+		if (headerIndex === -1) {
+			break;
+		}
+
+		const bodyStart = source.indexOf('{', headerIndex);
+		if (bodyStart === -1) {
+			break;
+		}
+
+		let depth = 1;
+		let bodyEnd = bodyStart + 1;
+		while (bodyEnd < source.length && depth > 0) {
+			if (source[bodyEnd] === '{') {
+				depth += 1;
+			} else if (source[bodyEnd] === '}') {
+				depth -= 1;
+			}
+			bodyEnd += 1;
+		}
+
+		blocks.push(source.slice(headerIndex, bodyEnd));
+		searchIndex = bodyEnd;
+	}
+
+	return blocks;
+};
+
 describe('app-shell secondary panel viewport units (W4-GUARDS shell-F5)', () => {
 	const appCssSource = readFileSync(appCssPath, 'utf8');
 
@@ -95,5 +128,39 @@ describe('app-shell secondary panel motion', () => {
 		expect(closingRule).toContain(
 			'transition: visibility 0s var(--publy-motion-medium)',
 		);
+	});
+});
+
+describe('neutral authenticated shell responsive geometry', () => {
+	const appCssSource = readFileSync(appCssPath, 'utf8');
+	const openNeutralSelector =
+		".app-shell-workspace.neutral-authed-shell[data-has-secondary-panel='true'][data-panel-open='true']";
+	const closedNeutralSelector =
+		"html[data-sidebar-open='false'] .app-shell-workspace.neutral-authed-shell[data-has-secondary-panel='true']";
+
+	test('overrides the specific desktop grid tracks at tablet and mobile widths', () => {
+		const tabletBlock = extractAtRuleBlocks(
+			appCssSource,
+			'@media (max-width: 1023px)',
+		).find((block) => block.includes(openNeutralSelector));
+		const mobileBlock = extractAtRuleBlocks(
+			appCssSource,
+			'@media (max-width: 767px)',
+		).find((block) => block.includes(openNeutralSelector));
+
+		expect(tabletBlock).toBeDefined();
+		expect(mobileBlock).toBeDefined();
+		if (!tabletBlock || !mobileBlock) {
+			return;
+		}
+
+		const normalizedTabletBlock = tabletBlock.replace(/\s+/g, ' ');
+		const normalizedMobileBlock = mobileBlock.replace(/\s+/g, ' ');
+		expect(normalizedTabletBlock).toContain(closedNeutralSelector);
+		expect(normalizedTabletBlock).toMatch(
+			/grid-template-columns:\s*var\(--publy-shell-rail-width\)\s+minmax\(0,\s*1fr\)/,
+		);
+		expect(normalizedMobileBlock).toContain(closedNeutralSelector);
+		expect(normalizedMobileBlock).toMatch(/grid-template-columns:\s*1fr/);
 	});
 });

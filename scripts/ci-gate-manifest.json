@@ -81,11 +81,6 @@
 			"mirror": "just ci-front-2",
 			"reason": "ci-front-2 runs pnpm --filter front-2 verify:build, whose script body is the same verify-build-css-link.mjs call."
 		},
-		"front-2-ci.yml::supply-chain::Check front-2 client-bundle context isolation": {
-			"hash": "160707b2503d8674",
-			"mirror": "just ci-front-2",
-			"reason": "ci-front-2 runs the identical pnpm --filter front-2 check:context-chunk-isolation."
-		},
 		"front-2-ci.yml::supply-chain::Smoke start front-2 server and verify stylesheet tag": {
 			"hash": "b96fb9a8080f60a4",
 			"mirror": "just ci-front-2",

@@ -129,3 +129,23 @@ export const serializeTableSearchParams = (
 
 	return next;
 };
+
+/**
+ * TanStack Router merges validated search over the raw parsed search. Keeping
+ * the validator output on the wire-format shape prevents internal camelCase
+ * fields from being appended beside their snake_case URL counterparts.
+ */
+export const validateTableSearchParams = (
+	search: TableSearchParamInput,
+): Record<string, number | string | undefined> => {
+	const parsed = parseTableSearchParams(search);
+
+	return {
+		...serializeTableSearchParams(parsed),
+		// TanStack's default search parser represents an unquoted numeric URL
+		// value as a number. Preserve that type at the validation boundary;
+		// returning the serializer's string here would rewrite `size=25` as
+		// `size=%2225%22`.
+		size: parsed.size,
+	};
+};

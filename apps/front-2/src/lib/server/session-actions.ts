@@ -12,11 +12,12 @@ import {
 } from '@org/shared-ts/lib/session/parse';
 
 import { createClient } from '../api-client/client-manager';
-import type { SessionScopeAvailability } from '../session-scope';
+import { determineServerSessionAction } from '../session-scope';
 import { ServerFailure, throwServerFailure } from './server-failure';
 import {
 	buildTenantSessionCookie,
 	getCookieOptions,
+	readSessionCookieValue,
 	readSessionTokensFromCookie,
 } from './session-cookie-utils';
 
@@ -196,15 +197,9 @@ export const resolveWorkspacePath = createServerFn({ method: 'POST' }).handler(
 	},
 );
 
-export const getSessionScopeAvailability = createServerFn({
+export const getServerSessionAction = createServerFn({
 	method: 'GET',
-}).handler(() => {
-	const { staffToken, tenantToken } = readSessionTokensFromCookie();
-	return {
-		staff: Boolean(staffToken),
-		tenant: Boolean(tenantToken),
-	} satisfies SessionScopeAvailability;
-});
+}).handler(() => determineServerSessionAction(readSessionCookieValue()));
 
 export const clearSession = createServerFn({ method: 'POST' }).handler(
 	async () => {

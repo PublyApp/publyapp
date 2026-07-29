@@ -28,6 +28,7 @@ import {
 	parseInvitationListSearchParams,
 	type InvitationListSearchParamInput,
 } from '~/routes/authed/staff/invitations/list-helpers';
+import { Route as StaffProfilesRoute } from '~/routes/authed/staff/profiles';
 import { Route as TenantsRoute } from '~/routes/authed/staff/tenants';
 import { parseTenantListSearchParams } from '~/routes/authed/staff/tenants-list-helpers';
 import { Route as TenantInvitationsRoute } from '~/routes/authed/staff/tenants/$tenantId/invitations';
@@ -118,6 +119,29 @@ describe('malformed deep links are canonicalized at the router boundary (r4-tena
 				'status',
 			),
 		).toBe('active,suspended');
+	});
+
+	test('staff profiles: table sorting remains snake_case after validation', async () => {
+		const { router, history } = buildHarness(
+			'/staff/profiles',
+			asValidateSearch(StaffProfilesRoute),
+			(search) => ({
+				sort_id: String(search.sort_id ?? ''),
+				sort_order: String(search.sort_order ?? ''),
+			}),
+			'/staff/profiles?size=25&sort_id=name&sort_order=asc',
+		);
+
+		render(<RouterProvider router={router} />);
+		await waitFor(() => screen.getByTestId('resolved-search'));
+
+		const params = new URL(history.location.href, 'http://localhost')
+			.searchParams;
+		expect(params.get('size')).toBe('25');
+		expect(params.get('sort_id')).toBe('name');
+		expect(params.get('sort_order')).toBe('asc');
+		expect(params.has('sortId')).toBe(false);
+		expect(params.has('sortOrder')).toBe(false);
 	});
 
 	test('tenants: wholly invalid statuses are omitted', async () => {

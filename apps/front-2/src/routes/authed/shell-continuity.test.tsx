@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -16,8 +17,18 @@ const mocks = vi.hoisted(() => ({
 		searchStr: '',
 	},
 	matchedPathname: '/staff',
+	isHydrated: true,
 	navigate: vi.fn(),
 	outletPhase: 'loading' as 'loading' | 'settled',
+	sessionQueryState: {
+		data: 'staff' as string | null | undefined,
+		error: undefined as unknown,
+		status: 'success' as 'error' | 'pending' | 'success',
+	},
+}));
+
+vi.mock('@tanstack/react-query', () => ({
+	useQuery: () => mocks.sessionQueryState,
 }));
 
 vi.mock('@tanstack/react-router', async (importOriginal) => {
@@ -37,13 +48,26 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
 			),
 		useLocation: () => mocks.location,
 		useNavigate: () => mocks.navigate,
-		useMatches: ({ select }: { select: (matches: unknown[]) => unknown }) =>
-			select([
-				{
-					pathname: mocks.matchedPathname,
-					search: mocks.location.search,
-				},
-			]),
+		useMatches: ({ select }: { select: (matches: unknown[]) => unknown }) => {
+			const matches = mocks.matchedPathname.startsWith('/staff')
+				? [
+						{ routeId: '/_authed-layout', pathname: '/' },
+						{
+							routeId: '/_authed-layout/staff',
+							pathname: mocks.matchedPathname,
+							search: mocks.location.search,
+						},
+					]
+				: [
+						{
+							routeId: mocks.matchedPathname,
+							pathname: mocks.matchedPathname,
+							search: mocks.location.search,
+						},
+					];
+
+			return select(matches);
+		},
 		useRouterState: ({ select }: { select: (state: unknown) => unknown }) =>
 			select({
 				location: mocks.location,
@@ -60,6 +84,10 @@ vi.mock('react-i18next', async (importOriginal) => {
 		useTranslation: () => ({ t: (key: string) => key }),
 	};
 });
+
+vi.mock('~/lib/hooks/use-hydrated', () => ({
+	useHydrated: () => mocks.isHydrated,
+}));
 
 vi.mock('~/components/app-shell/user-menu', () => ({
 	AppShellUserMenu: () => <div data-testid="user-menu-stub" />,
@@ -100,11 +128,134 @@ afterEach(() => {
 		searchStr: '',
 	};
 	mocks.matchedPathname = '/staff';
+	mocks.isHydrated = true;
 	mocks.navigate.mockReset();
 	mocks.outletPhase = 'loading';
+	mocks.sessionQueryState = {
+		data: 'staff',
+		error: undefined,
+		status: 'success',
+	};
 });
 
 describe('authenticated shell continuity', () => {
+	test('holds neutral shell geometry before hydration without identity or navigation', () => {
+		mocks.location = {
+			pathname: '/staff/profiles',
+			search: {},
+			searchStr: '',
+		};
+		mocks.resolvedLocation = mocks.location;
+		mocks.matchedPathname = '/staff/profiles';
+		mocks.isHydrated = false;
+
+		render(
+			<RoutedShell>
+				<RouteContent />
+			</RoutedShell>,
+		);
+
+		const shell = screen.getByTestId('neutral-authed-shell');
+		expect(shell.getAttribute('data-has-secondary-panel')).toBe('true');
+		expect(shell.getAttribute('data-panel-open')).toBe('true');
+		expect(screen.getByTestId('neutral-authed-shell-rail')).toBeTruthy();
+		expect(screen.getByTestId('neutral-authed-shell-topbar')).toBeTruthy();
+		expect(screen.getByTestId('route-loading-content')).toBeTruthy();
+		expect(screen.queryByTestId('app-shell-shell')).toBeNull();
+		expect(screen.queryByTestId('app-shell-rail')).toBeNull();
+		expect(screen.queryByTestId('app-shell-topbar')).toBeNull();
+		expect(screen.queryByTestId('user-menu-stub')).toBeNull();
+		expect(shell.querySelector('a')).toBeNull();
+		expect(shell.querySelector('nav')).toBeNull();
+		expect(shell.textContent).toBe('');
+	});
+
+	test('keeps hydrated chrome neutral until session validation succeeds', () => {
+		mocks.location = {
+			pathname: '/staff/staff-users',
+			search: {},
+			searchStr: '',
+		};
+		mocks.resolvedLocation = mocks.location;
+		mocks.matchedPathname = '/staff/staff-users';
+		mocks.sessionQueryState = {
+			data: undefined,
+			error: undefined,
+			status: 'pending',
+		};
+
+		const view = render(
+			<RoutedShell>
+				<RouteContent />
+			</RoutedShell>,
+		);
+
+		expect(screen.getByTestId('neutral-authed-shell')).toBeTruthy();
+		expect(screen.queryByTestId('app-shell-shell')).toBeNull();
+
+		mocks.sessionQueryState = {
+			data: undefined,
+			error: { responseStatusCode: 401, status: 401 },
+			status: 'error',
+		};
+		view.rerender(
+			<RoutedShell>
+				<RouteContent />
+			</RoutedShell>,
+		);
+
+		expect(screen.getByTestId('neutral-authed-shell')).toBeTruthy();
+		expect(screen.queryByTestId('app-shell-shell')).toBeNull();
+
+		mocks.sessionQueryState = {
+			data: 'staff',
+			error: undefined,
+			status: 'success',
+		};
+		view.rerender(
+			<RoutedShell>
+				<RouteContent />
+			</RoutedShell>,
+		);
+
+		expect(screen.getByTestId('app-shell-shell')).toBeTruthy();
+		expect(screen.queryByTestId('neutral-authed-shell')).toBeNull();
+	});
+
+	test('exposes non-403 session recovery outside the inert shell and lets keyboard Retry run', async () => {
+		mocks.location = {
+			pathname: '/staff/staff-users',
+			search: {},
+			searchStr: '',
+		};
+		mocks.resolvedLocation = mocks.location;
+		mocks.matchedPathname = '/staff/staff-users';
+		mocks.sessionQueryState = {
+			data: undefined,
+			error: { responseStatusCode: 500, status: 500 },
+			status: 'error',
+		};
+		const retry = vi.fn();
+		const user = userEvent.setup();
+
+		render(
+			<RoutedShell>
+				<button type="button" onClick={retry}>
+					Retry
+				</button>
+			</RoutedShell>,
+		);
+
+		const retryButton = screen.getByRole('button', { name: 'Retry' });
+		expect(screen.queryByTestId('neutral-authed-shell')).toBeNull();
+		expect(screen.getByTestId('neutral-authed-recovery')).toBeTruthy();
+
+		await user.tab();
+		expect(document.activeElement).toBe(retryButton);
+		await user.keyboard('{Enter}');
+		expect(retry).toHaveBeenCalledTimes(1);
+	});
+
 	test('keeps the real app shell node while pending content settles and the staff index redirects', () => {
 		const { rerender } = render(
 			<RoutedShell>

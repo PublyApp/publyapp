@@ -30,6 +30,7 @@ import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 import {
 	parseTableSearchParams,
 	serializeTableSearchParams,
+	validateTableSearchParams,
 } from '~/lib/url-state/table-search-params';
 import type {
 	TableSearchParamInput,
@@ -208,19 +209,21 @@ export const Route = createFileRoute(
 	'/_authed-layout/staff/profiles/$profileId/users',
 )({
 	validateSearch: (search) =>
-		parseTableSearchParams(search as TableSearchParamInput),
+		validateTableSearchParams(search as TableSearchParamInput),
 	component: StaffProfileUsersPage,
 });
 
 function StaffProfileUsersPage() {
 	const navigate = Route.useNavigate();
 	const { profileId } = Route.useParams();
-	const search = Route.useSearch();
+	const search = parseTableSearchParams(
+		Route.useSearch() as TableSearchParamInput,
+	);
 	const { t } = useTranslation('common');
 	const [pageIndex, setPageIndex] = useState(0);
 	const onSearchChange = (next: TableSearchParams): void => {
 		void navigate({
-			search: serializeTableSearchParams(next) as unknown as TableSearchParams,
+			search: serializeTableSearchParams(next),
 			replace: true,
 		});
 	};

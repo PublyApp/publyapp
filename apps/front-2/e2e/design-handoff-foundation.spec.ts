@@ -353,34 +353,40 @@ test('the 404 view no longer renders a separator above its actions (owner-approv
 	await expect(actionsWrap).toHaveCSS('border-top-width', '0px');
 });
 
-test('the 500 boundary renders a working Retry and Go to home control (owner-approved 2026-07-10 round 3)', async ({
-	page,
-}) => {
-	await loginAsStaffAdmin(page);
+for (const entry of ['goto', 'reload'] as const) {
+	test(`the 500 boundary renders a working Retry and Go to home control after a ${entry} (owner-approved 2026-07-10 round 3; PR #997 finding 3 regression)`, async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
 
-	await page.route('**/auth/redirect-code**', async (route) => {
-		await route.fulfill({
-			status: 500,
-			headers: { 'content-type': 'application/problem+json' },
-			body: JSON.stringify({ title: 'Internal Server Error', status: 500 }),
+		await page.route('**/auth/redirect-code**', async (route) => {
+			await route.fulfill({
+				status: 500,
+				headers: { 'content-type': 'application/problem+json' },
+				body: JSON.stringify({ title: 'Internal Server Error', status: 500 }),
+			});
+		});
+
+		if (entry === 'goto') {
+			await page.goto('/staff/staff-users');
+		} else {
+			await page.reload();
+		}
+
+		await expect(page.getByText('Something went wrong')).toBeVisible();
+		const retryButton = page.getByRole('button', { name: 'Retry' });
+		const homeLink = page.getByRole('link', { name: 'Go to home' });
+		await expect(retryButton).toBeVisible();
+		await expect(homeLink).toBeVisible();
+
+		const actionsWrap = homeLink.locator('..');
+		await expect(actionsWrap).toHaveCSS('border-top-width', '0px');
+
+		await page.unroute('**/auth/redirect-code**');
+		await retryButton.click();
+
+		await expect(page.getByTestId('staff-users-table')).toBeVisible({
+			timeout: 15_000,
 		});
 	});
-
-	await page.reload();
-
-	await expect(page.getByText('Something went wrong')).toBeVisible();
-	const retryButton = page.getByRole('button', { name: 'Retry' });
-	const homeLink = page.getByRole('link', { name: 'Go to home' });
-	await expect(retryButton).toBeVisible();
-	await expect(homeLink).toBeVisible();
-
-	const actionsWrap = homeLink.locator('..');
-	await expect(actionsWrap).toHaveCSS('border-top-width', '0px');
-
-	await page.unroute('**/auth/redirect-code**');
-	await retryButton.click();
-
-	await expect(page.getByTestId('staff-users-table')).toBeVisible({
-		timeout: 15_000,
-	});
-});
+}

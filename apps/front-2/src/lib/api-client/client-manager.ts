@@ -53,12 +53,14 @@ type BuildCustomFetchOptions = {
 	tenantId?: string;
 	fetchImpl?: FetchFunction;
 	apiBaseUrl: string;
+	signal?: AbortSignal;
 };
 
 type BuildClientOptions = {
 	getSessionToken: () => string | undefined;
 	tenantId?: string;
 	fetchImpl?: FetchFunction;
+	signal?: AbortSignal;
 };
 
 type ClientManagerOptions = {
@@ -263,16 +265,22 @@ const buildCustomFetch = (options: BuildCustomFetchOptions): FetchFunction => {
 		}
 
 		if (requestLike) {
+			const signal = options.signal ?? init?.signal ?? requestInputInit.signal;
 			const mergedRequest = new Request(input.url, {
 				...requestInputInit,
 				...init,
 				headers,
+				...(signal ? { signal } : {}),
 			});
 
 			return fetchImpl(mergedRequest);
 		}
 
-		return fetchImpl(requestUrl, { ...init, headers });
+		return fetchImpl(requestUrl, {
+			...init,
+			headers,
+			...(options.signal ? { signal: options.signal } : {}),
+		});
 	};
 };
 
@@ -283,6 +291,7 @@ const buildClient = (options: BuildClientOptions): ApiClient => {
 		tenantId: options.tenantId,
 		fetchImpl: options.fetchImpl,
 		apiBaseUrl,
+		signal: options.signal,
 	});
 	const adapter = new FetchRequestAdapter(
 		new AnonymousAuthenticationProvider(),

@@ -1,28 +1,38 @@
 /**
  * @vitest-environment jsdom
  */
+import type { UseQueryResult } from '@tanstack/react-query';
 import { cleanup, render, screen } from '@testing-library/react';
 import type { ComponentType, ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import { SessionSurfaceValidationProvider } from '~/lib/session-surface-recovery-context';
 
 import type { ParsedSessionTokens } from '@org/shared-ts/lib/session/parse';
 
+function createQueryResult(overrides: {
+	data: string | null | undefined;
+	isLoading?: boolean;
+	isError?: boolean;
+	error?: unknown;
+	refetch?: () => void;
+}): UseQueryResult<string | null, unknown> {
+	return {
+		error: overrides.error,
+		isError: overrides.isError,
+		isLoading: overrides.isLoading,
+		refetch: overrides.refetch,
+		data: overrides.data,
+	} as unknown as UseQueryResult<string | null, unknown>;
+}
+
 const mocks = vi.hoisted(() => ({
-	queryOptions: undefined as
-		| {
-				queryFn: () => Promise<string | null>;
-				staleTime?: number;
-				refetchOnWindowFocus?: boolean;
-				retry?: boolean;
-		  }
-		| undefined,
-	queryResult: {
-		data: undefined as string | null | undefined,
-		error: undefined as unknown,
+	queryResult: createQueryResult({
+		data: undefined,
+		error: undefined,
 		isError: false,
 		isLoading: false,
 		refetch: vi.fn(),
-	},
+	}),
 	tokens: {} as ParsedSessionTokens,
 	location: {
 		pathname: '/staff/tenants',
@@ -40,18 +50,8 @@ vi.mock('@tanstack/react-router', () => ({
 	Outlet: () => <div data-testid="outlet-stub" />,
 }));
 
-vi.mock('@tanstack/react-query', () => ({
-	useQuery: (options: typeof mocks.queryOptions) => {
-		mocks.queryOptions = options;
-		return mocks.queryResult;
-	},
-}));
-
 vi.mock('~/lib/api-client/client-manager', () => ({
 	getSessionTokensFromBrowser: () => mocks.tokens,
-	createClient: () => ({
-		auth: { redirectCode: { get: vi.fn() } },
-	}),
 }));
 
 vi.mock('~/components/error-views/AppErrorView', () => ({
@@ -77,25 +77,58 @@ import { Route } from './layout';
 afterEach(() => {
 	cleanup();
 	vi.clearAllMocks();
-	mocks.queryOptions = undefined;
 	mocks.tokens = {};
 	mocks.location = { pathname: '/staff/tenants', search: {} };
 });
 
+type MockMatch = {
+	globalNotFound?: boolean;
+	pathname?: string;
+	routeId?: string;
+};
+
 const routeOptions = Route as unknown as {
 	component: ComponentType;
 	pendingComponent: ComponentType;
-	beforeLoad: (args: { location: { pathname: string } }) => Promise<void>;
+	beforeLoad: (args: {
+		location: { pathname: string };
+		matches: MockMatch[];
+	}) => Promise<void>;
 };
+
+// An exact match: the deepest match is a real leaf route registered under
+// `/_authed-layout` whose pathname is the requested one.
+const exactMatches = (pathname: string): MockMatch[] => [
+	{ routeId: '__root__', pathname: '/' },
+	{ routeId: '/_authed-layout', pathname: '/' },
+	{ routeId: `/_authed-layout${pathname}`, pathname },
+];
+
+// An unknown path under the authed prefix: no leaf route matched, so the
+// deepest match is the pathless layout itself (see route-shell.test.ts).
+const unknownPathMatches: MockMatch[] = [
+	{ routeId: '__root__', pathname: '/' },
+	{ routeId: '/_authed-layout', pathname: '/' },
+];
 const AuthedRouteLayout = routeOptions.component;
 const AuthedRoutePendingSkeleton = routeOptions.pendingComponent;
+
+const renderLayout = () =>
+	render(
+		<SessionSurfaceValidationProvider value={mocks.queryResult}>
+			<AuthedRouteLayout />
+		</SessionSurfaceValidationProvider>,
+	);
 
 describe('beforeLoad session-token guard', () => {
 	test('redirects a tenant-only session away from a /staff path to /tenant', async () => {
 		mocks.tokens = { tenantToken: 'tenant-tok' };
 
 		await expect(
-			routeOptions.beforeLoad({ location: { pathname: '/staff/profiles' } }),
+			routeOptions.beforeLoad({
+				location: { pathname: '/staff/profiles' },
+				matches: exactMatches('/staff/profiles'),
+			}),
 		).rejects.toEqual({ to: '/tenant' });
 	});
 
@@ -103,7 +136,10 @@ describe('beforeLoad session-token guard', () => {
 		mocks.tokens = { staffToken: 'staff-tok' };
 
 		await expect(
-			routeOptions.beforeLoad({ location: { pathname: '/tenant' } }),
+			routeOptions.beforeLoad({
+				location: { pathname: '/tenant' },
+				matches: exactMatches('/tenant'),
+			}),
 		).rejects.toEqual({ to: '/staff' });
 	});
 
@@ -111,7 +147,10 @@ describe('beforeLoad session-token guard', () => {
 		mocks.tokens = {};
 
 		const rejection = await routeOptions
-			.beforeLoad({ location: { pathname: '/staff/profiles' } })
+			.beforeLoad({
+				location: { pathname: '/staff/profiles' },
+				matches: exactMatches('/staff/profiles'),
+			})
 			.catch((error: unknown) => error);
 
 		expect(rejection).toMatchObject({
@@ -127,70 +166,104 @@ describe('beforeLoad session-token guard', () => {
 		mocks.tokens = { staffToken: 'staff-tok' };
 
 		await expect(
-			routeOptions.beforeLoad({ location: { pathname: '/staff/profiles' } }),
+			routeOptions.beforeLoad({
+				location: { pathname: '/staff/profiles' },
+				matches: exactMatches('/staff/profiles'),
+			}),
 		).resolves.toBeUndefined();
 	});
 });
 
-describe('AuthedRouteLayout surface-redirect-code query', () => {
-	test('is configured session-stable: never refetches on tab focus', () => {
-		render(<AuthedRouteLayout />);
+describe('beforeLoad exact-match guard (PR #997 finding 1)', () => {
+	test('does not redirect a signed-out visitor on an unknown authed-prefix path', async () => {
+		mocks.tokens = {};
 
-		expect(mocks.queryOptions).toBeDefined();
-		expect(mocks.queryOptions?.staleTime).toBe(Infinity);
-		expect(mocks.queryOptions?.refetchOnWindowFocus).toBe(false);
-		expect(mocks.queryOptions?.retry).toBe(false);
+		await expect(
+			routeOptions.beforeLoad({
+				location: { pathname: '/staff/not-a-route' },
+				matches: unknownPathMatches,
+			}),
+		).resolves.toBeUndefined();
 	});
 
-	test('queryFn resolves to null (never undefined) when no session token is present', async () => {
-		mocks.tokens = { staffToken: undefined };
-		render(<AuthedRouteLayout />);
+	test('does not redirect a cross-scope cookie holder on an unknown authed-prefix path', async () => {
+		mocks.tokens = { tenantToken: 'tenant-tok' };
 
-		const result = await mocks.queryOptions?.queryFn();
+		await expect(
+			routeOptions.beforeLoad({
+				location: { pathname: '/staff/not-a-route' },
+				matches: unknownPathMatches,
+			}),
+		).resolves.toBeUndefined();
+	});
 
-		// TanStack Query v5 rejects a queryFn that resolves to `undefined`
-		// ("Query data cannot be undefined") — null is the only valid
-		// no-token-yet result.
-		expect(result).toBeNull();
-		expect(result).not.toBeUndefined();
+	test('still redirects a tokenless visitor when the same path is an exact authed match', async () => {
+		mocks.tokens = {};
+
+		await expect(
+			routeOptions.beforeLoad({
+				location: { pathname: '/staff/profiles' },
+				matches: exactMatches('/staff/profiles'),
+			}),
+		).rejects.toMatchObject({ to: '/login' });
 	});
 });
 
-describe('AuthedRouteLayout render gating', () => {
-	test('swaps only route content while the surface query settles', () => {
-		mocks.queryResult = {
+describe('AuthedRouteLayout surface-redirect-code query', () => {
+	test('renders loading shell when the shared validation query is loading', () => {
+		mocks.queryResult = createQueryResult({
 			data: undefined,
 			error: undefined,
 			isError: false,
 			isLoading: true,
 			refetch: vi.fn(),
-		};
-		const { rerender } = render(<AuthedRouteLayout />);
+		});
+		renderLayout();
+
+		expect(screen.getByTestId('authed-route-content-skeleton')).toBeTruthy();
+		expect(screen.queryByText('loading')).toBeNull();
+	});
+});
+
+describe('AuthedRouteLayout render gating', () => {
+	test('swaps only route content while the surface query settles', () => {
+		mocks.queryResult = createQueryResult({
+			data: undefined,
+			error: undefined,
+			isError: false,
+			isLoading: true,
+			refetch: vi.fn(),
+		});
+		const { rerender } = renderLayout();
 
 		expect(screen.getByTestId('authed-route-content-skeleton')).toBeTruthy();
 		expect(screen.queryByText('loading')).toBeNull();
 
-		mocks.queryResult = {
+		mocks.queryResult = createQueryResult({
 			data: 'staff',
 			error: undefined,
 			isError: false,
 			isLoading: false,
 			refetch: vi.fn(),
-		};
-		rerender(<AuthedRouteLayout />);
+		});
+		rerender(
+			<SessionSurfaceValidationProvider value={mocks.queryResult}>
+				<AuthedRouteLayout />
+			</SessionSurfaceValidationProvider>,
+		);
 
 		expect(screen.getByTestId('outlet-stub')).toBeTruthy();
 	});
 
 	test('renders the outlet once the query has settled', () => {
-		mocks.queryResult = {
+		mocks.queryResult = createQueryResult({
 			data: 'staff',
 			error: undefined,
 			isError: false,
 			isLoading: false,
 			refetch: vi.fn(),
-		};
-		render(<AuthedRouteLayout />);
+		});
+		renderLayout();
 
 		expect(screen.getByTestId('outlet-stub')).toBeTruthy();
 	});

@@ -24,13 +24,13 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 // observe from the DOM side. Server-rendered markup is the only vantage
 // point that actually contains it.)
 const mocks = vi.hoisted(() => ({
-	getSessionScopeAvailability: vi.fn(),
+	getServerSessionAction: vi.fn(),
 	loadI18nForRequest: vi.fn(),
 }));
 
 vi.mock('~/lib/server/session-actions', () => ({
 	clearSession: vi.fn(),
-	getSessionScopeAvailability: mocks.getSessionScopeAvailability,
+	getServerSessionAction: mocks.getServerSessionAction,
 }));
 
 vi.mock('~/server/i18n-locale', () => ({
@@ -120,10 +120,7 @@ const renderRoute = async (
 describe('root shell wraps success/error/not-found in one document (shell-r5-F1)', () => {
 	beforeEach(() => {
 		vi.stubEnv('PUBLIC_API_BASE_URL', 'https://api.example.test');
-		mocks.getSessionScopeAvailability.mockResolvedValue({
-			staff: true,
-			tenant: false,
-		});
+		mocks.getServerSessionAction.mockResolvedValue('neutral');
 		// `createRouter` memoizes its processed route tree in a PROCESS-GLOBAL
 		// cache keyed by `routeTree` object identity whenever `isServer` and
 		// `NODE_ENV !== 'development'` (router.js `update()`), which is exactly
@@ -160,6 +157,28 @@ describe('root shell wraps success/error/not-found in one document (shell-r5-F1)
 		expect(html).toMatch(/<html[^>]*lang="en"/);
 		expect(html).toContain('</head>');
 		expect(html).toContain('Page not found');
+	});
+
+	test('an unknown /staff path is a plain 404 without authenticated chrome', async () => {
+		mocks.loadI18nForRequest.mockResolvedValue(makeRootI18nContext('en'));
+
+		const html = await renderRoute('/staff/users', false);
+
+		expect(html).toContain('Page not found');
+		expect(html).not.toContain('data-mode="authed"');
+		expect(html).not.toContain('data-testid="app-shell-rail"');
+		expect(html).not.toContain('data-testid="app-shell-topbar"');
+	});
+
+	test('a /staff route outside the authed layout fails safe without authenticated chrome', async () => {
+		mocks.loadI18nForRequest.mockResolvedValue(makeRootI18nContext('en'));
+
+		const html = await renderRoute('/staff/error-preview', true);
+
+		expect(html).toContain('Something went wrong');
+		expect(html).not.toContain('data-mode="authed"');
+		expect(html).not.toContain('data-testid="app-shell-rail"');
+		expect(html).not.toContain('data-testid="app-shell-topbar"');
 	});
 
 	test('React owns the public runtime environment script in the document head', async () => {

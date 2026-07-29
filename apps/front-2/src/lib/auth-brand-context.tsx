@@ -12,6 +12,13 @@ const AuthBrandContext = createContext<
 	((brand: AuthBrand | undefined) => void) | undefined
 >(undefined);
 
+// Unlike this codebase's other route-scoped contexts, this one's accessor
+// (`useSetAuthBrand` below) degrades gracefully instead of throwing when read
+// outside its Provider, so it has no "must be used within" message.
+// `displayName` is set anyway as inert React DevTools metadata to make this
+// context identifiable at runtime and in tooling.
+AuthBrandContext.displayName = 'AuthBrandContext (auth-brand-context.tsx)';
+
 export const AuthBrandProvider = AuthBrandContext.Provider;
 
 /**
