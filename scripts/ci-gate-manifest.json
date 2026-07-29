@@ -254,7 +254,7 @@
 		"old-front-characterization.yml::old-front-e2e::Run current frontend e2e characterization": {
 			"hash": "3535b5fedd04ed06",
 			"mirror": "just ci-e2e-old-front",
-			"reason": "test:e2e:fresh runs playwright test against the stack, the same suite CI runs via pnpm --filter front exec playwright test."
+			"reason": "test:e2e:fresh runs playwright test against the stack, the same suite CI runs via pnpm --filter old-front exec playwright test."
 		},
 		"old-front-characterization.yml::old-front-e2e::Capture current frontend stack logs": {
 			"hash": "c371ae53c02c62cb",
@@ -264,7 +264,7 @@
 		"old-front-characterization.yml::old-front-e2e::Upload Playwright report": {
 			"hash": "49116183d1cb5246",
 			"mirror": null,
-			"reason": "actions/upload-artifact exists to get files off an ephemeral runner. Locally the report is already on disk at apps/front/playwright-report; there is nothing to upload it to."
+			"reason": "actions/upload-artifact exists to get files off an ephemeral runner. Locally the report is already on disk at apps/old-front/playwright-report; there is nothing to upload it to."
 		},
 		"old-front-characterization.yml::old-front-e2e::Tear down current frontend characterization stack": {
 			"hash": "b06a159ae7ecc718",
