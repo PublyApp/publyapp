@@ -2,9 +2,9 @@
 
 This contract is the reusable invariant set for Phase 1. The disposable
 proof-of-concept was removed in #965 after these behaviors were carried into
-`apps/front`; the behaviors remain part of the migration contract. Each
-migrated page must preserve the relevant invariants against the current
-`apps/old-front` behavior.
+`apps/front-2` (now `apps/front`); the behaviors remain part of the migration
+contract. Each migrated page must preserve the relevant invariants against the
+current `apps/old-front` behavior.
 
 `Expected current-app behavior` is intentionally marked `Phase 1 confirm` unless
 already proven by the existing spike evidence. The next task checks `apps/old-front`
