@@ -1,4 +1,5 @@
 import { Popover } from '@base-ui/react/popover';
+import { IconPencil } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FilterInput } from '~/components/ui/filter-input';
@@ -60,6 +61,17 @@ const IconColorPicker = ({
 				data-tone={activeTone}
 			>
 				<activeIconOption.Icon aria-hidden="true" className="size-6" />
+				{/* Decorative-only affordance pin (#992): the tile gave no sign it
+				opens a picker. Purely visual — aria-hidden + pointer-events-none so
+				it cannot become a nested interactive element inside this trigger
+				button, and it follows the trigger's own disabled:opacity-50. */}
+				<span
+					aria-hidden="true"
+					data-testid="profile-icon-picker-pin"
+					className="publy-profile-detail-tile-pin pointer-events-none ring-2 ring-background"
+				>
+					<IconPencil aria-hidden="true" className="size-3.5" />
+				</span>
 			</Popover.Trigger>
 
 			<Popover.Portal>

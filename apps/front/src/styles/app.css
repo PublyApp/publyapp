@@ -2479,6 +2479,7 @@ html.dark {
 	}
 
 	.publy-profile-detail-tile {
+		position: relative; /* anchors the .publy-profile-detail-tile-pin badge */
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
@@ -2488,6 +2489,30 @@ html.dark {
 		background: var(--publy-icon-tile-bg);
 		color: var(--publy-icon-tile-fg);
 		flex-shrink: 0;
+	}
+
+	/* Pencil-pin affordance (#992): a corner badge signalling the tile opens a
+	   picker, mirroring AvatarBadge's `right-0 bottom-0` + ring treatment
+	   (avatar.tsx) so it reads as sitting on top of the tile rather than being
+	   part of it. Sized ~27px against the tile's 56px per the owner mockup.
+	   Deliberately flush at the corner (no negative offset) rather than
+	   hanging outside the tile's box, so it can never be clipped by an
+	   ancestor's overflow (the drawer body is overflow-y-auto). Its own
+	   `--publy-surface` fill and `--publy-foreground-subtle` glyph are
+	   independent of the tile's per-tone background, so contrast holds on
+	   every tone in both themes. */
+	.publy-profile-detail-tile-pin {
+		position: absolute;
+		right: 0;
+		bottom: 0;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 27px;
+		height: 27px;
+		border-radius: 9999px;
+		background: var(--publy-surface);
+		color: var(--publy-foreground-subtle);
 	}
 
 	.publy-profile-count-badge {
