@@ -52,9 +52,9 @@
 			"reason": "Run locally to catch archive-record body drift and header/provenance issues before docs-only reviews land. Link checks inside docs/archive are intentionally skipped, per docs/README.md's archive policy."
 		},
 		"docs-archive.yml::gate::Check required jobs": {
-			"hash": "26d6d30ed66c83b2",
+			"hash": "274b636b9ea62170",
 			"mirror": null,
-			"reason": "GitHub-only: this is the #1017 aggregate required-check step, which reads the needs context (via toJSON(needs), #1017 round-2 review fix — no hand-maintained per-job Bash map that could omit an entry) across the workflow's other jobs. That context only exists inside a GitHub Actions run."
+			"reason": "GitHub-only: this is the #1017 aggregate required-check step, which reads the needs context (via toJSON(needs)) across the workflow's other jobs. Round-3 review fix: fails closed on an empty needs set and on any result value outside GitHub's documented success/skipped (the only two passing values) — not just failure/cancelled — since a valid-but-wrong shape (empty object/array, missing .result, an unrecognized value) previously passed silently after examining nothing. scripts/ci-gate-aggregation.test.mjs extracts and executes this exact run: body (parsed from the real workflow, not restated) against every documented result combination plus every fail-open shape a reviewer found. That context only exists inside a GitHub Actions run, so this step itself stays GitHub-only/unmirrored locally."
 		},
 		"front-ci.yml::changes::Checkout classifier from the base commit (not the PR's own copy)": {
 			"hash": "9b2c778c2dfb356f",
@@ -142,9 +142,9 @@
 			"reason": "ci-front runs the identical pnpm --filter front test."
 		},
 		"front-ci.yml::gate::Check required jobs": {
-			"hash": "26d6d30ed66c83b2",
+			"hash": "274b636b9ea62170",
 			"mirror": null,
-			"reason": "GitHub-only: this is the #1017 aggregate required-check step, which reads the needs context (via toJSON(needs), #1017 round-2 review fix — no hand-maintained per-job Bash map that could omit an entry) across the workflow's other jobs. That context only exists inside a GitHub Actions run."
+			"reason": "GitHub-only: this is the #1017 aggregate required-check step, which reads the needs context (via toJSON(needs)) across the workflow's other jobs. Round-3 review fix: fails closed on an empty needs set and on any result value outside GitHub's documented success/skipped (the only two passing values) — not just failure/cancelled — since a valid-but-wrong shape (empty object/array, missing .result, an unrecognized value) previously passed silently after examining nothing. scripts/ci-gate-aggregation.test.mjs extracts and executes this exact run: body (parsed from the real workflow, not restated) against every documented result combination plus every fail-open shape a reviewer found. That context only exists inside a GitHub Actions run, so this step itself stays GitHub-only/unmirrored locally."
 		},
 		"front-e2e.yml::changes::Checkout classifier from the base commit (not the PR's own copy)": {
 			"hash": "9b2c778c2dfb356f",
@@ -267,9 +267,9 @@
 			"reason": "ci-e2e-front runs the identical docker compose ... down -v as its final step. DELIBERATE DIFFERENCE: this workflow step is if:always(), which a justfile cannot express (just stops at the first failing line), so the recipe also resets the stack with down -v --remove-orphans before bringing it up. Net effect is the same clean slate per run; a failed run's stack is left up locally for inspection instead."
 		},
 		"front-e2e.yml::gate::Check required jobs": {
-			"hash": "26d6d30ed66c83b2",
+			"hash": "274b636b9ea62170",
 			"mirror": null,
-			"reason": "GitHub-only: this is the #1017 aggregate required-check step, which reads the needs context (via toJSON(needs), #1017 round-2 review fix — no hand-maintained per-job Bash map that could omit an entry) across the workflow's other jobs. That context only exists inside a GitHub Actions run."
+			"reason": "GitHub-only: this is the #1017 aggregate required-check step, which reads the needs context (via toJSON(needs)) across the workflow's other jobs. Round-3 review fix: fails closed on an empty needs set and on any result value outside GitHub's documented success/skipped (the only two passing values) — not just failure/cancelled — since a valid-but-wrong shape (empty object/array, missing .result, an unrecognized value) previously passed silently after examining nothing. scripts/ci-gate-aggregation.test.mjs extracts and executes this exact run: body (parsed from the real workflow, not restated) against every documented result combination plus every fail-open shape a reviewer found. That context only exists inside a GitHub Actions run, so this step itself stays GitHub-only/unmirrored locally."
 		},
 		"old-front-characterization.yml::old-front-e2e::Checkout": {
 			"hash": "389e0b8b6a55dd60",
@@ -477,9 +477,9 @@
 			"reason": "ci-spec-drift runs the identical filtered dotnet test for FullyQualifiedName~OpenApiContractSpec. Note that just ci also runs just test-api, the full suite of which this filter is a subset."
 		},
 		"openapi-spec-drift.yml::gate::Check required jobs": {
-			"hash": "26d6d30ed66c83b2",
+			"hash": "274b636b9ea62170",
 			"mirror": null,
-			"reason": "GitHub-only: this is the #1017 aggregate required-check step, which reads the needs context (via toJSON(needs), #1017 round-2 review fix — no hand-maintained per-job Bash map that could omit an entry) across the workflow's other jobs. That context only exists inside a GitHub Actions run."
+			"reason": "GitHub-only: this is the #1017 aggregate required-check step, which reads the needs context (via toJSON(needs)) across the workflow's other jobs. Round-3 review fix: fails closed on an empty needs set and on any result value outside GitHub's documented success/skipped (the only two passing values) — not just failure/cancelled — since a valid-but-wrong shape (empty object/array, missing .result, an unrecognized value) previously passed silently after examining nothing. scripts/ci-gate-aggregation.test.mjs extracts and executes this exact run: body (parsed from the real workflow, not restated) against every documented result combination plus every fail-open shape a reviewer found. That context only exists inside a GitHub Actions run, so this step itself stays GitHub-only/unmirrored locally."
 		},
 		"require-linked-issue.yml::require-linked-issue::Verify the PR closes an existing issue": {
 			"hash": "4ab757bac17a95ad",
