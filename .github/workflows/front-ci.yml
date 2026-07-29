@@ -25,29 +25,30 @@ jobs:
     outputs:
       relevant: ${{ steps.filter.outputs.relevant }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+
       - name: Check whether front-ci paths changed
         id: filter
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+        # Same path groups the old `pull_request.paths` filter listed, plus
+        # `scripts/**`: #1017 also closes the gap where scripts/ had no CI
+        # lint coverage at all, and its lint check now lives in this job's
+        # "Lint front" step, so this job must wake up for scripts-only PRs.
+        # The classifier itself (scripts/ci-changed-paths.mjs) fails closed
+        # to relevant=true when the changed-file list can't be verified
+        # complete (GitHub's 3,000-file API ceiling) — see
+        # scripts/ci-changed-paths.test.mjs.
         run: |
-          if [ "${{ github.event_name }}" != "pull_request" ]; then
-            echo "relevant=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          files="$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}/files" --paginate --jq '.[].filename')"
-
-          # Same path groups the old `pull_request.paths` filter listed, plus
-          # `scripts/**`: #1017 also closes the gap where scripts/ had no CI
-          # lint coverage at all, and its lint check now lives in this job's
-          # "Lint front" step, so this job must wake up for scripts-only PRs.
-          if printf '%s\n' "$files" | grep -qE '^(apps/front/|packages/shared-ts/|packages/client-ts/|packages/_tsconfig/|scripts/|turbo\.json$|\.github/workflows/front-ci\.yml$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|package\.json$|\.npmrc$)'; then
-            echo "relevant=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "relevant=false" >> "$GITHUB_OUTPUT"
-          fi
+          node scripts/ci-changed-paths.mjs '^(apps/front/|packages/shared-ts/|packages/client-ts/|packages/_tsconfig/|scripts/|turbo\.json$|\.github/workflows/front-ci\.yml$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|package\.json$|\.npmrc$)'
 
   supply-chain:
     needs: changes

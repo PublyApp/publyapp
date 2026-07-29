@@ -32,29 +32,28 @@ jobs:
     outputs:
       relevant: ${{ steps.filter.outputs.relevant }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+
       - name: Check whether front-e2e paths changed
         id: filter
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+        # Same path groups the old `pull_request.paths` filter listed —
+        # deliberately not widened or narrowed. The classifier itself
+        # (scripts/ci-changed-paths.mjs) fails closed to relevant=true when
+        # the changed-file list can't be verified complete (GitHub's
+        # 3,000-file API ceiling) rather than trusting a truncated list — see
+        # scripts/ci-changed-paths.test.mjs.
         run: |
-          # push runs are already path-filtered by the trigger above, so a
-          # push that starts this workflow is relevant by construction.
-          if [ "${{ github.event_name }}" != "pull_request" ]; then
-            echo "relevant=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          files="$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}/files" --paginate --jq '.[].filename')"
-
-          # Same path groups the old `pull_request.paths` filter listed —
-          # deliberately not widened or narrowed.
-          if printf '%s\n' "$files" | grep -qE '^(apps/front/|packages/shared-ts/|packages/client-ts/|\.github/workflows/front-e2e\.yml$)'; then
-            echo "relevant=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "relevant=false" >> "$GITHUB_OUTPUT"
-          fi
+          node scripts/ci-changed-paths.mjs '^(apps/front/|packages/shared-ts/|packages/client-ts/|\.github/workflows/front-e2e\.yml$)'
 
   build:
     name: Build e2e images
