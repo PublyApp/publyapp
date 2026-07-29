@@ -2,7 +2,17 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import ts from 'typescript';
+// chore/908 (TypeScript 7): the bare `typescript` package export now resolves
+// to `./lib/version.cjs` (a version string only) — the classic Compiler API
+// moved behind the explicitly `unstable` `typescript/unstable/ast` surface,
+// which already renamed at least one function this file used
+// (`isStringLiteralLike` -> `isStringLiteralLikeNode`) and carries no semver
+// guarantee across a future TS bump. ts-morph vendors its own internal,
+// version-pinned copy of the classic compiler (`@ts-morph/common`), fully
+// decoupled from this repo's `typescript` devDependency, so this AST walk
+// keeps the same stable API across TypeScript upgrades instead of needing a
+// re-audit on every one.
+import { ts } from 'ts-morph';
 import { describe, expect, test } from 'vitest';
 import enResource from '~/i18n/locales/en';
 import frResource from '~/i18n/locales/fr';

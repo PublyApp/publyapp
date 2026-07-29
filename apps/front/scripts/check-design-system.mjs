@@ -3,7 +3,14 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import ts from 'typescript';
+// chore/908 (TypeScript 7): see the same-named comment in
+// i18n-key-coverage.test.ts — the classic Compiler API is no longer reachable
+// through bare `import ts from 'typescript'` and its replacement,
+// `typescript/unstable/ast`, is explicitly unstable. This script runs in
+// `just ci-front` and `pnpm test`, so its AST-based status-menu check
+// (statusMenuViolations) needs a stable surface across TypeScript upgrades —
+// ts-morph's vendored, version-pinned compiler provides that.
+import { ts } from 'ts-morph';
 
 import suppressionInventory from '../src/lib/suppression-inventory.json' with { type: 'json' };
 import {

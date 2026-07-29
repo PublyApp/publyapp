@@ -2,7 +2,13 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import ts from 'typescript';
+// chore/908 (TypeScript 7): see the same-named comment in
+// i18n-key-coverage.test.ts — the classic Compiler API is no longer reachable
+// through bare `import ts from 'typescript'` and its replacement,
+// `typescript/unstable/ast`, is explicitly unstable and already renamed
+// functions this file relied on. ts-morph's vendored, version-pinned compiler
+// keeps this AST walk stable across TypeScript upgrades.
+import { ts } from 'ts-morph';
 import { describe, expect, test } from 'vitest';
 
 import enResource from '@org/shared-ts/lib/i18n/locales/en';
