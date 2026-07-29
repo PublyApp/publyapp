@@ -11,29 +11,38 @@ namespace PublyApp.Api.Lib.Seeding;
 
 /// <summary>
 /// Handles bulk seeding of test data with memory-efficient batch processing.
+/// Idempotent: existing rows are detected by natural key (Tenant.Code, User.Email,
+/// UserAccount membership, Project name-per-tenant) regardless of soft-delete state, so a
+/// partially- or fully-seeded database is completed rather than re-inserted or crashed on.
 /// </summary>
 public class BulkSeeder {
 	private readonly int _batchSize;
+	private readonly BulkSeedDataGenerator? _generator;
 
-	public BulkSeeder(int? batchSize = null) {
+	public BulkSeeder(int? batchSize = null, BulkSeedDataGenerator? generator = null) {
 		_batchSize = batchSize ?? BulkSeedConstants.DefaultBatchSize;
+		_generator = generator;
 	}
 
 	/// <summary>
-	/// Seeds bulk test data into the database.
+	/// Seeds bulk test data into the database. Safe to run repeatedly: rows that already
+	/// exist (matched by natural key) are skipped, and only missing rows are inserted.
 	/// </summary>
 	public async Task SeedBulkAsync(AppDbContext dbContext, CancellationToken cancellationToken = default) {
-		var generator = new BulkSeedDataGenerator();
+		var generator = _generator ?? new BulkSeedDataGenerator();
 		generator.GenerateAll();
 
 		Console.WriteLine(
 			$"Seeding {generator.Tenants.Count} tenants, {generator.TenantUsers.Count} tenant users, {generator.StaffUsers.Count} staff users, {generator.Projects.Count} projects...");
 
-		// Seed in batches with transaction per batch
-		await SeedTenantsInBatchesAsync(dbContext, generator.Tenants, cancellationToken);
-		await SeedUsersInBatchesAsync(dbContext, generator.Users, cancellationToken);
-		await SeedUserAccountsInBatchesAsync(dbContext, generator.UserAccounts, cancellationToken);
-		await SeedProjectsInBatchesAsync(dbContext, generator.Projects, cancellationToken);
+		// Seed in batches with transaction per batch. Tenants and Users must be resolved
+		// (existing rows matched, new rows inserted) before UserAccounts/Projects, because
+		// those carry FKs that must point at the REAL persisted id of a tenant/user that
+		// already existed, not the fresh id the generator assigned it this run.
+		var tenantIdRemap = await SeedTenantsInBatchesAsync(dbContext, generator.Tenants, cancellationToken);
+		var userIdRemap = await SeedUsersInBatchesAsync(dbContext, generator.Users, cancellationToken);
+		await SeedUserAccountsInBatchesAsync(dbContext, generator.UserAccounts, userIdRemap, tenantIdRemap, cancellationToken);
+		await SeedProjectsInBatchesAsync(dbContext, generator.Projects, tenantIdRemap, cancellationToken);
 
 		Console.WriteLine("Bulk seed completed!");
 	}
@@ -53,8 +62,44 @@ public class BulkSeeder {
 		Console.WriteLine("Bulk data cleared!");
 	}
 
-	private async Task SeedTenantsInBatchesAsync(AppDbContext dbContext, IReadOnlyList<Tenant> tenants, CancellationToken cancellationToken) {
-		var batches = tenants.Chunk(_batchSize).ToList();
+	/// <summary>
+	/// Seeds tenants not yet present (matched by Code, regardless of soft-delete state —
+	/// the unique index on Code is filtered to non-deleted rows, so a naive existence check
+	/// would let duplicate soft-deleted tenants accumulate on every run).
+	/// Returns a map from the generator's in-memory tenant id to the real persisted id
+	/// (itself for newly-inserted tenants, the pre-existing row's id otherwise).
+	/// </summary>
+	private async Task<Dictionary<Guid, Guid>> SeedTenantsInBatchesAsync(
+		AppDbContext dbContext,
+		IReadOnlyList<Tenant> tenants,
+		CancellationToken cancellationToken
+	) {
+		var codes = tenants.Select(t => t.Code).ToList();
+		var existingTenants = await dbContext.Tenant
+			.AsNoTracking()
+			.Where(t => codes.Contains(t.Code))
+			.ToListAsync(cancellationToken);
+		var existingByCode = existingTenants.ToDictionary(t => t.Code, t => t.GetRequiredId());
+
+		var remap = new Dictionary<Guid, Guid>(tenants.Count);
+		var toInsert = new List<Tenant>();
+		foreach (var tenant in tenants) {
+			var generatedId = tenant.GetRequiredId();
+			if (existingByCode.TryGetValue(tenant.Code, out var existingId)) {
+				remap[generatedId] = existingId;
+			} else {
+				remap[generatedId] = generatedId;
+				toInsert.Add(tenant);
+			}
+		}
+
+		var skipped = tenants.Count - toInsert.Count;
+		if (toInsert.Count == 0) {
+			Console.WriteLine($"Tenants: seeding skipped; all {tenants.Count} tenants already exist.");
+			return remap;
+		}
+
+		var batches = toInsert.Chunk(_batchSize).ToList();
 		var count = 0;
 
 		Console.Write("Tenants: ");
@@ -65,18 +110,57 @@ public class BulkSeeder {
 				await dbContext.SaveChangesAsync(cancellationToken);
 				await transaction.CommitAsync(cancellationToken);
 				count += batch.Length;
-				Console.Write($"\rTenants: {count}/{tenants.Count} ");
+				Console.Write($"\rTenants: {count}/{toInsert.Count} inserted, {skipped} already existed ");
+			} catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
+				await transaction.RollbackAsync(cancellationToken);
+				Console.WriteLine();
+				Console.WriteLine("Warning: duplicate tenants detected mid-batch during seeding; skipping batch.");
 			} catch (Exception) {
 				await transaction.RollbackAsync(cancellationToken);
 				throw;
 			}
 			dbContext.ChangeTracker.Clear();
 		}
-		Console.WriteLine($"\rTenants: {count}/{tenants.Count} done");
+		Console.WriteLine($"\rTenants: {count}/{toInsert.Count} inserted, {skipped} already existed. done");
+		return remap;
 	}
 
-	private async Task SeedUsersInBatchesAsync(AppDbContext dbContext, IReadOnlyList<User> users, CancellationToken cancellationToken) {
-		var batches = users.Chunk(_batchSize).ToList();
+	/// <summary>
+	/// Seeds users not yet present (matched by Email, regardless of soft-delete state —
+	/// same filtered-unique-index trap as tenants).
+	/// Returns a map from the generator's in-memory user id to the real persisted id.
+	/// </summary>
+	private async Task<Dictionary<Guid, Guid>> SeedUsersInBatchesAsync(
+		AppDbContext dbContext,
+		IReadOnlyList<User> users,
+		CancellationToken cancellationToken
+	) {
+		var emails = users.Select(u => u.Email).ToList();
+		var existingUsers = await dbContext.User
+			.AsNoTracking()
+			.Where(u => emails.Contains(u.Email))
+			.ToListAsync(cancellationToken);
+		var existingByEmail = existingUsers.ToDictionary(u => u.Email, u => u.GetRequiredId());
+
+		var remap = new Dictionary<Guid, Guid>(users.Count);
+		var toInsert = new List<User>();
+		foreach (var user in users) {
+			var generatedId = user.GetRequiredId();
+			if (existingByEmail.TryGetValue(user.Email, out var existingId)) {
+				remap[generatedId] = existingId;
+			} else {
+				remap[generatedId] = generatedId;
+				toInsert.Add(user);
+			}
+		}
+
+		var skipped = users.Count - toInsert.Count;
+		if (toInsert.Count == 0) {
+			Console.WriteLine($"Users: seeding skipped; all {users.Count} users already exist.");
+			return remap;
+		}
+
+		var batches = toInsert.Chunk(_batchSize).ToList();
 		var count = 0;
 
 		Console.Write("Users: ");
@@ -87,18 +171,61 @@ public class BulkSeeder {
 				await dbContext.SaveChangesAsync(cancellationToken);
 				await transaction.CommitAsync(cancellationToken);
 				count += batch.Length;
-				Console.Write($"\rUsers: {count}/{users.Count} ");
+				Console.Write($"\rUsers: {count}/{toInsert.Count} inserted, {skipped} already existed ");
+			} catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
+				await transaction.RollbackAsync(cancellationToken);
+				Console.WriteLine();
+				Console.WriteLine("Warning: duplicate users detected mid-batch during seeding; skipping batch.");
 			} catch (Exception) {
 				await transaction.RollbackAsync(cancellationToken);
 				throw;
 			}
 			dbContext.ChangeTracker.Clear();
 		}
-		Console.WriteLine($"\rUsers: {count}/{users.Count} done");
+		Console.WriteLine($"\rUsers: {count}/{toInsert.Count} inserted, {skipped} already existed. done");
+		return remap;
 	}
 
-	private async Task SeedUserAccountsInBatchesAsync(AppDbContext dbContext, IReadOnlyList<UserAccount> accounts, CancellationToken cancellationToken) {
-		var batches = accounts.Chunk(_batchSize).ToList();
+	/// <summary>
+	/// Seeds user accounts not yet present. Natural key is (UserId, Scope, TenantId,
+	/// ProjectId) after remapping the generator's fresh User/Tenant ids to their real
+	/// persisted ids — checked regardless of soft-delete state, since every uniqueness
+	/// constraint on user_accounts is filtered to non-deleted rows.
+	/// </summary>
+	private async Task SeedUserAccountsInBatchesAsync(
+		AppDbContext dbContext,
+		IReadOnlyList<UserAccount> accounts,
+		IReadOnlyDictionary<Guid, Guid> userIdRemap,
+		IReadOnlyDictionary<Guid, Guid> tenantIdRemap,
+		CancellationToken cancellationToken
+	) {
+		foreach (var account in accounts) {
+			account.UserId = userIdRemap[account.UserId];
+			if (account.TenantId is Guid generatedTenantId) {
+				account.TenantId = tenantIdRemap[generatedTenantId];
+			}
+		}
+
+		var userIds = accounts.Select(a => a.UserId).Distinct().ToList();
+		var existingAccounts = await dbContext.UserAccount
+			.AsNoTracking()
+			.Where(ua => userIds.Contains(ua.UserId))
+			.ToListAsync(cancellationToken);
+		var existingKeys = existingAccounts
+			.Select(a => (a.UserId, a.Scope, a.TenantId, a.ProjectId))
+			.ToHashSet();
+
+		var toInsert = accounts
+			.Where(a => !existingKeys.Contains((a.UserId, a.Scope, a.TenantId, a.ProjectId)))
+			.ToList();
+
+		var skipped = accounts.Count - toInsert.Count;
+		if (toInsert.Count == 0) {
+			Console.WriteLine($"UserAccounts: seeding skipped; all {accounts.Count} user accounts already exist.");
+			return;
+		}
+
+		var batches = toInsert.Chunk(_batchSize).ToList();
 		var count = 0;
 
 		Console.Write("UserAccounts: ");
@@ -109,18 +236,57 @@ public class BulkSeeder {
 				await dbContext.SaveChangesAsync(cancellationToken);
 				await transaction.CommitAsync(cancellationToken);
 				count += batch.Length;
-				Console.Write($"\rUserAccounts: {count}/{accounts.Count} ");
+				Console.Write($"\rUserAccounts: {count}/{toInsert.Count} inserted, {skipped} already existed ");
+			} catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
+				await transaction.RollbackAsync(cancellationToken);
+				Console.WriteLine();
+				Console.WriteLine("Warning: duplicate user accounts detected mid-batch during seeding; skipping batch.");
 			} catch (Exception) {
 				await transaction.RollbackAsync(cancellationToken);
 				throw;
 			}
 			dbContext.ChangeTracker.Clear();
 		}
-		Console.WriteLine($"\rUserAccounts: {count}/{accounts.Count} done");
+		Console.WriteLine($"\rUserAccounts: {count}/{toInsert.Count} inserted, {skipped} already existed. done");
 	}
 
-	private async Task SeedProjectsInBatchesAsync(AppDbContext dbContext, IReadOnlyList<Project> projects, CancellationToken cancellationToken) {
-		var batches = projects.Chunk(_batchSize).ToList();
+	/// <summary>
+	/// Seeds projects not yet present. Natural key is (TenantId, Name) after remapping the
+	/// generator's fresh Tenant ids to their real persisted ids. The (TenantId, Name) index
+	/// is a plain unique index (not filtered to non-deleted rows), so the database itself
+	/// would already reject a re-insert here — this check exists to skip cleanly instead of
+	/// throwing, not to guard against silent duplicate accumulation.
+	/// </summary>
+	private async Task SeedProjectsInBatchesAsync(
+		AppDbContext dbContext,
+		IReadOnlyList<Project> projects,
+		IReadOnlyDictionary<Guid, Guid> tenantIdRemap,
+		CancellationToken cancellationToken
+	) {
+		foreach (var project in projects) {
+			project.TenantId = tenantIdRemap[project.TenantId];
+		}
+
+		var tenantIds = projects.Select(p => p.TenantId).Distinct().ToList();
+		var existingProjects = await dbContext.Project
+			.AsNoTracking()
+			.Where(p => tenantIds.Contains(p.TenantId))
+			.ToListAsync(cancellationToken);
+		var existingKeys = existingProjects
+			.Select(p => (p.TenantId, p.Name))
+			.ToHashSet();
+
+		var toInsert = projects
+			.Where(p => !existingKeys.Contains((p.TenantId, p.Name)))
+			.ToList();
+
+		var skipped = projects.Count - toInsert.Count;
+		if (toInsert.Count == 0) {
+			Console.WriteLine($"Projects: seeding skipped; all {projects.Count} projects already exist.");
+			return;
+		}
+
+		var batches = toInsert.Chunk(_batchSize).ToList();
 		var count = 0;
 
 		Console.Write("Projects: ");
@@ -131,14 +297,18 @@ public class BulkSeeder {
 				await dbContext.SaveChangesAsync(cancellationToken);
 				await transaction.CommitAsync(cancellationToken);
 				count += batch.Length;
-				Console.Write($"\rProjects: {count}/{projects.Count} ");
+				Console.Write($"\rProjects: {count}/{toInsert.Count} inserted, {skipped} already existed ");
+			} catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
+				await transaction.RollbackAsync(cancellationToken);
+				Console.WriteLine();
+				Console.WriteLine("Warning: duplicate projects detected mid-batch during seeding; skipping batch.");
 			} catch (Exception) {
 				await transaction.RollbackAsync(cancellationToken);
 				throw;
 			}
 			dbContext.ChangeTracker.Clear();
 		}
-		Console.WriteLine($"\rProjects: {count}/{projects.Count} done");
+		Console.WriteLine($"\rProjects: {count}/{toInsert.Count} inserted, {skipped} already existed. done");
 	}
 
 	private static async Task DeleteTenantsAsync(AppDbContext dbContext, CancellationToken cancellationToken) {
