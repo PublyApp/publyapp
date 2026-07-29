@@ -18,7 +18,30 @@ const deployImagesWorkflowPath = path.join(
 	'deploy-images.yml',
 );
 
-const IMAGE_ROOT_PATTERN = /^ghcr\.io\/radandevist\/publyapp\/([^:]+):/;
+// Matches a first-party ghcr.io/radandevist/publyapp/<root> reference, tagged, digested, or
+// bare. Docker resolves a bare reference (no `:tag`) to `:latest` — that is still a real,
+// published/pulled image, so it must be collected, not skipped for lack of a colon. The tag
+// itself is deliberately NOT part of the contract (only the root is), so `:<tag>` and/or
+// `@sha256:<digest>` are optional and their content is not captured.
+//
+// The root group `([^/:@]+)` stops at the first `/`, `:`, or `@`, and the whole pattern is
+// anchored with `$`. That is deliberate on both edges of the widening:
+//   - A deeper path segment (`.../publyapp/api/evil:tag`) can never be silently folded into
+//     the `api` root: the root group stops before the second `/`, and the trailing `/evil:tag`
+//     is not consumable by the optional tag/digest groups, so the `$` anchor fails the whole
+//     match. `extractImageRoot` then asserts loudly instead of mis-categorizing it as `api`.
+//   - A registry/namespace that merely starts with the same characters (e.g.
+//     `ghcr.io/radandevist/publyapp-other/...`) never matches at all: the pattern requires the
+//     literal `publyapp/` (with the slash), not just the substring `publyapp`.
+const IMAGE_ROOT_PATTERN =
+	/^ghcr\.io\/radandevist\/publyapp\/([^/:@]+)(?::[^@]+)?(?:@sha256:[0-9a-f]{64})?$/;
+
+// Broader net used only to decide whether a Dokploy service's image is "first-party enough"
+// to require exact IMAGE_ROOT_PATTERN compliance. Anything with this literal prefix must fully
+// match IMAGE_ROOT_PATTERN or extractImageRoot fails the test loudly — it is never silently
+// treated as an unrelated third-party image and skipped, the way a genuinely unrelated image
+// (e.g. a database) legitimately is.
+const FIRST_PARTY_IMAGE_PREFIX = 'ghcr.io/radandevist/publyapp/';
 
 // The exact set the release chain must agree on. Anything more or less is a
 // silent deploy hazard: an extra/renamed publish that nothing pulls, or a
@@ -87,7 +110,10 @@ const readDokployServiceImageRoots = () => {
 	const serviceImageRoots = {};
 	for (const [serviceName, service] of Object.entries(services)) {
 		const image = service?.image;
-		if (typeof image !== 'string' || !IMAGE_ROOT_PATTERN.test(image)) {
+		if (
+			typeof image !== 'string' ||
+			!image.startsWith(FIRST_PARTY_IMAGE_PREFIX)
+		) {
 			continue;
 		}
 		serviceImageRoots[serviceName] = extractImageRoot(
