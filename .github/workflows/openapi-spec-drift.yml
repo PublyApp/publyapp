@@ -44,34 +44,32 @@ jobs:
     outputs:
       relevant: ${{ steps.filter.outputs.relevant }}
     steps:
-      # This wrapper is this pull request's OWN copy — it has to be, since
-      # the base-pinned checkout below can legitimately have nothing to check
-      # out yet (see that step's comment). That is safe: the wrapper decides
-      # nothing about relevance from PR content, only whether the base-pinned
-      # classifier file exists on disk, a fact the PR's diff cannot
-      # influence. See scripts/ci-run-classifier.mjs's header comment.
-      - name: Checkout classifier wrapper
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          sparse-checkout: |
-            scripts/ci-run-classifier.mjs
-          sparse-checkout-cone-mode: false
-
-      # A pull_request run checks out the PR's own merge commit by default,
-      # which means the PR's own copy of the classifier decides whether the
-      # PR gets tested — a PR could edit this script to always report
-      # relevant=false (round-2 review). Force the base commit instead, so
-      # the classifier that runs is not something this pull request controls.
-      # Not a complete trust boundary (the calling workflow is itself
-      # merge-commit-controlled) — see #1017 follow-up for the honest
-      # framing — but it closes the script-only bypass.
+      # Checked out from the BASE commit, not this pull request's own ref:
+      # this pins the classifier a pull request is being evaluated against so
+      # an accidental or careless edit (a rename, a bad rebase, editing the
+      # wrong copy) cannot silently change the relevance decision.
       #
-      # This checkout is base-pinned and can legitimately produce nothing:
-      # the pull request that introduces this classifier (or a branch cut
-      # before it existed on the base branch) has no such file at its base
-      # commit. scripts/ci-run-classifier.mjs (checked out above) resolves
-      # that to relevant=true instead of crashing — see
-      # scripts/ci-run-classifier.test.mjs.
+      # This is NOT a defense against a pull request that deliberately tries
+      # to bypass its own gates. The `changes` job's YAML — including the
+      # invocation step below, and this comment — is itself read from the
+      # pull request's merge commit, the same as every other job in this
+      # workflow. A pull request can already rewrite that step's `run:` to
+      # print `relevant=true`/`false` unconditionally, or delete this
+      # checkout, or anything else, exactly as freely as it could edit a
+      # separate script file. Pinning the classifier's SOURCE closes the
+      # narrower "an edit to ci-changed-paths.mjs itself is silently
+      # honored" gap; it does not and cannot close the wider gap that the
+      # workflow calling it is merge-commit-controlled. That wider gap is
+      # tracked in #1022, with the honest framing: these gates defend against
+      # mistakes, not a malicious author of a branch in this repository — the
+      # real controls there are who can push branches and GitHub's
+      # fork-approval requirement.
+      #
+      # This checkout can legitimately produce nothing: the pull request that
+      # introduces this classifier (or a branch cut before it existed on the
+      # base branch) has no such file at its base commit. The invocation step
+      # below fails closed to relevant=true rather than crashing when that
+      # happens.
       - name: Checkout classifier from the base commit (not the PR's own copy)
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -97,12 +95,24 @@ jobs:
         # (scripts/ci-changed-paths.mjs) fails closed to relevant=true when
         # the changed-file list can't be verified complete (GitHub's
         # 3,000-file API ceiling) rather than trusting a truncated list — see
-        # scripts/ci-changed-paths.test.mjs. scripts/ci-run-classifier.mjs
-        # additionally fails closed to relevant=true when the base-pinned
-        # classifier itself does not exist yet — see
-        # scripts/ci-run-classifier.test.mjs.
+        # scripts/ci-changed-paths.test.mjs.
+        #
+        # The base-pinned checkout above can legitimately be empty (see its
+        # comment). If so, this fails closed to relevant=true on a path that
+        # never invokes the classifier at all, kept structurally separate
+        # from the classifier's own answer so a real relevant=false can never
+        # be mistaken for "missing" and vice versa. See
+        # scripts/ci-gate-bootstrap.test.mjs, which executes this exact
+        # inline script (parsed from this file) against both cases.
         run: |
-          node scripts/ci-run-classifier.mjs base-ref/scripts/ci-changed-paths.mjs '^(Directory\.Build\.props$|Directory\.Build\.targets$|Directory\.Packages\.props$|apps/api/|packages/client-ts/|justfile$|global\.json$|\.gitattributes$|\.config/dotnet-tools\.json$|\.github/workflows/openapi-spec-drift\.yml$)'
+          CLASSIFIER=base-ref/scripts/ci-changed-paths.mjs
+
+          if [ -f "$CLASSIFIER" ]; then
+            node "$CLASSIFIER" '^(Directory\.Build\.props$|Directory\.Build\.targets$|Directory\.Packages\.props$|apps/api/|packages/client-ts/|justfile$|global\.json$|\.gitattributes$|\.config/dotnet-tools\.json$|\.github/workflows/openapi-spec-drift\.yml$)'
+          else
+            echo "::warning::[MISSING BASE CLASSIFIER] $CLASSIFIER does not exist at the base commit. This is expected exactly once: for the pull request that introduces this classifier, or a branch cut before it existed on the base branch. Relevance cannot be determined from a classifier that is not there, so this fails closed: treating the workflow as relevant and running everything. If this keeps happening on ordinary pull requests well after the classifier has been on the base branch, something is wrong — investigate, do not silence it."
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+          fi
 
   spec-drift:
     needs: changes
