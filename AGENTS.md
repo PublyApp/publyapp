@@ -19,21 +19,21 @@ PublyApp is a modern full-stack multi-tenant SaaS application built with .NET 10
 # Terminal 1 - Start API with hot reload
 just dev-api
 
-# Terminal 2 - Start the frontend (front-2, TanStack Start dev server)
-just dev-front-2
+# Terminal 2 - Start the frontend (front, TanStack Start dev server)
+just dev-front
 
 # Start PostgreSQL in Docker
 just dev-db
 ```
 
 **Frontend recipe naming:** these recipes directly build, run, deploy, type-check, or clean
-`apps/front`, the retired app: `dev-front`, `build-front`, `build-deploy`, `deploy-front`, `deploy`,
-`start-front`, `tsc-front`, `ci-front`, `ci-e2e-front`, and `clean-front`. The aggregate `ci` and
-`ci-full` gates intentionally include the retired app's characterization suites, and `clean` removes
-its artifacts along with the rest of the workspace. `dev-setup` and `quick-start` also print the
-obsolete instruction to run `just dev-front`; ignore that final prompt. Drive `apps/front-2` — the
-app that actually ships — with `just dev-front-2`, `just review-front-2 <pr-or-issue-number>`,
-`pnpm --filter front-2 <script>` or the `just ci-front-2` gate.
+`apps/old-front`, the retired app: `dev-old-front`, `build-old-front`, `build-deploy`,
+`deploy-old-front`, `deploy`, `start-old-front`, `tsc-old-front`, `ci-old-front`,
+`ci-e2e-old-front`, and `clean-old-front`. The aggregate `ci` and `ci-full` gates intentionally
+include the retired app's characterization suites, and `clean` removes its artifacts along with the
+rest of the workspace. `dev-setup` and `quick-start` print `just dev-front`, which is correct for
+the shipped app. Drive `apps/front` — the app that actually ships — with `just dev-front`,
+`just review-front <pr-or-issue-number>`, `pnpm --filter front <script>` or the `just ci-front` gate.
 
 Since #885, the API waits for pending migrations but does not apply them. Run
 `just db-migrate` first, or use `just dev-api-migrated` to migrate and start the API.
@@ -57,22 +57,22 @@ The API reads configuration exclusively from environment variables via `AppEnvir
 
 ```bash
 just build-api                     # Build .NET API
-pnpm --filter front-2 build        # Build the shipped frontend for production
-just build-deploy                  # Build legacy Dokploy-from-source API + apps/front artifacts
+pnpm --filter front build          # Build the shipped frontend for production
+just build-deploy                  # Build legacy Dokploy-from-source API + apps/old-front artifacts
 just deploy-images                 # Build + push the three GHCR release images
-just build-front                   # Builds apps/front (retired app) — not the release artifact
+just build-old-front               # Builds apps/old-front (retired app) — not the release artifact
 ```
 
-`just build-deploy` does not build `front-2` or the migrator image. Releases use
-`just deploy-images` to build and push the `api`, `migrate`, and `front-2` images from a clean
+`just build-deploy` does not build `front` or the migrator image. Releases use
+`just deploy-images` to build and push the `api`, `migrate`, and `front` images from a clean
 checkout.
 
 ### Code Quality
 
 ```bash
 just check-write                       # Run oxlint + oxfmt (auto-fix)
-pnpm --filter front-2 typecheck        # TypeScript type checking (front-2)
-just tsc-front                         # TypeScript type checking (apps/front, retired)
+pnpm --filter front typecheck          # TypeScript type checking (front)
+just tsc-old-front                     # TypeScript type checking (apps/old-front, retired)
 just knip                              # Check for unused dependencies
 ```
 
@@ -99,7 +99,7 @@ This is critical - the frontend TypeScript client is auto-generated from the bac
 
 ```bash
 just test-api                  # Run API integration tests (requires Docker)
-pnpm --filter front-2 test     # Run the front-2 unit/component suite (Vitest)
+pnpm --filter front test       # Run the front unit/component suite (Vitest)
 ```
 
 **Prerequisites:** Docker must be running (Testcontainers spins up Postgres automatically).
@@ -126,8 +126,8 @@ cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter "Ful
 # Run a specific test method
 cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter "ItShouldReturnSessionTokenWithValidCredentials"
 
-# Run a single front-2 test file (`pnpm ... test` is a chain of guards, so call vitest directly)
-pnpm --filter front-2 exec vitest run src/components/ui/avatar.test.tsx
+# Run a single front test file (`pnpm ... test` is a chain of guards, so call vitest directly)
+pnpm --filter front exec vitest run src/components/ui/avatar.test.tsx
 ```
 
 For the full guide on writing and debugging integration tests, see [`docs/guides/api-integration-tests.md`](docs/guides/api-integration-tests.md).
@@ -139,8 +139,8 @@ For the full guide on writing and debugging integration tests, see [`docs/guides
 ```
 apps/
 ├── api/              # .NET 10.0 Web API backend — also the worker (APP_ROLE=worker) and migrator
-├── front/            # RETIRED React Router v7 + MUI frontend — see note below
-└── front-2/          # THE frontend: TanStack Start + Base UI + Tailwind v4 (deployed)
+├── old-front/        # RETIRED React Router v7 + MUI frontend — see note below
+└── front/            # THE frontend: TanStack Start + Base UI + Tailwind v4 (deployed)
 
 packages/
 ├── shared-ts/        # Shared TypeScript utilities, validations, i18n
@@ -155,12 +155,12 @@ There is **no `apps/jobs`**. Background jobs shipped inside the API project (`ap
 and run as a separate deployed process off the **same API image** with `APP_ROLE=worker` — see
 `dokploy.yml`.
 
-**`apps/front` is retired-but-present.** It is not built for release and not deployed: the release
-workflow builds only `apps/api/Dockerfile` and `apps/front-2/Dockerfile`, and `dokploy.yml` serves
-`ghcr.io/radandevist/publyapp/front-2`. The directory still exists and is still covered by the
-`front-characterization.yml` CI job, so do not be surprised to find it — but **do not write code in
-it and do not use it as a pattern source.** All frontend work happens in `apps/front-2`.
-front→front-2 feature parity is **not** complete (open: #735, #818, #819, #820).
+**`apps/old-front` is retired-but-present.** It is not built for release and not deployed: the release
+workflow builds only `apps/api/Dockerfile` and `apps/front/Dockerfile`, and `dokploy.yml` serves
+`ghcr.io/radandevist/publyapp/front`. The directory still exists and is still covered by the
+`old-front-characterization.yml` CI job, so do not be surprised to find it — but **do not write code in
+it and do not use it as a pattern source.** All frontend work happens in `apps/front`.
+old-front→front feature parity is **not** complete (open: #735, #818, #819, #820).
 
 ### Backend Architecture (Vertical Slice, Domain-First)
 
@@ -222,25 +222,25 @@ For detailed documentation on business rules, database layer, authentication, an
 - Session-based auth via `X-Session-Token`; permission-based authorization via `PermissionFilter`
 - Middleware order: Security headers → Exception handling → CORS → Tenant header → Session header → Session auth → Staff auth
 
-### Frontend Architecture (`apps/front-2` — TanStack Start)
+### Frontend Architecture (`apps/front` — TanStack Start)
 
-`apps/front-2` is the only frontend under development and the only one deployed. The normative
+`apps/front` is the only frontend under development and the only one deployed. The normative
 guides are:
 
-[`docs/guides/front-2/index.md`](docs/guides/front-2/index.md) — stack, commands, layout, and how
-front-2 is organized.
-[`docs/guides/front-2/conventions.md`](docs/guides/front-2/conventions.md) — rendering strategy,
+[`docs/guides/front/index.md`](docs/guides/front/index.md) — stack, commands, layout, and how
+front is organized.
+[`docs/guides/front/conventions.md`](docs/guides/front/conventions.md) — rendering strategy,
 server-function boundary, URL state, error views/logout, mutation feedback ownership, route-local
 file naming, and the owner-ratified product UI design preferences.
 
-**Routing:** routes are declared in the virtual route config `apps/front-2/src/routes.ts` (not
+**Routing:** routes are declared in the virtual route config `apps/front/src/routes.ts` (not
 file-based discovery); `routeTree.gen.ts` is generated. A route-local file that must not become a
 route is prefixed with `_`.
 
 **State Management Strategy:**
 ```
 Server State     → TanStack Query (API data, caching, mutations)
-Global State     → Zustand (UI state — `apps/front-2/src/lib/store/ui-store.ts`)
+Global State     → Zustand (UI state — `apps/front/src/lib/store/ui-store.ts`)
 URL State        → TanStack Router search params, snake_case keys (q, sort_id, sort_order, cursor, size)
 Form State       → React Hook Form + Zod
 ```
@@ -297,11 +297,11 @@ For route parameter conventions (no route constraints, ID validation pattern), s
 
 ## Frontend Coding Standards
 
-Frontend work means `apps/front-2`. It uses `@base-ui/react` primitives wrapped by a local
+Frontend work means `apps/front`. It uses `@base-ui/react` primitives wrapped by a local
 `src/components/ui/*` layer (`cva` + `tailwind-merge`) on **Tailwind v4** — no MUI, no `sx`, no
 HeroUI. The normative sources are
-[`docs/guides/front-2/index.md`](docs/guides/front-2/index.md) and
-[`docs/guides/front-2/conventions.md`](docs/guides/front-2/conventions.md); the latter carries the
+[`docs/guides/front/index.md`](docs/guides/front/index.md) and
+[`docs/guides/front/conventions.md`](docs/guides/front/conventions.md); the latter carries the
 owner-ratified product UI design preferences (elevation, radius, destructive-action placement,
 primary-CTA consistency, tables, selection mode, empty/error states, navigation).
 
@@ -311,35 +311,35 @@ Additional repo-specific preferences for AI assistants (to reduce review churn):
 **Key principles (always apply):**
 For the complete list of custom lint rules with severity and source, see [`docs/guides/lint-rules.md`](docs/guides/lint-rules.md).
 
-- Compose UI from the local `apps/front-2/src/components/ui/*` wrappers over Base UI primitives; style with Tailwind utility classes through `cn()` (`apps/front-2/src/lib/utils.ts`). Do not reach into Base UI protected/internal APIs.
-- Design-token discipline is machine-checked — `pnpm --filter front-2 check:design-system` runs in `just ci-front-2` and in `pnpm --filter front-2 test`.
+- Compose UI from the local `apps/front/src/components/ui/*` wrappers over Base UI primitives; style with Tailwind utility classes through `cn()` (`apps/front/src/lib/utils.ts`). Do not reach into Base UI protected/internal APIs.
+- Design-token discipline is machine-checked — `pnpm --filter front check:design-system` runs in `just ci-front` and in `pnpm --filter front test`.
 - No `Array.reduce()` — use `find`, `filter+map`, `for...of`, or `Object.groupBy` (enforced by `publy/no-array-reduce`).
 - Never import dayjs directly in components (enforced by `publy/no-direct-dayjs-in-components`).
-- React Hook Form + Zod for form validation; go through the front-2 form/field wrappers rather than wiring `register()` onto raw inputs.
-- Loading/empty/error states use the front-2 state components (`state-view.tsx`, `state-surface.tsx`, `skeleton.tsx`) — never ad-hoc conditional rendering per page.
-- **Entity images and avatars:** preserve the real image when one exists and keep the intended aspect ratio. When there is genuinely no image, an **entity identity** surface — a person or an organization — falls back to initials on a deterministic, name-hashed colour from the `--publy-avatar-1`…`--publy-avatar-8` palette with `--publy-avatar-foreground` text (`paletteIndex()` in [`apps/front-2/src/components/ui/avatar-initials.ts`](apps/front-2/src/components/ui/avatar-initials.ts), applied via [`apps/front-2/src/components/ui/person-avatar.tsx`](apps/front-2/src/components/ui/person-avatar.tsx)). That colour is **identity, not decoration**: it is what distinguishes two photoless people in the same list and makes one person recognizable across a table row, a drawer, and the account menu — a uniform grey column carries no information at all. The palette is WCAG-pinned against fixed white text and deliberately theme-invariant, so do **not** swap it for muted tokens, and do **not** give it an `html.dark` counterpart (see `THEME_INVARIANT_TOKENS` in [`apps/front-2/scripts/check-design-system.mjs`](apps/front-2/scripts/check-design-system.mjs) and the contrast guard in [`apps/front-2/src/styles/avatar-fallback-contrast.test.ts`](apps/front-2/src/styles/avatar-fallback-contrast.test.ts)). Neutral muted tokens remain correct for fallbacks that are **not** entity identity. Build on the stable `Avatar`/`AvatarImage`/`AvatarFallback` primitive layer in [`apps/front-2/src/components/ui/avatar.tsx`](apps/front-2/src/components/ui/avatar.tsx), whose image preserves a square cover crop and whose bare fallback stays neutral for those non-identity consumers. **front-2 has no `<Image>` primitive** — do not import one, and do not invent one as a side effect of another task; if a non-avatar content-image need appears, raise it as its own change rather than sprawling raw `<img>` tags. Raw `<img>` is acceptable only for the brand wordmark/logo and inline SVGs, as it is used today in the layouts.
-- Bulk-action items on list-page selection menus always render — never `disabled`, never conditionally hidden by per-row eligibility; ineligible clicks show an i18n toast. The trigger button gates on `BULK_ACTION_MAX_COUNT`. See [`docs/guides/bulk-action-ux-conventions.md`](docs/guides/bulk-action-ux-conventions.md) (its backend/UX policy is normative; its code examples are MUI-era `apps/front`).
+- React Hook Form + Zod for form validation; go through the front form/field wrappers rather than wiring `register()` onto raw inputs.
+- Loading/empty/error states use the front state components (`state-view.tsx`, `state-surface.tsx`, `skeleton.tsx`) — never ad-hoc conditional rendering per page.
+- **Entity images and avatars:** preserve the real image when one exists and keep the intended aspect ratio. When there is genuinely no image, an **entity identity** surface — a person or an organization — falls back to initials on a deterministic, name-hashed colour from the `--publy-avatar-1`…`--publy-avatar-8` palette with `--publy-avatar-foreground` text (`paletteIndex()` in [`apps/front/src/components/ui/avatar-initials.ts`](apps/front/src/components/ui/avatar-initials.ts), applied via [`apps/front/src/components/ui/person-avatar.tsx`](apps/front/src/components/ui/person-avatar.tsx)). That colour is **identity, not decoration**: it is what distinguishes two photoless people in the same list and makes one person recognizable across a table row, a drawer, and the account menu — a uniform grey column carries no information at all. The palette is WCAG-pinned against fixed white text and deliberately theme-invariant, so do **not** swap it for muted tokens, and do **not** give it an `html.dark` counterpart (see `THEME_INVARIANT_TOKENS` in [`apps/front/scripts/check-design-system.mjs`](apps/front/scripts/check-design-system.mjs) and the contrast guard in [`apps/front/src/styles/avatar-fallback-contrast.test.ts`](apps/front/src/styles/avatar-fallback-contrast.test.ts)). Neutral muted tokens remain correct for fallbacks that are **not** entity identity. Build on the stable `Avatar`/`AvatarImage`/`AvatarFallback` primitive layer in [`apps/front/src/components/ui/avatar.tsx`](apps/front/src/components/ui/avatar.tsx), whose image preserves a square cover crop and whose bare fallback stays neutral for those non-identity consumers. **front has no `<Image>` primitive** — do not import one, and do not invent one as a side effect of another task; if a non-avatar content-image need appears, raise it as its own change rather than sprawling raw `<img>` tags. Raw `<img>` is acceptable only for the brand wordmark/logo and inline SVGs, as it is used today in the layouts.
+- Bulk-action items on list-page selection menus always render — never `disabled`, never conditionally hidden by per-row eligibility; ineligible clicks show an i18n toast. The trigger button gates on `BULK_ACTION_MAX_COUNT`. See [`docs/guides/bulk-action-ux-conventions.md`](docs/guides/bulk-action-ux-conventions.md) (its backend/UX policy is normative; its code examples are MUI-era `apps/old-front`).
 
-**About `apps/front`:** it is retired. The MUI/`sx`/React-Router-loader/animation-preset standards
+**About `apps/old-front`:** it is retired. The MUI/`sx`/React-Router-loader/animation-preset standards
 that used to live in this section governed that app only; they are gone from this file on purpose,
-because the owner will not edit `apps/front` again.
+because the owner will not edit `apps/old-front` again.
 
 **Enabled `publy/*` lint-rule scopes** (the configuration sets each of these to `error`):
 
 - All linted JavaScript/TypeScript: `no-array-reduce`, `prefer-specific-lodash-imports`, and
   `no-manual-response-message-translation`.
-- `no-console-in-source`: source files under `apps/front/src`, `apps/front-2/src`, and
+- `no-console-in-source`: source files under `apps/old-front/src`, `apps/front/src`, and
   `packages/shared-ts`, excluding tests/specs, shared package scripts, and CLI files.
 - `no-direct-dayjs-in-components`: TSX files under either frontend's `components/`, `_parts/`,
   `_components/`, or `routes/` source paths.
-- Retired `apps/front` only: `no-raw-mui-textfield-register` covers its source files;
+- Retired `apps/old-front` only: `no-raw-mui-textfield-register` covers its source files;
   `no-native-html-in-mui-surfaces` and `no-raw-img-in-product-surfaces` cover product JSX under
   `components/`, `layouts/`, `routes/`, and `lib/`, with their narrow marketing/brand exclusions;
   `no-raw-img-in-product-surfaces` also exempts an image when the immediately preceding line
   contains the `publy-allow full-bleed-background` comment marker.
 
 `publy/no-op` and `publy/arrow-function-components` are off. Component declaration style is
-therefore not lint-enforced in front-2; both arrow components and function declarations exist.
+therefore not lint-enforced in front; both arrow components and function declarations exist.
 
 ## JavaScript/TypeScript Conventions
 
@@ -444,7 +444,7 @@ but does not encode the selected Dokploy mode.
 
 `.github/workflows/deploy-images.yml` publishes **three** image artifacts per release, all tagged
 with the same commit SHA: `api` (from `apps/api/Dockerfile`, target `runtime`), `migrate` (same
-Dockerfile, target `migrate`), and `front-2` (from `apps/front-2/Dockerfile`). They back four
+Dockerfile, target `migrate`), and `front` (from `apps/front/Dockerfile`). They back four
 declared services: the long-running `publyapp-api`, `publyapp-worker` (the **same API image** with
 `APP_ROLE=worker`), and `publyapp-front`, plus the one-shot `publyapp-migrate`, which remains
 exited after it finishes.
@@ -468,7 +468,7 @@ client regeneration workflow, and TypeScript patterns), see:
 - Required body fields: non-nullable `JsonElement` (not `JsonElement?`) for cleaner TypeScript types
 - Never add XML comments to generic types (`<T>`) — triggers .NET 10 OpenAPI bug
 - `[AsParameters]` query DTOs: never use `List<T>?` or custom `BindAsync`; use CSV `string?` + parser method for multi-value filters — see [`openapi-kiota-safeguards.md`](docs/guides/openapi-kiota-safeguards.md#query-dto-multi-value-filters)
-- After DTO/endpoint changes: `just build-api && just generate-client && pnpm --filter front-2 typecheck` (add `just tsc-front` only if you also need the retired app to keep compiling)
+- After DTO/endpoint changes: `just build-api && just generate-client && pnpm --filter front typecheck` (add `just tsc-old-front` only if you also need the retired app to keep compiling)
 - Use `createUntypedString()` / `createUntypedArray()` for request body fields in TypeScript
 
 ## Documentation Organization

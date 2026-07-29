@@ -1,0 +1,204 @@
+import AxeBuilder from '@axe-core/playwright';
+import { expect, test, type Locator, type Page } from '@playwright/test';
+
+import { LOCALE_COOKIE_KEY } from '@org/shared-ts/lib/constants';
+
+import { COLOR_SCHEME_STORAGE_KEY } from '../src/lib/store/ui-store';
+
+const DEFAULT_BASE_URL = 'https://front.localhost:8443';
+
+type ColorScheme = 'light' | 'dark';
+type ControlFixture = 'outline-input' | 'outline-textarea' | 'outline-select';
+type ComputedControlStyle = {
+	backgroundColor: string;
+	borderColor: string;
+	boxShadow: string;
+};
+
+const CONTROL_FIXTURES: readonly ControlFixture[] = [
+	'outline-input',
+	'outline-textarea',
+	'outline-select',
+];
+
+const seedTheme = async (
+	page: Page,
+	colorScheme: ColorScheme,
+): Promise<void> => {
+	await page.evaluate(
+		({ key, colorScheme }) => {
+			window.localStorage.setItem(
+				key,
+				JSON.stringify({
+					state: { colorScheme, sidebarOpen: true },
+					version: 0,
+				}),
+			);
+		},
+		{ key: COLOR_SCHEME_STORAGE_KEY, colorScheme },
+	);
+};
+
+const readControlStyle = (control: Locator): Promise<ComputedControlStyle> =>
+	control.evaluate((element) => {
+		const style = window.getComputedStyle(element);
+		return {
+			backgroundColor: style.backgroundColor,
+			borderColor: style.borderColor,
+			boxShadow: style.boxShadow,
+		};
+	});
+
+const readExpectedStyle = async (
+	page: Page,
+	isInvalid: boolean,
+): Promise<ComputedControlStyle> =>
+	readControlStyle(
+		page.getByTestId(
+			isInvalid ? 'outline-expected-invalid-focus' : 'outline-expected-focus',
+		),
+	);
+
+type BrowserContextLike = {
+	context: () => {
+		addCookies: (
+			cookies: Array<{
+				name: string;
+				value: string;
+				url: string;
+			}>,
+		) => Promise<void>;
+		clearCookies: () => Promise<void>;
+	};
+};
+
+const setLocaleCookie = async (
+	page: BrowserContextLike,
+	locale: string,
+	baseUrl: string,
+): Promise<void> => {
+	await page.context().clearCookies();
+	await page.context().addCookies([
+		{
+			name: LOCALE_COOKIE_KEY,
+			value: locale,
+			url: new URL('/', baseUrl).origin,
+		},
+	]);
+};
+
+const visitFieldValidation = async (
+	page: Page,
+	locale: 'en' | 'fr',
+	baseUrl: string,
+): Promise<void> => {
+	await setLocaleCookie(page, locale, baseUrl);
+	await page.goto('/field-validation');
+	await page.waitForLoadState('networkidle');
+	await expect(page.getByTestId('field-validation-title')).toBeVisible();
+};
+
+const runAxe = async (page: Page) => {
+	const axe = new AxeBuilder({ page });
+	const result = await axe.analyze();
+
+	expect(result.violations).toEqual([]);
+};
+
+test('shows French InterZod message on invalid email, clears on valid input', async ({
+	page,
+	baseURL,
+}) => {
+	const resolvedBaseUrl = baseURL || DEFAULT_BASE_URL;
+	await visitFieldValidation(page, 'fr', resolvedBaseUrl);
+
+	await page.getByRole('textbox', { name: 'Email' }).fill('invalid-email');
+	await page.getByTestId('field-validation-submit').click();
+
+	await expect(page.getByText('e-mail non valide')).toBeVisible();
+
+	await page.getByRole('textbox', { name: 'Email' }).fill('valid@example.com');
+	await page.getByTestId('field-validation-submit').click();
+
+	await expect(page.getByText('e-mail non valide')).toBeHidden();
+
+	await runAxe(page);
+});
+
+test('shows English InterZod message on invalid email, clears on valid input', async ({
+	page,
+	baseURL,
+}) => {
+	const resolvedBaseUrl = baseURL || DEFAULT_BASE_URL;
+	await visitFieldValidation(page, 'en', resolvedBaseUrl);
+
+	await page.getByRole('textbox', { name: 'Email' }).fill('invalid-email');
+	await page.getByTestId('field-validation-submit').click();
+
+	await expect(page.getByText('Invalid email')).toBeVisible();
+
+	await page.getByRole('textbox', { name: 'Email' }).fill('valid@example.com');
+	await page.getByTestId('field-validation-submit').click();
+
+	await expect(page.getByText('Invalid email')).toBeHidden();
+});
+
+test('shared controls match the Gray UI outline treatment in light and dark themes', async ({
+	page,
+	baseURL,
+}) => {
+	const resolvedBaseUrl = baseURL || DEFAULT_BASE_URL;
+	await page.setViewportSize({ width: 1280, height: 900 });
+
+	for (const colorScheme of ['light', 'dark'] as const) {
+		await page.goto('/');
+		await seedTheme(page, colorScheme);
+		await visitFieldValidation(page, 'en', resolvedBaseUrl);
+		await expect(page.locator('html')).toHaveAttribute(
+			'data-theme',
+			colorScheme,
+		);
+		await expect(
+			page.getByTestId('form-control-outline-fixture'),
+		).toBeVisible();
+
+		for (const fixture of CONTROL_FIXTURES) {
+			const control = page.getByTestId(fixture);
+			const beforeFocus = await control.boundingBox();
+			expect(beforeFocus).not.toBeNull();
+
+			await control.focus();
+			await expect(control).toBeFocused();
+			const afterFocus = await control.boundingBox();
+			expect(afterFocus).toEqual(beforeFocus);
+
+			const expectedFocus = await readExpectedStyle(page, false);
+			await expect.poll(() => readControlStyle(control)).toEqual(expectedFocus);
+			await page.screenshot({
+				path: `test-results/gray-ui/form-controls-${colorScheme}-${fixture}-focus.png`,
+				fullPage: true,
+			});
+
+			await control.evaluate((element) => {
+				element.setAttribute('aria-invalid', 'true');
+			});
+			await expect(control).toHaveAttribute('aria-invalid', 'true');
+			await expect(control).toBeFocused();
+			const invalidFocusBox = await control.boundingBox();
+			expect(invalidFocusBox).toEqual(beforeFocus);
+
+			const expectedInvalid = await readExpectedStyle(page, true);
+			await expect
+				.poll(() => readControlStyle(control))
+				.toEqual(expectedInvalid);
+			await page.screenshot({
+				path: `test-results/gray-ui/form-controls-${colorScheme}-${fixture}-invalid-focus.png`,
+				fullPage: true,
+			});
+
+			await control.evaluate((element) => {
+				element.removeAttribute('aria-invalid');
+			});
+		}
+	}
+});

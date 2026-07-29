@@ -6,14 +6,14 @@
 		"check:frontend-barrels": "node ./scripts/check-frontend-barrels.mjs",
 		"deploy:artifacts": "node ./scripts/deploy.mjs",
 		"check:docs-archive-records": "node ./scripts/check-archive-records.mjs",
-		"format": "oxfmt --check \".lintstagedrc.js\" \"dfs.config.cjs\" \"knip.ts\" \"package.json\" \"turbo.json\" \".oxlintrc.json\" \".oxfmtrc.json\" \"scripts/**/*.{js,mjs,cjs}\" \"apps/api/**/*.{js,mjs,cjs,json}\" \"apps/front/**/*.{js,jsx,ts,tsx,mjs,cjs,json,css}\" \"apps/front-2/**/*.{js,jsx,ts,tsx,mjs,cjs,json,css}\" \"packages/_tsconfig/**/*.json\" \"packages/shared-ts/**/*.{js,jsx,ts,tsx,mjs,cjs,json}\" \"packages/lint-ts/**/*.{js,mjs,cjs,json}\"",
-		"format:write": "oxfmt --write \".lintstagedrc.js\" \"dfs.config.cjs\" \"knip.ts\" \"package.json\" \"turbo.json\" \".oxlintrc.json\" \".oxfmtrc.json\" \"scripts/**/*.{js,mjs,cjs}\" \"apps/api/**/*.{js,mjs,cjs,json}\" \"apps/front/**/*.{js,jsx,ts,tsx,mjs,cjs,json,css}\" \"apps/front-2/**/*.{js,jsx,ts,tsx,mjs,cjs,json,css}\" \"packages/_tsconfig/**/*.json\" \"packages/shared-ts/**/*.{js,jsx,ts,tsx,mjs,cjs,json}\" \"packages/lint-ts/**/*.{js,mjs,cjs,json}\"",
+		"format": "oxfmt --check \".lintstagedrc.js\" \"dfs.config.cjs\" \"knip.ts\" \"package.json\" \"turbo.json\" \".oxlintrc.json\" \".oxfmtrc.json\" \"scripts/**/*.{js,mjs,cjs}\" \"apps/api/**/*.{js,mjs,cjs,json}\" \"apps/old-front/**/*.{js,jsx,ts,tsx,mjs,cjs,json,css}\" \"apps/front/**/*.{js,jsx,ts,tsx,mjs,cjs,json,css}\" \"packages/_tsconfig/**/*.json\" \"packages/shared-ts/**/*.{js,jsx,ts,tsx,mjs,cjs,json}\" \"packages/lint-ts/**/*.{js,mjs,cjs,json}\"",
+		"format:write": "oxfmt --write \".lintstagedrc.js\" \"dfs.config.cjs\" \"knip.ts\" \"package.json\" \"turbo.json\" \".oxlintrc.json\" \".oxfmtrc.json\" \"scripts/**/*.{js,mjs,cjs}\" \"apps/api/**/*.{js,mjs,cjs,json}\" \"apps/old-front/**/*.{js,jsx,ts,tsx,mjs,cjs,json,css}\" \"apps/front/**/*.{js,jsx,ts,tsx,mjs,cjs,json,css}\" \"packages/_tsconfig/**/*.json\" \"packages/shared-ts/**/*.{js,jsx,ts,tsx,mjs,cjs,json}\" \"packages/lint-ts/**/*.{js,mjs,cjs,json}\"",
 		"lint": "oxlint --quiet . && pnpm lint:disables && pnpm check:frontend-barrels",
 		"lint:disables": "node ./scripts/check-oxlint-disables.mjs",
 		"lint:fix": "oxlint --fix --quiet . && pnpm check:frontend-barrels",
 		"prepare": "husky",
 		"test:ci-drift": "node --test ./scripts/check-ci-drift.test.mjs",
-		"test:review-front-2-resolution": "node --test ./scripts/review-front-2.resolve.test.mjs",
+		"test:review-worktree-resolution": "node --test ./scripts/review-worktree.resolve.test.mjs",
 		"test:frontend-barrels": "node --test ./scripts/check-frontend-barrels.test.mjs"
 	},
 	"devDependencies": {

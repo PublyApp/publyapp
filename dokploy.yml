@@ -235,7 +235,7 @@ services:
       - dokploy-network
 
   publyapp-front:
-    image: ghcr.io/radandevist/publyapp/front-2:${RELEASE_TAG}
+    image: ghcr.io/radandevist/publyapp/front:${RELEASE_TAG}
     restart: unless-stopped
     environment:
       - NODE_ENV=production

@@ -3,267 +3,448 @@ import {
 	FetchRequestAdapter,
 	KiotaClientFactory,
 } from '@microsoft/kiota-http-fetchlibrary';
+import * as cookie from 'cookie';
 
-import { type ApiClient, createApiClient } from '@org/client-ts/src/apiClient';
+import type { ApiClient } from '@org/client-ts/src/apiClient';
+import { createApiClient } from '@org/client-ts/src/apiClient';
 import {
-	isServer,
-	SESSION_TOKEN_HEADER_KEY,
+	SESSION_TOKEN_COOKIE_KEY,
 	TENANT_ID_HEADER_KEY,
 } from '@org/shared-ts/lib/constants';
+import type { ClientAccessor } from '@org/shared-ts/lib/query/types';
+import {
+	parseSessionCookie,
+	selectToken,
+} from '@org/shared-ts/lib/session/parse';
+import type { ParsedSessionTokens } from '@org/shared-ts/lib/session/parse';
 
-import { getSessionTokensFromClient } from '../cookies/session-cookie.utils';
-import { env } from '../env';
+import { getPublicEnv, getServerEnv } from '../env';
+
+type SessionScope = 'tenant' | 'staff';
+type FetchFunction = (
+	input: RequestInfo | URL,
+	init?: RequestInit,
+) => Promise<Response>;
+type RequestInitWithDuplex = RequestInit & {
+	duplex?: 'half';
+};
+type RequestLike = {
+	url: string;
+	headers?: HeadersInit;
+	method?: RequestInit['method'];
+	body?: RequestInit['body'];
+	cache?: RequestInit['cache'];
+	credentials?: RequestInit['credentials'];
+	mode?: RequestInit['mode'];
+	redirect?: RequestInit['redirect'];
+	referrer?: RequestInit['referrer'];
+	referrerPolicy?: RequestInit['referrerPolicy'];
+	integrity?: RequestInit['integrity'];
+	keepalive?: RequestInit['keepalive'];
+	signal?: RequestInit['signal'];
+	duplex?: RequestInitWithDuplex['duplex'];
+};
+
+type CookieValueProvider = () => string | undefined;
+type SessionTokenProvider = (scope: SessionScope) => string | undefined;
+
+type BuildCustomFetchOptions = {
+	getSessionToken: () => string | undefined;
+	tenantId?: string;
+	fetchImpl?: FetchFunction;
+	apiBaseUrl: string;
+	signal?: AbortSignal;
+};
+
+type BuildClientOptions = {
+	getSessionToken: () => string | undefined;
+	tenantId?: string;
+	fetchImpl?: FetchFunction;
+	signal?: AbortSignal;
+};
 
 type ClientManagerOptions = {
-	/** Staff session token (for staff UI access). */
-	staffToken?: string;
-	/** Tenant session token (for tenant UI access, including impersonation). */
-	tenantToken?: string;
+	sessionTokenProvider?: SessionTokenProvider;
 };
 
-type CreateClientOptions = {
-	/** Optional tenant ID to include in requests. */
-	tenantId?: string;
-	/** If true, don't include session token (anonymous). */
-	skipAuth?: boolean;
-	/** Which token context to use. Defaults to 'tenant' if available, otherwise 'staff'. */
-	context?: 'staff' | 'tenant';
+const getDefaultCookieValue = (): string | undefined => {
+	if (typeof document === 'undefined') {
+		return undefined;
+	}
+
+	return document.cookie;
 };
 
-/**
- * Manager for creating API clients with dual token support.
- *
- * Supports two session tokens for impersonation:
- * - staffToken: For staff UI access
- * - tenantToken: For tenant UI access (regular or impersonation)
- *
- * Usage:
- * - Browser: `getClientManager()` returns singleton (reads tokens from cookie)
- * - Server: `getClientManager({ staffToken, tenantToken })` creates per-request instance
- *
- * @example
- * import { getClientManager } from '#app/lib/api-client/client-manager.ts';
- *
- * // Browser - returns singleton, tokens from cookie
- * getClientManager().createClient({ tenantId });
- *
- * // Server - new instance per request
- * getClientManager({ staffToken, tenantToken }).createClient({ tenantId });
- *
- * // Explicit context (for staff UI while impersonating)
- * getClientManager().createClient({ context: 'staff' });
- *
- * // Public/anonymous endpoints
- * getClientManager().createClient({ skipAuth: true });
- */
-export class ClientManager {
-	private static _instance: ClientManager | undefined;
-
-	private readonly staffToken?: string;
-	private readonly tenantToken?: string;
-	private readonly clientsCache = new Map<string, ApiClient>();
-
-	private constructor(options?: ClientManagerOptions) {
-		this.staffToken = options?.staffToken;
-		this.tenantToken = options?.tenantToken;
+const normalizeTenantId = (tenantId: string): string => {
+	const normalized = tenantId.trim();
+	if (!normalized) {
+		throw new Error('tenantId is required to create tenant-scoped client');
 	}
 
-	/**
-	 * Creates or returns a ClientManager instance.
-	 * - Browser: returns singleton (reads tokens from cookie)
-	 * - Server: creates new instance (pass staffToken/tenantToken)
-	 */
-	public static create(options?: ClientManagerOptions): ClientManager {
-		if (!isServer) {
-			// Browser: return singleton, read tokens from cookie
-			if (!ClientManager._instance) {
-				const tokens = getSessionTokensFromClient();
-				ClientManager._instance = new ClientManager({
-					staffToken: tokens.staffToken,
-					tenantToken: tokens.tenantToken,
-				});
-			}
-			return ClientManager._instance;
+	return normalized;
+};
+
+const defaultSessionTokenProvider: SessionTokenProvider = (scope) => {
+	const rawCookieValue = getDefaultCookieValue();
+	if (!rawCookieValue) {
+		return undefined;
+	}
+
+	// The server's `setCookie` percent-encodes the "t:"/"s:"-prefixed value;
+	// use the default decoder (decodeURIComponent) to reverse it, see the
+	// matching comment in lib/server/session-actions.ts.
+	const parsedCookie = cookie.parse(rawCookieValue);
+	const rawCookie = parsedCookie[SESSION_TOKEN_COOKIE_KEY];
+	if (!rawCookie) {
+		return undefined;
+	}
+
+	return selectToken(parseSessionCookie(rawCookie), scope);
+};
+
+let sessionTokenProvider: SessionTokenProvider = defaultSessionTokenProvider;
+
+export const setSessionTokenProvider = (
+	provider: SessionTokenProvider | undefined,
+): void => {
+	sessionTokenProvider = provider ?? defaultSessionTokenProvider;
+	resetClientManager();
+};
+
+const resolveSessionToken = (
+	scope: SessionScope = 'tenant',
+): string | undefined => sessionTokenProvider(scope);
+
+// No `document` means this is running server-side (SSR / a server function
+// handler), which is a separate network namespace from the browser: in
+// Docker/Compose the browser-reachable PUBLIC_API_BASE_URL (Traefik host) is
+// NOT reachable from inside the server container, only the internal
+// SERVER_API_BASE_URL (e.g. a Docker service name) is.
+const isServerRuntime = (): boolean => typeof document === 'undefined';
+
+const resolveApiBaseUrl = (): string => {
+	if (isServerRuntime()) {
+		return getServerEnv().apiBaseUrl;
+	}
+
+	return getPublicEnv().apiBaseUrl;
+};
+
+const isRequestLike = (input: unknown): input is RequestLike => {
+	if (typeof input !== 'object' || input === null) {
+		return false;
+	}
+
+	const candidate = input as {
+		url?: unknown;
+	};
+	return typeof candidate.url === 'string' && candidate.url.length > 0;
+};
+
+const isUrlLike = (input: RequestInfo | URL): input is URL => {
+	if (typeof input !== 'object' || input === null) {
+		return false;
+	}
+
+	const candidate = input as {
+		href?: unknown;
+		toString?: unknown;
+	};
+
+	const hasHref = typeof candidate.href === 'string';
+	return hasHref && typeof candidate.toString === 'function';
+};
+
+const resolveRequestUrl = (input: RequestInfo | URL, baseUrl: string): URL => {
+	if (isRequestLike(input)) {
+		return new URL(input.url, baseUrl);
+	}
+
+	if (typeof input === 'string') {
+		return new URL(input, baseUrl);
+	}
+
+	if (isUrlLike(input)) {
+		return new URL(String(input), baseUrl);
+	}
+
+	throw new Error('Unsupported fetch RequestInfo in client adapter');
+};
+
+const isSameOrigin = (target: URL, base: string): boolean => {
+	const baseUrl = new URL(base);
+	return target.origin === baseUrl.origin;
+};
+
+const pickRequestInit = (input: RequestLike): RequestInit => {
+	const init: RequestInitWithDuplex = {};
+	if (input.method !== undefined) {
+		init.method = input.method;
+	}
+
+	if (input.body !== undefined) {
+		init.body = input.body;
+	}
+
+	if (input.cache !== undefined) {
+		init.cache = input.cache;
+	}
+
+	if (input.credentials !== undefined) {
+		init.credentials = input.credentials;
+	}
+
+	if (input.mode !== undefined) {
+		init.mode = input.mode;
+	}
+
+	if (input.redirect !== undefined) {
+		init.redirect = input.redirect;
+	}
+
+	if (input.referrer !== undefined) {
+		init.referrer = input.referrer;
+	}
+
+	if (input.referrerPolicy !== undefined) {
+		init.referrerPolicy = input.referrerPolicy;
+	}
+
+	if (input.integrity !== undefined) {
+		init.integrity = input.integrity;
+	}
+
+	if (input.keepalive !== undefined) {
+		init.keepalive = input.keepalive;
+	}
+
+	if (input.signal !== undefined) {
+		init.signal = input.signal;
+	}
+
+	if (input.duplex !== undefined) {
+		init.duplex = input.duplex;
+	}
+
+	return init;
+};
+
+const buildCustomFetch = (options: BuildCustomFetchOptions): FetchFunction => {
+	const fetchImpl = options.fetchImpl ?? globalThis.fetch;
+	if (typeof fetchImpl !== 'function') {
+		throw new Error('fetch is required in the current runtime');
+	}
+
+	const baseUrl = options.apiBaseUrl;
+
+	return (input, init) => {
+		const requestUrl = resolveRequestUrl(input, baseUrl);
+		const requestLike = isRequestLike(input);
+		const requestInputInit = requestLike ? pickRequestInit(input) : {};
+		const headers = new Headers();
+
+		if (requestLike && input.headers) {
+			new Headers(input.headers).forEach((value, key) => {
+				headers.set(key, value);
+			});
 		}
 
-		// Server: create new instance per request
-		return new ClientManager(options);
-	}
-
-	/**
-	 * Resets the browser singleton. Call after cookie changes
-	 * (login, logout, impersonation start/end).
-	 */
-	public static resetInstance(): void {
-		if (!isServer) {
-			ClientManager._instance = undefined;
-		}
-	}
-
-	/**
-	 * Gets the session token based on context.
-	 * - 'staff': returns staffToken, falls back to tenantToken for legacy cookie compatibility
-	 * - 'tenant': returns tenantToken
-	 * - undefined: returns tenantToken if available, otherwise staffToken
-	 *
-	 * On browser, reads fresh from cookies to handle token changes without page reload.
-	 * On server, uses tokens passed at construction time.
-	 *
-	 * Note: Legacy cookies (no s:/t: prefix) are parsed as tenantToken only, so staff
-	 * context must fallback to tenantToken to maintain backward compatibility.
-	 */
-	private getSessionToken(context?: 'staff' | 'tenant'): string | undefined {
-		// On browser, read fresh from cookies to handle token changes
-		if (!isServer) {
-			const tokens = getSessionTokensFromClient();
-			// Staff context: prefer staffToken, fallback to tenantToken (legacy compatibility)
-			if (context === 'staff') return tokens.staffToken ?? tokens.tenantToken;
-			if (context === 'tenant') return tokens.tenantToken;
-			return tokens.tenantToken ?? tokens.staffToken;
-		}
-
-		// On server, use tokens passed at construction
-		// Staff context: prefer staffToken, fallback to tenantToken (legacy compatibility)
-		if (context === 'staff') return this.staffToken ?? this.tenantToken;
-		if (context === 'tenant') return this.tenantToken;
-		return this.tenantToken ?? this.staffToken;
-	}
-
-	/**
-	 * Creates a new API client.
-	 *
-	 * @param options.tenantId - Optional tenant ID to include in requests
-	 * @param options.skipAuth - If true, don't include session token (anonymous)
-	 * @param options.context - Which token to use: 'staff' or 'tenant' (default: tenant if available)
-	 */
-	public createClient(options?: CreateClientOptions): ApiClient {
-		const getSessionToken = (): string | undefined => {
-			if (options?.skipAuth) {
-				return undefined;
-			}
-			return this.getSessionToken(options?.context);
-		};
-
-		const customFetch = ClientManager.createCustomFetch({
-			getSessionToken,
-			tenantId: options?.tenantId,
+		new Headers(init?.headers).forEach((value, key) => {
+			headers.set(key, value);
 		});
 
-		return ClientManager.createClientWithFetch(customFetch);
-	}
-
-	/**
-	 * Gets or creates a cached API client for the specified tenant.
-	 * Clients are cached for the lifetime of this ClientManager instance.
-	 */
-	public getOrCreateClient(tenantId: string): ApiClient {
-		let client = this.clientsCache.get(tenantId);
-
-		if (!client) {
-			client = this.createClient({ tenantId });
-			this.clientsCache.set(tenantId, client);
-		}
-
-		return client;
-	}
-
-	/**
-	 * Gets or creates a cached staff client.
-	 * Uses staffToken and does NOT send tenant-id header.
-	 */
-	public getOrCreateStaffClient(): ApiClient {
-		let client = this.clientsCache.get('__staff__');
-
-		if (!client) {
-			client = this.createClient({ context: 'staff' });
-			this.clientsCache.set('__staff__', client);
-		}
-
-		return client;
-	}
-
-	/**
-	 * Gets an anonymous client (no session token, no tenant ID).
-	 */
-	public getOrCreateAnonymousClient(): ApiClient {
-		let client = this.clientsCache.get('__anonymous__');
-
-		if (!client) {
-			client = this.createClient({ skipAuth: true });
-			this.clientsCache.set('__anonymous__', client);
-		}
-
-		return client;
-	}
-
-	/**
-	 * Removes a cached client.
-	 */
-	public removeClient(tenantId: string): void {
-		this.clientsCache.delete(tenantId);
-	}
-
-	/**
-	 * Removes the cached staff client.
-	 */
-	public removeStaffClient(): void {
-		this.clientsCache.delete('__staff__');
-	}
-
-	/**
-	 * Removes the cached anonymous client.
-	 */
-	public removeAnonymousClient(): void {
-		this.clientsCache.delete('__anonymous__');
-	}
-
-	/**
-	 * Clears all cached clients.
-	 */
-	public clearClients(): void {
-		this.clientsCache.clear();
-	}
-
-	/**
-	 * Creates a custom fetch function that injects session token and tenant ID headers.
-	 */
-	private static createCustomFetch(options: {
-		getSessionToken: () => string | undefined;
-		tenantId?: string;
-	}): typeof fetch {
-		return (url: Parameters<typeof fetch>[0], init?: RequestInit) => {
+		if (isSameOrigin(requestUrl, baseUrl)) {
 			const sessionToken = options.getSessionToken();
-			const headers = new Headers(init?.headers);
+			if (sessionToken) {
+				headers.set('X-Session-Token', sessionToken);
+			}
 
-			if (sessionToken) headers.set(SESSION_TOKEN_HEADER_KEY, sessionToken);
-			if (options.tenantId) headers.set(TENANT_ID_HEADER_KEY, options.tenantId);
+			if (options.tenantId) {
+				headers.set(TENANT_ID_HEADER_KEY, options.tenantId);
+			}
+		}
 
-			return fetch(url, {
+		if (requestLike) {
+			const signal = options.signal ?? init?.signal ?? requestInputInit.signal;
+			const mergedRequest = new Request(input.url, {
+				...requestInputInit,
 				...init,
 				headers,
+				...(signal ? { signal } : {}),
 			});
-		};
+
+			return fetchImpl(mergedRequest);
+		}
+
+		return fetchImpl(requestUrl, {
+			...init,
+			headers,
+			...(options.signal ? { signal: options.signal } : {}),
+		});
+	};
+};
+
+const buildClient = (options: BuildClientOptions): ApiClient => {
+	const apiBaseUrl = resolveApiBaseUrl();
+	const customFetch = buildCustomFetch({
+		getSessionToken: options.getSessionToken,
+		tenantId: options.tenantId,
+		fetchImpl: options.fetchImpl,
+		apiBaseUrl,
+		signal: options.signal,
+	});
+	const adapter = new FetchRequestAdapter(
+		new AnonymousAuthenticationProvider(),
+		undefined,
+		undefined,
+		KiotaClientFactory.create(customFetch),
+	);
+
+	adapter.baseUrl = apiBaseUrl;
+	return createApiClient(adapter);
+};
+
+const getSessionTokensFromCookie = (
+	cookieValueProvider: CookieValueProvider,
+): ParsedSessionTokens => {
+	let rawCookieValue: string | undefined;
+	try {
+		rawCookieValue = cookieValueProvider();
+	} catch {
+		return {};
+	}
+
+	if (!rawCookieValue) {
+		return {};
+	}
+
+	return parseSessionCookie(
+		cookie.parse(rawCookieValue)[SESSION_TOKEN_COOKIE_KEY] ?? '',
+	);
+};
+
+const getSessionTokensFromBrowser = (): ParsedSessionTokens =>
+	getSessionTokensFromCookie(getDefaultCookieValue);
+
+class ClientManager implements ClientAccessor<ApiClient> {
+	private tenantClientMap = new Map<string, ApiClient>();
+	private staffClient: ApiClient | undefined;
+	private tenantScopeClient: ApiClient | undefined;
+	private anonymousClient: ApiClient | undefined;
+	private sessionClient: ApiClient | undefined;
+	private readonly sessionTokenProvider: SessionTokenProvider;
+
+	public constructor(options: ClientManagerOptions = {}) {
+		this.sessionTokenProvider =
+			options.sessionTokenProvider ?? sessionTokenProvider;
+	}
+
+	getOrCreateClient(tenantId: string): ApiClient {
+		const safeTenantId = normalizeTenantId(tenantId);
+
+		const cached = this.tenantClientMap.get(safeTenantId);
+		if (cached) {
+			return cached;
+		}
+
+		const apiClient = buildClient({
+			getSessionToken: () => this.sessionTokenProvider('tenant'),
+			tenantId: safeTenantId,
+		});
+
+		this.tenantClientMap.set(safeTenantId, apiClient);
+		return apiClient;
+	}
+
+	getOrCreateStaffClient(): ApiClient {
+		if (this.staffClient) {
+			return this.staffClient;
+		}
+
+		this.staffClient = buildClient({
+			getSessionToken: () => this.sessionTokenProvider('staff'),
+		});
+		return this.staffClient;
+	}
+
+	getOrCreateTenantScopeClient(): ApiClient {
+		if (this.tenantScopeClient) {
+			return this.tenantScopeClient;
+		}
+
+		this.tenantScopeClient = buildClient({
+			getSessionToken: () => this.sessionTokenProvider('tenant'),
+		});
+		return this.tenantScopeClient;
+	}
+
+	getOrCreateAnonymousClient(): ApiClient {
+		if (this.anonymousClient) {
+			return this.anonymousClient;
+		}
+
+		this.anonymousClient = buildClient({
+			getSessionToken: () => undefined,
+		});
+		return this.anonymousClient;
 	}
 
 	/**
-	 * Internal helper to create an API client with a custom fetch function.
+	 * For scope-agnostic session endpoints (e.g. `/auth/user-auth-data`) that
+	 * must authenticate whichever account is signed in — tenant or staff.
+	 * Staff/tenant mutual exclusivity (AGENTS.md) guarantees at most one of
+	 * the two tokens is ever set, so trying tenant then staff never masks one
+	 * scope's session with the other's.
 	 */
-	private static createClientWithFetch(customFetch: typeof fetch): ApiClient {
-		const authProvider = new AnonymousAuthenticationProvider();
-		const httpClient = KiotaClientFactory.create(customFetch);
-		const adapter = new FetchRequestAdapter(
-			authProvider,
-			undefined,
-			undefined,
-			httpClient,
-		);
-		adapter.baseUrl = env.VITE_ASP_SERVER_URL;
-		return createApiClient(adapter);
+	getOrCreateSessionClient(): ApiClient {
+		if (this.sessionClient) {
+			return this.sessionClient;
+		}
+
+		this.sessionClient = buildClient({
+			getSessionToken: () =>
+				this.sessionTokenProvider('tenant') ??
+				this.sessionTokenProvider('staff'),
+		});
+		return this.sessionClient;
+	}
+
+	clearClients(): void {
+		this.tenantClientMap.clear();
+		this.staffClient = undefined;
+		this.tenantScopeClient = undefined;
+		this.anonymousClient = undefined;
+		this.sessionClient = undefined;
 	}
 }
 
-export const getClientManager = (
-	options?: ClientManagerOptions,
-): ClientManager => {
-	return ClientManager.create(options);
+let clientManager: ClientManager | undefined;
+
+const createClientManager = (): ClientManager => {
+	return new ClientManager({
+		sessionTokenProvider,
+	});
+};
+
+const getClientManager = (): ClientManager => {
+	if (!clientManager) {
+		clientManager = createClientManager();
+	}
+
+	return clientManager;
+};
+
+const resetClientManager = (): void => {
+	clientManager?.clearClients();
+	clientManager = undefined;
+};
+
+export {
+	getSessionTokensFromBrowser,
+	resolveApiBaseUrl,
+	resolveSessionToken,
+	buildClient as createClient,
+	buildCustomFetch,
+	getClientManager,
+	resetClientManager,
 };

@@ -15,18 +15,18 @@ resets and stays under budget, **this gate is the pre-merge net** — see issue 
 | Exact-pin + frozen-lockfile install | yes | yes |
 | `pnpm format` (repo-wide oxfmt) | yes | yes |
 | Lint (oxlint scope CI uses, disables audit, barrel check) | yes | yes |
-| front-2 build, CSS-asset check, bundle isolation, smoke start, typecheck, design system, unit tests | yes | yes |
-| front unit characterization + typecheck | yes | yes |
+| front build, CSS-asset check, bundle isolation, smoke start, typecheck, design system, unit tests | yes | yes |
+| old-front unit characterization + typecheck | yes | yes |
 | `openapi.json` / `client-ts` drift + OpenAPI contract spec | yes | yes |
 | `ci-migration-expand-contract` | yes | yes |
 | **Full API test suite** (`just test-api`) | yes | yes |
-| front-2 e2e (docker compose + Playwright) | no | yes |
-| front e2e characterization (docker compose + Playwright) | no | yes |
+| front e2e (docker compose + Playwright) | no | yes |
+| old-front e2e characterization (docker compose + Playwright) | no | yes |
 
 `just ci` is the everyday loop. Run `just ci-full` before merging anything that touches
 frontend behaviour, since that is where the e2e suites earn their runtime.
 
-Sub-gates are ordinary recipes (`just ci-drift`, `just ci-front-2`, …), so you can run one
+Sub-gates are ordinary recipes (`just ci-drift`, `just ci-front`, …), so you can run one
 in isolation while iterating. `just` stops at the first failing recipe and names it:
 
 ```
@@ -69,10 +69,10 @@ It parses every `.github/workflows/*.yml` and content-addresses each step — th
 `scripts/ci-gate-manifest.json`, which holds one entry per step:
 
 ```json
-"front-2-ci.yml::supply-chain::Typecheck front-2": {
-  "hash": "c8c46730ebd110db",
-  "mirror": "just ci-front-2",
-  "reason": "ci-front-2 runs the identical pnpm --filter front-2 typecheck."
+"front-ci.yml::supply-chain::Typecheck front": {
+  "hash": "780f674ec757c52e",
+  "mirror": "just ci-front",
+  "reason": "ci-front runs the identical pnpm --filter front typecheck."
 }
 ```
 
@@ -119,20 +119,20 @@ Do not bump the hash without doing step 1. The hash is only meaningful if someon
 Recorded here rather than hidden, so they can be judged:
 
 - **`just ci-lint` does not lint the whole repo.** It uses CI's scope
-  (`apps/front-2 packages/shared-ts`). Issue #803 owns broadening this gate to
+  (`apps/front packages/shared-ts`). Issue #803 owns broadening this gate to
   repo-wide `oxlint` and resolving the remaining pre-existing errors. Until then,
   the narrower scope intentionally mirrors CI.
-- **`just ci-e2e-front` delegates to the app's `test:e2e:fresh`**, which omits
+- **`just ci-e2e-old-front` delegates to the app's `test:e2e:fresh`**, which omits
   `--remove-orphans` and CI's explicit `--wait-timeout 180`.
 - **The e2e recipes run `playwright install chromium` without CI's `--with-deps`.** That
   flag shells out to `sudo apt-get`, and a pre-push gate must not require root. The browser
   binary still installs; the system libraries behind `--with-deps` are a one-time developer
   setup — run `npx playwright install-deps` once if Playwright complains about them.
-- **`just ci-e2e-front-2` resets the stack before starting** instead of tearing down with
+- **`just ci-e2e-front` resets the stack before starting** instead of tearing down with
   CI's `if: always()`, which a justfile cannot express. A failed run therefore leaves its
   stack up (useful for inspection); the next run resets it.
-- **The front-2 smoke-start step** is inline bash in CI and Node
-  (`apps/front-2/scripts/smoke-start-server.mjs`) locally, because the justfile runs under
+- **The front smoke-start step** is inline bash in CI and Node
+  (`apps/front/scripts/smoke-start-server.mjs`) locally, because the justfile runs under
   `pwsh` on Windows. Same assertions, different implementation; the drift guard pins the
   workflow side so the two cannot part ways unnoticed. It also binds a free ephemeral port
   rather than CI's hardcoded 3000 — a dev machine often has something on 3000 already, and
@@ -151,8 +151,8 @@ substantially slower — the first `ci-full` pays several minutes to build the e
 | Target | Time | Notes |
 | --- | --- | --- |
 | `just ci` | ~4m 20s | of which `just test-api` is ~1m 45s (1,158 tests) |
-| `just ci-e2e-front-2` | ~8m 15s | 180 Playwright tests + docker stack |
-| `just ci-e2e-front` | ~8m | 13 Playwright tests; mostly docker build |
+| `just ci-e2e-front` | ~8m 15s | 180 Playwright tests + docker stack |
+| `just ci-e2e-old-front` | ~8m | 13 Playwright tests; mostly docker build |
 | `just ci-full` | ~21m | the two e2e suites are ~80% of it |
 
 That split is the reason `ci` and `ci-full` are separate targets: the everyday loop stays

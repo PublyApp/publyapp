@@ -4,102 +4,112 @@ import { resolve } from 'node:path';
 import {
 	expect,
 	test,
+	type APIRequestContext,
+	type APIResponse,
 	type Page,
-	type Request,
-	type Response,
-	type Route,
 	type TestInfo,
 } from '@playwright/test';
 
-import { SESSION_TOKEN_COOKIE_KEY } from '@org/shared-ts/lib/constants';
-
-import {
-	STAFF_USERS_PATH,
-	getSessionCookie,
-	getStaffUsersUrl,
-	isStaffUsersRequest,
-	openStaffUsersAsStaffAdmin,
-	problemJson,
-	waitForStaffUsersResponse,
-} from './helpers/app';
+import { API_BASE_URL } from './helpers/api';
 
 const COMPOSE_FILE = 'apps/front/docker-compose.test.yml';
+const STAFF_USERS_PATH = '/staff/users';
+const SESSION_TOKEN_HEADER_KEY = 'X-Session-Token';
+const SMOKE_BROWSER_MESSAGE = '[front] log-leak smoke probe';
+const CONTROL_REQUEST = {
+	method: 'GET',
+	path: STAFF_USERS_PATH,
+} as const;
+
 const REPO_ROOT = process.cwd().endsWith('/apps/front')
 	? resolve(process.cwd(), '../..')
 	: process.cwd();
-const API_BASE_URL =
-	process.env.E2E_API_BASE_URL ?? 'http://api.front.localhost:5000';
-const REAL_INVALID_SESSION_PATHS = new Set([
-	'/auth/user-auth-data',
-	STAFF_USERS_PATH,
-]);
-const LOG_SINK_SERVICES = ['api', 'front', 'migrate', 'postgres'] as const;
-const SMOKE_BROWSER_MESSAGE = '[apps/front] log-leak smoke probe';
-const SEARCH_BOX_NAME = /search/i;
+
+const LOG_SINK_SERVICES = [
+	'api',
+	'request-counter',
+	'front',
+	'traefik',
+] as const;
+
+type LogServiceName = (typeof LOG_SINK_SERVICES)[number];
+type LogSinkName = LogServiceName | 'browser-console';
 
 type SinkCapture = {
-	name: string;
+	name: LogSinkName;
 	text: string;
 };
-type SessionCookie = NonNullable<Awaited<ReturnType<typeof getSessionCookie>>>;
+
+type TokenCounts = {
+	token: number;
+	header: number;
+};
 
 const uniqueNeedles = (needles: string[]): string[] => {
 	const seen = new Set<string>();
 	const output: string[] = [];
 
 	for (const needle of needles) {
-		if (!needle || seen.has(needle)) {
+		if (!needle) {
 			continue;
 		}
 
-		seen.add(needle);
-		output.push(needle);
+		if (!seen.has(needle)) {
+			seen.add(needle);
+			output.push(needle);
+		}
 	}
 
 	return output;
 };
 
-const decodedNeedles = (value: string): string[] => {
-	try {
-		const decodedValue = decodeURIComponent(value);
-		return decodedValue === value ? [] : [decodedValue];
-	} catch {
-		return [];
+const countOccurrences = (text: string, needle: string): number => {
+	if (!needle) {
+		return 0;
 	}
-};
 
-const tokenPartsFromSessionCookie = (cookieValue: string): string[] => {
-	const tokenParts = cookieValue.split('+').flatMap((part) => {
-		if (part.startsWith('s:') || part.startsWith('t:')) {
-			return [part, part.slice(2)];
+	let count = 0;
+	let offset = 0;
+
+	while (offset < text.length) {
+		const next = text.indexOf(needle, offset);
+		if (next === -1) {
+			return count;
 		}
 
-		return [part];
-	});
+		count += 1;
+		offset = next + needle.length;
+	}
 
-	return uniqueNeedles([
-		cookieValue,
-		...decodedNeedles(cookieValue),
-		...tokenParts,
-		...tokenParts.flatMap((part) => decodedNeedles(part)),
-	]);
+	return count;
 };
 
-const tokenNeedles = (cookieValue: string): string[] => {
-	return uniqueNeedles(
-		tokenPartsFromSessionCookie(cookieValue).flatMap((part) => [
-			part,
-			encodeURIComponent(part),
-			JSON.stringify(part).slice(1, -1),
-		]),
-	);
+const tokenNeedles = (token: string): string[] =>
+	uniqueNeedles([
+		token,
+		encodeURIComponent(token),
+		JSON.stringify(token).slice(1, -1),
+	]);
+
+const headerNeedles = (token: string): string[] =>
+	uniqueNeedles([
+		...tokenNeedles(token),
+		...tokenNeedles(token).map(
+			(needle) => `${SESSION_TOKEN_HEADER_KEY}: ${needle}`,
+		),
+		...tokenNeedles(token).map(
+			(needle) => `${SESSION_TOKEN_HEADER_KEY.toLowerCase()}: ${needle}`,
+		),
+	]);
+
+const sanitizeLine = (line: string, needle: string): string => {
+	return line.split(needle).join('<token redacted>');
 };
 
 const sanitizeLineForNeedles = (line: string, needles: string[]): string => {
 	let output = line;
-
 	for (const needle of needles) {
-		output = output.split(needle).join('<token redacted>');
+		output = sanitizeLine(output, needle);
 	}
 
 	return output;
@@ -107,17 +117,17 @@ const sanitizeLineForNeedles = (line: string, needles: string[]): string => {
 
 const findFirstLeakLine = (text: string, needles: string[]): string => {
 	for (const line of text.split(/\r?\n/)) {
-		if (needles.some((needle) => line.includes(needle))) {
-			return sanitizeLineForNeedles(line, needles);
+		for (const needle of needles) {
+			if (line.includes(needle)) {
+				return sanitizeLineForNeedles(line, needles);
+			}
 		}
 	}
 
 	return '<line unavailable>';
 };
 
-const readDockerLogs = (
-	service: (typeof LOG_SINK_SERVICES)[number],
-): string => {
+const readDockerLogs = (service: LogServiceName): string => {
 	return execFileSync(
 		'docker',
 		['compose', '-f', COMPOSE_FILE, 'logs', '--no-color', service],
@@ -129,11 +139,66 @@ const readDockerLogs = (
 	);
 };
 
-const captureContainerLogSinks = (): SinkCapture[] => {
-	return LOG_SINK_SERVICES.map((service) => ({
+const captureContainerLogSinks = (): SinkCapture[] =>
+	LOG_SINK_SERVICES.map((service) => ({
 		name: service,
 		text: readDockerLogs(service),
 	}));
+
+const assertNeedlePresence = (needle: string, label: string) => {
+	expect(needle.length, `${label} is non-empty`).toBeGreaterThan(0);
+};
+
+const assertSecretAbsentFromSink = (
+	sink: SinkCapture,
+	token: string,
+): TokenCounts => {
+	const needles = headerNeedles(token);
+	for (const needle of needles) {
+		assertNeedlePresence(needle, `${sink.name} search needle`);
+	}
+
+	let tokenCount = 0;
+	for (const needle of tokenNeedles(token)) {
+		tokenCount += countOccurrences(sink.text, needle);
+	}
+
+	let headerCount = 0;
+	for (const needle of needles) {
+		headerCount += countOccurrences(sink.text, needle);
+	}
+
+	if (tokenCount > 0 || headerCount > 0) {
+		const leakNeedles = [...tokenNeedles(token), ...needles];
+		const leakingLine = findFirstLeakLine(sink.text, leakNeedles);
+		throw new Error(
+			[
+				`${sink.name} leaked <token redacted>`,
+				`token=${tokenCount}`,
+				`header=${headerCount}`,
+				`firstLine=${leakingLine}`,
+			].join('; '),
+		);
+	}
+
+	expect(tokenCount, `${sink.name} token occurrence count`).toBe(0);
+	expect(headerCount, `${sink.name} header occurrence count`).toBe(0);
+
+	return { token: tokenCount, header: headerCount };
+};
+
+const assertSecretAbsentFromSinks = (sinks: SinkCapture[], token: string) => {
+	const map = {} as Record<LogSinkName, TokenCounts>;
+
+	for (const sink of sinks) {
+		map[sink.name] = assertSecretAbsentFromSink(sink, token);
+	}
+
+	return map;
+};
+
+const buildSentinelToken = (suffix: string, testInfo: TestInfo): string => {
+	return `LEAK_SENTINEL_${suffix}_${process.pid}_worker_${testInfo.workerIndex}_front_2+%/\"?`;
 };
 
 const installBrowserLogCapture = async (page: Page): Promise<string[]> => {
@@ -146,243 +211,144 @@ const installBrowserLogCapture = async (page: Page): Promise<string[]> => {
 		messages.push(`pageerror: ${error.name}: ${error.message}`);
 	});
 
+	await page.addInitScript(() => {
+		const formatReason = (reason: unknown): string => {
+			if (reason instanceof Error) {
+				return `${reason.name}: ${reason.message}`;
+			}
+			if (typeof reason === 'string') {
+				return reason;
+			}
+			try {
+				return JSON.stringify(reason);
+			} catch {
+				return String(reason);
+			}
+		};
+
+		window.addEventListener('unhandledrejection', (event) => {
+			console.error(`unhandledrejection: ${formatReason(event.reason)}`);
+		});
+	});
+
 	return messages;
 };
 
-const assertSecretAbsentFromSinks = (
-	sinks: SinkCapture[],
-	secrets: string[],
-): void => {
-	const needles = uniqueNeedles(
-		secrets.flatMap((secret) => tokenNeedles(secret)),
-	);
-	expect(needles.length, 'session-token search needles').toBeGreaterThan(0);
-
-	for (const sink of sinks) {
-		for (const needle of needles) {
-			if (sink.text.includes(needle)) {
-				throw new Error(
-					[
-						`${sink.name} leaked <token redacted>`,
-						`firstLine=${findFirstLeakLine(sink.text, needles)}`,
-					].join('; '),
-				);
-			}
-		}
-	}
-};
-
-const testTokenSuffix = (testInfo: TestInfo): string => {
-	return `${process.pid}_worker_${testInfo.workerIndex}`;
-};
-
-const sentinelSessionCookieValue = (testInfo: TestInfo): string => {
-	return [
-		's:front-e2e-token',
-		testTokenSuffix(testInfo),
-		'slash/with?query=value%22json%5C',
-	].join('_');
-};
-
-const requestHasQuery = (request: Request, q: string): boolean => {
-	if (!isStaffUsersRequest(request)) {
-		return false;
-	}
-
-	return getStaffUsersUrl(request).searchParams.get('q') === q;
-};
-
-const waitForRealInvalidSessionApiResponse = (
-	page: Page,
-): Promise<Response> => {
-	return page.waitForResponse((response) => {
-		if (response.status() !== 401) {
-			return false;
-		}
-
-		return isRealInvalidSessionApiRequest(response.request());
-	});
-};
-
-const isRealInvalidSessionApiRequest = (request: Request): boolean => {
-	const apiBaseUrl = new URL(API_BASE_URL);
-	const url = new URL(request.url());
-
-	return (
-		request.method() === 'GET' &&
-		url.origin === apiBaseUrl.origin &&
-		REAL_INVALID_SESSION_PATHS.has(url.pathname)
-	);
-};
-
-const setSessionCookieValue = async (
-	page: Page,
-	value: string,
-	sourceCookie: SessionCookie,
-): Promise<void> => {
-	await page.context().addCookies([
-		{
-			...sourceCookie,
-			name: SESSION_TOKEN_COOKIE_KEY,
-			value,
-			path: '/',
+const requestTokenViaApi = (
+	request: APIRequestContext,
+	token: string,
+): Promise<APIResponse> =>
+	request.fetch(`${API_BASE_URL}${CONTROL_REQUEST.path}`, {
+		method: CONTROL_REQUEST.method,
+		headers: {
+			[SESSION_TOKEN_HEADER_KEY]: token,
 		},
-	]);
-};
+	});
 
-const restoreStaffUsersPage = async (
+const requestTokenViaFront = async (
 	page: Page,
-	sessionCookie: SessionCookie,
-): Promise<void> => {
-	await page.context().addCookies([sessionCookie]);
-	await page.goto('/staff/staff-users');
-	await expect(
-		page.getByRole('table').getByText('staff-admin@example.com'),
-	).toBeVisible();
-};
+	token: string,
+): Promise<{ protocol: string; status: number }> => {
+	const result = await page.evaluate(
+		async ({ path, method, headerKey, value }) => {
+			const response = await fetch(path, {
+				method,
+				headers: {
+					[headerKey]: value,
+				},
+			});
 
-const forceStaffUsersResponse = async (
-	page: Page,
-	sessionCookie: SessionCookie,
-	sentinelCookieValue: string,
-	status: 401 | 403,
-	q: string,
-): Promise<void> => {
-	await setSessionCookieValue(page, sentinelCookieValue, sessionCookie);
-
-	const handler = async (route: Route) => {
-		if (!requestHasQuery(route.request(), q)) {
-			await route.continue();
-			return;
-		}
-
-		await route.fulfill({
-			status,
-			headers: {
-				'content-type': 'application/problem+json',
-			},
-			body: problemJson(status, `Forced log leak ${sentinelCookieValue}`),
-		});
-	};
-
-	await page.route('**/staff/users**', handler);
-	try {
-		const responsePromise = waitForStaffUsersResponse(page, { q, status });
-		await page.getByRole('textbox', { name: SEARCH_BOX_NAME }).fill(q);
-		await responsePromise;
-
-		if (status === 401) {
-			await expect(page).toHaveURL(/\/login\/?\?rc=invalid_session$/);
-		}
-	} finally {
-		await page.unroute('**/staff/users**', handler);
-	}
-};
-
-const forceStaffUsersNetworkFailure = async (
-	page: Page,
-	sessionCookie: SessionCookie,
-	sentinelCookieValue: string,
-	q: string,
-): Promise<void> => {
-	await setSessionCookieValue(page, sentinelCookieValue, sessionCookie);
-
-	const handler = async (route: Route) => {
-		if (!requestHasQuery(route.request(), q)) {
-			await route.continue();
-			return;
-		}
-
-		await route.abort('failed');
-	};
-
-	await page.route('**/staff/users**', handler);
-	try {
-		const requestPromise = page.waitForRequest((request) => {
-			return requestHasQuery(request, q);
-		});
-		await page.getByRole('textbox', { name: SEARCH_BOX_NAME }).fill(q);
-		await requestPromise;
-		await expect(page.getByText('Error loading staff members')).toBeVisible();
-	} finally {
-		await page.unroute('**/staff/users**', handler);
-	}
-};
-
-const forceRealStaffUsersInvalidSession = async (
-	page: Page,
-	sessionCookie: SessionCookie,
-	sentinelCookieValue: string,
-	q: string,
-): Promise<void> => {
-	await setSessionCookieValue(page, sentinelCookieValue, sessionCookie);
-
-	const responsePromise = waitForRealInvalidSessionApiResponse(page);
-	await page.goto(`/staff/staff-users?q=${encodeURIComponent(q)}`);
-	const response = await responsePromise;
-	const requestHeaderValues = Object.values(
-		await response.request().allHeaders(),
+			return {
+				status: response.status,
+				protocol: new URL(response.url).protocol,
+			};
+		},
+		{
+			path: CONTROL_REQUEST.path,
+			method: CONTROL_REQUEST.method,
+			headerKey: SESSION_TOKEN_HEADER_KEY,
+			value: token,
+		},
 	);
-	const sentinelReachedApiRequest = tokenPartsFromSessionCookie(
-		sentinelCookieValue,
-	).some((part) =>
-		requestHeaderValues.some((headerValue) => headerValue.includes(part)),
-	);
-	expect(sentinelReachedApiRequest).toBe(true);
 
-	await expect(page).toHaveURL(/\/login\/?\?rc=invalid_session$/);
+	return result;
 };
 
-test('session token stays out of browser console and deployed container logs', async ({
+const assertNoLeakAcrossSinks = async (
+	request: APIRequestContext,
+	token: string,
+): Promise<void> => {
+	const response = await requestTokenViaApi(request, token);
+	expect(response.status(), 'rejected session token status').toBe(401);
+	const protocol = new URL(response.url()).protocol;
+	expect(protocol, 'API response path is HTTPS').toBe('https:');
+
+	assertSecretAbsentFromSinks(captureContainerLogSinks(), token);
+};
+
+test.describe.configure({ mode: 'serial' });
+
+test('rejected token is absent from deployed container logs', async ({
+	request,
+}, testInfo) => {
+	expect(CONTROL_REQUEST.path, 'request-counter control path is explicit').toBe(
+		STAFF_USERS_PATH,
+	);
+	expect(
+		CONTROL_REQUEST.method,
+		'request-counter control method is explicit',
+	).toBe('GET');
+
+	const token = buildSentinelToken('invalid', testInfo);
+	await assertNoLeakAcrossSinks(request, token);
+});
+
+// M1.4 intentionally scopes request-counter fault-path work to invalid token and
+// encoded payload coverage while the authenticated fault-recovery branch remains a
+// separate backlog item in this phase's residuals.
+test('redacts token in raw / encoded / JSON-escaped forms everywhere', async ({
+	request,
 	page,
 }, testInfo) => {
+	const rawToken = buildSentinelToken('encoded', testInfo);
+	const encodedToken = encodeURIComponent(rawToken);
+	const jsonToken = JSON.stringify(rawToken).slice(1, -1);
+
+	expect(
+		new Set([rawToken, encodedToken, jsonToken]).size,
+		'token variants are distinct',
+	).toBe(3);
+
+	const tokenVariants = [rawToken, encodedToken, jsonToken];
 	const browserMessages = await installBrowserLogCapture(page);
+	await page.addInitScript((smokeMessage) => {
+		console.info(smokeMessage);
+	}, SMOKE_BROWSER_MESSAGE);
+	await page.goto('/');
 
-	await openStaffUsersAsStaffAdmin(page);
-	await page.evaluate(
-		(message) => {
-			console.info(message);
-		},
-		`${SMOKE_BROWSER_MESSAGE} ${testTokenSuffix(testInfo)}`,
-	);
-
-	const sessionCookie = await getSessionCookie(page);
-	expect(sessionCookie?.value.length ?? 0).toBeGreaterThan(0);
-	if (!sessionCookie) {
-		throw new Error('Expected a session cookie after staff login');
+	for (const token of tokenVariants) {
+		await assertNoLeakAcrossSinks(request, token);
+		const frontResult = await requestTokenViaFront(page, token);
+		expect(frontResult.protocol, 'front request transport is HTTPS').toBe(
+			'https:',
+		);
+		expect(
+			frontResult.status,
+			'front request path handled malformed token probe',
+		).toBe(404);
 	}
 
-	const sentinelCookieValue = sentinelSessionCookieValue(testInfo);
-	await forceStaffUsersNetworkFailure(
-		page,
-		sessionCookie,
-		sentinelCookieValue,
-		'log-leak-network',
-	);
-	await restoreStaffUsersPage(page, sessionCookie);
-	await forceStaffUsersResponse(
-		page,
-		sessionCookie,
-		sentinelCookieValue,
-		403,
-		'log-leak-403',
-	);
-	await restoreStaffUsersPage(page, sessionCookie);
-	await forceRealStaffUsersInvalidSession(
-		page,
-		sessionCookie,
-		sentinelCookieValue,
-		'log-leak-real-401',
-	);
-
 	const browserText = browserMessages.join('\n');
-	const sinks: SinkCapture[] = [
+	const browserAndContainerSinks: SinkCapture[] = [
 		{ name: 'browser-console', text: browserText },
 		...captureContainerLogSinks(),
 	];
-	assertSecretAbsentFromSinks(sinks, [
-		sessionCookie.value,
-		sentinelCookieValue,
-	]);
-	expect(browserText).toContain(SMOKE_BROWSER_MESSAGE);
+
+	for (const token of tokenVariants) {
+		assertSecretAbsentFromSinks(browserAndContainerSinks, token);
+	}
+	expect(
+		browserText,
+		'browser console capture observed smoke probe message',
+	).toContain(SMOKE_BROWSER_MESSAGE);
 });

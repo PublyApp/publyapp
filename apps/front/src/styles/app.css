@@ -1,0 +1,2761 @@
+@import 'tailwindcss' source('../');
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+	--font-sans: var(--publy-font-sans);
+	--font-mono: var(--publy-font-mono);
+	--color-background: var(--background);
+	--color-foreground: var(--foreground);
+	--color-card: var(--card);
+	--color-card-foreground: var(--card-foreground);
+	--color-popover: var(--popover);
+	--color-popover-foreground: var(--popover-foreground);
+	--color-primary: var(--primary);
+	--color-primary-active: var(--publy-primary-active);
+	--color-primary-foreground: var(--primary-foreground);
+	--color-secondary: var(--secondary);
+	--color-secondary-foreground: var(--secondary-foreground);
+	--color-muted: var(--muted);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-accent: var(--accent);
+	--color-accent-foreground: var(--accent-foreground);
+	--color-destructive: var(--destructive);
+	--color-success: var(--publy-success);
+	--color-warning: var(--publy-warning);
+	--color-ring: var(--ring);
+	--color-input: var(--input);
+	--color-border: var(--border);
+	--radius-sm: calc(var(--radius) * 0.6);
+	--radius-md: calc(var(--radius) * 0.8);
+	--radius-lg: var(--radius);
+	--radius-xl: calc(var(--radius) * 1.4);
+	--radius-2xl: calc(var(--radius) * 1.8);
+	--radius-3xl: calc(var(--radius) * 2.2);
+	--radius-4xl: calc(var(--radius) * 2.6);
+	--radius-small: var(--publy-radius-sm);
+	--radius-medium: var(--publy-radius-md);
+	--radius-large: var(--publy-radius-control);
+}
+
+:root {
+	color-scheme: light;
+	--background: var(--publy-background);
+	--foreground: var(--publy-foreground);
+	--card: var(--publy-surface);
+	--card-foreground: var(--publy-foreground);
+	--popover: var(--publy-surface);
+	--popover-foreground: var(--publy-foreground);
+	--primary: var(--publy-primary);
+	--primary-foreground: var(--publy-primary-foreground);
+	--secondary: var(--publy-surface-muted);
+	--secondary-foreground: var(--publy-foreground-muted);
+	--muted: var(--publy-surface-muted);
+	--muted-foreground: var(--publy-foreground-muted);
+	--accent: var(--publy-surface-muted);
+	--accent-foreground: var(--publy-foreground);
+	--destructive: var(--publy-danger);
+	--border: var(--publy-border);
+	--input: var(--publy-border);
+	--ring: var(--publy-focus-ring);
+	--radius: 0.625rem;
+	--publy-font-sans: Geist, ui-sans-serif, system-ui, sans-serif;
+	--publy-font-mono:
+		'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+		'Liberation Mono', 'Courier New', monospace;
+	--publy-primary: #fdc700;
+	--publy-primary-active: #d9aa00;
+	--publy-primary-soft: #fffbeb;
+	--publy-primary-foreground: #733e0a;
+	/* Text colour for content painted on --publy-primary-soft (chips, the
+	   'primary' status pill tone) — distinct from --publy-primary-foreground,
+	   which is the text colour for the *solid* primary button fill and pairs
+	   badly with the soft background in dark mode (see html.dark). */
+	--publy-primary-soft-foreground: #733e0a;
+	--publy-background: #ffffff;
+	--publy-surface: #ffffff;
+	--publy-surface-raised: #fafafa;
+	--publy-surface-muted: #f4f4f5;
+	--publy-surface-hover: #fafafa;
+	--publy-surface-active: #ececee;
+	--publy-table-header: #fcfcfd;
+	--publy-foreground: #18181b;
+	--publy-foreground-secondary: #3f3f46;
+	--publy-foreground-muted: #71717a;
+	--publy-foreground-subtle: #a1a1aa;
+	--publy-disabled: #d4d4d8;
+	--publy-border: #e4e4e7;
+	--publy-border-strong: #d4d4d8;
+	--publy-row-border: #f1f1f3;
+	/* W4-GUARDS: #ca8a04 measured 2.94:1 against #ffffff, under the 3:1
+	   focus-indicator floor; darkened to the amber-700 step to clear it
+	   (see focus-ring-contrast.test.ts). */
+	--publy-focus-ring: #a16207;
+	--publy-danger: #dc2626;
+	--publy-danger-soft: rgba(220, 38, 38, 0.08);
+	--publy-destructive-soft: rgba(220, 38, 38, 0.1);
+	--publy-destructive-soft-hover: rgba(220, 38, 38, 0.2);
+	--publy-success: #047857;
+	--publy-warning: #b45309;
+	--publy-chip-active-border: #a7f3d0;
+	--publy-chip-active-bg: #ecfdf5;
+	--publy-chip-active-text: #047857;
+	--publy-chip-invited-border: #bae6fd;
+	--publy-chip-invited-bg: #f0f9ff;
+	--publy-chip-invited-text: #0369a1;
+	--publy-chip-suspended-border: #fecdd3;
+	--publy-chip-suspended-bg: #fff1f2;
+	--publy-chip-suspended-text: #be123c;
+	--publy-chip-pending-border: #fde68a;
+	--publy-chip-pending-bg: #fffbeb;
+	--publy-chip-pending-text: #b45309;
+	/* Floating selection bar: inverted pill chrome (dark pill on light theme,
+	   light pill on dark theme — see html.dark for the counterpart values). */
+	--publy-selection-bar-bg: #09090b;
+	--publy-selection-bar-fg: #f4f4f5;
+	--publy-selection-bar-border: rgba(39, 39, 42, 0.9);
+	--publy-selection-bar-ring: rgba(0, 0, 0, 0.2);
+	--publy-selection-bar-hover: rgba(255, 255, 255, 0.1);
+	--publy-selection-bar-divider: rgba(255, 255, 255, 0.1);
+	--publy-selection-bar-muted: #71717a;
+	/* WCAG >=4.5:1 with white initials (canvas ships brighter shades;
+	   accessibility invariant wins — see deviation register). Palette and
+	   foreground are both theme-invariant by design: the WCAG contract is
+	   validated against fixed white text, not a theme-variant foreground
+	   token, so it must not swap in dark mode. */
+	--publy-avatar-foreground: #ffffff;
+	--publy-avatar-1: #0f766e;
+	--publy-avatar-2: #6d28d9;
+	--publy-avatar-3: #be185d;
+	--publy-avatar-4: #be123c;
+	--publy-avatar-5: #c2410c;
+	--publy-avatar-6: #0369a1;
+	--publy-avatar-7: #0e7490;
+	--publy-avatar-8: #a21caf;
+	--publy-radius-sm: 0.375rem;
+	--publy-radius-md: 0.5rem;
+	--publy-radius-button: var(--publy-radius-control);
+	--publy-radius-card: var(--publy-radius-control);
+	--publy-radius-chip: 8px;
+	--publy-radius-small-control: 10px;
+	--publy-radius-medium-control: 12px;
+	--publy-radius-circular: 999px;
+	--publy-radius-control: 14px;
+	/* Dropdown/context menu items (conventions.md spec.json radii.menuItem). */
+	--publy-radius-menu-item: 9px;
+	--publy-radius-input: 10px;
+	--publy-modal-radius: 28px;
+	--publy-backdrop: rgba(24, 24, 27, 0.32);
+	--publy-overlay-surface: rgba(255, 255, 255, 0.97);
+	--publy-drawer-width: 460px;
+	--publy-danger-zone-ring: rgba(254, 205, 211, 0.9);
+	--publy-danger-zone-border: #ffe4e6;
+	--publy-danger-zone-heading: #be123c;
+	/* Auth split-brand surface (A1 login + shared by A2–A6) */
+	--publy-auth-panel-width: 552px;
+	--publy-auth-panel-bg: #18181b;
+	--publy-auth-panel-glow: radial-gradient(
+		130% 90% at 0% 0%,
+		rgba(253, 199, 0, 0.13),
+		transparent 55%
+	);
+	--publy-auth-panel-heading: #fafafa;
+	--publy-auth-panel-body: #a1a1aa;
+	--publy-auth-shot-bg: #1f1f23;
+	--publy-auth-shot-border: rgba(255, 255, 255, 0.08);
+	--publy-auth-shot-stripe: rgba(255, 255, 255, 0.04);
+	--publy-alert-danger-bg: rgba(220, 38, 38, 0.06);
+	--publy-alert-danger-border: rgba(220, 38, 38, 0.2);
+	--publy-alert-danger-text: #b91c1c;
+	--publy-alert-warning-bg: #fffbeb;
+	--publy-alert-warning-border: #fde68a;
+	--publy-alert-warning-text: #b45309;
+	--publy-alert-info-bg: #f0f9ff;
+	--publy-alert-info-border: #bae6fd;
+	--publy-alert-info-text: #0369a1;
+	--publy-alert-success-bg: rgba(4, 120, 87, 0.06);
+	--publy-alert-success-border: rgba(4, 120, 87, 0.2);
+	--publy-alert-success-text: #047857;
+	--publy-shell-rail-width: 49px;
+	--publy-shell-panel-width: 272px;
+	--publy-shell-topbar-height: 64px;
+	/* Shared stacking scale. Local raised/sticky chrome stays below portalled
+	   surfaces. All popups portal to document.body, so their paint order is
+	   z-index only: overlay backdrop < drawer/dialog surface < menu/select
+	   popups, so a Select/DropdownMenu opened from inside a Drawer paints
+	   above it instead of underneath. */
+	--publy-z-raised: 10;
+	--publy-z-shell-topbar: 20;
+	--publy-z-selection-bar: 40;
+	--publy-z-overlay: 70;
+	--publy-z-drawer-surface: 80;
+	--publy-z-menu: 100;
+	--publy-z-select: 110;
+	--publy-z-toast: 120;
+	--publy-shadow-ring: 0 0 0 1px var(--publy-border);
+	--publy-shadow-menu:
+		0 12px 32px rgba(24, 24, 27, 0.14), 0 2px 6px rgba(24, 24, 27, 0.06);
+	--publy-shadow-modal: 0 24px 64px rgba(24, 24, 27, 0.28);
+	--publy-shadow-drawer: -16px 0 40px rgba(24, 24, 27, 0.14);
+	--publy-shadow-input: 0 1px 2px rgba(0, 0, 0, 0.03);
+	--publy-shadow-chrome:
+		0 0 0 0.67px rgba(0, 0, 0, 0.2) inset,
+		0 2px 2px rgba(255, 255, 255, 0.1) inset,
+		0 2px 2.67px -0.67px rgba(42, 42, 42, 0.1),
+		0 0.67px 0.67px rgba(42, 42, 42, 0.08);
+	--publy-chrome-border: 1.33px solid rgba(255, 255, 255, 0.12);
+	--publy-shadow-selection-bar:
+		0 20px 25px -5px rgb(0 0 0 / 0.15), 0 8px 10px -6px rgb(0 0 0 / 0.15);
+	--publy-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+	--publy-motion-fast: 120ms;
+	--publy-motion-medium: 240ms;
+	--accent: var(--publy-primary);
+	--accent-foreground: var(--publy-primary-foreground);
+	/* Profile icon-tile tone palette (F13/F3): named so the per-`data-tone`
+	   component rules below can reference them instead of repeating the
+	   literal hex values, which lets token-theme-parity (not a bespoke
+	   per-selector check) verify every tone has a dark counterpart. */
+	--publy-profile-tone-0-bg: #f0f9ff;
+	--publy-profile-tone-0-fg: #0369a1;
+	--publy-profile-tone-1-bg: #ecfdf5;
+	--publy-profile-tone-1-fg: #047857;
+	--publy-profile-tone-2-bg: #fef2f2;
+	--publy-profile-tone-2-fg: #be123c;
+	--publy-profile-tone-3-bg: #fffbeb;
+	--publy-profile-tone-3-fg: #b45309;
+	--publy-profile-tone-4-bg: #f5f3ff;
+	--publy-profile-tone-4-fg: #7c3aed;
+	--publy-profile-tone-5-bg: #fdf2f8;
+	--publy-profile-tone-5-fg: #be185d;
+	--publy-profile-tone-6-bg: #f0fdf4;
+	--publy-profile-tone-6-fg: #15803d;
+	--publy-profile-tone-7-bg: #eff6ff;
+	--publy-profile-tone-7-fg: #1d4ed8;
+}
+
+html.dark {
+	color-scheme: dark;
+	--publy-primary: #f0bd00;
+	--publy-primary-active: #c49700;
+	--publy-primary-soft: #2a2400;
+	--publy-primary-foreground: #1a0d00;
+	--publy-primary-soft-foreground: #fbbf24;
+	--publy-background: #18181b;
+	--publy-surface: #18181b;
+	--publy-surface-raised: #1f1f23;
+	--publy-surface-muted: #27272a;
+	--publy-surface-hover: #2f2f33;
+	--publy-surface-active: #37373d;
+	--publy-focus-ring: #facc15;
+	--publy-foreground: #fafafa;
+	--publy-foreground-secondary: #d4d4d8;
+	--publy-foreground-muted: #a1a1aa;
+	--publy-foreground-subtle: #71717a;
+	--publy-disabled: #52525b;
+	--publy-table-header: #212124;
+	--publy-row-border: #27272a;
+	--publy-border: rgba(255, 255, 255, 0.1);
+	--publy-border-strong: rgba(255, 255, 255, 0.15);
+	--publy-danger-soft: rgba(220, 38, 38, 0.16);
+	--publy-destructive-soft: rgba(220, 38, 38, 0.2);
+	--publy-destructive-soft-hover: rgba(220, 38, 38, 0.3);
+	/* Raised (not base) surface, so a translucent overlay panel (drawer,
+	   confirm dialog, select/dropdown popup) reads as tonally elevated above
+	   the page instead of matching it 1:1 (--publy-background is also
+	   #18181b in dark, so an overlay-surface pinned to --publy-surface would
+	   be visually indistinguishable from the page it floats over). */
+	--publy-overlay-surface: rgba(31, 31, 35, 0.97);
+	--popover: var(--publy-surface-raised);
+	/* Elevation shadows re-based on black: the light-mode values (rgba tinted
+	   toward --publy-foreground, #18181b) composite to zero visible
+	   separation once the page itself is #18181b (see --publy-backdrop
+	   below for the same problem on the modal/drawer scrim). */
+	--publy-backdrop: rgba(0, 0, 0, 0.6);
+	--publy-shadow-menu:
+		0 12px 32px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.24);
+	--publy-shadow-modal: 0 24px 64px rgba(0, 0, 0, 0.5);
+	--publy-shadow-drawer: -16px 0 40px rgba(0, 0, 0, 0.35);
+	--publy-shadow-input: 0 1px 2px rgba(0, 0, 0, 0.3);
+	/* The selection-bar pill itself inverts per theme (light pill on this
+	   dark theme — see --publy-selection-bar-bg below), so its drop shadow
+	   needs more contrast than the light-mode value to read against a dark
+	   page. */
+	--publy-shadow-selection-bar:
+		0 20px 25px -5px rgb(0 0 0 / 0.45), 0 8px 10px -6px rgb(0 0 0 / 0.35);
+	--publy-danger-zone-ring: rgba(159, 18, 57, 0.55);
+	--publy-danger-zone-border: #4c0519;
+	--publy-danger-zone-heading: #fb7185;
+	--publy-danger: #f87171;
+	--publy-success: #34d399;
+	--publy-warning: #fbbf24;
+	--publy-alert-danger-bg: rgba(220, 38, 38, 0.16);
+	--publy-alert-danger-border: rgba(220, 38, 38, 0.32);
+	--publy-alert-danger-text: #f87171;
+	--publy-alert-warning-bg: #451a03;
+	--publy-alert-warning-border: #92400e;
+	--publy-alert-warning-text: #fbbf24;
+	--publy-alert-info-bg: #082f49;
+	--publy-alert-info-border: #075985;
+	--publy-alert-info-text: #38bdf8;
+	--publy-alert-success-bg: rgba(4, 120, 87, 0.18);
+	--publy-alert-success-border: rgba(4, 120, 87, 0.36);
+	--publy-alert-success-text: #34d399;
+	--publy-chip-active-border: #065f46;
+	--publy-chip-active-bg: #052e22;
+	--publy-chip-active-text: #34d399;
+	--publy-chip-invited-border: #075985;
+	--publy-chip-invited-bg: #082f49;
+	--publy-chip-invited-text: #38bdf8;
+	--publy-chip-suspended-border: #9f1239;
+	--publy-chip-suspended-bg: #4c0519;
+	--publy-chip-suspended-text: #fb7185;
+	--publy-chip-pending-border: #92400e;
+	--publy-chip-pending-bg: #451a03;
+	--publy-chip-pending-text: #fbbf24;
+	--publy-selection-bar-bg: #f4f4f5;
+	--publy-selection-bar-fg: #18181b;
+	--publy-selection-bar-border: rgba(212, 212, 216, 0.8);
+	--publy-selection-bar-ring: rgba(255, 255, 255, 0.25);
+	--publy-selection-bar-hover: rgba(0, 0, 0, 0.08);
+	--publy-selection-bar-divider: rgba(0, 0, 0, 0.1);
+	--publy-selection-bar-muted: #71717a;
+	--publy-profile-tone-0-bg: #082f49;
+	--publy-profile-tone-0-fg: #38bdf8;
+	--publy-profile-tone-1-bg: #052e22;
+	--publy-profile-tone-1-fg: #34d399;
+	--publy-profile-tone-2-bg: #4c0519;
+	--publy-profile-tone-2-fg: #fb7185;
+	--publy-profile-tone-3-bg: #451a03;
+	--publy-profile-tone-3-fg: #fbbf24;
+	--publy-profile-tone-4-bg: #2e1065;
+	--publy-profile-tone-4-fg: #a78bfa;
+	--publy-profile-tone-5-bg: #500724;
+	--publy-profile-tone-5-fg: #f472b6;
+	--publy-profile-tone-6-bg: #052e16;
+	--publy-profile-tone-6-fg: #4ade80;
+	--publy-profile-tone-7-bg: #172554;
+	--publy-profile-tone-7-fg: #60a5fa;
+}
+
+/* PersonAvatar intentionally keeps the shared AvatarFallback primitive's
+   neutral defaults unchanged. This opt-in rule is unlayered so its fixed,
+   contrast-guarded palette wins over those Tailwind utility-layer defaults
+   only for person fallbacks and invitation mail tiles. Shape and sizing stay
+   with the consuming component. */
+.publy-avatar-initials {
+	color: var(--publy-avatar-foreground);
+	background: var(--publy-avatar-1);
+}
+
+.publy-avatar-initials[data-palette='1'] {
+	background: var(--publy-avatar-1);
+}
+
+.publy-avatar-initials[data-palette='2'] {
+	background: var(--publy-avatar-2);
+}
+
+.publy-avatar-initials[data-palette='3'] {
+	background: var(--publy-avatar-3);
+}
+
+.publy-avatar-initials[data-palette='4'] {
+	background: var(--publy-avatar-4);
+}
+
+.publy-avatar-initials[data-palette='5'] {
+	background: var(--publy-avatar-5);
+}
+
+.publy-avatar-initials[data-palette='6'] {
+	background: var(--publy-avatar-6);
+}
+
+.publy-avatar-initials[data-palette='7'] {
+	background: var(--publy-avatar-7);
+}
+
+.publy-avatar-initials[data-palette='8'] {
+	background: var(--publy-avatar-8);
+}
+
+@layer base {
+	*,
+	::before,
+	::after {
+		border-color: var(--publy-border);
+	}
+}
+
+/* The non-authed/authed shell chrome below is layered (like the rest of the
+   file) so a caller's own utility className (e.g. `h-9`) can win over it
+   through ordinary Tailwind v4 layer order, instead of silently losing to
+   un-layered CSS with no diagnostic. A few rules keep the CSS important
+   marker because they have a real, verified conflict with a primitive's
+   default utility classes (Badge/Button) that must keep losing — see each
+   rule's comment. */
+@layer components {
+	/* Toast (sonner, `unstyled: true`). Two cascade facts shape this whole
+	   block, and both were verified in a real browser (#991):
+
+	   1. With `unstyled` sonner ships NO layout for the toast element, so
+	      everything — including `display` — has to be declared here. Before
+	      this block did, the toast computed to the `<li>` default
+	      `display: list-item`, which silently voided `gap`/`flex` and stacked
+	      the close button, the icon and the message in a column.
+	   2. Sonner's own stylesheet is UN-layered, so it beats every rule in
+	      `@layer components` regardless of specificity. That is why
+	      `richColors` is switched off in toaster.tsx: its un-layered
+	      `[data-rich-colors]` rules own background, border-color and the
+	      close-button colours, and would defeat everything below.
+
+	   Variant colour comes from the same semantic alert tokens the inline alert
+	   surfaces already use (`components/auth/auth-alert.tsx`), so an error
+	   toast and an error alert read as one family. */
+	.publy-toast {
+		/* Per-variant channel, overridden by the four `.publy-toast-*` rules
+		   further down. The defaults are the neutral (`message`/`loading`)
+		   tone; painting `--publy-surface-raised` over itself is a deliberate
+		   no-op so the neutral case needs no separate rule. */
+		--publy-toast-tint: var(--publy-surface-raised);
+		--publy-toast-edge: var(--publy-border);
+		--publy-toast-accent: var(--publy-foreground-muted);
+		/* The first text line's box. The icon, the close button and any action
+		   button are all sized to it, so they stay optically centred on line 1
+		   however far the message wraps. */
+		--publy-toast-line: 20px;
+		/* The block padding — and, because the inline-end padding matches it,
+		   the corner the close button is inset to. Declared once so the
+		   button's box cannot drift off the first line's box. */
+		--publy-toast-pad: 14px;
+		/* What the message's FIRST line yields to the corner close button: the
+		   button's own box plus a gap. Reserved by a floated pseudo-element on
+		   the title, so only line one is short and every wrapped line below it
+		   uses the full column. The original toast reserved this space as
+		   full-height padding and never moved the button into it — that is
+		   where its dead right-hand gutter came from (#991). */
+		--publy-toast-close-gutter: calc(var(--publy-toast-line) + 8px);
+		/* How far outside the border edge the focus ring below sits, and the
+		   border width it has to clear. Both are read back by the ring rule so
+		   the two cannot drift apart. */
+		--publy-toast-focus-offset: 3px;
+		--publy-toast-border-width: 1px;
+
+		box-sizing: border-box;
+		/* Four columns: icon | message | cancel | action. The message spans
+		   2/-1 so it always gets the whole remaining width, and the two
+		   buttons are pinned to row 2 together — see the BUTTON CLUSTER note
+		   below. There is deliberately NO `column-gap`: a grid lays gaps between
+		   tracks that hold nothing too, so one here would leave 20px of dead
+		   width on the ordinary button-less toast. The single real column gap
+		   is the icon's own margin instead. */
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr) auto auto;
+		align-items: start;
+		row-gap: 8px;
+		width: 100%;
+		max-width: 100%;
+		min-width: 0;
+		padding-block: var(--publy-toast-pad);
+		padding-inline: 12px var(--publy-toast-pad);
+		border: var(--publy-toast-border-width) solid var(--publy-toast-edge);
+		border-radius: var(--publy-radius-control);
+		/* Two of the four semantic tints are translucent rgba tokens, and a
+		   toast floats over arbitrary page content — so the tint is painted as
+		   a flat gradient layer on top of an opaque raised surface rather than
+		   being the background itself. */
+		background-color: var(--publy-surface-raised);
+		background-image: linear-gradient(
+			var(--publy-toast-tint),
+			var(--publy-toast-tint)
+		);
+		color: var(--publy-foreground);
+		box-shadow: var(--publy-shadow-menu);
+		overflow-wrap: anywhere;
+	}
+
+	/* Sonner puts `classNames.default` on EVERY toast alongside the type class
+	   (`publy-toast-default publy-toast-success`), so there is deliberately no
+	   `.publy-toast-default` rule — the neutral tone lives on `.publy-toast`
+	   above and a `.publy-toast-default` rule of equal specificity would fight
+	   these four for it. */
+	.publy-toast-success {
+		--publy-toast-tint: var(--publy-alert-success-bg);
+		--publy-toast-edge: var(--publy-alert-success-border);
+		--publy-toast-accent: var(--publy-alert-success-text);
+	}
+
+	.publy-toast-error {
+		--publy-toast-tint: var(--publy-alert-danger-bg);
+		--publy-toast-edge: var(--publy-alert-danger-border);
+		--publy-toast-accent: var(--publy-alert-danger-text);
+	}
+
+	.publy-toast-warning {
+		--publy-toast-tint: var(--publy-alert-warning-bg);
+		--publy-toast-edge: var(--publy-alert-warning-border);
+		--publy-toast-accent: var(--publy-alert-warning-text);
+	}
+
+	.publy-toast-info {
+		--publy-toast-tint: var(--publy-alert-info-bg);
+		--publy-toast-edge: var(--publy-alert-info-border);
+		--publy-toast-accent: var(--publy-alert-info-text);
+	}
+
+	/* LAYOUT ORDER — deliberately no `order`/`row-reverse` anywhere in this
+	   block. Sonner hard-codes its children as close button, icon, content,
+	   cancel, action (verified in sonner 2.0.6's compiled render; `closeButton`
+	   is a boolean and `icons.close` only swaps the glyph, so there is no render
+	   slot that would let us emit a different DOM order). `order` reorders paint
+	   but NOT sequential focus, so an early revision that reordered the row made
+	   Tab walk the controls right-to-left.
+
+	   Everything that stays in flow is therefore placed by explicit grid area,
+	   never by `order`. The close button is the one child taken OUT of flow: it
+	   is absolutely positioned into the top-right corner while keeping its first
+	   DOM position, so Tab still reaches it first. That is the ordinary dialog
+	   pattern, and it is safe here because every toast the app actually raises
+	   is message-only and so has exactly one focusable control.
+
+	   Icon and close button are boxed to the first line's height rather than
+	   given a top margin, so they re-centre themselves if the title's
+	   line-height ever changes. */
+	.publy-toast-icon {
+		/* The loading spinner is sonner's `.sonner-loader`, which is
+		   `position: absolute; top: 50%; left: 50%`. Without a positioned icon
+		   slot it resolves against the toast element itself and the spinner
+		   paints in the middle of the message text. */
+		position: relative;
+		display: flex;
+		grid-row: 1;
+		grid-column: 1;
+		align-items: center;
+		justify-content: center;
+		width: 16px;
+		height: var(--publy-toast-line);
+		/* The toast's only column gap. A `column-gap` on the grid would also
+		   apply between the two empty button tracks; a margin here applies
+		   only when there is an icon to separate. */
+		margin-inline-end: 10px;
+		color: var(--publy-toast-accent);
+	}
+
+	/* Spans every column to the end, so the message always gets the whole width
+	   left over by the icon — whether or not the toast has buttons. */
+	.publy-toast-content {
+		display: flex;
+		grid-row: 1;
+		grid-column: 2 / -1;
+		flex-direction: column;
+		gap: 2px;
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
+
+	/* `min-height` so the first line's box exists even for an empty message:
+	   the corner close button is positioned against that box. */
+	.publy-toast-title {
+		min-height: var(--publy-toast-line);
+		font-size: 14px;
+		font-weight: 500;
+		line-height: var(--publy-toast-line);
+		overflow-wrap: anywhere;
+	}
+
+	/* The space the corner close button occupies, reserved as a float rather
+	   than as padding. A float only shortens the line boxes it overlaps, so
+	   line one stops short of the button and every wrapped line below runs the
+	   full width of the column. Reserving it as padding — on the toast or on
+	   the content — is what produced the dead full-height gutter this redesign
+	   removed.
+
+	   Scoped with `:has()` to the toasts that actually have a close button.
+	   Sonner does not render one on a loading toast, and reserving the corner
+	   there would be the same mistake in miniature: space held for a control
+	   that is not in it. */
+	.publy-toast:has(> .publy-toast-close-button) .publy-toast-title::before {
+		content: '';
+		/* `right` first as the physical fallback: if a browser does not know
+		   the logical value it drops that declaration and keeps this one, so
+		   the reserve never disappears in the direction the app ships. */
+		float: right;
+		float: inline-end;
+		width: var(--publy-toast-close-gutter);
+		height: var(--publy-toast-line);
+	}
+
+	/* `--publy-foreground-secondary`, not `-muted`: measured in Chromium
+	   against the light success and error tints, the muted tone lands at
+	   4.23:1, under the 4.5:1 small-text floor. */
+	.publy-toast-description {
+		font-size: 13px;
+		line-height: 18px;
+		color: var(--publy-foreground-secondary);
+		overflow-wrap: anywhere;
+	}
+
+	/* BUTTON CLUSTER — cancel and action are pinned to row 2, in columns 3 and
+	   4, and the message spans the whole of row 1. They therefore move as one
+	   unit and can never be split across rows. The previous revision sized the
+	   message with a tuned `flex-basis: 70%` and let flex line-breaking decide:
+	   review of #991 measured `cancel="N"` staying inline on row 1 while
+	   `action="A"` alone dropped to row 2, and an action-only "OK" staying
+	   inline and narrowing the message column by 70px.
+	   Cancel precedes action in sonner's DOM, which is also the conventional
+	   secondary-then-primary reading order, so neither needs reordering.
+
+	   A LABEL MUST BE ABLE TO GROW. The previous revision combined a fixed
+	   `height: 20px` with `white-space: nowrap`, which left a long label
+	   nowhere to go: review of #991 measured two French labels at 320px whose
+	   painted text ran outside both button boxes, overlapped each other by
+	   ~87px, and reached past the toast's own right edge. So the label wraps
+	   (`overflow-wrap: anywhere` so even one unbreakable token can), and
+	   `min-height` replaces `height` so the button takes the height its label
+	   needs. `overflow-wrap` is what actually guarantees containment: it lowers
+	   the button's min-content width, which is the floor the two `auto` tracks
+	   are allowed to shrink to. Both buttons `stretch` so a one-line label next
+	   to a two-line one still reads as one cluster.
+
+	   Note for anyone re-verifying this: `documentElement.scrollWidth` cannot
+	   see that failure. The toaster host is `position: fixed`, so it never
+	   contributes to the document's scrollable extent and the metric stays at
+	   the viewport width while the labels paint outside the toast. Measure the
+	   painted text rects against the button and toast boxes instead. */
+	.publy-toast-action-button,
+	.publy-toast-cancel-button {
+		display: flex;
+		grid-row: 2;
+		align-self: stretch;
+		align-items: center;
+		justify-content: center;
+		min-height: var(--publy-toast-line);
+		min-width: 0;
+		max-width: 100%;
+		padding-inline: 8px;
+		border: 1px solid var(--publy-border-strong);
+		/* Smallest step on the radius scale: at the 20px height a single-line
+		   label sits at, the 8px chip radius already reads as a pill. */
+		border-radius: var(--publy-radius-sm);
+		background: var(--publy-surface);
+		color: var(--publy-foreground);
+		font-size: 12px;
+		font-weight: 500;
+		line-height: 16px;
+		text-align: center;
+		overflow-wrap: anywhere;
+		cursor: pointer;
+	}
+
+	.publy-toast-cancel-button {
+		grid-column: 3;
+		border-color: transparent;
+		background: none;
+		color: var(--publy-foreground-muted);
+	}
+
+	.publy-toast-action-button {
+		grid-column: 4;
+		margin-inline-start: 8px;
+	}
+
+	.publy-toast-action-button:hover {
+		background: var(--publy-surface-active);
+	}
+
+	.publy-toast-cancel-button:hover {
+		background: var(--publy-surface-active);
+		color: var(--publy-foreground);
+	}
+
+	/* Dismissal is secondary chrome: no border, no surface of its own, only a
+	   muted glyph that gains a background on hover. `--publy-foreground-muted`
+	   (not `-subtle`) keeps the glyph above the 3:1 non-text contrast floor on
+	   both themes.
+
+	   It is lifted out of the layout into the top-right corner. `position` is
+	   declared HERE, in the same rule as `top`/`right`: the toast this redesign
+	   replaced set the two offsets and no `position`, so the button never left
+	   the row while the padding stayed reserved for it, and that reservation
+	   was the dead gutter (#991, defect 2). Sonner supplies no `position` for
+	   this element under `unstyled`, so this declaration is the only one and it
+	   applies. The offsets are the toast's own block padding, which the inline-
+	   end padding matches — so the button's 20px box lands exactly on the first
+	   line's box and its right edge on the message column's right edge. */
+	.publy-toast-close-button {
+		position: absolute;
+		top: var(--publy-toast-pad);
+		/* Logical, not `right`: the two cannot both be declared here, because
+		   in an RTL context `inset-inline-end` resolves to `left` and a
+		   surviving `right` would over-constrain the box and win. */
+		inset-inline-end: var(--publy-toast-pad);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: var(--publy-toast-line);
+		height: var(--publy-toast-line);
+		padding: 0;
+		border: 0;
+		border-radius: var(--publy-radius-sm);
+		background: none;
+		color: var(--publy-foreground-muted);
+		cursor: pointer;
+		transition:
+			color var(--publy-motion-fast) var(--publy-motion-ease),
+			background-color var(--publy-motion-fast) var(--publy-motion-ease);
+	}
+
+	.publy-toast-close-button:hover {
+		background: var(--publy-surface-active);
+		color: var(--publy-foreground);
+	}
+
+	.publy-toast-action-button:focus-visible,
+	.publy-toast-cancel-button:focus-visible,
+	.publy-toast-close-button:focus-visible {
+		outline: 2px solid var(--publy-focus-ring);
+		outline-offset: 1px;
+	}
+
+	/* Sonner hides the contents of the back toasts in a collapsed stack, but
+	   only under `[data-styled='true']` — which `unstyled: true` opts out of.
+	   Without this the stack's clamped back toasts keep painting their text
+	   behind the front toast whenever they are taller than it. */
+	.publy-toast[data-expanded='false'][data-front='false'] > * {
+		opacity: 0;
+	}
+
+	/* Sonner's own focus ring is a 20%-black box-shadow, effectively invisible
+	   on the dark theme, and it is un-layered so it cannot be overridden from
+	   here on specificity — hence a pseudo-element ring.
+
+	   It hangs off `.publy-toast-content`, NOT off the toast itself. Sonner owns
+	   BOTH of the toast's own pseudo-elements: `::before` is its swipe hit-area
+	   (`left/right: -100%; transform: scaleY(3)`) and `::after` is the
+	   hover-expand bridge. Review of #991 forced `:focus-visible` together with
+	   `data-swiping='true'` and sonner's un-layered swipe geometry won on the
+	   shared `::before`, painting a 1074px-wide amber rectangle across the page.
+	   `[data-content]` has no sonner pseudo-element rules at all, so this ring
+	   cannot be captured by any toast state.
+
+	   The content div is not itself positioned, so the ring's containing block is
+	   the toast's PADDING box — whose edge is already inside the border, one
+	   border-width in. The inset therefore only has to clear that border plus
+	   the offset; it must NOT re-add the padding. */
+	.publy-toast:focus-visible .publy-toast-content::after {
+		content: '';
+		position: absolute;
+		inset: calc(
+			-1 * (var(--publy-toast-border-width) + var(--publy-toast-focus-offset))
+		);
+		border: 2px solid var(--publy-focus-ring);
+		border-radius: calc(
+			var(--publy-radius-control) + var(--publy-toast-focus-offset)
+		);
+		pointer-events: none;
+	}
+
+	html {
+		font-family: var(--publy-font-sans);
+		background: var(--publy-background);
+		color: var(--publy-foreground);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		* {
+			transition-duration: 1ms !important;
+			animation-duration: 1ms !important;
+			animation-iteration-count: 1 !important;
+			scroll-behavior: auto !important;
+		}
+	}
+
+	@keyframes publy-state-rise {
+		from {
+			opacity: 0;
+			transform: translateY(6px);
+		}
+
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.publy-state-icon-cluster {
+			animation: none;
+		}
+	}
+
+	/* ---- Non-authed shell (marketing / auth) ---- */
+
+	.app-shell-shell {
+		@apply flex min-h-screen flex-col bg-background;
+	}
+
+	.app-shell-header {
+		@apply border-b border-border bg-card;
+	}
+
+	.app-shell-header-inner {
+		@apply mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6;
+	}
+
+	.app-shell-header-inner .app-shell-desktop-nav {
+		@apply hidden gap-2 sm:flex;
+	}
+
+	.app-shell-mobile-menu-wrap {
+		@apply border-t border-border bg-card sm:hidden;
+	}
+
+	.app-shell-mobile-menu {
+		@apply flex flex-col gap-1 p-4;
+	}
+
+	.app-shell-main-card {
+		@apply bg-card;
+	}
+
+	.app-shell-header-subtitle {
+		color: var(--publy-foreground-muted);
+	}
+
+	.app-shell-shell > .app-shell-main {
+		@apply mx-auto w-full max-w-6xl;
+	}
+
+	/* ---- Authenticated workspace shell (token-driven grid) ---- */
+
+	/* Chromium keeps the real <body> independently wheel-scrollable (its
+   scrollable-overflow region includes descendant content even through
+   nested overflow-hidden boxes) unless body's own overflow is non-visible —
+   a nested container's overflow-hidden is not enough. Without this, wheeling
+   over the rail/topbar (which have no scroll container of their own) scrolls
+   <body> instead of .app-shell-main, dragging the whole shell (rail
+   included) off-screen: the double-scrollbar bug (2a) and the action bar's
+   sticky math going wrong (2b), since both assume .app-shell-main is the
+   only scroller. Scoped via :has() so marketing/auth pages, which still rely
+   on natural document scroll, are unaffected. */
+	body:has(.app-shell-workspace) {
+		overflow: hidden;
+	}
+
+	.app-shell-workspace {
+		@apply grid h-dvh overflow-hidden;
+		grid-template-columns: var(--publy-shell-rail-width) minmax(0, 1fr);
+		background: var(--publy-background);
+		color: var(--publy-foreground);
+	}
+
+	.app-shell-workspace[data-has-secondary-panel='true'] {
+		grid-template-columns:
+			var(--publy-shell-rail-width)
+			0px
+			minmax(0, 1fr);
+	}
+
+	.app-shell-workspace[data-has-secondary-panel='true'][data-panel-open='true'] {
+		grid-template-columns:
+			var(--publy-shell-rail-width)
+			var(--publy-shell-panel-width)
+			minmax(0, 1fr);
+	}
+
+	html[data-sidebar-open='false']
+		.app-shell-workspace.neutral-authed-shell[data-has-secondary-panel='true'] {
+		grid-template-columns:
+			var(--publy-shell-rail-width)
+			0px
+			minmax(0, 1fr);
+	}
+
+	.app-shell-workspace[data-has-secondary-panel='true'][data-motion-ready='true'] {
+		transition: grid-template-columns var(--publy-motion-medium)
+			var(--publy-motion-ease);
+	}
+
+	/* ---- Rail ---- */
+
+	.app-shell-rail {
+		@apply flex h-full flex-col items-center gap-1 border-r;
+		padding: 12px 0;
+		background: var(--publy-surface-raised);
+		border-color: var(--publy-border);
+		width: var(--publy-shell-rail-width);
+	}
+
+	.app-shell-rail-logo {
+		@apply flex size-8 items-center justify-center mb-1;
+	}
+
+	.app-shell-rail-link {
+		@apply flex size-8 items-center justify-center;
+		border-radius: 10px;
+		color: var(--publy-foreground-muted);
+		transition:
+			background-color var(--publy-motion-fast) var(--publy-motion-ease),
+			color var(--publy-motion-fast) var(--publy-motion-ease);
+	}
+
+	.app-shell-rail-link[data-bottom='true'] {
+		@apply mb-2;
+	}
+
+	.app-shell-rail-link[data-rail-item='account'] {
+		border-radius: var(--publy-radius-circular);
+	}
+
+	.app-shell-rail-account-avatar {
+		@apply flex size-8 items-center justify-center overflow-hidden;
+		border-radius: var(--publy-radius-circular);
+		border: 1px solid transparent;
+		background: var(--publy-surface-muted);
+		color: var(--publy-foreground-muted);
+	}
+
+	.app-shell-rail-account-image {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.app-shell-rail-link[data-rail-item='account'][data-active='true'] {
+		border: 2px solid var(--publy-primary);
+	}
+
+	.app-shell-rail-link:hover,
+	.app-shell-rail-link:focus-visible {
+		background: var(--publy-surface-hover);
+		color: var(--publy-foreground);
+	}
+
+	.app-shell-rail-link[data-active='true'] {
+		background: var(--publy-surface-active);
+		color: var(--publy-foreground);
+	}
+
+	.app-shell-rail-links {
+		@apply flex flex-1 flex-col items-center gap-1;
+	}
+
+	.app-shell-rail-spacer {
+		@apply flex-1;
+	}
+
+	/* ---- Secondary panel ---- */
+
+	/* r4-shell-F5: the r1 h-screen -> h-full/h-dvh viewport-unit fix (see
+	   .app-shell-rail above) stopped at the rail; this panel still used
+	   h-screen, which ignores dynamic mobile browser chrome and the h-dvh
+	   overflow-hidden grid it sits in. h-full min-h-0 bounds it to its grid
+	   track instead; the nav list below (not this flex container) owns the
+	   vertical scroll so the fixed header never gets pushed off-screen. */
+	.app-shell-secondary-panel {
+		@apply hidden h-full min-h-0 min-w-0 overflow-hidden lg:block;
+		background: var(--publy-surface-raised);
+		visibility: hidden;
+		width: 100%;
+	}
+
+	.app-shell-workspace[data-panel-open='true'] > .app-shell-secondary-panel {
+		visibility: visible;
+	}
+
+	html[data-sidebar-open='false']
+		.app-shell-workspace.neutral-authed-shell
+		> .app-shell-secondary-panel {
+		visibility: hidden;
+	}
+
+	.app-shell-workspace[data-motion-ready='true'][data-panel-open='false']
+		> .app-shell-secondary-panel {
+		transition: visibility 0s var(--publy-motion-medium);
+	}
+
+	.app-shell-secondary-panel-inner {
+		@apply flex h-full min-h-0 flex-col border-r;
+		border-color: var(--publy-border);
+		width: var(--publy-shell-panel-width);
+		opacity: 0;
+		transform: translateX(-8px);
+	}
+
+	.app-shell-workspace[data-panel-open='true']
+		.app-shell-secondary-panel-inner {
+		opacity: 1;
+		transform: translateX(0);
+	}
+
+	.app-shell-workspace[data-motion-ready='true']
+		.app-shell-secondary-panel-inner {
+		transition:
+			opacity var(--publy-motion-fast) var(--publy-motion-ease),
+			transform var(--publy-motion-medium) var(--publy-motion-ease);
+	}
+
+	.app-shell-secondary-header {
+		@apply flex items-center gap-2 border-b px-4;
+		padding-top: 16px;
+		padding-bottom: 16px;
+		border-color: var(--publy-border);
+	}
+
+	.app-shell-secondary-title {
+		font-size: 15px;
+		font-weight: 500;
+		color: var(--publy-foreground);
+	}
+
+	/* Now in @layer components (F17), so these important markers stay: this is
+   a `<Badge variant="outline">` and Badge's own utilities (h-5, text-xs,
+   px-2 py-0.5, text-foreground) are real conflicts, not decoration — a
+   layered rule without one would lose to them and the chip would revert to
+   Badge's default 20px/12px sizing and full-strength text color. */
+	.app-shell-workspace-pill {
+		height: 22px !important;
+		font-size: 11px !important;
+		border-radius: var(--publy-radius-chip) !important;
+		padding: 0 8px !important;
+		background: var(--publy-surface-muted) !important;
+		color: var(--publy-foreground-muted) !important;
+	}
+
+	/* Same horizontal inset as .app-shell-secondary-nav so the search input
+   spans exactly the width of the nav rows below it. */
+	.app-shell-secondary-search {
+		padding: 8px 8px 0;
+	}
+
+	.app-shell-search-wrapper {
+		position: relative;
+	}
+
+	.app-shell-search-icon {
+		position: absolute;
+		left: 10px;
+		top: 50%;
+		transform: translateY(-50%);
+		width: 14px;
+		height: 14px;
+		color: var(--publy-foreground-subtle);
+		pointer-events: none;
+	}
+
+	.app-shell-search-input {
+		height: 32px;
+		width: 100%;
+		border-radius: 10px;
+		background: var(--publy-surface);
+		border: 1px solid var(--publy-border);
+		box-shadow: var(--publy-shadow-input);
+		font-size: 13px;
+		color: var(--publy-foreground);
+		padding: 0 10px 0 30px;
+		outline: none;
+	}
+
+	.app-shell-search-input::placeholder {
+		color: var(--publy-foreground-subtle);
+	}
+
+	/* F8: keyed off the same --ring token the primitive inputs' `ring-ring`
+	   utility resolves to (see `--ring` in :root, wired to
+	   --publy-focus-ring), and :focus-visible (not :focus) so the ring only
+	   shows for keyboard focus, matching every other control in the app. */
+	.app-shell-search-input:focus-visible {
+		border-color: var(--ring);
+		box-shadow: 0 0 0 3px var(--ring);
+	}
+
+	.app-shell-secondary-nav {
+		@apply flex min-h-0 flex-1 flex-col overflow-y-auto;
+		padding: 8px;
+		gap: 2px;
+	}
+
+	.app-shell-secondary-nav-link {
+		@apply flex items-center gap-2 rounded-lg px-3;
+		height: 32px;
+		font-size: 13px;
+		color: var(--publy-foreground-muted);
+		transition:
+			background-color var(--publy-motion-fast) var(--publy-motion-ease),
+			color var(--publy-motion-fast) var(--publy-motion-ease);
+	}
+
+	.app-shell-secondary-nav-link:hover {
+		background: var(--publy-surface-hover);
+		color: var(--publy-foreground);
+	}
+
+	.app-shell-secondary-nav-link[data-active='true'] {
+		background: var(--publy-surface-active);
+		color: var(--publy-foreground);
+		font-weight: 500;
+	}
+
+	.app-shell-secondary-nav-label {
+		@apply flex-1;
+	}
+
+	.app-shell-secondary-nav-count {
+		font-size: 11px;
+		color: var(--publy-foreground-subtle);
+	}
+
+	.app-shell-secondary-nav-count[data-tone='warning'] {
+		color: var(--publy-chip-pending-text);
+		border: 1px solid var(--publy-chip-pending-border);
+		background: var(--publy-chip-pending-bg);
+		border-radius: 6px;
+		padding: 0 7px;
+	}
+
+	/* Same real conflict as .app-shell-workspace-pill above (also a
+   `<Badge variant="outline">`) — the important marker stays for the same
+   reason. */
+	.app-shell-tenant-pill {
+		height: 22px !important;
+		font-size: 11px !important;
+		border-radius: var(--publy-radius-chip) !important;
+		padding: 0 8px !important;
+		background: var(--publy-surface-muted) !important;
+		color: var(--publy-foreground-muted) !important;
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+	}
+
+	.app-shell-tenant-pill-brand {
+		width: 12px;
+		height: 12px;
+		border-radius: 4px;
+		background: var(--publy-primary);
+		border: 1px solid var(--publy-primary);
+		flex-shrink: 0;
+	}
+
+	/* ---- Body ---- */
+
+	/* The body column owns the viewport height; only .app-shell-main scrolls,
+   so the rail/secondary panel never move with page content. */
+	.app-shell-body {
+		@apply flex h-dvh min-w-0 flex-col overflow-hidden;
+	}
+
+	/* ---- Topbar ---- */
+
+	.app-shell-topbar {
+		@apply z-(--publy-z-shell-topbar) flex shrink-0 items-center justify-between;
+		height: var(--publy-shell-topbar-height);
+		padding: 14px 16px;
+		background: var(--publy-background);
+		border-bottom: 0 solid transparent;
+	}
+
+	.app-shell-topbar-left {
+		@apply flex items-center gap-3 min-w-0;
+	}
+
+	/* No conflicting utility on this Button (ghost variant sets no base text
+   color, only hover/aria-expanded states) — an important marker was never
+   needed here and blocked the intended hover-to-foreground color
+   transition. */
+	.app-shell-sidebar-toggle {
+		color: var(--publy-foreground-muted);
+	}
+
+	.app-shell-breadcrumbs {
+		@apply flex min-w-0 items-center gap-2;
+		font-size: 13px;
+		color: var(--publy-foreground-muted);
+	}
+
+	.app-shell-breadcrumb-chevron {
+		@apply size-4 shrink-0;
+		color: var(--publy-disabled);
+	}
+
+	.app-shell-breadcrumb-link {
+		color: var(--publy-foreground-muted);
+	}
+
+	.app-shell-breadcrumb-link:hover {
+		color: var(--publy-foreground);
+	}
+
+	.app-shell-breadcrumb-current {
+		color: var(--publy-foreground);
+		font-weight: 500;
+	}
+
+	.app-shell-breadcrumb-muted {
+		color: var(--publy-foreground-muted);
+	}
+
+	.app-shell-topbar-right {
+		@apply flex items-center gap-2 shrink-0;
+	}
+
+	/* Button `variant="outline" size="icon"` real conflicts: the size utility's
+   12px radius vs. this class's deliberately-circular 999px (the guard's
+   `isRoundedRadiusAllowed` exception exists for exactly this selector), and
+   the outline variant's `border-(--publy-border-strong)` vs. the plain
+   `--publy-border` this design calls for. The important marker stays for
+   those two; height/width match the size utility's own 36px so are inert
+   either way. */
+	.app-shell-topbar-action-btn {
+		height: 36px !important;
+		min-height: 36px !important;
+		width: 36px !important;
+		min-width: 36px !important;
+		border-radius: 999px !important;
+		border-color: var(--publy-border) !important;
+		color: var(--publy-foreground-muted) !important;
+	}
+
+	.app-shell-topbar-separator {
+		width: 1px;
+		height: 16px;
+		background: var(--publy-border);
+		flex-shrink: 0;
+	}
+
+	.app-shell-user-chip {
+		@apply flex items-center gap-2 cursor-pointer;
+	}
+
+	.app-shell-user-name {
+		font-size: 13px;
+		font-weight: 500;
+		color: var(--publy-foreground);
+		white-space: nowrap;
+	}
+
+	/* ---- Main content ---- */
+
+	.app-shell-main {
+		@apply min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto;
+		padding: 20px 28px 32px;
+		/* Query container for .publy-detail-grid: the rail/panel/no-panel width
+	   is only known here, not at the viewport, so the detail grid's two-
+	   column split must react to this element's content width. */
+		container-type: inline-size;
+	}
+
+	@media (max-width: 767px) {
+		.app-shell-main {
+			padding: 16px;
+		}
+	}
+}
+
+@layer components {
+	.app-shell-topbar-actions {
+		@apply flex items-center gap-2;
+	}
+
+	/* ---- Tablet < 1024px: rail-only shell (design 1h) ---- */
+
+	@media (max-width: 1023px) {
+		.app-shell-workspace[data-has-secondary-panel='true'] {
+			grid-template-columns: var(--publy-shell-rail-width) minmax(0, 1fr);
+		}
+
+		.app-shell-workspace.neutral-authed-shell[data-has-secondary-panel='true'][data-panel-open='true'],
+		html[data-sidebar-open='false']
+			.app-shell-workspace.neutral-authed-shell[data-has-secondary-panel='true'] {
+			grid-template-columns: var(--publy-shell-rail-width) minmax(0, 1fr);
+		}
+	}
+
+	/* ---- Mobile < 768px ---- */
+
+	@media (max-width: 767px) {
+		.app-shell-workspace,
+		.app-shell-workspace[data-has-secondary-panel='true'] {
+			grid-template-columns: 1fr;
+		}
+
+		.app-shell-workspace.neutral-authed-shell[data-has-secondary-panel='true'][data-panel-open='true'],
+		html[data-sidebar-open='false']
+			.app-shell-workspace.neutral-authed-shell[data-has-secondary-panel='true'] {
+			grid-template-columns: 1fr;
+		}
+
+		.app-shell-rail {
+			@apply hidden;
+		}
+
+		.app-shell-secondary-panel {
+			@apply hidden;
+		}
+
+		.app-shell-main {
+			@apply pb-0;
+		}
+	}
+
+	/* ---- Mobile topbar (design 1i): current crumb + avatar only ---- */
+
+	@media (max-width: 639px) {
+		.app-shell-topbar-action-btn,
+		.app-shell-topbar-separator,
+		.app-shell-user-name,
+		.app-shell-breadcrumb-chevron,
+		.app-shell-breadcrumb-link,
+		.app-shell-breadcrumb-muted {
+			display: none;
+		}
+
+		.app-shell-breadcrumb-current {
+			font-size: 15px;
+		}
+	}
+}
+
+@layer components {
+	.publy-type-page-title {
+		@apply text-xl font-semibold leading-7;
+		color: var(--publy-foreground);
+	}
+
+	.publy-type-section-title {
+		@apply text-sm font-semibold leading-5;
+		color: var(--publy-foreground);
+	}
+
+	.publy-type-stat-value {
+		@apply text-2xl font-semibold leading-8 tabular-nums;
+		color: var(--publy-foreground);
+	}
+
+	.publy-type-stat-label,
+	.publy-type-table-header,
+	.publy-type-metadata-label {
+		@apply text-xs font-medium uppercase leading-4;
+		color: var(--publy-foreground-muted);
+		letter-spacing: 0;
+	}
+
+	.publy-type-metadata-value {
+		@apply text-sm leading-5;
+		color: var(--publy-foreground);
+	}
+
+	.publy-type-helper {
+		@apply text-xs leading-4;
+		color: var(--publy-foreground-subtle);
+	}
+
+	/* ---- Product primitives ---- */
+
+	.publy-page-header {
+		@apply flex items-start justify-between gap-4;
+	}
+
+	.publy-action-cluster {
+		@apply flex flex-wrap items-center gap-2;
+	}
+
+	.publy-status-pill {
+		@apply inline-flex shrink-0 items-center;
+		border-radius: var(--publy-radius-chip);
+		height: 20px;
+		padding: 0 8px;
+		font-size: 11px;
+		font-weight: 500;
+		line-height: 1;
+		white-space: nowrap;
+		border: 1px solid var(--publy-border);
+		background: var(--publy-surface);
+		color: var(--publy-foreground-secondary);
+		transition:
+			background-color var(--publy-motion-fast) var(--publy-motion-ease),
+			color var(--publy-motion-fast) var(--publy-motion-ease);
+	}
+
+	.publy-status-pill[data-tone='danger'] {
+		border-color: var(--publy-chip-suspended-border);
+		background: var(--publy-chip-suspended-bg);
+		color: var(--publy-chip-suspended-text);
+	}
+
+	.publy-status-pill[data-tone='neutral'] {
+		border-color: var(--publy-border);
+		background: var(--publy-surface);
+		color: var(--publy-foreground-secondary);
+	}
+
+	.publy-status-pill[data-tone='primary'] {
+		border-color: var(--publy-primary);
+		background: var(--publy-primary-soft);
+		color: var(--publy-primary-soft-foreground);
+	}
+
+	.publy-status-pill[data-tone='success'] {
+		border-color: var(--publy-chip-active-border);
+		background: var(--publy-chip-active-bg);
+		color: var(--publy-chip-active-text);
+	}
+
+	.publy-status-pill[data-tone='info'] {
+		border-color: var(--publy-chip-invited-border);
+		background: var(--publy-chip-invited-bg);
+		color: var(--publy-chip-invited-text);
+	}
+
+	.publy-status-pill[data-tone='warning'] {
+		border-color: var(--publy-chip-pending-border);
+		background: var(--publy-chip-pending-bg);
+		color: var(--publy-chip-pending-text);
+	}
+
+	.publy-card-header {
+		@apply flex items-center justify-between gap-3;
+		padding: 14px 18px;
+		border-bottom: 1px solid var(--publy-row-border);
+	}
+
+	/* Profile multi-select chips (design 1c) */
+	.publy-choice-chip {
+		@apply inline-flex cursor-pointer items-center gap-1.5;
+		border-radius: var(--publy-radius-chip);
+		height: 30px;
+		padding: 0 12px;
+		font-size: 13px;
+		font-weight: 500;
+		border: 1px solid var(--publy-border);
+		background: var(--publy-surface);
+		color: var(--publy-foreground-secondary);
+		transition:
+			background-color var(--publy-motion-fast) var(--publy-motion-ease),
+			border-color var(--publy-motion-fast) var(--publy-motion-ease),
+			color var(--publy-motion-fast) var(--publy-motion-ease);
+	}
+
+	.publy-choice-chip:hover {
+		border-color: var(--publy-border-strong);
+	}
+
+	.publy-choice-chip[data-selected='true'] {
+		border-color: var(--publy-primary);
+		background: var(--publy-primary-soft);
+		color: var(--publy-primary-soft-foreground);
+	}
+
+	.publy-choice-chip[data-disabled='true'] {
+		cursor: not-allowed;
+		opacity: 0.5;
+	}
+
+	/* W6-GUARDS ui-F1: the previous 30%-opacity `--publy-foreground-subtle`
+	   outline composited to ~1.3:1 (light) / ~1.4:1 (dark) against the chip
+	   surface — well under the 3:1 floor, effectively invisible. `--ring` is
+	   the same opaque, already-verified-3:1-in-both-themes token every other
+	   focus indicator in this file uses. */
+	.publy-choice-chip:has([data-slot='checkbox']:focus-visible) {
+		outline: 3px solid var(--ring);
+		outline-offset: 1px;
+	}
+
+	.publy-icon-tile {
+		@apply flex shrink-0 items-center justify-center;
+		width: 28px;
+		height: 28px;
+		border-radius: 9px;
+		background: var(--publy-surface-muted);
+		color: var(--publy-foreground-muted);
+	}
+
+	.publy-icon-tile[data-tone='info'] {
+		background: var(--publy-chip-invited-bg);
+		color: var(--publy-chip-invited-text);
+	}
+
+	.publy-icon-tile[data-tone='success'] {
+		background: var(--publy-chip-active-bg);
+		color: var(--publy-chip-active-text);
+	}
+
+	.publy-detail-row {
+		@apply flex items-center justify-between gap-4;
+		padding: 9px 0;
+	}
+
+	.publy-detail-row:first-child {
+		padding-top: 0;
+	}
+
+	.publy-detail-row:last-child {
+		padding-bottom: 0;
+	}
+
+	.publy-detail-row .publy-type-metadata-value {
+		@apply text-right;
+		font-size: 13px;
+		font-weight: 500;
+	}
+
+	/* Flat "nothing to show you" family — error views (AppErrorView) and list
+	   states (StateSurface) share this composition: a bare, un-boxed glyph,
+	   type scale, and generous spacing carry the design instead of a card
+	   surface. No background, ring, or shadow on any of these rules
+	   (owner decision R2-2, 2026-07-10). */
+	.publy-state-surface {
+		@apply flex flex-col items-center justify-center gap-4 text-center;
+		min-height: 15rem;
+		padding: 48px 24px;
+	}
+
+	/* Icon presence comes from size + tone colour + stroke weight only — no
+	   disc, ring, or box backing (owner decision R3-1, 2026-07-10 round 3).
+	   Inline (StateSurface) and page (AppErrorView) render at the same scale
+	   — an empty table and an error page must read as the same family (owner
+	   decision R3-4b, reaffirmed 2026-07-11: empty state matches error scale). */
+	.publy-state-icon-cluster {
+		display: flex;
+		flex-shrink: 0;
+		align-items: center;
+		justify-content: center;
+		width: 48px;
+		height: 48px;
+		animation: publy-state-rise 360ms var(--publy-motion-ease) both;
+	}
+
+	.publy-state-icon {
+		@apply flex items-center justify-center;
+		width: 100%;
+		height: 100%;
+		color: var(--publy-foreground-muted);
+		transition: color var(--publy-motion-fast) var(--publy-motion-ease);
+	}
+
+	.publy-state-icon[data-tone='danger'] {
+		color: var(--publy-danger);
+	}
+
+	.publy-state-icon[data-tone='primary'] {
+		color: var(--publy-primary);
+	}
+
+	.publy-state-technical-id {
+		@apply mt-0.5;
+		font-size: 11px;
+		font-family: var(--publy-font-mono);
+		color: var(--publy-foreground-muted);
+	}
+
+	.publy-pill-tabs {
+		@apply flex gap-1 p-1;
+		border-radius: var(--publy-radius-card);
+		background: var(--publy-surface-muted);
+	}
+
+	.publy-record-link {
+		@apply font-medium;
+		color: var(--publy-foreground);
+		text-decoration: none;
+		text-underline-offset: 3px;
+	}
+
+	.publy-record-link:hover {
+		text-decoration: underline;
+		text-decoration-color: var(--publy-border-strong);
+	}
+
+	.publy-record-subtext {
+		@apply text-xs;
+		color: var(--publy-foreground-muted);
+	}
+
+	.publy-back-link {
+		@apply inline-flex items-center gap-1 text-sm transition-colors;
+		color: var(--publy-foreground-subtle);
+	}
+
+	.publy-back-link:hover {
+		color: var(--publy-foreground);
+	}
+
+	/* ---- Overlays: right-side drawer (handoff slice 8) ---- */
+
+	.publy-overlay-backdrop {
+		position: fixed;
+		inset: 0;
+		background: var(--publy-backdrop);
+	}
+
+	.publy-drawer {
+		@apply fixed inset-y-0 right-0 flex flex-col overflow-hidden;
+		width: min(var(--publy-drawer-width), calc(100vw - 24px));
+		background: var(--publy-overlay-surface);
+		border-left: 1px solid var(--publy-border);
+		box-shadow: var(--publy-shadow-drawer);
+	}
+
+	.publy-drawer[data-width='736'] {
+		width: min(736px, calc(100vw - 24px));
+	}
+
+	.publy-drawer-header {
+		@apply flex shrink-0 items-start justify-between gap-3;
+		padding: 18px 22px;
+		border-bottom: 1px solid var(--publy-row-border);
+	}
+
+	.publy-drawer-title {
+		font-size: 17px;
+		font-weight: 600;
+		color: var(--publy-foreground);
+	}
+
+	.publy-drawer-description {
+		font-size: 13px;
+		color: var(--publy-foreground-subtle);
+	}
+
+	.publy-drawer-body {
+		@apply flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto;
+		padding: 18px 22px;
+	}
+
+	.publy-drawer-footer {
+		@apply flex shrink-0 items-center justify-end gap-2.5;
+		padding: 14px 22px;
+		border-top: 1px solid var(--publy-row-border);
+	}
+
+	/* ---- Form pages: centered column + sticky action bar (handoff 2d/3c/6a) ---- */
+
+	.publy-form-page {
+		@apply mx-auto flex w-full flex-col gap-4;
+		max-width: 860px;
+	}
+
+	.publy-form-page[data-width='760'] {
+		max-width: 760px;
+	}
+
+	.publy-form-page[data-width='960'] {
+		max-width: 960px;
+	}
+
+	/* Placed as the last child of .app-shell-main: the horizontal negative
+	   margin bleeds the bar to the column edges. Vertically, a sticky
+	   element can only be pulled *earlier* than its natural (static) flow
+	   position, never pushed past it — so canceling the scroller's 32px
+	   bottom padding with a negative margin/offset on the bar tracked the
+	   viewport correctly while still scrolling, but at the true end of
+	   scroll (the bar's natural resting spot) it snapped back to flush with
+	   the padding edge, 32px short of the real bottom, showing scrolled-past
+	   content in that gap (handoff 2b) exactly when at rest. Removing the
+	   scroller's own bottom padding for pages with a bar (below) and giving
+	   the bar that space as its own bottom padding instead sidesteps the
+	   clamp entirely: the bar's static position IS the true bottom edge, so
+	   there's nothing to correct for while scrolling or at rest. Fully
+	   opaque (toned like .app-shell-topbar/.publy-table-card, not the
+	   translucent --publy-overlay-surface used by modals/drawers) — as the
+	   last flow child, the tail of the form scrolls *underneath* the pinned
+	   bar before reaching its natural resting position, so any translucency
+	   lets that content show through while it passes. */
+	.publy-form-action-bar {
+		@apply sticky bottom-0 z-(--publy-z-raised) flex shrink-0 items-center justify-between gap-4;
+		border-top: 1px solid var(--publy-border);
+		background: var(--publy-background);
+		padding: 12px 32px 32px;
+		/* 80px of breathing room above the bar (handoff 2c), shared across
+		   every form page instead of each route reproducing its own gap. */
+		margin: 80px -28px 0;
+	}
+
+	/* Reserves clearance so the last field of a form scrolls (and keyboard-
+	   focus scrolls) fully above the pinned action bar instead of resting
+	   underneath it. Height mirrors the bar: ~93px content (h-9 button +
+	   12px top/32px bottom padding + 1px border) plus a comfort margin. Also
+	   zeroes the scroller's own bottom padding so the bar's own bottom
+	   padding (handoff 2b) is the only source of that space — both live in
+	   the same layered rule as the base `.app-shell-main` padding (`<main>`
+	   carries no Tailwind utility of its own), so this selector's higher
+	   specificity (0,2,0 vs 0,1,0) wins outright without needing to escape
+	   the layer. */
+	.app-shell-main:has(.publy-form-action-bar) {
+		padding-bottom: 0;
+		scroll-padding-bottom: 104px;
+	}
+
+	.publy-form-action-bar-status {
+		@apply flex items-center gap-2 text-xs;
+		color: var(--publy-foreground-subtle);
+	}
+
+	.publy-form-action-bar-status::before {
+		content: '';
+		width: 7px;
+		height: 7px;
+		border-radius: var(--publy-radius-circular);
+		background: var(--publy-primary);
+	}
+
+	/* ---- Field helper / error lines (handoff 2d) ---- */
+
+	.publy-field-helper {
+		@apply text-xs;
+		color: var(--publy-foreground-subtle);
+	}
+
+	.publy-field-error {
+		@apply flex items-center gap-1 text-xs;
+		color: var(--publy-danger);
+	}
+
+	.publy-field-error svg {
+		@apply size-3.5 shrink-0;
+	}
+
+	/* ---- Eyebrow section labels (handoff 2b: flat form sections) ---- */
+
+	.publy-type-eyebrow {
+		font-size: 11px;
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--publy-foreground-subtle);
+	}
+
+	/* ---- Switch rows (handoff 2d/5i) ---- */
+
+	.publy-field-switch-row {
+		@apply flex items-center justify-between gap-4;
+		padding: 14px 0;
+	}
+
+	.publy-field-switch-row + .publy-field-switch-row {
+		border-top: 1px solid var(--publy-surface-muted);
+	}
+
+	.publy-field-switch-title {
+		font-size: 13px;
+		font-weight: 500;
+		color: var(--publy-foreground);
+	}
+
+	.publy-field-switch-description {
+		@apply text-xs;
+		color: var(--publy-foreground-subtle);
+	}
+
+	/* ---- Detail page measure (owner decision R2-4, 2026-07-10) ---- */
+
+	/* Caps the whole detail page — heading, action cluster, tab strip and
+	   body grid — at one shared measure so they share a centre line. The
+	   body grid used to carry this cap alone, which left the heading/tabs
+	   rendering at full width above it. */
+	.publy-detail-page {
+		@apply mx-auto w-full;
+		max-width: 1440px;
+	}
+
+	/* Tab body wrapper for TenantDetailsPageShell's bodyScroll="contained"
+	   mode (tables own their scroll, docs/guides/front/conventions.md):
+	   a min-h-0 flex column so a DataTable inside can claim the remaining
+	   height and scroll internally instead of the page. */
+	.publy-detail-tab-body {
+		@apply flex min-h-0 flex-1 flex-col gap-4;
+	}
+
+	/* ---- Detail body grid + danger zone (handoff 2c/3b) ---- */
+
+	.publy-detail-grid {
+		@apply grid w-full items-start gap-5;
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	/* 840px = 400px minimum usable main column + 20px gap + 420px aside.
+	   A viewport media query can't express this: the rail (49px) and
+	   secondary panel (272px, togglable) eat into the space available to
+	   .app-shell-main before .publy-detail-grid ever sees it, so the split
+	   must react to the actual container width, not the viewport. */
+	@container (min-width: 840px) {
+		.publy-detail-grid {
+			grid-template-columns: minmax(0, 1fr) 420px;
+		}
+	}
+
+	.publy-detail-grid > * {
+		@apply flex min-w-0 flex-col gap-5;
+	}
+
+	.publy-danger-zone {
+		border-radius: var(--publy-radius-card);
+		background: var(--publy-surface);
+		box-shadow: 0 0 0 1px var(--publy-danger-zone-ring);
+	}
+
+	.publy-danger-zone-title {
+		@apply text-sm font-semibold;
+		padding: 14px 18px;
+		border-bottom: 1px solid var(--publy-danger-zone-border);
+		color: var(--publy-danger-zone-heading);
+	}
+
+	.publy-danger-zone-row {
+		@apply flex items-center justify-between gap-3;
+		padding: 13px 18px;
+	}
+
+	.publy-danger-zone-row:not(:last-child) {
+		border-bottom: 1px solid var(--publy-danger-zone-border);
+	}
+
+	.publy-danger-zone-row-title {
+		font-size: 13px;
+		font-weight: 500;
+		color: var(--publy-foreground);
+	}
+
+	.publy-danger-zone-row-description {
+		@apply text-xs;
+		color: var(--publy-foreground-subtle);
+	}
+
+	/* ---- Tenant identity brand tile (handoff 2c/3b) ---- */
+
+	.publy-brand-tile {
+		@apply inline-flex shrink-0 items-center justify-center overflow-hidden;
+		width: 56px;
+		height: 56px;
+		border-radius: var(--publy-radius-control);
+		font-size: 18px;
+		font-weight: 600;
+		line-height: 1;
+		color: var(--publy-avatar-foreground);
+		background: var(--publy-avatar-1);
+		object-fit: cover;
+		user-select: none;
+	}
+
+	.publy-brand-tile[data-palette='1'] {
+		background: var(--publy-avatar-1);
+	}
+	.publy-brand-tile[data-palette='2'] {
+		background: var(--publy-avatar-2);
+	}
+	.publy-brand-tile[data-palette='3'] {
+		background: var(--publy-avatar-3);
+	}
+	.publy-brand-tile[data-palette='4'] {
+		background: var(--publy-avatar-4);
+	}
+	.publy-brand-tile[data-palette='5'] {
+		background: var(--publy-avatar-5);
+	}
+	.publy-brand-tile[data-palette='6'] {
+		background: var(--publy-avatar-6);
+	}
+	.publy-brand-tile[data-palette='7'] {
+		background: var(--publy-avatar-7);
+	}
+	.publy-brand-tile[data-palette='8'] {
+		background: var(--publy-avatar-8);
+	}
+
+	/* ---- Tenant identity header (handoff 2c/3b) ---- */
+
+	.publy-tenant-identity-name {
+		@apply text-[22px] font-semibold leading-7;
+		letter-spacing: -0.01em;
+		color: var(--publy-foreground);
+	}
+
+	.publy-tenant-identity-meta {
+		@apply text-[13px];
+		color: var(--publy-foreground-muted);
+	}
+
+	.publy-tenant-identity-meta-prefix {
+		color: var(--publy-foreground-subtle);
+	}
+
+	.publy-tenant-identity-meta-code {
+		font-family: var(--publy-font-mono);
+		color: var(--publy-foreground-muted);
+	}
+
+	/* ---- Tenant Basics stat-card row (handoff 2a/3b) ---- */
+
+	.publy-stat-row {
+		display: grid;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		gap: 14px;
+	}
+
+	@media (max-width: 1023px) {
+		.publy-stat-row {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+	}
+
+	.publy-stat-card {
+		border-radius: var(--publy-radius-control);
+		background: var(--publy-surface-raised);
+		box-shadow: var(--publy-shadow-ring);
+		padding: 6px;
+	}
+
+	.publy-stat-card-header {
+		@apply flex items-center justify-between gap-2;
+		padding: 8px 10px 6px;
+	}
+
+	.publy-stat-card-label {
+		@apply text-[11px] font-medium uppercase;
+		color: var(--publy-foreground-muted);
+	}
+
+	.publy-stat-card-icon {
+		color: var(--publy-foreground-muted);
+	}
+
+	.publy-stat-card-inner {
+		border-radius: 9px;
+		border: 1px solid var(--publy-border);
+		background: var(--publy-surface);
+		padding: 14px 16px;
+	}
+
+	.publy-stat-card-value {
+		@apply flex items-baseline gap-1;
+		font-size: 28px;
+		font-weight: 600;
+		letter-spacing: -0.02em;
+		line-height: 1;
+		color: var(--publy-foreground);
+	}
+
+	.publy-stat-card-value-suffix {
+		font-size: 15px;
+		font-weight: 500;
+		color: var(--publy-foreground-subtle);
+	}
+
+	.publy-stat-card-secondary {
+		@apply flex items-center gap-1.5;
+		height: 20px;
+		margin-top: 8px;
+		font-size: 11px;
+		color: var(--publy-foreground-subtle);
+	}
+
+	.publy-stat-meter {
+		@apply flex-1;
+		height: 4px;
+		border-radius: 2px;
+		background: var(--publy-row-border);
+		overflow: hidden;
+	}
+
+	.publy-stat-meter-fill {
+		height: 100%;
+		border-radius: 2px;
+		background: var(--publy-primary);
+	}
+
+	.publy-avatar-stack {
+		@apply flex items-center;
+	}
+
+	.publy-avatar-stack-item {
+		box-shadow: 0 0 0 1.5px var(--publy-surface);
+	}
+
+	.publy-avatar-stack-item:not(:first-child) {
+		margin-left: -6px;
+	}
+
+	.publy-stat-card-link {
+		@apply text-[11px] font-medium;
+		color: var(--publy-foreground-muted);
+	}
+
+	.publy-stat-card-link:hover {
+		color: var(--publy-foreground);
+	}
+
+	/* ---- Data Table ---- */
+
+	/* Page wrapper for list routes: caps the page at the viewport so the
+	   table body scrolls inside its card (like the Gray UI template). */
+	.publy-page-fill {
+		@apply flex h-full min-h-0 flex-col gap-4;
+	}
+
+	.publy-data-table-shell {
+		@apply flex min-h-0 flex-col gap-3;
+	}
+
+	.publy-page-fill .publy-data-table-shell,
+	.publy-detail-tab-body .publy-data-table-shell {
+		flex: 1 1 auto;
+	}
+
+	.publy-data-table-toolbar {
+		@apply flex shrink-0 flex-wrap items-center justify-between gap-2;
+	}
+
+	.publy-search-wrapper {
+		@apply relative;
+		width: min(100%, 420px);
+		max-width: 420px;
+	}
+
+	.publy-search-icon {
+		@apply absolute left-3 top-1/2 -translate-y-1/2;
+		width: 15px;
+		height: 15px;
+		color: var(--publy-foreground-subtle);
+		pointer-events: none;
+	}
+
+	.publy-search-wrapper [data-slot='input']::placeholder {
+		color: var(--publy-foreground-subtle);
+	}
+
+	.publy-data-table-toolbar-end {
+		@apply flex items-center gap-2;
+	}
+
+	/* Floating selection bar: inverted pill chrome, portalled to body so
+	   `.app-shell-main`'s container-type:inline-size (which establishes a
+	   containing block for fixed descendants) can't trap it off-viewport. */
+	.publy-selection-bar {
+		background: var(--publy-selection-bar-bg);
+		color: var(--publy-selection-bar-fg);
+		border-color: var(--publy-selection-bar-border);
+		box-shadow:
+			var(--publy-shadow-selection-bar),
+			0 0 0 1px var(--publy-selection-bar-ring);
+	}
+
+	.publy-selection-bar [data-slot='button'] {
+		color: inherit;
+	}
+
+	.publy-selection-bar [data-slot='button']:hover {
+		background: var(--publy-selection-bar-hover);
+		color: inherit;
+	}
+
+	.publy-selection-bar-divider {
+		border-color: var(--publy-selection-bar-divider);
+	}
+
+	.publy-selection-bar-muted {
+		color: var(--publy-selection-bar-muted);
+	}
+
+	.publy-data-table-search-input {
+		width: 100%;
+		height: 40px;
+		border-radius: var(--publy-radius-control);
+		min-height: 40px;
+	}
+
+	.publy-data-table-filter-button {
+		height: 36px;
+		min-height: 36px;
+		border-radius: var(--publy-radius-control);
+	}
+
+	.publy-data-table-view-toggle {
+		display: inline-flex;
+		align-items: center;
+		gap: 2px;
+		border-radius: var(--publy-radius-control);
+	}
+
+	.publy-data-table-view-toggle .publy-data-table-view-toggle-item {
+		border-radius: 10px;
+	}
+
+	/* Card frame: table + footer live inside one ring card */
+	.publy-table-card {
+		@apply flex min-h-0 flex-col;
+		--publy-data-table-row-height: 48px;
+		flex: 1 1 auto;
+		border-radius: var(--publy-radius-control);
+		box-shadow: var(--publy-shadow-ring);
+		background: var(--publy-surface);
+		overflow: hidden;
+	}
+
+	.publy-table-card[data-row-height='52'] {
+		--publy-data-table-row-height: 52px;
+	}
+
+	.publy-table-card[data-row-height='56'] {
+		--publy-data-table-row-height: 56px;
+	}
+
+	.publy-table-card[data-row-height='48'] {
+		--publy-data-table-row-height: 48px;
+	}
+
+	.publy-table-card [data-slot='table-container'] {
+		flex: 1 1 auto;
+		min-height: 0;
+		overflow: auto;
+	}
+
+	.publy-data-table thead [data-slot='table-column'],
+	.publy-data-table thead [data-slot='table-sortable-column-header'],
+	.publy-data-table thead [data-slot='table-selection-cell'] {
+		position: sticky;
+		top: 0;
+		z-index: 5;
+	}
+
+	.publy-data-table {
+		@apply min-w-full;
+		border-collapse: separate;
+		border-spacing: 0;
+	}
+
+	.publy-data-table thead tr {
+		height: 40px;
+		background: var(--publy-table-header);
+	}
+
+	.publy-data-table [data-slot='table-column'],
+	.publy-data-table [data-slot='table-sortable-column-header'] {
+		height: 40px;
+		padding: 0 14px;
+		font-size: 13px;
+		font-weight: 500;
+		line-height: 1;
+		letter-spacing: 0;
+		text-transform: none;
+		color: var(--publy-foreground-muted);
+		background: var(--publy-table-header);
+		border-bottom: 1px solid var(--publy-border);
+		white-space: nowrap;
+	}
+
+	.publy-data-table [data-slot='table-sortable-column-header']:hover {
+		color: var(--publy-foreground);
+	}
+
+	.publy-data-table [data-slot='table-header-icon'] {
+		width: 14px;
+		height: 14px;
+		color: var(--publy-foreground-subtle);
+	}
+
+	.publy-data-table [data-slot='table-sort-icon'] {
+		width: 12px;
+		height: 12px;
+		color: var(--publy-foreground-subtle);
+	}
+
+	.publy-data-table [data-slot='table-row'] {
+		transition: background-color var(--publy-motion-fast)
+			var(--publy-motion-ease);
+	}
+
+	.publy-data-table tbody [data-slot='table-row']:hover {
+		background: var(--publy-surface-hover);
+	}
+
+	/* F8: distinct from :hover's --publy-surface-hover (a selected row must
+	   stay visually identifiable while merely hovered, and a hovered row
+	   must not read as selected) — same tint the card grid uses for
+	   selection (FIX-4 owner ruling). Declared after :hover so a selected
+	   + hovered row shows the selected tone, not a blend of both. */
+	.publy-data-table tbody [data-slot='table-row'][data-state='selected'] {
+		background: var(--publy-primary-soft);
+	}
+
+	.publy-data-table [data-slot='table-cell'] {
+		height: var(--publy-data-table-row-height);
+		padding: 6px 14px;
+		font-size: 13px;
+		font-weight: 500;
+		color: var(--publy-foreground);
+		border-bottom: 1px solid var(--publy-row-border);
+		font-variant-numeric: tabular-nums;
+	}
+
+	/* meta.align:'center' (e.g. the 40px actions column): centre against the
+	   full column box, not the 14px-padded content box — a trigger close to
+	   the column width can't be centred by justify-* once padding eats the
+	   space it needs. Mirrors the selection-cell's own padding:0 + centring. */
+	.publy-data-table [data-slot='table-cell'][data-align='center'],
+	.publy-data-table [data-slot='table-column'][data-align='center'],
+	.publy-data-table
+		[data-slot='table-sortable-column-header'][data-align='center'] {
+		padding-inline: 0;
+		text-align: center;
+	}
+
+	/* Vertical column separators, matching the Gray UI template grid */
+	.publy-data-table [data-slot='table-column']:not(:last-child),
+	.publy-data-table [data-slot='table-sortable-column-header']:not(:last-child),
+	.publy-data-table [data-slot='table-cell']:not(:last-child) {
+		border-right: 1px solid var(--publy-row-border);
+	}
+
+	.publy-data-table [data-slot='table-selection-cell'] {
+		width: 40px;
+		min-width: 40px;
+		max-width: 40px;
+		padding: 0;
+		text-align: center;
+		vertical-align: middle;
+		border-right: 1px solid var(--publy-border);
+		border-bottom: 1px solid var(--publy-row-border);
+	}
+
+	.publy-data-table thead [data-slot='table-selection-cell'] {
+		height: 40px;
+		background: var(--publy-table-header);
+		border-right: 1px solid var(--publy-border);
+		border-bottom: 1px solid var(--publy-border);
+	}
+
+	/* Footer inside the card */
+	.publy-data-table-footer {
+		@apply flex shrink-0 items-center justify-between gap-3;
+		height: 48px;
+		min-height: 48px;
+		padding: 6px 14px;
+		background: var(--publy-table-header);
+		border-top: 1px solid var(--publy-border);
+	}
+
+	/* Mobile list archetype (handoff 7b): the footer stacks instead of
+	   overflowing the 390px card. */
+	@media (max-width: 639px) {
+		.publy-data-table-footer {
+			@apply h-auto flex-col items-stretch gap-2;
+			min-height: 0;
+			padding: 10px 14px;
+		}
+	}
+
+	.publy-data-table-footer [data-slot='page-label'] {
+		font-size: 12px;
+		color: var(--publy-foreground-muted);
+	}
+
+	.publy-data-table-footer [data-slot='rows-per-page-label'] {
+		font-size: 12px;
+		color: var(--publy-foreground-muted);
+	}
+
+	.publy-pager-button {
+		@apply inline-flex items-center justify-center;
+		width: 28px;
+		height: 28px;
+		border-radius: 10px;
+		color: var(--publy-foreground-muted);
+		transition:
+			background-color var(--publy-motion-fast) var(--publy-motion-ease),
+			color var(--publy-motion-fast) var(--publy-motion-ease);
+	}
+
+	.publy-pager-button:hover:not(:disabled) {
+		background: var(--publy-surface-muted);
+		color: var(--publy-foreground);
+	}
+
+	.publy-pager-button:disabled {
+		color: var(--publy-disabled);
+		cursor: not-allowed;
+	}
+
+	.publy-pager-current {
+		@apply inline-flex items-center justify-center;
+		min-width: 28px;
+		height: 28px;
+		padding: 0 6px;
+		border-radius: 10px;
+		background: var(--publy-surface-active);
+		font-size: 12px;
+		font-weight: 600;
+		color: var(--publy-foreground);
+	}
+
+	/* Table skeleton */
+	.publy-table-skeleton-header {
+		height: 40px;
+		background: var(--publy-table-header);
+		border-bottom: 1px solid var(--publy-border);
+	}
+
+	.publy-table-skeleton-row {
+		@apply flex items-center gap-3;
+		height: var(--publy-data-table-row-height);
+		padding: 0 14px;
+		border-bottom: 1px solid var(--publy-row-border);
+	}
+
+	.publy-table-skeleton-row:last-child {
+		border-bottom: 0;
+	}
+
+	.publy-row-actions-menu {
+		width: 196px;
+		min-width: 196px;
+		border-radius: var(--publy-radius-control);
+		background: var(--publy-overlay-surface);
+		box-shadow: var(--publy-shadow-menu);
+	}
+}
+
+/* Un-layered overrides: these must beat Tailwind utility-layer classes. */
+
+/* The checkbox primitive is display:flex (block-level, utility layer) and
+   the header cell carries a text-left utility; both must lose here so the
+   selection column centers its checkbox. */
+.publy-data-table [data-slot='table-selection-cell'] {
+	text-align: center;
+}
+
+.publy-data-table [data-slot='table-selection-cell'] [data-slot='checkbox'] {
+	display: inline-flex;
+	vertical-align: middle;
+}
+
+/* Table foundation recipe overrides live outside Tailwind layers so primitive
+   utility classes cannot shrink handoff-critical geometry. */
+.publy-search-wrapper .publy-data-table-search-input[data-slot='input'] {
+	height: 40px;
+	min-height: 40px;
+	border-radius: var(--publy-radius-control);
+}
+
+.publy-data-table-filter-button[data-slot='button'] {
+	height: 36px;
+	min-height: 36px;
+	border-radius: var(--publy-radius-control);
+}
+
+/* No [data-slot='button'] qualifier here: the Base UI dropdown trigger
+   render-prop overwrites data-slot to 'dropdown-menu-trigger'. */
+.publy-row-action-trigger {
+	width: 28px;
+	height: 28px;
+	min-width: 28px;
+	min-height: 28px;
+	border-radius: 10px;
+}
+
+.publy-row-actions-menu[data-slot='dropdown-menu-content'] {
+	width: 196px;
+	min-width: 196px;
+	border-radius: var(--publy-radius-control);
+}
+
+.publy-row-actions-menu [data-slot='dropdown-menu-item'] {
+	height: 32px;
+	min-height: 32px;
+	border-radius: var(--publy-radius-menu-item);
+}
+
+.publy-row-actions-menu
+	[data-slot='dropdown-menu-item'][data-variant='destructive'] {
+	color: var(--publy-danger);
+}
+
+/* Gray UI primary "chrome" treatment (design handoff §Design Tokens). No
+   border-radius here: this class stacks with a Tailwind `rounded-[...]`
+   size utility on `Button`'s `default` variant, and (being un-layered)
+   would otherwise always beat it, forcing every primary button — xs/sm/lg
+   included — to the same 14px `--publy-radius-button` regardless of size
+   (F6). The size variant already supplies the correct per-size radius. */
+.btn-primary-chrome {
+	border: var(--publy-chrome-border);
+	box-shadow: var(--publy-shadow-chrome);
+}
+
+/* W6-GUARDS ui-F1: the unlayered chrome rule above sets `border`/`box-shadow`
+   unconditionally, which — being unlayered — always beats Tailwind's layered
+   `focus-visible:border-ring`/`focus-visible:ring-3 focus-visible:ring-ring`
+   utilities, leaving default-variant primary buttons with no visible
+   keyboard focus indicator at all. Restore both properties, at the
+   already-verified-3:1 `--ring` token, specifically for the focus-visible
+   state so it wins the same unlayered-vs-layered fight the chrome rule
+   itself depends on. */
+.btn-primary-chrome:focus-visible {
+	border-color: var(--ring);
+	box-shadow:
+		var(--publy-shadow-chrome),
+		0 0 0 3px var(--ring);
+}
+
+/* F6: everything below that has no documented utility-layer conflict lives
+   in @layer components (like the rest of the file's ordinary component
+   styles), so a caller's own className can still win over it through
+   normal Tailwind layer order. Only rules with a verified conflict (see
+   each one's own comment) stay outside a layer, interspersed below. */
+@layer components {
+	/* Auth split-brand dark panel + its product-shot placeholder slot. */
+	.publy-auth-brand-panel {
+		background-color: var(--publy-auth-panel-bg);
+		background-image: var(--publy-auth-panel-glow);
+	}
+
+	.publy-auth-shot {
+		background-color: var(--publy-auth-shot-bg);
+		border: 1px solid var(--publy-auth-shot-border);
+		background-image: repeating-linear-gradient(
+			135deg,
+			var(--publy-auth-shot-stripe) 0,
+			var(--publy-auth-shot-stripe) 1px,
+			transparent 1px,
+			transparent 9px
+		);
+	}
+}
+
+/* Overrides the page-size Select trigger's own default size/padding
+   utilities, same "must beat Tailwind utility-layer classes" shape as the
+   table foundation recipe cluster above — kept un-layered for the same
+   reason. */
+.publy-page-size-select [data-slot='select-trigger'] {
+	height: 28px;
+	min-height: 28px;
+	padding: 0 8px;
+	border-radius: 10px;
+	font-size: 12px;
+	gap: 4px;
+	background: var(--publy-surface);
+	border: 1px solid var(--publy-border);
+	box-shadow: none;
+}
+
+/* W6-GUARDS ui-F1: same unlayered-beats-layered-utility conflict as
+   `.btn-primary-chrome` above — `border`/`box-shadow: none` are set
+   unconditionally and always beat the trigger's own
+   `focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring`
+   utilities, so the page-size Select renders with no visible focus
+   indicator. */
+.publy-page-size-select [data-slot='select-trigger']:focus-visible {
+	border-color: var(--ring);
+	box-shadow: 0 0 0 3px var(--ring);
+}
+
+@layer components {
+	/* ---- T6B — staff profiles & invitations ---- */
+
+	.publy-profile-icon-tile {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		border-radius: 9px;
+		background: var(--publy-icon-tile-bg);
+		color: var(--publy-icon-tile-fg);
+		flex-shrink: 0;
+	}
+
+	.publy-profile-detail-tile {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 56px;
+		height: 56px;
+		border-radius: 14px;
+		background: var(--publy-icon-tile-bg);
+		color: var(--publy-icon-tile-fg);
+		flex-shrink: 0;
+	}
+
+	.publy-profile-count-badge {
+		display: inline-flex;
+		align-items: center;
+		height: 20px;
+		padding: 0 8px;
+		border-radius: 8px;
+		border: 1px solid var(--publy-border);
+		font-size: 11px;
+		font-weight: 500;
+		color: var(--publy-foreground-secondary);
+	}
+
+	.publy-detail-card {
+		overflow: hidden;
+	}
+
+	.publy-detail-card-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 14px 18px;
+		border-bottom: 1px solid var(--publy-row-border);
+	}
+
+	.publy-detail-card-body {
+		display: flex;
+		flex-direction: column;
+		gap: 13px;
+		padding: 16px 18px;
+	}
+
+	.publy-type-detail-title {
+		margin: 0;
+		font-size: 22px;
+		font-weight: 600;
+		letter-spacing: -0.01em;
+	}
+
+	/* 2-col permission matrix (read-only, Geist Mono keys) */
+	.publy-perm-matrix {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+	}
+
+	.publy-perm-matrix-col {
+		overflow-y: auto;
+	}
+
+	.publy-perm-matrix-col:first-child {
+		border-right: 1px solid var(--publy-row-border);
+	}
+
+	.publy-perm-group-header {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 10px 18px;
+		background: var(--publy-table-header);
+		border-bottom: 1px solid var(--publy-row-border);
+	}
+
+	.publy-perm-row {
+		display: flex;
+		align-items: center;
+		gap: 11px;
+		padding: 9px 18px;
+		border-bottom: 1px solid var(--publy-row-border);
+	}
+
+	.publy-perm-row:last-child {
+		border-bottom: 0;
+	}
+
+	.publy-perm-check {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 15px;
+		height: 15px;
+		border-radius: 5px;
+		border: 1.5px solid var(--publy-border-strong);
+		background: var(--publy-surface);
+		flex-shrink: 0;
+	}
+
+	.publy-perm-check--granted {
+		background: var(--publy-primary);
+		border-color: var(--publy-primary);
+	}
+
+	.publy-perm-key {
+		min-width: 0;
+		font-size: 12px;
+		font-weight: 500;
+		font-family: 'Geist Mono', monospace;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	/* inline detail chip (h20, r8) — for Profile/Custom/Role tags */
+	.publy-detail-chip {
+		display: inline-flex;
+		align-items: center;
+		height: 20px;
+		padding: 0 8px;
+		border-radius: 8px;
+		font-size: 11px;
+		font-weight: 500;
+		white-space: nowrap;
+	}
+
+	.publy-detail-chip--outline {
+		border: 1px solid var(--publy-border);
+		background: var(--publy-surface);
+		color: var(--publy-foreground);
+	}
+
+	.publy-detail-chip--amber {
+		border: 1px solid var(--publy-chip-pending-border);
+		background: var(--publy-chip-pending-bg);
+		color: var(--publy-chip-pending-text);
+	}
+
+	/* Icon-tile tone palette (F13): shared by the 32px staff-profiles table
+	tile and the 56px tenant-profile detail tile — both consume the same
+	--publy-icon-tile-bg/-fg pair, so one selector list serves both instead
+	of two byte-identical rule sets drifting apart. */
+	.publy-profile-icon-tile[data-tone='0'],
+	.publy-profile-detail-tile[data-tone='0'] {
+		--publy-icon-tile-bg: var(--publy-profile-tone-0-bg);
+		--publy-icon-tile-fg: var(--publy-profile-tone-0-fg);
+	}
+
+	.publy-profile-icon-tile[data-tone='1'],
+	.publy-profile-detail-tile[data-tone='1'] {
+		--publy-icon-tile-bg: var(--publy-profile-tone-1-bg);
+		--publy-icon-tile-fg: var(--publy-profile-tone-1-fg);
+	}
+
+	.publy-profile-icon-tile[data-tone='2'],
+	.publy-profile-detail-tile[data-tone='2'] {
+		--publy-icon-tile-bg: var(--publy-profile-tone-2-bg);
+		--publy-icon-tile-fg: var(--publy-profile-tone-2-fg);
+	}
+
+	.publy-profile-icon-tile[data-tone='3'],
+	.publy-profile-detail-tile[data-tone='3'] {
+		--publy-icon-tile-bg: var(--publy-profile-tone-3-bg);
+		--publy-icon-tile-fg: var(--publy-profile-tone-3-fg);
+	}
+
+	.publy-profile-icon-tile[data-tone='4'],
+	.publy-profile-detail-tile[data-tone='4'] {
+		--publy-icon-tile-bg: var(--publy-profile-tone-4-bg);
+		--publy-icon-tile-fg: var(--publy-profile-tone-4-fg);
+	}
+
+	.publy-profile-icon-tile[data-tone='5'],
+	.publy-profile-detail-tile[data-tone='5'] {
+		--publy-icon-tile-bg: var(--publy-profile-tone-5-bg);
+		--publy-icon-tile-fg: var(--publy-profile-tone-5-fg);
+	}
+
+	.publy-profile-icon-tile[data-tone='6'],
+	.publy-profile-detail-tile[data-tone='6'] {
+		--publy-icon-tile-bg: var(--publy-profile-tone-6-bg);
+		--publy-icon-tile-fg: var(--publy-profile-tone-6-fg);
+	}
+
+	.publy-profile-icon-tile[data-tone='7'],
+	.publy-profile-detail-tile[data-tone='7'] {
+		--publy-icon-tile-bg: var(--publy-profile-tone-7-bg);
+		--publy-icon-tile-fg: var(--publy-profile-tone-7-fg);
+	}
+
+	/* ---- TEN-2 — tenant detail Profiles/Invitations/Users tabs ---- */
+
+	/* 40px r10 tile for the tenant-scoped profiles card grid (distinct sizing
+	from the 32px r9 staff-profiles table tile above; shares the same
+	data-tone palette). */
+	.publy-profile-icon-tile--lg {
+		width: 40px;
+		height: 40px;
+		border-radius: 10px;
+	}
+
+	.publy-profile-icon-tile--lg svg {
+		width: 19px;
+		height: 19px;
+	}
+
+	.publy-profile-card-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 16px;
+	}
+
+	@media (max-width: 1023px) {
+		.publy-profile-card-grid {
+			grid-template-columns: repeat(2, 1fr);
+		}
+	}
+
+	@media (max-width: 767px) {
+		.publy-profile-card-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+
+	/* Flat cursor footer for the profile card grid — it sits directly on the
+	page background instead of being pinned inside a `.publy-table-card`. */
+	.publy-data-table-footer--flat {
+		background: transparent;
+		border-top: none;
+		padding: 6px 0;
+	}
+
+	.publy-perm-check svg {
+		color: var(--publy-primary-foreground);
+	}
+}
+
+/* Selected card in the tenant Profiles grid: an amber ring replaces the
+   neutral shadow-ring (FIX-4 owner ruling — checkbox alone was not a visible
+   selection affordance on the card surface). Must live unlayered, not inside
+   `@layer components` alongside the rest of this section's rules above: the
+   `Card` primitive carries `shadow-[var(--publy-shadow-ring)]` as a Tailwind
+   utility, and Tailwind's `utilities` layer always beats `components`
+   regardless of source order or selector specificity, so a layered
+   `box-shadow` here can never override it (same cascade-layer gotcha as
+   `.app-shell-main:has(.publy-form-action-bar)` above). */
+.publy-profile-card--selected {
+	box-shadow: 0 0 0 2px var(--publy-primary);
+}
+
+/* Theme switching must not animate: suppress every transition for one frame
+   around the .dark class swap so surfaces don't cross-fade at staggered
+   durations. Hover/interaction transitions resume immediately after. */
+html[data-theme-changing],
+html[data-theme-changing] * {
+	transition: none !important;
+}
+
+/* ---- P3 ---- */
+
+@layer components {
+	/* Column geometry: colgroup-driven <col> widths only bite with a fixed
+	   table layout. Columns without an explicit width (the data-table.tsx
+	   `width` meta) absorb the remaining space, the fluid-column stand-in
+	   for `1fr`. Opt-in via `data-fixed-columns` (set only when at least one
+	   column declares a width meta) so tables with no width metas keep their
+	   previous auto-layout rendering. */
+	.publy-data-table[data-fixed-columns] {
+		table-layout: fixed;
+	}
+
+	/* Owner decision 15b: the last row keeps its bottom border (every row
+	   gets one), deliberately opposite to the gray-ui template default. The
+	   two rules this used to also override (`tbody tr:last-child
+	   [data-slot='table-cell'/'table-selection-cell'] { border-bottom: 0 }`)
+	   were dead code — deleted (F6) rather than kept as a stale "explains
+	   the win" pairing, since with them gone this selector's higher
+	   specificity against the base `[data-slot='table-cell']` rule above is
+	   what applies the border, cascade-layer-order independent (F6: this
+	   rule needs no un-layered escape hatch, unlike the table foundation
+	   recipe cluster earlier in the file). */
+	.publy-data-table tbody tr:last-child [data-slot='table-cell'],
+	.publy-data-table tbody tr:last-child [data-slot='table-selection-cell'] {
+		border-bottom: 1px solid var(--publy-row-border);
+	}
+}
+
+/* R3-1: the state/error icon glyph must fill its 48px cluster box (same
+   scale on both inline and page, owner decision R3-4b reaffirmed 2026-07-11)
+   regardless of any `size-*` utility a call site still puts on the icon
+   element. Tailwind's `size-*` lives in the utilities layer and beats a
+   layered `.publy-state-icon svg` rule, so this override is deliberately
+   un-layered — un-layered CSS wins over every Tailwind v4 layer. */
+.publy-state-icon svg {
+	width: 100%;
+	height: 100%;
+}

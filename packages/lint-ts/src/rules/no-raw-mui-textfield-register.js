@@ -3,7 +3,7 @@
  * usage wired directly to React Hook Form's `register()`.
  *
  * PublyApp form code should use the local hook-form wrappers instead:
- * `<Field.Text name="..." />` from `@/front/components/hook-form`.
+ * `<Field.Text name="..." />` from `@/old-front/components/hook-form`.
  *
  * This rule is intentionally report-only. Moving from raw MUI + register()
  * to the wrapper is a semantic component refactor, not a safe text rewrite.
@@ -14,13 +14,13 @@
  */
 import {
 	FRONT_SOURCE_EXTENSIONS,
-	FRONT_ONLY_SOURCE_PREFIX,
+	OLD_FRONT_SOURCE_PREFIX,
 	isFrontSourceFile,
 	normalizeFilename,
 } from './path-scopes.js';
 
 const MESSAGE =
-	'Use <Field.Text name="..."/> from @/front/components/hook-form instead of raw ' +
+	'Use <Field.Text name="..."/> from @/old-front/components/hook-form instead of raw ' +
 	'<TextField> with register()';
 
 const getContextFilename = (context) => {
@@ -37,7 +37,7 @@ const getContextFilename = (context) => {
 
 const isRuleTargetFile = (filename) =>
 	isFrontSourceFile(filename, FRONT_SOURCE_EXTENSIONS, [
-		FRONT_ONLY_SOURCE_PREFIX,
+		OLD_FRONT_SOURCE_PREFIX,
 	]);
 
 const isRegisterCall = (node) =>

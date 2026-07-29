@@ -2,9 +2,9 @@
  * Shared path helpers for lint rule file scoping.
  */
 
-export const FRONT_SOURCE_PREFIXES = ['apps/front/src/', 'apps/front-2/src/'];
+export const FRONT_SOURCE_PREFIXES = ['apps/old-front/src/', 'apps/front/src/'];
 
-export const FRONT_ONLY_SOURCE_PREFIX = 'apps/front/src/';
+export const OLD_FRONT_SOURCE_PREFIX = 'apps/old-front/src/';
 
 export const FRONT_SOURCE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs'];
 export const FRONT_PRODUCT_SURFACE_EXTENSIONS = ['.tsx', '.jsx'];
@@ -96,9 +96,9 @@ export const isFrontComponentTsxFile = (filename) => {
 	);
 };
 
-export const isFrontProductSurfaceFile = (
+export const isOldFrontProductSurfaceFile = (
 	filename,
-	sourcePrefix = FRONT_ONLY_SOURCE_PREFIX,
+	sourcePrefix = OLD_FRONT_SOURCE_PREFIX,
 	extensions = FRONT_PRODUCT_SURFACE_EXTENSIONS,
 ) => {
 	const normalizedFilename = normalizeFilename(filename);

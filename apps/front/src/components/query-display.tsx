@@ -1,130 +1,171 @@
-import Box from '@mui/material/Box';
 import type { UseQueryResult } from '@tanstack/react-query';
-import isFunction from 'lodash/isFunction';
-import isNil from 'lodash/isNil';
-import { type FC, isValidElement, type ReactNode } from 'react';
+import { type ComponentType, isValidElement, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 
-import { checkIfEmptyQueryData } from '../lib/react-query/query-utils';
+import { checkIfEmptyQueryData } from '@org/shared-ts/lib/query/query-state';
+
+type LoadingMode = 'loading' | 'pending' | 'fetching';
+type LoadingSpinnerProps = {
+	size?: 'sm' | 'md' | 'lg';
+	className?: string;
+};
+const LOADING_SPINNER_SIZE_CLASS: Record<
+	NonNullable<LoadingSpinnerProps['size']>,
+	string
+> = {
+	sm: 'size-4',
+	md: 'size-6',
+	lg: 'size-8',
+};
+
+type RenderSlot<TProps = object> =
+	| ReactNode
+	| React.JSXElementConstructor<TProps>;
 
 type Props<TData = unknown, TError = Error> = {
 	query: UseQueryResult<TData, TError>;
-	loadingStrategy?: 'loading' | 'pending' | 'fetching'; // defaults to 'pending'
-	LoadingSlot?: ReactNode | FC;
-	ErrorSlot?:
-		| ReactNode
-		| FC<{ error: unknown; query: UseQueryResult<TData, TError> }>;
-	EmptySlot?: ReactNode | FC;
-	children?: ReactNode | FC<{ data: TData }>;
+	loadingStrategy?: LoadingMode; // defaults to 'pending'
+	LoadingSlot?: RenderSlot;
+	ErrorSlot?: RenderSlot<{
+		error: unknown;
+		query: UseQueryResult<TData, TError>;
+	}>;
+	EmptySlot?: RenderSlot;
+	children?: ReactNode | ComponentType<{ data: TData }>;
 	forceRender?: 'loading' | 'error' | 'empty' | 'data';
 };
 
-const defaultLoadingElement = <Box>Loading...</Box>;
-const defaultErrorElement = <Box>Error...</Box>;
+const renderLoading = (
+	LoadingSlot: Props['LoadingSlot'],
+	loadingLabel: string,
+) => {
+	if (typeof LoadingSlot === 'function') {
+		const Slot = LoadingSlot;
+		return <Slot />;
+	}
+	if (isValidElement(LoadingSlot)) {
+		return LoadingSlot;
+	}
+	return (
+		LoadingSlot ?? (
+			<LoadingSpinner {...defaultLoadingProps} label={loadingLabel} />
+		)
+	);
+};
+
+const LoadingSpinner = ({
+	size = 'sm',
+	className,
+	label,
+}: LoadingSpinnerProps & { label: string }) => (
+	<span
+		role="status"
+		aria-label={label}
+		className={`${LOADING_SPINNER_SIZE_CLASS[size]} animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground ${
+			className ?? ''
+		}`}
+	/>
+);
+
+const renderError = <TData, TError>(
+	error: unknown,
+	query: UseQueryResult<TData, TError>,
+	ErrorSlot: Props<TData, TError>['ErrorSlot'],
+	errorMessage: string,
+) => {
+	if (typeof ErrorSlot === 'function') {
+		const Slot = ErrorSlot;
+		return <Slot error={error} query={query} />;
+	}
+	if (isValidElement(ErrorSlot)) {
+		return ErrorSlot;
+	}
+	return <span>{errorMessage}</span>;
+};
+
+const renderEmpty = (EmptySlot?: Props['EmptySlot']) => {
+	if (typeof EmptySlot === 'function') {
+		const Slot = EmptySlot;
+		return <Slot />;
+	}
+	if (isValidElement(EmptySlot)) {
+		return EmptySlot;
+	}
+	return EmptySlot ?? null;
+};
+
+const renderData = <TData, TError>(
+	query: UseQueryResult<TData, TError>,
+	children?: Props<TData, TError>['children'],
+) => {
+	if (typeof children === 'function') {
+		const Slot = children;
+		return <Slot data={query.data as TData} />;
+	}
+	if (isValidElement(children)) {
+		return children;
+	}
+	return children;
+};
+
+const defaultLoadingProps: LoadingSpinnerProps = {
+	size: 'sm',
+};
 
 const QueryDisplay = <TData = unknown, TError = Error>({
 	query,
+	loadingStrategy = 'pending',
 	LoadingSlot,
 	ErrorSlot,
 	EmptySlot,
-	loadingStrategy,
 	forceRender,
 	children,
 }: Props<TData, TError>) => {
-	// Helper to render loading slot
-	const renderLoading = () => {
-		if (isFunction(LoadingSlot)) {
-			return <LoadingSlot />;
-		}
-		if (isValidElement(LoadingSlot) && !isNil(LoadingSlot)) {
-			return LoadingSlot;
-		}
-		return defaultLoadingElement;
-	};
+	const { t } = useTranslation('common');
 
-	// Helper to render error slot
-	const renderError = () => {
-		if (isFunction(ErrorSlot)) {
-			return (
-				<ErrorSlot
-					error={query.error ?? new Error('Forced error')}
-					query={query}
-				/>
-			);
-		}
-		if (isValidElement(ErrorSlot) && !isNil(ErrorSlot)) {
-			return ErrorSlot;
-		}
-		return defaultErrorElement;
-	};
-
-	// Helper to render empty slot
-	const renderEmpty = () => {
-		if (isFunction(EmptySlot)) {
-			return <EmptySlot />;
-		}
-		if (isValidElement(EmptySlot) && !isNil(EmptySlot)) {
-			return EmptySlot;
-		}
-		return null;
-	};
-
-	// Helper to render children/data
-	const renderData = () => {
-		if (isFunction(children)) {
-			return children({ data: query.data as TData });
-		}
-		return children;
-	};
-
-	// Force render specific state for testing
 	if (forceRender) {
 		switch (forceRender) {
 			case 'loading':
-				return renderLoading();
+				return renderLoading(LoadingSlot, t('loading'));
 			case 'error':
-				return renderError();
+				return renderError(
+					query.error ?? new Error('forced error'),
+					query,
+					ErrorSlot,
+					t('query-display-error-default'),
+				);
 			case 'empty':
-				return renderEmpty();
+				return renderEmpty(EmptySlot);
 			case 'data':
-				return renderData();
+				return renderData(query, children);
 		}
 	}
 
-	// Normal flow
-	let showLoading: boolean;
-
-	switch (loadingStrategy) {
-		case 'loading': {
-			showLoading = query.isLoading;
-			break;
-		}
-
-		case 'fetching': {
-			showLoading = query.isFetching;
-			break;
-		}
-
-		default: {
-			showLoading = query.isPending;
-			break;
-		}
+	let showLoading = query.isPending;
+	if (loadingStrategy === 'loading') {
+		showLoading = query.isLoading;
+	} else if (loadingStrategy === 'fetching') {
+		showLoading = Boolean(query.isFetching);
 	}
 
 	if (showLoading) {
-		return renderLoading();
+		return renderLoading(LoadingSlot, t('loading'));
 	}
 
 	if (query.isError) {
-		return renderError();
+		return renderError(
+			query.error,
+			query,
+			ErrorSlot,
+			t('query-display-error-default'),
+		);
 	}
 
-	const isEmpty = checkIfEmptyQueryData(query);
-
-	if (isEmpty) {
-		return renderEmpty();
+	if (checkIfEmptyQueryData(query)) {
+		return renderEmpty(EmptySlot);
 	}
 
-	return renderData();
+	return renderData(query, children);
 };
 
 export default QueryDisplay;

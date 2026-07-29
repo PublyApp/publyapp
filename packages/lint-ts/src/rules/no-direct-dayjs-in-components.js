@@ -15,10 +15,10 @@
  *
  * Component file heuristic:
  *   - file extension is `.tsx`
- *   - path is under `apps/front/src/components`, `apps/front-2/src/components`,
- *     `apps/front/src/_parts`, `apps/front-2/src/_parts`,
- *     `apps/front/src/_components`, `apps/front-2/src/_components`,
- *     `apps/front/src/routes`, or `apps/front-2/src/routes`
+ *   - path is under `apps/old-front/src/components`, `apps/front/src/components`,
+ *     `apps/old-front/src/_parts`, `apps/front/src/_parts`,
+ *     `apps/old-front/src/_components`, `apps/front/src/_components`,
+ *     `apps/old-front/src/routes`, or `apps/front/src/routes`
  *
  * This rule deliberately has no fixer: the correct `format-time` utility depends
  * on how the component formats or parses the value.

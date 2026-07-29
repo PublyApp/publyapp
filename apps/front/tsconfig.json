@@ -1,41 +1,27 @@
 {
 	"extends": "../../packages/_tsconfig/tsconfig.base.json",
 	"compilerOptions": {
-		"verbatimModuleSyntax": true,
-		"rootDirs": [".", "./.react-router/types"],
-		"lib": ["DOM", "DOM.Iterable", "ES2022", "ESNext"],
-		"isolatedModules": true,
-		"esModuleInterop": true,
 		"jsx": "react-jsx",
-		"moduleResolution": "bundler",
-		"resolveJsonModule": true,
 		"module": "ESNext",
+		"moduleResolution": "Bundler",
+		"lib": ["DOM", "DOM.Iterable", "ES2022"],
 		"target": "ES2022",
-		"strict": true,
-		"allowJs": true,
+		"types": ["vite/client", "node"],
 		"allowImportingTsExtensions": true,
-		"forceConsistentCasingInFileNames": true,
-		// Remix takes care of building everything in `remix build`.
+		"verbatimModuleSyntax": true,
 		"noEmit": true,
-		// For fixing the below error
-		// The inferred type of XXX cannot be named without a reference to '@/ui-react/node_modules/@types/react/jsx-runtime'. This is likely not portable. A type annotation is necessary.
-		// https://github.com/microsoft/TypeScript/issues/29808#issuecomment-560951060
-		"declarationMap": false,
-		"declaration": false,
-		"typeRoots": ["./node_modules/@types"] // comment if using bun (or any other hoisted package manager)
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"paths": {
+			"~/*": ["./src/*"]
+		}
 	},
 	"include": [
-		"**/*",
-		"**/.server/**/*",
-		"**/.client/**/*",
-		".react-router/types/**/*",
-		// ====
-		"@types",
-		"src",
-		"server"
-		// ====
-		// "../server/@types"
-		// "../../node_modules/simplebar-react/dist/index.d.ts"
+		"**/*.ts",
+		"**/*.tsx",
+		"server.mjs",
+		"scripts/**/*.mjs",
+		"../../packages/shared-ts/@types/**/*.d.ts"
 	],
-	"exclude": ["node_modules", "dist", "build", "public"]
+	"exclude": ["node_modules", "dist", ".output"]
 }

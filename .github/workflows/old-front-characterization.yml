@@ -1,0 +1,123 @@
+name: old-front characterization
+
+on:
+  pull_request:
+  push:
+    branches:
+      - develop
+    paths:
+      - 'apps/api/**'
+      - 'apps/old-front/**'
+      - 'apps/front/**'
+      - '.config/**'
+      - 'packages/shared-ts/**'
+      - 'packages/client-ts/**'
+      - 'packages/_tsconfig/**'
+      - 'packages/lint-cs/**'
+      - 'packages/scripts-cs/**'
+      - 'docs/front-migration/**'
+      - 'turbo.json'
+      - '.github/workflows/old-front-characterization.yml'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'package.json'
+      - '.npmrc'
+      - 'Directory.Build.props'
+      - 'Directory.Build.targets'
+      - 'Directory.Packages.props'
+      - 'global.json'
+      - 'PublyApp.slnx'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: old-front-characterization-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  old-front-unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.13.1
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+
+      - name: Install (frozen lockfile, no scripts)
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Run trusted first-party postinstall (@org/shared-ts)
+        run: pnpm --filter @org/shared-ts run postinstall
+
+      - name: Check formatting
+        run: pnpm format
+
+      - name: Test current frontend unit characterization
+        run: pnpm --filter old-front run test
+
+  old-front-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.13.1
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+
+      - name: Install (frozen lockfile, no scripts)
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Run trusted first-party postinstall (@org/shared-ts)
+        run: pnpm --filter @org/shared-ts run postinstall
+
+      - name: Install Playwright Chromium
+        run: pnpm --filter old-front exec playwright install chromium --with-deps
+
+      - name: Reset current frontend characterization stack
+        run: docker compose -f apps/old-front/docker-compose.test.yml down -v --remove-orphans
+
+      - name: Build and wait for current frontend characterization stack
+        run: docker compose -f apps/old-front/docker-compose.test.yml up -d --build --wait --wait-timeout 180
+
+      - name: Run current frontend e2e characterization
+        run: pnpm --filter old-front exec playwright test
+
+      - name: Capture current frontend stack logs
+        if: failure()
+        run: |
+          mkdir -p apps/old-front/test-results
+          docker compose -f apps/old-front/docker-compose.test.yml logs --no-color \
+            > apps/old-front/test-results/compose.log || true
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: front-characterization-playwright-report
+          path: |
+            apps/old-front/playwright-report
+            apps/old-front/test-results
+          if-no-files-found: ignore
+
+      - name: Tear down current frontend characterization stack
+        if: always()
+        run: docker compose -f apps/old-front/docker-compose.test.yml down -v

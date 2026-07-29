@@ -14,8 +14,8 @@
  *
  * What it allows:
  *   - Marketing surfaces (same path exclusions as no-native-html-in-mui-surfaces)
- *   - Brand wordmark/logo files under `apps/front/src/components/brand/` and
- *     `apps/front/src/components/logo/`
+ *   - Brand wordmark/logo files under `apps/old-front/src/components/brand/` and
+ *     `apps/old-front/src/components/logo/`
  *   - Full-bleed background image exceptions marked by the line-above comment:
  *     `publy-allow full-bleed-background`
  *
@@ -26,7 +26,10 @@
  * Fix strategy: no autofix. Choosing the correct `ratio`, clipping, and layout
  * styles depends on the image's surrounding UI.
  */
-import { isFrontProductSurfaceFile, normalizeFilename } from './path-scopes.js';
+import {
+	isOldFrontProductSurfaceFile,
+	normalizeFilename,
+} from './path-scopes.js';
 
 const MESSAGE =
 	'Use the Image primitive from @/app/components/image (with a ratio prop) ' +
@@ -34,13 +37,13 @@ const MESSAGE =
 	'content-imagery rule. Marketing surfaces and brand wordmarks are exempt.';
 
 const MARKETING_EXCLUSIONS = [
-	'apps/front/src/routes/marketing/',
-	'apps/front/src/components/marketing/',
+	'apps/old-front/src/routes/marketing/',
+	'apps/old-front/src/components/marketing/',
 ];
 
 const BRAND_WORDMARK_PREFIXES = [
-	'apps/front/src/components/brand/',
-	'apps/front/src/components/logo/',
+	'apps/old-front/src/components/brand/',
+	'apps/old-front/src/components/logo/',
 ];
 
 const FULL_BLEED_BACKGROUND_MARKER = 'publy-allow full-bleed-background';
@@ -80,7 +83,7 @@ const isProductSurfaceFile = (filename) => {
 		return false;
 	}
 
-	if (!isFrontProductSurfaceFile(normalizedFilename)) {
+	if (!isOldFrontProductSurfaceFile(normalizedFilename)) {
 		return false;
 	}
 

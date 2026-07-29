@@ -33,7 +33,7 @@ pay for them twice.
 
 - Dokploy installed and reachable (admin UI), on the VPS.
 - The app images exist in GHCR — CI (`.github/workflows/deploy-images.yml`) builds and pushes
-  `ghcr.io/radandevist/publyapp/{api,migrate,front-2}` tagged by commit SHA on push to the
+  `ghcr.io/radandevist/publyapp/{api,migrate,front}` tagged by commit SHA on push to the
   target branch. Pick the SHA tag you want to deploy (that becomes `RELEASE_TAG`).
   If Actions is billing-stalled, first run `docker login ghcr.io -u radandevist`, then run
   `just deploy-images [ref]` locally (the ref defaults to `origin/develop`), or invoke
@@ -271,7 +271,7 @@ checks". They are now answered; that section is closed out.
 - **Image pull denied** → GHCR registry auth didn't sync (§2); `docker login` manually.
 - **`... : not found` on image pull** → the images for that `RELEASE_TAG` were never published.
   Check that `deploy-images.yml` actually ran **and succeeded** for that commit. Note the
-  workflow has a `paths:` filter (`apps/api/**`, `apps/front-2/**`, `packages/**`, …), so a
+  workflow has a `paths:` filter (`apps/api/**`, `apps/front/**`, `packages/**`, …), so a
   commit touching only e.g. `dokploy.yml` correctly builds nothing — deploy the last commit
   that did build. If GitHub Actions cannot run at all (e.g. the account is over its Actions
   spending limit, which shows as **every** job failing in ~3s with 0 steps and no runner),

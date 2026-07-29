@@ -1,0 +1,102 @@
+name: front supply-chain
+
+on:
+  pull_request:
+    paths:
+      - 'apps/front/**'
+      - 'packages/shared-ts/**'
+      - 'packages/client-ts/**'
+      - 'packages/_tsconfig/**'
+      - 'turbo.json'
+      - '.github/workflows/front-ci.yml'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'package.json'
+      - '.npmrc'
+
+permissions:
+  contents: read
+
+# Supersede in-flight runs for the same ref: a newer push makes an older run's
+# result irrelevant, and on a private repo every superseded minute is billed.
+concurrency:
+  group: front-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  supply-chain:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.13.1
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+
+      - name: Assert exact pins
+        run: node apps/front/scripts/assert-pinned.mjs
+
+      - name: Install (frozen lockfile, no scripts)
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Run trusted first-party postinstall (@org/shared-ts)
+        run: pnpm --filter @org/shared-ts run postinstall
+
+      - name: Check front formatting
+        run: pnpm format
+
+      - name: Build front
+        run: pnpm --filter front build
+
+      - name: Verify front production build emits a CSS asset
+        run: node apps/front/scripts/verify-build-css-link.mjs
+
+      - name: Smoke start front server and verify stylesheet tag
+        env:
+          PUBLIC_API_BASE_URL: 'http://127.0.0.1:5000'
+          SERVER_API_BASE_URL: 'http://127.0.0.1:5000'
+        run: |
+          pnpm --filter front start > /tmp/front-ci-server.log 2>&1 &
+          FRONT_SERVER_PID=$!
+          trap 'kill $FRONT_SERVER_PID || true' EXIT
+
+          for attempt in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:3000/ >/tmp/front-home.html; then
+              break
+            fi
+            sleep 1
+          done
+
+          if ! curl -fsS http://127.0.0.1:3000/ > /tmp/front-home.html; then
+            echo "front standalone server failed to return HTML from /"
+            cat /tmp/front-ci-server.log
+            exit 1
+          fi
+
+          if ! grep -aEq 'rel="stylesheet"[^>]*href="[^"]+\.css"' /tmp/front-home.html; then
+            echo "front production HTML does not contain stylesheet link"
+            cat /tmp/front-home.html
+            exit 1
+          fi
+
+      - name: Typecheck front
+        run: pnpm --filter front typecheck
+
+      - name: Lint front
+        run: |
+          npx oxlint --quiet apps/front packages/shared-ts
+          pnpm lint:disables
+          pnpm check:frontend-barrels
+
+      - name: Check front design system
+        run: pnpm --filter front check:design-system
+
+      - name: Test front
+        run: pnpm --filter front test

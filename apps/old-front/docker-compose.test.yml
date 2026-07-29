@@ -1,0 +1,153 @@
+name: publyapp-front-real-test
+
+x-api-test-environment: &api-test-environment
+  # These services run under the Testing environment (set per-service below) so the
+  # demo seeders run: they are gated off under Production (AppDbContext seeder filter),
+  # and the e2e suites log in as demo-seed users (e.g. staff-admin@example.com).
+  # APP_ROLE is still required (Testing defaults it to All otherwise); "api" = HTTP
+  # surface + migrations, never the worker engine (mirrors apps/front/docker-compose.test.yml).
+  APP_ROLE: api
+  POSTGRES_CONNECTION_STRING: Host=postgres;Port=5432;Database=publyapp_db;Username=postgres;Password=password;
+  FRONT_URL: http://front.localhost:5051
+  RESEND_API_KEY: e2e-disabled
+  STAFF_OWNER_EMAIL: owner@publyapp.local
+  STAFF_OWNER_BOOTSTRAP_CODE: e2e-disabled
+  APP_NAME: PublyApp
+  DEFAULT_EMAIL_SENDER_EMAIL: support@publyapp.local
+  DEFAULT_EMAIL_SENDER_NAME: PublyApp Support
+  SESSION_TOKEN_HEADER_KEY: X-Session-Token
+  TENANT_ID_HEADER_KEY: X-PublyApp-TenantId
+  SESSION_EXPIRY_DAYS: 7
+  EMAIL_VERIFY_TOKEN_VALIDITY_DURATION: 7
+  PASSWORD_RESET_TOKEN_VALIDITY_DURATION: 7
+  PASSWORD_MIN_LENGTH: 12
+  EMAIL_VERIFY_TOKEN_LENGTH: 25
+  PASSWORD_RESET_TOKEN_LENGTH: 25
+  INVITATION_TOKEN_LENGTH: 25
+  ANON_AUTH_IP_RATE_LIMIT_PERMIT_LIMIT: 10000
+  ANON_AUTH_IP_RATE_LIMIT_WINDOW_SECONDS: 60
+  ANON_AUTH_EMAIL_RATE_LIMIT_PERMIT_LIMIT: 10000
+  ANON_AUTH_EMAIL_RATE_LIMIT_WINDOW_SECONDS: 60
+  PASSWORD_RESET_EMAIL_RATE_LIMIT_PERMIT_LIMIT: 10000
+  PASSWORD_RESET_EMAIL_RATE_LIMIT_WINDOW_SECONDS: 900
+  GLOBAL_RATE_LIMIT_PERMIT_LIMIT: 10000
+  GLOBAL_RATE_LIMIT_WINDOW_SECONDS: 60
+  ANONYMOUS_OTHER_RATE_LIMIT_PERMIT_LIMIT: 10000
+  ANONYMOUS_OTHER_RATE_LIMIT_WINDOW_SECONDS: 60
+  AUTHENTICATED_RATE_LIMIT_PERMIT_LIMIT: 10000
+  AUTHENTICATED_RATE_LIMIT_WINDOW_SECONDS: 60
+  HEAVY_SEARCH_RATE_LIMIT_PERMIT_LIMIT: 10000
+  HEAVY_SEARCH_RATE_LIMIT_WINDOW_SECONDS: 60
+  BULK_RATE_LIMIT_PERMIT_LIMIT: 10000
+  BULK_RATE_LIMIT_WINDOW_SECONDS: 60
+  TENANT_BULK_RATE_LIMIT_PERMIT_LIMIT: 10000
+  TENANT_BULK_RATE_LIMIT_WINDOW_SECONDS: 60
+  EMAIL_RATE_LIMIT_PERMIT_LIMIT: 10000
+  EMAIL_RATE_LIMIT_WINDOW_SECONDS: 900
+  TENANT_EMAIL_RATE_LIMIT_PERMIT_LIMIT: 10000
+  TENANT_EMAIL_RATE_LIMIT_WINDOW_SECONDS: 900
+  EXPORT_RATE_LIMIT_PERMIT_LIMIT: 10000
+  EXPORT_RATE_LIMIT_WINDOW_SECONDS: 60
+  TENANT_EXPORT_RATE_LIMIT_PERMIT_LIMIT: 10000
+  TENANT_EXPORT_RATE_LIMIT_WINDOW_SECONDS: 60
+  UPLOAD_RATE_LIMIT_PERMIT_LIMIT: 10000
+  UPLOAD_RATE_LIMIT_WINDOW_SECONDS: 60
+  AUDIT_LOG_EXPORT_MAX_ROWS: 10000
+  MAX_PROFILES_PER_USER: 5
+
+services:
+  postgres:
+    image: postgres:18-alpine@sha256:1b1689b20d16a014a3d195653381cf2caa75a41a92d93b255a9d6ea29fd353aa
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: publyapp_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - publyapp-network
+
+  migrate:
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+      target: migrate
+    environment:
+      <<: *api-test-environment
+      DOTNET_ENVIRONMENT: Testing
+      ASPNETCORE_ENVIRONMENT: Testing
+      ASPNETCORE_URLS: http://+:5000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - publyapp-network
+
+  api:
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+      target: runtime
+    environment:
+      <<: *api-test-environment
+      DOTNET_ENVIRONMENT: Testing
+      ASPNETCORE_ENVIRONMENT: Testing
+      ASPNETCORE_URLS: http://+:5000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:5000/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    ports:
+      - "127.0.0.1:5000:5000"
+    networks:
+      publyapp-network:
+        aliases:
+          - api.front.localhost
+
+  front:
+    build:
+      context: ../..
+      dockerfile: apps/old-front/Dockerfile
+      args:
+        VITE_ASP_SERVER_URL: http://api.front.localhost:5000
+        VITE_POSTHOG_PROJECT_TOKEN: e2e-disabled
+    image: publyapp/front:test
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 15s
+    ports:
+      - "127.0.0.1:5051:3000"
+    networks:
+      publyapp-network:
+        aliases:
+          - front.localhost
+
+networks:
+  publyapp-network:
+    driver: bridge
+    external: false

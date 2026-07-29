@@ -1,7 +1,0 @@
-
-# Playwright artifacts
-test-results/
-playwright-report/
-# Captured session state (real cookies) from e2e/auth.setup.ts — never commit
-# a live session, even a test one.
-playwright/.auth/

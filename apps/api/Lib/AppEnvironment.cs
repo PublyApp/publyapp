@@ -165,7 +165,7 @@ public class AppEnvironment {
 
 	// Must stay in sync with the largest front-end page size —
 	// PAGE_SIZE_OPTIONS / MAX_TABLE_SIZE in
-	// apps/front-2/src/lib/url-state/table-search-params.ts.
+	// apps/front/src/lib/url-state/table-search-params.ts.
 	// Caps caller-supplied `limit` so a request can't force the API to
 	// materialise an unbounded number of rows.
 	public int PAGINATION_MAX_LIMIT {

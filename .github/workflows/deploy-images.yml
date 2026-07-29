@@ -6,7 +6,7 @@ on:
       - develop
     paths:
       - 'apps/api/**'
-      - 'apps/front-2/**'
+      - 'apps/front/**'
       - 'packages/**'
       - 'Directory.Build.props'
       - 'Directory.Build.targets'
@@ -63,11 +63,11 @@ jobs:
           platforms: linux/amd64
           tags: ghcr.io/radandevist/publyapp/migrate:${{ steps.release.outputs.tag }}
 
-      - name: Build and push Front-2 image
+      - name: Build and push Front image
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: apps/front-2/Dockerfile
+          file: apps/front/Dockerfile
           push: true
           platforms: linux/amd64
-          tags: ghcr.io/radandevist/publyapp/front-2:${{ steps.release.outputs.tag }}
+          tags: ghcr.io/radandevist/publyapp/front:${{ steps.release.outputs.tag }}

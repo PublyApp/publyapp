@@ -8,10 +8,10 @@
  *
  * What it flags:
  *   - Native HTML JSX elements in TSX files under:
- *     `apps/front/src/routes/`
- *     `apps/front/src/components/`
- *     `apps/front/src/layouts/`
- *     `apps/front/src/lib/`
+ *     `apps/old-front/src/routes/`
+ *     `apps/old-front/src/components/`
+ *     `apps/old-front/src/layouts/`
+ *     `apps/old-front/src/lib/`
  *
  * What it allows:
  *   - Marketing surfaces (`routes/marketing`, `components/marketing`, `_marketing`)
@@ -23,7 +23,10 @@
  * routing behavior, form wiring, and image semantics, so the rule reports with
  * explicit guidance only.
  */
-import { isFrontProductSurfaceFile, normalizeFilename } from './path-scopes.js';
+import {
+	isOldFrontProductSurfaceFile,
+	normalizeFilename,
+} from './path-scopes.js';
 
 const NATIVE_HTML_EQUIVALENTS = {
 	div: 'Box',
@@ -51,7 +54,7 @@ const NATIVE_HTML_EQUIVALENTS = {
 	aside: 'Box (with appropriate role)',
 	main: 'Box (with appropriate role)',
 	a: 'Link (react-router or MUI)',
-	img: 'Image component at @/front/components/image/image.tsx',
+	img: 'Image component at @/old-front/components/image/image.tsx',
 };
 
 export const SVG_ELEMENTS = new Set([
@@ -81,8 +84,8 @@ export const SVG_ELEMENTS = new Set([
 ]);
 
 const MARKETING_EXCLUSIONS = [
-	'apps/front/src/routes/marketing/',
-	'apps/front/src/components/marketing/',
+	'apps/old-front/src/routes/marketing/',
+	'apps/old-front/src/components/marketing/',
 ];
 
 const getContextFilename = (context) => {
@@ -112,7 +115,7 @@ const isProductSurfaceFile = (filename) => {
 		return false;
 	}
 
-	if (!isFrontProductSurfaceFile(normalizedFilename)) {
+	if (!isOldFrontProductSurfaceFile(normalizedFilename)) {
 		return false;
 	}
 

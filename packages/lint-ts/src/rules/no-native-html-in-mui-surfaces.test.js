@@ -78,81 +78,81 @@ const remainingNativeHtmlCases = [
 	{ tagName: 'img', jsx: '<img alt="Preview" src="/preview.png" />' },
 ].map(({ tagName, jsx }) => ({
 	code: `const Component = () => ${jsx};`,
-	filename: `apps/front/src/components/native-${tagName}.tsx`,
+	filename: `apps/old-front/src/components/native-${tagName}.tsx`,
 	errors: [{ messageId: tagName }],
 }));
 
 const marketingExceptionCases = [
 	{
 		code: 'const Hero = () => <div />;',
-		filename: 'apps/front/src/components/marketing/hero.tsx',
+		filename: 'apps/old-front/src/components/marketing/hero.tsx',
 	},
 	{
 		code: 'const Front2 = () => <div />;',
-		filename: 'apps/front-2/src/components/page-card.tsx',
+		filename: 'apps/front/src/components/page-card.tsx',
 	},
 	{
 		code: 'const Banner = () => <section><h2>Marketing</h2></section>;',
-		filename: 'apps/front/src/components/_marketing-banner.tsx',
+		filename: 'apps/old-front/src/components/_marketing-banner.tsx',
 	},
 ];
 
 const svgExceptionCases = [
 	{
 		code: 'const Icon = () => <svg><circle cx="1" cy="1" r="1" /></svg>;',
-		filename: 'apps/front/src/components/icon-circle.tsx',
+		filename: 'apps/old-front/src/components/icon-circle.tsx',
 	},
 	{
 		code: 'const Icon = () => <svg><g /></svg>;',
-		filename: 'apps/front/src/components/icon-group.tsx',
+		filename: 'apps/old-front/src/components/icon-group.tsx',
 	},
 	{
 		code: 'const Icon = () => <svg><rect width="1" height="1" /></svg>;',
-		filename: 'apps/front/src/components/icon-rect.tsx',
+		filename: 'apps/old-front/src/components/icon-rect.tsx',
 	},
 	{
 		code: 'const Icon = () => <svg><line x1="0" y1="0" x2="1" y2="1" /></svg>;',
-		filename: 'apps/front/src/components/icon-line.tsx',
+		filename: 'apps/old-front/src/components/icon-line.tsx',
 	},
 	{
 		code: 'const Icon = () => <svg><polyline points="0,0 1,1" /></svg>;',
-		filename: 'apps/front/src/components/icon-polyline.tsx',
+		filename: 'apps/old-front/src/components/icon-polyline.tsx',
 	},
 	{
 		code: 'const Icon = () => <svg><polygon points="0,0 1,1 1,0" /></svg>;',
-		filename: 'apps/front/src/components/icon-polygon.tsx',
+		filename: 'apps/old-front/src/components/icon-polygon.tsx',
 	},
 	{
 		code: 'const Icon = () => <svg><ellipse cx="1" cy="1" rx="1" ry="1" /></svg>;',
-		filename: 'apps/front/src/components/icon-ellipse.tsx',
+		filename: 'apps/old-front/src/components/icon-ellipse.tsx',
 	},
 	{
 		code: 'const Icon = () => <svg><text>Label</text></svg>;',
-		filename: 'apps/front/src/components/icon-text.tsx',
+		filename: 'apps/old-front/src/components/icon-text.tsx',
 	},
 	{
 		code: 'const Icon = () => <svg><use href="#shape" /></svg>;',
-		filename: 'apps/front/src/components/icon-use.tsx',
+		filename: 'apps/old-front/src/components/icon-use.tsx',
 	},
 	{
 		code: 'const Icon = () => <svg><defs /></svg>;',
-		filename: 'apps/front/src/components/icon-defs.tsx',
+		filename: 'apps/old-front/src/components/icon-defs.tsx',
 	},
 	{
 		code: 'const Icon = () => <svg><clipPath id="clip" /></svg>;',
-		filename: 'apps/front/src/components/icon-clip-path.tsx',
+		filename: 'apps/old-front/src/components/icon-clip-path.tsx',
 	},
 	{
 		code: 'const Icon = () => <svg><mask id="mask" /></svg>;',
-		filename: 'apps/front/src/components/icon-mask.tsx',
+		filename: 'apps/old-front/src/components/icon-mask.tsx',
 	},
 	{
 		code: 'const Icon = () => <svg><symbol id="shape" /></svg>;',
-		filename: 'apps/front/src/components/icon-symbol.tsx',
+		filename: 'apps/old-front/src/components/icon-symbol.tsx',
 	},
 	{
 		code: 'const Icon = () => <svg><text><tspan>Label</tspan></text></svg>;',
-		filename: 'apps/front/src/components/icon-tspan.tsx',
+		filename: 'apps/old-front/src/components/icon-tspan.tsx',
 	},
 ];
 
@@ -186,23 +186,23 @@ const runCases = (rule, label) => {
 			valid: [
 				{
 					code: 'const Component = () => <Box />;',
-					filename: 'apps/front/src/components/page-card.tsx',
+					filename: 'apps/old-front/src/components/page-card.tsx',
 				},
 				{
 					code: 'const Hero = () => <div />;',
-					filename: 'apps/front/src/routes/marketing/home.tsx',
+					filename: 'apps/old-front/src/routes/marketing/home.tsx',
 				},
 				{
 					code: 'const Hero = () => <div />;',
-					filename: 'apps/front/src/routes/marketing/home.jsx',
+					filename: 'apps/old-front/src/routes/marketing/home.jsx',
 				},
 				{
 					code: "const template = '<div></div>';",
-					filename: 'apps/front/src/components/template.ts',
+					filename: 'apps/old-front/src/components/template.ts',
 				},
 				{
 					code: 'const Icon = () => <svg><path d="M0 0h1v1z" /></svg>;',
-					filename: 'apps/front/src/components/icon.tsx',
+					filename: 'apps/old-front/src/components/icon.tsx',
 				},
 				...marketingExceptionCases,
 				...svgExceptionCases,
@@ -210,27 +210,27 @@ const runCases = (rule, label) => {
 			invalid: [
 				{
 					code: 'const Component = () => <div />;',
-					filename: 'apps/front/src/components/page-card.tsx',
+					filename: 'apps/old-front/src/components/page-card.tsx',
 					errors: [{ messageId: 'div' }],
 				},
 				{
 					code: 'const Component = () => <h1>Title</h1>;',
-					filename: 'apps/front/src/components/page-heading.tsx',
+					filename: 'apps/old-front/src/components/page-heading.tsx',
 					errors: [{ messageId: 'h1' }],
 				},
 				{
 					code: 'const Component = () => <h1>Title</h1>;',
-					filename: 'apps/front/src/components/page-heading.jsx',
+					filename: 'apps/old-front/src/components/page-heading.jsx',
 					errors: [{ messageId: 'h1' }],
 				},
 				{
 					code: 'const Component = () => <button type="button" />;',
-					filename: 'apps/front/src/routes/staff/users.tsx',
+					filename: 'apps/old-front/src/routes/staff/users.tsx',
 					errors: [{ messageId: 'button' }],
 				},
 				{
 					code: 'const Component = () => <input name="email" />;',
-					filename: 'apps/front/src/layouts/authenticated-shell.tsx',
+					filename: 'apps/old-front/src/layouts/authenticated-shell.tsx',
 					errors: [{ messageId: 'input' }],
 				},
 				...remainingNativeHtmlCases,

@@ -1,0 +1,10 @@
+.DS_Store
+/node_modules/
+
+# React Router
+/.react-router/
+/build/
+
+# copy json translation files
+# from shared package to public/tx/
+/public/tx/

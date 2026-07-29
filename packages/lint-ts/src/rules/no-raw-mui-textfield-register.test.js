@@ -26,15 +26,15 @@ describe('plugin entrypoint wiring (@org/lint-ts)', () => {
 
 const frontTsx = (code) => ({
 	code,
-	filename: 'apps/front/src/components/example-form.tsx',
+	filename: 'apps/old-front/src/components/example-form.tsx',
 });
 const frontJsx = (code) => ({
 	code,
-	filename: 'apps/front/src/components/example-form.jsx',
+	filename: 'apps/old-front/src/components/example-form.jsx',
 });
 const front2Tsx = (code) => ({
 	code,
-	filename: 'apps/front-2/src/components/example-form.tsx',
+	filename: 'apps/front/src/components/example-form.tsx',
 });
 
 const ruleTester = new RuleTester();
@@ -52,17 +52,17 @@ const runCases = (rule, label) => {
 			invalid: [
 				{
 					code: '<TextField {...register("email")} />;',
-					filename: 'apps/front/src/components/example-form.tsx',
+					filename: 'apps/old-front/src/components/example-form.tsx',
 					errors: [{ messageId: 'raw' }],
 				},
 				{
 					code: '<TextField {...register("email")} />;',
-					filename: 'apps/front/src/components/example-form.jsx',
+					filename: 'apps/old-front/src/components/example-form.jsx',
 					errors: [{ messageId: 'raw' }],
 				},
 				{
 					code: '<TextField inputProps={register("email")} />;',
-					filename: 'apps/front/src/components/example-form.tsx',
+					filename: 'apps/old-front/src/components/example-form.tsx',
 					errors: [{ messageId: 'raw' }],
 				},
 			],

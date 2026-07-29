@@ -231,7 +231,7 @@ Add to `AppEnvironment` (`apps/api/Lib/AppEnvironment.cs`):
   enumerated entrypoint set (all must be pinned, verified by a checklist in
   Phase 2B's gate):
   1. the Dockerfile's build-time OpenAPI-generation env block (§3.3);
-  2. `apps/front-2/docker-compose.test.yml`'s api service (front-2 E2E);
+  2. `apps/front/docker-compose.test.yml`'s api service (front-2 E2E);
   3. the **OpenAPI-drift / client-generation workflow** (`just build-api` +
      `just generate-client`, and its CI job) — `dotnet build` runs the app to
      emit the OpenAPI document, so the build env must export `APP_ROLE=api`;
@@ -240,7 +240,7 @@ Add to `AppEnvironment` (`apps/api/Lib/AppEnvironment.cs`):
   5. the Docker production migration entrypoint — the `migrate` stage in
      `apps/api/Dockerfile` — and every staging/production migration service or
      job that invokes it, including the staging `migrate` service documented in
-     `docs/front-2-migration/staging-deploy.md` and the Dokploy migrate job. Each
+     `docs/front-migration/staging-deploy.md` and the Dokploy migrate job. Each
      pins `APP_ROLE=api`; migration/model creation is an API-role tooling path,
      never an implicit `all` or worker host (R4-4).
   Because these run under `Development`/`Testing` host environments, the pin is
@@ -357,7 +357,7 @@ started the shipped outbox dispatcher before the fold-in) — these are the
 "worker-specific integration fixtures" the `all` default exists for.
 **Everything that is not local dev or a worker fixture pins `APP_ROLE=api`
 explicitly (C6/F24/R4-4)** — the full enumerated list is in §3.1: the Dockerfile
-build-time OpenAPI env block, `apps/front-2/docker-compose.test.yml`, the
+build-time OpenAPI env block, `apps/front/docker-compose.test.yml`, the
 `just build-api`/`generate-client` OpenAPI-drift workflow and its CI job, every
 other CI app-boot, and every production-like migration invocation (the
 Dockerfile `migrate` stage, the staging migrate service, and the Dokploy migrate
@@ -410,7 +410,7 @@ enumerated in §3.1 (R4-4).
 > **Known code-alignment item (R4-4, captain's reconciliation round).** The
 > production migration entrypoint is the `migrate` stage in
 > `apps/api/Dockerfile`; the staging service shape is documented in
-> `docs/front-2-migration/staging-deploy.md`. The current staging shape omits
+> `docs/front-migration/staging-deploy.md`. The current staging shape omits
 > `APP_ROLE`, and any Dokploy migration job must be audited likewise. Pinning
 > `APP_ROLE=api` in those exact entrypoints is a Phase-2B code/deploy-doc
 > alignment item; this design document does not edit those branches.
@@ -4239,9 +4239,9 @@ specs. The audit found it incomplete; 2A-R below is its remediation packet.
   F17); `Dockerfile`
   (**`APP_ROLE=api` in both the build-time OpenAPI env block and the production
   `migrate` stage/invocation** — C6/F24/R4-4);
-  `apps/front-2/docker-compose.test.yml` (`APP_ROLE=api` — C6/F24);
+  `apps/front/docker-compose.test.yml` (`APP_ROLE=api` — C6/F24);
   **the OpenAPI-drift / `generate-client` CI workflow (`APP_ROLE=api`)** and any
-  other app-boot CI job; `docs/front-2-migration/staging-deploy.md` staging
+  other app-boot CI job; `docs/front-migration/staging-deploy.md` staging
   migrate service and the Dokploy migrate job (**both `APP_ROLE=api`** —
   C6/F24/R4-4 entrypoint enumeration, §3.1);
   `dokploy.yml` (worker service: shared storage volume — F18; no
@@ -5443,7 +5443,7 @@ New author-decided items pending owner objection: **O15** prospective
 schedule-revision resets, **O16** seven-day email-DLQ requeueability, and **O17**
 at-least-once alert delivery with a receiver-contract follow-up. Captain
 code-alignment items: R4-1/R4-2 (634 watermark/revision/misfire), R4-4
-(`apps/api/Dockerfile`, `docs/front-2-migration/staging-deploy.md`, and Dokploy
+(`apps/api/Dockerfile`, `docs/front-migration/staging-deploy.md`, and Dokploy
 migrate shape), plus the R4-3/R4-6 email sweep/requeue behavior when 809 is
 reconciled. No disputes this round.
 
