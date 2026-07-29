@@ -72,7 +72,9 @@ vi.mock('react-i18next', () => ({
 					'{{granted}} of {{total}} granted across {{count}} module',
 				'profile-glance-summary_other':
 					'{{granted}} of {{total}} granted across {{count}} modules',
-				'profile-glance-module-count':
+				'profile-glance-module-count_one':
+					'{{module}}: {{granted}} of {{total}} permission granted',
+				'profile-glance-module-count_other':
 					'{{module}}: {{granted}} of {{total}} permissions granted',
 				'profile-created-month': 'Created {{date}}',
 				'system-profile': 'System profile',
@@ -257,9 +259,11 @@ describe('ProfileOverviewTab', () => {
 			'Users: 1 of 2 permissions granted',
 		);
 
+		// Billing's total is 1 — singular "permission", not "permissions"
+		// (MINOR finding: the sentence must pluralise on the module's total).
 		const billingRow = screen.getByText('Billing').closest('li');
 		expect(billingRow?.querySelector('.sr-only')?.textContent).toBe(
-			'Billing: 0 of 1 permissions granted',
+			'Billing: 0 of 1 permission granted',
 		);
 	});
 

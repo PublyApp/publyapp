@@ -195,10 +195,16 @@ const PermissionGlanceBody = ({
 						{module.grantedCount}/{module.totalCount}
 					</span>
 					<span className="sr-only">
+						{/* `count` drives i18next's plural-form selection (singular
+						    "permission" only when the MODULE'S total is 1) — it must
+						    stay a separate option from the displayed `total`, since
+						    French pluralises differently from English (French treats
+						    both 0 and 1 as singular; English treats only 1 as singular). */}
 						{t('profile-glance-module-count', {
 							module: module.moduleLabel,
 							granted: module.grantedCount,
 							total: module.totalCount,
+							count: module.totalCount,
 						})}
 					</span>
 				</li>

@@ -444,7 +444,9 @@ vi.mock('react-i18next', () => ({
 					'{{granted}} of {{total}} granted across {{count}} module',
 				'profile-glance-summary_other':
 					'{{granted}} of {{total}} granted across {{count}} modules',
-				'profile-glance-module-count':
+				'profile-glance-module-count_one':
+					'{{module}}: {{granted}} of {{total}} permission granted',
+				'profile-glance-module-count_other':
 					'{{module}}: {{granted}} of {{total}} permissions granted',
 				'profile-created-month': 'Created {{date}}',
 				'profile-updated-relative': 'Updated {{time}}',
