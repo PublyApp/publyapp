@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+	chmodSync,
+	mkdtempSync,
+	readFileSync,
+	rmSync,
+	writeFileSync,
+} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -283,4 +289,134 @@ test('CLI BOUNDARY: a complete, matching file list is relevant', () => {
 			assert.match(result.stdout, /^relevant=true/);
 		},
 	);
+});
+
+// ---------------------------------------------------------------------------
+// GITHUB_OUTPUT: the round-3 review's BLOCKER. Every test above deletes
+// GITHUB_OUTPUT and asserts only stdout — but stdout is diagnostic. The
+// workflows branch on the `relevant=...` line appended to GITHUB_OUTPUT, and
+// nothing above ever read that file back for a pull_request event that could
+// legitimately answer either true or false. The reviewer's mutation
+// (`relevant=${eventName !== 'pull_request'}` instead of
+// `relevant=${relevant}` on the appendFileSync call) preserves every pure
+// decision, every stdout message, and the push case — and silently flips
+// every real pull request's actual gate signal to false. These tests read
+// the real GITHUB_OUTPUT file back and assert its EXACT contents, so that
+// exact mutation cannot pass.
+// ---------------------------------------------------------------------------
+
+/**
+ * Like buildFakeGh, but the "files" call (`--paginate`) can be made to fail
+ * (nonzero exit, so a real `gh` auth/rate-limit/network failure is
+ * reproduced) instead of answering.
+ */
+const buildFakeGhWithFilesFailure = ({ total = '1\n' }) => {
+	const dir = mkdtempSync(path.join(os.tmpdir(), 'publyapp-fake-gh-fail-'));
+	const ghPath = path.join(dir, 'gh');
+
+	writeFileSync(
+		ghPath,
+		[
+			'#!/usr/bin/env node',
+			'const args = process.argv.slice(2);',
+			"const isFilesCall = args.includes('--paginate');",
+			'if (isFilesCall) {',
+			"  process.stderr.write('gh: rate limit exceeded\\n');",
+			'  process.exit(1);',
+			'}',
+			`process.stdout.write(${JSON.stringify(total)});`,
+			'process.exit(0);',
+			'',
+		].join('\n'),
+	);
+	chmodSync(ghPath, 0o755);
+
+	return dir;
+};
+
+/**
+ * Runs the real CLI with a REAL GITHUB_OUTPUT file (never deleted) and
+ * returns both stdout and the file's exact final contents.
+ */
+const runCliWithRealOutput = (pattern, fakeGhDir, extraEnv = {}) => {
+	const outputDir = mkdtempSync(
+		path.join(os.tmpdir(), 'publyapp-github-output-'),
+	);
+	const githubOutputPath = path.join(outputDir, 'github-output.txt');
+	writeFileSync(githubOutputPath, '');
+
+	try {
+		const result = spawnSync(process.execPath, [cliScript, pattern], {
+			cwd: repositoryRoot,
+			encoding: 'utf8',
+			env: {
+				...process.env,
+				PATH: `${fakeGhDir}:${process.env.PATH}`,
+				GITHUB_EVENT_NAME: 'pull_request',
+				GH_REPO: 'radandevist/publyapp',
+				PR_NUMBER: '1',
+				GH_TOKEN: 'test-token',
+				...extraEnv,
+				GITHUB_OUTPUT: githubOutputPath,
+			},
+		});
+
+		return { ...result, output: readFileSync(githubOutputPath, 'utf8') };
+	} finally {
+		rmSync(outputDir, { recursive: true, force: true });
+	}
+};
+
+test('GITHUB_OUTPUT BLOCKER: a complete, matching PR writes exactly relevant=true', () => {
+	withFakeGh(
+		{ total: '1\n', files: 'apps/front/src/routes.ts\n' },
+		(fakeGhDir) => {
+			const { status, output } = runCliWithRealOutput(
+				'^(apps/front/|packages/shared-ts/)',
+				fakeGhDir,
+			);
+
+			assert.equal(status, 0);
+			assert.equal(output, 'relevant=true\n');
+		},
+	);
+});
+
+test('GITHUB_OUTPUT BLOCKER: a complete, irrelevant PR writes exactly relevant=false', () => {
+	withFakeGh({ total: '1\n', files: 'README.md\n' }, (fakeGhDir) => {
+		const { status, output } = runCliWithRealOutput(
+			'^(apps/front/|packages/shared-ts/)',
+			fakeGhDir,
+		);
+
+		assert.equal(status, 0);
+		assert.equal(output, 'relevant=false\n');
+	});
+});
+
+test('GITHUB_OUTPUT BLOCKER: an incomplete/unverifiable PR (truncated count) writes exactly relevant=true', () => {
+	withFakeGh({ total: '3001\n', files: 'README.md\n' }, (fakeGhDir) => {
+		const { status, output } = runCliWithRealOutput(
+			'^(apps/front/|packages/shared-ts/)',
+			fakeGhDir,
+		);
+
+		assert.equal(status, 0);
+		assert.equal(output, 'relevant=true\n');
+	});
+});
+
+test('GITHUB_OUTPUT BLOCKER: a gh failure (rate limit / auth / network) exits nonzero and fabricates no output', () => {
+	const fakeGhDir = buildFakeGhWithFilesFailure({ total: '1\n' });
+	try {
+		const { status, output } = runCliWithRealOutput(
+			'^(apps/front/|packages/shared-ts/)',
+			fakeGhDir,
+		);
+
+		assert.notEqual(status, 0);
+		assert.equal(output, '');
+	} finally {
+		rmSync(fakeGhDir, { recursive: true, force: true });
+	}
 });
