@@ -42,31 +42,21 @@ describe('AppToaster', () => {
 			return;
 		}
 
+		// Only what sonner's own UN-layered stylesheet would otherwise own is
+		// inline here; every colour is owned by `.publy-toast*` in app.css
+		// (#991). `zIndex` must stay the semantic token, never a raw number
+		// (#974).
 		expect(props.style).toEqual({
 			zIndex: 'var(--publy-z-toast)',
 			width: 'min(360px, calc(100vw - 24px))',
 			maxWidth: '360px',
-			'--normal-bg': 'var(--publy-surface-raised)',
-			'--normal-bg-hover': 'var(--publy-surface-hover)',
-			'--normal-border': 'var(--publy-border)',
-			'--normal-border-hover': 'var(--publy-border-strong)',
-			'--normal-text': 'var(--publy-foreground)',
-			'--success-bg': 'var(--publy-surface-raised)',
-			'--success-border': 'var(--publy-alert-success-border)',
-			'--success-text': 'var(--publy-foreground)',
-			'--error-bg': 'var(--publy-surface-raised)',
-			'--error-border': 'var(--publy-alert-danger-border)',
-			'--error-text': 'var(--publy-foreground)',
-			'--warning-bg': 'var(--publy-surface-raised)',
-			'--warning-border': 'var(--publy-alert-warning-border)',
-			'--warning-text': 'var(--publy-foreground)',
-			'--info-bg': 'var(--publy-surface-raised)',
-			'--info-border': 'var(--publy-alert-info-border)',
-			'--info-text': 'var(--publy-foreground)',
+			fontFamily: 'var(--publy-font-sans)',
 		});
 
 		expect(props.closeButton).toBe(true);
-		expect(props.richColors).toBe(true);
+		// `richColors` must stay off: its rules are un-layered and would win
+		// over app.css's `@layer components` toast colours (#991).
+		expect(props.richColors).toBeUndefined();
 		expect(props.visibleToasts).toBe(4);
 		expect(props.offset).toBe(16);
 		expect(Object.keys(props.icons as object)).toEqual([

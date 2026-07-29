@@ -40,27 +40,27 @@ type ToastHostStyle = CSSProperties & {
 	[property: `--${string}`]: string;
 };
 
+/**
+ * Everything sonner's own stylesheet applies to the toaster host is
+ * un-layered, so `@layer components` in app.css cannot override it on
+ * specificity. These three declarations are therefore inline on the host,
+ * which does win:
+ *
+ * - `zIndex` replaces sonner's hardcoded `999999999` with front-2's semantic
+ *   stacking token. Do not inline a raw number here — see #974.
+ * - `width`/`maxWidth` replace sonner's `--width` box.
+ * - `fontFamily` replaces sonner's own `ui-sans-serif, system-ui, …` stack,
+ *   which otherwise stops the toast inheriting the app's `--publy-font-sans`.
+ *
+ * The `--success-bg`/`--error-border`/… custom properties sonner reads are
+ * deliberately absent: they only exist to feed `richColors`, which is off (see
+ * below), and every toast colour is now owned by `.publy-toast*` in app.css.
+ */
 const toastHostStyle = {
 	zIndex: 'var(--publy-z-toast)',
 	width: 'min(360px, calc(100vw - 24px))',
 	maxWidth: '360px',
-	'--normal-bg': 'var(--publy-surface-raised)',
-	'--normal-bg-hover': 'var(--publy-surface-hover)',
-	'--normal-border': 'var(--publy-border)',
-	'--normal-border-hover': 'var(--publy-border-strong)',
-	'--normal-text': 'var(--publy-foreground)',
-	'--success-bg': 'var(--publy-surface-raised)',
-	'--success-border': 'var(--publy-alert-success-border)',
-	'--success-text': 'var(--publy-foreground)',
-	'--error-bg': 'var(--publy-surface-raised)',
-	'--error-border': 'var(--publy-alert-danger-border)',
-	'--error-text': 'var(--publy-foreground)',
-	'--warning-bg': 'var(--publy-surface-raised)',
-	'--warning-border': 'var(--publy-alert-warning-border)',
-	'--warning-text': 'var(--publy-foreground)',
-	'--info-bg': 'var(--publy-surface-raised)',
-	'--info-border': 'var(--publy-alert-info-border)',
-	'--info-text': 'var(--publy-foreground)',
+	fontFamily: 'var(--publy-font-sans)',
 } satisfies ToastHostStyle;
 
 export const AppToaster = () => {
@@ -68,7 +68,10 @@ export const AppToaster = () => {
 		<Toaster
 			position="top-right"
 			closeButton
-			richColors
+			// `richColors` is deliberately NOT set: its rules are un-layered, so
+			// they silently win over app.css's `@layer components` and would own
+			// the toast background, border and close-button colours. Variant
+			// colour is driven entirely by the `.publy-toast-*` classes.
 			visibleToasts={4}
 			offset={16}
 			className="publy-toaster"

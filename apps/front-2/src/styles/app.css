@@ -397,86 +397,364 @@ html.dark {
    default utility classes (Badge/Button) that must keep losing — see each
    rule's comment. */
 @layer components {
+	/* Toast (sonner, `unstyled: true`). Two cascade facts shape this whole
+	   block, and both were verified in a real browser (#991):
+
+	   1. With `unstyled` sonner ships NO layout for the toast element, so
+	      everything — including `display` — has to be declared here. Before
+	      this block did, the toast computed to the `<li>` default
+	      `display: list-item`, which silently voided `gap`/`flex` and stacked
+	      the close button, the icon and the message in a column.
+	   2. Sonner's own stylesheet is UN-layered, so it beats every rule in
+	      `@layer components` regardless of specificity. That is why
+	      `richColors` is switched off in toaster.tsx: its un-layered
+	      `[data-rich-colors]` rules own background, border-color and the
+	      close-button colours, and would defeat everything below.
+
+	   Variant colour comes from the same semantic alert tokens the inline alert
+	   surfaces already use (`components/auth/auth-alert.tsx`), so an error
+	   toast and an error alert read as one family. */
 	.publy-toast {
+		/* Per-variant channel, overridden by the four `.publy-toast-*` rules
+		   further down. The defaults are the neutral (`message`/`loading`)
+		   tone; painting `--publy-surface-raised` over itself is a deliberate
+		   no-op so the neutral case needs no separate rule. */
+		--publy-toast-tint: var(--publy-surface-raised);
+		--publy-toast-edge: var(--publy-border);
+		--publy-toast-accent: var(--publy-foreground-muted);
+		/* The first text line's box. The icon, the close button and any action
+		   button are all sized to it, so they stay optically centred on line 1
+		   however far the message wraps. */
+		--publy-toast-line: 20px;
+		/* The block padding — and, because the inline-end padding matches it,
+		   the corner the close button is inset to. Declared once so the
+		   button's box cannot drift off the first line's box. */
+		--publy-toast-pad: 14px;
+		/* What the message's FIRST line yields to the corner close button: the
+		   button's own box plus a gap. Reserved by a floated pseudo-element on
+		   the title, so only line one is short and every wrapped line below it
+		   uses the full column. The original toast reserved this space as
+		   full-height padding and never moved the button into it — that is
+		   where its dead right-hand gutter came from (#991). */
+		--publy-toast-close-gutter: calc(var(--publy-toast-line) + 8px);
+		/* How far outside the border edge the focus ring below sits, and the
+		   border width it has to clear. Both are read back by the ring rule so
+		   the two cannot drift apart. */
+		--publy-toast-focus-offset: 3px;
+		--publy-toast-border-width: 1px;
+
 		box-sizing: border-box;
+		/* Four columns: icon | message | cancel | action. The message spans
+		   2/-1 so it always gets the whole remaining width, and the two
+		   buttons are pinned to row 2 together — see the BUTTON CLUSTER note
+		   below. There is deliberately NO `column-gap`: a grid lays gaps between
+		   tracks that hold nothing too, so one here would leave 20px of dead
+		   width on the ordinary button-less toast. The single real column gap
+		   is the icon's own margin instead. */
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr) auto auto;
+		align-items: start;
+		row-gap: 8px;
 		width: 100%;
 		max-width: 100%;
 		min-width: 0;
-		min-height: 56px;
-		padding: 12px 42px 12px 14px;
-		gap: 10px;
-		border: 1px solid var(--publy-border);
+		padding-block: var(--publy-toast-pad);
+		padding-inline: 12px var(--publy-toast-pad);
+		border: var(--publy-toast-border-width) solid var(--publy-toast-edge);
 		border-radius: var(--publy-radius-control);
-		background: var(--publy-surface-raised);
+		/* Two of the four semantic tints are translucent rgba tokens, and a
+		   toast floats over arbitrary page content — so the tint is painted as
+		   a flat gradient layer on top of an opaque raised surface rather than
+		   being the background itself. */
+		background-color: var(--publy-surface-raised);
+		background-image: linear-gradient(
+			var(--publy-toast-tint),
+			var(--publy-toast-tint)
+		);
 		color: var(--publy-foreground);
 		box-shadow: var(--publy-shadow-menu);
 		overflow-wrap: anywhere;
 	}
 
-	.publy-toast-content {
-		min-width: 0;
-		flex: 1 1 auto;
-		overflow-wrap: anywhere;
+	/* Sonner puts `classNames.default` on EVERY toast alongside the type class
+	   (`publy-toast-default publy-toast-success`), so there is deliberately no
+	   `.publy-toast-default` rule — the neutral tone lives on `.publy-toast`
+	   above and a `.publy-toast-default` rule of equal specificity would fight
+	   these four for it. */
+	.publy-toast-success {
+		--publy-toast-tint: var(--publy-alert-success-bg);
+		--publy-toast-edge: var(--publy-alert-success-border);
+		--publy-toast-accent: var(--publy-alert-success-text);
 	}
 
-	.publy-toast-title,
-	.publy-toast-description {
-		overflow-wrap: anywhere;
+	.publy-toast-error {
+		--publy-toast-tint: var(--publy-alert-danger-bg);
+		--publy-toast-edge: var(--publy-alert-danger-border);
+		--publy-toast-accent: var(--publy-alert-danger-text);
 	}
 
+	.publy-toast-warning {
+		--publy-toast-tint: var(--publy-alert-warning-bg);
+		--publy-toast-edge: var(--publy-alert-warning-border);
+		--publy-toast-accent: var(--publy-alert-warning-text);
+	}
+
+	.publy-toast-info {
+		--publy-toast-tint: var(--publy-alert-info-bg);
+		--publy-toast-edge: var(--publy-alert-info-border);
+		--publy-toast-accent: var(--publy-alert-info-text);
+	}
+
+	/* LAYOUT ORDER — deliberately no `order`/`row-reverse` anywhere in this
+	   block. Sonner hard-codes its children as close button, icon, content,
+	   cancel, action (verified in sonner 2.0.6's compiled render; `closeButton`
+	   is a boolean and `icons.close` only swaps the glyph, so there is no render
+	   slot that would let us emit a different DOM order). `order` reorders paint
+	   but NOT sequential focus, so an early revision that reordered the row made
+	   Tab walk the controls right-to-left.
+
+	   Everything that stays in flow is therefore placed by explicit grid area,
+	   never by `order`. The close button is the one child taken OUT of flow: it
+	   is absolutely positioned into the top-right corner while keeping its first
+	   DOM position, so Tab still reaches it first. That is the ordinary dialog
+	   pattern, and it is safe here because every toast the app actually raises
+	   is message-only and so has exactly one focusable control.
+
+	   Icon and close button are boxed to the first line's height rather than
+	   given a top margin, so they re-centre themselves if the title's
+	   line-height ever changes. */
 	.publy-toast-icon {
-		flex: 0 0 auto;
-	}
-
-	.publy-toast-success .publy-toast-icon {
-		color: var(--publy-success);
-	}
-
-	.publy-toast-error .publy-toast-icon {
-		color: var(--publy-danger);
-	}
-
-	.publy-toast-warning .publy-toast-icon {
-		color: var(--publy-warning);
-	}
-
-	.publy-toast-info .publy-toast-icon,
-	.publy-toast-default .publy-toast-icon,
-	.publy-toast-loading .publy-toast-icon {
-		color: var(--publy-foreground-muted);
-	}
-
-	.publy-toast-close-button {
-		top: 8px;
-		right: 8px;
-		width: 24px;
-		height: 24px;
-		padding: 0;
+		/* The loading spinner is sonner's `.sonner-loader`, which is
+		   `position: absolute; top: 50%; left: 50%`. Without a positioned icon
+		   slot it resolves against the toast element itself and the spinner
+		   paints in the middle of the message text. */
+		position: relative;
 		display: flex;
+		grid-row: 1;
+		grid-column: 1;
 		align-items: center;
 		justify-content: center;
-		border: 1px solid var(--publy-border);
+		width: 16px;
+		height: var(--publy-toast-line);
+		/* The toast's only column gap. A `column-gap` on the grid would also
+		   apply between the two empty button tracks; a margin here applies
+		   only when there is an icon to separate. */
+		margin-inline-end: 10px;
+		color: var(--publy-toast-accent);
+	}
+
+	/* Spans every column to the end, so the message always gets the whole width
+	   left over by the icon — whether or not the toast has buttons. */
+	.publy-toast-content {
+		display: flex;
+		grid-row: 1;
+		grid-column: 2 / -1;
+		flex-direction: column;
+		gap: 2px;
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
+
+	/* `min-height` so the first line's box exists even for an empty message:
+	   the corner close button is positioned against that box. */
+	.publy-toast-title {
+		min-height: var(--publy-toast-line);
+		font-size: 14px;
+		font-weight: 500;
+		line-height: var(--publy-toast-line);
+		overflow-wrap: anywhere;
+	}
+
+	/* The space the corner close button occupies, reserved as a float rather
+	   than as padding. A float only shortens the line boxes it overlaps, so
+	   line one stops short of the button and every wrapped line below runs the
+	   full width of the column. Reserving it as padding — on the toast or on
+	   the content — is what produced the dead full-height gutter this redesign
+	   removed.
+
+	   Scoped with `:has()` to the toasts that actually have a close button.
+	   Sonner does not render one on a loading toast, and reserving the corner
+	   there would be the same mistake in miniature: space held for a control
+	   that is not in it. */
+	.publy-toast:has(> .publy-toast-close-button) .publy-toast-title::before {
+		content: '';
+		/* `right` first as the physical fallback: if a browser does not know
+		   the logical value it drops that declaration and keeps this one, so
+		   the reserve never disappears in the direction the app ships. */
+		float: right;
+		float: inline-end;
+		width: var(--publy-toast-close-gutter);
+		height: var(--publy-toast-line);
+	}
+
+	/* `--publy-foreground-secondary`, not `-muted`: measured in Chromium
+	   against the light success and error tints, the muted tone lands at
+	   4.23:1, under the 4.5:1 small-text floor. */
+	.publy-toast-description {
+		font-size: 13px;
+		line-height: 18px;
+		color: var(--publy-foreground-secondary);
+		overflow-wrap: anywhere;
+	}
+
+	/* BUTTON CLUSTER — cancel and action are pinned to row 2, in columns 3 and
+	   4, and the message spans the whole of row 1. They therefore move as one
+	   unit and can never be split across rows. The previous revision sized the
+	   message with a tuned `flex-basis: 70%` and let flex line-breaking decide:
+	   review of #991 measured `cancel="N"` staying inline on row 1 while
+	   `action="A"` alone dropped to row 2, and an action-only "OK" staying
+	   inline and narrowing the message column by 70px.
+	   Cancel precedes action in sonner's DOM, which is also the conventional
+	   secondary-then-primary reading order, so neither needs reordering.
+
+	   A LABEL MUST BE ABLE TO GROW. The previous revision combined a fixed
+	   `height: 20px` with `white-space: nowrap`, which left a long label
+	   nowhere to go: review of #991 measured two French labels at 320px whose
+	   painted text ran outside both button boxes, overlapped each other by
+	   ~87px, and reached past the toast's own right edge. So the label wraps
+	   (`overflow-wrap: anywhere` so even one unbreakable token can), and
+	   `min-height` replaces `height` so the button takes the height its label
+	   needs. `overflow-wrap` is what actually guarantees containment: it lowers
+	   the button's min-content width, which is the floor the two `auto` tracks
+	   are allowed to shrink to. Both buttons `stretch` so a one-line label next
+	   to a two-line one still reads as one cluster.
+
+	   Note for anyone re-verifying this: `documentElement.scrollWidth` cannot
+	   see that failure. The toaster host is `position: fixed`, so it never
+	   contributes to the document's scrollable extent and the metric stays at
+	   the viewport width while the labels paint outside the toast. Measure the
+	   painted text rects against the button and toast boxes instead. */
+	.publy-toast-action-button,
+	.publy-toast-cancel-button {
+		display: flex;
+		grid-row: 2;
+		align-self: stretch;
+		align-items: center;
+		justify-content: center;
+		min-height: var(--publy-toast-line);
+		min-width: 0;
+		max-width: 100%;
+		padding-inline: 8px;
+		border: 1px solid var(--publy-border-strong);
+		/* Smallest step on the radius scale: at the 20px height a single-line
+		   label sits at, the 8px chip radius already reads as a pill. */
 		border-radius: var(--publy-radius-sm);
 		background: var(--publy-surface);
-		color: var(--publy-foreground-muted);
+		color: var(--publy-foreground);
+		font-size: 12px;
+		font-weight: 500;
+		line-height: 16px;
+		text-align: center;
+		overflow-wrap: anywhere;
 		cursor: pointer;
 	}
 
-	.publy-toast-close-button:hover {
-		border-color: var(--publy-border-strong);
-		background: var(--publy-surface-hover);
+	.publy-toast-cancel-button {
+		grid-column: 3;
+		border-color: transparent;
+		background: none;
+		color: var(--publy-foreground-muted);
+	}
+
+	.publy-toast-action-button {
+		grid-column: 4;
+		margin-inline-start: 8px;
+	}
+
+	.publy-toast-action-button:hover {
+		background: var(--publy-surface-active);
+	}
+
+	.publy-toast-cancel-button:hover {
+		background: var(--publy-surface-active);
 		color: var(--publy-foreground);
 	}
 
-	.publy-toast-action-button,
-	.publy-toast-cancel-button {
-		min-width: 0;
-		max-width: 100%;
-		border: 1px solid var(--publy-border);
+	/* Dismissal is secondary chrome: no border, no surface of its own, only a
+	   muted glyph that gains a background on hover. `--publy-foreground-muted`
+	   (not `-subtle`) keeps the glyph above the 3:1 non-text contrast floor on
+	   both themes.
+
+	   It is lifted out of the layout into the top-right corner. `position` is
+	   declared HERE, in the same rule as `top`/`right`: the toast this redesign
+	   replaced set the two offsets and no `position`, so the button never left
+	   the row while the padding stayed reserved for it, and that reservation
+	   was the dead gutter (#991, defect 2). Sonner supplies no `position` for
+	   this element under `unstyled`, so this declaration is the only one and it
+	   applies. The offsets are the toast's own block padding, which the inline-
+	   end padding matches — so the button's 20px box lands exactly on the first
+	   line's box and its right edge on the message column's right edge. */
+	.publy-toast-close-button {
+		position: absolute;
+		top: var(--publy-toast-pad);
+		/* Logical, not `right`: the two cannot both be declared here, because
+		   in an RTL context `inset-inline-end` resolves to `left` and a
+		   surviving `right` would over-constrain the box and win. */
+		inset-inline-end: var(--publy-toast-pad);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: var(--publy-toast-line);
+		height: var(--publy-toast-line);
+		padding: 0;
+		border: 0;
 		border-radius: var(--publy-radius-sm);
-		background: var(--publy-surface-muted);
+		background: none;
+		color: var(--publy-foreground-muted);
+		cursor: pointer;
+		transition:
+			color var(--publy-motion-fast) var(--publy-motion-ease),
+			background-color var(--publy-motion-fast) var(--publy-motion-ease);
+	}
+
+	.publy-toast-close-button:hover {
+		background: var(--publy-surface-active);
 		color: var(--publy-foreground);
-		overflow-wrap: anywhere;
+	}
+
+	.publy-toast-action-button:focus-visible,
+	.publy-toast-cancel-button:focus-visible,
+	.publy-toast-close-button:focus-visible {
+		outline: 2px solid var(--publy-focus-ring);
+		outline-offset: 1px;
+	}
+
+	/* Sonner hides the contents of the back toasts in a collapsed stack, but
+	   only under `[data-styled='true']` — which `unstyled: true` opts out of.
+	   Without this the stack's clamped back toasts keep painting their text
+	   behind the front toast whenever they are taller than it. */
+	.publy-toast[data-expanded='false'][data-front='false'] > * {
+		opacity: 0;
+	}
+
+	/* Sonner's own focus ring is a 20%-black box-shadow, effectively invisible
+	   on the dark theme, and it is un-layered so it cannot be overridden from
+	   here on specificity — hence a pseudo-element ring.
+
+	   It hangs off `.publy-toast-content`, NOT off the toast itself. Sonner owns
+	   BOTH of the toast's own pseudo-elements: `::before` is its swipe hit-area
+	   (`left/right: -100%; transform: scaleY(3)`) and `::after` is the
+	   hover-expand bridge. Review of #991 forced `:focus-visible` together with
+	   `data-swiping='true'` and sonner's un-layered swipe geometry won on the
+	   shared `::before`, painting a 1074px-wide amber rectangle across the page.
+	   `[data-content]` has no sonner pseudo-element rules at all, so this ring
+	   cannot be captured by any toast state.
+
+	   The content div is not itself positioned, so the ring's containing block is
+	   the toast's PADDING box — whose edge is already inside the border, one
+	   border-width in. The inset therefore only has to clear that border plus
+	   the offset; it must NOT re-add the padding. */
+	.publy-toast:focus-visible .publy-toast-content::after {
+		content: '';
+		position: absolute;
+		inset: calc(
+			-1 * (var(--publy-toast-border-width) + var(--publy-toast-focus-offset))
+		);
+		border: 2px solid var(--publy-focus-ring);
+		border-radius: calc(
+			var(--publy-radius-control) + var(--publy-toast-focus-offset)
+		);
+		pointer-events: none;
 	}
 
 	html {
