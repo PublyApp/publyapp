@@ -255,7 +255,60 @@ test('ROUND 2: restoring a pull_request.paths filter recreates the pending-check
 	const findings = await findCiGateStructureProblems({ rootDir, workflows: fixtureConfig });
 
 	assert.equal(findings.length, 1);
-	assert.match(findings[0], /pull_request` trigger must not have a `paths:` filter/);
+	assert.match(findings[0], /expected an unconditional `pull_request:` trigger/);
+	assert.match(findings[0], /\["paths"\]/);
+});
+
+test('ROUND 3 BLOCKER: a paths-ignore filter is caught (not just paths)', async () => {
+	const broken = goodWorkflow.replace(
+		'on:\n  pull_request:\n',
+		"on:\n  pull_request:\n    paths-ignore:\n      - '**'\n",
+	);
+	const rootDir = await buildFixture(broken);
+
+	const findings = await findCiGateStructureProblems({ rootDir, workflows: fixtureConfig });
+
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /\["paths-ignore"\]/);
+});
+
+test('ROUND 3 BLOCKER: a types filter (e.g. closed-only) is caught', async () => {
+	const broken = goodWorkflow.replace(
+		'on:\n  pull_request:\n',
+		'on:\n  pull_request:\n    types: [closed]\n',
+	);
+	const rootDir = await buildFixture(broken);
+
+	const findings = await findCiGateStructureProblems({ rootDir, workflows: fixtureConfig });
+
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /\["types"\]/);
+});
+
+test('ROUND 3 BLOCKER: removing the pull_request key entirely (e.g. swapped to workflow_dispatch) is caught', async () => {
+	const broken = goodWorkflow.replace(
+		'on:\n  pull_request:\n',
+		'on:\n  workflow_dispatch:\n',
+	);
+	const rootDir = await buildFixture(broken);
+
+	const findings = await findCiGateStructureProblems({ rootDir, workflows: fixtureConfig });
+
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /the trigger has no pull_request key at all/);
+});
+
+test('ROUND 3: array-shorthand `on: [pull_request, push]` is accepted as unconditional', async () => {
+	const broken = goodWorkflow.replace(
+		'on:\n  pull_request:\n',
+		'on: [pull_request, push]\n',
+	);
+	const rootDir = await buildFixture(broken);
+
+	assert.deepEqual(
+		await findCiGateStructureProblems({ rootDir, workflows: fixtureConfig }),
+		[],
+	);
 });
 
 test('ROUND 2 BLOCKER: a job added to gate.needs but omitted from a hand-written result map is impossible by construction, and its absence from the toJSON(needs) wiring is caught', async () => {

@@ -40,6 +40,12 @@ import { parse } from 'yaml';
 //     directly (see the workflow YAML), so there is no second list to drift
 //     out of sync with `gate.needs` in the first place. This guard pins
 //     that the gate step still wires `NEEDS_JSON` to that exact expression.
+//
+// Round 3 found the trigger check itself too weak: it only asked whether
+// `pull_request.paths` existed, so removing the `pull_request` key entirely,
+// swapping to `workflow_dispatch`, or restricting with `paths-ignore`/
+// `types`/anything else all passed silently. The trigger check now requires
+// `on.pull_request` to exist AND carry no restricting key at all.
 
 const workflowsDirectory = '.github/workflows';
 
@@ -134,13 +140,53 @@ const checkWorkflow = (
 	const findings = [];
 	const jobs = document?.jobs ?? {};
 
-	// Round 2, finding: "Restore a pull_request.paths filter. This recreates
-	// the original pending-check deadlock and is not inspected." A
-	// path-filtered pull_request trigger never starts for an unrelated PR,
-	// so a required check on this workflow would hang forever again.
-	if (document?.on?.pull_request?.paths !== undefined) {
+	// Round 3, BLOCKER: the round-2 check only asked "does pull_request.paths
+	// exist?" — if the `pull_request` key were removed entirely (or the
+	// trigger swapped to workflow_dispatch, or restricted by paths-ignore/
+	// types/branches/anything else), that optional-chained check silently
+	// evaluates to "no paths found" and passes. Any of those recreates the
+	// exact pending/missing-required-check deadlock #1017 exists to remove:
+	// the required check never starts on an ordinary open/synchronize event.
+	// Require the unconditional shape directly: `on.pull_request` must exist
+	// and carry NO restricting keys at all (bare `pull_request:`, or
+	// `on: [pull_request, ...]` array form).
+	const onSection = document?.on;
+	let hasUnconditionalPullRequest = false;
+
+	if (Array.isArray(onSection)) {
+		// Array shorthand (`on: [pull_request, push]`) cannot carry a filter at
+		// all, so presence alone is unconditional.
+		hasUnconditionalPullRequest = onSection.includes('pull_request');
+	} else if (
+		onSection !== null &&
+		typeof onSection === 'object' &&
+		Object.prototype.hasOwnProperty.call(onSection, 'pull_request')
+	) {
+		const pullRequestValue = onSection.pull_request;
+		hasUnconditionalPullRequest =
+			pullRequestValue === null ||
+			(typeof pullRequestValue === 'object' &&
+				pullRequestValue !== null &&
+				!Array.isArray(pullRequestValue) &&
+				Object.keys(pullRequestValue).length === 0);
+	}
+
+	if (!hasUnconditionalPullRequest) {
+		const foundKeys =
+			onSection !== null &&
+			typeof onSection === 'object' &&
+			!Array.isArray(onSection) &&
+			onSection.pull_request !== null &&
+			typeof onSection.pull_request === 'object'
+				? Object.keys(onSection.pull_request)
+				: null;
+
 		findings.push(
-			`${file}: the \`pull_request\` trigger must not have a \`paths:\` filter — that recreates the pending-check deadlock #1017 exists to fix. Found \`paths: ${JSON.stringify(document.on.pull_request.paths)}\`.`,
+			`${file}: expected an unconditional \`pull_request:\` trigger (no paths, paths-ignore, types, branches, or any other restricting key — any of those can stop the trigger from firing on an ordinary open/synchronize event and recreate the pending-check deadlock #1017 exists to fix), but ${
+				foundKeys
+					? `found restricting keys: ${JSON.stringify(foundKeys)}`
+					: 'the trigger has no pull_request key at all'
+			}.`,
 		);
 	}
 
