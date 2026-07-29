@@ -16,10 +16,10 @@
 		"See docs/guides/local-ci-gate.md."
 	],
 	"steps": {
-		"docs-archive.yml::changes::Checkout": {
-			"hash": "389e0b8b6a55dd60",
+		"docs-archive.yml::changes::Checkout classifier from the base commit (not the PR's own copy)": {
+			"hash": "8c58eab74a2827f7",
 			"mirror": null,
-			"reason": "GitHub-only: checks out the repository so the classifier script (scripts/ci-changed-paths.mjs) is present to run. Locally the working tree already is the code under test."
+			"reason": "GitHub-only: checks out the classifier script (scripts/ci-changed-paths.mjs) from the pull request's base commit rather than its own merge commit (#1017 round-2 review fix), so a PR cannot make its own copy of the classifier decide whether it gets tested. Locally the working tree already is the code under test, and there is no PR base/head distinction to reproduce."
 		},
 		"docs-archive.yml::changes::Setup Node": {
 			"hash": "9f0469bb2703ae67",
@@ -52,14 +52,14 @@
 			"reason": "Run locally to catch archive-record body drift and header/provenance issues before docs-only reviews land. Link checks inside docs/archive are intentionally skipped, per docs/README.md's archive policy."
 		},
 		"docs-archive.yml::gate::Check required jobs": {
-			"hash": "8e632adf7e0f4467",
+			"hash": "26d6d30ed66c83b2",
 			"mirror": null,
-			"reason": "GitHub-only: this is the #1017 aggregate required-check step, which reads needs.*.result across the workflow's other jobs. That context only exists inside a GitHub Actions run."
+			"reason": "GitHub-only: this is the #1017 aggregate required-check step, which reads the needs context (via toJSON(needs), #1017 round-2 review fix — no hand-maintained per-job Bash map that could omit an entry) across the workflow's other jobs. That context only exists inside a GitHub Actions run."
 		},
-		"front-ci.yml::changes::Checkout": {
-			"hash": "389e0b8b6a55dd60",
+		"front-ci.yml::changes::Checkout classifier from the base commit (not the PR's own copy)": {
+			"hash": "8c58eab74a2827f7",
 			"mirror": null,
-			"reason": "GitHub-only: checks out the repository so the classifier script (scripts/ci-changed-paths.mjs) is present to run. Locally the working tree already is the code under test."
+			"reason": "GitHub-only: checks out the classifier script (scripts/ci-changed-paths.mjs) from the pull request's base commit rather than its own merge commit (#1017 round-2 review fix), so a PR cannot make its own copy of the classifier decide whether it gets tested. Locally the working tree already is the code under test, and there is no PR base/head distinction to reproduce."
 		},
 		"front-ci.yml::changes::Setup Node": {
 			"hash": "9f0469bb2703ae67",
@@ -142,14 +142,14 @@
 			"reason": "ci-front runs the identical pnpm --filter front test."
 		},
 		"front-ci.yml::gate::Check required jobs": {
-			"hash": "b987e05d2fbd5ab1",
+			"hash": "26d6d30ed66c83b2",
 			"mirror": null,
-			"reason": "GitHub-only: this is the #1017 aggregate required-check step, which reads needs.*.result across the workflow's other jobs. That context only exists inside a GitHub Actions run."
+			"reason": "GitHub-only: this is the #1017 aggregate required-check step, which reads the needs context (via toJSON(needs), #1017 round-2 review fix — no hand-maintained per-job Bash map that could omit an entry) across the workflow's other jobs. That context only exists inside a GitHub Actions run."
 		},
-		"front-e2e.yml::changes::Checkout": {
-			"hash": "389e0b8b6a55dd60",
+		"front-e2e.yml::changes::Checkout classifier from the base commit (not the PR's own copy)": {
+			"hash": "8c58eab74a2827f7",
 			"mirror": null,
-			"reason": "GitHub-only: checks out the repository so the classifier script (scripts/ci-changed-paths.mjs) is present to run. Locally the working tree already is the code under test."
+			"reason": "GitHub-only: checks out the classifier script (scripts/ci-changed-paths.mjs) from the pull request's base commit rather than its own merge commit (#1017 round-2 review fix), so a PR cannot make its own copy of the classifier decide whether it gets tested. Locally the working tree already is the code under test, and there is no PR base/head distinction to reproduce."
 		},
 		"front-e2e.yml::changes::Setup Node": {
 			"hash": "9f0469bb2703ae67",
@@ -267,9 +267,9 @@
 			"reason": "ci-e2e-front runs the identical docker compose ... down -v as its final step. DELIBERATE DIFFERENCE: this workflow step is if:always(), which a justfile cannot express (just stops at the first failing line), so the recipe also resets the stack with down -v --remove-orphans before bringing it up. Net effect is the same clean slate per run; a failed run's stack is left up locally for inspection instead."
 		},
 		"front-e2e.yml::gate::Check required jobs": {
-			"hash": "1d8f42a910c70b4e",
+			"hash": "26d6d30ed66c83b2",
 			"mirror": null,
-			"reason": "GitHub-only: this is the #1017 aggregate required-check step, which reads needs.*.result across the workflow's other jobs. That context only exists inside a GitHub Actions run."
+			"reason": "GitHub-only: this is the #1017 aggregate required-check step, which reads the needs context (via toJSON(needs), #1017 round-2 review fix — no hand-maintained per-job Bash map that could omit an entry) across the workflow's other jobs. That context only exists inside a GitHub Actions run."
 		},
 		"old-front-characterization.yml::old-front-e2e::Checkout": {
 			"hash": "389e0b8b6a55dd60",
@@ -396,10 +396,10 @@
 			"mirror": "just ci",
 			"reason": "This is a CI publish path for the migration bundle image and does not have a local equivalent in pre-push checks."
 		},
-		"openapi-spec-drift.yml::changes::Checkout": {
-			"hash": "389e0b8b6a55dd60",
+		"openapi-spec-drift.yml::changes::Checkout classifier from the base commit (not the PR's own copy)": {
+			"hash": "8c58eab74a2827f7",
 			"mirror": null,
-			"reason": "GitHub-only: checks out the repository so the classifier script (scripts/ci-changed-paths.mjs) is present to run. Locally the working tree already is the code under test."
+			"reason": "GitHub-only: checks out the classifier script (scripts/ci-changed-paths.mjs) from the pull request's base commit rather than its own merge commit (#1017 round-2 review fix), so a PR cannot make its own copy of the classifier decide whether it gets tested. Locally the working tree already is the code under test, and there is no PR base/head distinction to reproduce."
 		},
 		"openapi-spec-drift.yml::changes::Setup Node": {
 			"hash": "9f0469bb2703ae67",
@@ -477,9 +477,9 @@
 			"reason": "ci-spec-drift runs the identical filtered dotnet test for FullyQualifiedName~OpenApiContractSpec. Note that just ci also runs just test-api, the full suite of which this filter is a subset."
 		},
 		"openapi-spec-drift.yml::gate::Check required jobs": {
-			"hash": "9c78c7c40d7d1271",
+			"hash": "26d6d30ed66c83b2",
 			"mirror": null,
-			"reason": "GitHub-only: this is the #1017 aggregate required-check step, which reads needs.*.result across the workflow's other jobs. That context only exists inside a GitHub Actions run."
+			"reason": "GitHub-only: this is the #1017 aggregate required-check step, which reads the needs context (via toJSON(needs), #1017 round-2 review fix — no hand-maintained per-job Bash map that could omit an entry) across the workflow's other jobs. That context only exists inside a GitHub Actions run."
 		},
 		"require-linked-issue.yml::require-linked-issue::Verify the PR closes an existing issue": {
 			"hash": "4ab757bac17a95ad",
