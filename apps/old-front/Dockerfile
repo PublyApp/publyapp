@@ -9,7 +9,7 @@ RUN corepack enable && corepack prepare pnpm@10.13.1 --activate
 COPY . .
 # Use pnpm dlx here because turbo prune runs before workspace deps are installed.
 # It is pinned to turbo@2.9.12 to keep this bootstrapping step reproducible.
-RUN pnpm dlx turbo@2.9.12 prune front --docker
+RUN pnpm dlx turbo@2.9.12 prune old-front --docker
 
 FROM node:24-alpine@sha256:156b55f92e98ccd5ef49578a8cea0df4679826564bad1c9d4ef04462b9f0ded6 AS install
 
@@ -36,9 +36,9 @@ COPY --from=install /workspace/ ./
 COPY --from=prune /workspace/out/full/ ./
 
 RUN pnpm --filter @org/shared-ts run postinstall
-RUN pnpm --filter front build
+RUN pnpm --filter old-front build
 # `deploy` is the pnpm workspace deploy subcommand, not a package script.
-RUN pnpm --filter=front deploy --legacy --prod /workspace/deploy
+RUN pnpm --filter=old-front deploy --legacy --prod /workspace/deploy
 
 FROM node:24-alpine@sha256:156b55f92e98ccd5ef49578a8cea0df4679826564bad1c9d4ef04462b9f0ded6 AS runtime
 
@@ -49,7 +49,7 @@ ARG VITE_ASP_SERVER_URL=http://api.front.localhost:5000
 COPY --from=build /workspace/deploy/node_modules ./node_modules
 COPY --from=build /workspace/deploy/package.json /app/package.json
 COPY --from=build /workspace/deploy/server.js /app/server.js
-COPY --from=build /workspace/apps/front/build ./build
+COPY --from=build /workspace/apps/old-front/build ./build
 
 ENV PORT=3000
 ENV NODE_ENV=production

@@ -21,11 +21,16 @@ test('flags hand-written frontend index files that are not allowlisted', async (
 		path.join(os.tmpdir(), 'publyapp-barrel-test-'),
 	);
 
-	await writeIndex(rootDir, 'apps/front/src/components/new-widget/index.ts');
+	await writeIndex(
+		rootDir,
+		'apps/old-front/src/components/new-widget/index.ts',
+	);
 
 	const result = await findDisallowedFrontendBarrels({ rootDir });
 
-	assert.deepEqual(result, ['apps/front/src/components/new-widget/index.ts']);
+	assert.deepEqual(result, [
+		'apps/old-front/src/components/new-widget/index.ts',
+	]);
 });
 
 test('allows approved frontend indexes and ignores generated client indexes', async () => {

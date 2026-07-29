@@ -13,13 +13,13 @@ const ignoredSegments = new Set([
 ]);
 
 export const allowedFrontendIndexFiles = [
-	'apps/front/src/components/animate/variants/index.ts',
-	'apps/front/src/components/hook-form/index.ts',
-	'apps/front/src/components/snackbar/index.ts',
-	'apps/front/src/layouts/components/notifications-drawer/index.tsx',
-	'apps/front/src/layouts/components/searchbar/index.tsx',
-	'apps/front/src/lib/api-failure/index.ts',
-	'apps/front/src/lib/mui/theme/core/components/index.ts',
+	'apps/old-front/src/components/animate/variants/index.ts',
+	'apps/old-front/src/components/hook-form/index.ts',
+	'apps/old-front/src/components/snackbar/index.ts',
+	'apps/old-front/src/layouts/components/notifications-drawer/index.tsx',
+	'apps/old-front/src/layouts/components/searchbar/index.tsx',
+	'apps/old-front/src/lib/api-failure/index.ts',
+	'apps/old-front/src/lib/mui/theme/core/components/index.ts',
 ];
 
 const toPosixPath = (value) => value.split(path.sep).join('/');
@@ -30,7 +30,7 @@ const getRelativePath = (rootDir, filePath) => {
 
 const isFrontendIndexFile = (relativePath) => {
 	return (
-		relativePath.startsWith('apps/front/src/') &&
+		relativePath.startsWith('apps/old-front/src/') &&
 		(relativePath.endsWith('/index.ts') || relativePath.endsWith('/index.tsx'))
 	);
 };
@@ -77,7 +77,7 @@ export const findDisallowedFrontendBarrels = async ({
 	allowedFiles = new Set(allowedFrontendIndexFiles),
 } = {}) => {
 	const findings = [];
-	const frontendSourceRoot = path.join(rootDir, 'apps/front/src');
+	const frontendSourceRoot = path.join(rootDir, 'apps/old-front/src');
 
 	await scanDirectory({
 		directoryPath: frontendSourceRoot,

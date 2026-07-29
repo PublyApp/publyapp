@@ -148,7 +148,7 @@ function createFrontTasks({ args, releaseRoot, frontPort, listrOptions }) {
 		tasks.push({
 			title: 'Build (local)',
 			task: async (_ctx, task) => {
-				await run('pnpm', ['-C', 'apps/front', 'run', 'build'], {
+				await run('pnpm', ['-C', 'apps/old-front', 'run', 'build'], {
 					cwd: repoRoot,
 					task,
 				});
@@ -588,7 +588,7 @@ async function getFrontDockerfile({ port }) {
 	return `FROM node:24-alpine
 WORKDIR /repo
 
-COPY apps/front/package.json apps/front/package.json
+COPY apps/old-front/package.json apps/old-front/package.json
 COPY packages/shared-ts/package.json packages/shared-ts/package.json
 COPY packages/client-ts/package.json packages/client-ts/package.json
 COPY packages/_tsconfig/package.json packages/_tsconfig/package.json
@@ -603,13 +603,13 @@ RUN corepack enable \\
   && ${preparePnpm} \\
   && pnpm install --prod --frozen-lockfile
 
-COPY apps/front/server.js apps/front/server.js
-COPY apps/front/build apps/front/build
+COPY apps/old-front/server.js apps/old-front/server.js
+COPY apps/old-front/build apps/old-front/build
 COPY packages/shared-ts packages/shared-ts
 COPY packages/client-ts packages/client-ts
 COPY packages/_tsconfig packages/_tsconfig
 
-WORKDIR /repo/apps/front
+WORKDIR /repo/apps/old-front
 EXPOSE ${port}
 ENV NODE_ENV=production
 ENV PORT=${port}
@@ -706,7 +706,7 @@ function createFrontAssembleArtifactTasks({ artifactDir, frontPort }) {
 			{
 				title: 'Copy front package.json',
 				task: async () => {
-					const fromRel = 'apps/front/package.json';
+					const fromRel = 'apps/old-front/package.json';
 					const fromAbs = path.join(repoRoot, fromRel);
 					if (!(await fse.pathExists(fromAbs))) {
 						throw new Error(`Missing required path: ${fromRel}`);
@@ -719,7 +719,7 @@ function createFrontAssembleArtifactTasks({ artifactDir, frontPort }) {
 			{
 				title: 'Copy front server.js',
 				task: async () => {
-					const fromRel = 'apps/front/server.js';
+					const fromRel = 'apps/old-front/server.js';
 					const fromAbs = path.join(repoRoot, fromRel);
 					if (!(await fse.pathExists(fromAbs))) {
 						throw new Error(`Missing required path: ${fromRel}`);
@@ -732,10 +732,10 @@ function createFrontAssembleArtifactTasks({ artifactDir, frontPort }) {
 			{
 				title: 'Copy front scripts (if any)',
 				task: async (_ctx, task) => {
-					const fromRel = 'apps/front/scripts';
+					const fromRel = 'apps/old-front/scripts';
 					const fromAbs = path.join(repoRoot, fromRel);
 					if (!(await fse.pathExists(fromAbs))) {
-						task.skip('No apps/front/scripts');
+						task.skip('No apps/old-front/scripts');
 						return;
 					}
 
@@ -750,7 +750,7 @@ function createFrontAssembleArtifactTasks({ artifactDir, frontPort }) {
 			{
 				title: 'Copy front build output',
 				task: async () => {
-					const fromRel = 'apps/front/build';
+					const fromRel = 'apps/old-front/build';
 					const fromAbs = path.join(repoRoot, fromRel);
 					if (!(await fse.pathExists(fromAbs))) {
 						throw new Error(`Missing required path: ${fromRel}`);

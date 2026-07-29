@@ -117,7 +117,7 @@ services:
   front:
     build:
       context: ../..
-      dockerfile: apps/front/Dockerfile
+      dockerfile: apps/old-front/Dockerfile
       args:
         VITE_ASP_SERVER_URL: http://api.front.localhost:5000
         VITE_POSTHOG_PROJECT_TOKEN: e2e-disabled

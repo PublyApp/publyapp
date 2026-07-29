@@ -7,7 +7,7 @@ on:
       - develop
     paths:
       - 'apps/api/**'
-      - 'apps/front/**'
+      - 'apps/old-front/**'
       - 'apps/front-2/**'
       - '.config/**'
       - 'packages/shared-ts/**'
@@ -64,7 +64,7 @@ jobs:
         run: pnpm format
 
       - name: Test current frontend unit characterization
-        run: pnpm --filter front run test
+        run: pnpm --filter old-front run test
 
   front-e2e:
     runs-on: ubuntu-latest
@@ -90,23 +90,23 @@ jobs:
         run: pnpm --filter @org/shared-ts run postinstall
 
       - name: Install Playwright Chromium
-        run: pnpm --filter front exec playwright install chromium --with-deps
+        run: pnpm --filter old-front exec playwright install chromium --with-deps
 
       - name: Reset current frontend characterization stack
-        run: docker compose -f apps/front/docker-compose.test.yml down -v --remove-orphans
+        run: docker compose -f apps/old-front/docker-compose.test.yml down -v --remove-orphans
 
       - name: Build and wait for current frontend characterization stack
-        run: docker compose -f apps/front/docker-compose.test.yml up -d --build --wait --wait-timeout 180
+        run: docker compose -f apps/old-front/docker-compose.test.yml up -d --build --wait --wait-timeout 180
 
       - name: Run current frontend e2e characterization
-        run: pnpm --filter front exec playwright test
+        run: pnpm --filter old-front exec playwright test
 
       - name: Capture current frontend stack logs
         if: failure()
         run: |
-          mkdir -p apps/front/test-results
-          docker compose -f apps/front/docker-compose.test.yml logs --no-color \
-            > apps/front/test-results/compose.log || true
+          mkdir -p apps/old-front/test-results
+          docker compose -f apps/old-front/docker-compose.test.yml logs --no-color \
+            > apps/old-front/test-results/compose.log || true
 
       - name: Upload Playwright report
         if: failure()
@@ -114,10 +114,10 @@ jobs:
         with:
           name: front-characterization-playwright-report
           path: |
-            apps/front/playwright-report
-            apps/front/test-results
+            apps/old-front/playwright-report
+            apps/old-front/test-results
           if-no-files-found: ignore
 
       - name: Tear down current frontend characterization stack
         if: always()
-        run: docker compose -f apps/front/docker-compose.test.yml down -v
+        run: docker compose -f apps/old-front/docker-compose.test.yml down -v

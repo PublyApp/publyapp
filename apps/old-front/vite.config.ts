@@ -41,7 +41,7 @@ export default defineConfig(({ mode, isSsrBuild }) => {
 					lintCommand: 'oxlint --quiet',
 					watchPath: [
 						'.oxlintrc.json',
-						'apps/front',
+						'apps/old-front',
 						'packages/shared-ts',
 						'scripts',
 					],

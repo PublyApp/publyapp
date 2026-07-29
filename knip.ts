@@ -6,7 +6,7 @@ const config: KnipConfig = {
 			entry: 'scripts/*.mjs',
 			project: 'scripts/**/*.mjs',
 		},
-		'apps/front': {
+		'apps/old-front': {
 			entry: [
 				'react-router.config.ts',
 				'vite.config.ts',

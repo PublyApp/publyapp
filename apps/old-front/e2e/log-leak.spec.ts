@@ -23,8 +23,8 @@ import {
 	waitForStaffUsersResponse,
 } from './helpers/app';
 
-const COMPOSE_FILE = 'apps/front/docker-compose.test.yml';
-const REPO_ROOT = process.cwd().endsWith('/apps/front')
+const COMPOSE_FILE = 'apps/old-front/docker-compose.test.yml';
+const REPO_ROOT = process.cwd().endsWith('/apps/old-front')
 	? resolve(process.cwd(), '../..')
 	: process.cwd();
 const API_BASE_URL =
@@ -34,7 +34,7 @@ const REAL_INVALID_SESSION_PATHS = new Set([
 	STAFF_USERS_PATH,
 ]);
 const LOG_SINK_SERVICES = ['api', 'front', 'migrate', 'postgres'] as const;
-const SMOKE_BROWSER_MESSAGE = '[apps/front] log-leak smoke probe';
+const SMOKE_BROWSER_MESSAGE = '[apps/old-front] log-leak smoke probe';
 const SEARCH_BOX_NAME = /search/i;
 
 type SinkCapture = {
