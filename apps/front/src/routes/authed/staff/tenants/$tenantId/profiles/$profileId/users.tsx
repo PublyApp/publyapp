@@ -6,6 +6,7 @@ import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
 import { DataTable } from '~/components/table/data-table';
+import { useOffsetPageClamp } from '~/components/table/offset-pagination';
 import { useTableController } from '~/components/table/use-table-controller';
 import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
@@ -265,17 +266,12 @@ const StaffTenantProfileMembersPage = () => {
 		membersController.size,
 	]);
 
-	useEffect(() => {
-		const totalCount = membersQuery.data?.count ?? 0;
-		const lastPageIndex =
-			totalCount > 0
-				? Math.max(Math.ceil(totalCount / membersController.size) - 1, 0)
-				: 0;
-
-		if (membersPageIndex > lastPageIndex) {
-			setMembersPageIndex(lastPageIndex);
-		}
-	}, [membersController.size, membersPageIndex, membersQuery.data?.count]);
+	useOffsetPageClamp({
+		pageIndex: membersPageIndex,
+		setPageIndex: setMembersPageIndex,
+		size: membersController.size,
+		count: membersQuery.data?.count,
+	});
 
 	if (shouldRedirectToLogout) {
 		return <LogoutRedirect />;

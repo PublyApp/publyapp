@@ -11,6 +11,7 @@ import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
 import { DataTable } from '~/components/table/data-table';
+import { useOffsetPageClamp } from '~/components/table/offset-pagination';
 import { useTableController } from '~/components/table/use-table-controller';
 import { Button, buttonVariants } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
@@ -273,17 +274,12 @@ function StaffProfileUsersPage() {
 		controller.size,
 	]);
 
-	useEffect(() => {
-		const totalCount = usersQuery.data?.count ?? 0;
-		const lastPageIndex =
-			totalCount > 0
-				? Math.max(Math.ceil(totalCount / controller.size) - 1, 0)
-				: 0;
-
-		if (pageIndex > lastPageIndex) {
-			setPageIndex(lastPageIndex);
-		}
-	}, [controller.size, pageIndex, usersQuery.data?.count]);
+	useOffsetPageClamp({
+		pageIndex,
+		setPageIndex,
+		size: controller.size,
+		count: usersQuery.data?.count,
+	});
 
 	if (
 		(detailQuery.isError && shouldLogoutForFailure(detailQuery.error)) ||

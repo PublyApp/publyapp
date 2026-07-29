@@ -2,6 +2,7 @@ import { IconUsers } from '@tabler/icons-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTable } from '~/components/table/data-table';
+import { useOffsetPageClamp } from '~/components/table/offset-pagination';
 import { useTableController } from '~/components/table/use-table-controller';
 import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
@@ -71,17 +72,12 @@ export const ProfileMembersTab = ({
 		controller.size,
 	]);
 
-	useEffect(() => {
-		const totalCount = membersQuery.data?.count ?? 0;
-		const lastPageIndex =
-			totalCount > 0
-				? Math.max(Math.ceil(totalCount / controller.size) - 1, 0)
-				: 0;
-
-		if (pageIndex > lastPageIndex) {
-			setPageIndex(lastPageIndex);
-		}
-	}, [controller.size, membersQuery.data?.count, pageIndex]);
+	useOffsetPageClamp({
+		pageIndex,
+		setPageIndex,
+		size: controller.size,
+		count: membersQuery.data?.count,
+	});
 
 	const totalCount = membersQuery.data?.count ?? 0;
 	const hasNextPage = (pageIndex + 1) * controller.size < totalCount;

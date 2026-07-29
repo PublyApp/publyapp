@@ -609,6 +609,43 @@ describe('StaffTenantProfileMembersPage — roster rendering', () => {
 		);
 		expect(nextPageButton.hasAttribute('disabled')).toBe(true);
 	});
+
+	// #999: a missing item count (the query still in flight for the destination
+	// page) must be treated as UNKNOWN, not as zero. Treating it as zero makes
+	// the page-clamp effect conclude "there are zero items" and immediately
+	// revert page 2 back to page 1 — the [1, 2, 1] request sequence from the
+	// issue. This mocks the query hook per-pageIndex, exactly like a real
+	// fetch: page 0 resolves with a known count; page 1 is momentarily
+	// in-flight with `data: undefined`.
+	test('#999: does not clamp back to page 1 when the count is momentarily unavailable during a page transition', () => {
+		mocks.useStaffTenantProfileMembersQuery.mockImplementation(
+			(variables: { pageIndex: number }) =>
+				variables.pageIndex === 0
+					? buildMembersQueryResult({
+							data: { users: MEMBER_ROWS, count: 25 },
+						})
+					: buildMembersQueryResult({ data: undefined, isFetching: true }),
+		);
+
+		renderPage();
+
+		fireEvent.click(
+			screen.getByTestId('staff-tenant-profile-members-table-next-page'),
+		);
+
+		expect(
+			screen.getByTestId('staff-tenant-profile-members-table-page-label')
+				.textContent,
+		).toBe('Page 2');
+
+		const requestedPageIndexes =
+			mocks.useStaffTenantProfileMembersQuery.mock.calls.map(
+				(call) => (call[0] as { pageIndex: number }).pageIndex,
+			);
+		// The bug reverts the LAST requested page back to 0 (displayed "Page 1")
+		// once the effect observes the momentarily-missing count.
+		expect(requestedPageIndexes.at(-1)).toBe(1);
+	});
 });
 
 // step4b-review MAJOR 6: a large roster must scroll inside the table, never
