@@ -44,6 +44,19 @@ jobs:
     outputs:
       relevant: ${{ steps.filter.outputs.relevant }}
     steps:
+      # This wrapper is this pull request's OWN copy — it has to be, since
+      # the base-pinned checkout below can legitimately have nothing to check
+      # out yet (see that step's comment). That is safe: the wrapper decides
+      # nothing about relevance from PR content, only whether the base-pinned
+      # classifier file exists on disk, a fact the PR's diff cannot
+      # influence. See scripts/ci-run-classifier.mjs's header comment.
+      - name: Checkout classifier wrapper
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          sparse-checkout: |
+            scripts/ci-run-classifier.mjs
+          sparse-checkout-cone-mode: false
+
       # A pull_request run checks out the PR's own merge commit by default,
       # which means the PR's own copy of the classifier decides whether the
       # PR gets tested — a PR could edit this script to always report
@@ -52,6 +65,13 @@ jobs:
       # Not a complete trust boundary (the calling workflow is itself
       # merge-commit-controlled) — see #1017 follow-up for the honest
       # framing — but it closes the script-only bypass.
+      #
+      # This checkout is base-pinned and can legitimately produce nothing:
+      # the pull request that introduces this classifier (or a branch cut
+      # before it existed on the base branch) has no such file at its base
+      # commit. scripts/ci-run-classifier.mjs (checked out above) resolves
+      # that to relevant=true instead of crashing — see
+      # scripts/ci-run-classifier.test.mjs.
       - name: Checkout classifier from the base commit (not the PR's own copy)
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -59,6 +79,7 @@ jobs:
           sparse-checkout: |
             scripts/ci-changed-paths.mjs
           sparse-checkout-cone-mode: false
+          path: base-ref
 
       - name: Setup Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -76,9 +97,12 @@ jobs:
         # (scripts/ci-changed-paths.mjs) fails closed to relevant=true when
         # the changed-file list can't be verified complete (GitHub's
         # 3,000-file API ceiling) rather than trusting a truncated list — see
-        # scripts/ci-changed-paths.test.mjs.
+        # scripts/ci-changed-paths.test.mjs. scripts/ci-run-classifier.mjs
+        # additionally fails closed to relevant=true when the base-pinned
+        # classifier itself does not exist yet — see
+        # scripts/ci-run-classifier.test.mjs.
         run: |
-          node scripts/ci-changed-paths.mjs '^(Directory\.Build\.props$|Directory\.Build\.targets$|Directory\.Packages\.props$|apps/api/|packages/client-ts/|justfile$|global\.json$|\.gitattributes$|\.config/dotnet-tools\.json$|\.github/workflows/openapi-spec-drift\.yml$)'
+          node scripts/ci-run-classifier.mjs base-ref/scripts/ci-changed-paths.mjs '^(Directory\.Build\.props$|Directory\.Build\.targets$|Directory\.Packages\.props$|apps/api/|packages/client-ts/|justfile$|global\.json$|\.gitattributes$|\.config/dotnet-tools\.json$|\.github/workflows/openapi-spec-drift\.yml$)'
 
   spec-drift:
     needs: changes
