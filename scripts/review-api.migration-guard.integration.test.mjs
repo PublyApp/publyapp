@@ -22,7 +22,11 @@ import path from 'node:path';
 import { after, before, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { assertNoPendingMigrations } from './review-api.mjs';
+import {
+	assertNoPendingMigrations,
+	spawnApiChild,
+	waitForApiReachable,
+} from './review-api.mjs';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, '..');
@@ -148,6 +152,19 @@ after(() => {
 		return;
 	}
 
+	// Backstop in case a launch test's own try/finally never got to run (e.g. the process
+	// was killed externally mid-test): sweep both end-to-end ports one more time before
+	// tearing down the database they were pointed at.
+	for (const port of [CONTROL_PORT, FIX_PORT]) {
+		try {
+			execFileSync('pkill', ['-9', '-f', `127.0.0.1:${String(port)}`], {
+				stdio: 'ignore',
+			});
+		} catch {
+			// Nothing left to kill, or none matched — fine either way.
+		}
+	}
+
 	removeTestContainer();
 });
 
@@ -171,6 +188,131 @@ test(
 				return true;
 			},
 		);
+	},
+);
+
+// ---------------------------------------------------------------------------
+// END-TO-END LAUNCH PROOF (adversarial review, #1016): the JS-boundary guard tests
+// above cannot catch a launched API that starts and is then immediately killed by
+// apps/api/Infrastructure/Jobs/WorkerMigrationStartupGate — which is exactly what an
+// earlier version of this branch shipped: the guard warned and returned, "nothing
+// pending" printed, and the real API process crashed on the same migration a moment
+// later. These tests call the REAL spawnApiChild the production launcher uses (same
+// buildApiChildEnv, same dotnet watch run invocation), against the SAME genuinely
+// pending migration left unapplied by `before()`, and observe the actual process.
+// ---------------------------------------------------------------------------
+
+const CONTROL_PORT = 5591;
+const FIX_PORT = 5592;
+
+// dotnet watch does not exit when the inner app crashes at startup — it logs "Waiting
+// for a file to change before restarting" and idles forever (verified by hand). So
+// killing `child` alone can leave the actual PublyApp.Api process (a grandchild) and the
+// dotnet-watch wrapper running. Belt-and-braces: kill the direct handle, then sweep any
+// process still holding this test's unique --urls port.
+const killEverythingOnPort = (child, port) => {
+	if (!child.killed) {
+		child.kill('SIGKILL');
+	}
+
+	try {
+		// pkill's own option parser chokes on a pattern starting with "--" (it reads
+		// "--urls ..." as an unrecognized flag rather than the search pattern) — verified by
+		// hand. A pattern that does not start with a dash, like the bare host:port, matches
+		// the same processes without tripping that.
+		execFileSync('pkill', ['-9', '-f', `127.0.0.1:${String(port)}`], {
+			stdio: 'ignore',
+		});
+	} catch {
+		// Nothing left to kill, or none matched — fine either way.
+	}
+};
+
+test(
+	'END-TO-END CONTROL: without forceApiRole, the real launcher process never becomes reachable against a genuinely pending migration (confirms the blocker mechanism)',
+	{ skip: skip && 'Docker is required for this test' },
+	async () => {
+		const { child, publicUrl } = spawnApiChild(repoRoot, CONTROL_PORT, {
+			trustedProxyCidrs: TRUSTED_PROXY_CIDRS,
+			forceApiRole: false,
+			connectionStringOverride: TEST_CONNECTION,
+		});
+
+		try {
+			// WorkerMigrationStartupGate throws before Kestrel binds, so this should never
+			// succeed — a short, bounded poll is enough to prove it, not the full 60x250ms
+			// budget the real launcher uses when it expects success.
+			const reachable = await waitForApiReachable(`${publicUrl}/health`, {
+				attempts: 20,
+				intervalMs: 500,
+			});
+
+			assert.equal(
+				reachable,
+				false,
+				'the All-role process must NOT become reachable with a pending migration in Development',
+			);
+		} finally {
+			killEverythingOnPort(child, CONTROL_PORT);
+		}
+	},
+);
+
+test(
+	'END-TO-END FIX PROOF: with forceApiRole, the real launcher process starts and serves /health despite the same pending migration',
+	{ skip: skip && 'Docker is required for this test' },
+	async () => {
+		const { child, publicUrl } = spawnApiChild(repoRoot, FIX_PORT, {
+			trustedProxyCidrs: TRUSTED_PROXY_CIDRS,
+			forceApiRole: true,
+			connectionStringOverride: TEST_CONNECTION,
+		});
+
+		try {
+			const reachable = await waitForApiReachable(`${publicUrl}/health`);
+			assert.equal(
+				reachable,
+				true,
+				'the Api-role process must become reachable — it never registers WorkerMigrationStartupGate',
+			);
+
+			// The process is genuinely up and serving requests despite the pending
+			// migration — that is exactly what --allow-migrations buys. It correctly reports
+			// 503 Unhealthy (DatabaseMigrationHealthCheck honestly reflects that the
+			// migration really is still unapplied); that is truthful reporting, not a crash.
+			// The default health check response writer (no custom ResponseWriter is
+			// configured — apps/api/Program.cs) only emits the aggregate status word, so
+			// assert on that rather than the per-check description text, which never
+			// reaches the HTTP body.
+			const response = await fetch(`${publicUrl}/health`, {
+				signal: AbortSignal.timeout(5000),
+			});
+			assert.equal(response.status, 503);
+			const body = await response.text();
+			assert.match(body, /unhealthy/i);
+
+			// Prove it is genuinely staying up (not a fluke single response before crashing)
+			// by asking again after a beat.
+			await new Promise((resolve) => {
+				setTimeout(resolve, 1000);
+			});
+			const secondResponse = await fetch(`${publicUrl}/health`, {
+				signal: AbortSignal.timeout(5000),
+			});
+			assert.equal(secondResponse.status, 503);
+
+			assert.equal(
+				child.exitCode,
+				null,
+				'the child must still be running, not have exited on its own',
+			);
+		} finally {
+			// dotnet watch's own shutdown-on-SIGTERM timing is unrelated to what this test is
+			// proving (that the process starts and serves traffic at all) and was observed to
+			// take longer than is worth waiting on here — SIGKILL + the port sweep guarantee
+			// cleanup regardless.
+			killEverythingOnPort(child, FIX_PORT);
+		}
 	},
 );
 
