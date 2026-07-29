@@ -15,6 +15,7 @@
 		"test:ci-drift": "node --test ./scripts/check-ci-drift.test.mjs",
 		"test:review-worktree-resolution": "node --test ./scripts/review-worktree.resolve.test.mjs",
 		"test:review-api": "node --test ./scripts/review-api.test.mjs",
+		"test:review-api-migration-guard": "node --test ./scripts/review-api.migration-guard.integration.test.mjs",
 		"test:frontend-barrels": "node --test ./scripts/check-frontend-barrels.test.mjs"
 	},
 	"devDependencies": {
