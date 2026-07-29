@@ -16,8 +16,8 @@ do not wire production-adjacent secrets until the local compose harness is green
 | Front-2 service | `publyapp-front-2-staging` |
 | API service | `publyapp-api-staging` |
 | Database service | `publyapp-postgres-staging` |
-| Front-2 image | `ghcr.io/radandevist/publyapp/front-2:<sha>` |
-| Moving staging tag | `ghcr.io/radandevist/publyapp/front-2:staging` |
+| Front-2 image | `ghcr.io/radandevist/publyapp/front:<sha>` |
+| Moving staging tag | `ghcr.io/radandevist/publyapp/front:staging` |
 | API artifact | same API revision for runtime and migrate job |
 
 The staging API and staging Postgres are dedicated to front-2 staging. They must
@@ -168,7 +168,7 @@ services:
       start_period: 40s
 
   publyapp-front-2-staging:
-    image: ghcr.io/radandevist/publyapp/front-2:<sha>
+    image: ghcr.io/radandevist/publyapp/front:<sha>
     container_name: publyapp-front-2-staging
     restart: unless-stopped
     environment:
@@ -321,7 +321,7 @@ verified when this list was written (#704) against the then-current
 `apps/front-2-spike/docker-compose.test.yml`,
 `apps/front-2-spike/src/env.d.ts`, and the spike's server/client references. The
 spike was removed in #965; the same names are carried today by
-`apps/front-2/docker-compose.test.yml`, `apps/front-2/src/env.d.ts`, and the
+`apps/front/docker-compose.test.yml`, `apps/front/src/env.d.ts`, and the
 front-2 server/client references. `ASPNETCORE_ENVIRONMENT`,
 `DOTNET_ENVIRONMENT`, `ASPNETCORE_URLS`, `NODE_ENV`, and `PORT` are host/runtime
 variables, not `AppEnvironment` properties.
@@ -486,7 +486,7 @@ The smoke must not touch production services. Browser/API traffic must go to
 Front-2-only rollback is image-based:
 
 1. Identify the last known-good immutable front-2 image tag:
-   `ghcr.io/radandevist/publyapp/front-2:<previous-sha>`.
+   `ghcr.io/radandevist/publyapp/front:<previous-sha>`.
 2. Point `publyapp-front-2-staging` back to the selected known-good front-2 image
    tag in Dokploy.
 3. Redeploy `publyapp-front-2-staging`.
