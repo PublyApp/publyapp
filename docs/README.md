@@ -27,6 +27,31 @@ Two cautions about `docs/guides/`:
 - `AGENTS.md` also links repository config/source files when a rule needs an implementation anchor.
   A `docs/guides/` file that `AGENTS.md` does not link is a record, not a rule.
 
+## Historical archive
+
+`docs/archive/` is deliberately outside normal contributor navigation and outside agent-required
+reading. Its files are curated historical evidence, explicitly non-normative, and must not be used
+as a substitute for a current guide or the implementation. Consult an archived record only when a
+task specifically needs the reasoning behind an old decision or incident.
+
+Do not file new work directly in the archive. Write it in the active directory selected below; move
+it to the archive only through an explicit documentation-curation change.
+
+**Archived records are point-in-time snapshots, and their links are not actively maintained.**
+A record describes what was true on the day it was written, so it may name paths that have since
+moved or been deleted. That is expected, and it is not a defect to repair. A record's relative links
+are relative to its `Original location:` directory, not to `docs/archive/`. Rebase the link against
+that directory to follow it; where the target has since been deleted, the reference stands as evidence
+that it once existed. If the cited target was archived in the same wave, it is expected to resolve to
+the co-archived copy next to the record under `docs/archive/`.
+
+**Never edit an archived record to make a reference resolve.** Archiving prepends the four-line
+header and keeps the body byte-identical to the original file. The header is curatorial metadata, so
+its values can be corrected without violating the body snapshot invariant. Rewriting a record to scrub a
+path still falsifies the evidence the archive exists to hold, and it is the specific mistake this
+repository has already had to undo (PR #985). If a stale reference genuinely obstructs someone, the fix
+is a note in the *current* guide, never a change to the record.
+
 ## Where a new document goes
 
 One rule per directory. Pick the **first** row that matches; if two seem to fit, the earlier row
@@ -38,16 +63,16 @@ wins.
 | `guides/front-2/` | Same, but specific to `apps/front-2` styling/architecture. |
 | `deployment/` | It is operational: how the production stack is shaped, how a release is gated, how an operator deploys or recovers. |
 | `implementation-plans/` | It is a step-by-step plan for one specific change, written before the work, and it will be obsolete once merged. |
-| `plans/` | It is higher-level than an implementation plan — issue planning, sequencing, a design sketch for work not yet broken down. Date-prefix the filename (`YYYY-MM-DD-topic.md`). |
+| `plans/` | (Directory currently absent: create on first use.) It is higher-level than an implementation plan — issue planning, sequencing, a design sketch for work not yet broken down. Date-prefix the filename (`YYYY-MM-DD-topic.md`). |
 | `roadmaps/` | It spans many issues/phases over time (one subdirectory per roadmap). |
-| `refactoring-guides/` | It is a repeatable refactor playbook or checklist, not a one-off plan. |
-| `analysis/` | It weighs options and reaches a recommendation, before anyone commits to an approach. |
-| `audits/` | It systematically checks the codebase against a rule and reports the gaps. |
+| `refactoring-guides/` | (Directory currently absent: create on first use.) It is a repeatable refactor playbook or checklist, not a one-off plan. |
+| `analysis/` | (Directory currently absent: create on first use.) It weighs options and reaches a recommendation, before anyone commits to an approach. |
+| `audits/` | (Directory currently absent: create on first use.) It systematically checks the codebase against a rule and reports the gaps. |
 | `reviews/` | It is the output of reviewing work that exists — a code review, a review response, or review follow-ups. Date-prefix. |
-| `changes/` | It records what a landed change did, after the fact. |
-| `implementation-summaries/` | Same as `changes/`, for larger multi-phase work. Prefer `changes/` for anything small. |
+| `changes/` | (Directory currently absent: create on first use.) It records what a landed change did, after the fact. |
+| `implementation-summaries/` | (Directory currently absent: create on first use.) Same as `changes/`, for larger multi-phase work. Prefer `changes/` for anything small. |
 | `spikes/` | It records a time-boxed investigation whose only deliverable is the finding. Date-prefix. |
-| `issues/<number>/` | It is scratch working material scoped to one GitHub issue. |
+| `issues/<number>/` | (Directory currently absent: create on first use.) It is scratch working material scoped to one GitHub issue. |
 | `front-2-migration/` | It concerns the front→front-2 migration specifically (parity contracts, characterization, staging). |
 | `misc/` | Nothing above fits. Treat a `misc/` file as scratch — never link one from `AGENTS.md`. |
 | `assets/` | It is an image or other binary a doc embeds. |
@@ -63,4 +88,4 @@ wins.
 - A record (plan, review, analysis, change note) is written once and then left alone. Do not
   retro-edit it to match later reality — supersede it, and say what superseded it.
 - A guide is the opposite: if reality changes, the guide changes with it.
-- When you move or retire a document, fix the links pointing at it.
+- When you move or retire a document, fix the links pointing at it; records generally are exempt.

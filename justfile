@@ -297,6 +297,13 @@ ci-migration-expand-contract:
 ci-review-front-2-resolution:
   pnpm test:review-front-2-resolution
 
+# Archive records: verify metadata and body immutability (link checks are
+# intentionally skipped, see docs/README.md's archive policy)
+ci-docs-archive-records:
+  @echo "=== [gate] docs archive records ==="
+  node --test ./scripts/check-archive-records.test.mjs
+  node ./scripts/check-archive-records.mjs
+
 # Install exactly as CI does (supply-chain policy: frozen + no lifecycle scripts)
 ci-install:
   @echo "=== [gate] install (frozen lockfile, no scripts) ==="
@@ -376,7 +383,7 @@ ci-e2e-front:
   pnpm --filter front run test:e2e:fresh
 
 # Everyday pre-push gate (no e2e). Fails on the first red sub-gate.
-ci: ci-drift ci-migration-expand-contract ci-review-front-2-resolution ci-install ci-format ci-lint ci-front-2 ci-front-2-spike ci-front ci-spec-drift test-api
+ci: ci-drift ci-migration-expand-contract ci-review-front-2-resolution ci-docs-archive-records ci-install ci-format ci-lint ci-front-2 ci-front-2-spike ci-front ci-spec-drift test-api
   @echo ""
   @echo "=== just ci: PASSED ==="
   @echo "Not covered here: the two e2e suites (run 'just ci-full')."
