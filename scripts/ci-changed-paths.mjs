@@ -91,6 +91,34 @@ export const classifyRelevance = ({
 	};
 };
 
+/**
+ * Strictly parses `gh api ... --jq '.changed_files'` raw stdout into a
+ * non-negative integer, or `undefined` when the value cannot be trusted.
+ *
+ * This is the exact boundary a round-2 review found broken: `gh --jq` on a
+ * missing property (or literal `null`) exits 0 with EMPTY stdout, and naive
+ * `Number('')` evaluates to `0` — a fabricated, valid-looking total that
+ * would make `classifyRelevance()` believe a truncated or missing signal was
+ * a genuinely empty PR. Only a string matching `^\d+$` (no sign, no
+ * decimal, no exponent, not empty, not "null") is trusted; anything else
+ * returns `undefined`, which `classifyRelevance()` already treats as
+ * "completeness cannot be verified" and fails closed to relevant=true.
+ *
+ * @param {string} raw
+ * @returns {number | undefined}
+ */
+export const parseChangedFilesTotal = (raw) => {
+	const trimmed = String(raw).trim();
+
+	if (!/^\d+$/.test(trimmed)) {
+		return undefined;
+	}
+
+	const value = Number(trimmed);
+
+	return Number.isSafeInteger(value) ? value : undefined;
+};
+
 const toPosixPath = (value) => value.split(path.sep).join('/');
 
 const isDirectRun =
@@ -111,7 +139,10 @@ if (isDirectRun) {
 	const eventName = process.env.GITHUB_EVENT_NAME ?? '';
 
 	let files = [];
-	let changedFilesTotal = 0;
+	// undefined (not 0) by default: absent evidence must read as "unverified",
+	// never as a fabricated zero. classifyRelevance() already fails closed on
+	// a non-number changedFilesTotal.
+	let changedFilesTotal;
 
 	if (eventName === 'pull_request') {
 		const repo = process.env.GH_REPO;
@@ -127,13 +158,16 @@ if (isDirectRun) {
 		// (from the PR resource itself, not the paginated files list), and the
 		// actual enumerated list. Disagreement between them is the truncation
 		// signal classifyRelevance() checks for.
-		changedFilesTotal = Number(
-			execFileSync(
-				'gh',
-				['api', `repos/${repo}/pulls/${prNumber}`, '--jq', '.changed_files'],
-				{ encoding: 'utf8' },
-			).trim(),
+		//
+		// `gh api --jq` on a missing property (or a literal `null`) exits 0
+		// with EMPTY stdout — parseChangedFilesTotal() is the strict boundary
+		// that keeps that from becoming a fabricated `0` via blind `Number()`.
+		const changedFilesTotalRaw = execFileSync(
+			'gh',
+			['api', `repos/${repo}/pulls/${prNumber}`, '--jq', '.changed_files'],
+			{ encoding: 'utf8' },
 		);
+		changedFilesTotal = parseChangedFilesTotal(changedFilesTotalRaw);
 
 		const filesOutput = execFileSync(
 			'gh',
