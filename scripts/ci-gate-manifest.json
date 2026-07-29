@@ -16,10 +16,20 @@
 		"See docs/guides/local-ci-gate.md."
 	],
 	"steps": {
-		"docs-archive.yml::changes::Check whether docs-archive paths changed": {
-			"hash": "96ea0b89d41bce3a",
+		"docs-archive.yml::changes::Checkout": {
+			"hash": "389e0b8b6a55dd60",
 			"mirror": null,
-			"reason": "GitHub-only: reads the PR's changed-file list via the GitHub API (#1017) to decide whether the heavy job below should run. There is no PR context locally, and just ci already runs everything unconditionally."
+			"reason": "GitHub-only: checks out the repository so the classifier script (scripts/ci-changed-paths.mjs) is present to run. Locally the working tree already is the code under test."
+		},
+		"docs-archive.yml::changes::Setup Node": {
+			"hash": "9f0469bb2703ae67",
+			"mirror": null,
+			"reason": "GitHub-only Node setup for PR gating. This repository's local checks already assume Node is available locally for scripts and format/lint tooling."
+		},
+		"docs-archive.yml::changes::Check whether docs-archive paths changed": {
+			"hash": "4795a687557145b2",
+			"mirror": "node --test scripts/ci-changed-paths.test.mjs",
+			"reason": "The step now shells out to scripts/ci-changed-paths.mjs (#1017 review fix), whose classifyRelevance() decision logic — including failing closed to relevant=true when the changed-file list can't be verified complete against the PR's changed_files total (GitHub's 3,000-file API ceiling) — is unit-tested by ci-changed-paths.test.mjs. The live gh api calls that fetch the PR's file list remain GitHub-only and unmirrored; only the decision function is covered."
 		},
 		"docs-archive.yml::docs-archive::Checkout": {
 			"hash": "05b3bb91005e5436",
@@ -46,10 +56,20 @@
 			"mirror": null,
 			"reason": "GitHub-only: this is the #1017 aggregate required-check step, which reads needs.*.result across the workflow's other jobs. That context only exists inside a GitHub Actions run."
 		},
-		"front-ci.yml::changes::Check whether front-ci paths changed": {
-			"hash": "5d48665f8b8165d2",
+		"front-ci.yml::changes::Checkout": {
+			"hash": "389e0b8b6a55dd60",
 			"mirror": null,
-			"reason": "GitHub-only: reads the PR's changed-file list via the GitHub API (#1017) to decide whether the heavy job below should run. There is no PR context locally, and just ci already runs everything unconditionally."
+			"reason": "GitHub-only: checks out the repository so the classifier script (scripts/ci-changed-paths.mjs) is present to run. Locally the working tree already is the code under test."
+		},
+		"front-ci.yml::changes::Setup Node": {
+			"hash": "9f0469bb2703ae67",
+			"mirror": null,
+			"reason": "GitHub-only Node setup for PR gating. This repository's local checks already assume Node is available locally for scripts and format/lint tooling."
+		},
+		"front-ci.yml::changes::Check whether front-ci paths changed": {
+			"hash": "33c62eaf5263fdea",
+			"mirror": "node --test scripts/ci-changed-paths.test.mjs",
+			"reason": "The step now shells out to scripts/ci-changed-paths.mjs (#1017 review fix), whose classifyRelevance() decision logic — including failing closed to relevant=true when the changed-file list can't be verified complete against the PR's changed_files total (GitHub's 3,000-file API ceiling) — is unit-tested by ci-changed-paths.test.mjs. The live gh api calls that fetch the PR's file list remain GitHub-only and unmirrored; only the decision function is covered."
 		},
 		"front-ci.yml::supply-chain::Checkout": {
 			"hash": "389e0b8b6a55dd60",
@@ -126,10 +146,20 @@
 			"mirror": null,
 			"reason": "GitHub-only: this is the #1017 aggregate required-check step, which reads needs.*.result across the workflow's other jobs. That context only exists inside a GitHub Actions run."
 		},
-		"front-e2e.yml::changes::Check whether front-e2e paths changed": {
-			"hash": "5ba211ad8bc26fc2",
+		"front-e2e.yml::changes::Checkout": {
+			"hash": "389e0b8b6a55dd60",
 			"mirror": null,
-			"reason": "GitHub-only: reads the PR's changed-file list via the GitHub API (#1017) to decide whether the heavy jobs below should run. There is no PR context locally, and just ci already runs everything unconditionally."
+			"reason": "GitHub-only: checks out the repository so the classifier script (scripts/ci-changed-paths.mjs) is present to run. Locally the working tree already is the code under test."
+		},
+		"front-e2e.yml::changes::Setup Node": {
+			"hash": "9f0469bb2703ae67",
+			"mirror": null,
+			"reason": "GitHub-only Node setup for PR gating. This repository's local checks already assume Node is available locally for scripts and format/lint tooling."
+		},
+		"front-e2e.yml::changes::Check whether front-e2e paths changed": {
+			"hash": "db253ecf12a56185",
+			"mirror": "node --test scripts/ci-changed-paths.test.mjs",
+			"reason": "The step now shells out to scripts/ci-changed-paths.mjs (#1017 review fix), whose classifyRelevance() decision logic — including failing closed to relevant=true when the changed-file list can't be verified complete against the PR's changed_files total (GitHub's 3,000-file API ceiling) — is unit-tested by ci-changed-paths.test.mjs. The live gh api calls that fetch the PR's file list remain GitHub-only and unmirrored; only the decision function is covered."
 		},
 		"front-e2e.yml::build::Set image tag": {
 			"hash": "f8404b7467cf197a",
@@ -366,10 +396,20 @@
 			"mirror": "just ci",
 			"reason": "This is a CI publish path for the migration bundle image and does not have a local equivalent in pre-push checks."
 		},
-		"openapi-spec-drift.yml::changes::Check whether openapi-spec-drift paths changed": {
-			"hash": "6dfb7681db57e0ae",
+		"openapi-spec-drift.yml::changes::Checkout": {
+			"hash": "389e0b8b6a55dd60",
 			"mirror": null,
-			"reason": "GitHub-only: reads the PR's changed-file list via the GitHub API (#1017) to decide whether the heavy job below should run. There is no PR context locally, and just ci already runs everything unconditionally."
+			"reason": "GitHub-only: checks out the repository so the classifier script (scripts/ci-changed-paths.mjs) is present to run. Locally the working tree already is the code under test."
+		},
+		"openapi-spec-drift.yml::changes::Setup Node": {
+			"hash": "9f0469bb2703ae67",
+			"mirror": null,
+			"reason": "GitHub-only Node setup for PR gating. This repository's local checks already assume Node is available locally for scripts and format/lint tooling."
+		},
+		"openapi-spec-drift.yml::changes::Check whether openapi-spec-drift paths changed": {
+			"hash": "230684c0be6edc82",
+			"mirror": "node --test scripts/ci-changed-paths.test.mjs",
+			"reason": "The step now shells out to scripts/ci-changed-paths.mjs (#1017 review fix), whose classifyRelevance() decision logic — including failing closed to relevant=true when the changed-file list can't be verified complete against the PR's changed_files total (GitHub's 3,000-file API ceiling) — is unit-tested by ci-changed-paths.test.mjs. The live gh api calls that fetch the PR's file list remain GitHub-only and unmirrored; only the decision function is covered."
 		},
 		"openapi-spec-drift.yml::spec-drift::uses:actions/checkout": {
 			"hash": "2b0c921edab45332",
