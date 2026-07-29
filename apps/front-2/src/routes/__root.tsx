@@ -461,8 +461,23 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 	const pathname = location.pathname;
 	const surface = resolveRouteSurface(pathname);
 	const sessionSurface = getSessionSurface(pathname);
-	const surfaceRedirectCodeQueryKey =
-		getSurfaceRedirectCodeQueryKey(sessionSurface);
+	// Appending `hasAuthedRouteMatch` gives the query a different identity
+	// the moment the route stops being an exact authenticated match (e.g.
+	// navigating from a known /staff/* route to an unknown one under the
+	// same prefix keeps `sessionSurface` at 'staff', so the base key alone
+	// would not change). TanStack Query only cancels a query's in-flight
+	// fetch when its last observer is detached (query-core's
+	// `Query#removeObserver`, gated on the queryFn having consumed
+	// `signal`, which it does below) — flipping `enabled` to `false` alone
+	// does not detach the observer or abort the request, so a stale
+	// response could otherwise settle into the cache after this route
+	// stopped matching (PR #997 finding 2). Changing the key identity here
+	// makes the observer move to a new (disabled, never-fetched) query,
+	// which detaches it from the old one and fires its abort signal.
+	const surfaceRedirectCodeQueryKey = [
+		...getSurfaceRedirectCodeQueryKey(sessionSurface),
+		location.hasAuthedRouteMatch,
+	] as const;
 	const surfaceSessionState = useQuery<string | null>({
 		queryKey: surfaceRedirectCodeQueryKey,
 		queryFn: async ({ signal }): Promise<string | null> => {
