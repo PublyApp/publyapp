@@ -3,11 +3,17 @@ import test from 'node:test';
 
 import {
 	assertNoPendingMigrations,
+	buildApiChildEnv,
 	extractEnvValue,
 	extractPendingMigrationIds,
 	formatMigrationGuardError,
+	formatMigrationGuardStatusMessage,
+	listMigrationsJson,
 	parseArgs,
+	redactSecrets,
 	resolveTrustedProxyCidrs,
+	runCommand,
+	validateMigrationEntries,
 } from './review-api.mjs';
 
 test('parseArgs: bare ref, default port, migrations blocked by default', () => {
@@ -218,4 +224,293 @@ test('assertNoPendingMigrations: --allow-migrations proceeds instead of throwing
 	});
 
 	assert.deepEqual(result.pending, ['20260728000000_Pending']);
+});
+
+// --- redactSecrets --------------------------------------------------------------
+
+test('redactSecrets: removes every occurrence of each secret from a string', () => {
+	const text =
+		'connection failed: Host=x;Password=hunter2 (retry) Password=hunter2 again';
+	assert.equal(
+		redactSecrets(text, ['hunter2']),
+		'connection failed: Host=x;Password=[REDACTED] (retry) Password=[REDACTED] again',
+	);
+});
+
+test('redactSecrets: ignores empty/nullish secrets without throwing', () => {
+	assert.equal(redactSecrets('hello', ['', undefined, null]), 'hello');
+});
+
+test('redactSecrets: no-op when nothing matches', () => {
+	assert.equal(redactSecrets('hello world', ['nope']), 'hello world');
+});
+
+// --- runCommand bounded timeout --------------------------------------------------
+
+test('runCommand: a bounded timeout fails closed instead of hanging forever', () => {
+	assert.throws(() =>
+		runCommand('node', ['-e', 'setTimeout(() => {}, 5000)'], { timeout: 200 }),
+	);
+});
+
+// --- validateMigrationEntries (guard-indeterminate) -------------------------------
+
+test('validateMigrationEntries: passes through a well-formed non-empty array unchanged', () => {
+	const entries = [
+		{ id: 'a', applied: true },
+		{ id: 'b', applied: false },
+	];
+	assert.deepEqual(validateMigrationEntries(entries), entries);
+});
+
+test('validateMigrationEntries: throws MIGRATION_GUARD_INDETERMINATE for an empty array', () => {
+	assert.throws(
+		() => validateMigrationEntries([]),
+		(error) => error.code === 'MIGRATION_GUARD_INDETERMINATE',
+	);
+});
+
+test('validateMigrationEntries: throws MIGRATION_GUARD_INDETERMINATE for a non-array', () => {
+	assert.throws(
+		() => validateMigrationEntries(null),
+		(error) => error.code === 'MIGRATION_GUARD_INDETERMINATE',
+	);
+	assert.throws(
+		() => validateMigrationEntries({ not: 'an array' }),
+		(error) => error.code === 'MIGRATION_GUARD_INDETERMINATE',
+	);
+});
+
+test('validateMigrationEntries: throws MIGRATION_GUARD_INDETERMINATE for applied: null — the exact shape dotnet-ef 10.0.2 emits against an unreachable database', () => {
+	const entries = [
+		{
+			id: '20260511120526_Init',
+			name: 'Init',
+			safeName: 'Init',
+			applied: null,
+		},
+	];
+
+	assert.throws(
+		() => validateMigrationEntries(entries),
+		(error) => {
+			assert.equal(error.code, 'MIGRATION_GUARD_INDETERMINATE');
+			assert.match(error.message, /unrecognized shape/);
+			return true;
+		},
+	);
+});
+
+test('validateMigrationEntries: throws MIGRATION_GUARD_INDETERMINATE for a missing or empty id', () => {
+	assert.throws(
+		() => validateMigrationEntries([{ applied: true }]),
+		(error) => error.code === 'MIGRATION_GUARD_INDETERMINATE',
+	);
+	assert.throws(
+		() => validateMigrationEntries([{ id: '', applied: true }]),
+		(error) => error.code === 'MIGRATION_GUARD_INDETERMINATE',
+	);
+});
+
+test('validateMigrationEntries: throws MIGRATION_GUARD_INDETERMINATE for a non-boolean applied', () => {
+	assert.throws(
+		() => validateMigrationEntries([{ id: 'a', applied: 'true' }]),
+		(error) => error.code === 'MIGRATION_GUARD_INDETERMINATE',
+	);
+	assert.throws(
+		() => validateMigrationEntries([{ id: 'a' }]),
+		(error) => error.code === 'MIGRATION_GUARD_INDETERMINATE',
+	);
+});
+
+// --- indeterminate state wired through the real guard, not just the pure validator ---
+
+test('assertNoPendingMigrations: an indeterminate dotnet-ef result blocks instead of resolving to "nothing pending"', () => {
+	const run = (command, args) => {
+		if (args.includes('build')) {
+			return { stdout: '', stderr: '', status: 0 };
+		}
+
+		// The exact row shape an independent review probe observed from the pinned
+		// dotnet-ef against an unreachable PostgreSQL endpoint: exit 0, applied: null.
+		return {
+			status: 0,
+			stdout: JSON.stringify([
+				{
+					id: '20260511120526_Init',
+					name: 'Init',
+					safeName: 'Init',
+					applied: null,
+				},
+			]),
+			stderr: '',
+		};
+	};
+
+	assert.throws(
+		() =>
+			assertNoPendingMigrations({
+				apiDir: '/fake/apps/api',
+				connectionString: 'Host=unreachable;Port=1',
+				trustedProxyCidrs: '127.0.0.1/32,::1/128',
+				allowMigrations: false,
+				run,
+			}),
+		(error) => error.code === 'MIGRATION_GUARD_INDETERMINATE',
+	);
+});
+
+test('assertNoPendingMigrations: --allow-migrations does NOT bypass an indeterminate result — it is a different failure mode than a known pending migration', () => {
+	const run = (command, args) => {
+		if (args.includes('build')) {
+			return { stdout: '', stderr: '', status: 0 };
+		}
+
+		return {
+			status: 0,
+			stdout: JSON.stringify([{ id: 'a', applied: null }]),
+			stderr: '',
+		};
+	};
+
+	assert.throws(
+		() =>
+			assertNoPendingMigrations({
+				apiDir: '/fake/apps/api',
+				connectionString: 'Host=unreachable;Port=1',
+				trustedProxyCidrs: '127.0.0.1/32,::1/128',
+				allowMigrations: true,
+				run,
+			}),
+		(error) => error.code === 'MIGRATION_GUARD_INDETERMINATE',
+	);
+});
+
+test('assertNoPendingMigrations: unparseable dotnet-ef output blocks as indeterminate, not as a plain crash', () => {
+	const run = (command, args) => {
+		if (args.includes('build')) {
+			return { stdout: '', stderr: '', status: 0 };
+		}
+
+		return { status: 0, stdout: 'not json', stderr: '' };
+	};
+
+	assert.throws(
+		() =>
+			assertNoPendingMigrations({
+				apiDir: '/fake/apps/api',
+				connectionString: 'Host=unreachable;Port=1',
+				trustedProxyCidrs: '127.0.0.1/32,::1/128',
+				allowMigrations: false,
+				run,
+			}),
+		(error) => error.code === 'MIGRATION_GUARD_INDETERMINATE',
+	);
+});
+
+// --- listMigrationsJson: connection string never travels via argv ----------------
+
+test('listMigrationsJson: passes the connection string via env, never argv, and marks it for redaction', () => {
+	const calls = [];
+	const run = (command, args, options) => {
+		calls.push({ command, args, options });
+		if (args.includes('build')) {
+			return { stdout: '', stderr: '', status: 0 };
+		}
+
+		return {
+			status: 0,
+			stdout: JSON.stringify([{ id: 'a', applied: true }]),
+			stderr: '',
+		};
+	};
+
+	listMigrationsJson({
+		apiDir: '/fake/apps/api',
+		connectionString: 'Host=x;Password=hunter2',
+		trustedProxyCidrs: 'cidr',
+		run,
+	});
+
+	assert.equal(calls.length, 2);
+	for (const call of calls) {
+		assert.ok(
+			!call.args.includes('--connection'),
+			'the connection string must never be passed as a CLI argument',
+		);
+		assert.ok(
+			!call.args.join(' ').includes('hunter2'),
+			'the password must never appear in argv',
+		);
+		assert.equal(
+			call.options.env.POSTGRES_CONNECTION_STRING,
+			'Host=x;Password=hunter2',
+		);
+		assert.deepEqual(call.options.secrets, ['Host=x;Password=hunter2']);
+	}
+});
+
+// --- buildApiChildEnv (the escape hatch's actual fix) -----------------------------
+
+test('buildApiChildEnv: forceApiRole pins APP_ROLE=api regardless of the ambient env', () => {
+	const previous = process.env.APP_ROLE;
+	process.env.APP_ROLE = 'all';
+	try {
+		const forced = buildApiChildEnv({
+			trustedProxyCidrs: 'cidr',
+			forceApiRole: true,
+		});
+		assert.equal(forced.APP_ROLE, 'api');
+
+		const notForced = buildApiChildEnv({
+			trustedProxyCidrs: 'cidr',
+			forceApiRole: false,
+		});
+		assert.equal(notForced.APP_ROLE, 'all');
+	} finally {
+		if (previous === undefined) {
+			delete process.env.APP_ROLE;
+		} else {
+			process.env.APP_ROLE = previous;
+		}
+	}
+});
+
+test('buildApiChildEnv: connectionStringOverride sets POSTGRES_CONNECTION_STRING; omitting it leaves the ambient value alone', () => {
+	const overridden = buildApiChildEnv({
+		trustedProxyCidrs: 'cidr',
+		connectionStringOverride: 'Host=throwaway',
+	});
+	assert.equal(overridden.POSTGRES_CONNECTION_STRING, 'Host=throwaway');
+
+	const notOverridden = buildApiChildEnv({ trustedProxyCidrs: 'cidr' });
+	assert.equal(
+		'POSTGRES_CONNECTION_STRING' in notOverridden,
+		'POSTGRES_CONNECTION_STRING' in process.env,
+	);
+});
+
+test('buildApiChildEnv: always carries TRUSTED_PROXY_CIDRS through', () => {
+	const env = buildApiChildEnv({ trustedProxyCidrs: '10.0.0.0/8' });
+	assert.equal(env.TRUSTED_PROXY_CIDRS, '10.0.0.0/8');
+});
+
+// --- formatMigrationGuardStatusMessage (the false-success-message fix) -----------
+
+test('formatMigrationGuardStatusMessage: reports "nothing pending" only when the list is actually empty', () => {
+	assert.equal(
+		formatMigrationGuardStatusMessage([]),
+		'Migration guard: nothing pending.',
+	);
+});
+
+test('formatMigrationGuardStatusMessage: with a bypassed list, never claims nothing is pending', () => {
+	const message = formatMigrationGuardStatusMessage([
+		'20260728000000_A',
+		'20260728000100_B',
+	]);
+	assert.doesNotMatch(message, /nothing pending/);
+	assert.match(message, /bypassed 2 pending migration/);
+	assert.match(message, /20260728000000_A/);
+	assert.match(message, /20260728000100_B/);
 });

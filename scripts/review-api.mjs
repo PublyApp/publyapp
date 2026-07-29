@@ -34,6 +34,13 @@ const ALLOW_MIGRATIONS_FLAG = '--allow-migrations';
 // manual env edit, and matches exactly what the app itself would have defaulted to.
 const DEFAULT_TRUSTED_PROXY_CIDRS = '127.0.0.1/32,::1/128';
 
+// Bounded so a stuck build/restore/connection attempt cannot hang the launcher forever.
+// Builds get a longer ceiling (cold-cache dotnet build can genuinely take a few minutes);
+// everything else (git, gh, dotnet-ef list) is expected to be fast.
+const DEFAULT_COMMAND_TIMEOUT_MS = 60_000;
+const BUILD_COMMAND_TIMEOUT_MS = 10 * 60_000;
+const REDACTED = '[REDACTED]';
+
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, '..');
 const rootRepoCache = { path: null };
@@ -45,26 +52,53 @@ const err = (message) => {
 	process.exit(1);
 };
 
-const runCommand = (command, args, options = {}) => {
+// Replaces every occurrence of each non-empty value in `secrets` with a fixed marker.
+// Used to keep a connection string's password out of any rendered command error —
+// whether the secret leaked into argv, stdout, or stderr.
+export const redactSecrets = (text, secrets = []) => {
+	let redacted = text;
+	for (const secret of secrets) {
+		if (typeof secret === 'string' && secret.length > 0) {
+			redacted = redacted.split(secret).join(REDACTED);
+		}
+	}
+
+	return redacted;
+};
+
+// Exported so the bounded-timeout behavior can be tested directly against a real
+// subprocess, not a mock of spawnSync's option-handling.
+export const runCommand = (command, args, options = {}) => {
+	const secrets = options.secrets ?? [];
 	const result = spawnSync(command, args, {
 		cwd: options.cwd,
 		env: { ...process.env, ...(options.env ?? {}) },
 		encoding: 'utf8',
 		stdio: options.stdio ?? 'pipe',
+		timeout: options.timeout ?? DEFAULT_COMMAND_TIMEOUT_MS,
 	});
 
 	if (result.error) {
+		if (typeof result.error.message === 'string') {
+			result.error.message = redactSecrets(result.error.message, secrets);
+		}
+
 		throw result.error;
 	}
 
+	// spawnSync sets status to null (not just absent) both on a normal signal-kill and on
+	// a timeout; treating that as a non-zero exit means a timed-out command fails closed
+	// through the exact same throw path as any other command failure.
 	const status = result.status ?? -1;
 	if (status !== 0) {
-		const stderr = String(result.stderr ?? '').trim();
-		const stdout = String(result.stdout ?? '').trim();
+		const stderr = redactSecrets(String(result.stderr ?? '').trim(), secrets);
+		const stdout = redactSecrets(String(result.stdout ?? '').trim(), secrets);
 		const prefix = options.label ? `${options.label}: ` : '';
 		const detail = stderr || stdout ? `\n${stderr || stdout}` : '';
+		const renderedArgs = redactSecrets(args.join(' '), secrets);
+		const timedOut = result.signal && !result.status ? ' (timed out)' : '';
 		throw new Error(
-			`${prefix}${command} ${args.join(' ')} exited with status ${String(status)} ${detail}`,
+			`${prefix}${command} ${renderedArgs} exited with status ${String(status)}${timedOut} ${detail}`,
 		);
 	}
 
@@ -317,12 +351,54 @@ const readWorktreeEnvFile = (worktreePath) => {
 // ---------------------------------------------------------------------------
 // Migration guard (owner decision, 2026-07-29): use the shared dev database, but
 // refuse to start when this worktree's branch carries a migration the database has
-// not applied. `dotnet ef migrations list --json --connection <conn>` reports each
-// migration compiled into the branch alongside whether it is applied to whatever
-// database <conn> points at — passing --connection explicitly means this check does
-// not depend on the app's own AppEnvironment/APP_ROLE/production classification at
-// all, only on the connection string itself.
+// not applied. `dotnet ef migrations list --json` (POSTGRES_CONNECTION_STRING supplied
+// via env, not argv — see listMigrationsJson) reports each migration compiled into the
+// branch alongside whether it is applied to whatever database that connection string
+// points at.
 // ---------------------------------------------------------------------------
+
+const createIndeterminateError = (message) => {
+	const error = new Error(
+		`${message} Refusing to start — an indeterminate migration state is not a safe one.`,
+	);
+	error.code = 'MIGRATION_GUARD_INDETERMINATE';
+	return error;
+};
+
+// Fails closed on anything that isn't unambiguously "here is the full migration list and
+// each one's applied state". dotnet-ef 10.0.2 can exit 0 with every entry's `applied` set
+// to `null` when the database is unreachable (verified independently in review) — keeping
+// only `applied === false` entries would silently treat that as "nothing pending" and let
+// the API launch. A non-empty array of entries, each with a non-empty string `id` and a
+// boolean `applied`, is the only shape trusted here; anything else throws
+// MIGRATION_GUARD_INDETERMINATE instead of resolving to an empty pending list.
+export const validateMigrationEntries = (parsed) => {
+	if (!Array.isArray(parsed) || parsed.length === 0) {
+		throw createIndeterminateError(
+			`dotnet-ef reported ${Array.isArray(parsed) ? 'zero migrations' : 'a non-array result'}, but this branch always has at least one (Init).`,
+		);
+	}
+
+	for (const entry of parsed) {
+		const hasValidId =
+			entry !== null &&
+			typeof entry === 'object' &&
+			typeof entry.id === 'string' &&
+			entry.id.length > 0;
+		const hasValidApplied =
+			entry !== null &&
+			typeof entry === 'object' &&
+			typeof entry.applied === 'boolean';
+
+		if (!hasValidId || !hasValidApplied) {
+			throw createIndeterminateError(
+				`dotnet-ef reported a migration entry with an unrecognized shape: ${JSON.stringify(entry)}.`,
+			);
+		}
+	}
+
+	return parsed;
+};
 
 export const extractPendingMigrationIds = (migrationEntries) => {
 	return migrationEntries
@@ -345,10 +421,26 @@ export const formatMigrationGuardError = (pendingMigrationIds) => {
 	].join('\n');
 };
 
+// Reports what assertNoPendingMigrations actually returned, not an unconditional success
+// message — with --allow-migrations, `pending` can be non-empty, and printing "nothing
+// pending" right after the warning above it would be a straightforwardly false status.
+export const formatMigrationGuardStatusMessage = (pendingMigrationIds) => {
+	if (pendingMigrationIds.length === 0) {
+		return 'Migration guard: nothing pending.';
+	}
+
+	return `Migration guard: bypassed ${pendingMigrationIds.length} pending migration(s): ${pendingMigrationIds.join(', ')}`;
+};
+
 // Builds once (doc-gen disabled — see #1006/AGENTS.md) then asks dotnet-ef for the
-// migration list + applied state against the given connection string. Exported with
-// an injectable `runCommand` so unit tests can stub it; the migration-guard proof
-// itself must call this with the real runner (see
+// migration list + applied state against the given connection string. The connection
+// string travels ONLY via the child's environment (POSTGRES_CONNECTION_STRING), never as
+// a CLI argument — argv is visible to any same-host process inspection (`ps`, /proc),
+// while an env var is only visible via /proc/<pid>/environ to the same user or root. It
+// is also passed to `secrets` so it gets redacted out of any error this command raises
+// (a malformed connection string can otherwise echo its own password back in the
+// exception text). Exported with an injectable `runCommand` so unit tests can stub it;
+// the migration-guard proof itself must call this with the real runner (see
 // scripts/review-api.migration-guard.integration.test.mjs).
 export const listMigrationsJson = ({
 	apiDir,
@@ -356,31 +448,39 @@ export const listMigrationsJson = ({
 	trustedProxyCidrs,
 	run = runCommand,
 }) => {
-	const env = { APP_ROLE: 'api', TRUSTED_PROXY_CIDRS: trustedProxyCidrs };
+	const env = {
+		APP_ROLE: 'api',
+		TRUSTED_PROXY_CIDRS: trustedProxyCidrs,
+		POSTGRES_CONNECTION_STRING: connectionString,
+	};
+	const secrets = [connectionString];
 
 	run('dotnet', ['build', '-property:OpenApiGenerateDocuments=false'], {
 		cwd: apiDir,
 		env,
 		label: 'dotnet build',
+		timeout: BUILD_COMMAND_TIMEOUT_MS,
+		secrets,
 	});
 
 	const result = run(
 		'dotnet',
-		[
-			'tool',
-			'run',
-			'dotnet-ef',
-			'migrations',
-			'list',
-			'--no-build',
-			'--json',
-			'--connection',
-			connectionString,
-		],
-		{ cwd: apiDir, env, label: 'dotnet-ef migrations list' },
+		['tool', 'run', 'dotnet-ef', 'migrations', 'list', '--no-build', '--json'],
+		{ cwd: apiDir, env, label: 'dotnet-ef migrations list', secrets },
 	);
 
-	return JSON.parse(result.stdout);
+	let parsed;
+	try {
+		parsed = JSON.parse(result.stdout);
+	} catch (error) {
+		// Only the parser's own message (token/position), never the raw stdout — it could
+		// otherwise echo a connection failure preamble containing the connection string.
+		throw createIndeterminateError(
+			`dotnet-ef output could not be parsed as JSON: ${String(error?.message ?? error)}.`,
+		);
+	}
+
+	return validateMigrationEntries(parsed);
 };
 
 // Throws a MIGRATION_GUARD_BLOCKED error naming the pending migration(s) unless
@@ -425,22 +525,58 @@ export const assertNoPendingMigrations = ({
 // Launch
 // ---------------------------------------------------------------------------
 
-const waitForApiReachable = async (url) => {
-	for (let attempt = 0; attempt < 60; attempt += 1) {
+// Exported (not just used inline) so the end-to-end test can poll the exact same way the
+// real launcher does, instead of inventing its own readiness check.
+export const waitForApiReachable = async (
+	url,
+	{ attempts = 60, intervalMs = 250, timeoutMs = 1000 } = {},
+) => {
+	for (let attempt = 0; attempt < attempts; attempt += 1) {
 		try {
-			await fetch(url, { signal: AbortSignal.timeout(1000) });
-			return;
+			await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
+			return true;
 		} catch {
 			await new Promise((resolve) => {
-				setTimeout(resolve, 250);
+				setTimeout(resolve, intervalMs);
 			});
 		}
 	}
 
-	err(`API did not become reachable at ${url} before timeout.`);
+	return false;
 };
 
-const launchApi = async (worktreePath, port, trustedProxyCidrs) => {
+// The env a launched API child gets. `forceApiRole` pins APP_ROLE=api regardless of what
+// .env.development says (default "all" — see AGENTS.md), which is required precisely when
+// --allow-migrations is in effect: WorkerMigrationStartupGate is registered for the
+// Worker/All roles and deliberately fails fast on a pending migration in Development
+// (apps/api/Infrastructure/Jobs/WorkerMigrationStartupGate.cs), so an All-role process
+// would immediately crash on the very migration state the reviewer just chose to accept.
+// The Api role never registers that gate at all (apps/api/Program.cs), so it starts
+// regardless. This only takes effect because of the #1019 NoClobber fix
+// (apps/api/Lib/AppEnvironment.cs) — without it, .env.development's APP_ROLE="all" would
+// silently overwrite this value back, and the escape hatch would still not work end to
+// end (verified empirically; see the commit history for #1016).
+export const buildApiChildEnv = ({
+	trustedProxyCidrs,
+	forceApiRole = false,
+	connectionStringOverride,
+} = {}) => {
+	const env = { ...process.env, TRUSTED_PROXY_CIDRS: trustedProxyCidrs };
+	if (forceApiRole) {
+		env.APP_ROLE = 'api';
+	}
+
+	if (connectionStringOverride) {
+		env.POSTGRES_CONNECTION_STRING = connectionStringOverride;
+	}
+
+	return env;
+};
+
+// Spawns the API child without waiting on it — split out from launchApi so a test can
+// assert readiness/liveness itself and control shutdown, rather than being stuck inside a
+// promise that only resolves once the child has already exited.
+export const spawnApiChild = (worktreePath, port, options = {}) => {
 	const cwd = path.join(worktreePath, 'apps', 'api');
 	const publicUrl = `http://127.0.0.1:${String(port)}`;
 	const child = spawn(
@@ -456,9 +592,15 @@ const launchApi = async (worktreePath, port, trustedProxyCidrs) => {
 		{
 			cwd,
 			stdio: 'inherit',
-			env: { ...process.env, TRUSTED_PROXY_CIDRS: trustedProxyCidrs },
+			env: buildApiChildEnv(options),
 		},
 	);
+
+	return { child, publicUrl };
+};
+
+const launchApi = async (worktreePath, port, options) => {
+	const { child, publicUrl } = spawnApiChild(worktreePath, port, options);
 
 	const shutdown = (signal) => {
 		if (!child.killed) {
@@ -468,7 +610,13 @@ const launchApi = async (worktreePath, port, trustedProxyCidrs) => {
 	process.on('SIGINT', () => shutdown('SIGINT'));
 	process.on('SIGTERM', () => shutdown('SIGTERM'));
 
-	await waitForApiReachable(`${publicUrl}${HEALTH_PATH}`);
+	const reachable = await waitForApiReachable(`${publicUrl}${HEALTH_PATH}`);
+	if (!reachable) {
+		err(
+			`API did not become reachable at ${publicUrl}${HEALTH_PATH} before timeout.`,
+		);
+	}
+
 	const [code, signal] = await once(child, 'exit');
 
 	if (signal) {
@@ -544,13 +692,18 @@ const main = async () => {
 	console.log(
 		'Checking for unapplied migrations against the shared dev database...',
 	);
-	assertNoPendingMigrations({
+	const guardResult = assertNoPendingMigrations({
 		apiDir,
 		connectionString,
 		trustedProxyCidrs,
 		allowMigrations,
 	});
-	console.log('Migration guard: nothing pending.');
+	// Pin the Api role only when we are actually bypassing a real pending migration — the
+	// only condition that reaches here with a non-empty pending list (assertNoPendingMigrations
+	// throws otherwise). Every other launch keeps .env.development's default ("all"), so a
+	// normal review session still gets the worker/job engine, matching `just dev-api`.
+	const forceApiRole = guardResult.pending.length > 0;
+	console.log(formatMigrationGuardStatusMessage(guardResult.pending));
 
 	console.log('\n');
 	console.log('Launching PR API review server');
@@ -562,11 +715,10 @@ const main = async () => {
 	console.log('');
 
 	const beforeDirty = trackedChanges(worktree.path);
-	const { code, signal } = await launchApi(
-		worktree.path,
-		port,
+	const { code, signal } = await launchApi(worktree.path, port, {
 		trustedProxyCidrs,
-	);
+		forceApiRole,
+	});
 	const afterDirty = trackedChanges(worktree.path);
 	const newlyDirty = [...afterDirty].filter((entry) => !beforeDirty.has(entry));
 
@@ -602,7 +754,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 				break;
 			}
 
-			case 'MIGRATION_GUARD_BLOCKED': {
+			case 'MIGRATION_GUARD_BLOCKED':
+			case 'MIGRATION_GUARD_INDETERMINATE': {
 				err(error.message);
 				break;
 			}
