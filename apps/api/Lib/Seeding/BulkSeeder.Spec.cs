@@ -306,3 +306,59 @@ public sealed class BulkSeederUnrelatedUniqueViolationSpec : IClassFixture<ApiFi
 		projectsAfterFailedReseed.Should().Be(0, "the failed batch must have rolled back rather than partially or silently applying");
 	}
 }
+
+public sealed class BulkSeederNaturalKeyIndexContractSpec : IClassFixture<ApiFixture> {
+	private readonly ApiFixture _fixture;
+
+	public BulkSeederNaturalKeyIndexContractSpec(ApiFixture fixture) {
+		_fixture = fixture;
+	}
+
+	// #1012 round-2 review MINOR: BulkSeederGenuineFailureSpec induces and asserts only
+	// ix_tenants_code_active. The other five index names BulkSeeder relies on to tell "this
+	// natural key already exists" apart from "an unrelated unique index was violated" are
+	// never driven by any test — the ordinary idempotency spec never reaches a catch at all
+	// (its second run filters existing rows out before insert), and the unrelated-index spec
+	// passes either way because it wants a rethrow regardless of the project index's name.
+	//
+	// Concretely: a future migration renames, say, IX_projects_tenant_id_name and correctly
+	// updates the EF model, but nobody updates BulkSeeder's private string. Every clean seed
+	// and every ordinary repeat seed stays green. Then a legitimate concurrent insert makes
+	// Postgres report the duplicate under the NEW name, the filter no longer matches, and
+	// seed-bulk throws instead of skipping — issue #1008 reintroduced silently.
+	//
+	// This asserts BulkSeeder's OWN constants — not a second hardcoded list here that a
+	// rename could update alongside the migration while leaving the application string
+	// stale — against pg_indexes on a fully migrated test database (the artifact itself,
+	// not the EF model).
+	[Fact]
+	public async Task ItShouldHaveALiveMigratedIndexForEveryNaturalKeyConstraintBulkSeederConsumes() {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var expectedIndexNames = BulkSeeder.TenantNaturalKeyConstraints
+			.Concat(BulkSeeder.UserNaturalKeyConstraints)
+			.Concat(BulkSeeder.UserAccountNaturalKeyConstraints)
+			.Concat(BulkSeeder.ProjectNaturalKeyConstraints)
+			.ToList();
+
+		var liveIndexNames = await dbContext.Database.SqlQuery<string>(
+			$"""
+			SELECT indexname AS "Value"
+			FROM pg_indexes
+			WHERE schemaname = 'public'
+			"""
+		).ToListAsync();
+		var liveIndexNameSet = liveIndexNames.ToHashSet();
+
+		var missingIndexNames = expectedIndexNames.Where(name => !liveIndexNameSet.Contains(name)).ToList();
+
+		missingIndexNames.Should().BeEmpty(
+			"BulkSeeder's duplicate-handling catches only absorb a 23505 on these exact index " +
+			$"names; a missing name here means a migration renamed the live index without " +
+			$"updating BulkSeeder's constant, and seed-bulk would throw instead of skip on the " +
+			$"next legitimate concurrent duplicate (missing from the migrated schema: " +
+			$"{string.Join(", ", missingIndexNames)})"
+		);
+	}
+}

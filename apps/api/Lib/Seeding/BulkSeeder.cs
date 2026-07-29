@@ -21,18 +21,21 @@ public class BulkSeeder {
 	// duplicate-handling catch must only ever absorb a violation of ITS OWN natural-key
 	// index; any other index name means an unrelated unique-constraint failure (e.g.
 	// schema drift, or a genuinely corrupt/duplicated batch) and must propagate.
-	private static readonly HashSet<string> TenantNaturalKeyConstraints = ["ix_tenants_code_active"];
-	private static readonly HashSet<string> UserNaturalKeyConstraints = ["ix_users_email_active"];
+	// Internal (rather than private) so BulkSeederNaturalKeyIndexContractSpec can assert
+	// these exact production constants against the live migrated schema, instead of a
+	// second hardcoded copy that a rename could drift from unnoticed.
+	internal static readonly HashSet<string> TenantNaturalKeyConstraints = ["ix_tenants_code_active"];
+	internal static readonly HashSet<string> UserNaturalKeyConstraints = ["ix_users_email_active"];
 
 	// UserAccount's natural-key uniqueness is enforced by one of three constraints
 	// depending on Scope (staff/tenant/project); all three are equally "the natural key"
 	// for this entity type.
-	private static readonly HashSet<string> UserAccountNaturalKeyConstraints = [
+	internal static readonly HashSet<string> UserAccountNaturalKeyConstraints = [
 		"ux_user_accounts_staff_active",
 		"ux_user_accounts_tenant_active",
 		"ux_user_accounts_project_active",
 	];
-	private static readonly HashSet<string> ProjectNaturalKeyConstraints = ["IX_projects_tenant_id_name"];
+	internal static readonly HashSet<string> ProjectNaturalKeyConstraints = ["IX_projects_tenant_id_name"];
 
 	private readonly int _batchSize;
 	private readonly BulkSeedDataGenerator? _generator;
