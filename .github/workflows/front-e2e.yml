@@ -1,4 +1,4 @@
-name: front-2 e2e
+name: front e2e
 
 on:
   pull_request:
@@ -6,7 +6,7 @@ on:
       - 'apps/front/**'
       - 'packages/shared-ts/**'
       - 'packages/client-ts/**'
-      - '.github/workflows/front-2-e2e.yml'
+      - '.github/workflows/front-e2e.yml'
   push:
     branches:
       - develop
@@ -14,14 +14,14 @@ on:
       - 'apps/front/**'
       - 'packages/shared-ts/**'
       - 'packages/client-ts/**'
-      - '.github/workflows/front-2-e2e.yml'
+      - '.github/workflows/front-e2e.yml'
 
 # Supersede in-flight runs for the same ref: a newer push makes an older run's
 # result irrelevant, and on a private repo every superseded minute is billed.
 # This is the most expensive workflow (docker build + Playwright), so it is
 # also where cancelling superseded runs saves the most.
 concurrency:
-  group: front-2-e2e-${{ github.ref }}
+  group: front-e2e-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -70,7 +70,7 @@ jobs:
         run: docker compose -f apps/front/docker-compose.test.yml push migrate api request-counter front
 
   test:
-    name: front-2-e2e (${{ matrix.shard }}/4)
+    name: front-e2e (${{ matrix.shard }}/4)
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -116,7 +116,7 @@ jobs:
       - name: Up stack
         run: docker compose -f apps/front/docker-compose.test.yml up -d --no-build
 
-      - name: Wait for front-2 stack health
+      - name: Wait for front stack health
         run: |
           timeout 180 bash -lc '
             for attempt in $(seq 1 90); do
@@ -196,13 +196,13 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: front-2-e2e-playwright-report-${{ matrix.shard }}-of-4
+          name: front-e2e-playwright-report-${{ matrix.shard }}-of-4
           path: |
             apps/front/playwright-report
             apps/front/test-results
           if-no-files-found: ignore
 
-      - name: Tear down front-2 stack
+      - name: Tear down front stack
         if: always()
         run: docker compose -f apps/front/docker-compose.test.yml down -v
 

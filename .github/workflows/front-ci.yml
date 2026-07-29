@@ -1,4 +1,4 @@
-name: front-2 supply-chain
+name: front supply-chain
 
 on:
   pull_request:
@@ -8,7 +8,7 @@ on:
       - 'packages/client-ts/**'
       - 'packages/_tsconfig/**'
       - 'turbo.json'
-      - '.github/workflows/front-2-ci.yml'
+      - '.github/workflows/front-ci.yml'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - 'package.json'
@@ -20,7 +20,7 @@ permissions:
 # Supersede in-flight runs for the same ref: a newer push makes an older run's
 # result irrelevant, and on a private repo every superseded minute is billed.
 concurrency:
-  group: front-2-ci-${{ github.ref }}
+  group: front-ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -49,54 +49,54 @@ jobs:
       - name: Run trusted first-party postinstall (@org/shared-ts)
         run: pnpm --filter @org/shared-ts run postinstall
 
-      - name: Check front-2 formatting
+      - name: Check front formatting
         run: pnpm format
 
-      - name: Build front-2
+      - name: Build front
         run: pnpm --filter front build
 
-      - name: Verify front-2 production build emits a CSS asset
+      - name: Verify front production build emits a CSS asset
         run: node apps/front/scripts/verify-build-css-link.mjs
 
-      - name: Smoke start front-2 server and verify stylesheet tag
+      - name: Smoke start front server and verify stylesheet tag
         env:
           PUBLIC_API_BASE_URL: 'http://127.0.0.1:5000'
           SERVER_API_BASE_URL: 'http://127.0.0.1:5000'
         run: |
-          pnpm --filter front start > /tmp/front-2-ci-server.log 2>&1 &
-          FRONT_2_SERVER_PID=$!
-          trap 'kill $FRONT_2_SERVER_PID || true' EXIT
+          pnpm --filter front start > /tmp/front-ci-server.log 2>&1 &
+          FRONT_SERVER_PID=$!
+          trap 'kill $FRONT_SERVER_PID || true' EXIT
 
           for attempt in $(seq 1 20); do
-            if curl -fsS http://127.0.0.1:3000/ >/tmp/front-2-home.html; then
+            if curl -fsS http://127.0.0.1:3000/ >/tmp/front-home.html; then
               break
             fi
             sleep 1
           done
 
-          if ! curl -fsS http://127.0.0.1:3000/ > /tmp/front-2-home.html; then
-            echo "front-2 standalone server failed to return HTML from /"
-            cat /tmp/front-2-ci-server.log
+          if ! curl -fsS http://127.0.0.1:3000/ > /tmp/front-home.html; then
+            echo "front standalone server failed to return HTML from /"
+            cat /tmp/front-ci-server.log
             exit 1
           fi
 
-          if ! grep -aEq 'rel="stylesheet"[^>]*href="[^"]+\.css"' /tmp/front-2-home.html; then
-            echo "front-2 production HTML does not contain stylesheet link"
-            cat /tmp/front-2-home.html
+          if ! grep -aEq 'rel="stylesheet"[^>]*href="[^"]+\.css"' /tmp/front-home.html; then
+            echo "front production HTML does not contain stylesheet link"
+            cat /tmp/front-home.html
             exit 1
           fi
 
-      - name: Typecheck front-2
+      - name: Typecheck front
         run: pnpm --filter front typecheck
 
-      - name: Lint front-2
+      - name: Lint front
         run: |
           npx oxlint --quiet apps/front packages/shared-ts
           pnpm lint:disables
           pnpm check:frontend-barrels
 
-      - name: Check front-2 design system
+      - name: Check front design system
         run: pnpm --filter front check:design-system
 
-      - name: Test front-2
+      - name: Test front
         run: pnpm --filter front test
