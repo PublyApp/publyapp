@@ -11,6 +11,13 @@ describe('clampOffsetPageIndex', () => {
 		expect(clampOffsetPageIndex(5, 10, undefined)).toBe(5);
 	});
 
+	// The generated client types `count` as `number | null` — a `null` wire
+	// value is defensive typing, not a business "zero"; treat it the same as
+	// "unknown" rather than inventing a third meaning.
+	test('treats a null count the same as a missing one — unknown, not zero', () => {
+		expect(clampOffsetPageIndex(1, 10, null)).toBe(1);
+	});
+
 	// A missing count and a real zero are different states (#999) — only a
 	// genuinely known zero total clamps back to page 0.
 	test('clamps to page 0 when the count is a known zero', () => {

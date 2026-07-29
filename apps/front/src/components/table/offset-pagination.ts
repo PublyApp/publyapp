@@ -15,9 +15,9 @@ import { useEffect } from 'react';
 export const clampOffsetPageIndex = (
 	pageIndex: number,
 	size: number,
-	count: number | undefined,
+	count: number | null | undefined,
 ): number => {
-	if (count === undefined) {
+	if (count === undefined || count === null) {
 		return pageIndex;
 	}
 
@@ -42,7 +42,7 @@ export const useOffsetPageClamp = ({
 	pageIndex: number;
 	setPageIndex: (nextPageIndex: number) => void;
 	size: number;
-	count: number | undefined;
+	count: number | null | undefined;
 }): void => {
 	useEffect(() => {
 		const clamped = clampOffsetPageIndex(pageIndex, size, count);
