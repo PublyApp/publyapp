@@ -708,15 +708,30 @@ describe('staff tenant profile details route', () => {
 		expect(tenantBand.textContent).toContain('Acme Corporation');
 		expect(tenantBand.textContent).toContain('publyapp.com/ACME');
 		expect(tenantBand.textContent).toContain('Active');
+		// #1024 (review-ui-fidelity.md MINOR): a prior version of this test
+		// checked only text/href and would still pass if the whole #1024 commit
+		// were reverted. Assert the rendered grey-surface class and the arrow
+		// icon actually reaching the DOM, not just the link's accessible name.
+		expect(tenantBand.className).toContain('bg-muted');
+		const openTenantLink = screen.getByRole('link', { name: 'Open tenant' });
+		expect(openTenantLink.getAttribute('href')).toBe(
+			'/staff/tenants/11111111-1111-1111-1111-111111111111',
+		);
 		expect(
-			screen.getByRole('link', { name: 'Open tenant' }).getAttribute('href'),
-		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111');
+			openTenantLink.querySelector('.tabler-icon-arrow-right'),
+		).toBeTruthy();
 		expect(identity.querySelector('.publy-profile-detail-tile')).toBeTruthy();
 		expect(identity.textContent).toContain('Approvers');
 		expect(identity.textContent).toContain('System profile');
 		expect(identity.textContent).toContain('Can review approvals');
 		expect(identity.textContent).toContain('7 members · 2 permissions');
-		expect(screen.getByRole('button', { name: 'Edit' })).toBeTruthy();
+		// #1023 (review-ui-fidelity.md MINOR): the accessible-name assertion
+		// alone still passes if the pencil icon or the size="sm" treatment is
+		// removed — assert both so a partial revert of the button's visual
+		// treatment fails here.
+		const editButton = screen.getByRole('button', { name: 'Edit' });
+		expect(editButton.querySelector('.tabler-icon-pencil')).toBeTruthy();
+		expect(editButton.className).toContain('h-8');
 		expect(tabs.textContent).toContain('Overview');
 		expect(tabs.textContent).toContain('Permissions2');
 		expect(tabs.textContent).toContain('Members7');

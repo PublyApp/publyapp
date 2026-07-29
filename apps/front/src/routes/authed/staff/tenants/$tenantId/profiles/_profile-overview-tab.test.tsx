@@ -244,6 +244,10 @@ describe('ProfileOverviewTab', () => {
 		// not hidden behind a separate "no access" footer.
 		expect(screen.getByText('Billing')).toBeTruthy();
 		expect(screen.getByText('0/1')).toBeTruthy();
+		// review-ui-fidelity.md MINOR: nothing previously asserted the old
+		// footer's ABSENCE — reintroducing it alongside the new rows (rather
+		// than instead of them) would have passed every other assertion here.
+		expect(screen.queryByText(/No access to/)).toBeNull();
 	});
 
 	test('announces each module granted-of-total count to screen readers', () => {

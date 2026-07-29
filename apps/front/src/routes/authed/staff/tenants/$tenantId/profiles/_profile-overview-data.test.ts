@@ -48,7 +48,7 @@ describe('buildProfilePermissionGlance', () => {
 		expect(users).not.toHaveProperty('options');
 	});
 
-	test('modulesWithAccess counts every module once every module has a grant', () => {
+	test('modulesWithAccess counts every module once every module has a grant, and the old footer-only field is gone', () => {
 		const glance = buildProfilePermissionGlance(catalog, [
 			'tenant.users.read',
 			'tenant.posts.read',
@@ -56,6 +56,11 @@ describe('buildProfilePermissionGlance', () => {
 		]);
 
 		expect(glance.modulesWithAccess).toBe(3);
+		// review-ui-fidelity.md MINOR: this test previously only asserted an
+		// aggregate invariant unchanged by this batch. `zeroAccessModuleLabels`
+		// fed the old "No access to …" footer, which the glance card no
+		// longer renders — it must not survive as dead computed data.
+		expect(glance).not.toHaveProperty('zeroAccessModuleLabels');
 	});
 
 	test('ignores granted keys that are not in the catalog (honest K)', () => {
