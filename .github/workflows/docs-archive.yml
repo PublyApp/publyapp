@@ -2,11 +2,6 @@ name: docs archive checks
 
 on:
   pull_request:
-    paths:
-      - 'docs/**'
-      - 'scripts/check-archive-records.mjs'
-      - 'scripts/check-archive-records.test.mjs'
-      - '.github/workflows/docs-archive.yml'
   push:
     paths:
       - 'docs/**'
@@ -18,7 +13,45 @@ permissions:
   contents: read
 
 jobs:
+  # Cheap first job: the pull_request trigger above has no `paths:` filter (a
+  # path-filtered trigger never starts for an unrelated PR, so a required
+  # status check gated only by the trigger would hang forever — see #1017).
+  # This job always runs and decides whether the expensive job below should.
+  changes:
+    name: Determine changed paths
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      relevant: ${{ steps.filter.outputs.relevant }}
+    steps:
+      - name: Check whether docs-archive paths changed
+        id: filter
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          # push runs are already path-filtered by the trigger above, so a
+          # push that starts this workflow is relevant by construction.
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          files="$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}/files" --paginate --jq '.[].filename')"
+
+          # Same path groups the old `pull_request.paths` filter listed —
+          # deliberately not widened or narrowed.
+          if printf '%s\n' "$files" | grep -qE '^(docs/|scripts/check-archive-records\.mjs$|scripts/check-archive-records\.test\.mjs$|\.github/workflows/docs-archive\.yml$)'; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "relevant=false" >> "$GITHUB_OUTPUT"
+          fi
+
   docs-archive:
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -36,3 +69,37 @@ jobs:
 
       - name: Check archive records
         run: node scripts/check-archive-records.mjs
+
+  # Required status check: this is the one context that should be required
+  # on the branch ruleset instead of relying on the trigger. It always
+  # reports (if: always()), passes when upstream jobs succeeded or were
+  # skipped (irrelevant PR), and fails on any real failure or cancellation
+  # rather than treating either as "not applicable".
+  gate:
+    name: docs-archive-gate
+    if: always()
+    needs: [changes, docs-archive]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check required jobs
+        run: |
+          declare -A results=(
+            [changes]="${{ needs.changes.result }}"
+            [docs-archive]="${{ needs.docs-archive.result }}"
+          )
+
+          failed=false
+          for name in "${!results[@]}"; do
+            result="${results[$name]}"
+            echo "  $name: $result"
+            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
+              failed=true
+            fi
+          done
+
+          if [ "$failed" = true ]; then
+            echo "::error::One or more required jobs failed or were cancelled."
+            exit 1
+          fi
+
+          echo "All required jobs passed or were skipped."
