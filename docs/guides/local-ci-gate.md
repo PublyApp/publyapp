@@ -119,8 +119,9 @@ Do not bump the hash without doing step 1. The hash is only meaningful if someon
 Recorded here rather than hidden, so they can be judged:
 
 - **`just ci-lint` does not lint the whole repo.** It uses CI's scope
-  (`apps/front packages/shared-ts`). Issue #803 owns broadening this gate to
-  repo-wide `oxlint` and resolving the remaining pre-existing errors. Until then,
+  (`apps/front packages/shared-ts scripts` — `scripts/` was added by #1017, which closed
+  the gap where it had no CI lint coverage at all). Issue #803 owns broadening this gate to
+  repo-wide `oxlint` and resolving the remaining pre-existing warnings. Until then,
   the narrower scope intentionally mirrors CI.
 - **`just ci-e2e-old-front` delegates to the app's `test:e2e:fresh`**, which omits
   `--remove-orphans` and CI's explicit `--wait-timeout 180`.
