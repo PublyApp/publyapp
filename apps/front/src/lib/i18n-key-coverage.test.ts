@@ -1400,13 +1400,21 @@ describe('i18n key coverage', () => {
 		).toThrow(/canary-unparseable\.tsx/);
 	});
 
-	// Regression guard for the script-kind selection above: a genuine .ts
-	// (non-JSX) production shape — an object-literal copy property, in this
-	// case — must still be caught, not just the .tsx JSX shapes exercised by
-	// every other canary in this describe block.
+	// Regression guard for the script-kind selection above. This fixture has to
+	// be grammar-discriminating or it guards nothing: a plain object literal
+	// parses identically as TS and TSX, so it would stay green even if script
+	// kind regressed to always-TSX. The leading `<T>` generic arrow is the
+	// discriminating part — valid, unambiguous TypeScript in a real .ts file,
+	// but an unclosed JSX tag under TSX grammar. A regression therefore either
+	// throws on the parse diagnostics or recovers into a partial tree that no
+	// longer contains the literal below. Both fail this test.
 	test('findHardcodedUiLiterals catches a hardcoded literal in a .ts (non-JSX) production shape', () => {
 		const findings = findHardcodedUiLiterals(
-			"export const confirmCopy = { title: 'Delete account' };",
+			[
+				'const identity = <T>(value: T): T => value;',
+				"export const confirmCopy = { title: 'Delete account' };",
+				'void identity;',
+			].join('\n'),
 			'lib/some-file.ts',
 		);
 

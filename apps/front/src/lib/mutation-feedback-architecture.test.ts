@@ -417,7 +417,13 @@ describe('mutation feedback architecture classifiers', () => {
 	// import visible.
 	test('a .ts file with a generic arrow function does not defeat the Sonner-import scan (regression: previously misparsed as TSX)', () => {
 		const source = [
-			'const identity = <T,>(value: T): T => value;',
+			// `<T>` and not `<T,>`: the trailing comma is precisely what
+			// disambiguates a generic arrow from JSX, so `<T,>` parses
+			// identically under both script kinds and would leave this test
+			// green even if the script-kind selection regressed to always-TSX.
+			// `<T>` is the discriminating form — as TSX it reads as an unclosed
+			// JSX tag and the parser recovers into a partial tree.
+			'const identity = <T>(value: T): T => value;',
 			"import { toast } from 'sonner';",
 			'void identity;',
 			'void toast;',
