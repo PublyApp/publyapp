@@ -1,6 +1,32 @@
 import { describe, expect, test } from 'vitest';
 
-import { determineSessionToken } from './layout';
+import { determineSessionScope, determineSessionToken } from './session-scope';
+
+describe('determineSessionScope', () => {
+	test('leaves a missing session for the caller to route to login', () => {
+		expect(
+			determineSessionScope(
+				{ staff: false, tenant: false },
+				'/staff/staff-users',
+			),
+		).toEqual({});
+	});
+
+	test('keeps matching scopes and redirects cross-scope sessions', () => {
+		expect(
+			determineSessionScope(
+				{ staff: true, tenant: false },
+				'/staff/staff-users',
+			),
+		).toEqual({ scope: 'staff' });
+		expect(
+			determineSessionScope(
+				{ staff: false, tenant: true },
+				'/staff/staff-users',
+			),
+		).toEqual({ redirectPath: '/tenant' });
+	});
+});
 
 describe('determineSessionToken', () => {
 	test('picks the staff token on a /staff path', () => {
@@ -33,7 +59,7 @@ describe('determineSessionToken', () => {
 		).toEqual({ token: undefined, redirectPath: '/staff' });
 	});
 
-	test('has no token at all on a scoped path — no redirect, caller sends to login', () => {
+	test('leaves a tokenless scoped request for the caller to route to login', () => {
 		expect(determineSessionToken({}, '/staff/profiles')).toEqual({
 			token: undefined,
 		});

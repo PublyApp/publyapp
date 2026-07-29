@@ -5,6 +5,7 @@ import {
 	HeadContent,
 	Link,
 	Outlet,
+	redirect,
 	Scripts,
 	useLocation,
 	useMatches,
@@ -19,6 +20,7 @@ import { Button, buttonVariants } from '~/components/ui/button';
 import { AppToaster } from '~/components/ui/toaster';
 import { AuthBrandProvider } from '~/lib/auth-brand-context';
 import { isAuthPath, isPathForSurface } from '~/lib/auth-paths';
+import { serializePublicRuntimeEnv } from '~/lib/env';
 import { useLogout } from '~/lib/hooks/use-logout';
 import { createBackendI18n, loadI18nContext } from '~/lib/i18n.backend';
 import {
@@ -34,8 +36,11 @@ import {
 	isSupportedLanguage,
 	type SupportedLanguage,
 } from '~/lib/i18n.shared';
+import { buildLoginRedirectSearch } from '~/lib/login-redirect-search';
 import { registerMutationToastI18n } from '~/lib/mutation-toast';
+import { getSessionScopeAvailability } from '~/lib/server/session-actions';
 import { subscribeToSessionInvalidated } from '~/lib/session-invalidation-channel';
+import { determineSessionScope } from '~/lib/session-scope';
 import { COLOR_SCHEME_STORAGE_KEY, useUiStore } from '~/lib/store/ui-store';
 import { TabSyncListener } from '~/lib/tab-sync/tab-sync-listener';
 import { loadI18nForRequest } from '~/server/i18n-locale';
@@ -67,6 +72,9 @@ const clientLoadingInstanceByLocale = new Map<
 const clientRootContextByKey = new Map<string, Promise<RootRouteContext>>();
 
 type RouteSurface = 'auth' | 'marketing';
+
+const normalizePathname = (pathname: string): string =>
+	pathname.replace(/\/+$/, '') || '/';
 
 /**
  * Resolved in `beforeLoad`, not `loader` (shell-r5-F1): `beforeLoad`-provided
@@ -110,7 +118,39 @@ const loadClientRootContext = (
 const resolveRootContext = async (
 	options: unknown,
 ): Promise<RootRouteContext> => {
-	const { matches } = options as { matches: readonly I18nRouteMatch[] };
+	const { location, matches } = options as {
+		location: { pathname: string; searchStr?: string };
+		matches: readonly (I18nRouteMatch & {
+			pathname?: string;
+			routeId?: string;
+		})[];
+	};
+	const deepestMatch = matches[matches.length - 1];
+	// The pathless authed layout also matches unknown `/staff/*` URLs. Require
+	// the deepest match to consume the whole path so API-shaped probes retain
+	// the root 404 instead of being redirected through the login page.
+	const hasAuthedRouteMatch =
+		matches.some((match) => match.routeId === '/_authed-layout') &&
+		normalizePathname(deepestMatch?.pathname ?? '/') ===
+			normalizePathname(location.pathname);
+	if (typeof document === 'undefined' && hasAuthedRouteMatch) {
+		const availability = await getSessionScopeAvailability();
+		const decision = determineSessionScope(availability, location.pathname);
+
+		if (decision.redirectPath) {
+			throw redirect({ to: decision.redirectPath });
+		}
+
+		if (!decision.scope) {
+			throw redirect({
+				to: '/login',
+				search: buildLoginRedirectSearch({
+					hadSession: false,
+					returnTo: `${location.pathname}${location.searchStr ?? ''}`,
+				}),
+			});
+		}
+	}
 	const namespaces = collectI18nNamespaces(matches);
 	if (typeof document === 'undefined') {
 		return loadI18nForRequest({ data: { namespaces } });
@@ -399,8 +439,7 @@ export const Route = createRootRouteWithContext<{
  * `<I18nextProvider>` are mounted (shell-r5-F1). `shellComponent` wraps
  * TanStack Router's success/error/not-found selection (`Match.js`), so a cold
  * root loader throw or an unmatched route still gets the full document —
- * stylesheet, CSP nonce scripts, runtime env injection eligibility
- * (`server.ts` only rewrites `</head>`-bearing responses) — and the correct
+ * stylesheet, CSP nonce scripts, runtime env bootstrap — and the correct
  * French/English copy, not an English-only fragment.
  */
 function RootShell({ children }: { children: React.ReactNode }) {
@@ -417,6 +456,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
 	);
 	const router = useRouter();
 	const cspNonce = router.options.ssr?.nonce ?? '';
+	const publicRuntimeEnv = serializePublicRuntimeEnv();
 	const isLogin = router.state.location.pathname === '/login';
 	const t = i18n.getFixedT(locale, 'common');
 
@@ -440,6 +480,15 @@ function RootShell({ children }: { children: React.ReactNode }) {
 				<HeadContent />
 				<meta name="csp-nonce" content={cspNonce || undefined} />
 				<title>{t(isLogin ? 'seo-login-title' : 'seo-default-title')}</title>
+				<script
+					nonce={cspNonce || undefined}
+					suppressHydrationWarning
+					dangerouslySetInnerHTML={{
+						__html:
+							'window.__ENV__ = Object.assign({}, window.__ENV__, ' +
+							`${publicRuntimeEnv});`,
+					}}
+				/>
 				<script
 					nonce={cspNonce || undefined}
 					suppressHydrationWarning

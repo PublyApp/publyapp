@@ -316,9 +316,13 @@ against production, local development, or a shared database.
 Values are set in Dokploy. This list intentionally records names only. API env
 names were verified against `apps/api/Lib/AppEnvironment.cs` and the
 committed `.env.example` template (the only committed env file — real
-`.env.development`/`.env.production` are gitignored); front-2 env names were verified against
-`apps/front-2-spike/docker-compose.test.yml`, `apps/front-2-spike/src/env.d.ts`,
-and the front-2 spike server/client references. `ASPNETCORE_ENVIRONMENT`,
+`.env.development`/`.env.production` are gitignored); front-2 env names were
+verified when this list was written (#704) against the then-current
+`apps/front-2-spike/docker-compose.test.yml`,
+`apps/front-2-spike/src/env.d.ts`, and the spike's server/client references. The
+spike was removed in #965; the same names are carried today by
+`apps/front-2/docker-compose.test.yml`, `apps/front-2/src/env.d.ts`, and the
+front-2 server/client references. `ASPNETCORE_ENVIRONMENT`,
 `DOTNET_ENVIRONMENT`, `ASPNETCORE_URLS`, `NODE_ENV`, and `PORT` are host/runtime
 variables, not `AppEnvironment` properties.
 

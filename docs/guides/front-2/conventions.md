@@ -51,11 +51,10 @@ Follow them by hand until automation exists:
 
 Prefix a route-local file that must not become a route with `_` (e.g. `_tenant-details-shell.tsx`, `$userId/_overview-context.tsx`) — this is a human convention only (routing here is driven by the virtual route config in `src/routes.ts`, not file-based discovery), so pick `_` consistently rather than mixing it with `-`.
 
-## Spike Reference
+## Superseded proof-of-concept
 
-`apps/front-2-spike` is disposable reference only. Use it to understand harvested patterns and
-prior de-risking work, but do not treat spike code as canonical or copy it verbatim as durable
-front-2 code.
+The disposable proof-of-concept was removed in #965 after its findings were
+reimplemented. Use `apps/front-2` as the canonical source for durable code.
 
 ## Ports and Adapters
 

@@ -5,6 +5,8 @@ import { cleanup, render, screen } from '@testing-library/react';
 import type { ComponentType, ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
+import type { ParsedSessionTokens } from '@org/shared-ts/lib/session/parse';
+
 const mocks = vi.hoisted(() => ({
 	queryOptions: undefined as
 		| {
@@ -21,7 +23,7 @@ const mocks = vi.hoisted(() => ({
 		isLoading: false,
 		refetch: vi.fn(),
 	},
-	tokens: { staffToken: undefined as string | undefined },
+	tokens: {} as ParsedSessionTokens,
 	location: {
 		pathname: '/staff/tenants',
 		search: {} as Record<string, unknown>,
@@ -76,7 +78,7 @@ afterEach(() => {
 	cleanup();
 	vi.clearAllMocks();
 	mocks.queryOptions = undefined;
-	mocks.tokens = { staffToken: undefined };
+	mocks.tokens = {};
 	mocks.location = { pathname: '/staff/tenants', search: {} };
 });
 
@@ -90,7 +92,7 @@ const AuthedRoutePendingSkeleton = routeOptions.pendingComponent;
 
 describe('beforeLoad session-token guard', () => {
 	test('redirects a tenant-only session away from a /staff path to /tenant', async () => {
-		mocks.tokens = { tenantToken: 'tenant-tok' } as typeof mocks.tokens;
+		mocks.tokens = { tenantToken: 'tenant-tok' };
 
 		await expect(
 			routeOptions.beforeLoad({ location: { pathname: '/staff/profiles' } }),
@@ -98,7 +100,7 @@ describe('beforeLoad session-token guard', () => {
 	});
 
 	test('redirects a staff-only session away from a /tenant path to /staff', async () => {
-		mocks.tokens = { staffToken: 'staff-tok' } as typeof mocks.tokens;
+		mocks.tokens = { staffToken: 'staff-tok' };
 
 		await expect(
 			routeOptions.beforeLoad({ location: { pathname: '/tenant' } }),
@@ -106,7 +108,7 @@ describe('beforeLoad session-token guard', () => {
 	});
 
 	test('redirects a tokenless visitor to /login carrying rto but no forged rc', async () => {
-		mocks.tokens = {} as typeof mocks.tokens;
+		mocks.tokens = {};
 
 		const rejection = await routeOptions
 			.beforeLoad({ location: { pathname: '/staff/profiles' } })
@@ -122,7 +124,7 @@ describe('beforeLoad session-token guard', () => {
 	});
 
 	test('does not redirect when the session token matches the surface', async () => {
-		mocks.tokens = { staffToken: 'staff-tok' } as typeof mocks.tokens;
+		mocks.tokens = { staffToken: 'staff-tok' };
 
 		await expect(
 			routeOptions.beforeLoad({ location: { pathname: '/staff/profiles' } }),

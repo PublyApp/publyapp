@@ -1,8 +1,9 @@
 # Front-2 Migration Parity Contract
 
-This contract is the reusable invariant set for Phase 1. The
-`apps/front-2-spike` implementation is disposable; these behaviors are not.
-Each migrated page must preserve the relevant invariants against the current
+This contract is the reusable invariant set for Phase 1. The disposable
+proof-of-concept was removed in #965 after these behaviors were carried into
+`apps/front-2`; the behaviors remain part of the migration contract. Each
+migrated page must preserve the relevant invariants against the current
 `apps/front` behavior.
 
 `Expected current-app behavior` is intentionally marked `Phase 1 confirm` unless
@@ -143,7 +144,7 @@ is set after the settings interaction), the locale switch, and the invite flow.
 | 4.5a / `947efac0` | CSP enforced and per-request nonce on `/`, `/login`, authed shell, 404 |
 | 4.5b / `209f826e` | Session token never logged |
 | 4.6 / `55070a0b` | ApiFailure mapping: network, 500, timeout, reset, invalid JSON |
-| 4.4a / this commit | `apps/front-2-spike/e2e/parity-happy-path.spec.ts` |
+| 4.4a / this commit | `apps/front-2-spike/e2e/parity-happy-path.spec.ts` (the spike harness this contract was written against, removed in #965). The equivalent live gate is `apps/front-2/e2e/parity-happy-path.spec.ts`, added later by #723 — not by this commit. |
 | Manual | Phase 1 must verify by inspection or a current-app-specific check |
 
 ## Auth

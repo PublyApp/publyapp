@@ -99,7 +99,7 @@
 		"front-2-ci.yml::supply-chain::Lint front-2": {
 			"hash": "a9af90e25413a851",
 			"mirror": "just ci-lint",
-			"reason": "ci-lint runs the same three commands with the same oxlint scope. It deliberately does not reuse `just lint` (oxlint over the whole repo): that superset is red on develop over pre-existing errors in the unlinted apps/front-2-spike app, so it would fail the gate on things CI passes."
+			"reason": "ci-lint runs the same three commands with the same oxlint scope. Issue #803 owns broadening the gate to repo-wide oxlint and resolving the remaining pre-existing errors."
 		},
 		"front-2-ci.yml::supply-chain::Check front-2 design system": {
 			"hash": "8e0b27ecf757dcc8",
@@ -215,41 +215,6 @@
 			"hash": "30e868e83d3a06ef",
 			"mirror": "just ci-e2e-front-2",
 			"reason": "ci-e2e-front-2 runs the identical docker compose ... down -v as its final step. DELIBERATE DIFFERENCE: this workflow step is if:always(), which a justfile cannot express (just stops at the first failing line), so the recipe also resets the stack with down -v --remove-orphans before bringing it up. Net effect is the same clean slate per run; a failed run's stack is left up locally for inspection instead."
-		},
-		"front-2-spike-supply-chain.yml::supply-chain::Checkout": {
-			"hash": "2b0c921edab45332",
-			"mirror": null,
-			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
-		},
-		"front-2-spike-supply-chain.yml::supply-chain::Install pnpm": {
-			"hash": "8587a85661a370ae",
-			"mirror": null,
-			"reason": "Runner toolchain provisioning. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
-		},
-		"front-2-spike-supply-chain.yml::supply-chain::Setup Node": {
-			"hash": "dbc070b20f7a4e07",
-			"mirror": null,
-			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
-		},
-		"front-2-spike-supply-chain.yml::supply-chain::Assert exact pins": {
-			"hash": "9ac35bfef4c00531",
-			"mirror": "just ci-install",
-			"reason": "ci-install runs the identical node apps/front-2-spike/scripts/assert-pinned.mjs for the spike app."
-		},
-		"front-2-spike-supply-chain.yml::supply-chain::Install (frozen lockfile, no scripts)": {
-			"hash": "8525a83744708464",
-			"mirror": "just ci-install",
-			"reason": "ci-install runs the identical pnpm install --frozen-lockfile --ignore-scripts."
-		},
-		"front-2-spike-supply-chain.yml::supply-chain::Run trusted first-party postinstall (@org/shared-ts)": {
-			"hash": "734af738fc578d53",
-			"mirror": "just ci-install",
-			"reason": "ci-install runs the identical pnpm --filter @org/shared-ts run postinstall."
-		},
-		"front-2-spike-supply-chain.yml::supply-chain::Build spike": {
-			"hash": "a0be2ef5e2fd038c",
-			"mirror": "just ci-front-2-spike",
-			"reason": "ci-front-2-spike runs the identical pnpm --filter front-2-spike build."
 		},
 		"front-characterization.yml::front-e2e::Checkout": {
 			"hash": "389e0b8b6a55dd60",
