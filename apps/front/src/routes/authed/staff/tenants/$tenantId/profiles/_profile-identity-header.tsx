@@ -1,3 +1,4 @@
+import { IconPencil } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
 import type { StaffTenantProfileDetails } from '~/lib/query/staff-tenant-profiles';
@@ -69,8 +70,9 @@ export const ProfileIdentityHeader = ({
 				</div>
 			</div>
 
-			<Button type="button" variant="outline" onClick={onEdit}>
-				{t('edit-details')}
+			<Button type="button" variant="outline" size="sm" onClick={onEdit}>
+				<IconPencil aria-hidden="true" className="size-4" />
+				{t('common:edit')}
 			</Button>
 		</header>
 	);

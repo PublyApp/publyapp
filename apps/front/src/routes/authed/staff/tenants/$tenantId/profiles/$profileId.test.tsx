@@ -380,6 +380,7 @@ vi.mock('react-i18next', () => ({
 				'delete-profile': 'Delete profile',
 				'delete-tenant-profile-confirm-title': 'Delete tenant profile',
 				description: 'Description',
+				edit: 'Edit',
 				'edit-details': 'Edit details',
 				'edit-profile': 'Edit profile',
 				'error-404-code': '404 — Not Found',
@@ -714,7 +715,7 @@ describe('staff tenant profile details route', () => {
 		expect(identity.textContent).toContain('System profile');
 		expect(identity.textContent).toContain('Can review approvals');
 		expect(identity.textContent).toContain('7 members · 2 permissions');
-		expect(screen.getByRole('button', { name: 'Edit details' })).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'Edit' })).toBeTruthy();
 		expect(tabs.textContent).toContain('Overview');
 		expect(tabs.textContent).toContain('Permissions2');
 		expect(tabs.textContent).toContain('Members7');
@@ -957,7 +958,7 @@ describe('staff tenant profile details route', () => {
 
 		renderPage();
 
-		const editButton = screen.getByRole('button', { name: 'Edit details' });
+		const editButton = screen.getByRole('button', { name: 'Edit' });
 		const deleteButton = screen.getByRole('button', {
 			name: 'Delete profile',
 		});
@@ -1002,7 +1003,7 @@ describe('staff tenant profile details route', () => {
 	test('edit profile button navigates to open the edit drawer via search state', () => {
 		renderPage();
 
-		fireEvent.click(screen.getByRole('button', { name: 'Edit details' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
 
 		const navigation = mocks.navigate.mock.calls[0]?.[0] as {
 			replace?: boolean;
