@@ -399,8 +399,6 @@ vi.mock('react-i18next', () => ({
 					'No permissions are assigned to this profile.',
 				'no-permissions-available': 'No permission keys are available.',
 				'permission-keys': 'Permission keys',
-				'permission-state-granted': 'granted',
-				'permission-state-not-granted': 'not granted',
 				'profile-details': 'Profile details',
 				'profile-sections': 'Profile sections',
 				retry: 'Retry',
@@ -446,7 +444,8 @@ vi.mock('react-i18next', () => ({
 					'{{granted}} of {{total}} granted across {{count}} module',
 				'profile-glance-summary_other':
 					'{{granted}} of {{total}} granted across {{count}} modules',
-				'profile-glance-no-access': 'No access to {{modules}}',
+				'profile-glance-module-count':
+					'{{module}}: {{granted}} of {{total}} permissions granted',
 				'profile-created-month': 'Created {{date}}',
 				'profile-updated-relative': 'Updated {{time}}',
 				'no-members-yet': 'No members yet.',
@@ -744,10 +743,13 @@ describe('staff tenant profile details route', () => {
 		expect(screen.getByTestId('profile-stat-type').textContent).toContain(
 			'System profile',
 		);
-		// The glance renders human permission names, not raw keys.
-		expect(screen.getByText('Review approvals')).toBeTruthy();
-		expect(screen.getByText('Read users')).toBeTruthy();
-		expect(screen.getByText('Write users')).toBeTruthy();
+		// The glance is a per-module granted-of-total count, not a per-permission
+		// list — the catalog fixture's single "tenant" module renders one row.
+		expect(screen.getByText('Tenant')).toBeTruthy();
+		expect(screen.getByText('2/3')).toBeTruthy();
+		expect(screen.queryByText('Review approvals')).toBeNull();
+		expect(screen.queryByText('Read users')).toBeNull();
+		expect(screen.queryByText('Write users')).toBeNull();
 		// One module with access → singular "module" (plural-key resolution).
 		expect(screen.getByText('2 of 3 granted across 1 module')).toBeTruthy();
 		// The assign/unassign editing UI has moved off Overview (step 3).

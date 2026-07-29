@@ -39,36 +39,22 @@ describe('buildProfilePermissionGlance', () => {
 		expect(glance.totalModules).toBe(3);
 	});
 
-	test('marks each option granted/ungranted and counts per module', () => {
+	test('counts granted/total per module without exposing individual options', () => {
 		const glance = buildProfilePermissionGlance(catalog, ['tenant.users.read']);
 		const users = glance.modules.find((module) => module.moduleKey === 'users');
 
 		expect(users?.grantedCount).toBe(1);
 		expect(users?.totalCount).toBe(2);
-		expect(users?.options).toEqual([
-			{ key: 'tenant.users.read', label: 'tenant.users.read', granted: true },
-			{
-				key: 'tenant.users.write',
-				label: 'tenant.users.write',
-				granted: false,
-			},
-		]);
+		expect(users).not.toHaveProperty('options');
 	});
 
-	test('lists zero-granted module labels for the glance footer', () => {
-		const glance = buildProfilePermissionGlance(catalog, ['tenant.users.read']);
-
-		expect(glance.zeroAccessModuleLabels).toEqual(['Posts', 'Billing']);
-	});
-
-	test('returns no zero-access labels when every module has a grant', () => {
+	test('modulesWithAccess counts every module once every module has a grant', () => {
 		const glance = buildProfilePermissionGlance(catalog, [
 			'tenant.users.read',
 			'tenant.posts.read',
 			'tenant.billing.view',
 		]);
 
-		expect(glance.zeroAccessModuleLabels).toEqual([]);
 		expect(glance.modulesWithAccess).toBe(3);
 	});
 

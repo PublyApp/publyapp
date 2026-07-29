@@ -1,10 +1,7 @@
 import {
 	IconArrowRight,
-	IconCircle,
-	IconCircleCheck,
 	IconKey,
 	IconLayoutGrid,
-	IconLock,
 	IconShieldCheck,
 	IconUsers,
 } from '@tabler/icons-react';
@@ -180,70 +177,33 @@ const PermissionGlanceBody = ({
 	}
 
 	return (
-		<div className="flex flex-col">
-			<div className="flex flex-col divide-y divide-border">
-				{glance.modules.map((module) => (
-					<div key={module.moduleKey} className="px-4 py-3">
-						<div className="mb-2 flex items-center justify-between gap-2">
-							<p className="text-sm font-medium text-foreground">
-								{module.moduleLabel}
-							</p>
-							<span className="publy-detail-chip publy-detail-chip--outline">
-								{module.grantedCount}/{module.totalCount}
-							</span>
-						</div>
-						<ul className="flex flex-col gap-1.5">
-							{module.options.map((option) => (
-								<li
-									key={option.key}
-									className="flex items-center gap-2 text-sm"
-									data-granted={option.granted}
-								>
-									{option.granted ? (
-										<IconCircleCheck
-											aria-hidden="true"
-											className="size-4 shrink-0 text-primary"
-										/>
-									) : (
-										<IconCircle
-											aria-hidden="true"
-											className="size-4 shrink-0 text-muted-foreground/50"
-										/>
-									)}
-									<span
-										className={
-											option.granted
-												? 'text-foreground'
-												: 'text-muted-foreground'
-										}
-									>
-										{option.label}
-									</span>
-									{/* The icons are aria-hidden and the color split is
-									    invisible to screen readers — announce the state. */}
-									<span className="sr-only">
-										{option.granted
-											? t('permission-state-granted')
-											: t('permission-state-not-granted')}
-									</span>
-								</li>
-							))}
-						</ul>
-					</div>
-				))}
-			</div>
-
-			{glance.zeroAccessModuleLabels.length > 0 ? (
-				<div className="flex items-center gap-2 border-t border-border px-4 py-3 text-xs text-muted-foreground">
-					<IconLock aria-hidden="true" className="size-3.5 shrink-0" />
-					<span>
-						{t('profile-glance-no-access', {
-							modules: glance.zeroAccessModuleLabels.join(', '),
+		<ul className="flex flex-col divide-y divide-border">
+			{glance.modules.map((module) => (
+				<li
+					key={module.moduleKey}
+					className="flex items-center justify-between gap-2 px-4 py-2.5"
+				>
+					<span className="text-sm font-medium text-foreground">
+						{module.moduleLabel}
+					</span>
+					{/* The chip is a compact "granted/total" glyph — screen readers get
+					    the equivalent sentence instead of relying on the visual chip. */}
+					<span
+						className="publy-detail-chip publy-detail-chip--outline"
+						aria-hidden="true"
+					>
+						{module.grantedCount}/{module.totalCount}
+					</span>
+					<span className="sr-only">
+						{t('profile-glance-module-count', {
+							module: module.moduleLabel,
+							granted: module.grantedCount,
+							total: module.totalCount,
 						})}
 					</span>
-				</div>
-			) : null}
-		</div>
+				</li>
+			))}
+		</ul>
 	);
 };
 
