@@ -8,7 +8,7 @@ on:
     paths:
       - 'apps/api/**'
       - 'apps/old-front/**'
-      - 'apps/front-2/**'
+      - 'apps/front/**'
       - '.config/**'
       - 'packages/shared-ts/**'
       - 'packages/client-ts/**'

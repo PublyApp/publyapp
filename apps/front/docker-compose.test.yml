@@ -1,0 +1,229 @@
+name: publyapp-front2-real-test
+
+x-api-test-environment: &api-test-environment
+  # These services run under the Testing environment (set per-service below) so the
+  # demo seeders run: they are gated off under Production (AppDbContext seeder filter),
+  # and the e2e suites log in as demo-seed users (e.g. staff-admin@example.com).
+  # APP_ROLE is still required (Testing defaults it to All otherwise); "api" = HTTP
+  # surface + migrations, never the worker engine (mirrors apps/old-front/docker-compose.test.yml).
+  # These inline test values replace the former `env_file: ../../.env.development`,
+  # which is gitignored and absent in CI / fresh checkouts.
+  APP_ROLE: api
+  POSTGRES_CONNECTION_STRING: Host=postgres;Port=5432;Database=publyapp_db;Username=postgres;Password=password;
+  FRONT_URL: https://front.localhost:8443
+  RESEND_API_KEY: e2e-disabled
+  STAFF_OWNER_EMAIL: owner@publyapp.local
+  STAFF_OWNER_BOOTSTRAP_CODE: e2e-disabled
+  APP_NAME: PublyApp
+  DEFAULT_EMAIL_SENDER_EMAIL: support@publyapp.local
+  DEFAULT_EMAIL_SENDER_NAME: PublyApp Support
+  SESSION_TOKEN_HEADER_KEY: X-Session-Token
+  TENANT_ID_HEADER_KEY: X-PublyApp-TenantId
+  SESSION_EXPIRY_DAYS: 7
+  EMAIL_VERIFY_TOKEN_VALIDITY_DURATION: 7
+  PASSWORD_RESET_TOKEN_VALIDITY_DURATION: 7
+  PASSWORD_MIN_LENGTH: 12
+  EMAIL_VERIFY_TOKEN_LENGTH: 25
+  PASSWORD_RESET_TOKEN_LENGTH: 25
+  INVITATION_TOKEN_LENGTH: 25
+  ANON_AUTH_IP_RATE_LIMIT_PERMIT_LIMIT: 10000
+  ANON_AUTH_IP_RATE_LIMIT_WINDOW_SECONDS: 60
+  ANON_AUTH_EMAIL_RATE_LIMIT_PERMIT_LIMIT: 10000
+  ANON_AUTH_EMAIL_RATE_LIMIT_WINDOW_SECONDS: 60
+  PASSWORD_RESET_EMAIL_RATE_LIMIT_PERMIT_LIMIT: 10000
+  PASSWORD_RESET_EMAIL_RATE_LIMIT_WINDOW_SECONDS: 900
+  GLOBAL_RATE_LIMIT_PERMIT_LIMIT: 10000
+  GLOBAL_RATE_LIMIT_WINDOW_SECONDS: 60
+  ANONYMOUS_OTHER_RATE_LIMIT_PERMIT_LIMIT: 10000
+  ANONYMOUS_OTHER_RATE_LIMIT_WINDOW_SECONDS: 60
+  AUTHENTICATED_RATE_LIMIT_PERMIT_LIMIT: 10000
+  AUTHENTICATED_RATE_LIMIT_WINDOW_SECONDS: 60
+  HEAVY_SEARCH_RATE_LIMIT_PERMIT_LIMIT: 10000
+  HEAVY_SEARCH_RATE_LIMIT_WINDOW_SECONDS: 60
+  BULK_RATE_LIMIT_PERMIT_LIMIT: 10000
+  BULK_RATE_LIMIT_WINDOW_SECONDS: 60
+  TENANT_BULK_RATE_LIMIT_PERMIT_LIMIT: 10000
+  TENANT_BULK_RATE_LIMIT_WINDOW_SECONDS: 60
+  EMAIL_RATE_LIMIT_PERMIT_LIMIT: 10000
+  EMAIL_RATE_LIMIT_WINDOW_SECONDS: 900
+  TENANT_EMAIL_RATE_LIMIT_PERMIT_LIMIT: 10000
+  TENANT_EMAIL_RATE_LIMIT_WINDOW_SECONDS: 900
+  EXPORT_RATE_LIMIT_PERMIT_LIMIT: 10000
+  EXPORT_RATE_LIMIT_WINDOW_SECONDS: 60
+  TENANT_EXPORT_RATE_LIMIT_PERMIT_LIMIT: 10000
+  TENANT_EXPORT_RATE_LIMIT_WINDOW_SECONDS: 60
+  UPLOAD_RATE_LIMIT_PERMIT_LIMIT: 10000
+  UPLOAD_RATE_LIMIT_WINDOW_SECONDS: 60
+  AUDIT_LOG_EXPORT_MAX_ROWS: 10000
+  MAX_PROFILES_PER_USER: 5
+
+services:
+  postgres:
+    image: postgres:18-alpine@sha256:1b1689b20d16a014a3d195653381cf2caa75a41a92d93b255a9d6ea29fd353aa
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: publyapp_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - publyapp-network
+
+  migrate:
+    image: ${E2E_IMAGE_NS:-ghcr.io/radandevist/publyapp-e2e}-migrate:${E2E_IMAGE_TAG:-test}
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+      target: migrate
+      cache_from:
+        - type=gha,scope=front-e2e-api
+      cache_to:
+        - type=gha,mode=max,scope=front-e2e-api
+    environment:
+      <<: *api-test-environment
+      DOTNET_ENVIRONMENT: Testing
+      ASPNETCORE_ENVIRONMENT: Testing
+      ASPNETCORE_URLS: http://+:5000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - publyapp-network
+
+  api:
+    image: ${E2E_IMAGE_NS:-ghcr.io/radandevist/publyapp-e2e}-api:${E2E_IMAGE_TAG:-test}
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+      target: runtime
+      cache_from:
+        - type=gha,scope=front-e2e-api
+      cache_to:
+        - type=gha,mode=max,scope=front-e2e-api
+    environment:
+      # API-only surface for the frontend E2E — don't inherit the `All` default and start
+      # worker infrastructure where callers assume an api-only process (audit F24).
+      # APP_ROLE: api and FRONT_URL: https://front.localhost:8443 come from the anchor.
+      <<: *api-test-environment
+      DOTNET_ENVIRONMENT: Testing
+      ASPNETCORE_ENVIRONMENT: Testing
+      ASPNETCORE_URLS: http://+:5000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:5000/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    networks:
+      - publyapp-network
+
+  toxiproxy:
+    image: ghcr.io/shopify/toxiproxy:2.12.0@sha256:9378ed52a28bc50edc1350f936f518f31fa95f0d15917d6eb40b8e376d1a214e
+    command:
+      - -host=0.0.0.0
+      - -config=/config/toxiproxy.json
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8474:8474"
+    volumes:
+      - ./deploy/toxiproxy/toxiproxy.json:/config/toxiproxy.json:ro
+    networks:
+      - publyapp-network
+
+  request-counter:
+    image: ${E2E_IMAGE_NS:-ghcr.io/radandevist/publyapp-e2e}-request-counter:${E2E_IMAGE_TAG:-test}
+    build:
+      context: ./deploy/request-counter
+      dockerfile: Dockerfile
+      cache_from:
+        - type=gha,scope=front-e2e-request-counter
+      cache_to:
+        - type=gha,mode=max,scope=front-e2e-request-counter
+    environment:
+      API_UPSTREAM: http://toxiproxy:8666
+    depends_on:
+      toxiproxy:
+        condition: service_started
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8800/__counter').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    ports:
+      - "127.0.0.1:8800:8800"
+    networks:
+      - publyapp-network
+
+  traefik:
+    image: traefik:v3.3@sha256:2cd5cc75530c8d07ae0587c743d23eb30cae2436d07017a5ff78498b1a43d09f
+    command:
+      - --providers.file.filename=/etc/traefik/dynamic.yml
+      - --entryPoints.web.address=:80
+      - --entryPoints.websecure.address=:443
+      - --entryPoints.web.http.redirections.entryPoint.to=websecure
+      - --entryPoints.web.http.redirections.entryPoint.scheme=https
+      - --entryPoints.web.http.redirections.entryPoint.permanent=true
+      - --ping=true
+      - --api.dashboard=false
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    ports:
+      - "127.0.0.1:8080:80"
+      - "127.0.0.1:8443:443"
+    volumes:
+      - ./traefik-dynamic.test.yml:/etc/traefik/dynamic.yml:ro
+    networks:
+      - publyapp-network
+
+  front:
+    build:
+      context: ../..
+      dockerfile: apps/front/Dockerfile
+      cache_from:
+        - type=gha,scope=front-e2e-front2
+      cache_to:
+        - type=gha,mode=max,scope=front-e2e-front2
+      # Turns on the /field-validation demo route (gated off in production)
+      # so the e2e suite can cover InterZod's localized built-in validation
+      # messages, which no other route exercises.
+      args:
+        VITE_FEATURE_FIELD_VALIDATION_DEMO_ENABLED: "true"
+    image: ${E2E_IMAGE_NS:-ghcr.io/radandevist/publyapp-e2e}-front:${E2E_IMAGE_TAG:-test}
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      SERVER_API_BASE_URL: http://request-counter:8800
+      PUBLIC_API_BASE_URL: https://api.front.localhost:8443
+    depends_on:
+      request-counter:
+        condition: service_healthy
+      traefik:
+        condition: service_healthy
+    networks:
+      - publyapp-network
+
+networks:
+  publyapp-network:
+    driver: bridge
+    external: false

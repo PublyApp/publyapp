@@ -3,7 +3,7 @@ name: front-2 supply-chain
 on:
   pull_request:
     paths:
-      - 'apps/front-2/**'
+      - 'apps/front/**'
       - 'packages/shared-ts/**'
       - 'packages/client-ts/**'
       - 'packages/_tsconfig/**'
@@ -41,7 +41,7 @@ jobs:
           node-version: 24
 
       - name: Assert exact pins
-        run: node apps/front-2/scripts/assert-pinned.mjs
+        run: node apps/front/scripts/assert-pinned.mjs
 
       - name: Install (frozen lockfile, no scripts)
         run: pnpm install --frozen-lockfile --ignore-scripts
@@ -53,17 +53,17 @@ jobs:
         run: pnpm format
 
       - name: Build front-2
-        run: pnpm --filter front-2 build
+        run: pnpm --filter front build
 
       - name: Verify front-2 production build emits a CSS asset
-        run: node apps/front-2/scripts/verify-build-css-link.mjs
+        run: node apps/front/scripts/verify-build-css-link.mjs
 
       - name: Smoke start front-2 server and verify stylesheet tag
         env:
           PUBLIC_API_BASE_URL: 'http://127.0.0.1:5000'
           SERVER_API_BASE_URL: 'http://127.0.0.1:5000'
         run: |
-          pnpm --filter front-2 start > /tmp/front-2-ci-server.log 2>&1 &
+          pnpm --filter front start > /tmp/front-2-ci-server.log 2>&1 &
           FRONT_2_SERVER_PID=$!
           trap 'kill $FRONT_2_SERVER_PID || true' EXIT
 
@@ -87,16 +87,16 @@ jobs:
           fi
 
       - name: Typecheck front-2
-        run: pnpm --filter front-2 typecheck
+        run: pnpm --filter front typecheck
 
       - name: Lint front-2
         run: |
-          npx oxlint --quiet apps/front-2 packages/shared-ts
+          npx oxlint --quiet apps/front packages/shared-ts
           pnpm lint:disables
           pnpm check:frontend-barrels
 
       - name: Check front-2 design system
-        run: pnpm --filter front-2 check:design-system
+        run: pnpm --filter front check:design-system
 
       - name: Test front-2
-        run: pnpm --filter front-2 test
+        run: pnpm --filter front test

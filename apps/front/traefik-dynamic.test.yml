@@ -1,0 +1,30 @@
+http:
+  routers:
+    front:
+      rule: Host(`front.localhost`)
+      entryPoints:
+        - websecure
+      service: front
+      tls: {}
+
+  services:
+    front:
+      loadBalancer:
+        servers:
+          - url: http://front:3000
+
+tcp:
+  routers:
+    api:
+      rule: HostSNI(`api.front.localhost`)
+      entryPoints:
+        - websecure
+      service: api
+      tls:
+        passthrough: true
+
+  services:
+    api:
+      loadBalancer:
+        servers:
+          - address: request-counter:9443
