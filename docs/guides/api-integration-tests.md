@@ -336,18 +336,34 @@ var request = new HttpRequestMessage(HttpMethod.Get, "/users/")
 
 ### Testing Email Sending
 
+A spec that asserts on `FakeEmailSender`'s complete state owns its `ApiFixture` per test
+method rather than sharing one via `IClassFixture<ApiFixture>` (see "Fixture Lifecycle and
+Mutable Test State" above) — no `Clear()` needed, because nothing else can have written to
+this method's fake:
+
 ```csharp
-[Fact]
-public async Task ItShouldSendEmailOnInvite() {
-  var emailSender = fixture.GetFakeEmailSender();
-  emailSender.Clear(); // Reset captured emails
+public sealed class InviteEmailSpec : IAsyncLifetime {
+  private readonly ApiFixture _fixture = new();
 
-  // ... trigger endpoint that sends email ...
-  // ... explicitly dispatch and await this test's durable email row ...
+  public Task InitializeAsync() {
+    return _fixture.InitializeAsync();
+  }
 
-  emailSender.SentEmails.Should().HaveCount(1);
-  emailSender.SentEmails.First().To
-    .Should().Be("invited@example.com");
+  public Task DisposeAsync() {
+    return _fixture.DisposeAsync();
+  }
+
+  [Fact]
+  public async Task ItShouldSendEmailOnInvite() {
+    var emailSender = _fixture.GetFakeEmailSender();
+
+    // ... trigger endpoint that sends email ...
+    // ... explicitly dispatch and await this test's durable email row ...
+
+    emailSender.SentEmails.Should().HaveCount(1);
+    emailSender.SentEmails.First().To
+      .Should().Be("invited@example.com");
+  }
 }
 ```
 
