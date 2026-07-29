@@ -334,10 +334,12 @@ ci-format: format
 # Deliberately NOT `just lint`, which runs `oxlint --quiet .` over the whole
 # repo. Issue #803 owns broadening that scope and resolving the remaining
 # repo-wide errors. Until then, this gate mirrors the narrower CI lint step
-# exactly. See docs/guides/local-ci-gate.md.
+# exactly — apps/front, packages/shared-ts, and (since #1017 closed the gap
+# where scripts/ had no CI lint coverage at all) scripts/. See
+# docs/guides/local-ci-gate.md.
 ci-lint:
   @echo "=== [gate] lint ==="
-  npx oxlint --quiet apps/front packages/shared-ts
+  npx oxlint --quiet apps/front packages/shared-ts scripts
   pnpm lint:disables
   pnpm check:frontend-barrels
 

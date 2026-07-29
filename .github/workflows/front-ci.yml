@@ -2,17 +2,6 @@ name: front supply-chain
 
 on:
   pull_request:
-    paths:
-      - 'apps/front/**'
-      - 'packages/shared-ts/**'
-      - 'packages/client-ts/**'
-      - 'packages/_tsconfig/**'
-      - 'turbo.json'
-      - '.github/workflows/front-ci.yml'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - 'package.json'
-      - '.npmrc'
 
 permissions:
   contents: read
@@ -24,7 +13,45 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Cheap first job: the pull_request trigger above has no `paths:` filter (a
+  # path-filtered trigger never starts for an unrelated PR, so a required
+  # status check gated only by the trigger would hang forever — see #1017).
+  # This job always runs and decides whether the expensive job below should.
+  changes:
+    name: Determine changed paths
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      relevant: ${{ steps.filter.outputs.relevant }}
+    steps:
+      - name: Check whether front-ci paths changed
+        id: filter
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          files="$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}/files" --paginate --jq '.[].filename')"
+
+          # Same path groups the old `pull_request.paths` filter listed, plus
+          # `scripts/**`: #1017 also closes the gap where scripts/ had no CI
+          # lint coverage at all, and its lint check now lives in this job's
+          # "Lint front" step, so this job must wake up for scripts-only PRs.
+          if printf '%s\n' "$files" | grep -qE '^(apps/front/|packages/shared-ts/|packages/client-ts/|packages/_tsconfig/|scripts/|turbo\.json$|\.github/workflows/front-ci\.yml$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|package\.json$|\.npmrc$)'; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "relevant=false" >> "$GITHUB_OUTPUT"
+          fi
+
   supply-chain:
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -91,7 +118,7 @@ jobs:
 
       - name: Lint front
         run: |
-          npx oxlint --quiet apps/front packages/shared-ts
+          npx oxlint --quiet apps/front packages/shared-ts scripts
           pnpm lint:disables
           pnpm check:frontend-barrels
 
@@ -100,3 +127,37 @@ jobs:
 
       - name: Test front
         run: pnpm --filter front test
+
+  # Required status check: this is the one context that should be required
+  # on the branch ruleset instead of relying on the trigger. It always
+  # reports (if: always()), passes when upstream jobs succeeded or were
+  # skipped (irrelevant PR), and fails on any real failure or cancellation
+  # rather than treating either as "not applicable".
+  gate:
+    name: front-ci-gate
+    if: always()
+    needs: [changes, supply-chain]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check required jobs
+        run: |
+          declare -A results=(
+            [changes]="${{ needs.changes.result }}"
+            [supply-chain]="${{ needs.supply-chain.result }}"
+          )
+
+          failed=false
+          for name in "${!results[@]}"; do
+            result="${results[$name]}"
+            echo "  $name: $result"
+            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
+              failed=true
+            fi
+          done
+
+          if [ "$failed" = true ]; then
+            echo "::error::One or more required jobs failed or were cancelled."
+            exit 1
+          fi
+
+          echo "All required jobs passed or were skipped."
