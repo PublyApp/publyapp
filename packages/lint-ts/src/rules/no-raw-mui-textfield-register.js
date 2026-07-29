@@ -14,7 +14,7 @@
  */
 import {
 	FRONT_SOURCE_EXTENSIONS,
-	FRONT_ONLY_SOURCE_PREFIX,
+	OLD_FRONT_SOURCE_PREFIX,
 	isFrontSourceFile,
 	normalizeFilename,
 } from './path-scopes.js';
@@ -37,7 +37,7 @@ const getContextFilename = (context) => {
 
 const isRuleTargetFile = (filename) =>
 	isFrontSourceFile(filename, FRONT_SOURCE_EXTENSIONS, [
-		FRONT_ONLY_SOURCE_PREFIX,
+		OLD_FRONT_SOURCE_PREFIX,
 	]);
 
 const isRegisterCall = (node) =>

@@ -8,7 +8,7 @@ import {
 	isUnderFrontSource,
 	isFrontSourceFile,
 	isFrontComponentTsxFile,
-	isFrontProductSurfaceFile,
+	isOldFrontProductSurfaceFile,
 	FRONT_SOURCE_PREFIXES,
 	getSourceRelativePath,
 	normalizeFilename,
@@ -87,9 +87,9 @@ describe('path-scopes helper', () => {
 			isFrontComponentTsxFile('/repo/apps/old-front/src/components/page.tsx'),
 			true,
 		);
-		assert.strictEqual(isFrontProductSurfaceFile(oldFrontProduct), true);
+		assert.strictEqual(isOldFrontProductSurfaceFile(oldFrontProduct), true);
 		assert.strictEqual(
-			isFrontProductSurfaceFile(
+			isOldFrontProductSurfaceFile(
 				'/repo/apps/front/src/routes/dashboard/page.tsx',
 			),
 			false,
@@ -108,7 +108,7 @@ describe('path-scopes helper', () => {
 			false,
 		);
 		assert.strictEqual(
-			isFrontProductSurfaceFile(
+			isOldFrontProductSurfaceFile(
 				'/repo/backup-apps/old-front/src/routes/dashboard/page.tsx',
 			),
 			false,

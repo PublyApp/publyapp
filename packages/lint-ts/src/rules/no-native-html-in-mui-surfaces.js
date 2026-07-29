@@ -23,7 +23,10 @@
  * routing behavior, form wiring, and image semantics, so the rule reports with
  * explicit guidance only.
  */
-import { isFrontProductSurfaceFile, normalizeFilename } from './path-scopes.js';
+import {
+	isOldFrontProductSurfaceFile,
+	normalizeFilename,
+} from './path-scopes.js';
 
 const NATIVE_HTML_EQUIVALENTS = {
 	div: 'Box',
@@ -112,7 +115,7 @@ const isProductSurfaceFile = (filename) => {
 		return false;
 	}
 
-	if (!isFrontProductSurfaceFile(normalizedFilename)) {
+	if (!isOldFrontProductSurfaceFile(normalizedFilename)) {
 		return false;
 	}
 

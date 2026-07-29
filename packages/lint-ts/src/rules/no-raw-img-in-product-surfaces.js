@@ -26,7 +26,10 @@
  * Fix strategy: no autofix. Choosing the correct `ratio`, clipping, and layout
  * styles depends on the image's surrounding UI.
  */
-import { isFrontProductSurfaceFile, normalizeFilename } from './path-scopes.js';
+import {
+	isOldFrontProductSurfaceFile,
+	normalizeFilename,
+} from './path-scopes.js';
 
 const MESSAGE =
 	'Use the Image primitive from @/app/components/image (with a ratio prop) ' +
@@ -80,7 +83,7 @@ const isProductSurfaceFile = (filename) => {
 		return false;
 	}
 
-	if (!isFrontProductSurfaceFile(normalizedFilename)) {
+	if (!isOldFrontProductSurfaceFile(normalizedFilename)) {
 		return false;
 	}
 
