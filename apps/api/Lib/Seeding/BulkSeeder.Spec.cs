@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Modules.Tenants.Entities;
 
 using Xunit;
 
@@ -207,44 +208,101 @@ public sealed class BulkSeederGenuineFailureSpec : IClassFixture<ApiFixture> {
 		_fixture = fixture;
 	}
 
+	// This used to induce SQLSTATE 23514 (a check violation), which sits entirely outside
+	// the seeder's 23505 duplicate-key filter — it passed even with the production fix
+	// reverted, proving nothing about the filter's own correctness (#1012 review).
+	//
+	// The genuine failure a 23505 filter must not swallow is a 23505 that *isn't* actually
+	// "someone already inserted this": two brand-new rows in the SAME batch colliding with
+	// EACH OTHER on the tenant natural-key index. Postgres raises 23505 against exactly the
+	// constraint the seeder expects (ix_tenants_code_active) — the filter's first half
+	// (constraint-name check) would let it through — but the whole batch rolls back, so
+	// neither row is ever persisted. The filter's second half (post-rollback existence
+	// check) must recognize that and rethrow rather than report a skip.
 	[Fact]
 	public async Task ItShouldThrowWhenAGenuineNonDuplicateFailureOccurs() {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var seeder = new BulkSeeder(batchSize: 50);
+		var duplicateCode = $"{BulkSeedConstants.TenantCodePrefix}self-collision";
+		var tenantA = new Tenant { Id = Guid.CreateVersion7(), Code = duplicateCode, Name = "Self Collision A", MaxUsers = 10 };
+		var tenantB = new Tenant { Id = Guid.CreateVersion7(), Code = duplicateCode, Name = "Self Collision B", MaxUsers = 10 };
+
+		var act = async () => await seeder.SeedTenantsInBatchesAsync(dbContext, [tenantA, tenantB], CancellationToken.None);
+
+		var thrown = await act.Should().ThrowAsync<DbUpdateException>(
+			"a 23505 on the tenant natural-key index that rolls back BOTH colliding rows is not the same thing as " +
+			"'someone already inserted this' and must propagate, not be caught and skipped"
+		);
+		var pgEx = thrown.Which.InnerException.Should().BeOfType<Npgsql.PostgresException>().Subject;
+		pgEx.SqlState.Should().Be("23505", "the induced failure is the same unique-violation SQLSTATE the seeder tolerates");
+		pgEx.ConstraintName.Should().Be(
+			"ix_tenants_code_active",
+			"this must be the seeder's OWN expected natural-key constraint — proving the constraint-name check alone is not enough"
+		);
+
+		var persisted = await dbContext.Tenant.AsNoTracking().AnyAsync(t => t.Code == duplicateCode);
+		persisted.Should().BeFalse("the whole batch rolled back, so neither colliding row should have made it to disk");
+	}
+}
+
+public sealed class BulkSeederUnrelatedUniqueViolationSpec : IClassFixture<ApiFixture> {
+	private readonly ApiFixture _fixture;
+
+	public BulkSeederUnrelatedUniqueViolationSpec(ApiFixture fixture) {
+		_fixture = fixture;
+	}
+
+	// Reproduces the #1012 review BLOCKER directly: SQLSTATE 23505 means "some unique
+	// index was violated", not "this entity's natural key already exists". An unrelated
+	// unique index on the same table (simulating schema drift) also raises 23505, and the
+	// pre-fix filter matched on SqlState alone — swallowing it, rolling back the whole
+	// batch, and finishing with "Bulk seed completed!" while the projects were silently
+	// never inserted.
+	[Fact]
+	public async Task ItShouldThrowWhenAnUnrelatedUniqueIndexCollidesDuringTheProjectPhase() {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var seeder = new BulkSeeder(batchSize: 50, generator: BulkSeederSpecSupport.CreateSmallGenerator());
 		await seeder.SeedBulkAsync(dbContext);
 
-		// Hard-delete one tenant (and its dependents, to satisfy the FK) so the next run
-		// must genuinely attempt an INSERT for it — a natural-key match alone would just
-		// skip it, never reaching the database.
-		var tenantToRemove = await dbContext.Tenant.SingleAsync(t => t.Code == $"{BulkSeedConstants.TenantCodePrefix}001");
-		var tenantToRemoveId = tenantToRemove.GetRequiredId();
-		var dependentAccounts = await dbContext.UserAccount.Where(ua => ua.TenantId == tenantToRemoveId).ToListAsync();
-		var dependentProjects = await dbContext.Project.Where(p => p.TenantId == tenantToRemoveId).ToListAsync();
-		dbContext.ForceHardDeleteRange(dependentAccounts);
-		dbContext.ForceHardDeleteRange(dependentProjects);
-		dbContext.ForceHardDelete(tenantToRemove);
+		// Hard-delete only the generated projects, leaving their parent tenants/users/
+		// accounts intact — the project phase must genuinely attempt to reinsert all of
+		// them on the next run.
+		var bulkProjects = await dbContext.Project
+			.Where(p => p.Name.StartsWith(BulkSeedConstants.ProjectNamePrefix))
+			.ToListAsync();
+		bulkProjects.Should().NotBeEmpty("the small generator must produce at least one project for this repro to be meaningful");
+		dbContext.ForceHardDeleteRange(bulkProjects);
 		await dbContext.SaveChangesAsync();
 		dbContext.ChangeTracker.Clear();
 
-		// Force a genuine, non-"already exists" failure on the very next insert: a check
-		// constraint that rejects every new row, unrelated to the unique-natural-key
-		// collision the idempotency logic is designed to tolerate. NOT VALID skips
-		// validating pre-existing rows (which would otherwise fail the ALTER itself) but
-		// is still enforced for every subsequent INSERT/UPDATE — exactly what we need to
-		// prove a genuine failure (SqlState 23514, not 23505) is never swallowed.
+		// Simulate schema drift: a unique index on "projects" that has nothing to do with
+		// the seeder's (TenantId, Name) natural key. A constant expression scoped to bulk
+		// project names means any TWO bulk projects inserted in the same batch collide,
+		// regardless of which tenant or name they carry.
 		await dbContext.Database.ExecuteSqlRawAsync(
-			"ALTER TABLE \"tenants\" ADD CONSTRAINT ck_test_reject_all_inserts CHECK (false) NOT VALID"
+			"CREATE UNIQUE INDEX test_ix_projects_drift ON \"projects\" ((1)) " +
+			"WHERE \"name\" LIKE 'Bulk Project %'"
 		);
 
 		var reseeder = new BulkSeeder(batchSize: 50, generator: BulkSeederSpecSupport.CreateSmallGenerator());
 		var act = async () => await reseeder.SeedBulkAsync(dbContext);
 
 		var thrown = await act.Should().ThrowAsync<DbUpdateException>(
-			"a genuine constraint failure that is not the already-exists case must propagate, not be caught and skipped"
+			"an unrelated unique-index violation must propagate as a genuine failure, not be reported as a successful, " +
+			"idempotent skip while the batch's projects are silently missing"
 		);
-		thrown.Which.InnerException.Should().BeOfType<Npgsql.PostgresException>()
-			.Which.SqlState.Should().Be("23514", "the induced failure is a check violation, not the 23505 unique violation the seeder tolerates");
+		var pgEx = thrown.Which.InnerException.Should().BeOfType<Npgsql.PostgresException>().Subject;
+		pgEx.SqlState.Should().Be("23505");
+		pgEx.ConstraintName.Should().Be(
+			"test_ix_projects_drift",
+			"the violated index is unrelated to the seeder's own (TenantId, Name) natural key (IX_projects_tenant_id_name)"
+		);
+
+		var projectsAfterFailedReseed = await dbContext.Project.CountAsync(p => p.Name.StartsWith(BulkSeedConstants.ProjectNamePrefix));
+		projectsAfterFailedReseed.Should().Be(0, "the failed batch must have rolled back rather than partially or silently applying");
 	}
 }

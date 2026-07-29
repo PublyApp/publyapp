@@ -16,12 +16,42 @@ namespace PublyApp.Api.Lib.Seeding;
 /// partially- or fully-seeded database is completed rather than re-inserted or crashed on.
 /// </summary>
 public class BulkSeeder {
+	// SQLSTATE 23505 means "some unique index was violated" — any unique index on the
+	// table, not necessarily the one this phase's natural key relies on. Each phase's
+	// duplicate-handling catch must only ever absorb a violation of ITS OWN natural-key
+	// index; any other index name means an unrelated unique-constraint failure (e.g.
+	// schema drift, or a genuinely corrupt/duplicated batch) and must propagate.
+	private static readonly HashSet<string> TenantNaturalKeyConstraints = ["ix_tenants_code_active"];
+	private static readonly HashSet<string> UserNaturalKeyConstraints = ["ix_users_email_active"];
+
+	// UserAccount's natural-key uniqueness is enforced by one of three constraints
+	// depending on Scope (staff/tenant/project); all three are equally "the natural key"
+	// for this entity type.
+	private static readonly HashSet<string> UserAccountNaturalKeyConstraints = [
+		"ux_user_accounts_staff_active",
+		"ux_user_accounts_tenant_active",
+		"ux_user_accounts_project_active",
+	];
+	private static readonly HashSet<string> ProjectNaturalKeyConstraints = ["IX_projects_tenant_id_name"];
+
 	private readonly int _batchSize;
 	private readonly BulkSeedDataGenerator? _generator;
 
 	public BulkSeeder(int? batchSize = null, BulkSeedDataGenerator? generator = null) {
 		_batchSize = batchSize ?? BulkSeedConstants.DefaultBatchSize;
 		_generator = generator;
+	}
+
+	/// <summary>
+	/// True only when <paramref name="ex"/> wraps a Postgres unique-violation (23505) on one
+	/// of the exact constraint names this phase expects for its own natural key. A 23505 on
+	/// any other constraint is an unrelated unique-index violation and must not be treated as
+	/// "this natural key already exists" — see the class-level catch blocks below.
+	/// </summary>
+	private static bool IsExpectedNaturalKeyViolation(DbUpdateException ex, IReadOnlySet<string> expectedConstraintNames) {
+		return ex.InnerException is Npgsql.PostgresException { SqlState: "23505" } pgEx
+			&& pgEx.ConstraintName is not null
+			&& expectedConstraintNames.Contains(pgEx.ConstraintName);
 	}
 
 	/// <summary>
@@ -69,7 +99,7 @@ public class BulkSeeder {
 	/// Returns a map from the generator's in-memory tenant id to the real persisted id
 	/// (itself for newly-inserted tenants, the pre-existing row's id otherwise).
 	/// </summary>
-	private async Task<Dictionary<Guid, Guid>> SeedTenantsInBatchesAsync(
+	internal async Task<Dictionary<Guid, Guid>> SeedTenantsInBatchesAsync(
 		AppDbContext dbContext,
 		IReadOnlyList<Tenant> tenants,
 		CancellationToken cancellationToken
@@ -111,8 +141,22 @@ public class BulkSeeder {
 				await transaction.CommitAsync(cancellationToken);
 				count += batch.Length;
 				Console.Write($"\rTenants: {count}/{toInsert.Count} inserted, {skipped} already existed ");
-			} catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
+			} catch (DbUpdateException ex) when (IsExpectedNaturalKeyViolation(ex, TenantNaturalKeyConstraints)) {
 				await transaction.RollbackAsync(cancellationToken);
+
+				// The violated index IS the tenant natural key, but that alone doesn't prove
+				// someone else already inserted it — two rows within THIS batch could have
+				// collided with each other, in which case rollback leaves neither persisted.
+				// Only treat this as a benign "already exists" skip if at least one of the
+				// batch's codes is actually present in the database.
+				var batchCodes = batch.Select(t => t.Code).ToHashSet();
+				var anyPersisted = await dbContext.Tenant
+					.AsNoTracking()
+					.AnyAsync(t => batchCodes.Contains(t.Code), cancellationToken);
+				if (!anyPersisted) {
+					throw;
+				}
+
 				Console.WriteLine();
 				Console.WriteLine("Warning: duplicate tenants detected mid-batch during seeding; skipping batch.");
 			} catch (Exception) {
@@ -172,8 +216,20 @@ public class BulkSeeder {
 				await transaction.CommitAsync(cancellationToken);
 				count += batch.Length;
 				Console.Write($"\rUsers: {count}/{toInsert.Count} inserted, {skipped} already existed ");
-			} catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
+			} catch (DbUpdateException ex) when (IsExpectedNaturalKeyViolation(ex, UserNaturalKeyConstraints)) {
 				await transaction.RollbackAsync(cancellationToken);
+
+				// Same reasoning as the tenant phase: the constraint name alone doesn't prove
+				// this was a benign concurrent duplicate — confirm a matching email actually
+				// made it to disk before treating it as one.
+				var batchEmails = batch.Select(u => u.Email).ToHashSet();
+				var anyPersisted = await dbContext.User
+					.AsNoTracking()
+					.AnyAsync(u => batchEmails.Contains(u.Email), cancellationToken);
+				if (!anyPersisted) {
+					throw;
+				}
+
 				Console.WriteLine();
 				Console.WriteLine("Warning: duplicate users detected mid-batch during seeding; skipping batch.");
 			} catch (Exception) {
@@ -237,8 +293,24 @@ public class BulkSeeder {
 				await transaction.CommitAsync(cancellationToken);
 				count += batch.Length;
 				Console.Write($"\rUserAccounts: {count}/{toInsert.Count} inserted, {skipped} already existed ");
-			} catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
+			} catch (DbUpdateException ex) when (IsExpectedNaturalKeyViolation(ex, UserAccountNaturalKeyConstraints)) {
 				await transaction.RollbackAsync(cancellationToken);
+
+				// Same reasoning as the tenant/user phases: confirm at least one of the
+				// batch's (UserId, Scope, TenantId, ProjectId) natural keys is actually
+				// persisted before treating this as a benign concurrent duplicate.
+				var batchKeys = batch.Select(a => (a.UserId, a.Scope, a.TenantId, a.ProjectId)).ToHashSet();
+				var batchUserIds = batch.Select(a => a.UserId).Distinct().ToList();
+				var persistedAccounts = await dbContext.UserAccount
+					.AsNoTracking()
+					.Where(ua => batchUserIds.Contains(ua.UserId))
+					.Select(ua => new { ua.UserId, ua.Scope, ua.TenantId, ua.ProjectId })
+					.ToListAsync(cancellationToken);
+				var anyPersisted = persistedAccounts.Any(p => batchKeys.Contains((p.UserId, p.Scope, p.TenantId, p.ProjectId)));
+				if (!anyPersisted) {
+					throw;
+				}
+
 				Console.WriteLine();
 				Console.WriteLine("Warning: duplicate user accounts detected mid-batch during seeding; skipping batch.");
 			} catch (Exception) {
@@ -298,8 +370,25 @@ public class BulkSeeder {
 				await transaction.CommitAsync(cancellationToken);
 				count += batch.Length;
 				Console.Write($"\rProjects: {count}/{toInsert.Count} inserted, {skipped} already existed ");
-			} catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
+			} catch (DbUpdateException ex) when (IsExpectedNaturalKeyViolation(ex, ProjectNaturalKeyConstraints)) {
 				await transaction.RollbackAsync(cancellationToken);
+
+				// Same reasoning as the other phases — this is the exact blocker the
+				// adversarial review reproduced: an unrelated unique index on this table
+				// (schema drift) also raises 23505, and swallowing it here silently drops
+				// the whole batch. Only skip if a batch natural key is actually persisted.
+				var batchKeys = batch.Select(p => (p.TenantId, p.Name)).ToHashSet();
+				var batchTenantIds = batch.Select(p => p.TenantId).Distinct().ToList();
+				var persistedProjects = await dbContext.Project
+					.AsNoTracking()
+					.Where(p => batchTenantIds.Contains(p.TenantId))
+					.Select(p => new { p.TenantId, p.Name })
+					.ToListAsync(cancellationToken);
+				var anyPersisted = persistedProjects.Any(p => batchKeys.Contains((p.TenantId, p.Name)));
+				if (!anyPersisted) {
+					throw;
+				}
+
 				Console.WriteLine();
 				Console.WriteLine("Warning: duplicate projects detected mid-batch during seeding; skipping batch.");
 			} catch (Exception) {
