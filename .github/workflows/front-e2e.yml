@@ -2,11 +2,6 @@ name: front e2e
 
 on:
   pull_request:
-    paths:
-      - 'apps/front/**'
-      - 'packages/shared-ts/**'
-      - 'packages/client-ts/**'
-      - '.github/workflows/front-e2e.yml'
   push:
     branches:
       - develop
@@ -25,8 +20,46 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Cheap first job: the pull_request trigger above has no `paths:` filter (a
+  # path-filtered trigger never starts for an unrelated PR, so a required
+  # status check gated only by the trigger would hang forever — see #1017).
+  # This job always runs and decides whether the expensive jobs below should.
+  changes:
+    name: Determine changed paths
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      relevant: ${{ steps.filter.outputs.relevant }}
+    steps:
+      - name: Check whether front-e2e paths changed
+        id: filter
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          # push runs are already path-filtered by the trigger above, so a
+          # push that starts this workflow is relevant by construction.
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          files="$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}/files" --paginate --jq '.[].filename')"
+
+          # Same path groups the old `pull_request.paths` filter listed —
+          # deliberately not widened or narrowed.
+          if printf '%s\n' "$files" | grep -qE '^(apps/front/|packages/shared-ts/|packages/client-ts/|\.github/workflows/front-e2e\.yml$)'; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "relevant=false" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
     name: Build e2e images
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -71,7 +104,8 @@ jobs:
 
   test:
     name: front-e2e (${{ matrix.shard }}/4)
-    needs: build
+    needs: [changes, build]
+    if: needs.changes.outputs.relevant == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -267,3 +301,39 @@ jobs:
           if [ "$cleanup_failed" = true ]; then
             exit 1
           fi
+
+  # Required status check: this is the one context that should be required
+  # on the branch ruleset instead of a per-shard `front-e2e (N/4)` name. It
+  # always reports (if: always()), passes when upstream jobs succeeded or
+  # were skipped (irrelevant PR), and fails on any real failure or
+  # cancellation rather than treating either as "not applicable".
+  gate:
+    name: front-e2e-gate
+    if: always()
+    needs: [changes, build, test, cleanup]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check required jobs
+        run: |
+          declare -A results=(
+            [changes]="${{ needs.changes.result }}"
+            [build]="${{ needs.build.result }}"
+            [test]="${{ needs.test.result }}"
+            [cleanup]="${{ needs.cleanup.result }}"
+          )
+
+          failed=false
+          for name in "${!results[@]}"; do
+            result="${results[$name]}"
+            echo "  $name: $result"
+            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
+              failed=true
+            fi
+          done
+
+          if [ "$failed" = true ]; then
+            echo "::error::One or more required jobs failed or were cancelled."
+            exit 1
+          fi
+
+          echo "All required jobs passed or were skipped."
