@@ -380,6 +380,7 @@ vi.mock('react-i18next', () => ({
 				'delete-profile': 'Delete profile',
 				'delete-tenant-profile-confirm-title': 'Delete tenant profile',
 				description: 'Description',
+				edit: 'Edit',
 				'edit-details': 'Edit details',
 				'edit-profile': 'Edit profile',
 				'error-404-code': '404 — Not Found',
@@ -398,8 +399,6 @@ vi.mock('react-i18next', () => ({
 					'No permissions are assigned to this profile.',
 				'no-permissions-available': 'No permission keys are available.',
 				'permission-keys': 'Permission keys',
-				'permission-state-granted': 'granted',
-				'permission-state-not-granted': 'not granted',
 				'profile-details': 'Profile details',
 				'profile-sections': 'Profile sections',
 				retry: 'Retry',
@@ -445,7 +444,10 @@ vi.mock('react-i18next', () => ({
 					'{{granted}} of {{total}} granted across {{count}} module',
 				'profile-glance-summary_other':
 					'{{granted}} of {{total}} granted across {{count}} modules',
-				'profile-glance-no-access': 'No access to {{modules}}',
+				'profile-glance-module-count_one':
+					'{{module}}: {{granted}} of {{total}} permission granted',
+				'profile-glance-module-count_other':
+					'{{module}}: {{granted}} of {{total}} permissions granted',
 				'profile-created-month': 'Created {{date}}',
 				'profile-updated-relative': 'Updated {{time}}',
 				'no-members-yet': 'No members yet.',
@@ -706,15 +708,30 @@ describe('staff tenant profile details route', () => {
 		expect(tenantBand.textContent).toContain('Acme Corporation');
 		expect(tenantBand.textContent).toContain('publyapp.com/ACME');
 		expect(tenantBand.textContent).toContain('Active');
+		// #1024 (review-ui-fidelity.md MINOR): a prior version of this test
+		// checked only text/href and would still pass if the whole #1024 commit
+		// were reverted. Assert the rendered grey-surface class and the arrow
+		// icon actually reaching the DOM, not just the link's accessible name.
+		expect(tenantBand.className).toContain('bg-muted');
+		const openTenantLink = screen.getByRole('link', { name: 'Open tenant' });
+		expect(openTenantLink.getAttribute('href')).toBe(
+			'/staff/tenants/11111111-1111-1111-1111-111111111111',
+		);
 		expect(
-			screen.getByRole('link', { name: 'Open tenant' }).getAttribute('href'),
-		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111');
+			openTenantLink.querySelector('.tabler-icon-arrow-right'),
+		).toBeTruthy();
 		expect(identity.querySelector('.publy-profile-detail-tile')).toBeTruthy();
 		expect(identity.textContent).toContain('Approvers');
 		expect(identity.textContent).toContain('System profile');
 		expect(identity.textContent).toContain('Can review approvals');
 		expect(identity.textContent).toContain('7 members · 2 permissions');
-		expect(screen.getByRole('button', { name: 'Edit details' })).toBeTruthy();
+		// #1023 (review-ui-fidelity.md MINOR): the accessible-name assertion
+		// alone still passes if the pencil icon or the size="sm" treatment is
+		// removed — assert both so a partial revert of the button's visual
+		// treatment fails here.
+		const editButton = screen.getByRole('button', { name: 'Edit' });
+		expect(editButton.querySelector('.tabler-icon-pencil')).toBeTruthy();
+		expect(editButton.className).toContain('h-8');
 		expect(tabs.textContent).toContain('Overview');
 		expect(tabs.textContent).toContain('Permissions2');
 		expect(tabs.textContent).toContain('Members7');
@@ -743,10 +760,13 @@ describe('staff tenant profile details route', () => {
 		expect(screen.getByTestId('profile-stat-type').textContent).toContain(
 			'System profile',
 		);
-		// The glance renders human permission names, not raw keys.
-		expect(screen.getByText('Review approvals')).toBeTruthy();
-		expect(screen.getByText('Read users')).toBeTruthy();
-		expect(screen.getByText('Write users')).toBeTruthy();
+		// The glance is a per-module granted-of-total count, not a per-permission
+		// list — the catalog fixture's single "tenant" module renders one row.
+		expect(screen.getByText('Tenant')).toBeTruthy();
+		expect(screen.getByText('2/3')).toBeTruthy();
+		expect(screen.queryByText('Review approvals')).toBeNull();
+		expect(screen.queryByText('Read users')).toBeNull();
+		expect(screen.queryByText('Write users')).toBeNull();
 		// One module with access → singular "module" (plural-key resolution).
 		expect(screen.getByText('2 of 3 granted across 1 module')).toBeTruthy();
 		// The assign/unassign editing UI has moved off Overview (step 3).
@@ -957,7 +977,7 @@ describe('staff tenant profile details route', () => {
 
 		renderPage();
 
-		const editButton = screen.getByRole('button', { name: 'Edit details' });
+		const editButton = screen.getByRole('button', { name: 'Edit' });
 		const deleteButton = screen.getByRole('button', {
 			name: 'Delete profile',
 		});
@@ -1002,7 +1022,7 @@ describe('staff tenant profile details route', () => {
 	test('edit profile button navigates to open the edit drawer via search state', () => {
 		renderPage();
 
-		fireEvent.click(screen.getByRole('button', { name: 'Edit details' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
 
 		const navigation = mocks.navigate.mock.calls[0]?.[0] as {
 			replace?: boolean;

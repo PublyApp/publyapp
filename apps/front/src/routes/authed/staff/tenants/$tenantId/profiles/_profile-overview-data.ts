@@ -1,17 +1,10 @@
 import type { StaffTenantPermissionGroup } from '~/lib/query/staff-tenant-profiles';
 
-export type ProfileGlanceOption = {
-	key: string;
-	label: string;
-	granted: boolean;
-};
-
 export type ProfileGlanceModule = {
 	moduleKey: string;
 	moduleLabel: string;
 	grantedCount: number;
 	totalCount: number;
-	options: ProfileGlanceOption[];
 };
 
 /**
@@ -21,7 +14,10 @@ export type ProfileGlanceModule = {
  *
  * - `grantedTotal` (K) / `catalogTotal` (T): granted vs total catalog keys.
  * - `modulesWithAccess` (M) / `totalModules` (MT): modules with ≥1 granted key.
- * - `zeroAccessModuleLabels`: modules with no granted key (the glance footer).
+ *
+ * The glance card itself only ever needs a granted-of-total count per
+ * module (never the individual permission keys) — the full per-permission
+ * detail lives on the Permissions tab, which the card's "Manage" link opens.
  *
  * Granted keys are intersected against the catalog, so a stale/removed key
  * never inflates the "K" count beyond what the catalog can display (honest).
@@ -32,7 +28,6 @@ export type ProfilePermissionGlance = {
 	catalogTotal: number;
 	modulesWithAccess: number;
 	totalModules: number;
-	zeroAccessModuleLabels: string[];
 };
 
 export const buildProfilePermissionGlance = (
@@ -43,29 +38,20 @@ export const buildProfilePermissionGlance = (
 	const modules: ProfileGlanceModule[] = [];
 	let grantedTotal = 0;
 	let catalogTotal = 0;
-	const zeroAccessModuleLabels: string[] = [];
 
 	for (const group of groups) {
-		const options: ProfileGlanceOption[] = group.options.map((option) => ({
-			key: option.key,
-			label: option.label,
-			granted: grantedKeySet.has(option.key),
-		}));
-		const grantedCount = options.filter((option) => option.granted).length;
+		const grantedCount = group.options.filter((option) =>
+			grantedKeySet.has(option.key),
+		).length;
 
 		grantedTotal += grantedCount;
-		catalogTotal += options.length;
-
-		if (grantedCount === 0) {
-			zeroAccessModuleLabels.push(group.moduleLabel);
-		}
+		catalogTotal += group.options.length;
 
 		modules.push({
 			moduleKey: group.moduleKey,
 			moduleLabel: group.moduleLabel,
 			grantedCount,
-			totalCount: options.length,
-			options,
+			totalCount: group.options.length,
 		});
 	}
 
@@ -79,6 +65,5 @@ export const buildProfilePermissionGlance = (
 		catalogTotal,
 		modulesWithAccess,
 		totalModules: modules.length,
-		zeroAccessModuleLabels,
 	};
 };

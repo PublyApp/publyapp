@@ -72,6 +72,15 @@ vi.mock('react-i18next', () => ({
 					'{{granted}} of {{total}} granted across {{count}} module',
 				'profile-glance-summary_other':
 					'{{granted}} of {{total}} granted across {{count}} modules',
+				'profile-glance-module-count_one':
+					'{{module}}: {{granted}} of {{total}} permission granted',
+				'profile-glance-module-count_other':
+					'{{module}}: {{granted}} of {{total}} permissions granted',
+				// Kept even though the component no longer calls this key: the
+				// absence assertion below only proves anything if a reintroduced
+				// footer call would actually render real text through this mock
+				// instead of silently falling back to the raw, unmatched key
+				// string (review-ui-fidelity-delta.md MINOR).
 				'profile-glance-no-access': 'No access to {{modules}}',
 				'profile-created-month': 'Created {{date}}',
 				'system-profile': 'System profile',
@@ -86,8 +95,6 @@ vi.mock('react-i18next', () => ({
 				'tenant-permission-catalog-load-failed':
 					'Unable to load the tenant permission catalog.',
 				'no-permissions-available': 'No permission keys are available.',
-				'permission-state-granted': 'granted',
-				'permission-state-not-granted': 'not granted',
 				'no-members-yet': 'No members yet.',
 				'loading-members': 'Loading members…',
 				'members-load-error': 'Unable to load members.',
@@ -229,39 +236,45 @@ describe('ProfileOverviewTab', () => {
 		expect(screen.queryByText('About this profile')).toBeNull();
 	});
 
-	test('renders the glance summary (singular module), granted names, and zero-access footer', () => {
+	test('renders the glance summary (singular module) and a granted-of-total row per module', () => {
 		renderTab();
 
 		// One module with access → singular "module", not "1 modules".
 		expect(screen.getByText('1 of 3 granted across 1 module')).toBeTruthy();
-		expect(screen.getByText('Read users')).toBeTruthy();
-		expect(screen.getByText('Write users')).toBeTruthy();
-		// Billing has no granted key → it appears in the no-access footer.
-		expect(screen.getByText('No access to Billing')).toBeTruthy();
+		// Per-permission rows are gone — each module is a single count row.
+		expect(screen.queryByText('Read users')).toBeNull();
+		expect(screen.queryByText('Write users')).toBeNull();
+		expect(screen.getByText('Users')).toBeTruthy();
+		expect(screen.getByText('1/2')).toBeTruthy();
+		// Billing has no granted key — it still renders as its own row (0/1),
+		// not hidden behind a separate "no access" footer.
+		expect(screen.getByText('Billing')).toBeTruthy();
+		expect(screen.getByText('0/1')).toBeTruthy();
+		// review-ui-fidelity.md MINOR: nothing previously asserted the old
+		// footer's ABSENCE — reintroducing it alongside the new rows (rather
+		// than instead of them) would have passed every other assertion here.
+		expect(screen.queryByText(/No access to/)).toBeNull();
 	});
 
-	test('announces each permission state to screen readers', () => {
+	test('announces each module granted-of-total count to screen readers', () => {
 		renderTab();
 
-		// The state icons are aria-hidden and color is invisible to AT — each
-		// option carries visually-hidden state text.
-		const grantedItem = screen.getByText('Read users').closest('li');
-		expect(grantedItem?.querySelector('.sr-only')?.textContent).toBe('granted');
-
-		const ungrantedItem = screen.getByText('Write users').closest('li');
-		expect(ungrantedItem?.querySelector('.sr-only')?.textContent).toBe(
-			'not granted',
+		// The chip is aria-hidden — each row carries the equivalent sentence for
+		// assistive tech instead of relying on the visual "granted/total" glyph.
+		const usersRow = screen.getByText('Users').closest('li');
+		expect(usersRow?.querySelector('[aria-hidden="true"]')?.textContent).toBe(
+			'1/2',
 		);
-	});
+		expect(usersRow?.querySelector('.sr-only')?.textContent).toBe(
+			'Users: 1 of 2 permissions granted',
+		);
 
-	test('omits the no-access footer when every module has a grant', () => {
-		renderTab({
-			permissionKeys: ['tenant.users.read', 'tenant.billing.view'],
-		});
-
-		// Two modules with access → plural "modules".
-		expect(screen.getByText('2 of 3 granted across 2 modules')).toBeTruthy();
-		expect(screen.queryByText(/No access to/)).toBeNull();
+		// Billing's total is 1 — singular "permission", not "permissions"
+		// (MINOR finding: the sentence must pluralise on the module's total).
+		const billingRow = screen.getByText('Billing').closest('li');
+		expect(billingRow?.querySelector('.sr-only')?.textContent).toBe(
+			'Billing: 0 of 1 permission granted',
+		);
 	});
 
 	test('links "Manage" to the permissions tab and "View all" to members', () => {
