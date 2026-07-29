@@ -2,7 +2,6 @@ using FluentAssertions;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 using PublyApp.Api.Infrastructure.Messaging.Email;
@@ -96,25 +95,54 @@ public sealed class ApiFactoryHostedServiceGuardSpec : IClassFixture<ApiFixture>
 		);
 	}
 
-	// Hole 2 (issue #548 review): registering through an ImplementationFactory — for example,
-	// registering the concrete singleton and then adding a hosted-service factory that
-	// resolves it — also yields ImplementationType == null. The removal helper must resolve
-	// the factory (in isolation, against a throwaway provider) to see the produced type.
+	// Hole 2 (issue #548 review, round 2): registering through an ImplementationFactory — for
+	// example, registering the concrete singleton and then adding a hosted-service factory that
+	// resolves it — also yields ImplementationType == null, just like an ImplementationInstance
+	// registration. Round 1 closed this by resolving the factory (in isolation, against a
+	// throwaway provider) purely to inspect the produced type; round 2's re-review found that
+	// unsafe — it executes arbitrary application code for every factory-shaped IHostedService
+	// descriptor, and a legitimate one-shot factory that rejects a second invocation broke
+	// every ApiFixture consumer once the real host invoked it again (see
+	// ResolveHostedServiceImplementationType's XML doc in ApiFactory.cs for the full account).
+	//
+	// Round 2 deletes that probe. RemoveWorkerHostedServices no longer removes a
+	// factory-registered dispatcher AT ALL — that protection moved to the actual-host guard
+	// above, ItShouldNeverResolveALiveInvitationEmailOutboxDispatcherInTheIntegrationHost, which
+	// resolves IHostedService from the real, started host and fails loudly whatever
+	// registration shape let a live dispatcher through. This test pins that division of labour
+	// directly: it layers a factory-only dispatcher registration onto an isolated host built
+	// from the shared ApiFixture via WithWebHostBuilder (which never touches the shared host
+	// instance — see Microsoft's docs on per-test host customization), then asserts the same
+	// resolved-instance style the host guard uses: the dispatcher resolves LIVE, because
+	// removal cannot see a factory registration and no longer tries to.
+	//
+	// A synthetic unit test against RemoveWorkerHostedServices alone (the previous shape of
+	// this test) cannot pin this: proving the helper does NOT strip the descriptor only shows
+	// the (by-design) gap exists, not that anything actually catches it. Exercising the real
+	// host is what proves the backstop holds.
 	[Fact]
-	public void ItShouldRemoveInvitationEmailDispatcherRegisteredThroughAnImplementationFactory() {
-		ServiceCollection services = [];
-		services.AddSingleton<IInvitationEmailOutboxSignal, InvitationEmailOutboxSignal>();
-		services.AddSingleton<ILogger<InvitationEmailOutboxDispatcher>>(
-			NullLogger<InvitationEmailOutboxDispatcher>.Instance);
-		services.AddSingleton<InvitationEmailOutboxDispatcher>();
-		services.AddSingleton<IHostedService>(
-			sp => sp.GetRequiredService<InvitationEmailOutboxDispatcher>());
+	public void ItShouldResolveALiveInvitationEmailOutboxDispatcherFromTheHostWhenRegisteredThroughAnImplementationFactory() {
+		using var factoryWithFactoryRegisteredDispatcher = _fixture.Factory.WithWebHostBuilder(builder => {
+			builder.ConfigureServices(services => {
+				services.AddSingleton<InvitationEmailOutboxDispatcher>();
+				services.AddSingleton<IHostedService>(
+					sp => sp.GetRequiredService<InvitationEmailOutboxDispatcher>());
+			});
+		});
 
-		ApiFactory.RemoveWorkerHostedServices(services);
+		using var client = factoryWithFactoryRegisteredDispatcher.CreateClient();
 
-		services.Should().NotContain(descriptor =>
-			descriptor.ServiceType == typeof(IHostedService)
-			&& descriptor.ImplementationFactory != null
+		var resolvedHostedServices = factoryWithFactoryRegisteredDispatcher.Services
+			.GetServices<IHostedService>()
+			.ToList();
+
+		resolvedHostedServices.Should().ContainSingle(
+			hostedService => hostedService is InvitationEmailOutboxDispatcher,
+			"RemoveWorkerHostedServices only matches ImplementationType/ImplementationInstance "
+			+ "by design (issue #548 review, round 2); a factory-registered dispatcher resolves "
+			+ "live from the host instead of being silently removed, which is exactly what "
+			+ "ItShouldNeverResolveALiveInvitationEmailOutboxDispatcherInTheIntegrationHost "
+			+ "exists to catch against the real production registration"
 		);
 	}
 }
