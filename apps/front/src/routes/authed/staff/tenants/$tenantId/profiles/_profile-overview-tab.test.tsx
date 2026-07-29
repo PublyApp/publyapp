@@ -76,6 +76,12 @@ vi.mock('react-i18next', () => ({
 					'{{module}}: {{granted}} of {{total}} permission granted',
 				'profile-glance-module-count_other':
 					'{{module}}: {{granted}} of {{total}} permissions granted',
+				// Kept even though the component no longer calls this key: the
+				// absence assertion below only proves anything if a reintroduced
+				// footer call would actually render real text through this mock
+				// instead of silently falling back to the raw, unmatched key
+				// string (review-ui-fidelity-delta.md MINOR).
+				'profile-glance-no-access': 'No access to {{modules}}',
 				'profile-created-month': 'Created {{date}}',
 				'system-profile': 'System profile',
 				'custom-profile': 'Custom profile',
