@@ -16,15 +16,10 @@
 		"See docs/guides/local-ci-gate.md."
 	],
 	"steps": {
-		"docs-archive.yml::changes::Checkout classifier wrapper": {
-			"hash": "ce912e6c49d49190",
-			"mirror": null,
-			"reason": "GitHub-only: checks out scripts/ci-run-classifier.mjs from this pull request's OWN ref (not the base commit). Safe: this wrapper makes no relevance decision from PR content, only a filesystem existence check on the base-pinned classifier, which the PR's diff cannot influence. Its own decision logic is unit-tested via CLI-boundary tests in scripts/ci-run-classifier.test.mjs."
-		},
 		"docs-archive.yml::changes::Checkout classifier from the base commit (not the PR's own copy)": {
 			"hash": "9b2c778c2dfb356f",
 			"mirror": null,
-			"reason": "GitHub-only: checks out the classifier script (scripts/ci-changed-paths.mjs) from the pull request's base commit into base-ref/ rather than its own merge commit (#1017 round-2 review fix), so a PR cannot make its own copy of the classifier decide whether it gets tested. Locally the working tree already is the code under test, and there is no PR base/head distinction to reproduce."
+			"reason": "GitHub-only: checks out the classifier script (scripts/ci-changed-paths.mjs) from the pull request's base commit into base-ref/ rather than its own merge commit. This pins the classifier's SOURCE so an accidental or careless edit (a rename, a bad rebase) cannot silently change it — it is NOT a defense against a pull request that deliberately tries to bypass its own gates, since the `changes` job's YAML itself (including the invocation step) is read from the pull request's merge commit the same as everything else in this workflow; see #1022 for the honest framing and why that residual exposure is accepted. Locally the working tree already is the code under test, and there is no PR base/head distinction to reproduce."
 		},
 		"docs-archive.yml::changes::Setup Node": {
 			"hash": "9f0469bb2703ae67",
@@ -32,9 +27,9 @@
 			"reason": "GitHub-only Node setup for PR gating. This repository's local checks already assume Node is available locally for scripts and format/lint tooling."
 		},
 		"docs-archive.yml::changes::Check whether docs-archive paths changed": {
-			"hash": "2a884fbe30aa6dd8",
-			"mirror": "node --test scripts/ci-run-classifier.test.mjs",
-			"reason": "The step now shells out to scripts/ci-run-classifier.mjs base-ref/scripts/ci-changed-paths.mjs (#1017 bootstrap fix), which fails closed to relevant=true — on a separate code path from the classifier's own answer — when the base-pinned classifier does not exist yet (e.g. the pull request introducing it), and otherwise delegates entirely to scripts/ci-changed-paths.mjs, whose classifyRelevance() decision logic (including the 3,000-file API-ceiling fail-closed check) is unit-tested by ci-changed-paths.test.mjs. scripts/ci-run-classifier.test.mjs covers the dispatch/fallback behavior itself, including the missing-classifier bootstrap case, at the same CLI/job boundary. The live gh api calls remain GitHub-only and unmirrored."
+			"hash": "46f0496e548c0ed6",
+			"mirror": "node --test scripts/ci-gate-bootstrap.test.mjs",
+			"reason": "The step now inlines the fallback directly (round-3 review fix: replaced a separate PR-controlled wrapper script with a few lines of shell, since a separate file has no different trust level than inline YAML content — both are read from the pull request's merge commit): if base-ref/scripts/ci-changed-paths.mjs exists, run it and pass its output/exit code straight through; otherwise print a loud [MISSING BASE CLASSIFIER] warning and resolve relevant=true, on a code path that never invokes the classifier. scripts/ci-gate-bootstrap.test.mjs parses this exact `run:` block from the real workflow file (not a restatement) and executes it directly against both cases for all four workflows. The classifier's own decision logic (including the 3,000-file API-ceiling fail-closed check) remains covered by ci-changed-paths.test.mjs. The live gh api calls remain GitHub-only and unmirrored."
 		},
 		"docs-archive.yml::docs-archive::Checkout": {
 			"hash": "05b3bb91005e5436",
@@ -61,15 +56,10 @@
 			"mirror": null,
 			"reason": "GitHub-only: this is the #1017 aggregate required-check step, which reads the needs context (via toJSON(needs), #1017 round-2 review fix — no hand-maintained per-job Bash map that could omit an entry) across the workflow's other jobs. That context only exists inside a GitHub Actions run."
 		},
-		"front-ci.yml::changes::Checkout classifier wrapper": {
-			"hash": "ce912e6c49d49190",
-			"mirror": null,
-			"reason": "GitHub-only: checks out scripts/ci-run-classifier.mjs from this pull request's OWN ref (not the base commit). Safe: this wrapper makes no relevance decision from PR content, only a filesystem existence check on the base-pinned classifier, which the PR's diff cannot influence. Its own decision logic is unit-tested via CLI-boundary tests in scripts/ci-run-classifier.test.mjs."
-		},
 		"front-ci.yml::changes::Checkout classifier from the base commit (not the PR's own copy)": {
 			"hash": "9b2c778c2dfb356f",
 			"mirror": null,
-			"reason": "GitHub-only: checks out the classifier script (scripts/ci-changed-paths.mjs) from the pull request's base commit into base-ref/ rather than its own merge commit (#1017 round-2 review fix), so a PR cannot make its own copy of the classifier decide whether it gets tested. Locally the working tree already is the code under test, and there is no PR base/head distinction to reproduce."
+			"reason": "GitHub-only: checks out the classifier script (scripts/ci-changed-paths.mjs) from the pull request's base commit into base-ref/ rather than its own merge commit. This pins the classifier's SOURCE so an accidental or careless edit (a rename, a bad rebase) cannot silently change it — it is NOT a defense against a pull request that deliberately tries to bypass its own gates, since the `changes` job's YAML itself (including the invocation step) is read from the pull request's merge commit the same as everything else in this workflow; see #1022 for the honest framing and why that residual exposure is accepted. Locally the working tree already is the code under test, and there is no PR base/head distinction to reproduce."
 		},
 		"front-ci.yml::changes::Setup Node": {
 			"hash": "9f0469bb2703ae67",
@@ -77,9 +67,9 @@
 			"reason": "GitHub-only Node setup for PR gating. This repository's local checks already assume Node is available locally for scripts and format/lint tooling."
 		},
 		"front-ci.yml::changes::Check whether front-ci paths changed": {
-			"hash": "626df2dc95b62c28",
-			"mirror": "node --test scripts/ci-run-classifier.test.mjs",
-			"reason": "The step now shells out to scripts/ci-run-classifier.mjs base-ref/scripts/ci-changed-paths.mjs (#1017 bootstrap fix), which fails closed to relevant=true — on a separate code path from the classifier's own answer — when the base-pinned classifier does not exist yet (e.g. the pull request introducing it), and otherwise delegates entirely to scripts/ci-changed-paths.mjs, whose classifyRelevance() decision logic (including the 3,000-file API-ceiling fail-closed check) is unit-tested by ci-changed-paths.test.mjs. scripts/ci-run-classifier.test.mjs covers the dispatch/fallback behavior itself, including the missing-classifier bootstrap case, at the same CLI/job boundary. The live gh api calls remain GitHub-only and unmirrored."
+			"hash": "48e76cada2387a94",
+			"mirror": "node --test scripts/ci-gate-bootstrap.test.mjs",
+			"reason": "The step now inlines the fallback directly (round-3 review fix: replaced a separate PR-controlled wrapper script with a few lines of shell, since a separate file has no different trust level than inline YAML content — both are read from the pull request's merge commit): if base-ref/scripts/ci-changed-paths.mjs exists, run it and pass its output/exit code straight through; otherwise print a loud [MISSING BASE CLASSIFIER] warning and resolve relevant=true, on a code path that never invokes the classifier. scripts/ci-gate-bootstrap.test.mjs parses this exact `run:` block from the real workflow file (not a restatement) and executes it directly against both cases for all four workflows. The classifier's own decision logic (including the 3,000-file API-ceiling fail-closed check) remains covered by ci-changed-paths.test.mjs. The live gh api calls remain GitHub-only and unmirrored."
 		},
 		"front-ci.yml::supply-chain::Checkout": {
 			"hash": "389e0b8b6a55dd60",
@@ -156,15 +146,10 @@
 			"mirror": null,
 			"reason": "GitHub-only: this is the #1017 aggregate required-check step, which reads the needs context (via toJSON(needs), #1017 round-2 review fix — no hand-maintained per-job Bash map that could omit an entry) across the workflow's other jobs. That context only exists inside a GitHub Actions run."
 		},
-		"front-e2e.yml::changes::Checkout classifier wrapper": {
-			"hash": "ce912e6c49d49190",
-			"mirror": null,
-			"reason": "GitHub-only: checks out scripts/ci-run-classifier.mjs from this pull request's OWN ref (not the base commit). Safe: this wrapper makes no relevance decision from PR content, only a filesystem existence check on the base-pinned classifier, which the PR's diff cannot influence. Its own decision logic is unit-tested via CLI-boundary tests in scripts/ci-run-classifier.test.mjs."
-		},
 		"front-e2e.yml::changes::Checkout classifier from the base commit (not the PR's own copy)": {
 			"hash": "9b2c778c2dfb356f",
 			"mirror": null,
-			"reason": "GitHub-only: checks out the classifier script (scripts/ci-changed-paths.mjs) from the pull request's base commit into base-ref/ rather than its own merge commit (#1017 round-2 review fix), so a PR cannot make its own copy of the classifier decide whether it gets tested. Locally the working tree already is the code under test, and there is no PR base/head distinction to reproduce."
+			"reason": "GitHub-only: checks out the classifier script (scripts/ci-changed-paths.mjs) from the pull request's base commit into base-ref/ rather than its own merge commit. This pins the classifier's SOURCE so an accidental or careless edit (a rename, a bad rebase) cannot silently change it — it is NOT a defense against a pull request that deliberately tries to bypass its own gates, since the `changes` job's YAML itself (including the invocation step) is read from the pull request's merge commit the same as everything else in this workflow; see #1022 for the honest framing and why that residual exposure is accepted. Locally the working tree already is the code under test, and there is no PR base/head distinction to reproduce."
 		},
 		"front-e2e.yml::changes::Setup Node": {
 			"hash": "9f0469bb2703ae67",
@@ -172,9 +157,9 @@
 			"reason": "GitHub-only Node setup for PR gating. This repository's local checks already assume Node is available locally for scripts and format/lint tooling."
 		},
 		"front-e2e.yml::changes::Check whether front-e2e paths changed": {
-			"hash": "9710830ab502aad7",
-			"mirror": "node --test scripts/ci-run-classifier.test.mjs",
-			"reason": "The step now shells out to scripts/ci-run-classifier.mjs base-ref/scripts/ci-changed-paths.mjs (#1017 bootstrap fix), which fails closed to relevant=true — on a separate code path from the classifier's own answer — when the base-pinned classifier does not exist yet (e.g. the pull request introducing it), and otherwise delegates entirely to scripts/ci-changed-paths.mjs, whose classifyRelevance() decision logic (including the 3,000-file API-ceiling fail-closed check) is unit-tested by ci-changed-paths.test.mjs. scripts/ci-run-classifier.test.mjs covers the dispatch/fallback behavior itself, including the missing-classifier bootstrap case, at the same CLI/job boundary. The live gh api calls remain GitHub-only and unmirrored."
+			"hash": "4d03ca606886185f",
+			"mirror": "node --test scripts/ci-gate-bootstrap.test.mjs",
+			"reason": "The step now inlines the fallback directly (round-3 review fix: replaced a separate PR-controlled wrapper script with a few lines of shell, since a separate file has no different trust level than inline YAML content — both are read from the pull request's merge commit): if base-ref/scripts/ci-changed-paths.mjs exists, run it and pass its output/exit code straight through; otherwise print a loud [MISSING BASE CLASSIFIER] warning and resolve relevant=true, on a code path that never invokes the classifier. scripts/ci-gate-bootstrap.test.mjs parses this exact `run:` block from the real workflow file (not a restatement) and executes it directly against both cases for all four workflows. The classifier's own decision logic (including the 3,000-file API-ceiling fail-closed check) remains covered by ci-changed-paths.test.mjs. The live gh api calls remain GitHub-only and unmirrored."
 		},
 		"front-e2e.yml::build::Set image tag": {
 			"hash": "f8404b7467cf197a",
@@ -411,15 +396,10 @@
 			"mirror": "just ci",
 			"reason": "This is a CI publish path for the migration bundle image and does not have a local equivalent in pre-push checks."
 		},
-		"openapi-spec-drift.yml::changes::Checkout classifier wrapper": {
-			"hash": "ce912e6c49d49190",
-			"mirror": null,
-			"reason": "GitHub-only: checks out scripts/ci-run-classifier.mjs from this pull request's OWN ref (not the base commit). Safe: this wrapper makes no relevance decision from PR content, only a filesystem existence check on the base-pinned classifier, which the PR's diff cannot influence. Its own decision logic is unit-tested via CLI-boundary tests in scripts/ci-run-classifier.test.mjs."
-		},
 		"openapi-spec-drift.yml::changes::Checkout classifier from the base commit (not the PR's own copy)": {
 			"hash": "9b2c778c2dfb356f",
 			"mirror": null,
-			"reason": "GitHub-only: checks out the classifier script (scripts/ci-changed-paths.mjs) from the pull request's base commit into base-ref/ rather than its own merge commit (#1017 round-2 review fix), so a PR cannot make its own copy of the classifier decide whether it gets tested. Locally the working tree already is the code under test, and there is no PR base/head distinction to reproduce."
+			"reason": "GitHub-only: checks out the classifier script (scripts/ci-changed-paths.mjs) from the pull request's base commit into base-ref/ rather than its own merge commit. This pins the classifier's SOURCE so an accidental or careless edit (a rename, a bad rebase) cannot silently change it — it is NOT a defense against a pull request that deliberately tries to bypass its own gates, since the `changes` job's YAML itself (including the invocation step) is read from the pull request's merge commit the same as everything else in this workflow; see #1022 for the honest framing and why that residual exposure is accepted. Locally the working tree already is the code under test, and there is no PR base/head distinction to reproduce."
 		},
 		"openapi-spec-drift.yml::changes::Setup Node": {
 			"hash": "9f0469bb2703ae67",
@@ -427,9 +407,9 @@
 			"reason": "GitHub-only Node setup for PR gating. This repository's local checks already assume Node is available locally for scripts and format/lint tooling."
 		},
 		"openapi-spec-drift.yml::changes::Check whether openapi-spec-drift paths changed": {
-			"hash": "13dc295177852592",
-			"mirror": "node --test scripts/ci-run-classifier.test.mjs",
-			"reason": "The step now shells out to scripts/ci-run-classifier.mjs base-ref/scripts/ci-changed-paths.mjs (#1017 bootstrap fix), which fails closed to relevant=true — on a separate code path from the classifier's own answer — when the base-pinned classifier does not exist yet (e.g. the pull request introducing it), and otherwise delegates entirely to scripts/ci-changed-paths.mjs, whose classifyRelevance() decision logic (including the 3,000-file API-ceiling fail-closed check) is unit-tested by ci-changed-paths.test.mjs. scripts/ci-run-classifier.test.mjs covers the dispatch/fallback behavior itself, including the missing-classifier bootstrap case, at the same CLI/job boundary. The live gh api calls remain GitHub-only and unmirrored."
+			"hash": "a10a006d358d3bd8",
+			"mirror": "node --test scripts/ci-gate-bootstrap.test.mjs",
+			"reason": "The step now inlines the fallback directly (round-3 review fix: replaced a separate PR-controlled wrapper script with a few lines of shell, since a separate file has no different trust level than inline YAML content — both are read from the pull request's merge commit): if base-ref/scripts/ci-changed-paths.mjs exists, run it and pass its output/exit code straight through; otherwise print a loud [MISSING BASE CLASSIFIER] warning and resolve relevant=true, on a code path that never invokes the classifier. scripts/ci-gate-bootstrap.test.mjs parses this exact `run:` block from the real workflow file (not a restatement) and executes it directly against both cases for all four workflows. The classifier's own decision logic (including the 3,000-file API-ceiling fail-closed check) remains covered by ci-changed-paths.test.mjs. The live gh api calls remain GitHub-only and unmirrored."
 		},
 		"openapi-spec-drift.yml::spec-drift::uses:actions/checkout": {
 			"hash": "2b0c921edab45332",
