@@ -82,14 +82,9 @@ public sealed class CreateStaffProfileSpec : IClassFixture<ApiFixture> {
 
 		outboxRow.InvitationId.Should().Be(invitation.Id);
 		outboxRow.Token.Should().Be(invitation.Token);
-		// Processing is included because the live background dispatcher may
-		// have already claimed the row by the time this assertion runs; the
-		// point of this test is durability (a row exists at all), not timing.
-		outboxRow.Status.Should().BeOneOf(
-			InvitationEmailOutboxStatus.Pending,
-			InvitationEmailOutboxStatus.Processing,
-			InvitationEmailOutboxStatus.Sent
-		);
+		// The integration host registers no live dispatcher (ApiFactory removes it for
+		// every spec), so nothing claims this row before the assertion runs.
+		outboxRow.Status.Should().Be(InvitationEmailOutboxStatus.Pending);
 	}
 
 	[Fact]

@@ -11,8 +11,10 @@ namespace PublyApp.Api.Lib.Testing.Fakes {
 	/// send (request + job-stable idempotency key), letting specs prove byte-identical
 	/// idempotent resends (§4.5).
 	///
-	/// IMPORTANT: registered as a singleton per ApiFixture (per test class). Emails
-	/// persist across tests within the same class unless you call Clear() / DrainAll().
+	/// IMPORTANT: registered as a singleton per ApiFixture. Emails persist across every
+	/// test method that shares the same ApiFixture instance. Email-observing specs should
+	/// not share an ApiFixture across test methods (see ApiFixture.GetFakeEmailSender) —
+	/// own it exclusively per test method instead of resetting a shared one with Clear().
 	/// </summary>
 	public sealed class FakeEmailSender : IEmailSender {
 		public sealed record SentEmail(EmailRequest Request, string? IdempotencyKey, string MessageId);
@@ -54,7 +56,12 @@ namespace PublyApp.Api.Lib.Testing.Fakes {
 		}
 #pragma warning restore CS1998
 
-		/// <summary>Clears captured emails. Call at the start of tests that assert on emails.</summary>
+		/// <summary>
+		/// Clears captured emails. NOT an isolation mechanism between test methods that
+		/// share this instance — a spec that needs isolation should own an exclusive
+		/// ApiFixture instead (see the class remarks). This exists for a single test that
+		/// wants to discard an earlier phase of its own multi-step scenario.
+		/// </summary>
 		public void Clear() {
 			_sent.Clear();
 		}

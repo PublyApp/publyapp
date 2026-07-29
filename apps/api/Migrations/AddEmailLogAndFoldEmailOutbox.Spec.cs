@@ -481,49 +481,31 @@ public sealed class AddEmailLogAndFoldEmailOutboxSpec : IClassFixture<ApiFixture
 		await using var foldDb = CreateDbContext();
 		await using var dispatcherDb = CreateDbContext();
 
-		// Precondition (NOT the assertion): a committed, DUE, Pending row that is STILL
-		// Pending once the fold transaction holds its table lock. The
-		// InvitationEmailOutboxDispatcher hosted service runs live against the test DB with
-		// this exact claim predicate, so it can occasionally claim the seeded row in the
-		// millisecond before the fold takes its lock. Retry until we observe the row Pending
-		// UNDER the lock — from that point no claimer (live or the controlled one below) can
-		// move it until we commit, so the interleave is deterministic. A fresh row is seeded
-		// per attempt; any row the live dispatcher grabbed is an orphan and unused here.
+		// Precondition (NOT the assertion): a committed, DUE, Pending row. The integration
+		// host registers no live InvitationEmailOutboxDispatcher for any spec
+		// (ApiFactory.RemoveWorkerHostedServices), so nothing but this test's own explicit
+		// dispatcherDb.ClaimBatchAsync call below can ever claim it — the row is guaranteed
+		// Pending under the fold lock on the first and only attempt, which keeps the
+		// interleave deterministic without a retry loop.
 		var foldTx = await foldDb.Database.BeginTransactionAsync();
-		var outboxId = Guid.Empty;
-		var established = false;
-		for (var attempt = 0; attempt < 10 && !established; attempt++) {
-			outboxId = await SeedOutboxAsync(o => {
-				o.Kind = InvitationEmailKind.StaffInvitation;
-				o.Status = InvitationEmailOutboxStatus.Pending;
-				o.InvitationId = invitationId;
-				// Due, so the claim predicate (next_attempt_at <= now) matches.
-				o.NextAttemptAt = DateTime.UtcNow.AddMinutes(-1);
-			});
+		var outboxId = await SeedOutboxAsync(o => {
+			o.Kind = InvitationEmailKind.StaffInvitation;
+			o.Status = InvitationEmailOutboxStatus.Pending;
+			o.InvitationId = invitationId;
+			// Due, so the claim predicate (next_attempt_at <= now) matches.
+			o.NextAttemptAt = DateTime.UtcNow.AddMinutes(-1);
+		});
 
-			await ExecRawAsync(foldDb, AddEmailLogAndFoldEmailOutboxSql.LockOutboxForFold);
+		await ExecRawAsync(foldDb, AddEmailLogAndFoldEmailOutboxSql.LockOutboxForFold);
 
-			var lockedId = outboxId;
-			var statusUnderLock = await foldDb.InvitationEmailOutbox.AsNoTracking()
-				.Where(o => o.Id == lockedId)
-				.Select(o => o.Status)
-				.SingleAsync();
-			if (statusUnderLock == InvitationEmailOutboxStatus.Pending) {
-				established = true;
-				break;
-			}
-
-			// The live dispatcher won the pre-lock window; drop the lock and retry.
-			await foldTx.RollbackAsync();
-			await foldTx.DisposeAsync();
-			foldTx = await foldDb.Database.BeginTransactionAsync();
-		}
-
-		if (!established) {
-			await foldTx.DisposeAsync();
-			throw new InvalidOperationException(
-				"could not observe the seeded row Pending under the fold lock after retries");
-		}
+		var statusUnderLock = await foldDb.InvitationEmailOutbox.AsNoTracking()
+			.Where(o => o.Id == outboxId)
+			.Select(o => o.Status)
+			.SingleAsync();
+		statusUnderLock.Should().Be(
+			InvitationEmailOutboxStatus.Pending,
+			"nothing else in the integration host can have claimed this row before the fold lock"
+		);
 
 		List<Guid> claimed;
 		try {

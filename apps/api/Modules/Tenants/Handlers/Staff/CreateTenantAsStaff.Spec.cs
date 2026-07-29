@@ -13,18 +13,14 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
 using PublyApp.Api.Data.DbContext;
-using PublyApp.Api.Infrastructure.Messaging.Email;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
-using PublyApp.Api.Lib.Testing.Fakes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Localization;
-using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Profiles.Entities;
-using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Tenants.Services;
 using PublyApp.Api.Modules.Tenants.Validation;
 using PublyApp.Api.Modules.Users.Entities;
@@ -45,109 +41,10 @@ public sealed class CreateTenantAsStaffSpec
 		_authClient = new TestAuthClient(_http);
 	}
 
-	[Fact]
-	public async Task
-	ItShouldCreatePendingTenantDefaultProfileInvitationsAndEmails() {
-		var fakeEmailSender = _fixture.GetFakeEmailSender();
-		fakeEmailSender.Clear();
-
-		var token =
-			await _authClient.LoginAsStaffAdminAsync();
-		var tenantName =
-			$"Tenant Create Contract {Guid.NewGuid():N}";
-		var adminEmail =
-			$"tenant-create-admin-{Guid.NewGuid():N}@example.com";
-		var userEmail =
-			$"tenant-create-user-{Guid.NewGuid():N}@example.com";
-
-		using var response = await _http.SendAsync(
-			CreateTenantRequest(
-				token,
-				new {
-					name = tenantName,
-					maxUsers = 3,
-					initialUsers = new[] {
-						new {
-							email = adminEmail,
-							accountLevel = "admin",
-						},
-						new {
-							email = userEmail,
-							accountLevel = "user",
-						},
-					},
-				}
-			)
-		);
-
-		response.StatusCode.Should()
-			.Be(HttpStatusCode.Created);
-
-		var created = await response.Content
-			.ReadFromJsonAsync<CreateTenantAsStaffResult>();
-		created.Should().NotBeNull();
-		Assert.NotNull(created);
-		created.Id.Should().NotBeEmpty();
-		created.Name.Should().Be(tenantName);
-
-		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
-
-		var tenant = await dbContext.Tenant
-			.Where(t => t.Id == created.Id)
-			.SingleAsync();
-		tenant.Name.Should().Be(tenantName);
-		tenant.MaxUsers.Should().Be(3);
-		tenant.Status.Should().Be(TenantStatus.Pending);
-
-		var defaultProfile = await dbContext.Profile
-			.Where(profile =>
-				profile.TenantId == created.Id
-				&& profile.Scope == ProfileScope.Tenant
-				&& profile.IsDefault
-			)
-			.SingleAsync();
-		defaultProfile.Name.Should().Be("Default profile");
-
-		var invitations = await dbContext.Invitation
-			.Where(invitation =>
-				invitation.TenantId == created.Id
-				&& invitation.Scope == InvitationScope.Tenant
-			)
-			.Include(invitation => invitation.InvitationProfiles)
-			.ToListAsync();
-
-		invitations.Should().HaveCount(2);
-
-		var adminInvitation = invitations.Single(inv => inv.Email == adminEmail);
-		adminInvitation.Status.Should().Be(InvitationStatus.Pending);
-		adminInvitation.AccountLevel.Should().Be(AccountLevel.Admin);
-		adminInvitation.InvitationProfiles.Should().BeEmpty();
-
-		var userInvitation = invitations.Single(inv => inv.Email == userEmail);
-		userInvitation.Status.Should().Be(InvitationStatus.Pending);
-		userInvitation.AccountLevel.Should().Be(AccountLevel.User);
-		userInvitation.InvitationProfiles.Should().ContainSingle(link =>
-			link.ProfileId == defaultProfile.GetRequiredId()
-		);
-
-		var sentEmails = await WaitForEmailsAsync(fakeEmailSender, 2);
-		// Filter to this test's own recipients rather than asserting on the
-		// whole fixture-scoped buffer: a straggling fire-and-forget email from
-		// a prior test in this class can still land here after Clear().
-		var relevantEmails = sentEmails
-			.Where(email => email.To == adminEmail || email.To == userEmail)
-			.ToList();
-
-		relevantEmails.Select(email => email.To)
-			.Should().BeEquivalentTo([adminEmail, userEmail]);
-		relevantEmails.Should().OnlyContain(email =>
-			email.Subject.Contains(tenantName, StringComparison.Ordinal)
-			&& email.HtmlBody.Contains("Accept the invitation", StringComparison.Ordinal)
-		);
-	}
+	// Email-observing coverage for tenant creation (pending state, default profile,
+	// invitations, and the outbox->dispatcher->FakeEmailSender path) lives in the sibling
+	// CreateTenantAsStaffEmailSpec, which owns an exclusive ApiFixture per test method —
+	// see that file's header comment for why.
 
 	[Fact]
 	public async Task
@@ -1309,26 +1206,6 @@ public sealed class CreateTenantAsStaffSpec
 					.Be(ResponseKeys.RequestBodyValidationFailed.Value);
 		problem.Errors.Keys.Should()
 			.Contain(fieldName);
-	}
-
-	private static async Task<IReadOnlyCollection<EmailRequest>>
-	WaitForEmailsAsync(
-		FakeEmailSender fakeEmailSender,
-		int expectedCount
-	) {
-		const int maxAttempts = 20;
-
-		for (var attempt = 0; attempt < maxAttempts; attempt++) {
-			var sentEmails = fakeEmailSender.SentEmails;
-
-			if (sentEmails.Count >= expectedCount) {
-				return sentEmails;
-			}
-
-			await Task.Delay(100);
-		}
-
-		return fakeEmailSender.SentEmails;
 	}
 
 	public class ThrowingTenantServiceProxy : DispatchProxy {
