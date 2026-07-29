@@ -24,12 +24,30 @@ import { parse } from 'yaml';
 // the failure mode this closes: `gate.needs` is required to be the full set
 // of every other job in the file, not a hand-maintained list, so removing a
 // job from `needs` is a structural mismatch even if nothing else changes.
+//
+// Round 2 added four more checks, each a distinct false-green wiring a
+// reviewer found this guard missed:
+//   - the classifier step's `id` (renaming it away from `filter` makes
+//     `outputs.relevant`'s literal `steps.filter...` reference resolve
+//     empty at runtime, even though the output expression string itself is
+//     untouched and still matches EXPECTED_CHANGES_OUTPUT);
+//   - the gate job's `name` (the externally required check string — a
+//     silent rename produces a missing required context, not a red gate);
+//   - the `pull_request` trigger regaining a `paths:` filter (recreates the
+//     exact pending-check deadlock #1017 exists to fix);
+//   - the gate step's result-aggregation no longer being a hand-maintained
+//     Bash map at all: the gate steps now read `${{ toJSON(needs) }}`
+//     directly (see the workflow YAML), so there is no second list to drift
+//     out of sync with `gate.needs` in the first place. This guard pins
+//     that the gate step still wires `NEEDS_JSON` to that exact expression.
 
 const workflowsDirectory = '.github/workflows';
 
 const EXPECTED_CHANGES_OUTPUT = "${{ steps.filter.outputs.relevant }}";
+const EXPECTED_CLASSIFIER_STEP_ID = 'filter';
 const EXPECTED_RELEVANCE_IF = "needs.changes.outputs.relevant == 'true'";
 const EXPECTED_GATE_IF = 'always()';
+const EXPECTED_NEEDS_JSON_EXPR = '${{ toJSON(needs) }}';
 
 /**
  * The four #1017 aggregate-gate workflows and the job graph each one must
@@ -38,12 +56,14 @@ const EXPECTED_GATE_IF = 'always()';
  * GHCR `cleanup`) that intentionally run regardless via their own
  * `if: always()`. `gate.needs` is not listed here — it is required to equal
  * every other job in the file, computed from the parsed document itself.
+ * `gateName` is the externally required check string.
  */
 const GATE_WORKFLOWS = [
 	{
 		file: 'front-e2e.yml',
 		changesJob: 'changes',
 		gateJob: 'gate',
+		gateName: 'front-e2e-gate',
 		relevanceGatedJobs: [
 			{ id: 'build', needs: ['changes'] },
 			{ id: 'test', needs: ['changes', 'build'] },
@@ -54,6 +74,7 @@ const GATE_WORKFLOWS = [
 		file: 'front-ci.yml',
 		changesJob: 'changes',
 		gateJob: 'gate',
+		gateName: 'front-ci-gate',
 		relevanceGatedJobs: [{ id: 'supply-chain', needs: ['changes'] }],
 		alwaysJobs: [],
 	},
@@ -61,6 +82,7 @@ const GATE_WORKFLOWS = [
 		file: 'openapi-spec-drift.yml',
 		changesJob: 'changes',
 		gateJob: 'gate',
+		gateName: 'openapi-spec-drift-gate',
 		relevanceGatedJobs: [{ id: 'spec-drift', needs: ['changes'] }],
 		alwaysJobs: [],
 	},
@@ -68,6 +90,7 @@ const GATE_WORKFLOWS = [
 		file: 'docs-archive.yml',
 		changesJob: 'changes',
 		gateJob: 'gate',
+		gateName: 'docs-archive-gate',
 		relevanceGatedJobs: [{ id: 'docs-archive', needs: ['changes'] }],
 		alwaysJobs: [],
 	},
@@ -105,11 +128,21 @@ const setsEqual = (a, b) => {
  * array of human-readable findings (empty when the graph matches).
  */
 const checkWorkflow = (
-	{ file, changesJob, gateJob, relevanceGatedJobs, alwaysJobs },
+	{ file, changesJob, gateJob, gateName, relevanceGatedJobs, alwaysJobs },
 	document,
 ) => {
 	const findings = [];
 	const jobs = document?.jobs ?? {};
+
+	// Round 2, finding: "Restore a pull_request.paths filter. This recreates
+	// the original pending-check deadlock and is not inspected." A
+	// path-filtered pull_request trigger never starts for an unrelated PR,
+	// so a required check on this workflow would hang forever again.
+	if (document?.on?.pull_request?.paths !== undefined) {
+		findings.push(
+			`${file}: the \`pull_request\` trigger must not have a \`paths:\` filter — that recreates the pending-check deadlock #1017 exists to fix. Found \`paths: ${JSON.stringify(document.on.pull_request.paths)}\`.`,
+		);
+	}
 
 	const changes = jobs[changesJob];
 
@@ -128,9 +161,32 @@ const checkWorkflow = (
 			);
 		}
 
+		if (changes.permissions?.contents !== 'read') {
+			findings.push(
+				`${file}::${changesJob}: must declare \`permissions: { contents: read }\` — job-level \`permissions\` sets every unlisted permission to \`none\`, and \`actions/checkout\` documents \`contents: read\` as required; found ${JSON.stringify(changes.permissions ?? null)}.`,
+			);
+		}
+
 		if (changes.outputs?.relevant !== EXPECTED_CHANGES_OUTPUT) {
 			findings.push(
 				`${file}::${changesJob}: expected \`outputs.relevant\` to be \`${EXPECTED_CHANGES_OUTPUT}\`, found ${JSON.stringify(changes.outputs?.relevant ?? null)}.`,
+			);
+		}
+
+		// Round 2, finding: renaming the classifier step's `id` away from
+		// `filter` leaves EXPECTED_CHANGES_OUTPUT's literal string untouched
+		// (it still reads "steps.filter.outputs.relevant") but makes that
+		// reference resolve empty at runtime, since no step has that id
+		// anymore. The output-expression string check above cannot catch
+		// this; only checking that the id actually exists as a step can.
+		const steps = Array.isArray(changes.steps) ? changes.steps : [];
+		const hasClassifierStepId = steps.some(
+			(step) => step?.id === EXPECTED_CLASSIFIER_STEP_ID,
+		);
+
+		if (!hasClassifierStepId) {
+			findings.push(
+				`${file}::${changesJob}: expected a step with \`id: ${EXPECTED_CLASSIFIER_STEP_ID}\` (the classifier step \`outputs.relevant\` refers to via \`steps.${EXPECTED_CLASSIFIER_STEP_ID}.outputs.relevant\`), but no step has that id. Renaming the step's id without updating the output silently breaks the output at runtime.`,
 			);
 		}
 	}
@@ -194,6 +250,16 @@ const checkWorkflow = (
 			);
 		}
 
+		// Round 2, finding: "Rename the required check's job-level name...
+		// the guard claims to pin the aggregate gates and does not pin their
+		// externally required names." gate.name IS the string that must be
+		// entered as a required status check in the branch ruleset.
+		if (gate.name !== gateName) {
+			findings.push(
+				`${file}::${gateJob}: expected \`name: ${gateName}\` (the externally required status check string), found ${JSON.stringify(gate.name ?? null)}.`,
+			);
+		}
+
 		// The decisive check: gate.needs must equal EVERY other job in the
 		// file, derived from the parsed document rather than a hand-maintained
 		// list here. Dropping any job from `gate.needs` — including one whose
@@ -216,6 +282,25 @@ const checkWorkflow = (
 					(missing.length > 0 ? `Missing: [${missing.join(', ')}]. ` : '') +
 					(extra.length > 0 ? `Unexpected: [${extra.join(', ')}]. ` : '') +
 					"A job dropped from a required aggregate's `needs` can no longer fail the gate.",
+			);
+		}
+
+		// Round 2, finding: "Add a failed job, include it in gate.needs, but
+		// omit it from the hand-written Bash result map. The derived-needs
+		// assertion passes, yet the gate's shell never examines the new
+		// failure." Fixed at the source: the gate step now reads
+		// `${{ toJSON(needs) }}` (the workflow YAML), which GitHub Actions
+		// populates from `needs:` itself, so there is no second,
+		// hand-maintained list that can silently omit an entry. Pin that the
+		// mechanism is actually wired, not a hand-rolled map.
+		const gateSteps = Array.isArray(gate.steps) ? gate.steps : [];
+		const hasNeedsJsonWiring = gateSteps.some(
+			(step) => step?.env?.NEEDS_JSON === EXPECTED_NEEDS_JSON_EXPR,
+		);
+
+		if (!hasNeedsJsonWiring) {
+			findings.push(
+				`${file}::${gateJob}: expected a step with \`env.NEEDS_JSON: ${EXPECTED_NEEDS_JSON_EXPR}\`, so job results are aggregated from the \`needs\` context itself rather than a hand-maintained Bash map that could omit an entry. Found none.`,
 			);
 		}
 	}
