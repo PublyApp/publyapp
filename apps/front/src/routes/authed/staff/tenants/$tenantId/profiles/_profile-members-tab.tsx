@@ -5,7 +5,6 @@ import { DataTable } from '~/components/table/data-table';
 import { useOffsetPageClamp } from '~/components/table/offset-pagination';
 import { useTableController } from '~/components/table/use-table-controller';
 import { Button } from '~/components/ui/button';
-import { Card } from '~/components/ui/card';
 import {
 	toStaffTenantProfileMemberRows,
 	useStaffTenantProfileMembersQuery,
@@ -84,7 +83,9 @@ export const ProfileMembersTab = ({
 
 	return (
 		<>
-			<Card className="min-h-0 flex-1 gap-4 p-5">
+			{/* DataTable already renders its own `.publy-table-card` surface — no
+			outer Card here, or it's a card inside a card (#978). */}
+			<div className="flex min-h-0 flex-1 flex-col gap-4">
 				<div className="shrink-0 flex flex-wrap items-center justify-between gap-3">
 					<div className="space-y-1">
 						<h2 className="text-lg font-semibold text-foreground">
@@ -141,7 +142,7 @@ export const ProfileMembersTab = ({
 					onSearchDraftChange={controller.search.onDraftChange}
 					searchPlaceholder={t('search-tenant-members')}
 				/>
-			</Card>
+			</div>
 
 			<AssignMembersDrawer
 				tenantId={tenantId}

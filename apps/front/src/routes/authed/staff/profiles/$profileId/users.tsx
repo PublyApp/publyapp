@@ -14,7 +14,6 @@ import { DataTable } from '~/components/table/data-table';
 import { useOffsetPageClamp } from '~/components/table/offset-pagination';
 import { useTableController } from '~/components/table/use-table-controller';
 import { Button, buttonVariants } from '~/components/ui/button';
-import { Card } from '~/components/ui/card';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
@@ -381,59 +380,57 @@ function StaffProfileUsersPage() {
 				</TabsList>
 
 				<TabsContent value="users" className="publy-detail-tab-body min-h-0">
-					<Card className="min-h-0 flex-1 gap-4 p-5">
-						<div className="shrink-0 space-y-1">
-							<p className="text-lg font-semibold text-foreground">
-								{t('assigned-users')}
-							</p>
-							<p className="text-sm text-muted-foreground">
-								{t('staff-profile-users-description')}
-							</p>
-						</div>
+					{/* DataTable already renders its own `.publy-table-card` surface —
+					no outer Card here, or it's a card inside a card (#978). */}
+					<div className="shrink-0 space-y-1">
+						<p className="text-lg font-semibold text-foreground">
+							{t('assigned-users')}
+						</p>
+						<p className="text-sm text-muted-foreground">
+							{t('staff-profile-users-description')}
+						</p>
+					</div>
 
-						<DataTable
-							testId="staff-profile-users-table"
-							ariaLabel={t('assigned-staff-profile-users')}
-							columns={columns}
-							rows={rows}
-							isPending={usersQuery.isPending}
-							isError={usersQuery.isError}
-							onRetry={() => void usersQuery.refetch()}
-							errorContent={
-								usersFailure?.kind === 'problem' &&
-								usersFailure.status === 403 ? (
-									<p className="text-sm text-muted-foreground">
-										{t('no-permission-to-view-assigned-users')}
-									</p>
-								) : undefined
+					<DataTable
+						testId="staff-profile-users-table"
+						ariaLabel={t('assigned-staff-profile-users')}
+						columns={columns}
+						rows={rows}
+						isPending={usersQuery.isPending}
+						isError={usersQuery.isError}
+						onRetry={() => void usersQuery.refetch()}
+						errorContent={
+							usersFailure?.kind === 'problem' &&
+							usersFailure.status === 403 ? (
+								<p className="text-sm text-muted-foreground">
+									{t('no-permission-to-view-assigned-users')}
+								</p>
+							) : undefined
+						}
+						emptyContent={t('no-users-assigned-to-profile')}
+						noMatchContent={t('no-assigned-users-match-search')}
+						hasActiveSearch={Boolean(controller.search.committed)}
+						sort={controller.sort}
+						onSortChange={controller.onSortChange}
+						size={controller.size}
+						onSizeChange={controller.onSizeChange}
+						pageIndex={pageIndex}
+						hasPreviousPage={hasPreviousPage}
+						hasNextPage={hasNextPage}
+						isPaginationPending={usersQuery.isFetching && !usersQuery.isPending}
+						onNextPage={() => {
+							if (hasNextPage) {
+								setPageIndex((current) => current + 1);
 							}
-							emptyContent={t('no-users-assigned-to-profile')}
-							noMatchContent={t('no-assigned-users-match-search')}
-							hasActiveSearch={Boolean(controller.search.committed)}
-							sort={controller.sort}
-							onSortChange={controller.onSortChange}
-							size={controller.size}
-							onSizeChange={controller.onSizeChange}
-							pageIndex={pageIndex}
-							hasPreviousPage={hasPreviousPage}
-							hasNextPage={hasNextPage}
-							isPaginationPending={
-								usersQuery.isFetching && !usersQuery.isPending
+						}}
+						onPreviousPage={() => {
+							if (hasPreviousPage) {
+								setPageIndex((current) => Math.max(current - 1, 0));
 							}
-							onNextPage={() => {
-								if (hasNextPage) {
-									setPageIndex((current) => current + 1);
-								}
-							}}
-							onPreviousPage={() => {
-								if (hasPreviousPage) {
-									setPageIndex((current) => Math.max(current - 1, 0));
-								}
-							}}
-							searchDraft={controller.search.draft}
-							onSearchDraftChange={controller.search.onDraftChange}
-						/>
-					</Card>
+						}}
+						searchDraft={controller.search.draft}
+						onSearchDraftChange={controller.search.onDraftChange}
+					/>
 				</TabsContent>
 			</Tabs>
 		</div>

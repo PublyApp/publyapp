@@ -664,15 +664,21 @@ describe('StaffTenantProfileMembersPage — contained scroll layout', () => {
 		expect(tabsContent).not.toBeNull();
 		expect(tabsContent?.className).toContain('min-h-0');
 
-		const card = table.closest('[data-slot="card"]');
-		expect(card).not.toBeNull();
-		expect(card?.className).toContain('min-h-0');
-		expect(card?.className).toContain('flex-1');
-
 		const tabsRoot = tabsContent?.closest('[data-slot="tabs"]');
 		expect(tabsRoot).not.toBeNull();
 		expect(tabsRoot?.className).toContain('min-h-0');
 		expect(tabsRoot?.className).toContain('flex-1');
+	});
+
+	// #978: DataTable already renders its own `.publy-table-card` surface —
+	// wrapping it in a `Card` produces two concentric rounded surfaces. This
+	// route must render the table directly on the tab body, matching the
+	// convention on staff/tenants.tsx and its siblings.
+	test('#978: renders the table directly on the tab body, with no wrapping Card', () => {
+		renderPage();
+
+		const table = screen.getByTestId('staff-tenant-profile-members-table');
+		expect(table.closest('[data-slot="card"]')).toBeNull();
 	});
 });
 

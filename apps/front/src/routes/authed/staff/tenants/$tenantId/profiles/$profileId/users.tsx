@@ -9,7 +9,6 @@ import { DataTable } from '~/components/table/data-table';
 import { useOffsetPageClamp } from '~/components/table/offset-pagination';
 import { useTableController } from '~/components/table/use-table-controller';
 import { Button } from '~/components/ui/button';
-import { Card } from '~/components/ui/card';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import {
@@ -387,74 +386,74 @@ const StaffTenantProfileMembersPage = () => {
 						value="members"
 						className="publy-detail-tab-body min-h-0"
 					>
-						<Card className="min-h-0 flex-1 gap-4 p-5">
-							<div className="shrink-0 flex flex-wrap items-center justify-between gap-3">
-								<div className="space-y-1">
-									<p className="text-lg font-semibold text-foreground">
-										{t('members')}
-										<span className="ml-2 publy-profile-count-badge align-middle">
-											{profile.userAccountCount}
-										</span>
-									</p>
-									<p className="text-sm text-muted-foreground">
-										{t('profile-members-tab-description')}
-									</p>
-								</div>
-								<Button
-									type="button"
-									variant="default"
-									onClick={() => setAssignDrawerOpen(true)}
-								>
-									{t('assign-members')}
-								</Button>
+						{/* DataTable already renders its own `.publy-table-card` surface —
+						no outer Card here, or it's a card inside a card (#978). */}
+						<div className="shrink-0 flex flex-wrap items-center justify-between gap-3">
+							<div className="space-y-1">
+								<p className="text-lg font-semibold text-foreground">
+									{t('members')}
+									<span className="ml-2 publy-profile-count-badge align-middle">
+										{profile.userAccountCount}
+									</span>
+								</p>
+								<p className="text-sm text-muted-foreground">
+									{t('profile-members-tab-description')}
+								</p>
 							</div>
+							<Button
+								type="button"
+								variant="default"
+								onClick={() => setAssignDrawerOpen(true)}
+							>
+								{t('assign-members')}
+							</Button>
+						</div>
 
-							<DataTable<StaffTenantProfileMemberRow>
-								testId="staff-tenant-profile-members-table"
-								ariaLabel={t('profile-members-table-aria-label')}
-								columns={memberColumns}
-								rows={memberRows}
-								getRowLabel={(row) => row.displayName}
-								isPending={membersQuery.isPending}
-								isError={membersQuery.isError}
-								onRetry={() => void membersQuery.refetch()}
-								emptyIcon={IconUsers}
-								emptyTitle={t('profile-members-empty-title')}
-								emptyContent={t('profile-members-empty-description')}
-								noMatchTitle={t('tenant-users-no-match-title')}
-								noMatchContent={t('tenant-users-no-match-description')}
-								hasActiveSearch={Boolean(membersController.search.committed)}
-								sort={membersController.sort}
-								onSortChange={membersController.onSortChange}
-								size={membersController.size}
-								onSizeChange={membersController.onSizeChange}
-								pageIndex={membersPageIndex}
-								hasPreviousPage={membersPageIndex > 0}
-								hasNextPage={
+						<DataTable<StaffTenantProfileMemberRow>
+							testId="staff-tenant-profile-members-table"
+							ariaLabel={t('profile-members-table-aria-label')}
+							columns={memberColumns}
+							rows={memberRows}
+							getRowLabel={(row) => row.displayName}
+							isPending={membersQuery.isPending}
+							isError={membersQuery.isError}
+							onRetry={() => void membersQuery.refetch()}
+							emptyIcon={IconUsers}
+							emptyTitle={t('profile-members-empty-title')}
+							emptyContent={t('profile-members-empty-description')}
+							noMatchTitle={t('tenant-users-no-match-title')}
+							noMatchContent={t('tenant-users-no-match-description')}
+							hasActiveSearch={Boolean(membersController.search.committed)}
+							sort={membersController.sort}
+							onSortChange={membersController.onSortChange}
+							size={membersController.size}
+							onSizeChange={membersController.onSizeChange}
+							pageIndex={membersPageIndex}
+							hasPreviousPage={membersPageIndex > 0}
+							hasNextPage={
+								(membersPageIndex + 1) * membersController.size <
+								(membersQuery.data?.count ?? 0)
+							}
+							isPaginationPending={
+								membersQuery.isFetching && !membersQuery.isPending
+							}
+							onNextPage={() => {
+								const hasNext =
 									(membersPageIndex + 1) * membersController.size <
-									(membersQuery.data?.count ?? 0)
+									(membersQuery.data?.count ?? 0);
+								if (hasNext) {
+									setMembersPageIndex((current) => current + 1);
 								}
-								isPaginationPending={
-									membersQuery.isFetching && !membersQuery.isPending
+							}}
+							onPreviousPage={() => {
+								if (membersPageIndex > 0) {
+									setMembersPageIndex((current) => Math.max(current - 1, 0));
 								}
-								onNextPage={() => {
-									const hasNext =
-										(membersPageIndex + 1) * membersController.size <
-										(membersQuery.data?.count ?? 0);
-									if (hasNext) {
-										setMembersPageIndex((current) => current + 1);
-									}
-								}}
-								onPreviousPage={() => {
-									if (membersPageIndex > 0) {
-										setMembersPageIndex((current) => Math.max(current - 1, 0));
-									}
-								}}
-								searchDraft={membersController.search.draft}
-								onSearchDraftChange={membersController.search.onDraftChange}
-								searchPlaceholder={t('search-tenant-members')}
-							/>
-						</Card>
+							}}
+							searchDraft={membersController.search.draft}
+							onSearchDraftChange={membersController.search.onDraftChange}
+							searchPlaceholder={t('search-tenant-members')}
+						/>
 					</TabsContent>
 				</Tabs>
 			</div>
