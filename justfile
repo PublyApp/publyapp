@@ -139,7 +139,7 @@ deploy:
 
 # Run API (skip restore; run `just install` first)
 run-api:
-  cd {{api_dir}} && dotnet run --no-restore
+  cd {{api_dir}} && dotnet run --no-restore -property:OpenApiGenerateDocuments=false
 
 # Start frontend production server
 start-front:
@@ -231,11 +231,11 @@ db-remove $APP_ROLE="api":
 
 # Run bulk seed (500 tenants, ~8K tenant users, 500 staff users, ~5K projects)
 seed-bulk:
-  cd {{api_dir}} && dotnet run -- seed-bulk
+  cd {{api_dir}} && dotnet run -property:OpenApiGenerateDocuments=false -- seed-bulk
 
 # Clear bulk seed data
 seed-bulk-reset:
-  cd {{api_dir}} && dotnet run -- seed-bulk-reset
+  cd {{api_dir}} && dotnet run -property:OpenApiGenerateDocuments=false -- seed-bulk-reset
 
 # =============================================================================
 # Testing
