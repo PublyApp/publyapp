@@ -199,3 +199,52 @@ public sealed class BulkSeederSoftDeleteTrapSpec : IClassFixture<ApiFixture> {
 		);
 	}
 }
+
+public sealed class BulkSeederGenuineFailureSpec : IClassFixture<ApiFixture> {
+	private readonly ApiFixture _fixture;
+
+	public BulkSeederGenuineFailureSpec(ApiFixture fixture) {
+		_fixture = fixture;
+	}
+
+	[Fact]
+	public async Task ItShouldThrowWhenAGenuineNonDuplicateFailureOccurs() {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var seeder = new BulkSeeder(batchSize: 50, generator: BulkSeederSpecSupport.CreateSmallGenerator());
+		await seeder.SeedBulkAsync(dbContext);
+
+		// Hard-delete one tenant (and its dependents, to satisfy the FK) so the next run
+		// must genuinely attempt an INSERT for it — a natural-key match alone would just
+		// skip it, never reaching the database.
+		var tenantToRemove = await dbContext.Tenant.SingleAsync(t => t.Code == $"{BulkSeedConstants.TenantCodePrefix}001");
+		var tenantToRemoveId = tenantToRemove.GetRequiredId();
+		var dependentAccounts = await dbContext.UserAccount.Where(ua => ua.TenantId == tenantToRemoveId).ToListAsync();
+		var dependentProjects = await dbContext.Project.Where(p => p.TenantId == tenantToRemoveId).ToListAsync();
+		dbContext.ForceHardDeleteRange(dependentAccounts);
+		dbContext.ForceHardDeleteRange(dependentProjects);
+		dbContext.ForceHardDelete(tenantToRemove);
+		await dbContext.SaveChangesAsync();
+		dbContext.ChangeTracker.Clear();
+
+		// Force a genuine, non-"already exists" failure on the very next insert: a check
+		// constraint that rejects every new row, unrelated to the unique-natural-key
+		// collision the idempotency logic is designed to tolerate. NOT VALID skips
+		// validating pre-existing rows (which would otherwise fail the ALTER itself) but
+		// is still enforced for every subsequent INSERT/UPDATE — exactly what we need to
+		// prove a genuine failure (SqlState 23514, not 23505) is never swallowed.
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"ALTER TABLE \"tenants\" ADD CONSTRAINT ck_test_reject_all_inserts CHECK (false) NOT VALID"
+		);
+
+		var reseeder = new BulkSeeder(batchSize: 50, generator: BulkSeederSpecSupport.CreateSmallGenerator());
+		var act = async () => await reseeder.SeedBulkAsync(dbContext);
+
+		var thrown = await act.Should().ThrowAsync<DbUpdateException>(
+			"a genuine constraint failure that is not the already-exists case must propagate, not be caught and skipped"
+		);
+		thrown.Which.InnerException.Should().BeOfType<Npgsql.PostgresException>()
+			.Which.SqlState.Should().Be("23514", "the induced failure is a check violation, not the 23505 unique violation the seeder tolerates");
+	}
+}
