@@ -8,6 +8,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import {
 	countExactSelectorRules,
+	countSearchInputCancelButtonRules,
 	resolveEffectiveDeclarations,
 } from '~/styles/css-cascade-test-support';
 
@@ -164,9 +165,14 @@ describe('SearchInput', () => {
 	// goes through `resolveEffectiveDeclarations()`
 	// (css-cascade-test-support.ts), which collects every top-level rule
 	// that exactly matches the selector and resolves last-declaration-wins
-	// per property — see that module for its documented, honest limits (no
-	// specificity, no important-flagged declarations, no `@media`).
+	// per property. Round 4 added a separate fail-closed rule count because
+	// this invariant cannot safely depend on a bounded cascade model.
 	test("the native ::-webkit-search-cancel-button suppression rule exists and targets this component's actual rendered markup", () => {
+		expect(countSearchInputCancelButtonRules(appCssSource)).toBe(1);
+		expect(countExactSelectorRules(appCssSource, SEARCH_CANCEL_SELECTOR)).toBe(
+			1,
+		);
+
 		const declarations = resolveEffectiveDeclarations(
 			appCssSource,
 			SEARCH_CANCEL_SELECTOR,
@@ -177,12 +183,11 @@ describe('SearchInput', () => {
 		// as the EFFECTIVE value for each property (not "does some rule body
 		// somewhere mention this") so a later override of only one of the two
 		// properties is still caught.
-		expect(declarations.get('display')).toBe('none');
-		expect(declarations.get('appearance')).toBe('none');
-		// `-webkit-appearance` is checked separately: it is a distinct
-		// property from unprefixed `appearance` in the cascade, and the
-		// original rule sets both.
-		expect(declarations.get('-webkit-appearance')).toBe('none');
+		expect(Object.fromEntries(declarations)).toEqual({
+			'-webkit-appearance': 'none',
+			appearance: 'none',
+			display: 'none',
+		});
 
 		render(
 			<SearchInput value="" onValueChange={vi.fn()} aria-label="Search" />,
@@ -252,6 +257,27 @@ describe('SearchInput', () => {
 		expect(declarations.get('-webkit-appearance')).toBe('none');
 	});
 
+	// Round 4 review: ancestor compounds contribute specificity in the real
+	// cascade, but the bounded resolver intentionally scores only the final
+	// compound. Search cancel suppression has no browser backstop, so this
+	// invariant fails closed instead: any additional rule targeting the same
+	// input pseudo-element is forbidden, regardless of specificity or source
+	// order.
+	test('an ancestor-qualified rule targeting the cancel pseudo-element is rejected (fail-closed regression proof)', () => {
+		const reviewerOverride = `.publy-search-wrapper>.publy-search-input[type='search']::-webkit-search-cancel-button {
+	-webkit-appearance: auto;
+	appearance: auto;
+	display: inline-block;
+}
+`;
+		const mutatedCss = appCssSource.replace(
+			`${SEARCH_CANCEL_SELECTOR} {`,
+			`${reviewerOverride}\n${SEARCH_CANCEL_SELECTOR} {`,
+		);
+
+		expect(countSearchInputCancelButtonRules(mutatedCss)).toBe(2);
+	});
+
 	// Importance regression proof: an earlier important-flagged re-enabling
 	// declaration must beat a LATER plain one for the same property, even
 	// though the plain declaration is both later in source and equal
@@ -308,23 +334,11 @@ describe('SearchInput', () => {
 	// real-browser coverage this repo DOES get (exactly one accessible,
 	// working custom clear control).
 	//
-	// RESIDUAL RISK (owner-facing, round 3): the resolver above now handles
-	// specificity for a compound selector built on top of the target (an
-	// extra class in the same compound), CSS importance, and conditional-
-	// at-rule exclusion — closing every blind spot the round 3 review
-	// actually demonstrated. It does NOT add the specificity contributed by
-	// an ANCESTOR compound in a descendant/child/sibling selector — e.g.
-	// `body .publy-search-input[type='search']::-webkit-search-cancel-button
-	// { ... }` is scored identically to the bare selector rather than one
-	// specificity rank higher, so an override written that way and placed
-	// earlier in source could still lose to a later plain rule at the
-	// resolver's computed "tie" when real CSS would have ranked it as the
-	// winner regardless of order. This is a narrower and less likely attack
-	// shape than the plain compound-append the review demonstrated (it
-	// requires an ancestor-qualified override, not just an extra class), and
-	// there remains no real-browser authority to catch it if it happens —
-	// this is the residual risk to accept knowingly rather than treat as
-	// closed.
+	// Round 4 closure: ancestor specificity remains outside the bounded
+	// resolver, but the canonical-source assertion above now rejects every
+	// additional parsed rule that mentions both `.publy-search-input` and
+	// `::-webkit-search-cancel-button`. The reviewer’s ancestor-qualified
+	// override therefore fails before cascade resolution can false-green.
 
 	test('the table size variant carries the fixed-height data-table search class', () => {
 		render(
