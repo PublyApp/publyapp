@@ -144,6 +144,37 @@ Recorded here rather than hidden, so they can be judged:
   - It does not inspect `AddForeignKey`, `AddCheckConstraint`, unique `CreateIndex`, or `DropPrimaryKey` ops.
   - For these residual cases, use the escape hatch marker (`// expand-contract-ok: ...`) as the explicit review override when the change is intentional.
 
+## Required-check limitations (accepted)
+
+PR #1029 (closing #1017) made `front-e2e-gate`, `front-ci-gate`, `openapi-spec-drift-gate`, and
+`docs-archive-gate` report on every pull request, closing the deadlock where a required check that
+never runs never reports and blocks the PR forever. Two platform limitations remain once the
+repository ruleset requires those four contexts. Both were reviewed and both are accepted rather
+than fixed in code — recorded here rather than hidden, so they can be judged:
+
+- **A head commit skip instruction suppresses all four required checks.** GitHub does not run a
+  workflow at all when its triggering commit's message contains `[skip ci]`, `[ci skip]`,
+  `[no ci]`, `[skip actions]`, `[actions skip]`, or carries a `skip-checks: true` trailer, and
+  anyone with push access can set one. The associated required checks then never report — they sit
+  **Pending**, not failing — so the pull request blocks indefinitely instead of merging unguarded.
+  That distinction (a missing result, not a red one) is the entire reason it blocks rather than
+  passes: if you find a PR stuck on a required check with no run anywhere in its history, this is
+  why. Accepted because only someone with push access can trigger it, and that same person could
+  edit the ruleset directly anyway — closing this path would defend against nothing a determined
+  maintainer could not already do. The alternative, a privileged base-controlled reporting workflow
+  immune to PR commit messages, would have to run with elevated permissions against
+  pull-request-authored input, which is a worse trade than the gap it would close.
+- **A fork pull request that touches the frontend cannot satisfy `front-e2e-gate`.** The repository
+  is public, so pull requests can come from forks. `front-e2e-gate`'s build job needs
+  `packages: write` to push four container images, and GitHub downgrades fork PR tokens to
+  read-only regardless of contributor approval. A fork PR that genuinely changes frontend code
+  therefore goes red on `front-e2e-gate` — correctly, not falsely green — and cannot become
+  mergeable without moving the branch into the base repository. Current settings: the repository is
+  public, default workflow permissions are read, and fork PR contributor approval is
+  `first_time_contributors`. Accepted because there are no fork contributors today. When the first
+  one arrives, the fix is a one-line instruction, not a redesign: **have them (or a maintainer) push
+  the branch into the base repository** so the workflow runs with base-repo write permissions.
+
 ## Runtime
 
 Measured on a warm Linux checkout with warm docker layers. A cold run is
