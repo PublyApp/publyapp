@@ -68,10 +68,15 @@ const fixtureConfig = [
 
 /** Writes `workflowYaml` as .github/workflows/fixture.yml in a throwaway repo. */
 const buildFixture = async (workflowYaml) => {
-	const rootDir = await mkdtemp(path.join(os.tmpdir(), 'publyapp-ci-gate-structure-'));
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-ci-gate-structure-'),
+	);
 
 	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
-	await writeFile(path.join(rootDir, '.github/workflows/fixture.yml'), workflowYaml);
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		workflowYaml,
+	);
 
 	return rootDir;
 };
@@ -85,16 +90,22 @@ test('passes a correctly-shaped job graph', async () => {
 	);
 });
 
-test('BLOCKER analogue: a job dropped from the gate\'s needs is caught even if the shell body still reads it', async () => {
+test("BLOCKER analogue: a job dropped from the gate's needs is caught even if the shell body still reads it", async () => {
 	// This is the round-1 review's concrete example: `needs.job.result` in the
 	// gate's shell body silently becomes an empty string if `job` is removed
 	// from `needs`, which the loop treats as neither failure nor cancelled.
 	// The structural guard catches the `needs` removal itself, independent of
 	// what the shell body still references.
-	const broken = goodWorkflow.replace('needs: [changes, heavy]', 'needs: [changes]');
+	const broken = goodWorkflow.replace(
+		'needs: [changes, heavy]',
+		'needs: [changes]',
+	);
 	const rootDir = await buildFixture(broken);
 
-	const findings = await findCiGateStructureProblems({ rootDir, workflows: fixtureConfig });
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
 
 	assert.equal(findings.length, 1);
 	assert.match(findings[0], /gate.*needs.*must include every other job/s);
@@ -102,10 +113,16 @@ test('BLOCKER analogue: a job dropped from the gate\'s needs is caught even if t
 });
 
 test('fails when gate.if stops being always()', async () => {
-	const broken = goodWorkflow.replace('if: always()\n    needs: [changes, heavy]', "if: success()\n    needs: [changes, heavy]");
+	const broken = goodWorkflow.replace(
+		'if: always()\n    needs: [changes, heavy]',
+		'if: success()\n    needs: [changes, heavy]',
+	);
 	const rootDir = await buildFixture(broken);
 
-	const findings = await findCiGateStructureProblems({ rootDir, workflows: fixtureConfig });
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
 
 	assert.equal(findings.length, 1);
 	assert.match(findings[0], /gate: expected `if: always\(\)`/);
@@ -146,7 +163,10 @@ jobs:
 `;
 	const rootDir = await buildFixture(broken);
 
-	const findings = await findCiGateStructureProblems({ rootDir, workflows: fixtureConfig });
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
 
 	assert.equal(findings.length, 1);
 	assert.match(findings[0], /heavy: expected `if:/);
@@ -159,36 +179,56 @@ test('fails when a relevance-gated job loses part of its needs', async () => {
 			changesJob: 'changes',
 			gateJob: 'gate',
 			gateName: 'fixture-gate',
-			relevanceGatedJobs: [{ id: 'heavy', needs: ['changes', 'some-other-job'] }],
+			relevanceGatedJobs: [
+				{ id: 'heavy', needs: ['changes', 'some-other-job'] },
+			],
 			alwaysJobs: [],
 		},
 	];
 	const rootDir = await buildFixture(goodWorkflow);
 
-	const findings = await findCiGateStructureProblems({ rootDir, workflows: config });
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: config,
+	});
 
 	assert.equal(findings.length, 1);
-	assert.match(findings[0], /heavy: expected `needs` to be exactly \[changes, some-other-job\]/);
+	assert.match(
+		findings[0],
+		/heavy: expected `needs` to be exactly \[changes, some-other-job\]/,
+	);
 });
 
 test('fails when the changes job loses its pull-requests: read permission', async () => {
 	const broken = goodWorkflow.replace('      pull-requests: read\n', '');
 	const rootDir = await buildFixture(broken);
 
-	const findings = await findCiGateStructureProblems({ rootDir, workflows: fixtureConfig });
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
 
 	assert.equal(findings.length, 1);
-	assert.match(findings[0], /changes: must declare `permissions: \{ pull-requests: read \}/);
+	assert.match(
+		findings[0],
+		/changes: must declare `permissions: \{ pull-requests: read \}/,
+	);
 });
 
 test('fails when the changes job loses its contents: read permission (round 2: unspecified permissions become none)', async () => {
 	const broken = goodWorkflow.replace('      contents: read\n', '');
 	const rootDir = await buildFixture(broken);
 
-	const findings = await findCiGateStructureProblems({ rootDir, workflows: fixtureConfig });
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
 
 	assert.equal(findings.length, 1);
-	assert.match(findings[0], /changes: must declare `permissions: \{ contents: read \}/);
+	assert.match(
+		findings[0],
+		/changes: must declare `permissions: \{ contents: read \}/,
+	);
 });
 
 test('fails when the changes job becomes conditional (would no longer always report)', async () => {
@@ -198,7 +238,10 @@ test('fails when the changes job becomes conditional (would no longer always rep
 	);
 	const rootDir = await buildFixture(broken);
 
-	const findings = await findCiGateStructureProblems({ rootDir, workflows: fixtureConfig });
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
 
 	assert.equal(findings.length, 1);
 	assert.match(findings[0], /changes: must be unconditional/);
@@ -211,7 +254,10 @@ test('fails when the changes job output stops matching the classifier step', asy
 	);
 	const rootDir = await buildFixture(broken);
 
-	const findings = await findCiGateStructureProblems({ rootDir, workflows: fixtureConfig });
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
 
 	assert.equal(findings.length, 1);
 	assert.match(findings[0], /changes: expected `outputs.relevant`/);
@@ -229,17 +275,26 @@ test('ROUND 2 BLOCKER: renaming the classifier step\'s id away from "filter" is 
 	);
 	const rootDir = await buildFixture(broken);
 
-	const findings = await findCiGateStructureProblems({ rootDir, workflows: fixtureConfig });
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
 
 	assert.equal(findings.length, 1);
 	assert.match(findings[0], /changes: expected a step with `id: filter`/);
 });
 
-test('ROUND 2: renaming the gate job\'s externally-required name is caught', async () => {
-	const broken = goodWorkflow.replace('name: fixture-gate', 'name: renamed-gate');
+test("ROUND 2: renaming the gate job's externally-required name is caught", async () => {
+	const broken = goodWorkflow.replace(
+		'name: fixture-gate',
+		'name: renamed-gate',
+	);
 	const rootDir = await buildFixture(broken);
 
-	const findings = await findCiGateStructureProblems({ rootDir, workflows: fixtureConfig });
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
 
 	assert.equal(findings.length, 1);
 	assert.match(findings[0], /gate: expected `name: fixture-gate`/);
@@ -252,10 +307,16 @@ test('ROUND 2: restoring a pull_request.paths filter recreates the pending-check
 	);
 	const rootDir = await buildFixture(broken);
 
-	const findings = await findCiGateStructureProblems({ rootDir, workflows: fixtureConfig });
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
 
 	assert.equal(findings.length, 1);
-	assert.match(findings[0], /expected an unconditional `pull_request:` trigger/);
+	assert.match(
+		findings[0],
+		/expected an unconditional `pull_request:` trigger/,
+	);
 	assert.match(findings[0], /\["paths"\]/);
 });
 
@@ -266,7 +327,10 @@ test('ROUND 3 BLOCKER: a paths-ignore filter is caught (not just paths)', async 
 	);
 	const rootDir = await buildFixture(broken);
 
-	const findings = await findCiGateStructureProblems({ rootDir, workflows: fixtureConfig });
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
 
 	assert.equal(findings.length, 1);
 	assert.match(findings[0], /\["paths-ignore"\]/);
@@ -279,7 +343,10 @@ test('ROUND 3 BLOCKER: a types filter (e.g. closed-only) is caught', async () =>
 	);
 	const rootDir = await buildFixture(broken);
 
-	const findings = await findCiGateStructureProblems({ rootDir, workflows: fixtureConfig });
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
 
 	assert.equal(findings.length, 1);
 	assert.match(findings[0], /\["types"\]/);
@@ -292,7 +359,10 @@ test('ROUND 3 BLOCKER: removing the pull_request key entirely (e.g. swapped to w
 	);
 	const rootDir = await buildFixture(broken);
 
-	const findings = await findCiGateStructureProblems({ rootDir, workflows: fixtureConfig });
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
 
 	assert.equal(findings.length, 1);
 	assert.match(findings[0], /the trigger has no pull_request key at all/);
@@ -325,12 +395,18 @@ test('ROUND 2 BLOCKER: a job added to gate.needs but omitted from a hand-written
 	);
 	const rootDir = await buildFixture(broken);
 
-	const findings = await findCiGateStructureProblems({ rootDir, workflows: fixtureConfig });
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
 
 	assert.equal(findings.length, 1);
 	assert.match(findings[0], /gate: expected a step with `env.NEEDS_JSON/);
 });
 
 test("the repo's own aggregate-gate workflows have the required job graph", async () => {
-	assert.deepEqual(await findCiGateStructureProblems({ rootDir: repoRoot }), []);
+	assert.deepEqual(
+		await findCiGateStructureProblems({ rootDir: repoRoot }),
+		[],
+	);
 });

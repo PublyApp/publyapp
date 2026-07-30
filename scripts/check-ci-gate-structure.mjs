@@ -49,7 +49,7 @@ import { parse } from 'yaml';
 
 const workflowsDirectory = '.github/workflows';
 
-const EXPECTED_CHANGES_OUTPUT = "${{ steps.filter.outputs.relevant }}";
+const EXPECTED_CHANGES_OUTPUT = '${{ steps.filter.outputs.relevant }}';
 const EXPECTED_CLASSIFIER_STEP_ID = 'filter';
 const EXPECTED_RELEVANCE_IF = "needs.changes.outputs.relevant == 'true'";
 const EXPECTED_GATE_IF = 'always()';
@@ -193,7 +193,9 @@ const checkWorkflow = (
 	const changes = jobs[changesJob];
 
 	if (changes === undefined) {
-		findings.push(`${file}: expected a "${changesJob}" job, but it is missing.`);
+		findings.push(
+			`${file}: expected a "${changesJob}" job, but it is missing.`,
+		);
 	} else {
 		if (changes.if !== undefined) {
 			findings.push(
@@ -241,7 +243,9 @@ const checkWorkflow = (
 		const job = jobs[id];
 
 		if (job === undefined) {
-			findings.push(`${file}: expected a relevance-gated job "${id}", but it is missing.`);
+			findings.push(
+				`${file}: expected a relevance-gated job "${id}", but it is missing.`,
+			);
 			continue;
 		}
 
@@ -265,7 +269,9 @@ const checkWorkflow = (
 		const job = jobs[id];
 
 		if (job === undefined) {
-			findings.push(`${file}: expected an always-run job "${id}", but it is missing.`);
+			findings.push(
+				`${file}: expected an always-run job "${id}", but it is missing.`,
+			);
 			continue;
 		}
 
@@ -380,7 +386,9 @@ const isDirectRun =
 	toPosixPath(process.argv[1]).endsWith('scripts/check-ci-gate-structure.mjs');
 
 if (isDirectRun) {
-	const findings = await findCiGateStructureProblems({ rootDir: process.cwd() });
+	const findings = await findCiGateStructureProblems({
+		rootDir: process.cwd(),
+	});
 
 	if (findings.length > 0) {
 		console.error(

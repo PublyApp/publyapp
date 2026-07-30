@@ -12,7 +12,10 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { classifyRelevance, parseChangedFilesTotal } from './ci-changed-paths.mjs';
+import {
+	classifyRelevance,
+	parseChangedFilesTotal,
+} from './ci-changed-paths.mjs';
 
 // These tests are the standing proof that the changed-path classifier fails
 // closed at GitHub's 3,000-file "List pull request files" ceiling, rather
@@ -210,7 +213,7 @@ const buildFakeGh = ({ total = '', files = '' }) => {
 		ghPath,
 		[
 			'#!/usr/bin/env node',
-			"const args = process.argv.slice(2);",
+			'const args = process.argv.slice(2);',
 			"const isFilesCall = args.includes('--paginate');",
 			`process.stdout.write(isFilesCall ? ${JSON.stringify(files)} : ${JSON.stringify(total)});`,
 			'process.exit(0);',

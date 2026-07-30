@@ -57,7 +57,11 @@ const extractGateStepRun = (file) => {
 		step,
 		`${file}: expected a gate step with env.NEEDS_JSON: \${{ toJSON(needs) }}`,
 	);
-	assert.equal(typeof step.run, 'string', `${file}: expected step.run to be a string`);
+	assert.equal(
+		typeof step.run,
+		'string',
+		`${file}: expected step.run to be a string`,
+	);
 
 	return step.run;
 };
@@ -83,15 +87,51 @@ const runGateScript = (script, needsJson) =>
  * previously fail-open.
  */
 const CASES = [
-	{ name: 'all success', json: '{"a":{"result":"success"},"b":{"result":"success"}}', expectPass: true },
-	{ name: 'success + skipped', json: '{"a":{"result":"success"},"b":{"result":"skipped"}}', expectPass: true },
-	{ name: 'all skipped', json: '{"a":{"result":"skipped"},"b":{"result":"skipped"}}', expectPass: true },
-	{ name: 'single skipped', json: '{"a":{"result":"skipped"}}', expectPass: true },
-	{ name: 'one failure', json: '{"a":{"result":"failure"}}', expectPass: false },
-	{ name: 'one cancelled', json: '{"a":{"result":"cancelled"}}', expectPass: false },
-	{ name: 'success mixed with failure', json: '{"a":{"result":"success"},"b":{"result":"failure"}}', expectPass: false },
-	{ name: 'success mixed with cancelled', json: '{"a":{"result":"success"},"b":{"result":"cancelled"}}', expectPass: false },
-	{ name: 'skipped mixed with failure', json: '{"a":{"result":"skipped"},"b":{"result":"failure"}}', expectPass: false },
+	{
+		name: 'all success',
+		json: '{"a":{"result":"success"},"b":{"result":"success"}}',
+		expectPass: true,
+	},
+	{
+		name: 'success + skipped',
+		json: '{"a":{"result":"success"},"b":{"result":"skipped"}}',
+		expectPass: true,
+	},
+	{
+		name: 'all skipped',
+		json: '{"a":{"result":"skipped"},"b":{"result":"skipped"}}',
+		expectPass: true,
+	},
+	{
+		name: 'single skipped',
+		json: '{"a":{"result":"skipped"}}',
+		expectPass: true,
+	},
+	{
+		name: 'one failure',
+		json: '{"a":{"result":"failure"}}',
+		expectPass: false,
+	},
+	{
+		name: 'one cancelled',
+		json: '{"a":{"result":"cancelled"}}',
+		expectPass: false,
+	},
+	{
+		name: 'success mixed with failure',
+		json: '{"a":{"result":"success"},"b":{"result":"failure"}}',
+		expectPass: false,
+	},
+	{
+		name: 'success mixed with cancelled',
+		json: '{"a":{"result":"success"},"b":{"result":"cancelled"}}',
+		expectPass: false,
+	},
+	{
+		name: 'skipped mixed with failure',
+		json: '{"a":{"result":"skipped"},"b":{"result":"failure"}}',
+		expectPass: false,
+	},
 	{
 		name: 'ROUND 3: empty object (examined zero jobs)',
 		json: '{}',
@@ -118,7 +158,11 @@ const CASES = [
 		expectPass: false,
 	},
 	{ name: 'ROUND 3: JSON null', json: 'null', expectPass: false },
-	{ name: 'ROUND 3: a JSON string, not an object', json: '"oops"', expectPass: false },
+	{
+		name: 'ROUND 3: a JSON string, not an object',
+		json: '"oops"',
+		expectPass: false,
+	},
 	{
 		name: 'ROUND 3: malformed JSON (jq itself errors)',
 		json: '{not valid',
@@ -136,7 +180,11 @@ for (const file of workflowFiles) {
 			if (expectPass) {
 				assert.equal(result.status, 0, result.stderr);
 			} else {
-				assert.notEqual(result.status, 0, `expected nonzero exit; stdout: ${result.stdout}`);
+				assert.notEqual(
+					result.status,
+					0,
+					`expected nonzero exit; stdout: ${result.stdout}`,
+				);
 			}
 		});
 	}

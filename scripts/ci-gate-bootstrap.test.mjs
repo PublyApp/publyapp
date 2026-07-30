@@ -70,8 +70,15 @@ const extractFilterStepRun = (file) => {
 	);
 	const step = document.jobs.changes.steps.find((s) => s.id === 'filter');
 
-	assert.ok(step, `${file}: expected a step with id: filter in the changes job`);
-	assert.equal(typeof step.run, 'string', `${file}: expected step.run to be a string`);
+	assert.ok(
+		step,
+		`${file}: expected a step with id: filter in the changes job`,
+	);
+	assert.equal(
+		typeof step.run,
+		'string',
+		`${file}: expected step.run to be a string`,
+	);
 
 	return step.run;
 };
@@ -99,7 +106,9 @@ const runInline = (script, cwd, env = {}) => {
 for (const file of workflowFiles) {
 	test(`${file}: BOOTSTRAP — classifier absent at base-ref/ resolves to exactly relevant=true, loudly, without invoking it`, () => {
 		const script = extractFilterStepRun(file);
-		const cwd = mkdtempSync(path.join(os.tmpdir(), 'publyapp-ci-gate-bootstrap-'));
+		const cwd = mkdtempSync(
+			path.join(os.tmpdir(), 'publyapp-ci-gate-bootstrap-'),
+		);
 
 		try {
 			// Deliberately do NOT create base-ref/ at all, and do NOT set
@@ -162,7 +171,9 @@ const writeStubClassifier = (cwd, { marker, relevant, exitCode }) => {
 for (const file of workflowFiles) {
 	test(`${file}: DELEGATION — a stub classifier answering relevant=true passes through verbatim (exact stdout + exact GITHUB_OUTPUT)`, () => {
 		const script = extractFilterStepRun(file);
-		const cwd = mkdtempSync(path.join(os.tmpdir(), 'publyapp-ci-gate-bootstrap-'));
+		const cwd = mkdtempSync(
+			path.join(os.tmpdir(), 'publyapp-ci-gate-bootstrap-'),
+		);
 
 		try {
 			writeStubClassifier(cwd, {
@@ -186,7 +197,9 @@ for (const file of workflowFiles) {
 
 	test(`${file}: DELEGATION — a stub classifier answering relevant=false is NOT overridden to true`, () => {
 		const script = extractFilterStepRun(file);
-		const cwd = mkdtempSync(path.join(os.tmpdir(), 'publyapp-ci-gate-bootstrap-'));
+		const cwd = mkdtempSync(
+			path.join(os.tmpdir(), 'publyapp-ci-gate-bootstrap-'),
+		);
 
 		try {
 			writeStubClassifier(cwd, {
@@ -209,7 +222,9 @@ for (const file of workflowFiles) {
 
 	test(`${file}: DELEGATION — a classifier that exits nonzero propagates the failure instead of falling back to relevant=true`, () => {
 		const script = extractFilterStepRun(file);
-		const cwd = mkdtempSync(path.join(os.tmpdir(), 'publyapp-ci-gate-bootstrap-'));
+		const cwd = mkdtempSync(
+			path.join(os.tmpdir(), 'publyapp-ci-gate-bootstrap-'),
+		);
 
 		try {
 			// No GITHUB_OUTPUT write at all — a genuinely broken classifier
@@ -271,7 +286,10 @@ const buildFakeGh = ({ total, files }) => {
  */
 const extractPattern = (script) => {
 	const match = script.match(/node "\$CLASSIFIER" '([^']*)'/);
-	assert.ok(match, 'expected to find the node "$CLASSIFIER" \'<pattern>\' invocation line');
+	assert.ok(
+		match,
+		'expected to find the node "$CLASSIFIER" \'<pattern>\' invocation line',
+	);
 	return match[1];
 };
 
@@ -291,7 +309,9 @@ for (const file of workflowFiles) {
 		const script = extractFilterStepRun(file);
 		const pattern = extractPattern(script);
 		const relevantFile = RELEVANT_FILE_BY_WORKFLOW[file];
-		const cwd = mkdtempSync(path.join(os.tmpdir(), 'publyapp-ci-gate-bootstrap-'));
+		const cwd = mkdtempSync(
+			path.join(os.tmpdir(), 'publyapp-ci-gate-bootstrap-'),
+		);
 		const fakeGhDir = buildFakeGh({ total: '1\n', files: `${relevantFile}\n` });
 
 		try {
@@ -307,7 +327,11 @@ for (const file of workflowFiles) {
 				changedFilesTotal: 1,
 				pattern,
 			});
-			assert.equal(expected.relevant, true, `test fixture error: ${relevantFile} does not match ${file}'s own pattern ${pattern}`);
+			assert.equal(
+				expected.relevant,
+				true,
+				`test fixture error: ${relevantFile} does not match ${file}'s own pattern ${pattern}`,
+			);
 
 			const { status, stdout, output } = runInline(script, cwd, {
 				GITHUB_EVENT_NAME: 'pull_request',
@@ -318,7 +342,10 @@ for (const file of workflowFiles) {
 			});
 
 			assert.equal(status, 0, stdout);
-			assert.equal(stdout, `relevant=${expected.relevant} (${expected.reason})\n`);
+			assert.equal(
+				stdout,
+				`relevant=${expected.relevant} (${expected.reason})\n`,
+			);
 			assert.equal(output, 'relevant=true\n');
 		} finally {
 			rmSync(cwd, { recursive: true, force: true });
@@ -329,8 +356,13 @@ for (const file of workflowFiles) {
 	test(`${file}: DELEGATION — real classifier, real pull_request event, no matching file: exact relevant=false`, () => {
 		const script = extractFilterStepRun(file);
 		const pattern = extractPattern(script);
-		const cwd = mkdtempSync(path.join(os.tmpdir(), 'publyapp-ci-gate-bootstrap-'));
-		const fakeGhDir = buildFakeGh({ total: '1\n', files: `${IRRELEVANT_FILE}\n` });
+		const cwd = mkdtempSync(
+			path.join(os.tmpdir(), 'publyapp-ci-gate-bootstrap-'),
+		);
+		const fakeGhDir = buildFakeGh({
+			total: '1\n',
+			files: `${IRRELEVANT_FILE}\n`,
+		});
 
 		try {
 			mkdirSync(path.join(cwd, 'base-ref/scripts'), { recursive: true });
@@ -345,7 +377,11 @@ for (const file of workflowFiles) {
 				changedFilesTotal: 1,
 				pattern,
 			});
-			assert.equal(expected.relevant, false, `test fixture error: ${IRRELEVANT_FILE} unexpectedly matches ${file}'s own pattern ${pattern}`);
+			assert.equal(
+				expected.relevant,
+				false,
+				`test fixture error: ${IRRELEVANT_FILE} unexpectedly matches ${file}'s own pattern ${pattern}`,
+			);
 
 			const { status, stdout, output } = runInline(script, cwd, {
 				GITHUB_EVENT_NAME: 'pull_request',
@@ -356,7 +392,10 @@ for (const file of workflowFiles) {
 			});
 
 			assert.equal(status, 0, stdout);
-			assert.equal(stdout, `relevant=${expected.relevant} (${expected.reason})\n`);
+			assert.equal(
+				stdout,
+				`relevant=${expected.relevant} (${expected.reason})\n`,
+			);
 			assert.equal(output, 'relevant=false\n');
 		} finally {
 			rmSync(cwd, { recursive: true, force: true });
