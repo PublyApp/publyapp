@@ -141,6 +141,29 @@ import { parse } from 'yaml';
 //     `continue-on-error` is applied, so it cannot be rewritten by it) and
 //     fails when that outcome was not `success`. That is the actual
 //     enforcement; the hard-reject above is a second, independent layer.
+//
+// Round 6 found the round-5 rename fix load-bearing but under-enforced: the
+// gate job's `name:` was pinned as
+// `github.event_name == 'push' && '<push-check>' || '<required>'`, an
+// EXCLUSION list. Every event other than `push` — including one added to the
+// workflow's `on:` later — resolved to the required name. Adding
+// `workflow_dispatch:` to a gate workflow's triggers therefore recreated a
+// second reporter of the required context (GitHub documents that a manual
+// run takes a branch/tag `ref` and uses its last commit as GITHUB_SHA, so a
+// maintainer can dispatch it against a pull-request branch), and both
+// enforced guards stayed green. Two independent layers close that now:
+//   - the name expression is an ALLOWLIST: only `pull_request` and
+//     `merge_group` — the two events a required check must report for —
+//     resolve to the required name; every other event resolves to the
+//     non-required push-check name. Adding an event can no longer produce a
+//     second report of the required context, whatever the event is.
+//   - a gate workflow's `on:` may declare only `pull_request`,
+//     `merge_group`, and `push`. Anything else is rejected outright, which
+//     also keeps the `<workflow>-push-check` name honest: the only non-PR
+//     event that can reach it is `push`.
+// Round 6 also found that nothing stopped a job in ANY OTHER workflow from
+// reporting one of the four required names — see
+// findRequiredContextCollisionProblems below.
 
 const workflowsDirectory = '.github/workflows';
 
@@ -160,6 +183,40 @@ const EXPECTED_NEEDS_JSON_EXPR = '${{ toJSON(needs) }}';
 // `.outcome`, so a step checking it is not fooled the way the job's overall
 // result would be.
 const EXPECTED_CHECK_REQUIRED_JOBS_STEP_ID = 'check-required-jobs';
+
+/**
+ * Round 6 BLOCKER: the ONLY events whose runs may report a gate's externally
+ * required check name. Everything else resolves to the non-required
+ * push-check name, so no event added to a gate workflow later can produce a
+ * second report of a required context for the same commit.
+ */
+const REQUIRED_CONTEXT_EVENTS = ['pull_request', 'merge_group'];
+
+/**
+ * Round 6 BLOCKER, second layer: the complete set of events a gate workflow
+ * may subscribe to. `pull_request` and `merge_group` are separately required
+ * to be present and unconditional; `push` is optional (three of the four
+ * declare it, for direct-push/post-merge validation). Any other event is
+ * rejected outright.
+ */
+const ALLOWED_GATE_TRIGGER_EVENTS = new Set([
+	...REQUIRED_CONTEXT_EVENTS,
+	'push',
+]);
+
+/**
+ * The exact `name:` expression a gate job must carry: the required check
+ * string for a `pull_request`/`merge_group` run, the non-required push-check
+ * string for anything else.
+ */
+const gateNameExpression = ({ gateName, pushCheckName }) =>
+	`\${{ (${REQUIRED_CONTEXT_EVENTS.map(
+		(event) => `github.event_name == '${event}'`,
+	).join(' || ')}) && '${gateName}' || '${pushCheckName}' }}`;
+
+/** The exact `name:` expression front-e2e.yml's sharded `test` job must carry. */
+const matrixJobNameExpression = ({ key, expected }) =>
+	`front-e2e (\${{ matrix.${key} }}/${expected.length})`;
 
 /**
  * The four #1017 aggregate-gate workflows and the job graph each one must
@@ -308,6 +365,23 @@ const checkUnconditionalTrigger = (onSection, triggerKey) => {
 	return { present: false, foundKeys };
 };
 
+/**
+ * The event names a parsed workflow's `on:` value declares, for both the
+ * mapping form (`on: { pull_request: null, push: {...} }`) and the array
+ * shorthand (`on: [pull_request, merge_group]`).
+ */
+const declaredTriggerEvents = (onSection) => {
+	if (Array.isArray(onSection)) {
+		return onSection;
+	}
+
+	if (onSection === null || typeof onSection !== 'object') {
+		return [];
+	}
+
+	return Object.keys(onSection);
+};
+
 const setsEqual = (a, b) => {
 	if (a.size !== b.size) {
 		return false;
@@ -400,6 +474,26 @@ const checkWorkflow = (
 					? `found restricting keys: ${JSON.stringify(mergeGroupTrigger.foundKeys)}`
 					: 'the trigger has no merge_group key at all'
 			}.`,
+		);
+	}
+
+	// Round 6 BLOCKER, second layer: a gate workflow may subscribe ONLY to
+	// pull_request, merge_group, and push. The gate job's `name:` expression
+	// (below) already resolves the required check string for pull_request and
+	// merge_group only, so an extra event cannot produce a second report of a
+	// required context on its own — but rejecting the event outright also
+	// keeps the `<workflow>-push-check` name truthful, and stops an extra
+	// event from quietly duplicating even the non-required push check. Adding
+	// an event here is a deliberate, reviewed decision: extend
+	// ALLOWED_GATE_TRIGGER_EVENTS and decide which name the new event's runs
+	// must report under.
+	const unexpectedEvents = declaredTriggerEvents(onSection).filter(
+		(event) => !ALLOWED_GATE_TRIGGER_EVENTS.has(event),
+	);
+
+	if (unexpectedEvents.length > 0) {
+		findings.push(
+			`${file}: a gate workflow may declare only ${JSON.stringify([...ALLOWED_GATE_TRIGGER_EVENTS])} in \`on:\`, found the additional event(s) ${JSON.stringify(unexpectedEvents)}. Any extra event creates another run — on a ref a maintainer chooses, for the same commit — that reports this workflow's gate job under one of its two pinned check names; \`workflow_dispatch\` in particular is documented to take a branch/tag ref and use its last commit as GITHUB_SHA.`,
 		);
 	}
 
@@ -555,7 +649,7 @@ const checkWorkflow = (
 				);
 			}
 
-			const expectedJobName = `front-e2e (\${{ matrix.${key} }}/${denominator})`;
+			const expectedJobName = matrixJobNameExpression(matrix);
 
 			if (matrixJob.name !== expectedJobName) {
 				findings.push(
@@ -684,11 +778,22 @@ const checkWorkflow = (
 		// every other event — a job that always reports (EXPECTED_GATE_IF)
 		// under a name that changes with the event, instead of a job that
 		// changes whether it reports under a fixed name.
-		const expectedGateNameExpr = `\${{ github.event_name == 'push' && '${pushCheckName}' || '${gateName}' }}`;
+		//
+		// Round 6 BLOCKER (corrected again): the round-5 expression excluded
+		// only `push`, so EVERY other event — including one added to `on:`
+		// later — still resolved to the required name. Adding
+		// `workflow_dispatch:` therefore recreated a second reporter of the
+		// required context while both enforced guards stayed green. The
+		// expression is now an allowlist: the required name is produced only
+		// for `pull_request` and `merge_group`.
+		const expectedGateNameExpr = gateNameExpression({
+			gateName,
+			pushCheckName,
+		});
 
 		if (gate.name !== expectedGateNameExpr) {
 			findings.push(
-				`${file}::${gateJob}: expected \`name: ${expectedGateNameExpr}\` (reports \`${gateName}\` — the externally required status check string — for every event except \`push\`, and the non-required \`${pushCheckName}\` for \`push\`, so a push-triggered run can never report a second, colliding check under the required name), found ${JSON.stringify(gate.name ?? null)}.`,
+				`${file}::${gateJob}: expected \`name: ${expectedGateNameExpr}\` (reports \`${gateName}\` — the externally required status check string — ONLY for ${REQUIRED_CONTEXT_EVENTS.join('/')} runs, and the non-required \`${pushCheckName}\` for every other event, so no run triggered by any other event can report a second, colliding check under the required name), found ${JSON.stringify(gate.name ?? null)}.`,
 			);
 		}
 

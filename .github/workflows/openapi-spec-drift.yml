@@ -216,13 +216,27 @@ jobs:
     # reports, last one wins" nondeterminism this fix exists to remove --
     # it had only changed what the second report said, not whether it
     # existed. Fixed instead by renaming: `name:` is now conditional on
-    # the event, so a push-triggered run reports under a DIFFERENT,
-    # non-required context ("openapi-spec-drift-push-check") that can never collide
-    # with "openapi-spec-drift-gate". `if:` goes back to unconditional `always()` so
+    # the event, so a run triggered by anything other than a pull request
+    # or a merge-queue entry reports under a DIFFERENT, non-required
+    # context ("openapi-spec-drift-push-check") that can never collide with
+    # "openapi-spec-drift-gate". `if:` goes back to unconditional `always()` so
     # the push-triggered run still aggregates and reports a REAL pass/fail
     # (useful direct-push/post-merge validation) instead of an
     # uninformative skip.
-    name: ${{ github.event_name == 'push' && 'openapi-spec-drift-push-check' || 'openapi-spec-drift-gate' }}
+    #
+    # Round 6 BLOCKER: the condition is an ALLOWLIST, not `!= 'push'`. The
+    # earlier `github.event_name == 'push' && ... || ...` form resolved to
+    # the REQUIRED name for every event that was not `push`, so simply
+    # adding `workflow_dispatch:` to this workflow's `on:` produced a
+    # second reporter of "openapi-spec-drift-gate" for the same commit -- a manual run
+    # takes a branch/tag ref and uses its last commit as GITHUB_SHA -- and
+    # both enforced guards stayed green. Only `pull_request` and
+    # `merge_group` may resolve to the required name.
+    # scripts/check-ci-gate-structure.mjs pins this exact expression, caps
+    # this workflow's `on:` to pull_request/merge_group/push, and scans
+    # every job in every workflow in the repository so no other job can
+    # report one of the four required names either.
+    name: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'openapi-spec-drift-gate' || 'openapi-spec-drift-push-check' }}
     if: always()
     needs: [changes, spec-drift]
     runs-on: ubuntu-latest

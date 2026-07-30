@@ -45,7 +45,7 @@ jobs:
     steps:
       - run: echo heavy
   gate:
-    name: \${{ github.event_name == 'push' && 'fixture-push-check' || 'fixture-gate' }}
+    name: \${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'fixture-gate' || 'fixture-push-check' }}
     if: always()
     needs: [changes, heavy]
     runs-on: ubuntu-latest
@@ -162,7 +162,7 @@ jobs:
     steps:
       - run: echo heavy
   gate:
-    name: \${{ github.event_name == 'push' && 'fixture-push-check' || 'fixture-gate' }}
+    name: \${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'fixture-gate' || 'fixture-push-check' }}
     if: always()
     needs: [changes, heavy]
     runs-on: ubuntu-latest
@@ -306,7 +306,7 @@ test('ROUND 2 BLOCKER: renaming the classifier step\'s id away from "filter" is 
 
 test("ROUND 2: renaming the gate job's externally-required name is caught", async () => {
 	const broken = goodWorkflow.replace(
-		"name: ${{ github.event_name == 'push' && 'fixture-push-check' || 'fixture-gate' }}",
+		"name: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'fixture-gate' || 'fixture-push-check' }}",
 		'name: renamed-gate',
 	);
 	const rootDir = await buildFixture(broken);
@@ -386,8 +386,22 @@ test('ROUND 3 BLOCKER: removing the pull_request key entirely (e.g. swapped to w
 		workflows: fixtureConfig,
 	});
 
-	assert.equal(findings.length, 1);
-	assert.match(findings[0], /the trigger has no pull_request key at all/);
+	// Round 6 added a second, independent finding for the same mutation: the
+	// `workflow_dispatch` event is not on the gate workflows' allowed list at
+	// all (see the round-6 event-allowlist tests below).
+	assert.equal(findings.length, 2);
+	assert.ok(
+		findings.some((finding) =>
+			/the trigger has no pull_request key at all/.test(finding),
+		),
+	);
+	assert.ok(
+		findings.some((finding) =>
+			/may declare only .* found the additional event\(s\) \["workflow_dispatch"\]/.test(
+				finding,
+			),
+		),
+	);
 });
 
 test('ROUND 3: array-shorthand `on: [pull_request, push]` is accepted as unconditional', async () => {
@@ -455,6 +469,88 @@ test('ROUND 4: array-shorthand `on: [pull_request, merge_group]` accepts merge_g
 });
 
 // ---------------------------------------------------------------------------
+// ROUND 6 BLOCKER (mutation A, the exact reviewer reproduction): the round-5
+// gate `name:` expression excluded only `push`, so EVERY other event
+// resolved to the externally required check name. Adding `workflow_dispatch:`
+// to a gate workflow's `on:` therefore created a second reporter of that
+// required context for the same commit (a manual run takes a branch/tag ref
+// and uses its last commit as GITHUB_SHA), and both enforced guards stayed
+// green. Two independent layers now catch it.
+// ---------------------------------------------------------------------------
+
+test('ROUND 6 BLOCKER (mutation A, layer 1): an extra `workflow_dispatch:` trigger on a gate workflow is caught', async () => {
+	const broken = goodWorkflow.replace(
+		'on:\n  pull_request:\n  merge_group:\n',
+		'on:\n  pull_request:\n  merge_group:\n  workflow_dispatch:\n',
+	);
+	const rootDir = await buildFixture(broken);
+
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
+
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /may declare only/);
+	assert.match(findings[0], /\["workflow_dispatch"\]/);
+});
+
+test('ROUND 6 BLOCKER (mutation A, layer 1): an extra event in the `on: [...]` array shorthand is caught too', async () => {
+	const broken = goodWorkflow.replace(
+		'on:\n  pull_request:\n  merge_group:\n',
+		'on: [pull_request, merge_group, schedule]\n',
+	);
+	const rootDir = await buildFixture(broken);
+
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
+
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /may declare only/);
+	assert.match(findings[0], /\["schedule"\]/);
+});
+
+test('ROUND 6 BLOCKER (mutation A, layer 2): the round-5 `!= push` name expression is rejected, because every non-push event resolved to the required name', async () => {
+	// The independent half of the fix: even if the event allowlist above were
+	// widened, the gate's `name:` must resolve the required context name for
+	// `pull_request`/`merge_group` and NOTHING else. This is the exact
+	// expression that shipped at the round-6 head.
+	const broken = goodWorkflow.replace(
+		"name: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'fixture-gate' || 'fixture-push-check' }}",
+		"name: ${{ github.event_name == 'push' && 'fixture-push-check' || 'fixture-gate' }}",
+	);
+	const rootDir = await buildFixture(broken);
+
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
+
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /gate: expected `name: /);
+	assert.match(
+		findings[0],
+		/ONLY for pull_request\/merge_group runs, and the non-required `fixture-push-check` for every other event/,
+	);
+	assert.match(findings[0], /found "\$\{\{ github\.event_name == 'push'/);
+});
+
+test('ROUND 6: `push` remains an allowed gate-workflow trigger (three of the four real gate workflows declare it)', async () => {
+	const withPush = goodWorkflow.replace(
+		'on:\n  pull_request:\n  merge_group:\n',
+		'on:\n  pull_request:\n  merge_group:\n  push:\n',
+	);
+	const rootDir = await buildFixture(withPush);
+
+	assert.deepEqual(
+		await findCiGateStructureProblems({ rootDir, workflows: fixtureConfig }),
+		[],
+	);
+});
+
+// ---------------------------------------------------------------------------
 // IMPORTANT: `selfTestCoverage` — pins that front-ci.yml's classifier
 // pattern (the thing that decides whether the new `gate-selftest` job wakes
 // up) actually matches every workflow/script path the guard's own tests
@@ -493,7 +589,7 @@ jobs:
     steps:
       - run: echo heavy
   gate:
-    name: \${{ github.event_name == 'push' && 'fixture-push-check' || 'fixture-gate' }}
+    name: \${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'fixture-gate' || 'fixture-push-check' }}
     if: always()
     needs: [changes, heavy]
     runs-on: ubuntu-latest
@@ -839,7 +935,7 @@ jobs:
         with:
           name: front-e2e-playwright-report-\${{ matrix.shard }}-of-${matrixDenominator}
   gate:
-    name: \${{ github.event_name == 'push' && 'fixture-push-check' || 'fixture-gate' }}
+    name: \${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'fixture-gate' || 'fixture-push-check' }}
     if: always()
     needs: [changes, test]
     runs-on: ubuntu-latest
