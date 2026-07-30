@@ -169,6 +169,17 @@ export const ProfilePermissionsTab = ({
 		...addedKeys.map((key) => `+${labelByKey.get(key) ?? key}`),
 		...removedKeys.map((key) => `−${labelByKey.get(key) ?? key}`),
 	].join(', ');
+	// Extracted from the action-bar status JSX (repo AI-agent preference:
+	// avoid nested ternaries — docs/guides/ai-agent-preferences.md). The
+	// dirty/clean choice and the "is there a summary to append" choice are
+	// two independent decisions; keeping them as separate flat expressions
+	// makes both states easier to review than one ternary nested inside
+	// another.
+	const changeSummarySuffix =
+		changeSummary.length > 0 ? ` · ${changeSummary}` : '';
+	const permissionsStatusText = isDirty
+		? `${t('permissions-unsaved-changes', { count: changeCount })}${changeSummarySuffix}`
+		: t('permissions-no-unsaved-changes');
 
 	const setPermissionsStaged = (nextKeys: string[]): void => {
 		setSaveErrorText(null);
@@ -413,11 +424,7 @@ export const ProfilePermissionsTab = ({
 				data-testid="permissions-action-bar"
 				status={
 					<span data-testid="permissions-change-status">
-						{isDirty
-							? `${t('permissions-unsaved-changes', { count: changeCount })}${
-									changeSummary.length > 0 ? ` · ${changeSummary}` : ''
-								}`
-							: t('permissions-no-unsaved-changes')}
+						{permissionsStatusText}
 					</span>
 				}
 			>
