@@ -24,8 +24,33 @@ import { parse } from 'yaml';
 //     or hypothetical future value) — `select(.result == "failure" or
 //     .result == "cancelled")` only counts the two known-bad values, so
 //     anything else silently contributes zero to bad_count.
-// The fix inverts the check to a known-GOOD allowlist (success/skipped) and
-// adds explicit type/emptiness checks, so every one of these shapes is red.
+// That fix inverted the check to a known-GOOD allowlist (success/skipped)
+// and added explicit type/emptiness checks.
+//
+// ROUND 4 BLOCKER (this file's current job): the round-3 fix still treated
+// EVERY "skipped" result as a pass, unconditionally. A round-4 review proved
+// the real, damaging consequence: `changes` reporting `result: success` with
+// an absent or empty `outputs.relevant` (GitHub can omit a job output
+// entirely — including because it may contain a secret), combined with
+// every heavy job legitimately skipped by its own `if` condition, made every
+// one of the four gates exit 0 and print "All required jobs passed or were
+// skipped" — a required check certifying that literally nothing was
+// verified. The bug: "skipped" was never correlated with the classifier's
+// own verdict. The gate step now:
+//   - asserts `needs.changes.result` is exactly "success" (nothing
+//     downstream can be trusted if the classifier itself did not complete);
+//   - requires `needs.changes.outputs.relevant` to be EXACTLY the string
+//     "true" or "false", failing closed on anything else, including an
+//     absent, empty, wrong-case, or otherwise malformed value;
+//   - when relevant is "true", requires every required job to be "success"
+//     — "skipped" is no longer acceptable, which also catches the case
+//     where a job was skipped because an upstream dependency actually
+//     failed (the default cascade-skip GitHub Actions applies), not because
+//     the change was irrelevant;
+//   - when relevant is "false", allows "success" or "skipped" (a job that
+//     is not gated by relevance, such as front-e2e's always-run cleanup
+//     job, may legitimately still succeed even when the heavy work was
+//     skipped) but still rejects failure/cancelled/unrecognized values.
 
 const repoRoot = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
@@ -79,93 +104,157 @@ const runGateScript = (script, needsJson) =>
 	});
 
 /**
- * The full result-shape matrix: every documented GitHub result value in
- * every relevant combination, plus every fail-open shape round 3 found.
- * `expectPass: true` means the gate must exit 0; `false` means it must
- * exit nonzero. This mirrors (a representative subset of) the reviewer's
- * manual 304-combination sweep, plus the specific shapes that were
- * previously fail-open.
+ * The full result-shape matrix. `expectPass: true` means the gate must exit
+ * 0; `false` means it must exit nonzero. Every case that reaches the
+ * relevant-correlation logic supplies a `changes` entry with its own
+ * `result` and `outputs.relevant`, exactly like the real `toJSON(needs)`
+ * payload — the shape this step actually reads at runtime.
  */
 const CASES = [
+	// --- shape validation: malformed/absent NEEDS_JSON must never pass ---
+	{ name: 'empty object (examined zero jobs)', json: '{}', expectPass: false },
 	{
-		name: 'all success',
-		json: '{"a":{"result":"success"},"b":{"result":"success"}}',
-		expectPass: true,
-	},
-	{
-		name: 'success + skipped',
-		json: '{"a":{"result":"success"},"b":{"result":"skipped"}}',
-		expectPass: true,
-	},
-	{
-		name: 'all skipped',
-		json: '{"a":{"result":"skipped"},"b":{"result":"skipped"}}',
-		expectPass: true,
-	},
-	{
-		name: 'single skipped',
-		json: '{"a":{"result":"skipped"}}',
-		expectPass: true,
-	},
-	{
-		name: 'one failure',
-		json: '{"a":{"result":"failure"}}',
-		expectPass: false,
-	},
-	{
-		name: 'one cancelled',
-		json: '{"a":{"result":"cancelled"}}',
-		expectPass: false,
-	},
-	{
-		name: 'success mixed with failure',
-		json: '{"a":{"result":"success"},"b":{"result":"failure"}}',
-		expectPass: false,
-	},
-	{
-		name: 'success mixed with cancelled',
-		json: '{"a":{"result":"success"},"b":{"result":"cancelled"}}',
-		expectPass: false,
-	},
-	{
-		name: 'skipped mixed with failure',
-		json: '{"a":{"result":"skipped"},"b":{"result":"failure"}}',
-		expectPass: false,
-	},
-	{
-		name: 'ROUND 3: empty object (examined zero jobs)',
-		json: '{}',
-		expectPass: false,
-	},
-	{
-		name: 'ROUND 3: empty array (not an object at all)',
+		name: 'empty array (not an object at all)',
 		json: '[]',
 		expectPass: false,
 	},
+	{ name: 'JSON null', json: 'null', expectPass: false },
 	{
-		name: 'ROUND 3: entry missing .result entirely',
-		json: '{"a":{"outputs":{}}}',
-		expectPass: false,
-	},
-	{
-		name: 'ROUND 3: unrecognized result value (timed_out)',
-		json: '{"a":{"result":"timed_out"}}',
-		expectPass: false,
-	},
-	{
-		name: 'ROUND 3: numeric result value',
-		json: '{"a":{"result":200}}',
-		expectPass: false,
-	},
-	{ name: 'ROUND 3: JSON null', json: 'null', expectPass: false },
-	{
-		name: 'ROUND 3: a JSON string, not an object',
+		name: 'a JSON string, not an object',
 		json: '"oops"',
 		expectPass: false,
 	},
 	{
-		name: 'ROUND 3: malformed JSON (jq itself errors)',
+		name: 'malformed JSON (jq itself errors)',
 		json: '{not valid',
+		expectPass: false,
+	},
+
+	// --- ROUND 4: needs.changes.result must be exactly "success" ---
+	{
+		name: 'ROUND 4: changes missing entirely (no changes key at all)',
+		json: '{"verify":{"result":"success"}}',
+		expectPass: false,
+	},
+	{
+		name: 'ROUND 4: changes present but skipped',
+		json: '{"changes":{"result":"skipped","outputs":{"relevant":"true"}},"verify":{"result":"success"}}',
+		expectPass: false,
+	},
+	{
+		name: 'ROUND 4: changes present but failed',
+		json: '{"changes":{"result":"failure","outputs":{"relevant":"true"}},"verify":{"result":"success"}}',
+		expectPass: false,
+	},
+	{
+		name: 'ROUND 4: changes present but cancelled',
+		json: '{"changes":{"result":"cancelled","outputs":{"relevant":"true"}},"verify":{"result":"success"}}',
+		expectPass: false,
+	},
+
+	// --- ROUND 4: needs.changes.outputs.relevant must be exactly "true"/"false" ---
+	{
+		name: 'ROUND 4: outputs object entirely absent',
+		json: '{"changes":{"result":"success"},"verify":{"result":"skipped"}}',
+		expectPass: false,
+	},
+	{
+		name: 'ROUND 4: relevant output entirely absent from outputs',
+		json: '{"changes":{"result":"success","outputs":{}},"verify":{"result":"skipped"}}',
+		expectPass: false,
+	},
+	{
+		name: 'ROUND 4: relevant output is an empty string',
+		json: '{"changes":{"result":"success","outputs":{"relevant":""}},"verify":{"result":"skipped"}}',
+		expectPass: false,
+	},
+	{
+		name: 'ROUND 4: relevant output has the wrong case ("True")',
+		json: '{"changes":{"result":"success","outputs":{"relevant":"True"}},"verify":{"result":"skipped"}}',
+		expectPass: false,
+	},
+	{
+		name: 'ROUND 4: relevant output is a non-boolean-ish string ("maybe")',
+		json: '{"changes":{"result":"success","outputs":{"relevant":"maybe"}},"verify":{"result":"success"}}',
+		expectPass: false,
+	},
+	{
+		name: 'ROUND 4 BLOCKER (the exact reviewer reproduction): changes=success, relevant missing, heavy job skipped',
+		json: '{"changes":{"result":"success","outputs":{}},"verify":{"result":"skipped"}}',
+		expectPass: false,
+	},
+
+	// --- relevant=true: every required job must be success; skipped is no longer acceptable ---
+	{
+		name: 'relevant=true, the only required job succeeded',
+		json: '{"changes":{"result":"success","outputs":{"relevant":"true"}},"verify":{"result":"success"}}',
+		expectPass: true,
+	},
+	{
+		name: 'relevant=true, multiple required jobs all succeeded',
+		json: '{"changes":{"result":"success","outputs":{"relevant":"true"}},"a":{"result":"success"},"b":{"result":"success"}}',
+		expectPass: true,
+	},
+	{
+		name: 'ROUND 4 BLOCKER: relevant=true but a required job was skipped (the previously fail-open shape)',
+		json: '{"changes":{"result":"success","outputs":{"relevant":"true"}},"verify":{"result":"skipped"}}',
+		expectPass: false,
+	},
+	{
+		name: 'relevant=true, a required job failed',
+		json: '{"changes":{"result":"success","outputs":{"relevant":"true"}},"verify":{"result":"failure"}}',
+		expectPass: false,
+	},
+	{
+		name: 'relevant=true, a required job was cancelled',
+		json: '{"changes":{"result":"success","outputs":{"relevant":"true"}},"verify":{"result":"cancelled"}}',
+		expectPass: false,
+	},
+	{
+		name: 'relevant=true, one job succeeded and a second was skipped (e.g. cascaded from an upstream failure)',
+		json: '{"changes":{"result":"success","outputs":{"relevant":"true"}},"a":{"result":"success"},"b":{"result":"skipped"}}',
+		expectPass: false,
+	},
+	{
+		name: 'relevant=true, a required job has a numeric result value instead of a string',
+		json: '{"changes":{"result":"success","outputs":{"relevant":"true"}},"verify":{"result":200}}',
+		expectPass: false,
+	},
+	{
+		name: 'relevant=true, a required job has result: null',
+		json: '{"changes":{"result":"success","outputs":{"relevant":"true"}},"verify":{"result":null}}',
+		expectPass: false,
+	},
+
+	// --- relevant=false: required jobs may be success or skipped, but not failure/cancelled/unrecognized ---
+	{
+		name: 'relevant=false, all required jobs skipped (the ordinary verified-irrelevant-PR shape)',
+		json: '{"changes":{"result":"success","outputs":{"relevant":"false"}},"verify":{"result":"skipped"}}',
+		expectPass: true,
+	},
+	{
+		name: 'relevant=false, a required job still succeeded (e.g. an always-run job like e2e image cleanup)',
+		json: '{"changes":{"result":"success","outputs":{"relevant":"false"}},"verify":{"result":"success"}}',
+		expectPass: true,
+	},
+	{
+		name: 'relevant=false, mixed success and skipped required jobs',
+		json: '{"changes":{"result":"success","outputs":{"relevant":"false"}},"a":{"result":"success"},"b":{"result":"skipped"}}',
+		expectPass: true,
+	},
+	{
+		name: 'relevant=false, a required job failed anyway',
+		json: '{"changes":{"result":"success","outputs":{"relevant":"false"}},"verify":{"result":"failure"}}',
+		expectPass: false,
+	},
+	{
+		name: 'relevant=false, a required job was cancelled anyway',
+		json: '{"changes":{"result":"success","outputs":{"relevant":"false"}},"verify":{"result":"cancelled"}}',
+		expectPass: false,
+	},
+	{
+		name: 'relevant=false, a required job reports an unrecognized result value',
+		json: '{"changes":{"result":"success","outputs":{"relevant":"false"}},"verify":{"result":"timed_out"}}',
 		expectPass: false,
 	},
 ];
