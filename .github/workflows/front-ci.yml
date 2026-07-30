@@ -263,6 +263,55 @@ jobs:
     needs: [changes, supply-chain, gate-selftest]
     runs-on: ubuntu-latest
     steps:
+      # BLOCKER fix (round 5): `gate-selftest` above runs
+      # scripts/check-ci-gate-structure.mjs (among other things) server-side,
+      # but only as long as it stays connected to THIS job's `needs:` — a
+      # review round proved that dropping `gate-selftest` from `needs` makes
+      # the selftest job itself go red, but disconnects it from
+      # `front-ci-gate`, which stayed green: the decisive "gate.needs must
+      # equal every other job in the file" check inside
+      # check-ci-gate-structure.mjs was only ever invoked from a job that
+      # could itself be the thing removed from `needs`. This step runs that
+      # exact same script again, but as one of THIS job's own steps — the one
+      # externally required context — so it cannot be silently disconnected
+      # the way a whole job can. Only a direct edit to this job's own steps
+      # could remove it, which is the accepted #1022 malicious-author gap
+      # (a pull request can rewrite its own merge-commit YAML arbitrarily),
+      # not the accidental-disconnection gap this closes. Since this script
+      # parses all four #1017 gate workflow files, it also re-derives (from
+      # inside the one required context that cannot be conditionally
+      # disconnected) that front-e2e.yml, openapi-spec-drift.yml, and
+      # docs-archive.yml's own gate.needs are each still complete.
+      #
+      # Gated on `relevant` like this job's siblings: any edit capable of
+      # tripping this check is necessarily an edit to one of the four gate
+      # workflow files, which the classifier above (widened to cover all
+      # four, pinned by check-ci-gate-structure.mjs's selfTestCoverage check)
+      # always classifies relevant=true for.
+      - name: Checkout
+        if: needs.changes.outputs.relevant == 'true'
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Install pnpm
+        if: needs.changes.outputs.relevant == 'true'
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.13.1
+
+      - name: Setup Node
+        if: needs.changes.outputs.relevant == 'true'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+
+      - name: Install (frozen lockfile, no scripts)
+        if: needs.changes.outputs.relevant == 'true'
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Verify the aggregate-gate job graph from inside the required job itself
+        if: needs.changes.outputs.relevant == 'true'
+        run: node ./scripts/check-ci-gate-structure.mjs
+
       # Reads the `needs` context directly (via toJSON) instead of a
       # hand-written per-job map: a job added to `needs` above without also
       # being added to a hand-maintained Bash list would silently never be

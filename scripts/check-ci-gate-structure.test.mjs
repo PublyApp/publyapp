@@ -818,6 +818,62 @@ test('ROUND 4 BLOCKER: the uploaded report name denominator drifting from the ma
 	);
 });
 
+// ---------------------------------------------------------------------------
+// ROUND 5 BLOCKER: `requiresSelfCheck` — front-ci-gate must independently
+// re-run this very script as one of ITS OWN steps, so the decisive
+// "gate.needs must equal every other job" check cannot be silently
+// disconnected the way dropping gate-selftest from front-ci-gate's `needs`
+// did (see check-ci-gate-structure.mjs's file-level comment).
+// ---------------------------------------------------------------------------
+
+const requiresSelfCheckConfig = [
+	{
+		file: 'fixture.yml',
+		changesJob: 'changes',
+		gateJob: 'gate',
+		gateName: 'fixture-gate',
+		relevanceGatedJobs: [{ id: 'heavy', needs: ['changes'] }],
+		alwaysJobs: [],
+		requiresSelfCheck: true,
+	},
+];
+
+test('ROUND 5: a gate job that runs check-ci-gate-structure.mjs as one of its own steps satisfies requiresSelfCheck', async () => {
+	const withSelfCheck = goodWorkflow.replace(
+		'      - name: Check required jobs\n',
+		'      - name: Verify the aggregate-gate job graph from inside the required job itself\n        run: node ./scripts/check-ci-gate-structure.mjs\n      - name: Check required jobs\n',
+	);
+	const rootDir = await buildFixture(withSelfCheck);
+
+	assert.deepEqual(
+		await findCiGateStructureProblems({
+			rootDir,
+			workflows: requiresSelfCheckConfig,
+		}),
+		[],
+	);
+});
+
+test('ROUND 5 BLOCKER (the exact reviewer reproduction, one level up): a gate job with no self-check step at all is caught', async () => {
+	// This is the fixture-level analogue of the round-5 finding: gate-selftest
+	// dropped from front-ci-gate's `needs` disconnects the only job that ran
+	// this script server-side, and nothing in the required job itself
+	// re-derives the same answer. `goodWorkflow` has no such step, so this
+	// must fail when requiresSelfCheck is asked for.
+	const rootDir = await buildFixture(goodWorkflow);
+
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: requiresSelfCheckConfig,
+	});
+
+	assert.equal(findings.length, 1);
+	assert.match(
+		findings[0],
+		/gate: expected a step whose `run:` invokes `check-ci-gate-structure\.mjs` directly/,
+	);
+});
+
 test("the repo's own aggregate-gate workflows have the required job graph", async () => {
 	assert.deepEqual(
 		await findCiGateStructureProblems({ rootDir: repoRoot }),

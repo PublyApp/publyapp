@@ -166,6 +166,31 @@
 			"mirror": "just ci-drift",
 			"reason": "IMPORTANT fix: the four #1017 gate test suites and check-ci-gate-structure.mjs were reachable only through local `just ci-drift` — no workflow ran them, so every guard #1017 added was unenforced on the server. This step runs the identical six commands `just ci-drift` runs (pnpm test:ci-drift, check-ci-drift.mjs, the three ci-gate-*.test.mjs suites, ci-changed-paths.test.mjs, check-ci-gate-structure.test.mjs, and check-ci-gate-structure.mjs itself), server-side, gated by the same relevance classifier as this job's siblings (widened to wake for a change to any of the four gate workflow files, pinned by scripts/check-ci-gate-structure.mjs's selfTestCoverage check) and folded into front-ci-gate's needs so it cannot silently stop being required."
 		},
+		"front-ci.yml::gate::Checkout": {
+			"hash": "8ead663cb8da335d",
+			"mirror": null,
+			"reason": "GitHub-only checkout, identical in kind to every other job's checkout step in this file. Round-5 BLOCKER fix: front-ci-gate now checks itself out so its own \"Verify the aggregate-gate job graph\" step below can run check-ci-gate-structure.mjs. Nothing to mirror locally beyond having the working tree already checked out."
+		},
+		"front-ci.yml::gate::Install pnpm": {
+			"hash": "cccc59b49c730ee2",
+			"mirror": null,
+			"reason": "GitHub-only pnpm setup, identical in kind to gate-selftest's own Install pnpm step. Local development already assumes pnpm is installed via corepack/the repo's pinned version."
+		},
+		"front-ci.yml::gate::Setup Node": {
+			"hash": "dc9bf6b815efa4ef",
+			"mirror": null,
+			"reason": "GitHub-only Node setup, identical in kind to gate-selftest's own Setup Node step. Local checks already assume Node is available."
+		},
+		"front-ci.yml::gate::Install (frozen lockfile, no scripts)": {
+			"hash": "c4f6fc4a3174512d",
+			"mirror": "pnpm install --frozen-lockfile --ignore-scripts",
+			"reason": "Identical install command to gate-selftest's own install step; local development already runs pnpm install as part of `just install`."
+		},
+		"front-ci.yml::gate::Verify the aggregate-gate job graph from inside the required job itself": {
+			"hash": "a063c54fc6b8baad",
+			"mirror": "node ./scripts/check-ci-gate-structure.mjs",
+			"reason": "Round-5 BLOCKER fix: gate-selftest running this script server-side is only real enforcement while it stays connected to front-ci-gate's needs — dropping gate-selftest from needs disconnects the only job that ran it, while front-ci-gate itself stayed green. This step runs the identical script as one of front-ci-gate's OWN steps, so it cannot be silently disconnected the way a whole job can. `just ci-drift` runs this exact script directly (not through gate-selftest's job wrapper), so the local mirror is the identical invocation."
+		},
 		"front-ci.yml::gate::Check required jobs": {
 			"hash": "882f344edb8cc40a",
 			"mirror": null,

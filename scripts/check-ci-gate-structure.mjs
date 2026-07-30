@@ -80,6 +80,22 @@ import { parse } from 'yaml';
 // required context at all — the underlying push-triggered verification jobs
 // still run to validate the direct push itself, only the required-check
 // reporting is scoped.
+//
+// Round 5 also found that `gate-selftest` (the job that runs this very
+// script, and every other #1017 guard test, server-side) could be dropped
+// from `front-ci-gate`'s `needs` — the decisive "gate.needs must equal every
+// other job" check below still caught the drop (gate-selftest exists in the
+// file but is no longer in gate.needs), but only when THIS SCRIPT is invoked
+// from a job that is itself part of `front-ci-gate`'s needs. Dropping
+// gate-selftest disconnects the only job that ran this check server-side, so
+// the one required context never re-derived its own needs independently.
+// Fixed not in this file but in where it runs: front-ci.yml's `gate` job now
+// also runs this exact script as one of ITS OWN steps (see that file), so the
+// check cannot be silently disconnected the way a whole job can — only a
+// direct edit to the required job's own steps could remove it, which is the
+// accepted #1022 malicious-author gap, not the accidental-disconnection gap
+// this closes. `requiresSelfCheck: true` below pins that this exact step
+// exists.
 
 const workflowsDirectory = '.github/workflows';
 
@@ -154,6 +170,10 @@ const GATE_WORKFLOWS = [
 			'scripts/check-ci-drift.mjs',
 			'scripts/check-ci-gate-structure.mjs',
 		],
+		// Round 5 BLOCKER fix: front-ci-gate must independently re-derive its
+		// own job graph's correctness rather than relying solely on
+		// gate-selftest (see the file-level comment).
+		requiresSelfCheck: true,
 	},
 	{
 		file: 'openapi-spec-drift.yml',
@@ -261,6 +281,7 @@ const checkWorkflow = (
 		alwaysJobs,
 		matrix,
 		selfTestCoverage,
+		requiresSelfCheck,
 	},
 	document,
 ) => {
@@ -569,6 +590,30 @@ const checkWorkflow = (
 		if (!hasNeedsJsonWiring) {
 			findings.push(
 				`${file}::${gateJob}: expected a step with \`env.NEEDS_JSON: ${EXPECTED_NEEDS_JSON_EXPR}\`, so job results are aggregated from the \`needs\` context itself rather than a hand-maintained Bash map that could omit an entry. Found none.`,
+			);
+		}
+	}
+
+	// Round 5 BLOCKER fix: `gate-selftest` running this very script server-side
+	// is only real enforcement while it stays connected to `front-ci-gate`'s
+	// `needs` — the decisive "gate.needs must equal every other job" check
+	// above catches the disconnection itself, but only because
+	// `front-ci-gate`'s OWN steps (not gate-selftest's) now also run this
+	// script directly (see front-ci.yml's `gate` job). This asserts that
+	// self-check step actually exists, so it cannot be quietly removed from
+	// the one job whose result is externally required without also failing
+	// this assertion.
+	if (requiresSelfCheck === true) {
+		const gateSteps = Array.isArray(gate?.steps) ? gate.steps : [];
+		const hasSelfCheckStep = gateSteps.some(
+			(step) =>
+				typeof step.run === 'string' &&
+				step.run.includes('check-ci-gate-structure.mjs'),
+		);
+
+		if (!hasSelfCheckStep) {
+			findings.push(
+				`${file}::${gateJob}: expected a step whose \`run:\` invokes \`check-ci-gate-structure.mjs\` directly (this exact script, run as one of the required gate job's OWN steps — not a step in a job that could be disconnected from \`needs\`). Found none.`,
 			);
 		}
 	}
