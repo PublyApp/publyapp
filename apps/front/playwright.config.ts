@@ -5,6 +5,16 @@ import { STAFF_ADMIN_STORAGE_STATE } from './e2e/helpers/storage-state';
 const faultSpecs = ['**/auth-error.spec.ts', '**/log-leak.spec.ts'];
 const hermeticCounterSpecs = ['**/request-counter.spec.ts'];
 const authSetupSpecs = ['**/auth.setup.ts'];
+// #973 review round 3: this spec renders a real, app-independent
+// `page.setContent()` page — the REAL compiled production CSS
+// (`dist/client/assets/*.css`, built on demand if missing) plus markup
+// mirroring the real app-shell/breadcrumb components' rendered classes — to
+// get a genuine Chromium `getComputedStyle()`/`scrollWidth`/`clientWidth`
+// reading without a live login, backend, or docker-compose stack. Same
+// pattern as `feat/ui-profile-batch`'s `chromium-hermetic-source` project
+// (#992 review round 2) — kept as one convention rather than two. Must not
+// depend on `setup` and must not also run under `chromium`.
+const hermeticSourceSpecs = ['**/breadcrumb-entity-name-truncation.spec.ts'];
 const isCiShard = process.env.PLAYWRIGHT_CI_SHARD === 'true';
 
 export default defineConfig({
@@ -54,11 +64,26 @@ export default defineConfig({
 		},
 		{
 			name: 'chromium',
-			testIgnore: [...faultSpecs, ...hermeticCounterSpecs, ...authSetupSpecs],
+			testIgnore: [
+				...faultSpecs,
+				...hermeticCounterSpecs,
+				...authSetupSpecs,
+				...hermeticSourceSpecs,
+			],
 			dependencies: ['setup'],
 			use: {
 				...devices['Desktop Chrome'],
 				storageState: STAFF_ADMIN_STORAGE_STATE,
+			},
+		},
+		{
+			// No `dependencies`, no `storageState`, no navigation to `baseURL` —
+			// these specs never log in or talk to a live stack, so they must be
+			// able to run even when the docker-compose stack is down.
+			name: 'chromium-hermetic-source',
+			testMatch: hermeticSourceSpecs,
+			use: {
+				...devices['Desktop Chrome'],
 			},
 		},
 		{
