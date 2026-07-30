@@ -53,5 +53,31 @@ export const EntityCrumb = ({
 		);
 	}
 
-	return <>{name}</>;
+	// Entity names are user-supplied and arbitrarily long (a tenant, profile,
+	// or user's real display name — see #973). Unlike the label crumbs
+	// (short, developer-controlled i18n strings), this is the one breadcrumb
+	// segment that must defend its own layout: `block truncate` + `title`
+	// mirrors the repo's established "long user-supplied string in
+	// constrained space" pattern (list-row cells: `_staff-user-name-cell.tsx`,
+	// `staff-users.tsx`'s email column, `docs/guides/front/conventions.md`'s
+	// "Long descriptions… truncate" rule) rather than inventing a new one.
+	// `title` is the conventional minimum for exposing the full value on
+	// hover and to assistive technology; the repo has no tooltip primitive in
+	// use for this pattern (`components/ui/tooltip.tsx` backs icon-only
+	// affordances like `copy-button.tsx`, not inline text overflow) — a
+	// second on-canvas tooltip would be the inconsistency, not this one.
+	// `block` (not `inline-block`) matches every existing "block truncate"
+	// call site and, combined with the `min-w-0` now on the ancestor
+	// `.app-shell-breadcrumb-link`/`-current`/`-muted` flex item (see
+	// `app.css`), lets this span shrink to whatever width the breadcrumb row
+	// actually has left and ellipsize instead of overflowing it.
+	return (
+		<span
+			className="block truncate"
+			title={name}
+			data-testid="app-shell-breadcrumb-entity-name"
+		>
+			{name}
+		</span>
+	);
 };

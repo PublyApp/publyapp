@@ -558,6 +558,146 @@ describe('breadcrumb contract — rendered artifact (#973 Tier 2, guard B)', () 
 		).toBeNull();
 	});
 
+	/**
+	 * #973 IMPORTANT remediation: production `EntityCrumb` used to render the
+	 * resolved name as a bare text fragment — no `truncate`, no `max-w-*`, no
+	 * `title`. A tenant/profile/user with a long real name (exactly what this
+	 * PR introduces — breadcrumbs now show real, user-supplied entity names)
+	 * had nothing stopping it from overflowing or widening the breadcrumb
+	 * row. This test drives the real `/staff/tenants/$tenantId` route's real
+	 * `EntityCrumb` render with a long name and checks the production node.
+	 *
+	 * Real pixel geometry is NOT measurable here, and this is not glossed
+	 * over: this file's `@vitest-environment jsdom` directive means no
+	 * layout or paint ever runs — `getBoundingClientRect`, `scrollWidth`, and
+	 * `clientWidth` are all 0 in jsdom regardless of CSS, and no compiled
+	 * Tailwind stylesheet is loaded into this document, so there is no way to
+	 * observe `text-overflow: ellipsis` actually clipping a glyph, or to
+	 * measure whether the row's rendered width ever exceeded its container.
+	 * That is a real browser's job — the front Playwright e2e suite
+	 * (`apps/front/e2e/`) is the durable place for a genuine layout
+	 * assertion; none exists there for this yet, and none is added by this
+	 * change (out of scope for a IMPORTANT-severity gap in an already-large
+	 * branch, and the repo's e2e suite requires the full docker stack).
+	 *
+	 * What IS real and checkable in this environment, against the actual
+	 * production node (not a copy): (1) the full untruncated name is still
+	 * recoverable — the `title` attribute, the conventional hover/assistive-
+	 * technology minimum this repo already uses for every other long
+	 * user-supplied string in constrained space (list-row cells, the tenant
+	 * band); (2) the real truncation-establishing utility classes
+	 * (`block truncate`, which Tailwind compiles to
+	 * `overflow: hidden; text-overflow: ellipsis; white-space: nowrap`) are
+	 * present on the real rendered node; (3) a long name produces the exact
+	 * same DOM shape (same classes, same crumb count) as a short name — no
+	 * conditional extra markup, no length-triggered wrap, no reserved empty
+	 * space for the short case.
+	 */
+	test('a long entity name exposes its full value via title and carries the real truncation classes, with no DOM-shape difference from a short name (#973 IMPORTANT: long-name durability)', async () => {
+		const longName =
+			'Acme Corporation International Holdings & Subsidiaries Consolidated Group Worldwide Ltd.';
+
+		mocks.respond.mockImplementation(async (call) => {
+			if (pathEndsWith(call, 'byTenantId', 'get')) {
+				return {
+					tenantId: 'tenant-1',
+					name: longName,
+					maxUsers: 10,
+					status: 'active',
+				};
+			}
+
+			return {};
+		});
+
+		const longQueryClient = new QueryClient({
+			defaultOptions: { queries: { retry: false, staleTime: 30_000 } },
+		});
+		const longRouter = buildTestRouter(
+			'/staff/tenants/tenant-1',
+			longQueryClient,
+		);
+
+		render(
+			<QueryClientProvider client={longQueryClient}>
+				<RouterProvider router={longRouter} />
+			</QueryClientProvider>,
+		);
+
+		const longNameNode = await waitFor(() => {
+			const node = screen.getByTestId('app-shell-breadcrumb-entity-name');
+			expect(node.textContent).toBe(longName);
+			return node;
+		});
+
+		// The a11y/hover minimum: the FULL value must be recoverable even
+		// though the visible text is meant to be clipped.
+		expect(longNameNode.getAttribute('title')).toBe(longName);
+
+		// The real classes Tailwind compiles into the actual clipping CSS,
+		// present on the real production node.
+		const longNameClasses = longNameNode.className.split(' ');
+		expect(longNameClasses).toEqual(
+			expect.arrayContaining(['block', 'truncate']),
+		);
+
+		const navWithLongName = screen.getByRole('navigation', {
+			name: 'nav-breadcrumb',
+		});
+		const crumbCountWithLongName =
+			navWithLongName.querySelectorAll(':scope > *').length;
+
+		cleanup();
+		mocks.respond.mockReset();
+
+		const shortName = 'Acme';
+		mocks.respond.mockImplementation(async (call) => {
+			if (pathEndsWith(call, 'byTenantId', 'get')) {
+				return {
+					tenantId: 'tenant-1',
+					name: shortName,
+					maxUsers: 10,
+					status: 'active',
+				};
+			}
+
+			return {};
+		});
+
+		const shortQueryClient = new QueryClient({
+			defaultOptions: { queries: { retry: false, staleTime: 30_000 } },
+		});
+		const shortRouter = buildTestRouter(
+			'/staff/tenants/tenant-1',
+			shortQueryClient,
+		);
+
+		render(
+			<QueryClientProvider client={shortQueryClient}>
+				<RouterProvider router={shortRouter} />
+			</QueryClientProvider>,
+		);
+
+		const shortNameNode = await waitFor(() => {
+			const node = screen.getByTestId('app-shell-breadcrumb-entity-name');
+			expect(node.textContent).toBe(shortName);
+			return node;
+		});
+
+		// Short names must be completely unaffected: the exact same DOM
+		// shape (same classes on the crumb, same crumb count) as the long
+		// name above — no length-triggered conditional markup, no reserved
+		// empty space held back for a truncation ellipsis that never fires.
+		expect(shortNameNode.className.split(' ')).toEqual(longNameClasses);
+
+		const navWithShortName = screen.getByRole('navigation', {
+			name: 'nav-breadcrumb',
+		});
+		expect(navWithShortName.querySelectorAll(':scope > *').length).toBe(
+			crumbCountWithLongName,
+		);
+	});
+
 	test('a failed entity lookup renders a muted dash, never an eternal skeleton, with the same crumb count', async () => {
 		mocks.respond.mockImplementation((call) => {
 			if (pathEndsWith(call, 'byTenantId', 'get')) {

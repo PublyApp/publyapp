@@ -1180,7 +1180,19 @@ html.dark {
 		color: var(--publy-disabled);
 	}
 
+	/* `min-w-0` on all three: each is a direct flex item of
+	   `.app-shell-breadcrumbs` (nav, `display: flex`, nowrap by default), so
+	   without it the default flex-item `min-width: auto` would refuse to
+	   shrink below its content's natural width — an entity crumb long enough
+	   to matter would then overflow the nav row (clipped by
+	   `.app-shell-body`'s `overflow-hidden`) instead of the inner
+	   `EntityCrumb` name's own `block truncate` span ever getting a chance to
+	   ellipsize. This is the standard flex-item + truncated-child pattern
+	   (`min-w-0` parent, `truncate` child) already used elsewhere in front
+	   (see `_staff-user-name-cell.tsx`, `staff-users.tsx`'s email cell) — see
+	   docs/guides/front/conventions.md's "Long descriptions… truncate" rule. */
 	.app-shell-breadcrumb-link {
+		@apply min-w-0;
 		color: var(--publy-foreground-muted);
 	}
 
@@ -1189,11 +1201,13 @@ html.dark {
 	}
 
 	.app-shell-breadcrumb-current {
+		@apply min-w-0;
 		color: var(--publy-foreground);
 		font-weight: 500;
 	}
 
 	.app-shell-breadcrumb-muted {
+		@apply min-w-0;
 		color: var(--publy-foreground-muted);
 	}
 
