@@ -434,6 +434,134 @@ test('ROUND 4: array-shorthand `on: [pull_request, merge_group]` accepts merge_g
 	);
 });
 
+// ---------------------------------------------------------------------------
+// IMPORTANT: `selfTestCoverage` — pins that front-ci.yml's classifier
+// pattern (the thing that decides whether the new `gate-selftest` job wakes
+// up) actually matches every workflow/script path the guard's own tests
+// parse/assert against, so narrowing it back to just one workflow file
+// silently reintroduces the "unenforced on the server" gap.
+// ---------------------------------------------------------------------------
+
+/** A fixture workflow using the REAL `node "$CLASSIFIER" '<pattern>'` shape. */
+const selfTestCoverageWorkflow = (pattern) => `
+name: fixture
+on:
+  pull_request:
+  merge_group:
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      relevant: \${{ steps.filter.outputs.relevant }}
+    steps:
+      - name: filter
+        id: filter
+        run: |
+          CLASSIFIER=base-ref/scripts/ci-changed-paths.mjs
+          if [ -f "$CLASSIFIER" ]; then
+            node "$CLASSIFIER" '${pattern}'
+          else
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+          fi
+  heavy:
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo heavy
+  gate:
+    name: fixture-gate
+    if: always()
+    needs: [changes, heavy]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check required jobs
+        env:
+          NEEDS_JSON: \${{ toJSON(needs) }}
+        run: echo "$NEEDS_JSON"
+`;
+
+const selfTestCoverageConfig = (selfTestCoverage) => [
+	{
+		file: 'fixture.yml',
+		changesJob: 'changes',
+		gateJob: 'gate',
+		gateName: 'fixture-gate',
+		relevanceGatedJobs: [{ id: 'heavy', needs: ['changes'] }],
+		alwaysJobs: [],
+		selfTestCoverage,
+	},
+];
+
+test('IMPORTANT: a classifier pattern covering every required path passes', async () => {
+	const rootDir = await buildFixture(
+		selfTestCoverageWorkflow('^(scripts/|\\.github/workflows/(a|b)\\.yml$)'),
+	);
+
+	assert.deepEqual(
+		await findCiGateStructureProblems({
+			rootDir,
+			workflows: selfTestCoverageConfig([
+				'.github/workflows/a.yml',
+				'.github/workflows/b.yml',
+				'scripts/some-guard-script.mjs',
+			]),
+		}),
+		[],
+	);
+});
+
+test('IMPORTANT BLOCKER: a classifier pattern narrowed back to a single workflow file is caught', async () => {
+	// Exactly the round-4 regression this guards against: the pattern only
+	// covers "a.yml" (as if front-ci.yml's classifier had been narrowed back
+	// to matching only itself), so a change to the guarded "b.yml" would
+	// never wake the self-test job even though check-ci-gate-structure.mjs
+	// still asserts against it.
+	const rootDir = await buildFixture(
+		selfTestCoverageWorkflow('^\\.github/workflows/a\\.yml$'),
+	);
+
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: selfTestCoverageConfig([
+			'.github/workflows/a.yml',
+			'.github/workflows/b.yml',
+			'scripts/some-guard-script.mjs',
+		]),
+	});
+
+	assert.equal(findings.length, 2);
+	assert.ok(
+		findings.every((finding) =>
+			/the classifier pattern must match/.test(finding),
+		),
+	);
+	assert.ok(findings.some((finding) => finding.includes('b.yml')));
+	assert.ok(
+		findings.some((finding) => finding.includes('some-guard-script.mjs')),
+	);
+});
+
+test('IMPORTANT: a workflow with no selfTestCoverage configured is skipped by this check entirely', async () => {
+	// front-e2e.yml, openapi-spec-drift.yml, and docs-archive.yml do not
+	// declare selfTestCoverage (only front-ci.yml hosts gate-selftest), so
+	// this must be a no-op for them regardless of their classifier pattern.
+	const rootDir = await buildFixture(
+		selfTestCoverageWorkflow('^this-matches-nothing-relevant$'),
+	);
+
+	assert.deepEqual(
+		await findCiGateStructureProblems({
+			rootDir,
+			workflows: selfTestCoverageConfig(undefined),
+		}),
+		[],
+	);
+});
+
 test('ROUND 2 BLOCKER: a job added to gate.needs but omitted from a hand-written result map is impossible by construction, and its absence from the toJSON(needs) wiring is caught', async () => {
 	// The round-2 finding: "Add a failed job, include it in gate.needs, but
 	// omit it from the hand-written Bash result map." The fix removes the

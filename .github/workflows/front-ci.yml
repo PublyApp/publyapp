@@ -90,6 +90,18 @@ jobs:
         # complete (GitHub's 3,000-file API ceiling) — see
         # scripts/ci-changed-paths.test.mjs.
         #
+        # Also includes the other three #1017 aggregate-gate workflow files
+        # (front-e2e.yml, openapi-spec-drift.yml, docs-archive.yml), not just
+        # this one: the `gate-selftest` job below runs
+        # scripts/check-ci-gate-structure.mjs and the four new gate test
+        # suites, which parse and assert against ALL FOUR workflow files —
+        # server-enforcing the guards those files depend on requires waking
+        # up for an edit to any of them, or an edit to one of the other three
+        # could regress unnoticed by CI even though this repo's only
+        # server-side runner of those tests lives here. Pinned as a
+        # requirement in scripts/check-ci-gate-structure.mjs itself (see its
+        # `selfTestCoverage` check), so this pattern cannot narrow silently.
+        #
         # The base-pinned checkout above can legitimately be empty (see its
         # comment). If so, this fails closed to relevant=true on a path that
         # never invokes the classifier at all, kept structurally separate
@@ -101,7 +113,7 @@ jobs:
           CLASSIFIER=base-ref/scripts/ci-changed-paths.mjs
 
           if [ -f "$CLASSIFIER" ]; then
-            node "$CLASSIFIER" '^(apps/front/|packages/shared-ts/|packages/client-ts/|packages/_tsconfig/|scripts/|turbo\.json$|\.github/workflows/front-ci\.yml$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|package\.json$|\.npmrc$)'
+            node "$CLASSIFIER" '^(apps/front/|packages/shared-ts/|packages/client-ts/|packages/_tsconfig/|scripts/|turbo\.json$|\.github/workflows/(front-ci|front-e2e|openapi-spec-drift|docs-archive)\.yml$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|package\.json$|\.npmrc$)'
           else
             echo "::warning::[MISSING BASE CLASSIFIER] $CLASSIFIER does not exist at the base commit. This is expected exactly once: for the pull request that introduces this classifier, or a branch cut before it existed on the base branch. Relevance cannot be determined from a classifier that is not there, so this fails closed: treating the workflow as relevant and running everything. If this keeps happening on ordinary pull requests well after the classifier has been on the base branch, something is wrong — investigate, do not silence it."
             echo "relevant=true" >> "$GITHUB_OUTPUT"
@@ -186,6 +198,50 @@ jobs:
       - name: Test front
         run: pnpm --filter front test
 
+  # IMPORTANT fix: the four #1017 aggregate-gate test suites and the
+  # scripts/check-ci-gate-structure.mjs CLI were reachable only through local
+  # `just ci-drift` — no workflow invoked them. A review confirmed against a
+  # real job log that server CI ran lint/design-system/front tests but none
+  # of the gate guard's own tests, so every guard #1017 added was, on the
+  # server, unenforced: local policy is not enforcement. This job runs the
+  # exact same commands `just ci-drift` runs, server-side, gated by the same
+  # relevance classifier above (widened to also cover the other three gate
+  # workflow files — see the "Check whether front-ci paths changed" step's
+  # comment), and folded into front-ci-gate below so it cannot silently stop
+  # being required without also failing scripts/check-ci-gate-structure.mjs's
+  # "gate.needs must equal every other job in the file" check.
+  gate-selftest:
+    name: CI gate guard self-test
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.13.1
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+
+      - name: Install (frozen lockfile, no scripts)
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Run CI gate guard tests (mirrors `just ci-drift`)
+        run: |
+          node --test ./scripts/check-ci-drift.test.mjs
+          node ./scripts/check-ci-drift.mjs
+          node --test ./scripts/ci-changed-paths.test.mjs
+          node --test ./scripts/ci-gate-bootstrap.test.mjs
+          node --test ./scripts/ci-gate-aggregation.test.mjs
+          node --test ./scripts/check-ci-gate-structure.test.mjs
+          node ./scripts/check-ci-gate-structure.mjs
+
   # Required status check: this is the one context that should be required
   # on the branch ruleset instead of relying on the trigger. It always
   # reports (if: always()), passes when upstream jobs succeeded or were
@@ -194,7 +250,7 @@ jobs:
   gate:
     name: front-ci-gate
     if: always()
-    needs: [changes, supply-chain]
+    needs: [changes, supply-chain, gate-selftest]
     runs-on: ubuntu-latest
     steps:
       # Reads the `needs` context directly (via toJSON) instead of a

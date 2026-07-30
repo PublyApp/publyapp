@@ -103,8 +103,31 @@ const GATE_WORKFLOWS = [
 		changesJob: 'changes',
 		gateJob: 'gate',
 		gateName: 'front-ci-gate',
-		relevanceGatedJobs: [{ id: 'supply-chain', needs: ['changes'] }],
+		relevanceGatedJobs: [
+			{ id: 'supply-chain', needs: ['changes'] },
+			{ id: 'gate-selftest', needs: ['changes'] },
+		],
 		alwaysJobs: [],
+		// IMPORTANT fix: the four #1017 gate test suites and this very CLI
+		// were reachable only through local `just ci-drift` — no workflow ran
+		// them. `gate-selftest` above runs them server-side, but that is only
+		// real enforcement if it actually wakes up for a change to any of the
+		// four workflow files it asserts against (not just front-ci.yml) and
+		// to the guard scripts themselves. This asserts the classifier
+		// pattern extracted from the REAL `changes` job actually matches
+		// every one of these paths, so the pattern narrowing back to
+		// front-ci.yml-only (or dropping guard-script coverage) is caught
+		// here rather than silently reintroducing the "unenforced on the
+		// server" gap this fix closes.
+		selfTestCoverage: [
+			'.github/workflows/front-ci.yml',
+			'.github/workflows/front-e2e.yml',
+			'.github/workflows/openapi-spec-drift.yml',
+			'.github/workflows/docs-archive.yml',
+			'scripts/ci-changed-paths.mjs',
+			'scripts/check-ci-drift.mjs',
+			'scripts/check-ci-gate-structure.mjs',
+		],
 	},
 	{
 		file: 'openapi-spec-drift.yml',
@@ -211,6 +234,7 @@ const checkWorkflow = (
 		relevanceGatedJobs,
 		alwaysJobs,
 		matrix,
+		selfTestCoverage,
 	},
 	document,
 ) => {
@@ -520,6 +544,43 @@ const checkWorkflow = (
 			findings.push(
 				`${file}::${gateJob}: expected a step with \`env.NEEDS_JSON: ${EXPECTED_NEEDS_JSON_EXPR}\`, so job results are aggregated from the \`needs\` context itself rather than a hand-maintained Bash map that could omit an entry. Found none.`,
 			);
+		}
+	}
+
+	// IMPORTANT fix: the #1017 gate guard's own tests were reachable only
+	// through local `just ci-drift` — no workflow ran them, so every guard
+	// added was unenforced on the server. A `gate-selftest`-style job fixes
+	// that only if it actually wakes up for a change to any file it asserts
+	// against. This extracts the REAL classifier pattern from the `changes`
+	// job's `filter` step (the same literal `node "$CLASSIFIER" '<pattern>'`
+	// invocation scripts/ci-gate-bootstrap.test.mjs parses) and asserts it
+	// matches every path in `selfTestCoverage`, so narrowing that pattern
+	// back to just this one workflow file — silently reintroducing the gap —
+	// is caught here.
+	if (selfTestCoverage !== undefined && changes !== undefined) {
+		const classifierSteps = Array.isArray(changes.steps) ? changes.steps : [];
+		const filterStep = classifierSteps.find(
+			(step) => step?.id === EXPECTED_CLASSIFIER_STEP_ID,
+		);
+		const patternMatch =
+			typeof filterStep?.run === 'string'
+				? filterStep.run.match(/node "\$CLASSIFIER" '([^']*)'/)
+				: null;
+
+		if (patternMatch === null) {
+			findings.push(
+				`${file}::${changesJob}: expected to find a \`node "$CLASSIFIER" '<pattern>'\` invocation in the filter step to check \`selfTestCoverage\` against, but found none.`,
+			);
+		} else {
+			const pattern = new RegExp(patternMatch[1]);
+
+			for (const requiredPath of selfTestCoverage) {
+				if (!pattern.test(requiredPath)) {
+					findings.push(
+						`${file}::${changesJob}: the classifier pattern must match \`${requiredPath}\` (the #1017 gate guard's own tests parse/assert against this file, so a change to it must wake the guard's server-side self-test job), but it does not.`,
+					);
+				}
+			}
 		}
 	}
 

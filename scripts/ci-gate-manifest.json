@@ -67,9 +67,9 @@
 			"reason": "GitHub-only Node setup for PR gating. This repository's local checks already assume Node is available locally for scripts and format/lint tooling."
 		},
 		"front-ci.yml::changes::Check whether front-ci paths changed": {
-			"hash": "ade3af182efd4e75",
+			"hash": "b15111aafac2bed3",
 			"mirror": "node --test scripts/ci-gate-bootstrap.test.mjs",
-			"reason": "The step now inlines the fallback directly (round-3 review fix: replaced a separate PR-controlled wrapper script with a few lines of shell, since a separate file has no different trust level than inline YAML content — both are read from the pull request's merge commit): if base-ref/scripts/ci-changed-paths.mjs exists, run it and pass its output/exit code straight through; otherwise print a loud [MISSING BASE CLASSIFIER] warning and resolve relevant=true, on a code path that never invokes the classifier. scripts/ci-gate-bootstrap.test.mjs parses this exact `run:` block from the real workflow file (not a restatement) and executes it directly against both cases for all four workflows. The classifier's own decision logic (including the 3,000-file API-ceiling fail-closed check) remains covered by ci-changed-paths.test.mjs. The live gh api calls remain GitHub-only and unmirrored."
+			"reason": "The step now inlines the fallback directly (round-3 review fix: replaced a separate PR-controlled wrapper script with a few lines of shell, since a separate file has no different trust level than inline YAML content — both are read from the pull request's merge commit): if base-ref/scripts/ci-changed-paths.mjs exists, run it and pass its output/exit code straight through; otherwise print a loud [MISSING BASE CLASSIFIER] warning and resolve relevant=true, on a code path that never invokes the classifier. scripts/ci-gate-bootstrap.test.mjs parses this exact `run:` block from the real workflow file (not a restatement) and executes it directly against both cases for all four workflows. The classifier's own decision logic (including the 3,000-file API-ceiling fail-closed check) remains covered by ci-changed-paths.test.mjs. The live gh api calls remain GitHub-only and unmirrored. Round-4 update: the pattern now also matches the other three #1017 gate workflow files (front-e2e.yml, openapi-spec-drift.yml, docs-archive.yml), so the new gate-selftest job wakes for a change to any of them; scripts/check-ci-gate-structure.mjs's selfTestCoverage check pins that this pattern keeps matching all four."
 		},
 		"front-ci.yml::supply-chain::Checkout": {
 			"hash": "eae51f7d6ff9219e",
@@ -140,6 +140,31 @@
 			"hash": "b0ae64935f5d9419",
 			"mirror": "just ci-front",
 			"reason": "ci-front runs the identical pnpm --filter front test."
+		},
+		"front-ci.yml::gate-selftest::Checkout": {
+			"hash": "eae51f7d6ff9219e",
+			"mirror": null,
+			"reason": "GitHub-only checkout of the pull request's own ref, identical in kind to every other job's checkout step in this file. Nothing to mirror locally beyond having the working tree already checked out."
+		},
+		"front-ci.yml::gate-selftest::Install pnpm": {
+			"hash": "e582485ed32ac12b",
+			"mirror": null,
+			"reason": "GitHub-only pnpm setup for CI. Local development already assumes pnpm is installed via corepack/the repo's pinned version."
+		},
+		"front-ci.yml::gate-selftest::Setup Node": {
+			"hash": "b80a345620484c88",
+			"mirror": null,
+			"reason": "GitHub-only Node setup for CI. Local checks already assume Node is available."
+		},
+		"front-ci.yml::gate-selftest::Install (frozen lockfile, no scripts)": {
+			"hash": "2fd5cf518bdeb323",
+			"mirror": "pnpm install --frozen-lockfile --ignore-scripts",
+			"reason": "Identical install command to front-ci.yml::supply-chain's own install step; local development already runs pnpm install as part of `just install`."
+		},
+		"front-ci.yml::gate-selftest::Run CI gate guard tests (mirrors `just ci-drift`)": {
+			"hash": "686dec31a3a8e53c",
+			"mirror": "just ci-drift",
+			"reason": "IMPORTANT fix: the four #1017 gate test suites and check-ci-gate-structure.mjs were reachable only through local `just ci-drift` — no workflow ran them, so every guard #1017 added was unenforced on the server. This step runs the identical six commands `just ci-drift` runs (pnpm test:ci-drift, check-ci-drift.mjs, the three ci-gate-*.test.mjs suites, ci-changed-paths.test.mjs, check-ci-gate-structure.test.mjs, and check-ci-gate-structure.mjs itself), server-side, gated by the same relevance classifier as this job's siblings (widened to wake for a change to any of the four gate workflow files, pinned by scripts/check-ci-gate-structure.mjs's selfTestCoverage check) and folded into front-ci-gate's needs so it cannot silently stop being required."
 		},
 		"front-ci.yml::gate::Check required jobs": {
 			"hash": "882f344edb8cc40a",
