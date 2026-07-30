@@ -31,9 +31,13 @@ import {
 // `::-webkit-search-cancel-button` pseudo-element), so a real Chromium
 // `getComputedStyle()` reading is fully achievable here — see
 // `e2e/profile-icon-picker-pin-contrast.spec.ts`, which is the actual
-// authority on the effective cascade; this file is a fast, still-honestly-
-// limited defense-in-depth companion (see css-cascade-test-support.ts for
-// its documented limits: no specificity, no `!important`, no `@media`).
+// authority on the effective cascade — closing round 3's specificity blind
+// spot completely, since it measures the LIVE component's real class list.
+// This file is a fast defense-in-depth companion; the shared resolver
+// (css-cascade-test-support.ts) now also handles selector specificity,
+// `!important`, and conditional-`@media`/`@supports`/`@container` nesting
+// within a deliberately bounded scope — see that module's doc comment for
+// exactly what remains out of scope.
 const rootDir = path.resolve(fileURLToPath(new URL('.', import.meta.url)));
 const appCss = readFileSync(path.join(rootDir, 'app.css'), 'utf8');
 const NON_TEXT_CONTRAST_FLOOR = 3.0;
@@ -228,6 +232,58 @@ describe('profile icon-picker pencil-pin contrast (#992)', () => {
 		expect(countExactSelectorRules(decoyOnlyCss, PIN_SELECTOR)).toBe(0);
 		expect(() =>
 			resolveEffectiveDeclarations(decoyOnlyCss, PIN_SELECTOR),
+		).toThrow();
+	});
+
+	// Round 3 review: the real-browser spec
+	// (e2e/profile-icon-picker-pin-contrast.spec.ts) now measures the LIVE
+	// component and is the actual authority on these three cascade shapes for
+	// the pin. These are a defense-in-depth supplement proving the shared
+	// resolver (css-cascade-test-support.ts) itself now handles them too —
+	// see search-input.test.tsx for the same three proofs against the one
+	// selector that has NO browser backstop at all.
+
+	// Specificity regression proof: the reviewer's exact mutation — a
+	// higher-specificity compound selector appending the pin's own
+	// `ring-background` class.
+	test('a higher-specificity compound selector overrides the effective colour regardless of source order (specificity regression proof)', () => {
+		const mutatedCss = `.publy-profile-detail-tile-pin.ring-background {\n\tcolor: var(--publy-foreground-subtle);\n}\n${appCss}`;
+
+		const declarations = resolveEffectiveDeclarations(mutatedCss, PIN_SELECTOR);
+		expect(declarations.get('color')).toBe('var(--publy-foreground-subtle)');
+
+		const foreground = resolveThemeHexToken(
+			':root',
+			'--publy-foreground-subtle',
+		);
+		const background = resolveThemeHexToken(':root', '--publy-surface');
+		expect(contrastRatio(foreground, background)).toBeLessThan(
+			NON_TEXT_CONTRAST_FLOOR,
+		);
+	});
+
+	// `!important` regression proof: an earlier `!important` declaration must
+	// beat the real rule's later plain declaration for the same property.
+	test('an earlier !important declaration beats the real rule (importance regression proof)', () => {
+		const mutatedCss = `${PIN_SELECTOR} {\n\tcolor: var(--publy-foreground-subtle) !important;\n}\n${appCss}`;
+
+		const declarations = resolveEffectiveDeclarations(mutatedCss, PIN_SELECTOR);
+		expect(declarations.get('color')).toBe('var(--publy-foreground-subtle)');
+		// `background` is untouched by the `!important` rule.
+		expect(declarations.get('background')).toBe('var(--publy-surface)');
+	});
+
+	// `@media` regression proof: reproduces the reviewer's exact mutation —
+	// the sole rule wrapped in a non-matching `@media` query — using a
+	// synthetic decoy (mirroring the prefix-leak test above), since the real
+	// app.css legitimately keeps this rule inside `@layer components`
+	// (unconditional grouping, not gated) and this proof is specifically
+	// about conditional at-rules, not `@layer`.
+	test('a sole rule wrapped in a non-matching @media query is not resolved as unconditional (media regression proof)', () => {
+		const decoyCss = `@media (max-width: 0px) {\n${PIN_SELECTOR} {\n\tcolor: var(--publy-foreground-muted);\n\tbackground: var(--publy-surface);\n}\n}\n`;
+
+		expect(() =>
+			resolveEffectiveDeclarations(decoyCss, PIN_SELECTOR),
 		).toThrow();
 	});
 });

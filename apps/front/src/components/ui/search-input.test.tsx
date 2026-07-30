@@ -221,6 +221,73 @@ describe('SearchInput', () => {
 		expect(declarations.get('-webkit-appearance')).toBe('none');
 	});
 
+	// Round 3 review: the resolver above still had three honestly documented
+	// but trivially reachable blind spots — no specificity model, no
+	// importance handling, no conditional-at-rule awareness — and this
+	// selector has NO real-browser backstop at all (a prior investigation
+	// confirmed headless AND headed Chromium/Linux give byte-identical
+	// screenshots and ARIA snapshots whether the suppression rule is present
+	// or absent), so this source guard is the only shipped check. The three
+	// tests below reproduce the reviewer's exact mutations against
+	// `css-cascade-test-support.ts`'s now specificity/importance/conditional-
+	// aware resolver.
+
+	// Specificity regression proof: a higher-specificity selector appending
+	// another class to the target re-enables the control. Prepended (earlier
+	// in source than the real rule) specifically to prove this is won on
+	// SPECIFICITY, not source order — a same-specificity "later wins" model
+	// would miss this if it appeared first.
+	test('a higher-specificity compound selector re-enabling the control is caught regardless of source order (specificity regression proof)', () => {
+		const higherSpecificitySelector =
+			".publy-search-input.foo[type='search']::-webkit-search-cancel-button";
+		const mutatedCss = `${higherSpecificitySelector} {\n\tappearance: auto;\n\tdisplay: inline-block;\n}\n${appCssSource}`;
+
+		const declarations = resolveEffectiveDeclarations(
+			mutatedCss,
+			SEARCH_CANCEL_SELECTOR,
+		);
+		expect(declarations.get('display')).toBe('inline-block');
+		expect(declarations.get('appearance')).toBe('auto');
+		// Untouched by the higher-specificity rule — still carried forward.
+		expect(declarations.get('-webkit-appearance')).toBe('none');
+	});
+
+	// Importance regression proof: an earlier important-flagged re-enabling
+	// declaration must beat a LATER plain one for the same property, even
+	// though the plain declaration is both later in source and equal
+	// specificity — importance decides before source order does. The literal
+	// CSS "important" flag below is real test data for the resolver's parser
+	// (see the KNOWN_IMPORTANT_FOUNDATION_DEBT entry for this file in
+	// check-design-system.mjs), not shipped styling.
+	test('an earlier important-flagged declaration beats a later plain declaration for the same property (importance regression proof)', () => {
+		const mutatedCss = `${SEARCH_CANCEL_SELECTOR} {\n\tdisplay: inline-block !important;\n}\n${appCssSource}`;
+
+		const declarations = resolveEffectiveDeclarations(
+			mutatedCss,
+			SEARCH_CANCEL_SELECTOR,
+		);
+		expect(declarations.get('display')).toBe('inline-block');
+		// Properties the important-flagged rule never mentions are untouched.
+		expect(declarations.get('appearance')).toBe('none');
+		expect(declarations.get('-webkit-appearance')).toBe('none');
+	});
+
+	// `@media` regression proof: reproduces the reviewer's exact mutation —
+	// the sole rule for this selector wrapped in a non-matching `@media`
+	// query. The old resolver treated a conditional rule as unconditional
+	// (7/7 stayed green against the real file); the fixed resolver excludes
+	// conditional matches entirely, so a selector whose ONLY rule is
+	// conditional now has no unconditional match at all and fails loudly —
+	// exactly the signal a silently-made-conditional suppression rule needs,
+	// given there is no browser authority to catch it instead.
+	test('a sole rule wrapped in a non-matching @media query is not resolved as unconditional (media regression proof)', () => {
+		const decoyCss = `@media (max-width: 0px) {\n${SEARCH_CANCEL_SELECTOR} {\n\tdisplay: none;\n\tappearance: none;\n\t-webkit-appearance: none;\n}\n}\n`;
+
+		expect(() =>
+			resolveEffectiveDeclarations(decoyCss, SEARCH_CANCEL_SELECTOR),
+		).toThrow();
+	});
+
 	// NOTE: the assertions above are a source-level supplement, not a
 	// substitute for a real browser check. jsdom cannot render a
 	// `::-webkit-search-cancel-button` pseudo-element at all, in any browser
@@ -229,18 +296,35 @@ describe('SearchInput', () => {
 	// Firefox, or WebKit. This repo has a Playwright config
 	// (apps/front/playwright.config.ts), but it currently defines only a
 	// `chromium` project (no firefox/webkit projects), and its baseURL
-	// targets a live docker-compose stack. A prior investigation confirmed
-	// this gap is not closeable even with that stack running: headless
-	// Chromium on Linux exposes byte-identical screenshots, identical ARIA
-	// snapshots, and identical computed style whether the suppression rule
-	// is present or entirely absent. Closing this for real needs either a
-	// non-headless run with a virtual framebuffer (a repo-wide
-	// `playwright.config.ts` change, well beyond this fix's scope) or
-	// manual/visual QA across real desktop Chrome, Firefox, and WebKit —
-	// not something this suite can assert. See
+	// targets a live docker-compose stack. Round 2 AND round 3 investigations
+	// confirmed this gap is not closeable even with that stack running, in
+	// EITHER headless Chromium or headed Chromium under Xvfb on Linux: both
+	// modes give byte-identical screenshots, identical ARIA snapshots, and
+	// identical computed style whether the suppression rule is present or
+	// entirely absent. Closing this for real needs either a real desktop
+	// Chrome/Firefox/WebKit environment (well beyond this fix's scope) or
+	// manual/visual QA — not something this suite can assert. See
 	// `e2e/search-input-native-cancel-suppression.spec.ts` for the adjacent
 	// real-browser coverage this repo DOES get (exactly one accessible,
 	// working custom clear control).
+	//
+	// RESIDUAL RISK (owner-facing, round 3): the resolver above now handles
+	// specificity for a compound selector built on top of the target (an
+	// extra class in the same compound), CSS importance, and conditional-
+	// at-rule exclusion — closing every blind spot the round 3 review
+	// actually demonstrated. It does NOT add the specificity contributed by
+	// an ANCESTOR compound in a descendant/child/sibling selector — e.g.
+	// `body .publy-search-input[type='search']::-webkit-search-cancel-button
+	// { ... }` is scored identically to the bare selector rather than one
+	// specificity rank higher, so an override written that way and placed
+	// earlier in source could still lose to a later plain rule at the
+	// resolver's computed "tie" when real CSS would have ranked it as the
+	// winner regardless of order. This is a narrower and less likely attack
+	// shape than the plain compound-append the review demonstrated (it
+	// requires an ancestor-qualified override, not just an extra class), and
+	// there remains no real-browser authority to catch it if it happens —
+	// this is the residual risk to accept knowingly rather than treat as
+	// closed.
 
 	test('the table size variant carries the fixed-height data-table search class', () => {
 		render(

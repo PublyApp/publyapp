@@ -420,6 +420,16 @@ const KNOWN_IMPORTANT_FOUNDATION_DEBT = [
 		reason:
 			'Overrides Base UI’s own inline arrow-positioning style for the inline-end/inline-start/left/right sides; the default `top` set by the primitive otherwise wins over a plain (non-important) utility.',
 	},
+	{
+		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
+		file: 'src/components/ui/search-input.test.tsx',
+		sourceIncludes: 'display: inline-block !important;',
+		reason:
+			'#975 round 3 regression proof (css-cascade-test-support.ts): real CSS ' +
+			'text constructed as test DATA to verify the cascade resolver now honours ' +
+			'`!important`, not shipped styling — the parser under test genuinely needs ' +
+			'the literal CSS token to exercise the code path the reviewer defeated.',
+	},
 ];
 
 // r4-shell-F3: the app-shell mobile-nav `rounded-full` pill this allowlist
