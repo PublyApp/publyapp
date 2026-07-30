@@ -67,6 +67,19 @@ const build = (): void => {
 };
 
 /**
+ * True once THIS process has itself run `build()`. A pre-existing
+ * `dist/client/assets/app-*.css` can carry a misleadingly fresh mtime — a
+ * restore tool that preserves old timestamps, or ordinary clock skew — so an
+ * mtime comparison against a leftover asset from before this run started can
+ * never be trusted as proof of freshness (round-3 review of #973 reproduced
+ * this false pass). The only state this helper treats as trustworthy is a
+ * build it performed itself in this process; `isFresh` below is then only a
+ * post-build sanity check (did the build actually touch the file), never the
+ * decision for whether to build in the first place.
+ */
+let hasBuiltThisProcess = false;
+
+/**
  * Returns the REAL compiled production CSS (Tailwind v4 fully resolved —
  * `@theme`/`@layer`/utility classes compiled to plain rules and cascade
  * layers) rather than the raw `src/styles/app.css` source. A browser cannot
@@ -83,23 +96,28 @@ const build = (): void => {
  * helper reused ANY pre-existing `dist/client/assets/app-*.css` without
  * checking it was still current: a `right:999px` production-source mutation
  * passed 3/3 against a seven-second-old compiled asset and only failed
- * after a manual rebuild. The freshness check below closes that — this
- * helper now rebuilds whenever the compiled asset is missing OR older than
- * any file under `src/`, `vite.config.ts`, or `package.json`, and throws
- * (rather than silently returning stale CSS) if a rebuild still doesn't
- * produce a fresh-enough asset.
+ * after a manual rebuild. The fix below closes that — and does so without
+ * trusting the compiled asset's mtime at all (see `hasBuiltThisProcess`):
+ * this helper always builds once per process before ever reading the
+ * asset, and throws (rather than silently returning stale CSS) if the
+ * asset is somehow still older than source immediately after that build.
  *
  * Builds on demand (idempotent, ~2s locally) so these specs work from a
- * clean checkout without a separate manual build step, and rebuilds again
- * whenever source has moved on since the last build — so a source edit with
- * no manual rebuild in between can never be measured against a stale asset.
+ * clean checkout without a separate manual build step. Rather than an mtime
+ * comparison deciding whether a rebuild is needed (see `hasBuiltThisProcess`
+ * above for why that comparison alone cannot be trusted), this process
+ * always builds once, the first time either spec in this project calls in —
+ * so a source edit with no manual rebuild in between, AND a leftover `dist/`
+ * from a previous run with a misleading mtime, can never be measured against
+ * a stale asset. Only the two specs in this project call this helper, so the
+ * one-build-per-process cost stays exactly what it was before this fix.
  */
 export const readCompiledAppCss = (): string => {
-	let cssPath = findAppCssPath();
-	if (!cssPath || !isFresh(cssPath)) {
+	if (!hasBuiltThisProcess) {
 		build();
-		cssPath = findAppCssPath();
+		hasBuiltThisProcess = true;
 	}
+	const cssPath = findAppCssPath();
 	if (!cssPath) {
 		throw new Error(
 			'Expected a compiled app-*.css asset under dist/client/assets after ' +
@@ -108,10 +126,11 @@ export const readCompiledAppCss = (): string => {
 	}
 	if (!isFresh(cssPath)) {
 		throw new Error(
-			`Compiled asset ${cssPath} is still older than front source after a ` +
-				'rebuild. Refusing to read it as production CSS — this indicates ' +
-				'the build did not pick up a current source change (or the clock/ ' +
-				'filesystem mtime is unreliable in this environment).',
+			`Compiled asset ${cssPath} is older than front source immediately ` +
+				'after this process built it. Refusing to read it as production ' +
+				'CSS — this indicates the build did not pick up a current source ' +
+				'change (or the clock/filesystem mtime is unreliable in this ' +
+				'environment).',
 		);
 	}
 	return readFileSync(cssPath, 'utf8');
