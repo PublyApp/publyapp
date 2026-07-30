@@ -2515,10 +2515,7 @@ html.dark {
 	   picker, mirroring AvatarBadge's `right-0 bottom-0` + ring treatment
 	   (avatar.tsx) so it reads as sitting on top of the tile rather than being
 	   part of it. Sized ~27px against the tile's 56px per the owner mockup.
-	   Deliberately flush at the corner (no negative offset) rather than
-	   hanging outside the tile's box, so it can never be clipped by an
-	   ancestor's overflow (the drawer body is overflow-y-auto). Its own
-	   `--publy-surface` fill and `--publy-foreground-muted` glyph are
+	   Its own `--publy-surface` fill and `--publy-foreground-muted` glyph are
 	   independent of the tile's per-tone background, so contrast holds on
 	   every tone in both themes — `--publy-foreground-muted` clears the
 	   repo's 3:1 non-text contrast floor against `--publy-surface` in both
@@ -2530,11 +2527,30 @@ html.dark {
 	   three-nines-plus-word-boundary regex cannot match inside a run of four
 	   nines — see check-design-system.mjs). Allowlisted in that guard's
 	   circular-radius exception list alongside the avatar/topbar surfaces,
-	   since a corner pin is exactly the same "genuinely circular" shape. */
+	   since a corner pin is exactly the same "genuinely circular" shape.
+
+	   IMPORTANT finding C (review round 2): issue #992 explicitly requires
+	   the pin to overhang the tile's corner, "as in the mockup" — a previous
+	   revision shipped `right: 0; bottom: 0` (flush, not overhanging) as an
+	   unrequested deviation from that spec. `right`/`bottom` are now negative
+	   so the pin's own box genuinely extends past the tile's box on both
+	   axes. The overhang amount (4px, ~15% of the pin's 27px) is deliberately
+	   modest: the tile sits in a `grid ... gap-3` row next to a name field
+	   (12px gap) and a `space-y-1.5` (6px) gap above the hint text below it
+	   (_profile-edit-details-drawer.tsx, _profile-form-drawer.tsx) — 4px
+	   comfortably fits inside both without a layout change there, verified in
+	   a real browser (not just DOM presence) against the real compiled CSS —
+	   see e2e/profile-icon-picker-pin-geometry.spec.ts — for: the pin
+	   actually extends beyond the tile's box on both axes; it is not clipped
+	   by the `DrawerBody` `overflow-y-auto` ancestor (per spec, a non-visible
+	   value on one axis forces the other to compute to `auto` rather than
+	   `visible` — the issue's own named risk); it does not collide with the
+	   neighbouring name field or the hint text below; and it still holds at
+	   the narrow single-column breakpoint. */
 	.publy-profile-detail-tile-pin {
 		position: absolute;
-		right: 0;
-		bottom: 0;
+		right: -4px;
+		bottom: -4px;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;

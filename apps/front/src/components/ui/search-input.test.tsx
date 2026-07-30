@@ -165,7 +165,7 @@ describe('SearchInput', () => {
 	// (css-cascade-test-support.ts), which collects every top-level rule
 	// that exactly matches the selector and resolves last-declaration-wins
 	// per property — see that module for its documented, honest limits (no
-	// specificity, no `!important`, no `@media`).
+	// specificity, no important-flagged declarations, no `@media`).
 	test("the native ::-webkit-search-cancel-button suppression rule exists and targets this component's actual rendered markup", () => {
 		const declarations = resolveEffectiveDeclarations(
 			appCssSource,
