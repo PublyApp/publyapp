@@ -93,6 +93,50 @@ namespace PublyApp.Api.Lib;
 ///   at all: see its own comment for why an earlier revision that relied on a process-level
 ///   override instead was itself unsafe under exactly this defect (verified by direct
 ///   reproduction — it read migration state from this machine's real development Postgres).
+///
+/// Round-4 review found the real-recipe case above was still not database-safe, plus two
+/// unrelated build-hygiene defects in the same case, all fixed in this revision:
+/// - On the EXACT <c>build-api $APP_ROLE="all"</c> mutation this case exists to catch, the
+///   worker used the TEST ASSEMBLY's own inherited POSTGRES_CONNECTION_STRING (set
+///   process-wide by <see cref="PublyApp.Api.Lib.Testing.Fixtures.TestEnvironment"/>'s module
+///   initializer —
+///   "Host=localhost" with no port, i.e. Npgsql's default 5432) instead of the synthetic
+///   file's value, and made real connection attempts to localhost:5432. The code removed only
+///   ASPNETCORE_ENVIRONMENT/DOTNET_ENVIRONMENT from the child's inherited environment;
+///   POSTGRES_CONNECTION_STRING was left to inherit from the test process, so under CORRECT
+///   (non-regressed) NoClobber(), the child's ALREADY-SET inherited value beat the file — the
+///   file's safety was irrelevant on that path. Fixed by explicitly setting the child's
+///   POSTGRES_CONNECTION_STRING to the exact same
+///   <see cref="UnreachablePostgresConnectionString"/> the synthetic file also carries:
+///   whichever side NoClobber() makes win — process (correct behavior) or file (regressed
+///   behavior) — the value actually used is now identical and safe, instead of depending on
+///   which side happens to prevail. Combined with pointing that shared constant at 192.0.2.1
+///   (TEST-NET-1, RFC 5737 — never a real host, unlike "port 1 is probably closed"), no path
+///   through this case can reach a real listener structurally, not by chance of which port
+///   happened to be free on the machine running it.
+/// - A passing run left <c>PublyApp.Api.OpenApiFiles.cache</c> newer than the API DLL and
+///   pointing at this test's already-deleted temp output directory. The cache file itself is
+///   NOT redirected by the MSBuild.rsp trick above (its path is fixed under
+///   <c>.artifacts/obj</c>, only the DOCUMENT outputs are redirected), so <c>just build-api</c>'s
+///   own run regenerates it in place, poisoned. The next real <c>GenerateOpenApiDocuments</c>
+///   invocation on that machine — a developer's next build, or a later CI/local-gate step —
+///   then saw its Outputs (the cache) newer than its Inputs (the DLL) and skipped generation
+///   entirely, exiting 0 without regenerating anything. Fixed by capturing the cache's
+///   original bytes (if any existed) before deleting it, and restoring exactly that pre-test
+///   state — original bytes back, or absent if none existed — in <c>finally</c>, covering the
+///   failure/timeout paths too.
+/// - The case overwrote and deleted a pre-existing <c>apps/api/MSBuild.rsp</c> unconditionally:
+///   unlike the synthetic <c>.env.development</c> above, it had no pre-existence guard, so a
+///   developer's own response file would simply be eaten. Its writes also preceded the
+///   <c>try/finally</c> entirely, so a failure while creating the synthetic dotenv (verified
+///   by making <c>apps/api/.env.development</c> an unwriteable directory) left the
+///   just-written response file behind — cleanup never registered before the failure. Fixed
+///   by (a) adding the same refuse-to-run guard the dotenv path already has, so a real
+///   developer file is never touched at all, and (b) replacing the single <c>try/finally</c>
+///   with a <c>cleanupActions</c> list where each destructive step (cache delete, rsp write,
+///   dotenv write) registers its own rollback IMMEDIATELY after it succeeds and before the
+///   next destructive step runs — so a later failure only ever unwinds what has actually
+///   happened so far, in reverse order, instead of leaving earlier writes stranded.
 /// </summary>
 public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	// Registered only for the Worker/All roles (JobsServiceRegistration.AddWorkerServices) —
@@ -103,6 +147,28 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 
 	private readonly string _tempDirectory;
 	private readonly string _envFilePath;
+
+	// Round-4 review: a closed LOCAL port ("Host=localhost;Port=1") is not a structural
+	// safety boundary — it depends on nothing happening to listen on this machine. The
+	// real-recipe case proved that the *local-port* half of the argument was never even
+	// the operative one: under NoClobber() regressed, the file's value is what's used, but
+	// under NoClobber() CORRECT (the shipped, non-regressed behavior), the child process
+	// inherits whatever POSTGRES_CONNECTION_STRING the test host process itself has set
+	// (TestEnvironment.cs's module-initializer placeholder, "Host=localhost" with no port —
+	// i.e. Npgsql's default 5432), and NoClobber correctly preserves THAT over the file. So
+	// the file's port choice was irrelevant on the passing/no-clobber-correct path; only the
+	// bare-Env.Load regression path ever dialed the file's value at all.
+	//
+	// Fixed by pointing every case's synthetic connection string at 192.0.2.1 — TEST-NET-1
+	// (RFC 5737), reserved specifically for documentation/examples and never assigned to a
+	// real host. Unlike "probably nothing listens on port 1 on this machine", this is not
+	// probabilistic: no real database can ever legitimately answer at this address, on any
+	// machine, independent of what happens to be running locally. `Timeout=1` bounds any
+	// connection attempt regardless of how the network stack responds to the reserved
+	// address (immediate reject, or silent drop until Npgsql's own timeout fires).
+	private const string UnreachablePostgresConnectionString =
+		"Host=192.0.2.1;Port=1;Database=publyapp_precedence_test;" +
+		"Username=postgres;Password=not-a-real-password;Timeout=1";
 
 	// Every AppEnvironment-required variable with a validator-passing placeholder (mirrors
 	// .env.example). Individual tests override only the key(s) they care about — never share
@@ -116,11 +182,9 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 		// below never dial it (BeValidPostgresConnectionString only parses it), but the real
 		// document-generation case DOES start the hosted-service graph when no-clobber
 		// regresses, and a permanent regression test is explicitly designed to activate that
-		// graph on a regression. Port 1 is a closed local port no service can be listening on;
-		// "the fake password probably fails auth" is not an acceptable safety boundary here.
-		["POSTGRES_CONNECTION_STRING"] =
-			"Host=localhost;Port=1;Database=publyapp_precedence_test;" +
-			"Username=postgres;Password=not-a-real-password;Timeout=1",
+		// graph on a regression. Round-4 review: a closed local port is not enough of a
+		// safety boundary either — see UnreachablePostgresConnectionString's own comment.
+		["POSTGRES_CONNECTION_STRING"] = UnreachablePostgresConnectionString,
 		["RESEND_API_KEY"] = "not-a-real-key",
 		["DEFAULT_EMAIL_SENDER_NAME"] = "PublyApp Support",
 		["DEFAULT_EMAIL_SENDER_EMAIL"] = "no-reply@example.com",
@@ -382,33 +446,83 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 					"it is safe to delete this file once you've confirmed that).");
 		}
 
+		// Round-4 review: unlike the dotenv guard above, MSBuild.rsp had NO pre-existence
+		// guard at all — a developer's own response file would simply be overwritten and then
+		// deleted. Refuse to run rather than touch it, exactly like the dotenv guard above.
+		if (File.Exists(rspPath)) {
+			throw new InvalidOperationException(
+				$"{rspPath} already exists and this test refuses to overwrite it. " +
+					"apps/api must never have its own MSBuild.rsp in normal operation — " +
+					"investigate before rerunning (a previous crashed run of this exact test is " +
+					"the likely cause; it is safe to delete this file once you've confirmed that).");
+		}
+
 		var outputDirectory = Path.Combine(_tempDirectory, "docgen-out");
 		Directory.CreateDirectory(outputDirectory);
 
-		// Force GenerateOpenApiDocuments to actually re-run — see point 2 above.
-		if (File.Exists(openApiFilesCachePath)) {
-			File.Delete(openApiFilesCachePath);
-		}
-
-		// Redirect its output away from the checked-in document — see point 1 above.
-		var rspContent = string.Join(
-			'\n',
-			$"-p:OpenApiJsonFile={Path.Combine(outputDirectory, "openapi.json")}",
-			$"-p:OpenApiDocumentsDirectory={outputDirectory}",
-			$"-p:OpenApiGeneratedProjectFile={Path.Combine(outputDirectory, "PublyApp.Api.json")}");
-		await File.WriteAllTextAsync(rspPath, rspContent);
-
-		// See point 3 above: APP_ROLE="all" is the discriminator #1019 protects; every other
-		// value (including POSTGRES_CONNECTION_STRING) is the same safe, closed-port value
-		// BaseRequiredValues uses everywhere else in this file.
-		var syntheticValues = new Dictionary<string, string>(BaseRequiredValues) {
-			["APP_ROLE"] = "all",
-		};
-		var syntheticDotEnvContent = string.Join(
-			'\n', syntheticValues.Select(pair => $"{pair.Key}=\"{pair.Value}\""));
-		await File.WriteAllTextAsync(syntheticDotEnvPath, syntheticDotEnvContent);
-
+		// Round-4 review: each destructive step below registers its own rollback IMMEDIATELY
+		// after it succeeds and BEFORE the next destructive step runs, so a failure partway
+		// through (verified by making apps/api/.env.development an unwriteable directory) only
+		// ever unwinds what has actually happened so far — never leaves an earlier write
+		// (the response file, the deleted cache) stranded. Cleanups run in `finally`, most
+		// recently registered first, covering the failure/timeout paths too.
+		var cleanupActions = new List<Action>();
 		try {
+			// Force GenerateOpenApiDocuments to actually re-run — see point 2 above. Round-4
+			// review: the real target recreates this cache file (NOT redirected by the rsp
+			// below — its path is fixed under .artifacts/obj) with entries pointing at THIS
+			// run's throwaway output directory, newer than the API DLL. Left in place, the
+			// NEXT real GenerateOpenApiDocuments invocation on this machine (a developer's
+			// build, or a later CI/local-gate step) sees Outputs newer than Inputs and skips
+			// generation entirely — exiting 0 without regenerating anything. Back up whatever
+			// was there before (if anything) so the exact pre-test state — original bytes, or
+			// genuinely absent — is restored in `finally`, not merely "deleted and never put
+			// back".
+			byte[]? originalCacheBytes = File.Exists(openApiFilesCachePath)
+				? await File.ReadAllBytesAsync(openApiFilesCachePath)
+				: null;
+			if (File.Exists(openApiFilesCachePath)) {
+				File.Delete(openApiFilesCachePath);
+			}
+
+			cleanupActions.Add(() => {
+				if (File.Exists(openApiFilesCachePath)) {
+					File.Delete(openApiFilesCachePath);
+				}
+
+				if (originalCacheBytes is not null) {
+					File.WriteAllBytes(openApiFilesCachePath, originalCacheBytes);
+				}
+			});
+
+			// Redirect its output away from the checked-in document — see point 1 above.
+			var rspContent = string.Join(
+				'\n',
+				$"-p:OpenApiJsonFile={Path.Combine(outputDirectory, "openapi.json")}",
+				$"-p:OpenApiDocumentsDirectory={outputDirectory}",
+				$"-p:OpenApiGeneratedProjectFile={Path.Combine(outputDirectory, "PublyApp.Api.json")}");
+			await File.WriteAllTextAsync(rspPath, rspContent);
+			cleanupActions.Add(() => {
+				if (File.Exists(rspPath)) {
+					File.Delete(rspPath);
+				}
+			});
+
+			// See point 3 above: APP_ROLE="all" is the discriminator #1019 protects; every
+			// other value (including POSTGRES_CONNECTION_STRING) is the same
+			// UnreachablePostgresConnectionString every other case in this file uses.
+			var syntheticValues = new Dictionary<string, string>(BaseRequiredValues) {
+				["APP_ROLE"] = "all",
+			};
+			var syntheticDotEnvContent = string.Join(
+				'\n', syntheticValues.Select(pair => $"{pair.Key}=\"{pair.Value}\""));
+			await File.WriteAllTextAsync(syntheticDotEnvPath, syntheticDotEnvContent);
+			cleanupActions.Add(() => {
+				if (File.Exists(syntheticDotEnvPath)) {
+					File.Delete(syntheticDotEnvPath);
+				}
+			});
+
 			var startInfo = new ProcessStartInfo {
 				FileName = "just",
 				WorkingDirectory = repoRootDirectory,
@@ -427,6 +541,19 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 			// Required for the unset-host-environment (Production) classification's validator;
 			// not the pin under test.
 			startInfo.Environment["TRUSTED_PROXY_CIDRS"] = "127.0.0.1/32,::1/128";
+			// Round-4 review: this is the safety-critical line. ProcessStartInfo.Environment
+			// inherits a copy of THIS test process's own environment, which already has
+			// POSTGRES_CONNECTION_STRING set (TestEnvironment.cs's module-initializer
+			// placeholder, "Host=localhost" with no port — Npgsql's default 5432). Only
+			// removing ASPNETCORE_ENVIRONMENT/DOTNET_ENVIRONMENT above left that inherited
+			// value in place, and under CORRECT (non-regressed) NoClobber(), an already-set
+			// process value beats the file — so the real worker, when it started on the
+			// deliberately-regressed recipe mutation, dialed the INHERITED placeholder, not
+			// the synthetic file's value; see the class doc comment's round-4 section. Setting
+			// it explicitly here to the SAME UnreachablePostgresConnectionString the synthetic
+			// file also carries makes both sides of NoClobber() identically safe: whichever
+			// value wins, it is this one — never the test host's own inherited placeholder.
+			startInfo.Environment["POSTGRES_CONNECTION_STRING"] = UnreachablePostgresConnectionString;
 
 			var result = await RunProcessWithTimeoutAsync(startInfo, TimeSpan.FromSeconds(120));
 
@@ -453,12 +580,15 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 					"request — the Worker role's blocking Generic Host never reaches this code " +
 					"path at all");
 		} finally {
-			if (File.Exists(rspPath)) {
-				File.Delete(rspPath);
-			}
-
-			if (File.Exists(syntheticDotEnvPath)) {
-				File.Delete(syntheticDotEnvPath);
+			for (var i = cleanupActions.Count - 1; i >= 0; i--) {
+				try {
+					cleanupActions[i]();
+				} catch (IOException) {
+					// Best-effort: one cleanup step failing (e.g. a transient file lock) must
+					// not prevent the OTHER already-registered cleanups from still running.
+				} catch (UnauthorizedAccessException) {
+					// Same rationale as above.
+				}
 			}
 		}
 	}
