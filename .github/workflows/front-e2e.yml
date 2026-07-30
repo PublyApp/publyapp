@@ -190,6 +190,16 @@ jobs:
             pnpm --filter front exec playwright test \
               --project=chromium-hermetic-counter \
               --no-deps
+
+            # #973 round-3 review BLOCKER: chromium-hermetic-source (the
+            # breadcrumb entity-name truncation proof) needs no login,
+            # backend, or docker-compose stack, but the matrix above only
+            # ever selects chromium/chromium-faults/chromium-hermetic-
+            # counter — this project never ran in CI. Runs once here (not
+            # once per shard) since it has no `dependencies` of its own and
+            # nothing about it is shard-specific.
+            pnpm --filter front exec playwright test \
+              --project=chromium-hermetic-source
           fi
 
       - name: Upload playwright report

@@ -197,9 +197,9 @@
 			"reason": "GitHub-only actions/cache step; the local recipe has no separate browser-cache action or equivalent cache backend."
 		},
 		"front-e2e.yml::test::Run playwright browser tests": {
-			"hash": "5bc32d56ada70689",
+			"hash": "efed70a6e380a58e",
 			"mirror": "just ci-e2e-front",
-			"reason": "ci-e2e-front runs the same complete Playwright suite on one isolated local stack. CI partitions the non-counter projects across four isolated runners and runs the counter project alone after setup on shard 4; the local gate stays unsharded to preserve coverage without multiplying Docker stacks. It also drops --with-deps, which requires root; system libraries are a one-time developer setup."
+			"reason": "ci-e2e-front runs the same complete Playwright suite on one isolated local stack. CI partitions the non-counter projects across four isolated runners and runs the counter project alone after setup on shard 4, now followed by chromium-hermetic-source (#973 round-3 review BLOCKER: this hermetic project previously ran locally via the unsharded `playwright test` but was never selected by any CI shard); the local gate stays unsharded to preserve coverage without multiplying Docker stacks. It also drops --with-deps, which requires root; system libraries are a one-time developer setup."
 		},
 		"front-e2e.yml::test::Upload playwright report": {
 			"hash": "ffac770f6a53e9b8",
