@@ -646,6 +646,60 @@ describe('StaffTenantProfileMembersPage — roster rendering', () => {
 		// once the effect observes the momentarily-missing count.
 		expect(requestedPageIndexes.at(-1)).toBe(1);
 	});
+
+	// #999 review follow-up (warm-cache race): a deliberate reset (search,
+	// sort, size, tenant, or profile change) must always win over a clamp
+	// derived from an ALREADY-WARM cached count for the destination query —
+	// not just an absent one. The "reset pageIndex to 0" effect and the
+	// clamp effect both read the pre-reset (stale) pageIndex in the same
+	// commit; if the clamp computes against that stale value using a known
+	// (warm) count, it can overwrite the reset with some clamped-but-nonzero
+	// page instead of page 1. This is a different route into the same
+	// symptom the cold-path test above fixed.
+	test('#999: a filter change resets to page 1 even when the new query is already warm with a known, smaller count', () => {
+		mocks.useStaffTenantProfileMembersQuery.mockImplementation(
+			(variables: { q?: string; pageIndex: number }) =>
+				buildMembersQueryResult({
+					data: {
+						users: MEMBER_ROWS,
+						// q="ada" is already warm in the cache with a SMALLER known
+						// count (25, size 20 -> last page index 1) than the page the
+						// reader is currently on (5) — never undefined/in-flight.
+						count: variables.q === 'ada' ? 25 : 1000,
+					},
+				}),
+		);
+
+		const { rerender } = renderPage();
+		const Component = (
+			Route as unknown as {
+				component: () => JSX.Element;
+			}
+		).component;
+
+		const nextButton = screen.getByTestId(
+			'staff-tenant-profile-members-table-next-page',
+		);
+		for (let index = 0; index < 5; index += 1) {
+			fireEvent.click(nextButton);
+		}
+		expect(
+			screen.getByTestId('staff-tenant-profile-members-table-page-label')
+				.textContent,
+		).toBe('Page 6');
+
+		// Simulate the URL already reflecting a committed search change (the
+		// route reads search via Route.useSearch()) while the local pageIndex
+		// state (5) is preserved across the re-render, exactly as it would be
+		// for a real navigation.
+		mocks.search = { q: 'ada' };
+		rerender(<Component />);
+
+		expect(
+			screen.getByTestId('staff-tenant-profile-members-table-page-label')
+				.textContent,
+		).toBe('Page 1');
+	});
 });
 
 // step4b-review MAJOR 6: a large roster must scroll inside the table, never

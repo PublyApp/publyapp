@@ -5,7 +5,7 @@ import {
 } from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -263,21 +263,23 @@ function StaffProfileUsersPage() {
 	const columns = useMemo(() => buildColumns(t), [t]);
 	const details = toStaffProfileDetails(detailQuery.data);
 
-	useEffect(() => {
-		setPageIndex(0);
-	}, [
-		profileId,
-		controller.search.committed,
-		controller.sort.id,
-		controller.sort.order,
-		controller.size,
-	]);
-
+	// A deliberate reset (profile identity, search, sort, or size change)
+	// must always win over a clamp derived from the destination query's
+	// count — including an already-warm cached count, not just a missing
+	// one (#999 review follow-up). Folded into one effect via resetKeys so
+	// it cannot race a separate "reset to 0" effect.
 	useOffsetPageClamp({
 		pageIndex,
 		setPageIndex,
 		size: controller.size,
 		count: usersQuery.data?.count,
+		resetKeys: [
+			profileId,
+			controller.search.committed,
+			controller.sort.id,
+			controller.sort.order,
+			controller.size,
+		],
 	});
 
 	if (

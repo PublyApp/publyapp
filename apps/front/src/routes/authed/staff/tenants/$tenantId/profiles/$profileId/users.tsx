@@ -1,6 +1,6 @@
 import { IconAlertCircle, IconSearchOff, IconUsers } from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -254,22 +254,24 @@ const StaffTenantProfileMembersPage = () => {
 		[i18n.language, tenantId, t],
 	);
 
-	useEffect(() => {
-		setMembersPageIndex(0);
-	}, [
-		tenantId,
-		profileId,
-		membersController.search.committed,
-		membersController.sort.id,
-		membersController.sort.order,
-		membersController.size,
-	]);
-
+	// A deliberate reset (tenant/profile identity, search, sort, or size
+	// change) must always win over a clamp derived from the destination
+	// query's count — including an already-warm cached count, not just a
+	// missing one (#999 review follow-up). Folded into one effect via
+	// resetKeys so it cannot race a separate "reset to 0" effect.
 	useOffsetPageClamp({
 		pageIndex: membersPageIndex,
 		setPageIndex: setMembersPageIndex,
 		size: membersController.size,
 		count: membersQuery.data?.count,
+		resetKeys: [
+			tenantId,
+			profileId,
+			membersController.search.committed,
+			membersController.sort.id,
+			membersController.sort.order,
+			membersController.size,
+		],
 	});
 
 	if (shouldRedirectToLogout) {

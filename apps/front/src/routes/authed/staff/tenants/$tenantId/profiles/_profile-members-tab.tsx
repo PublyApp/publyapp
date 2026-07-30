@@ -1,5 +1,5 @@
 import { IconUsers } from '@tabler/icons-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTable } from '~/components/table/data-table';
 import { useOffsetPageClamp } from '~/components/table/offset-pagination';
@@ -60,22 +60,24 @@ export const ProfileMembersTab = ({
 		[i18n.language, tenantId, t],
 	);
 
-	useEffect(() => {
-		setPageIndex(0);
-	}, [
-		tenantId,
-		profileId,
-		controller.search.committed,
-		controller.sort.id,
-		controller.sort.order,
-		controller.size,
-	]);
-
+	// A deliberate reset (tenant/profile identity, search, sort, or size
+	// change) must always win over a clamp derived from the destination
+	// query's count — including an already-warm cached count, not just a
+	// missing one (#999 review follow-up). Folded into one effect via
+	// resetKeys so it cannot race a separate "reset to 0" effect.
 	useOffsetPageClamp({
 		pageIndex,
 		setPageIndex,
 		size: controller.size,
 		count: membersQuery.data?.count,
+		resetKeys: [
+			tenantId,
+			profileId,
+			controller.search.committed,
+			controller.sort.id,
+			controller.sort.order,
+			controller.size,
+		],
 	});
 
 	const totalCount = membersQuery.data?.count ?? 0;
