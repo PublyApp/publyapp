@@ -31,18 +31,32 @@ import type {
  * ever silently visited zero routes — or stopped early — the counts would
  * diverge and the test would fail loudly, per the repo's standing objection
  * to guards that can't be proven to fail.
+ *
+ * #973 BLOCKER fix: counting `kind: 'entity'` specs per dynamic segment
+ * (below) proves a route DECLARES an entity crumb but never proved the
+ * crumb's `select` returns the entity's name rather than a constant — a
+ * real tenant-route selector rewritten to always return `'Tenant detail'`
+ * (the owner's exact rejected wording) passed every gate here. The
+ * "resolves the representative payload's own name field" test further down
+ * closes that gap: it drives each real route's own `select` closure against
+ * a representative wire-shaped payload and requires the output to echo a
+ * caller-supplied marker, so a selector that ignores its input and returns
+ * anything fixed fails immediately, for every dynamic route, not just one.
  */
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { AppShell } from '~/components/app-shell/app-shell';
-import {
-	selectStaffTenantCrumbName,
-	staffTenantCrumbQuery,
-} from '~/lib/query/staff-tenants';
+import { staffInvitationCrumbQuery } from '~/lib/query/staff-invitations';
+import { staffProfileCrumbQuery } from '~/lib/query/staff-profiles';
+import { staffTenantProfileCrumbQuery } from '~/lib/query/staff-tenant-profiles';
+import { staffTenantUserCrumbQuery } from '~/lib/query/staff-tenant-users';
+import { staffTenantCrumbQuery } from '~/lib/query/staff-tenants';
+import { staffUserCrumbQuery } from '~/lib/query/staff-users';
+import { Route as TenantDetailsRoute } from '~/routes/authed/staff/tenants/$tenantId';
 
 import { routes } from '../../routes';
 import { routeTree } from '../../routeTree.gen';
-import type { CrumbSpec } from './breadcrumbs';
+import type { CrumbSpec, EntityCrumbQuery } from './breadcrumbs';
 
 type StaticDataLike = {
 	crumbs?: 'shell' | ((params: Record<string, string>) => readonly CrumbSpec[]);
@@ -121,6 +135,69 @@ const buildSyntheticParams = (segments: string[]): Record<string, string> => {
 	return params;
 };
 
+/**
+ * #973 BLOCKER remediation: counting `kind: 'entity'` specs (the test above)
+ * proves a route DECLARES an entity crumb, but proved nothing about what the
+ * crumb's `select` actually RETURNS — the reviewer changed the real tenant
+ * route's `select` to `(data) => selectStaffTenantCrumbName(data) ? 'Tenant
+ * detail' : undefined` and every existing gate still passed.
+ *
+ * This is a closed registry of the production `query` functions every real
+ * `kind: 'entity'` crumb in the app is built from today (verified by the
+ * grep-backed inventory in the PR review). Each entry pairs that exact
+ * function reference — the SAME export a route file imports, not a re-typed
+ * copy — with a representative wire-shaped payload whose name-bearing field
+ * is filled with a caller-supplied marker. A route whose `query` isn't one of
+ * these fails closed (`entry` below is `undefined`) rather than silently
+ * skipping an unrecognized entity type; adding a genuinely new entity kind
+ * means adding it here, with its own representative payload, on purpose.
+ */
+type EntityRegistryEntry = {
+	query: (params: Record<string, string>) => EntityCrumbQuery;
+	buildPayload: (marker: string) => unknown;
+};
+
+const ENTITY_QUERY_REGISTRY: readonly EntityRegistryEntry[] = [
+	{
+		query: staffTenantCrumbQuery,
+		buildPayload: (marker) => ({ tenantId: 'probe-tenant-id', name: marker }),
+	},
+	{
+		query: staffProfileCrumbQuery,
+		buildPayload: (marker) => ({
+			profile: { id: 'probe-profile-id', name: marker },
+		}),
+	},
+	{
+		query: staffUserCrumbQuery,
+		buildPayload: (marker) => ({
+			id: 'probe-user-id',
+			email: marker,
+			firstName: null,
+			lastName: null,
+		}),
+	},
+	{
+		query: staffInvitationCrumbQuery,
+		buildPayload: (marker) => ({ email: marker }),
+	},
+	{
+		query: staffTenantUserCrumbQuery,
+		buildPayload: (marker) => ({
+			id: 'probe-tenant-user-id',
+			email: marker,
+			firstName: null,
+			lastName: null,
+		}),
+	},
+	{
+		query: staffTenantProfileCrumbQuery,
+		buildPayload: (marker) => ({
+			profile: { id: 'probe-tenant-profile-id', name: marker },
+		}),
+	},
+];
+
 // `fullPath` is populated by the router's own tree-processing pass
 // (`RouterCore.buildRouteTree`, run from `createRouter`), not eagerly by
 // `routeTree.gen`'s `_addFileChildren`/`_addFileTypes` calls alone — building
@@ -194,15 +271,89 @@ describe('breadcrumb contract — route-tree walk (#973 Tier 2, guard A)', () =>
 		expect(dynamicRouteCount).toBeGreaterThan(10);
 		expect(failures).toEqual([]);
 	});
+
+	/**
+	 * #973 BLOCKER regression guard. The test above proves every dynamic
+	 * segment has an object tagged `kind: 'entity'` — it never proves that
+	 * object's `select` returns the entity's actual name rather than a
+	 * constant. This test drives the REAL `select` function attached to every
+	 * real entity crumb — the exact closure the route file exports, not a
+	 * stand-in — against a representative wire-shaped payload whose
+	 * name-bearing field is a per-crumb marker unrelated to any hardcoded
+	 * English wording, then asserts the selector's output IS that marker.
+	 *
+	 * A selector that ignores its argument and returns a fixed string (the
+	 * reviewer's `'Tenant detail'` escape, or any other constant) fails this
+	 * immediately: the marker never appears in a hardcoded string, so the
+	 * equality check misses. A selector that genuinely forwards the payload's
+	 * name field passes for any marker, proving it is not hardcoded.
+	 */
+	test("every entity crumb's selector resolves the representative payload's own name field, not a constant (#973 BLOCKER regression guard)", () => {
+		const failures: string[] = [];
+		let entityCrumbCount = 0;
+
+		for (const route of allRoutes) {
+			const segments = dynamicSegmentsOf(route.fullPath);
+			if (
+				segments.length === 0 ||
+				LEGACY_REDIRECT_STUB_PATHS.has(route.fullPath)
+			) {
+				continue;
+			}
+
+			const crumbs = route.options?.staticData?.crumbs;
+			if (typeof crumbs !== 'function') {
+				continue;
+			}
+
+			const tail = crumbs(buildSyntheticParams(segments));
+			const entitySpecs = tail.filter(
+				(spec): spec is Extract<CrumbSpec, { kind: 'entity' }> =>
+					spec.kind === 'entity',
+			);
+
+			for (const [specIndex, spec] of entitySpecs.entries()) {
+				entityCrumbCount += 1;
+				const registryEntry = ENTITY_QUERY_REGISTRY.find(
+					(entry) => entry.query === spec.query,
+				);
+
+				if (!registryEntry) {
+					failures.push(
+						`${route.fullPath}: entity crumb #${specIndex}'s query is not one of the vetted ENTITY_QUERY_REGISTRY entries — register a representative payload before trusting it`,
+					);
+					continue;
+				}
+
+				const marker = `entity-name-probe--${route.fullPath}--${specIndex}`;
+				const resolved = spec.select(registryEntry.buildPayload(marker));
+
+				if (resolved !== marker) {
+					failures.push(
+						`${route.fullPath}: entity crumb #${specIndex}'s selector did not echo the representative payload's name field (expected ${JSON.stringify(marker)}, got ${JSON.stringify(resolved)}) — it may return a constant instead of the entity's real name`,
+					);
+				}
+			}
+		}
+
+		// Self-check, same rationale as the sibling test above: the #973
+		// migration's 21 dynamic routes carry well over a dozen entity crumbs
+		// between them, so a near-zero count here means this loop silently
+		// found nothing rather than everything being correct.
+		expect(entityCrumbCount).toBeGreaterThan(10);
+		expect(failures).toEqual([]);
+	});
 });
 
 /**
  * Guard B — rendered-artifact test. Mounts the REAL `AppShell` component
  * (`~/components/app-shell/app-shell`, unmodified) and a REAL router — a
  * real `useMatches()`, a real `EntityCrumb`, a real `useQuery` — at a route
- * whose `staticData.crumbs` calls the SAME production
- * `staffTenantCrumbQuery`/`selectStaffTenantCrumbName` the tenant-detail
- * page itself declares (`routes/authed/staff/tenants/$tenantId.tsx`).
+ * whose `staticData` is read directly off the real production
+ * `/staff/tenants/$tenantId` route module (`Route.options.staticData`, see
+ * `TenantDetailsRoute` below), so the SAME `staffTenantCrumbQuery`/
+ * `selectStaffTenantCrumbName` pair the tenant-detail page itself declares is
+ * exercised here — not a re-typed copy of it.
  *
  * The route TREE around it is a minimal throwaway root (the same pattern
  * `deep-link-canonicalization.test.tsx` and `__root-error-boundary.test.tsx`
@@ -285,10 +436,24 @@ const AppShellHost = () => {
 	);
 };
 
-/** The tail this test declares is IDENTICAL in shape to the real
- * `/staff/tenants/$tenantId` route's own `staticData.crumbs` (same imports,
- * same query, same select) — see
- * `src/routes/authed/staff/tenants/$tenantId.tsx`. */
+/**
+ * #973 BLOCKER remediation: this used to re-declare a crumb tail here
+ * (`kind: 'entity', query: staffTenantCrumbQuery, select:
+ * selectStaffTenantCrumbName`) that merely COPIED the production route's
+ * intended shape. A copy is independent of the real route by construction —
+ * the reviewer mutated the real `/staff/tenants/$tenantId` route's `select`
+ * to always return `'Tenant detail'` and this test's copy never noticed,
+ * because it never read the mutated route at all.
+ *
+ * `staticData` is now taken directly off the imported production `Route`
+ * object (`TenantDetailsRoute.options.staticData`,
+ * `src/routes/authed/staff/tenants/$tenantId.tsx`) — the exact same pattern
+ * `deep-link-canonicalization.test.tsx`'s `asValidateSearch` already
+ * establishes for `validateSearch` in this repo (read the real option off
+ * the real route module, mount it on a synthetic tree, never re-type it). A
+ * regression in the real route's `crumbs` — including the exact
+ * generic-label mutation above — now reaches this rendered test directly.
+ */
 const buildTestRouter = (initialUrl: string, queryClient: QueryClient) => {
 	const rootRoute = createRootRoute({
 		component: AppShellHost,
@@ -297,16 +462,7 @@ const buildTestRouter = (initialUrl: string, queryClient: QueryClient) => {
 	const tenantRoute = createRoute({
 		getParentRoute: () => rootRoute,
 		path: '/staff/tenants/$tenantId',
-		staticData: {
-			crumbs: (): readonly CrumbSpec[] => [
-				{ kind: 'label', labelKey: 'nav-tenants', to: '/staff/tenants' },
-				{
-					kind: 'entity',
-					query: staffTenantCrumbQuery,
-					select: selectStaffTenantCrumbName,
-				},
-			],
-		},
+		staticData: TenantDetailsRoute.options.staticData,
 		component: () => <Outlet />,
 	});
 	const routeTreeForTest = rootRoute.addChildren([tenantRoute]);
