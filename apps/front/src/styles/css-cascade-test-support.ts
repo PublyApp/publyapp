@@ -45,9 +45,8 @@
  *    descendant/child/sibling selector (e.g. `body .foo` is scored the same
  *    as `.foo`, not one rank higher) — a real but narrower and much less
  *    likely attack shape than a plain compound append. The search-cancel
- *    invariant does not rely on this model for that shape:
- *    `countSearchInputCancelButtonRules` fails closed when any additional
- *    rule mentions its target class and pseudo-element.
+ *    invariant does not rely on this model; its source-wide and compiled-CSS
+ *    policy lives in scripts/search-cancel-css-policy.mjs.
  *  - `!important`: parsed per declaration; if ANY `!important` declaration
  *    exists for a property, only `!important` declarations compete for it
  *    (by specificity, then source order); otherwise only plain declarations
@@ -402,31 +401,6 @@ const isSupersetOf = (
 ): boolean => {
 	const candidateTexts = tokenTextSet(candidate);
 	return target.every((token) => candidateTexts.has(token.text));
-};
-
-/** Counts every parsed rule with an individual selector that mentions both
- * the exact search-input class and WebKit cancel pseudo-element. Deliberately
- * conservative: it includes ancestor-qualified, functional, and conditional
- * selector shapes because this invariant must fail closed rather than model
- * their cascade behavior. */
-export const countSearchInputCancelButtonRules = (source: string): number => {
-	const searchInputClass = /\.publy-search-input(?![\w-])/;
-	const cancelPseudoElement = /::-webkit-search-cancel-button(?![\w-])/;
-	let count = 0;
-
-	for (const rule of parseStylesheetRules(source)) {
-		for (const individualSelector of splitTopLevel(rule.selectorList, /,/)) {
-			if (
-				searchInputClass.test(individualSelector) &&
-				cancelPseudoElement.test(individualSelector)
-			) {
-				count += 1;
-				break;
-			}
-		}
-	}
-
-	return count;
 };
 
 type MatchedDeclaration = ParsedDeclaration & {

@@ -8,7 +8,6 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import {
 	countExactSelectorRules,
-	countSearchInputCancelButtonRules,
 	resolveEffectiveDeclarations,
 } from '~/styles/css-cascade-test-support';
 
@@ -165,10 +164,11 @@ describe('SearchInput', () => {
 	// goes through `resolveEffectiveDeclarations()`
 	// (css-cascade-test-support.ts), which collects every top-level rule
 	// that exactly matches the selector and resolves last-declaration-wins
-	// per property. Round 4 added a separate fail-closed rule count because
-	// this invariant cannot safely depend on a bounded cascade model.
+	// per property. The fail-closed source-wide and emitted-artifact policy
+	// lives in scripts/search-cancel-css-policy.mjs; unlike this adjacent
+	// component contract, it counts the pseudo-element token without trying
+	// to model which selector spellings target this input.
 	test("the native ::-webkit-search-cancel-button suppression rule exists and targets this component's actual rendered markup", () => {
-		expect(countSearchInputCancelButtonRules(appCssSource)).toBe(1);
 		expect(countExactSelectorRules(appCssSource, SEARCH_CANCEL_SELECTOR)).toBe(
 			1,
 		);
@@ -257,27 +257,6 @@ describe('SearchInput', () => {
 		expect(declarations.get('-webkit-appearance')).toBe('none');
 	});
 
-	// Round 4 review: ancestor compounds contribute specificity in the real
-	// cascade, but the bounded resolver intentionally scores only the final
-	// compound. Search cancel suppression has no browser backstop, so this
-	// invariant fails closed instead: any additional rule targeting the same
-	// input pseudo-element is forbidden, regardless of specificity or source
-	// order.
-	test('an ancestor-qualified rule targeting the cancel pseudo-element is rejected (fail-closed regression proof)', () => {
-		const reviewerOverride = `.publy-search-wrapper>.publy-search-input[type='search']::-webkit-search-cancel-button {
-	-webkit-appearance: auto;
-	appearance: auto;
-	display: inline-block;
-}
-`;
-		const mutatedCss = appCssSource.replace(
-			`${SEARCH_CANCEL_SELECTOR} {`,
-			`${reviewerOverride}\n${SEARCH_CANCEL_SELECTOR} {`,
-		);
-
-		expect(countSearchInputCancelButtonRules(mutatedCss)).toBe(2);
-	});
-
 	// Importance regression proof: an earlier important-flagged re-enabling
 	// declaration must beat a LATER plain one for the same property, even
 	// though the plain declaration is both later in source and equal
@@ -334,11 +313,11 @@ describe('SearchInput', () => {
 	// real-browser coverage this repo DOES get (exactly one accessible,
 	// working custom clear control).
 	//
-	// Round 4 closure: ancestor specificity remains outside the bounded
-	// resolver, but the canonical-source assertion above now rejects every
-	// additional parsed rule that mentions both `.publy-search-input` and
-	// `::-webkit-search-cancel-button`. The reviewer’s ancestor-qualified
-	// override therefore fails before cascade resolution can false-green.
+	// Round 6 closure: selector semantics are deliberately outside this
+	// bounded resolver. The build/test policy counts every literal
+	// `::-webkit-search-cancel-button` occurrence across all shipped CSS
+	// sources and the real emitted CSS, then requires the sole rule to be the
+	// canonical suppression rule.
 
 	test('the table size variant carries the fixed-height data-table search class', () => {
 		render(
