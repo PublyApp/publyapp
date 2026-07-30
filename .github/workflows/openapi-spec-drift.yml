@@ -77,12 +77,15 @@ jobs:
       # config values. That file is gitignored and absent in CI, so materialize it
       # from the committed .env.example template.
       #
-      # APP_ROLE MUST be forced to "api": .env.example ships APP_ROLE="all" (the
-      # local-dev default that runs api+worker in one process), and DotNetEnv
-      # clobbers the `APP_ROLE=api` the just recipe exports. With APP_ROLE=all,
-      # doc-gen composes the worker host, whose WorkerMigrationStartupGate blocks
-      # on a live database (5-min retry loop -> failure) that this DB-less job does
-      # not have. api-only doc-gen never touches the DB, so it succeeds offline.
+      # Since #1019, DotNetEnv.LoadOptions.NoClobber() makes an already-set process env
+      # var win over the file, so the just recipe's own `$APP_ROLE="api"` export already
+      # resolves correctly on its own -- this sed is now belt-and-braces, not load-bearing.
+      # It stays for defense in depth: .env.example ships APP_ROLE="all" (the local-dev
+      # default that runs api+worker in one process), and if that file's APP_ROLE=all
+      # ever DID win, doc-gen would compose the worker host, whose
+      # WorkerMigrationStartupGate blocks on a live database (5-min retry loop -> failure)
+      # that this DB-less job does not have. api-only doc-gen never touches the DB, so it
+      # succeeds offline.
       - name: Materialize .env.development from template (CI has no gitignored env file)
         run: |
           cp .env.example .env.development

@@ -374,7 +374,7 @@
 		"openapi-spec-drift.yml::spec-drift::Materialize .env.development from template (CI has no gitignored env file)": {
 			"hash": "d8f5978225925d15",
 			"mirror": null,
-			"reason": "CI-only compensation for the gitignored, absent .env.development. Copies .env.example, then forces APP_ROLE=api so build-time OpenAPI doc-gen runs api-only (no worker WorkerMigrationStartupGate, no DB connection) -- .env.example ships APP_ROLE=all, which DotNetEnv would clobber the recipe's APP_ROLE=api with and hang the DB-less runner. Locally a developer already has a real repo-root .env.development, so just ci-spec-drift needs no such step."
+			"reason": "CI-only compensation for the gitignored, absent .env.development. Copies .env.example, then forces APP_ROLE=api so build-time OpenAPI doc-gen runs api-only (no worker WorkerMigrationStartupGate, no DB connection) -- .env.example ships APP_ROLE=all. Since #1019, DotNetEnv.LoadOptions.NoClobber() already makes the just recipe's own APP_ROLE=api export win over that file value, so this sed is defense in depth rather than load-bearing; it stays because a regression in that precedence would otherwise hang the DB-less runner. Locally a developer already has a real repo-root .env.development, so just ci-spec-drift needs no such step."
 		},
 		"openapi-spec-drift.yml::spec-drift::Build API (regenerates openapi.json)": {
 			"hash": "d0f91b0e5fc4e1dc",
