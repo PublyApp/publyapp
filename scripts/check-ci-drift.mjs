@@ -78,12 +78,22 @@ const toStableJson = (value) => {
 
 /**
  * Content-addresses everything about a step that decides what it does: the
- * command or action, the inputs handed to it, the environment it reads, and
- * the condition that gates it. A change to any of these can invalidate the
- * local mirror, so all of them belong in the hash.
+ * command or action, the inputs handed to it, the environment it reads, the
+ * condition that gates it, and whether its own failure is allowed to be
+ * masked. A change to any of these can invalidate the local mirror, so all
+ * of them belong in the hash.
+ *
+ * `continue-on-error` is included because it is behavioral, not cosmetic: a
+ * review round proved that adding `continue-on-error: true` to a real
+ * verification step makes the job (and therefore the required gate) report
+ * success after that step fails, while every existing test stayed green.
+ * Hashing it forces a manifest reconciliation for ANY step that gains or
+ * loses it, everywhere in .github/workflows — not only inside the
+ * verification jobs scripts/check-ci-gate-structure.mjs hard-rejects it in.
  */
 const hashStep = (step) => {
 	const payload = {
+		'continue-on-error': step['continue-on-error'] ?? null,
 		env: step.env ?? null,
 		if: step.if ?? null,
 		run: 'run' in step ? normalizeCommand(step.run) : null,

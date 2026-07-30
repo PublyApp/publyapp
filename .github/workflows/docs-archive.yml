@@ -2,11 +2,15 @@ name: docs archive checks
 
 on:
   pull_request:
-    paths:
-      - 'docs/**'
-      - 'scripts/check-archive-records.mjs'
-      - 'scripts/check-archive-records.test.mjs'
-      - '.github/workflows/docs-archive.yml'
+  # Required so this required check can report for a merge-queue entry: a
+  # required Actions check missing this event waits forever once the entry
+  # reaches the queue (GitHub's documented behavior), reproducing the exact
+  # missing-check deadlock #1017 exists to remove — just under a merge queue
+  # instead of an unfiltered `pull_request` trigger. The repository has no
+  # merge-queue rule today, so this is dormant, but a required check that
+  # cannot report under a supported GitHub feature is a latent version of
+  # that bug.
+  merge_group:
   push:
     paths:
       - 'docs/**'
@@ -18,7 +22,92 @@ permissions:
   contents: read
 
 jobs:
+  # Cheap first job: the pull_request trigger above has no `paths:` filter (a
+  # path-filtered trigger never starts for an unrelated PR, so a required
+  # status check gated only by the trigger would hang forever — see #1017).
+  # This job always runs and decides whether the expensive job below should.
+  changes:
+    name: Determine changed paths
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      relevant: ${{ steps.filter.outputs.relevant }}
+    steps:
+      # Checked out from the BASE commit, not this pull request's own ref:
+      # this pins the classifier a pull request is being evaluated against so
+      # an accidental or careless edit (a rename, a bad rebase, editing the
+      # wrong copy) cannot silently change the relevance decision.
+      #
+      # This is NOT a defense against a pull request that deliberately tries
+      # to bypass its own gates. The `changes` job's YAML — including the
+      # invocation step below, and this comment — is itself read from the
+      # pull request's merge commit, the same as every other job in this
+      # workflow. A pull request can already rewrite that step's `run:` to
+      # print `relevant=true`/`false` unconditionally, or delete this
+      # checkout, or anything else, exactly as freely as it could edit a
+      # separate script file. Pinning the classifier's SOURCE closes the
+      # narrower "an edit to ci-changed-paths.mjs itself is silently
+      # honored" gap; it does not and cannot close the wider gap that the
+      # workflow calling it is merge-commit-controlled. That wider gap is
+      # tracked in #1022, with the honest framing: these gates defend against
+      # mistakes, not a malicious author of a branch in this repository — the
+      # real controls there are who can push branches and GitHub's
+      # fork-approval requirement.
+      #
+      # This checkout can legitimately produce nothing: the pull request that
+      # introduces this classifier (or a branch cut before it existed on the
+      # base branch) has no such file at its base commit. The invocation step
+      # below fails closed to relevant=true rather than crashing when that
+      # happens.
+      - name: Checkout classifier from the base commit (not the PR's own copy)
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
+          sparse-checkout: |
+            scripts/ci-changed-paths.mjs
+          sparse-checkout-cone-mode: false
+          path: base-ref
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+
+      - name: Check whether docs-archive paths changed
+        id: filter
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        # Same path groups the old `pull_request.paths` filter listed —
+        # deliberately not widened or narrowed. The classifier itself
+        # (scripts/ci-changed-paths.mjs) fails closed to relevant=true when
+        # the changed-file list can't be verified complete (GitHub's
+        # 3,000-file API ceiling) rather than trusting a truncated list — see
+        # scripts/ci-changed-paths.test.mjs.
+        #
+        # The base-pinned checkout above can legitimately be empty (see its
+        # comment). If so, this fails closed to relevant=true on a path that
+        # never invokes the classifier at all, kept structurally separate
+        # from the classifier's own answer so a real relevant=false can never
+        # be mistaken for "missing" and vice versa. See
+        # scripts/ci-gate-bootstrap.test.mjs, which executes this exact
+        # inline script (parsed from this file) against both cases.
+        run: |
+          CLASSIFIER=base-ref/scripts/ci-changed-paths.mjs
+
+          if [ -f "$CLASSIFIER" ]; then
+            node "$CLASSIFIER" '^(docs/|scripts/check-archive-records\.mjs$|scripts/check-archive-records\.test\.mjs$|\.github/workflows/docs-archive\.yml$)'
+          else
+            echo "::warning::[MISSING BASE CLASSIFIER] $CLASSIFIER does not exist at the base commit. This is expected exactly once: for the pull request that introduces this classifier, or a branch cut before it existed on the base branch. Relevance cannot be determined from a classifier that is not there, so this fails closed: treating the workflow as relevant and running everything. If this keeps happening on ordinary pull requests well after the classifier has been on the base branch, something is wrong — investigate, do not silence it."
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+          fi
+
   docs-archive:
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -36,3 +125,146 @@ jobs:
 
       - name: Check archive records
         run: node scripts/check-archive-records.mjs
+
+  # Required status check: this is the one context that should be required
+  # on the branch ruleset instead of relying on the trigger. It always
+  # reports (if: always()), passes when upstream jobs succeeded or were
+  # skipped (irrelevant PR), and fails on any real failure or cancellation
+  # rather than treating either as "not applicable".
+  gate:
+    # BLOCKER fix (round 5, corrected): an event-guarded `if:` alone left
+    # this job SKIPPED (not absent) on a push-triggered run, and GitHub
+    # still creates and reports a check run named "docs-archive-gate" for a
+    # skipped job -- just with conclusion "skipped" instead of a real
+    # pass/fail. Verified live: PR #1029's own head commit still carried
+    # TWO "docs-archive-gate" check runs for the same SHA (one "success",
+    # one "skipped"), which is the same "one required context, two
+    # reports, last one wins" nondeterminism this fix exists to remove --
+    # it had only changed what the second report said, not whether it
+    # existed. Fixed instead by renaming: `name:` is now conditional on
+    # the event, so a run triggered by anything other than a pull request
+    # or a merge-queue entry reports under a DIFFERENT, non-required
+    # context ("docs-archive-push-check") that can never collide with
+    # "docs-archive-gate". `if:` goes back to unconditional `always()` so
+    # the push-triggered run still aggregates and reports a REAL pass/fail
+    # (useful direct-push/post-merge validation) instead of an
+    # uninformative skip.
+    #
+    # Round 6 BLOCKER: the condition is an ALLOWLIST, not `!= 'push'`. The
+    # earlier `github.event_name == 'push' && ... || ...` form resolved to
+    # the REQUIRED name for every event that was not `push`, so simply
+    # adding `workflow_dispatch:` to this workflow's `on:` produced a
+    # second reporter of "docs-archive-gate" for the same commit -- a manual run
+    # takes a branch/tag ref and uses its last commit as GITHUB_SHA -- and
+    # both enforced guards stayed green. Only `pull_request` and
+    # `merge_group` may resolve to the required name.
+    # scripts/check-ci-gate-structure.mjs pins this exact expression, caps
+    # this workflow's `on:` to pull_request/merge_group/push, and scans
+    # every job in every workflow in the repository so no other job can
+    # report one of the four required names either.
+    name: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'docs-archive-gate' || 'docs-archive-push-check' }}
+    if: always()
+    needs: [changes, docs-archive]
+    runs-on: ubuntu-latest
+    steps:
+      # Reads the `needs` context directly (via toJSON) instead of a
+      # hand-written per-job map: a job added to `needs` above without also
+      # being added to a hand-maintained Bash list would silently never be
+      # checked (round-2 review). `needs` is populated by Actions from this
+      # job's own `needs:` keyword, so there is no second list to omit an
+      # entry from.
+      - name: Check required jobs
+        id: check-required-jobs
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        # Fail closed on anything outside the exact documented shape: a
+        # nonempty JSON object whose every entry's result is exactly
+        # "success" or "skipped" (GitHub documents only
+        # success/failure/cancelled/skipped for needs.<job>.result — see
+        # scripts/ci-gate-aggregation.test.mjs). An empty object/array, a
+        # missing `.result`, or an unrecognized result value (a documented
+        # future addition, a typo, a job whose result GitHub reports in a
+        # shape this was not written against) must never silently pass
+        # "nothing to flag" — and neither may examining zero jobs.
+        #
+        # BLOCKER fix: treating every "skipped" result as a pass — the
+        # original shape of this check — let a review round prove `changes`
+        # succeeding with an absent/empty `relevant` output plus every heavy
+        # job skipped as green: skipped work was never correlated with the
+        # classifier's own answer, so "skipped" was accepted as proof of
+        # nothing. This step now also asserts `needs.changes.result ==
+        # "success"`, requires `needs.changes.outputs.relevant` to be
+        # EXACTLY the string "true" or "false" (GitHub can omit a job output
+        # entirely — including because it may contain a secret — so an
+        # absent/empty/malformed value fails closed rather than being read as
+        # a green light), and only allows a required job to be "skipped" when
+        # relevant is exactly "false". When relevant is "true", every
+        # required job (including one whose skip was actually caused by an
+        # upstream failure cascading a default skip) must be "success".
+        run: |
+          if [ "$(echo "$NEEDS_JSON" | jq -r 'type')" != "object" ]; then
+            echo "::error::NEEDS_JSON is not a JSON object — examining nothing must never pass."
+            exit 1
+          fi
+
+          if [ "$(echo "$NEEDS_JSON" | jq 'length')" -eq 0 ]; then
+            echo "::error::NEEDS_JSON has no entries — examining zero jobs must never pass."
+            exit 1
+          fi
+
+          echo "Required jobs and their results:"
+          echo "$NEEDS_JSON" | jq -r 'to_entries[] | "  \(.key): \(.value.result)"'
+
+          changes_result="$(echo "$NEEDS_JSON" | jq -r '.changes.result // "MISSING"')"
+
+          if [ "$changes_result" != "success" ]; then
+            echo "::error::needs.changes.result must be exactly \"success\" (found: \"$changes_result\"). Nothing downstream can be trusted if the changed-paths classifier itself did not run to completion."
+            exit 1
+          fi
+
+          relevant="$(echo "$NEEDS_JSON" | jq -r '.changes.outputs.relevant // "MISSING"')"
+
+          if [ "$relevant" != "true" ] && [ "$relevant" != "false" ]; then
+            echo "::error::needs.changes.outputs.relevant must be exactly the string \"true\" or \"false\" (found: \"$relevant\"). GitHub can omit a job output entirely — including because it may contain a secret — so an absent, empty, or otherwise malformed relevance signal must never be treated as license to accept skipped verification work."
+            exit 1
+          fi
+
+          if [ "$relevant" = "true" ]; then
+            bad_count="$(echo "$NEEDS_JSON" | jq '[.[] | select(.result != "success")] | length')"
+
+            if [ "$bad_count" -gt 0 ]; then
+              echo "::error::The changes classifier reported this change as relevant, so every required job must have actually run and succeeded (skipped is not acceptable) — but one or more did not (see results above)."
+              exit 1
+            fi
+          else
+            bad_count="$(echo "$NEEDS_JSON" | jq '[.[] | select((.result == "success" or .result == "skipped") | not)] | length')"
+
+            if [ "$bad_count" -gt 0 ]; then
+              echo "::error::One or more required jobs did not report success or skipped (failure, cancelled, or an unrecognized result value)."
+              exit 1
+            fi
+          fi
+
+          echo "All required jobs passed, or were correctly skipped for a verified-irrelevant change."
+
+      # BLOCKER fix (round 5): `continue-on-error: true` added to the step
+      # above would make its reported CONCLUSION "success" even after it
+      # printed `::error::` and exited 1 — masking a correctly-detected
+      # aggregation failure the same way it masks a verification step's
+      # failure. GitHub computes a step's `outcome` BEFORE continue-on-error
+      # is applied (only `conclusion` is rewritten afterward), so reading
+      # `steps.check-required-jobs.outcome` here is not fooled by
+      # continue-on-error on that step. `if: always()` so this still runs
+      # (and still fails the job) even if the step above failed for real
+      # without continue-on-error. scripts/check-ci-gate-structure.mjs
+      # separately hard-rejects continue-on-error anywhere in this job, as
+      # an independent second layer.
+      - name: Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)
+        if: always()
+        run: |
+          outcome="${{ steps.check-required-jobs.outcome }}"
+
+          if [ "$outcome" != "success" ]; then
+            echo "::error::steps.check-required-jobs.outcome was \"$outcome\", not \"success\". continue-on-error can rewrite a step's CONCLUSION but not its OUTCOME, so a masked required-jobs check failure is still caught here."
+            exit 1
+          fi

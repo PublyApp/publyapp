@@ -53,7 +53,7 @@ const runCommand = (command, args, options = {}) => {
 		const prefix = options.label ? `${options.label}: ` : '';
 		throw new Error(
 			`${prefix}${command} ${args.join(' ')} exited with status ${String(status)} ` +
-				`${stderr || stdout ? `\n${stderr || stdout}` : ''}`,
+				(stderr || stdout ? `\n${stderr || stdout}` : ''),
 		);
 	}
 

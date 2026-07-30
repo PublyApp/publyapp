@@ -295,11 +295,20 @@ test-api-debug $APP_ROLE="all" $ASPNETCORE_ENVIRONMENT="Testing":
 #
 # See docs/guides/local-ci-gate.md.
 
-# Fail if .github/workflows has a step the local gate is not reconciled with
+# Fail if .github/workflows has a step the local gate is not reconciled with,
+# if the #1017 changed-path classifier's fail-closed logic regresses, or if
+# an aggregate gate's job graph (needs/if/permissions/outputs — the metadata
+# check-ci-drift.mjs's step-content hash does not cover) drifts from what
+# #1017 requires.
 ci-drift:
   @echo "=== [gate] workflow drift guard ==="
   pnpm test:ci-drift
   node ./scripts/check-ci-drift.mjs
+  node --test ./scripts/ci-changed-paths.test.mjs
+  node --test ./scripts/ci-gate-bootstrap.test.mjs
+  node --test ./scripts/ci-gate-aggregation.test.mjs
+  node --test ./scripts/check-ci-gate-structure.test.mjs
+  node ./scripts/check-ci-gate-structure.mjs
 
 # Guard rails for database migration compatibility during zero-downtime rolling deploys.
 ci-migration-expand-contract:
@@ -334,10 +343,12 @@ ci-format: format
 # Deliberately NOT `just lint`, which runs `oxlint --quiet .` over the whole
 # repo. Issue #803 owns broadening that scope and resolving the remaining
 # repo-wide errors. Until then, this gate mirrors the narrower CI lint step
-# exactly. See docs/guides/local-ci-gate.md.
+# exactly — apps/front, packages/shared-ts, and (since #1017 closed the gap
+# where scripts/ had no CI lint coverage at all) scripts/. See
+# docs/guides/local-ci-gate.md.
 ci-lint:
   @echo "=== [gate] lint ==="
-  npx oxlint --quiet apps/front packages/shared-ts
+  npx oxlint --quiet apps/front packages/shared-ts scripts
   pnpm lint:disables
   pnpm check:frontend-barrels
 

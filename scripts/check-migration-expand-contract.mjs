@@ -419,11 +419,9 @@ const checkOperationCall = (
 		case 'RenameColumn':
 		case 'RenameTable': {
 			const action =
-				operationName === 'DropColumn'
+				operationName === 'DropColumn' || operationName === 'DropTable'
 					? 'dropping'
-					: operationName === 'DropTable'
-						? 'dropping'
-						: 'renaming';
+					: 'renaming';
 			const remedy =
 				operationName === 'RenameColumn' || operationName === 'RenameTable'
 					? 'Use add+copy/backfill+drop in separate migrations so old app versions still see existing names.'
