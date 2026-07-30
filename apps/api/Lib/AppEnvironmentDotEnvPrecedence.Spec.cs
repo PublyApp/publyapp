@@ -121,10 +121,11 @@ namespace PublyApp.Api.Lib;
 ///   own run regenerates it in place, poisoned. The next real <c>GenerateOpenApiDocuments</c>
 ///   invocation on that machine — a developer's next build, or a later CI/local-gate step —
 ///   then saw its Outputs (the cache) newer than its Inputs (the DLL) and skipped generation
-///   entirely, exiting 0 without regenerating anything. Fixed by capturing the cache's
-///   original bytes (if any existed) before deleting it, and restoring exactly that pre-test
-///   state — original bytes back, or absent if none existed — in <c>finally</c>, covering the
-///   failure/timeout paths too.
+///   entirely, exiting 0 without regenerating anything. Round 4 attempted to fix this by
+///   restoring the original bytes in <c>finally</c>, but <c>File.WriteAllBytes</c> gave the
+///   restored file a new timestamp, preserving the silent-skip defect. Fixed by redirecting
+///   <c>_OpenApiDocumentsCache</c> into the throwaway output directory too, so the shared cache
+///   is never deleted or rewritten. The test asserts both its bytes and timestamp are unchanged.
 /// - The case overwrote and deleted a pre-existing <c>apps/api/MSBuild.rsp</c> unconditionally:
 ///   unlike the synthetic <c>.env.development</c> above, it had no pre-existence guard, so a
 ///   developer's own response file would simply be eaten. Its writes also preceded the
@@ -390,11 +391,10 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	//    (clean and mutated) — see the commit message.
 	// 2. Forcing real regeneration every run. GenerateOpenApiDocuments itself has an
 	//    Inputs="$(TargetPath)"/Outputs="$(_OpenApiDocumentsCache)" incremental-build check
-	//    (the cache file lives under .artifacts/obj, NOT redirected by the rsp above) — if a
-	//    previous real `just build-api` run on this machine already produced that cache file
-	//    with an up-to-date timestamp, MSBuild silently skips the target and this test would
-	//    write nothing, or reuse stale output. Deleting that cache file before every run forces
-	//    the target to always execute, regardless of whether the assembly itself recompiled.
+	//    — if it uses the shared .artifacts/obj cache and that file is already up to date,
+	//    MSBuild silently skips the target and this test writes nothing. The response file
+	//    redirects _OpenApiDocumentsCache into the fresh throwaway output directory, so the
+	//    target always executes without deleting or rewriting the shared cache.
 	// 3. NEVER touching the repository's own .env.development — this is the safety-critical
 	//    one. `just build-api`'s recipe `cd`s into apps/api before running `dotnet build`, so
 	//    FindDotEnvPath's parent-walk (Lib/AppEnvironment.cs) starts THERE. It returns the FIRST
@@ -459,48 +459,31 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 
 		var outputDirectory = Path.Combine(_tempDirectory, "docgen-out");
 		Directory.CreateDirectory(outputDirectory);
+		var redirectedCachePath = Path.Combine(
+			outputDirectory, "PublyApp.Api.OpenApiFiles.cache");
+		byte[]? originalCacheBytes = File.Exists(openApiFilesCachePath)
+			? await File.ReadAllBytesAsync(openApiFilesCachePath)
+			: null;
+		var originalCacheLastWriteTimeUtc = originalCacheBytes is not null
+			? File.GetLastWriteTimeUtc(openApiFilesCachePath)
+			: (DateTime?)null;
 
 		// Round-4 review: each destructive step below registers its own rollback IMMEDIATELY
 		// after it succeeds and BEFORE the next destructive step runs, so a failure partway
 		// through (verified by making apps/api/.env.development an unwriteable directory) only
-		// ever unwinds what has actually happened so far — never leaves an earlier write
-		// (the response file, the deleted cache) stranded. Cleanups run in `finally`, most
+		// ever unwinds what has actually happened so far — never leaves an earlier response-file
+		// write stranded. Cleanups run in `finally`, most
 		// recently registered first, covering the failure/timeout paths too.
 		var cleanupActions = new List<Action>();
 		try {
-			// Force GenerateOpenApiDocuments to actually re-run — see point 2 above. Round-4
-			// review: the real target recreates this cache file (NOT redirected by the rsp
-			// below — its path is fixed under .artifacts/obj) with entries pointing at THIS
-			// run's throwaway output directory, newer than the API DLL. Left in place, the
-			// NEXT real GenerateOpenApiDocuments invocation on this machine (a developer's
-			// build, or a later CI/local-gate step) sees Outputs newer than Inputs and skips
-			// generation entirely — exiting 0 without regenerating anything. Back up whatever
-			// was there before (if anything) so the exact pre-test state — original bytes, or
-			// genuinely absent — is restored in `finally`, not merely "deleted and never put
-			// back".
-			byte[]? originalCacheBytes = File.Exists(openApiFilesCachePath)
-				? await File.ReadAllBytesAsync(openApiFilesCachePath)
-				: null;
-			if (File.Exists(openApiFilesCachePath)) {
-				File.Delete(openApiFilesCachePath);
-			}
-
-			cleanupActions.Add(() => {
-				if (File.Exists(openApiFilesCachePath)) {
-					File.Delete(openApiFilesCachePath);
-				}
-
-				if (originalCacheBytes is not null) {
-					File.WriteAllBytes(openApiFilesCachePath, originalCacheBytes);
-				}
-			});
-
-			// Redirect its output away from the checked-in document — see point 1 above.
+			// Redirect the generated document and incremental-build cache away from shared
+			// repository paths — see points 1 and 2 above.
 			var rspContent = string.Join(
 				'\n',
 				$"-p:OpenApiJsonFile={Path.Combine(outputDirectory, "openapi.json")}",
 				$"-p:OpenApiDocumentsDirectory={outputDirectory}",
-				$"-p:OpenApiGeneratedProjectFile={Path.Combine(outputDirectory, "PublyApp.Api.json")}");
+				$"-p:OpenApiGeneratedProjectFile={Path.Combine(outputDirectory, "PublyApp.Api.json")}",
+				$"-p:_OpenApiDocumentsCache={redirectedCachePath}");
 			await File.WriteAllTextAsync(rspPath, rspContent);
 			cleanupActions.Add(() => {
 				if (File.Exists(rspPath)) {
@@ -590,6 +573,21 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 					// Same rationale as above.
 				}
 			}
+		}
+
+		if (originalCacheBytes is null) {
+			File.Exists(openApiFilesCachePath).Should().BeFalse(
+				"the run must leave an originally absent shared OpenAPI cache absent");
+		} else {
+			File.Exists(openApiFilesCachePath).Should().BeTrue(
+				"the run must leave the pre-existing shared OpenAPI cache in place");
+			var currentCacheBytes = await File.ReadAllBytesAsync(openApiFilesCachePath);
+			currentCacheBytes.Should().Equal(
+				originalCacheBytes,
+				"the run must not change the shared OpenAPI cache's bytes");
+			File.GetLastWriteTimeUtc(openApiFilesCachePath).Should().Be(
+				originalCacheLastWriteTimeUtc,
+				"the run must not change the shared OpenAPI cache's timestamp");
 		}
 	}
 
