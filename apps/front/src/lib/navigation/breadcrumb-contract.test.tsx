@@ -114,6 +114,10 @@ const dynamicSegmentsOf = (fullPath: string | undefined): string[] => {
 	return matches.map((segment) => segment.slice(1));
 };
 
+const isEntitySpec = (
+	spec: CrumbSpec,
+): spec is Extract<CrumbSpec, { kind: 'entity' }> => spec.kind === 'entity';
+
 /**
  * Frozen #972 legacy redirect stubs: `beforeLoad`-redirect-only components
  * that never render, so `'shell'` (no trail) is correct there even though
@@ -340,6 +344,133 @@ describe('breadcrumb contract — route-tree walk (#973 Tier 2, guard A)', () =>
 		// migration's 21 dynamic routes carry well over a dozen entity crumbs
 		// between them, so a near-zero count here means this loop silently
 		// found nothing rather than everything being correct.
+		expect(entityCrumbCount).toBeGreaterThan(10);
+		expect(failures).toEqual([]);
+	});
+
+	/**
+	 * #973 BLOCKER, round 3: the PR review proved the two tests above are
+	 * still not enough. `ENTITY_QUERY_REGISTRY` proves a crumb's `query` is
+	 * SOME vetted production query and that its `select` echoes THAT query's
+	 * own payload marker — it never proves the query is the one belonging to
+	 * THIS crumb's own `$param`. The reviewer rewired the real
+	 * `/staff/tenants/$tenantId/profiles/$profileId` route's profile crumb to
+	 * `query: staffTenantCrumbQuery, select: selectStaffTenantCrumbName` (the
+	 * TENANT'S already-registered pair) and every gate above stayed green:
+	 * the query is registered, and the selector echoes ITS OWN payload's
+	 * marker just fine — the tests simply never asked "does this crumb's
+	 * query actually depend on the segment it claims to name."
+	 *
+	 * This test asks exactly that, behaviorally, against the real `query`
+	 * closures — no hand-maintained "which param does each query belong to"
+	 * side table, which would itself just be a second, independently-
+	 * driftable model of the same fact the #973 saga keeps re-discovering.
+	 * For every entity crumb at position `i` (aligned with the route's `i`-th
+	 * `$param`, left to right — verified true of every one of this repo's
+	 * entity-crumb-bearing route files today: the entity crumbs in a tail
+	 * always appear in the same left-to-right order as the route's own
+	 * dynamic segments; `conventions.md` now states this explicitly):
+	 *
+	 * (a) Sensitivity — changing ONLY that crumb's own segment (holding every
+	 *     other segment fixed) MUST change the query's resolved `queryKey`.
+	 *     A crumb whose query ignores its own segment (the reviewer's exact
+	 *     mutation: the profile crumb's query only reads `tenantId`) fails
+	 *     here, because the profile crumb's cache key stays byte-identical
+	 *     whether `profileId` is `synthetic-profileId` or anything else.
+	 * (b) Descendant independence — changing ONLY a DEEPER segment (one that
+	 *     belongs to a crumb further right, e.g. `profileId` relative to the
+	 *     shallower `tenantId` crumb) must NOT change an earlier crumb's
+	 *     `queryKey`. This is the mirror-image bug the reviewer didn't need
+	 *     to demonstrate to be real: a shallow crumb secretly resolving a
+	 *     deeper/more specific entity. Ancestor scoping (a profile crumb
+	 *     legitimately depending on its own tenant's `tenantId`) is NOT
+	 *     penalized — only forward/descendant leakage is.
+	 */
+	test("every entity crumb's query is bound to ITS OWN dynamic segment, not a sibling's (#973 BLOCKER, round 3: registered-but-wrong-entity regression guard)", () => {
+		const failures: string[] = [];
+		let entityCrumbCount = 0;
+
+		const queryKeyOf = (
+			spec: Extract<CrumbSpec, { kind: 'entity' }>,
+			params: Record<string, string>,
+		): string => JSON.stringify(spec.query(params).queryKey);
+
+		for (const route of allRoutes) {
+			const segments = dynamicSegmentsOf(route.fullPath);
+			if (
+				segments.length === 0 ||
+				LEGACY_REDIRECT_STUB_PATHS.has(route.fullPath)
+			) {
+				continue;
+			}
+
+			const crumbs = route.options?.staticData?.crumbs;
+			if (typeof crumbs !== 'function') {
+				continue;
+			}
+
+			const baseParams = buildSyntheticParams(segments);
+			const baseEntitySpecs = crumbs(baseParams).filter(isEntitySpec);
+
+			for (const [specIndex, ownSegment] of segments.entries()) {
+				const baseSpec = baseEntitySpecs[specIndex];
+				if (!baseSpec) {
+					// Already reported by the structural entity-count test above.
+					continue;
+				}
+
+				entityCrumbCount += 1;
+				const baseKey = queryKeyOf(baseSpec, baseParams);
+
+				// (a) Sensitivity to its own segment.
+				const ownMutatedParams = {
+					...baseParams,
+					[ownSegment]: `mutated-${ownSegment}`,
+				};
+				const ownMutatedSpec =
+					crumbs(ownMutatedParams).filter(isEntitySpec)[specIndex];
+				const ownMutatedKey = ownMutatedSpec
+					? queryKeyOf(ownMutatedSpec, ownMutatedParams)
+					: undefined;
+
+				if (baseKey === ownMutatedKey) {
+					failures.push(
+						`${route.fullPath}: entity crumb #${specIndex} is supposed to name $${ownSegment}, but changing ONLY $${ownSegment} left its query's cache key unchanged (${baseKey}) — its query does not depend on its own segment, so it may be resolving a sibling crumb's entity instead`,
+					);
+				}
+
+				// (b) Independence from deeper (descendant) segments.
+				for (
+					let descendantIndex = specIndex + 1;
+					descendantIndex < segments.length;
+					descendantIndex += 1
+				) {
+					const descendantSegment = segments[descendantIndex];
+					if (!descendantSegment) {
+						continue;
+					}
+
+					const descendantMutatedParams = {
+						...baseParams,
+						[descendantSegment]: `mutated-${descendantSegment}`,
+					};
+					const descendantMutatedSpec = crumbs(descendantMutatedParams).filter(
+						isEntitySpec,
+					)[specIndex];
+					const descendantMutatedKey = descendantMutatedSpec
+						? queryKeyOf(descendantMutatedSpec, descendantMutatedParams)
+						: undefined;
+
+					if (baseKey !== descendantMutatedKey) {
+						failures.push(
+							`${route.fullPath}: entity crumb #${specIndex} (names $${ownSegment}) changed its cache key when only the DEEPER segment $${descendantSegment} changed — it may be resolving a more specific descendant entity instead of its own`,
+						);
+					}
+				}
+			}
+		}
+
+		// Self-check, same rationale as the sibling tests above.
 		expect(entityCrumbCount).toBeGreaterThan(10);
 		expect(failures).toEqual([]);
 	});
