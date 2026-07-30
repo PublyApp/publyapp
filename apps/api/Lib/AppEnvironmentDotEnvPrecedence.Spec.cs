@@ -44,22 +44,57 @@ namespace PublyApp.Api.Lib;
 /// Every assertion below was verified against a real mutation that makes it fail — see the
 /// commit message for the exact failing-then-passing transcript of each.
 ///
-/// Round-2 review (second pass) found two further problems, both fixed in this revision:
+/// Round-2 review (second pass) found two further problems, both fixed in that revision:
 /// - The unset-host-environment case above still only reran the shipped
 ///   <c>--print-hosted-services</c> probe, not the actual document-generation pipeline #1019
 ///   calls out by name. <see cref="ItShouldResolveApiRoleDuringARealOpenApiDocumentGenerationRun"/>
-///   closes that gap by invoking the REAL <c>dotnet-getdocument.dll</c> tool — the exact
-///   executable <c>GenerateOpenApiDocuments</c>'s <c>&lt;Exec&gt;</c> line runs — against a
-///   genuinely-compiled assembly (see <see cref="RealOpenApiDocGenerationFixture"/>).
+///   closed that gap by invoking the REAL <c>dotnet-getdocument.dll</c> tool directly against a
+///   separately-compiled assembly, with the process manually setting APP_ROLE=api itself.
 /// - <c>RunProbe</c>'s 30-second timeout was unreachable for an ordinary hung child: synchronous
 ///   <c>ReadToEnd()</c> calls on stdout/stderr blocked forever before <c>WaitForExit</c> was ever
 ///   reached. <c>RunProcessWithTimeoutAsync</c> now races <c>WaitForExitAsync()</c> against the
 ///   timeout directly, with asynchronous stream reads running concurrently, and kills the whole
 ///   process tree on timeout instead of hanging the test process too.
+///
+/// Round-3 review found the fix above still fell short of #1019's acceptance criterion, plus a
+/// recurrence of the round-2 timeout bug and a real safety defect, all fixed in this revision:
+/// - <see cref="ItShouldResolveApiRoleDuringARealOpenApiDocumentGenerationRun"/> supplied its own
+///   <c>APP_ROLE=api</c> below both integration boundaries, so it proved <c>NoClobber()</c>
+///   preserves a manually-injected value in the real tool — not that the repository's own
+///   <c>just build-api</c> pin (justfile:101) actually takes effect. Verified: mutating the
+///   recipe's default from <c>$APP_ROLE="api"</c> to <c>$APP_ROLE="all"</c> left the old version
+///   of this test green. Fixed by invoking the real <c>just build-api</c> recipe itself — letting
+///   ITS OWN default parameter export the role, never injecting it from the test — via an
+///   auto-discovered <c>MSBuild.rsp</c> response file placed next to
+///   <c>PublyApp.Api.csproj</c> (MSBuild appends its lines as extra command-line arguments
+///   automatically). That redirects <c>GenerateOpenApiDocuments</c>' output to a throwaway
+///   directory: command-line (global) MSBuild properties cannot be overridden by the csproj's
+///   own unconditional <c>&lt;OpenApiJsonFile&gt;</c>/<c>&lt;OpenApiDocumentsDirectory&gt;</c>
+///   assignments, so the checked-in <c>apps/api/openapi.json</c> is never touched — verified
+///   directly by hash before/after every run. The one-time-compiled-assembly fixture this
+///   replaced (<c>RealOpenApiDocGenerationFixture</c>) is gone: there is no longer any reason to
+///   compile a throwaway copy of the assembly when the case drives the real recipe/real project
+///   directly.
+/// - That same removed fixture's one-time compile step used the exact synchronous
+///   <c>ReadToEnd()</c>-before-<c>WaitForExit</c> ordering round-2 rejected, making ITS OWN
+///   120-second timeout unreachable too — the second time this ordering shipped on this branch.
+///   Deleting the fixture deletes the bug; the replacement drives the recipe entirely through
+///   <see cref="RunProcessWithTimeoutAsync"/>, the one helper in this file with the correct
+///   async-read/<c>WaitForExitAsync</c> race.
+/// - The synthetic <c>POSTGRES_CONNECTION_STRING</c> every case in this file shares
+///   (<see cref="BaseRequiredValues"/>) pointed at port 5454 — this repository's actual shared
+///   local development PostgreSQL endpoint (<c>docker-compose.services.yml</c>). The real
+///   document-generation case genuinely starts the hosted-service graph when no-clobber
+///   regresses (see below), so a permanent regression test using that port could reach a real,
+///   shared database the moment the production fix broke. Fixed by pointing it at a closed local
+///   port (1) that can never accept a real connection, with a short connection timeout — the
+///   probe-based cases only need a well-formed connection string (never dialed). The real-recipe
+///   case ALSO never lets its own invocation reach the repository's real <c>.env.development</c>
+///   at all: see its own comment for why an earlier revision that relied on a process-level
+///   override instead was itself unsafe under exactly this defect (verified by direct
+///   reproduction — it read migration state from this machine's real development Postgres).
 /// </summary>
-public sealed class AppEnvironmentDotEnvPrecedenceSpec
-	: IClassFixture<RealOpenApiDocGenerationFixture>, IDisposable {
-	private readonly RealOpenApiDocGenerationFixture _docGenFixture;
+public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	// Registered only for the Worker/All roles (JobsServiceRegistration.AddWorkerServices) —
 	// its presence/absence in the resolved hosted-service manifest is the observable proof of
 	// which APP_ROLE actually won.
@@ -76,9 +111,16 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec
 	private static readonly Dictionary<string, string> BaseRequiredValues = new() {
 		["APP_NAME"] = "PublyApp",
 		["FRONT_URL"] = "http://localhost:5050",
+		// Round-3 review: this MUST NOT be port 5454 — this repository's actual shared local
+		// development PostgreSQL endpoint (docker-compose.services.yml). The probe-based cases
+		// below never dial it (BeValidPostgresConnectionString only parses it), but the real
+		// document-generation case DOES start the hosted-service graph when no-clobber
+		// regresses, and a permanent regression test is explicitly designed to activate that
+		// graph on a regression. Port 1 is a closed local port no service can be listening on;
+		// "the fake password probably fails auth" is not an acceptable safety boundary here.
 		["POSTGRES_CONNECTION_STRING"] =
-			"Host=localhost;Port=5454;Database=publyapp_precedence_test;" +
-			"Username=postgres;Password=not-a-real-password",
+			"Host=localhost;Port=1;Database=publyapp_precedence_test;" +
+			"Username=postgres;Password=not-a-real-password;Timeout=1",
 		["RESEND_API_KEY"] = "not-a-real-key",
 		["DEFAULT_EMAIL_SENDER_NAME"] = "PublyApp Support",
 		["DEFAULT_EMAIL_SENDER_EMAIL"] = "no-reply@example.com",
@@ -96,8 +138,7 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec
 		["APP_ROLE"] = "all",
 	};
 
-	public AppEnvironmentDotEnvPrecedenceSpec(RealOpenApiDocGenerationFixture docGenFixture) {
-		_docGenFixture = docGenFixture;
+	public AppEnvironmentDotEnvPrecedenceSpec() {
 		_tempDirectory = Directory.CreateTempSubdirectory("publyapp-dotenv-precedence-").FullName;
 		_envFilePath = Path.Combine(_tempDirectory, ".env.development");
 	}
@@ -257,88 +298,169 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec
 	// > confirm the justfile pins actually take effect, by asserting the role the application
 	// > resolves during a doc-generation run — not by reading the recipe.
 	//
-	// This case closes that gap for real: it invokes the actual
-	// Microsoft.Extensions.ApiDescription.Server tool (dotnet-getdocument.dll) — the exact
-	// executable GenerateOpenApiDocuments's <Exec> line runs during `dotnet build`/
-	// `just build-api` — against a genuinely-compiled (non-Test-config) PublyApp.Api.dll (see
-	// RealOpenApiDocGenerationFixture), with the same APP_ROLE=api export `just build-api` uses
-	// and the same unset host-environment classification build-time OpenAPI generation resolves
-	// under.
+	// Round-3 review: the FIRST version of this case closed that gap only partway — it invoked
+	// the real dotnet-getdocument.dll tool, but supplied APP_ROLE=api itself
+	// (startInfo.Environment["APP_ROLE"] = "api"), below both the `just` and MSBuild boundaries.
+	// That proved NoClobber() preserves a manually-injected value in the real tool; it did NOT
+	// prove the repository's own justfile:101 pin actually takes effect. Verified directly:
+	// mutating build-api's default from $APP_ROLE="api" to $APP_ROLE="all" left that version
+	// green (see the commit message for the transcript).
 	//
-	// This is NOT a per-test full `dotnet build`: RealOpenApiDocGenerationFixture compiles the
-	// assembly ONCE per test run (with OpenApiGenerateDocumentsOnBuild=false, so that one-time
-	// compile never touches the checked-in apps/api/openapi.json). This case re-invokes the
-	// already-compiled tool's own Exec command directly, bypassing MSBuild's Inputs/Outputs
-	// up-to-date check on GenerateOpenApiDocuments (which would otherwise skip regeneration for
-	// an unchanged assembly regardless of which env vars this case sets).
+	// This version closes the real gap: it invokes `just build-api` ITSELF as a child process,
+	// with no explicit role override at all, so the recipe's OWN default parameter
+	// (justfile:101) is what exports APP_ROLE — a mutation of that default now changes what this
+	// case observes. Three things make that safe and deterministic to run as a permanent test:
+	//
+	// 1. Output redirection without touching the checked-in document. `just build-api` runs
+	//    `dotnet build --no-restore` against the REAL apps/api project, and
+	//    GenerateOpenApiDocuments' Outputs (OpenApiJsonFile/OpenApiDocumentsDirectory) are
+	//    hardcoded in PublyApp.Api.csproj to $(MSBuildProjectDirectory) — i.e. the checked-in
+	//    apps/api/openapi.json. An "MSBuild.rsp" file dropped next to PublyApp.Api.csproj is
+	//    auto-included by MSBuild as extra command-line arguments; command-line (global)
+	//    properties CANNOT be overridden by the csproj's own unconditional property
+	//    assignments (unlike a plain -p: passed to a recipe that doesn't forward extra args, or
+	//    an environment variable, either of which the csproj's unconditional assignment would
+	//    win over). That redirects every one of OpenApiJsonFile/OpenApiDocumentsDirectory/
+	//    OpenApiGeneratedProjectFile to this test's own throwaway directory. Verified directly:
+	//    the checked-in apps/api/openapi.json's hash is identical before and after every run
+	//    (clean and mutated) — see the commit message.
+	// 2. Forcing real regeneration every run. GenerateOpenApiDocuments itself has an
+	//    Inputs="$(TargetPath)"/Outputs="$(_OpenApiDocumentsCache)" incremental-build check
+	//    (the cache file lives under .artifacts/obj, NOT redirected by the rsp above) — if a
+	//    previous real `just build-api` run on this machine already produced that cache file
+	//    with an up-to-date timestamp, MSBuild silently skips the target and this test would
+	//    write nothing, or reuse stale output. Deleting that cache file before every run forces
+	//    the target to always execute, regardless of whether the assembly itself recompiled.
+	// 3. NEVER touching the repository's own .env.development — this is the safety-critical
+	//    one. `just build-api`'s recipe `cd`s into apps/api before running `dotnet build`, so
+	//    FindDotEnvPath's parent-walk (Lib/AppEnvironment.cs) starts THERE. It returns the FIRST
+	//    ".env.development" it finds while walking up — and apps/api never has its own in normal
+	//    operation (only the repo root does). Placing a throwaway, fully-controlled
+	//    ".env.development" directly in apps/api therefore intercepts the walk before it ever
+	//    reaches the repo root, using the exact same parent-walk mechanism every other case in
+	//    this file already relies on for isolation (WorkingDirectory = an isolated temp
+	//    directory). This was NOT the first version of this fix: an earlier revision set
+	//    POSTGRES_CONNECTION_STRING as a PROCESS environment override instead and let the
+	//    invocation read the repo's real .env.development, reasoning that NoClobber would keep
+	//    the process override in charge. That reasoning was circular — the whole point of
+	//    exercising a REGRESSED NoClobber is that the file wins over EVERY process value, not
+	//    just APP_ROLE — and it was caught by direct reproduction: with AppEnvironment.cs
+	//    reverted to bare Env.Load(path), that version connected to and read migration state
+	//    from this machine's real docker-compose.services.yml Postgres at :5454 (a read-only
+	//    query — WorkerMigrationStartupGate's IDatabaseMigrationReadiness check never writes —
+	//    but a real connection to the shared local development database from a permanent
+	//    regression test is exactly the defect Finding 3 already named once). The synthetic file
+	//    placed in apps/api here carries the SAME safe closed-port POSTGRES_CONNECTION_STRING as
+	//    BaseRequiredValues, so whichever side NoClobber makes win, no real network path exists.
 	//
 	// Verified against a real regression (see the commit message for the transcript): reverting
-	// AppEnvironment.cs to bare Env.Load(path) lets the file's APP_ROLE="all" win, resolving
-	// AppRole.All and registering WorkerMigrationStartupGate INSIDE the real web host that the
-	// real tool builds to extract the document — the same hosted-service graph that motivated
-	// #1019, now actually started by the tool's own IHost.StartAsync() rather than merely
-	// composed and inspected. Nothing in this process's environment can reach a real Postgres, so
-	// that hosted service retries every 2 seconds (its RetryDelay) without ever completing, and
-	// the real tool hangs — exactly the "worker path blocking an otherwise DB-less tooling
-	// process" failure #1019 exists to prevent. RunProcessWithTimeoutAsync's fixed timeout (see
-	// the round-2 fix on RunProbeAsync) is what lets this be caught deterministically here instead
-	// of hanging the whole suite.
+	// AppEnvironment.cs to bare Env.Load(path) lets this file's APP_ROLE="all" win over
+	// `just build-api`'s own APP_ROLE=api export, resolving AppRole.All and registering
+	// WorkerMigrationStartupGate INSIDE the real web host the real recipe builds to extract the
+	// document — the same hosted-service graph that motivated #1019, now actually started by the
+	// tool's own IHost.StartAsync(). That hosted service retries against the closed-port
+	// connection string every 2 seconds (its RetryDelay) without ever completing, and the real
+	// build hangs — exactly the "worker path blocking an otherwise DB-less tooling process"
+	// failure #1019 exists to prevent. RunProcessWithTimeoutAsync's fixed timeout is what catches
+	// that deterministically here instead of hanging the whole suite.
 	[Fact]
 	public async Task ItShouldResolveApiRoleDuringARealOpenApiDocumentGenerationRun() {
-		WriteEnvFile(new Dictionary<string, string> { ["APP_ROLE"] = "all" });
+		var repoRootDirectory = FindRepoRootDirectory();
+		var apiProjectDirectory = Path.Combine(repoRootDirectory, "apps", "api");
+		var rspPath = Path.Combine(apiProjectDirectory, "MSBuild.rsp");
+		var openApiFilesCachePath = Path.Combine(
+			apiProjectDirectory, ".artifacts", "obj", "PublyApp.Api", "PublyApp.Api.OpenApiFiles.cache");
+
+		// See point 3 above: apps/api must NEVER have its own .env.development in normal
+		// operation. Refuse to run rather than silently overwrite an unexpected file.
+		var syntheticDotEnvPath = Path.Combine(apiProjectDirectory, ".env.development");
+		if (File.Exists(syntheticDotEnvPath)) {
+			throw new InvalidOperationException(
+				$"{syntheticDotEnvPath} already exists and this test refuses to overwrite it. " +
+					"apps/api must never have its own .env.development — investigate before " +
+					"rerunning (a previous crashed run of this exact test is the likely cause; " +
+					"it is safe to delete this file once you've confirmed that).");
+		}
 
 		var outputDirectory = Path.Combine(_tempDirectory, "docgen-out");
+		Directory.CreateDirectory(outputDirectory);
 
-		var startInfo = new ProcessStartInfo {
-			FileName = "dotnet",
-			WorkingDirectory = _tempDirectory,
-			RedirectStandardOutput = true,
-			RedirectStandardError = true,
-			UseShellExecute = false,
+		// Force GenerateOpenApiDocuments to actually re-run — see point 2 above.
+		if (File.Exists(openApiFilesCachePath)) {
+			File.Delete(openApiFilesCachePath);
+		}
+
+		// Redirect its output away from the checked-in document — see point 1 above.
+		var rspContent = string.Join(
+			'\n',
+			$"-p:OpenApiJsonFile={Path.Combine(outputDirectory, "openapi.json")}",
+			$"-p:OpenApiDocumentsDirectory={outputDirectory}",
+			$"-p:OpenApiGeneratedProjectFile={Path.Combine(outputDirectory, "PublyApp.Api.json")}");
+		await File.WriteAllTextAsync(rspPath, rspContent);
+
+		// See point 3 above: APP_ROLE="all" is the discriminator #1019 protects; every other
+		// value (including POSTGRES_CONNECTION_STRING) is the same safe, closed-port value
+		// BaseRequiredValues uses everywhere else in this file.
+		var syntheticValues = new Dictionary<string, string>(BaseRequiredValues) {
+			["APP_ROLE"] = "all",
 		};
-		startInfo.ArgumentList.Add(_docGenFixture.GetDocumentToolPath);
-		startInfo.ArgumentList.Add("--assembly");
-		startInfo.ArgumentList.Add(_docGenFixture.AssemblyPath);
-		startInfo.ArgumentList.Add("--file-list");
-		startInfo.ArgumentList.Add(Path.Combine(_tempDirectory, "docgen-filelist.cache"));
-		startInfo.ArgumentList.Add("--framework");
-		// Mirrors $(TargetFrameworkMoniker) for this project's single net10.0 TFM — the exact
-		// value GenerateOpenApiDocuments' <Exec> line passes for this project.
-		startInfo.ArgumentList.Add(".NETCoreApp,Version=v10.0");
-		startInfo.ArgumentList.Add("--output");
-		startInfo.ArgumentList.Add(outputDirectory);
-		startInfo.ArgumentList.Add("--project");
-		startInfo.ArgumentList.Add("PublyApp.Api");
-		startInfo.ArgumentList.Add("--assets-file");
-		startInfo.ArgumentList.Add(_docGenFixture.AssetsFilePath);
+		var syntheticDotEnvContent = string.Join(
+			'\n', syntheticValues.Select(pair => $"{pair.Key}=\"{pair.Value}\""));
+		await File.WriteAllTextAsync(syntheticDotEnvPath, syntheticDotEnvContent);
 
-		startInfo.Environment.Remove("ASPNETCORE_ENVIRONMENT");
-		startInfo.Environment.Remove("DOTNET_ENVIRONMENT");
-		// Exactly `just build-api`'s export — the pin #1019 exists to protect.
-		startInfo.Environment["APP_ROLE"] = "api";
-		startInfo.Environment["TRUSTED_PROXY_CIDRS"] = "127.0.0.1/32,::1/128";
+		try {
+			var startInfo = new ProcessStartInfo {
+				FileName = "just",
+				WorkingDirectory = repoRootDirectory,
+				RedirectStandardOutput = true,
+				RedirectStandardError = true,
+				UseShellExecute = false,
+			};
+			startInfo.ArgumentList.Add("build-api");
+			// Deliberately NOT passing an explicit role: the whole point of this case is to let
+			// `just build-api`'s OWN default parameter (justfile:101, currently $APP_ROLE="api")
+			// flow through unmodified — a mutation of that default is exactly what this case must
+			// observe.
 
-		var result = await RunProcessWithTimeoutAsync(startInfo, TimeSpan.FromSeconds(20));
+			startInfo.Environment.Remove("ASPNETCORE_ENVIRONMENT");
+			startInfo.Environment.Remove("DOTNET_ENVIRONMENT");
+			// Required for the unset-host-environment (Production) classification's validator;
+			// not the pin under test.
+			startInfo.Environment["TRUSTED_PROXY_CIDRS"] = "127.0.0.1/32,::1/128";
 
-		result.ExitCode.Should().Be(
-			0,
-			"the process's APP_ROLE=api must win over the file's APP_ROLE=\"all\" in the REAL " +
-				"document-generation pipeline, exactly as `just build-api` relies on — a nonzero " +
-				"exit or timeout here means the file clobbered the pin and the real tool either " +
-				"failed validation or hung inside the worker hosted-service graph; " +
-				$"stdout: {result.Stdout} stderr: {result.Stderr}");
+			var result = await RunProcessWithTimeoutAsync(startInfo, TimeSpan.FromSeconds(120));
 
-		var generatedDocumentPath = Path.Combine(outputDirectory, "PublyApp.Api.json");
-		File.Exists(generatedDocumentPath).Should().BeTrue(
-			"the real dotnet-getdocument tool must have written the generated OpenAPI document " +
-				$"to {generatedDocumentPath}; stdout: {result.Stdout} stderr: {result.Stderr}");
+			result.ExitCode.Should().Be(
+				0,
+				"`just build-api`'s OWN APP_ROLE=\"api\" default (justfile:101) must win over " +
+					"the file's APP_ROLE (#1019) for the REAL recipe to succeed — a nonzero exit " +
+					"or timeout here means the file clobbered the pin (or the recipe's default " +
+					"itself regressed) and the real build either failed validation or hung " +
+					$"inside the worker hosted-service graph; stdout: {result.Stdout} " +
+					$"stderr: {result.Stderr}");
 
-		var generatedDocument = File.ReadAllText(generatedDocumentPath);
-		generatedDocument.Should().Contain(
-			"/auth/login",
-			"a real anonymous route must appear in the document the REAL tool generated, proving " +
-				"the web host (Api/All role) actually ran and served the document request — the " +
-				"Worker role's blocking Generic Host never reaches this code path at all");
+			var generatedDocumentPath = Path.Combine(outputDirectory, "openapi.json");
+			File.Exists(generatedDocumentPath).Should().BeTrue(
+				"`just build-api` must have actually regenerated the OpenAPI document " +
+					$"(redirected away from the checked-in apps/api/openapi.json) at " +
+					$"{generatedDocumentPath}; stdout: {result.Stdout} stderr: {result.Stderr}");
+
+			var generatedDocument = await File.ReadAllTextAsync(generatedDocumentPath);
+			generatedDocument.Should().Contain(
+				"/auth/login",
+				"a real anonymous route must appear in the document `just build-api` generated, " +
+					"proving the web host (Api/All role) actually ran and served the document " +
+					"request — the Worker role's blocking Generic Host never reaches this code " +
+					"path at all");
+		} finally {
+			if (File.Exists(rspPath)) {
+				File.Delete(rspPath);
+			}
+
+			if (File.Exists(syntheticDotEnvPath)) {
+				File.Delete(syntheticDotEnvPath);
+			}
+		}
 	}
 
 	// Testing/Staging/Production must never reach LoadDotEnvIfDevelopment's DotNetEnv.Env.Load
@@ -392,6 +514,31 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec
 	];
 
 	private sealed record ProbeResult(int ExitCode, string Stdout, string Stderr);
+
+	// Walks up from the running test assembly's own directory (which lives under
+	// apps/api/.artifacts/bin/PublyApp.Api.Tests/..., since apps/api/Directory.Build.props pins
+	// DotNetArtifactsRoot for every project under apps/api to a shared apps/api/.artifacts/)
+	// until it finds the repo-root `justfile` — the file `just build-api` (justfile:101) is
+	// defined in, and the directory `just` resolves its `api_dir` variable relative to.
+	private static string FindRepoRootDirectory() {
+		var assemblyDirectory = Path.GetDirectoryName(typeof(Program).Assembly.Location);
+		if (assemblyDirectory is null) {
+			throw new InvalidOperationException("Could not determine the test assembly's directory.");
+		}
+
+		var directory = new DirectoryInfo(assemblyDirectory);
+		while (directory is not null) {
+			if (File.Exists(Path.Combine(directory.FullName, "justfile"))) {
+				return directory.FullName;
+			}
+
+			directory = directory.Parent;
+		}
+
+		throw new InvalidOperationException(
+			"Could not locate the repo root (containing justfile) by walking up from " +
+				$"{assemblyDirectory}.");
+	}
 
 	// Spawns the shipped api assembly as an isolated child process with its working directory
 	// pinned to the synthetic temp directory, so FindDotEnvPath's parent-walk can only ever
@@ -517,138 +664,5 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec
 			.Where(line => line.StartsWith(HostedServiceManifestCli.LinePrefix, StringComparison.Ordinal))
 			.Select(line => line[HostedServiceManifestCli.LinePrefix.Length..])
 			.ToList();
-	}
-}
-
-/// <summary>
-/// One-time (per test run), compile-only build of the REAL (non-Test-config) PublyApp.Api
-/// assembly, shared across every case in <see cref="AppEnvironmentDotEnvPrecedenceSpec"/> via
-/// <c>IClassFixture</c>. This is deliberately NOT a per-test full rebuild: xUnit constructs this
-/// fixture once per test class run, regardless of how many test methods use it.
-///
-/// <c>OpenApiGenerateDocumentsOnBuild=false</c> is passed so this ONE-TIME compile never runs
-/// doc generation itself and never touches the checked-in <c>apps/api/openapi.json</c>. Doc
-/// generation is instead invoked directly (bypassing MSBuild's target entirely) once per test
-/// case, against the assembly this fixture produces — see
-/// <c>AppEnvironmentDotEnvPrecedenceSpec</c>'s
-/// <c>ItShouldResolveApiRoleDuringARealOpenApiDocumentGenerationRun</c>.
-/// </summary>
-public sealed class RealOpenApiDocGenerationFixture : IDisposable {
-	public string AssemblyPath { get; }
-	public string AssetsFilePath { get; }
-	public string GetDocumentToolPath { get; }
-
-	public RealOpenApiDocGenerationFixture() {
-		var apiProjectDirectory = FindApiProjectDirectory();
-
-		var buildInfo = new ProcessStartInfo {
-			FileName = "dotnet",
-			WorkingDirectory = apiProjectDirectory,
-			RedirectStandardOutput = true,
-			RedirectStandardError = true,
-			UseShellExecute = false,
-		};
-		buildInfo.ArgumentList.Add("build");
-		buildInfo.ArgumentList.Add("--no-restore");
-		buildInfo.ArgumentList.Add("-p:OpenApiGenerateDocumentsOnBuild=false");
-
-		using var process = Process.Start(buildInfo);
-		if (process is null) {
-			throw new InvalidOperationException(
-				"Failed to launch the one-time Debug-config compile for the real " +
-					"doc-generation fixture.");
-		}
-
-		var stdout = process.StandardOutput.ReadToEnd();
-		var stderr = process.StandardError.ReadToEnd();
-		var exited = process.WaitForExit(milliseconds: 120_000);
-		if (!exited) {
-			process.Kill(entireProcessTree: true);
-			throw new InvalidOperationException(
-				"The one-time Debug-config compile did not finish within 120s. " +
-					$"stdout: {stdout} stderr: {stderr}");
-		}
-
-		if (process.ExitCode != 0) {
-			throw new InvalidOperationException(
-				$"The one-time Debug-config compile failed (exit {process.ExitCode}).\n" +
-					$"stdout: {stdout}\nstderr: {stderr}");
-		}
-
-		AssemblyPath = Path.Combine(
-			apiProjectDirectory, ".artifacts", "bin", "PublyApp.Api", "Debug", "net10.0",
-			"PublyApp.Api.dll");
-		if (!File.Exists(AssemblyPath)) {
-			throw new InvalidOperationException(
-				$"Expected compiled assembly not found at {AssemblyPath}.");
-		}
-
-		AssetsFilePath = Path.Combine(
-			apiProjectDirectory, ".artifacts", "obj", "PublyApp.Api", "project.assets.json");
-		if (!File.Exists(AssetsFilePath)) {
-			throw new InvalidOperationException(
-				$"Expected NuGet assets file not found at {AssetsFilePath}.");
-		}
-
-		GetDocumentToolPath = FindDotNetGetDocumentTool();
-	}
-
-	public void Dispose() { }
-
-	private static string FindDotNetGetDocumentTool() {
-		var packagesRoot = Environment.GetEnvironmentVariable("NUGET_PACKAGES");
-		if (string.IsNullOrWhiteSpace(packagesRoot)) {
-			packagesRoot = Path.Combine(
-				Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-				".nuget",
-				"packages");
-		}
-
-		var packageDirectory = Path.Combine(packagesRoot, "microsoft.extensions.apidescription.server");
-		if (!Directory.Exists(packageDirectory)) {
-			throw new InvalidOperationException(
-				$"Microsoft.Extensions.ApiDescription.Server package not found under " +
-					$"{packagesRoot}. Restore the solution first.");
-		}
-
-		var versionDirectory = Directory.GetDirectories(packageDirectory)
-			.OrderByDescending(path => path, StringComparer.OrdinalIgnoreCase)
-			.FirstOrDefault();
-		if (versionDirectory is null) {
-			throw new InvalidOperationException(
-				$"No version directories found under {packageDirectory}.");
-		}
-
-		var toolPath = Path.Combine(versionDirectory, "tools", "dotnet-getdocument.dll");
-		if (!File.Exists(toolPath)) {
-			throw new InvalidOperationException($"dotnet-getdocument.dll not found at {toolPath}.");
-		}
-
-		return toolPath;
-	}
-
-	// Walks up from the compiled test assembly's own directory (which lives under
-	// apps/api/.artifacts/bin/PublyApp.Api.Tests/..., since apps/api/Directory.Build.props pins
-	// DotNetArtifactsRoot for every project under apps/api to a shared apps/api/.artifacts/)
-	// until it finds PublyApp.Api.csproj — the source project directory `just build-api` itself
-	// builds from.
-	private static string FindApiProjectDirectory() {
-		var assemblyDirectory = Path.GetDirectoryName(typeof(Program).Assembly.Location);
-		if (assemblyDirectory is null) {
-			throw new InvalidOperationException("Could not determine the test assembly's directory.");
-		}
-
-		var directory = new DirectoryInfo(assemblyDirectory);
-		while (directory is not null) {
-			if (File.Exists(Path.Combine(directory.FullName, "PublyApp.Api.csproj"))) {
-				return directory.FullName;
-			}
-
-			directory = directory.Parent;
-		}
-
-		throw new InvalidOperationException(
-			"Could not locate apps/api (containing PublyApp.Api.csproj) by walking up from " +
-				$"{assemblyDirectory}.");
 	}
 }
