@@ -247,9 +247,19 @@ jobs:
   # reports (if: always()), passes when upstream jobs succeeded or were
   # skipped (irrelevant PR), and fails on any real failure or cancellation
   # rather than treating either as "not applicable".
+  #
+  # BLOCKER fix (round 5): `if:` also requires the event to be `pull_request`
+  # or `merge_group`. This workflow has no `push` trigger today, but the
+  # other three #1017 gate workflows do, and one of them (docs-archive.yml)
+  # proved live at this PR's own head commit that a push-triggered run of the
+  # same commit as an open pull request can ALSO report a required context —
+  # GitHub keeps only the LATEST reported status, so a slower push run could
+  # overwrite a passing pull_request run. Applied here too, uniformly, so a
+  # `push` trigger added to this file later inherits the same protection
+  # instead of needing a separate fix rediscovered from scratch.
   gate:
     name: front-ci-gate
-    if: always()
+    if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
     needs: [changes, supply-chain, gate-selftest]
     runs-on: ubuntu-latest
     steps:

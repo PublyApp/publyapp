@@ -205,9 +205,19 @@ jobs:
   # reports (if: always()), passes when upstream jobs succeeded or were
   # skipped (irrelevant PR), and fails on any real failure or cancellation
   # rather than treating either as "not applicable".
+  #
+  # BLOCKER fix (round 5): `if:` also requires the event to be `pull_request`
+  # or `merge_group`. This workflow's `push` trigger above (for direct pushes
+  # to develop) would otherwise let a push-triggered run of the exact same
+  # commit as an open pull request ALSO report this required context —
+  # GitHub keeps only the LATEST reported status for a context, so a slower,
+  # unrelated push run could silently overwrite a passing pull_request run.
+  # The push-triggered `changes`/`spec-drift` jobs above still run to
+  # validate the direct push itself; only this required-check reporting is
+  # scoped to the events where it is actually meaningful.
   gate:
     name: openapi-spec-drift-gate
-    if: always()
+    if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
     needs: [changes, spec-drift]
     runs-on: ubuntu-latest
     steps:

@@ -46,7 +46,7 @@ jobs:
       - run: echo heavy
   gate:
     name: fixture-gate
-    if: always()
+    if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
     needs: [changes, heavy]
     runs-on: ubuntu-latest
     steps:
@@ -113,9 +113,9 @@ test("BLOCKER analogue: a job dropped from the gate's needs is caught even if th
 	assert.match(findings[0], /Missing: \[heavy\]/);
 });
 
-test('fails when gate.if stops being always()', async () => {
+test('fails when gate.if stops requiring pull_request/merge_group', async () => {
 	const broken = goodWorkflow.replace(
-		'if: always()\n    needs: [changes, heavy]',
+		"if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')\n    needs: [changes, heavy]",
 		'if: success()\n    needs: [changes, heavy]',
 	);
 	const rootDir = await buildFixture(broken);
@@ -126,7 +126,28 @@ test('fails when gate.if stops being always()', async () => {
 	});
 
 	assert.equal(findings.length, 1);
-	assert.match(findings[0], /gate: expected `if: always\(\)`/);
+	assert.match(findings[0], /gate: expected `if: always\(\) &&/);
+});
+
+test('ROUND 5 BLOCKER (the exact reviewer reproduction): gate.if reverting to a bare always() (dropping the event guard) is caught, not just a wholesale change', async () => {
+	// The exact nondeterminism bug: a bare `always()` lets a push-triggered
+	// run of the same commit as an open pull request ALSO report the
+	// required context, and GitHub keeps only the latest reported status —
+	// so a slower, unrelated push run could overwrite a passing pull_request
+	// run. Proven live at docs-archive-gate on PR #1029's own head commit.
+	const broken = goodWorkflow.replace(
+		"if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')\n    needs: [changes, heavy]",
+		'if: always()\n    needs: [changes, heavy]',
+	);
+	const rootDir = await buildFixture(broken);
+
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
+
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /gate: expected `if: always\(\) &&/);
 });
 
 test('fails when a relevance-gated job loses its relevance condition', async () => {
@@ -154,7 +175,7 @@ jobs:
       - run: echo heavy
   gate:
     name: fixture-gate
-    if: always()
+    if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
     needs: [changes, heavy]
     runs-on: ubuntu-latest
     steps:
@@ -474,7 +495,7 @@ jobs:
       - run: echo heavy
   gate:
     name: fixture-gate
-    if: always()
+    if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
     needs: [changes, heavy]
     runs-on: ubuntu-latest
     steps:
@@ -671,7 +692,7 @@ jobs:
           name: front-e2e-playwright-report-\${{ matrix.shard }}-of-${matrixDenominator}
   gate:
     name: fixture-gate
-    if: always()
+    if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
     needs: [changes, test]
     runs-on: ubuntu-latest
     steps:

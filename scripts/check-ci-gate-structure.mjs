@@ -62,13 +62,39 @@ import { parse } from 'yaml';
 //     denominator (the job name, the `--shard=N/4` flag, the "last shard
 //     runs the hermetic counter" check, and the uploaded artifact name) —
 //     the matrix and a hardcoded `/4` elsewhere can drift independently.
+//
+// Round 5 found a nondeterminism bug independently reported by the PR owner:
+// a `push` trigger on a gate workflow made the required context reportable by
+// TWO separate runs for the same commit (a `pull_request` run and a `push`
+// run), and GitHub keeps only the LATEST reported status for a context — so
+// a slower, unrelated push-triggered run could overwrite a passing
+// pull_request run. Confirmed live: `docs-archive.yml`'s unrestricted `push`
+// trigger produced two runs reporting `docs-archive-gate` for the same
+// commit. `front-e2e.yml` and `openapi-spec-drift.yml` scope their `push`
+// trigger to `branches: [develop]`, which narrows the window but does not
+// close the same underlying risk class. Fixed uniformly across all four
+// workflows (including `front-ci.yml`, which has no `push` trigger today, so
+// one added later inherits the same protection): the required `gate` job's
+// own `if:` now also requires the event to be `pull_request` or
+// `merge_group`, so a push-triggered run never reports (or re-reports) the
+// required context at all — the underlying push-triggered verification jobs
+// still run to validate the direct push itself, only the required-check
+// reporting is scoped.
 
 const workflowsDirectory = '.github/workflows';
 
 const EXPECTED_CHANGES_OUTPUT = '${{ steps.filter.outputs.relevant }}';
 const EXPECTED_CLASSIFIER_STEP_ID = 'filter';
 const EXPECTED_RELEVANCE_IF = "needs.changes.outputs.relevant == 'true'";
+// Used for always-run jobs that are NOT the externally required gate itself
+// (e.g. front-e2e's GHCR `cleanup`) — those have no reason to skip a `push`
+// run, since nothing external depends on their name as a required context.
 const EXPECTED_GATE_IF = 'always()';
+// Round 5 BLOCKER: the required gate job's own `if:`. Unlike EXPECTED_GATE_IF
+// above, this also scopes reporting to the events where a required context
+// is actually meaningful — see the file-level comment.
+const EXPECTED_REQUIRED_GATE_IF =
+	"always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')";
 const EXPECTED_NEEDS_JSON_EXPR = '${{ toJSON(needs) }}';
 
 /**
@@ -486,9 +512,9 @@ const checkWorkflow = (
 	if (gate === undefined) {
 		findings.push(`${file}: expected a "${gateJob}" job, but it is missing.`);
 	} else {
-		if (gate.if !== EXPECTED_GATE_IF) {
+		if (gate.if !== EXPECTED_REQUIRED_GATE_IF) {
 			findings.push(
-				`${file}::${gateJob}: expected \`if: ${EXPECTED_GATE_IF}\` so the required check always reports, found ${JSON.stringify(gate.if ?? null)}.`,
+				`${file}::${gateJob}: expected \`if: ${EXPECTED_REQUIRED_GATE_IF}\` so the required check always reports for pull_request/merge_group but never (re-)reports for a push-triggered run of the same commit — GitHub keeps only the latest status for a context, so a push run could otherwise overwrite a passing pull_request run — found ${JSON.stringify(gate.if ?? null)}.`,
 			);
 		}
 
