@@ -645,6 +645,47 @@ test('ROUND 4 BLOCKER: continue-on-error on a step inside a verification job is 
 });
 
 // ---------------------------------------------------------------------------
+// ROUND 5 BLOCKER: a job/workflow-level `defaults: run: shell: bash {0}`
+// silently drops bash's implicit `-e`, letting a failed command in a
+// multi-line `run:` block be masked by a later command's exit code.
+// ---------------------------------------------------------------------------
+
+test('ROUND 5 BLOCKER: a job-level `defaults:` override on a verification job is caught', async () => {
+	const broken = goodWorkflow.replace(
+		"  heavy:\n    needs: changes\n    if: needs.changes.outputs.relevant == 'true'\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo heavy\n",
+		"  heavy:\n    needs: changes\n    if: needs.changes.outputs.relevant == 'true'\n    runs-on: ubuntu-latest\n    defaults:\n      run:\n        shell: bash {0}\n    steps:\n      - run: echo heavy\n",
+	);
+	const rootDir = await buildFixture(broken);
+
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
+
+	assert.equal(findings.length, 1);
+	assert.match(
+		findings[0],
+		/heavy: verification jobs must not set `defaults:`/,
+	);
+});
+
+test('ROUND 5 BLOCKER: a workflow-level `defaults:` override is caught', async () => {
+	const broken = goodWorkflow.replace(
+		'name: fixture\non:',
+		'name: fixture\ndefaults:\n  run:\n    shell: bash {0}\non:',
+	);
+	const rootDir = await buildFixture(broken);
+
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
+
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /expected no workflow-level `defaults:`/);
+});
+
+// ---------------------------------------------------------------------------
 // ROUND 4: matrix + denominator pinning (front-e2e.yml's sharded `test` job).
 // A fixture separate from goodWorkflow/fixtureConfig above, since only
 // front-e2e.yml declares a `matrix` config entry.
@@ -681,6 +722,8 @@ jobs:
     steps:
       - name: Run playwright browser tests
         run: |
+          set -euo pipefail
+
           pnpm test --shard=\${{ matrix.shard }}/${matrixDenominator}
           if [ "\${{ matrix.shard }}" = "${matrixDenominator}" ]; then
             echo "last shard"
@@ -815,6 +858,42 @@ test('ROUND 4 BLOCKER: the uploaded report name denominator drifting from the ma
 	assert.match(
 		findings[0],
 		/test: expected the Playwright report upload's `with\.name` to be `front-e2e-playwright-report-\$\{\{ matrix\.shard \}\}-of-4`/,
+	);
+});
+
+test('ROUND 5 BLOCKER (the exact reviewer reproduction): `matrix.exclude` removing shard combinations is caught even though `shard: [1, 2, 3, 4]` itself is untouched', async () => {
+	const broken = matrixWorkflow.replace(
+		'      matrix:\n        shard: [1, 2, 3, 4]\n',
+		'      matrix:\n        shard: [1, 2, 3, 4]\n        exclude:\n          - shard: 2\n          - shard: 3\n          - shard: 4\n',
+	);
+	const rootDir = await buildFixture(broken);
+
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: matrixFixtureConfig,
+	});
+
+	assert.equal(findings.length, 1);
+	assert.match(
+		findings[0],
+		/test: expected `strategy\.matrix` to declare EXACTLY the one key `shard`/,
+	);
+	assert.match(findings[0], /"exclude"/);
+});
+
+test('ROUND 5 BLOCKER: the Playwright step missing `set -euo pipefail` is caught (defense against a job/workflow-level shell-default override)', async () => {
+	const broken = matrixWorkflow.replace('          set -euo pipefail\n\n', '');
+	const rootDir = await buildFixture(broken);
+
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: matrixFixtureConfig,
+	});
+
+	assert.equal(findings.length, 1);
+	assert.match(
+		findings[0],
+		/test: expected the Playwright step's `run:` to start with `set -euo pipefail`/,
 	);
 });
 

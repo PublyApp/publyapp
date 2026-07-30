@@ -96,6 +96,25 @@ import { parse } from 'yaml';
 // accepted #1022 malicious-author gap, not the accidental-disconnection gap
 // this closes. `requiresSelfCheck: true` below pins that this exact step
 // exists.
+//
+// Round 5 also found two more behavioral fields the round-4 matrix/
+// continue-on-error hard-rejects did not cover:
+//   - `matrix.exclude` (or `include`, or any other `strategy.matrix` key
+//     beyond the pinned axis) can remove or redefine shard combinations
+//     while `shard: [1, 2, 3, 4]` itself stays untouched — proven:
+//     `exclude: [{shard: 2}, {shard: 3}, {shard: 4}]` left only shard 1/4
+//     running while every other guard stayed green. `strategy.matrix` is now
+//     required to declare EXACTLY the one pinned key, nothing else.
+//   - a job/workflow-level `defaults: run: shell: bash {0}` silently drops
+//     bash's implicit `-e` (GitHub's documented unspecified-shell default is
+//     `bash -e {0}`), letting a failed verification command inside a
+//     multi-line `run:` block be followed — and its failure erased — by a
+//     later command's exit code. Proven against front-e2e.yml's real
+//     Playwright step. This guard now hard-rejects any `defaults:` on a
+//     relevance-gated job, an always-run job, or the workflow itself, AND
+//     the Playwright step's own `run:` now starts with `set -euo pipefail`
+//     so fail-fast is a property of the script itself, independent of
+//     whatever shell default is (or later becomes) in effect around it.
 
 const workflowsDirectory = '.github/workflows';
 
@@ -288,6 +307,17 @@ const checkWorkflow = (
 	const findings = [];
 	const jobs = document?.jobs ?? {};
 
+	// Round 5 BLOCKER: a workflow-level `defaults: run: shell: ...` silently
+	// changes every job's shell invocation, which can drop bash's implicit
+	// `-e` (see the job-level check below for the concrete exploit). There is
+	// no legitimate reason for any of the four #1017 gate workflows to
+	// override the default shell at the workflow level.
+	if (document?.defaults !== undefined) {
+		findings.push(
+			`${file}: expected no workflow-level \`defaults:\` — it can silently change every job's shell invocation (e.g. dropping bash's implicit \`-e\`, letting a failed verification command be masked by a later command in the same step), found one.`,
+		);
+	}
+
 	// Round 3, BLOCKER: the round-2 check only asked "does pull_request.paths
 	// exist?" — if the `pull_request` key were removed entirely (or the
 	// trigger swapped to workflow_dispatch, or restricted by paths-ignore/
@@ -422,6 +452,19 @@ const checkWorkflow = (
 			);
 		}
 
+		// Round 5 BLOCKER: a job-level `defaults: run: shell: bash {0}` drops
+		// bash's implicit `-e` (GitHub's documented unspecified-shell default
+		// is `bash -e {0}`), so a failed command inside a multi-line `run:`
+		// block no longer stops the step — a later command's exit code (e.g.
+		// a shard-selection `if`) is reported instead. Proven against
+		// front-e2e.yml's real Playwright step: with this override, a failed
+		// test command followed by the last-shard `if` reports success.
+		if (job.defaults !== undefined) {
+			findings.push(
+				`${file}::${id}: verification jobs must not set \`defaults:\` — a \`run.shell\` override can silently drop bash's implicit \`-e\`, letting a failed command in a multi-line \`run:\` block be masked by a later command's exit code. Found ${JSON.stringify(job.defaults)}.`,
+			);
+		}
+
 		const jobSteps = Array.isArray(job.steps) ? job.steps : [];
 
 		for (const [index, step] of jobSteps.entries()) {
@@ -459,6 +502,22 @@ const checkWorkflow = (
 				);
 			}
 
+			// Round 5 BLOCKER: pinning the `shard` array's values is not
+			// enough — `matrix.exclude` (or `include`, or any other key
+			// GitHub's matrix strategy accepts) can remove or redefine shard
+			// combinations while `shard: [1, 2, 3, 4]` itself stays untouched.
+			// Proven: `exclude: [{shard: 2}, {shard: 3}, {shard: 4}]` leaves
+			// only shard 1/4 running while every other guard stayed green.
+			// `strategy.matrix` is required to declare EXACTLY the one pinned
+			// axis key, nothing else.
+			const matrixKeys = Object.keys(matrixJob.strategy?.matrix ?? {});
+
+			if (matrixKeys.length !== 1 || matrixKeys[0] !== key) {
+				findings.push(
+					`${file}::${jobId}: expected \`strategy.matrix\` to declare EXACTLY the one key \`${key}\` (no \`exclude\`, \`include\`, or any other key that could remove or redefine shard combinations independently of the pinned array), found keys ${JSON.stringify(matrixKeys)}.`,
+				);
+			}
+
 			const expectedJobName = `front-e2e (\${{ matrix.${key} }}/${denominator})`;
 
 			if (matrixJob.name !== expectedJobName) {
@@ -478,10 +537,26 @@ const checkWorkflow = (
 				findings.push(
 					`${file}::${jobId}: expected a step invoking Playwright with \`${shardFlag}\`, so the shard flag's denominator cannot drift from the matrix length independently.`,
 				);
-			} else if (!testStep.run.includes(lastShardCheck)) {
-				findings.push(
-					`${file}::${jobId}: expected the shard-flag step to also gate the hermetic-counter run on \`${lastShardCheck}\` (the last shard, pinned to the same denominator as the matrix), but it does not.`,
-				);
+			} else {
+				if (!testStep.run.includes(lastShardCheck)) {
+					findings.push(
+						`${file}::${jobId}: expected the shard-flag step to also gate the hermetic-counter run on \`${lastShardCheck}\` (the last shard, pinned to the same denominator as the matrix), but it does not.`,
+					);
+				}
+
+				// Round 5 BLOCKER: a job/workflow-level `defaults: run: shell:
+				// bash {0}` override drops bash's implicit `-e`, letting a
+				// failed `playwright test` command be followed (and its
+				// failure erased) by the shard-selection `if`'s own exit
+				// code. Requiring the step's own `run:` to start with
+				// `set -euo pipefail` makes fail-fast a property of the
+				// SCRIPT ITSELF, independent of whatever shell default is (or
+				// later becomes) in effect around it.
+				if (!testStep.run.trimStart().startsWith('set -euo pipefail')) {
+					findings.push(
+						`${file}::${jobId}: expected the Playwright step's \`run:\` to start with \`set -euo pipefail\`, so a failed verification command cannot be masked by a later command's exit code regardless of any workflow/job-level shell default, but it does not.`,
+					);
+				}
 			}
 
 			const expectedUploadName = `front-e2e-playwright-report-\${{ matrix.${key} }}-of-${denominator}`;
@@ -524,6 +599,14 @@ const checkWorkflow = (
 		if (!setsEqual(actualNeeds, expectedNeeds)) {
 			findings.push(
 				`${file}::${id}: expected \`needs\` to be exactly [${needs.join(', ')}], found [${[...actualNeeds].join(', ')}].`,
+			);
+		}
+
+		// Round 5 BLOCKER: same exploit as relevanceGatedJobs above, applied
+		// to always-run jobs (e.g. front-e2e's GHCR `cleanup`).
+		if (job.defaults !== undefined) {
+			findings.push(
+				`${file}::${id}: must not set \`defaults:\` — a \`run.shell\` override can silently drop bash's implicit \`-e\`, letting a failed command in a multi-line \`run:\` block be masked by a later command's exit code. Found ${JSON.stringify(job.defaults)}.`,
 			);
 		}
 	}

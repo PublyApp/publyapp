@@ -265,7 +265,20 @@ jobs:
       - name: Run playwright browser tests
         env:
           PLAYWRIGHT_CI_SHARD: 'true'
+        # BLOCKER fix (round 5): GitHub's documented unspecified-shell default
+        # is `bash -e {0}`, but that is a property of the SURROUNDING job/
+        # workflow, not this script — a `defaults: run: shell: bash {0}`
+        # override (job- or workflow-level) silently drops the `-e`, and a
+        # review round proved that with it, a failed `playwright test`
+        # command followed by the last-shard `if` below reports success.
+        # `set -euo pipefail` makes fail-fast a property of this script
+        # itself, independent of whatever shell default is (or later
+        # becomes) in effect around it. scripts/check-ci-gate-structure.mjs
+        # additionally hard-rejects a `defaults:` override on this job/
+        # workflow directly, as a second, independent layer.
         run: |
+          set -euo pipefail
+
           pnpm --filter front exec playwright install chromium --with-deps
           pnpm --filter front exec playwright test \
             --project=chromium \
