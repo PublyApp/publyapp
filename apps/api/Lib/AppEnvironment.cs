@@ -827,7 +827,16 @@ public class AppEnvironment {
 				"Either create the file at the repo root, or provide the required environment variables via your host/CI.");
 		}
 
-		DotNetEnv.Env.Load(path);
+		// NoClobber (#1019): DotNetEnv 3.1.1's default is file-wins-over-process — an
+		// already-set process/CLI env var (e.g. `just db-migrate`'s $APP_ROLE="api", or a
+		// launcher pinning APP_ROLE for a child process) would otherwise be silently
+		// overwritten by whatever this file says, with no warning. That is backwards from
+		// every other dotenv-style loader's convention (the file supplies a DEFAULT, an
+		// explicit env var overrides it) and was verified empirically: without this option,
+		// an env var set immediately before this call was read back as the file's value
+		// after it. This affects ONLY Development/unset-host-environment processes (see the
+		// early return above) — Testing/Production/Staging never reach this line.
+		DotNetEnv.Env.Load(path, DotNetEnv.LoadOptions.NoClobber());
 	}
 
 	public static string? FindDotEnvPath(string fileName) {

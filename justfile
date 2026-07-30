@@ -80,6 +80,20 @@ review-front *args:
 review-front *args:
   node scripts/review-front.mjs @args
 
+# Start another worktree's API by PR/issue number, against the shared dev database.
+# Refuses to start if the branch carries a migration the database hasn't applied
+# (pass --allow-migrations to proceed anyway) — see #1016.
+[unix]
+[positional-arguments]
+review-api *args:
+  node scripts/review-api.mjs "$@"
+
+[windows]
+[script("pwsh")]
+[positional-arguments]
+review-api *args:
+  node scripts/review-api.mjs @args
+
 # Start docker services (postgres, etc.)
 dev-services:
   docker compose -f docker-compose.services.yml up -d
