@@ -46,6 +46,22 @@ import { parse } from 'yaml';
 // swapping to `workflow_dispatch`, or restricting with `paths-ignore`/
 // `types`/anything else all passed silently. The trigger check now requires
 // `on.pull_request` to exist AND carry no restricting key at all.
+//
+// Round 4 found two more behavioral fields outside every guard, proven by
+// two mutations that changed what CI actually verifies while all tests and
+// scripts/check-ci-drift.mjs's step-content hash stayed green:
+//   - adding `continue-on-error: true` to a real verification step (or job)
+//     makes it report success after it actually fails. This guard now
+//     hard-rejects `continue-on-error` on every relevance-gated verification
+//     job and on every step inside one — not just forces a hash
+//     reconciliation the way check-ci-drift.mjs does for every other step in
+//     the repo.
+//   - narrowing front-e2e's `shard: [1, 2, 3, 4]` matrix to `[1]` runs a
+//     quarter of the suite while nothing else notices. This guard pins the
+//     matrix's exact values AND every place that separately hardcodes its
+//     denominator (the job name, the `--shard=N/4` flag, the "last shard
+//     runs the hermetic counter" check, and the uploaded artifact name) —
+//     the matrix and a hardcoded `/4` elsewhere can drift independently.
 
 const workflowsDirectory = '.github/workflows';
 
@@ -75,6 +91,12 @@ const GATE_WORKFLOWS = [
 			{ id: 'test', needs: ['changes', 'build'] },
 		],
 		alwaysJobs: [{ id: 'cleanup', needs: ['build', 'test'] }],
+		// Round 4: pins the sharded e2e matrix itself AND every place that
+		// separately hardcodes its denominator, so a matrix narrowed to
+		// `[1]` (running a quarter of the suite) cannot pass silently, and
+		// so the job name / shard flag / last-shard check / artifact name
+		// cannot drift out of sync with the matrix length independently.
+		matrix: { jobId: 'test', key: 'shard', expected: [1, 2, 3, 4] },
 	},
 	{
 		file: 'front-ci.yml',
@@ -134,7 +156,15 @@ const setsEqual = (a, b) => {
  * array of human-readable findings (empty when the graph matches).
  */
 const checkWorkflow = (
-	{ file, changesJob, gateJob, gateName, relevanceGatedJobs, alwaysJobs },
+	{
+		file,
+		changesJob,
+		gateJob,
+		gateName,
+		relevanceGatedJobs,
+		alwaysJobs,
+		matrix,
+	},
 	document,
 ) => {
 	const findings = [];
@@ -262,6 +292,97 @@ const checkWorkflow = (
 			findings.push(
 				`${file}::${id}: expected \`needs\` to be exactly [${needs.join(', ')}], found [${[...actualNeeds].join(', ')}].`,
 			);
+		}
+
+		// Round 4 BLOCKER: `continue-on-error: true` on a verification job or
+		// one of its steps lets it report success after actually failing —
+		// proven against this exact job by a review round while every test
+		// and the drift-hash guard stayed green. This is a hard reject, not
+		// a hash-reconciliation prompt: no reason can make a masked
+		// verification-step failure acceptable here.
+		if (job['continue-on-error']) {
+			findings.push(
+				`${file}::${id}: verification jobs must not set \`continue-on-error\` — it lets the job (and therefore the required gate) report success after it actually failed. Found ${JSON.stringify(job['continue-on-error'])}.`,
+			);
+		}
+
+		const jobSteps = Array.isArray(job.steps) ? job.steps : [];
+
+		for (const [index, step] of jobSteps.entries()) {
+			if (step?.['continue-on-error']) {
+				const label =
+					typeof step.name === 'string' && step.name.trim().length > 0
+						? step.name.trim()
+						: `step#${index}`;
+
+				findings.push(
+					`${file}::${id}: step "${label}" sets \`continue-on-error\`, which lets it fail while the verification job (and therefore the required gate) still reports success.`,
+				);
+			}
+		}
+	}
+
+	if (matrix !== undefined) {
+		const { jobId, key, expected } = matrix;
+		const matrixJob = jobs[jobId];
+
+		if (matrixJob === undefined) {
+			// Already reported above (matrixJob is always a relevanceGatedJobs
+			// entry), so nothing further to add here.
+		} else {
+			const denominator = expected.length;
+			const actual = matrixJob.strategy?.matrix?.[key];
+			const actualIsEqual =
+				Array.isArray(actual) &&
+				actual.length === expected.length &&
+				actual.every((value, index) => value === expected[index]);
+
+			if (!actualIsEqual) {
+				findings.push(
+					`${file}::${jobId}: expected \`strategy.matrix.${key}\` to be exactly ${JSON.stringify(expected)} (all ${denominator} shards), found ${JSON.stringify(actual ?? null)}. Narrowing this matrix silently runs a fraction of the suite while every other guard stays green.`,
+				);
+			}
+
+			const expectedJobName = `front-e2e (\${{ matrix.${key} }}/${denominator})`;
+
+			if (matrixJob.name !== expectedJobName) {
+				findings.push(
+					`${file}::${jobId}: expected \`name: ${expectedJobName}\`, found ${JSON.stringify(matrixJob.name ?? null)}. The job name's denominator must match the matrix length, or the two can drift out of sync independently.`,
+				);
+			}
+
+			const matrixSteps = Array.isArray(matrixJob.steps) ? matrixJob.steps : [];
+			const shardFlag = `--shard=\${{ matrix.${key} }}/${denominator}`;
+			const lastShardCheck = `if [ "\${{ matrix.${key} }}" = "${denominator}" ]`;
+			const testStep = matrixSteps.find(
+				(step) => typeof step?.run === 'string' && step.run.includes(shardFlag),
+			);
+
+			if (testStep === undefined) {
+				findings.push(
+					`${file}::${jobId}: expected a step invoking Playwright with \`${shardFlag}\`, so the shard flag's denominator cannot drift from the matrix length independently.`,
+				);
+			} else if (!testStep.run.includes(lastShardCheck)) {
+				findings.push(
+					`${file}::${jobId}: expected the shard-flag step to also gate the hermetic-counter run on \`${lastShardCheck}\` (the last shard, pinned to the same denominator as the matrix), but it does not.`,
+				);
+			}
+
+			const expectedUploadName = `front-e2e-playwright-report-\${{ matrix.${key} }}-of-${denominator}`;
+			const uploadStep = matrixSteps.find(
+				(step) =>
+					typeof step?.with?.name === 'string' &&
+					step.with.name.includes('playwright-report'),
+			);
+
+			if (
+				uploadStep === undefined ||
+				uploadStep.with.name !== expectedUploadName
+			) {
+				findings.push(
+					`${file}::${jobId}: expected the Playwright report upload's \`with.name\` to be \`${expectedUploadName}\`, found ${JSON.stringify(uploadStep?.with?.name ?? null)}.`,
+				);
+			}
 		}
 	}
 
