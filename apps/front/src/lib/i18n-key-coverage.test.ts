@@ -2,7 +2,17 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import ts from 'typescript';
+// chore/908 (TypeScript 7): the bare `typescript` package export now resolves
+// to `./lib/version.cjs` (a version string only) — the classic Compiler API
+// moved behind the explicitly `unstable` `typescript/unstable/ast` surface,
+// which already renamed at least one function this file used
+// (`isStringLiteralLike` -> `isStringLiteralLikeNode`) and carries no semver
+// guarantee across a future TS bump. ts-morph vendors its own internal,
+// version-pinned copy of the classic compiler (`@ts-morph/common`), fully
+// decoupled from this repo's `typescript` devDependency, so this AST walk
+// keeps the same stable API across TypeScript upgrades instead of needing a
+// re-audit on every one.
+import { ts } from 'ts-morph';
 import { describe, expect, test } from 'vitest';
 import enResource from '~/i18n/locales/en';
 import frResource from '~/i18n/locales/fr';
@@ -20,6 +30,21 @@ import {
 // bundles — a missing key silently renders the raw key string as UI text
 // (i18next's default missing-key behaviour), and no other check catches that.
 const srcDir = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
+
+// `SourceFile.parseDiagnostics` has always existed on the classic compiler's
+// concrete SourceFile at runtime, but it is `@internal` and not part of the
+// public `ts.SourceFile` type, so a plain untyped consumer (like
+// check-design-system.mjs) can read it directly while this typechecked `.ts`
+// file cannot without a cast. Isolated in one place instead of an inline
+// `as`/`any` at every call site.
+type SourceFileWithParseDiagnostics = ts.SourceFile & {
+	parseDiagnostics: readonly ts.Diagnostic[];
+};
+
+const getParseDiagnostics = (
+	sourceFile: ts.SourceFile,
+): readonly ts.Diagnostic[] =>
+	(sourceFile as SourceFileWithParseDiagnostics).parseDiagnostics;
 
 const TEXT_EXTENSIONS = new Set(['.ts', '.tsx']);
 
@@ -720,6 +745,30 @@ const findHardcodedUiLiterals = (
 			: ts.ScriptKind.TS,
 	);
 
+	// chore/908 follow-up (adversarial review IMPORTANT finding): this walk
+	// never checked whether the parser actually finished. Planting a hardcoded
+	// JSX literal after syntax the bundled parser can't finish (e.g. an
+	// unterminated template literal) let the literal get swallowed into the
+	// recovery tree — the suite stayed green for the wrong reason, the exact
+	// silent-partial-tree failure this migration exists to prevent. ts-morph's
+	// vendored compiler only stabilizes the API surface across TypeScript
+	// upgrades (see the import-site comment above); it does not make that
+	// parser understand syntax it cannot finish parsing, so any parse
+	// diagnostic must fail this guard loudly, naming the file, instead of
+	// silently walking whatever tree recovery produced.
+	const parseDiagnostics = getParseDiagnostics(sourceFile);
+	if (parseDiagnostics.length > 0) {
+		const messages = parseDiagnostics
+			.map((diagnostic) =>
+				ts.flattenDiagnosticMessageText(diagnostic.messageText, ' '),
+			)
+			.join('; ');
+		throw new Error(
+			`i18n hardcoded-literal guard could not parse ${relativePath} — ` +
+				`refusing to scan a partial/recovered syntax tree: ${messages}`,
+		);
+	}
+
 	const lineOf = (pos: number): number =>
 		sourceFile.getLineAndCharacterOfPosition(pos).line + 1;
 
@@ -911,7 +960,11 @@ describe('i18n key coverage', () => {
 	// fails if that class of blindness ever regresses.
 	test('findHardcodedUiLiterals catches plain JSX text and an unbraced string attribute (r4-tests-F1 canary)', () => {
 		const findings = findHardcodedUiLiterals(
-			'<p>Password reset sent</p><button aria-label="Delete account">Delete account</button>',
+			// chore/908 follow-up: adjacent top-level JSX elements need an
+			// explicit `;` between them — without it the parser reports "JSX
+			// expressions must have one parent element", which now fails this
+			// guard loudly instead of silently walking a recovered tree.
+			'<p>Password reset sent</p>;<button aria-label="Delete account">Delete account</button>;',
 			'canary.tsx',
 		);
 
@@ -932,11 +985,16 @@ describe('i18n key coverage', () => {
 	// and this canary now guards the class instead of the one cited example.
 	test('findHardcodedUiLiterals catches a custom component tag, multiline JSX text, an arbitrary copy prop, and a bare expression child (r5-tests-F2 canary)', () => {
 		const findings = findHardcodedUiLiterals(
+			// chore/908 follow-up: each top-level JSX statement needs its own
+			// trailing `;` — a bare newline between adjacent JSX elements still
+			// reads as "JSX expressions must have one parent element" to the
+			// parser, which now fails this guard loudly instead of silently
+			// walking a recovered tree.
 			[
-				'<Button>Delete account</Button>',
-				'<p>\n\tPassword reset sent\n</p>',
-				'<Empty description="No invitations yet" />',
-				"<span>{'Delete account'}</span>",
+				'<Button>Delete account</Button>;',
+				'<p>\n\tPassword reset sent\n</p>;',
+				'<Empty description="No invitations yet" />;',
+				"<span>{'Delete account'}</span>;",
 			].join('\n'),
 			'canary.tsx',
 		);
@@ -975,10 +1033,10 @@ describe('i18n key coverage', () => {
 	test('findHardcodedUiLiterals catches single-word copy in aria-label, title, JSX text, and placeholder (W5-PROOF canary)', () => {
 		const findings = findHardcodedUiLiterals(
 			[
-				'<button aria-label="Delete">X</button>',
-				'<span title="Cancel">X</span>',
-				'<Button>Delete</Button>',
-				'<input placeholder="Save" />',
+				'<button aria-label="Delete">X</button>;',
+				'<span title="Cancel">X</span>;',
+				'<Button>Delete</Button>;',
+				'<input placeholder="Save" />;',
 			].join('\n'),
 			'canary.tsx',
 		);
@@ -1016,11 +1074,11 @@ describe('i18n key coverage', () => {
 	test('findHardcodedUiLiterals does not flag testIds, URL/email placeholder examples, or the brand wordmark (W5-PROOF canary)', () => {
 		const findings = findHardcodedUiLiterals(
 			[
-				'<button data-testid="delete-account-button">{t(\'delete\')}</button>',
-				'<input placeholder="user@example.com" />',
-				'<input placeholder="https://example.com" />',
-				'<img alt="PublyApp" />',
-				'<span>PublyApp</span>',
+				'<button data-testid="delete-account-button">{t(\'delete\')}</button>;',
+				'<input placeholder="user@example.com" />;',
+				'<input placeholder="https://example.com" />;',
+				'<img alt="PublyApp" />;',
+				'<span>PublyApp</span>;',
 			].join('\n'),
 			'canary.tsx',
 		);
@@ -1031,8 +1089,8 @@ describe('i18n key coverage', () => {
 	test('findHardcodedUiLiterals does not flag structural/enum props, t() calls, or the locale self-name allowlist', () => {
 		const findings = findHardcodedUiLiterals(
 			[
-				'<Button variant="Outline" type="Submit" className="MyClass">{t(\'submit\')}</Button>',
-				"<span aria-label={t('submit')}>{t('submit')}</span>",
+				'<Button variant="Outline" type="Submit" className="MyClass">{t(\'submit\')}</Button>;',
+				"<span aria-label={t('submit')}>{t('submit')}</span>;",
 				"const label = locale === 'fr' ? 'Français' : 'English';",
 			].join('\n'),
 			'canary.tsx',
@@ -1048,8 +1106,8 @@ describe('i18n key coverage', () => {
 	test('findHardcodedUiLiterals catches copy trailing a URL, an arbitrary copy prop, imperative DOM writes, and a non-label object property (W5-VERIFY2 canary)', () => {
 		const findings = findHardcodedUiLiterals(
 			[
-				'<button aria-label="https://example.com Delete account" />',
-				'<Widget emptyText="Empty" tooltip="Delete" />',
+				'<button aria-label="https://example.com Delete account" />;',
+				'<Widget emptyText="Empty" tooltip="Delete" />;',
 				"element.title = 'Delete';",
 				"element.setAttribute('aria-label', 'Cancel');",
 				"export const verifyToastCopy = { title: 'Delete' };",
@@ -1081,9 +1139,9 @@ describe('i18n key coverage', () => {
 	test('findHardcodedUiLiterals still exempts a bare URL/email placeholder after the anchoring fix', () => {
 		const findings = findHardcodedUiLiterals(
 			[
-				'<input placeholder="https://example.com" />',
-				'<input placeholder="user@example.com" />',
-				'<input placeholder="publyapp.com/free-trial" />',
+				'<input placeholder="https://example.com" />;',
+				'<input placeholder="user@example.com" />;',
+				'<input placeholder="publyapp.com/free-trial" />;',
 			].join('\n'),
 			'canary.tsx',
 		);
@@ -1322,6 +1380,46 @@ describe('i18n key coverage', () => {
 
 		expect(usagesByKey.has('common:selection-locked-while-selecting')).toBe(
 			true,
+		);
+	});
+
+	// Adversarial review IMPORTANT finding regression: a source the bundled
+	// parser cannot finish parsing must never read as "found nothing". Before
+	// this fix, planting a hardcoded JSX literal after an unterminated
+	// template literal let the JSX get swallowed into the recovery tree and
+	// the suite stayed green for the wrong reason — this canary proves the
+	// guard now throws instead, naming the file.
+	test('findHardcodedUiLiterals fails loudly, naming the file, when the bundled parser cannot finish parsing (parse-diagnostic canary)', () => {
+		const unparseable = [
+			'const broken = `unterminated template literal',
+			'<p>Delete account</p>;',
+		].join('\n');
+
+		expect(() =>
+			findHardcodedUiLiterals(unparseable, 'canary-unparseable.tsx'),
+		).toThrow(/canary-unparseable\.tsx/);
+	});
+
+	// Regression guard for the script-kind selection above. This fixture has to
+	// be grammar-discriminating or it guards nothing: a plain object literal
+	// parses identically as TS and TSX, so it would stay green even if script
+	// kind regressed to always-TSX. The leading `<T>` generic arrow is the
+	// discriminating part — valid, unambiguous TypeScript in a real .ts file,
+	// but an unclosed JSX tag under TSX grammar. A regression therefore either
+	// throws on the parse diagnostics or recovers into a partial tree that no
+	// longer contains the literal below. Both fail this test.
+	test('findHardcodedUiLiterals catches a hardcoded literal in a .ts (non-JSX) production shape', () => {
+		const findings = findHardcodedUiLiterals(
+			[
+				'const identity = <T>(value: T): T => value;',
+				"export const confirmCopy = { title: 'Delete account' };",
+				'void identity;',
+			].join('\n'),
+			'lib/some-file.ts',
+		);
+
+		expect(findings).toContainEqual(
+			expect.stringContaining('title: "Delete account"'),
 		);
 	});
 
