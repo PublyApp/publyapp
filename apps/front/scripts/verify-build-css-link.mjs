@@ -48,15 +48,15 @@ if (clientCssFiles.length === 0) {
 	process.exit(1);
 }
 
-const sourceStylesheetCount = assertShippedSourceSearchCancelCss(
-	fileURLToPath(frontRoot),
-);
 assertCanonicalSearchCancelCss(
 	clientCssPaths.map((cssPath) => ({
 		source: readFileSync(cssPath, 'utf8'),
 		sourceName: `dist/client/${cssPath.pathname.replace(clientDir.pathname, '')}`,
 	})),
 	ARTIFACT_SEARCH_CANCEL_CANONICAL,
+);
+const sourceStylesheetCount = assertShippedSourceSearchCancelCss(
+	fileURLToPath(frontRoot),
 );
 
 console.log(`front production CSS assets: ${clientCssFiles.join(', ')}`);
