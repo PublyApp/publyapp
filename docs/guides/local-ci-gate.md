@@ -144,6 +144,42 @@ Recorded here rather than hidden, so they can be judged:
   - It does not inspect `AddForeignKey`, `AddCheckConstraint`, unique `CreateIndex`, or `DropPrimaryKey` ops.
   - For these residual cases, use the escape hatch marker (`// expand-contract-ok: ...`) as the explicit review override when the change is intentional.
 
+## Required-check uniqueness
+
+GitHub keeps only the **latest** report for a status-check context on a commit. A required context
+reported by two independently-timed jobs is therefore a false-green risk: if the real gate fails
+first and the second reporter succeeds later, the required context ends green over failed required
+work. Measured on this PR's head, a second reporter finished four minutes after the real gate.
+
+Two rules keep each of the four required contexts to exactly one producer, both enforced by
+`scripts/check-ci-gate-structure.mjs` (which the required `front-ci-gate` job runs as one of its
+own steps):
+
+- Each gate job's `name:` is an **allowlist** expression — it resolves to the externally required
+  name only for `pull_request` and `merge_group`, and to a non-required `<workflow>-push-check`
+  name for any other event. A gate workflow's `on:` may additionally declare only `push`; any other
+  event is rejected outright. Both halves matter: an earlier `github.event_name == 'push' && … || …`
+  form resolved to the *required* name for every non-push event, so simply adding
+  `workflow_dispatch:` produced a second reporter (a manual run takes a branch/tag ref and uses its
+  last commit as `GITHUB_SHA`).
+- The guard scans **every job in every workflow in the repository** and requires each of the eight
+  reserved names (four required contexts plus four push checks) to have exactly one producer: the
+  authorized gate job, carrying its exact pinned expression. GitHub reports a job under its `name:`
+  when it has one and its job ID otherwise, so both are checked. No other job may carry a `${{ }}`
+  expression in its `name:` at all — an expression can resolve to a reserved name without containing
+  it, and this guard cannot evaluate GitHub expressions, so a new dynamic job name is a reviewed
+  decision (add it to the authorized set in the guard) rather than something that arrives silently.
+
+`scripts/check-ci-drift.mjs` is deliberately blind here: it hashes step fields only
+(`continue-on-error`, `env`, step `if`, `run`, `uses`, `with`), so adding a job-level `name:` to an
+unrelated job leaves every one of its manifest keys and hashes untouched. That is the drift guard's
+correct contract; required-context uniqueness is the structure guard's job.
+
+Because that scan asserts against every workflow in the repository, `front-ci.yml`'s changed-path
+classifier matches the whole `.github/workflows/` prefix — not a list of the four gate files.
+Otherwise an edit to a non-gate workflow classifies as irrelevant and skips the only two jobs that
+run the guard server-side.
+
 ## Required-check limitations (accepted)
 
 PR #1029 (closing #1017) made `front-e2e-gate`, `front-ci-gate`, `openapi-spec-drift-gate`, and
@@ -178,7 +214,7 @@ rather than fixed in code — recorded here rather than hidden, so they can be j
   created.** GitHub validates a workflow's expressions (e.g. `${{ ... }}` syntax, undefined
   functions) when the run starts, separately from YAML syntax. A mutation such as setting
   `concurrency.group: ${{ definitely_not_a_function() }}` at the top of `front-ci.yml` parses as
-  valid YAML, passes every guard and all 226 guard tests (none of them run inside GitHub Actions'
+  valid YAML, passes every guard and all 238 guard tests (none of them run inside GitHub Actions'
   own expression evaluator, and `actionlint` — the closest local equivalent — is not installed or
   run anywhere in this repository), and only fails once GitHub actually tries to start the run. When
   that happens, the workflow fails at startup **before any job is created** — including
