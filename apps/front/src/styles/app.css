@@ -2518,9 +2518,19 @@ html.dark {
 	   Deliberately flush at the corner (no negative offset) rather than
 	   hanging outside the tile's box, so it can never be clipped by an
 	   ancestor's overflow (the drawer body is overflow-y-auto). Its own
-	   `--publy-surface` fill and `--publy-foreground-subtle` glyph are
+	   `--publy-surface` fill and `--publy-foreground-muted` glyph are
 	   independent of the tile's per-tone background, so contrast holds on
-	   every tone in both themes. */
+	   every tone in both themes — `--publy-foreground-muted` clears the
+	   repo's 3:1 non-text contrast floor against `--publy-surface` in both
+	   themes (~4.83:1 light, ~6.91:1 dark); the originally-used
+	   `--publy-foreground-subtle` does not (~2.56:1 light), per review.
+	   Uses the existing --publy-radius-circular token rather than a raw
+	   four-nines pixel literal (a duplicate-token shape the design-system
+	   guard's circular-radius matcher does not currently catch: its exact
+	   three-nines-plus-word-boundary regex cannot match inside a run of four
+	   nines — see check-design-system.mjs). Allowlisted in that guard's
+	   circular-radius exception list alongside the avatar/topbar surfaces,
+	   since a corner pin is exactly the same "genuinely circular" shape. */
 	.publy-profile-detail-tile-pin {
 		position: absolute;
 		right: 0;
@@ -2530,9 +2540,9 @@ html.dark {
 		justify-content: center;
 		width: 27px;
 		height: 27px;
-		border-radius: 9999px;
+		border-radius: var(--publy-radius-circular);
 		background: var(--publy-surface);
-		color: var(--publy-foreground-subtle);
+		color: var(--publy-foreground-muted);
 	}
 
 	.publy-profile-count-badge {

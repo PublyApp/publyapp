@@ -549,7 +549,16 @@ const isRoundedRadiusAllowed = (relativePath, line, lineIndex, lines) => {
 		// account avatar/link and the form action bar's 7px status dot.
 		hasNearbySelector(lines, lineIndex, "[data-rail-item='account']") ||
 		hasNearbySelector(lines, lineIndex, '.app-shell-rail-account-avatar') ||
-		hasNearbySelector(lines, lineIndex, '.publy-form-action-bar-status::before')
+		hasNearbySelector(
+			lines,
+			lineIndex,
+			'.publy-form-action-bar-status::before',
+		) ||
+		// #992: the profile icon-picker's pencil-pin corner badge — the same
+		// "genuinely circular" affordance shape as AvatarBadge (a small round
+		// indicator sitting on a corner), reviewed and allowlisted rather than
+		// left to a raw magic-number radius.
+		hasNearbySelector(lines, lineIndex, '.publy-profile-detail-tile-pin')
 	);
 };
 
