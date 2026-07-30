@@ -17,6 +17,7 @@
 
 import assert from 'node:assert/strict';
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
+import { once } from 'node:events';
 import {
 	copyFileSync,
 	existsSync,
@@ -103,9 +104,41 @@ const isTcpPortReachable = (port, host = '127.0.0.1') =>
 		socket.setTimeout(1000, () => finish(false));
 	});
 
+// Round-4 review IMPORTANT: a raw TCP connect (above) proves only that SOME server accepted
+// the connection — under host load, `docker run`'s published port can be TCP-reachable while
+// the real postgres process inside is still refusing authenticated sessions with
+// `57P03: the database system is starting up` (a different startup phase than the round-2
+// temporary-server race the TCP check above was built to catch: this is the REAL server,
+// listening, but not yet accepting logins). Reproduced on the untouched clean branch: every
+// one of the five cases in the shared `before` hook failed with exactly that error, exhausting
+// the five EF retries in runDotnetWithDiagnostics. Gate on an authenticated query actually
+// succeeding — via `docker exec` + psql running INSIDE the container (avoids depending on a
+// host-installed psql client) — not on socket acceptance.
+const isPostgresAcceptingAuthenticatedSessions = () => {
+	const result = spawnSync(
+		'docker',
+		[
+			'exec',
+			'-e',
+			'PGPASSWORD=password',
+			TEST_CONTAINER,
+			'psql',
+			'-U',
+			'postgres',
+			'-d',
+			'publyapp',
+			'-c',
+			'SELECT 1',
+		],
+		{ stdio: 'ignore' },
+	);
+
+	return result.status === 0;
+};
+
 const waitForPostgresReady = async () => {
 	for (let attempt = 0; attempt < 60; attempt += 1) {
-		if (await isTcpPortReachable(TEST_PORT)) {
+		if (isPostgresAcceptingAuthenticatedSessions()) {
 			return;
 		}
 
@@ -115,7 +148,8 @@ const waitForPostgresReady = async () => {
 	}
 
 	throw new Error(
-		`Throwaway Postgres container never became reachable on its published host port ${String(TEST_PORT)}.`,
+		`Throwaway Postgres container never accepted an authenticated session within the ` +
+			`timeout (published host port ${String(TEST_PORT)}).`,
 	);
 };
 
@@ -365,6 +399,66 @@ const killProcessGroup = (child, port) => {
 	}
 };
 
+// Bounded, guaranteed cleanup for a detached child tree, for use from a `finally`.
+//
+// Round-4 review BLOCKER: a prior version of the missing-value test used SYNCHRONOUS
+// `spawnSync(..., { timeout })`. That is only safe while the CLI exits before ever launching
+// anything. When the regression this test exists to catch was restored (fall back to an
+// ambient connection string instead of failing closed), the real CLI launched `dotnet watch`
+// and installed its own SIGTERM handler — spawnSync's internal timeout could send one signal
+// to the direct child, but review-api.mjs's handler only forwards that signal once (no
+// escalation, no self-exit), so a slow/ignoring descendant left the whole tree, and the
+// blocked event loop, alive well past the "30-second" bound; the test's own `after` cleanup
+// could not run at all while spawnSync blocked it. This performs an escalating, bounded
+// SIGTERM → SIGKILL reap against the process GROUP (never throws — it runs in a `finally` and
+// must not mask a real assertion failure), then sweeps by the port pattern as a backstop for
+// any descendant that re-parented outside the group.
+const killAndReapProcessGroup = async (
+	child,
+	port,
+	{ graceMs = 5000 } = {},
+) => {
+	const stillRunning = () =>
+		child.exitCode === null && child.signalCode === null && !child.killed;
+
+	const waitForExit = (timeoutMs) =>
+		Promise.race([
+			once(child, 'exit').then(() => true),
+			new Promise((resolve) => {
+				setTimeout(() => resolve(false), timeoutMs);
+			}),
+		]);
+
+	if (stillRunning()) {
+		try {
+			process.kill(-child.pid, 'SIGTERM');
+		} catch {
+			// Already gone, or never got its own group.
+		}
+
+		const exitedGracefully = await waitForExit(graceMs);
+		if (!exitedGracefully && stillRunning()) {
+			try {
+				process.kill(-child.pid, 'SIGKILL');
+			} catch {
+				// Already gone.
+			}
+
+			await waitForExit(graceMs);
+		}
+	}
+
+	// Backstop: sweep anything still bound to the test port by command-line pattern, in case a
+	// descendant re-parented outside this process group (e.g. under a re-forking watcher).
+	try {
+		execFileSync('pkill', ['-9', '-f', `127.0.0.1:${String(port)}`], {
+			stdio: 'ignore',
+		});
+	} catch {
+		// Nothing left to kill, or none matched — fine either way.
+	}
+};
+
 // ---------------------------------------------------------------------------
 // Hosted-service manifest probe (round-3 review MINOR): the ordinary-launch test's only
 // negative assertion used to be "the Quartz scheduler log line is absent" — registering
@@ -373,6 +467,17 @@ const killProcessGroup = (child, port) => {
 // mechanism apps/api/Lib/Architecture/AppRoleComposition.Spec.cs and
 // AppEnvironmentDotEnvPrecedence.Spec.cs assert against) checks the COMPLETE resolved
 // hosted-service set, not one log line, so any unexpected service — named or not — fails it.
+//
+// Round-4 review BLOCKER: the previous version of this probe hard-coded APP_ROLE: 'api' into
+// this SEPARATE diagnostic process, so it only ever proved that an explicitly Api-pinned
+// process has the Api allowlist — nothing about the API the real CLI actually launched. When
+// the reviewer restored the unsafe round-2 behavior (`forceApiRole: guardResult.pending.length
+// > 0`), the ordinary launch visibly started the worker engine (Quartz scheduler created,
+// leadership acquired) while this probe — and the "no job engine starts" test built on it —
+// still passed, because both hard-coded the very value under test. Fixed by reading the REAL
+// launched process's ACTUAL resolved environment (via /proc/<pid>/environ — Linux-only,
+// consistent with the rest of this file's POSIX-only process-tree handling) and driving both
+// a direct assertion AND this probe from that observed truth, never from an assumption.
 // ---------------------------------------------------------------------------
 
 const HOSTED_SERVICE_LINE_PREFIX = 'HOSTED_SERVICE:';
@@ -406,11 +511,75 @@ const findApiAssemblyPath = () => {
 	throw new Error(`Could not find a built PublyApp.Api.dll under ${binRoot}.`);
 };
 
-// Runs the shipped --print-hosted-services probe against the SAME worktree .env.development
-// and connection string the real launched CLI used (cwd = apiDir, so FindDotEnvPath
-// discovers the same file), pinned to APP_ROLE=api — exactly what review-api.mjs's
-// buildApiChildEnv forces for every launch. Returns the resolved hosted-service type names.
+// Finds the PID of a currently-running process bound to this exact host:port — matches on
+// the literal `--urls http://127.0.0.1:<port>` argument review-api.mjs's spawnApiChild passes,
+// which every process in the dotnet-watch chain carries in its own argv (verified by hand:
+// round-4 review's hung-process capture showed both "dotnet watch run ... --urls ..." and
+// ".../dotnet-watch.dll run ... --urls ..." carrying it). Prefers the innermost
+// dotnet-watch.dll process — .NET's hot-reload host actually composes and runs the app's DI
+// container IN that process, not a further child — but any matching PID's environment is
+// equally representative, since env vars are inherited unmodified down the whole spawn chain;
+// this preference only picks the process most directly responsible for the resolved graph.
+const findRealApiHostPid = (port) => {
+	const urlPattern = `--urls http://127\\.0\\.0\\.1:${String(port)}`;
+
+	const preferred = spawnSync(
+		'pgrep',
+		['-f', `dotnet-watch\\.dll.*${urlPattern}`],
+		{ encoding: 'utf8' },
+	);
+	const preferredPids = preferred.stdout
+		.split('\n')
+		.map((line) => line.trim())
+		.filter(Boolean);
+	if (preferredPids.length > 0) {
+		return Number.parseInt(preferredPids[0], 10);
+	}
+
+	const fallback = spawnSync('pgrep', ['-f', urlPattern], { encoding: 'utf8' });
+	const fallbackPids = fallback.stdout
+		.split('\n')
+		.map((line) => line.trim())
+		.filter(Boolean);
+	if (fallbackPids.length === 0) {
+		throw new Error(
+			`No running dotnet process matched "${urlPattern}" — the real CLI does not ` +
+				'appear to have launched anything on this port.',
+		);
+	}
+
+	return Number.parseInt(fallbackPids[0], 10);
+};
+
+// Reads the REAL, resolved OS-level environment of an already-running process by PID — the
+// exact env block Node's spawn() set at exec time, not a value this test merely assumes was
+// used. Linux-only (/proc), consistent with the rest of this file's POSIX-only process-tree
+// handling (Docker-gated anyway).
+const readRealProcessEnv = (pid) => {
+	const raw = readFileSync(`/proc/${String(pid)}/environ`, 'latin1');
+	const env = {};
+	for (const entry of raw.split('\0')) {
+		if (entry.length === 0) {
+			continue;
+		}
+
+		const separatorIndex = entry.indexOf('=');
+		if (separatorIndex === -1) {
+			continue;
+		}
+
+		env[entry.slice(0, separatorIndex)] = entry.slice(separatorIndex + 1);
+	}
+
+	return env;
+};
+
+// Runs the shipped --print-hosted-services probe using the EXACT env values (APP_ROLE,
+// TRUSTED_PROXY_CIDRS, POSTGRES_CONNECTION_STRING) observed on the real launched process —
+// never a hard-coded assumption of what the launcher should have passed. Returns the
+// resolved hosted-service type names.
 const runHostedServiceManifestProbe = ({
+	appRole,
 	trustedProxyCidrs,
 	connectionString,
 }) => {
@@ -424,7 +593,7 @@ const runHostedServiceManifestProbe = ({
 			env: {
 				...process.env,
 				ASPNETCORE_ENVIRONMENT: 'Development',
-				APP_ROLE: 'api',
+				APP_ROLE: appRole,
 				TRUSTED_PROXY_CIDRS: trustedProxyCidrs,
 				POSTGRES_CONNECTION_STRING: connectionString,
 			},
@@ -624,14 +793,37 @@ test(
 				});
 				assert.equal(liveResponse.status, 200);
 
+				// Round-4 review BLOCKER: the prior version of this test derived its expected
+				// env from what main() is SUPPOSED to do, then ran a separately spawned,
+				// hard-coded-APP_ROLE=api diagnostic process — proving only that an explicitly
+				// Api-pinned process has the Api allowlist, nothing about what the real CLI
+				// actually launched. Find the ACTUAL running dotnet process bound to this port
+				// and read ITS real, resolved OS environment before asserting or probing
+				// anything, so a regression in main()'s role selection is directly observed,
+				// not assumed away.
+				const realHostPid = findRealApiHostPid(NORMAL_LAUNCH_PORT);
+				const realEnv = readRealProcessEnv(realHostPid);
+
+				assert.equal(
+					realEnv.APP_ROLE,
+					'api',
+					'the ACTUAL launched process (pid ' +
+						String(realHostPid) +
+						') must have been pinned to the Api role in its OWN resolved environment ' +
+						'— not asserted against a separately forced diagnostic process',
+				);
+
 				// Round-3 review: checking only the Quartz scheduler's own log line let a
 				// mutation that registered WorkerHeartbeatService in the Api role WITHOUT
 				// Quartz slip through undetected. Assert the COMPLETE resolved hosted-service
-				// set against the same worktree config the real launch used, instead of one
-				// log line — any unexpected service, named or not, now fails this.
+				// set, driven by the REAL process's own observed env (not a hard-coded
+				// assumption), instead of one log line — any unexpected service, named or not,
+				// now fails this.
 				const resolvedHostedServices = runHostedServiceManifestProbe({
-					trustedProxyCidrs: TRUSTED_PROXY_CIDRS,
-					connectionString: TEST_CONNECTION,
+					appRole: realEnv.APP_ROLE,
+					trustedProxyCidrs: realEnv.TRUSTED_PROXY_CIDRS ?? TRUSTED_PROXY_CIDRS,
+					connectionString:
+						realEnv.POSTGRES_CONNECTION_STRING ?? TEST_CONNECTION,
 				});
 				assert.deepEqual(
 					[...resolvedHostedServices].sort((a, b) => a.localeCompare(b)),
@@ -668,6 +860,7 @@ test(
 // ---------------------------------------------------------------------------
 
 const MISSING_VALUE_PORT = 5595;
+const MISSING_VALUE_TIMEOUT_MS = 30_000;
 
 test(
 	'END-TO-END: a worktree file missing POSTGRES_CONNECTION_STRING fails closed instead of falling back to an ambient decoy',
@@ -681,7 +874,10 @@ test(
 				'the test port must be free before spawning the real CLI',
 			);
 
-			const result = spawnSync(
+			// Async + detached (own process group) + bounded wait, NOT spawnSync(..., {
+			// timeout }) — see killAndReapProcessGroup's comment for why the synchronous form
+			// cannot be trusted to terminate a regressed launch on its own.
+			const child = spawn(
 				'node',
 				[
 					'scripts/review-api.mjs',
@@ -691,8 +887,8 @@ test(
 				],
 				{
 					cwd: repoRoot,
-					encoding: 'utf8',
-					timeout: 30_000,
+					detached: true,
+					stdio: ['ignore', 'pipe', 'pipe'],
 					env: {
 						...process.env,
 						// A valid, reachable, fully migrated ambient decoy. If the launcher ever
@@ -704,18 +900,48 @@ test(
 				},
 			);
 
-			assert.notEqual(
-				result.status,
-				0,
-				'must fail closed rather than silently launching against the ambient decoy; ' +
-					`stdout: ${result.stdout} stderr: ${result.stderr}`,
-			);
-			assert.match(
-				result.stderr,
-				/POSTGRES_CONNECTION_STRING is missing from/,
-				'must report the specific file-value-missing error, not some other failure — ' +
-					`stderr: ${result.stderr}`,
-			);
+			let stdout = '';
+			let stderr = '';
+			child.stdout.on('data', (chunk) => {
+				stdout += chunk;
+			});
+			child.stderr.on('data', (chunk) => {
+				stderr += chunk;
+			});
+
+			try {
+				const outcome = await Promise.race([
+					once(child, 'exit').then(([code]) => ({ code, timedOut: false })),
+					new Promise((resolve) => {
+						setTimeout(
+							() => resolve({ code: null, timedOut: true }),
+							MISSING_VALUE_TIMEOUT_MS,
+						);
+					}),
+				]);
+
+				assert.equal(
+					outcome.timedOut,
+					false,
+					'the launcher must fail closed and exit ON ITS OWN within the bound instead ' +
+						'of launching against the ambient decoy and hanging past it — ' +
+						`stdout so far: ${stdout} stderr so far: ${stderr}`,
+				);
+				assert.notEqual(
+					outcome.code,
+					0,
+					'must fail closed rather than silently launching against the ambient decoy; ' +
+						`stdout: ${stdout} stderr: ${stderr}`,
+				);
+				assert.match(
+					stderr,
+					/POSTGRES_CONNECTION_STRING is missing from/,
+					'must report the specific file-value-missing error, not some other failure — ' +
+						`stderr: ${stderr}`,
+				);
+			} finally {
+				await killAndReapProcessGroup(child, MISSING_VALUE_PORT);
+			}
 
 			const stillFree = await isPortFree(MISSING_VALUE_PORT);
 			assert.equal(
