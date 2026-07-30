@@ -72,14 +72,30 @@ import { parse } from 'yaml';
 // trigger produced two runs reporting `docs-archive-gate` for the same
 // commit. `front-e2e.yml` and `openapi-spec-drift.yml` scope their `push`
 // trigger to `branches: [develop]`, which narrows the window but does not
-// close the same underlying risk class. Fixed uniformly across all four
-// workflows (including `front-ci.yml`, which has no `push` trigger today, so
-// one added later inherits the same protection): the required `gate` job's
-// own `if:` now also requires the event to be `pull_request` or
-// `merge_group`, so a push-triggered run never reports (or re-reports) the
-// required context at all — the underlying push-triggered verification jobs
-// still run to validate the direct push itself, only the required-check
-// reporting is scoped.
+// close the same underlying risk class.
+//
+// A first fix attempt scoped the gate job's `if:` to `pull_request`/
+// `merge_group` only. That was insufficient and was caught live on this same
+// PR: GitHub still creates and reports a check run under the SAME name for a
+// job that is merely SKIPPED (not absent) — the push-triggered run still
+// produced a second `docs-archive-gate` check run, just with conclusion
+// `skipped` instead of a real verdict. The exact same "one required context,
+// two reports, last one wins" nondeterminism remained; only what the second
+// report said had changed. No documented GitHub behavior establishes that a
+// `skipped` conclusion on a required context can never later be treated as
+// authoritative over an earlier `success` — two independent doc lookups on
+// this exact question came back empty, so that could not be proven and was
+// not relied on.
+//
+// Fixed instead by renaming: the required `gate` job's `if:` reverts to
+// unconditional `always()` (so a push-triggered run still aggregates real
+// upstream results, useful for direct-push/post-merge validation), but its
+// `name:` is now conditional on the event — `github.event_name == 'push'`
+// reports under a DIFFERENT, non-required context (e.g.
+// `docs-archive-push-check`) that can never collide with the required name.
+// Applied uniformly to all four workflows (including `front-ci.yml`, which
+// has no `push` trigger today, so one added later inherits the same
+// protection automatically).
 //
 // Round 5 also found that `gate-selftest` (the job that runs this very
 // script, and every other #1017 guard test, server-side) could be dropped
@@ -131,15 +147,11 @@ const workflowsDirectory = '.github/workflows';
 const EXPECTED_CHANGES_OUTPUT = '${{ steps.filter.outputs.relevant }}';
 const EXPECTED_CLASSIFIER_STEP_ID = 'filter';
 const EXPECTED_RELEVANCE_IF = "needs.changes.outputs.relevant == 'true'";
-// Used for always-run jobs that are NOT the externally required gate itself
-// (e.g. front-e2e's GHCR `cleanup`) — those have no reason to skip a `push`
-// run, since nothing external depends on their name as a required context.
+// Every always-run job in these workflows — including the required `gate`
+// job itself — always reports (if: always()). What makes `gate` safe from
+// the push-triggered nondeterminism described above is its `name:`, not its
+// `if:` (see EXPECTED_GATE_NAME_EXPR below).
 const EXPECTED_GATE_IF = 'always()';
-// Round 5 BLOCKER: the required gate job's own `if:`. Unlike EXPECTED_GATE_IF
-// above, this also scopes reporting to the events where a required context
-// is actually meaningful — see the file-level comment.
-const EXPECTED_REQUIRED_GATE_IF =
-	"always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')";
 const EXPECTED_NEEDS_JSON_EXPR = '${{ toJSON(needs) }}';
 // Round 5 BLOCKER: the "Check required jobs" step's `id`, so a sibling step
 // can read `steps.<id>.outcome` — the raw result GitHub computes BEFORE
@@ -156,7 +168,10 @@ const EXPECTED_CHECK_REQUIRED_JOBS_STEP_ID = 'check-required-jobs';
  * GHCR `cleanup`) that intentionally run regardless via their own
  * `if: always()`. `gate.needs` is not listed here — it is required to equal
  * every other job in the file, computed from the parsed document itself.
- * `gateName` is the externally required check string.
+ * `gateName` is the externally required check string. `pushCheckName` is the
+ * DIFFERENT name the same job must report under for a `push`-triggered run,
+ * so that run can never collide with `gateName` as a duplicate report for
+ * the same commit — see the file-level comment.
  */
 const GATE_WORKFLOWS = [
 	{
@@ -164,6 +179,7 @@ const GATE_WORKFLOWS = [
 		changesJob: 'changes',
 		gateJob: 'gate',
 		gateName: 'front-e2e-gate',
+		pushCheckName: 'front-e2e-push-check',
 		relevanceGatedJobs: [
 			{ id: 'build', needs: ['changes'] },
 			{ id: 'test', needs: ['changes', 'build'] },
@@ -181,6 +197,7 @@ const GATE_WORKFLOWS = [
 		changesJob: 'changes',
 		gateJob: 'gate',
 		gateName: 'front-ci-gate',
+		pushCheckName: 'front-ci-push-check',
 		relevanceGatedJobs: [
 			{ id: 'supply-chain', needs: ['changes'] },
 			{ id: 'gate-selftest', needs: ['changes'] },
@@ -216,6 +233,7 @@ const GATE_WORKFLOWS = [
 		changesJob: 'changes',
 		gateJob: 'gate',
 		gateName: 'openapi-spec-drift-gate',
+		pushCheckName: 'openapi-spec-drift-push-check',
 		relevanceGatedJobs: [{ id: 'spec-drift', needs: ['changes'] }],
 		alwaysJobs: [],
 	},
@@ -224,6 +242,7 @@ const GATE_WORKFLOWS = [
 		changesJob: 'changes',
 		gateJob: 'gate',
 		gateName: 'docs-archive-gate',
+		pushCheckName: 'docs-archive-push-check',
 		relevanceGatedJobs: [{ id: 'docs-archive', needs: ['changes'] }],
 		alwaysJobs: [],
 	},
@@ -313,6 +332,7 @@ const checkWorkflow = (
 		changesJob,
 		gateJob,
 		gateName,
+		pushCheckName,
 		relevanceGatedJobs,
 		alwaysJobs,
 		matrix,
@@ -633,9 +653,9 @@ const checkWorkflow = (
 	if (gate === undefined) {
 		findings.push(`${file}: expected a "${gateJob}" job, but it is missing.`);
 	} else {
-		if (gate.if !== EXPECTED_REQUIRED_GATE_IF) {
+		if (gate.if !== EXPECTED_GATE_IF) {
 			findings.push(
-				`${file}::${gateJob}: expected \`if: ${EXPECTED_REQUIRED_GATE_IF}\` so the required check always reports for pull_request/merge_group but never (re-)reports for a push-triggered run of the same commit — GitHub keeps only the latest status for a context, so a push run could otherwise overwrite a passing pull_request run — found ${JSON.stringify(gate.if ?? null)}.`,
+				`${file}::${gateJob}: expected \`if: ${EXPECTED_GATE_IF}\` so the required check always reports, found ${JSON.stringify(gate.if ?? null)}.`,
 			);
 		}
 
@@ -655,9 +675,20 @@ const checkWorkflow = (
 		// the guard claims to pin the aggregate gates and does not pin their
 		// externally required names." gate.name IS the string that must be
 		// entered as a required status check in the branch ruleset.
-		if (gate.name !== gateName) {
+		//
+		// Round 5 BLOCKER (corrected): a bare, unconditional `gateName` string
+		// is exactly what let a push-triggered run report a second, colliding
+		// check under the same required name (see the file-level comment).
+		// `gate.name` is now required to be the exact conditional expression
+		// that reports `pushCheckName` for a `push` event and `gateName` for
+		// every other event — a job that always reports (EXPECTED_GATE_IF)
+		// under a name that changes with the event, instead of a job that
+		// changes whether it reports under a fixed name.
+		const expectedGateNameExpr = `\${{ github.event_name == 'push' && '${pushCheckName}' || '${gateName}' }}`;
+
+		if (gate.name !== expectedGateNameExpr) {
 			findings.push(
-				`${file}::${gateJob}: expected \`name: ${gateName}\` (the externally required status check string), found ${JSON.stringify(gate.name ?? null)}.`,
+				`${file}::${gateJob}: expected \`name: ${expectedGateNameExpr}\` (reports \`${gateName}\` — the externally required status check string — for every event except \`push\`, and the non-required \`${pushCheckName}\` for \`push\`, so a push-triggered run can never report a second, colliding check under the required name), found ${JSON.stringify(gate.name ?? null)}.`,
 			);
 		}
 

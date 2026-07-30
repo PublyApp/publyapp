@@ -131,20 +131,25 @@ jobs:
   # reports (if: always()), passes when upstream jobs succeeded or were
   # skipped (irrelevant PR), and fails on any real failure or cancellation
   # rather than treating either as "not applicable".
-  #
-  # BLOCKER fix (round 5): `if:` also requires the event to be `pull_request`
-  # or `merge_group`. This workflow's `push` trigger above (unrestricted by
-  # branch, unlike the other three gate workflows) already reproduced this
-  # exact bug at PR #1029's own head commit: two separate runs (one
-  # `pull_request`, one `push`) both reported `docs-archive-gate` for the
-  # same commit. GitHub keeps only the LATEST reported status for a context,
-  # so a slower, unrelated push run could silently overwrite a passing
-  # pull_request run. The push-triggered `changes`/`docs-archive` jobs above
-  # still run to validate the direct push itself; only this required-check
-  # reporting is scoped to the events where it is actually meaningful.
   gate:
-    name: docs-archive-gate
-    if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
+    # BLOCKER fix (round 5, corrected): an event-guarded `if:` alone left
+    # this job SKIPPED (not absent) on a push-triggered run, and GitHub
+    # still creates and reports a check run named "docs-archive-gate" for a
+    # skipped job -- just with conclusion "skipped" instead of a real
+    # pass/fail. Verified live: PR #1029's own head commit still carried
+    # TWO "docs-archive-gate" check runs for the same SHA (one "success",
+    # one "skipped"), which is the same "one required context, two
+    # reports, last one wins" nondeterminism this fix exists to remove --
+    # it had only changed what the second report said, not whether it
+    # existed. Fixed instead by renaming: `name:` is now conditional on
+    # the event, so a push-triggered run reports under a DIFFERENT,
+    # non-required context ("docs-archive-push-check") that can never collide
+    # with "docs-archive-gate". `if:` goes back to unconditional `always()` so
+    # the push-triggered run still aggregates and reports a REAL pass/fail
+    # (useful direct-push/post-merge validation) instead of an
+    # uninformative skip.
+    name: ${{ github.event_name == 'push' && 'docs-archive-push-check' || 'docs-archive-gate' }}
+    if: always()
     needs: [changes, docs-archive]
     runs-on: ubuntu-latest
     steps:

@@ -45,8 +45,8 @@ jobs:
     steps:
       - run: echo heavy
   gate:
-    name: fixture-gate
-    if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
+    name: \${{ github.event_name == 'push' && 'fixture-push-check' || 'fixture-gate' }}
+    if: always()
     needs: [changes, heavy]
     runs-on: ubuntu-latest
     steps:
@@ -70,6 +70,7 @@ const fixtureConfig = [
 		changesJob: 'changes',
 		gateJob: 'gate',
 		gateName: 'fixture-gate',
+		pushCheckName: 'fixture-push-check',
 		relevanceGatedJobs: [{ id: 'heavy', needs: ['changes'] }],
 		alwaysJobs: [],
 	},
@@ -121,9 +122,9 @@ test("BLOCKER analogue: a job dropped from the gate's needs is caught even if th
 	assert.match(findings[0], /Missing: \[heavy\]/);
 });
 
-test('fails when gate.if stops requiring pull_request/merge_group', async () => {
+test('fails when gate.if stops being always()', async () => {
 	const broken = goodWorkflow.replace(
-		"if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')\n    needs: [changes, heavy]",
+		'if: always()\n    needs: [changes, heavy]',
 		'if: success()\n    needs: [changes, heavy]',
 	);
 	const rootDir = await buildFixture(broken);
@@ -134,28 +135,7 @@ test('fails when gate.if stops requiring pull_request/merge_group', async () => 
 	});
 
 	assert.equal(findings.length, 1);
-	assert.match(findings[0], /gate: expected `if: always\(\) &&/);
-});
-
-test('ROUND 5 BLOCKER (the exact reviewer reproduction): gate.if reverting to a bare always() (dropping the event guard) is caught, not just a wholesale change', async () => {
-	// The exact nondeterminism bug: a bare `always()` lets a push-triggered
-	// run of the same commit as an open pull request ALSO report the
-	// required context, and GitHub keeps only the latest reported status —
-	// so a slower, unrelated push run could overwrite a passing pull_request
-	// run. Proven live at docs-archive-gate on PR #1029's own head commit.
-	const broken = goodWorkflow.replace(
-		"if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')\n    needs: [changes, heavy]",
-		'if: always()\n    needs: [changes, heavy]',
-	);
-	const rootDir = await buildFixture(broken);
-
-	const findings = await findCiGateStructureProblems({
-		rootDir,
-		workflows: fixtureConfig,
-	});
-
-	assert.equal(findings.length, 1);
-	assert.match(findings[0], /gate: expected `if: always\(\) &&/);
+	assert.match(findings[0], /gate: expected `if: always\(\)`/);
 });
 
 test('fails when a relevance-gated job loses its relevance condition', async () => {
@@ -182,8 +162,8 @@ jobs:
     steps:
       - run: echo heavy
   gate:
-    name: fixture-gate
-    if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
+    name: \${{ github.event_name == 'push' && 'fixture-push-check' || 'fixture-gate' }}
+    if: always()
     needs: [changes, heavy]
     runs-on: ubuntu-latest
     steps:
@@ -218,6 +198,7 @@ test('fails when a relevance-gated job loses part of its needs', async () => {
 			changesJob: 'changes',
 			gateJob: 'gate',
 			gateName: 'fixture-gate',
+			pushCheckName: 'fixture-push-check',
 			relevanceGatedJobs: [
 				{ id: 'heavy', needs: ['changes', 'some-other-job'] },
 			],
@@ -325,7 +306,7 @@ test('ROUND 2 BLOCKER: renaming the classifier step\'s id away from "filter" is 
 
 test("ROUND 2: renaming the gate job's externally-required name is caught", async () => {
 	const broken = goodWorkflow.replace(
-		'name: fixture-gate',
+		"name: ${{ github.event_name == 'push' && 'fixture-push-check' || 'fixture-gate' }}",
 		'name: renamed-gate',
 	);
 	const rootDir = await buildFixture(broken);
@@ -336,7 +317,9 @@ test("ROUND 2: renaming the gate job's externally-required name is caught", asyn
 	});
 
 	assert.equal(findings.length, 1);
-	assert.match(findings[0], /gate: expected `name: fixture-gate`/);
+	assert.match(findings[0], /gate: expected `name: /);
+	assert.match(findings[0], /fixture-push-check/);
+	assert.match(findings[0], /found "renamed-gate"/);
 });
 
 test('ROUND 2: restoring a pull_request.paths filter recreates the pending-check deadlock and is caught', async () => {
@@ -510,8 +493,8 @@ jobs:
     steps:
       - run: echo heavy
   gate:
-    name: fixture-gate
-    if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
+    name: \${{ github.event_name == 'push' && 'fixture-push-check' || 'fixture-gate' }}
+    if: always()
     needs: [changes, heavy]
     runs-on: ubuntu-latest
     steps:
@@ -535,6 +518,7 @@ const selfTestCoverageConfig = (selfTestCoverage) => [
 		changesJob: 'changes',
 		gateJob: 'gate',
 		gateName: 'fixture-gate',
+		pushCheckName: 'fixture-push-check',
 		relevanceGatedJobs: [{ id: 'heavy', needs: ['changes'] }],
 		alwaysJobs: [],
 		selfTestCoverage,
@@ -730,8 +714,8 @@ test('ROUND 5 BLOCKER: a workflow-level `defaults:` override is caught', async (
 
 test('ROUND 5 BLOCKER: continue-on-error on the gate job itself is caught', async () => {
 	const broken = goodWorkflow.replace(
-		'gate:\n    name: fixture-gate\n    if: always()',
-		'gate:\n    name: fixture-gate\n    continue-on-error: true\n    if: always()',
+		'  gate:\n    name:',
+		'  gate:\n    continue-on-error: true\n    name:',
 	);
 	const rootDir = await buildFixture(broken);
 
@@ -855,8 +839,8 @@ jobs:
         with:
           name: front-e2e-playwright-report-\${{ matrix.shard }}-of-${matrixDenominator}
   gate:
-    name: fixture-gate
-    if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
+    name: \${{ github.event_name == 'push' && 'fixture-push-check' || 'fixture-gate' }}
+    if: always()
     needs: [changes, test]
     runs-on: ubuntu-latest
     steps:
@@ -880,6 +864,7 @@ const matrixFixtureConfig = [
 		changesJob: 'changes',
 		gateJob: 'gate',
 		gateName: 'fixture-gate',
+		pushCheckName: 'fixture-push-check',
 		relevanceGatedJobs: [{ id: 'test', needs: ['changes'] }],
 		alwaysJobs: [],
 		matrix: { jobId: 'test', key: 'shard', expected: [1, 2, 3, 4] },
@@ -1040,6 +1025,7 @@ const requiresSelfCheckConfig = [
 		changesJob: 'changes',
 		gateJob: 'gate',
 		gateName: 'fixture-gate',
+		pushCheckName: 'fixture-push-check',
 		relevanceGatedJobs: [{ id: 'heavy', needs: ['changes'] }],
 		alwaysJobs: [],
 		requiresSelfCheck: true,

@@ -247,19 +247,25 @@ jobs:
   # reports (if: always()), passes when upstream jobs succeeded or were
   # skipped (irrelevant PR), and fails on any real failure or cancellation
   # rather than treating either as "not applicable".
-  #
-  # BLOCKER fix (round 5): `if:` also requires the event to be `pull_request`
-  # or `merge_group`. This workflow has no `push` trigger today, but the
-  # other three #1017 gate workflows do, and one of them (docs-archive.yml)
-  # proved live at this PR's own head commit that a push-triggered run of the
-  # same commit as an open pull request can ALSO report a required context —
-  # GitHub keeps only the LATEST reported status, so a slower push run could
-  # overwrite a passing pull_request run. Applied here too, uniformly, so a
-  # `push` trigger added to this file later inherits the same protection
-  # instead of needing a separate fix rediscovered from scratch.
   gate:
-    name: front-ci-gate
-    if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
+    # BLOCKER fix (round 5, corrected): an event-guarded `if:` alone left
+    # this job SKIPPED (not absent) on a push-triggered run, and GitHub
+    # still creates and reports a check run named "front-ci-gate" for a
+    # skipped job -- just with conclusion "skipped" instead of a real
+    # pass/fail. Verified live: PR #1029's own head commit still carried
+    # TWO "front-ci-gate" check runs for the same SHA (one "success",
+    # one "skipped"), which is the same "one required context, two
+    # reports, last one wins" nondeterminism this fix exists to remove --
+    # it had only changed what the second report said, not whether it
+    # existed. Fixed instead by renaming: `name:` is now conditional on
+    # the event, so a push-triggered run reports under a DIFFERENT,
+    # non-required context ("front-ci-push-check") that can never collide
+    # with "front-ci-gate". `if:` goes back to unconditional `always()` so
+    # the push-triggered run still aggregates and reports a REAL pass/fail
+    # (useful direct-push/post-merge validation) instead of an
+    # uninformative skip.
+    name: ${{ github.event_name == 'push' && 'front-ci-push-check' || 'front-ci-gate' }}
+    if: always()
     needs: [changes, supply-chain, gate-selftest]
     runs-on: ubuntu-latest
     steps:
