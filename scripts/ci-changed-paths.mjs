@@ -45,11 +45,27 @@ export const classifyRelevance = ({
 	changedFilesTotal,
 	pattern,
 }) => {
+	if (eventName === 'merge_group') {
+		return {
+			relevant: true,
+			// A merge_group event evaluates a merge-queue entry, not an open
+			// pull request: GitHub does not expose a per-file diff for it (no
+			// `pull_request.number` to list files against), so there is nothing
+			// this classifier could pattern-match. Almost certainly correct to
+			// run everything rather than guess: a merge-queue entry is, by
+			// definition, about to be merged, so treating it as relevant by
+			// construction fails closed the same way an unverifiable pull
+			// request diff already does below.
+			reason:
+				'merge_group event: there is no per-file diff to evaluate for a merge-queue entry (GitHub exposes no pull-request file list for this event), so the workflow is treated as relevant by construction rather than guessed at',
+		};
+	}
+
 	if (eventName !== 'pull_request') {
 		return {
 			relevant: true,
 			reason:
-				'non-pull_request event; push runs are already path-filtered at the trigger, so a push that starts this workflow is relevant by construction',
+				'non-pull_request event (e.g. push); push runs are already path-filtered at the trigger, so a push that starts this workflow is relevant by construction',
 		};
 	}
 

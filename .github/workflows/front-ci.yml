@@ -2,6 +2,15 @@ name: front supply-chain
 
 on:
   pull_request:
+  # Required so this required check can report for a merge-queue entry: a
+  # required Actions check missing this event waits forever once the entry
+  # reaches the queue (GitHub's documented behavior), reproducing the exact
+  # missing-check deadlock #1017 exists to remove — just under a merge queue
+  # instead of an unfiltered `pull_request` trigger. The repository has no
+  # merge-queue rule today, so this is dormant, but a required check that
+  # cannot report under a supported GitHub feature is a latent version of
+  # that bug.
+  merge_group:
 
 permissions:
   contents: read

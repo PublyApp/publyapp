@@ -34,6 +34,52 @@ test('push runs are relevant by construction, without needing file evidence', ()
 	assert.equal(result.relevant, true);
 });
 
+// ROUND 4: #1017 adds `merge_group:` to all four workflows so their required
+// checks can report for a merge-queue entry (GitHub documents that a
+// required check missing this event waits forever in a queue). There is no
+// pull-request file list to evaluate a merge-queue entry against, so
+// merge_group must resolve relevant unconditionally — proven independently
+// of the generic "any non-pull_request event" case below, so a future
+// change that special-cases `push` without also covering `merge_group`
+// cannot pass silently.
+test('merge_group runs are relevant by construction, without needing file evidence', () => {
+	const result = classifyRelevance({
+		eventName: 'merge_group',
+		files: [],
+		changedFilesTotal: 0,
+		pattern,
+	});
+
+	assert.equal(result.relevant, true);
+	assert.match(result.reason, /merge_group/);
+});
+
+test('merge_group runs are relevant even when files/changedFilesTotal look like a genuinely empty diff', () => {
+	// Guards against a future refactor that route merge_group through the
+	// same file-list logic as pull_request: even a complete, verified-empty
+	// file list must not flip this to false, because merge_group has no file
+	// list to evaluate in the first place.
+	const result = classifyRelevance({
+		eventName: 'merge_group',
+		files: [],
+		changedFilesTotal: 0,
+		pattern: '^(apps/front/)',
+	});
+
+	assert.equal(result.relevant, true);
+});
+
+test('an arbitrary non-pull_request, non-merge_group event is still relevant by construction (the generic fallback)', () => {
+	const result = classifyRelevance({
+		eventName: 'workflow_dispatch',
+		files: [],
+		changedFilesTotal: 0,
+		pattern,
+	});
+
+	assert.equal(result.relevant, true);
+});
+
 test('a complete file list containing a relevant path is relevant', () => {
 	const files = ['apps/front/src/routes.ts', 'README.md'];
 

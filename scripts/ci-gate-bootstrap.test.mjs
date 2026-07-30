@@ -403,3 +403,46 @@ for (const file of workflowFiles) {
 		}
 	});
 }
+
+// ---------------------------------------------------------------------------
+// ROUND 4: DELEGATION via the REAL classifier under a genuine merge_group
+// event. #1017 adds `merge_group:` to all four workflows so their required
+// checks can report for a merge-queue entry; there is no pull-request file
+// list to evaluate one against, so the classifier must resolve relevant=true
+// unconditionally for this event, WITHOUT invoking any `gh` call at all (no
+// fake `gh` binary is put on PATH here — if the "present" branch ever
+// regressed to routing merge_group through the pull_request file-list path,
+// this would fail with a `gh: command not found`, not silently produce the
+// right answer for the wrong reason).
+// ---------------------------------------------------------------------------
+
+for (const file of workflowFiles) {
+	test(`${file}: DELEGATION — real classifier, genuine merge_group event: relevant=true without invoking gh`, () => {
+		const script = extractFilterStepRun(file);
+		const cwd = mkdtempSync(
+			path.join(os.tmpdir(), 'publyapp-ci-gate-bootstrap-'),
+		);
+
+		try {
+			mkdirSync(path.join(cwd, 'base-ref/scripts'), { recursive: true });
+			copyFileSync(
+				realClassifierPath,
+				path.join(cwd, 'base-ref/scripts/ci-changed-paths.mjs'),
+			);
+
+			const { status, stdout, output } = runInline(script, cwd, {
+				GITHUB_EVENT_NAME: 'merge_group',
+				// Deliberately no GH_REPO/PR_NUMBER/GH_TOKEN, and PATH is left
+				// alone (no stub `gh` on it): a genuine merge_group run never
+				// reaches the pull_request branch that shells out to `gh`.
+			});
+
+			assert.equal(status, 0, stdout);
+			assert.match(stdout, /^relevant=true \(merge_group event:/);
+			assert.equal(output, 'relevant=true\n');
+			assert.doesNotMatch(stdout, /MISSING BASE CLASSIFIER/);
+		} finally {
+			rmSync(cwd, { recursive: true, force: true });
+		}
+	});
+}

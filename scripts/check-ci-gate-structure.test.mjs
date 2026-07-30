@@ -25,6 +25,7 @@ const goodWorkflow = `
 name: fixture
 on:
   pull_request:
+  merge_group:
 jobs:
   changes:
     runs-on: ubuntu-latest
@@ -133,6 +134,7 @@ test('fails when a relevance-gated job loses its relevance condition', async () 
 name: fixture
 on:
   pull_request:
+  merge_group:
 jobs:
   changes:
     runs-on: ubuntu-latest
@@ -370,8 +372,59 @@ test('ROUND 3 BLOCKER: removing the pull_request key entirely (e.g. swapped to w
 
 test('ROUND 3: array-shorthand `on: [pull_request, push]` is accepted as unconditional', async () => {
 	const broken = goodWorkflow.replace(
-		'on:\n  pull_request:\n',
-		'on: [pull_request, push]\n',
+		'on:\n  pull_request:\n  merge_group:\n',
+		'on: [pull_request, merge_group, push]\n',
+	);
+	const rootDir = await buildFixture(broken);
+
+	assert.deepEqual(
+		await findCiGateStructureProblems({ rootDir, workflows: fixtureConfig }),
+		[],
+	);
+});
+
+// ---------------------------------------------------------------------------
+// ROUND 4 BLOCKER: `merge_group:` must be present and unconditional, for the
+// same reason `pull_request:` must be — GitHub documents that a required
+// Actions check missing this event waits forever once its PR reaches a
+// merge queue, reproducing the exact missing-check deadlock #1017 removes,
+// just under a different trigger.
+// ---------------------------------------------------------------------------
+
+test('ROUND 4 BLOCKER: removing the merge_group key entirely is caught', async () => {
+	const broken = goodWorkflow.replace('  merge_group:\n', '');
+	const rootDir = await buildFixture(broken);
+
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
+
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /the trigger has no merge_group key at all/);
+});
+
+test('ROUND 4 BLOCKER: a merge_group `types:` restriction is caught (not just an unrestricted key)', async () => {
+	const broken = goodWorkflow.replace(
+		'  merge_group:\n',
+		'  merge_group:\n    types: [checks_requested]\n',
+	);
+	const rootDir = await buildFixture(broken);
+
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
+
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /expected an unconditional `merge_group:` trigger/);
+	assert.match(findings[0], /\["types"\]/);
+});
+
+test('ROUND 4: array-shorthand `on: [pull_request, merge_group]` accepts merge_group as unconditional too', async () => {
+	const broken = goodWorkflow.replace(
+		'on:\n  pull_request:\n  merge_group:\n',
+		'on: [pull_request, merge_group]\n',
 	);
 	const rootDir = await buildFixture(broken);
 
@@ -455,6 +508,7 @@ const matrixWorkflow = `
 name: fixture
 on:
   pull_request:
+  merge_group:
 jobs:
   changes:
     runs-on: ubuntu-latest

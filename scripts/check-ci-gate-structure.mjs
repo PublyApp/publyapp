@@ -137,6 +137,53 @@ const normalizeNeeds = (needs) => {
 
 const asSet = (values) => new Set(values);
 
+/**
+ * Checks whether `onSection` (a parsed workflow's `on:` value) declares
+ * `triggerKey` unconditionally: present, and carrying no restricting key at
+ * all (bare `<trigger>:`, an explicit `null`, `{}`, or the array-shorthand
+ * `on: [<trigger>, ...]` form, none of which can carry a filter). Shared by
+ * the `pull_request` and `merge_group` trigger checks below — both must stay
+ * unconditional for the same reason: any restricting key can stop the
+ * trigger from firing on an ordinary event and recreate a missing/pending
+ * required-check deadlock.
+ *
+ * Returns `{ present: true }` when unconditional, or
+ * `{ present: false, foundKeys }` (`foundKeys` is `null` when the trigger key
+ * is absent entirely, or the list of restricting keys found on it).
+ */
+const checkUnconditionalTrigger = (onSection, triggerKey) => {
+	if (Array.isArray(onSection)) {
+		return { present: onSection.includes(triggerKey) };
+	}
+
+	if (
+		onSection === null ||
+		typeof onSection !== 'object' ||
+		!Object.prototype.hasOwnProperty.call(onSection, triggerKey)
+	) {
+		return { present: false, foundKeys: null };
+	}
+
+	const triggerValue = onSection[triggerKey];
+	const isUnconditional =
+		triggerValue === null ||
+		(typeof triggerValue === 'object' &&
+			triggerValue !== null &&
+			!Array.isArray(triggerValue) &&
+			Object.keys(triggerValue).length === 0);
+
+	if (isUnconditional) {
+		return { present: true };
+	}
+
+	const foundKeys =
+		typeof triggerValue === 'object' && triggerValue !== null
+			? Object.keys(triggerValue)
+			: null;
+
+	return { present: false, foundKeys };
+};
+
 const setsEqual = (a, b) => {
 	if (a.size !== b.size) {
 		return false;
@@ -181,41 +228,39 @@ const checkWorkflow = (
 	// and carry NO restricting keys at all (bare `pull_request:`, or
 	// `on: [pull_request, ...]` array form).
 	const onSection = document?.on;
-	let hasUnconditionalPullRequest = false;
+	const pullRequestTrigger = checkUnconditionalTrigger(
+		onSection,
+		'pull_request',
+	);
 
-	if (Array.isArray(onSection)) {
-		// Array shorthand (`on: [pull_request, push]`) cannot carry a filter at
-		// all, so presence alone is unconditional.
-		hasUnconditionalPullRequest = onSection.includes('pull_request');
-	} else if (
-		onSection !== null &&
-		typeof onSection === 'object' &&
-		Object.prototype.hasOwnProperty.call(onSection, 'pull_request')
-	) {
-		const pullRequestValue = onSection.pull_request;
-		hasUnconditionalPullRequest =
-			pullRequestValue === null ||
-			(typeof pullRequestValue === 'object' &&
-				pullRequestValue !== null &&
-				!Array.isArray(pullRequestValue) &&
-				Object.keys(pullRequestValue).length === 0);
-	}
-
-	if (!hasUnconditionalPullRequest) {
-		const foundKeys =
-			onSection !== null &&
-			typeof onSection === 'object' &&
-			!Array.isArray(onSection) &&
-			onSection.pull_request !== null &&
-			typeof onSection.pull_request === 'object'
-				? Object.keys(onSection.pull_request)
-				: null;
-
+	if (!pullRequestTrigger.present) {
 		findings.push(
 			`${file}: expected an unconditional \`pull_request:\` trigger (no paths, paths-ignore, types, branches, or any other restricting key — any of those can stop the trigger from firing on an ordinary open/synchronize event and recreate the pending-check deadlock #1017 exists to fix), but ${
-				foundKeys
-					? `found restricting keys: ${JSON.stringify(foundKeys)}`
+				pullRequestTrigger.foundKeys
+					? `found restricting keys: ${JSON.stringify(pullRequestTrigger.foundKeys)}`
 					: 'the trigger has no pull_request key at all'
+			}.`,
+		);
+	}
+
+	// Round 4 BLOCKER: all four required checks subscribed only to
+	// `pull_request`. GitHub documents that a required Actions check must
+	// also subscribe to `merge_group`, or a merge queue waits forever for a
+	// check that is never reported for a merge-group entry — the same
+	// missing-check deadlock #1017 exists to remove, just under a merge
+	// queue instead of an unfiltered `pull_request.paths` trigger. The repo
+	// has no merge-queue rule today (this is dormant), but a required check
+	// that cannot report under a supported GitHub feature is a latent
+	// version of the bug being fixed here. Held to the same unconditional
+	// bar as `pull_request` for the same reason.
+	const mergeGroupTrigger = checkUnconditionalTrigger(onSection, 'merge_group');
+
+	if (!mergeGroupTrigger.present) {
+		findings.push(
+			`${file}: expected an unconditional \`merge_group:\` trigger (required so this check can report for a merge-queue entry — GitHub documents that a required check missing this event waits forever in a merge queue), but ${
+				mergeGroupTrigger.foundKeys
+					? `found restricting keys: ${JSON.stringify(mergeGroupTrigger.foundKeys)}`
+					: 'the trigger has no merge_group key at all'
 			}.`,
 		);
 	}
