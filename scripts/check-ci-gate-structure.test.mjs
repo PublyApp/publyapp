@@ -1352,15 +1352,31 @@ test('ROUND 6 BLOCKER: a second copy of the gate workflow itself is caught (the 
 	);
 });
 
-test('ROUND 6 BLOCKER: a required context that no job reports at all is caught', async () => {
-	// The mirror image of a duplicate: the gate job renamed away entirely
-	// leaves the required context with zero producers, which blocks every
-	// pull request rather than letting one through — still a defect, and the
-	// "exactly one" rule catches both directions.
+test('ROUND 6 BLOCKER: the authorized gate job carrying a name other than its pinned expression is caught', async () => {
 	const broken = goodWorkflow.replace(
 		"name: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'fixture-gate' || 'fixture-push-check' }}",
 		'name: something-else',
 	);
+	const rootDir = await buildFixture(broken);
+
+	const findings = await findRequiredContextCollisionProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
+
+	assert.equal(findings.length, 1);
+	assert.match(
+		findings[0],
+		/fixture\.yml::gate: is the authorized producer of "fixture-gate" and "fixture-push-check", but its `name:` is "something-else"/,
+	);
+});
+
+test('ROUND 6 BLOCKER: a required context that no job in the repository reports at all is caught', async () => {
+	// The mirror image of a duplicate: with the gate job gone, the required
+	// context has zero producers. That blocks every pull request rather than
+	// letting one through, but it is still a defect, and the "exactly one"
+	// rule catches both directions.
+	const broken = goodWorkflow.slice(0, goodWorkflow.indexOf('  gate:\n'));
 	const rootDir = await buildFixture(broken);
 
 	const findings = await findRequiredContextCollisionProblems({

@@ -1099,6 +1099,11 @@ export const findRequiredContextCollisionProblems = async ({
 	const producersByName = new Map(
 		[...reservedNames.keys()].map((name) => [name, []]),
 	);
+	// Reserved names whose authorized job exists but carries the wrong
+	// `name:`. Already reported once, precisely; the generic
+	// unauthorized-reporter and zero-producer rules would add three more
+	// findings each that all point back at the same job.
+	const misnamedOwners = new Set();
 
 	const directory = path.join(rootDir, workflowsDirectory);
 	const workflowFiles = (await readdir(directory, { withFileTypes: true }))
@@ -1115,12 +1120,21 @@ export const findRequiredContextCollisionProblems = async ({
 			const name = reportedCheckName(jobId, job);
 			const gateWorkflow = gateJobByKey.get(key);
 
-			if (
-				gateWorkflow !== undefined &&
-				name === authorizedExpressionNames.get(key)
-			) {
-				producersByName.get(gateWorkflow.gateName).push(key);
-				producersByName.get(gateWorkflow.pushCheckName).push(key);
+			if (gateWorkflow !== undefined) {
+				if (name === authorizedExpressionNames.get(key)) {
+					producersByName.get(gateWorkflow.gateName).push(key);
+					producersByName.get(gateWorkflow.pushCheckName).push(key);
+					continue;
+				}
+
+				// The authorized job itself carries the wrong name. The
+				// structure check reports the exact expected/found strings;
+				// this adds the consequence for the context, once.
+				findings.push(
+					`${key}: is the authorized producer of "${gateWorkflow.gateName}" and "${gateWorkflow.pushCheckName}", but its \`name:\` is ${JSON.stringify(name)} rather than the pinned expression, so what it actually reports cannot be determined here.`,
+				);
+				misnamedOwners.add(gateWorkflow.gateName);
+				misnamedOwners.add(gateWorkflow.pushCheckName);
 				continue;
 			}
 
@@ -1147,7 +1161,7 @@ export const findRequiredContextCollisionProblems = async ({
 	}
 
 	for (const [name, producers] of producersByName) {
-		if (producers.length === 1) {
+		if (producers.length === 1 || misnamedOwners.has(name)) {
 			continue;
 		}
 

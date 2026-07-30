@@ -214,7 +214,7 @@ rather than fixed in code — recorded here rather than hidden, so they can be j
   created.** GitHub validates a workflow's expressions (e.g. `${{ ... }}` syntax, undefined
   functions) when the run starts, separately from YAML syntax. A mutation such as setting
   `concurrency.group: ${{ definitely_not_a_function() }}` at the top of `front-ci.yml` parses as
-  valid YAML, passes every guard and all 238 guard tests (none of them run inside GitHub Actions'
+  valid YAML, passes every guard and all 239 guard tests (none of them run inside GitHub Actions'
   own expression evaluator, and `actionlint` — the closest local equivalent — is not installed or
   run anywhere in this repository), and only fails once GitHub actually tries to start the run. When
   that happens, the workflow fails at startup **before any job is created** — including
