@@ -1,27 +1,39 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
-import { readCompiledAppCss } from './helpers/compiled-app-css';
+import { API_BASE_URL } from './helpers/api';
+import { loginAsStaffAdmin } from './helpers/login';
 
 /**
- * #992 review round 2, IMPORTANT finding A. The vitest-side companion
- * (src/styles/profile-icon-picker-pin-contrast.test.ts) reads app.css as
- * text and resolves the cascade itself — a deliberately narrow model with
- * documented limits (no specificity, no `!important`, no `@media`). This
- * spec is the "better where observable" alternative the review asked for:
- * the pencil-pin is a plain rendered DOM element with ordinary CSS (unlike
- * #975's unrenderable `::-webkit-search-cancel-button` UA pseudo-element),
- * so a real Chromium `getComputedStyle()` reading is fully achievable and
- * is the actual authority on the effective cascade — it needs no CSS model
- * at all, because the browser resolves the real cascade for us.
+ * #992/#975 review round 3, BLOCKER + IMPORTANT findings 1-3.
  *
- * It renders a `page.setContent()` page built from the REAL compiled
- * production CSS (dist/client/assets/app-*.css, built on demand — see
- * helpers/compiled-app-css.ts) plus markup mirroring the pin's actual
- * rendered classes (icon-color-picker.tsx). No login, backend, or
- * docker-compose stack is needed — see the `chromium-hermetic-source`
- * Playwright project in playwright.config.ts.
+ * Round 2's version of this spec rendered a hand-authored `page.setContent()`
+ * page whose markup MIRRORED the pin's classes rather than the live
+ * `IconColorPicker` component, and read whatever `dist/client/assets/app-*.css`
+ * happened to already exist on disk with no freshness check. The round 3
+ * review proved both false-green: removing the live component's only pin
+ * styling class still passed 5/5 browser tests (the mirrored markup never
+ * lost the class), and a `right:999px` production mutation stayed green
+ * against a stale `dist/` artifact until a manual rebuild. It also never ran
+ * in CI at all — it was assigned to a `chromium-hermetic-source` Playwright
+ * project the workflow never selected.
+ *
+ * This version drives the REAL route
+ * (`/staff/tenants/$tenantId/profiles?new=1`) against the actual
+ * docker-compose e2e stack, which serves the ACTUAL `front` container built
+ * from current source by the very same CI job that runs this spec — so
+ * there is no separate build artifact that can go stale relative to source,
+ * and the rendered pin is the live `IconColorPicker` component (with
+ * whatever classes it genuinely carries, including `ring-background` —
+ * closing the specificity blind spot the round 3 review found in the old
+ * hand-authored markup), not a copy of it. Only the tenant/profile/
+ * permission-catalog API responses are mocked. Because this now needs a real
+ * login + a real backend, it runs as the ordinary `chromium` Playwright
+ * project — the one the CI workflow already selects on every shard and
+ * already fails the build on (front-e2e.yml) — closing the BLOCKER without
+ * inventing a new, unselected project.
  */
 
+const TENANT_ID = '0197b8f0-3333-7ccc-8ccc-cccccccccccc';
 const NON_TEXT_CONTRAST_FLOOR = 3.0;
 
 type Rgb = { r: number; g: number; b: number };
@@ -60,27 +72,107 @@ const contrastRatio = (foreground: Rgb, background: Rgb): number => {
 	return (lighter + 0.05) / (darker + 0.05);
 };
 
-const buildPinPage = (css: string): string => `<!doctype html>
-<html>
-<head><style>${css}</style></head>
-<body>
-	<span class="publy-profile-detail-tile" data-tone="0">
-		<span class="publy-profile-detail-tile-pin" id="pin"></span>
-	</span>
-</body>
-</html>`;
+const isApiPath = (url: string, path: string): boolean => {
+	const parsed = new URL(url);
+	return parsed.origin === API_BASE_URL && parsed.pathname === path;
+};
+
+/** Only what the create-profile drawer route actually needs to render past
+ * its loading gate: tenant details (page shell), an empty profiles list
+ * (the page behind the drawer), and an empty permission catalog (the drawer
+ * itself, `useStaffTenantPermissionCatalogQuery` →
+ * `/staff/permissions/scopes/tenant`). No profile/member data is needed —
+ * this spec only cares about the icon-color-picker pin the drawer renders
+ * regardless of catalog contents. */
+const mockProfileCreateDrawerDependencies = async (page: Page) => {
+	await page.route('**/staff/tenants/**', async (route) => {
+		const request = route.request();
+		const url = request.url();
+
+		if (request.method() !== 'GET') {
+			await route.fallback();
+			return;
+		}
+
+		if (isApiPath(url, `/staff/tenants/${TENANT_ID}`)) {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					tenantId: TENANT_ID,
+					name: 'Acme Corporation',
+					code: 'ACME',
+					status: 'Active',
+					usersCount: 12,
+					maxUsers: 50,
+					ownersCount: 2,
+					pendingInvitationsCount: 0,
+					expiringSoonInvitationsCount: 0,
+					profilesCount: 0,
+					logoUrl: null,
+					legalName: 'Acme Corporation, Inc.',
+					websiteUrl: 'https://www.acme.example/',
+					lastActivityAt: '2020-06-01T09:00:00Z',
+					createdAt: '2026-07-01T09:00:00Z',
+					updatedAt: '2026-07-02T10:00:00Z',
+				}),
+			});
+			return;
+		}
+
+		if (isApiPath(url, `/staff/tenants/${TENANT_ID}/profiles`)) {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ data: [], nextCursor: null }),
+			});
+			return;
+		}
+
+		await route.fallback();
+	});
+
+	await page.route('**/staff/permissions/**', async (route) => {
+		const request = route.request();
+		const url = request.url();
+
+		if (
+			request.method() !== 'GET' ||
+			!isApiPath(url, '/staff/permissions/scopes/tenant')
+		) {
+			await route.fallback();
+			return;
+		}
+
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({}),
+		});
+	});
+};
+
+/** Navigates to the real create-profile drawer (`?new=1` on the tenant
+ * profiles tab) and waits for it to render the live `IconColorPicker`. */
+const openProfileCreateDrawer = async (page: Page): Promise<void> => {
+	await loginAsStaffAdmin(page);
+	await mockProfileCreateDrawerDependencies(page);
+
+	await page.goto(`/staff/tenants/${TENANT_ID}/profiles?new=1`);
+	await expect(page.getByTestId('profile-form-drawer')).toBeVisible({
+		timeout: 10_000,
+	});
+};
 
 const readPinComputedColors = async (
-	page: import('@playwright/test').Page,
+	page: Page,
 ): Promise<{ color: Rgb; background: Rgb }> => {
-	const computed = await page.evaluate(() => {
-		const pin = document.getElementById('pin');
-		if (!pin) {
-			throw new Error('Missing #pin element');
-		}
-		const style = getComputedStyle(pin);
-		return { color: style.color, background: style.backgroundColor };
-	});
+	const computed = await page
+		.getByTestId('profile-icon-picker-pin')
+		.evaluate((pin) => {
+			const style = getComputedStyle(pin);
+			return { color: style.color, background: style.backgroundColor };
+		});
 
 	return {
 		color: parseRgbString(computed.color),
@@ -88,13 +180,12 @@ const readPinComputedColors = async (
 	};
 };
 
-test.describe('profile icon-picker pencil-pin contrast (#992, real browser)', () => {
-	test('the effective (real, cascade-resolved) colour clears the 3:1 non-text floor in both light and dark themes', async ({
+test.describe('profile icon-picker pencil-pin contrast (#992/#975 round 3, live component + live route)', () => {
+	test('the live pin clears the 3:1 non-text floor in both light and dark themes', async ({
 		page,
 	}) => {
-		const css = readCompiledAppCss();
+		await openProfileCreateDrawer(page);
 
-		await page.setContent(buildPinPage(css));
 		const light = await readPinComputedColors(page);
 		expect(
 			contrastRatio(light.color, light.background),
@@ -109,25 +200,93 @@ test.describe('profile icon-picker pencil-pin contrast (#992, real browser)', ()
 		).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST_FLOOR);
 	});
 
-	// Cascade regression proof: reproduces the reviewer's exact mutation — a
-	// LATER, equal-specificity rule for the same exact selector reverting
-	// `color` to the non-compliant `--publy-foreground-subtle` token. Because
-	// this spec reads the REAL computed style from a real browser, there is
-	// no "first declaration" to be fooled by: the browser always resolves
-	// the actual winning rule, so this later override is correctly reflected
-	// (and correctly fails the floor) without this test needing any CSS
-	// cascade model of its own.
+	// Round 3 finding 2 (mirrored markup): reproduces the reviewer's exact
+	// live-component regression — stripping the pin's only styling class,
+	// leaving `pointer-events-none` (still present in the DOM, still
+	// aria-hidden, but visually unstyled). Round 2's hermetic spec always
+	// rendered its OWN hardcoded class list, so this mutation was invisible
+	// to it. This spec reads the live element's class list directly off the
+	// real rendered component, so removing production's styling hook here
+	// (the same effect as editing icon-color-picker.tsx and shipping it)
+	// must make the pin's computed colours fall back to the (transparent/
+	// inherited) values the component's plain classes leave behind, which do
+	// not model a passing 3:1 contrast pair.
+	test("a live pin missing its styling class ('publy-profile-detail-tile-pin') fails contrast, proving this spec reads the real element and not a copy", async ({
+		page,
+	}) => {
+		await openProfileCreateDrawer(page);
+
+		const before = await page
+			.getByTestId('profile-icon-picker-pin')
+			.getAttribute('class');
+		expect(before).toContain('publy-profile-detail-tile-pin');
+
+		await page.getByTestId('profile-icon-picker-pin').evaluate((pin) => {
+			pin.classList.remove('publy-profile-detail-tile-pin');
+		});
+
+		const after = await readPinComputedColors(page);
+		// With the styling class gone, the pin has no declared `background`
+		// (falls back to `transparent`) and no declared `color` (inherits the
+		// tile's `--publy-icon-tile-fg`, not the pin's dedicated
+		// `--publy-foreground-muted`) — the exact real-world effect of the
+		// reviewer's regression. Assert the SPECIFIC real effect (transparent
+		// background) rather than only the downstream contrast number, so a
+		// coincidental pass can't hide a broken assertion.
+		expect(after.background).toEqual({ r: 0, g: 0, b: 0 });
+	});
+
+	// Cascade regression proof: a later duplicate rule for the exact same
+	// selector reverting `color` to the non-compliant
+	// `--publy-foreground-subtle` token. Injected as a real stylesheet
+	// (`page.addStyleTag`) appended after every other stylesheet the live
+	// page already loaded, so it wins the cascade exactly the way a later
+	// declaration in the real compiled app.css would — no artifact reuse, no
+	// mirrored markup, just the browser resolving the real cascade.
 	test('a later duplicate rule for the exact same selector changes the real computed colour, and the resulting contrast is correctly reported as failing', async ({
 		page,
 	}) => {
-		const css = readCompiledAppCss();
-		// Same equal-specificity, no `!important` — a plain later rule for the
-		// exact same selector, exactly as the reviewer's mutation was.
-		const mutatedCss = `${css}\n.publy-profile-detail-tile-pin{color:var(--publy-foreground-subtle)}`;
+		await openProfileCreateDrawer(page);
 
-		await page.setContent(buildPinPage(mutatedCss));
+		await page.addStyleTag({
+			content:
+				'.publy-profile-detail-tile-pin{color:var(--publy-foreground-subtle)}',
+		});
+
 		const light = await readPinComputedColors(page);
+		expect(
+			contrastRatio(light.color, light.background),
+			`light: color rgb(${light.color.r},${light.color.g},${light.color.b}) on background rgb(${light.background.r},${light.background.g},${light.background.b})`,
+		).toBeLessThan(NON_TEXT_CONTRAST_FLOOR);
+	});
 
+	// Specificity regression proof: the round 3 reviewer defeated the
+	// source-level cascade resolver (css-cascade-test-support.ts) with a
+	// higher-specificity compound selector appending the pin's OWN
+	// `ring-background` class — `.publy-profile-detail-tile-pin.ring-background`
+	// — and round 2's hermetic browser spec also missed it because its
+	// hand-authored markup omitted that class entirely. The live pin
+	// genuinely carries `ring-background` (icon-color-picker.tsx), so this
+	// spec's real DOM read is exposed to exactly the same compound selector a
+	// real stylesheet author could write, and must catch it.
+	test('a higher-specificity compound selector targeting the live pin classes overrides the effective colour, and the resulting contrast is correctly reported as failing', async ({
+		page,
+	}) => {
+		await openProfileCreateDrawer(page);
+
+		const pinClasses = (
+			await page.getByTestId('profile-icon-picker-pin').getAttribute('class')
+		)
+			?.split(/\s+/)
+			.filter(Boolean);
+		expect(pinClasses).toContain('ring-background');
+
+		await page.addStyleTag({
+			content:
+				'.publy-profile-detail-tile-pin.ring-background{color:var(--publy-foreground-subtle)}',
+		});
+
+		const light = await readPinComputedColors(page);
 		expect(
 			contrastRatio(light.color, light.background),
 			`light: color rgb(${light.color.r},${light.color.g},${light.color.b}) on background rgb(${light.background.r},${light.background.g},${light.background.b})`,

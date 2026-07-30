@@ -5,17 +5,16 @@ import { STAFF_ADMIN_STORAGE_STATE } from './e2e/helpers/storage-state';
 const faultSpecs = ['**/auth-error.spec.ts', '**/log-leak.spec.ts'];
 const hermeticCounterSpecs = ['**/request-counter.spec.ts'];
 const authSetupSpecs = ['**/auth.setup.ts'];
-// These specs render a real, app-independent `page.setContent()` page — the
-// REAL compiled production
-// CSS (`dist/client/assets/*.css`, built on demand if missing) plus markup
-// mirroring the real components' rendered classes — without a live login,
-// backend, or docker-compose stack. They must not depend on `setup` and must
-// not also run under `chromium`.
-const hermeticSourceSpecs = [
-	'**/breadcrumb-entity-name-truncation.spec.ts',
-	'**/profile-icon-picker-pin-contrast.spec.ts',
-	'**/profile-icon-picker-pin-geometry.spec.ts',
-];
+// #973 review round 3: this spec renders a real, app-independent
+// `page.setContent()` page — the REAL compiled production CSS
+// (`dist/client/assets/*.css`, built on demand if missing) plus markup
+// mirroring the real app-shell/breadcrumb components' rendered classes — to
+// get a genuine Chromium `getComputedStyle()`/`scrollWidth`/`clientWidth`
+// reading without a live login, backend, or docker-compose stack. Same
+// pattern as `feat/ui-profile-batch`'s `chromium-hermetic-source` project
+// (#992 review round 2) — kept as one convention rather than two. Must not
+// depend on `setup` and must not also run under `chromium`.
+const hermeticSourceSpecs = ['**/breadcrumb-entity-name-truncation.spec.ts'];
 const isCiShard = process.env.PLAYWRIGHT_CI_SHARD === 'true';
 
 export default defineConfig({

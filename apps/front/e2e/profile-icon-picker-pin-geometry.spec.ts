@@ -1,33 +1,31 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { readCompiledAppCss } from './helpers/compiled-app-css';
+import { API_BASE_URL } from './helpers/api';
+import { loginAsStaffAdmin } from './helpers/login';
 
 /**
- * #992 review round 2, IMPORTANT finding C. Issue #992 requires the pencil
- * pin to overhang the tile's bottom-right corner ("as in the mockup") and
- * separately names overflow clipping as the real risk: the tile's row
- * (icon-color-picker.tsx) sits inside `DrawerBody`
- * (drawer.tsx, `.publy-drawer-body` → `overflow-y-auto`), and per spec a
- * non-`visible` value on one axis forces the OTHER axis to compute to
- * `auto` rather than staying `visible` — so an overhanging element can be
- * clipped, or provoke an unwanted horizontal scrollbar.
+ * #992/#975 review round 3, BLOCKER + IMPORTANT findings 1-3. See
+ * profile-icon-picker-pin-contrast.spec.ts's header for the full story: round
+ * 2's version of this spec rendered a hand-authored `page.setContent()` page
+ * mirroring the drawer/tile/pin markup rather than the live components, and
+ * read whatever `dist/client/assets/app-*.css` happened to already be on disk
+ * with no freshness check — both proven false-green by the round 3 reviewer
+ * (removing the live pin's styling class stayed green; a `right:999px`
+ * mutation stayed green against a stale `dist/` asset). It also never ran in
+ * CI (assigned to an unselected `chromium-hermetic-source` project).
  *
- * jsdom (the vitest-side component test, icon-color-picker.test.tsx) has no
- * layout engine at all, so it can only assert the pin's DOM
- * existence/semantics — never its geometry. This spec is the real-browser
- * geometry/clipping proof the issue explicitly asked for. It renders a
- * `page.setContent()` page built from the REAL compiled production CSS
- * (dist/client/assets/app-*.css — see helpers/compiled-app-css.ts) plus
- * markup that mirrors the actual rendered structure and class names of:
- *  - the trigger + pin (icon-color-picker.tsx)
- *  - the surrounding grid row + hint text
- *    (_profile-edit-details-drawer.tsx / _profile-form-drawer.tsx, which
- *    share the identical structure)
- *  - the drawer chrome the row actually sits inside
- *    (`.publy-drawer[data-width='736']` / `.publy-drawer-body`, drawer.tsx)
- * No login, backend, or docker-compose stack is needed — see the
- * `chromium-hermetic-source` Playwright project in playwright.config.ts.
+ * This version opens the REAL create-profile drawer
+ * (`/staff/tenants/$tenantId/profiles?new=1`) against the real
+ * docker-compose e2e stack — the actual `IconColorPicker` trigger + pin
+ * inside the actual `Drawer`/`DrawerBody` chrome, styled by whatever CSS the
+ * real `front` container (built fresh from current source by the same CI job
+ * that runs this spec) actually serves. Only the tenant/profiles/permission-
+ * catalog API responses are mocked. It runs as the ordinary `chromium`
+ * Playwright project, which CI already selects and already blocks the build
+ * on.
  */
+
+const TENANT_ID = '0197b8f0-3333-7ccc-8ccc-cccccccccccc';
 
 type Rect = { left: number; right: number; top: number; bottom: number };
 
@@ -43,49 +41,93 @@ type Measurements = {
 	pinCenterIsPainted: boolean;
 };
 
-const buildDrawerPage = (css: string): string => `<!doctype html>
-<html>
-<head><style>${css}</style></head>
-<body>
-	<div class="publy-drawer" data-width="736">
-		<div class="publy-drawer-body" id="drawer-body">
-			<div class="space-y-1.5">
-				<div class="grid items-end gap-3 sm:grid-cols-[auto_minmax(0,1fr)]">
-					<button
-						type="button"
-						id="tile"
-						class="publy-profile-detail-tile cursor-pointer transition-[filter,box-shadow] hover:brightness-95 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
-						data-tone="0"
-					>
-						<span aria-hidden="true" class="size-6"></span>
-						<span
-							aria-hidden="true"
-							id="pin"
-							data-testid="profile-icon-picker-pin"
-							class="publy-profile-detail-tile-pin pointer-events-none ring-2 ring-background"
-						></span>
-					</button>
-					<div class="space-y-1.5">
-						<label class="flex items-center gap-2 text-[13px] leading-none font-medium select-none">Profile name</label>
-						<input
-							id="name-input"
-							value="Example profile"
-							class="md:h-9 h-11 w-full min-w-0 rounded-[var(--publy-radius-input)] border border-border bg-input/50 px-3.5 py-1 text-base shadow-[var(--publy-shadow-input)] outline-none md:text-[13px]"
-						/>
-					</div>
-				</div>
-				<div class="flex min-h-6 items-center justify-between gap-3 text-xs sm:pl-[68px]">
-					<p id="hint" class="text-muted-foreground">Tap the tile to change icon &amp; color</p>
-				</div>
-			</div>
-			<div class="space-y-1.5">
-				<label class="flex items-center gap-2 text-[13px] leading-none font-medium select-none">Description</label>
-				<textarea class="w-full min-w-0 rounded-[var(--publy-radius-input)] border border-border bg-input/50 px-3.5 py-2 text-base" rows="5"></textarea>
-			</div>
-		</div>
-	</div>
-</body>
-</html>`;
+const isApiPath = (url: string, path: string): boolean => {
+	const parsed = new URL(url);
+	return parsed.origin === API_BASE_URL && parsed.pathname === path;
+};
+
+/** Same minimal mock set as the contrast spec's sibling helper — tenant
+ * details (page shell), an empty profiles list, and an empty permission
+ * catalog. Duplicated rather than shared: each spec file owns its exact
+ * network contract, mirroring how every other e2e spec in this repo already
+ * defines its own `mock*` helper rather than importing one across files. */
+const mockProfileCreateDrawerDependencies = async (page: Page) => {
+	await page.route('**/staff/tenants/**', async (route) => {
+		const request = route.request();
+		const url = request.url();
+
+		if (request.method() !== 'GET') {
+			await route.fallback();
+			return;
+		}
+
+		if (isApiPath(url, `/staff/tenants/${TENANT_ID}`)) {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					tenantId: TENANT_ID,
+					name: 'Acme Corporation',
+					code: 'ACME',
+					status: 'Active',
+					usersCount: 12,
+					maxUsers: 50,
+					ownersCount: 2,
+					pendingInvitationsCount: 0,
+					expiringSoonInvitationsCount: 0,
+					profilesCount: 0,
+					logoUrl: null,
+					legalName: 'Acme Corporation, Inc.',
+					websiteUrl: 'https://www.acme.example/',
+					lastActivityAt: '2020-06-01T09:00:00Z',
+					createdAt: '2026-07-01T09:00:00Z',
+					updatedAt: '2026-07-02T10:00:00Z',
+				}),
+			});
+			return;
+		}
+
+		if (isApiPath(url, `/staff/tenants/${TENANT_ID}/profiles`)) {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ data: [], nextCursor: null }),
+			});
+			return;
+		}
+
+		await route.fallback();
+	});
+
+	await page.route('**/staff/permissions/**', async (route) => {
+		const request = route.request();
+		const url = request.url();
+
+		if (
+			request.method() !== 'GET' ||
+			!isApiPath(url, '/staff/permissions/scopes/tenant')
+		) {
+			await route.fallback();
+			return;
+		}
+
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({}),
+		});
+	});
+};
+
+const openProfileCreateDrawer = async (page: Page): Promise<void> => {
+	await loginAsStaffAdmin(page);
+	await mockProfileCreateDrawerDependencies(page);
+
+	await page.goto(`/staff/tenants/${TENANT_ID}/profiles?new=1`);
+	await expect(page.getByTestId('profile-form-drawer')).toBeVisible({
+		timeout: 10_000,
+	});
+};
 
 const readMeasurements = (page: Page): Promise<Measurements> =>
 	page.evaluate(() => {
@@ -98,22 +140,36 @@ const readMeasurements = (page: Page): Promise<Measurements> =>
 				bottom: rect.bottom,
 			};
 		};
-		const requireEl = (id: string): HTMLElement => {
-			const el = document.getElementById(id);
-			if (!el) {
-				throw new Error(`Missing #${id}`);
-			}
-			return el;
-		};
 
-		const tileEl = requireEl('tile');
-		const pinEl = requireEl('pin');
-		const nameInputEl = requireEl('name-input');
-		const hintEl = requireEl('hint');
-		const drawerBodyEl = requireEl('drawer-body');
+		const tileEl = document.querySelector('.publy-profile-detail-tile');
+		const pinEl = document.querySelector(
+			'[data-testid="profile-icon-picker-pin"]',
+		);
 		const drawerEl = document.querySelector('.publy-drawer');
-		if (!drawerEl) {
-			throw new Error('Missing .publy-drawer');
+		const drawerBodyEl = document.querySelector('.publy-drawer-body');
+
+		if (!tileEl || !pinEl || !drawerEl || !drawerBodyEl) {
+			throw new Error(
+				'Missing one of tile/pin/drawer/drawer-body in the live DOM',
+			);
+		}
+
+		// The name field sits in the same grid row as the tile
+		// (_profile-form-drawer.tsx / _profile-edit-details-drawer.tsx: `grid
+		// items-end gap-3 sm:grid-cols-[auto_minmax(0,1fr)]`) — locate it
+		// structurally (the first input in that row) rather than by a
+		// guessable id, since Field.Text generates its input id via `useId()`.
+		const row = tileEl.closest('.grid');
+		const nameField = row?.querySelector('input');
+		if (!nameField) {
+			throw new Error('Missing the profile name input');
+		}
+
+		// The hint paragraph is the next block after the tile's grid row,
+		// inside the same `space-y-1.5` wrapper.
+		const hintEl = row?.parentElement?.querySelector('p');
+		if (!hintEl) {
+			throw new Error('Missing the icon-picker hint paragraph');
 		}
 
 		const pinRect = pinEl.getBoundingClientRect();
@@ -122,39 +178,26 @@ const readMeasurements = (page: Page): Promise<Measurements> =>
 		// The pin is intentionally `pointer-events: none` in production (it
 		// must not be hit-testable — a nested interactive element would be
 		// invalid HTML inside the trigger button, per the issue). That also
-		// makes it invisible to elementFromPoint()/hit-testing by design, so
-		// a hit test at its default pointer-events value can never resolve to
-		// it regardless of whether it is clipped or covered. Toggle
-		// pointer-events on just for this measurement to ask the real
-		// question — "is this pixel actually part of the pin's painted,
-		// unclipped box" — then restore it so the rest of the measurement
-		// reflects the real production styling.
-		//
-		// The hit test point is the pin's own CENTER, not a point near the
-		// tile's square corner: the pin is `border-radius: circular`, and a
-		// circle inscribed in its square bounding box does not cover that
-		// box's corners at all (a circle only reaches its bounding box at
-		// each edge's midpoint) — a corner-adjacent point can sit outside the
-		// visible disc while still being inside the *bounding box* the
-		// overhang/containment checks below use. The bounding-box comparisons
-		// are what actually correspond to ancestor overflow-clipping (which
-		// clips boxes, not the circular paint), so they are the real
-		// authority on "does the overhang extend past the tile and stay
-		// unclipped"; this hit test only needs to confirm the pin is
-		// genuinely painted there at all (not `display: none`, not covered by
-		// a later sibling), which its center unambiguously proves.
-		const originalPointerEvents = pinEl.style.pointerEvents;
-		pinEl.style.pointerEvents = 'auto';
+		// makes it invisible to elementFromPoint()/hit-testing by design, so a
+		// hit test at its default pointer-events value can never resolve to it
+		// regardless of whether it is clipped or covered. Toggle
+		// pointer-events on just for this measurement to ask the real question
+		// — "is this pixel actually part of the pin's painted, unclipped box"
+		// — then restore it so the rest of the measurement reflects the real
+		// production styling.
+		const pinElement = pinEl as HTMLElement;
+		const originalPointerEvents = pinElement.style.pointerEvents;
+		pinElement.style.pointerEvents = 'auto';
 		const elementAtPinCenter = document.elementFromPoint(
 			pinCenterX,
 			pinCenterY,
 		);
-		pinEl.style.pointerEvents = originalPointerEvents;
+		pinElement.style.pointerEvents = originalPointerEvents;
 
 		return {
 			tile: rectOf(tileEl),
 			pin: rectOf(pinEl),
-			nameInput: rectOf(nameInputEl),
+			nameInput: rectOf(nameField),
 			hint: rectOf(hintEl),
 			drawer: rectOf(drawerEl),
 			drawerBody: rectOf(drawerBodyEl),
@@ -169,7 +212,7 @@ const rectsIntersect = (a: Rect, b: Rect): boolean =>
 	a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
 
 /** Runs the full set of geometry/clipping assertions the issue asked for
- * against whatever CSS/viewport the caller has already set up on `page`. */
+ * against the live drawer already open on `page`. */
 const assertPinOverhangsAndIsNotClipped = async (
 	page: Page,
 	{ epsilon = 0.5 }: { epsilon?: number } = {},
@@ -240,42 +283,65 @@ const assertPinOverhangsAndIsNotClipped = async (
 	);
 };
 
-test.describe('profile icon-picker pencil-pin geometry (#992, real browser)', () => {
+test.describe('profile icon-picker pencil-pin geometry (#992/#975 round 3, live component + live route)', () => {
 	test('the pin overhangs the tile, is not clipped by the drawer/drawer-body, and does not collide with neighbours (desktop width)', async ({
 		page,
 	}) => {
-		const css = readCompiledAppCss();
 		await page.setViewportSize({ width: 1280, height: 800 });
-		await page.setContent(buildDrawerPage(css));
+		await openProfileCreateDrawer(page);
 
 		await assertPinOverhangsAndIsNotClipped(page);
 	});
 
-	// Issue #992's own callout: "Check it at narrow widths too, where the
-	// grid collapses to one column."
+	// Issue #992's own callout: "Check it at narrow widths too, where the grid
+	// collapses to one column."
 	test('still overhangs and is not clipped at the narrow single-column breakpoint', async ({
 		page,
 	}) => {
-		const css = readCompiledAppCss();
 		await page.setViewportSize({ width: 375, height: 800 });
-		await page.setContent(buildDrawerPage(css));
+		await openProfileCreateDrawer(page);
 
 		await assertPinOverhangsAndIsNotClipped(page);
 	});
 
-	// Geometry regression proof: reproduces the reviewer's exact mutation —
-	// `right: 0` (this branch's `right: -4px`) changed to `right: 999px`,
-	// displacing the pin far from the tile's corner. Both
-	// icon-color-picker.test.tsx and profile-icon-picker-pin-contrast.test.ts
-	// stayed green under this exact mutation (9/9) because neither asserts
-	// geometry — this spec is the one that must fail.
+	// Round 3 finding 3 (compiled CSS freshness): reproduces the reviewer's
+	// exact mutation — `right: 0` (this branch's `right: -4px`) changed to
+	// `right: 999px` — as a real stylesheet injected via `page.addStyleTag`
+	// AFTER the live page has already loaded its real, server-served
+	// stylesheet. There is no separate `dist/` artifact this spec reads: the
+	// CSS driving the baseline assertions above came straight from the
+	// running `front` container's HTTP response, so there is nothing here
+	// that can go stale independently of what that container actually
+	// serves. This override rule wins the cascade the same way a later
+	// declaration in the real compiled app.css would.
 	test('a right:999px mutation (displacing the pin far from the corner) is caught', async ({
 		page,
 	}) => {
-		const css = readCompiledAppCss();
-		const mutatedCss = `${css}\n.publy-profile-detail-tile-pin{right:999px}`;
 		await page.setViewportSize({ width: 1280, height: 800 });
-		await page.setContent(buildDrawerPage(mutatedCss));
+		await openProfileCreateDrawer(page);
+
+		await page.addStyleTag({
+			content: '.publy-profile-detail-tile-pin{right:999px}',
+		});
+
+		await expect(assertPinOverhangsAndIsNotClipped(page)).rejects.toThrow();
+	});
+
+	// Round 3 finding 2 (mirrored markup): reproduces the reviewer's exact
+	// live-component regression — stripping the pin's only styling class.
+	// Round 2's hermetic spec always rendered its own hardcoded class list,
+	// so this mutation was invisible to it; this spec measures the real
+	// rendered element, so the same DOM surgery a source edit + rebuild would
+	// produce is directly visible here.
+	test("removing the live pin's styling class is caught (no overhang left to measure)", async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 1280, height: 800 });
+		await openProfileCreateDrawer(page);
+
+		await page.getByTestId('profile-icon-picker-pin').evaluate((pin) => {
+			pin.classList.remove('publy-profile-detail-tile-pin');
+		});
 
 		await expect(assertPinOverhangsAndIsNotClipped(page)).rejects.toThrow();
 	});
