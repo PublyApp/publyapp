@@ -1,6 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { readCompiledAppCss } from './helpers/compiled-app-css';
+import {
+	closeEntityCrumbRenderer,
+	renderEntityCrumbMarkup,
+} from './helpers/render-entity-crumb';
 
 /**
  * #973 PR review round 3, IMPORTANT finding. `breadcrumb-contract.test.tsx`'s
@@ -23,17 +27,23 @@ import { readCompiledAppCss } from './helpers/compiled-app-css';
  * as reference, not modified — see `chromium-hermetic-source` below), it
  * renders a `page.setContent()` page built from the REAL compiled
  * production CSS (`dist/client/assets/app-*.css`, built on demand if
- * missing — see `helpers/compiled-app-css.ts`) plus markup mirroring the
- * real rendered structure and class names of:
- *  - the topbar shell (`app-shell.tsx`'s `.app-shell-workspace` grid,
- *    `.app-shell-topbar` flex row, `.app-shell-topbar-left` /
- *    `-right`)
- *  - the breadcrumb nav itself (`.app-shell-breadcrumbs`,
- *    `.app-shell-breadcrumb-link` / `-current` / `-chevron`, all real
- *    classes from `app-shell.tsx`'s breadcrumb render loop)
- *  - the entity name node `EntityCrumb` actually renders
- *    (`entity-crumb.tsx`: `<span class="block truncate" title={name}
- *    data-testid="app-shell-breadcrumb-entity-name">`)
+ * missing or stale — see `helpers/compiled-app-css.ts`) plus:
+ *  - hand-authored markup mirroring the topbar shell chrome around the
+ *    breadcrumb (`app-shell.tsx`'s `.app-shell-workspace` grid,
+ *    `.app-shell-topbar` flex row, `.app-shell-topbar-left` / `-right`,
+ *    `.app-shell-breadcrumbs`/`-link`/`-current`/`-chevron`) — this part is
+ *    layout scaffolding, not the component under test, so it stays
+ *    hand-written the way the rest of this file's shell markup does
+ *  - the entity name node ITSELF rendered by the REAL `EntityCrumb`
+ *    component via `react-dom/server`, through a Vite SSR module load
+ *    (`helpers/render-entity-crumb.ts` / `helpers/entity-crumb-render-
+ *    target.tsx` — see that pair's docstrings for why the render happens
+ *    through Vite's own module graph rather than a plain import), not a
+ *    hand-copied description of what it renders. #973 round-3 review proved
+ *    a hand-mirrored `<span class="block truncate">` stays green even after
+ *    `truncate` is deleted from the live `entity-crumb.tsx` — this closes
+ *    that: the class list and DOM shape embedded into the page below come
+ *    directly out of that file's JSX.
  *
  * No login, backend, or docker-compose stack is needed — see the
  * `chromium-hermetic-source` Playwright project in `playwright.config.ts`.
@@ -55,10 +65,13 @@ type Measurements = {
 
 const VIEWPORT = { width: 700, height: 800 };
 
-const buildShellPage = (
+const buildShellPage = async (
 	css: string,
 	entityName: string,
-): string => `<!doctype html>
+): Promise<string> => {
+	const entityCrumbMarkup = await renderEntityCrumbMarkup(entityName);
+
+	return `<!doctype html>
 <html>
 <head><style>${css}</style></head>
 <body>
@@ -73,12 +86,7 @@ const buildShellPage = (
 						<a class="app-shell-breadcrumb-link" href="#">Tenants</a>
 						<svg class="app-shell-breadcrumb-chevron" aria-hidden="true" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"></path></svg>
 						<span aria-current="page" class="app-shell-breadcrumb-current">
-							<span
-								class="block truncate"
-								title="${entityName}"
-								id="entity-name"
-								data-testid="app-shell-breadcrumb-entity-name"
-							>${entityName}</span>
+							${entityCrumbMarkup}
 						</span>
 					</nav>
 				</div>
@@ -95,12 +103,17 @@ const buildShellPage = (
 	</div>
 </body>
 </html>`;
+};
 
 const readMeasurements = (page: Page): Promise<Measurements> =>
 	page.evaluate(() => {
-		const el = document.getElementById('entity-name');
+		const el = document.querySelector(
+			'[data-testid="app-shell-breadcrumb-entity-name"]',
+		);
 		if (!el) {
-			throw new Error('Missing #entity-name');
+			throw new Error(
+				'Missing [data-testid="app-shell-breadcrumb-entity-name"]',
+			);
 		}
 
 		return {
@@ -122,7 +135,7 @@ const assertLongNameClipsAndShortNameDoesNot = async (
 ): Promise<void> => {
 	await page.setViewportSize(VIEWPORT);
 
-	await page.setContent(buildShellPage(css, LONG_NAME));
+	await page.setContent(await buildShellPage(css, LONG_NAME));
 	const long = await readMeasurements(page);
 
 	// The full value must still be recoverable even though the visible text
@@ -138,7 +151,7 @@ const assertLongNameClipsAndShortNameDoesNot = async (
 		'a long name must overflow its own rendered box (real clipping, not just the truncate class being present)',
 	).toBeGreaterThan(long.clientWidth);
 
-	await page.setContent(buildShellPage(css, SHORT_NAME));
+	await page.setContent(await buildShellPage(css, SHORT_NAME));
 	const short = await readMeasurements(page);
 
 	expect(short.title).toBe(SHORT_NAME);
@@ -150,6 +163,10 @@ const assertLongNameClipsAndShortNameDoesNot = async (
 };
 
 test.describe('breadcrumb entity-name truncation geometry (#973, real browser)', () => {
+	test.afterAll(async () => {
+		await closeEntityCrumbRenderer();
+	});
+
 	test('a long entity name is genuinely clipped by the real compiled CSS; a short one is not', async ({
 		page,
 	}) => {
@@ -159,17 +176,20 @@ test.describe('breadcrumb entity-name truncation geometry (#973, real browser)',
 
 	/**
 	 * Geometry regression proof, mirroring `profile-icon-picker-pin-geometry
-	 * .spec.ts`'s own mutation test: if a future change silently regressed
-	 * `EntityCrumb` back to its pre-#973 bare-text-fragment rendering (no
-	 * `truncate`, no `overflow` constraint), THIS is the test that must go
-	 * red — the jsdom test only asserts the `truncate` classNAME is present
-	 * in the string, so it cannot see this. Rather than editing the
-	 * component (out of scope for a test-only remediation and would leave
-	 * the working tree dirty), the same effect is reproduced by appending a
-	 * CSS rule that wins the cascade and reverts exactly the three
-	 * declarations `truncate` establishes
-	 * (`overflow: hidden; text-overflow: ellipsis; white-space: nowrap`),
-	 * targeting the exact real `data-testid` the production node carries.
+	 * .spec.ts`'s own mutation test. The baseline test above already renders
+	 * the real `EntityCrumb` component (see `helpers/render-entity-crumb
+	 * .tsx`), so a regression that removes `truncate` from `entity-crumb.tsx`
+	 * itself is already caught there — no CSS mutation needed for that case.
+	 * This second test covers the complementary failure: a CASCADE-level
+	 * regression where the component still emits the right class names but
+	 * something else (an app.css edit, a competing higher-specificity rule)
+	 * neutralizes what those classes are supposed to do. Rather than
+	 * editing source to prove this (would leave the working tree dirty for
+	 * a test-only check), the same effect is reproduced by appending a CSS
+	 * rule that wins the cascade and reverts exactly the three declarations
+	 * `truncate` establishes (`overflow: hidden; text-overflow: ellipsis;
+	 * white-space: nowrap`), targeting the exact real `data-testid` the
+	 * production node carries.
 	 */
 	test('is caught if truncation is removed (CSS-mutation proof)', async ({
 		page,
