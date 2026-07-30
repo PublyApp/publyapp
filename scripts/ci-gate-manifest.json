@@ -56,6 +56,11 @@
 			"mirror": null,
 			"reason": "GitHub-only: this is the #1017 aggregate required-check step, which reads the needs context (via toJSON(needs)) across the workflow's other jobs. Round-4 review fix: the round-3 shape now additionally correlates skipped work with the classifier's own verdict — asserts needs.changes.result is exactly success, requires needs.changes.outputs.relevant to be exactly true or false (failing closed on absent/empty/malformed, since GitHub can omit an output entirely), allows skipped only when relevant is false, and requires success (not skipped) from every required job when relevant is true. Previously every skipped result passed unconditionally, so changes=success with an absent relevant output and every heavy job skipped reported green. scripts/ci-gate-aggregation.test.mjs extracts and executes this exact run: body (parsed from the real workflow, not restated) against every documented result combination plus every fail-open shape a reviewer found. That context only exists inside a GitHub Actions run, so this step itself stays GitHub-only/unmirrored locally."
 		},
+		"docs-archive.yml::gate::Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)": {
+			"hash": "4f03457ecbb68642",
+			"mirror": null,
+			"reason": "GitHub-only: round-5 BLOCKER fix. Reads steps.check-required-jobs.outcome, which GitHub computes BEFORE continue-on-error is applied (only .conclusion is rewritten afterward), so a continue-on-error added to the required-jobs check step cannot mask this step's own view of whether that step actually succeeded. That `.outcome` context only exists inside a real Actions run, so this stays GitHub-only/unmirrored locally; scripts/check-ci-gate-structure.mjs pins that this exact step exists."
+		},
 		"front-ci.yml::changes::Checkout classifier from the base commit (not the PR's own copy)": {
 			"hash": "1b7e214faa101c26",
 			"mirror": null,
@@ -196,6 +201,11 @@
 			"mirror": null,
 			"reason": "GitHub-only: this is the #1017 aggregate required-check step, which reads the needs context (via toJSON(needs)) across the workflow's other jobs. Round-4 review fix: the round-3 shape now additionally correlates skipped work with the classifier's own verdict — asserts needs.changes.result is exactly success, requires needs.changes.outputs.relevant to be exactly true or false (failing closed on absent/empty/malformed, since GitHub can omit an output entirely), allows skipped only when relevant is false, and requires success (not skipped) from every required job when relevant is true. Previously every skipped result passed unconditionally, so changes=success with an absent relevant output and every heavy job skipped reported green. scripts/ci-gate-aggregation.test.mjs extracts and executes this exact run: body (parsed from the real workflow, not restated) against every documented result combination plus every fail-open shape a reviewer found. That context only exists inside a GitHub Actions run, so this step itself stays GitHub-only/unmirrored locally."
 		},
+		"front-ci.yml::gate::Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)": {
+			"hash": "4f03457ecbb68642",
+			"mirror": null,
+			"reason": "GitHub-only: round-5 BLOCKER fix. Reads steps.check-required-jobs.outcome, which GitHub computes BEFORE continue-on-error is applied (only .conclusion is rewritten afterward), so a continue-on-error added to the required-jobs check step cannot mask this step's own view of whether that step actually succeeded. That `.outcome` context only exists inside a real Actions run, so this stays GitHub-only/unmirrored locally; scripts/check-ci-gate-structure.mjs pins that this exact step exists."
+		},
 		"front-e2e.yml::changes::Checkout classifier from the base commit (not the PR's own copy)": {
 			"hash": "1b7e214faa101c26",
 			"mirror": null,
@@ -320,6 +330,11 @@
 			"hash": "882f344edb8cc40a",
 			"mirror": null,
 			"reason": "GitHub-only: this is the #1017 aggregate required-check step, which reads the needs context (via toJSON(needs)) across the workflow's other jobs. Round-4 review fix: the round-3 shape now additionally correlates skipped work with the classifier's own verdict — asserts needs.changes.result is exactly success, requires needs.changes.outputs.relevant to be exactly true or false (failing closed on absent/empty/malformed, since GitHub can omit an output entirely), allows skipped only when relevant is false, and requires success (not skipped) from every required job when relevant is true. Previously every skipped result passed unconditionally, so changes=success with an absent relevant output and every heavy job skipped reported green. scripts/ci-gate-aggregation.test.mjs extracts and executes this exact run: body (parsed from the real workflow, not restated) against every documented result combination plus every fail-open shape a reviewer found. That context only exists inside a GitHub Actions run, so this step itself stays GitHub-only/unmirrored locally."
+		},
+		"front-e2e.yml::gate::Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)": {
+			"hash": "4f03457ecbb68642",
+			"mirror": null,
+			"reason": "GitHub-only: round-5 BLOCKER fix. Reads steps.check-required-jobs.outcome, which GitHub computes BEFORE continue-on-error is applied (only .conclusion is rewritten afterward), so a continue-on-error added to the required-jobs check step cannot mask this step's own view of whether that step actually succeeded. That `.outcome` context only exists inside a real Actions run, so this stays GitHub-only/unmirrored locally; scripts/check-ci-gate-structure.mjs pins that this exact step exists."
 		},
 		"old-front-characterization.yml::old-front-e2e::Checkout": {
 			"hash": "eae51f7d6ff9219e",
@@ -530,6 +545,11 @@
 			"hash": "882f344edb8cc40a",
 			"mirror": null,
 			"reason": "GitHub-only: this is the #1017 aggregate required-check step, which reads the needs context (via toJSON(needs)) across the workflow's other jobs. Round-4 review fix: the round-3 shape now additionally correlates skipped work with the classifier's own verdict — asserts needs.changes.result is exactly success, requires needs.changes.outputs.relevant to be exactly true or false (failing closed on absent/empty/malformed, since GitHub can omit an output entirely), allows skipped only when relevant is false, and requires success (not skipped) from every required job when relevant is true. Previously every skipped result passed unconditionally, so changes=success with an absent relevant output and every heavy job skipped reported green. scripts/ci-gate-aggregation.test.mjs extracts and executes this exact run: body (parsed from the real workflow, not restated) against every documented result combination plus every fail-open shape a reviewer found. That context only exists inside a GitHub Actions run, so this step itself stays GitHub-only/unmirrored locally."
+		},
+		"openapi-spec-drift.yml::gate::Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)": {
+			"hash": "4f03457ecbb68642",
+			"mirror": null,
+			"reason": "GitHub-only: round-5 BLOCKER fix. Reads steps.check-required-jobs.outcome, which GitHub computes BEFORE continue-on-error is applied (only .conclusion is rewritten afterward), so a continue-on-error added to the required-jobs check step cannot mask this step's own view of whether that step actually succeeded. That `.outcome` context only exists inside a real Actions run, so this stays GitHub-only/unmirrored locally; scripts/check-ci-gate-structure.mjs pins that this exact step exists."
 		},
 		"require-linked-issue.yml::require-linked-issue::Verify the PR closes an existing issue": {
 			"hash": "953c8ab22f544443",

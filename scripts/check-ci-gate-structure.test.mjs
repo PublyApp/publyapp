@@ -51,9 +51,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check required jobs
+        id: check-required-jobs
         env:
           NEEDS_JSON: \${{ toJSON(needs) }}
         run: echo "$NEEDS_JSON"
+      - name: Verify outcome
+        if: always()
+        run: |
+          outcome="\${{ steps.check-required-jobs.outcome }}"
+          if [ "$outcome" != "success" ]; then
+            exit 1
+          fi
 `;
 
 const fixtureConfig = [
@@ -180,9 +188,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check required jobs
+        id: check-required-jobs
         env:
           NEEDS_JSON: \${{ toJSON(needs) }}
         run: echo "$NEEDS_JSON"
+      - name: Verify outcome
+        if: always()
+        run: |
+          outcome="\${{ steps.check-required-jobs.outcome }}"
+          if [ "$outcome" != "success" ]; then
+            exit 1
+          fi
 `;
 	const rootDir = await buildFixture(broken);
 
@@ -500,9 +516,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check required jobs
+        id: check-required-jobs
         env:
           NEEDS_JSON: \${{ toJSON(needs) }}
         run: echo "$NEEDS_JSON"
+      - name: Verify outcome
+        if: always()
+        run: |
+          outcome="\${{ steps.check-required-jobs.outcome }}"
+          if [ "$outcome" != "success" ]; then
+            exit 1
+          fi
 `;
 
 const selfTestCoverageConfig = (selfTestCoverage) => [
@@ -592,7 +616,7 @@ test('ROUND 2 BLOCKER: a job added to gate.needs but omitted from a hand-written
 	// that wiring to exist, so a regression back to a hand-maintained map
 	// is caught structurally, not just via the drift-hash on the step body.
 	const broken = goodWorkflow.replace(
-		'      - name: Check required jobs\n        env:\n          NEEDS_JSON: \${{ toJSON(needs) }}\n        run: echo "$NEEDS_JSON"\n',
+		'      - name: Check required jobs\n        id: check-required-jobs\n        env:\n          NEEDS_JSON: \${{ toJSON(needs) }}\n        run: echo "$NEEDS_JSON"\n',
 		'      - name: Check required jobs\n        run: |\n          echo "${{ needs.changes.result }}"\n          echo "${{ needs.heavy.result }}"\n',
 	);
 	const rootDir = await buildFixture(broken);
@@ -602,8 +626,19 @@ test('ROUND 2 BLOCKER: a job added to gate.needs but omitted from a hand-written
 		workflows: fixtureConfig,
 	});
 
-	assert.equal(findings.length, 1);
-	assert.match(findings[0], /gate: expected a step with `env.NEEDS_JSON/);
+	assert.equal(findings.length, 2);
+	assert.ok(
+		findings.some((finding) =>
+			/gate: expected a step with `env.NEEDS_JSON/.test(finding),
+		),
+	);
+	assert.ok(
+		findings.some((finding) =>
+			/gate: expected the required-jobs check step .* to carry `id: check-required-jobs`/.test(
+				finding,
+			),
+		),
+	);
 });
 
 test('ROUND 4 BLOCKER: continue-on-error on a verification job itself is caught', async () => {
@@ -686,6 +721,92 @@ test('ROUND 5 BLOCKER: a workflow-level `defaults:` override is caught', async (
 });
 
 // ---------------------------------------------------------------------------
+// ROUND 5 BLOCKER: the required gate job itself can mask its own aggregation
+// failure the same way a verification job/step can — continue-on-error on
+// the gate job, or on any of its steps (including "Check required jobs"
+// itself), previously fell entirely outside the round-4 hard-reject (which
+// was scoped only to relevanceGatedJobs).
+// ---------------------------------------------------------------------------
+
+test('ROUND 5 BLOCKER: continue-on-error on the gate job itself is caught', async () => {
+	const broken = goodWorkflow.replace(
+		'gate:\n    name: fixture-gate\n    if: always()',
+		'gate:\n    name: fixture-gate\n    continue-on-error: true\n    if: always()',
+	);
+	const rootDir = await buildFixture(broken);
+
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
+
+	assert.equal(findings.length, 1);
+	assert.match(
+		findings[0],
+		/gate: the required gate job itself must not set `continue-on-error`/,
+	);
+});
+
+test('ROUND 5 BLOCKER (the exact reviewer reproduction): continue-on-error on the "Check required jobs" step is caught', async () => {
+	const broken = goodWorkflow.replace(
+		'      - name: Check required jobs\n        id: check-required-jobs\n',
+		'      - name: Check required jobs\n        id: check-required-jobs\n        continue-on-error: true\n',
+	);
+	const rootDir = await buildFixture(broken);
+
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
+
+	assert.equal(findings.length, 1);
+	assert.match(
+		findings[0],
+		/gate: step "Check required jobs" sets `continue-on-error`/,
+	);
+});
+
+test('ROUND 5 BLOCKER: dropping the "Check required jobs" step\'s pinned id is caught', async () => {
+	const broken = goodWorkflow.replace(
+		'      - name: Check required jobs\n        id: check-required-jobs\n',
+		'      - name: Check required jobs\n',
+	);
+	const rootDir = await buildFixture(broken);
+
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
+
+	assert.ok(
+		findings.some((finding) =>
+			/expected the required-jobs check step .* to carry `id: check-required-jobs`/.test(
+				finding,
+			),
+		),
+	);
+});
+
+test('ROUND 5 BLOCKER: removing the outcome-verification step is caught (this is the real enforcement, not just the hard-reject above)', async () => {
+	const broken = goodWorkflow.replace(
+		'      - name: Verify outcome\n        if: always()\n        run: |\n          outcome="${{ steps.check-required-jobs.outcome }}"\n          if [ "$outcome" != "success" ]; then\n            exit 1\n          fi\n',
+		'',
+	);
+	const rootDir = await buildFixture(broken);
+
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
+
+	assert.equal(findings.length, 1);
+	assert.match(
+		findings[0],
+		/gate: expected a step whose `run:` reads `steps\.check-required-jobs\.outcome`/,
+	);
+});
+
+// ---------------------------------------------------------------------------
 // ROUND 4: matrix + denominator pinning (front-e2e.yml's sharded `test` job).
 // A fixture separate from goodWorkflow/fixtureConfig above, since only
 // front-e2e.yml declares a `matrix` config entry.
@@ -740,9 +861,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check required jobs
+        id: check-required-jobs
         env:
           NEEDS_JSON: \${{ toJSON(needs) }}
         run: echo "$NEEDS_JSON"
+      - name: Verify outcome
+        if: always()
+        run: |
+          outcome="\${{ steps.check-required-jobs.outcome }}"
+          if [ "$outcome" != "success" ]; then
+            exit 1
+          fi
 `;
 
 const matrixFixtureConfig = [

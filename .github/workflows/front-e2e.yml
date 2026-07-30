@@ -399,6 +399,7 @@ jobs:
       # job's own `needs:` keyword, so there is no second list to omit an
       # entry from.
       - name: Check required jobs
+        id: check-required-jobs
         env:
           NEEDS_JSON: ${{ toJSON(needs) }}
         # Fail closed on anything outside the exact documented shape: a
@@ -470,3 +471,25 @@ jobs:
           fi
 
           echo "All required jobs passed, or were correctly skipped for a verified-irrelevant change."
+
+      # BLOCKER fix (round 5): `continue-on-error: true` added to the step
+      # above would make its reported CONCLUSION "success" even after it
+      # printed `::error::` and exited 1 — masking a correctly-detected
+      # aggregation failure the same way it masks a verification step's
+      # failure. GitHub computes a step's `outcome` BEFORE continue-on-error
+      # is applied (only `conclusion` is rewritten afterward), so reading
+      # `steps.check-required-jobs.outcome` here is not fooled by
+      # continue-on-error on that step. `if: always()` so this still runs
+      # (and still fails the job) even if the step above failed for real
+      # without continue-on-error. scripts/check-ci-gate-structure.mjs
+      # separately hard-rejects continue-on-error anywhere in this job, as
+      # an independent second layer.
+      - name: Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)
+        if: always()
+        run: |
+          outcome="${{ steps.check-required-jobs.outcome }}"
+
+          if [ "$outcome" != "success" ]; then
+            echo "::error::steps.check-required-jobs.outcome was \"$outcome\", not \"success\". continue-on-error can rewrite a step's CONCLUSION but not its OUTCOME, so a masked required-jobs check failure is still caught here."
+            exit 1
+          fi

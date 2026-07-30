@@ -115,6 +115,16 @@ import { parse } from 'yaml';
 //     the Playwright step's own `run:` now starts with `set -euo pipefail`
 //     so fail-fast is a property of the script itself, independent of
 //     whatever shell default is (or later becomes) in effect around it.
+//   - `continue-on-error: true` on the required gate job's own "Check
+//     required jobs" step masks a correctly-detected aggregation failure the
+//     exact same way it masks a verification step's failure — the round-4
+//     hard-reject was scoped only to `relevanceGatedJobs`, not the gate job
+//     itself. This guard now also hard-rejects `continue-on-error` anywhere
+//     in the gate job, AND requires a subsequent step that reads that step's
+//     `outcome` (not `conclusion` — GitHub computes `outcome` BEFORE
+//     `continue-on-error` is applied, so it cannot be rewritten by it) and
+//     fails when that outcome was not `success`. That is the actual
+//     enforcement; the hard-reject above is a second, independent layer.
 
 const workflowsDirectory = '.github/workflows';
 
@@ -131,6 +141,13 @@ const EXPECTED_GATE_IF = 'always()';
 const EXPECTED_REQUIRED_GATE_IF =
 	"always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')";
 const EXPECTED_NEEDS_JSON_EXPR = '${{ toJSON(needs) }}';
+// Round 5 BLOCKER: the "Check required jobs" step's `id`, so a sibling step
+// can read `steps.<id>.outcome` — the raw result GitHub computes BEFORE
+// `continue-on-error` is applied, as opposed to `.conclusion` (after). A
+// single `continue-on-error: true` added to the id'd step cannot rewrite
+// `.outcome`, so a step checking it is not fooled the way the job's overall
+// result would be.
+const EXPECTED_CHECK_REQUIRED_JOBS_STEP_ID = 'check-required-jobs';
 
 /**
  * The four #1017 aggregate-gate workflows and the job graph each one must
@@ -622,6 +639,18 @@ const checkWorkflow = (
 			);
 		}
 
+		// Round 5 BLOCKER: the round-4 continue-on-error hard-reject was
+		// scoped only to relevanceGatedJobs, not the gate job itself. Adding
+		// continue-on-error to the gate job (or any of its steps, e.g. "Check
+		// required jobs") lets a correctly-detected aggregation failure be
+		// reported as success — proven against the real "Check required
+		// jobs" step while every other guard stayed green.
+		if (gate['continue-on-error']) {
+			findings.push(
+				`${file}::${gateJob}: the required gate job itself must not set \`continue-on-error\` — it lets the job report success after it actually failed. Found ${JSON.stringify(gate['continue-on-error'])}.`,
+			);
+		}
+
 		// Round 2, finding: "Rename the required check's job-level name...
 		// the guard claims to pin the aggregate gates and does not pin their
 		// externally required names." gate.name IS the string that must be
@@ -673,6 +702,56 @@ const checkWorkflow = (
 		if (!hasNeedsJsonWiring) {
 			findings.push(
 				`${file}::${gateJob}: expected a step with \`env.NEEDS_JSON: ${EXPECTED_NEEDS_JSON_EXPR}\`, so job results are aggregated from the \`needs\` context itself rather than a hand-maintained Bash map that could omit an entry. Found none.`,
+			);
+		}
+
+		// Round 5 BLOCKER: continue-on-error anywhere in the gate job's own
+		// steps (not just relevanceGatedJobs, checked above) can mask the
+		// required-jobs check's failure.
+		for (const [index, step] of gateSteps.entries()) {
+			if (step?.['continue-on-error']) {
+				const label =
+					typeof step.name === 'string' && step.name.trim().length > 0
+						? step.name.trim()
+						: `step#${index}`;
+
+				findings.push(
+					`${file}::${gateJob}: step "${label}" sets \`continue-on-error\`, which lets it fail while the required gate job still reports success.`,
+				);
+			}
+		}
+
+		// Round 5 BLOCKER: the "Check required jobs" step must carry the
+		// pinned id so a sibling step can read its `outcome` (see below).
+		const checkRequiredJobsStep = gateSteps.find(
+			(step) =>
+				step?.id === EXPECTED_CHECK_REQUIRED_JOBS_STEP_ID &&
+				step?.env?.NEEDS_JSON === EXPECTED_NEEDS_JSON_EXPR,
+		);
+
+		if (checkRequiredJobsStep === undefined) {
+			findings.push(
+				`${file}::${gateJob}: expected the required-jobs check step (env.NEEDS_JSON: ${EXPECTED_NEEDS_JSON_EXPR}) to carry \`id: ${EXPECTED_CHECK_REQUIRED_JOBS_STEP_ID}\`, so a subsequent step can verify its \`outcome\` independently of \`continue-on-error\`. Found none.`,
+			);
+		}
+
+		// Round 5 BLOCKER, the actual enforcement: GitHub computes a step's
+		// `outcome` BEFORE `continue-on-error` is applied, and `conclusion`
+		// AFTER — so `continue-on-error: true` on the required-jobs check
+		// step cannot rewrite what a later step reads via `.outcome`. This
+		// requires a step whose `run:` reads that exact expression and fails
+		// when it is not "success". The hard-reject above is a second,
+		// independent layer (in case continue-on-error is added to THIS step
+		// instead) — neither alone depends on the other.
+		const outcomeGuardExpr = `steps.${EXPECTED_CHECK_REQUIRED_JOBS_STEP_ID}.outcome`;
+		const hasOutcomeGuard = gateSteps.some(
+			(step) =>
+				typeof step.run === 'string' && step.run.includes(outcomeGuardExpr),
+		);
+
+		if (!hasOutcomeGuard) {
+			findings.push(
+				`${file}::${gateJob}: expected a step whose \`run:\` reads \`${outcomeGuardExpr}\` and fails when it is not "success" — continue-on-error rewrites a step's CONCLUSION but not its raw OUTCOME, so this is what actually catches continue-on-error added to the required-jobs check step. Found none.`,
 			);
 		}
 	}
