@@ -9,6 +9,7 @@ import {
 	buildApiChildEnv,
 	connectionStringSecrets,
 	extractConnectionStringPassword,
+	extractConnectionStringSecretValues,
 	extractEnvValue,
 	extractPendingMigrationIds,
 	formatMigrationGuardError,
@@ -550,6 +551,58 @@ test('connectionStringSecrets: returns both the full string and the isolated pas
 	assert.deepEqual(connectionStringSecrets('Host=x'), ['Host=x']);
 });
 
+// --- SSL Password (round-4 review: a second Npgsql credential parameter) ---------------
+
+test('extractConnectionStringSecretValues: collects both Password and the separate SSL Password', () => {
+	assert.deepEqual(
+		extractConnectionStringSecretValues(
+			'Host=x;Password=hunter2;SSL Password=certpass',
+		),
+		['hunter2', 'certpass'],
+	);
+});
+
+test('extractConnectionStringSecretValues: is case-insensitive and tolerant of "SSL Password" spacing', () => {
+	assert.deepEqual(
+		extractConnectionStringSecretValues('Host=x;sslpassword=certpass'),
+		['certpass'],
+	);
+	assert.deepEqual(
+		extractConnectionStringSecretValues('Host=x; SSL PASSWORD = certpass '),
+		['certpass'],
+	);
+});
+
+test('connectionStringSecrets: also redacts an isolated SSL Password alongside the full string and Password', () => {
+	const connectionString = 'Host=x;Password=hunter2;SSL Password=certpass';
+	assert.deepEqual(connectionStringSecrets(connectionString), [
+		connectionString,
+		'hunter2',
+		'certpass',
+	]);
+});
+
+test('runCommand (real subprocess): redacts an isolated SSL Password that a failing child wrote to stderr on its own', () => {
+	const connectionString = 'Host=x;Password=hunter2;SSL Password=certpass';
+	const secrets = connectionStringSecrets(connectionString);
+
+	assert.throws(
+		() =>
+			runCommand(
+				'node',
+				['-e', "process.stderr.write('certpass'); process.exit(1);"],
+				{ secrets },
+			),
+		(error) => {
+			// Full-string redaction alone cannot catch this: the child never echoed the whole
+			// connection string, only the isolated SSL Password value.
+			assert.doesNotMatch(error.message, /certpass/);
+			assert.match(error.message, /\[REDACTED\]/);
+			return true;
+		},
+	);
+});
+
 // --- parseConnectionStringPairs / extractConnectionStringPassword: quoting (round-3) ---
 //
 // Round-3 review: the naive `;`-splitting regex truncated a valid, Npgsql-legal
@@ -640,8 +693,12 @@ test('listMigrationsJson: redacts the isolated password out of an unparseable-JS
 		}
 
 		// Simulate a parser message that quotes an excerpt of the offending input containing
-		// the password — modern V8 JSON.parse errors can do exactly this.
-		return { status: 0, stdout: 'not json hunter2 trailing', stderr: '' };
+		// the password — modern V8 JSON.parse errors can do exactly this. The password must be
+		// at the START of the invalid payload: V8's excerpt is truncated to roughly the first
+		// ~12 characters (round-4 review found the previous fixture, 'not json hunter2
+		// trailing', never actually placed "hunter2" inside that excerpt — the no-op-redactor
+		// mutation this test exists to catch passed unnoticed because of it).
+		return { status: 0, stdout: 'hunter2 trailing not json', stderr: '' };
 	};
 
 	assert.throws(

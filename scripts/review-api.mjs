@@ -165,12 +165,39 @@ export const extractConnectionStringPassword = (connectionString) => {
 	return undefined;
 };
 
+// Npgsql connection strings can carry MORE than one credential-bearing parameter: the
+// primary `Password`, and a separate `SSL Password` for a client certificate
+// (https://www.npgsql.org/doc/connection-string-parameters.html). Round-4 review reproduced
+// a child process echoing only the SSL Password value back on its own — redacting just the
+// primary Password (as extractConnectionStringPassword alone did) left that credential to
+// reach rendered command errors unredacted. This collects every secret-bearing key's value,
+// in the order it appears, so every occurrence of every known credential parameter is caught.
+const SECRET_CONNECTION_STRING_KEY_PATTERNS = [
+	/^password$/i,
+	/^ssl\s*password$/i,
+];
+
+export const extractConnectionStringSecretValues = (connectionString) => {
+	const values = [];
+	for (const [key, value] of parseConnectionStringPairs(connectionString)) {
+		if (
+			value.length > 0 &&
+			SECRET_CONNECTION_STRING_KEY_PATTERNS.some((pattern) => pattern.test(key))
+		) {
+			values.push(value);
+		}
+	}
+
+	return values;
+};
+
 // The full set of values a connection string should never let leak into a rendered error:
-// the string itself, and its password component in isolation.
+// the string itself, and every secret-bearing parameter's value in isolation (at least
+// Password and SSL Password — round-4 review).
 export const connectionStringSecrets = (connectionString) => {
 	return [
 		connectionString,
-		extractConnectionStringPassword(connectionString),
+		...extractConnectionStringSecretValues(connectionString),
 	].filter((value) => typeof value === 'string' && value.length > 0);
 };
 
