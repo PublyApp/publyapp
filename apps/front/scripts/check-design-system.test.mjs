@@ -429,6 +429,47 @@ test('keeps circular rounded exceptions for topbar/avatar while flagging primiti
 	);
 });
 
+test('allows the profile icon-picker pencil-pin circular exception but flags an impostor selector that merely starts with its name', async () => {
+	const root = await makeFixture({
+		'src/styles/app.css': [
+			'.publy-profile-detail-tile-pin {',
+			'\tborder-radius: var(--publy-radius-circular);',
+			'}',
+			'.publy-profile-detail-tile-pin-impostor {',
+			'\tborder-radius: var(--publy-radius-circular);',
+			'}',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	const roundedRuleHits = violations.filter(
+		(violation) => violation.ruleId === 'no-rounded-full-or-999-radius',
+	);
+
+	// The allowlisted selector itself: no violation.
+	assert.equal(
+		roundedRuleHits.some(
+			(violation) =>
+				violation.file === 'src/styles/app.css' &&
+				violation.source.includes('.publy-profile-detail-tile-pin {'),
+		),
+		false,
+	);
+	// #992 review follow-up: a selector that merely starts with the
+	// allowlisted class name (a prefix leak from substring matching) must
+	// still be flagged — it is not the same selector.
+	assert.equal(
+		roundedRuleHits.some(
+			(violation) => violation.file === 'src/styles/app.css',
+		),
+		true,
+	);
+});
+
 test('flags new rounded styles even in files with legacy debt', async () => {
 	const root = await makeFixture({
 		'src/components/table/data-table.tsx':

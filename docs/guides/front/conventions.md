@@ -298,8 +298,11 @@ new choice, decide in this spirit and add the rule here.
   `xs` 8px · `sm` 10px · `default` 12px · `lg` 14px (icon sizes match by height). Inputs 10px,
   chips 8px. These live on the size variants in `components/ui/button.tsx` and the
   `--publy-radius-*` tokens.
-- `rounded-full` / `999px` radius is **only** for avatars and the 36px topbar icon buttons
-  (enforced by the `no-rounded-full-or-999-radius` design-system scanner rule).
+- `rounded-full` / `999px` radius is **only** for avatars, the 36px topbar icon buttons, and the
+  profile icon-picker's pencil-pin corner badge (`.publy-profile-detail-tile-pin`) — the same
+  "genuinely circular" corner-badge shape as `AvatarBadge`
+  (enforced by the `no-rounded-full-or-999-radius` design-system scanner rule, with an exact-selector
+  allowlist so an unrelated selector cannot inherit an exception by sharing a name prefix).
 
 ### Action buttons & destructive placement
 - **No destructive action in a detail-view header.** Headers carry only non-destructive primary
