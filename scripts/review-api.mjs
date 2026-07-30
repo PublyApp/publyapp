@@ -41,6 +41,14 @@ const DEFAULT_COMMAND_TIMEOUT_MS = 60_000;
 const BUILD_COMMAND_TIMEOUT_MS = 10 * 60_000;
 const REDACTED = '[REDACTED]';
 
+// Round-5 review BLOCKER: the end-to-end "no job engine starts" proof used to REDISCOVER the
+// launched process by pattern-matching argv against the whole host (`pgrep -f`), which can
+// latch onto an unrelated, non-listening stale sibling process elsewhere on a host that runs
+// concurrent dotnet/dotnet-watch processes — a discovered pid is only ever an inference. This
+// prefix lets the launcher report the exact pid Node itself just spawned as a plain fact on
+// stdout, so a caller (the integration test) can read it directly instead of guessing.
+export const LAUNCHED_API_CHILD_PID_PREFIX = 'LAUNCHED_API_CHILD_PID:';
+
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, '..');
 const rootRepoCache = { path: null };
@@ -172,8 +180,29 @@ export const extractConnectionStringPassword = (connectionString) => {
 // primary Password (as extractConnectionStringPassword alone did) left that credential to
 // reach rendered command errors unredacted. This collects every secret-bearing key's value,
 // in the order it appears, so every occurrence of every known credential parameter is caught.
+//
+// Round-5 review (BLOCKER-adjacent IMPORTANT): `Password` is not the only spelling Npgsql
+// accepts for the same property. Verified directly against Npgsql 10.0.0's own tagged source
+// (https://github.com/npgsql/npgsql/blob/v10.0.0/src/Npgsql/NpgsqlConnectionStringBuilder.cs):
+//
+//   [DisplayName("Password")]
+//   [NpgsqlConnectionStringProperty("PSW", "PWD")]
+//   public string? Password
+//
+//   [DisplayName("SSL Password")]
+//   [NpgsqlConnectionStringProperty]
+//   public string? SslPassword
+//
+// `Password` has exactly two accepted synonyms, `PSW` and `PWD` — no more, confirmed by
+// grepping the whole file for every `NpgsqlConnectionStringProperty`/`DisplayName` attribute
+// that mentions a password-shaped keyword. `SSL Password` carries no further synonym beyond
+// its own (already-covered) collapsed/spaced spelling. `Passfile`, `SSL Key`, and
+// `SSL Certificate` are also in that file but hold PATHS to credential material, not credential
+// values themselves, so they are deliberately not in this list.
 const SECRET_CONNECTION_STRING_KEY_PATTERNS = [
 	/^password$/i,
+	/^psw$/i,
+	/^pwd$/i,
 	/^ssl\s*password$/i,
 ];
 
@@ -199,6 +228,20 @@ export const connectionStringSecrets = (connectionString) => {
 		connectionString,
 		...extractConnectionStringSecretValues(connectionString),
 	].filter((value) => typeof value === 'string' && value.length > 0);
+};
+
+// Round-5 review IMPORTANT: the connection string is not the only credential source a
+// launched subprocess can echo back. libpq/Npgsql also honor the standalone `PGPASSWORD`
+// environment variable as a password
+// (https://www.npgsql.org/doc/connection-string-parameters.html), and `runCommand` below
+// inherits the ambient `process.env` for every subprocess it spawns. If the operator's own
+// shell happens to export `PGPASSWORD`, that value is a real credential regardless of what
+// the connection string itself contains, and must be redacted the same way. Read fresh (not
+// cached) so a test can set/unset it around a single assertion.
+export const ambientCredentialSecrets = () => {
+	return [process.env.PGPASSWORD].filter(
+		(value) => typeof value === 'string' && value.length > 0,
+	);
 };
 
 // Exported so the bounded-timeout behavior can be tested directly against a real
@@ -622,7 +665,13 @@ export const listMigrationsJson = ({
 		TRUSTED_PROXY_CIDRS: trustedProxyCidrs,
 		POSTGRES_CONNECTION_STRING: connectionString,
 	};
-	const secrets = connectionStringSecrets(connectionString);
+	// Covers both credential sources: the connection string's own secret-bearing parameters,
+	// and the separate ambient PGPASSWORD source (round-5 review) — either can reach a
+	// rendered error from these subprocesses.
+	const secrets = [
+		...connectionStringSecrets(connectionString),
+		...ambientCredentialSecrets(),
+	];
 
 	run('dotnet', ['build', '-property:OpenApiGenerateDocuments=false'], {
 		cwd: apiDir,
@@ -872,6 +921,15 @@ const killAndReapApiChild = async (child, { timeoutMs = 5000 } = {}) => {
 
 const launchApi = async (worktreePath, port, options) => {
 	const { child, publicUrl } = spawnApiChild(worktreePath, port, options);
+
+	// This exact pid is the one Node's own spawn() call just set buildApiChildEnv's resolved
+	// env on — not something a caller has to reconstruct or search for. Environment variables
+	// are inherited unmodified down the whole spawn chain (dotnet watch -> dotnet-watch.dll ->
+	// dotnet run -> the actual app process), so this single, known-correct pid's own
+	// /proc/<pid>/environ is already ground truth for what the whole launched tree is running
+	// with — reporting it is strictly more reliable than any pattern a reader could use to
+	// rediscover it later.
+	console.log(`${LAUNCHED_API_CHILD_PID_PREFIX} ${String(child.pid)}`);
 
 	process.on('SIGINT', () => killApiChildGroup(child, 'SIGINT'));
 	process.on('SIGTERM', () => killApiChildGroup(child, 'SIGTERM'));
