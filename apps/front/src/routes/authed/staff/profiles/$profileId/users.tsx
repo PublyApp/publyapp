@@ -23,6 +23,8 @@ import {
 	useStaffProfileUsersQuery,
 } from '~/lib/query/staff-profile-users';
 import {
+	selectStaffProfileCrumbName,
+	staffProfileCrumbQuery,
 	toStaffProfileDetails,
 	useStaffProfileDetailsQuery,
 } from '~/lib/query/staff-profiles';
@@ -208,6 +210,18 @@ const ProfileDetailsError = ({
 export const Route = createFileRoute(
 	'/_authed-layout/staff/profiles/$profileId/users',
 )({
+	staticData: {
+		crumbs: (params) => [
+			{ kind: 'label', labelKey: 'nav-staff-profiles', to: '/staff/profiles' },
+			{
+				kind: 'entity',
+				to: `/staff/profiles/${params.profileId}`,
+				query: staffProfileCrumbQuery,
+				select: selectStaffProfileCrumbName,
+			},
+			{ kind: 'label', labelKey: 'common:members' },
+		],
+	},
 	validateSearch: (search) =>
 		validateTableSearchParams(search as TableSearchParamInput),
 	component: StaffProfileUsersPage,

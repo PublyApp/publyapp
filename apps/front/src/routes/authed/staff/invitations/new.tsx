@@ -77,7 +77,17 @@ const getInterZodForI18n = (instance: I18nInstance) => {
 };
 
 export const Route = createFileRoute('/_authed-layout/staff/invitations/new')({
-	staticData: { i18nNamespaces: ['staff-invitations'] },
+	staticData: {
+		i18nNamespaces: ['staff-invitations'],
+		crumbs: () => [
+			{
+				kind: 'label',
+				labelKey: 'nav-staff-invitations',
+				to: '/staff/invitations',
+			},
+			{ kind: 'label', labelKey: 'common:new-invitation' },
+		],
+	},
 	component: NewStaffInvitationsRoute,
 });
 

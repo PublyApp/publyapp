@@ -455,6 +455,7 @@ export const TenantDetailsPageShell = ({
 
 			<nav
 				aria-label={t('tenant-sections')}
+				data-testid="tenant-sections-nav"
 				className="flex shrink-0 flex-wrap gap-1 border-b border-border"
 			>
 				<SectionNavLink

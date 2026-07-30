@@ -33,6 +33,8 @@ import {
 	toStaffProfileUserRows,
 } from '~/lib/query/staff-profile-users';
 import {
+	selectStaffProfileCrumbName,
+	staffProfileCrumbQuery,
 	type StaffPermissionCatalog,
 	toStaffProfileDetails,
 	useStaffPermissionCatalogQuery,
@@ -340,6 +342,16 @@ function PermGroup({
 export const Route = createFileRoute(
 	'/_authed-layout/staff/profiles/$profileId',
 )({
+	staticData: {
+		crumbs: () => [
+			{ kind: 'label', labelKey: 'nav-staff-profiles', to: '/staff/profiles' },
+			{
+				kind: 'entity',
+				query: staffProfileCrumbQuery,
+				select: selectStaffProfileCrumbName,
+			},
+		],
+	},
 	component: StaffProfileDetailsPage,
 });
 

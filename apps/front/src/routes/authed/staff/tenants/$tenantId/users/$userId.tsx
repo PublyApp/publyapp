@@ -15,6 +15,8 @@ import { Card } from '~/components/ui/card';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import {
+	selectStaffTenantUserCrumbName,
+	staffTenantUserCrumbQuery,
 	toStaffTenantUserDetails,
 	useRemoveStaffTenantUserMutation,
 	useReactivateStaffTenantUserMutation,
@@ -23,6 +25,8 @@ import {
 } from '~/lib/query/staff-tenant-users';
 import {
 	invalidateAllStaffTenantScopes,
+	selectStaffTenantCrumbName,
+	staffTenantCrumbQuery,
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
@@ -164,6 +168,27 @@ const getMembershipActionLabel = (
 export const Route = createFileRoute(
 	'/_authed-layout/staff/tenants/$tenantId/users/$userId',
 )({
+	staticData: {
+		crumbs: (params) => [
+			{ kind: 'label', labelKey: 'nav-tenants', to: '/staff/tenants' },
+			{
+				kind: 'entity',
+				to: `/staff/tenants/${params.tenantId}`,
+				query: staffTenantCrumbQuery,
+				select: selectStaffTenantCrumbName,
+			},
+			{
+				kind: 'label',
+				labelKey: 'common:users',
+				to: `/staff/tenants/${params.tenantId}/users`,
+			},
+			{
+				kind: 'entity',
+				query: staffTenantUserCrumbQuery,
+				select: selectStaffTenantUserCrumbName,
+			},
+		],
+	},
 	component: StaffTenantUserDetailsPage,
 });
 

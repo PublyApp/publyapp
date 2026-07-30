@@ -5,6 +5,7 @@ import {
 import type { QueryClient } from '@tanstack/react-query';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
+import type { EntityCrumbQuery } from '~/lib/navigation/breadcrumbs';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/src/apiClient';
@@ -400,7 +401,7 @@ const createStaffProfileMutationOptions = buildStaffMutationOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-const staffProfileDetailsQueryOptions = buildStaffQueryOptions<
+export const staffProfileDetailsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	GetStaffProfileByIdResult,
 	StaffProfileDetailsQueryVariables
@@ -484,6 +485,28 @@ export const useStaffProfileDetailsQuery = (
 		queryKey: staffProfileDetailsQueryOptions.queryKey(variables),
 		queryFn: () => staffProfileDetailsQueryOptions.fetcher(variables),
 	});
+
+/**
+ * A breadcrumb `entity` crumb's `query`/`select` pair for the (non-tenant)
+ * staff-profile detail route — same query key as
+ * `useStaffProfileDetailsQuery`, so TanStack Query dedupes and a cached name
+ * paints the crumb instantly.
+ */
+export const staffProfileCrumbQuery = (
+	params: Record<string, string>,
+): EntityCrumbQuery => ({
+	queryKey: staffProfileDetailsQueryOptions.queryKey({
+		profileId: params.profileId,
+	}),
+	queryFn: () =>
+		staffProfileDetailsQueryOptions.fetcher({ profileId: params.profileId }),
+});
+
+export const selectStaffProfileCrumbName = (
+	data: unknown,
+): string | undefined =>
+	toStaffProfileDetails(data as GetStaffProfileByIdResult | null | undefined)
+		?.name;
 
 export const useStaffProfilePermissionKeysQuery = (
 	variables: StaffProfilePermissionKeysQueryVariables,

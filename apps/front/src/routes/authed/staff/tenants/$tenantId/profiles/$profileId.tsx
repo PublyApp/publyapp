@@ -5,7 +5,7 @@ import {
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
-import { type ReactNode, useLayoutEffect, useRef, useState } from 'react';
+import { type ReactNode, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -15,6 +15,8 @@ import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import {
 	buildStaffTenantPermissionCatalogGroups,
 	getStaffTenantProfilePermissionKeysCacheSnapshot,
+	selectStaffTenantProfileCrumbName,
+	staffTenantProfileCrumbQuery,
 	toStaffTenantProfileDetails,
 	toStaffTenantProfileMemberRows,
 	toStaffTenantProfilePermissionKeys,
@@ -26,11 +28,12 @@ import {
 } from '~/lib/query/staff-tenant-profiles';
 import {
 	invalidateAllStaffTenantScopes,
+	selectStaffTenantCrumbName,
+	staffTenantCrumbQuery,
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
-import { useUiStore } from '~/lib/store/ui-store';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
@@ -152,7 +155,28 @@ const TenantProfileDetailsError = ({
 export const Route = createFileRoute(
 	'/_authed-layout/staff/tenants/$tenantId/profiles/$profileId',
 )({
-	staticData: { i18nNamespaces: ['staff-tenant-profiles'] },
+	staticData: {
+		i18nNamespaces: ['staff-tenant-profiles'],
+		crumbs: (params) => [
+			{ kind: 'label', labelKey: 'nav-tenants', to: '/staff/tenants' },
+			{
+				kind: 'entity',
+				to: `/staff/tenants/${params.tenantId}`,
+				query: staffTenantCrumbQuery,
+				select: selectStaffTenantCrumbName,
+			},
+			{
+				kind: 'label',
+				labelKey: 'common:profiles',
+				to: `/staff/tenants/${params.tenantId}/profiles`,
+			},
+			{
+				kind: 'entity',
+				query: staffTenantProfileCrumbQuery,
+				select: selectStaffTenantProfileCrumbName,
+			},
+		],
+	},
 	validateSearch: (search) =>
 		parseProfileDetailsSearchParams(search as ProfileDetailsSearchParamInput),
 	component: StaffTenantProfileDetailsPage,
@@ -300,35 +324,11 @@ function StaffTenantProfileDetailsPage() {
 			profileId,
 		});
 	const members = toStaffTenantProfileMemberRows(membersQuery.data?.users);
-	const setBreadcrumbOverride = useUiStore(
-		(state) => state.setBreadcrumbOverride,
-	);
-
-	// Publish the 4-crumb trail in a layout effect (not `useEffect`) so the
-	// override is committed before the browser paints the first frame. With a
-	// passive effect the app-shell paints its 3-crumb path fallback first and
-	// then jumps to 4 crumbs; a layout effect gives the shell the full trail
-	// from frame one (generic labels swap to entity names later without ever
-	// changing the crumb count). The authed shell is client-only, so there is
-	// no SSR `useLayoutEffect` warning to worry about. Publish and cleanup live
-	// in ONE layout effect so there is never a passive-cleanup gap during route
-	// handoff, and the dispose returned by `setBreadcrumbOverride` is
-	// owner-scoped, so a superseded page cannot erase the next page's freshly
-	// published trail.
-	useLayoutEffect(() => {
-		return setBreadcrumbOverride([
-			{ label: t('common:tenants'), to: '/staff/tenants' },
-			{
-				label: tenant?.name ?? t('common:tenant'),
-				to: '/staff/tenants/' + tenantId,
-			},
-			{
-				label: t('common:profiles'),
-				to: '/staff/tenants/' + tenantId + '/profiles',
-			},
-			{ label: profile?.name ?? t('common:profile') },
-		]);
-	}, [profile?.name, setBreadcrumbOverride, t, tenant?.name, tenantId]);
+	// The breadcrumb trail is no longer published imperatively — it is
+	// declared on this route's `staticData.crumbs` (see the `Route` options
+	// above) and derived by the shell from `useMatches()` (#973). The entity
+	// crumbs reuse these same query options, so TanStack Query dedupes with
+	// `tenantQuery`/`detailQuery` above.
 	const permissionGroups = buildStaffTenantPermissionCatalogGroups(
 		permissionCatalogQuery.data?.additionalData,
 	);

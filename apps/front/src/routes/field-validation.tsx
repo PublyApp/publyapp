@@ -128,6 +128,7 @@ const FieldValidationRoute = () => {
 };
 
 export const Route = createFileRoute('/field-validation')({
+	staticData: { crumbs: 'shell' },
 	// Dev-only scaffolding — never a publicly reachable production route
 	// (r3-shell-F14). No conditional hook calls: the whole component swaps at
 	// module-eval time, not inside a render.

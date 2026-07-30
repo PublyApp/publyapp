@@ -6,6 +6,7 @@ import {
 import type { QueryClient } from '@tanstack/react-query';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
+import type { EntityCrumbQuery } from '~/lib/navigation/breadcrumbs';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/src/apiClient';
@@ -149,7 +150,7 @@ const staffInvitationsQueryOptions = buildStaffQueryOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-const staffInvitationDetailsQueryOptions = buildStaffQueryOptions<
+export const staffInvitationDetailsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	StaffInvitationDetails,
 	StaffInvitationDetailsVariables
@@ -242,6 +243,33 @@ export const useStaffInvitationDetailsQuery = (
 		queryKey: staffInvitationDetailsQueryOptions.queryKey(variables),
 		queryFn: () => staffInvitationDetailsQueryOptions.fetcher(variables),
 	});
+
+/**
+ * A breadcrumb `entity` crumb's `query`/`select` pair for the invitation
+ * detail route — same query key as `useStaffInvitationDetailsQuery`, so
+ * TanStack Query dedupes and a cached name paints the crumb instantly. An
+ * invitation has no display name of its own, so the invitee's email is the
+ * human identifier (matches the detail page's own heading).
+ */
+export const staffInvitationCrumbQuery = (
+	params: Record<string, string>,
+): EntityCrumbQuery => ({
+	queryKey: staffInvitationDetailsQueryOptions.queryKey({
+		invitationId: params.invitationId,
+	}),
+	queryFn: () =>
+		staffInvitationDetailsQueryOptions.fetcher({
+			invitationId: params.invitationId,
+		}),
+});
+
+export const selectStaffInvitationCrumbName = (
+	data: unknown,
+): string | undefined => {
+	const email = (data as StaffInvitationDetails | null | undefined)?.email;
+	const trimmed = email?.trim();
+	return trimmed ? trimmed : undefined;
+};
 
 export const useStaffInvitationLinkMutation = () =>
 	useMutation(staffInvitationLinkMutationOptions);

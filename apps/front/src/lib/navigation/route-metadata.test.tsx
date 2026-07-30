@@ -2,7 +2,6 @@ import { describe, expect, test } from 'vitest';
 
 import {
 	getActiveRailItem,
-	getBreadcrumbsForPath,
 	getRailItems,
 	getRailItemsForPath,
 	getSecondaryPanelItems,
@@ -252,29 +251,5 @@ describe('front route metadata', () => {
 				}),
 			).toBe(false);
 		}
-	});
-
-	test('breadcrumbs use staff/tenant handoff roots and translation keys, never fabricated names', () => {
-		expect(getBreadcrumbsForPath('/staff/dashboard')).toEqual([
-			{ labelKey: 'nav-root-staff', path: '/staff' },
-			{ labelKey: 'nav-dashboard', path: '/staff/dashboard' },
-		]);
-		expect(getBreadcrumbsForPath('/staff/staff-users')).toEqual([
-			{ labelKey: 'nav-root-staff', path: '/staff' },
-			{ labelKey: 'nav-staff-breadcrumb', path: '/staff/staff-users' },
-		]);
-		expect(getBreadcrumbsForPath('/staff/staff-users/u-1')).toEqual([
-			{ labelKey: 'nav-root-staff', path: '/staff' },
-			{ labelKey: 'nav-staff-breadcrumb', path: '/staff/staff-users' },
-			{ labelKey: 'nav-detail-user' },
-		]);
-		expect(getBreadcrumbsForPath('/staff/invitations/i-1')).toEqual([
-			{ labelKey: 'nav-root-staff', path: '/staff' },
-			{ labelKey: 'nav-staff-invitations', path: '/staff/invitations' },
-			{ labelKey: 'nav-detail-invitation' },
-		]);
-		expect(getBreadcrumbsForPath('/tenant')).toEqual([
-			{ labelKey: 'nav-root-workspace', path: '/tenant' },
-		]);
 	});
 });

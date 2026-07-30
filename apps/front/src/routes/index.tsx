@@ -25,5 +25,6 @@ export const IndexRoute = () => {
 };
 
 export const Route = createFileRoute('/')({
+	staticData: { crumbs: 'shell' },
 	component: IndexRoute,
 });

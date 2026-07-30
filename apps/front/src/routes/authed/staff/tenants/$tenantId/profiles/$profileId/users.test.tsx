@@ -339,9 +339,9 @@ describe('serializeProfileMembersSearchParams', () => {
 
 describe('StaffTenantProfileMembersPage', () => {
 	test('declares the profile feature namespace', () => {
-		expect(Route.options.staticData).toEqual({
-			i18nNamespaces: ['staff-tenant-profiles'],
-		});
+		expect(Route.options.staticData?.i18nNamespaces).toEqual([
+			'staff-tenant-profiles',
+		]);
 	});
 
 	test('renders the profile identity, member count, and tabs', () => {

@@ -15,6 +15,29 @@ const isApiPath = (url: string, path: string): boolean => {
 	return parsed.origin === API_BASE_URL && parsed.pathname === path;
 };
 
+/**
+ * The tenant-details "Tenant sections" tab set renders its own
+ * `aria-current="page"` on the active tab, independently of the app-shell
+ * breadcrumb's own `aria-current="page"` on its current crumb (the two are
+ * separate `<nav>` landmarks — see `_tenant-details-shell.tsx` and
+ * `app-shell.tsx`). A page-global `span[aria-current="page"]` locator
+ * resolves to both and trips Playwright strict mode on any tenant-details
+ * route where the last breadcrumb segment happens to share the tab's label
+ * (e.g. "Users", "Invitations"). Scope to the tab set so the assertion
+ * targets the element it actually means.
+ *
+ * Scoped by test id rather than by `getByRole('navigation', { name })`:
+ * every one of these assertions runs while the invite drawer is open, and
+ * the drawer is a Base UI modal `Dialog`, which hides everything outside
+ * itself from the accessibility tree. A role query therefore resolves to
+ * nothing at exactly the moment we need it, while a test-id query — a
+ * plain CSS attribute selector — is unaffected. The `aria-label` also
+ * carries a translated value, so matching on it by name would break under
+ * any locale but English.
+ */
+const currentTenantSectionTab = (page: Page) =>
+	page.getByTestId('tenant-sections-nav').locator('span[aria-current="page"]');
+
 /** Floating bar is portalled to `document.body` and pinned near the viewport
  * bottom — assert it isn't trapped inside `.app-shell-main`'s scroll area. */
 const expectFloatingSelectionBarAtViewportBottom = async (page: Page) => {
@@ -803,9 +826,7 @@ test.describe('staff tenant invite-user drawer', () => {
 		const usersOpenUrl = new URL(page.url());
 		expect(usersOpenUrl.pathname).toBe(`/staff/tenants/${TENANT_ID}/users`);
 		expect(usersOpenUrl.searchParams.get('invite')).toBe('1');
-		await expect(
-			page.locator('span[aria-current="page"]', { hasText: 'Users' }),
-		).toHaveText('Users');
+		await expect(currentTenantSectionTab(page)).toHaveText('Users');
 
 		await drawer.getByRole('button', { name: 'Invite people' }).click();
 		await expect(page.getByText('Invalid email address')).toBeVisible();
@@ -830,9 +851,7 @@ test.describe('staff tenant invite-user drawer', () => {
 		const usersAfterSubmit = new URL(page.url());
 		expect(usersAfterSubmit.pathname).toBe(`/staff/tenants/${TENANT_ID}/users`);
 		expect(usersAfterSubmit.searchParams.has('invite')).toBe(false);
-		await expect(
-			page.locator('span[aria-current="page"]', { hasText: 'Users' }),
-		).toHaveText('Users');
+		await expect(currentTenantSectionTab(page)).toHaveText('Users');
 
 		const successToasts = page.locator(
 			'[data-sonner-toast][data-type="success"]',
@@ -895,9 +914,7 @@ test.describe('staff tenant invite-user drawer', () => {
 		);
 		expect(invitationsOpenUrl.searchParams.get('invite')).toBe('1');
 		expect(invitationsOpenUrl.searchParams.get('status')).toBe('pending');
-		await expect(
-			page.locator('span[aria-current="page"]', { hasText: 'Invitations' }),
-		).toHaveText('Invitations');
+		await expect(currentTenantSectionTab(page)).toHaveText('Invitations');
 
 		await drawer
 			.getByRole('textbox', { name: 'Email', exact: true })
@@ -923,9 +940,7 @@ test.describe('staff tenant invite-user drawer', () => {
 		);
 		expect(invitationsAfterSubmit.searchParams.get('invite')).toBeNull();
 		expect(invitationsAfterSubmit.searchParams.get('status')).toBe('pending');
-		await expect(
-			page.locator('span[aria-current="page"]', { hasText: 'Invitations' }),
-		).toHaveText('Invitations');
+		await expect(currentTenantSectionTab(page)).toHaveText('Invitations');
 	});
 
 	test('fails invite submit and keeps the drawer open on the same route', async ({
@@ -970,9 +985,7 @@ test.describe('staff tenant invite-user drawer', () => {
 		expect(failedSubmitUrl.searchParams.get('invite')).toBe('1');
 		expect(failedSubmitUrl.searchParams.get('status')).toBe('active');
 		await expect(page.getByTestId('staff-tenant-users-page')).toBeVisible();
-		await expect(
-			page.locator('span[aria-current="page"]', { hasText: 'Users' }),
-		).toHaveText('Users');
+		await expect(currentTenantSectionTab(page)).toHaveText('Users');
 	});
 
 	test('the legacy users/invite URL redirects to the users tab with the drawer open', async ({
@@ -1010,9 +1023,7 @@ test.describe('staff tenant invite-user drawer', () => {
 		const legacyOpenUrl = new URL(page.url());
 		expect(legacyOpenUrl.pathname).toBe(`/staff/tenants/${TENANT_ID}/users`);
 		expect(legacyOpenUrl.searchParams.get('invite')).toBe('1');
-		await expect(
-			page.locator('span[aria-current="page"]', { hasText: 'Users' }),
-		).toHaveText('Users');
+		await expect(currentTenantSectionTab(page)).toHaveText('Users');
 
 		const drawer = page.getByTestId('invite-tenant-user-drawer');
 		await expect(drawer).toBeVisible();
@@ -1038,9 +1049,7 @@ test.describe('staff tenant invite-user drawer', () => {
 			`/staff/tenants/${TENANT_ID}/users`,
 		);
 		expect(legacyAfterSubmit.searchParams.has('invite')).toBe(false);
-		await expect(
-			page.locator('span[aria-current="page"]', { hasText: 'Users' }),
-		).toHaveText('Users');
+		await expect(currentTenantSectionTab(page)).toHaveText('Users');
 	});
 });
 

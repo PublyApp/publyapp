@@ -18,6 +18,7 @@ import {
 	formatStaffStatusLabel,
 } from '~/routes/authed/staff/staff-users/status-labels';
 
+import { staffUserCrumbsBase } from './_crumbs';
 import { useStaffUserOverviewContext } from './_overview-context';
 
 const DetailMetaItem = ({
@@ -222,7 +223,10 @@ const AccountCard = ({ displayId }: { displayId: string }) => {
 export const Route = createFileRoute(
 	'/_authed-layout/staff/staff-users/$userId/',
 )({
-	staticData: { i18nNamespaces: ['staff-users'] },
+	staticData: {
+		i18nNamespaces: ['staff-users'],
+		crumbs: staffUserCrumbsBase,
+	},
 	component: StaffUserOverviewTab,
 });
 

@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 
 export const Route = createFileRoute('/_authed-layout/staff/dashboard/')({
+	staticData: { crumbs: () => [{ kind: 'label', labelKey: 'nav-dashboard' }] },
 	component: StaffDashboardOverviewTab,
 });
 

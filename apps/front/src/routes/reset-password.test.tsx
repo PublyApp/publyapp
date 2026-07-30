@@ -140,7 +140,7 @@ const renderResetPasswordRoute = () => {
 
 describe('reset-password route', () => {
 	test('declares the auth i18n namespace', () => {
-		expect(Route.options.staticData).toEqual({ i18nNamespaces: ['auth'] });
+		expect(Route.options.staticData?.i18nNamespaces).toEqual(['auth']);
 	});
 
 	beforeEach(() => {

@@ -435,7 +435,7 @@ const LoginErrorBoundary = ({
 
 export const Route = createFileRoute('/login')({
 	beforeLoad: redirectAuthenticatedUserAwayFromAuthPage,
-	staticData: { i18nNamespaces: ['auth'] },
+	staticData: { i18nNamespaces: ['auth'], crumbs: 'shell' },
 	component: LoginRoute,
 	errorComponent: LoginErrorBoundary,
 });

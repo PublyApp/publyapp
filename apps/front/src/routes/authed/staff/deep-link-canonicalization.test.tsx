@@ -72,6 +72,7 @@ const buildHarness = <TInput extends Record<string, unknown>>(
 	const route = createRoute({
 		getParentRoute: () => rootRoute,
 		path,
+		staticData: { crumbs: 'shell' },
 		validateSearch: (search) => validateSearch(search as TInput),
 		component: () => {
 			const search = route.useSearch() as Record<string, unknown>;

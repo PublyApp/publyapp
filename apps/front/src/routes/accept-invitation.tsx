@@ -872,7 +872,7 @@ const AcceptInvitationRoute = () => {
 };
 
 export const Route = createFileRoute('/accept-invitation')({
-	staticData: { i18nNamespaces: ['auth'] },
+	staticData: { i18nNamespaces: ['auth'], crumbs: 'shell' },
 	loader: invitationLoader,
 	component: AcceptInvitationRoute,
 });

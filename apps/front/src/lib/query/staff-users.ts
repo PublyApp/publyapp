@@ -9,6 +9,7 @@ import {
 	normalizeNullableFileUrl,
 	toRootRelativeApiFileUrl,
 } from '~/lib/api-client/resolve-api-file-url';
+import type { EntityCrumbQuery } from '~/lib/navigation/breadcrumbs';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/src/apiClient';
@@ -360,7 +361,7 @@ const staffUsersQueryOptions = buildStaffQueryOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-const staffUserDetailsQueryOptions = buildStaffQueryOptions<
+export const staffUserDetailsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	GetStaffUserByIdResult,
 	StaffUserDetailsQueryVariables
@@ -516,6 +517,23 @@ export const useStaffUserDetailsQuery = (
 		queryFn: () => staffUserDetailsQueryOptions.fetcher(variables),
 		enabled: options?.enabled ?? true,
 	});
+
+/**
+ * A breadcrumb `entity` crumb's `query`/`select` pair for the staff-user
+ * detail route — same query key as `useStaffUserDetailsQuery`, so TanStack
+ * Query dedupes and a cached name paints the crumb instantly.
+ */
+export const staffUserCrumbQuery = (
+	params: Record<string, string>,
+): EntityCrumbQuery => ({
+	queryKey: staffUserDetailsQueryOptions.queryKey({ userId: params.userId }),
+	queryFn: () =>
+		staffUserDetailsQueryOptions.fetcher({ userId: params.userId }),
+});
+
+export const selectStaffUserCrumbName = (data: unknown): string | undefined =>
+	toStaffUserDetails(data as GetStaffUserByIdResult | null | undefined)
+		?.displayName;
 
 export const useStaffUserProfilesQuery = (
 	variables: StaffUserProfilesQueryVariables,

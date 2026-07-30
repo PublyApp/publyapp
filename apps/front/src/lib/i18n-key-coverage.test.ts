@@ -208,48 +208,63 @@ const getSourceFiles = (dir: string): Promise<SourceFile[]> => {
 	return cachedSourceFiles;
 };
 
+// Same caching rationale as `cachedSourceFiles` above: multiple tests in this
+// file call `extractI18nKeyUsages(srcDir)` independently, and it now also
+// runs a full AST parse (`extractLabelKeyPropertyUsages`) per file — worth
+// paying once per process, not once per test, since the source tree doesn't
+// change mid-run.
+let cachedUsagesByKey: Promise<Map<string, string[]>> | null = null;
+
 export const extractI18nKeyUsages = async (
 	dir: string,
 ): Promise<Map<string, string[]>> => {
-	const files = await getSourceFiles(dir);
-	const usagesByKey = new Map<string, string[]>();
+	cachedUsagesByKey ??= (async () => {
+		const files = await getSourceFiles(dir);
+		const usagesByKey = new Map<string, string[]>();
 
-	for (const { relativePath, source } of files) {
-		if (
-			relativePath.endsWith('.test.ts') ||
-			relativePath.endsWith('.test.tsx')
-		) {
-			continue;
-		}
-
-		const defaultNamespace = (source.match(USE_TRANSLATION_PATTERN)?.[2] ??
-			'common') as SupportedNamespace;
-
-		for (const pattern of KEY_PATTERNS) {
-			for (const match of source.matchAll(pattern)) {
-				const { namespace, key } = resolveUsageKey(match[2], defaultNamespace);
-				const qualifiedKey = `${namespace}:${key}`;
-				const usages = usagesByKey.get(qualifiedKey) ?? [];
-				usages.push(relativePath);
-				usagesByKey.set(qualifiedKey, usages);
+		for (const { relativePath, source } of files) {
+			if (
+				relativePath.endsWith('.test.ts') ||
+				relativePath.endsWith('.test.tsx')
+			) {
+				continue;
 			}
+
+			const defaultNamespace = (source.match(USE_TRANSLATION_PATTERN)?.[2] ??
+				'common') as SupportedNamespace;
+
+			for (const pattern of KEY_PATTERNS) {
+				for (const match of source.matchAll(pattern)) {
+					const { namespace, key } = resolveUsageKey(
+						match[2],
+						defaultNamespace,
+					);
+					const qualifiedKey = `${namespace}:${key}`;
+					const usages = usagesByKey.get(qualifiedKey) ?? [];
+					usages.push(relativePath);
+					usagesByKey.set(qualifiedKey, usages);
+				}
+			}
+
+			extractKeyMapLiteralUsages(
+				source,
+				relativePath,
+				defaultNamespace,
+				usagesByKey,
+			);
+			extractScalarKeyDeclarations(
+				source,
+				relativePath,
+				defaultNamespace,
+				usagesByKey,
+			);
+			extractLabelKeyPropertyUsages(source, relativePath, usagesByKey);
 		}
 
-		extractKeyMapLiteralUsages(
-			source,
-			relativePath,
-			defaultNamespace,
-			usagesByKey,
-		);
-		extractScalarKeyDeclarations(
-			source,
-			relativePath,
-			defaultNamespace,
-			usagesByKey,
-		);
-	}
+		return usagesByKey;
+	})();
 
-	return usagesByKey;
+	return cachedUsagesByKey;
 };
 
 // i18next resolves a plural key (`t('assigned-count', { count })`) against
@@ -728,13 +743,25 @@ const collectProseLiteralValues = (
 	return [];
 };
 
-const findHardcodedUiLiterals = (
+// chore/908 follow-up (adversarial review IMPORTANT finding): a walk over a
+// source the bundled parser cannot finish must never silently read as "found
+// nothing". Planting a hardcoded JSX literal after syntax the bundled parser
+// can't finish (e.g. an unterminated template literal) let the literal get
+// swallowed into the recovery tree — the suite stayed green for the wrong
+// reason, the exact silent-partial-tree failure this migration exists to
+// prevent. ts-morph's vendored compiler only stabilizes the API surface
+// across TypeScript upgrades (see the import-site comment above); it does not
+// make that parser understand syntax it cannot finish parsing, so any parse
+// diagnostic must fail every AST-based guard loudly, naming the file, instead
+// of silently walking whatever tree recovery produced. Shared by
+// `findHardcodedUiLiterals` and `extractLabelKeyPropertyUsages` so the two
+// AST walks in this file can never diverge on script-kind selection or
+// parse-failure handling.
+const createParsedSourceFile = (
 	source: string,
 	relativePath: string,
-): string[] => {
-	const findings: string[] = [];
-	const lines = source.split('\n');
-
+	guardName: string,
+): ts.SourceFile => {
 	const sourceFile = ts.createSourceFile(
 		relativePath,
 		source,
@@ -745,17 +772,6 @@ const findHardcodedUiLiterals = (
 			: ts.ScriptKind.TS,
 	);
 
-	// chore/908 follow-up (adversarial review IMPORTANT finding): this walk
-	// never checked whether the parser actually finished. Planting a hardcoded
-	// JSX literal after syntax the bundled parser can't finish (e.g. an
-	// unterminated template literal) let the literal get swallowed into the
-	// recovery tree — the suite stayed green for the wrong reason, the exact
-	// silent-partial-tree failure this migration exists to prevent. ts-morph's
-	// vendored compiler only stabilizes the API surface across TypeScript
-	// upgrades (see the import-site comment above); it does not make that
-	// parser understand syntax it cannot finish parsing, so any parse
-	// diagnostic must fail this guard loudly, naming the file, instead of
-	// silently walking whatever tree recovery produced.
 	const parseDiagnostics = getParseDiagnostics(sourceFile);
 	if (parseDiagnostics.length > 0) {
 		const messages = parseDiagnostics
@@ -764,10 +780,86 @@ const findHardcodedUiLiterals = (
 			)
 			.join('; ');
 		throw new Error(
-			`i18n hardcoded-literal guard could not parse ${relativePath} — ` +
+			`${guardName} could not parse ${relativePath} — ` +
 				`refusing to scan a partial/recovered syntax tree: ${messages}`,
 		);
 	}
+
+	return sourceFile;
+};
+
+const LABEL_KEY_PROPERTY_NAME = 'labelKey';
+
+/**
+ * Breadcrumb (and nav-item) declarations hold their translation key as
+ * `labelKey: '...'`, resolved later through `t(item.labelKey)` at a
+ * completely different call site (`app-shell.tsx`) — a shape neither
+ * KEY_PATTERNS (`t(...)`/`i18nKey=...`) nor the `*_KEY(S)` lookup-table
+ * extractors above ever matched. The reviewer pointed a real production
+ * breadcrumb's `labelKey` at one of the five deleted generic-wording keys and
+ * the coverage test still passed (#973 BLOCKER finding #2).
+ *
+ * Walks the real AST — not a regex over raw text — specifically so this
+ * can't gain the same comment/`.d.ts` blind spot KEY_PATTERNS already has: a
+ * `labelKey: '...'` mentioned in a comment is not a syntax node at all, and a
+ * `.d.ts`/interface member `labelKey: string` is a `PropertySignature`, never
+ * a `PropertyAssignment`, so neither can masquerade as a real usage here. A
+ * dynamic value (a template literal with interpolation, an identifier) is
+ * skipped — there is no static key to check.
+ */
+const extractLabelKeyPropertyUsages = (
+	source: string,
+	relativePath: string,
+	usagesByKey: Map<string, string[]>,
+): void => {
+	const sourceFile = createParsedSourceFile(
+		source,
+		relativePath,
+		'i18n labelKey coverage guard',
+	);
+
+	const visit = (node: ts.Node): void => {
+		if (
+			ts.isPropertyAssignment(node) &&
+			((ts.isIdentifier(node.name) &&
+				node.name.text === LABEL_KEY_PROPERTY_NAME) ||
+				(ts.isStringLiteral(node.name) &&
+					node.name.text === LABEL_KEY_PROPERTY_NAME)) &&
+			ts.isStringLiteralLike(node.initializer)
+		) {
+			// Unqualified `labelKey` values resolve against the 'common'
+			// namespace regardless of the DECLARING file's own
+			// `useTranslation()` default — the actual `t()` call lives in
+			// app-shell.tsx (`useTranslation('common')`), not the route file
+			// that declares the crumb.
+			const { namespace, key } = resolveUsageKey(
+				node.initializer.text,
+				'common',
+			);
+			const qualifiedKey = `${namespace}:${key}`;
+			const usages = usagesByKey.get(qualifiedKey) ?? [];
+			usages.push(relativePath);
+			usagesByKey.set(qualifiedKey, usages);
+		}
+
+		ts.forEachChild(node, visit);
+	};
+
+	visit(sourceFile);
+};
+
+const findHardcodedUiLiterals = (
+	source: string,
+	relativePath: string,
+): string[] => {
+	const findings: string[] = [];
+	const lines = source.split('\n');
+
+	const sourceFile = createParsedSourceFile(
+		source,
+		relativePath,
+		'i18n hardcoded-literal guard',
+	);
 
 	const lineOf = (pos: number): number =>
 		sourceFile.getLineAndCharacterOfPosition(pos).line + 1;
@@ -1381,6 +1473,86 @@ describe('i18n key coverage', () => {
 		expect(usagesByKey.has('common:selection-locked-while-selecting')).toBe(
 			true,
 		);
+	});
+
+	// #973 BLOCKER finding #2: breadcrumb (and nav-item) declarations hold
+	// their translation key as `labelKey: '...'`, resolved later through
+	// `t(item.labelKey)` at a different call site entirely — a shape neither
+	// KEY_PATTERNS nor the `*_KEY(S)` lookup-table extractors above ever
+	// matched. Unit-tests the extractor in isolation against a small fixture
+	// (same style as the findHardcodedUiLiterals canaries), independent of
+	// what real route files currently declare.
+	test('extractLabelKeyPropertyUsages sees breadcrumb-style labelKey literals, qualified and unqualified (#973 BLOCKER labelKey-coverage canary)', () => {
+		const usagesByKey = new Map<string, string[]>();
+		extractLabelKeyPropertyUsages(
+			[
+				"export const crumbs = () => [{ kind: 'label', labelKey: 'nav-tenants', to: '/staff/tenants' },",
+				"{ kind: 'label', labelKey: 'staff-users:settings' }];",
+			].join('\n'),
+			'canary.tsx',
+			usagesByKey,
+		);
+
+		expect(usagesByKey.has('common:nav-tenants')).toBe(true);
+		expect(usagesByKey.has('staff-users:settings')).toBe(true);
+	});
+
+	// A `labelKey` value is only ever the property name that actually feeds
+	// `t(item.labelKey)` (see app-shell.tsx) — an unrelated field that merely
+	// happens to be spelled `labelKey` inside a `.d.ts`/interface member
+	// (`labelKey: string;`, a `PropertySignature`, never a
+	// `PropertyAssignment`) must not be read as a usage.
+	test('extractLabelKeyPropertyUsages ignores a labelKey type/interface member, and a dynamic (non-literal) labelKey value', () => {
+		const usagesByKey = new Map<string, string[]>();
+		extractLabelKeyPropertyUsages(
+			[
+				'export type NavItem = { labelKey: string };',
+				"const name = 'x';",
+				'export const dynamic = { labelKey: `profile-icon-${name}` };',
+			].join('\n'),
+			'canary.ts',
+			usagesByKey,
+		);
+
+		expect(usagesByKey.size).toBe(0);
+	});
+
+	// The exact BLOCKER escape, proven at the unit level: a real production
+	// crumb's `labelKey` pointing at a key absent from both locale bundles
+	// must be BOTH (a) recorded as a usage and (b) genuinely missing from the
+	// bundle — together, that is exactly what makes the integration test
+	// above ('every t()/i18nKey literal resolves...') fail for a labelKey
+	// escape, the same way it already fails for a bare `t('...')` escape.
+	// Self-contained (an inline fixture, not a real deleted key) so this
+	// guard never depends on which keys the repo happens to have removed.
+	test('a labelKey referencing a key absent from both locale bundles is recorded as a usage and genuinely unresolved (#973 BLOCKER regression guard)', () => {
+		const usagesByKey = new Map<string, string[]>();
+		extractLabelKeyPropertyUsages(
+			"export const crumbs = () => [{ kind: 'label', labelKey: 'definitely-not-a-real-nav-key-973' }];",
+			'canary.tsx',
+			usagesByKey,
+		);
+
+		expect(usagesByKey.has('common:definitely-not-a-real-nav-key-973')).toBe(
+			true,
+		);
+		expect(
+			resolvesInBundle('definitely-not-a-real-nav-key-973', enResource.common),
+		).toBe(false);
+		expect(
+			resolvesInBundle('definitely-not-a-real-nav-key-973', frResource.common),
+		).toBe(false);
+	});
+
+	// Integration canary (same rationale as the scalar-*_KEY one above): proves
+	// the extractor is actually wired into `extractI18nKeyUsages` and reaches
+	// a real production breadcrumb declaration
+	// (`nav-tenants`, `src/routes/authed/staff/tenants/$tenantId.tsx`), not
+	// just the unit fixtures above.
+	test('extractI18nKeyUsages sees a real production breadcrumb labelKey declaration (#973 BLOCKER labelKey-coverage integration canary)', async () => {
+		const usagesByKey = await extractI18nKeyUsages(srcDir);
+
+		expect(usagesByKey.has('common:nav-tenants')).toBe(true);
 	});
 
 	// Adversarial review IMPORTANT finding regression: a source the bundled

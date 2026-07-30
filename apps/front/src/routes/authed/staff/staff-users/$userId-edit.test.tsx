@@ -403,9 +403,7 @@ const renderPage = () => render(<Component />);
 
 describe('staff user edit route', () => {
 	test('declares the staff-users i18n namespace', () => {
-		expect(Route.options.staticData).toEqual({
-			i18nNamespaces: ['staff-users'],
-		});
+		expect(Route.options.staticData?.i18nNamespaces).toEqual(['staff-users']);
 	});
 
 	beforeEach(() => {

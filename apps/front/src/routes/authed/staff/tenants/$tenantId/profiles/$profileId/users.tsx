@@ -12,6 +12,8 @@ import { Card } from '~/components/ui/card';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import {
+	selectStaffTenantProfileCrumbName,
+	staffTenantProfileCrumbQuery,
 	toStaffTenantProfileDetails,
 	toStaffTenantProfileMemberRows,
 	useStaffTenantProfileDetailsQuery,
@@ -19,6 +21,8 @@ import {
 	type StaffTenantProfileMemberRow,
 } from '~/lib/query/staff-tenant-profiles';
 import {
+	selectStaffTenantCrumbName,
+	staffTenantCrumbQuery,
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
@@ -473,7 +477,30 @@ const StaffTenantProfileMembersPage = () => {
 export const Route = createFileRoute(
 	'/_authed-layout/staff/tenants/$tenantId/profiles/$profileId/users',
 )({
-	staticData: { i18nNamespaces: ['staff-tenant-profiles'] },
+	staticData: {
+		i18nNamespaces: ['staff-tenant-profiles'],
+		crumbs: (params) => [
+			{ kind: 'label', labelKey: 'nav-tenants', to: '/staff/tenants' },
+			{
+				kind: 'entity',
+				to: `/staff/tenants/${params.tenantId}`,
+				query: staffTenantCrumbQuery,
+				select: selectStaffTenantCrumbName,
+			},
+			{
+				kind: 'label',
+				labelKey: 'common:profiles',
+				to: `/staff/tenants/${params.tenantId}/profiles`,
+			},
+			{
+				kind: 'entity',
+				to: `/staff/tenants/${params.tenantId}/profiles/${params.profileId}`,
+				query: staffTenantProfileCrumbQuery,
+				select: selectStaffTenantProfileCrumbName,
+			},
+			{ kind: 'label', labelKey: 'common:members' },
+		],
+	},
 	validateSearch: (search) =>
 		parseProfileMembersSearchParams(search as ProfileMembersSearchParamInput),
 	component: StaffTenantProfileMembersPage,

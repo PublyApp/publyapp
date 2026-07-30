@@ -41,6 +41,7 @@ import {
 	collectSelectedProfileIds,
 	rememberStaffProfileNames,
 } from '../_staff-profile-options';
+import { staffUserCrumbsBase } from './$userId/_crumbs';
 import { ChangeStaffUserEmailDialog } from './_change-email-dialog';
 
 const ACCOUNT_LEVEL_OPTIONS = ['Admin', 'User'] as const;
@@ -196,7 +197,13 @@ const StaffUserEditError = ({
 export const Route = createFileRoute(
 	'/_authed-layout/staff/staff-users/$userId/edit',
 )({
-	staticData: { i18nNamespaces: ['staff-users'] },
+	staticData: {
+		i18nNamespaces: ['staff-users'],
+		crumbs: (params) => [
+			...staffUserCrumbsBase(params),
+			{ kind: 'label', labelKey: 'common:edit' },
+		],
+	},
 	component: StaffUserEditPage,
 });
 

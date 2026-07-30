@@ -278,7 +278,7 @@ const VerifyEmailRoute = () => {
 
 export const Route = createFileRoute('/verify-email')({
 	beforeLoad: redirectAuthenticatedUserAwayFromAuthPage,
-	staticData: { i18nNamespaces: ['auth'] },
+	staticData: { i18nNamespaces: ['auth'], crumbs: 'shell' },
 	loader: verifyEmailLoader,
 	component: VerifyEmailRoute,
 });

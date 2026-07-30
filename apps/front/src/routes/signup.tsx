@@ -288,6 +288,6 @@ const SignUpRoute = () => {
 
 export const Route = createFileRoute('/signup')({
 	beforeLoad: redirectAuthenticatedUserAwayFromAuthPage,
-	staticData: { i18nNamespaces: ['auth'] },
+	staticData: { i18nNamespaces: ['auth'], crumbs: 'shell' },
 	component: SignUpRoute,
 });

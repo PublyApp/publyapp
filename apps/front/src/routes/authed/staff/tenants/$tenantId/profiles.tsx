@@ -66,6 +66,8 @@ import {
 } from '~/lib/query/staff-tenant-profiles';
 import {
 	invalidateAllStaffTenantScopes,
+	selectStaffTenantCrumbName,
+	staffTenantCrumbQuery,
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
@@ -193,7 +195,19 @@ export const tenantProfileTypeChipClassName = (isDefault: boolean): string =>
 export const Route = createFileRoute(
 	'/_authed-layout/staff/tenants/$tenantId/profiles',
 )({
-	staticData: { i18nNamespaces: ['staff-tenant-profiles'] },
+	staticData: {
+		i18nNamespaces: ['staff-tenant-profiles'],
+		crumbs: (params) => [
+			{ kind: 'label', labelKey: 'nav-tenants', to: '/staff/tenants' },
+			{
+				kind: 'entity',
+				to: `/staff/tenants/${params.tenantId}`,
+				query: staffTenantCrumbQuery,
+				select: selectStaffTenantCrumbName,
+			},
+			{ kind: 'label', labelKey: 'common:profiles' },
+		],
+	},
 	validateSearch: (search) =>
 		serializeStaffTenantProfilesSearchParams(
 			parseStaffTenantProfilesSearchParams(

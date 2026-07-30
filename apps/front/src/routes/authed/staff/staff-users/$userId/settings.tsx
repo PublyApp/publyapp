@@ -1,10 +1,18 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 
+import { staffUserCrumbsBase } from './_crumbs';
+
 export const Route = createFileRoute(
 	'/_authed-layout/staff/staff-users/$userId/settings',
 )({
-	staticData: { i18nNamespaces: ['staff-users'] },
+	staticData: {
+		i18nNamespaces: ['staff-users'],
+		crumbs: (params) => [
+			...staffUserCrumbsBase(params),
+			{ kind: 'label', labelKey: 'staff-users:settings' },
+		],
+	},
 	component: StaffUserSettingsTab,
 });
 

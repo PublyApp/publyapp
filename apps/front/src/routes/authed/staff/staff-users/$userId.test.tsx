@@ -249,9 +249,7 @@ const renderPage = () => {
 
 describe('staff user details route shell', () => {
 	test('declares the staff-users i18n namespace', () => {
-		expect(Route.options.staticData).toEqual({
-			i18nNamespaces: ['staff-users'],
-		});
+		expect(Route.options.staticData?.i18nNamespaces).toEqual(['staff-users']);
 	});
 
 	beforeEach(() => {

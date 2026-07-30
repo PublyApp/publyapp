@@ -128,7 +128,10 @@ const buildColumns = (
 ];
 
 export const Route = createFileRoute('/_authed-layout/staff/staff-users')({
-	staticData: { i18nNamespaces: ['staff-users'] },
+	staticData: {
+		i18nNamespaces: ['staff-users'],
+		crumbs: () => [{ kind: 'label', labelKey: 'nav-staff-breadcrumb' }],
+	},
 	validateSearch: (search) =>
 		validateTableSearchParams(search as TableSearchParamInput),
 	component: StaffUsersPage,

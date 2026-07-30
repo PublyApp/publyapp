@@ -39,6 +39,7 @@ import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
+import { staffUserCrumbsBase } from './$userId/_crumbs';
 import {
 	StaffUserOverviewContext,
 	type StaffUserOverviewContextValue,
@@ -166,7 +167,15 @@ const getActiveSection = (pathname: string): TabSection => {
 export const Route = createFileRoute(
 	'/_authed-layout/staff/staff-users/$userId',
 )({
-	staticData: { i18nNamespaces: ['staff-users'] },
+	staticData: {
+		i18nNamespaces: ['staff-users'],
+		// Always matched alongside an index/permissions/activity/settings
+		// child (never the deepest match on its own — see
+		// `deriveBreadcrumbTrail`), but the contract requires every route to
+		// declare its own trail. The overview base is the correct value for
+		// this route's own path.
+		crumbs: staffUserCrumbsBase,
+	},
 	component: StaffUserDetailsPage,
 });
 

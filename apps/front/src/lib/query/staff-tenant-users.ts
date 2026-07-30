@@ -10,6 +10,7 @@ import {
 	normalizeNullableFileUrl,
 	toRootRelativeApiFileUrl,
 } from '~/lib/api-client/resolve-api-file-url';
+import type { EntityCrumbQuery } from '~/lib/navigation/breadcrumbs';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/src/apiClient';
@@ -524,7 +525,7 @@ export const bulkCreateStaffTenantInvitationsMutationOptions =
 		{ clientAccessor: getClientManager() },
 	);
 
-const staffTenantUserDetailsQueryOptions = buildStaffQueryOptions<
+export const staffTenantUserDetailsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	TenantUserDetailsResult,
 	StaffTenantUserDetailsQueryVariables
@@ -691,6 +692,31 @@ export const useStaffTenantUserDetailsQuery = (
 		queryFn: () => staffTenantUserDetailsQueryOptions.fetcher(variables),
 		enabled: options?.enabled ?? true,
 	});
+
+/**
+ * A breadcrumb `entity` crumb's `query`/`select` pair for the tenant-user
+ * detail route — same query key as `useStaffTenantUserDetailsQuery`, so
+ * TanStack Query dedupes and a cached name paints the crumb instantly.
+ */
+export const staffTenantUserCrumbQuery = (
+	params: Record<string, string>,
+): EntityCrumbQuery => ({
+	queryKey: staffTenantUserDetailsQueryOptions.queryKey({
+		tenantId: params.tenantId,
+		userId: params.userId,
+	}),
+	queryFn: () =>
+		staffTenantUserDetailsQueryOptions.fetcher({
+			tenantId: params.tenantId,
+			userId: params.userId,
+		}),
+});
+
+export const selectStaffTenantUserCrumbName = (
+	data: unknown,
+): string | undefined =>
+	toStaffTenantUserDetails(data as TenantUserDetailsResult | null | undefined)
+		?.displayName;
 
 export const useInviteTenantUserMutation = () =>
 	useMutation(createStaffTenantUserInvitationMutationOptions);

@@ -19,6 +19,10 @@ const getActiveSection = (pathname: string): DashboardSection => {
 };
 
 export const Route = createFileRoute('/_authed-layout/staff/dashboard')({
+	// Always matched alongside an index/activity/reports child (never the
+	// deepest match on its own — see `deriveBreadcrumbTrail`), but the
+	// contract requires every route to declare its own trail.
+	staticData: { crumbs: () => [{ kind: 'label', labelKey: 'nav-dashboard' }] },
 	component: StaffDashboardPage,
 });
 
