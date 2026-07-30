@@ -5,7 +5,10 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { findCiGateStructureProblems } from './check-ci-gate-structure.mjs';
+import {
+	findCiGateStructureProblems,
+	findRequiredContextCollisionProblems,
+} from './check-ci-gate-structure.mjs';
 
 // These tests are the standing proof that the #1017 aggregate-gate job graph
 // — the `needs`/`if`/`permissions`/`outputs`/`id`/`name`/trigger wiring that
@@ -1161,6 +1164,247 @@ test('ROUND 5 BLOCKER (the exact reviewer reproduction, one level up): a gate jo
 	assert.match(
 		findings[0],
 		/gate: expected a step whose `run:` invokes `check-ci-gate-structure\.mjs` directly/,
+	);
+});
+
+// ---------------------------------------------------------------------------
+// ROUND 6 BLOCKER (mutation B): required-context uniqueness across the WHOLE
+// repository. The structure check above pins each gate job's own `name:`, but
+// nothing stopped a job in an unrelated workflow from reporting one of the
+// four required names. The reviewer's reproduction — naming
+// old-front-characterization.yml's e2e job `docs-archive-gate` — passed both
+// enforced guards, and on that head the unrelated job finished four minutes
+// AFTER the real gate. Under "latest report for a context wins", a real gate
+// failure followed by the unrelated job's later success leaves the required
+// context green over failed required work.
+//
+// These fixtures write a SECOND workflow file into the throwaway repo, so
+// they exercise the same whole-directory scan the CLI runs against the real
+// .github/workflows.
+// ---------------------------------------------------------------------------
+
+/** Adds another workflow file alongside fixture.yml in a throwaway repo. */
+const addWorkflow = async (rootDir, fileName, workflowYaml) => {
+	await writeFile(
+		path.join(rootDir, '.github/workflows', fileName),
+		workflowYaml,
+	);
+
+	return rootDir;
+};
+
+/** An unrelated workflow, in the shape of old-front-characterization.yml. */
+const unrelatedWorkflow = (jobId, jobName) => `
+name: unrelated
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+jobs:
+  ${jobId}:
+${jobName === undefined ? '' : `    name: ${jobName}\n`}    runs-on: ubuntu-latest
+    steps:
+      - run: echo unrelated
+`;
+
+test('ROUND 6: the real repository has exactly one producer of each reserved check name', async () => {
+	assert.deepEqual(
+		await findRequiredContextCollisionProblems({ rootDir: repoRoot }),
+		[],
+	);
+});
+
+test('ROUND 6: a fixture repo with an unrelated workflow that claims no reserved name passes', async () => {
+	const rootDir = await buildFixture(goodWorkflow);
+
+	await addWorkflow(
+		rootDir,
+		'unrelated.yml',
+		unrelatedWorkflow('unrelated-e2e'),
+	);
+
+	assert.deepEqual(
+		await findRequiredContextCollisionProblems({
+			rootDir,
+			workflows: fixtureConfig,
+		}),
+		[],
+	);
+});
+
+test("ROUND 6 BLOCKER (mutation B, the exact reviewer reproduction): another workflow's job renamed to a required context name is caught", async () => {
+	// The reviewer renamed the JOB ID. GitHub reports a job with no `name:`
+	// under its job ID, so this claims the required context just as surely as
+	// a `name:` would.
+	const rootDir = await buildFixture(goodWorkflow);
+
+	await addWorkflow(
+		rootDir,
+		'unrelated.yml',
+		unrelatedWorkflow('fixture-gate'),
+	);
+
+	const findings = await findRequiredContextCollisionProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
+
+	assert.equal(findings.length, 1);
+	assert.match(
+		findings[0],
+		/unrelated\.yml::fixture-gate: reports the check name "fixture-gate", which contains the reserved name "fixture-gate" \(externally required context\)/,
+	);
+	assert.match(findings[0], /Only fixture\.yml::gate may report it/);
+});
+
+test("ROUND 6 BLOCKER (mutation B, the drift-invisible variant): a `name:` added to another workflow's job is caught", async () => {
+	// scripts/check-ci-drift.mjs hashes step fields only, and its manifest
+	// keys are `file::jobId::stepName` — so renaming the job ID at least
+	// makes it complain about new/stale steps, but ADDING a job-level `name:`
+	// leaves every one of its keys and hashes untouched. Verified against the
+	// real files: with `name: docs-archive-gate` on
+	// old-front-characterization.yml's e2e job, the drift guard exits 0. This
+	// is the variant no other guard can see.
+	const rootDir = await buildFixture(goodWorkflow);
+
+	await addWorkflow(
+		rootDir,
+		'unrelated.yml',
+		unrelatedWorkflow('unrelated-e2e', 'fixture-gate'),
+	);
+
+	const findings = await findRequiredContextCollisionProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
+
+	assert.equal(findings.length, 1);
+	assert.match(
+		findings[0],
+		/unrelated\.yml::unrelated-e2e: reports the check name "fixture-gate"/,
+	);
+});
+
+test('ROUND 6 BLOCKER: the non-required push-check name is reserved too', async () => {
+	const rootDir = await buildFixture(goodWorkflow);
+
+	await addWorkflow(
+		rootDir,
+		'unrelated.yml',
+		unrelatedWorkflow('unrelated-e2e', 'fixture-push-check'),
+	);
+
+	const findings = await findRequiredContextCollisionProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
+
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /reserved name "fixture-push-check"/);
+});
+
+test("ROUND 6 BLOCKER: an expression in an unrelated job's `name:` is rejected, because it can resolve to a reserved name without containing it", async () => {
+	// A substring scan cannot see `${{ format('{0}-gate', 'fixture') }}` or
+	// `${{ vars.CHECK_NAME }}`, and this guard cannot evaluate GitHub
+	// expressions. So a dynamic job name anywhere in the repository is a
+	// reviewed decision rather than something that can arrive silently.
+	const rootDir = await buildFixture(goodWorkflow);
+
+	await addWorkflow(
+		rootDir,
+		'unrelated.yml',
+		unrelatedWorkflow('unrelated-e2e', "${{ format('{0}-gate', 'fixture') }}"),
+	);
+
+	const findings = await findRequiredContextCollisionProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
+
+	assert.equal(findings.length, 1);
+	assert.match(findings[0], /contains a GitHub expression/);
+	assert.match(findings[0], /unrelated\.yml::unrelated-e2e/);
+});
+
+test('ROUND 6 BLOCKER: a second copy of the gate workflow itself is caught (the authorized producer is one file::job, not one expression)', async () => {
+	const rootDir = await buildFixture(goodWorkflow);
+
+	await addWorkflow(rootDir, 'fixture-copy.yml', goodWorkflow);
+
+	const findings = await findRequiredContextCollisionProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
+
+	// The copy's gate job is not the authorized producer, so its expression
+	// is rejected as dynamic AND flagged for both reserved names it contains.
+	assert.equal(findings.length, 3);
+	assert.ok(
+		findings.every((finding) => finding.startsWith('fixture-copy.yml::gate')),
+	);
+	assert.ok(
+		findings.some((finding) => /reserved name "fixture-gate"/.test(finding)),
+	);
+	assert.ok(
+		findings.some((finding) =>
+			/reserved name "fixture-push-check"/.test(finding),
+		),
+	);
+});
+
+test('ROUND 6 BLOCKER: a required context that no job reports at all is caught', async () => {
+	// The mirror image of a duplicate: the gate job renamed away entirely
+	// leaves the required context with zero producers, which blocks every
+	// pull request rather than letting one through — still a defect, and the
+	// "exactly one" rule catches both directions.
+	const broken = goodWorkflow.replace(
+		"name: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'fixture-gate' || 'fixture-push-check' }}",
+		'name: something-else',
+	);
+	const rootDir = await buildFixture(broken);
+
+	const findings = await findRequiredContextCollisionProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
+
+	assert.equal(findings.length, 2);
+	assert.ok(
+		findings.some((finding) =>
+			/no job in \.github\/workflows reports the reserved check name "fixture-gate"/.test(
+				finding,
+			),
+		),
+	);
+	assert.ok(
+		findings.some((finding) =>
+			/no job in \.github\/workflows reports the reserved check name "fixture-push-check"/.test(
+				finding,
+			),
+		),
+	);
+});
+
+test('ROUND 6 BLOCKER: two gate workflows configured with the same reserved name are caught in the table itself', async () => {
+	const rootDir = await buildFixture(goodWorkflow);
+
+	await addWorkflow(rootDir, 'other.yml', goodWorkflow);
+
+	const findings = await findRequiredContextCollisionProblems({
+		rootDir,
+		workflows: [
+			...fixtureConfig,
+			{
+				...fixtureConfig[0],
+				file: 'other.yml',
+			},
+		],
+	});
+
+	assert.ok(
+		findings.some((finding) =>
+			/reserved check name "fixture-gate" is claimed twice/.test(finding),
+		),
 	);
 });
 

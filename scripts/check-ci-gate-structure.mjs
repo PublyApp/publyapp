@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 
@@ -271,11 +271,27 @@ const GATE_WORKFLOWS = [
 		// front-ci.yml-only (or dropping guard-script coverage) is caught
 		// here rather than silently reintroducing the "unenforced on the
 		// server" gap this fix closes.
+		//
+		// Round 6 BLOCKER: widened from the four gate files to EVERY workflow
+		// file. findRequiredContextCollisionProblems below scans every job in
+		// every workflow in the repository, because any one of them can claim
+		// a required check name — the reviewer's reproduction made
+		// `old-front-characterization.yml` report `docs-archive-gate`, which
+		// the four-file classifier pattern classified as irrelevant, so the
+		// only job that runs the scan server-side never woke up. The last
+		// entry deliberately names a workflow file that does not exist: the
+		// pattern must classify an ARBITRARY workflow file as relevant, so it
+		// cannot narrow back to an enumerated list of today's files while
+		// still satisfying every other entry here.
 		selfTestCoverage: [
 			'.github/workflows/front-ci.yml',
 			'.github/workflows/front-e2e.yml',
 			'.github/workflows/openapi-spec-drift.yml',
 			'.github/workflows/docs-archive.yml',
+			'.github/workflows/old-front-characterization.yml',
+			'.github/workflows/deploy-images.yml',
+			'.github/workflows/require-linked-issue.yml',
+			'.github/workflows/a-workflow-file-that-does-not-exist-yet.yml',
 			'scripts/ci-changed-paths.mjs',
 			'scripts/check-ci-drift.mjs',
 			'scripts/check-ci-gate-structure.mjs',
@@ -977,14 +993,193 @@ export const findCiGateStructureProblems = async ({
 	return findings;
 };
 
+/**
+ * Round 6 BLOCKER: the check-run name a job reports under. GitHub uses the
+ * job's `name:` when it has one and its job ID otherwise, so BOTH are ways
+ * to claim a required context — the reviewer's reproduction renamed
+ * `old-front-characterization.yml`'s `old-front-e2e` job to
+ * `docs-archive-gate`, and a `name: docs-archive-gate` on the same job is
+ * the variant scripts/check-ci-drift.mjs cannot see at all (it hashes step
+ * fields only, and a `name:` addition leaves every step key untouched).
+ */
+const reportedCheckName = (jobId, job) =>
+	typeof job?.name === 'string' ? job.name : jobId;
+
+/**
+ * Round 6 BLOCKER: required-context uniqueness, scanned across EVERY workflow
+ * in the repository rather than just the four gate files.
+ *
+ * The structure check above pins each gate job's own `name:`, but nothing
+ * stopped a job in an unrelated workflow from reporting one of the four
+ * required names. The reviewer proved this is not cosmetic: with
+ * `old-front-characterization.yml`'s e2e job reporting `docs-archive-gate`,
+ * the two runs on the same head commit finished four minutes apart
+ * (`docs-archive-gate` at 05:29:23Z, `old-front-e2e` at 05:33:39Z). Under
+ * the empirically established "latest report for a context wins" behavior
+ * that motivated the round-5 rename, a real gate FAILURE followed by the
+ * unrelated job's later SUCCESS leaves the required context green over
+ * failed required work.
+ *
+ * The rule, applied to every job in every `.github/workflows/*.y{a,}ml`:
+ *   - the eight reserved names (four required contexts + four push checks)
+ *     may be reported by exactly one job each, the authorized gate job, and
+ *     only while it carries its exact pinned `name:` expression;
+ *   - no other job's reported name may so much as CONTAIN a reserved name;
+ *   - no other job may carry a `${{ ... }}` expression in its `name:` at
+ *     all. That last rule is deliberately blunt: an expression can resolve
+ *     to a reserved name without containing it literally (`${{
+ *     format('{0}-gate', 'docs-archive') }}`, `${{ vars.SOMETHING }}`), and
+ *     this guard cannot evaluate GitHub expressions. A new dynamic job name
+ *     is therefore a reviewed decision — add it to the authorized set below
+ *     — rather than something that can arrive silently. The two that exist
+ *     today (the gate jobs' event-conditional name and front-e2e's sharded
+ *     `test` job) are derived from the GATE_WORKFLOWS table, not
+ *     hand-listed, so they cannot drift from what is pinned above.
+ *
+ * Pass `workflows` to point this at a fixture set (tests only).
+ */
+export const findRequiredContextCollisionProblems = async ({
+	rootDir,
+	workflows = GATE_WORKFLOWS,
+}) => {
+	const findings = [];
+
+	// The eight reserved names, and which job owns each one.
+	const reservedNames = new Map();
+
+	for (const workflow of workflows) {
+		const claims = [
+			{ name: workflow.gateName, kind: 'externally required context' },
+			{ name: workflow.pushCheckName, kind: 'non-required push check' },
+		];
+
+		for (const { name, kind } of claims) {
+			const owner = reservedNames.get(name);
+
+			if (owner !== undefined) {
+				findings.push(
+					`reserved check name "${name}" is claimed twice: by ${owner.file}::${owner.jobId} (${owner.kind}) and by ${workflow.file}::${workflow.gateJob} (${kind}). Every gate name and every push-check name must be distinct, or two jobs report the same context.`,
+				);
+				continue;
+			}
+
+			reservedNames.set(name, {
+				file: workflow.file,
+				jobId: workflow.gateJob,
+				kind,
+			});
+		}
+	}
+
+	// The only jobs in the repository allowed to carry an expression in
+	// `name:`, and the exact expression each must carry — both derived from
+	// the same table the structure check pins against.
+	const authorizedExpressionNames = new Map();
+
+	for (const workflow of workflows) {
+		authorizedExpressionNames.set(
+			`${workflow.file}::${workflow.gateJob}`,
+			gateNameExpression(workflow),
+		);
+
+		if (workflow.matrix !== undefined) {
+			authorizedExpressionNames.set(
+				`${workflow.file}::${workflow.matrix.jobId}`,
+				matrixJobNameExpression(workflow.matrix),
+			);
+		}
+	}
+
+	const gateJobByKey = new Map(
+		workflows.map((workflow) => [
+			`${workflow.file}::${workflow.gateJob}`,
+			workflow,
+		]),
+	);
+	const producersByName = new Map(
+		[...reservedNames.keys()].map((name) => [name, []]),
+	);
+
+	const directory = path.join(rootDir, workflowsDirectory);
+	const workflowFiles = (await readdir(directory, { withFileTypes: true }))
+		.filter((entry) => entry.isFile() && /\.ya?ml$/.test(entry.name))
+		.map((entry) => entry.name)
+		.sort();
+
+	for (const file of workflowFiles) {
+		const document = parse(await readFile(path.join(directory, file), 'utf8'));
+		const jobs = document?.jobs ?? {};
+
+		for (const [jobId, job] of Object.entries(jobs)) {
+			const key = `${file}::${jobId}`;
+			const name = reportedCheckName(jobId, job);
+			const gateWorkflow = gateJobByKey.get(key);
+
+			if (
+				gateWorkflow !== undefined &&
+				name === authorizedExpressionNames.get(key)
+			) {
+				producersByName.get(gateWorkflow.gateName).push(key);
+				producersByName.get(gateWorkflow.pushCheckName).push(key);
+				continue;
+			}
+
+			if (name === authorizedExpressionNames.get(key)) {
+				// front-e2e's sharded `test` job: an authorized expression that
+				// claims no reserved name.
+				continue;
+			}
+
+			for (const [reserved, owner] of reservedNames) {
+				if (name.includes(reserved)) {
+					findings.push(
+						`${key}: reports the check name ${JSON.stringify(name)}, which contains the reserved name "${reserved}" (${owner.kind}). Only ${owner.file}::${owner.jobId} may report it: a second job reporting the same context publishes a second, independently-timed verdict for the same commit, and GitHub keeps the LATEST one — so a later success from an unrelated job can land on top of a real gate failure.`,
+					);
+				}
+			}
+
+			if (name.includes('${{')) {
+				findings.push(
+					`${key}: its \`name:\` (${JSON.stringify(name)}) contains a GitHub expression. An expression can resolve to one of the reserved gate check names (${JSON.stringify([...reservedNames.keys()])}) without containing it literally, and this guard cannot evaluate GitHub expressions. Either give the job a static name, or add it to the authorized set in scripts/check-ci-gate-structure.mjs after checking what it can resolve to.`,
+				);
+			}
+		}
+	}
+
+	for (const [name, producers] of producersByName) {
+		if (producers.length === 1) {
+			continue;
+		}
+
+		const owner = reservedNames.get(name);
+
+		findings.push(
+			producers.length === 0
+				? `no job in .github/workflows reports the reserved check name "${name}" (${owner.kind}); expected exactly one, ${owner.file}::${owner.jobId}. A required context nothing reports blocks every pull request.`
+				: `${producers.length} jobs report the reserved check name "${name}" (${owner.kind}): [${producers.join(', ')}]. Expected exactly one.`,
+		);
+	}
+
+	return findings;
+};
+
 const isDirectRun =
 	process.argv[1] &&
 	toPosixPath(process.argv[1]).endsWith('scripts/check-ci-gate-structure.mjs');
 
 if (isDirectRun) {
-	const findings = await findCiGateStructureProblems({
-		rootDir: process.cwd(),
-	});
+	const findings = [
+		...(await findCiGateStructureProblems({ rootDir: process.cwd() })),
+		// Round 6 BLOCKER: run the whole-repository required-context
+		// uniqueness scan from the SAME CLI, so it is enforced by exactly the
+		// paths that already enforce the structure check — `front-ci-gate`'s
+		// own "Verify the aggregate-gate job graph" step, `gate-selftest`, and
+		// `just ci-drift` — rather than needing a new server-side runner of
+		// its own.
+		...(await findRequiredContextCollisionProblems({
+			rootDir: process.cwd(),
+		})),
+	];
 
 	if (findings.length > 0) {
 		console.error(

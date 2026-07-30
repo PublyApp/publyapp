@@ -90,17 +90,22 @@ jobs:
         # complete (GitHub's 3,000-file API ceiling) — see
         # scripts/ci-changed-paths.test.mjs.
         #
-        # Also includes the other three #1017 aggregate-gate workflow files
-        # (front-e2e.yml, openapi-spec-drift.yml, docs-archive.yml), not just
-        # this one: the `gate-selftest` job below runs
-        # scripts/check-ci-gate-structure.mjs and the four new gate test
-        # suites, which parse and assert against ALL FOUR workflow files —
-        # server-enforcing the guards those files depend on requires waking
-        # up for an edit to any of them, or an edit to one of the other three
-        # could regress unnoticed by CI even though this repo's only
-        # server-side runner of those tests lives here. Pinned as a
-        # requirement in scripts/check-ci-gate-structure.mjs itself (see its
-        # `selfTestCoverage` check), so this pattern cannot narrow silently.
+        # Also includes EVERY file under .github/workflows/, not just this
+        # one: the `gate-selftest` job below and this workflow's own `gate`
+        # job run scripts/check-ci-gate-structure.mjs, whose round-6
+        # required-context uniqueness scan parses and asserts against every
+        # workflow in the repository — any one of them can claim a required
+        # check name. Server-enforcing that requires waking up for an edit to
+        # any workflow file, not just the four gate files: the reviewer's
+        # reproduction made `old-front-characterization.yml` report
+        # "docs-archive-gate", and under the previous four-file pattern that
+        # edit classified as irrelevant, so the one job that runs the scan
+        # never woke up. The prefix form (no file list) also covers workflow
+        # files that do not exist yet. Pinned as a requirement in
+        # scripts/check-ci-gate-structure.mjs itself (see its
+        # `selfTestCoverage` check, which includes a path for a
+        # not-yet-existing workflow file precisely so this cannot narrow back
+        # to an enumerated list), so this pattern cannot narrow silently.
         #
         # The base-pinned checkout above can legitimately be empty (see its
         # comment). If so, this fails closed to relevant=true on a path that
@@ -113,7 +118,7 @@ jobs:
           CLASSIFIER=base-ref/scripts/ci-changed-paths.mjs
 
           if [ -f "$CLASSIFIER" ]; then
-            node "$CLASSIFIER" '^(apps/front/|packages/shared-ts/|packages/client-ts/|packages/_tsconfig/|scripts/|turbo\.json$|\.github/workflows/(front-ci|front-e2e|openapi-spec-drift|docs-archive)\.yml$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|package\.json$|\.npmrc$)'
+            node "$CLASSIFIER" '^(apps/front/|packages/shared-ts/|packages/client-ts/|packages/_tsconfig/|scripts/|turbo\.json$|\.github/workflows/|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|package\.json$|\.npmrc$)'
           else
             echo "::warning::[MISSING BASE CLASSIFIER] $CLASSIFIER does not exist at the base commit. This is expected exactly once: for the pull request that introduces this classifier, or a branch cut before it existed on the base branch. Relevance cannot be determined from a classifier that is not there, so this fails closed: treating the workflow as relevant and running everything. If this keeps happening on ordinary pull requests well after the classifier has been on the base branch, something is wrong — investigate, do not silence it."
             echo "relevant=true" >> "$GITHUB_OUTPUT"
