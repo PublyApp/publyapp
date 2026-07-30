@@ -43,8 +43,23 @@ namespace PublyApp.Api.Lib;
 /// <see cref="ItShouldResolveApiRoleUnderTheUnsetHostEnvironmentDocGenerationUses"/>).
 /// Every assertion below was verified against a real mutation that makes it fail — see the
 /// commit message for the exact failing-then-passing transcript of each.
+///
+/// Round-2 review (second pass) found two further problems, both fixed in this revision:
+/// - The unset-host-environment case above still only reran the shipped
+///   <c>--print-hosted-services</c> probe, not the actual document-generation pipeline #1019
+///   calls out by name. <see cref="ItShouldResolveApiRoleDuringARealOpenApiDocumentGenerationRun"/>
+///   closes that gap by invoking the REAL <c>dotnet-getdocument.dll</c> tool — the exact
+///   executable <c>GenerateOpenApiDocuments</c>'s <c>&lt;Exec&gt;</c> line runs — against a
+///   genuinely-compiled assembly (see <see cref="RealOpenApiDocGenerationFixture"/>).
+/// - <c>RunProbe</c>'s 30-second timeout was unreachable for an ordinary hung child: synchronous
+///   <c>ReadToEnd()</c> calls on stdout/stderr blocked forever before <c>WaitForExit</c> was ever
+///   reached. <c>RunProcessWithTimeoutAsync</c> now races <c>WaitForExitAsync()</c> against the
+///   timeout directly, with asynchronous stream reads running concurrently, and kills the whole
+///   process tree on timeout instead of hanging the test process too.
 /// </summary>
-public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
+public sealed class AppEnvironmentDotEnvPrecedenceSpec
+	: IClassFixture<RealOpenApiDocGenerationFixture>, IDisposable {
+	private readonly RealOpenApiDocGenerationFixture _docGenFixture;
 	// Registered only for the Worker/All roles (JobsServiceRegistration.AddWorkerServices) —
 	// its presence/absence in the resolved hosted-service manifest is the observable proof of
 	// which APP_ROLE actually won.
@@ -81,7 +96,8 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 		["APP_ROLE"] = "all",
 	};
 
-	public AppEnvironmentDotEnvPrecedenceSpec() {
+	public AppEnvironmentDotEnvPrecedenceSpec(RealOpenApiDocGenerationFixture docGenFixture) {
+		_docGenFixture = docGenFixture;
 		_tempDirectory = Directory.CreateTempSubdirectory("publyapp-dotenv-precedence-").FullName;
 		_envFilePath = Path.Combine(_tempDirectory, ".env.development");
 	}
@@ -106,10 +122,10 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	}
 
 	[Fact]
-	public void ItShouldResolveApiRoleWhenTheProcessExplicitlySetsAppRoleOverTheFilesAll() {
+	public async Task ItShouldResolveApiRoleWhenTheProcessExplicitlySetsAppRoleOverTheFilesAll() {
 		WriteEnvFile(); // APP_ROLE="all" (the base/default value).
 
-		var resolved = ParseHostedServices(RunProbe(
+		var resolved = ParseHostedServices(await RunProbeAsync(
 			hostEnvironment: "Development",
 			processOverrides: new Dictionary<string, string?> { ["APP_ROLE"] = "api" }));
 
@@ -135,10 +151,10 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	// default, the worker gate would be PRESENT (all role) — the two outcomes are now
 	// observably different, so this assertion has a real mutation that fails it.
 	[Fact]
-	public void ItShouldFallBackToTheFilesAppRoleWhenTheProcessNeverSetsIt() {
+	public async Task ItShouldFallBackToTheFilesAppRoleWhenTheProcessNeverSetsIt() {
 		WriteEnvFile(new Dictionary<string, string> { ["APP_ROLE"] = "api" });
 
-		var resolved = ParseHostedServices(RunProbe(
+		var resolved = ParseHostedServices(await RunProbeAsync(
 			hostEnvironment: "Development",
 			processOverrides: new Dictionary<string, string?> { ["APP_ROLE"] = null }));
 
@@ -168,10 +184,10 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	// invalid value wins, AppEnvironment.Initialize() throws before Program.Main ever reaches
 	// the CLI probe dispatch, and the process exits non-zero with no EndMarker.
 	[Fact]
-	public void ItShouldResolveTheProcessFrontUrlOverTheFilesInvalidOne() {
+	public async Task ItShouldResolveTheProcessFrontUrlOverTheFilesInvalidOne() {
 		WriteEnvFile(new Dictionary<string, string> { ["FRONT_URL"] = "not-a-valid-url" });
 
-		var result = RunProbe(
+		var result = await RunProbeAsync(
 			hostEnvironment: "Development",
 			processOverrides: new Dictionary<string, string?> {
 				["APP_ROLE"] = "api",
@@ -201,18 +217,19 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	// resolved Api role here therefore specifically proves the process's export survived
 	// the load, not a defaulting coincidence.
 	//
-	// This deliberately still uses the shipped --print-hosted-services probe rather than
-	// invoking MSBuild's OpenApiGenerateDocuments target/dotnet-getdocument directly: both
-	// dispatch from the identical Program.Main, after the identical
-	// AppEnvironment.Initialize() call, under the identical environment classification, so the
-	// precedence contract under test is exercised identically either way. Re-driving the
-	// actual MSBuild doc-generation pipeline would re-test #1006's already-proven build wiring,
-	// not #1019's precedence contract, at a real per-test full-rebuild cost.
+	// This case uses the shipped --print-hosted-services probe, not the real document-generation
+	// pipeline — that gap is real and is closed separately below, by
+	// ItShouldResolveApiRoleDuringARealOpenApiDocumentGenerationRun, which drives the actual
+	// dotnet-getdocument tool instead of approximating it. This case still earns its keep
+	// alongside that one: it is the cheap, fast-running form of the same environment
+	// classification (no child-process host bootstrap, no hosted-service startup), so it stays
+	// as a fast first signal while the real-pipeline case below is the authoritative one for
+	// #1019's specific doc-generation acceptance requirement.
 	[Fact]
-	public void ItShouldResolveApiRoleUnderTheUnsetHostEnvironmentDocGenerationUses() {
+	public async Task ItShouldResolveApiRoleUnderTheUnsetHostEnvironmentDocGenerationUses() {
 		WriteEnvFile();
 
-		var resolved = ParseHostedServices(RunProbe(
+		var resolved = ParseHostedServices(await RunProbeAsync(
 			hostEnvironment: null,
 			processOverrides: new Dictionary<string, string?> {
 				["APP_ROLE"] = "api",
@@ -233,6 +250,97 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 				"in the very path this issue exists to protect");
 	}
 
+	// Round-2 review: every case above proves the precedence contract through the shipped
+	// --print-hosted-services probe — a direct child process with both environment-name
+	// variables removed. That is NOT the seam #1019 explicitly calls out:
+	//
+	// > confirm the justfile pins actually take effect, by asserting the role the application
+	// > resolves during a doc-generation run — not by reading the recipe.
+	//
+	// This case closes that gap for real: it invokes the actual
+	// Microsoft.Extensions.ApiDescription.Server tool (dotnet-getdocument.dll) — the exact
+	// executable GenerateOpenApiDocuments's <Exec> line runs during `dotnet build`/
+	// `just build-api` — against a genuinely-compiled (non-Test-config) PublyApp.Api.dll (see
+	// RealOpenApiDocGenerationFixture), with the same APP_ROLE=api export `just build-api` uses
+	// and the same unset host-environment classification build-time OpenAPI generation resolves
+	// under.
+	//
+	// This is NOT a per-test full `dotnet build`: RealOpenApiDocGenerationFixture compiles the
+	// assembly ONCE per test run (with OpenApiGenerateDocumentsOnBuild=false, so that one-time
+	// compile never touches the checked-in apps/api/openapi.json). This case re-invokes the
+	// already-compiled tool's own Exec command directly, bypassing MSBuild's Inputs/Outputs
+	// up-to-date check on GenerateOpenApiDocuments (which would otherwise skip regeneration for
+	// an unchanged assembly regardless of which env vars this case sets).
+	//
+	// Verified against a real regression (see the commit message for the transcript): reverting
+	// AppEnvironment.cs to bare Env.Load(path) lets the file's APP_ROLE="all" win, resolving
+	// AppRole.All and registering WorkerMigrationStartupGate INSIDE the real web host that the
+	// real tool builds to extract the document — the same hosted-service graph that motivated
+	// #1019, now actually started by the tool's own IHost.StartAsync() rather than merely
+	// composed and inspected. Nothing in this process's environment can reach a real Postgres, so
+	// that hosted service retries every 2 seconds (its RetryDelay) without ever completing, and
+	// the real tool hangs — exactly the "worker path blocking an otherwise DB-less tooling
+	// process" failure #1019 exists to prevent. RunProcessWithTimeoutAsync's fixed timeout (see
+	// the round-2 fix on RunProbeAsync) is what lets this be caught deterministically here instead
+	// of hanging the whole suite.
+	[Fact]
+	public async Task ItShouldResolveApiRoleDuringARealOpenApiDocumentGenerationRun() {
+		WriteEnvFile(new Dictionary<string, string> { ["APP_ROLE"] = "all" });
+
+		var outputDirectory = Path.Combine(_tempDirectory, "docgen-out");
+
+		var startInfo = new ProcessStartInfo {
+			FileName = "dotnet",
+			WorkingDirectory = _tempDirectory,
+			RedirectStandardOutput = true,
+			RedirectStandardError = true,
+			UseShellExecute = false,
+		};
+		startInfo.ArgumentList.Add(_docGenFixture.GetDocumentToolPath);
+		startInfo.ArgumentList.Add("--assembly");
+		startInfo.ArgumentList.Add(_docGenFixture.AssemblyPath);
+		startInfo.ArgumentList.Add("--file-list");
+		startInfo.ArgumentList.Add(Path.Combine(_tempDirectory, "docgen-filelist.cache"));
+		startInfo.ArgumentList.Add("--framework");
+		// Mirrors $(TargetFrameworkMoniker) for this project's single net10.0 TFM — the exact
+		// value GenerateOpenApiDocuments' <Exec> line passes for this project.
+		startInfo.ArgumentList.Add(".NETCoreApp,Version=v10.0");
+		startInfo.ArgumentList.Add("--output");
+		startInfo.ArgumentList.Add(outputDirectory);
+		startInfo.ArgumentList.Add("--project");
+		startInfo.ArgumentList.Add("PublyApp.Api");
+		startInfo.ArgumentList.Add("--assets-file");
+		startInfo.ArgumentList.Add(_docGenFixture.AssetsFilePath);
+
+		startInfo.Environment.Remove("ASPNETCORE_ENVIRONMENT");
+		startInfo.Environment.Remove("DOTNET_ENVIRONMENT");
+		// Exactly `just build-api`'s export — the pin #1019 exists to protect.
+		startInfo.Environment["APP_ROLE"] = "api";
+		startInfo.Environment["TRUSTED_PROXY_CIDRS"] = "127.0.0.1/32,::1/128";
+
+		var result = await RunProcessWithTimeoutAsync(startInfo, TimeSpan.FromSeconds(20));
+
+		result.ExitCode.Should().Be(
+			0,
+			"the process's APP_ROLE=api must win over the file's APP_ROLE=\"all\" in the REAL " +
+				"document-generation pipeline, exactly as `just build-api` relies on — a nonzero " +
+				"exit or timeout here means the file clobbered the pin and the real tool either " +
+				"failed validation or hung inside the worker hosted-service graph; " +
+				$"stdout: {result.Stdout} stderr: {result.Stderr}");
+
+		var generatedDocumentPath = Path.Combine(outputDirectory, "PublyApp.Api.json");
+		File.Exists(generatedDocumentPath).Should().BeTrue(
+			"the real dotnet-getdocument tool must have written the generated OpenAPI document " +
+				$"to {generatedDocumentPath}; stdout: {result.Stdout} stderr: {result.Stderr}");
+
+		var generatedDocument = File.ReadAllText(generatedDocumentPath);
+		generatedDocument.Should().Contain(
+			"/auth/login",
+			"a real anonymous route must appear in the document the REAL tool generated, proving " +
+				"the web host (Api/All role) actually ran and served the document request — the " +
+				"Worker role's blocking Generic Host never reaches this code path at all");
+	}
+
 	// Testing/Staging/Production must never reach LoadDotEnvIfDevelopment's DotNetEnv.Env.Load
 	// call at all — confirmed here by observation, not by reading the early-return. The
 	// synthetic .env.development supplies every required variable (including
@@ -245,12 +353,14 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	[InlineData("Testing")]
 	[InlineData("Staging")]
 	[InlineData("Production")]
-	public void ItShouldNeverConsultTheFileForNonDevelopmentHostEnvironments(string hostEnvironment) {
+	public async Task ItShouldNeverConsultTheFileForNonDevelopmentHostEnvironments(
+		string hostEnvironment
+	) {
 		WriteEnvFile();
 
 		var processOverrides = RequiredVariableNames
 			.ToDictionary(name => name, string? (name) => null);
-		var result = RunProbe(hostEnvironment, processOverrides);
+		var result = await RunProbeAsync(hostEnvironment, processOverrides);
 
 		result.ExitCode.Should().NotBe(
 			HostedServiceManifestCli.SuccessExitCode,
@@ -293,7 +403,7 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	// process — used both to inject an explicit value and to strip one this test process
 	// might itself carry (e.g. a Testcontainers-supplied POSTGRES_CONNECTION_STRING), which
 	// would otherwise mask the very condition under test.
-	private ProbeResult RunProbe(
+	private Task<ProbeResult> RunProbeAsync(
 		string? hostEnvironment,
 		IReadOnlyDictionary<string, string?> processOverrides
 	) {
@@ -326,18 +436,72 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 			}
 		}
 
+		return RunProcessWithTimeoutAsync(startInfo, TimeSpan.FromSeconds(30));
+	}
+
+	// Round-2 fix: the ORIGINAL version of this method called the SYNCHRONOUS
+	// process.StandardOutput.ReadToEnd() / StandardError.ReadToEnd() before ever calling
+	// WaitForExit(30_000). A child that hangs while keeping either redirected stream open blocks
+	// forever in ReadToEnd(), so the 30-second bound was never reached — verified directly: a
+	// probe mutated to flush a valid manifest and then sleep indefinitely ran past an external
+	// 8-second `timeout` (exit 124) while this method's own assertion never fired (see the commit
+	// message for the transcript).
+	//
+	// Fixed by racing WaitForExitAsync() against Task.Delay(timeout) directly, with the stdout/
+	// stderr reads running concurrently as their own tasks rather than gating the timeout behind
+	// them. On timeout, the whole process tree is killed (not just the tracked process) — a
+	// grandchild `dotnet` process can otherwise survive a single-PID kill and keep holding the
+	// redirected pipes open, which is exactly the mechanism that orphaned a live process earlier
+	// in this remediation (see the commit message) — so every caller of this helper must let it
+	// own the kill, never send a bare SIGTERM/Kill() to `process` itself.
+	private static async Task<ProbeResult> RunProcessWithTimeoutAsync(
+		ProcessStartInfo startInfo,
+		TimeSpan timeout
+	) {
 		using var process = Process.Start(startInfo);
 		if (process is null) {
 			throw new InvalidOperationException(
-				"Failed to launch the api assembly for the dotenv-precedence probe.");
+				"Failed to launch the child process for the probe.");
 		}
 
-		var stdout = process.StandardOutput.ReadToEnd();
-		var stderr = process.StandardError.ReadToEnd();
-		process.WaitForExit(milliseconds: 30_000).Should().BeTrue(
-			"the probe must finish promptly, not hang; stdout: " + stdout + " stderr: " + stderr);
+		var stdoutTask = process.StandardOutput.ReadToEndAsync();
+		var stderrTask = process.StandardError.ReadToEndAsync();
+		var exitTask = process.WaitForExitAsync();
 
+		var finished = await Task.WhenAny(exitTask, Task.Delay(timeout));
+		if (finished != exitTask) {
+			TryKillEntireProcessTree(process);
+
+			var partialStdout = await ReadWithGraceAsync(stdoutTask);
+			var partialStderr = await ReadWithGraceAsync(stderrTask);
+			throw new TimeoutException(
+				$"Child process did not exit within {timeout.TotalSeconds}s; killed the whole " +
+					$"process tree. Partial stdout: {partialStdout} Partial stderr: {partialStderr}");
+		}
+
+		var stdout = await stdoutTask;
+		var stderr = await stderrTask;
 		return new ProbeResult(process.ExitCode, stdout, stderr);
+	}
+
+	private static void TryKillEntireProcessTree(Process process) {
+		try {
+			process.Kill(entireProcessTree: true);
+		} catch (InvalidOperationException) {
+			// The process exited between the timeout firing and this call — nothing to clean up.
+		}
+	}
+
+	// Bounds the wait for a stream read after the process tree has already been killed. A
+	// grandchild that survived the kill (or a stream whose handle is still draining) should never
+	// re-hang the test itself — report what's available and move on.
+	private static async Task<string> ReadWithGraceAsync(Task<string> readTask) {
+		var finished = await Task.WhenAny(readTask, Task.Delay(TimeSpan.FromSeconds(5)));
+		if (finished != readTask) {
+			return "(unavailable — a surviving grandchild process may still hold the stream open)";
+		}
+
+		return await readTask;
 	}
 
 	private static List<string> ParseHostedServices(ProbeResult result) {
@@ -353,5 +517,138 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 			.Where(line => line.StartsWith(HostedServiceManifestCli.LinePrefix, StringComparison.Ordinal))
 			.Select(line => line[HostedServiceManifestCli.LinePrefix.Length..])
 			.ToList();
+	}
+}
+
+/// <summary>
+/// One-time (per test run), compile-only build of the REAL (non-Test-config) PublyApp.Api
+/// assembly, shared across every case in <see cref="AppEnvironmentDotEnvPrecedenceSpec"/> via
+/// <c>IClassFixture</c>. This is deliberately NOT a per-test full rebuild: xUnit constructs this
+/// fixture once per test class run, regardless of how many test methods use it.
+///
+/// <c>OpenApiGenerateDocumentsOnBuild=false</c> is passed so this ONE-TIME compile never runs
+/// doc generation itself and never touches the checked-in <c>apps/api/openapi.json</c>. Doc
+/// generation is instead invoked directly (bypassing MSBuild's target entirely) once per test
+/// case, against the assembly this fixture produces — see
+/// <c>AppEnvironmentDotEnvPrecedenceSpec</c>'s
+/// <c>ItShouldResolveApiRoleDuringARealOpenApiDocumentGenerationRun</c>.
+/// </summary>
+public sealed class RealOpenApiDocGenerationFixture : IDisposable {
+	public string AssemblyPath { get; }
+	public string AssetsFilePath { get; }
+	public string GetDocumentToolPath { get; }
+
+	public RealOpenApiDocGenerationFixture() {
+		var apiProjectDirectory = FindApiProjectDirectory();
+
+		var buildInfo = new ProcessStartInfo {
+			FileName = "dotnet",
+			WorkingDirectory = apiProjectDirectory,
+			RedirectStandardOutput = true,
+			RedirectStandardError = true,
+			UseShellExecute = false,
+		};
+		buildInfo.ArgumentList.Add("build");
+		buildInfo.ArgumentList.Add("--no-restore");
+		buildInfo.ArgumentList.Add("-p:OpenApiGenerateDocumentsOnBuild=false");
+
+		using var process = Process.Start(buildInfo);
+		if (process is null) {
+			throw new InvalidOperationException(
+				"Failed to launch the one-time Debug-config compile for the real " +
+					"doc-generation fixture.");
+		}
+
+		var stdout = process.StandardOutput.ReadToEnd();
+		var stderr = process.StandardError.ReadToEnd();
+		var exited = process.WaitForExit(milliseconds: 120_000);
+		if (!exited) {
+			process.Kill(entireProcessTree: true);
+			throw new InvalidOperationException(
+				"The one-time Debug-config compile did not finish within 120s. " +
+					$"stdout: {stdout} stderr: {stderr}");
+		}
+
+		if (process.ExitCode != 0) {
+			throw new InvalidOperationException(
+				$"The one-time Debug-config compile failed (exit {process.ExitCode}).\n" +
+					$"stdout: {stdout}\nstderr: {stderr}");
+		}
+
+		AssemblyPath = Path.Combine(
+			apiProjectDirectory, ".artifacts", "bin", "PublyApp.Api", "Debug", "net10.0",
+			"PublyApp.Api.dll");
+		if (!File.Exists(AssemblyPath)) {
+			throw new InvalidOperationException(
+				$"Expected compiled assembly not found at {AssemblyPath}.");
+		}
+
+		AssetsFilePath = Path.Combine(
+			apiProjectDirectory, ".artifacts", "obj", "PublyApp.Api", "project.assets.json");
+		if (!File.Exists(AssetsFilePath)) {
+			throw new InvalidOperationException(
+				$"Expected NuGet assets file not found at {AssetsFilePath}.");
+		}
+
+		GetDocumentToolPath = FindDotNetGetDocumentTool();
+	}
+
+	public void Dispose() { }
+
+	private static string FindDotNetGetDocumentTool() {
+		var packagesRoot = Environment.GetEnvironmentVariable("NUGET_PACKAGES");
+		if (string.IsNullOrWhiteSpace(packagesRoot)) {
+			packagesRoot = Path.Combine(
+				Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+				".nuget",
+				"packages");
+		}
+
+		var packageDirectory = Path.Combine(packagesRoot, "microsoft.extensions.apidescription.server");
+		if (!Directory.Exists(packageDirectory)) {
+			throw new InvalidOperationException(
+				$"Microsoft.Extensions.ApiDescription.Server package not found under " +
+					$"{packagesRoot}. Restore the solution first.");
+		}
+
+		var versionDirectory = Directory.GetDirectories(packageDirectory)
+			.OrderByDescending(path => path, StringComparer.OrdinalIgnoreCase)
+			.FirstOrDefault();
+		if (versionDirectory is null) {
+			throw new InvalidOperationException(
+				$"No version directories found under {packageDirectory}.");
+		}
+
+		var toolPath = Path.Combine(versionDirectory, "tools", "dotnet-getdocument.dll");
+		if (!File.Exists(toolPath)) {
+			throw new InvalidOperationException($"dotnet-getdocument.dll not found at {toolPath}.");
+		}
+
+		return toolPath;
+	}
+
+	// Walks up from the compiled test assembly's own directory (which lives under
+	// apps/api/.artifacts/bin/PublyApp.Api.Tests/..., since apps/api/Directory.Build.props pins
+	// DotNetArtifactsRoot for every project under apps/api to a shared apps/api/.artifacts/)
+	// until it finds PublyApp.Api.csproj — the source project directory `just build-api` itself
+	// builds from.
+	private static string FindApiProjectDirectory() {
+		var assemblyDirectory = Path.GetDirectoryName(typeof(Program).Assembly.Location);
+		if (assemblyDirectory is null) {
+			throw new InvalidOperationException("Could not determine the test assembly's directory.");
+		}
+
+		var directory = new DirectoryInfo(assemblyDirectory);
+		while (directory is not null) {
+			if (File.Exists(Path.Combine(directory.FullName, "PublyApp.Api.csproj"))) {
+				return directory.FullName;
+			}
+
+			directory = directory.Parent;
+		}
+
+		throw new InvalidOperationException(
+			"Could not locate apps/api (containing PublyApp.Api.csproj) by walking up from " +
+				$"{assemblyDirectory}.");
 	}
 }
