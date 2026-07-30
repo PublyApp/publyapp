@@ -23,13 +23,20 @@ const isApiPath = (url: string, path: string): boolean => {
  * `app-shell.tsx`). A page-global `span[aria-current="page"]` locator
  * resolves to both and trips Playwright strict mode on any tenant-details
  * route where the last breadcrumb segment happens to share the tab's label
- * (e.g. "Users", "Invitations"). Scope to the tab-set landmark so the
- * assertion targets the element it actually means.
+ * (e.g. "Users", "Invitations"). Scope to the tab set so the assertion
+ * targets the element it actually means.
+ *
+ * Scoped by test id rather than by `getByRole('navigation', { name })`:
+ * every one of these assertions runs while the invite drawer is open, and
+ * the drawer is a Base UI modal `Dialog`, which hides everything outside
+ * itself from the accessibility tree. A role query therefore resolves to
+ * nothing at exactly the moment we need it, while a test-id query — a
+ * plain CSS attribute selector — is unaffected. The `aria-label` also
+ * carries a translated value, so matching on it by name would break under
+ * any locale but English.
  */
 const currentTenantSectionTab = (page: Page) =>
-	page
-		.getByRole('navigation', { name: 'Tenant sections' })
-		.locator('span[aria-current="page"]');
+	page.getByTestId('tenant-sections-nav').locator('span[aria-current="page"]');
 
 /** Floating bar is portalled to `document.body` and pinned near the viewport
  * bottom — assert it isn't trapped inside `.app-shell-main`'s scroll area. */
