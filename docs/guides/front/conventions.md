@@ -51,6 +51,76 @@ Follow them by hand until automation exists:
 
 Prefix a route-local file that must not become a route with `_` (e.g. `_tenant-details-shell.tsx`, `$userId/_overview-context.tsx`) — this is a human convention only (routing here is driven by the virtual route config in `src/routes.ts`, not file-based discovery), so pick `_` consistently rather than mixing it with `-`.
 
+## Breadcrumb & Route Contract (#973)
+
+Every route declares its own breadcrumb trail via `staticData.crumbs`
+(`src/lib/navigation/breadcrumbs.ts`). This is not optional by convention alone: the module
+augments TanStack Router's `StaticDataRouteOption` to make `crumbs` a **required** field, so a
+route file whose `createFileRoute(...)({ staticData: {...} })` call omits it fails
+`pnpm --filter front typecheck` — the same gate `just ci-front` runs. This is the Tier 1 rule;
+the Tier 2 machine guards below (`src/lib/navigation/breadcrumb-contract.test.tsx`) exist because
+a required field only proves a route declared *something*, not that the something is correct.
+
+**The two permitted shapes of `staticData.crumbs`:**
+
+- `'shell'` — opts the route out of ever supplying the trail. Use it for pathless layouts,
+  auth/marketing surfaces, and redirect-only legacy stubs whose `beforeLoad` immediately
+  redirects and which render `null` (e.g. `profiles-new.tsx`, `$profileId-edit.tsx`,
+  `users-invite.tsx`). `deriveBreadcrumbTrail` walks from the deepest match upward and skips
+  `'shell'` matches, so an ancestor or sibling route still supplies the visible trail.
+- A function `(params) => readonly CrumbSpec[]` — the route's full trail *tail* (everything
+  after the scope root). Routes are flat (see Route-Local Private File Naming above), so the
+  deepest matching route declares its entire tail, not just its own segment; do not expect
+  parent/child routes to each contribute one crumb.
+
+`CrumbSpec` has exactly two `kind`s:
+
+- `{ kind: 'label'; labelKey: string; to?: string }` — a static, developer-controlled i18n
+  string (e.g. `nav-tenants`, `common:profiles`). `to`, when present, is an already-interpolated
+  concrete href (`` `/staff/tenants/${tenantId}/profiles` ``), not a route-template literal — it
+  is typed as a plain `string` for exactly that reason.
+- `{ kind: 'entity'; to?: string; query: (params) => EntityCrumbQuery; select: (data) => string
+  | undefined }` — a crumb whose label is a real entity's name, resolved at render time by
+  `EntityCrumb` (`src/lib/navigation/entity-crumb.tsx`).
+
+**A route whose generated path has a `$param` dynamic segment must name one `entity` crumb per
+segment.** The Tier 2 route-tree-walk guard counts `$param` segments against `entity` crumbs for
+every real, generated route and fails if they don't match one-to-one — a dynamic route may not
+fall back to a generic label crumb for the thing its own URL identifies. The only exception is
+the frozen legacy-redirect-stub allowlist mentioned above (`'shell'` is correct there because the
+route never renders a trail at all).
+
+**The `query`/`select` pair contract:**
+
+- `query(params)` must return `{ queryKey, queryFn }` built from the **same**
+  `xxxDetailsQueryOptions` factory the entity's own detail page queries (see the `*CrumbQuery`
+  helpers next to each domain's query module, e.g. `staffTenantCrumbQuery` in
+  `src/lib/query/staff-tenants.ts`) — reusing the query key lets TanStack Query dedupe the
+  request, so a page the user navigated *from* already has the entity cached and the crumb paints
+  instantly instead of showing a skeleton.
+- `select(data)` must derive the entity's actual human name from `data` and return `undefined` on
+  a shape it can't resolve (renders the muted-dash fallback). It must never return a fixed
+  string regardless of input — the #973 BLOCKER this contract closes was exactly that: a real
+  route's `select` rewritten to always return `'Tenant detail'` typechecked and passed the
+  route-tree-walk guard, because that guard only proved a crumb was *tagged* `entity`, not that
+  its selector was wired to the payload. The Tier 2 rendered-artifact guard now drives every real
+  route's own `select` closure against a representative payload and asserts the output echoes
+  that payload's name field, closing that gap.
+- **New entity queries must be registered in the guard's registry** (`ENTITY_QUERY_REGISTRY` in
+  `breadcrumb-contract.test.tsx`) — a closed allowlist pairing each production `query` function
+  reference with a representative wire-shaped payload. The guard fails closed: a route whose
+  `query` isn't a registered reference is reported as a failure rather than silently skipped, so
+  adding a genuinely new entity kind (a new domain's crumb) means adding it to the registry, with
+  its own representative payload, on purpose — not an oversight the guard quietly ignores.
+
+**Long entity names must not break the breadcrumb row.** Entity names are user-supplied and can
+be arbitrarily long. `EntityCrumb`'s resolved-name node uses `block truncate` with
+`title={name}` — the same "long user-supplied string in constrained space" pattern as the rest of
+front (see Content & data honesty below), not a bespoke breadcrumb-only mechanism — and the
+breadcrumb row's own flex-item wrappers (`.app-shell-breadcrumb-link` / `-current` / `-muted` in
+`app.css`) carry `min-w-0` so that truncation actually has room to take effect instead of
+overflowing the topbar.
+
 ## Superseded proof-of-concept
 
 The disposable proof-of-concept was removed in #965 after its findings were
