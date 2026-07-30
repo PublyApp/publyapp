@@ -33,6 +33,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
 	assertNoPendingMigrations,
+	LAUNCHED_API_CHILD_PID_PREFIX,
 	waitForApiReachable,
 } from './review-api.mjs';
 
@@ -63,6 +64,88 @@ if (migrationIds.length < 2) {
 
 const lastMigrationId = migrationIds.at(-1);
 const secondToLastMigrationId = migrationIds.at(-2);
+
+// ---------------------------------------------------------------------------
+// Process-tree helpers (Linux-only /proc, consistent with the rest of this file's POSIX-only
+// process handling — Docker-gated anyway).
+//
+// Round-5 review cleanup finding + BLOCKER: every kill-time backstop in this file used to be a
+// global `pkill -9 -f <pattern>` sweep across the WHOLE host — a substring match against every
+// process's argv, not scoped to anything this test actually spawned. Reviewer reproduced this
+// killing the test harness's own parent shell (whose argv happened to also contain the port
+// substring), aborting cleanup and orphaning the real API. These helpers replace every such
+// sweep with kills scoped to PIDs PROVEN (via /proc's own parent-pid chain) to descend from a
+// specific PID this file itself spawned — never a pattern that could also match an unrelated
+// process elsewhere on a host that runs concurrent dotnet/dotnet-watch processes.
+// ---------------------------------------------------------------------------
+
+// Builds a pid -> ppid map from every process currently visible under /proc. A process that
+// exits between readdir and the individual read is just skipped (it is, definitionally, no
+// longer anything that needs reaping).
+const readProcessParentMap = () => {
+	const parentByPid = new Map();
+	for (const entry of readdirSync('/proc')) {
+		if (!/^\d+$/.test(entry)) {
+			continue;
+		}
+
+		try {
+			const stat = readFileSync(`/proc/${entry}/stat`, 'latin1');
+			// proc(5): the second field (`comm`) is parenthesized and may itself contain spaces
+			// or parens, so the LAST ')' in the line is the only safe anchor — everything after
+			// it is space-separated fields in a fixed, documented order, starting with `state`
+			// then `ppid`.
+			const afterComm = stat.slice(stat.lastIndexOf(')') + 2);
+			const ppid = Number.parseInt(afterComm.split(' ')[1], 10);
+			if (Number.isInteger(ppid)) {
+				parentByPid.set(Number.parseInt(entry, 10), ppid);
+			}
+		} catch {
+			// Process exited between readdir and read — fine, just skip it.
+		}
+	}
+
+	return parentByPid;
+};
+
+// Every pid descended from rootPid (any depth), INCLUDING rootPid itself, as of THIS instant.
+// Callers that intend to kill a tree should snapshot this BEFORE signaling anything: a process
+// that re-parents away mid-kill (e.g. a re-forking watcher detaching a new child) would no
+// longer appear as a descendant in a snapshot taken afterward, but one taken before still names
+// it by pid, independent of who its parent becomes later.
+const descendantPidsOf = (rootPid) => {
+	const parentByPid = readProcessParentMap();
+	const result = new Set([rootPid]);
+
+	let added = true;
+	while (added) {
+		added = false;
+		for (const [pid, ppid] of parentByPid.entries()) {
+			if (result.has(ppid) && !result.has(pid)) {
+				result.add(pid);
+				added = true;
+			}
+		}
+	}
+
+	return result;
+};
+
+// Kills every pid in a previously-snapshotted descendant set directly, individually — never a
+// pattern sweep. Missing/already-exited pids (ESRCH) are expected and ignored.
+const killPidsDirectly = (pids) => {
+	for (const pid of pids) {
+		try {
+			process.kill(pid, 'SIGKILL');
+		} catch {
+			// Already gone — fine.
+		}
+	}
+};
+
+// Every CLI child pid this file has spawned, tracked so the `after` hook's backstop can reap by
+// proven descendant pid instead of a global argv pattern (see the header comment above).
+const trackedLaunchChildPids = new Set();
 
 const dockerIsAvailable = () => {
 	try {
@@ -114,6 +197,16 @@ const isTcpPortReachable = (port, host = '127.0.0.1') =>
 // the five EF retries in runDotnetWithDiagnostics. Gate on an authenticated query actually
 // succeeding — via `docker exec` + psql running INSIDE the container (avoids depending on a
 // host-installed psql client) — not on socket acceptance.
+//
+// Round-5 review IMPORTANT: without an explicit `-h`, libpq defaults to the container's Unix
+// domain socket — and the official postgres image deliberately starts a SOCKET-ONLY temporary
+// server during initdb (the exact round-2 temporary-server phase, reachable this time because
+// this check runs INSIDE the container instead of from the host). An authenticated query
+// against that temporary server can succeed even though the real, network-facing server has
+// not taken over yet, so the round-4 fix above traded one "returned too early" bug for another.
+// Forcing `-h 127.0.0.1` makes psql dial TCP loopback INSIDE the container instead — the
+// temporary server never binds TCP at all (by design, so external callers cannot reach it), so
+// only the final, real server can ever answer this specific query.
 const isPostgresAcceptingAuthenticatedSessions = () => {
 	const result = spawnSync(
 		'docker',
@@ -123,6 +216,8 @@ const isPostgresAcceptingAuthenticatedSessions = () => {
 			'PGPASSWORD=password',
 			TEST_CONTAINER,
 			'psql',
+			'-h',
+			'127.0.0.1',
 			'-U',
 			'postgres',
 			'-d',
@@ -246,17 +341,12 @@ after(() => {
 		return;
 	}
 
-	// Backstop in case a launch test's own try/finally never got to run (e.g. the process
-	// was killed externally mid-test): sweep both end-to-end ports one more time before
-	// tearing down the database they were pointed at.
-	for (const port of [CLI_PORT, NORMAL_LAUNCH_PORT, MISSING_VALUE_PORT]) {
-		try {
-			execFileSync('pkill', ['-9', '-f', `127.0.0.1:${String(port)}`], {
-				stdio: 'ignore',
-			});
-		} catch {
-			// Nothing left to kill, or none matched — fine either way.
-		}
+	// Backstop in case a launch test's own try/finally never got to run (e.g. the process was
+	// killed externally mid-test): reap every descendant of every CLI pid this file spawned,
+	// by proven pid — never a global argv pattern sweep (see the process-tree helpers' header
+	// comment above the reason).
+	for (const rootPid of trackedLaunchChildPids) {
+		killPidsDirectly(descendantPidsOf(rootPid));
 	}
 
 	restoreEnvFileIfBackedUp();
@@ -378,7 +468,12 @@ const withWorktreeConnectionStringRemoved = async (run) => {
 	}
 };
 
-const killProcessGroup = (child, port) => {
+const killProcessGroup = (child) => {
+	// Snapshot descendants BEFORE signaling — see the process-tree helpers' header comment for
+	// why this must happen first (a descendant that re-parents away mid-kill is still caught by
+	// pid here, where a sweep taken afterward could miss it).
+	const descendantPidsBeforeKill = descendantPidsOf(child.pid);
+
 	if (child.exitCode === null && !child.killed) {
 		try {
 			process.kill(-child.pid, 'SIGKILL');
@@ -387,16 +482,11 @@ const killProcessGroup = (child, port) => {
 		}
 	}
 
-	try {
-		// pkill's own option parser chokes on a pattern starting with "--" (verified by hand:
-		// it reads "--urls ..." as an unrecognized flag rather than the search pattern). The
-		// bare host:port does not start with a dash and matches the same processes.
-		execFileSync('pkill', ['-9', '-f', `127.0.0.1:${String(port)}`], {
-			stdio: 'ignore',
-		});
-	} catch {
-		// Nothing left to kill, or none matched — fine either way.
-	}
+	// Backstop for anything that escaped the process-group signal above — kills each
+	// individually-tracked descendant pid directly. Never a global `pkill -f` pattern sweep
+	// (round-5 review: that killed the test harness's own parent shell, whose argv happened to
+	// also contain the port substring, aborting cleanup and orphaning the real API).
+	killPidsDirectly(descendantPidsBeforeKill);
 };
 
 // Bounded, guaranteed cleanup for a detached child tree, for use from a `finally`.
@@ -411,13 +501,15 @@ const killProcessGroup = (child, port) => {
 // blocked event loop, alive well past the "30-second" bound; the test's own `after` cleanup
 // could not run at all while spawnSync blocked it. This performs an escalating, bounded
 // SIGTERM → SIGKILL reap against the process GROUP (never throws — it runs in a `finally` and
-// must not mask a real assertion failure), then sweeps by the port pattern as a backstop for
-// any descendant that re-parented outside the group.
-const killAndReapProcessGroup = async (
-	child,
-	port,
-	{ graceMs = 5000 } = {},
-) => {
+// must not mask a real assertion failure), then reaps any snapshotted descendant pid directly
+// as a backstop for anything that re-parented outside the group.
+//
+// Round-5 review cleanup finding: the backstop used to be a global `pkill -f <port pattern>`
+// sweep — reproduced killing the test harness's own parent shell, whose argv happened to also
+// contain the port substring, which prevented this very `finally` block's caller from running
+// and orphaned the real API. Snapshotting descendants of `child.pid` BEFORE signaling and
+// killing exactly those pids removes the pattern match entirely.
+const killAndReapProcessGroup = async (child, { graceMs = 5000 } = {}) => {
 	const stillRunning = () =>
 		child.exitCode === null && child.signalCode === null && !child.killed;
 
@@ -428,6 +520,8 @@ const killAndReapProcessGroup = async (
 				setTimeout(() => resolve(false), timeoutMs);
 			}),
 		]);
+
+	const descendantPidsBeforeKill = descendantPidsOf(child.pid);
 
 	if (stillRunning()) {
 		try {
@@ -448,15 +542,7 @@ const killAndReapProcessGroup = async (
 		}
 	}
 
-	// Backstop: sweep anything still bound to the test port by command-line pattern, in case a
-	// descendant re-parented outside this process group (e.g. under a re-forking watcher).
-	try {
-		execFileSync('pkill', ['-9', '-f', `127.0.0.1:${String(port)}`], {
-			stdio: 'ignore',
-		});
-	} catch {
-		// Nothing left to kill, or none matched — fine either way.
-	}
+	killPidsDirectly(descendantPidsBeforeKill);
 };
 
 // ---------------------------------------------------------------------------
@@ -511,44 +597,84 @@ const findApiAssemblyPath = () => {
 	throw new Error(`Could not find a built PublyApp.Api.dll under ${binRoot}.`);
 };
 
-// Finds the PID of a currently-running process bound to this exact host:port — matches on
-// the literal `--urls http://127.0.0.1:<port>` argument review-api.mjs's spawnApiChild passes,
-// which every process in the dotnet-watch chain carries in its own argv (verified by hand:
-// round-4 review's hung-process capture showed both "dotnet watch run ... --urls ..." and
-// ".../dotnet-watch.dll run ... --urls ..." carrying it). Prefers the innermost
-// dotnet-watch.dll process — .NET's hot-reload host actually composes and runs the app's DI
-// container IN that process, not a further child — but any matching PID's environment is
-// equally representative, since env vars are inherited unmodified down the whole spawn chain;
-// this preference only picks the process most directly responsible for the resolved graph.
-const findRealApiHostPid = (port) => {
-	const urlPattern = `--urls http://127\\.0\\.0\\.1:${String(port)}`;
+// Round-5 review BLOCKER: this used to REDISCOVER the launched process by pattern-matching
+// argv against the WHOLE HOST (`pgrep -f`) — a discovered pid is only ever an inference. The
+// reviewer disproved it: an older, non-listening decoy process whose argv happened to match
+// the same fixed-port pattern let the search latch onto IT, while the real API — with the
+// unsafe conditional-role behavior restored — visibly started Quartz and acquired scheduler
+// leadership, and the test still passed 5/5. "No other candidate exists" is not a safe
+// assumption on a host that runs concurrent dotnet/dotnet-watch processes (this repo's own
+// sibling review/dev lanes do exactly that).
+//
+// Fixed by making the launcher report its own child pid directly (review-api.mjs prints
+// `LAUNCHED_API_CHILD_PID_PREFIX <pid>` — the exact pid Node's own spawn() call just set
+// buildApiChildEnv's resolved env on) and reading that reported fact from the CLI's own
+// captured stdout, instead of searching for it. A discovered pid can be wrong in three ways —
+// zero matches, more than one, or a match that merely looks right; a reported pid removes the
+// discovery step entirely, so none of those ambiguities can arise. The only remaining failure
+// mode — the reported pid having already exited (and, vanishingly unlikely, been recycled) by
+// the time this reads it — is still guarded explicitly below and fails closed rather than
+// silently trusting an unverified pid.
 
-	const preferred = spawnSync(
-		'pgrep',
-		['-f', `dotnet-watch\\.dll.*${urlPattern}`],
-		{ encoding: 'utf8' },
-	);
-	const preferredPids = preferred.stdout
-		.split('\n')
-		.map((line) => line.trim())
-		.filter(Boolean);
-	if (preferredPids.length > 0) {
-		return Number.parseInt(preferredPids[0], 10);
+// Waits (bounded) for review-api.mjs's LAUNCHED_API_CHILD_PID_PREFIX marker line to appear in
+// the CLI's own captured stdout, then parses the reported pid out of it. Throws — never falls
+// back to any kind of search — if the marker never appears within the bound.
+const waitForReportedLaunchedChildPid = async (
+	getStdout,
+	{ attempts = 120, intervalMs = 250 } = {},
+) => {
+	const pattern = new RegExp(`${LAUNCHED_API_CHILD_PID_PREFIX}\\s*(\\d+)`);
+
+	for (let attempt = 0; attempt < attempts; attempt += 1) {
+		const match = pattern.exec(getStdout());
+		if (match) {
+			return Number.parseInt(match[1], 10);
+		}
+
+		await new Promise((resolve) => {
+			setTimeout(resolve, intervalMs);
+		});
 	}
 
-	const fallback = spawnSync('pgrep', ['-f', urlPattern], { encoding: 'utf8' });
-	const fallbackPids = fallback.stdout
-		.split('\n')
-		.map((line) => line.trim())
-		.filter(Boolean);
-	if (fallbackPids.length === 0) {
+	throw new Error(
+		'The real CLI never reported its launched child pid (expected a ' +
+			`"${LAUNCHED_API_CHILD_PID_PREFIX} <pid>" line on stdout) within the bound — cannot ` +
+			`identify the process under test. stdout so far:\n${getStdout()}`,
+	);
+};
+
+// Reads /proc/<pid>/cmdline (NUL-separated argv) for a currently-running process.
+const readProcessCmdline = (pid) => {
+	const raw = readFileSync(`/proc/${String(pid)}/cmdline`, 'latin1');
+	return raw.split('\0').filter(Boolean);
+};
+
+// Verifies the launcher-reported pid is genuinely alive and is the expected
+// `dotnet watch run ... --urls http://127.0.0.1:<port>` process BEFORE anything trusts its
+// environment — belt-and-suspenders against the pid having already exited (and, in principle,
+// been recycled) by the time this runs. A mismatch throws; it never silently reads the wrong
+// process's environment, and it never falls back to searching for a replacement candidate.
+const verifyReportedApiHostPid = (pid, port) => {
+	let argv;
+	try {
+		argv = readProcessCmdline(pid);
+	} catch (error) {
 		throw new Error(
-			`No running dotnet process matched "${urlPattern}" — the real CLI does not ` +
-				'appear to have launched anything on this port.',
+			`The real CLI reported pid ${String(pid)} as its launched child, but that process ` +
+				`no longer exists (${String(error?.message ?? error)}) — refusing to trust its ` +
+				'environment.',
 		);
 	}
 
-	return Number.parseInt(fallbackPids[0], 10);
+	const commandLine = argv.join(' ');
+	const expectedUrl = `--urls http://127.0.0.1:${String(port)}`;
+	if (argv[0] !== 'dotnet' || !commandLine.includes(expectedUrl)) {
+		throw new Error(
+			`The real CLI reported pid ${String(pid)} as its launched child, but its actual ` +
+				`argv ("${commandLine}") is not the expected dotnet watch process for ` +
+				`${expectedUrl} — refusing to trust its environment.`,
+		);
+	}
 };
 
 // Reads the REAL, resolved OS-level environment of an already-running process by PID — the
@@ -649,6 +775,7 @@ test(
 					},
 				},
 			);
+			trackedLaunchChildPids.add(child.pid);
 
 			try {
 				const liveUrl = `http://127.0.0.1:${String(CLI_PORT)}${LIVENESS_PATH}`;
@@ -699,7 +826,7 @@ test(
 				const body = await readinessResponse.text();
 				assert.match(body, /unhealthy/i);
 			} finally {
-				killProcessGroup(child, CLI_PORT);
+				killProcessGroup(child);
 			}
 		});
 	},
@@ -757,6 +884,13 @@ test(
 				'the test port must be free before spawning the real CLI',
 			);
 
+			// stdout is piped (not inherited) so this test can read the launcher's own
+			// LAUNCHED_API_CHILD_PID_PREFIX marker directly — see the BLOCKER comment above
+			// findRealApiHostPid's replacement for why that beats rediscovering the pid by
+			// pattern. Captured chunks are also echoed straight through to this process's own
+			// stdout so nothing is lost for a human running this suite by hand; stderr stays
+			// inherited.
+			let stdout = '';
 			const child = spawn(
 				'node',
 				[
@@ -767,11 +901,17 @@ test(
 				],
 				{
 					cwd: repoRoot,
-					stdio: 'inherit',
+					stdio: ['ignore', 'pipe', 'inherit'],
 					detached: true,
 					env: { ...process.env },
 				},
 			);
+			trackedLaunchChildPids.add(child.pid);
+			child.stdout.on('data', (chunk) => {
+				const text = chunk.toString('utf8');
+				stdout += text;
+				process.stdout.write(text);
+			});
 
 			try {
 				const liveUrl = `http://127.0.0.1:${String(NORMAL_LAUNCH_PORT)}${LIVENESS_PATH}`;
@@ -797,11 +937,17 @@ test(
 				// env from what main() is SUPPOSED to do, then ran a separately spawned,
 				// hard-coded-APP_ROLE=api diagnostic process — proving only that an explicitly
 				// Api-pinned process has the Api allowlist, nothing about what the real CLI
-				// actually launched. Find the ACTUAL running dotnet process bound to this port
-				// and read ITS real, resolved OS environment before asserting or probing
-				// anything, so a regression in main()'s role selection is directly observed,
-				// not assumed away.
-				const realHostPid = findRealApiHostPid(NORMAL_LAUNCH_PORT);
+				// actually launched. Read ITS real, resolved OS environment before asserting or
+				// probing anything, so a regression in main()'s role selection is directly
+				// observed, not assumed away.
+				//
+				// Round-5 review BLOCKER: identify that process by the pid the launcher itself
+				// reported (a fact), verified alive and matching the expected dotnet-watch
+				// command line for this exact port, rather than rediscovering it by a host-wide
+				// argv pattern search (an inference that a stale sibling process elsewhere on
+				// the host can defeat).
+				const realHostPid = await waitForReportedLaunchedChildPid(() => stdout);
+				verifyReportedApiHostPid(realHostPid, NORMAL_LAUNCH_PORT);
 				const realEnv = readRealProcessEnv(realHostPid);
 
 				assert.equal(
@@ -844,7 +990,7 @@ test(
 					'the database is fully migrated by this point, so a genuine api-role launch must report healthy',
 				);
 			} finally {
-				killProcessGroup(child, NORMAL_LAUNCH_PORT);
+				killProcessGroup(child);
 			}
 		});
 	},
@@ -899,6 +1045,7 @@ test(
 					},
 				},
 			);
+			trackedLaunchChildPids.add(child.pid);
 
 			let stdout = '';
 			let stderr = '';
@@ -940,7 +1087,7 @@ test(
 						`stderr: ${stderr}`,
 				);
 			} finally {
-				await killAndReapProcessGroup(child, MISSING_VALUE_PORT);
+				await killAndReapProcessGroup(child);
 			}
 
 			const stillFree = await isPortFree(MISSING_VALUE_PORT);
