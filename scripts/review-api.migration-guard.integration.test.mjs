@@ -616,19 +616,65 @@ const findApiAssemblyPath = () => {
 // the time this reads it — is still guarded explicitly below and fails closed rather than
 // silently trusting an unverified pid.
 
-// Waits (bounded) for review-api.mjs's LAUNCHED_API_CHILD_PID_PREFIX marker line to appear in
-// the CLI's own captured stdout, then parses the reported pid out of it. Throws — never falls
-// back to any kind of search — if the marker never appears within the bound.
+// Round-6 review IMPORTANT: this used to run an UNANCHORED regex against the whole
+// accumulated stdout buffer and return the FIRST match. The reviewer planted a stale,
+// matching decoy marker line before the real one and the ordinary-launch proof still passed
+// 2/2 while the real process visibly started Quartz and acquired scheduler leadership — the
+// exact regression this proof exists to catch, passing. A reported "fact" is only as
+// trustworthy as the code that reads it back out: last round replaced a fragile pattern
+// SEARCH with a reported fact; this parser then reintroduced the same ambiguity one layer
+// down by searching for that fact instead of verifying it.
+//
+// Fixed to require the marker be structurally unambiguous, not merely present:
+//   - only COMPLETE lines (terminated by '\n') are ever considered — a marker split across
+//     chunks, or a trailing partial line still being written, can never match;
+//   - the ENTIRE line must be nothing but the marker (anchored ^...$) — a marker embedded
+//     inside other output, or preceded/followed by other text, does not count;
+//   - EXACTLY ONE such line is required. Zero keeps waiting (bounded, then throws, as
+//     before). Two or more throws IMMEDIATELY, without picking one: the production launcher
+//     emits this marker exactly once per invocation (review-api.mjs's single `console.log`
+//     call at the point it learns its own spawned child's pid), so more than one complete
+//     matching line is always a defect — a decoy or a duplicate-emission regression — never
+//     a legitimate state to resolve by guessing which one is real.
+const LAUNCHED_API_CHILD_PID_LINE_PATTERN = new RegExp(
+	`^${LAUNCHED_API_CHILD_PID_PREFIX}\\s*(\\d+)$`,
+);
+
+// Waits (bounded) for review-api.mjs's LAUNCHED_API_CHILD_PID_PREFIX marker to appear as its
+// own complete, unambiguous line in the CLI's own captured stdout, then parses the reported
+// pid out of it. Throws — never falls back to any kind of search, and never guesses among
+// multiple candidates — if the marker never appears within the bound, or appears more than
+// once.
 const waitForReportedLaunchedChildPid = async (
 	getStdout,
 	{ attempts = 120, intervalMs = 250 } = {},
 ) => {
-	const pattern = new RegExp(`${LAUNCHED_API_CHILD_PID_PREFIX}\\s*(\\d+)`);
-
 	for (let attempt = 0; attempt < attempts; attempt += 1) {
-		const match = pattern.exec(getStdout());
-		if (match) {
-			return Number.parseInt(match[1], 10);
+		const raw = getStdout();
+		// The final split segment is everything written since the last '\n' — possibly still
+		// mid-write — and must never be treated as a complete line. Stripping a trailing '\r'
+		// tolerates CRLF output without loosening the anchor itself.
+		const lines = raw.split('\n');
+		lines.pop();
+
+		const matches = lines
+			.map((line) =>
+				LAUNCHED_API_CHILD_PID_LINE_PATTERN.exec(line.replace(/\r$/, '')),
+			)
+			.filter((match) => match !== null);
+
+		if (matches.length > 1) {
+			throw new Error(
+				'The real CLI reported its launched child pid ' +
+					`${String(matches.length)} times (expected EXACTLY ONE ` +
+					`"${LAUNCHED_API_CHILD_PID_PREFIX} <pid>" line) — refusing to guess which one ` +
+					`is real. Reported pids: ${matches.map((match) => match[1]).join(', ')}. ` +
+					`stdout so far:\n${raw}`,
+			);
+		}
+
+		if (matches.length === 1) {
+			return Number.parseInt(matches[0][1], 10);
 		}
 
 		await new Promise((resolve) => {
@@ -642,6 +688,98 @@ const waitForReportedLaunchedChildPid = async (
 			`identify the process under test. stdout so far:\n${getStdout()}`,
 	);
 };
+
+// ---------------------------------------------------------------------------
+// waitForReportedLaunchedChildPid: parser unit tests (round-6 review IMPORTANT).
+//
+// These do NOT require Docker/dotnet — they exercise the parsing/anchoring/uniqueness logic
+// directly against a fake `getStdout`, so the decoy scenario and its variants (duplicate,
+// embedded-in-other-text, partial-line) run fast and always (no `skip` gate) rather than only
+// as an expensive, Docker-gated end-to-end proof. The reviewer's exact reproduction — a stale
+// marker planted before the real one — is also proven at the real CLI level in the
+// Docker-gated "ordinary launch" test below; these cover the parser in isolation.
+// ---------------------------------------------------------------------------
+
+test('waitForReportedLaunchedChildPid: resolves the pid from exactly one complete marker line', async () => {
+	const stdout = `some banner text\n${LAUNCHED_API_CHILD_PID_PREFIX} 4242\nmore log lines\n`;
+	const pid = await waitForReportedLaunchedChildPid(() => stdout, {
+		attempts: 1,
+		intervalMs: 1,
+	});
+	assert.equal(pid, 4242);
+});
+
+test('waitForReportedLaunchedChildPid: a trailing PARTIAL line (no newline yet) never counts — even if it looks like a match', async () => {
+	// Simulates a chunk boundary landing mid-marker: the digits are still being written when
+	// this poll happens. Must not resolve to a truncated/wrong pid, and must not throw either
+	// — it should just keep waiting until the line is actually complete.
+	let stdout = `${LAUNCHED_API_CHILD_PID_PREFIX} 99`;
+	const completeAfterMs = 10;
+	setTimeout(() => {
+		stdout += '99\n'; // completes the SAME pid (9999), not a different one
+	}, completeAfterMs);
+
+	const pid = await waitForReportedLaunchedChildPid(() => stdout, {
+		attempts: 50,
+		intervalMs: 2,
+	});
+	assert.equal(pid, 9999);
+});
+
+test('waitForReportedLaunchedChildPid: a marker embedded inside other text on the same line never matches', async () => {
+	const stdout = `noisy prefix ${LAUNCHED_API_CHILD_PID_PREFIX} 1234 noisy suffix\n`;
+	await assert.rejects(
+		() =>
+			waitForReportedLaunchedChildPid(() => stdout, {
+				attempts: 3,
+				intervalMs: 1,
+			}),
+		/never reported its launched child pid/,
+	);
+});
+
+test('waitForReportedLaunchedChildPid: zero markers ever emitted fails closed after the bound', async () => {
+	const stdout = 'the launcher never printed a marker at all\n';
+	await assert.rejects(
+		() =>
+			waitForReportedLaunchedChildPid(() => stdout, {
+				attempts: 3,
+				intervalMs: 1,
+			}),
+		/never reported its launched child pid/,
+	);
+});
+
+// Round-6 review IMPORTANT reproduction, at the parser level: a stale marker line planted
+// before the real one. The OLD unanchored/first-match parser silently accepted the FIRST
+// (decoy) pid here; the fix must refuse to pick either.
+test('waitForReportedLaunchedChildPid: a stale decoy marker alongside the real one fails closed — never guesses which is real', async () => {
+	const decoyPid = 3010830;
+	const realPid = 3018301;
+	const stdout =
+		`${LAUNCHED_API_CHILD_PID_PREFIX} ${String(decoyPid)}\n` +
+		`${LAUNCHED_API_CHILD_PID_PREFIX} ${String(realPid)}\n` +
+		'[08:02:36 INF] Quartz Scheduler created\n' +
+		'[08:02:36 INF] Acquired scheduler leadership; Quartz scheduler started\n';
+
+	await assert.rejects(
+		() => waitForReportedLaunchedChildPid(() => stdout, { attempts: 1 }),
+		(error) => {
+			assert.match(error.message, /reported its launched child pid 2 times/);
+			assert.match(error.message, new RegExp(String(decoyPid)));
+			assert.match(error.message, new RegExp(String(realPid)));
+			return true;
+		},
+	);
+});
+
+test('waitForReportedLaunchedChildPid: TWO IDENTICAL marker lines also fail closed (not just distinct duplicates)', async () => {
+	const stdout = `${LAUNCHED_API_CHILD_PID_PREFIX} 5555\n${LAUNCHED_API_CHILD_PID_PREFIX} 5555\n`;
+	await assert.rejects(
+		() => waitForReportedLaunchedChildPid(() => stdout, { attempts: 1 }),
+		/reported its launched child pid 2 times/,
+	);
+});
 
 // Reads /proc/<pid>/cmdline (NUL-separated argv) for a currently-running process.
 const readProcessCmdline = (pid) => {
