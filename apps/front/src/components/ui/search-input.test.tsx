@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 /**
  * @vitest-environment jsdom
  */
@@ -5,6 +8,9 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { SearchInput } from './search-input';
+
+const APP_CSS_PATH = join(import.meta.dirname, '../../styles/app.css');
+const appCssSource = readFileSync(APP_CSS_PATH, 'utf8');
 
 describe('SearchInput', () => {
 	afterEach(() => {
@@ -115,7 +121,7 @@ describe('SearchInput', () => {
 		expect(wrapper?.className).toContain('mt-2');
 	});
 
-	test('defaults to type=search (implicit searchbox role) with the native cancel button suppressed via CSS, not a text type swap', () => {
+	test('defaults to type=search (implicit searchbox role), not a text type swap', () => {
 		render(
 			<SearchInput value="" onValueChange={vi.fn()} aria-label="Search" />,
 		);
@@ -123,6 +129,57 @@ describe('SearchInput', () => {
 		const input = screen.getByRole('searchbox', { name: 'Search' });
 		expect(input.getAttribute('type')).toBe('search');
 	});
+
+	// Defect 1 (review follow-up): jsdom has no rendering engine, so it can
+	// never observe whether `::-webkit-search-cancel-button` is actually
+	// suppressed on screen — a prior version of this test only checked
+	// `type="search"`, an attribute the stylesheet does not touch, so
+	// deleting the suppression rule entirely left every test here green.
+	// This asserts the two things that ARE assertable outside a browser:
+	// (1) the suppression rule still exists in app.css with the properties
+	// that remove the control from the accessibility tree/tab order rather
+	// than merely hiding it, and (2) the rendered input actually carries the
+	// exact class + type the rule's selector requires, so the two cannot
+	// silently drift apart. It does not replace a real browser check across
+	// Chromium/Firefox/WebKit — see the note below.
+	test("the native ::-webkit-search-cancel-button suppression rule exists and targets this component's actual rendered markup", () => {
+		const suppressionRuleMatch = appCssSource.match(
+			/\.publy-search-input\[type=(['"])search\1\]::-webkit-search-cancel-button\s*\{([^}]*)\}/,
+		);
+
+		expect(suppressionRuleMatch).not.toBeNull();
+		const ruleBody = suppressionRuleMatch?.[2] ?? '';
+		// `display: none` (not `visibility`/`opacity`) is what removes the
+		// control from the accessibility tree and tab order entirely.
+		expect(ruleBody).toMatch(/display:\s*none/);
+		expect(ruleBody).toMatch(/(-webkit-)?appearance:\s*none/);
+
+		render(
+			<SearchInput value="" onValueChange={vi.fn()} aria-label="Search" />,
+		);
+		const input = screen.getByRole('searchbox', { name: 'Search' });
+		// The rule's selector requires BOTH of these on the real element — if
+		// either drifts (a class rename, dropping type="search"), the rule
+		// silently stops applying while this assertion would catch it.
+		expect(input.getAttribute('type')).toBe('search');
+		expect(input.className.split(/\s+/)).toContain('publy-search-input');
+	});
+
+	// NOTE: the assertions above are a source-level supplement, not a
+	// substitute for a real browser check. jsdom cannot render a
+	// `::-webkit-search-cancel-button` pseudo-element at all, in any browser
+	// engine, so no jsdom-based test — including this one — can prove the
+	// control is actually invisible/non-operable on screen in Chromium,
+	// Firefox, or WebKit. This repo has a Playwright config
+	// (apps/front/playwright.config.ts), but it currently defines only a
+	// `chromium` project (no firefox/webkit projects), and its baseURL
+	// targets a live docker-compose stack that was not available in this
+	// session. Closing this gap for real needs: (a) firefox/webkit
+	// Playwright projects added to that config, and (b) a spec that focuses
+	// a SearchInput with a value, then asserts exactly one clear affordance
+	// is visible via a screenshot/bounding-box or accessibility-tree check —
+	// not just DOM attribute presence, since only a real engine renders the
+	// native control at all.
 
 	test('the table size variant carries the fixed-height data-table search class', () => {
 		render(
