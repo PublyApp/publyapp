@@ -6,11 +6,17 @@ import { join } from 'node:path';
  */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import {
+	countExactSelectorRules,
+	resolveEffectiveDeclarations,
+} from '~/styles/css-cascade-test-support';
 
 import { SearchInput } from './search-input';
 
 const APP_CSS_PATH = join(import.meta.dirname, '../../styles/app.css');
 const appCssSource = readFileSync(APP_CSS_PATH, 'utf8');
+const SEARCH_CANCEL_SELECTOR =
+	".publy-search-input[type='search']::-webkit-search-cancel-button";
 
 describe('SearchInput', () => {
 	afterEach(() => {
@@ -142,17 +148,41 @@ describe('SearchInput', () => {
 	// exact class + type the rule's selector requires, so the two cannot
 	// silently drift apart. It does not replace a real browser check across
 	// Chromium/Firefox/WebKit — see the note below.
+	//
+	// IMPORTANT finding B (review round 2): the original version of this
+	// test used `appCssSource.match(...)` — a non-global match, so it only
+	// ever saw the FIRST rule for this exact selector. A later, equal-
+	// specificity rule re-enabling the native control (`appearance: auto;
+	// display: inline-block`) silently overrode the real effective
+	// behaviour while this test stayed green (7/7). It is a real-browser
+	// verification project cannot help here: a prior investigation
+	// confirmed headless Chromium on Linux exposes no observable difference
+	// (identical computed style, ARIA snapshot, and byte-identical
+	// screenshots) between the rule present and absent — this source guard
+	// is the only shipped check for the suppression, so it must model the
+	// effective cascade rather than the first textual declaration. It now
+	// goes through `resolveEffectiveDeclarations()`
+	// (css-cascade-test-support.ts), which collects every top-level rule
+	// that exactly matches the selector and resolves last-declaration-wins
+	// per property — see that module for its documented, honest limits (no
+	// specificity, no `!important`, no `@media`).
 	test("the native ::-webkit-search-cancel-button suppression rule exists and targets this component's actual rendered markup", () => {
-		const suppressionRuleMatch = appCssSource.match(
-			/\.publy-search-input\[type=(['"])search\1\]::-webkit-search-cancel-button\s*\{([^}]*)\}/,
+		const declarations = resolveEffectiveDeclarations(
+			appCssSource,
+			SEARCH_CANCEL_SELECTOR,
 		);
 
-		expect(suppressionRuleMatch).not.toBeNull();
-		const ruleBody = suppressionRuleMatch?.[2] ?? '';
 		// `display: none` (not `visibility`/`opacity`) is what removes the
-		// control from the accessibility tree and tab order entirely.
-		expect(ruleBody).toMatch(/display:\s*none/);
-		expect(ruleBody).toMatch(/(-webkit-)?appearance:\s*none/);
+		// control from the accessibility tree and tab order entirely. Checked
+		// as the EFFECTIVE value for each property (not "does some rule body
+		// somewhere mention this") so a later override of only one of the two
+		// properties is still caught.
+		expect(declarations.get('display')).toBe('none');
+		expect(declarations.get('appearance')).toBe('none');
+		// `-webkit-appearance` is checked separately: it is a distinct
+		// property from unprefixed `appearance` in the cascade, and the
+		// original rule sets both.
+		expect(declarations.get('-webkit-appearance')).toBe('none');
 
 		render(
 			<SearchInput value="" onValueChange={vi.fn()} aria-label="Search" />,
@@ -165,6 +195,32 @@ describe('SearchInput', () => {
 		expect(input.className.split(/\s+/)).toContain('publy-search-input');
 	});
 
+	// Cascade regression proof: reproduces the reviewer's exact mutation —
+	// appending a LATER, equal-specificity rule for the same exact selector
+	// that re-enables the native control. The original first-match
+	// implementation stayed green (7/7) under this exact mutation against
+	// the real app.css.
+	test('a later duplicate rule for the exact same selector overriding display/appearance is caught (cascade regression proof)', () => {
+		expect(countExactSelectorRules(appCssSource, SEARCH_CANCEL_SELECTOR)).toBe(
+			1,
+		);
+
+		const mutatedCss = `${appCssSource}\n${SEARCH_CANCEL_SELECTOR} {\n\tappearance: auto;\n\tdisplay: inline-block;\n}\n`;
+
+		expect(countExactSelectorRules(mutatedCss, SEARCH_CANCEL_SELECTOR)).toBe(2);
+
+		const declarations = resolveEffectiveDeclarations(
+			mutatedCss,
+			SEARCH_CANCEL_SELECTOR,
+		);
+		// The later rule wins for the two properties it re-declares...
+		expect(declarations.get('display')).toBe('inline-block');
+		expect(declarations.get('appearance')).toBe('auto');
+		// ...but does not touch `-webkit-appearance`, which the cascade must
+		// still carry forward from the earlier rule.
+		expect(declarations.get('-webkit-appearance')).toBe('none');
+	});
+
 	// NOTE: the assertions above are a source-level supplement, not a
 	// substitute for a real browser check. jsdom cannot render a
 	// `::-webkit-search-cancel-button` pseudo-element at all, in any browser
@@ -173,13 +229,18 @@ describe('SearchInput', () => {
 	// Firefox, or WebKit. This repo has a Playwright config
 	// (apps/front/playwright.config.ts), but it currently defines only a
 	// `chromium` project (no firefox/webkit projects), and its baseURL
-	// targets a live docker-compose stack that was not available in this
-	// session. Closing this gap for real needs: (a) firefox/webkit
-	// Playwright projects added to that config, and (b) a spec that focuses
-	// a SearchInput with a value, then asserts exactly one clear affordance
-	// is visible via a screenshot/bounding-box or accessibility-tree check —
-	// not just DOM attribute presence, since only a real engine renders the
-	// native control at all.
+	// targets a live docker-compose stack. A prior investigation confirmed
+	// this gap is not closeable even with that stack running: headless
+	// Chromium on Linux exposes byte-identical screenshots, identical ARIA
+	// snapshots, and identical computed style whether the suppression rule
+	// is present or entirely absent. Closing this for real needs either a
+	// non-headless run with a virtual framebuffer (a repo-wide
+	// `playwright.config.ts` change, well beyond this fix's scope) or
+	// manual/visual QA across real desktop Chrome, Firefox, and WebKit —
+	// not something this suite can assert. See
+	// `e2e/search-input-native-cancel-suppression.spec.ts` for the adjacent
+	// real-browser coverage this repo DOES get (exactly one accessible,
+	// working custom clear control).
 
 	test('the table size variant carries the fixed-height data-table search class', () => {
 		render(

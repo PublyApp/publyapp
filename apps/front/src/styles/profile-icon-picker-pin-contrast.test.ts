@@ -4,6 +4,11 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, test } from 'vitest';
 
+import {
+	countExactSelectorRules,
+	resolveEffectiveDeclarations,
+} from './css-cascade-test-support';
+
 // #992 review follow-up: the pencil-pin affordance's fill/glyph tokens must
 // clear the repo's non-text contrast floor against the surface it sits on,
 // in both themes. A test that hardcodes the two hex values would prove
@@ -12,6 +17,23 @@ import { describe, expect, test } from 'vitest';
 // the real `.publy-profile-detail-tile-pin` rule out of app.css, resolves
 // whichever `--publy-*` token it actually references for `color` in each
 // theme, and computes contrast against the real `--publy-surface` token.
+//
+// IMPORTANT finding A (review round 2): the original version of this file
+// used a non-global regex that only ever looked at the FIRST
+// `.publy-profile-detail-tile-pin { ... }` block, so a later, equal-
+// specificity rule silently overriding it was invisible here. Token
+// resolution now goes through `resolveEffectiveDeclarations()`
+// (css-cascade-test-support.ts), which collects every top-level rule that
+// exactly matches the selector and resolves last-declaration-wins per
+// property — the "at minimum" cascade-aware fix. The stronger, "better
+// where observable" fix is a real-browser check: this is a plain rendered
+// DOM element with ordinary CSS (unlike #975's unrenderable
+// `::-webkit-search-cancel-button` pseudo-element), so a real Chromium
+// `getComputedStyle()` reading is fully achievable here — see
+// `e2e/profile-icon-picker-pin-contrast.spec.ts`, which is the actual
+// authority on the effective cascade; this file is a fast, still-honestly-
+// limited defense-in-depth companion (see css-cascade-test-support.ts for
+// its documented limits: no specificity, no `!important`, no `@media`).
 const rootDir = path.resolve(fileURLToPath(new URL('.', import.meta.url)));
 const appCss = readFileSync(path.join(rootDir, 'app.css'), 'utf8');
 const NON_TEXT_CONTRAST_FLOOR = 3.0;
@@ -91,40 +113,35 @@ const contrastRatio = (
 	return (lighter + 0.05) / (darker + 0.05);
 };
 
-/** Extracts the real `.publy-profile-detail-tile-pin { ... }` rule body from
- * app.css and pulls out the `--publy-*` token its `color` declaration
- * actually references — fails loudly if the rule is missing or its `color`
- * is not a plain `var(--publy-*)` reference, rather than silently falling
- * back to an assumed token name. */
+const PIN_SELECTOR = '.publy-profile-detail-tile-pin';
+
+/** Resolves the EFFECTIVE (last-declaration-wins across every matching
+ * rule block — see css-cascade-test-support.ts) `--publy-*` token that
+ * `.publy-profile-detail-tile-pin`'s `color` declaration actually
+ * references — fails loudly if the rule is missing or its effective
+ * `color` is not a plain `var(--publy-*)` reference, rather than silently
+ * falling back to an assumed token name. */
 const resolvePinForegroundToken = (): string => {
-	const ruleMatch = /\.publy-profile-detail-tile-pin\s*\{([^}]*)\}/.exec(
-		appCss,
-	);
-	if (!ruleMatch) {
-		throw new Error('Missing .publy-profile-detail-tile-pin rule in app.css');
-	}
-	const colorMatch = /\bcolor:\s*var\((--publy-[\w-]+)\)/.exec(ruleMatch[1]);
+	const declarations = resolveEffectiveDeclarations(appCss, PIN_SELECTOR);
+	const color = declarations.get('color');
+	const colorMatch = color ? /^var\((--publy-[\w-]+)\)$/.exec(color) : null;
 	if (!colorMatch) {
 		throw new Error(
-			'.publy-profile-detail-tile-pin has no resolvable `color: var(--publy-*)` declaration',
+			'.publy-profile-detail-tile-pin has no resolvable effective `color: var(--publy-*)` declaration',
 		);
 	}
 	return colorMatch[1];
 };
 
 const resolvePinBackgroundToken = (): string => {
-	const ruleMatch = /\.publy-profile-detail-tile-pin\s*\{([^}]*)\}/.exec(
-		appCss,
-	);
-	if (!ruleMatch) {
-		throw new Error('Missing .publy-profile-detail-tile-pin rule in app.css');
-	}
-	const backgroundMatch = /\bbackground:\s*var\((--publy-[\w-]+)\)/.exec(
-		ruleMatch[1],
-	);
+	const declarations = resolveEffectiveDeclarations(appCss, PIN_SELECTOR);
+	const background = declarations.get('background');
+	const backgroundMatch = background
+		? /^var\((--publy-[\w-]+)\)$/.exec(background)
+		: null;
 	if (!backgroundMatch) {
 		throw new Error(
-			'.publy-profile-detail-tile-pin has no resolvable `background: var(--publy-*)` declaration',
+			'.publy-profile-detail-tile-pin has no resolvable effective `background: var(--publy-*)` declaration',
 		);
 	}
 	return backgroundMatch[1];
@@ -169,5 +186,48 @@ describe('profile icon-picker pencil-pin contrast (#992)', () => {
 		expect(contrastRatio(foreground, background)).toBeLessThan(
 			NON_TEXT_CONTRAST_FLOOR,
 		);
+	});
+
+	test('exactly one rule currently targets .publy-profile-detail-tile-pin (sanity check for the cascade regression proof below)', () => {
+		expect(countExactSelectorRules(appCss, PIN_SELECTOR)).toBe(1);
+	});
+
+	// IMPORTANT finding A regression proof (review round 2): reproduces the
+	// reviewer's exact mutation — appending a LATER, equal-specificity rule
+	// for the same exact selector that reverts `color` to the non-compliant
+	// `--publy-foreground-subtle` token. The original first-match
+	// implementation stayed green (4/4 pass) under this exact mutation
+	// against the real app.css. `resolveEffectiveDeclarations()` must report
+	// the later (winning) declaration, and the resulting effective contrast
+	// must fall below the floor.
+	test('a later duplicate rule for the exact same selector overrides the effective colour (cascade regression proof)', () => {
+		const mutatedCss = `${appCss}\n.publy-profile-detail-tile-pin {\n\tcolor: var(--publy-foreground-subtle);\n}\n`;
+
+		expect(countExactSelectorRules(mutatedCss, PIN_SELECTOR)).toBe(2);
+
+		const declarations = resolveEffectiveDeclarations(mutatedCss, PIN_SELECTOR);
+		expect(declarations.get('color')).toBe('var(--publy-foreground-subtle)');
+
+		const foreground = resolveThemeHexToken(
+			':root',
+			'--publy-foreground-subtle',
+		);
+		const background = resolveThemeHexToken(':root', '--publy-surface');
+		expect(contrastRatio(foreground, background)).toBeLessThan(
+			NON_TEXT_CONTRAST_FLOOR,
+		);
+	});
+
+	// Prefix-leak guard (same defect family as the design-system radius
+	// allowlist): an unrelated selector merely starting with this class name
+	// must not be mistaken for the real rule.
+	test('does not match a longer selector that merely starts with the same class name', () => {
+		const decoyOnlyCss =
+			'.publy-profile-detail-tile-pin-impostor {\n\tcolor: var(--publy-foreground-subtle);\n\tbackground: var(--publy-surface);\n}\n';
+
+		expect(countExactSelectorRules(decoyOnlyCss, PIN_SELECTOR)).toBe(0);
+		expect(() =>
+			resolveEffectiveDeclarations(decoyOnlyCss, PIN_SELECTOR),
+		).toThrow();
 	});
 });
