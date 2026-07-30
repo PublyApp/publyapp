@@ -827,6 +827,121 @@ test('runCommand (real subprocess): redacts a quoted semicolon password that a f
 	);
 });
 
+// --- parseConnectionStringPairs: whitespace before a quoted value (round-6 review) -----
+//
+// Round-6 review IMPORTANT: the previous whitespace-skip before quote-detection recognized
+// only the literal ASCII space (U+0020). Real Npgsql 10.0.0 recognizes the full Unicode
+// "White_Space" property there instead — exactly `System.Char.IsWhiteSpace(char)`'s documented
+// definition — verified directly against the repository's real Npgsql 10.0.0 assembly with a
+// synthetic marker password (never a real credential): SPACE, TAB, LF, CR, CRLF, FF, VT, NBSP
+// (U+00A0), NEL (U+0085), OGHAM SPACE MARK (U+1680), EN QUAD (U+2000), HAIR SPACE (U+200A),
+// LINE SEPARATOR (U+2028), PARAGRAPH SEPARATOR (U+2029), NARROW NBSP (U+202F), MEDIUM
+// MATHEMATICAL SPACE (U+205F), and IDEOGRAPHIC SPACE (U+3000) are all accepted before an
+// opening quote; ZERO WIDTH NO-BREAK SPACE / BOM (U+FEFF) is not — Npgsql throws
+// FormatException for it, so a connection string carrying it never reaches a live connection.
+// `Password=\t"secret"` (a TAB, not a space, before the quote) fell through to the unquoted
+// branch and captured the literal text `\t"secret"` (quotes included) as the "value" — which
+// never matches what a subprocess actually echoes back, so the real password reached rendered
+// output unredacted.
+test('parseConnectionStringPairs: a tab before an opening double quote is still recognized as a quoted value', () => {
+	assert.deepEqual(
+		parseConnectionStringPairs('Host=x;Password=\t"hunter2";User=y'),
+		[
+			['Host', 'x'],
+			['Password', 'hunter2'],
+			['User', 'y'],
+		],
+	);
+});
+
+test('parseConnectionStringPairs: a non-breaking space before an opening single quote is still recognized as a quoted value', () => {
+	assert.deepEqual(
+		parseConnectionStringPairs("Host=x;Password= 'hunter2';User=y"),
+		[
+			['Host', 'x'],
+			['Password', 'hunter2'],
+			['User', 'y'],
+		],
+	);
+});
+
+test('parseConnectionStringPairs: a newline before an opening quote is still recognized as a quoted value', () => {
+	assert.deepEqual(
+		parseConnectionStringPairs('Host=x;Password=\n"hunter2";User=y'),
+		[
+			['Host', 'x'],
+			['Password', 'hunter2'],
+			['User', 'y'],
+		],
+	);
+});
+
+test('parseConnectionStringPairs: NEL (U+0085) before an opening quote is recognized — .NET whitespace, not JS \\s', () => {
+	// U+0085 is whitespace per System.Char.IsWhiteSpace (confirmed against real Npgsql) but is
+	// NOT matched by JavaScript's `\s` regex class — this proves the fix uses the Unicode
+	// White_Space property (`\p{White_Space}`), not a `\s`-based shortcut.
+	assert.deepEqual(
+		parseConnectionStringPairs('Host=x;Password="hunter2";User=y'),
+		[
+			['Host', 'x'],
+			['Password', 'hunter2'],
+			['User', 'y'],
+		],
+	);
+});
+
+test('parseConnectionStringPairs: a BOM (U+FEFF) before an opening quote is NOT treated as whitespace', () => {
+	// Real Npgsql throws FormatException for this input rather than treating U+FEFF as
+	// whitespace, so a connection string carrying it never reaches a live connection. The
+	// parser must not over-recognize it either, or "skip" and "trim" would disagree with what
+	// Npgsql itself accepts.
+	assert.deepEqual(
+		parseConnectionStringPairs('Host=x;Password=﻿"hunter2";User=y'),
+		[
+			['Host', 'x'],
+			['Password', '﻿"hunter2"'],
+			['User', 'y'],
+		],
+	);
+});
+
+test('extractConnectionStringPassword: a tab-then-double-quote password extracts the raw value, not the literal quotes', () => {
+	assert.equal(
+		extractConnectionStringPassword('Host=x;Password=\t"hunter2";User=y'),
+		'hunter2',
+	);
+});
+
+test('connectionStringSecrets: a tab-then-quoted password is redacted as its own secret alongside the full string', () => {
+	const connectionString = 'Host=x;Password=\t"hunter2"';
+	assert.deepEqual(connectionStringSecrets(connectionString), [
+		connectionString,
+		'hunter2',
+	]);
+});
+
+test("runCommand (real subprocess): redacts a tab-then-quoted password that a failing child echoed back on its own — the reviewer's reproduction", () => {
+	// This is the exact shape of the round-6 finding: Npgsql accepts `Password=\t"secret"` and
+	// extracts `secret`; a real failing subprocess that echoes only the isolated password (not
+	// the whole connection string) must still have it redacted.
+	const connectionString = 'Host=x;Password=\t"hunter2"';
+	const secrets = connectionStringSecrets(connectionString);
+
+	assert.throws(
+		() =>
+			runCommand(
+				'node',
+				['-e', "process.stderr.write('hunter2'); process.exit(1);"],
+				{ secrets },
+			),
+		(error) => {
+			assert.doesNotMatch(error.message, /hunter2/);
+			assert.match(error.message, /\[REDACTED\]/);
+			return true;
+		},
+	);
+});
+
 test('listMigrationsJson: redacts the isolated password out of an unparseable-JSON indeterminate error', () => {
 	const run = (command, args) => {
 		if (args.includes('build')) {

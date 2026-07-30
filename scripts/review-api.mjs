@@ -74,6 +74,50 @@ export const redactSecrets = (text, secrets = []) => {
 	return redacted;
 };
 
+// The whitespace a keyword/value pair may carry around its separators, matched precisely
+// against real Npgsql 10.0.0 rather than guessed. Round-6 review reproduced a leak: the
+// previous predicate skipped only the literal ASCII space (U+0020) before deciding whether a
+// value was quoted, so `Password=\t"secret"` (a tab, not a space, before the opening quote) —
+// a form real Npgsql parses and extracts `secret` from — fell through to the unquoted branch
+// instead, which captured the literal text `\t"secret"` (quotes included) as the "value".
+// That never matches what the subprocess actually receives and echoes back, so the real
+// secret reached rendered output unredacted.
+//
+// This is exactly Unicode's "White_Space" property, which is also the documented definition
+// of .NET's `System.Char.IsWhiteSpace(char)` (categories SpaceSeparator/LineSeparator/
+// ParagraphSeparator, plus the six control characters U+0009-U+000D and U+0085) — the
+// predicate Npgsql's own connection-string tokenizer defers to. Verified directly against the
+// repository's real Npgsql 10.0.0 assembly (`~/.nuget/packages/npgsql/10.0.0`) with a
+// synthetic marker password, one accepted/rejected form at a time:
+//   accepted before/after a quote: SPACE, TAB, LF, CR, CRLF, FF, VT, NBSP (U+00A0),
+//     NEL (U+0085), OGHAM SPACE MARK (U+1680), EN QUAD (U+2000), HAIR SPACE (U+200A),
+//     LINE SEPARATOR (U+2028), PARAGRAPH SEPARATOR (U+2029), NARROW NBSP (U+202F),
+//     MEDIUM MATHEMATICAL SPACE (U+205F), IDEOGRAPHIC SPACE (U+3000)
+//   rejected (throws FormatException, so no connection is ever attempted): ZERO WIDTH NO-BREAK
+//     SPACE / BOM (U+FEFF) — deliberately excluded below even though some whitespace-ish JS
+//     regexes (and V8's own `String.prototype.trim`) treat it as trimmable
+// `\p{White_Space}` is the one built-in JS regex class whose membership matches this list
+// exactly (unlike `\s`, which matches U+FEFF but not U+0085).
+const CONNECTION_STRING_WHITESPACE = /\p{White_Space}/u;
+const isConnectionStringWhitespace = (char) =>
+	char !== undefined && CONNECTION_STRING_WHITESPACE.test(char);
+
+// Trims exactly the whitespace set above — not JS's native `.trim()`, which (via V8) also
+// strips U+FEFF, a character real Npgsql refuses to treat as whitespace at all. Using the same
+// predicate everywhere keeps "skip" and "trim" from silently disagreeing with each other.
+const trimConnectionStringWhitespace = (value) => {
+	let start = 0;
+	let end = value.length;
+	while (start < end && isConnectionStringWhitespace(value[start])) {
+		start += 1;
+	}
+	while (end > start && isConnectionStringWhitespace(value[end - 1])) {
+		end -= 1;
+	}
+
+	return value.slice(start, end);
+};
+
 // Tokenizes an ADO.NET/Npgsql-style connection string into ordered [key, value] pairs,
 // correctly handling double- and single-quoted values — which may themselves contain
 // literal semicolons — and doubled-quote escaping inside them
@@ -94,7 +138,7 @@ export const parseConnectionStringPairs = (connectionString) => {
 	};
 
 	while (index < text.length) {
-		skipWhile((char) => char === ' ' || char === ';');
+		skipWhile((char) => isConnectionStringWhitespace(char) || char === ';');
 		if (index >= text.length) {
 			break;
 		}
@@ -104,7 +148,7 @@ export const parseConnectionStringPairs = (connectionString) => {
 			index += 1;
 		}
 
-		const key = text.slice(keyStart, index).trim();
+		const key = trimConnectionStringWhitespace(text.slice(keyStart, index));
 		if (text[index] !== '=') {
 			// Malformed segment (no '=' before the next ';' or end) — skip past it rather
 			// than guess at a key/value split.
@@ -113,7 +157,7 @@ export const parseConnectionStringPairs = (connectionString) => {
 		}
 
 		index += 1; // consume '='
-		skipWhile((char) => char === ' ');
+		skipWhile((char) => isConnectionStringWhitespace(char));
 
 		let value = '';
 		const quote =
@@ -148,7 +192,7 @@ export const parseConnectionStringPairs = (connectionString) => {
 				index += 1;
 			}
 
-			value = text.slice(valueStart, index).trim();
+			value = trimConnectionStringWhitespace(text.slice(valueStart, index));
 		}
 
 		if (key.length > 0) {
