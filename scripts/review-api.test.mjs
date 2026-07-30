@@ -5,6 +5,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import {
+	ambientCredentialSecrets,
 	assertNoPendingMigrations,
 	buildApiChildEnv,
 	connectionStringSecrets,
@@ -603,6 +604,146 @@ test('runCommand (real subprocess): redacts an isolated SSL Password that a fail
 	);
 });
 
+// --- PSW / PWD (round-5 review IMPORTANT: Npgsql's other Password synonyms) -----------
+//
+// Verified directly against Npgsql 10.0.0's own tagged source
+// (https://github.com/npgsql/npgsql/blob/v10.0.0/src/Npgsql/NpgsqlConnectionStringBuilder.cs):
+// `[NpgsqlConnectionStringProperty("PSW", "PWD")]` on the `Password` property. These are exactly
+// as real a credential-bearing key as `Password` itself — removing either pattern below must
+// make its own test (and the real-subprocess proof) fail, the same way removing the SSL Password
+// pattern does above.
+
+test('extractConnectionStringSecretValues: recognizes PSW and PWD as Password synonyms', () => {
+	assert.deepEqual(extractConnectionStringSecretValues('Host=x;PSW=hunter2'), [
+		'hunter2',
+	]);
+	assert.deepEqual(extractConnectionStringSecretValues('Host=x;PWD=hunter2'), [
+		'hunter2',
+	]);
+});
+
+test('extractConnectionStringSecretValues: PSW/PWD are case-insensitive and tolerate surrounding whitespace', () => {
+	assert.deepEqual(
+		extractConnectionStringSecretValues('Host=x; psw = hunter2 ;User=y'),
+		['hunter2'],
+	);
+	assert.deepEqual(extractConnectionStringSecretValues('Host=x;pwd=hunter2'), [
+		'hunter2',
+	]);
+});
+
+test('connectionStringSecrets: also redacts an isolated PSW or PWD value alongside the full string', () => {
+	assert.deepEqual(connectionStringSecrets('Host=x;PSW=hunter2'), [
+		'Host=x;PSW=hunter2',
+		'hunter2',
+	]);
+	assert.deepEqual(connectionStringSecrets('Host=x;PWD=hunter2'), [
+		'Host=x;PWD=hunter2',
+		'hunter2',
+	]);
+});
+
+test('runCommand (real subprocess): redacts an isolated PSW value that a failing child wrote to stderr on its own', () => {
+	const connectionString = 'Host=x;PSW=hunter2';
+	const secrets = connectionStringSecrets(connectionString);
+
+	assert.throws(
+		() =>
+			runCommand(
+				'node',
+				['-e', "process.stderr.write('hunter2'); process.exit(1);"],
+				{ secrets },
+			),
+		(error) => {
+			assert.doesNotMatch(error.message, /hunter2/);
+			assert.match(error.message, /\[REDACTED\]/);
+			return true;
+		},
+	);
+});
+
+test('runCommand (real subprocess): redacts an isolated PWD value that a failing child wrote to stderr on its own', () => {
+	const connectionString = 'Host=x;PWD=hunter2';
+	const secrets = connectionStringSecrets(connectionString);
+
+	assert.throws(
+		() =>
+			runCommand(
+				'node',
+				['-e', "process.stderr.write('hunter2'); process.exit(1);"],
+				{ secrets },
+			),
+		(error) => {
+			assert.doesNotMatch(error.message, /hunter2/);
+			assert.match(error.message, /\[REDACTED\]/);
+			return true;
+		},
+	);
+});
+
+// --- PGPASSWORD (round-5 review IMPORTANT: a credential source beyond the connection string) --
+//
+// Npgsql/libpq also honor the standalone PGPASSWORD environment variable as a password
+// (https://www.npgsql.org/doc/connection-string-parameters.html), independent of anything in the
+// connection string itself. runCommand inherits the ambient process.env for every subprocess it
+// spawns, so this is a real, separate credential source that must be redacted the same way.
+
+test('ambientCredentialSecrets: includes PGPASSWORD when the ambient environment carries it', () => {
+	const original = process.env.PGPASSWORD;
+	process.env.PGPASSWORD = 'ambient-secret';
+	try {
+		assert.deepEqual(ambientCredentialSecrets(), ['ambient-secret']);
+	} finally {
+		if (original === undefined) {
+			delete process.env.PGPASSWORD;
+		} else {
+			process.env.PGPASSWORD = original;
+		}
+	}
+});
+
+test('ambientCredentialSecrets: returns an empty list when PGPASSWORD is not set', () => {
+	const original = process.env.PGPASSWORD;
+	delete process.env.PGPASSWORD;
+	try {
+		assert.deepEqual(ambientCredentialSecrets(), []);
+	} finally {
+		if (original !== undefined) {
+			process.env.PGPASSWORD = original;
+		}
+	}
+});
+
+test('runCommand (real subprocess): redacts an ambient PGPASSWORD the child inherited and echoed on its own', () => {
+	const original = process.env.PGPASSWORD;
+	process.env.PGPASSWORD = 'ambient-secret';
+	try {
+		const secrets = ambientCredentialSecrets();
+		assert.throws(
+			() =>
+				runCommand(
+					'node',
+					[
+						'-e',
+						'process.stderr.write(process.env.PGPASSWORD); process.exit(1);',
+					],
+					{ secrets },
+				),
+			(error) => {
+				assert.doesNotMatch(error.message, /ambient-secret/);
+				assert.match(error.message, /\[REDACTED\]/);
+				return true;
+			},
+		);
+	} finally {
+		if (original === undefined) {
+			delete process.env.PGPASSWORD;
+		} else {
+			process.env.PGPASSWORD = original;
+		}
+	}
+});
+
 // --- parseConnectionStringPairs / extractConnectionStringPassword: quoting (round-3) ---
 //
 // Round-3 review: the naive `;`-splitting regex truncated a valid, Npgsql-legal
@@ -715,6 +856,53 @@ test('listMigrationsJson: redacts the isolated password out of an unparseable-JS
 			return true;
 		},
 	);
+});
+
+// Round-5 review IMPORTANT: listMigrationsJson's own secrets set must also cover the AMBIENT
+// PGPASSWORD source, not only the connection string — proving the fix at its actual call site,
+// not just the ambientCredentialSecrets primitive in isolation.
+//
+// The secret must be SHORT ENOUGH to survive inside V8's own JSON.parse error excerpt (round-4
+// review: the excerpt truncates to roughly the first ~10-12 characters of the offending input —
+// verified directly: `JSON.parse('ambientsecret trailing not json')` throws
+// `"...\"ambientsec\"..."`, silently dropping the trailing "ret" and making a fixture built on
+// the full 13-character "ambientsecret" pass vacuously regardless of whether redaction works at
+// all). "ambpass" (7 chars, the same length class as the Password fixture's "hunter2") fits
+// entirely inside that excerpt, confirmed directly:
+// `JSON.parse('ambpass trailing not json')` throws `"...\"ambpass tr\"..."`.
+test('listMigrationsJson: redacts an ambient PGPASSWORD out of an unparseable-JSON indeterminate error', () => {
+	const original = process.env.PGPASSWORD;
+	process.env.PGPASSWORD = 'ambpass';
+	try {
+		const run = (command, args) => {
+			if (args.includes('build')) {
+				return { stdout: '', stderr: '', status: 0 };
+			}
+
+			return { status: 0, stdout: 'ambpass trailing not json', stderr: '' };
+		};
+
+		assert.throws(
+			() =>
+				listMigrationsJson({
+					apiDir: '/fake/apps/api',
+					connectionString: 'Host=x;Database=publyapp',
+					trustedProxyCidrs: 'cidr',
+					run,
+				}),
+			(error) => {
+				assert.equal(error.code, 'MIGRATION_GUARD_INDETERMINATE');
+				assert.doesNotMatch(error.message, /ambpass/);
+				return true;
+			},
+		);
+	} finally {
+		if (original === undefined) {
+			delete process.env.PGPASSWORD;
+		} else {
+			process.env.PGPASSWORD = original;
+		}
+	}
 });
 
 // --- validateMigrationEntries: duplicate / whitespace-only ids (round-2 MINOR) ------
