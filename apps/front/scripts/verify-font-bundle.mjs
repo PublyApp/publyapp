@@ -7,10 +7,78 @@ import {
 } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import process from 'node:process';
+import { brotliDecompressSync } from 'node:zlib';
 
 const DEFAULT_DIST = resolve(process.cwd(), 'dist');
 const DEFAULT_LOCALES_DIR = resolve(process.cwd(), 'src/i18n/locales');
 const DEFAULT_FONTS_DIR = 'client/fonts/geist';
+const WOFF2_SIGNATURE = 0x774f4632;
+
+const KNOWN_TABLE_TAGS = {
+	0: 'cmap',
+	1: 'head',
+	2: 'hhea',
+	3: 'hmtx',
+	4: 'maxp',
+	5: 'name',
+	6: 'OS/2',
+	7: 'post',
+	8: 'cvt ',
+	9: 'fpgm',
+	10: 'glyf',
+	11: 'loca',
+	12: 'prep',
+	13: 'CFF ',
+	14: 'VORG',
+	15: 'EBDT',
+	16: 'EBLC',
+	17: 'gasp',
+	18: 'hdmx',
+	19: 'kern',
+	20: 'LTSH',
+	21: 'PCLT',
+	22: 'VDMX',
+	23: 'vhea',
+	24: 'vmtx',
+	25: 'BASE',
+	26: 'GDEF',
+	27: 'GPOS',
+	28: 'GSUB',
+	29: 'EBSC',
+	30: 'JSTF',
+	31: 'MATH',
+	32: 'CBDT',
+	33: 'CBDC',
+	34: 'COLR',
+	35: 'CPAL',
+	36: 'SVG',
+	37: 'sbix',
+	38: 'acnt',
+	39: 'avar',
+	40: 'bdat',
+	41: 'bloc',
+	42: 'bsln',
+	43: 'cvar',
+	44: 'fdsc',
+	45: 'feat',
+	46: 'fmtx',
+	47: 'fvar',
+	48: 'gvar',
+	49: 'hsty',
+	50: 'just',
+	51: 'lcar',
+	52: 'mort',
+	53: 'morx',
+	54: 'opbd',
+	55: 'prop',
+	56: 'trak',
+	57: 'Zapf',
+	58: 'Silf',
+	59: 'Glat',
+	60: 'Gloc',
+	61: 'Feat',
+	62: 'Sill',
+};
 
 const args = new Map();
 const argv = process.argv.slice(2);
@@ -119,8 +187,275 @@ const parseUnicodeRanges = (value) => {
 const formatUnicode = (cp) =>
 	`U+${cp.toString(16).toUpperCase().padStart(4, '0')}`;
 
-const includesCodePoint = (ranges, cp) =>
-	ranges.some(([start, end]) => cp >= start && cp <= end);
+const addRangeCodepoints = (start, end, callback) => {
+	for (let cp = start; cp <= end; cp += 1) {
+		callback(cp);
+	}
+};
+
+const readUIntBase128 = (buffer, state) => {
+	let value = 0;
+	for (let i = 0; i < 5; i += 1) {
+		if (state.offset >= buffer.length) {
+			throw new Error(
+				'WOFF2 table directory truncated while reading base-128 length.',
+			);
+		}
+		const byte = buffer[state.offset];
+		state.offset += 1;
+		if (i === 0 && byte === 0x80) {
+			throw new Error('WOFF2 base-128 length has invalid leading zero.');
+		}
+		value = value * 128 + (byte & 0x7f);
+		if ((byte & 0x80) === 0) {
+			return value;
+		}
+	}
+	throw new Error('WOFF2 base-128 length is too long.');
+};
+
+const parseCmapSubtable = (subtable) => {
+	const codepoints = new Set();
+	if (subtable.length < 6) {
+		return codepoints;
+	}
+	const format = subtable.readUInt16BE(0);
+	const length = subtable.readUInt16BE(2);
+	if (length < 6 || length > subtable.length) {
+		return codepoints;
+	}
+
+	if (format === 0) {
+		if (subtable.length < 262) return codepoints;
+		for (let i = 0; i < 256; i += 1) {
+			if (subtable.readUInt8(6 + i) !== 0) {
+				codepoints.add(i);
+			}
+		}
+		return codepoints;
+	}
+
+	if (format === 4) {
+		if (subtable.length < 16) return codepoints;
+		const segCount = subtable.readUInt16BE(6) / 2;
+		const endCodesOffset = 14;
+		const startCodesOffset = endCodesOffset + segCount * 2 + 2;
+		const idDeltaOffset = startCodesOffset + segCount * 2;
+		const idRangeOffsetOffset = idDeltaOffset + segCount * 2;
+		const glyphIndexBase = idRangeOffsetOffset + segCount * 2;
+		const glyphIndexLimit = subtable.length - 2;
+
+		for (let i = 0; i < segCount; i += 1) {
+			const end = subtable.readUInt16BE(endCodesOffset + i * 2);
+			const start = subtable.readUInt16BE(startCodesOffset + i * 2);
+			const idDelta = subtable.readInt16BE(idDeltaOffset + i * 2);
+			const idRangeOffset = subtable.readUInt16BE(idRangeOffsetOffset + i * 2);
+			if (start > end) {
+				continue;
+			}
+			for (let cp = start; cp <= end; cp += 1) {
+				if (cp === 0xffff && start === 0xffff && end === 0xffff) {
+					continue;
+				}
+				let glyphId = 0;
+				if (idRangeOffset === 0) {
+					glyphId = (cp + idDelta) & 0xffff;
+				} else {
+					const glyphOffset =
+						idRangeOffsetOffset + i * 2 + idRangeOffset + (cp - start) * 2;
+					if (
+						glyphOffset + 1 >= glyphIndexLimit ||
+						glyphOffset < glyphIndexBase
+					) {
+						continue;
+					}
+					glyphId = subtable.readUInt16BE(glyphOffset);
+					if (glyphId !== 0) {
+						glyphId = (glyphId + idDelta) & 0xffff;
+					}
+				}
+				if (glyphId !== 0) {
+					codepoints.add(cp);
+				}
+			}
+		}
+		return codepoints;
+	}
+
+	if (format === 6) {
+		if (subtable.length < 10) return codepoints;
+		const firstCode = subtable.readUInt16BE(6);
+		const entryCount = subtable.readUInt16BE(8);
+		for (let i = 0; i < entryCount; i += 1) {
+			const glyphIndex = subtable.readUInt16BE(10 + i * 2);
+			if (glyphIndex !== 0) {
+				codepoints.add(firstCode + i);
+			}
+		}
+		return codepoints;
+	}
+
+	if (format === 12 || format === 13) {
+		if (subtable.length < 16) return codepoints;
+		const groupCount = subtable.readUInt32BE(12);
+		let groupOffset = 16;
+		for (let i = 0; i < groupCount; i += 1) {
+			if (groupOffset + 12 > subtable.length) break;
+			const start = subtable.readUInt32BE(groupOffset);
+			const end = subtable.readUInt32BE(groupOffset + 4);
+			const glyphId = subtable.readUInt32BE(groupOffset + 8);
+			groupOffset += 12;
+			if (glyphId === 0) {
+				continue;
+			}
+			addRangeCodepoints(start, end, (cp) => {
+				codepoints.add(cp);
+			});
+		}
+		return codepoints;
+	}
+
+	return codepoints;
+};
+
+const parseCmapTable = (tableData) => {
+	const codepoints = new Set();
+	if (tableData.length < 4) return codepoints;
+	if (tableData.readUInt16BE(0) > 1) return codepoints;
+	const count = tableData.readUInt16BE(2);
+	let recordsOffset = 4;
+	const records = [];
+	for (let i = 0; i < count; i += 1) {
+		if (recordsOffset + 8 > tableData.length) return codepoints;
+		const offset = tableData.readUInt32BE(recordsOffset + 4);
+		records.push(offset);
+		recordsOffset += 8;
+	}
+	for (const offset of records) {
+		if (offset >= tableData.length) continue;
+		const subtable = tableData.slice(offset);
+		for (const cp of parseCmapSubtable(subtable)) {
+			codepoints.add(cp);
+		}
+	}
+	return codepoints;
+};
+
+const parseWoff2CmapCodepoints = (file) => {
+	const buffer = readFileSync(file);
+	if (buffer.length < 48) {
+		throw new Error(`Font file ${file} is too small to be valid WOFF2.`);
+	}
+	if (buffer.readUInt32BE(0) !== WOFF2_SIGNATURE) {
+		throw new Error(`Font file ${file} is not WOFF2.`);
+	}
+	const flavor = buffer.readUInt32BE(4);
+	if (flavor === 0x74746366) {
+		throw new Error(
+			`Font file ${file} is a font collection, which this guard does not support.`,
+		);
+	}
+	const totalLength = buffer.readUInt32BE(8);
+	const totalCompressedSize = buffer.readUInt32BE(20);
+	if (totalLength > buffer.length) {
+		throw new Error(`Font file ${file} truncates WOFF2 payload.`);
+	}
+	const numTables = buffer.readUInt16BE(12);
+	const reserved = buffer.readUInt16BE(14);
+	if (reserved !== 0) {
+		violations.push(`WOFF2 reserved header field is not zero for ${file}.`);
+	}
+	let cursor = 48;
+	const entries = [];
+	for (let i = 0; i < numTables; i += 1) {
+		const flags = buffer[cursor];
+		cursor += 1;
+		const tagIndex = flags & 0x3f;
+		const transform = (flags & 0xc0) >>> 6;
+		let tag;
+		if (tagIndex === 63) {
+			if (cursor + 4 > buffer.length) {
+				throw new Error(`Font file ${file} has malformed table tag.`);
+			}
+			tag = buffer.slice(cursor, cursor + 4).toString('ascii');
+			cursor += 4;
+		} else {
+			tag = KNOWN_TABLE_TAGS[tagIndex] ?? `tag-${tagIndex}`;
+		}
+
+		const lengthState = { offset: cursor };
+		const origLength = readUIntBase128(buffer, lengthState);
+		cursor = lengthState.offset;
+
+		const tagNeedsTransformLength =
+			transform !== 0 ||
+			(transform === 0 && (tag === 'glyf' || tag === 'loca'));
+		let transformLength;
+		if (tagNeedsTransformLength) {
+			const transformState = { offset: cursor };
+			transformLength = readUIntBase128(buffer, transformState);
+			cursor = transformState.offset;
+		}
+
+		entries.push({
+			tag,
+			transform,
+			tagNeedsTransformLength,
+			origLength,
+			transformLength,
+		});
+	}
+
+	const compressedEnd = cursor + totalCompressedSize;
+	if (compressedEnd < cursor) {
+		throw new Error(`Font file  has invalid compressed data offsets.`);
+	}
+	if (compressedEnd > totalLength) {
+		throw new Error(
+			`Font file  declares compressed data longer than file length.`,
+		);
+	}
+	const compressedData = buffer.slice(cursor, compressedEnd);
+	const decompressed = brotliDecompressSync(compressedData);
+	const expectedLength = entries.reduce((sum, entry) => {
+		return (
+			sum +
+			(entry.tagNeedsTransformLength ? entry.transformLength : entry.origLength)
+		);
+	}, 0);
+	if (decompressed.length !== expectedLength) {
+		throw new Error(
+			`Font file ${file} compressed payload length does not match table directory.`,
+		);
+	}
+
+	let tableCursor = 0;
+	for (const entry of entries) {
+		const segmentLength = entry.tagNeedsTransformLength
+			? entry.transformLength
+			: entry.origLength;
+		if (tableCursor + segmentLength > decompressed.length) {
+			throw new Error(`Font file ${file} truncates WOFF2 table payload.`);
+		}
+		const tableData = decompressed.subarray(
+			tableCursor,
+			tableCursor + segmentLength,
+		);
+		tableCursor += segmentLength;
+
+		if (entry.tag !== 'cmap') {
+			continue;
+		}
+		if (entry.transform !== 0) {
+			throw new Error(
+				`Font file ${file} declares transformed cmap (version ${entry.transform}).`,
+			);
+		}
+		return parseCmapTable(tableData);
+	}
+
+	return new Set();
+};
 
 const parseFontFaceDeclarations = (cssFile) => {
 	const declarations = [];
@@ -206,16 +541,63 @@ if (isAccessible(fontOutDir) && statSync(fontOutDir).isDirectory()) {
 	}
 }
 
+const declarationsByFile = new Map();
 for (const declaration of declarations) {
-	const missing = [];
+	const existing = declarationsByFile.get(declaration.file);
+	if (!existing) {
+		declarationsByFile.set(declaration.file, {
+			file: declaration.file,
+			ranges: [...declaration.ranges],
+		});
+		continue;
+	}
+	existing.ranges.push(...declaration.ranges);
+}
+
+const fontCodepointsByFile = new Map();
+for (const declaration of declarationsByFile.values()) {
+	const filePath = resolve(fontOutDir, declaration.file);
+	if (!isAccessible(filePath)) {
+		continue;
+	}
+	try {
+		fontCodepointsByFile.set(
+			declaration.file,
+			parseWoff2CmapCodepoints(filePath),
+		);
+	} catch (error) {
+		violations.push(error.message);
+	}
+}
+
+for (const declaration of declarationsByFile.values()) {
+	const coverage = fontCodepointsByFile.get(declaration.file);
+	if (!coverage) {
+		continue;
+	}
+	const localeMissing = [];
 	for (const cp of localeCodepoints) {
-		if (!includesCodePoint(declaration.ranges, cp)) {
-			missing.push(formatUnicode(cp));
+		if (!coverage.has(cp)) {
+			localeMissing.push(formatUnicode(cp));
 		}
 	}
-	if (missing.length > 0) {
+	if (localeMissing.length > 0) {
 		violations.push(
-			`Font ${declaration.file} does not cover locale-required codepoints: ${missing.join(', ')}.`,
+			`Font ${declaration.file} does not contain all locale-required codepoints: ${localeMissing.join(', ')}.`,
+		);
+	}
+
+	const declaredMissing = [];
+	for (const [start, end] of declaration.ranges) {
+		addRangeCodepoints(start, end, (cp) => {
+			if (!coverage.has(cp)) {
+				declaredMissing.push(formatUnicode(cp));
+			}
+		});
+	}
+	if (declaredMissing.length > 0) {
+		violations.push(
+			`Font ${declaration.file} declares unicode-range values not present in the file: ${declaredMissing.join(', ')}.`,
 		);
 	}
 }
