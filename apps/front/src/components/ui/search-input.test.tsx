@@ -314,10 +314,18 @@ describe('SearchInput', () => {
 	// working custom clear control).
 	//
 	// Round 6 closure: selector semantics are deliberately outside this
-	// bounded resolver. The build/test policy counts every literal
-	// `::-webkit-search-cancel-button` occurrence across all shipped CSS
-	// sources and the real emitted CSS, then requires the sole rule to be the
-	// canonical suppression rule.
+	// bounded resolver. The build/test policy counts every literal occurrence
+	// of the search-cancel pseudo-element across all shipped frontend source
+	// files and the real emitted CSS, then requires the sole occurrence to be
+	// the canonical suppression rule in app.css.
+	//
+	// Accepted residual limitation: this source-and-artifact contract cannot
+	// catch a runtime string assembled from fragments so the token never
+	// appears literally in our source, or CSS injected at runtime by a
+	// third-party dependency without landing in an emitted CSS asset. That is
+	// the deliberate ceiling: headless Linux Chromium exposes no browser
+	// authority for this UA-shadow pseudo-element, as documented above and in
+	// the adjacent Playwright spec.
 
 	test('the table size variant carries the fixed-height data-table search class', () => {
 		render(
