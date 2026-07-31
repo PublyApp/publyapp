@@ -417,12 +417,12 @@ const parseWoff2CmapCodepoints = (file) => {
 	}
 	const compressedData = buffer.slice(cursor, compressedEnd);
 	const decompressed = brotliDecompressSync(compressedData);
-	const expectedLength = entries.reduce((sum, entry) => {
-		return (
-			sum +
-			(entry.tagNeedsTransformLength ? entry.transformLength : entry.origLength)
-		);
-	}, 0);
+	let expectedLength = 0;
+	for (const entry of entries) {
+		expectedLength += entry.tagNeedsTransformLength
+			? entry.transformLength
+			: entry.origLength;
+	}
 	if (decompressed.length !== expectedLength) {
 		throw new Error(
 			`Font file ${file} compressed payload length does not match table directory.`,
