@@ -189,9 +189,16 @@ test('renders the marketing shell', async ({ page }) => {
 
 	// Below 1024 the theme toggle moves into the drawer with Log in (#1038
 	// breakpoint table); the header row keeps only wordmark + CTA + hamburger.
-	await expect(page.getByTestId(THEME_TOGGLE_TEST_ID)).toBeHidden();
+	// Both locators are scoped: once the drawer is open the header's own
+	// (hidden) toggle and the drawer's are both in the DOM, and an unscoped
+	// test id would resolve to two elements.
+	await expect(
+		page.getByTestId('marketing-header').getByTestId(THEME_TOGGLE_TEST_ID),
+	).toBeHidden();
 	await page.getByTestId('marketing-mobile-nav-toggle').click();
-	await expect(page.getByTestId(THEME_TOGGLE_TEST_ID)).toBeVisible();
+	await expect(
+		page.getByTestId('marketing-mobile-nav').getByTestId(THEME_TOGGLE_TEST_ID),
+	).toBeVisible();
 
 	expect(getHydrationConsoleErrors()).toEqual([]);
 });
