@@ -118,11 +118,11 @@ importers:
         specifier: 4.1.3
         version: 4.1.3(react-hook-form@7.54.2(react@19.1.0))(zod@3.24.4)
       '@microsoft/kiota-abstractions':
-        specifier: 1.0.0-preview.97
-        version: 1.0.0-preview.97
+        specifier: 1.0.0-preview.102
+        version: 1.0.0-preview.102
       '@microsoft/kiota-http-fetchlibrary':
-        specifier: 1.0.0-preview.97
-        version: 1.0.0-preview.97
+        specifier: 1.0.0-preview.102
+        version: 1.0.0-preview.102
       '@org/client-ts':
         specifier: workspace:*
         version: link:../../packages/client-ts
@@ -275,11 +275,11 @@ importers:
         specifier: ^5.2.0
         version: 5.2.1(react@19.1.0)
       '@microsoft/kiota-abstractions':
-        specifier: 1.0.0-preview.97
-        version: 1.0.0-preview.97
+        specifier: 1.0.0-preview.102
+        version: 1.0.0-preview.102
       '@microsoft/kiota-http-fetchlibrary':
-        specifier: 1.0.0-preview.97
-        version: 1.0.0-preview.97
+        specifier: 1.0.0-preview.102
+        version: 1.0.0-preview.102
       '@mui/icons-material':
         specifier: ^7.1.1
         version: 7.2.0(@mui/material@7.2.0(@emotion/react@11.14.0(@types/react@19.1.8)(react@19.1.0))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.1.8)(react@19.1.0))(@types/react@19.1.8)(react@19.1.0))(@types/react@19.1.8)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@types/react@19.1.8)(react@19.1.0)
@@ -566,26 +566,26 @@ importers:
   packages/client-ts:
     dependencies:
       '@microsoft/kiota-abstractions':
-        specifier: 1.0.0-preview.97
-        version: 1.0.0-preview.97
+        specifier: 1.0.0-preview.102
+        version: 1.0.0-preview.102
       '@microsoft/kiota-authentication-azure':
-        specifier: 1.0.0-preview.97
-        version: 1.0.0-preview.97
+        specifier: 1.0.0-preview.102
+        version: 1.0.0-preview.102
       '@microsoft/kiota-bundle':
-        specifier: 1.0.0-preview.97
-        version: 1.0.0-preview.97
+        specifier: 1.0.0-preview.102
+        version: 1.0.0-preview.102
       '@microsoft/kiota-serialization-form':
-        specifier: 1.0.0-preview.97
-        version: 1.0.0-preview.97
+        specifier: 1.0.0-preview.102
+        version: 1.0.0-preview.102
       '@microsoft/kiota-serialization-json':
-        specifier: 1.0.0-preview.97
-        version: 1.0.0-preview.97
+        specifier: 1.0.0-preview.102
+        version: 1.0.0-preview.102
       '@microsoft/kiota-serialization-multipart':
-        specifier: 1.0.0-preview.97
-        version: 1.0.0-preview.97
+        specifier: 1.0.0-preview.102
+        version: 1.0.0-preview.102
       '@microsoft/kiota-serialization-text':
-        specifier: 1.0.0-preview.97
-        version: 1.0.0-preview.97
+        specifier: 1.0.0-preview.102
+        version: 1.0.0-preview.102
 
   packages/lint-ts:
     devDependencies:
@@ -1330,29 +1330,29 @@ packages:
   '@jridgewell/trace-mapping@0.3.29':
     resolution: {integrity: sha512-uw6guiW/gcAGPDhLmd77/6lW8QLeiV5RUTsAX46Db6oLhGaVj4lhnPwb184s1bkc8kdVg/+h988dro8GRDpmYQ==}
 
-  '@microsoft/kiota-abstractions@1.0.0-preview.97':
-    resolution: {integrity: sha512-ENazW/UmJWG5Si8jea2TfhYEsEmKEY+xDMzQW2tx4D7n7a6h6M6sVWLouz//jZ9oxMDIykXuP/fUcO7pHTdwgA==}
+  '@microsoft/kiota-abstractions@1.0.0-preview.102':
+    resolution: {integrity: sha512-WL+S7X+W6zpDO6vFk+FClb5hoUJMV1ZcMHo1H52r2Q49xTuYx9esJqmwh/0EXsftmxKwOOIOoPfO7+Tp5QAddw==}
 
-  '@microsoft/kiota-authentication-azure@1.0.0-preview.97':
-    resolution: {integrity: sha512-s567kjpHMXRZx+XGEXGg3fl5xeA3HXIStxAn/xyYv1+Ww8dRgRwudTvc9++4yuKfU+9tOCKopEdMejOb8pXmVQ==}
+  '@microsoft/kiota-authentication-azure@1.0.0-preview.102':
+    resolution: {integrity: sha512-S+TENSTiMNI0KfXZeuuN0bQEpSOYPYviz/KiiiwByx9M96aoF/Oxagj8PoCVebbJRxrVkZrRsVyRuKt0ikfyDw==}
 
-  '@microsoft/kiota-bundle@1.0.0-preview.97':
-    resolution: {integrity: sha512-3onjFdZpcFHM88gGYePNYj7iSDwlAhxutFXee9Thu+Ytkgegv75OyvbS02SgX71jolQbse/fn8hdyTpyBON5hQ==}
+  '@microsoft/kiota-bundle@1.0.0-preview.102':
+    resolution: {integrity: sha512-9Y8lTN6Az9Os+TbSyMxkOOMVObtslHrz5C2ohYmZ0dvbINpJskPu2K3StT6PgF0WTCVpyoxlCCYJUSoXdG4/HA==}
 
-  '@microsoft/kiota-http-fetchlibrary@1.0.0-preview.97':
-    resolution: {integrity: sha512-83+sLY6QEJ8D64+VLbrTzmmAtPq7LdD5+UwuX+E4q1ch4+Ty1EFgx9n61xM5fjG6AOVdqbWaTxhqI3C+5gIuzw==}
+  '@microsoft/kiota-http-fetchlibrary@1.0.0-preview.102':
+    resolution: {integrity: sha512-oXfrPOWkIR2/Gs700n00EY3VDc+Qgz6y7ZiA/f8FHJsnwSjZ017xcWFw2PLzJItczVsad0pq/N5DYnoF6Co11Q==}
 
-  '@microsoft/kiota-serialization-form@1.0.0-preview.97':
-    resolution: {integrity: sha512-yOjiDjhF26WIerLs7kAOE0ij7GwmEg3KED7oAYV6/T5NQwQBIcJ+4O2LaemvqnQRhZmwyuFhWlh1nLt0yHP+7g==}
+  '@microsoft/kiota-serialization-form@1.0.0-preview.102':
+    resolution: {integrity: sha512-1w70XAA/F4RgbyNbRAaZCjLAOiKQjdiQDYlNZC9x8g7xgd7tNqYqowt/auQS1A9SZOrT626q6+Gr2xKKyW3wOg==}
 
-  '@microsoft/kiota-serialization-json@1.0.0-preview.97':
-    resolution: {integrity: sha512-U5gGuLPXjdL81qoFzd0Ffi/r1MWyprFS8BBHmHZ032KMF+GWtU4IFe5fy1KCdXheTliKtWu5YtnghXSiUQW8Lw==}
+  '@microsoft/kiota-serialization-json@1.0.0-preview.102':
+    resolution: {integrity: sha512-YpIt5pXNX13ND736oJFf0wBYPAafCv+CAE17Fa1HcS1drCdXx8ELPQ5GxGDbQG7J5LIMDgUtBOUmf5R/FrMQ6A==}
 
-  '@microsoft/kiota-serialization-multipart@1.0.0-preview.97':
-    resolution: {integrity: sha512-Srabd69lwtaZT3RP6fC5PELs8B+ct7hJDmRW7t1ZBE7MKRHy7dGi0XtLd19rqIUsRFc7BU1NgcT//LkCSb6ccg==}
+  '@microsoft/kiota-serialization-multipart@1.0.0-preview.102':
+    resolution: {integrity: sha512-tjwt0m+8+OqZizZU6gBARTcA8suPYS0onD9IUbhKsvRrAJpBIyp07hnyOTXBgE+gurGGbeT3TTl9AUK2ic6DiA==}
 
-  '@microsoft/kiota-serialization-text@1.0.0-preview.97':
-    resolution: {integrity: sha512-FJLh8Gq9ZfVSqTr/QoltqLEY9oaHvefmI/WZvyGrNHBVQOR+2TBg32ptiGhRzjJQIZGgJdPj9GYApkDvo8T5MQ==}
+  '@microsoft/kiota-serialization-text@1.0.0-preview.102':
+    resolution: {integrity: sha512-ZCihyrXKYGfTz/frqNQvwKsD+EgjhjfclB5/XDrSGNXduisL/f1MbyvjsgmrZnLmtCwX8/v+Mc3vlz716KWYbg==}
 
   '@mjackson/node-fetch-server@0.2.0':
     resolution: {integrity: sha512-EMlH1e30yzmTpGLQjlFmaDAjyOeZhng1/XCd7DExR8PNAnG/G1tyruZxEoUe11ClnwGhGrtsdnyyUx1frSzjng==}
@@ -7733,55 +7733,55 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.4
 
-  '@microsoft/kiota-abstractions@1.0.0-preview.97':
+  '@microsoft/kiota-abstractions@1.0.0-preview.102':
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@std-uritemplate/std-uritemplate': 2.0.5
       tinyduration: 3.4.1
       tslib: 2.8.1
 
-  '@microsoft/kiota-authentication-azure@1.0.0-preview.97':
+  '@microsoft/kiota-authentication-azure@1.0.0-preview.102':
     dependencies:
       '@azure/core-auth': 1.10.0
-      '@microsoft/kiota-abstractions': 1.0.0-preview.97
+      '@microsoft/kiota-abstractions': 1.0.0-preview.102
       '@opentelemetry/api': 1.9.0
       tslib: 2.8.1
     transitivePeerDependencies:
       - supports-color
 
-  '@microsoft/kiota-bundle@1.0.0-preview.97':
+  '@microsoft/kiota-bundle@1.0.0-preview.102':
     dependencies:
-      '@microsoft/kiota-abstractions': 1.0.0-preview.97
-      '@microsoft/kiota-http-fetchlibrary': 1.0.0-preview.97
-      '@microsoft/kiota-serialization-form': 1.0.0-preview.97
-      '@microsoft/kiota-serialization-json': 1.0.0-preview.97
-      '@microsoft/kiota-serialization-multipart': 1.0.0-preview.97
-      '@microsoft/kiota-serialization-text': 1.0.0-preview.97
+      '@microsoft/kiota-abstractions': 1.0.0-preview.102
+      '@microsoft/kiota-http-fetchlibrary': 1.0.0-preview.102
+      '@microsoft/kiota-serialization-form': 1.0.0-preview.102
+      '@microsoft/kiota-serialization-json': 1.0.0-preview.102
+      '@microsoft/kiota-serialization-multipart': 1.0.0-preview.102
+      '@microsoft/kiota-serialization-text': 1.0.0-preview.102
 
-  '@microsoft/kiota-http-fetchlibrary@1.0.0-preview.97':
+  '@microsoft/kiota-http-fetchlibrary@1.0.0-preview.102':
     dependencies:
-      '@microsoft/kiota-abstractions': 1.0.0-preview.97
+      '@microsoft/kiota-abstractions': 1.0.0-preview.102
       '@opentelemetry/api': 1.9.0
       tslib: 2.8.1
 
-  '@microsoft/kiota-serialization-form@1.0.0-preview.97':
+  '@microsoft/kiota-serialization-form@1.0.0-preview.102':
     dependencies:
-      '@microsoft/kiota-abstractions': 1.0.0-preview.97
+      '@microsoft/kiota-abstractions': 1.0.0-preview.102
       tslib: 2.8.1
 
-  '@microsoft/kiota-serialization-json@1.0.0-preview.97':
+  '@microsoft/kiota-serialization-json@1.0.0-preview.102':
     dependencies:
-      '@microsoft/kiota-abstractions': 1.0.0-preview.97
+      '@microsoft/kiota-abstractions': 1.0.0-preview.102
       tslib: 2.8.1
 
-  '@microsoft/kiota-serialization-multipart@1.0.0-preview.97':
+  '@microsoft/kiota-serialization-multipart@1.0.0-preview.102':
     dependencies:
-      '@microsoft/kiota-abstractions': 1.0.0-preview.97
+      '@microsoft/kiota-abstractions': 1.0.0-preview.102
       tslib: 2.8.1
 
-  '@microsoft/kiota-serialization-text@1.0.0-preview.97':
+  '@microsoft/kiota-serialization-text@1.0.0-preview.102':
     dependencies:
-      '@microsoft/kiota-abstractions': 1.0.0-preview.97
+      '@microsoft/kiota-abstractions': 1.0.0-preview.102
       tslib: 2.8.1
 
   '@mjackson/node-fetch-server@0.2.0': {}

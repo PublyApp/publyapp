@@ -20,8 +20,8 @@
 	"dependencies": {
 		"@base-ui/react": "1.3.0",
 		"@hookform/resolvers": "4.1.3",
-		"@microsoft/kiota-abstractions": "1.0.0-preview.97",
-		"@microsoft/kiota-http-fetchlibrary": "1.0.0-preview.97",
+		"@microsoft/kiota-abstractions": "1.0.0-preview.102",
+		"@microsoft/kiota-http-fetchlibrary": "1.0.0-preview.102",
 		"@org/client-ts": "workspace:*",
 		"@org/shared-ts": "workspace:*",
 		"@tabler/icons-react": "3.41.1",
