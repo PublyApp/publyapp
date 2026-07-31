@@ -209,6 +209,28 @@ describe('MarketingHeader mega menu — hover intent', () => {
 
 		expect(screen.queryByTestId('marketing-mega-panel')).toBeNull();
 	});
+
+	test('Escape closes a hover-opened panel without moving focus', async () => {
+		vi.useFakeTimers({ shouldAdvanceTime: true });
+		await renderHeader();
+
+		const trigger = platformTrigger();
+		fireEvent.mouseOver(trigger.parentElement as HTMLElement);
+
+		act(() => {
+			vi.advanceTimersByTime(MARKETING_NAV_INTENT_OPEN_DELAY_MS);
+		});
+		expect(screen.getByTestId('marketing-mega-panel')).toBeTruthy();
+
+		// Hover open does not transfer focus to the panel. Repro checks
+		// that a document-level Escape listener closes it in that case.
+		document.body.focus();
+		fireEvent.keyDown(document, { key: 'Escape' });
+
+		expect(screen.queryByTestId('marketing-mega-panel')).toBeNull();
+
+		vi.useRealTimers();
+	});
 });
 
 describe('MarketingHeader — no dead ends', () => {

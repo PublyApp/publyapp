@@ -90,6 +90,7 @@ const DesktopNav = ({ pathname, triggers }: HeaderNavProps) => {
 	const navRef = useRef<HTMLDivElement | null>(null);
 	const openTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const openByHoverRef = useRef(false);
 
 	const clearTimers = useCallback(() => {
 		if (openTimerRef.current !== null) {
@@ -101,6 +102,30 @@ const DesktopNav = ({ pathname, triggers }: HeaderNavProps) => {
 			closeTimerRef.current = null;
 		}
 	}, []);
+
+	const closeAndRestoreFocus = useCallback(
+		(triggerId: string) => {
+			clearTimers();
+			setOpenTriggerId(null);
+			openByHoverRef.current = false;
+			navRef.current
+				?.querySelector<HTMLButtonElement>(`[data-nav-trigger='${triggerId}']`)
+				?.focus();
+		},
+		[clearTimers],
+	);
+
+	const focusFirstPanelLink = (triggerId: string) => {
+		// The panel mounts in the same commit as the state change, so the
+		// query has to run after paint, not inline with the key handler.
+		requestAnimationFrame(() => {
+			navRef.current
+				?.querySelector<HTMLAnchorElement>(
+					`#${panelId(triggerId)} [data-mega-link]`,
+				)
+				?.focus();
+		});
+	};
 
 	useEffect(() => clearTimers, [clearTimers]);
 
@@ -114,6 +139,7 @@ const DesktopNav = ({ pathname, triggers }: HeaderNavProps) => {
 
 		const handlePointerDown = (event: MouseEvent) => {
 			if (!navRef.current?.contains(event.target as Node)) {
+				openByHoverRef.current = false;
 				setOpenTriggerId(null);
 			}
 		};
@@ -127,12 +153,42 @@ const DesktopNav = ({ pathname, triggers }: HeaderNavProps) => {
 	// unmount the header, so an in-page anchor jump would otherwise leave the
 	// panel hanging open over the section it just scrolled to.
 	useEffect(() => {
+		openByHoverRef.current = false;
 		setOpenTriggerId(null);
 	}, [pathname]);
+
+	useEffect(() => {
+		if (openTriggerId === null) {
+			return;
+		}
+
+		const handleEscape = (event: KeyboardEvent) => {
+			if (event.key !== 'Escape' || !openByHoverRef.current || !openTriggerId) {
+				return;
+			}
+
+			const active = document.activeElement;
+			const isActiveInNav = active !== null && navRef.current?.contains(active);
+			const isActiveInModal =
+				active instanceof Element &&
+				active.closest('[role="dialog"], [aria-modal="true"]') !== null;
+
+			if (isActiveInNav || isActiveInModal) {
+				return;
+			}
+
+			closeAndRestoreFocus(openTriggerId);
+		};
+
+		document.addEventListener('keydown', handleEscape);
+
+		return () => document.removeEventListener('keydown', handleEscape);
+	}, [openTriggerId, closeAndRestoreFocus]);
 
 	const scheduleOpen = (triggerId: string) => {
 		clearTimers();
 		openTimerRef.current = setTimeout(() => {
+			openByHoverRef.current = true;
 			setOpenTriggerId(triggerId);
 		}, MARKETING_NAV_INTENT_OPEN_DELAY_MS);
 	};
@@ -140,28 +196,9 @@ const DesktopNav = ({ pathname, triggers }: HeaderNavProps) => {
 	const scheduleClose = () => {
 		clearTimers();
 		closeTimerRef.current = setTimeout(() => {
+			openByHoverRef.current = false;
 			setOpenTriggerId(null);
 		}, MARKETING_NAV_INTENT_CLOSE_DELAY_MS);
-	};
-
-	const closeAndRestoreFocus = (triggerId: string) => {
-		clearTimers();
-		setOpenTriggerId(null);
-		navRef.current
-			?.querySelector<HTMLButtonElement>(`[data-nav-trigger='${triggerId}']`)
-			?.focus();
-	};
-
-	const focusFirstPanelLink = (triggerId: string) => {
-		// The panel mounts in the same commit as the state change, so the
-		// query has to run after paint, not inline with the key handler.
-		requestAnimationFrame(() => {
-			navRef.current
-				?.querySelector<HTMLAnchorElement>(
-					`#${panelId(triggerId)} [data-mega-link]`,
-				)
-				?.focus();
-		});
 	};
 
 	return (
@@ -181,6 +218,7 @@ const DesktopNav = ({ pathname, triggers }: HeaderNavProps) => {
 			onBlur={(event) => {
 				if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
 					clearTimers();
+					openByHoverRef.current = false;
 					setOpenTriggerId(null);
 				}
 			}}
@@ -229,16 +267,18 @@ const DesktopNav = ({ pathname, triggers }: HeaderNavProps) => {
 								id={`marketing-nav-trigger-${trigger.id}`}
 								data-nav-trigger={trigger.id}
 								aria-expanded={isOpen}
-								aria-controls={panelId(trigger.id)}
+								aria-controls={isOpen ? panelId(trigger.id) : undefined}
 								aria-haspopup="true"
 								onClick={() => {
 									clearTimers();
+									openByHoverRef.current = false;
 									setOpenTriggerId(isOpen ? null : trigger.id);
 								}}
 								onKeyDown={(event) => {
 									if (event.key === 'ArrowDown') {
 										event.preventDefault();
 										clearTimers();
+										openByHoverRef.current = false;
 										setOpenTriggerId(trigger.id);
 										focusFirstPanelLink(trigger.id);
 									}

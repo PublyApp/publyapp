@@ -135,6 +135,10 @@ describe('MarketingShell — mobile nav', () => {
 		// dangling `aria-controls` is an invalid ARIA value (axe: critical).
 		expect(toggle.getAttribute('aria-controls')).toBeNull();
 		expect(toggle.getAttribute('aria-expanded')).toBe('false');
+		const desktopTrigger = screen.getByRole('button', {
+			name: /resources|ressources/i,
+		});
+		expect(desktopTrigger.getAttribute('aria-controls')).toBeNull();
 
 		fireEvent.click(toggle);
 
@@ -150,6 +154,25 @@ describe('MarketingShell — mobile nav', () => {
 		await waitFor(() =>
 			expect(screen.queryByTestId('marketing-mobile-nav')).toBeNull(),
 		);
+	});
+
+	test('mobile drawer close restores focus to the hamburger trigger', async () => {
+		await renderShell();
+
+		const toggle = screen.getByTestId('marketing-mobile-nav-toggle');
+		toggle.focus();
+
+		fireEvent.click(toggle);
+		await waitFor(() =>
+			expect(screen.getByTestId('marketing-mobile-nav')).toBeTruthy(),
+		);
+
+		fireEvent.keyDown(document, { key: 'Escape' });
+		await waitFor(() =>
+			expect(screen.queryByTestId('marketing-mobile-nav')).toBeNull(),
+		);
+
+		await waitFor(() => expect(document.activeElement).toBe(toggle));
 	});
 });
 
@@ -196,5 +219,26 @@ describe('MarketingShell — announcement bar', () => {
 		await waitFor(() =>
 			expect(screen.queryByTestId('marketing-announcement-bar')).toBeNull(),
 		);
+	});
+});
+
+describe('MarketingShell — focus restoration', () => {
+	test('prefs drawer close returns focus to the launcher button', async () => {
+		await renderShell();
+
+		const launcher = screen.getByTestId('marketing-manage-cookies');
+		launcher.focus();
+		fireEvent.click(launcher);
+
+		await waitFor(() =>
+			expect(screen.getByTestId('cookie-prefs-drawer')).toBeTruthy(),
+		);
+
+		fireEvent.click(screen.getByTestId('cookie-prefs-save'));
+
+		await waitFor(() =>
+			expect(screen.queryByTestId('cookie-prefs-drawer')).toBeNull(),
+		);
+		await waitFor(() => expect(document.activeElement).toBe(launcher));
 	});
 });
