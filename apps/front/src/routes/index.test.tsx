@@ -11,28 +11,33 @@ vi.mock('@tanstack/react-router', () => ({
 	),
 }));
 
-vi.mock('react-i18next', () => ({
-	useTranslation: () => ({
-		t: (key: string) => key,
-		i18n: { language: 'en' },
-	}),
-}));
-
 import { IndexRoute } from './index';
 
-describe('front index route', () => {
-	test('renders neutral, translated copy — no internal handoff jargon', () => {
+describe('marketing landing route', () => {
+	test('renders core landing sections and copy', () => {
 		const html = renderToStaticMarkup(<IndexRoute />);
 
-		expect(html).toContain('welcome-title');
-		expect(html).toContain('welcome-description');
-		expect(html).not.toContain('front shell');
-		expect(html).not.toContain('Gray UI shell is active');
+		expect(html).toContain('Publish everywhere your brands live');
+		expect(html).toContain('Product tour');
+		expect(html).toContain('Built for the work that does not fit in one inbox');
+		expect(html).toContain('Trial timeline');
+		expect(html).toContain('Questions teams ask at first look');
 	});
 
-	test('links to /login as a real navigable action, not a dead button', () => {
+	test('keeps the required navigation targets', () => {
 		const html = renderToStaticMarkup(<IndexRoute />);
 
-		expect(html).toContain('href="/login"');
+		expect(html).toContain('href="/signup"');
+		expect(html).toContain('href="#product-tour"');
+	});
+
+	test('renders all tour tab labels', () => {
+		const html = renderToStaticMarkup(<IndexRoute />);
+
+		expect(html).toContain('Calendar');
+		expect(html).toContain('Composer');
+		expect(html).toContain('Approvals');
+		expect(html).toContain('Profiles');
+		expect(html).toContain('Dashboards');
 	});
 });
