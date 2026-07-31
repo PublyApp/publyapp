@@ -235,11 +235,30 @@ function StaffTenantProfileDetailsPage() {
 		});
 	};
 
+	// The two places this page can be holding work the user has not saved. It
+	// is deliberately NOT the same expression as `shouldBlockFn` below: that
+	// one answers "does THIS in-app transition discard something", which needs
+	// to know where you are going; a tab close or reload discards everything,
+	// so it only needs to know whether there is anything at all.
+	//
+	// `editDrawerNavBypassRef` is deliberately not consulted either — it exists
+	// to stop the guard blocking the app's OWN navigation, and a browser unload
+	// is never that.
+	const hasUnsavedWork =
+		isPermissionsMatrixDirty || (isEditDrawerOpen && isEditFormDirty);
+
 	// The edit drawer's open flag lives in the URL (`?edit=1`); a browser
 	// Back or a sibling-route navigation changes/unmounts it without ever
 	// calling the drawer's own `onOpenChange` close guard, discarding a dirty
 	// edit draft silently (tenants-r1-F2).
 	const editDrawerBlocker = useBlocker({
+		// `useBlocker` defaults this to `true`, which arms the browser's native
+		// leave-site prompt for the whole lifetime of the route — a clean
+		// Overview page would nag on every reload or tab close with nothing to
+		// lose. Registering it only when there IS something to lose keeps the
+		// prompt meaningful (a prompt that always fires is one users learn to
+		// dismiss without reading).
+		enableBeforeUnload: hasUnsavedWork,
 		shouldBlockFn: ({ current, next }) => {
 			// Step-3 inline-matrix guard (independent of the edit drawer).
 			// Unsaved matrix edits live only in the mounted Permissions ROUTE,

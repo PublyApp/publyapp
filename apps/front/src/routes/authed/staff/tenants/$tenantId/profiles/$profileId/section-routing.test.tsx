@@ -30,6 +30,7 @@
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
+	createBrowserHistory,
 	createMemoryHistory,
 	createRootRoute,
 	createRoute,
@@ -174,9 +175,11 @@ vi.mock('react-i18next', () => ({
 }));
 
 import { Route as ProfileDetailsRoute } from '../$profileId';
+import { Route as ProfileEditShimRoute } from '../$profileId-edit';
 import { Route as ProfileOverviewRoute } from './index';
 import { Route as ProfileMembersRoute } from './members';
 import { Route as ProfilePermissionsRoute } from './permissions';
+import { Route as ProfileUsersRoute } from './users';
 
 /**
  * `createFileRoute(...)(options)` does not attach the id/path/parent — the
@@ -194,6 +197,18 @@ const mountRealRoute = <TRoute,>(
 	return route;
 };
 
+/** Browser history attaches a window-level `beforeunload` listener on
+ * creation; leaking one into a later test would let a stale blocker answer
+ * that test's event. Every harness registers here and is destroyed on
+ * teardown. */
+const openHistories: { destroy: () => void }[] = [];
+
+const destroyOpenHistories = (): void => {
+	while (openHistories.length > 0) {
+		openHistories.pop()?.destroy();
+	}
+};
+
 type BlockerRegistration = {
 	blockerFn: (args: {
 		currentLocation: Record<string, unknown>;
@@ -202,7 +217,26 @@ type BlockerRegistration = {
 	}) => Promise<boolean>;
 };
 
-const buildRouter = (initialUrl: string) => {
+/**
+ * Memory history is what every navigation test below wants — but it never
+ * registers a `beforeunload` listener at all (that lives in
+ * `createBrowserHistory`), so the leave-site-prompt tests need the real
+ * browser history over jsdom's window, seeded by rewriting the URL first.
+ */
+const buildHistory = (initialUrl: string, kind: 'memory' | 'browser') => {
+	if (kind === 'memory') {
+		return createMemoryHistory({ initialEntries: [initialUrl] });
+	}
+
+	window.history.replaceState(null, '', initialUrl);
+
+	return createBrowserHistory();
+};
+
+const buildRouter = (
+	initialUrl: string,
+	{ history: historyKind = 'memory' as 'memory' | 'browser' } = {},
+) => {
 	const rootRoute = createRootRoute({
 		staticData: { crumbs: 'shell' },
 		component: () => <Outlet />,
@@ -233,9 +267,25 @@ const buildRouter = (initialUrl: string) => {
 		path: '/members',
 		getParentRoute: () => detailsRoute,
 	});
-	// Two real sibling destinations that are NOT children of the layout — the
-	// profiles list (where "Back to …" and a successful delete go) and the
-	// flat `/users` route. Navigating to either unmounts the layout.
+	// The three sibling destinations that are NOT children of the layout.
+	// Navigating to any of them unmounts it, taking an open drawer's draft
+	// with it — which is exactly why `isProfileSectionPathname` must not
+	// classify them as sections. `/users` and `/edit` are the REAL production
+	// routes (the `/edit` shim's real `beforeLoad` redirect included), so the
+	// harness can drive genuine navigation, unmount and redirect behaviour for
+	// them rather than asserting against a stand-in. Only the profiles list is
+	// a stub: this suite never asserts anything about the list page itself,
+	// only that navigation reached (or was stopped before) it.
+	const profileUsersRoute = mountRealRoute(ProfileUsersRoute, {
+		id: '/staff/tenants/$tenantId/profiles/$profileId/users',
+		path: '/staff/tenants/$tenantId/profiles/$profileId/users',
+		getParentRoute: () => layoutRoute,
+	});
+	const profileEditShimRoute = mountRealRoute(ProfileEditShimRoute, {
+		id: '/staff/tenants/$tenantId/profiles/$profileId/edit',
+		path: '/staff/tenants/$tenantId/profiles/$profileId/edit',
+		getParentRoute: () => layoutRoute,
+	});
 	const profilesListRoute = createRoute({
 		getParentRoute: () => layoutRoute,
 		path: '/staff/tenants/$tenantId/profiles',
@@ -258,11 +308,13 @@ const buildRouter = (initialUrl: string) => {
 					addChildren: (children: unknown[]) => unknown;
 				}
 			).addChildren([overviewRoute, permissionsRoute, membersRoute]),
+			profileUsersRoute,
+			profileEditShimRoute,
 			profilesListRoute,
 		]),
 	]);
 
-	const history = createMemoryHistory({ initialEntries: [initialUrl] });
+	const history = buildHistory(initialUrl, historyKind);
 	// The blockers array inside `createHistory` is closed over, so capture
 	// every registration as it happens. This is the SAME object the router
 	// hands to `useBlocker`; nothing about the production predicate is
@@ -287,8 +339,12 @@ const buildRouter = (initialUrl: string) => {
 	return { router, history, queryClient, blockers };
 };
 
-const renderAt = async (initialUrl: string) => {
-	const harness = buildRouter(initialUrl);
+const renderAt = async (
+	initialUrl: string,
+	options: { history?: 'memory' | 'browser' } = {},
+) => {
+	const harness = buildRouter(initialUrl, options);
+	openHistories.push(harness.history);
 
 	render(
 		<QueryClientProvider client={harness.queryClient}>
@@ -315,6 +371,33 @@ const sectionLink = (pathname: string): HTMLAnchorElement => {
 	return link;
 };
 
+/** Types into the REAL edit drawer's real name field, which is what makes
+ * `ProfileEditDetailsDrawer` report a dirty draft to the layout's guard. */
+const dirtyTheEditDraft = async () => {
+	const nameInput = await waitFor(() => {
+		const input =
+			document.querySelector<HTMLInputElement>('input[name="name"]');
+		if (!input) {
+			throw new Error('edit drawer name field not rendered');
+		}
+
+		return input;
+	});
+	fireEvent.change(nameInput, { target: { value: 'Renamed approvers' } });
+	await waitFor(() => expect(nameInput.value).toBe('Renamed approvers'));
+};
+
+/** Dispatches a real cancelable `beforeunload` on the window — the same event
+ * a tab close or reload fires — and reports whether anything cancelled it.
+ * `@tanstack/history` attaches its handler with `capture: true`, so this
+ * observes the actual registered listener, not a model of it. */
+const dispatchBeforeUnload = (): boolean => {
+	const event = new Event('beforeunload', { cancelable: true });
+	window.dispatchEvent(event);
+
+	return event.defaultPrevented;
+};
+
 /** Toggles a real permission checkbox in the real matrix, which is what makes
  * `ProfilePermissionsTab` report itself dirty to the layout's guard. */
 const dirtyThePermissionMatrix = async () => {
@@ -336,6 +419,7 @@ describe('#977 tenant-profile sections are path segments (real router)', () => {
 
 	afterEach(() => {
 		cleanup();
+		destroyOpenHistories();
 		vi.clearAllMocks();
 	});
 
@@ -459,6 +543,7 @@ describe('#977 the dirty-matrix navigation guard (real router)', () => {
 
 	afterEach(() => {
 		cleanup();
+		destroyOpenHistories();
 		vi.clearAllMocks();
 	});
 
@@ -579,5 +664,123 @@ describe('#977 the dirty-matrix navigation guard (real router)', () => {
 		);
 		expect(screen.queryByText('Leave without saving?')).toBeNull();
 		expect(history.location.pathname).toBe(PERMISSIONS_PATH);
+	});
+
+	/**
+	 * The two sibling routes that live under this profile's path prefix but
+	 * are NOT children of the layout. Navigating to either unmounts the layout
+	 * — and with it the open drawer and its draft — so both must be blocked.
+	 *
+	 * `/edit` is the dangerous one: its `beforeLoad` immediately redirects
+	 * back to `?edit=1` on the layout, so a misclassification here would look
+	 * harmless (you land back on the drawer) while having silently thrown the
+	 * draft away in between. Both are the real production route objects, so
+	 * this drives the real unmount and the real redirect.
+	 */
+	test('case 5 — navigating to the flat /users sibling with a dirty draft is blocked', async () => {
+		const { router, history } = await renderAt(`${OVERVIEW_PATH}?edit=1`);
+		await dirtyTheEditDraft();
+
+		void router.navigate({
+			to: '/staff/tenants/$tenantId/profiles/$profileId/users',
+			params: { tenantId: TENANT_ID, profileId: PROFILE_ID },
+		});
+
+		await waitFor(() =>
+			expect(screen.getByText('Leave without saving?')).toBeTruthy(),
+		);
+		expect(history.location.pathname).toBe(OVERVIEW_PATH);
+		expect(screen.getByTestId('profile-edit-details-drawer')).toBeTruthy();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Leave page' }));
+		await waitFor(() =>
+			expect(history.location.pathname).toBe(`${OVERVIEW_PATH}/users`),
+		);
+	});
+
+	test('case 6 — navigating to the /edit redirect shim with a dirty draft is blocked before the layout unmounts', async () => {
+		const { router, history } = await renderAt(`${OVERVIEW_PATH}?edit=1`);
+		await dirtyTheEditDraft();
+
+		void router.navigate({
+			to: '/staff/tenants/$tenantId/profiles/$profileId/edit',
+			params: { tenantId: TENANT_ID, profileId: PROFILE_ID },
+		});
+
+		await waitFor(() =>
+			expect(screen.getByText('Leave without saving?')).toBeTruthy(),
+		);
+		// Still on the layout, drawer still mounted, draft still in the field.
+		expect(history.location.pathname).toBe(OVERVIEW_PATH);
+		expect(
+			document.querySelector<HTMLInputElement>('input[name="name"]')?.value,
+		).toBe('Renamed approvers');
+	});
+});
+
+/**
+ * `useBlocker` defaults `enableBeforeUnload` to `true`, which arms the
+ * browser's native leave-site prompt for the route's whole lifetime. These
+ * tests observe the REAL `beforeunload` event on the window — memory history
+ * never registers that listener, so they run on the real browser history over
+ * jsdom — and assert on `defaultPrevented`, not on which option value was
+ * passed in.
+ */
+describe('#977 the native leave-site prompt is armed only when work would be lost', () => {
+	beforeEach(() => {
+		mocks.permissionKeys = ['tenant.users.read'];
+	});
+
+	afterEach(() => {
+		cleanup();
+		destroyOpenHistories();
+		vi.clearAllMocks();
+	});
+
+	test('a clean Overview page does not cancel beforeunload', async () => {
+		await renderAt(OVERVIEW_PATH, { history: 'browser' });
+
+		expect(dispatchBeforeUnload()).toBe(false);
+	});
+
+	test('a clean Permissions page does not cancel beforeunload', async () => {
+		await renderAt(PERMISSIONS_PATH, { history: 'browser' });
+		await waitFor(() =>
+			expect(
+				screen.getByTestId('permission-row-tenant.users.write'),
+			).toBeTruthy(),
+		);
+
+		expect(dispatchBeforeUnload()).toBe(false);
+	});
+
+	test('a dirty permission matrix cancels beforeunload, and stops once the edit is reverted', async () => {
+		await renderAt(PERMISSIONS_PATH, { history: 'browser' });
+		await dirtyThePermissionMatrix();
+
+		expect(dispatchBeforeUnload()).toBe(true);
+
+		// Toggling back to the saved state is no longer unsaved work.
+		const row = screen.getByTestId('permission-row-tenant.users.write');
+		const checkbox = row.querySelector('button, input');
+		if (!checkbox) {
+			throw new Error('no permission checkbox to toggle');
+		}
+		fireEvent.click(checkbox);
+		await waitFor(() => expect(row.getAttribute('data-changed')).toBeNull());
+
+		expect(dispatchBeforeUnload()).toBe(false);
+	});
+
+	test('an open-but-clean edit drawer does not cancel beforeunload; a dirty draft does', async () => {
+		await renderAt(`${OVERVIEW_PATH}?edit=1`, { history: 'browser' });
+		await waitFor(() =>
+			expect(screen.getByTestId('profile-edit-details-drawer')).toBeTruthy(),
+		);
+
+		expect(dispatchBeforeUnload()).toBe(false);
+
+		await dirtyTheEditDraft();
+		expect(dispatchBeforeUnload()).toBe(true);
 	});
 });
