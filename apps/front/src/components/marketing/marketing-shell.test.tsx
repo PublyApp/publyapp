@@ -1,0 +1,132 @@
+/** @vitest-environment jsdom */
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { resetCookieConsentStoreForTests } from '~/lib/store/cookie-consent-store';
+
+import { MarketingShell } from './marketing-shell';
+import { renderMarketing } from './marketing.test-helper';
+
+const renderShell = () =>
+	renderMarketing(
+		<MarketingShell pathname="/">
+			<p>page body</p>
+		</MarketingShell>,
+	);
+
+beforeEach(() => {
+	window.localStorage.clear();
+	resetCookieConsentStoreForTests();
+});
+
+afterEach(cleanup);
+
+describe('MarketingShell composition', () => {
+	test('renders the announcement bar, header, page body, social proof, CTA band and footer', async () => {
+		await renderShell();
+
+		expect(screen.getByTestId('marketing-announcement-bar')).toBeTruthy();
+		expect(screen.getByTestId('marketing-header')).toBeTruthy();
+		expect(screen.getByText('page body')).toBeTruthy();
+		expect(screen.getByTestId('marketing-social-proof')).toBeTruthy();
+		expect(screen.getByTestId('marketing-cta-band')).toBeTruthy();
+		expect(screen.getByTestId('marketing-footer')).toBeTruthy();
+	});
+
+	test('the header is the only surface at chrome width; body, social proof, CTA band and footer read at reading width', async () => {
+		await renderShell();
+
+		const widthOf = (element: HTMLElement) =>
+			element
+				.querySelector('[data-container-width]')
+				?.getAttribute('data-container-width');
+
+		expect(widthOf(screen.getByTestId('marketing-header'))).toBe('chrome');
+		expect(widthOf(screen.getByTestId('marketing-social-proof'))).toBe(
+			'reading',
+		);
+		expect(widthOf(screen.getByTestId('marketing-cta-band'))).toBe('reading');
+		expect(widthOf(screen.getByTestId('marketing-footer'))).toBe('reading');
+
+		const main = document.querySelector('#marketing-main') as HTMLElement;
+		expect(widthOf(main)).toBe('reading');
+	});
+
+	test('the chrome container carries the chrome token and the reading container the reading one', async () => {
+		await renderShell();
+
+		const chrome = screen
+			.getByTestId('marketing-header')
+			.querySelector('[data-container-width="chrome"]');
+		const reading = screen
+			.getByTestId('marketing-footer')
+			.querySelector('[data-container-width="reading"]');
+
+		expect(chrome?.className).toContain('max-w-(--publy-container-chrome)');
+		expect(reading?.className).toContain('max-w-(--publy-container-reading)');
+	});
+
+	test('the header box is sized from the header-height token, not a literal 64px', async () => {
+		await renderShell();
+
+		const headerRow = screen
+			.getByTestId('marketing-header')
+			.querySelector('[data-container-width="chrome"]');
+
+		expect(headerRow?.className).toContain('h-(--publy-header-height)');
+	});
+});
+
+describe('MarketingShell — cookie surfaces', () => {
+	test('the footer control reopens the preferences drawer after a decision was already made', async () => {
+		await renderShell();
+
+		// Decide first, so the band is gone and the footer is the only way back.
+		fireEvent.click(await screen.findByTestId('cookie-band-reject'));
+		expect(screen.queryByTestId('cookie-consent-band')).toBeNull();
+
+		fireEvent.click(screen.getByTestId('marketing-manage-cookies'));
+
+		expect(await screen.findByTestId('cookie-prefs-drawer')).toBeTruthy();
+	});
+
+	test('Customize on the band opens the preferences drawer', async () => {
+		await renderShell();
+
+		fireEvent.click(await screen.findByTestId('cookie-band-customize'));
+
+		expect(await screen.findByTestId('cookie-prefs-drawer')).toBeTruthy();
+	});
+});
+
+describe('MarketingShell — mobile nav', () => {
+	test('the hamburger opens the drawer, and Esc closes it', async () => {
+		await renderShell();
+
+		fireEvent.click(screen.getByTestId('marketing-mobile-nav-toggle'));
+
+		const drawer = await screen.findByTestId('marketing-mobile-nav');
+		expect(drawer.getAttribute('role')).toBe('dialog');
+
+		fireEvent.keyDown(document, { key: 'Escape' });
+
+		await waitFor(() =>
+			expect(screen.queryByTestId('marketing-mobile-nav')).toBeNull(),
+		);
+	});
+});
+
+describe('MarketingShell — announcement bar', () => {
+	test('dismissal persists, so a returning visitor is not shown it again', async () => {
+		const first = await renderShell();
+
+		fireEvent.click(screen.getByTestId('marketing-announcement-dismiss'));
+		expect(screen.queryByTestId('marketing-announcement-bar')).toBeNull();
+
+		first.unmount();
+		await renderShell();
+
+		await waitFor(() =>
+			expect(screen.queryByTestId('marketing-announcement-bar')).toBeNull(),
+		);
+	});
+});
