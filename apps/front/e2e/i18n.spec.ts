@@ -41,7 +41,12 @@ test('renders / with locale from cookie and updates html lang', async ({
 	await page.goto('/');
 
 	await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
-	await expect(page.getByTestId('i18n-greeting')).toHaveText('Bonjour');
+	// The landing page replaced the placeholder greeting element. The hero title
+	// is real translated page copy, so it proves the same thing: the cookie's
+	// locale decides what is rendered.
+	await expect(page.getByTestId('landing-hero-title')).toHaveText(
+		'Publiez partout où vivent vos marques',
+	);
 });
 
 test('falls back to English when locale cookie is unsupported', async ({
@@ -53,5 +58,7 @@ test('falls back to English when locale cookie is unsupported', async ({
 	await page.goto('/');
 
 	await expect(page.locator('html')).toHaveAttribute('lang', 'en');
-	await expect(page.getByTestId('i18n-greeting')).toHaveText('Hello');
+	await expect(page.getByTestId('landing-hero-title')).toHaveText(
+		'Publish everywhere your brands live',
+	);
 });

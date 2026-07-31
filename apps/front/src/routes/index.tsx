@@ -207,6 +207,7 @@ export const IndexRoute = () => {
 						{t('landing-hero-eyebrow')}
 					</p>
 					<h1
+						data-testid="landing-hero-title"
 						className="mt-4 text-[clamp(38px,7.2cqw,72px)] leading-[1.02] tracking-[-0.04em]"
 						data-stagger="2"
 					>
