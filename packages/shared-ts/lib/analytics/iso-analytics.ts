@@ -1,5 +1,5 @@
 import type { PostHogConfig, Properties } from 'posthog-js';
-import type { PostHog } from 'posthog-node';
+import type { EventMessage, IdentifyMessage, PostHog } from 'posthog-node';
 
 import { isServer } from '../constants';
 import { logger } from '../logger/iso-logger';
@@ -57,12 +57,18 @@ export class IsoAnalytics implements IAnalytics {
 	public logOnly = false;
 
 	private apiKey: string;
+	private serverRuntimeOverride: boolean | null;
 	private initialized = false;
 	private posthogNode: PostHog | null = null;
 	private posthogBrowser: IPostHogBrowser | null = null;
 
-	constructor(apiKey: string) {
+	constructor(apiKey: string, serverRuntimeOverride: boolean | null = null) {
 		this.apiKey = apiKey;
+		this.serverRuntimeOverride = serverRuntimeOverride;
+	}
+
+	private isServerRuntime(): boolean {
+		return this.serverRuntimeOverride ?? isServer;
 	}
 
 	/**
@@ -83,7 +89,7 @@ export class IsoAnalytics implements IAnalytics {
 		}
 
 		try {
-			if (isServer) {
+			if (this.isServerRuntime()) {
 				await this.initServer();
 			} else {
 				await this.initBrowser();
@@ -122,17 +128,19 @@ export class IsoAnalytics implements IAnalytics {
 			return;
 		}
 
-		if (isServer) {
+		if (this.isServerRuntime()) {
 			if (!this.posthogNode) {
 				logger.error('PostHog Node is not initialized');
 				return;
 			}
 			// Server-side: posthog-node EventMessage format
-			this.posthogNode.capture({
+			const captureMessage: EventMessage = {
 				distinctId: params.distinctId,
 				event: params.event,
 				properties: params.properties,
-			});
+			};
+
+			this.posthogNode.capture(captureMessage);
 		} else {
 			if (!this.posthogBrowser) {
 				logger.error('PostHog Browser is not initialized');
@@ -155,23 +163,25 @@ export class IsoAnalytics implements IAnalytics {
 			return;
 		}
 
-		if (isServer) {
+		if (this.isServerRuntime()) {
 			if (!this.posthogNode) {
 				logger.error('PostHog Node is not initialized');
 				return;
 			}
 			// Server-side: posthog-node IdentifyMessage format
 			const properties = {
-				...params.properties,
+				...(params.properties ? { $set: params.properties } : {}),
 				...(params.propertiesSetOnce
 					? { $set_once: params.propertiesSetOnce }
 					: {}),
 			};
 
-			this.posthogNode.identify({
+			const identifyMessage: IdentifyMessage = {
 				distinctId: params.distinctId,
 				properties,
-			});
+			};
+
+			this.posthogNode.identify(identifyMessage);
 		} else {
 			if (!this.posthogBrowser) {
 				logger.error('PostHog Browser is not initialized');
@@ -197,7 +207,7 @@ export class IsoAnalytics implements IAnalytics {
 			return;
 		}
 
-		if (isServer) {
+		if (this.isServerRuntime()) {
 			if (!this.posthogNode) {
 				logger.error('PostHog Node is not initialized');
 				return;
@@ -227,8 +237,8 @@ export class IsoAnalytics implements IAnalytics {
 	 * This is mainly useful on the server-side to ensure all events are sent before the process exits.
 	 */
 	async shutdown(): Promise<void> {
-		if (isServer && this.posthogNode) {
-			await this.posthogNode.shutdown();
+		if (this.isServerRuntime() && this.posthogNode) {
+			await this.posthogNode._shutdown();
 		}
 	}
 }
