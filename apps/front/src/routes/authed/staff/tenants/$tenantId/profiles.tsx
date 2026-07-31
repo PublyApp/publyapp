@@ -11,9 +11,14 @@ import {
 	IconTrash,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
+import {
+	createFileRoute,
+	Link,
+	useBlocker,
+	useRouter,
+} from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -89,6 +94,7 @@ import {
 	TenantRetryActions,
 } from './_tenant-details-shell';
 import { deriveTenantProfileCardStyle } from './profiles/_profile-card-style';
+import { ProfileEditDetailsDrawer } from './profiles/_profile-edit-details-drawer';
 import { ProfileFormDrawer } from './profiles/_profile-form-drawer';
 
 export { deriveTenantProfileCardStyle } from './profiles/_profile-card-style';
@@ -98,6 +104,12 @@ export type StaffTenantProfilesViewMode = 'cards' | 'table';
 
 export type StaffTenantProfilesSearchParams = TableSearchParams & {
 	new?: 1;
+	/** Id of the profile whose quick-edit drawer is open OVER this list (#972).
+	 * It is an id rather than a boolean flag because the list is the thing that
+	 * stays mounted: the id names which row the drawer is editing, and putting
+	 * it in the list's own search state keeps the drawer deep-linkable and
+	 * makes a browser Back close it instead of leaving the list. */
+	edit?: string;
 	/** Snake_case + a REAL boolean: this object IS the route search state the
 	 * router serializes into the URL — a camelCase key would leak into the URL,
 	 * and a 'true' STRING would be JSON-quoted (`?is_default=%22true%22`). */
@@ -106,6 +118,7 @@ export type StaffTenantProfilesSearchParams = TableSearchParams & {
 };
 export type StaffTenantProfilesSearchParamInput = TableSearchParamInput & {
 	new?: unknown;
+	edit?: unknown;
 	is_default?: unknown;
 	view?: unknown;
 };
@@ -144,6 +157,45 @@ export const parseStaffTenantProfileTypeFilter = (
 	return normalized === 'false' ? false : undefined;
 };
 
+/**
+ * The `edit` param carries a profile id, so it must survive the URL as a RAW
+ * string. TanStack's search serializer re-quotes any string that happens to be
+ * valid JSON (`'5'` → `?edit=%225%22`) and its parser turns an unquoted numeric
+ * value back into a NUMBER — so an all-digit value cannot round-trip. Profile
+ * ids are UUIDs and never all-digit, so accepting strings only is both exact
+ * and lossless; anything else (a number, a boolean, an empty string) is not an
+ * id and is dropped at the router boundary.
+ */
+export const parseStaffTenantProfileEditId = (
+	value: unknown,
+): string | undefined => normalizeUnknownString(value);
+
+/**
+ * `?new=1` and `?edit=<id>` are both drawer-open flags on this one route, and a
+ * drawer is a modal — two mounted at once is not a state this UI has a meaning
+ * for (two stacked surfaces, two "Profile name" fields, one shared discard
+ * prompt). Enforcing that only at the open call sites would leave
+ * `?new=1&edit=<id>` — a link anyone can be sent — mounting both on first
+ * paint, so the invariant is resolved HERE, at the same boundary that already
+ * drops a non-string `edit`.
+ *
+ * **`edit` wins.** It names a specific existing row, so it is the flag that
+ * carries information the URL cannot reconstruct: honouring `new` instead would
+ * silently change *which* entity the recipient of the link is looking at. `new`
+ * is a bare flag whose entire state is "open the empty create form", one click
+ * away and identical every time. Dropping the cheap, reconstructible flag is
+ * the smaller loss. (The reachable in-app flows never reach this tiebreak —
+ * both open paths clear the opposite flag — so this governs hand-written,
+ * stale, or shared URLs only.)
+ */
+export const resolveStaffTenantProfileDrawerFlags = (
+	isCreateOpen: boolean,
+	editProfileId: string | undefined,
+): { new?: 1; edit?: string } => ({
+	new: isCreateOpen && editProfileId === undefined ? (1 as const) : undefined,
+	edit: editProfileId,
+});
+
 export const parseStaffTenantProfilesViewMode = (
 	value: unknown,
 ): StaffTenantProfilesViewMode =>
@@ -163,7 +215,10 @@ export const parseStaffTenantProfilesSearchParams = (
 
 	return {
 		...base,
-		new: isCreateOpen ? (1 as const) : undefined,
+		...resolveStaffTenantProfileDrawerFlags(
+			isCreateOpen,
+			parseStaffTenantProfileEditId(search.edit),
+		),
 		is_default: isDefault,
 		view: view === 'table' ? view : undefined,
 	};
@@ -178,7 +233,10 @@ export const serializeStaffTenantProfilesSearchParams = (
 
 	return {
 		...next,
-		new: params.new === 1 ? (1 as const) : undefined,
+		...resolveStaffTenantProfileDrawerFlags(
+			params.new === 1,
+			parseStaffTenantProfileEditId(params.edit),
+		),
 		is_default: isDefault,
 		view: view === 'table' ? view : undefined,
 	};
@@ -233,10 +291,12 @@ const ProfileCardGridSkeleton = ({ testId }: { testId: string }) => (
 const ProfileRowActions = ({
 	tenantId,
 	profile,
+	onEditRequest,
 	onDeleteRequest,
 }: {
 	tenantId: string;
 	profile: StaffTenantProfileRow;
+	onEditRequest: (profile: StaffTenantProfileRow) => void;
 	onDeleteRequest: (profile: StaffTenantProfileRow) => void;
 }) => {
 	const { t } = useTranslation('common');
@@ -257,13 +317,15 @@ const ProfileRowActions = ({
 				<IconEye className="size-[15px]" />
 				{t('view-details')}
 			</DropdownMenuItem>
+			{/* #972: NOT a <Link> to `.../$profileId/edit`. That route is a frozen
+			 * redirect stub kept only for old bookmarks, so linking to it cost a
+			 * full navigation to the detail page and threw away this list's
+			 * filters, cursor page, selection and scroll. Editing is a list-local
+			 * search-state change (`?edit=<profileId>`) that opens the same drawer
+			 * over the list. */}
 			<DropdownMenuItem
-				render={
-					<Link
-						to="/staff/tenants/$tenantId/profiles/$profileId/edit"
-						params={{ tenantId, profileId: profile.id }}
-					/>
-				}
+				data-testid={`staff-tenant-profile-edit-${profile.id}`}
+				onClick={() => onEditRequest(profile)}
 			>
 				<IconPencil className="size-[15px]" />
 				{t('edit')}
@@ -287,6 +349,7 @@ const ProfileRowActions = ({
 const ProfileCard = ({
 	tenantId,
 	profile,
+	onEditRequest,
 	onDeleteRequest,
 	isSelected,
 	isSelectionMode,
@@ -294,6 +357,7 @@ const ProfileCard = ({
 }: {
 	tenantId: string;
 	profile: StaffTenantProfileRow;
+	onEditRequest: (profile: StaffTenantProfileRow) => void;
 	onDeleteRequest: (profile: StaffTenantProfileRow) => void;
 	isSelected: boolean;
 	isSelectionMode: boolean;
@@ -376,6 +440,7 @@ const ProfileCard = ({
 				<ProfileRowActions
 					tenantId={tenantId}
 					profile={profile}
+					onEditRequest={onEditRequest}
 					onDeleteRequest={onDeleteRequest}
 				/>
 			</div>
@@ -425,6 +490,7 @@ const ProfileNameCell = ({
 export const makeTenantProfileColumns = (
 	tenantId: string,
 	t: (key: string, options?: Record<string, unknown>) => string,
+	onEditRequest: (profile: StaffTenantProfileRow) => void,
 	onDeleteRequest: (profile: StaffTenantProfileRow) => void,
 ): ColumnDef<StaffTenantProfileRow>[] => [
 	{
@@ -476,6 +542,7 @@ export const makeTenantProfileColumns = (
 			<ProfileRowActions
 				tenantId={tenantId}
 				profile={row.original}
+				onEditRequest={onEditRequest}
 				onDeleteRequest={onDeleteRequest}
 			/>
 		),
@@ -745,8 +812,10 @@ function StaffTenantProfilesPage() {
 	const [shouldRedirectToLogout, setShouldRedirectToLogout] = useState(false);
 	const deleteProfile = useDeleteStaffTenantProfileMutation();
 	const [isCreateFormDirty, setIsCreateFormDirty] = useState(false);
+	const [isEditFormDirty, setIsEditFormDirty] = useState(false);
 
 	const isCreateDrawerOpen = search.new === 1;
+	const editProfileId = search.edit;
 
 	// `onDirtyChange(false)` (called by the drawer right before an
 	// app-initiated close/submit navigation) is an async React state update —
@@ -756,19 +825,16 @@ function StaffTenantProfilesPage() {
 	// blocks its own transition (W8-DRAWER; only a real browser Back or
 	// sibling-route nav should ever trip it).
 	const createDrawerNavBypassRef = useRef(false);
-
-	// The create drawer's open flag lives in the URL (`?new=1`); a browser
-	// Back or a sibling-route navigation changes/unmounts it without ever
-	// calling the drawer's own `onOpenChange` close guard, discarding a dirty
-	// create draft silently (tenants-r1-F2).
-	const createDrawerBlocker = useBlocker({
-		shouldBlockFn: () =>
-			isCreateDrawerOpen &&
-			isCreateFormDirty &&
-			!createDrawerNavBypassRef.current,
-		withResolver: true,
-	});
-	const view = parseStaffTenantProfilesViewMode(search.view);
+	const editDrawerNavBypassRef = useRef(false);
+	// Opening the edit drawer PUSHES a history entry (see `openEditDrawer`), so
+	// a browser Back closes it and lands back on this exact list entry. Closing
+	// it from inside the app must therefore consume that entry rather than
+	// stack a third one — otherwise the first Back after an open/close round
+	// trip would be a dead press that just re-lands on the list. A drawer
+	// opened by a deep link has no entry of ours to consume and is closed with
+	// a `replace` instead.
+	const editDrawerPushedHistoryRef = useRef(false);
+	const router = useRouter();
 
 	const onSearchChange = (next: TableSearchParams): void => {
 		void navigate({
@@ -787,6 +853,53 @@ function StaffTenantProfilesPage() {
 			search: serializeStaffTenantProfilesSearchParams({
 				...search,
 				new: isOpen ? 1 : undefined,
+				// The two drawers are mutually exclusive, and the boundary above
+				// resolves a both-flags URL in `edit`'s favour — so this is not
+				// belt-and-braces: without it, "New profile" while the edit drawer
+				// is open would produce `?new=1&edit=<id>`, which canonicalizes
+				// straight back to `?edit=<id>` and makes the button a no-op.
+				edit: isOpen ? undefined : search.edit,
+			}) as unknown as TableSearchParams,
+			replace: true,
+		});
+	};
+
+	// A PUSH, deliberately — unlike every other search write on this page. The
+	// open drawer is its own history entry, so a browser Back closes it and
+	// restores this list entry (same filters, same cursor page, same selection,
+	// same scroll) instead of leaving the list (#972).
+	const openEditDrawer = (profile: StaffTenantProfileRow): void => {
+		editDrawerNavBypassRef.current = false;
+		editDrawerPushedHistoryRef.current = true;
+		void navigate({
+			search: serializeStaffTenantProfilesSearchParams({
+				...search,
+				edit: profile.id,
+				// Mutually exclusive with the create drawer — cleared here so the
+				// pushed URL is right on its own, not only after the boundary
+				// canonicalizes it.
+				new: undefined,
+			}) as unknown as TableSearchParams,
+		});
+	};
+
+	const closeEditDrawer = (): void => {
+		// Every close routed through here is either a not-dirty close, a
+		// discard the drawer already confirmed, or a successful save — none of
+		// them may be blocked by this page's own guard reading a not-yet-flushed
+		// dirty flag (W8-DRAWER).
+		editDrawerNavBypassRef.current = true;
+
+		if (editDrawerPushedHistoryRef.current) {
+			editDrawerPushedHistoryRef.current = false;
+			router.history.back();
+			return;
+		}
+
+		void navigate({
+			search: serializeStaffTenantProfilesSearchParams({
+				...search,
+				edit: undefined,
 			}) as unknown as TableSearchParams,
 			replace: true,
 		});
@@ -844,6 +957,63 @@ function StaffTenantProfilesPage() {
 	const rows = toStaffTenantProfileRows(profilesQuery.data?.data);
 	const selection = useRowSelection(rows.map((row) => row.id));
 
+	// The drawer edits a row this list already carries — its whole contract is
+	// `{ id, name, description, icon?, tone? }`, every field of which is on the
+	// row — so opening it costs no extra request. An `?edit=<id>` that names no
+	// loaded row (a stale bookmark, or a profile filtered off the current page)
+	// simply leaves the drawer shut rather than inventing a profile to show.
+	const editingProfile = editProfileId
+		? rows.find((row) => row.id === editProfileId)
+		: undefined;
+	const isEditDrawerOpen = editingProfile !== undefined;
+	// Keep the last edited row so the drawer stays mounted through its close
+	// animation, exactly as the always-mounted drawer on the detail page does.
+	// Assigning during render is safe here: it is idempotent and derived purely
+	// from this render's own props/state.
+	const lastEditedProfileRef = useRef<StaffTenantProfileRow | null>(null);
+	if (editingProfile) {
+		lastEditedProfileRef.current = editingProfile;
+	}
+	const editDrawerProfile = editingProfile ?? lastEditedProfileRef.current;
+
+	// Both drawers' open flags live in the URL (`?new=1`, `?edit=<id>`); a
+	// browser Back or a sibling-route navigation changes/unmounts them without
+	// ever calling the drawer's own `onOpenChange` close guard, discarding a
+	// dirty draft silently (tenants-r1-F2). One blocker owns both, so a
+	// transition can never raise two competing confirm dialogs.
+	const drawerBlocker = useBlocker({
+		shouldBlockFn: ({ current, next }) => {
+			if (
+				isCreateDrawerOpen &&
+				isCreateFormDirty &&
+				!createDrawerNavBypassRef.current
+			) {
+				return true;
+			}
+
+			if (
+				!isEditDrawerOpen ||
+				!isEditFormDirty ||
+				editDrawerNavBypassRef.current
+			) {
+				return false;
+			}
+
+			// Mirrors the detail page's guard: a transition that keeps this exact
+			// list route AND the same `?edit=<id>` (a filter change, a sort, a
+			// page size) leaves the drawer open with its draft intact, so a
+			// discard prompt there would be misleading. Only block transitions
+			// that actually leave the open drawer.
+			const staysOnOpenDrawer =
+				next.pathname === current.pathname &&
+				(next.search as StaffTenantProfilesSearchParams).edit === editProfileId;
+
+			return !staysOnOpenDrawer;
+		},
+		withResolver: true,
+	});
+	const view = parseStaffTenantProfilesViewMode(search.view);
+
 	// tenants-r6-F2: freeze the destructive selection target set — cancel a
 	// pending search commit the moment selection mode starts (mirrors
 	// invitations/index.tsx, staff-users.tsx, staff/profiles.tsx); the type
@@ -855,9 +1025,19 @@ function StaffTenantProfilesPage() {
 		}
 	}, [selection.isSelectionMode, resetDraftToCommitted]);
 
+	// `openEditDrawer` closes over `search`, which is a fresh object every
+	// render, so handing it to the memo directly would rebuild every column
+	// definition on every render. The columns get this stable indirection
+	// instead; it always calls the current render's handler.
+	const openEditDrawerRef = useRef(openEditDrawer);
+	openEditDrawerRef.current = openEditDrawer;
+	const onEditRequest = useCallback((profile: StaffTenantProfileRow) => {
+		openEditDrawerRef.current(profile);
+	}, []);
+
 	const columns = useMemo(
-		() => makeTenantProfileColumns(tenantId, t, setDeleteTarget),
-		[tenantId, t, setDeleteTarget],
+		() => makeTenantProfileColumns(tenantId, t, onEditRequest, setDeleteTarget),
+		[tenantId, t, onEditRequest, setDeleteTarget],
 	);
 
 	if (detailsQuery.isPending) {
@@ -1086,6 +1266,7 @@ function StaffTenantProfilesPage() {
 										key={profile.id}
 										tenantId={tenantId}
 										profile={profile}
+										onEditRequest={onEditRequest}
 										onDeleteRequest={setDeleteTarget}
 										isSelected={Boolean(selection.rowSelection[profile.id])}
 										isSelectionMode={selection.isSelectionMode}
@@ -1171,17 +1352,38 @@ function StaffTenantProfilesPage() {
 					setCreateDrawerOpen(false);
 				}}
 			/>
+
+			{/* #972: the same drawer the detail page mounts, hosted here so the
+			 * quick edit stays quick — the list underneath never unmounts, so its
+			 * filters, cursor page, selection and scroll are exactly where the
+			 * user left them when the drawer closes. */}
+			{editDrawerProfile ? (
+				<ProfileEditDetailsDrawer
+					tenantId={tenantId}
+					isOpen={isEditDrawerOpen}
+					profile={editDrawerProfile}
+					onOpenChange={(isOpen) => {
+						if (!isOpen) {
+							closeEditDrawer();
+						}
+					}}
+					onSessionExpired={() => setShouldRedirectToLogout(true)}
+					onDirtyChange={setIsEditFormDirty}
+					onSaved={() => closeEditDrawer()}
+				/>
+			) : null}
+
 			<ConfirmDialog
-				isOpen={createDrawerBlocker.status === 'blocked'}
+				isOpen={drawerBlocker.status === 'blocked'}
 				title={t('unsaved-changes-dialog-title')}
 				description={t('unsaved-changes-dialog-description')}
 				confirmLabel={t('leave-page')}
 				cancelLabel={t('cancel')}
 				tone="danger"
-				onConfirm={() => createDrawerBlocker.proceed?.()}
+				onConfirm={() => drawerBlocker.proceed?.()}
 				onOpenChange={(isOpen) => {
 					if (!isOpen) {
-						createDrawerBlocker.reset?.();
+						drawerBlocker.reset?.();
 					}
 				}}
 			/>
