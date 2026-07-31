@@ -28,7 +28,9 @@ vi.mock('../logger/iso-logger', () => ({
 }));
 
 vi.mock('posthog-node', () => ({
-	PostHog: vi.fn(() => nodeState),
+	PostHog: vi.fn(function () {
+		return nodeState;
+	}),
 }));
 
 vi.mock('posthog-js', () => ({
@@ -40,21 +42,31 @@ vi.mock('posthog-js', () => ({
 	},
 }));
 
+type IsoAnalyticsLike = {
+	isServerRuntime: () => boolean;
+};
+
 const loadAnalytics = async () => {
-	vi.resetModules();
 	vi.clearAllMocks();
-	const module = await import('./iso-analytics');
-	return module.IsoAnalytics;
+	const { IsoAnalytics } = await import('./iso-analytics');
+
+	const setServerRuntime = (
+		instance: IsoAnalyticsLike,
+		isServerRuntime: boolean,
+	): void => {
+		instance.isServerRuntime = () => isServerRuntime;
+	};
+
+	return { IsoAnalytics, setServerRuntime };
 };
 
 beforeEach(() => {
-	vi.resetModules();
 	vi.clearAllMocks();
 });
 
 describe('IsoAnalytics uninitialized warning', () => {
 	test('warns only once per process across all uninitialized call sites', async () => {
-		const IsoAnalytics = await loadAnalytics();
+		const { IsoAnalytics } = await loadAnalytics();
 		const firstClient = new IsoAnalytics('token');
 		const secondClient = new IsoAnalytics('token');
 
@@ -72,8 +84,10 @@ describe('IsoAnalytics uninitialized warning', () => {
 
 describe('IsoAnalytics server path', () => {
 	test('captures with posthog-node EventMessage', async () => {
-		const IsoAnalytics = await loadAnalytics();
-		const analytics = new IsoAnalytics('server-token', true);
+		const { IsoAnalytics, setServerRuntime } = await loadAnalytics();
+		const analytics = new IsoAnalytics('server-token');
+		setServerRuntime(analytics, true);
+		expect((analytics as IsoAnalyticsLike).isServerRuntime()).toBe(true);
 
 		await analytics.init();
 		analytics.capture({
@@ -97,8 +111,10 @@ describe('IsoAnalytics server path', () => {
 	});
 
 	test('identifies with posthog-node IdentifyMessage properties', async () => {
-		const IsoAnalytics = await loadAnalytics();
-		const analytics = new IsoAnalytics('server-token', true);
+		const { IsoAnalytics, setServerRuntime } = await loadAnalytics();
+		const analytics = new IsoAnalytics('server-token');
+		setServerRuntime(analytics, true);
+		expect((analytics as IsoAnalyticsLike).isServerRuntime()).toBe(true);
 
 		await analytics.init();
 		analytics.identify({
@@ -124,12 +140,27 @@ describe('IsoAnalytics server path', () => {
 		});
 		expect(browserState.identify).not.toHaveBeenCalled();
 	});
+
+	test('awaits server shutdown', async () => {
+		const { IsoAnalytics, setServerRuntime } = await loadAnalytics();
+		const analytics = new IsoAnalytics('server-token');
+		setServerRuntime(analytics, true);
+		expect((analytics as IsoAnalyticsLike).isServerRuntime()).toBe(true);
+		nodeState._shutdown.mockResolvedValue(undefined);
+
+		await analytics.init();
+		await analytics.shutdown();
+
+		expect(nodeState._shutdown).toHaveBeenCalledTimes(1);
+	});
 });
 
 describe('IsoAnalytics browser path', () => {
 	test('captures and identifies with posthog-js', async () => {
-		const IsoAnalytics = await loadAnalytics();
-		const analytics = new IsoAnalytics('browser-token', false);
+		const { IsoAnalytics, setServerRuntime } = await loadAnalytics();
+		const analytics = new IsoAnalytics('browser-token');
+		setServerRuntime(analytics, false);
+		expect((analytics as IsoAnalyticsLike).isServerRuntime()).toBe(false);
 
 		await analytics.init();
 		analytics.capture({
