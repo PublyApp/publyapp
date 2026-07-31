@@ -2,13 +2,8 @@ import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
 import type { ProfileSection } from './$profileId/_sections';
+import { PROFILE_SECTION_ROUTES } from './$profileId/_sections';
 import type { ProfileDetailsSearchParams } from './_profile-details-search';
-
-const SECTION_ROUTES = {
-	overview: '/staff/tenants/$tenantId/profiles/$profileId',
-	permissions: '/staff/tenants/$tenantId/profiles/$profileId/permissions',
-	members: '/staff/tenants/$tenantId/profiles/$profileId/members',
-} as const;
 
 export const ProfileSectionNavLink = ({
 	activeSection,
@@ -47,8 +42,13 @@ export const ProfileSectionNavLink = ({
 
 	return (
 		<Link
-			to={SECTION_ROUTES[section]}
+			to={PROFILE_SECTION_ROUTES[section]}
 			params={{ tenantId, profileId }}
+			// The Overview link's path is a PREFIX of every other section's, so
+			// the router's default prefix matching would mark it active — and
+			// stamp a second `aria-current="page"` on the nav — while the user
+			// is on Permissions or Members. Sections are mutually exclusive.
+			activeOptions={{ exact: true }}
 			// Sections are path segments now (#977), but the edit drawer's
 			// `?edit=1` flag is still view state that belongs on whichever
 			// section you are looking at — and the drawer is hosted by the

@@ -28,6 +28,7 @@ import type {
 } from '~/lib/query/staff-tenant-profiles';
 
 import { formatMonthYear } from '../_tenant-details-shell';
+import { PROFILE_SECTION_ROUTES } from './$profileId/_sections';
 import type { ProfileDetailsSearchParams } from './_profile-details-search';
 import type { ProfilePermissionGlance } from './_profile-overview-data';
 import { buildProfilePermissionGlance } from './_profile-overview-data';
@@ -112,11 +113,6 @@ const MembersPreviewBody = ({
 	);
 };
 
-const SECTION_ROUTES = {
-	permissions: '/staff/tenants/$tenantId/profiles/$profileId/permissions',
-	members: '/staff/tenants/$tenantId/profiles/$profileId/members',
-} as const;
-
 /** Section link that preserves the rest of the URL search state, mirroring
  * `ProfileSectionNavLink`'s navigation contract. Sections are path segments
  * since #977; only the edit drawer's flag still travels in the search. */
@@ -134,7 +130,7 @@ const ProfileSectionLink = ({
 	children: ReactNode;
 }) => (
 	<Link
-		to={SECTION_ROUTES[section]}
+		to={PROFILE_SECTION_ROUTES[section]}
 		params={{ tenantId, profileId }}
 		search={(previous: ProfileDetailsSearchParams) => previous}
 		className={className}

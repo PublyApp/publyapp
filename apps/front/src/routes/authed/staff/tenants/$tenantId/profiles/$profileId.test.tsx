@@ -151,6 +151,7 @@ vi.mock('@tanstack/react-router', () => ({
 			rawShouldBlockFn(args ?? realNavigationBlockerArgs);
 		return mocks.blockerResolver;
 	},
+	useNavigate: () => mocks.navigate,
 	useRouterState: ({
 		select,
 	}: {

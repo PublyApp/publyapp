@@ -12,6 +12,14 @@ export type ProfileSectionSegment = (typeof PROFILE_SECTION_SEGMENTS)[number];
 
 export type ProfileSection = 'overview' | ProfileSectionSegment;
 
+/** The registered route template for each section — the `to` every in-app
+ * link and imperative navigation uses. */
+export const PROFILE_SECTION_ROUTES = {
+	overview: '/staff/tenants/$tenantId/profiles/$profileId',
+	permissions: '/staff/tenants/$tenantId/profiles/$profileId/permissions',
+	members: '/staff/tenants/$tenantId/profiles/$profileId/members',
+} as const;
+
 const withoutTrailingSlash = (pathname: string): string =>
 	pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
 
