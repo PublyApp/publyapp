@@ -58,6 +58,23 @@ Follow them by hand until automation exists:
   specific entity over a bare flag, and drop the loser from the address bar. Each open path must
   also clear the opposite flag — otherwise the boundary's own tiebreak silently turns the losing
   drawer's trigger into a no-op.
+- **A resource's sections are path segments, not `?tab=`** (#977). "Which section of this resource
+  am I looking at" is a distinct, linkable, navigable location; query params are for view state
+  that *modifies* the page it sits on (filters, sort, pagination, a drawer-open flag). Both detail
+  shells follow this today: `/staff/staff-users/$userId/{permissions,activity,settings}` and
+  `/staff/tenants/$tenantId/profiles/$profileId/{permissions,members}`, each with the overview as
+  the index child. Consequences worth knowing before adding the next one: the parent becomes a
+  **layout** route, so anything it hosts (an edit drawer and its draft, a nav guard's state)
+  survives a section switch while the section body remounts; a `to`-less `Route.useNavigate()`
+  call in that layout resolves against the LAYOUT's path, so a search-only write must name the
+  section on screen explicitly; the overview link's path is a **prefix** of every sibling's, so
+  its `Link` needs `activeOptions={{ exact: true }}` or it lights up on every section; and each
+  section route declares its own breadcrumb tail (shared base + one label crumb).
+- **Retiring a URL shape means redirecting it, not ignoring it.** When a param stops addressing
+  anything (`?tab=` after #977), the route that used to answer it keeps parsing it just long
+  enough to `redirect()` — with `replace: true`, so Back doesn't bounce through the dead link —
+  and drops it from the address bar. Silently ignoring a live bookmark lands the visitor on a
+  default view, which reads as data loss.
 - A drawer hosted **over a list** opens with a PUSH (so a browser Back closes it and restores the
   list entry, rather than leaving the list) and its app-side close consumes that entry again
   (`router.history.back()`), falling back to a `replace` when the drawer was entered by deep link

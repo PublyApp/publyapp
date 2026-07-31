@@ -38,9 +38,12 @@ import {
 	type StaffTenantProfilesSearchParamInput,
 } from '~/routes/authed/staff/tenants/$tenantId/profiles';
 import { Route as TenantProfileDetailsRoute } from '~/routes/authed/staff/tenants/$tenantId/profiles/$profileId';
+import { Route as TenantProfileOverviewRoute } from '~/routes/authed/staff/tenants/$tenantId/profiles/$profileId/index';
 import {
 	parseProfileDetailsSearchParams,
+	parseProfileOverviewSearchParams,
 	type ProfileDetailsSearchParamInput,
+	type ProfileOverviewSearchParamInput,
 } from '~/routes/authed/staff/tenants/$tenantId/profiles/_profile-details-search';
 import {
 	parseTenantUsersListSearchParams,
@@ -55,6 +58,18 @@ const asValidateSearch = <TInput extends Record<string, unknown>>(route: {
 	options: { validateSearch?: unknown };
 }): ((search: TInput) => Record<string, unknown>) =>
 	route.options.validateSearch as (search: TInput) => Record<string, unknown>;
+
+/** Same idea for `beforeLoad`: reuse the production function object off the
+ * route module's own `Route.options`, widened so mounting it on a throwaway
+ * route tree does not drag the real route's parent type along with it. */
+type LooseBeforeLoad = (context: {
+	params: Record<string, string>;
+	search: Record<string, unknown>;
+}) => void;
+
+const asBeforeLoad = (route: {
+	options: { beforeLoad?: unknown };
+}): LooseBeforeLoad => route.options.beforeLoad as LooseBeforeLoad;
 
 const rootRoute = createRootRoute();
 
@@ -341,13 +356,16 @@ describe('malformed deep links are canonicalized at the router boundary (r4-tena
 		expect(history.location.href).not.toContain('edit=yes');
 	});
 
-	test('tenant profile details: an invalid tab resolves to overview without persisting the default', async () => {
+	// #977: sections are path segments now. `?tab=` survives only on the
+	// OVERVIEW (index) route, and only long enough for that route's
+	// `beforeLoad` to redirect — an unrecognized value never persists.
+	test('tenant profile overview: an invalid tab resolves to no tab without persisting a default', async () => {
 		const { router, history } = buildHarness(
 			'/staff/tenants/$tenantId/profiles/$profileId',
-			asValidateSearch(TenantProfileDetailsRoute),
+			asValidateSearch(TenantProfileOverviewRoute),
 			(search) => {
-				const parsed = parseProfileDetailsSearchParams(
-					search as ProfileDetailsSearchParamInput,
+				const parsed = parseProfileOverviewSearchParams(
+					search as ProfileOverviewSearchParamInput,
 				);
 				return { tab: parsed.tab ?? 'overview' };
 			},
@@ -359,6 +377,105 @@ describe('malformed deep links are canonicalized at the router boundary (r4-tena
 
 		expect(screen.getByTestId('field-tab').textContent).toBe('overview');
 		expect(history.location.href).not.toContain('tab=');
+	});
+
+	/**
+	 * #977 legacy-link redirect. `?tab=permissions` / `?tab=members` links are
+	 * in the wild (bookmarks, pasted URLs); silently ignoring one would land
+	 * the visitor on Overview and read as data loss.
+	 *
+	 * This drives the REAL overview route's own `beforeLoad` and
+	 * `validateSearch` (read straight off `Route.options`, never re-typed —
+	 * the same pattern `asValidateSearch` already establishes in this file)
+	 * on a real router with real memory history, then asserts the router's own
+	 * resolved URL: the section path is reached and the legacy param is gone
+	 * from the address bar.
+	 *
+	 * What is NOT real here, deliberately: the three routes are declared flat
+	 * rather than layout-plus-children, and their components are marker divs.
+	 * Redirect resolution is decided entirely by `validateSearch` +
+	 * `beforeLoad` + the destination path, none of which depend on nesting or
+	 * on what the destination renders. The real nesting, the real bodies and
+	 * the guard interactions are covered in
+	 * `$profileId/section-routing.test.tsx`.
+	 */
+	const buildLegacyTabHarness = (initialUrl: string) => {
+		const overviewRoute = createRoute({
+			getParentRoute: () => rootRoute,
+			path: '/staff/tenants/$tenantId/profiles/$profileId',
+			staticData: { crumbs: 'shell' },
+			validateSearch: asValidateSearch(TenantProfileOverviewRoute),
+			beforeLoad: asBeforeLoad(TenantProfileOverviewRoute),
+			component: () => <div data-testid="section-overview" />,
+		});
+		const permissionsRoute = createRoute({
+			getParentRoute: () => rootRoute,
+			path: '/staff/tenants/$tenantId/profiles/$profileId/permissions',
+			staticData: { crumbs: 'shell' },
+			validateSearch: asValidateSearch(TenantProfileDetailsRoute),
+			component: () => <div data-testid="section-permissions" />,
+		});
+		const membersRoute = createRoute({
+			getParentRoute: () => rootRoute,
+			path: '/staff/tenants/$tenantId/profiles/$profileId/members',
+			staticData: { crumbs: 'shell' },
+			validateSearch: asValidateSearch(TenantProfileDetailsRoute),
+			component: () => <div data-testid="section-members" />,
+		});
+		const routeTree = rootRoute.addChildren([
+			overviewRoute,
+			permissionsRoute,
+			membersRoute,
+		]);
+		const history = createMemoryHistory({ initialEntries: [initialUrl] });
+
+		return { router: createRouter({ routeTree, history }), history };
+	};
+
+	test('tenant profile details: a legacy ?tab=permissions link redirects to the permissions path and drops the param', async () => {
+		const { router, history } = buildLegacyTabHarness(
+			'/staff/tenants/t1/profiles/p1?tab=permissions',
+		);
+
+		render(<RouterProvider router={router} />);
+
+		await waitFor(() => screen.getByTestId('section-permissions'));
+		expect(history.location.pathname).toBe(
+			'/staff/tenants/t1/profiles/p1/permissions',
+		);
+		expect(history.location.href).not.toContain('tab=');
+		expect(screen.queryByTestId('section-overview')).toBeNull();
+	});
+
+	test('tenant profile details: a legacy ?tab=members link redirects to the members path, keeping ?edit=1', async () => {
+		const { router, history } = buildLegacyTabHarness(
+			'/staff/tenants/t1/profiles/p1?tab=members&edit=1',
+		);
+
+		render(<RouterProvider router={router} />);
+
+		await waitFor(() => screen.getByTestId('section-members'));
+		expect(history.location.pathname).toBe(
+			'/staff/tenants/t1/profiles/p1/members',
+		);
+		const params = new URL(history.location.href, 'http://localhost')
+			.searchParams;
+		expect(params.has('tab')).toBe(false);
+		// `?edit=1` is genuine view state and is valid on every section — the
+		// redirect must not silently close the drawer.
+		expect(params.get('edit')).toBe('1');
+	});
+
+	test('tenant profile details: the legacy redirect replaces its history entry, so Back does not bounce through it', async () => {
+		const { router, history } = buildLegacyTabHarness(
+			'/staff/tenants/t1/profiles/p1?tab=permissions',
+		);
+
+		render(<RouterProvider router={router} />);
+		await waitFor(() => screen.getByTestId('section-permissions'));
+
+		// One entry, not two: the legacy URL was replaced rather than pushed.
+		expect(history.canGoBack()).toBe(false);
 	});
 
 	test('tenant invitations: an unrecognized status key is dropped from the URL', async () => {

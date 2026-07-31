@@ -72,6 +72,17 @@ export const routes = rootRoute('__root.tsx', [
 		route(
 			'/staff/tenants/$tenantId/profiles/$profileId',
 			'authed/staff/tenants/$tenantId/profiles/$profileId.tsx',
+			[
+				index('authed/staff/tenants/$tenantId/profiles/$profileId/index.tsx'),
+				route(
+					'/permissions',
+					'authed/staff/tenants/$tenantId/profiles/$profileId/permissions.tsx',
+				),
+				route(
+					'/members',
+					'authed/staff/tenants/$tenantId/profiles/$profileId/members.tsx',
+				),
+			],
 		),
 		route(
 			'/staff/tenants/$tenantId/profiles/$profileId/edit',

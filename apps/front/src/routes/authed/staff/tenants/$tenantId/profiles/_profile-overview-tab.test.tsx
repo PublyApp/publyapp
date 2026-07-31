@@ -277,14 +277,25 @@ describe('ProfileOverviewTab', () => {
 		);
 	});
 
-	test('links "Manage" to the permissions tab and "View all" to members', () => {
+	// #977: sections are path segments, so these links must resolve to a real
+	// href ending in the section name — not to the base profile path with a
+	// `?tab=` search value.
+	test('links "Manage" to the permissions section path and "View all" to the members section path', () => {
 		renderTab();
 
 		const manageLink = screen.getByRole('link', { name: /Manage/ });
-		expect(manageLink.getAttribute('data-search')).toContain('"permissions"');
+		expect(manageLink.getAttribute('href')).toBe(
+			'/staff/tenants/11111111-1111-1111-1111-111111111111/profiles/22222222-2222-2222-2222-222222222222/permissions',
+		);
 
 		const viewAll = screen.getByRole('link', { name: 'View all 4' });
-		expect(viewAll.getAttribute('data-search')).toContain('"members"');
+		expect(viewAll.getAttribute('href')).toBe(
+			'/staff/tenants/11111111-1111-1111-1111-111111111111/profiles/22222222-2222-2222-2222-222222222222/members',
+		);
+
+		// The edit-drawer flag is genuine view state and still travels in the
+		// search — the section link carries it across rather than dropping it.
+		expect(manageLink.getAttribute('data-search')).not.toContain('tab');
 	});
 
 	test('renders the first four members in the preview when loaded', () => {
