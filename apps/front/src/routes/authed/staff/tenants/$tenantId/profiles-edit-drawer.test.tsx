@@ -344,7 +344,7 @@ describe('#972 tenant profiles list — quick-edit drawer opens over the list', 
 		expect(editItem.getAttribute('href')).toBeNull();
 	});
 
-	test('opening is deep-linkable and closing restores the list exactly as it was', async () => {
+	test('opening adds only the edit id, and closing restores the list exactly as it was', async () => {
 		const { history } = await renderList(
 			`${LIST_PATH}?q=sup&view=table&is_default=false`,
 		);
@@ -353,6 +353,21 @@ describe('#972 tenant profiles list — quick-edit drawer opens over the list', 
 		expect(
 			await screen.findByTestId('profile-edit-details-drawer'),
 		).toBeTruthy();
+
+		// WHILE OPEN the list underneath must still be the list the user was
+		// looking at. Asserting this only after the close would be vacuous: the
+		// close pops back to the pre-open history entry, so a broken open that
+		// dropped every other search key would still "restore" correctly.
+		const openParams = searchParamsOf(history.location.href);
+		expect(openParams.get('edit')).toBe(SUPPORT_ID);
+		expect(openParams.get('q')).toBe('sup');
+		expect(openParams.get('view')).toBe('table');
+		expect(openParams.get('is_default')).toBe('false');
+		expect(
+			screen
+				.getByTestId('staff-tenant-profiles-grid-view-toggle-table')
+				.getAttribute('aria-pressed'),
+		).toBe('true');
 
 		fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 
@@ -508,16 +523,93 @@ describe('#972 tenant profiles list — quick-edit drawer opens over the list', 
 		expect(screen.queryByTestId('stub-profile-details')).toBeNull();
 	});
 
-	test('a dirty draft prompts before a browser Back discards it', async () => {
-		await renderList();
+	// Entered by deep link on purpose: that close path is a REPLACE navigation,
+	// which `@tanstack/history` DOES run the blockers over — so this is the one
+	// close route on which the page guard could block the page's own transition
+	// if the W8-DRAWER bypass were missing.
+	test('cancelling a dirty draft prompts, then the confirmed discard closes back to the list', async () => {
+		const { history } = await renderList(`${LIST_PATH}?edit=${SUPPORT_ID}`);
 
-		await openEditFor(SUPPORT_ID);
 		const nameInput = await screen.findByLabelText('Profile name');
 		fireEvent.change(nameInput, { target: { value: 'Support edited' } });
 
 		fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 
 		expect(await screen.findByText('Leave without saving?')).toBeTruthy();
+		expect(screen.getByTestId('profile-edit-details-drawer')).toBeTruthy();
+
+		// The confirmed discard must not be blocked by the page's OWN nav guard
+		// still reading the not-yet-flushed dirty flag (W8-DRAWER).
+		fireEvent.click(screen.getByRole('button', { name: 'Leave page' }));
+
+		await waitFor(() =>
+			expect(screen.queryByTestId('profile-edit-details-drawer')).toBeNull(),
+		);
+		expect(searchParamsOf(history.location.href).has('edit')).toBe(false);
+		expect(screen.getByTestId('staff-tenant-profiles-grid-rows')).toBeTruthy();
+	});
+
+	// The drawer's own Cancel guard (above) cannot see a navigation that leaves
+	// the list: it changes the URL flag holding the drawer open without ever
+	// calling `onOpenChange`, so the draft would vanish silently. That is what
+	// the page-level `useBlocker` is for — the same mechanism, and the same
+	// "stays on the open drawer" rule, the detail page already uses.
+	//
+	// A sibling-route click is used rather than `history.back()` because
+	// `@tanstack/history` only consults blockers on PUSH/REPLACE; blocking a
+	// real browser Back is implemented in `createBrowserHistory`'s popstate
+	// path, which `createMemoryHistory` has no equivalent of. The production
+	// guard function under test is the same one either way.
+	test('a navigation that leaves the list while the draft is dirty is blocked by the page nav guard', async () => {
+		const { history } = await renderList();
+
+		await openEditFor(SUPPORT_ID);
+		const nameInput = await screen.findByLabelText('Profile name');
+		fireEvent.change(nameInput, { target: { value: 'Support edited' } });
+		await waitFor(() =>
+			expect((nameInput as HTMLInputElement).value).toBe('Support edited'),
+		);
+
+		fireEvent.click(
+			screen.getByTestId('tenant-sections-nav').querySelector('a') as Element,
+		);
+
+		expect(await screen.findByText('Leave without saving?')).toBeTruthy();
+		expect(screen.getByTestId('profile-edit-details-drawer')).toBeTruthy();
+		expect(pathnameOf(history.location.href)).toBe(LIST_PATH);
+		expect(searchParamsOf(history.location.href).get('edit')).toBe(SUPPORT_ID);
+
+		fireEvent.click(screen.getByRole('button', { name: 'Leave page' }));
+
+		await waitFor(() =>
+			expect(screen.getByTestId('stub-tenant-details')).toBeTruthy(),
+		);
+	});
+
+	// A change that keeps the drawer open (a filter, a sort, a page size) must
+	// NOT raise a discard prompt — the draft survives it.
+	test('a list-state change that keeps the drawer open does not prompt', async () => {
+		await renderList();
+
+		await openEditFor(SUPPORT_ID);
+		const nameInput = await screen.findByLabelText('Profile name');
+		fireEvent.change(nameInput, { target: { value: 'Support edited' } });
+		await waitFor(() =>
+			expect((nameInput as HTMLInputElement).value).toBe('Support edited'),
+		);
+
+		fireEvent.click(
+			screen.getByTestId('staff-tenant-profiles-grid-view-toggle-table'),
+		);
+
+		await waitFor(() =>
+			expect(
+				screen
+					.getByTestId('staff-tenant-profiles-grid-view-toggle-table')
+					.getAttribute('aria-pressed'),
+			).toBe('true'),
+		);
+		expect(screen.queryByText('Leave without saving?')).toBeNull();
 		expect(screen.getByTestId('profile-edit-details-drawer')).toBeTruthy();
 	});
 });

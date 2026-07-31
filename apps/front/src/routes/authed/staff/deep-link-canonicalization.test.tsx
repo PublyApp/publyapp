@@ -221,6 +221,55 @@ describe('malformed deep links are canonicalized at the router boundary (r4-tena
 		expect(history.location.href).not.toContain('new=yes');
 	});
 
+	// #972: the LIST's `edit` param carries a profile id, so it must survive as
+	// a raw string. A value the router's parser turns into something other than
+	// a string (an unquoted number, a boolean) cannot be an id and cannot
+	// round-trip losslessly, so it is dropped rather than re-quoted.
+	test('tenant profiles list: a real profile id survives as a raw string, non-string edit values are dropped', async () => {
+		const profileId = '0198c0de-2222-7000-8000-bbbbbbbbbbbb';
+		const { router, history } = buildHarness(
+			'/staff/tenants/$tenantId/profiles',
+			asValidateSearch(TenantProfilesRoute),
+			(search) => ({
+				edit:
+					parseStaffTenantProfilesSearchParams(
+						search as StaffTenantProfilesSearchParamInput,
+					).edit ?? 'closed',
+			}),
+			`/staff/tenants/t1/profiles?edit=${profileId}`,
+		);
+
+		render(<RouterProvider router={router} />);
+		await waitFor(() => screen.getByTestId('resolved-search'));
+
+		expect(screen.getByTestId('field-edit').textContent).toBe(profileId);
+		expect(
+			new URL(history.location.href, 'http://localhost').searchParams.get(
+				'edit',
+			),
+		).toBe(profileId);
+	});
+
+	test('tenant profiles list: a numeric or boolean edit value is dropped from the URL', async () => {
+		const { router, history } = buildHarness(
+			'/staff/tenants/$tenantId/profiles',
+			asValidateSearch(TenantProfilesRoute),
+			(search) => ({
+				edit:
+					parseStaffTenantProfilesSearchParams(
+						search as StaffTenantProfilesSearchParamInput,
+					).edit ?? 'closed',
+			}),
+			'/staff/tenants/t1/profiles?edit=5',
+		);
+
+		render(<RouterProvider router={router} />);
+		await waitFor(() => screen.getByTestId('resolved-search'));
+
+		expect(screen.getByTestId('field-edit').textContent).toBe('closed');
+		expect(history.location.href).not.toContain('edit=');
+	});
+
 	test('tenant profile details: a non-1 edit value is dropped from the URL', async () => {
 		const { router, history } = buildHarness(
 			'/staff/tenants/$tenantId/profiles/$profileId',
