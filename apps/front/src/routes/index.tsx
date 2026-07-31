@@ -13,7 +13,7 @@ import {
 	IconBuilding,
 } from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { type ReactElement, useState } from 'react';
+import { type KeyboardEvent, type ReactElement, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 type TabId = 'calendar' | 'composer' | 'approvals' | 'profiles' | 'dashboards';
@@ -169,6 +169,33 @@ export const IndexRoute = () => {
 	const [activeTab, setActiveTab] = useState<TabId>('calendar');
 	const activeTabIndex = TOUR_TABS.findIndex((tab) => tab.id === activeTab);
 
+	const handleTourKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+		let nextIndex = activeTabIndex;
+
+		switch (event.key) {
+			case 'ArrowRight':
+				event.preventDefault();
+				nextIndex = (activeTabIndex + 1) % TOUR_TABS.length;
+				break;
+			case 'ArrowLeft':
+				event.preventDefault();
+				nextIndex = (activeTabIndex - 1 + TOUR_TABS.length) % TOUR_TABS.length;
+				break;
+			case 'Home':
+				event.preventDefault();
+				nextIndex = 0;
+				break;
+			case 'End':
+				event.preventDefault();
+				nextIndex = TOUR_TABS.length - 1;
+				break;
+			default:
+				return;
+		}
+
+		setActiveTab(TOUR_TABS[nextIndex].id);
+	};
+
 	return (
 		<div className="space-y-0">
 			<section className="text-center pt-[clamp(52px,9.5cqw,116px)]">
@@ -235,10 +262,10 @@ export const IndexRoute = () => {
 				<div className="grid gap-[clamp(24px,3.5cqw,56px)] grid-cols-[repeat(auto-fit,minmax(210px,1fr))] text-center">
 					{CLAIM_TRIO.map((card) => (
 						<article key={card.key} className="publy-marketing-fade-up">
-							<div className="mb-3 flex justify-center text-(--publy-primary)">
+							<div className="mb-3 flex justify-center text-(--publy-marketing-eyebrow-accent)">
 								{card.icon}
 							</div>
-							<p className="text-[13px] font-semibold uppercase tracking-[0.04em] text-(--publy-primary)">
+							<p className="text-[13px] font-semibold uppercase tracking-[0.04em] text-(--publy-marketing-eyebrow-accent)">
 								{t(`${card.key}-title`)}
 							</p>
 							<p className="mt-2 text-[clamp(34px,5.2cqw,57px)] font-semibold leading-tight tracking-[-0.04em] text-(--publy-foreground)">
@@ -270,10 +297,13 @@ export const IndexRoute = () => {
 					{TOUR_TABS.map((tab) => (
 						<button
 							type="button"
+							id={`tour-tab-${tab.id}`}
 							onClick={() => setActiveTab(tab.id)}
+							onKeyDown={handleTourKeyDown}
 							role="tab"
 							aria-selected={activeTab === tab.id}
 							aria-controls={`tour-panel-${tab.id}`}
+							tabIndex={activeTab === tab.id ? 0 : -1}
 							className={`inline-flex items-center gap-2 rounded-[var(--publy-radius-small-control)] px-4 py-2.5 text-sm font-semibold transition-colors ${
 								activeTab === tab.id
 									? 'bg-(--publy-foreground) text-(--publy-background)'
@@ -293,6 +323,8 @@ export const IndexRoute = () => {
 							<div
 								key={tab.id}
 								id={`tour-panel-${tab.id}`}
+								role="tabpanel"
+								aria-labelledby={`tour-tab-${tab.id}`}
 								hidden={activeTabIndex !== index}
 								aria-hidden={activeTabIndex !== index}
 							>
@@ -317,6 +349,8 @@ export const IndexRoute = () => {
 							<div
 								key={tab.id}
 								className="absolute inset-0 bg-(--publy-row-border)"
+								role="tabpanel"
+								aria-labelledby={`tour-tab-${tab.id}`}
 								hidden={activeTabIndex !== index}
 								aria-hidden={activeTabIndex !== index}
 							>
@@ -392,7 +426,7 @@ export const IndexRoute = () => {
 				<div className="publy-marketing-hairline-grid mt-8 grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))]">
 					{TRIAL_STEPS.map((step) => (
 						<article key={step.titleKey} className="px-6 py-7 sm:px-8">
-							<p className="text-sm font-semibold tracking-[0.01em] text-(--publy-primary)">
+							<p className="text-sm font-semibold tracking-[0.01em] text-(--publy-marketing-eyebrow-accent)">
 								{t(step.labelKey)}
 							</p>
 							<p className="mt-1 text-[18px] font-semibold leading-tight tracking-[-0.02em] text-(--publy-foreground)">

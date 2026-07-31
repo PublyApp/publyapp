@@ -177,6 +177,9 @@
 	   which is the text colour for the *solid* primary button fill and pairs
 	   badly with the soft background in dark mode (see html.dark). */
 	--publy-primary-soft-foreground: #733e0a;
+	/* Handoff-specified marketing eyebrow accent — 5.05:1 on white, 4.83:1 on #fafafa.
+	   Do not lighten. */
+	--publy-marketing-eyebrow-accent: #8a6a1f;
 	--publy-background: #ffffff;
 	--publy-surface: #ffffff;
 	--publy-surface-raised: #fafafa;
@@ -360,6 +363,7 @@ html.dark {
 	--publy-primary-soft: #2a2400;
 	--publy-primary-foreground: #1a0d00;
 	--publy-primary-soft-foreground: #fbbf24;
+	--publy-marketing-eyebrow-accent: #d97706;
 	--publy-background: #18181b;
 	--publy-surface: #18181b;
 	--publy-surface-raised: #1f1f23;
