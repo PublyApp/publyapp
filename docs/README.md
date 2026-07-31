@@ -67,7 +67,7 @@ wins.
 | `roadmaps/` | It spans many issues/phases over time (one subdirectory per roadmap). |
 | `refactoring-guides/` | (Directory currently absent: create on first use.) It is a repeatable refactor playbook or checklist, not a one-off plan. |
 | `analysis/` | (Directory currently absent: create on first use.) It weighs options and reaches a recommendation, before anyone commits to an approach. |
-| `audits/` | (Directory currently absent: create on first use.) It systematically checks the codebase against a rule and reports the gaps. |
+| `audits/` | It systematically checks the codebase against a rule and reports the gaps. Date-prefix. |
 | `reviews/` | It is the output of reviewing work that exists — a code review, a review response, or review follow-ups. Date-prefix. |
 | `changes/` | (Directory currently absent: create on first use.) It records what a landed change did, after the fact. |
 | `implementation-summaries/` | (Directory currently absent: create on first use.) Same as `changes/`, for larger multi-phase work. Prefer `changes/` for anything small. |
