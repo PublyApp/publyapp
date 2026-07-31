@@ -281,6 +281,9 @@ const DesktopNav = ({ pathname, triggers }: HeaderNavProps) => {
 export type MarketingHeaderProps = {
 	pathname: string;
 	onOpenMobileNav: () => void;
+	/** The drawer is portalled and unmounted while closed, so the trigger can
+	 *  only point `aria-controls` at it while it actually exists. */
+	isMobileNavOpen?: boolean;
 	/** Injectable for tests; production always uses the module's own model. */
 	triggers?: readonly MarketingNavTrigger[];
 };
@@ -301,6 +304,7 @@ export type MarketingHeaderProps = {
 export const MarketingHeader = ({
 	pathname,
 	onOpenMobileNav,
+	isMobileNavOpen = false,
 	triggers = MARKETING_NAV_TRIGGERS,
 }: MarketingHeaderProps) => {
 	const { t } = useTranslation('common');
@@ -357,7 +361,10 @@ export const MarketingHeader = ({
 						// --publy-radius-medium-control.
 						size="icon"
 						aria-label={t('marketing-open-menu')}
-						aria-controls="marketing-mobile-nav"
+						aria-expanded={isMobileNavOpen}
+						// Referencing an id that is not in the document is an
+						// invalid ARIA value, not a harmless hint — axe fails it.
+						aria-controls={isMobileNavOpen ? 'marketing-mobile-nav' : undefined}
 						onClick={onOpenMobileNav}
 						data-testid="marketing-mobile-nav-toggle"
 						className="lg:hidden"

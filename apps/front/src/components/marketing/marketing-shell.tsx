@@ -42,6 +42,7 @@ export const MarketingShell = ({
 			<MarketingHeader
 				pathname={pathname}
 				onOpenMobileNav={() => setIsMobileNavOpen(true)}
+				isMobileNavOpen={isMobileNavOpen}
 			/>
 			<MarketingMobileNav
 				open={isMobileNavOpen}

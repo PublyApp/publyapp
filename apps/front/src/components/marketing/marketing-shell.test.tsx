@@ -129,10 +129,21 @@ describe('MarketingShell — mobile nav', () => {
 	test('the hamburger opens the drawer, and Esc closes it', async () => {
 		await renderShell();
 
-		fireEvent.click(screen.getByTestId('marketing-mobile-nav-toggle'));
+		const toggle = screen.getByTestId('marketing-mobile-nav-toggle');
+		// Closed: it must NOT claim to control an element that is not in the
+		// document — the drawer is portalled and unmounted while closed, and a
+		// dangling `aria-controls` is an invalid ARIA value (axe: critical).
+		expect(toggle.getAttribute('aria-controls')).toBeNull();
+		expect(toggle.getAttribute('aria-expanded')).toBe('false');
+
+		fireEvent.click(toggle);
 
 		const drawer = await screen.findByTestId('marketing-mobile-nav');
 		expect(drawer.getAttribute('role')).toBe('dialog');
+		expect(toggle.getAttribute('aria-expanded')).toBe('true');
+		expect(
+			document.getElementById(toggle.getAttribute('aria-controls') ?? ''),
+		).toBe(drawer);
 
 		fireEvent.keyDown(document, { key: 'Escape' });
 
