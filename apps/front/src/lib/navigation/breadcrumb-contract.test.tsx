@@ -53,6 +53,10 @@ import { staffTenantUserCrumbQuery } from '~/lib/query/staff-tenant-users';
 import { staffTenantCrumbQuery } from '~/lib/query/staff-tenants';
 import { staffUserCrumbQuery } from '~/lib/query/staff-users';
 import { Route as TenantDetailsRoute } from '~/routes/authed/staff/tenants/$tenantId';
+import { Route as TenantProfileDetailsRoute } from '~/routes/authed/staff/tenants/$tenantId/profiles/$profileId';
+import { Route as TenantProfileOverviewRoute } from '~/routes/authed/staff/tenants/$tenantId/profiles/$profileId/index';
+import { Route as TenantProfileMembersRoute } from '~/routes/authed/staff/tenants/$tenantId/profiles/$profileId/members';
+import { Route as TenantProfilePermissionsRoute } from '~/routes/authed/staff/tenants/$tenantId/profiles/$profileId/permissions';
 
 import { routes } from '../../routes';
 import { routeTree } from '../../routeTree.gen';
@@ -827,6 +831,164 @@ describe('breadcrumb contract — rendered artifact (#973 Tier 2, guard B)', () 
 		expect(navWithShortName.querySelectorAll(':scope > *').length).toBe(
 			crumbCountWithLongName,
 		);
+	});
+
+	/**
+	 * #977: the tenant-profile detail sections became path segments, so each
+	 * one is now its OWN route with its OWN declared trail. The risk this
+	 * guards is exactly the one the issue names — a new segment rendering as
+	 * raw path text, or falling back to the parent's generic trail, instead
+	 * of the section's name under the profile's real name.
+	 *
+	 * Same shape as the tenant guard above: `staticData` is taken directly off
+	 * the production route modules (`Route.options.staticData`), never
+	 * re-typed, and the real `AppShell` + real `deriveBreadcrumbTrail` + real
+	 * `EntityCrumb` render it.
+	 */
+	const buildProfileSectionRouter = (
+		initialUrl: string,
+		queryClient: QueryClient,
+	) => {
+		const rootRoute = createRootRoute({
+			component: AppShellHost,
+			staticData: { crumbs: 'shell' },
+		});
+		const layoutRoute = createRoute({
+			getParentRoute: () => rootRoute,
+			path: '/staff/tenants/$tenantId/profiles/$profileId',
+			staticData: TenantProfileDetailsRoute.options.staticData,
+			component: () => <Outlet />,
+		});
+		const overviewRoute = createRoute({
+			getParentRoute: () => layoutRoute,
+			path: '/',
+			staticData: TenantProfileOverviewRoute.options.staticData,
+			component: () => <div data-testid="section-body" />,
+		});
+		const permissionsRoute = createRoute({
+			getParentRoute: () => layoutRoute,
+			path: '/permissions',
+			staticData: TenantProfilePermissionsRoute.options.staticData,
+			component: () => <div data-testid="section-body" />,
+		});
+		const membersRoute = createRoute({
+			getParentRoute: () => layoutRoute,
+			path: '/members',
+			staticData: TenantProfileMembersRoute.options.staticData,
+			component: () => <div data-testid="section-body" />,
+		});
+		const routeTreeForTest = rootRoute.addChildren([
+			layoutRoute.addChildren([overviewRoute, permissionsRoute, membersRoute]),
+		]);
+
+		return createRouter({
+			routeTree: routeTreeForTest,
+			history: createMemoryHistory({ initialEntries: [initialUrl] }),
+			context: { queryClient },
+		} as never);
+	};
+
+	const renderProfileSectionCrumbs = async (initialUrl: string) => {
+		mocks.respond.mockImplementation((call) => {
+			if (pathEndsWith(call, 'byProfileId', 'get')) {
+				return { profile: { id: 'profile-1', name: 'Approvers' } };
+			}
+
+			if (pathEndsWith(call, 'byTenantId', 'get')) {
+				return {
+					tenantId: 'tenant-1',
+					name: 'Acme Corporation',
+					maxUsers: 10,
+					status: 'active',
+				};
+			}
+
+			return {};
+		});
+
+		const queryClient = new QueryClient({
+			defaultOptions: { queries: { retry: false, staleTime: 30_000 } },
+		});
+
+		render(
+			<QueryClientProvider client={queryClient}>
+				<RouterProvider
+					router={buildProfileSectionRouter(initialUrl, queryClient)}
+				/>
+			</QueryClientProvider>,
+		);
+
+		await waitFor(() => {
+			expect(
+				screen.getByRole('navigation', { name: 'nav-breadcrumb' }).textContent,
+			).toContain('Approvers');
+		});
+	};
+
+	/**
+	 * Always re-query the nav: an unrelated re-render may replace the node, so
+	 * a reference captured earlier can go stale (the same trap guard B's
+	 * skeleton test documents). The row interleaves chevron separators between
+	 * crumbs, so drop those.
+	 */
+	const breadcrumbNav = (): HTMLElement =>
+		screen.getByRole('navigation', { name: 'nav-breadcrumb' });
+
+	const crumbTextsOf = (): (string | null)[] =>
+		[...breadcrumbNav().children]
+			.filter(
+				(node) => !node.classList.contains('app-shell-breadcrumb-chevron'),
+			)
+			.map((node) => node.textContent);
+
+	test('#977: a profile section route renders the section name under the profile’s real name, not raw path text', async () => {
+		await renderProfileSectionCrumbs(
+			'/staff/tenants/tenant-1/profiles/profile-1/permissions',
+		);
+		const permissionsCrumbs = crumbTextsOf();
+
+		// The trail ends with the section, and the crumb before it is the
+		// profile's own resolved entity name — not a raw path segment, and not
+		// a generic parent fallback. i18next is uninitialised in this suite, so
+		// `t()` echoes the key: seeing `common:permissions` (the shared section
+		// label key) rather than the literal URL segment `permissions` is the
+		// point — the crumb is a declared label, not path text.
+		expect(permissionsCrumbs.at(-1)).toBe('common:permissions');
+		expect(permissionsCrumbs.at(-2)).toBe('Approvers');
+		expect(permissionsCrumbs).toContain('Acme Corporation');
+		expect(
+			breadcrumbNav().querySelector(
+				'[data-testid="app-shell-breadcrumb-entity-fallback"]',
+			),
+		).toBeNull();
+		// The section is the terminal crumb — rendered by the shell as the
+		// non-link "current" node, not as another link back up the trail.
+		expect(
+			breadcrumbNav().querySelector('.app-shell-breadcrumb-current')
+				?.textContent,
+		).toBe('common:permissions');
+
+		cleanup();
+		mocks.respond.mockReset();
+
+		await renderProfileSectionCrumbs(
+			'/staff/tenants/tenant-1/profiles/profile-1/members',
+		);
+		const membersCrumbs = crumbTextsOf();
+		expect(membersCrumbs.at(-1)).toBe('common:members');
+		expect(membersCrumbs.at(-2)).toBe('Approvers');
+
+		cleanup();
+		mocks.respond.mockReset();
+
+		// Overview is the index child: it adds NO section crumb — the profile
+		// itself is the current page.
+		await renderProfileSectionCrumbs(
+			'/staff/tenants/tenant-1/profiles/profile-1',
+		);
+		const overviewCrumbs = crumbTextsOf();
+		expect(overviewCrumbs.at(-1)).toBe('Approvers');
+		expect(overviewCrumbs).toHaveLength(permissionsCrumbs.length - 1);
 	});
 
 	test('a failed entity lookup renders a muted dash, never an eternal skeleton, with the same crumb count', async () => {
