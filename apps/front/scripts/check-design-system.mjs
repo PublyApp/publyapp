@@ -420,6 +420,16 @@ const KNOWN_IMPORTANT_FOUNDATION_DEBT = [
 		reason:
 			'Overrides Base UI’s own inline arrow-positioning style for the inline-end/inline-start/left/right sides; the default `top` set by the primitive otherwise wins over a plain (non-important) utility.',
 	},
+	{
+		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
+		file: 'src/components/ui/search-input.test.tsx',
+		sourceIncludes: 'display: inline-block !important;',
+		reason:
+			'#975 round 3 regression proof (css-cascade-test-support.ts): real CSS ' +
+			'text constructed as test DATA to verify the cascade resolver now honours ' +
+			'`!important`, not shipped styling — the parser under test genuinely needs ' +
+			'the literal CSS token to exercise the code path the reviewer defeated.',
+	},
 ];
 
 // r4-shell-F3: the app-shell mobile-nav `rounded-full` pill this allowlist
@@ -448,13 +458,34 @@ const KNOWN_GUARD_DEBT = [
 	...KNOWN_IMPORTANT_FOUNDATION_DEBT,
 ];
 
+const escapeRegExpLiteral = (value) =>
+	value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// #992 review follow-up: `.includes(selector)` matched any selector that
+// merely STARTS WITH the allowlisted one (e.g. an unauthorized
+// `.publy-profile-detail-tile-pin-impostor` silently inherited the
+// `.publy-profile-detail-tile-pin` exception). A selector is a complete
+// class/attribute token, not a free-text prefix, so require that the
+// character immediately following the matched text is not itself a
+// selector-identifier character (letter, digit, `_`, or `-`) — that is
+// exactly the boundary a longer, unrelated class name would violate.
+// Deliberately no left-side boundary check: some allowlisted selectors are
+// matched as the tail of a compound selector (e.g.
+// `.app-shell-rail-link[data-rail-item='account']`, where the character
+// immediately before `[` is the preceding class's own last letter), and a
+// left boundary would break that legitimate case.
+const selectorAppearsExactly = (line, selector) => {
+	const pattern = new RegExp(`${escapeRegExpLiteral(selector)}(?![\\w-])`);
+	return pattern.test(line);
+};
+
 // Tightened to the same rule block (F15): stop at the nearest enclosing `{`
 // or `}` above the match instead of scanning a fixed 8-line lookback window,
 // so a `rounded-full` in one rule can't ride on an unrelated selector's name
 // merely because it sits a few lines above.
 const hasNearbySelector = (lines, lineIndex, selector) => {
 	for (let index = lineIndex; index >= 0; index--) {
-		if (lines[index].includes(selector)) {
+		if (selectorAppearsExactly(lines[index], selector)) {
 			return true;
 		}
 
@@ -523,7 +554,7 @@ const isRoundedRadiusAllowed = (relativePath, line, lineIndex, lines) => {
 	}
 
 	if (relativePath === 'src/components/app-shell/app-shell.tsx') {
-		return line.includes('app-shell-topbar-action-btn');
+		return selectorAppearsExactly(line, 'app-shell-topbar-action-btn');
 	}
 
 	// SimpleLayout's theme/language buttons are the same 36px circular
@@ -543,13 +574,29 @@ const isRoundedRadiusAllowed = (relativePath, line, lineIndex, lines) => {
 	}
 
 	return (
-		line.includes('.app-shell-topbar-action-btn') ||
+		selectorAppearsExactly(line, '.app-shell-topbar-action-btn') ||
 		hasNearbySelector(lines, lineIndex, '.app-shell-topbar-action-btn') ||
 		// The remaining genuinely circular CSS surfaces (F4): the rail's
 		// account avatar/link and the form action bar's 7px status dot.
 		hasNearbySelector(lines, lineIndex, "[data-rail-item='account']") ||
 		hasNearbySelector(lines, lineIndex, '.app-shell-rail-account-avatar') ||
-		hasNearbySelector(lines, lineIndex, '.publy-form-action-bar-status::before')
+		hasNearbySelector(
+			lines,
+			lineIndex,
+			'.publy-form-action-bar-status::before',
+		) ||
+		// #992: the profile icon-picker's pencil-pin corner badge is a THIRD,
+		// deliberately narrow exception (not just "avatars and topbar icon
+		// buttons" — keep this list and the `no-rounded-full-or-999-radius`
+		// rule message above, and docs/guides/front/conventions.md's corner-
+		// radius section, in sync whenever this list changes). It is the same
+		// "genuinely circular" affordance shape as AvatarBadge (a small round
+		// indicator sitting on a corner). Matched with an exact selector
+		// boundary (`selectorAppearsExactly`/`hasNearbySelector`), not a raw
+		// substring, so an unrelated selector merely starting with this class
+		// name (e.g. a hypothetical `.publy-profile-detail-tile-pin-anything`)
+		// cannot silently inherit the exception.
+		hasNearbySelector(lines, lineIndex, '.publy-profile-detail-tile-pin')
 	);
 };
 
@@ -1459,7 +1506,8 @@ const rules = [
 	{
 		id: 'no-rounded-full-or-999-radius',
 		message:
-			'Only avatar surfaces and 36px topbar icon buttons may remain fully rounded.',
+			'Only avatar surfaces, 36px topbar icon buttons, and the profile ' +
+			'icon-picker pencil-pin corner badge may remain fully rounded.',
 		appliesTo: () => true,
 		patterns: [
 			/\brounded-full\b/,

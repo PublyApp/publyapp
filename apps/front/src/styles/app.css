@@ -2039,6 +2039,14 @@ html.dark {
 		color: var(--publy-foreground-subtle);
 	}
 
+	/* #975 defect 2: the clear button anchors to the SAME field box the
+	   magnifier does — top-1/2 -translate-y-1/2 of the wrapper, which is
+	   guaranteed to equal the field's own box because the caller's className
+	   lands on this wrapper, never on the input (see search-input.tsx). */
+	.publy-search-clear {
+		@apply absolute right-2 top-1/2 -translate-y-1/2 inline-flex size-6 items-center justify-center rounded-[var(--publy-radius-sm)] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-50;
+	}
+
 	.publy-data-table-toolbar-end {
 		@apply flex items-center gap-2;
 	}
@@ -2352,6 +2360,18 @@ html.dark {
 	border-radius: var(--publy-radius-control);
 }
 
+/* #975 defect 1: suppress the browser's native `type="search"` cancel
+   button. `display: none` (not a visually-hidden trick) fully removes it
+   from the accessibility tree and tab order, so it can never sit beside our
+   own clear button or remain a hidden-but-focusable stray control. Kept
+   outside the layer so it always wins regardless of cascade-layer ordering
+   against the UA stylesheet. */
+.publy-search-input[type='search']::-webkit-search-cancel-button {
+	-webkit-appearance: none;
+	appearance: none;
+	display: none;
+}
+
 .publy-data-table-filter-button[data-slot='button'] {
 	height: 36px;
 	min-height: 36px;
@@ -2479,6 +2499,7 @@ html.dark {
 	}
 
 	.publy-profile-detail-tile {
+		position: relative; /* anchors the .publy-profile-detail-tile-pin badge */
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
@@ -2488,6 +2509,56 @@ html.dark {
 		background: var(--publy-icon-tile-bg);
 		color: var(--publy-icon-tile-fg);
 		flex-shrink: 0;
+	}
+
+	/* Pencil-pin affordance (#992): a corner badge signalling the tile opens a
+	   picker, mirroring AvatarBadge's `right-0 bottom-0` + ring treatment
+	   (avatar.tsx) so it reads as sitting on top of the tile rather than being
+	   part of it. Sized ~27px against the tile's 56px per the owner mockup.
+	   Its own `--publy-surface` fill and `--publy-foreground-muted` glyph are
+	   independent of the tile's per-tone background, so contrast holds on
+	   every tone in both themes — `--publy-foreground-muted` clears the
+	   repo's 3:1 non-text contrast floor against `--publy-surface` in both
+	   themes (~4.83:1 light, ~6.91:1 dark); the originally-used
+	   `--publy-foreground-subtle` does not (~2.56:1 light), per review.
+	   Uses the existing --publy-radius-circular token rather than a raw
+	   four-nines pixel literal (a duplicate-token shape the design-system
+	   guard's circular-radius matcher does not currently catch: its exact
+	   three-nines-plus-word-boundary regex cannot match inside a run of four
+	   nines — see check-design-system.mjs). Allowlisted in that guard's
+	   circular-radius exception list alongside the avatar/topbar surfaces,
+	   since a corner pin is exactly the same "genuinely circular" shape.
+
+	   IMPORTANT finding C (review round 2): issue #992 explicitly requires
+	   the pin to overhang the tile's corner, "as in the mockup" — a previous
+	   revision shipped `right: 0; bottom: 0` (flush, not overhanging) as an
+	   unrequested deviation from that spec. `right`/`bottom` are now negative
+	   so the pin's own box genuinely extends past the tile's box on both
+	   axes. The overhang amount (4px, ~15% of the pin's 27px) is deliberately
+	   modest: the tile sits in a `grid ... gap-3` row next to a name field
+	   (12px gap) and a `space-y-1.5` (6px) gap above the hint text below it
+	   (_profile-edit-details-drawer.tsx, _profile-form-drawer.tsx) — 4px
+	   comfortably fits inside both without a layout change there, verified in
+	   a real browser (not just DOM presence) against the real compiled CSS —
+	   see e2e/profile-icon-picker-pin-geometry.spec.ts — for: the pin
+	   actually extends beyond the tile's box on both axes; it is not clipped
+	   by the `DrawerBody` `overflow-y-auto` ancestor (per spec, a non-visible
+	   value on one axis forces the other to compute to `auto` rather than
+	   `visible` — the issue's own named risk); it does not collide with the
+	   neighbouring name field or the hint text below; and it still holds at
+	   the narrow single-column breakpoint. */
+	.publy-profile-detail-tile-pin {
+		position: absolute;
+		right: -4px;
+		bottom: -4px;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 27px;
+		height: 27px;
+		border-radius: var(--publy-radius-circular);
+		background: var(--publy-surface);
+		color: var(--publy-foreground-muted);
 	}
 
 	.publy-profile-count-badge {

@@ -88,6 +88,31 @@ describe('IconColorPicker', () => {
 		});
 	});
 
+	// #992: the tile gave no sign it opens a picker. This asserts the real
+	// rendered pin — decorative only, so it must not add a second interactive
+	// element or a second accessible name to the trigger.
+	test('renders a decorative pencil pin on the tile, without altering its accessible name or adding a nested interactive element', () => {
+		render(
+			<IconColorPicker
+				value={{ icon: 'shield-check', tone: '2' }}
+				onChange={vi.fn()}
+			/>,
+		);
+
+		const trigger = screen.getByRole('button', {
+			name: 'Choose icon and color',
+		});
+		const pin = trigger.querySelector(
+			'[data-testid="profile-icon-picker-pin"]',
+		);
+		expect(pin).not.toBeNull();
+		expect(pin?.getAttribute('aria-hidden')).toBe('true');
+		expect(pin?.className).toContain('pointer-events-none');
+		// A nested <button> would be invalid HTML and would swallow the click —
+		// the pin must be a plain, non-interactive element.
+		expect(trigger.querySelectorAll('button').length).toBe(0);
+	});
+
 	test('filters the curated icon grid by localized icon name', () => {
 		render(
 			<IconColorPicker

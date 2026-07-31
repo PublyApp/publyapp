@@ -11,10 +11,11 @@
 		"start": "node server.mjs",
 		"typecheck": "tsc --noEmit",
 		"test:request-counter": "node --test deploy/request-counter/control-routes.test.mjs",
+		"test:search-cancel-css": "node --test scripts/search-cancel-css-policy.test.mjs && node scripts/check-search-cancel-css.mjs",
 		"check:design-system": "node scripts/check-design-system.mjs",
 		"test:design-system-guard": "node --test scripts/check-design-system.test.mjs",
 		"smoke:start": "node scripts/smoke-start-server.mjs",
-		"test": "vitest run && pnpm test:request-counter && pnpm test:design-system-guard && pnpm check:design-system"
+		"test": "vitest run && pnpm test:request-counter && pnpm test:search-cancel-css && pnpm test:design-system-guard && pnpm check:design-system"
 	},
 	"dependencies": {
 		"@base-ui/react": "1.3.0",

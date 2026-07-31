@@ -28,6 +28,7 @@
 	"permissions-at-a-glance": "Aperçu des permissions",
 	"permissions-failed-count_one": "Échec de {{count}} modification",
 	"permissions-failed-count_other": "Échec de {{count}} modifications",
+	"permissions-no-unsaved-changes": "Aucune modification non enregistrée",
 	"permissions-save-failed": "Certaines modifications de permissions n’ont pas pu être enregistrées.",
 	"permissions-save-partial": "{{saved}}, {{failed}}.",
 	"permissions-selected-total": "{{selected}} sur {{total}} sélectionnées",

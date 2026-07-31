@@ -1,10 +1,10 @@
 import { IconUsers } from '@tabler/icons-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTable } from '~/components/table/data-table';
+import { useOffsetPageClamp } from '~/components/table/offset-pagination';
 import { useTableController } from '~/components/table/use-table-controller';
 import { Button } from '~/components/ui/button';
-import { Card } from '~/components/ui/card';
 import {
 	toStaffTenantProfileMemberRows,
 	useStaffTenantProfileMembersQuery,
@@ -60,35 +60,34 @@ export const ProfileMembersTab = ({
 		[i18n.language, tenantId, t],
 	);
 
-	useEffect(() => {
-		setPageIndex(0);
-	}, [
-		tenantId,
-		profileId,
-		controller.search.committed,
-		controller.sort.id,
-		controller.sort.order,
-		controller.size,
-	]);
-
-	useEffect(() => {
-		const totalCount = membersQuery.data?.count ?? 0;
-		const lastPageIndex =
-			totalCount > 0
-				? Math.max(Math.ceil(totalCount / controller.size) - 1, 0)
-				: 0;
-
-		if (pageIndex > lastPageIndex) {
-			setPageIndex(lastPageIndex);
-		}
-	}, [controller.size, membersQuery.data?.count, pageIndex]);
+	// A deliberate reset (tenant/profile identity, search, sort, or size
+	// change) must always win over a clamp derived from the destination
+	// query's count — including an already-warm cached count, not just a
+	// missing one (#999 review follow-up). Folded into one effect via
+	// resetKeys so it cannot race a separate "reset to 0" effect.
+	useOffsetPageClamp({
+		pageIndex,
+		setPageIndex,
+		size: controller.size,
+		count: membersQuery.data?.count,
+		resetKeys: [
+			tenantId,
+			profileId,
+			controller.search.committed,
+			controller.sort.id,
+			controller.sort.order,
+			controller.size,
+		],
+	});
 
 	const totalCount = membersQuery.data?.count ?? 0;
 	const hasNextPage = (pageIndex + 1) * controller.size < totalCount;
 
 	return (
 		<>
-			<Card className="min-h-0 flex-1 gap-4 p-5">
+			{/* DataTable already renders its own `.publy-table-card` surface — no
+			outer Card here, or it's a card inside a card (#978). */}
+			<div className="flex min-h-0 flex-1 flex-col gap-4">
 				<div className="shrink-0 flex flex-wrap items-center justify-between gap-3">
 					<div className="space-y-1">
 						<h2 className="text-lg font-semibold text-foreground">
@@ -145,7 +144,7 @@ export const ProfileMembersTab = ({
 					onSearchDraftChange={controller.search.onDraftChange}
 					searchPlaceholder={t('search-tenant-members')}
 				/>
-			</Card>
+			</div>
 
 			<AssignMembersDrawer
 				tenantId={tenantId}

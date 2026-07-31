@@ -265,8 +265,8 @@ describe('staff profile users columns — locale fallbacks', () => {
 // bounded-height chain, so the table expanded `.app-shell-main` and scrolled
 // the whole app shell instead of just the table body
 // (conventions.md:237-247). This asserts the complete chain, not merely that
-// the table renders — a regression that restores just the outer div (or
-// just the Card) without the rest would still fail this.
+// the table renders — a regression that restores just the outer div would
+// still fail this.
 describe('staff profile users page — contained scroll layout', () => {
 	test('gives the route a bounded h-full/min-h-0 flex column down to the DataTable', () => {
 		renderPage();
@@ -283,14 +283,20 @@ describe('staff profile users page — contained scroll layout', () => {
 		expect(tabsContent).not.toBeNull();
 		expect(tabsContent?.className).toContain('min-h-0');
 
-		const card = table.closest('[data-slot="card"]');
-		expect(card).not.toBeNull();
-		expect(card?.className).toContain('min-h-0');
-		expect(card?.className).toContain('flex-1');
-
 		const tabsRoot = tabsContent?.closest('[data-slot="tabs"]');
 		expect(tabsRoot).not.toBeNull();
 		expect(tabsRoot?.className).toContain('min-h-0');
 		expect(tabsRoot?.className).toContain('flex-1');
+	});
+
+	// #978: DataTable already renders its own `.publy-table-card` surface —
+	// wrapping it in a `Card` produces two concentric rounded surfaces. This
+	// route must render the table directly on the tab body, matching the
+	// convention on staff/tenants.tsx and its siblings.
+	test('#978: renders the table directly on the tab body, with no wrapping Card', () => {
+		renderPage();
+
+		const table = screen.getByTestId('staff-profile-users-table');
+		expect(table.closest('[data-slot="card"]')).toBeNull();
 	});
 });

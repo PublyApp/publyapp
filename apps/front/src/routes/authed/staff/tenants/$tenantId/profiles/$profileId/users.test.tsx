@@ -609,6 +609,97 @@ describe('StaffTenantProfileMembersPage — roster rendering', () => {
 		);
 		expect(nextPageButton.hasAttribute('disabled')).toBe(true);
 	});
+
+	// #999: a missing item count (the query still in flight for the destination
+	// page) must be treated as UNKNOWN, not as zero. Treating it as zero makes
+	// the page-clamp effect conclude "there are zero items" and immediately
+	// revert page 2 back to page 1 — the [1, 2, 1] request sequence from the
+	// issue. This mocks the query hook per-pageIndex, exactly like a real
+	// fetch: page 0 resolves with a known count; page 1 is momentarily
+	// in-flight with `data: undefined`.
+	test('#999: does not clamp back to page 1 when the count is momentarily unavailable during a page transition', () => {
+		mocks.useStaffTenantProfileMembersQuery.mockImplementation(
+			(variables: { pageIndex: number }) =>
+				variables.pageIndex === 0
+					? buildMembersQueryResult({
+							data: { users: MEMBER_ROWS, count: 25 },
+						})
+					: buildMembersQueryResult({ data: undefined, isFetching: true }),
+		);
+
+		renderPage();
+
+		fireEvent.click(
+			screen.getByTestId('staff-tenant-profile-members-table-next-page'),
+		);
+
+		expect(
+			screen.getByTestId('staff-tenant-profile-members-table-page-label')
+				.textContent,
+		).toBe('Page 2');
+
+		const requestedPageIndexes =
+			mocks.useStaffTenantProfileMembersQuery.mock.calls.map(
+				(call) => (call[0] as { pageIndex: number }).pageIndex,
+			);
+		// The bug reverts the LAST requested page back to 0 (displayed "Page 1")
+		// once the effect observes the momentarily-missing count.
+		expect(requestedPageIndexes.at(-1)).toBe(1);
+	});
+
+	// #999 review follow-up (warm-cache race): a deliberate reset (search,
+	// sort, size, tenant, or profile change) must always win over a clamp
+	// derived from an ALREADY-WARM cached count for the destination query —
+	// not just an absent one. The "reset pageIndex to 0" effect and the
+	// clamp effect both read the pre-reset (stale) pageIndex in the same
+	// commit; if the clamp computes against that stale value using a known
+	// (warm) count, it can overwrite the reset with some clamped-but-nonzero
+	// page instead of page 1. This is a different route into the same
+	// symptom the cold-path test above fixed.
+	test('#999: a filter change resets to page 1 even when the new query is already warm with a known, smaller count', () => {
+		mocks.useStaffTenantProfileMembersQuery.mockImplementation(
+			(variables: { q?: string; pageIndex: number }) =>
+				buildMembersQueryResult({
+					data: {
+						users: MEMBER_ROWS,
+						// q="ada" is already warm in the cache with a SMALLER known
+						// count (25, size 20 -> last page index 1) than the page the
+						// reader is currently on (5) — never undefined/in-flight.
+						count: variables.q === 'ada' ? 25 : 1000,
+					},
+				}),
+		);
+
+		const { rerender } = renderPage();
+		const Component = (
+			Route as unknown as {
+				component: () => JSX.Element;
+			}
+		).component;
+
+		const nextButton = screen.getByTestId(
+			'staff-tenant-profile-members-table-next-page',
+		);
+		for (let index = 0; index < 5; index += 1) {
+			fireEvent.click(nextButton);
+		}
+		expect(
+			screen.getByTestId('staff-tenant-profile-members-table-page-label')
+				.textContent,
+		).toBe('Page 6');
+
+		// Simulate the URL already reflecting a committed search change (the
+		// route reads search via Route.useSearch()) while the local pageIndex
+		// state (5) is preserved across the re-render, exactly as it would be
+		// for a real navigation.
+		mocks.search = { q: 'ada' };
+		rerender(<Component />);
+
+		expect(
+			screen.getByTestId('staff-tenant-profile-members-table-page-label')
+				.textContent,
+		).toBe('Page 1');
+	});
 });
 
 // step4b-review MAJOR 6: a large roster must scroll inside the table, never
@@ -627,15 +718,21 @@ describe('StaffTenantProfileMembersPage — contained scroll layout', () => {
 		expect(tabsContent).not.toBeNull();
 		expect(tabsContent?.className).toContain('min-h-0');
 
-		const card = table.closest('[data-slot="card"]');
-		expect(card).not.toBeNull();
-		expect(card?.className).toContain('min-h-0');
-		expect(card?.className).toContain('flex-1');
-
 		const tabsRoot = tabsContent?.closest('[data-slot="tabs"]');
 		expect(tabsRoot).not.toBeNull();
 		expect(tabsRoot?.className).toContain('min-h-0');
 		expect(tabsRoot?.className).toContain('flex-1');
+	});
+
+	// #978: DataTable already renders its own `.publy-table-card` surface —
+	// wrapping it in a `Card` produces two concentric rounded surfaces. This
+	// route must render the table directly on the tab body, matching the
+	// convention on staff/tenants.tsx and its siblings.
+	test('#978: renders the table directly on the tab body, with no wrapping Card', () => {
+		renderPage();
+
+		const table = screen.getByTestId('staff-tenant-profile-members-table');
+		expect(table.closest('[data-slot="card"]')).toBeNull();
 	});
 });
 

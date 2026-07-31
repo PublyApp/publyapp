@@ -34,8 +34,8 @@ vi.mock('react-i18next', () => ({
 	}),
 }));
 
-vi.mock('~/components/ui/filter-input', () => ({
-	FilterInput: ({
+vi.mock('~/components/ui/search-input', () => ({
+	SearchInput: ({
 		value,
 		onValueChange,
 		clearLabel: _clearLabel,
