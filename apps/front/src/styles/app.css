@@ -181,6 +181,21 @@
 	--publy-shell-rail-width: 49px;
 	--publy-shell-panel-width: 272px;
 	--publy-shell-topbar-height: 64px;
+	/* Marketing shell layout roles (#1038). Two named widths instead of one:
+	   chrome that is SCANNED (the header + its mega panel, which needs the
+	   extra 128px to hold three columns without French labels wrapping to
+	   three lines) and content that is READ (page body, social proof, CTA
+	   band and the footer). Naming them is what stops the header/body drift
+	   from recurring — at >=1280 the footer's content deliberately sits 64px
+	   inside the header's outer edges. Layout-only, so theme-invariant by
+	   construction (no colour, nothing for html.dark to restate). */
+	--publy-container-chrome: 1280px;
+	--publy-container-reading: 1152px;
+	/* Single source for the marketing header's height: the sticky header
+	   box, the mega panel's top offset, the mobile drawer's top inset and
+	   every in-page anchor's scroll-margin all derive from it. Steps down to
+	   56px below 768 (see the media query after html.dark). */
+	--publy-header-height: 64px;
 	/* Shared stacking scale. Local raised/sticky chrome stays below portalled
 	   surfaces. All popups portal to document.body, so their paint order is
 	   z-index only: overlay backdrop < drawer/dialog surface < menu/select
@@ -337,6 +352,17 @@ html.dark {
 	--publy-profile-tone-6-fg: #4ade80;
 	--publy-profile-tone-7-bg: #172554;
 	--publy-profile-tone-7-fg: #60a5fa;
+}
+
+/* The marketing header steps down to 56px below 768 (#1038). Declared here,
+   once, rather than as a second hardcoded height in the header component:
+   the sticky header box, the mega panel offset, the mobile drawer inset and
+   `scroll-margin-top` on in-page anchors all read the same token, so they
+   can never drift apart at the small breakpoint. */
+@media (max-width: 767px) {
+	:root {
+		--publy-header-height: 56px;
+	}
 }
 
 /* PersonAvatar intentionally keeps the shared AvatarFallback primitive's
@@ -2843,4 +2869,174 @@ html[data-theme-changing] * {
 .publy-state-icon svg {
 	width: 100%;
 	height: 100%;
+}
+
+/* ---- Marketing shell (#1038) ----
+
+   Geometry and motion for the marketing chrome live here, not as inline
+   styles on the components, so every handoff value resolves through a
+   `--publy-*` token and stays reviewable in one place (same rationale as
+   `.publy-drawer*`). Layered, so a caller's own utility class still wins. */
+@layer components {
+	/* The handoff's eyebrow step is `--publy-foreground-muted`, NOT the
+	   product `.publy-type-eyebrow` colour (`--publy-foreground-subtle`,
+	   #a1a1aa = 2.6:1 on white). The AA amendment in the shell spec makes
+	   the muted step the floor for marketing eyebrows; this class exists so
+	   no marketing surface can quietly inherit the failing one. */
+	.publy-marketing-eyebrow {
+		font-size: 13px;
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		color: var(--publy-foreground-muted);
+	}
+
+	/* Header nav item. Active state is a 2px primary underline + hover fill
+	   + full-strength foreground — deliberately NOT the old solid primary
+	   pill, which was set inline and read as a yellow button in the nav. */
+	.publy-marketing-nav-link {
+		@apply relative inline-flex items-center rounded-[var(--publy-radius-small-control)] px-3 py-2 text-sm font-medium;
+		color: var(--publy-foreground-secondary);
+		transition:
+			background-color var(--publy-motion-fast) var(--publy-motion-ease),
+			color var(--publy-motion-fast) var(--publy-motion-ease);
+	}
+
+	.publy-marketing-nav-link:hover {
+		background: var(--publy-surface-hover);
+		color: var(--publy-foreground);
+	}
+
+	.publy-marketing-nav-link[data-active='true'] {
+		background: var(--publy-surface-hover);
+		color: var(--publy-foreground);
+	}
+
+	.publy-marketing-nav-link[data-active='true']::after {
+		content: '';
+		position: absolute;
+		inset-inline: 12px;
+		bottom: -1px;
+		height: 2px;
+		border-radius: 2px;
+		background: var(--publy-primary);
+	}
+
+	/* Mega panel: house entrance signature (6px rise + fade), never a slide
+	   or a scale. `publy-state-rise` is the shared keyframe; reduced motion
+	   is handled globally by the `@media (prefers-reduced-motion: reduce)`
+	   rule in the base layer, which collapses every animation to 1ms. */
+	.publy-marketing-mega-panel {
+		animation: publy-state-rise var(--publy-motion-medium)
+			var(--publy-motion-ease) both;
+	}
+
+	/* Equal-fraction mega columns (never content-sized): a longer French
+	   label re-wraps its own description instead of shifting the grid. */
+	.publy-marketing-mega-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.publy-marketing-mega-grid[data-columns='2'] {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.publy-marketing-mega-grid[data-columns='3'] {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+
+	.publy-marketing-nav-link svg[data-open='true'] {
+		transform: rotate(180deg);
+	}
+
+	/* Dividers follow the flow axis: a 1px grid gap over the hairline colour
+	   with opaque cells, so the rule becomes horizontal the moment the row
+	   wraps. Never per-cell left/right borders. */
+	.publy-marketing-hairline-grid {
+		background: var(--publy-border);
+		gap: 1px;
+	}
+
+	.publy-marketing-hairline-grid > * {
+		background: var(--publy-surface-raised);
+	}
+
+	/* Entrance fade-up: 12px travel, house easing, staggered through a
+	   `data-stagger` step (0/50/100/150/200ms) rather than an inline style,
+	   so no marketing surface needs a `style={{...}}` escape hatch. Under
+	   reduced motion the animation is dropped entirely — the element is
+	   simply already in place, never stuck at `opacity: 0`. */
+	.publy-marketing-fade-up {
+		animation: publy-marketing-fade-up 600ms var(--publy-motion-ease) both;
+	}
+
+	.publy-marketing-fade-up[data-stagger='1'] {
+		animation-delay: 50ms;
+	}
+
+	.publy-marketing-fade-up[data-stagger='2'] {
+		animation-delay: 100ms;
+	}
+
+	.publy-marketing-fade-up[data-stagger='3'] {
+		animation-delay: 150ms;
+	}
+
+	.publy-marketing-fade-up[data-stagger='4'] {
+		animation-delay: 200ms;
+	}
+
+	@keyframes publy-marketing-fade-up {
+		from {
+			opacity: 0;
+			transform: translateY(12px);
+		}
+
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.publy-marketing-fade-up {
+			animation-name: none;
+			opacity: 1;
+			transform: none;
+		}
+	}
+
+	/* Footer grid (handoff breakpoint table): one column below 768, two
+	   columns with the brand block spanning both through 1023, then the
+	   brand block plus four link columns. Column count is CSS, not a JS
+	   media query, so the server renders the right shape immediately. */
+	.publy-marketing-footer-grid {
+		grid-template-columns: 1fr;
+	}
+
+	@media (min-width: 768px) {
+		.publy-marketing-footer-grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+
+		.publy-marketing-footer-brand {
+			grid-column: 1 / -1;
+		}
+	}
+
+	@media (min-width: 1024px) {
+		.publy-marketing-footer-grid {
+			grid-template-columns: 1.5fr repeat(4, minmax(0, 1fr));
+		}
+
+		.publy-marketing-footer-brand {
+			grid-column: auto;
+		}
+	}
+
+	/* Every in-page anchor target clears the sticky header instead of
+	   hiding under it. */
+	.publy-marketing-anchor {
+		scroll-margin-top: calc(var(--publy-header-height) + 16px);
+	}
 }
