@@ -1355,4 +1355,29 @@ describe('staff tenant profile details route', () => {
 		act(() => sectionContext?.onPermissionsDirtyChange(false));
 		expect(mocks.capturedShouldBlockFn?.(sectionSwitchAway)).toBe(false);
 	});
+
+	// The matrix arm's `current.pathname === permissionsPathname` precondition.
+	// `ProfilePermissionsTab` clears the flag when it unmounts, so a dirty
+	// matrix while OFF that route should not happen — this pins what the guard
+	// does if that cleanup ever regresses: a stale flag must not start
+	// blocking navigations between two other sections, because there is no
+	// mounted matrix left for the prompt to be about.
+	//
+	// The deciding clause really is this precondition: with it dropped, the
+	// matrix arm returns `true` before the drawer arm is ever reached, so no
+	// later clause can rescue the outcome.
+	test('a stale matrix-dirty flag does not block once the Permissions section is no longer showing', () => {
+		mocks.pathname = PROFILE_PATHNAME;
+		renderPage();
+
+		act(() => sectionContext?.onPermissionsDirtyChange(true));
+
+		expect(
+			mocks.capturedShouldBlockFn?.({
+				current: { pathname: PROFILE_PATHNAME, search: {} },
+				next: { pathname: MEMBERS_PATHNAME, search: {} },
+				action: 'PUSH',
+			}),
+		).toBe(false);
+	});
 });
