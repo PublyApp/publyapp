@@ -349,8 +349,11 @@ export const IndexRoute = () => {
 							<div
 								key={tab.id}
 								className="absolute inset-0 bg-(--publy-row-border)"
-								role="tabpanel"
-								aria-labelledby={`tour-tab-${tab.id}`}
+								// Deliberately not a `tabpanel`: a tab owns exactly one panel, and
+								// each tab's `aria-controls` already names the copy panel above.
+								// Marking this plate as a second tabpanel left an orphan region
+								// that no tab controlled. It still toggles with the active tab so
+								// only the live plate is exposed.
 								hidden={activeTabIndex !== index}
 								aria-hidden={activeTabIndex !== index}
 							>

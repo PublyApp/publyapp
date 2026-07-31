@@ -106,8 +106,12 @@ describe('marketing landing route', () => {
 			expect(panel).toHaveProperty('hidden', index !== 0);
 		});
 
+		// Exactly one panel per tab. The screenshot plate beside the copy toggles
+		// with the active tab but is deliberately NOT a second `tabpanel`: a tab
+		// owns one panel, and `aria-controls` above names the copy panel. Asserting
+		// two per tab would pin an orphan region no tab controls.
 		const tabpanels = screen.getAllByRole('tabpanel', { hidden: true });
-		expect(tabpanels).toHaveLength(TOUR_TAB_IDS.length * 2);
+		expect(tabpanels).toHaveLength(TOUR_TAB_IDS.length);
 	});
 
 	test('changes active tab and panel on click', () => {
