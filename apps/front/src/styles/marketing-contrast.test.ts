@@ -110,7 +110,13 @@ const inferForegroundToken = (element: Element): string => {
 		const inheritsCurrent = classes.includes('text-current');
 
 		for (const tokenClass of classes) {
-			const tokenMatch = /text-\((--publy-foreground-[^)]+)\)/.exec(tokenClass);
+			// The prefix stops at `--publy-foreground`, a declared token, on
+			// purpose: carrying the trailing hyphen would leave a literal that
+			// the design-system scanner reads as a reference to a token nothing
+			// declares — and that scanner reads comments too, so this note has
+			// to avoid it as well. The capture is unchanged; `[^)]*` still takes
+			// the full token name.
+			const tokenMatch = /text-\((--publy-foreground[^)]*)\)/.exec(tokenClass);
 			if (tokenMatch) {
 				return tokenMatch[1];
 			}
