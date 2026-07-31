@@ -540,6 +540,33 @@ describe('#977 tenant-profile sections are path segments (real router)', () => {
 	});
 });
 
+/**
+ * `shouldBlockFn` is a disjunction of independent clauses, and a test that
+ * does not say which one it pins will silently be decided by a different one
+ * (this file has already shipped two such false greens). The clauses:
+ *
+ *   A  isPermissionsMatrixDirty
+ *   B  current.pathname === permissionsPathname
+ *   C  next.pathname !== permissionsPathname
+ *   D  isEditDrawerOpen
+ *   E  isEditFormDirty
+ *   F  editDrawerNavBypassRef.current
+ *   G  isProfileSectionPathname(next.pathname)
+ *   H  next.search.edit === 1
+ *
+ * Which case pins which, and each is proven by mutating exactly that clause:
+ *
+ *   case 1/2/3  C in the blocking direction (A and B held true)
+ *   case 4      C in the NON-blocking direction. Its drawer arm short-circuits
+ *               on E, so it says nothing about G or H — hence case 7.
+ *   case 5/6    G in the exclusion direction (a non-section must not count)
+ *   case 7      G in the inclusion direction (a real section must count)
+ *   case 8      H (G held true, so only H can decide)
+ *
+ * D and F are pinned in `$profileId.test.tsx` ("never blocks when the drawer
+ * is closed" and the W8-DRAWER bypass test), which drives the same production
+ * `shouldBlockFn` directly. Nothing here re-proves them.
+ */
 describe('#977 the dirty-matrix navigation guard (real router)', () => {
 	beforeEach(() => {
 		mocks.permissionKeys = ['tenant.users.read'];
@@ -605,6 +632,11 @@ describe('#977 the dirty-matrix navigation guard (real router)', () => {
 	 * and the real current/previous locations. A blocked result resolves
 	 * through the real `withResolver` machinery, so the assertion below is on
 	 * the user-visible prompt, not on a boolean.
+	 *
+	 * Stated plainly so the name is not read as more than it is: the predicate
+	 * never inspects `action`, so this pins clause C exactly as cases 1 and 2
+	 * do — what it adds is that the BACK entry point reaches the same verdict,
+	 * not that a distinct clause fires for it.
 	 */
 	test('case 3 — a browser Back away from a dirty matrix is blocked', async () => {
 		const { history, blockers } = await renderAt(OVERVIEW_PATH);
@@ -640,7 +672,17 @@ describe('#977 the dirty-matrix navigation guard (real router)', () => {
 		await expect(Promise.all(blocked)).resolves.toContain(false);
 	});
 
-	test('case 4 — opening and closing the edit drawer on the same section never prompts', async () => {
+	/**
+	 * Pins clause C in its non-blocking direction: a search-only change keeps
+	 * `next.pathname` equal to `permissionsPathname`, so the dirty matrix must
+	 * not prompt.
+	 *
+	 * It deliberately does NOT pin the drawer arm. With the form clean, E is
+	 * false and `shouldBlockFn` returns at the early guard before
+	 * `staysOnOpenDrawer` — so G and H are never consulted here, and this case
+	 * stays green under any mutation of them. Case 7 covers that direction.
+	 */
+	test('case 4 — a search-only change on the same section does not trip the dirty-matrix guard', async () => {
 		const { history } = await renderAt(PERMISSIONS_PATH);
 		await dirtyThePermissionMatrix();
 
@@ -727,6 +769,76 @@ describe('#977 the dirty-matrix navigation guard (real router)', () => {
 			expect(screen.getByText('Leave without saving?')).toBeTruthy(),
 		);
 		// Still on the layout, drawer still mounted, draft still in the field.
+		expect(history.location.pathname).toBe(OVERVIEW_PATH);
+		expect(
+			document.querySelector<HTMLInputElement>('input[name="name"]')?.value,
+		).toBe('Renamed approvers');
+	});
+
+	/**
+	 * The inclusion direction of clause G, and the mirror image of cases 5/6:
+	 * a genuine section pathname MUST count as staying on the drawer, or every
+	 * section switch with a dirty draft raises a prompt for work that was
+	 * never at risk — the drawer is hosted by the layout and survives.
+	 *
+	 * With A false (no matrix staged) and B false (not starting on
+	 * Permissions), the matrix arm is inert, and D/E/F are all satisfied, so
+	 * `staysOnOpenDrawer` is the only thing left — and H holds because the
+	 * search is carried over. G is therefore the deciding clause.
+	 *
+	 * Driven through `router.navigate` rather than a nav-link click: with the
+	 * drawer open the nav is behind a modal backdrop, so clicking it would be
+	 * staging an interaction a user cannot actually perform. The transition
+	 * itself (browser Back/Forward, or a future in-drawer link) is real.
+	 */
+	test('case 7 — a section switch with a dirty draft is allowed, and the draft survives it', async () => {
+		const { router, history } = await renderAt(`${OVERVIEW_PATH}?edit=1`);
+		await dirtyTheEditDraft();
+
+		void router.navigate({
+			to: '/staff/tenants/$tenantId/profiles/$profileId/permissions',
+			params: { tenantId: TENANT_ID, profileId: PROFILE_ID },
+			search: (previous: Record<string, unknown>) => previous,
+		});
+
+		// Settle on either outcome — landed, or prompted — so a regression
+		// reports the spurious prompt rather than timing out and printing two
+		// truncated pathnames.
+		await waitFor(() => {
+			const settled =
+				history.location.pathname === PERMISSIONS_PATH ||
+				screen.queryByText('Leave without saving?') !== null;
+			expect(settled).toBe(true);
+		});
+
+		expect(
+			screen.queryByText('Leave without saving?'),
+			'a section switch keeps this layout — and the open drawer with it — mounted, so no work is at risk and the guard must not prompt; clause G must count a real section pathname as staying on the drawer',
+		).toBeNull();
+		expect(history.location.pathname).toBe(PERMISSIONS_PATH);
+		expect(screen.getByTestId('profile-edit-details-drawer')).toBeTruthy();
+		expect(
+			document.querySelector<HTMLInputElement>('input[name="name"]')?.value,
+		).toBe('Renamed approvers');
+	});
+
+	/**
+	 * Clause H. Same start as case 7, but the navigation DROPS `?edit=1`, so
+	 * the drawer closes and the draft goes with it even though the pathname is
+	 * a real section. G holds here; only H can produce the block.
+	 */
+	test('case 8 — a section switch that drops ?edit closes the drawer, so a dirty draft is blocked', async () => {
+		const { router, history } = await renderAt(`${OVERVIEW_PATH}?edit=1`);
+		await dirtyTheEditDraft();
+
+		void router.navigate({
+			to: '/staff/tenants/$tenantId/profiles/$profileId/permissions',
+			params: { tenantId: TENANT_ID, profileId: PROFILE_ID },
+		});
+
+		await waitFor(() =>
+			expect(screen.getByText('Leave without saving?')).toBeTruthy(),
+		);
 		expect(history.location.pathname).toBe(OVERVIEW_PATH);
 		expect(
 			document.querySelector<HTMLInputElement>('input[name="name"]')?.value,
