@@ -469,9 +469,14 @@ export const collectShippedSourcePaths = (workspaceRoot) => {
  * This scan is therefore the SECONDARY net: its value is naming a file and a
  * line, which a bundle scan cannot. The authorities over what actually ships
  * are `assertCanonicalSearchCancelCss` over the emitted CSS and
- * `assertEmittedBundlesFreeOfSearchCancel` over the emitted JS/HTML; both see
- * the real built output, so every evasion above is resolved by the time they
- * run — as long as the injected rule reaches an emitted artifact at all.
+ * `assertEmittedBundlesFreeOfSearchCancel` over the emitted JS/HTML, both of
+ * which read the real built output. The masking blind spots above are fully
+ * covered there, because the token is still contiguous in the file. The
+ * escaping ones are covered whenever the rule reaches a CSS asset, since
+ * escapes are resolved by the time CSS is emitted; when such a rule ships
+ * inside JavaScript instead, the bundle scan catches it only if the bundler
+ * folded the pieces back into one literal. See the exact ceiling in
+ * `apps/front/src/components/ui/search-input.test.tsx`.
  */
 export const assertShippedSourceSearchCancelCss = (workspaceRoot) => {
 	const sourceFiles = collectShippedSourcePaths(workspaceRoot).map(
