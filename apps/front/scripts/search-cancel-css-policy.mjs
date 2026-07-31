@@ -440,7 +440,9 @@ export const collectShippedSourcePaths = (workspaceRoot) => {
  * Ceiling, stated plainly: this is a text scan. It sees the token only where it
  * appears as contiguous ASCII. Concatenation, a backslash-newline line
  * continuation, or a unicode escape for one of its characters all hide it, and
- * no text scan can change that. Those are accepted limitations — the scan's
+ * no text scan can change that. Comment masking is a lexical heuristic, not a
+ * parse, so a `//` inside a string literal earlier on the same line hides the
+ * rest of that line too. Those are accepted limitations — the scan's
  * job is catching
  * accidental regressions in source that ships CSS via JavaScript. The emitted
  * CSS artifact assertion, not this scan, is the authority for anything that

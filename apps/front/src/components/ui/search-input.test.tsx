@@ -348,8 +348,10 @@ describe('SearchInput', () => {
 	// token only where it appears as contiguous ASCII. A determined author can
 	// evade it — string concatenation, a backslash-newline line continuation
 	// inside one literal, or a unicode escape for one of the token's
-	// characters. None of these is detectable by any text scan, so they are
-	// not chased here. The purpose of the source scan is catching accidental
+	// characters. Comment masking is lexical rather than a real parse, so a
+	// `//` inside a string literal earlier on the same line hides the rest of
+	// that line as well. None of these is detectable by any text scan, so they
+	// are not chased here. The purpose of the source scan is catching accidental
 	// regressions, not defeating an adversary; an adversarial change that
 	// reaches the CSS bundle is still caught by (1), and one that does not is
 	// not caught at all.
