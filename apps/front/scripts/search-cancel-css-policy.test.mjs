@@ -6,10 +6,12 @@ import test from 'node:test';
 
 import {
 	ARTIFACT_SEARCH_CANCEL_CANONICAL,
-	SEARCH_CANCEL_ALLOW_MARKER,
+	EMITTED_BUNDLE_FILE_EXTENSIONS,
+	SEARCH_CANCEL_MENTION_INVENTORY,
 	SHIPPED_SOURCE_ROOTS,
 	SOURCE_SEARCH_CANCEL_CANONICAL,
 	assertCanonicalSearchCancelCss,
+	assertEmittedBundlesFreeOfSearchCancel,
 	assertShippedSourceSearchCancelCss,
 } from './search-cancel-css-policy.mjs';
 
@@ -42,6 +44,7 @@ const createWorkspace = (files) => {
 	write('apps/front/src/styles/app.css', canonicalSourceCss);
 	write('apps/front/server.mjs', 'export default {};\n');
 	write('apps/front/vite.config.ts', 'export default {};\n');
+	write('apps/front/scripts/placeholder.mjs', 'export const noop = 0;\n');
 	write('packages/shared-ts/lib/placeholder.ts', 'export const noop = 0;\n');
 	write('packages/client-ts/src/placeholder.ts', 'export const noop = 0;\n');
 
@@ -199,8 +202,10 @@ test('accepts a clean workspace across every shipped source root', () => {
 
 	try {
 		const result = assertShippedSourceSearchCancelCss(workspaceRoot);
-		assert.equal(result.allowlistedCount, 0);
-		assert.equal(result.sourceFileCount, 5);
+		// app.css is inventoried, and its sole mention is the canonical rule.
+		assert.equal(result.inventoriedMentionCount, 1);
+		assert.equal(result.inventorySize, SEARCH_CANCEL_MENTION_INVENTORY.length);
+		assert.equal(result.sourceFileCount, 6);
 	} finally {
 		rmSync(workspaceRoot, { recursive: true, force: true });
 	}
@@ -224,8 +229,10 @@ export const SearchInput = () => <style>{SEARCH_CANCEL_OVERRIDE}</style>;
 		assert.throws(
 			() => assertShippedSourceSearchCancelCss(workspaceRoot),
 			(error) => {
-				assert.match(error.message, /found 2 occurrences/i);
-				assert.match(error.message, /apps\/front\/src\/styles\/app\.css:\d+/);
+				assert.match(
+					error.message,
+					/found 1 occurrence\(s\).*outside the committed mention inventory/is,
+				);
 				assert.match(
 					error.message,
 					/apps\/front\/src\/components\/search-input\.tsx:\d+/,
@@ -233,6 +240,11 @@ export const SearchInput = () => <style>{SEARCH_CANCEL_OVERRIDE}</style>;
 				assert.match(
 					error.message,
 					/input\[type='search'\]::-webkit-search-cancel-button/,
+				);
+				// The inventoried canonical stylesheet is not itself a violation.
+				assert.doesNotMatch(
+					error.message,
+					/- apps\/front\/src\/styles\/app\.css:\d+/,
 				);
 				return true;
 			},
@@ -242,7 +254,7 @@ export const SearchInput = () => <style>{SEARCH_CANCEL_OVERRIDE}</style>;
 	}
 });
 
-test('rejects a sole canonical rule outside app.css and reports its actual location', () => {
+test('rejects a sole canonical rule moved out of app.css into another stylesheet', () => {
 	const { workspaceRoot, write } = createWorkspace();
 
 	try {
@@ -252,15 +264,30 @@ test('rejects a sole canonical rule outside app.css and reports its actual locat
 		assert.throws(
 			() => assertShippedSourceSearchCancelCss(workspaceRoot),
 			(error) => {
-				assert.match(
-					error.message,
-					/required source: apps\/front\/src\/styles\/app\.css/i,
-				);
-				assert.match(
-					error.message,
-					/actual source: apps\/front\/src\/styles\/other\.css/i,
-				);
+				assert.match(error.message, /outside the committed mention inventory/i);
 				assert.match(error.message, /apps\/front\/src\/styles\/other\.css:\d+/);
+				return true;
+			},
+		);
+	} finally {
+		rmSync(workspaceRoot, { recursive: true, force: true });
+	}
+});
+
+test('rejects a canonical stylesheet that has lost the suppression rule entirely', () => {
+	const { workspaceRoot, write } = createWorkspace();
+
+	try {
+		write('apps/front/src/styles/app.css', 'body {}\n');
+
+		assert.throws(
+			() => assertShippedSourceSearchCancelCss(workspaceRoot),
+			(error) => {
+				assert.match(error.message, /found 0 occurrences/i);
+				assert.match(
+					error.message,
+					/required canonical rule: \.publy-search-input/i,
+				);
 				return true;
 			},
 		);
@@ -287,7 +314,7 @@ export const SEARCH_CANCEL_OVERRIDE_CSS = \`
 		assert.throws(
 			() => assertShippedSourceSearchCancelCss(workspaceRoot),
 			(error) => {
-				assert.match(error.message, /found 2 occurrences/i);
+				assert.match(error.message, /outside the committed mention inventory/i);
 				assert.match(
 					error.message,
 					/packages\/shared-ts\/lib\/profile-style\/search-cancel-style\.ts:\d+/,
@@ -300,7 +327,7 @@ export const SEARCH_CANCEL_OVERRIDE_CSS = \`
 	}
 });
 
-test('rejects an override in packages/client-ts, apps/front/server.mjs and vite.config.ts', () => {
+test('rejects an override in client-ts, server.mjs, vite.config.ts and a local Vite plugin under apps/front/scripts', () => {
 	const override = `
 const css = \`
 	input[type='search']::-webkit-search-cancel-button {
@@ -313,6 +340,10 @@ const css = \`
 		'packages/client-ts/src/probe.ts',
 		'apps/front/server.mjs',
 		'apps/front/vite.config.ts',
+		// Round 11's route: a local Vite plugin imported by the scanned
+		// vite.config.ts, living in a directory the guard used to claim never
+		// ships. It shipped a restoring rule into the real client bundle.
+		'apps/front/scripts/vite-runtime-style.ts',
 	]) {
 		const { workspaceRoot } = createWorkspace({ [relativePath]: override });
 
@@ -320,7 +351,10 @@ const css = \`
 			assert.throws(
 				() => assertShippedSourceSearchCancelCss(workspaceRoot),
 				(error) => {
-					assert.match(error.message, /found 2 occurrences/i);
+					assert.match(
+						error.message,
+						/outside the committed mention inventory/i,
+					);
 					assert.ok(
 						error.message.includes(relativePath),
 						`expected the failure to name ${relativePath}:\n${error.message}`,
@@ -350,42 +384,46 @@ export const Notes = () => null;
 
 	try {
 		const result = assertShippedSourceSearchCancelCss(workspaceRoot);
-		assert.equal(result.allowlistedCount, 0);
+		assert.equal(result.inventoriedMentionCount, 1);
 	} finally {
 		rmSync(workspaceRoot, { recursive: true, force: true });
 	}
 });
 
-test('exempts a legitimate mention carrying the allow marker, on its line or the line above', () => {
+test('permits mentions in an inventoried file', () => {
 	const { workspaceRoot } = createWorkspace({
-		'apps/front/src/components/search-input.test.tsx': `
-// ${SEARCH_CANCEL_ALLOW_MARKER}: the selector this suite asserts.
+		'apps/front/src/components/ui/search-input.test.tsx': `
 const SELECTOR = "::-webkit-search-cancel-button";
-const SAME_LINE = "::-webkit-search-cancel-button"; // ${SEARCH_CANCEL_ALLOW_MARKER}
-export { SAME_LINE, SELECTOR };
+const OTHER = "input[type='search']::-webkit-search-cancel-button";
+export { OTHER, SELECTOR };
 `,
 	});
 
 	try {
 		const result = assertShippedSourceSearchCancelCss(workspaceRoot);
-		assert.equal(result.allowlistedCount, 2);
+		// two here plus the canonical app.css rule
+		assert.equal(result.inventoriedMentionCount, 3);
 	} finally {
 		rmSync(workspaceRoot, { recursive: true, force: true });
 	}
 });
 
-test('still rejects an unmarked mention in a file that also carries an allow marker', () => {
+// Round 11 reproduction, pinned: the retired `publy-allow search-cancel-token`
+// marker exempted any line carrying it, in any scanned file. Both abuses below
+// passed every required check while shipping a restoring rule to the client.
+// The marker mechanism is gone, so neither is exempt now.
+test('rejects a restoring rule carrying the retired allow marker in a production component', () => {
 	const { workspaceRoot } = createWorkspace({
-		'apps/front/src/components/search-input.test.tsx': `
-// ${SEARCH_CANCEL_ALLOW_MARKER}: the selector this suite asserts.
-const SELECTOR = "::-webkit-search-cancel-button";
-
-const OVERRIDE = \`
-	input[type='search']::-webkit-search-cancel-button {
+		'apps/front/src/components/ui/search-input.tsx': `
+const SEARCH_CANCEL_OVERRIDE = \`
+	.publy-search-wrapper
+		> .publy-search-input[type='search']::-webkit-search-cancel-button /* publy-allow search-cancel-token */ {
+		-webkit-appearance: auto;
 		appearance: auto;
+		display: inline-block;
 	}
 \`;
-export { OVERRIDE, SELECTOR };
+export const SearchInput = () => <style>{SEARCH_CANCEL_OVERRIDE}</style>;
 `,
 	});
 
@@ -393,8 +431,43 @@ export { OVERRIDE, SELECTOR };
 		assert.throws(
 			() => assertShippedSourceSearchCancelCss(workspaceRoot),
 			(error) => {
-				assert.match(error.message, /found 2 occurrences/i);
-				assert.match(error.message, new RegExp(SEARCH_CANCEL_ALLOW_MARKER));
+				assert.match(error.message, /outside the committed mention inventory/i);
+				assert.match(
+					error.message,
+					/apps\/front\/src\/components\/ui\/search-input\.tsx:\d+/,
+				);
+				return true;
+			},
+		);
+	} finally {
+		rmSync(workspaceRoot, { recursive: true, force: true });
+	}
+});
+
+test('rejects a restoring rule carrying the retired allow marker on the line above, in packages/shared-ts', () => {
+	const { workspaceRoot } = createWorkspace({
+		'packages/shared-ts/lib/search-cancel-override.ts': `
+export const SEARCH_CANCEL_OVERRIDE = \`
+	.publy-search-wrapper
+		/* publy-allow search-cancel-token */
+		> .publy-search-input[type='search']::-webkit-search-cancel-button {
+		-webkit-appearance: auto;
+		appearance: auto;
+		display: inline-block;
+	}
+\`;
+`,
+	});
+
+	try {
+		assert.throws(
+			() => assertShippedSourceSearchCancelCss(workspaceRoot),
+			(error) => {
+				assert.match(error.message, /outside the committed mention inventory/i);
+				assert.match(
+					error.message,
+					/packages\/shared-ts\/lib\/search-cancel-override\.ts:\d+/,
+				);
 				return true;
 			},
 		);
@@ -458,10 +531,125 @@ export { OVERRIDE };
 
 test('the shipped source roots stay pinned to what the build actually ships', () => {
 	assert.deepEqual(SHIPPED_SOURCE_ROOTS, [
+		'apps/front/scripts',
 		'apps/front/src',
 		'apps/front/server.mjs',
 		'apps/front/vite.config.ts',
 		'packages/shared-ts',
 		'packages/client-ts',
 	]);
+});
+
+/**
+ * Pins the mention inventory the same way the roots are pinned. This is the
+ * whole point of replacing the free-floating `publy-allow` marker: permitting
+ * one more file to name the token has to be a visible diff here, reviewed
+ * against the four legitimate sites, rather than a comment an author drops next
+ * to a restoring rule in a component.
+ */
+test('the mention inventory stays pinned to the four legitimate sites', () => {
+	assert.deepEqual(SEARCH_CANCEL_MENTION_INVENTORY, [
+		'apps/front/scripts/search-cancel-css-policy.mjs',
+		'apps/front/scripts/search-cancel-css-policy.test.mjs',
+		'apps/front/src/components/ui/search-input.test.tsx',
+		'apps/front/src/styles/app.css',
+	]);
+});
+
+test('the emitted-bundle scan covers every executable and document artifact extension', () => {
+	assert.deepEqual(EMITTED_BUNDLE_FILE_EXTENSIONS, [
+		'.cjs',
+		'.html',
+		'.htm',
+		'.js',
+		'.mjs',
+	]);
+});
+
+test('accepts emitted JavaScript that never mentions the token', () => {
+	const result = assertEmittedBundlesFreeOfSearchCancel([
+		{
+			source: 'const a=1;export{a};\n',
+			sourceName: 'dist/client/assets/index-abc.js',
+		},
+		{
+			source: 'export const render=()=>null;\n',
+			sourceName: 'dist/server/assets/router-abc.js',
+		},
+	]);
+
+	assert.equal(result.scannedFileCount, 2);
+});
+
+// Round 11's BLOCKER: a Vite plugin in a directory outside every scanned source
+// root appended a runtime `<style>` injection to the compiled router. Nothing
+// in any scanned source root contained the token; the compiled bundles did.
+test('rejects a runtime style injection compiled into the client and server bundles', () => {
+	const clientChunk =
+		"\n\t.publy-search-wrapper\n\t\t> .publy-search-input[type='search']" +
+		'::-webkit-search-cancel-button {\n\t\tappearance: auto;\n\t}\n';
+
+	assert.throws(
+		() =>
+			assertEmittedBundlesFreeOfSearchCancel([
+				{
+					source: `const style=document.createElement("style");style.textContent=${JSON.stringify(clientChunk)};`,
+					sourceName: 'dist/server/assets/router-D21ze5za.js',
+				},
+				{
+					source: `const css = \`${clientChunk}\`;`,
+					sourceName: 'dist/client/assets/index-DUlSrzKh.js',
+				},
+			]),
+		(error) => {
+			assert.match(error.message, /expected 0 occurrences/i);
+			assert.match(error.message, /found 2/i);
+			assert.match(
+				error.message,
+				/dist\/server\/assets\/router-D21ze5za\.js:\d+/,
+			);
+			assert.match(
+				error.message,
+				/dist\/client\/assets\/index-DUlSrzKh\.js:\d+/,
+			);
+			return true;
+		},
+	);
+});
+
+// The emitted-bundle scan is raw on purpose. Emitted output is not source, so
+// a comment there is not prose a human wrote to explain a rule — it is whatever
+// the bundler kept, and exempting it would reopen the hole this closes.
+test('rejects the token in emitted output even inside comment syntax', () => {
+	assert.throws(
+		() =>
+			assertEmittedBundlesFreeOfSearchCancel([
+				{
+					source: '/* ::-webkit-search-cancel-button */\nconst a=1;\n',
+					sourceName: 'dist/client/assets/index-abc.js',
+				},
+			]),
+		(error) => {
+			assert.match(error.message, /expected 0 occurrences/i);
+			assert.match(error.message, /dist\/client\/assets\/index-abc\.js:1/);
+			return true;
+		},
+	);
+});
+
+test('rejects the token in emitted HTML', () => {
+	assert.throws(
+		() =>
+			assertEmittedBundlesFreeOfSearchCancel([
+				{
+					source:
+						'<html><head><style>input::-webkit-search-cancel-button{appearance:auto}</style></head></html>',
+					sourceName: 'dist/client/index.html',
+				},
+			]),
+		(error) => {
+			assert.match(error.message, /dist\/client\/index\.html:1/);
+			return true;
+		},
+	);
 });

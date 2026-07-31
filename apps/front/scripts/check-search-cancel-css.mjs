@@ -9,13 +9,14 @@ import {
 const workspaceRoot = path.resolve(
 	fileURLToPath(new URL('../../..', import.meta.url)),
 );
-const { allowlistedCount, sourceFileCount } =
+const { inventoriedMentionCount, inventorySize, sourceFileCount } =
 	assertShippedSourceSearchCancelCss(workspaceRoot);
 
 console.log(
 	`front search-cancel source policy: 1 canonical rule across ` +
-		`${sourceFileCount} shipped source file(s) in ` +
+		`${sourceFileCount} scanned source file(s) in ` +
 		`${SHIPPED_SOURCE_ROOTS.length} root(s) ` +
 		`(${SHIPPED_SOURCE_ROOTS.join(', ')}); ` +
-		`${allowlistedCount} allowlisted mention(s).`,
+		`${inventoriedMentionCount} inventoried mention(s) across ` +
+		`${inventorySize} inventoried file(s).`,
 );

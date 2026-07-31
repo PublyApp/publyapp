@@ -4,16 +4,27 @@ import path from 'node:path';
 const SEARCH_CANCEL_TOKEN = '::-webkit-search-cancel-button';
 
 /**
- * Marker that exempts a single legitimate mention of the token from the source
- * scan. Put it on the same line as the mention, or on the line directly above
- * it. It is deliberately greppable, so the full set of sanctioned mentions is
- * always `grep -rn 'publy-allow search-cancel-token'`.
+ * The exact, committed set of files permitted to mention the token in scanned
+ * source. A mention in any other scanned file is a failure — there is no
+ * in-file escape hatch, no marker, no comment an author can drop next to a
+ * restoring rule to exempt it.
  *
- * It exists so a legitimate mention never has to be obfuscated: splitting the
- * token across string fragments to appease this guard is exactly the technique
- * that defeats it, and must not be taught by our own tree.
+ * This replaced a free-floating `publy-allow` marker that exempted any line
+ * carrying it, anywhere. Review round 11 put that marker in the real
+ * `apps/front/src/components/ui/search-input.tsx` next to a restoring rule, and
+ * in a `packages/shared-ts` module, and both shipped the rule into the client
+ * bundle with every required check green. Adding a file here is a reviewed diff
+ * against a pinned list (see the inventory test in
+ * `search-cancel-css-policy.test.mjs`), not a comment in a component.
+ *
+ * Paths are workspace-relative and use `/` on every platform.
  */
-export const SEARCH_CANCEL_ALLOW_MARKER = 'publy-allow search-cancel-token';
+export const SEARCH_CANCEL_MENTION_INVENTORY = [
+	'apps/front/scripts/search-cancel-css-policy.mjs',
+	'apps/front/scripts/search-cancel-css-policy.test.mjs',
+	'apps/front/src/components/ui/search-input.test.tsx',
+	'apps/front/src/styles/app.css',
+];
 
 /**
  * Source roots that reach production. Derived from the build configuration, not
@@ -30,19 +41,40 @@ export const SEARCH_CANCEL_ALLOW_MARKER = 'publy-allow search-cancel-token';
  *  - `apps/front/vite.config.ts` — not itself bundled, but it is the build
  *    configuration that decides what is, so a module injected from here reaches
  *    the bundle.
+ *  - `apps/front/scripts` — this guard and its siblings. Previously excluded
+ *    with the claim that it "never ships", which review round 11 disproved: a
+ *    local Vite plugin under this directory, imported by the scanned
+ *    `vite.config.ts`, executes during the real build and injected a restoring
+ *    rule into shipped client JavaScript.
  *
- * Deliberately excluded because they never ship: `apps/front/scripts` (this
- * guard and its siblings), `apps/front/e2e` (Playwright), `apps/front/deploy`
- * (the separate request-counter/toxiproxy test harness images), and
- * `apps/front/dist` (the emitted artifact, asserted separately and with more
- * authority by `ARTIFACT_SEARCH_CANCEL_CANONICAL`).
+ * Not scanned: `apps/front/e2e` (Playwright), `apps/front/deploy` (the separate
+ * request-counter/toxiproxy test harness images), and `apps/front/dist` (the
+ * emitted artifact, asserted separately and with more authority by
+ * `ARTIFACT_SEARCH_CANCEL_CANONICAL` and
+ * `assertEmittedBundlesFreeOfSearchCancel`). No claim is made that those three
+ * cannot reach production; the emitted-artifact assertions, not this list, are
+ * what covers anything that does.
  */
 export const SHIPPED_SOURCE_ROOTS = [
+	'apps/front/scripts',
 	'apps/front/src',
 	'apps/front/server.mjs',
 	'apps/front/vite.config.ts',
 	'packages/shared-ts',
 	'packages/client-ts',
+];
+
+/**
+ * File extensions of emitted, executable build output scanned by
+ * `assertEmittedBundlesFreeOfSearchCancel`. The canonical suppression lives in
+ * CSS, so the permitted count in these is zero.
+ */
+export const EMITTED_BUNDLE_FILE_EXTENSIONS = [
+	'.cjs',
+	'.html',
+	'.htm',
+	'.js',
+	'.mjs',
 ];
 
 const IGNORED_DIRECTORY_NAMES = new Set([
@@ -239,12 +271,12 @@ const occurrenceContext = (source, tokenIndex, rule) => {
 
 const findTokenOccurrences = (
 	{ source, sourceName },
-	{ lineComments = false, honorAllowMarker = false } = {},
+	{ lineComments = false, maskCommentSyntax = true } = {},
 ) => {
-	const maskedSource = maskComments(source, { lineComments });
-	const sourceLines = source.split('\n');
+	const maskedSource = maskCommentSyntax
+		? maskComments(source, { lineComments })
+		: source;
 	const occurrences = [];
-	const allowed = [];
 	let searchFrom = 0;
 
 	while (searchFrom < maskedSource.length) {
@@ -254,30 +286,18 @@ const findTokenOccurrences = (
 		}
 
 		const rule = findRuleAtToken(source, maskedSource, tokenIndex);
-		const lineNumber = lineNumberAt(source, tokenIndex);
-		const occurrence = {
+		occurrences.push({
 			context: occurrenceContext(source, tokenIndex, rule),
-			lineNumber,
+			lineNumber: lineNumberAt(source, tokenIndex),
 			rule,
 			selector: rule?.selector ?? '<outside a style-rule selector>',
 			sourceName,
-		};
-
-		const isAllowed =
-			honorAllowMarker &&
-			[sourceLines[lineNumber - 1], sourceLines[lineNumber - 2]].some((line) =>
-				(line ?? '').includes(SEARCH_CANCEL_ALLOW_MARKER),
-			);
-		if (isAllowed) {
-			allowed.push(occurrence);
-		} else {
-			occurrences.push(occurrence);
-		}
+		});
 
 		searchFrom = tokenIndex + SEARCH_CANCEL_TOKEN.length;
 	}
 
-	return { allowed, occurrences };
+	return occurrences;
 };
 
 const parseDeclarations = (body) => {
@@ -329,7 +349,7 @@ const formatOccurrences = (occurrences) =>
 export const assertCanonicalSearchCancelCss = (stylesheets, canonical) => {
 	const occurrences = [];
 	for (const stylesheet of stylesheets) {
-		occurrences.push(...findTokenOccurrences(stylesheet).occurrences);
+		occurrences.push(...findTokenOccurrences(stylesheet));
 	}
 
 	const occurrenceDetails =
@@ -432,21 +452,26 @@ export const collectShippedSourcePaths = (workspaceRoot) => {
 };
 
 /**
- * Counts every literal, contiguous occurrence of the pseudo-element token in
- * shipped frontend source (see `SHIPPED_SOURCE_ROOTS`), ignoring comments and
- * mentions carrying `SEARCH_CANCEL_ALLOW_MARKER`, and requires the sole
- * remaining occurrence to be the canonical suppression rule in app.css.
+ * Rejects every literal, contiguous occurrence of the pseudo-element token in
+ * scanned source (see `SHIPPED_SOURCE_ROOTS`) that is not in a comment and not
+ * in a file on `SEARCH_CANCEL_MENTION_INVENTORY`, and separately requires
+ * app.css to contain exactly the canonical suppression rule.
  *
- * Ceiling, stated plainly: this is a text scan. It sees the token only where it
- * appears as contiguous ASCII. Concatenation, a backslash-newline line
- * continuation, or a unicode escape for one of its characters all hide it, and
- * no text scan can change that. Comment masking is a lexical heuristic, not a
- * parse, so a `//` inside a string literal earlier on the same line hides the
- * rest of that line too. Those are accepted limitations — the scan's
- * job is catching
- * accidental regressions in source that ships CSS via JavaScript. The emitted
- * CSS artifact assertion, not this scan, is the authority for anything that
- * reaches the CSS bundle.
+ * Ceiling, stated plainly: this is a text scan over a fixed list of roots. It
+ * sees the token only where it appears as contiguous ASCII, so concatenation, a
+ * backslash-newline line continuation inside one literal, or a unicode escape
+ * for one of its characters all hide it from this scan; no text scan can change
+ * that. Comment masking is a lexical heuristic, not a parse, so a raw `//` or
+ * `/*` inside a string, template literal or JSX text puts the masker into
+ * comment state and hides later real occurrences. And a file outside these
+ * roots is not seen at all.
+ *
+ * This scan is therefore the SECONDARY net: its value is naming a file and a
+ * line, which a bundle scan cannot. The authorities over what actually ships
+ * are `assertCanonicalSearchCancelCss` over the emitted CSS and
+ * `assertEmittedBundlesFreeOfSearchCancel` over the emitted JS/HTML; both see
+ * the real built output, so every evasion above is resolved by the time they
+ * run — as long as the injected rule reaches an emitted artifact at all.
  */
 export const assertShippedSourceSearchCancelCss = (workspaceRoot) => {
 	const sourceFiles = collectShippedSourcePaths(workspaceRoot).map(
@@ -458,47 +483,38 @@ export const assertShippedSourceSearchCancelCss = (workspaceRoot) => {
 				.join('/'),
 		}),
 	);
-	const occurrences = [];
-	const allowlisted = [];
+	const inventory = new Set(SEARCH_CANCEL_MENTION_INVENTORY);
+	const violations = [];
+	const inventoried = [];
 	for (const sourceFile of sourceFiles) {
 		const found = findTokenOccurrences(sourceFile, {
-			honorAllowMarker: true,
 			lineComments: !sourceFile.sourceName.endsWith('.css'),
 		});
-		occurrences.push(...found.occurrences);
-		allowlisted.push(...found.allowed);
+		if (inventory.has(sourceFile.sourceName)) {
+			inventoried.push(...found);
+		} else {
+			violations.push(...found);
+		}
 	}
 
 	const scannedRoots = `Scanned roots: ${SHIPPED_SOURCE_ROOTS.join(', ')}.`;
 
-	if (occurrences.length !== 1) {
+	if (violations.length > 0) {
 		throw new Error(
 			[
 				`Search cancel CSS policy failed for ${SOURCE_SEARCH_CANCEL_CANONICAL.label}.`,
-				`Expected exactly 1 occurrence of ${SEARCH_CANCEL_TOKEN}; ` +
-					`found ${occurrences.length} occurrences.`,
+				`Found ${violations.length} occurrence(s) of ${SEARCH_CANCEL_TOKEN} ` +
+					`outside the committed mention inventory.`,
 				'Occurrences mentioning the pseudo-element:',
-				occurrences.length === 0
-					? '- no source mentions the pseudo-element'
-					: formatOccurrences(occurrences),
+				formatOccurrences(violations),
 				`Required canonical source: ${SOURCE_SEARCH_CANCEL_CANONICAL.sourceName}`,
-				`A legitimate mention is exempted by putting "${SEARCH_CANCEL_ALLOW_MARKER}" ` +
-					`on its line or the line above — never by splitting the token.`,
-				scannedRoots,
-			].join('\n'),
-		);
-	}
-
-	const [occurrence] = occurrences;
-	if (occurrence.sourceName !== SOURCE_SEARCH_CANCEL_CANONICAL.sourceName) {
-		throw new Error(
-			[
-				`Search cancel CSS policy failed for ${SOURCE_SEARCH_CANCEL_CANONICAL.label}.`,
-				'The sole pseudo-element occurrence is outside the canonical source.',
-				'Occurrence mentioning the pseudo-element:',
-				formatOccurrences(occurrences),
-				`Required source: ${SOURCE_SEARCH_CANCEL_CANONICAL.sourceName}`,
-				`Actual source: ${occurrence.sourceName}`,
+				'Only these files may mention the token:',
+				SEARCH_CANCEL_MENTION_INVENTORY.map((entry) => `- ${entry}`).join('\n'),
+				'There is no in-file exemption marker. Adding a file to ' +
+					'SEARCH_CANCEL_MENTION_INVENTORY in ' +
+					'apps/front/scripts/search-cancel-css-policy.mjs is a reviewed diff ' +
+					'that must also update the pinning test — never split the token to ' +
+					'hide it from this scan.',
 				scannedRoots,
 			].join('\n'),
 		);
@@ -508,13 +524,72 @@ export const assertShippedSourceSearchCancelCss = (workspaceRoot) => {
 		(sourceFile) =>
 			sourceFile.sourceName === SOURCE_SEARCH_CANCEL_CANONICAL.sourceName,
 	);
+	if (!canonicalSourceFile) {
+		throw new Error(
+			[
+				`Search cancel CSS policy failed for ${SOURCE_SEARCH_CANCEL_CANONICAL.label}.`,
+				`The canonical stylesheet ${SOURCE_SEARCH_CANCEL_CANONICAL.sourceName} ` +
+					`was not found in any scanned root.`,
+				scannedRoots,
+			].join('\n'),
+		);
+	}
 	assertCanonicalSearchCancelCss(
 		[canonicalSourceFile],
 		SOURCE_SEARCH_CANCEL_CANONICAL,
 	);
 
 	return {
-		allowlistedCount: allowlisted.length,
+		inventoriedMentionCount: inventoried.length,
+		inventorySize: SEARCH_CANCEL_MENTION_INVENTORY.length,
 		sourceFileCount: sourceFiles.length,
 	};
+};
+
+/**
+ * THE SECOND AUTHORITY. Asserts that the pseudo-element token appears nowhere
+ * in the emitted client and server JavaScript, or in any emitted HTML, after a
+ * real production build.
+ *
+ * The canonical suppression lives in a CSS asset, which
+ * `assertCanonicalSearchCancelCss` covers. There is no legitimate reason for
+ * the token to be in emitted JavaScript at all, so the permitted count here is
+ * zero.
+ *
+ * This is an assertion over the real built thing. It covers whatever put the
+ * rule there — a runtime `<style>` injection, a `<style>{CONSTANT}</style>`
+ * render, a Vite plugin transform from a file in no scanned root, a future
+ * source directory nobody added to `SHIPPED_SOURCE_ROOTS` — without a
+ * hand-maintained source list that the next reviewer defeats by finding root
+ * number seven.
+ *
+ * Deliberately a raw scan: emitted output is not source, so nothing here is
+ * comment-masked and nothing is exempt.
+ *
+ * `bundles` are `{ source, sourceName }` records for every emitted file whose
+ * extension is in `EMITTED_BUNDLE_FILE_EXTENSIONS`.
+ */
+export const assertEmittedBundlesFreeOfSearchCancel = (bundles) => {
+	const occurrences = [];
+	for (const bundle of bundles) {
+		occurrences.push(
+			...findTokenOccurrences(bundle, { maskCommentSyntax: false }),
+		);
+	}
+
+	if (occurrences.length > 0) {
+		throw new Error(
+			[
+				'Search cancel CSS policy failed for emitted production JavaScript/HTML.',
+				`Expected 0 occurrences of ${SEARCH_CANCEL_TOKEN}; ` +
+					`found ${occurrences.length}.`,
+				'The canonical suppression belongs in the CSS bundle, so this token ' +
+					'must never reach emitted JavaScript or HTML.',
+				'Occurrences mentioning the pseudo-element:',
+				formatOccurrences(occurrences),
+			].join('\n'),
+		);
+	}
+
+	return { scannedFileCount: bundles.length };
 };
