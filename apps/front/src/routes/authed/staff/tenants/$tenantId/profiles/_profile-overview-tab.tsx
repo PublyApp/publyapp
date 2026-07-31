@@ -112,28 +112,31 @@ const MembersPreviewBody = ({
 	);
 };
 
-/** Tab-switch link that preserves the rest of the URL search state, mirroring
- * `ProfileSectionNavLink`'s navigation contract (overview clears the param). */
-const ProfileTabLink = ({
+const SECTION_ROUTES = {
+	permissions: '/staff/tenants/$tenantId/profiles/$profileId/permissions',
+	members: '/staff/tenants/$tenantId/profiles/$profileId/members',
+} as const;
+
+/** Section link that preserves the rest of the URL search state, mirroring
+ * `ProfileSectionNavLink`'s navigation contract. Sections are path segments
+ * since #977; only the edit drawer's flag still travels in the search. */
+const ProfileSectionLink = ({
 	tenantId,
 	profileId,
-	tab,
+	section,
 	className,
 	children,
 }: {
 	tenantId: string;
 	profileId: string;
-	tab: 'permissions' | 'members';
+	section: 'permissions' | 'members';
 	className?: string;
 	children: ReactNode;
 }) => (
 	<Link
-		to="/staff/tenants/$tenantId/profiles/$profileId"
+		to={SECTION_ROUTES[section]}
 		params={{ tenantId, profileId }}
-		search={(previous: ProfileDetailsSearchParams) => ({
-			...previous,
-			tab,
-		})}
+		search={(previous: ProfileDetailsSearchParams) => previous}
 		className={className}
 	>
 		{children}
@@ -280,14 +283,14 @@ export const ProfileOverviewTab = ({
 								) : null}
 							</div>
 						) : (
-							<ProfileTabLink
+							<ProfileSectionLink
 								tenantId={tenantId}
 								profileId={profile.id}
-								tab="members"
+								section="members"
 								className="publy-stat-card-link"
 							>
 								{t('view-members')}
-							</ProfileTabLink>
+							</ProfileSectionLink>
 						)
 					}
 				>
@@ -391,15 +394,15 @@ export const ProfileOverviewTab = ({
 									</p>
 								) : null}
 							</div>
-							<ProfileTabLink
+							<ProfileSectionLink
 								tenantId={tenantId}
 								profileId={profile.id}
-								tab="permissions"
+								section="permissions"
 								className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
 							>
 								{t('manage')}
 								<IconArrowRight aria-hidden="true" className="size-3.5" />
-							</ProfileTabLink>
+							</ProfileSectionLink>
 						</div>
 						<PermissionGlanceBody
 							glance={glance}
@@ -419,14 +422,14 @@ export const ProfileOverviewTab = ({
 								{t('common:members')} · {profile.userAccountCount}
 							</p>
 							{profile.userAccountCount > 0 ? (
-								<ProfileTabLink
+								<ProfileSectionLink
 									tenantId={tenantId}
 									profileId={profile.id}
-									tab="members"
+									section="members"
 									className="text-xs font-medium text-muted-foreground hover:text-foreground"
 								>
 									{t('view-all-count', { total: profile.userAccountCount })}
-								</ProfileTabLink>
+								</ProfileSectionLink>
 							) : null}
 						</div>
 						<MembersPreviewBody

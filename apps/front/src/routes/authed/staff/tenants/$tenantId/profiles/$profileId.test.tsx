@@ -24,29 +24,33 @@ type BlockerArgs = {
 
 const PROFILE_PATHNAME =
 	'/staff/tenants/11111111-1111-1111-1111-111111111111/profiles/22222222-2222-2222-2222-222222222222';
+const PERMISSIONS_PATHNAME = `${PROFILE_PATHNAME}/permissions`;
+const MEMBERS_PATHNAME = `${PROFILE_PATHNAME}/members`;
+const PROFILES_LIST_PATHNAME =
+	'/staff/tenants/11111111-1111-1111-1111-111111111111/profiles';
 
-// A navigation that leaves this exact profile route (sibling route / browser
-// Back). Used as the default args for the bare `capturedShouldBlockFn()` calls
-// that only exercise the open+dirty gate.
+// A navigation that leaves this profile's own section routes (sibling route /
+// browser Back). Used as the default args for the bare
+// `capturedShouldBlockFn()` calls that only exercise the open+dirty gate.
 const realNavigationBlockerArgs: BlockerArgs = {
 	current: { pathname: PROFILE_PATHNAME, search: { edit: 1 } },
 	next: {
-		pathname: '/staff/tenants/11111111-1111-1111-1111-111111111111/profiles',
+		pathname: PROFILES_LIST_PATHNAME,
 		search: {},
 	},
 	action: 'PUSH',
 };
 
-// A tab switch: same pathname, `edit=1` preserved so the drawer stays open and
-// the draft is intact.
-const tabSwitchBlockerArgs: BlockerArgs = {
+// A section switch: a different pathname under the same layout, `edit=1`
+// preserved so the drawer stays mounted and the draft is intact.
+const sectionSwitchBlockerArgs: BlockerArgs = {
 	current: {
 		pathname: PROFILE_PATHNAME,
-		search: { edit: 1, tab: 'overview' },
+		search: { edit: 1 },
 	},
 	next: {
-		pathname: PROFILE_PATHNAME,
-		search: { edit: 1, tab: 'permissions' },
+		pathname: PERMISSIONS_PATHNAME,
+		search: { edit: 1 },
 	},
 	action: 'PUSH',
 };
@@ -54,6 +58,10 @@ const tabSwitchBlockerArgs: BlockerArgs = {
 const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
 	search: {} as Record<string, unknown>,
+	pathname: '',
+	/** Rendered in place of the router's `<Outlet />`; the suite swaps in a
+	 * probe that consumes the REAL details context the layout publishes. */
+	renderOutlet: undefined as (() => JSX.Element) | undefined,
 	queryClient: {
 		invalidateQueries: vi.fn().mockResolvedValue(undefined),
 	},
@@ -81,11 +89,7 @@ const mocks = vi.hoisted(() => ({
 		| undefined,
 	capturedOnDirtyChange: undefined as ((isDirty: boolean) => void) | undefined,
 	capturedOnSaved: undefined as (() => void) | undefined,
-	capturedMatrixDirtyChange: undefined as
-		| ((isDirty: boolean) => void)
-		| undefined,
 	permissionKeysCacheRevision: 1,
-	capturedGrantedRevision: undefined as number | undefined,
 	language: 'en',
 }));
 
@@ -147,6 +151,17 @@ vi.mock('@tanstack/react-router', () => ({
 			rawShouldBlockFn(args ?? realNavigationBlockerArgs);
 		return mocks.blockerResolver;
 	},
+	useRouterState: ({
+		select,
+	}: {
+		select: (state: { location: { pathname: string } }) => unknown;
+	}) => select({ location: { pathname: mocks.pathname } }),
+	Outlet: () =>
+		mocks.renderOutlet ? (
+			mocks.renderOutlet()
+		) : (
+			<div data-testid="profile-section-outlet" />
+		),
 }));
 
 vi.mock('@tanstack/react-query', async () => {
@@ -291,29 +306,6 @@ vi.mock('~/lib/query/staff-tenant-profiles', () => ({
 
 vi.mock('~/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
-}));
-
-vi.mock('./_profile-permissions-tab', () => ({
-	ProfilePermissionsTab: ({
-		onDirtyChange,
-		grantedRevision,
-	}: {
-		onDirtyChange: (isDirty: boolean) => void;
-		grantedRevision: number;
-	}) => {
-		mocks.capturedMatrixDirtyChange = onDirtyChange;
-		mocks.capturedGrantedRevision = grantedRevision;
-		return <div data-testid="staff-tenant-profile-permissions-content" />;
-	},
-}));
-
-vi.mock('./_profile-members-tab', () => ({
-	ProfileMembersTab: () => (
-		<>
-			<div data-testid="staff-tenant-profile-members-table" />
-			<div data-testid="assign-members-drawer" />
-		</>
-	),
 }));
 
 vi.mock('./_profile-form-drawer', () => ({
@@ -493,7 +485,29 @@ vi.mock('react-i18next', () => ({
 }));
 
 import { Route } from './$profileId';
-import { parseProfileDetailsSearchParams } from './_profile-details-search';
+import {
+	type StaffTenantProfileDetailsContextValue,
+	useStaffTenantProfileDetailsContext,
+} from './$profileId/_details-context';
+import {
+	parseProfileDetailsSearchParams,
+	parseProfileOverviewSearchParams,
+} from './_profile-details-search';
+
+/**
+ * Stands in for the router's `<Outlet />` and consumes the REAL details
+ * context the layout publishes — the exact hook every section child route
+ * uses. Nothing here re-declares what the layout provides; it only records it
+ * so the suite can assert on it and drive the callbacks the children own
+ * (`onPermissionsDirtyChange`, `onDeleteRequest`, …).
+ */
+let sectionContext: StaffTenantProfileDetailsContextValue | undefined;
+
+const DetailsContextProbe = () => {
+	sectionContext = useStaffTenantProfileDetailsContext();
+
+	return <div data-testid="profile-section-outlet" />;
+};
 
 const buildQueryResult = (overrides: Record<string, unknown> = {}) => ({
 	data: undefined,
@@ -556,15 +570,16 @@ describe('staff tenant profile details route', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mocks.search = {};
+		mocks.pathname = PROFILE_PATHNAME;
+		mocks.renderOutlet = () => <DetailsContextProbe />;
+		sectionContext = undefined;
 		mocks.blockerResolver.status = 'idle';
 		mocks.blockerResolver.proceed = undefined;
 		mocks.blockerResolver.reset = undefined;
 		mocks.capturedShouldBlockFn = undefined;
 		mocks.capturedOnDirtyChange = undefined;
 		mocks.capturedOnSaved = undefined;
-		mocks.capturedMatrixDirtyChange = undefined;
 		mocks.permissionKeysCacheRevision = 1;
-		mocks.capturedGrantedRevision = undefined;
 		mocks.language = 'en';
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
 		mocks.useDeleteStaffTenantProfileMutation.mockReturnValue({
@@ -760,6 +775,8 @@ describe('staff tenant profile details route', () => {
 		const editButton = screen.getByRole('button', { name: 'Edit' });
 		expect(editButton.querySelector('.tabler-icon-pencil')).toBeTruthy();
 		expect(editButton.className).toContain('h-8');
+		// #977: the count badges next to Permissions and Members survive the
+		// move to path segments, and the section links are real hrefs.
 		expect(tabs.textContent).toContain('Overview');
 		expect(tabs.textContent).toContain('Permissions2');
 		expect(tabs.textContent).toContain('Members7');
@@ -767,39 +784,32 @@ describe('staff tenant profile details route', () => {
 			'Overview',
 		);
 		expect(
-			screen.getByTestId('staff-tenant-profile-overview-content'),
-		).toBeTruthy();
+			screen.getByRole('link', { name: 'Permissions2' }).getAttribute('href'),
+		).toBe(PERMISSIONS_PATHNAME);
+		expect(
+			screen.getByRole('link', { name: 'Members7' }).getAttribute('href'),
+		).toBe(MEMBERS_PATHNAME);
+		// The section body itself is a child route now, rendered through the
+		// layout's `<Outlet />`.
+		expect(screen.getByTestId('profile-section-outlet')).toBeTruthy();
 		expect(screen.queryByText('Basics')).toBeNull();
 		expect(
 			screen
 				.getByRole('link', { name: 'Back to Acme Corporation profiles' })
 				.getAttribute('href'),
 		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/profiles');
-		// Overview stat cards (computed from the granted keys + catalog).
-		expect(screen.getByTestId('profile-stat-members').textContent).toContain(
-			'7',
-		);
+		// What the layout resolves once and publishes to whichever section
+		// child is mounted (the Overview body's own rendering of these values
+		// is covered by `_profile-overview-tab.test.tsx`).
+		expect(sectionContext?.profile.name).toBe('Approvers');
+		expect(sectionContext?.permissionKeys).toEqual([
+			'tenant.approvals.review',
+			'tenant.users.read',
+		]);
 		expect(
-			screen.getByTestId('profile-stat-permissions').textContent,
-		).toContain('/ 3');
-		expect(screen.getByTestId('profile-stat-modules').textContent).toContain(
-			'with access',
-		);
-		expect(screen.getByTestId('profile-stat-type').textContent).toContain(
-			'System profile',
-		);
-		// The glance is a per-module granted-of-total count, not a per-permission
-		// list — the catalog fixture's single "tenant" module renders one row.
-		expect(screen.getByText('Tenant')).toBeTruthy();
-		expect(screen.getByText('2/3')).toBeTruthy();
-		expect(screen.queryByText('Review approvals')).toBeNull();
-		expect(screen.queryByText('Read users')).toBeNull();
-		expect(screen.queryByText('Write users')).toBeNull();
-		// One module with access → singular "module" (plural-key resolution).
-		expect(screen.getByText('2 of 3 granted across 1 module')).toBeTruthy();
-		// The assign/unassign editing UI has moved off Overview (step 3).
-		expect(screen.queryByRole('button', { name: /^Assign / })).toBeNull();
-		expect(screen.queryByRole('button', { name: /^Unassign / })).toBeNull();
+			sectionContext?.permissionGroups.map((group) => group.moduleKey),
+		).toEqual(['tenant']);
+		expect(sectionContext?.locale).toBe('en');
 		expect(mocks.useStaffTenantProfileDetailsQuery).toHaveBeenCalledWith(
 			{
 				tenantId: '11111111-1111-1111-1111-111111111111',
@@ -879,8 +889,11 @@ describe('staff tenant profile details route', () => {
 		expect(tenantBand.textContent).toContain('publyapp.com/—');
 	});
 
-	test('renders the URL-selected permissions and canonical members tabs with counted tabs', () => {
-		mocks.search = { tab: 'permissions' };
+	// #977: the section is read off the URL's PATHNAME now, not `?tab=`. The
+	// active-tab highlight, the badges, and the payload the mounted section
+	// child receives all follow the path.
+	test('marks the section named by the pathname as current and keeps its count badge', () => {
+		mocks.pathname = PERMISSIONS_PATHNAME;
 		mocks.permissionKeysCacheRevision = 7;
 		const view = renderPage();
 
@@ -889,16 +902,15 @@ describe('staff tenant profile details route', () => {
 				.getByTestId('staff-tenant-profile-tabs')
 				.querySelector('[aria-current="page"]')?.textContent,
 		).toContain('Permissions2');
-		expect(
-			screen.getByTestId('staff-tenant-profile-permissions-content'),
-		).toBeTruthy();
-		expect(mocks.capturedGrantedRevision).toBe(7);
-		expect(
-			screen.queryByTestId('staff-tenant-profile-overview-content'),
-		).toBeNull();
+		expect(sectionContext?.permissionKeysRevision).toBe(7);
+		// Overview's members preview is fetched only on Overview.
+		expect(mocks.useStaffTenantProfileMembersQuery).toHaveBeenLastCalledWith(
+			expect.anything(),
+			expect.objectContaining({ enabled: false }),
+		);
 
 		view.unmount();
-		mocks.search = { tab: 'members' };
+		mocks.pathname = MEMBERS_PATHNAME;
 		renderPage();
 
 		expect(
@@ -906,76 +918,54 @@ describe('staff tenant profile details route', () => {
 				.getByTestId('staff-tenant-profile-tabs')
 				.querySelector('[aria-current="page"]')?.textContent,
 		).toContain('Members7');
-		expect(
-			screen.getByTestId('staff-tenant-profile-members-table'),
-		).toBeTruthy();
-		expect(screen.getByTestId('assign-members-drawer')).toBeTruthy();
+		expect(sectionContext?.profile.userAccountCount).toBe(7);
 	});
 
-	test('validates profile tab search state and keeps the numeric edit flag', () => {
-		expect(parseProfileDetailsSearchParams({})).toEqual({
+	test('validates the detail search state and keeps the numeric edit flag, with no tab key', () => {
+		expect(parseProfileDetailsSearchParams({})).toEqual({ edit: undefined });
+		expect(parseProfileDetailsSearchParams({ edit: '1' })).toEqual({ edit: 1 });
+		expect(parseProfileDetailsSearchParams({ edit: 2 })).toEqual({
 			edit: undefined,
-			tab: undefined,
-		});
-		expect(
-			parseProfileDetailsSearchParams({ edit: '1', tab: 'permissions' }),
-		).toEqual({ edit: 1, tab: 'permissions' });
-		expect(
-			parseProfileDetailsSearchParams({ edit: 2, tab: 'unsupported' }),
-		).toEqual({ edit: undefined, tab: undefined });
-		expect(parseProfileDetailsSearchParams({ tab: 'overview' })).toEqual({
-			edit: undefined,
-			tab: undefined,
 		});
 	});
 
-	test('moves the delete action into a labeled danger-zone section under permissions', () => {
-		mocks.toStaffTenantProfileDetails.mockReturnValue({
-			...nonDefaultProfile,
+	// #977: `?tab=` is legacy. The overview (index) route still parses it —
+	// that is what makes the redirect possible — but only for the two values
+	// that now name a real section path.
+	test('parses only the two legacy tab values that name a section path', () => {
+		expect(parseProfileOverviewSearchParams({})).toEqual({ tab: undefined });
+		expect(parseProfileOverviewSearchParams({ tab: 'permissions' })).toEqual({
+			tab: 'permissions',
 		});
+		expect(parseProfileOverviewSearchParams({ tab: 'members' })).toEqual({
+			tab: 'members',
+		});
+		expect(parseProfileOverviewSearchParams({ tab: 'overview' })).toEqual({
+			tab: undefined,
+		});
+		expect(parseProfileOverviewSearchParams({ tab: 'unsupported' })).toEqual({
+			tab: undefined,
+		});
+	});
+
+	// The delete flow stays on the LAYOUT: the Overview body only asks for it
+	// (`onDeleteRequest`), which is what the mounted section child calls.
+	test('opens the delete confirmation from the section body request', async () => {
+		mocks.toStaffTenantProfileDetails.mockReturnValue({ ...nonDefaultProfile });
 
 		renderPage();
 
-		const editButton = screen.getByRole('button', { name: 'Edit' });
-		const deleteButton = screen.getByRole('button', {
-			name: 'Delete profile',
-		});
-		const dangerZoneHeading = screen.getByRole('heading', {
-			name: 'Danger zone',
-		});
-		const dangerZoneSection = dangerZoneHeading.closest('section');
+		expect(screen.queryByText('Delete tenant profile')).toBeNull();
+		act(() => sectionContext?.onDeleteRequest());
 
-		expect(deleteButton).toBeTruthy();
-		expect(
-			screen
-				.getByTestId('staff-tenant-profile-identity')
-				.contains(deleteButton),
-		).toBe(false);
-		expect(editButton.closest('section')).toBe(null);
-		expect(dangerZoneSection).not.toBeNull();
-		expect(dangerZoneSection?.contains(deleteButton)).toBe(true);
+		await waitFor(() =>
+			expect(screen.getByText('Delete tenant profile')).toBeTruthy(),
+		);
 		expect(
 			screen.getByText(
 				'This will permanently delete this tenant profile. Users assigned to this profile may be affected and the action cannot be undone.',
 			),
 		).toBeTruthy();
-	});
-
-	test('shows the danger-zone description and no delete button for default profiles', () => {
-		renderPage();
-
-		const dangerZoneHeading = screen.getByRole('heading', {
-			name: 'Danger zone',
-		});
-		const dangerZoneSection = dangerZoneHeading.closest('section');
-
-		expect(dangerZoneSection).not.toBeNull();
-		expect(
-			dangerZoneSection?.textContent?.includes(
-				"Default profiles can't be deleted.",
-			),
-		).toBe(true);
-		expect(screen.queryByRole('button', { name: 'Delete profile' })).toBeNull();
 	});
 
 	test('edit profile button navigates to open the edit drawer via search state', () => {
@@ -988,10 +978,7 @@ describe('staff tenant profile details route', () => {
 			search?: (previous: Record<string, unknown>) => Record<string, unknown>;
 		};
 		expect(navigation.replace).toBe(true);
-		expect(navigation.search?.({ tab: 'permissions' })).toEqual({
-			edit: 1,
-			tab: 'permissions',
-		});
+		expect(navigation.search?.({})).toEqual({ edit: 1 });
 	});
 
 	test('renders the minimal edit-details drawer when the edit search param is set', () => {
@@ -1021,7 +1008,7 @@ describe('staff tenant profile details route', () => {
 
 		renderPage();
 
-		fireEvent.click(screen.getByRole('button', { name: 'Delete profile' }));
+		act(() => sectionContext?.onDeleteRequest());
 
 		await waitFor(() =>
 			expect(screen.getByText('Delete tenant profile')).toBeTruthy(),
@@ -1071,7 +1058,7 @@ describe('staff tenant profile details route', () => {
 
 		renderPage();
 
-		fireEvent.click(screen.getByRole('button', { name: 'Delete profile' }));
+		act(() => sectionContext?.onDeleteRequest());
 
 		await waitFor(() =>
 			expect(screen.getByText('Delete tenant profile')).toBeTruthy(),
@@ -1089,13 +1076,6 @@ describe('staff tenant profile details route', () => {
 		).toBeNull();
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 		expect(mocks.navigate).not.toHaveBeenCalled();
-	});
-
-	test('disables the delete path for default profiles', () => {
-		renderPage();
-
-		expect(screen.getByText("Default profiles can't be deleted.")).toBeTruthy();
-		expect(screen.queryByRole('button', { name: 'Delete profile' })).toBeNull();
 	});
 
 	test('renders the not-found view without logging out for a malformed id', () => {
@@ -1278,24 +1258,31 @@ describe('staff tenant profile details route', () => {
 		const navigation = mocks.navigate.mock.calls.at(-1)?.[0] as {
 			search?: (previous: Record<string, unknown>) => Record<string, unknown>;
 		};
-		expect(navigation.search?.({ edit: 1, tab: 'members' })).toEqual({
-			edit: undefined,
-			tab: 'members',
-		});
+		expect(navigation.search?.({ edit: 1 })).toEqual({ edit: undefined });
 	});
 
-	// A tab switch stays on this exact profile route and preserves `edit=1`, so
-	// the drawer stays open and the draft is intact — the guard must not fire a
-	// misleading discard prompt. A real navigation away (sibling route / Back)
-	// still blocks the dirty draft.
-	test('the nav-guard allows dirty tab switches but still blocks real navigation away', () => {
+	// #977: a section switch is a PATHNAME change now, but the edit drawer is
+	// hosted by the LAYOUT, so it stays mounted with its draft intact across
+	// one — the guard must not fire a misleading discard prompt there. A real
+	// navigation away (sibling route / Back) still blocks the dirty draft.
+	test('the nav-guard allows dirty section switches but still blocks real navigation away', () => {
 		mocks.search = { edit: 1 };
 		renderPage();
 
 		act(() => mocks.capturedOnDirtyChange?.(true));
 
-		// Tab switch (same pathname, edit preserved) → no block.
-		expect(mocks.capturedShouldBlockFn?.(tabSwitchBlockerArgs)).toBe(false);
+		// Section switch (a sibling section pathname, edit preserved) → no block.
+		expect(mocks.capturedShouldBlockFn?.(sectionSwitchBlockerArgs)).toBe(false);
+
+		// A sibling route that is NOT one of this layout's sections unmounts the
+		// drawer, even though it lives under the same profile path prefix.
+		expect(
+			mocks.capturedShouldBlockFn?.({
+				current: { pathname: PROFILE_PATHNAME, search: { edit: 1 } },
+				next: { pathname: `${PROFILE_PATHNAME}/users`, search: { edit: 1 } },
+				action: 'PUSH',
+			}),
+		).toBe(true);
 
 		// Real navigation off the profile route → still blocks.
 		expect(mocks.capturedShouldBlockFn?.(realNavigationBlockerArgs)).toBe(true);
@@ -1317,47 +1304,54 @@ describe('staff tenant profile details route', () => {
 		expect(reset).not.toHaveBeenCalled();
 	});
 
-	// Step 3: the inline Permissions matrix stages edits in a mounted tab; any
-	// navigation that leaves that tab discards them, so the page-level guard
-	// must prompt on a tab switch / Back while the matrix is dirty — without
-	// prompting when the drawer opens on the same tab (matrix stays mounted).
-	test('the nav-guard blocks leaving the Permissions tab while the inline matrix is dirty', () => {
-		const tabSwitchAway: BlockerArgs = {
-			current: { pathname: PROFILE_PATHNAME, search: { tab: 'permissions' } },
+	// Step 3 + #977: the inline Permissions matrix stages edits inside the
+	// mounted Permissions ROUTE, so any navigation that changes the pathname
+	// away from it discards them — a section switch, a sibling route, and a
+	// browser Back all do. Opening the edit drawer is a search-only change on
+	// the same pathname, which keeps the matrix mounted.
+	test('the nav-guard blocks leaving the Permissions section while the inline matrix is dirty', () => {
+		const sectionSwitchAway: BlockerArgs = {
+			current: { pathname: PERMISSIONS_PATHNAME, search: {} },
 			next: { pathname: PROFILE_PATHNAME, search: {} },
 			action: 'PUSH',
 		};
-		const backNavAway: BlockerArgs = {
-			current: { pathname: PROFILE_PATHNAME, search: { tab: 'permissions' } },
-			next: {
-				pathname:
-					'/staff/tenants/11111111-1111-1111-1111-111111111111/profiles',
-				search: {},
-			},
+		const siblingRouteAway: BlockerArgs = {
+			current: { pathname: PERMISSIONS_PATHNAME, search: {} },
+			next: { pathname: PROFILES_LIST_PATHNAME, search: {} },
 			action: 'PUSH',
 		};
-		const openDrawerSameTab: BlockerArgs = {
-			current: { pathname: PROFILE_PATHNAME, search: { tab: 'permissions' } },
-			next: {
-				pathname: PROFILE_PATHNAME,
-				search: { tab: 'permissions', edit: 1 },
-			},
+		const browserBack: BlockerArgs = {
+			current: { pathname: PERMISSIONS_PATHNAME, search: {} },
+			next: { pathname: PROFILES_LIST_PATHNAME, search: {} },
+			action: 'BACK',
+		};
+		const openDrawerSameSection: BlockerArgs = {
+			current: { pathname: PERMISSIONS_PATHNAME, search: {} },
+			next: { pathname: PERMISSIONS_PATHNAME, search: { edit: 1 } },
+			action: 'PUSH',
+		};
+		const closeDrawerSameSection: BlockerArgs = {
+			current: { pathname: PERMISSIONS_PATHNAME, search: { edit: 1 } },
+			next: { pathname: PERMISSIONS_PATHNAME, search: {} },
 			action: 'PUSH',
 		};
 
-		mocks.search = { tab: 'permissions' };
+		mocks.pathname = PERMISSIONS_PATHNAME;
 		renderPage();
 
-		expect(mocks.capturedShouldBlockFn?.(tabSwitchAway)).toBe(false);
+		expect(mocks.capturedShouldBlockFn?.(sectionSwitchAway)).toBe(false);
 
-		act(() => mocks.capturedMatrixDirtyChange?.(true));
+		act(() => sectionContext?.onPermissionsDirtyChange(true));
 
-		expect(mocks.capturedShouldBlockFn?.(tabSwitchAway)).toBe(true);
-		expect(mocks.capturedShouldBlockFn?.(backNavAway)).toBe(true);
-		// Opening the edit drawer keeps the matrix mounted on the same tab.
-		expect(mocks.capturedShouldBlockFn?.(openDrawerSameTab)).toBe(false);
+		expect(mocks.capturedShouldBlockFn?.(sectionSwitchAway)).toBe(true);
+		expect(mocks.capturedShouldBlockFn?.(siblingRouteAway)).toBe(true);
+		expect(mocks.capturedShouldBlockFn?.(browserBack)).toBe(true);
+		// Opening or closing the edit drawer keeps the matrix mounted on the
+		// same section pathname.
+		expect(mocks.capturedShouldBlockFn?.(openDrawerSameSection)).toBe(false);
+		expect(mocks.capturedShouldBlockFn?.(closeDrawerSameSection)).toBe(false);
 
-		act(() => mocks.capturedMatrixDirtyChange?.(false));
-		expect(mocks.capturedShouldBlockFn?.(tabSwitchAway)).toBe(false);
+		act(() => sectionContext?.onPermissionsDirtyChange(false));
+		expect(mocks.capturedShouldBlockFn?.(sectionSwitchAway)).toBe(false);
 	});
 });

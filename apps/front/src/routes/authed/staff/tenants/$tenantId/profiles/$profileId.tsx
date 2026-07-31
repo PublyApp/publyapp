@@ -4,8 +4,14 @@ import {
 	IconSearchOff,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
-import { type ReactNode, useRef, useState } from 'react';
+import {
+	createFileRoute,
+	Link,
+	Outlet,
+	useBlocker,
+	useRouterState,
+} from '@tanstack/react-router';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -15,8 +21,6 @@ import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import {
 	buildStaffTenantPermissionCatalogGroups,
 	getStaffTenantProfilePermissionKeysCacheSnapshot,
-	selectStaffTenantProfileCrumbName,
-	staffTenantProfileCrumbQuery,
 	toStaffTenantProfileDetails,
 	toStaffTenantProfileMemberRows,
 	toStaffTenantProfilePermissionKeys,
@@ -28,8 +32,6 @@ import {
 } from '~/lib/query/staff-tenant-profiles';
 import {
 	invalidateAllStaffTenantScopes,
-	selectStaffTenantCrumbName,
-	staffTenantCrumbQuery,
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
@@ -44,6 +46,16 @@ import {
 	TenantDetailsLoading,
 	TenantRetryActions,
 } from '../_tenant-details-shell';
+import { staffTenantProfileCrumbsBase } from './$profileId/_crumbs';
+import {
+	StaffTenantProfileDetailsContext,
+	type StaffTenantProfileDetailsContextValue,
+} from './$profileId/_details-context';
+import {
+	getActiveProfileSection,
+	isProfileSectionPathname,
+	profileSectionPathname,
+} from './$profileId/_sections';
 import {
 	parseProfileDetailsSearchParams,
 	type ProfileDetailsSearchParamInput,
@@ -51,9 +63,6 @@ import {
 } from './_profile-details-search';
 import { ProfileEditDetailsDrawer } from './_profile-edit-details-drawer';
 import { ProfileIdentityHeader } from './_profile-identity-header';
-import { ProfileMembersTab } from './_profile-members-tab';
-import { ProfileOverviewTab } from './_profile-overview-tab';
-import { ProfilePermissionsTab } from './_profile-permissions-tab';
 import { ProfileSectionNavLink } from './_profile-section-nav-link';
 import { ProfileTenantBand } from './_profile-tenant-band';
 
@@ -157,25 +166,11 @@ export const Route = createFileRoute(
 )({
 	staticData: {
 		i18nNamespaces: ['staff-tenant-profiles'],
-		crumbs: (params) => [
-			{ kind: 'label', labelKey: 'nav-tenants', to: '/staff/tenants' },
-			{
-				kind: 'entity',
-				to: `/staff/tenants/${params.tenantId}`,
-				query: staffTenantCrumbQuery,
-				select: selectStaffTenantCrumbName,
-			},
-			{
-				kind: 'label',
-				labelKey: 'common:profiles',
-				to: `/staff/tenants/${params.tenantId}/profiles`,
-			},
-			{
-				kind: 'entity',
-				query: staffTenantProfileCrumbQuery,
-				select: selectStaffTenantProfileCrumbName,
-			},
-		],
+		// Always matched alongside an index/permissions/members child (never
+		// the deepest match on its own — see `deriveBreadcrumbTrail`), but the
+		// contract requires every route to declare its own trail. The overview
+		// base is the correct value for this route's own path.
+		crumbs: staffTenantProfileCrumbsBase,
 	},
 	validateSearch: (search) =>
 		parseProfileDetailsSearchParams(search as ProfileDetailsSearchParamInput),
@@ -191,7 +186,17 @@ function StaffTenantProfileDetailsPage() {
 	const [pendingDelete, setPendingDelete] = useState(false);
 	const [shouldRedirectToLogout, setShouldRedirectToLogout] = useState(false);
 	const isEditDrawerOpen = search.edit === 1;
-	const activeTab = search.tab ?? 'overview';
+	// Sections are path segments (#977), so the active one is read off the
+	// URL's pathname rather than a `?tab=` param.
+	const pathname = useRouterState({
+		select: (state) => state.location.pathname,
+	});
+	const activeSection = getActiveProfileSection(pathname);
+	const permissionsPathname = profileSectionPathname(
+		tenantId,
+		profileId,
+		'permissions',
+	);
 	const [isEditFormDirty, setIsEditFormDirty] = useState(false);
 	// The inline Permissions matrix stages edits locally; it reports its dirty
 	// state up here so the page-level nav guard (below) can prompt before a tab
@@ -226,21 +231,20 @@ function StaffTenantProfileDetailsPage() {
 	// edit draft silently (tenants-r1-F2).
 	const editDrawerBlocker = useBlocker({
 		shouldBlockFn: ({ current, next }) => {
-			// Step-3 inline-matrix guard (independent of the edit drawer). Unsaved
-			// matrix edits live only in the mounted Permissions tab, so any
-			// navigation that leaves that tab — a switch to Overview/Members, a
-			// sibling route, or a browser Back — would discard them; prompt there.
-			// Staying on the Permissions tab (e.g. opening the edit drawer via
-			// `?edit=1`, which keeps the matrix mounted) must never prompt.
-			if (isPermissionsMatrixDirty) {
-				const nextSearch = next.search as ProfileDetailsSearchParams;
-				const leavesPermissionsTab =
-					next.pathname !== current.pathname ||
-					nextSearch.tab !== 'permissions';
-
-				if (leavesPermissionsTab) {
-					return true;
-				}
+			// Step-3 inline-matrix guard (independent of the edit drawer).
+			// Unsaved matrix edits live only in the mounted Permissions ROUTE,
+			// so since #977 "leaves the Permissions tab" is exactly "the
+			// pathname stops being the Permissions pathname" — a switch to
+			// Overview/Members, a sibling route, and a browser Back all change
+			// it. Staying on that pathname (opening or closing the edit drawer
+			// via `?edit=1`, a search-only change) keeps the matrix mounted and
+			// must never prompt.
+			if (
+				isPermissionsMatrixDirty &&
+				current.pathname === permissionsPathname &&
+				next.pathname !== permissionsPathname
+			) {
+				return true;
 			}
 
 			if (
@@ -251,13 +255,14 @@ function StaffTenantProfileDetailsPage() {
 				return false;
 			}
 
-			// A tab switch stays on this exact profile route (same pathname) and
-			// preserves `edit=1`, so the drawer stays open and the draft is
-			// intact — a discard prompt there would be misleading. Only block
-			// transitions that actually leave the open drawer (a browser Back, a
-			// sibling route, or dropping `edit`).
+			// The edit drawer is hosted by this LAYOUT route, so a section
+			// switch keeps it mounted with its draft intact — a discard prompt
+			// there would be misleading. Only block transitions that actually
+			// leave the open drawer: a pathname outside this profile's own
+			// sections (a sibling route such as `/users`, `/edit`, the profiles
+			// list, or a browser Back), or one that drops `edit`.
 			const staysOnOpenDrawer =
-				next.pathname === current.pathname &&
+				isProfileSectionPathname(next.pathname, tenantId, profileId) &&
 				(next.search as ProfileDetailsSearchParams).edit === 1;
 
 			return !staysOnOpenDrawer;
@@ -302,7 +307,7 @@ function StaffTenantProfileDetailsPage() {
 		},
 		{
 			enabled:
-				activeTab === 'overview' &&
+				activeSection === 'overview' &&
 				tenantId.length > 0 &&
 				profileId.length > 0 &&
 				!tenantQuery.isPending &&
@@ -440,49 +445,25 @@ function StaffTenantProfileDetailsPage() {
 		});
 	};
 
-	let activeTabContent: ReactNode;
-	if (activeTab === 'overview') {
-		activeTabContent = (
-			<ProfileOverviewTab
-				tenantId={tenantId}
-				profile={profile}
-				permissionKeys={permissionKeys}
-				permissionGroups={permissionGroups}
-				isCatalogPending={permissionCatalogQuery.isPending}
-				isCatalogError={permissionCatalogQuery.isError}
-				members={members}
-				membersPending={membersQuery.isPending}
-				membersError={membersQuery.isError}
-				locale={i18n.language}
-				onDeleteRequest={() => setPendingDelete(true)}
-				isDeletePending={deleteProfile.isPending}
-			/>
-		);
-	} else if (activeTab === 'permissions') {
-		activeTabContent = (
-			<ProfilePermissionsTab
-				tenantId={tenantId}
-				profileId={profileId}
-				grantedKeys={permissionKeys}
-				grantedRevision={permissionKeysCacheSnapshot?.revision ?? 0}
-				permissionGroups={permissionGroups}
-				isCatalogPending={permissionCatalogQuery.isPending}
-				isCatalogError={permissionCatalogQuery.isError}
-				catalogError={permissionCatalogQuery.error}
-				onDirtyChange={setIsPermissionsMatrixDirty}
-				onSessionExpired={() => setShouldRedirectToLogout(true)}
-			/>
-		);
-	} else {
-		activeTabContent = (
-			<ProfileMembersTab
-				tenantId={tenantId}
-				profileId={profileId}
-				memberCount={profile.userAccountCount}
-				onSessionExpired={() => setShouldRedirectToLogout(true)}
-			/>
-		);
-	}
+	const detailsContextValue: StaffTenantProfileDetailsContextValue = {
+		tenantId,
+		profileId,
+		profile,
+		permissionKeys,
+		permissionKeysRevision: permissionKeysCacheSnapshot?.revision ?? 0,
+		permissionGroups,
+		isCatalogPending: permissionCatalogQuery.isPending,
+		isCatalogError: permissionCatalogQuery.isError,
+		catalogError: permissionCatalogQuery.error,
+		locale: i18n.language,
+		members,
+		membersPending: membersQuery.isPending,
+		membersError: membersQuery.isError,
+		isDeletePending: deleteProfile.isPending,
+		onDeleteRequest: () => setPendingDelete(true),
+		onSessionExpired: () => setShouldRedirectToLogout(true),
+		onPermissionsDirtyChange: setIsPermissionsMatrixDirty,
+	};
 
 	return (
 		<div
@@ -512,25 +493,25 @@ function StaffTenantProfileDetailsPage() {
 				data-testid="staff-tenant-profile-tabs"
 			>
 				<ProfileSectionNavLink
-					activeTab={activeTab}
+					activeSection={activeSection}
 					label={t('common:overview')}
-					tab="overview"
+					section="overview"
 					tenantId={tenantId}
 					profileId={profileId}
 				/>
 				<ProfileSectionNavLink
-					activeTab={activeTab}
+					activeSection={activeSection}
 					count={permissionKeys.length}
 					label={t('common:permissions')}
-					tab="permissions"
+					section="permissions"
 					tenantId={tenantId}
 					profileId={profileId}
 				/>
 				<ProfileSectionNavLink
-					activeTab={activeTab}
+					activeSection={activeSection}
 					count={profile.userAccountCount}
 					label={t('common:members')}
-					tab="members"
+					section="members"
 					tenantId={tenantId}
 					profileId={profileId}
 				/>
@@ -548,7 +529,9 @@ function StaffTenantProfileDetailsPage() {
 				onOpenChange={setPendingDelete}
 			/>
 
-			{activeTabContent}
+			<StaffTenantProfileDetailsContext.Provider value={detailsContextValue}>
+				<Outlet />
+			</StaffTenantProfileDetailsContext.Provider>
 
 			<ProfileEditDetailsDrawer
 				tenantId={tenantId}

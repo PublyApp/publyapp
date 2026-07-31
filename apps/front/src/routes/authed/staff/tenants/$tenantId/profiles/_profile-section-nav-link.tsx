@@ -1,24 +1,28 @@
 import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
-import type {
-	ProfileDetailsSearchParams,
-	ProfileDetailsTab,
-} from './_profile-details-search';
+import type { ProfileSection } from './$profileId/_sections';
+import type { ProfileDetailsSearchParams } from './_profile-details-search';
+
+const SECTION_ROUTES = {
+	overview: '/staff/tenants/$tenantId/profiles/$profileId',
+	permissions: '/staff/tenants/$tenantId/profiles/$profileId/permissions',
+	members: '/staff/tenants/$tenantId/profiles/$profileId/members',
+} as const;
 
 export const ProfileSectionNavLink = ({
-	activeTab,
+	activeSection,
 	count,
 	label,
 	profileId,
-	tab,
+	section,
 	tenantId,
 }: {
-	activeTab: ProfileDetailsTab;
+	activeSection: ProfileSection;
 	count?: number;
 	label: string;
 	profileId: string;
-	tab: ProfileDetailsTab;
+	section: ProfileSection;
 	tenantId: string;
 }) => {
 	const content: ReactNode = (
@@ -30,7 +34,7 @@ export const ProfileSectionNavLink = ({
 		</>
 	);
 
-	if (activeTab === tab) {
+	if (activeSection === section) {
 		return (
 			<span
 				aria-current="page"
@@ -43,12 +47,14 @@ export const ProfileSectionNavLink = ({
 
 	return (
 		<Link
-			to="/staff/tenants/$tenantId/profiles/$profileId"
+			to={SECTION_ROUTES[section]}
 			params={{ tenantId, profileId }}
-			search={(previous: ProfileDetailsSearchParams) => ({
-				...previous,
-				tab: tab === 'overview' ? undefined : tab,
-			})}
+			// Sections are path segments now (#977), but the edit drawer's
+			// `?edit=1` flag is still view state that belongs on whichever
+			// section you are looking at — and the drawer is hosted by the
+			// layout, so it survives a section switch. Carry the search across
+			// rather than silently dropping it.
+			search={(previous: ProfileDetailsSearchParams) => previous}
 			className="inline-flex items-center gap-2 border-b-2 border-transparent px-3 pb-2.5 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground"
 		>
 			{content}
