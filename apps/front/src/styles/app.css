@@ -818,41 +818,12 @@ html.dark {
 
 	/* ---- Non-authed shell (marketing / auth) ---- */
 
-	.app-shell-shell {
-		@apply flex min-h-screen flex-col bg-background;
-	}
-
-	.app-shell-header {
-		@apply border-b border-border bg-card;
-	}
-
-	.app-shell-header-inner {
-		@apply mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6;
-	}
-
-	.app-shell-header-inner .app-shell-desktop-nav {
-		@apply hidden gap-2 sm:flex;
-	}
-
-	.app-shell-mobile-menu-wrap {
-		@apply border-t border-border bg-card sm:hidden;
-	}
-
-	.app-shell-mobile-menu {
-		@apply flex flex-col gap-1 p-4;
-	}
-
-	.app-shell-main-card {
-		@apply bg-card;
-	}
-
-	.app-shell-header-subtitle {
-		color: var(--publy-foreground-muted);
-	}
-
-	.app-shell-shell > .app-shell-main {
-		@apply mx-auto w-full max-w-6xl;
-	}
+	/* The non-authed chrome that used to live here (`.app-shell-header*`,
+	   `.app-shell-mobile-menu*`, `.app-shell-main-card`, and the
+	   `.app-shell-shell` wrapper's marketing sizing) was deleted with its only
+	   consumer when the marketing surface moved to the marketing shell
+	   (#1038). `.app-shell-shell` itself is gone from the DOM too — the authed
+	   surface uses `.app-shell-workspace`. */
 
 	/* ---- Authenticated workspace shell (token-driven grid) ---- */
 
