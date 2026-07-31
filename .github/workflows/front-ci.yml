@@ -160,6 +160,9 @@ jobs:
       - name: Verify front production build emits a CSS asset
         run: node apps/front/scripts/verify-build-css-link.mjs
 
+      - name: Verify front production font bundle references and unicode coverage
+        run: node apps/front/scripts/verify-font-bundle.mjs --dist apps/front/dist --locales-dir apps/front/src/i18n/locales
+
       - name: Smoke start front server and verify stylesheet tag
         env:
           PUBLIC_API_BASE_URL: 'http://127.0.0.1:5000'
