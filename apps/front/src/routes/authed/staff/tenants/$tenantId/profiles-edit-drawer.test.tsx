@@ -1,0 +1,523 @@
+/**
+ * @vitest-environment jsdom
+ */
+/**
+ * #972 — the tenant profiles LIST hosts the quick-edit drawer.
+ *
+ * This suite is deliberately not written the way `profiles.test.tsx` is. That
+ * file mocks `@tanstack/react-router` wholesale and hands the page a plain
+ * object as its search state, so it can prove which arguments the page passes
+ * to a `navigate` spy — but it cannot observe a URL, a history stack, or a
+ * browser Back, which is exactly what this issue is about.
+ *
+ * Everything below drives the REAL production route object
+ * (`profiles.tsx`'s exported `Route`, with its real `validateSearch`, its real
+ * component and its real row actions), the REAL `ProfileEditDetailsDrawer`,
+ * and a REAL router over a REAL memory history. The route is re-parented onto
+ * a small root the same way `routeTree.gen.ts` re-parents it onto the authed
+ * layout (`Route.update({ id, path, getParentRoute })`), which is the only
+ * reason its `Route.useSearch()`/`useNavigate()` resolve here — no copy of the
+ * route's options is made, so a regression in the real route reaches this
+ * suite directly.
+ *
+ * Only the data layer is faked (the query/mutation modules and the toast
+ * owner); no network, no Kiota client.
+ */
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+	createMemoryHistory,
+	createRootRoute,
+	createRoute,
+	createRouter,
+	Outlet,
+	RouterProvider,
+} from '@tanstack/react-router';
+import {
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+
+const TENANT_ID = '11111111-1111-1111-1111-111111111111';
+const APPROVERS_ID = '0198c0de-1111-7000-8000-aaaaaaaaaaaa';
+const SUPPORT_ID = '0198c0de-2222-7000-8000-bbbbbbbbbbbb';
+const LIST_PATH = `/staff/tenants/${TENANT_ID}/profiles`;
+
+type ProfileRow = {
+	id: string;
+	name: string;
+	description: string | null;
+	icon?: string | null;
+	tone?: string | null;
+	isDefault: boolean;
+	userAccountCount: number;
+	permissionsCount: number;
+};
+
+const buildRows = (): ProfileRow[] => [
+	{
+		id: APPROVERS_ID,
+		name: 'Approvers',
+		description: 'Can review approvals',
+		isDefault: true,
+		userAccountCount: 7,
+		permissionsCount: 12,
+	},
+	{
+		id: SUPPORT_ID,
+		name: 'Support',
+		description: 'Respond to member tickets',
+		isDefault: false,
+		userAccountCount: 5,
+		permissionsCount: 4,
+	},
+];
+
+const mocks = vi.hoisted(() => ({
+	rows: [] as unknown[],
+	updateProfileMutation: vi.fn(),
+	deleteProfileMutation: vi.fn(),
+	bulkDeleteProfileMutation: vi.fn(),
+	invalidateAllStaffTenantScopes: vi.fn().mockResolvedValue(undefined),
+	displayLocalMutationFailure: vi.fn().mockResolvedValue(undefined),
+	toastSuccess: vi.fn(),
+	toastError: vi.fn(),
+	toastWarning: vi.fn(),
+}));
+
+vi.mock('~/lib/query/staff-tenant-profiles', () => ({
+	toStaffTenantProfileRows: () => mocks.rows,
+	useStaffTenantProfilesQuery: () => ({
+		data: { data: mocks.rows, nextCursor: null },
+		error: null,
+		isPending: false,
+		isError: false,
+		isFetching: false,
+		refetch: vi.fn().mockResolvedValue(undefined),
+	}),
+	useUpdateStaffTenantProfileMutation: () => ({
+		mutateAsync: mocks.updateProfileMutation,
+		isPending: false,
+	}),
+	useDeleteStaffTenantProfileMutation: () => ({
+		mutateAsync: mocks.deleteProfileMutation,
+		isPending: false,
+	}),
+	useBulkDeleteStaffTenantProfilesMutation: () => ({
+		mutateAsync: mocks.bulkDeleteProfileMutation,
+		isPending: false,
+	}),
+	toStaffTenantProfileBulkActionSummary: () => ({
+		succeededCount: 0,
+		failedCount: 0,
+		failedItems: [],
+	}),
+	// Used by the always-mounted CREATE drawer, which this suite never opens.
+	useCreateStaffTenantProfileMutation: () => ({
+		mutateAsync: vi.fn(),
+		isPending: false,
+	}),
+	useStaffTenantPermissionCatalogQuery: () => ({
+		data: undefined,
+		error: null,
+		isPending: false,
+		isError: false,
+	}),
+	buildStaffTenantPermissionCatalogGroups: () => [],
+}));
+
+vi.mock('~/lib/query/staff-tenants', () => ({
+	invalidateAllStaffTenantScopes: mocks.invalidateAllStaffTenantScopes,
+	toStaffTenantDetails: () => ({
+		id: TENANT_ID,
+		name: 'Acme Corporation',
+		code: 'ACME',
+		status: 'Active',
+		usersCount: 12,
+		maxUsers: 50,
+		profilesCount: 2,
+		logoUrl: null,
+		createdAt: new Date('2026-07-01T09:00:00Z'),
+		updatedAt: new Date('2026-07-02T10:00:00Z'),
+	}),
+	useStaffTenantDetailsQuery: () => ({
+		data: { tenantId: TENANT_ID },
+		error: null,
+		isPending: false,
+		isError: false,
+		isFetching: false,
+		refetch: vi.fn().mockResolvedValue(undefined),
+	}),
+	staffTenantCrumbQuery: () => ({ queryKey: ['tenant'], queryFn: () => ({}) }),
+	selectStaffTenantCrumbName: () => undefined,
+}));
+
+vi.mock('~/lib/mutation-toast', () => ({
+	displayLocalMutationFailure: mocks.displayLocalMutationFailure,
+	toastLocalMutationResult: {
+		success: mocks.toastSuccess,
+		error: mocks.toastError,
+		warning: mocks.toastWarning,
+	},
+}));
+
+const TRANSLATIONS: Record<string, string> = {
+	basics: 'Basics',
+	profiles: 'Profiles',
+	invitations: 'Invitations',
+	users: 'Users',
+	'tenant-profiles-tab-description': 'Permission sets.',
+	'new-profile': 'New profile',
+	'search-profiles': 'Search profiles…',
+	system: 'System',
+	custom: 'Custom',
+	'all-types': 'All types',
+	'view-details': 'View details',
+	edit: 'Edit',
+	delete: 'Delete',
+	close: 'Close',
+	cancel: 'Cancel',
+	'no-description-provided': 'No description provided.',
+	'tenant-member-count': '{{count}} members',
+	'tenant-permission-count': '{{count}} permissions',
+	'actions-for': 'Actions for {{name}}',
+	'select-profile-checkbox-label': 'Select {{name}}',
+	'view-toggle-aria-label': 'Switch between cards and table view',
+	'cards-view': 'Cards view',
+	'table-view': 'Table view',
+	'edit-details': 'Edit details',
+	'edit-details-subtitle': 'Rename or restyle the {{name}} profile.',
+	'profile-icon-picker-hint': 'Tap the tile to change icon & color',
+	'restore-automatic-profile-style': 'Use automatic style',
+	'profile-details-management-note': 'Permissions are managed in their tabs.',
+	'profile-name': 'Profile name',
+	'tenant-profile-name-placeholder': 'e.g. Editors',
+	description: 'Description',
+	'profile-description-placeholder': 'Describe this profile',
+	'save-changes': 'Save changes',
+	'profile-updated-successfully': 'Profile updated successfully.',
+	'unsaved-changes-dialog-title': 'Leave without saving?',
+	'unsaved-changes-dialog-description': 'You have unsaved changes.',
+	'leave-page': 'Leave page',
+};
+
+vi.mock('react-i18next', () => ({
+	useTranslation: () => ({
+		t: (key: string, options?: Record<string, unknown>) => {
+			const bare = key.includes(':') ? key.slice(key.indexOf(':') + 1) : key;
+			let text = TRANSLATIONS[bare] ?? bare;
+			for (const [optionKey, value] of Object.entries(options ?? {})) {
+				text = text.replaceAll(`{{${optionKey}}}`, String(value));
+			}
+			return text;
+		},
+		i18n: { language: 'en' },
+	}),
+}));
+
+import { Route as ProfilesRoute } from './profiles';
+
+/** Re-parents the REAL list route onto a throwaway root, exactly as
+ * `routeTree.gen.ts` re-parents it onto the authed layout. Sibling stubs stand
+ * in for the routes the page's own links point at, so a click that DID leave
+ * the list would land somewhere observable instead of erroring. */
+const buildRouter = (initialUrl: string) => {
+	const rootRoute = createRootRoute({
+		staticData: { crumbs: 'shell' },
+		component: () => <Outlet />,
+	});
+
+	ProfilesRoute.update({
+		id: '/staff/tenants/$tenantId/profiles',
+		path: '/staff/tenants/$tenantId/profiles',
+		getParentRoute: () => rootRoute,
+	} as never);
+
+	const stubRoute = (path: string, testId: string) =>
+		createRoute({
+			getParentRoute: () => rootRoute,
+			path,
+			staticData: { crumbs: 'shell' },
+			component: () => <div data-testid={testId} />,
+		});
+
+	const routeTree = rootRoute.addChildren([
+		ProfilesRoute as never,
+		stubRoute('/staff/tenants', 'stub-tenants'),
+		stubRoute('/staff/tenants/$tenantId', 'stub-tenant-details'),
+		stubRoute('/staff/tenants/$tenantId/edit', 'stub-tenant-edit'),
+		stubRoute('/staff/tenants/$tenantId/users', 'stub-tenant-users'),
+		stubRoute(
+			'/staff/tenants/$tenantId/invitations',
+			'stub-tenant-invitations',
+		),
+		stubRoute(
+			'/staff/tenants/$tenantId/profiles/$profileId',
+			'stub-profile-details',
+		),
+	]);
+
+	const history = createMemoryHistory({ initialEntries: [initialUrl] });
+	const queryClient = new QueryClient({
+		defaultOptions: { queries: { retry: false } },
+	});
+	const router = createRouter({ routeTree, history } as never);
+
+	return { router, history, queryClient };
+};
+
+const renderList = async (initialUrl = LIST_PATH) => {
+	const { router, history, queryClient } = buildRouter(initialUrl);
+
+	render(
+		<QueryClientProvider client={queryClient}>
+			<RouterProvider router={router as never} />
+		</QueryClientProvider>,
+	);
+
+	await waitFor(() =>
+		expect(screen.getByTestId('staff-tenant-profiles-grid-rows')).toBeTruthy(),
+	);
+
+	return { router, history };
+};
+
+const searchParamsOf = (href: string): URLSearchParams =>
+	new URL(href, 'http://localhost').searchParams;
+
+const pathnameOf = (href: string): string =>
+	new URL(href, 'http://localhost').pathname;
+
+const openEditFor = async (profileId: string) => {
+	fireEvent.click(
+		screen.getByTestId(`staff-tenant-profile-actions-${profileId}`),
+	);
+	fireEvent.click(
+		await screen.findByTestId(`staff-tenant-profile-edit-${profileId}`),
+	);
+};
+
+describe('#972 tenant profiles list — quick-edit drawer opens over the list', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mocks.rows = buildRows();
+		mocks.invalidateAllStaffTenantScopes.mockResolvedValue(undefined);
+	});
+
+	afterEach(() => {
+		cleanup();
+	});
+
+	test('choosing Edit on a row opens the drawer WITHOUT leaving the list', async () => {
+		const { history } = await renderList();
+
+		await openEditFor(SUPPORT_ID);
+
+		expect(
+			await screen.findByTestId('profile-edit-details-drawer'),
+		).toBeTruthy();
+		// The drawer edits THIS row...
+		expect(
+			screen.getByText('Rename or restyle the Support profile.'),
+		).toBeTruthy();
+		// ...over a list that never unmounted, on the list's own URL.
+		expect(screen.getByTestId('staff-tenant-profiles-grid-rows')).toBeTruthy();
+		expect(pathnameOf(history.location.href)).toBe(LIST_PATH);
+		expect(searchParamsOf(history.location.href).get('edit')).toBe(SUPPORT_ID);
+		expect(screen.queryByTestId('stub-profile-details')).toBeNull();
+	});
+
+	test('the row action is not a link to the legacy edit route', async () => {
+		await renderList();
+
+		fireEvent.click(
+			screen.getByTestId(`staff-tenant-profile-actions-${SUPPORT_ID}`),
+		);
+		const editItem = await screen.findByTestId(
+			`staff-tenant-profile-edit-${SUPPORT_ID}`,
+		);
+
+		expect(editItem.tagName).not.toBe('A');
+		expect(editItem.getAttribute('href')).toBeNull();
+	});
+
+	test('opening is deep-linkable and closing restores the list exactly as it was', async () => {
+		const { history } = await renderList(
+			`${LIST_PATH}?q=sup&view=table&is_default=false`,
+		);
+
+		await openEditFor(SUPPORT_ID);
+		expect(
+			await screen.findByTestId('profile-edit-details-drawer'),
+		).toBeTruthy();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+		await waitFor(() =>
+			expect(screen.queryByTestId('profile-edit-details-drawer')).toBeNull(),
+		);
+
+		const params = searchParamsOf(history.location.href);
+		expect(pathnameOf(history.location.href)).toBe(LIST_PATH);
+		expect(params.has('edit')).toBe(false);
+		// Every other piece of list state is byte-identical to before the open.
+		expect(params.get('q')).toBe('sup');
+		expect(params.get('view')).toBe('table');
+		expect(params.get('is_default')).toBe('false');
+		expect(screen.getByTestId('staff-tenant-profiles-grid-rows')).toBeTruthy();
+		expect(
+			screen
+				.getByTestId('staff-tenant-profiles-grid-view-toggle-table')
+				.getAttribute('aria-pressed'),
+		).toBe('true');
+	});
+
+	test('closing the drawer preserves row selection made before it opened', async () => {
+		await renderList();
+
+		fireEvent.click(
+			screen.getByTestId(`staff-tenant-profile-card-select-${SUPPORT_ID}`),
+		);
+		expect(
+			(
+				screen.getByTestId(
+					`staff-tenant-profile-card-select-${SUPPORT_ID}`,
+				) as HTMLInputElement
+			).getAttribute('aria-checked'),
+		).toBe('true');
+
+		await openEditFor(SUPPORT_ID);
+		expect(
+			await screen.findByTestId('profile-edit-details-drawer'),
+		).toBeTruthy();
+		fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+		await waitFor(() =>
+			expect(screen.queryByTestId('profile-edit-details-drawer')).toBeNull(),
+		);
+
+		expect(
+			screen
+				.getByTestId(`staff-tenant-profile-card-select-${SUPPORT_ID}`)
+				.getAttribute('aria-checked'),
+		).toBe('true');
+	});
+
+	test('the browser back button closes the drawer without leaving the list', async () => {
+		const { history } = await renderList();
+
+		await openEditFor(SUPPORT_ID);
+		expect(
+			await screen.findByTestId('profile-edit-details-drawer'),
+		).toBeTruthy();
+
+		history.back();
+
+		await waitFor(() =>
+			expect(screen.queryByTestId('profile-edit-details-drawer')).toBeNull(),
+		);
+		expect(pathnameOf(history.location.href)).toBe(LIST_PATH);
+		expect(searchParamsOf(history.location.href).has('edit')).toBe(false);
+		expect(screen.getByTestId('staff-tenant-profiles-grid-rows')).toBeTruthy();
+	});
+
+	test('an app-side close consumes its own history entry, so the next Back leaves the list', async () => {
+		const { history } = await renderList();
+
+		await openEditFor(SUPPORT_ID);
+		expect(
+			await screen.findByTestId('profile-edit-details-drawer'),
+		).toBeTruthy();
+		fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+		await waitFor(() =>
+			expect(screen.queryByTestId('profile-edit-details-drawer')).toBeNull(),
+		);
+
+		// The open/close round trip must leave the history stack exactly as it
+		// was — otherwise the first Back after it is a dead press that just
+		// re-lands on the list.
+		expect(history.canGoBack()).toBe(false);
+	});
+
+	test('a deep link opens the drawer on first paint and closes back to the same entry', async () => {
+		const { history } = await renderList(`${LIST_PATH}?edit=${APPROVERS_ID}`);
+
+		expect(
+			await screen.findByTestId('profile-edit-details-drawer'),
+		).toBeTruthy();
+		expect(
+			screen.getByText('Rename or restyle the Approvers profile.'),
+		).toBeTruthy();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+		await waitFor(() =>
+			expect(screen.queryByTestId('profile-edit-details-drawer')).toBeNull(),
+		);
+		expect(pathnameOf(history.location.href)).toBe(LIST_PATH);
+		expect(searchParamsOf(history.location.href).has('edit')).toBe(false);
+		// A deep-linked drawer has no history entry of ours to consume, so the
+		// close must not pop the user out of the app.
+		expect(history.canGoBack()).toBe(false);
+	});
+
+	test('an ?edit id that names no loaded row leaves the drawer shut rather than inventing a profile', async () => {
+		await renderList(`${LIST_PATH}?edit=0198c0de-9999-7000-8000-cccccccccccc`);
+
+		expect(screen.getByTestId('staff-tenant-profiles-grid-rows')).toBeTruthy();
+		expect(screen.queryByTestId('profile-edit-details-drawer')).toBeNull();
+	});
+
+	test('saving updates the row in place and stays on the list', async () => {
+		mocks.updateProfileMutation.mockImplementation(async () => {
+			mocks.rows = buildRows().map((row) =>
+				row.id === SUPPORT_ID ? { ...row, name: 'Support renamed' } : row,
+			);
+			return {};
+		});
+
+		const { history } = await renderList();
+
+		await openEditFor(SUPPORT_ID);
+		const nameInput = await screen.findByLabelText('Profile name');
+		fireEvent.change(nameInput, { target: { value: 'Support renamed' } });
+		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+		await waitFor(() =>
+			expect(mocks.updateProfileMutation).toHaveBeenCalledWith(
+				expect.objectContaining({
+					tenantId: TENANT_ID,
+					profileId: SUPPORT_ID,
+					name: 'Support renamed',
+				}),
+			),
+		);
+		await waitFor(() =>
+			expect(screen.queryByTestId('profile-edit-details-drawer')).toBeNull(),
+		);
+
+		expect(mocks.toastSuccess).toHaveBeenCalledWith(
+			'Profile updated successfully.',
+		);
+		await waitFor(() =>
+			expect(screen.getByText('Support renamed')).toBeTruthy(),
+		);
+		expect(pathnameOf(history.location.href)).toBe(LIST_PATH);
+		expect(screen.queryByTestId('stub-profile-details')).toBeNull();
+	});
+
+	test('a dirty draft prompts before a browser Back discards it', async () => {
+		await renderList();
+
+		await openEditFor(SUPPORT_ID);
+		const nameInput = await screen.findByLabelText('Profile name');
+		fireEvent.change(nameInput, { target: { value: 'Support edited' } });
+
+		fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+		expect(await screen.findByText('Leave without saving?')).toBeTruthy();
+		expect(screen.getByTestId('profile-edit-details-drawer')).toBeTruthy();
+	});
+});

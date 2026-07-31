@@ -12,6 +12,24 @@ import {
 import type { JSX } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
+/** The single argument TanStack Router hands `shouldBlockFn`, narrowed to the
+ * fields this page's guard reads. Every call below passes a real transition
+ * shape rather than calling the guard with no arguments. */
+type BlockerTransition = {
+	current: { pathname: string };
+	next: { pathname: string; search: Record<string, unknown> };
+};
+
+const LIST_PATHNAME =
+	'/staff/tenants/11111111-1111-1111-1111-111111111111/profiles';
+
+/** A transition that leaves this list route (a browser Back, a sibling
+ * route) — what the unsaved-draft guard exists to intercept. */
+const leavingListTransition = (): BlockerTransition => ({
+	current: { pathname: LIST_PATHNAME },
+	next: { pathname: '/staff/tenants', search: {} },
+});
+
 const mocks = vi.hoisted(() => ({
 	invalidateQueries: vi.fn(),
 	search: {} as Record<string, unknown>,
@@ -31,12 +49,15 @@ const mocks = vi.hoisted(() => ({
 	toastWarning: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
 	invalidateAllStaffTenantScopes: vi.fn().mockResolvedValue(undefined),
+	historyBack: vi.fn(),
 	blockerResolver: {
 		status: 'idle' as 'idle' | 'blocked',
 		proceed: undefined as (() => void) | undefined,
 		reset: undefined as (() => void) | undefined,
 	},
-	capturedShouldBlockFn: undefined as (() => boolean) | undefined,
+	capturedShouldBlockFn: undefined as
+		| ((transition: BlockerTransition) => boolean)
+		| undefined,
 	capturedOnDirtyChange: undefined as ((isDirty: boolean) => void) | undefined,
 	capturedOnSaved: undefined as ((profileId: string) => void) | undefined,
 }));
@@ -79,10 +100,13 @@ vi.mock('@tanstack/react-router', () => ({
 			</a>
 		);
 	},
-	useBlocker: (opts: { shouldBlockFn: () => boolean }) => {
+	useBlocker: (opts: {
+		shouldBlockFn: (transition: BlockerTransition) => boolean;
+	}) => {
 		mocks.capturedShouldBlockFn = opts.shouldBlockFn;
 		return mocks.blockerResolver;
 	},
+	useRouter: () => ({ history: { back: mocks.historyBack } }),
 }));
 
 const TRANSLATIONS: Record<string, string> = {
@@ -1100,13 +1124,13 @@ describe('staff tenant profiles route', () => {
 		mocks.search = { new: 1 };
 		renderPage();
 
-		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+		expect(mocks.capturedShouldBlockFn?.(leavingListTransition())).toBe(false);
 
 		act(() => mocks.capturedOnDirtyChange?.(true));
-		expect(mocks.capturedShouldBlockFn?.()).toBe(true);
+		expect(mocks.capturedShouldBlockFn?.(leavingListTransition())).toBe(true);
 
 		act(() => mocks.capturedOnDirtyChange?.(false));
-		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+		expect(mocks.capturedShouldBlockFn?.(leavingListTransition())).toBe(false);
 	});
 
 	test('the URL nav-guard never blocks when the create drawer is closed, even if reported dirty', () => {
@@ -1114,7 +1138,7 @@ describe('staff tenant profiles route', () => {
 		renderPage();
 
 		act(() => mocks.capturedOnDirtyChange?.(true));
-		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+		expect(mocks.capturedShouldBlockFn?.(leavingListTransition())).toBe(false);
 	});
 
 	// W8-DRAWER: `onDirtyChange(false)` is an async state update — a
@@ -1128,7 +1152,7 @@ describe('staff tenant profiles route', () => {
 		renderPage();
 
 		act(() => mocks.capturedOnDirtyChange?.(true));
-		expect(mocks.capturedShouldBlockFn?.()).toBe(true);
+		expect(mocks.capturedShouldBlockFn?.(leavingListTransition())).toBe(true);
 
 		// React batches state updates across a single `act` callback and only
 		// applies them once it returns, so asserting *inside* this callback
@@ -1137,7 +1161,9 @@ describe('staff tenant profiles route', () => {
 			mocks.capturedOnDirtyChange?.(false);
 			mocks.capturedOnSaved?.('new-profile-id');
 
-			expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+			expect(mocks.capturedShouldBlockFn?.(leavingListTransition())).toBe(
+				false,
+			);
 		});
 
 		expect(mocks.navigate).toHaveBeenCalledWith(
@@ -1156,13 +1182,15 @@ describe('staff tenant profiles route', () => {
 		renderPage();
 
 		act(() => mocks.capturedOnDirtyChange?.(true));
-		expect(mocks.capturedShouldBlockFn?.()).toBe(true);
+		expect(mocks.capturedShouldBlockFn?.(leavingListTransition())).toBe(true);
 
 		act(() => {
 			mocks.capturedOnDirtyChange?.(false);
 			mocks.capturedOnSaved?.('');
 
-			expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+			expect(mocks.capturedShouldBlockFn?.(leavingListTransition())).toBe(
+				false,
+			);
 		});
 
 		expect(mocks.navigate).toHaveBeenCalledWith(
