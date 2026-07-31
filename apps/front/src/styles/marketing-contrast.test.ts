@@ -167,11 +167,14 @@ const inferBackgroundToken = (element: Element): string => {
 
 const renderMarketingShell = () =>
 	renderMarketing(
-		createElement(
-			MarketingShell,
-			{ pathname: '/' },
-			createElement('p', null, 'page body'),
-		),
+		// `children` goes in the props object, not the positional slot: the
+		// shell declares it required, and `createElement`'s overload checks the
+		// props argument against the full prop type before it ever looks at the
+		// variadic children.
+		createElement(MarketingShell, {
+			pathname: '/',
+			children: createElement('p', null, 'page body'),
+		}),
 	);
 
 describe('marketing shell text contrast', () => {
