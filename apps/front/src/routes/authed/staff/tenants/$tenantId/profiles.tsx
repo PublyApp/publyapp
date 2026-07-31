@@ -170,6 +170,32 @@ export const parseStaffTenantProfileEditId = (
 	value: unknown,
 ): string | undefined => normalizeUnknownString(value);
 
+/**
+ * `?new=1` and `?edit=<id>` are both drawer-open flags on this one route, and a
+ * drawer is a modal — two mounted at once is not a state this UI has a meaning
+ * for (two stacked surfaces, two "Profile name" fields, one shared discard
+ * prompt). Enforcing that only at the open call sites would leave
+ * `?new=1&edit=<id>` — a link anyone can be sent — mounting both on first
+ * paint, so the invariant is resolved HERE, at the same boundary that already
+ * drops a non-string `edit`.
+ *
+ * **`edit` wins.** It names a specific existing row, so it is the flag that
+ * carries information the URL cannot reconstruct: honouring `new` instead would
+ * silently change *which* entity the recipient of the link is looking at. `new`
+ * is a bare flag whose entire state is "open the empty create form", one click
+ * away and identical every time. Dropping the cheap, reconstructible flag is
+ * the smaller loss. (The reachable in-app flows never reach this tiebreak —
+ * both open paths clear the opposite flag — so this governs hand-written,
+ * stale, or shared URLs only.)
+ */
+export const resolveStaffTenantProfileDrawerFlags = (
+	isCreateOpen: boolean,
+	editProfileId: string | undefined,
+): { new?: 1; edit?: string } => ({
+	new: isCreateOpen && editProfileId === undefined ? (1 as const) : undefined,
+	edit: editProfileId,
+});
+
 export const parseStaffTenantProfilesViewMode = (
 	value: unknown,
 ): StaffTenantProfilesViewMode =>
@@ -189,8 +215,10 @@ export const parseStaffTenantProfilesSearchParams = (
 
 	return {
 		...base,
-		new: isCreateOpen ? (1 as const) : undefined,
-		edit: parseStaffTenantProfileEditId(search.edit),
+		...resolveStaffTenantProfileDrawerFlags(
+			isCreateOpen,
+			parseStaffTenantProfileEditId(search.edit),
+		),
 		is_default: isDefault,
 		view: view === 'table' ? view : undefined,
 	};
@@ -205,8 +233,10 @@ export const serializeStaffTenantProfilesSearchParams = (
 
 	return {
 		...next,
-		new: params.new === 1 ? (1 as const) : undefined,
-		edit: parseStaffTenantProfileEditId(params.edit),
+		...resolveStaffTenantProfileDrawerFlags(
+			params.new === 1,
+			parseStaffTenantProfileEditId(params.edit),
+		),
 		is_default: isDefault,
 		view: view === 'table' ? view : undefined,
 	};
@@ -823,6 +853,12 @@ function StaffTenantProfilesPage() {
 			search: serializeStaffTenantProfilesSearchParams({
 				...search,
 				new: isOpen ? 1 : undefined,
+				// The two drawers are mutually exclusive, and the boundary above
+				// resolves a both-flags URL in `edit`'s favour — so this is not
+				// belt-and-braces: without it, "New profile" while the edit drawer
+				// is open would produce `?new=1&edit=<id>`, which canonicalizes
+				// straight back to `?edit=<id>` and makes the button a no-op.
+				edit: isOpen ? undefined : search.edit,
 			}) as unknown as TableSearchParams,
 			replace: true,
 		});
@@ -839,6 +875,10 @@ function StaffTenantProfilesPage() {
 			search: serializeStaffTenantProfilesSearchParams({
 				...search,
 				edit: profile.id,
+				// Mutually exclusive with the create drawer — cleared here so the
+				// pushed URL is right on its own, not only after the boundary
+				// canonicalizes it.
+				new: undefined,
 			}) as unknown as TableSearchParams,
 		});
 	};

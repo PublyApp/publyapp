@@ -250,6 +250,37 @@ describe('malformed deep links are canonicalized at the router boundary (r4-tena
 		).toBe(profileId);
 	});
 
+	// The two drawer-open flags on this route are mutually exclusive. A URL
+	// carrying both is not a state the UI has a meaning for, so the boundary
+	// resolves it to the one that names a specific row and drops the other.
+	test('tenant profiles list: a URL carrying both drawer flags keeps edit and drops new', async () => {
+		const profileId = '0198c0de-2222-7000-8000-bbbbbbbbbbbb';
+		const { router, history } = buildHarness(
+			'/staff/tenants/$tenantId/profiles',
+			asValidateSearch(TenantProfilesRoute),
+			(search) => {
+				const parsed = parseStaffTenantProfilesSearchParams(
+					search as StaffTenantProfilesSearchParamInput,
+				);
+				return {
+					edit: parsed.edit ?? 'closed',
+					new: parsed.new === 1 ? 'open' : 'closed',
+				};
+			},
+			`/staff/tenants/t1/profiles?new=1&edit=${profileId}`,
+		);
+
+		render(<RouterProvider router={router} />);
+		await waitFor(() => screen.getByTestId('resolved-search'));
+
+		expect(screen.getByTestId('field-edit').textContent).toBe(profileId);
+		expect(screen.getByTestId('field-new').textContent).toBe('closed');
+		const params = new URL(history.location.href, 'http://localhost')
+			.searchParams;
+		expect(params.get('edit')).toBe(profileId);
+		expect(params.has('new')).toBe(false);
+	});
+
 	test('tenant profiles list: a numeric or boolean edit value is dropped from the URL', async () => {
 		const { router, history } = buildHarness(
 			'/staff/tenants/$tenantId/profiles',

@@ -38,6 +38,7 @@ import {
 	render,
 	screen,
 	waitFor,
+	within,
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -202,6 +203,10 @@ const TRANSLATIONS: Record<string, string> = {
 	'unsaved-changes-dialog-title': 'Leave without saving?',
 	'unsaved-changes-dialog-description': 'You have unsaved changes.',
 	'leave-page': 'Leave page',
+	'profile-form-drawer-description': 'Create a profile for this tenant.',
+	'create-profile': 'Create profile',
+	'loading-permissions': 'Loading permissions…',
+	'no-permissions-available': 'No permissions available.',
 };
 
 vi.mock('react-i18next', () => ({
@@ -611,5 +616,162 @@ describe('#972 tenant profiles list — quick-edit drawer opens over the list', 
 		);
 		expect(screen.queryByText('Leave without saving?')).toBeNull();
 		expect(screen.getByTestId('profile-edit-details-drawer')).toBeTruthy();
+	});
+});
+
+/**
+ * `?new=1` and `?edit=<id>` are BOTH drawer-open flags on this one route, and
+ * every open path spreads the current search. Nothing used to clear the other
+ * flag, so both drawers could mount at once — two stacked modals, two "Profile
+ * name" fields, one shared discard prompt. Found by an adversarial probe on
+ * PR #1035; no test had imagined the two flags coexisting.
+ *
+ * The invariant is now enforced at the parse/serialize boundary (so a URL
+ * carrying both resolves deterministically) AND at both open paths (so a
+ * correct URL is produced in the first place).
+ */
+describe('#972 the create and edit drawers are mutually exclusive', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mocks.rows = buildRows();
+		mocks.invalidateAllStaffTenantScopes.mockResolvedValue(undefined);
+	});
+
+	afterEach(() => {
+		cleanup();
+	});
+
+	const openCreateDrawer = () => {
+		// `getByText` rather than `getByRole`: once a drawer is open, Base UI
+		// marks the rest of the page inert/aria-hidden, which hides the button
+		// from role queries while it is still very much clickable.
+		fireEvent.click(screen.getByText('New profile'));
+	};
+
+	test('a URL carrying BOTH drawer flags mounts exactly one drawer and drops the losing flag', async () => {
+		const { history } = await renderList(
+			`${LIST_PATH}?new=1&edit=${SUPPORT_ID}`,
+		);
+
+		expect(
+			await screen.findByTestId('profile-edit-details-drawer'),
+		).toBeTruthy();
+		expect(screen.queryByTestId('profile-form-drawer')).toBeNull();
+		// `edit` names a specific existing row, so it wins; the bare `new` flag
+		// must not survive in the address bar either.
+		const params = searchParamsOf(history.location.href);
+		expect(params.get('edit')).toBe(SUPPORT_ID);
+		expect(params.has('new')).toBe(false);
+	});
+
+	test('opening Edit while the create drawer is open replaces it instead of stacking a second drawer', async () => {
+		const { history } = await renderList(`${LIST_PATH}?new=1`);
+		expect(await screen.findByTestId('profile-form-drawer')).toBeTruthy();
+
+		await openEditFor(SUPPORT_ID);
+
+		expect(
+			await screen.findByTestId('profile-edit-details-drawer'),
+		).toBeTruthy();
+		await waitFor(() =>
+			expect(screen.queryByTestId('profile-form-drawer')).toBeNull(),
+		);
+		const params = searchParamsOf(history.location.href);
+		expect(params.get('edit')).toBe(SUPPORT_ID);
+		expect(params.has('new')).toBe(false);
+	});
+
+	test('opening New profile while the edit drawer is open replaces it instead of stacking a second drawer', async () => {
+		const { history } = await renderList();
+
+		await openEditFor(SUPPORT_ID);
+		expect(
+			await screen.findByTestId('profile-edit-details-drawer'),
+		).toBeTruthy();
+
+		openCreateDrawer();
+
+		expect(await screen.findByTestId('profile-form-drawer')).toBeTruthy();
+		await waitFor(() =>
+			expect(screen.queryByTestId('profile-edit-details-drawer')).toBeNull(),
+		);
+		const params = searchParamsOf(history.location.href);
+		expect(params.get('new')).toBe('1');
+		expect(params.has('edit')).toBe(false);
+	});
+
+	// The probe's exact repro.
+	test('probe repro: a dirty create draft prompts ONCE before Edit replaces it, and leaves only the edit drawer', async () => {
+		await renderList(`${LIST_PATH}?new=1`);
+
+		const createDrawer = await screen.findByTestId('profile-form-drawer');
+		const createName = within(createDrawer).getByLabelText('Profile name');
+		fireEvent.change(createName, { target: { value: 'Draft profile' } });
+		await waitFor(() =>
+			expect((createName as HTMLInputElement).value).toBe('Draft profile'),
+		);
+
+		await openEditFor(SUPPORT_ID);
+
+		// Exactly one discard prompt — the create draft's — not one per drawer.
+		expect(await screen.findByText('Leave without saving?')).toBeTruthy();
+		expect(screen.getAllByText('Leave without saving?')).toHaveLength(1);
+
+		fireEvent.click(screen.getByRole('button', { name: 'Leave page' }));
+
+		expect(
+			await screen.findByTestId('profile-edit-details-drawer'),
+		).toBeTruthy();
+		await waitFor(() =>
+			expect(screen.queryByTestId('profile-form-drawer')).toBeNull(),
+		);
+		// One name field on screen, and it belongs to the profile being edited.
+		expect(screen.getAllByLabelText('Profile name')).toHaveLength(1);
+		expect(
+			(screen.getByLabelText('Profile name') as HTMLInputElement).value,
+		).toBe('Support');
+
+		// The discarded create form is still mounted (closed) and still reports
+		// itself dirty until a reopen resets it — that stale flag must not raise
+		// a second, phantom prompt on the NEXT navigation.
+		fireEvent.click(
+			screen.getByTestId('tenant-sections-nav').querySelector('a') as Element,
+		);
+		await waitFor(() =>
+			expect(screen.getByTestId('stub-tenant-details')).toBeTruthy(),
+		);
+		expect(screen.queryByText('Leave without saving?')).toBeNull();
+	});
+
+	// The mirror direction: the prompt must be about the EDIT draft, and
+	// confirming it must not also silently discard anything else.
+	test('a dirty edit draft prompts once before New profile replaces it', async () => {
+		await renderList();
+
+		await openEditFor(SUPPORT_ID);
+		const editDrawer = await screen.findByTestId('profile-edit-details-drawer');
+		const editName = within(editDrawer).getByLabelText('Profile name');
+		fireEvent.change(editName, { target: { value: 'Support edited' } });
+		await waitFor(() =>
+			expect((editName as HTMLInputElement).value).toBe('Support edited'),
+		);
+
+		openCreateDrawer();
+
+		expect(await screen.findByText('Leave without saving?')).toBeTruthy();
+		expect(screen.getAllByText('Leave without saving?')).toHaveLength(1);
+		// Still the edit drawer's prompt — the create drawer has not mounted yet.
+		expect(screen.queryByTestId('profile-form-drawer')).toBeNull();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Leave page' }));
+
+		expect(await screen.findByTestId('profile-form-drawer')).toBeTruthy();
+		await waitFor(() =>
+			expect(screen.queryByTestId('profile-edit-details-drawer')).toBeNull(),
+		);
+		// The create form opens blank, not carrying the discarded edit draft.
+		expect(
+			(screen.getByLabelText('Profile name') as HTMLInputElement).value,
+		).toBe('');
 	});
 });
