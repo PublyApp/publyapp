@@ -46,6 +46,15 @@ Follow them by hand until automation exists:
   NUMBER `1`, never the string `'1'` — the router's search serializer JSON-quotes strings
   (`?invite=%221%22`), and bare `=1` URLs parse as a number, so string-typed flags break
   redirects and deep links. Parse leniently (accept `1` and `'1'`), emit the number.
+- An **id-carrying** search param (`?edit=<profileId>` — the drawer-over-a-list marker, where the
+  id says *which row*) is the opposite case: it must accept **strings only**. The serializer
+  re-quotes any string that is itself valid JSON and the parser turns an unquoted numeric value
+  back into a number, so an all-digit value cannot round-trip; UUID ids never are, and anything
+  that parses to a non-string is not an id. Drop it at the router boundary rather than coercing.
+- A drawer hosted **over a list** opens with a PUSH (so a browser Back closes it and restores the
+  list entry, rather than leaving the list) and its app-side close consumes that entry again
+  (`router.history.back()`), falling back to a `replace` when the drawer was entered by deep link
+  and there is no entry of ours to consume. Every other list search write stays `replace: true`.
 
 ## Route-Local Private File Naming
 
