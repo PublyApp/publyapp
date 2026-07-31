@@ -169,7 +169,7 @@ const getRealStaffUserDetailPath = async (page: Page): Promise<string> => {
 	return new URL(page.url()).pathname;
 };
 
-test('renders the front shell', async ({ page }) => {
+test('renders the marketing shell', async ({ page }) => {
 	const getHydrationConsoleErrors = trackHydrationConsoleErrors(page);
 
 	await page.setViewportSize({ width: 390, height: 812 });
@@ -178,13 +178,28 @@ test('renders the front shell', async ({ page }) => {
 	await expect(
 		page.getByRole('heading', { name: /welcome to publyapp/i }),
 	).toBeVisible();
-	await expect(page.getByTestId('app-shell-shell')).toBeVisible();
-	await expect(page.getByTestId('app-shell-shell')).toHaveAttribute(
+	await expect(page.getByTestId('marketing-shell')).toBeVisible();
+	await expect(page.getByTestId('marketing-shell')).toHaveAttribute(
 		'data-mode',
 		'marketing',
 	);
-	await expect(page.getByTestId(THEME_TOGGLE_TEST_ID)).toBeVisible();
-	await expect(page.getByTestId('app-shell-mobile-menu-toggle')).toBeVisible();
+	await expect(page.getByTestId('marketing-header')).toBeVisible();
+	await expect(page.getByTestId('marketing-footer')).toBeVisible();
+	await expect(page.getByTestId('marketing-mobile-nav-toggle')).toBeVisible();
+
+	// Below 1024 the theme toggle moves into the drawer with Log in (#1038
+	// breakpoint table); the header row keeps only wordmark + CTA + hamburger.
+	// Both locators are scoped: once the drawer is open the header's own
+	// (hidden) toggle and the drawer's are both in the DOM, and an unscoped
+	// test id would resolve to two elements.
+	await expect(
+		page.getByTestId('marketing-header').getByTestId(THEME_TOGGLE_TEST_ID),
+	).toBeHidden();
+	await page.getByTestId('marketing-mobile-nav-toggle').click();
+	await expect(
+		page.getByTestId('marketing-mobile-nav').getByTestId(THEME_TOGGLE_TEST_ID),
+	).toBeVisible();
+
 	expect(getHydrationConsoleErrors()).toEqual([]);
 });
 
@@ -591,7 +606,9 @@ test('no bottom rail on mobile and rail-hidden behavior is preserved', async ({
 	await expect(page.getByTestId('app-shell-topbar')).toBeVisible();
 });
 
-test('mobile shell menu is keyboard and route-aware', async ({ page }) => {
+test('marketing mobile drawer is keyboard and route-aware', async ({
+	page,
+}) => {
 	// The default project starts with a staff-admin session, but this transition
 	// must exercise the anonymous auth route instead of its authenticated-user
 	// redirect guard.
@@ -599,21 +616,24 @@ test('mobile shell menu is keyboard and route-aware', async ({ page }) => {
 	await page.setViewportSize({ width: 390, height: 812 });
 	await page.goto('/');
 
-	await page.getByTestId('app-shell-mobile-menu-toggle').click();
-	await expect(page.getByRole('link', { name: 'Home' })).toBeVisible();
-	await expect(page.getByRole('link', { name: 'Home' })).toHaveAttribute(
-		'aria-current',
-		'page',
-	);
+	await page.getByTestId('marketing-mobile-nav-toggle').click();
+	const drawer = page.getByTestId('marketing-mobile-nav');
+	await expect(drawer).toBeVisible();
+	await expect(drawer.getByRole('link', { name: 'Log in' })).toBeVisible();
+
 	await page.keyboard.press('Escape');
-	await expect(page.getByRole('link', { name: 'Home' })).toBeHidden();
+	await expect(drawer).toBeHidden();
 
-	await page.getByTestId('app-shell-mobile-menu-toggle').click();
-	await page.getByRole('link', { name: 'Login' }).click();
+	await page.getByTestId('marketing-mobile-nav-toggle').click();
+	await page
+		.getByTestId('marketing-mobile-nav')
+		.getByRole('link', { name: 'Log in' })
+		.click();
 
-	// The auth surface is a standalone split-brand layout, not the app shell
-	// (no rail/topbar/mobile menu) — see docs/guides/front/conventions.md.
+	// The auth surface is a standalone split-brand layout, not the marketing
+	// or app shell — see docs/guides/front/conventions.md.
 	await expect(page).toHaveURL('/login');
 	await expect(page.getByTestId('auth-layout')).toBeVisible();
+	await expect(page.getByTestId('marketing-shell')).toHaveCount(0);
 	await expect(page.getByTestId('app-shell-shell')).toHaveCount(0);
 });

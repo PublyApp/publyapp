@@ -2,7 +2,6 @@ import {
 	IconChevronRight,
 	IconLayoutSidebar,
 	IconMenu2,
-	IconX,
 } from '@tabler/icons-react';
 import { Link, useMatches } from '@tanstack/react-router';
 import { Fragment, useEffect, useState, type ReactNode } from 'react';
@@ -40,12 +39,7 @@ import { useUiStore } from '../../lib/store/ui-store';
 import { ThemeToggle } from './theme/theme-toggle';
 import { AppShellUserMenu } from './user-menu';
 
-type AppShellMode = 'authed' | 'marketing';
-
-type NavItem = {
-	labelKey: string;
-	path: string;
-};
+type AppShellMode = 'authed';
 
 /** Only the keys secondary-panel items can filter on (e.g. tenants' status). */
 type AppShellSearch = Record<string, unknown>;
@@ -57,183 +51,19 @@ type AppShellProps = {
 	search?: AppShellSearch;
 };
 
-const MARKETING_NAV_ITEMS: NavItem[] = [
-	{
-		labelKey: 'nav-home',
-		path: '/',
-	},
-	{
-		labelKey: 'login',
-		path: '/login',
-	},
-];
-
-const isActivePath = (pathname: string, target: string) => {
-	if (target === '/') {
-		return pathname === '/';
-	}
-
-	const parentPath = target.substring(0, target.lastIndexOf('/'));
-	if (parentPath.length > 1 && pathname === parentPath) {
-		return true;
-	}
-
-	return pathname === target || pathname.startsWith(`${target}/`);
-};
-
-const getActivePath = (items: NavItem[], pathname: string): string | null => {
-	const bestMatch = items
-		.filter((item) => isActivePath(pathname, item.path))
-		.sort((a, b) => b.path.length - a.path.length)[0];
-
-	return bestMatch ? bestMatch.path : null;
-};
-
-const AppShellHeader = ({
-	mode,
-	pathname,
-}: {
-	mode: Exclude<AppShellMode, 'authed'>;
-	pathname: string;
-}) => {
-	const { t } = useTranslation('common');
-	const [isMenuOpen, setIsMenuOpen] = useState(false);
-	const navItems = MARKETING_NAV_ITEMS;
-	const activePath = getActivePath(navItems, pathname);
-	const closeMenu = () => setIsMenuOpen(false);
-
-	useEffect(() => {
-		if (!isMenuOpen) {
-			return;
-		}
-
-		const handleKeyDown = (event: KeyboardEvent) => {
-			if (event.key === 'Escape') {
-				closeMenu();
-			}
-		};
-
-		window.addEventListener('keydown', handleKeyDown);
-
-		return () => {
-			window.removeEventListener('keydown', handleKeyDown);
-		};
-	}, [isMenuOpen]);
-
-	useEffect(() => {
-		setIsMenuOpen(false);
-	}, [mode, pathname]);
-
-	const renderNavButtons = ({
-		closeOnSelect = false,
-		isMobile = false,
-	}: {
-		closeOnSelect?: boolean;
-		isMobile?: boolean;
-	}) => (
-		<nav
-			aria-label={isMobile ? t('mobile-navigation') : t('primary-navigation')}
-			className={
-				isMobile
-					? 'app-shell-mobile-menu'
-					: 'app-shell-desktop-nav hidden gap-2 sm:flex'
-			}
-			id={isMobile ? 'app-shell-mobile-menu' : undefined}
-			data-testid={isMobile ? 'app-shell-mobile-links' : undefined}
-		>
-			{navItems.map((item) => {
-				const isActive = activePath === item.path;
-
-				return (
-					<Link
-						key={item.labelKey}
-						to={item.path}
-						aria-current={isActive ? 'page' : undefined}
-						onClick={closeOnSelect ? closeMenu : undefined}
-						className="inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors"
-						style={
-							isActive
-								? {
-										background: 'var(--publy-primary)',
-										color: 'var(--publy-primary-foreground)',
-									}
-								: { color: 'var(--publy-foreground-muted)' }
-						}
-					>
-						{t(item.labelKey)}
-					</Link>
-				);
-			})}
-		</nav>
-	);
-
-	const navButtonLabel = isMenuOpen ? t('nav-close-menu') : t('nav-open-menu');
-
-	return (
-		<header className="app-shell-header">
-			<div className="app-shell-header-inner">
-				<div className="font-semibold tracking-wide text-foreground">
-					PublyApp
-				</div>
-				{renderNavButtons({})}
-				<div className="flex items-center gap-2">
-					<ThemeToggle />
-					<Button
-						onClick={() => setIsMenuOpen((next) => !next)}
-						variant="outline"
-						size="icon"
-						aria-expanded={isMenuOpen}
-						aria-controls="app-shell-mobile-menu"
-						aria-label={navButtonLabel}
-						className="sm:hidden"
-						data-testid="app-shell-mobile-menu-toggle"
-					>
-						{isMenuOpen ? (
-							<IconX aria-hidden="true" className="size-4" />
-						) : (
-							<IconMenu2 aria-hidden="true" className="size-4" />
-						)}
-					</Button>
-				</div>
-			</div>
-			<div
-				className={
-					isMenuOpen
-						? 'app-shell-mobile-menu-wrap'
-						: 'app-shell-mobile-menu-wrap hidden'
-				}
-			>
-				{renderNavButtons({ closeOnSelect: true, isMobile: true })}
-			</div>
-		</header>
-	);
-};
-
 const AppShellNavigation = ({
 	children,
-	mode,
 	pathname,
 	search,
 }: {
 	children: ReactNode;
-	mode: AppShellMode;
 	pathname: string;
 	search: AppShellSearch;
-}) => {
-	if (mode !== 'authed') {
-		return (
-			<main className="app-shell-main">
-				<div className="app-shell-main-card">{children}</div>
-			</main>
-		);
-	}
-
-	return (
-		<AuthedWorkspaceShell pathname={pathname} search={search}>
-			{children}
-		</AuthedWorkspaceShell>
-	);
-};
+}) => (
+	<AuthedWorkspaceShell pathname={pathname} search={search}>
+		{children}
+	</AuthedWorkspaceShell>
+);
 
 const RailLink = ({
 	item,
@@ -611,29 +441,10 @@ const AuthedWorkspaceShell = ({
 
 export const AppShell = ({
 	children,
-	mode = 'marketing',
 	pathname = '/',
 	search = {},
-}: AppShellProps) => {
-	if (mode === 'authed') {
-		return (
-			<AppShellNavigation mode={mode} pathname={pathname} search={search}>
-				{children}
-			</AppShellNavigation>
-		);
-	}
-
-	return (
-		<div
-			className="app-shell-shell"
-			data-mode={mode}
-			data-testid="app-shell-shell"
-		>
-			<AppShellHeader mode={mode} pathname={pathname} />
-			<div className="h-6" />
-			<AppShellNavigation mode={mode} pathname={pathname} search={search}>
-				{children}
-			</AppShellNavigation>
-		</div>
-	);
-};
+}: AppShellProps) => (
+	<AppShellNavigation pathname={pathname} search={search}>
+		{children}
+	</AppShellNavigation>
+);
