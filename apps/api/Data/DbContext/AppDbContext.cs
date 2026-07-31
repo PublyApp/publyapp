@@ -905,6 +905,15 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 		}
 	}
 
+	/// <summary>
+	/// Coerces a caller-supplied <c>DeletedAt</c> to UTC so a <c>timestamptz</c> write cannot fail.
+	///
+	/// <c>Unspecified</c> is tagged rather than converted. Every timestamp this application
+	/// produces comes from <c>DateTime.UtcNow</c>, so an unspecified value is already UTC that
+	/// merely lost its kind — passing it through <c>ToUniversalTime()</c> would treat it as
+	/// local and shift it by the host's offset, silently moving the deletion time by hours on
+	/// any non-UTC machine. Only a genuinely <c>Local</c> value needs converting.
+	/// </summary>
 	private static DateTime? NormalizeDeletedAt(DateTime? deletedAt) {
 		if (deletedAt is null) {
 			return null;
@@ -912,6 +921,10 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 
 		if (deletedAt.Value.Kind == DateTimeKind.Utc) {
 			return deletedAt;
+		}
+
+		if (deletedAt.Value.Kind == DateTimeKind.Unspecified) {
+			return DateTime.SpecifyKind(deletedAt.Value, DateTimeKind.Utc);
 		}
 
 		return deletedAt.Value.ToUniversalTime();

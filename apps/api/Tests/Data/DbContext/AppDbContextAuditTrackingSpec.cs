@@ -85,4 +85,44 @@ public sealed class AppDbContextAuditTrackingSpec : IClassFixture<ApiFixture> {
 		persistedPermission.DeletedAt.Should().NotBeNull();
 		persistedPermission.DeletedAt.Should().BeCloseTo(DateTime.UtcNow, precision: TimeSpan.FromSeconds(5));
 	}
+
+	/// <summary>
+	/// An unspecified-kind <c>DeletedAt</c> is already UTC that lost its tag, so it must be
+	/// tagged rather than converted.
+	///
+	/// Be aware of what this test can and cannot prove: on a host running in UTC,
+	/// <c>ToUniversalTime()</c> and <c>SpecifyKind(Utc)</c> are observationally identical, so
+	/// this assertion does NOT discriminate the two on UTC CI. It earns its keep on a
+	/// developer machine in any other zone, where the wrong implementation shifts the
+	/// deletion time by the host offset and this goes red. It is deliberately left as a
+	/// host-sensitive guard rather than dropped — there is no way to vary the process time
+	/// zone per test, and asserting nothing would be worse.
+	/// </summary>
+	[Fact]
+	public async Task ItShouldTagAnUnspecifiedDeletedAtAsUtcWithoutShiftingIt() {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var wallClock = new DateTime(2024, 02, 12, 12, 0, 0, DateTimeKind.Unspecified);
+
+		var tenant = new Tenant {
+			Id = Guid.CreateVersion7(),
+			Code = $"issue1013-tenant-unspecified-{Guid.CreateVersion7():N}",
+			Name = "Issue 1013 Tenant Unspecified DeletedAt",
+			Status = TenantStatus.Suspended,
+			MaxUsers = 10,
+			IsDeleted = true,
+			DeletedAt = wallClock,
+		};
+
+		await dbContext.Tenant.AddAsync(tenant);
+		await dbContext.SaveChangesAsync();
+
+		var persisted = await dbContext.Tenant.SingleAsync(t => t.Code == tenant.Code);
+		persisted.IsDeleted.Should().BeTrue();
+		persisted.DeletedAt.Should().Be(
+			DateTime.SpecifyKind(wallClock, DateTimeKind.Utc),
+			"an unspecified DeletedAt is already UTC and must keep its wall-clock value"
+		);
+	}
 }
