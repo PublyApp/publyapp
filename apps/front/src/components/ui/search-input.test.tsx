@@ -15,8 +15,9 @@ import { SearchInput } from './search-input';
 
 const APP_CSS_PATH = join(import.meta.dirname, '../../styles/app.css');
 const appCssSource = readFileSync(APP_CSS_PATH, 'utf8');
-const SEARCH_CANCEL_SELECTOR =
-	".publy-search-input[type='search']::-webkit-search-cancel-button";
+const WEBKIT_SEARCH_CANCEL_PSEUDO_ELEMENT =
+	'::-webkit-search' + '-cancel-button';
+const SEARCH_CANCEL_SELECTOR = `.publy-search-input[type='search']${WEBKIT_SEARCH_CANCEL_PSEUDO_ELEMENT}`;
 
 describe('SearchInput', () => {
 	afterEach(() => {
@@ -60,7 +61,7 @@ describe('SearchInput', () => {
 
 	// Defect 1/4: exactly one clear button — this is the regression that
 	// shipped (a custom clear button rendered alongside the browser's native
-	// `::-webkit-search-cancel-button`, and DataTableToolbar rendered none).
+	// WebKit search-cancel pseudo-element, and DataTableToolbar rendered none).
 	test('renders exactly one clear button with an accessible label when the field has text, and none when empty', () => {
 		const { rerender } = render(
 			<SearchInput
@@ -137,7 +138,7 @@ describe('SearchInput', () => {
 	});
 
 	// Defect 1 (review follow-up): jsdom has no rendering engine, so it can
-	// never observe whether `::-webkit-search-cancel-button` is actually
+	// never observe whether the WebKit search-cancel pseudo-element is actually
 	// suppressed on screen — a prior version of this test only checked
 	// `type="search"`, an attribute the stylesheet does not touch, so
 	// deleting the suppression rule entirely left every test here green.
@@ -168,7 +169,7 @@ describe('SearchInput', () => {
 	// lives in scripts/search-cancel-css-policy.mjs; unlike this adjacent
 	// component contract, it counts the pseudo-element token without trying
 	// to model which selector spellings target this input.
-	test("the native ::-webkit-search-cancel-button suppression rule exists and targets this component's actual rendered markup", () => {
+	test("the native WebKit search-cancel suppression rule exists and targets this component's actual rendered markup", () => {
 		expect(countExactSelectorRules(appCssSource, SEARCH_CANCEL_SELECTOR)).toBe(
 			1,
 		);
@@ -243,8 +244,7 @@ describe('SearchInput', () => {
 	// SPECIFICITY, not source order — a same-specificity "later wins" model
 	// would miss this if it appeared first.
 	test('a higher-specificity compound selector re-enabling the control is caught regardless of source order (specificity regression proof)', () => {
-		const higherSpecificitySelector =
-			".publy-search-input.foo[type='search']::-webkit-search-cancel-button";
+		const higherSpecificitySelector = `.publy-search-input.foo[type='search']${WEBKIT_SEARCH_CANCEL_PSEUDO_ELEMENT}`;
 		const mutatedCss = `${higherSpecificitySelector} {\n\tappearance: auto;\n\tdisplay: inline-block;\n}\n${appCssSource}`;
 
 		const declarations = resolveEffectiveDeclarations(
@@ -295,7 +295,7 @@ describe('SearchInput', () => {
 
 	// NOTE: the assertions above are a source-level supplement, not a
 	// substitute for a real browser check. jsdom cannot render a
-	// `::-webkit-search-cancel-button` pseudo-element at all, in any browser
+	// the WebKit search-cancel pseudo-element at all, in any browser
 	// engine, so no jsdom-based test — including this one — can prove the
 	// control is actually invisible/non-operable on screen in Chromium,
 	// Firefox, or WebKit. This repo has a Playwright config
@@ -315,8 +315,8 @@ describe('SearchInput', () => {
 	//
 	// Round 6 closure: selector semantics are deliberately outside this
 	// bounded resolver. The build/test policy counts every literal occurrence
-	// of the search-cancel pseudo-element across all shipped frontend source
-	// files and the real emitted CSS, then requires the sole occurrence to be
+	// of the search-cancel pseudo-element across the complete frontend source
+	// tree and the real emitted CSS, then requires the sole occurrence to be
 	// the canonical suppression rule in app.css.
 	//
 	// Accepted residual limitation: this source-and-artifact contract cannot

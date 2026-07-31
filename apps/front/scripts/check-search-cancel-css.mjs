@@ -8,5 +8,5 @@ const sourceFileCount = assertShippedSourceSearchCancelCss(frontRoot);
 
 console.log(
 	`front search-cancel source policy: 1 canonical rule across ` +
-		`${sourceFileCount} shipped frontend source file(s).`,
+		`${sourceFileCount} frontend source tree file(s).`,
 );

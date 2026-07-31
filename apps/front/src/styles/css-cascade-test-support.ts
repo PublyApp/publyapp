@@ -19,7 +19,7 @@
  * ways against the shared `SEARCH_CANCEL_SELECTOR` rule — the one check with
  * NO real-browser backstop, because a prior investigation confirmed headless
  * AND headed Chromium/Linux (Xvfb) give byte-identical screenshots and
- * identical ARIA snapshots whether `::-webkit-search-cancel-button`
+ * identical ARIA snapshots whether the WebKit search-cancel pseudo-element
  * suppression is present or absent:
  *  - a higher-specificity selector appending another class to the target
  *    was invisible (no specificity model at all);

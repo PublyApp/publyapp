@@ -4,7 +4,7 @@ import path from 'node:path';
 const SEARCH_CANCEL_TOKEN = '::-webkit-search-cancel-button';
 
 export const SOURCE_SEARCH_CANCEL_CANONICAL = {
-	label: 'shipped frontend source',
+	label: 'frontend source tree',
 	sourceName: 'src/styles/app.css',
 	selector: ".publy-search-input[type='search']::-webkit-search-cancel-button",
 	declarations: [
@@ -22,19 +22,6 @@ export const ARTIFACT_SEARCH_CANCEL_CANONICAL = {
 		['display', 'none'],
 	],
 };
-
-const EXCLUDED_SOURCE_DIRECTORIES = new Set([
-	'.output',
-	'.tanstack',
-	'coverage',
-	'dist',
-	'node_modules',
-	'playwright-report',
-	'test-results',
-]);
-
-const TEST_ONLY_SOURCE_PATH =
-	/(?:^|\/)(?:__fixtures__|__tests__)(?:\/|$)|(?:^|\/)[^/]+\.(?:spec|test)\.[^/]+$|(?:^|\/)[^/]+-test-support\.[^/]+$/;
 
 const maskComments = (source) => {
 	const characters = [...source];
@@ -259,7 +246,7 @@ export const assertCanonicalSearchCancelCss = (stylesheets, canonical) => {
 	}
 };
 
-const collectShippedSourcePaths = (frontRoot) => {
+const collectSourceTreePaths = (frontRoot) => {
 	const sourceRoot = path.join(frontRoot, 'src');
 	const sourcePaths = [];
 	const stack = [sourceRoot];
@@ -269,21 +256,11 @@ const collectShippedSourcePaths = (frontRoot) => {
 		for (const entry of readdirSync(currentDirectory, {
 			withFileTypes: true,
 		})) {
-			if (entry.isDirectory() && EXCLUDED_SOURCE_DIRECTORIES.has(entry.name)) {
-				continue;
-			}
-
 			const fullPath = path.join(currentDirectory, entry.name);
 			if (entry.isDirectory()) {
 				stack.push(fullPath);
 			} else if (entry.isFile()) {
-				const sourceName = path
-					.relative(frontRoot, fullPath)
-					.split(path.sep)
-					.join('/');
-				if (!TEST_ONLY_SOURCE_PATH.test(sourceName)) {
-					sourcePaths.push(fullPath);
-				}
+				sourcePaths.push(fullPath);
 			}
 		}
 	}
@@ -294,15 +271,10 @@ const collectShippedSourcePaths = (frontRoot) => {
 };
 
 export const assertShippedSourceSearchCancelCss = (frontRoot) => {
-	const sourceFiles = collectShippedSourcePaths(frontRoot).map(
-		(sourcePath) => ({
-			source: readFileSync(sourcePath, 'utf8'),
-			sourceName: path
-				.relative(frontRoot, sourcePath)
-				.split(path.sep)
-				.join('/'),
-		}),
-	);
+	const sourceFiles = collectSourceTreePaths(frontRoot).map((sourcePath) => ({
+		source: readFileSync(sourcePath, 'utf8'),
+		sourceName: path.relative(frontRoot, sourcePath).split(path.sep).join('/'),
+	}));
 	const occurrences = [];
 	for (const sourceFile of sourceFiles) {
 		occurrences.push(

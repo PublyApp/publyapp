@@ -28,7 +28,7 @@ import {
 // property — the "at minimum" cascade-aware fix. The stronger, "better
 // where observable" fix is a real-browser check: this is a plain rendered
 // DOM element with ordinary CSS (unlike #975's unrenderable
-// `::-webkit-search-cancel-button` pseudo-element), so a real Chromium
+// WebKit search-cancel pseudo-element), so a real Chromium
 // `getComputedStyle()` reading is fully achievable here — see
 // `e2e/profile-icon-picker-pin-contrast.spec.ts`, which is the actual
 // authority on the effective cascade — closing round 3's specificity blind

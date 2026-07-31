@@ -63,6 +63,6 @@ console.log(`front production CSS assets: ${clientCssFiles.join(', ')}`);
 console.log('front production build contains emitted CSS assets.');
 console.log(
 	`front search-cancel CSS policy: 1 canonical source rule across ` +
-		`${sourceFileCount} shipped frontend source file(s); ` +
+		`${sourceFileCount} frontend source tree file(s); ` +
 		`1 canonical emitted rule across ${clientCssFiles.length} CSS asset(s).`,
 );
