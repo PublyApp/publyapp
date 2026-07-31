@@ -563,10 +563,12 @@ describe('#977 tenant-profile sections are path segments (real router)', () => {
  *   case 7      G in the inclusion direction (a real section must count)
  *   case 8      H (G held true, so only H can decide)
  *
- * A, B, D and F are pinned in `$profileId.test.tsx`, which drives the same
+ * A, B, D, E and F are pinned in `$profileId.test.tsx`, which drives the same
  * production `shouldBlockFn` directly: the matrix-dirty test (A), the stale-
- * flag test (B), "never blocks when the drawer is closed" (D) and the
- * W8-DRAWER bypass test (F). Nothing here re-proves them.
+ * flag test (B), "never blocks when the drawer is closed" (D), "only blocks
+ * while the drawer is open AND dirty" (E) and the W8-DRAWER bypass test (F).
+ * Nothing here re-proves them. Between the two files every clause above is
+ * pinned by exactly one case — if you add a clause, add its case.
  */
 describe('#977 the dirty-matrix navigation guard (real router)', () => {
 	beforeEach(() => {
