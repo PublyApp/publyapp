@@ -57,18 +57,16 @@ export class IsoAnalytics implements IAnalytics {
 	public logOnly = false;
 
 	private apiKey: string;
-	private serverRuntimeOverride: boolean | null;
 	private initialized = false;
 	private posthogNode: PostHog | null = null;
 	private posthogBrowser: IPostHogBrowser | null = null;
 
-	constructor(apiKey: string, serverRuntimeOverride: boolean | null = null) {
+	constructor(apiKey: string) {
 		this.apiKey = apiKey;
-		this.serverRuntimeOverride = serverRuntimeOverride;
 	}
 
 	private isServerRuntime(): boolean {
-		return this.serverRuntimeOverride ?? isServer;
+		return isServer;
 	}
 
 	/**
