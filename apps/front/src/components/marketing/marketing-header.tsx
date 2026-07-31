@@ -352,12 +352,15 @@ export const MarketingHeader = ({
 					</Link>
 					<Button
 						variant="outline"
-						size="icon-sm"
+						// 36px squared, per the handoff's breakpoint table — the
+						// `icon` size is exactly that, and already carries
+						// --publy-radius-medium-control.
+						size="icon"
 						aria-label={t('marketing-open-menu')}
 						aria-controls="marketing-mobile-nav"
 						onClick={onOpenMobileNav}
 						data-testid="marketing-mobile-nav-toggle"
-						className="rounded-[var(--publy-radius-medium-control)] lg:hidden"
+						className="lg:hidden"
 					>
 						<IconMenu2 aria-hidden="true" className="size-[18px]" />
 					</Button>
