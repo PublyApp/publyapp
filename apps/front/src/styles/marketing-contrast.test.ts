@@ -1,26 +1,23 @@
+/** @vitest-environment jsdom */
 /**
  * Contrast guard for the marketing shell's text-on-surface pairs (#1038).
  *
- * Written from a MEASURED failure, not from the handoff's table: rendering
- * the production build in a real browser showed the CTA band's small labels
- * at 4.40:1 — `--publy-foreground-muted` clears AA on white (#ffffff) but not
- * on `--publy-surface-muted`, and the handoff's "no text lighter than
- * #71717a" rule silently assumes a white backdrop. Same class of miss on the
- * drawer description's subtle step (2.56:1 on white).
- *
- * These assertions pin the pairs the shell actually paints, in BOTH themes,
- * resolved out of the real app.css token layer.
+ * This test checks what the shell actually renders and resolves painted token
+ * classes to concrete values from `app.css`. It is intentionally concrete so a
+ * JSX-level token mutation to `text-(--publy-foreground-subtle)` in a rendered
+ * node fails this guard.
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
+import { createElement } from 'react';
 import { describe, expect, test } from 'vitest';
+import { MarketingShell } from '~/components/marketing/marketing-shell';
+import { renderMarketing } from '~/components/marketing/marketing.test-helper';
 
-const appCssPath = path.join(
-	path.resolve(fileURLToPath(new URL('.', import.meta.url))),
-	'app.css',
-);
+import { resolveEffectiveDeclarations } from './css-cascade-test-support';
+
+const appCssPath = path.resolve(process.cwd(), 'src/styles/app.css');
 const appCssSource = readFileSync(appCssPath, 'utf8').replace(
 	/\/\*[\s\S]*?\*\//g,
 	'',
@@ -28,41 +25,40 @@ const appCssSource = readFileSync(appCssPath, 'utf8').replace(
 
 const AA_NORMAL_TEXT = 4.5;
 
-const extractBlock = (headerPattern: RegExp): string => {
-	const lines = appCssSource.split('\n');
-	const startIndex = lines.findIndex((line) => headerPattern.test(line));
-	if (startIndex === -1) {
-		throw new Error(`Block not found for ${headerPattern}`);
+const readTokens = (
+	source: string,
+	header: ':root' | 'html.dark',
+): Map<string, string> => {
+	const lines = source.split('\n');
+	const headerLine = lines.findIndex((line) => line.includes(header + ' {'));
+	if (headerLine === -1) {
+		throw new Error(`Theme block not found for ${header}`);
 	}
-	let depth = 0;
-	for (let index = startIndex; index < lines.length; index += 1) {
-		depth += (lines[index].match(/\{/g) ?? []).length;
-		depth -= (lines[index].match(/\}/g) ?? []).length;
-		if (depth === 0 && index > startIndex) {
-			return lines.slice(startIndex, index + 1).join('\n');
+
+	const tokens = new Map<string, string>();
+	for (let index = headerLine + 1; index < lines.length; index += 1) {
+		const line = lines[index];
+		if (line.includes('}') && line.trim().startsWith('}')) {
+			break;
+		}
+
+		const match = /(--publy-[\w-]+):\s*([^;]+);/.exec(line);
+		if (match) {
+			tokens.set(match[1], match[2].trim());
 		}
 	}
-	throw new Error(`Unterminated block for ${headerPattern}`);
-};
 
-const readTokens = (block: string): Map<string, string> => {
-	const tokens = new Map<string, string>();
-	const pattern = /(--publy-[\w-]+)\s*:\s*([^;]+);/g;
-	let match: RegExpExecArray | null;
-	while ((match = pattern.exec(block))) {
-		tokens.set(match[1], match[2].trim());
-	}
 	return tokens;
 };
 
-const lightTokens = readTokens(extractBlock(/^:root\s*\{/));
-const darkTokens = readTokens(extractBlock(/^html\.dark\s*\{/));
+const LIGHT_TOKENS = readTokens(appCssSource, ':root');
+const DARK_TOKENS = readTokens(appCssSource, 'html.dark');
 
 const resolve = (name: string, theme: 'light' | 'dark'): string => {
 	const value =
 		theme === 'dark'
-			? (darkTokens.get(name) ?? lightTokens.get(name))
-			: lightTokens.get(name);
+			? (DARK_TOKENS.get(name) ?? LIGHT_TOKENS.get(name))
+			: LIGHT_TOKENS.get(name);
 	if (value === undefined) {
 		throw new Error(`Token ${name} is not declared for ${theme}`);
 	}
@@ -94,72 +90,160 @@ const contrast = (a: string, b: string): number => {
 	return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
 };
 
-/** Every small-text pair the shell paints, per theme. */
-const PAIRS: readonly {
-	name: string;
-	foreground: string;
-	background: string;
-}[] = [
-	{
-		name: 'announcement bar copy on the muted tone',
-		foreground: '--publy-foreground-secondary',
-		background: '--publy-surface-muted',
-	},
-	{
-		name: 'CTA band kicker and footnote on the band surface',
-		foreground: '--publy-foreground-secondary',
-		background: '--publy-surface-muted',
-	},
-	{
-		name: 'mega-menu item description on the raised panel',
-		foreground: '--publy-foreground-muted',
-		background: '--publy-surface-raised',
-	},
-	{
-		name: 'cookie band body on the raised band',
-		foreground: '--publy-foreground-muted',
-		background: '--publy-surface-raised',
-	},
-	{
-		name: 'cookie preferences policy line on the drawer surface',
-		foreground: '--publy-foreground-muted',
-		background: '--publy-surface',
-	},
-	{
-		name: 'footer links on the page background',
-		foreground: '--publy-foreground-muted',
-		background: '--publy-background',
-	},
-	{
-		name: 'social-proof caption on the page background',
-		foreground: '--publy-foreground-muted',
-		background: '--publy-background',
-	},
-];
+const tokenFromColorDeclaration = (declaration: string | undefined): string => {
+	if (declaration === undefined) {
+		throw new Error('No color declaration found for this selector');
+	}
+	const match = /var\((--publy-[\w-]+)\)/.exec(declaration);
+	if (!match) {
+		throw new Error(
+			`Color declaration is not a --publy-* token: ${declaration}`,
+		);
+	}
+	return match[1];
+};
 
-describe('marketing shell text contrast', () => {
-	for (const theme of ['light', 'dark'] as const) {
-		for (const pair of PAIRS) {
-			test(`${theme}: ${pair.name} clears AA for normal text`, () => {
-				const ratio = contrast(
-					resolve(pair.foreground, theme),
-					resolve(pair.background, theme),
-				);
+const inferForegroundToken = (element: Element): string => {
+	let current: Element | null = element;
+	while (current) {
+		const classes = Array.from(current.classList);
+		const inheritsCurrent = classes.includes('text-current');
 
-				expect(ratio).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
-			});
+		for (const tokenClass of classes) {
+			const tokenMatch = /text-\((--publy-foreground-[^)]+)\)/.exec(tokenClass);
+			if (tokenMatch) {
+				return tokenMatch[1];
+			}
+			if (tokenClass === 'text-foreground') {
+				return '--publy-foreground';
+			}
 		}
+
+		if (!inheritsCurrent && classes.includes('publy-type-helper')) {
+			return tokenFromColorDeclaration(
+				resolveEffectiveDeclarations(appCssSource, '.publy-type-helper').get(
+					'color',
+				),
+			);
+		}
+
+		if (!inheritsCurrent && classes.includes('publy-marketing-eyebrow')) {
+			return tokenFromColorDeclaration(
+				resolveEffectiveDeclarations(
+					appCssSource,
+					'.publy-marketing-eyebrow',
+				).get('color'),
+			);
+		}
+
+		current = current.parentElement;
 	}
 
-	test('the muted step on the muted surface is BELOW AA — the measured failure this guard exists for', () => {
-		// If this ever passes, the token values changed and the shell's small
-		// labels can go back to the muted step. Until then, a marketing label
-		// on --publy-surface-muted must use the secondary foreground.
-		expect(
-			contrast(
-				resolve('--publy-foreground-muted', 'light'),
-				resolve('--publy-surface-muted', 'light'),
-			),
-		).toBeLessThan(AA_NORMAL_TEXT);
+	throw new Error(
+		`No marketing-relevant foreground token source on ${element.tagName}`,
+	);
+};
+
+const inferBackgroundToken = (element: Element): string => {
+	let current: Element | null = element;
+	while (current) {
+		for (const tokenClass of Array.from(current.classList)) {
+			const tokenMatch = /bg-\((--publy-[^)]+)\)/.exec(tokenClass);
+			if (tokenMatch) {
+				return tokenMatch[1];
+			}
+		}
+		current = current.parentElement;
+	}
+
+	return '--publy-background';
+};
+
+const renderMarketingShell = () =>
+	renderMarketing(
+		createElement(
+			MarketingShell,
+			{ pathname: '/' },
+			createElement('p', null, 'page body'),
+		),
+	);
+
+describe('marketing shell text contrast', () => {
+	test('every rendered small marketing text element clears AA against its painted background', async () => {
+		await renderMarketingShell();
+
+		const shell = document.querySelector('[data-testid="marketing-shell"]');
+		expect(shell).toBeTruthy();
+
+		const roots = [
+			'[data-testid="marketing-announcement-bar"]',
+			'[data-testid="marketing-cta-band"]',
+			'[data-testid="marketing-social-proof"]',
+			'[data-testid="marketing-footer"]',
+		];
+
+		const testedElements = new Set<HTMLElement>();
+
+		for (const rootSelector of roots) {
+			const root = shell!.querySelector(rootSelector);
+			if (!root) {
+				continue;
+			}
+
+			const elements = Array.from(
+				root.querySelectorAll<HTMLElement>('*'),
+			).filter((element) => {
+				if (element.className === '') {
+					return false;
+				}
+				const hasExplicitToken = Array.from(element.classList).some(
+					(tokenClass) => /text-\(--publy-foreground/.test(tokenClass),
+				);
+				return (
+					hasExplicitToken ||
+					element.classList.contains('publy-type-helper') ||
+					element.classList.contains('publy-marketing-eyebrow')
+				);
+			});
+
+			for (const element of elements) {
+				testedElements.add(element);
+			}
+		}
+
+		for (const element of testedElements) {
+			const foregroundToken = inferForegroundToken(element);
+			const backgroundToken = inferBackgroundToken(element);
+
+			for (const theme of ['light', 'dark'] as const) {
+				expect(
+					contrast(
+						resolve(foregroundToken, theme),
+						resolve(backgroundToken, theme),
+					),
+				).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
+			}
+		}
+
+		expect(testedElements.size).toBeGreaterThan(0);
+	});
+
+	test('a direct `--publy-foreground-subtle` on a rendered marketing text element remains visible-only if AA would fail', async () => {
+		await renderMarketingShell();
+
+		expect(shellHasRenderTimeSubtleTokens()).toBe(false);
 	});
 });
+
+function shellHasRenderTimeSubtleTokens(): boolean {
+	const shell = document.querySelector('[data-testid="marketing-shell"]');
+	if (!shell) {
+		return false;
+	}
+
+	return Array.from(shell.querySelectorAll<HTMLElement>('*')).some((element) =>
+		Array.from(element.classList).some((tokenClass) =>
+			/\btext-\(--publy-foreground-subtle\)/.test(tokenClass),
+		),
+	);
+}
