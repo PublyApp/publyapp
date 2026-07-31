@@ -4,7 +4,8 @@ import path from 'node:path';
 const SEARCH_CANCEL_TOKEN = '::-webkit-search-cancel-button';
 
 export const SOURCE_SEARCH_CANCEL_CANONICAL = {
-	label: 'shipped source CSS',
+	label: 'shipped frontend source',
+	sourceName: 'src/styles/app.css',
 	selector: ".publy-search-input[type='search']::-webkit-search-cancel-button",
 	declarations: [
 		['-webkit-appearance', 'none'],
@@ -22,7 +23,7 @@ export const ARTIFACT_SEARCH_CANCEL_CANONICAL = {
 	],
 };
 
-const EXCLUDED_STYLE_DIRECTORIES = new Set([
+const EXCLUDED_SOURCE_DIRECTORIES = new Set([
 	'.output',
 	'.tanstack',
 	'coverage',
@@ -31,6 +32,9 @@ const EXCLUDED_STYLE_DIRECTORIES = new Set([
 	'playwright-report',
 	'test-results',
 ]);
+
+const TEST_ONLY_SOURCE_PATH =
+	/(?:^|\/)(?:__fixtures__|__tests__)(?:\/|$)|(?:^|\/)[^/]+\.(?:spec|test)\.[^/]+$|(?:^|\/)[^/]+-test-support\.[^/]+$/;
 
 const maskComments = (source) => {
 	const characters = [...source];
@@ -125,8 +129,11 @@ const lineNumberAt = (source, index) => {
 	return lineNumber;
 };
 
-const findTokenOccurrences = ({ source, sourceName }) => {
-	const maskedSource = maskComments(source);
+const findTokenOccurrences = (
+	{ source, sourceName },
+	{ includeComments = false } = {},
+) => {
+	const maskedSource = includeComments ? source : maskComments(source);
 	const occurrences = [];
 	let searchFrom = 0;
 
@@ -227,6 +234,7 @@ export const assertCanonicalSearchCancelCss = (stylesheets, canonical) => {
 		? parseDeclarations(occurrence.rule.body)
 		: [];
 	if (
+		(canonical.sourceName && occurrence.sourceName !== canonical.sourceName) ||
 		occurrence.selector !== canonical.selector ||
 		!declarationsEqual(actualDeclarations, canonical.declarations)
 	) {
@@ -236,6 +244,12 @@ export const assertCanonicalSearchCancelCss = (stylesheets, canonical) => {
 				'The sole pseudo-element occurrence is not the canonical rule.',
 				'Rule mentioning the pseudo-element:',
 				occurrenceDetails,
+				...(canonical.sourceName
+					? [
+							`Required source: ${canonical.sourceName}`,
+							`Actual source: ${occurrence.sourceName}`,
+						]
+					: []),
 				`Required selector: ${canonical.selector}`,
 				`Actual selector: ${occurrence.selector}`,
 				`Required canonical declarations: ${formatDeclarations(canonical.declarations)}`,
@@ -245,40 +259,94 @@ export const assertCanonicalSearchCancelCss = (stylesheets, canonical) => {
 	}
 };
 
-const collectLocalStylePaths = (directory) => {
-	const stylePaths = [];
-	const stack = [directory];
+const collectShippedSourcePaths = (frontRoot) => {
+	const sourceRoot = path.join(frontRoot, 'src');
+	const sourcePaths = [];
+	const stack = [sourceRoot];
 
 	while (stack.length > 0) {
 		const currentDirectory = stack.pop();
 		for (const entry of readdirSync(currentDirectory, {
 			withFileTypes: true,
 		})) {
-			if (entry.isDirectory() && EXCLUDED_STYLE_DIRECTORIES.has(entry.name)) {
+			if (entry.isDirectory() && EXCLUDED_SOURCE_DIRECTORIES.has(entry.name)) {
 				continue;
 			}
 
 			const fullPath = path.join(currentDirectory, entry.name);
 			if (entry.isDirectory()) {
 				stack.push(fullPath);
-			} else if (entry.isFile() && entry.name.endsWith('.css')) {
-				stylePaths.push(fullPath);
+			} else if (entry.isFile()) {
+				const sourceName = path
+					.relative(frontRoot, fullPath)
+					.split(path.sep)
+					.join('/');
+				if (!TEST_ONLY_SOURCE_PATH.test(sourceName)) {
+					sourcePaths.push(fullPath);
+				}
 			}
 		}
 	}
 
-	return stylePaths.sort((leftPath, rightPath) =>
+	return sourcePaths.sort((leftPath, rightPath) =>
 		leftPath.localeCompare(rightPath),
 	);
 };
 
 export const assertShippedSourceSearchCancelCss = (frontRoot) => {
-	const stylesheets = collectLocalStylePaths(frontRoot).map((stylePath) => ({
-		source: readFileSync(stylePath, 'utf8'),
-		sourceName: path.relative(frontRoot, stylePath).split(path.sep).join('/'),
-	}));
+	const sourceFiles = collectShippedSourcePaths(frontRoot).map(
+		(sourcePath) => ({
+			source: readFileSync(sourcePath, 'utf8'),
+			sourceName: path
+				.relative(frontRoot, sourcePath)
+				.split(path.sep)
+				.join('/'),
+		}),
+	);
+	const occurrences = [];
+	for (const sourceFile of sourceFiles) {
+		occurrences.push(
+			...findTokenOccurrences(sourceFile, { includeComments: true }),
+		);
+	}
 
-	assertCanonicalSearchCancelCss(stylesheets, SOURCE_SEARCH_CANCEL_CANONICAL);
+	if (occurrences.length !== 1) {
+		throw new Error(
+			[
+				`Search cancel CSS policy failed for ${SOURCE_SEARCH_CANCEL_CANONICAL.label}.`,
+				`Expected exactly 1 occurrence of ${SEARCH_CANCEL_TOKEN}; ` +
+					`found ${occurrences.length} occurrences.`,
+				'Occurrences mentioning the pseudo-element:',
+				occurrences.length === 0
+					? '- no source mentions the pseudo-element'
+					: formatOccurrences(occurrences),
+				`Required canonical source: ${SOURCE_SEARCH_CANCEL_CANONICAL.sourceName}`,
+			].join('\n'),
+		);
+	}
 
-	return stylesheets.length;
+	const [occurrence] = occurrences;
+	if (occurrence.sourceName !== SOURCE_SEARCH_CANCEL_CANONICAL.sourceName) {
+		throw new Error(
+			[
+				`Search cancel CSS policy failed for ${SOURCE_SEARCH_CANCEL_CANONICAL.label}.`,
+				'The sole pseudo-element occurrence is outside the canonical source.',
+				'Occurrence mentioning the pseudo-element:',
+				formatOccurrences(occurrences),
+				`Required source: ${SOURCE_SEARCH_CANCEL_CANONICAL.sourceName}`,
+				`Actual source: ${occurrence.sourceName}`,
+			].join('\n'),
+		);
+	}
+
+	const canonicalSourceFile = sourceFiles.find(
+		(sourceFile) =>
+			sourceFile.sourceName === SOURCE_SEARCH_CANCEL_CANONICAL.sourceName,
+	);
+	assertCanonicalSearchCancelCss(
+		[canonicalSourceFile],
+		SOURCE_SEARCH_CANCEL_CANONICAL,
+	);
+
+	return sourceFiles.length;
 };

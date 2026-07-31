@@ -55,7 +55,7 @@ assertCanonicalSearchCancelCss(
 	})),
 	ARTIFACT_SEARCH_CANCEL_CANONICAL,
 );
-const sourceStylesheetCount = assertShippedSourceSearchCancelCss(
+const sourceFileCount = assertShippedSourceSearchCancelCss(
 	fileURLToPath(frontRoot),
 );
 
@@ -63,6 +63,6 @@ console.log(`front production CSS assets: ${clientCssFiles.join(', ')}`);
 console.log('front production build contains emitted CSS assets.');
 console.log(
 	`front search-cancel CSS policy: 1 canonical source rule across ` +
-		`${sourceStylesheetCount} shipped CSS source file(s); ` +
+		`${sourceFileCount} shipped frontend source file(s); ` +
 		`1 canonical emitted rule across ${clientCssFiles.length} CSS asset(s).`,
 );
