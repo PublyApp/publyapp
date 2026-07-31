@@ -618,7 +618,7 @@ importers:
         specifier: 1.268.1
         version: 1.268.1
       posthog-node:
-        specifier: ^5.47.2
+        specifier: 5.47.2
         version: 5.47.2
       winston:
         specifier: ^3.11.0
