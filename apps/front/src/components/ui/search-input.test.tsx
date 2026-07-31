@@ -377,17 +377,30 @@ describe('SearchInput', () => {
 	// ACCEPTED, NOT CLOSABLE — the source scan only. It is a text scan, so it
 	// sees the token only where it appears as contiguous ASCII: string
 	// concatenation, a backslash-newline line continuation inside one literal,
-	// or a unicode escape for one of the token's characters each hide it, and
-	// no text scan can change that. Its comment masking is lexical rather than
-	// a real parse, which costs it two demonstrated blind spots: a raw `//`
-	// inside a string literal masks the rest of that line, and a raw `/*`
-	// inside a string, template literal or JSX text puts the masker into
-	// comment state through end of file, hiding every later real occurrence.
-	// Building a JavaScript parser to close those is not worth it, because in
-	// practice each of them is caught by an authority: any of these evasions
-	// still has to reach an emitted artifact to affect a user, and by then the
-	// string is a plain, resolved token in the CSS bundle or in a JavaScript
-	// bundle, where authority 1 or authority 2 rejects it.
+	// or a unicode escape for one of the token's characters each hide it from
+	// the scan, and no text scan can change that. Its comment masking is
+	// lexical rather than a real parse, which costs it two blind spots, both
+	// demonstrated against the real tree: a raw `//` earlier ON THE SAME LINE
+	// as the token (inside a string literal) masks the rest of that line, and a
+	// raw `/*` inside a string, template literal or JSX text puts the masker
+	// into comment state through end of file, hiding every later real
+	// occurrence.
+	//
+	// None of that is worth a JavaScript parser, because the source scan is not
+	// what decides whether a regression ships. Precisely:
+	//
+	//  - The two masking blind spots are fully covered by authority 2. The
+	//    token is still contiguous in the file — only the masker is confused —
+	//    so it is contiguous in the bundle. Verified: the `/*` case passes the
+	//    source scan and reds the build.
+	//  - Concatenation, continuation and unicode escapes are covered by
+	//    authority 1 whenever the rule reaches a CSS asset, since escapes are
+	//    resolved by the time CSS is emitted. When such a rule instead ships
+	//    inside JavaScript, authority 2 catches it only if the bundler folds
+	//    the pieces back into one literal. It does today — a
+	//    `"…search-cancel" + "-button …"` split passed the source scan and
+	//    still red the build — but that is an esbuild constant-folding
+	//    behaviour, not a guarantee this repository controls.
 	//
 	// ACCEPTED RESIDUALS — what remains genuinely uncovered, stated so nobody
 	// reads the two authorities as total:
