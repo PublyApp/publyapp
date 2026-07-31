@@ -844,6 +844,11 @@ describe('breadcrumb contract — rendered artifact (#973 Tier 2, guard B)', () 
 	 * the production route modules (`Route.options.staticData`), never
 	 * re-typed, and the real `AppShell` + real `deriveBreadcrumbTrail` + real
 	 * `EntityCrumb` render it.
+	 *
+	 * Only `staticData` comes from those modules — the section components here
+	 * are marker divs, because a crumb trail is derived from `useMatches()`
+	 * and the route declarations alone and never reads what a body rendered.
+	 * The real bodies are exercised in `$profileId/section-routing.test.tsx`.
 	 */
 	const buildProfileSectionRouter = (
 		initialUrl: string,

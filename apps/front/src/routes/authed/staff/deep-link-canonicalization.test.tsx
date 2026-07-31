@@ -390,6 +390,14 @@ describe('malformed deep links are canonicalized at the router boundary (r4-tena
 	 * on a real router with real memory history, then asserts the router's own
 	 * resolved URL: the section path is reached and the legacy param is gone
 	 * from the address bar.
+	 *
+	 * What is NOT real here, deliberately: the three routes are declared flat
+	 * rather than layout-plus-children, and their components are marker divs.
+	 * Redirect resolution is decided entirely by `validateSearch` +
+	 * `beforeLoad` + the destination path, none of which depend on nesting or
+	 * on what the destination renders. The real nesting, the real bodies and
+	 * the guard interactions are covered in
+	 * `$profileId/section-routing.test.tsx`.
 	 */
 	const buildLegacyTabHarness = (initialUrl: string) => {
 		const overviewRoute = createRoute({

@@ -4,12 +4,16 @@
  * segments, driven through a REAL TanStack router.
  *
  * What is real here:
- *  - the four production route objects themselves (`$profileId.tsx`,
- *    `$profileId/index.tsx`, `/permissions`, `/members`) — imported and
+ *  - six production route objects — the layout (`$profileId.tsx`), its three
+ *    section children (`$profileId/index.tsx`, `/permissions`, `/members`),
+ *    and the two siblings that are NOT its children (`$profileId/users.tsx`
+ *    and the `$profileId-edit.tsx` redirect shim). Each is imported and
  *    `.update()`-ed onto a throwaway parent exactly the way `routeTree.gen`
  *    wires them, so their real ids, paths, `staticData`, `validateSearch`,
  *    `beforeLoad` and `component` are the ones under test. Nothing is
  *    re-declared or copied.
+ *  - the ONLY stub route is the profiles list, which this suite never asserts
+ *    anything about beyond "navigation reached it (or was stopped first)".
  *  - a real `createRouter` + `createMemoryHistory`, real `<Link>`
  *    navigation, real `useBlocker` registration, real `Outlet` nesting.
  *  - the real section bodies (`ProfileOverviewTab`,
@@ -24,7 +28,7 @@
  *
  * The synthetic parent is the pattern this repo already uses for real-route
  * tests (`deep-link-canonicalization.test.tsx`,
- * `breadcrumb-contract.test.tsx` guard B): mounting the whole 48-route app
+ * `breadcrumb-contract.test.tsx` guard B): mounting the whole app route tree
  * would drag in session/auth bootstrapping that has nothing to do with the
  * thing being proved.
  */
@@ -668,14 +672,24 @@ describe('#977 the dirty-matrix navigation guard (real router)', () => {
 
 	/**
 	 * The two sibling routes that live under this profile's path prefix but
-	 * are NOT children of the layout. Navigating to either unmounts the layout
-	 * — and with it the open drawer and its draft — so both must be blocked.
+	 * are NOT children of the layout. Navigating to either unmounts the
+	 * layout — and with it the open drawer and its draft — so both must be
+	 * blocked. Both are the real production route objects, so this drives the
+	 * real unmount and, for `/edit`, the real `beforeLoad` redirect.
 	 *
-	 * `/edit` is the dangerous one: its `beforeLoad` immediately redirects
-	 * back to `?edit=1` on the layout, so a misclassification here would look
-	 * harmless (you land back on the drawer) while having silently thrown the
-	 * draft away in between. Both are the real production route objects, so
-	 * this drives the real unmount and the real redirect.
+	 * Both navigations below deliberately PRESERVE the current search
+	 * (`search: (previous) => previous`) — the exact shape every in-app
+	 * section link in this slice already uses. That matters: with the search
+	 * carried over, `next.search.edit === 1` is satisfied, so
+	 * `isProfileSectionPathname` is the ONLY thing left deciding whether the
+	 * drawer survives. Navigating without the search would be blocked by the
+	 * `edit === 1` clause no matter how the pathname were classified, which
+	 * is what let a `/edit`-misclassification mutation pass unnoticed.
+	 *
+	 * `/edit` is the dangerous one: its `beforeLoad` bounces straight back to
+	 * `?edit=1` on the layout, so a misclassification looks harmless — you
+	 * land on the drawer again — while having silently thrown the draft away
+	 * in between.
 	 */
 	test('case 5 — navigating to the flat /users sibling with a dirty draft is blocked', async () => {
 		const { router, history } = await renderAt(`${OVERVIEW_PATH}?edit=1`);
@@ -684,6 +698,7 @@ describe('#977 the dirty-matrix navigation guard (real router)', () => {
 		void router.navigate({
 			to: '/staff/tenants/$tenantId/profiles/$profileId/users',
 			params: { tenantId: TENANT_ID, profileId: PROFILE_ID },
+			search: (previous: Record<string, unknown>) => previous,
 		});
 
 		await waitFor(() =>
@@ -705,6 +720,7 @@ describe('#977 the dirty-matrix navigation guard (real router)', () => {
 		void router.navigate({
 			to: '/staff/tenants/$tenantId/profiles/$profileId/edit',
 			params: { tenantId: TENANT_ID, profileId: PROFILE_ID },
+			search: (previous: Record<string, unknown>) => previous,
 		});
 
 		await waitFor(() =>
