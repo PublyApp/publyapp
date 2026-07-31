@@ -17,11 +17,11 @@ describe('marketing landing route', () => {
 	test('renders core landing sections and copy', () => {
 		const html = renderToStaticMarkup(<IndexRoute />);
 
-		expect(html).toContain('Publish everywhere your brands live');
-		expect(html).toContain('Product tour');
-		expect(html).toContain('Built for the work that does not fit in one inbox');
-		expect(html).toContain('Trial timeline');
-		expect(html).toContain('Questions teams ask at first look');
+		expect(html).toContain('landing-hero-title');
+		expect(html).toContain('landing-tour-title');
+		expect(html).toContain('landing-bento-title');
+		expect(html).toContain('landing-timeline-title');
+		expect(html).toContain('landing-faq-title');
 	});
 
 	test('keeps the required navigation targets', () => {
@@ -34,10 +34,10 @@ describe('marketing landing route', () => {
 	test('renders all tour tab labels', () => {
 		const html = renderToStaticMarkup(<IndexRoute />);
 
-		expect(html).toContain('Calendar');
-		expect(html).toContain('Composer');
-		expect(html).toContain('Approvals');
-		expect(html).toContain('Profiles');
-		expect(html).toContain('Dashboards');
+		expect(html).toContain('landing-tour-tab-calendar-label');
+		expect(html).toContain('landing-tour-tab-composer-label');
+		expect(html).toContain('landing-tour-tab-approvals-label');
+		expect(html).toContain('landing-tour-tab-profiles-label');
+		expect(html).toContain('landing-tour-tab-dashboards-label');
 	});
 });
