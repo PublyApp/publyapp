@@ -647,6 +647,27 @@ function RootShell({ children }: { children: React.ReactNode }) {
 				<HeadContent />
 				<meta name="csp-nonce" content={cspNonce || undefined} />
 				<title>{t(isLogin ? 'seo-login-title' : 'seo-default-title')}</title>
+				<link
+					rel="preload"
+					href="/fonts/geist/geist-sans-latin-400.woff2"
+					as="font"
+					type="font/woff2"
+					crossOrigin="anonymous"
+				/>
+				<link
+					rel="preload"
+					href="/fonts/geist/geist-sans-latin-500.woff2"
+					as="font"
+					type="font/woff2"
+					crossOrigin="anonymous"
+				/>
+				<link
+					rel="preload"
+					href="/fonts/geist/geist-sans-latin-600.woff2"
+					as="font"
+					type="font/woff2"
+					crossOrigin="anonymous"
+				/>
 				<script
 					nonce={cspNonce || undefined}
 					suppressHydrationWarning
