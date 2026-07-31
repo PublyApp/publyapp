@@ -449,3 +449,64 @@ new choice, decide in this spirit and add the rule here.
   trigger, never repositioned to align the current value over the trigger. `alignItemWithTrigger`
   defaults to `false` on `components/ui/select.tsx`'s `SelectContent` — do not flip it back to
   `true` for an individual usage without a documented exception here.
+
+## Marketing Surfaces (#1038)
+
+The marketing chrome lives in `apps/front/src/components/marketing/` and is mounted by
+`layouts/marketing-layout.tsx`, which `__root.tsx`'s `shellComponent` renders for every
+non-authenticated, non-auth path — including the root not-found and error branches. That is why
+the shell is layout-owned rather than route-owned: those branches have no route `staticData` to
+hang a layout off, and they must not render bare.
+
+### Two container roles, never a third width
+
+- **Chrome that is scanned** — the header and its mega panel — is `--publy-container-chrome`
+  (1280). The mega panel needs it: at 1152 three columns plus hairline dividers leave French
+  labels wrapping to three lines.
+- **Content that is read** — page body, social-proof strip, CTA band **and the footer** — is
+  `--publy-container-reading` (1152).
+- Gutters are `px-4 sm:px-6` on both, so below 1280 they are identical. Above it the footer's
+  content deliberately sits 64px inside the header's outer edges.
+- Go through `MarketingContainer`; do not re-declare either width inline. A third, nearly
+  identical width is how tokens stop being followed.
+
+### Header geometry
+
+`--publy-header-height` (64px, 56px below 768) is the single source for the sticky header box,
+the mega panel's offset, the drawer's inset and every in-page anchor's `scroll-margin`
+(`.publy-marketing-anchor`). Three hardcoded 64s drift independently.
+
+The header carries a static bottom hairline: **no scroll elevation and no hide-on-scroll** — a
+header that moves while a mega panel is open is a usability risk. The active nav state is a 2px
+`--publy-primary` underline plus `--publy-surface-hover` fill through
+`.publy-marketing-nav-link`, never a solid primary pill, and never an inline style.
+
+### No dead ends
+
+Marketing nav entries in `marketing-nav.ts` carry an **optional** `to`. An entry with no route is
+data, not a link: the renderers drop it, and a column or trigger left with nothing to show drops
+with it. Adding the page later is the whole change — give the entry a `to` and it appears in the
+header, the mega panel, the drawer and the footer at once. `marketing-nav.test.ts` checks every
+declared destination against the real generated route tree, so a link the router cannot resolve
+fails the suite rather than shipping.
+
+The same honesty rule governs content: no invented customer names, no newsletter form without an
+endpoint, no "Talk to sales" without a contact route. Placeholders that must ship are marked in
+the DOM (`data-placeholder-logo`), never presented as real.
+
+### Contrast is measured, not assumed
+
+The handoff's "no text lighter than `#71717a`" floor assumes a **white** backdrop.
+`--publy-foreground-muted` measures 4.40:1 on `--publy-surface-muted`, below AA — small text on a
+muted marketing surface uses `--publy-foreground-secondary` instead. `styles/marketing-contrast.test.ts`
+pins the pairs the shell paints, in both themes. Check a new marketing surface the same way:
+against the rendered page, not the design's colour table.
+
+### Cookie consent
+
+`lib/store/cookie-consent-store.ts` fails closed: absent, malformed, or older-policy-version
+state resolves to "no optional cookies" **and** leaves the decision unresolved so the band asks
+again. Dismissing is rejecting — there is no "ask me later". Accept and Reject are equally sized
+and equally placed: the deliberate exception to one-primary-CTA, because an unequal pair here is
+a dark pattern. Preferences open a right-side drawer, never a centred modal, and the categories
+are squared `Checkbox` primitives (a fully-rounded switch track is guard-banned).
