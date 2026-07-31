@@ -793,8 +793,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 					case EntityState.Added:
 						baseEntity.CreatedAt = now;
 						baseEntity.UpdatedAt = now;
-						baseEntity.IsDeleted = false;
-						baseEntity.DeletedAt = null;
+						SetConsistentSoftDeleteState(baseEntity, now);
 						break;
 
 					case EntityState.Modified:
@@ -834,8 +833,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 					case EntityState.Added:
 						permission.CreatedAt = now;
 						permission.UpdatedAt = now;
-						permission.IsDeleted = false;
-						permission.DeletedAt = null;
+						SetConsistentSoftDeleteState(permission, now);
 						break;
 
 					case EntityState.Modified:
@@ -868,6 +866,55 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 				}
 			}
 		}
+	}
+
+	/// <summary>
+	/// Keeps <c>IsDeleted</c>/<c>DeletedAt</c> state coherent on inserts while preserving
+	/// explicit soft-delete intent.
+	///
+	/// - <c>IsDeleted = true</c> and <c>DeletedAt = null</c> are normalized by setting
+	///   <c>DeletedAt</c> to the current UTC time.
+	/// - <c>IsDeleted = false</c> and <c>DeletedAt != null</c> are normalized by flipping
+	///   <c>IsDeleted</c> to true, preventing inconsistent audit rows from entering the
+	///   database.
+	/// - A fully consistent pair is preserved as-is.
+	/// </summary>
+	private static void SetConsistentSoftDeleteState(BaseAttributesNoKey baseEntity, DateTime now) {
+		baseEntity.DeletedAt = NormalizeDeletedAt(baseEntity.DeletedAt);
+
+		if (baseEntity.IsDeleted && baseEntity.DeletedAt is null) {
+			baseEntity.DeletedAt = now;
+			return;
+		}
+
+		if (!baseEntity.IsDeleted && baseEntity.DeletedAt is not null) {
+			baseEntity.IsDeleted = true;
+		}
+	}
+
+	private static void SetConsistentSoftDeleteState(Permission permission, DateTime now) {
+		permission.DeletedAt = NormalizeDeletedAt(permission.DeletedAt);
+
+		if (permission.IsDeleted && permission.DeletedAt is null) {
+			permission.DeletedAt = now;
+			return;
+		}
+
+		if (!permission.IsDeleted && permission.DeletedAt is not null) {
+			permission.IsDeleted = true;
+		}
+	}
+
+	private static DateTime? NormalizeDeletedAt(DateTime? deletedAt) {
+		if (deletedAt is null) {
+			return null;
+		}
+
+		if (deletedAt.Value.Kind == DateTimeKind.Utc) {
+			return deletedAt;
+		}
+
+		return deletedAt.Value.ToUniversalTime();
 	}
 
 	/// <summary>

@@ -201,6 +201,63 @@ public sealed class BulkSeederSoftDeleteTrapSpec : IClassFixture<ApiFixture> {
 	}
 }
 
+public sealed class BulkSeederSoftDeleteRatioSpec : IClassFixture<ApiFixture> {
+	private readonly ApiFixture _fixture;
+
+	public BulkSeederSoftDeleteRatioSpec(ApiFixture fixture) {
+		_fixture = fixture;
+	}
+
+	[Fact]
+	public async Task ItShouldMaterializeSoftDeleteRatiosForBulkSeedRows() {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		// Use a dataset large enough for percentage materialization to be visibly non-zero
+		// under 100% confidence and stable with the generator's fixed seed.
+		var generator = new BulkSeedDataGenerator(
+			tenantCount: 60,
+			staffUserCount: 20,
+			powerUserCount: 60,
+			crossTenantUserCount: 40,
+			singleTenantUserCount: 160,
+			projectsPerTenant: 8
+		);
+		var seeder = new BulkSeeder(batchSize: 50, generator: generator);
+		await seeder.SeedBulkAsync(dbContext);
+
+		var totalTenants = await dbContext.Tenant.CountAsync(t => t.Code.StartsWith(BulkSeedConstants.TenantCodePrefix));
+		var deletedTenants = await dbContext.Tenant.CountAsync(t =>
+			t.Code.StartsWith(BulkSeedConstants.TenantCodePrefix) && t.IsDeleted
+		);
+
+		var totalUsers = await dbContext.User.CountAsync(u => u.Email.EndsWith("@" + BulkSeedConstants.UserEmailDomain));
+		var deletedUsers = await dbContext.User.CountAsync(u =>
+			u.Email.EndsWith("@" + BulkSeedConstants.UserEmailDomain) && u.IsDeleted
+		);
+
+		var totalProjects = await dbContext.Project.CountAsync(p => p.Name.StartsWith(BulkSeedConstants.ProjectNamePrefix));
+		var deletedProjects = await dbContext.Project.CountAsync(p =>
+			p.Name.StartsWith(BulkSeedConstants.ProjectNamePrefix) && p.IsDeleted
+		);
+
+		var tenantDeletedRatio = (double)deletedTenants / totalTenants;
+		var userDeletedRatio = (double)deletedUsers / totalUsers;
+		var projectDeletedRatio = (double)deletedProjects / totalProjects;
+
+		tenantDeletedRatio.Should().BeInRange(0.05, 0.15, "tenant soft-delete ratio must align with tenant generator policy");
+		userDeletedRatio.Should().BeInRange(0.05, 0.25, "user soft-delete ratio must align with user generator policy");
+		projectDeletedRatio.Should().BeInRange(0.03, 0.08, "project soft-delete ratio must align with project generator policy");
+
+		deletedTenants.Should().BeGreaterThan(0, "a 0% tenant soft-delete ratio regressed to zero");
+		deletedUsers.Should().BeGreaterThan(0, "a 0% user soft-delete ratio regressed to zero");
+		deletedProjects.Should().BeGreaterThan(0, "a 0% project soft-delete ratio regressed to zero");
+		deletedTenants.Should().BeLessThan(totalTenants, "a 100% tenant soft-delete ratio would hide active rows");
+		deletedUsers.Should().BeLessThan(totalUsers, "a 100% user soft-delete ratio would hide active rows");
+		deletedProjects.Should().BeLessThan(totalProjects, "a 100% project soft-delete ratio would hide active rows");
+	}
+}
+
 public sealed class BulkSeederGenuineFailureSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
 
