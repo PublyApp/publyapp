@@ -121,6 +121,11 @@
 			"mirror": "just ci-front",
 			"reason": "ci-front runs pnpm --filter front verify:build, whose script body is the same verify-build-css-link.mjs call."
 		},
+		"front-ci.yml::supply-chain::Verify front production font bundle references and unicode coverage": {
+			"hash": "a0ecbd5b41e526ba",
+			"mirror": "just ci-front",
+			"reason": "ci-front runs pnpm --filter front verify:build, whose script body now also calls verify-font-bundle.mjs. The CI step passes --dist apps/front/dist and --locales-dir apps/front/src/i18n/locales explicitly; the script's defaults resolve to the same two paths when it runs with apps/front as the working directory, so the local run is equivalent rather than merely similar."
+		},
 		"front-ci.yml::supply-chain::Smoke start front server and verify stylesheet tag": {
 			"hash": "056e04ce212f4f40",
 			"mirror": "just ci-front",
