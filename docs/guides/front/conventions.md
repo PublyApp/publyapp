@@ -51,6 +51,13 @@ Follow them by hand until automation exists:
   re-quotes any string that is itself valid JSON and the parser turns an unquoted numeric value
   back into a number, so an all-digit value cannot round-trip; UUID ids never are, and anything
   that parses to a non-string is not an id. Drop it at the router boundary rather than coercing.
+- When one route carries **more than one drawer-open flag** (`?new=1` and `?edit=<id>` on the tenant
+  profiles list — today the only such route), they are mutually exclusive and that must be resolved
+  at the **parse/serialize boundary**, not only at the open call sites: a URL carrying both is a
+  link anyone can be sent, and it mounts both modals on first paint. Pick the flag that names a
+  specific entity over a bare flag, and drop the loser from the address bar. Each open path must
+  also clear the opposite flag — otherwise the boundary's own tiebreak silently turns the losing
+  drawer's trigger into a no-op.
 - A drawer hosted **over a list** opens with a PUSH (so a browser Back closes it and restores the
   list entry, rather than leaving the list) and its app-side close consumes that entry again
   (`router.history.back()`), falling back to a `replace` when the drawer was entered by deep link
