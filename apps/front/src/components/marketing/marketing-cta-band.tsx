@@ -23,7 +23,14 @@ export const MarketingCtaBand = () => {
 		>
 			<MarketingContainer width="reading">
 				<div className="flex flex-col items-center gap-5 rounded-[var(--publy-radius-control)] bg-(--publy-surface-muted) px-6 py-12 text-center">
-					<p className="publy-marketing-eyebrow">{t('marketing-cta-kicker')}</p>
+					{/* Measured, not assumed: the muted-foreground step reads
+					    4.40:1 on --publy-surface-muted (it clears 4.5 only on
+					    white), so the two small labels on this band step up to
+					    the secondary foreground. Verified in a real browser over
+					    the production build, see the PR body. */}
+					<p className="publy-marketing-eyebrow text-(--publy-foreground-secondary)">
+						{t('marketing-cta-kicker')}
+					</p>
 					<h2
 						id="marketing-cta-heading"
 						className="max-w-[22ch] text-[clamp(26px,3.2vw,42px)] leading-[1.1] font-semibold tracking-[-0.034em] text-foreground"
@@ -53,7 +60,7 @@ export const MarketingCtaBand = () => {
 							{t('marketing-log-in')}
 						</Link>
 					</div>
-					<p className="publy-type-helper text-(--publy-foreground-muted)">
+					<p className="publy-type-helper text-(--publy-foreground-secondary)">
 						{t('marketing-cta-footnote')}
 					</p>
 				</div>

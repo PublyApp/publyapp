@@ -75,7 +75,12 @@ export const CookiePrefsDrawer = ({
 			>
 				<DrawerHeader>
 					<DrawerTitle>{t('marketing-cookies-title')}</DrawerTitle>
-					<DrawerDescription>
+					{/* The shared drawer-description style is the subtle
+					    foreground step, which measures 2.56:1 on white — below
+					    AA at this size. Stepped up to the muted foreground here;
+					    the primitive-wide fix is reported separately rather than
+					    changed under this PR's feet. */}
+					<DrawerDescription className="text-(--publy-foreground-muted)">
 						{t('marketing-cookies-policy-version', {
 							version: COOKIE_CONSENT_POLICY_VERSION,
 						})}

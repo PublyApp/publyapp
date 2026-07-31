@@ -76,6 +76,33 @@ describe('MarketingShell composition', () => {
 	});
 });
 
+describe('MarketingShell — measured contrast decisions', () => {
+	// Paired with `styles/marketing-contrast.test.ts`, which proves the muted
+	// foreground measures BELOW AA on the muted surface. This half proves the
+	// band's small labels do not use it — the two together are the guard.
+	test('the CTA band labels use the secondary foreground, not the muted step, on the muted band', async () => {
+		await renderShell();
+
+		const band = screen.getByTestId('marketing-cta-band');
+		const smallLabels = Array.from(band.querySelectorAll<HTMLElement>('p'));
+		const kicker = smallLabels.find((node) =>
+			node.className.includes('publy-marketing-eyebrow'),
+		);
+		const footnote = smallLabels.find((node) =>
+			node.className.includes('publy-type-helper'),
+		);
+
+		expect(kicker?.className).toContain('text-(--publy-foreground-secondary)');
+		expect(footnote?.className).toContain(
+			'text-(--publy-foreground-secondary)',
+		);
+		expect(kicker?.className).not.toContain('text-(--publy-foreground-muted)');
+		expect(footnote?.className).not.toContain(
+			'text-(--publy-foreground-muted)',
+		);
+	});
+});
+
 describe('MarketingShell — cookie surfaces', () => {
 	test('the footer control reopens the preferences drawer after a decision was already made', async () => {
 		await renderShell();
