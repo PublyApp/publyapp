@@ -9,7 +9,6 @@ import {
 	Link,
 	Outlet,
 	useBlocker,
-	useNavigate,
 	useRouterState,
 } from '@tanstack/react-router';
 import { useRef, useState } from 'react';
@@ -181,13 +180,7 @@ export const Route = createFileRoute(
 
 function StaffTenantProfileDetailsPage() {
 	const { tenantId, profileId } = Route.useParams();
-	// Deliberately the UNBOUND `useNavigate()`, not `Route.useNavigate()`:
-	// this route is now a layout, so pinning `from` to its own path would make
-	// the search-only drawer toggle below resolve to the layout's path — i.e.
-	// opening `?edit=1` from Permissions or Members would silently drop the
-	// visitor back onto Overview (and trip the dirty-matrix guard on the way).
-	// Unbound, a `to`-less navigate stays on whatever section is showing.
-	const navigate = useNavigate();
+	const navigate = Route.useNavigate();
 	const search = Route.useSearch();
 	const { t, i18n } = useTranslation('staff-tenant-profiles');
 	const queryClient = useQueryClient();
@@ -224,10 +217,11 @@ function StaffTenantProfileDetailsPage() {
 		// either a not-dirty close or a discard the drawer already confirmed
 		// (including the successful-save close via `onSaved`).
 		editDrawerNavBypassRef.current = !isOpen;
-		// `to` names the section currently on screen. A `to`-less navigate
-		// would resolve against this LAYOUT's path, i.e. drop the visitor back
-		// onto Overview whenever the drawer is toggled from Permissions or
-		// Members — and trip the dirty-matrix guard on the way out.
+		// `to` must name the section currently on screen. This route is a
+		// layout now, so a `to`-less navigate resolves against the LAYOUT's own
+		// path: toggling the drawer from Permissions or Members would drop the
+		// visitor back onto Overview, and trip the dirty-matrix guard on the
+		// way out.
 		void navigate({
 			to: PROFILE_SECTION_ROUTES[activeSection],
 			params: { tenantId, profileId },
