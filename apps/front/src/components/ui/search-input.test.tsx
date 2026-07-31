@@ -389,12 +389,20 @@ describe('SearchInput', () => {
 	// string is a plain, resolved token in the CSS bundle or in a JavaScript
 	// bundle, where authority 1 or authority 2 rejects it.
 	//
-	// ACCEPTED RESIDUAL — what remains genuinely uncovered. A change that puts
-	// the rule neither in an emitted CSS asset nor in emitted JS/HTML is not
-	// caught by anything here: for example CSS fetched at runtime from a remote
-	// URL, or a token assembled at runtime from fragments so that no emitted
-	// file contains it contiguously. Those are outside every check in this
-	// repository and are not chased.
+	// ACCEPTED RESIDUALS — what remains genuinely uncovered, stated so nobody
+	// reads the two authorities as total:
+	//
+	//  - A change that puts the rule neither in an emitted CSS asset nor in
+	//    emitted JS/HTML: CSS fetched at runtime from a remote URL, or a token
+	//    assembled at runtime from fragments so no emitted file contains it
+	//    contiguously. Outside every check in this repository.
+	//  - Authority 1 parses `.css` under apps/front/dist/client only, and
+	//    authority 2 does not scan `.css` at all, so a stylesheet emitted
+	//    somewhere else under dist would be seen by neither. Today the build
+	//    emits exactly one `.css`, in dist/client, and nothing else in dist but
+	//    JavaScript (433 `.js` files at the time of writing, all scanned by
+	//    authority 2); if that ever changes, authority 1's root has to change
+	//    with it.
 	//
 	// Why there is no browser backstop to fall back on: headless Linux
 	// Chromium exposes no authority for this UA-shadow pseudo-element, as
