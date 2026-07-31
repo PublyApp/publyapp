@@ -1249,5 +1249,6 @@
 	"marketing-cookies-marketing": "Marketing",
 	"marketing-cookies-marketing-description": "Mesurent quelles campagnes amènent des équipes vers PublyApp. Désactivés par défaut.",
 	"marketing-cookies-close-note": "Fermer ce panneau sans enregistrer laisse tout désactivé, sauf les cookies essentiels.",
-	"marketing-cookies-save": "Enregistrer les préférences"
+	"marketing-cookies-save": "Enregistrer les préférences",
+	"marketing-announcement-label": "Annonce"
 }

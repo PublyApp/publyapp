@@ -143,6 +143,36 @@ describe('MarketingShell — mobile nav', () => {
 });
 
 describe('MarketingShell — announcement bar', () => {
+	// e2e axe caught this as a `region` violation: every top-level surface has
+	// to sit inside a landmark, and the announcement is the only one that is
+	// neither banner, main nor contentinfo.
+	test('every top-level shell surface is inside a named landmark', async () => {
+		await renderShell();
+
+		const announcement = screen.getByTestId('marketing-announcement-bar');
+		expect(announcement.tagName).toBe('ASIDE');
+		expect(announcement.getAttribute('aria-label')).toBe('Announcement');
+
+		expect(screen.getByRole('banner')).toBe(
+			screen.getByTestId('marketing-header'),
+		);
+		expect(screen.getByRole('contentinfo')).toBe(
+			screen.getByTestId('marketing-footer'),
+		);
+		expect(screen.getByRole('main')).toBeTruthy();
+		expect(
+			screen
+				.getByTestId('marketing-social-proof')
+				.getAttribute('aria-labelledby'),
+		).toBeTruthy();
+		expect(
+			screen.getByTestId('marketing-cta-band').getAttribute('aria-labelledby'),
+		).toBeTruthy();
+		expect(
+			(await screen.findByTestId('cookie-consent-band')).getAttribute('role'),
+		).toBe('region');
+	});
+
 	test('dismissal persists, so a returning visitor is not shown it again', async () => {
 		const first = await renderShell();
 

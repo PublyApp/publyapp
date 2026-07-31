@@ -1249,5 +1249,6 @@
 	"marketing-cookies-marketing": "Marketing",
 	"marketing-cookies-marketing-description": "Measures which campaigns bring teams to PublyApp. Off by default.",
 	"marketing-cookies-close-note": "Closing this drawer without saving keeps everything except Essential switched off.",
-	"marketing-cookies-save": "Save preferences"
+	"marketing-cookies-save": "Save preferences",
+	"marketing-announcement-label": "Announcement"
 }

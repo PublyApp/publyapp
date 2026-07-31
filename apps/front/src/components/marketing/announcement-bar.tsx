@@ -87,7 +87,12 @@ export const AnnouncementBar = ({
 	}
 
 	return (
-		<div
+		// A landmark, not a bare div: axe's `region` rule (and anyone
+		// navigating by landmark) treats top-level content outside one as
+		// unreachable chrome — the announcement is the only shell surface that
+		// is neither banner, main, contentinfo nor a named region on its own.
+		<aside
+			aria-label={t('marketing-announcement-label')}
 			data-testid="marketing-announcement-bar"
 			data-tone={tone}
 			className={cn(
@@ -115,6 +120,6 @@ export const AnnouncementBar = ({
 					<IconX aria-hidden="true" className="size-4" />
 				</button>
 			</MarketingContainer>
-		</div>
+		</aside>
 	);
 };
