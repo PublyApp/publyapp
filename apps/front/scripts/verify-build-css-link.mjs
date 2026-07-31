@@ -9,12 +9,13 @@ import { fileURLToPath } from 'node:url';
 
 import {
 	ARTIFACT_SEARCH_CANCEL_CANONICAL,
+	SHIPPED_SOURCE_ROOTS,
 	assertCanonicalSearchCancelCss,
 	assertShippedSourceSearchCancelCss,
 } from './search-cancel-css-policy.mjs';
 
 const clientDir = new URL('../dist/client/', import.meta.url);
-const frontRoot = new URL('../', import.meta.url);
+const workspaceRoot = new URL('../../../', import.meta.url);
 
 const collectPaths = (rootDir, isMatch) => {
 	const stack = [rootDir];
@@ -55,14 +56,16 @@ assertCanonicalSearchCancelCss(
 	})),
 	ARTIFACT_SEARCH_CANCEL_CANONICAL,
 );
-const sourceFileCount = assertShippedSourceSearchCancelCss(
-	fileURLToPath(frontRoot),
-);
+const { allowlistedCount, sourceFileCount } =
+	assertShippedSourceSearchCancelCss(fileURLToPath(workspaceRoot));
 
 console.log(`front production CSS assets: ${clientCssFiles.join(', ')}`);
 console.log('front production build contains emitted CSS assets.');
 console.log(
-	`front search-cancel CSS policy: 1 canonical source rule across ` +
-		`${sourceFileCount} frontend source tree file(s); ` +
-		`1 canonical emitted rule across ${clientCssFiles.length} CSS asset(s).`,
+	`front search-cancel CSS policy: 1 canonical emitted rule across ` +
+		`${clientCssFiles.length} CSS asset(s) (the authority); ` +
+		`1 canonical source rule across ${sourceFileCount} shipped source file(s) ` +
+		`in ${SHIPPED_SOURCE_ROOTS.length} root(s) ` +
+		`(${SHIPPED_SOURCE_ROOTS.join(', ')}); ` +
+		`${allowlistedCount} allowlisted mention(s).`,
 );

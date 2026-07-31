@@ -15,9 +15,11 @@ import { SearchInput } from './search-input';
 
 const APP_CSS_PATH = join(import.meta.dirname, '../../styles/app.css');
 const appCssSource = readFileSync(APP_CSS_PATH, 'utf8');
-const WEBKIT_SEARCH_CANCEL_PSEUDO_ELEMENT =
-	'::-webkit-search' + '-cancel-button';
-const SEARCH_CANCEL_SELECTOR = `.publy-search-input[type='search']${WEBKIT_SEARCH_CANCEL_PSEUDO_ELEMENT}`;
+// The canonical selector this suite asserts, spelled out in full. The trailing
+// marker is how a legitimate mention is exempted from the shipped-source scan
+// in scripts/search-cancel-css-policy.mjs — never by splitting the token.
+const SEARCH_CANCEL_SELECTOR =
+	".publy-search-input[type='search']::-webkit-search-cancel-button"; // publy-allow search-cancel-token
 
 describe('SearchInput', () => {
 	afterEach(() => {
@@ -61,7 +63,7 @@ describe('SearchInput', () => {
 
 	// Defect 1/4: exactly one clear button — this is the regression that
 	// shipped (a custom clear button rendered alongside the browser's native
-	// WebKit search-cancel pseudo-element, and DataTableToolbar rendered none).
+	// `::-webkit-search-cancel-button`, and DataTableToolbar rendered none).
 	test('renders exactly one clear button with an accessible label when the field has text, and none when empty', () => {
 		const { rerender } = render(
 			<SearchInput
@@ -138,7 +140,7 @@ describe('SearchInput', () => {
 	});
 
 	// Defect 1 (review follow-up): jsdom has no rendering engine, so it can
-	// never observe whether the WebKit search-cancel pseudo-element is actually
+	// never observe whether `::-webkit-search-cancel-button` is actually
 	// suppressed on screen — a prior version of this test only checked
 	// `type="search"`, an attribute the stylesheet does not touch, so
 	// deleting the suppression rule entirely left every test here green.
@@ -169,7 +171,8 @@ describe('SearchInput', () => {
 	// lives in scripts/search-cancel-css-policy.mjs; unlike this adjacent
 	// component contract, it counts the pseudo-element token without trying
 	// to model which selector spellings target this input.
-	test("the native WebKit search-cancel suppression rule exists and targets this component's actual rendered markup", () => {
+	// publy-allow search-cancel-token: prose in this test's name.
+	test("the native ::-webkit-search-cancel-button suppression rule exists and targets this component's actual rendered markup", () => {
 		expect(countExactSelectorRules(appCssSource, SEARCH_CANCEL_SELECTOR)).toBe(
 			1,
 		);
@@ -244,7 +247,8 @@ describe('SearchInput', () => {
 	// SPECIFICITY, not source order — a same-specificity "later wins" model
 	// would miss this if it appeared first.
 	test('a higher-specificity compound selector re-enabling the control is caught regardless of source order (specificity regression proof)', () => {
-		const higherSpecificitySelector = `.publy-search-input.foo[type='search']${WEBKIT_SEARCH_CANCEL_PSEUDO_ELEMENT}`;
+		const higherSpecificitySelector =
+			".publy-search-input.foo[type='search']::-webkit-search-cancel-button"; // publy-allow search-cancel-token
 		const mutatedCss = `${higherSpecificitySelector} {\n\tappearance: auto;\n\tdisplay: inline-block;\n}\n${appCssSource}`;
 
 		const declarations = resolveEffectiveDeclarations(
@@ -295,7 +299,7 @@ describe('SearchInput', () => {
 
 	// NOTE: the assertions above are a source-level supplement, not a
 	// substitute for a real browser check. jsdom cannot render a
-	// the WebKit search-cancel pseudo-element at all, in any browser
+	// `::-webkit-search-cancel-button` pseudo-element at all, in any browser
 	// engine, so no jsdom-based test — including this one — can prove the
 	// control is actually invisible/non-operable on screen in Chromium,
 	// Firefox, or WebKit. This repo has a Playwright config
@@ -313,19 +317,46 @@ describe('SearchInput', () => {
 	// real-browser coverage this repo DOES get (exactly one accessible,
 	// working custom clear control).
 	//
-	// Round 6 closure: selector semantics are deliberately outside this
-	// bounded resolver. The build/test policy counts every literal occurrence
-	// of the search-cancel pseudo-element across the complete frontend source
-	// tree and the real emitted CSS, then requires the sole occurrence to be
-	// the canonical suppression rule in app.css.
+	// Selector semantics are deliberately outside this bounded resolver; they
+	// belong to the two-part policy in scripts/search-cancel-css-policy.mjs.
+	// Stated precisely, because earlier revisions of this comment overclaimed:
 	//
-	// Accepted residual limitation: this source-and-artifact contract cannot
-	// catch a runtime string assembled from fragments so the token never
-	// appears literally in our source, or CSS injected at runtime by a
-	// third-party dependency without landing in an emitted CSS asset. That is
-	// the deliberate ceiling: headless Linux Chromium exposes no browser
-	// authority for this UA-shadow pseudo-element, as documented above and in
-	// the adjacent Playwright spec.
+	// 1. THE AUTHORITY — the emitted-artifact assertion. Every `.css` file
+	//    under apps/front/dist/client is parsed after a real `vite build`, and
+	//    the sole occurrence of the pseudo-element must be the canonical
+	//    suppression rule. This catches anything that reaches the CSS bundle,
+	//    whatever the source spelling, formatting or indirection — including
+	//    CSS pulled in from a third-party dependency, and including every
+	//    escaping trick below, because escapes are resolved by the time CSS is
+	//    emitted. It runs in `pnpm --filter front build` and in the standalone
+	//    `verify:build` step of the required `front-ci-gate` path.
+	//
+	// 2. THE SECONDARY NET — a source scan, for CSS that ships via JavaScript
+	//    and therefore never lands in a CSS asset. It covers exactly these
+	//    roots (`SHIPPED_SOURCE_ROOTS`): apps/front/src, apps/front/server.mjs,
+	//    apps/front/vite.config.ts, packages/shared-ts, packages/client-ts —
+	//    i.e. what vite builds, the two workspace packages front depends on
+	//    (both `ssr.noExternal`, so both are bundled), the production server
+	//    entry copied into the runtime image, and the build config itself.
+	//    Nothing else is scanned: apps/front/scripts, apps/front/e2e and
+	//    apps/front/deploy never ship. Comments are not counted — they cannot
+	//    ship CSS — and a legitimate mention is exempted with an explicit
+	//    `publy-allow search-cancel-token` marker, never by splitting the
+	//    token.
+	//
+	// ACCEPTED, NOT CLOSABLE: the source scan is a text scan, so it sees the
+	// token only where it appears as contiguous ASCII. A determined author can
+	// evade it — string concatenation, a backslash-newline line continuation
+	// inside one literal, or a unicode escape for one of the token's
+	// characters. None of these is detectable by any text scan, so they are
+	// not chased here. The purpose of the source scan is catching accidental
+	// regressions, not defeating an adversary; an adversarial change that
+	// reaches the CSS bundle is still caught by (1), and one that does not is
+	// not caught at all.
+	//
+	// Why there is no browser backstop to fall back on: headless Linux
+	// Chromium exposes no authority for this UA-shadow pseudo-element, as
+	// documented above and in the adjacent Playwright spec.
 
 	test('the table size variant carries the fixed-height data-table search class', () => {
 		render(

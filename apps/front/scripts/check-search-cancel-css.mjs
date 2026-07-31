@@ -1,12 +1,21 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { assertShippedSourceSearchCancelCss } from './search-cancel-css-policy.mjs';
+import {
+	SHIPPED_SOURCE_ROOTS,
+	assertShippedSourceSearchCancelCss,
+} from './search-cancel-css-policy.mjs';
 
-const frontRoot = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
-const sourceFileCount = assertShippedSourceSearchCancelCss(frontRoot);
+const workspaceRoot = path.resolve(
+	fileURLToPath(new URL('../../..', import.meta.url)),
+);
+const { allowlistedCount, sourceFileCount } =
+	assertShippedSourceSearchCancelCss(workspaceRoot);
 
 console.log(
 	`front search-cancel source policy: 1 canonical rule across ` +
-		`${sourceFileCount} frontend source tree file(s).`,
+		`${sourceFileCount} shipped source file(s) in ` +
+		`${SHIPPED_SOURCE_ROOTS.length} root(s) ` +
+		`(${SHIPPED_SOURCE_ROOTS.join(', ')}); ` +
+		`${allowlistedCount} allowlisted mention(s).`,
 );
