@@ -102,7 +102,7 @@
  * IMPORTANT 1).
  */
 
-import { readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import { readFileSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { cleanup, render, screen } from '@testing-library/react';
@@ -244,7 +244,6 @@ import { ProfileFormDrawer } from '../../routes/authed/staff/tenants/$tenantId/p
 const noop = () => undefined;
 
 const FRONT_ROOT = path.resolve(import.meta.dirname, '../../..');
-const DRAWER_SOURCE_GLOB = path.join(FRONT_ROOT, 'src/**/*.tsx');
 const DRAWER_MODULE_RELATIVE_PATH = 'src/components/ui/drawer.tsx';
 const DRAWER_MODULE_PATH = path.join(FRONT_ROOT, DRAWER_MODULE_RELATIVE_PATH);
 const RE_EXPORT_CHAIN_DEPTH_LIMIT = 6;
@@ -868,6 +867,41 @@ type ModuleResolution = {
 const toPortableSourcePath = (filePath: string): string =>
 	path.relative(FRONT_ROOT, filePath).split(path.sep).join('/');
 
+// The scan's ts-morph Project is expensive to construct (tsconfig parse,
+// module-resolution host) and the per-file ASTs dominate the rest of the
+// work, so ONE project is shared by every scanDrawerSurfaces() call in the
+// suite. Fixture files are written and deleted between scans, so each scan
+// reconciles the shared project against the current on-disk file set
+// instead of rebuilding it (round 10's MINOR 4 — the suite was paying one
+// full-src parse per assertion).
+let sharedScanProject: Project | null = null;
+
+const getScanProject = (): Project => {
+	if (!sharedScanProject) {
+		sharedScanProject = new Project({
+			tsConfigFilePath: path.join(FRONT_ROOT, 'tsconfig.json'),
+			skipAddingFilesFromTsConfig: true,
+		});
+	}
+	return sharedScanProject;
+};
+
+const walkSrcTsxFiles = (): string[] => {
+	const results: string[] = [];
+	const walk = (dir: string): void => {
+		for (const entry of readdirSync(dir, { withFileTypes: true })) {
+			const fullPath = path.join(dir, entry.name);
+			if (entry.isDirectory()) {
+				walk(fullPath);
+			} else if (entry.isFile() && entry.name.endsWith('.tsx')) {
+				results.push(fullPath);
+			}
+		}
+	};
+	walk(path.join(FRONT_ROOT, 'src'));
+	return results;
+};
+
 /**
  * True when the drawer module (src/components/ui/drawer.tsx) exports
  * `exportName` through a specifier-less `export { ... }` declaration. The
@@ -1342,10 +1376,20 @@ const scanDrawerSurfaces = (): {
 	violations: string[];
 	formBearing: string[];
 } => {
-	const project = new Project({
-		tsConfigFilePath: path.join(FRONT_ROOT, 'tsconfig.json'),
-		skipAddingFilesFromTsConfig: true,
-	});
+	const project = getScanProject();
+	// Reconcile the shared project with the current on-disk file set: a
+	// fixture written for an earlier assertion and deleted since must not
+	// linger as a loaded source file, and a fixture on disk now but never
+	// loaded must be added. Real files are loaded once and reused.
+	const desiredFilePaths = new Set(walkSrcTsxFiles());
+	for (const sourceFile of project.getSourceFiles()) {
+		if (!desiredFilePaths.has(sourceFile.getFilePath())) {
+			project.removeSourceFile(sourceFile);
+		}
+	}
+	for (const filePath of desiredFilePaths) {
+		project.addSourceFileAtPathIfExists(filePath);
+	}
 	const moduleResolution: ModuleResolution = {
 		compilerOptions: project.getCompilerOptions(),
 		host: project.getModuleResolutionHost(),
@@ -1387,7 +1431,7 @@ const scanDrawerSurfaces = (): {
 	const violations: string[] = [];
 	const formBearing: string[] = [];
 
-	for (const sourceFile of project.addSourceFilesAtPaths(DRAWER_SOURCE_GLOB)) {
+	for (const sourceFile of project.getSourceFiles()) {
 		if (/\.(?:spec|test)\.tsx$/.test(sourceFile.getBaseName())) {
 			continue;
 		}
@@ -1886,6 +1930,41 @@ describe('drawer surface flex chain guard (#990)', () => {
 		} finally {
 			unlinkSync(TEMPORARY_FAKE_SUSPENSE_DRAWER_PATH);
 		}
+	});
+
+	test('a chain terminating at the drawer module is only resolved for names the drawer module actually exports', () => {
+		// Pins the terminal `drawerModuleExports` gate in resolveDrawerSymbol
+		// (round 9's MINOR 2): a resolved chain that reaches the drawer
+		// module with a name the module does not export is null, not the
+		// name. No fixture can exercise that verdict — every fixture import
+		// that terminates at the drawer module does so with a name it
+		// genuinely exports, and the literal-text part fallback neutralizes
+		// the rest — so the pin drives resolveDrawerSymbol directly.
+		const project = getScanProject();
+		project.addSourceFileAtPathIfExists(DRAWER_MODULE_PATH);
+		const moduleResolution: ModuleResolution = {
+			compilerOptions: project.getCompilerOptions(),
+			host: project.getModuleResolutionHost(),
+		};
+
+		expect(
+			resolveDrawerSymbol(
+				DRAWER_MODULE_PATH,
+				'./drawer',
+				'DrawerBody',
+				moduleResolution,
+				project,
+			),
+		).toBe('DrawerBody');
+		expect(
+			resolveDrawerSymbol(
+				DRAWER_MODULE_PATH,
+				'./drawer',
+				'NotADrawerExport',
+				moduleResolution,
+				project,
+			),
+		).toBeNull();
 	});
 
 	test('a member-expression part tag whose base is a named binding through an export * as barrel is discovered and rejected', () => {
