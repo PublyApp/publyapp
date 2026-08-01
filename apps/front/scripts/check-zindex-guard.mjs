@@ -938,7 +938,66 @@ export const scanZIndexFile = ({
 			}
 			return nearestBinding(owner, owner.text) == null;
 		};
+		const staticStyleElementCss = (node) => {
+			if (!ts.isJsxElement(node)) {
+				return null;
+			}
+			const tag = node.openingElement.tagName;
+			if (!ts.isIdentifier(tag) || tag.text !== 'style') {
+				return null;
+			}
+			// A `dangerouslySetInnerHTML` payload on a `<style>` element is the
+			// same static CSS text, just spelled through the attribute.
+			for (const attribute of node.openingElement.attributes.properties) {
+				if (
+					!ts.isJsxAttribute(attribute) ||
+					attribute.name.kind !== ts.SyntaxKind.Identifier ||
+					attribute.name.text !== 'dangerouslySetInnerHTML'
+				) {
+					continue;
+				}
+				if (!ts.isJsxExpression(attribute.initializer)) {
+					return null;
+				}
+				const object = unwrapTransparentExpression(
+					attribute.initializer.expression,
+				);
+				if (!ts.isObjectLiteralExpression(object)) {
+					return null;
+				}
+				return staticObjectProperty(object, '__html');
+			}
+			const parts = [];
+			for (const child of node.children) {
+				if (ts.isJsxText(child)) {
+					parts.push(child.text);
+				} else if (ts.isJsxExpression(child)) {
+					const text = staticString(child.expression);
+					if (text == null) {
+						return null;
+					}
+					parts.push(text);
+				} else {
+					return null;
+				}
+			}
+			return parts.join('');
+		};
 		const visitStaticStyleEscapes = (node) => {
+			const styleCss = staticStyleElementCss(node);
+			if (styleCss != null && checkCompiledCssZIndex(styleCss).length > 0) {
+				violations.push({
+					ruleId: 'z-index-style-element-shipped',
+					message:
+						'static <style> element ships CSS that never becomes an emitted ' +
+						'asset, so the emitted gate cannot inspect it — route every ' +
+						'z-index through the scale or import the stylesheet through the ' +
+						'build graph.',
+					file: relativePath,
+					line: lineForOffset(content, node.getStart(sourceFile)),
+					source: node.getText(sourceFile),
+				});
+			}
 			let rel = null;
 			let href = null;
 			if (
@@ -1412,13 +1471,21 @@ export const buildProductionApp = async (baseDir) => {
 	);
 	const authoredCssPaths = new Set();
 	const authoredScriptPaths = new Set();
+	const inlineCssPaths = new Set();
 	const provenancePlugin = {
 		name: 'publy-zindex-css-provenance',
 		enforce: 'pre',
 		transform(_code, id) {
-			const [filePath] = id.split('?');
+			const [filePath, query] = id.split('?');
 			if (filePath.endsWith('.css')) {
 				authoredCssPaths.add(path.resolve(filePath));
+				// `?inline` / `?raw` imports ship the CSS text as JS rather than
+				// as an emitted asset, so the emitted gate never sees it. The
+				// authored file is walked directly by the declaration gate.
+				const queryTokens = query == null ? [] : query.split('&');
+				if (queryTokens.includes('inline') || queryTokens.includes('raw')) {
+					inlineCssPaths.add(path.resolve(filePath));
+				}
 			} else if (
 				path.isAbsolute(filePath) &&
 				SCRIPT_EXTENSIONS.has(path.extname(filePath))
@@ -1446,6 +1513,7 @@ export const buildProductionApp = async (baseDir) => {
 		emittedCssRoot,
 		authoredCssPaths: [...authoredCssPaths],
 		authoredScriptPaths: [...authoredScriptPaths],
+		inlineCssPaths: [...inlineCssPaths],
 		cleanup: () => rm(emittedCssRoot, { recursive: true, force: true }),
 	};
 };
@@ -1556,7 +1624,9 @@ export const runZIndexGuard = async ({
 		if (
 			buildResult?.emittedCssRoot == null ||
 			!Array.isArray(buildResult.authoredCssPaths) ||
-			!Array.isArray(buildResult.authoredScriptPaths)
+			!Array.isArray(buildResult.authoredScriptPaths) ||
+			(buildResult.inlineCssPaths != null &&
+				!Array.isArray(buildResult.inlineCssPaths))
 		) {
 			throw new Error(
 				'z-index guard productionBuild must return the exact emittedCssRoot and ' +
@@ -1621,6 +1691,22 @@ export const runZIndexGuard = async ({
 					relativePath: path.relative(baseDir, cssPath),
 					isCanonicalAppCss: cssPath === canonicalAppCssPath,
 				}),
+			);
+		}
+		const inlineCssPaths = (buildResult.inlineCssPaths ?? [])
+			.map((filePath) => path.resolve(filePath))
+			.sort((left, right) => left.localeCompare(right));
+		for (const cssPath of inlineCssPaths) {
+			const content = await readFile(cssPath, 'utf8');
+			// `?inline` / `?raw` CSS ships as JS text, invisible to the emitted
+			// gate — the declaration gate runs on the authored file itself,
+			// including inline imports from outside the project root.
+			violations.push(
+				...checkCompiledCssZIndex(
+					content,
+					KNOWN_RAW_Z_INDEX_DECLARATIONS,
+					path.relative(baseDir, cssPath),
+				),
 			);
 		}
 		const emittedCssRoot = path.resolve(buildResult.emittedCssRoot);

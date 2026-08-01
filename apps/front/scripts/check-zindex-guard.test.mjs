@@ -50,6 +50,7 @@ const FIXTURE_APP_CSS = `@import 'tailwindcss' source('./src');
 const buildViteFixture = async (root) => {
 	const authoredCssPaths = new Set();
 	const authoredScriptPaths = new Set();
+	const inlineCssPaths = new Set();
 	await viteBuild({
 		root,
 		configFile: false,
@@ -59,9 +60,13 @@ const buildViteFixture = async (root) => {
 				name: 'zindex-fixture-css-provenance',
 				enforce: 'pre',
 				transform(_code, id) {
-					const [filePath] = id.split('?');
+					const [filePath, query] = id.split('?');
 					if (filePath.endsWith('.css')) {
 						authoredCssPaths.add(path.resolve(filePath));
+						const queryTokens = query == null ? [] : query.split('&');
+						if (queryTokens.includes('inline') || queryTokens.includes('raw')) {
+							inlineCssPaths.add(path.resolve(filePath));
+						}
 					} else if (/\.[cm]?[jt]sx?$/.test(filePath)) {
 						authoredScriptPaths.add(path.resolve(filePath));
 					}
@@ -76,6 +81,7 @@ const buildViteFixture = async (root) => {
 		emittedCssRoot: path.join(root, 'dist'),
 		authoredCssPaths: [...authoredCssPaths],
 		authoredScriptPaths: [...authoredScriptPaths],
+		inlineCssPaths: [...inlineCssPaths],
 		cleanup: async () => {},
 	};
 };
@@ -906,6 +912,56 @@ test('e2e (round 5 audit): unimported script link samples stay green', async () 
 		].join('\n'),
 	});
 	assert.deepEqual(violations, []);
+});
+
+test('e2e (round 6 I1): static JSX <style> element shipping raw z-index is red', async () => {
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx':
+				'export const probe = <style>{`.probe { z-index: 2147483647; }`}</style>;',
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		violations.map((violation) => violation.ruleId),
+		['z-index-style-element-shipped'],
+		`static style element must red: ${JSON.stringify(violations)}`,
+	);
+});
+
+test('e2e (round 6 I1): static <style> with harmless scale-routed CSS stays green', async () => {
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx':
+				'export const probe = <style>{`.probe { z-index: var(--publy-z-raised); }`}</style>;',
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(violations, []);
+});
+
+test('e2e (round 6 I1): ?inline CSS ships as JS and is red via the authored inline walk', async () => {
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				`import overlayCss from './overlay.css?inline';`,
+				`export const probe = <style>{overlayCss}</style>;`,
+			].join('\n'),
+			'overlay.css': '.overlay { z-index: 2147483647; }',
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.ok(
+		violations.some(
+			(violation) =>
+				violation.ruleId === 'z-index-declaration-not-on-scale' &&
+				violation.file === 'src/overlay.css',
+		),
+		`inline-shipped CSS must red at its authored file: ${JSON.stringify(violations)}`,
+	);
 });
 
 test('e2e (round 5 audit): build-reachable static script escapes are red', async () => {
