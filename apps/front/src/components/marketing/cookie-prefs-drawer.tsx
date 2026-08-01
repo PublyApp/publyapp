@@ -82,7 +82,10 @@ export const CookiePrefsDrawer = ({
 					    spec reserves for marketing surfaces (same choice as
 					    .publy-marketing-eyebrow), so the cookie drawer
 					    description reads at the same weight as the rest of
-					    the marketing copy it sits among. */}
+					    the marketing copy it sits among. This is the one
+					    override that sits closest to the 4.5:1 floor (round 5
+					    M8) — deliberate, and pinned by both the source guard
+					    and the browser spec. */}
 					<DrawerDescription className="text-(--publy-foreground-muted)">
 						{t('marketing-cookies-policy-version', {
 							version: COOKIE_CONSENT_POLICY_VERSION,
