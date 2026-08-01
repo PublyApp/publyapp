@@ -22,5 +22,7 @@ export declare const findContextChunkIsolationViolations: (
 ) => string[];
 
 export declare const contextChunkIsolationPlugin: (options: {
+	contextInventory: ContextDeclaration[];
 	tsconfigPath: string;
+	workspaceDirectory?: string;
 }) => Plugin;
