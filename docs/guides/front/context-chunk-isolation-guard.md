@@ -98,11 +98,14 @@ closed by design.
 - A context whose declared type is a fully structural annotation (an object type shaped like
   `Context<…>` but not naming it or extending it) is invisible to the type scan; a direct
   `createContext` initializer is still caught by the callee fallback.
-- A context minted into a comma-chain holder value (`{ p: (0, factory()) }`) or minted inside a
-  function body or return position (`loader: () => factory()`) is invisible to both the type
-  scan and the rendered analysis. A factory call in an argument position is discovered when its
-  result is bound or held (the enclosing binding or holder is typed), and when the result is
-  discarded nothing can consume the duplicate, so neither form is a real coverage gap.
+- A context minted into a comma-chain holder value (`{ p: (0, factory()) }`), a holder whose
+  callee expression has no name (an IIFE factory: `{ p: (() => factory())() }`), or minted
+  inside a function body or return position (`loader: () => factory()`) is invisible to the
+  rendered analysis — the source scan still discovers the mint and demands its inventory
+  entry, but the rendered copies cannot be attributed. A factory call in an argument position
+  is discovered when its result is bound or held (the enclosing binding or holder is typed),
+  and when the result is discarded nothing can consume the duplicate, so neither form is a
+  real coverage gap.
 - A context that is tree-shaken out of a particular build configuration (for example one behind
   a feature flag that the e2e image disables) fails the build with `is not present in a client
 chunk`. No current context is flag-gated; if one ever is, the e2e/release build asymmetry must
