@@ -374,7 +374,23 @@ const readBrowserComputedColors = async (
 	text: Locator,
 ): Promise<BrowserComputedColors> =>
 	text.evaluate((element) => {
-		const computedForeground = getComputedStyle(element).color;
+		const canvas = document.createElement('canvas');
+		canvas.width = 1;
+		canvas.height = 1;
+		const context = canvas.getContext('2d');
+		if (!context) {
+			throw new Error('Browser canvas colour resolver is unavailable');
+		}
+
+		const toSrgb = (color: string): string => {
+			context.clearRect(0, 0, 1, 1);
+			context.fillStyle = color;
+			context.fillRect(0, 0, 1, 1);
+			const [r, g, b, alpha] = context.getImageData(0, 0, 1, 1).data;
+			return `rgba(${r}, ${g}, ${b}, ${alpha / 255})`;
+		};
+
+		const computedForeground = toSrgb(getComputedStyle(element).color);
 		const rect = element.getBoundingClientRect();
 		const x = rect.left + rect.width / 2;
 		const y = rect.top + rect.height / 2;
@@ -392,7 +408,8 @@ const readBrowserComputedColors = async (
 			}
 			seen.add(layer);
 
-			const color = getComputedStyle(layer).backgroundColor;
+			const rawColor = getComputedStyle(layer).backgroundColor;
+			const color = toSrgb(rawColor);
 			const channels = color.match(/[\d.]+/g);
 			const alpha = color.startsWith('rgba') ? Number(channels?.[3] ?? 1) : 1;
 			if (alpha === 0) {
@@ -469,14 +486,26 @@ const assertTextContrast = async ({
 
 	for (const theme of ['light', 'dark'] as const) {
 		await setTheme(page, theme);
-		for (const state of ['default', 'hover'] as const) {
-			if (state === 'hover') {
+		for (const state of ['default', 'hover', 'active'] as const) {
+			if (state === 'hover' || state === 'active') {
 				await text.hover();
 			} else {
 				await page.mouse.move(0, 0);
 			}
 
-			const measurement = await measureContrast(text);
+			if (state === 'active') {
+				await page.mouse.down();
+			}
+
+			let measurement: ContrastMeasurement;
+			try {
+				measurement = await measureContrast(text);
+			} finally {
+				if (state === 'active') {
+					await page.mouse.up();
+				}
+			}
+
 			const description = `${label} ${theme} ${state}: ${measurement.ratio.toFixed(2)}:1`;
 			testInfo.annotations.push({ type: 'contrast', description });
 			expect(measurement.ratio, description).toBeGreaterThanOrEqual(
