@@ -138,6 +138,17 @@ describe('front locale manifests', () => {
 			},
 		] as const;
 
+		// Liveness canary. The loop below only ever asserts about clauses the
+		// trigger set actually flags; if those patterns go dead — gutted to [],
+		// refactored away, or silently stopping on an accented character — the
+		// whole test passes while inspecting nothing. Count the clauses the
+		// triggers matched across both locales and pin it to what the committed
+		// copy really contains: fourteen (seven per locale), across the timeline
+		// eyebrow/title, the trial-plan note, the two FAQ clauses, the closing
+		// description and the CTA footnote. Bump this when the committed copy
+		// legitimately changes; never lower it to clear a dead trigger set.
+		let inspectedClauseCount = 0;
+
 		for (const localeCase of localeCases) {
 			// The landing page renders strings from the `landing-*` prefix and the
 			// marketing shell's `marketing-*` prefix: the shell's header, mobile
@@ -164,6 +175,8 @@ describe('front locale manifests', () => {
 						landingTrialClaimPatterns.some((pattern) => pattern.test(clause)),
 					);
 
+				inspectedClauseCount += trialClauses.length;
+
 				for (const clause of trialClauses) {
 					const hasFutureMarker = localeCase.futureMarkers.some((pattern) =>
 						pattern.test(clause),
@@ -175,6 +188,8 @@ describe('front locale manifests', () => {
 				}
 			}
 		}
+
+		expect(inspectedClauseCount).toBeGreaterThanOrEqual(14);
 	});
 
 	test('keeps the trial timeline free of invented day counts', () => {
