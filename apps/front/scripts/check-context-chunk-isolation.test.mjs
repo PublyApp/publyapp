@@ -315,6 +315,73 @@ void test('discovers React contexts from shorthand destructuring and shorthand o
 	}
 });
 
+void test('discovers contexts minted through a cross-file factory', async () => {
+	const fixtureDirectory = await createFixture({
+		'src/make-context.ts': `
+			import { createContext } from 'react';
+			export const createStrictContext = <T,>(fallback: T) => createContext(fallback);
+		`,
+		'src/wrapper-consumer.tsx': `
+			import { createStrictContext } from './make-context';
+			export const ProbeContext = createStrictContext<null>(null);
+		`,
+		'src/passthrough-consumer.tsx': `
+			import { createStrictContext } from './make-context';
+			const passThrough = <T,>(value: T) => value;
+			export const SecondContext = passThrough(createStrictContext(null));
+		`,
+	});
+
+	try {
+		const contexts = findReactContextDeclarations(
+			path.join(fixtureDirectory, 'tsconfig.json'),
+		);
+		const nameInSourceFile = (name, relativeSourceFile) =>
+			contexts.some(
+				(context) =>
+					context.name === name &&
+					context.sourceFile ===
+						path.join(fixtureDirectory, relativeSourceFile),
+			);
+		assert.equal(
+			nameInSourceFile('ProbeContext', 'src/wrapper-consumer.tsx'),
+			true,
+		);
+		assert.equal(
+			nameInSourceFile('SecondContext', 'src/passthrough-consumer.tsx'),
+			true,
+		);
+	} finally {
+		await rm(fixtureDirectory, { force: true, recursive: true });
+	}
+});
+
+void test('fails closed when a local or unrelated createContext symbol is imported through a factory', async () => {
+	const fixtureDirectory = await createFixture({
+		'node_modules/not-react/index.d.ts': `
+			export declare const createContext: <T>(value: T) => T;
+		`,
+		'src/local-factory.ts': `
+			import { createElement } from 'react';
+			void createElement;
+			import { createContext } from 'not-react';
+			export const createLocalContext = <T,>(value: T) => value;
+			export const LocalContext = createLocalContext(createContext(null));
+		`,
+	});
+
+	try {
+		assert.deepEqual(
+			findReactContextDeclarations(
+				path.join(fixtureDirectory, 'tsconfig.json'),
+			),
+			[],
+		);
+	} finally {
+		await rm(fixtureDirectory, { force: true, recursive: true });
+	}
+});
+
 void test('does not report a local or unrelated createContext symbol', async () => {
 	const fixtureDirectory = await createFixture({
 		'node_modules/not-react/index.d.ts': `
@@ -1056,6 +1123,63 @@ void test('fails the plugin for a bundled first-party module outside front src t
 		await rm(fixtureDirectory, { force: true, recursive: true });
 	}
 });
+
+void test(
+	'fails a real TanStack route build when a context is minted through a cross-file factory',
+	{ timeout: 120_000 },
+	async () => {
+		const inventory = [
+			{ name: '<anonymous context>', sourceFile: 'src/make-context.ts' },
+			{ name: 'ProbeContext', sourceFile: 'src/routes/probe.tsx' },
+			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'FourthContext', sourceFile: 'src/contexts.tsx' },
+		];
+		const result = await buildRouteFixture({
+			files: {
+				'src/make-context.ts': `
+					import { createContext } from 'react';
+					export const createStrictContext = <T,>(fallback: T) => createContext(fallback);
+				`,
+				'src/routes/probe.tsx': `
+					import { createFileRoute } from '@tanstack/react-router';
+					import { useContext } from 'react';
+					import { createStrictContext } from '../make-context';
+					const ProbeContext = createStrictContext<null>(null);
+					export const useProbe = () => useContext(ProbeContext);
+					const Probe = () => <ProbeContext.Provider value={null}>probe</ProbeContext.Provider>;
+					export const Route = createFileRoute('/probe')({ component: Probe });
+				`,
+			},
+			inventory,
+			rootImportsProbe: true,
+		});
+
+		try {
+			const mintingCopies = [];
+			for (const chunk of JSON.parse(result.trace)) {
+				for (const [moduleId, code] of Object.entries(chunk.modules)) {
+					if (
+						moduleId.includes('/src/routes/probe.tsx') &&
+						/createStrictContext\s*\(/.test(code)
+					) {
+						mintingCopies.push(`${chunk.fileName} :: ${moduleId}`);
+					}
+				}
+			}
+			assert.equal(
+				new Set(mintingCopies.map((location) => location.split(' :: ')[0]))
+					.size,
+				2,
+				`MINTING ${JSON.stringify(mintingCopies, null, 2)}`,
+			);
+			assert.notEqual(result.status, 0, result.trace);
+			assert.match(result.output, /cannot prove how ProbeContext is created/i);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
 
 void test(
 	'fails a real TanStack route build when a context survives in its reference and split modules',

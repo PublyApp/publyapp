@@ -14,6 +14,7 @@ import {
 	isParenthesizedExpression,
 	isPropertyAssignment,
 	isPropertyAccessExpression,
+	isPropertyDeclaration,
 	isShorthandPropertyAssignment,
 	isStringLiteral,
 	isVariableDeclaration,
@@ -117,7 +118,7 @@ const assertStaticReactElementAccess = (
 	}
 };
 
-const findReactCreateContextSymbol = (program, checker) => {
+const findReactContextSymbols = (program, checker) => {
 	const reactDeclaration = program
 		.getSourceFileNames()
 		.map((fileName) => program.getSourceFile(fileName))
@@ -130,11 +131,12 @@ const findReactCreateContextSymbol = (program, checker) => {
 	}
 
 	const reactModule = checker.getSymbolAtLocation(reactDeclaration);
-	const createContext = reactModule
-		? checker
-				.getExportsOfModule(reactModule)
-				.find((symbol) => symbol.name === 'createContext')
-		: undefined;
+	const reactExports = reactModule
+		? checker.getExportsOfModule(reactModule)
+		: [];
+	const createContext = reactExports.find(
+		(symbol) => symbol.name === 'createContext',
+	);
 
 	if (!createContext) {
 		throw new Error(
@@ -142,7 +144,34 @@ const findReactCreateContextSymbol = (program, checker) => {
 		);
 	}
 
-	return { createContext, reactModule };
+	const contextType = reactExports.find((symbol) => symbol.name === 'Context');
+	if (!contextType) {
+		throw new Error(
+			"Context chunk isolation guard could not resolve React's Context type.",
+		);
+	}
+
+	return { contextType, createContext, reactModule };
+};
+
+// A context value is whatever the checker says is React's Context<T>, not
+// whatever callee happened to produce it. Factories such as
+// createStrictContext live in another module and resolve through the type
+// system, so a binding whose type is Context<T> is a context regardless of
+// how many indirection hops separated it from createContext.
+const typeContainsReactContext = (type, reactContextType) => {
+	if (!type) {
+		return false;
+	}
+
+	if (type.isUnionType() || type.isIntersectionType()) {
+		return type
+			.getTypes()
+			.some((member) => typeContainsReactContext(member, reactContextType));
+	}
+
+	const symbol = type.getSymbol();
+	return symbol !== undefined && symbol.id === reactContextType.id;
 };
 
 const resolvesToReactCreateContext = (
@@ -292,6 +321,32 @@ const contextNameForCall = (callExpression) => {
 	}
 
 	return '<anonymous context>';
+};
+
+const declarationBinding = (checker, node) => {
+	if (isVariableDeclaration(node) || isPropertyDeclaration(node)) {
+		if (!isIdentifier(node.name)) {
+			return undefined;
+		}
+
+		const symbol = checker.getSymbolAtLocation(node.name);
+		return symbol ? { symbol, name: node.name.text } : undefined;
+	}
+
+	if (
+		isBindingElement(node) &&
+		isObjectBindingPattern(node.parent) &&
+		isVariableDeclaration(node.parent.parent)
+	) {
+		if (!isIdentifier(node.name)) {
+			return undefined;
+		}
+
+		const symbol = checker.getSymbolAtLocation(node.name);
+		return symbol ? { symbol, name: node.name.text } : undefined;
+	}
+
+	return undefined;
 };
 
 // Rolldown currently collapses most aliases to these property-access forms
@@ -513,10 +568,8 @@ export const findReactContextDeclarations = (
 			);
 		}
 
-		const { createContext: reactCreateContext } = findReactCreateContextSymbol(
-			project.program,
-			project.checker,
-		);
+		const { contextType: reactContextType, createContext: reactCreateContext } =
+			findReactContextSymbols(project.program, project.checker);
 		onProgramSourceFiles(
 			new Set(
 				project.program
@@ -552,22 +605,58 @@ export const findReactContextDeclarations = (
 					});
 				}
 
-				if (isCallExpression(node)) {
-					const calleeSymbol = symbolForExpression(
-						project.checker,
-						node.expression,
-					);
+				const binding = declarationBinding(project.checker, node);
+				if (binding) {
 					if (
+						typeContainsReactContext(
+							project.checker.getTypeOfSymbolAtLocation(binding.symbol, node),
+							reactContextType,
+						)
+					) {
+						contexts.push({
+							name: binding.name,
+							sourceFile: normalizeModuleId(sourceFile.fileName),
+						});
+					} else if (
+						(isVariableDeclaration(node) || isPropertyDeclaration(node)) &&
+						node.initializer &&
+						isCallExpression(node.initializer) &&
 						resolvesToReactCreateContext(
 							project.checker,
-							calleeSymbol,
+							symbolForExpression(project.checker, node.initializer.expression),
 							reactCreateContext,
 						)
 					) {
 						contexts.push({
-							name: contextNameForCall(node),
+							name: binding.name,
 							sourceFile: normalizeModuleId(sourceFile.fileName),
 						});
+					}
+				}
+
+				if (isCallExpression(node)) {
+					const declaration = node.parent;
+					const isDeclarationInitializer =
+						(isVariableDeclaration(declaration) ||
+							isPropertyDeclaration(declaration)) &&
+						declaration.initializer === node;
+					if (!isDeclarationInitializer) {
+						const calleeSymbol = symbolForExpression(
+							project.checker,
+							node.expression,
+						);
+						if (
+							resolvesToReactCreateContext(
+								project.checker,
+								calleeSymbol,
+								reactCreateContext,
+							)
+						) {
+							contexts.push({
+								name: contextNameForCall(node),
+								sourceFile: normalizeModuleId(sourceFile.fileName),
+							});
+						}
 					}
 				}
 
