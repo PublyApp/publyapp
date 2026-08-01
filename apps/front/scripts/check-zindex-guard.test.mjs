@@ -473,15 +473,42 @@ test('compiled-CSS gate: property names are canonicalised (case and escapes)', (
 });
 
 test('compiled-CSS gate: only Tailwind exact generated scale selector is accepted', () => {
-	const generated = '@layer theme { :root, :host { --publy-z-raised: 10; } }';
+	const definition = '--publy-z-raised: 10;';
+	const generated = `@layer theme { :root, :host { ${definition} } }`;
 	assert.deepEqual(checkCompiledCssZIndex(generated), []);
-	for (const selector of [':host, :root', ':root,:host']) {
+	assert.equal(
+		checkCompiledCssZIndex(`@layer theme { :root,:host { ${definition} } }`)
+			.length,
+		1,
+		'authored mode rejects the production-only compact selector',
+	);
+	for (const selector of [':root, :host', ':root,:host']) {
+		assert.deepEqual(
+			checkCompiledCssZIndex(
+				`@layer theme { ${selector} { ${definition} } }`,
+				KNOWN_RAW_Z_INDEX_DECLARATIONS,
+				'fixture.css',
+				{ emitted: true },
+			),
+			[],
+			`emitted selector ${selector}`,
+		);
+	}
+	for (const css of [
+		`@layer theme { :host,:root { ${definition} } }`,
+		`@layer components { :root,:host { ${definition} } }`,
+		`@media (min-width: 1px) { @layer theme { :root,:host { ${definition} } } }`,
+		`:root,:host { ${definition} }`,
+	]) {
 		assert.equal(
 			checkCompiledCssZIndex(
-				`@layer theme { ${selector} { --publy-z-raised: 10; } }`,
+				css,
+				KNOWN_RAW_Z_INDEX_DECLARATIONS,
+				'fixture.css',
+				{ emitted: true },
 			).length,
 			1,
-			selector,
+			css,
 		);
 	}
 });
