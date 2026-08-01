@@ -31,7 +31,7 @@ describe('front locale manifests', () => {
 		const frCommon: Record<string, string> = fr.common;
 
 		const pricingKeys = Object.keys(enCommon).filter((key) =>
-			/^landing-pricing-/.test(key),
+			key.startsWith('landing-pricing-'),
 		);
 		const forbiddenPricingPatterns = [
 			/trial/i,
