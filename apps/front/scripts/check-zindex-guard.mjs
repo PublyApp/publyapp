@@ -9,7 +9,7 @@ import { compile } from '@tailwindcss/node';
 import { Scanner } from '@tailwindcss/oxide';
 import postcss from 'postcss';
 import { ts } from 'ts-morph';
-import { createBuilder } from 'vite';
+import { createBuilder, isCSSRequest } from 'vite';
 
 const rootDir = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const appCssPath = path.join(rootDir, 'src/styles/app.css');
@@ -1611,20 +1611,31 @@ export const buildProductionApp = async (baseDir) => {
 	const authoredCssPaths = new Set();
 	const authoredScriptPaths = new Set();
 	const inlineCssPaths = new Set();
+	const rawTextPaths = new Set();
 	const provenancePlugin = {
 		name: 'publy-zindex-css-provenance',
 		enforce: 'pre',
 		transform(_code, id) {
 			const [filePath, query] = id.split('?');
-			if (filePath.endsWith('.css')) {
+			const queryTokens = query == null ? [] : query.split('&');
+			if (isCSSRequest(id)) {
+				// Vite's own CSS-language set (`.css`, `.pcss`, `.postcss`,
+				// `.sss`, the preprocessor languages, …) so the guard cannot
+				// drift when Vite adds a language.
 				authoredCssPaths.add(path.resolve(filePath));
 				// `?inline` / `?raw` imports ship the CSS text as JS rather than
 				// as an emitted asset, so the emitted gate never sees it. The
 				// authored file is walked directly by the declaration gate.
-				const queryTokens = query == null ? [] : query.split('&');
 				if (queryTokens.includes('inline') || queryTokens.includes('raw')) {
 					inlineCssPaths.add(path.resolve(filePath));
 				}
+			} else if (queryTokens.includes('raw') && path.isAbsolute(filePath)) {
+				// `?raw` ships the raw text of *any* file as JS, and that text
+				// can be CSS even when the extension is not a CSS language
+				// (`.txt`?raw is the documented case). Record every raw module;
+				// the walk treats text that does not parse as CSS as having no
+				// declarations.
+				rawTextPaths.add(path.resolve(filePath));
 			} else if (
 				path.isAbsolute(filePath) &&
 				SCRIPT_EXTENSIONS.has(path.extname(filePath))
@@ -1660,6 +1671,7 @@ export const buildProductionApp = async (baseDir) => {
 		authoredCssPaths: [...authoredCssPaths],
 		authoredScriptPaths: [...authoredScriptPaths],
 		inlineCssPaths: [...inlineCssPaths],
+		rawTextPaths: [...rawTextPaths],
 		cleanup: () => {
 			activeBuildDirectories.delete(emittedCssRoot);
 			return rm(emittedCssRoot, { recursive: true, force: true });
@@ -1720,7 +1732,7 @@ const collectReachableAuthoredCssPaths = async (baseDir, entryPaths) => {
 				return;
 			}
 			const [withoutQuery] = specifier.split(/[?#]/);
-			if (!withoutQuery.endsWith('.css')) {
+			if (!isCSSRequest(withoutQuery)) {
 				return;
 			}
 			addPath(path.resolve(path.dirname(cssPath), withoutQuery));
@@ -1775,7 +1787,9 @@ export const runZIndexGuard = async ({
 			!Array.isArray(buildResult.authoredCssPaths) ||
 			!Array.isArray(buildResult.authoredScriptPaths) ||
 			(buildResult.inlineCssPaths != null &&
-				!Array.isArray(buildResult.inlineCssPaths))
+				!Array.isArray(buildResult.inlineCssPaths)) ||
+			(buildResult.rawTextPaths != null &&
+				!Array.isArray(buildResult.rawTextPaths))
 		) {
 			throw new Error(
 				'z-index guard productionBuild must return the exact emittedCssRoot and ' +
@@ -1857,6 +1871,28 @@ export const runZIndexGuard = async ({
 					path.relative(baseDir, cssPath),
 				),
 			);
+		}
+		const rawTextPaths = (buildResult.rawTextPaths ?? [])
+			.map((filePath) => path.resolve(filePath))
+			.filter((filePath) => !inlineCssPaths.includes(filePath))
+			.sort((left, right) => left.localeCompare(right));
+		for (const rawPath of rawTextPaths) {
+			const content = await readFile(rawPath, 'utf8');
+			// `?raw` ships the raw file text as JS without CSS compilation.
+			// The payload is walked as CSS: text that does not parse has no
+			// declarations, while a payload that parses as CSS is checked
+			// like any other shipped stylesheet.
+			try {
+				violations.push(
+					...checkCompiledCssZIndex(
+						content,
+						KNOWN_RAW_Z_INDEX_DECLARATIONS,
+						path.relative(baseDir, rawPath),
+					),
+				);
+			} catch {
+				// not CSS — nothing for the declaration walk to inspect.
+			}
 		}
 		const emittedCssRoot = path.resolve(buildResult.emittedCssRoot);
 		const emittedCssPaths = await collectCssPaths(emittedCssRoot);
