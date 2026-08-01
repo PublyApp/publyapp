@@ -690,6 +690,26 @@ export const DivAboveFormDrawerFixture = ({
 );
 `;
 
+// Round 7's MINOR 4: the `DrawerFooter` half of the discovery predicate was
+// the one branch whose deletion was fail-open — a footer-only drawer became
+// invisible with a fully green suite (app-shell.tsx pins the `DrawerBody`
+// half: it has a body and no footer, so dropping the body half reddens the
+// inventory). This fixture pins the footer half the same way.
+const TEMPORARY_FOOTER_ONLY_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-footer-only-fixture.tsx';
+const TEMPORARY_FOOTER_ONLY_DRAWER_PATH = path.join(
+	FRONT_ROOT,
+	TEMPORARY_FOOTER_ONLY_DRAWER_FILE,
+);
+const TEMPORARY_FOOTER_ONLY_DRAWER_SOURCE = `import { DrawerContent, DrawerFooter } from '~/components/ui/drawer';
+
+export const FooterOnlyDrawerFixture = () => (
+	<DrawerContent data-testid="r8-footer-only">
+		<DrawerFooter>footer</DrawerFooter>
+	</DrawerContent>
+);
+`;
+
 // Formless drawers that put DrawerBody + DrawerFooter straight into the
 // `.publy-drawer` surface instead of into the drawer-owned form. They are
 // deliberately not in DRAWER_FORM_CALL_SITES: the e2e spec and the render map
@@ -1602,6 +1622,21 @@ describe('drawer surface flex chain guard (#990)', () => {
 			);
 		} finally {
 			unlinkSync(TEMPORARY_DIV_WRAPPED_PARTS_DRAWER_PATH);
+		}
+	});
+
+	test('a footer-only drawer is discovered, pinning the DrawerFooter half of discovery', () => {
+		writeFileSync(
+			TEMPORARY_FOOTER_ONLY_DRAWER_PATH,
+			TEMPORARY_FOOTER_ONLY_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(TEMPORARY_FOOTER_ONLY_DRAWER_FILE);
+			expect(scan.violations).not.toContain(TEMPORARY_FOOTER_ONLY_DRAWER_FILE);
+		} finally {
+			unlinkSync(TEMPORARY_FOOTER_ONLY_DRAWER_PATH);
 		}
 	});
 
