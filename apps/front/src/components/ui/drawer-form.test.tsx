@@ -26,6 +26,13 @@
  *
  * The browser-side proof — computed flex geometry and real scrolling at a
  * constrained viewport — is the captain's Playwright suite, not this file.
+ *
+ * Discovery is import-aware: a JSX tag counts as a DrawerForm call site when
+ * its local name is bound to the shared component's export, so
+ * `import { DrawerForm as Form }` + `<Form />` is caught. The round-4
+ * fallback is preserved: a JSX tag written literally as `DrawerForm` still
+ * counts when it is not bound to a resolved import of the shared component,
+ * which is what keeps an unresolvable-import call site discoverable.
  */
 
 import { readFileSync, unlinkSync, writeFileSync } from 'node:fs';
@@ -35,7 +42,14 @@ import { cleanup, render, screen } from '@testing-library/react';
 import postcss from 'postcss';
 import type { AtRule, Rule } from 'postcss';
 import { createElement, type ReactNode } from 'react';
-import { Project, SyntaxKind } from 'ts-morph';
+import {
+	Project,
+	SyntaxKind,
+	ts,
+	type JsxOpeningElement,
+	type JsxSelfClosingElement,
+	type SourceFile,
+} from 'ts-morph';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import {
@@ -160,6 +174,7 @@ const noop = () => undefined;
 
 const FRONT_ROOT = path.resolve(import.meta.dirname, '../../..');
 const DRAWER_SOURCE_GLOB = path.join(FRONT_ROOT, 'src/**/*.tsx');
+const DRAWER_MODULE_RELATIVE_PATH = 'src/components/ui/drawer.tsx';
 const TEMPORARY_CALL_SITE_SOURCE_FILE =
 	'src/components/ui/_drawer-form-inventory-fixture.tsx';
 const TEMPORARY_CALL_SITE_PATH = path.join(
@@ -176,12 +191,95 @@ export const DrawerFormInventoryFixture = () => {
 	);
 };
 `;
+const TEMPORARY_ALIASED_CALL_SITE_FILE =
+	'src/components/ui/_drawer-form-aliased-fixture.tsx';
+const TEMPORARY_ALIASED_CALL_SITE_PATH = path.join(
+	FRONT_ROOT,
+	TEMPORARY_ALIASED_CALL_SITE_FILE,
+);
+const TEMPORARY_ALIASED_CALL_SITE_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+
+import { DrawerForm as Form } from '~/components/ui/drawer';
+
+export const DrawerFormAliasedFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => <Form methods={methods} />;
+`;
+
+type DrawerFormImportBindings = {
+	drawerFormLocalNames: ReadonlySet<string>;
+};
+
+type ModuleResolution = {
+	compilerOptions: ts.CompilerOptions;
+	host: ts.ModuleResolutionHost;
+};
+
+const collectDrawerFormImportBindings = (
+	sourceFile: SourceFile,
+	moduleResolution: ModuleResolution,
+): DrawerFormImportBindings => {
+	const drawerModulePath = path.join(FRONT_ROOT, DRAWER_MODULE_RELATIVE_PATH);
+	const drawerFormLocalNames = new Set<string>();
+
+	for (const declaration of sourceFile.getImportDeclarations()) {
+		const importsDrawerForm = declaration
+			.getNamedImports()
+			.some((namedImport) => namedImport.getName() === 'DrawerForm');
+
+		if (!importsDrawerForm) {
+			continue;
+		}
+
+		const resolvedModule = ts.resolveModuleName(
+			declaration.getModuleSpecifierValue(),
+			sourceFile.getFilePath(),
+			moduleResolution.compilerOptions,
+			moduleResolution.host,
+		).resolvedModule?.resolvedFileName;
+
+		if (resolvedModule !== drawerModulePath) {
+			continue;
+		}
+
+		for (const namedImport of declaration.getNamedImports()) {
+			if (namedImport.getName() !== 'DrawerForm') {
+				continue;
+			}
+
+			drawerFormLocalNames.add(
+				namedImport.getAliasNode()?.getText() ?? namedImport.getName(),
+			);
+		}
+	}
+
+	return { drawerFormLocalNames };
+};
+
+const isDrawerFormCallSite = (
+	node: JsxOpeningElement | JsxSelfClosingElement,
+	bindings: DrawerFormImportBindings,
+): boolean => {
+	const tagText = node.getTagNameNode().getText();
+
+	if (bindings.drawerFormLocalNames.has(tagText)) {
+		return true;
+	}
+
+	return tagText === 'DrawerForm';
+};
 
 const findDrawerFormCallSites = (): string[] => {
 	const project = new Project({
 		tsConfigFilePath: path.join(FRONT_ROOT, 'tsconfig.json'),
 		skipAddingFilesFromTsConfig: true,
 	});
+	const moduleResolution: ModuleResolution = {
+		compilerOptions: project.getCompilerOptions(),
+		host: project.getModuleResolutionHost(),
+	};
 	const sourceFiles: string[] = [];
 
 	for (const sourceFile of project.addSourceFilesAtPaths(DRAWER_SOURCE_GLOB)) {
@@ -189,13 +287,17 @@ const findDrawerFormCallSites = (): string[] => {
 			continue;
 		}
 
+		const bindings = collectDrawerFormImportBindings(
+			sourceFile,
+			moduleResolution,
+		);
 		const drawerFormNodes = [
 			...sourceFile.getDescendantsOfKind(SyntaxKind.JsxOpeningElement),
 			...sourceFile.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement),
 		];
-		const hasDrawerForm = drawerFormNodes.some((node) => {
-			return node.getTagNameNode().getText() === 'DrawerForm';
-		});
+		const hasDrawerForm = drawerFormNodes.some((node) =>
+			isDrawerFormCallSite(node, bindings),
+		);
 
 		if (hasDrawerForm) {
 			sourceFiles.push(
@@ -293,6 +395,21 @@ describe('DrawerForm flex chain at the real call sites', () => {
 			);
 		} finally {
 			unlinkSync(TEMPORARY_CALL_SITE_PATH);
+		}
+	});
+
+	test('the scanner discovers an aliased import of the shared DrawerForm', () => {
+		writeFileSync(
+			TEMPORARY_ALIASED_CALL_SITE_PATH,
+			TEMPORARY_ALIASED_CALL_SITE_SOURCE,
+		);
+
+		try {
+			expect(findDrawerFormCallSites()).toContain(
+				TEMPORARY_ALIASED_CALL_SITE_FILE,
+			);
+		} finally {
+			unlinkSync(TEMPORARY_ALIASED_CALL_SITE_PATH);
 		}
 	});
 
