@@ -88,6 +88,20 @@ vi.mock('~/components/ui/drawer', () => ({
 		createElement('div', null, children),
 	DrawerFooter: ({ children }: { children: ReactNode }) =>
 		createElement('div', null, children),
+	DrawerForm: ({
+		children,
+		methods,
+		onSubmit,
+	}: {
+		children: ReactNode;
+		methods: import('react-hook-form').UseFormReturn;
+		onSubmit?: (event: React.FormEvent<HTMLFormElement>) => void;
+	}) =>
+		createElement(
+			FormProvider as never,
+			{ ...methods } as never,
+			createElement('form', { onSubmit }, children),
+		),
 }));
 
 vi.mock('~/components/field', () => ({

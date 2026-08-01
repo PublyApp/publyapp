@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { Field, Form } from '~/components/field';
+import { Field } from '~/components/field';
 import { Button } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
@@ -14,6 +14,7 @@ import {
 	DrawerContent,
 	DrawerDescription,
 	DrawerFooter,
+	DrawerForm,
 	DrawerHeader,
 	DrawerTitle,
 } from '~/components/ui/drawer';
@@ -234,7 +235,7 @@ const ProfileEditDetailsDrawer = ({
 						{tProfiles('edit-details-subtitle', { name: profile.name })}
 					</DrawerDescription>
 				</DrawerHeader>
-				<Form methods={methods} onSubmit={onSubmit}>
+				<DrawerForm methods={methods} onSubmit={onSubmit}>
 					<DrawerBody className="space-y-5">
 						<div className="space-y-1.5">
 							<div className="grid items-end gap-3 sm:grid-cols-[auto_minmax(0,1fr)]">
@@ -321,7 +322,7 @@ const ProfileEditDetailsDrawer = ({
 							{t('save-changes')}
 						</Button>
 					</DrawerFooter>
-				</Form>
+				</DrawerForm>
 			</DrawerContent>
 			<ConfirmDialog
 				isOpen={isDiscardConfirmOpen}
