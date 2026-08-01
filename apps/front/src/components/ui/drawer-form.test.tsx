@@ -55,6 +55,21 @@
  * guessed: the wrapper rule fails closed, so the #990 defect shape (the plain
  * field `Form`) is a structural violation with no discovery gap to hide in.
  *
+ * The wrapper walk is DOM-faithful, not syntactic: it sees through
+ * everything that creates no node — JSX expressions, conditionals, `&&`
+ * chains, calls, parentheses, the `<>` shorthand, and the nodeless React
+ * wrappers `Fragment`/`Suspense`/`StrictMode` (only when actually imported
+ * from `react`). A part whose walk finds NO enclosing element at all sits
+ * inside a component DEFINITION (a composition helper that renders the
+ * part), not at a drawer call site: its DOM position is decided by the
+ * helper's call site, a definition site has no drawer to break, and the
+ * walk's null result is therefore accepted, not a violation. This is a
+ * deliberate, documented decision: the guard cannot see the chain through a
+ * helper, and it says so in the "what the suite cannot see" section of the
+ * round-8 report rather than rejecting correct code. A helper that wraps
+ * the part in a real element IS discovered and judged — the walk then finds
+ * that element and it is a violation.
+ *
  * Deliberate friction: every file the scanner discovers must appear in the
  * inventory (the `DRAWER_FORM_CALL_SITES` union below, or
  * `FORM_LESS_DRAWER_SURFACE_FILES`), so a new drawer is visible to this suite
@@ -209,6 +224,14 @@ const DRAWER_SOURCE_GLOB = path.join(FRONT_ROOT, 'src/**/*.tsx');
 const DRAWER_MODULE_RELATIVE_PATH = 'src/components/ui/drawer.tsx';
 const DRAWER_MODULE_PATH = path.join(FRONT_ROOT, DRAWER_MODULE_RELATIVE_PATH);
 const RE_EXPORT_CHAIN_DEPTH_LIMIT = 6;
+
+// React wrappers that render no DOM node of their own; the wrapper walk
+// treats them as transparent (see isNodelessReactWrapper).
+const NODELESS_REACT_WRAPPER_NAMES = new Set([
+	'Fragment',
+	'Suspense',
+	'StrictMode',
+]);
 
 const TEMPORARY_NEW_DRAWER_FILE =
 	'src/components/ui/_drawer-surface-new-fixture.tsx';
@@ -528,6 +551,89 @@ export const ConditionalDrawerFixture = ({
 );
 `;
 
+// Round 7's I2: a drawer body under `<Suspense>` and a footer inside an
+// explicit `<Fragment>` render exactly the chain the guard protects — both
+// wrappers are nodeless — so the wrapper walk must see through them. The
+// shorthand `<>` was already transparent; the named form and Suspense are
+// the same class.
+const TEMPORARY_NODELESS_WRAPPERS_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-nodeless-wrappers-fixture.tsx';
+const TEMPORARY_NODELESS_WRAPPERS_DRAWER_PATH = path.join(
+	FRONT_ROOT,
+	TEMPORARY_NODELESS_WRAPPERS_DRAWER_FILE,
+);
+const TEMPORARY_NODELESS_WRAPPERS_DRAWER_SOURCE = `import { Fragment, Suspense } from 'react';
+import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+export const NodelessWrappersDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<DrawerForm methods={methods}>
+		<Suspense fallback={null}>
+			<DrawerBody>content</DrawerBody>
+		</Suspense>
+		<Fragment>
+			<DrawerFooter>
+				<button type="submit">Save</button>
+			</DrawerFooter>
+		</Fragment>
+	</DrawerForm>
+);
+`;
+
+// Round 7's I2: a composition helper that renders `<DrawerBody>` directly —
+// its rendered output is a drawer part at the helper's instantiation
+// position, and the part has NO enclosing element in this file, so the walk
+// returns null. That is a component DEFINITION, not a drawer call site; a
+// definition site has no drawer to break, so it is neither discovered nor a
+// violation (a helper that wraps the part in an element IS discovered and
+// judged — the walk then finds that element).
+const TEMPORARY_DEFINITION_HELPER_FILE =
+	'src/components/ui/_drawer-section-body-fixture.tsx';
+const TEMPORARY_DEFINITION_HELPER_PATH = path.join(
+	FRONT_ROOT,
+	TEMPORARY_DEFINITION_HELPER_FILE,
+);
+const TEMPORARY_DEFINITION_HELPER_SOURCE = `import type { ReactNode } from 'react';
+import { DrawerBody } from '~/components/ui/drawer';
+
+export const DrawerSectionBody = ({ children }: { children: ReactNode }) => (
+	<DrawerBody className="flex flex-col gap-4">{children}</DrawerBody>
+);
+`;
+
+// The boundary of the I2 decision: a part wrapped in a REAL element (a
+// `<div>`) is a structural violation — the div owns the unconstrained
+// height between the form and the part. Nodeless wrappers are transparent;
+// element wrappers are not.
+const TEMPORARY_DIV_WRAPPED_PARTS_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-div-wrapped-parts-fixture.tsx';
+const TEMPORARY_DIV_WRAPPED_PARTS_DRAWER_PATH = path.join(
+	FRONT_ROOT,
+	TEMPORARY_DIV_WRAPPED_PARTS_DRAWER_FILE,
+);
+const TEMPORARY_DIV_WRAPPED_PARTS_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+export const DivWrappedPartsDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<DrawerForm methods={methods}>
+		<div className="p-4">
+			<DrawerBody>content</DrawerBody>
+		</div>
+		<DrawerFooter>
+			<button type="submit">Save</button>
+		</DrawerFooter>
+	</DrawerForm>
+);
+`;
+
 // Formless drawers that put DrawerBody + DrawerFooter straight into the
 // `.publy-drawer` surface instead of into the drawer-owned form. They are
 // deliberately not in DRAWER_FORM_CALL_SITES: the e2e spec and the render map
@@ -837,9 +943,11 @@ const isTransparentExpression = (node: Node): boolean => {
 	const kind = node.getKind();
 	// JsxExpression/Fragment create no DOM node; the expression kinds cover
 	// conditionals, `&&` chains, `.map()` calls and parentheses between a tag
-	// and its wrapper element. A node that is none of these (a `<div>`, a
-	// statement, an attribute) means the tag is not directly inside an
-	// element, which the caller treats as a structural violation.
+	// and its wrapper element. The nodeless React wrappers (Fragment,
+	// Suspense, StrictMode) are handled by the walk itself, above. A node
+	// that is none of these (a `<div>`, a statement, an attribute) means the
+	// tag is not directly inside an element, which the caller treats as a
+	// structural violation.
 	return (
 		kind === SyntaxKind.JsxExpression ||
 		kind === SyntaxKind.JsxFragment ||
@@ -857,6 +965,45 @@ const isTransparentExpression = (node: Node): boolean => {
 };
 
 /**
+ * React's nodeless wrappers — `Fragment`, `Suspense`, `StrictMode` (imported
+ * from `react`, in a named or namespace-member spelling) — render no DOM
+ * node of their own, so a drawer part inside one is still a direct child of
+ * the wrapper's parent element. The walk skips them like the expression
+ * kinds below. A same-named tag that is NOT imported from `react` is not
+ * skipped (it is a real element, and its own binding resolution will judge
+ * it).
+ */
+const isNodelessReactWrapper = (
+	openingElement: JsxOpeningElement | JsxSelfClosingElement,
+	sourceFile: SourceFile,
+): boolean => {
+	const tagText = openingElement.getTagNameNode().getText();
+	const memberMatch = tagText.match(
+		/^([A-Za-z_$][\w$]*)\.(Fragment|Suspense|StrictMode)$/,
+	);
+	if (memberMatch) {
+		return resolveNamespaceImport(sourceFile, memberMatch[1]) === 'react';
+	}
+	if (!NODELESS_REACT_WRAPPER_NAMES.has(tagText)) {
+		return false;
+	}
+	return sourceFile
+		.getImportDeclarations()
+		.some(
+			(declaration) =>
+				declaration.getModuleSpecifierValue() === 'react' &&
+				declaration
+					.getNamedImports()
+					.some(
+						(namedImport) =>
+							!namedImport.isTypeOnly() &&
+							(namedImport.getAliasNode()?.getText() ??
+								namedImport.getName()) === tagText,
+					),
+		);
+};
+
+/**
  * The nearest element that actually contains the body/footer tag in the DOM
  * sense: fragments, JSX expressions and the other kinds below create no
  * node, so they are skipped — and so are the nodeless React wrappers. Any
@@ -868,6 +1015,7 @@ const isTransparentExpression = (node: Node): boolean => {
  */
 const findWrapperOpeningElement = (
 	node: JsxOpeningElement | JsxSelfClosingElement,
+	sourceFile: SourceFile,
 ): JsxOpeningElement | null => {
 	let current: Node | undefined = node.getParent();
 	// An opening tag's parent is the JsxElement of its OWN element — step past
@@ -880,7 +1028,12 @@ const findWrapperOpeningElement = (
 	}
 	while (current) {
 		if (current.getKind() === SyntaxKind.JsxElement) {
-			return (current as JsxElement).getOpeningElement();
+			const openingElement = (current as JsxElement).getOpeningElement();
+			if (isNodelessReactWrapper(openingElement, sourceFile)) {
+				current = current.getParent();
+				continue;
+			}
+			return openingElement;
 		}
 		if (!isTransparentExpression(current)) {
 			return null;
@@ -981,7 +1134,7 @@ const scanDrawerSurfaces = (): {
 		];
 
 		const wrapperOf = (node: JsxOpeningElement | JsxSelfClosingElement) =>
-			findWrapperOpeningElement(node);
+			findWrapperOpeningElement(node, sourceFile);
 
 		const partNodes = jsxTags.filter((node) => {
 			const tagText = node.getTagNameNode().getText();
@@ -1003,9 +1156,23 @@ const scanDrawerSurfaces = (): {
 			continue;
 		}
 
+		// A part tag with NO enclosing element sits inside a component
+		// DEFINITION (a composition helper that renders the part), not at a
+		// drawer call site: the DOM position of such a part is decided by the
+		// helper's call site, which lives in another file. A definition site
+		// has no drawer to break, so it is neither discovered nor a violation
+		// (a helper that wraps the part in an element IS discovered and
+		// judged here, since the wrapper walk then finds that element).
+		const callSitePartNodes = partNodes.filter(
+			(node) => wrapperOf(node) !== null,
+		);
+		if (callSitePartNodes.length === 0) {
+			continue;
+		}
+
 		discovered.push(toPortableSourcePath(sourceFile.getFilePath()));
 
-		const isRejected = partNodes.some((node) => {
+		const isRejected = callSitePartNodes.some((node) => {
 			const wrapper = wrapperOf(node);
 			if (!wrapper) {
 				return true;
@@ -1290,6 +1457,59 @@ describe('drawer surface flex chain guard (#990)', () => {
 			expect(scan.violations).not.toContain(TEMPORARY_CONDITIONAL_DRAWER_FILE);
 		} finally {
 			unlinkSync(TEMPORARY_CONDITIONAL_DRAWER_PATH);
+		}
+	});
+
+	test('a drawer body under Suspense and a footer in an explicit Fragment are still direct children of the form', () => {
+		writeFileSync(
+			TEMPORARY_NODELESS_WRAPPERS_DRAWER_PATH,
+			TEMPORARY_NODELESS_WRAPPERS_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				TEMPORARY_NODELESS_WRAPPERS_DRAWER_FILE,
+			);
+			expect(scan.violations).not.toContain(
+				TEMPORARY_NODELESS_WRAPPERS_DRAWER_FILE,
+			);
+		} finally {
+			unlinkSync(TEMPORARY_NODELESS_WRAPPERS_DRAWER_PATH);
+		}
+	});
+
+	test('a composition helper that renders DrawerBody directly is a definition site, not a drawer call site', () => {
+		writeFileSync(
+			TEMPORARY_DEFINITION_HELPER_PATH,
+			TEMPORARY_DEFINITION_HELPER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).not.toContain(TEMPORARY_DEFINITION_HELPER_FILE);
+			expect(scan.violations).not.toContain(TEMPORARY_DEFINITION_HELPER_FILE);
+		} finally {
+			unlinkSync(TEMPORARY_DEFINITION_HELPER_PATH);
+		}
+	});
+
+	test('a drawer part wrapped in an intermediate element is a structural violation', () => {
+		writeFileSync(
+			TEMPORARY_DIV_WRAPPED_PARTS_DRAWER_PATH,
+			TEMPORARY_DIV_WRAPPED_PARTS_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				TEMPORARY_DIV_WRAPPED_PARTS_DRAWER_FILE,
+			);
+			expect(scan.violations).toContain(
+				TEMPORARY_DIV_WRAPPED_PARTS_DRAWER_FILE,
+			);
+		} finally {
+			unlinkSync(TEMPORARY_DIV_WRAPPED_PARTS_DRAWER_PATH);
 		}
 	});
 
