@@ -4,6 +4,18 @@ import { I18N_NAMESPACES } from '~/lib/i18n.namespaces';
 import en from './en';
 import fr from './fr';
 
+// A keyword sweep cannot be complete — a trial can always be promised in
+// words none of these match. These cover the phrasings a rewrite is most
+// likely to reach for. The hyphen in the duration pattern matters:
+// "14 days free" and "14-day free" are the same promise.
+const forbiddenPricingPatterns = [
+	/trial/i,
+	/essai/i,
+	/\b\d+\s*-?\s*(day|days|jour|jours)\b/i,
+	/no (credit )?card/i,
+	/(sans|pas de|aucune?) (carte|engagement)/i,
+];
+
 describe('front locale manifests', () => {
 	test('publish every registered namespace in registry order', () => {
 		expect(Object.keys(en)).toEqual([...I18N_NAMESPACES]);
@@ -33,17 +45,6 @@ describe('front locale manifests', () => {
 		const pricingKeys = Object.keys(enCommon).filter((key) =>
 			key.startsWith('landing-pricing-'),
 		);
-		// A keyword sweep cannot be complete — a trial can always be promised in
-		// words none of these match. These cover the phrasings a rewrite is most
-		// likely to reach for. The hyphen in the duration pattern matters:
-		// "14 days free" and "14-day free" are the same promise.
-		const forbiddenPricingPatterns = [
-			/trial/i,
-			/essai/i,
-			/\b\d+\s*-?\s*(day|days|jour|jours)\b/i,
-			/no (credit )?card/i,
-			/(sans|pas de|aucune?) (carte|engagement)/i,
-		];
 
 		// Without this the loop below passes vacuously if the key shape ever
 		// changes. There are seventeen pricing keys today.
@@ -57,11 +58,10 @@ describe('front locale manifests', () => {
 		}
 	});
 
-	test('frames every landing-page trial mention as future-facing', () => {
+	test('frames every landing-page trial claim as future-facing', () => {
 		const localeCases = [
 			{
 				common: en.common as Record<string, string>,
-				trialMention: /\btrials?\b/i,
 				futureMarkers: [
 					/\bplan(?:ned|s|ning)?\b/i,
 					/\b(?:upcoming|forthcoming|future)\b/i,
@@ -73,7 +73,6 @@ describe('front locale manifests', () => {
 			},
 			{
 				common: fr.common as Record<string, string>,
-				trialMention: /\bessais?\b/i,
 				futureMarkers: [
 					/\bprévu(?:e|es|s)?\b/i,
 					/\b(?:futur(?:e|es|s)?|prochain(?:e|es|s)?)\b/i,
@@ -100,14 +99,15 @@ describe('front locale manifests', () => {
 			expect(landingKeys.length).toBeGreaterThan(0);
 
 			// Natural language is not fully decidable with regexes. Conservatively,
-			// every punctuation-delimited clause that names a trial must carry a
-			// recognized future marker. Legitimate new wording must either use one of
-			// the markers above or deliberately extend that locale's vocabulary.
+			// every punctuation-delimited clause that matches the shared pricing
+			// vocabulary must carry a recognized future marker.
 			for (const key of landingPageKeys) {
 				const value = localeCase.common[key];
 				const trialClauses = value
 					.split(/[.!?;·]+/)
-					.filter((clause) => localeCase.trialMention.test(clause));
+					.filter((clause) =>
+						forbiddenPricingPatterns.some((pattern) => pattern.test(clause)),
+					);
 
 				for (const clause of trialClauses) {
 					const hasFutureMarker = localeCase.futureMarkers.some((pattern) =>
@@ -115,7 +115,7 @@ describe('front locale manifests', () => {
 					);
 					expect(
 						hasFutureMarker,
-						`${key} must frame every trial-bearing clause as future-facing`,
+						`${key} must frame every trial-offer clause as future-facing`,
 					).toBe(true);
 				}
 			}
