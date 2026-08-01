@@ -1,8 +1,9 @@
 import path from 'node:path';
 
 import {
-	isElementAccessExpression,
 	isCallExpression,
+	isElementAccessExpression,
+	isPropertyAccessExpression,
 	isVariableDeclaration,
 } from 'typescript/unstable/ast/is';
 import { API, SymbolFlags } from 'typescript/unstable/sync';
@@ -11,6 +12,16 @@ const REACT_TYPE_DECLARATION = /[/\\]@types[/\\]react[/\\]index\.d\.ts$/;
 
 const normalizeModuleId = (moduleId) =>
 	path.normalize(moduleId.split('?')[0]).replaceAll('\\', '/');
+
+const symbolForExpression = (checker, expression) =>
+	isElementAccessExpression(expression)
+		? checker.getSymbolAtLocation(expression.argumentExpression)
+		: checker.getSymbolAtLocation(expression);
+
+const isContextFactoryAdapterCall = (expression) =>
+	isCallExpression(expression) &&
+	isPropertyAccessExpression(expression.expression) &&
+	['apply', 'bind', 'call'].includes(expression.expression.name.getText());
 
 const findReactCreateContextSymbol = (program, checker) => {
 	const reactDeclaration = program
@@ -71,9 +82,14 @@ const resolvesToReactCreateContext = (
 		return false;
 	}
 
+	const initializer = declaration.initializer;
+	const factoryExpression = isContextFactoryAdapterCall(initializer)
+		? initializer.expression.expression
+		: initializer;
+
 	return resolvesToReactCreateContext(
 		checker,
-		checker.getSymbolAtLocation(declaration.initializer),
+		symbolForExpression(checker, factoryExpression),
 		reactCreateContext,
 		seenSymbolIds,
 	);
@@ -117,11 +133,10 @@ export const findReactContextDeclarations = (tsconfigPath) => {
 			const sourceFile = project.program.getSourceFile(sourceFileName);
 			const visit = (node) => {
 				if (isCallExpression(node)) {
-					const calleeSymbol = isElementAccessExpression(node.expression)
-						? project.checker.getSymbolAtLocation(
-								node.expression.argumentExpression,
-							)
-						: project.checker.getSymbolAtLocation(node.expression);
+					const calleeSymbol = symbolForExpression(
+						project.checker,
+						node.expression,
+					);
 					if (
 						resolvesToReactCreateContext(
 							project.checker,

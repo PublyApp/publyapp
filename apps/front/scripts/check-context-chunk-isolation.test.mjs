@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
-import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
@@ -56,6 +55,16 @@ test('resolves React createContext through every supported import and type form'
 			import * as React from 'react';
 			export const ElementAccessContext = React['createContext'](null);
 		`,
+		'src/value-alias.ts': `
+			import * as React from 'react';
+			const makeContext = React.createContext;
+			export const ValueAliasContext = makeContext(null);
+		`,
+		'src/bound-alias.ts': `
+			import * as React from 'react';
+			const makeBoundContext = React.createContext.bind(React);
+			export const BoundAliasContext = makeBoundContext(null);
+		`,
 		'src/function-generic.ts': `
 			import { createContext } from 'react';
 			export const FunctionGenericContext = createContext<((x: string) => void) | undefined>(undefined);
@@ -86,9 +95,12 @@ test('resolves React createContext through every supported import and type form'
 		);
 
 		assert.deepEqual(
-			contexts.map((context) => context.name).sort(),
+			contexts
+				.map((context) => context.name)
+				.sort((left, right) => left.localeCompare(right)),
 			[
 				'AliasedImportContext',
+				'BoundAliasContext',
 				'ConditionalGenericContext',
 				'ElementAccessContext',
 				'FirstContext',
@@ -96,7 +108,8 @@ test('resolves React createContext through every supported import and type form'
 				'NestedGenericContext',
 				'ReExportedAliasContext',
 				'SecondContext',
-			].sort(),
+				'ValueAliasContext',
+			].sort((left, right) => left.localeCompare(right)),
 		);
 	} finally {
 		await rm(fixtureDirectory, { force: true, recursive: true });
