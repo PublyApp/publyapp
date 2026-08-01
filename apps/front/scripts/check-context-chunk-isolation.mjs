@@ -1,12 +1,15 @@
 import path from 'node:path';
 
 import {
+	isBindingElement,
 	isCallExpression,
 	isElementAccessExpression,
 	isExportSpecifier,
 	isIdentifier,
 	isImportSpecifier,
+	isObjectBindingPattern,
 	isPropertyAccessExpression,
+	isShorthandPropertyAssignment,
 	isStringLiteral,
 	isVariableDeclaration,
 } from 'typescript/unstable/ast/is';
@@ -21,6 +24,27 @@ const symbolForExpression = (checker, expression) =>
 	isElementAccessExpression(expression)
 		? checker.getSymbolAtLocation(expression.argumentExpression)
 		: checker.getSymbolAtLocation(expression);
+
+const symbolForBindingElement = (checker, bindingElement) => {
+	const bindingPattern = bindingElement.parent;
+	const declaration = bindingPattern?.parent;
+	if (
+		!isObjectBindingPattern(bindingPattern) ||
+		!isVariableDeclaration(declaration) ||
+		!declaration.initializer ||
+		!bindingElement.name
+	) {
+		return undefined;
+	}
+
+	const type = checker.getTypeAtLocation(declaration.initializer);
+	return type
+		? checker.getPropertyOfType(
+				type,
+				(bindingElement.propertyName ?? bindingElement.name).getText(),
+			)
+		: undefined;
+};
 
 const isContextFactoryAdapterCall = (expression) =>
 	isCallExpression(expression) &&
@@ -107,11 +131,29 @@ const resolvesToReactCreateContext = (
 	}
 
 	const declaration = symbol.valueDeclaration?.resolve();
-	if (
-		!declaration ||
-		!isVariableDeclaration(declaration) ||
-		!declaration.initializer
-	) {
+	if (!declaration) {
+		return false;
+	}
+
+	if (isBindingElement(declaration)) {
+		return resolvesToReactCreateContext(
+			checker,
+			symbolForBindingElement(checker, declaration),
+			reactCreateContext,
+			seenSymbolIds,
+		);
+	}
+
+	if (isShorthandPropertyAssignment(declaration)) {
+		return resolvesToReactCreateContext(
+			checker,
+			checker.getShorthandAssignmentValueSymbol(declaration),
+			reactCreateContext,
+			seenSymbolIds,
+		);
+	}
+
+	if (!isVariableDeclaration(declaration) || !declaration.initializer) {
 		return false;
 	}
 

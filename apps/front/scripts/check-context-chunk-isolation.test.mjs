@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, rm, symlink, writeFile } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
@@ -12,7 +13,7 @@ const frontDirectory = path.resolve(import.meta.dirname, '..');
 
 const createFixture = async (files) => {
 	const fixtureDirectory = await mkdtemp(
-		path.join(frontDirectory, '.context-isolation-fixture-'),
+		path.join(os.tmpdir(), 'publy-context-isolation-fixture-'),
 	);
 
 	await writeFile(
@@ -28,6 +29,21 @@ const createFixture = async (files) => {
 			include: ['src/**/*.ts', 'src/**/*.tsx'],
 		}),
 	);
+	await mkdir(path.join(fixtureDirectory, 'node_modules', '@types'), {
+		recursive: true,
+	});
+	await Promise.all([
+		symlink(
+			path.join(frontDirectory, 'node_modules', 'react'),
+			path.join(fixtureDirectory, 'node_modules', 'react'),
+			'dir',
+		),
+		symlink(
+			path.join(frontDirectory, 'node_modules', '@types', 'react'),
+			path.join(fixtureDirectory, 'node_modules', '@types', 'react'),
+			'dir',
+		),
+	]);
 
 	for (const [relativePath, source] of Object.entries(files)) {
 		const filePath = path.join(fixtureDirectory, relativePath);
@@ -115,6 +131,58 @@ void test('resolves React createContext through every supported import and type 
 			'<React.createContext factory value>',
 		]) {
 			assert.equal(contextNames.has(expectedName), true, expectedName);
+		}
+	} finally {
+		await rm(fixtureDirectory, { force: true, recursive: true });
+	}
+});
+
+void test('discovers React contexts from shorthand destructuring and shorthand object properties', async () => {
+	const fixtureDirectory = await createFixture({
+		'src/destructured.ts': `
+			import * as React from 'react';
+			const { createContext } = React;
+			export const DestructuredContext = createContext<string | null>(null);
+		`,
+		'src/dynamic-import-destructured.ts': `
+			const { createContext } = await import('react');
+			export const DynamicImportDestructuredContext = createContext(null);
+		`,
+		'src/nested-destructured.ts': `
+			import * as React from 'react';
+			export const make = () => {
+				const { createContext } = React;
+				return createContext(null);
+			};
+		`,
+		'src/react-api.ts': `
+			import { createContext } from 'react';
+			export const reactApi = { createContext };
+		`,
+		'src/object-hop.ts': `
+			import { reactApi } from './react-api';
+			export const ObjectHopContext = reactApi.createContext(null);
+		`,
+	});
+
+	try {
+		const contexts = findReactContextDeclarations(
+			path.join(fixtureDirectory, 'tsconfig.json'),
+		);
+		for (const sourceFile of [
+			'src/destructured.ts',
+			'src/dynamic-import-destructured.ts',
+			'src/nested-destructured.ts',
+			'src/object-hop.ts',
+		]) {
+			assert.equal(
+				contexts.some(
+					(context) =>
+						context.sourceFile === path.join(fixtureDirectory, sourceFile),
+				),
+				true,
+				sourceFile,
+			);
 		}
 	} finally {
 		await rm(fixtureDirectory, { force: true, recursive: true });
