@@ -22,7 +22,10 @@ import { createVirtualFileSystem } from 'typescript/unstable/fs';
 import { API, SymbolFlags } from 'typescript/unstable/sync';
 
 const REACT_TYPE_DECLARATION = /[/\\]@types[/\\]react[/\\]index\.d\.ts$/;
-const TANSTACK_ROUTE_VIRTUAL_MODULE = /[?&]tsr-(?:shared|split)=/;
+// Curated from TanStack's source-derived sibling transforms. Add new families
+// explicitly so unknown query modules keep failing closed.
+const TANSTACK_SOURCE_SIBLING_VIRTUAL_MODULE =
+	/[?&](?:tsr-(?:shared|split)|tss-hydrate)=/;
 const SOURCE_MODULE_EXTENSION = /\.[cm]?[jt]sx?$/;
 
 const normalizeModuleId = (moduleId) =>
@@ -560,9 +563,9 @@ export const findContextChunkIsolationViolations = (
 				continue;
 			}
 
-			if (!TANSTACK_ROUTE_VIRTUAL_MODULE.test(moduleId)) {
+			if (!TANSTACK_SOURCE_SIBLING_VIRTUAL_MODULE.test(moduleId)) {
 				throw new Error(
-					`Context chunk isolation guard cannot prove an unrecognized source-derived query module ${moduleId}.`,
+					`Context chunk isolation guard cannot prove an unrecognized source-derived query module ${moduleId}; verify its transform semantics before adding its TanStack sibling family to the curated allowlist.`,
 				);
 			}
 
@@ -613,14 +616,16 @@ export const findContextChunkIsolationViolations = (
 			const isSourceQueryModule = moduleId.startsWith(`${context.sourceFile}?`);
 			if (
 				!isSourceModule &&
-				(!isSourceQueryModule || !TANSTACK_ROUTE_VIRTUAL_MODULE.test(moduleId))
+				(!isSourceQueryModule ||
+					!TANSTACK_SOURCE_SIBLING_VIRTUAL_MODULE.test(moduleId))
 			) {
 				continue;
 			}
 
 			const inspectRenderedContext =
 				hasRenderedContextAnalysis &&
-				(isSourceModule || TANSTACK_ROUTE_VIRTUAL_MODULE.test(moduleId));
+				(isSourceModule ||
+					TANSTACK_SOURCE_SIBLING_VIRTUAL_MODULE.test(moduleId));
 			for (const { chunkName, renderedModule } of moduleChunks) {
 				if (
 					inspectRenderedContext &&

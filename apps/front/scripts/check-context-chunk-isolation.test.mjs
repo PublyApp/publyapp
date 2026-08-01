@@ -476,6 +476,41 @@ void test('counts a TanStack route virtual-module sibling that still creates the
 	);
 });
 
+void test('counts a TanStack Hydrate virtual-module sibling that still creates the context', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+
+	assert.deepEqual(
+		findContextChunkIsolationViolations(
+			[{ name: 'RouteContext', sourceFile }],
+			[
+				{
+					fileName: 'assets/route.js',
+					modules: {
+						[sourceFile]: {
+							code: 'const RouteContext = createContext(null);',
+						},
+					},
+				},
+				{
+					fileName: 'assets/hydrated.js',
+					modules: {
+						[`${sourceFile}?tss-hydrate=H1`]: {
+							code: 'const RouteContext = createContext(null);',
+						},
+					},
+				},
+			],
+			frontDirectory,
+		),
+		[
+			'RouteContext in src/routes/field-validation.tsx is present in multiple client chunks: assets/route.js, assets/hydrated.js.',
+		],
+	);
+});
+
 void test('counts a namespace createContext call in a TanStack route virtual-module sibling', () => {
 	const sourceFile = path.join(
 		frontDirectory,
