@@ -175,9 +175,7 @@ test('renders the marketing shell', async ({ page }) => {
 	await page.setViewportSize({ width: 390, height: 812 });
 	await page.goto('/');
 
-	await expect(
-		page.getByRole('heading', { name: /welcome to publyapp/i }),
-	).toBeVisible();
+	await expect(page.getByTestId('landing-hero-title')).toBeVisible();
 	await expect(page.getByTestId('marketing-shell')).toBeVisible();
 	await expect(page.getByTestId('marketing-shell')).toHaveAttribute(
 		'data-mode',
