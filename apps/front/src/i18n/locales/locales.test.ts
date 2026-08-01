@@ -104,9 +104,14 @@ describe('front locale manifests', () => {
 			{
 				common: en.common as Record<string, string>,
 				futureMarkers: [
-					/\bplan(?:ned|s|ning)?\b/i,
+					// Only constructions that can be a hedge and nothing else. A
+					// bare "plan"/"planning" or the plain future tense "will" is
+					// ordinary product and sales vocabulary on this page, so a
+					// present-tense regression needs no exotic euphemism to slip
+					// past them.
+					/\bplanned\b/i,
 					/\b(?:upcoming|forthcoming|future)\b/i,
-					/\b(?:will|later|eventually)\b/i,
+					/\bto be introduced\b/i,
 					/\bto come\b/i,
 					/\b(?:no|not)\b[^.!?;·]{0,80}\byet\b/i,
 					/\b(?:isn't|is not)\b[^.!?;·]{0,40}\b(?:yet|currently)\b/i,
@@ -118,8 +123,10 @@ describe('front locale manifests', () => {
 					/\bprévu(?:e|es|s)?\b/i,
 					/\b(?:futur(?:e|es|s)?|prochain(?:e|es|s)?)\b/i,
 					/à venir/i,
-					/\b(?:sera|seront)\b/i,
-					/plus tard/i,
+					// "sera"/"seront" and "plus tard" are ordinary future-tense
+					// French and incidental filler; drop them so they cannot
+					// hedge a live promise. The shipped hedges all use prévu,
+					// à venir, or …pas encore.
 					/\bn['’](?:est|existe|a)\b[^.!?;·]{0,40}\bencore\b/i,
 					/\b(?:pas|aucun(?:e|s)?)\b[^.!?;·]{0,80}\bencore\b/i,
 				],
