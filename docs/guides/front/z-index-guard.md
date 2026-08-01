@@ -69,22 +69,27 @@ Four components:
    (`@apply block z-50;` yields no `z-50` candidate), so directive text is scanned directly.
 3. **Substitution-boundary scan.** `z-${level}` has no candidate at extractor time; a class-delivery
    template literal whose static parts carry a z-index fragment across a `${…}` boundary is reported.
-4. **Compiled-CSS gate.** The production-equivalent build output is parsed with PostCSS (not
-   regex-matched or delimiter-counted), and every `z-index:` declaration that does not resolve through
-   `var(--publy-z-…)` is reported. The parser canonicalises property names (`Z-INDEX: 50` and
+4. **Emitted-CSS gate.** The guard runs the real Vite production build and recursively parses every
+   emitted CSS asset with PostCSS (not regex matching or delimiter counting). Every residual
+   `@import` fails closed because its contents are opaque to the declaration walk; resolved local
+   relative imports are already inlined and stay clean. Every `z-index:` declaration that does not
+   resolve through `var(--publy-z-…)` is reported. The parser canonicalises property names
+   (`Z-INDEX: 50` and
    `z-\69ndex: 50` are the same declaration), decodes and normalises an optional trailing
    `!important` identifier (including escaped forms such as `!\69mportant`), and attributes each
    declaration to its complete outer-rule and at-rule ancestry. That is what lets the
    one raw exception bind to its exact `@layer components` + selector context, while CSS comments,
    nested rules, and braces inside custom-property values retain their real grammar. This proves what
-   actually ships — the exact failure that killed the previous attempt, whose own fixture literals
+   actually ships, including CSS imported through the JavaScript component graph rather than through
+   `app.css`. This is the exact failure that killed the previous attempt, whose own fixture literals
    reached the shipped stylesheet. It is the reason fixtures live in `scripts/`, outside any path the
    scanner watches.
 5. **Scale-definition integrity.** A `--publy-z-*` declaration is accepted only in the global `:root`
    scale (including Tailwind's equivalent `@layer theme { :root, :host { … } }` output). Local CSS
    declarations are reported even when the consuming `z-index` uses `var(...)`. The script AST pass
-   also reports literal `--publy-z-*` object properties and `setProperty()` calls, preventing an
-   inline style from shadowing a legitimate tier after the compiled gate has accepted its reference.
+   also reports literal `--publy-z-*` object properties and `setProperty()` calls, plus direct keys
+   resolved through a module-scope `const` bound to a string literal. This prevents an inline style
+   from shadowing a legitimate tier after the emitted gate has accepted its reference.
 
 ## Out of scope — stated, not silent
 
@@ -112,6 +117,12 @@ gaps, each with its current evidence:
   raw z-index** (a runtime `style={{ zIndex: 5 }}`), and it is deliberately left open — see below.
 - **z-index assembled at runtime from values that never appear literally in `src`** (e.g. from an
   API response). No static guard can see this.
+- **Helper-mediated reserved-token writes and helper/import-produced spreads.** The script pass follows
+  direct module-scope string constants, but it does not perform interprocedural data flow. A helper
+  whose `setProperty(name, value)` key arrives through a parameter, or a spread/Object.assign payload
+  whose token-bearing object is produced by a helper or unscanned import, remains outside the static
+  boundary. Literal object properties in scanned source remain red even when that object is later
+  spread.
 - **A class assembled by `+` string concatenation (`'z-' + 5`).** It produces no extractor candidate,
   so on its own it ships no rule and paints at `auto` — it is dead text. It becomes load-bearing only
   **in combination with** a route that generates a rule for that class (`@source inline("z-5")`,

@@ -701,6 +701,21 @@ test('e2e (round 3 audit): script code cannot shadow a scale token', async () =>
 	);
 });
 
+test('e2e (round 4 blocker 3): module const setProperty key cannot shadow a scale token', async () => {
+	const { violations } = await runFixtureGuard({
+		'probe.tsx': [
+			`const TOKEN = '--publy-z-raised';`,
+			`export const probe = <div className="z-(--publy-z-raised)" />;`,
+			`element.style.setProperty(TOKEN, '990');`,
+		].join('\n'),
+	});
+	assert.deepEqual(
+		violations.map((violation) => violation.source),
+		['--publy-z-raised'],
+		`module const token writes must red: ${JSON.stringify(violations)}`,
+	);
+});
+
 test('e2e (round 3 audit): escaped and spaced safe values stay clean', async () => {
 	const { violations } = await runFixtureGuard(
 		{ 'probe.tsx': 'export const probe = <div />;' },

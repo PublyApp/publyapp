@@ -70,6 +70,9 @@ const SCRIPT_EXTENSIONS = new Set([
 //     avatars is the only user today; toaster.tsx already uses the token).
 //   - z-index assembled at runtime from values that never appear literally
 //     anywhere in `src` (e.g. from an API response).
+//   - reserved-token writes mediated by helper parameters, or object spreads
+//     whose token-bearing source is produced by a helper/import rather than a
+//     literal in the scanned module.
 //   - a class assembled by `+` string concatenation (`'z-' + 5`) produces no
 //     extractor candidate, so it ships no rule on its own — it is dead text
 //     UNLESS a rule for that class exists by another route. Any route that
@@ -634,9 +637,37 @@ export const scanZIndexFile = ({
 			}
 			return null;
 		};
+		const moduleConstStrings = new Map();
+		for (const statement of sourceFile.statements) {
+			if (
+				!ts.isVariableStatement(statement) ||
+				(statement.declarationList.flags & ts.NodeFlags.Const) === 0
+			) {
+				continue;
+			}
+			for (const declaration of statement.declarationList.declarations) {
+				if (!ts.isIdentifier(declaration.name)) {
+					continue;
+				}
+				const value = literalText(declaration.initializer);
+				if (value != null) {
+					moduleConstStrings.set(declaration.name.text, value);
+				}
+			}
+		}
+		const staticString = (node) => {
+			const direct = literalText(node);
+			if (direct != null) {
+				return direct;
+			}
+			if (node != null && ts.isIdentifier(node)) {
+				return moduleConstStrings.get(node.text) ?? null;
+			}
+			return null;
+		};
 		const propertyName = (name) => {
 			if (ts.isComputedPropertyName(name)) {
-				return literalText(name.expression);
+				return staticString(name.expression);
 			}
 			return literalText(name);
 		};
@@ -662,7 +693,7 @@ export const scanZIndexFile = ({
 				ts.isPropertyAccessExpression(node.expression) &&
 				node.expression.name.text === 'setProperty'
 			) {
-				recordScaleTokenDefinition(literalText(node.arguments[0]), node);
+				recordScaleTokenDefinition(staticString(node.arguments[0]), node);
 			}
 			node.forEachChild(visitScaleTokenDefinitions);
 		};
