@@ -74,6 +74,13 @@ const runFixtureGuard = async (
 	appCssOverride = null,
 	extraDirectories = [],
 ) => {
+	// `emittedCssOverride` is a single `{ file, content }` entry or an array
+	// of them, so tests can pin gates that only fire across assets.
+	const emittedOverrides = Array.isArray(emittedCssOverride)
+		? emittedCssOverride
+		: emittedCssOverride == null
+			? []
+			: [{ file: 'fixture.css', content: emittedCssOverride }];
 	const root = await mkdtemp(path.join(scriptsDir, 'zindex-guard-'));
 	try {
 		await mkdir(path.join(root, 'src'), { recursive: true });
@@ -108,15 +115,14 @@ const runFixtureGuard = async (
 		let productionBuild;
 		if (productionBuildOverride != null) {
 			productionBuild = () => productionBuildOverride(root);
-		} else if (emittedCssOverride == null) {
+		} else if (emittedOverrides.length === 0) {
 			productionBuild = () => buildViteFixture(root);
 		} else {
 			productionBuild = async () => {
 				await mkdir(path.join(root, 'dist'), { recursive: true });
-				await writeFile(
-					path.join(root, 'dist/fixture.css'),
-					emittedCssOverride,
-				);
+				for (const { file, content } of emittedOverrides) {
+					await writeFile(path.join(root, 'dist', file), content);
+				}
 				return {
 					emittedCssRoot: path.join(root, 'dist'),
 					authoredCssPaths: [path.join(root, 'app.css')],
@@ -539,6 +545,12 @@ const STICKY_HEADER_SELECTOR =
 	".publy-data-table thead [data-slot='table-column'], " +
 	".publy-data-table thead [data-slot='table-sortable-column-header'], " +
 	".publy-data-table thead [data-slot='table-selection-cell']";
+// The emitted gate's allowlist entry binds the minified selector that Vite's
+// output actually carries (unquoted attribute values, no spaces).
+const STICKY_EMITTED_SELECTOR =
+	'.publy-data-table thead [data-slot=table-column],' +
+	'.publy-data-table thead [data-slot=table-sortable-column-header],' +
+	'.publy-data-table thead [data-slot=table-selection-cell]';
 const inComponentsLayer = (css) => `@layer components { ${css} }`;
 
 test('compiled-CSS gate: allowlist is bound to ancestry, selector, and occurrence count', () => {
@@ -761,6 +773,88 @@ test('compiled-CSS gate: allowlist occurrence count is global across assets', ()
 		second.map((violation) => violation.ruleId),
 		['z-index-declaration-not-on-scale'],
 	);
+});
+
+test('e2e (round 7 M2): runZIndexGuard threads one allowlist counter through all emitted assets', async () => {
+	// The unit test above pins the *parameter*; this pins the wiring: one
+	// bound allowlist occurrence is green, the same rule in a second emitted
+	// asset reds because runZIndexGuard passes the same Map to every asset.
+	// The emitted gate's allowlist binds the minified selector form, so the
+	// override must use it.
+	const sticky = inComponentsLayer(
+		`${STICKY_EMITTED_SELECTOR} { z-index: 5; }`,
+	);
+	const single = await runFixtureGuard(
+		{ 'probe.ts': `export const probe = 'probe';` },
+		'',
+		[],
+		[{ file: 'a.css', content: sticky }],
+	);
+	assert.deepEqual(
+		single.violations,
+		[],
+		`one allowlisted asset must stay green: ${JSON.stringify(single.violations)}`,
+	);
+	const duplicated = await runFixtureGuard(
+		{ 'probe.ts': `export const probe = 'probe';` },
+		'',
+		[],
+		[
+			{ file: 'a.css', content: sticky },
+			{ file: 'b.css', content: sticky },
+		],
+	);
+	assert.ok(
+		duplicated.violations.some(
+			(violation) =>
+				violation.ruleId === 'z-index-declaration-not-on-scale' &&
+				violation.file === 'dist/b.css',
+		),
+		`a duplicated bound rule across assets must red: ${JSON.stringify(duplicated.violations)}`,
+	);
+});
+
+test('e2e (round 7 M3): emitted CSS assets are collected case-insensitively', async () => {
+	// `collectCssPaths` folds `.css` names to ASCII lowercase, so an emitted
+	// asset with an uppercase extension cannot skip the compiled gate.
+	const { violations } = await runFixtureGuard(
+		{ 'probe.ts': `export const probe = 'probe';` },
+		'',
+		[],
+		[{ file: 'FIXTURE.CSS', content: '.probe { z-index: 2147483641; }' }],
+	);
+	assert.ok(
+		violations.some(
+			(violation) =>
+				violation.ruleId === 'z-index-declaration-not-on-scale' &&
+				violation.file === 'dist/FIXTURE.CSS',
+		),
+		`an uppercase .CSS asset must be scanned: ${JSON.stringify(violations)}`,
+	);
+});
+
+test('e2e (round 7 M3): productionBuild must return array-valued inline/raw path sets', async () => {
+	for (const [field, badValue] of [
+		['inlineCssPaths', 'nope'],
+		['rawTextPaths', 'nope'],
+	]) {
+		await assert.rejects(
+			runFixtureGuard(
+				{ 'probe.ts': `export const probe = 'probe';` },
+				'',
+				[],
+				null,
+				async (root) => ({
+					emittedCssRoot: root,
+					authoredCssPaths: [path.join(root, 'app.css')],
+					authoredScriptPaths: [path.join(root, 'src/main.ts')],
+					[field]: badValue,
+				}),
+			),
+			/productionBuild must return the exact emittedCssRoot/,
+			`a malformed ${field} must fail the contract check`,
+		);
+	}
 });
 
 test('CSS gates: @property cannot register a reserved scale token', () => {
