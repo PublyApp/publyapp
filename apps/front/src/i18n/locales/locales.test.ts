@@ -7,10 +7,13 @@ import fr from './fr';
 // A keyword sweep cannot be complete — a trial can always be promised in
 // words none of these match. These cover the phrasings a rewrite is most
 // likely to reach for. The hyphen in the duration pattern matters:
-// "14 days free" and "14-day free" are the same promise.
+// "14 days free" and "14-day free" are the same promise. The word boundary on
+// essai/trial is deliberate: without it /essai/ matches inside "nécessaire"
+// and /trial/ inside "industrial" — both everyday French/English — which
+// would redden correct copy the moment it is swept.
 const forbiddenPricingPatterns = [
-	/trial/i,
-	/essai/i,
+	/\btrial/i,
+	/\bessai/i,
 	/\b\d+\s*-?\s*(day|days|jour|jours)\b/i,
 	/no (credit )?card/i,
 	/(sans|pas de|aucune?) (carte|engagement)/i,
@@ -24,9 +27,11 @@ const cancelAnytimePatterns = [
 // A bounded free period is a trial offer even when the word never appears:
 // "free for your first two weeks", "deux semaines gratuites". The pricing
 // patterns above already cover digit day counts; these add spelled-out
-// numbers and the week/month units, in either word order.
-const englishDuration = String.raw`(?:\d+|an?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*-?\s*(?:days?|weeks?|months?)`;
-const frenchDuration = String.raw`(?:\d+|une?|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze)\s*-?\s*(?:jours?|semaines?|mois)`;
+// numbers and the week/month units, in either word order. Bare articles are
+// deliberately excluded: "a month"/"un mois" is this product's own scheduling
+// vocabulary ("schedule a month of content"), not a duration offer.
+const englishDuration = String.raw`(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*-?\s*(?:days?|weeks?|months?)`;
+const frenchDuration = String.raw`(?:\d+|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze)\s*-?\s*(?:jours?|semaines?|mois)`;
 
 const boundedFreePeriodPatterns = [
 	new RegExp(String.raw`\bfree\b[^.!?;·]{0,60}\b${englishDuration}\b`, 'i'),
