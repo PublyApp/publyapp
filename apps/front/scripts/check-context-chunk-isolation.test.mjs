@@ -38,7 +38,7 @@ const createFixture = async (files) => {
 	return fixtureDirectory;
 };
 
-test('resolves React createContext through every supported import and type form', async () => {
+void test('resolves React createContext through every supported import and type form', async () => {
 	const fixtureDirectory = await createFixture({
 		'src/aliased-import.ts': `
 			import { createContext as makeContext } from 'react';
@@ -121,7 +121,7 @@ test('resolves React createContext through every supported import and type form'
 	}
 });
 
-test('does not report a local or unrelated createContext symbol', async () => {
+void test('does not report a local or unrelated createContext symbol', async () => {
 	const fixtureDirectory = await createFixture({
 		'node_modules/not-react/index.d.ts': `
 			export declare const createContext: <T>(value: T) => T;
@@ -150,7 +150,7 @@ test('does not report a local or unrelated createContext symbol', async () => {
 	}
 });
 
-test('reports each React context whose source module is in multiple client chunks', () => {
+void test('reports each React context whose source module is in multiple client chunks', () => {
 	const sourceFile = path.join(frontDirectory, 'src/two-contexts.ts');
 	const contexts = [
 		{ name: 'FirstContext', sourceFile },
