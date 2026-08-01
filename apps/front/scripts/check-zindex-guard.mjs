@@ -55,11 +55,21 @@ const SCRIPT_EXTENSIONS = new Set([
 // docs/guides/front/z-index-guard.md):
 //   - raw `z-index:` declarations in app.css that are NOT Tailwind utilities.
 //     The single existing one (`.publy-data-table thead` sticky header,
-//     `z-index: 5`) is allowlisted in KNOWN_RAW_Z_INDEX_DECLARATIONS below.
+//     `z-index: 5`) is allowlisted in KNOWN_RAW_Z_INDEX_DECLARATIONS below,
+//     bound to its exact selector list AND an expected occurrence count — a
+//     raw `z-index: 5` on any other selector, or a duplicate of this rule,
+//     reds the guard.
 //   - inline `style={{ zIndex: … }}` objects (initials-avatar overlapping
 //     avatars is the only user today; toaster.tsx already uses the token).
 //   - z-index assembled at runtime from values that never appear literally
 //     anywhere in `src` (e.g. from an API response).
+//   - a class assembled by `+` string concatenation (`'z-' + 5`) produces no
+//     extractor candidate, so it ships no rule on its own — it is dead text
+//     UNLESS a rule for that class exists by another route. Any route that
+//     generates such a rule (`@source inline("z-5")`, `@utility z-5`, a raw
+//     app.css rule, a `z-5` literal elsewhere) emits `z-index: 5` into the
+//     compiled CSS, which component 4 flags — the combination is red, not a
+//     green bypass.
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
@@ -181,7 +191,9 @@ const splitUtilityPart = (candidate) => {
 };
 
 const isZIndexUtility = (utility) =>
-	/^z-(?!index)/.test(utility) || utility.startsWith('-z-');
+	/^z-(?!index)/.test(utility) ||
+	utility.startsWith('-z-') ||
+	isZIndexArbitraryProperty(utility);
 
 // Non-numeric z-index values that cannot participate in stacking at all, so
 // they need no scale tier (mirrors Tailwind's own `z-auto` exemption in the
@@ -200,7 +212,119 @@ const NON_STACKING_KEYWORD_ARBITRARY_PATTERN = new RegExp(
 	`^z-\\[(${[...NON_STACKING_KEYWORDS].join('|')})\\]$`,
 );
 
+// ---------------------------------------------------------------------------
+// CSS identifier canonicalisation. CSS property names are ASCII-case-
+// insensitive and may carry escapes (`z-\69ndex` is `z-index`), so property
+// comparisons canonicalise instead of matching literal text.
+// ---------------------------------------------------------------------------
+const CSS_WHITESPACE = /[\t\n\f\r ]/;
+const HEX_ESCAPE = /[0-9a-fA-F]/;
+
+const canonicaliseCssProperty = (raw) => {
+	let out = '';
+	for (let i = 0; i < raw.length; ) {
+		const character = raw[i];
+		if (character === '\\') {
+			const next = raw[i + 1];
+			if (next != null && HEX_ESCAPE.test(next)) {
+				let hex = '';
+				let k = i + 1;
+				while (k < raw.length && HEX_ESCAPE.test(raw[k]) && hex.length < 6) {
+					hex += raw[k];
+					k += 1;
+				}
+				if (k < raw.length && CSS_WHITESPACE.test(raw[k])) {
+					k += 1;
+				}
+				out += String.fromCodePoint(Number.parseInt(hex, 16));
+				i = k;
+			} else if (
+				next != null &&
+				next !== '\n' &&
+				next !== '\r' &&
+				next !== '\f'
+			) {
+				out += next;
+				i += 2;
+			} else {
+				i += 1;
+			}
+		} else {
+			out += character;
+			i += 1;
+		}
+	}
+	return out.toLowerCase();
+};
+
+// First top-level `:` — the property/value separator. `:` inside parentheses,
+// brackets, strings, or escapes never counts, so `url(http://…)` and
+// attribute-selector values are not split by accident.
+const findTopLevelColon = (text) => {
+	let depth = 0;
+	for (let i = 0; i < text.length; i += 1) {
+		const character = text[i];
+		if (character === '\\') {
+			i += 1;
+			continue;
+		}
+		if (character === '"' || character === "'") {
+			const quote = character;
+			i += 1;
+			while (i < text.length) {
+				if (text[i] === '\\') {
+					i += 1;
+				} else if (text[i] === quote) {
+					break;
+				}
+				i += 1;
+			}
+			continue;
+		}
+		if (character === '(' || character === '[') {
+			depth += 1;
+		} else if (character === ')' || character === ']') {
+			depth -= 1;
+		} else if (character === ':' && depth === 0) {
+			return i;
+		}
+	}
+	return -1;
+};
+
+// Tailwind arbitrary-property utilities (`[z-index:5]`) are a raw declaration
+// shim: they emit `z-index: <value>` into the compiled stylesheet. The
+// property name is canonicalised (`[Z-INDEX:5]` is the same declaration);
+// `[-z-index:5]` emits a bogus `-z-index` property and is not a z-index shim.
+const isZIndexArbitraryProperty = (utility) => {
+	if (utility[0] !== '[' || utility[utility.length - 1] !== ']') {
+		return false;
+	}
+	const inner = utility.slice(1, -1);
+	const colon = findTopLevelColon(inner);
+	if (colon === -1) {
+		return false;
+	}
+	return canonicaliseCssProperty(inner.slice(0, colon).trim()) === 'z-index';
+};
+
+const arbitraryPropertyValue = (utility) => {
+	const inner = utility.slice(1, -1);
+	const colon = findTopLevelColon(inner);
+	return inner.slice(colon + 1).trim();
+};
+
 const isAllowedZIndexUtility = (utility) => {
+	if (isZIndexArbitraryProperty(utility)) {
+		// Only a pure scale reference (`var(--publy-z-…)`) or a non-stacking
+		// keyword may ship through an arbitrary-property shim. A bare custom
+		// property (`[z-index:--publy-z-menu]`) emits invalid CSS and stays raw.
+		const value = arbitraryPropertyValue(utility);
+		return (
+			NON_STACKING_KEYWORDS.has(value) ||
+			/^var\(--publy-z-[\w-]+\)$/.test(value)
+		);
+	}
 	if (
 		utility === 'z-auto' ||
 		NON_STACKING_KEYWORD_ARBITRARY_PATTERN.test(utility)
@@ -471,23 +595,98 @@ export const scanZIndexFile = ({
 // ---------------------------------------------------------------------------
 // Component 4 — the compiled CSS gate. Every `z-index:` declaration in the
 // production-equivalent build output must resolve through `var(--publy-z-…)`
-// or be a non-numeric keyword, unless explicitly allowlisted.
+// or be a non-numeric keyword, unless it is the one explicitly allowlisted
+// raw declaration. Declarations are *parsed*, not regex-matched: the property
+// name is canonicalised (CSS is ASCII-case-insensitive and may carry escapes,
+// so `Z-INDEX: 50` and `z-\69ndex: 50` are the same declaration), the optional
+// `!important` is normalised, and each declaration is attributed to the rule
+// selector it lives under so the allowlist can bind to one exact selector.
 // ---------------------------------------------------------------------------
 // The one raw `z-index:` declaration in app.css is deliberate: the sticky
-// table header. It lives inside `.publy-table-card`'s own stacking context and
-// is intentionally below `--publy-z-raised: 10`; inventing a scale tier for a
-// single internal rule would widen the scale for no architectural gain. This
-// is the documented out-of-scope bucket for raw CSS declarations — it is seen
-// here, named, and reasoned about, not silently ignored.
+// table header. `.publy-table-card`'s `overflow: hidden` does NOT establish a
+// stacking context (it only clips), so the header's `z-index: 5` competes in
+// the page-level stacking context — which is exactly why the value must stay
+// below every scale tier: `--publy-z-raised` is 10, so nothing scale-routed
+// collides. The header needs *some* z-index because the sticky cells are
+// earlier in DOM order than the body rows they scroll over, and a later,
+// painted body cell would otherwise cover them; the value just needs to be
+// above those rows and below every tier. Inventing a scale tier for a single
+// internal rule would widen the scale for no architectural gain. This is the
+// documented out-of-scope bucket for raw CSS declarations — it is seen here,
+// named, bound to its exact selector list and expected occurrence count, and
+// reasoned about, not silently ignored.
 export const KNOWN_RAW_Z_INDEX_DECLARATIONS = [
 	{
+		selector:
+			".publy-data-table thead [data-slot='table-column'], " +
+			".publy-data-table thead [data-slot='table-sortable-column-header'], " +
+			".publy-data-table thead [data-slot='table-selection-cell']",
 		declaration: 'z-index: 5',
+		count: 1,
 		reason:
-			'.publy-data-table thead sticky header — sits inside the table card stacking ' +
-			'context, deliberately below --publy-z-raised: 10; the scale stays reserved ' +
-			'for reusable tiers.',
+			'.publy-data-table thead sticky cells: lifted above the scrolled body rows ' +
+			'inside the table scroll container, deliberately below --publy-z-raised: 10 ' +
+			'(the card does not create a stacking context). Bound to this exact selector ' +
+			'list and expected occurrence count, so a raw z-index: 5 anywhere else reds.',
 	},
 ];
+
+const normalizeWhitespace = (text) => text.replace(/[\t\n\f\r ]+/g, ' ').trim();
+
+const stripImportant = (value) =>
+	value.replace(/\s*!\s*important\s*$/i, '').trim();
+
+// Walk the (comment-free) compiled CSS tracking the innermost rule selector
+// and return every declaration as `{ selector, property, value, offset }`.
+// Property names are canonicalised; values stay verbatim so `!important` can
+// be normalised afterwards.
+const scanCssDeclarations = (css) => {
+	const declarations = [];
+	const selectorStack = [];
+	let segmentStart = 0;
+	let quote = null;
+	const flush = (end) => {
+		const chunk = css.slice(segmentStart, end);
+		const colon = findTopLevelColon(chunk);
+		if (colon !== -1) {
+			declarations.push({
+				selector: selectorStack.length
+					? selectorStack[selectorStack.length - 1]
+					: '',
+				property: canonicaliseCssProperty(chunk.slice(0, colon).trim()),
+				value: chunk.slice(colon + 1).trim(),
+				offset: segmentStart,
+			});
+		}
+	};
+	for (let i = 0; i < css.length; i += 1) {
+		const character = css[i];
+		if (quote) {
+			if (character === '\\') {
+				i += 1;
+			} else if (character === quote) {
+				quote = null;
+			}
+			continue;
+		}
+		if (character === '"' || character === "'") {
+			quote = character;
+			continue;
+		}
+		if (character === '{') {
+			selectorStack.push(css.slice(segmentStart, i).trim());
+			segmentStart = i + 1;
+		} else if (character === '}') {
+			flush(i);
+			selectorStack.pop();
+			segmentStart = i + 1;
+		} else if (character === ';') {
+			flush(i);
+			segmentStart = i + 1;
+		}
+	}
+	return declarations;
+};
 
 export const checkCompiledCssZIndex = (
 	compiledCss,
@@ -495,28 +694,42 @@ export const checkCompiledCssZIndex = (
 ) => {
 	const violations = [];
 	const deCommented = stripComments(compiledCss);
-	const declarationPattern = /(?:^|[;{}])\s*z-index\s*:\s*([^;{}]+);?/g;
-	let match;
-	while ((match = declarationPattern.exec(deCommented))) {
-		const value = match[1].trim();
-		const declaration = `z-index: ${value}`;
-		if (allowlisted.some((entry) => entry.declaration === declaration)) {
+	const seenCounts = new Map();
+	for (const declaration of scanCssDeclarations(deCommented)) {
+		if (declaration.property !== 'z-index') {
 			continue;
 		}
+		const value = stripImportant(declaration.value);
+		const shipped = `z-index: ${value}`;
 		if (/^var\(--publy-z-[\w-]+\)$/.test(value)) {
 			continue;
 		}
 		if (NON_STACKING_KEYWORDS.has(value)) {
 			continue;
 		}
+		const selector = normalizeWhitespace(declaration.selector);
+		const allowance = allowlisted.find(
+			(entry) =>
+				entry.declaration === shipped &&
+				normalizeWhitespace(entry.selector) === selector,
+		);
+		if (allowance != null) {
+			const key = `${allowance.selector}\u0000${allowance.declaration}`;
+			const count = (seenCounts.get(key) ?? 0) + 1;
+			seenCounts.set(key, count);
+			if (count <= allowance.count) {
+				continue;
+			}
+		}
 		violations.push({
 			ruleId: 'z-index-declaration-not-on-scale',
 			message:
-				`shipped \`${declaration}\` does not resolve through var(--publy-z-…) — ` +
-				'every z-index in the built stylesheet must route through the scale.',
+				`shipped \`${shipped}\`${selector ? ` in \`${selector}\`` : ''} does not ` +
+				'resolve through var(--publy-z-…) — every z-index in the built ' +
+				'stylesheet must route through the scale.',
 			file: 'compiled stylesheet',
-			line: lineForOffset(deCommented, match.index),
-			source: declaration,
+			line: lineForOffset(deCommented, declaration.offset),
+			source: shipped,
 		});
 	}
 	return violations;
