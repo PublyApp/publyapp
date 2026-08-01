@@ -81,9 +81,33 @@ vi.mock('~/components/ui/button', () => ({
 }));
 
 vi.mock('~/components/ui/drawer', () => ({
-	Drawer: ({ open, children }: { open: boolean; children: ReactNode }) =>
+	Drawer: ({
+		open,
+		children,
+		onOpenChange,
+	}: {
+		open: boolean;
+		children: ReactNode;
+		onOpenChange: (open: boolean) => void;
+	}) =>
 		open
-			? createElement('div', { 'data-testid': 'drawer-root' }, children)
+			? createElement(
+					'div',
+					{
+						'data-testid': 'drawer-root',
+						onKeyDown: (event: React.KeyboardEvent) => {
+							if (event.key === 'Escape') {
+								onOpenChange(false);
+							}
+						},
+					},
+					createElement('button', {
+						type: 'button',
+						'data-testid': 'drawer-backdrop',
+						onClick: () => onOpenChange(false),
+					}),
+					children,
+				)
 			: null,
 	DrawerContent: ({ children, ...props }: { children: ReactNode }) =>
 		createElement('div', props, children),
@@ -258,8 +282,9 @@ describe('ChangeStaffUserEmailDialog', () => {
 		);
 
 		await waitFor(() =>
-			expect(mocks.updateEmailMutation).not.toHaveBeenCalled(),
+			expect(screen.getByText('Invalid email address')).toBeTruthy(),
 		);
+		expect(mocks.updateEmailMutation).not.toHaveBeenCalled();
 	});
 
 	test('maps a server email field error onto the email field via getFailureMessage, never the raw server string', async () => {
@@ -428,30 +453,60 @@ describe('ChangeStaffUserEmailDialog', () => {
 		await waitFor(() => expect(onSessionExpired).toHaveBeenCalled());
 	});
 
-	// users-auth-r1-F4: Cancel closed on every click with no guard, discarding
-	// a typed replacement email with no confirmation.
-	test('Cancel on a dirty email shows the unsaved-changes confirmation instead of closing immediately', () => {
-		const onOpenChange = vi.fn();
+	// users-auth-r1-F4: every Drawer close route must preserve a typed
+	// replacement email until the user explicitly confirms discarding it.
+	//
+	// What these three cases do and do not establish, since this file exists to
+	// stop tests overstating themselves. Cancel reaches `requestClose` through
+	// its own onClick; Escape and backdrop reach it through the Drawer's
+	// `onOpenChange`, which the previous mock dropped entirely — so a dialog
+	// that guarded only the Cancel button used to pass. Two distinct production
+	// paths are now covered, and Escape and backdrop are the same one twice.
+	//
+	// That Escape and an outside press actually reach `onOpenChange` is Base UI
+	// `Dialog.Root` default behaviour, which the mock reproduces rather than
+	// proves; `Drawer` is a bare passthrough and this dialog passes no
+	// `dismissible={false}`. Confirming the real primitive dismisses on those
+	// gestures needs the browser, and belongs with the e2e work in #1059.
+	test.each([
+		[
+			'Escape',
+			() =>
+				fireEvent.keyDown(screen.getByTestId('drawer-root'), { key: 'Escape' }),
+		],
+		[
+			'backdrop click',
+			() => fireEvent.click(screen.getByTestId('drawer-backdrop')),
+		],
+		[
+			'Cancel',
+			() => fireEvent.click(screen.getByRole('button', { name: 'Cancel' })),
+		],
+	])(
+		'%s on a dirty email shows the unsaved-changes confirmation instead of closing immediately',
+		(_, requestClose) => {
+			const onOpenChange = vi.fn();
 
-		render(
-			<ChangeStaffUserEmailDialog
-				userId="user-1"
-				currentEmail="rui@latticecloud.com"
-				isOpen
-				onOpenChange={onOpenChange}
-				onUpdated={vi.fn()}
-				onSessionExpired={vi.fn()}
-			/>,
-		);
+			render(
+				<ChangeStaffUserEmailDialog
+					userId="user-1"
+					currentEmail="rui@latticecloud.com"
+					isOpen
+					onOpenChange={onOpenChange}
+					onUpdated={vi.fn()}
+					onSessionExpired={vi.fn()}
+				/>,
+			);
 
-		fireEvent.change(screen.getByLabelText('Email'), {
-			target: { value: 'new-email@latticecloud.com' },
-		});
-		fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+			fireEvent.change(screen.getByLabelText('Email'), {
+				target: { value: 'new-email@latticecloud.com' },
+			});
+			requestClose();
 
-		expect(onOpenChange).not.toHaveBeenCalled();
-		expect(screen.getByText('Leave without saving?')).toBeTruthy();
-	});
+			expect(onOpenChange).not.toHaveBeenCalled();
+			expect(screen.getByText('Leave without saving?')).toBeTruthy();
+		},
+	);
 
 	test('confirming the leave prompt closes the drawer via onOpenChange', () => {
 		const onOpenChange = vi.fn();
