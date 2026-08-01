@@ -75,7 +75,18 @@
  * `FORM_LESS_DRAWER_SURFACE_FILES`), so a new drawer is visible to this suite
  * before it is reviewed. Form-bearing drawers additionally land in the e2e
  * helper and its exhaustive openers, which is where the author must supply a
- * real route, a drawer test id and a Playwright opener.
+ * real route, a drawer test id and a Playwright opener. The two lists are
+ * NOT interchangeable: a discovered file whose JSX contains a `DrawerForm`
+ * tag must be in `DRAWER_FORM_CALL_SITES` (the scan reports every such file
+ * as `formBearing`), because the formless list carries no render obligation
+ * — filing a form-bearing drawer there used to be the silent escape.
+ *
+ * The scan additionally asserts the `DrawerContent → DrawerForm` link for
+ * every discovered surface: the form must be a direct child of the
+ * `.publy-drawer` surface. A `<div>` between the surface and the form is
+ * the #990 break one level up — the div owns the unconstrained height and
+ * the body's scrolling is inert — and it reddens the structural test even
+ * though every part tag has a legal wrapper.
  */
 
 import { readFileSync, unlinkSync, writeFileSync } from 'node:fs';
@@ -634,6 +645,51 @@ export const DivWrappedPartsDrawerFixture = ({
 );
 `;
 
+// Round 7's I3: the #990 break one level up. Body and footer are correctly
+// inside the form, but a `<div>` sits between the `.publy-drawer` surface
+// and the form — the div owns the unconstrained height and the body's
+// scrolling is inert again. The form-link check must flag this even though
+// every part tag has a legal wrapper.
+const TEMPORARY_DIV_ABOVE_FORM_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-div-above-form-fixture.tsx';
+const TEMPORARY_DIV_ABOVE_FORM_DRAWER_PATH = path.join(
+	FRONT_ROOT,
+	TEMPORARY_DIV_ABOVE_FORM_DRAWER_FILE,
+);
+const TEMPORARY_DIV_ABOVE_FORM_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import {
+	Drawer,
+	DrawerBody,
+	DrawerContent,
+	DrawerFooter,
+	DrawerForm,
+	DrawerHeader,
+	DrawerTitle,
+} from '~/components/ui/drawer';
+
+export const DivAboveFormDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<Drawer open>
+		<DrawerContent data-testid="r8-div-above-form">
+			<DrawerHeader>
+				<DrawerTitle>Broken above the form</DrawerTitle>
+			</DrawerHeader>
+			<div className="p-4">
+				<DrawerForm methods={methods}>
+					<DrawerBody>content</DrawerBody>
+					<DrawerFooter>
+						<button type="submit">Save</button>
+					</DrawerFooter>
+				</DrawerForm>
+			</div>
+		</DrawerContent>
+	</Drawer>
+);
+`;
+
 // Formless drawers that put DrawerBody + DrawerFooter straight into the
 // `.publy-drawer` surface instead of into the drawer-owned form. They are
 // deliberately not in DRAWER_FORM_CALL_SITES: the e2e spec and the render map
@@ -1078,6 +1134,7 @@ const resolveTagBinding = (
 const scanDrawerSurfaces = (): {
 	discovered: string[];
 	violations: string[];
+	formBearing: string[];
 } => {
 	const project = new Project({
 		tsConfigFilePath: path.join(FRONT_ROOT, 'tsconfig.json'),
@@ -1122,6 +1179,7 @@ const scanDrawerSurfaces = (): {
 
 	const discovered: string[] = [];
 	const violations: string[] = [];
+	const formBearing: string[] = [];
 
 	for (const sourceFile of project.addSourceFilesAtPaths(DRAWER_SOURCE_GLOB)) {
 		if (/\.(?:spec|test)\.tsx$/.test(sourceFile.getBaseName())) {
@@ -1188,7 +1246,40 @@ const scanDrawerSurfaces = (): {
 			return binding !== 'drawer-form' && binding !== 'drawer-content';
 		});
 
-		if (isRejected) {
+		// The DrawerContent -> DrawerForm link, asserted for every discovered
+		// surface: the form must itself be a direct child of the `.publy-drawer`
+		// surface, or an intermediate block (the #990 break one level up)
+		// re-owns the unconstrained height and the body's scrolling is inert.
+		// Definition-site forms get the same pass as definition-site parts.
+		const formNodes = jsxTags.filter(
+			(node) =>
+				drawerTagName(sourceFile, node.getTagNameNode().getText()) ===
+				'DrawerForm',
+		);
+		const callSiteFormNodes = formNodes.filter(
+			(node) => wrapperOf(node) !== null,
+		);
+		if (callSiteFormNodes.length > 0) {
+			formBearing.push(toPortableSourcePath(sourceFile.getFilePath()));
+		}
+		const formLinkBroken = callSiteFormNodes.some((node) => {
+			const wrapper = wrapperOf(node);
+			if (!wrapper) {
+				return true;
+			}
+			return (
+				resolveTagBinding(
+					sourceFile,
+					wrapper.getTagNameNode().getText(),
+					moduleResolution,
+					project,
+					moduleCache,
+					declaredNamesByFile,
+				) !== 'drawer-content'
+			);
+		});
+
+		if (isRejected || formLinkBroken) {
 			violations.push(toPortableSourcePath(sourceFile.getFilePath()));
 		}
 	}
@@ -1196,6 +1287,7 @@ const scanDrawerSurfaces = (): {
 	return {
 		discovered: discovered.sort(),
 		violations: violations.sort(),
+		formBearing: formBearing.sort(),
 	};
 };
 
@@ -1513,13 +1605,39 @@ describe('drawer surface flex chain guard (#990)', () => {
 		}
 	});
 
+	test('a form sitting under an intermediate element inside the surface is a structural violation', () => {
+		writeFileSync(
+			TEMPORARY_DIV_ABOVE_FORM_DRAWER_PATH,
+			TEMPORARY_DIV_ABOVE_FORM_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(TEMPORARY_DIV_ABOVE_FORM_DRAWER_FILE);
+			expect(scan.violations).toContain(TEMPORARY_DIV_ABOVE_FORM_DRAWER_FILE);
+		} finally {
+			unlinkSync(TEMPORARY_DIV_ABOVE_FORM_DRAWER_PATH);
+		}
+	});
+
 	test('the inventory contains every real drawer surface file', () => {
 		const expectedInventory = [
 			...DRAWER_FORM_CALL_SITES.map((callSite) => callSite.sourceFile),
 			...FORM_LESS_DRAWER_SURFACE_FILES,
 		].sort();
 
-		expect(scanDrawerSurfaces().discovered).toEqual(expectedInventory);
+		const scan = scanDrawerSurfaces();
+		expect(scan.discovered).toEqual(expectedInventory);
+
+		// The two inventory lists are NOT interchangeable: a file whose JSX
+		// contains a DrawerForm tag is a form-bearing drawer and must be in
+		// DRAWER_FORM_CALL_SITES (where the render tests + e2e openers run).
+		// FORM_LESS_DRAWER_SURFACE_FILES has no render obligation at all, so
+		// filing a form-bearing drawer there must fail — that is the exact
+		// escape the unguarded list used to offer.
+		expect(scan.formBearing).toEqual(
+			DRAWER_FORM_CALL_SITES.map((callSite) => callSite.sourceFile).sort(),
+		);
 	});
 
 	test('every real drawer surface keeps body and footer as direct children of the form or the surface', () => {
