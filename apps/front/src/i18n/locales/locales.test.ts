@@ -17,4 +17,11 @@ describe('front locale manifests', () => {
 			);
 		}
 	});
+
+	test('uses beta-safe pricing CTA copy in both locales', () => {
+		expect(en.common['landing-pricing-agency-cta']).toBe('Start free');
+		expect(fr.common['landing-pricing-agency-cta']).toBe(
+			'Commencer gratuitement',
+		);
+	});
 });
