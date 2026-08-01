@@ -8,7 +8,7 @@ import { compile } from '@tailwindcss/node';
 import { Scanner } from '@tailwindcss/oxide';
 import postcss from 'postcss';
 import { ts } from 'ts-morph';
-import { build as viteBuild } from 'vite';
+import { createBuilder } from 'vite';
 
 const rootDir = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const appCssPath = path.join(rootDir, 'src/styles/app.css');
@@ -1496,7 +1496,12 @@ export const buildProductionApp = async (baseDir) => {
 		},
 	};
 	try {
-		await viteBuild({
+		// Build every environment exactly as `vite build` does — for the shipped
+		// TanStack Start app that is the client bundle *and* the SSR bundle, so
+		// SSR-only modules (src/server.ts and friends) are recorded as build
+		// provenance and reach the script pass. `createBuilder` is the Vite
+		// public (experimental) multi-environment builder API.
+		const builder = await createBuilder({
 			root: baseDir,
 			logLevel: 'silent',
 			plugins: [provenancePlugin],
@@ -1505,6 +1510,7 @@ export const buildProductionApp = async (baseDir) => {
 				outDir: emittedCssRoot,
 			},
 		});
+		await builder.buildApp();
 	} catch (error) {
 		await rm(emittedCssRoot, { recursive: true, force: true });
 		throw error;

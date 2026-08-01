@@ -1359,6 +1359,31 @@ test('e2e (innocent): innocent constructs through the production scanner', async
 // ---------------------------------------------------------------------------
 // The live repository check — zero violations on the tree under test.
 // ---------------------------------------------------------------------------
+test('round 6 I2: the guard build records SSR-only modules as build provenance', async () => {
+	// If the guard's "real Vite production build" ever regresses to the client
+	// environment alone, SSR-only modules (src/server.ts) silently drop out of
+	// the script pass and become unguarded. This pins the build to both
+	// environments: the same reproduction that reds from a client-reachable
+	// module must red from the SSR entry too.
+	const frontDir = path.resolve(scriptsDir, '..');
+	const buildResult = await buildProductionApp(frontDir);
+	try {
+		const scripts = buildResult.authoredScriptPaths.map((filePath) =>
+			path.resolve(filePath),
+		);
+		assert.ok(
+			scripts.includes(path.resolve(frontDir, 'src/server.ts')),
+			'src/server.ts must be recorded as build-reachable (SSR environment)',
+		);
+		assert.ok(
+			scripts.includes(path.resolve(frontDir, 'src/client.tsx')),
+			'src/client.tsx must be recorded as build-reachable (client environment)',
+		);
+	} finally {
+		await buildResult.cleanup();
+	}
+});
+
 test('unmodified repository passes with zero violations', async () => {
 	const { violations, candidateCount, fileCount } = await runZIndexGuard();
 	assert.deepEqual(
