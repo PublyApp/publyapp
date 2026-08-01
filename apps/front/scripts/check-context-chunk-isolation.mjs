@@ -71,7 +71,7 @@ const findReactCreateContextSymbol = (program, checker) => {
 		);
 	}
 
-	return createContext;
+	return { createContext, reactModule };
 };
 
 const resolvesToReactCreateContext = (
@@ -142,7 +142,7 @@ export const findReactContextDeclarations = (tsconfigPath) => {
 			);
 		}
 
-		const reactCreateContext = findReactCreateContextSymbol(
+		const { createContext: reactCreateContext } = findReactCreateContextSymbol(
 			project.program,
 			project.checker,
 		);
