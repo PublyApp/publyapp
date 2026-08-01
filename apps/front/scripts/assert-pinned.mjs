@@ -55,22 +55,30 @@ const TAILWIND_LOCKSTEP = [
 	'@tailwindcss/oxide',
 	'@tailwindcss/vite',
 ];
-const lockstepVersions = new Set(
-	TAILWIND_LOCKSTEP.map((name) => pkg.devDependencies?.[name]),
-);
-if (lockstepVersions.size !== 1) {
+const lockstepEntries = TAILWIND_LOCKSTEP.map((name) => [
+	name,
+	pkg.devDependencies?.[name],
+]);
+// Absence must fail on its own: `new Set([undefined, undefined, …])` has
+// size 1, so an all-absent lockstep would otherwise pass the size check.
+if (
+	lockstepEntries.some(([, version]) => version == null) ||
+	new Set(lockstepEntries.map(([, version]) => version)).size !== 1
+) {
 	console.error(
 		'Tailwind packages must stay in version lockstep:',
-		TAILWIND_LOCKSTEP.map((name) => {
-			const version = pkg.devDependencies?.[name];
-			return version == null ? `${name} (missing)` : `${name}@${version}`;
-		}).join(', '),
+		lockstepEntries
+			.map(([name, version]) =>
+				version == null ? `${name} (missing)` : `${name}@${version}`,
+			)
+			.join(', '),
 	);
 	process.exit(1);
 }
 
-// Note: the exact `postcss` pin below does not bind the effective version — the
-// root `pnpm.overrides` rewrites it to a range (`^8.5.25` in the lockfile
-// importer). That is intentional and pre-existing; do not \"fix\" the lockfile.
+// Note: the exact `postcss` pin checked above does not bind the effective
+// version — the root `pnpm.overrides` rewrites it to a range (`^8.5.25` in the
+// lockfile importer). That is intentional and pre-existing; do not \"fix\" the
+// lockfile.
 console.log('All deps exact-pinned [OK]');
 console.log('Tailwind packages in version lockstep [OK]');

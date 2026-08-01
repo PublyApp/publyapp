@@ -3,9 +3,10 @@
 Normative. Defends the invariant that every z-index utility in `apps/front/src` routes through the
 `--publy-z-*` scale declared in `src/styles/app.css`. The guard is
 `apps/front/scripts/check-zindex-guard.mjs`; its fixture suite is
-`apps/front/scripts/check-zindex-guard.test.mjs`. The guard runs during `pnpm --filter front test`
-(inside the fixture suite's live-tree check — exactly one full scan per run) and via the standalone
-`pnpm --filter front check:zindex` CLI, and is therefore wired into `just ci-front`.
+`apps/front/scripts/check-zindex-guard.test.mjs`. The fixture suite's live-tree check runs during
+`pnpm --filter front test` (part of `just ci-front`) — exactly one full production scan and one full
+production build per run. The standalone `pnpm --filter front check:zindex` CLI runs the same guard
+on demand but is wired into no gate on its own.
 
 ## The invariant
 
@@ -48,7 +49,13 @@ The descriptor rule covers framework head APIs that render a link later through 
 The same "declarative payload that never becomes an emitted asset" logic covers a native JSX
 `<style>` element whose children are static text (the declaration walk runs over the payload, so a
 raw `z-index:` inside it reds) and CSS files imported with `?inline`/`?raw` (their authored file is
-walked directly, so they cannot smuggle a raw declaration past the emitted gate).
+walked directly, so they cannot smuggle a raw declaration past the emitted gate). The `<style>` rule
+covers both JSX spellings — the element and the self-closing `<style … />` — including the
+`dangerouslySetInnerHTML` payload on either, and a payload the declaration walk cannot parse is
+reported as a named `z-index-unparseable-static-css` diagnostic rather than crashing the guard.
+The `?inline`/`?raw` provenance uses Vite's own CSS-language set (`isCSSRequest`), so `.pcss`,
+`.postcss` and every other language Vite treats as CSS are covered as they ship; `?raw` on *any*
+file is also walked, since its raw text can be CSS regardless of extension.
 New tiers belong in the global `:root` scale; otherwise a local `--publy-z-raised: 999` could make an
 apparently scale-routed declaration compute to an arbitrary value. Stylesheets belong in the Vite
 import graph so the emitted gate can inspect them; data, remote, and local literal stylesheet links
@@ -135,12 +142,16 @@ Five components:
    transparent TypeScript syntax such as `as const`, `satisfies`, non-null, or parentheses. Static
    identifier resolution respects lexical shadowing. The latter closes framework head APIs as well
    as direct JSX while leaving the existing
-   `{ rel: 'stylesheet', href: appCss }` Vite-asset descriptor valid because `href` is an imported
-   build asset, not a literal. The same pass runs the declaration walk over the static payload of a
-   native JSX `<style>` element (including the `dangerouslySetInnerHTML` spelling), because such CSS
-   ships as SSR HTML or client JS rather than an emitted asset, and CSS files imported with the
-   `?inline`/`?raw` query forms are walked on the authored file for the same reason — their text
-   leaves the build as JS, never as an asset the emitted gate can see. This prevents an inline style
+    `{ rel: 'stylesheet', href: appCss }` Vite-asset descriptor valid because `href` is an imported
+    build asset, not a literal. The same pass runs the declaration walk over the static payload of a
+    native JSX `<style>` element in either spelling — element or self-closing — including the
+    `dangerouslySetInnerHTML` payload, because such CSS
+    ships as SSR HTML or client JS rather than an emitted asset, and CSS files imported with the
+    `?inline`/`?raw` query forms are walked on the authored file for the same reason — their text
+    leaves the build as JS, never as an asset the emitted gate can see. The provenance records the
+    inline/raw forms across Vite's own CSS-language set and, for `?raw`, every file regardless of
+    extension; a payload the declaration walk cannot parse (template syntax, an HTML comment, an
+    unclosed block) is a named diagnostic, never a crash. This prevents an inline style
    from shadowing a legitimate tier after
    the emitted gate has accepted its reference, and prevents declarative CSS payloads from bypassing
    that gate as JavaScript bundle text. Build provenance identifies the
