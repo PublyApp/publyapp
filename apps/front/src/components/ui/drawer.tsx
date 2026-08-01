@@ -1,6 +1,11 @@
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
 import { IconX } from '@tabler/icons-react';
 import type * as React from 'react';
+import {
+	FormProvider,
+	type FieldValues,
+	type UseFormReturn,
+} from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { cn } from '~/lib/utils';
 
@@ -118,6 +123,44 @@ function DrawerFooter({ className, ...props }: React.ComponentProps<'div'>) {
 	);
 }
 
+type DrawerFormProps<TFieldValues extends FieldValues = FieldValues> = {
+	children: React.ReactNode;
+	methods: UseFormReturn<TFieldValues>;
+	onSubmit?: React.FormEventHandler<HTMLFormElement>;
+	slotProps?: {
+		form?: React.HTMLAttributes<HTMLFormElement>;
+	};
+};
+
+/**
+ * The drawer-owned `<form>` that carries a `DrawerBody` + `DrawerFooter`
+ * pair. It renders the same react-hook-form surface as `Form`
+ * (components/field) but applies `.publy-drawer-form` so the body becomes
+ * the single scrolling region and the footer stays pinned — a plain `Form`
+ * here is a block element in the drawer's flex column and clips the footer
+ * below the viewport (fix/990).
+ */
+function DrawerForm<TFieldValues extends FieldValues = FieldValues>({
+	children,
+	methods,
+	onSubmit,
+	slotProps,
+}: DrawerFormProps<TFieldValues>) {
+	return (
+		<FormProvider {...methods}>
+			<form
+				{...slotProps?.form}
+				onSubmit={onSubmit}
+				noValidate
+				autoComplete="off"
+				className={cn('publy-drawer-form', slotProps?.form?.className)}
+			>
+				{children}
+			</form>
+		</FormProvider>
+	);
+}
+
 export {
 	Drawer,
 	DrawerBody,
@@ -125,6 +168,7 @@ export {
 	DrawerContent,
 	DrawerDescription,
 	DrawerFooter,
+	DrawerForm,
 	DrawerHeader,
 	DrawerTitle,
 	DrawerTrigger,
