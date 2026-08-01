@@ -35,6 +35,9 @@ describe('marketing feature flags', () => {
 		['unset', undefined],
 		['empty', ''],
 		['false', 'false'],
+		['numeric truthy', '1'],
+		['word truthy', 'yes'],
+		['uppercase true', 'TRUE'],
 	] as const)(
 		'stays off when the environment value is %s',
 		async (_label, rawValue) => {
