@@ -1219,6 +1219,65 @@ test('e2e (round 6 M2): app.css missing from build provenance fails closed', asy
 	);
 });
 
+test('e2e (round 6 I1): static dangerouslySetInnerHTML payload with a <style> is red', async () => {
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				'export const probe = <div',
+				'  dangerouslySetInnerHTML={{',
+				"    __html: '<style>.probe { z-index: 2147483647; }</style>'",
+				'  }}',
+				'/>;',
+			].join('\n'),
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		violations.map((violation) => violation.ruleId),
+		['z-index-style-element-shipped'],
+		`dangerous HTML <style> payload must red: ${JSON.stringify(violations)}`,
+	);
+});
+
+test('e2e (round 6 I1): static dangerouslySetInnerHTML payload with a stylesheet <link> is red', async () => {
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				'export const probe = <div',
+				'  dangerouslySetInnerHTML={{',
+				'    __html: \'<link rel="stylesheet" href="data:text/css,.x%7Bz-index%3A99%7D">\'',
+				'  }}',
+				'/>;',
+			].join('\n'),
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		violations.map((violation) => violation.ruleId),
+		['z-index-opaque-stylesheet-link'],
+		`dangerous HTML <link> payload must red: ${JSON.stringify(violations)}`,
+	);
+});
+
+test('e2e (round 6 I1): static dangerouslySetInnerHTML with harmless HTML stays green', async () => {
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				'export const probe = <div',
+				'  dangerouslySetInnerHTML={{',
+				'    __html: \'<p class="publy-probe-banner">probe</p>\',',
+				'  }}',
+				'/>;',
+			].join('\n'),
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(violations, []);
+});
+
 test('e2e (round 5 audit): build-reachable static script escapes are red', async () => {
 	const { violations } = await runFixtureGuard(
 		{

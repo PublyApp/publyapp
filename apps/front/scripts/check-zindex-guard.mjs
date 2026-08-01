@@ -1025,6 +1025,86 @@ export const scanZIndexFile = ({
 			}
 			return parts.join('');
 		};
+		const staticDangerousHtml = (node) => {
+			// A `dangerouslySetInnerHTML={{ __html: … }}` payload on any element
+			// is raw HTML shipped as SSR markup or client innerHTML. When the
+			// payload is a static literal, the `<style>`/`<link>` it embeds is
+			// the same declarative stylesheet route as a JSX `<style>` element.
+			if (!ts.isJsxElement(node) && !ts.isJsxSelfClosingElement(node)) {
+				return null;
+			}
+			const attributes = ts.isJsxElement(node)
+				? node.openingElement.attributes
+				: node.attributes;
+			for (const attribute of attributes.properties) {
+				if (
+					!ts.isJsxAttribute(attribute) ||
+					attribute.name.kind !== ts.SyntaxKind.Identifier ||
+					attribute.name.text !== 'dangerouslySetInnerHTML'
+				) {
+					continue;
+				}
+				if (!ts.isJsxExpression(attribute.initializer)) {
+					return null;
+				}
+				const object = unwrapTransparentExpression(
+					attribute.initializer.expression,
+				);
+				if (!ts.isObjectLiteralExpression(object)) {
+					return null;
+				}
+				return staticObjectProperty(object, '__html');
+			}
+			return null;
+		};
+		const scanHtmlStyleEscapes = (html) => {
+			// Static-HTML payloads can embed a `<style>` element (declaration
+			// walk over its text) or a `<link rel="stylesheet">` (opaque, same
+			// as the JSX link rule). Only literal attribute values are read, so
+			// runtime-assembled HTML stays in the declared runtime bucket.
+			const escapes = [];
+			const stylePattern = /<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi;
+			let match;
+			while ((match = stylePattern.exec(html))) {
+				const css = match[1];
+				if (checkCompiledCssZIndex(css).length > 0) {
+					escapes.push({
+						ruleId: 'z-index-style-element-shipped',
+						message:
+							'static HTML payload ships a <style> element whose CSS never ' +
+							'becomes an emitted asset — route every z-index through ' +
+							'the scale or import the stylesheet through the build graph.',
+						source: match[0],
+					});
+				}
+			}
+			const linkPattern = /<link\b[^>]*>/gi;
+			while ((match = linkPattern.exec(html))) {
+				const relValue = match[0].match(
+					/\brel\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i,
+				);
+				const hrefValue = match[0].match(
+					/\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i,
+				);
+				const rel = relValue?.[1] ?? relValue?.[2] ?? relValue?.[3] ?? '';
+				const href = hrefValue?.[1] ?? hrefValue?.[2] ?? hrefValue?.[3];
+				const relTokens = rel
+					.split(/[\t\n\f\r ]+/)
+					.filter(Boolean)
+					.map(asciiLowerCase);
+				if (href != null && relTokens.includes('stylesheet')) {
+					escapes.push({
+						ruleId: 'z-index-opaque-stylesheet-link',
+						message:
+							'static HTML payload ships a stylesheet link as an opaque ' +
+							'browser request instead of an emitted asset — import the ' +
+							'stylesheet through the build graph.',
+						source: match[0],
+					});
+				}
+			}
+			return escapes;
+		};
 		const visitStaticStyleEscapes = (node) => {
 			const styleCss = staticStyleElementCss(node);
 			if (styleCss != null && checkCompiledCssZIndex(styleCss).length > 0) {
@@ -1039,6 +1119,17 @@ export const scanZIndexFile = ({
 					line: lineForOffset(content, node.getStart(sourceFile)),
 					source: node.getText(sourceFile),
 				});
+			}
+			const dangerousHtml = staticDangerousHtml(node);
+			if (dangerousHtml != null) {
+				const htmlEscapes = scanHtmlStyleEscapes(dangerousHtml);
+				for (const escape of htmlEscapes) {
+					violations.push({
+						...escape,
+						file: relativePath,
+						line: lineForOffset(content, node.getStart(sourceFile)),
+					});
+				}
 			}
 			let rel = null;
 			let href = null;

@@ -203,9 +203,10 @@ gaps, each with its current evidence:
   data flow. A helper whose `setProperty(name, value)` key or `CSS.registerProperty({ name })` value
   arrives through a parameter, or a spread/Object.assign payload whose token-bearing object is
   produced by a helper or unscanned import, remains outside the static boundary. Assigning a complete
-  style string through `cssText`, `setAttribute('style', ...)`, or raw HTML has the same runtime-data
-  boundary. Literal object properties in scanned source remain red even when that object is later
-  spread.
+  style string through `cssText`, `setAttribute('style', ...)`, or raw HTML at **runtime** has the
+  same data-flow boundary; a **static literal** `dangerouslySetInnerHTML` payload is closed instead —
+  the script pass scans its `<style>`/`<link rel="stylesheet">` fragments exactly like the JSX routes.
+  Literal object properties in scanned source remain red even when that object is later spread.
 - **A class assembled by `+` string concatenation (`'z-' + 5`).** It produces no extractor candidate,
   so on its own it ships no rule and paints at `auto` — it is dead text. It becomes load-bearing only
   **in combination with** a route that generates a rule for that class (`@source inline("z-5")`,
