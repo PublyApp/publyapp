@@ -617,11 +617,23 @@ const DRAWER_OPENERS: Record<
 	},
 };
 
-const DRAWER_CASES = DRAWER_DESCRIPTION_CONSUMERS.map((consumer) => ({
-	name: DRAWER_OPENERS[consumer.testId].name,
-	testId: consumer.testId,
-	open: DRAWER_OPENERS[consumer.testId].open,
-}));
+// A missing opener is deliberately NOT a module-load crash: it drops the case
+// from DRAWER_CASES so the linkage test below can report it by name. Without
+// this, `DRAWER_OPENERS[testId].name` on an undefined entry would error the
+// whole file before any test ran.
+const DRAWER_CASES = DRAWER_DESCRIPTION_CONSUMERS.flatMap((consumer) => {
+	const opener = DRAWER_OPENERS[consumer.testId];
+	if (opener === undefined) {
+		return [];
+	}
+	return [
+		{
+			name: opener.name,
+			testId: consumer.testId,
+			open: opener.open,
+		},
+	];
+});
 
 test.describe('live description text contrast (#1043 / PR #1061)', () => {
 	test('every inventory consumer has a live browser case', () => {
@@ -670,20 +682,22 @@ test.describe('live description text contrast (#1043 / PR #1061)', () => {
 	// Round 5 I7: the source model deliberately drops `@media`-nested rules
 	// (documented in css-cascade-test-support.ts) and defers to a real-browser
 	// assertion — but every project runs at Desktop Chrome 1280×720, so the
-	// deferral had nowhere to land. One narrow-viewport run of the cookie
-	// drawer closes it: a mobile-only override on `.publy-drawer-description`
-	// is caught here and nowhere else.
+	// deferral had nowhere to land. One narrow-viewport run of the change-email
+	// drawer closes it: its description uses the DEFAULT primitive (no className
+	// override), so a mobile-only override on `.publy-drawer-description` is
+	// caught here and nowhere else. (The cookie drawer is not used because its
+	// own muted utility override would mask a primitive-level media rule.)
 	test.describe('mobile viewport', () => {
 		test.use({ viewport: { width: 375, height: 667 } });
 
-		test('cookie preferences drawer clears 4.5:1 in both themes at the narrow viewport', async ({
+		test('change email drawer clears 4.5:1 in both themes at the narrow viewport', async ({
 			page,
 		}, testInfo) => {
-			await openCookiePrefsDrawer(page);
+			await openChangeEmailDrawer(page);
 			await assertDrawerDescriptionContrast(
 				page,
 				testInfo,
-				'cookie-prefs-drawer',
+				'change-staff-user-email-dialog',
 			);
 		});
 	});
