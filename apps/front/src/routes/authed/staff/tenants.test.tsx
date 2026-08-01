@@ -1026,11 +1026,9 @@ describe('staff tenants route', () => {
 			);
 			await chooseBulkAction('Suspend selected');
 
-			await waitFor(() =>
-				expect(
-					screen.getByRole('heading', { name: 'Suspend selected' }),
-				).toBeTruthy(),
-			);
+			expect(
+				screen.getByRole('heading', { name: 'Suspend selected' }),
+			).toBeTruthy();
 			expect(
 				screen.getByText('Are you sure you want to suspend 1 tenants?'),
 			).toBeTruthy();
@@ -1040,15 +1038,13 @@ describe('staff tenants route', () => {
 			);
 
 			await waitFor(() =>
-				expect(mocks.bulkSuspendTenantsMutation).toHaveBeenCalledWith({
-					tenantIds: ['tenant-1'],
-				}),
-			);
-			await waitFor(() =>
 				expect(mocks.toastSuccess).toHaveBeenCalledWith(
 					'Successfully suspended 1 tenant(s).',
 				),
 			);
+			expect(mocks.bulkSuspendTenantsMutation).toHaveBeenCalledWith({
+				tenantIds: ['tenant-1'],
+			});
 			expect(mocks.toastSuccess).toHaveBeenCalledTimes(1);
 			expect(screen.queryByRole('status')).toBeNull();
 			expect(mocks.invalidateQueries).toHaveBeenCalledWith({
@@ -1073,11 +1069,9 @@ describe('staff tenants route', () => {
 				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 			);
 			await chooseBulkAction('Suspend selected');
-			await waitFor(() =>
-				expect(
-					screen.getByRole('heading', { name: 'Suspend selected' }),
-				).toBeTruthy(),
-			);
+			expect(
+				screen.getByRole('heading', { name: 'Suspend selected' }),
+			).toBeTruthy();
 			fireEvent.click(
 				screen.getAllByRole('button', { name: 'Suspend' }).slice(-1)[0],
 			);
@@ -1107,7 +1101,7 @@ describe('staff tenants route', () => {
 				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 			);
 			await chooseBulkAction('Suspend selected');
-			const dialog = await screen.findByRole('alertdialog');
+			const dialog = screen.getByRole('alertdialog');
 			fireEvent.click(within(dialog).getByRole('button', { name: 'Suspend' }));
 
 			await waitFor(() =>
@@ -1136,11 +1130,9 @@ describe('staff tenants route', () => {
 				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 			);
 			await chooseBulkAction('Suspend selected');
-			await waitFor(() =>
-				expect(
-					screen.getByRole('heading', { name: 'Suspend selected' }),
-				).toBeTruthy(),
-			);
+			expect(
+				screen.getByRole('heading', { name: 'Suspend selected' }),
+			).toBeTruthy();
 			fireEvent.click(
 				screen.getAllByRole('button', { name: 'Suspend' }).slice(-1)[0],
 			);
@@ -1224,11 +1216,9 @@ describe('staff tenants route', () => {
 			);
 			await chooseBulkAction('Delete selected');
 
-			await waitFor(() =>
-				expect(
-					screen.getByRole('heading', { name: 'Delete selected' }),
-				).toBeTruthy(),
-			);
+			expect(
+				screen.getByRole('heading', { name: 'Delete selected' }),
+			).toBeTruthy();
 			fireEvent.click(
 				screen.getAllByRole('button', { name: 'Delete' }).slice(-1)[0],
 			);
