@@ -981,16 +981,24 @@ export const scanZIndexFile = ({
 			return nearestBinding(owner, owner.text) == null;
 		};
 		const staticStyleElementCss = (node) => {
-			if (!ts.isJsxElement(node)) {
+			// Both JSX spellings carry the same payload: a `<style>` element
+			// and a self-closing `<style … />` are the same DOM node, so the
+			// `dangerouslySetInnerHTML` attribute lives in a different
+			// `attributes` shape on each.
+			const selfClosing = ts.isJsxSelfClosingElement(node);
+			if (!ts.isJsxElement(node) && !selfClosing) {
 				return null;
 			}
-			const tag = node.openingElement.tagName;
+			const attributes = selfClosing
+				? node.attributes
+				: node.openingElement.attributes;
+			const tag = selfClosing ? node.tagName : node.openingElement.tagName;
 			if (!ts.isIdentifier(tag) || tag.text !== 'style') {
 				return null;
 			}
 			// A `dangerouslySetInnerHTML` payload on a `<style>` element is the
 			// same static CSS text, just spelled through the attribute.
-			for (const attribute of node.openingElement.attributes.properties) {
+			for (const attribute of attributes.properties) {
 				if (
 					!ts.isJsxAttribute(attribute) ||
 					attribute.name.kind !== ts.SyntaxKind.Identifier ||
@@ -1008,6 +1016,9 @@ export const scanZIndexFile = ({
 					return null;
 				}
 				return staticObjectProperty(object, '__html');
+			}
+			if (selfClosing) {
+				return null;
 			}
 			const parts = [];
 			for (const child of node.children) {

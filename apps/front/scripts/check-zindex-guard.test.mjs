@@ -1342,6 +1342,58 @@ test('e2e (round 6 I1): static dangerouslySetInnerHTML with harmless HTML stays 
 	assert.deepEqual(violations, []);
 });
 
+test('e2e (round 7 I1/I4): static <style dangerouslySetInnerHTML> is red in both JSX spellings', async () => {
+	// The `dangerouslySetInnerHTML` spelling of a static `<style>` payload
+	// ships the same raw CSS as the children spelling — including the
+	// self-closing form, whose attributes live on a JsxSelfClosingElement.
+	for (const element of [
+		[
+			'<style',
+			'  dangerouslySetInnerHTML={{',
+			"    __html: '.probe { z-index: 2147483643; }',",
+			'  }}',
+			'/>;',
+		],
+		[
+			'<style',
+			'  dangerouslySetInnerHTML={{',
+			"    __html: '.probe { z-index: 2147483642; }',",
+			'  }}',
+			'></style>;',
+		],
+	]) {
+		const { violations } = await runFixtureGuard(
+			{
+				'probe.tsx': ['export const probe = ', ...element].join('\n'),
+			},
+			'',
+			["import { probe } from './probe';"],
+		);
+		assert.deepEqual(
+			violations.map((violation) => violation.ruleId),
+			['z-index-style-element-shipped'],
+			`dangerouslySetInnerHTML style payload must red: ${JSON.stringify(violations)}`,
+		);
+	}
+});
+
+test('e2e (round 7 I1): self-closing <style> with scale-routed CSS stays green', async () => {
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				'export const probe = <style',
+				'  dangerouslySetInnerHTML={{',
+				"    __html: '.probe { z-index: var(--publy-z-raised); }',",
+				'  }}',
+				'/>;',
+			].join('\n'),
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(violations, []);
+});
+
 test('e2e (round 5 audit): build-reachable static script escapes are red', async () => {
 	const { violations } = await runFixtureGuard(
 		{
