@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import { Scanner } from '@tailwindcss/oxide';
 
@@ -13,10 +16,45 @@ import {
 } from './check-zindex-guard.mjs';
 
 // #987 — z-index scale guard. Every fixture below lives in `scripts/`, outside
-// any path the Tailwind production scanner watches (`src/**`), so fixture
-// literals can never reach the shipped stylesheet the way the withdrawn guard's
-// did. The compiled-CSS gate in `runZIndexGuard` additionally proves nothing
-// raw ships.
+// the `src/**` tree the production scanner watches, so fixture literals can
+// never reach the shipped stylesheet the way the withdrawn guard's did. The
+// end-to-end tests drive the *full* guard (`runZIndexGuard`) against isolated
+// fixture trees whose own app.css points `source('./src')` at a throwaway
+// `src/` — proving behaviour through the production scanner, not just the
+// source component.
+
+const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
+
+const FIXTURE_APP_CSS = `@import 'tailwindcss' source('./src');
+@theme inline {
+  --publy-z-raised: 10;
+  --publy-z-menu: 100;
+}
+`;
+
+// Runs the full guard against an isolated fixture tree. The tree lives under
+// `scripts/` so `@import 'tailwindcss'` resolves from `apps/front/node_modules`
+// (it would not resolve from the OS tmpdir) while staying invisible to the real
+// guard, whose scanner only watches `src/**`.
+const runFixtureGuard = async (files, appCssExtra = '') => {
+	const root = await mkdtemp(path.join(scriptsDir, 'zindex-guard-'));
+	try {
+		await mkdir(path.join(root, 'src'), { recursive: true });
+		await writeFile(path.join(root, 'app.css'), FIXTURE_APP_CSS + appCssExtra);
+		for (const [relativePath, content] of Object.entries(files)) {
+			const absolutePath = path.join(root, 'src', relativePath);
+			await mkdir(path.dirname(absolutePath), { recursive: true });
+			await writeFile(absolutePath, content);
+		}
+		const result = await runZIndexGuard({
+			baseDir: root,
+			appCssPath: path.join(root, 'app.css'),
+		});
+		return result;
+	} finally {
+		await rm(root, { recursive: true, force: true });
+	}
+};
 
 const scanner = new Scanner({ sources: [] });
 
@@ -58,6 +96,10 @@ test('classifier: every evasion shape is a raw z-index utility', () => {
 		'hover:-z-10',
 		'z-[var(--publy-z-menu,50)]',
 		'z-[50px]',
+		'[z-index:5]',
+		'hover:[z-index:5]',
+		'[Z-INDEX:5]',
+		'[z-index:--publy-z-menu]',
 	]) {
 		assert.equal(classifyZUtility(candidate), 'raw', candidate);
 	}
@@ -77,6 +119,8 @@ test('classifier: scale-routed and inert utilities are allowed', () => {
 		'z-[initial]',
 		'z-[unset]',
 		'z-[revert]',
+		'[z-index:var(--publy-z-menu)]',
+		'[z-index:auto]',
 	]) {
 		assert.equal(classifyZUtility(candidate), 'allowed', candidate);
 	}
@@ -91,6 +135,8 @@ test('classifier: non-utilities are null', () => {
 		'px-2',
 		'text-foreground',
 		'[&>svg]:size-3!',
+		'[-z-index:5]',
+		'[color:red]',
 	]) {
 		assert.equal(classifyZUtility(candidate), null, candidate);
 	}
@@ -151,9 +197,12 @@ test('innocent: custom class with -z- mid-token is not a z-index assembly', () =
 });
 
 // ---------------------------------------------------------------------------
-// Innocent constructs — must stay green.
+// Innocent constructs — source-component green, honestly scoped. Component 1
+// suppresses these positions; the end-to-end test at the bottom proves what
+// actually ships through the production scanner (the z-50 literals DO emit a
+// `.z-50` rule; only z-auto and the CSS-selector case are green end to end).
 // ---------------------------------------------------------------------------
-test('innocent: type literal in a .d.ts and interface member', () => {
+test('innocent (source level): type literal in a .d.ts and interface member', () => {
 	assertClean('types.d.ts', "type Layer = 'z-50';");
 	assertClean(
 		'types.ts',
@@ -161,11 +210,11 @@ test('innocent: type literal in a .d.ts and interface member', () => {
 	);
 });
 
-test('innocent: non-class JSX attributes', () => {
+test('innocent (source level): non-class JSX attributes', () => {
 	assertClean('fixture.tsx', '<div data-example="z-50" aria-label="z-50" />');
 });
 
-test('innocent: comparand that can never reach className', () => {
+test('innocent (source level): comparand that can never reach className', () => {
 	assertClean(
 		'fixture.tsx',
 		"const view = <div className={kind === 'z-50' ? 'active' : 'idle'} />;",
@@ -173,21 +222,21 @@ test('innocent: comparand that can never reach className', () => {
 	assertClean('fixture.ts', 'export const a = kind !== `z-50`;');
 });
 
-test('innocent: CSS attribute-selector value', () => {
+test('innocent (source level): CSS attribute-selector value', () => {
 	assertClean('fixture.css', '[data-example=".z-50"] { color: red; }');
 	assertClean('fixture.css', '[data-example="z-50"] { color: red; }');
 });
 
-test('innocent: z-auto is a legitimate non-stacking reset', () => {
+test('innocent (source level): z-auto is a legitimate non-stacking reset', () => {
 	assertClean('fixture.tsx', '<div className="z-auto" />');
 	assertClean('fixture.css', '.x { @apply z-auto; }');
 });
 
-test('innocent: z-fragment template outside a delivery position', () => {
+test('innocent (source level): z-fragment template outside a delivery position', () => {
 	assertClean('fixture.tsx', 'const x = <div data-tip={`z-${level}`} />;');
 });
 
-test('innocent: class templates without a z fragment', () => {
+test('innocent (source level): class templates without a z fragment', () => {
 	assertClean(
 		'fixture.tsx',
 		'const view = <div className={`px-${size} mt-${margin}`} />;',
@@ -222,13 +271,17 @@ test('stripComments: removes comments but not strings or templates', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Compiled-CSS gate.
+// Compiled-CSS gate — parsed declarations, canonicalised properties, normalised
+// !important, selector-bound allowlist.
 // ---------------------------------------------------------------------------
-test('compiled-CSS gate: only scale-routed or inert declarations pass', () => {
+test('compiled-CSS gate: scale-routed, inert, and important-spelled declarations pass', () => {
 	const css = [
 		'.a { z-index: var(--publy-z-menu); }',
 		'.b { z-index: var(--publy-z-raised); }',
 		'.c { z-index: auto; }',
+		'.d { z-index: var(--publy-z-raised) !important; }',
+		'.e { z-index: var(--publy-z-raised) ! IMPORTANT; }',
+		'.f { z-index: var(--publy-z-raised)!important; }',
 		':root { --publy-z-menu: 100; }',
 	].join('\n');
 	assert.deepEqual(checkCompiledCssZIndex(css), []);
@@ -245,13 +298,195 @@ test('compiled-CSS gate: raw numeric declarations are flagged', () => {
 	);
 });
 
-test('compiled-CSS gate: allowlisted declarations are seen and permitted', () => {
-	const css = '.thead { z-index: 5; }';
+const STICKY_HEADER_SELECTOR =
+	".publy-data-table thead [data-slot='table-column'], " +
+	".publy-data-table thead [data-slot='table-sortable-column-header'], " +
+	".publy-data-table thead [data-slot='table-selection-cell']";
+
+test('compiled-CSS gate: allowlist is bound to the exact selector list and occurrence count', () => {
+	// the one real rule is permitted
 	assert.equal(
-		checkCompiledCssZIndex(css, KNOWN_RAW_Z_INDEX_DECLARATIONS).length,
+		checkCompiledCssZIndex(
+			`${STICKY_HEADER_SELECTOR} { z-index: 5; }`,
+			KNOWN_RAW_Z_INDEX_DECLARATIONS,
+		).length,
 		0,
 	);
-	assert.equal(checkCompiledCssZIndex(css, []).length, 1);
+	// the same value on any other selector is a violation — including the two
+	// reviewer mutations: a generated `.z-5` rule and the `[z-index:5]` shim
+	assert.equal(
+		checkCompiledCssZIndex(
+			'.z-5 { z-index: 5; }',
+			KNOWN_RAW_Z_INDEX_DECLARATIONS,
+		).length,
+		1,
+	);
+	assert.equal(
+		checkCompiledCssZIndex(
+			'.\\[z-index\\:5\\] { z-index: 5; }',
+			KNOWN_RAW_Z_INDEX_DECLARATIONS,
+		).length,
+		1,
+	);
+	assert.equal(
+		checkCompiledCssZIndex(
+			'.thead { z-index: 5; }',
+			KNOWN_RAW_Z_INDEX_DECLARATIONS,
+		).length,
+		1,
+	);
+	// a duplicate of the bound rule exceeds the expected occurrence count
+	const twice = `${STICKY_HEADER_SELECTOR} { z-index: 5; }\n${STICKY_HEADER_SELECTOR} { z-index: 5; }`;
+	assert.equal(
+		checkCompiledCssZIndex(twice, KNOWN_RAW_Z_INDEX_DECLARATIONS).length,
+		1,
+	);
+	// no allowlist at all still reds the real rule
+	assert.equal(
+		checkCompiledCssZIndex(`${STICKY_HEADER_SELECTOR} { z-index: 5; }`, [])
+			.length,
+		1,
+	);
+});
+
+test('compiled-CSS gate: property names are canonicalised (case and escapes)', () => {
+	// uppercase property is still a z-index declaration
+	assert.equal(checkCompiledCssZIndex('.probe { Z-INDEX: 50; }').length, 1);
+	// escaped `i` in `z-index` (`\69` is `i`) is still a z-index declaration
+	assert.equal(checkCompiledCssZIndex('.probe { z-\\69ndex: 50; }').length, 1);
+	// the allowlisted rule is case-insensitive too
+	assert.equal(
+		checkCompiledCssZIndex(
+			`${STICKY_HEADER_SELECTOR} { Z-INDEX: 5; }`,
+			KNOWN_RAW_Z_INDEX_DECLARATIONS,
+		).length,
+		0,
+	);
+});
+
+// ---------------------------------------------------------------------------
+// End-to-end through the production scanner — isolated fixture trees whose
+// throwaway `src/` is compiled exactly as production compiles `apps/front/src`.
+// ---------------------------------------------------------------------------
+test('e2e (blocker 1): @source inline("z-5") + \'z-\' + 5 concatenation is red via the compiled gate', async () => {
+	const { violations } = await runFixtureGuard(
+		{ 'concat.tsx': `export const view = <div className={'z-' + 5} />;` },
+		`@source inline("z-5");\n`,
+	);
+	assert.ok(violations.length > 0, 'expected the generated .z-5 rule to red');
+	// the concatenation itself is source-invisible (no literal candidate); the
+	// red is the shipped `.z-5 { z-index: 5 }` rule, which the selector-bound
+	// allowlist no longer exempts.
+	assert.ok(
+		violations.every((violation) => violation.file === 'compiled stylesheet'),
+		`unexpected source violations: ${JSON.stringify(violations)}`,
+	);
+	assert.deepEqual(
+		violations.map((violation) => violation.source),
+		['z-index: 5'],
+	);
+});
+
+test('e2e (blocker 1): [z-index:5] arbitrary property is red at source and in the compiled gate', async () => {
+	const { violations } = await runFixtureGuard({
+		'arbitrary.tsx': `export const view = <div className="[z-index:5]" />;`,
+	});
+	const sourceViolations = violations.filter((violation) =>
+		violation.file.includes('arbitrary.tsx'),
+	);
+	const compiledViolations = violations.filter(
+		(violation) => violation.file === 'compiled stylesheet',
+	);
+	assert.ok(
+		sourceViolations.some((violation) => violation.source === '[z-index:5]'),
+		`expected a source violation for the shim: ${JSON.stringify(violations)}`,
+	);
+	assert.ok(
+		compiledViolations.some((violation) => violation.source === 'z-index: 5'),
+		`expected a compiled violation for the shim: ${JSON.stringify(violations)}`,
+	);
+});
+
+test('e2e (blocker 2): uppercase Z-INDEX property in an @utility is red', async () => {
+	const { violations } = await runFixtureGuard(
+		{ 'probe.tsx': `export const view = <div className="layer-probe" />;` },
+		'@utility layer-probe { Z-INDEX: 50; }\n',
+	);
+	assert.ok(
+		violations.some(
+			(violation) =>
+				violation.file === 'compiled stylesheet' &&
+				violation.source === 'z-index: 50',
+		),
+		`expected the uppercase property to red: ${JSON.stringify(violations)}`,
+	);
+});
+
+test('e2e (blocker 2): escaped z-\\69ndex property in an @utility is red', async () => {
+	const { violations } = await runFixtureGuard(
+		{ 'probe.tsx': `export const view = <div className="layer-probe" />;` },
+		'@utility layer-probe { z-\\69ndex: 50; }\n',
+	);
+	assert.ok(
+		violations.some(
+			(violation) =>
+				violation.file === 'compiled stylesheet' &&
+				violation.source === 'z-index: 50',
+		),
+		`expected the escaped property to red: ${JSON.stringify(violations)}`,
+	);
+});
+
+test('e2e (blocker 3): both !important spellings of a scale utility stay green', async () => {
+	const { violations } = await runFixtureGuard({
+		'important-suffix.tsx': `export const view = <div className="z-(--publy-z-raised)!" />;`,
+		'important-prefix.tsx': `export const view = <div className="!z-(--publy-z-raised)" />;`,
+	});
+	assert.deepEqual(
+		violations,
+		[],
+		`scale utilities with !important must stay green: ${JSON.stringify(violations)}`,
+	);
+});
+
+test('e2e (innocent): innocent constructs through the production scanner', async () => {
+	const innocentFiles = {
+		'type-literal.d.ts': `export type Layer = 'z-50';`,
+		'data-example.tsx':
+			'export const view = <div data-example="z-50" aria-label="z-50" />;',
+		'comparand.tsx': `export const view = <div className={kind === 'z-50' ? 'active' : 'idle'} />;`,
+		'z-auto.tsx': `export const view = <div className="z-auto" />;`,
+		'css-selector.css': `[data-example=".z-50"] { color: red; }`,
+		'clean-template.tsx': `export const view = <div className={\`px-\${size} mt-\${margin}\`} />;`,
+		'data-tip-template.tsx': `export const view = <div data-tip={\`z-\${level}\`} />;`,
+	};
+	const { violations } = await runFixtureGuard(innocentFiles);
+	// component 1 stays green on every innocent construct — every violation is
+	// a compiled-gate emission, none names a fixture file.
+	assert.ok(
+		violations.every((violation) => violation.file === 'compiled stylesheet'),
+		`innocent construct produced a source violation: ${JSON.stringify(violations)}`,
+	);
+	// the three z-50 literals collapse into one shipped `.z-50` rule, which the
+	// selector-bound allowlist does NOT exempt — proving a rule generated from
+	// an innocent literal cannot activate the allowlist (blocker 1).
+	assert.deepEqual(
+		violations.map((violation) => violation.source),
+		['z-index: 50'],
+		`unexpected compiled violations: ${JSON.stringify(violations)}`,
+	);
+	// the same tree minus the z-50 literals is fully green end to end — z-auto
+	// and the CSS-selector case genuinely pass through the production scanner.
+	const clean = { ...innocentFiles };
+	delete clean['type-literal.d.ts'];
+	delete clean['data-example.tsx'];
+	delete clean['comparand.tsx'];
+	const { violations: cleanViolations } = await runFixtureGuard(clean);
+	assert.deepEqual(
+		cleanViolations,
+		[],
+		`expected the z-50-free innocent tree to stay green: ${JSON.stringify(cleanViolations)}`,
+	);
 });
 
 // ---------------------------------------------------------------------------
