@@ -567,6 +567,7 @@ export const findContextChunkIsolationViolations = (
 		contextNamesBySource.set(context.sourceFile, contextNames);
 	}
 
+	const analyzedSourceFiles = new Set();
 	const renderedModulesToAnalyze = [];
 	for (const [sourceFile, expectedContextNames] of contextNamesBySource) {
 		const virtualModuleChunks = [];
@@ -583,6 +584,7 @@ export const findContextChunkIsolationViolations = (
 			continue;
 		}
 
+		analyzedSourceFiles.add(sourceFile);
 		for (const moduleChunk of [
 			...(chunksForSource.get(sourceFile) ?? []),
 			...virtualModuleChunks,
@@ -613,31 +615,43 @@ export const findContextChunkIsolationViolations = (
 
 	return contexts.flatMap((context) => {
 		const chunkNames = new Set();
-		const sourceModuleStillCreatesContext = renderedModulesToAnalyze.some(
-			({ moduleId, renderedModule }) =>
-				moduleId === context.sourceFile &&
-				renderedModuleCreatesContext(renderedModule, context.name),
+		const hasRenderedContextAnalysis = analyzedSourceFiles.has(
+			context.sourceFile,
 		);
 		for (const [moduleId, moduleChunks] of chunksForSource) {
+			const isSourceModule = moduleId === context.sourceFile;
+			const isSourceQueryModule = moduleId.startsWith(`${context.sourceFile}?`);
 			if (
-				moduleId !== context.sourceFile &&
-				(!moduleId.startsWith(`${context.sourceFile}?`) ||
-					(TANSTACK_ROUTE_VIRTUAL_MODULE.test(moduleId) &&
-						(!sourceModuleStillCreatesContext ||
-							!moduleChunks.some(({ renderedModule }) =>
-								renderedModuleCreatesContext(renderedModule, context.name),
-							))))
+				!isSourceModule &&
+				(!isSourceQueryModule || !TANSTACK_ROUTE_VIRTUAL_MODULE.test(moduleId))
 			) {
 				continue;
 			}
 
-			for (const { chunkName } of moduleChunks) {
+			const inspectRenderedContext =
+				hasRenderedContextAnalysis &&
+				(isSourceModule || TANSTACK_ROUTE_VIRTUAL_MODULE.test(moduleId));
+			for (const { chunkName, renderedModule } of moduleChunks) {
+				if (
+					inspectRenderedContext &&
+					!renderedModuleCreatesContext(renderedModule, context.name)
+				) {
+					continue;
+				}
+
 				chunkNames.add(chunkName);
 			}
 		}
 
 		const sourcePath = path.relative(projectDirectory, context.sourceFile);
 		if (chunkNames.size === 0 && !context.isFactoryValue) {
+			if (
+				hasRenderedContextAnalysis &&
+				chunksForSource.has(context.sourceFile)
+			) {
+				return [];
+			}
+
 			return [
 				`${context.name} in ${sourcePath} is not present in a client chunk.`,
 			];

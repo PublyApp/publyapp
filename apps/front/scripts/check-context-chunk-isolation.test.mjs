@@ -540,6 +540,47 @@ void test('counts a sequence-wrapped createContext call in a TanStack route virt
 	);
 });
 
+void test('counts a context duplicated across TanStack virtual-module siblings', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+
+	assert.deepEqual(
+		findContextChunkIsolationViolations(
+			[{ name: 'RouteContext', sourceFile }],
+			[
+				{
+					fileName: 'assets/route.js',
+					modules: {
+						[sourceFile]: { code: 'const route = {};' },
+					},
+				},
+				{
+					fileName: 'assets/route-component.js',
+					modules: {
+						[`${sourceFile}?tsr-split=component`]: {
+							code: 'const RouteContext = React.createContext(null);',
+						},
+					},
+				},
+				{
+					fileName: 'assets/route-loader.js',
+					modules: {
+						[`${sourceFile}?tsr-split=loader`]: {
+							code: 'const RouteContext = React.createContext(null);',
+						},
+					},
+				},
+			],
+			frontDirectory,
+		),
+		[
+			'RouteContext in src/routes/field-validation.tsx is present in multiple client chunks: assets/route-component.js, assets/route-loader.js.',
+		],
+	);
+});
+
 void test('fails closed for an unrecognized rendered createContext callee shape', () => {
 	const sourceFile = path.join(
 		frontDirectory,
