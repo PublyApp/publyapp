@@ -1323,5 +1323,22 @@
 	"landing-closing-title": "Placez votre équipe de publication dans un workflow partagé",
 	"landing-closing-description": "Un plan. Un calendrier. Un ensemble d'approbations. Commencez par un essai léger et gardez le rythme que votre équipe peut porter.",
 	"landing-closing-primary-cta": "Essai gratuit",
-	"landing-closing-secondary-cta": "Voir la démo"
+	"landing-closing-secondary-cta": "Voir la démo",
+	"landing-pricing-title": "Un prix par équipe, pas par marque",
+	"landing-pricing-subtitle": "Tarification provisoire · 14 jours gratuits sur chaque formule",
+	"landing-pricing-studio-name": "Studio",
+	"landing-pricing-studio-price": "19 €",
+	"landing-pricing-studio-description": "Deux profils de marque, trois personnes, un calendrier partagé.",
+	"landing-pricing-studio-cta": "Commencer gratuitement",
+	"landing-pricing-agency-name": "Agence",
+	"landing-pricing-agency-badge": "La plupart des équipes",
+	"landing-pricing-agency-price": "59 €",
+	"landing-pricing-agency-description": "Dix profils, permissions par action et approbations, historique complet.",
+	"landing-pricing-agency-cta": "Commencer l'essai gratuit",
+	"landing-pricing-network-name": "Réseau",
+	"landing-pricing-network-price": "149 €",
+	"landing-pricing-network-description": "Profils illimités, support prioritaire, conservation personnalisée.",
+	"landing-pricing-network-cta": "Nous contacter",
+	"landing-pricing-per-month": "/ mois",
+	"landing-pricing-beta-note": "gratuit pendant la bêta"
 }

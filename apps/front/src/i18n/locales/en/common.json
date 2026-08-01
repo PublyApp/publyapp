@@ -1323,5 +1323,22 @@
 	"landing-closing-title": "Put your publishing team in one shared workflow",
 	"landing-closing-description": "One plan. One calendar. One set of approvals. Start with a lightweight trial and keep the rhythm your team can own.",
 	"landing-closing-primary-cta": "Start free trial",
-	"landing-closing-secondary-cta": "Watch tour"
+	"landing-closing-secondary-cta": "Watch tour",
+	"landing-pricing-title": "One price per team, not per brand",
+	"landing-pricing-subtitle": "Placeholder pricing · 14 days free on every plan",
+	"landing-pricing-studio-name": "Studio",
+	"landing-pricing-studio-price": "€19",
+	"landing-pricing-studio-description": "Two brand profiles, three people, one shared calendar.",
+	"landing-pricing-studio-cta": "Start free",
+	"landing-pricing-agency-name": "Agency",
+	"landing-pricing-agency-badge": "Most teams",
+	"landing-pricing-agency-price": "€59",
+	"landing-pricing-agency-description": "Ten profiles, per-action permissions and approvals, full history.",
+	"landing-pricing-agency-cta": "Start free trial",
+	"landing-pricing-network-name": "Network",
+	"landing-pricing-network-price": "€149",
+	"landing-pricing-network-description": "Unlimited profiles, priority support, custom retention.",
+	"landing-pricing-network-cta": "Talk to us",
+	"landing-pricing-per-month": "/ month",
+	"landing-pricing-beta-note": "free while in beta"
 }

@@ -52,6 +52,37 @@ describe('marketing landing route', () => {
 		expect(screen.getByText('landing-faq-title')).not.toBeNull();
 	});
 
+	test('renders all beta pricing tiers with struck-through prices and signup CTAs', () => {
+		const { container } = render(<IndexRoute />);
+
+		expect(screen.getByTestId('landing-pricing')).not.toBeNull();
+		expect(
+			screen.getByRole('heading', { name: 'landing-pricing-title' }),
+		).not.toBeNull();
+
+		for (const tier of ['studio', 'agency', 'network']) {
+			expect(screen.getByTestId(`landing-pricing-${tier}`)).not.toBeNull();
+			expect(
+				screen
+					.getByRole('link', {
+						name: `landing-pricing-${tier}-cta`,
+					})
+					.getAttribute('href'),
+			).toBe('/signup');
+		}
+
+		for (const priceKey of [
+			'landing-pricing-studio-price',
+			'landing-pricing-agency-price',
+			'landing-pricing-network-price',
+		]) {
+			expect(screen.getByText(priceKey)).toHaveProperty('tagName', 'DEL');
+		}
+
+		expect(screen.getAllByText('landing-pricing-beta-note')).toHaveLength(3);
+		expect(container.querySelectorAll('del')).toHaveLength(3);
+	});
+
 	test('keeps the required navigation targets', () => {
 		render(<IndexRoute />);
 

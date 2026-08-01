@@ -164,6 +164,40 @@ const FAQ_ITEMS: readonly FaqItem[] = [
 	},
 ] as const;
 
+type PricingTier = {
+	id: 'studio' | 'agency' | 'network';
+	nameKey: string;
+	priceKey: string;
+	descriptionKey: string;
+	ctaKey: string;
+	badgeKey?: string;
+};
+
+const PRICING_TIERS: readonly PricingTier[] = [
+	{
+		id: 'studio',
+		nameKey: 'landing-pricing-studio-name',
+		priceKey: 'landing-pricing-studio-price',
+		descriptionKey: 'landing-pricing-studio-description',
+		ctaKey: 'landing-pricing-studio-cta',
+	},
+	{
+		id: 'agency',
+		nameKey: 'landing-pricing-agency-name',
+		priceKey: 'landing-pricing-agency-price',
+		descriptionKey: 'landing-pricing-agency-description',
+		ctaKey: 'landing-pricing-agency-cta',
+		badgeKey: 'landing-pricing-agency-badge',
+	},
+	{
+		id: 'network',
+		nameKey: 'landing-pricing-network-name',
+		priceKey: 'landing-pricing-network-price',
+		descriptionKey: 'landing-pricing-network-description',
+		ctaKey: 'landing-pricing-network-cta',
+	},
+];
+
 export const IndexRoute = () => {
 	const { t } = useTranslation('common');
 	const [activeTab, setActiveTab] = useState<TabId>('calendar');
@@ -439,6 +473,58 @@ export const IndexRoute = () => {
 							<p className="mt-3 text-[15px] leading-[1.65] text-(--publy-foreground-secondary)">
 								{t(step.descriptionKey)}
 							</p>
+						</article>
+					))}
+				</div>
+			</section>
+
+			<section
+				data-testid="landing-pricing"
+				className="pt-[clamp(74px,10.5cqw,156px)]"
+			>
+				<div className="mx-auto max-w-[760px] text-center">
+					<h2 className="text-[clamp(32px,4.2cqw,52px)] leading-[1.08] tracking-[-0.035em]">
+						{t('landing-pricing-title')}
+					</h2>
+					<p className="mx-auto mt-4 max-w-[58ch] text-[16px] leading-[1.68] text-(--publy-foreground-secondary)">
+						{t('landing-pricing-subtitle')}
+					</p>
+				</div>
+				<div className="mt-8 grid gap-4 md:grid-cols-3">
+					{PRICING_TIERS.map((tier) => (
+						<article
+							key={tier.id}
+							data-testid={`landing-pricing-${tier.id}`}
+							className="flex flex-col rounded-[var(--publy-radius-control)] border border-(--publy-border) bg-(--publy-surface-raised) p-6"
+						>
+							{tier.badgeKey ? (
+								<span className="self-start rounded-[var(--publy-radius-small-control)] border border-(--publy-border) px-2.5 py-1 text-xs font-semibold text-(--publy-foreground-secondary)">
+									{t(tier.badgeKey)}
+								</span>
+							) : null}
+							<h3 className="mt-4 text-[22px] font-semibold tracking-[-0.03em] text-(--publy-foreground)">
+								{t(tier.nameKey)}
+							</h3>
+							<div className="mt-5 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+								<span className="text-[34px] font-semibold tracking-[-0.04em] text-(--publy-foreground)">
+									<del>{t(tier.priceKey)}</del>
+								</span>
+								<span className="text-sm text-(--publy-foreground-secondary)">
+									{t('landing-pricing-per-month')}
+								</span>
+								<span className="text-xs text-(--publy-foreground-secondary)">
+									{t('landing-pricing-beta-note')}
+								</span>
+							</div>
+							<p className="mt-4 min-h-[78px] text-[15px] leading-[1.65] text-(--publy-foreground-secondary)">
+								{t(tier.descriptionKey)}
+							</p>
+							<Link
+								to="/signup"
+								className="mt-7 inline-flex h-11 items-center justify-center rounded-[var(--publy-radius-control)] bg-(--publy-foreground) px-5 text-sm font-semibold text-(--publy-background)"
+							>
+								{t(tier.ctaKey)}
+							</Link>
 						</article>
 					))}
 				</div>
