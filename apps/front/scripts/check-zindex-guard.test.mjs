@@ -542,6 +542,18 @@ test('e2e (round 3 important 2): CSS keywords and function names are ASCII-case-
 	);
 });
 
+test('e2e (round 3 important 3): escaped important is decoded before comparison', async () => {
+	const { violations } = await runFixtureGuard(
+		{ 'probe.tsx': 'export const probe = <div />;' },
+		'.probe { z-index: var(--publy-z-raised) !\\69mportant; }\n',
+	);
+	assert.deepEqual(
+		violations,
+		[],
+		`escaped important must stay green: ${JSON.stringify(violations)}`,
+	);
+});
+
 test('e2e (innocent): innocent constructs through the production scanner', async () => {
 	const innocentFiles = {
 		'type-literal.d.ts': `export type Layer = 'z-50';`,

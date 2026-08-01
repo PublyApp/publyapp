@@ -656,8 +656,17 @@ export const KNOWN_RAW_Z_INDEX_DECLARATIONS = [
 
 const normalizeWhitespace = (text) => text.replace(/[\t\n\f\r ]+/g, ' ').trim();
 
-const stripImportant = (value) =>
-	value.replace(/\s*!\s*important\s*$/i, '').trim();
+const stripImportant = (value) => {
+	const bang = value.lastIndexOf('!');
+	if (bang === -1) {
+		return value.trim();
+	}
+	const identifier = value.slice(bang + 1).trim();
+	if (canonicaliseCssProperty(identifier) !== 'important') {
+		return value.trim();
+	}
+	return value.slice(0, bang).trim();
+};
 
 const describeCssContainer = (node) => {
 	if (node.type === 'rule') {

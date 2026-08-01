@@ -69,8 +69,9 @@ Four components:
 4. **Compiled-CSS gate.** The production-equivalent build output is parsed with PostCSS (not
    regex-matched or delimiter-counted), and every `z-index:` declaration that does not resolve through
    `var(--publy-z-…)` is reported. The parser canonicalises property names (`Z-INDEX: 50` and
-   `z-\69ndex: 50` are the same declaration), normalises an optional trailing `!important`, and
-   attributes each declaration to its complete outer-rule and at-rule ancestry. That is what lets the
+   `z-\69ndex: 50` are the same declaration), decodes and normalises an optional trailing
+   `!important` identifier (including escaped forms such as `!\69mportant`), and attributes each
+   declaration to its complete outer-rule and at-rule ancestry. That is what lets the
    one raw exception bind to its exact `@layer components` + selector context, while CSS comments,
    nested rules, and braces inside custom-property values retain their real grammar. This proves what
    actually ships — the exact failure that killed the previous attempt, whose own fixture literals
