@@ -958,6 +958,74 @@ void test(
 );
 
 void test(
+	'passes a real TanStack route build when split groups consume one shared context',
+	{ timeout: 120_000 },
+	async () => {
+		const inventory = [
+			{ name: 'ProbeContext', sourceFile: 'src/routes/probe.tsx' },
+			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'FourthContext', sourceFile: 'src/contexts.tsx' },
+		];
+		const result = await buildRouteFixture({
+			files: {
+				'src/routes/probe.tsx': `
+					import { createFileRoute } from '@tanstack/react-router';
+					import { createContext } from 'react';
+					const ProbeContext = createContext(null);
+					const Probe = () => <ProbeContext.Provider value={null}>probe</ProbeContext.Provider>;
+					const ProbeError = () => <ProbeContext.Provider value={null}>error</ProbeContext.Provider>;
+					const ProbeNotFound = () => <ProbeContext.Provider value={null}>not found</ProbeContext.Provider>;
+					export const Route = createFileRoute('/probe')({ component: Probe, errorComponent: ProbeError, notFoundComponent: ProbeNotFound });
+				`,
+			},
+			inventory,
+		});
+
+		try {
+			assert.equal(result.status, 0, result.output);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
+	'passes a real TanStack route build when its reference module consumes a shared context',
+	{ timeout: 120_000 },
+	async () => {
+		const inventory = [
+			{ name: 'ProbeContext', sourceFile: 'src/routes/probe.tsx' },
+			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'FourthContext', sourceFile: 'src/contexts.tsx' },
+		];
+		const result = await buildRouteFixture({
+			files: {
+				'src/routes/probe.tsx': `
+					import { createFileRoute } from '@tanstack/react-router';
+					import { createContext, useContext } from 'react';
+					const ProbeContext = createContext(null);
+					export const useProbe = () => useContext(ProbeContext);
+					const Probe = () => <ProbeContext.Provider value={null}>probe</ProbeContext.Provider>;
+					const ProbeError = () => <ProbeContext.Provider value={null}>error</ProbeContext.Provider>;
+					const ProbeNotFound = () => <ProbeContext.Provider value={null}>not found</ProbeContext.Provider>;
+					export const Route = createFileRoute('/probe')({ component: Probe, errorComponent: ProbeError, notFoundComponent: ProbeNotFound });
+				`,
+			},
+			inventory,
+			rootImportsProbe: true,
+		});
+
+		try {
+			assert.equal(result.status, 0, result.output);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
 	'passes a real TanStack route build when its context is used only by the split component',
 	{ timeout: 120_000 },
 	async () => {

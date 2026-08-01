@@ -344,14 +344,9 @@ const analyzeRenderedContextModule = (
 	moduleLabel,
 ) => {
 	const recognizedContextNames = new Set();
-	const seenContextNames = new Set();
 	let hasUnattributedCreateContextCall = false;
 
 	const visit = (node) => {
-		if (isIdentifier(node) && expectedContextNames.has(node.text)) {
-			seenContextNames.add(node.text);
-		}
-
 		if (isCallExpression(node)) {
 			if (isRenderedCreateContextCallee(node.expression)) {
 				const declaration = node.parent;
@@ -376,17 +371,6 @@ const analyzeRenderedContextModule = (
 	};
 
 	visit(sourceFile);
-	for (const contextName of seenContextNames) {
-		if (
-			!recognizedContextNames.has(contextName) &&
-			!hasUnattributedCreateContextCall
-		) {
-			throw new Error(
-				`Context chunk isolation guard cannot prove how ${contextName} is created in ${moduleLabel}.`,
-			);
-		}
-	}
-
 	return { hasUnattributedCreateContextCall, recognizedContextNames };
 };
 
