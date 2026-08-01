@@ -180,8 +180,14 @@ public sealed class EntityConfigurationConventionSpec {
 		// constraint, explicit primary-key name, composite junction key, or column default)
 		// or, for the annotation-mapped entities, its data annotations (table name).
 		// This proves Configure actually ran with its real content, not just that a class
-		// exists. All expectations below are already reflected in the committed
-		// AppDbContextModelSnapshot, so the model cannot drift from it while this passes.
+		// exists. The expectations below are each reflected in the committed
+		// AppDbContextModelSnapshot, so those expectations cannot drift from it while this
+		// passes — but this test never opens the snapshot, and it asserts a hand-listed
+		// subset rather than the whole model. A mapping it does not name (an inline
+		// modelBuilder.Entity<T>().ToTable(...) override, say) can still drift the model
+		// away from the snapshot with every assertion here green. Comparing the full model
+		// to the snapshot is a separate, still-missing check tracked by #1067; nothing in
+		// this file substitutes for it.
 		//
 		// The design-time model is the full model that migrations and the model snapshot
 		// are generated from; the read-optimized model the runtime hands out via
